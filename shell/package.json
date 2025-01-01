@@ -15,6 +15,7 @@
     "build-ts": "cross-env NODE_ENV=production rollup -c",
     "build-html": "sed s/@VERSION@/$npm_package_version/ src/index.html >dist/index.html",
     "build": "npm run build-ts && npm run build-html",
+    "tsc": "tsc",
     "watch": "npm run build-html && rollup -w -c",
     "clean": "rimraf .cache dist/assets*",
     "start": "web-dev-server"
@@ -41,8 +42,8 @@
     "@types/debounce": "^1.2.4",
     "@types/node": "^22.10.2",
     "@types/quill": "^2.0.14",
-    "@types/react": "^19.0.2",
-    "@types/react-dom": "^19.0.2",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
     "@types/turndown": "^5.0.5",
     "cross-env": "^7.0.3",
     "dayjs": "^1.11.13",
@@ -57,10 +58,10 @@
     "quill": "^2.0.3",
     "quill-cursors": "^4.0.3",
     "quilljs-markdown": "^1.2.0",
-    "react": "^19.0.0",
+    "react": "^18.3.1",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
-    "react-dom": "^19.0.0",
+    "react-dom": "^18.3.1",
     "react-i18next": "^15.2.0",
     "react-icons": "^5.4.0",
     "react-image-crop": "^11.0.7",
@@ -68,6 +69,7 @@
     "react-photo-album": "^3.0.2",
     "react-popper": "^2.3.0",
     "react-query": "^3.39.3",
+    "react-quill-new": "^3.3.3",
     "react-router-dom": "^7.1.1",
     "rimraf": "^6.0.1",
     "rollup": "^4.29.1",
@@ -84,8 +86,5 @@
     "y-websocket": "^2.1.0",
     "yet-another-react-lightbox": "^3.21.7",
     "yjs": "^13.6.21"
-  },
-  "dependencies": {
-    "react-quill-new": "^3.3.3"
   }
 }

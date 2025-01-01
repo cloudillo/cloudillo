@@ -1,10 +1,17 @@
 {
-	"extends": "../tsconfig-service-base.json",
 	"compilerOptions": {
+		"target": "es2021",
 		"module": "nodenext",
-		"moduleResolution": "nodenext",
+		"declaration": true,
+		"sourceMap": true,
+		"strict": true,
+		"esModuleInterop": true,
+
 		"outDir": "build",
-		"skipLibCheck": true
+		"skipLibCheck": true,
+		"paths": {
+			"*": ["./src/types/*"]
+		}
 	},
 	"files": ["src/index.ts", "src/worker.ts"]
 }

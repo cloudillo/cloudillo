@@ -1,6 +1,13 @@
 {
-	"extends": "../tsconfig-service-base.json",
 	"compilerOptions": {
+		"target": "es2021",
+		"module": "esnext",
+		"moduleResolution": "node",
+		"declaration": true,
+		"sourceMap": true,
+		"strict": true,
+		"esModuleInterop": true,
+
 		"outDir": "build",
 		"skipLibCheck": true,
 		"paths": {

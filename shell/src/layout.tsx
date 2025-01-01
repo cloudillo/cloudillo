@@ -27,11 +27,11 @@ const APP_CONFIG: AppConfigState = {
 		},
 		{
 			id: 'prello',
-			url: 'https://cloud.w9.hu/prello/index.html'
+			url: '/prello/index.html'
 		},
 		{
 			id: 'formillo',
-			url: 'https://cloud.w9.hu/formillo/index.html'
+			url: '/formillo/index.html'
 		}
 	],
 	mime: {

@@ -1,0 +1,26 @@
+{
+    "name": "@cloudillo/crdt-adapter-fs",
+    "version": "0.0.1",
+    "description": "Cloudillo filesystem based CRDT adapter",
+    "type": "module",
+    "main": "lib/index.js",
+    "scripts": {
+        "build": "tsc",
+        "watch": "tsc -w",
+        "clean": "rimraf .cache lib"
+    },
+    "author": "Szilárd Hajba <szilu@cloudillo.org",
+    "license": "LGPL-3.0-or-later",
+    "dependencies": {
+        "@cloudillo/server": "workspace:^",
+        "@symbion/runtype": "^1.1.1",
+        "@types/node": "^22.10.2",
+        "lib0": "^0.2.99",
+        "y-leveldb": "^0.1.2",
+        "yjs": "^13.6.21"
+    },
+    "devDependencies": {
+        "rimraf": "^6.0.1",
+        "typescript": "^5.7.2"
+    }
+}

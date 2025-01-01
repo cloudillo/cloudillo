@@ -1,0 +1,75 @@
+.c-profile-pic-container {
+	width: 10rem;
+	position: absolute;
+	left: 2rem;
+	bottom: 0rem;
+}
+
+.c-profile-pic {
+	width: 10rem;
+	border-radius: 50%;
+	/*
+	border: 0.5rem solid var(--col-surface);
+	*/
+	border: 0.5rem solid var(--col-bg);
+}
+
+.c-profile-header {
+	padding-bottom: 5rem;
+	/*
+	padding-left: 15rem;
+	height: 5rem;
+	border-top: 0.5rem solid var(--col-surface);
+	*/
+}
+
+.c-profile-cover {
+	border-top-left-radius: var(--border-radius-lg);
+	border-top-right-radius: var(--border-radius-lg);
+}
+
+.c-profile-title {
+	padding-left: 2rem;
+}
+
+.c-overlay-icon {
+	display: flex;
+	color: #fff;
+	background: rgba(0, 0, 0, 0.5);
+	border-radius: 50%;
+	padding: 0.5rem;
+	cursor: pointer;
+
+	& > svg {
+		height: 2rem;
+	}
+}
+
+.ql-container {
+	font-size: 1rem;
+}
+
+.ql-editor {
+	padding: 0;
+}
+/*
+.ql-editor {
+	h1 { font-size: 1.5rem !important; }
+	h2 { font-size: 1.17rem !important; }
+	.ql-blank::before {
+		color: var(--col-txt);
+	}
+}
+*/
+
+@media screen and (max-width: 768px) {
+	.c-profile-pic { width: 8rem; left: 2rem; bottom: 4rem; }
+	.c-profile-pic { width: 8rem; }
+	/*
+	.c-profile-header { height: 4rem; padding-left: 12rem; }
+	*/
+	.c-profile-header { padding-bottom: 4rem; }
+}
+
+/* vim: ts=4
+ */

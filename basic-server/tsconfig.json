@@ -1,0 +1,10 @@
+{
+	"extends": "../tsconfig-service-base.json",
+	"compilerOptions": {
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
+		"outDir": "build",
+		"skipLibCheck": true
+	},
+	"files": ["src/index.ts", "src/worker.ts"]
+}

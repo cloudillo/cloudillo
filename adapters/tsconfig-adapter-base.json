@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+	"target": "es2023",
+	"module": "nodenext",
+	"moduleResolution": "nodenext",
+	"declaration": true,
+
+	"jsx": "react",
+	"strict": true,
+	"resolveJsonModule": true,
+	"allowSyntheticDefaultImports": true
+    }
+}

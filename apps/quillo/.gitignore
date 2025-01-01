@@ -1,0 +1,3 @@
+dist/assets
+dist/assets-*
+dist/*.html

@@ -1,0 +1,43 @@
+.c-profile-card {
+	display: flex;
+
+	.picture {
+		width: 2.5rem;
+		height: 2.5rem;
+		border-radius: 50%;
+	}
+
+	.picture.small {
+		width: 2rem;
+		height: 2rem;
+	}
+
+	.picture.tiny {
+		width: 1.5rem;
+		height: 1.5rem;
+		position: absolute;
+		right: 0;
+		bottom: 0;
+	}
+
+	.body {
+		display: flex;
+		flex-direction: column;
+		margin: 0.1rem 0 0.1rem 0.5rem;
+	}
+}
+
+.c-avatar {
+	width: 2.5rem;
+	height: 2.5rem;
+	border-radius: 50%;
+
+	&.small {
+		width: 2rem;
+		height: 2rem;
+	}
+}
+
+/*
+ vim: ts=4
+ */

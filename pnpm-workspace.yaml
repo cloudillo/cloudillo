@@ -1,0 +1,9 @@
+packages:
+  - 'server'
+  - 'basic-server'
+  - 'shell'
+  - 'libs/*'
+  - 'adapters/*'
+  - 'apps/*'
+  - 'local/*'
+  #- 'android-app'

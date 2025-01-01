@@ -1,0 +1,4 @@
+{
+	"extends": "../tsconfig-app-base.json",
+	"files": ["src/index.tsx"]
+}

@@ -1,0 +1,33 @@
+{
+    "name": "@cloudillo/auth-adapter-sqlite",
+    "version": "0.0.1",
+    "description": "Cloudillo SQLite Auth Adapter",
+    "type": "module",
+    "main": "lib/index.js",
+    "scripts": {
+        "build": "tsc",
+        "watch": "tsc -w",
+        "clean": "rimraf .cache lib"
+    },
+    "author": "Szilárd Hajba <szilu@cloudillo.org",
+    "license": "LGPL-3.0-or-later",
+    "dependencies": {
+        "@cloudillo/server": "workspace:^",
+        "@symbion/runtype": "^1.1.1",
+        "@types/bcrypt": "^5.0.2",
+        "@types/jsonwebtoken": "^9.0.7",
+        "@types/node": "^22.10.2",
+        "bcrypt": "^5.1.1",
+        "dayjs": "^1.11.13",
+        "fido2-lib": "^3.5.3",
+        "jsonwebtoken": "^9.0.2",
+        "lru-cache": "^11.0.2",
+        "promised-sqlite3": "^2.1.0",
+        "sqlite": "^5.1.1",
+        "sqlite3": "5.1.7"
+    },
+    "devDependencies": {
+        "rimraf": "^6.0.1",
+        "typescript": "^5.7.2"
+    }
+}

@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+	"target": "es2021",
+	"module": "esnext",
+	"moduleResolution": "bundler",
+	"declaration": true,
+
+	"jsx": "react",
+	"strict": true,
+	"resolveJsonModule": true,
+	"allowSyntheticDefaultImports": true
+    }
+}

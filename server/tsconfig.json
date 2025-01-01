@@ -1,0 +1,11 @@
+{
+	"extends": "../tsconfig-service-base.json",
+	"compilerOptions": {
+		"outDir": "build",
+		"skipLibCheck": true,
+		"paths": {
+			"*": ["./src/types/*"]
+		}
+	},
+	"files": ["src/index.ts", "src/worker.ts"]
+}

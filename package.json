@@ -1,0 +1,8 @@
+{
+	"private": true,
+	"packageManager": "pnpm@9.14.4",
+	"workspaces": [
+		"server",
+		"frontend"
+	]
+}

@@ -1,0 +1,42 @@
+{
+  "name": "@cloudillo/base",
+  "version": "0.0.1",
+  "description": "Cloudillo base library",
+  "type": "module",
+  "main": "lib/index.js",
+  "jest": {
+    "preset": "ts-jest",
+    "moduleNameMapper": {
+      "^~/(.*)$": "<rootDir>/$1"
+    }
+  },
+  "exports": {
+    ".": {
+      "import": "./lib/index.js",
+      "types": "./lib/index.d.ts"
+    },
+    "./types": {
+      "import": "./lib/types.ts",
+      "types": "./lib/types.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "clean": "rimraf .cache lib*"
+  },
+  "author": "Szilárd Hajba <szilu@cloudillo.org",
+  "license": "LGPL-3.0-or-later",
+  "devDependencies": {
+    "@symbion/runtype": "^1.1.1",
+    "jotai": "^2.11.0",
+    "lib0": "^0.2.99",
+    "rimraf": "^6.0.1",
+    "tslib": "^2.8.1",
+    "typescript": "^5.7.2",
+    "y-indexeddb": "^9.0.12",
+    "y-protocols": "^1.0.6",
+    "y-websocket": "2.1.0",
+    "yjs": "^13.6.21"
+  }
+}

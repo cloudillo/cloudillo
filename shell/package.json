@@ -35,7 +35,7 @@
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^12.1.2",
     "@simplewebauthn/browser": "^13.0.0",
-    "@symbion/opalui": "^0.10.0",
+    "@symbion/opalui": "^0.11.0",
     "@symbion/runtype": "^1.1.1",
     "@symbion/simple-form": "^0.11.0",
     "@symbion/ui-core": "^0.0.11",

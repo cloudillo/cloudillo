@@ -30,7 +30,7 @@
   "dependencies": {
     "@cloudillo/auth-adapter-sqlite": "workspace:^",
     "@cloudillo/blob-adapter-fs": "workspace:^",
-    "@cloudillo/crdt-adapter-fs": "workspace:^",
+    "@cloudillo/crdt-adapter-leveldb": "workspace:^",
     "@cloudillo/database-adapter-acebase": "workspace:^",
     "@cloudillo/message-bus-adapter-inprocess": "workspace:^",
     "@cloudillo/meta-adapter-sqlite": "workspace:^",

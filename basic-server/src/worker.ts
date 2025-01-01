@@ -29,7 +29,7 @@ import * as Worker from '@cloudillo/server/worker'
 import * as AuthAdapter from '@cloudillo/auth-adapter-sqlite'
 import * as MetaAdapter from '@cloudillo/meta-adapter-sqlite'
 import * as BlobAdapter from '@cloudillo/blob-adapter-fs'
-import * as CrdtAdapter from '@cloudillo/crdt-adapter-fs'
+import * as CrdtAdapter from '@cloudillo/crdt-adapter-leveldb'
 import * as DatabaseAdapter from '@cloudillo/database-adapter-acebase'
 import * as MessageBusAdapter from '@cloudillo/message-bus-adapter-inprocess'
 

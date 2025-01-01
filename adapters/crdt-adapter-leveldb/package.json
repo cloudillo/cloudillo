@@ -1,5 +1,5 @@
 {
-    "name": "@cloudillo/crdt-adapter-fs",
+    "name": "@cloudillo/crdt-adapter-leveldb",
     "version": "0.0.1",
     "description": "Cloudillo filesystem based CRDT adapter",
     "type": "module",

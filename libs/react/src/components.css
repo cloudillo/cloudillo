@@ -1,5 +1,6 @@
 .c-profile-card {
 	display: flex;
+	text-align: left;
 
 	.picture {
 		width: 2.5rem;

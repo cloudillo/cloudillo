@@ -15,11 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import { usePopper } from 'react-popper'
-import { useCombobox } from 'downshift'
-import debounce from 'debounce'
 
 import {
 	LuPlus as IcPlus,
@@ -27,6 +23,8 @@ import {
 	LuHash as IcHash,
 	LuX as IcDelete
 } from 'react-icons/lu'
+
+import { Select } from '@cloudillo/react'
 
 export function Tags({ tags }: { tags?: string[] }) {
 	return (
@@ -38,88 +36,6 @@ export function Tags({ tags }: { tags?: string[] }) {
 			))}
 		</>
 	)
-}
-
-interface SelectProps<T> {
-	className?: string
-	inputClassName?: string
-	getData: (q: string) => Promise<T[] | undefined>
-	onChange?: (item: T) => void
-	onSelectItem?: (item: T | undefined) => void
-	itemToId: (item: T) => string
-	itemToString: (item: T | null) => string
-	renderItem: (props: T) => React.ReactNode
-}
-export function Select<T>({ className, inputClassName, getData, onChange, onSelectItem, itemToId, itemToString, renderItem }: SelectProps<T>) {
-	const { t } = useTranslation()
-	const [ popperRef, setPopperRef ] = React.useState<HTMLElement | null>(null)
-	const [ popperEl, setPopperEl ] = React.useState<HTMLUListElement | null>(null)
-	const [items, setItems] = React.useState<T[]>([])
-	//const deboucedOnInputValueChange = React.useMemo(() => debounce(onInputValueChange, 500), [])
-	const deboucedOnInputValueChange = debounce(onInputValueChange, 500)
-	let tmpRef: React.MutableRefObject<HTMLUListElement> | undefined
-	const {styles: popperStyles, attributes} = usePopper(popperRef, popperEl, {
-		placement: 'bottom-start',
-		strategy: 'fixed'
-	})
-	const s = useCombobox({
-		onInputValueChange: deboucedOnInputValueChange,
-		items,
-		itemToString,
-		//onSelect: (selectedItem: T | undefined) => {
-		onSelectedItemChange: ({ selectedItem }) => {
-			if (selectedItem) onChange?.(selectedItem)
-			onSelectItem?.(selectedItem || undefined)
-			s.setInputValue('')
-		}
-	})
-	//console.log('usePopper', popperRef, popperEl, popperStyles.popper, attributes.popper)
-
-	React.useEffect(function effect() {
-		return function cleanup() {
-			console.log('cleanup')
-			deboucedOnInputValueChange.clear()
-		}
-	}, [])
-
-	function getMenuProps() {
-		const props = s.getMenuProps()
-		return {
-			...props,
-			ref: (el: HTMLUListElement) => {
-				//console.log('getMenuProps', el)
-				setPopperEl(el)
-				//if (props.ref) (props.ref as React.MutableRefObject<HTMLUListElement>).current = el
-				if (props.ref) {
-					if (typeof props.ref === 'function') {
-						(props.ref as React.RefCallback<HTMLUListElement>)(el)
-					} else {
-						(props.ref as React.MutableRefObject<HTMLUListElement>).current = el
-					}
-				}
-			}
-		}
-	}
-
-	function onInputValueChange({ inputValue }: { inputValue?: string }) {
-		getData(inputValue || '').then(i => setItems(i || []))
-	}
-
-	//return <details className={'c-dropdown ' + (className || '')} open={s.isOpen}>
-	return <div className={'c-dropdown ' + (className || '')}>
-		{/*
-		<summary className="c-button secondary">
-		*/}
-		<summary ref={setPopperRef}>
-			<input className={'c-input ' + (inputClassName || '')} autoFocus placeholder={t('Add tag...')} {...s.getInputProps()}/>
-		</summary>
-		{createPortal(<ul {...getMenuProps()} style={popperStyles.popper} className="c-nav flex-column" {...attributes.popper}>
-			{items.map((item, idx) => <li key={idx} className={'c-nav-item' + (s.highlightedIndex === idx ? ' selected' : '')} {...s.getItemProps({ item, idx})}>
-				{renderItem(item)}
-			</li>)}
-		</ul>, document.getElementById('popper-container')!)}
-	</div>
-	//</details>
 }
 
 interface Tag {
@@ -175,7 +91,7 @@ export function EditTags({ tags, listTags, addTag, removeTag }: EditTagsProps) {
 			</div>
 			{add && <div className="c-input-group">
 				<span className="c-button icon"><IcHash/></span>
-				<Select className="flex-fill" getData={getData} itemToId={i => i.tag} itemToString={i => i?.tag || ''} renderItem={renderItem} onSelectItem={onAdd}/>
+				<Select className="flex-fill" placeholder={t('Add tag...')} getData={getData} itemToId={i => i.tag} itemToString={i => i?.tag || ''} renderItem={renderItem} onSelectItem={onAdd}/>
 			</div>}
 		</>
 }

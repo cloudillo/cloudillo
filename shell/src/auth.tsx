@@ -275,7 +275,7 @@ export function RegisterForm() {
 	const [error, setError] = React.useState<string | undefined>()
 	console.log('registerToken', registerToken)
 
-	const onChangeVerify = React.useCallback(debounce(async function onVerify(idTag: string, appDomain?: string) {
+	const onChangeVerify = React.useCallback(debounce((async function onVerify(idTag: string, appDomain?: string) {
 		console.log('onChangeVerify')
 		if (!validIdentityTag(idTag)) {
 			await dialog.simple(t('Invalid identity tag!'), t('You must provide a valid identity tag!'))
@@ -299,7 +299,7 @@ export function RegisterForm() {
 		console.log('RES', res)
 		setRunning(undefined)
 		setVerifyState(res)
-	}, 500), [identityProvider, registerToken])
+	}).bind(null), 500), [identityProvider, registerToken])
 
 	async function onSubmit(evt: React.FormEvent) {
 		evt.preventDefault()

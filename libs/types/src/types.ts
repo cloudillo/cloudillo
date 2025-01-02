@@ -16,6 +16,13 @@
 
 import * as T from '@symbion/runtype'
 
+export const tProfile = T.struct({
+	idTag: T.string,
+	name: T.optional(T.string),
+	profilePic: T.optional(T.string)
+})
+export type Profile = T.TypeOf<typeof tProfile>
+
 export const tActionType = T.literal('POST', 'REPOST', 'REACT', 'CMNT', 'FLLW', 'SHRE', 'MSG')
 export type ActionType = T.TypeOf<typeof tActionType>
 

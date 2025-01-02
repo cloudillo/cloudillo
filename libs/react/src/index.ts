@@ -16,5 +16,7 @@
 
 export * from './cloudillo-react.js'
 export * from './components.js'
+export * from './select.js'
+export * from './profile-dropdown.js'
 
 // vim: ts=4

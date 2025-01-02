@@ -52,7 +52,8 @@ import { Columns, ColumnConfig, DataTable, TableDataProvider } from '@symbion/ui
 import '@symbion/ui-core/datatable.css'
 import '@symbion/ui-core/scroll.css'
 
-import { useApi, Button, Fcb, mergeClasses } from '@cloudillo/react'
+import { Profile } from '@cloudillo/types'
+import { useApi, Button, Fcb, EditProfileList, mergeClasses } from '@cloudillo/react'
 
 import { useAppConfig, parseQS, qs } from '../utils.js'
 import { Tags, EditTags } from '../tags.js'
@@ -414,6 +415,7 @@ export function FilesApp() {
 	const [columnConfig, setColumnConfig] = React.useState(fileColumnConfig)
 	const fileListData = useFileListData()
 	const [selectedFile, setSelectedFile] = React.useState<File | undefined>()
+	const [permissionList, setPermissionList] = React.useState<Profile[]>()
 	// rename
 	const [renameFileId, setRenameFileId] = React.useState<string | undefined>()
 	const [renameFileName, setRenameFileName] = React.useState<string | undefined>()
@@ -423,6 +425,13 @@ export function FilesApp() {
 		console.log('Files location', location)
 		setShowFilter(false)
 	}, [location])
+
+	function selectFile(file?: File) {
+		setSelectedFile(file)
+		if (file) {
+			setPermissionList([])
+		}
+	}
 
 	function openFile(fileId?: string) {
 		const file = fileListData.getData()?.find(f => f.fileId === fileId)
@@ -450,6 +459,23 @@ export function FilesApp() {
 		setRenameFileId(undefined)
 		setRenameFileName(undefined)
 		fileListData.refresh()
+	}
+
+	// Permissions //
+	/////////////////
+	async function listProfiles(q: string) {
+		const res = !q ? { profiles: [] } : await api.get<{ profiles: Profile[] }>('', '/profile', {
+			query: { type: 'U', q }
+		})
+		return res.profiles
+	}
+
+	async function addPerm(profile: Profile) {
+		setPermissionList(pl => (pl || []).find(p => p.idTag === profile.idTag) ? pl : [...(pl || []), profile])
+	}
+
+	async function removePerm(idTag: string) {
+		setPermissionList(permissionList?.filter(p => p.idTag !== idTag))
 	}
 
 	if (!fileListData.getData()) return <h1>Loading...</h1>
@@ -489,6 +515,8 @@ export function FilesApp() {
 				<div className="c-tag-list">
 					<TagsCell fileId={selectedFile.fileId} tags={selectedFile.tags} editable/>
 				</div>
+				<h4>{t('Permissions')}</h4>
+				<EditProfileList profiles={permissionList} listProfiles={listProfiles} addProfile={addPerm} removeProfile={removePerm}/>
 			</div> }
 		</Fcb.Details>
 	</Fcb.Container>

@@ -15,7 +15,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { useAppConfig, useApi, useAuth, parseQS, qs } from '../utils.js'
+
+import { useAuth, useApi } from '@cloudillo/react'
 
 export function useSettings(prefix: string | string[]) {
 	const api = useApi()

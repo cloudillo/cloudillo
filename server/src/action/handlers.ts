@@ -27,8 +27,8 @@ import { Context } from '../index.js'
 import { validate, validateQS, sha256 } from '../utils.js'
 import { determineTnId, determineTenantTag } from '../auth.js'
 //import * as meta from '../meta-store/index.js'
-import { getProfile, createAction } from './action.js'
-import { tProfile } from '../profile/handlers.js'
+import { createAction } from './action.js'
+import { tProfile, getProfile } from '../profile/profile.js'
 import { metaAdapter } from '../adapters.js'
 
 //////////////////

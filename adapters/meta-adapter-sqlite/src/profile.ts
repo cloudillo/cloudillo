@@ -57,21 +57,33 @@ export async function getIdentityTag(tnId: number) {
 	return res?.idTag
 }
 
-export async function createProfile(tnId: number, profile: Omit<Profile, 'id'>) {
-	await db.run('INSERT INTO profiles (tnId, idTag, name, profilePic, status) VALUES ($tnId, $idTag, $name, $profilePic, $status)', {
+export async function createProfile(tnId: number, profile: Omit<Profile, 'id'>, eTag?: string | undefined) {
+	await db.run(`INSERT INTO profiles (tnId, idTag, name, profilePic, eTag, status)
+		VALUES ($tnId, $idTag, $name, $profilePic, $eTag, $status)
+		ON CONFLICT (tnId, idTag) DO UPDATE SET
+			name = $name,
+			profilePic = $profilePic,
+			eTag = $eTag
+	`, {
 		$tnId: tnId,
 		$idTag: profile.idTag,
-		$idName: profile.name,
+		$name: profile.name,
 		$profilePic: profile.profilePic,
+		$eTag: eTag ? eTag.replace('"', '') : undefined,
 		$status: profile.status
 	})
 }
 
 export async function updateProfile(tnId: number, idTag: string, opts: UpdateProfileOptions) {
-	await db.run('UPDATE profiles SET status = $status WHERE tnId = $tnId AND idTag = $idTag', {
+	await db.run(`UPDATE profiles SET
+		status = coalesce($status, status),
+		syncedAt = CASE WHEN $synced THEN unixepoch() ELSE syncedAt END
+		WHERE tnId = $tnId AND idTag = $idTag
+	`, {
 		$tnId: tnId,
 		$idTag: idTag,
-		$status: opts.status
+		$status: opts.status,
+		$synced: opts.synced
 	})
 }
 
@@ -90,6 +102,32 @@ export async function addProfilePublicKey(tnId: number, idTag: string, key: { ke
 		$publicKey: key.publicKey,
 		$expire: key.expires
 	})
+}
+
+export async function processProfileRefresh(callback: (tnId: number, idTag: string, eTag: string | undefined) => Promise<boolean>) {
+	let processed = 0
+
+	const profiles = await db.all<{ tnId: number, idTag: string, eTag: string | undefined, name: string }>(
+		`SELECT p.tnId, p.idTag, p.eTag, p.name, p.type, p.profilePic, p.status FROM profiles p
+			WHERE coalesce(p.syncedAt, 0)<=unixepoch()-$timeDiff ORDER BY p.syncedAt LIMIT 100`,
+		{ $timeDiff: 60 * 60 * 24 * 1 /* 1 day */ }
+	)
+	for (const profile of profiles) {
+		console.log('Syncing profile', profile.tnId, profile.idTag)
+		try {
+			const val = await callback(profile.tnId, profile.idTag, profile.eTag)
+			if (val) {
+				await db.run('UPDATE profiles SET syncedAt=unixepoch() WHERE tnId = $tnId AND idTag = $idTag', {
+					$tnId: profile.tnId,
+					$idTag: profile.idTag
+				})
+				processed++
+			}
+		} catch (err) {
+			console.log('ERROR', err)
+		}
+	}
+	return processed
 }
 
 // vim: ts=4

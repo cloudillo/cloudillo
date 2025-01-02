@@ -4,5 +4,8 @@
 	"workspaces": [
 		"server",
 		"frontend"
-	]
+	],
+	"scripts": {
+		"build-docker": "docker --context default build -t cloudillo-basic:$npm_package_version -t cloudillo-basic:latest ."
+	}
 }

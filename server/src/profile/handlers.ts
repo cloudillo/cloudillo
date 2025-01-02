@@ -16,6 +16,8 @@
 
 import { HttpError} from 'koa'
 import rawBody from 'raw-body'
+import { LRUCache } from 'lru-cache'
+
 import * as T from '@symbion/runtype'
 
 import * as Settings from '../settings.js'
@@ -25,72 +27,51 @@ import { validate, validateQS } from '../utils.js'
 import { getAuthProfile, getAuthProfileFull } from '../auth.js'
 //import * as meta from '../meta-store/index.js'
 import { metaAdapter } from '../adapters.js'
+import { sha256 } from '../utils.js'
+import { ProfileKeys } from './profile.js'
 
 //////////////////
 // API handlers //
 //////////////////
-
-/* Own Profile */
-export const tProfile = T.struct({
-	idTag: T.string,
-	name: T.string,
-	profilePic: T.optional(T.string)
-})
-export type Profile = T.TypeOf<typeof tProfile>
-
-export const tProfileKeys = T.struct({
-	idTag: T.string,
-	name: T.string,
-	profilePic: T.optional(T.string),
-	coverPic: T.optional(T.string),
-	keys: T.array(T.struct({
-		keyId: T.string,
-		publicKey: T.string,
-		expires: T.optional(T.date)
-	}))
-})
-export type ProfileKeys = T.TypeOf<typeof tProfileKeys>
-
-export const tFullProfile = T.struct({
-	idTag: T.string,
-	name: T.string,
-	profilePic: T.optional(T.struct({
-		ic: T.string,
-		sd: T.string,
-		hd: T.optional(T.string)
-	})),
-	coverPic: T.optional(T.struct({
-		sd: T.string,
-		hd: T.optional(T.string)
-	})),
-	x: T.optional(T.record(T.string))
-})
-export type FullProfile = T.TypeOf<typeof tFullProfile>
+const tenantCache = new LRUCache<string, string>({ max: 100, ttl: 1000 * 60 * 60 * 24 /* 24h */ })
 
 export async function getOwnProfile(ctx: Context) {
-	const profile = await metaAdapter.readTenant(ctx.state.tnId)
-	console.log('PROFILE', ctx.state.tenantTag, profile)
+	const { tnId, tenantTag } = ctx.state
+
+	const eTagMatch = ctx.header['if-none-match']
+	//console.log('IF NONE MATCH', eTagMatch, tenantCache.get(tenantTag))
+	if (eTagMatch) {
+		if (tenantCache.get(tenantTag) === eTagMatch) {
+			ctx.status = 304
+			return
+		}
+	}
+
+	const profile = await metaAdapter.readTenant(tnId)
+	const authProfile = await getAuthProfileFull(tenantTag)
 
 	if (!profile) return ctx.throw(404)
 
-	const ret: Profile = {
+	const ret: ProfileKeys = {
 		idTag: profile.idTag,
 		name: profile.name,
 		profilePic: profile.profilePic?.ic,
+		keys: authProfile?.keys || []
 	}
+	const eTag = '"' + sha256(JSON.stringify(ret)).slice(0, 12) + '"'
 	ctx.body = ret
-	console.log('BODY', ctx.body)
+	ctx.set('ETag', eTag)
+	tenantCache.set(tenantTag, eTag)
 }
 
 export async function getOwnProfileKeys(ctx: Context) {
 	const { tnId, tenantTag } = ctx.state
 	const authProfile = await getAuthProfileFull(tenantTag)
 	const profile = await metaAdapter.readTenant(tnId)
-	console.log('PROFILE', tenantTag, authProfile)
 
 	ctx.body = {
 		...profile,
-		...authProfile
+		keys: authProfile?.keys || []
 	}
 }
 

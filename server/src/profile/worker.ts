@@ -14,8 +14,30 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-export * from './base.js'
-export * from './api.js'
-export * from './utils.js'
+import jwt from 'jsonwebtoken'
+
+import * as T from '@symbion/runtype'
+
+import { addSlowTask } from '../worker.js'
+import { metaAdapter } from '../adapters.js'
+import { syncProfile } from './profile.js'
+
+// Profile refresh //
+/////////////////////
+export async function processProfileRefresh() {
+	return metaAdapter.processProfileRefresh(async function processProfileRefresh(tnId, idTag, eTag) {
+		await syncProfile(tnId, idTag, eTag)
+		return true
+	})
+}
+
+export async function profileWorker(): Promise<boolean> {
+	let ret = await processProfileRefresh()
+	return !!ret
+}
+
+export async function initWorker() {
+	addSlowTask(profileWorker)
+}
 
 // vim: ts=4

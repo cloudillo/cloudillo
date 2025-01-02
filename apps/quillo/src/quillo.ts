@@ -54,9 +54,13 @@ import * as cloudillo from '@cloudillo/base'
 	const doc = await cloudillo.openYDoc(yDoc, docId)
 	doc.provider.awareness.setLocalStateField('user', {
 		name: cloudillo.idTag,
-		color: cloudillo.idTag == 'cloud.w9.hu' ? '#000088' : '#008800'
+		color: await cloudillo.str2color(cloudillo.idTag ?? '')
 	})
-	//wsProvider.awareness.on('change', (changes: any) => console.log('Awareness change:', changes, Array.from(wsProvider.awareness.getStates().values())))
+	/*
+	doc.provider.awareness.on('change', function (changes: any) {
+		console.log('Awareness change:', changes, Array.from(doc.provider.awareness.getStates().values()))
+	})
+	*/
 
 	const ytext = doc.yDoc.getText('doc')
 

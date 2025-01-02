@@ -34,7 +34,9 @@ import {
 
 } from 'react-icons/lu'
 
-import { useAuth, AuthState, useApi, ServerError, arrayBufferToBase64Url, base64ToArrayBuffer } from './utils.js'
+import { useAuth, AuthState, useApi } from '@cloudillo/react'
+
+import { ServerError, arrayBufferToBase64Url, base64ToArrayBuffer } from './utils.js'
 import { CloudilloLogo } from './logo.js'
 import { Page, useDialog } from './ui.js'
 

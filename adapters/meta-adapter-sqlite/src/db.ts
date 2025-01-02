@@ -136,8 +136,11 @@ export async function init({ dir, sqliteBusyTimeout }: { dir: string, sqliteBusy
 		following boolean NOT NULL DEFAULT false,
 		roles json,
 		createdAt datetime DEFAULT current_timestamp,
-		PRIMARY KEY(identId)
+		syncedAt datetime,
+		eTag text,
+		PRIMARY KEY(tnId, idTag)
 	)`)
+	await db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_tnId_idTag ON profiles(tnId, idTag)')
 
 	// Metadata //
 	//////////////
@@ -193,9 +196,9 @@ export async function init({ dir, sqliteBusyTimeout }: { dir: string, sqliteBusy
 
 	await db.run(`CREATE TABLE IF NOT EXISTS file_variants (
 		tnId integer,
+		variantId text,
 		fileId text,
 		variant text,				-- 'orig' - original, 'hd' - high density, 'sd' - small density, 'tn' - thumbnail, 'ic' - icon
-		variantId text,
 		format text,
 		size integer,
 		global boolean,				-- true: stored in global cache

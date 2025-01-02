@@ -49,10 +49,10 @@ import {
 } from 'react-icons/lu'
 
 import { NewAction, ActionView, tActionView, tCommentAction } from '@cloudillo/types'
-import { Button, ProfilePicture, ProfileCard, ProfileAudienceCard, Fcb, mergeClasses } from '@cloudillo/react'
+import { useAuth, useApi, Button, ProfilePicture, ProfileCard, ProfileAudienceCard, Fcb, mergeClasses } from '@cloudillo/react'
 import '@cloudillo/react/src/components.css'
 
-import { useAppConfig, useApi, useAuth, parseQS, qs } from '../utils.js'
+import { useAppConfig, parseQS, qs } from '../utils.js'
 import { getBestImageId, ImageUpload } from '../image.js'
 
 //////////////////////
@@ -320,7 +320,6 @@ function Post({ className, action, setAction, width }: PostProps) {
 	const api = useApi()
 	const [tab, setTab] = React.useState<undefined | 'CMNT' | 'LIKE' | 'SHRE'>(undefined)
 	if (typeof action.content != 'string' && action.content !== undefined) return null
-	console.log('Post action', action)
 
 	function onTabClick(clicked: 'CMNT' | 'LIKE' | 'SHRE') {
 		if (clicked == tab) {
@@ -563,9 +562,7 @@ export function FeedApp() {
 	if (feed) console.log('Feed state', feed)
 
 	React.useLayoutEffect(function () {
-		console.log('Here 1', ref)
 		if (!ref.current || !api || !auth?.roles) return
-		console.log('Here 2')
 		function onResize() {
 			if (!ref.current) return
 			const styles = getComputedStyle(ref.current)

@@ -25,9 +25,9 @@ import {
 	LuMenu as IcMenu
 } from 'react-icons/lu'
 
-import { Fcb, Button, mergeClasses } from '@cloudillo/react'
+import { useAuth, useApi, Fcb, Button, mergeClasses } from '@cloudillo/react'
 
-import { useAppConfig, useApi, useAuth, parseQS, qs } from '../utils.js'
+import { useAppConfig, parseQS, qs } from '../utils.js'
 import { SecuritySettings } from './security.js'
 import { NotificationSettings } from './notifications.js'
 import { AppearanceSettings } from './appearance.js'

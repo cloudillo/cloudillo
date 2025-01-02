@@ -26,8 +26,6 @@ import { Auth } from '../index.js'
 import { cancelWait } from '../worker.js'
 import { ProxyToken, createActionToken, createProxyToken } from '../auth/handlers.js'
 import { tAuthProfile, ActionToken, tActionToken } from '../auth-adapter.js'
-import { ProfileStatus } from '../meta-adapter.js'
-import { tProfile } from '../profile/handlers.js'
 //import { sendWsBusMsg } from '../ws.js'
 //import { sendNotification } from '../notification/index.js'
 
@@ -35,31 +33,6 @@ import { metaAdapter } from '../adapters.js'
 
 // Utility functions //
 ///////////////////////
-export async function getProfile(tnId: number, idTag: string): Promise<T.TypeOf<typeof tProfile> & { status?: ProfileStatus } | undefined> {
-	// Get local profile
-	let profile = await metaAdapter.readProfile(tnId, idTag)
-	console.log('Local profile', idTag, profile)
-	if (profile) return profile
-
-
-	// Download if not found
-	console.log(`https://cl-o.${idTag}/api/me`)
-	const res = await fetch(`https://cl-o.${idTag}/api/me`)
-	if (res.ok) {
-		const profileRes = T.decode(tProfile, await res.json())
-		if (T.isOk(profileRes)) {
-			console.log('PROFILE', profileRes)
-			const profile = { ...profileRes.ok, status: 'F' as const }
-			await metaAdapter.createProfile(tnId, profile)
-			return profile
-		} else {
-			console.log('ERROR', profileRes.err)
-		}
-	} else {
-		console.log('ERROR: profile fetch: ', res)
-	}
-}
-
 export async function checkToken(tnId: number, token: string): Promise<ActionToken> {
 	const decoded = jwt.decode(token) as { t: string, iss: string, k: string }
 	if (decoded && decoded.iss && decoded.k && typeof decoded.t === 'string') {

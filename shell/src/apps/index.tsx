@@ -16,9 +16,9 @@
 
 import * as React from 'react'
 import { Routes, Route, useLocation, useParams } from 'react-router-dom'
-import { mergeClasses } from '@cloudillo/react'
+import { useAuth, useApi, mergeClasses } from '@cloudillo/react'
 
-import { useAppConfig, useAuth, useApi } from '../utils.js'
+import { useAppConfig } from '../utils.js'
 import { FeedApp } from './feed.js'
 import { FilesApp } from './files.js'
 import { GalleryApp } from './gallery.js'

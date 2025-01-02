@@ -17,7 +17,9 @@
 import React from 'react'
 import { atom, useAtom } from 'jotai'
 
-import { useAuth, delay } from './utils.js'
+import { useAuth } from '@cloudillo/react'
+
+import { delay } from './utils.js'
 
 let ws: WebSocket | undefined
 const connSendBuf: string[] = []

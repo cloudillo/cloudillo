@@ -43,10 +43,10 @@ import {
 } from 'react-icons/lu'
 
 import { ActionView, NewAction} from '@cloudillo/types'
-import { Button, Fcb, IdentityTag, ProfileCard, mergeClasses } from '@cloudillo/react'
+import { useAuth, useApi, Button, Fcb, IdentityTag, ProfileCard, mergeClasses } from '@cloudillo/react'
 import '@cloudillo/react/src/components.css'
 
-import { useAppConfig, useApi, useAuth, parseQS, qs } from '../utils.js'
+import { useAppConfig, parseQS, qs } from '../utils.js'
 import { getBestImageId, ImageUpload } from '../image.js'
 import { useWsBus } from '../ws-bus.js'
 

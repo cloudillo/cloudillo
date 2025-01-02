@@ -98,12 +98,12 @@ export async function listActions(tnId: number, auth: Auth, opts: ListActionsOpt
 		issuer: {
 			idTag: r.issuerTag,
 			name: r.issuerName,
-			profilePic: r.issuerProfilePic || `img/${r.issuerTag}.jpg` // FIXME
+			profilePic: r.issuerProfilePic
 		},
 		audience: !r.audienceTag || !r.audienceName ? undefined : {
 			idTag: r.audienceTag,
 			name: r.audienceName,
-			profilePic: r.audienceProfilePic || `img/${r.audienceTag}.jpg` // FIXME
+			profilePic: r.audienceProfilePic
 		},
 		createdAt: new Date(r.createdAt * 1000).toISOString(),
 		expiresAt: r.expiresAt ? new Date(r.expiresAt * 1000).toISOString() : undefined,

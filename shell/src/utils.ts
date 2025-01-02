@@ -20,6 +20,7 @@ import dayjs from 'dayjs'
 import * as T from '@symbion/runtype'
 
 import { apiFetchHelper, ApiFetchOpts } from '@cloudillo/base'
+import { useAuth } from '@cloudillo/react'
 
 // Query string handling
 export function qs(obj: Record<string, string | number | boolean | string[] | number[] | undefined>) {
@@ -110,66 +111,6 @@ export class ServerError extends Error {
 		this.descr = descr
 		this.httpStatus = httpStatus
 	}
-}
-
-// useAuth() //
-///////////////
-export interface AuthState {
-	tnId: number
-	idTag: string
-	name?: string
-	profilePic?: string
-	roles?: number[]
-	token?: string
-}
-
-const authAtom = atom<AuthState | undefined>(undefined)
-
-export function useAuth() {
-	return useAtom(authAtom)
-}
-
-// useAPI() //
-//////////////
-export interface ApiState {
-	url?: string
-	notifications: number
-	messages: number
-}
-
-export interface ApiExtFields {
-	$notifications?: number
-	$messages?: number
-}
-
-export const apiAtom = atom<ApiState>({ notifications: 0, messages: 0 })
-
-export function useApi() {
-	const [auth] = useAuth()
-	const [api, setApi] = useAtom(apiAtom)
-	return React.useMemo(() => ({
-		get: async function get<R>(idTag: string, path: string, opts?: Omit<ApiFetchOpts<R, never>, 'authToken'>): Promise<R> {
-			const res = await apiFetchHelper(idTag, 'GET', path, { ...opts, authToken: auth?.token })
-			console.log('RES', res)
-			return await apiFetchHelper(idTag, 'GET', path, { ...opts, authToken: auth?.token })
-		},
-
-		post: async function post<R, D = any>(idTag: string, path: string, opts?: Omit<ApiFetchOpts<R, D>, 'authToken'>): Promise<R> {
-			return await apiFetchHelper(idTag, 'POST', path, { ...opts, authToken: auth?.token })
-		},
-
-		put: async function put<R, D = any>(idTag: string, path: string, opts?: Omit<ApiFetchOpts<R, D>, 'authToken'>): Promise<R> {
-			return await apiFetchHelper(idTag, 'PUT', path, { ...opts, authToken: auth?.token })
-		},
-
-		patch: async function patch<R, D = any>(idTag: string, path: string, opts?: Omit<ApiFetchOpts<R, D>, 'authToken'>): Promise<R> {
-			return await apiFetchHelper(idTag, 'PATCH', path, { ...opts, authToken: auth?.token })
-		},
-
-		delete: async function del<R>(idTag: string, path: string, opts?: Omit<ApiFetchOpts<R, never>, 'authToken'>): Promise<R> {
-			return await apiFetchHelper(idTag, 'DELETE', path, { ...opts, authToken: auth?.token })
-		}
-	}), [])
 }
 
 // useAppConfig() //

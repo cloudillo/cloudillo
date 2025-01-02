@@ -90,7 +90,7 @@ export class ServerError extends Error {
 	}
 }
 
-export function sha256(s: string) {
+export function sha256(s: string | Buffer) {
 	//return crypto.createHash('sha256').update(s).digest('hex')
 	return crypto.createHash('sha256').update(s).digest('base64url')
 }

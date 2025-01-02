@@ -138,10 +138,10 @@ export async function handleInboundActionToken(tnId: number, actionId: string, t
 					const meta = await metaRes.json()
 					await blobAdapter.writeBlob(tnId, fileId, '', buf)
 					await metaAdapter.createFile(tnId, fileId, {
-						status: 'I', contentType: binRes.headers.get('Content-Type') || '',
-						fileName: meta.fileName, createdAt: meta.createdAt,
-						//variant: 'tn', origId: img.hash.orig,
-						//origId: fileIds[0],
+						status: 'I',
+						contentType: binRes.headers.get('Content-Type') || '',
+						fileName: meta.fileName,
+						createdAt: meta.createdAt,
 						tags: meta.tags?.length ? meta.tags : undefined
 					})
 				}

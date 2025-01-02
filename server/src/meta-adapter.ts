@@ -121,6 +121,7 @@ export interface ListProfilesOptions {
 
 export interface UpdateProfileOptions {
 	status?: ProfileStatus
+	synced?: boolean
 }
 
 /* Actions */
@@ -157,7 +158,7 @@ export interface MetaAdapter {
 	readFile: (tnId: number, fileId: string) => Promise<File | undefined>
 	readFileAuth: (tnId: number, auth: Auth, fileId: string) => Promise<File | undefined>
 	createFile: (tnId: number, fileId: string, opts: CreateFileOptions) => Promise<void>
-	createFileVariant: (tnId: number, fileId: string, variantId: string, opts: CreateFileVariantOptions) => Promise<void>
+	createFileVariant: (tnId: number, fileId: string | undefined, variantId: string, opts: CreateFileVariantOptions) => Promise<void>
 	updateFile: (tnId: number, fileId: string, opts: UpdateFileOptions) => Promise<void>
 	processPendingFilesPrepare: (callback: (tnId: number, meta: File) => Promise<boolean>) => Promise<number>
 
@@ -175,11 +176,12 @@ export interface MetaAdapter {
 
 	// Profiles
 	listProfiles: (tnId: number, opts: ListProfilesOptions) => Promise<Profile[]>
-	readProfile: (tnId: number, idTag: string) => Promise<Profile | undefined>
-	createProfile: (tnId: number, profile: Profile) => Promise<void>
+	readProfile: (tnId: number, idTag: string) => Promise<Profile & { eTag?: string } | undefined>
+	createProfile: (tnId: number, profile: Profile, eTag: string | undefined) => Promise<void>
 	updateProfile: (tnId: number, idTag: string, opts: UpdateProfileOptions) => Promise<void>
 	getProfilePublicKey: (tnId: number, idTag: string, keyId: string) => Promise<{ publicKey: string, expires?: number } | undefined>
 	addProfilePublicKey: (tnId: number, idTag: string, key: { keyId: string, publicKey: string, expires?: number }) => Promise<void>
+	processProfileRefresh: (callback: (tnId: number, idTag: string, eTag: string | undefined) => Promise<boolean>) => Promise<number>
 
 	// Refs
 	listRefs: (tnId: number, refType?: string) => Promise<string[]>

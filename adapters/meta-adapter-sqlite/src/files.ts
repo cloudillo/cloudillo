@@ -201,7 +201,7 @@ export async function readFileAuth(tnId: number, auth: Auth, variantId: string) 
 			x?: string
 		}>(
 			`SELECT f.*, fv.variantId FROM file_variants fv
-				JOIN files f ON f.tnId=fv.tnId AND f.fileId=fv.fileId
+				LEFT JOIN files f ON f.tnId=fv.tnId AND f.fileId=fv.fileId
 				LEFT JOIN json_each(f.tags) as tag
 				WHERE fv.tnId = $tnId AND fv.variantId = $variantId
 				${permCond}
@@ -239,7 +239,7 @@ export async function createFile(tnId: number, fileId: string, { status, preset,
 	//}
 }
 
-export async function createFileVariant(tnId: number, fileId: string, variantId: string, { variant, format, size }: CreateFileVariantOptions) {
+export async function createFileVariant(tnId: number, fileId: string | undefined, variantId: string, { variant, format, size }: CreateFileVariantOptions) {
 	const res = await db.run('INSERT OR IGNORE INTO file_variants (tnId, fileId, variant, variantId, format, size) '
 		+ 'VALUES ($tnId, $fileId, $variant, $variantId, $format, $size)', {
 		$tnId: tnId,

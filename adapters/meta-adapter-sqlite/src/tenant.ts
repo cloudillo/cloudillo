@@ -20,7 +20,6 @@ import { Tenant, TenantData, TenantPatch } from '@cloudillo/server/types/meta-ad
 import { db, ql, update } from './db.js'
 
 export async function readTenant(tnId: number): Promise<Tenant | undefined> {
-	//const tenant: Omit<Tenant, 'x'> & { x?: string } = await db.get<{
 	const tenant = await db.get<{
 		tnId: number,
 		idTag: string,
@@ -44,7 +43,7 @@ export async function getTenantIdentityTag(tnId: number) {
 }
 
 export async function createTenant(idTag: string, tenant: TenantData) {
-	const res = await db.get<{ tnId: number }>(`INSERT INTO tenants (tnId, idTag, name, profilePic, x) VALUES
+	const res = await db.get<{ tnId: number }>(`INSERT INTO tenants (idTag, name, profilePic, x) VALUES
 		($idTag, $name, $profilePic, $x) RETURNING tnId`, {
 		$idTag: idTag,
 		$name: tenant.name,

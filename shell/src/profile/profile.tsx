@@ -36,7 +36,8 @@ import 'quill/dist/quill.bubble.css'
 import 'react-image-crop/dist/ReactCrop.css'
 import './profile.css'
 
-import { useAuth, useApi } from '../utils.js'
+import { useAuth, useApi } from '@cloudillo/react'
+
 import { ImageUpload } from '../image.js'
 import { ActionEvt, ActionComp, NewPost } from '../apps/feed.js'
 import { UserListPage, CommunityListPage } from './identities.js'

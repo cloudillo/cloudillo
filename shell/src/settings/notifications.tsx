@@ -16,7 +16,9 @@
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { useApi } from '../utils.js'
+
+import { useApi } from '@cloudillo/react'
+
 import usePWA from '../pwa.js'
 import { useSettings } from './settings.js'
 

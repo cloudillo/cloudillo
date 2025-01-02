@@ -24,6 +24,7 @@ import debounce from 'debounce'
 import {
 	LuPlus as IcPlus,
 	LuMinus as IcMinus,
+	LuHash as IcHash,
 	LuX as IcDelete
 } from 'react-icons/lu'
 
@@ -104,8 +105,8 @@ export function Select<T>({ className, inputClassName, getData, onChange, onSele
 		getData(inputValue || '').then(i => setItems(i || []))
 	}
 
-	//return <div className={'c-dropdown ' + (className || '')}>
-	return <details className={'c-dropdown ' + (className || '')} open={s.isOpen}>
+	//return <details className={'c-dropdown ' + (className || '')} open={s.isOpen}>
+	return <div className={'c-dropdown ' + (className || '')}>
 		{/*
 		<summary className="c-button secondary">
 		*/}
@@ -117,8 +118,8 @@ export function Select<T>({ className, inputClassName, getData, onChange, onSele
 				{renderItem(item)}
 			</li>)}
 		</ul>, document.getElementById('popper-container')!)}
-	</details>
-	//</div>
+	</div>
+	//</details>
 }
 
 interface Tag {
@@ -149,7 +150,7 @@ export function EditTags({ tags, listTags, addTag, removeTag }: EditTagsProps) {
 	function renderItem(tag: Tag) {
 		return <div className="c-link">
 			<span style={{ width: '2rem' }}>{ tag.new ? <IcPlus/> : '' }</span>
-			<span className={'c-tag small' + (tag.privileged ? ' bg-warning' : '')}>{tag.tag}</span>
+			<span className={'c-tag small' + (tag.privileged ? ' warning' : '')}>{tag.tag}</span>
 		</div>
 	}
 
@@ -173,7 +174,7 @@ export function EditTags({ tags, listTags, addTag, removeTag }: EditTagsProps) {
 				{!!addTag && add && <button className="c-link" onClick={() => setAdd(false)}><IcMinus/></button>}
 			</div>
 			{add && <div className="c-input-group">
-				<span className="bg-info p-1">#</span>
+				<span className="c-button icon"><IcHash/></span>
 				<Select className="flex-fill" getData={getData} itemToId={i => i.tag} itemToString={i => i?.tag || ''} renderItem={renderItem} onSelectItem={onAdd}/>
 			</div>}
 		</>

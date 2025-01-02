@@ -29,8 +29,8 @@ import {
 	LuUsers as IcUserAll
 } from 'react-icons/lu'
 
-import { Fcb, Button, ProfileCard, mergeClasses } from '@cloudillo/react'
-import { useAppConfig, useApi, parseQS, qs } from '../utils.js'
+import { useApi, Fcb, Button, ProfileCard, mergeClasses } from '@cloudillo/react'
+import { useAppConfig, parseQS, qs } from '../utils.js'
 
 interface Profile {
 	id: number

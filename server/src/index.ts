@@ -19,7 +19,6 @@ import http from 'http'
 import http2 from 'http2'
 import tls from 'tls'
 import https from 'https'
-import LRU from 'lru-cache'
 import Koa from 'koa'
 import koaSend from 'koa-send'
 import KoaRouter from 'koa-router'
@@ -213,7 +212,6 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 					return next()
 				}
 			} else {
-				console.log('cl-o', ctx.url)
 				return next()
 			}
 		})

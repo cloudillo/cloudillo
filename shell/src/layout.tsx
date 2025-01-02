@@ -73,8 +73,8 @@ import {
 } from 'react-icons/lu'
 import { CloudilloLogo } from './logo.js'
 
-import { Popper } from '@cloudillo/react'
-import { AppConfigState, useAppConfig, useApi, useAuth, AuthState } from './utils.js'
+import { useAuth, AuthState, useApi, Popper } from '@cloudillo/react'
+import { AppConfigState, useAppConfig } from './utils.js'
 import usePWA from './pwa.js'
 import { AuthRoutes, webAuthnLogin } from './auth.js'
 import { WsBusRoot, useWsBus } from './ws-bus.js'
@@ -121,10 +121,8 @@ function Header() {
 
 		// Set dark mode
 		if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-			console.log('Dark mode')
 			document.body.classList.add('dark');
 		} else {
-			console.log('Dark mode')
 			document.body.classList.add('light');
 		}
 		(async function () {
@@ -132,7 +130,6 @@ function Header() {
 				// Try login token
 				try {
 					const res = await api.get('', '/auth/login-token')
-					console.log({ auth: res })
 					const authState = res as AuthState || undefined
 					if (authState?.idTag) {
 						setAuth(authState)

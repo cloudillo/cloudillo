@@ -52,20 +52,21 @@ import { Columns, ColumnConfig, DataTable, TableDataProvider } from '@symbion/ui
 import '@symbion/ui-core/datatable.css'
 import '@symbion/ui-core/scroll.css'
 
-import { Button, Fcb, mergeClasses } from '@cloudillo/react'
+import { useApi, Button, Fcb, mergeClasses } from '@cloudillo/react'
 
-import { useAppConfig, useApi, parseQS, qs } from '../utils.js'
+import { useAppConfig, parseQS, qs } from '../utils.js'
 import { Tags, EditTags } from '../tags.js'
 
 const icons: Record<string, React.ComponentType> = {
-	'image/jpeg': IcImage,
-	'image/png': IcImage,
-	'video/mp4': IcVideo,
-	'application/pdf': IcDocument,
-	'cloudillo/quillo': IcQuillo,
-	'cloudillo/sheello': IcSheello,
-	'cloudillo/prello': IcPrello,
-	'cloudillo/formillo': IcFormillo
+//const icons: Record<string, (props: React.SVGProps<SVGSVGElement>) => React.ReactNode> = {
+	'image/jpeg': (props) => <IcImage {...props} style={{ color: 'lch(50 50 0)' }}/>,
+	'image/png': (props) => <IcImage {...props} style={{ color: 'lch(50 50 0)' }}/>,
+	'video/mp4': (props) => <IcVideo {...props} style={{ color: 'lch(50 50 0)' }}/>,
+	'application/pdf': (props) => <IcDocument {...props} style={{ color: 'lch(50 50 0)' }}/>,
+	'cloudillo/quillo': (props) => <IcQuillo {...props} style={{ color: 'lch(50 50 250)' }}/>,
+	'cloudillo/sheello': (props) => <IcSheello {...props} style={{ color: 'lch(50 50 150)' }}/>,
+	'cloudillo/prello': (props) => <IcPrello {...props} style={{ color: 'lch(50 50 100)' }}/>,
+	'cloudillo/formillo': (props) => <IcFormillo {...props} style={{ color: 'lch(50 50 300)' }}/>
 }
 
 interface File {
@@ -121,7 +122,7 @@ function TagsCell({ fileId, tags, setTags, editable }: { fileId: string, tags: s
 	if (isEditing) {
 		return <EditTags tags={tags} listTags={listTags} addTag={addTag} removeTag={removeTag}/>
 	} else {
-		return <div className="c-group g-1">
+		return <div className="c-tag-list g-1">
 			<Tags tags={tags}/>
 			{ !!editable && <Button link onClick={() => setIsEditing(true)}><IcEdit/></Button> }
 		</div>
@@ -460,7 +461,7 @@ export function FilesApp() {
 		<Fcb.Content>
 			<div className="c-nav c-hbox md-hide lg-hide">
 				<IcFilter onClick={() => setShowFilter(true)}/>
-				<div className="c-group">
+				<div className="c-tag-list">
 					{ fileListData.filter?.filter == 'mut' && <div className="c-tag">{t('mutable')}</div> }
 					{ fileListData.filter?.filter == 'imm' && <div className="c-tag">{t('immutable')}</div> }
 				</div>
@@ -485,7 +486,7 @@ export function FilesApp() {
 					{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons[selectedFile.contentType] || IcUnknown, { className: 'me-1' })}
 					{selectedFile.fileName}
 				</h3>
-				<div className="c-group">
+				<div className="c-tag-list">
 					<TagsCell fileId={selectedFile.fileId} tags={selectedFile.tags} editable/>
 				</div>
 			</div> }

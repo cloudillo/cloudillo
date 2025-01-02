@@ -165,7 +165,6 @@ export async function getFile(ctx: Context) {
 
 	ctx.type = m.contentType
 	const variantId = label ? await metaAdapter.getFileVariant(tnId, fileId, label) : fileId
-	console.log('GET', { fileId, label, variantId })
 	ctx.body = await blobAdapter.readBlob(tnId, variantId)
 }
 

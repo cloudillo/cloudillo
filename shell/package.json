@@ -86,5 +86,8 @@
     "y-websocket": "^2.1.0",
     "yet-another-react-lightbox": "^3.21.7",
     "yjs": "^13.6.21"
+  },
+  "dependencies": {
+    "colord": "^2.9.3"
   }
 }

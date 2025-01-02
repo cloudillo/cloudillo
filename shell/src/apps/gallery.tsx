@@ -29,7 +29,9 @@ import Zoom from "yet-another-react-lightbox/plugins/zoom"
 import "yet-another-react-lightbox/plugins/thumbnails.css"
 import 'react-photo-album/rows.css'
 
-import { useAuth, useApi, parseQS, qs } from '../utils.js'
+import { useAuth, useApi } from '@cloudillo/react'
+
+import { parseQS, qs } from '../utils.js'
 
 interface File {
 	fileId: string

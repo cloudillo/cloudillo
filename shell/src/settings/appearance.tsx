@@ -16,7 +16,9 @@
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { useApi } from '../utils.js'
+
+import { useApi } from '@cloudillo/react'
+
 import { useSettings } from './settings.js'
 
 function setTheme(theme: string | number | boolean, colors: string | number | boolean) {

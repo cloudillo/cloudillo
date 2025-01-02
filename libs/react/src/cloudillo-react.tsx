@@ -21,6 +21,7 @@ import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 
 import * as cloudillo from '@cloudillo/base'
+import { apiFetchHelper, ApiFetchOpts } from '@cloudillo/base'
 
 // Utility functions //
 ///////////////////////
@@ -63,8 +64,10 @@ export class ServerError extends Error {
 // useAuth() //
 ///////////////
 export interface AuthState {
+	tnId: number
 	idTag?: string
 	name?: string
+	profilePic?: string
 	roles?: number[]
 	token?: string
 }
@@ -79,62 +82,41 @@ export function useAuth() {
 //////////////
 export interface ApiState {
 	url?: string
-	notifications: number
-	messages: number
 }
 
-export interface ApiExtFields {
-	$notifications?: number
-	$messages?: number
-}
-
-export const apiAtom = atom<ApiState>({ notifications: 0, messages: 0 })
+export const apiAtom = atom<ApiState>({})
 
 export function useApi() {
 	const [auth] = useAuth()
 	const [api, setApi] = useAtom(apiAtom)
+
+	return React.useMemo(() => ({
+		get: async function get<R>(idTag: string, path: string, opts?: Omit<ApiFetchOpts<R, never>, 'authToken'>): Promise<R> {
+			return await apiFetchHelper(idTag, 'GET', path, { ...opts, authToken: auth?.token })
+		},
+
+		post: async function post<R, D = any>(idTag: string, path: string, opts?: Omit<ApiFetchOpts<R, D>, 'authToken'>): Promise<R> {
+			return await apiFetchHelper(idTag, 'POST', path, { ...opts, authToken: auth?.token })
+		},
+
+		put: async function put<R, D = any>(idTag: string, path: string, opts?: Omit<ApiFetchOpts<R, D>, 'authToken'>): Promise<R> {
+			return await apiFetchHelper(idTag, 'PUT', path, { ...opts, authToken: auth?.token })
+		},
+
+		patch: async function patch<R, D = any>(idTag: string, path: string, opts?: Omit<ApiFetchOpts<R, D>, 'authToken'>): Promise<R> {
+			return await apiFetchHelper(idTag, 'PATCH', path, { ...opts, authToken: auth?.token })
+		},
+
+		delete: async function del<R>(idTag: string, path: string, opts?: Omit<ApiFetchOpts<R, never>, 'authToken'>): Promise<R> {
+			return await apiFetchHelper(idTag, 'DELETE', path, { ...opts, authToken: auth?.token })
+		}
+	}), [])
+
+
+	/*
+	const [auth] = useAuth()
+	const [api, setApi] = useAtom(apiAtom)
 	const abortCtrlRef = React.useRef<AbortController | null>(null)
-
-	async function fetchIt<R, D = any>(idTag: string, path: string, method: string, data: D, query: Record<string, string | number | boolean | undefined> = {}): Promise<R> {
-		console.log('FETCH', idTag, path, method)
-
-		if (abortCtrlRef.current) {
-			console.log('FETCH abort()')
-			abortCtrlRef.current.abort()
-			abortCtrlRef.current = null
-		}
-		abortCtrlRef.current = new AbortController()
-		const res = await fetch(`https://${idTag}/api${path}` + (query ? '?' + qs(query) : ''), {
-			method,
-			headers: {
-				'Content-Type': 'application/json',
-				...(auth?.token ? { 'Authorization': `Bearer ${auth?.token}` } : {})
-			},
-			credentials: 'include',
-			body: method != 'GET' ? JSON.stringify(data) : undefined,
-			signal: abortCtrlRef.current.signal
-		})
-		abortCtrlRef.current = null
-		//console.log('RES', res)
-		const textRes = await res.text()
-		if (res.ok) {
-			const j: (R & ApiExtFields & {error?: undefined}) | FetchResultError = JSON.parse(textRes)
-			if (j && j.error) {
-				console.log('FETCH:', j)
-				throw new Error((j as FetchResultError).error.code)
-			} else {
-				return j as R
-			}
-		} else {
-			try {
-				const j: FetchResultError = await JSON.parse(textRes)
-				console.log('FETCH ERROR', res, j)
-				throw new ServerError(j.error.code, j.error.descr, res.status)
-			} catch (err) {
-				throw new ServerError(`SYS-HTTP-${res.status}`, textRes, res.status)
-			}
-		}
-	}
 
 	const apiIface = {
 		url: api.url,
@@ -161,6 +143,7 @@ export function useApi() {
 	}
 
 	return React.useMemo(() => apiIface, [auth])
+	*/
 }
 
 interface UseCloudillo {
@@ -168,12 +151,14 @@ interface UseCloudillo {
 	ownerTag: string
 	fileId?: string
 	idTag?: string
+	tnId?: number
 	roles?: number[]
 }
 
-export function useCloudillo(appName: string): UseCloudillo {
+export function useCloudillo(appNameArg?: string): UseCloudillo {
 	const location = useLocation()
 	const [auth, setAuth] = useAuth()
+	const [appName, setAppName] = React.useState(appNameArg || '')
 	const [fileId, setFileId] = React.useState<string | undefined>(undefined)
 	const [ownerTag, setOwnerTag] = React.useState<string | undefined>(undefined)
 
@@ -190,6 +175,7 @@ export function useCloudillo(appName: string): UseCloudillo {
 				const token = await cloudillo.init(appName)
 				setAuth({
 					idTag: cloudillo.idTag,
+					tnId: cloudillo.tnId ?? 0,
 					roles: cloudillo.roles,
 					token
 				})

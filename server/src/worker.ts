@@ -25,6 +25,7 @@ import { initWorker as initAuthWorker } from './auth/worker.js'
 import { init as initAdapters } from './adapters.js'
 import { initWorker as initFileWorker } from './file/worker.js'
 import { initWorker as initActionWorker } from './action/worker.js'
+import { initWorker as initProfileWorker } from './profile/worker.js'
 import { initWorker as initMessageBusWorker } from './message-bus/worker.js'
 
 /////////////////////
@@ -127,6 +128,7 @@ export async function run({ config, authAdapter, metaAdapter, blobAdapter, crdtA
 	await initAdapters({ metaAdapter, blobAdapter, crdtAdapter, databaseAdapter, messageBusAdapter })
 	await initFileWorker()
 	await initActionWorker()
+	await initProfileWorker()
 	await initMessageBusWorker()
 	console.log('====[ Cloudillo worker service ready ]=================================================')
 

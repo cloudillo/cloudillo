@@ -30,12 +30,12 @@ import './style.css'
 
 import * as T from '@symbion/runtype'
 
+import { str2color } from '@cloudillo/base'
 import { useCloudilloEditor, mergeClasses } from '@cloudillo/react'
 
 import {
 } from 'react-icons/lu'
 
-//type YCell = Y.Map<Cell>
 type YCell = Cell
 type YRow = Y.Array<YCell | false>
 type YSheet = Y.Array<YRow | false>
@@ -235,10 +235,12 @@ export function SheelloApp() {
 		})
 
 		// Add user presence
-		cloudillo?.provider?.awareness.setLocalStateField('user', {
-			name: cloudillo.idTag,
-			color: cloudillo.idTag == 'cloud.w9.hu' ? '#000088' : '#008800'
-		})
+		;(async function () {
+			cloudillo?.provider?.awareness.setLocalStateField('user', {
+				name: cloudillo.idTag,
+				color: await str2color(cloudillo.idTag ?? '')
+			})
+		})()
 
 		let prevSheetName: string | undefined, prevRow: number | undefined, prevColumn: number | undefined
 		const refreshInterval = setInterval(function () {

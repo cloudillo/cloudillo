@@ -23,6 +23,7 @@ import * as T from '@symbion/runtype'
 
 export let accessToken: string | undefined
 export let idTag: string | undefined
+export let tnId: number | undefined
 export let roles: number[] | undefined
 
 // Utility functions //
@@ -39,6 +40,7 @@ const tCloudilloMessage = T.taggedUnion('type')({
 		cloudillo: T.trueValue,
 		type: T.literal('init'),
 		idTag: T.optional(T.string),
+		tnId: T.optional(T.id),
 		roles: T.optional(T.array(T.integer)),
 		theme: T.string,
 		darkMode: T.optional(T.boolean),
@@ -66,6 +68,7 @@ export function init(app: string): Promise<string | undefined> {
 				case 'init':
 					accessToken = msg.ok.token
 					idTag = msg.ok.idTag
+					tnId = msg.ok.tnId
 					roles = msg.ok.roles
 					if (msg.ok.darkMode) {
 						console.log(`[${app}] setting dark mode`)

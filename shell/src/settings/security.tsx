@@ -16,7 +16,9 @@
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAuth, useApi } from '../utils.js'
+
+import { useAuth, useApi } from '@cloudillo/react'
+
 import { addWebAuthn, deleteWebAuthn } from '../auth.js'
 import { useSettings } from './settings.js'
 

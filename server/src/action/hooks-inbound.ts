@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import * as T from '@symbion/runtype'
+
 import { Action, NewAction } from '@cloudillo/types'
 import { metaAdapter, blobAdapter, messageBusAdapter } from '../adapters.js'
 import { ProxyToken, createActionToken, createProxyToken, getIdentityTag } from '../auth/handlers.js'
@@ -86,6 +88,39 @@ export async function handleMsg({ tnId, idTag }: ActionContext, actionId: string
 	*/
 }
 
+export async function handleReactionOrComment({ tnId, idTag }: ActionContext, actionId: string, action: Action) {
+	// Generate stat action
+	if (
+		((action.type == 'CMNT' || (action.type == 'REACT')) && action.parentId)
+		&& ((action.audienceTag || action.issuerTag) == idTag)
+	) {
+		const parentAction = await metaAdapter.getActionData(tnId, action.parentId)
+		if (parentAction) {
+			await createAction(tnId, {
+				type: 'STAT',
+				issuerTag: idTag,
+				parentId: action.parentId,
+				content: { r: parentAction.reactions, c: parentAction.comments },
+				createdAt: Math.trunc(Date.now() / 1000)
+			})
+		}
+	}
+}
+
+const tStatContent = T.type({
+	r: T.optional(T.number),
+	c: T.optional(T.number)
+})
+export async function handleStat({ tnId, idTag }: ActionContext, actionId: string, action: Action) {
+	console.log('STAT', action.issuerTag, action.audienceTag, idTag, action)
+	const contentRes = T.decode(tStatContent, action.content)
+	if (T.isOk(contentRes)) {
+		const { r, c } = contentRes.ok
+		await metaAdapter.updateActionData(tnId, actionId, { reactions: r, comments: c })
+		console.log('STAT', actionId, r, c)
+	}
+}
+
 export async function handleInboundAction(ctx: ActionContext, actionId: string, action: Action) {
 	switch (action.type) {
 		case 'ACK':
@@ -94,6 +129,11 @@ export async function handleInboundAction(ctx: ActionContext, actionId: string, 
 			return handlePost(ctx, actionId, action)
 		case 'MSG':
 			return handleMsg(ctx, actionId, action)
+		case 'REACT':
+		case 'CMNT':
+			return handleReactionOrComment(ctx, actionId, action)
+		case 'STAT':
+			return handleStat(ctx, actionId, action)
 		default:
 			return
 	}

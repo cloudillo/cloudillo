@@ -332,12 +332,17 @@ function Post({ className, action, setAction, width }: PostProps) {
 	async function onReactClick(reaction: 'LIKE') {
 		const ra: NewAction & { content?: string } = {
 			type: 'REACT',
+			audienceTag: action.audience?.idTag || action.issuer.idTag,
 			content: reaction !== action.stat?.ownReaction ? reaction : undefined,
 			parentId: action.actionId
 		}
 		const actionRes = await api.post('', '/action', { type: tActionView, data: ra })
 		console.log('react res', actionRes)
-		setAction({ ...action, stat: { ...action.stat, ownReaction: ra.content } })
+		setAction({ ...action, stat: {
+			reactions: (action.stat?.reactions || 0) + (ra.content ? 1 : -1),
+			comments: action.stat?.comments,
+			ownReaction: ra.content
+		}})
 	}
 
 	return <>
@@ -360,10 +365,6 @@ function Post({ className, action, setAction, width }: PostProps) {
 					<br/></React.Fragment>) }
 				</p>) }
 				{ !!action.attachments?.length && <Images idTag={action.issuer.idTag} width={width} attachments={action.attachments || []}/> }
-				{/* imgSrc
-					? <img src={imgSrc} className="mb-2 mx-auto w-max-100"/>
-					: <hr className="w-100"/>
-				*/}
 				{/* generateFragments(action.content) */}
 			</div><div className="c-hbox">
 				<div className="c-hbox">

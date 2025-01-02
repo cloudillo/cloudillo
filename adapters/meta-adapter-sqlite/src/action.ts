@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as T from '@symbion/runtype'
-import { Action, ActionView, ListActionsOptions, CreateOutboundActionOptions, Auth } from '@cloudillo/server/types/meta-adapter'
+import { Action, ActionView, ListActionsOptions, UpdateActionDataOptions, CreateOutboundActionOptions, Auth } from '@cloudillo/server/types/meta-adapter'
 
 import { db, ql, cleanRes } from './db.js'
 import { getIdentityTag } from './profile.js'
@@ -36,7 +36,7 @@ async function getAttachment(tnId: number, attachment: string) {
 	for (const row of rows) {
 		if (row.variant) ret[row.variant] = row.variantId
 	}
-	console.log('getAttachment', fileId, rows, ret)
+	//console.log('getAttachment', fileId, rows, ret)
 	return ret
 }
 
@@ -127,11 +127,15 @@ export async function getActionRootId(tnId: number, actionId: string) {
 }
 
 export async function getActionData(tnId: number, actionId: string) {
-	const res = await db.get<{ subject?: string }>(
-			"SELECT subject FROM actions WHERE tnId = $tnId AND actionId = $actionId",
+	const res = await db.get<{ subject?: string, reactions?: number, comments?: number }>(
+			"SELECT subject, reactions, comments FROM actions WHERE tnId = $tnId AND actionId = $actionId",
 			{ $tnId: tnId, $actionId: actionId }
 		)
-	return res
+	return {
+		subject: res?.subject || undefined,
+		reactions: res?.reactions || undefined,
+		comments: res?.comments || undefined,
+	}
 }
 
 export async function getActionToken(tnId: number, actionId: string) {
@@ -165,7 +169,7 @@ export async function createAction(tnId: number, actionId: string, action: Actio
 		}
 	)
 
-	let incReactions = true
+	let addReactions = action.content ? 1 : 0
 	if (key !== undefined) {
 		const res = await db.get<{ content?: string }>("UPDATE actions SET status='D' WHERE tnId = $tnId AND key = $key AND actionId != $actionId AND coalesce(status, '')!='D' RETURNING content", {
 			$tnId: tnId,
@@ -173,9 +177,10 @@ export async function createAction(tnId: number, actionId: string, action: Actio
 			$actionId: actionId
 		})
 		console.log('UPDATE', res)
-		if (res?.content) incReactions = false
+		if (res?.content) addReactions -= 1
 	}
 
+	console.log('ACTION', tnId, action.type, addReactions, action.parentId, action.content)
 	if (action.parentId) {
 		if (action.type == 'CMNT') {
 			await db.run('UPDATE actions SET comments=coalesce(comments, 0) + 1 WHERE tnId = $tnId '
@@ -184,14 +189,32 @@ export async function createAction(tnId: number, actionId: string, action: Actio
 				$parentId: action.parentId,
 				$rootId: action.rootId
 			})
-		} else if (action.type == 'REACT' && incReactions) {
-			await db.run('UPDATE actions SET reactions=coalesce(reactions, 0) + 1 WHERE tnId = $tnId '
+		} else if (action.type == 'REACT' && addReactions) {
+			await db.run('UPDATE actions SET reactions=coalesce(reactions, 0) + $addReactions WHERE tnId = $tnId '
 			+ 'AND actionId IN ($parentId, $rootId)', {
 				$tnId: tnId,
 				$parentId: action.parentId,
-				$rootId: action.rootId
+				$rootId: action.rootId,
+				$addReactions: addReactions
 			})
 		}
+	}
+}
+
+export async function updateActionData(tnId: number, actionId: string, opts: UpdateActionDataOptions) {
+	const updList: string[] = []
+	if (opts.reactions !== undefined) updList.push(`reactions=${opts.reactions}`)
+	if (opts.comments !== undefined) updList.push(`comments=${opts.comments}`)
+	if (opts.status !== undefined) updList.push(`status=${opts.status}`)
+
+	if (updList.length > 0) {
+		const res = await db.run(`UPDATE actions SET ${updList.join(', ')} WHERE tnId = $tnId AND actionId = $actionId
+		`, {
+			$tnId: tnId,
+			$actionId: actionId,
+			$status: opts.status
+		})
+		console.log('updateInboundAction', res, tnId, actionId)
 	}
 }
 

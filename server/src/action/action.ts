@@ -82,6 +82,9 @@ export function generateActionKey(actionId: string, action: NewAction & { issuer
 		case 'REACT':
 			key = `${action.type}:${action.parentId}:${action.issuerTag}`
 			break
+		case 'STAT':
+			key = `${action.type}:${action.parentId}`
+			break
 		case 'FLLW':
 		case 'CONN':
 			key = `${action.type}:${action.issuerTag}:${action.audienceTag}`
@@ -211,7 +214,7 @@ export async function createAction(tnId: number, action: Action) {
 	try {
 		const issuerTag = await metaAdapter.getTenantIdentityTag(tnId)
 		if (!issuerTag) return
-		const act = { ...action, createdAt: Date.now() / 1000, issuerTag }
+		const act = { ...action, createdAt: Math.trunc(Date.now() / 1000), issuerTag }
 		const token = await createActionToken(tnId, tnId, act)
 		if (!token) return
 		//const { iss, iat, exp } = jwt.decode(token) as { iss: string, iat: number, exp: number }
@@ -224,8 +227,8 @@ export async function createAction(tnId: number, action: Action) {
 		console.log('ROOT', rootId)
 
 		await metaAdapter.createAction(tnId, actionId, act, key)
-		//if (['POST', 'ACK'].includes(action.type) && action.audienceTag && action.audienceTag != issuerTag) {
-		if (['POST', 'ACK'].includes(action.type) && action.issuerTag == issuerTag) {
+
+		if (['POST', 'ACK', 'STAT'].includes(action.type) && action.issuerTag == issuerTag) {
 			// FIXME: filter followers by access
 			await metaAdapter.createOutboundAction(tnId, actionId, token, {
 				followTag: issuerTag,
@@ -236,6 +239,7 @@ export async function createAction(tnId: number, action: Action) {
 				audienceTag: action.audienceTag
 			})
 		}
+
 		cancelWait()
 		return actionId
 	} catch (err) {

@@ -134,6 +134,12 @@ export interface ListActionsOptions {
 	rootId?: string
 }
 
+export interface UpdateActionDataOptions {
+	status?: string
+	reactions?: number | null
+	comments?: number | null
+}
+
 export interface CreateOutboundActionOptions {
 	followTag?: string
 	audienceTag?: string
@@ -193,9 +199,10 @@ export interface MetaAdapter {
 	// Actions
 	listActions: (tnId: number, auth: Auth, opts: ListActionsOptions) => Promise<ActionView[]>
 	getActionRootId: (tnId: number, actionId: string) => Promise<string>
-	getActionData: (tnId: number, actionId: string) => Promise<{ subject?: string } | undefined>
+	getActionData: (tnId: number, actionId: string) => Promise<{ subject?: string, reactions?: number, comments?: number } | undefined>
 	getActionToken: (tnId: number, actionId: string) => Promise<string | undefined>
 	createAction: (tnId: number, actionId: string, action: Action, key?: string) => Promise<void>
+	updateActionData: (tnId: number, actionId: string, opts: UpdateActionDataOptions) => Promise<void>
 	// Inbound actions
 	createInboundAction: (tnId: number, actionId: string, token: string, rel?: string) => Promise<void>
 	processPendingInboundActions: (callback: (tnId: number, actionId: string, token: string) => Promise<boolean>) => Promise<number>

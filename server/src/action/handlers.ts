@@ -78,12 +78,12 @@ export async function postAction(ctx: Context) {
 		expiresAt: Date.now() / 1000 + expire * 24 * 3600
 	})
 	const tenant = await metaAdapter.readTenant(tnId)
+	const audience = action.audienceTag ? await getProfile(tnId, action.audienceTag) : undefined
 
 	// HOOKS?
 	switch (action.type) {
 		case 'FLLW':
 		case 'CONN': {
-			const audience = await getProfile(tnId, action.audienceTag as string)
 			if (audience && (!audience?.status || audience?.status == 'B')) {
 				metaAdapter.updateProfile(tnId, audience.idTag, { status: 'F' })
 			}
@@ -95,10 +95,16 @@ export async function postAction(ctx: Context) {
 	ctx.body = {
 		...action,
 		actionId,
+		audienceTag: undefined,
+		audience: audience ? {
+			idTag: audience?.idTag,
+			name: audience?.name,
+			profilePic: audience?.profilePic
+		} : undefined,
 		issuer: {
 			idTag: tenant?.idTag,
 			name: tenant?.name,
-			profilePic: tenant?.profilePic
+			profilePic: tenant?.profilePic?.ic
 		},
 		createdAt: new Date(),
 	}

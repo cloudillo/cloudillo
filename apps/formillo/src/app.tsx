@@ -672,7 +672,7 @@ function FormPage({ ownerTag, fileId, form }: { ownerTag: string, fileId: string
 		setSubmitCls('')
 		if (lastPage) {
 			console.log('Form', data)
-			await api?.post(ownerTag, `/db/${fileId}`, data)
+			await api?.post(ownerTag, `/db/${fileId}`, { data })
 			localStorage.setItem(`form.${fileId}`, 'true')
 			setPage(0)
 		} else {

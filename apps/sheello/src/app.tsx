@@ -58,10 +58,14 @@ function compareCell(a: Cell, b: Cell) {
 		&& a.tb == b.tb // text wrap
 }
 
+let doTransform = true
 function transformOp(rows: YSheet, op: Op) {
-	console.log('OP', op.op, op.path.join('.'), op.value)
+	console.log('[OP] OP:', op.op, op.path.join('.'), op.value)
+	//if (!doTransform) return
 	switch (op.op) {
 		case 'replace':
+			//
+			if (op.path.length == 2) break
 		case 'add':
 		case 'remove':
 			switch (op.path[0]) {
@@ -71,12 +75,13 @@ function transformOp(rows: YSheet, op: Op) {
 						row = new Y.Array<YCell | false>()
 						if (rows.length < +op.path[1]) {
 							const arr = (new Array(+op.path[1] - rows.length)).fill(false)
+							console.log('[OP:Y] Push empty rows', arr.length)
 							rows.push(arr)
 						}
+						console.log('[OP:Y] Insert row', +op.path[1])
 						rows.insert(+op.path[1], [row])
 					}
 					let cell = row.get(+op.path[2])
-					//if (typeof cell != 'object') cell = { v: 'asdfcfe' }
 
 					if (cell) {
 						//const newCell = op.op == 'add' ? op.value
@@ -84,34 +89,36 @@ function transformOp(rows: YSheet, op: Op) {
 							: op.path.length == 3 ? (op.value == null ? false : { ...op.value, m: undefined })
 							: { ...cell, ...{ [op.path[3]]: op.value, m: undefined }}
 						//if (newCell?.v != cell.get('v')) {
-						console.log('change?', op.path.length, cell, newCell, compareCell(newCell, cell))
+						console.log('[OP] change?', op.path, cell, newCell, !compareCell(newCell, cell))
 						if (!compareCell(newCell, cell)) {
+							console.log('[OP:Y] Replace cell', +op.path[1], +op.path[2], newCell)
 							row.delete(+op.path[2])
 							row.insert(+op.path[2], [newCell])
 						}
 					} else if (op.op != 'remove') {
 						if (row.length < +op.path[2]) {
 							const arr = (new Array(+op.path[2] - row.length)).fill(false)
+							console.log('[OP:Y] Push empty cells', +op.path[1], arr.length)
 							row.push(arr)
 						}
+						console.log('[OP:Y] Insert cell', +op.path[1], +op.path[2], op.value)
 						row.insert(+op.path[2], [op.value])
 					}
-					console.log('cell', cell)
 				}
 			}
 			break
 		case 'insertRowCol':
 			if (op.value.type == 'row') {
 				const arr = new Array(op.value.count).fill(false)
-				console.log('insert rows', op, arr)
+				console.log('[OP] insert rows', op, arr)
 				rows.insert(op.value.index, arr)
 			} else if (op.value.type == 'column') {
 				const arr = new Array(op.value.count).fill(false)
-				console.log('insert cols', op, arr)
+				console.log('[OP] insert cols', op, arr)
 				let r = 0
 				for (const row of rows) {
 					if (row && row.length > op.value.index) {
-						console.log('extend row', r)
+						console.log('[OP] extend row', r)
 						row.insert(op.value.index, arr)
 					}
 					r++
@@ -120,15 +127,16 @@ function transformOp(rows: YSheet, op: Op) {
 			break
 		case 'deleteRowCol':
 			if (op.value.type == 'row') {
-				console.log('delete rows', op)
+				console.log('[OP] delete rows', op)
 				rows.delete(op.value.start, Math.min(op.value.end - op.value.start + 1, rows.length - op.value.start))
 			} else if (op.value.type == 'column') {
-				console.log('delete cols', op)
+				console.log('[OP] delete cols', op)
 				let r = 0
 				for (const row of rows) {
-					if (row && row.length > op.value.index) {
-						console.log('extend row', r)
-						rows.delete(op.value.start, Math.min(op.value.end - op.value.start + 1, row.length - op.value.start))
+					console.log('[OP] check row', r, row, op.value.start)
+					if (row && row.length > op.value.start) {
+						console.log('[OP] delete cells in row', r)
+						row.delete(op.value.start, Math.min(op.value.end - op.value.start + 1, row.length - op.value.start))
 					}
 					r++
 				}
@@ -137,15 +145,15 @@ function transformOp(rows: YSheet, op: Op) {
 	}
 }
 
-function applyYEvent(rows: YSheet, wb: WorkbookInstance, evt: Y.YArrayEvent<Y.Array<Cell | undefined> | undefined>) {
-	if (evt.transaction.local) return
+function applyYEvent(rows: YSheet, wb: WorkbookInstance, evt: Y.YArrayEvent<Y.Array<Cell | undefined> | undefined>): boolean {
+	if (evt.transaction.local) return false
 
 	const delta = evt.delta
-	console.log('Y event', evt.path, evt.transaction.local, JSON.stringify(delta, null, 4))
+	let recalc = false
+	console.log('[Y] event', evt.path, evt.transaction.local ? 'local' : 'remote', JSON.stringify(delta, null, 4))
 	if (evt.path.length == 0) {
 		// Row
 		let row = 0
-		console.log('Insert row', row, delta.length)
 		while (delta.length) {
 			const d = delta[0]
 			if (d.retain) {
@@ -154,23 +162,33 @@ function applyYEvent(rows: YSheet, wb: WorkbookInstance, evt: Y.YArrayEvent<Y.Ar
 				const insRows = !d.insert ? [] : Array.isArray(d.insert) ? d.insert : [d.insert]
 				for (const rowYArray of insRows) {
 					const ins = rowYArray instanceof Y.Array ? rowYArray.toJSON() : []
-					console.log('delta', row, ins)
+					console.log('[Y] delta', row, ins)
 					for (let i = 0; i < ins.length; i++) {
-						console.log('setValue', row, i, ins[i].v)
-						wb.setCellValue(row, i, ins[i]?.v, { type: ins[i].f ? 'f' : 'v' })
-						for (const prop of ins[i]) {
-							console.log('prop', prop)
-							wb.setCellFormat(row, i, prop, ins[i][prop])
+						const cellValue = ins[i].f || ins[i].v
+						const cellValueOpts = { type: ins[i].f ? 'f' as const : 'v' as const }
+						console.log('[Y] setCellValue', row, i, cellValue, cellValueOpts)
+						wb.setCellValue(row, i, cellValue, cellValueOpts)
+						recalc = true
+						for (const prop in ins[i]) {
+							console.log('[Y] prop', row, i, prop)
+							if (!['v', 'f', 'm'].includes(prop)) {
+								wb.setCellFormat(row, i, prop as keyof Cell, ins[i][prop])
+							}
 						}
 					}
+					row++
 				}
+			} else if (d.delete) {
+				console.log('[Y] delete row', row, row + d.delete - 1)
+				doTransform = false
+				wb.deleteRowOrColumn('row', row, row + d.delete - 1)
+				recalc = true
 			}
 			delta.shift()
 		}
 	} else if (evt.path.length == 1) {
 		// Cell
 		const row = +evt.path[0]
-		console.log('row', row)
 		let pos = 0
 		while (delta.length) {
 			const d = delta[0]
@@ -180,22 +198,26 @@ function applyYEvent(rows: YSheet, wb: WorkbookInstance, evt: Y.YArrayEvent<Y.Ar
 			} else if (d.insert) {
 				const ins = !d.insert ? [] : Array.isArray(d.insert) ? d.insert : [d.insert]
 				//const del = delta[1].delete ?? 0
-				console.log('delta', ins)
+				//console.log('delta', ins)
 				for (let i = 0; i < ins.length; i++) {
-					console.log('setValue', row, pos + i, ins[i])
-					wb.setCellValue(row, pos + i, { type: ins[i].f ? 'f' : 'v' })
+					const cellValue = ins[i].f || ins[i].v
+					const cellValueOpts = { type: ins[i].f ? 'f' as const : 'v' as const }
+					console.log('[Y] setCellValue', row, pos + i, cellValue, cellValueOpts)
+					wb.setCellValue(row, pos + i, cellValue, cellValueOpts)
+					recalc = true
 					for (const prop in ins[i]) {
-						console.log('prop', row, pos + i, prop, ins[i][prop])
+						console.log('[Y] prop', row, pos + i, prop, ins[i][prop])
 						if (!['v', 'f', 'm'].includes(prop)) wb.setCellFormat(row, pos + i, prop as keyof Cell, ins[i][prop])
 					}
 				}
 				//delta.shift()
 			} else {
-				console.log('FIXME: SKIPPED DELTA!!!!!!!!!!!!!', d)
+				console.log('[Y] FIXME: SKIPPED DELTA!!!!!!!!!!!!!', d)
 			}
 			delta.shift()
 		}
 	}
+	return recalc
 }
 
 function transformCellData(rows: ((Cell | undefined)[] | undefined)[]) {
@@ -223,15 +245,21 @@ export function SheelloApp() {
 	//const yCells = cloudillo.yDoc.getMap<CellData>('cells')
 	const rows = cloudillo.yDoc.getArray<YRow | false>('rows')
 	const [loaded, setLoaded] = React.useState(false)
+	const [initialized, setInitialized] = React.useState(false)
 	const [origCellData, setOrigCellData] = React.useState<{ name: string, celldata: CellWithRowAndCol[] }[] | undefined>()
-	const sheetRef = React.useRef<WorkbookInstance>(null)
+	const workbookRef = React.useRef<WorkbookInstance>(null)
 
 	React.useEffect(function () {
 		rows.observeDeep(evts => {
 			setLoaded(true)
-			if (!sheetRef.current) return
+			if (!workbookRef.current) return
 
-			for (const evt of evts) applyYEvent(rows, sheetRef.current, evt)
+			let recalc = false
+			for (const evt of evts) recalc != applyYEvent(rows, workbookRef.current, evt)
+			if (recalc) {
+				console.log('Calling calculateFormula')
+				workbookRef.current.calculateFormula()
+			}
 		})
 
 		// Add user presence
@@ -244,16 +272,16 @@ export function SheelloApp() {
 
 		let prevSheetName: string | undefined, prevRow: number | undefined, prevColumn: number | undefined
 		const refreshInterval = setInterval(function () {
-			if (!sheetRef.current || !cloudillo.provider) return
+			if (!workbookRef.current || !cloudillo.provider) return
 
 			// Show awareness
 			cloudillo.provider.awareness.on('change', (evt: { added: number[], updated: number[], removed: number[] }) => {
-				const sheetId = sheetRef?.current?.getSheet().id
+				const sheetId = workbookRef?.current?.getSheet().id
 				if (!sheetId) return
 
-				if (evt.removed.length > 0) sheetRef?.current?.removePresences(evt.removed.map(p => ({ userId: '' + p, username: '' })))
+				if (evt.removed.length > 0) workbookRef?.current?.removePresences(evt.removed.map(p => ({ userId: '' + p, username: '' })))
 				if (evt.added.length + evt.updated.length > 0) {
-					const sheets = sheetRef?.current?.getAllSheets() || []
+					const sheets = workbookRef?.current?.getAllSheets() || []
 					const awareness = cloudillo?.provider?.awareness.getStates()!
 
 					const presences = [...evt.added, ...evt.updated].map(p => {
@@ -269,13 +297,13 @@ export function SheelloApp() {
 							selection: { r: state?.cursor?.[1], c: state?.cursor?.[2] }
 						}
 					}).filter(p => p.selection?.r && cloudillo.yDoc.clientID != +p.userId)
-					sheetRef?.current?.addPresences(presences)
+					workbookRef?.current?.addPresences(presences)
 				}
 			})
 
 			// Update awareness
-			const selection = sheetRef.current.getSelection()
-			const sheetName = sheetRef.current.getSheet().name
+			const selection = workbookRef.current.getSelection()
+			const sheetName = workbookRef.current.getSheet().name
 			const [row, column] = [selection?.[0].row[0], selection?.[0].column[0]]
 			//console.log('selection', row, column, prevRow, prevColumn)
 			if (sheetName != prevSheetName || row != prevRow || column != prevColumn) {
@@ -295,8 +323,18 @@ export function SheelloApp() {
 
 	React.useEffect(function () {
 		console.log('transform', rows.toJSON())
-		if (loaded && !origCellData) setOrigCellData([{ name: 'Sheet1', celldata: transformCellData(rows.toJSON()) }])
+		if (loaded && !origCellData) {
+			setOrigCellData([{ name: 'Sheet1', celldata: transformCellData(rows.toJSON()) }])
+			setInitialized(true)
+		}
 	}, [loaded, origCellData])
+
+	React.useEffect(function () {
+		if (!initialized) return
+
+		console.log('Calling calculateFormula')
+		workbookRef.current?.calculateFormula()
+	}, [initialized])
 
 	function onOp(ops: Op[]) {
 		cloudillo.yDoc.transact(() => {
@@ -308,7 +346,7 @@ export function SheelloApp() {
 
 	console.log('Sheet render', origCellData)
 	return origCellData && <Workbook
-		ref={sheetRef}
+		ref={workbookRef}
 		data={origCellData}
 		onOp={onOp}
 	/>

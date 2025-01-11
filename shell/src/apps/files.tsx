@@ -52,8 +52,8 @@ import { Columns, ColumnConfig, DataTable, TableDataProvider } from '@symbion/ui
 import '@symbion/ui-core/datatable.css'
 import '@symbion/ui-core/scroll.css'
 
-import { Profile } from '@cloudillo/types'
-import { useApi, Button, Fcb, EditProfileList, mergeClasses } from '@cloudillo/react'
+import { NewAction, Profile } from '@cloudillo/types'
+import { useApi, useAuth, Button, Fcb, ProfilePicture, EditProfileList, mergeClasses } from '@cloudillo/react'
 
 import { useAppConfig, parseQS, qs } from '../utils.js'
 import { Tags, EditTags } from '../tags.js'
@@ -74,7 +74,11 @@ interface File {
 	fileId: string
 	fileName: string
 	userTag?: string
-	ownerTag?: string
+	owner?: {
+		idTag: string
+		name: string
+		profilePic?: string
+	}
 	contentType: string
 	createdAt: string
 	preset: string
@@ -210,6 +214,7 @@ interface FileFiltState {
 
 function useFileListData() {
 	const api = useApi()
+	const [auth] = useAuth()
 	const location = useLocation()
 	const [sort, setSort] = React.useState<keyof File | undefined>()
 	const [sortAsc, setSortAsc] = React.useState(false)
@@ -220,7 +225,7 @@ function useFileListData() {
 	//console.log('DT state', sort, sortAsc, page)
 
 	React.useEffect(function loadFileList() {
-		if (!api) return
+		if (!api || !auth) return
 
 		(async function () {
 			//const qs: Record<string, string> = parseQS(location.search)
@@ -236,7 +241,7 @@ function useFileListData() {
 				setFiles([])
 			}
 		})()
-	}, [api, location.search, refreshHelper])
+	}, [api, auth, location.search, refreshHelper])
 
 	function getData() {
 		return files || []
@@ -378,7 +383,8 @@ function FileCard({ className, file, setFile, onClick, openFile, renameFile, ren
 				</form>
 				: file.fileName}
 			</h3>
-			{ file.ownerTag && <h4>{file.ownerTag}</h4> }
+			{ !!file.owner?.profilePic && <ProfilePicture profile={file.owner} small/> }
+			{/* file.ownerTag && <h4>{file.ownerTag}</h4> */}
 			<div className="d-flex justify-content-end">
 				<button className="c-link p-1" type="button" onClick={() => openFile(file.fileId)}><IcEdit/></button>
 				<div className="dropdown">
@@ -391,17 +397,100 @@ function FileCard({ className, file, setFile, onClick, openFile, renameFile, ren
 				</div>
 				{ file.thumbnail && <img src={file.thumbnail}/> }
 			</div>
-		</div><div>
-			<div><TagsCell fileId={file.fileId} tags={file.tags} setTags={setTags}/></div>
 		</div>
+		{ !!file.tags?.length && <div>
+			<div><TagsCell fileId={file.fileId} tags={file.tags} setTags={setTags}/></div>
+		</div> }
 	</div>
 }
 
-function FileDetails({ className, fileId }: { className?: string, fileId?: string }) {
+interface FileDetailsProps {
+	className?: string
+	file: File
+	setFile?: (file: File) => void
+	openFile: (fileId: string) => void
+	renameFile: (fileId: string) => void
+	renameFileId?: string
+	renameFileName?: string
+	setRenameFileName: (name?: string) => void
+	doRenameFile: (fileId: string, fileName: string) => void
+}
+function FileDetails({ className, file, setFile, openFile, renameFile, renameFileId, renameFileName, setRenameFileName, doRenameFile }: FileDetailsProps) {
 	const { t } = useTranslation()
 	const api = useApi()
+	const [permissionList, setPermissionList] = React.useState<Profile[]>()
 
-	return <div className={'c-panel p-1 ' + (className || '')}>
+	React.useEffect(function loadFileDetails() {
+		setPermissionList([])
+	}, [file])
+
+	// Permissions //
+	/////////////////
+	async function listProfiles(q: string) {
+		const res = !q ? { profiles: [] } : await api.get<{ profiles: Profile[] }>('', '/profile', {
+			query: { type: 'U', q }
+		})
+		return res.profiles
+	}
+
+	async function addPerm(profile: Profile) {
+		if (!file) return
+
+		const action: NewAction = {
+			type: 'FSHR',
+			subType: 'WRITE',
+			subject: file.fileId,
+			//content,
+			audienceTag: profile.idTag
+		}
+
+		const res = await api.post<{ actionId: string }>('', '/action', { data: action })
+		setPermissionList(pl => (pl || []).find(p => p.idTag === profile.idTag) ? pl : [...(pl || []), profile])
+	}
+
+	async function removePerm(idTag: string) {
+		if (!file) return
+
+		const action: NewAction = {
+			type: 'FSHR',
+			subject: file.fileId,
+			audienceTag: idTag
+		}
+
+		const res = await api.post<{ actionId: string }>('', '/action', { data: action })
+		setPermissionList(permissionList?.filter(p => p.idTag !== idTag))
+	}
+
+	return <div className="c-panel h-min-100">
+		<div className="c-panel-header d-flex">
+			<h3 className="c-panel-title d-flex flex-fill">
+				{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons[file.contentType] || IcUnknown, { className: 'me-1' })}
+				{ renameFileName !== undefined && file.fileId === renameFileId ? <form onSubmit={evt => (evt.preventDefault(), renameFileName && doRenameFile(file.fileId, renameFileName))} className="c-input-group">
+					<input className="c-input" type="text" autoFocus value={renameFileName} onChange={e => setRenameFileName(e.target.value)}/>
+						<button className="c-button primary p-1" type="submit"><IcSave/></button>
+						<button className="c-button secondary p-1" type="button" onClick={() => setRenameFileName(undefined)}
+						><IcCancel/></button>
+				</form>
+				: file.fileName}
+			</h3>
+			<div className="d-flex justify-content-end">
+				<button className="c-link p-1" type="button" onClick={() => openFile(file.fileId)}><IcEdit/></button>
+				<div className="dropdown">
+					<details className="c-dropdown">
+						<summary className="c-link p-1"><IcMore/></summary>
+						<ul className="c-nav">
+							<li className="c-nav-item"><a href="#" onClick={() => renameFile(file.fileId)}>{t('Rename...')}</a></li>
+						</ul>
+					</details>
+				</div>
+				{ file.thumbnail && <img src={file.thumbnail}/> }
+			</div>
+		</div>
+		<div className="c-tag-list">
+			<TagsCell fileId={file.fileId} tags={file.tags} editable/>
+		</div>
+		<h4>{t('Permissions')}</h4>
+		<EditProfileList profiles={permissionList} listProfiles={listProfiles} addProfile={addPerm} removeProfile={removePerm}/>
 	</div>
 }
 
@@ -415,7 +504,6 @@ export function FilesApp() {
 	const [columnConfig, setColumnConfig] = React.useState(fileColumnConfig)
 	const fileListData = useFileListData()
 	const [selectedFile, setSelectedFile] = React.useState<File | undefined>()
-	const [permissionList, setPermissionList] = React.useState<Profile[]>()
 	// rename
 	const [renameFileId, setRenameFileId] = React.useState<string | undefined>()
 	const [renameFileName, setRenameFileName] = React.useState<string | undefined>()
@@ -428,9 +516,6 @@ export function FilesApp() {
 
 	function selectFile(file?: File) {
 		setSelectedFile(file)
-		if (file) {
-			setPermissionList([])
-		}
 	}
 
 	function openFile(fileId?: string) {
@@ -459,23 +544,6 @@ export function FilesApp() {
 		setRenameFileId(undefined)
 		setRenameFileName(undefined)
 		fileListData.refresh()
-	}
-
-	// Permissions //
-	/////////////////
-	async function listProfiles(q: string) {
-		const res = !q ? { profiles: [] } : await api.get<{ profiles: Profile[] }>('', '/profile', {
-			query: { type: 'U', q }
-		})
-		return res.profiles
-	}
-
-	async function addPerm(profile: Profile) {
-		setPermissionList(pl => (pl || []).find(p => p.idTag === profile.idTag) ? pl : [...(pl || []), profile])
-	}
-
-	async function removePerm(idTag: string) {
-		setPermissionList(permissionList?.filter(p => p.idTag !== idTag))
 	}
 
 	if (!fileListData.getData()) return <h1>Loading...</h1>
@@ -507,7 +575,17 @@ export function FilesApp() {
 			/>) }
 		</Fcb.Content>
 		<Fcb.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
-			{ selectedFile && <div className="c-panel h-min-100">
+			{ selectedFile && <FileDetails
+				file={selectedFile}
+				setFile={file => fileListData.setFileData(file.fileId, file)}
+				openFile={openFile}
+				renameFile={renameFile}
+				renameFileId={renameFileId}
+				renameFileName={renameFileName}
+				setRenameFileName={setRenameFileName}
+				doRenameFile={doRenameFile}
+			/> }
+			{/* selectedFile && <div className="c-panel h-min-100">
 				<h3 className="c-panel-title">
 					{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons[selectedFile.contentType] || IcUnknown, { className: 'me-1' })}
 					{selectedFile.fileName}
@@ -517,7 +595,7 @@ export function FilesApp() {
 				</div>
 				<h4>{t('Permissions')}</h4>
 				<EditProfileList profiles={permissionList} listProfiles={listProfiles} addProfile={addPerm} removeProfile={removePerm}/>
-			</div> }
+			</div> */}
 		</Fcb.Details>
 	</Fcb.Container>
 }

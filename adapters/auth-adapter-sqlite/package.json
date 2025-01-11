@@ -14,10 +14,8 @@
     "dependencies": {
         "@cloudillo/server": "workspace:^",
         "@symbion/runtype": "^1.1.1",
-        "@types/bcrypt": "^5.0.2",
         "@types/jsonwebtoken": "^9.0.7",
         "@types/node": "^22.10.2",
-        "bcrypt": "^5.1.1",
         "dayjs": "^1.11.13",
         "fido2-lib": "^3.5.3",
         "jsonwebtoken": "^9.0.2",

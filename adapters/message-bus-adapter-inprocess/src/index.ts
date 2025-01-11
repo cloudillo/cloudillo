@@ -39,7 +39,7 @@ function unsubscribeOffline(subsId: string) {
 }
 
 async function sendMessage(idTag: string, msgType: string, payload: any) {
-	const handlers = Object.values(online[idTag])
+	const handlers = Object.values(online[idTag] || {})
 
 	if (handlers.length) {
 		console.log('    online')

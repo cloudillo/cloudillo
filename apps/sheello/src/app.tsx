@@ -52,16 +52,16 @@ function compareCell(a: Cell, b: Cell) {
 		&& a.cl == b.cl // cancelline
 		&& a.bl == b.bl // vold
 		&& a.it == b.it // italic
+		&& a.un == b.un // underline
 		&& a.vt == b.vt // vertical alignment
 		&& a.ht == b.ht // horizontal alignment
 		&& a.mc == b.mc // merge cell
 		&& a.tb == b.tb // text wrap
+		&& a.tr == b.tr // text rotation
 }
 
-let doTransform = true
 function transformOp(rows: YSheet, op: Op) {
 	console.log('[OP] OP:', op.op, op.path.join('.'), op.value)
-	//if (!doTransform) return
 	switch (op.op) {
 		case 'replace':
 			//
@@ -180,7 +180,6 @@ function applyYEvent(rows: YSheet, wb: WorkbookInstance, evt: Y.YArrayEvent<Y.Ar
 				}
 			} else if (d.delete) {
 				console.log('[Y] delete row', row, row + d.delete - 1)
-				doTransform = false
 				wb.deleteRowOrColumn('row', row, row + d.delete - 1)
 				recalc = true
 			}

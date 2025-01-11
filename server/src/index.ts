@@ -70,6 +70,7 @@ export interface State {
 }
 
 export interface Context extends Koa.Context {
+	config: Config
 	state: State
 	router: Router
 }
@@ -84,9 +85,9 @@ export type Router = KoaRouter<State, Context>
 function accept(ctx: Context, next: Next) {
 	if (ctx.method === 'GET' || ctx.method === 'DELETE' || ctx.header['content-type'] === 'application/json') {
 		return next()
-	} else if (ctx.method == 'POST' && ctx.path.startsWith('/store/')) {
+	} else if (ctx.method == 'POST' && ctx.path.startsWith('/api/store/')) {
 		return next()
-	} else if (ctx.method == 'PUT' && ['/me/image', '/me/cover'].includes(ctx.path)) {
+	} else if (ctx.method == 'PUT' && ['/api/me/image', '/api/me/cover'].includes(ctx.path)) {
 		return next()
 	} else {
 		console.log({ method: ctx.method, path: ctx.path })
@@ -102,7 +103,7 @@ export interface Config {
 	jwtSecret: string
 	mode: 'standalone' | 'proxy'
 	listen: number
-	listenHttp: number
+	listenHttp?: number
 	baseUrl: string
 	distDir: string
 	acmeEmail?: string
@@ -161,40 +162,41 @@ function createHttp2Server(authAdapter: AuthAdapter, callback: (req: http.Incomi
 export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter, databaseAdapter, messageBusAdapter }: CloudilloOptions) {
 	const koa = new Koa<State, Context>()
 	const router = new KoaRouter<State, Context>({ prefix: '/api' })
-	koa.proxy = true
+	koa.proxy = config.mode == 'proxy'
 	koa.context.router = router
 	koa.context.config = config
 
 	koa
 		//.use(koaJwt({ secret: config.jwtSecret, passthrough: true, cookie: 'token' }))
 		.use(async (ctx, next) => {
-			ctx.state.tenantTag = determineTenantTag(ctx.hostname)
-			ctx.state.tnId = await determineTnId(ctx.hostname)
-			if (!ctx.state.tnId) return ctx.throw(403)
+			if (ctx.hostname.startsWith('cl-o.')) {
+				ctx.state.tenantTag = determineTenantTag(ctx.hostname)
+				ctx.state.tnId = await determineTnId(ctx.hostname)
+				if (!ctx.state.tnId) return ctx.throw(403)
 
-			// JWT
-			let token: string | undefined
+				// JWT
+				let token: string | undefined
 
-			const authHeader = ctx.header.authorization?.trim().split(' ')
-			if (authHeader && authHeader[0] == 'Bearer') {
-				token = authHeader[1]
-			} else {
-				token = ctx.cookies.get('token')
-			}
-
-			if (token) {
-				try {
-					ctx.state.user = await authAdapter.verifyAccessToken(token)
-					ctx.state.auth = {
-						idTag: ctx.state.user?.u || ctx.state.user?.t,
-						roles: ctx.state.user?.r || []
-					}
-				} catch (err) {
-					console.log('JWT ERROR', err)
+				const authHeader = ctx.header.authorization?.trim().split(' ')
+				if (authHeader && authHeader[0] == 'Bearer') {
+					token = authHeader[1]
+				} else {
+					token = ctx.cookies.get('token')
 				}
-			}
-			// / JWT
 
+				if (token) {
+					try {
+						ctx.state.user = await authAdapter.verifyAccessToken(token)
+						ctx.state.auth = {
+							idTag: ctx.state.user?.u || ctx.state.user?.t,
+							roles: ctx.state.user?.r || []
+						}
+					} catch (err) {
+						console.log('JWT ERROR', err)
+					}
+				}
+				// / JWT
+			}
 			return next()
 		})
 		.use((ctx, next) => {
@@ -203,11 +205,18 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 		})
 		.use(koaCORS({ origin: (ctx) => ctx.header.origin || '*', credentials: true }))
 		//.use(koaCORS({ origin: (ctx) => { console.log('Headers', ctx.header); return ctx.header.origin || '*' }, credentials: true }))
-		.use((ctx, next) => {
+		.use(async (ctx, next) => {
 			if (!ctx.hostname.startsWith('cl-o.')) {
 				//return koaStatic(config.distDir)(ctx, next)
+				if (ctx.path.startsWith('/api/.well-known/')) return next()
+
 				if (ctx.method == 'GET' || ctx.method == 'HEAD') {
-					return koaSend(ctx, ctx.path, { root: config.distDir, index: 'index.html', gzip: true, brotli: true })
+					if (ctx.path == '/idTag') {
+						const certData = await authAdapter.getCertByDomain(ctx.hostname)
+						ctx.body = { idTag: certData?.idTag }
+					} else {
+						return koaSend(ctx, ctx.path, { root: config.distDir, index: 'index.html', gzip: true, brotli: true })
+					}
 				} else {
 					return next()
 				}
@@ -222,7 +231,7 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 
 	const server = config.mode == 'standalone' ? createHttp2Server(authAdapter, koa.callback()) : http.createServer(koa.callback())
 
-	if (config.mode == 'standalone') {
+	if (config.listenHttp) {
 		const httpKoa = new Koa()
 		const httpRouter = new KoaRouter()
 

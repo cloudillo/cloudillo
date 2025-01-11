@@ -17,8 +17,8 @@
 export const config: CloudilloServer.Config = {
 	jwtSecret: process.env.JWT_SECRET || 'secret',
 	mode: process.env.MODE == 'proxy' ? 'proxy' : 'standalone',
-	listen: +(process.env.LISTEN || (process.env.MODE === 'standalone' ? 443 : 80)),
-	listenHttp: +(process.env.LISTEN_HTTP || 80),
+	listen: +(process.env.LISTEN || (process.env.MODE === 'standalone' ? 443 : 1443)),
+	listenHttp: +(process.env.LISTEN_HTTP || 0) || (process.env.MODE === 'standalone' ? 80 : undefined),
 	baseUrl: process.env.BASE_URL || 'example',
 	distDir: process.env.DIST_DIR || './dist',
 	acmeEmail: process.env.ACME_EMAIL || undefined,

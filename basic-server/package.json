@@ -19,8 +19,8 @@
     "bundle": "cross-env NODE_ENV=production rollup -c",
     "watch": "tsc --watch",
     "clean": "rimraf .cache build deploy node_modules_docker",
-    "start": "cross-env NODE_ENV=development MODE=proxy LISTEN=3000 onchange -i -k --no-exclude 'build/**/*.js' 'node_modules/@cloudillo/*/**/*.js' -- node build/index.js CLOUDILLO-SERVER",
-    "start-standalone": "cross-env NODE_ENV=development MODE=standalone LISTEN=1443 LISTEN_HTTP=1080 onchange -i -k --no-exclude 'build/**/*.js' 'node_modules/@cloudillo/*/**/*.js' -- node --trace-deprecation build/index.js CLOUDILLO-SERVER standalone",
+    "start": "cross-env NODE_ENV=development MODE=proxy onchange -i -k --no-exclude 'build/**/*.js' 'node_modules/@cloudillo/*/**/*.js' -- node build/index.js CLOUDILLO-SERVER",
+    "start-standalone": "cross-env NODE_ENV=development MODE=standalone onchange -i -k --no-exclude 'build/**/*.js' 'node_modules/@cloudillo/*/**/*.js' -- node --trace-deprecation build/index.js CLOUDILLO-SERVER standalone",
     "start-prod": "NODE_ENV=production node build/index.js",
     "start-worker": "cross-env NODE_ENV=development onchange -i -k 'build/**/*.js' -- node build/worker.js",
     "docker-build": "docker --context default build -t cloudillo-basic:$npm_package_version -t cloudillo-basic:latest ."

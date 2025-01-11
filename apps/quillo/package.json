@@ -1,5 +1,5 @@
 {
-  "name": "@cloudillo/quillo",
+  "name": "@cloudillo/quillo-app",
   "version": "0.0.1",
   "description": "Quillo text editor app",
   "type": "module",

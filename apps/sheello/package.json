@@ -1,5 +1,5 @@
 {
-  "name": "@cloudillo/sheello",
+  "name": "@cloudillo/sheello-app",
   "version": "0.0.1",
   "description": "Sheello spreadsheet application",
   "type": "module",

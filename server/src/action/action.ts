@@ -88,6 +88,10 @@ export function generateActionKey(actionId: string, action: NewAction & { issuer
 		case 'FLLW':
 		case 'CONN':
 			key = `${action.type}:${action.issuerTag}:${action.audienceTag}`
+			break
+		case 'FSHR':
+			key = `${action.type}:${action.subject}:${action.issuerTag}`
+			break
 	}
 	console.log('generateActionKey', key)
 	return key
@@ -245,6 +249,14 @@ export async function createAction(tnId: number, action: Action) {
 	} catch (err) {
 		console.log('TOKEN ERROR', err)
 	}
+}
+
+export async function acceptAction(tnId: number, actionId: string) {
+	await metaAdapter.updateActionData(tnId, actionId, { status: undefined })
+}
+
+export async function rejectAction(tnId: number, actionId: string) {
+	await metaAdapter.updateActionData(tnId, actionId, { status: undefined })
 }
 
 // vim: ts=4

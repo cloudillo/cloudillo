@@ -56,6 +56,8 @@ export async function init(router: Router) {
 	/* Actions */
 	router.get('/action', action.listActions)
 	router.post('/action', action.postAction)
+	router.post('/action/:actionId/accept', action.postActionAccept)
+	router.post('/action/:actionId/reject', action.postActionReject)
 	router.post('/inbox', action.postInboundAction)
 
 	/* Documents */

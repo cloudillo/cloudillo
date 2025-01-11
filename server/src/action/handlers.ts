@@ -26,7 +26,7 @@ import { tActionType, tNewAction } from '@cloudillo/types'
 import { Context } from '../index.js'
 import { validate, validateQS, sha256 } from '../utils.js'
 import { determineTnId, determineTenantTag } from '../auth.js'
-import { createAction } from './action.js'
+import { createAction, acceptAction, rejectAction } from './action.js'
 import { tProfile, getProfile } from '../profile/profile.js'
 import { metaAdapter } from '../adapters.js'
 
@@ -107,6 +107,21 @@ export async function postAction(ctx: Context) {
 		},
 		createdAt: new Date(),
 	}
+}
+
+export async function postActionAccept(ctx: Context) {
+	const { tnId } = ctx.state
+	const { actionId } = validateQS(ctx, T.struct({ actionId: T.string }))
+	await acceptAction(tnId, actionId)
+	ctx.body = {}
+}
+
+export async function postActionReject(ctx: Context) {
+	const { tnId } = ctx.state
+	console.log('REJECT', ctx.param)
+	const { actionId } = validateQS(ctx, T.struct({ actionId: T.string }))
+	await rejectAction(tnId, actionId)
+	ctx.body = {}
 }
 
 const tPostInboundAction = T.struct({

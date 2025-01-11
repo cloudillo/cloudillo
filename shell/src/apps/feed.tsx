@@ -20,6 +20,16 @@ import { useEditable, Position } from 'use-editable'
 import dayjs from 'dayjs'
 import { useTranslation } from 'react-i18next'
 import debounce from 'debounce'
+
+import Lightbox from 'yet-another-react-lightbox'
+import 'yet-another-react-lightbox/styles.css'
+import Fullscreen from "yet-another-react-lightbox/plugins/fullscreen"
+import Slideshow from "yet-another-react-lightbox/plugins/slideshow"
+import Thumbnails from "yet-another-react-lightbox/plugins/thumbnails"
+import Zoom from "yet-another-react-lightbox/plugins/zoom"
+import "yet-another-react-lightbox/plugins/thumbnails.css"
+import 'react-photo-album/rows.css'
+
 import * as T from '@symbion/runtype'
 
 import {
@@ -40,16 +50,10 @@ import {
 	LuImage as IcImage,
 	LuCamera as IcCamera,
 	LuVideo as IcVideo,
-
-	LuSmile as EmSmile,
-	LuLaugh as EmLaugh,
-	LuFrown as EmSad,
-	LuMeh as EmMeh,
-	LuHeart as EmHeart,
 } from 'react-icons/lu'
 
 import { NewAction, ActionView, tActionView, tCommentAction } from '@cloudillo/types'
-import { useAuth, useApi, Button, ProfilePicture, ProfileCard, ProfileAudienceCard, Fcb, mergeClasses } from '@cloudillo/react'
+import { useAuth, useApi, Button, ProfilePicture, ProfileCard, ProfileAudienceCard, Fcb, mergeClasses, generateFragments } from '@cloudillo/react'
 import '@cloudillo/react/src/components.css'
 
 import { useAppConfig, parseQS, qs } from '../utils.js'
@@ -73,92 +77,43 @@ interface PostAction extends ActionView {
 type CommentAction = ActionView
 export type ActionEvt = PostAction | ActionView
 
-/////////////////////
-// Text formatting //
-/////////////////////
-const emojis: Record<string, React.ReactNode> = {
-	':)': <EmSmile size="1em"/>, //'🙂',
-	':D': <EmLaugh size="1em"/>, //'😀',
-	':P': '😛',
-	';P': '😜',
-	':|': <EmMeh size="1em"/>, //'😐',
-	':(': <EmSad size="1em"/>, //'🙁',
-	//':O': '😮',
-	//':.(': '😢',
-	'<3': <EmHeart size="1em"/>, //'❤️️',
-	'::': <img src="https://w9.hu/w9.png"/>
-	//'::': <span><img src="https://w9.hu/w9.png"/><span className="d-inline-block" style={{ width: 0, overflow: 'hidden' }}>::</span></span>
-}
-
-function generateFragments(text: string): React.ReactNode[] {
-	const fragments: React.ReactNode[] = []
-
-	for (const w of text.split(/(\s+)/)) {
-		let n: React.ReactNode = w
-
-		switch (w[0]) {
-			case 'h':
-				if (w.match(/^https?:\/\//)) {
-					if (w.startsWith(`https://${window.location.host}/`)) {
-						n = <Link to={w.replace(`https://${window.location.host}/`, '/')}>{w}</Link>
-					} else {
-						n = <a href={w} target="_blank">{w}</a>
-					}
-				}
-				break
-			case '#':
-				if (w.match(/^#\S+/)) {
-					n = <span className="c-tag">{w}</span>
-				}
-				break
-			case ':':
-			case ';':
-			case '<':
-			case '8':
-				const emoji = emojis[w]
-				if (typeof emoji == 'object') {
-					n = <span>{emojis[w]}<span className="d-inline-block" style={{ width: 0, overflow: 'hidden' }}>{w}</span></span>
-				} else {
-					n = emoji || w
-				}
-				break
-		}
-		//if (typeof n == 'string') n = htmlEncode(n)
-		const last = fragments[fragments.length - 1]
-		if (typeof n == 'string' && typeof last == 'string') {
-			fragments[fragments.length - 1] = last + n
-		} else {
-			fragments.push(n)
-		}
-	}
-	return fragments
-}
-
 //////////////////////
 // Image formatting //
 //////////////////////
 export function Images({ idTag, width, attachments }: { idTag: string, width: number, attachments: ActionView['attachments'] }) {
+	const [auth] = useAuth()
+	const [lbIndex, setLbIndex] = React.useState<number | undefined>()
 	const gap = 8
 	const baseUrl = `https://cl-o.${idTag}/api/store/`
 	const [img1, img2, img3] = attachments || []
-	console.log('ATTACHMENTS', attachments, width)
+	//console.log('ATTACHMENTS', attachments, width)
+
+	const photos = React.useMemo(() => attachments?.map(im => ({
+		src: `https://cl-o.${auth?.idTag}/api/store/${im.hd || im.sd || im.tn}`,
+		width: im.dim?.[0] || 100,
+		height: im.dim?.[1] || 100
+	})), [attachments])
 
 	if (!attachments?.length) return null
+
+	let imgNode: React.ReactNode
 
 	switch (attachments?.length) {
 		case 0:
 			return null
 		case 1:
-			return <img src={baseUrl + (img1.sd || img1.hd)} style={{ maxWidth: '100%', maxHeight: '30rem', margin: '0 auto'}}/>
+			imgNode = <img className="cursor-pointer" onClick={() => setLbIndex(0)} src={baseUrl + (img1.sd || img1.hd)} style={{ maxWidth: '100%', maxHeight: '30rem', margin: '0 auto'}}/>
+			break
 		case 2: {
 			const aspect12 = (img1.dim?.[0] ?? 100) / (img1.dim?.[1] ?? 100) + (img2.dim?.[0] ?? 100) / (img2.dim?.[1] ?? 100)
-			console.log('ASPECT', aspect12)
+			//console.log('ASPECT', aspect12)
 			const height = (width - gap) / aspect12
 
-			return <div className="c-hbox g-2">
-				<img src={baseUrl + (img1.sd || img1.hd)} style={{ height, margin: '0 auto'}}/>
-				<img src={baseUrl + (img2.sd || img2.hd)} style={{ height, margin: '0 auto'}}/>
+			imgNode = <div className="c-hbox g-2">
+				<img className="cursor-pointer" onClick={() => setLbIndex(0)} src={baseUrl + (img1.sd || img1.hd)} style={{ height, margin: '0 auto'}}/>
+				<img className="cursor-pointer" onClick={() => setLbIndex(1)} src={baseUrl + (img2.sd || img2.hd)} style={{ height, margin: '0 auto'}}/>
 			</div>
+			break
 		}
 		default:
 		case 3: {
@@ -168,26 +123,37 @@ export function Images({ idTag, width, attachments }: { idTag: string, width: nu
 			)
 			// Adding the aspect ratios of img1 and the right column (img2 and img3)
 			const aspect123 = (img1.dim?.[0] ?? 100) / (img1.dim?.[1] ?? 100) + aspect23
-			console.log('ASPECT', aspect23, aspect123)
+			//console.log('ASPECT', aspect23, aspect123)
 			const height = (width - gap) / aspect123
 			const width23 = (height - gap) * aspect23
-			console.log('DIMS', { width, height, width23, attachmentsLength: attachments.length })
+			//console.log('DIMS', { width, height, width23, attachmentsLength: attachments.length })
 
-			return <div className="c-hbox g-2">
-				<img src={baseUrl + (img1.sd || img1.hd)} style={{ height, margin: '0 auto'}}/>
+			imgNode = <div className="c-hbox g-2">
+				<img className="cursor-pointer" onClick={() => setLbIndex(0)} src={baseUrl + (img1.sd || img1.hd)} style={{ height, margin: '0 auto'}}/>
 				<div className="c-vbox">
-					<img src={baseUrl + (img2.sd || img2.hd)} style={{ width: width23, margin: '0 auto'}}/>
+					<img className="cursor-pointer" onClick={() => setLbIndex(1)} src={baseUrl + (img2.sd || img2.hd)} style={{ width: width23, margin: '0 auto'}}/>
 					{ attachments.length == 3
-						? <img src={baseUrl + (img3.sd || img3.hd)} style={{ width: width23, margin: '0 auto'}}/>
+						? <img className="cursor-pointer" onClick={() => setLbIndex(2)} src={baseUrl + (img3.sd || img3.hd)} style={{ width: width23, margin: '0 auto'}}/>
 						: <div className="pos relative" style={{ width: width23, margin: '0 auto'}}>
 							<img className="w-100" src={baseUrl + (img3.sd || img3.hd)}/>
-							<div className="c-image-overlay-counter">+{attachments.length - 3}</div>
+							<div onClick={() => setLbIndex(2)} className="c-image-overlay-counter cursor-pointer">+{attachments.length - 3}</div>
 						</div>
 					}
 				</div>
 			</div>
 		}
 	}
+
+	return <>
+		{ imgNode }
+		<Lightbox
+			slides={photos}
+			open={lbIndex !== undefined}
+			index={lbIndex}
+			close={() => setLbIndex(undefined)}
+			plugins={[Fullscreen, Slideshow, Thumbnails, Zoom]}
+		/>
+	</>
 }
 
 ////////////////////
@@ -259,7 +225,7 @@ function NewComment({ actionId, className, style, onSubmit }: { actionId: string
 	if (!auth?.name || !auth?.idTag) return false
 
 	return <div className={mergeClasses('d-flex', className)} style={style}>
-		<ProfilePicture profile={{ name: auth.name, idTag: auth.idTag, profilePic: auth.profilePic }} small/>
+		<ProfilePicture profile={{ profilePic: auth.profilePic }} small/>
 		<div className="c-panel p-1 flex-row flex-fill">
 			<div className="c-input-group">
 				<div ref={editorRef} className="c-input" tabIndex={0} onKeyDown={onKeyDown}>
@@ -508,7 +474,7 @@ export const NewPost = React.forwardRef(function NewPostInside({ className, styl
 	return <>
 		<div ref={ref} className={mergeClasses('c-panel g-2', className)}>
 			<div className="c-hbox">
-				<ProfilePicture profile={{ name: auth.name ?? '', idTag: auth.idTag, profilePic: auth.profilePic }} small/>
+				<ProfilePicture profile={{ profilePic: auth.profilePic }} small/>
 				<div className="c-input-group">
 					<div ref={editorRef} className="c-input" tabIndex={0} onKeyDown={onKeyDown}>
 						{ generateFragments(content).map((n, i) => <React.Fragment key={i}>{n}</React.Fragment>) }
@@ -560,15 +526,13 @@ export function FeedApp() {
 	const ref = React.useRef<HTMLDivElement>(null)
 	const [width, setWidth] = React.useState(0)
 
-	if (feed) console.log('Feed state', feed)
-
 	React.useLayoutEffect(function () {
 		if (!ref.current || !api || !auth?.roles) return
 		function onResize() {
 			if (!ref.current) return
 			const styles = getComputedStyle(ref.current)
 			const w = (ref.current?.clientWidth || 0) - parseInt(styles.paddingLeft || '0') - parseInt(styles.paddingRight || '0')
-			console.log('WIDTH calc', ref.current, ref.current.clientWidth, styles, w, styles.paddingLeft, styles.paddingRight)
+			//console.log('WIDTH calc', ref.current, ref.current.clientWidth, styles, w, styles.paddingLeft, styles.paddingRight)
 			if (width != w) setWidth(w)
 		}
 
@@ -581,7 +545,7 @@ export function FeedApp() {
 	}, [auth, api, ref])
 
 	React.useEffect(function onLoadFeed() {
-		if (!api || !auth?.roles) return
+		if (!api.idTag || !auth?.roles) return
 		const idTag = location.hostname // FIXME
 
 		;(async function () {

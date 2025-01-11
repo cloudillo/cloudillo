@@ -45,15 +45,18 @@ const APP_CONFIG: AppConfigState = {
 		'cloudillo/formillo': '/app/formillo'
 	},
 	menu: [
-		{ id: 'gallery', icon: IcGallery, label: 'Gallery', path: '/app/gallery' },
 		{ id: 'files', icon: IcFile, label: 'Files', path: '/app/files?filter=mut' },
 		{ id: 'feed', icon: IcFeed, label: 'Feed', path: '/app/feed', public: true },
-		{ id: 'users', icon: IcUser, label: 'Users', path: '/users' },
 		{ id: 'communities', icon: IcUsers, label: 'Communities', path: '/communities' },
 		{ id: 'messages', icon: IcMessages, label: 'Messages', path: '/app/messages' },
-		{ id: 'settings', icon: IcSettings, label: 'Settings', path: '/settings' },
 		//{ id: 'myform', icon: IcFile, label: 'My Form', path: '/app/formillo/cloud.w9.hu/myform' },
-	]
+	],
+	menuEx: [
+		{ id: 'gallery', icon: IcGallery, label: 'Gallery', path: '/app/gallery' },
+		{ id: 'users', icon: IcUser, label: 'Users', path: '/users' },
+		{ id: 'settings', icon: IcSettings, label: 'Settings', path: '/settings' },
+	],
+	defaultMenu: 'files'
 }
 
 import * as React from 'react'
@@ -63,25 +66,29 @@ import { useTranslation } from 'react-i18next'
 import {
 	LuUser as IcUser,
 	LuUsers as IcUsers,
+	LuGrip as IcApps,
 	// App icons
 	LuMenu	as IcMenu,
 	LuList as IcFeed,
 	LuFile as IcFile,
 	LuMessagesSquare as IcMessages,
+	LuBell as IcNotifications,
 	LuSettings as IcSettings,
 	LuImage as IcGallery
 } from 'react-icons/lu'
 import { CloudilloLogo } from './logo.js'
 
-import { useAuth, AuthState, useApi, Popper } from '@cloudillo/react'
+import { Profile } from '@cloudillo/types'
+import { useAuth, AuthState, useApi, mergeClasses, ProfilePicture, Popper } from '@cloudillo/react'
 import { AppConfigState, useAppConfig } from './utils.js'
 import usePWA from './pwa.js'
-import { AuthRoutes, webAuthnLogin } from './auth.js'
+import { AuthRoutes, webAuthnLogin } from './auth/auth.js'
 import { WsBusRoot, useWsBus } from './ws-bus.js'
 import { SearchIcon, SearchBar, useSearch } from './search.js'
 import { SettingsRoutes } from './settings'
 import { AppRoutes } from './apps'
 import { ProfileRoutes } from './profile/profile.js'
+import { Notifications } from './notifications/notifications.js'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/opaque.css'
@@ -94,15 +101,17 @@ function Header() {
 	const [search] = useSearch()
 	const api = useApi()
 	const { t, i18n } = useTranslation()
+	const location = useLocation()
 	const navigate = useNavigate()
 	const [menuOpen, setMenuOpen] = React.useState(false)
+	const [exMenuOpen, setExMenuOpen] = React.useState(false)
 	//console.log('menuOpen', menuOpen)
 
 	async function doLogout() {
 		await api.post('', '/auth/logout', {})
 		setAuth(undefined)
 		setMenuOpen(false)
-		navigate('/')
+		navigate('/login')
 	}
 
 	function setLang(evt: React.MouseEvent, lang: string) {
@@ -111,6 +120,10 @@ function Header() {
 		i18n.changeLanguage(lang)
 		setMenuOpen(false)
 	}
+
+	React.useEffect(function onLocationChange() {
+		setExMenuOpen(false)
+	}, [location])
 
 	React.useEffect(function onLoad() {
 		// Set app config
@@ -126,27 +139,46 @@ function Header() {
 			document.body.classList.add('light');
 		}
 		(async function () {
-			if (api && !auth) {
-				// Try login token
+			if (!api.idTag && !auth) {
+				// Determine idTag
 				try {
-					const res = await api.get('', '/auth/login-token')
-					const authState = res as AuthState || undefined
-					if (authState?.idTag) {
-						setAuth(authState)
-						return
+					const res = await fetch(`https://${window.location.host}/idTag`)
+					if (res.ok) {
+						const j = await res.json()
+						if (typeof j.idTag == 'string') {
+							api.setIdTag(j.idTag)
+							navigator.serviceWorker.ready.then(function serviceWorkerRegistered(reg) {
+								reg?.active?.postMessage({ idTag: j.idTag })
+								reg?.addEventListener('updatefound', function () {
+									reg?.installing?.postMessage({ idTag: j.idTag })
+								})
+							})
+						}
+						// Check for login cookie
+						const tokenRes = await api.get(j.idTag, '/auth/login-token')
+						const authState = tokenRes as AuthState || undefined
+						if (authState?.idTag) {
+							setAuth(authState)
+							if (location.pathname == '/') navigate(appConfig?.menu?.find(m => m.id === appConfig.defaultMenu)?.path || '/app/feed')
+							return
+						}
+						/*
+						if (localStorage.getItem('credential')) {
+							const authState = await webAuthnLogin(api)
+							console.log('webAuthnLogin res', authState)
+							setAuth(authState)
+						}
+						*/
 					}
+					navigate('/login')
 				} catch (err) {
-					console.log('NO AUTH TOKEN', err)
-				}
-				if (localStorage.getItem('credential')) {
-					const authState = await webAuthnLogin(api)
-					console.log('webAuthnLogin res', authState)
-					setAuth(authState)
+					console.log('ERROR', err)
+					navigate('/login')
 				}
 				//} else navigate('/profile/me')
 			}
 		})()
-	}, [api])
+	}, [api, auth])
 
 	return <>
 		<nav className="c-nav justify-content-between border-radius-0 mb-2 g-1">
@@ -168,13 +200,11 @@ function Header() {
 				*/}
 			</ul>
 			<ul className="c-nav-group c-hbox">
+				{ auth && <Link className="c-nav-item" to="/notifications"><IcNotifications/></Link> }
 				{ auth
 					? <details className="c-dropdown right" open={menuOpen} onClick={evt => (evt.preventDefault(), setMenuOpen(!menuOpen))} onToggle={evt => console.log('details onChange', evt)}>
 						<summary className="c-nav-item">
-							{ auth.profilePic
-								? <img className="c-avatar" src={`https://cl-o.${auth.idTag}/api/store/${auth.profilePic}`} alt="Profile picture"/>
-								: <IcUser className="c-avatar"/>
-							}
+							<ProfilePicture profile={auth}/>
 						{auth.name}</summary>
 						<ul className="c-nav flex-column">
 							<li className="c-nav-item"><Link to="/profile/me">{t('Profile')}</Link></li>
@@ -209,6 +239,17 @@ function Header() {
 				}
 			</ul>
 		</nav>
+		<div className="pos relative flex-order-end">
+			<nav className={mergeClasses('c-nav c-menu-ex', exMenuOpen && 'open')}>
+				{ appConfig && appConfig.menuEx.map(menuItem =>
+					(!!auth || menuItem.public)
+						&& <NavLink key={menuItem.id} className="c-nav-link h-small vertical" aria-current="page" to={menuItem.path}>
+							{menuItem.icon && React.createElement(menuItem.icon)}
+							<h6>{menuItem.label}</h6>
+						</NavLink>
+				)}
+			</nav>
+		</div>
 		<nav className="c-nav w-100 border-radius-0 justify-content-center flex-order-end">
 			{ appConfig && appConfig.menu.map(menuItem =>
 				(!!auth || menuItem.public)
@@ -217,6 +258,10 @@ function Header() {
 						<h6>{menuItem.label}</h6>
 					</NavLink>
 			)}
+			<button className={'c-nav-link h-small vertical'} onClick={() => setExMenuOpen(!exMenuOpen)}>
+				<IcApps/>
+				<h6>{t('More')}</h6>
+			</button>
 		</nav>
 	</>
 }
@@ -227,6 +272,7 @@ const pwaConfig = {
 export function Layout() {
 	const pwa = usePWA(pwaConfig)
 	const api = useApi()
+
 	return <>
 		<WsBusRoot>
 			<Header/>
@@ -235,6 +281,10 @@ export function Layout() {
 				<AuthRoutes/>
 				<SettingsRoutes/>
 				<AppRoutes/>
+				<Routes>
+					<Route path="/notifications" element={<Notifications/>}/>
+					<Route path="*" element={null}/>
+				</Routes>
 			</div>
 			<div className="pt-1"/>
 			<div id="popper-container"/>

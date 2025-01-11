@@ -19,7 +19,6 @@ import { atom, useAtom } from 'jotai'
 import dayjs from 'dayjs'
 import * as T from '@symbion/runtype'
 
-import { apiFetchHelper, ApiFetchOpts } from '@cloudillo/base'
 import { useAuth } from '@cloudillo/react'
 
 // Query string handling
@@ -130,8 +129,10 @@ export interface MenuItem {
 
 export interface AppConfigState {
 	apps: AppConfig[]
-	menu: MenuItem[]
 	mime: Record<string, string>
+	menu: MenuItem[]
+	menuEx: MenuItem[]
+	defaultMenu?: string
 }
 
 const appConfigAtom = atom<AppConfigState | undefined>(undefined)

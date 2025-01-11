@@ -19,7 +19,7 @@ import { useTranslation } from 'react-i18next'
 
 import { useAuth, useApi } from '@cloudillo/react'
 
-import { addWebAuthn, deleteWebAuthn } from '../auth.js'
+import { addWebAuthn, deleteWebAuthn } from '../auth/auth.js'
 import { useSettings } from './settings.js'
 
 export function SecuritySettings() {

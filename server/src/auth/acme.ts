@@ -23,12 +23,13 @@ let acmeClient: acme.Client
 const acmeChallengeResponses: Record<string, string> = {}
 
 export async function createCert(tnId: number, authAdapter: AuthAdapter, idTag: string, domain?: string) {
+	console.log('createCert', idTag, domain)
 	const [key, csr] = await acme.crypto.createCsr({
 		altNames: [domain ? domain : idTag, 'cl-o.' + idTag]
 	})
 
 	const cert = await acmeClient.auto({
-		termsOfServiceAgreed: true,
+		termsOfServiceAgreed: process.env.ACME_TERMS_AGREED == 'true',
 		challengePriority: ['http-01'],
 		skipChallengeVerification: true,
 		csr,
@@ -43,7 +44,7 @@ export async function createCert(tnId: number, authAdapter: AuthAdapter, idTag: 
 	})
 	const x509cert = new X509Certificate(cert)
 	const expires = new Date(new X509Certificate(cert).validTo)
-	console.log('CERT', { cert, x509cert, expires })
+	console.log('CERT', x509cert)
 	authAdapter.storeTenantCert(tnId, idTag, domain || idTag, cert, key.toString(), expires)
 }
 
@@ -60,7 +61,7 @@ export async function processCertRenewals(authAdapter: AuthAdapter) {
 		})
 
 		const cert = await acmeClient.auto({
-			termsOfServiceAgreed: true,
+			termsOfServiceAgreed: process.env.ACME_TERMS_AGREED == 'true',
 			challengePriority: ['http-01'],
 			skipChallengeVerification: true,
 			csr,
@@ -75,7 +76,7 @@ export async function processCertRenewals(authAdapter: AuthAdapter) {
 		})
 		const x509cert = new X509Certificate(cert)
 		const expires = new Date(new X509Certificate(cert).validTo)
-		console.log('CERT', { cert, x509cert, expires })
+		console.log('CERT', x509cert)
 		authAdapter.storeTenantCert(tnId, idTag, domain, cert, key.toString(), expires)
 		return true
 	})

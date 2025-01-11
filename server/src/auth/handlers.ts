@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const TOKEN_EXPIRE = 10 // hours
+const TOKEN_EXPIRE = 365 * 24 // hours
 
 import crypto from 'crypto'
 import KoaRouter from 'koa-router'
@@ -26,8 +26,6 @@ import sqlite from 'sqlite3'
 import { AsyncDatabase } from 'promised-sqlite3'
 import { LRUCache } from 'lru-cache'
 import bns from 'bns'
-//import acme from 'acme-client'
-//import { Fido2Lib, AttestationResult, Fido2LibOptions } from 'fido2-lib'
 import {
 	generateAuthenticationOptions,
 	generateRegistrationOptions,
@@ -35,7 +33,6 @@ import {
 	verifyRegistrationResponse,
 	//GenerateRegistrationOptionsOpts,
 } from '@simplewebauthn/server'
-import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/types'
 import WebPush from 'web-push'
 const { generateVAPIDKeys } = WebPush
 
@@ -54,7 +51,7 @@ import * as acme from './acme.js'
 
 let authAdapter: AuthAdapter
 
-function passwordHash(password: string, salt?: string) {
+export function passwordHash(password: string, salt?: string) {
 	const s = salt ? Buffer.from(salt, 'base64url') : crypto.randomBytes(16)
 	const hash = crypto.scryptSync(password, s, 64).toString('base64url')
 	return `${s.toString('base64url')}:${hash}`
@@ -96,10 +93,10 @@ export function determineTenantTag(hostName: string) {
 
 export async function determineTnId(hostName: string) {
 	const tenantTag = determineTenantTag(hostName)
-	const profile = await authAdapter.getAuthProfile(tenantTag)
-	if (!profile) throw new Error('Unknown tenant')
+	const tnId = await authAdapter.getTenantId(tenantTag)
+	if (!tnId) throw new Error('Unknown tenant')
 
-	return profile.id
+	return tnId
 }
 
 export async function getIdentityTag(tnId: number) {
@@ -156,7 +153,7 @@ async function returnLogin(ctx: Context, login: Omit<LoginResult, 'token'>, reme
 }
 
 const tLogin = T.struct({
-	user: T.string,
+	idTag: T.string,
 	password: T.string,
 	remember: T.optional(T.boolean)
 })
@@ -167,10 +164,11 @@ export async function postLogin(ctx: Context) {
 	const p = validate(ctx, tLogin)
 
 	try {
-		const auth = await authAdapter.getAuthPassword(p.user)
-		console.log('AUTH', p.user, auth)
+		const auth = await authAdapter.getAuthPassword(p.idTag)
+		console.log('AUTH', p.idTag, auth)
 
 		if (!auth) ctx.throw(403)
+		console.log(p.password, passwordHash(p.password, auth.passwordHash.split(':')[0]))
 		if (passwordHash(p.password, auth.passwordHash.split(':')[0]) !== auth.passwordHash) ctx.throw(403)
 
 		await returnLogin(ctx, {
@@ -205,7 +203,7 @@ async function verifyRegisterData(type: 'local' | 'domain', idTag: string, appDo
 	resolver.hints.setDefault()
 	//resolver.on('log', (args: any) => console.log('RESOLVER', args))
 
-	const tenantData = await authAdapter.getCertByTag(idTag)
+	const tenantData = await authAdapter.getAuthProfile(idTag)
 	const domainData = await authAdapter.getCertByDomain(appDomain || idTag)
 
 	if (type == 'local') {
@@ -256,8 +254,8 @@ export async function postRegisterVerify(ctx: Context) {
 	const p = validate(ctx, tRegisterVerify)
 
 	const ref = await metaAdapter.getRef(tnId, p.registerToken)
-	//if (p.registerToken !== ref?.refId || ref?.type != 'register') ctx.throw(403)
 	console.log('ref', ref)
+	if (p.registerToken !== ref?.refId || ref?.type != 'register') ctx.throw(403)
 
 	ctx.body = await verifyRegisterData(p.type, p.idTag, p.appDomain, ctx.config.localIps || [])
 }
@@ -266,6 +264,7 @@ const tRegister = T.struct({
 	type: T.literal('local', 'domain'),
 	idTag: T.string.matches(/^([a-zA-Z0-9-]+)(\.[a-zA-Z0-9-]+)*$/),
 	appDomain: T.optional(T.string),
+	password: T.string,
 	email: T.string,
 	registerToken: T.string
 })
@@ -275,37 +274,23 @@ export async function postRegister(ctx: Context) {
 	const p = validate(ctx, tRegister)
 
 	const ref = await metaAdapter.getRef(tnId, p.registerToken)
+	console.log('ref', ref)
 	if (p.registerToken !== ref?.refId || ref?.type != 'register') ctx.throw(403)
 
 	const vfy = await verifyRegisterData(p.type, p.idTag, p.appDomain, ctx.config.localIps || [])
 	console.log('VERIFY', vfy)
 	if (vfy.idTagError || vfy.appError) ctx.throw(422)
 
-	// ACME
-	//acme.createCert(tnId, authAdapter, p.idTag, p.identityUrl)
-	/*
-	const [key, csr] = await acme.crypto.createCsr({
-		altNames: [p.idTag, 'cl-o.' + p.idTag]
+	const newTnId = await authAdapter.createTenant(p.idTag, {
+		password: p.password,
+		email: p.email,
 	})
+	const name = p.idTag.replace(/\..*$/, '')
+	await metaAdapter.createTenant(newTnId, p.idTag, { name: name.charAt(0).toUpperCase() + name.slice(1).toLowerCase() })
+	//await metaAdapter.deleteRef(tnId, p.registerToken)
 
-	const cert = await acmeClient.auto({
-		termsOfServiceAgreed: true,
-		challengePriority: ['http-01'],
-		skipChallengeVerification: true,
-		csr,
-		challengeCreateFn: async (authz, challenge, keyAuthorization) => {
-			console.log('CHALLENGE redeived:', challenge.token)
-			acmeChallengeResponses[challenge.token] = keyAuthorization
-		},
-		challengeRemoveFn: async (authz, challenge) => {
-			delete acmeChallengeResponses[challenge.token]
-			console.log('CHALLENGE removed', challenge.token)
-		}
-	})
-	console.log('CERT', cert)
-	authAdapter.storeTenantKey(p.idTag, key.toString())
-	authAdapter.storeTenantCert(p.idTag, cert)
-	*/
+	// ACME
+	if (ctx.config.acmeEmail) await acme.createCert(tnId, authAdapter, p.idTag, p.appDomain)
 
 	ctx.body = {
 	}
@@ -313,6 +298,12 @@ export async function postRegister(ctx: Context) {
 
 export async function getAcmeChallengeResponse(ctx: BaseContext) {
 	const { token } = ctx.params
+	console.log('CHALLENGE REQUEST', token)
+
+	if (token == 'test') {
+		ctx.body = 'test'
+		return
+	}
 
 	const response = await acme.getChallengeResponse(token)
 

@@ -23,7 +23,7 @@ export const tProfile = T.struct({
 })
 export type Profile = T.TypeOf<typeof tProfile>
 
-export const tActionType = T.literal('POST', 'REPOST', 'REACT', 'CMNT', 'FLLW', 'SHRE', 'MSG')
+export const tActionType = T.literal('CONN', 'FLLW', 'POST', 'REPOST', 'REACT', 'CMNT', 'FLLW', 'SHRE', 'MSG', 'FSHR')
 export type ActionType = T.TypeOf<typeof tActionType>
 
 export const tAction = T.struct({
@@ -209,6 +209,17 @@ export const tMessageAction =  T.struct({
 })
 export type MessageAction = T.TypeOf<typeof tMessageAction>
 
+// Files
+export const tFileShareAction = T.struct({
+	type: T.literal('FSHR'),
+	subType: T.optional(T.literal('READ', 'WRITE')),
+	content: T.optional(T.string),
+	attachments: T.undefinedValue,
+	parentId: T.undefinedValue,
+	audience: T.string,
+	subject: T.string
+})
+
 export const tBaseAction = T.taggedUnion('type')({
 	// User relations
 	CONN: tConnectAction,
@@ -227,6 +238,9 @@ export const tBaseAction = T.taggedUnion('type')({
 
 	// Messages
 	MSG: tMessageAction,
+
+	// Files
+	FSHR: tFileShareAction
 })
 export type BaseAction = T.TypeOf<typeof tBaseAction>
 

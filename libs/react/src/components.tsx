@@ -16,13 +16,22 @@
 
 import * as React from 'react'
 import { createPortal } from 'react-dom'
+import { Link } from 'react-router-dom'
 import { usePopper } from 'react-popper'
 
-import { LuX as IcClose } from 'react-icons/lu'
+import {
+	LuX as IcClose,
+
+	LuSmile as EmSmile,
+	LuLaugh as EmLaugh,
+	LuFrown as EmSad,
+	LuMeh as EmMeh,
+	LuHeart as EmHeart,
+} from 'react-icons/lu'
 
 import { delay } from '@cloudillo/base'
 
-import { useAuth } from './index.js'
+import { useAuth } from './hooks.js'
 
 export function mergeClasses(...classes: (string | false | undefined)[]) {
 	return classes.filter(c => c).join(' ')
@@ -141,7 +150,6 @@ export const Fcb = {
 /***********/
 /* Profile */
 /***********/
-
 export function UnknownProfilePicture({ small }: { small?: boolean }) {
 	return <svg className={'picture' + (small ? ' small' : '')} viewBox="0 0 24 24" fill="none">
 		<path d="M12 22.01C17.5228 22.01 22 17.5329 22 12.01C22 6.48716 17.5228 2.01001 12 2.01001C6.47715 2.01001 2 6.48716 2 12.01C2 17.5329 6.47715 22.01 12 22.01Z" fill="#ADB3BA"/>
@@ -156,7 +164,7 @@ interface Profile {
 	profilePic?: string
 }
 
-export function ProfilePicture({ className, profile, small }: { className?: string, profile: Profile, small?: boolean }) {
+export function ProfilePicture({ className, profile, small }: { className?: string, profile: { profilePic?: string }, small?: boolean }) {
 	const [auth] = useAuth()
 
 	return <div className="c-profile-card">
@@ -168,8 +176,8 @@ export function ProfilePicture({ className, profile, small }: { className?: stri
 	</div>
 }
 
-export function IdentityTag({ className, tag = '-' }: { className?: string, tag?: string }) {
-	const segments = tag.match(/([a-zA-Z\.]+|[^a-zA-Z\.]+)/g) || []
+export function IdentityTag({ className, idTag = '-' }: { className?: string, idTag?: string }) {
+	const segments = idTag.match(/([a-zA-Z\.]+|[^a-zA-Z\.]+)/g) || []
 
 	return <>
 		{segments.map((segment, i) => <span key={i} className={/[^a-zA-Z\.]/.test(segment) ? 'warn' : undefined}>{segment}</span>)}
@@ -189,7 +197,7 @@ export function ProfileCard({ className, profile }: { className?: string, profil
 		}
 		<div className="body">
 			<h4 className="name">{profile.name}</h4>
-			<div className="tag"><IdentityTag tag={profile.idTag}/></div>
+			<div className="tag"><IdentityTag idTag={profile.idTag}/></div>
 		</div>
 	</div>
 }
@@ -215,14 +223,75 @@ export function ProfileAudienceCard({ className, audience, profile }: { classNam
 		<div className="body">
 			<div className="c-hbox">
 				<h4 className="name">{audience.name}</h4>
-				<div className="tag">(<IdentityTag tag={audience.idTag}/>)</div>
+				<div className="tag">(<IdentityTag idTag={audience.idTag}/>)</div>
 			</div>
 			<div className="c-hbox">
 				<h4 className="name">{profile.name}</h4>
-				<div className="tag">(<IdentityTag tag={profile.idTag}/>)</div>
+				<div className="tag">(<IdentityTag idTag={profile.idTag}/>)</div>
 			</div>
 		</div>
 	</div>
+}
+
+/*********************/
+/* generateFragments */
+/*********************/
+const emojis: Record<string, React.ReactNode> = {
+	':)': <EmSmile size="1em"/>, //'🙂',
+	':D': <EmLaugh size="1em"/>, //'😀',
+	':P': '😛',
+	';P': '😜',
+	':|': <EmMeh size="1em"/>, //'😐',
+	':(': <EmSad size="1em"/>, //'🙁',
+	//':O': '😮',
+	//':.(': '😢',
+	'<3': <EmHeart size="1em"/>, //'❤️️',
+	'::': <img src="https://w9.hu/w9.png"/>
+	//'::': <span><img src="https://w9.hu/w9.png"/><span className="d-inline-block" style={{ width: 0, overflow: 'hidden' }}>::</span></span>
+}
+
+export function generateFragments(text: string): React.ReactNode[] {
+	const fragments: React.ReactNode[] = []
+
+	for (const w of text.split(/(\s+)/)) {
+		let n: React.ReactNode = w
+
+		switch (w[0]) {
+			case 'h':
+				if (w.match(/^https?:\/\//)) {
+					if (w.startsWith(`https://${window.location.host}/`)) {
+						n = <Link to={w.replace(`https://${window.location.host}/`, '/')}>{w}</Link>
+					} else {
+						n = <a href={w} target="_blank">{w}</a>
+					}
+				}
+				break
+			case '#':
+				if (w.match(/^#\S+/)) {
+					n = <span className="c-tag">{w}</span>
+				}
+				break
+			case ':':
+			case ';':
+			case '<':
+			case '8':
+				const emoji = emojis[w]
+				if (typeof emoji == 'object') {
+					n = <span>{emojis[w]}<span className="d-inline-block" style={{ width: 0, overflow: 'hidden' }}>{w}</span></span>
+				} else {
+					n = emoji || w
+				}
+				break
+		}
+		//if (typeof n == 'string') n = htmlEncode(n)
+		const last = fragments[fragments.length - 1]
+		if (typeof n == 'string' && typeof last == 'string') {
+			fragments[fragments.length - 1] = last + n
+		} else {
+			fragments.push(n)
+		}
+	}
+	return fragments
 }
 
 // vim: ts=4

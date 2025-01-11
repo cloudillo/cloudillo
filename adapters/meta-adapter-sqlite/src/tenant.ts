@@ -42,9 +42,10 @@ export async function getTenantIdentityTag(tnId: number) {
 	return res?.idTag
 }
 
-export async function createTenant(idTag: string, tenant: TenantData) {
-	const res = await db.get<{ tnId: number }>(`INSERT INTO tenants (idTag, name, profilePic, x) VALUES
-		($idTag, $name, $profilePic, $x) RETURNING tnId`, {
+export async function createTenant(tnId: number, idTag: string, tenant: TenantData) {
+	const res = await db.get<{ tnId: number }>(`INSERT INTO tenants (tnId, idTag, name, profilePic, x) VALUES
+		($tnId, $idTag, $name, $profilePic, $x) RETURNING tnId`, {
+		$tnId: tnId,
 		$idTag: idTag,
 		$name: tenant.name,
 		$profilePic: tenant.profilePic,

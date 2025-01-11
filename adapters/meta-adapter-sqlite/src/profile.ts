@@ -20,7 +20,8 @@ import { Profile, ProfileStatus, ListProfilesOptions, UpdateProfileOptions } fro
 import { db, ql } from './db.js'
 
 export async function listProfiles(tnId: number, opts: ListProfilesOptions) {
-	const q = `SELECT * FROM profiles WHERE tnId = $tnId`
+	const idTag = await getIdentityTag(tnId)
+	const q = `SELECT * FROM profiles WHERE tnId = $tnId AND idTag != $ownIdTag`
 		+ (opts.status ? ` AND status IN (${opts.status.map(ql).join(',')})` : '')
 		+ (opts.type ?
 			(opts.type === 'U' ? ' AND type ISNULL' : ` AND type = ${ql(opts.type)}`)
@@ -29,7 +30,13 @@ export async function listProfiles(tnId: number, opts: ListProfilesOptions) {
 		+ (opts.q ? ` AND (idTag LIKE ${ql(opts.q + '%')} OR name LIKE ${ql(opts.q + '%')})` : '')
 		+ (opts.idTag ? ` AND idTag = ${ql(opts.idTag)}` : '')
 	console.log('listProfiles q:', q, tnId)
-	const rows = await db.all<{ identId: number, idTag: string, name: string, profilePic?: string, status?: 'B' | 'F' | 'C' | 'T' }>(q, { $tnId: tnId })
+	const rows = await db.all<{
+		identId: number,
+		idTag: string,
+		name: string,
+		profilePic?: string,
+		status?: 'B' | 'F' | 'C' | 'T'
+	}>(q, { $tnId: tnId, $ownIdTag: idTag })
 
 	const res: Profile[] = rows.map(row => ({
 		id: row.identId,

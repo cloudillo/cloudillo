@@ -49,7 +49,6 @@ export const tProxyToken = T.struct({
 export type ProxyToken = T.TypeOf<typeof tProxyToken>
 
 export const tAuthProfile = T.struct({
-	id: T.number,
 	idTag: T.string,
 	keys: T.array(T.struct({
 		keyId: T.string,
@@ -76,9 +75,8 @@ export const tAuthKeyData = T.struct({
 export type AuthKeyData = T.TypeOf<typeof tAuthKeyData>
 
 export const tCreateTenantData = T.struct({
-	vfyCode: T.string,
-	idTag: T.string,
-	name: T.string,
+	vfyCode: T.optional(T.string),
+	email: T.string,
 	password: T.string
 })
 export type CreateTenantData = T.TypeOf<typeof tCreateTenantData>
@@ -95,6 +93,7 @@ export interface AuthAdapter {
 	getAuthProfile: (idTag: string) => Promise<Omit<AuthProfile, 'keys'> | undefined>
 	getAuthProfileFull: (idTag: string) => Promise<AuthProfile | undefined>
 	getIdentityTag: (tnId: number) => Promise<string>
+	getTenantId: (idTag: string) => Promise<number | undefined>
 	getAuthPassword: (idTag: string) => Promise<AuthPasswordData | undefined>
 	getAuthPasswordById: (tenantId: number) => Promise<AuthPasswordData | undefined>
 	getAuthKey: (idTag: string) => Promise<AuthKeyData | undefined>
@@ -105,7 +104,7 @@ export interface AuthAdapter {
 	setGlobal: (key: string, value: string) => Promise<void>
 	getGlobal: (key: string) => Promise<string | undefined>
 	createTenantRegistration: (email: string) => Promise<void>
-	createTenant: (email: string, data: CreateTenantData) => Promise<number>
+	createTenant: (idTag: string, data: CreateTenantData) => Promise<number>
 	storeTenantCert: (tnId: number, idTag: string, domain: string, cert: string, key: string, expires: Date) => Promise<void>
 	processCertRenewals: (callback: (tnId: number, idTag: string, domain: string, expires: Date) => Promise<boolean>) => Promise<number>
 	getCertByTag: (idTag: string) => Promise<{ tnId: number, idTag: string, domain?: string, cert: string, key: string } | undefined>

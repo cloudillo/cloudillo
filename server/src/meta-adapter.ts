@@ -27,7 +27,10 @@ export interface Auth {
 /* Metadata */
 export interface File {
 	fileId: string
-	ownerTag: string
+	owner?: {
+		idTag: string
+		profilePic?: string
+	}
 	preset?: string
 	contentType: string
 	fileName: string
@@ -177,7 +180,7 @@ export interface MetaAdapter {
 	// Tenants
 	readTenant: (tnId: number) => Promise<Tenant | undefined>
 	getTenantIdentityTag: (tnId: number) => Promise<string>
-	createTenant: (idTag: string, tenant: TenantData) => Promise<number>
+	createTenant: (tnId: number, idTag: string, tenant: TenantData) => Promise<number>
 	updateTenant: (tnId: number, tenant: TenantPatch) => Promise<Tenant | undefined>
 
 	// Profiles

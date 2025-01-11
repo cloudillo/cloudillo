@@ -20,7 +20,6 @@ import dayjs from 'dayjs'
 import sqlite from 'sqlite3'
 import { AsyncDatabase } from 'promised-sqlite3'
 import crypto from 'crypto'
-import * as bcrypt from 'bcrypt'
 import { LRUCache } from 'lru-cache'
 import jwt from 'jsonwebtoken'
 
@@ -68,7 +67,6 @@ export async function init(opts: InitOpts): Promise<AuthAdapter> {
 	await db.run(`CREATE TABLE IF NOT EXISTS tenants (
 		tnId integer NOT NULL,
 		idTag text,
-		name text NOT NULL,
 		email text,
 		password text,
 		status char(1),
@@ -135,6 +133,7 @@ export async function init(opts: InitOpts): Promise<AuthAdapter> {
 		getAuthProfile,
 		getAuthProfileFull,
 		getIdentityTag,
+		getTenantId,
 		getAuthPassword,
 		getAuthPasswordById,
 		createKey,
@@ -161,6 +160,14 @@ export async function init(opts: InitOpts): Promise<AuthAdapter> {
 	}
 }
 
+///////////////////////
+// Utility functions //
+///////////////////////
+export function hashPassword(password: string, salt?: string) {
+	const s = salt ? Buffer.from(salt, 'base64url') : crypto.randomBytes(16)
+	const hash = crypto.scryptSync(password, s, 64).toString('base64url')
+	return `${s.toString('base64url')}:${hash}`
+}
 
 /////////////
 // Globals //
@@ -188,22 +195,23 @@ async function createTenantRegistration(email: string) {
 ///////////
 // Users //
 ///////////
-async function createTenant(email: string, data: CreateTenantData): Promise<number> {
+async function createTenant(idTag: string, data: CreateTenantData): Promise<number> {
 	if (data.vfyCode) {
 		const vfyCodeEmail = await db.get<{ email: string }>('SELECT email FROM user_vfy WHERE vfyCode = $vfyCode', { $vfyCode: data.vfyCode })
-		if (vfyCodeEmail.email !== email) throw new Error('Invalid vfy code')
+		if (vfyCodeEmail.email !== data.email) throw new Error('Invalid vfy code')
 	}
-	const cryptedPassword = data.password ? await bcrypt.hash(data.password, 10) : null
+	//const cryptedPassword = data.password ? await bcrypt.hash(data.password, 10) : null
+	const cryptedPassword = data.password ? hashPassword(data.password) : null
 
-	const res = await db.get<{ tnId: number }>(`INSERT INTO tenants (tnId, idTag, name, email, password, status)
-		VALUES ($tnId, $idTag, $name, $email, $cryptedPassword, 'A')
+	const res = await db.get<{ tnId: number }>(`INSERT INTO tenants (idTag, email, password, status)
+		VALUES ($idTag, $email, $cryptedPassword, 'A')
 		RETURNING tnId
 	`, {
-		$idTag: data.idTag,
-		$name: data.name,
-		$email: email,
+		$idTag: idTag,
+		$email: data.email,
 		$cryptedPassword: cryptedPassword
 	})
+	await createKey(res.tnId)
 	if (data.vfyCode) {
 		await db.run('DELETE FROM user_vfy WHERE vfyCode = $vfyCode', { $vfyCode: data.vfyCode })
 	}
@@ -352,13 +360,13 @@ async function createKey(tnId: number) {
 	return { keyId, publicKey }
 }
 
-async function getAuthProfile(idTag: string): Promise<Omit<AuthProfile, 'keys'>> {
-	const profile = await db.get<Omit<AuthProfile, 'keys'>>('SELECT tnId as id, idTag FROM tenants WHERE idTag = $idTag', { $idTag: idTag }) || {}
+async function getAuthProfile(idTag: string): Promise<Omit<AuthProfile, 'keys'> | undefined> {
+	const profile = await db.get<Omit<AuthProfile, 'keys'>>('SELECT tnId as id, idTag FROM tenants WHERE idTag = $idTag', { $idTag: idTag })
 	return profile
 }
 
 async function getAuthProfileFull(idTag: string): Promise<AuthProfile | undefined> {
-	const profile = await db.get<Omit<AuthProfile, 'keys'>>('SELECT tnId as id, idTag, name FROM tenants WHERE idTag = $idTag', { $idTag: idTag }) || {}
+	const profile = await db.get<Omit<AuthProfile & { id: number }, 'keys'>>('SELECT tnId as id, idTag FROM tenants WHERE idTag = $idTag', { $idTag: idTag }) || {}
 	if (!profile) return
 
 	const keys = profile ? await db.all<{ keyId: string, expiresAt: number, publicKey: string }>('SELECT keyId, expiresAt, publicKey FROM keys WHERE tnId = $tnId', { $tnId: profile.id }) : []
@@ -371,6 +379,11 @@ async function getAuthProfileFull(idTag: string): Promise<AuthProfile | undefine
 async function getIdentityTag(tnId: number) {
 	const { idTag } = await db.get<{ idTag: string }>('SELECT idTag FROM tenants WHERE tnId = $tnId', { $tnId: tnId }) || {}
 	return idTag
+}
+
+async function getTenantId(idTag: string) {
+	const { tnId } = await db.get<{ tnId: number }>('SELECT tnId FROM tenants WHERE idTag = $idTag', { $idTag: idTag }) || {}
+	return tnId
 }
 
 async function getAuthPassword(idTag: string): Promise<AuthPasswordData | undefined> {

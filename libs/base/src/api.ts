@@ -56,8 +56,10 @@ export interface ApiFetchOpts<R, D> {
 	authToken?: string
 }
 export async function apiFetchHelper<R, D = any>(idTag: string, method: string, path: string, opts: ApiFetchOpts<R, D>): Promise<R> {
+	if (!idTag) throw new Error('No idTag in API call')
+
 	const abortCtrl = new AbortController()
-	const url = `https://cl-o.${idTag || new URL(location.origin).hostname}/api${path}`
+	const url = `https://cl-o.${idTag}/api${path}`
 	const res = await fetch(url + (opts.query ? '?' + qs(opts.query) : ''), {
 		method,
 		headers: {

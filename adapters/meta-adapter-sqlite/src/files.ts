@@ -55,7 +55,7 @@ export async function getPermCond(tnId: number, auth: Auth, perm: 'r' | 'w' | 'a
 	//return ' AND (' + tags.map(t => `instr(tags, ${ql('#' + t.tag +'#')})`).join(' OR ') + ')'
 }
 
-export async function listFiles(tnId: number, auth: Auth, opts: ListFilesOptions) {
+export async function listFiles(tnId: number, auth: Auth, opts: ListFilesOptions): Promise<File[]> {
 	const permCond = await getPermCond(tnId, auth, 'r')
 	console.log('PERM', permCond)
 
@@ -68,7 +68,8 @@ export async function listFiles(tnId: number, auth: Auth, opts: ListFilesOptions
 	}
 
 	const q = `SELECT DISTINCT f.*, ${opts.variant ? 'fv.variantId,' : ''}
-		p.profilePic as ownerProfilePic, t.idTag as tenantTag, t.profilePic as tenantProfilePic
+		p.name as ownerName, p.profilePic as ownerProfilePic,
+		t.idTag as tenantTag, t.name as tenantName, t.profilePic as tenantProfilePic
 		FROM files f
 		LEFT JOIN profiles p ON p.tnId=f.tnId AND p.idTag=f.ownerTag
 		LEFT JOIN tenants t ON t.tnId=f.tnId
@@ -87,7 +88,9 @@ export async function listFiles(tnId: number, auth: Auth, opts: ListFilesOptions
 		fileId: string
 		tenantTag: string
 		ownerTag?: string
+		ownerName: string
 		ownerProfilePic?: string
+		tenantName: string
 		tenantProfilePic?: string
 		preset?: string
 		contentType: string
@@ -103,8 +106,11 @@ export async function listFiles(tnId: number, auth: Auth, opts: ListFilesOptions
 	})
 	return rows.map(row => ({
 		fileId: row.fileId,
-		ownerTag: row.ownerTag || row.tenantTag,
-		ownerProfilePic: row.ownerProfilePic || (row.tenantProfilePic ? JSON.parse(row.tenantProfilePic)?.ic : undefined),
+		owner: {
+			idTag: row.ownerTag || row.tenantTag,
+			name: row.ownerName || row.tenantName,
+			profilePic: row.ownerProfilePic || (row.tenantProfilePic ? JSON.parse(row.tenantProfilePic)?.ic : undefined),
+		},
 		preset: row.preset,
 		contentType: row.contentType,
 		fileName: row.fileName,
@@ -287,7 +293,9 @@ export async function processPendingFilesPrepare(callback: (tnId: number, file: 
 	for (const row of rows) {
 		if (await callback(row.tnId, {
 			fileId: row.fileId,
-			ownerTag: row.ownerTag || row.idTag,
+			owner: {
+				idTag: row.ownerTag || row.idTag,
+			},
 			preset: row.preset,
 			contentType: row.contentType,
 			fileName: row.fileName,

@@ -42,7 +42,7 @@ import {
 	LuHeart as EmHeart,
 } from 'react-icons/lu'
 
-import { ActionView, NewAction} from '@cloudillo/types'
+import { Profile, ActionView, NewAction } from '@cloudillo/types'
 import { useAuth, useApi, Button, Fcb, IdentityTag, ProfileCard, mergeClasses } from '@cloudillo/react'
 import '@cloudillo/react/src/components.css'
 
@@ -279,7 +279,7 @@ export function NewMsg({ className, style, idTag, onSubmit }: { className?: stri
 		const action: NewAction = {
 			type: 'MSG',
 			subType: attachmentId ? 'IMG' : 'TEXT',
-			content,
+			content: content.trim(),
 			attachments: attachmentId ? [attachmentId] : undefined,
 			audienceTag: idTag
 		}
@@ -323,28 +323,17 @@ export function NewMsg({ className, style, idTag, onSubmit }: { className?: stri
 ///////////////////////
 // Conversation list //
 ///////////////////////
-interface Profile {
-	id: number
-	tag: string
-	name: string
-	profilePic?: string
-	status: 'B' | 'F' | 'M' | 'T'
-}
-
 interface Conversation {
 	id: string
 	profiles: Profile[]
 }
 
 export function ConversationCard({ className, conversation }: { className?: string, conversation: Conversation }) {
+	const [auth] = useAuth()
 	const profile = conversation.profiles[0] || {}
 
-	return <Link className={mergeClasses('c-profile-card', className)} to={`/app/messages/${conversation.id}`}>
-		<img className="picture" src={`https://cl-o.${profile.tag}/${profile.profilePic}`}/>
-		<div className="body">
-			<h4 className="name">{profile.name}</h4>
-			<div className="tag"><IdentityTag tag={profile.tag}/></div>
-		</div>
+	return <Link className={mergeClasses('c-', className)} to={`/app/messages/${conversation.id}`}>
+		<ProfileCard profile={profile}/>
 	</Link>
 }
 
@@ -382,7 +371,7 @@ function ConversationBar({ className, filter, setFilter, conversations, activeId
 			<input type="text" className="c-input" placeholder="Search" value={search} onChange={onSearchChange}/>
 		</div>
 		{ !!conversations && conversations.map(con => <ConversationCard
-			key={con.profiles[0]?.tag}
+			key={con.profiles[0]?.idTag}
 			conversation={con}
 			className={activeId === con.id ? 'bg-primary' : undefined}
 		/>) }
@@ -415,8 +404,9 @@ export function MessagesApp() {
 		(async function () {
 			const conversationRes: { conversations: Conversation[] } = { conversations: [] }
 			const profileRes = await api.get<{ profiles: Profile[] }>('', '/profile', { query: { ...filter }})
+			console.log('profiles', profileRes)
 			const profileConvs: Conversation[] = profileRes.profiles.map(profile => ({
-				id: profile.tag,
+				id: profile.idTag,
 				profiles: [profile]
 			}))
 			setConversations([ ...conversationRes.conversations, ...profileConvs ])
@@ -481,6 +471,7 @@ export function MessagesApp() {
 			<Fcb.Content ref={convRef} onScroll={onConvScroll}>
 				{ !scrollBottom && <button className="c-button float m-1 secondary pos absolute bottom-0 right-0" onClick={onConvScrollBottomClick}><IcScrollBottom/></button> }
 				{ !!msg && msg.sort((a, b) => +a.createdAt - +b.createdAt).map(action => <Msg key={action.actionId} action={action} local={action.issuer.idTag === auth?.idTag}/>) }
+				{ !!convId && <NewMsg className="mt-1" idTag={convId} onSubmit={onSubmit}/> }
 			</Fcb.Content>
 			<Fcb.Details>
 			</Fcb.Details>

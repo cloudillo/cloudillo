@@ -65,7 +65,7 @@ export function GalleryApp() {
 	})), [files])
 
 	React.useEffect(function loadImageList() {
-		if (!api) return
+		if (!api || !auth) return
 
 		(async function () {
 			const qs: Record<string, string> = parseQS(location.search)
@@ -81,7 +81,7 @@ export function GalleryApp() {
 				setFiles([])
 			}
 		})()
-	}, [api, location.search, refreshHelper])
+	}, [api, auth, location.search, refreshHelper])
 
 	if (!photos) return null
 

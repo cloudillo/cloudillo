@@ -53,7 +53,7 @@ export function RegisterForm() {
 	const dialog = useDialog()
 
 	const [identityProvider, setIdentityProvider] = React.useState<'local' | 'domain' | undefined>(undefined)
-	const [email, setEmail] = React.useState('szilu@w9.hu')
+	const [email, setEmail] = React.useState('')
 	const [idTag, setIdTag] = React.useState('')
 	const [appDomain, setAppDomain] = React.useState('')
 	const [password, setPassword] = React.useState('')
@@ -115,7 +115,7 @@ export function RegisterForm() {
 		})
 		console.log('RES', res)
 		setProgress('check')
-		const checkRes = await fetch(`https://${appDomain}/idTag`)
+		const checkRes = await fetch(`https://${appDomain || idTag}/idTag`)
 		if (checkRes.ok) {
 			const j = await checkRes.json()
 			if (j.idTag == idTag) {
@@ -135,7 +135,7 @@ export function RegisterForm() {
 	}
 
 	return <form className="c-panel d-block p-4" onSubmit={onSubmit}>
-		{ progress != 'reg' && progress != 'done' && <>
+		{ (!progress || progress == 'vfy') && <>
 			<CloudilloLogo className={'c-logo w-50 float-right ps-3 pb-3' + (progress == 'vfy' ? ' fast' : ' slow')}/>
 			<header><h1 className="mb-3">{t('Join Cloudillo!')}</h1></header>
 		</> }
@@ -432,7 +432,9 @@ export function RegisterForm() {
 				<h3>{t('Your registration was successful.')}</h3>
 				<p>{t('You can now log in using your App domain')}</p>
 			</div>
-			<a className="c-button primary" href={appDomain || idTag}>{appDomain || idTag}</a>
+			<div className="c-group">
+				<a className="c-button primary" href={`https://${appDomain || idTag}`}>{appDomain || idTag}</a>
+			</div>
 		</> }
 
 		{/* Wait for DNS */}
@@ -444,7 +446,9 @@ export function RegisterForm() {
 				<h3>{t('Your registration was successful.')}</h3>
 				<p>{t('Your app domain does not seems to be available yet. If you just created it in the domain name system then it can be normal, because the domain name system needs some time to propagate changes. Please wait a while and try to log in on your app domain later. It can be a few hours.')}</p>
 			</div>
-			<a className="c-button primary" href={appDomain || idTag}>{appDomain || idTag}</a>
+			<div className="c-group">
+				<a className="c-button primary" href={`https://${appDomain || idTag}`}>{appDomain || idTag}</a>
+			</div>
 		</> }
 	</form>
 }

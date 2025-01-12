@@ -18,7 +18,6 @@ const APP_CONFIG: AppConfigState = {
 	apps: [
 		{
 			id: 'quillo',
-			//url: 'https://cloud.w9.hu/quillo/index.html'
 			url: '/quillo/index.html'
 		},
 		{
@@ -157,6 +156,7 @@ function Header() {
 						// Check for login cookie
 						const tokenRes = await api.get(j.idTag, '/auth/login-token')
 						const authState = tokenRes as AuthState || undefined
+						console.log('authState', authState)
 						if (authState?.idTag) {
 							setAuth(authState)
 							if (location.pathname == '/') navigate(appConfig?.menu?.find(m => m.id === appConfig.defaultMenu)?.path || '/app/feed')
@@ -170,7 +170,7 @@ function Header() {
 						}
 						*/
 					}
-					navigate('/login')
+					if (!location.pathname.startsWith('/register/')) navigate('/login')
 				} catch (err) {
 					console.log('ERROR', err)
 					navigate('/login')

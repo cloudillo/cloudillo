@@ -49,9 +49,13 @@ export async function initWorker(auth: AuthAdapter, opts: { baseIdTag: string, b
 	if (opts.acmeEmail) {
 		await acme.init(authAdapter, opts.acmeEmail)
 		const baseCert = await authAdapter.getCertByTag(opts.baseIdTag)
-		console.log('BASE idTag / appDomain', opts.baseIdTag, opts.baseAppDomain)
+		console.log('BASE idTag / appDomain', opts.baseIdTag, opts.baseAppDomain, baseCert?.idTag, baseCert?.domain)
 		if (!baseCert || ((opts.baseAppDomain || opts.baseIdTag) != (baseCert.domain || baseCert.idTag))) {
-			acme.createCert(1, authAdapter, opts.baseIdTag, opts.baseAppDomain)
+			if (baseCert) console.log(`Base domain changed: ${baseCert.domain || baseCert.idTag} -> ${opts.baseAppDomain || opts.baseIdTag}`)
+			const cert = await authAdapter.getCertByTag(opts.baseIdTag)
+			if (!cert) {
+				await acme.createCert(1, authAdapter, opts.baseIdTag, opts.baseAppDomain)
+			}
 		}
 		addTask(acmeTask)
 	}

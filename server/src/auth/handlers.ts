@@ -290,7 +290,7 @@ export async function postRegister(ctx: Context) {
 	//await metaAdapter.deleteRef(tnId, p.registerToken)
 
 	// ACME
-	if (ctx.config.acmeEmail) await acme.createCert(tnId, authAdapter, p.idTag, p.appDomain)
+	if (ctx.config.acmeEmail) await acme.createCert(newTnId, authAdapter, p.idTag, p.appDomain)
 
 	ctx.body = {
 	}

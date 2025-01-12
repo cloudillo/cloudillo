@@ -48,8 +48,8 @@ export async function createCert(tnId: number, authAdapter: AuthAdapter, idTag: 
 	})
 	const x509cert = new X509Certificate(cert)
 	const expires = new Date(new X509Certificate(cert).validTo)
-	console.log('CERT', x509cert)
-	authAdapter.storeTenantCert(tnId, idTag, domain || idTag, cert, key.toString(), expires)
+	await authAdapter.storeTenantCert(tnId, idTag, domain || idTag, cert, key.toString(), expires)
+	console.log('STORED CERT', tnId, idTag, x509cert)
 }
 
 export async function getChallengeResponse(token: string) {

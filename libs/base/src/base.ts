@@ -25,6 +25,7 @@ export let accessToken: string | undefined
 export let idTag: string | undefined
 export let tnId: number | undefined
 export let roles: number[] | undefined
+export let darkMode: boolean | undefined
 
 // Utility functions //
 export async function delay(ms: number) {
@@ -70,6 +71,7 @@ export function init(app: string): Promise<string | undefined> {
 					idTag = msg.ok.idTag
 					tnId = msg.ok.tnId
 					roles = msg.ok.roles
+					darkMode = !!msg.ok.darkMode
 					if (msg.ok.darkMode) {
 						console.log(`[${app}] setting dark mode`)
 						document.body.classList.add('theme-glass')

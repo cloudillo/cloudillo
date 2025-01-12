@@ -144,6 +144,7 @@ function createHttpsServer(authAdapter: AuthAdapter, callback: (req: http.Incomi
 
 function createHttp2Server(authAdapter: AuthAdapter, callback: (req: http.IncomingMessage | http2.Http2ServerRequest, res: http.ServerResponse | http2.Http2ServerResponse) => Promise<void>) {
 	const server = http2.createSecureServer({
+		allowHTTP1: true,
 		SNICallback: async function (hostname, cb) {
 			if (hostname.startsWith('cl-o.')) {
 				const certData = await authAdapter.getCertByTag(hostname.substring(5))
@@ -221,7 +222,14 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 						const certData = await authAdapter.getCertByDomain(ctx.hostname)
 						ctx.body = { idTag: certData?.idTag }
 					} else {
-						return koaSend(ctx, ctx.path, { root: config.distDir, index: 'index.html', gzip: true, brotli: true })
+						try {
+							return await koaSend(ctx, ctx.path, { root: config.distDir, index: 'index.html', gzip: true, brotli: true })
+						} catch (err) {
+							console.log('KOA SEND ERROR', err)
+							if (typeof err == 'object' && err && 'status' in err && err.status == 404) {
+								return koaSend(ctx, '/index.html', { root: config.distDir, gzip: true, brotli: true })
+							}
+						}
 					}
 				} else {
 					return next()
@@ -236,6 +244,7 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 		.use(koa.context.router.allowedMethods())
 
 	const server = config.mode == 'standalone' ? createHttp2Server(authAdapter, koa.callback()) : http.createServer(koa.callback())
+	//const server = config.mode == 'standalone' ? createHttpsServer(authAdapter, koa.callback()) : http.createServer(koa.callback())
 
 	if (config.listenHttp) {
 		const httpKoa = new Koa()

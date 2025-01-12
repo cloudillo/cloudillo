@@ -23,25 +23,30 @@ import {
 	LuX as IcReject
 } from 'react-icons/lu'
 
-import { NewAction, ActionView, tActionView, tCommentAction } from '@cloudillo/types'
+import * as T from '@symbion/runtype'
+
+import { NewAction, ActionView, tActionView, tCommentAction, tFileShareAction } from '@cloudillo/types'
 import { useAuth, useApi, Button, ProfilePicture, ProfileCard, ProfileAudienceCard, Fcb, mergeClasses, generateFragments } from '@cloudillo/react'
 
 function FilterBar() {
 	return null
 }
 
-function Notification({ className, action }: { className?: string, action: ActionView }) {
+function FileShareNotification({ className, action }: { className?: string, action: ActionView }) {
 	const { t } = useTranslation()
 	const api = useApi()
+	const contentRes = T.decode(tFileShareAction.props.content, action.content)
+	const content = T.isOk(contentRes) ? contentRes.ok : undefined
+	if (!content) return null
 
 	async function onAccept() {
 		console.log('accept')
-		await api.post('', `/action/${action.actionId}/accept`)
+		await api.post('', `/action/${action?.actionId}/accept`)
 	}
 
 	async function onReject() {
 		console.log('reject')
-		await api.post('', `/action/${action.actionId}/reject`)
+		await api.post('', `/action/${action?.actionId}/reject`)
 	}
 
 	return <div className={mergeClasses('c-panel g-2', className)}>
@@ -58,6 +63,8 @@ function Notification({ className, action }: { className?: string, action: Actio
 				*/}
 			</div>
 		</div><div className="d-flex flex-column">
+			<div>{ content.fileName }</div>
+			<div>{ content.contentType }</div>
 			{ typeof action.content == 'string' && action.content.split('\n\n').map((paragraph, i) => <p key={i}>
 				{ paragraph.split('\n').map((line, i) => <React.Fragment key={i}>
 					{ generateFragments(line).map((n, i) => <React.Fragment key={i}>{n}</React.Fragment>) }
@@ -65,6 +72,13 @@ function Notification({ className, action }: { className?: string, action: Actio
 			</p>) }
 		</div>
 	</div>
+}
+
+function Notification({ action }: { action: ActionView }) {
+	switch (action.type) {
+		case 'FSHR': return <FileShareNotification action={action}/>
+		default: return null
+	}
 }
 
 export function Notifications() {
@@ -79,7 +93,7 @@ export function Notifications() {
 
 		;(async function () {
 			//const res = await api.get<{ actions: ActionEvt[] }>('', `/action?audience=${idTag}&types=POST`)
-			const res = await api.get<{ actions: ActionView[] }>('', `/action?types=CONN,FLLW,FSHR`)
+			const res = await api.get<{ actions: ActionView[] }>('', `/action?types=CONN,FSHR`)
 			console.log('RES', res)
 			setNotifications(res.actions)
 		})()

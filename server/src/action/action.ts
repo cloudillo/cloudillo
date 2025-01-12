@@ -19,7 +19,7 @@ import jwt from 'jsonwebtoken'
 
 import * as T from '@symbion/runtype'
 
-import { ActionType, Action, NewAction } from '@cloudillo/types'
+import { ActionType, Action, NewAction, tFileShareAction } from '@cloudillo/types'
 
 import { sha256 } from '../utils.js'
 import { Auth } from '../index.js'
@@ -252,11 +252,18 @@ export async function createAction(tnId: number, action: Action) {
 }
 
 export async function acceptAction(tnId: number, actionId: string) {
+	const action = (await metaAdapter.listActions(tnId, undefined, { actionId }))?.[0]
+	console.log('ACTION', action)
+	const content = T.decode(tFileShareAction.props.content, action.content)
+	console.log('ACTION.content', content)
+	if (!action?.subject || T.isErr(content)) return
+
+	await metaAdapter.createFile(tnId, action.subject, { ...content.ok, ownerTag: action.issuer.idTag, status: 'M' })
 	await metaAdapter.updateActionData(tnId, actionId, { status: undefined })
 }
 
 export async function rejectAction(tnId: number, actionId: string) {
-	await metaAdapter.updateActionData(tnId, actionId, { status: undefined })
+	await metaAdapter.updateActionData(tnId, actionId, { status: 'D' })
 }
 
 // vim: ts=4

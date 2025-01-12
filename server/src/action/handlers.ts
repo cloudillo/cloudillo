@@ -110,15 +110,15 @@ export async function postAction(ctx: Context) {
 
 export async function postActionAccept(ctx: Context) {
 	const { tnId } = ctx.state
-	const { actionId } = validateQS(ctx, T.struct({ actionId: T.string }))
+	const { actionId } = ctx.params
 	await acceptAction(tnId, actionId)
 	ctx.body = {}
 }
 
 export async function postActionReject(ctx: Context) {
 	const { tnId } = ctx.state
-	console.log('REJECT', ctx.param)
-	const { actionId } = validateQS(ctx, T.struct({ actionId: T.string }))
+	console.log('REJECT', ctx.params)
+	const { actionId } = ctx.params
 	await rejectAction(tnId, actionId)
 	ctx.body = {}
 }

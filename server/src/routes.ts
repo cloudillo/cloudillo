@@ -29,8 +29,6 @@ import * as settings from './settings/handlers.js'
 import * as database from './database/handlers.js'
 
 export async function init(router: Router) {
-	console.log('init routes')
-
 	/* Auth */
 	router.post('/auth/login', auth.postLogin)
 	router.post('/auth/logout', auth.postLogout)

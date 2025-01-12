@@ -104,7 +104,9 @@ export interface Config {
 	mode: 'standalone' | 'proxy'
 	listen: number
 	listenHttp?: number
-	baseUrl: string
+	baseIdTag: string
+	baseAppDomain?: string
+	basePassword?: string
 	distDir: string
 	acmeEmail?: string
 	localIps?: string[]
@@ -166,13 +168,17 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 	koa.context.router = router
 	koa.context.config = config
 
+	console.log('====[ Cloudillo service booting ]===============================================')
+	console.log(`Running in ${config.mode} mode`)
+
 	koa
 		//.use(koaJwt({ secret: config.jwtSecret, passthrough: true, cookie: 'token' }))
 		.use(async (ctx, next) => {
 			if (ctx.hostname.startsWith('cl-o.')) {
 				ctx.state.tenantTag = determineTenantTag(ctx.hostname)
-				ctx.state.tnId = await determineTnId(ctx.hostname)
-				if (!ctx.state.tnId) return ctx.throw(403)
+				const tnId = await determineTnId(ctx.hostname)
+				if (!tnId) return ctx.throw(404)
+				ctx.state.tnId = tnId
 
 				// JWT
 				let token: string | undefined
@@ -248,17 +254,12 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 		httpServer.listen(config.listenHttp, async () => {
 			httpRouter.get('/.well-known/acme-challenge/:token', getAcmeChallengeResponse)
 			httpRouter.get('{/*path}', ctx => ctx.redirect(`https://${ctx.hostname}${ctx.url}`))
-			console.log('====[ Cloudillo HTTP ready ]====')
+			console.log(`Listening on HTTP port http://localhost:${config.listenHttp}`)
 		})
 	}
 
 	server.listen(config.listen, async () => {
-		console.log('====[ Cloudillo service booting ]===============================================')
-		if (config.mode == 'standalone') {
-			console.log(`https://localhost:${config.listen}`)
-		} else {
-			console.log(`http://localhost:${config.listen}`)
-		}
+		console.log(`Listening on HTTPS port ${config.mode == 'standalone' ? 'https' : 'http'}://localhost:${config.listen}`)
 		await initWebsocket(server, authAdapter, config)
 		await initAdapters({
 			metaAdapter,

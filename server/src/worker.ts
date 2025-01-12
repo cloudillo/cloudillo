@@ -108,7 +108,9 @@ export function addSlowTask(task: Task) {
 }
 
 export interface WorkerConfig {
-	baseUrl: string
+	baseIdTag: string
+	baseAppDomain?: string
+	basePassword?: string
 	acmeEmail?: string
 }
 
@@ -123,9 +125,8 @@ export interface CloudilloWorkerOptions {
 }
 
 export async function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter, databaseAdapter, messageBusAdapter }: CloudilloWorkerOptions) {
-	await initAuthWorker(authAdapter, { baseUrl: config.baseUrl, acmeEmail: config.acmeEmail })
-	//await initMetaStore(metaAdapter)
 	await initAdapters({ metaAdapter, blobAdapter, crdtAdapter, databaseAdapter, messageBusAdapter })
+	await initAuthWorker(authAdapter, { baseIdTag: config.baseIdTag, baseAppDomain: config.baseAppDomain, basePassword: config.basePassword, acmeEmail: config.acmeEmail })
 	await initFileWorker()
 	await initActionWorker()
 	await initProfileWorker()

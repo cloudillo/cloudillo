@@ -29,7 +29,6 @@ import * as T from '@symbion/runtype'
 import * as Settings from '../settings.js'
 import { Context } from '../index.js'
 import { validate, validateQS } from '../utils.js'
-import { determineTnId } from '../auth.js'
 //import { getStoreFileName, writeStore, readStore, checkStore, init as initDocStore } from '../doc-store.js'
 import { storeImage } from '../image.js'
 import { metaAdapter, blobAdapter } from '../adapters.js'
@@ -40,7 +39,7 @@ import { tListFilesOptions } from '../meta-adapter.js'
 //////////////////
 export async function listFiles(ctx: Context) {
 	const q = validateQS(ctx, tListFilesOptions)
-	const tnId = await determineTnId(ctx.hostname)
+	const tnId = ctx.state.tnId
 	console.log('listFiles', ctx.state.auth)
 	//if (!ctx.state.user?.u || (ctx.state.user?.u != ctx.state.user?.t)) ctx.throw(403)
 	//if (!ctx.state.user?.u || !ctx.state.user?.t) ctx.throw(403)

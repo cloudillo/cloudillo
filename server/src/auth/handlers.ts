@@ -94,7 +94,7 @@ export function determineTenantTag(hostName: string) {
 export async function determineTnId(hostName: string) {
 	const tenantTag = determineTenantTag(hostName)
 	const tnId = await authAdapter.getTenantId(tenantTag)
-	if (!tnId) throw new Error('Unknown tenant')
+	//if (!tnId) throw new Error('Unknown tenant')
 
 	return tnId
 }

@@ -21,18 +21,17 @@ import * as T from '@symbion/runtype'
 
 import { Context } from '../index.js'
 import { validateQS } from '../utils.js'
-import { determineTnId } from '../auth.js'
 import { metaAdapter } from '../adapters.js'
 
 export async function listRefs(ctx: Context) {
-	const tnId = await determineTnId(ctx.hostname)
+	const tnId = ctx.state.tnId
 	const { type } = validateQS(ctx, T.struct({ type: T.optional(T.string) }), ctx.query)
 	//if (!ctx.state.user?.u || (ctx.state.user?.u != ctx.state.user?.t)) ctx.throw(403)
 	ctx.body = await metaAdapter.listRefs(tnId, type)
 }
 
 export async function getRef(ctx: Context) {
-	const tnId = await determineTnId(ctx.hostname)
+	const tnId = ctx.state.tnId
 	const ref = await metaAdapter.getRef(tnId, ctx.params.id)
 
 	if (!ref) ctx.throw(404)
@@ -41,7 +40,7 @@ export async function getRef(ctx: Context) {
 }
 
 export async function postRef(ctx: Context) {
-	const tnId = await determineTnId(ctx.hostname)
+	const tnId = ctx.state.tnId
 	const type = ctx.params?.type
 	const id = nanoid()
 	await metaAdapter.createRef(tnId, id, type)

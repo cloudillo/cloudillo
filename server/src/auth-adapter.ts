@@ -76,8 +76,8 @@ export type AuthKeyData = T.TypeOf<typeof tAuthKeyData>
 
 export const tCreateTenantData = T.struct({
 	vfyCode: T.optional(T.string),
-	email: T.string,
-	password: T.string
+	email: T.optional(T.string),
+	password: T.optional(T.string)
 })
 export type CreateTenantData = T.TypeOf<typeof tCreateTenantData>
 

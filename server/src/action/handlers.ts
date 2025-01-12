@@ -25,7 +25,6 @@ import { tActionType, tNewAction } from '@cloudillo/types'
 
 import { Context } from '../index.js'
 import { validate, validateQS, sha256 } from '../utils.js'
-import { determineTnId, determineTenantTag } from '../auth.js'
 import { createAction, acceptAction, rejectAction } from './action.js'
 import { tProfile, getProfile } from '../profile/profile.js'
 import { metaAdapter } from '../adapters.js'
@@ -43,7 +42,7 @@ const tListActionsQuery = T.struct({
 
 export async function listActions(ctx: Context) {
 	//if (!ctx.state.user?.u || (ctx.state.user?.u != ctx.state.user?.t)) ctx.throw(403)
-	const tnId = await determineTnId(ctx.hostname)
+	const tnId = ctx.state.tnId
 	console.log('GET', ctx.hostname, tnId)
 	console.log('VALIDATE', ctx.query)
 	const q = validateQS(ctx, tListActionsQuery)
@@ -129,7 +128,7 @@ const tPostInboundAction = T.struct({
 	related: T.optional(T.array(T.string))
 })
 export async function postInboundAction(ctx: Context) {
-	const tnId = await determineTnId(ctx.hostname)
+	const tnId = ctx.state.tnId
 	const { token, related } = validate(ctx, tPostInboundAction)
 	console.log('INBOX', ctx.hostname, { tnId, token, related })
 

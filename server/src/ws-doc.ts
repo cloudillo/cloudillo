@@ -148,6 +148,7 @@ export async function handleDocConnection(ws: WebSocketExt, path: string[]) {
 	const [tenantTag, docId] = path.length >= 2 ? path[1].split(':') : ['', '']
 	if (!tenantTag || !docId) return
 	const tnId = await determineTnId(tenantTag)
+	if (!tnId) throw new Error('Unknown tenant tag: ' + tenantTag)
 	//console.log('WS DOC', { path, docId })
 	ws.binaryType = 'arraybuffer'
 	ws.isAlive = true

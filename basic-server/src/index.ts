@@ -14,12 +14,16 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+if (!process.env.BASE_ID_TAG || !process.env.BASE_PASSWORD) throw new Error('ENV:BASE_ID_TAG and ENV:BASE_PASSWORD must be specified!')
+
 export const config: CloudilloServer.Config = {
 	jwtSecret: process.env.JWT_SECRET || 'secret',
 	mode: process.env.MODE == 'proxy' ? 'proxy' : 'standalone',
-	listen: +(process.env.LISTEN || (process.env.MODE === 'standalone' ? 443 : 1443)),
-	listenHttp: +(process.env.LISTEN_HTTP || 0) || (process.env.MODE === 'standalone' ? 80 : undefined),
-	baseUrl: process.env.BASE_URL || 'example',
+	listen: +(process.env.LISTEN || (process.env.MODE != 'proxy' ? 443 : 1443)),
+	listenHttp: +(process.env.LISTEN_HTTP || 0) || (process.env.MODE != 'proxy' ? 80 : undefined),
+	baseIdTag: process.env.BASE_ID_TAG,
+	baseAppDomain: process.env.BASE_APP_DOMAIN,
+	basePassword: process.env.BASE_PASSWORD,
 	distDir: process.env.DIST_DIR || './dist',
 	acmeEmail: process.env.ACME_EMAIL || undefined,
 	localIps: process.env.LOCAL_IPS ? process.env.LOCAL_IPS.split(',') : undefined,

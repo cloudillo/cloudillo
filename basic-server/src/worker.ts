@@ -14,8 +14,12 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+if (!process.env.BASE_ID_TAG || !process.env.BASE_PASSWORD) throw new Error('ENV:BASE_ID_TAG and ENV:BASE_PASSWORD must be specified!')
+
 export const config = {
-	baseUrl: process.env.BASE_URL || 'example',
+	baseIdTag: process.env.BASE_ID_TAG,
+	baseAppDomain: process.env.BASE_APP_DOMAIN,
+	basePassword: process.env.BASE_PASSWORD,
 	acmeEmail: process.env.ACME_EMAIL,
 	privateDir: process.env.PRIVATE_DATA_DIR || './data/priv',
 	publicDir: process.env.PUBLIC_DATA_DIR || './data/pub',

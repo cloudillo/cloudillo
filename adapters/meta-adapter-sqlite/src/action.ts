@@ -44,11 +44,11 @@ async function getAttachments(tnId: number, attachments: string[]): Promise<Acti
 	return (await Promise.all(attachments.map(a => getAttachment(tnId, a)))).filter(a => a) as ActionView['attachments']
 }
 
-export async function listActions(tnId: number, auth: Auth, opts: ListActionsOptions): Promise<ActionView[]> {
+export async function listActions(tnId: number, auth: Auth | undefined, opts: ListActionsOptions): Promise<ActionView[]> {
 	const q = `SELECT a.type, a.subType, a.actionId, a.parentId, a.rootId, a.idTag as issuerTag,
 		pi.name as issuerName, pi.profilePic as issuerProfilePic,
 		a.audience as audienceTag, pa.name as audienceName, pa.profilePic as audienceProfilePic,
-		a.content, a.createdAt, a.expiresAt,
+		a.subject, a.content, a.createdAt, a.expiresAt,
 		ownReact.content as ownReaction,
 		a.attachments, a.comments, a.reactions
 		FROM actions a
@@ -59,6 +59,7 @@ export async function listActions(tnId: number, auth: Auth, opts: ListActionsOpt
 		+ (opts.types ? ` AND a.type IN (${opts.types.map(tp => ql(tp)).join(',')})` : '')
 		+ (opts.audience ? ` AND (a.audience = ${ql(opts.audience)} OR (a.audience IS NULL AND a.idTag = ${ql(opts.audience)}))` : '')
 		+ (opts.involved ? ` AND (a.audience = ${ql(opts.involved)} OR (a.idTag = ${ql(opts.involved)}))` : '')
+		+ (opts.actionId ? ` AND a.actionId=${ql(opts.actionId)}` : '')
 		+ (!opts.parentId && !opts.rootId ? " AND a.parentId IS NULL" : '')
 		+ (opts.parentId ? ` AND a.parentId=${ql(opts.parentId)}` : '')
 		+ (opts.rootId ? ` AND a.rootId=${ql(opts.rootId)}` : '')
@@ -77,6 +78,7 @@ export async function listActions(tnId: number, auth: Auth, opts: ListActionsOpt
 		audienceTag?: string
 		audienceName?: string
 		audienceProfilePic?: string
+		subject?: string
 		content: string
 		createdAt: number
 		expiresAt?: number
@@ -105,6 +107,7 @@ export async function listActions(tnId: number, auth: Auth, opts: ListActionsOpt
 			name: r.audienceName,
 			profilePic: r.audienceProfilePic
 		},
+		subject: r.subject,
 		createdAt: new Date(r.createdAt * 1000).toISOString(),
 		expiresAt: r.expiresAt ? new Date(r.expiresAt * 1000).toISOString() : undefined,
 		content: r.content ? JSON.parse(r.content) : undefined,
@@ -203,16 +206,15 @@ export async function createAction(tnId: number, actionId: string, action: Actio
 
 export async function updateActionData(tnId: number, actionId: string, opts: UpdateActionDataOptions) {
 	const updList: string[] = []
-	if (opts.reactions !== undefined) updList.push(`reactions=${opts.reactions}`)
-	if (opts.comments !== undefined) updList.push(`comments=${opts.comments}`)
-	if (opts.status !== undefined) updList.push(`status=${opts.status}`)
+	if (opts.reactions !== undefined) updList.push(`reactions=${ql(opts.reactions)}`)
+	if (opts.comments !== undefined) updList.push(`comments=${ql(opts.comments)}`)
+	if (opts.status !== undefined) updList.push(`status=${ql(opts.status)}`)
 
 	if (updList.length > 0) {
 		const res = await db.run(`UPDATE actions SET ${updList.join(', ')} WHERE tnId = $tnId AND actionId = $actionId
 		`, {
 			$tnId: tnId,
-			$actionId: actionId,
-			$status: opts.status
+			$actionId: actionId
 		})
 		console.log('updateInboundAction', res, tnId, actionId)
 	}
@@ -242,7 +244,7 @@ export async function processPendingInboundActions(callback: (tnId: number, acti
 		try {
 			const val = await callback(action.tnId, action.actionId, action.token)
 			if (val) {
-				await db.run('UPDATE action_inbox SET status="A" WHERE actionId = $actionId', {
+				await db.run("UPDATE action_inbox SET status='A' WHERE actionId = $actionId", {
 					$actionId: action.actionId
 				})
 				processed++

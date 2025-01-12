@@ -227,13 +227,14 @@ export async function readFileAuth(tnId: number, auth: Auth, variantId: string) 
 	}
 }
 
-export async function createFile(tnId: number, fileId: string, { status, preset, contentType, fileName, createdAt, tags, x }: CreateFileOptions) {
+export async function createFile(tnId: number, fileId: string, { status, ownerTag, preset, contentType, fileName, createdAt, tags, x }: CreateFileOptions) {
 	console.log('WRITE', tnId, fileId, preset, contentType, tags)
-		const res = await db.run('INSERT OR IGNORE INTO files (tnId, fileId, status, preset, contentType, fileName, createdAt, tags, x) '
-			+ 'VALUES ($tnId, $fileId, $status, $preset, $contentType, $fileName, $createdAt, $tags, $x)', {
+		const res = await db.run('INSERT OR IGNORE INTO files (tnId, fileId, status, ownerTag, preset, contentType, fileName, createdAt, tags, x) '
+			+ 'VALUES ($tnId, $fileId, $status, $ownerTag, $preset, $contentType, $fileName, $createdAt, $tags, $x)', {
 			$tnId: tnId,
 			$fileId: fileId,
 			$status: status,
+			$ownerTag: ownerTag,
 			$preset: preset,
 			$contentType: contentType,
 			$fileName: fileName,

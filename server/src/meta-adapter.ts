@@ -52,6 +52,7 @@ export type ListFilesOptions = T.TypeOf<typeof tListFilesOptions>
 
 export interface CreateFileOptions {
 	status: 'M' | 'I' | 'P'
+	ownerTag?: string
 	preset?: string
 	contentType: string
 	fileName?: string
@@ -133,6 +134,7 @@ export interface ListActionsOptions {
 	tag?: string
 	audience?: string
 	involved?: string
+	actionId?: string
 	parentId?: string
 	rootId?: string
 }
@@ -200,7 +202,7 @@ export interface MetaAdapter {
 	deleteRef: (tnId: number, refId: string) => Promise<void>
 
 	// Actions
-	listActions: (tnId: number, auth: Auth, opts: ListActionsOptions) => Promise<ActionView[]>
+	listActions: (tnId: number, auth: Auth | undefined, opts: ListActionsOptions) => Promise<ActionView[]>
 	getActionRootId: (tnId: number, actionId: string) => Promise<string>
 	getActionData: (tnId: number, actionId: string) => Promise<{ subject?: string, reactions?: number, comments?: number } | undefined>
 	getActionToken: (tnId: number, actionId: string) => Promise<string | undefined>

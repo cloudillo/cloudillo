@@ -311,7 +311,7 @@ function FilterBar({ className }: { className?: string }) {
 	return <ul className={'c-nav flex-column align-items-stretch ' + (className || '')}>
 		<li className="c-nav-item">
 			<details className="c-dropdown">
-				<summary className="c-button secondary"><IcNew/>{t('New')}</summary>
+				<summary className="c-button secondary"><IcNew/>{t('Create document')}</summary>
 				<ul className="c-panel">
 					<li><a className="c-nav-item" href="#" onClick={() => createFile('cloudillo/quillo')}><IcQuillo/> {t('Quillo document')}</a></li>
 					<li><a className="c-nav-item" href="#" onClick={() => createFile('cloudillo/sheello')}><IcSheello/> {t('Sheello document')}</a></li>

@@ -18,7 +18,9 @@ import * as Y from 'yjs'
 import * as T from '@symbion/runtype'
 
 export interface CrdtAdapter {
-	getYDoc: (docId: String) => Promise<Y.Doc>
+	getYDoc: (docId: string) => Promise<Y.Doc>
+	getMeta: (docId: string, key: string) => Promise<unknown>
+	setMeta: (docId: string, key: string, value: unknown) => Promise<void>
 	storeUpdate: (docId: String, update: Uint8Array) => void
 }
 

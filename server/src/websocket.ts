@@ -74,8 +74,7 @@ export async function init(server: http.Server | http2.Http2Server, authAdapter:
 
 				try {
 					const path = req.url?.slice(1).split('?')[0].split('/') || []
-					//console.log('WS BUS CONNECT', { url: req.url, path, id: ws.id, userId: ws.auth?.userId })
-					//console.log('WS BUS CONNECT', path)
+					//console.log('WS BUS CONNECT', { url: req.url, path, id: ws.id, userId: ws.auth })
 					if (path[0] == 'ws') path.shift()
 					switch (path[0]) {
 						case 'bus':

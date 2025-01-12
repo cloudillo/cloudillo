@@ -52,6 +52,15 @@ async function loadDoc(tnId: number, docId: string) {
 	let ydoc = await crdtAdapter.getYDoc(docId)
 	console.log('ydoc', !!ydoc, ydoc?.getText('doc')?.toDelta())
 
+	const initialized = await(crdtAdapter.getMeta(docId, 'init'))
+	console.log('initialized', initialized)
+	if (!initialized) {
+		const meta = ydoc?.getMap('meta')
+		console.log('Creating new document')
+		meta.set('i', true)
+		await(crdtAdapter.setMeta(docId, 'init', 1))
+	}
+
 	const doc = {
 		ydoc,
 		awareness: new awarenessProtocol.Awareness(ydoc),
@@ -128,7 +137,7 @@ function handleMessage(ws: WebSocketExt, doc: WSDoc, msg: Uint8Array) {
 		const msgType = Decoder.readVarUint(decoder)
 		switch (msgType) {
 			case MSG_SYNC:
-				console.log('MSG', msgType, decoder)
+				console.log('MSG', { type: msgType, len: decoder.arr.length })
 				Encoder.writeVarUint(encoder, MSG_SYNC)
 				syncProtocol.readSyncMessage(decoder, encoder, doc.ydoc, ws)
 				if (Encoder.length(encoder) > 1) {

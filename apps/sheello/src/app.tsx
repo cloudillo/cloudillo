@@ -242,6 +242,7 @@ export function SheelloApp() {
 	const { t } = useTranslation()
 	const cloudillo = useCloudilloEditor(APP_NAME)
 	//const yCells = cloudillo.yDoc.getMap<CellData>('cells')
+	const meta = cloudillo.yDoc.getMap('meta')
 	const rows = cloudillo.yDoc.getArray<YRow | false>('rows')
 	const [loaded, setLoaded] = React.useState(false)
 	const [initialized, setInitialized] = React.useState(false)
@@ -249,8 +250,13 @@ export function SheelloApp() {
 	const workbookRef = React.useRef<WorkbookInstance>(null)
 
 	React.useEffect(function () {
-		rows.observeDeep(evts => {
+		if (!cloudillo.provider) return
+
+		meta.observe(evts => {
+			console.log('onLoad.meta', meta.toJSON())
 			setLoaded(true)
+		})
+		rows.observeDeep(evts => {
 			if (!workbookRef.current) return
 
 			let recalc = false
@@ -290,7 +296,7 @@ export function SheelloApp() {
 						//console.log('cursor', sheetId, state?.cursor)
 						return {
 							userId: '' + p,
-							username: state?.user.name || '',
+							username: state?.user?.name || '',
 							sheetId: sheetId || '',
 							color: '#f00',
 							selection: { r: state?.cursor?.[1], c: state?.cursor?.[2] }

@@ -225,9 +225,13 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 						try {
 							return await koaSend(ctx, ctx.path, { root: config.distDir, index: 'index.html', gzip: true, brotli: true })
 						} catch (err) {
-							console.log('KOA SEND ERROR', err)
-							if (typeof err == 'object' && err && 'status' in err && err.status == 404) {
-								return koaSend(ctx, '/index.html', { root: config.distDir, gzip: true, brotli: true })
+							if (err instanceof Error) {
+								if ('status' in err && err.status == 404) {
+									return koaSend(ctx, '/index.html', { root: config.distDir, gzip: true, brotli: true })
+								} else {
+									console.log('KOA SEND ERROR', err.toString())
+									throw err
+								}
 							}
 						}
 					}

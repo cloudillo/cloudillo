@@ -173,7 +173,6 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 	console.log(`Running in ${config.mode} mode`)
 
 	koa
-		//.use(koaJwt({ secret: config.jwtSecret, passthrough: true, cookie: 'token' }))
 		.use(async (ctx, next) => {
 			if (ctx.hostname.startsWith('cl-o.')) {
 				ctx.state.tenantTag = determineTenantTag(ctx.hostname)
@@ -206,9 +205,10 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 			}
 			return next()
 		})
-		.use((ctx, next) => {
-			console.log(`HTTPS REQ: ${ctx.request.ip} @${ctx.state.user?.t || '-'} ${ctx.hostname} ${ctx.method} ${ctx.path} ${ctx.querystring}`)
-			return next()
+		.use(async (ctx, next) => {
+			const start = Date.now()
+			await next()
+			console.log(`HTTPS REQ: ${ctx.request.ip} @${ctx.state.user?.t || '-'} ${Date.now() - start}ms ${ctx.status} ${ctx.hostname} ${ctx.method} ${ctx.path} ${ctx.querystring}`)
 		})
 		.use(koaCORS({ origin: (ctx) => ctx.header.origin || '*', credentials: true }))
 		//.use(koaCORS({ origin: (ctx) => { console.log('Headers', ctx.header); return ctx.header.origin || '*' }, credentials: true }))
@@ -256,13 +256,13 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 
 		httpKoa
 			.use(async (ctx, next) => {
-				console.log(`HTTP REQ: ${ctx.request.ip} @${ctx.state.user?.t || '-'} ${ctx.hostname} ${ctx.method} ${ctx.path} ${ctx.querystring}`)
-				return next()
+				const start = Date.now()
+				await next()
+				console.log(`HTTP REQ: ${ctx.request.ip} @${ctx.state.user?.t || '-'} ${Date.now() - start}ms ${ctx.status} ${ctx.hostname} ${ctx.method} ${ctx.path} ${ctx.querystring}`)
 			})
 			.use(httpRouter.routes())
 			.use(httpRouter.allowedMethods())
 
-		//const httpServer = http2.createServer(httpKoa.callback())
 		const httpServer = http.createServer(httpKoa.callback())
 		httpServer.listen(config.listenHttp, async () => {
 			httpRouter.get('/.well-known/acme-challenge/:token', getAcmeChallengeResponse)

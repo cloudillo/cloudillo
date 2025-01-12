@@ -73,7 +73,6 @@ const icons: Record<string, React.ComponentType> = {
 interface File {
 	fileId: string
 	fileName: string
-	userTag?: string
 	owner?: {
 		idTag: string
 		name: string
@@ -440,7 +439,10 @@ function FileDetails({ className, file, setFile, openFile, renameFile, renameFil
 			type: 'FSHR',
 			subType: 'WRITE',
 			subject: file.fileId,
-			//content,
+			content: {
+				fileName: file.fileName,
+				contentType: file.contentType
+			},
 			audienceTag: profile.idTag
 		}
 
@@ -489,8 +491,11 @@ function FileDetails({ className, file, setFile, openFile, renameFile, renameFil
 		<div className="c-tag-list">
 			<TagsCell fileId={file.fileId} tags={file.tags} editable/>
 		</div>
-		<h4>{t('Permissions')}</h4>
-		<EditProfileList profiles={permissionList} listProfiles={listProfiles} addProfile={addPerm} removeProfile={removePerm}/>
+
+		{ !file.owner && <>
+			<h4>{t('Permissions')}</h4>
+			<EditProfileList profiles={permissionList} listProfiles={listProfiles} addProfile={addPerm} removeProfile={removePerm}/>
+		</> }
 	</div>
 }
 
@@ -500,6 +505,7 @@ export function FilesApp() {
 	const { t } = useTranslation()
 	const [appConfig] = useAppConfig()
 	const api = useApi()
+	const [auth] = useAuth()
 	//const [files, setFiles] = React.useState<File[] | undefined>()
 	const [columnConfig, setColumnConfig] = React.useState(fileColumnConfig)
 	const fileListData = useFileListData()
@@ -524,7 +530,7 @@ export function FilesApp() {
 
 		console.log('openFile', appConfig, file?.contentType, app)
 		if (app) {
-			navigate(`${app}/${file.userTag ? file.userTag + ':' : ''}${file.fileId}`)
+			navigate(`${app}/${(file.owner?.idTag || auth?.idTag) + ':' }${file.fileId}`)
 		}
 	}
 

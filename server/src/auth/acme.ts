@@ -24,6 +24,10 @@ const acmeChallengeResponses: Record<string, string> = {}
 
 export async function createCert(tnId: number, authAdapter: AuthAdapter, idTag: string, domain?: string) {
 	console.log('createCert', idTag, domain)
+	if (!acmeClient) {
+		throw new Error('ACME client not initialized')
+	}
+
 	const [key, csr] = await acme.crypto.createCsr({
 		altNames: [domain ? domain : idTag, 'cl-o.' + idTag]
 	})

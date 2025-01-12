@@ -47,7 +47,7 @@ export async function initWorker(auth: AuthAdapter, opts: { baseIdTag: string, b
 	}
 
 	if (opts.acmeEmail) {
-		acme.init(authAdapter, opts.acmeEmail)
+		await acme.init(authAdapter, opts.acmeEmail)
 		const baseCert = await authAdapter.getCertByTag(opts.baseIdTag)
 		console.log('BASE idTag / appDomain', opts.baseIdTag, opts.baseAppDomain)
 		if (!baseCert || ((opts.baseAppDomain || opts.baseIdTag) != (baseCert.domain || baseCert.idTag))) {

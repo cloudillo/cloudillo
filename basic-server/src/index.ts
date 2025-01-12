@@ -29,8 +29,9 @@ export const config: CloudilloServer.Config = {
 	localIps: process.env.LOCAL_IPS ? process.env.LOCAL_IPS.split(',') : undefined,
 	localDomains: process.env.LOCAL_DOMAINS ? process.env.LOCAL_DOMAINS.split(',') : undefined
 }
-const privateDir = process.env.PRIVATE_DATA_DIR || './data/priv'
-const publicDir = process.env.PUBLIC_DATA_DIR || './data/pub'
+const baseDir = process.env.DATA_DIR || './data'
+const privateDir = process.env.PRIVATE_DATA_DIR || path.join(baseDir, 'priv')
+const publicDir = process.env.PUBLIC_DATA_DIR || path.join(baseDir, 'pub')
 
 if (!config.jwtSecret) throw new Error('JWT_SECRET not specified!')
 

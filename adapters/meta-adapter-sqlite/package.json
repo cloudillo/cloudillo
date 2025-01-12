@@ -15,14 +15,14 @@
         "@cloudillo/base": "workspace:^",
         "@cloudillo/server": "workspace:^",
         "@symbion/runtype": "^1.1.1",
-        "@types/node": "^22.10.2",
         "lru-cache": "^11.0.2",
         "promised-sqlite3": "^2.1.0",
         "sqlite": "^5.1.1",
         "sqlite3": "5.1.7"
     },
     "devDependencies": {
+        "@types/node": "^22.10.5",
         "rimraf": "^6.0.1",
-        "typescript": "^5.7.2"
+        "typescript": "^5.7.3"
     }
 }

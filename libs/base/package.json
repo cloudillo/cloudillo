@@ -34,7 +34,7 @@
     "lib0": "^0.2.99",
     "rimraf": "^6.0.1",
     "tslib": "^2.8.1",
-    "typescript": "^5.7.2",
+    "typescript": "^5.7.3",
     "y-indexeddb": "^9.0.12",
     "y-protocols": "^1.0.6",
     "y-websocket": "2.1.0",

@@ -15,6 +15,6 @@
     "@symbion/runtype": "^1.1.1",
     "rimraf": "^6.0.1",
     "tslib": "^2.8.1",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.3"
   }
 }

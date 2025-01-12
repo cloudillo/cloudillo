@@ -14,13 +14,13 @@
     "dependencies": {
         "@cloudillo/server": "workspace:^",
         "@symbion/runtype": "^1.1.1",
-        "@types/node": "^22.10.2",
         "lib0": "^0.2.99",
         "y-leveldb": "^0.1.2",
         "yjs": "^13.6.21"
     },
     "devDependencies": {
+        "@types/node": "^22.10.5",
         "rimraf": "^6.0.1",
-        "typescript": "^5.7.2"
+        "typescript": "^5.7.3"
     }
 }

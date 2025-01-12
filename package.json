@@ -1,4 +1,5 @@
 {
+	"version": "0.0.2",
 	"private": true,
 	"packageManager": "pnpm@9.14.4",
 	"workspaces": [
@@ -6,6 +7,7 @@
 		"frontend"
 	],
 	"scripts": {
-		"build-docker": "docker --context default build -t cloudillo-basic:$npm_package_version -t cloudillo-basic:latest ."
+		"build-docker": "docker --context default build -t cloudillo/cloudillo:$npm_package_version -t cloudillo/cloudillo:latest .",
+		"publish-docker": "docker --context default push cloudillo/cloudillo:$npm_package_version && docker --context default push cloudillo/cloudillo:latest"
 	}
 }

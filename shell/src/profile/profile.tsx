@@ -340,7 +340,7 @@ function Profile() {
 
 	const [auth] = useAuth()
 	const api = useApi()
-	const idTag = useParams().idTag == 'me' ? location.host : useParams().idTag || auth?.idTag || location.host
+	const idTag = useParams().idTag == 'me' ? auth?.idTag : useParams().idTag || auth?.idTag
 	const own = idTag == auth?.idTag
 	const [profile, setProfile] = React.useState<Profile>()
 	//console.log('Profile', idTag, profile)

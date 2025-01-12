@@ -75,7 +75,7 @@ export function Notifications() {
 
 	React.useEffect(function onLoadNotifications() {
 		if (!api || !auth) return
-		const idTag = location.hostname // FIXME
+		const idTag = auth?.idTag
 
 		;(async function () {
 			//const res = await api.get<{ actions: ActionEvt[] }>('', `/action?audience=${idTag}&types=POST`)

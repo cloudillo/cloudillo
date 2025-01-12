@@ -546,7 +546,7 @@ export function FeedApp() {
 
 	React.useEffect(function onLoadFeed() {
 		if (!api.idTag || !auth?.roles) return
-		const idTag = location.hostname // FIXME
+		const idTag = auth?.idTag
 
 		;(async function () {
 			//const res = await api.get<{ actions: ActionEvt[] }>('', `/action?audience=${idTag}&types=POST`)

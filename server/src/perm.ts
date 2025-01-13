@@ -18,9 +18,11 @@ import { Auth, Context } from './index.js'
 import { metaAdapter } from './adapters.js'
 
 export async function checkPerm(tnId: number, tenantTag: string, auth: Auth | undefined, perm: 'W' | 'R' | 'A', resId?: string): Promise<string | false> {
-
+	const [authResId, authResAccess] = auth?.subject?.split(':') || []
 	console.log(`[${tenantTag}] CHECK PERM`, auth, resId, perm)
 	if (!auth?.idTag) return 'no token'
+
+	if (authResId && authResId != resId) return 'subject resource mismatch'
 
 	if (auth?.idTag == tenantTag) return false
 

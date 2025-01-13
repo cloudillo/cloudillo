@@ -82,10 +82,16 @@ export async function init(server: http.Server | http2.Http2Server, authAdapter:
 					//console.log('WS BUS CONNECT', { url: req.url, path, id: ws.id, userId: ws.auth })
 					if (path[0] == 'ws') path.shift()
 					switch (path[0]) {
-						case 'bus':
+						case 'bus': {
+							const deny = await checkPerm(tnId, tenantTag, { idTag: auth.u || auth.t, roles: auth.r || [], subject: auth.sub }, 'A')
+							if (deny) {
+								console.log('PERMISSION DENIED by WsDoc:', deny)
+								throw 'Unauthorized'
+							}
 							handleMessageBusConnection(ws, path)
 							break
-						case 'crdt':
+						}
+						case 'crdt': {
 							console.log('WS DOC connect', path)
 							//const [targetTag, docId] = path.length >= 2 ? path[1].split(':') : ['', '']
 							const docId = path[1]
@@ -97,6 +103,7 @@ export async function init(server: http.Server | http2.Http2Server, authAdapter:
 							}
 							handleDocConnection(ws, tnId, tenantTag, docId)
 							break
+						}
 						default:
 							console.log('WS unknown path', req.url, path)
 					}

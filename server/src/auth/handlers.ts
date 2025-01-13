@@ -364,8 +364,8 @@ export async function getAccessToken(ctx: Context) {
 		: q.subject
 	if (subject && subject.length != 3) ctx.throw(422, 'Invalid subject')
 
-	const [resIdTag, resId, rasAccess] = subject || []
-	const sub = subject ? `${resId}:${rasAccess}` : undefined
+	const [resIdTag, resId, resAccess] = subject || []
+	const sub = subject ? `${resId}:${resAccess}` : undefined
 
 	if (!q.token) {
 		// Use current authenticated user
@@ -385,7 +385,7 @@ export async function getAccessToken(ctx: Context) {
 			// Remote resource access
 			console.log(`[${tenantTag}] GET REMOTE ACCESS TOKEN`, q.subject, ctx.state.auth)
 			token = await createProxyToken(tnId, resIdTag, {
-				subject: subject ? `${resIdTag}:${resId}:${rasAccess}` : undefined
+				subject: subject ? `${resId}:${resAccess}` : undefined
 			})
 		}
 	} else {

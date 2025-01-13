@@ -520,8 +520,9 @@ async function createAccessToken(data: AccessToken, opts: { expiresIn?: string, 
 	return token
 }
 
-async function verifyAccessToken(token: string): Promise<AccessToken | undefined> {
+async function verifyAccessToken(tenantTag: string, token: string): Promise<AccessToken | undefined> {
 	const login: AccessToken = jwt.verify(token, await assureJwtSecret()) as unknown as AccessToken
+	if (login.t != tenantTag) return
 	return login
 }
 

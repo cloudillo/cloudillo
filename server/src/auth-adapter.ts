@@ -17,9 +17,10 @@
 import * as T from '@symbion/runtype'
 
 export const tAccessToken = T.struct({
-	t: T.string,
-	u: T.optional(T.string),
-	r: T.optional(T.array(T.string))
+	t: T.string,							// tenantTag
+	u: T.optional(T.string),				// User idTag
+	r: T.optional(T.array(T.string)),		// Roles
+	sub: T.optional(T.string)				// Subject ("resourceId:permission") for restricted access
 })
 export type AccessToken = T.TypeOf<typeof tAccessToken>
 
@@ -116,7 +117,7 @@ export interface AuthAdapter {
 	createKey: (tnId: number) => Promise<{ keyId: string, publicKey: string }>
 	createToken: (tnId: number, data: Omit<ActionToken, 'iss' | 'k' | 'iat' | 'exp'>, opts?: { expiresIn?: string, expiresAt?: number }) => Promise<string | undefined>
 	createAccessToken: (data: AccessToken, opts?: { expiresIn?: string, expiresAt?: number }) => Promise<string>
-	verifyAccessToken: (token: string) => Promise<AccessToken | undefined>
+	verifyAccessToken: (tenantTag: string, token: string) => Promise<AccessToken | undefined>
 }
 
 // vim: ts=4

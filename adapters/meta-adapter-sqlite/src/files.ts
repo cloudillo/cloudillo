@@ -238,7 +238,7 @@ export async function createFile(tnId: number, fileId: string, { status, ownerTa
 			$preset: preset,
 			$contentType: contentType,
 			$fileName: fileName,
-			$createdAt: createdAt?.toISOString(),
+			$createdAt: (createdAt || new Date()).toISOString(),
 			$tags: tags?.join(','),
 			$x: x == null ? null : JSON.stringify(x)
 		})

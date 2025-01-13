@@ -349,48 +349,73 @@ export async function getLoginToken(ctx: Context) {
 
 // Access token
 const tGetAccessToken = T.struct({
-	res: T.optional(T.string),
+	subject: T.optional(T.string),
 	token: T.optional(T.string)
 })
 
 export async function getAccessToken(ctx: Context) {
 	const { tnId, tenantTag } = ctx.state
 	const q = validateQS(ctx, tGetAccessToken)
+	let token
+
+	const subject =
+		!q.subject ? undefined
+		: typeof q.subject == 'string' ? q.subject.split(':')
+		: q.subject
+	if (subject && subject.length != 3) ctx.throw(422, 'Invalid subject')
+
+	const [resIdTag, resId, rasAccess] = subject || []
+	const sub = subject ? `${resId}:${rasAccess}` : undefined
 
 	if (!q.token) {
+		// Use current authenticated user
 		if (!ctx.state.user) ctx.throw(403)
-		const token = await authAdapter.createAccessToken({
-			t: tenantTag,
-			u: ctx.state.user?.u || ctx.state.user?.t,
-			r: ctx.state.user?.r
-		})
-		ctx.body = { token }
+
+		if (resIdTag == tenantTag) {
+			// Local resource access
+			console.log(`[${tenantTag}] GET LOCAL ACCESS TOKEN`, q.subject, ctx.state.auth)
+
+			token = await authAdapter.createAccessToken({
+				t: tenantTag,
+				u: ctx.state.user?.u || ctx.state.user?.t,
+				r: ctx.state.user?.r,
+				sub
+			})
+		} else {
+			// Remote resource access
+			console.log(`[${tenantTag}] GET REMOTE ACCESS TOKEN`, q.subject, ctx.state.auth)
+			token = await createProxyToken(tnId, resIdTag, {
+				subject: subject ? `${resIdTag}:${resId}:${rasAccess}` : undefined
+			})
+		}
 	} else {
+		// Grant access for guest user using specified token
 		const guest = await checkToken(tnId, q.token)
-		console.log('GET ACCESS TOKEN',q, guest, tenantTag)
+		console.log(`[${tenantTag}] GET GUEST ACCESS TOKEN`, { iss: guest.iss, subject: q.subject })
 		if (guest.aud != tenantTag) ctx.throw(403)
 		const idTag = guest.iss
 		try {
-			const token = await authAdapter.createAccessToken({
+			token = await authAdapter.createAccessToken({
 				t: tenantTag,
 				u: idTag,
-				r: ctx.state.user?.r
+				r: ctx.state.user?.r,
+				sub
 			})
-			ctx.body = { token }
 		} catch (err) {
 			console.log('TOKEN ERROR', err)
 			ctx.throw(403)
 		}
 	}
+	ctx.body = { token }
 }
 
 // Proxy token
 const proxyTokenCache: Record<number, LRUCache<string, string>> = {}
 
-export async function createProxyToken(tnId: number, targetTag: string) {
-	let cache = proxyTokenCache[tnId]
-	if (!cache) proxyTokenCache[tnId] = cache = new LRUCache({ max: 1000, ttl: 1000 * 60 * 60 * 1 /* 1h */ })
-	let token = cache.get(targetTag)
+export async function createProxyToken(tnId: number, targetTag: string, opts: { subject?: string } = {}) {
+	let cache = !opts.subject ? undefined : proxyTokenCache[tnId]
+	if (!cache && !opts.subject) proxyTokenCache[tnId] = cache = new LRUCache({ max: 1000, ttl: 1000 * 60 * 60 * 1 /* 1h */ })
+	let token = cache?.get(targetTag)
 	if (token) return token
 
 	try {
@@ -405,12 +430,12 @@ export async function createProxyToken(tnId: number, targetTag: string) {
 
 		// Get access token to target
 		//console.log('authToken', authToken)
-		const tokenRes = await fetch('https://cl-o.' + targetTag + `/api/auth/access-token?token=${authToken}`)
+		const tokenRes = await fetch('https://cl-o.' + targetTag + `/api/auth/access-token?token=${authToken}${opts.subject ? `&subject=${opts.subject}` : ''}`)
 		if (tokenRes.ok) {
 			//console.log('tokenRes', tokenRes.status)
 			const token = (await tokenRes.json()).token
 			//console.log('PROXY TOKEN miss', targetTag, token)
-			cache.set(targetTag, token)
+			cache?.set(targetTag, token)
 
 			return token
 		} else {
@@ -421,11 +446,6 @@ export async function createProxyToken(tnId: number, targetTag: string) {
 		return
 	}
 }
-
-const tGetProxyToken = T.struct({
-	tag: T.string,
-	res: T.string
-})
 
 export async function getProxyToken(ctx: Context) {
 	const targetTag = ctx.query.idTag

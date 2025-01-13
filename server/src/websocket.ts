@@ -20,7 +20,8 @@ import WS, { WebSocketServer, WebSocket } from 'ws'
 import Cookies from 'cookies'
 import jwt from 'jsonwebtoken'
 
-import { determineTnId } from './auth.js'
+import { determineTenantTag, determineTnId } from './auth.js'
+import { checkPerm } from './perm.js'
 import { Auth } from './index.js'
 import { AuthAdapter } from './auth-adapter.js'
 import { messageBusAdapter } from './adapters.js'
@@ -42,6 +43,7 @@ export interface WsBusMsg {
 let wss: WS.Server<typeof WebSocketExt>
 
 export interface WsConfig {
+	mode: 'standalone' | 'proxy'
 }
 
 export async function init(server: http.Server | http2.Http2Server, authAdapter: AuthAdapter, config: WsConfig) {
@@ -49,21 +51,24 @@ export async function init(server: http.Server | http2.Http2Server, authAdapter:
 
 	server.on('upgrade', async function upgrade(req, socket, head) {
 		try {
-			//console.log('WS BUS UPGRADE', req.url)
+			const tenantTag = determineTenantTag(config.mode == 'proxy' ? req.headers['x-forwarded-host'] as string : req.headers.host)
+			const tnId = await determineTnId(tenantTag)
+			console.log('WS BUS UPGRADE', tenantTag, req.url)
+			if (!tnId) throw 'Unauthorized'
+
 			// Check auth token
 			const tokenIdx = req.url?.indexOf('?token=') || -1
 			const params = tokenIdx >= 0 ? new URLSearchParams(req.url?.slice(tokenIdx + 1)) : undefined
 			const token = params?.get('token') || (new Cookies(req, undefined as any)).get('token')
 
 			// Decode token
-			const auth = token ? await authAdapter.verifyAccessToken(token) : undefined
+			const auth = token ? await authAdapter.verifyAccessToken(tenantTag, token) : undefined
 
 			// FIXME
 			if (!auth?.t || !req.headers.host) {
 				console.log('WS auth', auth)
 				throw 'Unauthorized'
 			}
-			const tnId = await determineTnId(req.headers['x-forwarded-host'] as string || req.headers.host)
 			wss.handleUpgrade(req, socket, head, async function doneUpgrade(ws: WebSocketExt) {
 				//ws.id = nextWsId()
 				ws.tnId = tnId,
@@ -82,7 +87,15 @@ export async function init(server: http.Server | http2.Http2Server, authAdapter:
 							break
 						case 'crdt':
 							console.log('WS DOC connect', path)
-							handleDocConnection(ws, path)
+							//const [targetTag, docId] = path.length >= 2 ? path[1].split(':') : ['', '']
+							const docId = path[1]
+							if (!docId) throw 'Unauthorized'
+							const deny = await checkPerm(tnId, tenantTag, { idTag: auth.u || auth.t, roles: auth.r || [], subject: auth.sub }, 'W', docId)
+							if (deny) {
+								console.log('PERMISSION DENIED by WsDoc:', deny)
+								throw 'Unauthorized'
+							}
+							handleDocConnection(ws, tnId, tenantTag, docId)
 							break
 						default:
 							console.log('WS unknown path', req.url, path)

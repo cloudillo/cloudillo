@@ -59,7 +59,7 @@ export function MicrofrontendContainer({ className, app, resId, appUrl }: Microf
 			//console.log('Sending load message', ref.current, ref.current?.contentWindow)
 			console.log('[Shell] app init', auth)
 			const apiPromise = auth
-				? api.get<{ token: string }>('', `/auth/access-token?res=/app/${app}/${path}`)
+				? api.get<{ token: string }>('', `/auth/access-token?subject=${resId}:W`)
 				: Promise.resolve({ token: undefined })
 			ref.current?.addEventListener('load', async function onMicrofrontendLoad() {
 				console.log('[Shell] Loaded => waiting for app to start')

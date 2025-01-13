@@ -86,8 +86,8 @@ const tPostFileQuery = T.struct({
 })
 export async function postFile(ctx: Context) {
 	const { tnId } = ctx.state
-	console.log('Auth header', ctx.headers.authorization)
-	if (ctx.headers.authorization !== 'ByPassFIXME') ctx.throw(403)
+	//console.log('Auth header', ctx.headers.authorization)
+	//if (ctx.headers.authorization !== 'ByPassFIXME') ctx.throw(403)
 	//const tnId = ctx.state.user.t
 	const { preset, fileName } = ctx.params
 	const { createdAt, tags } = validateQS(ctx, tPostFileQuery)

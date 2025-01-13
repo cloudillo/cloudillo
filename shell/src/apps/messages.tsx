@@ -246,10 +246,11 @@ export function NewMsg({ className, style, idTag, onSubmit }: { className?: stri
 
 	async function uploadAttachment(img: Blob) {
 		console.log('upload attachment', img)
+		if (!auth) return
 	
 		// Upload
 		const request = new XMLHttpRequest()
-		request.open('POST', '/api/store/image/attachment')
+		request.open('POST', `https://cl-o.${auth.idTag}/api/store/image/attachment`)
 		//request.withCredentials = true
 		request.setRequestHeader('Authorization', `Bearer ${auth?.token}`)
 

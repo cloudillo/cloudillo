@@ -16,8 +16,10 @@
 
 const TAG_FORBIDDEN_CHARS = [' ', ',', '#', '\t', '\n']
 
-import { Router } from './index.js'
 import { HttpError} from 'koa'
+
+import { Router } from './index.js'
+import { checkPermMW as perm } from './perm.js'
 
 import * as auth from './auth/handlers.js'
 import * as action from './action/handlers.js'
@@ -40,64 +42,64 @@ export async function init(router: Router) {
 
 	router.get('/.well-known/acme-challenge/:token', auth.getAcmeChallengeResponse)
 
-	router.post('/auth/passwd', auth.postSetPassword)
+	router.post('/auth/passwd', perm('A'), auth.postSetPassword)
 	router.post('/auth/passwd-req', auth.postResetPasswordRequest)
 
-	router.get('/auth/wa/register-req', auth.getWebauthnRegisterRequest)
-	router.post('/auth/wa/register', auth.postWebauthnRegister)
-	router.delete('/auth/wa/reg/:keyId', auth.deleteWebauthnDeleteCredential)
+	router.get('/auth/wa/register-req', perm('A'), auth.getWebauthnRegisterRequest)
+	router.post('/auth/wa/register', perm('A'), auth.postWebauthnRegister)
+	router.delete('/auth/wa/reg/:keyId', perm('A'), auth.deleteWebauthnDeleteCredential)
 	router.get('/auth/wa/login-req', auth.getWebauthnLoginRequest)
 	router.post('/auth/wa/login', auth.postWebauthnLogin)
 
-	router.get('/auth/vapid', auth.getVapidPublicKey)
+	router.get('/auth/vapid', perm('A'), auth.getVapidPublicKey)
 
 	/* Actions */
-	router.get('/action', action.listActions)
-	router.post('/action', action.postAction)
-	router.post('/action/:actionId/accept', action.postActionAccept)
-	router.post('/action/:actionId/reject', action.postActionReject)
+	router.get('/action', perm('R'), action.listActions)
+	router.post('/action', perm('A'), action.postAction)
+	router.post('/action/:actionId/accept', perm('A'), action.postActionAccept)
+	router.post('/action/:actionId/reject', perm('A'), action.postActionReject)
 	router.post('/inbox', action.postInboundAction)
 
 	/* Documents */
-	router.get('/store', file.listFiles)
-	router.post('/store', file.createFile)
-	router.post('/store/:preset/:fileName', file.postFile)
-	router.get('/store/:fileId{/:label}', file.getFile)
-	router.patch('/store/:fileId', file.patchFile)
-	router.put('/store/:fileId/tag/:tag', file.putFileTag)
-	router.delete('/store/:fileId/tag/:tag', file.deleteFileTag)
-	router.get('/tag', file.listTags)
+	router.get('/store', perm('R'), file.listFiles)
+	router.post('/store', perm('A'), file.createFile)
+	router.post('/store/:preset/:fileName', perm('A'), file.postFile)
+	router.get('/store/:fileId{/:label}', perm('R', 'fileId'), file.getFile)
+	router.patch('/store/:fileId', perm('W', 'fileId'), file.patchFile)
+	router.put('/store/:fileId/tag/:tag', perm('A', 'fileId'), file.putFileTag)
+	router.delete('/store/:fileId/tag/:tag', perm('A', 'fileId'), file.deleteFileTag)
+	router.get('/tag', perm('A'), file.listTags)
 	//router.get('/store/:id', meta.getStore)
 
 	/* Refs */
-	router.get('/ref', ref.listRefs)
+	router.get('/ref', perm('A'), ref.listRefs)
 	router.get('/ref/:id', ref.getRef)
-	router.post('/ref/:type', ref.postRef)
+	router.post('/ref/:type', perm('A'), ref.postRef)
 
 	/* Notification */
-	router.post('/notification/subscription', notification.postNotificationSubscription)
+	router.post('/notification/subscription', perm('A'), notification.postNotificationSubscription)
 
 	/* Own profile */
 	router.get('/me', profile.getOwnProfile)
 	router.get('/me/keys', profile.getOwnProfileKeys)
 	router.get('/me/full', profile.getOwnProfileFull)
-	router.patch('/me', profile.patchOwnProfile)
-	router.put('/me/image', profile.putOwnProfileImage)
-	router.put('/me/cover', profile.putOwnCoverImage)
+	router.patch('/me', perm('A'), profile.patchOwnProfile)
+	router.put('/me/image', perm('A'), profile.putOwnProfileImage)
+	router.put('/me/cover', perm('A'), profile.putOwnCoverImage)
 	// users/communities
-	router.get('/profile', profile.listProfiles)
-	router.get('/profile/:idTag', profile.getProfile)
-	router.patch('/profile/:idTag', profile.patchProfile)
+	router.get('/profile', perm('R'), profile.listProfiles)
+	router.get('/profile/:idTag', perm('R'), profile.getProfile)
+	router.patch('/profile/:idTag', perm('A'), profile.patchProfile)
 
 	/* Settings */
-	router.get('/settings', settings.listSettings)
-	router.get('/settings/:name', settings.getSetting)
-	router.put('/settings/:name', settings.putSetting)
+	router.get('/settings', perm('A'), settings.listSettings)
+	router.get('/settings/:name', perm('A'), settings.getSetting)
+	router.put('/settings/:name', perm('A'), settings.putSetting)
 
 	/* Database */
-	router.get('/db/:fileId', database.listData)
-	router.post('/db/:fileId', database.postData)
-	router.get('/db/:fileId/:dataId', database.getData)
+	router.get('/db/:fileId', perm('R', 'fileId'), database.listData)
+	router.post('/db/:fileId', perm('W', 'fileId'), database.postData)
+	router.get('/db/:fileId/:dataId', perm('R', 'fileId'), database.getData)
 	//router.delete('/dn/:dbId/:dataId', deleteData)
 }
 

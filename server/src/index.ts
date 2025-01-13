@@ -22,7 +22,6 @@ import https from 'https'
 import Koa from 'koa'
 import koaSend from 'koa-send'
 import KoaRouter from 'koa-router'
-import koaJwt from 'koa-jwt'
 import { koaBody } from 'koa-body'
 import koaCORS from '@koa/cors'
 
@@ -56,6 +55,7 @@ process.on('SIGTERM', () => {
 export interface Auth {
 	idTag?: string
 	roles: string[]
+	subject?: string
 }
 
 export interface State {
@@ -65,6 +65,7 @@ export interface State {
 		t: string
 		u?: string
 		r?: string[]
+		sub?: string
 	}
 	auth: Auth
 }
@@ -192,10 +193,11 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 
 				if (token) {
 					try {
-						ctx.state.user = await authAdapter.verifyAccessToken(token)
+						ctx.state.user = await authAdapter.verifyAccessToken(ctx.state.tenantTag, token)
 						ctx.state.auth = {
 							idTag: ctx.state.user?.u || ctx.state.user?.t,
-							roles: ctx.state.user?.r || []
+							roles: ctx.state.user?.r || [],
+							subject: ctx.state.user?.sub
 						}
 					} catch (err) {
 						console.log('JWT ERROR', err)

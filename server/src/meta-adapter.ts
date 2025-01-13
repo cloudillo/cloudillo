@@ -205,6 +205,7 @@ export interface MetaAdapter {
 	listActions: (tnId: number, auth: Auth | undefined, opts: ListActionsOptions) => Promise<ActionView[]>
 	getActionRootId: (tnId: number, actionId: string) => Promise<string>
 	getActionData: (tnId: number, actionId: string) => Promise<{ subject?: string, reactions?: number, comments?: number } | undefined>
+	getActionByKey: (tnId: number, actionKey: string) => Promise<Action | undefined>
 	getActionToken: (tnId: number, actionId: string) => Promise<string | undefined>
 	createAction: (tnId: number, actionId: string, action: Action, key?: string) => Promise<void>
 	updateActionData: (tnId: number, actionId: string, opts: UpdateActionDataOptions) => Promise<void>

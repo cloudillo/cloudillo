@@ -141,6 +141,19 @@ export async function getActionData(tnId: number, actionId: string) {
 	}
 }
 
+export async function getActionByKey(tnId: number, actionKey: string) {
+	const res = await db.get<{ type: string, issuerTag: string, createdAt: number, subType?: string }>(
+			"SELECT type, idTag as issuerTag, createdAt, subType FROM actions WHERE tnId = $tnId AND key=$actionKey AND coalesce(status, '')!='D'",
+			{ $tnId: tnId, $actionKey: actionKey }
+		)
+	return !res ? undefined : {
+		type: res.type,
+		issuerTag: res?.issuerTag,
+		createdAt: res?.createdAt,
+		subType: res?.subType || undefined,
+	}
+}
+
 export async function getActionToken(tnId: number, actionId: string) {
 	const res = await db.get<{ token: string }>(
 			"SELECT token FROM action_inbox WHERE tnId = $tnId AND actionId = $actionId",

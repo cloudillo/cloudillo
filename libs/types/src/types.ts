@@ -98,7 +98,7 @@ export type ActionView = T.TypeOf<typeof tActionView>
 export const tConnectAction =  T.struct({
 	type: T.literal('CONN'),
 	subType: T.undefinedValue,
-	content: T.undefinedValue,
+	content: T.optional(T.string),
 	attachments: T.undefinedValue,
 	parentId: T.undefinedValue,
 	audience: T.undefinedValue,

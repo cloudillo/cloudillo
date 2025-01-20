@@ -69,7 +69,7 @@ export function ImageUpload({ src, aspects, onSubmit, onCancel }: { src: string,
 	}
 
 	function changeCrop(newCrop: Crop, percCrop: Crop) {
-		console.log('changeCrop', newCrop, percCrop)
+		//console.log('changeCrop', newCrop, percCrop)
 		setCrop(newCrop)
 	}
 
@@ -96,12 +96,14 @@ export function ImageUpload({ src, aspects, onSubmit, onCancel }: { src: string,
 		const myCrop = crop || { x: 0, y: 0, width: imgRef.current!.width, height: imgRef.current!.height }
 		const zoom = imgRef.current!.naturalWidth / imgRef.current!.width
 		const canvas = document.createElement('canvas')
-		canvas.width = imgRef.current!.naturalWidth > 1920 ? 1920 : imgRef.current!.naturalWidth
+		//canvas.width = (crop?.width || imgRef.current!.naturalWidth) > 1920 ? 1920 : crop?.width || imgRef.current!.naturalWidth
+		canvas.width = myCrop.width > 1920 ? 1920 : myCrop?.width
 		canvas.height = canvas.width * myCrop.height / myCrop.width
 		if (canvas.height > 1920) {
 			canvas.height = 1920
 			canvas.width = canvas.height * myCrop.width / myCrop.height
 		}
+		console.log('canvas size', canvas.width, canvas.height)
 		canvas.getContext('2d')?.drawImage(
 			imgRef.current!,
 			myCrop.x * zoom,
@@ -121,9 +123,11 @@ export function ImageUpload({ src, aspects, onSubmit, onCancel }: { src: string,
 		}, 'image/jpeg', 0.8)
 	}
 
+	/*
 	React.useEffect(() => {
 		console.log('crop', crop)
 	}, [crop])
+	*/
 
 	return <div className="c-modal show">
 		<div className="c-panel g-1">

@@ -385,7 +385,7 @@ export async function getAccessToken(ctx: Context) {
 			// Remote resource access
 			console.log(`[${tenantTag}] GET REMOTE ACCESS TOKEN`, q.subject, ctx.state.auth)
 			token = await createProxyToken(tnId, resIdTag, {
-				subject: subject ? `${resId}:${resAccess}` : undefined
+				subject: subject ? `${resIdTag}:${resId}:${resAccess}` : undefined
 			})
 		}
 	} else {
@@ -420,6 +420,9 @@ export async function createProxyToken(tnId: number, targetTag: string, opts: { 
 
 	try {
 		console.log('PROXY TOKEN cache miss', tnId, targetTag)
+		const profile = await metaAdapter.readProfile(tnId, targetTag)
+		if (!profile?.status) return
+
 		const authToken = await authAdapter.createToken(tnId, {
 			t: 'PROXY',
 			aud: targetTag
@@ -440,6 +443,7 @@ export async function createProxyToken(tnId: number, targetTag: string, opts: { 
 			return token
 		} else {
 			console.log('tokenRes', tokenRes.status)
+			console.log('tokenRes', await tokenRes.text())
 		}
 	} catch (err) {
 		console.log('TOKEN ERROR', err)

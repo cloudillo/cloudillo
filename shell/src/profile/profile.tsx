@@ -22,14 +22,18 @@ import ReactQuill, { Quill } from 'react-quill-new'
 import QuillMarkdown from 'quilljs-markdown'
 import Turndown from 'turndown'
 
-import { Button, Container, Fcb } from '@cloudillo/react'
+import { Button, Popper, Container, Fcb } from '@cloudillo/react'
 import { NewAction } from '@cloudillo/types'
 
 import {
-	FiEdit2 as IcEdit,
-	FiSave as IcSave,
-	FiX as IcCancel
-} from 'react-icons/fi'
+	LuPencil as IcEdit,
+	LuSave as IcSave,
+	LuX as IcCancel,
+	LuEllipsisVertical as IcMore,
+	LuUserPlus as IcFollow,
+	LuHandshake as IcConnect,
+	LuCircleOff as IcBlock
+} from 'react-icons/lu'
 
 import 'quill/dist/quill.core.css'
 import 'quill/dist/quill.bubble.css'
@@ -40,11 +44,11 @@ import { useAuth, useApi } from '@cloudillo/react'
 
 import { ImageUpload } from '../image.js'
 import { ActionEvt, ActionComp, NewPost } from '../apps/feed.js'
-import { UserListPage, CommunityListPage } from './identities.js'
+import { Profile, UserListPage, CommunityListPage } from './identities.js'
 
 Quill.register('modules/QuillMarkdown', QuillMarkdown)
 
-interface Profile {
+interface FullProfile {
 	tnId: number
 	idTag: string
 	name: string
@@ -71,7 +75,80 @@ interface ProfilePatch {
 	}
 }
 
-export function ProfilePage({ profile, setProfile, updateProfile, children }: { profile: Profile, setProfile: React.Dispatch<React.SetStateAction<Profile | undefined>>, updateProfile?: (profile: Profile) => void, children: React.ReactNode }) {
+interface ProfileConnectionCmds {
+	onFollow: () => void
+	onUnfollow: () => void
+	onConnect: () => void
+	onDisconnect: () => void
+	onBlock: () => void
+	onUnblock: () => void
+}
+
+function ProfileConnection({ localProfile, cmds }: { localProfile?: Partial<Profile>, cmds: ProfileConnectionCmds }) {
+	const { t } = useTranslation()
+
+	if (!localProfile) return null
+
+	return <div className="c-button cursor-default accent me-3">
+		{
+			localProfile.connected === 'R' ? <div className="c-link cursor-default"><IcConnect/>{t('Connection request sent')}</div>
+			: !localProfile.following ? <button className="c-link" onClick={cmds.onFollow}><IcFollow/>{t('Follow')}</button>
+			: !localProfile.connected ? <button className="c-link" onClick={cmds.onConnect}><IcConnect/>{t('Connect')}</button>
+			: localProfile.connected ? <div className="c-link cursor-default"><IcConnect/>{t('Connected')}</div>
+			: localProfile.status == 'B' ? <button className="c-link" onClick={cmds.onBlock}><IcBlock/>{t('Unblock')}</button>
+			: null
+		}
+		<div className="separator"/>
+		{/*
+		<div className="align-self-stretch border-end-1 border-dashed border-on my-1 mx-2"/>
+		*/}
+		<Popper className="cursor-pointer" label={<IcMore/>}>
+			<ul className="c-nav flex-column">
+				{ !localProfile.following && <li className="c-nav-item">
+					<button className="c-nav-link" onClick={cmds.onFollow}><IcFollow/>{t('Follow')}</button>
+				</li> }
+				{ localProfile.following && <li className="c-nav-item">
+					<button className="c-nav-link" onClick={cmds.onUnfollow}><IcFollow/>{t('Unfollow')}</button>
+				</li> }
+
+				{ !localProfile.connected && <li className="c-nav-item">
+					<button className="c-nav-link" onClick={cmds.onConnect}><IcConnect/>{t('Connect')}</button>
+				</li> }
+				{ localProfile.connected == 'R' && <li className="c-nav-item">
+					<div><IcConnect/>{t('Connection request sent')}</div>
+				</li> }
+				{ localProfile.connected == true && <li className="c-nav-item">
+					<button className="c-nav-link" onClick={cmds.onDisconnect}><IcConnect/>{t('Disconnect')}</button>
+				</li> }
+
+				{ localProfile.status != 'B' && <li className="c-nav-item">
+					<button className="c-nav-link" onClick={cmds.onBlock}><IcBlock/>{t('Block')}</button>
+				</li> }
+				{ localProfile.status == 'B' && <li className="c-nav-item">
+					<button className="c-nav-link" onClick={cmds.onUnblock}><IcBlock/>{t('Unblock')}</button>
+				</li> }
+			</ul>
+		</Popper>
+	</div>
+}
+
+interface ProfilePageProps {
+	profile: FullProfile
+	setProfile: React.Dispatch<React.SetStateAction<FullProfile | undefined>>
+	localProfile?: Partial<Profile>
+	setProfileStatus?: React.Dispatch<React.SetStateAction<string | undefined>>
+	updateProfile?: (profile: FullProfile) => void
+	profileCmds: ProfileConnectionCmds
+	children: React.ReactNode
+}
+export function ProfilePage({
+	profile,
+	setProfile,
+	localProfile,
+	updateProfile,
+	profileCmds,
+	children
+}: ProfilePageProps) {
 	const { t } = useTranslation()
 	const [auth, setAuth] = useAuth()
 	const own = auth?.idTag === profile.idTag
@@ -80,14 +157,6 @@ export function ProfilePage({ profile, setProfile, updateProfile, children }: { 
 	const [profileUpload, setProfileUpload] = React.useState<string | undefined>()
 	const inputId = React.useId()
 	const profileInputId = React.useId()
-
-	async function onFollow() {
-		const followAction: NewAction = {
-			type: 'FLLW',
-			audienceTag: profile.idTag,
-		}
-		const res = await api?.post('', '/action', { data: followAction })
-	}
 
 	function onCancel() {
 		setProfileUpload(undefined)
@@ -198,19 +267,19 @@ export function ProfilePage({ profile, setProfile, updateProfile, children }: { 
 							</> }
 						</div>
 					</div>
-					<div className="c-profile-title">
-						<h2 className="mt-2">{profile.name}</h2>
-						<h4>{profile.idTag}</h4>
+					<div className="c-hbox">
+						<div className="c-profile-title">
+							<h2 className="mt-2">{profile.name}</h2>
+							<h4>{profile.idTag}</h4>
+						</div>
+						<div className="flex-fill"/>
+						{ auth?.idTag && !own && <ProfileConnection localProfile={localProfile} cmds={profileCmds}/> }
 					</div>
 					<div className="c-tabs">
 						<NavLink className="c-tab" to={`/profile/${own ? 'me' : profile.idTag}/feed`} end >{t('Feed')}</NavLink>
 						<NavLink className="c-tab" to={`/profile/${own ? 'me' : profile.idTag}/about`} end >{t('About')}</NavLink>
 						{ own && <>
 							<NavLink className="c-tab" to="/profile/settings">{t('Settings')}</NavLink>
-						</> }
-						<div className="flex-fill"/>
-						{ auth?.idTag && !own && <>
-							<Button className="mb-1 me-1" onClick={onFollow}>{t('Follow')}</Button>
 						</> }
 					</div>
 				</div>
@@ -225,7 +294,7 @@ export function ProfilePage({ profile, setProfile, updateProfile, children }: { 
 }
 
 interface ProfileTabProps {
-	profile: Profile
+	profile: FullProfile
 	updateProfile?: (patch: ProfilePatch) => Promise<void>
 }
 
@@ -342,19 +411,20 @@ function Profile() {
 	const api = useApi()
 	const idTag = useParams().idTag == 'me' ? auth?.idTag : useParams().idTag || auth?.idTag
 	const own = idTag == auth?.idTag
-	const [profile, setProfile] = React.useState<Profile>()
+	const [profile, setProfile] = React.useState<FullProfile>()
+	const [localProfile, setLocalProfile] = React.useState<Partial<Profile>>()
 	//console.log('Profile', idTag, profile)
 
 	React.useEffect(function load() {
-		if (!idTag) return
+		if (!idTag || !auth?.idTag) return
+		console.log('load', idTag)
+		api.get<FullProfile>(idTag, '/me/full').then(setProfile)
+		api.get<Profile>(auth?.idTag, `/profile/${idTag}`).then(setLocalProfile).catch(() => setLocalProfile({}))
+	}, [idTag, auth?.idTag])
 
-		(async function () {
-			console.log('load', idTag)
-			const profile = await api.get<Profile>(idTag, '/me/full')
-			console.log('profile', profile)
-			setProfile(profile)
-		})()
-	}, [idTag])
+	React.useEffect(function debug() {
+		console.log('profile', profile, localProfile)
+	}, [profile, localProfile])
 
 	async function updateProfile(patch: ProfilePatch) {
 		//console.log('updateProfile', patch)
@@ -365,12 +435,52 @@ function Profile() {
 				...patch.x
 			}
 		} : undefined)
-		const res = await api?.patch<{ profile: Profile }>('', '/me', { data: patch })
+		const res = await api?.patch<{ profile: FullProfile }>('', '/me', { data: patch })
 		console.log('res', res, patch)
 		setProfile(res?.profile)
 	}
 
-	return !profile ? null : <ProfilePage profile={profile} setProfile={setProfile} updateProfile={idTag == auth?.idTag ? updateProfile : undefined}>
+	async function onFollow() {
+		if (!profile || localProfile?.following) return
+		const followAction: NewAction = { type: 'FLLW', audienceTag: profile.idTag, }
+		const res = await api.post('', '/action', { data: followAction })
+		setLocalProfile(p => p ? { ...p, following: true } : p)
+	}
+
+	async function onUnfollow() {
+		if (!profile || !localProfile?.following) return
+		const unfollowAction: NewAction = { type: 'FLLW', subType: 'DEL', audienceTag: profile.idTag, }
+		const res = await api.post('', '/action', { data: unfollowAction })
+		setLocalProfile(p => p ? { ...p, following: false } : p)
+	}
+
+	async function onConnect() {
+		if (!profile || localProfile?.connected) return
+		const connectAction: NewAction = { type: 'CONN', audienceTag: profile.idTag, }
+		const res = await api.post('', '/action', { data: connectAction })
+		setLocalProfile(p => p ? { ...p, connected: 'R' } : p)
+	}
+
+	async function onDisconnect() {
+		if (!profile || !localProfile?.connected) return
+		const disconnectAction: NewAction = { type: 'CONN', subType: 'DEL', audienceTag: profile.idTag, }
+		const res = await api.post('', '/action', { data: disconnectAction })
+		setLocalProfile(p => p ? { ...p, connected: undefined } : p)
+	}
+
+	async function onBlock() {
+		if (!profile || localProfile?.status == 'B') return
+		const res = await api.post('', `/profile/${profile.idTag}`, { data: { status: 'B' } })
+		setLocalProfile(p => p ? { ...p, status: 'B' } : p)
+	}
+
+	async function onUnblock() {
+		if (!profile || localProfile?.status != 'B') return
+		const res = await api.post('', `/profile/${profile.idTag}`, { data: { status: 'A' } })
+		setLocalProfile(p => p ? { ...p, status: 'A' } : p)
+	}
+
+	return !profile ? null : <ProfilePage profile={profile} setProfile={setProfile} localProfile={localProfile} updateProfile={idTag == auth?.idTag ? updateProfile : undefined} profileCmds={{ onFollow, onUnfollow, onConnect, onDisconnect, onBlock, onUnblock }}>
 		<Routes>
 			<Route path="/" element={<ProfileAbout profile={profile} updateProfile={updateProfile}/>}/>
 			<Route path="/about" element={<ProfileAbout profile={profile} updateProfile={updateProfile}/>}/>

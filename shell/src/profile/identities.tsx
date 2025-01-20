@@ -22,22 +22,33 @@ import { useTranslation } from 'react-i18next'
 import {
 	LuSearch as IcSearch,
 	LuFilter as IcFilter,
-	LuUserX as IcUserBlocked,
+
 	LuUser as IcUser,
+	LuUserPlus as IcUserFollowing,
 	LuUserPlus as IcUserFollowed,
-	LuUserCheck as IcUserMutual,
+	LuHandshake as IcUserConnected,
+	LuCircleOff as IcUserBlocked,
 	LuUsers as IcUserAll
 } from 'react-icons/lu'
 
-import { useApi, Fcb, Button, ProfileCard, mergeClasses } from '@cloudillo/react'
+import { useApi, useAuth, Fcb, Button, ProfileCard, mergeClasses } from '@cloudillo/react'
 import { useAppConfig, parseQS, qs } from '../utils.js'
 
-interface Profile {
-	id: number
+export interface Profile {
 	idTag: string
 	name: string
 	profilePic?: string
-	status: 'B' | 'F' | 'M' | 'T'
+	following?: boolean
+	connected?: true | 'R'
+	status: 'A' | 'B' | 'T'
+}
+
+function ProfileStatusIcon({ profile }: { profile: { connected?: true | 'R', following?: boolean, status: 'A' | 'B' | 'T' } }) {
+	if (profile.connected) return <IcUserConnected className="text-success"/>
+	if (profile.connected == 'R') return <IcUserConnected className="text-warning"/>
+	if (profile.following) return <IcUserFollowing className="text-success"/>
+	if (profile.status == 'B') return <IcUserBlocked className="text-error"/>
+	return <IcUser/>
 }
 
 function FilterBar({ className }: { className?: string }) {
@@ -45,11 +56,17 @@ function FilterBar({ className }: { className?: string }) {
 	const api = useApi()
 	const location = useLocation()
 	const navigate = useNavigate()
-	const userStat = { all: 0, followed: 0, mutual: 0, trusted: 0 }
+	const userStat = { all: 0, connected: 0, followed: 0, following: 0, trusted: 0 }
 
 	const qs = parseQS(location.search)
+	console.log('qs', qs)
 
 	return <ul className={'c-nav flex-column align-items-stretch ' + (className || '')}>
+		<li className="c-nav-item">
+			<Link className={'c-nav-link ' + (qs.filter === 'connected' ? 'active' : '')} to="?connected=1"><IcUserConnected/> {t('Connected')}
+				{!!userStat.connected && <span className="badge rounded-pill bg-danger">{userStat.connected}</span>}
+			</Link>
+		</li>
 		<li className="c-nav-item">
 			<Link className={'c-nav-link ' + (qs.filter === 'followed' ? 'active' : '')} to="?filter=followed"><IcUserFollowed/> {t('Followed')}
 				{!!userStat.followed && <span className="badge rounded-pill bg-danger">{userStat.followed}</span>}
@@ -79,8 +96,9 @@ function ProfileDetails({ className }: { className?: string }) {
 function ProfileListCard({ profile }: { profile: Profile }) {
 	const { t } = useTranslation()
 
-	return <Link className="c-panel p-1 mb-1" to={`/profile/${profile.idTag}`}>
-		<ProfileCard profile={profile}/>
+	return <Link className="c-panel p-1 mb-1 flex-row" to={`/profile/${profile.idTag}`}>
+		<ProfileCard className="flex-fill" profile={profile}/>
+		<ProfileStatusIcon profile={profile}/>
 	</Link>
 }
 
@@ -88,6 +106,7 @@ export function UserListPage() {
 	const { t } = useTranslation()
 	const location = useLocation()
 	const api = useApi()
+	const [auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
 
@@ -96,7 +115,9 @@ export function UserListPage() {
 	}, [location])
 
 	React.useEffect(function loadUsers() {
-		(async function () {
+		if (!auth) return
+		console.log('loadProfiles', auth)
+		;(async function () {
 			const qs: Record<string, string> = parseQS(location.search)
 			console.log('QS', location.search, qs)
 
@@ -105,7 +126,7 @@ export function UserListPage() {
 			})
 			setProfiles(res.profiles)
 		})()
-	}, [])
+	}, [auth, location.search])
 
 	return <Fcb.Container className="g-1">
 		<Fcb.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
@@ -133,6 +154,7 @@ export function CommunityListPage() {
 	const { t } = useTranslation()
 	const location = useLocation()
 	const api = useApi()
+	const [auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
 
@@ -141,7 +163,9 @@ export function CommunityListPage() {
 	}, [location])
 
 	React.useEffect(function loadCommunities() {
-		(async function () {
+		if (!auth) return
+		console.log('loadCommunities', auth)
+		;(async function () {
 			const qs: Record<string, string> = parseQS(location.search)
 			console.log('QS', location.search, qs)
 
@@ -151,7 +175,7 @@ export function CommunityListPage() {
 			console.log(res)
 			setProfiles(res.profiles)
 		})()
-	}, [])
+	}, [auth, location.search])
 
 	return <Fcb.Container className="g-1">
 		<Fcb.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>

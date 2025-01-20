@@ -25,28 +25,29 @@ import {
 
 import * as T from '@symbion/runtype'
 
-import { NewAction, ActionView, tActionView, tCommentAction, tFileShareAction } from '@cloudillo/types'
+import { NewAction, ActionView, tActionView, tConnectAction, tFileShareAction } from '@cloudillo/types'
 import { useAuth, useApi, Button, ProfilePicture, ProfileCard, ProfileAudienceCard, Fcb, mergeClasses, generateFragments } from '@cloudillo/react'
 
 function FilterBar() {
 	return null
 }
 
-function FileShareNotification({ className, action }: { className?: string, action: ActionView }) {
+function ConnectNotification({ className, action, onClick }: { className?: string, action: ActionView, onClick?: (action: ActionView) => void }) {
 	const { t } = useTranslation()
 	const api = useApi()
-	const contentRes = T.decode(tFileShareAction.props.content, action.content)
+	const contentRes = T.decode(tConnectAction.props.content, action.content)
 	const content = T.isOk(contentRes) ? contentRes.ok : undefined
-	if (!content) return null
 
 	async function onAccept() {
 		console.log('accept')
 		await api.post('', `/action/${action?.actionId}/accept`)
+		onClick?.(action)
 	}
 
 	async function onReject() {
 		console.log('reject')
 		await api.post('', `/action/${action?.actionId}/reject`)
+		onClick?.(action)
 	}
 
 	return <div className={mergeClasses('c-panel g-2', className)}>
@@ -57,26 +58,62 @@ function FileShareNotification({ className, action }: { className?: string, acti
 			<div className="c-hbox ms-auto g-3">
 				<button className="c-link" onClick={onAccept}><IcAccept/></button>
 				<button className="c-link" onClick={onReject}><IcReject/></button>
-				{/*
-				<button className="c-link" onClick={() => console.log('share')}><IcRepost/></button>
-				<button className="c-link" onClick={() => console.log('more')}><IcMore/></button>
-				*/}
 			</div>
 		</div><div className="d-flex flex-column">
-			<div>{ content.fileName }</div>
-			<div>{ content.contentType }</div>
-			{ typeof action.content == 'string' && action.content.split('\n\n').map((paragraph, i) => <p key={i}>
-				{ paragraph.split('\n').map((line, i) => <React.Fragment key={i}>
-					{ generateFragments(line).map((n, i) => <React.Fragment key={i}>{n}</React.Fragment>) }
-				<br/></React.Fragment>) }
-			</p>) }
+			{ !action.subType && <>
+				<h3>{ t('Connection request') }</h3>
+				{ content && content.split('\n\n').map((paragraph, i) => <p key={i}>
+					{ paragraph.split('\n').map((line, i) => <React.Fragment key={i}>
+						{ generateFragments(line).map((n, i) => <React.Fragment key={i}>{n}</React.Fragment>) }
+					<br/></React.Fragment>) }
+				</p>) }
+			</> }
+			{ action.subType == 'DEL' && <>
+				<h3>{ t('Refused to connect') }</h3>
+			</> }
 		</div>
 	</div>
 }
 
-function Notification({ action }: { action: ActionView }) {
+function FileShareNotification({ className, action, onClick }: { className?: string, action: ActionView, onClick?: (action: ActionView) => void }) {
+	const { t } = useTranslation()
+	const api = useApi()
+	const contentRes = T.decode(tFileShareAction.props.content, action.content)
+	const content = T.isOk(contentRes) ? contentRes.ok : undefined
+	if (!content) return null
+
+	async function onAccept() {
+		console.log('accept')
+		await api.post('', `/action/${action?.actionId}/accept`)
+		onClick?.(action)
+	}
+
+	async function onReject() {
+		console.log('reject')
+		await api.post('', `/action/${action?.actionId}/reject`)
+		onClick?.(action)
+	}
+
+	return <div className={mergeClasses('c-panel g-2', className)}>
+		<div className="c-panel-header c-hbox">
+			<Link to={`/profile/${action.issuer.idTag}`}>
+				<ProfileCard profile={action.issuer}/>
+			</Link>
+			<div className="c-hbox ms-auto g-3">
+				<button className="c-link" onClick={onAccept}><IcAccept/></button>
+				<button className="c-link" onClick={onReject}><IcReject/></button>
+			</div>
+		</div><div className="d-flex flex-column">
+			<div>{ content.fileName }</div>
+			<div>{ content.contentType }</div>
+		</div>
+	</div>
+}
+
+function Notification({ action, onClick }: { action: ActionView, onClick?: (action: ActionView) => void }) {
 	switch (action.type) {
-		case 'FSHR': return <FileShareNotification action={action}/>
+		case 'CONN': return <ConnectNotification action={action} onClick={onClick}/>
+		case 'FSHR': return <FileShareNotification action={action} onClick={onClick}/>
 		default: return null
 	}
 }
@@ -93,12 +130,16 @@ export function Notifications() {
 
 		;(async function () {
 			//const res = await api.get<{ actions: ActionEvt[] }>('', `/action?audience=${idTag}&types=POST`)
-			const res = await api.get<{ actions: ActionView[] }>('', `/action?types=CONN,FSHR`)
+			const res = await api.get<{ actions: ActionView[] }>('', `/action?statuses=N`)
 			console.log('RES', res)
 			setNotifications(res.actions)
 		})()
 	}, [auth, api])
 
+	function onClick(action: ActionView) {
+		console.log('onClick', action)
+		setNotifications(n => n?.filter(a => a.actionId != action.actionId))
+	}
 
 	return <Fcb.Container className="g-1">
 		{ !!auth && <>
@@ -106,7 +147,8 @@ export function Notifications() {
 				<FilterBar/>
 			</Fcb.Filter>
 			<Fcb.Content>
-				{ !!notifications && notifications.map(action =>  <Notification key={action.actionId} action={action}/>) }
+				{ notifications && !notifications.length && <h3>{ t('You have no notifications') }</h3> }
+				{ !!notifications && notifications.map(action =>  <Notification key={action.actionId} action={action} onClick={onClick}/>) }
 			</Fcb.Content>
 			<Fcb.Details>
 			</Fcb.Details>

@@ -98,10 +98,10 @@ export async function handleReactionOrComment({ tnId, idTag }: ActionContext, ac
 		if (parentAction) {
 			await createAction(tnId, {
 				type: 'STAT',
-				issuerTag: idTag,
+				//issuerTag: idTag,
 				parentId: action.parentId,
 				content: { r: parentAction.reactions, c: parentAction.comments },
-				createdAt: Math.trunc(Date.now() / 1000)
+				//createdAt: Math.trunc(Date.now() / 1000)
 			})
 		}
 	}
@@ -121,6 +121,41 @@ export async function handleStat({ tnId, idTag }: ActionContext, actionId: strin
 	}
 }
 
+export async function handleFollow(ctx: ActionContext, actionId: string, action: Action) {
+	console.log('FLLW', action.issuerTag, action.audienceTag, ctx.idTag)
+	if (action.audienceTag == ctx.idTag && action.subType !== 'DEL') {
+		await metaAdapter.updateActionData(ctx.tnId, actionId, { status: 'N' })
+	}
+}
+
+export async function handleConn(ctx: ActionContext, actionId: string, action: Action) {
+	console.log('CONN', action.issuerTag, action.audienceTag, ctx.idTag)
+	if (action.audienceTag == ctx.idTag) {
+		// Check if the current action is a response to a request we sent earlier
+		const req = await metaAdapter.getActionByKey(ctx.tnId, `CONN:${ctx.idTag}:${action.issuerTag}`)
+		switch (action.subType) {
+			case undefined:
+				if (req) {
+					await metaAdapter.updateProfile(ctx.tnId, action.issuerTag, { connected: true, following: true })
+				} else {
+					await metaAdapter.updateActionData(ctx.tnId, actionId, { status: 'N' })
+				}
+				break
+			case 'DEL':
+				if (req && !req?.subType) {
+					await metaAdapter.updateActionData(ctx.tnId, actionId, { status: 'N' })
+				}
+		}
+	}
+}
+
+export async function handleFileShare(ctx: ActionContext, actionId: string, action: Action) {
+	console.log('FSHR', action.issuerTag, action.audienceTag, ctx.idTag)
+	if (action.audienceTag == ctx.idTag && action.subType !== 'DEL') {
+		await metaAdapter.updateActionData(ctx.tnId, actionId, { status: 'N' })
+	}
+}
+
 export async function handleInboundAction(ctx: ActionContext, actionId: string, action: Action) {
 	switch (action.type) {
 		case 'ACK':
@@ -134,6 +169,10 @@ export async function handleInboundAction(ctx: ActionContext, actionId: string, 
 			return handleReactionOrComment(ctx, actionId, action)
 		case 'STAT':
 			return handleStat(ctx, actionId, action)
+		case 'CONN':
+			return handleConn(ctx, actionId, action)
+		case 'FSHR':
+			return handleFileShare(ctx, actionId, action)
 		default:
 			return
 	}
@@ -155,8 +194,8 @@ export async function handleInboundActionToken(tnId: number, actionId: string, t
 		}
 
 		// Sync attachments if needed
-		console.log(act.iss, idTag, act.sub)
-		if (act.iss !== idTag && act.sub == idTag) {
+		if (act.a && act.iss !== idTag && act.aud == idTag) {
+			console.log('SYNC ATTACHMENTS', act.iss, '->', idTag, act)
 			const proxyToken = await createProxyToken(tnId, act.iss)
 			if (!proxyToken) throw new Error('Failed to create proxy token')
 
@@ -170,7 +209,7 @@ export async function handleInboundActionToken(tnId: number, actionId: string, t
 						headers: { 'Authorization': `Bearer ${proxyToken}` },
 						credentials: 'include'
 					})
-					const metaRes = await fetch(`https://cl-o.${act.iss}/api/store?id=${fileId}`, {
+					const metaRes = await fetch(`https://cl-o.${act.iss}/api/store?fileId=${fileId}`, {
 						headers: { 'Authorization': `Bearer ${proxyToken}` },
 						credentials: 'include'
 					})

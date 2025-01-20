@@ -34,6 +34,7 @@ import { metaAdapter } from '../adapters.js'
 //////////////////
 const tListActionsQuery = T.struct({
 	types: T.optional(T.string),
+	statuses: T.optional(T.array(T.literal('P', 'A', 'R', 'N'))),
 	audience: T.optional(T.string),
 	involved: T.optional(T.string),
 	parentId: T.optional(T.string),
@@ -71,8 +72,8 @@ export async function postAction(ctx: Context) {
 
 	const actionId = await createAction(tnId, {
 		...action,
-		issuerTag: tenantTag,
-		createdAt: Math.trunc(Date.now() / 10) / 100,
+		//issuerTag: tenantTag,
+		//createdAt: Math.trunc(Date.now() / 10) / 100,
 		expiresAt: Date.now() / 1000 + expire * 24 * 3600
 	})
 	const tenant = await metaAdapter.readTenant(tnId)
@@ -81,12 +82,36 @@ export async function postAction(ctx: Context) {
 	// HOOKS?
 	switch (action.type) {
 		case 'FLLW':
-		case 'CONN': {
+			if (!audience) break
+
+			console.log('FOLLOW', audience)
+			if (!action.subType && !audience?.following) {
+				metaAdapter.updateProfile(tnId, audience.idTag, { following: true })
+			} else if (action.subType == 'DEL') {
+				metaAdapter.updateProfile(tnId, audience.idTag, { following: null })
+			}
+			break
+		case 'CONN':
+			if (!audience) break
+
+			const request = await metaAdapter.getActionByKey(tnId, `CONN:${audience.idTag}:${tenantTag}`)
+			if (!action.subType && !audience?.connected) {
+				metaAdapter.updateProfile(tnId, audience.idTag, {
+					following: true,
+					connected: request && !request.subType ? true
+						: !request ? 'R'
+						: null
+				})
+			} else if (action.subType == 'DEL') {
+				metaAdapter.updateProfile(tnId, audience.idTag, { connected: null })
+			}
+			break
+			/*
 			if (audience && (!audience?.status || audience?.status == 'B')) {
 				metaAdapter.updateProfile(tnId, audience.idTag, { status: 'F' })
 			}
 			break
-		}
+			*/
 	}
 	// / HOOKS
 

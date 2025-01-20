@@ -231,7 +231,7 @@ export function LoginForm() {
 			}
 
 			<div className="c-invalid-feedback">{error}</div>
-			<footer className="is-right">
+			<footer className="c-group">
 				{ localStorage.getItem('credential')
 					&& <button className="c-button secondary me-2" onClick={onWebAuthLogin}>{t('Login without password')}</button>
 				}
@@ -284,7 +284,7 @@ export function PasswordResetForm() {
 						placeholder={t('New password')}
 						aria-label={t('New password')}/>
 				</label>
-				<div className="c-buttongroup float-right">
+				<div className="c-group">
 					<button className="c-button" type="submit">{t('Change password')}</button>
 				</div>
 			</form>
@@ -304,7 +304,7 @@ function PasswordSet() {
 
 	return <AuthPage title={t('Password set')}>
 		<p>{t('PasswordSet', 'Your password has been set.')}</p>
-		<Link className="c-button float-right" to="/login">{t('You can now log in')}</Link>.
+		<Link className="c-button" to="/login">{t('You can now log in')}</Link>.
 	</AuthPage>
 }
 

@@ -69,7 +69,7 @@ export async function syncProfile(tnId: number, idTag: string, eTag?: string): P
 		const profileRes = T.decode(tProfileKeys, await res.json())
 		if (T.isOk(profileRes)) {
 			//console.log('PROFILE', profileRes)
-			const profile = { ...profileRes.ok, status: 'F' as const }
+			const profile = { ...profileRes.ok, status: 'A' as const }
 			if (profile.profilePic) {
 				const variant = await metaAdapter.readFile(tnId, profile.profilePic)
 				if (!variant) {
@@ -105,7 +105,11 @@ export async function syncProfile(tnId: number, idTag: string, eTag?: string): P
 	}
 }
 
-export async function getProfile(tnId: number, idTag: string): Promise<T.TypeOf<typeof tProfile> & { status?: ProfileStatus } | undefined> {
+export async function getProfile(tnId: number, idTag: string): Promise<T.TypeOf<typeof tProfile> & {
+	status?: ProfileStatus,
+	following?: boolean,
+	connected?: boolean
+} | undefined> {
 	// Get local profile
 	let profile = await metaAdapter.readProfile(tnId, idTag)
 	console.log('Local profile', idTag, profile)

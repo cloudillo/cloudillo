@@ -33,6 +33,9 @@ import { ProfileKeys } from './profile.js'
 //////////////////
 // API handlers //
 //////////////////
+
+/* Tenant profiles */
+/*******************/
 const tenantCache = new LRUCache<string, string>({ max: 100, ttl: 1000 * 60 * 60 * 24 /* 24h */ })
 
 export async function getOwnProfile(ctx: Context) {
@@ -225,10 +228,14 @@ export async function putOwnCoverImage(ctx: Context) {
 }
 
 /* Connected Profiles */
+/**********************/
 const tListProfilesQuery = T.struct({
 	idTag: T.optional(T.string),
 	type: T.optional(T.literal('U', 'C')),
-	status: T.optional(T.array(T.literal('B', 'F', 'C', 'T'))),
+	status: T.optional(T.array(T.literal('A', 'B', 'T'))),
+	//connected: T.optional(T.literal(true, 'R')),
+	connected: T.optional(T.union(T.boolean, T.literal('R'))),
+	following: T.optional(T.trueValue),
 	q: T.optional(T.string)
 })
 export async function listProfiles(ctx: Context) {
@@ -241,14 +248,16 @@ export async function listProfiles(ctx: Context) {
 }
 
 export async function getProfile(ctx: Context) {
-	if (ctx.state.auth) ctx.throw(403)
+	if (!ctx.state.auth) ctx.throw(403)
 	const idTag = ctx.params.idTag
 	const profile = await metaAdapter.readProfile(ctx.state.tnId, idTag)
-	ctx.body = profile
+	ctx.body = profile || {}
 }
 
 const tPatchProfile = T.struct({
-	status: T.optional(T.literal('B', 'F', 'C', 'T'))
+	status: T.nullable(T.literal('A', 'B', 'T')),
+	following: T.nullable(T.boolean),
+	connected: T.nullable(T.literal(true, 'R'))
 })
 
 export async function patchProfile(ctx: Context) {
@@ -256,9 +265,7 @@ export async function patchProfile(ctx: Context) {
 	const p = validate(ctx, tPatchProfile)
 	const idTag = ctx.params.idTag
 
-	await metaAdapter.updateProfile(ctx.state.tnId, idTag, {
-		status: p.status
-	})
+	await metaAdapter.updateProfile(ctx.state.tnId, idTag, p)
 	ctx.body = {}
 }
 

@@ -102,7 +102,7 @@ export function Images({ idTag, width, attachments }: { idTag: string, width: nu
 		case 0:
 			return null
 		case 1:
-			imgNode = <img className="cursor-pointer" onClick={() => setLbIndex(0)} src={baseUrl + (img1.sd || img1.hd)} style={{ maxWidth: '100%', maxHeight: '30rem', margin: '0 auto'}}/>
+			imgNode = <img className="cursor-pointer" onClick={() => setLbIndex(0)} src={baseUrl + (img1.sd || img1.tn || img1.hd)} style={{ maxWidth: '100%', maxHeight: '30rem', margin: '0 auto'}}/>
 			break
 		case 2: {
 			const aspect12 = (img1.dim?.[0] ?? 100) / (img1.dim?.[1] ?? 100) + (img2.dim?.[0] ?? 100) / (img2.dim?.[1] ?? 100)
@@ -110,8 +110,8 @@ export function Images({ idTag, width, attachments }: { idTag: string, width: nu
 			const height = (width - gap) / aspect12
 
 			imgNode = <div className="c-hbox g-2">
-				<img className="cursor-pointer" onClick={() => setLbIndex(0)} src={baseUrl + (img1.sd || img1.hd)} style={{ height, margin: '0 auto'}}/>
-				<img className="cursor-pointer" onClick={() => setLbIndex(1)} src={baseUrl + (img2.sd || img2.hd)} style={{ height, margin: '0 auto'}}/>
+				<img className="cursor-pointer" onClick={() => setLbIndex(0)} src={baseUrl + (img1.sd || img1.tn || img1.hd)} style={{ height, margin: '0 auto'}}/>
+				<img className="cursor-pointer" onClick={() => setLbIndex(1)} src={baseUrl + (img2.sd || img2.tn || img2.hd)} style={{ height, margin: '0 auto'}}/>
 			</div>
 			break
 		}
@@ -129,11 +129,11 @@ export function Images({ idTag, width, attachments }: { idTag: string, width: nu
 			//console.log('DIMS', { width, height, width23, attachmentsLength: attachments.length })
 
 			imgNode = <div className="c-hbox g-2">
-				<img className="cursor-pointer" onClick={() => setLbIndex(0)} src={baseUrl + (img1.sd || img1.hd)} style={{ height, margin: '0 auto'}}/>
+				<img className="cursor-pointer" onClick={() => setLbIndex(0)} src={baseUrl + (img1.sd || img1.tn || img1.hd)} style={{ height, margin: '0 auto'}}/>
 				<div className="c-vbox">
-					<img className="cursor-pointer" onClick={() => setLbIndex(1)} src={baseUrl + (img2.sd || img2.hd)} style={{ width: width23, margin: '0 auto'}}/>
+					<img className="cursor-pointer" onClick={() => setLbIndex(1)} src={baseUrl + (img2.sd || img2.tn || img2.hd)} style={{ width: width23, margin: '0 auto'}}/>
 					{ attachments.length == 3
-						? <img className="cursor-pointer" onClick={() => setLbIndex(2)} src={baseUrl + (img3.sd || img3.hd)} style={{ width: width23, margin: '0 auto'}}/>
+						? <img className="cursor-pointer" onClick={() => setLbIndex(2)} src={baseUrl + (img3.sd || img3.tn || img3.hd)} style={{ width: width23, margin: '0 auto'}}/>
 						: <div className="pos relative" style={{ width: width23, margin: '0 auto'}}>
 							<img className="w-100" src={baseUrl + (img3.sd || img3.hd)}/>
 							<div onClick={() => setLbIndex(2)} className="c-image-overlay-counter cursor-pointer">+{attachments.length - 3}</div>

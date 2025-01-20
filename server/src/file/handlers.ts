@@ -122,14 +122,14 @@ export async function postFile(ctx: Context) {
 				if (img.variants.orig) await metaAdapter.createFileVariant(tnId, fileId, img.variants.orig.hash, {
 					variant: 'orig', format: img.variants.orig.format, size: img.variants.orig.size
 				})
-				if (img.variants.hd) await metaAdapter.createFileVariant(tnId, fileId, img.variants.hd.hash, {
-					variant: 'hd', format: img.variants.hd.format, size: img.variants.hd.size
+				if (img.variants.tn) await metaAdapter.createFileVariant(tnId, fileId, img.variants.tn.hash, {
+					variant: 'tn', format: img.variants.tn.format, size: img.variants.tn.size
 				})
 				if (img.variants.sd) await metaAdapter.createFileVariant(tnId, fileId, img.variants.sd.hash, {
 					variant: 'sd', format: img.variants.sd.format, size: img.variants.sd.size
 				})
-				if (img.variants.tn) await metaAdapter.createFileVariant(tnId, fileId, img.variants.tn.hash, {
-					variant: 'tn', format: img.variants.tn.format, size: img.variants.tn.size
+				if (img.variants.hd) await metaAdapter.createFileVariant(tnId, fileId, img.variants.hd.hash, {
+					variant: 'hd', format: img.variants.hd.format, size: img.variants.hd.size
 				})
 				ctx.body = { fileId, attachment: img.attachment }
 			}

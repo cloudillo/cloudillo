@@ -104,7 +104,7 @@ export async function storeImage(tnId: number, sizes: string, buf: Buffer): Prom
 		}
 		console.log(`Orig[${variants.orig.hash}] dim: ${variants.orig.dim}`)
 		//console.log('hash.orig', hash.orig)
-		await blobAdapter.writeBlob(tnId, variants.orig.hash, '', origBuf, { public: true }) // FIXME
+		await blobAdapter.writeBlob(tnId, variants.orig.hash, '', origBuf, { public: false }) // FIXME
 	}
 
 	// IC
@@ -128,7 +128,7 @@ export async function storeImage(tnId: number, sizes: string, buf: Buffer): Prom
 		}
 		console.log(`TN[${variants.ic.hash}] dim: ${variants.ic.dim}`)
 		//console.log('hash.ic', hash.ic)
-		await blobAdapter.writeBlob(tnId, variants.ic.hash, '', icVar.data, { public: true }) // FIXME
+		await blobAdapter.writeBlob(tnId, variants.ic.hash, '', icVar.data, { public: false }) // FIXME
 	}
 
 	// TN
@@ -143,16 +143,19 @@ export async function storeImage(tnId: number, sizes: string, buf: Buffer): Prom
 			.toBuffer({ resolveWithObject: true })
 		console.log(`	TN: ${Date.now() - t}ms`)
 		//hash.tn = crypto.createHash('sha256').update(tnBuf).digest('base64url')
-		variants.tn = {
-			hash: crypto.createHash('sha256').update(tnVar.data).digest('base64url'),
-			dim: rot ? [imgMeta.height, imgMeta.width] : [imgMeta.width, imgMeta.height],
-			size: tnVar.info.size,
-			//format: 'webp'
-			format: 'avif'
+		const hash = crypto.createHash('sha256').update(tnVar.data).digest('base64url')
+		if (hash != variants.ic?.hash) {
+			variants.tn = {
+				hash,
+				dim: rot ? [imgMeta.height, imgMeta.width] : [imgMeta.width, imgMeta.height],
+				size: tnVar.info.size,
+				//format: 'webp'
+				format: 'avif'
+			}
+			console.log(`TN[${variants.tn.hash}] dim: ${variants.tn.dim}`)
+			//console.log('hash.tn', hash.tn)
+			await blobAdapter.writeBlob(tnId, variants.tn.hash, '', tnVar.data, { public: false }) // FIXME
 		}
-		console.log(`TN[${variants.tn.hash}] dim: ${variants.tn.dim}`)
-		//console.log('hash.tn', hash.tn)
-		await blobAdapter.writeBlob(tnId, variants.tn.hash, '', tnVar.data, { public: true }) // FIXME
 	}
 
 	// SD
@@ -167,17 +170,19 @@ export async function storeImage(tnId: number, sizes: string, buf: Buffer): Prom
 			.avif({ quality: 50, bitdepth: 8, effort: 4, lossless: ['png', 'gif'].includes(imgMeta.format || '') })
 			.toBuffer({ resolveWithObject: true })
 		console.log(`	SD: ${Date.now() - t}ms`)
-		//hash.sd = crypto.createHash('sha256').update(sdVar.data).digest('base64url')
-		variants.sd = {
-			hash: crypto.createHash('sha256').update(sdVar.data).digest('base64url'),
-			dim: rot ? [sdVar.info.height, sdVar.info.width] : [sdVar.info.width, sdVar.info.height],
-			size: sdVar.info.size,
-			//format: 'webp'
-			format: 'avif'
+		const hash = crypto.createHash('sha256').update(sdVar.data).digest('base64url')
+		if (hash != variants.tn?.hash && hash != variants.ic?.hash) {
+			variants.sd = {
+				hash: crypto.createHash('sha256').update(sdVar.data).digest('base64url'),
+				dim: rot ? [sdVar.info.height, sdVar.info.width] : [sdVar.info.width, sdVar.info.height],
+				size: sdVar.info.size,
+				//format: 'webp'
+				format: 'avif'
+			}
+			console.log(`SD[${variants.sd.hash}] dim: ${variants.sd.dim}`)
+			//console.log('hash.sd', hash.sd)
+			await blobAdapter.writeBlob(tnId, variants.sd.hash, '', sdVar.data, { public: false }) // FIXME
 		}
-		console.log(`SD[${variants.sd.hash}] dim: ${variants.sd.dim}`)
-		//console.log('hash.sd', hash.sd)
-		await blobAdapter.writeBlob(tnId, variants.sd.hash, '', sdVar.data, { public: true }) // FIXME
 	}
 
 	// HD
@@ -190,17 +195,19 @@ export async function storeImage(tnId: number, sizes: string, buf: Buffer): Prom
 			.avif({ quality: 50, bitdepth: 8, effort: 4, lossless: ['png', 'gif'].includes(imgMeta.format || '') })
 			.toBuffer({ resolveWithObject: true })
 		console.log(`	HD: ${Date.now() - t}ms`)
-		//hash.hd = crypto.createHash('sha256').update(hdVar.data).digest('base64url')
-		variants.hd = {
-			hash: crypto.createHash('sha256').update(hdVar.data).digest('base64url'),
-			dim: rot ? [hdVar.info.height, hdVar.info.width] : [hdVar.info.width, hdVar.info.height],
-			size: hdVar.info.size,
-			//format: 'webp'
-			format: 'avif'
+		const hash = crypto.createHash('sha256').update(hdVar.data).digest('base64url')
+		if (hash != variants.sd?.hash && hash != variants.tn?.hash && hash != variants.ic?.hash) {
+			variants.hd = {
+				hash: crypto.createHash('sha256').update(hdVar.data).digest('base64url'),
+				dim: rot ? [hdVar.info.height, hdVar.info.width] : [hdVar.info.width, hdVar.info.height],
+				size: hdVar.info.size,
+				//format: 'webp'
+				format: 'avif'
+			}
+			console.log(`HD[${variants.hd.hash}] dim: ${variants.hd.dim}`)
+			//console.log('hash.hd', hash.hd)
+			await blobAdapter.writeBlob(tnId, variants.hd.hash, '', hdVar.data, { public: false }) // FIXME
 		}
-		console.log(`HD[${variants.hd.hash}] dim: ${variants.hd.dim}`)
-		//console.log('hash.hd', hash.hd)
-		await blobAdapter.writeBlob(tnId, variants.hd.hash, '', hdVar.data, { public: true }) // FIXME
 	}
 
 	return {

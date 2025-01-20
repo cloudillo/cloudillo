@@ -54,17 +54,21 @@ export async function init(router: Router) {
 	router.get('/auth/vapid', perm('A'), auth.getVapidPublicKey)
 
 	/* Actions */
-	router.get('/action', perm('R'), action.listActions)
+	// FIXME perm disabled
+	//router.get('/action', perm('R'), action.listActions)
+	router.get('/action', action.listActions)
 	router.post('/action', perm('A'), action.postAction)
 	router.post('/action/:actionId/accept', perm('A'), action.postActionAccept)
 	router.post('/action/:actionId/reject', perm('A'), action.postActionReject)
 	router.post('/inbox', action.postInboundAction)
 
 	/* Documents */
-	router.get('/store', perm('R'), file.listFiles)
+	router.get('/store', file.listFiles)
 	router.post('/store', perm('A'), file.createFile)
 	router.post('/store/:preset/:fileName', perm('A'), file.postFile)
-	router.get('/store/:fileId{/:label}', perm('R', 'fileId'), file.getFile)
+	// FIXME perm disabled
+	//router.get('/store/:fileId{/:label}', perm('R', 'fileId'), file.getFile)
+	router.get('/store/:fileId{/:label}', file.getFile)
 	router.patch('/store/:fileId', perm('W', 'fileId'), file.patchFile)
 	router.put('/store/:fileId/tag/:tag', perm('A', 'fileId'), file.putFileTag)
 	router.delete('/store/:fileId/tag/:tag', perm('A', 'fileId'), file.deleteFileTag)

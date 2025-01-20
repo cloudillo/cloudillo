@@ -214,12 +214,16 @@ export const tActionToken = T.taggedUnion('t')({
 export type ActionToken = T.TypeOf<typeof tActionToken>
 */
 
-export async function createAction(tnId: number, action: Action) {
+export async function createAction(tnId: number, action: NewAction) {
 	try {
 		const issuerTag = await metaAdapter.getTenantIdentityTag(tnId)
 		if (!issuerTag) return
 		const act = { ...action, createdAt: Math.trunc(Date.now() / 1000), issuerTag }
-		const token = await createActionToken(tnId, tnId, act)
+		const token = await createActionToken(tnId, tnId, {
+			...act,
+			issuerTag,
+			createdAt: Math.trunc(Date.now() / 1000)
+		})
 		if (!token) return
 		//const { iss, iat, exp } = jwt.decode(token) as { iss: string, iat: number, exp: number }
 		//const actionId = token?.split('.')[2]
@@ -232,7 +236,8 @@ export async function createAction(tnId: number, action: Action) {
 
 		await metaAdapter.createAction(tnId, actionId, act, key)
 
-		if (['POST', 'ACK', 'STAT'].includes(action.type) && action.issuerTag == issuerTag) {
+		//if (['POST', 'ACK', 'STAT'].includes(action.type) && action.issuerTag == issuerTag) {
+		if (['POST', 'ACK', 'STAT'].includes(action.type)) {
 			// FIXME: filter followers by access
 			await metaAdapter.createOutboundAction(tnId, actionId, token, {
 				followTag: issuerTag,
@@ -253,13 +258,28 @@ export async function createAction(tnId: number, action: Action) {
 
 export async function acceptAction(tnId: number, actionId: string) {
 	const action = (await metaAdapter.listActions(tnId, undefined, { actionId }))?.[0]
-	console.log('ACTION', action)
-	const content = T.decode(tFileShareAction.props.content, action.content)
-	console.log('ACTION.content', content)
-	if (!action?.subject || T.isErr(content)) return
+	if (!action) return
+	console.log('acceptAction', action)
 
-	await metaAdapter.createFile(tnId, action.subject, { ...content.ok, ownerTag: action.issuer.idTag, status: 'M' })
-	await metaAdapter.updateActionData(tnId, actionId, { status: undefined })
+	switch (action.type) {
+		case 'CONN':
+			if (!action.audience) return
+			const req = await metaAdapter.getActionByKey(tnId, `CONN:${action.audience.idTag}:${action.issuer.idTag}`)
+			if (req && !req?.subType) {
+			} else {
+				await createAction(tnId, { type: 'CONN', audienceTag: action.issuer.idTag })
+			}
+			await metaAdapter.updateProfile(tnId, action.issuer.idTag, { connected: true, following: true })
+			break
+		case 'FSHR':
+			const content = T.decode(tFileShareAction.props.content, action.content)
+			console.log('ACTION.content', content)
+			if (!action?.subject || T.isErr(content)) return
+
+			await metaAdapter.createFile(tnId, action.subject, { ...content.ok, ownerTag: action.issuer.idTag, status: 'M' })
+			break
+	}
+	await metaAdapter.updateActionData(tnId, actionId, { status: null })
 }
 
 export async function rejectAction(tnId: number, actionId: string) {

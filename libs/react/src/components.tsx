@@ -76,7 +76,7 @@ export function Button({ className, onClick, primary, secondary, accent, link, c
 interface PopperProps {
 	className?: string
 	icon?: React.ComponentType
-	label?: string
+	label?: React.ReactNode
 	children?: React.ReactNode
 }
 export function Popper({ className, icon: Icon, label, children, ...props }: PopperProps) {
@@ -88,7 +88,8 @@ export function Popper({ className, icon: Icon, label, children, ...props }: Pop
 		strategy: 'fixed'
 	})
 
-	return <details className={mergeClasses('c-nav-link', className)} open={isOpen} onClick={() => setIsOpen(!isOpen)}>
+	//return <details className={mergeClasses('c-nav-link', className)} open={isOpen} onClick={() => setIsOpen(!isOpen)}>
+	return <details className={className} open={isOpen} onClick={() => setIsOpen(!isOpen)}>
 		<summary ref={setPopperRef}>{label}</summary>
 		{isOpen && createPortal(<div ref={setPopperEl} style={popperStyles.popper} {...attributes.popper}>
 			{children}

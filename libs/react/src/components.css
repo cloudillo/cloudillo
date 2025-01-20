@@ -40,6 +40,10 @@
 	}
 }
 
+#popper-container {
+	z-index: 100;
+}
+
 /*
  vim: ts=4
  */

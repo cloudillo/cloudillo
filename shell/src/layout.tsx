@@ -63,6 +63,7 @@ import { Routes, Route, Navigate, Link, NavLink, useNavigate, useLocation } from
 import { useTranslation } from 'react-i18next'
 
 import {
+	LuUserSearch as IcSearchUser,
 	LuUser as IcUser,
 	LuUsers as IcUsers,
 	LuGrip as IcApps,
@@ -97,7 +98,7 @@ import './style.css'
 function Header() {
 	const [appConfig, setAppConfig] = useAppConfig()
 	const [auth, setAuth] = useAuth()
-	const [search] = useSearch()
+	const [search, setSearch] = useSearch()
 	const api = useApi()
 	const { t, i18n } = useTranslation()
 	const location = useLocation()
@@ -141,17 +142,13 @@ function Header() {
 			if (!api.idTag && !auth) {
 				// Determine idTag
 				try {
-					const res = await fetch(`https://${window.location.host}/idTag`)
+					console.log('[Shell] fetching idTag')
+					const res = await fetch(`https://${window.location.host}/id-tag`)
 					if (res.ok) {
 						const j = await res.json()
 						if (typeof j.idTag == 'string') {
 							api.setIdTag(j.idTag)
-							navigator.serviceWorker.ready.then(function serviceWorkerRegistered(reg) {
-								reg?.active?.postMessage({ idTag: j.idTag })
-								reg?.addEventListener('updatefound', function () {
-									reg?.installing?.postMessage({ idTag: j.idTag })
-								})
-							})
+							console.log('[Shell] idTag', j.idTag)
 						}
 						// Check for login cookie
 						const tokenRes = await api.get(j.idTag, '/auth/login-token')
@@ -186,7 +183,7 @@ function Header() {
 				<li className="c-nav-item">
 					<Link className="c-nav-item" to="#"><CloudilloLogo style={{height: 32}}/></Link> </li>
 				{ auth && <li className="c-nav-item">
-					{ search.query == undefined ? <SearchIcon/> : <SearchBar/> }
+					{ search.query == undefined ? <IcSearchUser onClick={() => setSearch({ query: '' })}/> : <SearchBar/> }
 					</li>
 				}
 			</ul>

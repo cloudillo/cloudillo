@@ -76,7 +76,7 @@ export async function listFiles(tnId: number, auth: Auth, opts: ListFilesOptions
 		LEFT JOIN json_each(f.tags) as tag `
 		+ (opts.variant ? `LEFT JOIN file_variants fv ON fv.tnId=f.tnId AND fv.fileId=f.fileId AND fv.variant=${ql(opts.variant)} ` : '')
 		+ "WHERE f.tnId = $tnId"
-		+ (opts.fileId ? " AND f.fileId = $id" : '')
+		+ (opts.fileId ? " AND f.fileId = $fileId" : '')
 		+ (statuses ? " AND f.status IN (" + statuses + ")" : '')
 		+ (opts.tag !== undefined ? " AND ','||f.tags||',' LIKE $tagLike" : '')
 		+ (opts.preset !== undefined ? " AND preset=$preset" : '')

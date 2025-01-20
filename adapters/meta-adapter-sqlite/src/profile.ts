@@ -27,6 +27,8 @@ export async function listProfiles(tnId: number, opts: ListProfilesOptions) {
 			(opts.type === 'U' ? ' AND type ISNULL' : ` AND type = ${ql(opts.type)}`)
 			: ''
 		)
+		+ (opts.following ? ' AND following' : '')
+		+ (opts.connected === true ? ' AND connected' : opts.connected == 'R' ? ' AND NOT connected' : '')
 		+ (opts.q ? ` AND (idTag LIKE ${ql(opts.q + '%')} OR name LIKE ${ql(opts.q + '%')})` : '')
 		+ (opts.idTag ? ` AND idTag = ${ql(opts.idTag)}` : '')
 	console.log('listProfiles q:', q, tnId)
@@ -35,7 +37,9 @@ export async function listProfiles(tnId: number, opts: ListProfilesOptions) {
 		idTag: string,
 		name: string,
 		profilePic?: string,
-		status?: 'B' | 'F' | 'C' | 'T'
+		status?: 'A' | 'B' | 'T',
+		following?: boolean,
+		connected?: boolean
 	}>(q, { $tnId: tnId, $ownIdTag: idTag })
 
 	const res: Profile[] = rows.map(row => ({
@@ -43,7 +47,11 @@ export async function listProfiles(tnId: number, opts: ListProfilesOptions) {
 		idTag: row.idTag,
 		name: row.name,
 		profilePic: row.profilePic,
-		status: row.status
+		status: row.status,
+		following: row.following != null ? !!row.following : undefined,
+		connected: row.connected == null ? undefined
+			: !row.connected ? 'R'
+			: !!row.connected
 	}))
 
 	return res
@@ -51,12 +59,21 @@ export async function listProfiles(tnId: number, opts: ListProfilesOptions) {
 
 export async function readProfile(tnId: number, idTag: string) {
 	console.log('readProfile', tnId, idTag)
-	const profile = await db.get<{ idTag: string, type: 'U' | 'C', name: string, profilePic?: string, status?: ProfileStatus }>(
-		`SELECT idTag, type, name, profilePic, status FROM profiles
+	const profile = await db.get<{ idTag: string, type: 'U' | 'C', name: string, profilePic?: string, status?: ProfileStatus, following?: boolean, connected?: boolean } | undefined>(
+		`SELECT idTag, type, name, profilePic, status, following, connected FROM profiles
 		WHERE tnId = $tnId AND idTag = $idTag`,
 		{ $tnId: tnId, $idTag: idTag }
 	)
-	return profile
+	console.log('readProfile', { idTag: profile?.idTag, status: profile?.status })
+	if (!profile) return
+
+	return {
+		...profile,
+		following: profile.following !== null ? !!profile.following : undefined,
+		connected: profile.connected === null ? undefined
+			: !profile.connected ? 'R'
+			: !!profile.connected
+	}
 }
 
 export async function getIdentityTag(tnId: number) {
@@ -82,16 +99,20 @@ export async function createProfile(tnId: number, profile: Omit<Profile, 'id'>, 
 }
 
 export async function updateProfile(tnId: number, idTag: string, opts: UpdateProfileOptions) {
-	await db.run(`UPDATE profiles SET
-		status = coalesce($status, status),
-		syncedAt = CASE WHEN $synced THEN unixepoch() ELSE syncedAt END
-		WHERE tnId = $tnId AND idTag = $idTag
-	`, {
-		$tnId: tnId,
-		$idTag: idTag,
-		$status: opts.status,
-		$synced: opts.synced
-	})
+	const update: string[] = []
+
+	if (opts.status !== undefined) update.push(`status = ${ql(opts.status)}`)
+	if (opts.synced) update.push('syncedAt = unixepoch()')
+	if (opts.following !== undefined) update.push(`following = ${ql(opts.following)}`)
+	if (opts.connected !== undefined) update.push(`connected = ${ql(opts.connected == 'R' ? false : opts.connected)}`)
+
+	if (update.length) {
+		const res = await db.run(`UPDATE profiles SET
+			${update.join(', ')}
+			WHERE tnId = $tnId AND idTag = $idTag
+		`, { $tnId: tnId, $idTag: idTag })
+		console.log('updateProfile', update, { tnId, idTag }, res)
+	}
 }
 
 export async function getProfilePublicKey(tnId: number, idTag: string, keyId: string) {

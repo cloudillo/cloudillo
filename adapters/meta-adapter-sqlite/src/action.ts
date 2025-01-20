@@ -55,7 +55,9 @@ export async function listActions(tnId: number, auth: Auth | undefined, opts: Li
 		LEFT JOIN profiles pi ON pi.tnId=a.tnId AND pi.idTag=a.idTag
 		LEFT JOIN profiles pa ON pa.tnId=a.tnId AND pa.idTag=a.audience
 		LEFT JOIN actions ownReact ON ownReact.tnId=a.tnId AND ownReact.parentId=a.actionId AND ownReact.type='REACT' AND coalesce(ownReact.status, 'A') NOT IN ('D')
-		WHERE a.tnId = $tnId AND coalesce(a.status, 'A') NOT IN ('D')`
+		WHERE a.tnId = $tnId
+		AND coalesce(a.status, 'A')
+			${opts.statuses ? ' IN (' + opts.statuses.map(s => ql(s)).join(',') + ')' : " NOT IN ('D')"}`
 		+ (opts.types ? ` AND a.type IN (${opts.types.map(tp => ql(tp)).join(',')})` : '')
 		+ (opts.audience ? ` AND (a.audience = ${ql(opts.audience)} OR (a.audience IS NULL AND a.idTag = ${ql(opts.audience)}))` : '')
 		+ (opts.involved ? ` AND (a.audience = ${ql(opts.involved)} OR (a.idTag = ${ql(opts.involved)}))` : '')
@@ -65,7 +67,6 @@ export async function listActions(tnId: number, auth: Auth | undefined, opts: Li
 		+ (opts.rootId ? ` AND a.rootId=${ql(opts.rootId)}` : '')
 		//+ (tag !== undefined ? " AND ','||tags||',' LIKE $tagLike" : '')
 		+ " ORDER BY a.createdAt DESC LIMIT 100"
-	console.log(opts, q)
 	const rows = await db.all<{
 		type: string
 		subType: string
@@ -146,6 +147,7 @@ export async function getActionByKey(tnId: number, actionKey: string) {
 			"SELECT type, idTag as issuerTag, createdAt, subType FROM actions WHERE tnId = $tnId AND key=$actionKey AND coalesce(status, '')!='D'",
 			{ $tnId: tnId, $actionKey: actionKey }
 		)
+	console.log('getActionByKey', tnId, actionKey, res)
 	return !res ? undefined : {
 		type: res.type,
 		issuerTag: res?.issuerTag,
@@ -251,7 +253,7 @@ export async function processPendingInboundActions(callback: (tnId: number, acti
 
 	const actions = await db.all<{ actionId: string, tnId: number, token: string }>(
 		`SELECT a.actionId, a.tnId, a.token FROM action_inbox a
-			WHERE a.status ISNULL ORDER BY a.actionId LIMIT 100`,)
+			WHERE a.status ISNULL LIMIT 100`,)
 	for (const action of actions) {
 		console.log('INBOUND ACTION', action.tnId, action.actionId, action.token)
 		try {

@@ -27,6 +27,8 @@ export let db: AsyncDatabase
 
 export function ql(v: unknown): string {
 	return v === null || v === undefined ? 'NULL'
+		: v === true ? 'true'
+		: v === false ? 'false'
 		: Array.isArray(v) ? v.map( v => ql(v) ).join(', ') //ql('' + v).replace(/^'(.*)'$/, (match, p1) => `'{${p1}}'`)
 		: typeof v == 'object' ? ql(JSON.stringify(v))
 		: "'" + ('' + v).replace(/'/g, "''") + "'"
@@ -133,7 +135,8 @@ export async function init({ dir, sqliteBusyTimeout }: { dir: string, sqliteBusy
 		type char(1),				-- NULL: User, 'C': Community
 		profilePic text,
 		status char(1),
-		following boolean NOT NULL DEFAULT false,
+		following boolean,
+		connected boolean,
 		roles json,
 		createdAt datetime DEFAULT current_timestamp,
 		syncedAt datetime,

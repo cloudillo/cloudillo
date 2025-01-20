@@ -102,9 +102,8 @@ export type TenantPatch = T.PatchStruct<TenantData>
 
 /* Profiles */
 export type ProfileStatus =
-	'B'			// Blocked
-	| 'F'		// Following
-	| 'C'		// Connected
+	'A'			// Active
+	| 'B'		// Blocked
 	| 'T'		// Trusted
 
 	| 'M'		// Moderated
@@ -119,19 +118,24 @@ export interface Profile {
 export interface ListProfilesOptions {
 	type?: ('U' | 'C')
 	status?: ProfileStatus[]
+	connected?: boolean | 'R'
+	following?: boolean
 	q?: string
 	idTag?: string
 }
 
 export interface UpdateProfileOptions {
-	status?: ProfileStatus
+	status?: ProfileStatus | null
 	synced?: boolean
+	following?: boolean | null
+	connected?: true | 'R' | null
 }
 
 /* Actions */
 export interface ListActionsOptions {
 	types?: string[]
 	tag?: string
+	statuses?: string[]
 	audience?: string
 	involved?: string
 	actionId?: string
@@ -140,7 +144,7 @@ export interface ListActionsOptions {
 }
 
 export interface UpdateActionDataOptions {
-	status?: string
+	status?: string | null
 	reactions?: number | null
 	comments?: number | null
 }

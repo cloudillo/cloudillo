@@ -41,6 +41,8 @@ interface ButtonProps extends React.HTMLAttributes<HTMLButtonElement> {
 	className?: string
 	onClick?: (evt: React.MouseEvent) => void
 	type?: 'button' | 'submit'
+	disabled?: boolean
+	icon?: React.ReactNode
 	primary?: boolean
 	secondary?: boolean
 	accent?: boolean
@@ -51,7 +53,7 @@ interface ButtonProps extends React.HTMLAttributes<HTMLButtonElement> {
 /**********/
 /* Button */
 /**********/
-export function Button({ className, onClick, primary, secondary, accent, link, children, ...props }: ButtonProps) {
+export function Button({ className, onClick, icon, primary, secondary, accent, link, children, ...props }: ButtonProps) {
 	const [cls, setCls] = React.useState('')
 	const variantClass =
 		primary ? 'primary'
@@ -64,10 +66,30 @@ export function Button({ className, onClick, primary, secondary, accent, link, c
 		setCls(' clicked')
 		await delay(200)
 		setCls('')
-		onClick?.(evt)
+		if (props.type == 'submit') {
+			(evt.target as HTMLButtonElement).form?.requestSubmit()
+		} else {
+			onClick?.(evt)
+		}
 	}
 
-	return <button {...props} className={mergeClasses(link ? 'c-link' : 'c-button', variantClass, cls, className)} onClick={handleClick}>{children}</button>
+	if (icon) {
+		return <button {...props}
+			className={mergeClasses(link ? 'c-link' : 'c-button', 'g-2', variantClass, cls, className)}
+			onClick={handleClick}
+		>
+			{icon}
+			{children}
+		</button>
+	} else {
+		return <button
+			{...props}
+			className={mergeClasses(link ? 'c-link' : 'c-button', variantClass, cls, className)}
+			onClick={handleClick}
+		>
+			{children}
+		</button>
+	}
 }
 
 /**********/
@@ -75,11 +97,12 @@ export function Button({ className, onClick, primary, secondary, accent, link, c
 /**********/
 interface PopperProps {
 	className?: string
-	icon?: React.ComponentType
+	menuClassName?: string
+	icon?: React.ReactNode
 	label?: React.ReactNode
 	children?: React.ReactNode
 }
-export function Popper({ className, icon: Icon, label, children, ...props }: PopperProps) {
+export function Popper({ className, menuClassName, icon, label, children, ...props }: PopperProps) {
 	const [popperRef, setPopperRef] = React.useState<HTMLElement | null>(null)
 	const [popperEl, setPopperEl] = React.useState<HTMLElement | null>(null)
 	const [isOpen, setIsOpen] = React.useState(false)
@@ -88,10 +111,37 @@ export function Popper({ className, icon: Icon, label, children, ...props }: Pop
 		strategy: 'fixed'
 	})
 
-	//return <details className={mergeClasses('c-nav-link', className)} open={isOpen} onClick={() => setIsOpen(!isOpen)}>
-	return <details className={className} open={isOpen} onClick={() => setIsOpen(!isOpen)}>
-		<summary ref={setPopperRef}>{label}</summary>
-		{isOpen && createPortal(<div ref={setPopperEl} style={popperStyles.popper} {...attributes.popper}>
+	/*
+	*/
+	React.useEffect(() => {
+		if (!popperEl) return
+
+		async function handleClickOutside(evt: MouseEvent) {
+			if (!(evt.target instanceof Node) || !popperEl?.contains(evt.target)) {
+				evt.stopPropagation()
+				evt.preventDefault()
+				setIsOpen(false)
+			}
+			/*
+			await delay(200)
+			setIsOpen(false)
+			*/
+		}
+
+		document.addEventListener("click", handleClickOutside, true)
+		return () => {
+			document.removeEventListener("click", handleClickOutside, true)
+		}
+	}, [popperEl]);
+
+	return <details className={className} open={isOpen} onClick={evt => (evt.stopPropagation(), setIsOpen(!isOpen))}>
+		<summary ref={setPopperRef} className={menuClassName || "c-nav-item g-2"} onClick={evt => (evt.stopPropagation(), setIsOpen(!isOpen))}>
+			{icon}{label}
+		</summary>
+		{isOpen && createPortal(<div ref={setPopperEl} style={popperStyles.popper} onClick={evt => setIsOpen(false)} {...attributes.popper}>
+		{/*
+		{(isOpen || popperEl) && createPortal(<div ref={setPopperEl} style={popperStyles.popper} onClick={evt => setIsOpen(false)} {...attributes.popper}>
+		*/}
 			{children}
 		</div>, document.getElementById('popper-container')!)}
 	</details>

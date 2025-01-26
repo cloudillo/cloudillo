@@ -31,6 +31,7 @@ export interface AuthState {
 	name?: string
 	profilePic?: string
 	roles?: number[]
+	settings?: Record<string, unknown>
 	token?: string
 }
 
@@ -53,8 +54,9 @@ export function useApi() {
 	const [api, setApi] = useAtom(apiAtom)
 
 	return React.useMemo(() => ({
-		get: async function get<R>(idTag: string, path: string, opts?: Omit<ApiFetchOpts<R, never>, 'authToken'>): Promise<R> {
-			return await apiFetchHelper(idTag || api.idTag || '', 'GET', path, { ...opts, authToken: auth?.token })
+		//get: async function get<R>(idTag: string, path: string, opts?: Omit<ApiFetchOpts<R, never>, 'authToken'>): Promise<R> {
+		get: async function get<R>(idTag: string, path: string, opts?: ApiFetchOpts<R, never>): Promise<R> {
+			return await apiFetchHelper(idTag || api.idTag || '', 'GET', path, { ...opts, authToken: opts?.authToken || auth?.token })
 		},
 
 		post: async function post<R, D = any>(idTag: string, path: string, opts?: Omit<ApiFetchOpts<R, D>, 'authToken'>): Promise<R> {

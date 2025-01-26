@@ -19,6 +19,7 @@ import * as T from '@symbion/runtype'
 import { Action, NewAction } from '@cloudillo/types'
 import { metaAdapter, blobAdapter, messageBusAdapter } from '../adapters.js'
 import { ProxyToken, createActionToken, createProxyToken, getIdentityTag } from '../auth/handlers.js'
+import { getProfile } from '../profile/profile.js'
 //import { sendWsBusMsg } from '../ws.js'
 import { createAction, checkToken, generateActionKey } from './action.js'
 
@@ -62,20 +63,22 @@ export async function handleMsg({ tnId, idTag }: ActionContext, actionId: string
 	const issuer = await metaAdapter.readProfile(tnId, action.issuerTag)
 	const audience = action.audienceTag ? await metaAdapter.readProfile(tnId, action.audienceTag) : undefined
 	// FIXME
-	const cnt = await messageBusAdapter.sendMessage('' + tnId, 'ACTION', {
-		actionId,
-		type: action.type,
-		subType: action.subType,
-		parentId: action.parentId,
-		rootId: action.rootId,
-		issuer,
-		audience,
-		createdAt: action.createdAt,
-		expiresAt: action.expiresAt,
-		content: action.content,
-		attachments: action.attachments
-	})
-	console.log('WS BUS sent', cnt)
+	if (action.audienceTag) {
+		const cnt = await messageBusAdapter.sendMessage(action.audienceTag, 'ACTION', {
+			actionId,
+			type: action.type,
+			subType: action.subType,
+			parentId: action.parentId,
+			rootId: action.rootId,
+			issuer,
+			audience,
+			createdAt: action.createdAt,
+			expiresAt: action.expiresAt,
+			content: action.content,
+			attachments: action.attachments
+		})
+		console.log('WS BUS sent', cnt)
+	}
 	/*
 	if (!cnt) 
 		await sendNotification(tnId, {
@@ -129,7 +132,9 @@ export async function handleFollow(ctx: ActionContext, actionId: string, action:
 }
 
 export async function handleConn(ctx: ActionContext, actionId: string, action: Action) {
+	const tenant = await metaAdapter.readTenant(ctx.tnId)
 	console.log('CONN', action.issuerTag, action.audienceTag, ctx.idTag)
+
 	if (action.audienceTag == ctx.idTag) {
 		// Check if the current action is a response to a request we sent earlier
 		const req = await metaAdapter.getActionByKey(ctx.tnId, `CONN:${ctx.idTag}:${action.issuerTag}`)
@@ -138,7 +143,17 @@ export async function handleConn(ctx: ActionContext, actionId: string, action: A
 				if (req) {
 					await metaAdapter.updateProfile(ctx.tnId, action.issuerTag, { connected: true, following: true })
 				} else {
-					await metaAdapter.updateActionData(ctx.tnId, actionId, { status: 'N' })
+					if (tenant?.type == 'community') { // FIXME settings.openCommunity
+						const connAction: NewAction = {
+							type: 'CONN',
+							audienceTag: action.issuerTag
+						}
+						await createAction(ctx.tnId, connAction)
+						const profile = await metaAdapter.readProfile(ctx.tnId, action.issuerTag)
+						await metaAdapter.updateProfile(ctx.tnId, action.issuerTag, { connected: true, following: true, perm: profile?.perm || 'W' })
+					} else {
+						await metaAdapter.updateActionData(ctx.tnId, actionId, { status: 'N' })
+					}
 				}
 				break
 			case 'DEL':
@@ -192,6 +207,7 @@ export async function handleInboundActionToken(tnId: number, actionId: string, t
 			console.log('Unknown issuer', issuerProfile)
 			throw new Error('Unknown issuer')
 		}
+		if (!issuerProfile) await getProfile(tnId, act.iss)
 
 		// Sync attachments if needed
 		if (act.a && act.iss !== idTag && act.aud == idTag) {

@@ -31,7 +31,7 @@ import { Context } from '../index.js'
 import { validate, validateQS } from '../utils.js'
 //import { getStoreFileName, writeStore, readStore, checkStore, init as initDocStore } from '../doc-store.js'
 import { storeImage } from '../image.js'
-import { metaAdapter, blobAdapter } from '../adapters.js'
+import { metaAdapter, blobAdapter, crdtAdapter } from '../adapters.js'
 import { tListFilesOptions } from '../meta-adapter.js'
 
 //////////////////
@@ -46,8 +46,9 @@ export async function listFiles(ctx: Context) {
 
 	const files = await metaAdapter.listFiles(tnId, ctx.state.auth, q)
 	console.log('FILES', files.length)
-	ctx.body = { files: files.map(f => ({ ...f, thumbnail: f.preset === 'gallery' ?
-		 `https://${ctx.hostname}/api/store/${f.fileId}/tn.jpg` : undefined,
+	ctx.body = { files: files.map(f => ({
+		...f,
+		thumbnail: f.preset === 'gallery' ? `https://${ctx.hostname}/api/store/${f.fileId}/tn.jpg` : undefined,
 	})) }
 	console.log('auth', ctx.state.auth)
 }
@@ -182,6 +183,25 @@ export async function patchFile(ctx: Context) {
 		fileId: fileId,
 		fileName: p.fileName
 	}
+}
+
+export async function deleteFile(ctx: Context) {
+	const fileId = ctx.params.fileId
+	console.log('DELETE', fileId)
+	const file = await metaAdapter.readFile(ctx.state.tnId, fileId)
+	if (!file) ctx.throw(404)
+
+	if (file.status == 'M') {
+		// Delete CRDT content
+		try {
+			const res = await crdtAdapter.clearDocument(fileId)
+			console.log('CRDT DELETED', fileId)
+		} catch (err) {
+			console.log('ERROR', err)
+		}
+	}
+	await metaAdapter.deleteFile(ctx.state.tnId, fileId)
+	ctx.body = { fileId }
 }
 
 //////////

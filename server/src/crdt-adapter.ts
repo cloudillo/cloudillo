@@ -22,6 +22,7 @@ export interface CrdtAdapter {
 	getMeta: (docId: string, key: string) => Promise<unknown>
 	setMeta: (docId: string, key: string, value: unknown) => Promise<void>
 	storeUpdate: (docId: String, update: Uint8Array) => void
+	clearDocument: (docId: string) => Promise<void>
 }
 
 // vim: ts=4

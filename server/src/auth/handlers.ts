@@ -71,7 +71,7 @@ export type ProxyToken = T.TypeOf<typeof tProxyToken>
 //////////
 export async function getVapidKeys(tnId: number) {
 	const vapid = await authAdapter.getVapidKeys(tnId)
-	if (!vapid.vapidPublicKey) {
+	if (!vapid?.vapidPublicKey) {
 		const { publicKey, privateKey } = generateVAPIDKeys()
 		await authAdapter.storeVapidKeys(tnId, publicKey, privateKey)
 		return {

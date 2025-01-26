@@ -502,7 +502,7 @@ async function createToken(tnId: number, data: Omit<ActionToken, 'iss' | 'k' | '
 		privateKeyPEM,
 		{
 			algorithm: 'ES384',
-			...(opts.expiresIn ? { expiresIn: opts.expiresIn } : {}),
+			...(opts.expiresIn ? { expiresIn: opts.expiresIn as any } : {}),
 		}
 	)
 	return token
@@ -525,7 +525,7 @@ async function createAccessToken(data: AccessToken, opts: { expiresIn?: string, 
 		await assureJwtSecret(),
 		{
 			algorithm: 'HS256',
-			...(opts.expiresIn ? { expiresIn: opts.expiresIn } : {})
+			...(opts.expiresIn ? { expiresIn: opts.expiresIn as any } : {})
 		}
 	)
 	return token

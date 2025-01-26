@@ -16,10 +16,10 @@
         "@symbion/runtype": "^1.1.1",
         "lib0": "^0.2.99",
         "y-leveldb": "^0.1.2",
-        "yjs": "^13.6.21"
+        "yjs": "^13.6.23"
     },
     "devDependencies": {
-        "@types/node": "^22.10.5",
+        "@types/node": "^22.10.10",
         "rimraf": "^6.0.1",
         "typescript": "^5.7.3"
     }

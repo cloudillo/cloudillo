@@ -50,7 +50,7 @@ export async function getSetting(ctx: Context) {
 // PUT setting //
 /////////////////
 const tPutSetting = T.struct({
-	value: T.optional(T.union(T.string, T.number, T.boolean))
+	value: T.nullable(T.union(T.string, T.number, T.boolean))
 })
 
 export async function putSetting(ctx: Context) {

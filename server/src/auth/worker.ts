@@ -43,7 +43,10 @@ export async function initWorker(auth: AuthAdapter, opts: { baseIdTag: string, b
 			password: opts.basePassword || nanoid()
 		})
 		const name = opts.baseIdTag.replace(/\..*$/, '')
-		await metaAdapter.createTenant(1, opts.baseIdTag, { name: name.charAt(0).toUpperCase() + name.slice(1).toLowerCase() })
+		await metaAdapter.createTenant(1, opts.baseIdTag, {
+			name: name.charAt(0).toUpperCase() + name.slice(1).toLowerCase(),
+			type: 'person'
+		})
 	}
 
 	if (opts.acmeEmail) {

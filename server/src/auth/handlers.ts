@@ -125,10 +125,11 @@ interface LoginResult {
 	name: string
 	profilePic?: string
 	roles: string[]
+	settings: Record<string, unknown>
 	token: string
 }
 
-async function returnLogin(ctx: Context, login: Omit<LoginResult, 'token'>, remember: boolean = false) {
+async function returnLogin(ctx: Context, login: Omit<LoginResult, 'token' | 'settings'>, remember: boolean = false) {
 	if (login.tnId) {
 		//if (!login.roles.includes() && login.userId === login.tnId) login.roles.push(0)
 
@@ -137,14 +138,18 @@ async function returnLogin(ctx: Context, login: Omit<LoginResult, 'token'>, reme
 			t: login.idTag,
 			r: login.roles
 		}, { expiresIn: TOKEN_EXPIRE + 'h' })
+		/*
 		ctx.cookies.set('token', token, { httpOnly: true, secure: true, maxAge: remember ? TOKEN_EXPIRE * 1000 * 3600 : undefined })
 		ctx.cookies.set('login', '1', { httpOnly: false, secure: true, maxAge: remember ? TOKEN_EXPIRE * 1000 * 3600 : undefined })
+		*/
 
 		const profile = await metaAdapter.readTenant(login.tnId)
+		const settings = await metaAdapter.listSettings(ctx.state.tnId, { prefix: ['ui'] })
 		login.name = profile?.name || '-'
 		login.profilePic = profile?.profilePic?.ic
 		ctx.body = {
 			...login,
+			settings,
 			token
 		}
 	} else {
@@ -171,12 +176,13 @@ export async function postLogin(ctx: Context) {
 		console.log(p.password, passwordHash(p.password, auth.passwordHash.split(':')[0]))
 		if (passwordHash(p.password, auth.passwordHash.split(':')[0]) !== auth.passwordHash) ctx.throw(403)
 
+
 		await returnLogin(ctx, {
 			tnId,
 			idTag: auth.idTag,
 			name: '-',
 			//roles: roles ? JSON.parse(roles) : [],
-			roles: [],
+			roles: []
 		}, p.remember)
 	} catch (err) {
 		console.log('LOGIN ERROR', err)
@@ -286,7 +292,10 @@ export async function postRegister(ctx: Context) {
 		email: p.email,
 	})
 	const name = p.idTag.replace(/\..*$/, '')
-	await metaAdapter.createTenant(newTnId, p.idTag, { name: name.charAt(0).toUpperCase() + name.slice(1).toLowerCase() })
+	await metaAdapter.createTenant(newTnId, p.idTag, {
+		name: name.charAt(0).toUpperCase() + name.slice(1).toLowerCase(),
+		type: 'person'
+	})
 	//await metaAdapter.deleteRef(tnId, p.registerToken)
 
 	// ACME
@@ -626,8 +635,10 @@ export async function deleteWebauthnDeleteCredential(ctx: Context) {
 }
 
 export async function getWebauthnLoginRequest(ctx: Context) {
+	const allowCredentials = (await authAdapter.listWebauthnCredentials(ctx.state.tnId)).map(c => ({ id: c.credentialId }))
 	const options = await generateAuthenticationOptions({
 		rpID: ctx.state.tenantTag,
+		allowCredentials,
 		userVerification: 'discouraged'
 	})
 

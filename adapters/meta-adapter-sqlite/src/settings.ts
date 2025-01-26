@@ -21,7 +21,7 @@ import { db, ql } from './db.js'
 
 export async function listSettings(tnId: number, opts: ListSettingsOptions = {}): Promise<Record<string, string | number | boolean | undefined>> {
 	const q = "SELECT name, value FROM settings WHERE tnId = $tnId"
-		+ (opts.prefix ? " AND (" + opts.prefix.map(prefix => `name LIKE ${ql(prefix + '%')}`).join(' OR ') + ")" : '')
+		+ (opts.prefix ? " AND (" + opts.prefix.map(prefix => `name LIKE ${ql(prefix + '.%')}`).join(' OR ') + ")" : '')
 	console.log('Query:', q)
 	const rows = await db.all<{ name: string, value: string }>(q, { $tnId: tnId })
 	return rows.reduce((acc, row) => ({ ...acc, [row.name]: row.value }), {})
@@ -34,12 +34,16 @@ export async function readSetting(tnId: number, name: string) {
 	return res?.value
 }
 
-export async function updateSetting(tnId: number, name: string, value?: string | number | boolean) {
-	await db.run('INSERT OR REPLACE INTO settings (tnId, name, value) VALUES ($tnId, $name, $value)', {
-		$tnId: tnId,
-		$name: name,
-		$value: value
-	})
+export async function updateSetting(tnId: number, name: string, value?: string | number | boolean | null) {
+	if (value == null) {
+		await db.run('DELETE FROM settings WHERE tnId = $tnId AND name = $name', { $tnId: tnId, $name: name })
+	} else {
+		await db.run('INSERT OR REPLACE INTO settings (tnId, name, value) VALUES ($tnId, $name, $value)', {
+			$tnId: tnId,
+			$name: name,
+			$value: value
+		})
+	}
 }
 
 // vim: ts=4

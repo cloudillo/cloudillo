@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as T from '@symbion/runtype'
-import { Profile, ProfileStatus, ListProfilesOptions, UpdateProfileOptions } from '@cloudillo/server/types/meta-adapter'
+import { Profile, ProfileStatus, ProfilePerm, ListProfilesOptions, UpdateProfileOptions } from '@cloudillo/server/types/meta-adapter'
 
 import { db, ql } from './db.js'
 
@@ -37,7 +37,9 @@ export async function listProfiles(tnId: number, opts: ListProfilesOptions) {
 		idTag: string,
 		name: string,
 		profilePic?: string,
-		status?: 'A' | 'B' | 'T',
+		status?: ProfileStatus,
+		perm?: ProfilePerm,
+
 		following?: boolean,
 		connected?: boolean
 	}>(q, { $tnId: tnId, $ownIdTag: idTag })
@@ -48,6 +50,7 @@ export async function listProfiles(tnId: number, opts: ListProfilesOptions) {
 		name: row.name,
 		profilePic: row.profilePic,
 		status: row.status,
+		perm: row.perm,
 		following: row.following != null ? !!row.following : undefined,
 		connected: row.connected == null ? undefined
 			: !row.connected ? 'R'
@@ -59,8 +62,8 @@ export async function listProfiles(tnId: number, opts: ListProfilesOptions) {
 
 export async function readProfile(tnId: number, idTag: string) {
 	console.log('readProfile', tnId, idTag)
-	const profile = await db.get<{ idTag: string, type: 'U' | 'C', name: string, profilePic?: string, status?: ProfileStatus, following?: boolean, connected?: boolean } | undefined>(
-		`SELECT idTag, type, name, profilePic, status, following, connected FROM profiles
+	const profile = await db.get<{ idTag: string, type: 'U' | 'C', name: string, profilePic?: string, status?: ProfileStatus, perm?: ProfilePerm, following?: boolean, connected?: boolean } | undefined>(
+		`SELECT idTag, type, name, profilePic, status, perm, following, connected FROM profiles
 		WHERE tnId = $tnId AND idTag = $idTag`,
 		{ $tnId: tnId, $idTag: idTag }
 	)
@@ -102,6 +105,7 @@ export async function updateProfile(tnId: number, idTag: string, opts: UpdatePro
 	const update: string[] = []
 
 	if (opts.status !== undefined) update.push(`status = ${ql(opts.status)}`)
+	if (opts.perm !== undefined) update.push(`perm = ${ql(opts.perm)}`)
 	if (opts.synced) update.push('syncedAt = unixepoch()')
 	if (opts.following !== undefined) update.push(`following = ${ql(opts.following)}`)
 	if (opts.connected !== undefined) update.push(`connected = ${ql(opts.connected == 'R' ? false : opts.connected)}`)

@@ -85,6 +85,7 @@ export async function init({ dir, sqliteBusyTimeout }: { dir: string, sqliteBusy
 	await db.run(`CREATE TABLE IF NOT EXISTS tenants (
 		tnId integer NOT NULL,
 		idTag text NOT NULL,
+		type char(1),				-- NULL: User, 'C': Community
 		name text,
 		profilePic json,
 		coverPic json,
@@ -135,6 +136,7 @@ export async function init({ dir, sqliteBusyTimeout }: { dir: string, sqliteBusy
 		type char(1),				-- NULL: User, 'C': Community
 		profilePic text,
 		status char(1),
+		perm char(1),
 		following boolean,
 		connected boolean,
 		roles json,

@@ -23,14 +23,16 @@ export async function readTenant(tnId: number): Promise<Tenant | undefined> {
 	const tenant = await db.get<{
 		tnId: number,
 		idTag: string,
+		type?: string,
 		name: string,
 		profilePic?: string
 		coverPic?: string
 		x?: string,
 		createdAt: Date
-	} | undefined>("SELECT tnId, idTag, name, profilePic, coverPic, x, createdAt FROM tenants WHERE tnId = $tnId", { $tnId: tnId })
+	} | undefined>("SELECT tnId, idTag, type, name, profilePic, coverPic, x, createdAt FROM tenants WHERE tnId = $tnId", { $tnId: tnId })
 	return tenant ? {
 		...tenant,
+		type: tenant.type == 'C' ? 'community' : 'person',
 		profilePic: tenant.profilePic ? JSON.parse(tenant.profilePic) : undefined,
 		coverPic: tenant.coverPic ? JSON.parse(tenant.coverPic) : undefined,
 		x: tenant.x ? JSON.parse(tenant.x) : {}
@@ -43,11 +45,12 @@ export async function getTenantIdentityTag(tnId: number) {
 }
 
 export async function createTenant(tnId: number, idTag: string, tenant: TenantData) {
-	const res = await db.get<{ tnId: number }>(`INSERT INTO tenants (tnId, idTag, name, profilePic, x) VALUES
-		($tnId, $idTag, $name, $profilePic, $x) RETURNING tnId`, {
+	const res = await db.get<{ tnId: number }>(`INSERT INTO tenants (tnId, idTag, name, type, profilePic, x) VALUES
+		($tnId, $idTag, $name, $type, $profilePic, $x) RETURNING tnId`, {
 		$tnId: tnId,
 		$idTag: idTag,
 		$name: tenant.name,
+		$type: tenant.type == 'community' ? 'C' : null,
 		$profilePic: tenant.profilePic,
 		$x: JSON.stringify({ ...tenant, tag: undefined, name: undefined, profilePic: undefined })
 	})

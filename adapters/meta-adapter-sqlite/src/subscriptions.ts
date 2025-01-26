@@ -20,8 +20,8 @@ import { db, ql } from './db.js'
 
 export async function listSubscriptions(tnId: number) {
 	const rows = await db.all<{ subsId: number, subscription: string, idTag: string }>(
-		`SELECT s.subsId, s.subscription, p.idTag FROM subscriptions s
-		JOIN profiles p ON p.tnId = s.tnId AND p.tnId = s.tnId
+		`SELECT s.subsId, s.subscription, t.idTag FROM subscriptions s
+		JOIN tenants t ON t.tnId = s.tnId
 		WHERE s.tnId = $tnId
 	`, { $tnId: tnId })
 	return rows.map(row => ({
@@ -38,7 +38,7 @@ export async function createSubscription(tnId: number, subscription: unknown) {
 	})
 }
 
-export async function deleteSubscription(tnId: number, id: string) {
+export async function deleteSubscription(tnId: number, id: number) {
 	await db.run('DELETE FROM subscriptions WHERE tnId = $tnId AND subsId = $id', {
 		$tnId: tnId,
 		$id: id

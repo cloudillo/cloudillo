@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import { PushSubscription } from 'web-push'
 import * as T from '@symbion/runtype'
 import { Action, ActionView } from '@cloudillo/types'
 
@@ -35,6 +36,7 @@ export interface File {
 	contentType: string
 	fileName: string
 	createdAt: Date
+	status: 'M' | 'I' | 'P' | 'D'
 	tags: string[]
 	x?: Record<string, unknown>
 }
@@ -85,6 +87,7 @@ export interface Tenant {
 	tnId: number
 	idTag: string
 	name: string
+	type: 'person' | 'community'
 	profilePic?: {
 		ic: string
 		sd?: string
@@ -106,13 +109,17 @@ export type ProfileStatus =
 	| 'B'		// Blocked
 	| 'T'		// Trusted
 
+export type ProfilePerm =
 	| 'M'		// Moderated
+	| 'W'		// Write
 	| 'A'		// Admin
+
 export interface Profile {
 	idTag: string
 	name: string
 	profilePic?: string
 	status?: ProfileStatus
+	perm?: ProfilePerm
 }
 
 export interface ListProfilesOptions {
@@ -126,6 +133,7 @@ export interface ListProfilesOptions {
 
 export interface UpdateProfileOptions {
 	status?: ProfileStatus | null
+	perm?: ProfilePerm | null
 	synced?: boolean
 	following?: boolean | null
 	connected?: true | 'R' | null
@@ -162,19 +170,20 @@ export interface ListSettingsOptions {
 /* Subscriptions */
 export interface Subscription {
 	id: number
-	subscription: string
+	subscription: PushSubscription
 	idTag: string
 }
 
 export interface MetaAdapter {
 	// Files
-	listFiles: (tnId: number, auth: Auth, opts: ListFilesOptions) => Promise<File[]>
+	listFiles: (tnId: number, auth: Auth | undefined, opts: ListFilesOptions) => Promise<File[]>
 	getFileVariant: (tnId: number, fileId: string, variant: string) => Promise<string | undefined>
 	readFile: (tnId: number, fileId: string) => Promise<File | undefined>
-	readFileAuth: (tnId: number, auth: Auth, fileId: string) => Promise<File | undefined>
+	readFileAuth: (tnId: number, auth: Auth | undefined, fileId: string) => Promise<File | undefined>
 	createFile: (tnId: number, fileId: string, opts: CreateFileOptions) => Promise<void>
 	createFileVariant: (tnId: number, fileId: string | undefined, variantId: string, opts: CreateFileVariantOptions) => Promise<void>
 	updateFile: (tnId: number, fileId: string, opts: UpdateFileOptions) => Promise<void>
+	deleteFile: (tnId: number, fileId: string) => Promise<void>
 	processPendingFilesPrepare: (callback: (tnId: number, meta: File) => Promise<boolean>) => Promise<number>
 
 	// Tags
@@ -224,12 +233,12 @@ export interface MetaAdapter {
 	// Settings
 	listSettings: (tnId: number, opts: ListSettingsOptions) => Promise<Record<string, string | number | boolean | undefined>>
 	readSetting: (tnId: number, name: string) => Promise<string | number | boolean | undefined>
-	updateSetting: (tnId: number, name: string, value?: string | number | boolean) => Promise<void>
+	updateSetting: (tnId: number, name: string, value?: string | number | boolean | null) => Promise<void>
 
 	// Subscriprions
 	listSubscriptions: (tnId: number) => Promise<Subscription[]>
 	createSubscription: (tnId: number, subscription: string) => Promise<void>
-	deleteSubscription: (tnId: number, subscription: string) => Promise<void>
+	deleteSubscription: (tnId: number, subscription: number) => Promise<void>
 }
 
 // vim: ts=4

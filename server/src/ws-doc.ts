@@ -50,7 +50,6 @@ async function loadDoc(tnId: number, docId: string) {
 
 	console.log('LOAD DOC', tnId, docId)
 	let ydoc = await crdtAdapter.getYDoc(docId)
-	console.log('ydoc', !!ydoc, ydoc?.getText('doc')?.toDelta())
 
 	const initialized = await(crdtAdapter.getMeta(docId, 'init'))
 	console.log('initialized', initialized)

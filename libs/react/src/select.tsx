@@ -37,7 +37,6 @@ export function Select<T>({ className, inputClassName, placeholder, getData, onC
 	const [popperRef, setPopperRef] = React.useState<HTMLElement | null>(null)
 	const [popperEl, setPopperEl] = React.useState<HTMLUListElement | null>(null)
 	const [items, setItems] = React.useState<T[]>([])
-	console.log('popperRef', popperRef)
 
 	const deboucedOnInputValueChange = React.useCallback(debounce(async function onInputValueChange({ inputValue }: { inputValue?: string }) {
 		const data = await getData(inputValue || '')

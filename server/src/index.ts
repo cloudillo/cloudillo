@@ -67,7 +67,7 @@ export interface State {
 		r?: string[]
 		sub?: string
 	}
-	auth: Auth
+	auth?: Auth
 }
 
 export interface Context extends Koa.Context {
@@ -175,6 +175,7 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 
 	koa
 		.use(async (ctx, next) => {
+			//if (ctx.method != 'OPTIONS' && ctx.hostname.startsWith('cl-o.')) {
 			if (ctx.hostname.startsWith('cl-o.')) {
 				ctx.state.tenantTag = determineTenantTag(ctx.hostname)
 				const tnId = await determineTnId(ctx.hostname)
@@ -187,8 +188,10 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 				const authHeader = ctx.header.authorization?.trim().split(' ')
 				if (authHeader && authHeader[0] == 'Bearer') {
 					token = authHeader[1]
+				/*
 				} else {
 					token = ctx.cookies.get('token')
+				*/
 				}
 
 				if (token) {
@@ -209,8 +212,18 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 		})
 		.use(async (ctx, next) => {
 			const start = Date.now()
-			await next()
-			console.log(`HTTPS REQ: ${ctx.request.ip} @${ctx.state.user?.t || '-'} ${Date.now() - start}ms ${ctx.status} ${ctx.hostname} ${ctx.method} ${ctx.path} ${ctx.querystring}`)
+			console.log(`HTTPS REQ 8<-------- ${ctx.request.ip} @${ctx.state.user?.t || '-'} ${ctx.hostname} ${ctx.method} ${ctx.path} ${ctx.querystring}`)
+			try {
+				await next()
+				//console.log(`HTTPS REQ >8: ${ctx.request.ip} @${ctx.state.user?.t || '-'} ${Date.now() - start}ms ${ctx.status} ${ctx.hostname} ${ctx.method} ${ctx.path} ${ctx.querystring}`)
+				console.log(`HTTPS REQ -------->8 ${ctx.request.ip} @${ctx.state.user?.t || '-'} ${ctx.status} ${ctx.hostname} ${ctx.method} ${ctx.path} ${Date.now() - start}ms`)
+			} catch (err) {
+				if (err instanceof Error && 'status' in err) {
+					console.log(`HTTPS REQ -------->8 ${ctx.request.ip} @${ctx.state.user?.t || '-'} ${typeof err == 'object' && err && 'status' in err ? err.status : `500`} ${ctx.hostname} ${ctx.method} ${ctx.path} ${Date.now() - start}ms`)
+				} else {
+					console.log('ERROR', err)
+				}
+			}
 		})
 		.use(koaCORS({ origin: (ctx) => ctx.header.origin || '*', credentials: true }))
 		//.use(koaCORS({ origin: (ctx) => { console.log('Headers', ctx.header); return ctx.header.origin || '*' }, credentials: true }))
@@ -220,7 +233,7 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 				if (ctx.path.startsWith('/api/.well-known/')) return next()
 
 				if (ctx.method == 'GET' || ctx.method == 'HEAD') {
-					if (ctx.path == '/idTag') {
+					if (ctx.path == '/.well-known/cloudillo/id-tag') {
 						const certData = await authAdapter.getCertByDomain(ctx.hostname)
 						ctx.body = { idTag: certData?.idTag }
 					} else {

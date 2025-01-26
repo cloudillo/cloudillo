@@ -63,6 +63,7 @@ export async function writeBlob(tnId: number, mediaId: string, label: string, da
 			await fs.link(path.join(dir, fn), path.join(publicDir, fn))
 		} catch (err) {
 			console.log('LINK ERROR:', err instanceof Error ? err.toString(): err)
+			if ((err as { code?: string })?.code != 'EEXIST') throw err
 		}
 	}
 }

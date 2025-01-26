@@ -17,10 +17,8 @@ import * as url from 'url'
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url))
 
 export default {
-	//input: 'src/index.tsx',
 	input: 'src/index.tsx',
 	output: {
-		//dir: `./dist/assets-${isProd ? pkg.version : 'dev'}`,
 		dir: `./dist/assets-${pkg.version}`,
 		assetFileNames: '[name]-bundle.[ext]',
 		name: 'main',
@@ -36,7 +34,6 @@ export default {
 		resolve({ extensions: ['.js', '.ts', '.tsx'], modulePaths: ['./node_modules'] }),
 		commonjs(),
 		isProd && terser(),
-		//isProd && terser(),
 		postcss({
 			extract: 'bundle.css',
 			minimize: isProd

@@ -110,6 +110,7 @@ export interface AuthAdapter {
 	processCertRenewals: (callback: (tnId: number, idTag: string, domain: string, expires: Date) => Promise<boolean>) => Promise<number>
 	getCertByTag: (idTag: string) => Promise<{ tnId: number, idTag: string, domain?: string, cert: string, key: string } | undefined>
 	getCertByDomain: (domain: string) => Promise<{ tnId: number, idTag: string, domain?: string, cert: string, key: string } | undefined>
+	listWebauthnCredentials: (tnId: number) => Promise<WebauthnData[]>
 	getWebauthnCredential: (tnId: number, credentialId: string) => Promise<WebauthnData | undefined>
 	createWebauthnCredential: (tnId: number, data: WebauthnData) => Promise<void>
 	updateWebauthnCredentialCounter: (tnId: number, credentialId: string, counter: number) => Promise<void>

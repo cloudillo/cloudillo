@@ -153,6 +153,7 @@ export async function init(opts: InitOpts): Promise<AuthAdapter> {
 		processCertRenewals,
 		getCertByTag,
 		getCertByDomain,
+		listWebauthnCredentials,
 		getWebauthnCredential,
 		createWebauthnCredential,
 		updateWebauthnCredentialCounter,
@@ -287,6 +288,16 @@ async function getCertByDomain(domain: string) {
 //////////////
 // Webauthn //
 //////////////
+async function listWebauthnCredentials(tnId: number): Promise<WebauthnData[]> {
+	const credentials = await db.all<{
+		credentialId: string
+		counter: number
+		publicKey: string
+		descr: string
+	}>('SELECT credentialId, counter, publicKey, descr FROM webauthn WHERE tnId = $tnId', { $tnId: tnId}) ?? {}
+	return credentials
+}
+
 async function getWebauthnCredential(tnId: number, credentialId: string): Promise<WebauthnData | undefined> {
 	const { counter, publicKey, descr } = await db.get<{
 		counter: number

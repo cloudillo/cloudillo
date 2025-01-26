@@ -37,6 +37,11 @@ import {
 } from 'react-icons/fi'
 
 import {
+	LuCloud as IcAll,
+	LuLockKeyhole as IcPrivate,
+	LuLockKeyholeOpen as IcPublic,
+	LuUser as IcUser,
+
 	LuMessageCircle as IcComment,
 	LuHeart as IcLike,
 	LuForward as IcShare,
@@ -507,11 +512,11 @@ export const NewPost = React.forwardRef(function NewPostInside({ className, styl
 })
 
 function FilterBar() {
-	return <ul className="c-panel c-nav">
-		<li className="c-nav-item"><a href="/app/feed">All</a></li>
-		<li className="c-nav-item"><a href="/app/feed?audience=public">Public</a></li>
-		<li className="c-nav-item"><a href="/app/feed?audience=private">Private</a></li>
-		<li className="c-nav-item"><a href="/app/feed?audience=me">Me</a></li>
+	return <ul className="c-nav vertical low">
+		<li><a className="c-nav-item" href="/app/feed"><IcAll/>All</a></li>
+		<li><a className="c-nav-item" href="/app/feed?audience=public"><IcPublic/>Public</a></li>
+		<li><a className="c-nav-item" href="/app/feed?audience=private"><IcPrivate/>Private</a></li>
+		<li><a className="c-nav-item" href="/app/feed?audience=me"><IcUser/>Me</a></li>
 	</ul>
 		
 }

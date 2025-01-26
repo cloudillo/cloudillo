@@ -20,14 +20,11 @@ import dayjs from 'dayjs'
 import { useTranslation } from 'react-i18next'
 
 import {
-	FiCloud as IcAll,
 	FiSearch as IcSearch,
-	FiPlus as IcNew,
-	FiEdit as IcMutable,
 	FiEdit2 as IcEdit,
+	FiTrash as IcDelete,
 	FiSave as IcSave,
 	FiX as IcCancel,
-	FiFile as IcImmutable,
 	FiList as IcToDo,
 	FiUploadCloud as IcUploaded,
 	FiUser as IcUser,
@@ -42,6 +39,11 @@ import {
 import {
 	LuFilter as IcFilter,
 
+	LuFilePlus2 as IcNewFile,
+	LuCloud as IcAll,
+	LuFilePen as IcMutable,
+	LuFile as IcImmutable,
+
 	LuBookOpen as IcQuillo,
 	LuSheet as IcSheello,
 	LuPresentation as IcPrello,
@@ -53,7 +55,7 @@ import '@symbion/ui-core/datatable.css'
 import '@symbion/ui-core/scroll.css'
 
 import { NewAction, Profile } from '@cloudillo/types'
-import { useApi, useAuth, Button, Fcb, ProfilePicture, EditProfileList, mergeClasses } from '@cloudillo/react'
+import { useApi, useAuth, useDialog, Button, Fcb, ProfilePicture, EditProfileList, Popper, Dialog, mergeClasses } from '@cloudillo/react'
 
 import { useAppConfig, parseQS, qs } from '../utils.js'
 import { Tags, EditTags } from '../tags.js'
@@ -81,8 +83,8 @@ interface File {
 	contentType: string
 	createdAt: string
 	preset: string
-	thumbnail?: string
 	tags?: string[]
+	variantId?: string
 }
 
 interface FileView extends File {
@@ -227,14 +229,11 @@ function useFileListData() {
 		if (!api || !auth) return
 
 		(async function () {
-			//const qs: Record<string, string> = parseQS(location.search)
 			const qs = parseQS(location.search)
 			setFilter(qs)
-			console.log('QS', location.search, qs)
 
 			if (Object.keys(qs).length > 0 -1) {
-				const res = await api.get<{ files: File[] }>('', '/store', { query: qs })
-				console.log('RES', res)
+				const res = await api.get<{ files: File[] }>('', '/store', { query: { variant: 'tn', ...qs }})
 				setFiles(res.files)
 			} else {
 				setFiles([])
@@ -277,6 +276,8 @@ function FilterBar({ className }: { className?: string }) {
 	const api = useApi()
 	const location = useLocation()
 	const navigate = useNavigate()
+	const dialog = useDialog()
+	const [dialogOpen, setDialogOpen] = React.useState(false)
 	const docStat = { mutable: 0, immutable: 0, todo: 0, new: 0, delegated: 0, monitored: 0 }
 
 	const qs = parseQS(location.search)
@@ -285,8 +286,13 @@ function FilterBar({ className }: { className?: string }) {
 		console.log('createFile', contentType)
 		if (!contentType) return
 
+		const fileName = await dialog.askText(t('Create document'), t('Provide a name for the new document'), {
+			placeholder: t('Untitled document')
+		}) || t('Untitled document')
+		console.log('CONFIRM', fileName)
+
 		const res = await api.post<File>('', '/store', {
-			data: { contentType, fileName: 'Untitled document' }
+			data: { contentType, fileName }
 		})
 		console.log('CREATE FILE', res)
 		if (res?.fileId) {
@@ -307,17 +313,36 @@ function FilterBar({ className }: { className?: string }) {
 		}
 	}
 
-	return <ul className={'c-nav flex-column align-items-stretch ' + (className || '')}>
+	return <ul className={mergeClasses('c-nav vertical low', className)}>
 		<li className="c-nav-item">
+			{/*
 			<details className="c-dropdown">
-				<summary className="c-button secondary"><IcNew/>{t('Create document')}</summary>
-				<ul className="c-panel">
-					<li><a className="c-nav-item" href="#" onClick={() => createFile('cloudillo/quillo')}><IcQuillo/> {t('Quillo document')}</a></li>
-					<li><a className="c-nav-item" href="#" onClick={() => createFile('cloudillo/sheello')}><IcSheello/> {t('Sheello document')}</a></li>
-					<li><a className="c-nav-item" href="#" onClick={() => createFile('cloudillo/prello')}><IcPrello/> {t('Prello document')}</a></li>
-					<li><a className="c-nav-item" href="#" onClick={() => createFile('cloudillo/formillo')}><IcFormillo/> {t('Formillo document')}</a></li>
+			*/}
+			<Popper icon={<IcNewFile/>} label={t('Create document')}>
+				<ul className="c-nav vertical emph">
+					<li><a className="c-nav-item" href="#" onClick={() => createFile('cloudillo/quillo')}>
+						{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons['cloudillo/quillo'], { className: 'me-1' })}
+						{t('Quillo text document')}</a></li>
+					<li><a className="c-nav-item" href="#" onClick={() => createFile('cloudillo/sheello')}>
+						{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons['cloudillo/sheello'], { className: 'me-1' })}
+						{t('Sheello spreadsheet document')}</a></li>
+					<li><a className="c-nav-item" href="#" onClick={() => createFile('cloudillo/prello')}>
+						{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons['cloudillo/prello'], { className: 'me-1' })}
+						{t('Prello presentation document')}</a></li>
+					{/*
+					<li><a className="c-nav-item" href="#" onClick={() => createFile('cloudillo/formillo')}>
+						{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons['cloudillo/formillo'], { className: 'me-1' })}
+						<IcFormillo/>
+						{t('Formillo document')}</a></li>
+					*/}
 				</ul>
-			</details>
+			</Popper>
+			<Dialog open={dialogOpen}>
+				<div className="c-panel">
+					<p>Test</p>
+					<Button onClick={() => setDialogOpen(false)}>Close</Button>
+				</div>
+			</Dialog>
 		</li>
 		<hr className="w-100"/>
 
@@ -362,15 +387,18 @@ interface FileCardProps {
 	renameFileName?: string
 	setRenameFileName: (name?: string) => void
 	doRenameFile: (fileId: string, fileName: string) => void
+	doDeleteFile: (fileId: string) => void
 }
-function FileCard({ className, file, setFile, onClick, openFile, renameFile, renameFileId, renameFileName, setRenameFileName, doRenameFile }: FileCardProps) {
+function FileCard({ className, file, setFile, onClick, openFile, renameFile, renameFileId, renameFileName, setRenameFileName, doRenameFile, doDeleteFile }: FileCardProps) {
+	const [auth] = useAuth()
 	const { t } = useTranslation()
 
 	function setTags(tags?: string[]) {
 		setFile?.({ ...file, tags })
 	}
 
-	return <div className={'c-panel ' + (className || '')} onClick={onClick}>
+	//return <div className={'c-panel ' + (className || '')} onClick={onClick}>
+	return <div className={'c-panel ' + (className || '')} onClick={evt => (console.log('CLICK', evt), onClick && onClick())}>
 		<div className="c-panel-header d-flex">
 			<h3 className="c-panel-title d-flex flex-fill">
 				{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons[file.contentType] || IcUnknown, { className: 'me-1' })}
@@ -386,15 +414,24 @@ function FileCard({ className, file, setFile, onClick, openFile, renameFile, ren
 			{/* file.ownerTag && <h4>{file.ownerTag}</h4> */}
 			<div className="d-flex justify-content-end">
 				<button className="c-link p-1" type="button" onClick={() => openFile(file.fileId)}><IcEdit/></button>
+				<Popper className="dropdown" label={<IcMore/>}>
+					<ul className="c-nav vertical">
+						<li className="c-nav-item"><a className="c-link" href="#" onClick={() => renameFile(file.fileId)}><IcEdit/> {t('Rename...')}</a></li>
+						<li className="c-nav-item"><a className="c-link" href="#" onClick={() => doDeleteFile(file.fileId)}><IcDelete/>{t('Delete...')}</a></li>
+					</ul>
+				</Popper>
+				{/*
 				<div className="dropdown">
 					<details className="c-dropdown">
 						<summary className="c-link p-1"><IcMore/></summary>
 						<ul className="c-nav">
 							<li className="c-nav-item"><a href="#" onClick={() => renameFile(file.fileId)}>{t('Rename...')}</a></li>
+							<li className="c-nav-item"><a href="#" onClick={() => doDeleteFile(file.fileId)}>{t('Delete...')}</a></li>
 						</ul>
 					</details>
 				</div>
-				{ file.thumbnail && <img src={file.thumbnail}/> }
+				*/}
+				{ auth?.idTag && file.variantId && <img src={`https://cl-o.${auth.idTag}/api/store/${file.variantId}`}/> }
 			</div>
 		</div>
 		{ !!file.tags?.length && <div>
@@ -417,6 +454,7 @@ interface FileDetailsProps {
 function FileDetails({ className, file, setFile, openFile, renameFile, renameFileId, renameFileName, setRenameFileName, doRenameFile }: FileDetailsProps) {
 	const { t } = useTranslation()
 	const api = useApi()
+	const [auth] = useAuth()
 	const [permissionList, setPermissionList] = React.useState<Profile[]>()
 
 	React.useEffect(function loadFileDetails() {
@@ -485,14 +523,14 @@ function FileDetails({ className, file, setFile, openFile, renameFile, renameFil
 						</ul>
 					</details>
 				</div>
-				{ file.thumbnail && <img src={file.thumbnail}/> }
+				{ auth?.idTag && file.variantId && <img src={`https://cl-o.${auth.idTag}/api/store/${file.variantId}`}/> }
 			</div>
 		</div>
 		<div className="c-tag-list">
 			<TagsCell fileId={file.fileId} tags={file.tags} editable/>
 		</div>
 
-		{ !file.owner && <>
+		{ file.owner?.idTag == auth?.idTag && <>
 			<h4>{t('Permissions')}</h4>
 			<EditProfileList profiles={permissionList} listProfiles={listProfiles} addProfile={addPerm} removeProfile={removePerm}/>
 		</> }
@@ -516,7 +554,6 @@ export function FilesApp() {
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 
 	React.useEffect(function onLocationEffect() {
-		console.log('Files location', location)
 		setShowFilter(false)
 	}, [location])
 
@@ -552,6 +589,12 @@ export function FilesApp() {
 		fileListData.refresh()
 	}
 
+	async function doDeleteFile(fileId: string) {
+		if (!api) return
+		await api.delete('', `/store/${fileId}`)
+		fileListData.refresh()
+	}
+
 	if (!fileListData.getData()) return <h1>Loading...</h1>
 
 	return <Fcb.Container className="g-1">
@@ -578,6 +621,7 @@ export function FilesApp() {
 				renameFileName={renameFileName}
 				setRenameFileName={setRenameFileName}
 				doRenameFile={doRenameFile}
+				doDeleteFile={doDeleteFile}
 			/>) }
 		</Fcb.Content>
 		<Fcb.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>

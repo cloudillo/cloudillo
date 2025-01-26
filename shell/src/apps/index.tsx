@@ -43,9 +43,10 @@ interface MicrofrontendContainerProps {
 	app: string
 	resId?: string
 	appUrl: string
+	trust?: boolean
 }
 
-export function MicrofrontendContainer({ className, app, resId, appUrl }: MicrofrontendContainerProps) {
+export function MicrofrontendContainer({ className, app, resId, appUrl, trust }: MicrofrontendContainerProps) {
 	const ref = React.useRef<HTMLIFrameElement>(null)
 	const api = useApi()
 	const [auth] = useAuth()
@@ -94,7 +95,7 @@ export function MicrofrontendContainer({ className, app, resId, appUrl }: Microf
 		}
 	}, [api, auth])
 
-	return <div className={mergeClasses('c-app flex-fill untrusted pos relative')}>
+	return <div className={mergeClasses('c-app flex-fill pos relative', trust ? 'trusted' : trust == false ? 'untrusted' : undefined, className)}>
 		{ loading && <IcLoading size='5rem' className="pos absolute top-0 left-0 right-0 bottom-0 animate-rotate-cw m-auto z-1"/> }
 		<iframe ref={ref} src={url} className={mergeClasses('pos absolute top-0 left-0 right-0 bottom-0 z-2', className)} autoFocus/>
 	</div>
@@ -112,7 +113,7 @@ function ExternalApp({ className }: { className?: string }) {
 	const resId = (rest ?? '').indexOf(':') >= 0 ? rest : idTag + ':' + rest
 	console.log('[Shell] resId', resId)
 
-	return !!app && <MicrofrontendContainer className={className} app={app.id} resId={resId} appUrl={`${app.url}`}/>
+	return !!app && <MicrofrontendContainer className={className} app={app.id} resId={resId} appUrl={`${app.url}`} trust={app.trust}/>
 }
 
 function PlaceHolder({ title }: { title: string }) {

@@ -367,7 +367,7 @@ function ConversationBar({ className, filter, setFilter, conversations, activeId
 		setFilterDebounced({ q: e.target.value })
 	}
 
-	return <div className={mergeClasses('c-nav vertical', className)}>
+	return <div className={mergeClasses('c-nav vertical low', className)}>
 		<div className="c-input-group mb-1">
 			<input type="text" className="c-input" placeholder="Search" value={search} onChange={onSearchChange}/>
 		</div>

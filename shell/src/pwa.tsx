@@ -44,7 +44,7 @@ interface PWAConfig {
 	vapidPublicKey?: string
 }
 
-interface UsePWA {
+export interface UsePWA {
 	doInstall?: () => void
 	askNotify?: (vapidPublicKey: string) => Promise<PushSubscription | undefined>
 	doNotify?: (title: string, body: string, data: object) => void
@@ -57,7 +57,7 @@ interface PWAState {
 
 let serviceWorker: ServiceWorkerRegistration
 
-export default function usePWA(config: PWAConfig = {}) {
+export default function usePWA(config: PWAConfig = {}): UsePWA {
 	const [notify, setNotify] = React.useState(false)
 	const [installEvt, setInstallEvt] = React.useState<BeforeInstallPromptEvent | undefined>()
 
@@ -101,7 +101,7 @@ export default function usePWA(config: PWAConfig = {}) {
 
 	function handleBeforeInstallPrompt(evt: BeforeInstallPromptEvent) {
 		//console.log('beforeinstallprompt')
-		evt.preventDefault()
+		//evt.preventDefault()
 		setInstallEvt(evt)
 	}
 

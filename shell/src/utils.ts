@@ -117,6 +117,7 @@ export class ServerError extends Error {
 export interface AppConfig {
 	id: string
 	url: string
+	trust?: boolean
 }
 
 export interface MenuItem {

@@ -22,7 +22,7 @@ import ReactQuill, { Quill } from 'react-quill-new'
 import QuillMarkdown from 'quilljs-markdown'
 import Turndown from 'turndown'
 
-import { Button, Popper, Container, Fcb } from '@cloudillo/react'
+import { Button, Popper, Container, Fcb, useDialog } from '@cloudillo/react'
 import { NewAction } from '@cloudillo/types'
 
 import {
@@ -42,9 +42,10 @@ import './profile.css'
 
 import { useAuth, useApi } from '@cloudillo/react'
 
+import { parseQS } from '../utils.js'
 import { ImageUpload } from '../image.js'
 import { ActionEvt, ActionComp, NewPost } from '../apps/feed.js'
-import { Profile, UserListPage, CommunityListPage } from './identities.js'
+import { Profile, ProfileListCard, PersonListPage, CommunityListPage } from './identities.js'
 
 Quill.register('modules/QuillMarkdown', QuillMarkdown)
 
@@ -52,6 +53,7 @@ interface FullProfile {
 	tnId: number
 	idTag: string
 	name: string
+	type: 'community' | 'person',
 	profilePic?: {
 		ic: string
 		sd?: string
@@ -86,6 +88,11 @@ interface ProfileConnectionCmds {
 
 function ProfileConnection({ localProfile, cmds }: { localProfile?: Partial<Profile>, cmds: ProfileConnectionCmds }) {
 	const { t } = useTranslation()
+	const dialog = useDialog()
+
+	async function onUnfollow() {
+		if (await dialog.confirm(t('Are you sure?'), t('Unfollow this person?'), 'danger')) cmds.onUnfollow()
+	}
 
 	if (!localProfile) return null
 
@@ -103,29 +110,29 @@ function ProfileConnection({ localProfile, cmds }: { localProfile?: Partial<Prof
 		<div className="align-self-stretch border-end-1 border-dashed border-on my-1 mx-2"/>
 		*/}
 		<Popper className="cursor-pointer" label={<IcMore/>}>
-			<ul className="c-nav flex-column">
-				{ !localProfile.following && <li className="c-nav-item">
-					<button className="c-nav-link" onClick={cmds.onFollow}><IcFollow/>{t('Follow')}</button>
+			<ul className="c-nav vertical">
+				{ !localProfile.following && <li>
+					<button className="c-nav-item" onClick={cmds.onFollow}><IcFollow/>{t('Follow')}</button>
 				</li> }
-				{ localProfile.following && <li className="c-nav-item">
-					<button className="c-nav-link" onClick={cmds.onUnfollow}><IcFollow/>{t('Unfollow')}</button>
+				{ localProfile.following && <li>
+					<button className="c-nav-item" onClick={onUnfollow}><IcFollow/>{t('Unfollow')}</button>
 				</li> }
 
-				{ !localProfile.connected && <li className="c-nav-item">
-					<button className="c-nav-link" onClick={cmds.onConnect}><IcConnect/>{t('Connect')}</button>
+				{ !localProfile.connected && <li>
+					<button className="c-nav-item" onClick={cmds.onConnect}><IcConnect/>{t('Connect')}</button>
 				</li> }
 				{ localProfile.connected == 'R' && <li className="c-nav-item">
-					<div><IcConnect/>{t('Connection request sent')}</div>
+					<IcConnect/>{t('Connection request sent')}
 				</li> }
-				{ localProfile.connected == true && <li className="c-nav-item">
-					<button className="c-nav-link" onClick={cmds.onDisconnect}><IcConnect/>{t('Disconnect')}</button>
+				{ localProfile.connected == true && <li>
+					<button className="c-nav-item" onClick={cmds.onDisconnect}><IcConnect/>{t('Disconnect')}</button>
 				</li> }
 
-				{ localProfile.status != 'B' && <li className="c-nav-item">
-					<button className="c-nav-link" onClick={cmds.onBlock}><IcBlock/>{t('Block')}</button>
+				{ localProfile.status != 'B' && <li>
+					<button className="c-nav-item" onClick={cmds.onBlock}><IcBlock/>{t('Block')}</button>
 				</li> }
-				{ localProfile.status == 'B' && <li className="c-nav-item">
-					<button className="c-nav-link" onClick={cmds.onUnblock}><IcBlock/>{t('Unblock')}</button>
+				{ localProfile.status == 'B' && <li>
+					<button className="c-nav-item" onClick={cmds.onUnblock}><IcBlock/>{t('Unblock')}</button>
 				</li> }
 			</ul>
 		</Popper>
@@ -278,6 +285,7 @@ export function ProfilePage({
 					<div className="c-tabs">
 						<NavLink className="c-tab" to={`/profile/${own ? 'me' : profile.idTag}/feed`} end >{t('Feed')}</NavLink>
 						<NavLink className="c-tab" to={`/profile/${own ? 'me' : profile.idTag}/about`} end >{t('About')}</NavLink>
+						<NavLink className="c-tab" to={`/profile/${own ? 'me' : profile.idTag}/connections`} end >{profile.type == 'community' ? t('Members') : t('Connections')}</NavLink>
 						{ own && <>
 							<NavLink className="c-tab" to="/profile/settings">{t('Settings')}</NavLink>
 						</> }
@@ -404,6 +412,30 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 	</>
 }
 
+export function ProfileConnections({ profile }: ProfileTabProps) {
+	const { t } = useTranslation()
+	const location = useLocation()
+	const api = useApi()
+	const [auth] = useAuth()
+	const [profiles, setProfiles] = React.useState<Profile[]>([])
+
+	React.useEffect(function loadConnections() {
+		if (!auth) return
+		console.log('loadConnections', auth)
+		;(async function () {
+			const qs: Record<string, string> = parseQS(location.search)
+			console.log('QS', location.search, qs)
+
+			const res = await api.get<{ profiles: Profile[] }>(profile.idTag, '/profile', {
+				query: { ...qs, type: 'U' }
+			})
+			setProfiles(res.profiles)
+		})()
+	}, [auth, location.search])
+
+	return !!profiles && profiles.map(profile => <ProfileListCard key={profile.idTag} profile={profile}/>)
+}
+
 function Profile() {
 	const loc = useLocation()
 
@@ -470,13 +502,13 @@ function Profile() {
 
 	async function onBlock() {
 		if (!profile || localProfile?.status == 'B') return
-		const res = await api.post('', `/profile/${profile.idTag}`, { data: { status: 'B' } })
+		const res = await api.patch('', `/profile/${profile.idTag}`, { data: { status: 'B' } })
 		setLocalProfile(p => p ? { ...p, status: 'B' } : p)
 	}
 
 	async function onUnblock() {
 		if (!profile || localProfile?.status != 'B') return
-		const res = await api.post('', `/profile/${profile.idTag}`, { data: { status: 'A' } })
+		const res = await api.patch('', `/profile/${profile.idTag}`, { data: { status: 'A' } })
 		setLocalProfile(p => p ? { ...p, status: 'A' } : p)
 	}
 
@@ -485,6 +517,7 @@ function Profile() {
 			<Route path="/" element={<ProfileAbout profile={profile} updateProfile={updateProfile}/>}/>
 			<Route path="/about" element={<ProfileAbout profile={profile} updateProfile={updateProfile}/>}/>
 			<Route path="/feed" element={<ProfileFeed profile={profile} updateProfile={updateProfile}/>}/>
+			<Route path="/connections" element={<ProfileConnections profile={profile} updateProfile={updateProfile}/>}/>
 			<Route path="/*" element={null}/>
 		</Routes>
 	</ProfilePage>
@@ -493,7 +526,7 @@ function Profile() {
 export function ProfileRoutes() {
 	return <Routes>
 		<Route path="/profile/:idTag/*" element={<Profile/>}/>
-		<Route path="/users" element={<UserListPage/>}/>
+		<Route path="/users" element={<PersonListPage/>}/>
 		<Route path="/communities" element={<CommunityListPage/>}/>
 		<Route path="/*" element={null}/>
 	</Routes>

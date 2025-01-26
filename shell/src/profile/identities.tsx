@@ -61,7 +61,7 @@ function FilterBar({ className }: { className?: string }) {
 	const qs = parseQS(location.search)
 	console.log('qs', qs)
 
-	return <ul className={'c-nav flex-column align-items-stretch ' + (className || '')}>
+	return <ul className={'c-nav vertical low' + (className || '')}>
 		<li className="c-nav-item">
 			<Link className={'c-nav-link ' + (qs.filter === 'connected' ? 'active' : '')} to="?connected=1"><IcUserConnected/> {t('Connected')}
 				{!!userStat.connected && <span className="badge rounded-pill bg-danger">{userStat.connected}</span>}
@@ -93,7 +93,7 @@ function ProfileDetails({ className }: { className?: string }) {
 	</div>
 }
 
-function ProfileListCard({ profile }: { profile: Profile }) {
+export function ProfileListCard({ profile }: { profile: Profile }) {
 	const { t } = useTranslation()
 
 	return <Link className="c-panel p-1 mb-1 flex-row" to={`/profile/${profile.idTag}`}>
@@ -102,7 +102,7 @@ function ProfileListCard({ profile }: { profile: Profile }) {
 	</Link>
 }
 
-export function UserListPage() {
+export function PersonListPage({ idTag }: { idTag?: string }) {
 	const { t } = useTranslation()
 	const location = useLocation()
 	const api = useApi()
@@ -114,14 +114,14 @@ export function UserListPage() {
 		setShowFilter(false)
 	}, [location])
 
-	React.useEffect(function loadUsers() {
+	React.useEffect(function loadPersonList() {
 		if (!auth) return
 		console.log('loadProfiles', auth)
 		;(async function () {
 			const qs: Record<string, string> = parseQS(location.search)
 			console.log('QS', location.search, qs)
 
-			const res = await api.get<{ profiles: Profile[] }>('', '/profile', {
+			const res = await api.get<{ profiles: Profile[] }>(idTag || '', '/profile', {
 				query: { ...qs, type: 'U' }
 			})
 			setProfiles(res.profiles)

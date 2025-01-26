@@ -17,6 +17,7 @@
 export * from './cloudillo-react.js'
 export * from './components.js'
 export * from './select.js'
+export * from './dialog.js'
 export * from './profile-dropdown.js'
 export * from './hooks.js'
 

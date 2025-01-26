@@ -76,7 +76,7 @@ export async function apiFetchHelper<R, D = any>(idTag: string, method: string, 
 		try {
 			j = JSON.parse(textRes)
 		} catch (err) {
-			console.log('API-PARSE-JSON', err instanceof Error ? err.toString() : err)
+			console.log('API-PARSE-JSON', err instanceof Error ? err.toString(): err, { idTag, method, path })
 			throw new FetchError(`API-PARSE-JSON`, textRes, res.status)
 		}
 		if (!opts.type) return j

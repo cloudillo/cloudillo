@@ -12,6 +12,10 @@ p {
 	box-shadow: inset 0px 0px 1rem var(--col-bg-emph), 0px 0px var(--sh-focus) var(--col-focus);
 }
 
+body {
+	overflow: hidden
+}
+
 #app {
 	height: 100%;
 	overflow: hidden
@@ -64,37 +68,45 @@ p {
 }
 
 .c-menu-ex {
-	position: absolute;
-	bottom: .5rem;
-	left: 0;
-	right: 0;
-	max-width: calc(20rem + 2*var(--p-nav));
-	max-height: calc(16rem + 2*var(--p-nav));
-	overflow-y: auto;
-	margin: 0 auto;
-	flex-flow: row wrap;
-	z-index: 8;
-	transform: translate(0, calc(100% + 1rem));
-	transition: transform .3s ease;
+	position: relative;
 
-	&.open {
-		transform: translate(0, 0);
-	}
-	.c-nav-link {
-		height: 4rem;
-		justify-content: center;
+	.c-nav {
+		position: absolute;
+		bottom: .5rem;
+		left: 0;
+		right: 0;
+		padding: 1rem;
+		max-width: calc(20rem + 2rem);
+		max-height: calc(16rem + 2rem);
+		overflow-y: auto;
+		margin: 0 auto;
+		flex-flow: row wrap;
+		z-index: 8;
+		transform: translate(0, calc(100% + 1rem));
+		transition: transform .3s ease;
+
+		&.open {
+			transform: translate(0, 0);
+		}
+		.c-nav-link {
+			height: 4rem;
+			justify-content: center;
+		}
 	}
 }
 
-iframe.c-app {
-	/*
-	border: 0;
-	*/
-	border: 2px solid green;
-}
+.c-app {
+	border: 4px solid #f80;
+	iframe {
+		border: 0px;
+	}
 
-iframe.c-app.untrusted {
-	border: 4px solid red;
+	&.untrusted {
+		border: 4px solid red;
+	}
+	&.trusted {
+		border: 4px solid green;
+	}
 }
 
 .c-thumbnail {

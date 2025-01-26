@@ -19,24 +19,27 @@ import { useTranslation } from 'react-i18next'
 
 import { useApi } from '@cloudillo/react'
 
-import usePWA from '../pwa.js'
+import { UsePWA } from '../pwa.js'
 import { useSettings } from './settings.js'
 
-export function NotificationSettings() {
+export async function subscribeNotifications(api: ReturnType<typeof useApi>, pwa: UsePWA) {
+	const vapid = await api.get<{ vapidPublicKey: string }>('', '/auth/vapid')
+	console.log('vapid', vapid)
+	const subscription = await pwa.askNotify?.(vapid.vapidPublicKey)
+	console.log('subscription', subscription)
+	if (subscription) {
+		await api.post('', '/notification/subscription', { data: { subscription }})
+	}
+}
+
+export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 	const { t } = useTranslation()
 	const api = useApi()
-	const pwa = usePWA()
 	const { settings, onSettingChange } = useSettings('notify')
 
 	async function onPushChange(evt: React.ChangeEvent<HTMLInputElement>) {
 		if (evt.target.checked) {
-			const vapid = await api.get<{ vapidPublicKey: string }>('', '/auth/vapid')
-			console.log('vapid', vapid)
-			const subscription = await pwa.askNotify?.(vapid.vapidPublicKey)
-			console.log('subscription', subscription)
-			if (subscription) {
-				await api.post('', '/notification/subscription', { data: { subscription }})
-			}
+			subscribeNotifications(api, pwa)
 		}
 	}
 

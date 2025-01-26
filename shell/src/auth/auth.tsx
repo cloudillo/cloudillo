@@ -17,7 +17,7 @@
 import * as React from 'react'
 import { Routes, Route, Link, Navigate, useParams, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
-import { startRegistration, startAuthentication } from '@simplewebauthn/browser'
+import { browserSupportsWebAuthnAutofill, browserSupportsWebAuthn, startRegistration, startAuthentication } from '@simplewebauthn/browser'
 import debounce from 'debounce'
 import * as T from '@symbion/runtype'
 
@@ -29,11 +29,13 @@ import {
 	LuAtSign as IcAt,
 	LuRefreshCw as IcLoading,
 	LuCheck as IcOk,
-	LuX as IcError
+	LuX as IcError,
+	LuFingerprint as IcWebAuthn,
+	LuLogIn as IcLogin
 
 } from 'react-icons/lu'
 
-import { useAuth, AuthState, useApi } from '@cloudillo/react'
+import { useAuth, AuthState, useApi, Button } from '@cloudillo/react'
 
 import { useAppConfig, ServerError, arrayBufferToBase64Url, base64ToArrayBuffer } from '../utils.js'
 import { CloudilloLogo } from '../logo.js'
@@ -80,20 +82,19 @@ export async function addWebAuthn(api: ReturnType<typeof useApi>, idTag: string,
 	console.log('response', response)
 
 	const res = await api.post('', '/auth/wa/register', { data: { response, token }})
-	localStorage.setItem('credential', response.id)
+	localStorage.setItem('crredential', response.id)
 	return response
 }
 
-export async function deleteWebAuthn(api: ReturnType<typeof useApi>) {
-	const credential = localStorage.getItem('credential')
-	if (credential) {
-		await api.delete('', `/auth/wa/reg/${encodeURIComponent(credential)}`)
-		localStorage.removeItem('credential')
-	}
+export async function webAuthnLoginReq(api: ReturnType<typeof useApi>) {
+	const regChallengeData: any = await api.get('', '/auth/wa/login-req')
+	const { options, token } = regChallengeData
+	//if (typeof challenge != 'string') throw new Error('Internal error')
+	if (typeof options != 'object') throw new Error('Internal error')
+	if (typeof token != 'string') throw new Error('Internal error')
 }
 
 export async function webAuthnLogin(api: ReturnType<typeof useApi>): Promise<AuthState | undefined> {
-
 	const regChallengeData: any = await api.get('', '/auth/wa/login-req')
 	const { options, token } = regChallengeData
 	//if (typeof challenge != 'string') throw new Error('Internal error')
@@ -101,7 +102,9 @@ export async function webAuthnLogin(api: ReturnType<typeof useApi>): Promise<Aut
 	if (typeof token != 'string') throw new Error('Internal error')
 
 	console.log('options', options)
+	console.log('browserSupportsWebAuthnAutofill', await browserSupportsWebAuthnAutofill())
 	const regData = await startAuthentication({ optionsJSON: options })
+	//const regData = await startAuthentication({ optionsJSON: options })
 	console.log('regData', regData)
 
 	const res = await api.post<AuthState>('', '/auth/wa/login', {
@@ -112,6 +115,14 @@ export async function webAuthnLogin(api: ReturnType<typeof useApi>): Promise<Aut
 	})
 	console.log({res})
 	return res
+}
+
+export async function deleteWebAuthn(api: ReturnType<typeof useApi>) {
+	const credential = localStorage.getItem('credential')
+	if (credential) {
+		await api.delete('', `/auth/wa/reg/${encodeURIComponent(credential)}`)
+		localStorage.removeItem('credential')
+	}
 }
 
 //////////////
@@ -149,26 +160,27 @@ export function LoginForm() {
 	const [forgot, setForgot] = React.useState(false)
 	const [error, setError] = React.useState<string | undefined>()
 
+	React.useEffect(function () {
+	}, [api.idTag])
+
+	function onLoggedIn(authState: AuthState) {
+		console.log('onLoggedIn', { authState })
+		setAuth(authState)
+		if (authState.token) localStorage.setItem('loginToken', authState.token)
+	}
+
 	async function onSubmit(evt: React.FormEvent) {
+		console.log('onSubmit')
 		evt.preventDefault()
-		/*
-		if (!validIdTag(idTag)) {
-			await dialog.simple(t('Invalid user tag!'), t('You must provide a valid user tag!'))
-			return
-		}
-		*/
+
 		try {
 			console.log('LOGIN', api.idTag)
 			if (!api.idTag) return
 
-			//const auth = await api.post<AuthState>(api.idTag, `/auth/login`, {
 			const auth = await api.post<AuthState>('', `/auth/login`, {
 				data: { idTag: api.idTag, password, remember }
 			})
-			console.log({ auth })
-			setAuth(auth as AuthState)
-			navigate('/app/feed')
-			navigate(appConfig?.menu?.find(m => m.id === appConfig.defaultMenu)?.path || '/app/feed')
+			onLoggedIn(auth)
 		} catch (err: any) {
 			console.log('AUTH ARROR', err)
 			setError('Login failed')
@@ -178,9 +190,7 @@ export function LoginForm() {
 	async function onWebAuthLogin(evt: React.FormEvent) {
 		evt.preventDefault()
 		const auth = await webAuthnLogin(api)
-		console.log('AUTH', auth)
-		setAuth(auth)
-		navigate('/app/feed')
+		if (auth) onLoggedIn(auth)
 	}
 
 	function onForgot(evt: React.MouseEvent) {
@@ -190,11 +200,15 @@ export function LoginForm() {
 	}
 
 	if (auth) {
-		console.log('REDIRECT')
-		return <Navigate to="/"/>
+		const navTo =
+			auth.settings?.['ui.onboarding'] && `/onboarding/${auth.settings['ui.onboarding']}`
+			|| appConfig?.menu?.find(m => m.id === appConfig.defaultMenu)?.path
+			|| '/app/feed'
+		console.log('REDIRECT TO', navTo)
+		return <Navigate to={navTo}/>
 	} else {
 		return <form className="c-panel p-3" onSubmit={onSubmit}>
-			<header><h4>{t('Login')}</h4></header>
+			<header><h2>{t('Login')}</h2></header>
 
 			{/*
 			<input className="c-input mb-3"
@@ -206,6 +220,9 @@ export function LoginForm() {
 			*/}
 			{ !forgot
 			? <>
+				{/*
+				<input type="hidden" name="idTag" autoComplete="webauthn" value={api.idTag || ''}/>
+				*/}
 				<div className="c-input-group mb-3">
 					<input className="c-input"
 						name="password"
@@ -214,7 +231,7 @@ export function LoginForm() {
 						type={passwordVisible ? 'text' : 'password'}
 						placeholder={t('Password')}
 						aria-label={t('Password')}/>
-					<button type="button" className="c-link" onClick={() => setPasswordVisible(!passwordVisible)}>
+					<button type="button" className="c-link px-1" onClick={() => setPasswordVisible(!passwordVisible)}>
 						{passwordVisible ? <IcEye/> : <IcEyeOff/>}
 					</button>
 				</div>
@@ -223,7 +240,7 @@ export function LoginForm() {
 						name="remember"
 						type="checkbox"
 						onChange={value => setRemember(!!value)}/>
-					<label className="form-check-label">{t('Remember me')}</label>
+					<label className="form-check-label">{t('Remember me on this device')}</label>
 				</div>
 			</>
 			: /* forgotten password */ <>
@@ -231,11 +248,11 @@ export function LoginForm() {
 			}
 
 			<div className="c-invalid-feedback">{error}</div>
-			<footer className="c-group">
-				{ localStorage.getItem('credential')
-					&& <button className="c-button secondary me-2" onClick={onWebAuthLogin}>{t('Login without password')}</button>
+			<footer className="c-group g-2">
+				<Button type="submit" primary disabled={!api.idTag}><IcLogin/>{t('Login')}</Button>
+				{ browserSupportsWebAuthn()
+					&& <Button onClick={onWebAuthLogin} icon={<IcWebAuthn/>}>{t('Login without password')}</Button>
 				}
-				<button className="c-button primary me-2" type="submit" disabled={!api.idTag}>{!forgot ? t('Login') : t('Request password reset')}</button>
 			</footer>
 		</form>
 	}

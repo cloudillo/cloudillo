@@ -34,7 +34,7 @@ import { useAuth, AuthState, useApi } from '@cloudillo/react'
 
 import { CloudilloLogo } from '../logo.js'
 import { useDialog } from '../ui.js'
-import { webAuthnLogin } from './auth.js'
+//import { webAuthnLogin } from './auth.js'
 import { validPassword } from './utils.js'
 
 //////////////////
@@ -126,14 +126,6 @@ export function RegisterForm() {
 		}
 	}
 
-	async function onWebAuthLogin(evt: React.FormEvent) {
-		evt.preventDefault()
-		const auth = await webAuthnLogin(api)
-		console.log('AUTH', auth)
-		setAuth(auth)
-		navigate('/')
-	}
-
 	return <form className="c-panel d-block p-4" onSubmit={onSubmit}>
 		{ (!progress || progress == 'vfy') && <>
 			<CloudilloLogo className={'c-logo w-50 float-right ps-3 pb-3' + (progress == 'vfy' ? ' fast' : ' slow')}/>
@@ -156,7 +148,6 @@ export function RegisterForm() {
 				</p>
 			</Trans>
 
-			<h3 className="my-3">Your Identity Options on Cloudillo</h3>
 			<div className="c-container"><div className="row g-3">
 				<div className="col col-md-6 c-panel primary">
 					<h4>Use Cloudillo's Identity Provider</h4>
@@ -184,12 +175,6 @@ export function RegisterForm() {
 					<hr className="w-100"/>
 					<p>If you want to build trust by using your own brand, or you want to have the most control over your identity.</p>
 					<p>Using your own domain name involves some settings at your domain provider, so it is a bit more complex, but we will help you on the way.</p>
-					<hr className="w-100"/>
-					<p>The cost depends on your DNS provider, but if you are using an already registered domain name or a subdomain of such than it usually has no additional cost.
-					</p><p className="pb-2">
-						Donate to help fund the project and receive a Trust Badge,
-						further enhancing trust when interacting within the network.
-					</p>
 					<div className="h-100"/>
 					<div className="c-group">
 						<button className="c-button secondary" onClick={evt => {evt.preventDefault(); setIdentityProvider('domain')}}>Use your own Domain Name</button>
@@ -244,7 +229,7 @@ export function RegisterForm() {
 						type={passwordVisible ? 'text' : 'password'}
 						placeholder={t('Password')}
 						aria-label={t('Password')}/>
-					<button type="button" className="c-link" onClick={() => setPasswordVisible(!passwordVisible)}>
+					<button type="button" className="c-link p-2" onClick={() => setPasswordVisible(!passwordVisible)}>
 						{passwordVisible ? <IcEye/> : <IcEyeOff/>}
 					</button>
 				</div>
@@ -383,7 +368,7 @@ export function RegisterForm() {
 							type={passwordVisible ? 'text' : 'password'}
 							placeholder={t('Password')}
 							aria-label={t('Password')}/>
-						<button type="button" className="c-link" onClick={() => setPasswordVisible(!passwordVisible)}>
+						<button type="button" className="c-link p-2" onClick={() => setPasswordVisible(!passwordVisible)}>
 							{passwordVisible ? <IcEye/> : <IcEyeOff/>}
 						</button>
 					</div>

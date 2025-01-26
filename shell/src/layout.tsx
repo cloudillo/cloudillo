@@ -18,7 +18,8 @@ const APP_CONFIG: AppConfigState = {
 	apps: [
 		{
 			id: 'quillo',
-			url: '/quillo/index.html'
+			url: '/quillo/index.html',
+			trust: true
 		},
 		{
 			id: 'sheello',
@@ -26,7 +27,8 @@ const APP_CONFIG: AppConfigState = {
 		},
 		{
 			id: 'prello',
-			url: '/prello/index.html'
+			url: '/prello/index.html',
+			trust: false
 		},
 		{
 			id: 'formillo',
@@ -67,6 +69,9 @@ import {
 	LuUser as IcUser,
 	LuUsers as IcUsers,
 	LuGrip as IcApps,
+	// Menu icons
+	LuLogIn as IcLogin,
+	LuLogOut as IcLogout,
 	// App icons
 	LuMenu	as IcMenu,
 	LuList as IcFeed,
@@ -79,10 +84,11 @@ import {
 import { CloudilloLogo } from './logo.js'
 
 import { Profile } from '@cloudillo/types'
-import { useAuth, AuthState, useApi, mergeClasses, ProfilePicture, Popper } from '@cloudillo/react'
+import { useAuth, AuthState, useApi, mergeClasses, ProfilePicture, Popper, DialogContainer } from '@cloudillo/react'
 import { AppConfigState, useAppConfig } from './utils.js'
 import usePWA from './pwa.js'
 import { AuthRoutes, webAuthnLogin } from './auth/auth.js'
+import { OnboardingRoutes } from './onboarding'
 import { WsBusRoot, useWsBus } from './ws-bus.js'
 import { SearchIcon, SearchBar, useSearch } from './search.js'
 import { SettingsRoutes } from './settings'
@@ -90,7 +96,8 @@ import { AppRoutes } from './apps'
 import { ProfileRoutes } from './profile/profile.js'
 import { Notifications } from './notifications/notifications.js'
 
-import '@symbion/opalui'
+//import '@symbion/opalui'
+import '@symbion/opalui/src/opalui.css'
 import '@symbion/opalui/themes/opaque.css'
 import '@symbion/opalui/themes/glass.css'
 import './style.css'
@@ -108,6 +115,7 @@ function Header() {
 	//console.log('menuOpen', menuOpen)
 
 	async function doLogout() {
+		console.log('doLogout')
 		await api.post('', '/auth/logout', {})
 		setAuth(undefined)
 		setMenuOpen(false)
@@ -127,23 +135,25 @@ function Header() {
 
 	React.useEffect(function onLoad() {
 		// Set app config
-		setAppConfig(APP_CONFIG)
+		const appConfig = APP_CONFIG
+		setAppConfig(appConfig)
 
 		// Set theme
-		document.body.classList.add('theme-glass');
+		document.body.classList.add('theme-glass')
 
 		// Set dark mode
 		if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-			document.body.classList.add('dark');
+			document.body.classList.add('dark')
 		} else {
-			document.body.classList.add('light');
+			document.body.classList.add('light')
 		}
 		(async function () {
 			if (!api.idTag && !auth) {
 				// Determine idTag
 				try {
 					console.log('[Shell] fetching idTag')
-					const res = await fetch(`https://${window.location.host}/id-tag`)
+					const loginToken = localStorage.getItem('loginToken') || undefined
+					const res = await fetch(`https://${window.location.host}/.well-known/cloudillo/id-tag`)
 					if (res.ok) {
 						const j = await res.json()
 						if (typeof j.idTag == 'string') {
@@ -151,28 +161,29 @@ function Header() {
 							console.log('[Shell] idTag', j.idTag)
 						}
 						// Check for login cookie
-						const tokenRes = await api.get(j.idTag, '/auth/login-token')
+						const tokenRes = await api.get(j.idTag, '/auth/login-token', { authToken: loginToken })
 						const authState = tokenRes as AuthState || undefined
 						console.log('authState', authState)
 						if (authState?.idTag) {
 							setAuth(authState)
-							if (location.pathname == '/') navigate(appConfig?.menu?.find(m => m.id === appConfig.defaultMenu)?.path || '/app/feed')
+							if (authState.token) localStorage.setItem('loginToken', authState.token)
+
+							const navTo =
+								authState.settings?.['ui.onboarding'] && `/onboarding/${authState.settings['ui.onboarding']}`
+								|| appConfig?.menu?.find(m => m.id === appConfig.defaultMenu)?.path
+								|| '/app/feed'
+							console.log('REDIRECT TO', navTo)
+							if (location.pathname == '/') {
+								navigate(navTo)
+							}
 							return
 						}
-						/*
-						if (localStorage.getItem('credential')) {
-							const authState = await webAuthnLogin(api)
-							console.log('webAuthnLogin res', authState)
-							setAuth(authState)
-						}
-						*/
 					}
 					if (!location.pathname.startsWith('/register/')) navigate('/login')
 				} catch (err) {
 					console.log('ERROR', err)
 					navigate('/login')
 				}
-				//} else navigate('/profile/me')
 			}
 		})()
 	}, [api, auth])
@@ -199,6 +210,7 @@ function Header() {
 			<ul className="c-nav-group c-hbox">
 				{ auth && <Link className="c-nav-item" to="/notifications"><IcNotifications/></Link> }
 				{ auth
+					/*
 					? <details className="c-dropdown right" open={menuOpen} onClick={evt => (evt.preventDefault(), setMenuOpen(!menuOpen))} onToggle={evt => console.log('details onChange', evt)}>
 						<summary className="c-nav-item">
 							<ProfilePicture profile={auth}/>
@@ -217,27 +229,37 @@ function Header() {
 							</li>
 						</ul>
 					</details>
-					: <Popper icon={IcMenu} label={t('Menu')}>
-						<ul className="c-nav flex-column">
-							<li className="c-nav-item">
-								<Link className="c-nav-link" to="/login" onClick={() => setMenuOpen(false)}><IcUser/>{t('Login')}</Link>
+					*/
+					? <Popper icon={<ProfilePicture profile={auth}/>} label={auth.name}>
+						<ul className="c-nav vertical emph">
+							<li><Link className="c-nav-item" to="/profile/me"><IcUser/>{t('Profile')}</Link></li>
+							<li><Link className="c-nav-item" to="/settings"><IcSettings/>{t('Settings')}</Link></li>
+							<li><hr className="w-100" /></li>
+							<li><button className="c-nav-item" onClick={doLogout}><IcLogout/>{t('Logout')}</button></li>
+							<li><hr className="w-100" /></li>
+							<li>
+								<button className="c-nav-item" onClick={evt => (evt.preventDefault(), i18n.changeLanguage('en'))}>English</button>
 							</li>
-							<hr/>
-							<li className="c-nav-item"><Link to="/profile/me">{t('Profile')}</Link></li>
-							<hr/>
-							<li className="c-nav-item">
-								<button className="c-nav-link" onClick={evt => (evt.preventDefault(), i18n.changeLanguage('en'))}>English</button>
+							<li>
+								<button className="c-nav-item" onClick={evt => setLang(evt, 'hu')}>Magyar</button>
 							</li>
-							<li className="c-nav-item">
-								<button className="c-nav-link" onClick={evt => setLang(evt, 'hu')}>Magyar</button>
-							</li>
+						</ul>
+					</Popper>
+					: <Popper className="c-nav-item" icon={<IcMenu/>} label={t('Menu')}>
+						<ul className="c-nav vertical emph">
+							<li><Link className="c-nav-item" to="/login" onClick={() => setMenuOpen(false)}><IcUser/>{t('Login')}</Link></li>
+							<li><hr className="w-100"/></li>
+							<li><Link className="c-nav-item" to="/profile/me">{t('Profile')}</Link></li>
+							<hr className="w-100"/>
+							<li><button className="c-nav-item" onClick={evt => (evt.preventDefault(), i18n.changeLanguage('en'))}>English</button></li>
+							<li><button className="c-nav-item" onClick={evt => setLang(evt, 'hu')}>Magyar</button></li>
 						</ul>
 					</Popper>
 				}
 			</ul>
 		</nav>
-		<div className="pos relative flex-order-end">
-			<nav className={mergeClasses('c-nav c-menu-ex', exMenuOpen && 'open')}>
+		<div className="c-menu-ex flex-order-end">
+			<nav className={mergeClasses('c-nav', exMenuOpen && 'open')}>
 				{ appConfig && appConfig.menuEx.map(menuItem =>
 					(!!auth || menuItem.public)
 						&& <NavLink key={menuItem.id} className="c-nav-link h-small vertical" aria-current="page" to={menuItem.path}>
@@ -276,8 +298,9 @@ export function Layout() {
 			<div className="c-vbox flex-fill h-min-0">
 				<ProfileRoutes/>
 				<AuthRoutes/>
-				<SettingsRoutes/>
+				<SettingsRoutes pwa={pwa}/>
 				<AppRoutes/>
+				<OnboardingRoutes pwa={pwa}/>
 				<Routes>
 					<Route path="/notifications" element={<Notifications/>}/>
 					<Route path="*" element={null}/>
@@ -285,6 +308,7 @@ export function Layout() {
 			</div>
 			<div className="pt-1"/>
 			<div id="popper-container"/>
+			<DialogContainer/>
 		</WsBusRoot>
 	</>
 }

@@ -27,6 +27,7 @@ import {
 
 import { useAuth, useApi, Fcb, Button, mergeClasses } from '@cloudillo/react'
 
+import { UsePWA } from '../pwa.js'
 import { useAppConfig, parseQS, qs } from '../utils.js'
 import { SecuritySettings } from './security.js'
 import { NotificationSettings } from './notifications.js'
@@ -52,10 +53,10 @@ export function Settings({ title, children }: SettingsProps) {
 
 	return <Fcb.Container className="g-1">
 		<Fcb.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-			<ul className="c-nav vertical">
-				<li className="c-nav-item"><NavLink className="c-nav-link" to="/settings/security"><IcSecurity/> {t('Security')}</NavLink></li>
-				<li className="c-nav-item"><NavLink className="c-nav-link" to="/settings/notifications"><IcNotifications/> {t('Notifications')}</NavLink></li>
-				<li className="c-nav-item"><NavLink className="c-nav-link" to="/settings/appearance"><IcAppearance/> {t('Appearance')}</NavLink></li>
+			<ul className="c-nav vertical low">
+				<li><NavLink className="c-nav-link" to="/settings/security"><IcSecurity/> {t('Security')}</NavLink></li>
+				<li><NavLink className="c-nav-link" to="/settings/notifications"><IcNotifications/> {t('Notifications')}</NavLink></li>
+				<li><NavLink className="c-nav-link" to="/settings/appearance"><IcAppearance/> {t('Appearance')}</NavLink></li>
 			</ul>
 		</Fcb.Filter>
 		<Fcb.Content>
@@ -74,7 +75,7 @@ export function Settings({ title, children }: SettingsProps) {
 	</Fcb.Container>
 }
 
-export function SettingsRoutes() {
+export function SettingsRoutes({ pwa }: { pwa: UsePWA }) {
 	const { t } = useTranslation()
 
 	return <Routes>
@@ -86,7 +87,7 @@ export function SettingsRoutes() {
 		}/>
 		<Route path="/settings/notifications" element={
 			<Settings title={t('Notifications')}>
-				<NotificationSettings/>
+				<NotificationSettings pwa={pwa}/>
 			</Settings>
 		}/>
 		<Route path="/settings/appearance" element={

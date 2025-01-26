@@ -78,7 +78,7 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 	function initWs() {
 		if (!auth) return
 
-		ws = new WebSocket(`wss://cl-o.${auth.idTag}/ws/bus`)
+		ws = new WebSocket(`wss://cl-o.${auth.idTag}/ws/bus?token=${auth.token}`)
 
 		ws.onopen = function open() {
 			console.log('connected')

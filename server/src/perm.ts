@@ -56,4 +56,31 @@ export function checkPermMW(perm: 'W' | 'R' | 'A', param?: string) {
 	}
 }
 
+export function checkPermProfileMW(perm: 'R' | 'W' | 'A') {
+	return async function checkPermProfileMW(ctx: Context, next: () => Promise<void>) {
+		const { tnId, tenantTag } = ctx.state
+		const idTag = ctx.state.auth?.idTag
+
+		if (idTag == tenantTag) return next()
+
+		const profile = idTag ? await metaAdapter.readProfile(tnId, idTag) : undefined
+		console.log('CHECK PERM PROFILE', tnId, idTag, profile?.perm)
+
+		if (!profile?.perm) ctx.throw(403)
+		switch (perm) {
+			case 'A':
+				if (profile.perm != 'A') ctx.throw(403)
+				break
+			case 'W':
+				if (!['W', 'A'].includes(profile.perm)) ctx.throw(403)
+				break
+			case 'R':
+				if (!['R', 'W', 'A'].includes(profile.perm)) ctx.throw(403)
+				break
+		}
+
+		await next()
+	}
+}
+
 // vim: ts=4

@@ -19,7 +19,7 @@ const TAG_FORBIDDEN_CHARS = [' ', ',', '#', '\t', '\n']
 import { HttpError} from 'koa'
 
 import { Router } from './index.js'
-import { checkPermMW as perm } from './perm.js'
+import { checkPermMW as perm, checkPermProfileMW as permProfile } from './perm.js'
 
 import * as auth from './auth/handlers.js'
 import * as action from './action/handlers.js'
@@ -63,13 +63,14 @@ export async function init(router: Router) {
 	router.post('/inbox', action.postInboundAction)
 
 	/* Documents */
-	router.get('/store', file.listFiles)
+	router.get('/store', permProfile('R'), file.listFiles)
 	router.post('/store', perm('A'), file.createFile)
 	router.post('/store/:preset/:fileName', perm('A'), file.postFile)
 	// FIXME perm disabled
 	//router.get('/store/:fileId{/:label}', perm('R', 'fileId'), file.getFile)
 	router.get('/store/:fileId{/:label}', file.getFile)
 	router.patch('/store/:fileId', perm('W', 'fileId'), file.patchFile)
+	router.delete('/store/:fileId', perm('A', 'fileId'), file.deleteFile)
 	router.put('/store/:fileId/tag/:tag', perm('A', 'fileId'), file.putFileTag)
 	router.delete('/store/:fileId/tag/:tag', perm('A', 'fileId'), file.deleteFileTag)
 	router.get('/tag', perm('A'), file.listTags)
@@ -91,7 +92,7 @@ export async function init(router: Router) {
 	router.put('/me/image', perm('A'), profile.putOwnProfileImage)
 	router.put('/me/cover', perm('A'), profile.putOwnCoverImage)
 	// users/communities
-	router.get('/profile', perm('R'), profile.listProfiles)
+	router.get('/profile', permProfile('R'), profile.listProfiles)
 	router.get('/profile/:idTag', perm('R'), profile.getProfile)
 	router.patch('/profile/:idTag', perm('A'), profile.patchProfile)
 

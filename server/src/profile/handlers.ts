@@ -79,11 +79,18 @@ export async function getOwnProfileKeys(ctx: Context) {
 }
 
 export async function getOwnProfileFull(ctx: Context) {
-	const profile = await metaAdapter.readTenant(ctx.state.tnId)
-	console.log('PROFILE', ctx.state.tenantTag, profile)
+	const idTag = ctx.state.auth?.idTag
+	console.log('1', idTag)
+	const tenant = await metaAdapter.readTenant(ctx.state.tnId)
+	console.log('PROFILE', ctx.state.tenantTag, tenant)
+	const profile = tenant?.type == 'community' && idTag ? await metaAdapter.readProfile(ctx.state.tnId, idTag) : undefined
 
 	ctx.body = {
-		...profile
+		...tenant,
+		profile: !profile ? undefined : {
+			perm: profile.perm
+		},
+		tnId: undefined
 	}
 }
 

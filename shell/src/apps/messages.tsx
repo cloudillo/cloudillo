@@ -472,13 +472,12 @@ export function MessagesApp() {
 			<Fcb.Content ref={convRef} onScroll={onConvScroll}>
 				{ !scrollBottom && <button className="c-button float m-1 secondary pos absolute bottom-0 right-0" onClick={onConvScrollBottomClick}><IcScrollBottom/></button> }
 				{ !!msg && msg.sort((a, b) => +a.createdAt - +b.createdAt).map(action => <Msg key={action.actionId} action={action} local={action.issuer.idTag === auth?.idTag}/>) }
-				{ !!convId && <NewMsg className="mt-1" idTag={convId} onSubmit={onSubmit}/> }
+				{ !!auth && !!convId && <NewMsg className="mt-1" idTag={convId} onSubmit={onSubmit}/> }
 			</Fcb.Content>
 			<Fcb.Details>
 			</Fcb.Details>
 		</> }
 	</Fcb.Container>
-	{ !!auth && !!convId && auth.roles?.includes(0) && <NewMsg className="mt-1" idTag={convId} onSubmit={onSubmit}/> }
 	</>
 }
 

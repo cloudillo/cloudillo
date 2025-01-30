@@ -143,12 +143,14 @@ async function returnLogin(ctx: Context, login: Omit<LoginResult, 'token' | 'set
 		ctx.cookies.set('login', '1', { httpOnly: false, secure: true, maxAge: remember ? TOKEN_EXPIRE * 1000 * 3600 : undefined })
 		*/
 
+		const authProfile = await authAdapter.getAuthProfile(login.idTag)
 		const profile = await metaAdapter.readTenant(login.tnId)
 		const settings = await metaAdapter.listSettings(ctx.state.tnId, { prefix: ['ui'] })
 		login.name = profile?.name || '-'
 		login.profilePic = profile?.profilePic?.ic
 		ctx.body = {
 			...login,
+			roles: authProfile?.roles,
 			settings,
 			token
 		}

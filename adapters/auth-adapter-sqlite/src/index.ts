@@ -51,13 +51,6 @@ export async function init(opts: InitOpts): Promise<AuthAdapter> {
 	db.inner.configure('busyTimeout', opts.sqliteBusyTimeout ?? 300)
 
 	// Init DB
-	await db.run(`CREATE TABLE IF NOT EXISTS roles (
-		tnId integer NOT NULL,
-		roleId integer NOT NULL,
-		name text NOT NULL,
-		PRIMARY KEY(roleId)
-	)`)
-
 	await db.run(`CREATE TABLE IF NOT EXISTS globals (
 		key text NOT NULL,
 		value text,
@@ -372,17 +365,23 @@ async function createKey(tnId: number) {
 }
 
 async function getAuthProfile(idTag: string): Promise<Omit<AuthProfile, 'keys'> | undefined> {
-	const profile = await db.get<Omit<AuthProfile, 'keys'>>('SELECT tnId as id, idTag FROM tenants WHERE idTag = $idTag', { $idTag: idTag })
-	return profile
+	const profile = await db.get<Omit<AuthProfile & { roles: string }, 'keys'>>('SELECT tnId as id, idTag, roles FROM tenants WHERE idTag = $idTag', { $idTag: idTag })
+	if (!profile) return
+
+	return {
+		...profile,
+		roles: profile?.roles?.split(',')
+	}
 }
 
 async function getAuthProfileFull(idTag: string): Promise<AuthProfile | undefined> {
-	const profile = await db.get<Omit<AuthProfile & { id: number }, 'keys'>>('SELECT tnId as id, idTag FROM tenants WHERE idTag = $idTag', { $idTag: idTag }) || {}
+	const profile = await db.get<Omit<AuthProfile & { id: number, roles?: string }, 'keys'>>('SELECT tnId as id, idTag, roles FROM tenants WHERE idTag = $idTag', { $idTag: idTag })
 	if (!profile) return
 
 	const keys = profile ? await db.all<{ keyId: string, expiresAt: number, publicKey: string }>('SELECT keyId, expiresAt, publicKey FROM keys WHERE tnId = $tnId', { $tnId: profile.id }) : []
 	return {
-		...profile,
+		...{ ...profile, id: undefined },
+		roles: profile?.roles?.split(','),
 		keys: keys.map(k => ({ ...k, expiresAt: k.expiresAt || undefined }))
 	}
 }

@@ -24,7 +24,7 @@ import * as T from '@symbion/runtype'
 export let accessToken: string | undefined
 export let idTag: string | undefined
 export let tnId: number | undefined
-export let roles: number[] | undefined
+export let roles: string[] | undefined
 export let darkMode: boolean | undefined
 
 // Utility functions //
@@ -42,7 +42,7 @@ const tCloudilloMessage = T.taggedUnion('type')({
 		type: T.literal('init'),
 		idTag: T.optional(T.string),
 		tnId: T.optional(T.id),
-		roles: T.optional(T.array(T.integer)),
+		roles: T.optional(T.array(T.string)),
 		theme: T.string,
 		darkMode: T.optional(T.boolean),
 		token: T.optional(T.string)

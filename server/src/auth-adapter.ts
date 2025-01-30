@@ -51,6 +51,7 @@ export type ProxyToken = T.TypeOf<typeof tProxyToken>
 
 export const tAuthProfile = T.struct({
 	idTag: T.string,
+	roles: T.optional(T.array(T.string)),
 	keys: T.array(T.struct({
 		keyId: T.string,
 		publicKey: T.string,

@@ -30,7 +30,7 @@ export interface AuthState {
 	idTag?: string
 	name?: string
 	profilePic?: string
-	roles?: number[]
+	roles?: string[]
 	settings?: Record<string, unknown>
 	token?: string
 }
@@ -121,7 +121,7 @@ interface UseCloudillo {
 	fileId?: string
 	idTag?: string
 	tnId?: number
-	roles?: number[]
+	roles?: string[]
 }
 
 export function useCloudillo(appNameArg?: string): UseCloudillo {

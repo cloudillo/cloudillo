@@ -20,32 +20,46 @@ import { nanoid } from 'nanoid'
 import * as T from '@symbion/runtype'
 
 import { Context } from '../index.js'
-import { validateQS } from '../utils.js'
+import { validate, validateQS } from '../utils.js'
 import { metaAdapter } from '../adapters.js'
 
 export async function listRefs(ctx: Context) {
 	const tnId = ctx.state.tnId
-	const { type } = validateQS(ctx, T.struct({ type: T.optional(T.string) }), ctx.query)
+	const opts = validateQS(ctx, T.struct({ type: T.optional(T.string) }), ctx.query)
 	//if (!ctx.state.user?.u || (ctx.state.user?.u != ctx.state.user?.t)) ctx.throw(403)
-	ctx.body = await metaAdapter.listRefs(tnId, type)
+	ctx.body = await metaAdapter.listRefs(tnId, opts)
+	console.log('listRefs', ctx.body)
 }
 
 export async function getRef(ctx: Context) {
 	const tnId = ctx.state.tnId
-	const ref = await metaAdapter.getRef(tnId, ctx.params.id)
+	const ref = await metaAdapter.getRef(tnId, ctx.params.refId)
 
 	if (!ref) ctx.throw(404)
 
 	ctx.redirect(`${URL}${ref.type}/${ref.refId}`)
 }
 
+const tPostRefRequest = T.struct({
+	type: T.string,
+	description: T.optional(T.string)
+})
 export async function postRef(ctx: Context) {
 	const tnId = ctx.state.tnId
-	const type = ctx.params?.type
-	const id = nanoid()
-	await metaAdapter.createRef(tnId, id, type)
+	const opts = validate(ctx, tPostRefRequest)
+	const refId = nanoid()
 
-	ctx.body = { id }
+	const ref = await metaAdapter.createRef(tnId, refId, opts)
+
+	ctx.body = ref
+}
+
+export async function deleteRef(ctx: Context) {
+	const tnId = ctx.state.tnId
+	const refId = ctx.params.refId
+
+	await metaAdapter.deleteRef(tnId, refId)
+	ctx.body = { refId }
 }
 
 // vim: ts=4

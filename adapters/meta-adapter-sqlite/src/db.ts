@@ -217,6 +217,9 @@ export async function init({ dir, sqliteBusyTimeout }: { dir: string, sqliteBusy
 		tnId integer NOT NULL,
 		refId text NOT NULL,
 		type text NOT NULL,
+		description text,
+		createdAt datetime DEFAULT (unixepoch()),
+		expiresAt datetime,
 		count integer,
 		PRIMARY KEY(tnId, refId)
 	)`)

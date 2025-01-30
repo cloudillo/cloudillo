@@ -139,6 +139,28 @@ export interface UpdateProfileOptions {
 	connected?: true | 'R' | null
 }
 
+/* Refs */
+export interface ListRefsOptions {
+	type?: string
+	filter?: 'active' | 'used' | 'expired' | 'all'
+}
+
+export interface Ref {
+	refId: string
+	type: string
+	description?: string
+	createdAt: Date
+	expiresAt?: Date
+	count: number
+}
+
+export interface CreateRefOptions {
+	type: string
+	description?: string
+	expiresAt?: Date
+	count?: number
+}
+
 /* Actions */
 export interface ListActionsOptions {
 	types?: string[]
@@ -208,8 +230,8 @@ export interface MetaAdapter {
 	processProfileRefresh: (callback: (tnId: number, idTag: string, eTag: string | undefined) => Promise<boolean>) => Promise<number>
 
 	// Refs
-	listRefs: (tnId: number, refType?: string) => Promise<string[]>
-	createRef: (tnId: number, refId: string, refType: string) => Promise<void>
+	listRefs: (tnId: number, opts?: ListRefsOptions) => Promise<Ref[]>
+	createRef: (tnId: number, refId: string, opts: CreateRefOptions) => Promise<Ref>
 	getRef: (tnId: number, refId: string) => Promise<{ refId: string, type: string } | undefined>
 	useRef: (tnId: number, refId: string) => Promise<{ count: number }>
 	deleteRef: (tnId: number, refId: string) => Promise<void>

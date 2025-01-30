@@ -78,8 +78,9 @@ export async function init(router: Router) {
 
 	/* Refs */
 	router.get('/ref', perm('A'), ref.listRefs)
-	router.get('/ref/:id', ref.getRef)
-	router.post('/ref/:type', perm('A'), ref.postRef)
+	router.get('/ref/:refId', ref.getRef)
+	router.post('/ref', perm('A'), ref.postRef)
+	router.delete('/ref/:refId', perm('A'), ref.deleteRef)
 
 	/* Notification */
 	router.post('/notification/subscription', perm('A'), notification.postNotificationSubscription)

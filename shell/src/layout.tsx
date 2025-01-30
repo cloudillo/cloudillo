@@ -56,6 +56,7 @@ const APP_CONFIG: AppConfigState = {
 		{ id: 'gallery', icon: IcGallery, label: 'Gallery', path: '/app/gallery' },
 		{ id: 'users', icon: IcUser, label: 'Users', path: '/users' },
 		{ id: 'settings', icon: IcSettings, label: 'Settings', path: '/settings' },
+		{ id: 'site-admin', icon: IcSiteAdmin, label: 'Site admin', path: '/site-admin', perm: 'SADM' },
 	],
 	defaultMenu: 'files'
 }
@@ -76,15 +77,16 @@ import {
 	LuMenu	as IcMenu,
 	LuList as IcFeed,
 	LuFile as IcFile,
+	LuImage as IcGallery,
 	LuMessagesSquare as IcMessages,
 	LuBell as IcNotifications,
 	LuSettings as IcSettings,
-	LuImage as IcGallery
+	LuServerCog as IcSiteAdmin
 } from 'react-icons/lu'
 import { CloudilloLogo } from './logo.js'
 
 import { Profile } from '@cloudillo/types'
-import { useAuth, AuthState, useApi, mergeClasses, ProfilePicture, Popper, DialogContainer } from '@cloudillo/react'
+import { useAuth, AuthState, useApi, useDialog, mergeClasses, ProfilePicture, Popper, DialogContainer } from '@cloudillo/react'
 import { AppConfigState, useAppConfig } from './utils.js'
 import usePWA from './pwa.js'
 import { AuthRoutes, webAuthnLogin } from './auth/auth.js'
@@ -92,6 +94,7 @@ import { OnboardingRoutes } from './onboarding'
 import { WsBusRoot, useWsBus } from './ws-bus.js'
 import { SearchIcon, SearchBar, useSearch } from './search.js'
 import { SettingsRoutes } from './settings'
+import { SiteAdminRoutes } from './site-admin'
 import { AppRoutes } from './apps'
 import { ProfileRoutes } from './profile/profile.js'
 import { Notifications } from './notifications/notifications.js'
@@ -102,7 +105,7 @@ import '@symbion/opalui/themes/opaque.css'
 import '@symbion/opalui/themes/glass.css'
 import './style.css'
 
-function Header() {
+function Header({ inert }: { inert?: boolean }) {
 	const [appConfig, setAppConfig] = useAppConfig()
 	const [auth, setAuth] = useAuth()
 	const [search, setSearch] = useSearch()
@@ -189,7 +192,7 @@ function Header() {
 	}, [api, auth])
 
 	return <>
-		<nav className="c-nav justify-content-between border-radius-0 mb-2 g-1">
+		<nav inert={inert} className="c-nav justify-content-between border-radius-0 mb-2 g-1">
 			<ul className="c-nav-group g-1">
 				<li className="c-nav-item">
 					<Link className="c-nav-item" to="#"><CloudilloLogo style={{height: 32}}/></Link> </li>
@@ -210,26 +213,6 @@ function Header() {
 			<ul className="c-nav-group c-hbox">
 				{ auth && <Link className="c-nav-item" to="/notifications"><IcNotifications/></Link> }
 				{ auth
-					/*
-					? <details className="c-dropdown right" open={menuOpen} onClick={evt => (evt.preventDefault(), setMenuOpen(!menuOpen))} onToggle={evt => console.log('details onChange', evt)}>
-						<summary className="c-nav-item">
-							<ProfilePicture profile={auth}/>
-						{auth.name}</summary>
-						<ul className="c-nav flex-column">
-							<li className="c-nav-item"><Link to="/profile/me">{t('Profile')}</Link></li>
-							<li className="c-nav-item"><Link className="c-nav-item" to="/settings">{t('Settings')}</Link></li>
-							<li><hr className="w-100" /></li>
-							<li className="c-nav-item"><button className="c-nav-item" onClick={doLogout}>{t('Logout')}</button></li>
-							<hr/>
-							<li className="c-nav-item">
-								<button className="c-nav-link" onClick={evt => (evt.preventDefault(), i18n.changeLanguage('en'))}>English</button>
-							</li>
-							<li className="c-nav-item">
-								<button className="c-nav-link" onClick={evt => setLang(evt, 'hu')}>Magyar</button>
-							</li>
-						</ul>
-					</details>
-					*/
 					? <Popper icon={<ProfilePicture profile={auth}/>} label={auth.name}>
 						<ul className="c-nav vertical emph">
 							<li><Link className="c-nav-item" to="/profile/me"><IcUser/>{t('Profile')}</Link></li>
@@ -258,10 +241,10 @@ function Header() {
 				}
 			</ul>
 		</nav>
-		<div className="c-menu-ex flex-order-end">
+		<div inert={inert} className="c-menu-ex flex-order-end">
 			<nav className={mergeClasses('c-nav', exMenuOpen && 'open')}>
 				{ appConfig && appConfig.menuEx.map(menuItem =>
-					(!!auth || menuItem.public)
+					(!!auth && (!menuItem.perm || auth.roles?.includes(menuItem.perm)) || menuItem.public)
 						&& <NavLink key={menuItem.id} className="c-nav-link h-small vertical" aria-current="page" to={menuItem.path}>
 							{menuItem.icon && React.createElement(menuItem.icon)}
 							<h6>{menuItem.label}</h6>
@@ -269,9 +252,9 @@ function Header() {
 				)}
 			</nav>
 		</div>
-		<nav className="c-nav w-100 border-radius-0 justify-content-center flex-order-end">
+		<nav inert={inert} className="c-nav w-100 border-radius-0 justify-content-center flex-order-end">
 			{ appConfig && appConfig.menu.map(menuItem =>
-				(!!auth || menuItem.public)
+				(!!auth && (!menuItem.perm || auth.roles?.includes(menuItem.perm)) || menuItem.public)
 					&& <NavLink key={menuItem.id} className="c-nav-link h-small vertical" aria-current="page" to={menuItem.path}>
 						{menuItem.icon && React.createElement(menuItem.icon)}
 						<h6>{menuItem.label}</h6>
@@ -291,14 +274,16 @@ const pwaConfig = {
 export function Layout() {
 	const pwa = usePWA(pwaConfig)
 	const api = useApi()
+	const dialog = useDialog()
 
 	return <>
 		<WsBusRoot>
-			<Header/>
-			<div className="c-vbox flex-fill h-min-0">
+			<Header inert={dialog.isOpen}/>
+			<div inert={dialog.isOpen} className="c-vbox flex-fill h-min-0">
 				<ProfileRoutes/>
 				<AuthRoutes/>
 				<SettingsRoutes pwa={pwa}/>
+				<SiteAdminRoutes/>
 				<AppRoutes/>
 				<OnboardingRoutes pwa={pwa}/>
 				<Routes>

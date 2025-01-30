@@ -126,6 +126,7 @@ export interface MenuItem {
 	label: string
 	path: string
 	public?: boolean
+	perm?: string
 }
 
 export interface AppConfigState {

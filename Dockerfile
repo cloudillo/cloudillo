@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 # Build stage
 ##############
 
@@ -28,8 +26,7 @@ RUN (cd basic-server && pnpm --filter @cloudillo/basic-server --prod deploy prun
 FROM node:22-alpine
 ENV NODE_ENV=production
 ENV MODE=standalone
-ENV PUBLIC_DATA_DIR=/data/pub
-ENV PRIVATE_DATA_DIR=/data/priv
+ENV DATA_DIR=/data
 
 RUN apk --no-cache add dumb-init bash
 
@@ -40,10 +37,11 @@ WORKDIR /app
 #COPY --chown=node:node --from=build /app/basic-server/package.json /app/basic-server/package.json
 #COPY --chown=node:node --from=build /app/basic-server/build /app/basic-server/build
 COPY --chown=node:node --from=build /app/basic-server/pruned /app
-COPY --chown=node:node --from=build /app/shell/dist /app/shell
-COPY --chown=node:node --from=build /app/apps/formillo/dist /app/apps/formillo
-COPY --chown=node:node --from=build /app/apps/prello/dist /app/apps/prello
-COPY --chown=node:node --from=build /app/apps/quillo/dist /app/apps/quillo
+COPY --chown=node:node --from=build /app/shell/dist /app/dist
+COPY --chown=node:node --from=build /app/apps/formillo/dist /app/dist/formillo
+COPY --chown=node:node --from=build /app/apps/prello/dist /app/dist/prello
+COPY --chown=node:node --from=build /app/apps/quillo/dist /app/dist/quillo
+COPY --chown=node:node --from=build /app/apps/sheello/dist /app/dist/sheello
 #COPY --chown=node:node --from=build /app/basic-server/node_modules /app/basic-server/node_modules
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "build/index.js", "Cloudillo"]

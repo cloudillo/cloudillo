@@ -44,7 +44,6 @@ import {
 
 	LuMessageCircle as IcComment,
 	LuHeart as IcLike,
-	LuForward as IcShare,
 	LuSendHorizontal as IcSend,
 	LuRepeat as IcRepost,
 	LuEllipsis as IcMore,
@@ -326,7 +325,7 @@ function Post({ className, action, setAction, width }: PostProps) {
 					}
 				</Link>
 				<div className="c-hbox ms-auto g-3">
-					<button className="c-link" onClick={() => console.log('share')}><IcRepost/></button>
+					<button className="c-link" disabled={process.env.NODE_ENV == 'production'} onClick={() => console.log('share')}><IcRepost/></button>
 					<button className="c-link" onClick={() => console.log('more')}><IcMore/></button>
 				</div>
 			</div><div className="d-flex flex-column">
@@ -352,11 +351,6 @@ function Post({ className, action, setAction, width }: PostProps) {
 						<IcLike/>
 						<span>{action.stat?.reactions}</span>
 					</Button> }
-					{/*
-					<Button link className={tab == 'SHRE' ? 'active' : ''} onClick={() => onTabClick('SHRE')}>
-						<IcShare/>
-					</Button>
-					*/}
 				</div>
 			</div>
 		</div>
@@ -493,8 +487,8 @@ export const NewPost = React.forwardRef(function NewPostInside({ className, styl
 			</div> }
 			<hr className="w-100"/>
 			<div className="c-hbox g-3">
-				<button className="c-link" onClick={() => setType('POLL')}><IcPoll/>Poll</button>
-				<button className="c-link" onClick={() => setType('EVENT')}><IcEvent/>Event</button>
+				<button className="c-link" disabled={process.env.NODE_ENV == 'production'} onClick={() => setType('POLL')}><IcPoll/>Poll</button>
+				<button className="c-link" disabled={process.env.NODE_ENV == 'production'} onClick={() => setType('EVENT')}><IcEvent/>Event</button>
 				<div className="c-hbox ms-auto">
 					<label htmlFor={fileInputId} className="cursor-pointer"><IcImage/></label>
 					<input id={fileInputId} type="file" accept="image/*,video/*,.pdf" style={{ display: 'none' }} onChange={() => changeAttachment('file')}/>

@@ -31,10 +31,12 @@ import {
 interface DialogProps {
 	className?: string
 	open?: boolean
+	title?: string
+	onClose?: () => void
 	children: React.ReactNode
 }
 
-export function Dialog({ className, open, children }: DialogProps) {
+export function Dialog({ className, open, title, onClose, children }: DialogProps) {
 	const ref = React.useRef<HTMLDialogElement>(null)
 
 	React.useEffect(function () {
@@ -47,7 +49,11 @@ export function Dialog({ className, open, children }: DialogProps) {
 		}
 	}, [open])
 
-	return <dialog ref={ref} className={className}>
+	return <dialog ref={ref} className={className || 'c-dialog c-panel emph p-3'}>
+		<div className="c-hbox mb-2">
+			<h2 className="fill">{title}</h2>
+			<button type="button" className="c-link" data-bs-dismiss="modal" aria-label="Close" onClick={onClose}><IcClose/></button>
+		</div>
 		{children}
 	</dialog>
 }
@@ -94,10 +100,10 @@ export function DialogContainer() {
 				<p className="mt-4">{dialog.descr}</p>
 
 				{ dialog.type == 'Tell' && <div className="c-group g-2 mt-4">
-						<Button primary onClick={() => onButtonClick(true)}>{t('OK')}</Button>
+						<Button primary autoFocus onClick={() => onButtonClick(true)}>{t('OK')}</Button>
 				</div>}
 				{ dialog.type == 'OkCancel' && <div className="c-group g-2 mt-4">
-						<Button primary onClick={() => onButtonClick(true)}>{t('OK')}</Button>
+						<Button primary autoFocus onClick={() => onButtonClick(true)}>{t('OK')}</Button>
 						<Button onClick={onCancel}>{t('Cancel')}</Button>
 				</div>}
 				{ dialog.type == 'YesNo' && <div className="c-group g-2 mt-4">
@@ -109,7 +115,7 @@ export function DialogContainer() {
 						<input className="c-input mt-3" type="text" placeholder={dialog.placeholder} defaultValue={dialog.defaultValue} autoFocus onChange={e => setValue(e.target.value)}/>
 					</form>
 					<div className="c-group g-2 mt-4">
-						<Button primary onClick={() => onButtonClick(true)}>{t('OK')}</Button>
+						<Button primary onClick={() => onButtonClick(value)}>{t('OK')}</Button>
 						<Button onClick={onCancel}>{t('Cancel')}</Button>
 					</div>
 				</>}
@@ -119,7 +125,7 @@ export function DialogContainer() {
 }
 
 export function useDialog() {
-	const [_, setDialog] = useAtom(dialogAtom)
+	const [dialog, setDialog] = useAtom(dialogAtom)
 
 	function ret() {
 		return new Promise(function (resolve) {
@@ -165,6 +171,7 @@ export function useDialog() {
 	*/
 
 	return {
+		isOpen: !!dialog,
 		tell,
 		confirm,
 		ask,

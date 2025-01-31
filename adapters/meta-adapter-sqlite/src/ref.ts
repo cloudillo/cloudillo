@@ -40,7 +40,7 @@ export async function createRef(tnId: number, refId: string, opts: CreateRefOpti
 	const res = await db.get<{ refId: string, type: string, description: string, createdAt: number, expiresAt: number, count: number }>(
 		`INSERT INTO refs (tnId, refId, type, description, expiresAt, count)
 		VALUES ($tnId, $ref, $type, $description, $expiresAt, $count)
-		RETURNING refId, type, description, createdAt`,
+		RETURNING refId, type, description, createdAt, count`,
 		{ $tnId: tnId, $ref: refId, $type: opts.type, $description: opts.description, $expiresAt: opts.expiresAt, $count: opts.count || 1 }
 	)
 	return {

@@ -79,16 +79,6 @@ export async function handleMsg({ tnId, idTag }: ActionContext, actionId: string
 		})
 		console.log('WS BUS sent', cnt)
 	}
-	/*
-	if (!cnt) 
-		await sendNotification(tnId, {
-			title: user?.name ?? '-',
-			body: action.c ?? 'No content',
-			image: user?.profilePic ? `https://cl-o.${idTag}/${user.profilePic}` : undefined,
-			path: `/app/messages/${action.iss ?? ''}`
-		})
-	}
-	*/
 }
 
 export async function handleReactionOrComment({ tnId, idTag }: ActionContext, actionId: string, action: Action) {
@@ -199,44 +189,65 @@ export async function handleInboundActionToken(tnId: number, actionId: string, t
 	try {
 		// Check and decode token
 		const act = await checkToken(tnId, token)
-		console.log('ACTION', tnId, JSON.stringify(act))
+		console.log('INBOUND ACTION', tnId, JSON.stringify(act))
 
 		// Check if issuer has permission
 		const issuerProfile = await metaAdapter.readProfile(tnId, act.iss)
-		if (!opts?.ack && !['FLLW', 'CONN'].includes(act.t) && !['C', 'F', 'T', 'A', 'M'].includes(issuerProfile?.status as string)) {
+		//if (!opts?.ack && !['FLLW', 'CONN'].includes(act.t) && !['C', 'F', 'T', 'A', 'M'].includes(issuerProfile?.status as string)) {
+		if (!opts?.ack && !['FLLW', 'CONN'].includes(act.t) && !issuerProfile?.following && !issuerProfile?.connected) {
 			console.log('Unknown issuer', issuerProfile)
 			throw new Error('Unknown issuer')
 		}
 		if (!issuerProfile) await getProfile(tnId, act.iss)
 
 		// Sync attachments if needed
-		if (act.a && act.iss !== idTag && act.aud == idTag) {
+		if (act.a && act.iss !== idTag) {
+			const syncVariants =
+				act.aud == idTag ? ['h', 's', 't']	// We are the audience, sync all HD and SD versions
+				: ['s', 't'] // Sync only SD and thumbnail (FIXME: setting)
+
 			console.log('SYNC ATTACHMENTS', act.iss, '->', idTag, act)
 			const proxyToken = await createProxyToken(tnId, act.iss)
 			if (!proxyToken) throw new Error('Failed to create proxy token')
 
 			for (const attachment of act.a || []) {
-				const [flags, fileIdsStr] = attachment.split(':')
-				const fileIds = fileIdsStr.split(',')
-				console.log('Syncing attachment', flags, fileIds)
-				for (const fileId of fileIds) {
-					console.log('Syncing attachment', fileId)
-					const binRes = await fetch(`https://cl-o.${act.iss}/api/store/${fileId}`, {
+				let [flags, variantIdsStr] = attachment.split(':')
+				const variantIds = variantIdsStr.split(',')
+				console.log('Syncing attachment', flags, variantIds)
+				let meta: { fileId: string, contentType: string, fileName?: string, createdAt?: number, tags?: string[] } | undefined
+				for (const variantId of variantIds) {
+					console.log('Syncing attachment', variantId)
+					const binRes = await fetch(`https://cl-o.${act.iss}/api/store/${variantId}`, {
 						headers: { 'Authorization': `Bearer ${proxyToken}` },
 						credentials: 'include'
 					})
-					const metaRes = await fetch(`https://cl-o.${act.iss}/api/store?fileId=${fileId}`, {
-						headers: { 'Authorization': `Bearer ${proxyToken}` },
-						credentials: 'include'
-					})
+					if (!meta) {
+						const metaRes = await fetch(`https://cl-o.${act.iss}/api/store/${variantId}/meta`, {
+							headers: { 'Authorization': `Bearer ${proxyToken}` },
+							credentials: 'include'
+						})
+						try {
+							meta = await metaRes.json()
+							console.log('META', meta)
+						} catch (err) {
+						}
+					}
 					const buf = Buffer.from(await binRes.arrayBuffer())
-					const meta = await metaRes.json()
-					await blobAdapter.writeBlob(tnId, fileId, '', buf)
-					await metaAdapter.createFile(tnId, fileId, {
+					await blobAdapter.writeBlob(tnId, variantId, '', buf)
+					console.log('WRITE', variantId, buf.byteLength, !!meta, flags[0])
+					if (meta && syncVariants.includes(flags[0])) await metaAdapter.createFileVariant(tnId, meta.fileId, variantId, {
+						variant: flags[0] == 'h' ? 'hd' : flags[0] == 's' ? 'sd' : flags[0] == 't' ? 'tn' : 'orig',
+						format: 'avif', // FIXME
+						size: buf.byteLength
+					})
+					flags = flags.slice(1)
+				}
+				if (meta) {
+					await metaAdapter.createFile(tnId, meta.fileId, {
 						status: 'I',
-						contentType: binRes.headers.get('Content-Type') || '',
+						contentType: meta.contentType,
 						fileName: meta.fileName,
-						createdAt: meta.createdAt,
+						createdAt: meta.createdAt ? new Date(meta.createdAt) : undefined,
 						tags: meta.tags?.length ? meta.tags : undefined
 					})
 				}

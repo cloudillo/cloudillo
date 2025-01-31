@@ -223,6 +223,7 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 				} else {
 					console.log('ERROR', err)
 				}
+				throw err
 			}
 		})
 		.use(koaCORS({ origin: (ctx) => ctx.header.origin || '*', credentials: true }))

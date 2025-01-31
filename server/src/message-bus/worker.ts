@@ -21,8 +21,8 @@ import { sendNotification } from '../notification/index.js'
 
 export async function handleMsg(idTag: string, msgType: string, action: ActionView) {
 	console.log('handleMsg', idTag, msgType, action)
-	const tnId = +idTag
-	if (typeof action.content == 'string') {
+	const tnId = await determineTnId(idTag)
+	if (tnId && typeof action.content == 'string') {
 		await sendNotification(tnId, {
 			title: action.issuer.name ?? '-',
 			body: action.content ?? 'No content',

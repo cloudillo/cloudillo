@@ -24,11 +24,10 @@ import { useSettings } from './settings.js'
 
 export async function subscribeNotifications(api: ReturnType<typeof useApi>, pwa: UsePWA) {
 	const vapid = await api.get<{ vapidPublicKey: string }>('', '/auth/vapid')
-	console.log('vapid', vapid)
 	const subscription = await pwa.askNotify?.(vapid.vapidPublicKey)
-	console.log('subscription', subscription)
 	if (subscription) {
 		await api.post('', '/notification/subscription', { data: { subscription }})
+		return subscription
 	}
 }
 
@@ -36,10 +35,29 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 	const { t } = useTranslation()
 	const api = useApi()
 	const { settings, onSettingChange } = useSettings('notify')
+	const [notificationSubscription, setNotificationSubscription] = React.useState<PushSubscription | undefined>()
+
+	React.useEffect(function () {
+		(async function () {
+			const sw = window.Notification?.permission === 'granted' ? await navigator.serviceWorker.ready : undefined
+			const subscription = (await sw?.pushManager?.getSubscription()) || undefined
+			setNotificationSubscription(subscription)
+		})()
+	}, [])
 
 	async function onPushChange(evt: React.ChangeEvent<HTMLInputElement>) {
 		if (evt.target.checked) {
-			subscribeNotifications(api, pwa)
+			const subscription = await subscribeNotifications(api, pwa)
+			if (subscription) setNotificationSubscription(subscription)
+		} else {
+			await notificationSubscription?.unsubscribe()
+			setNotificationSubscription(undefined)
+			/*
+			if (subscription) {
+				await api.delete('', `/notification/subscription${subscription}`)
+				await subscription.unsubscribe()
+			}
+			*/
 		}
 	}
 
@@ -50,7 +68,7 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 			<label className="c-hbox">
 				<span className="flex-fill">{t('Enable push notifications on this device')}</span>
 				<input className="c-toggle primary" name="notify.push" type="checkbox"
-					checked={window.Notification?.permission === 'granted'}
+					checked={!!notificationSubscription}
 					onChange={onPushChange}
 				/>
 			</label>

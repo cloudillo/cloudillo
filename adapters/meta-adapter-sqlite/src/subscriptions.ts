@@ -24,17 +24,18 @@ export async function listSubscriptions(tnId: number) {
 		JOIN tenants t ON t.tnId = s.tnId
 		WHERE s.tnId = $tnId
 	`, { $tnId: tnId })
-	return rows.map(row => ({
+	const res = rows.map(row => ({
 		id: row.subsId,
 		subscription: JSON.parse(row.subscription),
 		idTag: row.idTag
 	}))
+	return res
 }
 
 export async function createSubscription(tnId: number, subscription: unknown) {
 	await db.run('INSERT INTO subscriptions (tnId, subscription) VALUES ($tnId, $subscription)', {
 		$tnId: tnId,
-		$subscription: JSON.stringify(subscription)
+		$subscription: subscription
 	})
 }
 

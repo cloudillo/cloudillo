@@ -31,10 +31,9 @@ export interface Notification {
 export async function sendNotification(tnId: number, notification: Notification) {
 	const vapidKeys = await getVapidKeys(tnId)
 	const subscriptions = await metaAdapter.listSubscriptions(tnId)
-	console.log('subscriptions', subscriptions)
+	console.log('subscriptions', tnId, subscriptions.length)
 
 	for (const subscription of subscriptions) {
-		console.log('subscriptions', subscription.subscription)
 		try {
 			const res = await WebPush.sendNotification(subscription.subscription, JSON.stringify(notification), {
 				vapidDetails: {
@@ -45,7 +44,6 @@ export async function sendNotification(tnId: number, notification: Notification)
 			})
 		} catch (e) {
 			const err = e as { statusCode: number; body: string }
-			console.log('Sent notification', err.statusCode, err.body, 400 <= err.statusCode, err.statusCode < 500)
 			if (400 <= err.statusCode && err.statusCode < 500) {
 				console.log('Deleting subscription', subscription.id)
 				await metaAdapter.deleteSubscription(tnId, subscription.id)

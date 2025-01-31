@@ -160,7 +160,7 @@ export function Container({ className, children }: { className?: string, childre
 /* FcbContainer */
 /****************/
 function FcbContainer({ className, children }: { className?: string, children: React.ReactNode }) {
-	return <main className={mergeClasses('c-container w-100', className)}>
+	return <main className={mergeClasses('c-container w-100 h-100', className)}>
 		<div className="row h-100">
 			{children}
 		</div>
@@ -176,10 +176,20 @@ function FcbFilter({ className, isVisible, hide, children }: { className?: strin
 	</div>
 }
 
-const FcbContent = React.forwardRef(function FcbContentInside({ className, onScroll, children }: { className?: string, onScroll?: () => void, children?: React.ReactNode }, ref: React.Ref<HTMLDivElement>) {
+const FcbContent = React.forwardRef(function FcbContentInside({ className, onScroll, header, children }: { className?: string, onScroll?: () => void, header?: React.ReactNode, children?: React.ReactNode }, ref: React.Ref<HTMLDivElement>) {
+
+	return <div ref={ref} className={mergeClasses('c-vbox col col-md-8 col-lg-6 h-100', className)}>
+		{header}
+		<div ref={ref} className={mergeClasses('c-vbox fill overflow-y-auto', className)} onScroll={onScroll}>
+			{children}
+		</div>
+	</div>
+
+	/*
 	return <div ref={ref} className={mergeClasses('c-vbox col col-md-8 col-lg-6 h-100 overflow-y-auto', className)} onScroll={onScroll}>
 		{children}
 	</div>
+	*/
 })
 
 function FcbDetails({ isVisible, className, hide, children }: { isVisible?: boolean, className?: string, hide?: () => void, children?: React.ReactNode }) {
@@ -230,9 +240,10 @@ export function ProfilePicture({ className, profile, small }: { className?: stri
 export function IdentityTag({ className, idTag = '-' }: { className?: string, idTag?: string }) {
 	const segments = idTag.match(/([a-zA-Z\.]+|[^a-zA-Z\.]+)/g) || []
 
-	return <>
-		{segments.map((segment, i) => <span key={i} className={/[^a-zA-Z\.]/.test(segment) ? 'warn' : undefined}>{segment}</span>)}
-	</>
+	return <span>
+		@
+		{segments.map((segment, i) => <span key={i} className={/[^a-zA-Z\.]/.test(segment) ? 'text-warning' : undefined}>{segment}</span>)}
+	</span>
 }
 
 export function ProfileCard({ className, profile }: { className?: string, profile: Profile }) {

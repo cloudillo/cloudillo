@@ -527,7 +527,8 @@ export function FeedApp() {
 	const [width, setWidth] = React.useState(0)
 
 	React.useLayoutEffect(function () {
-		if (!ref.current || !api || !auth?.roles) return
+		//if (!ref.current || !api || !auth?.roles) return
+		if (!ref.current || !api || !auth) return
 		function onResize() {
 			if (!ref.current) return
 			const styles = getComputedStyle(ref.current)
@@ -545,7 +546,8 @@ export function FeedApp() {
 	}, [auth, api, ref])
 
 	React.useEffect(function onLoadFeed() {
-		if (!api.idTag || !auth?.roles) return
+		console.log('FEED useEffect', !ref.current, !api, !auth)
+		if (!api.idTag || !auth) return
 		const idTag = auth?.idTag
 
 		;(async function () {
@@ -565,7 +567,6 @@ export function FeedApp() {
 
 	}
 
-		//{ !!auth && auth.roles?.includes(0) && <>
 	return <Fcb.Container className="g-1">
 		{ !!auth && <>
 			<Fcb.Filter>

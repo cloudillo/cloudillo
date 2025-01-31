@@ -52,6 +52,7 @@ export function RegisterForm() {
 	const [auth, setAuth] = useAuth()
 	const dialog = useDialog()
 
+	const [show, setShow] = React.useState(false)
 	const [identityProvider, setIdentityProvider] = React.useState<'local' | 'domain' | undefined>(undefined)
 	const [email, setEmail] = React.useState('')
 	const [idTag, setIdTag] = React.useState('')
@@ -65,6 +66,18 @@ export function RegisterForm() {
 	const [error, setError] = React.useState<string | undefined>()
 
 	const passwordError = !validPassword(password)
+
+	React.useEffect(function () {
+		console.log('RegisterForm.useEffect', api.idTag)
+		if (!api.idTag) return
+		(async function () {
+			console.log('RegisterForm.useEffect', api.idTag)
+			const res = await api.post('', '/auth/register-verify', {
+				data: { type: 'ref', idTag: '', registerToken }
+			})
+			setShow(true)
+		})()
+	}, [api])
 
 	const onChangeVerify = React.useCallback(debounce((async function onVerify(idTag: string, appDomain?: string) {
 		if (!validIdentityTag(idTag)) {
@@ -115,18 +128,28 @@ export function RegisterForm() {
 		})
 		console.log('RES', res)
 		setProgress('check')
-		const checkRes = await fetch(`https://${appDomain || idTag}/idTag`)
-		if (checkRes.ok) {
-			const j = await checkRes.json()
-			if (j.idTag == idTag) {
-				setProgress('done')
+		try {
+			const checkRes = await fetch(`https://${appDomain || idTag}/.well-known/cloudillo/id-tag`)
+			if (checkRes.ok) {
+				const j = await checkRes.json()
+				if (j.idTag == idTag) {
+					setProgress('done')
+				} else {
+					setProgress('wait-dns')
+				}
 			} else {
 				setProgress('wait-dns')
 			}
-		} else {
-			setProgress('error')
+		} catch (err) {
+			console.log('ERROR', err)
+			setProgress('wait-dns')
 		}
 	}
+
+	if (!show) return <div className="c-panel">
+		<CloudilloLogo className="c-logo w-50 float-right ps-3 pb-3 slow"/>
+		<header><h1 className="mb-3">{t('This registration link is invalid!')}</h1></header>
+	</div>
 
 	return <form className="c-panel d-block p-4" onSubmit={onSubmit}>
 		{ (!progress || progress == 'vfy') && <>
@@ -431,7 +454,7 @@ export function RegisterForm() {
 			<div className="c-vbox align-items-center p-5">
 				<CloudilloLogo className="c-logo w-50 ps-3 pb-w"/>
 				<h3>{t('Your registration was successful.')}</h3>
-				<p>{t('Your app domain does not seems to be available yet. If you just created it in the domain name system then it can be normal, because the domain name system needs some time to propagate changes. Please wait a while and try to log in on your app domain later. It can be a few hours.')}</p>
+				<p>{t('However we could not verify the availability of your App domain. If you just created it in the domain name system then it can be normal, because the domain name system needs some time to propagate changes. Please wait a while and try to log in on your app domain later. It can be a few hours.')}</p>
 			</div>
 			<div className="c-group">
 				<a className="c-button primary" href={`https://${appDomain || idTag}`}>{appDomain || idTag}</a>

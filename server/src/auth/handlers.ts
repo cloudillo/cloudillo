@@ -251,7 +251,7 @@ async function verifyRegisterData(type: 'local' | 'domain', idTag: string, appDo
 }
 
 const tRegisterVerify = T.struct({
-	type: T.literal('local', 'domain'),
+	type: T.literal('ref', 'local', 'domain'),
 	idTag: T.string.matches(/^([a-zA-Z0-9-]+)(\.[a-zA-Z0-9-]+)*$/),
 	appDomain: T.optional(T.string),
 	registerToken: T.string
@@ -264,6 +264,10 @@ export async function postRegisterVerify(ctx: Context) {
 	const ref = await metaAdapter.getRef(tnId, p.registerToken)
 	console.log('ref', ref)
 	if (p.registerToken !== ref?.refId || ref?.type != 'register') ctx.throw(403)
+	if (p.type == 'ref') {
+		ctx.body = {}
+		return
+	}
 
 	ctx.body = await verifyRegisterData(p.type, p.idTag, p.appDomain, ctx.config.localIps || [])
 }
@@ -298,7 +302,8 @@ export async function postRegister(ctx: Context) {
 		name: name.charAt(0).toUpperCase() + name.slice(1).toLowerCase(),
 		type: 'person'
 	})
-	//await metaAdapter.deleteRef(tnId, p.registerToken)
+	await metaAdapter.updateSetting(newTnId, 'ui.onboarding', 'join')
+	await metaAdapter.useRef(tnId, p.registerToken)
 
 	// ACME
 	if (ctx.config.acmeEmail) await acme.createCert(newTnId, authAdapter, p.idTag, p.appDomain)

@@ -70,9 +70,14 @@ export async function updateTenant(tnId: number, tenant: TenantPatch): Promise<T
 		}
 	}
 
-	const res = await update<Tenant>('tenants', ['tnId'], { ...tenant, tnId }, 'tnId, idTag, name, profilePic, createdAt, x')
+	const res = await update<Tenant & { profilePic?: string, coverPic?: string }>('tenants', ['tnId'], { ...tenant, tnId }, 'tnId, idTag, name, profilePic, coverPic, createdAt, x')
 	if (res) {
-		const tenant = { ...res, x: res.x ? JSON.parse('' + res.x) : {} } as Tenant
+		const tenant = {
+			...res,
+			profilePic: res.profilePic ? JSON.parse(res.profilePic) : undefined,
+			coverPic: res.coverPic ? JSON.parse(res.coverPic) : undefined,
+			x: res.x ? JSON.parse('' + res.x) : {}
+		} as Tenant
 		return tenant
 	}
 }

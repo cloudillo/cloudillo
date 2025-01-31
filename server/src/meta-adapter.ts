@@ -44,6 +44,7 @@ export interface File {
 export const tListFilesOptions = T.struct({
 	_limit: T.optional(T.number),
 	fileId: T.optional(T.string),
+	variantId: T.optional(T.string),
 	filter: T.optional(T.literal('mut', 'imm')),
 	tag: T.optional(T.string),
 	preset: T.optional(T.string),
@@ -119,6 +120,8 @@ export interface Profile {
 	name: string
 	profilePic?: string
 	status?: ProfileStatus
+	connected?: boolean | 'R'
+	following?: boolean
 	perm?: ProfilePerm
 }
 
@@ -198,7 +201,7 @@ export interface Subscription {
 
 export interface MetaAdapter {
 	// Files
-	listFiles: (tnId: number, auth: Auth | undefined, opts: ListFilesOptions) => Promise<File[]>
+	listFiles: (tnId: number, auth: Auth | undefined, opts: ListFilesOptions) => Promise<(File & { variantId?: string, variant?: string, variantFormat?: string })[]>
 	getFileVariant: (tnId: number, fileId: string, variant: string) => Promise<string | undefined>
 	readFile: (tnId: number, fileId: string) => Promise<File | undefined>
 	readFileAuth: (tnId: number, auth: Auth | undefined, fileId: string) => Promise<File | undefined>

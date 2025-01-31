@@ -46,6 +46,7 @@ import {
 
 	LuBookOpen as IcQuillo,
 	LuSheet as IcSheello,
+	LuShapes as IcIdeallo,
 	LuPresentation as IcPrello,
 	LuListTodo as IcFormillo
 } from 'react-icons/lu'
@@ -68,6 +69,7 @@ const icons: Record<string, React.ComponentType> = {
 	'application/pdf': (props) => <IcDocument {...props} style={{ color: 'lch(50 50 0)' }}/>,
 	'cloudillo/quillo': (props) => <IcQuillo {...props} style={{ color: 'lch(50 50 250)' }}/>,
 	'cloudillo/sheello': (props) => <IcSheello {...props} style={{ color: 'lch(50 50 150)' }}/>,
+	'cloudillo/ideallo': (props) => <IcIdeallo {...props} style={{ color: 'lch(50 50 60)' }}/>,
 	'cloudillo/prello': (props) => <IcPrello {...props} style={{ color: 'lch(50 50 100)' }}/>,
 	'cloudillo/formillo': (props) => <IcFormillo {...props} style={{ color: 'lch(50 50 300)' }}/>
 }
@@ -277,7 +279,6 @@ function FilterBar({ className }: { className?: string }) {
 	const location = useLocation()
 	const navigate = useNavigate()
 	const dialog = useDialog()
-	const [dialogOpen, setDialogOpen] = React.useState(false)
 	const docStat = { mutable: 0, immutable: 0, todo: 0, new: 0, delegated: 0, monitored: 0 }
 
 	const qs = parseQS(location.search)
@@ -288,11 +289,12 @@ function FilterBar({ className }: { className?: string }) {
 
 		const fileName = await dialog.askText(t('Create document'), t('Provide a name for the new document'), {
 			placeholder: t('Untitled document')
-		}) || t('Untitled document')
+		})
 		console.log('CONFIRM', fileName)
+		if (fileName === undefined) return
 
 		const res = await api.post<File>('', '/store', {
-			data: { contentType, fileName }
+			data: { contentType, fileName: fileName || t('Untitled document') }
 		})
 		console.log('CREATE FILE', res)
 		if (res?.fileId) {
@@ -302,6 +304,9 @@ function FilterBar({ className }: { className?: string }) {
 					break
 				case 'cloudillo/sheello':
 					navigate(`/app/sheello/${res.fileId}`)
+					break
+				case 'cloudillo/ideallo':
+					navigate(`/app/ideallo/${res.fileId}`)
 					break
 				case 'cloudillo/prello':
 					navigate(`/app/prello/${res.fileId}`)
@@ -320,15 +325,18 @@ function FilterBar({ className }: { className?: string }) {
 			*/}
 			<Popper icon={<IcNewFile/>} label={t('Create document')}>
 				<ul className="c-nav vertical emph">
-					<li><a className="c-nav-item" href="#" onClick={() => createFile('cloudillo/quillo')}>
+					<li><button className="c-nav-item" onClick={() => createFile('cloudillo/quillo')}>
 						{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons['cloudillo/quillo'], { className: 'me-1' })}
-						{t('Quillo text document')}</a></li>
+						{t('Quillo text document')}</button></li>
 					<li><a className="c-nav-item" href="#" onClick={() => createFile('cloudillo/sheello')}>
 						{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons['cloudillo/sheello'], { className: 'me-1' })}
 						{t('Sheello spreadsheet document')}</a></li>
-					<li><a className="c-nav-item" href="#" onClick={() => createFile('cloudillo/prello')}>
+					<li><button className="c-nav-item" disabled={true || process.env.NODE_ENV === 'production'} onClick={() => createFile('cloudillo/ideallo')}>
+						{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons['cloudillo/ideallo'], { className: 'me-1' })}
+						{t('Ideallo whiteboard document')}</button></li>
+					<li><button className="c-nav-item" disabled={process.env.NODE_ENV === 'production'} onClick={() => createFile('cloudillo/prello')}>
 						{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons['cloudillo/prello'], { className: 'me-1' })}
-						{t('Prello presentation document')}</a></li>
+						{t('Prello presentation document')}</button></li>
 					{/*
 					<li><a className="c-nav-item" href="#" onClick={() => createFile('cloudillo/formillo')}>
 						{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons['cloudillo/formillo'], { className: 'me-1' })}
@@ -337,12 +345,6 @@ function FilterBar({ className }: { className?: string }) {
 					*/}
 				</ul>
 			</Popper>
-			<Dialog open={dialogOpen}>
-				<div className="c-panel">
-					<p>Test</p>
-					<Button onClick={() => setDialogOpen(false)}>Close</Button>
-				</div>
-			</Dialog>
 		</li>
 		<hr className="w-100"/>
 
@@ -544,6 +546,7 @@ export function FilesApp() {
 	const [appConfig] = useAppConfig()
 	const api = useApi()
 	const [auth] = useAuth()
+	const dialog = useDialog()
 	//const [files, setFiles] = React.useState<File[] | undefined>()
 	const [columnConfig, setColumnConfig] = React.useState(fileColumnConfig)
 	const fileListData = useFileListData()
@@ -591,6 +594,9 @@ export function FilesApp() {
 
 	async function doDeleteFile(fileId: string) {
 		if (!api) return
+		const res = await dialog.confirm(t('Delete document'), t('Are you sure you want to delete this document'))
+		if (!res) return
+
 		await api.delete('', `/store/${fileId}`)
 		fileListData.refresh()
 	}
@@ -601,14 +607,15 @@ export function FilesApp() {
 		<Fcb.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 			<FilterBar/>
 		</Fcb.Filter>
-		<Fcb.Content>
+		<Fcb.Content header={
 			<div className="c-nav c-hbox md-hide lg-hide">
 				<IcFilter onClick={() => setShowFilter(true)}/>
 				<div className="c-tag-list">
 					{ fileListData.filter?.filter == 'mut' && <div className="c-tag">{t('mutable')}</div> }
 					{ fileListData.filter?.filter == 'imm' && <div className="c-tag">{t('immutable')}</div> }
 				</div>
-			</div>
+			</div>}
+		>
 			{ fileListData.getData().map(file => <FileCard
 				key={file.fileId}
 				className={mergeClasses('mb-1', selectedFile?.fileId === file.fileId && 'accent')}

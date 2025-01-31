@@ -55,7 +55,25 @@ export async function getPermCond(tnId: number, auth: Auth | undefined, perm: 'r
 	//return ' AND (' + tags.map(t => `instr(tags, ${ql('#' + t.tag +'#')})`).join(' OR ') + ')'
 }
 
-export async function listFiles(tnId: number, auth: Auth | undefined, opts: ListFilesOptions): Promise<File[]> {
+function mimeType(format: string) {
+	switch (format) {
+		case 'avif':
+			return 'image/avif'
+		case 'webp':
+			return 'image/webp'
+		case 'jpeg':
+			return 'image/jpeg'
+		case 'png':
+			return 'image/png'
+		default:
+			return 'application/octet-stream'
+	}
+}
+
+//////////////
+// Handlers //
+//////////////
+export async function listFiles(tnId: number, auth: Auth | undefined, opts: ListFilesOptions): Promise<(File & { variantId?: string, variant?: string, variantFormat?: string })[]> {
 	const permCond = await getPermCond(tnId, auth, 'r')
 	console.log('PERM', permCond)
 
@@ -67,19 +85,22 @@ export async function listFiles(tnId: number, auth: Auth | undefined, opts: List
 			statuses = "'P','I'"; break
 	}
 
-	const q = `SELECT DISTINCT f.*, ${opts.variant ? 'fv.variantId,' : ''}
+	const q = `SELECT DISTINCT f.*, ${opts.variant || opts.variantId ? 'fv.variantId, fv.format as variantFormat, fv.variant,' : ''}
 		p.name as ownerName, p.profilePic as ownerProfilePic,
 		t.idTag as tenantTag, t.name as tenantName, t.profilePic as tenantProfilePic
 		FROM files f
 		LEFT JOIN profiles p ON p.tnId=f.tnId AND p.idTag=f.ownerTag
 		LEFT JOIN tenants t ON t.tnId=f.tnId
 		LEFT JOIN json_each(f.tags) as tag `
-		+ (opts.variant ? `LEFT JOIN file_variants fv ON fv.tnId=f.tnId AND fv.fileId=f.fileId AND fv.variant=${ql(opts.variant)} ` : '')
+		+ (opts.variant ? `LEFT JOIN file_variants fv ON fv.tnId=f.tnId AND fv.fileId=f.fileId AND fv.variant=${ql(opts.variant)} `
+			: opts.variantId ? `LEFT JOIN file_variants fv ON fv.tnId=f.tnId AND fv.fileId=f.fileId AND fv.variantId=${ql(opts.variantId)} `
+			: ''
+		)
 		+ "WHERE f.tnId = $tnId"
 		+ (opts.fileId ? " AND f.fileId = $fileId" : '')
 		+ (statuses ? " AND f.status IN (" + statuses + ")" : '')
-		+ (opts.tag !== undefined ? " AND ','||f.tags||',' LIKE $tagLike" : '')
-		+ (opts.preset !== undefined ? " AND preset=$preset" : '')
+		+ (opts.tag !== undefined ? ` AND ','||f.tags||',' LIKE ${ql('#' + opts.tag + '#')}` : '')
+		+ (opts.preset !== undefined ? ` AND preset=${ql(opts.preset)}` : '')
 		//+ (!opts.includeVariants ? " AND f.origId IS NULL" : '')
 		+ permCond
 		+ ` ORDER BY createdAt DESC LIMIT ${opts._limit || 100}`
@@ -99,12 +120,10 @@ export async function listFiles(tnId: number, auth: Auth | undefined, opts: List
 		createdAt: Date
 		tags?: string
 		variantId?: string
+		variant?: string
+		variantFormat?: string
 		x?: string
-	}>(q, {
-			$tnId: tnId,
-			$tagLike: opts.tag ? "%" + opts.tag + "%" : undefined,
-			$preset: opts.preset
-	})
+	}>(q, { $tnId: tnId })
 	return rows.map(row => ({
 		fileId: row.fileId,
 		owner: {
@@ -119,6 +138,8 @@ export async function listFiles(tnId: number, auth: Auth | undefined, opts: List
 		createdAt: row.createdAt,
 		tags: JSON.parse(row.tags || '[]'),
 		variantId: row.variantId,
+		variant: row.variant,
+		variantFormat: row.variantFormat,
 		x: row.x ? JSON.parse(row.x) : undefined
 	}))
 }

@@ -113,8 +113,10 @@ export async function getProfile(tnId: number, idTag: string): Promise<T.TypeOf<
 	// Get local profile
 	let profile = await metaAdapter.readProfile(tnId, idTag)
 	console.log('Local profile', idTag, profile)
-	if (profile) return profile
-
+	if (profile) return {
+		...profile,
+		connected: profile.connected === true
+	}
 
 	// Download if not found
 	return await syncProfile(tnId, idTag)

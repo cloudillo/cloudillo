@@ -62,7 +62,7 @@ export async function listProfiles(tnId: number, opts: ListProfilesOptions) {
 
 export async function readProfile(tnId: number, idTag: string) {
 	console.log('readProfile', tnId, idTag)
-	const profile = await db.get<{ idTag: string, type: 'U' | 'C', name: string, profilePic?: string, status?: ProfileStatus, perm?: ProfilePerm, following?: boolean, connected?: boolean } | undefined>(
+	const profile = await db.get<{ idTag: string, type: 'U' | 'C', name: string, profilePic?: string, status?: ProfileStatus, perm?: ProfilePerm, following?: boolean, connected?: boolean | 'R' } | undefined>(
 		`SELECT idTag, type, name, profilePic, status, perm, following, connected FROM profiles
 		WHERE tnId = $tnId AND idTag = $idTag`,
 		{ $tnId: tnId, $idTag: idTag }
@@ -70,13 +70,14 @@ export async function readProfile(tnId: number, idTag: string) {
 	console.log('readProfile', { idTag: profile?.idTag, status: profile?.status })
 	if (!profile) return
 
-	return {
+	const ret: Profile = {
 		...profile,
 		following: profile.following !== null ? !!profile.following : undefined,
 		connected: profile.connected === null ? undefined
 			: !profile.connected ? 'R'
 			: !!profile.connected
 	}
+	return ret
 }
 
 export async function getIdentityTag(tnId: number) {

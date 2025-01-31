@@ -22,11 +22,9 @@ import { useTranslation } from 'react-i18next'
 import debounce from 'debounce'
 
 import {
-	FiPlus as IcNew,
-	//FiImage as IcImage,
-} from 'react-icons/fi'
+	LuPlus as IcNew,
+	LuFilter as IcFilter,
 
-import {
 	LuImage as IcImage,
 	LuSendHorizontal as IcSend,
 	LuArrowDownToLine as IcScrollBottom,
@@ -386,6 +384,7 @@ export function MessagesApp() {
 	const [appConfig] = useAppConfig()
 	const api = useApi()
 	const [auth] = useAuth()
+	const [showFilter, setShowFilter] = React.useState(false)
 	const [filter, setFilter] = React.useState<ConversationFilter>({})
 	const [conversations, setConversations] = React.useState<Conversation[] | undefined>()
 	const [conversation, setConversation] = React.useState<Conversation | undefined>()
@@ -461,7 +460,7 @@ export function MessagesApp() {
 
 	return <><Fcb.Container className="g-1">
 		{ !!auth && <>
-			<Fcb.Filter>
+			<Fcb.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 				<ConversationBar className="col col-md-4 col-lg-3 h-100"
 					filter={filter}
 					setFilter={setFilter}
@@ -469,15 +468,20 @@ export function MessagesApp() {
 					activeId={convId}
 				/>
 			</Fcb.Filter>
-			<Fcb.Content ref={convRef} onScroll={onConvScroll}>
+			<Fcb.Content ref={convRef} onScroll={onConvScroll}
+				header={<div className="c-nav c-hbox md-hide lg-hide">
+					<IcFilter onClick={() => setShowFilter(true)}/>
+					{convId && <IdentityTag idTag={convId}/>}
+				</div>}
+			>
 				{ !scrollBottom && <button className="c-button float m-1 secondary pos absolute bottom-0 right-0" onClick={onConvScrollBottomClick}><IcScrollBottom/></button> }
 				{ !!msg && msg.sort((a, b) => +a.createdAt - +b.createdAt).map(action => <Msg key={action.actionId} action={action} local={action.issuer.idTag === auth?.idTag}/>) }
-				{ !!auth && !!convId && <NewMsg className="mt-1" idTag={convId} onSubmit={onSubmit}/> }
 			</Fcb.Content>
 			<Fcb.Details>
 			</Fcb.Details>
 		</> }
 	</Fcb.Container>
+	{ !!auth && !!convId && <NewMsg className="mt-1" idTag={convId} onSubmit={onSubmit}/> }
 	</>
 }
 

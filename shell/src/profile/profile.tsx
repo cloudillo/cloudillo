@@ -40,7 +40,7 @@ import 'quill/dist/quill.bubble.css'
 import 'react-image-crop/dist/ReactCrop.css'
 import './profile.css'
 
-import { useAuth, useApi } from '@cloudillo/react'
+import { useAuth, useApi, IdentityTag } from '@cloudillo/react'
 
 import { parseQS } from '../utils.js'
 import { ImageUpload } from '../image.js'
@@ -175,7 +175,7 @@ export function ProfilePage({
 	
 		// Upload
 		const request = new XMLHttpRequest()
-		request.open('PUT', '/api/me/cover');
+		request.open('PUT', `https://cl-o.${api.idTag}/api/me/cover`);
 		request.setRequestHeader('Authorization', `Bearer ${auth?.token}`)
 
 		request.upload.addEventListener('progress', function(e) {
@@ -199,7 +199,7 @@ export function ProfilePage({
 	
 		// Upload
 		const request = new XMLHttpRequest()
-		request.open('PUT', '/api/me/image');
+		request.open('PUT', `https://cl-o.${api.idTag}/api/me/image`);
 		request.setRequestHeader('Authorization', `Bearer ${auth?.token}`)
 
 		request.upload.addEventListener('progress', function(e) {
@@ -277,7 +277,7 @@ export function ProfilePage({
 					<div className="c-hbox">
 						<div className="c-profile-title">
 							<h2 className="mt-2">{profile.name}</h2>
-							<h4>{profile.idTag}</h4>
+							<h4><IdentityTag idTag={profile.idTag}/></h4>
 						</div>
 						<div className="flex-fill"/>
 						{ auth?.idTag && !own && <ProfileConnection localProfile={localProfile} cmds={profileCmds}/> }

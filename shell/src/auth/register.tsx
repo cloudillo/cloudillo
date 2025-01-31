@@ -59,7 +59,7 @@ export function RegisterForm() {
 	const [password, setPassword] = React.useState('')
 	const [passwordVisible, setPasswordVisible] = React.useState(false)
 	const [verifyState, setVerifyState] = React.useState<{ ip: string[], idTagError: 'used' | 'nodns' | 'ip' | false, appError: 'used' | 'nodns' | 'ip' | false, apiIp: string, appIp: string } | undefined>()
-	const [progress, setProgress] = React.useState<undefined | 'vfy' | 'reg' | 'check' | 'done' | 'wait-dns'>()
+	const [progress, setProgress] = React.useState<undefined | 'vfy' | 'reg' | 'check' | 'done' | 'wait-dns' | 'error'>()
 	//const [running, setRunning] = React.useState<'vfy' | 'reg' | undefined>()
 	//const [regResult, setRegResult] = React.useState(false)
 	const [error, setError] = React.useState<string | undefined>()
@@ -123,6 +123,8 @@ export function RegisterForm() {
 			} else {
 				setProgress('wait-dns')
 			}
+		} else {
+			setProgress('error')
 		}
 	}
 
@@ -427,12 +429,23 @@ export function RegisterForm() {
 		{ progress == 'wait-dns' && <>
 			<header><h1 className="mb-3">{t('Welcome to Cloudillo!')}</h1></header>
 			<div className="c-vbox align-items-center p-5">
-				<CloudilloLogo className="c-logo w-50 ps-3 pb-w fast"/>
+				<CloudilloLogo className="c-logo w-50 ps-3 pb-w"/>
 				<h3>{t('Your registration was successful.')}</h3>
 				<p>{t('Your app domain does not seems to be available yet. If you just created it in the domain name system then it can be normal, because the domain name system needs some time to propagate changes. Please wait a while and try to log in on your app domain later. It can be a few hours.')}</p>
 			</div>
 			<div className="c-group">
 				<a className="c-button primary" href={`https://${appDomain || idTag}`}>{appDomain || idTag}</a>
+			</div>
+		</> }
+
+		{/* Registration error */}
+		{/**********************/}
+		{ progress == 'error' && <>
+			<header><h1 className="mb-3">{t('Something went wrong!')}</h1></header>
+			<div className="c-vbox align-items-center p-5">
+				<CloudilloLogo className="c-logo w-50 ps-3 pb-w"/>
+				<h3>{t('Your registration was unsuccessful.')}</h3>
+				<p>{t('Please contact us, we try our best to fix the problem.')}</p>
 			</div>
 		</> }
 	</form>

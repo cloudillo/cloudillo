@@ -24,7 +24,7 @@ export async function listProfiles(tnId: number, opts: ListProfilesOptions) {
 	const q = `SELECT * FROM profiles WHERE tnId = $tnId AND idTag != $ownIdTag`
 		+ (opts.status ? ` AND status IN (${opts.status.map(ql).join(',')})` : '')
 		+ (opts.type ?
-			(opts.type === 'U' ? ' AND type ISNULL' : ` AND type = ${ql(opts.type)}`)
+			(opts.type === 'person' ? ' AND type ISNULL' : ` AND type = ${ql(opts.type == 'community' ? 'C' : '')}`)
 			: ''
 		)
 		+ (opts.following ? ' AND following' : '')
@@ -72,6 +72,7 @@ export async function readProfile(tnId: number, idTag: string) {
 
 	const ret: Profile = {
 		...profile,
+		type: profile.type == 'C' ? 'community' : 'person',
 		following: profile.following !== null ? !!profile.following : undefined,
 		connected: profile.connected === null ? undefined
 			: !profile.connected ? 'R'
@@ -86,16 +87,18 @@ export async function getIdentityTag(tnId: number) {
 }
 
 export async function createProfile(tnId: number, profile: Omit<Profile, 'id'>, eTag?: string | undefined) {
-	await db.run(`INSERT INTO profiles (tnId, idTag, name, profilePic, eTag, status)
-		VALUES ($tnId, $idTag, $name, $profilePic, $eTag, $status)
+	await db.run(`INSERT INTO profiles (tnId, idTag, name, type, profilePic, eTag, status)
+		VALUES ($tnId, $idTag, $name, $type, $profilePic, $eTag, $status)
 		ON CONFLICT (tnId, idTag) DO UPDATE SET
 			name = $name,
+			type = $type,
 			profilePic = $profilePic,
 			eTag = $eTag
 	`, {
 		$tnId: tnId,
 		$idTag: profile.idTag,
 		$name: profile.name,
+		$type: profile.type == 'community' ? 'C' : null,
 		$profilePic: profile.profilePic,
 		$eTag: eTag ? eTag.replace('"', '') : undefined,
 		$status: profile.status

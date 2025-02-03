@@ -773,7 +773,7 @@ export function App() {
 	React.useEffect(function () {
 		(async function init() {
 			if (!api) return
-			if (cloudillo?.roles?.includes(0)) {
+			if (cloudillo?.roles?.includes('SADM')) {
 				const res = await api.get<{ data: FormData[] }>(cloudillo.ownerTag, `/db/${cloudillo.fileId}`)
 				console.log('RES', res)
 				setForm({
@@ -790,7 +790,7 @@ export function App() {
 		return <div>Loading...</div>
 	}
 
-	if (cloudillo.roles?.includes(0)) {
+	if (cloudillo.roles?.includes('SADM')) {
 		return <FormData form={form}/>
 	} else {
 		return <FormPage ownerTag={cloudillo.ownerTag} fileId={cloudillo.fileId} form={form}/>

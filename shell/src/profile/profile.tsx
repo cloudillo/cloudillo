@@ -327,12 +327,12 @@ function ProfileAbout({ profile, updateProfile }: ProfileTabProps) {
 	}
 
 	return <div className="row mt-2">
+		{/*
 		<div className="c-panel col col-md-4">
 			<p>
-				Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-				Vocixa suspendisse potenti nullam ac tortor vitae purus faucibus ornare. Qrbli auctor augue mauris augue neque gravida.
 			</p>
 		</div>
+		*/}
 		<div className="c-panel col col-md-8 pos relative">
 			{ intro == undefined
 				? <>
@@ -344,7 +344,7 @@ function ProfileAbout({ profile, updateProfile }: ProfileTabProps) {
 				: <>
 					<ReactQuill
 						theme="bubble"
-						placeholder={t('Write something...')}
+						placeholder={t('Write something about yourself...')}
 						value={intro}
 						onChange={setIntro}
 						tabIndex={0}
@@ -427,7 +427,7 @@ export function ProfileConnections({ profile }: ProfileTabProps) {
 			console.log('QS', location.search, qs)
 
 			const res = await api.get<{ profiles: Profile[] }>(profile.idTag, '/profile', {
-				query: { ...qs, type: 'U' }
+				query: { ...qs, type: 'person' }
 			})
 			setProfiles(res.profiles)
 		})()

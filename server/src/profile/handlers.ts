@@ -58,6 +58,7 @@ export async function getOwnProfile(ctx: Context) {
 	const ret: ProfileKeys = {
 		idTag: profile.idTag,
 		name: profile.name,
+		type: profile.type == 'person' ? undefined : profile.type,
 		profilePic: profile.profilePic?.ic,
 		keys: authProfile?.keys || []
 	}
@@ -238,7 +239,7 @@ export async function putOwnCoverImage(ctx: Context) {
 /**********************/
 const tListProfilesQuery = T.struct({
 	idTag: T.optional(T.string),
-	type: T.optional(T.literal('U', 'C')),
+	type: T.optional(T.literal('person', 'community')),
 	status: T.optional(T.array(T.literal('A', 'B', 'T'))),
 	//connected: T.optional(T.literal(true, 'R')),
 	connected: T.optional(T.union(T.boolean, T.literal('R'))),

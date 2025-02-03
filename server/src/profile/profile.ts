@@ -32,6 +32,7 @@ export type Profile = T.TypeOf<typeof tProfile>
 export const tProfileKeys = T.struct({
 	idTag: T.string,
 	name: T.string,
+	type: T.optional(T.literal('community')),
 	profilePic: T.optional(T.string),
 	keys: T.array(T.struct({
 		keyId: T.string,

@@ -118,6 +118,7 @@ export type ProfilePerm =
 export interface Profile {
 	idTag: string
 	name: string
+	type?: 'person' | 'community'
 	profilePic?: string
 	status?: ProfileStatus
 	connected?: boolean | 'R'
@@ -126,7 +127,7 @@ export interface Profile {
 }
 
 export interface ListProfilesOptions {
-	type?: ('U' | 'C')
+	type?: 'person' | 'community'
 	status?: ProfileStatus[]
 	connected?: boolean | 'R'
 	following?: boolean

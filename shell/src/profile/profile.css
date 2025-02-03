@@ -51,6 +51,10 @@
 
 .ql-editor {
 	padding: 0;
+	&.ql-blank::before {
+		color: var(--col-on);
+		opacity: 0.6;
+	}
 }
 /*
 .ql-editor {

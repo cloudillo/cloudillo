@@ -122,7 +122,7 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 			console.log('QS', location.search, qs)
 
 			const res = await api.get<{ profiles: Profile[] }>(idTag || '', '/profile', {
-				query: { ...qs, type: 'U' }
+				query: { ...qs, type: 'person' }
 			})
 			setProfiles(res.profiles)
 		})()
@@ -170,7 +170,7 @@ export function CommunityListPage() {
 			console.log('QS', location.search, qs)
 
 			const res = await api.get<{ profiles: Profile[] }>('', '/profile', {
-				query: { ...qs, type: 'C' }
+				query: { ...qs, type: 'community' }
 			})
 			console.log(res)
 			setProfiles(res.profiles)

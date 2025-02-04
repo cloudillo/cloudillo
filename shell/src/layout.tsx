@@ -61,6 +61,8 @@ const APP_CONFIG: AppConfigState = {
 	defaultMenu: 'files'
 }
 
+import { version } from '../package.json'
+
 import * as React from 'react'
 import { Routes, Route, Navigate, Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -268,11 +270,8 @@ function Header({ inert }: { inert?: boolean }) {
 	</>
 }
 
-const pwaConfig = {
-}
-
 export function Layout() {
-	const pwa = usePWA(pwaConfig)
+	const pwa = usePWA({ swPath: `/sw-${version}.js` })
 	const api = useApi()
 	const dialog = useDialog()
 

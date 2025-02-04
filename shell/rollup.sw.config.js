@@ -11,43 +11,34 @@ import terser from '@rollup/plugin-terser'
 import progress from 'rollup-plugin-progress'
 import postcss from 'rollup-plugin-postcss'
 import gzip from 'rollup-plugin-gzip'
-import { brotliCompress } from 'zlib'
-import { promisify } from 'util'
 
 import * as path from 'path'
 import * as url from 'url'
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url))
-const brotli = promisify(brotliCompress)
 
 export default {
-	input: 'src/index.tsx',
+	input: 'sw/index.ts',
 	output: {
-		dir: `./dist/assets-${pkg.version}`,
-		assetFileNames: '[name]-bundle.[ext]',
+		file: `./dist/sw-${pkg.version}.js`,
 		name: 'main',
 		sourcemap: !isProd,
 		format: 'esm'
 	},
 	plugins: [
-		json(),
-		replace({
-			preventAssignment: true,
-			'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
-		}),
-		resolve({ browser: true }),
-		commonjs(),
-		isProd && terser(),
-		postcss({
-			extract: 'bundle.css',
-			minimize: isProd
-		}),
-		gzip(),
-		gzip({
-			customCompression: content => brotli(Buffer.from(content), { level: 11 }),
-			fileName: '.br'
-		}),
+		//json(),
+		//replace({
+		//	preventAssignment: true,
+		//	'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
+		//}),
+		//resolve({ browser: true, extensions: ['.ts', '.tsx', '.js'] }),
+		//commonjs(),
+		//isProd && terser(),
 		progress(),
-		typescript(!isProd ? { compilerOptions: { sourceMap: true, skipLibCheck: true }} : {}),
+		typescript(),
+		//typescript({ compilerOptions: { lib: ['webworker'] }}),
+		//typescript({ compilerOptions: { sourceMap: !isProd, skipLibCheck: true, lib: ['WebWorker'] }}),
+		//typescript(!isProd ? { compilerOptions: { sourceMap: true, skipLibCheck: true, lib: ['WebWorker'] }} : {}),
+		gzip(),
 		isProd && analyze({ summaryOnly: true })
 	],
 	onwarn: (warning, warn) => {

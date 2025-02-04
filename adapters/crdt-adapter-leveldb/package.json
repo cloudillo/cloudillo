@@ -19,7 +19,7 @@
         "yjs": "^13.6.23"
     },
     "devDependencies": {
-        "@types/node": "^22.13.0",
+        "@types/node": "^22.13.1",
         "rimraf": "^6.0.1",
         "typescript": "^5.7.3"
     }

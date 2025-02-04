@@ -178,7 +178,7 @@ function FcbFilter({ className, isVisible, hide, children }: { className?: strin
 
 const FcbContent = React.forwardRef(function FcbContentInside({ className, onScroll, header, children }: { className?: string, onScroll?: () => void, header?: React.ReactNode, children?: React.ReactNode }, ref: React.Ref<HTMLDivElement>) {
 
-	return <div ref={ref} className={mergeClasses('c-vbox col col-md-8 col-lg-6 h-100', className)}>
+	return <div className={mergeClasses('c-vbox col col-md-8 col-lg-6 h-100', className)}>
 		{header}
 		<div ref={ref} className={mergeClasses('c-vbox fill overflow-y-auto', className)} onScroll={onScroll}>
 			{children}

@@ -218,6 +218,7 @@ export async function createAction(tnId: number, action: NewAction) {
 	try {
 		const issuerTag = await metaAdapter.getTenantIdentityTag(tnId)
 		if (!issuerTag) return
+
 		const act = { ...action, createdAt: Math.trunc(Date.now() / 1000), issuerTag }
 		const token = await createActionToken(tnId, tnId, {
 			...act,
@@ -237,13 +238,15 @@ export async function createAction(tnId: number, action: NewAction) {
 		await metaAdapter.createAction(tnId, actionId, act, key)
 
 		//if (['POST', 'ACK', 'STAT'].includes(action.type) && action.issuerTag == issuerTag) {
-		if (['POST', 'ACK', 'STAT'].includes(action.type)) {
+		if (['POST', 'ACK', 'STAT'].includes(action.type) && !action.audienceTag) {
+			// Send to followers
 			// FIXME: filter followers by access
 			await metaAdapter.createOutboundAction(tnId, actionId, token, {
 				followTag: issuerTag,
-				audienceTag: action.audienceTag
+				//audienceTag: action.audienceTag
 			})
 		} else if (action.audienceTag && action.audienceTag != issuerTag) {
+			// Send to audience
 			await metaAdapter.createOutboundAction(tnId, actionId, token, {
 				audienceTag: action.audienceTag
 			})

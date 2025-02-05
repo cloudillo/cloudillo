@@ -105,12 +105,11 @@ const tStatContent = T.type({
 	c: T.optional(T.number)
 })
 export async function handleStat({ tnId, idTag }: ActionContext, actionId: string, action: Action) {
-	console.log('STAT', action.issuerTag, action.audienceTag, idTag, action)
+	console.log('STAT', action.issuerTag, action.audienceTag, idTag, action.content)
 	const contentRes = T.decode(tStatContent, action.content)
 	if (T.isOk(contentRes)) {
 		const { r, c } = contentRes.ok
-		await metaAdapter.updateActionData(tnId, actionId, { reactions: r, comments: c })
-		console.log('STAT', actionId, r, c)
+		if (action.parentId) await metaAdapter.updateActionData(tnId, action.parentId, { reactions: r, comments: c })
 	}
 }
 
@@ -194,7 +193,22 @@ export async function handleInboundActionToken(tnId: number, actionId: string, t
 		// Check if issuer has permission
 		const issuerProfile = await metaAdapter.readProfile(tnId, act.iss)
 		//if (!opts?.ack && !['FLLW', 'CONN'].includes(act.t) && !['C', 'F', 'T', 'A', 'M'].includes(issuerProfile?.status as string)) {
-		if (!opts?.ack && !['FLLW', 'CONN'].includes(act.t) && !issuerProfile?.following && !issuerProfile?.connected) {
+
+		let allowed = false
+		if (opts?.ack) allowed = true
+		if (['FLLW', 'CONN'].includes(act.t)) allowed = true
+		if (act.t == 'CMNT' && act.aud == idTag) {
+			const parentAction = await metaAdapter.listActions(tnId, undefined, {
+				actionId: act.p,
+				audience: act.aud || act.iss
+			})
+			console.log('CMNT PARENT ACTION', parentAction)
+			if (parentAction.length) allowed = true
+		}
+		if (issuerProfile?.following || issuerProfile?.connected) allowed = true
+
+		//if (!opts?.ack && !['FLLW', 'CONN'].includes(act.t) && !issuerProfile?.following && !issuerProfile?.connected) {
+		if (!allowed) {
 			console.log('Unknown issuer', issuerProfile)
 			throw new Error('Unknown issuer')
 		}

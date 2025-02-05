@@ -407,7 +407,7 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 				<NewPost ref={ref} className="col" style={{ minHeight: '3rem' }} onSubmit={onSubmit} idTag={profile.idTag}/>
 		}
 		{ !!feed && feed.map(action =>
-			<ActionComp key={action.actionId} action={action} setAction={act => setFeedAction(action.actionId, act)} width={width}/>
+			<ActionComp key={action.actionId} action={action} setAction={act => setFeedAction(action.actionId, act)} hideAudience={profile.idTag} width={width}/>
 		) }
 	</>
 }

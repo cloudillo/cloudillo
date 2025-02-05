@@ -187,7 +187,7 @@ function Comment({ className, action }: CommentProps) {
 }
 
 // New Post
-function NewComment({ actionId, className, style, onSubmit }: { actionId: string, className?: string, style?: React.CSSProperties, onSubmit?: (action: CommentAction) => void }) {
+function NewComment({ parentAction, className, style, onSubmit }: { parentAction: ActionView, className?: string, style?: React.CSSProperties, onSubmit?: (action: CommentAction) => void }) {
 	const api = useApi()
 	const { t } = useTranslation()
 	const [auth] = useAuth()
@@ -211,7 +211,8 @@ function NewComment({ actionId, className, style, onSubmit }: { actionId: string
 		const action: NewAction = {
 			type: 'CMNT',
 			content,
-			parentId: actionId
+			audienceTag: parentAction.audience?.idTag || parentAction.issuer.idTag,
+			parentId: parentAction.actionId
 		}
 
 		const actionRes = await api.post('', '/action', { type: tActionView, data: action })
@@ -249,7 +250,7 @@ function SubComments({ comments, parentId, className, ...props }: { comments: Co
 	</div>
 }
 
-function Comments({ actionId, ...props }: { actionId: string, className?: string, style?: React.CSSProperties }) {
+function Comments({ parentAction, ...props }: { parentAction: ActionView, className?: string, style?: React.CSSProperties }) {
 	const api = useApi()
 	const [comments, setComments] = React.useState<ActionView[]>([])
 
@@ -257,21 +258,21 @@ function Comments({ actionId, ...props }: { actionId: string, className?: string
 		if (!api) return
 
 		(async function getComments() {
-			const res = await api.get('', `/action?parentId=${actionId}&types=CMNT`, {
+			const res = await api.get(parentAction.audience?.idTag || parentAction.issuer.idTag, `/action?parentId=${parentAction.actionId}&types=CMNT`, {
 				type: T.struct({ actions: T.array(tActionView) })
 			})
 			console.log('Comments res', res)
 			setComments(res.actions || [])
 		})()
-	}, [api, actionId])
+	}, [api, parentAction.actionId])
 
 	function onSubmit(action: CommentAction) {
 		setComments([...comments, action])
 	}
 
 	return <div {...props}>
-		<SubComments comments={comments} parentId={actionId}/>
-		<NewComment actionId={actionId} onSubmit={onSubmit}/>
+		<SubComments comments={comments} parentId={parentAction.actionId}/>
+		<NewComment parentAction={parentAction} onSubmit={onSubmit}/>
 	</div>
 }
 
@@ -282,9 +283,10 @@ interface PostProps {
 	className?: string
 	action: PostAction
 	setAction: (action: PostAction) => void
+	hideAudience?: string
 	width: number
 }
-function Post({ className, action, setAction, width }: PostProps) {
+function Post({ className, action, setAction, hideAudience, width }: PostProps) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
 	const api = useApi()
@@ -319,7 +321,7 @@ function Post({ className, action, setAction, width }: PostProps) {
 		<div className={mergeClasses('c-panel g-2', className)}>
 			<div className="c-panel-header c-hbox">
 				<Link to={`/profile/${action.issuer.idTag}`}>
-					{ action.audience
+					{ action.audience && action.audience.idTag != hideAudience
 						? <ProfileAudienceCard profile={action.issuer} audience={action.audience}/>
 						: <ProfileCard profile={action.issuer}/>
 					}
@@ -354,13 +356,13 @@ function Post({ className, action, setAction, width }: PostProps) {
 				</div>
 			</div>
 		</div>
-		{ tab == 'CMNT' && <Comments actionId={action.actionId} className="mt-1"/> }
+		{ tab == 'CMNT' && <Comments parentAction={action} className="mt-1"/> }
 	</>
 }
 
-export function ActionComp({ className, action, setAction, width }: { className?: string, action: ActionEvt, setAction: (action: ActionEvt) => void, width: number }) {
+export function ActionComp({ className, action, setAction, hideAudience, width }: { className?: string, action: ActionEvt, setAction: (action: ActionEvt) => void, hideAudience?: string, width: number }) {
 	switch (action.type) {
-		case 'POST': return <Post className={className} action={action as PostAction} setAction={setAction} width={width}/>
+		case 'POST': return <Post className={className} action={action as PostAction} setAction={setAction} hideAudience={hideAudience} width={width}/>
 	}
 }
 

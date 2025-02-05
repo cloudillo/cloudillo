@@ -6,6 +6,9 @@ const PRECACHE_URLS: string[] = [
 	//'icon-192.png'
 ]
 
+//import { LRUCache } from 'lru-cache'
+import LRU from 'quick-lru'
+
 /***********/
 /* Storage */
 /***********/
@@ -58,7 +61,8 @@ async function getItem(key: string) {
 /* Service worker */
 /******************/
 
-const proxyTokenCache: Record<string, string> = {}
+//const proxyTokenCache: Record<string, string> = {}
+const proxyTokenCache = new LRU<string, string>({ maxSize: 100, maxAge: 1000 * 50 /* 50 sec */ })
 
 let idTag: string | undefined
 let authToken: string | undefined
@@ -150,14 +154,15 @@ function onFetch(evt: any) {
 
 			log && console.log('[SW] PROXY TOKEN: ' + idTag + '/api/auth/proxy-token -> ' + targetTag)
 			try {
-				let token = proxyTokenCache[targetTag]
+				//let token = proxyTokenCache[targetTag]
+				let token = proxyTokenCache.get(targetTag)
 
 				if (!token) {
 					const proxyTokenRes = await fetch('https://cl-o.' + idTag + `/api/auth/proxy-token?idTag=${targetTag}`, { credentials: 'include' })
 					token = (await proxyTokenRes.json()).token
 					log && console.log('PROXY TOKEN miss', idTag, targetTag, token)
 					// FIXME: expiration
-					//proxyTokenCache[targetTag] = token
+					if (token) proxyTokenCache.set(targetTag, token)
 				} else {
 					log && console.log('PROXY TOKEN cached', idTag, targetTag, token)
 				}

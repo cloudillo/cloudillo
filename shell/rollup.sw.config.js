@@ -30,7 +30,7 @@ export default {
 		//	preventAssignment: true,
 		//	'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
 		//}),
-		//resolve({ browser: true, extensions: ['.ts', '.tsx', '.js'] }),
+		resolve({ browser: true, extensions: ['.ts', '.tsx', '.js'] }),
 		//commonjs(),
 		//isProd && terser(),
 		progress(),

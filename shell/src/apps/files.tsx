@@ -467,7 +467,7 @@ function FileDetails({ className, file, setFile, openFile, renameFile, renameFil
 	/////////////////
 	async function listProfiles(q: string) {
 		const res = !q ? { profiles: [] } : await api.get<{ profiles: Profile[] }>('', '/profile', {
-			query: { type: 'U', q }
+			query: { type: 'person', q }
 		})
 		return res.profiles
 	}

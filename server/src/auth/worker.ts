@@ -42,6 +42,7 @@ export async function initWorker(auth: AuthAdapter, opts: { baseIdTag: string, b
 		await authAdapter.createTenant(opts.baseIdTag, {
 			password: opts.basePassword || nanoid()
 		})
+		await metaAdapter.updateSetting(1, 'ui.onboarding', 'join')
 		const name = opts.baseIdTag.replace(/\..*$/, '')
 		await metaAdapter.createTenant(1, opts.baseIdTag, {
 			name: name.charAt(0).toUpperCase() + name.slice(1).toLowerCase(),

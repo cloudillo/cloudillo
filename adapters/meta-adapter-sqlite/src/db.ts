@@ -130,7 +130,6 @@ export async function init({ dir, sqliteBusyTimeout }: { dir: string, sqliteBusy
 	//////////////
 	await db.run(`CREATE TABLE IF NOT EXISTS profiles (
 		tnId integer NOT NULL,
-		identId integer NOT NULL,
 		idTag text,
 		name text NOT NULL,
 		type char(1),				-- NULL: User, 'C': Community

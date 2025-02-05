@@ -67,6 +67,7 @@ export async function listActions(tnId: number, auth: Auth | undefined, opts: Li
 		+ (opts.rootId ? ` AND a.rootId=${ql(opts.rootId)}` : '')
 		//+ (tag !== undefined ? " AND ','||tags||',' LIKE $tagLike" : '')
 		+ " ORDER BY a.createdAt DESC LIMIT 100"
+	//console.log('listActions', q)
 	const rows = await db.all<{
 		type: string
 		subType: string
@@ -103,7 +104,7 @@ export async function listActions(tnId: number, auth: Auth | undefined, opts: Li
 			name: r.issuerName,
 			profilePic: r.issuerProfilePic
 		},
-		audience: !r.audienceTag || !r.audienceName ? undefined : {
+		audience: !r.audienceTag ? undefined : {
 			idTag: r.audienceTag,
 			name: r.audienceName,
 			profilePic: r.audienceProfilePic
@@ -231,7 +232,7 @@ export async function updateActionData(tnId: number, actionId: string, opts: Upd
 			$tnId: tnId,
 			$actionId: actionId
 		})
-		console.log('updateInboundAction', res, tnId, actionId)
+		console.log('updateInboundAction', updList, res, tnId, actionId)
 	}
 }
 

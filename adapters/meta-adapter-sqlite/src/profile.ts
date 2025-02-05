@@ -33,7 +33,6 @@ export async function listProfiles(tnId: number, opts: ListProfilesOptions) {
 		+ (opts.idTag ? ` AND idTag = ${ql(opts.idTag)}` : '')
 	console.log('listProfiles q:', q, tnId)
 	const rows = await db.all<{
-		identId: number,
 		idTag: string,
 		name: string,
 		profilePic?: string,
@@ -45,7 +44,6 @@ export async function listProfiles(tnId: number, opts: ListProfilesOptions) {
 	}>(q, { $tnId: tnId, $ownIdTag: idTag })
 
 	const res: Profile[] = rows.map(row => ({
-		id: row.identId,
 		idTag: row.idTag,
 		name: row.name,
 		profilePic: row.profilePic,

@@ -17,7 +17,7 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { useAuth, useApi } from '@cloudillo/react'
+import { useAuth, useApi, Button } from '@cloudillo/react'
 
 import { addWebAuthn, deleteWebAuthn } from '../auth/auth.js'
 import { useSettings } from './settings.js'
@@ -28,6 +28,8 @@ export function SecuritySettings() {
 	const api = useApi()
 	const [credential, setCredential] = React.useState(localStorage.getItem('credential'))
 	const { settings, onSettingChange } = useSettings('sec')
+	const [currentPassword, setCurrentPassword] = React.useState('')
+	const [newPassword, setNewPassword] = React.useState('')
 
 	async function onWebauthnChange(evt: React.ChangeEvent<HTMLInputElement>) {
 		if (!auth?.idTag) return
@@ -43,6 +45,12 @@ export function SecuritySettings() {
 		}
 	}
 
+	async function onChangePassword() {
+		await api.post('', '/auth/password', { data: { currentPassword, newPassword }})
+		setCurrentPassword('')
+		setNewPassword('')
+	}
+
 	if (!settings) return null
 
 	return <>
@@ -51,6 +59,19 @@ export function SecuritySettings() {
 				<span className="flex-fill">{t('Passwordless login')}</span>
 				<input className="c-toggle primary" name="sec.webauthn" type="checkbox" checked={!!credential} onChange={onWebauthnChange}/>
 			</label>
+		</div>
+		<div className="c-panel">
+			<label className="c-hbox pb-2">
+				<span className="flex-fill">{t('Current password')}</span>
+				<input className="c-input" name="sec.current_password" type="password" onChange={evt => setCurrentPassword(evt.target.value)}/>
+			</label>
+			<label className="c-hbox pb-2">
+				<span className="flex-fill">{t('New password')}</span>
+				<input className="c-input" name="sec.new_password" type="password" onChange={evt => setNewPassword(evt.target.value)}/>
+			</label>
+			<div className="c-group">
+				<Button primary disabled={!currentPassword || !newPassword} onClick={onChangePassword}>{t('Change password')}</Button>
+			</div>
 		</div>
 	</>
 }

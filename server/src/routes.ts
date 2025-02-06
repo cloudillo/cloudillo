@@ -42,8 +42,8 @@ export async function init(router: Router) {
 
 	router.get('/.well-known/acme-challenge/:token', auth.getAcmeChallengeResponse)
 
-	router.post('/auth/passwd', perm('A'), auth.postSetPassword)
-	router.post('/auth/passwd-req', auth.postResetPasswordRequest)
+	router.post('/auth/password', perm('A'), auth.postSetPassword)
+	router.post('/auth/password-req', auth.postResetPasswordRequest)
 
 	router.get('/auth/wa/register-req', perm('A'), auth.getWebauthnRegisterRequest)
 	router.post('/auth/wa/register', perm('A'), auth.postWebauthnRegister)

@@ -500,24 +500,30 @@ export async function createActionToken(tnId: number, userId: number, action: Ac
 // Password change //
 /////////////////////
 const tSetPassword = T.struct({
-	oldPassword: T.optional(T.string),
+	currentPassword: T.optional(T.string),
 	code: T.optional(T.string),
-	password: T.string
+	newPassword: T.string
 })
 
 export async function postSetPassword(ctx: Context) {
+	const idTag = ctx.state.user?.t
+	if (!idTag) ctx.throw(403)
 	const p = validate(ctx, tSetPassword)
 	console.log('SET PASSWD', p)
 
 	try {
-		if (p.code) {
-			await ctx.db.proc('SELECT api.user__reset_password($1, $2);',
-				[p.code, p.password])
+		if (p.currentPassword !== undefined) {
+
+			const auth = await authAdapter.getAuthPassword(idTag)
+			console.log('AUTH', idTag, auth)
+			if (!auth) ctx.throw(403)
+			console.log(p.currentPassword, passwordHash(p.currentPassword, auth.passwordHash.split(':')[0]))
+			if (passwordHash(p.currentPassword, auth.passwordHash.split(':')[0]) !== auth.passwordHash) ctx.throw(403)
+
+			await authAdapter.setAuthPassword(idTag, p.newPassword)
 			ctx.body = {}
-		} else if (p.oldPassword !== undefined) {
-			if (!ctx.state.user?.t) ctx.throw(403)
-			await ctx.db.proc('SELECT api.user__set_password($1, $2, $3);',
-				[ctx.state.user?.t, p.oldPassword, p.password])
+		} else if (p.code) {
+			ctx.throw(403)
 			ctx.body = {}
 		} else ctx.throw(403)
 	} catch (err) {

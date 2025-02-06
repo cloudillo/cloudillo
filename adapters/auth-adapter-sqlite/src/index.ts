@@ -129,6 +129,7 @@ export async function init(opts: InitOpts): Promise<AuthAdapter> {
 		getTenantId,
 		getAuthPassword,
 		getAuthPasswordById,
+		setAuthPassword,
 		createKey,
 		getAuthKey,
 		getAuthKeyById,
@@ -417,6 +418,13 @@ async function getAuthPasswordById(tnId: number): Promise<AuthPasswordData | und
 		idTag,
 		passwordHash
 	}
+}
+
+async function setAuthPassword(idTag: string, password: string): Promise<void> {
+	const cryptedPassword = hashPassword(password)
+	await db.get<{ idTag: string }>('UPDATE tenants SET password=$password WHERE idTag = $idTag RETURNING idTag', { $idTag: idTag, $password: cryptedPassword }) ?? {}
+	console.log('getAuthPassword', idTag)
+	if (!idTag) throw new Error('Unknown tenant')
 }
 
 async function getAuthKey(idTag: string): Promise<AuthKeyData | undefined> {

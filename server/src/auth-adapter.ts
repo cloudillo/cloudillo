@@ -98,6 +98,7 @@ export interface AuthAdapter {
 	getTenantId: (idTag: string) => Promise<number | undefined>
 	getAuthPassword: (idTag: string) => Promise<AuthPasswordData | undefined>
 	getAuthPasswordById: (tenantId: number) => Promise<AuthPasswordData | undefined>
+	setAuthPassword: (idTag: string, password: string) => Promise<void>
 	getAuthKey: (idTag: string) => Promise<AuthKeyData | undefined>
 	getAuthKeyById: (tnId: number ) => Promise<AuthKeyData | undefined>
 	getVapidKeys: (tnId: number) => Promise<{ vapidPublicKey: string, vapidPrivateKey: string }>

@@ -360,15 +360,29 @@ function Post({ className, action, setAction, hideAudience, width }: PostProps) 
 	</>
 }
 
-export function ActionComp({ className, action, setAction, hideAudience, width }: { className?: string, action: ActionEvt, setAction: (action: ActionEvt) => void, hideAudience?: string, width: number }) {
-	switch (action.type) {
-		case 'POST': return <Post className={className} action={action as PostAction} setAction={setAction} hideAudience={hideAudience} width={width}/>
-	}
+interface ActionCompProps {
+	className?: string
+	action: ActionEvt
+	setAction: (actionId: string, action: ActionEvt) => void
+	hideAudience?: string
+	width: number
 }
+export const ActionComp = React.memo(
+function ActionComp({ className, action, setAction, hideAudience, width }: ActionCompProps) {
+	switch (action.type) {
+		case 'POST': return <Post className={className} action={action as PostAction} setAction={act => setAction(act.actionId, act)} hideAudience={hideAudience} width={width}/>
+	}
+})
 
 // New Post
-//export function NewPost({ className, style, idTag, onSubmit, ...props }: { className?: string, style?: React.CSSProperties, idTag?: string, ref: React.Ref<any>, onSubmit?: (action: ActionEvt) => void }) {
-export const NewPost = React.forwardRef(function NewPostInside({ className, style, idTag, onSubmit }: { className?: string, style?: React.CSSProperties, idTag?: string, onSubmit?: (action: ActionEvt) => void }, ref: React.Ref<any>) {
+interface NewPostProps {
+	className?: string
+	style?: React.CSSProperties
+	idTag?: string
+	onSubmit?: (action: ActionEvt) => void
+}
+
+export const NewPost = React.memo(React.forwardRef(function NewPostInside({ className, style, idTag, onSubmit }: NewPostProps, ref: React.Ref<any>) {
 	const { t } = useTranslation()
 	const api = useApi()
 	const [auth] = useAuth()
@@ -505,8 +519,9 @@ export const NewPost = React.forwardRef(function NewPostInside({ className, styl
 		</div>
 		{ attachment && <ImageUpload src={attachment} aspects={['', '4:1', '3:1', '2:1', '16:9', '3:2', '1:1']} onSubmit={uploadAttachment} onCancel={onCancel}/> }
 	</>
-})
+}))
 
+const FilterBar = React.memo(
 function FilterBar() {
 	return <ul className="c-nav vertical low">
 		<li><a className="c-nav-item" href="/app/feed"><IcAll/>All</a></li>
@@ -515,7 +530,7 @@ function FilterBar() {
 		<li><a className="c-nav-item" href="/app/feed?audience=me"><IcUser/>Me</a></li>
 	</ul>
 		
-}
+})
 
 export function FeedApp() {
 	const navigate = useNavigate()
@@ -560,14 +575,15 @@ export function FeedApp() {
 		})()
 	}, [auth, api, ref])
 
-	function setFeedAction(actionId: string, action: ActionEvt) {
-		if (feed) setFeed(feed.map(f => f.actionId === actionId ? action : f))
-	}
+	const setFeedAction = React.useCallback(function setFeedAction(actionId: string, action: ActionEvt) {
+		setFeed(feed => !feed ? feed :  feed.map(f => f.actionId === actionId ? action : f))
+	}, [])
 
-	function onSubmit(action: ActionEvt) {
-		setFeed([action, ...(feed || [])])
+	const onSubmit = React.useCallback(function onSubmit(action: ActionEvt) {
+		setFeed(feed => [action, ...(feed || [])])
+	}, [])
 
-	}
+	const style = React.useMemo(() => ({ minHeight: '3rem' }), [])
 
 	return <Fcb.Container className="g-1">
 		{ !!auth && <>
@@ -575,8 +591,8 @@ export function FeedApp() {
 				<FilterBar/>
 			</Fcb.Filter>
 			<Fcb.Content>
-				<div><NewPost ref={ref} className="col" style={{ minHeight: '3rem' }} onSubmit={onSubmit}/></div>
-				{ !!feed && feed.map(action =>  <ActionComp key={action.actionId} action={action} setAction={act => setFeedAction(action.actionId, act)} width={width}/>) }
+				<div><NewPost ref={ref} className="col" style={style} onSubmit={onSubmit}/></div>
+				{ !!feed && feed.map(action =>  <ActionComp key={action.actionId} action={action} setAction={setFeedAction} width={width}/>) }
 			</Fcb.Content>
 			<Fcb.Details>
 			</Fcb.Details>

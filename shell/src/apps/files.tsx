@@ -93,6 +93,15 @@ interface FileView extends File {
 	actions: undefined
 }
 
+interface FileOps {
+	setFile?: (file: File) => void
+	openFile: (fileId: string) => void
+	renameFile: (fileId?: string) => void
+	setRenameFileName: (name?: string) => void
+	doRenameFile: (fileId: string, fileName: string) => void
+	doDeleteFile: (fileId: string) => void
+}
+
 function TagsCell({ fileId, tags, setTags, editable }: { fileId: string, tags: string[] | undefined, setTags?: (tags: string[] | undefined) => void, editable?: boolean }) {
 	const api = useApi()
 	const [isEditing, setIsEditing] = React.useState(false)
@@ -139,23 +148,20 @@ function TagsCell({ fileId, tags, setTags, editable }: { fileId: string, tags: s
 
 interface FileColumnsArgs {
 	t: (text: string) => string
-	openFile: (fileId: string) => void
-	renameFile: (fileId?: string) => void
 	renameFileId?: string
 	renameFileName?: string
-	setRenameFileName: (name?: string) => void
-	doRenameFile: (fileId: string, fileName: string) => void
+	fileOps: FileOps
 }
-function fileColumns({ t, openFile, renameFile, renameFileId, renameFileName, setRenameFileName, doRenameFile }: FileColumnsArgs) {
+function fileColumns({ t, fileOps, renameFileId, renameFileName }: FileColumnsArgs) {
 	const fileColumns: Columns<File, FileView> = {
 		fileName: {
 			title: t('Name'),
 			defaultWidth: 50,
 			sort: true,
-			format: (v, r) => r.fileId === renameFileId ? (<form onSubmit={evt => (evt.preventDefault(), renameFileName && doRenameFile(r.fileId, renameFileName))} className="input-group w-100">
-				<input className="c-input" type="text" autoFocus value={renameFileName} onChange={e => setRenameFileName(e.target.value)}/>
+			format: (v, r) => r.fileId === renameFileId ? (<form onSubmit={evt => (evt.preventDefault(), renameFileName && fileOps.doRenameFile(r.fileId, renameFileName))} className="input-group w-100">
+				<input className="c-input" type="text" autoFocus value={renameFileName} onChange={e => fileOps.setRenameFileName(e.target.value)}/>
 					<button className="c-button primary" type="submit"><IcSave/></button>
-					<button className="c-button secondary" type="button" onClick={() => renameFile()}
+					<button className="c-button secondary" type="button" onClick={() => fileOps.renameFile()}
 					><IcCancel/></button>
 			</form>) : v
 		},
@@ -186,12 +192,12 @@ function fileColumns({ t, openFile, renameFile, renameFileId, renameFileName, se
 			title: '',
 			defaultWidth: 10,
 			format: (v, r) => <div className="d-flex">
-				<button className="c-link p-1" type="button" onClick={() => openFile(r.fileId)}><IcEdit/></button>
+				<button className="c-link p-1" type="button" onClick={() => fileOps.openFile(r.fileId)}><IcEdit/></button>
 				<div className="dropdown">
 					<details className="c-dropdown">
 						<summary className="c-link p-1"><IcMore/></summary>
 						<ul className="c-nav">
-							<li className="c-nav-item"><a href="#" onClick={() => renameFile(r.fileId)}>{t('Rename...')}</a></li>
+							<li className="c-nav-item"><a href="#" onClick={() => fileOps.renameFile(r.fileId)}>{t('Rename...')}</a></li>
 						</ul>
 					</details>
 				</div>
@@ -243,37 +249,47 @@ function useFileListData() {
 		})()
 	}, [api, auth, location.search, refreshHelper])
 
-	function getData() {
-		return files || []
-	}
+	return React.useMemo(function () {
+		function getData() {
+			return files || []
+		}
 
-	function setState(sort: keyof File | undefined, sortAsc: boolean | undefined, page: number | undefined) {
-		console.log('FL setState', sort, sortAsc, page)
-		if (sort !== undefined) setSort(sort)
-		if (sortAsc !== undefined) setSortAsc(sortAsc)
-		if (page !== undefined) setPage(page)
-	}
+		function setState(sort: keyof File | undefined, sortAsc: boolean | undefined, page: number | undefined) {
+			console.log('FL setState', sort, sortAsc, page)
+			if (sort !== undefined) setSort(sort)
+			if (sortAsc !== undefined) setSortAsc(sortAsc)
+			if (page !== undefined) setPage(page)
+		}
 
-	function setFileData(fileId: string, file: File) {
-		setFiles(files => files?.map(f => f.fileId === fileId ? file : f))
-	}
+		function setFileData(fileId: string, file: File) {
+			setFiles(files => files?.map(f => f.fileId === fileId ? file : f))
+		}
 
-	async function next() {
-        if (!page) setPage(page + 1)
-    }
+		async function next() {
+			if (!page) setPage(page + 1)
+		}
 
-    async function prev() {
-        if (page) setPage(page - 1)
-    }
+		async function prev() {
+			if (page) setPage(page - 1)
+		}
 
-	function refresh() {
-		setRefreshHelper(r => !r)
-	}
+		function refresh() {
+			setRefreshHelper(r => !r)
+		}
 
-	return { getData, setFileData, filter, state: { sort, sortAsc }, setState, /* page, lastPage: 1, next, prev, */refresh }
+		return {
+			getData,
+			setFileData,
+			filter,
+			state: { sort, sortAsc },
+			setState,
+			/* page, lastPage: 1, next, prev, */
+			refresh
+		}
+	}, [files, filter, sort, sortAsc, page])
 }
 
-function FilterBar({ className }: { className?: string }) {
+const FilterBar = React.memo(function FilterBar({ className }: { className?: string }) {
 	const { t } = useTranslation()
 	const api = useApi()
 	const location = useLocation()
@@ -376,38 +392,35 @@ function FilterBar({ className }: { className?: string }) {
 			<button className="c-button secondary" type="button"><IcSearch/></button>
 		</div>
 	</ul>
-}
+})
 
 interface FileCardProps {
 	className?: string
 	file: File
-	setFile?: (file: File) => void
-	onClick?: () => void
-	openFile: (fileId: string) => void
-	renameFile: (fileId: string) => void
+	onClick?: (file: File) => void
 	renameFileId?: string
 	renameFileName?: string
-	setRenameFileName: (name?: string) => void
-	doRenameFile: (fileId: string, fileName: string) => void
-	doDeleteFile: (fileId: string) => void
+	fileOps: FileOps
 }
-function FileCard({ className, file, setFile, onClick, openFile, renameFile, renameFileId, renameFileName, setRenameFileName, doRenameFile, doDeleteFile }: FileCardProps) {
+const FileCard = React.memo(
+function FileCard({ className, file, onClick, renameFileId, renameFileName, fileOps }: FileCardProps) {
 	const [auth] = useAuth()
 	const { t } = useTranslation()
+	console.log('FILE CARD', file)
 
 	function setTags(tags?: string[]) {
-		setFile?.({ ...file, tags })
+		fileOps.setFile?.({ ...file, tags })
 	}
 
 	//return <div className={'c-panel ' + (className || '')} onClick={onClick}>
-	return <div className={'c-panel ' + (className || '')} onClick={evt => (console.log('CLICK', evt), onClick && onClick())}>
+	return <div className={'c-panel ' + (className || '')} onClick={evt => (console.log('CLICK', evt), onClick?.(file))}>
 		<div className="c-panel-header d-flex">
 			<h3 className="c-panel-title d-flex flex-fill">
 				{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons[file.contentType] || IcUnknown, { className: 'me-1' })}
-				{ renameFileName !== undefined && file.fileId === renameFileId ? <form onSubmit={evt => (evt.preventDefault(), renameFileName && doRenameFile(file.fileId, renameFileName))} className="c-input-group">
-					<input className="c-input" type="text" autoFocus value={renameFileName} onChange={e => setRenameFileName(e.target.value)}/>
+				{ renameFileName !== undefined && file.fileId === renameFileId ? <form onSubmit={evt => (evt.preventDefault(), renameFileName && fileOps.doRenameFile(file.fileId, renameFileName))} className="c-input-group">
+					<input className="c-input" type="text" autoFocus value={renameFileName} onChange={e => fileOps.setRenameFileName(e.target.value)}/>
 						<button className="c-button primary p-1" type="submit"><IcSave/></button>
-						<button className="c-button secondary p-1" type="button" onClick={() => setRenameFileName(undefined)}
+						<button className="c-button secondary p-1" type="button" onClick={() => fileOps.setRenameFileName(undefined)}
 						><IcCancel/></button>
 				</form>
 				: file.fileName}
@@ -415,24 +428,13 @@ function FileCard({ className, file, setFile, onClick, openFile, renameFile, ren
 			{ !!file.owner?.profilePic && <ProfilePicture profile={file.owner} small/> }
 			{/* file.ownerTag && <h4>{file.ownerTag}</h4> */}
 			<div className="d-flex justify-content-end">
-				<button className="c-link p-1" type="button" onClick={() => openFile(file.fileId)}><IcEdit/></button>
+				<button className="c-link p-1" type="button" onClick={() => fileOps.openFile(file.fileId)}><IcEdit/></button>
 				<Popper className="dropdown" label={<IcMore/>}>
 					<ul className="c-nav vertical">
-						<li className="c-nav-item"><a className="c-link" href="#" onClick={() => renameFile(file.fileId)}><IcEdit/> {t('Rename...')}</a></li>
-						<li className="c-nav-item"><a className="c-link" href="#" onClick={() => doDeleteFile(file.fileId)}><IcDelete/>{t('Delete...')}</a></li>
+						<li className="c-nav-item"><a className="c-link" href="#" onClick={() => fileOps.renameFile(file.fileId)}><IcEdit/> {t('Rename...')}</a></li>
+						<li className="c-nav-item"><a className="c-link" href="#" onClick={() => fileOps.doDeleteFile(file.fileId)}><IcDelete/>{t('Delete...')}</a></li>
 					</ul>
 				</Popper>
-				{/*
-				<div className="dropdown">
-					<details className="c-dropdown">
-						<summary className="c-link p-1"><IcMore/></summary>
-						<ul className="c-nav">
-							<li className="c-nav-item"><a href="#" onClick={() => renameFile(file.fileId)}>{t('Rename...')}</a></li>
-							<li className="c-nav-item"><a href="#" onClick={() => doDeleteFile(file.fileId)}>{t('Delete...')}</a></li>
-						</ul>
-					</details>
-				</div>
-				*/}
 				{ auth?.idTag && file.variantId && <img src={`https://cl-o.${auth.idTag}/api/store/${file.variantId}`}/> }
 			</div>
 		</div>
@@ -440,20 +442,16 @@ function FileCard({ className, file, setFile, onClick, openFile, renameFile, ren
 			<div><TagsCell fileId={file.fileId} tags={file.tags} setTags={setTags}/></div>
 		</div> }
 	</div>
-}
+})
 
 interface FileDetailsProps {
 	className?: string
 	file: File
-	setFile?: (file: File) => void
-	openFile: (fileId: string) => void
-	renameFile: (fileId: string) => void
 	renameFileId?: string
 	renameFileName?: string
-	setRenameFileName: (name?: string) => void
-	doRenameFile: (fileId: string, fileName: string) => void
+	fileOps: FileOps
 }
-function FileDetails({ className, file, setFile, openFile, renameFile, renameFileId, renameFileName, setRenameFileName, doRenameFile }: FileDetailsProps) {
+function FileDetails({ className, file, renameFileId, renameFileName, fileOps }: FileDetailsProps) {
 	const { t } = useTranslation()
 	const api = useApi()
 	const [auth] = useAuth()
@@ -507,21 +505,21 @@ function FileDetails({ className, file, setFile, openFile, renameFile, renameFil
 		<div className="c-panel-header d-flex">
 			<h3 className="c-panel-title d-flex flex-fill">
 				{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons[file.contentType] || IcUnknown, { className: 'me-1' })}
-				{ renameFileName !== undefined && file.fileId === renameFileId ? <form onSubmit={evt => (evt.preventDefault(), renameFileName && doRenameFile(file.fileId, renameFileName))} className="c-input-group">
-					<input className="c-input" type="text" autoFocus value={renameFileName} onChange={e => setRenameFileName(e.target.value)}/>
+				{ renameFileName !== undefined && file.fileId === renameFileId ? <form onSubmit={evt => (evt.preventDefault(), renameFileName && fileOps.doRenameFile(file.fileId, renameFileName))} className="c-input-group">
+					<input className="c-input" type="text" autoFocus value={renameFileName} onChange={e => fileOps.setRenameFileName(e.target.value)}/>
 						<button className="c-button primary p-1" type="submit"><IcSave/></button>
-						<button className="c-button secondary p-1" type="button" onClick={() => setRenameFileName(undefined)}
+						<button className="c-button secondary p-1" type="button" onClick={() => fileOps.setRenameFileName(undefined)}
 						><IcCancel/></button>
 				</form>
 				: file.fileName}
 			</h3>
 			<div className="d-flex justify-content-end">
-				<button className="c-link p-1" type="button" onClick={() => openFile(file.fileId)}><IcEdit/></button>
+				<button className="c-link p-1" type="button" onClick={() => fileOps.openFile(file.fileId)}><IcEdit/></button>
 				<div className="dropdown">
 					<details className="c-dropdown">
 						<summary className="c-link p-1"><IcMore/></summary>
 						<ul className="c-nav">
-							<li className="c-nav-item"><a href="#" onClick={() => renameFile(file.fileId)}>{t('Rename...')}</a></li>
+							<li className="c-nav-item"><a href="#" onClick={() => fileOps.renameFile(file.fileId)}>{t('Rename...')}</a></li>
 						</ul>
 					</details>
 				</div>
@@ -564,42 +562,54 @@ export function FilesApp() {
 		setSelectedFile(file)
 	}
 
-	function openFile(fileId?: string) {
-		const file = fileListData.getData()?.find(f => f.fileId === fileId)
-		const app = file && appConfig?.mime[file?.contentType]
+	const onClickFile = React.useCallback(function onClickFile(file: File) {
+		setSelectedFile(selectedFile => selectedFile === file ? undefined : file)
+	}, [])
 
-		console.log('openFile', appConfig, file?.contentType, app)
-		if (app) {
-			navigate(`${app}/${(file.owner?.idTag || auth?.idTag) + ':' }${file.fileId}`)
+	const fileOps = React.useMemo(() => ({
+		setFile: function setFile(file: File) {
+			fileListData.setFileData(file.fileId, file)
+		},
+
+		openFile: function openFile(fileId?: string) {
+			const file = fileListData.getData()?.find(f => f.fileId === fileId)
+			const app = file && appConfig?.mime[file?.contentType]
+
+			console.log('openFile', appConfig, file?.contentType, app)
+			if (app) {
+				navigate(`${app}/${(file.owner?.idTag || auth?.idTag) + ':' }${file.fileId}`)
+			}
+		},
+
+		renameFile: function renameFile(fileId?: string) {
+			const file = fileListData.getData()?.find(f => f.fileId === fileId)
+			console.log('rename file', file)
+			setRenameFileId(fileId)
+			setRenameFileName(file?.fileName || '')
+		},
+
+		setRenameFileName,
+
+		doRenameFile: async function doRenameFile(fileId: string, fileName: string) {
+			if (!api) return
+			const file = fileListData.getData()?.find(f => f.fileId === fileId)
+			await api.patch('', `/store/${fileId}`, {
+				data: { fileName }
+			})
+			setRenameFileId(undefined)
+			setRenameFileName(undefined)
+			fileListData.refresh()
+		},
+
+		doDeleteFile: async function doDeleteFile(fileId: string) {
+			if (!api) return
+			const res = await dialog.confirm(t('Delete document'), t('Are you sure you want to delete this document'))
+			if (!res) return
+
+			await api.delete('', `/store/${fileId}`)
+			fileListData.refresh()
 		}
-	}
-
-	function renameFile(fileId?: string) {
-		const file = fileListData.getData()?.find(f => f.fileId === fileId)
-		console.log('rename file', file)
-		setRenameFileId(fileId)
-		setRenameFileName(file?.fileName || '')
-	}
-
-	async function doRenameFile(fileId: string, fileName: string) {
-		if (!api) return
-		const file = fileListData.getData()?.find(f => f.fileId === fileId)
-		await api.patch('', `/store/${fileId}`, {
-			data: { fileName }
-		})
-		setRenameFileId(undefined)
-		setRenameFileName(undefined)
-		fileListData.refresh()
-	}
-
-	async function doDeleteFile(fileId: string) {
-		if (!api) return
-		const res = await dialog.confirm(t('Delete document'), t('Are you sure you want to delete this document'))
-		if (!res) return
-
-		await api.delete('', `/store/${fileId}`)
-		fileListData.refresh()
-	}
+	}), [auth, api, appConfig, t, fileListData])
 
 	if (!fileListData.getData()) return <h1>Loading...</h1>
 
@@ -620,39 +630,19 @@ export function FilesApp() {
 				key={file.fileId}
 				className={mergeClasses('mb-1', selectedFile?.fileId === file.fileId && 'accent')}
 				file={file}
-				setFile={file => fileListData.setFileData(file.fileId, file)}
-				onClick={() => selectedFile === file ? setSelectedFile(undefined) : setSelectedFile(file)}
-				openFile={openFile}
-				renameFile={renameFile}
+				onClick={onClickFile}
 				renameFileId={renameFileId}
 				renameFileName={renameFileName}
-				setRenameFileName={setRenameFileName}
-				doRenameFile={doRenameFile}
-				doDeleteFile={doDeleteFile}
+				fileOps={fileOps}
 			/>) }
 		</Fcb.Content>
 		<Fcb.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
 			{ selectedFile && <FileDetails
 				file={selectedFile}
-				setFile={file => fileListData.setFileData(file.fileId, file)}
-				openFile={openFile}
-				renameFile={renameFile}
 				renameFileId={renameFileId}
 				renameFileName={renameFileName}
-				setRenameFileName={setRenameFileName}
-				doRenameFile={doRenameFile}
+				fileOps={fileOps}
 			/> }
-			{/* selectedFile && <div className="c-panel h-min-100">
-				<h3 className="c-panel-title">
-					{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons[selectedFile.contentType] || IcUnknown, { className: 'me-1' })}
-					{selectedFile.fileName}
-				</h3>
-				<div className="c-tag-list">
-					<TagsCell fileId={selectedFile.fileId} tags={selectedFile.tags} editable/>
-				</div>
-				<h4>{t('Permissions')}</h4>
-				<EditProfileList profiles={permissionList} listProfiles={listProfiles} addProfile={addPerm} removeProfile={removePerm}/>
-			</div> */}
 		</Fcb.Details>
 	</Fcb.Container>
 }

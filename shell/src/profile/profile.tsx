@@ -393,9 +393,9 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 		})()
 	}, [api])
 
-	function setFeedAction(actionId: string, action: ActionEvt) {
-		if (feed) setFeed(feed.map(f => f.actionId === actionId ? action : f))
-	}
+	const setFeedAction = React.useCallback(function setFeedAction(actionId: string, action: ActionEvt) {
+		setFeed(feed => !feed ? feed :  feed.map(f => f.actionId === actionId ? action : f))
+	}, [])
 
 	function onSubmit(action: ActionEvt) {
 		setFeed([action, ...(feed || [])])
@@ -407,7 +407,7 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 				<NewPost ref={ref} className="col" style={{ minHeight: '3rem' }} onSubmit={onSubmit} idTag={profile.idTag}/>
 		}
 		{ !!feed && feed.map(action =>
-			<ActionComp key={action.actionId} action={action} setAction={act => setFeedAction(action.actionId, act)} hideAudience={profile.idTag} width={width}/>
+			<ActionComp key={action.actionId} action={action} setAction={setFeedAction} hideAudience={profile.idTag} width={width}/>
 		) }
 	</>
 }

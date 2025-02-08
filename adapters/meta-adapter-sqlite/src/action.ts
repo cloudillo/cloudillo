@@ -101,13 +101,13 @@ export async function listActions(tnId: number, auth: Auth | undefined, opts: Li
 		rootId: r.rootId,
 		issuer: {
 			idTag: r.issuerTag,
-			name: r.issuerName,
-			profilePic: r.issuerProfilePic
+			name: r.issuerName || undefined,
+			profilePic: r.issuerProfilePic || undefined
 		},
 		audience: !r.audienceTag ? undefined : {
 			idTag: r.audienceTag,
-			name: r.audienceName,
-			profilePic: r.audienceProfilePic
+			name: r.audienceName || undefined,
+			profilePic: r.audienceProfilePic || undefined
 		},
 		subject: r.subject,
 		createdAt: new Date(r.createdAt * 1000).toISOString(),

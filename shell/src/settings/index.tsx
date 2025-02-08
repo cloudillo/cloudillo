@@ -54,9 +54,9 @@ export function Settings({ title, children }: SettingsProps) {
 	return <Fcb.Container className="g-1">
 		<Fcb.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 			<ul className="c-nav vertical low">
-				<li><NavLink className="c-nav-link" to="/settings/security"><IcSecurity/> {t('Security')}</NavLink></li>
-				<li><NavLink className="c-nav-link" to="/settings/notifications"><IcNotifications/> {t('Notifications')}</NavLink></li>
-				<li><NavLink className="c-nav-link" to="/settings/appearance"><IcAppearance/> {t('Appearance')}</NavLink></li>
+				<li><NavLink className="c-nav-item" to="/settings/security"><IcSecurity/> {t('Security')}</NavLink></li>
+				<li><NavLink className="c-nav-item" to="/settings/notifications"><IcNotifications/> {t('Notifications')}</NavLink></li>
+				<li><NavLink className="c-nav-item" to="/settings/appearance"><IcAppearance/> {t('Appearance')}</NavLink></li>
 			</ul>
 		</Fcb.Filter>
 		<Fcb.Content>

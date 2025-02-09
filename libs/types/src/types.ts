@@ -84,8 +84,9 @@ export const tActionView = T.struct({
 	expiresAt: T.optional(T.string),
 	stat: T.optional(T.struct({
 		ownReaction: T.optional(T.string),
+		reactions: T.optional(T.number),
 		comments: T.optional(T.number),
-		reactions: T.optional(T.number)
+		commentsRead: T.optional(T.number)
 	}))
 })
 export type ActionView = T.TypeOf<typeof tActionView>

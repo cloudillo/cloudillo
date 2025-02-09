@@ -181,6 +181,7 @@ export interface UpdateActionDataOptions {
 	status?: string | null
 	reactions?: number | null
 	comments?: number | null
+	commentsRead?: number | null
 }
 
 export interface CreateOutboundActionOptions {

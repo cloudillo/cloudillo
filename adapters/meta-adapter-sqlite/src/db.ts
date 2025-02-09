@@ -255,8 +255,9 @@ export async function init({ dir, sqliteBusyTimeout }: { dir: string, sqliteBusy
 		createdAt datetime NOT NULL,
 		expiresAt datetime,
 		attachments json,
-		comments integer,
 		reactions integer,
+		comments integer,
+		commentsRead integer,
 		PRIMARY KEY(tnId, actionId)
 	)`)
 	await db.run('CREATE INDEX IF NOT EXISTS idx_actions_key ON actions(key, tnId)')

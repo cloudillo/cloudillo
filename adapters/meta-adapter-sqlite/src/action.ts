@@ -50,7 +50,7 @@ export async function listActions(tnId: number, auth: Auth | undefined, opts: Li
 		a.audience as audienceTag, pa.name as audienceName, pa.profilePic as audienceProfilePic,
 		a.subject, a.content, a.createdAt, a.expiresAt,
 		ownReact.content as ownReaction,
-		a.attachments, a.comments, a.reactions
+		a.attachments, a.reactions, a.comments, a.commentsRead
 		FROM actions a
 		LEFT JOIN profiles pi ON pi.tnId=a.tnId AND pi.idTag=a.idTag
 		LEFT JOIN profiles pa ON pa.tnId=a.tnId AND pa.idTag=a.audience
@@ -85,15 +85,16 @@ export async function listActions(tnId: number, auth: Auth | undefined, opts: Li
 		createdAt: number
 		expiresAt?: number
 		attachments?: string
-		comments?: number
 		reactions?: number
+		comments?: number
+		commentsRead?: number
 		ownReaction?: string
 	}>(q, {
 			$tnId: tnId
 	})
 	cleanRes(rows)
 	//console.log('ROWS', rows)
-	return Promise.all(rows.map(async r => ({
+	const actions: ActionView[] = await Promise.all(rows.map(async r => ({
 		type: r.type,
 		subType: r.subType,
 		actionId: r.actionId,
@@ -116,10 +117,12 @@ export async function listActions(tnId: number, auth: Auth | undefined, opts: Li
 		attachments: r.attachments ? await getAttachments(tnId, JSON.parse(r.attachments)) : undefined,
 		stat: {
 			ownReaction: r.ownReaction ? JSON.parse(r.ownReaction) : r.ownReaction,
-			comments: r.comments,
 			reactions: r.reactions,
+			comments: r.comments,
+			commentsRead: r.commentsRead
 		}
 	})))
+	return actions
 }
 
 export async function getActionRootId(tnId: number, actionId: string) {
@@ -225,6 +228,7 @@ export async function updateActionData(tnId: number, actionId: string, opts: Upd
 	if (opts.reactions !== undefined) updList.push(`reactions=${ql(opts.reactions)}`)
 	if (opts.comments !== undefined) updList.push(`comments=${ql(opts.comments)}`)
 	if (opts.status !== undefined) updList.push(`status=${ql(opts.status)}`)
+	if (opts.commentsRead !== undefined) updList.push(`commentsRead=${ql(opts.commentsRead)}`)
 
 	if (updList.length > 0) {
 		const res = await db.run(`UPDATE actions SET ${updList.join(', ')} WHERE tnId = $tnId AND actionId = $actionId

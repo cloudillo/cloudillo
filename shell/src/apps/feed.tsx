@@ -62,6 +62,7 @@ import '@cloudillo/react/src/components.css'
 
 import { useAppConfig, parseQS, qs } from '../utils.js'
 import { getBestImageId, ImageUpload } from '../image.js'
+import { useWsBus } from '../ws-bus.js'
 
 //////////////////////
 // Action datatypes //
@@ -73,8 +74,9 @@ interface PostAction extends ActionView {
 	type: 'POST'
 	stat?: {
 		ownReaction?: string
-		comments?: number
 		reactions?: number
+		comments?: number
+		commentsRead?: number
 	}
 }
 
@@ -250,11 +252,18 @@ function SubComments({ comments, parentId, className, ...props }: { comments: Co
 	</div>
 }
 
-function Comments({ parentAction, ...props }: { parentAction: ActionView, className?: string, style?: React.CSSProperties }) {
+interface CommentsProps {
+	parentAction: ActionView
+	onCommentsRead?: (read: number) => void
+	className?: string
+	style?: React.CSSProperties
+}
+function Comments({ parentAction, onCommentsRead, ...props }: CommentsProps) {
 	const api = useApi()
 	const [comments, setComments] = React.useState<ActionView[]>([])
 
 	React.useEffect(() => {
+		let timeout: ReturnType<typeof setTimeout> | undefined
 		if (!api) return
 
 		(async function getComments() {
@@ -262,12 +271,25 @@ function Comments({ parentAction, ...props }: { parentAction: ActionView, classN
 				type: T.struct({ actions: T.array(tActionView) })
 			})
 			console.log('Comments res', res)
+			if (res.actions.length != parentAction.stat?.commentsRead) {
+				timeout = setTimeout(async function () {
+					const crRes = await api.post('', `/action/${parentAction.actionId}/stat`, {
+						data: { commentsRead: res.actions.length }
+					})
+					onCommentsRead?.(res.actions.length)
+					timeout = undefined
+				}, 3000)
+			}
 			setComments(res.actions || [])
 		})()
+		return function cleanup() {
+			if (timeout) clearTimeout(timeout)
+		}
 	}, [api, parentAction.actionId])
 
 	function onSubmit(action: CommentAction) {
 		setComments([...comments, action])
+		onCommentsRead?.(comments.length + 1)
 	}
 
 	return <div {...props}>
@@ -317,6 +339,11 @@ function Post({ className, action, setAction, hideAudience, width }: PostProps) 
 		}})
 	}
 
+	function onCommentsRead(read: number) {
+		console.log('onCommentsRead', read, action)
+		setAction({ ...action, stat: { ...action.stat, commentsRead: read }})
+	}
+
 	return <>
 		<div className={mergeClasses('c-panel g-2', className)}>
 			<div className="c-panel-header c-hbox">
@@ -345,18 +372,20 @@ function Post({ className, action, setAction, hideAudience, width }: PostProps) 
 					</Button>
 				</div>
 				<div className="c-hbox ms-auto g-3">
-					{ <Button link secondary className={tab == 'CMNT' ? 'active' : ''} onClick={() => onTabClick('CMNT')}>
+					{ <Button link secondary className={mergeClasses('pos relative', tab == 'CMNT' ? 'active' : '')} onClick={() => onTabClick('CMNT')}>
 						<IcComment/>
-						<span>{action.stat?.comments}</span>
+						<span className="c-badge pos absolute top-100 left-100">{action.stat?.comments}</span>
+						{ (action.stat?.comments || 0) - (action.stat?.commentsRead || 0) > 0
+							&& <span className="c-badge pos absolute top-0 left-100 bg error">{(action.stat?.comments || 0) - (action.stat?.commentsRead || 0)}</span> }
 					</Button> }
-					{ !!action.stat?.reactions && <Button link secondary className={tab == 'LIKE' ? 'active' : ''} onClick={() => onTabClick('LIKE')}>
+					{ !!action.stat?.reactions && <Button link secondary className={mergeClasses('pos relative', tab == 'LIKE' ? 'active' : '')} onClick={() => onTabClick('LIKE')}>
 						<IcLike/>
-						<span>{action.stat?.reactions}</span>
+						<span className="c-badge pos absolute top-100 left-100">{action.stat?.reactions}</span>
 					</Button> }
 				</div>
 			</div>
 		</div>
-		{ tab == 'CMNT' && <Comments parentAction={action} className="mt-1"/> }
+		{ tab == 'CMNT' && <Comments parentAction={action} onCommentsRead={onCommentsRead} className="mt-1"/> }
 	</>
 }
 
@@ -542,6 +571,36 @@ export function FeedApp() {
 	const [text, setText] = React.useState('')
 	const ref = React.useRef<HTMLDivElement>(null)
 	const [width, setWidth] = React.useState(0)
+
+	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
+		const action = msg.data as ActionView
+
+		switch (action.type) {
+			case 'POST': return setFeed(function (feed) {
+				const fIdx = feed?.findIndex(f => f.actionId === action.parentId) ?? -1
+				return fIdx >= 0 ? feed : [action, ...(feed || [])]
+			})
+			case 'STAT': return setFeed(function (feed) {
+				const fIdx = feed?.findIndex(f => f.actionId === action.parentId) ?? -1
+				console.log('STAT inside fIdx', action.parentId, fIdx, feed)
+				if (fIdx >= 0) {
+					return feed?.map(f => {
+						const content = action.content as { r?: number, c?: number }
+						return f.actionId === action.parentId ? {
+							...f,
+							stat: {
+								...f.stat,
+								reactions: content.r,
+								comments: content.c
+							}
+						} : f
+					})
+				} else {
+					return feed
+				}
+			})
+		}
+	})
 
 	React.useLayoutEffect(function () {
 		//if (!ref.current || !api || !auth?.roles) return

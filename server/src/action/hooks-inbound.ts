@@ -60,6 +60,7 @@ export async function handlePost({ tnId, idTag }: ActionContext, actionId: strin
 }
 
 export async function handleMsg({ tnId, idTag }: ActionContext, actionId: string, action: Action) {
+	/*
 	const issuer = await metaAdapter.readProfile(tnId, action.issuerTag)
 	const audience = action.audienceTag ? await metaAdapter.readProfile(tnId, action.audienceTag) : undefined
 	// FIXME
@@ -79,6 +80,7 @@ export async function handleMsg({ tnId, idTag }: ActionContext, actionId: string
 		})
 		console.log('WS BUS sent', cnt)
 	}
+	*/
 }
 
 export async function handleReactionOrComment({ tnId, idTag }: ActionContext, actionId: string, action: Action) {
@@ -161,6 +163,23 @@ export async function handleFileShare(ctx: ActionContext, actionId: string, acti
 }
 
 export async function handleInboundAction(ctx: ActionContext, actionId: string, action: Action) {
+	const issuer = await metaAdapter.readProfile(ctx.tnId, action.issuerTag)
+	const audience = action.audienceTag ? await metaAdapter.readProfile(ctx.tnId, action.audienceTag) : undefined
+	const cnt = await messageBusAdapter.sendMessage(ctx.idTag, 'ACTION', {
+		actionId,
+		type: action.type,
+		subType: action.subType,
+		parentId: action.parentId,
+		rootId: action.rootId,
+		issuer,
+		audience,
+		createdAt: action.createdAt,
+		expiresAt: action.expiresAt,
+		content: action.content,
+		attachments: action.attachments
+	})
+	console.log('WS BUS sent', cnt)
+
 	switch (action.type) {
 		case 'ACK':
 			return handleAck(ctx, actionId, action)

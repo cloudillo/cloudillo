@@ -23,7 +23,7 @@ import debounce from 'debounce'
 
 import {
 	LuPlus as IcNew,
-	LuFilter as IcFilter,
+	LuMessagesSquare as IcConvList,
 
 	LuImage as IcImage,
 	LuSendHorizontal as IcSend,
@@ -165,7 +165,7 @@ function Msg({ className, action, local }: MsgProps) {
 	}
 
 	return <>
-		<div className={mergeClasses('c-panel c-msg p-2 mb-1', local ? 'local primary' : 'remote secondary', className)}>
+		<div className={mergeClasses('c-panel c-msg p-2 px-3 mb-1', local ? 'local primary' : 'remote secondary', className)}>
 			{ !local && <div className="c-panel-header d-flex">
 				<Link to={`/profile/${action.issuer.idTag}`}>
 					<ProfileCard profile={action.issuer}/>
@@ -331,7 +331,7 @@ export function ConversationCard({ className, conversation }: { className?: stri
 	const [auth] = useAuth()
 	const profile = conversation.profiles[0] || {}
 
-	return <Link className={mergeClasses('c-', className)} to={`/app/messages/${conversation.id}`}>
+	return <Link className={mergeClasses('c-nav-item', className)} to={`/app/messages/${conversation.id}`}>
 		<ProfileCard profile={profile}/>
 	</Link>
 }
@@ -372,7 +372,7 @@ function ConversationBar({ className, filter, setFilter, conversations, activeId
 		{ !!conversations && conversations.map(con => <ConversationCard
 			key={con.profiles[0]?.idTag}
 			conversation={con}
-			className={activeId === con.id ? 'bg-primary' : undefined}
+			className={activeId === con.id ? 'bg container-primary' : undefined}
 		/>) }
 	</div>
 }
@@ -384,7 +384,7 @@ export function MessagesApp() {
 	const [appConfig] = useAppConfig()
 	const api = useApi()
 	const [auth] = useAuth()
-	const [showFilter, setShowFilter] = React.useState(false)
+	const [showFilter, setShowFilter] = React.useState(!convId)
 	const [filter, setFilter] = React.useState<ConversationFilter>({})
 	const [conversations, setConversations] = React.useState<Conversation[] | undefined>()
 	const [conversation, setConversation] = React.useState<Conversation | undefined>()
@@ -414,6 +414,7 @@ export function MessagesApp() {
 	}, [auth, filter])
 
 	React.useEffect(function loadMessages() {
+		setShowFilter(!convId)
 		if (!auth || !convId) return
 		(async function () {
 			const profileRes = await api.get<{ profiles: Profile[] }>('', `/profile?idTag=${convId}`)
@@ -470,7 +471,7 @@ export function MessagesApp() {
 			</Fcb.Filter>
 			<Fcb.Content ref={convRef} onScroll={onConvScroll}
 				header={<div className="c-nav c-hbox md-hide lg-hide">
-					<IcFilter onClick={() => setShowFilter(true)}/>
+					<IcConvList onClick={() => setShowFilter(true)}/>
 					{convId && <IdentityTag idTag={convId}/>}
 				</div>}
 			>

@@ -133,6 +133,17 @@ export async function postAction(ctx: Context) {
 	}
 }
 
+const tPostActionStat = T.struct({
+	commentsRead: T.optional(T.number)
+})
+export async function postActionStat(ctx: Context) {
+	const { tnId } = ctx.state
+	const { actionId } = ctx.params
+	const d = validate(ctx, tPostActionStat)
+	await metaAdapter.updateActionData(tnId, actionId, d)
+	ctx.body = {}
+}
+
 export async function postActionAccept(ctx: Context) {
 	const { tnId } = ctx.state
 	const { actionId } = ctx.params

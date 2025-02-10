@@ -51,11 +51,12 @@ import {
 	LuListTodo as IcFormillo
 } from 'react-icons/lu'
 
+import * as T from '@symbion/runtype'
 import { Columns, ColumnConfig, DataTable, TableDataProvider } from '@symbion/ui-core'
 import '@symbion/ui-core/datatable.css'
 import '@symbion/ui-core/scroll.css'
 
-import { NewAction, Profile } from '@cloudillo/types'
+import { NewAction, tActionView, ActionView, Profile } from '@cloudillo/types'
 import { useApi, useAuth, useDialog, Button, Fcb, ProfilePicture, EditProfileList, Popper, Dialog, mergeClasses } from '@cloudillo/react'
 
 import { useAppConfig, parseQS, qs } from '../utils.js'
@@ -295,7 +296,7 @@ const FilterBar = React.memo(function FilterBar({ className }: { className?: str
 	const location = useLocation()
 	const navigate = useNavigate()
 	const dialog = useDialog()
-	const docStat = { mutable: 0, immutable: 0, todo: 0, new: 0, delegated: 0, monitored: 0 }
+	const fileStat = { mutable: 0, immutable: 0, todo: 0, new: 0, delegated: 0, monitored: 0 }
 
 	const qs = parseQS(location.search)
 
@@ -366,24 +367,24 @@ const FilterBar = React.memo(function FilterBar({ className }: { className?: str
 
 		<li className="c-nav-item">
 			<Link className={'c-nav-link ' + (!qs.filter ? 'active' : '')} to=""><IcAll/> {t('All')}
-				{!!docStat.todo && <span className="badge rounded-pill bg-danger">{docStat.mutable}</span>}
+				{!!fileStat.todo && <span className="c-badge bg error">{fileStat.mutable}</span>}
 			</Link>
 		</li>
 		<li className="c-nav-item">
 			<Link className={'c-nav-link ' + (qs.filter === 'mut' ? 'active' : '')} to="?filter=mut"><IcMutable/> {t('Mutable')}
-				{!!docStat.todo && <span className="badge rounded-pill bg-danger">{docStat.mutable}</span>}
+				{!!fileStat.todo && <span className="c-badge bg error">{fileStat.mutable}</span>}
 			</Link>
 		</li>
 		<li className="c-nav-item">
 			<Link className={'c-nav-link ' + (qs.filter === 'imm' ? 'active' : '')} to="?filter=imm"><IcImmutable/> {t('Immutable')}
-				{!!docStat.todo && <span className="badge rounded-pill bg-danger">{docStat.todo}</span>}
+				{!!fileStat.todo && <span className="c-badge bg error">{fileStat.todo}</span>}
 			</Link>
 		</li>
 		<hr className="w-100"/>
 
 		<li className="c-nav-item">
 			<Link className="c-nav-link" to="?filter=new"><IcUploaded/> {t('New uploads')}
-				{!!docStat.new && <span className="badge rounded-pill bg-danger">{docStat.new}</span>}
+				{!!fileStat.new && <span className="c-badge bg error">{fileStat.new}</span>}
 			</Link>
 		</li>
 
@@ -406,7 +407,6 @@ const FileCard = React.memo(
 function FileCard({ className, file, onClick, renameFileId, renameFileName, fileOps }: FileCardProps) {
 	const [auth] = useAuth()
 	const { t } = useTranslation()
-	console.log('FILE CARD', file)
 
 	function setTags(tags?: string[]) {
 		fileOps.setFile?.({ ...file, tags })
@@ -455,10 +455,25 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 	const { t } = useTranslation()
 	const api = useApi()
 	const [auth] = useAuth()
-	const [permissionList, setPermissionList] = React.useState<Profile[]>()
+	const dialog = useDialog()
+	const [fileActions, setFileActions] = React.useState<ActionView[] | undefined>()
+
+	const readPerms = React.useMemo(function readPerms() {
+		return fileActions?.filter(a => a.type === 'FSHR' && a.subType === 'READ')
+			.sort((a, b) => a.audience?.idTag.localeCompare(b.audience?.idTag ?? '') || 0)
+	}, [fileActions])
+	const writePerms = React.useMemo(function writePerms() {
+		return fileActions?.filter(a => a.type === 'FSHR' && a.subType === 'WRITE')
+			.sort((a, b) => a.audience?.idTag.localeCompare(b.audience?.idTag ?? '') || 0)
+	}, [fileActions])
+	console.log({ readPerms, writePerms })
 
 	React.useEffect(function loadFileDetails() {
-		setPermissionList([])
+		(async function () {
+			const res = await api.get(file.owner?.idTag || '', `/action?types=FSHR&subject=${file.fileId}`, { type: T.struct({ actions: T.array(tActionView) }) })
+			console.log('loadFileDetails res', res)
+			setFileActions(res.actions)
+		})()
 	}, [file])
 
 	// Permissions //
@@ -470,12 +485,12 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 		return res.profiles
 	}
 
-	async function addPerm(profile: Profile) {
+	async function addPerm(profile: Profile, perm: 'WRITE' | 'READ') {
 		if (!file) return
 
 		const action: NewAction = {
 			type: 'FSHR',
-			subType: 'WRITE',
+			subType: perm,
 			subject: file.fileId,
 			content: {
 				fileName: file.fileName,
@@ -484,12 +499,16 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 			audienceTag: profile.idTag
 		}
 
-		const res = await api.post<{ actionId: string }>('', '/action', { data: action })
-		setPermissionList(pl => (pl || []).find(p => p.idTag === profile.idTag) ? pl : [...(pl || []), profile])
+		const res = await api.post('', '/action', { data: action, type: tActionView })
+		console.log('FSHR res', res)
+		let found = false
+		setFileActions(fileActions => (fileActions || []).map(fa => fa.audience?.idTag === profile.idTag ? (found = true, res) : fa).concat(found ? [] : [res]))
+		//setPermissionList(pl => (pl || []).find(p => p.idTag === profile.idTag) ? pl : [...(pl || []), profile])
 	}
 
 	async function removePerm(idTag: string) {
 		if (!file) return
+		if (!await dialog.confirm(t('Confirmation'), t("Are you sure you want to remove this user's permission?"))) return
 
 		const action: NewAction = {
 			type: 'FSHR',
@@ -497,43 +516,59 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 			audienceTag: idTag
 		}
 
-		const res = await api.post<{ actionId: string }>('', '/action', { data: action })
-		setPermissionList(permissionList?.filter(p => p.idTag !== idTag))
+		const res = await api.post('', '/action', { data: action, type: tActionView })
+		setFileActions(fa => fa?.filter(fa => fa.audience?.idTag !== idTag))
+		//setPermissionList(permissionList?.filter(p => p.idTag !== idTag))
 	}
 
-	return <div className="c-panel h-min-100">
-		<div className="c-panel-header d-flex">
-			<h3 className="c-panel-title d-flex flex-fill">
-				{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons[file.contentType] || IcUnknown, { className: 'me-1' })}
-				{ renameFileName !== undefined && file.fileId === renameFileId ? <form onSubmit={evt => (evt.preventDefault(), renameFileName && fileOps.doRenameFile(file.fileId, renameFileName))} className="c-input-group">
-					<input className="c-input" type="text" autoFocus value={renameFileName} onChange={e => fileOps.setRenameFileName(e.target.value)}/>
-						<button className="c-button primary p-1" type="submit"><IcSave/></button>
-						<button className="c-button secondary p-1" type="button" onClick={() => fileOps.setRenameFileName(undefined)}
-						><IcCancel/></button>
-				</form>
-				: file.fileName}
-			</h3>
-			<div className="d-flex justify-content-end">
-				<button className="c-link p-1" type="button" onClick={() => fileOps.openFile(file.fileId)}><IcEdit/></button>
-				<div className="dropdown">
-					<details className="c-dropdown">
-						<summary className="c-link p-1"><IcMore/></summary>
-						<ul className="c-nav">
-							<li className="c-nav-item"><a href="#" onClick={() => fileOps.renameFile(file.fileId)}>{t('Rename...')}</a></li>
-						</ul>
-					</details>
+	return <div className="c-vbox g-2">
+		<div className="c-panel mid">
+			<div className="c-panel-header d-flex">
+				<h3 className="c-panel-title d-flex flex-fill">
+					{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons[file.contentType] || IcUnknown, { className: 'me-1' })}
+					{ renameFileName !== undefined && file.fileId === renameFileId ? <form onSubmit={evt => (evt.preventDefault(), renameFileName && fileOps.doRenameFile(file.fileId, renameFileName))} className="c-input-group">
+						<input className="c-input" type="text" autoFocus value={renameFileName} onChange={e => fileOps.setRenameFileName(e.target.value)}/>
+							<button className="c-button primary p-1" type="submit"><IcSave/></button>
+							<button className="c-button secondary p-1" type="button" onClick={() => fileOps.setRenameFileName(undefined)}
+							><IcCancel/></button>
+					</form>
+					: file.fileName}
+				</h3>
+				<div className="d-flex justify-content-end">
+					<button className="c-link p-1" type="button" onClick={() => fileOps.openFile(file.fileId)}><IcEdit/></button>
+					<div className="dropdown">
+						<details className="c-dropdown">
+							<summary className="c-link p-1"><IcMore/></summary>
+							<ul className="c-nav">
+								<li className="c-nav-item"><a href="#" onClick={() => fileOps.renameFile(file.fileId)}>{t('Rename...')}</a></li>
+							</ul>
+						</details>
+					</div>
+					{ auth?.idTag && file.variantId && <img src={`https://cl-o.${auth.idTag}/api/store/${file.variantId}`}/> }
 				</div>
-				{ auth?.idTag && file.variantId && <img src={`https://cl-o.${auth.idTag}/api/store/${file.variantId}`}/> }
+			</div>
+			<div className="c-tag-list">
+				<TagsCell fileId={file.fileId} tags={file.tags} editable/>
 			</div>
 		</div>
-		<div className="c-tag-list">
-			<TagsCell fileId={file.fileId} tags={file.tags} editable/>
-		</div>
 
-		{ file.owner?.idTag == auth?.idTag && <>
-			<h4>{t('Permissions')}</h4>
-			<EditProfileList profiles={permissionList} listProfiles={listProfiles} addProfile={addPerm} removeProfile={removePerm}/>
-		</> }
+		{ file.owner?.idTag == auth?.idTag && <div className="c-panel mid">
+			<div className="c-panel-header d-flex">
+				<h3>{t('Permissions')}</h3>
+			</div>
+			<div>
+				{ !!writePerms && <>
+					<h4 className="py-2">{t('Write permissions')}</h4>
+					<EditProfileList className="my-2" placeholder={t('Add profile')} profiles={writePerms.filter(rp => rp.audience).map(rp => rp.audience) as Profile[]} listProfiles={listProfiles} addProfile={p => addPerm(p, 'WRITE')} removeProfile={removePerm}/>
+				</> }
+				{/* FIXME: Read only permissions not supported yet
+				{ !!readPerms && <>
+					<h4 className="py-2">{t('Read only permissions')}</h4>
+					<EditProfileList className="my-2" placeholder={t('Add profile')} profiles={readPerms.filter(rp => rp.audience).map(rp => rp.audience) as Profile[]} listProfiles={listProfiles} addProfile={p => addPerm(p, 'READ')} removeProfile={removePerm}/>
+				</> }
+				*/}
+			</div>
+		</div> }
 	</div>
 }
 

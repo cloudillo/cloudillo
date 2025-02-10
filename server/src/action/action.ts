@@ -90,7 +90,7 @@ export function generateActionKey(actionId: string, action: NewAction & { issuer
 			key = `${action.type}:${action.issuerTag}:${action.audienceTag}`
 			break
 		case 'FSHR':
-			key = `${action.type}:${action.subject}`
+			key = `${action.type}:${action.subject}:${action.audienceTag}`
 			break
 	}
 	console.log('generateActionKey', key)

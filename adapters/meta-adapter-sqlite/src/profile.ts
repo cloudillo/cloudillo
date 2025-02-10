@@ -38,6 +38,7 @@ export async function listProfiles(tnId: number, opts: ListProfilesOptions) {
 		profilePic?: string,
 		status?: ProfileStatus,
 		perm?: ProfilePerm,
+		type?: 'C',
 
 		following?: boolean,
 		connected?: boolean
@@ -46,9 +47,10 @@ export async function listProfiles(tnId: number, opts: ListProfilesOptions) {
 	const res: Profile[] = rows.map(row => ({
 		idTag: row.idTag,
 		name: row.name,
-		profilePic: row.profilePic,
+		profilePic: row.profilePic || undefined,
 		status: row.status,
-		perm: row.perm,
+		perm: row.perm || undefined,
+		type: row.type == 'C' ? 'community' : 'person',
 		following: row.following != null ? !!row.following : undefined,
 		connected: row.connected == null ? undefined
 			: !row.connected ? 'R'
@@ -69,7 +71,11 @@ export async function readProfile(tnId: number, idTag: string) {
 	if (!profile) return
 
 	const ret: Profile = {
-		...profile,
+		idTag: profile.idTag,
+		name: profile.name,
+		profilePic: profile.profilePic || undefined,
+		status: profile.status,
+		perm: profile.perm || undefined,
 		type: profile.type == 'C' ? 'community' : 'person',
 		following: profile.following !== null ? !!profile.following : undefined,
 		connected: profile.connected === null ? undefined

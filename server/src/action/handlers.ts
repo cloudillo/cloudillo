@@ -38,7 +38,8 @@ const tListActionsQuery = T.struct({
 	audience: T.optional(T.string),
 	involved: T.optional(T.string),
 	parentId: T.optional(T.string),
-	rootId: T.optional(T.string)
+	rootId: T.optional(T.string),
+	subject: T.optional(T.string)
 })
 
 export async function listActions(ctx: Context) {

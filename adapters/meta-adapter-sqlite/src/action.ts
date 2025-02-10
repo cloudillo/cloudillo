@@ -65,6 +65,7 @@ export async function listActions(tnId: number, auth: Auth | undefined, opts: Li
 		+ (!opts.parentId && !opts.rootId ? " AND a.parentId IS NULL" : '')
 		+ (opts.parentId ? ` AND a.parentId=${ql(opts.parentId)}` : '')
 		+ (opts.rootId ? ` AND a.rootId=${ql(opts.rootId)}` : '')
+		+ (opts.subject ? ` AND a.subject=${ql(opts.subject)}` : '')
 		//+ (tag !== undefined ? " AND ','||tags||',' LIKE $tagLike" : '')
 		+ " ORDER BY a.createdAt DESC LIMIT 100"
 	//console.log('listActions', q)

@@ -175,6 +175,7 @@ export interface ListActionsOptions {
 	actionId?: string
 	parentId?: string
 	rootId?: string
+	subject?: string
 }
 
 export interface UpdateActionDataOptions {

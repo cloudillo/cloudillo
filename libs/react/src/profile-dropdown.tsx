@@ -27,12 +27,14 @@ import { Select } from './select.js'
 import { ProfileCard } from './components.js'
 
 interface EditTagsProps {
+	className?: string
+	placeholder?: string
 	profiles?: Profile[]
 	listProfiles: (q: string) => Promise<Profile[] | undefined>
 	addProfile?: (profile: Profile) => Promise<void>
 	removeProfile?: (idTag: string) => Promise<void>
 }
-export function EditProfileList({ profiles, listProfiles, addProfile, removeProfile }: EditTagsProps) {
+export function EditProfileList({ className, placeholder, profiles, listProfiles, addProfile, removeProfile }: EditTagsProps) {
 	const [add, setAdd] = React.useState(false)
 	const { t } = useTranslation()
 
@@ -56,17 +58,17 @@ export function EditProfileList({ profiles, listProfiles, addProfile, removeProf
 		return profile && removeProfile?.(profile.idTag)
 	}
 
-	return <>
-			<Select placeholder={t('Search user')} getData={getData} itemToId={i => i.idTag} itemToString={i => i?.idTag || ''} renderItem={renderItem} onSelectItem={onAdd}/>
-			<div>
-				{(profiles || []).map((profile, i) => (
-					<button key={profile.idTag} className="c-link w-100 p-0 ps-1" onClick={() => onRemove(profile)}>
-						<ProfileCard className="w-100" profile={profile}/>
-						<IcDelete/>
-					</button>
-				))}
-			</div>
-		</>
+	return <div className={className}>
+		<Select placeholder={placeholder ?? t('Search user')} getData={getData} itemToId={i => i.idTag} itemToString={i => i?.idTag || ''} renderItem={renderItem} onSelectItem={onAdd}/>
+		<div>
+			{(profiles || []).map((profile, i) => (
+				<button key={profile.idTag} className="c-link w-100 p-0 ps-1" onClick={() => onRemove(profile)}>
+					<ProfileCard className="w-100" profile={profile}/>
+					<IcDelete/>
+				</button>
+			))}
+		</div>
+	</div>
 }
 
 // vim: ts=4

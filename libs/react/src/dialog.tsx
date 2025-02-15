@@ -69,6 +69,7 @@ interface DialogState {
 	className?: string
 	placeholder?: string
 	defaultValue?: string
+	multiline?: boolean
 }
 
 const dialogAtom = atom<DialogState | undefined>()
@@ -112,7 +113,10 @@ export function DialogContainer() {
 				</div>}
 				{ dialog.type == 'Text' && <>
 					<form onSubmit={e => { e.preventDefault(); onButtonClick(value) }}>
-						<input className="c-input mt-3" type="text" placeholder={dialog.placeholder} defaultValue={dialog.defaultValue} autoFocus onChange={e => setValue(e.target.value)}/>
+						{ !dialog.multiline
+							? <input className="c-input mt-3" type="text" placeholder={dialog.placeholder} defaultValue={dialog.defaultValue} autoFocus onChange={e => setValue(e.target.value)}/>
+							: <textarea className="c-input mt-3" placeholder={dialog.placeholder} defaultValue={dialog.defaultValue} autoFocus onChange={e => setValue(e.target.value)}/>
+						}
 					</form>
 					<div className="c-group g-2 mt-4">
 						<Button primary onClick={() => onButtonClick(value)}>{t('OK')}</Button>
@@ -148,13 +152,14 @@ export function useDialog() {
 		return ret()
 	}
 
-	function askText(title: string, descr: string, { className, placeholder, defaultValue }: {
+	function askText(title: string, descr: string, { className, placeholder, defaultValue, multiline }: {
 		className?: string
 		placeholder?: string
 		defaultValue?: string
+		multiline?: boolean
 	} = {}) {
-		setDialog({ type: 'Text', title, descr, className, placeholder, defaultValue })
-		console.log('askText', { title, descr, className, placeholder, defaultValue })
+		setDialog({ type: 'Text', title, descr, className, placeholder, defaultValue, multiline })
+		console.log('askText', { title, descr, className, placeholder, defaultValue, multiline })
 		return ret()
 	}
 

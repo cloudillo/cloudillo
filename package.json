@@ -1,5 +1,5 @@
 {
-	"version": "0.0.2",
+	"version": "0.0.5",
 	"private": true,
 	"packageManager": "pnpm@9.14.4",
 	"workspaces": [
@@ -7,7 +7,9 @@
 		"frontend"
 	],
 	"scripts": {
-		"build-docker": "docker --context default build -t cloudillo/cloudillo:$npm_package_version -t cloudillo/cloudillo:latest .",
-		"publish-docker": "docker --context default push cloudillo/cloudillo:$npm_package_version && docker --context default push cloudillo/cloudillo:latest"
+		"build-docker": "docker --context default build -t cloudillo/cloudillo:$npm_package_version -t cloudillo/cloudillo:latest -f Dockerfile.debian .",
+		"build-docker-alpine": "docker --context default build -t cloudillo/cloudillo:$npm_package_version-alpine -t cloudillo/cloudillo:latest-alpine -f Dockerfile.alpine .",
+		"publish-docker": "docker --context default push cloudillo/cloudillo:$npm_package_version && docker --context default push cloudillo/cloudillo:latest",
+		"publish-docker-alpine": "docker --context default push cloudillo/cloudillo:$npm_package_version-alpine && docker --context default push cloudillo/cloudillo:latest-alpine"
 	}
 }

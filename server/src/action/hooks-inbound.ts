@@ -16,7 +16,7 @@
 
 import * as T from '@symbion/runtype'
 
-import { Action, NewAction } from '@cloudillo/types'
+import { Action, NewAction, ActionView } from '@cloudillo/types'
 import { metaAdapter, blobAdapter, messageBusAdapter } from '../adapters.js'
 import { ProxyToken, createActionToken, createProxyToken, getIdentityTag } from '../auth/handlers.js'
 import { getProfile } from '../profile/profile.js'
@@ -26,6 +26,7 @@ import { createAction, checkToken, generateActionKey } from './action.js'
 export interface ActionContext {
 	tnId: number
 	idTag: string
+	busAction: ActionView
 }
 
 export async function handleAck({ tnId, idTag }: ActionContext, actionId: string, action: Action) {
@@ -118,6 +119,7 @@ export async function handleStat({ tnId, idTag }: ActionContext, actionId: strin
 export async function handleFollow(ctx: ActionContext, actionId: string, action: Action) {
 	console.log('FLLW', action.issuerTag, action.audienceTag, ctx.idTag)
 	if (action.audienceTag == ctx.idTag && action.subType !== 'DEL') {
+		ctx.busAction.status = 'N'
 		await metaAdapter.updateActionData(ctx.tnId, actionId, { status: 'N' })
 	}
 }
@@ -143,12 +145,14 @@ export async function handleConn(ctx: ActionContext, actionId: string, action: A
 						const profile = await metaAdapter.readProfile(ctx.tnId, action.issuerTag)
 						await metaAdapter.updateProfile(ctx.tnId, action.issuerTag, { connected: true, following: true, perm: profile?.perm || 'W' })
 					} else {
+						ctx.busAction.status = 'N'
 						await metaAdapter.updateActionData(ctx.tnId, actionId, { status: 'N' })
 					}
 				}
 				break
 			case 'DEL':
 				if (req && !req?.subType) {
+					ctx.busAction.status = 'N'
 					await metaAdapter.updateActionData(ctx.tnId, actionId, { status: 'N' })
 				}
 		}
@@ -158,14 +162,15 @@ export async function handleConn(ctx: ActionContext, actionId: string, action: A
 export async function handleFileShare(ctx: ActionContext, actionId: string, action: Action) {
 	console.log('FSHR', action.issuerTag, action.audienceTag, ctx.idTag)
 	if (action.audienceTag == ctx.idTag && action.subType !== 'DEL') {
+		ctx.busAction.status = 'N'
 		await metaAdapter.updateActionData(ctx.tnId, actionId, { status: 'N' })
 	}
 }
 
-export async function handleInboundAction(ctx: ActionContext, actionId: string, action: Action) {
-	const issuer = await metaAdapter.readProfile(ctx.tnId, action.issuerTag)
-	const audience = action.audienceTag ? await metaAdapter.readProfile(ctx.tnId, action.audienceTag) : undefined
-	const cnt = await messageBusAdapter.sendMessage(ctx.idTag, 'ACTION', {
+export async function handleInboundAction(tnId: number, idTag: string, actionId: string, action: Action) {
+	const issuer = (await metaAdapter.readProfile(tnId, action.issuerTag))!
+	const audience = action.audienceTag ? await metaAdapter.readProfile(tnId, action.audienceTag) : undefined
+	const busAction: ActionView = {
 		actionId,
 		type: action.type,
 		subType: action.subType,
@@ -173,32 +178,47 @@ export async function handleInboundAction(ctx: ActionContext, actionId: string, 
 		rootId: action.rootId,
 		issuer,
 		audience,
-		createdAt: action.createdAt,
-		expiresAt: action.expiresAt,
+		createdAt: new Date(action.createdAt * 1000).toISOString(),
+		expiresAt: action.expiresAt ? new Date(action.expiresAt * 1000).toISOString() : undefined,
 		content: action.content,
-		attachments: action.attachments
-	})
-	console.log('WS BUS sent', cnt)
+		status: 'A',
+		attachments: undefined // FIXME
+		//attachments: action.attachments
+	}
+	const ctx: ActionContext = {
+		tnId,
+		idTag,
+		busAction
+	}
 
 	switch (action.type) {
 		case 'ACK':
-			return handleAck(ctx, actionId, action)
+			handleAck(ctx, actionId, action)
+			break
 		case 'POST':
-			return handlePost(ctx, actionId, action)
+			handlePost(ctx, actionId, action)
+			break
 		case 'MSG':
-			return handleMsg(ctx, actionId, action)
+			handleMsg(ctx, actionId, action)
+			break
 		case 'REACT':
 		case 'CMNT':
-			return handleReactionOrComment(ctx, actionId, action)
+			handleReactionOrComment(ctx, actionId, action)
+			break
 		case 'STAT':
-			return handleStat(ctx, actionId, action)
+			handleStat(ctx, actionId, action)
+			break
 		case 'CONN':
-			return handleConn(ctx, actionId, action)
+			handleConn(ctx, actionId, action)
+			break
 		case 'FSHR':
-			return handleFileShare(ctx, actionId, action)
+			handleFileShare(ctx, actionId, action)
+			break
 		default:
 			return
 	}
+	const cnt = await messageBusAdapter.sendMessage(ctx.idTag, 'ACTION', busAction)
+	console.log('WS BUS sent', cnt)
 }
 
 export async function handleInboundActionToken(tnId: number, actionId: string, token: string, opts?: { ack?: boolean}) {
@@ -308,7 +328,7 @@ export async function handleInboundActionToken(tnId: number, actionId: string, t
 			attachments: act.a
 		}
 		await metaAdapter.createAction(tnId, actionId, action, generateActionKey(actionId, action))
-		await handleInboundAction({ tnId, idTag }, actionId, action)
+		await handleInboundAction(tnId, idTag, actionId, action)
 	} catch (err) {
 		console.log('ERROR', err)
 		throw err

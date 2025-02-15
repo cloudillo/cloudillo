@@ -21,7 +21,7 @@ import { HttpError} from 'koa'
 import { nanoid } from 'nanoid'
 import * as T from '@symbion/runtype'
 
-import { tActionType, tNewAction } from '@cloudillo/types'
+import { tActionType, tActionStatus, tNewAction } from '@cloudillo/types'
 
 import { Context } from '../index.js'
 import { validate, validateQS, sha256 } from '../utils.js'
@@ -34,7 +34,7 @@ import { metaAdapter } from '../adapters.js'
 //////////////////
 const tListActionsQuery = T.struct({
 	types: T.optional(T.string),
-	statuses: T.optional(T.array(T.literal('P', 'A', 'R', 'N'))),
+	statuses: T.optional(T.array(tActionStatus)),
 	audience: T.optional(T.string),
 	involved: T.optional(T.string),
 	parentId: T.optional(T.string),

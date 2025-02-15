@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as T from '@symbion/runtype'
+import { ActionStatus } from '@cloudillo/types'
 import { Action, ActionView, ListActionsOptions, UpdateActionDataOptions, CreateOutboundActionOptions, Auth } from '@cloudillo/server/types/meta-adapter'
 
 import { db, ql, cleanRes } from './db.js'
@@ -50,7 +51,7 @@ export async function listActions(tnId: number, auth: Auth | undefined, opts: Li
 		a.audience as audienceTag, pa.name as audienceName, pa.profilePic as audienceProfilePic,
 		a.subject, a.content, a.createdAt, a.expiresAt,
 		ownReact.content as ownReaction,
-		a.attachments, a.reactions, a.comments, a.commentsRead
+		a.attachments, a.status, a.reactions, a.comments, a.commentsRead
 		FROM actions a
 		LEFT JOIN profiles pi ON pi.tnId=a.tnId AND pi.idTag=a.idTag
 		LEFT JOIN profiles pa ON pa.tnId=a.tnId AND pa.idTag=a.audience
@@ -86,6 +87,7 @@ export async function listActions(tnId: number, auth: Auth | undefined, opts: Li
 		createdAt: number
 		expiresAt?: number
 		attachments?: string
+		status?: ActionStatus
 		reactions?: number
 		comments?: number
 		commentsRead?: number
@@ -116,6 +118,7 @@ export async function listActions(tnId: number, auth: Auth | undefined, opts: Li
 		expiresAt: r.expiresAt ? new Date(r.expiresAt * 1000).toISOString() : undefined,
 		content: r.content ? JSON.parse(r.content) : undefined,
 		attachments: r.attachments ? await getAttachments(tnId, JSON.parse(r.attachments)) : undefined,
+		status: r.status,
 		stat: {
 			ownReaction: r.ownReaction ? JSON.parse(r.ownReaction) : r.ownReaction,
 			reactions: r.reactions,

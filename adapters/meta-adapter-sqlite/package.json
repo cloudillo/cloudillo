@@ -21,6 +21,7 @@
         "sqlite3": "5.1.7"
     },
     "devDependencies": {
+        "@cloudillo/types": "workspace:^",
         "@types/node": "^22.13.1",
         "rimraf": "^6.0.1",
         "typescript": "^5.7.3"

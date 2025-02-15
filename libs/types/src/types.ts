@@ -26,6 +26,9 @@ export type Profile = T.TypeOf<typeof tProfile>
 export const tActionType = T.literal('CONN', 'FLLW', 'POST', 'REPOST', 'REACT', 'CMNT', 'FLLW', 'SHRE', 'MSG', 'FSHR')
 export type ActionType = T.TypeOf<typeof tActionType>
 
+export const tActionStatus = T.literal('P', 'A', 'R', 'N')
+export type ActionStatus = T.TypeOf<typeof tActionStatus>
+
 export const tAction = T.struct({
 	type: T.string,
 	subType: T.optional(T.string),
@@ -82,6 +85,7 @@ export const tActionView = T.struct({
 	subject: T.optional(T.string),
 	createdAt: T.string,
 	expiresAt: T.optional(T.string),
+	status: T.optional(tActionStatus),
 	stat: T.optional(T.struct({
 		ownReaction: T.optional(T.string),
 		reactions: T.optional(T.number),

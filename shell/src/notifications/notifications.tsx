@@ -58,12 +58,12 @@ function ConnectNotification({ className, action, onClick }: { className?: strin
 				<ProfileCard profile={action.issuer}/>
 			</Link>
 			<div className="c-hbox ms-auto g-3">
-				{ action.subType != 'DEL' && <button className="c-link" onClick={onAccept}><IcAccept/></button> }
-				<button className="c-link" onClick={onReject}><IcReject/></button>
+				<button className="c-link" onClick={onAccept}><IcAccept/></button>
+				{ action.status == 'C' && <button className="c-link" onClick={onReject}><IcReject/></button> }
 			</div>
 		</div><div className="d-flex flex-column">
 			{ !action.subType && <>
-				<h3>{ t("wants to connect") }</h3>
+				<h3>{ t("Wants to connect") }</h3>
 				{ content && content.split('\n\n').map((paragraph, i) => <p key={i}>
 					{ paragraph.split('\n').map((line, i) => <React.Fragment key={i}>
 						{ generateFragments(line).map((n, i) => <React.Fragment key={i}>{n}</React.Fragment>) }
@@ -71,7 +71,7 @@ function ConnectNotification({ className, action, onClick }: { className?: strin
 				</p>) }
 			</> }
 			{ action.subType == 'DEL' && <>
-				<h3>{ t('refused to connect') }</h3>
+				<h3>{ t('User disconnected, or refused to connect') }</h3>
 			</> }
 		</div>
 	</div>
@@ -106,6 +106,7 @@ function FileShareNotification({ className, action, onClick }: { className?: str
 				<button className="c-link" onClick={onReject}><IcReject/></button>
 			</div>
 		</div><div className="d-flex flex-column">
+			<h3>{ t("Wants to share a file with you") }</h3>
 			<div>Filename: <span className="text-emph">{ content.fileName }</span></div>
 			<div>Type: <span className="text-emph">{ content.contentType }</span></div>
 		</div>

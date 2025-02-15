@@ -122,7 +122,7 @@ function ProfileConnection({ localProfile, cmds }: { localProfile?: Partial<Prof
 					<button className="c-nav-item" onClick={cmds.onConnect}><IcConnect/>{t('Connect')}</button>
 				</li> }
 				{ localProfile.connected == 'R' && <li className="c-nav-item">
-					<IcConnect/>{t('Connection request sent')}
+					<button className="c-nav-item" onClick={cmds.onDisconnect}><IcConnect/>{t('Cancel request')}</button>
 				</li> }
 				{ localProfile.connected == true && <li>
 					<button className="c-nav-item" onClick={cmds.onDisconnect}><IcConnect/>{t('Disconnect')}</button>
@@ -438,9 +438,11 @@ export function ProfileConnections({ profile }: ProfileTabProps) {
 
 function Profile() {
 	const loc = useLocation()
+	const { t } = useTranslation()
 
 	const [auth] = useAuth()
 	const api = useApi()
+	const dialog = useDialog()
 	const idTag = useParams().idTag == 'me' ? auth?.idTag : useParams().idTag || auth?.idTag
 	const own = idTag == auth?.idTag
 	const [profile, setProfile] = React.useState<FullProfile>()
@@ -488,13 +490,22 @@ function Profile() {
 
 	async function onConnect() {
 		if (!profile || localProfile?.connected) return
-		const connectAction: NewAction = { type: 'CONN', audienceTag: profile.idTag, }
-		const res = await api.post('', '/action', { data: connectAction })
-		setLocalProfile(p => p ? { ...p, connected: 'R' } : p)
+		const content = await dialog.askText(t('Connection request'), t('Are you sure you want to send a connection request?'), { placeholder: t('Personalize the connection request'), multiline: true })
+		if (content != undefined) {
+			console.log('content', content)
+			const connectAction: NewAction = {
+				type: 'CONN',
+				audienceTag: profile.idTag,
+				content
+			}
+			const res = await api.post('', '/action', { data: connectAction })
+			setLocalProfile(p => p ? { ...p, connected: 'R' } : p)
+		}
 	}
 
 	async function onDisconnect() {
 		if (!profile || !localProfile?.connected) return
+		if (!await dialog.confirm(t('Cancel connection'), t('Are you sure you want to disconnect?'))) return
 		const disconnectAction: NewAction = { type: 'CONN', subType: 'DEL', audienceTag: profile.idTag, }
 		const res = await api.post('', '/action', { data: disconnectAction })
 		setLocalProfile(p => p ? { ...p, connected: undefined } : p)

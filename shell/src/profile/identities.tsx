@@ -64,17 +64,17 @@ function FilterBar({ className }: { className?: string }) {
 	return <ul className={'c-nav vertical low' + (className || '')}>
 		<li className="c-nav-item">
 			<Link className={'c-nav-link ' + (qs.filter === 'connected' ? 'active' : '')} to="?connected=1"><IcUserConnected/> {t('Connected')}
-				{!!userStat.connected && <span className="badge rounded-pill bg-danger">{userStat.connected}</span>}
+				{!!userStat.connected && <span className="c-badge bg error">{userStat.connected}</span>}
 			</Link>
 		</li>
 		<li className="c-nav-item">
 			<Link className={'c-nav-link ' + (qs.filter === 'followed' ? 'active' : '')} to="?filter=followed"><IcUserFollowed/> {t('Followed')}
-				{!!userStat.followed && <span className="badge rounded-pill bg-danger">{userStat.followed}</span>}
+				{!!userStat.followed && <span className="c-badge bg error">{userStat.followed}</span>}
 			</Link>
 		</li>
 		<li className="c-nav-item">
 			<Link className={'c-nav-link ' + (!qs.filter ? 'active' : '')} to=""><IcUserAll/> {t('All')}
-				{!!userStat.all && <span className="badge rounded-pill bg-danger">{userStat.all}</span>}
+				{!!userStat.all && <span className="c-badge bg error">{userStat.all}</span>}
 			</Link>
 		</li>
 		<hr className="w-100"/>

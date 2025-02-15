@@ -124,7 +124,7 @@ function Header({ inert }: { inert?: boolean }) {
 
 	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
 		const action = msg.data as ActionView
-		if (action.status == 'N') setNotifications(n => ({ notifications: [...n?.notifications, action] }))
+		if (action.status == 'N' || action.status == 'C') setNotifications(n => ({ notifications: [...n?.notifications, action] }))
 	})
 
 	async function doLogout() {

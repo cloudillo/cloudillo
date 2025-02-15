@@ -26,10 +26,17 @@ export type Profile = T.TypeOf<typeof tProfile>
 export const tActionType = T.literal('CONN', 'FLLW', 'POST', 'REPOST', 'REACT', 'CMNT', 'FLLW', 'SHRE', 'MSG', 'FSHR')
 export type ActionType = T.TypeOf<typeof tActionType>
 
-export const tActionStatus = T.literal('P', 'A', 'R', 'N')
+export const tActionStatus = T.literal(
+	'P',
+	'A',	// Active
+	'R',
+	'C',	// Confirmation needed
+	'N'		// Notification
+)
 export type ActionStatus = T.TypeOf<typeof tActionStatus>
 
 export const tAction = T.struct({
+	actionId: T.string,
 	type: T.string,
 	subType: T.optional(T.string),
 	parentId: T.optional(T.string),

@@ -248,7 +248,7 @@ export interface MetaAdapter {
 	getActionData: (tnId: number, actionId: string) => Promise<{ subject?: string, reactions?: number, comments?: number } | undefined>
 	getActionByKey: (tnId: number, actionKey: string) => Promise<Action | undefined>
 	getActionToken: (tnId: number, actionId: string) => Promise<string | undefined>
-	createAction: (tnId: number, actionId: string, action: Action, key?: string) => Promise<void>
+	createAction: (tnId: number, action: Action, key?: string) => Promise<void>
 	updateActionData: (tnId: number, actionId: string, opts: UpdateActionDataOptions) => Promise<void>
 	// Inbound actions
 	createInboundAction: (tnId: number, actionId: string, token: string, rel?: string) => Promise<void>

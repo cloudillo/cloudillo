@@ -151,12 +151,13 @@ export async function getActionData(tnId: number, actionId: string) {
 }
 
 export async function getActionByKey(tnId: number, actionKey: string) {
-	const res = await db.get<{ type: string, issuerTag: string, createdAt: number, subType?: string }>(
-			"SELECT type, idTag as issuerTag, createdAt, subType FROM actions WHERE tnId = $tnId AND key=$actionKey AND coalesce(status, '')!='D'",
+	const res = await db.get<{ actionId: string, type: string, issuerTag: string, createdAt: number, subType?: string }>(
+			"SELECT actionId, type, idTag as issuerTag, createdAt, subType FROM actions WHERE tnId = $tnId AND key=$actionKey AND coalesce(status, '')!='D'",
 			{ $tnId: tnId, $actionKey: actionKey }
 		)
 	console.log('getActionByKey', tnId, actionKey, res)
 	return !res ? undefined : {
+		actionId: res.actionId,
 		type: res.type,
 		issuerTag: res?.issuerTag,
 		createdAt: res?.createdAt,
@@ -173,13 +174,13 @@ export async function getActionToken(tnId: number, actionId: string) {
 	return res?.token
 }
 
-export async function createAction(tnId: number, actionId: string, action: Action, key?: string) {
-	console.log('createAction', tnId, actionId, JSON.stringify(action), key)
+export async function createAction(tnId: number, action: Action, key?: string) {
+	console.log('createAction', tnId, action.actionId, JSON.stringify(action), key)
 	await db.run("INSERT OR IGNORE INTO actions (tnId, actionId, key, type, subType, parentId, rootId, idTag, audience, subject, content, createdAt, expiresAt, attachments) "
 		+ "VALUES ($tnId, $actionId, $key, $type, $subType, $parentId, $rootId, $idTag, $audienceTag, $subject, $content, $createdAt, $expiresAt, $attachments)",
 		{
 			$tnId: tnId,
-			$actionId: actionId,
+			$actionId: action.actionId,
 			$key: key,
 			$type: action.type,
 			$subType: action.subType,
@@ -200,7 +201,7 @@ export async function createAction(tnId: number, actionId: string, action: Actio
 		const res = await db.get<{ content?: string }>("UPDATE actions SET status='D' WHERE tnId = $tnId AND key = $key AND actionId != $actionId AND coalesce(status, '')!='D' RETURNING content", {
 			$tnId: tnId,
 			$key: key,
-			$actionId: actionId
+			$actionId: action.actionId
 		})
 		console.log('UPDATE', res)
 		if (res?.content) addReactions -= 1

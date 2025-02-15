@@ -477,7 +477,7 @@ export async function getProxyToken(ctx: Context) {
 }
 
 // Action token
-export async function createActionToken(tnId: number, userId: number, action: Action) {
+export async function createActionToken(tnId: number, userId: number, action: Omit<Action, 'actionId'>) {
 	try {
 		const token = await authAdapter.createToken(tnId, {
 			t: action.type + (action.subType ? ':' + action.subType : ''),

@@ -220,11 +220,13 @@ export async function createAction(tnId: number, action: NewAction) {
 		if (!issuerTag) return
 
 		const act = { ...action, createdAt: Math.trunc(Date.now() / 1000), issuerTag }
-		const token = await createActionToken(tnId, tnId, {
+		const token = await createActionToken(tnId, tnId, act)
+		/*
 			...act,
 			issuerTag,
 			createdAt: Math.trunc(Date.now() / 1000)
 		})
+		*/
 		if (!token) return
 		//const { iss, iat, exp } = jwt.decode(token) as { iss: string, iat: number, exp: number }
 		//const actionId = token?.split('.')[2]
@@ -235,7 +237,7 @@ export async function createAction(tnId: number, action: NewAction) {
 		const key = generateActionKey(actionId, { ...action, issuerTag })
 		console.log('ROOT', rootId)
 
-		await metaAdapter.createAction(tnId, actionId, act, key)
+		await metaAdapter.createAction(tnId, { ...act, actionId }, key)
 
 		//if (['POST', 'ACK', 'STAT'].includes(action.type) && action.issuerTag == issuerTag) {
 		if (['POST', 'ACK', 'STAT'].includes(action.type) && !action.audienceTag) {
@@ -266,7 +268,7 @@ export async function acceptAction(tnId: number, actionId: string) {
 
 	switch (action.type) {
 		case 'CONN':
-			if (!action.audience) return
+			if (action.subType == 'DEL' || !action.audience) break
 			const req = await metaAdapter.getActionByKey(tnId, `CONN:${action.audience.idTag}:${action.issuer.idTag}`)
 			if (req && !req?.subType) {
 			} else {

@@ -100,7 +100,7 @@ export async function postAction(ctx: Context) {
 				metaAdapter.updateProfile(tnId, audience.idTag, {
 					following: true,
 					connected: request && !request.subType ? true
-						: !request ? 'R'
+						: !request || request.subType == 'DEL' ? 'R'
 						: null
 				})
 			} else if (action.subType == 'DEL') {

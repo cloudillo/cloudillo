@@ -50,11 +50,9 @@ export async function handlePost({ tnId, idTag }: ActionContext, actionId: strin
 			throw new Error('Unknown issuer')
 		}
 
-		const ackAction: Action = {
+		const ackAction: NewAction = {
 			type: 'ACK',
-			issuerTag: idTag,
-			subject: actionId,
-			createdAt: Math.trunc(Date.now() / 10) / 100
+			subject: actionId
 		}
 		await createAction(tnId, ackAction)
 	}
@@ -133,10 +131,17 @@ export async function handleConn(ctx: ActionContext, actionId: string, action: A
 		const req = await metaAdapter.getActionByKey(ctx.tnId, `CONN:${ctx.idTag}:${action.issuerTag}`)
 		switch (action.subType) {
 			case undefined:
-				if (req) {
+				if (req && req?.subType != 'DEL') {
+					// Conn action received and found a pending local conn req
+					// --> update profile to connected
 					await metaAdapter.updateProfile(ctx.tnId, action.issuerTag, { connected: true, following: true })
+					ctx.busAction.status = 'N'
+					await metaAdapter.updateActionData(ctx.tnId, actionId, { status: 'N' })
 				} else {
-					if (tenant?.type == 'community') { // FIXME settings.openCommunity
+					// Conn action received and no pending local conn req
+					if (tenant?.type == 'community') {
+						// Community profile accepts connection automatically for now
+						// FIXME: settings.openCommunity
 						const connAction: NewAction = {
 							type: 'CONN',
 							audienceTag: action.issuerTag
@@ -145,14 +150,19 @@ export async function handleConn(ctx: ActionContext, actionId: string, action: A
 						const profile = await metaAdapter.readProfile(ctx.tnId, action.issuerTag)
 						await metaAdapter.updateProfile(ctx.tnId, action.issuerTag, { connected: true, following: true, perm: profile?.perm || 'W' })
 					} else {
-						ctx.busAction.status = 'N'
-						await metaAdapter.updateActionData(ctx.tnId, actionId, { status: 'N' })
+						// Notify user about the request
+						ctx.busAction.status = 'C'
+						await metaAdapter.updateActionData(ctx.tnId, actionId, { status: 'C' })
 					}
 				}
 				break
 			case 'DEL':
 				if (req && !req?.subType) {
+					// CONN:DEL request received and we have a local conn req
+					// --> update profile to not connected
+					await metaAdapter.updateProfile(ctx.tnId, action.issuerTag, { connected: null })
 					ctx.busAction.status = 'N'
+					await metaAdapter.updateActionData(ctx.tnId, req.actionId, { status: 'N' })
 					await metaAdapter.updateActionData(ctx.tnId, actionId, { status: 'N' })
 				}
 		}
@@ -162,8 +172,8 @@ export async function handleConn(ctx: ActionContext, actionId: string, action: A
 export async function handleFileShare(ctx: ActionContext, actionId: string, action: Action) {
 	console.log('FSHR', action.issuerTag, action.audienceTag, ctx.idTag)
 	if (action.audienceTag == ctx.idTag && action.subType !== 'DEL') {
-		ctx.busAction.status = 'N'
-		await metaAdapter.updateActionData(ctx.tnId, actionId, { status: 'N' })
+		ctx.busAction.status = 'C'
+		await metaAdapter.updateActionData(ctx.tnId, actionId, { status: 'C' })
 	}
 }
 
@@ -193,26 +203,26 @@ export async function handleInboundAction(tnId: number, idTag: string, actionId:
 
 	switch (action.type) {
 		case 'ACK':
-			handleAck(ctx, actionId, action)
+			await handleAck(ctx, actionId, action)
 			break
 		case 'POST':
-			handlePost(ctx, actionId, action)
+			await handlePost(ctx, actionId, action)
 			break
 		case 'MSG':
-			handleMsg(ctx, actionId, action)
+			await handleMsg(ctx, actionId, action)
 			break
 		case 'REACT':
 		case 'CMNT':
-			handleReactionOrComment(ctx, actionId, action)
+			await handleReactionOrComment(ctx, actionId, action)
 			break
 		case 'STAT':
-			handleStat(ctx, actionId, action)
+			await handleStat(ctx, actionId, action)
 			break
 		case 'CONN':
-			handleConn(ctx, actionId, action)
+			await handleConn(ctx, actionId, action)
 			break
 		case 'FSHR':
-			handleFileShare(ctx, actionId, action)
+			await handleFileShare(ctx, actionId, action)
 			break
 		default:
 			return
@@ -313,6 +323,7 @@ export async function handleInboundActionToken(tnId: number, actionId: string, t
 		const rootId = act.p ? await metaAdapter.getActionRootId(tnId, act.p) : undefined
 
 		const action: Action = {
+			actionId,
 			type: type,
 			subType: subType,
 			parentId: act.p,
@@ -327,7 +338,7 @@ export async function handleInboundActionToken(tnId: number, actionId: string, t
 			//expiresAt: act.exp ? new Date(act.exp * 1000) : undefined,
 			attachments: act.a
 		}
-		await metaAdapter.createAction(tnId, actionId, action, generateActionKey(actionId, action))
+		await metaAdapter.createAction(tnId, action, generateActionKey(actionId, action))
 		await handleInboundAction(tnId, idTag, actionId, action)
 	} catch (err) {
 		console.log('ERROR', err)

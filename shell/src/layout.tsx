@@ -87,7 +87,7 @@ import {
 } from 'react-icons/lu'
 import { CloudilloLogo } from './logo.js'
 
-import { Profile } from '@cloudillo/types'
+import { Profile, ActionView } from '@cloudillo/types'
 import { useAuth, AuthState, useApi, useDialog, mergeClasses, ProfilePicture, Popper, DialogContainer } from '@cloudillo/react'
 import { AppConfigState, useAppConfig } from './utils.js'
 import usePWA from './pwa.js'
@@ -100,6 +100,7 @@ import { SiteAdminRoutes } from './site-admin'
 import { AppRoutes } from './apps'
 import { ProfileRoutes } from './profile/profile.js'
 import { Notifications } from './notifications/notifications.js'
+import { useNotifications } from './notifications/state'
 
 //import '@symbion/opalui'
 import '@symbion/opalui/src/opalui.css'
@@ -115,9 +116,16 @@ function Header({ inert }: { inert?: boolean }) {
 	const { t, i18n } = useTranslation()
 	const location = useLocation()
 	const navigate = useNavigate()
+	//const [notifications, setNotifications] = React.useState<{ notifications?: number }>({})
+	const { notifications, setNotifications, loadNotifications } = useNotifications()
 	const [menuOpen, setMenuOpen] = React.useState(false)
 	const [exMenuOpen, setExMenuOpen] = React.useState(false)
 	//console.log('menuOpen', menuOpen)
+
+	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
+		const action = msg.data as ActionView
+		if (action.status == 'N') setNotifications(n => ({ notifications: [...n?.notifications, action] }))
+	})
 
 	async function doLogout() {
 		console.log('doLogout')
@@ -189,6 +197,9 @@ function Header({ inert }: { inert?: boolean }) {
 					console.log('ERROR', err)
 					navigate('/login')
 				}
+			} else if (api.idTag && auth) {
+				// Load notification count
+				loadNotifications()
 			}
 		})()
 	}, [api, auth])
@@ -213,7 +224,10 @@ function Header({ inert }: { inert?: boolean }) {
 				*/}
 			</ul>
 			<ul className="c-nav-group c-hbox">
-				{ auth && <Link className="c-nav-item" to="/notifications"><IcNotifications/></Link> }
+				{ auth && <Link className="c-nav-item pos relative" to="/notifications">
+					<IcNotifications/>
+					{ !!notifications.notifications.length && <span className="c-badge br bg error">{notifications.notifications.length}</span> }
+				</Link> }
 				{ auth
 					? <Popper icon={<ProfilePicture profile={auth}/>} label={auth.name}>
 						<ul className="c-nav vertical emph">

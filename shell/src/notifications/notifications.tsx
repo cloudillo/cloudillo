@@ -28,6 +28,8 @@ import * as T from '@symbion/runtype'
 import { NewAction, ActionView, tActionView, tConnectAction, tFileShareAction } from '@cloudillo/types'
 import { useAuth, useApi, Button, ProfilePicture, ProfileCard, ProfileAudienceCard, Fcb, mergeClasses, generateFragments } from '@cloudillo/react'
 
+import { useNotifications } from './state'
+
 function FilterBar() {
 	return null
 }
@@ -56,12 +58,12 @@ function ConnectNotification({ className, action, onClick }: { className?: strin
 				<ProfileCard profile={action.issuer}/>
 			</Link>
 			<div className="c-hbox ms-auto g-3">
-				<button className="c-link" onClick={onAccept}><IcAccept/></button>
+				{ action.subType != 'DEL' && <button className="c-link" onClick={onAccept}><IcAccept/></button> }
 				<button className="c-link" onClick={onReject}><IcReject/></button>
 			</div>
 		</div><div className="d-flex flex-column">
 			{ !action.subType && <>
-				<h3>{ t('Connection request') }</h3>
+				<h3>{ t("wants to connect") }</h3>
 				{ content && content.split('\n\n').map((paragraph, i) => <p key={i}>
 					{ paragraph.split('\n').map((line, i) => <React.Fragment key={i}>
 						{ generateFragments(line).map((n, i) => <React.Fragment key={i}>{n}</React.Fragment>) }
@@ -69,7 +71,7 @@ function ConnectNotification({ className, action, onClick }: { className?: strin
 				</p>) }
 			</> }
 			{ action.subType == 'DEL' && <>
-				<h3>{ t('Refused to connect') }</h3>
+				<h3>{ t('refused to connect') }</h3>
 			</> }
 		</div>
 	</div>
@@ -104,8 +106,8 @@ function FileShareNotification({ className, action, onClick }: { className?: str
 				<button className="c-link" onClick={onReject}><IcReject/></button>
 			</div>
 		</div><div className="d-flex flex-column">
-			<div>{ content.fileName }</div>
-			<div>{ content.contentType }</div>
+			<div>Filename: <span className="text-emph">{ content.fileName }</span></div>
+			<div>Type: <span className="text-emph">{ content.contentType }</span></div>
 		</div>
 	</div>
 }
@@ -122,23 +124,28 @@ export function Notifications() {
 	const { t } = useTranslation()
 	const api = useApi()
 	const [auth] = useAuth()
-	const [notifications, setNotifications] = React.useState<ActionView[] | undefined>()
+	//const [notifications, setNotifications] = React.useState<ActionView[] | undefined>()
+	const { notifications, setNotifications, loadNotifications } = useNotifications()
 
 	React.useEffect(function onLoadNotifications() {
-		if (!api || !auth) return
-		const idTag = auth?.idTag
+		if (!api || !auth?.idTag) return
 
+		loadNotifications()
+		/*
 		;(async function () {
 			//const res = await api.get<{ actions: ActionEvt[] }>('', `/action?audience=${idTag}&types=POST`)
 			const res = await api.get<{ actions: ActionView[] }>('', `/action?statuses=N`)
 			console.log('RES', res)
 			setNotifications(res.actions)
 		})()
+		*/
 	}, [auth, api])
 
 	function onClick(action: ActionView) {
 		console.log('onClick', action)
-		setNotifications(n => n?.filter(a => a.actionId != action.actionId))
+		setNotifications(n => ({
+			notifications: n.notifications.filter(a => a.actionId != action.actionId)
+		}))
 	}
 
 	return <Fcb.Container className="g-1">
@@ -147,8 +154,8 @@ export function Notifications() {
 				<FilterBar/>
 			</Fcb.Filter>
 			<Fcb.Content>
-				{ notifications && !notifications.length && <h3>{ t('You have no notifications') }</h3> }
-				{ !!notifications && notifications.map(action =>  <Notification key={action.actionId} action={action} onClick={onClick}/>) }
+				{ notifications && !notifications.notifications.length && <h3>{ t('You have no notifications') }</h3> }
+				{ !!notifications && notifications.notifications.map(action =>  <Notification key={action.actionId} action={action} onClick={onClick}/>) }
 			</Fcb.Content>
 			<Fcb.Details>
 			</Fcb.Details>

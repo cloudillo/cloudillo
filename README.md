@@ -18,8 +18,8 @@ Learn more at [cloudillo.org](https://cloudillo.org).
 Installation
 ------------
 
-Cloudillo is a work in progress. We are working very hard to achieve a Proof of Concept that you can try out.
-This release will be available as a Docker image which you can easily install and try.
+Cloudillo is a work in progress.
+We are regularly publishing docker images on [Docker Hub](https://hub.docker.com/r/cloudillo/cloudillo), so you can easily check it out.
 
 Documentation is currently limited, but if you are comfortable with experimentation, you can install Cloudillo from source and explore its functionality.
 

@@ -206,11 +206,14 @@ function Header({ inert }: { inert?: boolean }) {
 
 	return <>
 		<nav inert={inert} className="c-nav justify-content-between border-radius-0 mb-2 g-1">
-			<ul className="c-nav-group g-1">
-				<li className="c-nav-item">
-					<Link className="c-nav-item" to="#"><CloudilloLogo style={{height: 32}}/></Link> </li>
-				{ auth && <li className="c-nav-item">
-					{ search.query == undefined ? <IcSearchUser onClick={() => setSearch({ query: '' })}/> : <SearchBar/> }
+			<ul className={mergeClasses('c-nav-group g-1', search.query != undefined && 'flex-fill')}>
+				<li className={mergeClasses('c-nav-item', search.query != undefined && 'sm-hide')}>
+					<CloudilloLogo style={{height: 32}}/></li>
+				{ auth && <li className="c-nav-item flex-fill">
+					{ search.query == undefined
+						? <IcSearchUser onClick={() => setSearch({ query: '' })}/>
+						: <SearchBar/>
+					}
 					</li>
 				}
 			</ul>
@@ -229,7 +232,7 @@ function Header({ inert }: { inert?: boolean }) {
 					{ !!notifications.notifications.length && <span className="c-badge br bg error">{notifications.notifications.length}</span> }
 				</Link> }
 				{ auth
-					? <Popper icon={<ProfilePicture profile={auth}/>} label={auth.name}>
+					? <Popper icon={<ProfilePicture profile={auth}/>}>
 						<ul className="c-nav vertical emph">
 							<li><Link className="c-nav-item" to="/profile/me"><IcUser/>{t('Profile')}</Link></li>
 							<li><Link className="c-nav-item" to="/settings"><IcSettings/>{t('Settings')}</Link></li>
@@ -242,9 +245,10 @@ function Header({ inert }: { inert?: boolean }) {
 							<li>
 								<button className="c-nav-item" onClick={evt => setLang(evt, 'hu')}>Magyar</button>
 							</li>
+							<li className="text-disabled">Cloudillo V{process.env.CLOUDILLO_VERSION}</li>
 						</ul>
 					</Popper>
-					: <Popper className="c-nav-item" icon={<IcMenu/>} label={t('Menu')}>
+					: <Popper className="c-nav-item" icon={<IcMenu/>}>
 						<ul className="c-nav vertical emph">
 							<li><Link className="c-nav-item" to="/login" onClick={() => setMenuOpen(false)}><IcUser/>{t('Login')}</Link></li>
 							<li><hr className="w-100"/></li>

@@ -169,12 +169,12 @@ export function RegisterForm() {
 					Cloudillo's identity system leverages the Domain Name System (DNS) — a foundational concept of the internet.
 					While this does involve some reliance on a provider, DNS has a globally established and trusted organizational system, making it a balanced and practical choice.
 				</p><p className="pb-2">
-					Until more options emerge from the ecosystem, you have two options to choose from.
+					Until more options emerge from the ecosystem, you have the following options to choose from:
 				</p>
 			</Trans>
 
 			<div className="c-container"><div className="row g-3">
-				<div className="col col-md-6 c-panel primary">
+				<div className="col col-md-6 c-panel primary mb-2">
 					<h4>Use Cloudillo's Identity Provider</h4>
 					<hr className="w-100"/>
 					<ul>
@@ -182,15 +182,17 @@ export function RegisterForm() {
 						<li><em>@johndoe.<b>cloudillo.net</b></em></li>
 					</ul>
 					<hr className="w-100"/>
-					<p>If you want to start fast and easy, or just want to try Cloudillo. You can read more about it here.</p>
+					<p>If you want to start fast and easy, or just want to try Cloudillo.
+						{/* You can read more about it here. */}
+					</p>
 					<hr className="w-100"/>
-					<p>The Cloudillo Identity Provider is currently free, but in the future it will be restricted to users who support the development of the platform with a small donation fee. (2 EUR/year)
+					<p>The Cloudillo Identity Provider is currently free, but in the future it will be restricted to users who support the development of the platform with a small donation fee. (3 EUR/year)
 					</p>
 					<div className="h-100"/>
 					<div className="c-group">
 						<button className="c-button primary" onClick={evt => {evt.preventDefault(); setIdentityProvider('local')}}>Use Cloudillo's Identity Provider</button>
 					</div>
-				</div><div className="col col-md-6 c-panel secondary">
+				</div><div className="col col-md-6 c-panel secondary mb-2">
 					<h4>Use your own Domain Name</h4>
 					<hr className="w-100"/>
 					<ul>

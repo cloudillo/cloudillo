@@ -33,6 +33,7 @@ export default {
 		replace({
 			preventAssignment: true,
 			'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
+			'process.env.CLOUDILLO_VERSION': JSON.stringify(pkg.version)
 		}),
 		resolve({ browser: true }),
 		commonjs(),

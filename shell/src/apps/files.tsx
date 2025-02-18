@@ -425,11 +425,11 @@ function FileCard({ className, file, onClick, renameFileId, renameFileName, file
 				</form>
 				: file.fileName}
 			</h3>
-			{ !!file.owner?.profilePic && <ProfilePicture profile={file.owner} small/> }
 			{/* file.ownerTag && <h4>{file.ownerTag}</h4> */}
-			<div className="d-flex justify-content-end">
+			<div className="c-hbox g-2">
+				{ !!file.owner?.profilePic && <ProfilePicture profile={file.owner} small/> }
 				<button className="c-link p-1" type="button" onClick={() => fileOps.openFile(file.fileId)}><IcEdit/></button>
-				<Popper className="dropdown" label={<IcMore/>}>
+				<Popper className="c-link" label={<IcMore/>}>
 					<ul className="c-nav vertical">
 						<li className="c-nav-item"><a className="c-link" href="#" onClick={() => fileOps.renameFile(file.fileId)}><IcEdit/> {t('Rename...')}</a></li>
 						<li className="c-nav-item"><a className="c-link" href="#" onClick={() => fileOps.doDeleteFile(file.fileId)}><IcDelete/>{t('Delete...')}</a></li>
@@ -536,14 +536,19 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 				</h3>
 				<div className="d-flex justify-content-end">
 					<button className="c-link p-1" type="button" onClick={() => fileOps.openFile(file.fileId)}><IcEdit/></button>
-					<div className="dropdown">
-						<details className="c-dropdown">
-							<summary className="c-link p-1"><IcMore/></summary>
-							<ul className="c-nav">
-								<li className="c-nav-item"><a href="#" onClick={() => fileOps.renameFile(file.fileId)}>{t('Rename...')}</a></li>
-							</ul>
-						</details>
-					</div>
+					<Popper className='c-link' icon={<IcMore/>}>
+						<ul className="c-nav">
+							<li className="c-nav-item"><a href="#" onClick={() => fileOps.renameFile(file.fileId)}>{t('Rename...')}</a></li>
+						</ul>
+					</Popper>
+					{/*
+					<details className="c-dropdown">
+						<summary className="c-link p-1"><IcMore/></summary>
+						<ul className="c-nav">
+							<li className="c-nav-item"><a href="#" onClick={() => fileOps.renameFile(file.fileId)}>{t('Rename...')}</a></li>
+						</ul>
+					</details>
+					*/}
 					{ auth?.idTag && file.variantId && <img src={`https://cl-o.${auth.idTag}/api/store/${file.variantId}`}/> }
 				</div>
 			</div>

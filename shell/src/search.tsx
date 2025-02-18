@@ -20,9 +20,12 @@ import { Routes, Route, Navigate, Link, NavLink, useNavigate, useLocation } from
 import { useTranslation } from 'react-i18next'
 import { atom, useAtom } from 'jotai'
 
-import { Button } from '@cloudillo/react'
+import { Button, mergeClasses } from '@cloudillo/react'
 
-import { LuSearch as IcSearch } from 'react-icons/lu'
+import {
+	LuSearch as IcSearch,
+	LuX as IcCancel
+} from 'react-icons/lu'
 
 export interface SearchState {
 	query?: string
@@ -40,7 +43,7 @@ export function SearchIcon () {
 	return <IcSearch onClick={() => setSearch({ query: '' })}/>
 }
 
-export function SearchBar () {
+export function SearchBar ({ className }: { className?: string }) {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
 	const [search, setSearch] = useSearch()
@@ -57,9 +60,10 @@ export function SearchBar () {
 		}
 	}
 
-	return <form className="c-input-group" onSubmit={onSubmit}>
+	return <form className={mergeClasses('c-input-group', className)} onSubmit={onSubmit}>
 		<input className="c-input" type="text" autoFocus placeholder={t('Search')} value={search.query || ''} onChange={e => setSearch({ query: e.target.value })} />
-		<Button className="c-button secondary" onClick={onSubmit}><SearchIcon/></Button>
+		<Button className="icon" onClick={() => setSearch({})}><IcCancel/></Button>
+		<Button className="icon primary" onClick={onSubmit}><SearchIcon/></Button>
 	</form>
 }
 

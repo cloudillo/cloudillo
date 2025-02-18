@@ -47,7 +47,9 @@ const tPostRefRequest = T.struct({
 export async function postRef(ctx: Context) {
 	const tnId = ctx.state.tnId
 	const opts = validate(ctx, tPostRefRequest)
-	const refId = nanoid()
+
+	let refId: string = '-'
+	while (refId.endsWith('-')) refId = nanoid()
 
 	const ref = await metaAdapter.createRef(tnId, refId, opts)
 

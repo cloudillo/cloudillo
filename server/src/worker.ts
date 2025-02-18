@@ -62,9 +62,10 @@ async function taskRunner() {
 			//if (!busy) await delay(10_000)
 			//console.log('taskRunner busy:', busy)
 			if (!busy) {
+				//console.log('[DELAY]: start')
 				delayRef = cancelableDelay(10_000)
 				const res = await delayRef.promise
-				//console.log('Delay:', res)
+				//console.log('[DELAY]:', res)
 				delayRef = undefined
 			}
 		} catch (err) {
@@ -79,6 +80,7 @@ async function taskRunner() {
 }
 
 export function cancelWait() {
+	//console.log('[DELAY]: cancel')
 	delayRef?.cancel?.()
 }
 

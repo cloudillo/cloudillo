@@ -29,13 +29,6 @@ import { handleInboundAction, handleInboundActionToken } from './hooks-inbound.j
 
 // Inbox //
 ///////////
-export async function createInboundAction(tnId: number, token: string) {
-	const actionId = sha256(token)
-	console.log('inbound action', actionId)
-	metaAdapter.createInboundAction(tnId, actionId, token)
-	cancelWait()
-}
-
 export async function processInboundActionTokens() {
 	//console.log('processInboundActions')
 	return metaAdapter.processPendingInboundActions(async function processInboundAction(tnId: number, actionId: string, token: string) {

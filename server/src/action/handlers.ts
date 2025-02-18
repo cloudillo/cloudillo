@@ -28,6 +28,7 @@ import { validate, validateQS, sha256 } from '../utils.js'
 import { createAction, acceptAction, rejectAction } from './action.js'
 import { tProfile, getProfile } from '../profile/profile.js'
 import { metaAdapter } from '../adapters.js'
+import { cancelWait } from '../worker.js'
 
 //////////////////
 // API handlers //
@@ -176,6 +177,8 @@ export async function postInboundAction(ctx: Context) {
 		await metaAdapter.createInboundAction(tnId, relActionId, r, token)
 	}
 	ctx.body = {}
+	//console.log('[DELAY] createInboundAction calling cancelWait()')
+	cancelWait()
 }
 
 // vim: ts=4

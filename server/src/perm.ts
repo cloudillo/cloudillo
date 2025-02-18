@@ -28,7 +28,7 @@ export async function checkPerm(tnId: number, tenantTag: string, auth: Auth | un
 
 	if (resId) {
 		// Check access for resource
-		const shareAction = await metaAdapter.getActionByKey(tnId, `FSHR:${resId}`)
+		const shareAction = await metaAdapter.getActionByKey(tnId, `FSHR:${resId}:${auth.idTag}`)
 		console.log('ACTION', tnId, `FSHR:${resId}`, shareAction)
 		if (!shareAction?.subType) return 'no access'
 

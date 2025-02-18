@@ -1,6 +1,6 @@
 {
   "name": "@cloudillo/basic-server",
-  "version": "0.0.1",
+  "version": "0.0.6",
   "description": "Cloudillo basic server",
   "main": "src/index.js",
   "type": "module",
@@ -34,10 +34,10 @@
     "@cloudillo/database-adapter-acebase": "workspace:^",
     "@cloudillo/message-bus-adapter-inprocess": "workspace:^",
     "@cloudillo/meta-adapter-sqlite": "workspace:^",
-    "@cloudillo/server": "workspace:^",
-    "cross-env": "^7.0.3"
+    "@cloudillo/server": "workspace:^"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "onchange": "^7.1.0",
     "rimraf": "^6.0.1",
     "typescript": "^5.7.3"

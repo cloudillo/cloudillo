@@ -1,5 +1,5 @@
 {
-	"version": "0.0.5",
+	"version": "0.0.6",
 	"private": true,
 	"packageManager": "pnpm@9.14.4",
 	"workspaces": [
@@ -7,9 +7,12 @@
 		"frontend"
 	],
 	"scripts": {
-		"build-docker": "docker --context default build -t cloudillo/cloudillo:$npm_package_version -t cloudillo/cloudillo:latest -f Dockerfile.debian .",
-		"build-docker-alpine": "docker --context default build -t cloudillo/cloudillo:$npm_package_version-alpine -t cloudillo/cloudillo:latest-alpine -f Dockerfile.alpine .",
+		"build-docker": "docker --context default build --pull -t cloudillo/cloudillo:$npm_package_version -t cloudillo/cloudillo:latest -f Dockerfile.debian .",
+		"build-docker-slim": "docker --context default build --pull -t cloudillo/cloudillo:$npm_package_version-slim -t cloudillo/cloudillo:latest-slim -f Dockerfile.debian-slim .",
+		"build-docker-alpine": "docker --context default build --pull -t cloudillo/cloudillo:$npm_package_version-alpine -t cloudillo/cloudillo:latest-alpine -f Dockerfile.alpine .",
 		"publish-docker": "docker --context default push cloudillo/cloudillo:$npm_package_version && docker --context default push cloudillo/cloudillo:latest",
-		"publish-docker-alpine": "docker --context default push cloudillo/cloudillo:$npm_package_version-alpine && docker --context default push cloudillo/cloudillo:latest-alpine"
+		"publish-docker-slim": "docker --context default push cloudillo/cloudillo:$npm_package_version-slim && docker --context default push cloudillo/cloudillo:latest-slim",
+		"publish-docker-alpine": "docker --context default push cloudillo/cloudillo:$npm_package_version-alpine && docker --context default push cloudillo/cloudillo:latest-alpine",
+		"docker-all": "pnpm build-docker && pnpm build-docker-slim && pnpm build-docker-alpine && pnpm publish-docker && pnpm publish-docker-slim && pnpm publish-docker-alpine"
 	}
 }

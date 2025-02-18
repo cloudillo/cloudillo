@@ -242,7 +242,7 @@ export async function init({ dir, sqliteBusyTimeout }: { dir: string, sqliteBusy
 	await db.run(`CREATE TABLE IF NOT EXISTS actions (
 		tnId integer NOT NULL,
 		actionId text NOT NULL,
-		key text NOT NULL,
+		key text,
 		type text NOT NULL,
 		subType text,
 		parentId text,
@@ -260,7 +260,7 @@ export async function init({ dir, sqliteBusyTimeout }: { dir: string, sqliteBusy
 		commentsRead integer,
 		PRIMARY KEY(tnId, actionId)
 	)`)
-	await db.run('CREATE INDEX IF NOT EXISTS idx_actions_key ON actions(key, tnId)')
+	await db.run('CREATE INDEX IF NOT EXISTS idx_actions_key ON actions(key, tnId) WHERE key NOT NULL')
 
 	await db.run(`CREATE TABLE IF NOT EXISTS action_outbox (
 		actionId text NOT NULL,

@@ -204,6 +204,24 @@ export async function postLogout(ctx: Context) {
 // Register //
 //////////////
 async function verifyRegisterData(type: 'local' | 'domain', idTag: string, appDomain: string | undefined, localIps: string[]) {
+	// Format
+	if (type == 'domain') {
+		console.log('verifyRegisterData', type, idTag, appDomain, idTag.match(/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+$/))
+		const res = {
+			ip: localIps,
+			idTagError: !idTag.match(/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+$/) ? 'invalid' : false,
+			appDomainError: appDomain && !appDomain.match(/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+$/) ? 'invalid' : false
+		}
+		if (res.idTagError || res.appDomainError) return res
+	} else if (type == 'local') {
+		console.log('verifyRegisterData', type, idTag, appDomain, idTag.match(/^[a-zA-Z0-9-]+\.(cloudillo\.net)$/))
+		const res = {
+			ip: localIps,
+			idTagError: !idTag.match(/^[a-zA-Z0-9-]+\.(cloudillo\.net)$/) ? 'invalid' : false,
+			appDomainError: false
+		}
+		if (res.idTagError) return res
+	}
 	// DNS
 	const resolver = new bns.RecursiveResolver({
 		minimize: true,
@@ -219,7 +237,7 @@ async function verifyRegisterData(type: 'local' | 'domain', idTag: string, appDo
 			ip: localIps,
 			idTagError: tenantData ? 'used'
 				: false,
-			appError: domainData ? 'used'
+			appDomainError: domainData ? 'used'
 				: false
 		}
 		
@@ -240,7 +258,7 @@ async function verifyRegisterData(type: 'local' | 'domain', idTag: string, appDo
 				: !apiIp ? 'nodns'
 				: !localIps.includes(apiIp) ? 'ip'
 				: false,
-			appError: domainData ? 'used'
+			appDomainError: domainData ? 'used'
 				: !appIp ? 'nodns'
 				: !localIps.includes(appIp) ? 'ip'
 				: false,
@@ -260,6 +278,8 @@ export async function postRegisterVerify(ctx: Context) {
 	const tnId = ctx.state.tnId
 	console.log('REGISTER VERIFY', ctx.request.body)
 	const p = validate(ctx, tRegisterVerify)
+	const idTag = p.idTag.toLowerCase()
+	const appDomain = p.appDomain?.toLowerCase()
 
 	const ref = await metaAdapter.getRef(tnId, p.registerToken)
 	console.log('ref', ref)
@@ -269,7 +289,7 @@ export async function postRegisterVerify(ctx: Context) {
 		return
 	}
 
-	ctx.body = await verifyRegisterData(p.type, p.idTag, p.appDomain, ctx.config.localIps || [])
+	ctx.body = await verifyRegisterData(p.type, idTag, appDomain, ctx.config.localIps || [])
 }
 
 const tRegister = T.struct({
@@ -284,29 +304,40 @@ export async function postRegister(ctx: Context) {
 	const tnId = ctx.state.tnId
 	console.log('REGISTER', ctx.request.body)
 	const p = validate(ctx, tRegister)
+	const idTag = p.idTag.toLowerCase()
+	const appDomain = p.appDomain?.toLowerCase()
 
 	const ref = await metaAdapter.getRef(tnId, p.registerToken)
 	console.log('ref', ref)
 	if (p.registerToken !== ref?.refId || ref?.type != 'register') ctx.throw(403)
 
-	const vfy = await verifyRegisterData(p.type, p.idTag, p.appDomain, ctx.config.localIps || [])
+	const vfy = await verifyRegisterData(p.type, idTag, appDomain, ctx.config.localIps || [])
 	console.log('VERIFY', vfy)
-	if (vfy.idTagError || vfy.appError) ctx.throw(422)
+	if (vfy.idTagError || vfy.appDomainError) ctx.throw(422)
 
-	const newTnId = await authAdapter.createTenant(p.idTag, {
-		password: p.password,
-		email: p.email,
-	})
-	const name = p.idTag.replace(/\..*$/, '')
-	await metaAdapter.createTenant(newTnId, p.idTag, {
-		name: name.charAt(0).toUpperCase() + name.slice(1).toLowerCase(),
-		type: 'person'
-	})
-	await metaAdapter.updateSetting(newTnId, 'ui.onboarding', 'join')
-	await metaAdapter.useRef(tnId, p.registerToken)
+	let newTnId: number | undefined
+	try {
+		newTnId = await authAdapter.createTenant(idTag, {
+			password: p.password,
+			email: p.email,
+		})
+		const name = idTag.replace(/\..*$/, '')
+		await metaAdapter.createTenant(newTnId, p.idTag, {
+			name: name.charAt(0).toUpperCase() + name.slice(1).toLowerCase(),
+			type: 'person'
+		})
+		await metaAdapter.updateSetting(newTnId, 'ui.onboarding', 'join')
 
-	// ACME
-	if (ctx.config.acmeEmail) await acme.createCert(newTnId, authAdapter, p.idTag, p.appDomain)
+		// ACME
+		if (ctx.config.acmeEmail) await acme.createCert(newTnId, authAdapter, idTag, appDomain)
+		await metaAdapter.useRef(tnId, p.registerToken)
+	} catch (err) {
+		if (newTnId) {
+			metaAdapter.deleteTenant(newTnId)
+			authAdapter.deleteTenant(newTnId)
+		}
+		ctx.throw(422)
+	}
 
 	ctx.body = {
 	}

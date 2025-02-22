@@ -99,7 +99,9 @@ export function DialogContainer() {
 					<h2 className="fill mb-3">{dialog.title}</h2>
 					<button type="button" className="c-link pos absolute top-0 right-0 m-3" data-bs-dismiss="modal" aria-label="Close" onClick={onCancel}><IcClose/></button>
 				</div>
-				<Markdown className="c-markdown">{dialog.descr}</Markdown>
+				<div className="c-markdown">
+					<Markdown>{dialog.descr}</Markdown>
+				</div>
 				{// dialog.descr.split(/\n\n\s*/).map((p, i) => <p key={i} className="mb-2">{p}</p>)
 				}
 

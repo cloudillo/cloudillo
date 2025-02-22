@@ -202,7 +202,7 @@ Think of your identity as your **address** — it help others find and connect w
 					Cloudillo uses the Domain Name System (DNS),
 					a widely trusted system, to manage identities.
 				</p>
-				<p><button type="button" className="c-link text-primary" onClick={onClickIdentityInfo}>What is this identity thing and why should you care?</button></p>
+				<p><button type="button" className="c-link text text-primary" onClick={onClickIdentityInfo}>What is this identity thing and why should you care?</button></p>
 				<h3 className="my-3">Pick an Option</h3>
 			</Trans>
 
@@ -321,7 +321,7 @@ Think of your identity as your **address** — it help others find and connect w
 				<p className="pb-2">
 					Enter your chosen Identity Tag in the box below. Your Identity Tag can be any domain name you control, it does not matter if you already use it for a website. Choose wisely, because you'll not be able to easily change it later.
 				</p>
-				<p><button type="button" className="c-link text-primary" onClick={onClickDomainInfo}>Read more!</button></p>
+				<p><button type="button" className="c-link text text-primary" onClick={onClickDomainInfo}>Read more!</button></p>
 			</Trans>
 
 			<label className="d-block my-3">{t('Identity tag')}
@@ -404,7 +404,7 @@ Think of your identity as your **address** — it help others find and connect w
 					<div className="c-panel error mt-2">
 						<p>The Identity Tag you provided appears to be already in use (perhaps for an existing website).
 						</p><p>This means you likely <b>won’t be able to use it as your Cloudillo App site</b>. You can either choose a subdomain (e.g., <b>cloudillo.cloudillo.net</b>) or use a different address.</p>
-						<p><button type="button" className="c-link text-primary" onClick={onClickDomainInfo}>Read more!</button></p>
+						<p><button type="button" className="c-link text text-primary" onClick={onClickDomainInfo}>Read more!</button></p>
 					</div>
 				</Trans>}
 				{ verifyState?.appDomainError == 'ip' && appDomain && <Trans i18nKey="REGISTER-FORM-APP-IP-DIFF">

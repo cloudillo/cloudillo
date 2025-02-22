@@ -17,6 +17,7 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { atom, useAtom } from 'jotai'
+import Markdown from 'react-markdown'
 
 import { Button, mergeClasses } from './components.js'
 
@@ -98,7 +99,9 @@ export function DialogContainer() {
 					<h2 className="fill mb-3">{dialog.title}</h2>
 					<button type="button" className="c-link pos absolute top-0 right-0 m-3" data-bs-dismiss="modal" aria-label="Close" onClick={onCancel}><IcClose/></button>
 				</div>
-				{ dialog.descr.split(/\n\n\s*/).map((p, i) => <p key={i} className="mb-2">{p}</p>) }
+				<Markdown className="c-markdown">{dialog.descr}</Markdown>
+				{// dialog.descr.split(/\n\n\s*/).map((p, i) => <p key={i} className="mb-2">{p}</p>)
+				}
 
 				{ dialog.type == 'Tell' && <div className="c-group g-2 mt-4">
 						<Button primary autoFocus onClick={() => onButtonClick(true)}>{t('OK')}</Button>

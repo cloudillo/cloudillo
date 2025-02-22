@@ -232,7 +232,7 @@ function Header({ inert }: { inert?: boolean }) {
 					{ !!notifications.notifications.length && <span className="c-badge br bg error">{notifications.notifications.length}</span> }
 				</Link> }
 				{ auth
-					? <Popper icon={<ProfilePicture profile={auth}/>}>
+					? <Popper className="c-nav-item" icon={<ProfilePicture profile={auth}/>}>
 						<ul className="c-nav vertical emph">
 							<li><Link className="c-nav-item" to="/profile/me"><IcUser/>{t('Profile')}</Link></li>
 							<li><Link className="c-nav-item" to="/settings"><IcSettings/>{t('Settings')}</Link></li>

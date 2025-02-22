@@ -61,7 +61,7 @@ export type FullProfile = T.TypeOf<typeof tFullProfile>
 // Functions //
 ///////////////
 export async function syncProfile(tnId: number, idTag: string, eTag?: string): Promise<T.TypeOf<typeof tProfileKeys> & { status?: ProfileStatus } | undefined> {
-	console.log(`https://cl-o.${idTag}/api/me`)
+	console.log(`https://cl-o.${idTag}/api/me`, eTag)
 	const res = await fetch(`https://cl-o.${idTag}/api/me`, {
 		headers: eTag ? { 'If-None-Match': '"' + eTag + '"' } : undefined
 	})

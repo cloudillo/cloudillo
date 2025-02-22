@@ -301,7 +301,7 @@ export async function createOutboundAction(tnId: number, actionId: string, token
 	if (opts.followTag) {
 		const res = await db.run(`INSERT OR IGNORE INTO action_outbox_queue (actionId, tnId, idTag, next)
 			SELECT $actionId, $tnId, idTag, unixepoch() FROM actions
-			WHERE tnId = $tnId AND type='FLLW' AND idTag != $idTag AND coalesce(status, '') NOT IN ('D')`, {
+			WHERE tnId = $tnId AND type IN ('FLLW', 'CONN') AND subType ISNULL AND idTag != $idTag AND coalesce(status, '') NOT IN ('D') GROUP BY idTag`, {
 			$actionId: actionId,
 			$tnId: tnId,
 			$idTag: issuerTag

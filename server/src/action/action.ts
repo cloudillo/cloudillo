@@ -264,7 +264,7 @@ export async function createAction(tnId: number, action: NewAction) {
 export async function acceptAction(tnId: number, actionId: string) {
 	const action = (await metaAdapter.listActions(tnId, undefined, { actionId }))?.[0]
 	if (!action) return
-	console.log('acceptAction', action)
+	console.log('acceptAction', action.type, action.subType, action.issuer?.idTag, action.audience?.idTag)
 
 	switch (action.type) {
 		case 'CONN':
@@ -278,7 +278,6 @@ export async function acceptAction(tnId: number, actionId: string) {
 			break
 		case 'FSHR':
 			const content = T.decode(tFileShareAction.props.content, action.content)
-			console.log('ACTION.content', content)
 			if (!action?.subject || T.isErr(content)) return
 
 			await metaAdapter.createFile(tnId, action.subject, { ...content.ok, ownerTag: action.issuer.idTag, status: 'M' })

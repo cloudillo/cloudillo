@@ -167,7 +167,7 @@ const tLogin = T.struct({
 
 export async function postLogin(ctx: Context) {
 	const tnId = ctx.state.tnId
-	console.log('LOGIN', ctx.request.body)
+	console.log('LOGIN', { ...ctx.request.body, password: '********' })
 	const p = validate(ctx, tLogin)
 
 	try {
@@ -175,7 +175,7 @@ export async function postLogin(ctx: Context) {
 		console.log('AUTH', p.idTag, auth)
 
 		if (!auth) ctx.throw(403)
-		console.log(p.password, passwordHash(p.password, auth.passwordHash.split(':')[0]))
+		//console.log(p.password, passwordHash(p.password, auth.passwordHash.split(':')[0]))
 		if (passwordHash(p.password, auth.passwordHash.split(':')[0]) !== auth.passwordHash) ctx.throw(403)
 
 
@@ -206,7 +206,6 @@ export async function postLogout(ctx: Context) {
 async function verifyRegisterData(type: 'local' | 'domain', idTag: string, appDomain: string | undefined, localIps: string[]) {
 	// Format
 	if (type == 'domain') {
-		console.log('verifyRegisterData', type, idTag, appDomain, idTag.match(/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+$/))
 		const res = {
 			ip: localIps,
 			idTagError: !idTag.match(/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+$/) ? 'invalid' : false,
@@ -214,7 +213,6 @@ async function verifyRegisterData(type: 'local' | 'domain', idTag: string, appDo
 		}
 		if (res.idTagError || res.appDomainError) return res
 	} else if (type == 'local') {
-		console.log('verifyRegisterData', type, idTag, appDomain, idTag.match(/^[a-zA-Z0-9-]+\.(cloudillo\.net)$/))
 		const res = {
 			ip: localIps,
 			idTagError: !idTag.match(/^[a-zA-Z0-9-]+\.(cloudillo\.net)$/) ? 'invalid' : false,
@@ -245,12 +243,10 @@ async function verifyRegisterData(type: 'local' | 'domain', idTag: string, appDo
 		const apiRes = await resolver.lookup('cl-o.' + idTag, 'A')
 		//console.log(apiRes)
 		const apiIp = apiRes.answer.pop()?.data?.address
-		console.log(apiIp)
 
 		const appRes = await resolver.lookup(appDomain || idTag, 'A')
 		//console.log(appRes)
 		const appIp = appRes.answer.pop()?.data?.address
-		console.log(appIp)
 
 		return {
 			ip: localIps,
@@ -276,13 +272,11 @@ const tRegisterVerify = T.struct({
 })
 export async function postRegisterVerify(ctx: Context) {
 	const tnId = ctx.state.tnId
-	console.log('REGISTER VERIFY', ctx.request.body)
 	const p = validate(ctx, tRegisterVerify)
 	const idTag = p.idTag.toLowerCase()
 	const appDomain = p.appDomain?.toLowerCase()
 
 	const ref = await metaAdapter.getRef(tnId, p.registerToken)
-	console.log('ref', ref)
 	if (p.registerToken !== ref?.refId || ref?.type != 'register') ctx.throw(403)
 	if (p.type == 'ref') {
 		ctx.body = {}
@@ -302,17 +296,14 @@ const tRegister = T.struct({
 })
 export async function postRegister(ctx: Context) {
 	const tnId = ctx.state.tnId
-	console.log('REGISTER', ctx.request.body)
 	const p = validate(ctx, tRegister)
 	const idTag = p.idTag.toLowerCase()
 	const appDomain = p.appDomain?.toLowerCase()
 
 	const ref = await metaAdapter.getRef(tnId, p.registerToken)
-	console.log('ref', ref)
 	if (p.registerToken !== ref?.refId || ref?.type != 'register') ctx.throw(403)
 
 	const vfy = await verifyRegisterData(p.type, idTag, appDomain, ctx.config.localIps || [])
-	console.log('VERIFY', vfy)
 	if (vfy.idTagError || vfy.appDomainError) ctx.throw(422)
 
 	let newTnId: number | undefined
@@ -347,11 +338,6 @@ export async function getAcmeChallengeResponse(ctx: BaseContext) {
 	const { token } = ctx.params
 	console.log('CHALLENGE REQUEST', token)
 
-	if (token == 'test') {
-		ctx.body = 'test'
-		return
-	}
-
 	const response = await acme.getChallengeResponse(token)
 
 	console.log('CHALLENGE RESPONSE', token, response)
@@ -366,7 +352,6 @@ export async function getLoginToken(ctx: Context) {
 	const tnId = ctx.state.tnId
 	const idTag = ctx.state.user?.t
 
-	console.log('LOGIN TOKEN', ctx.state.user)
 	if (!idTag) {
 		ctx.body = {}
 		return
@@ -376,11 +361,6 @@ export async function getLoginToken(ctx: Context) {
 		const auth = await authAdapter.getAuthPassword(ctx.state.tenantTag)
 		if (!auth) ctx.throw(403)
 
-		//var roles = (await db.all<{ roleId: number }>('SELECT roleId FROM user_roles WHERE tnId=$tnId AND userId=$userId',
-		//	{ $tnId: tnId, $userId: userId })).map(r => r.roleId)
-		//if (owner) roles.push(-1)
-		//console.log('ROLES', roles)
-
 		await returnLogin(ctx, {
 			tnId,
 			idTag: auth.idTag,
@@ -389,7 +369,6 @@ export async function getLoginToken(ctx: Context) {
 			}, true /* FIXME */)
 	} catch (err) {
 		console.log('TOKEN ERROR', err)
-		//ctx.status = 403
 		ctx.throw(403)
 	}
 }
@@ -752,8 +731,6 @@ export async function postWebauthnLogin(ctx: Context) {
 // Module init
 export async function init(auth: AuthAdapter, opts: { acmeEmail?: string } = {}) {
 	authAdapter = auth
-
-	//acme.init(authAdapter, opts.acmeEmail)
 }
 
 // vim: ts=4

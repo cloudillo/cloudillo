@@ -210,7 +210,7 @@ async function verifyRegisterData(type: 'local' | 'domain', idTag: string, appDo
 		const res = {
 			ip: localIps,
 			idTagError: !idTag.match(/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+$/) ? 'invalid' : false,
-			appDomainError: appDomain && !appDomain.match(/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+$/) ? 'invalid' : false
+			appDomainError: appDomain && (!appDomain.match(/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+$/) || appDomain.startsWith('cl-o.')) ? 'invalid' : false
 		}
 		if (res.idTagError || res.appDomainError) return res
 	} else if (type == 'local') {

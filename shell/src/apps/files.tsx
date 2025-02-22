@@ -427,7 +427,7 @@ function FileCard({ className, file, onClick, renameFileId, renameFileName, file
 			</h3>
 			{/* file.ownerTag && <h4>{file.ownerTag}</h4> */}
 			<div className="c-hbox g-2">
-				{ !!file.owner?.profilePic && <ProfilePicture profile={file.owner} small/> }
+				{ !!file.owner && <ProfilePicture profile={file.owner} small/> }
 				<button className="c-link p-1" type="button" onClick={() => fileOps.openFile(file.fileId)}><IcEdit/></button>
 				<Popper className="c-link" label={<IcMore/>}>
 					<ul className="c-nav vertical">

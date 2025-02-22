@@ -55,7 +55,7 @@ export async function listActions(tnId: number, auth: Auth | undefined, opts: Li
 		FROM actions a
 		LEFT JOIN profiles pi ON pi.tnId=a.tnId AND pi.idTag=a.idTag
 		LEFT JOIN profiles pa ON pa.tnId=a.tnId AND pa.idTag=a.audience
-		LEFT JOIN actions ownReact ON ownReact.tnId=a.tnId AND ownReact.parentId=a.actionId AND ownReact.type='REACT' AND coalesce(ownReact.status, 'A') NOT IN ('D')
+		LEFT JOIN actions ownReact ON ownReact.tnId=a.tnId AND ownReact.parentId=a.actionId AND ownReact.idTag=$idTag AND ownReact.type='REACT' AND coalesce(ownReact.status, 'A') NOT IN ('D')
 		WHERE a.tnId = $tnId
 		AND coalesce(a.status, 'A')
 			${opts.statuses ? ' IN (' + opts.statuses.map(s => ql(s)).join(',') + ')' : " NOT IN ('D')"}`
@@ -69,7 +69,7 @@ export async function listActions(tnId: number, auth: Auth | undefined, opts: Li
 		+ (opts.subject ? ` AND a.subject=${ql(opts.subject)}` : '')
 		//+ (tag !== undefined ? " AND ','||tags||',' LIKE $tagLike" : '')
 		+ " ORDER BY a.createdAt DESC LIMIT 100"
-	//console.log('listActions', q)
+	console.log('listActions', q)
 	const rows = await db.all<{
 		type: string
 		subType: string
@@ -93,7 +93,8 @@ export async function listActions(tnId: number, auth: Auth | undefined, opts: Li
 		commentsRead?: number
 		ownReaction?: string
 	}>(q, {
-			$tnId: tnId
+		$tnId: tnId,
+		$idTag: auth?.idTag
 	})
 	cleanRes(rows)
 	//console.log('ROWS', rows)

@@ -225,6 +225,7 @@ export interface MetaAdapter {
 	getTenantIdentityTag: (tnId: number) => Promise<string>
 	createTenant: (tnId: number, idTag: string, tenant: TenantData) => Promise<number>
 	updateTenant: (tnId: number, tenant: TenantPatch) => Promise<Tenant | undefined>
+	deleteTenant: (tnId: number) => Promise<void>
 
 	// Profiles
 	listProfiles: (tnId: number, opts: ListProfilesOptions) => Promise<Profile[]>

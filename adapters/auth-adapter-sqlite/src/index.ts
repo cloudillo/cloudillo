@@ -143,6 +143,7 @@ export async function init(opts: InitOpts): Promise<AuthAdapter> {
 		getGlobal,
 		createTenantRegistration,
 		createTenant,
+		deleteTenant,
 		storeTenantCert,
 		processCertRenewals,
 		getCertByTag,
@@ -211,6 +212,18 @@ async function createTenant(idTag: string, data: CreateTenantData): Promise<numb
 		await db.run('DELETE FROM user_vfy WHERE vfyCode = $vfyCode', { $vfyCode: data.vfyCode })
 	}
 	return res.tnId
+}
+
+async function deleteTenant(tnId: number) {
+	for (const table of [
+		'tenants',
+		'keys',
+		'certs',
+		'webauthn',
+		'events'
+	]) {
+		await db.run(`DELETE FROM ${table} WHERE tnId = $tnId`, { $tnId: tnId })
+	}
 }
 
 async function storeTenantCert(tnId: number, idTag: string, domain: string, cert: string, key: string, expiresAt: Date) {

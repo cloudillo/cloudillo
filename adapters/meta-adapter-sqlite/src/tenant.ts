@@ -82,4 +82,25 @@ export async function updateTenant(tnId: number, tenant: TenantPatch): Promise<T
 	}
 }
 
+export async function deleteTenant(tnId: number) {
+	for (const table of [
+		'tenants',
+		'tenant_data',
+		'settings',
+		'subscriptions',
+		'profiles',
+		'tags',
+		'files',
+		'file_variants',
+		'refs',
+		'key_cache',
+		'actions',
+		'action_outbox',
+		'action_outbox_queue',
+		'action_inbox'
+	]) {
+		await db.run(`DELETE FROM ${table} WHERE tnId = $tnId`, { $tnId: tnId })
+	}
+}
+
 // vim: ts=4

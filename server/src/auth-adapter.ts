@@ -108,6 +108,7 @@ export interface AuthAdapter {
 	getGlobal: (key: string) => Promise<string | undefined>
 	createTenantRegistration: (email: string) => Promise<void>
 	createTenant: (idTag: string, data: CreateTenantData) => Promise<number>
+	deleteTenant: (tnId: number) => Promise<void>
 	storeTenantCert: (tnId: number, idTag: string, domain: string, cert: string, key: string, expires: Date) => Promise<void>
 	processCertRenewals: (callback: (tnId: number, idTag: string, domain: string, expires: Date) => Promise<boolean>) => Promise<number>
 	getCertByTag: (idTag: string) => Promise<{ tnId: number, idTag: string, domain?: string, cert: string, key: string } | undefined>

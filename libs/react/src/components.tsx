@@ -225,13 +225,13 @@ interface Profile {
 	profilePic?: string
 }
 
-export function ProfilePicture({ className, profile, small }: { className?: string, profile: { profilePic?: string }, small?: boolean }) {
+export function ProfilePicture({ className, profile, small, srcTag }: { className?: string, profile: { profilePic?: string }, small?: boolean, srcTag?: string }) {
 	const [auth] = useAuth()
 
 	return <div className="c-profile-card">
 		{ auth && profile.profilePic
 			//? <img className={'picture' + (small ? ' small' : '')} src={`https://cl-o.${profile.idTag}/api/store/${profile.profilePic}`}/>
-			? <img className={'picture' + (small ? ' small' : '')} src={`https://cl-o.${auth.idTag}/api/store/${profile.profilePic}`}/>
+			? <img className={'picture' + (small ? ' small' : '')} src={`https://cl-o.${srcTag ?? auth.idTag}/api/store/${profile.profilePic}`}/>
 			: <UnknownProfilePicture small={small}/>
 		}
 	</div>
@@ -246,7 +246,7 @@ export function IdentityTag({ className, idTag = '-' }: { className?: string, id
 	</span>
 }
 
-export function ProfileCard({ className, profile }: { className?: string, profile: Profile }) {
+export function ProfileCard({ className, profile, srcTag }: { className?: string, profile: Profile, srcTag?: string }) {
 	const [auth] = useAuth()
 
 	return <div className={mergeClasses('c-profile-card', className)}>
@@ -254,7 +254,7 @@ export function ProfileCard({ className, profile }: { className?: string, profil
 		<img className="picture" src={`https://cl-o.${profile.idTag}/api/store/${profile.profilePic}`}/>
 		*/}
 		{ auth && profile.profilePic
-			? <img className="picture" src={`https://cl-o.${auth?.idTag}/api/store/${profile.profilePic}`}/>
+			? <img className="picture" src={`https://cl-o.${srcTag ?? auth?.idTag}/api/store/${profile.profilePic}`}/>
 			: <UnknownProfilePicture	/>
 		}
 		<div className="body">
@@ -264,7 +264,7 @@ export function ProfileCard({ className, profile }: { className?: string, profil
 	</div>
 }
 
-export function ProfileAudienceCard({ className, audience, profile }: { className?: string, audience: Profile, profile: Profile }) {
+export function ProfileAudienceCard({ className, audience, profile, srcTag }: { className?: string, audience: Profile, profile: Profile, srcTag?: string }) {
 	const [auth] = useAuth()
 
 	return <div className={mergeClasses('c-profile-card', className)}>
@@ -274,11 +274,11 @@ export function ProfileAudienceCard({ className, audience, profile }: { classNam
 			<img className="picture tiny" src={`https://cl-o.${profile.idTag}/api/store/${profile.profilePic}`}/>
 			*/}
 			{ auth && audience.profilePic
-				? <img className="picture" src={`https://cl-o.${auth?.idTag}/api/store/${audience.profilePic}`}/>
+				? <img className="picture" src={`https://cl-o.${srcTag ?? auth?.idTag}/api/store/${audience.profilePic}`}/>
 				: <UnknownProfilePicture/>
 			}
 			{ auth && profile.profilePic
-				? <img className="picture tiny" src={`https://cl-o.${auth?.idTag}/api/store/${profile.profilePic}`}/>
+				? <img className="picture tiny" src={`https://cl-o.${srcTag ?? auth?.idTag}/api/store/${profile.profilePic}`}/>
 				: <UnknownProfilePicture small/>
 			}
 		</div>

@@ -80,34 +80,34 @@ export function RegisterForm() {
 
 	async function onClickIdentityInfo() {
 		console.log('Dialog')
-		await dialog.tell(t('What is Identity?'), t('REGISTER-FORM-IDENTITY-INFO', `Identity is essential on any platform where you make connections with others.
+		await dialog.tell(t('What is Identity?'), t('REGISTER-FORM-IDENTITY-INFO',
+`Identity is essential on any platform where you make connections with others.
 
-		On most platforms, identity is controlled by the platform owner, leaving you no choice but to rely on their system. Cloudillo is different — it's open, with no central owner, giving you the freedom to choose your identity provider.
+On most platforms, identity is controlled by the platform owner, leaving you no choice but to rely on their system. Cloudillo is different — it's open, with no central owner, giving you the freedom to choose your identity provider.
 
-		Cloudillo's identity system uses the Domain Name System (DNS) — the same system that the entire internet relies on for websites, emails and other services. While it involves some reliance on a provider, DNS is globally trusted and decentralized, making it a balanced and practical choice.
+Cloudillo's identity system uses the Domain Name System (DNS) — the same system that the entire internet relies on for websites, emails and other services. While it involves some reliance on a provider, DNS is globally trusted and decentralized, making it a balanced and practical choice.
 
-		If you own a domain name, you can use it as your Cloudillo Identity (e.g., @yourdomain.com) and create unlimited sub-identities (e.g., @alice.yourdomain.com, @bob.yourdomain.com).
+If you own a **domain name**, you can use it as your Cloudillo Identity (e.g., **@yourdomain.com**) and create unlimited sub-identities (e.g., **@alice.yourdomain.com**, **@bob.yourdomain.com**).
 
-		The Cloudillo Identity Provider is a service provided by the company behind the development of Cloudillo. While it means trusting Cloudillo with your identity, you still control where your data is stored — unlike on most platforms.
+The **Cloudillo Identity Provider** is a service provided by the company behind the development of Cloudillo. While it means trusting Cloudillo with your identity, **you still control where your data is stored** — unlike on most platforms.
 
-		Think of your identity as your address — it help others find and connect with you.
-`))
+Think of your identity as your **address** — it help others find and connect with you.`))
 	}
 
 	async function onClickDomainInfo() {
-		await dialog.tell(t('Cloudillo Identity with Your Own Domain'), t('REGISTER-FORM-DOMAIN-INFO', `
-			To use Cloudillo with your own domain, you need two things:
+		await dialog.tell(t('Cloudillo Identity with Your Own Domain'), t('REGISTER-FORM-DOMAIN-INFO',
+`To use Cloudillo with your own domain, you need two things:
 
-			1. A Cloudillo Identity – This is used by others to find and connect with you. It's based on a domain you own but doesn't interfere with your existing website. The Identity is usually prefixed with "@" and is called an Identity Tag.
+1. **A Cloudillo Identity** – This is used by others to find and connect with you. It's based on a domain you own but doesn't interfere with your existing website. The Identity is usually prefixed with **"@"** and is called an **Identity Tag**.
 
-			2. An App Domain – The unique address where you access your Cloudillo application. Unlike most platforms with a single global URL, Cloudillo provides a personalized address for each user. Your App Domain can be the same as your Identity domain but doesn't have to be.
+2. **An App Domain** – The unique address where you access your Cloudillo application. Unlike most platforms with a single global URL, Cloudillo provides a personalized address for each user. Your App Domain can be the same as your Identity domain but doesn't have to be.
 
-			Examples:
+### Examples:
 
-			Example 1: You own mycompany.com and want to use a subdomain, @ceo.mycompany.com as your Cloudillo Identity. Since ceo.mycompany.com isn't used for a website, you can also use it as your App Domain.
+**Example 1:** You own **mycompany.com** and want to use a subdomain, **@ceo.mycompany.com** as your Cloudillo Identity. Since **ceo.mycompany.com** isn't used for a website, you can also use it as your App Domain.
 
-			Example 2: You want @mycompany.com as your Cloudillo Identity, but your website already uses mycompany.com. In this case, you'll need a separate App Domain, like app.mycompany.com.
-		`))
+**Example 2:** You want **@mycompany.com** as your Cloudillo Identity, but your website already uses **mycompany.com**. In this case, you'll need a separate App Domain, like **app.mycompany.com**.
+`))
 	}
 
 	function onChangeIdentityProvider(evt: React.SyntheticEvent, provider: 'local' | 'domain' | undefined) {

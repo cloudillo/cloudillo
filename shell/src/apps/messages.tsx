@@ -173,7 +173,7 @@ function Msg({ className, action, local }: MsgProps) {
 			</div> }
 			<div className="d-flex flex-column">
 				{/* imgSrc && <img src={imgSrc} className="mb-2 mx-auto w-max-100"/> */}
-				{ action.content.split('\n\n').map((paragraph, i) => <p key={i}>
+				{ typeof action.content != 'string' ? null : action.content.split('\n\n').map((paragraph, i) => <p key={i}>
 					{ paragraph.split('\n').map((line, i) => <React.Fragment key={i}>
 						{ generateFragments(line).map((n, i) => <React.Fragment key={i}>{n}</React.Fragment>) }
 					<br/></React.Fragment>) }

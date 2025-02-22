@@ -63,7 +63,7 @@ function ConnectNotification({ className, action, onClick }: { className?: strin
 			</div>
 		</div><div className="d-flex flex-column">
 			{ !action.subType && <>
-				<h3>{ t("Wants to connect") }</h3>
+				<h3>{ action.status == 'C' ? t('Wants to connect') : t('Connected with you') }</h3>
 				{ content && content.split('\n\n').map((paragraph, i) => <p key={i}>
 					{ paragraph.split('\n').map((line, i) => <React.Fragment key={i}>
 						{ generateFragments(line).map((n, i) => <React.Fragment key={i}>{n}</React.Fragment>) }

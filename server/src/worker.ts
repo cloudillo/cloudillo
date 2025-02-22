@@ -33,11 +33,13 @@ import { initWorker as initMessageBusWorker } from './message-bus/worker.js'
 /////////////////////
 process.on('SIGINT', () => {
 	console.log('received signal: SIGINT')
+	cancelWait()
 	process.exit()
 })
 
 process.on('SIGTERM', () => {
 	console.log('received signal: SIGTERM')
+	cancelWait()
 	process.exit()
 })
 
@@ -80,7 +82,7 @@ async function taskRunner() {
 }
 
 export function cancelWait() {
-	//console.log('[DELAY]: cancel')
+	if (delayRef) console.log('[DELAY]: cancel')
 	delayRef?.cancel?.()
 }
 

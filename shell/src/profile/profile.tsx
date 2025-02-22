@@ -99,10 +99,11 @@ function ProfileConnection({ localProfile, cmds }: { localProfile?: Partial<Prof
 	return <div className="c-button cursor-default accent me-3">
 		{
 			localProfile.connected === 'R' ? <div className="c-link cursor-default"><IcConnect/>{t('Connection request sent')}</div>
+			: localProfile.connected ? <div className="c-link cursor-default"><IcConnect/>{t('Connected')}</div>
+			: localProfile.following ? <div className="c-link cursor-default"><IcFollow/>{t('Followed')}</div>
+			: localProfile.status == 'B' ? <button className="c-link" onClick={cmds.onBlock}><IcBlock/>{t('Unblock')}</button>
 			: !localProfile.following ? <button className="c-link" onClick={cmds.onFollow}><IcFollow/>{t('Follow')}</button>
 			: !localProfile.connected ? <button className="c-link" onClick={cmds.onConnect}><IcConnect/>{t('Connect')}</button>
-			: localProfile.connected ? <div className="c-link cursor-default"><IcConnect/>{t('Connected')}</div>
-			: localProfile.status == 'B' ? <button className="c-link" onClick={cmds.onBlock}><IcBlock/>{t('Unblock')}</button>
 			: null
 		}
 		<div className="separator"/>

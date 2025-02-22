@@ -93,11 +93,11 @@ function ProfileDetails({ className }: { className?: string }) {
 	</div>
 }
 
-export function ProfileListCard({ profile }: { profile: Profile }) {
+export function ProfileListCard({ profile, srcTag }: { profile: Profile, srcTag?: string }) {
 	const { t } = useTranslation()
 
 	return <Link className="c-panel p-1 mb-1 flex-row" to={`/profile/${profile.idTag}`}>
-		<ProfileCard className="flex-fill" profile={profile}/>
+		<ProfileCard className="flex-fill" profile={profile} srcTag={srcTag}/>
 		<ProfileStatusIcon profile={profile}/>
 	</Link>
 }

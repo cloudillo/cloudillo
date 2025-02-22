@@ -433,7 +433,7 @@ export function ProfileConnections({ profile }: ProfileTabProps) {
 		})()
 	}, [auth, location.search])
 
-	return !!profiles && profiles.map(profile => <ProfileListCard key={profile.idTag} profile={profile}/>)
+	return !!profiles && profiles.map(profile => <ProfileListCard key={profile.idTag} profile={profile} srcTag={profile.idTag}/>)
 }
 
 function Profile() {

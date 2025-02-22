@@ -35,11 +35,11 @@ import {
 
 } from 'react-icons/lu'
 
-import { useAuth, AuthState, useApi, Button } from '@cloudillo/react'
+import { useAuth, AuthState, useApi, useDialog, Button } from '@cloudillo/react'
 
 import { useAppConfig, ServerError, arrayBufferToBase64Url, base64ToArrayBuffer } from '../utils.js'
 import { CloudilloLogo } from '../logo.js'
-import { Page, useDialog } from '../ui.js'
+import { Page } from '../ui.js'
 import { RegisterForm } from './register.js'
 import { validIdTag, validPassword } from './utils.js'
 
@@ -276,7 +276,7 @@ export function PasswordResetForm() {
 	async function onSubmit(evt: React.FormEvent) {
 		evt.preventDefault()
 		if (!validPassword(password)) {
-			await dialog.simple(t('Invalid password!'), t('You must provide a strong password!'))
+			await dialog.tell(t('Invalid password!'), t('You must provide a strong password!'))
 			return
 		}
 		console.log('RESET PASSWORD')

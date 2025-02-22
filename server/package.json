@@ -1,6 +1,6 @@
 {
   "name": "@cloudillo/server",
-  "version": "0.0.6",
+  "version": "0.1.0",
   "description": "PersonalCloud backend service",
   "main": "build/index.js",
   "type": "module",

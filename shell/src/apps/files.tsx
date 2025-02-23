@@ -534,7 +534,7 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 					</form>
 					: file.fileName}
 				</h3>
-				<div className="d-flex justify-content-end">
+				<div className="c-hbox justify-content-end g-2 me-4">
 					<button className="c-link p-1" type="button" onClick={() => fileOps.openFile(file.fileId)}><IcEdit/></button>
 					<Popper className='c-link' icon={<IcMore/>}>
 						<ul className="c-nav">

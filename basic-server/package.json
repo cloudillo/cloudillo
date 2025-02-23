@@ -1,6 +1,6 @@
 {
   "name": "@cloudillo/basic-server",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Cloudillo basic server",
   "main": "src/index.js",
   "type": "module",

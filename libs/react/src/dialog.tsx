@@ -94,12 +94,12 @@ export function DialogContainer() {
 
 	return <>
 		{dialog && <div className={mergeClasses('c-modal', dialog.className, dialog && 'show')} tabIndex={-1}>
-			{dialog && <div className="c-dialog c-panel emph p-4">
+			{dialog && <div className="c-dialog c-panel h-max-100 emph p-4">
 				<div className="c-hbox">
 					<h2 className="fill mb-3">{dialog.title}</h2>
 					<button type="button" className="c-link pos absolute top-0 right-0 m-3" data-bs-dismiss="modal" aria-label="Close" onClick={onCancel}><IcClose/></button>
 				</div>
-				<div className="c-markdown">
+				<div className="c-markdown overflow-y-auto">
 					<Markdown>{dialog.descr}</Markdown>
 				</div>
 				{// dialog.descr.split(/\n\n\s*/).map((p, i) => <p key={i} className="mb-2">{p}</p>)

@@ -46,10 +46,10 @@ const APP_CONFIG: AppConfigState = {
 		'cloudillo/formillo': '/app/formillo'
 	},
 	menu: [
-		{ id: 'files', icon: IcFile, label: 'Files', path: '/app/files?filter=mut' },
-		{ id: 'feed', icon: IcFeed, label: 'Feed', path: '/app/feed', public: true },
-		{ id: 'communities', icon: IcUsers, label: 'Communities', path: '/communities' },
-		{ id: 'messages', icon: IcMessages, label: 'Messages', path: '/app/messages' },
+		{ id: 'files', icon: IcFile, label: 'Files', trans: { hu: 'Fájlok' }, path: '/app/files?filter=mut' },
+		{ id: 'feed', icon: IcFeed, label: 'Feed', trans: { hu: 'Hírfolyam' }, path: '/app/feed', public: true },
+		{ id: 'communities', icon: IcUsers, label: 'Communities', trans: { hu: 'Közösségek' }, path: '/communities' },
+		{ id: 'messages', icon: IcMessages, label: 'Messages', trans: { hu: 'Uzenetek' }, path: '/app/messages' },
 		//{ id: 'myform', icon: IcFile, label: 'My Form', path: '/app/formillo/cloud.w9.hu/myform' },
 	],
 	menuEx: [
@@ -267,7 +267,7 @@ function Header({ inert }: { inert?: boolean }) {
 					(!!auth && (!menuItem.perm || auth.roles?.includes(menuItem.perm)) || menuItem.public)
 						&& <NavLink key={menuItem.id} className="c-nav-link h-small vertical" aria-current="page" to={menuItem.path}>
 							{menuItem.icon && React.createElement(menuItem.icon)}
-							<h6>{menuItem.label}</h6>
+							<h6>{menuItem.trans?.[i18n.language] || menuItem.label}</h6>
 						</NavLink>
 				)}
 			</nav>
@@ -277,7 +277,7 @@ function Header({ inert }: { inert?: boolean }) {
 				(!!auth && (!menuItem.perm || auth.roles?.includes(menuItem.perm)) || menuItem.public)
 					&& <NavLink key={menuItem.id} className="c-nav-link h-small vertical" aria-current="page" to={menuItem.path}>
 						{menuItem.icon && React.createElement(menuItem.icon)}
-						<h6>{menuItem.label}</h6>
+						<h6>{menuItem.trans?.[i18n.language] || menuItem.label}</h6>
 					</NavLink>
 			)}
 			<button className={'c-nav-link h-small vertical'} onClick={() => setExMenuOpen(!exMenuOpen)}>

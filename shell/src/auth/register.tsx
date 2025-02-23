@@ -26,7 +26,9 @@ import {
 	LuAtSign as IcAt,
 	LuRefreshCw as IcLoading,
 	LuCheck as IcOk,
-	LuX as IcError
+	LuTriangleAlert as IcError,
+	LuDoorOpen as IcSignUp,
+	LuChevronsLeft as IcGoBack
 
 } from 'react-icons/lu'
 
@@ -51,7 +53,7 @@ export function RegisterForm() {
 	const [auth, setAuth] = useAuth()
 	const dialog = useDialog()
 
-	const [show, setShow] = React.useState(false)
+	const [show, setShow] = React.useState<boolean | undefined>()
 	const [identityProvider, setIdentityProvider] = React.useState<'local' | 'domain' | undefined>(undefined)
 	const [email, setEmail] = React.useState('')
 	const [idTag, setIdTag] = React.useState('')
@@ -71,27 +73,32 @@ export function RegisterForm() {
 		if (!api.idTag) return
 		(async function () {
 			console.log('RegisterForm.useEffect', api.idTag)
-			const res = await api.post('', '/auth/register-verify', {
-				data: { type: 'ref', idTag: '', registerToken }
-			})
-			setShow(true)
+			try {
+				const res = await api.post('', '/auth/register-verify', {
+					data: { type: 'ref', idTag: '', registerToken }
+				})
+				setShow(true)
+			} catch (err) {
+				console.log('ERROR', err)
+				setShow(false)
+			}
 		})()
 	}, [api])
 
 	async function onClickIdentityInfo() {
 		console.log('Dialog')
 		await dialog.tell(t('What is Identity?'), t('REGISTER-FORM-IDENTITY-INFO',
-`Identity is essential on any platform where you make connections with others.
+`Identification is essential on any platform where you make connections with others.
 
 On most platforms, identity is controlled by the platform owner, leaving you no choice but to rely on their system. Cloudillo is different — it's open, with no central owner, giving you the freedom to choose your identity provider.
 
 Cloudillo's identity system uses the Domain Name System (DNS) — the same system that the entire internet relies on for websites, emails and other services. While it involves some reliance on a provider, DNS is globally trusted and decentralized, making it a balanced and practical choice.
 
-If you own a **domain name**, you can use it as your Cloudillo Identity (e.g., **@yourdomain.com**) and create unlimited sub-identities (e.g., **@alice.yourdomain.com**, **@bob.yourdomain.com**).
+If you own a **domain name**, you can use it as your Cloudillo Identity (we prefix the domain with **"@"**, e.g., **@yourdomain.com**). You can create unlimited sub-identities using subdomains (e.g., **@alice.yourdomain.com**, **@bob.yourdomain.com**).
 
-The **Cloudillo Identity Provider** is a service provided by the company behind the development of Cloudillo. While it means trusting Cloudillo with your identity, **you still control where your data is stored** — unlike on most platforms.
+As an alternative you can use the **Cloudillo Identity Provider**, which is a service provided by the company behind the development of Cloudillo. Whit this you can use an Identity in the form **@yourname.cloudillo.net**. While it means trusting Cloudillo with your identity, **you still control where your data is stored** — unlike on most platforms.
 
-Think of your identity as your **address** — it help others find and connect with you.`))
+Think of your identity as your **address** — it help others find and connect with you. This makes it possible for Cloudillo users to move their data freely from one storage provider to an other.`))
 	}
 
 	async function onClickDomainInfo() {
@@ -106,7 +113,7 @@ Think of your identity as your **address** — it help others find and connect w
 
 **Example 1:** You own **mycompany.com** and want to use a subdomain, **@ceo.mycompany.com** as your Cloudillo Identity. Since **ceo.mycompany.com** isn't used for a website, you can also use it as your App Domain.
 
-**Example 2:** You want **@mycompany.com** as your Cloudillo Identity, but your website already uses **mycompany.com**. In this case, you'll need a separate App Domain, like **app.mycompany.com**.
+**Example 2:** You want **@mycompany.com** as your Cloudillo Identity, but your website already uses **mycompany.com**. In this case, you'll need a separate App Domain, like **cloudillo.mycompany.com**.
 `))
 	}
 
@@ -115,12 +122,17 @@ Think of your identity as your **address** — it help others find and connect w
 		setIdentityProvider(provider)
 		setIdTag('')
 		setAppDomain('')
+		setVerifyState(undefined)
 	}
 
-	const onChangeVerify = React.useCallback(debounce((async function onVerify(idTag: string, appDomain?: string) {
+	console.log('VERIFY STATE', verifyState)
+	const onChangeVerify = React.useCallback(debounce((async function onVerify(changed: 'idTag' | 'appDomain', idTag: string, appDomain?: string) {
 		if (!idTag) return
 
 		setProgress('vfy')
+		console.log('ON VERIFY', changed, idTag, appDomain)
+		if (changed == 'appDomain') setVerifyState(vs => !vs ? undefined : { ...vs, appDomainError: false })
+			else setVerifyState(undefined)
 		try {
 			const res = await api.post<{
 				ip: string[],
@@ -178,6 +190,7 @@ Think of your identity as your **address** — it help others find and connect w
 		}
 	}
 
+	if (show == undefined) return
 	if (!show) return <div className="c-panel">
 		<CloudilloLogo className="c-logo w-50 float-right ps-3 pb-3 slow"/>
 		<header><h1 className="mb-3">{t('This registration link is invalid!')}</h1></header>
@@ -208,32 +221,36 @@ Think of your identity as your **address** — it help others find and connect w
 
 			<div className="c-container"><div className="row g-3">
 				<div className="col col-md-6 c-panel primary mb-2">
-					<h4>Use Cloudillo's Identity Provider (Fast & Easy)</h4>
-					<p>Perfect if you want to start quickly or just explore Cloudillo.</p>
-					<hr className="w-100"/>
-					<ul className="ms-3">
-						<li><em>@john.<b>cloudillo.net</b></em></li>
-						<li><em>@johndoe.<b>cloudillo.net</b></em></li>
-					</ul>
-					<hr className="w-100"/>
-					<p><b>Note:</b> Cloudillo IDs are free for now, but may require a small (€3/year) donation in the future to support the platform.</p>
+					<Trans i18nKey="REGISTER-FORM-IDENTITY-PROVIDER">
+						<h4>Use Cloudillo's Identity Provider (fast & easy)</h4>
+						<p>Perfect if you want to start quickly or just explore Cloudillo.</p>
+						<hr className="w-100"/>
+						<ul className="ms-3">
+							<li><em>@john.<b>cloudillo.net</b></em></li>
+							<li><em>@johndoe.<b>cloudillo.net</b></em></li>
+						</ul>
+						<hr className="w-100"/>
+						<p><b>Note:</b> Cloudillo IDs are free for now, but may require a small (€3/year) donation in the future to support the platform.</p>
+					</Trans>
 					<div className="h-100"/>
 					<div className="c-group">
-						<Button className="primary" onClick={evt => onChangeIdentityProvider(evt, 'local')}>Use Cloudillo's Identity Provider</Button>
+						<Button className="primary" onClick={evt => onChangeIdentityProvider(evt, 'local')}>{t("Use Cloudillo's Identity Provider")}</Button>
 					</div>
 				</div><div className="col col-md-6 c-panel secondary mb-2">
-					<h4>Use your own Domain Name (More Control & Branding)</h4>
-					<p>Great for businesses or users who want full control over their own identity.</p>
-					<hr className="w-100"/>
-					<ul className="ms-3">
-						<li><em>@<b>yourdomain.com</b></em></li>
-						<li><em>@john.<b>yourdomain.com</b></em></li>
-					</ul>
-					<hr className="w-100"/>
-					<p><b>Setup Required:</b> You'll need to configure your domain provider, but we'll guide you through it. This small initial effort pays off by making it easier to build trust in the long run.</p>
+					<Trans i18nKey="REGISTER-FORM-DOMAIN">
+						<h4>Use your own domain name (more control & branding)</h4>
+						<p>Great for businesses or users who want full control over their own identity.</p>
+						<hr className="w-100"/>
+						<ul className="ms-3">
+							<li><em>@<b>yourdomain.com</b></em></li>
+							<li><em>@john.<b>yourdomain.com</b></em></li>
+						</ul>
+						<hr className="w-100"/>
+						<p><b>Setup Required:</b> You'll need to configure your domain provider, but we'll guide you through it. This small initial effort pays off by making it easier to build trust in the long run.</p>
+					</Trans>
 					<div className="h-100"/>
 					<div className="c-group">
-						<Button className="secondary" onClick={evt => onChangeIdentityProvider(evt, 'domain')}>Use your own Domain Name</Button>
+						<Button className="secondary" onClick={evt => onChangeIdentityProvider(evt, 'domain')}>{t("Use your own domain name")}</Button>
 					</div>
 				</div>
 			</div></div>
@@ -254,7 +271,7 @@ Think of your identity as your **address** — it help others find and connect w
 					<div className="c-button icon"><IcAt/></div>
 					<input className="c-input"
 						name="idTag"
-						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => (setIdTag(evt.target.value), setVerifyState(undefined), onChangeVerify(evt.target.value))}
+						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => (setIdTag(evt.target.value), setVerifyState(undefined), onChangeVerify('idTag', evt.target.value))}
 						value={idTag}
 						placeholder={t('Choose a name')}
 						aria-label={t('Identity tag')}
@@ -264,20 +281,16 @@ Think of your identity as your **address** — it help others find and connect w
 					{ !progress && idTag && verifyState?.idTagError && <IcError className="text-error my-auto f-none"/> }
 					<div className="c-button">.cloudillo.net</div>
 				</div>
-				{ verifyState?.idTagError == 'invalid' && <Trans i18nKey="REGISTER-FORM-ID-TAG-INVALID">
-					<div className="c-panel error mt-2">
-						<p>The provided Identity Tag is not valid. Are you sure you provided a valid domain name?</p>
-					</div>
-				</Trans>}
-				{ verifyState?.idTagError == 'used' && <Trans i18nKey="REGISTER-FORM-ID-TAG-USED">
-					<div className="c-panel error mt-2">
-						<p>The provided Identity Tag is already in use.</p>
-					</div>
-				</Trans>}
+				{ verifyState?.idTagError == 'invalid' && <div className="c-panel error mt-2">
+					<p>{t('REGISTER-FORM-ID-TAG-INVALID', 'The provided Identity Tag is not valid. Are you sure you provided a valid domain name?')}</p>
+				</div> }
+				{ verifyState?.idTagError == 'used' && <div className="c-panel error mt-2">
+					<p>{t('REGISTER-FORM-ID-TAG-USED', 'The provided Identity Tag is already in use.')}</p>
+				</div> }
 			</label>
 
 			<label className="my-3">{t('Contact email:')}
-				<input className="c-input mb-3"
+				<input className="c-input px-3 mb-3"
 					name="email"
 					onChange={(evt: React.ChangeEvent<HTMLInputElement>) => setEmail(evt.target.value)}
 					value={email}
@@ -287,7 +300,7 @@ Think of your identity as your **address** — it help others find and connect w
 			</label>
 
 			<label className="my-3">{t('Password')}
-				<div className="c-input-group mb-3">
+				<div className="c-input-group px-2 mb-3">
 					<input className="c-input"
 						name="password"
 						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => setPassword(evt.target.value)}
@@ -308,28 +321,26 @@ Think of your identity as your **address** — it help others find and connect w
 
 			<div className="c-invalid-feedback">{error}</div>
 			<footer className="c-group g-2 mt-2">
-				<Button className="container-secondary" onClick={evt => onChangeIdentityProvider(evt, undefined)}>{t('Go back')}</Button>
-				<Button className="primary" type="submit" disabled={verifyState?.idTagError !== false || verifyState?.appDomainError !== false || passwordError}>{t('Sign up')}</Button>
+				<Button className="container-secondary" onClick={evt => onChangeIdentityProvider(evt, undefined)}><IcGoBack/>{t('Go back')}</Button>
+				<Button className="primary" type="submit" disabled={verifyState?.idTagError !== false || verifyState?.appDomainError !== false || passwordError}><IcSignUp/>{t('Sign up')}</Button>
 			</footer>
 		</> }
 
 		{/* Domain-based identity choosen */}
 		{/*********************************/}
 		{ (!progress || progress == 'vfy') && identityProvider == 'domain' && <>
-			<Trans i18nKey="REGISTER-FORM">
-				<h3 className="my-3">Choose your Identity</h3>
-				<p className="pb-2">
-					Enter your chosen Identity Tag in the box below. Your Identity Tag can be any domain name you control, it does not matter if you already use it for a website. Choose wisely, because you'll not be able to easily change it later.
-				</p>
-				<p><button type="button" className="c-link text text-primary" onClick={onClickDomainInfo}>Read more!</button></p>
-			</Trans>
+			<h3 className="my-3">{t('Choose your Identity')}</h3>
+			<p className="pb-2">
+				{t('REGISTER-FORM-ID-TAG', "Enter your chosen Identity Tag in the box below. Your Identity Tag can be any domain name you control, it does not matter if you already use it for a website. Choose wisely, because you'll not be able to easily change it later.")}
+			</p>
+			<p><button type="button" className="c-link text text-primary" onClick={onClickDomainInfo}>{t('Read more')}</button></p>
 
 			<label className="d-block my-3">{t('Identity tag')}
-				<div className="c-input-group">
+				<div className="c-input-group pe-2">
 					<div className="c-button icon"><IcAt/></div>
 					<input className="c-input"
 						name="idTag"
-						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => (setIdTag(evt.target.value), setVerifyState(undefined), onChangeVerify(evt.target.value, appDomain))}
+						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => (setIdTag(evt.target.value), setVerifyState(undefined), onChangeVerify('idTag', evt.target.value, appDomain))}
 						value={idTag}
 						placeholder={t('your.identity.tag')}
 						aria-label={t('Identity tag')}
@@ -339,42 +350,28 @@ Think of your identity as your **address** — it help others find and connect w
 					{ !progress && idTag && verifyState?.idTagError == 'nodns' && <IcError className="text-warning my-auto f-none"/> }
 					{ !progress && idTag && verifyState?.idTagError && verifyState.idTagError != 'nodns' && <IcError className='text-error my-auto f-none'/> }
 				</div>
-				{ verifyState?.idTagError == 'invalid' && <Trans i18nKey="REGISTER-FORM-ID-TAG-INVALID">
-					<div className="c-panel error mt-2">
-						<p>The provided Identity Tag is not valid. Are you sure you provided a valid domain name?</p>
-					</div>
-				</Trans>}
-				{ verifyState?.idTagError == 'used' && <Trans i18nKey="REGISTER-FORM-ID-TAG-USED">
-					<div className="c-panel error mt-2">
-						<p>The provided Identity Tag is already in use.</p>
-					</div>
-				</Trans>}
-				{ verifyState?.idTagError == 'nodns' && <Trans i18nKey="REGISTER-FORM-ID-TAG-NOT-REG">
-					<div className="c-panel warning mt-2">
-						<p>The provided Identity Tag is not registered in the Domain Name System.
-							You should make the changes below in your domain and try again.</p>
-					</div>
-				</Trans>}
-				{ verifyState?.idTagError == 'ip' && <Trans i18nKey="REGISTER-FORM-ID-TAG-IP-DIFF">
-					<div className="c-panel warning mt-2">
-						<h4 className="mb-2">Are you sure?</h4>
-						<p>The provided Identity Tag is registered in the Domain Name System, but it points to a different IP address ({verifyState.apiIp}).
-							If you are sure about using this Identity Tag, you should make the changes below in your domain and try again.</p>
-					</div>
-				</Trans>}
+				{ verifyState?.idTagError == 'invalid' && <div className="c-panel error mt-2">
+					<p>{t('REGISTER-FORM-ID-TAG-INVALID', 'The provided Identity Tag is not valid. Are you sure you provided a valid domain name?')}</p>
+				</div> }
+				{ verifyState?.idTagError == 'used' && <div className="c-panel error mt-2">
+					<p>{t('REGISTER-FORM-ID-TAG-USED', 'The provided Identity Tag is already in use.')}</p>
+				</div> }
+				{ verifyState?.idTagError == 'nodns' && <div className="c-panel warning mt-2">
+					<p>{t('REGISTER-FORM-ID-TAG-NOT-REG', 'The provided Identity Tag is not registered in the Domain Name System. You should make the changes below in your domain and try again.')}</p>
+				</div> }
+				{ verifyState?.idTagError == 'ip' && <div className="c-panel warning mt-2">
+					<h4 className="mb-2">{t('Are you sure?')}</h4>
+					<p>{t('REGISTER-FORM-ID-TAG-IP-DIFF', 'The provided Identity Tag is registered in the Domain Name System, but it points to a different IP address ({{apiIp}}). If you are sure about using this Identity Tag, you should make the changes below in your domain and try again.', { apiIp: verifyState.apiIp })}</p>
+				</div> }
 			</label>
 
-			<Trans i18nKey="REGISTER-FORM">
-				<p className="my-1">
-					You also need to choose an App Domain which you will use to access your Cloudillo Application. It is often the same as your Identity Tag (if you don't run an other webpage on it), but you can use a subdomain, or any other domain if you want.
-				</p>
-			</Trans>
+			<p className="my-1">{t('REGISTER-FORM-APP-DOMAIN', "You also need to choose an App Domain which you will use to access your Cloudillo Application. It is often the same as your Identity Tag (if you don't run an other webpage on it), but you can use a subdomain, or any other domain if you want.")}</p>
 
 			<label className="d-block my-3">{t('App domain')}
-				<div className="c-input-group">
+				<div className="c-input-group px-2">
 					<input className="c-input"
 						name="app-domain"
-						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => (setAppDomain(evt.target.value), setVerifyState(undefined), onChangeVerify(idTag, evt.target.value))}
+						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => (setAppDomain(evt.target.value), /*setVerifyState(undefined),*/ onChangeVerify('appDomain', idTag, evt.target.value))}
 						value={appDomain}
 						placeholder={idTag || t('your.app.domain')}
 						aria-label={t('Identity tag')}
@@ -384,44 +381,33 @@ Think of your identity as your **address** — it help others find and connect w
 					{ !progress && idTag && verifyState?.appDomainError == 'nodns' && <IcError className="text-warning my-auto f-none"/> }
 					{ !progress && idTag && verifyState?.appDomainError && verifyState?.appDomainError != 'nodns' && <IcError className="text-error my-auto f-none"/> }
 				</div>
-				{ verifyState?.appDomainError == 'invalid' && <Trans i18nKey="REGISTER-FORM-APP-INVALID">
-					<div className="c-panel error mt-2">
-						<p>The provided application domain is not valid. Are you sure you provided a valid domain name?</p>
-					</div>
-				</Trans>}
-				{ verifyState?.appDomainError == 'used' && <Trans i18nKey="REGISTER-FORM-APP-USED">
-					<div className="c-panel error mt-2">
-						<p>The provided app domain address is already in use.</p>
-					</div>
-				</Trans>}
-				{ verifyState?.appDomainError == 'nodns' && <Trans i18nKey="REGISTER-FORM-APP-IP-NOT-REG">
-					<div className="c-panel warning mt-2">
-						<p>The provided Application Domain is not registered in the Domain Name System.
-							You should make the changes below in your domain and try again.</p>
-					</div>
-				</Trans>}
-				{ verifyState?.appDomainError == 'ip' && !appDomain && <Trans i18nKey="REGISTER-FORM-APP-IP-DIFF">
+				{ verifyState?.appDomainError == 'invalid' && <div className="c-panel error mt-2">
+					<p>{t('REGISTER-FORM-APP-INVALID', 'The provided application domain is not valid. Are you sure you provided a valid domain name?')}</p>
+				</div> }
+				{ verifyState?.appDomainError == 'used' && <div className="c-panel error mt-2">
+					<p>{t('REGISTER-FORM-APP-USED', 'The provided app domain address is already in use.')}</p>
+				</div> }
+				{ verifyState?.appDomainError == 'nodns' && <div className="c-panel warning mt-2">
+					<p>{t('REGISTER-FORM-APP-IP-NOT-REG', 'The provided Application Domain is not registered in the Domain Name System. You should make the changes below in your domain and try again.')}</p>
+				</div> }
+				{ verifyState?.appDomainError == 'ip' && !appDomain && <Trans i18nKey="REGISTER-FORM-APP-EMPTY-IP-DIFF" values={{ idTag }}>
 					<div className="c-panel error mt-2">
 						<p>The Identity Tag you provided appears to be already in use (perhaps for an existing website).
-						</p><p>This means you likely <b>won’t be able to use it as your Cloudillo App site</b>. You can either choose a subdomain (e.g., <b>cloudillo.cloudillo.net</b>) or use a different address.</p>
-						<p><button type="button" className="c-link text text-primary" onClick={onClickDomainInfo}>Read more!</button></p>
+						</p><p>This means you likely <b>won’t be able to use it as your Cloudillo App site</b>. You can either choose a subdomain (e.g., <b>cloudillo.{idTag}</b>) or use a different address.</p>
+						<p><button type="button" className="c-link text text-primary" onClick={onClickDomainInfo}>Read more</button></p>
 					</div>
 				</Trans>}
-				{ verifyState?.appDomainError == 'ip' && appDomain && <Trans i18nKey="REGISTER-FORM-APP-IP-DIFF">
-					<div className="c-panel error mt-2">
-						<h4 className="mb-2">Are you sure?</h4>
-						<p>The provided App Domain is registered in the Domain Name System, but it points to a different IP address ({verifyState.appIp}).
-							If you are sure about using this Identity Tag, you should make the changes below in your domain and try again.</p>
-					</div>
-				</Trans>}
+				{ verifyState?.appDomainError == 'ip' && appDomain && <div className="c-panel error mt-2">
+					<h4 className="mb-2">{t('Are you sure?')}</h4>
+					<p>{t('REGISTER-FORM-APP-IP-DIFF', 'The provided App Domain is registered in the Domain Name System, but it points to a different IP address ({{appIp}}). If you are sure about using this Identity Tag, you should make the changes below in your domain and try again.', { appIp: verifyState.appIp})}</p>
+				</div> }
 			</label>
 
 			{ idTag && verifyState?.idTagError != 'used' && verifyState?.appDomainError != 'used'
 				&& (verifyState?.idTagError == 'nodns' || verifyState?.idTagError == 'ip' || verifyState?.appDomainError == 'nodns' || verifyState?.appDomainError == 'ip') && <div className="my-3">
-				<h4 className="mb-2">DNS instructions</h4>
-				<p>Please make the following changes in your domain's DNS settings to use it as your Cloudillo Identity.
-					If you don't know what to do with it, don't panic! Send the instructions to your system administrator or webmaster:</p>
-				<p>After the changes are made, you can get back here and continue with the registration.</p>
+				<h4 className="mb-2">{t('DNS instructions')}</h4>
+				<p>{t("Please make the following changes in your domain's DNS settings to use it as your Cloudillo Identity. If you don't know what to do with it, don't panic! Send the instructions to your system administrator or webmaster:")}</p>
+				<p>{t("After the changes are made, you can get back here and continue with the registration.")}</p>
 				<pre className="c-panel success">
 					cl-o.{idTag.padEnd(20, ' ')} IN A {verifyState?.ip[0] + '\n'}
 					{(appDomain || idTag).padEnd(25, ' ')} IN A {verifyState?.ip[0]}
@@ -430,7 +416,7 @@ Think of your identity as your **address** — it help others find and connect w
 
 			{ (verifyState?.idTagError == false && verifyState?.appDomainError == false) && <>
 				<label className="my-3">{t('Email address')}
-					<input className="c-input mb-3"
+					<input className="c-input px-3 mb-3"
 						name="email"
 						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => setEmail(evt.target.value)}
 						value={email}
@@ -440,7 +426,7 @@ Think of your identity as your **address** — it help others find and connect w
 				</label>
 
 				<label className="my-3">{t('Password')}
-					<div className="c-input-group mb-3">
+					<div className="c-input-group px-2 mb-3">
 						<input className="c-input"
 							name="password"
 							onChange={(evt: React.ChangeEvent<HTMLInputElement>) => setPassword(evt.target.value)}
@@ -461,8 +447,8 @@ Think of your identity as your **address** — it help others find and connect w
 
 			<div className="c-invalid-feedback">{error}</div>
 			<footer className="c-group g-2 mt-2">
-				<Button className="container-secondary" onClick={evt => onChangeIdentityProvider(evt, undefined)}>{t('Go back')}</Button>
-				<Button className="primary me-2" type="submit" disabled={verifyState?.idTagError !== false && verifyState?.appDomainError !== false || passwordError}>{t('Sign up')}</Button>
+				<Button className="container-secondary" onClick={evt => onChangeIdentityProvider(evt, undefined)}><IcGoBack/>{t('Go back')}</Button>
+				<Button className="primary me-2" type="submit" disabled={verifyState?.idTagError !== false && verifyState?.appDomainError !== false || passwordError}><IcSignUp/>{t('Sign up')}</Button>
 			</footer>
 		</> }
 
@@ -498,7 +484,7 @@ Think of your identity as your **address** — it help others find and connect w
 				<p>{t('You can now log in using your App domain')}</p>
 			</div>
 			<div className="c-group">
-				<a className="c-button primary" href={`https://${appDomain || (identityProvider == 'domain' ? idTag : idTag + '.cloudillo.net')}`}>{t('Proceed to')} {appDomain || (identityProvider == 'domain' ? idTag : idTag + '.cloudillo.net')}</a>
+				<a className="c-button primary" href={`https://${appDomain || (identityProvider == 'domain' ? idTag : idTag + '.cloudillo.net')}`}>{t('Proceed to {{appDomain}}', { appDomain: appDomain || (identityProvider == 'domain' ? idTag : idTag + '.cloudillo.net') })}</a>
 			</div>
 		</> }
 
@@ -510,10 +496,10 @@ Think of your identity as your **address** — it help others find and connect w
 				<CloudilloLogo className="c-logo w-50 ps-3 pb-w"/>
 				<h3 className="my-3">{t('Your registration was successful.')}</h3>
 				<p>{t('However we could not verify the availability of your App domain. If you just created it in the domain name system then it can be normal, because the domain name system needs some time to propagate changes.')}</p>
-				<p>{t('Please wait some time (it can take a few hours) and try to log in on your app domain later. It can be a few hours.')}</p>
+				<p>{t('Please wait some time (it can take a few hours) and try to log in on your app domain later.')}</p>
 			</div>
 			<div className="c-group">
-				<a className="c-button primary" href={`https://${appDomain || (identityProvider == 'domain' ? idTag : idTag + '.cloudillo.net')}`}>{t('Proceed to')} {appDomain || (identityProvider == 'domain' ? idTag : idTag + '.cloudillo.net')}</a>
+				<a className="c-button primary" href={`https://${appDomain || (identityProvider == 'domain' ? idTag : idTag + '.cloudillo.net')}`}>{t('Proceed to {{appDomain}}', { appDomain: appDomain || (identityProvider == 'domain' ? idTag : idTag + '.cloudillo.net') })}</a>
 			</div>
 		</> }
 
@@ -524,7 +510,7 @@ Think of your identity as your **address** — it help others find and connect w
 			<div className="c-vbox align-items-center p-5">
 				<CloudilloLogo className="c-logo w-50 ps-3 pb-w"/>
 				<h3 className="my-3">{t('Your registration was unsuccessful.')}</h3>
-				<p>{t('Please contact us, we try our best to fix the problem.')}</p>
+				<p>{t('Please contact the administrator of the server.')}</p>
 			</div>
 		</> }
 	</form>

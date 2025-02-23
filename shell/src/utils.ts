@@ -124,6 +124,7 @@ export interface MenuItem {
 	id: string
 	icon?: React.ComponentType
 	label: string
+	trans?: Record<string, string>
 	path: string
 	public?: boolean
 	perm?: string

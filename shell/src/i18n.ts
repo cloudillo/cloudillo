@@ -32,7 +32,9 @@ i18n
 	.init({
 		resources,
 		fallbackLng: 'en',
-		keySeparator: '$',
+		keySeparator: '@',
+		nsSeparator: '$',
+		returnNull: false,
 		// debug: true,
 		interpolation: {
 			//escapeValue: false,

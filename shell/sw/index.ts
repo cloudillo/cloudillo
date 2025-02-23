@@ -1,5 +1,5 @@
 const CACHE = 'cache-25.02.04'
-const log = 1
+const log = 0
 
 const PRECACHE_URLS: string[] = [
 	//'index.html', './',

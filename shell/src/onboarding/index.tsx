@@ -100,7 +100,7 @@ function Install({ pwa }: { pwa: UsePWA }) {
 
 	return <div className="c-panel">
 		<h1>{t('Install the Cloudillo Client')}</h1>
-		<p className="py-4">{t('After installing the Cloudillo Client, you can access it easily from your home screen or desktop.')}</p>
+		<p className="py-4">{t('After installing the Cloudillo client, you can access it easily from your home screen or desktop.')}</p>
 		<div className="c-group g-1">
 			<Button className="c-button primary" onClick={onInstall}>{t('Install to home screen')}</Button>
 			<Button className="c-button" onClick={onSkip}>{t('Skip')}</Button>

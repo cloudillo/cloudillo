@@ -371,12 +371,12 @@ const FilterBar = React.memo(function FilterBar({ className }: { className?: str
 			</Link>
 		</li>
 		<li className="c-nav-item">
-			<Link className={'c-nav-link ' + (qs.filter === 'mut' ? 'active' : '')} to="?filter=mut"><IcMutable/> {t('Mutable')}
+			<Link className={'c-nav-link ' + (qs.filter === 'mut' ? 'active' : '')} to="?filter=mut"><IcMutable/> {t('Editable')}
 				{!!fileStat.todo && <span className="c-badge bg error">{fileStat.mutable}</span>}
 			</Link>
 		</li>
 		<li className="c-nav-item">
-			<Link className={'c-nav-link ' + (qs.filter === 'imm' ? 'active' : '')} to="?filter=imm"><IcImmutable/> {t('Immutable')}
+			<Link className={'c-nav-link ' + (qs.filter === 'imm' ? 'active' : '')} to="?filter=imm"><IcImmutable/> {t('Finalized')}
 				{!!fileStat.todo && <span className="c-badge bg error">{fileStat.todo}</span>}
 			</Link>
 		</li>
@@ -661,8 +661,8 @@ export function FilesApp() {
 			<div className="c-nav c-hbox md-hide lg-hide">
 				<IcFilter onClick={() => setShowFilter(true)}/>
 				<div className="c-tag-list">
-					{ fileListData.filter?.filter == 'mut' && <div className="c-tag">{t('mutable')}</div> }
-					{ fileListData.filter?.filter == 'imm' && <div className="c-tag">{t('immutable')}</div> }
+					{ fileListData.filter?.filter == 'mut' && <div className="c-tag">{t('editable')}</div> }
+					{ fileListData.filter?.filter == 'imm' && <div className="c-tag">{t('finalized')}</div> }
 				</div>
 			</div>}
 		>

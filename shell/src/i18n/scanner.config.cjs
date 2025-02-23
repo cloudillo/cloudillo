@@ -6,6 +6,7 @@ module.exports = {
 	],
 	options: {
 		//removeUnusedKeys: true,
+		removeUnusedKeys: (lng, ns, key) => (console.log('UNUSED:', lng, ns, key), false),
 		lngs: ['hu'],
 		keySeparator: '$',
 		nsSeparator: '#',

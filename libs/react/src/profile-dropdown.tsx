@@ -18,7 +18,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
-	LuX as IcDelete
+	LuTrash as IcDelete
 } from 'react-icons/lu'
 
 import { Profile } from '@cloudillo/types'

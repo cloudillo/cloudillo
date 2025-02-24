@@ -259,12 +259,8 @@ Think of your identity as your **address** — it help others find and connect w
 		{/* Local identity choosen */}
 		{/**************************/}
 		{ (!progress || progress == 'vfy') && identityProvider == 'local' && <>
-			<Trans i18nKey="REGISTER-FORM">
-				<h3 className="my-3">Choose your Identity</h3>
-				<p>
-					Enter your chosen Identity in the box below. Choose wisely, because changing it later will not be easy.
-				</p>
-			</Trans>
+			<h3 className="my-3">{t('Choose your Identity')}</h3>
+			<p>{t('Enter your chosen Identity in the box below. Choose wisely, because changing it later will not be easy.')}</p>
 
 			<label className="d-block my-3">{t('Identity Tag')}
 				<div className="c-input-group">
@@ -335,7 +331,7 @@ Think of your identity as your **address** — it help others find and connect w
 			</p>
 			<p><button type="button" className="c-link text text-primary" onClick={onClickDomainInfo}>{t('Read more')}</button></p>
 
-			<label className="d-block my-3">{t('Identity tag')}
+			<label className="d-block my-3">{t('Identity Tag (domain name)')}
 				<div className="c-input-group pe-2">
 					<div className="c-button icon"><IcAt/></div>
 					<input className="c-input"

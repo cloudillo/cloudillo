@@ -22,7 +22,7 @@ import ReactQuill, { Quill } from 'react-quill-new'
 import QuillMarkdown from 'quilljs-markdown'
 import Turndown from 'turndown'
 
-import { Button, Popper, Container, Fcb, useDialog } from '@cloudillo/react'
+import { Button, Popper, Container, Fcb, useDialog, mergeClasses } from '@cloudillo/react'
 import { NewAction } from '@cloudillo/types'
 
 import {
@@ -32,7 +32,8 @@ import {
 	LuEllipsisVertical as IcMore,
 	LuUserPlus as IcFollow,
 	LuHandshake as IcConnect,
-	LuCircleOff as IcBlock
+	LuCircleOff as IcBlock,
+	LuMessageCircle as IcMessage
 } from 'react-icons/lu'
 
 import 'quill/dist/quill.core.css'
@@ -96,7 +97,7 @@ function ProfileConnection({ localProfile, cmds }: { localProfile?: Partial<Prof
 
 	if (!localProfile) return null
 
-	return <div className="c-button cursor-default accent me-3">
+	return <div className={mergeClasses('c-button cursor-default me-3', !localProfile.connected && !localProfile.following && localProfile.status != 'B' ? 'accent': '')}>
 		{
 			localProfile.connected === 'R' ? <div className="c-link cursor-default"><IcConnect/>{t('Connection request sent')}</div>
 			: localProfile.connected ? <div className="c-link cursor-default"><IcConnect/>{t('Connected')}</div>
@@ -281,7 +282,10 @@ export function ProfilePage({
 							<h4><IdentityTag idTag={profile.idTag}/></h4>
 						</div>
 						<div className="flex-fill"/>
-						{ auth?.idTag && !own && <ProfileConnection localProfile={localProfile} cmds={profileCmds}/> }
+						{ auth?.idTag && !own && <>
+							{ profile.type == 'person' && localProfile?.connected == true && <Link className="c-button" to={`/app/messages/${profile.idTag}`}><IcMessage/>{t('Message')}</Link> }
+							<ProfileConnection localProfile={localProfile} cmds={profileCmds}/>
+						</> }
 					</div>
 					<div className="c-tabs">
 						<NavLink className="c-tab" to={`/profile/${own ? 'me' : profile.idTag}/feed`} end >{t('Feed')}</NavLink>
@@ -434,7 +438,7 @@ export function ProfileConnections({ profile }: ProfileTabProps) {
 		})()
 	}, [auth, location.search])
 
-	return !!profiles && profiles.map(profile => <ProfileListCard key={profile.idTag} profile={profile} srcTag={profile.idTag}/>)
+	return !!profiles && profiles.map(p => <ProfileListCard key={p.idTag} profile={p} srcTag={profile.idTag}/>)
 }
 
 function Profile() {
@@ -452,16 +456,22 @@ function Profile() {
 
 	React.useEffect(function load() {
 		if (!idTag || !auth?.idTag) return
+
+		if (idTag != profile?.idTag) {
+			setProfile(undefined)
+			setLocalProfile(undefined)
+		}
+
 		console.log('load', idTag)
 		api.get<FullProfile>(idTag, '/me/full').then(setProfile)
 		api.get<Profile>(auth?.idTag, `/profile/${idTag}`).then(setLocalProfile).catch(() => setLocalProfile({}))
-	}, [idTag, auth?.idTag])
+	}, [idTag, profile?.idTag, auth?.idTag])
 
 	React.useEffect(function debug() {
 		console.log('profile', profile, localProfile)
 	}, [profile, localProfile])
 
-	async function updateProfile(patch: ProfilePatch) {
+	const updateProfile: ProfileTabProps['updateProfile'] = idTag != auth?.idTag ? undefined : async function updateProfile(patch: ProfilePatch) {
 		//console.log('updateProfile', patch)
 		setProfile(profile ? {
 			...profile,

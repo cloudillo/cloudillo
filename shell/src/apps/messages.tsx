@@ -403,7 +403,7 @@ export function MessagesApp() {
 
 		(async function () {
 			const conversationRes: { conversations: Conversation[] } = { conversations: [] }
-			const profileRes = await api.get<{ profiles: Profile[] }>('', '/profile', { query: { ...filter }})
+			const profileRes = await api.get<{ profiles: Profile[] }>('', '/profile', { query: { ...filter, type: 'person' }})
 			console.log('profiles', profileRes)
 			const profileConvs: Conversation[] = profileRes.profiles.map(profile => ({
 				id: profile.idTag,

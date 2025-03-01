@@ -9,43 +9,51 @@ body {
 	flex-grow: 1;
 }
 
-.m-panel.ql-toolbar {
+.c-panel.ql-toolbar {
 	z-index: 10;
 }
 
-.m-panel.ql-container {
+.c-panel.ql-container {
 	font-size: 1rem;
 }
 
-.m-panel.ql-toolbar.ql-snow, .m-panel.ql-container.ql-snow {
+.c-panel.ql-toolbar.ql-snow, .c-panel.ql-container.ql-snow {
 	border: 0;
-	color: var(--col-txt);
+	color: var(--col-on);
 }
 
-.m-panel.ql-toolbar.ql-snow .ql-stroke { stroke: var(--col-txt); }
-.m-panel.ql-toolbar.ql-snow .ql-fill { fill: var(--col-txt); }
-.m-panel.ql-toolbar.ql-snow :hover .ql-stroke { stroke: var(--col-txt); }
-.m-panel.ql-toolbar.ql-snow :hover .ql-fill { fill: var(--col-txt); }
-.m-panel.ql-toolbar.ql-snow .ql-active .ql-stroke { stroke: var(--col-txt-emph); }
-.m-panel.ql-toolbar.ql-snow .ql-active .ql-fill { fill: var(--col-txt-emph); }
+.c-panel.ql-toolbar.ql-snow .ql-stroke { stroke: var(--col-on); }
+.c-panel.ql-toolbar.ql-snow .ql-fill { fill: var(--col-on); }
+.c-panel.ql-toolbar.ql-snow button:hover .ql-stroke { stroke: var(--col-em); }
+.c-panel.ql-toolbar.ql-snow button:hover .ql-fill { fill: var(--col-em); }
+.c-panel.ql-toolbar.ql-snow .ql-active .ql-stroke { stroke: var(--col-primary); }
+.c-panel.ql-toolbar.ql-snow .ql-active .ql-fill { fill: var(--col-primary); }
 
-.m-panel.ql-snow .ql-picker {
-	color: var(--col-txt);
+.c-panel.ql-snow .ql-picker {
+	color: var(--col-on);
 }
-.m-panel.ql-snow.ql-toolbar button:hover, .m-panel.ql-snow .ql-toolbar button:hover, .m-panel.ql-snow.ql-toolbar button:focus, .m-panel.ql-snow .ql-toolbar button:focus, .m-panel.ql-snow.ql-toolbar .ql-picker-label:hover, .m-panel.ql-snow .ql-toolbar .ql-picker-label:hover, .m-panel.ql-snow.ql-toolbar .ql-picker-item:hover, .m-panel.ql-snow .ql-toolbar .ql-picker-item:hover {
-	color: var(--col-txt);
+.c-panel.ql-snow.ql-toolbar button:hover, .c-panel.ql-snow .ql-toolbar button:hover, .c-panel.ql-snow.ql-toolbar button:focus, .c-panel.ql-snow .ql-toolbar button:focus, .c-panel.ql-snow.ql-toolbar .ql-picker-label:hover, .c-panel.ql-snow .ql-toolbar .ql-picker-label:hover, .c-panel.ql-snow.ql-toolbar .ql-picker-item:hover, .c-panel.ql-snow .ql-toolbar .ql-picker-item:hover {
+	color: var(--col-on);
 }
-.m-panel.ql-snow.ql-toolbar button.ql-active, .m-panel.ql-snow .ql-toolbar button.ql-active, .m-panel.ql-snow.ql-toolbar .ql-picker-label.ql-active, .m-panel.ql-snow .ql-toolbar .ql-picker-label.ql-active, .m-panel.ql-snow.ql-toolbar .ql-picker-item.ql-selected, .m-panel.ql-snow .ql-toolbar .ql-picker-item.ql-selected {
-	color: var(--col-txt-emph);
+.c-panel.ql-snow.ql-toolbar button.ql-active, .c-panel.ql-snow .ql-toolbar button.ql-active, .c-panel.ql-snow.ql-toolbar .ql-picker-label.ql-active, .c-panel.ql-snow .ql-toolbar .ql-picker-label.ql-active, .c-panel.ql-snow.ql-toolbar .ql-picker-item.ql-selected, .c-panel.ql-snow .ql-toolbar .ql-picker-item.ql-selected {
+	color: var(--col-em);
 }
 
-.m-panel.ql-toolbar.ql-snow .ql-picker-options {
-	color: var(--col-txt);
-	background: var(--col-bg-v);
-	box-shadow: inset 0px 0px 1rem var(--col-bg-emph);
+.c-panel.ql-toolbar.ql-snow .ql-picker-options {
+	color: var(--col-on);
+	background: var(--col-bg);
+	box-shadow: inset 0px 0px 1rem var(--col-bg);
 	backdrop-filter: blur(var(--blur-radius));
 	border-radius: var(--border-radius-lg);
 	border: 0;
+}
+
+#editor .ql-editor {
+	padding: 0;
+	&.ql-blank::before {
+		color: var(--col-on);
+		opacity: 0.6;
+	}
 }
 
 /* vim: ts=4

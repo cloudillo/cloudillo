@@ -33,7 +33,7 @@
     "react-router-dom": "^7.2.0",
     "rimraf": "^6.0.1",
     "tslib": "^2.8.1",
-    "typescript": "^5.7.3",
+    "typescript": "^5.8.2",
     "y-indexeddb": "^9.0.12",
     "y-websocket": "^2.1.0",
     "yjs": "^13.6.23"

@@ -261,30 +261,32 @@ function Header({ inert }: { inert?: boolean }) {
 				}
 			</ul>
 		</nav>
-		<div inert={inert} className="c-menu-ex flex-order-end">
-			<nav className={mergeClasses('c-nav', exMenuOpen && 'open')}>
-				{ appConfig && appConfig.menuEx.map(menuItem =>
+		{ !location.pathname.match('^/register/') && <>
+			<div inert={inert} className="c-menu-ex flex-order-end">
+				<nav className={mergeClasses('c-nav', exMenuOpen && 'open')}>
+					{ appConfig && appConfig.menuEx.map(menuItem =>
+						(!!auth && (!menuItem.perm || auth.roles?.includes(menuItem.perm)) || menuItem.public)
+							&& <NavLink key={menuItem.id} className="c-nav-link h-small vertical" aria-current="page" to={menuItem.path}>
+								{menuItem.icon && React.createElement(menuItem.icon)}
+								<h6>{menuItem.trans?.[i18n.language] || menuItem.label}</h6>
+							</NavLink>
+					)}
+				</nav>
+			</div>
+			<nav inert={inert} className="c-nav w-100 border-radius-0 justify-content-center flex-order-end">
+				{ appConfig && appConfig.menu.map(menuItem =>
 					(!!auth && (!menuItem.perm || auth.roles?.includes(menuItem.perm)) || menuItem.public)
 						&& <NavLink key={menuItem.id} className="c-nav-link h-small vertical" aria-current="page" to={menuItem.path}>
 							{menuItem.icon && React.createElement(menuItem.icon)}
 							<h6>{menuItem.trans?.[i18n.language] || menuItem.label}</h6>
 						</NavLink>
 				)}
+				<button className={'c-nav-link h-small vertical'} onClick={() => setExMenuOpen(!exMenuOpen)}>
+					<IcApps/>
+					<h6>{t('More')}</h6>
+				</button>
 			</nav>
-		</div>
-		<nav inert={inert} className="c-nav w-100 border-radius-0 justify-content-center flex-order-end">
-			{ appConfig && appConfig.menu.map(menuItem =>
-				(!!auth && (!menuItem.perm || auth.roles?.includes(menuItem.perm)) || menuItem.public)
-					&& <NavLink key={menuItem.id} className="c-nav-link h-small vertical" aria-current="page" to={menuItem.path}>
-						{menuItem.icon && React.createElement(menuItem.icon)}
-						<h6>{menuItem.trans?.[i18n.language] || menuItem.label}</h6>
-					</NavLink>
-			)}
-			<button className={'c-nav-link h-small vertical'} onClick={() => setExMenuOpen(!exMenuOpen)}>
-				<IcApps/>
-				<h6>{t('More')}</h6>
-			</button>
-		</nav>
+		</> }
 	</>
 }
 

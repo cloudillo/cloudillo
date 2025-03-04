@@ -15,10 +15,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 if (!process.env.BASE_ID_TAG || !process.env.BASE_PASSWORD) throw new Error('ENV:BASE_ID_TAG and ENV:BASE_PASSWORD must be specified!')
+const envMode = process.env.MODE ?? ''
 
 export const config: CloudilloServer.Config = {
 	jwtSecret: process.env.JWT_SECRET || 'secret',
-	mode: process.env.MODE == 'proxy' ? 'proxy' : 'standalone',
+	mode: ['standalone', 'proxy', 'stream_proxy'].includes(envMode) ? envMode as CloudilloServer.Config['mode'] : 'standalone',
 	listen: +(process.env.LISTEN || (process.env.MODE != 'proxy' ? 443 : 1443)),
 	listenHttp: +(process.env.LISTEN_HTTP || 0) || (process.env.MODE != 'proxy' ? 80 : undefined),
 	baseIdTag: process.env.BASE_ID_TAG,
@@ -27,7 +28,7 @@ export const config: CloudilloServer.Config = {
 	distDir: process.env.DIST_DIR || './dist',
 	acmeEmail: process.env.ACME_EMAIL || undefined,
 	localIps: process.env.LOCAL_IPS ? process.env.LOCAL_IPS.split(',') : undefined,
-	localDomains: process.env.LOCAL_DOMAINS ? process.env.LOCAL_DOMAINS.split(',') : undefined
+	identityProviders: process.env.IDENTITY_PROVIDERS ? process.env.IDENTITY_PROVIDERS.split(',') : undefined
 }
 const baseDir = process.env.DATA_DIR || './data'
 const privateDir = process.env.PRIVATE_DATA_DIR || path.join(baseDir, 'priv')

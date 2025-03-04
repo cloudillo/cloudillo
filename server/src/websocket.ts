@@ -43,7 +43,7 @@ export interface WsBusMsg {
 let wss: WS.Server<typeof WebSocketExt>
 
 export interface WsConfig {
-	mode: 'standalone' | 'proxy'
+	mode: 'standalone' | 'proxy' | 'stream_proxy'
 }
 
 export async function init(server: http.Server | http2.Http2Server, authAdapter: AuthAdapter, config: WsConfig) {

@@ -245,13 +245,15 @@ export async function handleInboundActionToken(tnId: number, actionId: string, t
 
 		let allowed = false
 		if (opts?.ack) allowed = true
+		// Allow followers and connection requests
 		if (['FLLW', 'CONN'].includes(act.t)) allowed = true
-		if (act.t == 'CMNT' && act.aud == idTag) {
+		// Allow comments, reactions
+		if (['CMNT', 'REACT'].includes(act.t) && act.aud == idTag) {
 			const parentAction = await metaAdapter.listActions(tnId, undefined, {
 				actionId: act.p,
 				audience: act.aud || act.iss
 			})
-			console.log('CMNT PARENT ACTION', parentAction)
+			console.log('PARENT ACTION', parentAction)
 			if (parentAction.length) allowed = true
 		}
 		if (issuerProfile?.following || issuerProfile?.connected) allowed = true

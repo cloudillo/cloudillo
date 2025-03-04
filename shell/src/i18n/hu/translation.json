@@ -178,5 +178,7 @@
   "Use Cloudillo's Identity Provider": "Cloudillo Azonosító Szolgáltatás",
   "Use your own domain name": "Saját domain név használata",
   "Read more": "További információk",
-  "Enter your chosen Identity in the box below. Choose wisely, because changing it later will not be easy.": "Add meg a választott azonosítódat az alábbi mezőben. Válassz körültekintően, mert később nem lesz könnyű módosítani!"
+  "Enter your chosen Identity in the box below. Choose wisely, because changing it later will not be easy.": "Add meg a választott azonosítódat az alábbi mezőben. Válassz körültekintően, mert később nem lesz könnyű módosítani!",
+  "Not available yet": "Még nem elérhető",
+  "Message": "Üzenet"
 }

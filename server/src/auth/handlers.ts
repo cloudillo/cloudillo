@@ -279,7 +279,7 @@ export async function postRegisterVerify(ctx: Context) {
 	const ref = await metaAdapter.getRef(tnId, p.registerToken)
 	if (p.registerToken !== ref?.refId || ref?.type != 'register') ctx.throw(403)
 	if (p.type == 'ref') {
-		ctx.body = {}
+		ctx.body = { identityProviders: ctx.config.identityProviders }
 		return
 	}
 

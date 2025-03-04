@@ -54,6 +54,7 @@ export function RegisterForm() {
 	const dialog = useDialog()
 
 	const [show, setShow] = React.useState<boolean | undefined>()
+	const [identityProviders, setIdentityProviders] = React.useState<string[]>([])
 	const [identityProvider, setIdentityProvider] = React.useState<'local' | 'domain' | undefined>(undefined)
 	const [email, setEmail] = React.useState('')
 	const [idTag, setIdTag] = React.useState('')
@@ -74,10 +75,12 @@ export function RegisterForm() {
 		(async function () {
 			console.log('RegisterForm.useEffect', api.idTag)
 			try {
-				const res = await api.post('', '/auth/register-verify', {
+				const res = await api.post<{ identityProviders?: string[] }>('', '/auth/register-verify', {
 					data: { type: 'ref', idTag: '', registerToken }
 				})
+				console.log('REF VERIFY RES', res)
 				setShow(true)
+				if (res.identityProviders) setIdentityProviders(res.identityProviders)
 			} catch (err) {
 				console.log('ERROR', err)
 				setShow(false)
@@ -234,7 +237,10 @@ Think of your identity as your **address** — it help others find and connect w
 					</Trans>
 					<div className="h-100"/>
 					<div className="c-group">
-						<Button className="primary" onClick={evt => onChangeIdentityProvider(evt, 'local')}>{t("Use Cloudillo's Identity Provider")}</Button>
+						{ identityProviders.length
+							? <Button className="primary" onClick={evt => onChangeIdentityProvider(evt, 'local')}>{t("Use Cloudillo's Identity Provider")}</Button>
+							: <Button className="primary" disabled={true}>{t("Not available yet")}</Button>
+						}
 					</div>
 				</div><div className="col col-md-6 c-panel secondary mb-2">
 					<Trans i18nKey="REGISTER-FORM-DOMAIN">
@@ -270,7 +276,7 @@ Think of your identity as your **address** — it help others find and connect w
 						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => (setIdTag(evt.target.value), setVerifyState(undefined), onChangeVerify('idTag', evt.target.value))}
 						value={idTag}
 						placeholder={t('Choose a name')}
-						aria-label={t('Identity tag')}
+						aria-label={t('Identity Tag')}
 					/>
 					{ progress == 'vfy' && <IcLoading className="animate-rotate-cw my-auto f-none"/> }
 					{ !progress && idTag && verifyState?.idTagError === false && <IcOk className="text-success my-auto f-none"/> }
@@ -339,7 +345,7 @@ Think of your identity as your **address** — it help others find and connect w
 						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => (setIdTag(evt.target.value), setVerifyState(undefined), onChangeVerify('idTag', evt.target.value, appDomain))}
 						value={idTag}
 						placeholder={t('your.identity.tag')}
-						aria-label={t('Identity tag')}
+						aria-label={t('Identity Tag')}
 					/>
 					{ progress == 'vfy' && <IcLoading className="animate-rotate-cw my-auto f-none"/> }
 					{ !progress && idTag && verifyState?.idTagError === false && <IcOk className="text-success my-auto f-none"/> }
@@ -370,7 +376,7 @@ Think of your identity as your **address** — it help others find and connect w
 						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => (setAppDomain(evt.target.value), /*setVerifyState(undefined),*/ onChangeVerify('appDomain', idTag, evt.target.value))}
 						value={appDomain}
 						placeholder={idTag || t('your.app.domain')}
-						aria-label={t('Identity tag')}
+						aria-label={t('Identity Tag')}
 					/>
 					{ progress == 'vfy' && <IcLoading className="animate-rotate-cw my-auto f-none"/> }
 					{ !progress && idTag && verifyState?.appDomainError == false && <IcOk className="text-success my-auto f-none"/> }
@@ -392,7 +398,7 @@ Think of your identity as your **address** — it help others find and connect w
 						</p><p>This means you likely <b>won’t be able to use it as your Cloudillo App site</b>. You can either choose a subdomain (e.g., <b>cloudillo.{idTag}</b>) or use a different address.</p>
 						<p><button type="button" className="c-link text text-primary" onClick={onClickDomainInfo}>Read more</button></p>
 					</div>
-				</Trans>}
+				</Trans> }
 				{ verifyState?.appDomainError == 'ip' && appDomain && <div className="c-panel error mt-2">
 					<h4 className="mb-2">{t('Are you sure?')}</h4>
 					<p>{t('REGISTER-FORM-APP-IP-DIFF', 'The provided App Domain is registered in the Domain Name System, but it points to a different IP address ({{appIp}}). If you are sure about using this Identity Tag, you should make the changes below in your domain and try again.', { appIp: verifyState.appIp})}</p>

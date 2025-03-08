@@ -22,7 +22,7 @@
     },
     "devDependencies": {
         "@cloudillo/types": "workspace:^",
-        "@types/node": "^22.13.8",
+        "@types/node": "^22.13.10",
         "rimraf": "^6.0.1",
         "typescript": "^5.8.2"
     }

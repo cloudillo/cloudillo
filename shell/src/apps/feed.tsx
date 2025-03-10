@@ -86,16 +86,23 @@ export type ActionEvt = PostAction | ActionView
 //////////////////////
 // Image formatting //
 //////////////////////
-export function Images({ idTag, width, attachments }: { idTag: string, width: number, attachments: ActionView['attachments'] }) {
+interface ImagesProps {
+	idTag: string
+	width: number
+	srcTag?: string
+	attachments: ActionView['attachments']
+}
+export function Images({ idTag, width, srcTag, attachments }: ImagesProps) {
 	const [auth] = useAuth()
 	const [lbIndex, setLbIndex] = React.useState<number | undefined>()
 	const gap = 8
-	const baseUrl = `https://cl-o.${idTag}/api/store/`
+	const baseUrl = `https://cl-o.${srcTag || auth?.idTag || idTag}/api/store/`
 	const [img1, img2, img3] = attachments || []
 	//console.log('ATTACHMENTS', attachments, width)
 
 	const photos = React.useMemo(() => attachments?.map(im => ({
-		src: `https://cl-o.${auth?.idTag}/api/store/${im.hd || im.sd || im.tn}`,
+		//src: `https://cl-o.${auth?.idTag}/api/store/${im.hd || im.sd || im.tn}`,
+		src: `${baseUrl}${im.hd || im.sd || im.tn}`,
 		width: im.dim?.[0] || 100,
 		height: im.dim?.[1] || 100
 	})), [attachments])
@@ -306,9 +313,10 @@ interface PostProps {
 	action: PostAction
 	setAction: (action: PostAction) => void
 	hideAudience?: string
+	srcTag?: string
 	width: number
 }
-function Post({ className, action, setAction, hideAudience, width }: PostProps) {
+function Post({ className, action, setAction, hideAudience, srcTag, width }: PostProps) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
 	const api = useApi()
@@ -363,7 +371,7 @@ function Post({ className, action, setAction, hideAudience, width }: PostProps) 
 						{ generateFragments(line).map((n, i) => <React.Fragment key={i}>{n}</React.Fragment>) }
 					<br/></React.Fragment>) }
 				</p>) }
-				{ !!action.attachments?.length && <Images idTag={action.issuer.idTag} width={width} attachments={action.attachments || []}/> }
+				{ !!action.attachments?.length && <Images idTag={action.issuer.idTag} width={width} srcTag={srcTag} attachments={action.attachments || []}/> }
 				{/* generateFragments(action.content) */}
 			</div><div className="c-hbox">
 				<div className="c-hbox">
@@ -394,12 +402,13 @@ interface ActionCompProps {
 	action: ActionEvt
 	setAction: (actionId: string, action: ActionEvt) => void
 	hideAudience?: string
+	srcTag?: string
 	width: number
 }
 export const ActionComp = React.memo(
-function ActionComp({ className, action, setAction, hideAudience, width }: ActionCompProps) {
+function ActionComp({ className, action, setAction, hideAudience, srcTag, width }: ActionCompProps) {
 	switch (action.type) {
-		case 'POST': return <Post className={className} action={action as PostAction} setAction={act => setAction(act.actionId, act)} hideAudience={hideAudience} width={width}/>
+		case 'POST': return <Post className={className} action={action as PostAction} setAction={act => setAction(act.actionId, act)} hideAudience={hideAudience} srcTag={srcTag} width={width}/>
 	}
 })
 

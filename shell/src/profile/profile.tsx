@@ -398,6 +398,23 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 		})()
 	}, [api])
 
+	React.useLayoutEffect(function () {
+		if (!ref.current || !api || !auth) return
+		function onResize() {
+			if (!ref.current) return
+			const styles = getComputedStyle(ref.current)
+			const w = (ref.current?.clientWidth || 0) - parseInt(styles.paddingLeft || '0') - parseInt(styles.paddingRight || '0')
+			if (width != w) setWidth(w)
+		}
+
+		onResize()
+		window.addEventListener('resize', onResize)
+
+		return function () {
+			window.removeEventListener('resize', onResize)
+		}
+	}, [auth, api, ref])
+
 	const setFeedAction = React.useCallback(function setFeedAction(actionId: string, action: ActionEvt) {
 		setFeed(feed => !feed ? feed :  feed.map(f => f.actionId === actionId ? action : f))
 	}, [])
@@ -412,7 +429,7 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 				<NewPost ref={ref} className="col" style={{ minHeight: '3rem' }} onSubmit={onSubmit} idTag={profile.idTag}/>
 		}
 		{ !!feed && feed.map(action =>
-			<ActionComp key={action.actionId} action={action} setAction={setFeedAction} hideAudience={profile.idTag} width={width}/>
+			<ActionComp key={action.actionId} action={action} setAction={setFeedAction} hideAudience={profile.idTag} srcTag={profile.idTag} width={width}/>
 		) }
 	</>
 }

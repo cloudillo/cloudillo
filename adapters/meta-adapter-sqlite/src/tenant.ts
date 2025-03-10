@@ -95,9 +95,8 @@ export async function deleteTenant(tnId: number) {
 		'refs',
 		'key_cache',
 		'actions',
-		'action_outbox',
-		'action_outbox_queue',
-		'action_inbox'
+		'action_tokens',
+		'action_outbox_queue'
 	]) {
 		await db.run(`DELETE FROM ${table} WHERE tnId = $tnId`, { $tnId: tnId })
 	}

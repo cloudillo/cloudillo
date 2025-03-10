@@ -176,6 +176,8 @@ export interface ListActionsOptions {
 	parentId?: string
 	rootId?: string
 	subject?: string
+	createdAfter?: string | number
+	_limit?: number
 }
 
 export interface UpdateActionDataOptions {
@@ -245,6 +247,7 @@ export interface MetaAdapter {
 
 	// Actions
 	listActions: (tnId: number, auth: Auth | undefined, opts: ListActionsOptions) => Promise<ActionView[]>
+	listActionTokens: (tnId: number, auth: Auth | undefined, opts: ListActionsOptions) => Promise<string[]>
 	getActionRootId: (tnId: number, actionId: string) => Promise<string>
 	getActionData: (tnId: number, actionId: string) => Promise<{ subject?: string, reactions?: number, comments?: number } | undefined>
 	getActionByKey: (tnId: number, actionKey: string) => Promise<Action | undefined>
@@ -254,10 +257,10 @@ export interface MetaAdapter {
 	// Inbound actions
 	createInboundAction: (tnId: number, actionId: string, token: string, rel?: string) => Promise<void>
 	processPendingInboundActions: (callback: (tnId: number, actionId: string, token: string) => Promise<boolean>) => Promise<number>
-	updateInboundAction: (tnId: number, actionId: string, opts: { status: string | null }) => Promise<void>
+	updateInboundAction: (tnId: number, actionId: string, opts: { status: 'R' | 'P' | 'D' | null }) => Promise<void>
 	// Outbound actions
 	createOutboundAction: (tnId: number, actionId: string, token: string, opts: CreateOutboundActionOptions) => Promise<void>
-	processPendingOutboundActions: (callback: (tnId: number, actionId: string, type: string, token: string, recipientTag?: string) => Promise<boolean>) => Promise<number>
+	processPendingOutboundActions: (callback: (tnId: number, actionId: string, type: string, token: string, recipientTag: string) => Promise<boolean>) => Promise<number>
 
 	// Settings
 	listSettings: (tnId: number, opts: ListSettingsOptions) => Promise<Record<string, string | number | boolean | undefined>>

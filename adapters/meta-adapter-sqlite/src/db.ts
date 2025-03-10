@@ -262,6 +262,19 @@ export async function init({ dir, sqliteBusyTimeout }: { dir: string, sqliteBusy
 	)`)
 	await db.run('CREATE INDEX IF NOT EXISTS idx_actions_key ON actions(key, tnId) WHERE key NOT NULL')
 
+	await db.run(`CREATE TABLE IF NOT EXISTS action_tokens (
+		tnId integer NOT NULL,
+		actionId text NOT NULL,
+		token text NOT NULL,
+		status char(1),				-- 'L': local, 'R': received, 'P': received pending, 'D': deleted
+		ack text,
+		next integer,
+		PRIMARY KEY(actionId, tnId)
+	)`)
+	// INSERT INTO action_tokens (tnId, actionId, token, status, next) SELECT tnId, actionId, token, 'L', next FROM action_outbox;
+	// INSERT OR IGNORE INTO action_tokens (tnId, actionId, token, status, ack, next) SELECT tnId, actionId, token, status, ack, next FROM action_inbox;
+
+	/*
 	await db.run(`CREATE TABLE IF NOT EXISTS action_outbox (
 		actionId text NOT NULL,
 		tnId integer NOT NULL,
@@ -269,13 +282,15 @@ export async function init({ dir, sqliteBusyTimeout }: { dir: string, sqliteBusy
 		next integer,
 		PRIMARY KEY(actionId)
 	)`)
+	*/
 	await db.run(`CREATE TABLE IF NOT EXISTS action_outbox_queue (
-		actionId text NOT NULL,
 		tnId integer NOT NULL,
+		actionId text NOT NULL,
 		idTag text NOT NULL,
 		next datetime,
 		PRIMARY KEY(actionId, tnId, idTag)
 	)`)
+	/*
 	await db.run(`CREATE TABLE IF NOT EXISTS action_inbox (
 		actionId text NOT NULL,
 		tnId integer NOT NULL,
@@ -285,6 +300,7 @@ export async function init({ dir, sqliteBusyTimeout }: { dir: string, sqliteBusy
 		next integer,
 		PRIMARY KEY(actionId, tnId)
 	)`)
+	*/
 }
 
 // vim: ts=4

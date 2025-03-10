@@ -130,6 +130,35 @@ export async function listActions(tnId: number, auth: Auth | undefined, opts: Li
 	return actions
 }
 
+export async function listActionTokens(tnId: number, auth: Auth | undefined, opts: ListActionsOptions): Promise<string[]> {
+	const q = `SELECT at.token
+		FROM actions a
+		JOIN action_tokens at ON at.tnId = a.tnId AND at.actionId = a.actionId
+		WHERE a.tnId = $tnId
+		AND coalesce(a.status, 'A')
+			${opts.statuses ? ' IN (' + opts.statuses.map(s => ql(s)).join(',') + ')' : " NOT IN ('D')"}`
+		+ (opts.types ? ` AND a.type IN (${opts.types.map(tp => ql(tp)).join(',')})` : '')
+		+ (opts.audience ? ` AND (a.audience = ${ql(opts.audience)} OR (a.audience IS NULL AND a.idTag = ${ql(opts.audience)}))` : '')
+		+ (opts.involved ? ` AND (a.audience = ${ql(opts.involved)} OR (a.idTag = ${ql(opts.involved)}))` : '')
+		+ (opts.actionId ? ` AND a.actionId=${ql(opts.actionId)}` : '')
+		+ (!opts.parentId && !opts.rootId ? " AND a.parentId IS NULL" : '')
+		+ (opts.parentId ? ` AND a.parentId=${ql(opts.parentId)}` : '')
+		+ (opts.rootId ? ` AND a.rootId=${ql(opts.rootId)}` : '')
+		+ (opts.subject ? ` AND a.subject=${ql(opts.subject)}` : '')
+		+ (opts.createdAfter ? ` AND a.createdAt >= strftime('%s', ${ql(opts.createdAfter)})` : '')
+		//+ (tag !== undefined ? " AND ','||tags||',' LIKE $tagLike" : '')
+		+ ` ORDER BY a.createdAt DESC LIMIT ${opts._limit || 100}`
+	console.log('listActions', q)
+	const rows = await db.all<{
+		token: string
+	}>(q, {
+		$tnId: tnId
+	})
+	//console.log('ROWS', rows)
+	const actions: string[] = rows.map(r => r.token)
+	return actions
+}
+
 export async function getActionRootId(tnId: number, actionId: string) {
 	const res = await db.get<{ rootId: string }>(
 			"SELECT coalesce(rootId, actionId) as rootId FROM actions "
@@ -168,7 +197,7 @@ export async function getActionByKey(tnId: number, actionKey: string) {
 
 export async function getActionToken(tnId: number, actionId: string) {
 	const res = await db.get<{ token: string }>(
-			"SELECT token FROM action_inbox WHERE tnId = $tnId AND actionId = $actionId",
+			"SELECT token FROM action_tokens WHERE tnId = $tnId AND actionId = $actionId",
 			{ $tnId: tnId, $actionId: actionId }
 		)
 	console.log('getActionToken', tnId, actionId, res?.token)
@@ -249,13 +278,13 @@ export async function updateActionData(tnId: number, actionId: string, opts: Upd
 /* Inbound actions */
 export async function createInboundAction(tnId: number, actionId: string, token: string, ackToken?: string) {
 	console.log('inbound action', actionId)
-	await db.run('INSERT OR IGNORE INTO action_inbox (actionId, tnId, token, ack, status) '
-		+ 'VALUES ($actionId, $tnId, $token, $ack, $status)', {
-		$actionId: actionId,
+	await db.run('INSERT OR IGNORE INTO action_tokens (tnId, actionId, token, status, ack) '
+		+ 'VALUES ($tnId, $actionId, $token, $status, $ack)', {
 		$tnId: tnId,
+		$actionId: actionId,
 		$token: token,
-		$ack: ackToken,
-		$status: ackToken ? 'P' : null
+		$status: ackToken ? 'P' : null,
+		$ack: ackToken
 	})
 }
 
@@ -263,29 +292,30 @@ export async function processPendingInboundActions(callback: (tnId: number, acti
 	let processed = 0
 
 	const actions = await db.all<{ actionId: string, tnId: number, token: string }>(
-		`SELECT a.actionId, a.tnId, a.token FROM action_inbox a
+		`SELECT a.actionId, a.tnId, a.token FROM action_tokens a
 			WHERE a.status ISNULL LIMIT 100`,)
 	for (const action of actions) {
 		console.log('INBOUND ACTION', action.tnId, action.actionId, action.token)
 		try {
 			const val = await callback(action.tnId, action.actionId, action.token)
 			if (val) {
-				await db.run("UPDATE action_inbox SET status='A' WHERE actionId = $actionId", {
+				await db.run("UPDATE action_tokens SET status='R' WHERE tnId = $tnId AND actionId = $actionId AND status ISNULL", {
+					$tnId: action.tnId,
 					$actionId: action.actionId
 				})
 				processed++
 			}
 		} catch (err) {
 			console.log('ERROR', err)
-			await db.run("UPDATE action_inbox SET status='D' WHERE actionId = $actionId AND status ISNULL",
-				{ $actionId: action.actionId })
+			await db.run("UPDATE action_tokens SET status='D' WHERE tnId = $tnId AND actionId = $actionId AND status ISNULL",
+				{ $tnId: action.tnId, $actionId: action.actionId })
 		}
 	}
 	return processed
 }
 
-export async function updateInboundAction(tnId: number, actionId: string, opts: { status?: string | null }) {
-	const res = await db.run('UPDATE action_inbox SET status = $status WHERE tnId = $tnId AND actionId = $actionId', {
+export async function updateInboundAction(tnId: number, actionId: string, opts: { status?: 'R' | 'P' | 'D' | null }) {
+	const res = await db.run('UPDATE action_tokens SET status = $status WHERE tnId = $tnId AND actionId = $actionId', {
 		$tnId: tnId,
 		$actionId: actionId,
 		$status: opts.status
@@ -320,8 +350,8 @@ export async function createOutboundAction(tnId: number, actionId: string, token
 		count += res.changes
 	}
 	if (count) {
-		await db.run('INSERT OR IGNORE INTO action_outbox (actionId, tnId, token, next) '
-			+ 'VALUES ($actionId, $tnId, $token, unixepoch())', {
+		await db.run(`INSERT OR IGNORE INTO action_tokens (tnId, actionId, token, status, next)
+			VALUES ($tnId, $actionId, $token, 'L', unixepoch())`, {
 			$actionId: actionId,
 			$tnId: tnId,
 			$token: token
@@ -333,10 +363,10 @@ export async function processPendingOutboundActions(callback: (tnId: number, act
 	let processed = 0
 
 	const actions = await db.all<{ actionId: string, tnId: number, type: string, token: string, next?: Date }>(`
-		SELECT ao.actionId, ao.tnId, a.type, ao.token, ao.next FROM action_outbox ao
-		JOIN actions a ON a.tnId = ao.tnId AND a.actionId = ao.actionId
-		WHERE ao.next <= unixepoch()
-		ORDER BY ao.next, ao.actionId LIMIT 100`)
+		SELECT at.actionId, at.tnId, a.type, at.token, at.next FROM action_tokens at
+		JOIN actions a ON a.tnId = at.tnId AND a.actionId = at.actionId
+		WHERE at.status = 'L' AND at.next <= unixepoch()
+		ORDER BY at.next, at.actionId LIMIT 100`)
 	for (const action of actions) {
 		const destinations = await db.all<{ idTag: string }>(
 			'SELECT idTag FROM action_outbox_queue '
@@ -348,16 +378,17 @@ export async function processPendingOutboundActions(callback: (tnId: number, act
 				const val = await callback(action.tnId, action.actionId, action.type, action.token, dst.idTag)
 
 				if (val) {
-					await db.run('UPDATE action_outbox SET next = NULL WHERE actionId = $actionId', {
-						$actionId: action.actionId
-					})
+					await db.run('UPDATE action_tokens SET next = NULL WHERE tnId = $tnId AND actionId = $actionId',
+						{ $tnId: action.tnId, $actionId: action.actionId })
 					processed++
 				} else {
-					await db.run('UPDATE action_outbox SET next = next + 30 WHERE actionId = $actionId', { $actionId: action.actionId, })
+					await db.run('UPDATE action_tokens SET next = next + 30 WHERE tnId = $tnId AND actionId = $actionId',
+						{ $tnId: action.tnId, $actionId: action.actionId })
 				}
 			} catch (err) {
 				console.log('ERROR', err)
-				await db.run('UPDATE action_outbox SET next = next + 30 WHERE actionId = $actionId', { $actionId: action.actionId, })
+				await db.run('UPDATE action_tokens SET next = next + 30 WHERE tnId = $tnId AND actionId = $actionId',
+					{ $tnId: action.tnId, $actionId: action.actionId, })
 			}
 		}
 	}

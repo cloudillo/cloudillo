@@ -186,7 +186,7 @@ export async function storeImage(tnId: number, sizes: string, buf: Buffer): Prom
 	}
 
 	// HD
-	if (sizes.includes('h') && (!sizes.includes ('s') || (imgMeta.height > HD_SIZE || imgMeta.width > HD_SIZE))) {
+	if (sizes.includes('h') && (!sizes.includes ('s') || (imgMeta.height > SD_SIZE || imgMeta.width > SD_SIZE))) {
 		t = Date.now()
 		const hdVar = await img
 			.rotate()

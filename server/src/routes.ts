@@ -57,6 +57,7 @@ export async function init(router: Router) {
 	// FIXME perm disabled
 	//router.get('/action', perm('R'), action.listActions)
 	router.get('/action', action.listActions)
+	router.get('/action/tokens', action.listActionTokens)
 	router.post('/action', perm('A'), action.postAction)
 	router.post('/action/:actionId/accept', perm('A'), action.postActionAccept)
 	router.post('/action/:actionId/reject', perm('A'), action.postActionReject)
@@ -69,7 +70,7 @@ export async function init(router: Router) {
 	router.post('/store/:preset/:fileName', perm('A'), file.postFile)
 	// FIXME perm disabled
 	//router.get('/store/:fileId{/:label}', perm('R', 'fileId'), file.getFile)
-	router.get('/store/:variantId/meta', file.getFileMeta)
+	router.get('/store/:fileId/meta', file.getFileMeta)
 	router.get('/store/:fileId{/:label}', file.getFile)
 	router.patch('/store/:fileId', perm('W', 'fileId'), file.patchFile)
 	router.delete('/store/:fileId', perm('A', 'fileId'), file.deleteFile)

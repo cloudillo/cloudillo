@@ -55,13 +55,14 @@ export function SearchBar ({ className }: { className?: string }) {
 		if (!search.query) {
 			return
 		} else if (search.query.match(/^\S+(\.\S+)+$/)) {
+			const idTag = (search.query.startsWith('@') ? search.query.slice(1) : search.query).toLowerCase()
 			setSearch({})
-			navigate('/profile/' + search.query)
+			navigate('/profile/' + idTag)
 		}
 	}
 
 	return <form className={mergeClasses('c-input-group', className)} onSubmit={onSubmit}>
-		<input className="c-input" type="text" autoFocus placeholder={t('Search')} value={search.query || ''} onChange={e => setSearch({ query: e.target.value })} />
+		<input className="c-input" type="text" autoFocus placeholder={t('Type an Identity Tag')} value={search.query || ''} onChange={e => setSearch({ query: e.target.value })} />
 		<Button className="icon" onClick={() => setSearch({})}><IcCancel/></Button>
 		<Button className="icon primary" onClick={onSubmit}><SearchIcon/></Button>
 	</form>

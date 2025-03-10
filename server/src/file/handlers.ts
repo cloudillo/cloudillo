@@ -55,9 +55,9 @@ export async function listFiles(ctx: Context) {
 
 export async function getFileMeta(ctx: Context) {
 	const { tnId } = ctx.state
-	const { variantId } = ctx.params
+	const { fileId } = ctx.params
 
-	const fileList = await metaAdapter.listFiles(tnId, ctx.state.auth, { variantId: variantId })
+	const fileList = await metaAdapter.listFiles(tnId, ctx.state.auth, { fileId })
 	console.log('FILES', fileList.length)
 	const f = fileList[0]
 	ctx.body = f

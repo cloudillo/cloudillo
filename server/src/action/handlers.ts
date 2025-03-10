@@ -25,7 +25,7 @@ import { tActionType, tActionStatus, tNewAction } from '@cloudillo/types'
 
 import { Context } from '../index.js'
 import { validate, validateQS, sha256 } from '../utils.js'
-import { createAction, acceptAction, rejectAction } from './action.js'
+import { createAction, createInboundActions, acceptAction, rejectAction } from './action.js'
 import { tProfile, getProfile } from '../profile/profile.js'
 import { metaAdapter } from '../adapters.js'
 import { cancelWait } from '../worker.js'
@@ -40,7 +40,9 @@ const tListActionsQuery = T.struct({
 	involved: T.optional(T.string),
 	parentId: T.optional(T.string),
 	rootId: T.optional(T.string),
-	subject: T.optional(T.string)
+	subject: T.optional(T.string),
+	createdAfter: T.optional(T.union(T.string, T.number)),
+	_limit: T.optional(T.number)
 })
 
 export async function listActions(ctx: Context) {
@@ -62,6 +64,27 @@ export async function listActions(ctx: Context) {
 		types: fTypes.ok,
 		//parentId: q.parentId,
 		//rootId: q.rootId
+	})
+	ctx.body = { actions }
+}
+
+export async function listActionTokens(ctx: Context) {
+	//if (!ctx.state.user?.u || (ctx.state.user?.u != ctx.state.user?.t)) ctx.throw(403)
+	const tnId = ctx.state.tnId
+	console.log('GET', ctx.hostname, tnId)
+	console.log('VALIDATE', ctx.query)
+	const q = validateQS(ctx, tListActionsQuery)
+
+	const qTypes = typeof ctx.query.types === 'string' ? ctx.query.types : undefined
+	const fTypes = qTypes ? T.decode(T.array(tActionType), qTypes.split(',')) : T.ok(undefined)
+	if (fTypes && T.isErr(fTypes)) {
+		console.log('ERROR', ctx.query, qTypes, qTypes?.split(','), fTypes)
+		ctx.throw(422)
+	}
+
+	const actions = await metaAdapter.listActionTokens(tnId, ctx.state.auth, {
+		...q,
+		types: fTypes.ok
 	})
 	ctx.body = { actions }
 }
@@ -170,12 +193,15 @@ export async function postInboundAction(ctx: Context) {
 	const { token, related } = validate(ctx, tPostInboundAction)
 	console.log('INBOX', ctx.hostname, { tnId, token, related })
 
+	await createInboundActions(tnId, token, related)
+	/*
 	const actionId = sha256(token)
 	await metaAdapter.createInboundAction(tnId, actionId, token)
 	if (related) for (const r of related) {
 		const relActionId = sha256(r)
 		await metaAdapter.createInboundAction(tnId, relActionId, r, token)
 	}
+	*/
 	ctx.body = {}
 	//console.log('[DELAY] createInboundAction calling cancelWait()')
 	cancelWait()

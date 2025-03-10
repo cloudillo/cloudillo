@@ -14,14 +14,16 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import dayjs from 'dayjs'
 import * as T from '@symbion/runtype'
 
 import { Action, NewAction, ActionView } from '@cloudillo/types'
+import { sha256 } from '../utils.js'
 import { metaAdapter, blobAdapter, messageBusAdapter } from '../adapters.js'
 import { ProxyToken, createActionToken, createProxyToken, getIdentityTag } from '../auth/handlers.js'
 import { getProfile } from '../profile/profile.js'
 //import { sendWsBusMsg } from '../ws.js'
-import { createAction, checkToken, generateActionKey } from './action.js'
+import { createAction, createInboundActions, checkToken, generateActionKey } from './action.js'
 
 export interface ActionContext {
 	tnId: number
@@ -35,7 +37,7 @@ export async function handleAck({ tnId, idTag }: ActionContext, actionId: string
 		const token = await metaAdapter.getActionToken(tnId, action.subject)
 		if (token) {
 			await handleInboundActionToken(tnId, action.subject, token, { ack: true })
-			await metaAdapter.updateInboundAction(tnId, action.subject, { status: 'A' })
+			await metaAdapter.updateInboundAction(tnId, action.subject, { status: 'R' })
 		}
 	}
 }
@@ -116,9 +118,14 @@ export async function handleStat({ tnId, idTag }: ActionContext, actionId: strin
 
 export async function handleFollow(ctx: ActionContext, actionId: string, action: Action) {
 	console.log('FLLW', action.issuerTag, action.audienceTag, ctx.idTag)
-	if (action.audienceTag == ctx.idTag && action.subType !== 'DEL') {
-		ctx.busAction.status = 'N'
-		await metaAdapter.updateActionData(ctx.tnId, actionId, { status: 'N' })
+	if (action.audienceTag == ctx.idTag) {
+		if (action.subType == 'DEL') {
+			ctx.busAction.status = 'N'
+			await metaAdapter.updateProfile(ctx.tnId, action.issuerTag, { connected: null, following: null })
+		} else {
+			ctx.busAction.status = 'N'
+			await metaAdapter.updateProfile(ctx.tnId, action.issuerTag, { following: true })
+		}
 	}
 }
 
@@ -137,6 +144,7 @@ export async function handleConn(ctx: ActionContext, actionId: string, action: A
 					await metaAdapter.updateProfile(ctx.tnId, action.issuerTag, { connected: true, following: true })
 					ctx.busAction.status = 'N'
 					await metaAdapter.updateActionData(ctx.tnId, actionId, { status: 'N' })
+					await startFollowing(ctx.tnId, action.issuerTag)
 				} else {
 					// Conn action received and no pending local conn req
 					if (tenant?.type == 'community') {
@@ -221,6 +229,9 @@ export async function handleInboundAction(tnId: number, idTag: string, actionId:
 		case 'CONN':
 			await handleConn(ctx, actionId, action)
 			break
+		case 'FLLW':
+			await handleFollow(ctx, actionId, action)
+			break
 		case 'FSHR':
 			await handleFileShare(ctx, actionId, action)
 			break
@@ -279,7 +290,7 @@ export async function handleInboundActionToken(tnId: number, actionId: string, t
 				let [flags, variantIdsStr] = attachment.split(':')
 				const variantIds = variantIdsStr.split(',')
 				console.log('Syncing attachment', flags, variantIds)
-				let meta: { fileId: string, contentType: string, fileName?: string, createdAt?: number, tags?: string[] } | undefined
+				let meta: { fileId: string, contentType: string, fileName?: string, createdAt?: number, tags?: string[], x?: Record<string, unknown> } | undefined
 				for (const variantId of variantIds) {
 					console.log('Syncing attachment', variantId)
 					const binRes = await fetch(`https://cl-o.${act.iss}/api/store/${variantId}`, {
@@ -313,7 +324,8 @@ export async function handleInboundActionToken(tnId: number, actionId: string, t
 						contentType: meta.contentType,
 						fileName: meta.fileName,
 						createdAt: meta.createdAt ? new Date(meta.createdAt) : undefined,
-						tags: meta.tags?.length ? meta.tags : undefined
+						tags: meta.tags?.length ? meta.tags : undefined,
+						x: meta.x
 					})
 				}
 			}
@@ -347,6 +359,21 @@ export async function handleInboundActionToken(tnId: number, actionId: string, t
 		throw err
 	}
 	return true
+}
+
+export async function startFollowing(tnId: number, idTag: string) {
+	const proxyToken = await createProxyToken(tnId, idTag)
+	if (!proxyToken) throw new Error('Failed to create proxy token')
+
+	const res = await fetch(`https://cl-o.${idTag}/api/action/tokens?createdAfter=${dayjs().subtract(1, 'month').unix() / 1000}&_limit=10`, {
+		headers: { 'Authorization': `Bearer ${proxyToken}` },
+		credentials: 'include'
+	})
+	if (!res.ok) throw new Error('Failed to fetch feed')
+	const d: { actions: string[] } = await res.json()
+	for (const token of d.actions) {
+		await createInboundActions(tnId, token)
+	}
 }
 
 // vim: ts=4

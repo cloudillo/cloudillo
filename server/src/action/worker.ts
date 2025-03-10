@@ -48,7 +48,7 @@ export async function processInboundActionTokens() {
 ////////////
 export async function processOutboundActions() {
 	//console.log('processOutboundActions')
-	return metaAdapter.processPendingOutboundActions(async function processOutboundAction(tnId: number, actionId: string, type: string, token: string, recipientTag?: string) {
+	return metaAdapter.processPendingOutboundActions(async function processOutboundAction(tnId: number, actionId: string, type: string, token: string, recipientTag: string) {
 		const url = `https://cl-o.${recipientTag}/api/inbox`
 		let related: string | undefined
 

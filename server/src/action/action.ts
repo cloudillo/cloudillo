@@ -290,4 +290,13 @@ export async function rejectAction(tnId: number, actionId: string) {
 	await metaAdapter.updateActionData(tnId, actionId, { status: 'D' })
 }
 
+export async function createInboundActions(tnId: number, token: string, relatedTokens?: string[]) {
+	const actionId = sha256(token)
+	await metaAdapter.createInboundAction(tnId, actionId, token)
+	if (relatedTokens) for (const r of relatedTokens) {
+		const relActionId = sha256(r)
+		await metaAdapter.createInboundAction(tnId, relActionId, r, token)
+	}
+}
+
 // vim: ts=4

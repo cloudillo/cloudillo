@@ -68,11 +68,8 @@ body {
 }
 
 .c-menu-ex {
-	position: relative;
-
 	.c-nav {
 		position: absolute;
-		bottom: .5rem;
 		left: 0;
 		right: 0;
 		padding: 1rem;
@@ -82,7 +79,6 @@ body {
 		margin: 0 auto;
 		flex-flow: row wrap;
 		z-index: 8;
-		transform: translate(0, calc(100% + 1rem));
 		transition: transform .3s ease;
 
 		&.open {
@@ -92,6 +88,38 @@ body {
 			height: 4rem;
 			justify-content: center;
 		}
+	}
+}
+
+.c-nav.nav-top {
+	z-index: 10;
+
+	& > .c-nav-link > h6, & > .c-nav-group > .c-nav-link > h6 {
+		font-size: 0.83rem;
+	}
+
+	.c-menu-ex .c-nav {
+		top: 4rem;
+		transform: translate(0, -10rem);
+
+		&.open {
+			transform: translate(0, 0);
+		}
+	}
+}
+.c-nav.nav-bottom {
+	z-index: 10;
+
+	.c-menu-ex .c-nav {
+		bottom: 4.5rem;
+		transform: translate(0, 10rem);
+
+		&.open {
+			transform: translate(0, 0);
+		}
+	}
+	.c-nav-link {
+		width: 4rem;
 	}
 }
 

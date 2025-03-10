@@ -108,6 +108,39 @@ import '@symbion/opalui/themes/opaque.css'
 import '@symbion/opalui/themes/glass.css'
 import './style.css'
 
+function Menu({ className, inert, vertical }: { className?: string, inert?: boolean, vertical?: boolean }) {
+	const { t, i18n } = useTranslation()
+	const location = useLocation()
+	const [appConfig, setAppConfig] = useAppConfig()
+	const [auth, setAuth] = useAuth()
+	const [exMenuOpen, setExMenuOpen] = React.useState(false)
+
+	return !location.pathname.match('^/register/') && <>
+		<div inert={inert} className="c-menu-ex flex-order-end">
+			<nav className={mergeClasses('c-nav', exMenuOpen && 'open')}>
+				{ appConfig && appConfig.menuEx.map(menuItem =>
+					(!!auth && (!menuItem.perm || auth.roles?.includes(menuItem.perm)) || menuItem.public)
+						&& <NavLink key={menuItem.id} className="c-nav-link h-small vertical" aria-current="page" to={menuItem.path}>
+							{menuItem.icon && React.createElement(menuItem.icon)}
+							<h6>{menuItem.trans?.[i18n.language] || menuItem.label}</h6>
+						</NavLink>
+				)}
+			</nav>
+		</div>
+		{ appConfig && appConfig.menu.map(menuItem =>
+			(!!auth && (!menuItem.perm || auth.roles?.includes(menuItem.perm)) || menuItem.public)
+				&& <NavLink key={menuItem.id} className={mergeClasses('c-nav-link', vertical && 'vertical')} aria-current="page" to={menuItem.path}>
+					{menuItem.icon && React.createElement(menuItem.icon)}
+					<h6>{menuItem.trans?.[i18n.language] || menuItem.label}</h6>
+				</NavLink>
+		)}
+		<button className={mergeClasses('c-nav-link', vertical && 'vertical')} onClick={() => setExMenuOpen(!exMenuOpen)}>
+			<IcApps/>
+			<h6>{t('More')}</h6>
+		</button>
+	</>
+}
+
 function Header({ inert }: { inert?: boolean }) {
 	const [appConfig, setAppConfig] = useAppConfig()
 	const [auth, setAuth] = useAuth()
@@ -205,10 +238,11 @@ function Header({ inert }: { inert?: boolean }) {
 	}, [api, auth])
 
 	return <>
-		<nav inert={inert} className="c-nav justify-content-between border-radius-0 mb-2 g-1">
+		<nav inert={inert} className="c-nav nav-top justify-content-between border-radius-0 mb-2 g-1">
 			<ul className={mergeClasses('c-nav-group g-1', search.query != undefined && 'flex-fill')}>
 				<li className={mergeClasses('c-nav-item', search.query != undefined && 'sm-hide')}>
-					<CloudilloLogo style={{height: 32}}/></li>
+					<CloudilloLogo style={{height: 32}}/>
+				</li>
 				{ auth && <li className="c-nav-item flex-fill">
 					{ search.query == undefined
 						? <IcSearchUser onClick={() => setSearch({ query: '' })}/>
@@ -217,15 +251,9 @@ function Header({ inert }: { inert?: boolean }) {
 					</li>
 				}
 			</ul>
-			<ul className="c-nav-group g-1">
-				{/*
-				{ appConfig && appConfig.menu.map(menuItem =>
-					(!!auth || menuItem.public) && <li key={menuItem.id}>
-						<NavLink className="c-nav-link" aria-current="page" to={menuItem.path}>{menuItem.icon && React.createElement(menuItem.icon)} {menuItem.label}</NavLink>
-					</li>
-				)}
-				*/}
-			</ul>
+			{ search.query == undefined && <ul className="c-nav-group g-3 sm-hide md-hide">
+				<Menu inert={inert}/>
+			</ul> }
 			<ul className="c-nav-group c-hbox">
 				{ auth && <Link className="c-nav-item pos relative" to="/notifications">
 					<IcNotifications/>
@@ -261,32 +289,9 @@ function Header({ inert }: { inert?: boolean }) {
 				}
 			</ul>
 		</nav>
-		{ !location.pathname.match('^/register/') && <>
-			<div inert={inert} className="c-menu-ex flex-order-end">
-				<nav className={mergeClasses('c-nav', exMenuOpen && 'open')}>
-					{ appConfig && appConfig.menuEx.map(menuItem =>
-						(!!auth && (!menuItem.perm || auth.roles?.includes(menuItem.perm)) || menuItem.public)
-							&& <NavLink key={menuItem.id} className="c-nav-link h-small vertical" aria-current="page" to={menuItem.path}>
-								{menuItem.icon && React.createElement(menuItem.icon)}
-								<h6>{menuItem.trans?.[i18n.language] || menuItem.label}</h6>
-							</NavLink>
-					)}
-				</nav>
-			</div>
-			<nav inert={inert} className="c-nav w-100 border-radius-0 justify-content-center flex-order-end">
-				{ appConfig && appConfig.menu.map(menuItem =>
-					(!!auth && (!menuItem.perm || auth.roles?.includes(menuItem.perm)) || menuItem.public)
-						&& <NavLink key={menuItem.id} className="c-nav-link h-small vertical" aria-current="page" to={menuItem.path}>
-							{menuItem.icon && React.createElement(menuItem.icon)}
-							<h6>{menuItem.trans?.[i18n.language] || menuItem.label}</h6>
-						</NavLink>
-				)}
-				<button className={'c-nav-link h-small vertical'} onClick={() => setExMenuOpen(!exMenuOpen)}>
-					<IcApps/>
-					<h6>{t('More')}</h6>
-				</button>
-			</nav>
-		</> }
+		{ !location.pathname.match('^/register/') && <nav inert={inert} className="c-nav nav-bottom w-100 border-radius-0 justify-content-center flex-order-end lg-hide">
+			<Menu vertical inert={inert}/>
+		</nav> }
 	</>
 }
 

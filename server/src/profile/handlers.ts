@@ -247,11 +247,14 @@ const tListProfilesQuery = T.struct({
 	q: T.optional(T.string)
 })
 export async function listProfiles(ctx: Context) {
+	const { tenantTag } = ctx.state
+	const idTag = ctx.state.auth?.idTag
 	if (!ctx.state.auth) ctx.throw(403)
 	const filt = validateQS(ctx, tListProfilesQuery)
-	console.log('GET profiles', filt)
+	console.log('GET profiles', tenantTag, idTag, filt)
 
-	const profiles = await metaAdapter.listProfiles(ctx.state.tnId, filt)
+	const profiles = await metaAdapter.listProfiles(ctx.state.tnId,
+		idTag == tenantTag ? filt : { ...filt, connected: true })
 	ctx.body = { profiles }
 }
 

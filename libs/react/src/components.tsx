@@ -53,7 +53,7 @@ interface ButtonProps extends React.HTMLAttributes<HTMLButtonElement> {
 /**********/
 /* Button */
 /**********/
-export function Button({ className, onClick, icon, primary, secondary, accent, link, children, ...props }: ButtonProps) {
+export function Button({ className, type, onClick, icon, primary, secondary, accent, link, children, ...props }: ButtonProps) {
 	const [cls, setCls] = React.useState('')
 	const variantClass =
 		primary ? 'primary'
@@ -66,7 +66,7 @@ export function Button({ className, onClick, icon, primary, secondary, accent, l
 		setCls(' clicked')
 		await delay(200)
 		setCls('')
-		if (props.type == 'submit') {
+		if (type == 'submit') {
 			(evt.target as HTMLButtonElement).form?.requestSubmit()
 		} else {
 			onClick?.(evt)
@@ -76,6 +76,7 @@ export function Button({ className, onClick, icon, primary, secondary, accent, l
 	if (icon) {
 		return <button {...props}
 			className={mergeClasses(link ? 'c-link' : 'c-button', 'g-2', variantClass, cls, className)}
+			type={type ?? 'button'}
 			onClick={handleClick}
 		>
 			{icon}
@@ -85,6 +86,7 @@ export function Button({ className, onClick, icon, primary, secondary, accent, l
 		return <button
 			{...props}
 			className={mergeClasses(link ? 'c-link' : 'c-button', variantClass, cls, className)}
+			type={type ?? 'button'}
 			onClick={handleClick}
 		>
 			{children}

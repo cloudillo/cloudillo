@@ -92,7 +92,7 @@ export async function listFiles(tnId: number, auth: Auth | undefined, opts: List
 		LEFT JOIN profiles p ON p.tnId=f.tnId AND p.idTag=f.ownerTag
 		LEFT JOIN tenants t ON t.tnId=f.tnId
 		LEFT JOIN json_each(f.tags) as tag `
-		+ (opts.variant ? `JOIN file_variants fv ON fv.tnId=f.tnId AND fv.fileId=f.fileId AND fv.variant=${ql(opts.variant)} `
+		+ (opts.variant ? `LEFT JOIN file_variants fv ON fv.tnId=f.tnId AND fv.fileId=f.fileId AND fv.variant=${ql(opts.variant)} `
 			: opts.variantId ? `JOIN file_variants fv ON fv.tnId=f.tnId AND fv.fileId=f.fileId AND fv.variantId=${ql(opts.variantId)} `
 			: ''
 		)

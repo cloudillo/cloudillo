@@ -25,7 +25,7 @@ import { tActionType, tActionStatus, tNewAction } from '@cloudillo/types'
 
 import { Context } from '../index.js'
 import { validate, validateQS, sha256 } from '../utils.js'
-import { createAction, createInboundActions, acceptAction, rejectAction } from './action.js'
+import { createAction, createInboundActions, acceptAction, rejectAction, actionHooks } from './action.js'
 import { tProfile, getProfile } from '../profile/profile.js'
 import { metaAdapter } from '../adapters.js'
 import { cancelWait } from '../worker.js'
@@ -104,41 +104,9 @@ export async function postAction(ctx: Context) {
 	const tenant = await metaAdapter.readTenant(tnId)
 	const audience = action.audienceTag ? await getProfile(tnId, action.audienceTag) : undefined
 
-	// HOOKS?
-	switch (action.type) {
-		case 'FLLW':
-			if (!audience) break
-
-			console.log('FOLLOW', audience)
-			if (!action.subType && !audience?.following) {
-				metaAdapter.updateProfile(tnId, audience.idTag, { following: true })
-			} else if (action.subType == 'DEL') {
-				metaAdapter.updateProfile(tnId, audience.idTag, { following: null })
-			}
-			break
-		case 'CONN':
-			if (!audience) break
-
-			const request = await metaAdapter.getActionByKey(tnId, `CONN:${audience.idTag}:${tenantTag}`)
-			if (!action.subType && !audience?.connected) {
-				metaAdapter.updateProfile(tnId, audience.idTag, {
-					following: true,
-					connected: request && !request.subType ? true
-						: !request || request.subType == 'DEL' ? 'R'
-						: null
-				})
-			} else if (action.subType == 'DEL') {
-				metaAdapter.updateProfile(tnId, audience.idTag, { connected: null })
-			}
-			break
-			/*
-			if (audience && (!audience?.status || audience?.status == 'B')) {
-				metaAdapter.updateProfile(tnId, audience.idTag, { status: 'F' })
-			}
-			break
-			*/
-	}
-	// / HOOKS
+	// HOOK
+	const actionHook = actionHooks[action.type]
+	actionHook?.createHook?.({ tnId, tenantTag }, action, audience)
 
 	ctx.body = {
 		...action,

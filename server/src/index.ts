@@ -35,6 +35,7 @@ import { DatabaseAdapter } from './database-adapter.js'
 import { MessageBusAdapter } from './message-bus-adapter.js'
 import { init as initAdapters } from './adapters.js'
 import { init as initAuth, determineTenantTag, determineTnId, getAcmeChallengeResponse } from './auth/handlers.js'
+import { init as initAction } from './action/action.js'
 import { init as initRoutes } from './routes.js'
 import { init as initWebsocket } from './websocket.js'
 
@@ -330,6 +331,7 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 			messageBusAdapter
 		})
 		await initAuth(authAdapter, { acmeEmail: config.acmeEmail })
+		await initAction()
 		await initRoutes(router)
 		console.log('====[ Cloudillo service ready ]=================================================')
 	})

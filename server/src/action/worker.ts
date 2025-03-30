@@ -25,7 +25,7 @@ import { tFullProfile } from '../profile/profile.js'
 import { sendNotification } from '../notification/index.js'
 import { addTask, cancelWait } from '../worker.js'
 import { metaAdapter, blobAdapter } from '../adapters.js'
-import { handleInboundAction, handleInboundActionToken } from './hooks-inbound.js'
+import { init, handleInboundAction, handleInboundActionToken } from './action.js'
 
 // Inbox //
 ///////////
@@ -81,6 +81,7 @@ export async function actionWorker(): Promise<boolean> {
 }
 
 export async function initWorker() {
+	init()
 	addTask(actionWorker)
 }
 

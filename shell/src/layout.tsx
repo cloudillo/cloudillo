@@ -115,6 +115,10 @@ function Menu({ className, inert, vertical }: { className?: string, inert?: bool
 	const [auth, setAuth] = useAuth()
 	const [exMenuOpen, setExMenuOpen] = React.useState(false)
 
+	React.useEffect(function onLocationChange() {
+		setExMenuOpen(false)
+	}, [location])
+
 	return !location.pathname.match('^/register/') && <>
 		<div inert={inert} className="c-menu-ex flex-order-end">
 			<nav className={mergeClasses('c-nav', exMenuOpen && 'open')}>
@@ -152,8 +156,6 @@ function Header({ inert }: { inert?: boolean }) {
 	//const [notifications, setNotifications] = React.useState<{ notifications?: number }>({})
 	const { notifications, setNotifications, loadNotifications } = useNotifications()
 	const [menuOpen, setMenuOpen] = React.useState(false)
-	const [exMenuOpen, setExMenuOpen] = React.useState(false)
-	//console.log('menuOpen', menuOpen)
 
 	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
 		const action = msg.data as ActionView
@@ -174,10 +176,6 @@ function Header({ inert }: { inert?: boolean }) {
 		i18n.changeLanguage(lang)
 		setMenuOpen(false)
 	}
-
-	React.useEffect(function onLocationChange() {
-		setExMenuOpen(false)
-	}, [location])
 
 	React.useEffect(function onLoad() {
 		// Set app config

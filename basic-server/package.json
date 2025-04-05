@@ -40,6 +40,6 @@
     "cross-env": "^7.0.3",
     "onchange": "^7.1.0",
     "rimraf": "^6.0.1",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.3"
   }
 }

@@ -31,13 +31,13 @@
     "@symbion/runtype": "^1.1.3",
     "colord": "^2.9.3",
     "jotai": "^2.12.2",
-    "lib0": "^0.2.101",
+    "lib0": "^0.2.102",
     "rimraf": "^6.0.1",
     "tslib": "^2.8.1",
-    "typescript": "^5.8.2",
+    "typescript": "^5.8.3",
     "y-indexeddb": "^9.0.12",
     "y-protocols": "^1.0.6",
-    "y-websocket": "2.1.0",
+    "y-websocket": "3.0.0",
     "yjs": "^13.6.24"
   }
 }

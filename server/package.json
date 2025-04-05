@@ -79,19 +79,19 @@
     "koa-jwt": "^4.0.4",
     "koa-router": "^13.0.1",
     "koa-send": "^5.0.1",
-    "lib0": "^0.2.101",
+    "lib0": "^0.2.102",
     "lru-cache": "^11.1.0",
     "nanoid": "^5.1.5",
     "promised-sqlite3": "^2.1.0",
     "qs": "6.14.0",
     "raw-body": "^3.0.0",
-    "sharp": "^0.33.5",
+    "sharp": "^0.34.0",
     "sqlite3": "5.1.7",
     "web-push": "^3.6.7",
     "ws": "^8.18.1",
     "y-leveldb": "^0.1.2",
     "y-protocols": "^1.0.6",
-    "y-websocket": "^2.1.0",
+    "y-websocket": "^3.0.0",
     "yjs": "^13.6.24"
   },
   "devDependencies": {
@@ -107,16 +107,16 @@
     "@types/koa-compress": "^4.0.6",
     "@types/koa-router": "^7.4.8",
     "@types/koa__cors": "^5.0.0",
-    "@types/node": "^22.13.14",
+    "@types/node": "^22.14.0",
     "@types/useragent": "^2.3.4",
     "@types/web-push": "^3.6.4",
-    "@types/ws": "^8.18.0",
+    "@types/ws": "^8.18.1",
     "cross-env": "^7.0.3",
     "onchange": "^7.1.0",
     "rimraf": "^6.0.1",
-    "rollup": "^4.38.0",
+    "rollup": "^4.39.0",
     "rollup-plugin-analyzer": "^4.0.0",
     "rollup-plugin-progress": "^1.1.2",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.3"
   }
 }

@@ -36,16 +36,16 @@
     "quill": "^2.0.3",
     "quill-cursors": "^4.0.4",
     "rimraf": "^6.0.1",
-    "rollup": "^4.38.0",
+    "rollup": "^4.39.0",
     "rollup-plugin-analyzer": "^4.0.0",
     "rollup-plugin-gzip": "^4.0.1",
     "rollup-plugin-postcss": "^4.0.2",
     "rollup-plugin-progress": "^1.1.2",
     "tslib": "^2.8.1",
-    "typescript": "^5.8.2",
+    "typescript": "^5.8.3",
     "y-indexeddb": "^9.0.12",
     "y-quill": "^1.0.0",
-    "y-websocket": "^2.1.0",
+    "y-websocket": "^3.0.0",
     "yjs": "^13.6.24"
   }
 }

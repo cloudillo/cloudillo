@@ -36,6 +36,8 @@ import 'quill/dist/quill.snow.css'
 
 import * as T from '@symbion/runtype'
 
+import { createElement, Cloud, CloudOff } from 'lucide'
+
 import * as cloudillo from '@cloudillo/base'
 
 (async function() {
@@ -63,6 +65,15 @@ import * as cloudillo from '@cloudillo/base'
 	*/
 
 	const ytext = doc.yDoc.getText('doc')
+
+	const iconEl = document.getElementById('ws-bus-status')!
+	doc.provider.on('status', function ({ status }: { status: string }) {
+		console.log('STATUS', status)
+		switch (status) {
+			case 'connected': iconEl.replaceChildren(createElement(Cloud, { class: 'text-success' })); break
+			case 'disconnected': iconEl.replaceChildren(createElement(CloudOff, { class: 'text-error' })); break
+		}
+	})
 
 	const editor = new Quill('#editor', {
 		modules: {

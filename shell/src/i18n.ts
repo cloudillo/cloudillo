@@ -35,6 +35,10 @@ i18n
 		keySeparator: '@',
 		nsSeparator: '$',
 		returnNull: false,
+		react: {
+			transSupportBasicHtmlNodes: true,
+			transKeepBasicHtmlNodesFor: ['br', 'b', 'i', 'p']
+		},
 		// debug: true,
 		interpolation: {
 			//escapeValue: false,

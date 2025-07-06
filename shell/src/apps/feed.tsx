@@ -61,6 +61,7 @@ import { useAuth, useApi, Button, ProfilePicture, ProfileCard, ProfileAudienceCa
 import '@cloudillo/react/src/components.css'
 
 import { useAppConfig, parseQS, qs } from '../utils.js'
+import { TimeFormat } from '../ui.js'
 import { getBestImageId, ImageUpload } from '../image.js'
 import { useWsBus } from '../ws-bus.js'
 
@@ -365,6 +366,8 @@ function Post({ className, action, setAction, hideAudience, srcTag, width }: Pos
 					<button className="c-link" disabled={process.env.NODE_ENV == 'production'} onClick={() => console.log('share')}><IcRepost/></button>
 					<button className="c-link" onClick={() => console.log('more')}><IcMore/></button>
 				</div>
+			</div><div className="d-flex flex-column">
+				<TimeFormat time={action.createdAt}/>
 			</div><div className="d-flex flex-column">
 				{ !!action.content && action.content.split('\n\n').map((paragraph, i) => <p key={i}>
 					{ paragraph.split('\n').map((line, i) => <React.Fragment key={i}>

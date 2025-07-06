@@ -181,5 +181,18 @@
   "Enter your chosen Identity in the box below. Choose wisely, because changing it later will not be easy.": "Add meg a választott azonosítódat az alábbi mezőben. Válassz körültekintően, mert később nem lesz könnyű módosítani!",
   "Not available yet": "Még nem elérhető",
   "Message": "Üzenet",
-  "Type an Identity Tag": "Írj be egy azonosító jelet"
+  "Type an Identity Tag": "Írj be egy azonosító jelet",
+  "sunday": "vasárnap",
+  "monday": "hétfő",
+  "tuesday": "kedd",
+  "wednesday": "szerda",
+  "thursday": "csütörtök",
+  "friday": "péntek",
+  "saturday": "szombat",
+  "{{count}} hours": "{{count}} óra",
+  "1 hour": "1 óra",
+  "{{count}} minutes_one": "{{count}} perc",
+  "{{count}} minutes_other": "{{count}} perc",
+  "1 min": "1 perc",
+  "just now": "most"
 }

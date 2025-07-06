@@ -16,6 +16,10 @@ module.exports = {
 		resource: {
 			loadPath: 'src/i18n/{{lng}}/{{ns}}.json',
 			savePath: 'src/i18n/{{lng}}/{{ns}}.json'
+		},
+		trans: {
+			supportBasicHtmlNodes: true,
+			keepBasicHtmlNodesFor: ['br', 'b', 'i', 'p']
 		}
 		//debug: true
 	},

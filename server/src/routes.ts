@@ -71,7 +71,8 @@ export async function init(router: Router) {
 	// FIXME perm disabled
 	//router.get('/store/:fileId{/:label}', perm('R', 'fileId'), file.getFile)
 	router.get('/store/:fileId/meta', file.getFileMeta)
-	router.get('/store/:fileId{/:label}', file.getFile)
+	//router.get('/store/:fileId{/:label}', file.getFile)
+	router.get('/store/:fileId/:label?', file.getFile)
 	router.patch('/store/:fileId', perm('W', 'fileId'), file.patchFile)
 	router.delete('/store/:fileId', perm('A', 'fileId'), file.deleteFile)
 	router.put('/store/:fileId/tag/:tag', perm('A', 'fileId'), file.putFileTag)

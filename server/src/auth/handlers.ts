@@ -17,7 +17,8 @@
 const TOKEN_EXPIRE = 365 * 24 // hours
 
 import crypto from 'crypto'
-import KoaRouter from 'koa-router'
+//import KoaRouter from 'koa-router'
+import KoaRouter from '@koa/router'
 import { Context as BaseContext } from 'koa'
 import jwt from 'jsonwebtoken'
 import { nanoid } from 'nanoid'

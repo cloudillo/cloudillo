@@ -23,7 +23,8 @@ import tls from 'tls'
 import https from 'https'
 import Koa from 'koa'
 import koaSend from 'koa-send'
-import KoaRouter from 'koa-router'
+//import KoaRouter from 'koa-router'
+import KoaRouter from '@koa/router'
 import { koaBody } from 'koa-body'
 import koaCORS from '@koa/cors'
 
@@ -315,7 +316,8 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 		const httpServer = http.createServer(httpKoa.callback())
 		httpServer.listen(config.listenHttp, async () => {
 			httpRouter.get('/.well-known/acme-challenge/:token', getAcmeChallengeResponse)
-			httpRouter.get('{/*path}', ctx => ctx.redirect(`https://${ctx.hostname}${ctx.url}`))
+			//httpRouter.get('{/*path}', ctx => ctx.redirect(`https://${ctx.hostname}${ctx.url}`))
+			httpRouter.get('/:path*', ctx => ctx.redirect(`https://${ctx.hostname}${ctx.url}`))
 			console.log(`Listening on HTTP port http://localhost:${config.listenHttp}`)
 		})
 	}

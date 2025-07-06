@@ -33,14 +33,14 @@ const tMsg = T.struct({
 	exp: T.optional(T.number)
 })
 
-async function handleMsg({ tnId, idTag }: ActionContext, actionId: string, action: Action) {
+async function inboundHook({ tnId, idTag }: ActionContext, actionId: string, action: Action) {
 	console.log('MSG', action.issuerTag, action.audienceTag, idTag)
 }
 
 export default function init() {
 	registerActionType('MSG', {
 		t: tMsg,
-		inboundHook: handleMsg,
+		inboundHook,
 	})
 }
 

@@ -135,6 +135,7 @@ export interface ActionHook {
 export const actionHooks: Record<string, ActionHook | undefined> = {}
 
 export function registerActionType(type: string, actionHook: ActionHook) {
+	console.log('Register action type:', type)
 	actionHooks[type] = actionHook
 }
 
@@ -260,6 +261,7 @@ export async function handleInboundAction(tnId: number, idTag: string, actionId:
 	}
 
 	const actionHook = actionHooks[action.type]
+	if (actionHook) console.log('CALLING ACTION HOOK...', action.type)
 	if (actionHook?.inboundHook) {
 		await actionHook.inboundHook(ctx, actionId, action)
 	}
@@ -392,7 +394,7 @@ export async function handleInboundActionToken(tnId: number, actionId: string, t
 
 export async function init() {
 	initAck()
-	initConnect
+	initConnect()
 	initFileShare()
 	initFollow()
 	initMsg()

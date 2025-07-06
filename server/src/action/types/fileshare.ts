@@ -38,7 +38,7 @@ const tFshr = T.struct({
 	exp: T.optional(T.number)
 })
 
-async function handleFileShare(ctx: ActionContext, actionId: string, action: Action) {
+async function inboundHook(ctx: ActionContext, actionId: string, action: Action) {
 	console.log('FSHR', action.issuerTag, action.audienceTag, ctx.idTag)
 	if (action.audienceTag == ctx.idTag && action.subType !== 'DEL') {
 		ctx.busAction.status = 'C'
@@ -61,8 +61,8 @@ export default function init() {
 	registerActionType('FSHR', {
 		t: tFshr,
 		generateKey,
-		inboundHook: handleFileShare,
-		acceptHook,
+		inboundHook,
+		acceptHook
 	})
 }
 

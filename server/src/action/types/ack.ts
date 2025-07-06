@@ -33,7 +33,7 @@ const tAck = T.struct({
 	exp: T.optional(T.number)
 })
 
-async function handleAck({ tnId, idTag }: ActionContext, actionId: string, action: Action) {
+async function inboundHook({ tnId, idTag }: ActionContext, actionId: string, action: Action) {
 	console.log(action.type, action.issuerTag, idTag, action)
 	if (action.subject) {
 		const token = await metaAdapter.getActionToken(tnId, action.subject)
@@ -48,7 +48,7 @@ export default function init() {
 	registerActionType('ACK', {
 		t: tAck,
 		broadcast: true,
-		inboundHook: handleAck,
+		inboundHook,
 	})
 }
 

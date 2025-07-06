@@ -33,7 +33,7 @@ const tPost = T.struct({
 	exp: T.optional(T.number)
 })
 
-async function handlePost({ tnId, idTag }: ActionContext, actionId: string, action: Action) {
+async function inboundHook({ tnId, idTag }: ActionContext, actionId: string, action: Action) {
 	console.log('POST', action.issuerTag, action.audienceTag, idTag)
 	if (action.issuerTag != idTag && action.audienceTag == idTag) {
 		const issuerProfile = await metaAdapter.readProfile(tnId, action.issuerTag)
@@ -55,7 +55,7 @@ export default function init() {
 	registerActionType('POST', {
 		t: tPost,
 		broadcast: true,
-		inboundHook: handlePost,
+		inboundHook,
 	})
 }
 

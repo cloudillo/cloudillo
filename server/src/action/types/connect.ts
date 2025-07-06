@@ -33,7 +33,7 @@ const tConn = T.struct({
 	exp: T.optional(T.number)
 })
 
-async function createConnect({ tnId, tenantTag }: CreateActionContext, action: Action, audience?: AudienceInfo) {
+async function createHook({ tnId, tenantTag }: CreateActionContext, action: NewAction, audience?: AudienceInfo) {
 	if (!audience) return
 
 	const request = await metaAdapter.getActionByKey(tnId, `CONN:${audience.idTag}:${tenantTag}`)
@@ -49,7 +49,7 @@ async function createConnect({ tnId, tenantTag }: CreateActionContext, action: A
 	}
 }
 
-async function handleConnect(ctx: ActionContext, actionId: string, action: Action) {
+async function inboundHook(ctx: ActionContext, actionId: string, action: Action) {
 	const tenant = await metaAdapter.readTenant(ctx.tnId)
 	console.log('CONN', action.issuerTag, action.audienceTag, ctx.idTag)
 
@@ -117,8 +117,9 @@ export default function init() {
 		t: tConn,
 		generateKey,
 		allowUnknown: true,
-		inboundHook: handleConnect,
-		acceptHook,
+		createHook,
+		inboundHook,
+		acceptHook
 	})
 }
 

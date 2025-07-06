@@ -38,7 +38,7 @@ const tStat = T.struct({
 	exp: T.optional(T.number)
 })
 
-async function handleStat({ tnId, idTag }: ActionContext, actionId: string, action: Action) {
+async function inboundHook({ tnId, idTag }: ActionContext, actionId: string, action: Action) {
 	console.log('STAT', action.issuerTag, action.audienceTag, idTag, action.content)
 	const contentRes = T.decode(tStatContent, action.content)
 	if (T.isOk(contentRes)) {
@@ -56,7 +56,7 @@ export default function init() {
 		t: tStat,
 		generateKey,
 		broadcast: true,
-		inboundHook: handleStat,
+		inboundHook,
 	})
 }
 

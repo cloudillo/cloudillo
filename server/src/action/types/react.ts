@@ -47,7 +47,7 @@ const tReact = T.struct({
 	exp: T.optional(T.number)
 })
 
-async function handleReactionOrComment({ tnId, idTag }: ActionContext, actionId: string, action: Action) {
+async function inboundHook({ tnId, idTag }: ActionContext, actionId: string, action: Action) {
 	// Generate stat action
 	if (
 		((action.type == 'CMNT' || (action.type == 'REACT')) && action.parentId)
@@ -75,13 +75,13 @@ export default function init() {
 		t: tReact,
 		generateKey,
 		allowUnknown: true,
-		inboundHook: handleReactionOrComment,
+		inboundHook,
 	})
 	registerActionType('CMNT', {
 		t: tCmnt,
 		generateKey,
 		allowUnknown: true,
-		inboundHook: handleReactionOrComment,
+		inboundHook,
 	})
 }
 

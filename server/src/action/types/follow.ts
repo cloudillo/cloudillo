@@ -33,7 +33,7 @@ const tConnect = T.struct({
 	exp: T.optional(T.number)
 })
 
-async function createFollow({ tnId, tenantTag }: CreateActionContext, action: Action, audience?: AudienceInfo) {
+async function createHook({ tnId, tenantTag }: CreateActionContext, action: NewAction, audience?: AudienceInfo) {
 	if (!audience) return
 
 	console.log('FOLLOW', audience)
@@ -41,19 +41,6 @@ async function createFollow({ tnId, tenantTag }: CreateActionContext, action: Ac
 		metaAdapter.updateProfile(tnId, audience.idTag, { following: true })
 	} else if (action.subType == 'DEL') {
 		metaAdapter.updateProfile(tnId, audience.idTag, { following: null })
-	}
-}
-
-async function handleFollow(ctx: ActionContext, actionId: string, action: Action) {
-	console.log('FLLW', action.issuerTag, action.audienceTag, ctx.idTag)
-	if (action.audienceTag == ctx.idTag) {
-		if (action.subType == 'DEL') {
-			ctx.busAction.status = 'N'
-			await metaAdapter.updateProfile(ctx.tnId, action.issuerTag, { connected: null, following: null })
-		} else {
-			ctx.busAction.status = 'N'
-			await metaAdapter.updateProfile(ctx.tnId, action.issuerTag, { following: true })
-		}
 	}
 }
 
@@ -66,7 +53,7 @@ export default function init() {
 		t: tConnect,
 		generateKey,
 		allowUnknown: true,
-		inboundHook: handleFollow,
+		createHook
 	})
 }
 

@@ -1,4 +1,4 @@
-Cloudillo - A distributed collaboration application platform for privacy-focused users
+Cloudillo - A decentralized collaboration application platform for privacy-focused users
 ======================================================================================
 
 **Your Data, Your Rules**

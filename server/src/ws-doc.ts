@@ -51,13 +51,13 @@ async function loadDoc(tnId: number, docId: string) {
 	console.log('LOAD DOC', tnId, docId)
 	let ydoc = await crdtAdapter.getYDoc(docId)
 
-	const initialized = await(crdtAdapter.getMeta(docId, 'init'))
+	const initialized = await crdtAdapter.getMeta(docId, 'init')
 	console.log('initialized', initialized)
 	if (!initialized) {
 		const meta = ydoc?.getMap('meta')
 		console.log('Creating new document')
 		meta.set('i', true)
-		await(crdtAdapter.setMeta(docId, 'init', 1))
+		await crdtAdapter.setMeta(docId, 'init', 1)
 	}
 
 	const doc = {

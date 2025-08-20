@@ -20,7 +20,7 @@ import React from 'react'
 // PWA hook //
 //////////////
 
-function convertKey(base64Key: string): Uint8Array {
+function convertKey(base64Key: string): Uint8Array<ArrayBuffer> {
 	const padding = '='.repeat((4 - base64Key.length % 4) % 4)
 	const base64 = (base64Key + padding).replace(/-/g, '+').replace(/_/g, '/')
 	const str = window.atob(base64)

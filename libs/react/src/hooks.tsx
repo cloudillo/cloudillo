@@ -56,6 +56,7 @@ export function useApi() {
 	return React.useMemo(() => ({
 		//get: async function get<R>(idTag: string, path: string, opts?: Omit<ApiFetchOpts<R, never>, 'authToken'>): Promise<R> {
 		get: async function get<R>(idTag: string, path: string, opts?: ApiFetchOpts<R, never>): Promise<R> {
+			console.log('GET', { idTag, path, opts, auth })
 			return await apiFetchHelper(idTag || api.idTag || '', 'GET', path, { ...opts, authToken: opts?.authToken || auth?.token })
 		},
 

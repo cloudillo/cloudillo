@@ -1,5 +1,5 @@
 const CACHE = 'cache-25.02.04'
-const log = 0
+const log = 1
 
 const PRECACHE_URLS: string[] = [
 	//'index.html', './',
@@ -86,8 +86,12 @@ function onActivate(evt: any) {
 
 let fetchIdTagPromise: Promise<string> | undefined
 async function fetchIdTag() {
-	const res = await fetch('/.well-known/cloudillo/id-tag')
-	return (await res.json()).idTag
+	try {
+		const res = await fetch('/.well-known/cloudillo/id-tag')
+		return (await res.json()).idTag
+	} catch (err) {
+		console.error("[SW] failed to fetch idTag", err)
+	}
 }
 
 function onFetch(evt: any) {
@@ -114,7 +118,8 @@ function onFetch(evt: any) {
 					log && console.log('[SW] OWN FETCH inserting token')
 					const headers = new Headers(evt.request.headers)
 					headers.set('Authorization', `Bearer ${authToken}`)
-					request = new Request(evt.request, { headers: headers, mode: request.mode })
+					//request = new Request(evt.request, { headers: headers, mode: request.mode })
+					request = new Request(evt.request, { headers: headers, mode: 'cors' })
 				}
 
 				const origRes = fetch(request)

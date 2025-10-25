@@ -470,7 +470,7 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 
 	React.useEffect(function loadFileDetails() {
 		(async function () {
-			const res = await api.get(file.owner?.idTag || '', `/action?types=FSHR&subject=${file.fileId}`, { type: T.struct({ actions: T.array(tActionView) }) })
+			const res = await api.get(file.owner?.idTag || '', `/action?type=FSHR&subject=${file.fileId}`, { type: T.struct({ actions: T.array(tActionView) }) })
 			console.log('loadFileDetails res', res)
 			setFileActions(res.actions)
 		})()

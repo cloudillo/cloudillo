@@ -83,11 +83,13 @@ export const tActionView = T.struct({
 	content: T.optional(T.unknown),
 	attachments: T.optional(T.array(T.struct({
 		fileId: T.string,
+		dim: T.optional(T.tuple(T.number, T.number)),
+		/*
 		hd: T.optional(T.string),
 		sd: T.optional(T.string),
 		tn: T.optional(T.string),
 		ic: T.optional(T.string),
-		dim: T.optional(T.tuple(T.number, T.number)),
+		*/
 	}))),
 	subject: T.optional(T.string),
 	createdAt: T.string,

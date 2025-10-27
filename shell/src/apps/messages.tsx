@@ -422,7 +422,7 @@ export function MessagesApp() {
 			if (!profileRes?.profiles.length) return
 
 			setConversation({ id: convId, profiles: profileRes.profiles })
-			const res = await api.get<{ actions: ActionEvt[] }>('', `/action?involved=${convId}&types=MSG`)
+			const res = await api.get<{ actions: ActionEvt[] }>('', `/action?involved=${convId}&type=MSG`)
 			console.log('Msg res', res)
 			setMsg(res.actions.sort((a, b) => dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix()))
 			//convRef.current?.scrollTo({ top: convRef.current.scrollHeight })

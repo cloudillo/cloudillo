@@ -33,6 +33,10 @@ const APP_CONFIG: AppConfigState = {
 		{
 			id: 'formillo',
 			url: '/formillo/index.html'
+		},
+		{
+			id: 'todollo',
+			url: '/todollo/index.html'
 		}
 	],
 	mime: {
@@ -43,10 +47,11 @@ const APP_CONFIG: AppConfigState = {
 		'cloudillo/quillo': '/app/quillo',
 		'cloudillo/sheello': '/app/sheello',
 		'cloudillo/prello': '/app/prello',
-		'cloudillo/formillo': '/app/formillo'
+		'cloudillo/formillo': '/app/formillo',
+		'cloudillo/todollo': '/app/todollo'
 	},
 	menu: [
-		{ id: 'files', icon: IcFile, label: 'Files', trans: { hu: 'Fájlok' }, path: '/app/files?filter=mut' },
+		{ id: 'files', icon: IcFile, label: 'Files', trans: { hu: 'Fájlok' }, path: '/app/files?' },
 		{ id: 'feed', icon: IcFeed, label: 'Feed', trans: { hu: 'Hírfolyam' }, path: '/app/feed', public: true },
 		{ id: 'communities', icon: IcUsers, label: 'Communities', trans: { hu: 'Közösségek' }, path: '/communities' },
 		{ id: 'messages', icon: IcMessages, label: 'Messages', trans: { hu: 'Uzenetek' }, path: '/app/messages' },

@@ -58,7 +58,7 @@ export function GalleryApp() {
 	const [lbIndex, setLbIndex] = React.useState<number | undefined>()
 
 	const photos = api && React.useMemo(() => files?.map(f => ({
-		src: `https://cl-o.${auth?.idTag}/api/store/${f.variantId}`,
+		src: `https://cl-o.${auth?.idTag}/api/file/${f.variantId}`,
 		width: f.x?.dim?.[0] || 100,
 		height: f.x?.dim?.[1] || 100,
 		title: f.x?.caption || f.fileName
@@ -72,7 +72,7 @@ export function GalleryApp() {
 			console.log('QS', location.search, qs)
 
 			if (Object.keys(qs).length > 0 -1) {
-				const res = await api.get<{ files: File[] }>('', '/store', {
+				const res = await api.get<{ files: File[] }>('', '/file', {
 					query: { variant: 'tn', preset: 'gallery', ...qs }
 				})
 				console.log('RES', res)

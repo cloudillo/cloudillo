@@ -97,12 +97,12 @@ export function Images({ idTag, width, srcTag, attachments }: ImagesProps) {
 	const [auth] = useAuth()
 	const [lbIndex, setLbIndex] = React.useState<number | undefined>()
 	const gap = 8
-	const baseUrl = `https://cl-o.${srcTag || auth?.idTag || idTag}/api/store/`
+	const baseUrl = `https://cl-o.${srcTag || auth?.idTag || idTag}/api/file/`
 	const [img1, img2, img3] = attachments || []
 	//console.log('ATTACHMENTS', attachments, width)
 
 	const photos = React.useMemo(() => attachments?.map(im => ({
-		//src: `https://cl-o.${auth?.idTag}/api/store/${im.hd || im.sd || im.tn}`,
+		//src: `https://cl-o.${auth?.idTag}/api/file/${im.hd || im.sd || im.tn}`,
 		src: `${baseUrl}${im.hd || im.sd || im.tn}`,
 		width: im.dim?.[0] || 100,
 		height: im.dim?.[1] || 100
@@ -275,7 +275,7 @@ function Comments({ parentAction, onCommentsRead, ...props }: CommentsProps) {
 		if (!api) return
 
 		(async function getComments() {
-			const res = await api.get(parentAction.audience?.idTag || parentAction.issuer.idTag, `/action?parentId=${parentAction.actionId}&types=CMNT`, {
+			const res = await api.get(parentAction.audience?.idTag || parentAction.issuer.idTag, `/action?parentId=${parentAction.actionId}&type=CMNT`, {
 				type: T.struct({ actions: T.array(tActionView) })
 			})
 			console.log('Comments res', res)
@@ -479,7 +479,7 @@ export const NewPost = React.memo(React.forwardRef(function NewPostInside({ clas
 	
 		// Upload
 		const request = new XMLHttpRequest()
-		request.open('POST', `https://cl-o.${auth.idTag}/api/store/image/attachment`)
+		request.open('POST', `https://cl-o.${auth.idTag}/api/file/image/attachment`)
 		request.setRequestHeader('Authorization', `Bearer ${auth?.token}`)
 
 		request.upload.addEventListener('progress', function(e) {
@@ -540,7 +540,7 @@ export const NewPost = React.memo(React.forwardRef(function NewPostInside({ clas
 				</div>
 			</div>
 			{ !!attachmentIds.length && <div className="c-hbox wrap mu-2">
-				{ attachmentIds.map((id) => <img key={id} className="c-thumbnail" src={`https://cl-o.${auth.idTag}/api/store/${id.split(':')[1].split(',')[0]}/tn`}/>) }
+				{ attachmentIds.map((id) => <img key={id} className="c-thumbnail" src={`https://cl-o.${auth.idTag}/api/file/${id.split(':')[1].split(',')[0]}/tn`}/>) }
 			</div> }
 			<hr className="w-100"/>
 			<div className="c-hbox g-3">
@@ -639,8 +639,8 @@ export function FeedApp() {
 		const idTag = auth?.idTag
 
 		;(async function () {
-			//const res = await api.get<{ actions: ActionEvt[] }>('', `/action?audience=${idTag}&types=POST`)
-			const res = await api.get<{ actions: ActionEvt[] }>('', `/action?types=POST`)
+			//const res = await api.get<{ actions: ActionEvt[] }>('', `/action?audience=${idTag}&type=POST`)
+			const res = await api.get<{ actions: ActionEvt[] }>('', `/action?type=POST`)
 			if (ref) console.log('Feed res', res)
 			setFeed(res.actions)
 		})()

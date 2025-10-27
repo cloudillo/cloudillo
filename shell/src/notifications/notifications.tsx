@@ -135,7 +135,7 @@ export function Notifications() {
 		/*
 		;(async function () {
 			//const res = await api.get<{ actions: ActionEvt[] }>('', `/action?audience=${idTag}&types=POST`)
-			const res = await api.get<{ actions: ActionView[] }>('', `/action?statuses=N`)
+			const res = await api.get<{ actions: ActionView[] }>('', `/action?status=N`)
 			console.log('RES', res)
 			setNotifications(res.actions)
 		})()

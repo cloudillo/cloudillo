@@ -152,7 +152,7 @@ function Msg({ className, action, local }: MsgProps) {
 
 	if (action.subType == 'IMG' && action.attachments?.[0]) {
 		//console.log('url', api.url, action.user.tag, getBestImageId(action.attachments[0], 'sd'))
-		imgSrc = `https://cl-o.${action.issuer.tag}/api/store/${getBestImageId(action.attachments[0], 'sd')}`
+		imgSrc = `https://cl-o.${action.issuer.tag}/api/file/${getBestImageId(action.attachments[0], 'sd')}`
 	}
 	*/
 
@@ -248,7 +248,7 @@ export function NewMsg({ className, style, idTag, onSubmit }: { className?: stri
 	
 		// Upload
 		const request = new XMLHttpRequest()
-		request.open('POST', `https://cl-o.${auth.idTag}/api/store/image/attachment`)
+		request.open('POST', `https://cl-o.${auth.idTag}/api/file/image/attachment`)
 		//request.withCredentials = true
 		request.setRequestHeader('Authorization', `Bearer ${auth?.token}`)
 

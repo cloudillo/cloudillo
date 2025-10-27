@@ -48,7 +48,8 @@ import {
 	LuSheet as IcSheello,
 	LuShapes as IcIdeallo,
 	LuPresentation as IcPrello,
-	LuListTodo as IcFormillo
+	LuListTodo as IcFormillo,
+	LuListChecks as IcTodollo
 } from 'react-icons/lu'
 
 import * as T from '@symbion/runtype'
@@ -72,7 +73,8 @@ const icons: Record<string, React.ComponentType> = {
 	'cloudillo/sheello': (props) => <IcSheello {...props} style={{ color: 'lch(50 50 150)' }}/>,
 	'cloudillo/ideallo': (props) => <IcIdeallo {...props} style={{ color: 'lch(50 50 60)' }}/>,
 	'cloudillo/prello': (props) => <IcPrello {...props} style={{ color: 'lch(50 50 100)' }}/>,
-	'cloudillo/formillo': (props) => <IcFormillo {...props} style={{ color: 'lch(50 50 300)' }}/>
+	'cloudillo/formillo': (props) => <IcFormillo {...props} style={{ color: 'lch(50 50 300)' }}/>,
+	'cloudillo/todollo': (props) => <IcTodollo {...props} style={{ color: 'lch(50 50 180)' }}/>
 }
 
 interface File {
@@ -121,7 +123,7 @@ function TagsCell({ fileId, tags, setTags, editable }: { fileId: string, tags: s
 		if (!api) return
 
 		console.log('ADD TAG', tag)
-		const { tags } = await api.put<{ tags: string[] }>('', `/store/${fileId}/tag/${tag}`, {})
+		const { tags } = await api.put<{ tags: string[] }>('', `/file/${fileId}/tag/${tag}`, {})
 		console.log('NEW TAGS', tags)
 		if (tags) setTags?.(tags)
 		//setTags?.(tags?.concat(tag))
@@ -131,7 +133,7 @@ function TagsCell({ fileId, tags, setTags, editable }: { fileId: string, tags: s
 		if (!api) return
 
 		console.log('REMOVE TAG', tag)
-		const { tags } = await api.delete<{ tags: string[] }>('', `/store/${fileId}/tag/${tag}`)
+		const { tags } = await api.delete<{ tags: string[] }>('', `/file/${fileId}/tag/${tag}`)
 		console.log('NEW TAGS', tags)
 		if (tags) setTags?.(tags)
 		//setTags?.(tags?.filter(t => t !== tag))
@@ -193,7 +195,7 @@ function fileColumns({ t, fileOps, renameFileId, renameFileName }: FileColumnsAr
 			title: '',
 			defaultWidth: 10,
 			format: (v, r) => <div className="d-flex">
-				<button className="c-link p-1" type="button" onClick={() => fileOps.openFile(r.fileId)}><IcEdit/></button>
+				<button className="c-link p-1" type="button" onClick={evt => (evt.stopPropagation(), fileOps.openFile(r.fileId))}><IcEdit/></button>
 				<div className="dropdown">
 					<details className="c-dropdown">
 						<summary className="c-link p-1"><IcMore/></summary>
@@ -242,7 +244,7 @@ function useFileListData() {
 			setFilter(qs)
 
 			if (Object.keys(qs).length > 0 -1) {
-				const res = await api.get<{ files: File[] }>('', '/store', { query: { variant: 'tn', ...qs }})
+				const res = await api.get<{ files: File[] }>('', '/file', { query: { variant: 'tn', ...qs }})
 				setFiles(res.files)
 			} else {
 				setFiles([])
@@ -310,8 +312,8 @@ const FilterBar = React.memo(function FilterBar({ className }: { className?: str
 		console.log('CONFIRM', fileName)
 		if (fileName === undefined) return
 
-		const res = await api.post<File>('', '/store', {
-			data: { contentType, fileName: fileName || t('Untitled document') }
+		const res = await api.post<File>('', '/file', {
+			data: { fileTp: 'CRDT', contentType, fileName: fileName || t('Untitled document') }
 		})
 		console.log('CREATE FILE', res)
 		if (res?.fileId) {
@@ -331,9 +333,36 @@ const FilterBar = React.memo(function FilterBar({ className }: { className?: str
 				case 'cloudillo/formillo':
 					navigate(`/app/formillo/${res.fileId}`)
 					break
+				case 'cloudillo/todollo':
+					navigate(`/app/todollo/${res.fileId}`)
+					break
 			}
 		}
 	}
+
+	async function createDb(contentType: string) {
+		console.log('createDb', contentType)
+		if (!contentType) return
+
+		const fileName = await dialog.askText(t('Create database'), t('Provide a name for the new database'), {
+			placeholder: t('Untitled database')
+		})
+		console.log('CONFIRM', fileName)
+		if (fileName === undefined) return
+
+		const res = await api.post<File>('', '/file', {
+			data: { fileTp: 'RTDB', contentType, fileName: fileName || t('Untitled database') }
+		})
+		console.log('CREATE DB', res)
+		if (res?.fileId) {
+			switch (contentType) {
+				case 'cloudillo/todollo':
+					navigate(`/app/todollo/${res.fileId}`)
+					break
+			}
+		}
+	}
+
 
 	return <ul className={mergeClasses('c-nav vertical low', className)}>
 		<li className="c-nav-item">
@@ -354,6 +383,9 @@ const FilterBar = React.memo(function FilterBar({ className }: { className?: str
 					<li><button className="c-nav-item" disabled={process.env.NODE_ENV === 'production'} onClick={() => createFile('cloudillo/prello')}>
 						{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons['cloudillo/prello'], { className: 'me-1' })}
 						{t('Prello presentation document')}</button></li>
+					<li><button className="c-nav-item" onClick={() => createDb('cloudillo/todollo')}>
+						{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons['cloudillo/todollo'], { className: 'me-1' })}
+						{t('Todollo todo list')}</button></li>
 					{/*
 					<li><a className="c-nav-item" href="#" onClick={() => createFile('cloudillo/formillo')}>
 						{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons['cloudillo/formillo'], { className: 'me-1' })}
@@ -366,17 +398,17 @@ const FilterBar = React.memo(function FilterBar({ className }: { className?: str
 		<hr className="w-100"/>
 
 		<li className="c-nav-item">
-			<Link className={'c-nav-link ' + (!qs.filter ? 'active' : '')} to=""><IcAll/> {t('All')}
+			<Link className={'c-nav-link ' + (!qs.fileTp ? 'active' : '')} to=""><IcAll/> {t('All')}
 				{!!fileStat.todo && <span className="c-badge bg error">{fileStat.mutable}</span>}
 			</Link>
 		</li>
 		<li className="c-nav-item">
-			<Link className={'c-nav-link ' + (qs.filter === 'mut' ? 'active' : '')} to="?filter=mut"><IcMutable/> {t('Editable')}
+			<Link className={'c-nav-link ' + (qs.fileTp === 'CRDT' ? 'active' : '')} to="?fileTp=CRDT"><IcMutable/> {t('Editable')}
 				{!!fileStat.todo && <span className="c-badge bg error">{fileStat.mutable}</span>}
 			</Link>
 		</li>
 		<li className="c-nav-item">
-			<Link className={'c-nav-link ' + (qs.filter === 'imm' ? 'active' : '')} to="?filter=imm"><IcImmutable/> {t('Finalized')}
+			<Link className={'c-nav-link ' + (qs.fileTp === 'BLOB' ? 'active' : '')} to="?fileTp=BLOB"><IcImmutable/> {t('Finalized')}
 				{!!fileStat.todo && <span className="c-badge bg error">{fileStat.todo}</span>}
 			</Link>
 		</li>
@@ -428,14 +460,14 @@ function FileCard({ className, file, onClick, renameFileId, renameFileName, file
 			{/* file.ownerTag && <h4>{file.ownerTag}</h4> */}
 			<div className="c-hbox g-2">
 				{ !!file.owner && <ProfilePicture profile={file.owner} small/> }
-				<button className="c-link p-1" type="button" onClick={() => fileOps.openFile(file.fileId)}><IcEdit/></button>
+				<button className="c-link p-1" type="button" onClick={evt => (evt.stopPropagation(), fileOps.openFile(file.fileId))}><IcEdit/></button>
 				<Popper className="c-link" label={<IcMore/>}>
 					<ul className="c-nav vertical">
 						<li className="c-nav-item"><a className="c-link" href="#" onClick={() => fileOps.renameFile(file.fileId)}><IcEdit/> {t('Rename...')}</a></li>
 						<li className="c-nav-item"><a className="c-link" href="#" onClick={() => fileOps.doDeleteFile(file.fileId)}><IcDelete/>{t('Delete...')}</a></li>
 					</ul>
 				</Popper>
-				{ auth?.idTag && file.variantId && <img src={`https://cl-o.${auth.idTag}/api/store/${file.variantId}`}/> }
+				{ auth?.idTag && file.variantId && <img src={`https://cl-o.${auth.idTag}/api/file/${file.variantId}`}/> }
 			</div>
 		</div>
 		{ !!file.tags?.length && <div>
@@ -470,7 +502,7 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 
 	React.useEffect(function loadFileDetails() {
 		(async function () {
-			const res = await api.get(file.owner?.idTag || '', `/action?types=FSHR&subject=${file.fileId}`, { type: T.struct({ actions: T.array(tActionView) }) })
+			const res = await api.get(file.owner?.idTag || '', `/action?type=FSHR&subject=${file.fileId}`, { type: T.struct({ actions: T.array(tActionView) }) })
 			console.log('loadFileDetails res', res)
 			setFileActions(res.actions)
 		})()
@@ -549,7 +581,7 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 						</ul>
 					</details>
 					*/}
-					{ auth?.idTag && file.variantId && <img src={`https://cl-o.${auth.idTag}/api/store/${file.variantId}`}/> }
+					{ auth?.idTag && file.variantId && <img src={`https://cl-o.${auth.idTag}/api/file/${file.variantId}`}/> }
 				</div>
 			</div>
 			<div className="c-tag-list">
@@ -633,7 +665,7 @@ export function FilesApp() {
 		doRenameFile: async function doRenameFile(fileId: string, fileName: string) {
 			if (!api) return
 			const file = fileListData.getData()?.find(f => f.fileId === fileId)
-			await api.patch('', `/store/${fileId}`, {
+			await api.patch('', `/file/${fileId}`, {
 				data: { fileName }
 			})
 			setRenameFileId(undefined)
@@ -646,7 +678,7 @@ export function FilesApp() {
 			const res = await dialog.confirm(t('Delete document'), t('Are you sure you want to delete this document'))
 			if (!res) return
 
-			await api.delete('', `/store/${fileId}`)
+			await api.delete('', `/file/${fileId}`)
 			fileListData.refresh()
 		}
 	}), [auth, api, appConfig, t, fileListData])
@@ -661,8 +693,9 @@ export function FilesApp() {
 			<div className="c-nav c-hbox md-hide lg-hide">
 				<IcFilter onClick={() => setShowFilter(true)}/>
 				<div className="c-tag-list">
-					{ fileListData.filter?.filter == 'mut' && <div className="c-tag">{t('editable')}</div> }
-					{ fileListData.filter?.filter == 'imm' && <div className="c-tag">{t('finalized')}</div> }
+					{ fileListData.filter?.fileTp == 'CRDT' && <div className="c-tag">{t('draft document')}</div> }
+					{ fileListData.filter?.fileTp == 'RTDB' && <div className="c-tag">{t('database')}</div> }
+					{ fileListData.filter?.fileTp == 'BLOB' && <div className="c-tag">{t('finalized')}</div> }
 				</div>
 			</div>}
 		>

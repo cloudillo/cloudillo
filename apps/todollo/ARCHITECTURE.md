@@ -48,7 +48,7 @@ Yjs App:
 │  │ - yText, yArray, yMap        │   │
 │  │ - Local changes              │   │
 │  └──────────────────────────────┘   │
-│         ↕ (Sync Protocol)            │
+│         ↕ (Sync Protocol)           │
 │  ┌──────────────────────────────┐   │
 │  │ WebsocketProvider            │   │
 │  └──────────────────────────────┘   │
@@ -67,7 +67,7 @@ RTDB App:
 │  │ - Last synced state          │   │
 │  │ - Pending operations         │   │
 │  └──────────────────────────────┘   │
-│         ↕ (JSON Documents)           │
+│         ↕ (JSON Documents)          │
 │  ┌──────────────────────────────┐   │
 │  │ WebSocketManager             │   │
 │  │ - Message correlation        │   │

@@ -48,7 +48,7 @@ export function cancelableDelay(ms: number): Delay {
 	return ret
 }
 
-export function validate<T>(ctx: Context, reqType: t.Type<T>, value: Object = ctx.request.body): T {
+export function validate<T>(ctx: Context, reqType: t.Type<T>, value: Object = ctx.request.body instanceof Object ? ctx.request.body : {}): T {
 	const result = reqType.decode(value, { coerceDate: true })
 	if (t.isOk(result)) {
 		return result.ok

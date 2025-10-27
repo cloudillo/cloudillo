@@ -168,7 +168,6 @@ const tLogin = T.struct({
 
 export async function postLogin(ctx: Context) {
 	const tnId = ctx.state.tnId
-	console.log('LOGIN', { ...ctx.request.body, password: '********' })
 	const p = validate(ctx, tLogin)
 
 	try {

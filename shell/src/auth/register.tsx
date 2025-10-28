@@ -33,6 +33,7 @@ import {
 } from 'react-icons/lu'
 
 import { useAuth, AuthState, useApi, useDialog, Button } from '@cloudillo/react'
+import * as Types from '@cloudillo/base'
 
 import { CloudilloLogo } from '../logo.js'
 //import { webAuthnLogin } from './auth.js'
@@ -47,7 +48,7 @@ function validIdentityTag(idTag: string) {
 
 export function RegisterForm() {
 	const { t } = useTranslation()
-	const api = useApi()
+	const { api } = useApi()
 	const { registerToken } = useParams()
 	const navigate = useNavigate()
 	const [auth, setAuth] = useAuth()
@@ -57,11 +58,11 @@ export function RegisterForm() {
 	const [identityProviders, setIdentityProviders] = React.useState<string[]>([])
 	const [identityProvider, setIdentityProvider] = React.useState<'local' | 'domain' | undefined>(undefined)
 	const [email, setEmail] = React.useState('')
-	const [idTag, setIdTag] = React.useState('')
+	const [idTagInput, setIdTagInput] = React.useState('')
 	const [appDomain, setAppDomain] = React.useState('')
 	const [password, setPassword] = React.useState('')
 	const [passwordVisible, setPasswordVisible] = React.useState(false)
-	const [verifyState, setVerifyState] = React.useState<{ ip: string[], idTagError: 'invalid' | 'used' | 'nodns' | 'ip' | false, appDomainError: 'invalid' | 'used' | 'nodns' | 'ip' | false, apiIp: string, appIp: string } | undefined>()
+	const [verifyState, setVerifyState] = React.useState<Types.RegisterVerifyResult | undefined>()
 	const [progress, setProgress] = React.useState<undefined | 'vfy' | 'reg' | 'check' | 'done' | 'wait-dns' | 'error'>()
 	//const [running, setRunning] = React.useState<'vfy' | 'reg' | undefined>()
 	//const [regResult, setRegResult] = React.useState(false)
@@ -70,12 +71,12 @@ export function RegisterForm() {
 	const passwordError = !validPassword(password)
 
 	React.useEffect(function () {
-		console.log('RegisterForm.useEffect', api.idTag)
-		if (!api.idTag) return
+		console.log('RegisterForm.useEffect', api?.idTag)
+		if (!api?.idTag) return
 		(async function () {
-			console.log('RegisterForm.useEffect', api.idTag)
+			console.log('RegisterForm.useEffect', api?.idTag)
 			try {
-				const res = await api.post<{ identityProviders?: string[] }>('', '/auth/register-verify', {
+				const res = await api!.request('POST', '/auth/register-verify', Types.tRegisterVerifyResult, {
 					data: { type: 'ref', idTag: '', registerToken }
 				})
 				console.log('REF VERIFY RES', res)
@@ -123,27 +124,21 @@ Think of your identity as your **address** — it help others find and connect w
 	function onChangeIdentityProvider(evt: React.SyntheticEvent, provider: 'local' | 'domain' | undefined) {
 		evt.preventDefault()
 		setIdentityProvider(provider)
-		setIdTag('')
+		setIdTagInput('')
 		setAppDomain('')
 		setVerifyState(undefined)
 	}
 
 	console.log('VERIFY STATE', verifyState)
 	const onChangeVerify = React.useCallback(debounce((async function onVerify(changed: 'idTag' | 'appDomain', idTag: string, appDomain?: string) {
-		if (!idTag) return
+		if (!idTag || !api) return
 
 		setProgress('vfy')
 		console.log('ON VERIFY', changed, idTag, appDomain)
 		if (changed == 'appDomain') setVerifyState(vs => !vs ? undefined : { ...vs, appDomainError: false })
 			else setVerifyState(undefined)
 		try {
-			const res = await api.post<{
-				ip: string[],
-				idTagError: 'invalid' | 'used' | 'nodns' | 'ip' | false,
-				appDomainError: 'invalid' | 'used' | 'nodns' | 'ip' | false,
-				apiIp: string,
-				appIp: string,
-			}>('', '/auth/register-verify', {
+			const res = await api.request('POST', '/auth/register-verify', Types.tRegisterVerifyResult, {
 				data: {
 					type: identityProvider,
 					idTag: identityProvider == 'domain' ? idTag : idTag + '.cloudillo.net',
@@ -158,15 +153,16 @@ Think of your identity as your **address** — it help others find and connect w
 			setProgress(undefined)
 			setVerifyState(undefined)
 		}
-	}).bind(null), 500), [identityProvider, registerToken])
+	}).bind(null), 500), [identityProvider, registerToken, api])
 
 	async function onSubmit(evt: React.FormEvent) {
 		evt.preventDefault()
+		if (!api) return
 		setProgress('reg')
-		const res = await api.post('', '/auth/register', {
+		const res = await api.request('POST', '/auth/register', T.any, {
 			data: {
 				type: identityProvider,
-				idTag: identityProvider == 'domain' ? idTag : idTag + '.cloudillo.net',
+				idTag: identityProvider == 'domain' ? idTagInput : idTagInput + '.cloudillo.net',
 				appDomain,
 				password,
 				email,
@@ -176,10 +172,10 @@ Think of your identity as your **address** — it help others find and connect w
 		console.log('RES', res)
 		setProgress('check')
 		try {
-			const checkRes = await fetch(`https://${appDomain || idTag}/.well-known/cloudillo/id-tag`)
+			const checkRes = await fetch(`https://${appDomain || idTagInput}/.well-known/cloudillo/id-tag`)
 			if (checkRes.ok) {
 				const j = await checkRes.json()
-				if (j.idTag == idTag) {
+				if (j.idTag == (identityProvider == 'domain' ? idTagInput : idTagInput + '.cloudillo.net')) {
 					setProgress('done')
 				} else {
 					setProgress('wait-dns')
@@ -273,14 +269,14 @@ Think of your identity as your **address** — it help others find and connect w
 					<div className="c-button icon"><IcAt/></div>
 					<input className="c-input"
 						name="idTag"
-						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => (setIdTag(evt.target.value), setVerifyState(undefined), onChangeVerify('idTag', evt.target.value))}
-						value={idTag}
+						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => (setIdTagInput(evt.target.value), setVerifyState(undefined), onChangeVerify('idTag', evt.target.value))}
+						value={idTagInput}
 						placeholder={t('Choose a name')}
 						aria-label={t('Identity Tag')}
 					/>
 					{ progress == 'vfy' && <IcLoading className="animate-rotate-cw my-auto f-none"/> }
-					{ !progress && idTag && verifyState?.idTagError === false && <IcOk className="text-success my-auto f-none"/> }
-					{ !progress && idTag && verifyState?.idTagError && <IcError className="text-error my-auto f-none"/> }
+					{ !progress && idTagInput && verifyState?.idTagError === false && <IcOk className="text-success my-auto f-none"/> }
+					{ !progress && idTagInput && verifyState?.idTagError && <IcError className="text-error my-auto f-none"/> }
 					<div className="c-button">.cloudillo.net</div>
 				</div>
 				{ verifyState?.idTagError == 'invalid' && <div className="c-panel error mt-2">
@@ -342,15 +338,15 @@ Think of your identity as your **address** — it help others find and connect w
 					<div className="c-button icon"><IcAt/></div>
 					<input className="c-input"
 						name="idTag"
-						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => (setIdTag(evt.target.value), setVerifyState(undefined), onChangeVerify('idTag', evt.target.value, appDomain))}
-						value={idTag}
+						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => (setIdTagInput(evt.target.value), setVerifyState(undefined), onChangeVerify('idTag', evt.target.value, appDomain))}
+						value={idTagInput}
 						placeholder={t('your.identity.tag')}
 						aria-label={t('Identity Tag')}
 					/>
 					{ progress == 'vfy' && <IcLoading className="animate-rotate-cw my-auto f-none"/> }
-					{ !progress && idTag && verifyState?.idTagError === false && <IcOk className="text-success my-auto f-none"/> }
-					{ !progress && idTag && verifyState?.idTagError == 'nodns' && <IcError className="text-warning my-auto f-none"/> }
-					{ !progress && idTag && verifyState?.idTagError && verifyState.idTagError != 'nodns' && <IcError className='text-error my-auto f-none'/> }
+					{ !progress && idTagInput && verifyState?.idTagError === false && <IcOk className="text-success my-auto f-none"/> }
+					{ !progress && idTagInput && verifyState?.idTagError == 'nodns' && <IcError className="text-warning my-auto f-none"/> }
+					{ !progress && idTagInput && verifyState?.idTagError && verifyState.idTagError != 'nodns' && <IcError className='text-error my-auto f-none'/> }
 				</div>
 				{ verifyState?.idTagError == 'invalid' && <div className="c-panel error mt-2">
 					<p>{t('REGISTER-FORM-ID-TAG-INVALID', 'The provided Identity Tag is not valid. Are you sure you provided a valid domain name?')}</p>
@@ -373,15 +369,15 @@ Think of your identity as your **address** — it help others find and connect w
 				<div className="c-input-group px-2">
 					<input className="c-input"
 						name="app-domain"
-						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => (setAppDomain(evt.target.value), /*setVerifyState(undefined),*/ onChangeVerify('appDomain', idTag, evt.target.value))}
+						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => (setAppDomain(evt.target.value), /*setVerifyState(undefined),*/ onChangeVerify('appDomain', idTagInput, evt.target.value))}
 						value={appDomain}
-						placeholder={idTag || t('your.app.domain')}
+						placeholder={idTagInput || t('your.app.domain')}
 						aria-label={t('Identity Tag')}
 					/>
 					{ progress == 'vfy' && <IcLoading className="animate-rotate-cw my-auto f-none"/> }
-					{ !progress && idTag && verifyState?.appDomainError == false && <IcOk className="text-success my-auto f-none"/> }
-					{ !progress && idTag && verifyState?.appDomainError == 'nodns' && <IcError className="text-warning my-auto f-none"/> }
-					{ !progress && idTag && verifyState?.appDomainError && verifyState?.appDomainError != 'nodns' && <IcError className="text-error my-auto f-none"/> }
+					{ !progress && idTagInput && verifyState?.appDomainError == false && <IcOk className="text-success my-auto f-none"/> }
+					{ !progress && idTagInput && verifyState?.appDomainError == 'nodns' && <IcError className="text-warning my-auto f-none"/> }
+					{ !progress && idTagInput && verifyState?.appDomainError && verifyState?.appDomainError != 'nodns' && <IcError className="text-error my-auto f-none"/> }
 				</div>
 				{ verifyState?.appDomainError == 'invalid' && <div className="c-panel error mt-2">
 					<p>{t('REGISTER-FORM-APP-INVALID', 'The provided application domain is not valid. Are you sure you provided a valid domain name?')}</p>
@@ -392,10 +388,10 @@ Think of your identity as your **address** — it help others find and connect w
 				{ verifyState?.appDomainError == 'nodns' && <div className="c-panel warning mt-2">
 					<p>{t('REGISTER-FORM-APP-IP-NOT-REG', 'The provided Application Domain is not registered in the Domain Name System. You should make the changes below in your domain and try again.')}</p>
 				</div> }
-				{ verifyState?.appDomainError == 'ip' && !appDomain && <Trans i18nKey="REGISTER-FORM-APP-EMPTY-IP-DIFF" values={{ idTag }}>
+				{ verifyState?.appDomainError == 'ip' && !appDomain && <Trans i18nKey="REGISTER-FORM-APP-EMPTY-IP-DIFF" values={{ idTag: idTagInput }}>
 					<div className="c-panel error mt-2">
 						<p>The Identity Tag you provided appears to be already in use (perhaps for an existing website).
-						</p><p>This means you likely <b>won’t be able to use it as your Cloudillo App site</b>. You can either choose a subdomain (e.g., <b>cloudillo.{idTag}</b>) or use a different address.</p>
+						</p><p>This means you likely <b>won’t be able to use it as your Cloudillo App site</b>. You can either choose a subdomain (e.g., <b>cloudillo.{idTagInput}</b>) or use a different address.</p>
 						<p><button type="button" className="c-link text text-primary" onClick={onClickDomainInfo}>Read more</button></p>
 					</div>
 				</Trans> }
@@ -405,14 +401,14 @@ Think of your identity as your **address** — it help others find and connect w
 				</div> }
 			</label>
 
-			{ idTag && verifyState?.idTagError != 'used' && verifyState?.appDomainError != 'used'
+			{ idTagInput && verifyState?.idTagError != 'used' && verifyState?.appDomainError != 'used'
 				&& (verifyState?.idTagError == 'nodns' || verifyState?.idTagError == 'ip' || verifyState?.appDomainError == 'nodns' || verifyState?.appDomainError == 'ip') && <div className="my-3">
 				<h4 className="mb-2">{t('DNS instructions')}</h4>
 				<p>{t("Please make the following changes in your domain's DNS settings to use it as your Cloudillo Identity. If you don't know what to do with it, don't panic! Send the instructions to your system administrator or webmaster:")}</p>
 				<p>{t("After the changes are made, you can get back here and continue with the registration.")}</p>
 				<pre className="c-panel success">
-					cl-o.{idTag.padEnd(20, ' ')} IN A {verifyState?.ip[0] + '\n'}
-					{(appDomain || idTag).padEnd(25, ' ')} IN A {verifyState?.ip[0]}
+					cl-o.{idTagInput.padEnd(20, ' ')} IN A {verifyState!.ip![0] + '\n'}
+					{(appDomain || idTagInput).padEnd(25, ' ')} IN A {verifyState!.ip![0]}
 				</pre>
 			</div> }
 
@@ -486,7 +482,7 @@ Think of your identity as your **address** — it help others find and connect w
 				<p>{t('You can now log in using your App domain')}</p>
 			</div>
 			<div className="c-group">
-				<a className="c-button primary" href={`https://${appDomain || (identityProvider == 'domain' ? idTag : idTag + '.cloudillo.net')}`}>{t('Proceed to {{appDomain}}', { appDomain: appDomain || (identityProvider == 'domain' ? idTag : idTag + '.cloudillo.net') })}</a>
+				<a className="c-button primary" href={`https://${appDomain || (identityProvider == 'domain' ? idTagInput : idTagInput + '.cloudillo.net')}`}>{t('Proceed to {{appDomain}}', { appDomain: appDomain || (identityProvider == 'domain' ? idTagInput : idTagInput + '.cloudillo.net') })}</a>
 			</div>
 		</> }
 
@@ -501,7 +497,7 @@ Think of your identity as your **address** — it help others find and connect w
 				<p>{t('Please wait some time (it can take a few hours) and try to log in on your app domain later.')}</p>
 			</div>
 			<div className="c-group">
-				<a className="c-button primary" href={`https://${appDomain || (identityProvider == 'domain' ? idTag : idTag + '.cloudillo.net')}`}>{t('Proceed to {{appDomain}}', { appDomain: appDomain || (identityProvider == 'domain' ? idTag : idTag + '.cloudillo.net') })}</a>
+				<a className="c-button primary" href={`https://${appDomain || (identityProvider == 'domain' ? idTagInput : idTagInput + '.cloudillo.net')}`}>{t('Proceed to {{appDomain}}', { appDomain: appDomain || (identityProvider == 'domain' ? idTagInput : idTagInput + '.cloudillo.net') })}</a>
 			</div>
 		</> }
 

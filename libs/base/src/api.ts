@@ -50,9 +50,9 @@ export class FetchError extends Error {
 
 
 export interface ApiFetchOpts<R, D> {
-	type?: R extends never ? undefined : T.Type<R>
+	type?: T.Type<R>
 	data?: D
-	query?: Record<string, string | number | boolean | undefined>
+	query?: Record<string, string | number | boolean | string[] | undefined>
 	authToken?: string
 }
 export async function apiFetchHelper<R, D = any>(idTag: string, method: string, path: string, opts: ApiFetchOpts<R, D>): Promise<R> {
@@ -80,7 +80,7 @@ export async function apiFetchHelper<R, D = any>(idTag: string, method: string, 
 			throw new FetchError(`API-PARSE-JSON`, textRes, res.status)
 		}
 		if (!opts.type) return j
-		const d = T.decode(opts.type, j, { coerceDate: true })
+		const d = T.decode(opts.type, j, { coerceDate: true, unknownFields: 'drop' })
 		if (T.isErr(d)) {
 			console.log('RES:', j)
 			throw new FetchError('API-PARSE-TYPE', d.err.map(err => `${err.path.join('.')}: ${err.error}`).join(', '))

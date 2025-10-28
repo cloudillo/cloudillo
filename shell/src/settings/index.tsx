@@ -43,7 +43,7 @@ export function Settings({ title, children }: SettingsProps) {
 	const location = useLocation()
 	const { t } = useTranslation()
 	const [appConfig] = useAppConfig()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 

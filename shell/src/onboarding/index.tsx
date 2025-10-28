@@ -19,28 +19,32 @@ import { Routes, Route, Link, Navigate, useParams, useLocation, useNavigate } fr
 import { useTranslation, Trans } from 'react-i18next'
 
 import { Button, useApi } from '@cloudillo/react'
+import { ApiClient } from '@cloudillo/base'
 
 import { UsePWA } from '../pwa.js'
 import { subscribeNotifications } from '../settings/notifications.js'
 
-function next(api: ReturnType<typeof useApi>, location: string) {
-	const next =
+function next(api: ApiClient | null, location: string) {
+	const nextPage =
 		location == 'join' ? 'notifications'
 		: location == 'notifications' ? 'install'
 		: null
 
-	api.put('', '/settings/ui.onboarding', { data: { value: next } })
-	return next ? '/onboarding/' + next : '/app/feed'
+	if (api) {
+		api.settings.update('ui.onboarding', { value: nextPage })
+	}
+	return nextPage ? '/onboarding/' + nextPage : '/app/feed'
 }
 
 function Join() {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 
 	async function onJoin() {
+		if (!api) return
 		const action = { type: 'CONN', audienceTag: 'cloudillo.net' }
-		const res = await api.post('', '/action', { data: action })
+		const res = await api.actions.create(action)
 		navigate(next(api, 'join'))
 	}
 
@@ -61,8 +65,8 @@ function Join() {
 function Notifications({ pwa }: { pwa: UsePWA }) {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
-	const api = useApi()
-	if (api.idTag && !pwa.askNotify) return <Navigate to={next(api, 'notifications')}/>
+	const { api, setIdTag } = useApi()
+	if (api && api.idTag && !pwa.askNotify) return <Navigate to={next(api, 'notifications')}/>
 
 	async function onSubscribe() {
 		subscribeNotifications(api, pwa)
@@ -86,8 +90,8 @@ function Notifications({ pwa }: { pwa: UsePWA }) {
 function Install({ pwa }: { pwa: UsePWA }) {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
-	const api = useApi()
-	if (api.idTag && !pwa.doInstall) return <Navigate to={next(api, 'install')}/>
+	const { api, setIdTag } = useApi()
+	if (api && api.idTag && !pwa.doInstall) return <Navigate to={next(api, 'install')}/>
 
 	async function onInstall() {
 		pwa.doInstall?.()

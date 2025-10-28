@@ -62,7 +62,7 @@ function setTheme(theme: string | number | boolean, colors: string | number | bo
 
 export function AppearanceSettings() {
 	const { t } = useTranslation()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 
 	const { settings, onSettingChange } = useSettings('ui')
 

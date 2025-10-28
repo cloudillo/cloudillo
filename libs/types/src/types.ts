@@ -73,12 +73,14 @@ export const tActionView = T.struct({
 	issuer: T.struct({
 		idTag: T.string,
 		name: T.optional(T.string),
-		profilePic: T.optional(T.string)
+		profilePic: T.optional(T.string),
+		type: T.optional(T.string)
 	}),
 	audience: T.optional(T.struct({
 		idTag: T.string,
 		name: T.optional(T.string),
-		profilePic: T.optional(T.string)
+		profilePic: T.optional(T.string),
+		type: T.optional(T.string)
 	})),
 	content: T.optional(T.unknown),
 	attachments: T.optional(T.array(T.struct({
@@ -92,8 +94,8 @@ export const tActionView = T.struct({
 		*/
 	}))),
 	subject: T.optional(T.string),
-	createdAt: T.string,
-	expiresAt: T.optional(T.string),
+	createdAt: T.union(T.string, T.number),
+	expiresAt: T.optional(T.union(T.string, T.number)),
 	status: T.optional(tActionStatus),
 	stat: T.optional(T.struct({
 		ownReaction: T.optional(T.string),

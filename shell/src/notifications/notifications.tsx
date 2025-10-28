@@ -36,19 +36,21 @@ function FilterBar() {
 
 function ConnectNotification({ className, action, onClick }: { className?: string, action: ActionView, onClick?: (action: ActionView) => void }) {
 	const { t } = useTranslation()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const contentRes = T.decode(tConnectAction.props.content, action.content)
 	const content = T.isOk(contentRes) ? contentRes.ok : undefined
 
 	async function onAccept() {
+		if (!api || !action?.actionId) return
 		console.log('accept')
-		await api.post('', `/action/${action?.actionId}/accept`)
+		await api.actions.accept(action.actionId)
 		onClick?.(action)
 	}
 
 	async function onReject() {
+		if (!api || !action?.actionId) return
 		console.log('reject')
-		await api.post('', `/action/${action?.actionId}/reject`)
+		await api.actions.reject(action.actionId)
 		onClick?.(action)
 	}
 
@@ -79,20 +81,22 @@ function ConnectNotification({ className, action, onClick }: { className?: strin
 
 function FileShareNotification({ className, action, onClick }: { className?: string, action: ActionView, onClick?: (action: ActionView) => void }) {
 	const { t } = useTranslation()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const contentRes = T.decode(tFileShareAction.props.content, action.content)
 	const content = T.isOk(contentRes) ? contentRes.ok : undefined
 	if (!content) return null
 
 	async function onAccept() {
+		if (!api || !action?.actionId) return
 		console.log('accept')
-		await api.post('', `/action/${action?.actionId}/accept`)
+		await api.actions.accept(action.actionId)
 		onClick?.(action)
 	}
 
 	async function onReject() {
+		if (!api || !action?.actionId) return
 		console.log('reject')
-		await api.post('', `/action/${action?.actionId}/reject`)
+		await api.actions.reject(action.actionId)
 		onClick?.(action)
 	}
 
@@ -123,7 +127,7 @@ function Notification({ action, onClick }: { action: ActionView, onClick?: (acti
 
 export function Notifications() {
 	const { t } = useTranslation()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
 	//const [notifications, setNotifications] = React.useState<ActionView[] | undefined>()
 	const { notifications, setNotifications, loadNotifications } = useNotifications()

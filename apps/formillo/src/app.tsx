@@ -772,19 +772,19 @@ export function App() {
 
 	React.useEffect(function () {
 		(async function init() {
-			if (!api) return
+			if (!api || !cloudillo) return
 			if (cloudillo?.roles?.includes('SADM')) {
-				const res = await api.get<{ data: FormData[] }>(cloudillo.ownerTag, `/db/${cloudillo.fileId}`)
-				console.log('RES', res)
+				const json = await api.request<{ data: FormData[] }>('GET', `/db/${cloudillo.fileId}`, T.unknown() as any)
+				console.log('RES', json)
 				setForm({
 					...MY_FORM,
-					data: res.data
+					data: json.data
 				})
 			} else {
 				setForm(MY_FORM)
 			}
 		})()
-	}, [api, cloudillo, auth])
+	}, [api, cloudillo])
 
 	if (!cloudillo || !cloudillo.fileId || !form) {
 		return <div>Loading...</div>

@@ -28,12 +28,12 @@ export interface NotificationState {
 const notificationAtom = atom<NotificationState>({ notifications: [] })
 
 export function useNotifications() {
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const [notifications, setNotifications] = useAtom(notificationAtom)
 
 	const loadNotifications = React.useCallback(async function () {
-		console.log('loadNotifications', api.idTag)
-		const res = await api.get<{ actions: ActionView[] }>('', `/action?status=C,N`)
+		if (!api) return
+		const res = await api.actions.list({ status: ['C', 'N'] })
 		console.log('RES', res)
 		setNotifications({ notifications: res.actions })
 	}, [api, notifications, setNotifications])

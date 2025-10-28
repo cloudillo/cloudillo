@@ -1,37 +1,30 @@
 module.exports = {
-	preset: 'ts-jest',
+	preset: 'ts-jest/presets/default-esm',
 	testEnvironment: 'node',
 	roots: ['<rootDir>/src'],
 	testMatch: ['**/__tests__/**/*.test.ts'],
+	extensionsToTreatAsEsm: ['.ts'],
 	moduleNameMapper: {
 		'^~/(.*)$': '<rootDir>/$1',
-		'(.+)\\.js$': '$1'
+		'^(\\.{1,2}/.*)\\.js$': '$1'
 	},
 	moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
 	transform: {
 		'^.+\\.tsx?$': ['ts-jest', {
+			useESM: true,
 			tsconfig: {
 				target: 'es2020',
-				module: 'commonjs',
-				moduleResolution: 'node',
+				module: 'esnext',
+				moduleResolution: 'bundler',
 				esModuleInterop: true,
 				allowSyntheticDefaultImports: true,
 				strict: true,
 				skipLibCheck: true,
 				forceConsistentCasingInFileNames: true,
 				lib: ['es2020']
-			},
-			isolatedModules: true
-		}],
-		'^.+\\.jsx?$': ['ts-jest', {
-			tsconfig: {
-				module: 'commonjs'
-			},
-			isolatedModules: true
+			}
 		}]
 	},
 	testPathIgnorePatterns: ['/node_modules/'],
-	transformIgnorePatterns: [
-		'node_modules/(?!(@symbion|@cloudillo)/)'
-	]
+	transformIgnorePatterns: []
 }

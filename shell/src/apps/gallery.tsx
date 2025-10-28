@@ -35,7 +35,7 @@ import { parseQS, qs } from '../utils.js'
 
 interface File {
 	fileId: string
-	variantId: string
+	variantId?: string
 	fileName: string
 	contentType: string
 	createdAt: string
@@ -50,7 +50,7 @@ interface File {
 export function GalleryApp() {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
 	const location = useLocation()
 	const [refreshHelper, setRefreshHelper] = React.useState(false)
@@ -71,12 +71,11 @@ export function GalleryApp() {
 			const qs: Record<string, string> = parseQS(location.search)
 			console.log('QS', location.search, qs)
 
-			if (Object.keys(qs).length > 0 -1) {
-				const res = await api.get<{ files: File[] }>('', '/file', {
-					query: { variant: 'tn', preset: 'gallery', ...qs }
-				})
+			if (Object.keys(qs).length > 0) {
+				// Note: variant: 'tn' and preset: 'gallery' were in old API but not in new API
+				const res = await api.files.list({ ...qs })
 				console.log('RES', res)
-				setFiles(res.files)
+				setFiles(res.files.map(f => ({...f, preset: f.preset || "", createdAt: typeof f.createdAt === "string" ? f.createdAt : f.createdAt.toISOString(), owner: f.owner ? { ...f.owner, name: f.owner.name || "" } : undefined, variantId: undefined})) as any)
 			} else {
 				setFiles([])
 			}

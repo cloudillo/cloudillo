@@ -19,34 +19,35 @@ import { useTranslation } from 'react-i18next'
 
 import { useAuth, useApi, Button } from '@cloudillo/react'
 
-import { addWebAuthn, deleteWebAuthn } from '../auth/auth.js'
 import { useSettings } from './settings.js'
 
 export function SecuritySettings() {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
-	const api = useApi()
-	const [credential, setCredential] = React.useState(localStorage.getItem('credential'))
+	const { api, setIdTag } = useApi()
+	// const [credential, setCredential] = React.useState(localStorage.getItem('credential'))
 	const { settings, onSettingChange } = useSettings('sec')
 	const [currentPassword, setCurrentPassword] = React.useState('')
 	const [newPassword, setNewPassword] = React.useState('')
 
-	async function onWebauthnChange(evt: React.ChangeEvent<HTMLInputElement>) {
-		if (!auth?.idTag) return
-
-		console.log('onWebauthnChange', evt.target.checked)
-		if (evt.target.checked) {
-			const reg = await addWebAuthn(api, auth.idTag, auth.name || auth.idTag)
-			console.log('reg', reg)
-			setCredential(reg.id)
-		} else {
-			await deleteWebAuthn(api)
-			setCredential(null)
-		}
-	}
+	// WebAuthn is not supported in the Rust backend
+	// async function onWebauthnChange(evt: React.ChangeEvent<HTMLInputElement>) {
+	// 	if (!auth?.idTag) return
+	//
+	// 	console.log('onWebauthnChange', evt.target.checked)
+	// 	if (evt.target.checked) {
+	// 		const reg = await addWebAuthn(api, auth.idTag, auth.name || auth.idTag)
+	// 		console.log('reg', reg)
+	// 		setCredential(reg.id)
+	// 	} else {
+	// 		await deleteWebAuthn(api)
+	// 		setCredential(null)
+	// 	}
+	// }
 
 	async function onChangePassword() {
-		await api.post('', '/auth/password', { data: { currentPassword, newPassword }})
+		if (!api) throw new Error('Not authenticated')
+		await api.auth.changePassword({ currentPassword, newPassword })
 		setCurrentPassword('')
 		setNewPassword('')
 	}
@@ -54,12 +55,13 @@ export function SecuritySettings() {
 	if (!settings) return null
 
 	return <>
-		<div className="c-panel">
+		{/* WebAuthn is not supported in the Rust backend */}
+		{/* <div className="c-panel">
 			<label className="c-hbox pb-2">
 				<span className="flex-fill">{t('Passwordless login')}</span>
 				<input className="c-toggle primary" name="sec.webauthn" type="checkbox" checked={!!credential} onChange={onWebauthnChange}/>
 			</label>
-		</div>
+		</div> */}
 		<div className="c-panel">
 			<label className="c-hbox pb-2">
 				<span className="flex-fill">{t('Current password')}</span>

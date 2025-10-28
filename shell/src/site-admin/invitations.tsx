@@ -81,35 +81,37 @@ function Invitation({ ref, deleteRef }: { ref: Ref, deleteRef: () => void }) {
 
 export function Invitations() {
 	const { t } = useTranslation()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
 	const dialog = useDialog()
 	const [refs, setRefs] = React.useState<Ref[] | undefined>()
 
 	React.useEffect(function loadRefs() {
-		if (!auth) return
+		if (!auth || !api) return
 
 		(async function () {
-			const refs = await api.get<Ref[]>('', '/ref?type=register')
-			console.log('RES', refs)
-			if (refs) setRefs(refs.map(ref => ({ ...ref, createdAt: new Date(ref.createdAt) })))
+			const res = await api.refs.list({ type: 'register' })
+			console.log('RES', res)
+			if (Array.isArray(res)) setRefs(res.map((ref: any) => ({ ...ref, createdAt: new Date(ref.createdAt) })))
 		})()
-	}, [auth])
+	}, [auth, api])
 
 	async function createRef() {
+		if (!api) return
 		const description = await dialog.askText(t('Create invitation'), t('You can write a short description to help you distinguish the invitations later.'))
 
-		const res = await api.post<Ref>('', '/ref', { data: { type: 'register', description }})
+		const res = await api.refs.create({ type: 'register', description: description as string })
 		console.log('REF RES', res)
 		if (res) {
-			setRefs((refs) => [{ ...res, createdAt: new Date(res.createdAt) }, ...(refs || [])])
+			setRefs((refs) => [{ ...res, createdAt: new Date(res.createdAt) } as any, ...(refs || [])])
 		}
 	}
 
 	async function deleteRef(refId: string) {
+		if (!api) return
 		if (!await dialog.confirm(t('Delete invitation'), t('Are you sure you want to delete this invitation?'))) return
-			
-		await api.delete('', `/ref/${refId}`)
+
+		await api.refs.delete(refId)
 		setRefs(refs => refs?.filter(ref => ref.refId !== refId))
 		console.log('DELETE', refId, refs, refs?.filter(ref => ref.refId !== refId))
 	}

@@ -52,12 +52,12 @@ import {
 	LuListChecks as IcTodollo
 } from 'react-icons/lu'
 
-import * as T from '@symbion/runtype'
 import { Columns, ColumnConfig, DataTable, TableDataProvider } from '@symbion/ui-core'
 import '@symbion/ui-core/datatable.css'
 import '@symbion/ui-core/scroll.css'
 
-import { NewAction, tActionView, ActionView, Profile } from '@cloudillo/types'
+import { NewAction, ActionView, Profile } from '@cloudillo/types'
+import * as Types from '@cloudillo/base'
 import { useApi, useAuth, useDialog, Button, Fcb, ProfilePicture, EditProfileList, Popper, Dialog, mergeClasses } from '@cloudillo/react'
 
 import { useAppConfig, parseQS, qs } from '../utils.js'
@@ -106,15 +106,13 @@ interface FileOps {
 }
 
 function TagsCell({ fileId, tags, setTags, editable }: { fileId: string, tags: string[] | undefined, setTags?: (tags: string[] | undefined) => void, editable?: boolean }) {
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const [isEditing, setIsEditing] = React.useState(false)
 
 	async function listTags(prefix: string) {
 		if (!api) return
 
-		const res = await api.get<{ tags: { tag: string, privilaged?: boolean }[] }>('', '/tag', {
-			query: { prefix }
-		})
+		const res = await api.tags.list({ prefix })
 		console.log('TAGS', res)
 		return res.tags
 	}
@@ -123,20 +121,18 @@ function TagsCell({ fileId, tags, setTags, editable }: { fileId: string, tags: s
 		if (!api) return
 
 		console.log('ADD TAG', tag)
-		const { tags } = await api.put<{ tags: string[] }>('', `/file/${fileId}/tag/${tag}`, {})
-		console.log('NEW TAGS', tags)
-		if (tags) setTags?.(tags)
-		//setTags?.(tags?.concat(tag))
+		const res = await api.files.addTag(fileId, tag)
+		console.log('NEW TAGS', res.tags)
+		if (res.tags) setTags?.(res.tags)
 	}
 
 	async function removeTag(tag: string) {
 		if (!api) return
 
 		console.log('REMOVE TAG', tag)
-		const { tags } = await api.delete<{ tags: string[] }>('', `/file/${fileId}/tag/${tag}`)
-		console.log('NEW TAGS', tags)
-		if (tags) setTags?.(tags)
-		//setTags?.(tags?.filter(t => t !== tag))
+		const res = await api.files.removeTag(fileId, tag)
+		console.log('NEW TAGS', res.tags)
+		if (res.tags) setTags?.(res.tags)
 	}
 
 	if (isEditing) {
@@ -225,7 +221,7 @@ interface FileFiltState {
 }
 
 function useFileListData() {
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
 	const location = useLocation()
 	const [sort, setSort] = React.useState<keyof File | undefined>()
@@ -243,9 +239,16 @@ function useFileListData() {
 			const qs = parseQS(location.search)
 			setFilter(qs)
 
-			if (Object.keys(qs).length > 0 -1) {
-				const res = await api.get<{ files: File[] }>('', '/file', { query: { variant: 'tn', ...qs }})
-				setFiles(res.files)
+			if (Object.keys(qs).length > 0) {
+				// Note: variant: 'tn' was used in old API but not in new API
+				const res = await api.files.list(qs as Types.ListFilesQuery)
+			setFiles(res.files.map(f => ({
+				...f,
+				preset: f.preset || '',
+				createdAt: typeof f.createdAt === 'string' ? f.createdAt : f.createdAt.toISOString(),
+				owner: f.owner ? { ...f.owner, name: f.owner.name || '' } : undefined,
+				variantId: undefined
+			})))
 			} else {
 				setFiles([])
 			}
@@ -294,7 +297,7 @@ function useFileListData() {
 
 const FilterBar = React.memo(function FilterBar({ className }: { className?: string }) {
 	const { t } = useTranslation()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const location = useLocation()
 	const navigate = useNavigate()
 	const dialog = useDialog()
@@ -305,6 +308,7 @@ const FilterBar = React.memo(function FilterBar({ className }: { className?: str
 	async function createFile(contentType: string) {
 		console.log('createFile', contentType)
 		if (!contentType) return
+		if (!api) return
 
 		const fileName = await dialog.askText(t('Create document'), t('Provide a name for the new document'), {
 			placeholder: t('Untitled document')
@@ -312,9 +316,15 @@ const FilterBar = React.memo(function FilterBar({ className }: { className?: str
 		console.log('CONFIRM', fileName)
 		if (fileName === undefined) return
 
-		const res = await api.post<File>('', '/file', {
-			data: { fileTp: 'CRDT', contentType, fileName: fileName || t('Untitled document') }
+		const res = await api.files.create({
+			fileTp: 'CRDT',
+			contentType
 		})
+		if (res?.fileId) {
+			await api.files.update(res.fileId, {
+				fileName: (fileName || t('Untitled document')) as string
+			})
+		}
 		console.log('CREATE FILE', res)
 		if (res?.fileId) {
 			switch (contentType) {
@@ -343,6 +353,7 @@ const FilterBar = React.memo(function FilterBar({ className }: { className?: str
 	async function createDb(contentType: string) {
 		console.log('createDb', contentType)
 		if (!contentType) return
+		if (!api) return
 
 		const fileName = await dialog.askText(t('Create database'), t('Provide a name for the new database'), {
 			placeholder: t('Untitled database')
@@ -350,9 +361,15 @@ const FilterBar = React.memo(function FilterBar({ className }: { className?: str
 		console.log('CONFIRM', fileName)
 		if (fileName === undefined) return
 
-		const res = await api.post<File>('', '/file', {
-			data: { fileTp: 'RTDB', contentType, fileName: fileName || t('Untitled database') }
+		const res = await api.files.create({
+			fileTp: 'RTDB',
+			contentType
 		})
+		if (res?.fileId) {
+			await api.files.update(res.fileId, {
+				fileName: (fileName || t('Untitled database')) as string
+			})
+		}
 		console.log('CREATE DB', res)
 		if (res?.fileId) {
 			switch (contentType) {
@@ -485,7 +502,7 @@ interface FileDetailsProps {
 }
 function FileDetails({ className, file, renameFileId, renameFileName, fileOps }: FileDetailsProps) {
 	const { t } = useTranslation()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
 	const dialog = useDialog()
 	const [fileActions, setFileActions] = React.useState<ActionView[] | undefined>()
@@ -501,24 +518,26 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 	console.log({ readPerms, writePerms })
 
 	React.useEffect(function loadFileDetails() {
+		if (!api) return
 		(async function () {
-			const res = await api.get(file.owner?.idTag || '', `/action?type=FSHR&subject=${file.fileId}`, { type: T.struct({ actions: T.array(tActionView) }) })
+			// Query actions of type FSHR that apply to this file as the subject
+			const res = await api.actions.list({ type: 'FSHR', subject: file.fileId })
 			console.log('loadFileDetails res', res)
 			setFileActions(res.actions)
 		})()
-	}, [file])
+	}, [api, file.fileId])
 
 	// Permissions //
 	/////////////////
 	async function listProfiles(q: string) {
-		const res = !q ? { profiles: [] } : await api.get<{ profiles: Profile[] }>('', '/profile', {
-			query: { type: 'person', q }
-		})
+		if (!api) return []
+		if (!q) return []
+		const res = await api.profiles.list({ type: 'person', q })
 		return res.profiles
 	}
 
 	async function addPerm(profile: Profile, perm: 'WRITE' | 'READ') {
-		if (!file) return
+		if (!file || !api) return
 
 		const action: NewAction = {
 			type: 'FSHR',
@@ -531,15 +550,14 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 			audienceTag: profile.idTag
 		}
 
-		const res = await api.post('', '/action', { data: action, type: tActionView })
+		const res = await api.actions.create(action)
 		console.log('FSHR res', res)
 		let found = false
 		setFileActions(fileActions => (fileActions || []).map(fa => fa.audience?.idTag === profile.idTag ? (found = true, res) : fa).concat(found ? [] : [res]))
-		//setPermissionList(pl => (pl || []).find(p => p.idTag === profile.idTag) ? pl : [...(pl || []), profile])
 	}
 
 	async function removePerm(idTag: string) {
-		if (!file) return
+		if (!file || !api) return
 		if (!await dialog.confirm(t('Confirmation'), t("Are you sure you want to remove this user's permission?"))) return
 
 		const action: NewAction = {
@@ -548,9 +566,8 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 			audienceTag: idTag
 		}
 
-		const res = await api.post('', '/action', { data: action, type: tActionView })
+		const res = await api.actions.create(action)
 		setFileActions(fa => fa?.filter(fa => fa.audience?.idTag !== idTag))
-		//setPermissionList(permissionList?.filter(p => p.idTag !== idTag))
 	}
 
 	return <div className="c-vbox g-2">
@@ -614,7 +631,7 @@ export function FilesApp() {
 	const location = useLocation()
 	const { t } = useTranslation()
 	const [appConfig] = useAppConfig()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
 	const dialog = useDialog()
 	//const [files, setFiles] = React.useState<File[] | undefined>()
@@ -664,10 +681,7 @@ export function FilesApp() {
 
 		doRenameFile: async function doRenameFile(fileId: string, fileName: string) {
 			if (!api) return
-			const file = fileListData.getData()?.find(f => f.fileId === fileId)
-			await api.patch('', `/file/${fileId}`, {
-				data: { fileName }
-			})
+			await api.files.update(fileId, { fileName })
 			setRenameFileId(undefined)
 			setRenameFileName(undefined)
 			fileListData.refresh()
@@ -678,7 +692,7 @@ export function FilesApp() {
 			const res = await dialog.confirm(t('Delete document'), t('Are you sure you want to delete this document'))
 			if (!res) return
 
-			await api.delete('', `/file/${fileId}`)
+			await api.files.delete(fileId)
 			fileListData.refresh()
 		}
 	}), [auth, api, appConfig, t, fileListData])

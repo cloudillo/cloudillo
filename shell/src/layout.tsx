@@ -51,8 +51,8 @@ const APP_CONFIG: AppConfigState = {
 		'cloudillo/todollo': '/app/todollo'
 	},
 	menu: [
-		{ id: 'files', icon: IcFile, label: 'Files', trans: { hu: 'Fájlok' }, path: '/app/files?' },
-		{ id: 'feed', icon: IcFeed, label: 'Feed', trans: { hu: 'Hírfolyam' }, path: '/app/feed', public: true },
+		{ id: 'files', icon: IcFile, label: 'Files', trans: { hu: 'Fájlok' }, path: '/app/files?' },
+		{ id: 'feed', icon: IcFeed, label: 'Feed', trans: { hu: 'Hírfolyam' }, path: '/app/feed', public: true },
 		{ id: 'communities', icon: IcUsers, label: 'Communities', trans: { hu: 'Közösségek' }, path: '/communities' },
 		{ id: 'messages', icon: IcMessages, label: 'Messages', trans: { hu: 'Uzenetek' }, path: '/app/messages' },
 		//{ id: 'myform', icon: IcFile, label: 'My Form', path: '/app/formillo/cloud.w9.hu/myform' },
@@ -94,9 +94,10 @@ import { CloudilloLogo } from './logo.js'
 
 import { Profile, ActionView } from '@cloudillo/types'
 import { useAuth, AuthState, useApi, useDialog, mergeClasses, ProfilePicture, Popper, DialogContainer } from '@cloudillo/react'
+import { createApiClient } from '@cloudillo/base'
 import { AppConfigState, useAppConfig } from './utils.js'
 import usePWA from './pwa.js'
-import { AuthRoutes, webAuthnLogin } from './auth/auth.js'
+import { AuthRoutes } from './auth/auth.js'
 import { OnboardingRoutes } from './onboarding'
 import { WsBusRoot, useWsBus } from './ws-bus.js'
 import { SearchIcon, SearchBar, useSearch } from './search.js'
@@ -154,7 +155,7 @@ function Header({ inert }: { inert?: boolean }) {
 	const [appConfig, setAppConfig] = useAppConfig()
 	const [auth, setAuth] = useAuth()
 	const [search, setSearch] = useSearch()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const { t, i18n } = useTranslation()
 	const location = useLocation()
 	const navigate = useNavigate()
@@ -169,7 +170,8 @@ function Header({ inert }: { inert?: boolean }) {
 
 	async function doLogout() {
 		console.log('doLogout')
-		await api.post('', '/auth/logout', {})
+		if (!api) throw new Error('Not authenticated')
+		await api.auth.logout()
 		setAuth(undefined)
 		setMenuOpen(false)
 		navigate('/login')
@@ -197,8 +199,8 @@ function Header({ inert }: { inert?: boolean }) {
 			document.body.classList.add('light')
 		}
 		(async function () {
-			if (!api.idTag && !auth) {
-				// Determine idTag
+			if (!api?.idTag || !auth) {
+				// Determine idTag or authenticate
 				try {
 					console.log('[Shell] fetching idTag')
 					const loginToken = localStorage.getItem('loginToken') || undefined
@@ -206,12 +208,21 @@ function Header({ inert }: { inert?: boolean }) {
 					if (res.ok) {
 						const j = await res.json()
 						if (typeof j.idTag == 'string') {
-							api.setIdTag(j.idTag)
+							// idTag determined from .well-known endpoint
 							console.log('[Shell] idTag', j.idTag)
+							setIdTag(j.idTag)
 						}
+						// Create temporary API client with the idTag to check login status
+						const tempApi = createApiClient({
+							idTag: j.idTag || 'unknown',
+							authToken: loginToken
+						})
 						// Check for login cookie
-						const tokenRes = await api.get(j.idTag, '/auth/login-token', { authToken: loginToken })
-						const authState = tokenRes as AuthState || undefined
+						const tokenRes = await tempApi.auth.getLoginToken()
+						const authState: AuthState | undefined = tokenRes ? {
+							...tokenRes,
+							settings: Object.fromEntries(tokenRes.settings || [])
+						} : undefined
 						console.log('authState', authState)
 						if (authState?.idTag) {
 							setAuth(authState)
@@ -233,7 +244,7 @@ function Header({ inert }: { inert?: boolean }) {
 					console.log('ERROR', err)
 					navigate('/login')
 				}
-			} else if (api.idTag && auth) {
+			} else if (api && auth) {
 				// Load notification count
 				loadNotifications()
 			}
@@ -300,7 +311,7 @@ function Header({ inert }: { inert?: boolean }) {
 
 export function Layout() {
 	const pwa = usePWA({ swPath: `/sw-${version}.js` })
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const dialog = useDialog()
 
 	return <>

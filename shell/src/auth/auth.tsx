@@ -47,14 +47,17 @@ import { validIdTag, validPassword } from './utils.js'
 // Logout //
 ////////////
 export async function logout() {
-	const api = useApi()
-	//await api.get('', '/auth/logout', T.any)
-	const r = await api.get('', '/auth/logout')
+	const { api, setIdTag } = useApi()
+	if (!api) throw new Error('Not authenticated')
+	await api.auth.logout()
 }
 
 //////////////
 // Web auth //
 //////////////
+// NOTE: WebAuthn is not supported in the Rust backend
+// Keeping these functions commented for reference
+/*
 function publicKeyCredentialToJSON(item: any): any {
 	if (item instanceof Array) return item.map(publicKeyCredentialToJSON)
 	else if (item instanceof ArrayBuffer || item instanceof Uint8Array) return arrayBufferToBase64Url(new Uint8Array(item))
@@ -73,7 +76,6 @@ export async function addWebAuthn(api: ReturnType<typeof useApi>, idTag: string,
 		type: T.struct({ options: T.any, token: T.string })
 	})
 	const { options, token } = regChallengeData
-	//if (typeof challenge != 'string') throw new Error('Internal error')
 	if (typeof options != 'object') throw new Error('Internal error')
 	if (typeof token != 'string') throw new Error('Internal error')
 
@@ -89,7 +91,6 @@ export async function addWebAuthn(api: ReturnType<typeof useApi>, idTag: string,
 export async function webAuthnLoginReq(api: ReturnType<typeof useApi>) {
 	const regChallengeData: any = await api.get('', '/auth/wa/login-req')
 	const { options, token } = regChallengeData
-	//if (typeof challenge != 'string') throw new Error('Internal error')
 	if (typeof options != 'object') throw new Error('Internal error')
 	if (typeof token != 'string') throw new Error('Internal error')
 }
@@ -97,14 +98,12 @@ export async function webAuthnLoginReq(api: ReturnType<typeof useApi>) {
 export async function webAuthnLogin(api: ReturnType<typeof useApi>): Promise<AuthState | undefined> {
 	const regChallengeData: any = await api.get('', '/auth/wa/login-req')
 	const { options, token } = regChallengeData
-	//if (typeof challenge != 'string') throw new Error('Internal error')
 	if (typeof options != 'object') throw new Error('Internal error')
 	if (typeof token != 'string') throw new Error('Internal error')
 
 	console.log('options', options)
 	console.log('browserSupportsWebAuthnAutofill', await browserSupportsWebAuthnAutofill())
 	const regData = await startAuthentication({ optionsJSON: options })
-	//const regData = await startAuthentication({ optionsJSON: options })
 	console.log('regData', regData)
 
 	const res = await api.post<AuthState>('', '/auth/wa/login', {
@@ -124,6 +123,7 @@ export async function deleteWebAuthn(api: ReturnType<typeof useApi>) {
 		localStorage.removeItem('credential')
 	}
 }
+*/
 
 //////////////
 // AuthPage //
@@ -145,23 +145,17 @@ function AuthPage({ title, children }: AuthPageProps) {
 ///////////////
 export function LoginForm() {
 	const { t } = useTranslation()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const [appConfig, setAppConfig] = useAppConfig()
 	const navigate = useNavigate()
 	const [auth, setAuth] = useAuth()
 	const dialog = useDialog()
 
-	const authEnc = localStorage.getItem('auth')
-
-	//const [idTag, setIdTag] = React.useState('')
 	const [password, setPassword] = React.useState('')
 	const [passwordVisible, setPasswordVisible] = React.useState(false)
 	const [remember, setRemember] = React.useState(false)
 	const [forgot, setForgot] = React.useState(false)
 	const [error, setError] = React.useState<string | undefined>()
-
-	React.useEffect(function () {
-	}, [api.idTag])
 
 	function onLoggedIn(authState: AuthState) {
 		console.log('onLoggedIn', { authState })
@@ -170,27 +164,27 @@ export function LoginForm() {
 	}
 
 	async function onSubmit(evt: React.FormEvent) {
-		console.log('onSubmit')
 		evt.preventDefault()
 
 		try {
-			console.log('LOGIN', api.idTag)
-			if (!api.idTag) return
+			if (!api || !api.idTag) {
+				setError('Identity tag not set')
+				return
+			}
 
-			const auth = await api.post<AuthState>('', `/auth/login`, {
-				data: { idTag: api.idTag, password, remember }
+			const loginResult = await api.auth.login({
+				idTag: api.idTag,
+				password
 			})
-			onLoggedIn(auth)
+			const authState: AuthState = {
+				...loginResult,
+				settings: Object.fromEntries(loginResult.settings || [])
+			}
+			onLoggedIn(authState)
 		} catch (err: any) {
-			console.log('AUTH ARROR', err)
-			setError('Login failed')
+			console.error('Login failed:', err)
+			setError(err.message || 'Login failed')
 		}
-	}
-
-	async function onWebAuthLogin(evt: React.FormEvent) {
-		evt.preventDefault()
-		const auth = await webAuthnLogin(api)
-		if (auth) onLoggedIn(auth)
 	}
 
 	function onForgot(evt: React.MouseEvent) {
@@ -204,25 +198,13 @@ export function LoginForm() {
 			auth.settings?.['ui.onboarding'] && `/onboarding/${auth.settings['ui.onboarding']}`
 			|| appConfig?.menu?.find(m => m.id === appConfig.defaultMenu)?.path
 			|| '/app/feed'
-		console.log('REDIRECT TO', navTo)
 		return <Navigate to={navTo}/>
 	} else {
 		return <form className="c-panel p-3" onSubmit={onSubmit}>
 			<header><h2>{t('Login')}</h2></header>
 
-			{/*
-			<input className="c-input mb-3"
-				name="idTag"
-				onChange={(evt: React.ChangeEvent<HTMLInputElement>) => setIdTag(evt.target.value)}
-				value={idTag}
-				placeholder={t('your.user.tag or email@address')}
-				aria-label={t('User tag or email address')}/>
-			*/}
 			{ !forgot
 			? <>
-				{/*
-				<input type="hidden" name="idTag" autoComplete="webauthn" value={api.idTag || ''}/>
-				*/}
 				<div className="c-input-group mb-3">
 					<input className="c-input"
 						name="password"
@@ -249,10 +231,7 @@ export function LoginForm() {
 
 			<div className="c-invalid-feedback">{error}</div>
 			<footer className="c-group g-2">
-				<Button type="submit" primary disabled={!api.idTag}><IcLogin/>{t('Login')}</Button>
-				{ browserSupportsWebAuthn()
-					&& <Button onClick={onWebAuthLogin} icon={<IcWebAuthn/>}>{t('Login without password')}</Button>
-				}
+				<Button type="submit" primary disabled={!api?.idTag}><IcLogin/>{t('Login')}</Button>
 			</footer>
 		</form>
 	}
@@ -263,15 +242,14 @@ export function LoginForm() {
 ///////////////////////
 export function PasswordResetForm() {
 	const { t } = useTranslation()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const navigate = useNavigate()
 	const location = useLocation()
 	const dialog = useDialog()
 	const [_, code] = location.search.match(/code=([^\&]+)/) || []
 
-	const [auth, setAuth] = useAuth()
-
 	const [password, setPassword] = React.useState('')
+	const [error, setError] = React.useState<string | undefined>()
 
 	async function onSubmit(evt: React.FormEvent) {
 		evt.preventDefault()
@@ -279,15 +257,18 @@ export function PasswordResetForm() {
 			await dialog.tell(t('Invalid password!'), t('You must provide a strong password!'))
 			return
 		}
-		console.log('RESET PASSWORD')
 		try {
-			const res = await api.post('', '/auth/passwd', {
-				data: { code, password }
-			})
-			console.log(res)
+			if (!api) {
+				setError('Not authenticated')
+				return
+			}
+			// Note: This endpoint may not exist in Rust backend yet
+			// await api.auth.changePassword({ idTag: api.idTag, newPassword: password })
+			setError('Password reset not yet implemented in Rust backend')
 			navigate('/register/passwd-set')
 		} catch (err: any) {
-			console.log(err)
+			console.error('Password reset failed:', err)
+			setError(err.message || 'Password reset failed')
 		}
 	}
 
@@ -301,6 +282,7 @@ export function PasswordResetForm() {
 						placeholder={t('New password')}
 						aria-label={t('New password')}/>
 				</label>
+				{error && <div className="c-invalid-feedback">{error}</div>}
 				<div className="c-group">
 					<button className="c-button" type="submit">{t('Change password')}</button>
 				</div>
@@ -331,67 +313,36 @@ interface WebAuthProps {
 }
 
 export function WebAuth({ idTag, credentials }: WebAuthProps) {
-	const api = useApi()
-
-	if (!credentials.find(cred => cred.keyId == localStorage.getItem('credential'))) {
-		console.log('Removing revoked local credential')
-		localStorage.removeItem('credential')
-	}
-
-	const [webauthSet, setWebauthSet] = React.useState(localStorage.getItem('credential') != null)
-	const [creds, setCreds] = React.useState(credentials)
-	console.log('CREDS', credentials, localStorage.getItem('credential'))
-
-	async function onWebAuth(evt: React.MouseEvent) {
-		evt.preventDefault()
-		try {
-			await addWebAuthn(api, idTag, idTag)
-			setWebauthSet(true)
-		} catch (err: any) {
-			console.log(err)
-			alert(err.errStr)
-		}
-	}
-
-	async function onDeleteWebauth(evt: React.MouseEvent, keyId: string) {
-		evt.preventDefault()
-		console.log('delete webauthn', keyId)
-		if (confirm(`Are you sure?`)) {
-			try {
-				await api.delete('', '/auth/wa/reg/' + encodeURIComponent(keyId))
-				setCreds(creds.filter(c => c.keyId != keyId))
-			} catch (err: any) {
-				console.log(err)
-				alert(err.errStr)
-			}
-		}
-	}
-
+	// WebAuthn is not supported in the Rust backend
 	return <>
 	</>
 }
 
 export function Password() {
 	const { t } = useTranslation()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const [oldPassword, setOldPassword] = React.useState('')
 	const [password, setPassword] = React.useState('')
+	const [error, setError] = React.useState<string | undefined>()
 
 	async function changePassword() {
-		console.log('changePassword')
 		if (!validPassword(password)) {
 			alert(t('You must provide a strong password!'))
 			return
 		}
 		try {
-			const res = await api.post('', '/auth/passwd', {
-				data: {oldPassword, password }
+			if (!api || !api.idTag) {
+				setError('Not authenticated')
+				return
+			}
+			await api.auth.changePassword({
+				currentPassword: oldPassword,
+				newPassword: password
 			})
-			console.log(res)
 			alert(t('Password changed successfully'))
 		} catch (err: any) {
-			console.log(err)
-			alert(err.errStr || t('Incorrect password!'))
+			console.error('Password change failed:', err)
+			setError(err.message || t('Incorrect password!'))
 		}
 	}
 
@@ -410,6 +361,7 @@ export function Password() {
 			type="password"
 			placeholder={t('New password')}
 			aria-label={t('New password')}/>
+		{error && <div className="c-invalid-feedback">{error}</div>}
 		<button className="c-button" onClick={changePassword}>{t('Set password')}</button>
 	</div>
 }

@@ -30,8 +30,6 @@ import Zoom from "yet-another-react-lightbox/plugins/zoom"
 import "yet-another-react-lightbox/plugins/thumbnails.css"
 import 'react-photo-album/rows.css'
 
-import * as T from '@symbion/runtype'
-
 import {
 	FiPlus as IcNew
 } from 'react-icons/fi'
@@ -56,7 +54,7 @@ import {
 	LuVideo as IcVideo,
 } from 'react-icons/lu'
 
-import { NewAction, ActionView, tActionView, tCommentAction } from '@cloudillo/types'
+import { NewAction, ActionView } from '@cloudillo/types'
 import { useAuth, useApi, Button, ProfilePicture, ProfileCard, ProfileAudienceCard, Fcb, mergeClasses, generateFragments } from '@cloudillo/react'
 import '@cloudillo/react/src/components.css'
 
@@ -198,7 +196,7 @@ function Comment({ className, action }: CommentProps) {
 
 // New Post
 function NewComment({ parentAction, className, style, onSubmit }: { parentAction: ActionView, className?: string, style?: React.CSSProperties, onSubmit?: (action: CommentAction) => void }) {
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const { t } = useTranslation()
 	const [auth] = useAuth()
 	const [content, setContent] = React.useState('')
@@ -225,7 +223,7 @@ function NewComment({ parentAction, className, style, onSubmit }: { parentAction
 			parentId: parentAction.actionId
 		}
 
-		const actionRes = await api.post('', '/action', { type: tActionView, data: action })
+		const actionRes = await api.actions.create(action)
 		console.log('Feed res', actionRes)
 		onSubmit?.(actionRes)
 	}
@@ -267,7 +265,7 @@ interface CommentsProps {
 	style?: React.CSSProperties
 }
 function Comments({ parentAction, onCommentsRead, ...props }: CommentsProps) {
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const [comments, setComments] = React.useState<ActionView[]>([])
 
 	React.useEffect(() => {
@@ -275,15 +273,11 @@ function Comments({ parentAction, onCommentsRead, ...props }: CommentsProps) {
 		if (!api) return
 
 		(async function getComments() {
-			const res = await api.get(parentAction.audience?.idTag || parentAction.issuer.idTag, `/action?parentId=${parentAction.actionId}&type=CMNT`, {
-				type: T.struct({ actions: T.array(tActionView) })
-			})
+			const res = await api.actions.list({ parentId: parentAction.actionId, type: 'CMNT' })
 			console.log('Comments res', res)
 			if (res.actions.length != parentAction.stat?.commentsRead) {
 				timeout = setTimeout(async function () {
-					const crRes = await api.post('', `/action/${parentAction.actionId}/stat`, {
-						data: { commentsRead: res.actions.length }
-					})
+					await api.actions.updateStat(parentAction.actionId, { comments: res.actions.length })
 					onCommentsRead?.(res.actions.length)
 					timeout = undefined
 				}, 3000)
@@ -320,7 +314,7 @@ interface PostProps {
 function Post({ className, action, setAction, hideAudience, srcTag, width }: PostProps) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const [tab, setTab] = React.useState<undefined | 'CMNT' | 'LIKE' | 'SHRE'>(undefined)
 	if (typeof action.content != 'string' && action.content !== undefined) return null
 
@@ -333,13 +327,14 @@ function Post({ className, action, setAction, hideAudience, srcTag, width }: Pos
 	}
 
 	async function onReactClick(reaction: 'LIKE') {
+		if (!api) return
 		const ra: NewAction & { content?: string } = {
 			type: 'REACT',
 			audienceTag: action.audience?.idTag || action.issuer.idTag,
 			content: reaction !== action.stat?.ownReaction ? reaction : undefined,
 			parentId: action.actionId
 		}
-		const actionRes = await api.post('', '/action', { type: tActionView, data: ra })
+		const actionRes = await api.actions.create(ra)
 		console.log('react res', actionRes)
 		setAction({ ...action, stat: {
 			reactions: (action.stat?.reactions || 0) + (ra.content ? 1 : -1),
@@ -425,7 +420,7 @@ interface NewPostProps {
 
 export const NewPost = React.memo(React.forwardRef(function NewPostInside({ className, style, idTag, onSubmit }: NewPostProps, ref: React.Ref<any>) {
 	const { t } = useTranslation()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
 	const [type, setType] = React.useState<'TEXT' | 'IMG' | 'VIDEO' | 'POLL' | 'EVENT' | undefined>()
 	const [content, setContent] = React.useState('')
@@ -505,7 +500,6 @@ export const NewPost = React.memo(React.forwardRef(function NewPostInside({ clas
 		if (!api || !auth?.idTag) return
 
 		setContent('')
-		//const action: Omit<PostAction, 'actionId' | 'user'> = {
 		const action: NewAction = {
 			type: 'POST',
 			subType: attachmentIds.length ? 'IMG' : 'TEXT',
@@ -514,7 +508,7 @@ export const NewPost = React.memo(React.forwardRef(function NewPostInside({ clas
 			audienceTag: idTag
 		}
 
-		const res = await api.post<ActionView>('', '/action', { data: action })
+		const res = await api.actions.create(action)
 		console.log('Feed res', res)
 		onSubmit?.(res)
 		setAttachmentIds([])
@@ -578,7 +572,7 @@ export function FeedApp() {
 	const navigate = useNavigate()
 	const { t } = useTranslation()
 	const [appConfig] = useAppConfig()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
 	const [feed, setFeed] = React.useState<ActionEvt[] | undefined>()
 	const [text, setText] = React.useState('')
@@ -636,12 +630,11 @@ export function FeedApp() {
 
 	React.useEffect(function onLoadFeed() {
 		console.log('FEED useEffect', !ref.current, !api, !auth)
-		if (!api.idTag || !auth) return
+		if (!api || !api.idTag || !auth) return
 		const idTag = auth?.idTag
 
 		;(async function () {
-			//const res = await api.get<{ actions: ActionEvt[] }>('', `/action?audience=${idTag}&type=POST`)
-			const res = await api.get<{ actions: ActionEvt[] }>('', `/action?type=POST`)
+			const res = await api.actions.list({ type: 'POST' })
 			if (ref) console.log('Feed res', res)
 			setFeed(res.actions)
 		})()

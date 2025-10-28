@@ -18,22 +18,24 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useApi } from '@cloudillo/react'
+import { ApiClient } from '@cloudillo/base'
 
 import { UsePWA } from '../pwa.js'
 import { useSettings } from './settings.js'
 
-export async function subscribeNotifications(api: ReturnType<typeof useApi>, pwa: UsePWA) {
-	const vapid = await api.get<{ vapidPublicKey: string }>('', '/auth/vapid')
+export async function subscribeNotifications(api: ApiClient | null, pwa: UsePWA) {
+	if (!api) throw new Error('Not authenticated')
+	const vapid = await api.auth.getVapidPublicKey()
 	const subscription = await pwa.askNotify?.(vapid.vapidPublicKey)
 	if (subscription) {
-		await api.post('', '/notification/subscription', { data: { subscription }})
+		await api.notifications.subscribe({ subscription })
 		return subscription
 	}
 }
 
 export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 	const { t } = useTranslation()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const { settings, onSettingChange } = useSettings('notify')
 	const [notificationSubscription, setNotificationSubscription] = React.useState<PushSubscription | undefined>()
 

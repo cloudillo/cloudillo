@@ -53,7 +53,7 @@ function ProfileStatusIcon({ profile }: { profile: { connected?: true | 'R', fol
 
 function FilterBar({ className }: { className?: string }) {
 	const { t } = useTranslation()
-	const api = useApi()
+	const { api } = useApi()
 	const location = useLocation()
 	const navigate = useNavigate()
 	const userStat = { all: 0, connected: 0, followed: 0, following: 0, trusted: 0 }
@@ -105,7 +105,7 @@ export function ProfileListCard({ profile, srcTag }: { profile: Profile, srcTag?
 export function PersonListPage({ idTag }: { idTag?: string }) {
 	const { t } = useTranslation()
 	const location = useLocation()
-	const api = useApi()
+	const { api } = useApi()
 	const [auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
@@ -121,10 +121,8 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 			const qs: Record<string, string> = parseQS(location.search)
 			console.log('QS', location.search, qs)
 
-			const res = await api.get<{ profiles: Profile[] }>(idTag || '', '/profile', {
-				query: { ...qs, type: 'person' }
-			})
-			setProfiles(res.profiles)
+			const res = await api!.profiles.list({ type: 'person' })
+			setProfiles(res.profiles as any)
 		})()
 	}, [auth, location.search])
 
@@ -153,7 +151,7 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 export function CommunityListPage() {
 	const { t } = useTranslation()
 	const location = useLocation()
-	const api = useApi()
+	const { api } = useApi()
 	const [auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
@@ -169,11 +167,9 @@ export function CommunityListPage() {
 			const qs: Record<string, string> = parseQS(location.search)
 			console.log('QS', location.search, qs)
 
-			const res = await api.get<{ profiles: Profile[] }>('', '/profile', {
-				query: { ...qs, type: 'community' }
-			})
+			const res = await api!.profiles.list({ type: 'community' })
 			console.log(res)
-			setProfiles(res.profiles)
+			setProfiles(res.profiles as any)
 		})()
 	}, [auth, location.search])
 

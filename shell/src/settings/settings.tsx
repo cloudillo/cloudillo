@@ -16,24 +16,26 @@
 
 import * as React from 'react'
 
-import { useAuth, useApi } from '@cloudillo/react'
+import { useApi } from '@cloudillo/react'
 
 export function useSettings(prefix: string | string[]) {
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const [settings, setSettings] = React.useState<Record<string, string | number | boolean> | undefined>()
 
 	React.useEffect(function loadSettings() {
+		if (!api) return
 		(async function () {
-			const res = await api.get<{ settings: Record<string, string | number | boolean> }>('', `/settings?prefix=${Array.isArray(prefix) ? prefix.join(',') : prefix}`)
-			setSettings(res.settings)
+			const prefixStr = Array.isArray(prefix) ? prefix.join(',') : prefix
+			const res = await api.settings.list({ prefix: prefixStr })
+			setSettings(Object.fromEntries(res.settings as any))
 		})()
-	}, [])
+	}, [api, prefix])
 
 	async function onSettingChange(evt: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
-		if (!settings) return
+		if (!settings || !api) return
 
 		let value = evt.target.type == 'checkbox' ? evt.target.checked : evt.target.value
-		await api.put('', `/settings/${evt.target.name}`, { data: { value }})
+		await api.settings.update(evt.target.name, { value })
 		setSettings(settings => ({ ...settings, [evt.target.name]: value }))
 	}
 

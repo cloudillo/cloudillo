@@ -161,7 +161,7 @@ export function ProfilePage({
 	const { t } = useTranslation()
 	const [auth, setAuth] = useAuth()
 	const own = auth?.idTag === profile.idTag
-	const api = useApi()
+	const { api } = useApi()
 	const [coverUpload, setCoverUpload] = React.useState<string | undefined>()
 	const [profileUpload, setProfileUpload] = React.useState<string | undefined>()
 	const inputId = React.useId()
@@ -177,7 +177,7 @@ export function ProfilePage({
 	
 		// Upload
 		const request = new XMLHttpRequest()
-		request.open('PUT', `https://cl-o.${api.idTag}/api/me/cover`);
+		request.open('PUT', `https://cl-o.${api?.idTag}/api/me/cover`);
 		request.setRequestHeader('Authorization', `Bearer ${auth?.token}`)
 
 		request.upload.addEventListener('progress', function(e) {
@@ -201,7 +201,7 @@ export function ProfilePage({
 	
 		// Upload
 		const request = new XMLHttpRequest()
-		request.open('PUT', `https://cl-o.${api.idTag}/api/me/image`);
+		request.open('PUT', `https://cl-o.${api?.idTag}/api/me/image`);
 		request.setRequestHeader('Authorization', `Bearer ${auth?.token}`)
 
 		request.upload.addEventListener('progress', function(e) {
@@ -314,7 +314,7 @@ interface ProfileTabProps {
 function ProfileAbout({ profile, updateProfile }: ProfileTabProps) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
-	const api = useApi()
+	const { api } = useApi()
 	const ref = React.useRef<HTMLDivElement>(null)
 	const [intro, setIntro] = React.useState<string | undefined>()
 
@@ -381,7 +381,7 @@ function ProfileAbout({ profile, updateProfile }: ProfileTabProps) {
 
 export function ProfileFeed({ profile }: ProfileTabProps) {
 	const { t } = useTranslation()
-	const api = useApi()
+	const { api } = useApi()
 	const [auth] = useAuth()
 	const [feed, setFeed] = React.useState<ActionEvt[] | undefined>()
 	const [text, setText] = React.useState('')
@@ -392,7 +392,7 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 		if (!api) return
 
 		(async function () {
-			const res = await api.get<{ actions: ActionEvt[] }>(profile.idTag, `/action?audience=${profile.idTag}&types=POST`)
+			const res = await api.actions.list({ type: 'POST', audience: profile.idTag })
 			console.log('Profile Feed res', res)
 			setFeed(res.actions)
 		})()
@@ -437,7 +437,7 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 export function ProfileConnections({ profile }: ProfileTabProps) {
 	const { t } = useTranslation()
 	const location = useLocation()
-	const api = useApi()
+	const { api } = useApi()
 	const [auth] = useAuth()
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
 
@@ -448,10 +448,8 @@ export function ProfileConnections({ profile }: ProfileTabProps) {
 			const qs: Record<string, string> = parseQS(location.search)
 			console.log('QS', location.search, qs)
 
-			const res = await api.get<{ profiles: Profile[] }>(profile.idTag, '/profile', {
-				query: { ...qs, type: 'person' }
-			})
-			setProfiles(res.profiles)
+			const res = await api!.profiles.list({ type: 'person' })
+			setProfiles(res.profiles as any)
 		})()
 	}, [auth, location.search])
 
@@ -463,7 +461,7 @@ function Profile() {
 	const { t } = useTranslation()
 
 	const [auth] = useAuth()
-	const api = useApi()
+	const { api } = useApi()
 	const dialog = useDialog()
 	const idTag = useParams().idTag == 'me' ? auth?.idTag : useParams().idTag || auth?.idTag
 	const own = idTag == auth?.idTag
@@ -480,8 +478,9 @@ function Profile() {
 		}
 
 		console.log('load', idTag)
-		api.get<FullProfile>(idTag, '/me/full').then(setProfile)
-		api.get<Profile>(auth?.idTag, `/profile/${idTag}`).then(setLocalProfile).catch(() => setLocalProfile({}))
+		if (own) api!.profiles.getOwnFull().then(p => setProfile(p as any))
+		else api!.profiles.get(idTag!).then(p => setProfile(p as any)).catch(() => setProfile(undefined))
+		api!.profiles.get(idTag!).then(p => setLocalProfile(p as any)).catch(() => setLocalProfile({}))
 	}, [idTag, profile?.idTag, auth?.idTag])
 
 	React.useEffect(function debug() {
@@ -497,22 +496,22 @@ function Profile() {
 				...patch.x
 			}
 		} : undefined)
-		const res = await api?.patch<{ profile: FullProfile }>('', '/me', { data: patch })
+		const res = await api?.profiles.updateOwn(patch)
 		console.log('res', res, patch)
-		setProfile(res?.profile)
+		setProfile(res?.profile as any)
 	}
 
 	async function onFollow() {
 		if (!profile || localProfile?.following) return
 		const followAction: NewAction = { type: 'FLLW', audienceTag: profile.idTag, }
-		const res = await api.post('', '/action', { data: followAction })
+		const res = await api!.actions.create(followAction)
 		setLocalProfile(p => p ? { ...p, following: true } : p)
 	}
 
 	async function onUnfollow() {
 		if (!profile || !localProfile?.following) return
 		const unfollowAction: NewAction = { type: 'FLLW', subType: 'DEL', audienceTag: profile.idTag, }
-		const res = await api.post('', '/action', { data: unfollowAction })
+		const res = await api!.actions.create(unfollowAction)
 		setLocalProfile(p => p ? { ...p, following: false } : p)
 	}
 
@@ -526,7 +525,7 @@ function Profile() {
 				audienceTag: profile.idTag,
 				content
 			}
-			const res = await api.post('', '/action', { data: connectAction })
+			const res = await api!.actions.create(connectAction)
 			setLocalProfile(p => p ? { ...p, connected: 'R' } : p)
 		}
 	}
@@ -535,19 +534,19 @@ function Profile() {
 		if (!profile || !localProfile?.connected) return
 		if (!await dialog.confirm(t('Cancel connection'), t('Are you sure you want to disconnect?'))) return
 		const disconnectAction: NewAction = { type: 'CONN', subType: 'DEL', audienceTag: profile.idTag, }
-		const res = await api.post('', '/action', { data: disconnectAction })
+		const res = await api!.actions.create(disconnectAction)
 		setLocalProfile(p => p ? { ...p, connected: undefined } : p)
 	}
 
 	async function onBlock() {
 		if (!profile || localProfile?.status == 'B') return
-		const res = await api.patch('', `/profile/${profile.idTag}`, { data: { status: 'B' } })
+		const res = await api!.profiles.updateConnection(profile.idTag, { status: 'B' })
 		setLocalProfile(p => p ? { ...p, status: 'B' } : p)
 	}
 
 	async function onUnblock() {
 		if (!profile || localProfile?.status != 'B') return
-		const res = await api.patch('', `/profile/${profile.idTag}`, { data: { status: 'A' } })
+		const res = await api!.profiles.updateConnection(profile.idTag, { status: 'A' })
 		setLocalProfile(p => p ? { ...p, status: 'A' } : p)
 	}
 

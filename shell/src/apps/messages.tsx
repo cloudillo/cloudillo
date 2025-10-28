@@ -41,6 +41,7 @@ import {
 } from 'react-icons/lu'
 
 import { Profile, ActionView, NewAction } from '@cloudillo/types'
+import * as Types from '@cloudillo/base'
 import { useAuth, useApi, Button, Fcb, IdentityTag, ProfileCard, mergeClasses } from '@cloudillo/react'
 import '@cloudillo/react/src/components.css'
 
@@ -145,7 +146,7 @@ interface MsgProps {
 }
 function Msg({ className, action, local }: MsgProps) {
 	const { t } = useTranslation()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const [tab, setTab] = React.useState<undefined | 'CMNT' | 'LIKE' | 'SHRE'>(undefined)
 	/*
 	let imgSrc: string | undefined
@@ -202,7 +203,7 @@ function Msg({ className, action, local }: MsgProps) {
 // New Msg
 export function NewMsg({ className, style, idTag, onSubmit }: { className?: string, style?: React.CSSProperties, idTag: string, onSubmit?: (action: ActionEvt) => void }) {
 	const { t } = useTranslation()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
 	const [type, setType] = React.useState<'TEXT' | 'IMG' | 'VIDEO'>('TEXT')
 	const [content, setContent] = React.useState('')
@@ -283,14 +284,12 @@ export function NewMsg({ className, style, idTag, onSubmit }: { className?: stri
 			audienceTag: idTag
 		}
 
-		const res = await api.post<{ actionId: string }>('', '/action', { data: action })
+		const res = await api.actions.create(action)
 		console.log('MSG res', res)
 		onSubmit?.({
-			...action,
-			actionId: res.actionId,
+			...res,
 			issuer: { name: auth.name ?? '', idTag: auth.idTag, profilePic: auth.profilePic },
-			audience: undefined,
-			createdAt: dayjs().toISOString()
+			audience: undefined
 		} as ActionEvt)
 		setAttachmentId(undefined)
 		setTimeout(function () { editorRef.current?.blur(), editorRef.current?.focus() }, 0)
@@ -382,7 +381,7 @@ export function MessagesApp() {
 	const navigate = useNavigate()
 	const { t } = useTranslation()
 	const [appConfig] = useAppConfig()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState(!convId)
 	const [filter, setFilter] = React.useState<ConversationFilter>({})
@@ -399,11 +398,11 @@ export function MessagesApp() {
 
 	React.useEffect(function loadConversations() {
 		setConversations([]);
-		if (!auth) return
+		if (!auth || !api) return
 
 		(async function () {
 			const conversationRes: { conversations: Conversation[] } = { conversations: [] }
-			const profileRes = await api.get<{ profiles: Profile[] }>('', '/profile', { query: { ...filter, type: 'person', connected: true }})
+			const profileRes = await api.profiles.list({ ...filter, type: 'person', connected: true })
 			console.log('profiles', profileRes)
 			const profileConvs: Conversation[] = profileRes.profiles.map(profile => ({
 				id: profile.idTag,
@@ -411,23 +410,28 @@ export function MessagesApp() {
 			}))
 			setConversations([ ...conversationRes.conversations, ...profileConvs ])
 		})()
-	}, [auth, filter])
+	}, [auth, api, filter])
 
 	React.useEffect(function loadMessages() {
 		setShowFilter(!convId)
-		if (!auth || !convId) return
+		if (!auth || !convId || !api) return
 		(async function () {
-			const profileRes = await api.get<{ profiles: Profile[] }>('', `/profile?idTag=${convId}`)
-			console.log('profile', profileRes)
-			if (!profileRes?.profiles.length) return
+			// Get profile by idTag
+			try {
+				const profile = await api.profiles.get(convId)
+				const profileRes = { profiles: [profile] }
+				console.log('profile', profileRes)
 
-			setConversation({ id: convId, profiles: profileRes.profiles })
-			const res = await api.get<{ actions: ActionEvt[] }>('', `/action?involved=${convId}&type=MSG`)
-			console.log('Msg res', res)
-			setMsg(res.actions.sort((a, b) => dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix()))
-			//convRef.current?.scrollTo({ top: convRef.current.scrollHeight })
+				setConversation({ id: convId, profiles: profileRes.profiles })
+				const res = await api.actions.list({ involved: convId, type: 'MSG' })
+				console.log('Msg res', res)
+				setMsg((res.actions as any).sort((a: any, b: any) => dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix()))
+				//convRef.current?.scrollTo({ top: convRef.current.scrollHeight })
+			} catch (err) {
+				console.error('Failed to load messages', err)
+			}
 		})()
-	}, [auth, convId])
+	}, [auth, convId, api])
 
 	function onConvScroll() {
 		if (!convRef.current) return

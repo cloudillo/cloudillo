@@ -21,7 +21,7 @@ import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 
 import * as cloudillo from '@cloudillo/base'
-import { apiFetchHelper, ApiFetchOpts } from '@cloudillo/base'
+import { createApiClient, ApiClient } from '@cloudillo/base'
 
 // useAuth() //
 ///////////////
@@ -49,71 +49,61 @@ export interface ApiState {
 
 export const apiAtom = atom<ApiState>({})
 
-export function useApi() {
+/**
+ * Hook for type-safe API client
+ *
+ * Returns a fully type-safe API client with all endpoints typed.
+ * Also allows setting the idTag for initial login flow.
+ *
+ * @example
+ * ```typescript
+ * const { api, setIdTag } = useApi()
+ *
+ * // Set idTag if needed (e.g., from .well-known endpoint)
+ * if (idTagFromServer) {
+ *   setIdTag(idTagFromServer)
+ * }
+ *
+ * if (!api) return <div>Not authenticated</div>
+ *
+ * // Get login token
+ * const result = await api.auth.getLoginToken()
+ *
+ * // List files
+ * const files = await api.files.list({ tag: 'vacation' })
+ *
+ * // Create action
+ * const action = await api.actions.create({
+ *   type: 'POST',
+ *   content: 'Hello!'
+ * })
+ * ```
+ */
+export interface ApiHook {
+	api: ApiClient | null
+	setIdTag: (idTag: string) => void
+}
+
+export function useApi(): ApiHook {
 	const [auth] = useAuth()
-	const [api, setApi] = useAtom(apiAtom)
+	const [apiState, setApiState] = useAtom(apiAtom)
 
-	return React.useMemo(() => ({
-		//get: async function get<R>(idTag: string, path: string, opts?: Omit<ApiFetchOpts<R, never>, 'authToken'>): Promise<R> {
-		get: async function get<R>(idTag: string, path: string, opts?: ApiFetchOpts<R, never>): Promise<R> {
-			console.log('GET', { idTag, path, opts, auth })
-			return await apiFetchHelper(idTag || api.idTag || '', 'GET', path, { ...opts, authToken: opts?.authToken || auth?.token })
-		},
+	const api = React.useMemo(() => {
+		const idTag = apiState.idTag || auth?.idTag
+		const token = auth?.token
 
-		post: async function post<R, D = any>(idTag: string, path: string, opts?: Omit<ApiFetchOpts<R, D>, 'authToken'>): Promise<R> {
-			return await apiFetchHelper(idTag || api.idTag || '', 'POST', path, { ...opts, authToken: auth?.token })
-		},
+		if (!idTag) return null
 
-		put: async function put<R, D = any>(idTag: string, path: string, opts?: Omit<ApiFetchOpts<R, D>, 'authToken'>): Promise<R> {
-			return await apiFetchHelper(idTag || api.idTag || '', 'PUT', path, { ...opts, authToken: auth?.token })
-		},
+		return createApiClient({
+			idTag,
+			authToken: token,
+		})
+	}, [apiState.idTag, auth?.idTag, auth?.token])
 
-		patch: async function patch<R, D = any>(idTag: string, path: string, opts?: Omit<ApiFetchOpts<R, D>, 'authToken'>): Promise<R> {
-			return await apiFetchHelper(idTag || api.idTag || '', 'PATCH', path, { ...opts, authToken: auth?.token })
-		},
-
-		delete: async function del<R>(idTag: string, path: string, opts?: Omit<ApiFetchOpts<R, never>, 'authToken'>): Promise<R> {
-			return await apiFetchHelper(idTag || api.idTag || '', 'DELETE', path, { ...opts, authToken: auth?.token })
-		},
-
-		setIdTag: function setIdTag(idTag: string) {
-			setApi({ idTag })
-		},
-		idTag: api.idTag
-	}), [api.idTag])
-
-
-	/*
-	const [auth] = useAuth()
-	const [api, setApi] = useAtom(apiAtom)
-	const abortCtrlRef = React.useRef<AbortController | null>(null)
-
-	const apiIface = {
-		url: api.url,
-
-		get: async function get<R>(idTag: string, path: string, query: Record<string, string | number | boolean | undefined> = {}): Promise<R> {
-			return await fetchIt(idTag, path, 'GET', undefined, query)
-		},
-
-		post: async function post<R, D = any>(idTag: string, path: string, data: D, query: Record<string, string | number | boolean | undefined> = {}): Promise<R> {
-			return await fetchIt(idTag, path, 'POST', data, query)
-		},
-
-		put: async function put<R, D = any>(idTag: string, path: string, data: D, query: Record<string, string | number | boolean | undefined> = {}): Promise<R> {
-			return await fetchIt(idTag, path, 'PUT', data, query)
-		},
-
-		patch: async function patch<R, D = any>(idTag: string, path: string, data: D, query: Record<string, string | number | boolean | undefined> = {}): Promise<R> {
-			return await fetchIt(idTag, path, 'PATCH', data, query)
-		},
-
-		delete: async function del<R>(idTag: string, path: string, query: Record<string, string | number | boolean | undefined> = {}): Promise<R> {
-			return await fetchIt(idTag, path, 'DELETE', undefined, query)
-		}
+	return {
+		api,
+		setIdTag: (idTag: string) => setApiState({ idTag })
 	}
-
-	return React.useMemo(() => apiIface, [auth])
-	*/
 }
 
 interface UseCloudillo {

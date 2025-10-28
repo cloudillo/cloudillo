@@ -48,7 +48,7 @@ interface MicrofrontendContainerProps {
 
 export function MicrofrontendContainer({ className, app, resId, appUrl, trust }: MicrofrontendContainerProps) {
 	const ref = React.useRef<HTMLIFrameElement>(null)
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
 	const [url, setUrl] = React.useState<string | undefined>(undefined)
 	const [loading, setLoading] = React.useState(true)
@@ -60,7 +60,7 @@ export function MicrofrontendContainer({ className, app, resId, appUrl, trust }:
 			//console.log('Sending load message', ref.current, ref.current?.contentWindow)
 			console.log('[Shell] app init', auth)
 			const apiPromise = auth
-				? api.get<{ token: string }>('', `/auth/access-token?subject=${resId}:W`)
+				? api.auth.getAccessToken({ subject: `${resId}:W` })
 				: Promise.resolve({ token: undefined })
 			ref.current?.addEventListener('load', async function onMicrofrontendLoad() {
 				console.log('[Shell] Loaded => waiting for app to start')

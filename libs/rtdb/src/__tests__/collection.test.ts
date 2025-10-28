@@ -14,20 +14,20 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import { jest, describe, it, expect, beforeEach } from '@jest/globals'
 import { CollectionReference } from '../collection'
 import { DocumentReference } from '../document'
 import { Query } from '../query'
 import { WebSocketManager } from '../websocket'
 
 jest.mock('../websocket')
-jest.mock('../document')
-jest.mock('../query')
 
 describe('CollectionReference', () => {
 	let mockWs: jest.Mocked<WebSocketManager>
 	let collRef: CollectionReference
 
 	beforeEach(() => {
+		jest.useFakeTimers()
 		mockWs = new WebSocketManager(
 			'test-db',
 			() => 'token',
@@ -44,6 +44,11 @@ describe('CollectionReference', () => {
 		collRef = new CollectionReference(mockWs, 'posts')
 	})
 
+	afterEach(() => {
+		jest.clearAllTimers()
+		jest.useRealTimers()
+	})
+
 	describe('doc', () => {
 		it('should return DocumentReference', () => {
 			const docRef = collRef.doc('123')
@@ -52,23 +57,27 @@ describe('CollectionReference', () => {
 		})
 
 		it('should create reference with correct path', () => {
-			const docRef = collRef.doc('my-post') as any
+			const docRef = collRef.doc('my-post')
 
-			// Verify the DocumentReference was created (mocked)
-			expect(DocumentReference).toHaveBeenCalledWith(mockWs, 'posts/my-post')
+			// Verify the DocumentReference was created with correct ID
+			expect(docRef).toBeInstanceOf(DocumentReference)
+			expect(docRef.id).toBe('my-post')
 		})
 
 		it('should support multiple docs in same collection', () => {
-			collRef.doc('doc1')
-			collRef.doc('doc2')
+			const doc1 = collRef.doc('doc1')
+			const doc2 = collRef.doc('doc2')
 
-			expect(DocumentReference).toHaveBeenCalledTimes(2)
+			expect(doc1).toBeInstanceOf(DocumentReference)
+			expect(doc2).toBeInstanceOf(DocumentReference)
+			expect(doc1.id).toBe('doc1')
+			expect(doc2.id).toBe('doc2')
 		})
 	})
 
 	describe('create', () => {
 		it('should create document with auto-generated ID', async () => {
-			mockWs.send = jest.fn().mockResolvedValue({
+			mockWs.send = (jest.fn() as any).mockResolvedValue({
 				type: 'transactionResult',
 				results: [{ id: 'auto-123' }]
 			})
@@ -81,7 +90,7 @@ describe('CollectionReference', () => {
 		})
 
 		it('should send transaction message', async () => {
-			mockWs.send = jest.fn().mockResolvedValue({
+			mockWs.send = (jest.fn() as any).mockResolvedValue({
 				type: 'transactionResult',
 				results: [{ id: 'auto-123' }]
 			})
@@ -97,7 +106,7 @@ describe('CollectionReference', () => {
 		})
 
 		it('should throw error when no ID returned', async () => {
-			mockWs.send = jest.fn().mockResolvedValue({
+			mockWs.send = (jest.fn() as any).mockResolvedValue({
 				type: 'transactionResult',
 				results: [{}] // No ID
 			})
@@ -163,7 +172,7 @@ describe('CollectionReference', () => {
 
 	describe('get', () => {
 		it('should fetch all documents in collection', async () => {
-			mockWs.send = jest.fn().mockResolvedValue({
+			mockWs.send = (jest.fn() as any).mockResolvedValue({
 				type: 'queryResult',
 				data: [
 					{ id: 'doc1', title: 'Post 1' },
@@ -178,7 +187,7 @@ describe('CollectionReference', () => {
 		})
 
 		it('should return empty snapshot for empty collection', async () => {
-			mockWs.send = jest.fn().mockResolvedValue({
+			mockWs.send = (jest.fn() as any).mockResolvedValue({
 				type: 'queryResult',
 				data: []
 			})
@@ -221,7 +230,7 @@ describe('CollectionReference', () => {
 		it('should support nested collection paths', async () => {
 			const nestedCollRef = new CollectionReference(mockWs, 'posts/abc/comments')
 
-			mockWs.send = jest.fn().mockResolvedValue({
+			mockWs.send = (jest.fn() as any).mockResolvedValue({
 				type: 'queryResult',
 				data: []
 			})
@@ -234,7 +243,7 @@ describe('CollectionReference', () => {
 		it('should create documents in nested collection', async () => {
 			const nestedCollRef = new CollectionReference(mockWs, 'posts/abc/comments')
 
-			mockWs.send = jest.fn().mockResolvedValue({
+			mockWs.send = (jest.fn() as any).mockResolvedValue({
 				type: 'transactionResult',
 				results: [{ id: 'comment-123' }]
 			})
@@ -250,13 +259,13 @@ describe('CollectionReference', () => {
 
 	describe('error handling', () => {
 		it('should propagate errors from get', async () => {
-			mockWs.send = jest.fn().mockRejectedValue(new Error('Network error'))
+			mockWs.send = (jest.fn() as any).mockRejectedValue(new Error('Network error'))
 
 			await expect(collRef.get()).rejects.toThrow('Network error')
 		})
 
 		it('should propagate errors from create', async () => {
-			mockWs.send = jest.fn().mockRejectedValue(new Error('Validation failed'))
+			mockWs.send = (jest.fn() as any).mockRejectedValue(new Error('Validation failed'))
 
 			await expect(collRef.create({ title: 'Test' })).rejects.toThrow('Validation failed')
 		})

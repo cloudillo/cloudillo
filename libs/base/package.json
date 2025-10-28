@@ -4,12 +4,6 @@
   "description": "Cloudillo base library",
   "type": "module",
   "main": "lib/index.js",
-  "jest": {
-    "preset": "ts-jest",
-    "moduleNameMapper": {
-      "^~/(.*)$": "<rootDir>/$1"
-    }
-  },
   "exports": {
     ".": {
       "import": "./lib/index.js",
@@ -23,16 +17,26 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
+    "test": "NODE_OPTIONS=\"--experimental-vm-modules\" jest",
+    "test:watch": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --watch",
+    "test:coverage": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --coverage",
     "clean": "rimraf .cache lib*"
   },
   "author": "Szilárd Hajba <szilu@cloudillo.org",
   "license": "LGPL-3.0-or-later",
+  "dependencies": {
+    "@cloudillo/types": "workspace:^"
+  },
   "devDependencies": {
     "@symbion/runtype": "^1.1.3",
+    "@types/jest": "^30.0.0",
     "colord": "^2.9.3",
+    "jest": "^30.2.0",
+    "jest-environment-jsdom": "^30.2.0",
     "jotai": "^2.15.0",
     "lib0": "^0.2.114",
     "rimraf": "^6.0.1",
+    "ts-jest": "^29.4.5",
     "tslib": "^2.8.1",
     "typescript": "^5.9.3",
     "y-indexeddb": "^9.0.12",

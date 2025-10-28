@@ -4,6 +4,13 @@
   "description": "Cloudillo types",
   "type": "module",
   "main": "lib/types.js",
+  "types": "lib/types.d.ts",
+  "exports": {
+    ".": {
+      "import": "./lib/types.js",
+      "types": "./lib/types.d.ts"
+    }
+  },
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",

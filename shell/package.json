@@ -15,7 +15,8 @@
     "build-app": "cross-env NODE_ENV=production rollup -c",
     "build-sw": "cross-env NODE_ENV=production rollup -c rollup.sw.config.js",
     "build-html": "sed s/@VERSION@/$npm_package_version/ src/index.html >dist/index.html",
-    "build": "pnpm build-app && pnpm build-sw && pnpm build-html",
+    "build": "tsgo && pnpm build-html",
+    "build-orig": "pnpm build-app && pnpm build-sw && pnpm build-html",
     "tsc": "tsc",
     "watch": "npm run build-html && rollup -w -c",
     "watch-sw": "rollup -w -c rollup.sw.config.js",
@@ -92,5 +93,8 @@
     "y-websocket": "^3.0.0",
     "yet-another-react-lightbox": "^3.25.0",
     "yjs": "^13.6.27"
+  },
+  "dependencies": {
+    "@typescript/native-preview": "7.0.0-dev.20251027.1"
   }
 }

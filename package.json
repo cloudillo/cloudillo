@@ -7,6 +7,9 @@
 		"frontend"
 	],
 	"scripts": {
+		"test": "pnpm -r --filter=@cloudillo/rtdb --filter=@cloudillo/base test",
+		"test:watch": "pnpm -r --filter=@cloudillo/rtdb --filter=@cloudillo/base test:watch",
+		"test:coverage": "pnpm -r --filter=@cloudillo/rtdb --filter=@cloudillo/base test:coverage",
 		"build-docker": "docker --context default build --pull -t cloudillo/cloudillo:$npm_package_version -t cloudillo/cloudillo:latest -f Dockerfile.debian .",
 		"build-docker-slim": "docker --context default build --pull -t cloudillo/cloudillo:$npm_package_version-slim -t cloudillo/cloudillo:latest-slim -f Dockerfile.debian-slim .",
 		"build-docker-alpine": "docker --context default build --pull -t cloudillo/cloudillo:$npm_package_version-alpine -t cloudillo/cloudillo:latest-alpine -f Dockerfile.alpine .",

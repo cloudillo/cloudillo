@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import { jest, describe, it, expect, beforeEach } from '@jest/globals'
 import { Query } from '../query'
 import { WebSocketManager } from '../websocket'
 
@@ -25,6 +26,7 @@ describe('Query', () => {
 	let query: Query
 
 	beforeEach(() => {
+		jest.useFakeTimers()
 		mockWs = new WebSocketManager(
 			'test-db',
 			() => 'token',
@@ -39,6 +41,11 @@ describe('Query', () => {
 		) as jest.Mocked<WebSocketManager>
 
 		query = new Query(mockWs, 'posts')
+	})
+
+	afterEach(() => {
+		jest.clearAllTimers()
+		jest.useRealTimers()
 	})
 
 	describe('filtering', () => {
@@ -139,7 +146,7 @@ describe('Query', () => {
 
 	describe('get', () => {
 		it('should send query message to server', async () => {
-			mockWs.send = jest.fn().mockResolvedValue({
+			mockWs.send = (jest.fn() as any).mockResolvedValue({
 				type: 'queryResult',
 				data: [
 					{ id: 'doc1', title: 'Post 1' },
@@ -158,7 +165,7 @@ describe('Query', () => {
 		})
 
 		it('should return empty snapshot when no results', async () => {
-			mockWs.send = jest.fn().mockResolvedValue({
+			mockWs.send = (jest.fn() as any).mockResolvedValue({
 				type: 'queryResult',
 				data: []
 			})
@@ -170,7 +177,7 @@ describe('Query', () => {
 		})
 
 		it('should include filters in message', async () => {
-			mockWs.send = jest.fn().mockResolvedValue({
+			mockWs.send = (jest.fn() as any).mockResolvedValue({
 				type: 'queryResult',
 				data: []
 			})
@@ -182,7 +189,7 @@ describe('Query', () => {
 		})
 
 		it('should include sort order in message', async () => {
-			mockWs.send = jest.fn().mockResolvedValue({
+			mockWs.send = (jest.fn() as any).mockResolvedValue({
 				type: 'queryResult',
 				data: []
 			})
@@ -194,7 +201,7 @@ describe('Query', () => {
 		})
 
 		it('should include limit in message', async () => {
-			mockWs.send = jest.fn().mockResolvedValue({
+			mockWs.send = (jest.fn() as any).mockResolvedValue({
 				type: 'queryResult',
 				data: []
 			})
@@ -206,7 +213,7 @@ describe('Query', () => {
 		})
 
 		it('should include offset in message', async () => {
-			mockWs.send = jest.fn().mockResolvedValue({
+			mockWs.send = (jest.fn() as any).mockResolvedValue({
 				type: 'queryResult',
 				data: []
 			})
@@ -220,7 +227,7 @@ describe('Query', () => {
 
 	describe('onSnapshot', () => {
 		it('should subscribe to query changes', () => {
-			mockWs.subscribe = jest.fn().mockReturnValue(() => {})
+			mockWs.subscribe = (jest.fn() as any).mockReturnValue(() => {})
 			const callback = jest.fn()
 
 			query.onSnapshot(callback)
@@ -230,19 +237,19 @@ describe('Query', () => {
 
 		it('should return unsubscribe function', () => {
 			const unsubscribeFn = jest.fn()
-			mockWs.subscribe = jest.fn().mockReturnValue(unsubscribeFn)
+			mockWs.subscribe = (jest.fn() as any).mockReturnValue(unsubscribeFn)
 
 			const unsub = query.onSnapshot(jest.fn())
 
 			expect(unsub).toBe(unsubscribeFn)
 		})
 
-		it('should call callback with snapshot', () => {
+		it('should call callback with snapshot', async () => {
 			const callback = jest.fn()
 			const unsubscribeFn = jest.fn()
 
-			mockWs.subscribe = jest.fn().mockImplementation(
-				(path, filter, cb) => {
+			mockWs.subscribe = (jest.fn() as any).mockImplementation(
+				(path: any, filter: any, cb: any) => {
 					// Simulate server sending a change
 					setTimeout(() => {
 						cb({
@@ -256,6 +263,9 @@ describe('Query', () => {
 			)
 
 			query.onSnapshot(callback)
+
+			// Wait for async callback
+			await jest.advanceTimersByTimeAsync(10)
 
 			// Callback should be called with snapshot
 			expect(callback).toHaveBeenCalled()

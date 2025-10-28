@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import { jest, describe, it, expect, beforeEach } from '@jest/globals'
 import { DocumentReference } from '../document'
 import { CollectionReference } from '../collection'
 import { WebSocketManager } from '../websocket'
@@ -26,6 +27,7 @@ describe('DocumentReference', () => {
 	let docRef: DocumentReference
 
 	beforeEach(() => {
+		jest.useFakeTimers()
 		mockWs = new WebSocketManager(
 			'test-db',
 			() => 'token',
@@ -40,6 +42,11 @@ describe('DocumentReference', () => {
 		) as jest.Mocked<WebSocketManager>
 
 		docRef = new DocumentReference(mockWs, 'posts/123')
+	})
+
+	afterEach(() => {
+		jest.clearAllTimers()
+		jest.useRealTimers()
 	})
 
 	describe('id property', () => {
@@ -62,7 +69,7 @@ describe('DocumentReference', () => {
 
 	describe('get', () => {
 		it('should fetch existing document', async () => {
-			mockWs.send = jest.fn().mockResolvedValue({
+			mockWs.send = (jest.fn() as any).mockResolvedValue({
 				type: 'getResult',
 				data: { title: 'Test Post', author: 'alice' }
 			})
@@ -75,7 +82,7 @@ describe('DocumentReference', () => {
 		})
 
 		it('should return non-existing snapshot for missing document', async () => {
-			mockWs.send = jest.fn().mockResolvedValue({
+			mockWs.send = (jest.fn() as any).mockResolvedValue({
 				type: 'getResult',
 				data: null
 			})
@@ -87,7 +94,7 @@ describe('DocumentReference', () => {
 		})
 
 		it('should send get message', async () => {
-			mockWs.send = jest.fn().mockResolvedValue({
+			mockWs.send = (jest.fn() as any).mockResolvedValue({
 				type: 'getResult',
 				data: null
 			})
@@ -102,7 +109,7 @@ describe('DocumentReference', () => {
 
 	describe('set', () => {
 		it('should set document data', async () => {
-			mockWs.send = jest.fn().mockResolvedValue({
+			mockWs.send = (jest.fn() as any).mockResolvedValue({
 				type: 'transactionResult',
 				results: [{}]
 			})
@@ -119,7 +126,7 @@ describe('DocumentReference', () => {
 
 	describe('update', () => {
 		it('should update document with partial data', async () => {
-			mockWs.send = jest.fn().mockResolvedValue({
+			mockWs.send = (jest.fn() as any).mockResolvedValue({
 				type: 'transactionResult',
 				results: [{}]
 			})
@@ -134,7 +141,7 @@ describe('DocumentReference', () => {
 		})
 
 		it('should support field operations', async () => {
-			mockWs.send = jest.fn().mockResolvedValue({
+			mockWs.send = (jest.fn() as any).mockResolvedValue({
 				type: 'transactionResult',
 				results: [{}]
 			})
@@ -153,7 +160,7 @@ describe('DocumentReference', () => {
 
 	describe('delete', () => {
 		it('should delete document', async () => {
-			mockWs.send = jest.fn().mockResolvedValue({
+			mockWs.send = (jest.fn() as any).mockResolvedValue({
 				type: 'transactionResult',
 				results: [{}]
 			})
@@ -183,7 +190,7 @@ describe('DocumentReference', () => {
 
 	describe('onSnapshot', () => {
 		it('should subscribe to document changes', () => {
-			mockWs.subscribe = jest.fn().mockReturnValue(() => {})
+			mockWs.subscribe = (jest.fn() as any).mockReturnValue(() => {})
 			const callback = jest.fn()
 
 			docRef.onSnapshot(callback)
@@ -193,19 +200,19 @@ describe('DocumentReference', () => {
 
 		it('should return unsubscribe function', () => {
 			const unsubscribeFn = jest.fn()
-			mockWs.subscribe = jest.fn().mockReturnValue(unsubscribeFn)
+			mockWs.subscribe = (jest.fn() as any).mockReturnValue(unsubscribeFn)
 
 			const unsub = docRef.onSnapshot(jest.fn())
 
 			expect(unsub).toBe(unsubscribeFn)
 		})
 
-		it('should call callback when document is updated', () => {
+		it('should call callback when document is updated', async () => {
 			const callback = jest.fn()
 			const unsubscribeFn = jest.fn()
 
-			mockWs.subscribe = jest.fn().mockImplementation(
-				(path, filter, cb) => {
+			mockWs.subscribe = (jest.fn() as any).mockImplementation(
+				(path: any, filter: any, cb: any) => {
 					setTimeout(() => {
 						cb({
 							action: 'update',
@@ -219,15 +226,18 @@ describe('DocumentReference', () => {
 
 			docRef.onSnapshot(callback)
 
+			// Wait for async callback
+			await jest.advanceTimersByTimeAsync(10)
+
 			expect(callback).toHaveBeenCalled()
 		})
 
-		it('should call callback when document is deleted', () => {
+		it('should call callback when document is deleted', async () => {
 			const callback = jest.fn()
 			const unsubscribeFn = jest.fn()
 
-			mockWs.subscribe = jest.fn().mockImplementation(
-				(path, filter, cb) => {
+			mockWs.subscribe = (jest.fn() as any).mockImplementation(
+				(path: any, filter: any, cb: any) => {
 					setTimeout(() => {
 						cb({
 							action: 'delete',
@@ -239,6 +249,9 @@ describe('DocumentReference', () => {
 			)
 
 			docRef.onSnapshot(callback)
+
+			// Wait for async callback
+			await jest.advanceTimersByTimeAsync(10)
 
 			expect(callback).toHaveBeenCalled()
 		})
@@ -260,25 +273,25 @@ describe('DocumentReference', () => {
 
 	describe('error handling', () => {
 		it('should propagate errors from get', async () => {
-			mockWs.send = jest.fn().mockRejectedValue(new Error('Network error'))
+			mockWs.send = (jest.fn() as any).mockRejectedValue(new Error('Network error'))
 
 			await expect(docRef.get()).rejects.toThrow('Network error')
 		})
 
 		it('should propagate errors from set', async () => {
-			mockWs.send = jest.fn().mockRejectedValue(new Error('Permission denied'))
+			mockWs.send = (jest.fn() as any).mockRejectedValue(new Error('Permission denied'))
 
 			await expect(docRef.set({ data: 'test' })).rejects.toThrow('Permission denied')
 		})
 
 		it('should propagate errors from update', async () => {
-			mockWs.send = jest.fn().mockRejectedValue(new Error('Validation failed'))
+			mockWs.send = (jest.fn() as any).mockRejectedValue(new Error('Validation failed'))
 
 			await expect(docRef.update({ field: 'value' })).rejects.toThrow('Validation failed')
 		})
 
 		it('should propagate errors from delete', async () => {
-			mockWs.send = jest.fn().mockRejectedValue(new Error('Document not found'))
+			mockWs.send = (jest.fn() as any).mockRejectedValue(new Error('Document not found'))
 
 			await expect(docRef.delete()).rejects.toThrow('Document not found')
 		})

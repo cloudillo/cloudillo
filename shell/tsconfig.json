@@ -4,6 +4,7 @@
 	//"module": "nodenext",
 	"module": "esnext",
 	"moduleResolution": "bundler",
+	"noEmit": true,
 
 	"jsx": "react",
 	"strict": true,

@@ -8,12 +8,6 @@
     "build",
     "node_modules"
   ],
-  "jest": {
-    "preset": "ts-jest",
-    "moduleNameMapper": {
-      "^~/(.*)$": "<rootDir>/$1"
-    }
-  },
   "exports": {
     ".": {
       "import": "./build/index.js",

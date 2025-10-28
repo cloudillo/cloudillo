@@ -97,6 +97,13 @@ async function fetchIdTag() {
 function onFetch(evt: any) {
 	const reqUrl = new URL(evt.request.url)
 
+	// IMPORTANT: Allow .well-known/cloudillo/id-tag to bypass SW logic
+	// to prevent deadlock when SW fetches its own idTag
+	if (reqUrl.pathname === '/.well-known/cloudillo/id-tag') {
+		evt.respondWith(fetch(evt.request))
+		return
+	}
+
 	evt.respondWith(async function () {
 		if (!idTag) {
 			log && console.log('[SW] fetching idTag')
@@ -124,7 +131,7 @@ function onFetch(evt: any) {
 
 				const origRes = fetch(request)
 
-				if (['/api/auth/login-token'].includes(reqUrl.pathname)) {
+				if (['/api/auth/login-token', '/api/auth/login'].includes(reqUrl.pathname)) {
 					// Extract token from response
 					const res = (await origRes).clone()
 					log && console.log('[SW] OWN RES', res.status)

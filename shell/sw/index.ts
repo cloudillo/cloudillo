@@ -111,10 +111,6 @@ function onFetch(evt: any) {
 			idTag = await fetchIdTagPromise
 			log && console.log('[SW] idTag:', idTag)
 		}
-		if (!authToken) {
-			//authToken = await getItem('authToken')
-			log && console.log('[SW] authToken:', authToken)
-		}
 
 		if (reqUrl.hostname == 'cl-o.' + idTag) {
 			// Handle requests to our own idTag
@@ -138,8 +134,8 @@ function onFetch(evt: any) {
 					const j = await res.json()
 					log && console.log('[SW] OWN RES BODY', j)
 					if (j.data?.token) {
-						log && console.log('[SW] OWN RES TOKEN', j.data?.token)
-						authToken = j.token
+						log && console.log('[SW] OWN RES TOKEN')
+						authToken = j.data?.token
 						//await setItem('authToken', j.token)
 					}
 					/*

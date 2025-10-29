@@ -33,9 +33,9 @@ export function useNotifications() {
 
 	const loadNotifications = React.useCallback(async function () {
 		if (!api) return
-		const res = await api.actions.list({ status: ['C', 'N'] })
-		console.log('RES', res)
-		setNotifications({ notifications: res.actions })
+		const actions = await api.actions.list({ status: ['C', 'N'] })
+		console.log('NOTIFICATION RES', actions)
+		setNotifications({ notifications: actions })
 	}, [api, notifications, setNotifications])
 
 	return { notifications, setNotifications, loadNotifications }

@@ -121,8 +121,8 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 			const qs: Record<string, string> = parseQS(location.search)
 			console.log('QS', location.search, qs)
 
-			const res = await api!.profiles.list({ type: 'person' })
-			setProfiles(res.profiles as any)
+			const profiles = await api!.profiles.list({ type: 'person' })
+			setProfiles(profiles as any)
 		})()
 	}, [auth, location.search])
 
@@ -167,9 +167,9 @@ export function CommunityListPage() {
 			const qs: Record<string, string> = parseQS(location.search)
 			console.log('QS', location.search, qs)
 
-			const res = await api!.profiles.list({ type: 'community' })
-			console.log(res)
-			setProfiles(res.profiles as any)
+			const profiles = await api!.profiles.list({ type: 'community' })
+			console.log('profiles', profiles)
+			setProfiles(profiles as any)
 		})()
 	}, [auth, location.search])
 

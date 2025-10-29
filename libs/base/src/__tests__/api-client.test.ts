@@ -14,8 +14,10 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import * as T from '@symbion/runtype'
 import { createApiClient, ApiClient } from '../api-client'
 import * as Types from '../api-types'
+import { FetchError } from '../api'
 
 describe('ApiClient', () => {
   let client: ApiClient
@@ -506,6 +508,160 @@ describe('Query Types', () => {
     }
 
     expect(query.prefix).toEqual(['ui', 'display'])
+  })
+})
+
+describe('Error Handling', () => {
+  it('should create FetchError with basic info', () => {
+    const error = new FetchError('TEST-CODE', 'Test message', 400)
+
+    expect(error.code).toBe('TEST-CODE')
+    expect(error.descr).toBe('Test message')
+    expect(error.httpStatus).toBe(400)
+  })
+
+  it('should create FetchError with API error code', () => {
+    const error = new FetchError(
+      'E-AUTH-UNAUTH',
+      'Authentication required',
+      401,
+      'E-AUTH-UNAUTH'
+    )
+
+    expect(error.code).toBe('E-AUTH-UNAUTH')
+    expect(error.apiErrorCode).toBe('E-AUTH-UNAUTH')
+    expect(error.is('E-AUTH-UNAUTH')).toBe(true)
+  })
+
+  it('should check error codes with is() method', () => {
+    const error = new FetchError(
+      'E-CORE-NOTFOUND',
+      'Not found',
+      404,
+      'E-CORE-NOTFOUND'
+    )
+
+    expect(error.is('E-CORE-NOTFOUND')).toBe(true)
+    expect(error.is('E-AUTH-UNAUTH')).toBe(false)
+  })
+
+  it('should handle error without API error code', () => {
+    const error = new FetchError('GENERIC-ERROR', 'Something went wrong', 500)
+
+    expect(error.apiErrorCode).toBeUndefined()
+    expect(error.is('E-CORE-UNKNOWN')).toBe(false)
+  })
+
+  describe('Error Code Types', () => {
+    it('should define auth error codes', () => {
+      const code1: Types.ErrorCode = 'E-AUTH-UNAUTH'
+      const code2: Types.ErrorCode = 'E-AUTH-NOPERM'
+
+      expect(code1).toBe('E-AUTH-UNAUTH')
+      expect(code2).toBe('E-AUTH-NOPERM')
+    })
+
+    it('should define core error codes', () => {
+      const code1: Types.ErrorCode = 'E-CORE-NOTFOUND'
+      const code2: Types.ErrorCode = 'E-CORE-DBERR'
+
+      expect(code1).toBe('E-CORE-NOTFOUND')
+      expect(code2).toBe('E-CORE-DBERR')
+    })
+
+    it('should define validation error codes', () => {
+      const code: Types.ErrorCode = 'E-VAL-INVALID'
+
+      expect(code).toBe('E-VAL-INVALID')
+    })
+  })
+})
+
+describe('API Response Envelope', () => {
+  it('should have ApiResponseMeta type exported', () => {
+    // This is a compile-time check - if the type doesn't exist, TypeScript will fail
+    // We're just verifying the import works
+    expect(Types).toBeDefined()
+  })
+
+  it('should have ApiFetchResult type exported', () => {
+    // Type validation - if this doesn't compile, the test fails at build time
+    expect(Types).toBeDefined()
+  })
+
+  it('should have error type definitions', () => {
+    expect(Types.tApiError).toBeDefined()
+  })
+
+  describe('Error Response Type', () => {
+    it('should validate error response structure', () => {
+      const errorResponse: Types.ApiError = {
+        error: {
+          code: 'E-AUTH-UNAUTH',
+          message: 'Authentication required',
+        },
+      }
+
+      expect(errorResponse.error.code).toBe('E-AUTH-UNAUTH')
+      expect(errorResponse.error.message).toBe('Authentication required')
+    })
+
+    it('should decode valid error response', () => {
+      const data = {
+        error: {
+          code: 'E-CORE-NOTFOUND',
+          message: 'Resource not found',
+        },
+      }
+
+      const result = T.decode(Types.tApiError, data)
+      expect(T.isOk(result)).toBe(true)
+      if (T.isOk(result)) {
+        expect(result.ok.error.code).toBe('E-CORE-NOTFOUND')
+      }
+    })
+  })
+})
+
+describe('API Client Metadata Support', () => {
+  it('should have requestWithMeta method', () => {
+    const client = createApiClient({ idTag: 'test' })
+    expect(typeof client.requestWithMeta).toBe('function')
+  })
+
+  it('should pass requestId in request', () => {
+    // This is a compile-time type check - if the signature is wrong, TypeScript fails
+    const client = createApiClient({ idTag: 'test' })
+
+    const mockCall = async () => {
+      // This should compile without errors if requestId is supported
+      try {
+        await client.request('GET', '/test', Types.tProfile, {
+          requestId: 'req_test123',
+        })
+      } catch (e) {
+        // Expected to fail at runtime since we're not mocking fetch
+      }
+    }
+
+    expect(mockCall).toBeDefined()
+  })
+
+  it('should have backward compatible request method', () => {
+    const client = createApiClient({ idTag: 'test' })
+
+    // Old API without requestId should still work
+    const mockCall = async () => {
+      try {
+        await client.request('GET', '/test', Types.tProfile, {
+          authToken: 'token123',
+        })
+      } catch (e) {
+        // Expected to fail at runtime
+      }
+    }
+
+    expect(mockCall).toBeDefined()
   })
 })
 

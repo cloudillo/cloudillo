@@ -16,6 +16,35 @@
 
 import * as T from '@symbion/runtype'
 
+// ============================================================================
+// ERROR TYPES
+// ============================================================================
+
+/**
+ * API error response
+ */
+export const tApiError = T.struct({
+	error: T.struct({
+		code: T.string,
+		message: T.string,
+	})
+})
+export type ApiError = T.TypeOf<typeof tApiError>
+
+/**
+ * Known error codes for type-safe error handling
+ */
+export type ErrorCode =
+	| 'E-AUTH-UNAUTH'   // 401 - Authentication required
+	| 'E-AUTH-NOPERM'   // 403 - Permission denied
+	| 'E-CORE-NOTFOUND' // 404 - Resource not found
+	| 'E-VAL-INVALID'   // 400 - Validation failed
+	| 'E-CORE-CONFLICT' // 409 - Conflict
+	| 'E-NET-TIMEOUT'   // 408 - Timeout
+	| 'E-SYS-UNAVAIL'   // 503 - Service unavailable
+	| 'E-CORE-DBERR'    // 500 - Database error
+	| 'E-CORE-UNKNOWN'  // 500 - Unknown error
+
 // Import types from @cloudillo/types
 import {
   tProfile,
@@ -149,9 +178,12 @@ export const tReactionResponse = T.struct({
 })
 export type ReactionResponse = T.TypeOf<typeof tReactionResponse>
 
+/*
 export const tListActionsResult = T.struct({
   actions: T.array(tActionView),
 })
+*/
+export const tListActionsResult = T.array(tActionView)
 export type ListActionsResult = T.TypeOf<typeof tListActionsResult>
 
 export const tInboundAction = T.struct({
@@ -216,9 +248,12 @@ export const tFileView = T.struct({
 })
 export type FileView = T.TypeOf<typeof tFileView>
 
+/*
 export const tListFilesResult = T.struct({
   files: T.array(tFileView),
 })
+*/
+export const tListFilesResult = T.array(tFileView)
 export type ListFilesResult = T.TypeOf<typeof tListFilesResult>
 
 export const tCreateFileResult = T.struct({
@@ -269,9 +304,12 @@ export const tTagInfo = T.struct({
 })
 export type TagInfo = T.TypeOf<typeof tTagInfo>
 
+/*
 export const tListTagsResult = T.struct({
   tags: T.array(tTagInfo),
 })
+*/
+export const tListTagsResult = T.array(tTagInfo)
 export type ListTagsResult = T.TypeOf<typeof tListTagsResult>
 
 // ============================================================================
@@ -320,12 +358,15 @@ export const tImageVariants = T.struct({
 })
 export type ImageVariants = T.TypeOf<typeof tImageVariants>
 
+/*
 export const tListProfilesResult = T.struct({
   profiles: T.array(tProfile),
   total: T.optional(T.number),
   limit: T.optional(T.number),
   offset: T.optional(T.number),
 })
+*/
+export const tListProfilesResult = T.array(tProfile)
 export type ListProfilesResult = T.TypeOf<typeof tListProfilesResult>
 
 export const tUpdateProfileResult = T.struct({
@@ -347,9 +388,12 @@ export interface PutSettingRequest {
 }
 
 // Response types
+/*
 export const tListSettingsResult = T.struct({
   settings: T.record(T.unknown),
 })
+*/
+export const tListSettingsResult = T.record(T.unknown)
 export type ListSettingsResult = T.TypeOf<typeof tListSettingsResult>
 
 export const tGetSettingResult = T.struct({

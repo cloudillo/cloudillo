@@ -273,16 +273,16 @@ function Comments({ parentAction, onCommentsRead, ...props }: CommentsProps) {
 		if (!api) return
 
 		(async function getComments() {
-			const res = await api.actions.list({ parentId: parentAction.actionId, type: 'CMNT' })
-			console.log('Comments res', res)
-			if (res.actions.length != parentAction.stat?.commentsRead) {
+			const actions = await api.actions.list({ parentId: parentAction.actionId, type: 'CMNT' })
+			console.log('Comments res', actions)
+			if (actions.length != parentAction.stat?.commentsRead) {
 				timeout = setTimeout(async function () {
-					await api.actions.updateStat(parentAction.actionId, { comments: res.actions.length })
-					onCommentsRead?.(res.actions.length)
+					await api.actions.updateStat(parentAction.actionId, { comments: actions.length })
+					onCommentsRead?.(actions.length)
 					timeout = undefined
 				}, 3000)
 			}
-			setComments(res.actions || [])
+			setComments(actions || [])
 		})()
 		return function cleanup() {
 			if (timeout) clearTimeout(timeout)
@@ -634,9 +634,9 @@ export function FeedApp() {
 		const idTag = auth?.idTag
 
 		;(async function () {
-			const res = await api.actions.list({ type: 'POST' })
-			if (ref) console.log('Feed res', res)
-			setFeed(res.actions)
+			const actions = await api.actions.list({ type: 'POST' })
+			if (ref) console.log('Feed res', actions)
+			setFeed(actions)
 		})()
 	}, [auth, api, ref])
 

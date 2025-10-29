@@ -402,9 +402,9 @@ export function MessagesApp() {
 
 		(async function () {
 			const conversationRes: { conversations: Conversation[] } = { conversations: [] }
-			const profileRes = await api.profiles.list({ ...filter, type: 'person', connected: true })
-			console.log('profiles', profileRes)
-			const profileConvs: Conversation[] = profileRes.profiles.map(profile => ({
+			const profiles = await api.profiles.list({ ...filter, type: 'person', connected: true })
+			console.log('profiles', profiles)
+			const profileConvs: Conversation[] = profiles.map(profile => ({
 				id: profile.idTag,
 				profiles: [profile]
 			}))
@@ -423,9 +423,9 @@ export function MessagesApp() {
 				console.log('profile', profileRes)
 
 				setConversation({ id: convId, profiles: profileRes.profiles })
-				const res = await api.actions.list({ involved: convId, type: 'MSG' })
-				console.log('Msg res', res)
-				setMsg((res.actions as any).sort((a: any, b: any) => dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix()))
+				const actions = await api.actions.list({ involved: convId, type: 'MSG' })
+				console.log('Msg res', actions)
+				setMsg((actions as any).sort((a: any, b: any) => dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix()))
 				//convRef.current?.scrollTo({ top: convRef.current.scrollHeight })
 			} catch (err) {
 				console.error('Failed to load messages', err)

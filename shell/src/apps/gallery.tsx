@@ -73,9 +73,9 @@ export function GalleryApp() {
 
 			if (Object.keys(qs).length > 0) {
 				// Note: variant: 'tn' and preset: 'gallery' were in old API but not in new API
-				const res = await api.files.list({ ...qs })
-				console.log('RES', res)
-				setFiles(res.files.map(f => ({...f, preset: f.preset || "", createdAt: typeof f.createdAt === "string" ? f.createdAt : f.createdAt.toISOString(), owner: f.owner ? { ...f.owner, name: f.owner.name || "" } : undefined, variantId: undefined})) as any)
+				const files = await api.files.list({ ...qs })
+				console.log('RES', files)
+				setFiles(files.map(f => ({...f, preset: f.preset || "", createdAt: typeof f.createdAt === "string" ? f.createdAt : f.createdAt.toISOString(), owner: f.owner ? { ...f.owner, name: f.owner.name || "" } : undefined, variantId: undefined})) as any)
 			} else {
 				setFiles([])
 			}

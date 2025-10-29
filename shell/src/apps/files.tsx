@@ -112,9 +112,9 @@ function TagsCell({ fileId, tags, setTags, editable }: { fileId: string, tags: s
 	async function listTags(prefix: string) {
 		if (!api) return
 
-		const res = await api.tags.list({ prefix })
-		console.log('TAGS', res)
-		return res.tags
+		const tags = await api.tags.list({ prefix })
+		console.log('TAGS', tags)
+		return tags
 	}
 
 	async function addTag(tag: string) {
@@ -241,14 +241,14 @@ function useFileListData() {
 
 			if (Object.keys(qs).length > 0) {
 				// Note: variant: 'tn' was used in old API but not in new API
-				const res = await api.files.list(qs as Types.ListFilesQuery)
-			setFiles(res.files.map(f => ({
-				...f,
-				preset: f.preset || '',
-				createdAt: typeof f.createdAt === 'string' ? f.createdAt : f.createdAt.toISOString(),
-				owner: f.owner ? { ...f.owner, name: f.owner.name || '' } : undefined,
-				variantId: undefined
-			})))
+				const files = await api.files.list(qs as Types.ListFilesQuery)
+				setFiles(files.map(f => ({
+					...f,
+					preset: f.preset || '',
+					createdAt: typeof f.createdAt === 'string' ? f.createdAt : f.createdAt.toISOString(),
+					owner: f.owner ? { ...f.owner, name: f.owner.name || '' } : undefined,
+					variantId: undefined
+				})))
 			} else {
 				setFiles([])
 			}
@@ -521,9 +521,9 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 		if (!api) return
 		(async function () {
 			// Query actions of type FSHR that apply to this file as the subject
-			const res = await api.actions.list({ type: 'FSHR', subject: file.fileId })
-			console.log('loadFileDetails res', res)
-			setFileActions(res.actions)
+			const actions = await api.actions.list({ type: 'FSHR', subject: file.fileId })
+			console.log('loadFileDetails res', actions)
+			setFileActions(actions)
 		})()
 	}, [api, file.fileId])
 
@@ -532,8 +532,8 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 	async function listProfiles(q: string) {
 		if (!api) return []
 		if (!q) return []
-		const res = await api.profiles.list({ type: 'person', q })
-		return res.profiles
+		const profiles = await api.profiles.list({ type: 'person', q })
+		return profiles
 	}
 
 	async function addPerm(profile: Profile, perm: 'WRITE' | 'READ') {
@@ -566,7 +566,7 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 			audienceTag: idTag
 		}
 
-		const res = await api.actions.create(action)
+		const _res = await api.actions.create(action)
 		setFileActions(fa => fa?.filter(fa => fa.audience?.idTag !== idTag))
 	}
 

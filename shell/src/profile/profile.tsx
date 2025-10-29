@@ -392,9 +392,9 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 		if (!api) return
 
 		(async function () {
-			const res = await api.actions.list({ type: 'POST', audience: profile.idTag })
-			console.log('Profile Feed res', res)
-			setFeed(res.actions)
+			const actions = await api.actions.list({ type: 'POST', audience: profile.idTag })
+			console.log('Profile Feed res', actions)
+			setFeed(actions)
 		})()
 	}, [api])
 
@@ -448,8 +448,8 @@ export function ProfileConnections({ profile }: ProfileTabProps) {
 			const qs: Record<string, string> = parseQS(location.search)
 			console.log('QS', location.search, qs)
 
-			const res = await api!.profiles.list({ type: 'person' })
-			setProfiles(res.profiles as any)
+			const profiles = await api!.profiles.list({ type: 'person' })
+			setProfiles(profiles as any)
 		})()
 	}, [auth, location.search])
 
@@ -504,14 +504,14 @@ function Profile() {
 	async function onFollow() {
 		if (!profile || localProfile?.following) return
 		const followAction: NewAction = { type: 'FLLW', audienceTag: profile.idTag, }
-		const res = await api!.actions.create(followAction)
+		await api!.actions.create(followAction)
 		setLocalProfile(p => p ? { ...p, following: true } : p)
 	}
 
 	async function onUnfollow() {
 		if (!profile || !localProfile?.following) return
 		const unfollowAction: NewAction = { type: 'FLLW', subType: 'DEL', audienceTag: profile.idTag, }
-		const res = await api!.actions.create(unfollowAction)
+		await api!.actions.create(unfollowAction)
 		setLocalProfile(p => p ? { ...p, following: false } : p)
 	}
 
@@ -534,7 +534,7 @@ function Profile() {
 		if (!profile || !localProfile?.connected) return
 		if (!await dialog.confirm(t('Cancel connection'), t('Are you sure you want to disconnect?'))) return
 		const disconnectAction: NewAction = { type: 'CONN', subType: 'DEL', audienceTag: profile.idTag, }
-		const res = await api!.actions.create(disconnectAction)
+		await api!.actions.create(disconnectAction)
 		setLocalProfile(p => p ? { ...p, connected: undefined } : p)
 	}
 

@@ -137,8 +137,8 @@ function onFetch(evt: any) {
 					log && console.log('[SW] OWN RES', res.status)
 					const j = await res.json()
 					log && console.log('[SW] OWN RES BODY', j)
-					if (j.token) {
-						log && console.log('[SW] OWN RES TOKEN', j.token)
+					if (j.data?.token) {
+						log && console.log('[SW] OWN RES TOKEN', j.data?.token)
 						authToken = j.token
 						//await setItem('authToken', j.token)
 					}
@@ -171,7 +171,7 @@ function onFetch(evt: any) {
 
 				if (!token) {
 					const proxyTokenRes = await fetch('https://cl-o.' + idTag + `/api/auth/proxy-token?idTag=${targetTag}`, { credentials: 'include' })
-					token = (await proxyTokenRes.json()).token
+					token = (await proxyTokenRes.json())?.data?.token
 					log && console.log('PROXY TOKEN miss', idTag, targetTag, token)
 					// FIXME: expiration
 					if (token) proxyTokenCache.set(targetTag, token)

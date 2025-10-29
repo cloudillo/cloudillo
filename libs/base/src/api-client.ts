@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as T from '@symbion/runtype'
-import { apiFetchHelper } from './api.js'
+import { apiFetchHelper, ApiFetchResult } from './api.js'
 import * as Types from './api-types.js'
 
 /**
@@ -79,6 +79,7 @@ export class ApiClient {
       data?: unknown
       query?: Record<string, string | number | boolean | undefined>
       authToken?: string
+      requestId?: string
     }
   ): Promise<Res> {
     return await apiFetchHelper<Res, unknown>(this.opts.idTag, method, path, {
@@ -86,6 +87,31 @@ export class ApiClient {
       data: options?.data,
       query: options?.query,
       authToken: options?.authToken || this.opts.authToken,
+      requestId: options?.requestId,
+    })
+  }
+
+  /**
+   * Make a request and return metadata (time, reqId, pagination)
+   */
+  async requestWithMeta<Res>(
+    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+    path: string,
+    responseType: T.Type<Res>,
+    options?: {
+      data?: unknown
+      query?: Record<string, string | number | boolean | undefined>
+      authToken?: string
+      requestId?: string
+    }
+  ): Promise<ApiFetchResult<Res>> {
+    return await apiFetchHelper<Res, unknown>(this.opts.idTag, method, path, {
+      type: responseType,
+      data: options?.data,
+      query: options?.query,
+      authToken: options?.authToken || this.opts.authToken,
+      requestId: options?.requestId,
+      returnMeta: true,
     })
   }
 

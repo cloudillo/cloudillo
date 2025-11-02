@@ -388,17 +388,32 @@ export interface PutSettingRequest {
 }
 
 // Response types
-/*
-export const tListSettingsResult = T.struct({
-  settings: T.record(T.unknown),
+
+// SettingValue can be boolean, integer, string, or JSON
+export const tSettingValue = T.union(
+	T.boolean,
+	T.number,
+	T.string,
+	T.unknown, // JSON object support
+)
+export type SettingValue = T.TypeOf<typeof tSettingValue>
+
+// Individual setting response with metadata
+export const tSettingResponse = T.struct({
+	key: T.string,
+	value: tSettingValue,
+	scope: T.string,
+	permission: T.string,
+	description: T.string,
 })
-*/
-export const tListSettingsResult = T.record(T.unknown)
+export type SettingResponse = T.TypeOf<typeof tSettingResponse>
+
+// List all settings returns an array of SettingResponse objects
+export const tListSettingsResult = T.array(tSettingResponse)
 export type ListSettingsResult = T.TypeOf<typeof tListSettingsResult>
 
-export const tGetSettingResult = T.struct({
-  setting: T.unknown,
-})
+// Get single setting returns a SettingResponse
+export const tGetSettingResult = tSettingResponse
 export type GetSettingResult = T.TypeOf<typeof tGetSettingResult>
 
 // ============================================================================

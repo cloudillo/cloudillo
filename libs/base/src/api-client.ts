@@ -501,7 +501,7 @@ export class ApiClient {
      * @returns List of references
      */
     list: (query?: { type?: string }) =>
-      this.request('GET', '/ref', T.array(Types.tRef), { query }),
+      this.request('GET', '/refs', T.array(Types.tRef), { query }),
 
     /**
      * POST /ref - Create reference
@@ -509,7 +509,7 @@ export class ApiClient {
      * @returns Created reference
      */
     create: (data: Types.CreateRefRequest) =>
-      this.request('POST', '/ref', Types.tRef, { data }),
+      this.request('POST', '/refs', Types.tRef, { data }),
 
     /**
      * DELETE /ref/:refId - Delete reference
@@ -517,7 +517,7 @@ export class ApiClient {
      * @returns Deleted reference ID
      */
     delete: (refId: string) =>
-      this.request('DELETE', `/ref/${refId}`, Types.tDeleteRefResult),
+      this.request('DELETE', `/refs/${refId}`, Types.tDeleteRefResult),
   }
 }
 

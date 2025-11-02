@@ -274,42 +274,87 @@ describe('API Type Validators', () => {
 
   describe('Settings Types', () => {
     describe('tListSettingsResult', () => {
-      it('should validate settings object', () => {
-        const data = {
-          settings: {
-            'ui.theme': 'dark',
-            'ui.language': 'en',
-            'privacy.showOnlineStatus': true,
-            'notifications.enabled': true,
+      it('should validate array of SettingResponse', () => {
+        const data = [
+          {
+            key: 'ui.theme',
+            value: 'dark',
+            scope: 'Tenant',
+            permission: 'User',
+            description: 'UI theme preference',
           },
-        }
+          {
+            key: 'auth.session_timeout',
+            value: 3600,
+            scope: 'Tenant',
+            permission: 'Admin',
+            description: 'Session timeout in seconds',
+          },
+          {
+            key: 'server.registration_enabled',
+            value: true,
+            scope: 'Global',
+            permission: 'Admin',
+            description: 'Allow new user registrations',
+          },
+        ]
 
         const result = T.decode(Types.tListSettingsResult, data)
         expect(T.isOk(result)).toBe(true)
       })
 
-      it('should validate empty settings', () => {
-        const data = { settings: {} }
+      it('should validate empty settings array', () => {
+        const data: any[] = []
         const result = T.decode(Types.tListSettingsResult, data)
         expect(T.isOk(result)).toBe(true)
       })
     })
 
     describe('tGetSettingResult', () => {
-      it('should validate string setting', () => {
-        const data = { setting: 'dark' }
+      it('should validate SettingResponse with string value', () => {
+        const data = {
+          key: 'ui.theme',
+          value: 'dark',
+          scope: 'Tenant',
+          permission: 'User',
+          description: 'UI theme preference',
+        }
         const result = T.decode(Types.tGetSettingResult, data)
         expect(T.isOk(result)).toBe(true)
       })
 
-      it('should validate boolean setting', () => {
-        const data = { setting: true }
+      it('should validate SettingResponse with boolean value', () => {
+        const data = {
+          key: 'server.registration_enabled',
+          value: true,
+          scope: 'Global',
+          permission: 'Admin',
+          description: 'Allow new user registrations',
+        }
         const result = T.decode(Types.tGetSettingResult, data)
         expect(T.isOk(result)).toBe(true)
       })
 
-      it('should validate object setting', () => {
-        const data = { setting: { nested: 'value' } }
+      it('should validate SettingResponse with numeric value', () => {
+        const data = {
+          key: 'auth.session_timeout',
+          value: 3600,
+          scope: 'Tenant',
+          permission: 'Admin',
+          description: 'Session timeout in seconds',
+        }
+        const result = T.decode(Types.tGetSettingResult, data)
+        expect(T.isOk(result)).toBe(true)
+      })
+
+      it('should validate SettingResponse with JSON value', () => {
+        const data = {
+          key: 'api.rate_limits',
+          value: { requests: 100, window: 3600 },
+          scope: 'Global',
+          permission: 'Admin',
+          description: 'API rate limiting configuration',
+        }
         const result = T.decode(Types.tGetSettingResult, data)
         expect(T.isOk(result)).toBe(true)
       })

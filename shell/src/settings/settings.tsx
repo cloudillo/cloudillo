@@ -21,15 +21,19 @@ import { useApi } from '@cloudillo/react'
 export function useSettings(prefix: string | string[]) {
 	const { api, setIdTag } = useApi()
 	const [settings, setSettings] = React.useState<Record<string, string | number | boolean> | undefined>()
+	const prefixStr = React.useMemo(() => Array.isArray(prefix) ? prefix.join(',') : prefix, [prefix])
 
 	React.useEffect(function loadSettings() {
 		if (!api) return
 		(async function () {
-			const prefixStr = Array.isArray(prefix) ? prefix.join(',') : prefix
 			const res = await api.settings.list({ prefix: prefixStr })
-			setSettings(Object.fromEntries(res.settings as any))
+			// Convert array of SettingResponse to flat object mapping key -> value
+			const settingsMap = Object.fromEntries(
+				res.map((setting: any) => [setting.key, setting.value])
+			)
+			setSettings(settingsMap)
 		})()
-	}, [api, prefix])
+	}, [api, prefixStr])
 
 	async function onSettingChange(evt: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
 		if (!settings || !api) return

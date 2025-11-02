@@ -20,13 +20,20 @@ import { useTranslation } from 'react-i18next'
 
 import {
 	LuAtSign as IcInvitations,
-	LuUserCog as IcUsers,
+	LuServer as IcServer,
+	LuHardDrive as IcStorage,
+	LuMail as IcMail,
+	LuUser as IcTenant,
 	LuMenu as IcMenu
 } from 'react-icons/lu'
 
-import { useAuth, useApi, Fcb } from '@cloudillo/react'
+import { useAuth, useApi, Fcb, mergeClasses } from '@cloudillo/react'
 
 import { Invitations } from './invitations.js'
+import { ServerSettings } from './server.js'
+import { StorageSettings } from './storage.js'
+import { EmailSettings } from './email.js'
+import { TenantSettings } from './tenant.js'
 
 export function SiteAdmin({ title, children }: { title: string, children?: React.ReactNode }) {
 	const navigate = useNavigate()
@@ -42,7 +49,12 @@ export function SiteAdmin({ title, children }: { title: string, children?: React
 	return <Fcb.Container className="g-1">
 		<Fcb.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 			<ul className="c-nav vertical low">
-				<li><NavLink className="c-nav-link" to="/site-admin/invitations"><IcInvitations/> {t('Invitations')}</NavLink></li>
+				<li><NavLink className={({ isActive }) => mergeClasses('c-nav-item', isActive && 'active')} to="/site-admin/invitations"><IcInvitations/> {t('Invitations')}</NavLink></li>
+				<li className="c-divider" />
+				<li><NavLink className={({ isActive }) => mergeClasses('c-nav-item', isActive && 'active')} to="/site-admin/server"><IcServer/> {t('Server & Federation')}</NavLink></li>
+				<li><NavLink className={({ isActive }) => mergeClasses('c-nav-item', isActive && 'active')} to="/site-admin/storage"><IcStorage/> {t('Storage')}</NavLink></li>
+				<li><NavLink className={({ isActive }) => mergeClasses('c-nav-item', isActive && 'active')} to="/site-admin/email"><IcMail/> {t('Email')}</NavLink></li>
+				<li><NavLink className={({ isActive }) => mergeClasses('c-nav-item', isActive && 'active')} to="/site-admin/tenant"><IcTenant/> {t('Tenant Settings')}</NavLink></li>
 			</ul>
 		</Fcb.Filter>
 		<Fcb.Content>
@@ -62,6 +74,26 @@ export function SiteAdminRoutes() {
 		<Route path="/site-admin" element={<SiteAdmin title={t('Main')}/>}/>
 		<Route path="/site-admin/invitations" element={
 			<SiteAdmin title={t('Invitations')}><Invitations/></SiteAdmin>
+		}/>
+		<Route path="/site-admin/server" element={
+			<SiteAdmin title={t('Server & Federation')}>
+				<ServerSettings/>
+			</SiteAdmin>
+		}/>
+		<Route path="/site-admin/storage" element={
+			<SiteAdmin title={t('Storage')}>
+				<StorageSettings/>
+			</SiteAdmin>
+		}/>
+		<Route path="/site-admin/email" element={
+			<SiteAdmin title={t('Email')}>
+				<EmailSettings/>
+			</SiteAdmin>
+		}/>
+		<Route path="/site-admin/tenant" element={
+			<SiteAdmin title={t('Tenant Settings')}>
+				<TenantSettings/>
+			</SiteAdmin>
 		}/>
 		<Route path="/*" element={null}/>
 	</Routes>

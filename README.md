@@ -3,6 +3,15 @@ Cloudillo - A decentralized collaboration application platform for privacy-focus
 
 **Your Data, Your Rules**
 
+> **⚠️ Important Notice:** This repository contains the **frontend, apps, and libraries** for Cloudillo. The TypeScript-based server implementation (`server/` and `adapters/` directories) in this repository is **obsolete and no longer maintained**.
+>
+> **For the current server implementation**, please see the **[Rust-based server](https://github.com/cloudillo/cloudillo-rs)**, which offers:
+> - Significantly better performance and memory footprint
+> - More features and active development
+> - Full compatibility with the frontend in this repository
+>
+> The TypeScript implementation is not compatible with the current system and misses critical features.
+
 What is Cloudillo and Why Does It Exist?
 ----------------------------------------
 
@@ -15,19 +24,37 @@ Cloudillo aims to bridge this gap by offering a self-hosted platform that connec
 
 Learn more at [cloudillo.org](https://cloudillo.org).
 
+Repository Structure
+-------------------
+
+This repository contains:
+- **`shell/`** - Main web dashboard and application container
+- **`apps/`** - Plugin applications (Quillo, Prello, Sheello, Formillo)
+- **`libs/`** - Shared libraries for client SDK and React components
+- **`server/`** ⚠️ *Obsolete TypeScript server (deprecated)*
+- **`adapters/`** ⚠️ *Obsolete TypeScript adapters (deprecated)*
+- **`basic-server/`** ⚠️ *Obsolete server entry point (deprecated)*
+
+For the **current server implementation**, visit **[cloudillo-rs](https://github.com/cloudillo/cloudillo-rs)**.
+
 Installation
 ------------
 
 Cloudillo is a work in progress.
 We are regularly publishing docker images on [Docker Hub](https://hub.docker.com/r/cloudillo/cloudillo), so you can easily check it out.
 
-Documentation is currently limited, but if you are comfortable with experimentation, you can install Cloudillo from source and explore its functionality.
+For complete installation instructions including the server setup, please visit the **[Rust implementation repository](https://github.com/cloudillo/cloudillo-rs)**.
 
-Some quick instructions:
+Building Frontend and Apps
+--------------------------
 
-### Compiling
+To build the frontend shell and applications from this repository:
+
+### Prerequisites
 
 Ensure you have *pnpm* installed. You can find installation instructions at https://pnpm.io/installation.
+
+### Build Instructions
 
 ```bash
 git clone https://github.com/cloudillo/cloudillo.git
@@ -36,7 +63,25 @@ pnpm install
 pnpm -r build
 ```
 
-### Running in standalone mode
+This will build:
+- Shell (web dashboard) → `shell/dist/`
+- Apps (Quillo, Prello, Sheello, Formillo) → `apps/*/dist/`
+- Libraries → `libs/*/dist/`
+
+### Serving the Frontend
+
+The built frontend needs to be served by the Cloudillo server. For server setup and deployment instructions, see the **[Rust implementation repository](https://github.com/cloudillo/cloudillo-rs)**.
+
+---
+
+## ⚠️ Obsolete Instructions Below
+
+The following sections describe the **deprecated TypeScript server implementation** and are kept for historical reference only. **Do not use these instructions** - they will not work with the current system.
+
+<details>
+<summary>Click to expand obsolete TypeScript server instructions (deprecated)</summary>
+
+### Running in standalone mode (OBSOLETE)
 
 Standalone mode means that your Cloudillo instance will be accessible on a public IP address on port 80/http and 443/https.
 In this mode you don't need to run a reverse proxy, just open the ports (or forward them on your router) and it handles everything, even automatic certificate management with Let's Encrypt.
@@ -62,7 +107,7 @@ pnpm start-standalone
 By default, Cloudillo will create a directory called 'data' in the current directory and stores everything there.
 You can change the location, the listen ports and some other stuff (see basic-server/src/index.ts).
 
-### Running in proxy mode
+### Running in proxy mode (OBSOLETE)
 
 If you want to run Cloudillo behind a reverse proxy, you will need to configure the proxy accordingly. I provide an example nginx configuration below, you can use it for your starting point.
 
@@ -124,3 +169,5 @@ pnpm start
 
 You have to also configure certbot to automatically renew your SSL certificates.
 With some more configuration Cloudillo can do it for you, but it is out of scope of this document.
+
+</details>

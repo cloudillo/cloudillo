@@ -173,5 +173,32 @@ body {
 	color: var(--col-txt-danger);
 }
 
+/* Layout with sidebar */
+.c-layout {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	width: 100%;
+	transition: margin-left 0.3s ease;
+}
+
+.c-layout.with-sidebar {
+	margin-left: 240px;
+}
+
+/* On desktop, layout shifts when sidebar is pinned */
+@media (min-width: 1024px) {
+	.c-layout.with-sidebar {
+		margin-left: 240px;
+	}
+}
+
+/* On mobile, layout doesn't shift */
+@media (max-width: 1023px) {
+	.c-layout.with-sidebar {
+		margin-left: 0;
+	}
+}
+
 /* vim: ts=4
 */

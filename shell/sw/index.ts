@@ -127,7 +127,7 @@ function onFetch(evt: any) {
 
 				const origRes = fetch(request)
 
-				if (['/api/auth/login-token', '/api/auth/login'].includes(reqUrl.pathname)) {
+				if (['/api/auth/login-token', '/api/auth/login', '/api/auth/set-password'].includes(reqUrl.pathname)) {
 					// Extract token from response
 					const res = (await origRes).clone()
 					log && console.log('[SW] OWN RES', res.status)
@@ -162,23 +162,27 @@ function onFetch(evt: any) {
 
 			log && console.log('[SW] PROXY TOKEN: ' + idTag + '/api/auth/proxy-token -> ' + targetTag)
 			try {
-				//let token = proxyTokenCache[targetTag]
-				let token = proxyTokenCache.get(targetTag)
+				const headers = new Headers(evt.request.headers)
+				headers.set('Origin', location.origin)
 
-				if (!token) {
-					const proxyTokenRes = await fetch('https://cl-o.' + idTag + `/api/auth/proxy-token?idTag=${targetTag}`, { credentials: 'include' })
-					token = (await proxyTokenRes.json())?.data?.token
-					log && console.log('PROXY TOKEN miss', idTag, targetTag, token)
-					// FIXME: expiration
-					if (token) proxyTokenCache.set(targetTag, token)
-				} else {
-					log && console.log('PROXY TOKEN cached', idTag, targetTag, token)
+				if (authToken) {
+					//let token = proxyTokenCache[targetTag]
+					let token = proxyTokenCache.get(targetTag)
+
+					if (!token) {
+						const proxyTokenRes = await fetch('https://cl-o.' + idTag + `/api/auth/proxy-token?idTag=${targetTag}`, { credentials: 'include' })
+						token = (await proxyTokenRes.json())?.data?.token
+						log && console.log('PROXY TOKEN miss', idTag, targetTag, token)
+						// FIXME: expiration
+						if (token) proxyTokenCache.set(targetTag, token)
+					} else {
+						log && console.log('PROXY TOKEN cached', idTag, targetTag, token)
+					}
+
+					if (token) headers.set('Authorization', `Bearer ${token}`)
+					//const request = new Request(evt.request, { headers, credentials: 'include' })
 				}
 
-				const headers = new Headers(evt.request.headers)
-				if (token) headers.set('Authorization', `Bearer ${token}`)
-				headers.set('Origin', location.origin)
-				//const request = new Request(evt.request, { headers, credentials: 'include' })
 				const request = new Request(evt.request, { headers, mode: 'cors' })
 				log && console.log('[SW] request', request, {
 					origin: headers.get('Origin'),

@@ -41,11 +41,14 @@ interface SettingsProps {
 export function Settings({ title, children }: SettingsProps) {
 	const navigate = useNavigate()
 	const location = useLocation()
+	const params = useParams()
 	const { t } = useTranslation()
 	const [appConfig] = useAppConfig()
 	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
+	const contextIdTag = params.contextIdTag!
+	const basePath = `/settings/${contextIdTag}`
 
 	React.useEffect(function onLocationEffect() {
 		setShowFilter(false)
@@ -54,9 +57,9 @@ export function Settings({ title, children }: SettingsProps) {
 	return <Fcb.Container className="g-1">
 		<Fcb.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 			<ul className="c-nav vertical low">
-				<li><NavLink className="c-nav-item" to="/settings/security"><IcSecurity/> {t('Security')}</NavLink></li>
-				<li><NavLink className="c-nav-item" to="/settings/notifications"><IcNotifications/> {t('Notifications')}</NavLink></li>
-				<li><NavLink className="c-nav-item" to="/settings/appearance"><IcAppearance/> {t('Appearance')}</NavLink></li>
+				<li><NavLink className="c-nav-item" to={`${basePath}/security`}><IcSecurity/> {t('Security')}</NavLink></li>
+				<li><NavLink className="c-nav-item" to={`${basePath}/notifications`}><IcNotifications/> {t('Notifications')}</NavLink></li>
+				<li><NavLink className="c-nav-item" to={`${basePath}/appearance`}><IcAppearance/> {t('Appearance')}</NavLink></li>
 			</ul>
 		</Fcb.Filter>
 		<Fcb.Content>
@@ -79,18 +82,18 @@ export function SettingsRoutes({ pwa }: { pwa: UsePWA }) {
 	const { t } = useTranslation()
 
 	return <Routes>
-		<Route path="/settings" element={<Settings title={t('Main')}/>}/>
-		<Route path="/settings/security" element={
+		<Route path="/settings/:contextIdTag" element={<Settings title={t('Main')}/>}/>
+		<Route path="/settings/:contextIdTag/security" element={
 			<Settings title={t('Security')}>
 				<SecuritySettings/>
 			</Settings>
 		}/>
-		<Route path="/settings/notifications" element={
+		<Route path="/settings/:contextIdTag/notifications" element={
 			<Settings title={t('Notifications')}>
 				<NotificationSettings pwa={pwa}/>
 			</Settings>
 		}/>
-		<Route path="/settings/appearance" element={
+		<Route path="/settings/:contextIdTag/appearance" element={
 			<Settings title={t('Appearance')}>
 				<AppearanceSettings/>
 			</Settings>

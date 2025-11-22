@@ -160,6 +160,9 @@ export function ProfilePage({
 }: ProfilePageProps) {
 	const { t } = useTranslation()
 	const [auth, setAuth] = useAuth()
+	const params = useParams()
+	// Extract contextIdTag from params if available (context-aware route)
+	const contextIdTag = params.contextIdTag
 	const own = auth?.idTag === profile.idTag
 	const { api } = useApi()
 	const [coverUpload, setCoverUpload] = React.useState<string | undefined>()
@@ -248,13 +251,13 @@ export function ProfilePage({
 			<Fcb.Filter>
 			</Fcb.Filter>
 			<Fcb.Content>
-				<div className="c-panel p-0 pos relative d-flex flex-column">
-					<div className="c-profile-header pos relative w-100" style={{ minHeight: '160px' }}>
+				<div className="c-panel p-0 pos-relative d-flex flex-column">
+					<div className="c-profile-header pos-relative w-100" style={{ minHeight: '160px' }}>
 						{ profile.coverPic &&
 							<img className="c-profile-cover w-100" src={`https://cl-o.${profile.idTag}/api/file/${profile?.coverPic?.hd || profile?.coverPic.sd}`}/>
 						}
 						{ own && <>
-							<label htmlFor={inputId} className="c-overlay-icon pos absolute top-0 right-0 m-2">
+							<label htmlFor={inputId} className="c-overlay-icon pos-absolute top-0 right-0 m-2">
 								<IcEdit size="2rem"/>
 							</label>
 							<input id={inputId} type="file" accept="image/*" style={{ display: 'none' }} onChange={changeCover}/>
@@ -269,7 +272,7 @@ export function ProfilePage({
 								</svg>
 							}
 							{ own && <>
-								<label htmlFor={profileInputId} className="c-overlay-icon pos absolute" style={{ bottom: '1.5rem', right: '2.5rem'}}>
+								<label htmlFor={profileInputId} className="c-overlay-icon pos-absolute" style={{ bottom: '1.5rem', right: '2.5rem'}}>
 									<IcEdit size="2rem"/>
 								</label>
 								<input id={profileInputId} type="file" accept="image/*" style={{ display: 'none' }} onChange={changeProfile}/>
@@ -288,11 +291,11 @@ export function ProfilePage({
 						</> }
 					</div>
 					<div className="c-tabs">
-						<NavLink className="c-tab" to={`/profile/${own ? 'me' : profile.idTag}/feed`} end >{t('Feed')}</NavLink>
-						<NavLink className="c-tab" to={`/profile/${own ? 'me' : profile.idTag}/about`} end >{t('About')}</NavLink>
-						<NavLink className="c-tab" to={`/profile/${own ? 'me' : profile.idTag}/connections`} end >{profile.type == 'community' ? t('Members') : t('Connections')}</NavLink>
+						<NavLink className="c-tab" to={`/profile/${contextIdTag}/${own ? 'me' : profile.idTag}/feed`} end >{t('Feed')}</NavLink>
+						<NavLink className="c-tab" to={`/profile/${contextIdTag}/${own ? 'me' : profile.idTag}/about`} end >{t('About')}</NavLink>
+						<NavLink className="c-tab" to={`/profile/${contextIdTag}/${own ? 'me' : profile.idTag}/connections`} end >{profile.type == 'community' ? t('Members') : t('Connections')}</NavLink>
 						{ own && <>
-							<NavLink className="c-tab" to="/profile/settings">{t('Settings')}</NavLink>
+							<NavLink className="c-tab" to={`/settings/${contextIdTag}`}>{t('Settings')}</NavLink>
 						</> }
 					</div>
 				</div>
@@ -338,13 +341,13 @@ function ProfileAbout({ profile, updateProfile }: ProfileTabProps) {
 			</p>
 		</div>
 		*/}
-		<div className="c-panel col col-md-8 pos relative">
+		<div className="c-panel col col-md-8 pos-relative">
 			{ intro == undefined
 				? <>
 					<div ref={ref}>
 						<Markdown>{profile.x?.intro || ''}</Markdown>
 					</div>
-					{ updateProfile && <IcEdit className="c-link pos absolute bottom-0 right-0 m-2" size="2rem" onClick={() => setIntro(ref.current?.innerHTML || profile.x?.intro || '')}/> }
+					{ updateProfile && <IcEdit className="c-link pos-absolute bottom-0 right-0 m-2" size="2rem" onClick={() => setIntro(ref.current?.innerHTML || profile.x?.intro || '')}/> }
 				</>
 				: <>
 					<ReactQuill
@@ -369,7 +372,7 @@ function ProfileAbout({ profile, updateProfile }: ProfileTabProps) {
 							]
 						}}
 					/>
-					<div className="c-group pos absolute bottom-0 right-0 m-2">
+					<div className="c-group pos-absolute bottom-0 right-0 m-2">
 						<IcSave size="2rem" className="c-link" onClick={() => update('intro', intro || '')}/>
 						<IcCancel size="2rem" className="c-link" onClick={() => setIntro(undefined)}/>
 					</div>
@@ -463,11 +466,14 @@ function Profile() {
 	const [auth] = useAuth()
 	const { api } = useApi()
 	const dialog = useDialog()
-	const idTag = useParams().idTag == 'me' ? auth?.idTag : useParams().idTag || auth?.idTag
+	const params = useParams()
+	// Extract contextIdTag from params if available (context-aware route)
+	const contextIdTag = params.contextIdTag
+	const idTag = params.idTag == 'me' ? auth?.idTag : params.idTag || auth?.idTag
 	const own = idTag == auth?.idTag
 	const [profile, setProfile] = React.useState<FullProfile>()
 	const [localProfile, setLocalProfile] = React.useState<Partial<Profile>>()
-	//console.log('Profile', idTag, profile)
+	//console.log('Profile', idTag, profile, 'contextIdTag', contextIdTag)
 
 	React.useEffect(function load() {
 		if (!idTag || !auth?.idTag) return
@@ -563,9 +569,9 @@ function Profile() {
 
 export function ProfileRoutes() {
 	return <Routes>
-		<Route path="/profile/:idTag/*" element={<Profile/>}/>
-		<Route path="/users" element={<PersonListPage/>}/>
-		<Route path="/communities" element={<CommunityListPage/>}/>
+		<Route path="/profile/:contextIdTag/:idTag/*" element={<Profile/>}/>
+		<Route path="/users/:contextIdTag" element={<PersonListPage/>}/>
+		<Route path="/communities/:contextIdTag" element={<CommunityListPage/>}/>
 		<Route path="/*" element={null}/>
 	</Routes>
 }

@@ -88,16 +88,15 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
-  type: 'local' | 'domain'
+  type: 'idp' | 'domain'
   idTag: string
   appDomain?: string
-  password: string
   email: string
   registerToken: string
 }
 
 export interface RegisterVerifyRequest {
-  type: 'ref' | 'local' | 'domain'
+  type: 'ref' | 'idp' | 'domain'
   idTag: string
   appDomain?: string
   registerToken: string
@@ -105,6 +104,11 @@ export interface RegisterVerifyRequest {
 
 export interface PasswordChangeRequest {
   currentPassword: string
+  newPassword: string
+}
+
+export interface SetPasswordRequest {
+  refId: string
   newPassword: string
 }
 
@@ -135,13 +139,18 @@ export const tGetVapidResult = T.struct({
 })
 export type GetVapidResult = T.TypeOf<typeof tGetVapidResult>
 
+export const tSetPasswordResult = tLoginResult
+export type SetPasswordResult = T.TypeOf<typeof tSetPasswordResult>
+
 export const tRegisterVerifyResult = T.struct({
-  ip: T.optional(T.array(T.string)),
-  identityProviders: T.optional(T.array(T.string)),
-  idTagError: T.optional(T.union(T.literal('invalid', 'used', 'nodns', 'ip'), T.literal(false))),
-  appDomainError: T.optional(T.union(T.literal('invalid', 'used', 'nodns', 'ip'), T.literal(false))),
-  apiIp: T.optional(T.string),
-  appIp: T.optional(T.string),
+  address: T.array(T.string),
+  identityProviders: T.array(T.string),
+  idTagError: T.optional(T.union(T.literal('invalid', 'used', 'nodns', 'address'), T.literal(''))),
+  appDomainError: T.optional(T.union(T.literal('invalid', 'used', 'nodns', 'address'), T.literal(''))),
+  apiAddress: T.optional(T.string),
+  apiAddressType: T.optional(T.string),
+  appAddress: T.optional(T.string),
+  appAddressType: T.optional(T.string),
 })
 export type RegisterVerifyResult = T.TypeOf<typeof tRegisterVerifyResult>
 
@@ -435,6 +444,16 @@ export const tRef = T.struct({
   used: T.optional(T.boolean),
 })
 export type Ref = T.TypeOf<typeof tRef>
+
+export const tRefResponse = T.struct({
+  refId: T.string,
+  type: T.string,
+  description: T.optional(T.string),
+  createdAt: T.optional(T.number),
+  expiresAt: T.optional(T.number),
+  count: T.optional(T.number),
+})
+export type RefResponse = T.TypeOf<typeof tRefResponse>
 
 export const tDeleteRefResult = T.struct({
   refId: T.string,

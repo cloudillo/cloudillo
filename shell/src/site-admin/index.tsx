@@ -24,12 +24,14 @@ import {
 	LuHardDrive as IcStorage,
 	LuMail as IcMail,
 	LuUser as IcTenant,
+	LuShieldCheck as IcIdps,
 	LuMenu as IcMenu
 } from 'react-icons/lu'
 
 import { useAuth, useApi, Fcb, mergeClasses } from '@cloudillo/react'
 
 import { Invitations } from './invitations.js'
+import { IdpsSettings } from './idps.js'
 import { ServerSettings } from './server.js'
 import { StorageSettings } from './storage.js'
 import { EmailSettings } from './email.js'
@@ -50,6 +52,7 @@ export function SiteAdmin({ title, children }: { title: string, children?: React
 		<Fcb.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 			<ul className="c-nav vertical low">
 				<li><NavLink className={({ isActive }) => mergeClasses('c-nav-item', isActive && 'active')} to="/site-admin/invitations"><IcInvitations/> {t('Invitations')}</NavLink></li>
+				<li><NavLink className={({ isActive }) => mergeClasses('c-nav-item', isActive && 'active')} to="/site-admin/idps"><IcIdps/> {t('Identity Providers')}</NavLink></li>
 				<li className="c-divider" />
 				<li><NavLink className={({ isActive }) => mergeClasses('c-nav-item', isActive && 'active')} to="/site-admin/server"><IcServer/> {t('Server & Federation')}</NavLink></li>
 				<li><NavLink className={({ isActive }) => mergeClasses('c-nav-item', isActive && 'active')} to="/site-admin/storage"><IcStorage/> {t('Storage')}</NavLink></li>
@@ -74,6 +77,9 @@ export function SiteAdminRoutes() {
 		<Route path="/site-admin" element={<SiteAdmin title={t('Main')}/>}/>
 		<Route path="/site-admin/invitations" element={
 			<SiteAdmin title={t('Invitations')}><Invitations/></SiteAdmin>
+		}/>
+		<Route path="/site-admin/idps" element={
+			<SiteAdmin title={t('Identity Providers')}><IdpsSettings/></SiteAdmin>
 		}/>
 		<Route path="/site-admin/server" element={
 			<SiteAdmin title={t('Server & Federation')}>

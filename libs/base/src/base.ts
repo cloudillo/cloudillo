@@ -16,8 +16,7 @@
 
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
-//import { WebsocketProvider } from '../src/y-websocket.js'
-import { IndexeddbPersistence } from 'y-indexeddb'
+//import { IndexeddbPersistence } from 'y-indexeddb'
 
 import * as T from '@symbion/runtype'
 
@@ -136,8 +135,10 @@ export async function openYDoc(yDoc: Y.Doc, docId: string): Promise<{ yDoc: Y.Do
 	console.log('openYDoc', yDoc, docId)
 	if (!accessToken) throw new Error('No access token')
 
+	/*
 	const idbProvider = new IndexeddbPersistence(docId, yDoc)
 	idbProvider.on('sync', () => console.log('content loaded from local storage'))
+	*/
 
 	console.log(`wss://cl-o.${targetTag}/ws/crdt`, resId, yDoc, { params: { token: accessToken }})
 	const wsProvider = new WebsocketProvider(`wss://cl-o.${targetTag}/ws/crdt`, resId, yDoc, { params: { token: accessToken }})

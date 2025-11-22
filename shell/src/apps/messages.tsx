@@ -48,6 +48,7 @@ import '@cloudillo/react/src/components.css'
 import { useAppConfig, parseQS, qs } from '../utils.js'
 import { getBestImageId, ImageUpload } from '../image.js'
 import { useWsBus } from '../ws-bus.js'
+import { useCurrentContextIdTag } from '../context/index.js'
 
 //////////////////////
 // Action datatypes //
@@ -328,9 +329,10 @@ interface Conversation {
 
 export function ConversationCard({ className, conversation }: { className?: string, conversation: Conversation }) {
 	const [auth] = useAuth()
+	const contextIdTag = useCurrentContextIdTag()
 	const profile = conversation.profiles[0] || {}
 
-	return <Link className={mergeClasses('c-nav-item', className)} to={`/app/messages/${conversation.id}`}>
+	return <Link className={mergeClasses('c-nav-item', className)} to={`/app/${contextIdTag || auth?.idTag}/messages/${conversation.id}`}>
 		<ProfileCard profile={profile}/>
 	</Link>
 }
@@ -479,7 +481,7 @@ export function MessagesApp() {
 					{convId && <IdentityTag idTag={convId}/>}
 				</div>}
 			>
-				{ !scrollBottom && <button className="c-button float m-1 secondary pos absolute bottom-0 right-0" onClick={onConvScrollBottomClick}><IcScrollBottom/></button> }
+				{ !scrollBottom && <button className="c-button float m-1 secondary pos-absolute bottom-0 right-0" onClick={onConvScrollBottomClick}><IcScrollBottom/></button> }
 				{ !!msg && msg.sort((a, b) => +a.createdAt - +b.createdAt).map(action => <Msg key={action.actionId} action={action} local={action.issuer.idTag === auth?.idTag}/>) }
 			</Fcb.Content>
 			<Fcb.Details>

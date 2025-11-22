@@ -62,6 +62,7 @@ import { useApi, useAuth, useDialog, Button, Fcb, ProfilePicture, EditProfileLis
 
 import { useAppConfig, parseQS, qs } from '../utils.js'
 import { Tags, EditTags } from '../tags.js'
+import { useCurrentContextIdTag } from '../context/index.js'
 
 const icons: Record<string, React.ComponentType> = {
 //const icons: Record<string, (props: React.SVGProps<SVGSVGElement>) => React.ReactNode> = {
@@ -295,9 +296,10 @@ function useFileListData() {
 	}, [files, filter, sort, sortAsc, page])
 }
 
-const FilterBar = React.memo(function FilterBar({ className }: { className?: string }) {
+const FilterBar = React.memo(function FilterBar({ className, contextIdTag }: { className?: string, contextIdTag?: string }) {
 	const { t } = useTranslation()
 	const { api, setIdTag } = useApi()
+	const [auth] = useAuth()
 	const location = useLocation()
 	const navigate = useNavigate()
 	const dialog = useDialog()
@@ -327,24 +329,25 @@ const FilterBar = React.memo(function FilterBar({ className }: { className?: str
 		}
 		console.log('CREATE FILE', res)
 		if (res?.fileId) {
+			const appPath = (appId: string) => `/app/${contextIdTag || auth?.idTag}/${appId}/${res.fileId}`
 			switch (contentType) {
 				case 'cloudillo/quillo':
-					navigate(`/app/quillo/${res.fileId}`)
+					navigate(appPath('quillo'))
 					break
 				case 'cloudillo/sheello':
-					navigate(`/app/sheello/${res.fileId}`)
+					navigate(appPath('sheello'))
 					break
 				case 'cloudillo/ideallo':
-					navigate(`/app/ideallo/${res.fileId}`)
+					navigate(appPath('ideallo'))
 					break
 				case 'cloudillo/prello':
-					navigate(`/app/prello/${res.fileId}`)
+					navigate(appPath('prello'))
 					break
 				case 'cloudillo/formillo':
-					navigate(`/app/formillo/${res.fileId}`)
+					navigate(appPath('formillo'))
 					break
 				case 'cloudillo/todollo':
-					navigate(`/app/todollo/${res.fileId}`)
+					navigate(appPath('todollo'))
 					break
 			}
 		}
@@ -372,9 +375,10 @@ const FilterBar = React.memo(function FilterBar({ className }: { className?: str
 		}
 		console.log('CREATE DB', res)
 		if (res?.fileId) {
+			const appPath = (appId: string) => `/app/${contextIdTag || auth?.idTag}/${appId}/${res.fileId}`
 			switch (contentType) {
 				case 'cloudillo/todollo':
-					navigate(`/app/todollo/${res.fileId}`)
+					navigate(appPath('todollo'))
 					break
 			}
 		}
@@ -633,6 +637,7 @@ export function FilesApp() {
 	const [appConfig] = useAppConfig()
 	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
+	const contextIdTag = useCurrentContextIdTag()
 	const dialog = useDialog()
 	//const [files, setFiles] = React.useState<File[] | undefined>()
 	const [columnConfig, setColumnConfig] = React.useState(fileColumnConfig)
@@ -666,7 +671,9 @@ export function FilesApp() {
 
 			console.log('openFile', appConfig, file?.contentType, app)
 			if (app) {
-				navigate(`${app}/${(file.owner?.idTag || auth?.idTag) + ':' }${file.fileId}`)
+				// Extract app name from path like '/app/quillo' -> 'quillo'
+				const appName = app.split('/').pop()
+				navigate(`/app/${contextIdTag || auth?.idTag}/${appName}/${(file.owner?.idTag || auth?.idTag) + ':' }${file.fileId}`)
 			}
 		},
 
@@ -695,13 +702,13 @@ export function FilesApp() {
 			await api.files.delete(fileId)
 			fileListData.refresh()
 		}
-	}), [auth, api, appConfig, t, fileListData])
+	}), [auth, api, appConfig, contextIdTag, navigate, t, fileListData, dialog])
 
 	if (!fileListData.getData()) return <h1>Loading...</h1>
 
 	return <Fcb.Container className="g-1">
 		<Fcb.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-			<FilterBar/>
+			<FilterBar contextIdTag={contextIdTag}/>
 		</Fcb.Filter>
 		<Fcb.Content header={
 			<div className="c-nav c-hbox md-hide lg-hide">

@@ -62,6 +62,7 @@ import { useAppConfig, parseQS, qs } from '../utils.js'
 import { TimeFormat } from '../ui.js'
 import { getBestImageId, ImageUpload } from '../image.js'
 import { useWsBus } from '../ws-bus.js'
+import { useCurrentContextIdTag } from '../context/index.js'
 
 //////////////////////
 // Action datatypes //
@@ -146,7 +147,7 @@ export function Images({ idTag, width, srcTag, attachments }: ImagesProps) {
 					<img className="cursor-pointer" onClick={() => setLbIndex(1)} src={baseUrl + img2.fileId + '?variant=sd'} style={{ width: width23, margin: '0 auto'}}/>
 					{ attachments.length == 3
 						? <img className="cursor-pointer" onClick={() => setLbIndex(2)} src={baseUrl + img3.fileId + '?variant=sd'} style={{ width: width23, margin: '0 auto'}}/>
-						: <div className="pos relative" style={{ width: width23, margin: '0 auto'}}>
+						: <div className="pos-relative" style={{ width: width23, margin: '0 auto'}}>
 							<img className="w-100" src={baseUrl + img3.fileId + '?variant=sd'}/>
 							<div onClick={() => setLbIndex(2)} className="c-image-overlay-counter cursor-pointer">+{attachments.length - 3}</div>
 						</div>
@@ -378,15 +379,15 @@ function Post({ className, action, setAction, hideAudience, srcTag, width }: Pos
 					</Button>
 				</div>
 				<div className="c-hbox ms-auto g-3">
-					{ <Button link secondary className={mergeClasses('pos relative', tab == 'CMNT' ? 'active' : '')} onClick={() => onTabClick('CMNT')}>
+					{ <Button link secondary className={mergeClasses('pos-relative', tab == 'CMNT' ? 'active' : '')} onClick={() => onTabClick('CMNT')}>
 						<IcComment/>
-						<span className="c-badge pos absolute top-100 left-100">{action.stat?.comments}</span>
+						<span className="c-badge pos-absolute top-100 left-100">{action.stat?.comments}</span>
 						{ (action.stat?.comments || 0) - (action.stat?.commentsRead || 0) > 0
-							&& <span className="c-badge pos absolute top-0 left-100 bg error">{(action.stat?.comments || 0) - (action.stat?.commentsRead || 0)}</span> }
+							&& <span className="c-badge pos-absolute top-0 left-100 bg error">{(action.stat?.comments || 0) - (action.stat?.commentsRead || 0)}</span> }
 					</Button> }
-					{ !!action.stat?.reactions && <Button link secondary className={mergeClasses('pos relative', tab == 'LIKE' ? 'active' : '')} onClick={() => onTabClick('LIKE')}>
+					{ !!action.stat?.reactions && <Button link secondary className={mergeClasses('pos-relative', tab == 'LIKE' ? 'active' : '')} onClick={() => onTabClick('LIKE')}>
 						<IcLike/>
-						<span className="c-badge pos absolute top-100 left-100">{action.stat?.reactions}</span>
+						<span className="c-badge pos-absolute top-100 left-100">{action.stat?.reactions}</span>
 					</Button> }
 				</div>
 			</div>
@@ -487,7 +488,7 @@ export const NewPost = React.memo(React.forwardRef(function NewPostInside({ clas
 			const j = JSON.parse(request.response)
 			setAttachment(undefined)
 			;(document.getElementById(imgInputId) as HTMLInputElement).value = ''
-			setAttachmentIds(a => [...a, j.fileId])
+			setAttachmentIds(a => [...a, j?.data?.fileId])
 		})
 
 		request.send(img)
@@ -574,6 +575,7 @@ export function FeedApp() {
 	const [appConfig] = useAppConfig()
 	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
+	const contextIdTag = useCurrentContextIdTag()
 	const [feed, setFeed] = React.useState<ActionEvt[] | undefined>()
 	const [text, setText] = React.useState('')
 	const ref = React.useRef<HTMLDivElement>(null)
@@ -656,7 +658,7 @@ export function FeedApp() {
 				<FilterBar/>
 			</Fcb.Filter>
 			<Fcb.Content>
-				<div><NewPost ref={ref} className="col" style={style} onSubmit={onSubmit}/></div>
+				<div><NewPost ref={ref} className="col" style={style} idTag={contextIdTag} onSubmit={onSubmit}/></div>
 				{ !!feed && feed.map(action =>  <ActionComp key={action.actionId} action={action} setAction={setFeedAction} width={width}/>) }
 			</Fcb.Content>
 			<Fcb.Details>

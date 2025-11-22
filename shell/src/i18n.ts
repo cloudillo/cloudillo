@@ -21,6 +21,9 @@ import LanguageDetector from 'i18next-browser-languagedetector'
 import hu from './i18n/hu/translation.json'
 
 const resources = {
+	en: {
+		translation: {}
+	},
 	hu: {
 		translation: hu
 	}

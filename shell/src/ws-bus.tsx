@@ -76,7 +76,7 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 	let ws: WebSocket | undefined
 
 	function initWs() {
-		if (!auth) return
+		if (!auth || !auth.idTag || !auth.token) return
 
 		ws = new WebSocket(`wss://cl-o.${auth.idTag}/ws/bus?token=${auth.token}`)
 
@@ -89,8 +89,15 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 			//connSendBuf = []
 		}
 
-		ws.onclose = async function close() {
-			console.log('disconnected')
+		ws.onclose = async function close(event) {
+			console.log('disconnected', event.code, event.reason)
+			// Don't reconnect on auth errors (1008 Policy Violation or 4xxx custom codes)
+			// WebSocket close codes: 1008 = Policy Violation (auth failure)
+			// 4000-4999 = Application-specific codes (often used for auth errors)
+			if (event.code === 1008 || (event.code >= 4000 && event.code < 5000)) {
+				console.log('WS closed due to auth error, not reconnecting')
+				return
+			}
 			await delay(10_000)
 			initWs()
 		}

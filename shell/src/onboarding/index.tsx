@@ -23,6 +23,7 @@ import { ApiClient } from '@cloudillo/base'
 
 import { UsePWA } from '../pwa.js'
 import { subscribeNotifications } from '../settings/notifications.js'
+import { Welcome } from './welcome.js'
 
 function next(api: ApiClient | null, location: string) {
 	const nextPage =
@@ -126,6 +127,7 @@ function Page({ children }: { children: React.ReactNode }) {
 
 export function OnboardingRoutes({ pwa }: { pwa: UsePWA }) {
 	return <Page><Routes>
+		<Route path="/onboarding/welcome/:refId" element={<Welcome/>}/>
 		<Route path="/onboarding/join" element={<Join/>}/>
 		<Route path="/onboarding/notifications" element={<Notifications pwa={pwa}/>}/>
 		<Route path="/onboarding/install" element={<Install pwa={pwa}/>}/>

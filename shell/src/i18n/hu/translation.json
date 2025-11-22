@@ -194,5 +194,20 @@
   "{{count}} minutes_one": "{{count}} perc",
   "{{count}} minutes_other": "{{count}} perc",
   "1 min": "1 perc",
-  "just now": "most"
+  "just now": "most",
+  "Identity Providers": "Azonosító Szolgáltatók",
+  "Manage trusted identity providers. These domains can be used for federated authentication.": "Megbízható azonosító szolgáltatók kezelése. Ezek a domainek használhatók a szövetségi hitelesítéshez.",
+  "Enter domain (e.g., cloudillo.net)": "Add meg a domain-t (pl. cloudillo.net)",
+  "Add": "Hozzáadás",
+  "No identity providers configured yet": "Nincs még beállított azonosító szolgáltató",
+  "Remove": "Eltávolítás",
+  "Please enter a domain": "Kérlek adj meg egy domain-t",
+  "Invalid domain format": "Érvénytelen domain formátum",
+  "Domain already exists": "A domain már létezik",
+  "Custom...": "Egyéni...",
+  "alice.example.com": "anna.pelda.hu",
+  "Back": "Vissza",
+  "REGISTER-FORM-CUSTOM-PROVIDER-INVALID": "Kérlek adj meg egy teljes azonosító jelet legalább egy ponttal (pl. anna.pelda.hu)",
+  "Try again": "Próbáld újra",
+  "Please contact the administrator of the server or try again.": "Kérlek vedd fel a kapcsolatot a szerver adminisztrátorával vagy próbáld újra."
 }

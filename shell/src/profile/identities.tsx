@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { useTranslation } from 'react-i18next'
 
@@ -95,8 +95,10 @@ function ProfileDetails({ className }: { className?: string }) {
 
 export function ProfileListCard({ profile, srcTag }: { profile: Profile, srcTag?: string }) {
 	const { t } = useTranslation()
+	const params = useParams()
+	const contextIdTag = params.contextIdTag!
 
-	return <Link className="c-panel p-1 mb-1 flex-row" to={`/profile/${profile.idTag}`}>
+	return <Link className="c-panel p-1 mb-1 flex-row" to={`/profile/${contextIdTag}/${profile.idTag}`}>
 		<ProfileCard className="flex-fill" profile={profile} srcTag={srcTag}/>
 		<ProfileStatusIcon profile={profile}/>
 	</Link>
@@ -105,10 +107,13 @@ export function ProfileListCard({ profile, srcTag }: { profile: Profile, srcTag?
 export function PersonListPage({ idTag }: { idTag?: string }) {
 	const { t } = useTranslation()
 	const location = useLocation()
+	const params = useParams()
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
+	// Extract contextIdTag from params if available (context-aware route)
+	const contextIdTag = params.contextIdTag || idTag
 
 	React.useEffect(function onLocationEffect() {
 		setShowFilter(false)
@@ -116,7 +121,7 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 
 	React.useEffect(function loadPersonList() {
 		if (!auth) return
-		console.log('loadProfiles', auth)
+		console.log('loadProfiles', auth, 'contextIdTag', contextIdTag)
 		;(async function () {
 			const qs: Record<string, string> = parseQS(location.search)
 			console.log('QS', location.search, qs)
@@ -124,7 +129,7 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 			const profiles = await api!.profiles.list({ type: 'person' })
 			setProfiles(profiles as any)
 		})()
-	}, [auth, location.search])
+	}, [auth, location.search, contextIdTag])
 
 	return <Fcb.Container className="g-1">
 		<Fcb.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
@@ -151,10 +156,13 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 export function CommunityListPage() {
 	const { t } = useTranslation()
 	const location = useLocation()
+	const params = useParams()
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
+	// Extract contextIdTag from params if available (context-aware route)
+	const contextIdTag = params.contextIdTag
 
 	React.useEffect(function onLocationEffect() {
 		setShowFilter(false)
@@ -162,7 +170,7 @@ export function CommunityListPage() {
 
 	React.useEffect(function loadCommunities() {
 		if (!auth) return
-		console.log('loadCommunities', auth)
+		console.log('loadCommunities', auth, 'contextIdTag', contextIdTag)
 		;(async function () {
 			const qs: Record<string, string> = parseQS(location.search)
 			console.log('QS', location.search, qs)
@@ -171,7 +179,7 @@ export function CommunityListPage() {
 			console.log('profiles', profiles)
 			setProfiles(profiles as any)
 		})()
-	}, [auth, location.search])
+	}, [auth, location.search, contextIdTag])
 
 	return <Fcb.Container className="g-1">
 		<Fcb.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>

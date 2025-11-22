@@ -18,10 +18,20 @@ import * as React from 'react'
 
 import { useApi } from '@cloudillo/react'
 
+// Debounce delays for different input types
+const DEBOUNCE_DELAYS = {
+	text: 800,      // Text inputs - wait for user to stop typing
+	password: 800,  // Password inputs - wait for user to stop typing
+	select: 300,    // Select dropdowns - short delay
+	checkbox: 0,    // Checkboxes - instant (toggles should be immediate)
+	default: 500    // Default fallback
+}
+
 export function useSettings(prefix: string | string[]) {
 	const { api, setIdTag } = useApi()
 	const [settings, setSettings] = React.useState<Record<string, string | number | boolean> | undefined>()
 	const prefixStr = React.useMemo(() => Array.isArray(prefix) ? prefix.join(',') : prefix, [prefix])
+	const debounceTimers = React.useRef<Record<string, NodeJS.Timeout>>({})
 
 	React.useEffect(function loadSettings() {
 		if (!api) return
@@ -35,12 +45,48 @@ export function useSettings(prefix: string | string[]) {
 		})()
 	}, [api, prefixStr])
 
+	// Cleanup debounce timers on unmount
+	React.useEffect(() => {
+		return () => {
+			Object.values(debounceTimers.current).forEach(timer => clearTimeout(timer))
+		}
+	}, [])
+
 	async function onSettingChange(evt: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
 		if (!settings || !api) return
 
-		let value = evt.target.type == 'checkbox' ? evt.target.checked : evt.target.value
-		await api.settings.update(evt.target.name, { value })
-		setSettings(settings => ({ ...settings, [evt.target.name]: value }))
+		const { name, type, tagName } = evt.target
+		let value = type === 'checkbox' ? (evt.target as HTMLInputElement).checked : evt.target.value
+
+		// Update local state immediately for responsive UI
+		setSettings(settings => ({ ...settings, [name]: value }))
+
+		// Determine debounce delay based on input type
+		const inputType = type || (tagName.toLowerCase() === 'select' ? 'select' : 'default')
+		const delay = DEBOUNCE_DELAYS[inputType as keyof typeof DEBOUNCE_DELAYS] || DEBOUNCE_DELAYS.default
+
+		// Clear existing timer for this setting
+		if (debounceTimers.current[name]) {
+			clearTimeout(debounceTimers.current[name])
+		}
+
+		// Set new debounced API call
+		if (delay === 0) {
+			// No debounce - call immediately (for checkboxes)
+			await api.settings.update(name, { value })
+		} else {
+			// Debounce the API call
+			debounceTimers.current[name] = setTimeout(async () => {
+				try {
+					await api.settings.update(name, { value })
+					delete debounceTimers.current[name]
+				} catch (error) {
+					console.error('Failed to update setting:', name, error)
+					// Optionally revert the local state on error
+					// setSettings(settings => ({ ...settings, [name]: oldValue }))
+				}
+			}, delay)
+		}
 	}
 
 	return { settings, setSettings, onSettingChange }

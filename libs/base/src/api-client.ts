@@ -173,6 +173,13 @@ export class ApiClient {
       this.request('POST', '/auth/password', T.struct({}), { data }),
 
     /**
+     * POST /auth/set-password - Set password using a reference token
+     * @param data - Set password request with refId and password
+     */
+    setPassword: (data: Types.SetPasswordRequest) =>
+      this.request('POST', '/auth/set-password', Types.tSetPasswordResult, { data }),
+
+    /**
      * POST /auth/register-verify - Verify registration information
      * @param data - Registration verify request
      * @returns Verification result with identity providers and validation errors
@@ -502,6 +509,14 @@ export class ApiClient {
      */
     list: (query?: { type?: string }) =>
       this.request('GET', '/refs', T.array(Types.tRef), { query }),
+
+    /**
+     * GET /ref/:refId - Get reference details
+     * @param refId - Reference ID
+     * @returns Reference details
+     */
+    get: (refId: string) =>
+      this.request('GET', `/refs/${refId}`, Types.tRefResponse),
 
     /**
      * POST /ref - Create reference

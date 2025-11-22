@@ -16,7 +16,7 @@
 
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
-import { IndexeddbPersistence } from 'y-indexeddb'
+//import { IndexeddbPersistence } from 'y-indexeddb'
 
 export interface WebSocketOpts {
   idTag: string
@@ -63,6 +63,7 @@ export async function openCRDT(
   }
 
   // Set up offline persistence
+  /*
   const idbProvider = new IndexeddbPersistence(docId, yDoc)
   await new Promise<void>((resolve) => {
     idbProvider.on('synced', () => {
@@ -70,6 +71,7 @@ export async function openCRDT(
       resolve()
     })
   })
+  */
 
   // Connect to server
   const wsUrl = `wss://cl-o.${targetTag}/ws/crdt`

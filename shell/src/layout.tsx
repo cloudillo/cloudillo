@@ -77,6 +77,7 @@ import {
 	LuUser as IcUser,
 	LuUsers as IcUsers,
 	LuGrip as IcApps,
+	LuPanelLeft as IcSidebar,
 	// Menu icons
 	LuLogIn as IcLogin,
 	LuLogOut as IcLogout,
@@ -98,6 +99,7 @@ import { createApiClient } from '@cloudillo/base'
 import { AppConfigState, useAppConfig } from './utils.js'
 import usePWA from './pwa.js'
 import { AuthRoutes } from './auth/auth.js'
+import { Sidebar, useSidebar, useCurrentContextIdTag } from './context/index.js'
 import { OnboardingRoutes } from './onboarding'
 import { WsBusRoot, useWsBus } from './ws-bus.js'
 import { SearchIcon, SearchBar, useSearch } from './search.js'
@@ -120,17 +122,58 @@ function Menu({ className, inert, vertical }: { className?: string, inert?: bool
 	const [appConfig, setAppConfig] = useAppConfig()
 	const [auth, setAuth] = useAuth()
 	const [exMenuOpen, setExMenuOpen] = React.useState(false)
+	const contextIdTag = useCurrentContextIdTag()
+	const sidebar = useSidebar()
 
 	React.useEffect(function onLocationChange() {
 		setExMenuOpen(false)
 	}, [location])
 
+	// Helper to convert menu path to context-aware path
+	const getContextPath = (path: string) => {
+		if (!contextIdTag) return path
+		// If path starts with /app/, insert contextIdTag
+		if (path.startsWith('/app/')) {
+			return path.replace('/app/', `/app/${contextIdTag}/`)
+		}
+		// Handle other context-aware routes
+		if (path === '/users') return `/users/${contextIdTag}`
+		if (path === '/communities') return `/communities/${contextIdTag}`
+		if (path === '/settings') return `/settings/${contextIdTag}`
+		if (path.startsWith('/profile/')) {
+			// Transform /profile/:idTag to /profile/:contextIdTag/:idTag
+			const parts = path.split('/')
+			if (parts.length >= 3) {
+				return `/profile/${contextIdTag}/${parts.slice(2).join('/')}`
+			}
+		}
+		return path
+	}
+
+	// Check if we're in an app view (where sidebar should be shown)
+	const isAppView = location.pathname.startsWith('/app/')
+
 	return !location.pathname.match('^/register/') && <>
+		{/* Sidebar toggle button on mobile (first item) - shows current context */}
+		{vertical && isAppView && auth && (
+			<button
+				className={mergeClasses('c-nav-link vertical', sidebar.isOpen && 'active')}
+				onClick={() => sidebar.toggle()}
+			>
+				<div style={{ width: '1.5rem', height: '1.5rem', borderRadius: '50%', overflow: 'hidden' }}>
+					<ProfilePicture
+						profile={{ profilePic: auth.profilePic }}
+						srcTag={contextIdTag || auth.idTag}
+					/>
+				</div>
+				<h6>{contextIdTag || auth.idTag}</h6>
+			</button>
+		)}
 		<div inert={inert} className="c-menu-ex flex-order-end">
 			<nav className={mergeClasses('c-nav', exMenuOpen && 'open')}>
 				{ appConfig && appConfig.menuEx.map(menuItem =>
 					(!!auth && (!menuItem.perm || auth.roles?.includes(menuItem.perm)) || menuItem.public)
-						&& <NavLink key={menuItem.id} className="c-nav-link h-small vertical" aria-current="page" to={menuItem.path}>
+						&& <NavLink key={menuItem.id} className="c-nav-link h-small vertical" aria-current="page" to={getContextPath(menuItem.path)}>
 							{menuItem.icon && React.createElement(menuItem.icon)}
 							<h6>{menuItem.trans?.[i18n.language] || menuItem.label}</h6>
 						</NavLink>
@@ -139,7 +182,7 @@ function Menu({ className, inert, vertical }: { className?: string, inert?: bool
 		</div>
 		{ appConfig && appConfig.menu.map(menuItem =>
 			(!!auth && (!menuItem.perm || auth.roles?.includes(menuItem.perm)) || menuItem.public)
-				&& <NavLink key={menuItem.id} className={mergeClasses('c-nav-link', vertical && 'vertical')} aria-current="page" to={menuItem.path}>
+				&& <NavLink key={menuItem.id} className={mergeClasses('c-nav-link', vertical && 'vertical')} aria-current="page" to={getContextPath(menuItem.path)}>
 					{menuItem.icon && React.createElement(menuItem.icon)}
 					<h6>{menuItem.trans?.[i18n.language] || menuItem.label}</h6>
 				</NavLink>
@@ -162,6 +205,7 @@ function Header({ inert }: { inert?: boolean }) {
 	//const [notifications, setNotifications] = React.useState<{ notifications?: number }>({})
 	const { notifications, setNotifications, loadNotifications } = useNotifications()
 	const [menuOpen, setMenuOpen] = React.useState(false)
+	const contextIdTag = useCurrentContextIdTag()
 
 	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
 		const action = msg.data as ActionView
@@ -174,6 +218,7 @@ function Header({ inert }: { inert?: boolean }) {
 		await api.auth.logout()
 		setAuth(undefined)
 		setMenuOpen(false)
+		console.log('NAVIGATE: /login')
 		navigate('/login')
 	}
 
@@ -230,19 +275,26 @@ function Header({ inert }: { inert?: boolean }) {
 
 							const navTo =
 								authState.settings?.['ui.onboarding'] && `/onboarding/${authState.settings['ui.onboarding']}`
-								|| appConfig?.menu?.find(m => m.id === appConfig.defaultMenu)?.path
-								|| '/app/feed'
+								|| appConfig?.menu?.find(m => m.id === appConfig.defaultMenu)?.path?.replace('/app/', `/app/${authState.idTag}/`)
+								|| `/app/${authState.idTag}/feed`
 							console.log('REDIRECT TO', navTo)
 							if (location.pathname == '/') {
+								console.log('NAVIGATE: ', navTo)
 								navigate(navTo)
 							}
 							return
 						}
 					}
-					if (!location.pathname.startsWith('/register/')) navigate('/login')
+					if (!location.pathname.startsWith('/register/') && !location.pathname.startsWith('/onboarding/')) {
+						console.log('NAVIGATE: /login')
+						navigate('/login')
+					}
 				} catch (err) {
 					console.log('ERROR', err)
-					navigate('/login')
+					if (!location.pathname.startsWith('/register/') && !location.pathname.startsWith('/onboarding/')) {
+						console.log('NAVIGATE: /login')
+						navigate('/login')
+					}
 				}
 			} else if (api && auth) {
 				// Load notification count
@@ -269,15 +321,15 @@ function Header({ inert }: { inert?: boolean }) {
 				<Menu inert={inert}/>
 			</ul> }
 			<ul className="c-nav-group c-hbox">
-				{ auth && <Link className="c-nav-item pos relative" to="/notifications">
+				{ auth && <Link className="c-nav-item pos-relative" to="/notifications">
 					<IcNotifications/>
 					{ !!notifications.notifications.length && <span className="c-badge br bg error">{notifications.notifications.length}</span> }
 				</Link> }
 				{ auth
 					? <Popper className="c-nav-item" icon={<ProfilePicture profile={auth}/>}>
 						<ul className="c-nav vertical emph">
-							<li><Link className="c-nav-item" to="/profile/me"><IcUser/>{t('Profile')}</Link></li>
-							<li><Link className="c-nav-item" to="/settings"><IcSettings/>{t('Settings')}</Link></li>
+							<li><Link className="c-nav-item" to={`/profile/${contextIdTag || auth.idTag}/me`}><IcUser/>{t('Profile')}</Link></li>
+							<li><Link className="c-nav-item" to={`/settings/${contextIdTag || auth.idTag}`}><IcSettings/>{t('Settings')}</Link></li>
 							<li><hr className="w-100" /></li>
 							<li><button className="c-nav-item" onClick={doLogout}><IcLogout/>{t('Logout')}</button></li>
 							<li><hr className="w-100" /></li>
@@ -294,8 +346,6 @@ function Header({ inert }: { inert?: boolean }) {
 						<ul className="c-nav vertical emph">
 							<li><Link className="c-nav-item" to="/login" onClick={() => setMenuOpen(false)}><IcUser/>{t('Login')}</Link></li>
 							<li><hr className="w-100"/></li>
-							<li><Link className="c-nav-item" to="/profile/me">{t('Profile')}</Link></li>
-							<hr className="w-100"/>
 							<li><button className="c-nav-item" onClick={evt => (evt.preventDefault(), i18n.changeLanguage('en'))}>English</button></li>
 							<li><button className="c-nav-item" onClick={evt => setLang(evt, 'hu')}>Magyar</button></li>
 						</ul>
@@ -313,23 +363,31 @@ export function Layout() {
 	const pwa = usePWA({ swPath: `/sw-${version}.js` })
 	const { api, setIdTag } = useApi()
 	const dialog = useDialog()
+	const sidebar = useSidebar()
+	const location = useLocation()
+
+	// Check if we're in an app view (where sidebar should be shown)
+	const isAppView = location.pathname.startsWith('/app/')
 
 	return <>
 		<WsBusRoot>
-			<Header inert={dialog.isOpen}/>
-			<div inert={dialog.isOpen} className="c-vbox flex-fill h-min-0">
-				<ProfileRoutes/>
-				<AuthRoutes/>
-				<SettingsRoutes pwa={pwa}/>
-				<SiteAdminRoutes/>
-				<AppRoutes/>
-				<OnboardingRoutes pwa={pwa}/>
-				<Routes>
-					<Route path="/notifications" element={<Notifications/>}/>
-					<Route path="*" element={null}/>
-				</Routes>
+			{isAppView && <Sidebar/>}
+			<div className={mergeClasses('c-layout', sidebar.isPinned && isAppView && 'with-sidebar')}>
+				<Header inert={dialog.isOpen}/>
+				<div inert={dialog.isOpen} className="c-vbox flex-fill h-min-0">
+					<ProfileRoutes/>
+					<AuthRoutes/>
+					<SettingsRoutes pwa={pwa}/>
+					<SiteAdminRoutes/>
+					<AppRoutes/>
+					<OnboardingRoutes pwa={pwa}/>
+					<Routes>
+						<Route path="/notifications" element={<Notifications/>}/>
+						<Route path="*" element={null}/>
+					</Routes>
+				</div>
+				<div className="pt-1"/>
 			</div>
-			<div className="pt-1"/>
 			<div id="popper-container"/>
 			<DialogContainer/>
 		</WsBusRoot>

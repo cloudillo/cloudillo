@@ -97,7 +97,7 @@ export function DialogContainer() {
 			{dialog && <div className="c-dialog c-panel h-max-100 emph p-4">
 				<div className="c-hbox">
 					<h2 className="fill mb-3">{dialog.title}</h2>
-					<button type="button" className="c-link pos absolute top-0 right-0 m-3" data-bs-dismiss="modal" aria-label="Close" onClick={onCancel}><IcClose/></button>
+					<button type="button" className="c-link pos-absolute top-0 right-0 m-3" data-bs-dismiss="modal" aria-label="Close" onClick={onCancel}><IcClose/></button>
 				</div>
 				<div className="c-markdown overflow-y-auto">
 					<Markdown>{dialog.descr}</Markdown>

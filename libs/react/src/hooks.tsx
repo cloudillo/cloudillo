@@ -88,16 +88,40 @@ export function useApi(): ApiHook {
 	const [auth] = useAuth()
 	const [apiState, setApiState] = useAtom(apiAtom)
 
+	// Cache API clients per idTag + token combination
+	const apiClientsRef = React.useRef<Map<string, ApiClient>>(new Map())
+
 	const api = React.useMemo(() => {
 		const idTag = apiState.idTag || auth?.idTag
 		const token = auth?.token
 
 		if (!idTag) return null
 
-		return createApiClient({
+		// Create cache key
+		const cacheKey = `${idTag}:${token || 'no-token'}`
+
+		// Return cached client if exists
+		if (apiClientsRef.current.has(cacheKey)) {
+			return apiClientsRef.current.get(cacheKey)!
+		}
+
+		// Create new client
+		const client = createApiClient({
 			idTag,
 			authToken: token,
 		})
+
+		// Cache it
+		apiClientsRef.current.set(cacheKey, client)
+
+		// Clean up old clients (keep last 10)
+		if (apiClientsRef.current.size > 10) {
+			const keys = Array.from(apiClientsRef.current.keys())
+			const oldKey = keys[0]
+			apiClientsRef.current.delete(oldKey)
+		}
+
+		return client
 	}, [apiState.idTag, auth?.idTag, auth?.token])
 
 	return {

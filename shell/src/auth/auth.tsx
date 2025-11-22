@@ -381,7 +381,8 @@ function LoginPage({ children }: { children: React.ReactNode }) {
 export function AuthRoutes() {
 	return <Routes>
 		<Route path="/login" element={<LoginPage><LoginForm/></LoginPage>}/>
-		<Route path="/register/:registerToken" element={<LoginPage><RegisterForm/></LoginPage>}/>
+		<Route path="/register/:token" element={<LoginPage><RegisterForm/></LoginPage>}/>
+		<Route path="/register/:token/:providerType" element={<LoginPage><RegisterForm/></LoginPage>}/>
 		<Route path="/passwd" element={<LoginPage><PasswordResetForm/></LoginPage>}/>
 		<Route path="/passwd-sent" element={<LoginPage><PasswordResetSent/></LoginPage>}/>
 		<Route path="/passwd-set" element={<LoginPage><PasswordSet/></LoginPage>}/>

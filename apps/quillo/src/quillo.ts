@@ -17,7 +17,7 @@
 const APP_NAME = 'quillo'
 
 import * as Y from 'yjs'
-import { IndexeddbPersistence } from 'y-indexeddb'
+//import { IndexeddbPersistence } from 'y-indexeddb'
 
 import { QuillBinding } from 'y-quill'
 import Quill from 'quill'

@@ -32,6 +32,7 @@ import 'react-photo-album/rows.css'
 import { useAuth, useApi } from '@cloudillo/react'
 
 import { parseQS, qs } from '../utils.js'
+import { useCurrentContextIdTag } from '../context/index.js'
 
 interface File {
 	fileId: string
@@ -52,17 +53,18 @@ export function GalleryApp() {
 	const navigate = useNavigate()
 	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
+	const contextIdTag = useCurrentContextIdTag()
 	const location = useLocation()
 	const [refreshHelper, setRefreshHelper] = React.useState(false)
 	const [files, setFiles] = React.useState<File[] | undefined>()
 	const [lbIndex, setLbIndex] = React.useState<number | undefined>()
 
 	const photos = api && React.useMemo(() => files?.map(f => ({
-		src: `https://cl-o.${auth?.idTag}/api/file/${f.variantId}`,
+		src: `https://cl-o.${contextIdTag || auth?.idTag}/api/file/${f.variantId}`,
 		width: f.x?.dim?.[0] || 100,
 		height: f.x?.dim?.[1] || 100,
 		title: f.x?.caption || f.fileName
-	})), [files])
+	})), [files, contextIdTag, auth?.idTag])
 
 	React.useEffect(function loadImageList() {
 		if (!api || !auth) return

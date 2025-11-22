@@ -23,6 +23,7 @@ import {
 } from 'react-icons/lu'
 
 import { useAppConfig } from '../utils.js'
+import { useContextFromRoute } from '../context/index.js'
 import { FeedApp } from './feed.js'
 import { FilesApp } from './files.js'
 import { GalleryApp } from './gallery.js'
@@ -53,7 +54,9 @@ export function MicrofrontendContainer({ className, app, resId, appUrl, trust }:
 	const [url, setUrl] = React.useState<string | undefined>(undefined)
 	const [loading, setLoading] = React.useState(true)
 	const [,, host, path] = (resId || '').match(/^(([a-zA-Z0-9-.]+):)?(.*)$/) || []
-	console.log('app', app, host, path)
+	// Extract context from resId (format: "contextIdTag:resource-path")
+	const contextIdTag = host || auth?.idTag
+	console.log('app', app, host, path, 'contextIdTag', contextIdTag)
 
 	React.useEffect(function onLoad() {
 		if (api && auth) {
@@ -73,7 +76,7 @@ export function MicrofrontendContainer({ className, app, resId, appUrl, trust }:
 					ref.current?.contentWindow?.postMessage({
 						cloudillo: true,
 						type: 'init',
-						idTag: auth?.idTag,
+						idTag: contextIdTag,
 						roles: auth?.roles,
 						theme: 'glass',
 						darkMode: document.body.classList.contains('dark'),
@@ -93,11 +96,11 @@ export function MicrofrontendContainer({ className, app, resId, appUrl, trust }:
 			})
 			setUrl(`${appUrl}#${resId}`)
 		}
-	}, [api, auth])
+	}, [api, auth, resId, contextIdTag])
 
-	return <div className={mergeClasses('c-app flex-fill pos relative', trust ? 'trusted' : trust == false ? 'untrusted' : undefined, className)}>
-		{ loading && <IcLoading size='5rem' className="pos absolute top-0 left-0 right-0 bottom-0 animate-rotate-cw m-auto z-1"/> }
-		<iframe ref={ref} src={url} className={mergeClasses('pos absolute top-0 left-0 right-0 bottom-0 z-2', className)} autoFocus/>
+	return <div className={mergeClasses('c-app flex-fill pos-relative', trust ? 'trusted' : trust == false ? 'untrusted' : undefined, className)}>
+		{ loading && <IcLoading size='5rem' className="pos-absolute top-0 left-0 right-0 bottom-0 animate-rotate-cw m-auto z-1"/> }
+		<iframe ref={ref} src={url} className={mergeClasses('pos-absolute top-0 left-0 right-0 bottom-0 z-2', className)} autoFocus/>
 	</div>
 	//return <iframe ref={ref} src={url} className={mergeClasses('c-app flex-fill untrusted', className)} autoFocus/>
 }
@@ -105,8 +108,9 @@ export function MicrofrontendContainer({ className, app, resId, appUrl, trust }:
 function ExternalApp({ className }: { className?: string }) {
 	const [appConfig] = useAppConfig()
 	const [auth] = useAuth()
-	const { appId, rest } = useParams()
-	const idTag = auth?.idTag || location.hostname
+	const { contextIdTag, appId, '*': rest } = useParams()
+	// Use contextIdTag from URL, fallback to auth idTag
+	const idTag = contextIdTag || auth?.idTag || location.hostname
 
 	const app = appConfig?.apps.find(a => a.id === appId)
 	console.log('[Shell] app', appId, app, rest)
@@ -121,13 +125,23 @@ function PlaceHolder({ title }: { title: string }) {
 }
 
 export function AppRoutes() {
+	// Sync URL context with active context state
+	useContextFromRoute()
+
 	return <Routes>
 		<Route path="/" element={<PlaceHolder title="Home"/>}/>
+		{/* Context-aware routes */}
+		<Route path="/app/:contextIdTag/files" element={<FilesApp/>}/>
+		<Route path="/app/:contextIdTag/feed" element={<FeedApp/>}/>
+		<Route path="/app/:contextIdTag/gallery" element={<GalleryApp/>}/>
+		<Route path="/app/:contextIdTag/messages/:convId?" element={<MessagesApp/>}/>
+		<Route path="/app/:contextIdTag/:appId/*" element={<ExternalApp className="w-100 h-100"/>}/>
+		{/* Legacy routes (redirect to context-aware routes) */}
 		<Route path="/app/files" element={<FilesApp/>}/>
 		<Route path="/app/feed" element={<FeedApp/>}/>
 		<Route path="/app/gallery" element={<GalleryApp/>}/>
 		<Route path="/app/messages/:convId?" element={<MessagesApp/>}/>
-		<Route path="/app/:appId/:rest" element={<ExternalApp className="w-100 h-100"/>}/>
+		<Route path="/app/:appId/*" element={<ExternalApp className="w-100 h-100"/>}/>
 		<Route path="/*" element={null}/>
 	</Routes>
 }

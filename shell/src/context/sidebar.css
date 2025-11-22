@@ -1,0 +1,285 @@
+/**
+ * Context Switcher Sidebar Styles
+ *
+ * Discord/Slack-style sidebar for multi-context switching
+ */
+
+/* Sidebar container */
+.c-sidebar {
+  position: fixed;
+  top: 3.5rem; /* Start below the header navbar */
+  left: 0;
+  bottom: 0;
+  width: 240px;
+  background: var(--bg-emph);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  z-index: 9; /* Below header (z-index: 10) but above content */
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  overflow: hidden;
+}
+
+.c-sidebar.open {
+  transform: translateX(0);
+}
+
+.c-sidebar.pinned {
+  transform: translateX(0);
+  position: fixed !important;
+}
+
+/* On desktop, sidebar is always visible and pinned */
+@media (min-width: 1024px) {
+  .c-sidebar {
+    transform: translateX(0);
+  }
+}
+
+/* Header */
+.c-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.c-sidebar-header h6 {
+  margin: 0;
+  font-weight: 600;
+}
+
+.c-sidebar-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.c-sidebar-loading-spinner {
+  color: var(--primary);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.c-sidebar-pin {
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: var(--text-disabled);
+  transition: color 0.2s;
+}
+
+.c-sidebar-pin:hover {
+  color: var(--text);
+}
+
+/* Sections */
+.c-sidebar-section {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.c-sidebar-section:last-of-type {
+  border-bottom: none;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.c-sidebar-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-disabled);
+}
+
+/* List items */
+.c-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  position: relative;
+}
+
+.c-sidebar-item:hover {
+  background: var(--bg-hover);
+}
+
+.c-sidebar-item.active {
+  background: var(--bg-active);
+}
+
+.c-sidebar-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--primary);
+}
+
+/* User's profile item */
+.c-sidebar-item-me {
+  font-weight: 600;
+}
+
+/* Avatar */
+.c-sidebar-item-avatar {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+/* Info */
+.c-sidebar-item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.c-sidebar-item-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.c-sidebar-item-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-disabled);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Favorite button */
+.c-sidebar-item-favorite {
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: var(--text-disabled);
+  transition: color 0.2s;
+  flex-shrink: 0;
+}
+
+.c-sidebar-item-favorite:hover {
+  color: var(--warning);
+}
+
+.c-sidebar-item-favorite .filled {
+  color: var(--warning);
+  fill: var(--warning);
+}
+
+/* Footer */
+.c-sidebar-footer {
+  padding: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.c-sidebar-add-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem;
+  background: var(--bg-hover);
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.875rem;
+  color: var(--text);
+}
+
+.c-sidebar-add-button:hover {
+  background: var(--bg-active);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Resize handle */
+.c-sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: ew-resize;
+  background: transparent;
+  transition: background 0.2s;
+}
+
+.c-sidebar-resize-handle:hover {
+  background: var(--primary);
+}
+
+/* Overlay for mobile */
+.c-sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
+/* Switching state */
+.c-sidebar.switching {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Unread badge */
+.c-sidebar-item .c-badge {
+  font-size: 0.625rem;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Mobile adjustments */
+@media (max-width: 1023px) {
+  .c-sidebar {
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
+    bottom: 4.5rem; /* Account for bottom navbar on mobile */
+  }
+}
+
+/* Dark mode adjustments */
+body.dark .c-sidebar {
+  background: var(--bg-emph);
+}
+
+body.dark .c-sidebar-overlay {
+  background: rgba(0, 0, 0, 0.7);
+}

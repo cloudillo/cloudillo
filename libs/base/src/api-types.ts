@@ -350,12 +350,18 @@ export interface ListProfilesQuery {
 }
 
 // Response types
+export const tProfileKey = T.struct({
+  keyId: T.string,
+  publicKey: T.string,
+})
+export type ProfileKey = T.TypeOf<typeof tProfileKey>
+
 export const tProfileKeys = T.struct({
   idTag: T.string,
   name: T.optional(T.string),
   type: T.optional(T.literal('person', 'community')),
   profilePic: T.optional(T.string),
-  keys: T.array(T.string),
+  keys: T.array(tProfileKey),
 })
 export type ProfileKeys = T.TypeOf<typeof tProfileKeys>
 

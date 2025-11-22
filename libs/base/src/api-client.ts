@@ -180,6 +180,14 @@ export class ApiClient {
       this.request('POST', '/auth/set-password', Types.tSetPasswordResult, { data }),
 
     /**
+     * POST /auth/register - Register new user
+     * @param data - Registration request
+     * @returns Login result with token and profile info
+     */
+    register: (data: Types.RegisterRequest) =>
+      this.request('POST', '/auth/register', Types.tLoginResult, { data }),
+
+    /**
      * POST /auth/register-verify - Verify registration information
      * @param data - Registration verify request
      * @returns Verification result with identity providers and validation errors
@@ -300,6 +308,44 @@ export class ApiClient {
      */
     create: (data: Types.CreateFileRequest) =>
       this.request('POST', '/file', Types.tCreateFileResult, { data }),
+
+    /**
+     * POST /file/{preset}/{fileName} - Upload file blob
+     * @param preset - File preset (e.g., "profile", "cover", "gallery")
+     * @param fileName - File name
+     * @param fileData - File data (Blob, File, or ArrayBuffer)
+     * @param contentType - Content type of the file
+     * @returns Upload result with file ID and optional thumbnail variant ID
+     */
+    uploadBlob: async (preset: string, fileName: string, fileData: Blob | File | ArrayBuffer, contentType?: string) => {
+      const url = `https://cl-o.${this.opts.idTag}/api/file/${preset}/${fileName}`
+      const body = fileData instanceof ArrayBuffer ? fileData : await (fileData as Blob).arrayBuffer()
+
+      const headers: Record<string, string> = {
+        'Content-Type': contentType || (fileData instanceof File ? fileData.type : 'application/octet-stream')
+      }
+      if (this.opts.authToken) {
+        headers['Authorization'] = `Bearer ${this.opts.authToken}`
+      }
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+        body
+      })
+
+      if (!res.ok) {
+        throw new Error(`Upload failed: ${res.status} ${res.statusText}`)
+      }
+
+      const result = await res.json()
+      const decoded = T.decode(Types.tUploadFileResult, result)
+      if (T.isErr(decoded)) {
+        throw new Error(`Invalid response: ${decoded.err.map(e => e.error).join(', ')}`)
+      }
+      return decoded.ok
+    },
 
     /**
      * GET /file/variant/:variantId - Get specific file variant
@@ -449,6 +495,15 @@ export class ApiClient {
      */
     updateConnection: (idTag: string, data: Types.PatchProfileConnection) =>
       this.request('PATCH', `/profile/${idTag}`, T.struct({}), { data }),
+
+    /**
+     * PATCH /admin/profile/:idTag - Admin update profile
+     * @param idTag - Identity tag
+     * @param data - Profile patch data
+     * @returns Updated profile
+     */
+    adminUpdate: (idTag: string, data: Types.ProfilePatch) =>
+      this.request('PATCH', `/admin/profile/${idTag}`, Types.tUpdateProfileResult, { data }),
   }
 
   // ========================================================================
@@ -534,6 +589,7 @@ export class ApiClient {
     delete: (refId: string) =>
       this.request('DELETE', `/refs/${refId}`, Types.tDeleteRefResult),
   }
+
 }
 
 /**

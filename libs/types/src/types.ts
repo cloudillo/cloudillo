@@ -27,11 +27,9 @@ export const tActionType = T.literal('CONN', 'FLLW', 'POST', 'REPOST', 'REACT', 
 export type ActionType = T.TypeOf<typeof tActionType>
 
 export const tActionStatus = T.literal(
-	'P',
-	'A',	// Active
-	'R',
-	'C',	// Confirmation needed
-	'N'		// Notification
+	'P',	// Pending (draft/unpublished)
+	'A',	// Active (default when NULL - published/finalized)
+	'D'		// Deleted (soft delete)
 )
 export type ActionStatus = T.TypeOf<typeof tActionStatus>
 

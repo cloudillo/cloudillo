@@ -23,7 +23,7 @@
     "@rollup/plugin-replace": "^6.0.3",
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^12.3.0",
-    "@symbion/opalui": "^0.12.1",
+    "@symbion/opalui": "workspace:^0.12.1",
     "@types/react": "^19.2.6",
     "@types/react-dom": "^19.2.3",
     "cross-env": "^10.1.0",

@@ -2,6 +2,7 @@ packages:
   - 'server'
   - 'basic-server'
   - 'shell'
+  - 'storybook'
   - 'libs/*'
   - 'adapters/*'
   - 'apps/*'

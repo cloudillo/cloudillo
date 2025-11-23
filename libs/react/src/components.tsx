@@ -234,8 +234,7 @@ export function ProfilePicture({ className, profile, small, tiny, srcTag }: { cl
 
 	return <div className="c-profile-card">
 		{ auth && profile.profilePic
-			//? <img className={'picture' + (tiny ? ' tiny' : small ? ' small' : '')} src={`https://cl-o.${profile.idTag}/api/store/${profile.profilePic}`}/>
-			? <img className={'picture' + (tiny ? ' tiny' : small ? ' small' : '')} src={`https://cl-o.${srcTag ?? auth.idTag}/api/store/${profile.profilePic}`}/>
+			? <img className={'picture' + (tiny ? ' tiny' : small ? ' small' : '')} src={`https://cl-o.${srcTag ?? auth.idTag}/api/file/${profile.profilePic}?variant=pf`}/>
 			: <UnknownProfilePicture small={small} tiny={tiny}/>
 		}
 	</div>
@@ -254,11 +253,8 @@ export function ProfileCard({ className, profile, srcTag }: { className?: string
 	const [auth] = useAuth()
 
 	return <div className={mergeClasses('c-profile-card', className)}>
-		{/*
-		<img className="picture" src={`https://cl-o.${profile.idTag}/api/store/${profile.profilePic}`}/>
-		*/}
 		{ auth && profile.profilePic
-			? <img className="picture" src={`https://cl-o.${srcTag ?? auth?.idTag}/api/store/${profile.profilePic}`}/>
+			? <img className="picture" src={`https://cl-o.${srcTag ?? auth?.idTag}/api/file/${profile.profilePic}?variant=pf`}/>
 			: <UnknownProfilePicture	/>
 		}
 		<div className="body">
@@ -273,16 +269,12 @@ export function ProfileAudienceCard({ className, audience, profile, srcTag }: { 
 
 	return <div className={mergeClasses('c-profile-card', className)}>
 		<div className="pos-relative">
-			{/*
-			<img className="picture" src={`https://cl-o.${audience.idTag}/api/store/${audience.profilePic}`}/>
-			<img className="picture tiny" src={`https://cl-o.${profile.idTag}/api/store/${profile.profilePic}`}/>
-			*/}
 			{ auth && audience.profilePic
-				? <img className="picture" src={`https://cl-o.${srcTag ?? auth?.idTag}/api/store/${audience.profilePic}`}/>
+				? <img className="picture" src={`https://cl-o.${srcTag ?? auth?.idTag}/api/file/${audience.profilePic}?variant=pf`}/>
 				: <UnknownProfilePicture/>
 			}
 			{ auth && profile.profilePic
-				? <img className="picture tiny" src={`https://cl-o.${srcTag ?? auth?.idTag}/api/store/${profile.profilePic}`}/>
+				? <img className="picture tiny" src={`https://cl-o.${srcTag ?? auth?.idTag}/api/file/${profile.profilePic}?variant=pf`}/>
 				: <UnknownProfilePicture tiny/>
 			}
 		</div>

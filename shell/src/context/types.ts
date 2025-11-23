@@ -117,9 +117,6 @@ export interface SidebarState {
 
   /** Whether sidebar is pinned (desktop) */
   isPinned: boolean
-
-  /** Sidebar width in pixels */
-  width: number
 }
 
 /**

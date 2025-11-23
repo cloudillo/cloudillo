@@ -29,7 +29,9 @@ export type ActionType = T.TypeOf<typeof tActionType>
 export const tActionStatus = T.literal(
 	'P',	// Pending (draft/unpublished)
 	'A',	// Active (default when NULL - published/finalized)
-	'D'		// Deleted (soft delete)
+	'D',	// Deleted (soft delete)
+	'C',	// Created (pending approval - e.g. connection requests)
+	'N'		// New (notification - awaiting user acknowledgment)
 )
 export type ActionStatus = T.TypeOf<typeof tActionStatus>
 

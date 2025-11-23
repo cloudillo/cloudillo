@@ -178,18 +178,19 @@ body {
 	display: flex;
 	flex-direction: column;
 	height: 100%;
-	width: 100%;
+	min-width: 0; /* Prevent overflow */
 	transition: margin-left 0.3s ease;
+	--sidebar-width: 5rem; /* Default sidebar width */
 }
 
 .c-layout.with-sidebar {
-	margin-left: 240px;
+	margin-left: var(--sidebar-width); /* Use CSS variable for consistency */
 }
 
 /* On desktop, layout shifts when sidebar is pinned */
 @media (min-width: 1024px) {
 	.c-layout.with-sidebar {
-		margin-left: 240px;
+		margin-left: var(--sidebar-width); /* Use CSS variable for consistency */
 	}
 }
 

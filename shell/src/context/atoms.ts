@@ -75,8 +75,7 @@ export const sidebarAtom = atomWithStorage<SidebarState>(
   'cloudillo:sidebar',
   {
     isOpen: false,
-    isPinned: true,
-    width: 240
+    isPinned: true
   }
 )
 

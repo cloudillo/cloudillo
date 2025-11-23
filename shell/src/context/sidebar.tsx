@@ -83,9 +83,8 @@ export function Sidebar({ className }: SidebarProps) {
   const [activeContext] = useAtom(activeContextAtom)
   const { favorites, recent, totalUnread, toggleFavorite } = useCommunitiesList()
   const { switchTo, isSwitching } = useContextSwitch()
-  const { isOpen, isPinned, width, open, toggle, pin, unpin, setWidth } = useSidebar()
+  const { isOpen, isPinned, open, toggle, pin, unpin } = useSidebar()
   const navigate = useNavigate()
-  const [isResizing, setIsResizing] = React.useState(false)
   const [isDesktop, setIsDesktop] = React.useState(window.innerWidth >= 1024)
 
   // Auto-pin and open on desktop
@@ -113,33 +112,6 @@ export function Sidebar({ className }: SidebarProps) {
     })
   }, [switchTo])
 
-  // Handle resize
-  const handleMouseDown = React.useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    setIsResizing(true)
-  }, [])
-
-  React.useEffect(() => {
-    if (!isResizing) return
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const newWidth = Math.max(200, Math.min(400, e.clientX))
-      setWidth(newWidth)
-    }
-
-    const handleMouseUp = () => {
-      setIsResizing(false)
-    }
-
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [isResizing, setWidth])
-
   if (!auth) return null
 
   return (
@@ -148,12 +120,12 @@ export function Sidebar({ className }: SidebarProps) {
       <aside
         className={mergeClasses(
           'c-sidebar',
+          'left',
           isOpen && 'open',
           isPinned && 'pinned',
           isSwitching && 'switching',
           className
         )}
-        style={{ width: isPinned ? `${width}px` : undefined }}
       >
         {/* Header with toggle pin button */}
         <div className="c-sidebar-header">
@@ -247,20 +219,16 @@ export function Sidebar({ className }: SidebarProps) {
             <span>{t('Add community')}</span>
           </button>
         </div>
-
-        {/* Resize handle */}
-        {isPinned && (
-          <div
-            className="c-sidebar-resize-handle"
-            onMouseDown={handleMouseDown}
-          />
-        )}
       </aside>
 
-      {/* Overlay for mobile when sidebar is open */}
-      {isOpen && !isPinned && (
-        <div className="c-sidebar-overlay" onClick={toggle} />
-      )}
+      {/* Backdrop for mobile when sidebar is open */}
+      <div
+        className={mergeClasses(
+          'c-sidebar-backdrop',
+          isOpen && !isPinned && 'show'
+        )}
+        onClick={toggle}
+      />
     </>
   )
 }

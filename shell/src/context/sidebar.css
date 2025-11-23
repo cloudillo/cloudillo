@@ -2,32 +2,25 @@
  * Context Switcher Sidebar Styles
  *
  * Discord/Slack-style sidebar for multi-context switching
+ * Uses OpalUI sidebar component as base
  */
 
-/* Sidebar container */
+/* Sidebar container - extends OpalUI c-sidebar */
 .c-sidebar {
+  /* Override OpalUI defaults for narrower Discord/Slack style (5rem = 80px) */
+  --sidebar-width: 5rem !important;
+  --sidebar-min-width: 5rem !important;
+  --sidebar-max-width: 12rem !important;
+
+  /* Ensure fixed positioning (override OpalUI if needed) */
   position: fixed;
   top: 3.5rem; /* Start below the header navbar */
   left: 0;
   bottom: 0;
-  width: 240px;
-  background: var(--bg-emph);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
+  width: var(--sidebar-width) !important; /* Force use of CSS variable */
+  min-width: var(--sidebar-min-width) !important;
+  max-width: var(--sidebar-max-width) !important;
   z-index: 9; /* Below header (z-index: 10) but above content */
-  transform: translateX(-100%);
-  transition: transform 0.3s ease;
-  overflow: hidden;
-}
-
-.c-sidebar.open {
-  transform: translateX(0);
-}
-
-.c-sidebar.pinned {
-  transform: translateX(0);
-  position: fixed !important;
 }
 
 /* On desktop, sidebar is always visible and pinned */
@@ -40,25 +33,29 @@
 /* Header */
 .c-sidebar-header {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  padding: 1rem;
-  border-bottom: 1px solid var(--border);
+  justify-content: center;
+  padding: 0.5rem;
+  border-bottom: var(--border-w-lg) solid var(--col-outline);
 }
 
 .c-sidebar-header h6 {
   margin: 0;
   font-weight: 600;
+  font-size: 0.625rem;
+  text-align: center;
 }
 
 .c-sidebar-header-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
 }
 
 .c-sidebar-loading-spinner {
-  color: var(--primary);
+  color: var(--col-primary);
   animation: spin 1s linear infinite;
 }
 
@@ -76,18 +73,18 @@
   border: none;
   padding: 0.25rem;
   cursor: pointer;
-  color: var(--text-disabled);
+  color: lch(from var(--col-on) l c h / var(--op-disabled));
   transition: color 0.2s;
 }
 
 .c-sidebar-pin:hover {
-  color: var(--text);
+  color: var(--col-on);
 }
 
 /* Sections */
 .c-sidebar-section {
   padding: 0.5rem 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: var(--border-w-lg) solid var(--col-outline);
 }
 
 .c-sidebar-section:last-of-type {
@@ -98,42 +95,46 @@
 
 .c-sidebar-section-header {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  font-size: 0.75rem;
+  gap: 0.25rem;
+  padding: 0.5rem 0.25rem;
+  font-size: 0.625rem;
   font-weight: 600;
   text-transform: uppercase;
-  color: var(--text-disabled);
+  color: lch(from var(--col-on) l c h / var(--op-disabled));
 }
 
-/* List items */
+/* List items - vertical layout (Discord/Slack style) */
 .c-sidebar-item {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 1rem;
+  gap: 0.25rem;
+  padding: 0.5rem 0.25rem;
   cursor: pointer;
   transition: background 0.2s;
   position: relative;
 }
 
 .c-sidebar-item:hover {
-  background: var(--bg-hover);
+  background: lch(from var(--col-surface) l c h / var(--op-hover));
 }
 
 .c-sidebar-item.active {
-  background: var(--bg-active);
+  background: lch(from var(--col-primary) l c h / var(--op-active));
 }
 
 .c-sidebar-item.active::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 0;
-  bottom: 0;
+  top: 50%;
+  transform: translateY(-50%);
   width: 3px;
-  background: var(--primary);
+  height: 60%;
+  background: var(--col-primary);
+  border-radius: 0 2px 2px 0;
 }
 
 /* User's profile item */
@@ -144,110 +145,101 @@
 /* Avatar */
 .c-sidebar-item-avatar {
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   overflow: hidden;
+  transition: border-radius 0.2s;
+}
+
+.c-sidebar-item:hover .c-sidebar-item-avatar {
+  border-radius: 35%;
+}
+
+.c-sidebar-item.active .c-sidebar-item-avatar {
+  border-radius: 35%;
 }
 
 /* Info */
 .c-sidebar-item-info {
-  flex: 1;
-  min-width: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.125rem;
+  width: 100%;
 }
 
 .c-sidebar-item-name {
-  font-size: 0.875rem;
+  font-size: 0.625rem;
   font-weight: 500;
+  text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .c-sidebar-item-subtitle {
-  font-size: 0.75rem;
-  color: var(--text-disabled);
+  font-size: 0.5rem;
+  color: lch(from var(--col-on) l c h / var(--op-disabled));
+  text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 /* Favorite button */
 .c-sidebar-item-favorite {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
   background: none;
   border: none;
-  padding: 0.25rem;
+  padding: 0.125rem;
   cursor: pointer;
-  color: var(--text-disabled);
+  color: lch(from var(--col-on) l c h / var(--op-disabled));
   transition: color 0.2s;
   flex-shrink: 0;
+  font-size: 0.75rem;
 }
 
 .c-sidebar-item-favorite:hover {
-  color: var(--warning);
+  color: var(--col-warning);
 }
 
 .c-sidebar-item-favorite .filled {
-  color: var(--warning);
-  fill: var(--warning);
+  color: var(--col-warning);
+  fill: var(--col-warning);
 }
 
 /* Footer */
 .c-sidebar-footer {
-  padding: 1rem;
-  border-top: 1px solid var(--border);
+  padding: 0.5rem 0.25rem;
+  border-top: var(--border-w-lg) solid var(--col-outline);
 }
 
 .c-sidebar-add-button {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.25rem;
   width: 100%;
-  padding: 0.5rem;
-  background: var(--bg-hover);
-  border: 1px dashed var(--border);
-  border-radius: 4px;
+  padding: 0.5rem 0.25rem;
+  background: lch(from var(--col-surface) l c h / var(--op-hover));
+  border: var(--border-w-lg) dashed var(--col-outline);
+  border-radius: var(--border-radius-md);
   cursor: pointer;
   transition: all 0.2s;
-  font-size: 0.875rem;
-  color: var(--text);
+  font-size: 0.625rem;
+  color: var(--col-on);
 }
 
 .c-sidebar-add-button:hover {
-  background: var(--bg-active);
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-/* Resize handle */
-.c-sidebar-resize-handle {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 4px;
-  cursor: ew-resize;
-  background: transparent;
-  transition: background 0.2s;
-}
-
-.c-sidebar-resize-handle:hover {
-  background: var(--primary);
-}
-
-/* Overlay for mobile */
-.c-sidebar-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 999;
+  background: lch(from var(--col-primary) l c h / var(--op-active));
+  border-color: var(--col-primary);
+  color: var(--col-primary);
 }
 
 /* Switching state */
@@ -258,9 +250,13 @@
 
 /* Unread badge */
 .c-sidebar-item .c-badge {
-  font-size: 0.625rem;
-  min-width: 1.25rem;
-  height: 1.25rem;
+  position: absolute;
+  top: 0;
+  right: 50%;
+  transform: translateX(50%);
+  font-size: 0.5rem;
+  min-width: 1rem;
+  height: 1rem;
   padding: 0 0.25rem;
   display: flex;
   align-items: center;
@@ -270,16 +266,6 @@
 /* Mobile adjustments */
 @media (max-width: 1023px) {
   .c-sidebar {
-    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
     bottom: 4.5rem; /* Account for bottom navbar on mobile */
   }
-}
-
-/* Dark mode adjustments */
-body.dark .c-sidebar {
-  background: var(--bg-emph);
-}
-
-body.dark .c-sidebar-overlay {
-  background: rgba(0, 0, 0, 0.7);
 }

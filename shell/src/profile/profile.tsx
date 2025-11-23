@@ -55,15 +55,8 @@ interface FullProfile {
 	idTag: string
 	name: string
 	type: 'community' | 'person',
-	profilePic?: {
-		ic: string
-		sd?: string
-		hd?: string
-	}
-	coverPic?: {
-		sd: string
-		hd: string
-	}
+	profilePic?: string
+	coverPic?: string
 	x?: {
 		category?: string
 		intro?: string
@@ -177,7 +170,8 @@ export function ProfilePage({
 
 	async function uploadCover(img: Blob) {
 		console.log('upload cover', img)
-	
+		if (!auth) return
+
 		// Upload
 		const request = new XMLHttpRequest()
 		request.open('PUT', `https://cl-o.${api?.idTag}/api/me/cover`);
@@ -189,19 +183,32 @@ export function ProfilePage({
 		})
 		request.addEventListener('load', function(e) {
 			console.log('RES', request.status, request.response)
-			const coverPic = JSON.parse(request.response)
-			if (profile) setProfile(p => p ? { ...p, coverPic } : p)
+			if (request.status === 200) {
+				try {
+					const coverPic = JSON.parse(request.response)
+					if (profile) setProfile(p => p ? { ...p, coverPic } : p)
+					setCoverUpload(undefined)
+				} catch (err) {
+					console.error('Failed to parse response:', err)
+				}
+			} else {
+				console.error('Upload failed with status:', request.status, request.response)
+			}
+		})
+
+		request.addEventListener('error', function() {
+			console.error('Network error during cover upload')
+			setCoverUpload(undefined)
 		})
 
 		request.send(img)
 		// / Upload
-
-		setCoverUpload(undefined)
 	}
 
 	async function uploadProfile(img: Blob) {
 		console.log('upload profile', img)
-	
+		if (!auth) return
+
 		// Upload
 		const request = new XMLHttpRequest()
 		request.open('PUT', `https://cl-o.${api?.idTag}/api/me/image`);
@@ -213,15 +220,27 @@ export function ProfilePage({
 		})
 		request.addEventListener('load', function(e) {
 			console.log('RES', request.status, request.response)
-			const profilePic = JSON.parse(request.response)
-			if (profile) setProfile(p => p ? { ...p, profilePic } : p)
-			if (auth?.tnId == profile.tnId) setAuth(a => a ? {  ...a, profilePic: profilePic.ic } : a)
+			if (request.status === 200) {
+				try {
+					const profilePic = JSON.parse(request.response)
+					if (profile) setProfile(p => p ? { ...p, profilePic } : p)
+					if (auth?.tnId == profile.tnId) setAuth(a => a ? { ...a, profilePic } : a)
+					setProfileUpload(undefined)
+				} catch (err) {
+					console.error('Failed to parse response:', err)
+				}
+			} else {
+				console.error('Upload failed with status:', request.status, request.response)
+			}
+		})
+
+		request.addEventListener('error', function() {
+			console.error('Network error during profile upload')
+			setProfileUpload(undefined)
 		})
 
 		request.send(img)
 		// / Upload
-
-		setProfileUpload(undefined)
 	}
 
 	function changeCover() {
@@ -254,7 +273,7 @@ export function ProfilePage({
 				<div className="c-panel p-0 pos-relative d-flex flex-column">
 					<div className="c-profile-header pos-relative w-100" style={{ minHeight: '160px' }}>
 						{ profile.coverPic &&
-							<img className="c-profile-cover w-100" src={`https://cl-o.${profile.idTag}/api/file/${profile?.coverPic?.hd || profile?.coverPic.sd}`}/>
+							<img className="c-profile-cover w-100" src={`https://cl-o.${profile.idTag}/api/file/${profile.coverPic}?variant=hd`}/>
 						}
 						{ own && <>
 							<label htmlFor={inputId} className="c-overlay-icon pos-absolute top-0 right-0 m-2">
@@ -264,7 +283,7 @@ export function ProfilePage({
 						</> }
 						<div className="c-profile-pic-container">
 							{ profile.profilePic
-								? <img className="c-profile-pic" src={`https://cl-o.${profile.idTag}/api/file/${profile.profilePic.sd || profile.profilePic.ic}`} alt="Profile picture"/>
+								? <img className="c-profile-pic" src={`https://cl-o.${profile.idTag}/api/file/${profile.profilePic}?variant=pf`} alt="Profile picture"/>
 								: <svg className="c-profile-pic" viewBox="4 4 16 16" fill="none">
 									<path d="M12 22.01C17.5228 22.01 22 17.5329 22 12.01C22 6.48716 17.5228 2.01001 12 2.01001C6.47715 2.01001 2 6.48716 2 12.01C2 17.5329 6.47715 22.01 12 22.01Z" fill="#ADB3BA"/>
 									<path d="M12 6.93994C9.93 6.93994 8.25 8.61994 8.25 10.6899C8.25 12.7199 9.84 14.3699 11.95 14.4299C11.98 14.4299 12.02 14.4299 12.04 14.4299C12.06 14.4299 12.09 14.4299 12.11 14.4299C12.12 14.4299 12.13 14.4299 12.13 14.4299C14.15 14.3599 15.74 12.7199 15.75 10.6899C15.75 8.61994 14.07 6.93994 12 6.93994Z" fill="#292D32"/>

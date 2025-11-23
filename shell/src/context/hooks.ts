@@ -329,18 +329,13 @@ export function useSidebar() {
     setSidebar(prev => ({ ...prev, isPinned: false }))
   }, [setSidebar])
 
-  const setWidth = React.useCallback((width: number) => {
-    setSidebar(prev => ({ ...prev, width }))
-  }, [setSidebar])
-
   return {
     ...sidebar,
     open,
     close,
     toggle,
     pin,
-    unpin,
-    setWidth
+    unpin
   }
 }
 

@@ -14,22 +14,26 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import './i18n.js'
+import i18n from 'i18next'
+import { initReactI18next } from 'react-i18next'
 
-import * as React from 'react'
-import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
-
-import { PrelloApp } from './app.js'
-
-function App(props: React.PropsWithChildren<{}>) {
-	return <BrowserRouter basename="/">
-		<PrelloApp/>
-	</BrowserRouter>
+const resources = {
+	en: { translation: {} },
 }
 
-const app = document.getElementById('app')
-const root = createRoot(app!)
-root.render(<App/>)
+i18n
+	.use(initReactI18next)
+	.init({
+		resources,
+		fallbackLng: 'en',
+		keySeparator: '@',
+		nsSeparator: '$',
+		returnNull: false,
+		interpolation: {
+			escapeValue: false,
+		}
+	}).catch()
+
+export default i18n
 
 // vim: ts=4

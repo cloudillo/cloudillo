@@ -14,22 +14,17 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import './i18n.js'
+/**
+ * React hooks exports
+ */
 
-import * as React from 'react'
-import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
+export { usePrelloDocument } from './usePrelloDocument'
+export type { UsePrelloDocumentResult } from './usePrelloDocument'
 
-import { PrelloApp } from './app.js'
-
-function App(props: React.PropsWithChildren<{}>) {
-	return <BrowserRouter basename="/">
-		<PrelloApp/>
-	</BrowserRouter>
-}
-
-const app = document.getElementById('app')
-const root = createRoot(app!)
-root.render(<App/>)
+export { useViewObjects, useViewObjectIds } from './useViewObjects'
+export { useLayers, useLayerIds } from './useLayers'
+export { useViews, useView, useViewIds } from './useViews'
+export { useSnappingConfig, useGetParent, useSnapSettings } from './useSnappingConfig'
+export type { SnapSettings, UseSnapSettingsResult } from './useSnappingConfig'
 
 // vim: ts=4

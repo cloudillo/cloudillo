@@ -14,22 +14,24 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import './i18n.js'
+export { ObjectShape } from './ObjectShape'
+export type { ObjectShapeProps } from './ObjectShape'
 
-import * as React from 'react'
-import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
+export { PresentationMode } from './PresentationMode'
+export type { PresentationModeProps } from './PresentationMode'
 
-import { PrelloApp } from './app.js'
+export { TextEditOverlay } from './TextEditOverlay'
+export type { TextEditOverlayProps } from './TextEditOverlay'
 
-function App(props: React.PropsWithChildren<{}>) {
-	return <BrowserRouter basename="/">
-		<PrelloApp/>
-	</BrowserRouter>
-}
+export { Toolbar } from './Toolbar'
+export type { ToolbarProps } from './Toolbar'
 
-const app = document.getElementById('app')
-const root = createRoot(app!)
-root.render(<App/>)
+export { ViewFrame } from './ViewFrame'
+export type { ViewFrameProps } from './ViewFrame'
+
+export { ViewPicker } from './ViewPicker'
+export type { ViewPickerProps } from './ViewPicker'
+
+export { WrappedText } from './WrappedText'
 
 // vim: ts=4

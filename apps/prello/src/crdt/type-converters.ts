@@ -1,0 +1,643 @@
+// This file is part of the Cloudillo Platform.
+// Copyright (C) 2024  Szilárd Hajba
+//
+// Cloudillo is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Conversion functions between stored (compact) and runtime (expanded) types
+ */
+
+import type { ObjectId, ContainerId, ViewId, StyleId, RichTextId } from './ids'
+import { toObjectId, toContainerId, toViewId, toStyleId, toRichTextId } from './ids'
+import type * as Stored from './stored-types'
+import type * as Runtime from './runtime-types'
+
+// Type code mappings
+const OBJECT_TYPE_MAP: Record<Stored.ObjectTypeCode, Runtime.ObjectType> = {
+	'R': 'rect',
+	'E': 'ellipse',
+	'L': 'line',
+	'P': 'path',
+	'G': 'polygon',
+	'T': 'text',
+	'B': 'textbox',
+	'I': 'image',
+	'M': 'embed',
+	'C': 'connector'
+}
+
+const OBJECT_TYPE_REVERSE: Record<Runtime.ObjectType, Stored.ObjectTypeCode> = {
+	'rect': 'R',
+	'ellipse': 'E',
+	'line': 'L',
+	'path': 'P',
+	'polygon': 'G',
+	'text': 'T',
+	'textbox': 'B',
+	'image': 'I',
+	'embed': 'M',
+	'connector': 'C'
+}
+
+const CONTAINER_TYPE_MAP: Record<Stored.ContainerTypeCode, Runtime.ContainerType> = {
+	'L': 'layer',
+	'G': 'group'
+}
+
+const CONTAINER_TYPE_REVERSE: Record<Runtime.ContainerType, Stored.ContainerTypeCode> = {
+	'layer': 'L',
+	'group': 'G'
+}
+
+const BLEND_MODE_MAP: Record<Stored.BlendModeCode, Runtime.BlendMode> = {
+	'N': 'normal',
+	'M': 'multiply',
+	'S': 'screen',
+	'O': 'overlay',
+	'D': 'darken',
+	'L': 'lighten',
+	'CD': 'color-dodge',
+	'CB': 'color-burn',
+	'HL': 'hard-light',
+	'SL': 'soft-light',
+	'DF': 'difference',
+	'EX': 'exclusion'
+}
+
+const BLEND_MODE_REVERSE: Record<Runtime.BlendMode, Stored.BlendModeCode> = {
+	'normal': 'N',
+	'multiply': 'M',
+	'screen': 'S',
+	'overlay': 'O',
+	'darken': 'D',
+	'lighten': 'L',
+	'color-dodge': 'CD',
+	'color-burn': 'CB',
+	'hard-light': 'HL',
+	'soft-light': 'SL',
+	'difference': 'DF',
+	'exclusion': 'EX'
+}
+
+const ARROW_TYPE_MAP: Record<Stored.ArrowTypeCode, Runtime.ArrowType> = {
+	'N': 'none',
+	'A': 'arrow',
+	'T': 'triangle',
+	'C': 'circle',
+	'D': 'diamond',
+	'B': 'bar'
+}
+
+const ARROW_TYPE_REVERSE: Record<Runtime.ArrowType, Stored.ArrowTypeCode> = {
+	'none': 'N',
+	'arrow': 'A',
+	'triangle': 'T',
+	'circle': 'C',
+	'diamond': 'D',
+	'bar': 'B'
+}
+
+const ROUTING_MAP: Record<Stored.RoutingCode, Runtime.Routing> = {
+	'S': 'straight',
+	'O': 'orthogonal',
+	'C': 'curved'
+}
+
+const ROUTING_REVERSE: Record<Runtime.Routing, Stored.RoutingCode> = {
+	'straight': 'S',
+	'orthogonal': 'O',
+	'curved': 'C'
+}
+
+const ANCHOR_MAP: Record<Stored.AnchorPointCode, Runtime.AnchorPointType> = {
+	'c': 'center',
+	't': 'top',
+	'b': 'bottom',
+	'l': 'left',
+	'r': 'right',
+	'tl': 'top-left',
+	'tr': 'top-right',
+	'bl': 'bottom-left',
+	'br': 'bottom-right',
+	'a': 'auto'
+}
+
+const ANCHOR_REVERSE: Record<Runtime.AnchorPointType, Stored.AnchorPointCode> = {
+	'center': 'c',
+	'top': 't',
+	'bottom': 'b',
+	'left': 'l',
+	'right': 'r',
+	'top-left': 'tl',
+	'top-right': 'tr',
+	'bottom-left': 'bl',
+	'bottom-right': 'br',
+	'auto': 'a'
+}
+
+const TEXT_ALIGN_MAP: Record<string, Runtime.TextStyle['textAlign']> = {
+	'l': 'left',
+	'c': 'center',
+	'r': 'right',
+	'j': 'justify'
+}
+
+const TEXT_ALIGN_REVERSE: Record<string, string> = {
+	'left': 'l',
+	'center': 'c',
+	'right': 'r',
+	'justify': 'j'
+}
+
+const VERT_ALIGN_MAP: Record<string, Runtime.TextStyle['verticalAlign']> = {
+	't': 'top',
+	'm': 'middle',
+	'b': 'bottom'
+}
+
+const VERT_ALIGN_REVERSE: Record<string, string> = {
+	'top': 't',
+	'middle': 'm',
+	'bottom': 'b'
+}
+
+const TEXT_DECO_MAP: Record<string, Runtime.TextStyle['textDecoration']> = {
+	'u': 'underline',
+	's': 'line-through'
+}
+
+const TEXT_DECO_REVERSE: Record<string, string> = {
+	'underline': 'u',
+	'line-through': 's',
+	'none': ''
+}
+
+// Shape style conversion
+export function expandShapeStyle(stored: Stored.ShapeStyle | undefined): Runtime.ShapeStyle | undefined {
+	if (!stored) return undefined
+	const result: Runtime.ShapeStyle = {}
+
+	if (stored.f !== undefined) result.fill = stored.f
+	if (stored.fo !== undefined) result.fillOpacity = stored.fo
+	if (stored.s !== undefined) result.stroke = stored.s
+	if (stored.sw !== undefined) result.strokeWidth = stored.sw
+	if (stored.so !== undefined) result.strokeOpacity = stored.so
+	if (stored.sd !== undefined) result.strokeDasharray = stored.sd
+	if (stored.sc !== undefined) result.strokeLinecap = stored.sc
+	if (stored.sj !== undefined) result.strokeLinejoin = stored.sj
+	if (stored.sh !== undefined) {
+		result.shadow = {
+			offsetX: stored.sh[0],
+			offsetY: stored.sh[1],
+			blur: stored.sh[2],
+			color: stored.sh[3]
+		}
+	}
+
+	return result
+}
+
+export function compactShapeStyle(runtime: Runtime.ShapeStyle | undefined): Stored.ShapeStyle | undefined {
+	if (!runtime) return undefined
+	const result: Stored.ShapeStyle = {}
+
+	if (runtime.fill !== undefined) result.f = runtime.fill
+	if (runtime.fillOpacity !== undefined) result.fo = runtime.fillOpacity
+	if (runtime.stroke !== undefined) result.s = runtime.stroke
+	if (runtime.strokeWidth !== undefined) result.sw = runtime.strokeWidth
+	if (runtime.strokeOpacity !== undefined) result.so = runtime.strokeOpacity
+	if (runtime.strokeDasharray !== undefined) result.sd = runtime.strokeDasharray
+	if (runtime.strokeLinecap !== undefined) result.sc = runtime.strokeLinecap
+	if (runtime.strokeLinejoin !== undefined) result.sj = runtime.strokeLinejoin
+	if (runtime.shadow !== undefined) {
+		result.sh = [
+			runtime.shadow.offsetX,
+			runtime.shadow.offsetY,
+			runtime.shadow.blur,
+			runtime.shadow.color
+		]
+	}
+
+	return Object.keys(result).length > 0 ? result : undefined
+}
+
+// Text style conversion
+export function expandTextStyle(stored: Stored.TextStyle | undefined): Runtime.TextStyle | undefined {
+	if (!stored) return undefined
+	const result: Runtime.TextStyle = {}
+
+	if (stored.ff !== undefined) result.fontFamily = stored.ff
+	if (stored.fs !== undefined) result.fontSize = stored.fs
+	if (stored.fw !== undefined) result.fontWeight = stored.fw
+	if (stored.fi !== undefined) result.fontItalic = stored.fi
+	if (stored.td !== undefined) result.textDecoration = TEXT_DECO_MAP[stored.td]
+	if (stored.fc !== undefined) result.fill = stored.fc
+	if (stored.ta !== undefined) result.textAlign = TEXT_ALIGN_MAP[stored.ta]
+	if (stored.va !== undefined) result.verticalAlign = VERT_ALIGN_MAP[stored.va]
+	if (stored.lh !== undefined) result.lineHeight = stored.lh
+	if (stored.ls !== undefined) result.letterSpacing = stored.ls
+
+	return result
+}
+
+export function compactTextStyle(runtime: Runtime.TextStyle | undefined): Stored.TextStyle | undefined {
+	if (!runtime) return undefined
+	const result: Stored.TextStyle = {}
+
+	if (runtime.fontFamily !== undefined) result.ff = runtime.fontFamily
+	if (runtime.fontSize !== undefined) result.fs = runtime.fontSize
+	if (runtime.fontWeight !== undefined) result.fw = runtime.fontWeight
+	if (runtime.fontItalic !== undefined) result.fi = runtime.fontItalic
+	if (runtime.textDecoration !== undefined && runtime.textDecoration !== 'none') {
+		result.td = TEXT_DECO_REVERSE[runtime.textDecoration] as 'u' | 's'
+	}
+	if (runtime.fill !== undefined) result.fc = runtime.fill
+	if (runtime.textAlign !== undefined) result.ta = TEXT_ALIGN_REVERSE[runtime.textAlign] as 'l' | 'c' | 'r' | 'j'
+	if (runtime.verticalAlign !== undefined) result.va = VERT_ALIGN_REVERSE[runtime.verticalAlign] as 't' | 'm' | 'b'
+	if (runtime.lineHeight !== undefined) result.lh = runtime.lineHeight
+	if (runtime.letterSpacing !== undefined) result.ls = runtime.letterSpacing
+
+	return Object.keys(result).length > 0 ? result : undefined
+}
+
+// Arrow style conversion
+export function expandArrowStyle(stored: Stored.ArrowDef | undefined): Runtime.ArrowStyle | undefined {
+	if (!stored) return undefined
+	return {
+		type: ARROW_TYPE_MAP[stored[0]],
+		size: stored[1],
+		filled: stored[2]
+	}
+}
+
+export function compactArrowStyle(runtime: Runtime.ArrowStyle | undefined): Stored.ArrowDef | undefined {
+	if (!runtime || runtime.type === 'none') return undefined
+	const result: Stored.ArrowDef = [ARROW_TYPE_REVERSE[runtime.type]]
+	if (runtime.size !== undefined) result[1] = runtime.size
+	if (runtime.filled !== undefined) result[2] = runtime.filled
+	return result
+}
+
+// Anchor point conversion
+export function expandAnchorPoint(stored: Stored.AnchorPoint | undefined): Runtime.AnchorPoint | undefined {
+	if (!stored) return undefined
+	if (Array.isArray(stored)) {
+		return { x: stored[0], y: stored[1] }
+	}
+	return ANCHOR_MAP[stored]
+}
+
+export function compactAnchorPoint(runtime: Runtime.AnchorPoint | undefined): Stored.AnchorPoint | undefined {
+	if (!runtime) return undefined
+	if (typeof runtime === 'object' && 'x' in runtime) {
+		return [runtime.x, runtime.y]
+	}
+	return ANCHOR_REVERSE[runtime as Runtime.AnchorPointType]
+}
+
+// Object conversion
+export function expandObject(id: string, stored: Stored.StoredObject): Runtime.PrelloObject {
+	const base: Partial<Runtime.PrelloObjectBase> = {
+		id: toObjectId(id),
+		type: OBJECT_TYPE_MAP[stored.t],
+		parentId: stored.p ? toContainerId(stored.p) : undefined,
+		x: stored.xy[0],
+		y: stored.xy[1],
+		width: stored.wh[0],
+		height: stored.wh[1],
+		rotation: stored.r ?? 0,
+		pivotX: stored.pv?.[0] ?? 0.5,
+		pivotY: stored.pv?.[1] ?? 0.5,
+		opacity: stored.o ?? 1,
+		visible: stored.v !== false,
+		locked: stored.k === true,
+		name: stored.n,
+		shapeStyleId: stored.si ? toStyleId(stored.si) : undefined,
+		shapeStyleOverrides: expandShapeStyle(stored.so),
+		textStyleId: stored.ti ? toStyleId(stored.ti) : undefined,
+		textStyleOverrides: expandTextStyle(stored.to),
+		style: expandShapeStyle(stored.s),
+		textStyle: expandTextStyle(stored.ts)
+	}
+
+	switch (stored.t) {
+		case 'R':
+			return {
+				...base,
+				type: 'rect',
+				cornerRadius: stored.cr
+			} as Runtime.RectObject
+
+		case 'E':
+			return {
+				...base,
+				type: 'ellipse'
+			} as Runtime.EllipseObject
+
+		case 'L':
+			return {
+				...base,
+				type: 'line',
+				points: (stored as Stored.StoredLine).pts,
+				startArrow: expandArrowStyle((stored as Stored.StoredLine).sa),
+				endArrow: expandArrowStyle((stored as Stored.StoredLine).ea)
+			} as Runtime.LineObject
+
+		case 'P':
+			return {
+				...base,
+				type: 'path',
+				pathData: (stored as Stored.StoredPath).d
+			} as Runtime.PathObject
+
+		case 'G':
+			return {
+				...base,
+				type: 'polygon',
+				points: (stored as Stored.StoredPolygon).pts,
+				closed: (stored as Stored.StoredPolygon).cl
+			} as Runtime.PolygonObject
+
+		case 'T':
+			return {
+				...base,
+				type: 'text',
+				text: (stored as Stored.StoredText).tx
+			} as Runtime.TextObject
+
+		case 'B':
+			return {
+				...base,
+				type: 'textbox',
+				textContentId: toRichTextId((stored as Stored.StoredTextbox).tid),
+				padding: (stored as Stored.StoredTextbox).pd,
+				background: (stored as Stored.StoredTextbox).bg,
+				border: expandShapeStyle((stored as Stored.StoredTextbox).bd)
+			} as Runtime.TextboxObject
+
+		case 'I':
+			return {
+				...base,
+				type: 'image',
+				src: (stored as Stored.StoredImage).src,
+				alt: (stored as Stored.StoredImage).alt,
+				objectFit: (stored as Stored.StoredImage).fit
+			} as Runtime.ImageObject
+
+		case 'M':
+			return {
+				...base,
+				type: 'embed',
+				embedType: (stored as Stored.StoredEmbed).mt,
+				src: (stored as Stored.StoredEmbed).src
+			} as Runtime.EmbedObject
+
+		case 'C':
+			const conn = stored as Stored.StoredConnector
+			return {
+				...base,
+				type: 'connector',
+				startObjectId: conn.so_ ? toObjectId(conn.so_) : undefined,
+				startAnchor: expandAnchorPoint(conn.sa),
+				endObjectId: conn.eo ? toObjectId(conn.eo) : undefined,
+				endAnchor: expandAnchorPoint(conn.ea),
+				waypoints: conn.wp,
+				routing: conn.rt ? ROUTING_MAP[conn.rt] : undefined,
+				startArrow: expandArrowStyle(conn.sar),
+				endArrow: expandArrowStyle(conn.ear)
+			} as Runtime.ConnectorObject
+
+		default:
+			throw new Error(`Unknown object type: ${(stored as any).t}`)
+	}
+}
+
+export function compactObject(runtime: Runtime.PrelloObject): Stored.StoredObject {
+	const base: Partial<Stored.StoredObjectBase> = {
+		t: OBJECT_TYPE_REVERSE[runtime.type],
+		xy: [runtime.x, runtime.y],
+		wh: [runtime.width, runtime.height]
+	}
+
+	// Only include non-default values
+	if (runtime.parentId) base.p = runtime.parentId
+	if (runtime.rotation) base.r = runtime.rotation
+	// Only store pivot if not center (default is 0.5, 0.5)
+	if (runtime.pivotX !== 0.5 || runtime.pivotY !== 0.5) {
+		base.pv = [runtime.pivotX, runtime.pivotY]
+	}
+	if (runtime.opacity !== 1) base.o = runtime.opacity
+	if (!runtime.visible) base.v = false
+	if (runtime.locked) base.k = true
+	if (runtime.name) base.n = runtime.name
+	if (runtime.shapeStyleId) base.si = runtime.shapeStyleId
+	if (runtime.shapeStyleOverrides) base.so = compactShapeStyle(runtime.shapeStyleOverrides)
+	if (runtime.textStyleId) base.ti = runtime.textStyleId
+	if (runtime.textStyleOverrides) base.to = compactTextStyle(runtime.textStyleOverrides)
+	if (runtime.style) base.s = compactShapeStyle(runtime.style)
+	if (runtime.textStyle) base.ts = compactTextStyle(runtime.textStyle)
+
+	switch (runtime.type) {
+		case 'rect':
+			const rect = runtime as Runtime.RectObject
+			return {
+				...base,
+				t: 'R',
+				cr: rect.cornerRadius
+			} as Stored.StoredRect
+
+		case 'ellipse':
+			return {
+				...base,
+				t: 'E'
+			} as Stored.StoredEllipse
+
+		case 'line':
+			const line = runtime as Runtime.LineObject
+			return {
+				...base,
+				t: 'L',
+				pts: line.points,
+				sa: compactArrowStyle(line.startArrow),
+				ea: compactArrowStyle(line.endArrow)
+			} as Stored.StoredLine
+
+		case 'path':
+			return {
+				...base,
+				t: 'P',
+				d: (runtime as Runtime.PathObject).pathData
+			} as Stored.StoredPath
+
+		case 'polygon':
+			const poly = runtime as Runtime.PolygonObject
+			return {
+				...base,
+				t: 'G',
+				pts: poly.points,
+				cl: poly.closed
+			} as Stored.StoredPolygon
+
+		case 'text':
+			return {
+				...base,
+				t: 'T',
+				tx: (runtime as Runtime.TextObject).text
+			} as Stored.StoredText
+
+		case 'textbox':
+			const textbox = runtime as Runtime.TextboxObject
+			return {
+				...base,
+				t: 'B',
+				tid: textbox.textContentId,
+				pd: textbox.padding,
+				bg: textbox.background,
+				bd: compactShapeStyle(textbox.border)
+			} as Stored.StoredTextbox
+
+		case 'image':
+			const img = runtime as Runtime.ImageObject
+			return {
+				...base,
+				t: 'I',
+				src: img.src,
+				alt: img.alt,
+				fit: img.objectFit
+			} as Stored.StoredImage
+
+		case 'embed':
+			const embed = runtime as Runtime.EmbedObject
+			return {
+				...base,
+				t: 'M',
+				mt: embed.embedType,
+				src: embed.src
+			} as Stored.StoredEmbed
+
+		case 'connector':
+			const conn = runtime as Runtime.ConnectorObject
+			return {
+				...base,
+				t: 'C',
+				so_: conn.startObjectId,
+				sa: compactAnchorPoint(conn.startAnchor),
+				eo: conn.endObjectId,
+				ea: compactAnchorPoint(conn.endAnchor),
+				wp: conn.waypoints,
+				rt: conn.routing ? ROUTING_REVERSE[conn.routing] : undefined,
+				sar: compactArrowStyle(conn.startArrow),
+				ear: compactArrowStyle(conn.endArrow)
+			} as Stored.StoredConnector
+
+		default:
+			throw new Error(`Unknown object type: ${(runtime as any).type}`)
+	}
+}
+
+// Container conversion
+export function expandContainer(id: string, stored: Stored.StoredContainer): Runtime.ContainerNode {
+	return {
+		id: toContainerId(id),
+		type: CONTAINER_TYPE_MAP[stored.t],
+		parentId: stored.p ? toContainerId(stored.p) : undefined,
+		name: stored.n,
+		x: stored.xy[0],
+		y: stored.xy[1],
+		rotation: stored.r ?? 0,
+		scaleX: stored.sc?.[0] ?? 1,
+		scaleY: stored.sc?.[1] ?? 1,
+		opacity: stored.o ?? 1,
+		blendMode: stored.bm ? BLEND_MODE_MAP[stored.bm] : 'normal',
+		visible: stored.v !== false,
+		locked: stored.k === true,
+		expanded: stored.x ?? false
+	}
+}
+
+export function compactContainer(runtime: Runtime.ContainerNode): Stored.StoredContainer {
+	const result: Stored.StoredContainer = {
+		t: CONTAINER_TYPE_REVERSE[runtime.type],
+		xy: [runtime.x, runtime.y]
+	}
+
+	if (runtime.parentId) result.p = runtime.parentId
+	if (runtime.name) result.n = runtime.name
+	if (runtime.rotation) result.r = runtime.rotation
+	if (runtime.scaleX !== 1 || runtime.scaleY !== 1) {
+		result.sc = [runtime.scaleX, runtime.scaleY]
+	}
+	if (runtime.opacity !== 1) result.o = runtime.opacity
+	if (runtime.blendMode !== 'normal') result.bm = BLEND_MODE_REVERSE[runtime.blendMode]
+	if (!runtime.visible) result.v = false
+	if (runtime.locked) result.k = true
+	if (runtime.expanded) result.x = runtime.expanded
+
+	return result
+}
+
+// View conversion
+export function expandView(id: string, stored: Stored.StoredView): Runtime.ViewNode {
+	return {
+		id: toViewId(id),
+		name: stored.name,
+		x: stored.x,
+		y: stored.y,
+		width: stored.width,
+		height: stored.height,
+		backgroundColor: stored.backgroundColor,
+		backgroundImage: stored.backgroundImage,
+		backgroundFit: stored.backgroundFit,
+		showBorder: stored.showBorder,
+		transition: stored.transition,
+		notes: stored.notes,
+		hidden: stored.hidden,
+		duration: stored.duration
+	}
+}
+
+export function compactView(runtime: Runtime.ViewNode): Stored.StoredView {
+	const result: Stored.StoredView = {
+		name: runtime.name,
+		x: runtime.x,
+		y: runtime.y,
+		width: runtime.width,
+		height: runtime.height
+	}
+
+	if (runtime.backgroundColor) result.backgroundColor = runtime.backgroundColor
+	if (runtime.backgroundImage) result.backgroundImage = runtime.backgroundImage
+	if (runtime.backgroundFit) result.backgroundFit = runtime.backgroundFit
+	if (runtime.showBorder !== undefined) result.showBorder = runtime.showBorder
+	if (runtime.transition) result.transition = runtime.transition
+	if (runtime.notes) result.notes = runtime.notes
+	if (runtime.hidden) result.hidden = runtime.hidden
+	if (runtime.duration) result.duration = runtime.duration
+
+	return result
+}
+
+// Child reference conversion
+export function expandChildRef(stored: Stored.ChildRef): Runtime.ChildRef {
+	return {
+		type: stored[0] === 0 ? 'object' : 'container',
+		id: stored[0] === 0 ? toObjectId(stored[1]) : toContainerId(stored[1])
+	}
+}
+
+export function compactChildRef(runtime: Runtime.ChildRef): Stored.ChildRef {
+	return [runtime.type === 'object' ? 0 : 1, runtime.id]
+}
+
+// vim: ts=4

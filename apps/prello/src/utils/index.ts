@@ -14,22 +14,20 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import './i18n.js'
+/**
+ * Utility exports
+ */
 
-import * as React from 'react'
-import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
+export * from './constants'
+export * from './coordinates'
+export * from './rotation'
+export * from './text-styles'
 
-import { PrelloApp } from './app.js'
-
-function App(props: React.PropsWithChildren<{}>) {
-	return <BrowserRouter basename="/">
-		<PrelloApp/>
-	</BrowserRouter>
+/**
+ * Merge CSS class names, filtering out falsy values
+ */
+export function mergeClasses(...classes: (string | false | undefined | null)[]): string {
+	return classes.filter(Boolean).join(' ')
 }
-
-const app = document.getElementById('app')
-const root = createRoot(app!)
-root.render(<App/>)
 
 // vim: ts=4

@@ -1,11 +1,18 @@
 {
 	"version": "0.1.4",
 	"private": true,
+	"type": "module",
 	"packageManager": "pnpm@9.14.4",
 	"workspaces": [
 		"server",
 		"frontend"
 	],
+	"pnpm": {
+		"overrides": {
+			"@symbion/opalui": "workspace:*",
+			"react-svg-canvas": "workspace:*"
+		}
+	},
 	"scripts": {
 		"test": "pnpm -r --filter=@cloudillo/rtdb --filter=@cloudillo/base test",
 		"test:watch": "pnpm -r --filter=@cloudillo/rtdb --filter=@cloudillo/base test:watch",

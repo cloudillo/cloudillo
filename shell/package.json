@@ -12,11 +12,9 @@
   },
   "scripts": {
     "l-scan": "i18next-scanner --config src/i18n/scanner.config.cjs",
-    "build": "cross-env NODE_ENV=production node build.js",
-    "watch": "node build.js --watch",
-    "dev": "node build.js --watch",
-    "build-separate": "cross-env NODE_ENV=production node esbuild.config.js && cross-env NODE_ENV=production node esbuild.sw.config.js && node scripts/build-html.js && node scripts/compress.js",
-    "build-rollup": "cross-env NODE_ENV=production rollup -c && cross-env NODE_ENV=production rollup -c rollup.sw.config.js && sed s/@VERSION@/$npm_package_version/ src/index.html >dist/index.html",
+    "build": "cross-env NODE_ENV=production node esbuild.config.js",
+    "watch": "node esbuild.config.js --watch",
+    "dev": "node esbuild.config.js --watch",
     "tsc": "tsc",
     "clean": "rimraf .cache dist/assets*",
     "start": "web-dev-server"
@@ -36,7 +34,7 @@
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^12.3.0",
     "@simplewebauthn/browser": "^13.2.2",
-    "@symbion/opalui": "workspace:^0.12.1",
+    "@symbion/opalui": "^0.12.1",
     "@symbion/runtype": "^1.1.3",
     "@symbion/simple-form": "^0.12.0",
     "@symbion/ui-core": "^0.0.11",
@@ -44,7 +42,7 @@
     "@types/node": "^24.10.1",
     "@types/qrcode": "^1.5.6",
     "@types/quill": "^2.0.14",
-    "@types/react": "^19.2.6",
+    "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@types/turndown": "^5.0.6",
     "colord": "^2.9.3",
@@ -52,7 +50,7 @@
     "dayjs": "^1.11.19",
     "debounce": "^3.0.0",
     "downshift": "^9.0.10",
-    "esbuild": "^0.24.2",
+    "esbuild": "^0.27.0",
     "i18next": "^25.6.3",
     "i18next-browser-languagedetector": "^8.2.0",
     "i18next-scanner": "^4.6.0",
@@ -94,6 +92,6 @@
     "yjs": "^13.6.27"
   },
   "dependencies": {
-    "@typescript/native-preview": "7.0.0-dev.20251122.1"
+    "@typescript/native-preview": "7.0.0-dev.20251126.1"
   }
 }

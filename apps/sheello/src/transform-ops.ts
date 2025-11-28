@@ -23,6 +23,62 @@ import {
 	setHyperlink,
 	removeHyperlink
 } from './ydoc-helpers'
+import { debug } from './debug'
+
+// ============================================================================
+// Border Edge Types and Utilities
+// ============================================================================
+
+type BorderSide = 'top' | 'bottom' | 'left' | 'right'
+
+interface BorderEdge {
+	style: number
+	color: string
+}
+
+/**
+ * Maps border type names to the sides they affect.
+ * This eliminates the need for repetitive switch statements.
+ */
+const BORDER_TYPE_MAP: Record<string, BorderSide[]> = {
+	'border-all': ['top', 'bottom', 'left', 'right'],
+	'border-outside': ['top', 'bottom', 'left', 'right'],
+	'border-horizontal': ['top', 'bottom'],
+	'border-vertical': ['left', 'right'],
+	'border-top': ['top'],
+	'border-bottom': ['bottom'],
+	'border-left': ['left'],
+	'border-right': ['right']
+	// Note: 'border-inside' is intentionally omitted as it requires special handling
+}
+
+/**
+ * Creates a border style object from a border type and edge definition.
+ * Returns undefined if the border type is not supported.
+ */
+function createBorderStyle(
+	borderType: string,
+	edge: BorderEdge
+): Partial<Record<BorderSide, BorderEdge>> | undefined {
+	const sides = BORDER_TYPE_MAP[borderType]
+	if (!sides) return undefined
+
+	const style: Partial<Record<BorderSide, BorderEdge>> = {}
+	for (const side of sides) {
+		style[side] = edge
+	}
+	return style
+}
+
+/**
+ * Parses a border definition and creates the border edge object.
+ */
+function parseBorderEdge(borderDef: { style?: string | number; color?: string }): BorderEdge {
+	return {
+		style: typeof borderDef.style === 'string' ? parseInt(borderDef.style, 10) : (borderDef.style ?? 1),
+		color: borderDef.color || '#000000'
+	}
+}
 
 /**
  * Transform cell operations (add/replace/remove)
@@ -111,7 +167,7 @@ function transformConfigOp(
 								if (borderDef.rangeType === 'cell' && borderDef.value) {
 									const { row_index, col_index, l, r, t, b } = borderDef.value
 									if (row_index !== undefined && col_index !== undefined) {
-										const borderStyle: any = {}
+										const borderStyle: Partial<Record<BorderSide, BorderEdge>> = {}
 										if (t) borderStyle.top = t
 										if (b) borderStyle.bottom = b
 										if (l) borderStyle.left = l
@@ -119,14 +175,16 @@ function transformConfigOp(
 
 										if (Object.keys(borderStyle).length > 0) {
 											setBorder(sheet, row_index, col_index, borderStyle)
-											console.log(`[Border] Saved cell border at (${row_index}, ${col_index}):`, borderStyle)
+											debug.log(`[Border] Saved cell border at (${row_index}, ${col_index}):`, borderStyle)
 										}
 									}
 								}
 								// Handle range borders (rangeType: 'range')
 								else if (borderDef.range && Array.isArray(borderDef.range)) {
-									// borderInfo array format: { rangeType, borderType, color, style, range: [{row, column}] }
-									console.log('[Border] Processing border def:', borderDef.borderType, 'range cells:', borderDef.range.length, borderDef.range)
+									debug.log('[Border] Processing border def:', borderDef.borderType, 'range cells:', borderDef.range.length)
+
+									const borderEdge = parseBorderEdge(borderDef)
+
 									for (const rangeItem of borderDef.range) {
 										// Each rangeItem can be a range with row: [start, end] and column: [start, end]
 										const rowStart = Array.isArray(rangeItem.row) ? rangeItem.row[0] : rangeItem.row
@@ -137,56 +195,12 @@ function transformConfigOp(
 										// Iterate through all cells in the range
 										for (let rowIndex = rowStart; rowIndex <= rowEnd; rowIndex++) {
 											for (let colIndex = colStart; colIndex <= colEnd; colIndex++) {
-												// Build border style object based on borderType
-										const borderStyle: any = {}
-										const borderEdge = {
-											style: borderDef.style ? parseInt(borderDef.style, 10) : 1,
-											color: borderDef.color || '#000000'
-										}
+												// Use lookup table instead of switch statement
+												const borderStyle = createBorderStyle(borderDef.borderType, borderEdge)
 
-										switch (borderDef.borderType) {
-											case 'border-all':
-												borderStyle.top = borderEdge
-												borderStyle.bottom = borderEdge
-												borderStyle.left = borderEdge
-												borderStyle.right = borderEdge
-												break
-											case 'border-outside':
-												// For range, apply to outer edges only
-												// For now, apply to all edges of each cell (simplified)
-												borderStyle.top = borderEdge
-												borderStyle.bottom = borderEdge
-												borderStyle.left = borderEdge
-												borderStyle.right = borderEdge
-												break
-											case 'border-inside':
-												// Apply to inner edges only (skip for now)
-												break
-											case 'border-horizontal':
-												borderStyle.top = borderEdge
-												borderStyle.bottom = borderEdge
-												break
-											case 'border-vertical':
-												borderStyle.left = borderEdge
-												borderStyle.right = borderEdge
-												break
-											case 'border-top':
-												borderStyle.top = borderEdge
-												break
-											case 'border-bottom':
-												borderStyle.bottom = borderEdge
-												break
-											case 'border-left':
-												borderStyle.left = borderEdge
-												break
-											case 'border-right':
-												borderStyle.right = borderEdge
-												break
-										}
-
-												if (Object.keys(borderStyle).length > 0) {
+												if (borderStyle && Object.keys(borderStyle).length > 0) {
 													setBorder(sheet, rowIndex, colIndex, borderStyle)
-													console.log(`[Border] Saved border at (${rowIndex}, ${colIndex}):`, borderDef.borderType)
+													debug.log(`[Border] Saved border at (${rowIndex}, ${colIndex}):`, borderDef.borderType)
 												}
 											}
 										}
@@ -239,7 +253,7 @@ function transformConfigOp(
 						if (startRowId && endRowId && startColId && endColId) {
 							setMerge(sheet, startRowId, endRowId, startColId, endColId)
 						} else {
-							console.error('[transformConfigOp] Invalid merge indices:', mergeValue)
+							debug.error('[transformConfigOp] Invalid merge indices:', mergeValue)
 						}
 					}
 				} else if (op.path.length === 3 && op.path[1] === 'borderInfo') {
@@ -308,7 +322,7 @@ function transformConfigOp(
 								options: clonedOptions
 							})
 						} else {
-							console.warn('[Validation] Invalid range indices:', range)
+							debug.warn('[Validation] Invalid range indices:', range)
 						}
 					}
 				} else if (op.path.length === 3 && op.path[1] === 'conditionalFormats') {
@@ -342,7 +356,7 @@ function transformConfigOp(
 								format: clonedFormat
 							}])
 						} else {
-							console.warn('[ConditionalFormat] Invalid range indices:', range)
+							debug.warn('[ConditionalFormat] Invalid range indices:', range)
 						}
 					}
 				} else if (op.path.length === 2 && op.path[1] === 'frozen') {
@@ -487,7 +501,7 @@ export function deleteSheet(yDoc: Y.Doc, sheetId: string): void {
 		sheetOrder.delete(index, 1)
 	}
 
-	console.log('[deleteSheet] Deleted sheet from CRDT:', sheetId)
+	debug.log('[deleteSheet] Deleted sheet from CRDT:', sheetId)
 }
 
 /**

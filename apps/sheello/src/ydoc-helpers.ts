@@ -20,6 +20,8 @@ import {
 	generateUniqueRowIds,
 	generateUniqueColIds
 } from './id-generator'
+import { debug } from './debug'
+import { DEFAULT_ROWS, DEFAULT_COLS } from './constants'
 
 /**
  * Get or create sheet structure
@@ -38,7 +40,7 @@ export function getOrCreateSheet(
 
 	// Only create new sheet if it doesn't exist
 	if (!sheet || !(sheet instanceof Y.Map)) {
-		console.log('[getOrCreateSheet] Creating new sheet:', sheetId)
+		debug.log('[getOrCreateSheet] Creating new sheet:', sheetId)
 		sheet = new Y.Map()
 		sheet.set('name', new Y.Text())  // Sheet name as Y.Text
 		sheet.set('rowOrder', new Y.Array<RowId>())
@@ -149,7 +151,7 @@ export function setCell(
 	const colId = sheet.colOrder.get(colIndex)
 
 	if (!rowId || !colId) {
-		console.error(`[setCell] Invalid indices: (${rowIndex}, ${colIndex})`)
+		debug.error(`[setCell] Invalid indices: (${rowIndex}, ${colIndex})`)
 		return
 	}
 
@@ -340,7 +342,7 @@ export function transformSheetToCelldata(sheet: YSheetStructure): {
 		const colSpan = calculateColSpan(sheet, merge.startCol, merge.endCol)
 
 		if (startRowIdx === -1 || startColIdx === -1 || rowSpan === 0 || colSpan === 0) {
-			console.warn('[transformSheetToCelldata] Invalid merge:', merge)
+			debug.warn('[transformSheetToCelldata] Invalid merge:', merge)
 			continue
 		}
 
@@ -1029,7 +1031,7 @@ function validateAndRepairMerges(sheet: YSheetStructure): void {
 		if (!hasStartRow || !hasEndRow || !hasStartCol || !hasEndCol) {
 			// Merge references deleted rows/columns - remove it
 			sheet.merges.delete(key)
-			console.warn('[Merge] Removed invalid merge after deletion:', key, {
+			debug.warn('[Merge] Removed invalid merge after deletion:', key, {
 				hasStartRow,
 				hasEndRow,
 				hasStartCol,
@@ -1047,7 +1049,7 @@ function validateAndRepairMerges(sheet: YSheetStructure): void {
 		if (startRowIdx > endRowIdx || startColIdx > endColIdx) {
 			// Merge range is inverted - remove it
 			sheet.merges.delete(key)
-			console.warn('[Merge] Removed inverted merge:', key, {
+			debug.warn('[Merge] Removed inverted merge:', key, {
 				startRowIdx,
 				endRowIdx,
 				startColIdx,

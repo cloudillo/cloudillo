@@ -3,6 +3,11 @@ import { WorkbookInstance } from '@fortune-sheet/react'
 import { Awareness } from 'y-protocols/awareness'
 import { str2color } from '@cloudillo/base'
 import type { SheetId } from './yjs-types'
+import {
+	CURSOR_POLL_INTERVAL_MS,
+	CURSOR_DEBOUNCE_DELAY_MS,
+	CURSOR_THROTTLE_DELAY_MS
+} from './constants'
 
 export interface UserPresence {
 	user: {
@@ -92,10 +97,8 @@ export function handleAwarenessChange(
 
 /**
  * Debounced cursor update to prevent flooding the network
- * Only updates after cursor movement stops for DEBOUNCE_DELAY
+ * Only updates after cursor movement stops for CURSOR_DEBOUNCE_DELAY_MS
  */
-const DEBOUNCE_DELAY = 300 // ms
-const THROTTLE_DELAY = 1000 // ms - ensure at least one update per second
 
 function createDebouncedCursorUpdate(
 	awareness: Awareness,
@@ -119,7 +122,7 @@ function createDebouncedCursorUpdate(
 		const timeSinceLastUpdate = now - lastUpdateTime
 
 		// If enough time has passed, update immediately (throttle)
-		if (timeSinceLastUpdate >= THROTTLE_DELAY) {
+		if (timeSinceLastUpdate >= CURSOR_THROTTLE_DELAY_MS) {
 			updateCursorPosition(awareness, workbook)
 			lastUpdateTime = now
 			return
@@ -130,7 +133,7 @@ function createDebouncedCursorUpdate(
 			updateCursorPosition(awareness, workbook)
 			lastUpdateTime = Date.now()
 			debounceTimeoutId = null
-		}, DEBOUNCE_DELAY)
+		}, CURSOR_DEBOUNCE_DELAY_MS)
 	}
 
 	const cancel = () => {
@@ -197,7 +200,7 @@ export function setupAwareness(
 			debouncedUpdate.update()
 			prevState = { ...current, sheetId: current.sheetId || '' }
 		}
-	}, 100)
+	}, CURSOR_POLL_INTERVAL_MS)
 
 	// Cleanup
 	return () => {

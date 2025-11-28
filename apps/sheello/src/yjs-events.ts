@@ -1,6 +1,7 @@
 import * as Y from 'yjs'
 import { WorkbookInstance } from '@fortune-sheet/react'
 import type { YSheetStructure, SheetId, ColId } from './yjs-types'
+import { debug } from './debug'
 
 /**
  * Apply sheet data changes from remote users
@@ -165,7 +166,7 @@ export function applySheetYEvent(
 		const rowOrder = sheet.rowOrder.toArray()
 		const colOrder = sheet.colOrder.toArray()
 
-		console.log('[yjs-events] Border event, keys changed:', Array.from(evt.keysChanged))
+		debug.log('[yjs-events] Border event, keys changed:', Array.from(evt.keysChanged))
 
 		for (const borderKey of evt.keysChanged) {
 			const border = sheet.borders.get(borderKey)
@@ -180,11 +181,11 @@ export function applySheetYEvent(
 					if (border && border.style) {
 						// Apply border style using setCellFormat
 						// Fortune Sheet uses 'bd' attribute with the border object structure
-						console.log('[yjs-events] Applying border to cell', rowIdx, colIdx, border.style)
+						debug.log('[yjs-events] Applying border to cell', rowIdx, colIdx, border.style)
 						wb.setCellFormat(rowIdx, colIdx, 'bd' as any, border.style, { id: sheetId })
 					} else {
 						// Border was removed - clear it
-						console.log('[yjs-events] Clearing border from cell', rowIdx, colIdx)
+						debug.log('[yjs-events] Clearing border from cell', rowIdx, colIdx)
 						wb.setCellFormat(rowIdx, colIdx, 'bd' as any, null, { id: sheetId })
 					}
 				}
@@ -192,22 +193,22 @@ export function applySheetYEvent(
 		}
 	} else if (path[0] === 'merges' && evt instanceof Y.YMapEvent) {
 		// Merge changes - stored in cell.mc property, already synced via cell updates
-		console.log('[yjs-events] Merge changed, synced via cell data')
+		debug.log('[yjs-events] Merge changed, synced via cell data')
 	} else if (path[0] === 'hiddenRows' && evt instanceof Y.YMapEvent) {
 		// Hidden row changes - stored in config.rowhidden, will apply on reload
-		console.log('[yjs-events] Row visibility changed, will apply on reload')
+		debug.log('[yjs-events] Row visibility changed, will apply on reload')
 	} else if (path[0] === 'hiddenCols' && evt instanceof Y.YMapEvent) {
 		// Hidden column changes - stored in config.colhidden, will apply on reload
-		console.log('[yjs-events] Column visibility changed, will apply on reload')
+		debug.log('[yjs-events] Column visibility changed, will apply on reload')
 	} else if (path[0] === 'hyperlinks' && evt instanceof Y.YMapEvent) {
 		// Hyperlink changes - stored in config.link, will apply on reload
-		console.log('[yjs-events] Hyperlink changed, will apply on reload')
+		debug.log('[yjs-events] Hyperlink changed, will apply on reload')
 	} else if (path[0] === 'validations' && evt instanceof Y.YMapEvent) {
 		// Data validation changes - stored in config.dataVerification, will apply on reload
-		console.log('[yjs-events] Validation changed, will apply on reload')
+		debug.log('[yjs-events] Validation changed, will apply on reload')
 	} else if (path[0] === 'conditionalFormats' && evt instanceof Y.YArrayEvent) {
 		// Conditional format changes - stored in config.conditionalFormats, will apply on reload
-		console.log('[yjs-events] Conditional format changed, will apply on reload')
+		debug.log('[yjs-events] Conditional format changed, will apply on reload')
 	}
 
 	return needsRecalc

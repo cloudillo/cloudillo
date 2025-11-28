@@ -29,9 +29,9 @@ import './style.css'
 
 import { useCloudilloEditor } from '@cloudillo/react'
 
-// Import new helper modules
+// Import modules
 import type { SheetId } from './yjs-types'
-import { toSheetId } from './yjs-types'
+import { toSheetId, isValidSheetId } from './yjs-types'
 import { generateSheetId } from './id-generator'
 import {
 	getOrCreateSheet,
@@ -41,6 +41,20 @@ import {
 import { transformOp, deleteSheet } from './transform-ops'
 import { applySheetYEvent } from './yjs-events'
 import { setupAwareness } from './awareness'
+import { debug } from './debug'
+import {
+	DEFAULT_ROWS,
+	DEFAULT_COLS,
+	FORMULA_RECALC_DEBOUNCE_MS,
+	FORMULA_RECALC_MAX_DELAY_MS,
+	FROZEN_PANE_APPLY_DELAY_MS
+} from './constants'
+import {
+	createLocalEchoGuard,
+	isValidSheetIdValue,
+	createDebouncedThrottle,
+	showUserError
+} from './utils'
 
 export function SheelloApp() {
 	const { t } = useTranslation()
@@ -50,7 +64,9 @@ export function SheelloApp() {
 	const [initialized, setInitialized] = React.useState(false)
 	const [origCellData, setOrigCellData] = React.useState<FortuneSheet[] | undefined>()
 	const workbookRef = React.useRef<WorkbookInstance>(null)
-	const applyingRemoteRef = React.useRef(false)  // Flag to prevent feedback loops
+
+	// Create local echo guard to prevent feedback loops
+	const localEchoGuard = React.useMemo(() => createLocalEchoGuard(), [])
 
 	// Setup awareness on provider ready
 	React.useEffect(() => {
@@ -65,124 +81,48 @@ export function SheelloApp() {
 		return cleanup
 	}, [cloudillo.provider, workbookRef.current])
 
-	// Load initial data
+	// Load initial data and setup observers
 	React.useEffect(() => {
 		if (!cloudillo.provider) return
 
-		console.log('[EFFECT] Provider ready, Y.Doc client ID:', cloudillo.yDoc.clientID)
-		console.log('[EFFECT] Provider URL:', cloudillo.provider.url)
-		console.log('[EFFECT] Provider connected:', cloudillo.provider.wsconnected)
+		debug.log('[EFFECT] Provider ready, Y.Doc client ID:', cloudillo.yDoc.clientID)
 
 		const ySheets = cloudillo.yDoc.getMap('sheets')
 		const sheetOrder = cloudillo.yDoc.getArray<SheetId>('sheetOrder')
 
-		// ========== LOG RAW WEBSOCKET UPDATES ==========
-		let updateCount = 0
-		const handleUpdate = (update: Uint8Array, origin: unknown) => {
-			updateCount++
-			console.log(`\n[RAW UPDATE #${updateCount}]`)
-			console.log(`  Size: ${update.length} bytes`)
-			console.log(`  Origin: ${origin}`)
-			console.log(`  First 20 bytes:`, Array.from(update.slice(0, 20)))
+		// Create debounced+throttled formula recalculation
+		const formulaRecalc = createDebouncedThrottle(
+			() => {
+				workbookRef.current?.calculateFormula()
+			},
+			FORMULA_RECALC_DEBOUNCE_MS,
+			FORMULA_RECALC_MAX_DELAY_MS
+		)
 
-			// Try to decode the update to see what's in it
-			try {
-				// Apply update to a temporary doc to inspect structure
-				const tempDoc = new Y.Doc()
-				Y.applyUpdate(tempDoc, update)
-
-				const tempMeta = tempDoc.getMap('meta')
-				const tempSheets = tempDoc.getMap('sheets')
-
-				console.log(`  [DECODED] Meta keys in update:`, Array.from(tempMeta.keys()))
-				console.log(`  [DECODED] Meta values:`, Object.fromEntries(tempMeta.entries()))
-				console.log(`  [DECODED] Sheets keys in update:`, Array.from(tempSheets.keys()))
-				console.log(`  [DECODED] Sheets size in update:`, tempSheets.size)
-			} catch (err) {
-				console.error(`  [DECODE ERROR]:`, err)
-			}
-
-			// Log current Y.Doc state after update
-			console.log(`  After update - Meta size: ${meta.size}`)
-			console.log(`  After update - Meta keys:`, Array.from(meta.keys()))
-			console.log(`  After update - Sheets size: ${ySheets.size}`)
-			console.log(`  After update - Sheets keys:`, Array.from(ySheets.keys()))
-		}
-		cloudillo.yDoc.on('update', handleUpdate)
-		// ========== END RAW LOGGING ==========
-
-		// ========== DEBUG LOGGING FOR ALL UPDATES ==========
-		const logUpdate = (label: string, evt: Y.YEvent<Y.AbstractType<any>>) => {
-			console.log(`\n[UPDATE] ${label}:`)
-
-			// Log event type
-			console.log(`  Event type: ${evt.constructor.name}`)
-
-			// Log raw target info
-			console.log(`  Target type: ${evt.target?.constructor?.name}`)
-			if (evt.target instanceof Y.Map) {
-				console.log(`  Target size: ${evt.target.size}`)
-			}
-
-			// Log ALL keys in target (not just changed)
-			if (evt.target instanceof Y.Map) {
-				const allKeys = Array.from(evt.target.keys())
-				console.log(`  ALL keys in target:`, allKeys)
-			}
-
-			// Log what changed
-			if (evt.changes?.keys) {
-				const keys = evt.changes.keys
-				console.log(`  Changes (size=${keys.size}):`)
-				if (keys.size === 0) {
-					console.warn(`  ⚠️  EMPTY CHANGES - no keys modified but event fired!`)
-				}
-				keys.forEach((change: { action: 'add' | 'update' | 'delete'; oldValue: unknown }, key: string) => {
-					if (change.action === 'add') {
-						const value = evt.target instanceof Y.Map ? evt.target.get(key) : undefined
-						console.log(`    ✓ ADD "${key}":`, JSON.stringify(value, null, 2))
-					} else if (change.action === 'update') {
-						const value = evt.target instanceof Y.Map ? evt.target.get(key) : undefined
-						console.log(`    ↻ UPDATE "${key}":`, JSON.stringify(value, null, 2))
-					} else if (change.action === 'delete') {
-						console.log(`    ✗ DELETE "${key}"`)
-					}
-				})
-			} else {
-				console.warn(`  ⚠️  NO evt.changes.keys!`)
-			}
-
-			// Log path for deep events
-			if (evt.path && evt.path.length > 0) {
-				console.log(`  Path: ${evt.path.join(' → ')}`)
-			}
-
-			// For array changes
-			if (evt.changes?.delta) {
-				console.log(`  Delta changes:`)
-				evt.changes.delta.forEach((d: { insert?: unknown[] | string; delete?: number; retain?: number }, i: number) => {
-					if (d.insert) console.log(`    INSERT[${i}]:`, d.insert)
-					if (d.delete) console.log(`    DELETE[${i}]:`, d.delete, 'items')
-					if (d.retain) console.log(`    RETAIN[${i}]:`, d.retain, 'items')
-				})
+		// Helper to update sheet order in FortuneSheet
+		const syncSheetOrder = () => {
+			const orderedSheetIds = sheetOrder.toArray()
+			const orderMap: Record<string, number> = {}
+			orderedSheetIds.forEach((id, index) => {
+				orderMap[id] = index
+			})
+			if (workbookRef.current && Object.keys(orderMap).length > 0) {
+				workbookRef.current.setSheetOrder(orderMap)
 			}
 		}
 
-		// Observe meta map
-		meta.observe(evt => logUpdate('META', evt))
+		// Observe sheet order changes (FIX: was missing!)
+		const sheetOrderObserver = (evt: Y.YArrayEvent<SheetId>) => {
+			if (evt.transaction.local) return
+			if (evt.transaction.origin === 'load') return
 
-		// Observe sheets map (top level only)
-		ySheets.observe(evt => logUpdate('SHEETS', evt))
-
-		// Log current state
-		console.log('\n[CURRENT STATE]')
-		console.log('Meta:', Object.fromEntries(meta.entries()))
-		console.log('Sheets keys:', Array.from(ySheets.keys()))
-		// ========== END DEBUG LOGGING ==========
+			debug.log('[sheetOrder.observe] Sheet order changed')
+			syncSheetOrder()
+		}
+		sheetOrder.observe(sheetOrderObserver)
 
 		// Observe top-level sheets map changes (sheet additions/deletions)
-		// When sheets are added or removed, we need to handle them individually
-		ySheets.observe(evt => {
+		const sheetsObserver = (evt: Y.YMapEvent<unknown>) => {
 			// Only handle remote changes (not local ones)
 			if (evt.transaction.local) return
 
@@ -193,7 +133,7 @@ export function SheelloApp() {
 			for (const [sheetId, change] of evt.changes.keys.entries()) {
 				switch (change.action) {
 					case 'add': {
-						console.log('[sheets.observe] Sheet added:', sheetId, evt)
+						debug.log('[sheets.observe] Sheet added:', sheetId)
 						// Add the sheet to Fortune Sheet with the correct ID
 						workbookRef.current?.addSheet(sheetId)
 
@@ -205,62 +145,54 @@ export function SheelloApp() {
 						}
 
 						// Update sheet order to match CRDT sheetOrder array
-						const orderedSheetIds = sheetOrder.toArray()
-						const orderMap: Record<string, number> = {}
-						orderedSheetIds.forEach((id, index) => {
-							orderMap[id] = index
-						})
-						workbookRef.current?.setSheetOrder(orderMap)
+						syncSheetOrder()
 						break
 					}
 					case 'delete':
-						console.log('[sheets.observe] Sheet deleted:', sheetId)
+						debug.log('[sheets.observe] Sheet deleted:', sheetId)
 						workbookRef.current?.deleteSheet({ id: sheetId })
 						break
 				}
 			}
-		})
+		}
+		ySheets.observe(sheetsObserver)
 
-		// Observe sheet data changes
-		// Note: We don't wrap in transaction here because observeDeep is already
-		// called within the transaction that triggered these events
-		// However, we batch formula recalculation to avoid multiple recalcs
-		let recalcTimeoutId: number | null = null
-		ySheets.observeDeep(evts => {
+		// Observe sheet data changes (deep observer for cell/config changes)
+		const sheetsDeepObserver = (evts: Y.YEvent<any>[]) => {
 			if (!workbookRef.current) return
+
+			// Skip if this is from a load transaction (FIX: was missing!)
+			if (evts[0]?.transaction.origin === 'load') return
+
+			// Skip local changes
+			if (evts[0]?.transaction.local) return
+
 			let needsRecalc = false
 
 			// Set flag to prevent onOp from writing back to Yjs
-			// when we apply remote changes to FortuneSheet
-			applyingRemoteRef.current = true
-			try {
+			localEchoGuard.withGuard(() => {
 				for (const evt of evts) {
 					// Skip top-level sheets map changes (handled by ySheets.observe above)
 					if (!evt.path[0]) {
-						console.log('[observeDeep] Skipping top-level change (handled by sheets.observe)')
+						debug.log('[observeDeep] Skipping top-level change (handled by sheets.observe)')
 						continue
 					}
 
 					const sheetId = String(evt.path[0]) as SheetId
-					const sheet = getOrCreateSheet(cloudillo.yDoc, sheetId)
-					needsRecalc ||= applySheetYEvent(sheetId, sheet, workbookRef.current, evt)
+					try {
+						const sheet = getOrCreateSheet(cloudillo.yDoc, sheetId)
+						needsRecalc ||= applySheetYEvent(sheetId, sheet, workbookRef.current!, evt)
+					} catch (error) {
+						showUserError(`Failed to apply remote change for sheet ${sheetId}`, error)
+					}
 				}
-			} finally {
-				applyingRemoteRef.current = false
-			}
+			})
 
 			if (needsRecalc) {
-				// Debounce formula recalculation to avoid excessive recalcs
-				// during rapid remote updates
-				if (recalcTimeoutId !== null) {
-					clearTimeout(recalcTimeoutId)
-				}
-				recalcTimeoutId = window.setTimeout(() => {
-					workbookRef.current?.calculateFormula()
-					recalcTimeoutId = null
-				}, 100)
+				formulaRecalc.trigger()
 			}
-		})
+		}
+		ySheets.observeDeep(sheetsDeepObserver)
 
 		// Wait for initialization flag from server
 		const handleMetaChange = () => {
@@ -278,6 +210,10 @@ export function SheelloApp() {
 
 		return () => {
 			meta.unobserve(handleMetaChange)
+			ySheets.unobserve(sheetsObserver)
+			ySheets.unobserveDeep(sheetsDeepObserver)
+			sheetOrder.unobserve(sheetOrderObserver)
+			formulaRecalc.cancel()
 		}
 	}, [cloudillo.provider])
 
@@ -312,7 +248,7 @@ export function SheelloApp() {
 			cloudillo.yDoc.transact(() => {
 				const sheetId = generateSheetId()
 				const sheet = getOrCreateSheet(cloudillo.yDoc, sheetId)
-				ensureSheetDimensions(sheet, 100, 26)
+				ensureSheetDimensions(sheet, DEFAULT_ROWS, DEFAULT_COLS)
 
 				// Set the sheet name
 				sheet.name.insert(0, t('Sheet') + ' 1')
@@ -332,7 +268,7 @@ export function SheelloApp() {
 		const dedupedData = data.filter(sheet => {
 			if (!sheet.id) return false
 			if (seenIds.has(sheet.id)) {
-				console.warn('[Load] Duplicate sheet detected:', sheet.id)
+				debug.warn('[Load] Duplicate sheet detected:', sheet.id)
 				return false
 			}
 			seenIds.add(sheet.id)
@@ -356,30 +292,31 @@ export function SheelloApp() {
 
 			const ySheets = cloudillo.yDoc.getMap('sheets')
 			for (const sheetId of ySheets.keys()) {
-				const sheet = getOrCreateSheet(cloudillo.yDoc, sheetId as SheetId)
-				if (sheet.frozen && sheet.frozen.size > 0) {
-					const frozenType = sheet.frozen.get('type') as string | undefined
-					if (frozenType) {
-						const rowFocus = sheet.frozen.get('rowFocus') as number | undefined
-						const colFocus = sheet.frozen.get('colFocus') as number | undefined
+				try {
+					const sheet = getOrCreateSheet(cloudillo.yDoc, sheetId as SheetId)
+					if (sheet.frozen && sheet.frozen.size > 0) {
+						const frozenType = sheet.frozen.get('type') as string | undefined
+						if (frozenType) {
+							const rowFocus = sheet.frozen.get('rowFocus') as number | undefined
+							const colFocus = sheet.frozen.get('colFocus') as number | undefined
 
-						const range = {
-							row: rowFocus ?? 0,
-							column: colFocus ?? 0
-						}
+							const range = {
+								row: rowFocus ?? 0,
+								column: colFocus ?? 0
+							}
 
-						console.log('[Init] Applying frozen panes:', { sheetId, type: frozenType, range })
-						// Set flag to prevent onOp from writing back to Yjs
-						applyingRemoteRef.current = true
-						try {
-							workbookRef.current.freeze(frozenType as any, range, { id: sheetId })
-						} finally {
-							applyingRemoteRef.current = false
+							debug.log('[Init] Applying frozen panes:', { sheetId, type: frozenType, range })
+							// Set flag to prevent onOp from writing back to Yjs
+							localEchoGuard.withGuard(() => {
+								workbookRef.current!.freeze(frozenType as any, range, { id: sheetId })
+							})
 						}
 					}
+				} catch (error) {
+					showUserError(`Failed to apply frozen panes for sheet ${sheetId}`, error)
 				}
 			}
-		}, 100) // Small delay to let Fortune Sheet finish rendering
+		}, FROZEN_PANE_APPLY_DELAY_MS)
 
 		return () => clearTimeout(timerId)
 	}, [initialized])
@@ -388,69 +325,75 @@ export function SheelloApp() {
 	const onOp = React.useCallback((ops: Op[]) => {
 		// Skip operations before initialization (during load)
 		if (!initialized) {
-			console.log('[onOp] Skipping operations during initialization')
+			debug.log('[onOp] Skipping operations during initialization')
 			return
 		}
 
 		// Skip operations triggered by applying remote changes
 		// This prevents feedback loops when wb.freeze() etc. trigger onOp
-		if (applyingRemoteRef.current) {
-			console.log('[onOp] Skipping operations triggered by remote change application')
+		if (localEchoGuard.isGuarded()) {
+			debug.log('[onOp] Skipping operations triggered by remote change application')
 			return
 		}
 
-		console.log('[onOp] Received operations:', ops.map(op => ({
+		debug.log('[onOp] Received operations:', ops.map(op => ({
 			op: op.op,
 			id: op.id,
 			path: op.path,
 			value: op.value
 		})))
 
-		cloudillo.yDoc.transact(() => {
-			const sheetOrder = cloudillo.yDoc.getArray<SheetId>('sheetOrder')
+		try {
+			cloudillo.yDoc.transact(() => {
+				const sheetOrder = cloudillo.yDoc.getArray<SheetId>('sheetOrder')
 
-			for (const op of ops) {
-				// Handle sheet deletion
-				if (op.op === 'deleteSheet') {
-					if (!op.id || op.id === 'undefined') {
-						console.error('[onOp] ❌ INVALID deleteSheet - Missing sheet ID:', op)
+				for (const op of ops) {
+					// Handle sheet deletion
+					if (op.op === 'deleteSheet') {
+						// FIX: Proper validation instead of string comparison
+						if (!isValidSheetIdValue(op.id)) {
+							debug.error('[onOp] INVALID deleteSheet - Missing/invalid sheet ID:', op)
+							continue
+						}
+						deleteSheet(cloudillo.yDoc, op.id)
 						continue
 					}
-					deleteSheet(cloudillo.yDoc, op.id)
-					continue
-				}
 
-				// Skip operations without a valid sheet ID
-				// This happens when Fortune Sheet triggers ops in response to our remote change handling
-				// (e.g., deleteSheet triggers a 'replace' op with undefined id)
-				if (!op.id || op.id === 'undefined') {
-					console.log('[onOp] Skipping operation without valid sheet ID (likely from UI update):', op.op, op.path)
-					continue
-				}
-
-				try {
-					// For addSheet operations, also add to sheetOrder array
-					if (op.op === 'addSheet') {
-						const sheetId = op.id as SheetId
-						// Only add if not already in order array
-						if (!sheetOrder.toArray().includes(sheetId)) {
-							sheetOrder.push([sheetId])
-						}
+					// Skip operations without a valid sheet ID
+					// This happens when Fortune Sheet triggers ops in response to our remote change handling
+					// (e.g., deleteSheet triggers a 'replace' op with undefined id)
+					// FIX: Proper validation instead of string comparison
+					if (!isValidSheetIdValue(op.id)) {
+						debug.log('[onOp] Skipping operation without valid sheet ID (likely from UI update):', op.op, op.path)
+						continue
 					}
 
-					const sheet = getOrCreateSheet(cloudillo.yDoc, op.id as SheetId)
-					transformOp(sheet, op)
-				} catch (error) {
-					console.error('[onOp] Failed to process operation:', op, error)
-				}
-			}
-		})
-	}, [initialized])
+					try {
+						// For addSheet operations, also add to sheetOrder array
+						if (op.op === 'addSheet') {
+							const sheetId = op.id as SheetId
+							// Only add if not already in order array
+							if (!sheetOrder.toArray().includes(sheetId)) {
+								sheetOrder.push([sheetId])
+							}
+						}
 
-	// Wrap generateSheetId to log when it's called and ensure it returns a valid ID
+						const sheet = getOrCreateSheet(cloudillo.yDoc, op.id as SheetId)
+						transformOp(sheet, op)
+					} catch (error) {
+						showUserError(`Failed to process operation: ${op.op}`, { op, error })
+					}
+				}
+			})
+		} catch (error) {
+			showUserError('Failed to sync changes. Please refresh the page.', error)
+		}
+	}, [initialized, localEchoGuard])
+
+	// Wrap generateSheetId to log when it's called
 	const wrappedGenerateSheetId = React.useCallback(() => {
 		const id = generateSheetId()
-		console.log('[generateSheetId] Generated new sheet ID:', id)
+		debug.log('[generateSheetId] Generated new sheet ID:', id)
 		return id
 	}, [])
 

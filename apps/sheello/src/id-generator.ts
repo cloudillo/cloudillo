@@ -1,5 +1,6 @@
 import type { RowId, ColId, SheetId } from './yjs-types'
 import { toRowId, toColId, toSheetId } from './yjs-types'
+import { debug } from './debug'
 
 /**
  * Generate cryptographically secure base64url ID
@@ -77,7 +78,7 @@ export function generateUniqueRowId(existingIds: Set<RowId>): RowId {
 			return rowId
 		}
 		attempts++
-		console.warn(`[ID Collision] Row ID collision detected, attempt ${attempts}/${maxAttempts}`)
+		debug.warn(`[ID Collision] Row ID collision detected, attempt ${attempts}/${maxAttempts}`)
 	}
 
 	throw new Error(`Failed to generate unique row ID after ${maxAttempts} attempts`)
@@ -97,7 +98,7 @@ export function generateUniqueColId(existingIds: Set<ColId>): ColId {
 			return colId
 		}
 		attempts++
-		console.warn(`[ID Collision] Column ID collision detected, attempt ${attempts}/${maxAttempts}`)
+		debug.warn(`[ID Collision] Column ID collision detected, attempt ${attempts}/${maxAttempts}`)
 	}
 
 	throw new Error(`Failed to generate unique column ID after ${maxAttempts} attempts`)

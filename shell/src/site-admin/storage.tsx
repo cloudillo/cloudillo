@@ -33,6 +33,13 @@ export function StorageSettings() {
 		{ value: 'xd', label: 'XD (3840p / 4K)' },
 	]
 
+	const imageFormatOptions = [
+		{ value: 'avif', label: 'AVIF (best compression)' },
+		{ value: 'webp', label: 'WebP (good compression)' },
+		{ value: 'jpeg', label: 'JPEG (compatible)' },
+		{ value: 'png', label: 'PNG (lossless)' },
+	]
+
 	return <>
 		<div className="c-panel">
 			<h4>{t('Global Settings')}</h4>
@@ -80,6 +87,36 @@ export function StorageSettings() {
 				</select>
 			</label>
 			<p className="c-hint mb-4">{t('Largest image size variant to download and cache from remote instances')}</p>
+
+			<label className="c-hbox pb-2">
+				<span className="flex-fill">{t('Thumbnail format')}</span>
+				<select
+					className="c-select"
+					name="file.thumbnail_format"
+					value={settings['file.thumbnail_format'] as string || 'webp'}
+					onChange={onSettingChange}
+				>
+					{imageFormatOptions.map(opt => (
+						<option key={opt.value} value={opt.value}>{opt.label}</option>
+					))}
+				</select>
+			</label>
+			<p className="c-hint mb-4">{t('Image format for thumbnail (tn) variant')}. {t('Note: AVIF provides best compression but can be slow to encode')}</p>
+
+			<label className="c-hbox pb-2">
+				<span className="flex-fill">{t('Image format for larger variants')}</span>
+				<select
+					className="c-select"
+					name="file.image_format"
+					value={settings['file.image_format'] as string || 'webp'}
+					onChange={onSettingChange}
+				>
+					{imageFormatOptions.map(opt => (
+						<option key={opt.value} value={opt.value}>{opt.label}</option>
+					))}
+				</select>
+			</label>
+			<p className="c-hint mb-4">{t('Image format for sd, md, hd, and xd variants')}. {t('Note: AVIF provides best compression but can be slow to encode')}</p>
 		</div>
 
 		<div className="c-panel">

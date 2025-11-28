@@ -21,6 +21,8 @@ import { LuTrash2 as IcDelete, LuPlus as IcAdd } from 'react-icons/lu'
 
 import { useApi, useAuth } from '@cloudillo/react'
 
+import { useSettings } from '../settings/settings.js'
+
 // Domain validation regex
 const DOMAIN_REGEX = /^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}$/i
 
@@ -28,6 +30,7 @@ export function IdpsSettings() {
 	const { t } = useTranslation()
 	const { api } = useApi()
 	const [auth] = useAuth()
+	const { settings, onSettingChange } = useSettings('idp')
 	const [idpList, setIdpList] = React.useState<string>('')
 	const [newDomain, setNewDomain] = React.useState('')
 	const [error, setError] = React.useState('')
@@ -102,8 +105,46 @@ export function IdpsSettings() {
 		}
 	}
 
+	if (!settings) return null
+
+	const renewalIntervalDays = (settings['idp.renewal_interval'] as number) || 365
+	const renewalIntervalYears = Math.round(renewalIntervalDays / 365 * 10) / 10
+
 	return <>
 		<div className="c-panel">
+			<h4>{t('Identity Provider Configuration')}</h4>
+
+			<label className="c-hbox pb-2">
+				<span className="flex-fill">{t('Enable Identity Provider functionality')}</span>
+				<input
+					className="c-toggle primary"
+					name="idp.enabled"
+					type="checkbox"
+					checked={!!settings['idp.enabled']}
+					onChange={onSettingChange}
+				/>
+			</label>
+			<p className="c-hint mb-4">{t('Allow this tenant to act as an identity provider for other users')}</p>
+
+			<label className="c-hbox pb-2">
+				<span className="flex-fill">{t('Renewal interval (days)')}</span>
+				<input
+					className="c-input"
+					name="idp.renewal_interval"
+					type="number"
+					min="1"
+					max="18250"
+					value={String(renewalIntervalDays)}
+					onChange={onSettingChange}
+				/>
+			</label>
+			<p className="c-hint mb-4">
+				{t('How long identity credentials are valid')} ({renewalIntervalYears} {t('years')})
+			</p>
+		</div>
+
+		<div className="c-panel">
+			<h4>{t('Trusted Identity Provider Domains')}</h4>
 			<p className="mb-4 text-secondary">
 				{t('Manage trusted identity providers. These domains can be used for federated authentication.')}
 			</p>

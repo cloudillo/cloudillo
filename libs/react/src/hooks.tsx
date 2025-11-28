@@ -154,7 +154,6 @@ export function useCloudillo(appNameArg?: string): UseCloudillo {
 
 	React.useEffect(function () {
 		(async function init() {
-			console.log('useCloudillo XXXXXXXXXXXXXXXXXXXXXXXXXX init start')
 			try {
 				const token = await cloudillo.init(appName)
 				setAuth({
@@ -166,7 +165,6 @@ export function useCloudillo(appNameArg?: string): UseCloudillo {
 			} catch (e) {
 				console.error('useCloudillo INIT ERROR', e)
 			}
-			console.log('useCloudillo XXXXXXXXXXXXXXXXXXXXXXXXXX init end')
 		})()
 	}, [appName])
 
@@ -178,8 +176,6 @@ export function useCloudillo(appNameArg?: string): UseCloudillo {
 		roles: cloudillo.roles
 	}), [auth, ownerTag, fileId])
 
-	console.log('cloudillo', struct, ownerTag, fileId)
-	//if (!ownerTag || !fileId) return
 	return struct
 }
 
@@ -189,15 +185,28 @@ export function useCloudilloEditor(appName: string) {
 	const cl = useCloudillo(appName)
 	const [yDoc, setYDoc] = React.useState<Y.Doc>(new Y.Doc())
 	const [provider, setProvider] = React.useState<WebsocketProvider | undefined>(undefined)
+	const [synced, setSynced] = React.useState(false)
 
 	React.useEffect(function () {
-		console.log('cl.token', cl.token, 'docId', docId)
 		if (cl.token && docId) {
 			(async function initDoc() {
 				const { provider } = await cloudillo.openYDoc(yDoc, docId)
-				//setYDoc(yDoc)
 				setProvider(provider)
-				console.log('doc', yDoc)
+
+				// Wait for initial sync before marking as ready
+				const handleSync = (isSynced: boolean) => {
+					if (isSynced) {
+						setSynced(true)
+						provider.off('sync', handleSync)
+					}
+				}
+
+				// Check if already synced
+				if (provider.synced) {
+					setSynced(true)
+				} else {
+					provider.on('sync', handleSync)
+				}
 			})()
 		}
 	}, [cl.token, docId])
@@ -205,7 +214,8 @@ export function useCloudilloEditor(appName: string) {
 	return {
 		...cl,
 		yDoc,
-		provider
+		provider,
+		synced
 	}
 }
 

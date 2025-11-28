@@ -1473,7 +1473,7 @@ export function PrelloApp() {
 									y={y}
 									width={width}
 									height={height}
-									rx={typeof obj.cornerRadius === 'number' ? obj.cornerRadius : undefined}
+									rx={'cornerRadius' in obj && typeof obj.cornerRadius === 'number' ? obj.cornerRadius : undefined}
 									fill={color}
 									stroke={color}
 									strokeWidth={2}

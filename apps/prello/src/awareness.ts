@@ -79,7 +79,7 @@ export function getRemotePresenceStates(awareness: Awareness): Map<number, Prell
 	const localClientId = awareness.clientID
 	const result = new Map<number, PrelloPresence>()
 
-	states.forEach((state, clientId) => {
+	states.forEach((state: { [x: string]: any } | null, clientId: number) => {
 		if (clientId !== localClientId && state) {
 			result.set(clientId, state as PrelloPresence)
 		}

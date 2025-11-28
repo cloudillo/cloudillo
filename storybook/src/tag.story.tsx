@@ -43,18 +43,20 @@ export function TagStory() {
 		</Variant>
 
 		<Variant name="Removable Tags">
-			<TagList>
-				{tags.map(tag => (
-					<Tag key={tag} onRemove={() => setTags(t => t.filter(x => x !== tag))}>
-						{tag}
-					</Tag>
-				))}
-			</TagList>
-			{tags.length === 0 && (
-				<button className="c-button small" onClick={() => setTags(['React', 'TypeScript', 'CSS'])}>
-					Reset Tags
-				</button>
-			)}
+			<>
+				<TagList>
+					{tags.map(tag => (
+						<Tag key={tag} onRemove={() => setTags(t => t.filter(x => x !== tag))}>
+							{tag}
+						</Tag>
+					))}
+				</TagList>
+				{tags.length === 0 && (
+					<button className="c-button small" onClick={() => setTags(['React', 'TypeScript', 'CSS'])}>
+						Reset Tags
+					</button>
+				)}
+			</>
 		</Variant>
 	</Story>
 }

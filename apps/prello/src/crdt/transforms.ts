@@ -24,6 +24,9 @@ import { toContainerId } from './ids'
 import type { Point, Bounds, Transform, PrelloObject, ContainerNode, ViewNode } from './runtime-types'
 import { expandObject, expandContainer, expandView } from './type-converters'
 
+// Import utilities used in this file
+import { composeTransforms, unionBounds } from 'react-svg-canvas'
+
 // Re-export generic geometry utilities from react-svg-canvas
 export {
 	composeTransforms,

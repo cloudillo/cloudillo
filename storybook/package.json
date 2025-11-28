@@ -5,6 +5,8 @@
   "type": "module",
   "main": "src/index.js",
   "scripts": {
+    "ts": "tsc --noEmit",
+    "ts-watch": "tsc --noEmit --watch",
     "prebuild": "node bundle-themes.mjs",
     "build": "node build.mjs",
     "watch": "node build.mjs --watch",

@@ -132,7 +132,6 @@ async function getToken() {
 
 export async function openYDoc(yDoc: Y.Doc, docId: string): Promise<{ yDoc: Y.Doc, provider: WebsocketProvider }> {
 	const [targetTag, resId] = docId.split(':')
-	console.log('openYDoc', yDoc, docId)
 	if (!accessToken) throw new Error('No access token')
 
 	/*
@@ -140,8 +139,8 @@ export async function openYDoc(yDoc: Y.Doc, docId: string): Promise<{ yDoc: Y.Do
 	idbProvider.on('sync', () => console.log('content loaded from local storage'))
 	*/
 
-	console.log(`wss://cl-o.${targetTag}/ws/crdt`, resId, yDoc, { params: { token: accessToken }})
 	const wsProvider = new WebsocketProvider(`wss://cl-o.${targetTag}/ws/crdt`, resId, yDoc, { params: { token: accessToken }})
+
 	return {
 		yDoc,
 		provider: wsProvider

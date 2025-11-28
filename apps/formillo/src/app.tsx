@@ -497,6 +497,7 @@ import '@symbion/opalui/themes/glass.css'
 
 import * as T from '@symbion/runtype'
 
+import { apiFetchHelper, accessToken } from '@cloudillo/base'
 import { useCloudillo, useApi, useAuth, Button, mergeClasses } from '@cloudillo/react'
 import './i18n.js'
 
@@ -629,7 +630,7 @@ function EmailFieldPage({ item, value, setValue, next }: { item: EmailField, val
 
 function FormPage({ ownerTag, fileId, form }: { ownerTag: string, fileId: string, form: Form }) {
 	const { t } = useTranslation()
-	const api = useApi()
+	const { api } = useApi()
 	const [page, setPageSt] = React.useState(0)
 	const [trans, setTrans] = React.useState<'' | 'fade-out'>('')
 	const [data, setData] = React.useState<FormData>({})
@@ -672,7 +673,7 @@ function FormPage({ ownerTag, fileId, form }: { ownerTag: string, fileId: string
 		setSubmitCls('')
 		if (lastPage) {
 			console.log('Form', data)
-			await api?.post(ownerTag, `/db/${fileId}`, { data })
+			await apiFetchHelper(ownerTag, 'POST', `/db/${fileId}`, { data: { data }, authToken: accessToken })
 			localStorage.setItem(`form.${fileId}`, 'true')
 			setPage(0)
 		} else {
@@ -766,7 +767,7 @@ export function App() {
 	const { t } = useTranslation()
 	const location = useLocation()
 	const cloudillo = useCloudillo(APP_NAME)
-	const api = useApi()
+	const { api } = useApi()
 	const [auth] = useAuth()
 	const [form, setForm] = React.useState<Form | undefined>(undefined)
 
@@ -774,7 +775,7 @@ export function App() {
 		(async function init() {
 			if (!api || !cloudillo) return
 			if (cloudillo?.roles?.includes('SADM')) {
-				const json = await api.request<{ data: FormData[] }>('GET', `/db/${cloudillo.fileId}`, T.unknown() as any)
+				const json = await api!.request('GET', `/db/${cloudillo.fileId}`, T.struct({ data: T.array(T.unknown) })) as { data: FormData[] }
 				console.log('RES', json)
 				setForm({
 					...MY_FORM,

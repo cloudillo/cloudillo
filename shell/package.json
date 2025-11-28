@@ -12,10 +12,11 @@
   },
   "scripts": {
     "l-scan": "i18next-scanner --config src/i18n/scanner.config.cjs",
+    "ts": "tsc --noEmit",
+    "ts-watch": "tsc --noEmit --watch",
     "build": "cross-env NODE_ENV=production node esbuild.config.js",
     "watch": "node esbuild.config.js --watch",
     "dev": "node esbuild.config.js --watch",
-    "tsc": "tsc",
     "clean": "rimraf .cache dist/assets*",
     "start": "web-dev-server"
   },

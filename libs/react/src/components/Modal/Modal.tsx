@@ -1,0 +1,87 @@
+// This file is part of the Cloudillo Platform.
+// Copyright (C) 2024  Szilárd Hajba
+//
+// Cloudillo is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+import * as React from 'react'
+import { createPortal } from 'react-dom'
+import { mergeClasses, createComponent } from '../utils.js'
+
+export interface ModalProps extends React.HTMLAttributes<HTMLDivElement> {
+	open?: boolean
+	onClose?: () => void
+	closeOnBackdrop?: boolean
+	children?: React.ReactNode
+}
+
+export const Modal = createComponent<HTMLDivElement, ModalProps>(
+	'Modal',
+	({ className, open, onClose, closeOnBackdrop = true, children, ...props }, ref) => {
+		// Close on escape key
+		React.useEffect(() => {
+			if (!open) return
+
+			function handleKeyDown(evt: KeyboardEvent) {
+				if (evt.key === 'Escape' && onClose) {
+					onClose()
+				}
+			}
+
+			document.addEventListener('keydown', handleKeyDown)
+			return () => {
+				document.removeEventListener('keydown', handleKeyDown)
+			}
+		}, [open, onClose])
+
+		// Prevent body scroll when modal is open
+		React.useEffect(() => {
+			if (open) {
+				document.body.style.overflow = 'hidden'
+			} else {
+				document.body.style.overflow = ''
+			}
+			return () => {
+				document.body.style.overflow = ''
+			}
+		}, [open])
+
+		if (!open) return null
+
+		function handleBackdropClick(evt: React.MouseEvent) {
+			if (evt.target === evt.currentTarget && closeOnBackdrop && onClose) {
+				onClose()
+			}
+		}
+
+		const modalContent = (
+			<div
+				ref={ref}
+				className={mergeClasses('c-modal', open && 'show', className)}
+				onClick={handleBackdropClick}
+				{...props}
+			>
+				{children}
+			</div>
+		)
+
+		// Portal to document body
+		if (typeof document !== 'undefined') {
+			return createPortal(modalContent, document.body)
+		}
+
+		return modalContent
+	}
+)
+
+// vim: ts=4

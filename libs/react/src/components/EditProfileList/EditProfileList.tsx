@@ -23,10 +23,10 @@ import {
 
 import { Profile } from '@cloudillo/types'
 
-import { Select } from './select.js'
-import { ProfileCard } from './components.js'
+import { Select } from '../Select/index.js'
+import { ProfileCard } from '../Profile/index.js'
 
-interface EditTagsProps {
+export interface EditProfileListProps {
 	className?: string
 	placeholder?: string
 	profiles?: Profile[]
@@ -34,7 +34,8 @@ interface EditTagsProps {
 	addProfile?: (profile: Profile) => Promise<void>
 	removeProfile?: (idTag: string) => Promise<void>
 }
-export function EditProfileList({ className, placeholder, profiles, listProfiles, addProfile, removeProfile }: EditTagsProps) {
+
+export function EditProfileList({ className, placeholder, profiles, listProfiles, addProfile, removeProfile }: EditProfileListProps) {
 	const [add, setAdd] = React.useState(false)
 	const { t } = useTranslation()
 

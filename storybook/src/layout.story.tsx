@@ -1,25 +1,25 @@
 import * as React from 'react'
 import { Story, Variant } from './storybook.js'
-import { Fcb, Button } from '@cloudillo/react'
+import { Fcd, Button } from '@cloudillo/react'
 
-export function FcbStory() {
+export function FcdStory() {
 	const [showFilter, setShowFilter] = React.useState(false)
 	const [showDetails, setShowDetails] = React.useState(false)
 
 	return <Story
-		name="Fcb"
-		description="Filter-Content-Browse layout component. Responsive three-column layout with collapsible filter and details panels. Commonly used for list/detail views."
+		name="Fcd"
+		description="Filter-Content-Details layout component. Responsive three-column layout with collapsible filter and details panels. Commonly used for list/detail views."
 		props={[
-			{ name: 'Fcb.Container', type: 'Component', descr: 'Main container for FCB layout' },
-			{ name: 'Fcb.Filter', type: 'Component', descr: 'Left sidebar for filters (collapsible on mobile)' },
-			{ name: 'Fcb.Content', type: 'Component', descr: 'Main content area (always visible)' },
-			{ name: 'Fcb.Details', type: 'Component', descr: 'Right sidebar for details (collapsible on mobile/tablet)' }
+			{ name: 'Fcd.Container', type: 'Component', descr: 'Main container for FCD layout' },
+			{ name: 'Fcd.Filter', type: 'Component', descr: 'Left sidebar for filters (collapsible on mobile)' },
+			{ name: 'Fcd.Content', type: 'Component', descr: 'Main content area (always visible)' },
+			{ name: 'Fcd.Details', type: 'Component', descr: 'Right sidebar for details (collapsible on mobile/tablet)' }
 		]}
 	>
-		<Variant name='Complete FCB Layout'>
+		<Variant name='Complete FCD Layout'>
 			<div style={{ height: '400px', border: '1px solid #ccc' }}>
-				<Fcb.Container>
-					<Fcb.Filter
+				<Fcd.Container>
+					<Fcd.Filter
 						isVisible={showFilter}
 						hide={() => setShowFilter(false)}
 					>
@@ -41,9 +41,9 @@ export function FcbStory() {
 								</label>
 							</div>
 						</div>
-					</Fcb.Filter>
+					</Fcd.Filter>
 
-					<Fcb.Content
+					<Fcd.Content
 						header={
 							<div className="c-hbox p-2" style={{ borderBottom: '1px solid #eee' }}>
 								<Button onClick={() => setShowFilter(!showFilter)}>
@@ -70,9 +70,9 @@ export function FcbStory() {
 								Item 4
 							</div>
 						</div>
-					</Fcb.Content>
+					</Fcd.Content>
 
-					<Fcb.Details
+					<Fcd.Details
 						isVisible={showDetails}
 						hide={() => setShowDetails(false)}
 					>
@@ -82,21 +82,21 @@ export function FcbStory() {
 							<p>On mobile and tablet, it appears as an overlay.</p>
 							<p>On desktop, it's a fixed right column.</p>
 						</div>
-					</Fcb.Details>
-				</Fcb.Container>
+					</Fcd.Details>
+				</Fcd.Container>
 			</div>
 		</Variant>
 
 		<Variant name='Content Only'>
 			<div style={{ height: '200px', border: '1px solid #ccc' }}>
-				<Fcb.Container>
-					<Fcb.Content>
+				<Fcd.Container>
+					<Fcd.Content>
 						<div className="p-3">
 							<h3>Simple Content</h3>
-							<p>FCB layout works with just the Content component too.</p>
+							<p>FCD layout works with just the Content component too.</p>
 						</div>
-					</Fcb.Content>
-				</Fcb.Container>
+					</Fcd.Content>
+				</Fcd.Container>
 			</div>
 		</Variant>
 	</Story>

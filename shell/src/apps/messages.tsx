@@ -42,7 +42,7 @@ import {
 
 import { Profile, ActionView, NewAction } from '@cloudillo/types'
 import * as Types from '@cloudillo/base'
-import { useAuth, useApi, Button, Fcb, IdentityTag, ProfileCard, mergeClasses } from '@cloudillo/react'
+import { useAuth, useApi, Button, Fcd, IdentityTag, ProfileCard, mergeClasses } from '@cloudillo/react'
 import '@cloudillo/react/src/components.css'
 
 import { useAppConfig, parseQS, qs } from '../utils.js'
@@ -465,17 +465,17 @@ export function MessagesApp() {
 		setMsg([...(msg || []), action])
 	}
 
-	return <><Fcb.Container className="g-1">
+	return <><Fcd.Container className="g-1">
 		{ !!auth && <>
-			<Fcb.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 				<ConversationBar className="col col-md-4 col-lg-3 h-100"
 					filter={filter}
 					setFilter={setFilter}
 					conversations={conversations}
 					activeId={convId}
 				/>
-			</Fcb.Filter>
-			<Fcb.Content ref={convRef} onScroll={onConvScroll}
+			</Fcd.Filter>
+			<Fcd.Content ref={convRef} onScroll={onConvScroll}
 				header={<div className="c-nav c-hbox md-hide lg-hide">
 					<IcConvList onClick={() => setShowFilter(true)}/>
 					{convId && <IdentityTag idTag={convId}/>}
@@ -483,11 +483,11 @@ export function MessagesApp() {
 			>
 				{ !scrollBottom && <button className="c-button float m-1 secondary pos-absolute bottom-0 right-0" onClick={onConvScrollBottomClick}><IcScrollBottom/></button> }
 				{ !!msg && msg.sort((a, b) => +a.createdAt - +b.createdAt).map(action => <Msg key={action.actionId} action={action} local={action.issuer.idTag === auth?.idTag}/>) }
-			</Fcb.Content>
-			<Fcb.Details>
-			</Fcb.Details>
+			</Fcd.Content>
+			<Fcd.Details>
+			</Fcd.Details>
 		</> }
-	</Fcb.Container>
+	</Fcd.Container>
 	{ !!auth && !!convId && <NewMsg className="mt-1" idTag={convId} onSubmit={onSubmit}/> }
 	</>
 }

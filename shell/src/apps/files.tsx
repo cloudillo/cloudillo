@@ -58,7 +58,7 @@ import '@symbion/ui-core/scroll.css'
 
 import { NewAction, ActionView, Profile } from '@cloudillo/types'
 import * as Types from '@cloudillo/base'
-import { useApi, useAuth, useDialog, Button, Fcb, ProfilePicture, EditProfileList, Popper, Dialog, mergeClasses } from '@cloudillo/react'
+import { useApi, useAuth, useDialog, Button, Fcd, ProfilePicture, EditProfileList, Popper, Dialog, mergeClasses } from '@cloudillo/react'
 
 import { useAppConfig, parseQS, qs } from '../utils.js'
 import { Tags, EditTags } from '../tags.js'
@@ -401,7 +401,7 @@ const FilterBar = React.memo(function FilterBar({ className, contextIdTag }: { c
 					<li><button className="c-nav-item" disabled={true || process.env.NODE_ENV === 'production'} onClick={() => createFile('cloudillo/ideallo')}>
 						{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons['cloudillo/ideallo'], { className: 'me-1' })}
 						{t('Ideallo whiteboard document')}</button></li>
-					<li><button className="c-nav-item" disabled={process.env.NODE_ENV === 'production'} onClick={() => createFile('cloudillo/prello')}>
+					<li><button className="c-nav-item" onClick={() => createFile('cloudillo/prello')}>
 						{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons['cloudillo/prello'], { className: 'me-1' })}
 						{t('Prello presentation document')}</button></li>
 					<li><button className="c-nav-item" onClick={() => createDb('cloudillo/todollo')}>
@@ -706,11 +706,11 @@ export function FilesApp() {
 
 	if (!fileListData.getData()) return <h1>Loading...</h1>
 
-	return <Fcb.Container className="g-1">
-		<Fcb.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+	return <Fcd.Container className="g-1">
+		<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 			<FilterBar contextIdTag={contextIdTag}/>
-		</Fcb.Filter>
-		<Fcb.Content header={
+		</Fcd.Filter>
+		<Fcd.Content header={
 			<div className="c-nav c-hbox md-hide lg-hide">
 				<IcFilter onClick={() => setShowFilter(true)}/>
 				<div className="c-tag-list">
@@ -729,16 +729,16 @@ export function FilesApp() {
 				renameFileName={renameFileName}
 				fileOps={fileOps}
 			/>) }
-		</Fcb.Content>
-		<Fcb.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
+		</Fcd.Content>
+		<Fcd.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
 			{ selectedFile && <FileDetails
 				file={selectedFile}
 				renameFileId={renameFileId}
 				renameFileName={renameFileName}
 				fileOps={fileOps}
 			/> }
-		</Fcb.Details>
-	</Fcb.Container>
+		</Fcd.Details>
+	</Fcd.Container>
 }
 
 // vim: ts=4

@@ -36,7 +36,8 @@ function stringify(node: React.ReactNode, indentDepth: number = 0): string {
 				const props = el.props as Record<string, unknown>
 				const elementType = typeof el.type == 'string' ? el.type
 					: typeof el.type == 'symbol' ? ''
-					: (el.type as { name: string })?.name
+					: (el.type as { displayName?: string, name?: string })?.displayName
+						|| (el.type as { name?: string })?.name
 				let propList = Object.entries(props)
 					.filter(([name, value]) => value !== undefined && name !== 'children')
 					.map(([name, value]) => value === true ? name : `${name}=${
@@ -153,7 +154,6 @@ export function Variant({ name, description, children }: { name: string, descrip
 
 	let code: string | undefined
 	if (typeof children != 'string') {
-		const elementType = children.type == 'string' ? children.type : (children.type as { name: string })?.name
 		code = stringify(children)
 	}
 

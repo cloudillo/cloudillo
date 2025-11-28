@@ -19,7 +19,8 @@ import { useTranslation } from 'react-i18next'
 import { atom, useAtom } from 'jotai'
 import Markdown from 'react-markdown'
 
-import { Button, mergeClasses } from './components.js'
+import { Button } from '../Button/Button.js'
+import { mergeClasses } from '../utils.js'
 
 import {
 	LuX as IcClose,
@@ -29,7 +30,7 @@ import {
 
 /* Dialog component for HTML5 dialog */
 /*************************************/
-interface DialogProps {
+export interface DialogProps {
 	className?: string
 	open?: boolean
 	title?: string
@@ -133,7 +134,20 @@ export function DialogContainer() {
 	</>
 }
 
-export function useDialog() {
+export interface UseDialogReturn {
+	isOpen: boolean
+	tell: (title: string, descr: string, className?: string) => Promise<unknown>
+	confirm: (title: string, descr: string, className?: string) => Promise<unknown>
+	ask: (title: string, descr: string, className?: string) => Promise<unknown>
+	askText: (title: string, descr: string, opts?: {
+		className?: string
+		placeholder?: string
+		defaultValue?: string
+		multiline?: boolean
+	}) => Promise<unknown>
+}
+
+export function useDialog(): UseDialogReturn {
 	const [dialog, setDialog] = useAtom(dialogAtom)
 
 	function ret() {
@@ -167,18 +181,6 @@ export function useDialog() {
 		console.log('askText', { title, descr, className, placeholder, defaultValue, multiline })
 		return ret()
 	}
-
-	/*
-	function askText(title: string, descr: string, opts: {
-		className?: string
-		placeholder?: string
-		defaultValue?: string
-	} = {}) {
-		setDialog({ type: 'Text', title, descr })
-		console.log('askText', opts, { title, descr })
-		return ret()
-	}
-	*/
 
 	return {
 		isOpen: !!dialog,

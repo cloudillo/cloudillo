@@ -26,7 +26,7 @@ import {
 import * as T from '@symbion/runtype'
 
 import { NewAction, ActionView, tActionView, tConnectAction, tFileShareAction } from '@cloudillo/types'
-import { useAuth, useApi, Button, ProfilePicture, ProfileCard, ProfileAudienceCard, Fcb, mergeClasses, generateFragments } from '@cloudillo/react'
+import { useAuth, useApi, Button, ProfilePicture, ProfileCard, ProfileAudienceCard, Fcd, mergeClasses, generateFragments } from '@cloudillo/react'
 
 import { useNotifications } from './state'
 
@@ -153,19 +153,19 @@ export function Notifications() {
 		}))
 	}
 
-	return <Fcb.Container className="g-1">
+	return <Fcd.Container className="g-1">
 		{ !!auth && <>
-			<Fcb.Filter>
+			<Fcd.Filter>
 				<FilterBar/>
-			</Fcb.Filter>
-			<Fcb.Content>
+			</Fcd.Filter>
+			<Fcd.Content>
 				{ notifications && !notifications.notifications.length && <h3>{ t('You have no notifications') }</h3> }
 				{ !!notifications && notifications.notifications.map(action =>  <Notification key={action.actionId} action={action} onClick={onClick}/>) }
-			</Fcb.Content>
-			<Fcb.Details>
-			</Fcb.Details>
+			</Fcd.Content>
+			<Fcd.Details>
+			</Fcd.Details>
 		</> }
-	</Fcb.Container>
+	</Fcd.Container>
 }
 
 // vim: ts=4

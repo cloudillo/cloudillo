@@ -21,7 +21,7 @@ import { usePopper } from 'react-popper'
 import { useCombobox } from 'downshift'
 import debounce from 'debounce'
 
-interface SelectProps<T> {
+export interface SelectProps<T> {
 	className?: string
 	inputClassName?: string
 	placeholder?: string
@@ -32,6 +32,7 @@ interface SelectProps<T> {
 	itemToString: (item: T | null) => string
 	renderItem: (props: T) => React.ReactNode
 }
+
 export function Select<T>({ className, inputClassName, placeholder, getData, onChange, onSelectItem, itemToId, itemToString, renderItem }: SelectProps<T>) {
 	const { t } = useTranslation()
 	const [popperRef, setPopperRef] = React.useState<HTMLElement | null>(null)

@@ -22,7 +22,7 @@ import ReactQuill, { Quill } from 'react-quill-new'
 import QuillMarkdown from 'quilljs-markdown'
 import Turndown from 'turndown'
 
-import { Button, Popper, Container, Fcb, useDialog, mergeClasses } from '@cloudillo/react'
+import { Button, Popper, Container, Fcd, useDialog, mergeClasses } from '@cloudillo/react'
 import { NewAction } from '@cloudillo/types'
 
 import {
@@ -265,11 +265,11 @@ export function ProfilePage({
 		reader.readAsDataURL(file)
 	}
 
-	return <Fcb.Container className="g-1">
+	return <Fcd.Container className="g-1">
 		{ !!auth && <>
-			<Fcb.Filter>
-			</Fcb.Filter>
-			<Fcb.Content>
+			<Fcd.Filter>
+			</Fcd.Filter>
+			<Fcd.Content>
 				<div className="c-panel p-0 pos-relative d-flex flex-column">
 					<div className="c-profile-header pos-relative w-100" style={{ minHeight: '160px' }}>
 						{ profile.coverPic &&
@@ -321,11 +321,11 @@ export function ProfilePage({
 				{children}
 				{ coverUpload && <ImageUpload src={coverUpload} aspects={['', '4:1', '3:1']} onSubmit={uploadCover} onCancel={onCancel}/> }
 				{ profileUpload && <ImageUpload src={profileUpload} aspects={['circle']} onSubmit={uploadProfile} onCancel={onCancel}/> }
-			</Fcb.Content>
-			<Fcb.Details>
-			</Fcb.Details>
+			</Fcd.Content>
+			<Fcd.Details>
+			</Fcd.Details>
 		</> }
-	</Fcb.Container>
+	</Fcd.Container>
 }
 
 interface ProfileTabProps {

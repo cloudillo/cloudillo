@@ -31,7 +31,7 @@ import {
 	LuUsers as IcUserAll
 } from 'react-icons/lu'
 
-import { useApi, useAuth, Fcb, Button, ProfileCard, mergeClasses } from '@cloudillo/react'
+import { useApi, useAuth, Fcd, Button, ProfileCard, mergeClasses } from '@cloudillo/react'
 import { useAppConfig, parseQS, qs } from '../utils.js'
 
 export interface Profile {
@@ -131,26 +131,26 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 		})()
 	}, [auth, location.search, contextIdTag])
 
-	return <Fcb.Container className="g-1">
-		<Fcb.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+	return <Fcd.Container className="g-1">
+		<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 			<FilterBar/>
-		</Fcb.Filter>
-		<Fcb.Content>
+		</Fcd.Filter>
+		<Fcd.Content>
 			<div className="c-nav c-hbox md-hide lg-hide">
 				<IcFilter onClick={() => setShowFilter(true)}/>
 			</div>
 			{ !!profiles && profiles.map(profile => <ProfileListCard key={profile.idTag} profile={profile}/>) }
-		</Fcb.Content>
+		</Fcd.Content>
 		{/*
-		<Fcb.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
+		<Fcd.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
 			{ selected && <div className="c-panel h-min-100">
 				<h3 className="c-panel-title">
 					{selected.name}
 				</h3>
 			</div> }
-		</Fcb.Details>
+		</Fcd.Details>
 		*/}
-	</Fcb.Container>
+	</Fcd.Container>
 }
 
 export function CommunityListPage() {
@@ -181,26 +181,26 @@ export function CommunityListPage() {
 		})()
 	}, [auth, location.search, contextIdTag])
 
-	return <Fcb.Container className="g-1">
-		<Fcb.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+	return <Fcd.Container className="g-1">
+		<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 			<FilterBar/>
-		</Fcb.Filter>
-		<Fcb.Content>
+		</Fcd.Filter>
+		<Fcd.Content>
 			<div className="c-nav c-hbox md-hide lg-hide">
 				<IcFilter onClick={() => setShowFilter(true)}/>
 			</div>
 			{ !!profiles && profiles.map(profile => <ProfileListCard key={profile.idTag} profile={profile}/>) }
-		</Fcb.Content>
+		</Fcd.Content>
 		{/*
-		<Fcb.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
+		<Fcd.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
 			{ selected && <div className="c-panel h-min-100">
 				<h3 className="c-panel-title">
 					{selected.name}
 				</h3>
 			</div> }
-		</Fcb.Details>
+		</Fcd.Details>
 		*/}
-	</Fcb.Container>
+	</Fcd.Container>
 }
 
 // vim: ts=4

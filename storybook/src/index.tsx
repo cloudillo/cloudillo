@@ -38,7 +38,22 @@ import {
 } from './profile.story.js'
 import { DialogStory, UseDialogStory } from './dialog.story.js'
 import { SelectStory } from './select.story.js'
-import { FcbStory } from './layout.story.js'
+import { FcdStory } from './layout.story.js'
+
+// New OpalUI component stories
+import { AvatarStory } from './avatar.story.js'
+import { BoxStory } from './box.story.js'
+import { PanelStory } from './panel.story.js'
+import { BadgeStory } from './badge.story.js'
+import { ProgressStory } from './progress.story.js'
+import { TagStory } from './tag.story.js'
+import { FormStory } from './form.story.js'
+import { NavStory } from './nav.story.js'
+import { TabStory } from './tab.story.js'
+import { DropdownStory } from './dropdown.story.js'
+import { ModalStory } from './modal.story.js'
+import { SidebarStory } from './sidebar.story.js'
+import { ToastStory } from './toast.story.js'
 
 // CSS is loaded via HTML link tags in index.html, not imported here
 // to allow proper bundling via separate CSS build
@@ -61,34 +76,53 @@ function Contents() {
 			</p>
 			<h3>Component Categories</h3>
 			<ul>
-				<li><strong>Buttons:</strong> Button, Popper</li>
-				<li><strong>Layout:</strong> Container, Fcb (Filter-Content-Browse)</li>
+				<li><strong>Layout:</strong> Box (HBox, VBox, Group), Panel, Container, Fcd, Modal, Sidebar</li>
+				<li><strong>Navigation:</strong> Nav, Tab, Dropdown</li>
+				<li><strong>Data Display:</strong> Avatar, Badge, Tag, Progress</li>
+				<li><strong>Forms:</strong> Input, TextArea, Select, Toggle, Fieldset</li>
+				<li><strong>Feedback:</strong> Toast, Dialog</li>
+				<li><strong>Buttons:</strong> Button, LinkButton, IconButton, Popper</li>
 				<li><strong>Profile:</strong> ProfilePicture, ProfileCard, IdentityTag</li>
-				<li><strong>Dialogs:</strong> Dialog, useDialog hook</li>
-				<li><strong>Forms:</strong> Select (autocomplete)</li>
 			</ul>
 		</Story>
+
+		{/* Layout Components */}
+		<BoxStory/>
+		<PanelStory/>
+		<ContainerStory/>
+		<FcdStory/>
+		<ModalStory/>
+		<SidebarStory/>
+
+		{/* Navigation Components */}
+		<NavStory/>
+		<TabStory/>
+		<DropdownStory/>
+
+		{/* Data Display Components */}
+		<AvatarStory/>
+		<BadgeStory/>
+		<TagStory/>
+		<ProgressStory/>
+
+		{/* Form Components */}
+		<FormStory/>
+		<SelectStory/>
+
+		{/* Feedback Components */}
+		<ToastStory/>
+		<DialogStory/>
+		<UseDialogStory/>
 
 		{/* Button Components */}
 		<ButtonStory/>
 		<PopperStory/>
-		<ContainerStory/>
-
-		{/* Layout Components */}
-		<FcbStory/>
 
 		{/* Profile Components */}
 		<ProfilePictureStory/>
 		<IdentityTagStory/>
 		<ProfileCardStory/>
 		<ProfileAudienceCardStory/>
-
-		{/* Dialog Components */}
-		<DialogStory/>
-		<UseDialogStory/>
-
-		{/* Form Components */}
-		<SelectStory/>
 	</Page>
 }
 

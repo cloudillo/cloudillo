@@ -55,7 +55,7 @@ import {
 } from 'react-icons/lu'
 
 import { NewAction, ActionView } from '@cloudillo/types'
-import { useAuth, useApi, Button, ProfilePicture, ProfileCard, ProfileAudienceCard, Fcb, mergeClasses, generateFragments } from '@cloudillo/react'
+import { useAuth, useApi, Button, ProfilePicture, ProfileCard, ProfileAudienceCard, Fcd, mergeClasses, generateFragments } from '@cloudillo/react'
 import '@cloudillo/react/src/components.css'
 
 import { useAppConfig, parseQS, qs } from '../utils.js'
@@ -652,19 +652,19 @@ export function FeedApp() {
 
 	const style = React.useMemo(() => ({ minHeight: '3rem' }), [])
 
-	return <Fcb.Container className="g-1">
+	return <Fcd.Container className="g-1">
 		{ !!auth && <>
-			<Fcb.Filter>
+			<Fcd.Filter>
 				<FilterBar/>
-			</Fcb.Filter>
-			<Fcb.Content>
+			</Fcd.Filter>
+			<Fcd.Content>
 				<div><NewPost ref={ref} className="col" style={style} idTag={contextIdTag} onSubmit={onSubmit}/></div>
 				{ !!feed && feed.map(action =>  <ActionComp key={action.actionId} action={action} setAction={setFeedAction} width={width}/>) }
-			</Fcb.Content>
-			<Fcb.Details>
-			</Fcb.Details>
+			</Fcd.Content>
+			<Fcd.Details>
+			</Fcd.Details>
 		</> }
-	</Fcb.Container>
+	</Fcd.Container>
 }
 
 // vim: ts=4

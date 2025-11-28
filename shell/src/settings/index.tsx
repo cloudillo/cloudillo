@@ -25,7 +25,7 @@ import {
 	LuMenu as IcMenu
 } from 'react-icons/lu'
 
-import { useAuth, useApi, Fcb, Button, mergeClasses } from '@cloudillo/react'
+import { useAuth, useApi, Fcd, Button, mergeClasses } from '@cloudillo/react'
 
 import { UsePWA } from '../pwa.js'
 import { useAppConfig, parseQS, qs } from '../utils.js'
@@ -54,28 +54,28 @@ export function Settings({ title, children }: SettingsProps) {
 		setShowFilter(false)
 	}, [location])
 
-	return <Fcb.Container className="g-1">
-		<Fcb.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+	return <Fcd.Container className="g-1">
+		<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 			<ul className="c-nav vertical low">
 				<li><NavLink className="c-nav-item" to={`${basePath}/security`}><IcSecurity/> {t('Security')}</NavLink></li>
 				<li><NavLink className="c-nav-item" to={`${basePath}/notifications`}><IcNotifications/> {t('Notifications')}</NavLink></li>
 				<li><NavLink className="c-nav-item" to={`${basePath}/appearance`}><IcAppearance/> {t('Appearance')}</NavLink></li>
 			</ul>
-		</Fcb.Filter>
-		<Fcb.Content>
+		</Fcd.Filter>
+		<Fcd.Content>
 			<div className="c-nav c-hbox md-hide lg-hide">
 				<IcMenu onClick={() => setShowFilter(true)}/>
 				<h3>{title}</h3>
 			</div>
 			{children}
-		</Fcb.Content>
+		</Fcd.Content>
 		{/*
-		<Fcb.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
+		<Fcd.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
 			{ selectedFile && <div className="c-panel h-min-100">
 			</div> }
-		</Fcb.Details>
+		</Fcd.Details>
 		*/}
-	</Fcb.Container>
+	</Fcd.Container>
 }
 
 export function SettingsRoutes({ pwa }: { pwa: UsePWA }) {

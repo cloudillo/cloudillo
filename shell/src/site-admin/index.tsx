@@ -28,7 +28,7 @@ import {
 	LuMenu as IcMenu
 } from 'react-icons/lu'
 
-import { useAuth, useApi, Fcb, mergeClasses } from '@cloudillo/react'
+import { useAuth, useApi, Fcd, mergeClasses } from '@cloudillo/react'
 
 import { Invitations } from './invitations.js'
 import { IdpsSettings } from './idps.js'
@@ -48,8 +48,8 @@ export function SiteAdmin({ title, children }: { title: string, children?: React
 		setShowFilter(false)
 	}, [location])
 
-	return <Fcb.Container className="g-1">
-		<Fcb.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+	return <Fcd.Container className="g-1">
+		<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 			<ul className="c-nav vertical low">
 				<li><NavLink className={({ isActive }) => mergeClasses('c-nav-item', isActive && 'active')} to="/site-admin/invitations"><IcInvitations/> {t('Invitations')}</NavLink></li>
 				<li><NavLink className={({ isActive }) => mergeClasses('c-nav-item', isActive && 'active')} to="/site-admin/idps"><IcIdps/> {t('Identity Providers')}</NavLink></li>
@@ -59,15 +59,15 @@ export function SiteAdmin({ title, children }: { title: string, children?: React
 				<li><NavLink className={({ isActive }) => mergeClasses('c-nav-item', isActive && 'active')} to="/site-admin/email"><IcMail/> {t('Email')}</NavLink></li>
 				<li><NavLink className={({ isActive }) => mergeClasses('c-nav-item', isActive && 'active')} to="/site-admin/tenant"><IcTenant/> {t('Tenant Settings')}</NavLink></li>
 			</ul>
-		</Fcb.Filter>
-		<Fcb.Content>
+		</Fcd.Filter>
+		<Fcd.Content>
 			<div className="c-nav c-hbox md-hide lg-hide">
 				<IcMenu onClick={() => setShowFilter(true)}/>
 				<h3>{title}</h3>
 			</div>
 			{children}
-		</Fcb.Content>
-	</Fcb.Container>
+		</Fcd.Content>
+	</Fcd.Container>
 }
 
 export function SiteAdminRoutes() {

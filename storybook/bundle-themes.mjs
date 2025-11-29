@@ -28,16 +28,6 @@ const themesContent = `/* OpalUI Themes - Bundled */\n\n${glassWithoutImport}\n\
 
 writeFileSync('.cache/themes.css', themesContent)
 
-// Also inject themes into styles.css since esbuild doesn't bundle local @import
-const stylesTemplate = `/* Import all CSS dependencies */
-@import '@symbion/opalui/dist/opalui.css';
-@import '@cloudillo/react/src/components.css';
-
-/* Injected OpalUI Themes */
-${themesContent}
-`
-writeFileSync('.cache/styles.css', stylesTemplate)
-
 console.log('Themes bundled successfully')
 console.log(`- Glass CSS: ${glassCSS.length} bytes`)
 console.log(`- Opaque CSS: ${opaqueCSS.length} bytes`)

@@ -143,6 +143,7 @@ export function createConfig(options = {}) {
 			'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
 			...define
 		},
+		logLevel: 'info',
 		logOverride: {
 			'direct-eval': 'silent'
 		},

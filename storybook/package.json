@@ -8,9 +8,9 @@
     "ts": "tsc --noEmit",
     "ts-watch": "tsc --noEmit --watch",
     "prebuild": "node bundle-themes.mjs",
-    "build": "node build.mjs",
-    "watch": "node build.mjs --watch",
-    "clean": "rimraf .cache dist/assets/*"
+    "build": "node esbuild.config.js",
+    "watch": "node esbuild.config.js --watch",
+    "clean": "rimraf .cache dist/assets-*"
   },
   "author": "Szilárd Hajba <szilu@cloudillo.org>",
   "license": "LGPL-3.0-or-later",

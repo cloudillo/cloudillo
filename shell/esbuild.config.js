@@ -30,6 +30,7 @@ const swConfig = {
 	define: {
 		'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development')
 	},
+	logLevel: 'info',
 	treeShaking: true,
 	metafile: isProd,
 }

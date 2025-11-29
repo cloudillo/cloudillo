@@ -42,7 +42,7 @@ import {
 
 import { Profile, ActionView, NewAction } from '@cloudillo/types'
 import * as Types from '@cloudillo/base'
-import { useAuth, useApi, Button, Fcd, IdentityTag, ProfileCard, mergeClasses } from '@cloudillo/react'
+import { useAuth, useApi, Button, Fcd, IdentityTag, ProfileCard, mergeClasses, LoadingSpinner, EmptyState, SkeletonList } from '@cloudillo/react'
 import '@cloudillo/react/src/components.css'
 
 import { useAppConfig, parseQS, qs } from '../utils.js'
@@ -421,10 +421,10 @@ export function MessagesApp() {
 			// Get profile by idTag
 			try {
 				const profile = await api.profiles.get(convId)
-				const profileRes = { profiles: [profile] }
-				console.log('profile', profileRes)
+				const profiles = profile ? [profile] : []
+				console.log('profile', profiles)
 
-				setConversation({ id: convId, profiles: profileRes.profiles })
+				setConversation({ id: convId, profiles })
 				const actions = await api.actions.list({ involved: convId, type: 'MSG' })
 				console.log('Msg res', actions)
 				setMsg((actions as any).sort((a: any, b: any) => dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix()))
@@ -482,7 +482,22 @@ export function MessagesApp() {
 				</div>}
 			>
 				{ !scrollBottom && <button className="c-button float m-1 secondary pos-absolute bottom-0 right-0" onClick={onConvScrollBottomClick}><IcScrollBottom/></button> }
-				{ !!msg && msg.sort((a, b) => +a.createdAt - +b.createdAt).map(action => <Msg key={action.actionId} action={action} local={action.issuer.idTag === auth?.idTag}/>) }
+				{ !convId
+					? <EmptyState
+						icon={<IcConvList style={{ fontSize: '2.5rem' }} />}
+						title={t('Select a conversation')}
+						description={t('Choose a contact from the list to start messaging')}
+					/>
+					: msg === undefined
+						? <SkeletonList count={5} showAvatar />
+						: msg.length === 0
+							? <EmptyState
+								icon={<IcConvList style={{ fontSize: '2.5rem' }} />}
+								title={t('No messages yet')}
+								description={t('Start the conversation by sending a message!')}
+							/>
+							: msg.sort((a, b) => +a.createdAt - +b.createdAt).map(action => <Msg key={action.actionId} action={action} local={action.issuer.idTag === auth?.idTag}/>)
+				}
 			</Fcd.Content>
 			<Fcd.Details>
 			</Fcd.Details>

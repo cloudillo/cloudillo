@@ -29,7 +29,8 @@ import Zoom from "yet-another-react-lightbox/plugins/zoom"
 import "yet-another-react-lightbox/plugins/thumbnails.css"
 import 'react-photo-album/rows.css'
 
-import { useAuth, useApi } from '@cloudillo/react'
+import { useAuth, useApi, LoadingSpinner, EmptyState } from '@cloudillo/react'
+import { LuImage as IcImage } from 'react-icons/lu'
 
 import { parseQS, qs } from '../utils.js'
 import { useCurrentContextIdTag } from '../context/index.js'
@@ -84,7 +85,13 @@ export function GalleryApp() {
 		})()
 	}, [api, auth, location.search, refreshHelper])
 
-	if (!photos) return null
+	if (!photos) return <div className="d-flex align-items-center justify-content-center h-100"><LoadingSpinner size="lg" label={t('Loading gallery...')}/></div>
+
+	if (photos.length === 0) return <EmptyState
+		icon={<IcImage style={{ fontSize: '2.5rem' }} />}
+		title={t('No images found')}
+		description={t('Upload some images to see them here')}
+	/>
 
 	return <div className="m-panel h-100 overflow-y-scroll">
 		<PhotoAlbum layout="rows" photos={photos} onClick={({ index }) => setLbIndex(index)}/>

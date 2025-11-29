@@ -4,6 +4,12 @@ import { HashRouter } from 'react-router-dom'
 import i18next from 'i18next'
 import { initReactI18next } from 'react-i18next'
 
+// CSS imports
+import '@symbion/opalui/dist/opalui.css'
+import '@cloudillo/react/src/components.css'
+import '../.cache/themes.css'
+import './storybook.css'
+
 import { Page, Story } from './storybook.js'
 import { ThemeSwitcher } from './theme-switcher.js'
 
@@ -55,8 +61,11 @@ import { ModalStory } from './modal.story.js'
 import { SidebarStory } from './sidebar.story.js'
 import { ToastStory } from './toast.story.js'
 
-// CSS is loaded via HTML link tags in index.html, not imported here
-// to allow proper bundling via separate CSS build
+// New component stories
+import { LoadingSpinnerStory, SkeletonStory, SkeletonTextStory, SkeletonCardStory, SkeletonListStory } from './loading.story.js'
+import { InlineEditFormStory } from './inline-edit.story.js'
+import { FilterBarStory } from './filter-bar.story.js'
+import { EmptyStateStory } from './empty-state.story.js'
 
 ///////////////
 // StoryBook //
@@ -77,10 +86,10 @@ function Contents() {
 			<h3>Component Categories</h3>
 			<ul>
 				<li><strong>Layout:</strong> Box (HBox, VBox, Group), Panel, Container, Fcd, Modal, Sidebar</li>
-				<li><strong>Navigation:</strong> Nav, Tab, Dropdown</li>
-				<li><strong>Data Display:</strong> Avatar, Badge, Tag, Progress</li>
-				<li><strong>Forms:</strong> Input, TextArea, Select, Toggle, Fieldset</li>
-				<li><strong>Feedback:</strong> Toast, Dialog</li>
+				<li><strong>Navigation:</strong> Nav, Tab, Dropdown, FilterBar</li>
+				<li><strong>Data Display:</strong> Avatar, Badge, Tag, Progress, EmptyState</li>
+				<li><strong>Forms:</strong> Input, TextArea, Select, Toggle, Fieldset, InlineEditForm</li>
+				<li><strong>Feedback:</strong> Toast, Dialog, LoadingSpinner, Skeleton</li>
 				<li><strong>Buttons:</strong> Button, LinkButton, IconButton, Popper</li>
 				<li><strong>Profile:</strong> ProfilePicture, ProfileCard, IdentityTag</li>
 			</ul>
@@ -98,21 +107,29 @@ function Contents() {
 		<NavStory/>
 		<TabStory/>
 		<DropdownStory/>
+		<FilterBarStory/>
 
 		{/* Data Display Components */}
 		<AvatarStory/>
 		<BadgeStory/>
 		<TagStory/>
 		<ProgressStory/>
+		<EmptyStateStory/>
 
 		{/* Form Components */}
 		<FormStory/>
 		<SelectStory/>
+		<InlineEditFormStory/>
 
 		{/* Feedback Components */}
 		<ToastStory/>
 		<DialogStory/>
 		<UseDialogStory/>
+		<LoadingSpinnerStory/>
+		<SkeletonStory/>
+		<SkeletonTextStory/>
+		<SkeletonCardStory/>
+		<SkeletonListStory/>
 
 		{/* Button Components */}
 		<ButtonStory/>

@@ -39,7 +39,8 @@ export {
   useCommunitiesList,
   useSidebar,
   useContextSwitch,
-  useContextCache
+  useContextCache,
+  useContextPath
 } from './hooks'
 
 // Context-aware API

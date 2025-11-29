@@ -94,12 +94,12 @@ import {
 import { CloudilloLogo } from './logo.js'
 
 import { Profile, ActionView } from '@cloudillo/types'
-import { useAuth, AuthState, useApi, useDialog, mergeClasses, ProfilePicture, Popper, DialogContainer } from '@cloudillo/react'
+import { useAuth, AuthState, useApi, useDialog, mergeClasses, ProfilePicture, Popper, DialogContainer, ToastContainer } from '@cloudillo/react'
 import { createApiClient } from '@cloudillo/base'
 import { AppConfigState, useAppConfig } from './utils.js'
 import usePWA from './pwa.js'
 import { AuthRoutes } from './auth/auth.js'
-import { Sidebar, useSidebar, useCurrentContextIdTag } from './context/index.js'
+import { Sidebar, useSidebar, useCurrentContextIdTag, useContextPath } from './context/index.js'
 import { OnboardingRoutes } from './onboarding'
 import { WsBusRoot, useWsBus } from './ws-bus.js'
 import { SearchIcon, SearchBar, useSearch } from './search.js'
@@ -122,33 +122,12 @@ function Menu({ className, inert, vertical }: { className?: string, inert?: bool
 	const [appConfig, setAppConfig] = useAppConfig()
 	const [auth, setAuth] = useAuth()
 	const [exMenuOpen, setExMenuOpen] = React.useState(false)
-	const contextIdTag = useCurrentContextIdTag()
+	const { contextIdTag, getContextPath } = useContextPath()
 	const sidebar = useSidebar()
 
 	React.useEffect(function onLocationChange() {
 		setExMenuOpen(false)
 	}, [location])
-
-	// Helper to convert menu path to context-aware path
-	const getContextPath = (path: string) => {
-		if (!contextIdTag) return path
-		// If path starts with /app/, insert contextIdTag
-		if (path.startsWith('/app/')) {
-			return path.replace('/app/', `/app/${contextIdTag}/`)
-		}
-		// Handle other context-aware routes
-		if (path === '/users') return `/users/${contextIdTag}`
-		if (path === '/communities') return `/communities/${contextIdTag}`
-		if (path === '/settings') return `/settings/${contextIdTag}`
-		if (path.startsWith('/profile/')) {
-			// Transform /profile/:idTag to /profile/:contextIdTag/:idTag
-			const parts = path.split('/')
-			if (parts.length >= 3) {
-				return `/profile/${contextIdTag}/${parts.slice(2).join('/')}`
-			}
-		}
-		return path
-	}
 
 	// Check if we're in an app view (where sidebar should be shown)
 	const isAppView = location.pathname.startsWith('/app/')
@@ -390,6 +369,7 @@ export function Layout() {
 			</div>
 			<div id="popper-container"/>
 			<DialogContainer/>
+			<ToastContainer position="bottom-right"/>
 		</WsBusRoot>
 	</>
 }

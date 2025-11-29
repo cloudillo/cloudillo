@@ -54,6 +54,7 @@ import { ViewFrame } from './components/ViewFrame'
 import { TextEditOverlay } from './components/TextEditOverlay'
 import { ObjectShape } from './components/ObjectShape'
 import { PresentationMode } from './components/PresentationMode'
+import { PrelloPropertiesPanel, type PropertyPreview } from './components/PropertiesPanel'
 
 import type {
 	ObjectId,
@@ -129,11 +130,20 @@ export function PrelloApp() {
 	// Presentation mode state
 	const [isPresentationMode, setIsPresentationMode] = React.useState(false)
 
+	// Properties panel visibility
+	const [isPanelVisible, setIsPanelVisible] = React.useState(true)
+
 	// Text editing state - which object is being text-edited
 	const [editingTextId, setEditingTextId] = React.useState<ObjectId | null>(null)
 
 	// Hover state - which object is being hovered (only active when nothing selected)
 	const [hoveredObjectId, setHoveredObjectId] = React.useState<ObjectId | null>(null)
+
+	// Property preview state for live feedback during property scrubbing (doesn't persist)
+	const [propertyPreview, setPropertyPreview] = React.useState<PropertyPreview | null>(null)
+
+	// Selected container (layer) for creating objects inside
+	const [selectedContainerId, setSelectedContainerId] = React.useState<string | null>(null)
 
 	// Temporary object state during drag/resize/rotate (local visual only, not persisted)
 	const [tempObjectState, setTempObjectState] = React.useState<{
@@ -393,14 +403,16 @@ export function PrelloApp() {
 		}
 
 		const handleMouseUp = () => {
-			// Commit final position to CRDT (only now!)
-			updateObjectPosition(
-				prello.yDoc,
-				prello.doc,
-				initialDragState.objectId,
-				currentX,
-				currentY
-			)
+			// Only commit to CRDT if position actually changed
+			if (currentX !== initialDragState.objectStartX || currentY !== initialDragState.objectStartY) {
+				updateObjectPosition(
+					prello.yDoc,
+					prello.doc,
+					initialDragState.objectId,
+					currentX,
+					currentY
+				)
+			}
 
 			// Clear awareness
 			if (prello.awareness) {
@@ -1062,9 +1074,12 @@ export function PrelloApp() {
 			return
 		}
 
-		// Get first layer as parent
-		const layers = prello.doc.r.toArray().filter(ref => ref[0] === 1)
-		const layerId = layers.length > 0 ? layers[0][1] : undefined
+		// Use selected container, or first layer if none selected
+		let parentId = selectedContainerId
+		if (!parentId) {
+			const layers = prello.doc.r.toArray().filter(ref => ref[0] === 1)
+			parentId = layers.length > 0 ? layers[0][1] : undefined
+		}
 
 		// Create object based on tool
 		const objectId = createObject(
@@ -1075,7 +1090,7 @@ export function PrelloApp() {
 			y,
 			width,
 			height,
-			layerId as any
+			parentId as any
 		)
 
 		prello.setActiveTool(null)
@@ -1318,16 +1333,19 @@ export function PrelloApp() {
 			onBoldToggle={handleBoldToggle}
 			onItalicToggle={handleItalicToggle}
 			onUnderlineToggle={handleUnderlineToggle}
+			isPanelVisible={isPanelVisible}
+			onTogglePanel={() => setIsPanelVisible(v => !v)}
 		/>
 
-		<div
-			className="c-panel flex-fill"
-			tabIndex={0}
-			onKeyDown={handleKeyDown}
-			onClick={handleCanvasClick}
-			style={{ outline: 'none' }}
-		>
-			<SvgCanvas
+		<div className="c-hbox flex-fill" style={{ overflow: 'hidden' }}>
+			<div
+				className="c-panel flex-fill"
+				tabIndex={0}
+				onKeyDown={handleKeyDown}
+				onClick={handleCanvasClick}
+				style={{ outline: 'none', minWidth: 0 }}
+			>
+				<SvgCanvas
 				ref={canvasRef}
 				className="w-100 h-100"
 				onToolStart={handleToolStart}
@@ -1387,13 +1405,18 @@ export function PrelloApp() {
 						? tempObjectState
 						: undefined
 
+					// Apply property preview if this object is being scrubbed
+					const displayObject = propertyPreview?.objectId === object.id
+						? { ...object, opacity: propertyPreview.opacity ?? object.opacity }
+						: object
+
 					// Only show hover when nothing is selected
 					const hasSelection = prello.selectedIds.size > 0
 					const isThisHovered = hoveredObjectId === object.id
 
 					return <ObjectShape
 						key={object.id}
-						object={object}
+						object={displayObject}
 						style={style}
 						textStyle={textStyle}
 						isSelected={prello.isSelected(object.id)}
@@ -1555,6 +1578,20 @@ export function PrelloApp() {
 					/>
 				)}
 			</SvgCanvas>
+			</div>
+
+			{isPanelVisible && (
+				<PrelloPropertiesPanel
+					doc={prello.doc}
+					yDoc={prello.yDoc}
+					selectedIds={prello.selectedIds}
+					onSelectObject={prello.selectObject}
+					activeViewId={prello.activeViewId}
+					onPreview={setPropertyPreview}
+					selectedContainerId={selectedContainerId as any}
+					onSelectContainer={setSelectedContainerId as any}
+				/>
+			)}
 		</div>
 
 		<ViewPicker

@@ -47,7 +47,8 @@ import {
 	PiAlignBottomBold as IcAlignBottom,
 	PiTextBBold as IcBold,
 	PiTextItalicBold as IcItalic,
-	PiTextUnderlineBold as IcUnderline
+	PiTextUnderlineBold as IcUnderline,
+	PiSidebarSimpleBold as IcPanel
 } from 'react-icons/pi'
 
 import { FONT_SIZES } from '../utils/text-styles'
@@ -91,6 +92,9 @@ export interface ToolbarProps {
 	onBoldToggle?: () => void
 	onItalicToggle?: () => void
 	onUnderlineToggle?: () => void
+	// Properties panel
+	isPanelVisible?: boolean
+	onTogglePanel?: () => void
 }
 
 export function Toolbar({
@@ -127,7 +131,9 @@ export function Toolbar({
 	onFontSizeChange,
 	onBoldToggle,
 	onItalicToggle,
-	onUnderlineToggle
+	onUnderlineToggle,
+	isPanelVisible,
+	onTogglePanel
 }: ToolbarProps) {
 	return <div className={mergeClasses('c-nav c-hbox p-1 mb-1', className)}>
 		<button
@@ -196,6 +202,17 @@ export function Toolbar({
 				title="Snap debug mode"
 			>
 				<IcDebug/>
+			</button>
+		</div>
+
+		{/* Panel toggle */}
+		<div className="c-hbox ms-2" style={{ borderLeft: '1px solid var(--c-border)', paddingLeft: '0.5rem' }}>
+			<button
+				onClick={onTogglePanel}
+				className={mergeClasses('c-button icon', isPanelVisible ? 'active' : '')}
+				title="Toggle properties panel"
+			>
+				<IcPanel/>
 			</button>
 		</div>
 

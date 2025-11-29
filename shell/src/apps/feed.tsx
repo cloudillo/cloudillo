@@ -55,7 +55,7 @@ import {
 } from 'react-icons/lu'
 
 import { NewAction, ActionView } from '@cloudillo/types'
-import { useAuth, useApi, Button, ProfilePicture, ProfileCard, ProfileAudienceCard, Fcd, mergeClasses, generateFragments } from '@cloudillo/react'
+import { useAuth, useApi, Button, ProfilePicture, ProfileCard, ProfileAudienceCard, Fcd, mergeClasses, generateFragments, LoadingSpinner, EmptyState, SkeletonCard } from '@cloudillo/react'
 import '@cloudillo/react/src/components.css'
 
 import { useAppConfig, parseQS, qs } from '../utils.js'
@@ -659,7 +659,20 @@ export function FeedApp() {
 			</Fcd.Filter>
 			<Fcd.Content>
 				<div><NewPost ref={ref} className="col" style={style} idTag={contextIdTag} onSubmit={onSubmit}/></div>
-				{ !!feed && feed.map(action =>  <ActionComp key={action.actionId} action={action} setAction={setFeedAction} width={width}/>) }
+				{ feed === undefined
+					? <div className="c-vbox g-2 p-2">
+						<SkeletonCard showAvatar showImage lines={2} />
+						<SkeletonCard showAvatar lines={3} />
+						<SkeletonCard showAvatar showImage lines={2} />
+					</div>
+					: feed.length === 0
+						? <EmptyState
+							icon={<IcAll style={{ fontSize: '2.5rem' }} />}
+							title={t('No posts yet')}
+							description={t('Be the first to share something with your community!')}
+						/>
+						: feed.map(action => <ActionComp key={action.actionId} action={action} setAction={setFeedAction} width={width}/>)
+				}
 			</Fcd.Content>
 			<Fcd.Details>
 			</Fcd.Details>

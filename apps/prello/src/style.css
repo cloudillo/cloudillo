@@ -1,3 +1,210 @@
 html, body, #app {
 	height: 100%;
 }
+
+/* Properties Panel Components */
+.c-property-panel {
+	font-size: 12px;
+}
+
+.c-property-section {
+	border-bottom: 1px solid var(--c-border);
+	padding-bottom: 8px;
+	margin-bottom: 8px;
+}
+
+.c-property-section:last-child {
+	border-bottom: none;
+	margin-bottom: 0;
+}
+
+.c-property-section-header {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 0;
+	background: none;
+	border: none;
+	cursor: pointer;
+	width: 100%;
+	text-align: left;
+	font-size: 11px;
+	font-weight: 600;
+	opacity: 0.8;
+}
+
+.c-property-section-header:hover {
+	opacity: 1;
+}
+
+.c-property-section-content {
+	padding-top: 4px;
+}
+
+.c-property-field {
+	align-items: center;
+	font-size: 11px;
+}
+
+.c-property-field-label {
+	opacity: 0.7;
+	flex-shrink: 0;
+}
+
+.c-property-field-control {
+	min-width: 0;
+}
+
+.c-property-field-control .c-input,
+.c-property-field-control .c-select {
+	padding: 2px 4px;
+	font-size: 11px;
+}
+
+/* Number Input */
+.c-number-input {
+	align-items: center;
+}
+
+.c-number-input .c-input {
+	flex: 1;
+	min-width: 0;
+	padding: 2px 4px;
+	font-size: 11px;
+}
+
+/* Hide number input spinners */
+.c-number-input .c-input[type="number"] {
+	-moz-appearance: textfield;
+	appearance: textfield;
+}
+
+.c-number-input .c-input[type="number"]::-webkit-outer-spin-button,
+.c-number-input .c-input[type="number"]::-webkit-inner-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
+/* Scrubbing mode */
+.c-number-input.scrubbing,
+.c-number-input.scrubbing .c-input {
+	cursor: ew-resize;
+	user-select: none;
+}
+
+.c-number-input .c-input:hover {
+	cursor: ew-resize;
+}
+
+.c-number-input-suffix {
+	margin-left: 2px;
+	opacity: 0.6;
+	font-size: 10px;
+}
+
+/* Color Input */
+.c-color-input {
+	align-items: center;
+}
+
+.c-color-input-picker {
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: 1px solid var(--c-border);
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.c-color-input-hex {
+	width: 70px;
+	padding: 2px 4px;
+	font-size: 11px;
+	font-family: monospace;
+}
+
+/* Tree View */
+.c-tree-view {
+	font-size: 11px;
+}
+
+.c-tree-item {
+	user-select: none;
+}
+
+.c-tree-item-row {
+	display: flex;
+	align-items: center;
+	padding: 2px 4px;
+	cursor: pointer;
+	border-radius: 4px;
+	gap: 4px;
+}
+
+.c-tree-item-row:hover {
+	background: var(--c-hover-bg, rgba(0, 0, 0, 0.05));
+}
+
+.c-tree-item.selected > .c-tree-item-row {
+	background: var(--c-primary-bg, rgba(0, 102, 255, 0.1));
+}
+
+.c-tree-item.dragging {
+	opacity: 0.5;
+}
+
+.c-tree-item.drop-target > .c-tree-item-row {
+	outline: 2px dashed var(--c-primary);
+}
+
+/* Drop position indicators */
+.c-tree-item.drop-before > .c-tree-item-row {
+	outline: none;
+	border-top: 2px solid var(--c-primary, #0066ff);
+}
+
+.c-tree-item.drop-after > .c-tree-item-row {
+	outline: none;
+	border-bottom: 2px solid var(--c-primary, #0066ff);
+}
+
+.c-tree-item.drop-inside > .c-tree-item-row {
+	background: var(--c-primary-bg, rgba(0, 102, 255, 0.15));
+	outline: 2px dashed var(--c-primary, #0066ff);
+}
+
+.c-tree-item-toggle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	cursor: pointer;
+}
+
+.c-tree-item-icon {
+	display: flex;
+	align-items: center;
+	opacity: 0.7;
+}
+
+.c-tree-item-label {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.c-tree-item-actions {
+	display: flex;
+	gap: 2px;
+	opacity: 0;
+}
+
+.c-tree-item-row:hover .c-tree-item-actions {
+	opacity: 1;
+}
+
+.c-tree-item-actions .c-button {
+	padding: 2px !important;
+	min-width: auto !important;
+}

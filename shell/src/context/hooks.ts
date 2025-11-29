@@ -444,6 +444,58 @@ export function useContextSwitch() {
  * cache.invalidate()
  * ```
  */
+/**
+ * Hook for generating context-aware paths
+ *
+ * Transforms paths to include the current context idTag where appropriate.
+ * This consolidates the path transformation logic that was duplicated across components.
+ *
+ * @example
+ * ```typescript
+ * const { getContextPath, contextIdTag } = useContextPath()
+ *
+ * // Transform paths
+ * getContextPath('/app/files') // => '/app/alice.example/files' (if in 'alice.example' context)
+ * getContextPath('/settings')  // => '/settings/alice.example'
+ * ```
+ */
+export function useContextPath() {
+  const [activeContext] = useAtom(activeContextAtom)
+  const [auth] = useAuth()
+
+  const contextIdTag = activeContext?.idTag || auth?.idTag
+
+  const getContextPath = React.useCallback((path: string): string => {
+    if (!contextIdTag) return path
+
+    // If path starts with /app/, insert contextIdTag
+    if (path.startsWith('/app/')) {
+      return path.replace('/app/', `/app/${contextIdTag}/`)
+    }
+
+    // Handle other context-aware routes
+    if (path === '/users') return `/users/${contextIdTag}`
+    if (path === '/communities') return `/communities/${contextIdTag}`
+    if (path === '/settings') return `/settings/${contextIdTag}`
+
+    // Profile routes
+    if (path.startsWith('/profile/')) {
+      // Transform /profile/:idTag to /profile/:contextIdTag/:idTag
+      const parts = path.split('/')
+      if (parts.length >= 3) {
+        return `/profile/${contextIdTag}/${parts.slice(2).join('/')}`
+      }
+    }
+
+    return path
+  }, [contextIdTag])
+
+  return {
+    contextIdTag,
+    getContextPath
+  }
+}
+
 export function useContextCache<T>(key: string) {
   const [activeContext] = useAtom(activeContextAtom)
   const [cache, setCache] = useAtom(contextDataCacheAtom)

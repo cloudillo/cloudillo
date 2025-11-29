@@ -82,6 +82,7 @@ function arePropsEqual(prev: ObjectShapeProps, next: ObjectShapeProps): boolean 
 		prev.object.rotation === next.object.rotation &&
 		prev.object.pivotX === next.object.pivotX &&
 		prev.object.pivotY === next.object.pivotY &&
+		prev.object.opacity === next.object.opacity &&
 		prev.object.type === next.object.type &&
 		prevText === nextText &&
 		prev.isSelected === next.isSelected &&
@@ -120,6 +121,9 @@ export const ObjectShape = React.memo(function ObjectShape({
 
 	// Apply rotation transform if non-zero
 	const rotationTransform = rotation !== 0 ? `rotate(${rotation} ${cx} ${cy})` : undefined
+
+	// Object opacity (different from fill/stroke opacity)
+	const objectOpacity = object.opacity !== undefined && object.opacity !== 1 ? object.opacity : undefined
 
 	const commonProps = {
 		onClick,
@@ -162,7 +166,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 
 	switch (object.type) {
 		case 'rect':
-			return <g transform={rotationTransform}>
+			return <g transform={rotationTransform} opacity={objectOpacity}>
 				<rect
 					x={x}
 					y={y}
@@ -177,7 +181,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 			</g>
 
 		case 'ellipse':
-			return <g transform={rotationTransform}>
+			return <g transform={rotationTransform} opacity={objectOpacity}>
 				<ellipse
 					cx={x + width / 2}
 					cy={y + height / 2}
@@ -192,7 +196,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 
 		case 'line':
 			const points = object.points || [[0, height / 2], [width, height / 2]]
-			return <g transform={rotationTransform}>
+			return <g transform={rotationTransform} opacity={objectOpacity}>
 				<line
 					x1={x + points[0][0]}
 					y1={y + points[0][1]}
@@ -208,7 +212,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 			const textContent = object.text || ''
 			const isEmpty = textContent.trim() === ''
 			return (
-				<g transform={rotationTransform} {...commonProps}>
+				<g transform={rotationTransform} opacity={objectOpacity} {...commonProps}>
 					<WrappedText
 						x={x}
 						y={y}
@@ -233,7 +237,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 
 		default:
 			// Fallback rectangle for unsupported types
-			return <g transform={rotationTransform}>
+			return <g transform={rotationTransform} opacity={objectOpacity}>
 				<rect
 					x={x}
 					y={y}

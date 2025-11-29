@@ -58,7 +58,7 @@ import '@symbion/ui-core/scroll.css'
 
 import { NewAction, ActionView, Profile } from '@cloudillo/types'
 import * as Types from '@cloudillo/base'
-import { useApi, useAuth, useDialog, Button, Fcd, ProfilePicture, EditProfileList, Popper, Dialog, mergeClasses } from '@cloudillo/react'
+import { useApi, useAuth, useDialog, useToast, Button, Fcd, ProfilePicture, EditProfileList, Popper, Dialog, mergeClasses, InlineEditForm, LoadingSpinner, EmptyState } from '@cloudillo/react'
 
 import { useAppConfig, parseQS, qs } from '../utils.js'
 import { Tags, EditTags } from '../tags.js'
@@ -158,12 +158,13 @@ function fileColumns({ t, fileOps, renameFileId, renameFileName }: FileColumnsAr
 			title: t('Name'),
 			defaultWidth: 50,
 			sort: true,
-			format: (v, r) => r.fileId === renameFileId ? (<form onSubmit={evt => (evt.preventDefault(), renameFileName && fileOps.doRenameFile(r.fileId, renameFileName))} className="input-group w-100">
-				<input className="c-input" type="text" autoFocus value={renameFileName} onChange={e => fileOps.setRenameFileName(e.target.value)}/>
-					<button className="c-button primary" type="submit"><IcSave/></button>
-					<button className="c-button secondary" type="button" onClick={() => fileOps.renameFile()}
-					><IcCancel/></button>
-			</form>) : v
+			format: (v, r) => r.fileId === renameFileId && renameFileName !== undefined
+				? <InlineEditForm
+					value={renameFileName}
+					onSave={(newName) => fileOps.doRenameFile(r.fileId, newName)}
+					onCancel={() => fileOps.renameFile()}
+				/>
+				: v
 		},
 		contentType: {
 			title: t(''),
@@ -465,18 +466,19 @@ function FileCard({ className, file, onClick, renameFileId, renameFileName, file
 		fileOps.setFile?.({ ...file, tags })
 	}
 
-	//return <div className={'c-panel ' + (className || '')} onClick={onClick}>
-	return <div className={'c-panel ' + (className || '')} onClick={evt => (console.log('CLICK', evt), onClick?.(file))}>
+	return <div className={'c-panel ' + (className || '')} onClick={evt => onClick?.(file)}>
 		<div className="c-panel-header d-flex">
 			<h3 className="c-panel-title d-flex flex-fill">
 				{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons[file.contentType] || IcUnknown, { className: 'me-1' })}
-				{ renameFileName !== undefined && file.fileId === renameFileId ? <form onSubmit={evt => (evt.preventDefault(), renameFileName && fileOps.doRenameFile(file.fileId, renameFileName))} className="c-input-group">
-					<input className="c-input" type="text" autoFocus value={renameFileName} onChange={e => fileOps.setRenameFileName(e.target.value)}/>
-						<button className="c-button primary p-1" type="submit"><IcSave/></button>
-						<button className="c-button secondary p-1" type="button" onClick={() => fileOps.setRenameFileName(undefined)}
-						><IcCancel/></button>
-				</form>
-				: file.fileName}
+				{ renameFileName !== undefined && file.fileId === renameFileId
+					? <InlineEditForm
+						value={renameFileName}
+						onSave={(newName) => fileOps.doRenameFile(file.fileId, newName)}
+						onCancel={() => fileOps.setRenameFileName(undefined)}
+						size="small"
+					/>
+					: file.fileName
+				}
 			</h3>
 			{/* file.ownerTag && <h4>{file.ownerTag}</h4> */}
 			<div className="c-hbox g-2">
@@ -579,13 +581,15 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 			<div className="c-panel-header d-flex">
 				<h3 className="c-panel-title d-flex flex-fill">
 					{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons[file.contentType] || IcUnknown, { className: 'me-1' })}
-					{ renameFileName !== undefined && file.fileId === renameFileId ? <form onSubmit={evt => (evt.preventDefault(), renameFileName && fileOps.doRenameFile(file.fileId, renameFileName))} className="c-input-group">
-						<input className="c-input" type="text" autoFocus value={renameFileName} onChange={e => fileOps.setRenameFileName(e.target.value)}/>
-							<button className="c-button primary p-1" type="submit"><IcSave/></button>
-							<button className="c-button secondary p-1" type="button" onClick={() => fileOps.setRenameFileName(undefined)}
-							><IcCancel/></button>
-					</form>
-					: file.fileName}
+					{ renameFileName !== undefined && file.fileId === renameFileId
+						? <InlineEditForm
+							value={renameFileName}
+							onSave={(newName) => fileOps.doRenameFile(file.fileId, newName)}
+							onCancel={() => fileOps.setRenameFileName(undefined)}
+							size="small"
+						/>
+						: file.fileName
+					}
 				</h3>
 				<div className="c-hbox justify-content-end g-2 me-4">
 					<button className="c-link p-1" type="button" onClick={() => fileOps.openFile(file.fileId)}><IcEdit/></button>
@@ -704,7 +708,7 @@ export function FilesApp() {
 		}
 	}), [auth, api, appConfig, contextIdTag, navigate, t, fileListData, dialog])
 
-	if (!fileListData.getData()) return <h1>Loading...</h1>
+	if (!fileListData.getData()) return <div className="d-flex align-items-center justify-content-center h-100"><LoadingSpinner size="lg" label={t('Loading files...')}/></div>
 
 	return <Fcd.Container className="g-1">
 		<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
@@ -720,15 +724,22 @@ export function FilesApp() {
 				</div>
 			</div>}
 		>
-			{ fileListData.getData().map(file => <FileCard
-				key={file.fileId}
-				className={mergeClasses('mb-1', selectedFile?.fileId === file.fileId && 'accent')}
-				file={file}
-				onClick={onClickFile}
-				renameFileId={renameFileId}
-				renameFileName={renameFileName}
-				fileOps={fileOps}
-			/>) }
+			{ fileListData.getData().length === 0
+				? <EmptyState
+					icon={<IcAll style={{ fontSize: '2.5rem' }} />}
+					title={t('No files found')}
+					description={t('Create a new document or upload files to get started')}
+				/>
+				: fileListData.getData().map(file => <FileCard
+					key={file.fileId}
+					className={mergeClasses('mb-1', selectedFile?.fileId === file.fileId && 'accent')}
+					file={file}
+					onClick={onClickFile}
+					renameFileId={renameFileId}
+					renameFileName={renameFileName}
+					fileOps={fileOps}
+				/>)
+			}
 		</Fcd.Content>
 		<Fcd.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
 			{ selectedFile && <FileDetails

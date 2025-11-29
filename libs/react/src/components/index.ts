@@ -158,4 +158,36 @@ export type { EditProfileListProps } from './EditProfileList/index.js'
 export { Select } from './Select/index.js'
 export type { SelectProps } from './Select/index.js'
 
+// NumberInput Component
+export { NumberInput } from './NumberInput/index.js'
+export type { NumberInputProps } from './NumberInput/index.js'
+
+// ColorInput Component
+export { ColorInput } from './ColorInput/index.js'
+export type { ColorInputProps } from './ColorInput/index.js'
+
+// Loading Components
+export { LoadingSpinner, Skeleton, SkeletonText, SkeletonCard, SkeletonList } from './Loading/index.js'
+export type { LoadingSpinnerProps, SkeletonVariant, SkeletonProps, SkeletonTextProps, SkeletonCardProps, SkeletonListProps } from './Loading/index.js'
+
+// InlineEdit Components
+export { InlineEditForm } from './InlineEdit/index.js'
+export type { InlineEditFormProps } from './InlineEdit/index.js'
+
+// FilterBar Components
+export { FilterBar, FilterBarComponent, FilterBarItem, FilterBarDivider, FilterBarSection, FilterBarSearch } from './FilterBar/index.js'
+export type { FilterBarProps, FilterBarItemProps, FilterBarDividerProps, FilterBarSectionProps, FilterBarSearchProps } from './FilterBar/index.js'
+
+// EmptyState Component
+export { EmptyState } from './EmptyState/index.js'
+export type { EmptyStateProps, EmptyStateSize } from './EmptyState/index.js'
+
+// PropertyPanel Components
+export { PropertyPanel, PropertySection, PropertyField } from './PropertyPanel/index.js'
+export type { PropertyPanelProps, PropertySectionProps, PropertyFieldProps } from './PropertyPanel/index.js'
+
+// TreeView Components
+export { TreeView, TreeItem } from './TreeView/index.js'
+export type { TreeViewProps, TreeItemProps, TreeItemDragData } from './TreeView/index.js'
+
 // vim: ts=4

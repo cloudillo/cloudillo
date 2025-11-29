@@ -20,7 +20,9 @@ import { Routes, Route, Navigate, Link, NavLink, useNavigate, useLocation } from
 import { useTranslation } from 'react-i18next'
 import { atom, useAtom } from 'jotai'
 
-import { Button, mergeClasses } from '@cloudillo/react'
+import { Button, mergeClasses, useAuth } from '@cloudillo/react'
+
+import { useCurrentContextIdTag } from './context/index.js'
 
 import {
 	LuSearch as IcSearch,
@@ -46,7 +48,9 @@ export function SearchIcon () {
 export function SearchBar ({ className }: { className?: string }) {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
+	const [auth] = useAuth()
 	const [search, setSearch] = useSearch()
+	const contextIdTag = useCurrentContextIdTag()
 
 	async function onSubmit(evt: React.FormEvent) {
 		evt.preventDefault()
@@ -57,7 +61,7 @@ export function SearchBar ({ className }: { className?: string }) {
 		} else if (search.query.match(/^\S+(\.\S+)+$/)) {
 			const idTag = (search.query.startsWith('@') ? search.query.slice(1) : search.query).toLowerCase()
 			setSearch({})
-			navigate('/profile/' + idTag)
+			navigate(`/profile/${contextIdTag || auth?.idTag}/${idTag}`)
 		}
 	}
 

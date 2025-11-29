@@ -23,6 +23,9 @@ export const tProfile = T.struct({
 })
 export type Profile = T.TypeOf<typeof tProfile>
 
+export const tOptionalProfile = T.nullable(tProfile)
+export type OptionalProfile = T.TypeOf<typeof tOptionalProfile>
+
 export const tActionType = T.literal('CONN', 'FLLW', 'POST', 'REPOST', 'REACT', 'CMNT', 'FLLW', 'SHRE', 'MSG', 'FSHR')
 export type ActionType = T.TypeOf<typeof tActionType>
 

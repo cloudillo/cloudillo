@@ -463,6 +463,16 @@ export class ApiClient {
     getOwnFull: () => this.request('GET', '/me/full', Types.tProfileKeys),
 
     /**
+     * GET /me/full on another node - Get remote profile's full data
+     * @param idTag - Identity tag of the remote profile
+     * @returns Full profile from the remote node
+     */
+    getRemoteFull: (idTag: string) =>
+      apiFetchHelper<Types.ProfileKeys, unknown>(idTag, 'GET', '/me/full', {
+        type: Types.tProfileKeys,
+      }),
+
+    /**
      * PATCH /me - Update own profile
      * @param data - Profile patch
      * @returns Updated profile
@@ -481,12 +491,12 @@ export class ApiClient {
       }),
 
     /**
-     * GET /profile/:idTag - Get profile by ID tag
+     * GET /profile/:idTag - Get profile by ID tag (local relationship state)
      * @param idTag - Identity tag
-     * @returns Profile
+     * @returns Profile or null if not found locally
      */
     get: (idTag: string) =>
-      this.request('GET', `/profile/${idTag}`, Types.tProfile),
+      this.request('GET', `/profile/${idTag}`, Types.tOptionalProfile),
 
     /**
      * PATCH /profile/:idTag - Update profile connection/relationship

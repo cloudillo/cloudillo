@@ -48,6 +48,7 @@ export type ErrorCode =
 // Import types from @cloudillo/types
 import {
   tProfile,
+  tOptionalProfile,
   tAction,
   tNewAction,
   tActionView,
@@ -64,6 +65,7 @@ import {
 // Re-export types from @cloudillo/types
 export {
   tProfile,
+  tOptionalProfile,
   tAction,
   tNewAction,
   tActionView,

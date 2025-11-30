@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { useTranslation } from 'react-i18next'
+import { useLibTranslation } from '../../i18n.js'
 import { atom, useAtom } from 'jotai'
 import Markdown from 'react-markdown'
 
@@ -79,7 +79,7 @@ const dialogAtom = atom<DialogState | undefined>()
 let dialogResolve: (value?: unknown) => void
 
 export function DialogContainer() {
-	const { t } = useTranslation()
+	const { t } = useLibTranslation()
 	const [dialog, setDialog] = useAtom(dialogAtom)
 	const [value, setValue] = React.useState('')
 

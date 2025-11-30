@@ -2,7 +2,8 @@ const typescriptTransform = require('i18next-scanner-typescript');
 
 module.exports = {
 	input: [
-		'src/**/*.{ts,tsx}'
+		'src/**/*.{ts,tsx}',
+		'../libs/react/src/**/*.{ts,tsx}'
 	],
 	options: {
 		//removeUnusedKeys: true,

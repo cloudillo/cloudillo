@@ -16,7 +16,6 @@
 
 import * as React from 'react'
 import { createPortal } from 'react-dom'
-import { useTranslation } from 'react-i18next'
 import { usePopper } from 'react-popper'
 import { useCombobox } from 'downshift'
 import debounce from 'debounce'
@@ -34,7 +33,6 @@ export interface SelectProps<T> {
 }
 
 export function Select<T>({ className, inputClassName, placeholder, getData, onChange, onSelectItem, itemToId, itemToString, renderItem }: SelectProps<T>) {
-	const { t } = useTranslation()
 	const [popperRef, setPopperRef] = React.useState<HTMLElement | null>(null)
 	const [popperEl, setPopperEl] = React.useState<HTMLUListElement | null>(null)
 	const [items, setItems] = React.useState<T[]>([])

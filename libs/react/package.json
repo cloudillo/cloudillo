@@ -21,6 +21,7 @@
     "@cloudillo/base": "workspace:^",
     "@cloudillo/types": "workspace:^",
     "@symbion/runtype": "^1.1.3",
+    "dayjs": "^1.11.13",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "debounce": "^3.0.0",

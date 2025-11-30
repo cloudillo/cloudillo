@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { useTranslation } from 'react-i18next'
+import { useLibTranslation } from '../../i18n.js'
 
 import {
 	LuTrash as IcDelete
@@ -37,7 +37,7 @@ export interface EditProfileListProps {
 
 export function EditProfileList({ className, placeholder, profiles, listProfiles, addProfile, removeProfile }: EditProfileListProps) {
 	const [add, setAdd] = React.useState(false)
-	const { t } = useTranslation()
+	const { t } = useLibTranslation()
 
 	async function getData(q: string): Promise<Profile[] | undefined> {
 		console.log('getData', q)

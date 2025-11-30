@@ -14,23 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import React from 'react'
-
-//////////
-// Page //
-//////////
-interface PageProps {
-	title?: string
-	noBackButton?: boolean
-	actions?: React.ReactNode
-	children: React.ReactNode
-}
-
-export function Page({ title, noBackButton, actions, children }: PageProps) {
-	return <div>
-		{title && <h2>{title}</h2>}
-		{children}
-	</div>
-}
+export { TimeFormat } from './TimeFormat.js'
+export type { TimeFormatProps } from './TimeFormat.js'
 
 // vim: ts=4

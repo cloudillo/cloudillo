@@ -190,4 +190,8 @@ export type { PropertyPanelProps, PropertySectionProps, PropertyFieldProps } fro
 export { TreeView, TreeItem } from './TreeView/index.js'
 export type { TreeViewProps, TreeItemProps, TreeItemDragData } from './TreeView/index.js'
 
+// TimeFormat Component
+export { TimeFormat } from './TimeFormat/index.js'
+export type { TimeFormatProps } from './TimeFormat/index.js'
+
 // vim: ts=4

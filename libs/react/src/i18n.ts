@@ -14,23 +14,25 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import React from 'react'
+import { useTranslation } from 'react-i18next'
 
-//////////
-// Page //
-//////////
-interface PageProps {
-	title?: string
-	noBackButton?: boolean
-	actions?: React.ReactNode
-	children: React.ReactNode
-}
+type TFunction = (key: string, options?: Record<string, unknown>) => string
 
-export function Page({ title, noBackButton, actions, children }: PageProps) {
-	return <div>
-		{title && <h2>{title}</h2>}
-		{children}
-	</div>
+/**
+ * A wrapper around useTranslation that falls back to returning the key
+ * (which should be English text) if i18n is not initialized.
+ */
+export function useLibTranslation(): { t: TFunction } {
+	try {
+		const { t, i18n } = useTranslation()
+		if (i18n.isInitialized) {
+			return { t: t as TFunction }
+		}
+	} catch {
+		// i18n not available
+	}
+	// Fallback: return identity function (key is English text)
+	return { t: (key: string) => key }
 }
 
 // vim: ts=4

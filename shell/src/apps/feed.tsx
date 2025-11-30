@@ -52,10 +52,14 @@ import {
 	LuImage as IcImage,
 	LuCamera as IcCamera,
 	LuVideo as IcVideo,
+
+	LuGlobe as IcGlobe,
+	LuUsers as IcUsers,
+	LuUserCheck as IcUserCheck,
 } from 'react-icons/lu'
 
 import { NewAction, ActionView } from '@cloudillo/types'
-import { useAuth, useApi, Button, ProfilePicture, ProfileCard, ProfileAudienceCard, Fcd, mergeClasses, generateFragments, LoadingSpinner, EmptyState, SkeletonCard, TimeFormat } from '@cloudillo/react'
+import { useAuth, useApi, Button, Popper, ProfilePicture, ProfileCard, ProfileAudienceCard, Fcd, mergeClasses, generateFragments, LoadingSpinner, EmptyState, SkeletonCard, TimeFormat } from '@cloudillo/react'
 import '@cloudillo/react/src/components.css'
 
 import { useAppConfig, parseQS, qs } from '../utils.js'
@@ -410,6 +414,53 @@ function ActionComp({ className, action, setAction, hideAudience, srcTag, width 
 	}
 })
 
+////////////////////////
+// Visibility Selector //
+////////////////////////
+type Visibility = 'P' | 'C' | 'F'
+
+const visibilityOptions: { value: Visibility; labelKey: string; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; color: string }[] = [
+	{ value: 'F', labelKey: 'Followers', icon: IcUserCheck, color: 'var(--c-primary, #6366f1)' },
+	{ value: 'C', labelKey: 'Connected', icon: IcUsers, color: 'var(--c-warning, #f59e0b)' },
+	{ value: 'P', labelKey: 'Public', icon: IcGlobe, color: 'var(--c-success, #22c55e)' },
+]
+
+interface VisibilitySelectorProps {
+	value: Visibility
+	onChange: (value: Visibility) => void
+}
+
+const VisibilitySelector = React.memo(function VisibilitySelector({ value, onChange }: VisibilitySelectorProps) {
+	const { t } = useTranslation()
+	const selected = visibilityOptions.find(o => o.value === value) || visibilityOptions[0]
+	const Icon = selected.icon
+
+	return (
+		<Popper
+			menuClassName="c-btn link secondary sm"
+			icon={<Icon style={{ color: selected.color }} />}
+		>
+			<ul className="c-nav vertical emph">
+				{visibilityOptions.map(opt => {
+					const OptIcon = opt.icon
+					const isActive = value === opt.value
+					return (
+						<li key={opt.value}>
+							<button
+								className={mergeClasses('c-nav-item', isActive && 'active')}
+								onClick={() => onChange(opt.value)}
+							>
+								<OptIcon style={{ color: opt.color }} />
+								{t(opt.labelKey)}
+							</button>
+						</li>
+					)
+				})}
+			</ul>
+		</Popper>
+	)
+})
+
 // New Post
 interface NewPostProps {
 	className?: string
@@ -426,11 +477,29 @@ export const NewPost = React.memo(React.forwardRef(function NewPostInside({ clas
 	const [content, setContent] = React.useState('')
 	const [attachment, setAttachment] = React.useState<string | undefined>()
 	const [attachmentIds, setAttachmentIds] = React.useState<string[]>([])
+	const [visibility, setVisibility] = React.useState<Visibility>('F')
 	const editorRef = React.useRef(null)
 	const fileInputId = React.useId()
 	const imgInputId = React.useId()
 	const videoInputId = React.useId()
 	console.log('attachments', attachmentIds)
+
+	// Load default visibility from settings
+	React.useEffect(() => {
+		if (!api) return
+		;(async function loadDefaultVisibility() {
+			try {
+				const setting = await api.settings.get('privacy.default_visibility')
+				const value = setting?.value
+				if (typeof value === 'string' && ['P', 'C', 'F'].includes(value)) {
+					setVisibility(value as Visibility)
+				}
+			} catch (e) {
+				// Use default 'F' if setting not found
+				console.log('Using default visibility: F (Followers)')
+			}
+		})()
+	}, [api])
 
 	//useEditable(newPostRef, setContent)
 	//console.log('editorRef', editorRef)
@@ -505,7 +574,8 @@ export const NewPost = React.memo(React.forwardRef(function NewPostInside({ clas
 			subType: attachmentIds.length ? 'IMG' : 'TEXT',
 			content,
 			attachments: attachmentIds.length ? attachmentIds : undefined,
-			audienceTag: idTag
+			audienceTag: idTag,
+			visibility
 		}
 
 		const res = await api.actions.create(action)
@@ -531,7 +601,10 @@ export const NewPost = React.memo(React.forwardRef(function NewPostInside({ clas
 					<div ref={editorRef} className="c-input" tabIndex={0} onKeyDown={onKeyDown}>
 						{ generateFragments(content).map((n, i) => <React.Fragment key={i}>{n}</React.Fragment>) }
 					</div>
-					<Button link primary className="align-self-end m-1" onClick={doSubmit}><IcSend/></Button>
+					<div className="c-hbox g-1 align-self-end m-1">
+						<VisibilitySelector value={visibility} onChange={setVisibility}/>
+						<Button link primary onClick={doSubmit}><IcSend/></Button>
+					</div>
 				</div>
 			</div>
 			{ !!attachmentIds.length && <div className="c-hbox wrap mu-2">

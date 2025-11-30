@@ -22,6 +22,7 @@ import {
 	LuKeyRound as IcSecurity,
 	LuBell as IcNotifications,
 	LuPalette as IcAppearance,
+	LuShield as IcPrivacy,
 	LuMenu as IcMenu
 } from 'react-icons/lu'
 
@@ -32,6 +33,7 @@ import { useAppConfig, parseQS, qs } from '../utils.js'
 import { SecuritySettings } from './security.js'
 import { NotificationSettings } from './notifications.js'
 import { AppearanceSettings } from './appearance.js'
+import { PrivacySettings } from './privacy.js'
 
 interface SettingsProps {
 	title: string
@@ -58,6 +60,7 @@ export function Settings({ title, children }: SettingsProps) {
 		<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 			<ul className="c-nav vertical low">
 				<li><NavLink className="c-nav-item" to={`${basePath}/security`}><IcSecurity/> {t('Security')}</NavLink></li>
+				<li><NavLink className="c-nav-item" to={`${basePath}/privacy`}><IcPrivacy/> {t('Privacy')}</NavLink></li>
 				<li><NavLink className="c-nav-item" to={`${basePath}/notifications`}><IcNotifications/> {t('Notifications')}</NavLink></li>
 				<li><NavLink className="c-nav-item" to={`${basePath}/appearance`}><IcAppearance/> {t('Appearance')}</NavLink></li>
 			</ul>
@@ -86,6 +89,11 @@ export function SettingsRoutes({ pwa }: { pwa: UsePWA }) {
 		<Route path="/settings/:contextIdTag/security" element={
 			<Settings title={t('Security')}>
 				<SecuritySettings/>
+			</Settings>
+		}/>
+		<Route path="/settings/:contextIdTag/privacy" element={
+			<Settings title={t('Privacy')}>
+				<PrivacySettings/>
 			</Settings>
 		}/>
 		<Route path="/settings/:contextIdTag/notifications" element={

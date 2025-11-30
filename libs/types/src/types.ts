@@ -63,7 +63,8 @@ export const tNewAction = T.struct({
 	content: T.optional(T.unknown),
 	attachments: T.optional(T.array(T.string)),
 	subject: T.optional(T.string),
-	expiresAt: T.optional(T.number)
+	expiresAt: T.optional(T.number),
+	visibility: T.optional(T.string) // 'P' = Public, 'C' = Connected, 'F' = Followers
 })
 export type NewAction = T.TypeOf<typeof tNewAction>
 

@@ -99,6 +99,7 @@ import { createApiClient } from '@cloudillo/base'
 import { AppConfigState, useAppConfig } from './utils.js'
 import usePWA from './pwa.js'
 import { AuthRoutes } from './auth/auth.js'
+import { useTokenRenewal } from './auth/useTokenRenewal.js'
 import { Sidebar, useSidebar, useCurrentContextIdTag, useContextPath } from './context/index.js'
 import { OnboardingRoutes } from './onboarding'
 import { WsBusRoot, useWsBus } from './ws-bus.js'
@@ -344,6 +345,7 @@ export function Layout() {
 	const dialog = useDialog()
 	const sidebar = useSidebar()
 	const location = useLocation()
+	useTokenRenewal() // Automatic token renewal
 
 	// Check if we're in an app view (where sidebar should be shown)
 	const isAppView = location.pathname.startsWith('/app/')

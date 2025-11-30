@@ -171,8 +171,7 @@ export type IdpInfo = T.TypeOf<typeof tIdpInfo>
 
 // Request types
 export interface ActionStatUpdate {
-  reactions?: number
-  comments?: number
+  commentsRead?: number
 }
 
 export interface ReactionRequest {

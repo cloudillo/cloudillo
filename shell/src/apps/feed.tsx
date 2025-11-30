@@ -277,7 +277,7 @@ function Comments({ parentAction, onCommentsRead, ...props }: CommentsProps) {
 			console.log('Comments res', actions)
 			if (actions.length != parentAction.stat?.commentsRead) {
 				timeout = setTimeout(async function () {
-					await api.actions.updateStat(parentAction.actionId, { comments: actions.length })
+					await api.actions.updateStat(parentAction.actionId, { commentsRead: actions.length })
 					onCommentsRead?.(actions.length)
 					timeout = undefined
 				}, 3000)

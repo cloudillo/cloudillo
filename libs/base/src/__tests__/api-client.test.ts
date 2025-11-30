@@ -129,12 +129,10 @@ describe('ApiClient', () => {
 
     it('should accept ActionStatUpdate', () => {
       const update: Types.ActionStatUpdate = {
-        reactions: 5,
-        comments: 3,
+        commentsRead: 5,
       }
 
-      expect(update.reactions).toBe(5)
-      expect(update.comments).toBe(3)
+      expect(update.commentsRead).toBe(5)
     })
 
     it('should accept ReactionRequest', () => {

@@ -238,7 +238,7 @@ export interface ListFilesQuery {
   fileId?: string
   preset?: string
   tag?: string
-  status?: ('P' | 'M')[]
+  status?: ('P' | 'A')[]
   contentType?: string
   createdAfter?: string | number
   createdBefore?: string | number
@@ -248,7 +248,7 @@ export interface ListFilesQuery {
 // Response types
 export const tFileView = T.struct({
   fileId: T.string,
-  status: T.literal('P', 'M'),
+  status: T.literal('P', 'A'),
   preset: T.optional(T.string),
   contentType: T.string,
   fileName: T.string,

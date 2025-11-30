@@ -232,7 +232,7 @@ export type MessageAction = T.TypeOf<typeof tMessageAction>
 export const tFileShareAction = T.struct({
 	type: T.literal('FSHR'),
 	subType: T.optional(T.literal('READ', 'WRITE')),
-	content: T.struct({ fileName: T.string, contentType: T.string }),
+	content: T.struct({ fileName: T.string, contentType: T.string, fileTp: T.optional(T.string) }),
 	attachments: T.undefinedValue,
 	parentId: T.undefinedValue,
 	audience: T.string,

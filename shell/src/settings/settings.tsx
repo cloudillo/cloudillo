@@ -52,7 +52,7 @@ export function useSettings(prefix: string | string[]) {
 		}
 	}, [])
 
-	async function onSettingChange(evt: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
+	async function onSettingChange(evt: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
 		if (!settings || !api) return
 
 		const { name, type, tagName } = evt.target

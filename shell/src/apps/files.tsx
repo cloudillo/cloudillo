@@ -86,6 +86,7 @@ interface File {
 		name: string
 		profilePic?: string
 	}
+	fileTp?: string
 	contentType: string
 	createdAt: string
 	preset: string
@@ -425,7 +426,7 @@ const FilterBar = React.memo(function FilterBar({ className, contextIdTag }: { c
 			</Link>
 		</li>
 		<li className="c-nav-item">
-			<Link className={'c-nav-link ' + (qs.fileTp === 'CRDT' ? 'active' : '')} to="?fileTp=CRDT"><IcMutable/> {t('Editable')}
+			<Link className={'c-nav-link ' + (qs.fileTp === 'CRDT,RTDB' ? 'active' : '')} to="?fileTp=CRDT,RTDB"><IcMutable/> {t('Editable')}
 				{!!fileStat.todo && <span className="c-badge bg error">{fileStat.mutable}</span>}
 			</Link>
 		</li>
@@ -550,6 +551,7 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 			subType: perm,
 			subject: file.fileId,
 			content: {
+				fileTp: file.fileTp,
 				fileName: file.fileName,
 				contentType: file.contentType
 			},

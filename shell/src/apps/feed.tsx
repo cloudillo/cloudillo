@@ -657,7 +657,7 @@ export function FeedApp() {
 				<FilterBar/>
 			</Fcd.Filter>
 			<Fcd.Content>
-				<div><NewPost ref={ref} className="col" style={style} idTag={contextIdTag} onSubmit={onSubmit}/></div>
+				<div><NewPost ref={ref} className="col" style={style} idTag={contextIdTag !== auth?.idTag ? contextIdTag : undefined} onSubmit={onSubmit}/></div>
 				{ feed === undefined
 					? <div className="c-vbox g-2 p-2">
 						<SkeletonCard showAvatar showImage lines={2} />

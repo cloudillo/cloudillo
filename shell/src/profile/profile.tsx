@@ -450,7 +450,7 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 
 	return <>
 		{ !!auth &&
-				<NewPost ref={ref} className="col" style={{ minHeight: '3rem' }} onSubmit={onSubmit} idTag={profile.idTag}/>
+				<NewPost ref={ref} className="col" style={{ minHeight: '3rem' }} onSubmit={onSubmit} idTag={profile.idTag !== auth.idTag ? profile.idTag : undefined}/>
 		}
 		{ !!feed && feed.map(action =>
 			<ActionComp key={action.actionId} action={action} setAction={setFeedAction} hideAudience={profile.idTag} srcTag={profile.idTag} width={width}/>

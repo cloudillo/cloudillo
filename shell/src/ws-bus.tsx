@@ -72,25 +72,41 @@ export function send(msg: unknown): void {
 export function WsBusRoot({ children }: { children: React.ReactNode }) {
 	const [auth] = useAuth()
 	const [wsBus, setWsBus] = useWsBusState()
+	const wsRef = React.useRef<WebSocket | undefined>(undefined)
 
-	let ws: WebSocket | undefined
+	React.useEffect(function init() {
+		if (!auth || !auth.idTag || !auth.token) {
+			// Close existing connection if auth becomes invalid
+			if (wsRef.current) {
+				wsRef.current.close()
+				wsRef.current = undefined
+			}
+			return
+		}
 
-	function initWs() {
-		if (!auth || !auth.idTag || !auth.token) return
+		// Close existing connection before creating a new one
+		if (wsRef.current) {
+			wsRef.current.close()
+			wsRef.current = undefined
+		}
 
-		ws = new WebSocket(`wss://cl-o.${auth.idTag}/ws/bus?token=${auth.token}`)
+		const newWs = new WebSocket(`wss://cl-o.${auth.idTag}/ws/bus?token=${auth.token}`)
+		wsRef.current = newWs
 
-		ws.onopen = function open() {
+		newWs.onopen = function open() {
 			console.log('connected')
 			for (let sm of connSendBuf) {
 				console.log('WS sending', sm)
-				ws && ws.send(sm)
+				newWs.send(sm)
 			}
 			//connSendBuf = []
 		}
 
-		ws.onclose = async function close(event) {
+		newWs.onclose = async function close(event) {
 			console.log('disconnected', event.code, event.reason)
+			// Only reconnect if this is still the current WebSocket
+			if (wsRef.current !== newWs) return
+
 			// Don't reconnect on auth errors (1008 Policy Violation or 4xxx custom codes)
 			// WebSocket close codes: 1008 = Policy Violation (auth failure)
 			// 4000-4999 = Application-specific codes (often used for auth errors)
@@ -99,10 +115,14 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 				return
 			}
 			await delay(10_000)
-			initWs()
+			// Re-check if still current before reconnecting
+			if (wsRef.current === newWs) {
+				wsRef.current = undefined
+				// Trigger re-render to reconnect (effect will run again)
+			}
 		}
 
-		ws.onmessage = function incoming(msg) {
+		newWs.onmessage = function incoming(msg) {
 			const j = JSON.parse(msg.data)
 			console.log('WS BUS MSG', j)
 			switch (j.cmd) {
@@ -110,20 +130,15 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 				console.log('WS DEBUG', j)
 				break
 			}
-			setWsBus({ ...wsBus, lastMsg: j })
+			setWsBus(prev => ({ ...prev, lastMsg: j }))
 		}
 
-		//ws.onerror = async function(err) {
-		//	console.log('WS error', err)
-		//}
-	}
-
-	React.useEffect(function init() {
-		if (auth) {
-			initWs()
-		} else if (ws) {
-			ws.close()
-			ws = undefined
+		// Cleanup: close WebSocket when effect re-runs or component unmounts
+		return () => {
+			if (wsRef.current === newWs) {
+				newWs.close()
+				wsRef.current = undefined
+			}
 		}
 	}, [auth])
 

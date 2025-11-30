@@ -251,14 +251,14 @@ export class ApiClient {
      * @param actionId - Action ID
      */
     accept: (actionId: string) =>
-      this.request('POST', `/action/${actionId}/accept`, T.struct({})),
+      this.request('POST', `/action/${actionId}/accept`, T.nullValue),
 
     /**
      * POST /action/:actionId/reject - Reject action
      * @param actionId - Action ID
      */
     reject: (actionId: string) =>
-      this.request('POST', `/action/${actionId}/reject`, T.struct({})),
+      this.request('POST', `/action/${actionId}/reject`, T.nullValue),
 
     /**
      * POST /action/:actionId/stat - Update action statistics
@@ -598,6 +598,23 @@ export class ApiClient {
      */
     delete: (refId: string) =>
       this.request('DELETE', `/refs/${refId}`, Types.tDeleteRefResult),
+  }
+
+  // ========================================================================
+  // IDP ENDPOINTS
+  // ========================================================================
+
+  /** Identity Provider endpoints */
+  idp = {
+    /**
+     * GET /idp/info on a remote provider - Get provider public info
+     * @param providerDomain - The domain of the identity provider
+     * @returns Provider info (name, info text, optional URL)
+     */
+    getInfo: (providerDomain: string) =>
+      apiFetchHelper<Types.IdpInfo, unknown>(providerDomain, 'GET', '/idp/info', {
+        type: Types.tIdpInfo,
+      }),
   }
 
 }

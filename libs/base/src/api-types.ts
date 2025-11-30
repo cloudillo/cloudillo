@@ -156,6 +156,15 @@ export const tRegisterVerifyResult = T.struct({
 })
 export type RegisterVerifyResult = T.TypeOf<typeof tRegisterVerifyResult>
 
+// Identity Provider info (fetched from provider's /api/idp/info endpoint)
+export const tIdpInfo = T.struct({
+  domain: T.string,
+  name: T.string,
+  info: T.string,
+  url: T.optional(T.string),
+})
+export type IdpInfo = T.TypeOf<typeof tIdpInfo>
+
 // ============================================================================
 // ACTION ENDPOINTS
 // ============================================================================

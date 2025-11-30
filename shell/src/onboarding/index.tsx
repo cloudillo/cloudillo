@@ -27,8 +27,7 @@ import { Welcome } from './welcome.js'
 
 function next(api: ApiClient | null, location: string) {
 	const nextPage =
-		location == 'join' ? 'notifications'
-		: location == 'notifications' ? 'install'
+		location == 'join' ? 'extras'
 		: null
 
 	if (api) {
@@ -53,64 +52,110 @@ function Join() {
 		navigate(next(api, 'join'))
 	}
 
-	return <div className="c-panel">
-		<h1>{t('Join the Cloudillo Community')}</h1>
-		<p className="py-4">{t('Do you want to start your Cloudillo experience alone, or want to be part of a helping community?')}</p>
-		<div className="c-group g-1">
-			<Button className="c-button primary" onClick={onJoin}>{t('Join the Cloudillo Community')}</Button>
-			<Button className="c-button" onClick={onSkip}>{t('Skip')}</Button>
+	return <div className="c-panel p-4">
+		<h1 className="mb-3">{t("You're in!")}</h1>
+
+		<div className="c-panel primary p-4 my-4">
+			<h3 className="mb-3">🌍 {t('Join the Cloudillo Community')}</h3>
+			<p className="mb-3">{t('Connect with other Cloudillo users, get help, and stay updated on new features.')}</p>
+			<div className="c-group g-2">
+				<Button className="c-button primary" onClick={onJoin}>{t('Join Community')}</Button>
+				<Button className="c-button" onClick={onSkip}>{t('Maybe later')}</Button>
+			</div>
 		</div>
 	</div>
 }
 
-function Notifications({ pwa }: { pwa: UsePWA }) {
+// Combined convenience options (notifications + install)
+function Extras({ pwa }: { pwa: UsePWA }) {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
 	const { api, setIdTag } = useApi()
-	if (api && api.idTag && !pwa.askNotify) return <Navigate to={next(api, 'notifications')}/>
+	const [enableNotifications, setEnableNotifications] = React.useState(false)
+	const [enableInstall, setEnableInstall] = React.useState(false)
 
-	async function onSubscribe() {
-		subscribeNotifications(api, pwa)
-		navigate(next(api, 'notifications'))
+	// Skip if neither option is available
+	const canNotify = pwa.askNotify
+	const canInstall = pwa.doInstall
+	if (!canNotify && !canInstall) {
+		// Nothing to show, go to feed
+		if (api) {
+			api.settings.update('ui.onboarding', { value: null })
+		}
+		return <Navigate to="/app/feed"/>
+	}
+
+	async function onContinue() {
+		if (enableNotifications && canNotify) {
+			subscribeNotifications(api, pwa)
+		}
+		if (enableInstall && canInstall) {
+			pwa.doInstall?.()
+		}
+		if (api) {
+			api.settings.update('ui.onboarding', { value: null })
+		}
+		navigate('/app/feed')
 	}
 
 	function onSkip() {
-		navigate(next(api, 'notifications'))
+		if (api) {
+			api.settings.update('ui.onboarding', { value: null })
+		}
+		navigate('/app/feed')
 	}
 
-	return <div className="c-panel">
-		<h1>{t('Push notifications')}</h1>
-		<p className="py-4">{t('You can enable push notifications. You can finetune if in the settings.')}</p>
-		<div className="c-group g-1">
-			<Button className="c-button primary" onClick={onSubscribe}>{t('Enable notifications')}</Button>
-			<Button className="c-button" onClick={onSkip}>{t('Skip')}</Button>
+	return <div className="c-panel p-4">
+		<h3 className="mb-3">{t('A couple more things')} <span className="text-muted">({t('optional')})</span></h3>
+
+		<div className="c-vbox g-3 my-4">
+			{canNotify && (
+				<label className="c-panel clickable p-3 d-flex align-items-center" style={{ cursor: 'pointer' }} onClick={() => setEnableNotifications(!enableNotifications)}>
+					<input
+						type="checkbox"
+						checked={enableNotifications}
+						onChange={(e) => setEnableNotifications(e.target.checked)}
+						className="me-3"
+					/>
+					<div>
+						<strong>{t('Enable notifications')}</strong>
+						<p className="text-muted small mb-0">{t('Know when someone messages you')}</p>
+					</div>
+				</label>
+			)}
+
+			{canInstall && (
+				<label className="c-panel clickable p-3 d-flex align-items-center" style={{ cursor: 'pointer' }} onClick={() => setEnableInstall(!enableInstall)}>
+					<input
+						type="checkbox"
+						checked={enableInstall}
+						onChange={(e) => setEnableInstall(e.target.checked)}
+						className="me-3"
+					/>
+					<div>
+						<strong>{t('Add to home screen')}</strong>
+						<p className="text-muted small mb-0">{t('Quick access on your phone')}</p>
+					</div>
+				</label>
+			)}
+		</div>
+
+		<div className="c-group g-2">
+			{(enableNotifications || enableInstall) && (
+				<Button className="c-button primary" onClick={onContinue}>{t('Enable selected')}</Button>
+			)}
+			<Button className="c-button" onClick={onSkip}>{t('Skip and start using Cloudillo →')}</Button>
 		</div>
 	</div>
+}
+
+// Legacy routes for backwards compatibility
+function Notifications({ pwa }: { pwa: UsePWA }) {
+	return <Navigate to="/onboarding/extras"/>
 }
 
 function Install({ pwa }: { pwa: UsePWA }) {
-	const { t } = useTranslation()
-	const navigate = useNavigate()
-	const { api, setIdTag } = useApi()
-	if (api && api.idTag && !pwa.doInstall) return <Navigate to={next(api, 'install')}/>
-
-	async function onInstall() {
-		pwa.doInstall?.()
-		navigate(next(api, 'install'))
-	}
-
-	function onSkip() {
-		navigate(next(api, 'install'))
-	}
-
-	return <div className="c-panel">
-		<h1>{t('Install the Cloudillo Client')}</h1>
-		<p className="py-4">{t('After installing the Cloudillo client, you can access it easily from your home screen or desktop.')}</p>
-		<div className="c-group g-1">
-			<Button className="c-button primary" onClick={onInstall}>{t('Install to home screen')}</Button>
-			<Button className="c-button" onClick={onSkip}>{t('Skip')}</Button>
-		</div>
-	</div>
+	return <Navigate to="/onboarding/extras"/>
 }
 
 function Page({ children }: { children: React.ReactNode }) {
@@ -129,6 +174,8 @@ export function OnboardingRoutes({ pwa }: { pwa: UsePWA }) {
 	return <Page><Routes>
 		<Route path="/onboarding/welcome/:refId" element={<Welcome/>}/>
 		<Route path="/onboarding/join" element={<Join/>}/>
+		<Route path="/onboarding/extras" element={<Extras pwa={pwa}/>}/>
+		{/* Legacy routes for backwards compatibility */}
 		<Route path="/onboarding/notifications" element={<Notifications pwa={pwa}/>}/>
 		<Route path="/onboarding/install" element={<Install pwa={pwa}/>}/>
 		<Route path="/*" element={null}/>

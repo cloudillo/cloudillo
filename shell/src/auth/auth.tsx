@@ -383,6 +383,7 @@ export function AuthRoutes() {
 		<Route path="/login" element={<LoginPage><LoginForm/></LoginPage>}/>
 		<Route path="/register/:token" element={<LoginPage><RegisterForm/></LoginPage>}/>
 		<Route path="/register/:token/:providerType" element={<LoginPage><RegisterForm/></LoginPage>}/>
+		<Route path="/register/:token/idp/:idpStep" element={<LoginPage><RegisterForm/></LoginPage>}/>
 		<Route path="/passwd" element={<LoginPage><PasswordResetForm/></LoginPage>}/>
 		<Route path="/passwd-sent" element={<LoginPage><PasswordResetSent/></LoginPage>}/>
 		<Route path="/passwd-set" element={<LoginPage><PasswordSet/></LoginPage>}/>

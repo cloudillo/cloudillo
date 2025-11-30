@@ -144,6 +144,52 @@ export function IdpsSettings() {
 		</div>
 
 		<div className="c-panel">
+			<h4>{t('Provider Public Info')}</h4>
+			<p className="mb-4 text-secondary">
+				{t('This information is shown to users during registration when they choose an identity provider.')}
+			</p>
+
+			<label className="d-block mb-3">
+				<span className="d-block mb-1">{t('Provider Name')}</span>
+				<input
+					className="c-input w-100"
+					name="idp.name"
+					type="text"
+					placeholder={t('e.g., Cloudillo')}
+					value={String(settings['idp.name'] || '')}
+					onChange={onSettingChange}
+				/>
+				<p className="c-hint mt-1">{t('Display name shown to users (defaults to domain if empty)')}</p>
+			</label>
+
+			<label className="d-block mb-3">
+				<span className="d-block mb-1">{t('Provider Info')}</span>
+				<textarea
+					className="c-input w-100"
+					name="idp.info"
+					rows={3}
+					placeholder={t('e.g., Free during early access. ~€3/year after launch.')}
+					value={String(settings['idp.info'] || '')}
+					onChange={onSettingChange}
+				/>
+				<p className="c-hint mt-1">{t('Short description with pricing, terms, or other important info')}</p>
+			</label>
+
+			<label className="d-block mb-3">
+				<span className="d-block mb-1">{t('More Info URL')}</span>
+				<input
+					className="c-input w-100"
+					name="idp.url"
+					type="url"
+					placeholder={t('e.g., https://cloudillo.net/about')}
+					value={String(settings['idp.url'] || '')}
+					onChange={onSettingChange}
+				/>
+				<p className="c-hint mt-1">{t('Optional link for more details about the provider')}</p>
+			</label>
+		</div>
+
+		<div className="c-panel">
 			<h4>{t('Trusted Identity Provider Domains')}</h4>
 			<p className="mb-4 text-secondary">
 				{t('Manage trusted identity providers. These domains can be used for federated authentication.')}

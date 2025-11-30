@@ -82,12 +82,36 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 
 			{ !!settings['notify.push'] && <>
 				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Notify on connection requests')}</span>
-					<input className="c-toggle" name="notify.push.connect" type="checkbox" checked={!!settings['notify.push.connect']} onChange={onSettingChange}/>
+					<span className="flex-fill">{t('Notify on direct messages')}</span>
+					<input className="c-toggle" name="notify.push.message" type="checkbox" checked={!!settings['notify.push.message']} onChange={onSettingChange}/>
 				</label>
 				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Notify on new messages')}</span>
-					<input className="c-toggle" name="notify.push.message" type="checkbox" checked={!!settings['notify.push.message']} onChange={onSettingChange}/>
+					<span className="flex-fill">{t('Notify on connection requests')}</span>
+					<input className="c-toggle" name="notify.push.connection" type="checkbox" checked={!!settings['notify.push.connection']} onChange={onSettingChange}/>
+				</label>
+				<label className="c-hbox mt-3 ms-2">
+					<span className="flex-fill">{t('Notify when files are shared with you')}</span>
+					<input className="c-toggle" name="notify.push.file_share" type="checkbox" checked={!!settings['notify.push.file_share']} onChange={onSettingChange}/>
+				</label>
+				<label className="c-hbox mt-3 ms-2">
+					<span className="flex-fill">{t('Notify when someone follows you')}</span>
+					<input className="c-toggle" name="notify.push.follow" type="checkbox" checked={!!settings['notify.push.follow']} onChange={onSettingChange}/>
+				</label>
+				<label className="c-hbox mt-3 ms-2">
+					<span className="flex-fill">{t('Notify on comments to your posts')}</span>
+					<input className="c-toggle" name="notify.push.comment" type="checkbox" checked={!!settings['notify.push.comment']} onChange={onSettingChange}/>
+				</label>
+				<label className="c-hbox mt-3 ms-2">
+					<span className="flex-fill">{t('Notify on reactions to your posts')}</span>
+					<input className="c-toggle" name="notify.push.reaction" type="checkbox" checked={!!settings['notify.push.reaction']} onChange={onSettingChange}/>
+				</label>
+				<label className="c-hbox mt-3 ms-2">
+					<span className="flex-fill">{t('Notify when you are mentioned')}</span>
+					<input className="c-toggle" name="notify.push.mention" type="checkbox" checked={!!settings['notify.push.mention']} onChange={onSettingChange}/>
+				</label>
+				<label className="c-hbox mt-3 ms-2">
+					<span className="flex-fill">{t('Notify on new posts from people you follow')}</span>
+					<input className="c-toggle" name="notify.push.post" type="checkbox" checked={!!settings['notify.push.post']} onChange={onSettingChange}/>
 				</label>
 			</> }
 
@@ -98,12 +122,36 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 
 			{ !!settings['notify.email'] && <>
 				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Notify on connection requests')}</span>
-					<input className="c-toggle" name="notify.email.connect" type="checkbox" checked={!!settings['notify.email.connect']} onChange={onSettingChange}/>
+					<span className="flex-fill">{t('Notify on direct messages')}</span>
+					<input className="c-toggle" name="notify.email.message" type="checkbox" checked={!!settings['notify.email.message']} onChange={onSettingChange}/>
 				</label>
 				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Notify on new messages')}</span>
-					<input className="c-toggle" name="notify.email.message" type="checkbox" checked={!!settings['notify.email.message']} onChange={onSettingChange}/>
+					<span className="flex-fill">{t('Notify on connection requests')}</span>
+					<input className="c-toggle" name="notify.email.connection" type="checkbox" checked={!!settings['notify.email.connection']} onChange={onSettingChange}/>
+				</label>
+				<label className="c-hbox mt-3 ms-2">
+					<span className="flex-fill">{t('Notify when files are shared with you')}</span>
+					<input className="c-toggle" name="notify.email.file_share" type="checkbox" checked={!!settings['notify.email.file_share']} onChange={onSettingChange}/>
+				</label>
+				<label className="c-hbox mt-3 ms-2">
+					<span className="flex-fill">{t('Notify when someone follows you')}</span>
+					<input className="c-toggle" name="notify.email.follow" type="checkbox" checked={!!settings['notify.email.follow']} onChange={onSettingChange}/>
+				</label>
+				<label className="c-hbox mt-3 ms-2">
+					<span className="flex-fill">{t('Notify on comments to your posts')}</span>
+					<input className="c-toggle" name="notify.email.comment" type="checkbox" checked={!!settings['notify.email.comment']} onChange={onSettingChange}/>
+				</label>
+				<label className="c-hbox mt-3 ms-2">
+					<span className="flex-fill">{t('Notify on reactions to your posts')}</span>
+					<input className="c-toggle" name="notify.email.reaction" type="checkbox" checked={!!settings['notify.email.reaction']} onChange={onSettingChange}/>
+				</label>
+				<label className="c-hbox mt-3 ms-2">
+					<span className="flex-fill">{t('Notify when you are mentioned')}</span>
+					<input className="c-toggle" name="notify.email.mention" type="checkbox" checked={!!settings['notify.email.mention']} onChange={onSettingChange}/>
+				</label>
+				<label className="c-hbox mt-3 ms-2">
+					<span className="flex-fill">{t('Notify on new posts from people you follow')}</span>
+					<input className="c-toggle" name="notify.email.post" type="checkbox" checked={!!settings['notify.email.post']} onChange={onSettingChange}/>
 				</label>
 			</> }
 		</div>

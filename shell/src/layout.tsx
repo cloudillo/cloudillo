@@ -100,6 +100,7 @@ import { AppConfigState, useAppConfig } from './utils.js'
 import usePWA from './pwa.js'
 import { AuthRoutes } from './auth/auth.js'
 import { useTokenRenewal } from './auth/useTokenRenewal.js'
+import { useActionNotifications } from './notifications/useActionNotifications.js'
 import { Sidebar, useSidebar, useCurrentContextIdTag, useContextPath } from './context/index.js'
 import { OnboardingRoutes } from './onboarding'
 import { WsBusRoot, useWsBus } from './ws-bus.js'
@@ -346,6 +347,7 @@ export function Layout() {
 	const sidebar = useSidebar()
 	const location = useLocation()
 	useTokenRenewal() // Automatic token renewal
+	useActionNotifications() // Sound and toast notifications for incoming actions
 
 	// Check if we're in an app view (where sidebar should be shown)
 	const isAppView = location.pathname.startsWith('/app/')

@@ -267,5 +267,11 @@
 @media (max-width: 1023px) {
   .c-sidebar {
     bottom: 4.5rem; /* Account for bottom navbar on mobile */
+    transform: translateX(-100%) !important; /* Hidden by default on mobile */
+    transition: transform 0.3s ease;
+  }
+
+  .c-sidebar.open {
+    transform: translateX(0) !important; /* Show when open */
   }
 }

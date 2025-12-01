@@ -83,11 +83,12 @@ export function Sidebar({ className }: SidebarProps) {
   const [activeContext] = useAtom(activeContextAtom)
   const { favorites, recent, totalUnread, toggleFavorite } = useCommunitiesList()
   const { switchTo, isSwitching } = useContextSwitch()
-  const { isOpen, isPinned, open, toggle, pin, unpin } = useSidebar()
+  const { isOpen, isPinned, open, close, toggle, pin, unpin } = useSidebar()
   const navigate = useNavigate()
   const [isDesktop, setIsDesktop] = React.useState(window.innerWidth >= 1024)
+  const initializedRef = React.useRef(false)
 
-  // Auto-pin and open on desktop
+  // Auto-pin and open on desktop, close on mobile (only on initial load)
   React.useEffect(() => {
     const handleResize = () => {
       const desktop = window.innerWidth >= 1024
@@ -95,13 +96,17 @@ export function Sidebar({ className }: SidebarProps) {
       if (desktop) {
         if (!isPinned) pin()
         if (!isOpen) open()
+      } else if (!initializedRef.current) {
+        // Close sidebar on mobile only on initial load
+        if (isOpen) close()
       }
+      initializedRef.current = true
     }
 
     handleResize() // Initial check
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [isPinned, isOpen, pin, open])
+  }, [isPinned, isOpen, pin, open, close])
 
   // Handle context switch
   const handleSwitch = React.useCallback((idTag: string) => {

@@ -40,6 +40,11 @@ const aspectMap = { // Aspect ratio = aspect / 36
 
 // Utility functions
 export function getBestImageId(hashData: string, intent: 'orig' | 'hd' | 'sd' | 'tn') {
+	// Handle plain file ID (no version prefix)
+	if (!hashData.includes(':')) {
+		return hashData
+	}
+
 	const [ver, hashesStr] = hashData.split(':')
 	const hashes = hashesStr.split(',')
 

@@ -666,8 +666,11 @@ export function RegisterForm() {
 			console.log('RES', res)
 			setProgress('check')
 
+			// For IDP registration, construct the proper app domain
+			const checkDomain = appDomain || (identityProvider == 'domain' ? idTagInput : selectedProvider === '' ? idTagInput : idTagInput + '.' + selectedProvider)
+
 			try {
-				const checkRes = await fetch(`https://${appDomain || idTagInput}/.well-known/cloudillo/id-tag`)
+				const checkRes = await fetch(`https://${checkDomain}/.well-known/cloudillo/id-tag`)
 				if (checkRes.ok) {
 					const j = await checkRes.json()
 					if (j.idTag == fullIdTag) {
@@ -774,10 +777,10 @@ export function RegisterForm() {
 			<div className="c-vbox align-items-center p-5">
 				<CloudilloLogo className="c-logo w-50 ps-3 pb-w slow"/>
 				<h3 className="my-3">{t('Your registration was successful.')}</h3>
-				<p>{t('You can now log in using your App domain')}</p>
-			</div>
-			<div className="c-group">
-				<a className="c-button primary" href={`https://${appDomain || (identityProvider == 'domain' ? idTagInput : selectedProvider === '' ? idTagInput : idTagInput + '.' + selectedProvider)}`}>{t('Proceed to {{appDomain}}', { appDomain: appDomain || (identityProvider == 'domain' ? idTagInput : selectedProvider === '' ? idTagInput : idTagInput + '.' + selectedProvider) })}</a>
+				<p>{t('We have sent an onboarding link to your email address. Please check your inbox to continue setting up your account.')}</p>
+				{identityProvider == 'idp' && <p className="text-muted small">{t('It may take up to an hour before your account is fully ready.')}</p>}
+				{identityProvider == 'domain' && <p className="text-muted small">{t('If you set up custom DNS records, it may take some time for changes to propagate.')}</p>}
+				<p className="text-muted small">{t('You can close this page now.')}</p>
 			</div>
 		</> }
 
@@ -788,11 +791,10 @@ export function RegisterForm() {
 			<div className="c-vbox align-items-center p-5">
 				<CloudilloLogo className="c-logo w-50 ps-3 pb-w"/>
 				<h3 className="my-3">{t('Your registration was successful.')}</h3>
-				<p>{t('However we could not verify the availability of your App domain. If you just created it in the domain name system then it can be normal, because the domain name system needs some time to propagate changes.')}</p>
-				<p>{t('Please wait some time (it can take a few hours) and try to log in on your app domain later.')}</p>
-			</div>
-			<div className="c-group">
-				<a className="c-button primary" href={`https://${appDomain || (identityProvider == 'domain' ? idTagInput : selectedProvider === '' ? idTagInput : idTagInput + '.' + selectedProvider)}`}>{t('Proceed to {{appDomain}}', { appDomain: appDomain || (identityProvider == 'domain' ? idTagInput : selectedProvider === '' ? idTagInput : idTagInput + '.' + selectedProvider) })}</a>
+				<p>{t('We have sent an onboarding link to your email address. Please check your inbox to continue setting up your account.')}</p>
+				{identityProvider == 'idp' && <p className="text-muted small">{t('It may take up to an hour before your account is fully ready.')}</p>}
+				{identityProvider == 'domain' && <p className="text-muted small">{t('If you set up custom DNS records, it may take some time for changes to propagate.')}</p>}
+				<p className="text-muted small">{t('You can close this page now.')}</p>
 			</div>
 		</> }
 

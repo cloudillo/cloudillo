@@ -198,6 +198,7 @@ function Header({ inert }: { inert?: boolean }) {
 		if (!api) throw new Error('Not authenticated')
 		await api.auth.logout()
 		setAuth(undefined)
+		localStorage.removeItem('loginToken')
 		setMenuOpen(false)
 		console.log('NAVIGATE: /login')
 		navigate('/login')

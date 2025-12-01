@@ -132,7 +132,7 @@ export class ApiClient {
     /**
      * POST /auth/logout - User logout
      */
-    logout: () => this.request('POST', '/auth/logout', T.struct({})),
+    logout: () => this.request('POST', '/auth/logout', T.nullValue),
 
     /**
      * GET /auth/login-token - Get login token for current session

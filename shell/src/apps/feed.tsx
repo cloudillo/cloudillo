@@ -66,6 +66,8 @@ import { useAppConfig, parseQS, qs } from '../utils.js'
 import { getBestImageId, ImageUpload } from '../image.js'
 import { useWsBus } from '../ws-bus.js'
 import { useCurrentContextIdTag } from '../context/index.js'
+import { useImageUpload } from '../hooks/useImageUpload.js'
+import { AttachmentPreview } from '../components/AttachmentPreview.js'
 
 //////////////////////
 // Action datatypes //
@@ -475,14 +477,16 @@ export const NewPost = React.memo(React.forwardRef(function NewPostInside({ clas
 	const [auth] = useAuth()
 	const [type, setType] = React.useState<'TEXT' | 'IMG' | 'VIDEO' | 'POLL' | 'EVENT' | undefined>()
 	const [content, setContent] = React.useState('')
-	const [attachment, setAttachment] = React.useState<string | undefined>()
-	const [attachmentIds, setAttachmentIds] = React.useState<string[]>([])
 	const [visibility, setVisibility] = React.useState<Visibility>('F')
 	const editorRef = React.useRef(null)
+	const fileInputRef = React.useRef<HTMLInputElement>(null)
+	const imgInputRef = React.useRef<HTMLInputElement>(null)
+	const videoInputRef = React.useRef<HTMLInputElement>(null)
 	const fileInputId = React.useId()
 	const imgInputId = React.useId()
 	const videoInputId = React.useId()
-	console.log('attachments', attachmentIds)
+
+	const imageUpload = useImageUpload()
 
 	// Load default visibility from settings
 	React.useEffect(() => {
@@ -501,68 +505,24 @@ export const NewPost = React.memo(React.forwardRef(function NewPostInside({ clas
 		})()
 	}, [api])
 
-	//useEditable(newPostRef, setContent)
-	//console.log('editorRef', editorRef)
 	useEditable(editorRef, onChange)
 
-	function onCancel() {
-		setAttachment(undefined)
-		;(document.getElementById(imgInputId) as HTMLInputElement).value = ''
-	}
-
 	function onChange(text: string, pos: Position) {
-		//console.log('onChange', text, pos)
 		setContent(text)
 	}
 
-	function changeAttachment(which: 'file' | 'image' | 'video') {
-		console.log('changeAttachment')
+	function onFileChange(which: 'file' | 'image' | 'video') {
 		if (!type) setType('IMG')
-		const file = ((
-			which == 'image' ? document.getElementById(imgInputId)
-			: which == 'video' ? document.getElementById(videoInputId)
-			: document.getElementById(fileInputId)
-		) as HTMLInputElement)?.files?.[0]
-		if (!file) return
-		console.log('FILE', file)
-		const reader = new FileReader()
-		reader.onload = function (evt) {
-			console.log('FILE', typeof evt?.target?.result)
-			if (typeof evt?.target?.result == 'string') setAttachment(evt.target.result)
-			switch (which) {
-				case 'file': (document.getElementById(fileInputId) as HTMLInputElement).value = ''; break
-				case 'image': (document.getElementById(imgInputId) as HTMLInputElement).value = ''; break
-				case 'video': (document.getElementById(videoInputId) as HTMLInputElement).value = ''; break
-			}
+		const inputRef = which === 'image' ? imgInputRef : which === 'video' ? videoInputRef : fileInputRef
+		const file = inputRef.current?.files?.[0]
+		if (file) {
+			imageUpload.selectFile(file)
+			if (inputRef.current) inputRef.current.value = ''
 		}
-		reader.readAsDataURL(file)
 	}
 
-	async function uploadAttachment(img: Blob) {
-		console.log('upload attachment', img)
-		if (!auth) return
-	
-		// Upload
-		const request = new XMLHttpRequest()
-		request.open('POST', `https://cl-o.${auth.idTag}/api/file/image/attachment`)
-		request.setRequestHeader('Authorization', `Bearer ${auth?.token}`)
-
-		request.upload.addEventListener('progress', function(e) {
-			const percent_completed = (e.loaded / e.total) * 100
-			console.log(percent_completed)
-		})
-		request.addEventListener('load', function(e) {
-			console.log('RES', request.status, request.response)
-			const j = JSON.parse(request.response)
-			setAttachment(undefined)
-			;(document.getElementById(imgInputId) as HTMLInputElement).value = ''
-			setAttachmentIds(a => [...a, j?.data?.fileId])
-		})
-
-		request.send(img)
-		// / Upload
-
-		//setProfileUpload(undefined)
+	function onCancelCrop() {
+		imageUpload.cancelCrop()
 	}
 
 	async function doSubmit() {
@@ -571,9 +531,9 @@ export const NewPost = React.memo(React.forwardRef(function NewPostInside({ clas
 		setContent('')
 		const action: NewAction = {
 			type: 'POST',
-			subType: attachmentIds.length ? 'IMG' : 'TEXT',
+			subType: imageUpload.attachmentIds.length ? 'IMG' : 'TEXT',
 			content,
-			attachments: attachmentIds.length ? attachmentIds : undefined,
+			attachments: imageUpload.attachmentIds.length ? imageUpload.attachmentIds : undefined,
 			audienceTag: idTag,
 			visibility
 		}
@@ -581,7 +541,7 @@ export const NewPost = React.memo(React.forwardRef(function NewPostInside({ clas
 		const res = await api.actions.create(action)
 		console.log('Feed res', res)
 		onSubmit?.(res)
-		setAttachmentIds([])
+		imageUpload.reset()
 	}
 
 	function onKeyDown(e: React.KeyboardEvent) {
@@ -607,26 +567,28 @@ export const NewPost = React.memo(React.forwardRef(function NewPostInside({ clas
 					</div>
 				</div>
 			</div>
-			{ !!attachmentIds.length && <div className="c-hbox wrap mu-2">
-				{ attachmentIds.map((id) => <img key={id} className="c-thumbnail" src={`https://cl-o.${auth.idTag}/api/file/${id}?variant=tn`}/>) }
-			</div> }
+			<AttachmentPreview
+				attachmentIds={imageUpload.attachmentIds}
+				idTag={auth.idTag}
+				onRemove={imageUpload.removeAttachment}
+			/>
 			<hr className="w-100"/>
 			<div className="c-hbox g-3">
 				<button className="c-link" disabled={process.env.NODE_ENV == 'production'} onClick={() => setType('POLL')}><IcPoll/>Poll</button>
 				<button className="c-link" disabled={process.env.NODE_ENV == 'production'} onClick={() => setType('EVENT')}><IcEvent/>Event</button>
 				<div className="c-hbox ms-auto">
 					<label htmlFor={fileInputId} className="cursor-pointer"><IcImage/></label>
-					<input id={fileInputId} type="file" accept="image/*,video/*,.pdf" style={{ display: 'none' }} onChange={() => changeAttachment('file')}/>
+					<input ref={fileInputRef} id={fileInputId} type="file" accept="image/*,video/*,.pdf" style={{ display: 'none' }} onChange={() => onFileChange('file')}/>
 
 					<label htmlFor={imgInputId} className="cursor-pointer"><IcCamera/></label>
-					<input id={imgInputId} type="file" capture="environment" accept="image/*" style={{ display: 'none' }} onChange={() => changeAttachment('image')}/>
+					<input ref={imgInputRef} id={imgInputId} type="file" capture="environment" accept="image/*" style={{ display: 'none' }} onChange={() => onFileChange('image')}/>
 
 					<label htmlFor={videoInputId} className="cursor-pointer"><IcVideo/></label>
-					<input id={videoInputId} type="file" capture="environment" accept="video/*" style={{ display: 'none' }} onChange={() => changeAttachment('video')}/>
+					<input ref={videoInputRef} id={videoInputId} type="file" capture="environment" accept="video/*" style={{ display: 'none' }} onChange={() => onFileChange('video')}/>
 				</div>
 			</div>
 		</div>
-		{ attachment && <ImageUpload src={attachment} aspects={['', '4:1', '3:1', '2:1', '16:9', '3:2', '1:1']} onSubmit={uploadAttachment} onCancel={onCancel}/> }
+		{ imageUpload.attachment && <ImageUpload src={imageUpload.attachment} aspects={['', '4:1', '3:1', '2:1', '16:9', '3:2', '1:1']} onSubmit={imageUpload.uploadAttachment} onCancel={onCancelCrop}/> }
 	</>
 }))
 

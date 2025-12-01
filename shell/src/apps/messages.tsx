@@ -48,6 +48,8 @@ import '@cloudillo/react/src/components.css'
 import { useAppConfig, parseQS, qs } from '../utils.js'
 import { getBestImageId, ImageUpload } from '../image.js'
 import { useWsBus } from '../ws-bus.js'
+import { useImageUpload } from '../hooks/useImageUpload.js'
+import { AttachmentPreview } from '../components/AttachmentPreview.js'
 import { useCurrentContextIdTag } from '../context/index.js'
 
 //////////////////////
@@ -148,15 +150,15 @@ interface MsgProps {
 function Msg({ className, action, local }: MsgProps) {
 	const { t } = useTranslation()
 	const { api, setIdTag } = useApi()
+	const [auth] = useAuth()
 	const [tab, setTab] = React.useState<undefined | 'CMNT' | 'LIKE' | 'SHRE'>(undefined)
-	/*
-	let imgSrc: string | undefined
 
-	if (action.subType == 'IMG' && action.attachments?.[0]) {
-		//console.log('url', api.url, action.user.tag, getBestImageId(action.attachments[0], 'sd'))
-		imgSrc = `https://cl-o.${action.issuer.tag}/api/file/${getBestImageId(action.attachments[0], 'sd')}`
+	let imgSrc: string | undefined
+	if (action.subType == 'IMG' && action.attachments?.[0] && auth?.idTag) {
+		const att = action.attachments[0]
+		const fileId = typeof att === 'string' ? att : att.fileId
+		imgSrc = `https://cl-o.${auth.idTag}/api/file/${getBestImageId(fileId, 'sd')}`
 	}
-	*/
 
 	function onTabClick(clicked: 'CMNT' | 'LIKE' | 'SHRE') {
 		if (clicked == tab) {
@@ -174,7 +176,7 @@ function Msg({ className, action, local }: MsgProps) {
 				</Link>
 			</div> }
 			<div className="d-flex flex-column">
-				{/* imgSrc && <img src={imgSrc} className="mb-2 mx-auto w-max-100"/> */}
+				{ imgSrc && <img src={imgSrc} className="mb-2 mx-auto w-max-100"/> }
 				{ typeof action.content != 'string' ? null : action.content.split('\n\n').map((paragraph, i) => <p key={i}>
 					{ paragraph.split('\n').map((line, i) => <React.Fragment key={i}>
 						{ generateFragments(line).map((n, i) => <React.Fragment key={i}>{n}</React.Fragment>) }
@@ -206,82 +208,45 @@ export function NewMsg({ className, style, idTag, onSubmit }: { className?: stri
 	const { t } = useTranslation()
 	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
-	const [type, setType] = React.useState<'TEXT' | 'IMG' | 'VIDEO'>('TEXT')
 	const [content, setContent] = React.useState('')
-	const [attachment, setAttachment] = React.useState<string | undefined>()
-	const [attachmentId, setAttachmentId] = React.useState<string | undefined>()
 	const editorRef = React.useRef<HTMLDivElement>(null)
+	const imgInputRef = React.useRef<HTMLInputElement>(null)
 	const imgInputId = React.useId()
 
-	//useEditable(newPostRef, setContent)
+	const imageUpload = useImageUpload()
+
 	useEditable(editorRef, onChange)
 
 	React.useEffect(() => {
 		setTimeout(function () { console.log('blur+focus', editorRef.current), editorRef.current?.blur(), editorRef.current?.focus() }, 1000)
-		//editorRef.current?.focus()
 	}, [])
 
-	function onCancel() {
-		setAttachment(undefined)
-		;(document.getElementById(imgInputId) as HTMLInputElement).value = ''
-	}
-
 	function onChange(text: string, pos: Position) {
-		//console.log('onChange', text, pos)
 		setContent(text)
 	}
 
-	function changeAttachment() {
-		console.log('changeAttachment')
-		const file = (document.getElementById(imgInputId) as HTMLInputElement)?.files?.[0]
-		if (!file) return
-		console.log('FILE', file)
-		const reader = new FileReader()
-		reader.onload = function (evt) {
-			console.log('FILE', typeof evt?.target?.result)
-			if (typeof evt?.target?.result == 'string') setAttachment(evt.target.result)
+	function onFileChange() {
+		const file = imgInputRef.current?.files?.[0]
+		if (file) {
+			imageUpload.selectFile(file)
+			if (imgInputRef.current) imgInputRef.current.value = ''
 		}
-		reader.readAsDataURL(file)
 	}
 
-	async function uploadAttachment(img: Blob) {
-		console.log('upload attachment', img)
-		if (!auth) return
-	
-		// Upload
-		const request = new XMLHttpRequest()
-		request.open('POST', `https://cl-o.${auth.idTag}/api/file/image/attachment`)
-		//request.withCredentials = true
-		request.setRequestHeader('Authorization', `Bearer ${auth?.token}`)
-
-		request.upload.addEventListener('progress', function(e) {
-			const percent_completed = (e.loaded / e.total) * 100
-			console.log(percent_completed)
-		})
-		request.addEventListener('load', function(e) {
-			console.log('RES', request.status, request.response)
-			const j = JSON.parse(request.response)
-			setAttachment(undefined)
-			;(document.getElementById(imgInputId) as HTMLInputElement).value = ''
-			setAttachmentId(j.attachment)
-		})
-
-		request.send(img)
-		// / Upload
-
-		//setProfileUpload(undefined)
+	function onCancelCrop() {
+		imageUpload.cancelCrop()
+		if (imgInputRef.current) imgInputRef.current.value = ''
 	}
 
 	async function doSubmit() {
 		if (!api || !auth?.idTag || !content) return
 
 		setContent('')
-		//const action: Omit<PostAction, 'actionId' | 'user'> = {
 		const action: NewAction = {
 			type: 'MSG',
-			subType: attachmentId ? 'IMG' : 'TEXT',
+			subType: imageUpload.attachmentIds.length ? 'IMG' : 'TEXT',
 			content: content.trim(),
-			attachments: attachmentId ? [attachmentId] : undefined,
+			attachments: imageUpload.attachmentIds.length ? imageUpload.attachmentIds : undefined,
 			audienceTag: idTag
 		}
 
@@ -292,7 +257,7 @@ export function NewMsg({ className, style, idTag, onSubmit }: { className?: stri
 			issuer: { name: auth.name ?? '', idTag: auth.idTag, profilePic: auth.profilePic },
 			audience: undefined
 		} as ActionEvt)
-		setAttachmentId(undefined)
+		imageUpload.reset()
 		setTimeout(function () { editorRef.current?.blur(), editorRef.current?.focus() }, 0)
 	}
 
@@ -307,15 +272,21 @@ export function NewMsg({ className, style, idTag, onSubmit }: { className?: stri
 		<div className={mergeClasses('c-panel', className)}><div className="h-100" style={style}>
 		<div className="c-input-group">
 			<label htmlFor={imgInputId} className="c-button secondary align-self-start"><IcImage/></label>
-			<input id={imgInputId} type="file" accept="image/*" style={{ display: 'none' }} onChange={changeAttachment}/>
+			<input ref={imgInputRef} id={imgInputId} type="file" accept="image/*" style={{ display: 'none' }} onChange={onFileChange}/>
 			<div ref={editorRef} className="c-input flex-fill" tabIndex={0} onKeyDown={onKeyDown}>
 				{ generateFragments(content).map((n, i) => <React.Fragment key={i}>{n}</React.Fragment>) }
 			</div>
 			<button className="c-button primary align-self-end" onClick={doSubmit}><IcSend/></button>
 		</div>
+		{ auth?.idTag && <AttachmentPreview
+			attachmentIds={imageUpload.attachmentIds}
+			idTag={auth.idTag}
+			onRemove={imageUpload.removeAttachment}
+			compact
+		/> }
 	</div>
 	</div>
-		{ attachment && <ImageUpload src={attachment} aspects={['', '4:1', '3:1', '2:1', '16:9', '3:2', '1:1']} onSubmit={uploadAttachment} onCancel={onCancel}/> }
+		{ imageUpload.attachment && <ImageUpload src={imageUpload.attachment} aspects={['', '4:1', '3:1', '2:1', '16:9', '3:2', '1:1']} onSubmit={imageUpload.uploadAttachment} onCancel={onCancelCrop}/> }
 	</>
 }
 

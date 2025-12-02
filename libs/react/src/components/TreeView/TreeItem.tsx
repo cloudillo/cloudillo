@@ -72,128 +72,152 @@ const INDENT_SIZE = 16 // pixels per depth level
 
 export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 	'TreeItem',
-	({
-		className,
-		id,
-		depth = 0,
-		expanded = false,
-		selected = false,
-		hasChildren = false,
-		icon,
-		label,
-		actions,
-		dragging = false,
-		dropTarget = false,
-		dropPosition = null,
-		onToggle,
-		onSelect,
-		isDraggable = false,
-		dragData,
-		onItemDragStart,
-		onItemDragOver,
-		onItemDragLeave,
-		onItemDrop,
-		onItemDragEnd,
-		children,
-		...props
-	}, ref) => {
+	(
+		{
+			className,
+			id,
+			depth = 0,
+			expanded = false,
+			selected = false,
+			hasChildren = false,
+			icon,
+			label,
+			actions,
+			dragging = false,
+			dropTarget = false,
+			dropPosition = null,
+			onToggle,
+			onSelect,
+			isDraggable = false,
+			dragData,
+			onItemDragStart,
+			onItemDragOver,
+			onItemDragLeave,
+			onItemDrop,
+			onItemDragEnd,
+			children,
+			...props
+		},
+		ref
+	) => {
 		const rowRef = React.useRef<HTMLDivElement>(null)
 
-		const handleClick = React.useCallback((e: React.MouseEvent) => {
-			e.stopPropagation()
-			onSelect?.()
-		}, [onSelect])
+		const handleClick = React.useCallback(
+			(e: React.MouseEvent) => {
+				e.stopPropagation()
+				onSelect?.()
+			},
+			[onSelect]
+		)
 
-		const handleToggleClick = React.useCallback((e: React.MouseEvent) => {
-			e.stopPropagation()
-			onToggle?.()
-		}, [onToggle])
+		const handleToggleClick = React.useCallback(
+			(e: React.MouseEvent) => {
+				e.stopPropagation()
+				onToggle?.()
+			},
+			[onToggle]
+		)
 
 		// Drag handlers
-		const handleDragStart = React.useCallback((e: React.DragEvent) => {
-			if (!isDraggable || !dragData) return
-			e.dataTransfer.effectAllowed = 'move'
-			e.dataTransfer.setData('application/json', JSON.stringify(dragData))
-			onItemDragStart?.(e, dragData)
-		}, [isDraggable, dragData, onItemDragStart])
+		const handleDragStart = React.useCallback(
+			(e: React.DragEvent) => {
+				if (!isDraggable || !dragData) return
+				e.dataTransfer.effectAllowed = 'move'
+				e.dataTransfer.setData('application/json', JSON.stringify(dragData))
+				onItemDragStart?.(e, dragData)
+			},
+			[isDraggable, dragData, onItemDragStart]
+		)
 
-		const handleDragOver = React.useCallback((e: React.DragEvent) => {
-			e.preventDefault()
-			e.stopPropagation()
-			if (!onItemDragOver) return
+		const handleDragOver = React.useCallback(
+			(e: React.DragEvent) => {
+				e.preventDefault()
+				e.stopPropagation()
+				if (!onItemDragOver) return
 
-			// Calculate drop position based on mouse position within the row
-			const row = rowRef.current
-			if (!row) return
+				// Calculate drop position based on mouse position within the row
+				const row = rowRef.current
+				if (!row) return
 
-			const rect = row.getBoundingClientRect()
-			const y = e.clientY - rect.top
-			const height = rect.height
+				const rect = row.getBoundingClientRect()
+				const y = e.clientY - rect.top
+				const height = rect.height
 
-			let position: 'before' | 'after' | 'inside'
-			if (hasChildren) {
-				// For containers, divide into 3 zones
-				if (y < height * 0.25) {
-					position = 'before'
-				} else if (y > height * 0.75) {
-					position = 'after'
+				let position: 'before' | 'after' | 'inside'
+				if (hasChildren) {
+					// For containers, divide into 3 zones
+					if (y < height * 0.25) {
+						position = 'before'
+					} else if (y > height * 0.75) {
+						position = 'after'
+					} else {
+						position = 'inside'
+					}
 				} else {
-					position = 'inside'
+					// For regular items, divide into 2 zones
+					if (y < height * 0.5) {
+						position = 'before'
+					} else {
+						position = 'after'
+					}
 				}
-			} else {
-				// For regular items, divide into 2 zones
-				if (y < height * 0.5) {
-					position = 'before'
+
+				e.dataTransfer.dropEffect = 'move'
+				onItemDragOver(e, position)
+			},
+			[hasChildren, onItemDragOver]
+		)
+
+		const handleDragLeave = React.useCallback(
+			(e: React.DragEvent) => {
+				e.stopPropagation()
+				onItemDragLeave?.(e)
+			},
+			[onItemDragLeave]
+		)
+
+		const handleDrop = React.useCallback(
+			(e: React.DragEvent) => {
+				e.preventDefault()
+				e.stopPropagation()
+				if (!onItemDrop) return
+
+				// Calculate final drop position
+				const row = rowRef.current
+				if (!row) return
+
+				const rect = row.getBoundingClientRect()
+				const y = e.clientY - rect.top
+				const height = rect.height
+
+				let position: 'before' | 'after' | 'inside'
+				if (hasChildren) {
+					if (y < height * 0.25) {
+						position = 'before'
+					} else if (y > height * 0.75) {
+						position = 'after'
+					} else {
+						position = 'inside'
+					}
 				} else {
-					position = 'after'
+					if (y < height * 0.5) {
+						position = 'before'
+					} else {
+						position = 'after'
+					}
 				}
-			}
 
-			e.dataTransfer.dropEffect = 'move'
-			onItemDragOver(e, position)
-		}, [hasChildren, onItemDragOver])
+				onItemDrop(e, position)
+			},
+			[hasChildren, onItemDrop]
+		)
 
-		const handleDragLeave = React.useCallback((e: React.DragEvent) => {
-			e.stopPropagation()
-			onItemDragLeave?.(e)
-		}, [onItemDragLeave])
-
-		const handleDrop = React.useCallback((e: React.DragEvent) => {
-			e.preventDefault()
-			e.stopPropagation()
-			if (!onItemDrop) return
-
-			// Calculate final drop position
-			const row = rowRef.current
-			if (!row) return
-
-			const rect = row.getBoundingClientRect()
-			const y = e.clientY - rect.top
-			const height = rect.height
-
-			let position: 'before' | 'after' | 'inside'
-			if (hasChildren) {
-				if (y < height * 0.25) {
-					position = 'before'
-				} else if (y > height * 0.75) {
-					position = 'after'
-				} else {
-					position = 'inside'
-				}
-			} else {
-				if (y < height * 0.5) {
-					position = 'before'
-				} else {
-					position = 'after'
-				}
-			}
-
-			onItemDrop(e, position)
-		}, [hasChildren, onItemDrop])
-
-		const handleDragEnd = React.useCallback((e: React.DragEvent) => {
-			onItemDragEnd?.(e)
-		}, [onItemDragEnd])
+		const handleDragEnd = React.useCallback(
+			(e: React.DragEvent) => {
+				onItemDragEnd?.(e)
+			},
+			[onItemDragEnd]
+		)
 
 		return (
 			<div
@@ -241,7 +265,10 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 
 					{/* Actions */}
 					{actions && (
-						<span className="c-tree-item-actions c-hbox" onClick={e => e.stopPropagation()}>
+						<span
+							className="c-tree-item-actions c-hbox"
+							onClick={(e) => e.stopPropagation()}
+						>
 							{actions}
 						</span>
 					)}

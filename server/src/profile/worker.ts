@@ -25,10 +25,12 @@ import { syncProfile } from './profile.js'
 // Profile refresh //
 /////////////////////
 export async function processProfileRefresh() {
-	return metaAdapter.processProfileRefresh(async function processProfileRefresh(tnId, idTag, eTag) {
-		await syncProfile(tnId, idTag, eTag)
-		return true
-	})
+	return metaAdapter.processProfileRefresh(
+		async function processProfileRefresh(tnId, idTag, eTag) {
+			await syncProfile(tnId, idTag, eTag)
+			return true
+		}
+	)
 }
 
 export async function profileWorker(): Promise<boolean> {

@@ -27,13 +27,28 @@ export interface FcdFilterProps {
 }
 
 export function FcdFilter({ className, isVisible, hide, children }: FcdFilterProps) {
-	return <div className={mergeClasses('c-vbox sm-hide-dyn hide-left col-md-4 col-lg-3 h-100 overflow-y-auto', className, isVisible && 'show')} onClick={hide}>
-		<div className="pos-absolute top-0 right-0 bottom-0 left-0 bg-shadow md-hide lg-hide"/>
-		<Button link className="pos-absolute top-0 right-0 m-1 p-2 z-4 md-hide lg-hide" onClick={hide}><IcClose/></Button>
-		<div className="w-100" onClick={evt => evt.stopPropagation()}>
-			{children}
+	return (
+		<div
+			className={mergeClasses(
+				'c-vbox sm-hide-dyn hide-left col-md-4 col-lg-3 h-100 overflow-y-auto',
+				className,
+				isVisible && 'show'
+			)}
+			onClick={hide}
+		>
+			<div className="pos-absolute top-0 right-0 bottom-0 left-0 bg-shadow md-hide lg-hide" />
+			<Button
+				link
+				className="pos-absolute top-0 right-0 m-1 p-2 z-4 md-hide lg-hide"
+				onClick={hide}
+			>
+				<IcClose />
+			</Button>
+			<div className="w-100" onClick={(evt) => evt.stopPropagation()}>
+				{children}
+			</div>
 		</div>
-	</div>
+	)
 }
 
 // vim: ts=4

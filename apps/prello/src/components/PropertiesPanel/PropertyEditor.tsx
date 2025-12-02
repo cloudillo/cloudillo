@@ -33,12 +33,7 @@ export interface PropertyEditorProps {
 	onPreview?: (preview: PropertyPreview | null) => void
 }
 
-export function PropertyEditor({
-	doc,
-	yDoc,
-	selectedIds,
-	onPreview
-}: PropertyEditorProps) {
+export function PropertyEditor({ doc, yDoc, selectedIds, onPreview }: PropertyEditorProps) {
 	// Subscribe to object changes - useY returns a version number that changes on updates
 	useY(doc.o)
 
@@ -85,34 +80,13 @@ export function PropertyEditor({
 
 	return (
 		<div className="c-vbox g-2">
-			<TransformSection
-				doc={doc}
-				yDoc={yDoc}
-				object={selectedObject}
-				onPreview={onPreview}
-			/>
+			<TransformSection doc={doc} yDoc={yDoc} object={selectedObject} onPreview={onPreview} />
 
-			<StyleSection
-				doc={doc}
-				yDoc={yDoc}
-				object={selectedObject}
-			/>
+			<StyleSection doc={doc} yDoc={yDoc} object={selectedObject} />
 
-			{isTextObject && (
-				<TextStyleSection
-					doc={doc}
-					yDoc={yDoc}
-					object={selectedObject}
-				/>
-			)}
+			{isTextObject && <TextStyleSection doc={doc} yDoc={yDoc} object={selectedObject} />}
 
-			{isRectObject && (
-				<ShapeSection
-					doc={doc}
-					yDoc={yDoc}
-					object={selectedObject}
-				/>
-			)}
+			{isRectObject && <ShapeSection doc={doc} yDoc={yDoc} object={selectedObject} />}
 		</div>
 	)
 }

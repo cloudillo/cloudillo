@@ -30,11 +30,7 @@ export const PropertySection = createComponent<HTMLDivElement, PropertySectionPr
 		const [expanded, setExpanded] = React.useState(defaultExpanded)
 
 		return (
-			<div
-				ref={ref}
-				className={mergeClasses('c-property-section', className)}
-				{...props}
-			>
+			<div ref={ref} className={mergeClasses('c-property-section', className)} {...props}>
 				<button
 					type="button"
 					className="c-property-section-header"
@@ -44,9 +40,7 @@ export const PropertySection = createComponent<HTMLDivElement, PropertySectionPr
 					<span className="c-property-section-title">{title}</span>
 				</button>
 				{expanded && (
-					<div className="c-property-section-content c-vbox g-1">
-						{children}
-					</div>
+					<div className="c-property-section-content c-vbox g-1">{children}</div>
 				)}
 			</div>
 		)

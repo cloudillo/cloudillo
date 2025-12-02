@@ -24,11 +24,11 @@ const VARIANT_OPTIONS = [
 	{ value: 'sd', label: 'Standard (sd)' },
 	{ value: 'md', label: 'Medium (md)' },
 	{ value: 'hd', label: 'High (hd)' },
-	{ value: 'xd', label: 'Extra (xd)' },
+	{ value: 'xd', label: 'Extra (xd)' }
 ]
 
 // Audio doesn't have thumbnail variant
-const AUDIO_VARIANT_OPTIONS = VARIANT_OPTIONS.filter(o => o.value !== 'tn')
+const AUDIO_VARIANT_OPTIONS = VARIANT_OPTIONS.filter((o) => o.value !== 'tn')
 
 export function FilesSettings() {
 	const { t } = useTranslation()
@@ -37,45 +37,64 @@ export function FilesSettings() {
 
 	if (!settings) return null
 
-	return <>
-		<div className="c-panel">
-			<h4>{t('File Synchronization')}</h4>
-			<p className="text-muted">{t('Control which file variants are synchronized to your device')}</p>
+	return (
+		<>
+			<div className="c-panel">
+				<h4>{t('File Synchronization')}</h4>
+				<p className="text-muted">
+					{t('Control which file variants are synchronized to your device')}
+				</p>
 
-			<label className="c-hbox pb-2">
-				<span className="flex-fill">{t('Max image quality')}</span>
-				<select className="c-select" name="file.sync_max_vis"
-					value={settings['file.sync_max_vis'] as string || 'md'}
-					onChange={onSettingChange}>
-					{VARIANT_OPTIONS.map(opt => (
-						<option key={opt.value} value={opt.value}>{t(opt.label)}</option>
-					))}
-				</select>
-			</label>
+				<label className="c-hbox pb-2">
+					<span className="flex-fill">{t('Max image quality')}</span>
+					<select
+						className="c-select"
+						name="file.sync_max_vis"
+						value={(settings['file.sync_max_vis'] as string) || 'md'}
+						onChange={onSettingChange}
+					>
+						{VARIANT_OPTIONS.map((opt) => (
+							<option key={opt.value} value={opt.value}>
+								{t(opt.label)}
+							</option>
+						))}
+					</select>
+				</label>
 
-			<label className="c-hbox pb-2">
-				<span className="flex-fill">{t('Max video quality')}</span>
-				<select className="c-select" name="file.sync_max_vid"
-					value={settings['file.sync_max_vid'] as string || 'sd'}
-					onChange={onSettingChange}>
-					{VARIANT_OPTIONS.map(opt => (
-						<option key={opt.value} value={opt.value}>{t(opt.label)}</option>
-					))}
-				</select>
-			</label>
+				<label className="c-hbox pb-2">
+					<span className="flex-fill">{t('Max video quality')}</span>
+					<select
+						className="c-select"
+						name="file.sync_max_vid"
+						value={(settings['file.sync_max_vid'] as string) || 'sd'}
+						onChange={onSettingChange}
+					>
+						{VARIANT_OPTIONS.map((opt) => (
+							<option key={opt.value} value={opt.value}>
+								{t(opt.label)}
+							</option>
+						))}
+					</select>
+				</label>
 
-			<label className="c-hbox pb-2">
-				<span className="flex-fill">{t('Max audio quality')}</span>
-				<select className="c-select" name="file.sync_max_aud"
-					value={settings['file.sync_max_aud'] as string || 'md'}
-					onChange={onSettingChange}>
-					{AUDIO_VARIANT_OPTIONS.map(opt => (
-						<option key={opt.value} value={opt.value}>{t(opt.label)}</option>
-					))}
-				</select>
-			</label>
-		</div>
-	</>
+				<label className="c-hbox pb-2">
+					<span className="flex-fill">{t('Max audio quality')}</span>
+					<select
+						className="c-select"
+						name="file.sync_max_aud"
+						value={(settings['file.sync_max_aud'] as string) || 'md'}
+						onChange={onSettingChange}
+					>
+						{AUDIO_VARIANT_OPTIONS.map((opt) => (
+							<option key={opt.value} value={opt.value}>
+								{t(opt.label)}
+							</option>
+						))}
+					</select>
+				</label>
+			</div>
+		</>
+	)
 }
 
 // vim: ts=4

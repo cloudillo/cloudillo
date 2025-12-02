@@ -29,7 +29,10 @@ export interface NavProps extends React.HTMLAttributes<HTMLElement> {
 
 export const Nav = createComponent<HTMLElement, NavProps>(
 	'Nav',
-	({ as: Component = 'nav', className, vertical, elevation, emph, small, children, ...props }, ref) => {
+	(
+		{ as: Component = 'nav', className, vertical, elevation, emph, small, children, ...props },
+		ref
+	) => {
 		return (
 			<Component
 				ref={ref as any}

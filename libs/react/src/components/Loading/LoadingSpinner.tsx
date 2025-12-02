@@ -30,12 +30,7 @@ export const LoadingSpinner = createComponent<HTMLDivElement, LoadingSpinnerProp
 		return (
 			<div
 				ref={ref}
-				className={mergeClasses(
-					'c-loading-spinner',
-					size,
-					variant,
-					className
-				)}
+				className={mergeClasses('c-loading-spinner', size, variant, className)}
 				role="status"
 				aria-label={label || 'Loading'}
 				{...props}

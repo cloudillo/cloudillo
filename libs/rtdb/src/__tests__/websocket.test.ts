@@ -31,7 +31,6 @@ class CloseEvent extends Event {
 		this.wasClean = init?.wasClean ?? true
 	}
 }
-
 // Make CloseEvent available globally
 ;(global as any).CloseEvent = CloseEvent
 
@@ -110,18 +109,13 @@ describe.skip('WebSocketManager', () => {
 	let ws: WebSocketManager
 
 	const createWebSocketManager = () => {
-		return new WebSocketManager(
-			'test-db',
-			() => 'test-token',
-			'wss://test.com',
-			{
-				enableCache: false,
-				reconnect: true,
-				reconnectDelay: 100,
-				maxReconnectDelay: 1000,
-				debug: false
-			}
-		)
+		return new WebSocketManager('test-db', () => 'test-token', 'wss://test.com', {
+			enableCache: false,
+			reconnect: true,
+			reconnectDelay: 100,
+			maxReconnectDelay: 1000,
+			debug: false
+		})
 	}
 
 	beforeEach(() => {
@@ -157,18 +151,13 @@ describe.skip('WebSocketManager', () => {
 		})
 
 		it('should handle missing token gracefully', async () => {
-			const wsNoToken = new WebSocketManager(
-				'test-db',
-				() => undefined,
-				'wss://test.com',
-				{
-					enableCache: false,
-					reconnect: true,
-					reconnectDelay: 1000,
-					maxReconnectDelay: 30000,
-					debug: false
-				}
-			)
+			const wsNoToken = new WebSocketManager('test-db', () => undefined, 'wss://test.com', {
+				enableCache: false,
+				reconnect: true,
+				reconnectDelay: 1000,
+				maxReconnectDelay: 30000,
+				debug: false
+			})
 
 			try {
 				await expect(wsNoToken.connect()).rejects.toThrow('No auth token')
@@ -194,18 +183,13 @@ describe.skip('WebSocketManager', () => {
 		})
 
 		it('should not reconnect if reconnect is disabled', async () => {
-			const wsNoReconnect = new WebSocketManager(
-				'test-db',
-				() => 'token',
-				'wss://test.com',
-				{
-					enableCache: false,
-					reconnect: false,
-					reconnectDelay: 100,
-					maxReconnectDelay: 1000,
-					debug: false
-				}
-			)
+			const wsNoReconnect = new WebSocketManager('test-db', () => 'token', 'wss://test.com', {
+				enableCache: false,
+				reconnect: false,
+				reconnectDelay: 100,
+				maxReconnectDelay: 1000,
+				debug: false
+			})
 
 			try {
 				const connectPromise = wsNoReconnect.connect()
@@ -285,7 +269,7 @@ describe.skip('WebSocketManager', () => {
 				data: { title: 'Test' }
 			})
 
-			const response = await responsePromise as any
+			const response = (await responsePromise) as any
 
 			expect(response.data).toEqual({ title: 'Test' })
 		})
@@ -322,7 +306,7 @@ describe.skip('WebSocketManager', () => {
 			const unsub = ws.subscribe('posts', undefined, callback, errorFn)
 
 			// Wait for subscription message to be sent
-			await new Promise(resolve => setImmediate(resolve))
+			await new Promise((resolve) => setImmediate(resolve))
 
 			// Simulate server response to avoid timeout
 			mockWebSocketInstance.simulateMessage({
@@ -332,7 +316,7 @@ describe.skip('WebSocketManager', () => {
 			})
 
 			// Wait for subscription to be registered
-			await new Promise(resolve => setImmediate(resolve))
+			await new Promise((resolve) => setImmediate(resolve))
 
 			expect(typeof unsub).toBe('function')
 
@@ -350,7 +334,7 @@ describe.skip('WebSocketManager', () => {
 			const unsubscribe = ws.subscribe('posts', undefined, callback, jest.fn())
 
 			// Wait for subscription message to be sent
-			await new Promise(resolve => setImmediate(resolve))
+			await new Promise((resolve) => setImmediate(resolve))
 
 			// Send subscription response - this will register the subscription
 			mockWebSocketInstance.simulateMessage({
@@ -360,7 +344,7 @@ describe.skip('WebSocketManager', () => {
 			})
 
 			// Wait for subscription to be fully registered
-			await new Promise(resolve => setImmediate(resolve))
+			await new Promise((resolve) => setImmediate(resolve))
 
 			// Now send change event
 			mockWebSocketInstance.simulateMessage({
@@ -374,7 +358,7 @@ describe.skip('WebSocketManager', () => {
 			})
 
 			// Wait for callback to be invoked
-			await new Promise(resolve => setImmediate(resolve))
+			await new Promise((resolve) => setImmediate(resolve))
 
 			expect(callback).toHaveBeenCalled()
 
@@ -395,7 +379,7 @@ describe.skip('WebSocketManager', () => {
 			const unsub2 = ws.subscribe('users', undefined, callback2, jest.fn())
 
 			// Wait for subscription messages to be sent
-			await new Promise(resolve => setImmediate(resolve))
+			await new Promise((resolve) => setImmediate(resolve))
 
 			// Simulate server responses
 			mockWebSocketInstance.simulateMessage({
@@ -405,7 +389,7 @@ describe.skip('WebSocketManager', () => {
 			})
 
 			// Wait for first subscription to be processed
-			await new Promise(resolve => setImmediate(resolve))
+			await new Promise((resolve) => setImmediate(resolve))
 
 			mockWebSocketInstance.simulateMessage({
 				type: 'subscribeResult',
@@ -414,7 +398,7 @@ describe.skip('WebSocketManager', () => {
 			})
 
 			// Wait for second subscription to be registered
-			await new Promise(resolve => setImmediate(resolve))
+			await new Promise((resolve) => setImmediate(resolve))
 
 			expect(ws.getSubscriptionCount()).toBe(2)
 
@@ -433,7 +417,7 @@ describe.skip('WebSocketManager', () => {
 			const unsub = ws.subscribe('posts', undefined, callback, jest.fn())
 
 			// Wait for subscription message to be sent
-			await new Promise(resolve => setImmediate(resolve))
+			await new Promise((resolve) => setImmediate(resolve))
 
 			// Simulate server response so subscription is registered
 			mockWebSocketInstance.simulateMessage({
@@ -443,7 +427,7 @@ describe.skip('WebSocketManager', () => {
 			})
 
 			// Wait for subscription to be registered
-			await new Promise(resolve => setImmediate(resolve))
+			await new Promise((resolve) => setImmediate(resolve))
 
 			// Now unsubscribe
 			unsub()
@@ -507,7 +491,7 @@ describe.skip('WebSocketManager', () => {
 				data: { title: 'Test' }
 			})
 
-			const response = await responsePromise as any
+			const response = (await responsePromise) as any
 
 			expect(response.data).toEqual({ title: 'Test' })
 		})
@@ -544,7 +528,7 @@ describe.skip('WebSocketManager', () => {
 			const unsubscribe = ws.subscribe('posts', undefined, callback, jest.fn())
 
 			// Wait for subscription message to be sent
-			await new Promise(resolve => setImmediate(resolve))
+			await new Promise((resolve) => setImmediate(resolve))
 
 			// Simulate server response
 			mockWebSocketInstance.simulateMessage({
@@ -554,7 +538,7 @@ describe.skip('WebSocketManager', () => {
 			})
 
 			// Wait for subscription to be registered
-			await new Promise(resolve => setImmediate(resolve))
+			await new Promise((resolve) => setImmediate(resolve))
 
 			expect(ws.getSubscriptionCount()).toBeGreaterThanOrEqual(1)
 
@@ -574,7 +558,7 @@ describe.skip('WebSocketManager', () => {
 			})
 
 			// Wait for messages to be queued
-			await new Promise(resolve => setImmediate(resolve))
+			await new Promise((resolve) => setImmediate(resolve))
 
 			// Messages should be queued internally, not sent yet
 			expect(mockWebSocketInstance.sentMessages.length).toBe(0)
@@ -585,7 +569,7 @@ describe.skip('WebSocketManager', () => {
 			const sendPromise = ws.send({ type: 'ping' })
 
 			// Wait for message to be queued
-			await new Promise(resolve => setImmediate(resolve))
+			await new Promise((resolve) => setImmediate(resolve))
 
 			// Verify not sent yet
 			expect(mockWebSocketInstance.sentMessages.length).toBe(0)
@@ -597,7 +581,7 @@ describe.skip('WebSocketManager', () => {
 			await connectPromise
 
 			// Wait for queue to be flushed
-			await new Promise(resolve => setImmediate(resolve))
+			await new Promise((resolve) => setImmediate(resolve))
 
 			// Now the queued message should be sent
 			expect(mockWebSocketInstance.sentMessages.length).toBeGreaterThan(0)

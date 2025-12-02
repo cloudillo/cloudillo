@@ -49,60 +49,58 @@ export function ViewPicker({
 	onNextView,
 	onPresent
 }: ViewPickerProps) {
-	const activeIndex = views.findIndex(v => v.id === activeViewId)
+	const activeIndex = views.findIndex((v) => v.id === activeViewId)
 
-	return <div className="c-nav c-hbox p-1 gap-1">
-		<button
-			onClick={onPrevView}
-			className="c-button icon"
-			disabled={activeIndex <= 0}
-			title="Previous page"
-		>
-			<IcPrev/>
-		</button>
+	return (
+		<div className="c-nav c-hbox p-1 gap-1">
+			<button
+				onClick={onPrevView}
+				className="c-button icon"
+				disabled={activeIndex <= 0}
+				title="Previous page"
+			>
+				<IcPrev />
+			</button>
 
-		<div className="c-hbox gap-1 flex-fill" style={{ overflowX: 'auto' }}>
-			{views.map((view, index) => (
-				<button
-					key={view.id}
-					onClick={() => onViewSelect(view.id)}
-					className={mergeClasses(
-						'c-button',
-						view.id === activeViewId ? 'active' : ''
-					)}
-					style={{ minWidth: 60 }}
-				>
-					{index + 1}
-				</button>
-			))}
+			<div className="c-hbox gap-1 flex-fill" style={{ overflowX: 'auto' }}>
+				{views.map((view, index) => (
+					<button
+						key={view.id}
+						onClick={() => onViewSelect(view.id)}
+						className={mergeClasses(
+							'c-button',
+							view.id === activeViewId ? 'active' : ''
+						)}
+						style={{ minWidth: 60 }}
+					>
+						{index + 1}
+					</button>
+				))}
+			</div>
+
+			<button
+				onClick={onNextView}
+				className="c-button icon"
+				disabled={activeIndex >= views.length - 1}
+				title="Next page"
+			>
+				<IcNext />
+			</button>
+
+			<button onClick={onAddView} className="c-button icon" title="Add page">
+				<IcAdd />
+			</button>
+
+			<button
+				onClick={onPresent}
+				className="c-button icon ms-2"
+				title="Present (fullscreen)"
+				disabled={views.length === 0}
+			>
+				<IcPlay />
+			</button>
 		</div>
-
-		<button
-			onClick={onNextView}
-			className="c-button icon"
-			disabled={activeIndex >= views.length - 1}
-			title="Next page"
-		>
-			<IcNext/>
-		</button>
-
-		<button
-			onClick={onAddView}
-			className="c-button icon"
-			title="Add page"
-		>
-			<IcAdd/>
-		</button>
-
-		<button
-			onClick={onPresent}
-			className="c-button icon ms-2"
-			title="Present (fullscreen)"
-			disabled={views.length === 0}
-		>
-			<IcPlay/>
-		</button>
-	</div>
+	)
 }
 
 // vim: ts=4

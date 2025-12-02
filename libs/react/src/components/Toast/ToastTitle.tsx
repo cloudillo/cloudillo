@@ -25,11 +25,7 @@ export const ToastTitle = createComponent<HTMLHeadingElement, ToastTitleProps>(
 	'ToastTitle',
 	({ className, children, ...props }, ref) => {
 		return (
-			<h4
-				ref={ref}
-				className={mergeClasses('c-toast-title', className)}
-				{...props}
-			>
+			<h4 ref={ref} className={mergeClasses('c-toast-title', className)} {...props}>
 				{children}
 			</h4>
 		)

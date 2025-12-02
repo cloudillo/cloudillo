@@ -31,13 +31,7 @@ export const Panel = createComponent<HTMLDivElement, PanelProps>(
 		return (
 			<div
 				ref={ref}
-				className={mergeClasses(
-					'c-panel',
-					variant,
-					elevation,
-					emph && 'emph',
-					className
-				)}
+				className={mergeClasses('c-panel', variant, elevation, emph && 'emph', className)}
 				{...props}
 			>
 				{children}

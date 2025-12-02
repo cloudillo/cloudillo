@@ -33,11 +33,7 @@ import { useCloudilloEditor } from '@cloudillo/react'
 import type { SheetId } from './yjs-types'
 import { toSheetId, isValidSheetId } from './yjs-types'
 import { generateSheetId } from './id-generator'
-import {
-	getOrCreateSheet,
-	ensureSheetDimensions,
-	transformSheetToCelldata
-} from './ydoc-helpers'
+import { getOrCreateSheet, ensureSheetDimensions, transformSheetToCelldata } from './ydoc-helpers'
 import { transformOp, deleteSheet } from './transform-ops'
 import { applySheetYEvent } from './yjs-events'
 import { setupAwareness } from './awareness'
@@ -174,7 +170,9 @@ export function SheelloApp() {
 				for (const evt of evts) {
 					// Skip top-level sheets map changes (handled by ySheets.observe above)
 					if (!evt.path[0]) {
-						debug.log('[observeDeep] Skipping top-level change (handled by sheets.observe)')
+						debug.log(
+							'[observeDeep] Skipping top-level change (handled by sheets.observe)'
+						)
 						continue
 					}
 
@@ -265,7 +263,7 @@ export function SheelloApp() {
 
 		// Dedupe by sheet ID (safety check for development StrictMode)
 		const seenIds = new Set<string>()
-		const dedupedData = data.filter(sheet => {
+		const dedupedData = data.filter((sheet) => {
 			if (!sheet.id) return false
 			if (seenIds.has(sheet.id)) {
 				debug.warn('[Load] Duplicate sheet detected:', sheet.id)
@@ -305,10 +303,16 @@ export function SheelloApp() {
 								column: colFocus ?? 0
 							}
 
-							debug.log('[Init] Applying frozen panes:', { sheetId, type: frozenType, range })
+							debug.log('[Init] Applying frozen panes:', {
+								sheetId,
+								type: frozenType,
+								range
+							})
 							// Set flag to prevent onOp from writing back to Yjs
 							localEchoGuard.withGuard(() => {
-								workbookRef.current!.freeze(frozenType as any, range, { id: sheetId })
+								workbookRef.current!.freeze(frozenType as any, range, {
+									id: sheetId
+								})
 							})
 						}
 					}
@@ -322,73 +326,86 @@ export function SheelloApp() {
 	}, [initialized])
 
 	// Handle operations from FortuneSheet
-	const onOp = React.useCallback((ops: Op[]) => {
-		// Skip operations before initialization (during load)
-		if (!initialized) {
-			debug.log('[onOp] Skipping operations during initialization')
-			return
-		}
+	const onOp = React.useCallback(
+		(ops: Op[]) => {
+			// Skip operations before initialization (during load)
+			if (!initialized) {
+				debug.log('[onOp] Skipping operations during initialization')
+				return
+			}
 
-		// Skip operations triggered by applying remote changes
-		// This prevents feedback loops when wb.freeze() etc. trigger onOp
-		if (localEchoGuard.isGuarded()) {
-			debug.log('[onOp] Skipping operations triggered by remote change application')
-			return
-		}
+			// Skip operations triggered by applying remote changes
+			// This prevents feedback loops when wb.freeze() etc. trigger onOp
+			if (localEchoGuard.isGuarded()) {
+				debug.log('[onOp] Skipping operations triggered by remote change application')
+				return
+			}
 
-		debug.log('[onOp] Received operations:', ops.map(op => ({
-			op: op.op,
-			id: op.id,
-			path: op.path,
-			value: op.value
-		})))
+			debug.log(
+				'[onOp] Received operations:',
+				ops.map((op) => ({
+					op: op.op,
+					id: op.id,
+					path: op.path,
+					value: op.value
+				}))
+			)
 
-		try {
-			cloudillo.yDoc.transact(() => {
-				const sheetOrder = cloudillo.yDoc.getArray<SheetId>('sheetOrder')
+			try {
+				cloudillo.yDoc.transact(() => {
+					const sheetOrder = cloudillo.yDoc.getArray<SheetId>('sheetOrder')
 
-				for (const op of ops) {
-					// Handle sheet deletion
-					if (op.op === 'deleteSheet') {
-						// FIX: Proper validation instead of string comparison
-						if (!isValidSheetIdValue(op.id)) {
-							debug.error('[onOp] INVALID deleteSheet - Missing/invalid sheet ID:', op)
+					for (const op of ops) {
+						// Handle sheet deletion
+						if (op.op === 'deleteSheet') {
+							// FIX: Proper validation instead of string comparison
+							if (!isValidSheetIdValue(op.id)) {
+								debug.error(
+									'[onOp] INVALID deleteSheet - Missing/invalid sheet ID:',
+									op
+								)
+								continue
+							}
+							deleteSheet(cloudillo.yDoc, op.id)
 							continue
 						}
-						deleteSheet(cloudillo.yDoc, op.id)
-						continue
-					}
 
-					// Skip operations without a valid sheet ID
-					// This happens when Fortune Sheet triggers ops in response to our remote change handling
-					// (e.g., deleteSheet triggers a 'replace' op with undefined id)
-					// FIX: Proper validation instead of string comparison
-					if (!isValidSheetIdValue(op.id)) {
-						debug.log('[onOp] Skipping operation without valid sheet ID (likely from UI update):', op.op, op.path)
-						continue
-					}
-
-					try {
-						// For addSheet operations, also add to sheetOrder array
-						if (op.op === 'addSheet') {
-							const sheetId = op.id as SheetId
-							// Only add if not already in order array
-							if (!sheetOrder.toArray().includes(sheetId)) {
-								sheetOrder.push([sheetId])
-							}
+						// Skip operations without a valid sheet ID
+						// This happens when Fortune Sheet triggers ops in response to our remote change handling
+						// (e.g., deleteSheet triggers a 'replace' op with undefined id)
+						// FIX: Proper validation instead of string comparison
+						if (!isValidSheetIdValue(op.id)) {
+							debug.log(
+								'[onOp] Skipping operation without valid sheet ID (likely from UI update):',
+								op.op,
+								op.path
+							)
+							continue
 						}
 
-						const sheet = getOrCreateSheet(cloudillo.yDoc, op.id as SheetId)
-						transformOp(sheet, op)
-					} catch (error) {
-						showUserError(`Failed to process operation: ${op.op}`, { op, error })
+						try {
+							// For addSheet operations, also add to sheetOrder array
+							if (op.op === 'addSheet') {
+								const sheetId = op.id as SheetId
+								// Only add if not already in order array
+								if (!sheetOrder.toArray().includes(sheetId)) {
+									sheetOrder.push([sheetId])
+								}
+							}
+
+							const sheet = getOrCreateSheet(cloudillo.yDoc, op.id as SheetId)
+							transformOp(sheet, op)
+						} catch (error) {
+							showUserError(`Failed to process operation: ${op.op}`, { op, error })
+						}
 					}
-				}
-			})
-		} catch (error) {
-			showUserError('Failed to sync changes. Please refresh the page.', error)
-		}
-	}, [initialized, localEchoGuard])
+				})
+			} catch (error) {
+				showUserError('Failed to sync changes. Please refresh the page.', error)
+			}
+		},
+		[initialized, localEchoGuard]
+	)
 
 	// Wrap generateSheetId to log when it's called
 	const wrappedGenerateSheetId = React.useCallback(() => {
@@ -397,13 +414,15 @@ export function SheelloApp() {
 		return id
 	}, [])
 
-	return origCellData && (
-		<Workbook
-			ref={workbookRef}
-			data={origCellData}
-			onOp={onOp}
-			generateSheetId={wrappedGenerateSheetId}
-		/>
+	return (
+		origCellData && (
+			<Workbook
+				ref={workbookRef}
+				data={origCellData}
+				onOp={onOp}
+				generateSheetId={wrappedGenerateSheetId}
+			/>
+		)
 	)
 }
 

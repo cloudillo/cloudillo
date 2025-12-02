@@ -33,11 +33,7 @@ export const EmptyState = createComponent<HTMLDivElement, EmptyStateProps>(
 		return (
 			<div
 				ref={ref}
-				className={mergeClasses(
-					'c-empty-state',
-					`c-empty-state--${size}`,
-					className
-				)}
+				className={mergeClasses('c-empty-state', `c-empty-state--${size}`, className)}
 				{...props}
 			>
 				{icon && <div className="c-empty-state-icon">{icon}</div>}

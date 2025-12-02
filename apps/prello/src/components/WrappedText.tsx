@@ -45,13 +45,7 @@ export function WrappedText({
 	const textDecorationCSS = getTextDecorationCSS(textStyle.textDecoration)
 
 	return (
-		<foreignObject
-			x={x}
-			y={y}
-			width={width}
-			height={height}
-			style={{ overflow: 'visible' }}
-		>
+		<foreignObject x={x} y={y} width={width} height={height} style={{ overflow: 'visible' }}>
 			<div
 				style={{
 					width: '100%',
@@ -68,7 +62,11 @@ export function WrappedText({
 						fontFamily: textStyle.fontFamily,
 						fontSize: `${textStyle.fontSize}px`,
 						fontWeight: textStyle.fontWeight,
-						fontStyle: isPlaceholder ? 'italic' : (textStyle.fontItalic ? 'italic' : 'normal'),
+						fontStyle: isPlaceholder
+							? 'italic'
+							: textStyle.fontItalic
+								? 'italic'
+								: 'normal',
 						color: isPlaceholder ? '#999999' : textStyle.fill,
 						lineHeight: textStyle.lineHeight,
 						letterSpacing: `${textStyle.letterSpacing}px`,

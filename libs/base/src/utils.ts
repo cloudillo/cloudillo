@@ -22,11 +22,18 @@ export async function calcSha1Hex(str: string) {
 	// Generate SHA hash from str
 	const enc = new TextEncoder()
 	const data = enc.encode(str)
-	return Array.from(new Uint8Array(await window.crypto.subtle.digest('sha-1', data))).map(byte => byte.toString(16).padStart(2, '0')).join('')
+	return Array.from(new Uint8Array(await window.crypto.subtle.digest('sha-1', data)))
+		.map((byte) => byte.toString(16).padStart(2, '0'))
+		.join('')
 }
 
 // Color
-export async function str2color(str: string, l: number = 40, c: number = 100, dark?: boolean): Promise<string> {
+export async function str2color(
+	str: string,
+	l: number = 40,
+	c: number = 100,
+	dark?: boolean
+): Promise<string> {
 	const hash = await calcSha1Hex(str)
 
 	// Generate color from hash
@@ -36,7 +43,12 @@ export async function str2color(str: string, l: number = 40, c: number = 100, da
 	return color
 }
 
-export async function str2colors(str: string, l: number = 40, c: number = 100, dark?: boolean): Promise<{ fg: string; bg: string }> {
+export async function str2colors(
+	str: string,
+	l: number = 40,
+	c: number = 100,
+	dark?: boolean
+): Promise<{ fg: string; bg: string }> {
 	const hash = await calcSha1Hex(str)
 
 	// Generate color from hash

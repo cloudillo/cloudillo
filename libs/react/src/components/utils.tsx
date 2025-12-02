@@ -21,7 +21,7 @@ import {
 	LuLaugh as EmLaugh,
 	LuFrown as EmSad,
 	LuMeh as EmMeh,
-	LuHeart as EmHeart,
+	LuHeart as EmHeart
 } from 'react-icons/lu'
 
 /**
@@ -39,7 +39,9 @@ export function createComponent<T, P>(
 	render: (props: P, ref: React.ForwardedRef<T>) => React.ReactNode
 ): React.ForwardRefExoticComponent<P & React.RefAttributes<T>> {
 	// Cast to any to avoid TypeScript's strict forwardRef signature
-	const Component = React.forwardRef(render as any) as unknown as React.ForwardRefExoticComponent<P & React.RefAttributes<T>>
+	const Component = React.forwardRef(render as any) as unknown as React.ForwardRefExoticComponent<
+		P & React.RefAttributes<T>
+	>
 	Component.displayName = displayName
 	return Component
 }
@@ -56,7 +58,9 @@ export function useId(prefix = 'cl'): string {
 /**
  * Convert size prop to CSS class for buttons
  */
-export function buttonSizeClass(size: 'small' | 'default' | 'large' | undefined): string | undefined {
+export function buttonSizeClass(
+	size: 'small' | 'default' | 'large' | undefined
+): string | undefined {
 	if (size === 'small') return 'small'
 	if (size === 'large') return 'large'
 	return undefined
@@ -65,7 +69,9 @@ export function buttonSizeClass(size: 'small' | 'default' | 'large' | undefined)
 /**
  * Convert avatar size prop to CSS class
  */
-export function avatarSizeClass(size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | undefined): string | undefined {
+export function avatarSizeClass(
+	size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | undefined
+): string | undefined {
 	return size
 }
 
@@ -73,14 +79,14 @@ export function avatarSizeClass(size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | undefin
  * Emoji mappings for text fragment generation
  */
 const emojis: Record<string, React.ReactNode> = {
-	':)': <EmSmile size="1em"/>,
-	':D': <EmLaugh size="1em"/>,
+	':)': <EmSmile size="1em" />,
+	':D': <EmLaugh size="1em" />,
 	':P': '😛',
 	';P': '😜',
-	':|': <EmMeh size="1em"/>,
-	':(': <EmSad size="1em"/>,
-	'<3': <EmHeart size="1em"/>,
-	'::': <img src="https://w9.hu/w9.png"/>
+	':|': <EmMeh size="1em" />,
+	':(': <EmSad size="1em" />,
+	'<3': <EmHeart size="1em" />,
+	'::': <img src="https://w9.hu/w9.png" />
 }
 
 /**
@@ -98,7 +104,11 @@ export function generateFragments(text: string): React.ReactNode[] {
 					if (w.startsWith(`https://${window.location.host}/`)) {
 						n = <Link to={w.replace(`https://${window.location.host}/`, '/')}>{w}</Link>
 					} else {
-						n = <a href={w} target="_blank">{w}</a>
+						n = (
+							<a href={w} target="_blank">
+								{w}
+							</a>
+						)
 					}
 				}
 				break
@@ -113,7 +123,17 @@ export function generateFragments(text: string): React.ReactNode[] {
 			case '8':
 				const emoji = emojis[w]
 				if (typeof emoji == 'object') {
-					n = <span>{emojis[w]}<span className="d-inline-block" style={{ width: 0, overflow: 'hidden' }}>{w}</span></span>
+					n = (
+						<span>
+							{emojis[w]}
+							<span
+								className="d-inline-block"
+								style={{ width: 0, overflow: 'hidden' }}
+							>
+								{w}
+							</span>
+						</span>
+					)
 				} else {
 					n = emoji || w
 				}

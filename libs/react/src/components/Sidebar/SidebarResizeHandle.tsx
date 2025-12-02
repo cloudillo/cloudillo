@@ -34,9 +34,10 @@ export const SidebarResizeHandle = createComponent<HTMLDivElement, SidebarResize
 			if (!isResizing) return
 
 			function handleMouseMove(evt: MouseEvent) {
-				const delta = context.side === 'right'
-					? startX.current - evt.clientX
-					: evt.clientX - startX.current
+				const delta =
+					context.side === 'right'
+						? startX.current - evt.clientX
+						: evt.clientX - startX.current
 				const newWidth = startWidth.current + delta
 
 				if (context.setWidth) {

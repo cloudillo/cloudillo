@@ -25,11 +25,7 @@ export const ToastIcon = createComponent<HTMLDivElement, ToastIconProps>(
 	'ToastIcon',
 	({ className, children, ...props }, ref) => {
 		return (
-			<div
-				ref={ref}
-				className={mergeClasses('c-toast-icon', className)}
-				{...props}
-			>
+			<div ref={ref} className={mergeClasses('c-toast-icon', className)} {...props}>
 				{children}
 			</div>
 		)

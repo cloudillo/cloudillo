@@ -24,7 +24,16 @@ import { LRUCache } from 'lru-cache'
 import jwt from 'jsonwebtoken'
 
 import * as T from '@symbion/runtype'
-import { AuthAdapter, AuthProfile, AuthPasswordData, AuthKeyData, CreateTenantData, WebauthnData, ActionToken, AccessToken } from '@cloudillo/server/types/auth-adapter'
+import {
+	AuthAdapter,
+	AuthProfile,
+	AuthPasswordData,
+	AuthKeyData,
+	CreateTenantData,
+	WebauthnData,
+	ActionToken,
+	AccessToken
+} from '@cloudillo/server/types/auth-adapter'
 
 import { randomString } from './utils.js'
 
@@ -42,7 +51,7 @@ interface InitOpts {
 }
 
 export async function init(opts: InitOpts): Promise<AuthAdapter> {
-	[privateDir, certDir, keyDir] = [opts.privateDir, opts.certDir, opts.keyDir]
+	;[privateDir, certDir, keyDir] = [opts.privateDir, opts.certDir, opts.keyDir]
 	sqlite.verbose()
 	await fs.mkdir(opts.privateDir, { recursive: true })
 	if (certDir) await fs.mkdir(certDir, { recursive: true })
@@ -111,7 +120,6 @@ export async function init(opts: InitOpts): Promise<AuthAdapter> {
 		descr text NOT NULL,
 		PRIMARY KEY(tnId, credentialId)
 	)`)
-		
 
 	await db.run(`CREATE TABLE IF NOT EXISTS events (
 		evId integer NOT NULL,
@@ -152,7 +160,7 @@ export async function init(opts: InitOpts): Promise<AuthAdapter> {
 		getWebauthnCredential,
 		createWebauthnCredential,
 		updateWebauthnCredentialCounter,
-		deleteWebauthnCredential,
+		deleteWebauthnCredential
 	}
 }
 
@@ -169,11 +177,17 @@ export function hashPassword(password: string, salt?: string) {
 // Globals //
 /////////////
 async function setGlobal(key: string, value: string) {
-	await db.run('INSERT OR REPLACE INTO globals (key, value) VALUES ($key, $value)', { $key: key, $value: value })
+	await db.run('INSERT OR REPLACE INTO globals (key, value) VALUES ($key, $value)', {
+		$key: key,
+		$value: value
+	})
 }
 
 async function getGlobal(key: string) {
-	const { value } = await db.get<{ value: string }>('SELECT min(value) as value FROM globals WHERE key = $key', { $key: key })
+	const { value } = await db.get<{ value: string }>(
+		'SELECT min(value) as value FROM globals WHERE key = $key',
+		{ $key: key }
+	)
 	return value
 }
 
@@ -181,11 +195,17 @@ async function getGlobal(key: string) {
 // User registration //
 ///////////////////////
 async function createTenantRegistration(email: string) {
-	const registered = await db.get<{ email: string }>("SELECT tnId FROM tenants WHERE email = $email AND status = 'A'", { $email: email })
+	const registered = await db.get<{ email: string }>(
+		"SELECT tnId FROM tenants WHERE email = $email AND status = 'A'",
+		{ $email: email }
+	)
 	if (registered.email) throw new Error(`${email} already registered`)
 
 	const vfyCode = randomString(20)
-	await db.run('INSERT OR REPLACE INTO user_vfy (email, vfyCode, func) VALUES ($email, $vfyCode, "register")', { $email: email, $vfyCode: vfyCode })
+	await db.run(
+		'INSERT OR REPLACE INTO user_vfy (email, vfyCode, func) VALUES ($email, $vfyCode, "register")',
+		{ $email: email, $vfyCode: vfyCode }
+	)
 }
 
 ///////////
@@ -193,20 +213,26 @@ async function createTenantRegistration(email: string) {
 ///////////
 async function createTenant(idTag: string, data: CreateTenantData): Promise<number> {
 	if (data.vfyCode) {
-		const vfyCodeEmail = await db.get<{ email: string }>('SELECT email FROM user_vfy WHERE vfyCode = $vfyCode', { $vfyCode: data.vfyCode })
+		const vfyCodeEmail = await db.get<{ email: string }>(
+			'SELECT email FROM user_vfy WHERE vfyCode = $vfyCode',
+			{ $vfyCode: data.vfyCode }
+		)
 		if (vfyCodeEmail.email !== data.email) throw new Error('Invalid vfy code')
 	}
 	//const cryptedPassword = data.password ? await bcrypt.hash(data.password, 10) : null
 	const cryptedPassword = data.password ? hashPassword(data.password) : null
 
-	const res = await db.get<{ tnId: number }>(`INSERT INTO tenants (idTag, email, password, status)
+	const res = await db.get<{ tnId: number }>(
+		`INSERT INTO tenants (idTag, email, password, status)
 		VALUES ($idTag, $email, $cryptedPassword, 'A')
 		RETURNING tnId
-	`, {
-		$idTag: idTag,
-		$email: data.email,
-		$cryptedPassword: cryptedPassword
-	})
+	`,
+		{
+			$idTag: idTag,
+			$email: data.email,
+			$cryptedPassword: cryptedPassword
+		}
+	)
 	await createKey(res.tnId)
 	if (data.vfyCode) {
 		await db.run('DELETE FROM user_vfy WHERE vfyCode = $vfyCode', { $vfyCode: data.vfyCode })
@@ -215,36 +241,59 @@ async function createTenant(idTag: string, data: CreateTenantData): Promise<numb
 }
 
 async function deleteTenant(tnId: number) {
-	for (const table of [
-		'tenants',
-		'keys',
-		'certs',
-		'webauthn',
-		'events'
-	]) {
+	for (const table of ['tenants', 'keys', 'certs', 'webauthn', 'events']) {
 		await db.run(`DELETE FROM ${table} WHERE tnId = $tnId`, { $tnId: tnId })
 	}
 }
 
-async function storeTenantCert(tnId: number, idTag: string, domain: string, cert: string, key: string, expiresAt: Date) {
-	await db.run('INSERT OR REPLACE INTO certs (tnId, idTag, domain, expiresAt, cert, key) VALUES ($tnId, $idTag, $domain, $expiresAt, $cert, $key)',
-		{ $tnId: tnId, $idTag: idTag, $domain: domain, $expiresAt: expiresAt.toISOString(), $cert: cert, $key: key })
+async function storeTenantCert(
+	tnId: number,
+	idTag: string,
+	domain: string,
+	cert: string,
+	key: string,
+	expiresAt: Date
+) {
+	await db.run(
+		'INSERT OR REPLACE INTO certs (tnId, idTag, domain, expiresAt, cert, key) VALUES ($tnId, $idTag, $domain, $expiresAt, $cert, $key)',
+		{
+			$tnId: tnId,
+			$idTag: idTag,
+			$domain: domain,
+			$expiresAt: expiresAt.toISOString(),
+			$cert: cert,
+			$key: key
+		}
+	)
 	if (certDir) await fs.writeFile(path.join(certDir, idTag + '.pem'), cert)
 	if (keyDir) await fs.writeFile(path.join(keyDir, idTag + '.pem'), key)
 }
 
-export async function processCertRenewals(callback: (tnId: number, idTag: string, domain: string, expiresAt: Date) => Promise<boolean>) {
+export async function processCertRenewals(
+	callback: (tnId: number, idTag: string, domain: string, expiresAt: Date) => Promise<boolean>
+) {
 	let processed = 0
 
-	const renewals = await db.all<{ tnId: number, idTag: string, domain: string, expiresAt: string }>(
+	const renewals = await db.all<{
+		tnId: number
+		idTag: string
+		domain: string
+		expiresAt: string
+	}>(
 		`SELECT c.tnId, c.idTag, c.domain, c.expiresAt FROM certs c
 			JOIN tenants t ON t.tnId = c.tnId
 			WHERE c.status ISNULL AND date(c.expiresAt,'-30 days') < date('now')
-			ORDER BY date(c.expiresAt) LIMIT 100`)
+			ORDER BY date(c.expiresAt) LIMIT 100`
+	)
 	for (const renewal of renewals) {
 		console.log('RENEW cert:', renewal)
 		try {
-			const val = await callback(renewal.tnId, renewal.idTag, renewal.domain, new Date(renewal.expiresAt))
+			const val = await callback(
+				renewal.tnId,
+				renewal.idTag,
+				renewal.domain,
+				new Date(renewal.expiresAt)
+			)
 			/*
 			if (val) {
 				await db.run('UPDATE action_inbox SET status="A" WHERE actionId = $actionId', {
@@ -263,54 +312,78 @@ export async function processCertRenewals(callback: (tnId: number, idTag: string
 }
 
 async function getCertByTag(idTag: string) {
-	const certData = await db.get<{
-		tnId: number,
-		idTag: string,
-		domain?: string,
-		cert: string,
-		key: string,
-		expiresAt: string
-	} | undefined>('SELECT tnId, idTag, domain, cert, key, expiresAt FROM certs WHERE idTag = $idTag', { $idTag: idTag })
-	return !certData ? undefined : {
-		...certData,
-		expiresAt: new Date(certData.expiresAt)
-	}
+	const certData = await db.get<
+		| {
+				tnId: number
+				idTag: string
+				domain?: string
+				cert: string
+				key: string
+				expiresAt: string
+		  }
+		| undefined
+	>('SELECT tnId, idTag, domain, cert, key, expiresAt FROM certs WHERE idTag = $idTag', {
+		$idTag: idTag
+	})
+	return !certData
+		? undefined
+		: {
+				...certData,
+				expiresAt: new Date(certData.expiresAt)
+			}
 }
 
 async function getCertByDomain(domain: string) {
-	const certData = await db.get<{
-		tnId: number,
-		idTag: string,
-		domain?: string,
-		cert: string,
-		key: string,
-		expiresAt: string
-	} | undefined>('SELECT tnId, idTag, domain, cert, key, expiresAt FROM certs WHERE domain = $domain', { $domain: domain })
-	return !certData ? undefined : {
-		...certData,
-		expiresAt: new Date(certData.expiresAt)
-	}
+	const certData = await db.get<
+		| {
+				tnId: number
+				idTag: string
+				domain?: string
+				cert: string
+				key: string
+				expiresAt: string
+		  }
+		| undefined
+	>('SELECT tnId, idTag, domain, cert, key, expiresAt FROM certs WHERE domain = $domain', {
+		$domain: domain
+	})
+	return !certData
+		? undefined
+		: {
+				...certData,
+				expiresAt: new Date(certData.expiresAt)
+			}
 }
 
 //////////////
 // Webauthn //
 //////////////
 async function listWebauthnCredentials(tnId: number): Promise<WebauthnData[]> {
-	const credentials = await db.all<{
-		credentialId: string
-		counter: number
-		publicKey: string
-		descr: string
-	}>('SELECT credentialId, counter, publicKey, descr FROM webauthn WHERE tnId = $tnId', { $tnId: tnId}) ?? {}
+	const credentials =
+		(await db.all<{
+			credentialId: string
+			counter: number
+			publicKey: string
+			descr: string
+		}>('SELECT credentialId, counter, publicKey, descr FROM webauthn WHERE tnId = $tnId', {
+			$tnId: tnId
+		})) ?? {}
 	return credentials
 }
 
-async function getWebauthnCredential(tnId: number, credentialId: string): Promise<WebauthnData | undefined> {
-	const { counter, publicKey, descr } = await db.get<{
-		counter: number
-		publicKey: string
-		descr: string
-	}>('SELECT counter, publicKey, descr FROM webauthn WHERE tnId = $tnId AND credentialId = $credentialId', { $tnId: tnId, $credentialId: credentialId }) ?? {}
+async function getWebauthnCredential(
+	tnId: number,
+	credentialId: string
+): Promise<WebauthnData | undefined> {
+	const { counter, publicKey, descr } =
+		(await db.get<{
+			counter: number
+			publicKey: string
+			descr: string
+		}>(
+			'SELECT counter, publicKey, descr FROM webauthn WHERE tnId = $tnId AND credentialId = $credentialId',
+			{ $tnId: tnId, $credentialId: credentialId }
+		)) ?? {}
 	return {
 		credentialId,
 		counter,
@@ -320,21 +393,31 @@ async function getWebauthnCredential(tnId: number, credentialId: string): Promis
 }
 
 async function createWebauthnCredential(tnId: number, data: WebauthnData): Promise<void> {
-	await db.run('INSERT INTO webauthn (tnId, credentialId, counter, publicKey, descr) VALUES ($tnId, $credentialId, $counter, $publicKey, $descr)', {
-		$tnId: tnId,
-		$credentialId: data.credentialId,
-		$counter: data.counter,
-		$publicKey: data.publicKey,
-		$descr: data.descr
-	})
+	await db.run(
+		'INSERT INTO webauthn (tnId, credentialId, counter, publicKey, descr) VALUES ($tnId, $credentialId, $counter, $publicKey, $descr)',
+		{
+			$tnId: tnId,
+			$credentialId: data.credentialId,
+			$counter: data.counter,
+			$publicKey: data.publicKey,
+			$descr: data.descr
+		}
+	)
 }
 
-async function updateWebauthnCredentialCounter(tnId: number, credentialId: string, counter: number): Promise<void> {
-	await db.run('UPDATE webauthn SET counter = $counter WHERE tnId = $tnId AND credentialId = $credentialId', {
-		$tnId: tnId,
-		$credentialId: credentialId,
-		$counter: counter
-	})
+async function updateWebauthnCredentialCounter(
+	tnId: number,
+	credentialId: string,
+	counter: number
+): Promise<void> {
+	await db.run(
+		'UPDATE webauthn SET counter = $counter WHERE tnId = $tnId AND credentialId = $credentialId',
+		{
+			$tnId: tnId,
+			$credentialId: credentialId,
+			$counter: counter
+		}
+	)
 }
 
 async function deleteWebauthnCredential(tnId: number, credentialId: string): Promise<void> {
@@ -348,38 +431,55 @@ async function deleteWebauthnCredential(tnId: number, credentialId: string): Pro
 // Keys //
 //////////
 async function generateKeyPair() {
-	return new Promise<{ keyId: string, publicKey: string, privateKey: string }>(function (resolve, reject) {
-		console.log('Generating EC-384 keys')
-		const kp = crypto.generateKeyPair('ec', {
-			namedCurve: 'secp384r1',
-			publicKeyEncoding: { type: 'spki', format: 'pem' },
-			privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
-		},
-		async function (err, publicKeyPEM: string, privateKeyPEM: string) {
-			if (err) reject(err)
-			const publicKey = publicKeyPEM.split(/\r\n|\n|\r/).filter(s => !s.startsWith('--')).join('')
-			const privateKey = privateKeyPEM.split(/\r\n|\n|\r/).filter(s => !s.startsWith('--')).join('')
-			const keyId = dayjs().format('YYYYMMDD')
-			resolve({ keyId, publicKey, privateKey })
-		})
-	})
+	return new Promise<{ keyId: string; publicKey: string; privateKey: string }>(
+		function (resolve, reject) {
+			console.log('Generating EC-384 keys')
+			const kp = crypto.generateKeyPair(
+				'ec',
+				{
+					namedCurve: 'secp384r1',
+					publicKeyEncoding: { type: 'spki', format: 'pem' },
+					privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+				},
+				async function (err, publicKeyPEM: string, privateKeyPEM: string) {
+					if (err) reject(err)
+					const publicKey = publicKeyPEM
+						.split(/\r\n|\n|\r/)
+						.filter((s) => !s.startsWith('--'))
+						.join('')
+					const privateKey = privateKeyPEM
+						.split(/\r\n|\n|\r/)
+						.filter((s) => !s.startsWith('--'))
+						.join('')
+					const keyId = dayjs().format('YYYYMMDD')
+					resolve({ keyId, publicKey, privateKey })
+				}
+			)
+		}
+	)
 }
 
 async function createKey(tnId: number) {
 	const { keyId, publicKey, privateKey } = await generateKeyPair()
 
-	await db.run('INSERT INTO keys (tnId, keyId, publicKey, privateKey) VALUES ($tnId, $keyId, $publicKey, $privateKey)', {
-		$tnId: tnId,
-		$keyId: keyId,
-		$publicKey: publicKey,
-		$privateKey: privateKey
-	})
+	await db.run(
+		'INSERT INTO keys (tnId, keyId, publicKey, privateKey) VALUES ($tnId, $keyId, $publicKey, $privateKey)',
+		{
+			$tnId: tnId,
+			$keyId: keyId,
+			$publicKey: publicKey,
+			$privateKey: privateKey
+		}
+	)
 
 	return { keyId, publicKey }
 }
 
 async function getAuthProfile(idTag: string): Promise<Omit<AuthProfile, 'keys'> | undefined> {
-	const profile = await db.get<Omit<AuthProfile & { roles: string }, 'keys'>>('SELECT tnId as id, idTag, roles FROM tenants WHERE idTag = $idTag', { $idTag: idTag })
+	const profile = await db.get<Omit<AuthProfile & { roles: string }, 'keys'>>(
+		'SELECT tnId as id, idTag, roles FROM tenants WHERE idTag = $idTag',
+		{ $idTag: idTag }
+	)
 	if (!profile) return
 
 	return {
@@ -389,53 +489,78 @@ async function getAuthProfile(idTag: string): Promise<Omit<AuthProfile, 'keys'> 
 }
 
 async function getAuthProfileFull(idTag: string): Promise<AuthProfile | undefined> {
-	const profile = await db.get<Omit<AuthProfile & { id: number, roles?: string }, 'keys'>>('SELECT tnId as id, idTag, roles FROM tenants WHERE idTag = $idTag', { $idTag: idTag })
+	const profile = await db.get<Omit<AuthProfile & { id: number; roles?: string }, 'keys'>>(
+		'SELECT tnId as id, idTag, roles FROM tenants WHERE idTag = $idTag',
+		{ $idTag: idTag }
+	)
 	if (!profile) return
 
-	const keys = profile ? await db.all<{ keyId: string, expiresAt: number, publicKey: string }>('SELECT keyId, expiresAt, publicKey FROM keys WHERE tnId = $tnId', { $tnId: profile.id }) : []
+	const keys = profile
+		? await db.all<{ keyId: string; expiresAt: number; publicKey: string }>(
+				'SELECT keyId, expiresAt, publicKey FROM keys WHERE tnId = $tnId',
+				{ $tnId: profile.id }
+			)
+		: []
 	return {
 		...{ ...profile, id: undefined },
 		roles: profile?.roles?.split(','),
-		keys: keys.map(k => ({ ...k, expiresAt: k.expiresAt || undefined }))
+		keys: keys.map((k) => ({ ...k, expiresAt: k.expiresAt || undefined }))
 	}
 }
 
 async function getIdentityTag(tnId: number) {
-	const { idTag } = await db.get<{ idTag: string }>('SELECT idTag FROM tenants WHERE tnId = $tnId', { $tnId: tnId }) || {}
+	const { idTag } =
+		(await db.get<{ idTag: string }>('SELECT idTag FROM tenants WHERE tnId = $tnId', {
+			$tnId: tnId
+		})) || {}
 	return idTag
 }
 
 async function getTenantId(idTag: string) {
-	const { tnId } = await db.get<{ tnId: number }>('SELECT tnId FROM tenants WHERE idTag = $idTag', { $idTag: idTag }) || {}
+	const { tnId } =
+		(await db.get<{ tnId: number }>('SELECT tnId FROM tenants WHERE idTag = $idTag', {
+			$idTag: idTag
+		})) || {}
 	return tnId
 }
 
 async function getAuthPassword(idTag: string): Promise<AuthPasswordData | undefined> {
 	const { id, passwordHash } =
-		await db.get<{ id: number, passwordHash: string }>('SELECT tnId as id, password as passwordHash FROM tenants WHERE idTag = $idTag', { $idTag: idTag }) ?? {}
+		(await db.get<{ id: number; passwordHash: string }>(
+			'SELECT tnId as id, password as passwordHash FROM tenants WHERE idTag = $idTag',
+			{ $idTag: idTag }
+		)) ?? {}
 	console.log('getAuthPassword', id, idTag, passwordHash)
 	if (!idTag) return
-	else return {
-		id,
-		idTag,
-		passwordHash
-	}
+	else
+		return {
+			id,
+			idTag,
+			passwordHash
+		}
 }
 
 async function getAuthPasswordById(tnId: number): Promise<AuthPasswordData | undefined> {
 	const { id, idTag, passwordHash } =
-		await db.get<{ id: number, idTag: string, passwordHash: string }>('SELECT tnId as id, idTag, password as passwordHash FROM tenants WHERE tnId = $tnId', { $tnId: tnId }) ?? {}
+		(await db.get<{ id: number; idTag: string; passwordHash: string }>(
+			'SELECT tnId as id, idTag, password as passwordHash FROM tenants WHERE tnId = $tnId',
+			{ $tnId: tnId }
+		)) ?? {}
 	if (!idTag) return
-	else return {
-		id,
-		idTag,
-		passwordHash
-	}
+	else
+		return {
+			id,
+			idTag,
+			passwordHash
+		}
 }
 
 async function setAuthPassword(idTag: string, password: string): Promise<void> {
 	const cryptedPassword = hashPassword(password)
-	await db.get<{ idTag: string }>('UPDATE tenants SET password=$password WHERE idTag = $idTag RETURNING idTag', { $idTag: idTag, $password: cryptedPassword }) ?? {}
+	;(await db.get<{ idTag: string }>(
+		'UPDATE tenants SET password=$password WHERE idTag = $idTag RETURNING idTag',
+		{ $idTag: idTag, $password: cryptedPassword }
+	)) ?? {}
 	console.log('getAuthPassword', idTag)
 	if (!idTag) throw new Error('Unknown tenant')
 }
@@ -447,10 +572,10 @@ async function getAuthKey(idTag: string): Promise<AuthKeyData | undefined> {
 		publicKey: string
 		privateKey: string
 	}>(
-		"SELECT t.tnId as id, k.keyId, k.privateKey FROM tenants t "
-		+ "JOIN keys k ON k.tnId = t.tnId "
-		+ "WHERE t.idTag = $idTag "
-		+ "ORDER BY k.keyId DESC LIMIT 1",
+		'SELECT t.tnId as id, k.keyId, k.privateKey FROM tenants t ' +
+			'JOIN keys k ON k.tnId = t.tnId ' +
+			'WHERE t.idTag = $idTag ' +
+			'ORDER BY k.keyId DESC LIMIT 1',
 		{ $idTag: idTag }
 	)
 
@@ -471,10 +596,10 @@ async function getAuthKeyById(tnId: number): Promise<AuthKeyData | undefined> {
 		publicKey: string
 		privateKey: string
 	}>(
-		"SELECT t.tnId as id, t.idTag, k.keyId, k.privateKey FROM tenants t "
-		+ "JOIN keys k ON k.tnId = t.tnId "
-		+ "WHERE t.tnId = $tnId "
-		+ "ORDER BY k.keyId DESC LIMIT 1",
+		'SELECT t.tnId as id, t.idTag, k.keyId, k.privateKey FROM tenants t ' +
+			'JOIN keys k ON k.tnId = t.tnId ' +
+			'WHERE t.tnId = $tnId ' +
+			'ORDER BY k.keyId DESC LIMIT 1',
 		{ $tnId: tnId }
 	)
 
@@ -487,17 +612,21 @@ async function getAuthKeyById(tnId: number): Promise<AuthKeyData | undefined> {
 	}
 }
 
-async function createToken(tnId: number, data: Omit<ActionToken, 'iss' | 'k' | 'iat' | 'exp'>, opts: { expiresIn?: string, expiresAt?: number } = {}): Promise<string | undefined> {
+async function createToken(
+	tnId: number,
+	data: Omit<ActionToken, 'iss' | 'k' | 'iat' | 'exp'>,
+	opts: { expiresIn?: string; expiresAt?: number } = {}
+): Promise<string | undefined> {
 	const { idTag, keyId, publicKey, privateKey } = await db.get<{
 		idTag: string
 		keyId: string
 		publicKey: string
 		privateKey: string
 	}>(
-		"SELECT t.idTag, k.keyId, k.privateKey FROM tenants t "
-		+ "JOIN keys k ON k.tnId = t.tnId "
-		+ "WHERE t.tnId = $tnId "
-		+ "ORDER BY k.keyId DESC LIMIT 1",
+		'SELECT t.idTag, k.keyId, k.privateKey FROM tenants t ' +
+			'JOIN keys k ON k.tnId = t.tnId ' +
+			'WHERE t.tnId = $tnId ' +
+			'ORDER BY k.keyId DESC LIMIT 1',
 		{ $tnId: tnId }
 	)
 
@@ -507,22 +636,24 @@ async function createToken(tnId: number, data: Omit<ActionToken, 'iss' | 'k' | '
 	// Generate temporal auth token
 	console.log('expiresIn', opts.expiresIn, 'expiresAt', opts.expiresAt, data)
 	const token = jwt.sign(
-		opts.expiresAt ? {
-			exp: opts.expiresAt,
-			...data,
-			iss: idTag,
-			iat: Math.floor(Date.now() / 10) / 100,
-			k: keyId
-		} : {
-			...data,
-			iss: idTag,
-			iat: Math.floor(Date.now() / 10) / 100,
-			k: keyId
-		},
+		opts.expiresAt
+			? {
+					exp: opts.expiresAt,
+					...data,
+					iss: idTag,
+					iat: Math.floor(Date.now() / 10) / 100,
+					k: keyId
+				}
+			: {
+					...data,
+					iss: idTag,
+					iat: Math.floor(Date.now() / 10) / 100,
+					k: keyId
+				},
 		privateKeyPEM,
 		{
 			algorithm: 'ES384',
-			...(opts.expiresIn ? { expiresIn: opts.expiresIn as any } : {}),
+			...(opts.expiresIn ? { expiresIn: opts.expiresIn as any } : {})
 		}
 	)
 	return token
@@ -539,7 +670,10 @@ async function assureJwtSecret(): Promise<string> {
 	return jwtSecret
 }
 
-async function createAccessToken(data: AccessToken, opts: { expiresIn?: string, expiresAt?: number } = {}): Promise<string> {
+async function createAccessToken(
+	data: AccessToken,
+	opts: { expiresIn?: string; expiresAt?: number } = {}
+): Promise<string> {
 	const token = jwt.sign(
 		opts.expiresAt ? { ...data, exp: opts.expiresAt } : data,
 		await assureJwtSecret(),
@@ -551,7 +685,10 @@ async function createAccessToken(data: AccessToken, opts: { expiresIn?: string, 
 	return token
 }
 
-async function verifyAccessToken(tenantTag: string, token: string): Promise<AccessToken | undefined> {
+async function verifyAccessToken(
+	tenantTag: string,
+	token: string
+): Promise<AccessToken | undefined> {
 	const login: AccessToken = jwt.verify(token, await assureJwtSecret()) as unknown as AccessToken
 	if (login.t != tenantTag) return
 	return login
@@ -559,21 +696,30 @@ async function verifyAccessToken(tenantTag: string, token: string): Promise<Acce
 
 // Web push
 async function getVapidKeys(tnId: number) {
-	const ret = await db.get<{ vapidPublicKey: string, vapidPrivateKey: string }>('SELECT vapidPublicKey, vapidPrivateKey FROM tenants WHERE tnid = $tnId', { $tnId: tnId })
+	const ret = await db.get<{ vapidPublicKey: string; vapidPrivateKey: string }>(
+		'SELECT vapidPublicKey, vapidPrivateKey FROM tenants WHERE tnid = $tnId',
+		{ $tnId: tnId }
+	)
 	return ret
 }
 
 async function getVapidPublicKey(tnId: number) {
-	const { vapidPublicKey } = await db.get<{ vapidPublicKey: string }>('SELECT vapidPublicKey FROM tenants WHERE tnid = $tnId', { $tnId: tnId })
+	const { vapidPublicKey } = await db.get<{ vapidPublicKey: string }>(
+		'SELECT vapidPublicKey FROM tenants WHERE tnid = $tnId',
+		{ $tnId: tnId }
+	)
 	return vapidPublicKey
 }
 
 async function storeVapidKeys(tnId: number, vapidPublicKey: string, vapidPrivateKey: string) {
-	await db.run('UPDATE tenants SET vapidPublicKey = $vapidPublicKey, vapidPrivateKey = $vapidPrivateKey WHERE tnid = $tnId', {
-		$vapidPublicKey: vapidPublicKey,
-		$vapidPrivateKey: vapidPrivateKey,
-		$tnId: tnId
-	})
+	await db.run(
+		'UPDATE tenants SET vapidPublicKey = $vapidPublicKey, vapidPrivateKey = $vapidPrivateKey WHERE tnid = $tnId',
+		{
+			$vapidPublicKey: vapidPublicKey,
+			$vapidPrivateKey: vapidPrivateKey,
+			$tnId: tnId
+		}
+	)
 }
 
 // vim: ts=4

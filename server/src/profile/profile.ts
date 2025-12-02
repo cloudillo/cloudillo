@@ -34,33 +34,43 @@ export const tProfileKeys = T.struct({
 	name: T.string,
 	type: T.optional(T.literal('community')),
 	profilePic: T.optional(T.string),
-	keys: T.array(T.struct({
-		keyId: T.string,
-		publicKey: T.string,
-		expires: T.optional(T.number)
-	}))
+	keys: T.array(
+		T.struct({
+			keyId: T.string,
+			publicKey: T.string,
+			expires: T.optional(T.number)
+		})
+	)
 })
 export type ProfileKeys = T.TypeOf<typeof tProfileKeys>
 
 export const tFullProfile = T.struct({
 	idTag: T.string,
 	name: T.string,
-	profilePic: T.optional(T.struct({
-		ic: T.string,
-		sd: T.string,
-		hd: T.optional(T.string)
-	})),
-	coverPic: T.optional(T.struct({
-		sd: T.string,
-		hd: T.optional(T.string)
-	})),
+	profilePic: T.optional(
+		T.struct({
+			ic: T.string,
+			sd: T.string,
+			hd: T.optional(T.string)
+		})
+	),
+	coverPic: T.optional(
+		T.struct({
+			sd: T.string,
+			hd: T.optional(T.string)
+		})
+	),
 	x: T.optional(T.record(T.string))
 })
 export type FullProfile = T.TypeOf<typeof tFullProfile>
 
 // Functions //
 ///////////////
-export async function syncProfile(tnId: number, idTag: string, eTag?: string): Promise<T.TypeOf<typeof tProfileKeys> & { status?: ProfileStatus } | undefined> {
+export async function syncProfile(
+	tnId: number,
+	idTag: string,
+	eTag?: string
+): Promise<(T.TypeOf<typeof tProfileKeys> & { status?: ProfileStatus }) | undefined> {
 	console.log(`https://cl-o.${idTag}/api/me`, eTag)
 	const res = await fetch(`https://cl-o.${idTag}/api/me`, {
 		headers: eTag ? { 'If-None-Match': '"' + eTag + '"' } : undefined
@@ -75,7 +85,9 @@ export async function syncProfile(tnId: number, idTag: string, eTag?: string): P
 				const variant = await metaAdapter.readFile(tnId, profile.profilePic)
 				if (!variant) {
 					console.log('Syncing profilePic')
-					const binRes = await fetch(`https://cl-o.${idTag}/api/store/${profile.profilePic}`)
+					const binRes = await fetch(
+						`https://cl-o.${idTag}/api/store/${profile.profilePic}`
+					)
 					const buf = Buffer.from(await binRes.arrayBuffer())
 					const hash = sha256(buf)
 					if (hash == profile.profilePic) {
@@ -84,17 +96,25 @@ export async function syncProfile(tnId: number, idTag: string, eTag?: string): P
 						await metaAdapter.createFileVariant(tnId, undefined, profile.profilePic, {
 							variant: 'ic',
 							size: buf.length,
-							format: contentType == 'image/jpeg' ? 'jpg'
-								: contentType == 'image/avif' ? 'avif'
-								: contentType == 'image/webp' ? 'webp'
-								: 'unkn'
+							format:
+								contentType == 'image/jpeg'
+									? 'jpg'
+									: contentType == 'image/avif'
+										? 'avif'
+										: contentType == 'image/webp'
+											? 'webp'
+											: 'unkn'
 						})
 					} else {
 						console.error('Profile pic hash mismatch', hash, profile.profilePic)
 					}
 				}
 			}
-			await metaAdapter.createProfile(tnId, profile, res.headers.get('ETag')?.replaceAll('"', '') || undefined)
+			await metaAdapter.createProfile(
+				tnId,
+				profile,
+				res.headers.get('ETag')?.replaceAll('"', '') || undefined
+			)
 			return profile
 		} else {
 			console.log('ERROR', profileRes.err)
@@ -106,18 +126,25 @@ export async function syncProfile(tnId: number, idTag: string, eTag?: string): P
 	}
 }
 
-export async function getProfile(tnId: number, idTag: string): Promise<T.TypeOf<typeof tProfile> & {
-	status?: ProfileStatus,
-	following?: boolean,
-	connected?: boolean
-} | undefined> {
+export async function getProfile(
+	tnId: number,
+	idTag: string
+): Promise<
+	| (T.TypeOf<typeof tProfile> & {
+			status?: ProfileStatus
+			following?: boolean
+			connected?: boolean
+	  })
+	| undefined
+> {
 	// Get local profile
 	let profile = await metaAdapter.readProfile(tnId, idTag)
 	console.log('Local profile', idTag, profile)
-	if (profile) return {
-		...profile,
-		connected: profile.connected === true
-	}
+	if (profile)
+		return {
+			...profile,
+			connected: profile.connected === true
+		}
 
 	// Download if not found
 	return await syncProfile(tnId, idTag)

@@ -32,21 +32,27 @@ export interface ToastProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const Toast = createComponent<HTMLDivElement, ToastProps>(
 	'Toast',
-	({
-		className,
-		variant,
-		dismissing,
-		withProgress,
-		duration,
-		onDismiss,
-		toast,
-		children,
-		...props
-	}, ref) => {
-		const contextValue = React.useMemo(() => ({
+	(
+		{
+			className,
+			variant,
+			dismissing,
+			withProgress,
+			duration,
+			onDismiss,
 			toast,
-			dismiss: onDismiss
-		}), [toast, onDismiss])
+			children,
+			...props
+		},
+		ref
+	) => {
+		const contextValue = React.useMemo(
+			() => ({
+				toast,
+				dismiss: onDismiss
+			}),
+			[toast, onDismiss]
+		)
 
 		return (
 			<ToastContext.Provider value={contextValue}>

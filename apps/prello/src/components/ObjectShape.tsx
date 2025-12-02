@@ -123,7 +123,8 @@ export const ObjectShape = React.memo(function ObjectShape({
 	const rotationTransform = rotation !== 0 ? `rotate(${rotation} ${cx} ${cy})` : undefined
 
 	// Object opacity (different from fill/stroke opacity)
-	const objectOpacity = object.opacity !== undefined && object.opacity !== 1 ? object.opacity : undefined
+	const objectOpacity =
+		object.opacity !== undefined && object.opacity !== 1 ? object.opacity : undefined
 
 	const commonProps = {
 		onClick,
@@ -135,20 +136,21 @@ export const ObjectShape = React.memo(function ObjectShape({
 	}
 
 	// Hover bounding box overlay (shown when hovered and not selected)
-	const hoverOverlay = isHovered && !isSelected ? (
-		<rect
-			x={x - 1}
-			y={y - 1}
-			width={width + 2}
-			height={height + 2}
-			fill="none"
-			stroke="#0066ff"
-			strokeWidth={1}
-			strokeOpacity={0.5}
-			strokeDasharray="4 2"
-			pointerEvents="none"
-		/>
-	) : null
+	const hoverOverlay =
+		isHovered && !isSelected ? (
+			<rect
+				x={x - 1}
+				y={y - 1}
+				width={width + 2}
+				height={height + 2}
+				fill="none"
+				stroke="#0066ff"
+				strokeWidth={1}
+				strokeOpacity={0.5}
+				strokeDasharray="4 2"
+				pointerEvents="none"
+			/>
+		) : null
 
 	const strokeProps = {
 		stroke: style.stroke,
@@ -166,47 +168,60 @@ export const ObjectShape = React.memo(function ObjectShape({
 
 	switch (object.type) {
 		case 'rect':
-			return <g transform={rotationTransform} opacity={objectOpacity}>
-				<rect
-					x={x}
-					y={y}
-					width={width}
-					height={height}
-					rx={typeof object.cornerRadius === 'number' ? object.cornerRadius : undefined}
-					{...fillProps}
-					{...strokeProps}
-					{...commonProps}
-				/>
-				{hoverOverlay}
-			</g>
+			return (
+				<g transform={rotationTransform} opacity={objectOpacity}>
+					<rect
+						x={x}
+						y={y}
+						width={width}
+						height={height}
+						rx={
+							typeof object.cornerRadius === 'number'
+								? object.cornerRadius
+								: undefined
+						}
+						{...fillProps}
+						{...strokeProps}
+						{...commonProps}
+					/>
+					{hoverOverlay}
+				</g>
+			)
 
 		case 'ellipse':
-			return <g transform={rotationTransform} opacity={objectOpacity}>
-				<ellipse
-					cx={x + width / 2}
-					cy={y + height / 2}
-					rx={width / 2}
-					ry={height / 2}
-					{...fillProps}
-					{...strokeProps}
-					{...commonProps}
-				/>
-				{hoverOverlay}
-			</g>
+			return (
+				<g transform={rotationTransform} opacity={objectOpacity}>
+					<ellipse
+						cx={x + width / 2}
+						cy={y + height / 2}
+						rx={width / 2}
+						ry={height / 2}
+						{...fillProps}
+						{...strokeProps}
+						{...commonProps}
+					/>
+					{hoverOverlay}
+				</g>
+			)
 
 		case 'line':
-			const points = object.points || [[0, height / 2], [width, height / 2]]
-			return <g transform={rotationTransform} opacity={objectOpacity}>
-				<line
-					x1={x + points[0][0]}
-					y1={y + points[0][1]}
-					x2={x + points[1][0]}
-					y2={y + points[1][1]}
-					{...strokeProps}
-					{...commonProps}
-				/>
-				{hoverOverlay}
-			</g>
+			const points = object.points || [
+				[0, height / 2],
+				[width, height / 2]
+			]
+			return (
+				<g transform={rotationTransform} opacity={objectOpacity}>
+					<line
+						x1={x + points[0][0]}
+						y1={y + points[0][1]}
+						x2={x + points[1][0]}
+						y2={y + points[1][1]}
+						{...strokeProps}
+						{...commonProps}
+					/>
+					{hoverOverlay}
+				</g>
+			)
 
 		case 'text':
 			const textContent = object.text || ''
@@ -237,18 +252,20 @@ export const ObjectShape = React.memo(function ObjectShape({
 
 		default:
 			// Fallback rectangle for unsupported types
-			return <g transform={rotationTransform} opacity={objectOpacity}>
-				<rect
-					x={x}
-					y={y}
-					width={width}
-					height={height}
-					{...fillProps}
-					{...strokeProps}
-					{...commonProps}
-				/>
-				{hoverOverlay}
-			</g>
+			return (
+				<g transform={rotationTransform} opacity={objectOpacity}>
+					<rect
+						x={x}
+						y={y}
+						width={width}
+						height={height}
+						{...fillProps}
+						{...strokeProps}
+						{...commonProps}
+					/>
+					{hoverOverlay}
+				</g>
+			)
 	}
 }, arePropsEqual)
 

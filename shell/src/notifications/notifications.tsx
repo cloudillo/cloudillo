@@ -18,15 +18,28 @@ import * as React from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
-import {
-	LuCheck as IcAccept,
-	LuX as IcReject
-} from 'react-icons/lu'
+import { LuCheck as IcAccept, LuX as IcReject } from 'react-icons/lu'
 
 import * as T from '@symbion/runtype'
 
-import { NewAction, ActionView, tActionView, tConnectAction, tFileShareAction } from '@cloudillo/types'
-import { useAuth, useApi, Button, ProfilePicture, ProfileCard, ProfileAudienceCard, Fcd, mergeClasses, generateFragments } from '@cloudillo/react'
+import {
+	NewAction,
+	ActionView,
+	tActionView,
+	tConnectAction,
+	tFileShareAction
+} from '@cloudillo/types'
+import {
+	useAuth,
+	useApi,
+	Button,
+	ProfilePicture,
+	ProfileCard,
+	ProfileAudienceCard,
+	Fcd,
+	mergeClasses,
+	generateFragments
+} from '@cloudillo/react'
 
 import { useNotifications } from './state'
 
@@ -34,7 +47,15 @@ function FilterBar() {
 	return null
 }
 
-function ConnectNotification({ className, action, onClick }: { className?: string, action: ActionView, onClick?: (action: ActionView) => void }) {
+function ConnectNotification({
+	className,
+	action,
+	onClick
+}: {
+	className?: string
+	action: ActionView
+	onClick?: (action: ActionView) => void
+}) {
 	const { t } = useTranslation()
 	const { api, setIdTag } = useApi()
 	const contentRes = T.decode(tConnectAction.props.content, action.content)
@@ -54,32 +75,63 @@ function ConnectNotification({ className, action, onClick }: { className?: strin
 		onClick?.(action)
 	}
 
-	return <div className={mergeClasses('c-panel g-2', className)}>
-		<div className="c-panel-header c-hbox">
-			<Link to={`/profile/${action.issuer.idTag}`}>
-				<ProfileCard profile={action.issuer}/>
-			</Link>
-			<div className="c-hbox ms-auto g-3">
-				<button className="c-link" onClick={onAccept}><IcAccept/></button>
-				{ action.status == 'C' && <button className="c-link" onClick={onReject}><IcReject/></button> }
+	return (
+		<div className={mergeClasses('c-panel g-2', className)}>
+			<div className="c-panel-header c-hbox">
+				<Link to={`/profile/${action.issuer.idTag}`}>
+					<ProfileCard profile={action.issuer} />
+				</Link>
+				<div className="c-hbox ms-auto g-3">
+					<button className="c-link" onClick={onAccept}>
+						<IcAccept />
+					</button>
+					{action.status == 'C' && (
+						<button className="c-link" onClick={onReject}>
+							<IcReject />
+						</button>
+					)}
+				</div>
 			</div>
-		</div><div className="d-flex flex-column">
-			{ !action.subType && <>
-				<h3>{ action.status == 'C' ? t('Wants to connect') : t('Connected with you') }</h3>
-				{ content && content.split('\n\n').map((paragraph, i) => <p key={i}>
-					{ paragraph.split('\n').map((line, i) => <React.Fragment key={i}>
-						{ generateFragments(line).map((n, i) => <React.Fragment key={i}>{n}</React.Fragment>) }
-					<br/></React.Fragment>) }
-				</p>) }
-			</> }
-			{ action.subType == 'DEL' && <>
-				<h3>{ t('User disconnected, or refused to connect') }</h3>
-			</> }
+			<div className="d-flex flex-column">
+				{!action.subType && (
+					<>
+						<h3>
+							{action.status == 'C' ? t('Wants to connect') : t('Connected with you')}
+						</h3>
+						{content &&
+							content.split('\n\n').map((paragraph, i) => (
+								<p key={i}>
+									{paragraph.split('\n').map((line, i) => (
+										<React.Fragment key={i}>
+											{generateFragments(line).map((n, i) => (
+												<React.Fragment key={i}>{n}</React.Fragment>
+											))}
+											<br />
+										</React.Fragment>
+									))}
+								</p>
+							))}
+					</>
+				)}
+				{action.subType == 'DEL' && (
+					<>
+						<h3>{t('User disconnected, or refused to connect')}</h3>
+					</>
+				)}
+			</div>
 		</div>
-	</div>
+	)
 }
 
-function FileShareNotification({ className, action, onClick }: { className?: string, action: ActionView, onClick?: (action: ActionView) => void }) {
+function FileShareNotification({
+	className,
+	action,
+	onClick
+}: {
+	className?: string
+	action: ActionView
+	onClick?: (action: ActionView) => void
+}) {
 	const { t } = useTranslation()
 	const { api, setIdTag } = useApi()
 	const contentRes = T.decode(tFileShareAction.props.content, action.content)
@@ -100,28 +152,48 @@ function FileShareNotification({ className, action, onClick }: { className?: str
 		onClick?.(action)
 	}
 
-	return <div className={mergeClasses('c-panel g-2', className)}>
-		<div className="c-panel-header c-hbox">
-			<Link to={`/profile/${action.issuer.idTag}`}>
-				<ProfileCard profile={action.issuer}/>
-			</Link>
-			<div className="c-hbox ms-auto g-3">
-				<button className="c-link" onClick={onAccept}><IcAccept/></button>
-				<button className="c-link" onClick={onReject}><IcReject/></button>
+	return (
+		<div className={mergeClasses('c-panel g-2', className)}>
+			<div className="c-panel-header c-hbox">
+				<Link to={`/profile/${action.issuer.idTag}`}>
+					<ProfileCard profile={action.issuer} />
+				</Link>
+				<div className="c-hbox ms-auto g-3">
+					<button className="c-link" onClick={onAccept}>
+						<IcAccept />
+					</button>
+					<button className="c-link" onClick={onReject}>
+						<IcReject />
+					</button>
+				</div>
 			</div>
-		</div><div className="d-flex flex-column">
-			<h3>{ t("Wants to share a file with you") }</h3>
-			<div>Filename: <span className="text-emph">{ content.fileName }</span></div>
-			<div>Type: <span className="text-emph">{ content.contentType }</span></div>
+			<div className="d-flex flex-column">
+				<h3>{t('Wants to share a file with you')}</h3>
+				<div>
+					Filename: <span className="text-emph">{content.fileName}</span>
+				</div>
+				<div>
+					Type: <span className="text-emph">{content.contentType}</span>
+				</div>
+			</div>
 		</div>
-	</div>
+	)
 }
 
-function Notification({ action, onClick }: { action: ActionView, onClick?: (action: ActionView) => void }) {
+function Notification({
+	action,
+	onClick
+}: {
+	action: ActionView
+	onClick?: (action: ActionView) => void
+}) {
 	switch (action.type) {
-		case 'CONN': return <ConnectNotification action={action} onClick={onClick}/>
-		case 'FSHR': return <FileShareNotification action={action} onClick={onClick}/>
-		default: return null
+		case 'CONN':
+			return <ConnectNotification action={action} onClick={onClick} />
+		case 'FSHR':
+			return <FileShareNotification action={action} onClick={onClick} />
+		default:
+			return null
 	}
 }
 
@@ -132,11 +204,12 @@ export function Notifications() {
 	//const [notifications, setNotifications] = React.useState<ActionView[] | undefined>()
 	const { notifications, setNotifications, loadNotifications } = useNotifications()
 
-	React.useEffect(function onLoadNotifications() {
-		if (!api || !auth?.idTag) return
+	React.useEffect(
+		function onLoadNotifications() {
+			if (!api || !auth?.idTag) return
 
-		loadNotifications()
-		/*
+			loadNotifications()
+			/*
 		;(async function () {
 			//const res = await api.get<{ actions: ActionEvt[] }>('', `/action?audience=${idTag}&types=POST`)
 			const res = await api.get<{ actions: ActionView[] }>('', `/action?status=N`)
@@ -144,28 +217,42 @@ export function Notifications() {
 			setNotifications(res.actions)
 		})()
 		*/
-	}, [auth, api])
+		},
+		[auth, api]
+	)
 
 	function onClick(action: ActionView) {
 		console.log('onClick', action)
-		setNotifications(n => ({
-			notifications: n.notifications.filter(a => a.actionId != action.actionId)
+		setNotifications((n) => ({
+			notifications: n.notifications.filter((a) => a.actionId != action.actionId)
 		}))
 	}
 
-	return <Fcd.Container className="g-1">
-		{ !!auth && <>
-			<Fcd.Filter>
-				<FilterBar/>
-			</Fcd.Filter>
-			<Fcd.Content>
-				{ notifications && !notifications.notifications.length && <h3>{ t('You have no notifications') }</h3> }
-				{ !!notifications && notifications.notifications.map(action =>  <Notification key={action.actionId} action={action} onClick={onClick}/>) }
-			</Fcd.Content>
-			<Fcd.Details>
-			</Fcd.Details>
-		</> }
-	</Fcd.Container>
+	return (
+		<Fcd.Container className="g-1">
+			{!!auth && (
+				<>
+					<Fcd.Filter>
+						<FilterBar />
+					</Fcd.Filter>
+					<Fcd.Content>
+						{notifications && !notifications.notifications.length && (
+							<h3>{t('You have no notifications')}</h3>
+						)}
+						{!!notifications &&
+							notifications.notifications.map((action) => (
+								<Notification
+									key={action.actionId}
+									action={action}
+									onClick={onClick}
+								/>
+							))}
+					</Fcd.Content>
+					<Fcd.Details></Fcd.Details>
+				</>
+			)}
+		</Fcd.Container>
+	)
 }
 
 // vim: ts=4

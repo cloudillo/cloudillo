@@ -101,15 +101,15 @@ export interface ConditionalFormat {
 export interface FrozenInfo {
 	type: 'row' | 'column' | 'both' | 'range'
 	range?: {
-		rowFocus?: number	// Row index (will convert to ID when needed)
-		colFocus?: number	// Column index
+		rowFocus?: number // Row index (will convert to ID when needed)
+		colFocus?: number // Column index
 	}
 }
 
 // YJS structure types
 export interface YSheetStructure {
 	// Sheet metadata
-	name: Y.Text  // Sheet name as Y.Text for collaborative editing
+	name: Y.Text // Sheet name as Y.Text for collaborative editing
 
 	// Core data
 	rowOrder: Y.Array<RowId>
@@ -122,18 +122,18 @@ export interface YSheetStructure {
 	hyperlinks: Y.Map<HyperlinkInfo>
 	validations: Y.Map<ValidationRule>
 	conditionalFormats: Y.Array<ConditionalFormat>
-	hiddenRows: Y.Map<boolean>  // rowId → true (if hidden)
-	hiddenCols: Y.Map<boolean>  // colId → true (if hidden)
-	rowHeights: Y.Map<number>   // rowId → height in pixels
-	colWidths: Y.Map<number>    // colId → width in pixels
-	frozen: Y.Map<string | number>  // Wrap FrozenInfo in Y.Map for proper CRDT sync
+	hiddenRows: Y.Map<boolean> // rowId → true (if hidden)
+	hiddenCols: Y.Map<boolean> // colId → true (if hidden)
+	rowHeights: Y.Map<number> // rowId → height in pixels
+	colWidths: Y.Map<number> // colId → width in pixels
+	frozen: Y.Map<string | number> // Wrap FrozenInfo in Y.Map for proper CRDT sync
 }
 
 // Root YDoc structure
 export interface YWorkbookStructure {
 	sheetOrder: Y.Array<SheetId>
 	sheets: Y.Map<YSheetStructure>
-	meta: Y.Map<unknown>	// Keep for compatibility with cloudillo.init()
+	meta: Y.Map<unknown> // Keep for compatibility with cloudillo.init()
 }
 
 // Type guards

@@ -20,15 +20,27 @@ import { Ref, ListRefsOptions, CreateRefOptions } from '@cloudillo/server/types/
 import { db, ql } from './db.js'
 
 export async function listRefs(tnId: number, opts?: ListRefsOptions): Promise<Ref[]> {
-	const rows = await db.all<{ refId: string, type: string, description: string, createdAt: number, expiresAt: number, count: number }>(
+	const rows = await db.all<{
+		refId: string
+		type: string
+		description: string
+		createdAt: number
+		expiresAt: number
+		count: number
+	}>(
 		`SELECT refId, type, description, createdAt, expiresAt, count FROM refs
 		WHERE tnId = $tnId AND type = $type
-		${opts?.filter == 'active' ? 'AND (expiresAt ISNULL OR expiresAt > unixepoch()) AND count > 0'
-		: opts?.filter == 'used' ? 'AND count = 0'
-		: ''}
-		ORDER BY createdAt DESC, description`, { $tnId: tnId, $type: opts?.type }
+		${
+			opts?.filter == 'active'
+				? 'AND (expiresAt ISNULL OR expiresAt > unixepoch()) AND count > 0'
+				: opts?.filter == 'used'
+					? 'AND count = 0'
+					: ''
+		}
+		ORDER BY createdAt DESC, description`,
+		{ $tnId: tnId, $type: opts?.type }
 	)
-	return rows.map(row => ({
+	return rows.map((row) => ({
 		...row,
 		createdAt: new Date(row.createdAt * 1000),
 		expiresAt: !row.expiresAt ? undefined : new Date(row.expiresAt * 1000)
@@ -37,11 +49,25 @@ export async function listRefs(tnId: number, opts?: ListRefsOptions): Promise<Re
 
 export async function createRef(tnId: number, refId: string, opts: CreateRefOptions): Promise<Ref> {
 	console.log('createRef', tnId, refId, opts.type)
-	const res = await db.get<{ refId: string, type: string, description: string, createdAt: number, expiresAt: number, count: number }>(
+	const res = await db.get<{
+		refId: string
+		type: string
+		description: string
+		createdAt: number
+		expiresAt: number
+		count: number
+	}>(
 		`INSERT INTO refs (tnId, refId, type, description, expiresAt, count)
 		VALUES ($tnId, $ref, $type, $description, $expiresAt, $count)
 		RETURNING refId, type, description, createdAt, count`,
-		{ $tnId: tnId, $ref: refId, $type: opts.type, $description: opts.description, $expiresAt: opts.expiresAt, $count: opts.count || 1 }
+		{
+			$tnId: tnId,
+			$ref: refId,
+			$type: opts.type,
+			$description: opts.description,
+			$expiresAt: opts.expiresAt,
+			$count: opts.count || 1
+		}
 	)
 	return {
 		...res,
@@ -50,8 +76,11 @@ export async function createRef(tnId: number, refId: string, opts: CreateRefOpti
 	}
 }
 
-export async function getRef(tnId: number, refId: string): Promise<{ refId: string, type: string } | undefined> {
-	const row = await db.get<{ refId: string, type: string }>(
+export async function getRef(
+	tnId: number,
+	refId: string
+): Promise<{ refId: string; type: string } | undefined> {
+	const row = await db.get<{ refId: string; type: string }>(
 		`SELECT refId, type FROM refs
 		WHERE tnId = $tnId AND refId = $refId AND (expiresAt ISNULL OR expiresAt > unixepoch()) AND count > 0`,
 		{ $tnId: tnId, $refId: refId }
@@ -60,7 +89,7 @@ export async function getRef(tnId: number, refId: string): Promise<{ refId: stri
 }
 
 export async function useRef(tnId: number, refId: string): Promise<{ count: number }> {
-	const row = await db.get<{ count: number}>(
+	const row = await db.get<{ count: number }>(
 		`UPDATE refs SET count = count - 1
 		WHERE tnId = $tnId AND refId = $refId AND count > 0 RETURNING count`,
 		{ $tnId: tnId, $refId: refId }
@@ -69,7 +98,10 @@ export async function useRef(tnId: number, refId: string): Promise<{ count: numb
 }
 
 export async function deleteRef(tnId: number, refId: string): Promise<void> {
-	await db.run("DELETE FROM refs WHERE tnId = $tnId AND refId = $refId", { $tnId: tnId, $refId: refId })
+	await db.run('DELETE FROM refs WHERE tnId = $tnId AND refId = $refId', {
+		$tnId: tnId,
+		$refId: refId
+	})
 }
 
 // vim: ts=4

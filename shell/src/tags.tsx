@@ -58,16 +58,20 @@ export function EditTags({ tags, listTags, addTag, removeTag }: EditTagsProps) {
 		if (!q) return []
 
 		const list = await listTags(q)
-		const ret = list && (list.find(t => t.tag === q) ? list : [q, ...list])
+		const ret = list && (list.find((t) => t.tag === q) ? list : [q, ...list])
 		//console.log('DATA', list, list?.find(t => t.tag === q), ret)
-		return list && (list.find(t => t.tag === q) ? list : [{ tag: q, new: true }, ...list])
+		return list && (list.find((t) => t.tag === q) ? list : [{ tag: q, new: true }, ...list])
 	}
 
 	function renderItem(tag: Tag) {
-		return <div className="c-link">
-			<span style={{ width: '2rem' }}>{ tag.new ? <IcPlus/> : '' }</span>
-			<span className={'c-tag small' + (tag.privileged ? ' warning' : '')}>{tag.tag}</span>
-		</div>
+		return (
+			<div className="c-link">
+				<span style={{ width: '2rem' }}>{tag.new ? <IcPlus /> : ''}</span>
+				<span className={'c-tag small' + (tag.privileged ? ' warning' : '')}>
+					{tag.tag}
+				</span>
+			</div>
+		)
 	}
 
 	function onAdd(tag?: Tag) {
@@ -78,22 +82,46 @@ export function EditTags({ tags, listTags, addTag, removeTag }: EditTagsProps) {
 		return tag && removeTag?.(tag.tag)
 	}
 
-	return <>
+	return (
+		<>
 			<div className="c-tag-list">
 				{(tags || []).map((tag, i) => (
 					<span key={i} className="c-button small">
 						#{tag}
-						<button className="c-link p-0 ps-1" onClick={() => onRemove({ tag })}><IcDelete/></button>
+						<button className="c-link p-0 ps-1" onClick={() => onRemove({ tag })}>
+							<IcDelete />
+						</button>
 					</span>
 				))}
-				{!!addTag && !add && <button className="c-link" onClick={() => setAdd(true)}><IcPlus/></button>}
-				{!!addTag && add && <button className="c-link" onClick={() => setAdd(false)}><IcMinus/></button>}
+				{!!addTag && !add && (
+					<button className="c-link" onClick={() => setAdd(true)}>
+						<IcPlus />
+					</button>
+				)}
+				{!!addTag && add && (
+					<button className="c-link" onClick={() => setAdd(false)}>
+						<IcMinus />
+					</button>
+				)}
 			</div>
-			{add && <div className="c-input-group">
-				<span className="c-button icon"><IcHash/></span>
-				<Select className="flex-fill" placeholder={t('Add tag...')} getData={getData} itemToId={i => i.tag} itemToString={i => i?.tag || ''} renderItem={renderItem} onSelectItem={onAdd}/>
-			</div>}
+			{add && (
+				<div className="c-input-group">
+					<span className="c-button icon">
+						<IcHash />
+					</span>
+					<Select
+						className="flex-fill"
+						placeholder={t('Add tag...')}
+						getData={getData}
+						itemToId={(i) => i.tag}
+						itemToString={(i) => i?.tag || ''}
+						renderItem={renderItem}
+						onSelectItem={onAdd}
+					/>
+				</div>
+			)}
 		</>
+	)
 }
 
 // vim: ts=4

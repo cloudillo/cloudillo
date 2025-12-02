@@ -23,11 +23,11 @@ export interface FcdContainerProps {
 }
 
 export function FcdContainer({ className, children }: FcdContainerProps) {
-	return <main className={mergeClasses('c-container w-100 h-100', className)}>
-		<div className="row h-100">
-			{children}
-		</div>
-	</main>
+	return (
+		<main className={mergeClasses('c-container w-100 h-100', className)}>
+			<div className="row h-100">{children}</div>
+		</main>
+	)
 }
 
 // vim: ts=4

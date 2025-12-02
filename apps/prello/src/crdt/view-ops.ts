@@ -56,7 +56,7 @@ export function createView(
 			const lastViewId = viewIds[viewIds.length - 1]
 			const lastView = doc.v.get(lastViewId)
 			if (lastView) {
-				x = lastView.x + lastView.width + 100  // 100px gap
+				x = lastView.x + lastView.width + 100 // 100px gap
 				y = lastView.y
 			}
 		}
@@ -107,10 +107,7 @@ export function createView(
 /**
  * Get a view by ID (returns runtime type)
  */
-export function getView(
-	doc: YPrelloDocument,
-	viewId: ViewId
-): ViewNode | undefined {
+export function getView(doc: YPrelloDocument, viewId: ViewId): ViewNode | undefined {
 	const stored = doc.v.get(viewId)
 	if (!stored) return undefined
 	return expandView(viewId, stored)
@@ -122,7 +119,7 @@ export function getView(
 export function getAllViews(doc: YPrelloDocument): ViewNode[] {
 	const views: ViewNode[] = []
 
-	doc.vo.toArray().forEach(id => {
+	doc.vo.toArray().forEach((id) => {
 		const stored = doc.v.get(id)
 		if (stored) {
 			views.push(expandView(id, stored))
@@ -219,11 +216,7 @@ export function updateViewBounds(
 /**
  * Delete a view
  */
-export function deleteView(
-	yDoc: Y.Doc,
-	doc: YPrelloDocument,
-	viewId: ViewId
-): void {
+export function deleteView(yDoc: Y.Doc, doc: YPrelloDocument, viewId: ViewId): void {
 	if (doc.vo.length <= 1) {
 		throw new Error('Cannot delete the last view')
 	}
@@ -276,16 +269,12 @@ export function moveViewInPresentation(
 /**
  * Arrange all views in a row on the canvas
  */
-export function rearrangeViewsOnCanvas(
-	yDoc: Y.Doc,
-	doc: YPrelloDocument,
-	gap: number = 100
-): void {
+export function rearrangeViewsOnCanvas(yDoc: Y.Doc, doc: YPrelloDocument, gap: number = 100): void {
 	yDoc.transact(() => {
 		let x = 0
 		const y = 0
 
-		doc.vo.toArray().forEach(id => {
+		doc.vo.toArray().forEach((id) => {
 			const view = doc.v.get(id)
 			if (view) {
 				doc.v.set(id, { ...view, x, y })
@@ -417,21 +406,14 @@ export function getLastView(doc: YPrelloDocument): ViewId | null {
 /**
  * Get view index in presentation order
  */
-export function getViewIndex(
-	doc: YPrelloDocument,
-	viewId: ViewId
-): number {
+export function getViewIndex(doc: YPrelloDocument, viewId: ViewId): number {
 	return doc.vo.toArray().indexOf(viewId)
 }
 
 /**
  * Toggle view visibility (for skipping in presentation)
  */
-export function toggleViewHidden(
-	yDoc: Y.Doc,
-	doc: YPrelloDocument,
-	viewId: ViewId
-): void {
+export function toggleViewHidden(yDoc: Y.Doc, doc: YPrelloDocument, viewId: ViewId): void {
 	const view = doc.v.get(viewId)
 	if (!view) return
 

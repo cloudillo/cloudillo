@@ -28,44 +28,48 @@ export function PrivacySettings() {
 
 	if (!settings) return null
 
-	return <>
-		<div className="c-panel">
-			<h4 className="pb-2">{t('Post visibility')}</h4>
-			<label className="c-hbox pb-2">
-				<span className="flex-fill">{t('Default visibility for new posts')}</span>
-				<select
-					className="c-select"
-					name="privacy.default_visibility"
-					value={(settings['privacy.default_visibility'] as string) || 'F'}
-					onChange={onSettingChange}
-				>
-					<option value="F">{t('Followers')}</option>
-					<option value="C">{t('Connected')}</option>
-					<option value="P">{t('Public')}</option>
-				</select>
-			</label>
-			<p className="c-hint">
-				{t('You can change visibility for individual posts when creating them.')}
-			</p>
-		</div>
+	return (
+		<>
+			<div className="c-panel">
+				<h4 className="pb-2">{t('Post visibility')}</h4>
+				<label className="c-hbox pb-2">
+					<span className="flex-fill">{t('Default visibility for new posts')}</span>
+					<select
+						className="c-select"
+						name="privacy.default_visibility"
+						value={(settings['privacy.default_visibility'] as string) || 'F'}
+						onChange={onSettingChange}
+					>
+						<option value="F">{t('Followers')}</option>
+						<option value="C">{t('Connected')}</option>
+						<option value="P">{t('Public')}</option>
+					</select>
+				</label>
+				<p className="c-hint">
+					{t('You can change visibility for individual posts when creating them.')}
+				</p>
+			</div>
 
-		<div className="c-panel">
-			<h4 className="pb-2">{t('Followers')}</h4>
-			<label className="c-hbox pb-2">
-				<span className="flex-fill">{t('Allow others to follow you')}</span>
-				<input
-					className="c-toggle primary"
-					name="privacy.allow_followers"
-					type="checkbox"
-					checked={settings['privacy.allow_followers'] !== false}
-					onChange={onSettingChange}
-				/>
-			</label>
-			<p className="c-hint">
-				{t('When disabled, new follow requests will be rejected and your posts will only be visible to your connections.')}
-			</p>
-		</div>
-	</>
+			<div className="c-panel">
+				<h4 className="pb-2">{t('Followers')}</h4>
+				<label className="c-hbox pb-2">
+					<span className="flex-fill">{t('Allow others to follow you')}</span>
+					<input
+						className="c-toggle primary"
+						name="privacy.allow_followers"
+						type="checkbox"
+						checked={settings['privacy.allow_followers'] !== false}
+						onChange={onSettingChange}
+					/>
+				</label>
+				<p className="c-hint">
+					{t(
+						'When disabled, new follow requests will be rejected and your posts will only be visible to your connections.'
+					)}
+				</p>
+			</div>
+		</>
+	)
 }
 
 // vim: ts=4

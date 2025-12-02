@@ -75,7 +75,10 @@ function createBorderStyle(
  */
 function parseBorderEdge(borderDef: { style?: string | number; color?: string }): BorderEdge {
 	return {
-		style: typeof borderDef.style === 'string' ? parseInt(borderDef.style, 10) : (borderDef.style ?? 1),
+		style:
+			typeof borderDef.style === 'string'
+				? parseInt(borderDef.style, 10)
+				: (borderDef.style ?? 1),
 		color: borderDef.color || '#000000'
 	}
 }
@@ -111,8 +114,10 @@ function transformCellOp(sheet: YSheetStructure, op: Op): void {
 				}
 			} else {
 				// Single cell operation
-				if (op.value === null ||
-						(typeof op.value === 'object' && Object.keys(op.value).length === 0)) {
+				if (
+					op.value === null ||
+					(typeof op.value === 'object' && Object.keys(op.value).length === 0)
+				) {
 					clearCell(sheet, rowIndex, colIndex)
 				} else if (op.path.length === 3) {
 					// Full cell replacement
@@ -142,10 +147,7 @@ function transformCellOp(sheet: YSheetStructure, op: Op): void {
 /**
  * Transform config operations (sheet name, column widths, merges, etc.)
  */
-function transformConfigOp(
-	sheet: YSheetStructure,
-	op: Op
-): void {
+function transformConfigOp(sheet: YSheetStructure, op: Op): void {
 	if (!op.id) return
 
 	switch (op.op) {
@@ -167,7 +169,8 @@ function transformConfigOp(
 								if (borderDef.rangeType === 'cell' && borderDef.value) {
 									const { row_index, col_index, l, r, t, b } = borderDef.value
 									if (row_index !== undefined && col_index !== undefined) {
-										const borderStyle: Partial<Record<BorderSide, BorderEdge>> = {}
+										const borderStyle: Partial<Record<BorderSide, BorderEdge>> =
+											{}
 										if (t) borderStyle.top = t
 										if (b) borderStyle.bottom = b
 										if (l) borderStyle.left = l
@@ -175,32 +178,70 @@ function transformConfigOp(
 
 										if (Object.keys(borderStyle).length > 0) {
 											setBorder(sheet, row_index, col_index, borderStyle)
-											debug.log(`[Border] Saved cell border at (${row_index}, ${col_index}):`, borderStyle)
+											debug.log(
+												`[Border] Saved cell border at (${row_index}, ${col_index}):`,
+												borderStyle
+											)
 										}
 									}
 								}
 								// Handle range borders (rangeType: 'range')
 								else if (borderDef.range && Array.isArray(borderDef.range)) {
-									debug.log('[Border] Processing border def:', borderDef.borderType, 'range cells:', borderDef.range.length)
+									debug.log(
+										'[Border] Processing border def:',
+										borderDef.borderType,
+										'range cells:',
+										borderDef.range.length
+									)
 
 									const borderEdge = parseBorderEdge(borderDef)
 
 									for (const rangeItem of borderDef.range) {
 										// Each rangeItem can be a range with row: [start, end] and column: [start, end]
-										const rowStart = Array.isArray(rangeItem.row) ? rangeItem.row[0] : rangeItem.row
-										const rowEnd = Array.isArray(rangeItem.row) ? rangeItem.row[1] : rangeItem.row
-										const colStart = Array.isArray(rangeItem.column) ? rangeItem.column[0] : rangeItem.column
-										const colEnd = Array.isArray(rangeItem.column) ? rangeItem.column[1] : rangeItem.column
+										const rowStart = Array.isArray(rangeItem.row)
+											? rangeItem.row[0]
+											: rangeItem.row
+										const rowEnd = Array.isArray(rangeItem.row)
+											? rangeItem.row[1]
+											: rangeItem.row
+										const colStart = Array.isArray(rangeItem.column)
+											? rangeItem.column[0]
+											: rangeItem.column
+										const colEnd = Array.isArray(rangeItem.column)
+											? rangeItem.column[1]
+											: rangeItem.column
 
 										// Iterate through all cells in the range
-										for (let rowIndex = rowStart; rowIndex <= rowEnd; rowIndex++) {
-											for (let colIndex = colStart; colIndex <= colEnd; colIndex++) {
+										for (
+											let rowIndex = rowStart;
+											rowIndex <= rowEnd;
+											rowIndex++
+										) {
+											for (
+												let colIndex = colStart;
+												colIndex <= colEnd;
+												colIndex++
+											) {
 												// Use lookup table instead of switch statement
-												const borderStyle = createBorderStyle(borderDef.borderType, borderEdge)
+												const borderStyle = createBorderStyle(
+													borderDef.borderType,
+													borderEdge
+												)
 
-												if (borderStyle && Object.keys(borderStyle).length > 0) {
-													setBorder(sheet, rowIndex, colIndex, borderStyle)
-													debug.log(`[Border] Saved border at (${rowIndex}, ${colIndex}):`, borderDef.borderType)
+												if (
+													borderStyle &&
+													Object.keys(borderStyle).length > 0
+												) {
+													setBorder(
+														sheet,
+														rowIndex,
+														colIndex,
+														borderStyle
+													)
+													debug.log(
+														`[Border] Saved border at (${rowIndex}, ${colIndex}):`,
+														borderDef.borderType
+													)
 												}
 											}
 										}
@@ -270,7 +311,10 @@ function transformConfigOp(
 							setBorder(sheet, rowIndex, colIndex, op.value)
 						}
 					}
-				} else if (op.path.length === 3 && (op.path[1] === 'link' || op.path[1] === 'hyperlink')) {
+				} else if (
+					op.path.length === 3 &&
+					(op.path[1] === 'link' || op.path[1] === 'hyperlink')
+				) {
 					// Hyperlink operation: config.link.{key} or config.hyperlink.{key}
 					const linkKey = String(op.path[2])
 					const [rStr, cStr] = linkKey.split('_')
@@ -305,12 +349,16 @@ function transformConfigOp(
 
 						if (startRowId && endRowId && startColId && endColId) {
 							// Deep clone options to ensure immutability
-							const clonedOptions = options ? {
-								dropdown: options.dropdown ? [...options.dropdown] : undefined,
-								min: options.min,
-								max: options.max,
-								allowBlank: options.allowBlank
-							} : undefined
+							const clonedOptions = options
+								? {
+										dropdown: options.dropdown
+											? [...options.dropdown]
+											: undefined,
+										min: options.min,
+										max: options.max,
+										allowBlank: options.allowBlank
+									}
+								: undefined
 
 							sheet.validations.set(validationId, {
 								id: validationId,
@@ -346,15 +394,17 @@ function transformConfigOp(
 
 							// Generate unique ID for this conditional format
 							const formatId = `cf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-							sheet.conditionalFormats.push([{
-								id: formatId,
-								startRow: startRowId,
-								endRow: endRowId,
-								startCol: startColId,
-								endCol: endColId,
-								type,
-								format: clonedFormat
-							}])
+							sheet.conditionalFormats.push([
+								{
+									id: formatId,
+									startRow: startRowId,
+									endRow: endRowId,
+									startCol: startColId,
+									endCol: endColId,
+									type,
+									format: clonedFormat
+								}
+							])
 						} else {
 							debug.warn('[ConditionalFormat] Invalid range indices:', range)
 						}
@@ -411,7 +461,10 @@ function transformConfigOp(
 					const colIndex = parseInt(cStr, 10)
 					removeBorder(sheet, rowIndex, colIndex)
 				}
-			} else if (op.path.length === 3 && (op.path[1] === 'link' || op.path[1] === 'hyperlink')) {
+			} else if (
+				op.path.length === 3 &&
+				(op.path[1] === 'link' || op.path[1] === 'hyperlink')
+			) {
 				// Remove hyperlink
 				const linkKey = String(op.path[2])
 				const [rStr, cStr] = linkKey.split('_')
@@ -451,10 +504,7 @@ function transformConfigOp(
 /**
  * Transform sheet-level operations (add sheet, insert/delete rows/cols)
  */
-function transformSheetOp(
-	sheet: YSheetStructure,
-	op: Op
-): void {
+function transformSheetOp(sheet: YSheetStructure, op: Op): void {
 	switch (op.op) {
 		case 'addSheet': {
 			// Sheet is already created by getOrCreateSheet, just set name
@@ -541,10 +591,7 @@ function transformFrozenOp(sheet: YSheetStructure, op: Op): void {
 /**
  * Main transform function (MUCH SIMPLER than original!)
  */
-export function transformOp(
-	sheet: YSheetStructure,
-	op: Op
-): void {
+export function transformOp(sheet: YSheetStructure, op: Op): void {
 	if (op.path[0] === 'data') {
 		transformCellOp(sheet, op)
 	} else if (op.path[0] === 'name' || op.path[0] === 'config') {

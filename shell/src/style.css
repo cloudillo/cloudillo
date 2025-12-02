@@ -1,4 +1,5 @@
-html, body {
+html,
+body {
 	height: 100%;
 }
 
@@ -9,22 +10,25 @@ p {
 }
 
 .ql-editor:focus-visible {
-	box-shadow: inset 0px 0px 1rem var(--col-bg-emph), 0px 0px var(--sh-focus) var(--col-focus);
+	box-shadow:
+		inset 0px 0px 1rem var(--col-bg-emph),
+		0px 0px var(--sh-focus) var(--col-focus);
 }
 
 body {
-	overflow: hidden
+	overflow: hidden;
 }
 
 #app {
 	height: 100%;
-	overflow: hidden
+	overflow: hidden;
 }
 
 .c-logo {
-	max-width: 16rem
+	max-width: 16rem;
 }
-.c-logo.circle, .c-logo.line {
+.c-logo.circle,
+.c-logo.line {
 	color: #e98a54;
 }
 
@@ -39,32 +43,56 @@ body {
 }
 
 .c-logo.fast .circle.main {
-	animation: .3s infinite normal c-logo-1;
+	animation: 0.3s infinite normal c-logo-1;
 }
 .c-logo.fast .circle.small {
-	animation: .3s infinite normal c-logo-3;
+	animation: 0.3s infinite normal c-logo-3;
 }
 .c-logo.fast .line {
-	animation: .3s infinite normal c-logo-2;
+	animation: 0.3s infinite normal c-logo-2;
 }
 
 @keyframes c-logo-1 {
-	from { fill: #e98a54; }
-	20% { fill: #e98a54; }
-	23% { fill: #fff; }
-	29% { fill: #e98a54; }
+	from {
+		fill: #e98a54;
+	}
+	20% {
+		fill: #e98a54;
+	}
+	23% {
+		fill: #fff;
+	}
+	29% {
+		fill: #e98a54;
+	}
 }
 @keyframes c-logo-2 {
-	from { fill: #e98a54; }
-	23% { fill: #e98a54; }
-	26% { fill: #fff; }
-	32% { fill: #e98a54; }
+	from {
+		fill: #e98a54;
+	}
+	23% {
+		fill: #e98a54;
+	}
+	26% {
+		fill: #fff;
+	}
+	32% {
+		fill: #e98a54;
+	}
 }
 @keyframes c-logo-3 {
-	from { fill: #e98a54; }
-	26% { fill: #e98a54; }
-	29% { fill: #fff; }
-	35% { fill: #e98a54; }
+	from {
+		fill: #e98a54;
+	}
+	26% {
+		fill: #e98a54;
+	}
+	29% {
+		fill: #fff;
+	}
+	35% {
+		fill: #e98a54;
+	}
 }
 
 .c-menu-ex {
@@ -79,7 +107,7 @@ body {
 		margin: 0 auto;
 		flex-flow: row wrap;
 		z-index: 8;
-		transition: transform .3s ease;
+		transition: transform 0.3s ease;
 
 		&.open {
 			transform: translate(0, 0);
@@ -94,7 +122,8 @@ body {
 .c-nav.nav-top {
 	z-index: 10;
 
-	& > .c-nav-link > h6, & > .c-nav-group > .c-nav-link > h6 {
+	& > .c-nav-link > h6,
+	& > .c-nav-group > .c-nav-link > h6 {
 		font-size: 0.83rem;
 	}
 

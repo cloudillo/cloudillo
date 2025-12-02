@@ -1,13 +1,13 @@
 {
-    "compilerOptions": {
-	"target": "es2022",
-	"module": "esnext",
-	"moduleResolution": "bundler",
-	"lib": ["webworker", "es7"],
+	"compilerOptions": {
+		"target": "es2022",
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"lib": ["webworker", "es7"],
 
-	"strict": true,
-	"resolveJsonModule": true,
-	"skipLibCheck": true,
-	"allowSyntheticDefaultImports": true
-    }
+		"strict": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"allowSyntheticDefaultImports": true
+	}
 }

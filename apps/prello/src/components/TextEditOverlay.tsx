@@ -71,11 +71,11 @@ export function TextEditOverlay({ object, textStyle, onSave, onCancel }: TextEdi
 				ref={inputRef}
 				value={text}
 				placeholder="Enter text..."
-				onChange={e => setText(e.target.value)}
+				onChange={(e) => setText(e.target.value)}
 				onKeyDown={handleKeyDown}
 				onBlur={handleBlur}
-				onClick={e => e.stopPropagation()}
-				onMouseDown={e => e.stopPropagation()}
+				onClick={(e) => e.stopPropagation()}
+				onMouseDown={(e) => e.stopPropagation()}
 				style={{
 					width: '100%',
 					height: '100%',

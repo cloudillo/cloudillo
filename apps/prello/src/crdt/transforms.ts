@@ -21,7 +21,14 @@
 import type { YPrelloDocument, StoredObject, StoredContainer, StoredView } from './stored-types'
 import type { ObjectId, ContainerId, ViewId } from './ids'
 import { toContainerId } from './ids'
-import type { Point, Bounds, Transform, PrelloObject, ContainerNode, ViewNode } from './runtime-types'
+import type {
+	Point,
+	Bounds,
+	Transform,
+	PrelloObject,
+	ContainerNode,
+	ViewNode
+} from './runtime-types'
 import { expandObject, expandContainer, expandView } from './type-converters'
 
 // Import utilities used in this file
@@ -46,10 +53,7 @@ export {
  * Get the absolute canvas position of an object
  * by walking up the container hierarchy
  */
-export function getAbsolutePosition(
-	doc: YPrelloDocument,
-	objectId: ObjectId
-): Point | null {
+export function getAbsolutePosition(doc: YPrelloDocument, objectId: ObjectId): Point | null {
 	const object = doc.o.get(objectId)
 	if (!object) return null
 
@@ -62,7 +66,7 @@ export function getAbsolutePosition(
 		if (!parent) break
 
 		// Apply parent transform
-		const rotation = (parent.r || 0) * Math.PI / 180
+		const rotation = ((parent.r || 0) * Math.PI) / 180
 		const cos = Math.cos(rotation)
 		const sin = Math.sin(rotation)
 		const sx = parent.sc?.[0] ?? 1
@@ -82,10 +86,7 @@ export function getAbsolutePosition(
 /**
  * Get absolute position for a stored object
  */
-export function getAbsolutePositionStored(
-	doc: YPrelloDocument,
-	object: StoredObject
-): Point {
+export function getAbsolutePositionStored(doc: YPrelloDocument, object: StoredObject): Point {
 	let x = object.xy[0]
 	let y = object.xy[1]
 	let parentId = object.p
@@ -94,7 +95,7 @@ export function getAbsolutePositionStored(
 		const parent = doc.c.get(parentId)
 		if (!parent) break
 
-		const rotation = (parent.r || 0) * Math.PI / 180
+		const rotation = ((parent.r || 0) * Math.PI) / 180
 		const cos = Math.cos(rotation)
 		const sin = Math.sin(rotation)
 		const sx = parent.sc?.[0] ?? 1
@@ -114,10 +115,7 @@ export function getAbsolutePositionStored(
 /**
  * Get cumulative transform for an object
  */
-export function getAbsoluteTransform(
-	doc: YPrelloDocument,
-	objectId: ObjectId
-): Transform | null {
+export function getAbsoluteTransform(doc: YPrelloDocument, objectId: ObjectId): Transform | null {
 	const object = doc.o.get(objectId)
 	if (!object) return null
 
@@ -155,10 +153,7 @@ export function getAbsoluteTransform(
 /**
  * Get absolute bounds for an object
  */
-export function getAbsoluteBounds(
-	doc: YPrelloDocument,
-	objectId: ObjectId
-): Bounds | null {
+export function getAbsoluteBounds(doc: YPrelloDocument, objectId: ObjectId): Bounds | null {
 	const object = doc.o.get(objectId)
 	if (!object) return null
 
@@ -175,10 +170,7 @@ export function getAbsoluteBounds(
 /**
  * Get absolute bounds for a stored object
  */
-export function getAbsoluteBoundsStored(
-	doc: YPrelloDocument,
-	object: StoredObject
-): Bounds {
+export function getAbsoluteBoundsStored(doc: YPrelloDocument, object: StoredObject): Bounds {
 	const pos = getAbsolutePositionStored(doc, object)
 
 	return {
@@ -192,20 +184,19 @@ export function getAbsoluteBoundsStored(
 /**
  * Get bounding box of a container (union of all children bounds)
  */
-export function getContainerBounds(
-	doc: YPrelloDocument,
-	containerId: ContainerId
-): Bounds | null {
+export function getContainerBounds(doc: YPrelloDocument, containerId: ContainerId): Bounds | null {
 	const container = doc.c.get(containerId)
 	if (!container) return null
 
 	const children = doc.ch.get(containerId)
 	if (!children || children.length === 0) return null
 
-	let minX = Infinity, minY = Infinity
-	let maxX = -Infinity, maxY = -Infinity
+	let minX = Infinity,
+		minY = Infinity
+	let maxX = -Infinity,
+		maxY = -Infinity
 
-	children.toArray().forEach(ref => {
+	children.toArray().forEach((ref) => {
 		if (ref[0] === 0) {
 			// Object
 			const obj = doc.o.get(ref[1])
@@ -272,10 +263,12 @@ export function viewToCanvas(point: Point, view: StoredView): Point {
  * Check if a point (in canvas coords) is inside a view
  */
 export function isPointInView(point: Point, view: StoredView): boolean {
-	return point.x >= view.x &&
+	return (
+		point.x >= view.x &&
 		point.x <= view.x + view.width &&
 		point.y >= view.y &&
 		point.y <= view.y + view.height
+	)
 }
 
 /**
@@ -287,8 +280,12 @@ export function boundsIntersectsView(bounds: Bounds, view: StoredView): boolean 
 	const viewRight = view.x + view.width
 	const viewBottom = view.y + view.height
 
-	return !(bounds.x > viewRight || boundsRight < view.x ||
-		bounds.y > viewBottom || boundsBottom < view.y)
+	return !(
+		bounds.x > viewRight ||
+		boundsRight < view.x ||
+		bounds.y > viewBottom ||
+		boundsBottom < view.y
+	)
 }
 
 /**
@@ -306,15 +303,12 @@ export function objectIntersectsView(
 /**
  * Calculate union bounds for multiple objects
  */
-export function getSelectionBounds(
-	doc: YPrelloDocument,
-	objectIds: ObjectId[]
-): Bounds | null {
+export function getSelectionBounds(doc: YPrelloDocument, objectIds: ObjectId[]): Bounds | null {
 	if (objectIds.length === 0) return null
 
 	let result: Bounds | null = null
 
-	objectIds.forEach(id => {
+	objectIds.forEach((id) => {
 		const bounds = getAbsoluteBounds(doc, id)
 		if (bounds) {
 			if (!result) {

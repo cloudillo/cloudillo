@@ -11,17 +11,18 @@ const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8'))
 
 const config = createConfig({
 	entryPoint: 'src/quillo.ts',
-	outdir: `dist/assets-${pkg.version}`,
+	outdir: `dist/assets-${pkg.version}`
 })
 
 buildApp(esbuild, {
 	config,
 	projectDir: __dirname,
-	onBuild: () => buildHTML(
-		join(__dirname, 'src/index.html'),
-		join(__dirname, 'dist/index.html'),
-		pkg.version
-	)
+	onBuild: () =>
+		buildHTML(
+			join(__dirname, 'src/index.html'),
+			join(__dirname, 'dist/index.html'),
+			pkg.version
+		)
 })
 
 // vim: ts=4

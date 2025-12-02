@@ -26,11 +26,7 @@ export const Fieldset = createComponent<HTMLFieldSetElement, FieldsetProps>(
 	'Fieldset',
 	({ className, legend, children, ...props }, ref) => {
 		return (
-			<fieldset
-				ref={ref}
-				className={mergeClasses('c-fieldset', className)}
-				{...props}
-			>
+			<fieldset ref={ref} className={mergeClasses('c-fieldset', className)} {...props}>
 				{legend && <legend>{legend}</legend>}
 				{children}
 			</fieldset>

@@ -16,17 +16,8 @@
 
 import { WebSocketManager } from './websocket.js'
 import { CollectionReference } from './collection.js'
-import {
-	DocumentSnapshot,
-	ChangeEvent,
-	GetMessage,
-	TransactionMessage
-} from './types.js'
-import {
-	DocumentSnapshotImpl,
-	createDocumentFromEvent,
-	normalizePath
-} from './utils.js'
+import { DocumentSnapshot, ChangeEvent, GetMessage, TransactionMessage } from './types.js'
+import { DocumentSnapshotImpl, createDocumentFromEvent, normalizePath } from './utils.js'
 
 export class DocumentReference<T = any> {
 	readonly id: string

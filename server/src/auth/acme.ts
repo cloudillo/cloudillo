@@ -22,7 +22,12 @@ import { X509Certificate } from 'crypto'
 let acmeClient: acme.Client
 const acmeChallengeResponses: Record<string, string> = {}
 
-export async function createCert(tnId: number, authAdapter: AuthAdapter, idTag: string, domain?: string) {
+export async function createCert(
+	tnId: number,
+	authAdapter: AuthAdapter,
+	idTag: string,
+	domain?: string
+) {
 	console.log('createCert', idTag, domain)
 	if (!acmeClient) {
 		throw new Error('ACME client not initialized')
@@ -57,7 +62,11 @@ export async function getChallengeResponse(token: string) {
 }
 
 export async function processCertRenewals(authAdapter: AuthAdapter) {
-	return authAdapter.processCertRenewals(async function processCertRenewal(tnId: number, idTag: string, domain: string) {
+	return authAdapter.processCertRenewals(async function processCertRenewal(
+		tnId: number,
+		idTag: string,
+		domain: string
+	) {
 		console.log('processCertRenewal', tnId, idTag)
 
 		const [key, csr] = await acme.crypto.createCsr({

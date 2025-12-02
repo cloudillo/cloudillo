@@ -21,13 +21,15 @@ import { BrowserRouter } from 'react-router-dom'
 import { App } from './app.js'
 
 function AppContainer(props: React.PropsWithChildren<{}>) {
-	return <BrowserRouter basename="/">
-		<App/>
-	</BrowserRouter>
+	return (
+		<BrowserRouter basename="/">
+			<App />
+		</BrowserRouter>
+	)
 }
 
 const app = document.getElementById('app')
 const root = createRoot(app!)
-root.render(<AppContainer/>)
+root.render(<AppContainer />)
 
 // vim: ts=4

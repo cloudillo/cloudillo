@@ -90,10 +90,14 @@ const tQueryFilter = T.struct({
 
 export const tQueryOptions = T.struct({
 	filter: T.optional(tQueryFilter),
-	sort: T.optional(T.array(T.struct({
-		field: T.string,
-		ascending: T.boolean
-	}))),
+	sort: T.optional(
+		T.array(
+			T.struct({
+				field: T.string,
+				ascending: T.boolean
+			})
+		)
+	),
 	limit: T.optional(T.number),
 	offset: T.optional(T.number)
 })
@@ -104,58 +108,58 @@ export const tChangeEvent = T.struct({
 	data: T.optional(T.unknown)
 })
 
-export const tServerMessage = T.taggedUnion('type')(
-	{
-		queryResult: T.struct({
-			type: T.literal('queryResult'),
-			id: T.number,
-			data: T.array(T.unknown)
-		}),
-		getResult: T.struct({
-			type: T.literal('getResult'),
-			id: T.number,
-			data: T.nullable(T.unknown)
-		}),
-		subscribeResult: T.struct({
-			type: T.literal('subscribeResult'),
-			id: T.number,
-			subscriptionId: T.string
-		}),
-		unsubscribeResult: T.struct({
-			type: T.literal('unsubscribeResult'),
-			id: T.number
-		}),
-		createIndexResult: T.struct({
-			type: T.literal('createIndexResult'),
-			id: T.number
-		}),
-		change: T.struct({
-			type: T.literal('change'),
-			id: T.optional(T.union(T.number, T.string)),
-			subscriptionId: T.string,
-			event: tChangeEvent
-		}),
-		transactionResult: T.struct({
-			type: T.literal('transactionResult'),
-			id: T.number,
-			results: T.array(T.struct({
+export const tServerMessage = T.taggedUnion('type')({
+	queryResult: T.struct({
+		type: T.literal('queryResult'),
+		id: T.number,
+		data: T.array(T.unknown)
+	}),
+	getResult: T.struct({
+		type: T.literal('getResult'),
+		id: T.number,
+		data: T.nullable(T.unknown)
+	}),
+	subscribeResult: T.struct({
+		type: T.literal('subscribeResult'),
+		id: T.number,
+		subscriptionId: T.string
+	}),
+	unsubscribeResult: T.struct({
+		type: T.literal('unsubscribeResult'),
+		id: T.number
+	}),
+	createIndexResult: T.struct({
+		type: T.literal('createIndexResult'),
+		id: T.number
+	}),
+	change: T.struct({
+		type: T.literal('change'),
+		id: T.optional(T.union(T.number, T.string)),
+		subscriptionId: T.string,
+		event: tChangeEvent
+	}),
+	transactionResult: T.struct({
+		type: T.literal('transactionResult'),
+		id: T.number,
+		results: T.array(
+			T.struct({
 				ref: T.nullable(T.string),
 				id: T.nullable(T.string)
-			}))
-		}),
-		error: T.struct({
-			type: T.literal('error'),
-			id: T.optional(T.number),
-			code: T.number,
-			message: T.string,
-			details: T.optional(T.unknown)
-		}),
-		pong: T.struct({
-			type: T.literal('pong'),
-			id: T.number
-		})
-	}
-)
+			})
+		)
+	}),
+	error: T.struct({
+		type: T.literal('error'),
+		id: T.optional(T.number),
+		code: T.number,
+		message: T.string,
+		details: T.optional(T.unknown)
+	}),
+	pong: T.struct({
+		type: T.literal('pong'),
+		id: T.number
+	})
+})
 
 // Client message types (what we send to server)
 export type ServerMessage = any

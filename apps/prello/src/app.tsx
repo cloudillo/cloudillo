@@ -56,14 +56,7 @@ import { ObjectShape } from './components/ObjectShape'
 import { PresentationMode } from './components/PresentationMode'
 import { PrelloPropertiesPanel, type PropertyPreview } from './components/PropertiesPanel'
 
-import type {
-	ObjectId,
-	ViewId,
-	PrelloObject,
-	ViewNode,
-	Bounds,
-	YPrelloDocument
-} from './crdt'
+import type { ObjectId, ViewId, PrelloObject, ViewNode, Bounds, YPrelloDocument } from './crdt'
 import {
 	createObject,
 	updateObject,
@@ -167,8 +160,8 @@ export function PrelloApp() {
 	const [pivotDragState, setPivotDragState] = React.useState<{
 		isDragging: boolean
 		snappedPoint: { x: number; y: number } | null
-		originalBounds: Bounds | null  // Original bounds before position compensation
-		initialPivot: { x: number; y: number } | null  // Initial pivot for rotation transform
+		originalBounds: Bounds | null // Original bounds before position compensation
+		initialPivot: { x: number; y: number } | null // Initial pivot for rotation transform
 	}>({ isDragging: false, snappedPoint: null, originalBounds: null, initialPivot: null })
 
 	// Track grab point for snap weighting
@@ -186,20 +179,23 @@ export function PrelloApp() {
 	}, [])
 
 	// Get active view
-	const activeView = prello.activeViewId
-		? getView(prello.doc, prello.activeViewId)
-		: null
+	const activeView = prello.activeViewId ? getView(prello.doc, prello.activeViewId) : null
 
 	// Center on active view when it changes
 	React.useEffect(() => {
 		if (activeView && canvasRef.current) {
-			canvasRef.current.centerOnRect(activeView.x, activeView.y, activeView.width, activeView.height)
+			canvasRef.current.centerOnRect(
+				activeView.x,
+				activeView.y,
+				activeView.width,
+				activeView.height
+			)
 		}
 	}, [prello.activeViewId])
 
 	// Create spatial objects for snapping
 	const snapObjects = React.useMemo<SnapSpatialObject[]>(() => {
-		return viewObjects.map(obj => ({
+		return viewObjects.map((obj) => ({
 			id: obj.id,
 			bounds: {
 				x: obj.x,
@@ -350,7 +346,10 @@ export function PrelloApp() {
 
 			// Transform screen coords to canvas coords (zoom-aware)
 			const rect = svgElement.getBoundingClientRect()
-			const [moveX, moveY] = ctx.translateTo(moveEvent.clientX - rect.left, moveEvent.clientY - rect.top)
+			const [moveX, moveY] = ctx.translateTo(
+				moveEvent.clientX - rect.left,
+				moveEvent.clientY - rect.top
+			)
 
 			const dx = moveX - initialDragState.startX
 			const dy = moveY - initialDragState.startY
@@ -404,7 +403,10 @@ export function PrelloApp() {
 
 		const handleMouseUp = () => {
 			// Only commit to CRDT if position actually changed
-			if (currentX !== initialDragState.objectStartX || currentY !== initialDragState.objectStartY) {
+			if (
+				currentX !== initialDragState.objectStartX ||
+				currentY !== initialDragState.objectStartY
+			) {
 				updateObjectPosition(
 					prello.yDoc,
 					prello.doc,
@@ -449,7 +451,7 @@ export function PrelloApp() {
 
 	// Handle delete
 	function handleDelete() {
-		prello.selectedIds.forEach(id => {
+		prello.selectedIds.forEach((id) => {
 			deleteObject(prello.yDoc, prello.doc, id)
 		})
 		prello.clearSelection()
@@ -495,27 +497,57 @@ export function PrelloApp() {
 		const pivotY = obj.pv?.[1] ?? 0.5
 
 		// Determine anchor point (opposite corner/edge) - in normalized coords (0 or 1)
-		let anchorNormX = 0.5, anchorNormY = 0.5
+		let anchorNormX = 0.5,
+			anchorNormY = 0.5
 		switch (handle) {
-			case 'nw': anchorNormX = 1; anchorNormY = 1; break  // anchor SE
-			case 'n':  anchorNormX = 0.5; anchorNormY = 1; break // anchor S center
-			case 'ne': anchorNormX = 0; anchorNormY = 1; break  // anchor SW
-			case 'e':  anchorNormX = 0; anchorNormY = 0.5; break // anchor W center
-			case 'se': anchorNormX = 0; anchorNormY = 0; break  // anchor NW
-			case 's':  anchorNormX = 0.5; anchorNormY = 0; break // anchor N center
-			case 'sw': anchorNormX = 1; anchorNormY = 0; break  // anchor NE
-			case 'w':  anchorNormX = 1; anchorNormY = 0.5; break // anchor E center
+			case 'nw':
+				anchorNormX = 1
+				anchorNormY = 1
+				break // anchor SE
+			case 'n':
+				anchorNormX = 0.5
+				anchorNormY = 1
+				break // anchor S center
+			case 'ne':
+				anchorNormX = 0
+				anchorNormY = 1
+				break // anchor SW
+			case 'e':
+				anchorNormX = 0
+				anchorNormY = 0.5
+				break // anchor W center
+			case 'se':
+				anchorNormX = 0
+				anchorNormY = 0
+				break // anchor NW
+			case 's':
+				anchorNormX = 0.5
+				anchorNormY = 0
+				break // anchor N center
+			case 'sw':
+				anchorNormX = 1
+				anchorNormY = 0
+				break // anchor NE
+			case 'w':
+				anchorNormX = 1
+				anchorNormY = 0.5
+				break // anchor E center
 		}
 
 		// Calculate initial anchor screen position
-		const x = obj.xy[0], y = obj.xy[1], w = obj.wh[0], h = obj.wh[1]
+		const x = obj.xy[0],
+			y = obj.xy[1],
+			w = obj.wh[0],
+			h = obj.wh[1]
 		const anchorLocalX = x + w * anchorNormX
 		const anchorLocalY = y + h * anchorNormY
 		const pivotAbsX = x + w * pivotX
 		const pivotAbsY = y + h * pivotY
 		// Rotate anchor around pivot
-		const anchorScreenX = pivotAbsX + (anchorLocalX - pivotAbsX) * cos - (anchorLocalY - pivotAbsY) * sin
-		const anchorScreenY = pivotAbsY + (anchorLocalX - pivotAbsX) * sin + (anchorLocalY - pivotAbsY) * cos
+		const anchorScreenX =
+			pivotAbsX + (anchorLocalX - pivotAbsX) * cos - (anchorLocalY - pivotAbsY) * sin
+		const anchorScreenY =
+			pivotAbsY + (anchorLocalX - pivotAbsX) * sin + (anchorLocalY - pivotAbsY) * cos
 
 		const initialState = {
 			objectId,
@@ -566,7 +598,10 @@ export function PrelloApp() {
 
 			// Transform screen coords to canvas coords (zoom-aware)
 			const rect = svgElement.getBoundingClientRect()
-			const [moveX, moveY] = ctx.translateTo(moveEvent.clientX - rect.left, moveEvent.clientY - rect.top)
+			const [moveX, moveY] = ctx.translateTo(
+				moveEvent.clientX - rect.left,
+				moveEvent.clientY - rect.top
+			)
 
 			const screenDx = moveX - state.startX
 			const screenDy = moveY - state.startY
@@ -760,7 +795,7 @@ export function PrelloApp() {
 		const halfW = obj.wh[0] / 2
 		const halfH = obj.wh[1] / 2
 		const maxDist = Math.sqrt(halfW * halfW + halfH * halfH)
-		const arcRadius = maxDist + 25  // Add padding for the arc
+		const arcRadius = maxDist + 25 // Add padding for the arc
 		const snapZoneRadius = arcRadius * SNAP_ZONE_RATIO
 
 		// Calculate initial angle from pivot to mouse
@@ -786,12 +821,13 @@ export function PrelloApp() {
 			if (!ctx?.translateTo) return
 
 			const rect = svgElement.getBoundingClientRect()
-			const [moveX, moveY] = ctx.translateTo(moveEvent.clientX - rect.left, moveEvent.clientY - rect.top)
+			const [moveX, moveY] = ctx.translateTo(
+				moveEvent.clientX - rect.left,
+				moveEvent.clientY - rect.top
+			)
 
 			// Calculate distance from mouse to pivot
-			const distanceFromPivot = Math.sqrt(
-				Math.pow(moveX - cx, 2) + Math.pow(moveY - cy, 2)
-			)
+			const distanceFromPivot = Math.sqrt(Math.pow(moveX - cx, 2) + Math.pow(moveY - cy, 2))
 
 			// Determine if snap mode is active (mouse inside inner zone)
 			const isSnapActive = distanceFromPivot <= snapZoneRadius
@@ -846,12 +882,7 @@ export function PrelloApp() {
 		const handleMouseUp = () => {
 			// Commit final rotation to CRDT
 			const currentPrello = prelloRef.current
-			updateObjectRotation(
-				currentPrello.yDoc,
-				currentPrello.doc,
-				objectId,
-				currentRotation
-			)
+			updateObjectRotation(currentPrello.yDoc, currentPrello.doc, objectId, currentRotation)
 
 			// Clear awareness
 			if (currentPrello.awareness) {
@@ -939,7 +970,10 @@ export function PrelloApp() {
 			if (!ctx?.translateTo) return
 
 			const rect = svgElement.getBoundingClientRect()
-			const [moveX, moveY] = ctx.translateTo(moveEvent.clientX - rect.left, moveEvent.clientY - rect.top)
+			const [moveX, moveY] = ctx.translateTo(
+				moveEvent.clientX - rect.left,
+				moveEvent.clientY - rect.top
+			)
 
 			// Calculate mouse delta from start position (in canvas/screen space)
 			const dx = moveX - startX
@@ -1020,7 +1054,12 @@ export function PrelloApp() {
 
 			// Clear temp state and pivot drag state
 			setTempObjectState(null)
-			setPivotDragState({ isDragging: false, snappedPoint: null, originalBounds: null, initialPivot: null })
+			setPivotDragState({
+				isDragging: false,
+				snappedPoint: null,
+				originalBounds: null,
+				initialPivot: null
+			})
 
 			// Prevent canvas click from clearing selection
 			justFinishedInteractionRef.current = true
@@ -1077,7 +1116,7 @@ export function PrelloApp() {
 		// Use selected container, or first layer if none selected
 		let parentId = selectedContainerId
 		if (!parentId) {
-			const layers = prello.doc.r.toArray().filter(ref => ref[0] === 1)
+			const layers = prello.doc.r.toArray().filter((ref) => ref[0] === 1)
 			parentId = layers.length > 0 ? layers[0][1] : null
 		}
 
@@ -1129,7 +1168,7 @@ export function PrelloApp() {
 				case 'a':
 					// Select all in view
 					if (prello.activeViewId) {
-						const ids = viewObjects.map(o => o.id)
+						const ids = viewObjects.map((o) => o.id)
 						prello.selectObjects(ids)
 					}
 					evt.preventDefault()
@@ -1164,10 +1203,12 @@ export function PrelloApp() {
 	const selectionBounds = React.useMemo(() => {
 		if (prello.selectedIds.size === 0) return null
 
-		let minX = Infinity, minY = Infinity
-		let maxX = -Infinity, maxY = -Infinity
+		let minX = Infinity,
+			minY = Infinity
+		let maxX = -Infinity,
+			maxY = -Infinity
 
-		prello.selectedIds.forEach(id => {
+		prello.selectedIds.forEach((id) => {
 			// Use temp state if available for this object
 			if (tempObjectState && tempObjectState.objectId === id) {
 				minX = Math.min(minX, tempObjectState.x)
@@ -1231,7 +1272,7 @@ export function PrelloApp() {
 	// Handle text alignment change
 	function handleTextAlignChange(align: 'left' | 'center' | 'right' | 'justify') {
 		if (!selectedTextObject) return
-		const taMap = { 'left': 'l', 'center': 'c', 'right': 'r', 'justify': 'j' } as const
+		const taMap = { left: 'l', center: 'c', right: 'r', justify: 'j' } as const
 		updateObjectTextStyle(prello.yDoc, prello.doc, selectedTextObject.id as ObjectId, {
 			ta: taMap[align]
 		})
@@ -1240,7 +1281,7 @@ export function PrelloApp() {
 	// Handle vertical alignment change
 	function handleVerticalAlignChange(align: 'top' | 'middle' | 'bottom') {
 		if (!selectedTextObject) return
-		const vaMap = { 'top': 't', 'middle': 'm', 'bottom': 'b' } as const
+		const vaMap = { top: 't', middle: 'm', bottom: 'b' } as const
 		updateObjectTextStyle(prello.yDoc, prello.doc, selectedTextObject.id as ObjectId, {
 			va: vaMap[align]
 		})
@@ -1285,334 +1326,381 @@ export function PrelloApp() {
 		})
 	}
 
-	return <>
-		<Toolbar
-			tool={prello.activeTool}
-			setTool={tool => {
-				prello.clearSelection()
-				prello.setActiveTool(tool)
-			}}
-			hasSelection={prello.selectedIds.size > 0}
-			onDelete={handleDelete}
-			canUndo={prello.canUndo}
-			canRedo={prello.canRedo}
-			onUndo={prello.undo}
-			onRedo={prello.redo}
-			onBringToFront={() => {
-				prello.selectedIds.forEach(id => bringToFront(prello.yDoc, prello.doc, id))
-			}}
-			onBringForward={() => {
-				prello.selectedIds.forEach(id => bringForward(prello.yDoc, prello.doc, id))
-			}}
-			onSendBackward={() => {
-				// Process in reverse to maintain relative order when moving down
-				Array.from(prello.selectedIds).reverse().forEach(id => sendBackward(prello.yDoc, prello.doc, id))
-			}}
-			onSendToBack={() => {
-				// Process in reverse to maintain relative order when moving to back
-				Array.from(prello.selectedIds).reverse().forEach(id => sendToBack(prello.yDoc, prello.doc, id))
-			}}
-			snapToGrid={snapSettings.settings.snapToGrid}
-			snapToObjects={snapSettings.settings.snapToObjects}
-			snapToSizes={snapSettings.settings.snapToSizes}
-			snapDebug={snapSettings.settings.snapDebug}
-			onToggleSnapToGrid={snapSettings.toggleSnapToGrid}
-			onToggleSnapToObjects={snapSettings.toggleSnapToObjects}
-			onToggleSnapToSizes={snapSettings.toggleSnapToSizes}
-			onToggleSnapDebug={snapSettings.toggleSnapDebug}
-			hasTextSelection={!!selectedTextObject}
-			selectedTextAlign={selectedTextStyle?.textAlign}
-			selectedVerticalAlign={selectedTextStyle?.verticalAlign}
-			onTextAlignChange={handleTextAlignChange}
-			onVerticalAlignChange={handleVerticalAlignChange}
-			selectedFontSize={selectedTextStyle?.fontSize}
-			selectedBold={selectedTextStyle?.fontWeight === 'bold'}
-			selectedItalic={selectedTextStyle?.fontItalic}
-			selectedUnderline={selectedTextStyle?.textDecoration === 'underline'}
-			onFontSizeChange={handleFontSizeChange}
-			onBoldToggle={handleBoldToggle}
-			onItalicToggle={handleItalicToggle}
-			onUnderlineToggle={handleUnderlineToggle}
-			isPanelVisible={isPanelVisible}
-			onTogglePanel={() => setIsPanelVisible(v => !v)}
-		/>
+	return (
+		<>
+			<Toolbar
+				tool={prello.activeTool}
+				setTool={(tool) => {
+					prello.clearSelection()
+					prello.setActiveTool(tool)
+				}}
+				hasSelection={prello.selectedIds.size > 0}
+				onDelete={handleDelete}
+				canUndo={prello.canUndo}
+				canRedo={prello.canRedo}
+				onUndo={prello.undo}
+				onRedo={prello.redo}
+				onBringToFront={() => {
+					prello.selectedIds.forEach((id) => bringToFront(prello.yDoc, prello.doc, id))
+				}}
+				onBringForward={() => {
+					prello.selectedIds.forEach((id) => bringForward(prello.yDoc, prello.doc, id))
+				}}
+				onSendBackward={() => {
+					// Process in reverse to maintain relative order when moving down
+					Array.from(prello.selectedIds)
+						.reverse()
+						.forEach((id) => sendBackward(prello.yDoc, prello.doc, id))
+				}}
+				onSendToBack={() => {
+					// Process in reverse to maintain relative order when moving to back
+					Array.from(prello.selectedIds)
+						.reverse()
+						.forEach((id) => sendToBack(prello.yDoc, prello.doc, id))
+				}}
+				snapToGrid={snapSettings.settings.snapToGrid}
+				snapToObjects={snapSettings.settings.snapToObjects}
+				snapToSizes={snapSettings.settings.snapToSizes}
+				snapDebug={snapSettings.settings.snapDebug}
+				onToggleSnapToGrid={snapSettings.toggleSnapToGrid}
+				onToggleSnapToObjects={snapSettings.toggleSnapToObjects}
+				onToggleSnapToSizes={snapSettings.toggleSnapToSizes}
+				onToggleSnapDebug={snapSettings.toggleSnapDebug}
+				hasTextSelection={!!selectedTextObject}
+				selectedTextAlign={selectedTextStyle?.textAlign}
+				selectedVerticalAlign={selectedTextStyle?.verticalAlign}
+				onTextAlignChange={handleTextAlignChange}
+				onVerticalAlignChange={handleVerticalAlignChange}
+				selectedFontSize={selectedTextStyle?.fontSize}
+				selectedBold={selectedTextStyle?.fontWeight === 'bold'}
+				selectedItalic={selectedTextStyle?.fontItalic}
+				selectedUnderline={selectedTextStyle?.textDecoration === 'underline'}
+				onFontSizeChange={handleFontSizeChange}
+				onBoldToggle={handleBoldToggle}
+				onItalicToggle={handleItalicToggle}
+				onUnderlineToggle={handleUnderlineToggle}
+				isPanelVisible={isPanelVisible}
+				onTogglePanel={() => setIsPanelVisible((v) => !v)}
+			/>
 
-		<div className="c-hbox flex-fill" style={{ overflow: 'hidden' }}>
-			<div
-				className="c-panel flex-fill"
-				tabIndex={0}
-				onKeyDown={handleKeyDown}
-				onClick={handleCanvasClick}
-				style={{ outline: 'none', minWidth: 0 }}
-			>
-				<SvgCanvas
-				ref={canvasRef}
-				className="w-100 h-100"
-				onToolStart={handleToolStart}
-				onToolMove={handleToolMove}
-				onToolEnd={handleToolEnd}
-				onContextReady={handleCanvasContextReady}
-				fixed={
-					<FixedSnapGuides
-						activeSnaps={activeSnaps}
-						allCandidates={snapConfig.debug.enabled ? allCandidates : undefined}
-						config={snapConfig.guides}
-						debugConfig={snapConfig.debug}
-						viewBounds={viewBounds}
-						draggedBounds={tempObjectState ? {
-							x: tempObjectState.x,
-							y: tempObjectState.y,
-							width: tempObjectState.width,
-							height: tempObjectState.height,
-							rotation: 0
-						} : undefined}
-					/>
-				}
-			>
-				{/* Render all views as frames */}
-				{views.map(view => (
-					<ViewFrame
-						key={view.id}
-						view={view}
-						isActive={view.id === prello.activeViewId}
-						onClick={() => prello.setActiveViewId(view.id)}
-					/>
-				))}
+			<div className="c-hbox flex-fill" style={{ overflow: 'hidden' }}>
+				<div
+					className="c-panel flex-fill"
+					tabIndex={0}
+					onKeyDown={handleKeyDown}
+					onClick={handleCanvasClick}
+					style={{ outline: 'none', minWidth: 0 }}
+				>
+					<SvgCanvas
+						ref={canvasRef}
+						className="w-100 h-100"
+						onToolStart={handleToolStart}
+						onToolMove={handleToolMove}
+						onToolEnd={handleToolEnd}
+						onContextReady={handleCanvasContextReady}
+						fixed={
+							<FixedSnapGuides
+								activeSnaps={activeSnaps}
+								allCandidates={snapConfig.debug.enabled ? allCandidates : undefined}
+								config={snapConfig.guides}
+								debugConfig={snapConfig.debug}
+								viewBounds={viewBounds}
+								draggedBounds={
+									tempObjectState
+										? {
+												x: tempObjectState.x,
+												y: tempObjectState.y,
+												width: tempObjectState.width,
+												height: tempObjectState.height,
+												rotation: 0
+											}
+										: undefined
+								}
+							/>
+						}
+					>
+						{/* Render all views as frames */}
+						{views.map((view) => (
+							<ViewFrame
+								key={view.id}
+								view={view}
+								isActive={view.id === prello.activeViewId}
+								onClick={() => prello.setActiveViewId(view.id)}
+							/>
+						))}
 
-				{/* Render objects in active view */}
-				{viewObjects.map(object => {
-					const storedObj = prello.doc.o.get(object.id)
-					const style = storedObj
-						? resolveShapeStyle(prello.doc, storedObj)
-						: { fill: '#cccccc', stroke: '#999999', strokeWidth: 1, fillOpacity: 1, strokeOpacity: 1, strokeDasharray: '', strokeLinecap: 'butt' as const, strokeLinejoin: 'miter' as const }
-					const textStyle = storedObj
-						? resolveTextStyle(prello.doc, storedObj)
-						: { fontFamily: 'system-ui, sans-serif', fontSize: 16, fontWeight: 'normal' as const, fontItalic: false, textDecoration: 'none' as const, fill: '#333333', textAlign: 'left' as const, verticalAlign: 'top' as const, lineHeight: 1.2, letterSpacing: 0 }
+						{/* Render objects in active view */}
+						{viewObjects.map((object) => {
+							const storedObj = prello.doc.o.get(object.id)
+							const style = storedObj
+								? resolveShapeStyle(prello.doc, storedObj)
+								: {
+										fill: '#cccccc',
+										stroke: '#999999',
+										strokeWidth: 1,
+										fillOpacity: 1,
+										strokeOpacity: 1,
+										strokeDasharray: '',
+										strokeLinecap: 'butt' as const,
+										strokeLinejoin: 'miter' as const
+									}
+							const textStyle = storedObj
+								? resolveTextStyle(prello.doc, storedObj)
+								: {
+										fontFamily: 'system-ui, sans-serif',
+										fontSize: 16,
+										fontWeight: 'normal' as const,
+										fontItalic: false,
+										textDecoration: 'none' as const,
+										fill: '#333333',
+										textAlign: 'left' as const,
+										verticalAlign: 'top' as const,
+										lineHeight: 1.2,
+										letterSpacing: 0
+									}
 
-					// If this object is being text-edited, render the overlay instead
-					if (editingTextId === object.id) {
-						return <TextEditOverlay
-							key={object.id}
-							object={object}
-							textStyle={textStyle}
-							onSave={handleTextEditSave}
-							onCancel={handleTextEditCancel}
-						/>
-					}
+							// If this object is being text-edited, render the overlay instead
+							if (editingTextId === object.id) {
+								return (
+									<TextEditOverlay
+										key={object.id}
+										object={object}
+										textStyle={textStyle}
+										onSave={handleTextEditSave}
+										onCancel={handleTextEditCancel}
+									/>
+								)
+							}
 
-					// Pass temp bounds if this object is being dragged/resized
-					const objectTempBounds = tempObjectState?.objectId === object.id
-						? tempObjectState
-						: undefined
+							// Pass temp bounds if this object is being dragged/resized
+							const objectTempBounds =
+								tempObjectState?.objectId === object.id
+									? tempObjectState
+									: undefined
 
-					// Apply property preview if this object is being scrubbed
-					const displayObject = propertyPreview?.objectId === object.id
-						? { ...object, opacity: propertyPreview.opacity ?? object.opacity }
-						: object
+							// Apply property preview if this object is being scrubbed
+							const displayObject =
+								propertyPreview?.objectId === object.id
+									? {
+											...object,
+											opacity: propertyPreview.opacity ?? object.opacity
+										}
+									: object
 
-					// Only show hover when nothing is selected
-					const hasSelection = prello.selectedIds.size > 0
-					const isThisHovered = hoveredObjectId === object.id
+							// Only show hover when nothing is selected
+							const hasSelection = prello.selectedIds.size > 0
+							const isThisHovered = hoveredObjectId === object.id
 
-					return <ObjectShape
-						key={object.id}
-						object={displayObject}
-						style={style}
-						textStyle={textStyle}
-						isSelected={prello.isSelected(object.id)}
-						isHovered={!hasSelection && isThisHovered}
-						onClick={e => handleObjectClick(e, object.id)}
-						onDoubleClick={e => handleObjectDoubleClick(e, object.id)}
-						onMouseDown={e => handleObjectMouseDown(e, object.id)}
-						onMouseEnter={() => setHoveredObjectId(object.id as ObjectId)}
-						onMouseLeave={() => setHoveredObjectId(null)}
-						tempBounds={objectTempBounds}
-					/>
-				})}
-
-				{/* Ghost overlays for remote users' edits */}
-				{Array.from(prello.remotePresence.entries()).map(([clientId, presence]) => {
-					if (!presence.editing) return null
-
-					// Find the object being edited
-					const obj = viewObjects.find(o => o.id === presence.editing!.objectId)
-					if (!obj) return null
-
-					const editing = presence.editing
-					const user = presence.user
-					const color = user?.color || '#888888'
-					const x = editing.x
-					const y = editing.y
-					const width = editing.width ?? obj.width
-					const height = editing.height ?? obj.height
-
-					// Render the ghost shape based on object type
-					let ghostShape: React.ReactNode
-					switch (obj.type) {
-						case 'ellipse':
-							ghostShape = (
-								<ellipse
-									cx={x + width / 2}
-									cy={y + height / 2}
-									rx={width / 2}
-									ry={height / 2}
-									fill={color}
-									stroke={color}
-									strokeWidth={2}
-									strokeDasharray="4,4"
+							return (
+								<ObjectShape
+									key={object.id}
+									object={displayObject}
+									style={style}
+									textStyle={textStyle}
+									isSelected={prello.isSelected(object.id)}
+									isHovered={!hasSelection && isThisHovered}
+									onClick={(e) => handleObjectClick(e, object.id)}
+									onDoubleClick={(e) => handleObjectDoubleClick(e, object.id)}
+									onMouseDown={(e) => handleObjectMouseDown(e, object.id)}
+									onMouseEnter={() => setHoveredObjectId(object.id as ObjectId)}
+									onMouseLeave={() => setHoveredObjectId(null)}
+									tempBounds={objectTempBounds}
 								/>
 							)
-							break
-						case 'line':
-							const points = obj.points || [[0, height / 2], [width, height / 2]]
-							ghostShape = (
-								<line
-									x1={x + points[0][0]}
-									y1={y + points[0][1]}
-									x2={x + points[1][0]}
-									y2={y + points[1][1]}
-									stroke={color}
-									strokeWidth={3}
-									strokeDasharray="4,4"
-								/>
-							)
-							break
-						case 'text':
-							ghostShape = (
-								<text
-									x={x}
-									y={y + height * 0.8}
-									fill={color}
-									fontSize={Math.min(height, 64)}
-								>
-									{obj.text}
-								</text>
-							)
-							break
-						default: // rect and fallback
-							ghostShape = (
-								<rect
-									x={x}
-									y={y}
-									width={width}
-									height={height}
-									rx={'cornerRadius' in obj && typeof obj.cornerRadius === 'number' ? obj.cornerRadius : undefined}
-									fill={color}
-									stroke={color}
-									strokeWidth={2}
-									strokeDasharray="4,4"
-								/>
-							)
-					}
+						})}
 
-					return (
-						<g key={`ghost-${clientId}`} opacity={0.4} pointerEvents="none">
-							{ghostShape}
-							<text
-								x={x}
-								y={y - 5}
-								fill={color}
-								fontSize={10}
-							>
-								{user?.name || 'Unknown'}
-							</text>
-						</g>
-					)
-				})}
+						{/* Ghost overlays for remote users' edits */}
+						{Array.from(prello.remotePresence.entries()).map(([clientId, presence]) => {
+							if (!presence.editing) return null
 
-				{/* Selection box */}
-				{selectionBounds && (
-					<SelectionBox
-						bounds={selectionBounds}
-						rotation={selectedObjectTransform?.rotation ?? 0}
-						pivotX={selectedObjectTransform?.pivotX ?? 0.5}
-						pivotY={selectedObjectTransform?.pivotY ?? 0.5}
-						onResizeStart={handleResizeStart}
+							// Find the object being edited
+							const obj = viewObjects.find((o) => o.id === presence.editing!.objectId)
+							if (!obj) return null
+
+							const editing = presence.editing
+							const user = presence.user
+							const color = user?.color || '#888888'
+							const x = editing.x
+							const y = editing.y
+							const width = editing.width ?? obj.width
+							const height = editing.height ?? obj.height
+
+							// Render the ghost shape based on object type
+							let ghostShape: React.ReactNode
+							switch (obj.type) {
+								case 'ellipse':
+									ghostShape = (
+										<ellipse
+											cx={x + width / 2}
+											cy={y + height / 2}
+											rx={width / 2}
+											ry={height / 2}
+											fill={color}
+											stroke={color}
+											strokeWidth={2}
+											strokeDasharray="4,4"
+										/>
+									)
+									break
+								case 'line':
+									const points = obj.points || [
+										[0, height / 2],
+										[width, height / 2]
+									]
+									ghostShape = (
+										<line
+											x1={x + points[0][0]}
+											y1={y + points[0][1]}
+											x2={x + points[1][0]}
+											y2={y + points[1][1]}
+											stroke={color}
+											strokeWidth={3}
+											strokeDasharray="4,4"
+										/>
+									)
+									break
+								case 'text':
+									ghostShape = (
+										<text
+											x={x}
+											y={y + height * 0.8}
+											fill={color}
+											fontSize={Math.min(height, 64)}
+										>
+											{obj.text}
+										</text>
+									)
+									break
+								default: // rect and fallback
+									ghostShape = (
+										<rect
+											x={x}
+											y={y}
+											width={width}
+											height={height}
+											rx={
+												'cornerRadius' in obj &&
+												typeof obj.cornerRadius === 'number'
+													? obj.cornerRadius
+													: undefined
+											}
+											fill={color}
+											stroke={color}
+											strokeWidth={2}
+											strokeDasharray="4,4"
+										/>
+									)
+							}
+
+							return (
+								<g key={`ghost-${clientId}`} opacity={0.4} pointerEvents="none">
+									{ghostShape}
+									<text x={x} y={y - 5} fill={color} fontSize={10}>
+										{user?.name || 'Unknown'}
+									</text>
+								</g>
+							)
+						})}
+
+						{/* Selection box */}
+						{selectionBounds && (
+							<SelectionBox
+								bounds={selectionBounds}
+								rotation={selectedObjectTransform?.rotation ?? 0}
+								pivotX={selectedObjectTransform?.pivotX ?? 0.5}
+								pivotY={selectedObjectTransform?.pivotY ?? 0.5}
+								onResizeStart={handleResizeStart}
+							/>
+						)}
+
+						{/* Rotation and pivot handles (single selection only) */}
+						{selectionBounds && selectedObjectTransform && (
+							<>
+								<RotationHandle
+									bounds={selectionBounds}
+									rotation={selectedObjectTransform.rotation}
+									pivotX={selectedObjectTransform.pivotX}
+									pivotY={selectedObjectTransform.pivotY}
+									scale={1}
+									onRotateStart={handleRotateStart}
+									onSnapClick={(angle) => {
+										updateObjectRotation(
+											prello.yDoc,
+											prello.doc,
+											selectedObjectTransform.id,
+											angle
+										)
+									}}
+									isRotating={rotationState.isRotating}
+									isSnapActive={rotationState.isSnapActive}
+								/>
+								<PivotHandle
+									bounds={selectionBounds}
+									rotation={selectedObjectTransform.rotation}
+									pivotX={selectedObjectTransform.pivotX}
+									pivotY={selectedObjectTransform.pivotY}
+									scale={1}
+									onPivotDragStart={handlePivotDragStart}
+									isDragging={pivotDragState.isDragging}
+									snapEnabled={snapSettings.settings.snapToObjects}
+									snappedPoint={pivotDragState.snappedPoint}
+									originalBounds={pivotDragState.originalBounds ?? undefined}
+									initialPivot={pivotDragState.initialPivot ?? undefined}
+								/>
+							</>
+						)}
+
+						{/* Tool preview */}
+						{toolEvent && prello.activeTool && (
+							<rect
+								x={Math.min(toolEvent.startX, toolEvent.x)}
+								y={Math.min(toolEvent.startY, toolEvent.y)}
+								width={Math.abs(toolEvent.x - toolEvent.startX)}
+								height={Math.abs(toolEvent.y - toolEvent.startY)}
+								stroke="#0066ff"
+								strokeWidth={2}
+								strokeDasharray="4,4"
+								fill="rgba(0, 102, 255, 0.1)"
+								pointerEvents="none"
+							/>
+						)}
+					</SvgCanvas>
+				</div>
+
+				{isPanelVisible && (
+					<PrelloPropertiesPanel
+						doc={prello.doc}
+						yDoc={prello.yDoc}
+						selectedIds={prello.selectedIds}
+						onSelectObject={prello.selectObject}
+						activeViewId={prello.activeViewId}
+						onPreview={setPropertyPreview}
+						selectedContainerId={selectedContainerId as any}
+						onSelectContainer={setSelectedContainerId as any}
 					/>
 				)}
-
-				{/* Rotation and pivot handles (single selection only) */}
-				{selectionBounds && selectedObjectTransform && (
-					<>
-						<RotationHandle
-							bounds={selectionBounds}
-							rotation={selectedObjectTransform.rotation}
-							pivotX={selectedObjectTransform.pivotX}
-							pivotY={selectedObjectTransform.pivotY}
-							scale={1}
-							onRotateStart={handleRotateStart}
-							onSnapClick={(angle) => {
-								updateObjectRotation(prello.yDoc, prello.doc, selectedObjectTransform.id, angle)
-							}}
-							isRotating={rotationState.isRotating}
-							isSnapActive={rotationState.isSnapActive}
-						/>
-						<PivotHandle
-							bounds={selectionBounds}
-							rotation={selectedObjectTransform.rotation}
-							pivotX={selectedObjectTransform.pivotX}
-							pivotY={selectedObjectTransform.pivotY}
-							scale={1}
-							onPivotDragStart={handlePivotDragStart}
-							isDragging={pivotDragState.isDragging}
-							snapEnabled={snapSettings.settings.snapToObjects}
-							snappedPoint={pivotDragState.snappedPoint}
-							originalBounds={pivotDragState.originalBounds ?? undefined}
-							initialPivot={pivotDragState.initialPivot ?? undefined}
-						/>
-					</>
-				)}
-
-				{/* Tool preview */}
-				{toolEvent && prello.activeTool && (
-					<rect
-						x={Math.min(toolEvent.startX, toolEvent.x)}
-						y={Math.min(toolEvent.startY, toolEvent.y)}
-						width={Math.abs(toolEvent.x - toolEvent.startX)}
-						height={Math.abs(toolEvent.y - toolEvent.startY)}
-						stroke="#0066ff"
-						strokeWidth={2}
-						strokeDasharray="4,4"
-						fill="rgba(0, 102, 255, 0.1)"
-						pointerEvents="none"
-					/>
-				)}
-			</SvgCanvas>
 			</div>
 
-			{isPanelVisible && (
-				<PrelloPropertiesPanel
+			<ViewPicker
+				views={views}
+				activeViewId={prello.activeViewId}
+				onViewSelect={(id) => prello.setActiveViewId(id)}
+				onAddView={handleAddView}
+				onPrevView={handlePrevView}
+				onNextView={handleNextView}
+				onPresent={() => setIsPresentationMode(true)}
+			/>
+
+			{isPresentationMode && (
+				<PresentationMode
 					doc={prello.doc}
-					yDoc={prello.yDoc}
-					selectedIds={prello.selectedIds}
-					onSelectObject={prello.selectObject}
-					activeViewId={prello.activeViewId}
-					onPreview={setPropertyPreview}
-					selectedContainerId={selectedContainerId as any}
-					onSelectContainer={setSelectedContainerId as any}
+					views={views}
+					initialViewId={prello.activeViewId}
+					onExit={() => setIsPresentationMode(false)}
 				/>
 			)}
-		</div>
-
-		<ViewPicker
-			views={views}
-			activeViewId={prello.activeViewId}
-			onViewSelect={id => prello.setActiveViewId(id)}
-			onAddView={handleAddView}
-			onPrevView={handlePrevView}
-			onNextView={handleNextView}
-			onPresent={() => setIsPresentationMode(true)}
-		/>
-
-		{isPresentationMode && (
-			<PresentationMode
-				doc={prello.doc}
-				views={views}
-				initialViewId={prello.activeViewId}
-				onExit={() => setIsPresentationMode(false)}
-			/>
-		)}
-	</>
+		</>
+	)
 }
 
 // vim: ts=4

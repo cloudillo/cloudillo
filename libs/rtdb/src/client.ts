@@ -47,9 +47,7 @@ export class WriteBatch {
 
 		// Return a placeholder document reference
 		// The actual ID will be known after commit
-		return ref instanceof DocumentReference
-			? ref
-			: (ref as any).doc('$placeholder')
+		return ref instanceof DocumentReference ? ref : (ref as any).doc('$placeholder')
 	}
 
 	update<T>(ref: DocumentReference<T>, data: Partial<T>): void {
@@ -87,9 +85,7 @@ export class RtdbClient {
 	private ws: WebSocketManager
 	private connected = false
 
-	constructor(
-		private options: RtdbClientOptions
-	) {
+	constructor(private options: RtdbClientOptions) {
 		const defaultOptions = {
 			enableCache: false,
 			reconnect: true,

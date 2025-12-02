@@ -54,28 +54,46 @@ export function SecuritySettings() {
 
 	if (!settings) return null
 
-	return <>
-		{/* WebAuthn is not supported in the Rust backend */}
-		{/* <div className="c-panel">
+	return (
+		<>
+			{/* WebAuthn is not supported in the Rust backend */}
+			{/* <div className="c-panel">
 			<label className="c-hbox pb-2">
 				<span className="flex-fill">{t('Passwordless login')}</span>
 				<input className="c-toggle primary" name="sec.webauthn" type="checkbox" checked={!!credential} onChange={onWebauthnChange}/>
 			</label>
 		</div> */}
-		<div className="c-panel">
-			<label className="c-hbox pb-2">
-				<span className="flex-fill">{t('Current password')}</span>
-				<input className="c-input" name="sec.current_password" type="password" onChange={evt => setCurrentPassword(evt.target.value)}/>
-			</label>
-			<label className="c-hbox pb-2">
-				<span className="flex-fill">{t('New password')}</span>
-				<input className="c-input" name="sec.new_password" type="password" onChange={evt => setNewPassword(evt.target.value)}/>
-			</label>
-			<div className="c-group">
-				<Button primary disabled={!currentPassword || !newPassword} onClick={onChangePassword}>{t('Change password')}</Button>
+			<div className="c-panel">
+				<label className="c-hbox pb-2">
+					<span className="flex-fill">{t('Current password')}</span>
+					<input
+						className="c-input"
+						name="sec.current_password"
+						type="password"
+						onChange={(evt) => setCurrentPassword(evt.target.value)}
+					/>
+				</label>
+				<label className="c-hbox pb-2">
+					<span className="flex-fill">{t('New password')}</span>
+					<input
+						className="c-input"
+						name="sec.new_password"
+						type="password"
+						onChange={(evt) => setNewPassword(evt.target.value)}
+					/>
+				</label>
+				<div className="c-group">
+					<Button
+						primary
+						disabled={!currentPassword || !newPassword}
+						onClick={onChangePassword}
+					>
+						{t('Change password')}
+					</Button>
+				</div>
 			</div>
-		</div>
-	</>
+		</>
+	)
 }
 
 // vim: ts=4

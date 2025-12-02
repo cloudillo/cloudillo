@@ -30,7 +30,10 @@ export const Progress = createComponent<HTMLDivElement, ProgressProps>(
 	({ className, value = 0, variant, indeterminate, style, children, ...props }, ref) => {
 		const progressStyle = indeterminate
 			? style
-			: { ...style, '--progress': `${Math.min(100, Math.max(0, value))}%` } as React.CSSProperties
+			: ({
+					...style,
+					'--progress': `${Math.min(100, Math.max(0, value))}%`
+				} as React.CSSProperties)
 
 		return (
 			<div

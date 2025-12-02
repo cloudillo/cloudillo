@@ -16,11 +16,10 @@
 
 import * as React from 'react'
 
-export interface PrelloElement {
-}
+export interface PrelloElement {}
 
 export interface PrelloElementState {
-	bbox: { x: number, y: number, width: number, height: number }
+	bbox: { x: number; y: number; width: number; height: number }
 }
 
 export interface ElementProps<E extends PrelloElement, S = undefined> {
@@ -30,7 +29,8 @@ export interface ElementProps<E extends PrelloElement, S = undefined> {
 	onClick?: (evt: React.MouseEvent<SVGGraphicsElement>) => void
 }
 
-export interface ElementEditProps<E extends PrelloElement, S = undefined> extends ElementProps<E, S> {
+export interface ElementEditProps<E extends PrelloElement, S = undefined>
+	extends ElementProps<E, S> {
 	//setElement: React.Dispatch<React.SetStateAction<E>>
 	setElement: (element: E) => void
 }

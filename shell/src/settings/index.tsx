@@ -55,68 +55,110 @@ export function Settings({ title, children }: SettingsProps) {
 	const contextIdTag = params.contextIdTag!
 	const basePath = `/settings/${contextIdTag}`
 
-	React.useEffect(function onLocationEffect() {
-		setShowFilter(false)
-	}, [location])
+	React.useEffect(
+		function onLocationEffect() {
+			setShowFilter(false)
+		},
+		[location]
+	)
 
-	return <Fcd.Container className="g-1">
-		<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-			<ul className="c-nav vertical low">
-				<li><NavLink className="c-nav-item" to={`${basePath}/security`}><IcSecurity/> {t('Security')}</NavLink></li>
-				<li><NavLink className="c-nav-item" to={`${basePath}/privacy`}><IcPrivacy/> {t('Privacy')}</NavLink></li>
-				<li><NavLink className="c-nav-item" to={`${basePath}/notifications`}><IcNotifications/> {t('Notifications')}</NavLink></li>
-				<li><NavLink className="c-nav-item" to={`${basePath}/appearance`}><IcAppearance/> {t('Appearance')}</NavLink></li>
-				<li><NavLink className="c-nav-item" to={`${basePath}/files`}><IcFiles/> {t('Files')}</NavLink></li>
-			</ul>
-		</Fcd.Filter>
-		<Fcd.Content>
-			<div className="c-nav c-hbox md-hide lg-hide">
-				<IcMenu onClick={() => setShowFilter(true)}/>
-				<h3>{title}</h3>
-			</div>
-			{children}
-		</Fcd.Content>
-		{/*
+	return (
+		<Fcd.Container className="g-1">
+			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+				<ul className="c-nav vertical low">
+					<li>
+						<NavLink className="c-nav-item" to={`${basePath}/security`}>
+							<IcSecurity /> {t('Security')}
+						</NavLink>
+					</li>
+					<li>
+						<NavLink className="c-nav-item" to={`${basePath}/privacy`}>
+							<IcPrivacy /> {t('Privacy')}
+						</NavLink>
+					</li>
+					<li>
+						<NavLink className="c-nav-item" to={`${basePath}/notifications`}>
+							<IcNotifications /> {t('Notifications')}
+						</NavLink>
+					</li>
+					<li>
+						<NavLink className="c-nav-item" to={`${basePath}/appearance`}>
+							<IcAppearance /> {t('Appearance')}
+						</NavLink>
+					</li>
+					<li>
+						<NavLink className="c-nav-item" to={`${basePath}/files`}>
+							<IcFiles /> {t('Files')}
+						</NavLink>
+					</li>
+				</ul>
+			</Fcd.Filter>
+			<Fcd.Content>
+				<div className="c-nav c-hbox md-hide lg-hide">
+					<IcMenu onClick={() => setShowFilter(true)} />
+					<h3>{title}</h3>
+				</div>
+				{children}
+			</Fcd.Content>
+			{/*
 		<Fcd.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
 			{ selectedFile && <div className="c-panel h-min-100">
 			</div> }
 		</Fcd.Details>
 		*/}
-	</Fcd.Container>
+		</Fcd.Container>
+	)
 }
 
 export function SettingsRoutes({ pwa }: { pwa: UsePWA }) {
 	const { t } = useTranslation()
 
-	return <Routes>
-		<Route path="/settings/:contextIdTag" element={<Settings title={t('Main')}/>}/>
-		<Route path="/settings/:contextIdTag/security" element={
-			<Settings title={t('Security')}>
-				<SecuritySettings/>
-			</Settings>
-		}/>
-		<Route path="/settings/:contextIdTag/privacy" element={
-			<Settings title={t('Privacy')}>
-				<PrivacySettings/>
-			</Settings>
-		}/>
-		<Route path="/settings/:contextIdTag/notifications" element={
-			<Settings title={t('Notifications')}>
-				<NotificationSettings pwa={pwa}/>
-			</Settings>
-		}/>
-		<Route path="/settings/:contextIdTag/appearance" element={
-			<Settings title={t('Appearance')}>
-				<AppearanceSettings/>
-			</Settings>
-		}/>
-		<Route path="/settings/:contextIdTag/files" element={
-			<Settings title={t('Files')}>
-				<FilesSettings/>
-			</Settings>
-		}/>
-		<Route path="/*" element={null}/>
-	</Routes>
+	return (
+		<Routes>
+			<Route path="/settings/:contextIdTag" element={<Settings title={t('Main')} />} />
+			<Route
+				path="/settings/:contextIdTag/security"
+				element={
+					<Settings title={t('Security')}>
+						<SecuritySettings />
+					</Settings>
+				}
+			/>
+			<Route
+				path="/settings/:contextIdTag/privacy"
+				element={
+					<Settings title={t('Privacy')}>
+						<PrivacySettings />
+					</Settings>
+				}
+			/>
+			<Route
+				path="/settings/:contextIdTag/notifications"
+				element={
+					<Settings title={t('Notifications')}>
+						<NotificationSettings pwa={pwa} />
+					</Settings>
+				}
+			/>
+			<Route
+				path="/settings/:contextIdTag/appearance"
+				element={
+					<Settings title={t('Appearance')}>
+						<AppearanceSettings />
+					</Settings>
+				}
+			/>
+			<Route
+				path="/settings/:contextIdTag/files"
+				element={
+					<Settings title={t('Files')}>
+						<FilesSettings />
+					</Settings>
+				}
+			/>
+			<Route path="/*" element={null} />
+		</Routes>
+	)
 }
 
 // vim: ts=4

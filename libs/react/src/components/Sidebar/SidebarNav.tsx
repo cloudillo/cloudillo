@@ -25,11 +25,7 @@ export const SidebarNav = createComponent<HTMLUListElement, SidebarNavProps>(
 	'SidebarNav',
 	({ className, children, ...props }, ref) => {
 		return (
-			<ul
-				ref={ref}
-				className={mergeClasses('c-sidebar-nav', className)}
-				{...props}
-			>
+			<ul ref={ref} className={mergeClasses('c-sidebar-nav', className)} {...props}>
 				{children}
 			</ul>
 		)

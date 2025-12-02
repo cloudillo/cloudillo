@@ -30,12 +30,7 @@ export const Badge = createComponent<HTMLSpanElement, BadgeProps>(
 		return (
 			<span
 				ref={ref}
-				className={mergeClasses(
-					'c-badge',
-					variant,
-					rounded && 'br',
-					className
-				)}
+				className={mergeClasses('c-badge', variant, rounded && 'br', className)}
 				{...props}
 			>
 				{children}

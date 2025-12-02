@@ -32,24 +32,37 @@ export interface SelectProps<T> {
 	renderItem: (props: T) => React.ReactNode
 }
 
-export function Select<T>({ className, inputClassName, placeholder, getData, onChange, onSelectItem, itemToId, itemToString, renderItem }: SelectProps<T>) {
+export function Select<T>({
+	className,
+	inputClassName,
+	placeholder,
+	getData,
+	onChange,
+	onSelectItem,
+	itemToId,
+	itemToString,
+	renderItem
+}: SelectProps<T>) {
 	const [popperRef, setPopperRef] = React.useState<HTMLElement | null>(null)
 	const [popperEl, setPopperEl] = React.useState<HTMLUListElement | null>(null)
 	const [items, setItems] = React.useState<T[]>([])
 
-	const deboucedOnInputValueChange = React.useCallback(debounce(async function onInputValueChange({ inputValue }: { inputValue?: string }) {
-		const data = await getData(inputValue || '')
-		console.log('onInputValueChange', inputValue, data)
-		setItems(data || [])
-	}, 500), [])
+	const deboucedOnInputValueChange = React.useCallback(
+		debounce(async function onInputValueChange({ inputValue }: { inputValue?: string }) {
+			const data = await getData(inputValue || '')
+			console.log('onInputValueChange', inputValue, data)
+			setItems(data || [])
+		}, 500),
+		[]
+	)
 
 	let tmpRef: React.MutableRefObject<HTMLUListElement> | undefined
-	const {styles: popperStyles, attributes} = usePopper(popperRef, popperEl, {
+	const { styles: popperStyles, attributes } = usePopper(popperRef, popperEl, {
 		placement: 'bottom-start',
 		strategy: 'fixed'
 	})
 	const s = useCombobox({
-		onInputValueChange: arg => deboucedOnInputValueChange(arg),
+		onInputValueChange: (arg) => deboucedOnInputValueChange(arg),
 		items,
 		itemToString,
 		onSelectedItemChange: ({ selectedItem }) => {
@@ -77,9 +90,9 @@ export function Select<T>({ className, inputClassName, placeholder, getData, onC
 				//if (props.ref) (props.ref as React.MutableRefObject<HTMLUListElement>).current = el
 				if (props.ref) {
 					if (typeof props.ref === 'function') {
-						(props.ref as React.RefCallback<HTMLUListElement>)(el)
+						;(props.ref as React.RefCallback<HTMLUListElement>)(el)
 					} else {
-						(props.ref as React.MutableRefObject<HTMLUListElement>).current = el
+						;(props.ref as React.MutableRefObject<HTMLUListElement>).current = el
 					}
 				}
 			}
@@ -87,23 +100,46 @@ export function Select<T>({ className, inputClassName, placeholder, getData, onC
 	}
 
 	//return <div className={'c-dropdown ' + (className || '')}>
-	return <div className={className}>
-		{/*
+	return (
+		<div className={className}>
+			{/*
 		<summary className="c-button secondary">
 		<summary>
 		*/}
-		<div ref={setPopperRef}>
-			<input className={'c-input ' + (inputClassName || '')} autoFocus placeholder={placeholder} {...s.getInputProps()}/>
-		</div>
-		{/*
+			<div ref={setPopperRef}>
+				<input
+					className={'c-input ' + (inputClassName || '')}
+					autoFocus
+					placeholder={placeholder}
+					{...s.getInputProps()}
+				/>
+			</div>
+			{/*
 		</summary>
 		*/}
-		{createPortal(<ul {...getMenuProps()} style={{ ...popperStyles.popper, ...(items.length ? {} : { display: 'none' })}} className="c-nav flex-column" {...attributes.popper}>
-			{items.map((item, idx) => <li key={idx} className={'c-nav-item' + (s.highlightedIndex === idx ? ' selected' : '')} {...s.getItemProps({ item, idx})}>
-				{renderItem(item)}
-			</li>)}
-		</ul>, document.getElementById('popper-container')!)}
-	</div>
+			{createPortal(
+				<ul
+					{...getMenuProps()}
+					style={{ ...popperStyles.popper, ...(items.length ? {} : { display: 'none' }) }}
+					className="c-nav flex-column"
+					{...attributes.popper}
+				>
+					{items.map((item, idx) => (
+						<li
+							key={idx}
+							className={
+								'c-nav-item' + (s.highlightedIndex === idx ? ' selected' : '')
+							}
+							{...s.getItemProps({ item, idx })}
+						>
+							{renderItem(item)}
+						</li>
+					))}
+				</ul>,
+				document.getElementById('popper-container')!
+			)}
+		</div>
+	)
 	//</details>
 }
 

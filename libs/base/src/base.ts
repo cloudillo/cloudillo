@@ -28,15 +28,15 @@ export let darkMode: boolean | undefined
 
 // Utility functions //
 export async function delay(ms: number) {
-	return new Promise(resolve => setTimeout(resolve, ms))
+	return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 const tCloudilloMessage = T.taggedUnion('type')({
-	'initReq': T.struct({
+	initReq: T.struct({
 		cloudillo: T.trueValue,
 		type: T.literal('initReq')
 	}),
-	'init': T.struct({
+	init: T.struct({
 		cloudillo: T.trueValue,
 		type: T.literal('init'),
 		idTag: T.optional(T.string),
@@ -46,49 +46,49 @@ const tCloudilloMessage = T.taggedUnion('type')({
 		darkMode: T.optional(T.boolean),
 		token: T.optional(T.string)
 	}),
-	'reply': T.struct({
+	reply: T.struct({
 		cloudillo: T.trueValue,
 		type: T.literal('reply'),
 		id: T.number,
 		data: T.unknown
-	}),
+	})
 })
 
 export function init(app: string): Promise<string | undefined> {
 	console.log(`[${app}] cloudillo.init`, app)
 	return new Promise((resolve, reject) => {
 		window.addEventListener('message', function onMessage(evt) {
-			console.log(`[${app}] RECV:`,  evt.source, evt.data)
+			console.log(`[${app}] RECV:`, evt.source, evt.data)
 			if (!evt.data.cloudillo) return
 			const msg = T.decode(tCloudilloMessage, evt.data)
 			console.log(`[${app}] Decode:`, msg)
 
 			if (T.isOk(msg)) {
 				switch (msg.ok.type) {
-				case 'init':
-					accessToken = msg.ok.token
-					idTag = msg.ok.idTag
-					tnId = msg.ok.tnId
-					roles = msg.ok.roles
-					darkMode = !!msg.ok.darkMode
-					if (msg.ok.darkMode) {
-						console.log(`[${app}] setting dark mode`)
-						document.body.classList.add('theme-glass')
-						document.body.classList.add('dark')
-						document.body.classList.remove('light')
-					} else {
-						console.log(`[${app}] setting light mode`)
-						document.body.classList.add('theme-glass')
-						document.body.classList.add('light')
-						document.body.classList.remove('dark')
-					}
-					return resolve(accessToken)
-				case 'reply':
-					if (reqMap[msg.ok.id]) {
-						reqMap[msg.ok.id].resolve(msg.ok.data)
-						delete reqMap[msg.ok.id]
-					}
-					return
+					case 'init':
+						accessToken = msg.ok.token
+						idTag = msg.ok.idTag
+						tnId = msg.ok.tnId
+						roles = msg.ok.roles
+						darkMode = !!msg.ok.darkMode
+						if (msg.ok.darkMode) {
+							console.log(`[${app}] setting dark mode`)
+							document.body.classList.add('theme-glass')
+							document.body.classList.add('dark')
+							document.body.classList.remove('light')
+						} else {
+							console.log(`[${app}] setting light mode`)
+							document.body.classList.add('theme-glass')
+							document.body.classList.add('light')
+							document.body.classList.remove('dark')
+						}
+						return resolve(accessToken)
+					case 'reply':
+						if (reqMap[msg.ok.id]) {
+							reqMap[msg.ok.id].resolve(msg.ok.data)
+							delete reqMap[msg.ok.id]
+						}
+						return
 				}
 			} else {
 				console.log(`[${app}] Invalid message`, evt.data, msg.err)
@@ -97,18 +97,24 @@ export function init(app: string): Promise<string | undefined> {
 		})
 
 		console.log(`[${app}] Send:`, 'initReq')
-		window.parent?.postMessage({
-			cloudillo: true,
-			type: 'initReq'
-		}, '*')
+		window.parent?.postMessage(
+			{
+				cloudillo: true,
+				type: 'initReq'
+			},
+			'*'
+		)
 	})
 }
 
 let reqId = 0
-const reqMap: Record<number, {
-	resolve: (data: unknown) => void
-	reject: (reason?: any) => void
-}> = {}
+const reqMap: Record<
+	number,
+	{
+		resolve: (data: unknown) => void
+		reject: (reason?: any) => void
+	}
+> = {}
 
 async function shellRequest() {
 	const id = reqId++
@@ -117,11 +123,14 @@ async function shellRequest() {
 			resolve,
 			reject
 		}
-		window.postMessage({
-			cloudillo: true,
-			type: 'shellRequest',
-			id
-		}, '*')
+		window.postMessage(
+			{
+				cloudillo: true,
+				type: 'shellRequest',
+				id
+			},
+			'*'
+		)
 	})
 }
 
@@ -130,7 +139,10 @@ async function getToken() {
 	return accessToken
 }
 
-export async function openYDoc(yDoc: Y.Doc, docId: string): Promise<{ yDoc: Y.Doc, provider: WebsocketProvider }> {
+export async function openYDoc(
+	yDoc: Y.Doc,
+	docId: string
+): Promise<{ yDoc: Y.Doc; provider: WebsocketProvider }> {
 	const [targetTag, resId] = docId.split(':')
 	if (!accessToken) throw new Error('No access token')
 
@@ -139,13 +151,14 @@ export async function openYDoc(yDoc: Y.Doc, docId: string): Promise<{ yDoc: Y.Do
 	idbProvider.on('sync', () => console.log('content loaded from local storage'))
 	*/
 
-	const wsProvider = new WebsocketProvider(`wss://cl-o.${targetTag}/ws/crdt`, resId, yDoc, { params: { token: accessToken }})
+	const wsProvider = new WebsocketProvider(`wss://cl-o.${targetTag}/ws/crdt`, resId, yDoc, {
+		params: { token: accessToken }
+	})
 
 	return {
 		yDoc,
 		provider: wsProvider
 	}
 }
-
 
 // vim: ts=4

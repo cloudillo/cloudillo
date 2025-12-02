@@ -25,11 +25,7 @@ export const SidebarFooter = createComponent<HTMLDivElement, SidebarFooterProps>
 	'SidebarFooter',
 	({ className, children, ...props }, ref) => {
 		return (
-			<div
-				ref={ref}
-				className={mergeClasses('c-sidebar-footer', className)}
-				{...props}
-			>
+			<div ref={ref} className={mergeClasses('c-sidebar-footer', className)} {...props}>
 				{children}
 			</div>
 		)

@@ -26,12 +26,18 @@ export interface FcdContentProps {
 
 export const FcdContent = React.forwardRef<HTMLDivElement, FcdContentProps>(
 	function FcdContentInside({ className, onScroll, header, children }, ref) {
-		return <div className={mergeClasses('c-vbox col col-md-8 col-lg-6 h-100', className)}>
-			{header}
-			<div ref={ref} className={mergeClasses('c-vbox fill overflow-y-auto', className)} onScroll={onScroll}>
-				{children}
+		return (
+			<div className={mergeClasses('c-vbox col col-md-8 col-lg-6 h-100', className)}>
+				{header}
+				<div
+					ref={ref}
+					className={mergeClasses('c-vbox fill overflow-y-auto', className)}
+					onScroll={onScroll}
+				>
+					{children}
+				</div>
 			</div>
-		</div>
+		)
 	}
 )
 

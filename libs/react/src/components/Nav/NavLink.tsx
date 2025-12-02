@@ -28,11 +28,7 @@ export const NavLink = createComponent<HTMLAnchorElement, NavLinkProps>(
 		return (
 			<a
 				ref={ref}
-				className={mergeClasses(
-					'c-nav-link',
-					active && 'active',
-					className
-				)}
+				className={mergeClasses('c-nav-link', active && 'active', className)}
 				{...props}
 			>
 				{children}

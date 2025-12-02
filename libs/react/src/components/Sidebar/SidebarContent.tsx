@@ -25,11 +25,7 @@ export const SidebarContent = createComponent<HTMLDivElement, SidebarContentProp
 	'SidebarContent',
 	({ className, children, ...props }, ref) => {
 		return (
-			<div
-				ref={ref}
-				className={mergeClasses('c-sidebar-content', className)}
-				{...props}
-			>
+			<div ref={ref} className={mergeClasses('c-sidebar-content', className)} {...props}>
 				{children}
 			</div>
 		)

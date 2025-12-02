@@ -58,7 +58,7 @@ const defaultSettings: LocalNotifySettings = {
 	'toast.comment': false,
 	'toast.reaction': false,
 	'toast.mention': false,
-	'toast.post': false,
+	'toast.post': false
 }
 
 function loadSettings(): LocalNotifySettings {
@@ -84,13 +84,16 @@ function saveSettings(settings: LocalNotifySettings): void {
 export function useLocalNotifySettings() {
 	const [settings, setSettings] = React.useState<LocalNotifySettings>(loadSettings)
 
-	const updateSetting = React.useCallback((key: keyof LocalNotifySettings, value: string | boolean) => {
-		setSettings(prev => {
-			const newSettings = { ...prev, [key]: value }
-			saveSettings(newSettings)
-			return newSettings
-		})
-	}, [])
+	const updateSetting = React.useCallback(
+		(key: keyof LocalNotifySettings, value: string | boolean) => {
+			setSettings((prev) => {
+				const newSettings = { ...prev, [key]: value }
+				saveSettings(newSettings)
+				return newSettings
+			})
+		},
+		[]
+	)
 
 	return { settings, updateSetting }
 }

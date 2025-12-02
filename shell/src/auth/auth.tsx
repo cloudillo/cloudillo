@@ -15,9 +15,22 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { Routes, Route, Link, Navigate, useParams, useLocation, useNavigate } from 'react-router-dom'
+import {
+	Routes,
+	Route,
+	Link,
+	Navigate,
+	useParams,
+	useLocation,
+	useNavigate
+} from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
-import { browserSupportsWebAuthnAutofill, browserSupportsWebAuthn, startRegistration, startAuthentication } from '@simplewebauthn/browser'
+import {
+	browserSupportsWebAuthnAutofill,
+	browserSupportsWebAuthn,
+	startRegistration,
+	startAuthentication
+} from '@simplewebauthn/browser'
 import debounce from 'debounce'
 import * as T from '@symbion/runtype'
 
@@ -32,7 +45,6 @@ import {
 	LuX as IcError,
 	LuFingerprint as IcWebAuthn,
 	LuLogIn as IcLogin
-
 } from 'react-icons/lu'
 
 import { useAuth, AuthState, useApi, useDialog, Button } from '@cloudillo/react'
@@ -134,10 +146,12 @@ interface AuthPageProps {
 }
 
 function AuthPage({ title, children }: AuthPageProps) {
-	return <div className="c-panel p-3">
-		{title && <h2>{title}</h2>}
-		{children}
-	</div>
+	return (
+		<div className="c-panel p-3">
+			{title && <h2>{title}</h2>}
+			{children}
+		</div>
+	)
 }
 
 ///////////////
@@ -188,43 +202,63 @@ export function LoginForm() {
 
 	if (auth) {
 		// After login, layout.tsx will load settings and handle onboarding redirect
-		const navTo = appConfig?.menu?.find(m => m.id === appConfig.defaultMenu)?.path || '/app/feed'
-		return <Navigate to={navTo}/>
+		const navTo =
+			appConfig?.menu?.find((m) => m.id === appConfig.defaultMenu)?.path || '/app/feed'
+		return <Navigate to={navTo} />
 	} else {
-		return <form className="c-panel p-3" onSubmit={onSubmit}>
-			<header><h2>{t('Login')}</h2></header>
+		return (
+			<form className="c-panel p-3" onSubmit={onSubmit}>
+				<header>
+					<h2>{t('Login')}</h2>
+				</header>
 
-			{ !forgot
-			? <>
-				<div className="c-input-group mb-3">
-					<input className="c-input"
-						name="password"
-						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => setPassword(evt.target.value)}
-						value={password}
-						type={passwordVisible ? 'text' : 'password'}
-						placeholder={t('Password')}
-						aria-label={t('Password')}/>
-					<button type="button" className="c-link px-1" onClick={() => setPasswordVisible(!passwordVisible)}>
-						{passwordVisible ? <IcEye/> : <IcEyeOff/>}
-					</button>
-				</div>
-				<div className="form-check mb-3">
-					<input className="form-check-input"
-						name="remember"
-						type="checkbox"
-						onChange={value => setRemember(!!value)}/>
-					<label className="form-check-label">{t('Remember me on this device')}</label>
-				</div>
-			</>
-			: /* forgotten password */ <>
-			</>
-			}
+				{!forgot ? (
+					<>
+						<div className="c-input-group mb-3">
+							<input
+								className="c-input"
+								name="password"
+								onChange={(evt: React.ChangeEvent<HTMLInputElement>) =>
+									setPassword(evt.target.value)
+								}
+								value={password}
+								type={passwordVisible ? 'text' : 'password'}
+								placeholder={t('Password')}
+								aria-label={t('Password')}
+							/>
+							<button
+								type="button"
+								className="c-link px-1"
+								onClick={() => setPasswordVisible(!passwordVisible)}
+							>
+								{passwordVisible ? <IcEye /> : <IcEyeOff />}
+							</button>
+						</div>
+						<div className="form-check mb-3">
+							<input
+								className="form-check-input"
+								name="remember"
+								type="checkbox"
+								onChange={(value) => setRemember(!!value)}
+							/>
+							<label className="form-check-label">
+								{t('Remember me on this device')}
+							</label>
+						</div>
+					</>
+				) : (
+					/* forgotten password */ <></>
+				)}
 
-			<div className="c-invalid-feedback">{error}</div>
-			<footer className="c-group g-2">
-				<Button type="submit" primary disabled={!api?.idTag}><IcLogin/>{t('Login')}</Button>
-			</footer>
-		</form>
+				<div className="c-invalid-feedback">{error}</div>
+				<footer className="c-group g-2">
+					<Button type="submit" primary disabled={!api?.idTag}>
+						<IcLogin />
+						{t('Login')}
+					</Button>
+				</footer>
+			</form>
+		)
 	}
 }
 
@@ -263,39 +297,55 @@ export function PasswordResetForm() {
 		}
 	}
 
-	return <AuthPage title="Set new password">
+	return (
+		<AuthPage title="Set new password">
 			<form className="c-form" onSubmit={onSubmit}>
-				<label className="c-label">New password
-					<input className="c-input"
-						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => setPassword(evt.target.value)}
+				<label className="c-label">
+					New password
+					<input
+						className="c-input"
+						onChange={(evt: React.ChangeEvent<HTMLInputElement>) =>
+							setPassword(evt.target.value)
+						}
 						value={password}
 						type="password"
 						placeholder={t('New password')}
-						aria-label={t('New password')}/>
+						aria-label={t('New password')}
+					/>
 				</label>
 				{error && <div className="c-invalid-feedback">{error}</div>}
 				<div className="c-group">
-					<button className="c-button" type="submit">{t('Change password')}</button>
+					<button className="c-button" type="submit">
+						{t('Change password')}
+					</button>
 				</div>
 			</form>
-	</AuthPage>
+		</AuthPage>
+	)
 }
 
 function PasswordResetSent() {
 	const { t } = useTranslation()
 
-	return <AuthPage title={t('Confirmation email sent')}>
-		<p>{t('PasswordResetSent', 'We have sent you a confirmation link in email.')}</p>
-	</AuthPage>
+	return (
+		<AuthPage title={t('Confirmation email sent')}>
+			<p>{t('PasswordResetSent', 'We have sent you a confirmation link in email.')}</p>
+		</AuthPage>
+	)
 }
 
 function PasswordSet() {
 	const { t } = useTranslation()
 
-	return <AuthPage title={t('Password set')}>
-		<p>{t('PasswordSet', 'Your password has been set.')}</p>
-		<Link className="c-button" to="/login">{t('You can now log in')}</Link>.
-	</AuthPage>
+	return (
+		<AuthPage title={t('Password set')}>
+			<p>{t('PasswordSet', 'Your password has been set.')}</p>
+			<Link className="c-button" to="/login">
+				{t('You can now log in')}
+			</Link>
+			.
+		</AuthPage>
+	)
 }
 
 interface WebAuthProps {
@@ -305,8 +355,7 @@ interface WebAuthProps {
 
 export function WebAuth({ idTag, credentials }: WebAuthProps) {
 	// WebAuthn is not supported in the Rust backend
-	return <>
-	</>
+	return <></>
 }
 
 export function Password() {
@@ -337,49 +386,114 @@ export function Password() {
 		}
 	}
 
-	return <div>
-		<input className="c-input"
-			onChange={(evt: React.ChangeEvent<HTMLInputElement>) => setOldPassword(evt.target.value)}
-			autoComplete="current-password"
-			value={oldPassword}
-			type="password"
-			placeholder={t('Current password')}
-			aria-label={t('Current password')}/>
-		<input className="c-input"
-			onChange={(evt: React.ChangeEvent<HTMLInputElement>) => setPassword(evt.target.value)}
-			autoComplete="new-password"
-			value={password}
-			type="password"
-			placeholder={t('New password')}
-			aria-label={t('New password')}/>
-		{error && <div className="c-invalid-feedback">{error}</div>}
-		<button className="c-button" onClick={changePassword}>{t('Set password')}</button>
-	</div>
+	return (
+		<div>
+			<input
+				className="c-input"
+				onChange={(evt: React.ChangeEvent<HTMLInputElement>) =>
+					setOldPassword(evt.target.value)
+				}
+				autoComplete="current-password"
+				value={oldPassword}
+				type="password"
+				placeholder={t('Current password')}
+				aria-label={t('Current password')}
+			/>
+			<input
+				className="c-input"
+				onChange={(evt: React.ChangeEvent<HTMLInputElement>) =>
+					setPassword(evt.target.value)
+				}
+				autoComplete="new-password"
+				value={password}
+				type="password"
+				placeholder={t('New password')}
+				aria-label={t('New password')}
+			/>
+			{error && <div className="c-invalid-feedback">{error}</div>}
+			<button className="c-button" onClick={changePassword}>
+				{t('Set password')}
+			</button>
+		</div>
+	)
 }
 
 function LoginPage({ children }: { children: React.ReactNode }) {
-	return <div className="c-container"><div className="row">
-		<div className="col-0 col-md-1 col-lg-2"/>
-		<div className="col col-md-10 col-lg-8">
-			<div className="flex-fill-x">
-				{children}
+	return (
+		<div className="c-container">
+			<div className="row">
+				<div className="col-0 col-md-1 col-lg-2" />
+				<div className="col col-md-10 col-lg-8">
+					<div className="flex-fill-x">{children}</div>
+				</div>
+				<div className="col-0 col-md-1 col-lg-2" />
 			</div>
 		</div>
-		<div className="col-0 col-md-1 col-lg-2"/>
-	</div></div>
+	)
 }
 
 export function AuthRoutes() {
-	return <Routes>
-		<Route path="/login" element={<LoginPage><LoginForm/></LoginPage>}/>
-		<Route path="/register/:token" element={<LoginPage><RegisterForm/></LoginPage>}/>
-		<Route path="/register/:token/:providerType" element={<LoginPage><RegisterForm/></LoginPage>}/>
-		<Route path="/register/:token/idp/:idpStep" element={<LoginPage><RegisterForm/></LoginPage>}/>
-		<Route path="/passwd" element={<LoginPage><PasswordResetForm/></LoginPage>}/>
-		<Route path="/passwd-sent" element={<LoginPage><PasswordResetSent/></LoginPage>}/>
-		<Route path="/passwd-set" element={<LoginPage><PasswordSet/></LoginPage>}/>
-		<Route path="/*" element={null}/>
-	</Routes>
+	return (
+		<Routes>
+			<Route
+				path="/login"
+				element={
+					<LoginPage>
+						<LoginForm />
+					</LoginPage>
+				}
+			/>
+			<Route
+				path="/register/:token"
+				element={
+					<LoginPage>
+						<RegisterForm />
+					</LoginPage>
+				}
+			/>
+			<Route
+				path="/register/:token/:providerType"
+				element={
+					<LoginPage>
+						<RegisterForm />
+					</LoginPage>
+				}
+			/>
+			<Route
+				path="/register/:token/idp/:idpStep"
+				element={
+					<LoginPage>
+						<RegisterForm />
+					</LoginPage>
+				}
+			/>
+			<Route
+				path="/passwd"
+				element={
+					<LoginPage>
+						<PasswordResetForm />
+					</LoginPage>
+				}
+			/>
+			<Route
+				path="/passwd-sent"
+				element={
+					<LoginPage>
+						<PasswordResetSent />
+					</LoginPage>
+				}
+			/>
+			<Route
+				path="/passwd-set"
+				element={
+					<LoginPage>
+						<PasswordSet />
+					</LoginPage>
+				}
+			/>
+			<Route path="/*" element={null} />
+		</Routes>
+	)
 }
 
 // vim: ts=4

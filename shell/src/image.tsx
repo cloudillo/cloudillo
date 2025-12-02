@@ -18,15 +18,13 @@ import React from 'react'
 import { useTranslation, Trans } from 'react-i18next'
 import ReactCrop, { Crop } from 'react-image-crop'
 
-import {
-	LuSquareDashed as IcBoxSelect,
-	LuCircleDashed as IcCircleSelect
-} from 'react-icons/lu'
+import { LuSquareDashed as IcBoxSelect, LuCircleDashed as IcCircleSelect } from 'react-icons/lu'
 
 import { Button } from '@cloudillo/react'
 
 export type Aspect = '4:1' | '3:1' | '2:1' | '16:9' | '3:2' | '4:3' | '1:1' | 'circle' | ''
-const aspectMap = { // Aspect ratio = aspect / 36
+const aspectMap = {
+	// Aspect ratio = aspect / 36
 	'4:1': 144,
 	'3:1': 108,
 	'2:1': 72,
@@ -34,7 +32,7 @@ const aspectMap = { // Aspect ratio = aspect / 36
 	'3:2': 54,
 	'4:3': 48,
 	'1:1': 36,
-	'circle': 36,
+	circle: 36,
 	'': undefined
 }
 
@@ -49,20 +47,42 @@ export function getBestImageId(hashData: string, intent: 'orig' | 'hd' | 'sd' | 
 	const hashes = hashesStr.split(',')
 
 	if (intent == 'tn') {
-		const idx = ver.indexOf('t') + 1 || ver.indexOf('s') + 1 || ver.indexOf('h') + 1 || ver.indexOf('o') + 1
+		const idx =
+			ver.indexOf('t') + 1 ||
+			ver.indexOf('s') + 1 ||
+			ver.indexOf('h') + 1 ||
+			ver.indexOf('o') + 1
 		if (idx) return hashes[idx - 1]
 	}
 	if (intent == 'hd') {
-		const idx = ver.indexOf('h') + 1 || ver.indexOf('o') + 1 || ver.indexOf('s') + 1 || ver.indexOf('t') + 1
+		const idx =
+			ver.indexOf('h') + 1 ||
+			ver.indexOf('o') + 1 ||
+			ver.indexOf('s') + 1 ||
+			ver.indexOf('t') + 1
 		if (idx) return hashes[idx - 1]
 	}
 	if (intent == 'sd') {
-		const idx = ver.indexOf('s') + 1 || ver.indexOf('h') + 1 || ver.indexOf('t') + 1 || ver.indexOf('o') + 1
+		const idx =
+			ver.indexOf('s') + 1 ||
+			ver.indexOf('h') + 1 ||
+			ver.indexOf('t') + 1 ||
+			ver.indexOf('o') + 1
 		if (idx) return hashes[idx - 1]
 	}
 }
 
-export function ImageUpload({ src, aspects, onSubmit, onCancel }: { src: string, aspects?: Aspect[], onSubmit: (blob: Blob) => void, onCancel: () => void }) {
+export function ImageUpload({
+	src,
+	aspects,
+	onSubmit,
+	onCancel
+}: {
+	src: string
+	aspects?: Aspect[]
+	onSubmit: (blob: Blob) => void
+	onCancel: () => void
+}) {
 	const { t } = useTranslation()
 	const [aspect, setAspect] = React.useState<Aspect>() // Aspect ratio = aspect / 36
 	const imgRef = React.useRef<HTMLImageElement>(null)
@@ -80,12 +100,12 @@ export function ImageUpload({ src, aspects, onSubmit, onCancel }: { src: string,
 
 	function changeAspect(aspect: Aspect) {
 		const newAspect = aspectMap[aspect]
-		const w = imgRef.current!.naturalWidth, h = imgRef.current!.naturalHeight
+		const w = imgRef.current!.naturalWidth,
+			h = imgRef.current!.naturalHeight
 		const zoom = w / imgRef.current!.width
 		if (!newAspect) return setAspect(undefined)
 		const [width, height] =
-			w / h <= newAspect / 36 ? [w, w / newAspect * 36]
-				: [h * newAspect / 36, h]
+			w / h <= newAspect / 36 ? [w, (w / newAspect) * 36] : [(h * newAspect) / 36, h]
 		setCrop({
 			x: (w - width) / 2 / zoom,
 			y: (h - height) / 2 / zoom,
@@ -98,34 +118,45 @@ export function ImageUpload({ src, aspects, onSubmit, onCancel }: { src: string,
 
 	async function handleSubmit() {
 		console.log('submit', crop)
-		const myCrop = crop || { x: 0, y: 0, width: imgRef.current!.width, height: imgRef.current!.height }
+		const myCrop = crop || {
+			x: 0,
+			y: 0,
+			width: imgRef.current!.width,
+			height: imgRef.current!.height
+		}
 		const zoom = imgRef.current!.naturalWidth / imgRef.current!.width
 		const canvas = document.createElement('canvas')
 		//canvas.width = (crop?.width || imgRef.current!.naturalWidth) > 1920 ? 1920 : crop?.width || imgRef.current!.naturalWidth
 		canvas.width = myCrop.width > 1920 ? 1920 : myCrop?.width
-		canvas.height = canvas.width * myCrop.height / myCrop.width
+		canvas.height = (canvas.width * myCrop.height) / myCrop.width
 		if (canvas.height > 1920) {
 			canvas.height = 1920
-			canvas.width = canvas.height * myCrop.width / myCrop.height
+			canvas.width = (canvas.height * myCrop.width) / myCrop.height
 		}
 		console.log('canvas size', canvas.width, canvas.height)
-		canvas.getContext('2d')?.drawImage(
-			imgRef.current!,
-			myCrop.x * zoom,
-			myCrop.y * zoom,
-			myCrop.width * zoom,
-			myCrop.height * zoom,
-			0,
-			0,
-			canvas.width,
-			canvas.height
-		)
-		const dataURI = canvas.toBlob(function(blob) {
-			console.log(blob)
-			if (!blob) return
+		canvas
+			.getContext('2d')
+			?.drawImage(
+				imgRef.current!,
+				myCrop.x * zoom,
+				myCrop.y * zoom,
+				myCrop.width * zoom,
+				myCrop.height * zoom,
+				0,
+				0,
+				canvas.width,
+				canvas.height
+			)
+		const dataURI = canvas.toBlob(
+			function (blob) {
+				console.log(blob)
+				if (!blob) return
 
-			onSubmit(blob)
-		}, 'image/jpeg', 0.8)
+				onSubmit(blob)
+			},
+			'image/jpeg',
+			0.8
+		)
 	}
 
 	/*
@@ -134,24 +165,43 @@ export function ImageUpload({ src, aspects, onSubmit, onCancel }: { src: string,
 	}, [crop])
 	*/
 
-	return <div className="c-modal show">
-		<div className="c-panel g-1">
-			<ReactCrop crop={crop} onChange={changeCrop} aspect={aspect ? aspectMap[aspect] / 36 : undefined} circularCrop={aspect == 'circle'}>
-				<img ref={imgRef} src={src} onLoad={handleImageLoaded} style={{ maxWidth: '80vw', maxHeight: '80vh' }}/>
-			</ReactCrop>
-			<div className='c-group mx-auto'>
-				{ (aspects?.length || 0) > 1 && aspects?.map(asp =>
-					<button key={asp} className="c-link px-2" onClick={() => changeAspect(asp)}>
-						{asp == 'circle' ? <IcCircleSelect/> : asp || <IcBoxSelect/>}
-					</button>
-				)}
-			</div>
-			<div className='c-group'>
-				<Button primary onClick={handleSubmit}>{t('Upload')}</Button>
-				<Button onClick={onCancel}>{t('Cancel')}</Button>
+	return (
+		<div className="c-modal show">
+			<div className="c-panel g-1">
+				<ReactCrop
+					crop={crop}
+					onChange={changeCrop}
+					aspect={aspect ? aspectMap[aspect] / 36 : undefined}
+					circularCrop={aspect == 'circle'}
+				>
+					<img
+						ref={imgRef}
+						src={src}
+						onLoad={handleImageLoaded}
+						style={{ maxWidth: '80vw', maxHeight: '80vh' }}
+					/>
+				</ReactCrop>
+				<div className="c-group mx-auto">
+					{(aspects?.length || 0) > 1 &&
+						aspects?.map((asp) => (
+							<button
+								key={asp}
+								className="c-link px-2"
+								onClick={() => changeAspect(asp)}
+							>
+								{asp == 'circle' ? <IcCircleSelect /> : asp || <IcBoxSelect />}
+							</button>
+						))}
+				</div>
+				<div className="c-group">
+					<Button primary onClick={handleSubmit}>
+						{t('Upload')}
+					</Button>
+					<Button onClick={onCancel}>{t('Cancel')}</Button>
+				</div>
 			</div>
 		</div>
-	</div>
+	)
 }
 
 // vim: ts=4

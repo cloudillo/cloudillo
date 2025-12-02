@@ -26,7 +26,13 @@ export interface WriteBlobOptions {
 }
 
 export interface BlobAdapter {
-	writeBlob: (tnId: number, fileId: string, label: string, data: BlobData, opts?: WriteBlobOptions) => Promise<void>
+	writeBlob: (
+		tnId: number,
+		fileId: string,
+		label: string,
+		data: BlobData,
+		opts?: WriteBlobOptions
+	) => Promise<void>
 	readBlob: (tnId: number, fileId: string, label?: string) => Promise<Buffer>
 	openBlob: (tnId: number, fileId: string, label?: string) => Promise<ReadStream>
 	checkBlob: (tnId: number, fileId: string, label?: string) => Promise<boolean>

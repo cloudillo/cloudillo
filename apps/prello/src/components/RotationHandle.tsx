@@ -30,11 +30,11 @@ export interface RotationHandleProps {
 	rotation: number
 	pivotX: number
 	pivotY: number
-	scale: number  // Current canvas zoom scale for consistent handle size
+	scale: number // Current canvas zoom scale for consistent handle size
 	onRotateStart: (e: React.MouseEvent) => void
-	onSnapClick?: (angle: number) => void  // Called when a snap blob is clicked
-	isRotating?: boolean  // Whether rotation drag is currently active
-	isSnapActive?: boolean  // Whether snap mode is active (mouse inside inner zone)
+	onSnapClick?: (angle: number) => void // Called when a snap blob is clicked
+	isRotating?: boolean // Whether rotation drag is currently active
+	isSnapActive?: boolean // Whether snap mode is active (mouse inside inner zone)
 }
 
 // Snap zone radius ratio (0.75 = inner 75% of arc radius triggers snapping)
@@ -63,18 +63,18 @@ export function RotationHandle({
 	const halfH = bounds.height / 2
 	// Use the diagonal distance from pivot to corner as base radius
 	const maxDist = Math.sqrt(halfW * halfW + halfH * halfH)
-	const arcRadius = maxDist + 25 / scale  // Add padding for the arc
-	const snapZoneRadius = arcRadius * SNAP_ZONE_RATIO  // Inner zone where snapping is active
+	const arcRadius = maxDist + 25 / scale // Add padding for the arc
+	const snapZoneRadius = arcRadius * SNAP_ZONE_RATIO // Inner zone where snapping is active
 
 	// Handle sizes (scale-independent)
 	const snapBlobRadius = 5 / scale
-	const activeSnapRadius = 7 / scale  // Slightly larger for the current angle
+	const activeSnapRadius = 7 / scale // Slightly larger for the current angle
 	const strokeWidth = 1.5 / scale
 	const arcStrokeWidth = 1 / scale
 
 	// Calculate snap blob positions on the arc (in unrotated space, relative to pivot)
-	const snapPoints = SNAP_ANGLES.map(angle => {
-		const radians = (angle - 90) * (Math.PI / 180)  // -90 to start from top
+	const snapPoints = SNAP_ANGLES.map((angle) => {
+		const radians = (angle - 90) * (Math.PI / 180) // -90 to start from top
 		return {
 			angle,
 			x: cx + arcRadius * Math.cos(radians),

@@ -25,11 +25,7 @@ export const InputGroup = createComponent<HTMLDivElement, InputGroupProps>(
 	'InputGroup',
 	({ className, children, ...props }, ref) => {
 		return (
-			<div
-				ref={ref}
-				className={mergeClasses('c-input-group', className)}
-				{...props}
-			>
+			<div ref={ref} className={mergeClasses('c-input-group', className)} {...props}>
 				{children}
 			</div>
 		)

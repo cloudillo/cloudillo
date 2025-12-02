@@ -25,166 +25,168 @@ import type * as Runtime from './runtime-types'
 
 // Type code mappings
 const OBJECT_TYPE_MAP: Record<Stored.ObjectTypeCode, Runtime.ObjectType> = {
-	'R': 'rect',
-	'E': 'ellipse',
-	'L': 'line',
-	'P': 'path',
-	'G': 'polygon',
-	'T': 'text',
-	'B': 'textbox',
-	'I': 'image',
-	'M': 'embed',
-	'C': 'connector'
+	R: 'rect',
+	E: 'ellipse',
+	L: 'line',
+	P: 'path',
+	G: 'polygon',
+	T: 'text',
+	B: 'textbox',
+	I: 'image',
+	M: 'embed',
+	C: 'connector'
 }
 
 const OBJECT_TYPE_REVERSE: Record<Runtime.ObjectType, Stored.ObjectTypeCode> = {
-	'rect': 'R',
-	'ellipse': 'E',
-	'line': 'L',
-	'path': 'P',
-	'polygon': 'G',
-	'text': 'T',
-	'textbox': 'B',
-	'image': 'I',
-	'embed': 'M',
-	'connector': 'C'
+	rect: 'R',
+	ellipse: 'E',
+	line: 'L',
+	path: 'P',
+	polygon: 'G',
+	text: 'T',
+	textbox: 'B',
+	image: 'I',
+	embed: 'M',
+	connector: 'C'
 }
 
 const CONTAINER_TYPE_MAP: Record<Stored.ContainerTypeCode, Runtime.ContainerType> = {
-	'L': 'layer',
-	'G': 'group'
+	L: 'layer',
+	G: 'group'
 }
 
 const CONTAINER_TYPE_REVERSE: Record<Runtime.ContainerType, Stored.ContainerTypeCode> = {
-	'layer': 'L',
-	'group': 'G'
+	layer: 'L',
+	group: 'G'
 }
 
 const BLEND_MODE_MAP: Record<Stored.BlendModeCode, Runtime.BlendMode> = {
-	'N': 'normal',
-	'M': 'multiply',
-	'S': 'screen',
-	'O': 'overlay',
-	'D': 'darken',
-	'L': 'lighten',
-	'CD': 'color-dodge',
-	'CB': 'color-burn',
-	'HL': 'hard-light',
-	'SL': 'soft-light',
-	'DF': 'difference',
-	'EX': 'exclusion'
+	N: 'normal',
+	M: 'multiply',
+	S: 'screen',
+	O: 'overlay',
+	D: 'darken',
+	L: 'lighten',
+	CD: 'color-dodge',
+	CB: 'color-burn',
+	HL: 'hard-light',
+	SL: 'soft-light',
+	DF: 'difference',
+	EX: 'exclusion'
 }
 
 const BLEND_MODE_REVERSE: Record<Runtime.BlendMode, Stored.BlendModeCode> = {
-	'normal': 'N',
-	'multiply': 'M',
-	'screen': 'S',
-	'overlay': 'O',
-	'darken': 'D',
-	'lighten': 'L',
+	normal: 'N',
+	multiply: 'M',
+	screen: 'S',
+	overlay: 'O',
+	darken: 'D',
+	lighten: 'L',
 	'color-dodge': 'CD',
 	'color-burn': 'CB',
 	'hard-light': 'HL',
 	'soft-light': 'SL',
-	'difference': 'DF',
-	'exclusion': 'EX'
+	difference: 'DF',
+	exclusion: 'EX'
 }
 
 const ARROW_TYPE_MAP: Record<Stored.ArrowTypeCode, Runtime.ArrowType> = {
-	'N': 'none',
-	'A': 'arrow',
-	'T': 'triangle',
-	'C': 'circle',
-	'D': 'diamond',
-	'B': 'bar'
+	N: 'none',
+	A: 'arrow',
+	T: 'triangle',
+	C: 'circle',
+	D: 'diamond',
+	B: 'bar'
 }
 
 const ARROW_TYPE_REVERSE: Record<Runtime.ArrowType, Stored.ArrowTypeCode> = {
-	'none': 'N',
-	'arrow': 'A',
-	'triangle': 'T',
-	'circle': 'C',
-	'diamond': 'D',
-	'bar': 'B'
+	none: 'N',
+	arrow: 'A',
+	triangle: 'T',
+	circle: 'C',
+	diamond: 'D',
+	bar: 'B'
 }
 
 const ROUTING_MAP: Record<Stored.RoutingCode, Runtime.Routing> = {
-	'S': 'straight',
-	'O': 'orthogonal',
-	'C': 'curved'
+	S: 'straight',
+	O: 'orthogonal',
+	C: 'curved'
 }
 
 const ROUTING_REVERSE: Record<Runtime.Routing, Stored.RoutingCode> = {
-	'straight': 'S',
-	'orthogonal': 'O',
-	'curved': 'C'
+	straight: 'S',
+	orthogonal: 'O',
+	curved: 'C'
 }
 
 const ANCHOR_MAP: Record<Stored.AnchorPointCode, Runtime.AnchorPointType> = {
-	'c': 'center',
-	't': 'top',
-	'b': 'bottom',
-	'l': 'left',
-	'r': 'right',
-	'tl': 'top-left',
-	'tr': 'top-right',
-	'bl': 'bottom-left',
-	'br': 'bottom-right',
-	'a': 'auto'
+	c: 'center',
+	t: 'top',
+	b: 'bottom',
+	l: 'left',
+	r: 'right',
+	tl: 'top-left',
+	tr: 'top-right',
+	bl: 'bottom-left',
+	br: 'bottom-right',
+	a: 'auto'
 }
 
 const ANCHOR_REVERSE: Record<Runtime.AnchorPointType, Stored.AnchorPointCode> = {
-	'center': 'c',
-	'top': 't',
-	'bottom': 'b',
-	'left': 'l',
-	'right': 'r',
+	center: 'c',
+	top: 't',
+	bottom: 'b',
+	left: 'l',
+	right: 'r',
 	'top-left': 'tl',
 	'top-right': 'tr',
 	'bottom-left': 'bl',
 	'bottom-right': 'br',
-	'auto': 'a'
+	auto: 'a'
 }
 
 const TEXT_ALIGN_MAP: Record<string, Runtime.TextStyle['textAlign']> = {
-	'l': 'left',
-	'c': 'center',
-	'r': 'right',
-	'j': 'justify'
+	l: 'left',
+	c: 'center',
+	r: 'right',
+	j: 'justify'
 }
 
 const TEXT_ALIGN_REVERSE: Record<string, string> = {
-	'left': 'l',
-	'center': 'c',
-	'right': 'r',
-	'justify': 'j'
+	left: 'l',
+	center: 'c',
+	right: 'r',
+	justify: 'j'
 }
 
 const VERT_ALIGN_MAP: Record<string, Runtime.TextStyle['verticalAlign']> = {
-	't': 'top',
-	'm': 'middle',
-	'b': 'bottom'
+	t: 'top',
+	m: 'middle',
+	b: 'bottom'
 }
 
 const VERT_ALIGN_REVERSE: Record<string, string> = {
-	'top': 't',
-	'middle': 'm',
-	'bottom': 'b'
+	top: 't',
+	middle: 'm',
+	bottom: 'b'
 }
 
 const TEXT_DECO_MAP: Record<string, Runtime.TextStyle['textDecoration']> = {
-	'u': 'underline',
-	's': 'line-through'
+	u: 'underline',
+	s: 'line-through'
 }
 
 const TEXT_DECO_REVERSE: Record<string, string> = {
-	'underline': 'u',
+	underline: 'u',
 	'line-through': 's',
-	'none': ''
+	none: ''
 }
 
 // Shape style conversion
-export function expandShapeStyle(stored: Stored.ShapeStyle | undefined): Runtime.ShapeStyle | undefined {
+export function expandShapeStyle(
+	stored: Stored.ShapeStyle | undefined
+): Runtime.ShapeStyle | undefined {
 	if (!stored) return undefined
 	const result: Runtime.ShapeStyle = {}
 
@@ -208,7 +210,9 @@ export function expandShapeStyle(stored: Stored.ShapeStyle | undefined): Runtime
 	return result
 }
 
-export function compactShapeStyle(runtime: Runtime.ShapeStyle | undefined): Stored.ShapeStyle | undefined {
+export function compactShapeStyle(
+	runtime: Runtime.ShapeStyle | undefined
+): Stored.ShapeStyle | undefined {
 	if (!runtime) return undefined
 	const result: Stored.ShapeStyle = {}
 
@@ -233,7 +237,9 @@ export function compactShapeStyle(runtime: Runtime.ShapeStyle | undefined): Stor
 }
 
 // Text style conversion
-export function expandTextStyle(stored: Stored.TextStyle | undefined): Runtime.TextStyle | undefined {
+export function expandTextStyle(
+	stored: Stored.TextStyle | undefined
+): Runtime.TextStyle | undefined {
 	if (!stored) return undefined
 	const result: Runtime.TextStyle = {}
 
@@ -251,7 +257,9 @@ export function expandTextStyle(stored: Stored.TextStyle | undefined): Runtime.T
 	return result
 }
 
-export function compactTextStyle(runtime: Runtime.TextStyle | undefined): Stored.TextStyle | undefined {
+export function compactTextStyle(
+	runtime: Runtime.TextStyle | undefined
+): Stored.TextStyle | undefined {
 	if (!runtime) return undefined
 	const result: Stored.TextStyle = {}
 
@@ -263,8 +271,10 @@ export function compactTextStyle(runtime: Runtime.TextStyle | undefined): Stored
 		result.td = TEXT_DECO_REVERSE[runtime.textDecoration] as 'u' | 's'
 	}
 	if (runtime.fill !== undefined) result.fc = runtime.fill
-	if (runtime.textAlign !== undefined) result.ta = TEXT_ALIGN_REVERSE[runtime.textAlign] as 'l' | 'c' | 'r' | 'j'
-	if (runtime.verticalAlign !== undefined) result.va = VERT_ALIGN_REVERSE[runtime.verticalAlign] as 't' | 'm' | 'b'
+	if (runtime.textAlign !== undefined)
+		result.ta = TEXT_ALIGN_REVERSE[runtime.textAlign] as 'l' | 'c' | 'r' | 'j'
+	if (runtime.verticalAlign !== undefined)
+		result.va = VERT_ALIGN_REVERSE[runtime.verticalAlign] as 't' | 'm' | 'b'
 	if (runtime.lineHeight !== undefined) result.lh = runtime.lineHeight
 	if (runtime.letterSpacing !== undefined) result.ls = runtime.letterSpacing
 
@@ -272,7 +282,9 @@ export function compactTextStyle(runtime: Runtime.TextStyle | undefined): Stored
 }
 
 // Arrow style conversion
-export function expandArrowStyle(stored: Stored.ArrowDef | undefined): Runtime.ArrowStyle | undefined {
+export function expandArrowStyle(
+	stored: Stored.ArrowDef | undefined
+): Runtime.ArrowStyle | undefined {
 	if (!stored) return undefined
 	return {
 		type: ARROW_TYPE_MAP[stored[0]],
@@ -281,7 +293,9 @@ export function expandArrowStyle(stored: Stored.ArrowDef | undefined): Runtime.A
 	}
 }
 
-export function compactArrowStyle(runtime: Runtime.ArrowStyle | undefined): Stored.ArrowDef | undefined {
+export function compactArrowStyle(
+	runtime: Runtime.ArrowStyle | undefined
+): Stored.ArrowDef | undefined {
 	if (!runtime || runtime.type === 'none') return undefined
 	const result: Stored.ArrowDef = [ARROW_TYPE_REVERSE[runtime.type]]
 	if (runtime.size !== undefined) result[1] = runtime.size
@@ -290,7 +304,9 @@ export function compactArrowStyle(runtime: Runtime.ArrowStyle | undefined): Stor
 }
 
 // Anchor point conversion
-export function expandAnchorPoint(stored: Stored.AnchorPoint | undefined): Runtime.AnchorPoint | undefined {
+export function expandAnchorPoint(
+	stored: Stored.AnchorPoint | undefined
+): Runtime.AnchorPoint | undefined {
 	if (!stored) return undefined
 	if (Array.isArray(stored)) {
 		return { x: stored[0], y: stored[1] }
@@ -298,7 +314,9 @@ export function expandAnchorPoint(stored: Stored.AnchorPoint | undefined): Runti
 	return ANCHOR_MAP[stored]
 }
 
-export function compactAnchorPoint(runtime: Runtime.AnchorPoint | undefined): Stored.AnchorPoint | undefined {
+export function compactAnchorPoint(
+	runtime: Runtime.AnchorPoint | undefined
+): Stored.AnchorPoint | undefined {
 	if (!runtime) return undefined
 	if (typeof runtime === 'object' && 'x' in runtime) {
 		return [runtime.x, runtime.y]

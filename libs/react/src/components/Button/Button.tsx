@@ -36,29 +36,33 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 export const Button = createComponent<HTMLButtonElement, ButtonProps>(
 	'Button',
-	({
-		className,
-		type = 'button',
-		onClick,
-		variant,
-		size,
-		mode,
-		active,
-		icon,
-		primary,
-		secondary,
-		accent,
-		link,
-		children,
-		...props
-	}, ref) => {
+	(
+		{
+			className,
+			type = 'button',
+			onClick,
+			variant,
+			size,
+			mode,
+			active,
+			icon,
+			primary,
+			secondary,
+			accent,
+			link,
+			children,
+			...props
+		},
+		ref
+	) => {
 		const [clicked, setClicked] = React.useState(false)
 
 		// Support both new variant prop and legacy boolean props
-		const variantClass = variant
-			|| (primary ? 'primary' : undefined)
-			|| (secondary ? 'secondary' : undefined)
-			|| (accent ? 'accent' : undefined)
+		const variantClass =
+			variant ||
+			(primary ? 'primary' : undefined) ||
+			(secondary ? 'secondary' : undefined) ||
+			(accent ? 'accent' : undefined)
 
 		async function handleClick(evt: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
 			evt.preventDefault()
@@ -66,7 +70,7 @@ export const Button = createComponent<HTMLButtonElement, ButtonProps>(
 			await delay(200)
 			setClicked(false)
 			if (type === 'submit') {
-				(evt.target as HTMLButtonElement).form?.requestSubmit()
+				;(evt.target as HTMLButtonElement).form?.requestSubmit()
 			} else {
 				onClick?.(evt)
 			}
@@ -82,7 +86,7 @@ export const Button = createComponent<HTMLButtonElement, ButtonProps>(
 					mode,
 					active && 'active',
 					clicked && 'clicked',
-					(icon && children) ? 'g-2' : undefined,
+					icon && children ? 'g-2' : undefined,
 					className
 				)}
 				type={type}

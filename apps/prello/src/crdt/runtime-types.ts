@@ -64,8 +64,15 @@ export interface ArrowStyle {
 
 // Anchor point types
 export type AnchorPointType =
-	| 'center' | 'top' | 'bottom' | 'left' | 'right'
-	| 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+	| 'center'
+	| 'top'
+	| 'bottom'
+	| 'left'
+	| 'right'
+	| 'top-left'
+	| 'top-right'
+	| 'bottom-left'
+	| 'bottom-right'
 	| 'auto'
 
 // Anchor point
@@ -147,8 +154,8 @@ export interface PrelloObjectBase {
 	width: number
 	height: number
 	rotation: number
-	pivotX: number  // 0-1, default 0.5 (center)
-	pivotY: number  // 0-1, default 0.5 (center)
+	pivotX: number // 0-1, default 0.5 (center)
+	pivotY: number // 0-1, default 0.5 (center)
 	opacity: number
 	visible: boolean
 	locked: boolean

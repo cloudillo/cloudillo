@@ -33,86 +33,88 @@ import { activeContextAtom, contextTokensAtom } from './atoms'
  * ```
  */
 export function useContextAwareApi(): ApiHook {
-  const [auth] = useAuth()
-  const [activeContext] = useAtom(activeContextAtom)
-  const [contextTokens] = useAtom(contextTokensAtom)
+	const [auth] = useAuth()
+	const [activeContext] = useAtom(activeContextAtom)
+	const [contextTokens] = useAtom(contextTokensAtom)
 
-  // Cache API clients
-  const apiClientsRef = React.useRef<Map<string, ApiClient>>(new Map())
+	// Cache API clients
+	const apiClientsRef = React.useRef<Map<string, ApiClient>>(new Map())
 
-  const api = React.useMemo(() => {
-    // Determine which idTag and token to use
-    let idTag: string | undefined
-    let token: string | undefined
+	const api = React.useMemo(() => {
+		// Determine which idTag and token to use
+		let idTag: string | undefined
+		let token: string | undefined
 
-    if (activeContext) {
-      // Use active context
-      idTag = activeContext.idTag
+		if (activeContext) {
+			// Use active context
+			idTag = activeContext.idTag
 
-      if (idTag === auth?.idTag) {
-        // Active context is user's own - use auth token
-        token = auth.token
-      } else {
-        // Active context is a community - use proxy token
-        const tokenData = contextTokens.get(idTag)
-        if (!tokenData || tokenData.expiresAt <= new Date()) {
-          console.warn(`No valid token for active context: ${idTag}`)
-          return null
-        }
-        token = tokenData.token
-      }
-    } else {
-      // No active context - use user's own idTag
-      idTag = auth?.idTag
-      token = auth?.token
-    }
+			if (idTag === auth?.idTag) {
+				// Active context is user's own - use auth token
+				token = auth.token
+			} else {
+				// Active context is a community - use proxy token
+				const tokenData = contextTokens.get(idTag)
+				if (!tokenData || tokenData.expiresAt <= new Date()) {
+					console.warn(`No valid token for active context: ${idTag}`)
+					return null
+				}
+				token = tokenData.token
+			}
+		} else {
+			// No active context - use user's own idTag
+			idTag = auth?.idTag
+			token = auth?.token
+		}
 
-    if (!idTag) return null
+		if (!idTag) return null
 
-    // Create cache key
-    const cacheKey = `${idTag}:${token || 'no-token'}`
+		// Create cache key
+		const cacheKey = `${idTag}:${token || 'no-token'}`
 
-    // Return cached client if exists
-    if (apiClientsRef.current.has(cacheKey)) {
-      return apiClientsRef.current.get(cacheKey)!
-    }
+		// Return cached client if exists
+		if (apiClientsRef.current.has(cacheKey)) {
+			return apiClientsRef.current.get(cacheKey)!
+		}
 
-    // Create new client
-    const client = createApiClient({
-      idTag,
-      authToken: token,
-    })
+		// Create new client
+		const client = createApiClient({
+			idTag,
+			authToken: token
+		})
 
-    // Cache it
-    apiClientsRef.current.set(cacheKey, client)
+		// Cache it
+		apiClientsRef.current.set(cacheKey, client)
 
-    // Clean up old clients (keep last 10)
-    if (apiClientsRef.current.size > 10) {
-      const keys = Array.from(apiClientsRef.current.keys())
-      const oldKey = keys[0]
-      apiClientsRef.current.delete(oldKey)
-    }
+		// Clean up old clients (keep last 10)
+		if (apiClientsRef.current.size > 10) {
+			const keys = Array.from(apiClientsRef.current.keys())
+			const oldKey = keys[0]
+			apiClientsRef.current.delete(oldKey)
+		}
 
-    return client
-  }, [activeContext, auth, contextTokens])
+		return client
+	}, [activeContext, auth, contextTokens])
 
-  // Check if we have a valid token for authentication
-  const authenticated = (() => {
-    if (activeContext) {
-      if (activeContext.idTag === auth?.idTag) {
-        return !!auth?.token
-      }
-      const tokenData = contextTokens.get(activeContext.idTag)
-      return !!tokenData && tokenData.expiresAt > new Date()
-    }
-    return !!auth?.token
-  })()
+	// Check if we have a valid token for authentication
+	const authenticated = (() => {
+		if (activeContext) {
+			if (activeContext.idTag === auth?.idTag) {
+				return !!auth?.token
+			}
+			const tokenData = contextTokens.get(activeContext.idTag)
+			return !!tokenData && tokenData.expiresAt > new Date()
+		}
+		return !!auth?.token
+	})()
 
-  return {
-    api,
-    authenticated,
-    setIdTag: () => {
-      console.warn('setIdTag() is not supported with context-aware API. Use setActiveContext() instead.')
-    }
-  }
+	return {
+		api,
+		authenticated,
+		setIdTag: () => {
+			console.warn(
+				'setIdTag() is not supported with context-aware API. Use setActiveContext() instead.'
+			)
+		}
+	}
 }

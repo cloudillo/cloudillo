@@ -90,10 +90,7 @@ export function usePrelloDocument(): UsePrelloDocumentResult {
 	const cloudillo = useCloudilloEditor(APP_NAME)
 
 	// Get document structure (without initializing defaults)
-	const doc = React.useMemo(
-		() => getOrCreateDocument(cloudillo.yDoc, false),
-		[cloudillo.yDoc]
-	)
+	const doc = React.useMemo(() => getOrCreateDocument(cloudillo.yDoc, false), [cloudillo.yDoc])
 
 	// Initialize document with defaults only after sync completes
 	// This ensures we don't overwrite server data
@@ -132,15 +129,7 @@ export function usePrelloDocument(): UsePrelloDocumentResult {
 
 	// Undo manager
 	const undoManager = React.useMemo(() => {
-		return new Y.UndoManager([
-			doc.o,
-			doc.c,
-			doc.r,
-			doc.v,
-			doc.vo,
-			doc.st,
-			doc.ch
-		], {
+		return new Y.UndoManager([doc.o, doc.c, doc.r, doc.v, doc.vo, doc.st, doc.ch], {
 			trackedOrigins: new Set([cloudillo.yDoc.clientID])
 		})
 	}, [cloudillo.yDoc, doc])
@@ -178,7 +167,7 @@ export function usePrelloDocument(): UsePrelloDocumentResult {
 
 	// Selection helpers
 	const selectObject = React.useCallback((id: ObjectId, addToSelection: boolean = false) => {
-		setSelectedIds(prev => {
+		setSelectedIds((prev) => {
 			if (addToSelection) {
 				const next = new Set(prev)
 				next.add(id)
@@ -189,10 +178,10 @@ export function usePrelloDocument(): UsePrelloDocumentResult {
 	}, [])
 
 	const selectObjects = React.useCallback((ids: ObjectId[], addToSelection: boolean = false) => {
-		setSelectedIds(prev => {
+		setSelectedIds((prev) => {
 			if (addToSelection) {
 				const next = new Set(prev)
-				ids.forEach(id => next.add(id))
+				ids.forEach((id) => next.add(id))
 				return next
 			}
 			return new Set(ids)
@@ -200,7 +189,7 @@ export function usePrelloDocument(): UsePrelloDocumentResult {
 	}, [])
 
 	const deselectObject = React.useCallback((id: ObjectId) => {
-		setSelectedIds(prev => {
+		setSelectedIds((prev) => {
 			const next = new Set(prev)
 			next.delete(id)
 			return next
@@ -211,12 +200,17 @@ export function usePrelloDocument(): UsePrelloDocumentResult {
 		setSelectedIds(new Set())
 	}, [])
 
-	const isSelected = React.useCallback((id: ObjectId) => {
-		return selectedIds.has(id)
-	}, [selectedIds])
+	const isSelected = React.useCallback(
+		(id: ObjectId) => {
+			return selectedIds.has(id)
+		},
+		[selectedIds]
+	)
 
 	// Remote presence state
-	const [remotePresence, setRemotePresence] = React.useState<Map<number, PrelloPresence>>(new Map())
+	const [remotePresence, setRemotePresence] = React.useState<Map<number, PrelloPresence>>(
+		new Map()
+	)
 
 	// Get awareness instance
 	const awareness = cloudillo.provider?.awareness ?? null
@@ -226,7 +220,7 @@ export function usePrelloDocument(): UsePrelloDocumentResult {
 		if (!awareness || !cloudillo.idTag) return
 
 		// Initialize with consistent color based on user ID
-		str2color(cloudillo.idTag).then(color => {
+		str2color(cloudillo.idTag).then((color) => {
 			awareness.setLocalStateField('user', {
 				name: cloudillo.idTag,
 				color

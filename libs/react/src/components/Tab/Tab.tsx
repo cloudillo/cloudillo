@@ -30,7 +30,10 @@ export interface TabProps extends React.HTMLAttributes<HTMLButtonElement | HTMLA
 
 export const Tab = createComponent<HTMLButtonElement | HTMLAnchorElement, TabProps>(
 	'Tab',
-	({ className, value, variant, active: activeProp, as, href, onClick, children, ...props }, ref) => {
+	(
+		{ className, value, variant, active: activeProp, as, href, onClick, children, ...props },
+		ref
+	) => {
 		const context = React.useContext(TabsContext)
 
 		// Determine if this tab is active
@@ -50,12 +53,7 @@ export const Tab = createComponent<HTMLButtonElement | HTMLAnchorElement, TabPro
 		return (
 			<Component
 				ref={ref as any}
-				className={mergeClasses(
-					'c-tab',
-					variant,
-					isActive && 'active',
-					className
-				)}
+				className={mergeClasses('c-tab', variant, isActive && 'active', className)}
 				role="tab"
 				aria-selected={isActive}
 				onClick={handleClick}

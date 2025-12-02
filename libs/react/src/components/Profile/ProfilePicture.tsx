@@ -29,12 +29,18 @@ export interface ProfilePictureProps {
 export function ProfilePicture({ className, profile, small, tiny, srcTag }: ProfilePictureProps) {
 	const [auth] = useAuth()
 
-	return <div className="c-profile-card">
-		{ auth && profile.profilePic
-			? <img className={'picture' + (tiny ? ' tiny' : small ? ' small' : '')} src={`https://cl-o.${srcTag ?? auth.idTag}/api/file/${profile.profilePic}?variant=pf`}/>
-			: <UnknownProfilePicture small={small} tiny={tiny}/>
-		}
-	</div>
+	return (
+		<div className="c-profile-card">
+			{auth && profile.profilePic ? (
+				<img
+					className={'picture' + (tiny ? ' tiny' : small ? ' small' : '')}
+					src={`https://cl-o.${srcTag ?? auth.idTag}/api/file/${profile.profilePic}?variant=pf`}
+				/>
+			) : (
+				<UnknownProfilePicture small={small} tiny={tiny} />
+			)}
+		</div>
+	)
 }
 
 // vim: ts=4

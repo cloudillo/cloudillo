@@ -108,7 +108,7 @@ export function useApi(): ApiHook {
 		// Create new client
 		const client = createApiClient({
 			idTag,
-			authToken: token,
+			authToken: token
 		})
 
 		// Cache it
@@ -127,11 +127,14 @@ export function useApi(): ApiHook {
 	const setIdTag = React.useCallback((idTag: string) => setApiState({ idTag }), [setApiState])
 	const authenticated = !!auth?.token
 
-	return React.useMemo(() => ({
-		api,
-		authenticated,
-		setIdTag
-	}), [api, authenticated, setIdTag])
+	return React.useMemo(
+		() => ({
+			api,
+			authenticated,
+			setIdTag
+		}),
+		[api, authenticated, setIdTag]
+	)
 }
 
 interface UseCloudillo {
@@ -150,35 +153,44 @@ export function useCloudillo(appNameArg?: string): UseCloudillo {
 	const [fileId, setFileId] = React.useState<string | undefined>(undefined)
 	const [ownerTag, setOwnerTag] = React.useState<string | undefined>(undefined)
 
-	React.useEffect(function () {
-		const [ownerTag, fileId] = location.hash.slice(1).split(':')
-		setOwnerTag(ownerTag)
-		setFileId(fileId)
-	}, [location.hash])
+	React.useEffect(
+		function () {
+			const [ownerTag, fileId] = location.hash.slice(1).split(':')
+			setOwnerTag(ownerTag)
+			setFileId(fileId)
+		},
+		[location.hash]
+	)
 
-	React.useEffect(function () {
-		(async function init() {
-			try {
-				const token = await cloudillo.init(appName)
-				setAuth({
-					idTag: cloudillo.idTag,
-					tnId: cloudillo.tnId ?? 0,
-					roles: cloudillo.roles,
-					token
-				})
-			} catch (e) {
-				console.error('useCloudillo INIT ERROR', e)
-			}
-		})()
-	}, [appName])
+	React.useEffect(
+		function () {
+			;(async function init() {
+				try {
+					const token = await cloudillo.init(appName)
+					setAuth({
+						idTag: cloudillo.idTag,
+						tnId: cloudillo.tnId ?? 0,
+						roles: cloudillo.roles,
+						token
+					})
+				} catch (e) {
+					console.error('useCloudillo INIT ERROR', e)
+				}
+			})()
+		},
+		[appName]
+	)
 
-	const struct = React.useMemo(() => ({
-		token: auth?.token,
-		ownerTag: ownerTag || '',
-		fileId,
-		idTag: cloudillo.idTag,
-		roles: cloudillo.roles
-	}), [auth, ownerTag, fileId])
+	const struct = React.useMemo(
+		() => ({
+			token: auth?.token,
+			ownerTag: ownerTag || '',
+			fileId,
+			idTag: cloudillo.idTag,
+			roles: cloudillo.roles
+		}),
+		[auth, ownerTag, fileId]
+	)
 
 	return struct
 }
@@ -191,29 +203,32 @@ export function useCloudilloEditor(appName: string) {
 	const [provider, setProvider] = React.useState<WebsocketProvider | undefined>(undefined)
 	const [synced, setSynced] = React.useState(false)
 
-	React.useEffect(function () {
-		if (cl.token && docId) {
-			(async function initDoc() {
-				const { provider } = await cloudillo.openYDoc(yDoc, docId)
-				setProvider(provider)
+	React.useEffect(
+		function () {
+			if (cl.token && docId) {
+				;(async function initDoc() {
+					const { provider } = await cloudillo.openYDoc(yDoc, docId)
+					setProvider(provider)
 
-				// Wait for initial sync before marking as ready
-				const handleSync = (isSynced: boolean) => {
-					if (isSynced) {
-						setSynced(true)
-						provider.off('sync', handleSync)
+					// Wait for initial sync before marking as ready
+					const handleSync = (isSynced: boolean) => {
+						if (isSynced) {
+							setSynced(true)
+							provider.off('sync', handleSync)
+						}
 					}
-				}
 
-				// Check if already synced
-				if (provider.synced) {
-					setSynced(true)
-				} else {
-					provider.on('sync', handleSync)
-				}
-			})()
-		}
-	}, [cl.token, docId])
+					// Check if already synced
+					if (provider.synced) {
+						setSynced(true)
+					} else {
+						provider.on('sync', handleSync)
+					}
+				})()
+			}
+		},
+		[cl.token, docId]
+	)
 
 	return {
 		...cl,

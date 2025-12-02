@@ -26,21 +26,23 @@ export default {
 		json(),
 		replace({
 			preventAssignment: true,
-			'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
+			'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development')
 		}),
 		resolve({
 			exportConditions: ['node'],
-			resolveOnly: module => !module.includes(['leveldown', 'sqlite3'])
+			resolveOnly: (module) => !module.includes(['leveldown', 'sqlite3'])
 		}),
 		commonjs(),
 		//isProd && terser(),
 		//isProd && terser({ toplevel: true, mangle: { properties: true, eval: true, toplevel: true }}),
-		isProd && terser({
-			toplevel: true,
-			mangle: {
-				eval: true,
-				toplevel: true
-			}}),
+		isProd &&
+			terser({
+				toplevel: true,
+				mangle: {
+					eval: true,
+					toplevel: true
+				}
+			}),
 		progress(),
 		typescript({ compilerOptions: { outDir: undefined, declaration: false } }),
 		isProd && analyze({ summaryOnly: true })

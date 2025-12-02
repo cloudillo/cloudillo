@@ -24,28 +24,28 @@
  * Maps text alignment values to CSS text-align property values
  */
 export const TEXT_ALIGN_CSS = {
-	'left': 'left',
-	'center': 'center',
-	'right': 'right',
-	'justify': 'justify'
+	left: 'left',
+	center: 'center',
+	right: 'right',
+	justify: 'justify'
 } as const
 
 /**
  * Maps vertical alignment values to CSS flexbox align-items property values
  */
 export const VERTICAL_ALIGN_CSS = {
-	'top': 'flex-start',
-	'middle': 'center',
-	'bottom': 'flex-end'
+	top: 'flex-start',
+	middle: 'center',
+	bottom: 'flex-end'
 } as const
 
 /**
  * Maps vertical alignment values to SVG dominant-baseline property values
  */
 export const VERTICAL_ALIGN_SVG = {
-	'top': 'hanging',
-	'middle': 'middle',
-	'bottom': 'auto'
+	top: 'hanging',
+	middle: 'middle',
+	bottom: 'auto'
 } as const
 
 /**
@@ -69,38 +69,38 @@ export function getTextDecorationCSS(decoration: string): string {
  * Maps internal text align codes to full string values
  */
 export const TEXT_ALIGN_FROM_CODE = {
-	'l': 'left',
-	'c': 'center',
-	'r': 'right',
-	'j': 'justify'
+	l: 'left',
+	c: 'center',
+	r: 'right',
+	j: 'justify'
 } as const
 
 /**
  * Maps full text align values to internal codes
  */
 export const TEXT_ALIGN_TO_CODE = {
-	'left': 'l',
-	'center': 'c',
-	'right': 'r',
-	'justify': 'j'
+	left: 'l',
+	center: 'c',
+	right: 'r',
+	justify: 'j'
 } as const
 
 /**
  * Maps internal vertical align codes to full string values
  */
 export const VERTICAL_ALIGN_FROM_CODE = {
-	't': 'top',
-	'm': 'middle',
-	'b': 'bottom'
+	t: 'top',
+	m: 'middle',
+	b: 'bottom'
 } as const
 
 /**
  * Maps full vertical align values to internal codes
  */
 export const VERTICAL_ALIGN_TO_CODE = {
-	'top': 't',
-	'middle': 'm',
-	'bottom': 'b'
+	top: 't',
+	middle: 'm',
+	bottom: 'b'
 } as const
 
 /**

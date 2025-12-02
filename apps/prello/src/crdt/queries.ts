@@ -18,7 +18,13 @@
  * Spatial queries and hierarchy traversal
  */
 
-import type { YPrelloDocument, StoredObject, StoredContainer, StoredView, ChildRef } from './stored-types'
+import type {
+	YPrelloDocument,
+	StoredObject,
+	StoredContainer,
+	StoredView,
+	ChildRef
+} from './stored-types'
 import type { ObjectId, ContainerId, ViewId } from './ids'
 import { toObjectId, toContainerId, toViewId } from './ids'
 import type { Point, Bounds, PrelloObject, ContainerNode, ViewNode } from './runtime-types'
@@ -34,10 +40,7 @@ import {
 /**
  * Get all objects visible in a view (pure spatial query)
  */
-export function getObjectsInView(
-	doc: YPrelloDocument,
-	viewId: ViewId
-): PrelloObject[] {
+export function getObjectsInView(doc: YPrelloDocument, viewId: ViewId): PrelloObject[] {
 	const view = doc.v.get(viewId)
 	if (!view) return []
 
@@ -56,10 +59,7 @@ export function getObjectsInView(
 /**
  * Get all object IDs visible in a view
  */
-export function getObjectIdsInView(
-	doc: YPrelloDocument,
-	viewId: ViewId
-): ObjectId[] {
+export function getObjectIdsInView(doc: YPrelloDocument, viewId: ViewId): ObjectId[] {
 	const view = doc.v.get(viewId)
 	if (!view) return []
 
@@ -82,7 +82,7 @@ export function getAllObjectsInZOrder(doc: YPrelloDocument): PrelloObject[] {
 	const result: PrelloObject[] = []
 
 	function traverse(children: ChildRef[]) {
-		children.forEach(ref => {
+		children.forEach((ref) => {
 			if (ref[0] === 0) {
 				// Object
 				const obj = doc.o.get(ref[1])
@@ -113,7 +113,7 @@ export function getAllObjectIdsInZOrder(doc: YPrelloDocument): ObjectId[] {
 	const result: ObjectId[] = []
 
 	function traverse(children: ChildRef[]) {
-		children.forEach(ref => {
+		children.forEach((ref) => {
 			if (ref[0] === 0) {
 				const obj = doc.o.get(ref[1])
 				if (obj && obj.v !== false) {
@@ -138,10 +138,7 @@ export function getAllObjectIdsInZOrder(doc: YPrelloDocument): ObjectId[] {
 /**
  * Get objects visible in a view, in z-order
  */
-export function getObjectsInViewInZOrder(
-	doc: YPrelloDocument,
-	viewId: ViewId
-): PrelloObject[] {
+export function getObjectsInViewInZOrder(doc: YPrelloDocument, viewId: ViewId): PrelloObject[] {
 	const storedView = doc.v.get(viewId)
 	if (!storedView) return []
 	const view = storedView // Non-null for use in closure
@@ -149,7 +146,7 @@ export function getObjectsInViewInZOrder(
 	const result: PrelloObject[] = []
 
 	function traverse(children: ChildRef[]) {
-		children.forEach(ref => {
+		children.forEach((ref) => {
 			if (ref[0] === 0) {
 				const obj = doc.o.get(ref[1])
 				if (obj && obj.v !== false && objectIntersectsView(doc, obj, view)) {
@@ -183,7 +180,7 @@ export function getObjectsAtPoint(
 	const allObjects = getAllObjectsInZOrder(doc)
 	const result: PrelloObject[] = []
 
-	allObjects.forEach(obj => {
+	allObjects.forEach((obj) => {
 		const bounds = getAbsoluteBoundsStored(doc, doc.o.get(obj.id)!)
 		if (pointInBounds({ x: canvasX, y: canvasY }, bounds)) {
 			result.push(obj)
@@ -205,7 +202,7 @@ export function getObjectIdsAtPoint(
 	const objectIds = getAllObjectIdsInZOrder(doc)
 	const result: ObjectId[] = []
 
-	objectIds.forEach(id => {
+	objectIds.forEach((id) => {
 		const obj = doc.o.get(id)
 		if (obj) {
 			const bounds = getAbsoluteBoundsStored(doc, obj)
@@ -245,10 +242,7 @@ export function getTopmostObjectIdAtPoint(
 /**
  * Get objects in selection rectangle
  */
-export function getObjectsInRect(
-	doc: YPrelloDocument,
-	rect: Bounds
-): PrelloObject[] {
+export function getObjectsInRect(doc: YPrelloDocument, rect: Bounds): PrelloObject[] {
 	const result: PrelloObject[] = []
 
 	doc.o.forEach((obj, id) => {
@@ -266,10 +260,7 @@ export function getObjectsInRect(
 /**
  * Get object IDs in selection rectangle
  */
-export function getObjectIdsInRect(
-	doc: YPrelloDocument,
-	rect: Bounds
-): ObjectId[] {
+export function getObjectIdsInRect(doc: YPrelloDocument, rect: Bounds): ObjectId[] {
 	const result: ObjectId[] = []
 
 	doc.o.forEach((obj, id) => {
@@ -287,10 +278,7 @@ export function getObjectIdsInRect(
 /**
  * Get objects fully contained in rectangle
  */
-export function getObjectsContainedInRect(
-	doc: YPrelloDocument,
-	rect: Bounds
-): PrelloObject[] {
+export function getObjectsContainedInRect(doc: YPrelloDocument, rect: Bounds): PrelloObject[] {
 	const result: PrelloObject[] = []
 
 	doc.o.forEach((obj, id) => {
@@ -344,7 +332,7 @@ export function getViewAtPoint(
 export function getLayers(doc: YPrelloDocument): ContainerNode[] {
 	const layers: ContainerNode[] = []
 
-	doc.r.toArray().forEach(ref => {
+	doc.r.toArray().forEach((ref) => {
 		if (ref[0] === 1) {
 			const container = doc.c.get(ref[1])
 			if (container && container.t === 'L') {
@@ -362,7 +350,7 @@ export function getLayers(doc: YPrelloDocument): ContainerNode[] {
 export function getLayerIds(doc: YPrelloDocument): ContainerId[] {
 	const layerIds: ContainerId[] = []
 
-	doc.r.toArray().forEach(ref => {
+	doc.r.toArray().forEach((ref) => {
 		if (ref[0] === 1) {
 			const container = doc.c.get(ref[1])
 			if (container && container.t === 'L') {
@@ -397,10 +385,7 @@ export function getContainerAncestry(
 /**
  * Get object's container ancestry
  */
-export function getObjectAncestry(
-	doc: YPrelloDocument,
-	objectId: ObjectId
-): ContainerNode[] {
+export function getObjectAncestry(doc: YPrelloDocument, objectId: ObjectId): ContainerNode[] {
 	const object = doc.o.get(objectId)
 	if (!object || !object.p) return []
 
@@ -421,7 +406,7 @@ export function getContainerDescendants(
 		const children = doc.ch.get(id)
 		if (!children) return
 
-		children.toArray().forEach(ref => {
+		children.toArray().forEach((ref) => {
 			if (ref[0] === 0) {
 				objects.push(toObjectId(ref[1]))
 			} else {
@@ -458,42 +443,33 @@ export function isAncestorOf(
 /**
  * Get siblings of an object (same parent)
  */
-export function getObjectSiblings(
-	doc: YPrelloDocument,
-	objectId: ObjectId
-): ObjectId[] {
+export function getObjectSiblings(doc: YPrelloDocument, objectId: ObjectId): ObjectId[] {
 	const object = doc.o.get(objectId)
 	if (!object) return []
 
-	const children = object.p
-		? doc.ch.get(object.p)
-		: doc.r
+	const children = object.p ? doc.ch.get(object.p) : doc.r
 
 	if (!children) return []
 
-	return children.toArray()
-		.filter(ref => ref[0] === 0 && ref[1] !== objectId)
-		.map(ref => toObjectId(ref[1]))
+	return children
+		.toArray()
+		.filter((ref) => ref[0] === 0 && ref[1] !== objectId)
+		.map((ref) => toObjectId(ref[1]))
 }
 
 /**
  * Get z-index of object within its parent
  */
-export function getObjectZIndex(
-	doc: YPrelloDocument,
-	objectId: ObjectId
-): number {
+export function getObjectZIndex(doc: YPrelloDocument, objectId: ObjectId): number {
 	const object = doc.o.get(objectId)
 	if (!object) return -1
 
-	const children = object.p
-		? doc.ch.get(object.p)
-		: doc.r
+	const children = object.p ? doc.ch.get(object.p) : doc.r
 
 	if (!children) return -1
 
 	const arr = children.toArray()
-	return arr.findIndex(ref => ref[0] === 0 && ref[1] === objectId)
+	return arr.findIndex((ref) => ref[0] === 0 && ref[1] === objectId)
 }
 
 /**

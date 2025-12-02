@@ -19,7 +19,13 @@
  */
 
 import * as Y from 'yjs'
-import type { YPrelloDocument, StoredStyle, StoredObject, ShapeStyle, TextStyle } from './stored-types'
+import type {
+	YPrelloDocument,
+	StoredStyle,
+	StoredObject,
+	ShapeStyle,
+	TextStyle
+} from './stored-types'
 import type { StyleId, ObjectId } from './ids'
 import { generateStyleId, toStyleId } from './ids'
 import type {
@@ -113,10 +119,7 @@ export function createStyle(
 /**
  * Get a style by ID
  */
-export function getStyle(
-	doc: YPrelloDocument,
-	styleId: StyleId
-): StoredStyle | undefined {
+export function getStyle(doc: YPrelloDocument, styleId: StyleId): StoredStyle | undefined {
 	return doc.st.get(styleId)
 }
 
@@ -130,7 +133,11 @@ export function getAllStyles(
 	const styles: Array<{ id: StyleId; style: StoredStyle }> = []
 
 	doc.st.forEach((style, id) => {
-		if (!type || (type === 'shape' && style.t === 'S') || (type === 'text' && style.t === 'T')) {
+		if (
+			!type ||
+			(type === 'shape' && style.t === 'S') ||
+			(type === 'text' && style.t === 'T')
+		) {
 			styles.push({ id: toStyleId(id), style })
 		}
 	})
@@ -158,11 +165,7 @@ export function updateStyle(
 /**
  * Delete a style
  */
-export function deleteStyle(
-	yDoc: Y.Doc,
-	doc: YPrelloDocument,
-	styleId: StyleId
-): void {
+export function deleteStyle(yDoc: Y.Doc, doc: YPrelloDocument, styleId: StyleId): void {
 	yDoc.transact(() => {
 		// Remove style references from objects that use it
 		doc.o.forEach((obj, id) => {
@@ -199,20 +202,17 @@ export function deleteStyle(
 /**
  * Get style inheritance chain (base first, derived last)
  */
-export function getStyleChain(
-	doc: YPrelloDocument,
-	styleId: StyleId
-): StoredStyle[] {
+export function getStyleChain(doc: YPrelloDocument, styleId: StyleId): StoredStyle[] {
 	const chain: StoredStyle[] = []
 	let currentId: string | undefined = styleId
-	const visited = new Set<string>()  // Prevent cycles
+	const visited = new Set<string>() // Prevent cycles
 
 	while (currentId && !visited.has(currentId)) {
 		visited.add(currentId)
 		const style = doc.st.get(currentId)
 		if (style) {
-			chain.unshift(style)  // Add to front (base first)
-			currentId = style.p   // Move to parent
+			chain.unshift(style) // Add to front (base first)
+			currentId = style.p // Move to parent
 		} else {
 			break
 		}
@@ -224,10 +224,7 @@ export function getStyleChain(
 /**
  * Resolve full shape style for an object
  */
-export function resolveShapeStyle(
-	doc: YPrelloDocument,
-	object: StoredObject
-): ResolvedShapeStyle {
+export function resolveShapeStyle(doc: YPrelloDocument, object: StoredObject): ResolvedShapeStyle {
 	// Start with defaults
 	let result = { ...DEFAULT_SHAPE_STYLE }
 
@@ -255,10 +252,7 @@ export function resolveShapeStyle(
 /**
  * Resolve full text style for an object
  */
-export function resolveTextStyle(
-	doc: YPrelloDocument,
-	object: StoredObject
-): ResolvedTextStyle {
+export function resolveTextStyle(doc: YPrelloDocument, object: StoredObject): ResolvedTextStyle {
 	// Start with defaults
 	let result = { ...DEFAULT_TEXT_STYLE }
 
@@ -300,7 +294,12 @@ function mergeShapeStyle(
 		strokeLinecap: override.sc ?? base.strokeLinecap,
 		strokeLinejoin: override.sj ?? base.strokeLinejoin,
 		shadow: override.sh
-			? { offsetX: override.sh[0], offsetY: override.sh[1], blur: override.sh[2], color: override.sh[3] }
+			? {
+					offsetX: override.sh[0],
+					offsetY: override.sh[1],
+					blur: override.sh[2],
+					color: override.sh[3]
+				}
 			: base.shadow
 	}
 }
@@ -308,24 +307,23 @@ function mergeShapeStyle(
 /**
  * Merge text style properties from stored style
  */
-function mergeTextStyle(
-	base: ResolvedTextStyle,
-	override: StoredStyle
-): ResolvedTextStyle {
+function mergeTextStyle(base: ResolvedTextStyle, override: StoredStyle): ResolvedTextStyle {
 	return {
 		fontFamily: override.ff ?? base.fontFamily,
 		fontSize: override.fs ?? base.fontSize,
 		fontWeight: override.fw ?? base.fontWeight,
 		fontItalic: override.fi ?? base.fontItalic,
 		textDecoration: override.td
-			? (override.td === 'u' ? 'underline' : 'line-through')
+			? override.td === 'u'
+				? 'underline'
+				: 'line-through'
 			: base.textDecoration,
 		fill: override.fc ?? base.fill,
 		textAlign: override.ta
-			? ({ 'l': 'left', 'c': 'center', 'r': 'right', 'j': 'justify' }[override.ta] as any)
+			? ({ l: 'left', c: 'center', r: 'right', j: 'justify' }[override.ta] as any)
 			: base.textAlign,
 		verticalAlign: override.va
-			? ({ 't': 'top', 'm': 'middle', 'b': 'bottom' }[override.va] as any)
+			? ({ t: 'top', m: 'middle', b: 'bottom' }[override.va] as any)
 			: base.verticalAlign,
 		lineHeight: override.lh ?? base.lineHeight,
 		letterSpacing: override.ls ?? base.letterSpacing
@@ -335,24 +333,23 @@ function mergeTextStyle(
 /**
  * Merge text style from stored text style (not full StoredStyle)
  */
-function mergeTextStyleFromStored(
-	base: ResolvedTextStyle,
-	override: TextStyle
-): ResolvedTextStyle {
+function mergeTextStyleFromStored(base: ResolvedTextStyle, override: TextStyle): ResolvedTextStyle {
 	return {
 		fontFamily: override.ff ?? base.fontFamily,
 		fontSize: override.fs ?? base.fontSize,
 		fontWeight: override.fw ?? base.fontWeight,
 		fontItalic: override.fi ?? base.fontItalic,
 		textDecoration: override.td
-			? (override.td === 'u' ? 'underline' : 'line-through')
+			? override.td === 'u'
+				? 'underline'
+				: 'line-through'
 			: base.textDecoration,
 		fill: override.fc ?? base.fill,
 		textAlign: override.ta
-			? ({ 'l': 'left', 'c': 'center', 'r': 'right', 'j': 'justify' }[override.ta] as any)
+			? ({ l: 'left', c: 'center', r: 'right', j: 'justify' }[override.ta] as any)
 			: base.textAlign,
 		verticalAlign: override.va
-			? ({ 't': 'top', 'm': 'middle', 'b': 'bottom' }[override.va] as any)
+			? ({ t: 'top', m: 'middle', b: 'bottom' }[override.va] as any)
 			: base.verticalAlign,
 		lineHeight: override.lh ?? base.lineHeight,
 		letterSpacing: override.ls ?? base.letterSpacing
@@ -370,19 +367,19 @@ export function applyStyleToObjects(
 	type: 'shape' | 'text' = 'shape'
 ): void {
 	yDoc.transact(() => {
-		objectIds.forEach(id => {
+		objectIds.forEach((id) => {
 			const object = doc.o.get(id)
 			if (object) {
 				const updated = { ...object }
 
 				if (type === 'shape') {
 					updated.si = styleId
-					delete updated.so  // Clear overrides
-					delete updated.s   // Clear inline style
+					delete updated.so // Clear overrides
+					delete updated.s // Clear inline style
 				} else {
 					updated.ti = styleId
-					delete updated.to  // Clear overrides
-					delete updated.ts  // Clear inline text style
+					delete updated.to // Clear overrides
+					delete updated.ts // Clear inline text style
 				}
 
 				doc.o.set(id, updated)
@@ -401,7 +398,7 @@ export function detachStyleFromObjects(
 	type: 'shape' | 'text' = 'shape'
 ): void {
 	yDoc.transact(() => {
-		objectIds.forEach(id => {
+		objectIds.forEach((id) => {
 			const object = doc.o.get(id)
 			if (!object) return
 
@@ -454,10 +451,14 @@ export function detachStyleFromObjects(
 					updated.ts.td = resolved.textDecoration === 'underline' ? 'u' : 's'
 				}
 				if (resolved.textAlign !== 'left') {
-					updated.ts.ta = { 'left': 'l', 'center': 'c', 'right': 'r', 'justify': 'j' }[resolved.textAlign] as any
+					updated.ts.ta = { left: 'l', center: 'c', right: 'r', justify: 'j' }[
+						resolved.textAlign
+					] as any
 				}
 				if (resolved.verticalAlign !== 'top') {
-					updated.ts.va = { 'top': 't', 'middle': 'm', 'bottom': 'b' }[resolved.verticalAlign] as any
+					updated.ts.va = { top: 't', middle: 'm', bottom: 'b' }[
+						resolved.verticalAlign
+					] as any
 				}
 				if (resolved.lineHeight !== 1.2) updated.ts.lh = resolved.lineHeight
 				if (resolved.letterSpacing !== 0) updated.ts.ls = resolved.letterSpacing

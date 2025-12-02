@@ -15,10 +15,17 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 export interface MessageBusAdapter {
-	subscribeOnline(subsId: string, idTag: string, callback: (idTag: string, msgType: string, payload: any) => Promise<boolean>): Promise<void>
+	subscribeOnline(
+		subsId: string,
+		idTag: string,
+		callback: (idTag: string, msgType: string, payload: any) => Promise<boolean>
+	): Promise<void>
 	unsubscribeOnline(subsId: string, idTag: string): void
 
-	subscribeOffline(subsId: string, callback: (idTag: string, msgType: string, payload: any) => Promise<boolean>): Promise<void>
+	subscribeOffline(
+		subsId: string,
+		callback: (idTag: string, msgType: string, payload: any) => Promise<boolean>
+	): Promise<void>
 	unsubscribeOffline(subsId: string): void
 
 	sendMessage(idTag: string, msgType: string, payload: any): Promise<void>

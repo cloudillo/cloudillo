@@ -27,13 +27,24 @@ export interface FcdDetailsProps {
 }
 
 export function FcdDetails({ isVisible, className, hide, children }: FcdDetailsProps) {
-	return <div className={mergeClasses('c-vbox sm-hide-dyn md-hide-dyn hide-right col-lg-3 h-100 overflow-y-auto', className, isVisible && 'show')} onClick={hide}>
-		<div className="pos-absolute top-0 right-0 bottom-0 left-0 bg-shadow lg-hide"/>
-		<Button link className="pos-absolute top-0 right-0 m-1 p-2 z-4 lg-hide" onClick={hide}><IcClose/></Button>
-		<div className="z-1 w-100 h-min-100" onClick={evt => evt.stopPropagation()}>
-			{children}
+	return (
+		<div
+			className={mergeClasses(
+				'c-vbox sm-hide-dyn md-hide-dyn hide-right col-lg-3 h-100 overflow-y-auto',
+				className,
+				isVisible && 'show'
+			)}
+			onClick={hide}
+		>
+			<div className="pos-absolute top-0 right-0 bottom-0 left-0 bg-shadow lg-hide" />
+			<Button link className="pos-absolute top-0 right-0 m-1 p-2 z-4 lg-hide" onClick={hide}>
+				<IcClose />
+			</Button>
+			<div className="z-1 w-100 h-min-100" onClick={(evt) => evt.stopPropagation()}>
+				{children}
+			</div>
 		</div>
-	</div>
+	)
 }
 
 // vim: ts=4

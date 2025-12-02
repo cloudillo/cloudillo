@@ -47,12 +47,18 @@ export function getStoreFileName(tnId: number, mediaId: string, label?: string):
 /*****************/
 /* API Functions */
 /*****************/
-export async function writeBlob(tnId: number, mediaId: string, label: string, data: BlobData, opts: { force?: boolean, public?: boolean } = {}) {
+export async function writeBlob(
+	tnId: number,
+	mediaId: string,
+	label: string,
+	data: BlobData,
+	opts: { force?: boolean; public?: boolean } = {}
+) {
 	const dir = objDir(tnId, mediaId)
 	const fn = `${mediaId}${label ? '.' + label : ''}`
 	await fs.mkdir(dir, { recursive: true })
 	try {
-	await fs.writeFile(path.join(dir, fn), data, { flag: opts.force ? 'w' : 'wx' })
+		await fs.writeFile(path.join(dir, fn), data, { flag: opts.force ? 'w' : 'wx' })
 	} catch (err) {
 		if ((err as { code?: string })?.code != 'EEXIST') throw err
 	}
@@ -62,7 +68,7 @@ export async function writeBlob(tnId: number, mediaId: string, label: string, da
 		try {
 			await fs.link(path.join(dir, fn), path.join(publicDir, fn))
 		} catch (err) {
-			console.log('LINK ERROR:', err instanceof Error ? err.toString(): err)
+			console.log('LINK ERROR:', err instanceof Error ? err.toString() : err)
 			if ((err as { code?: string })?.code != 'EEXIST') throw err
 		}
 	}
@@ -90,7 +96,6 @@ export async function checkBlob(tnId: number, mediaId: string, label?: string): 
 		return false
 	}
 }
-
 
 interface FsBlobAdapterInitOptions {
 	privateDir: string

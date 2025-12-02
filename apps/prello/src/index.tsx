@@ -23,13 +23,15 @@ import { BrowserRouter } from 'react-router-dom'
 import { PrelloApp } from './app.js'
 
 function App(props: React.PropsWithChildren<{}>) {
-	return <BrowserRouter basename="/">
-		<PrelloApp/>
-	</BrowserRouter>
+	return (
+		<BrowserRouter basename="/">
+			<PrelloApp />
+		</BrowserRouter>
+	)
 }
 
 const app = document.getElementById('app')
 const root = createRoot(app!)
-root.render(<App/>)
+root.render(<App />)
 
 // vim: ts=4

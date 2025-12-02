@@ -46,20 +46,40 @@ export function Popper({ className, menuClassName, icon, label, children, ...pro
 			}
 		}
 
-		document.addEventListener("click", handleClickOutside, true)
+		document.addEventListener('click', handleClickOutside, true)
 		return () => {
-			document.removeEventListener("click", handleClickOutside, true)
+			document.removeEventListener('click', handleClickOutside, true)
 		}
-	}, [popperEl]);
+	}, [popperEl])
 
-	return <details className={className} open={isOpen} onClick={evt => (evt.stopPropagation(), setIsOpen(!isOpen))}>
-		<summary ref={setPopperRef} className={menuClassName || "c-nav-item g-2"} onClick={evt => (evt.stopPropagation(), setIsOpen(!isOpen))}>
-			{icon}{label}
-		</summary>
-		{isOpen && createPortal(<div ref={setPopperEl} style={popperStyles.popper} onClick={evt => setIsOpen(false)} {...attributes.popper}>
-			{children}
-		</div>, document.getElementById('popper-container')!)}
-	</details>
+	return (
+		<details
+			className={className}
+			open={isOpen}
+			onClick={(evt) => (evt.stopPropagation(), setIsOpen(!isOpen))}
+		>
+			<summary
+				ref={setPopperRef}
+				className={menuClassName || 'c-nav-item g-2'}
+				onClick={(evt) => (evt.stopPropagation(), setIsOpen(!isOpen))}
+			>
+				{icon}
+				{label}
+			</summary>
+			{isOpen &&
+				createPortal(
+					<div
+						ref={setPopperEl}
+						style={popperStyles.popper}
+						onClick={(evt) => setIsOpen(false)}
+						{...attributes.popper}
+					>
+						{children}
+					</div>,
+					document.getElementById('popper-container')!
+				)}
+		</details>
+	)
 }
 
 // vim: ts=4

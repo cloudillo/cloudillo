@@ -32,23 +32,38 @@ export interface LabelElement extends PrelloElement {
 }
 
 function shiftY(y: number, fontSize: number) {
-	return y + fontSize * 16 / 1.15
+	return y + (fontSize * 16) / 1.15
 }
 
 export function Label({ element, onClick }: ElementProps<LabelElement>) {
 	const ref = React.useRef<SVGTextElement>(null)
 	const [scale, setScale] = React.useState<number | undefined>()
 
-	React.useEffect(function () {
-		const bbox = ref.current?.getBBox()
-		if (!bbox) return
+	React.useEffect(
+		function () {
+			const bbox = ref.current?.getBBox()
+			if (!bbox) return
 
-		if (element.width) {
-			setScale(element.width / bbox.width)
-		}
-	}, [ref, element.width, element.height])
+			if (element.width) {
+				setScale(element.width / bbox.width)
+			}
+		},
+		[ref, element.width, element.height]
+	)
 
-	return <text ref={ref} x={element.x} y={shiftY(element.y, scale || 1)} fill='#ffff88' fontSize={`${scale || 1}rem`} onClick={onClick} style={scale ? undefined : { opacity: 0 }}>{element.text}</text>
+	return (
+		<text
+			ref={ref}
+			x={element.x}
+			y={shiftY(element.y, scale || 1)}
+			fill="#ffff88"
+			fontSize={`${scale || 1}rem`}
+			onClick={onClick}
+			style={scale ? undefined : { opacity: 0 }}
+		>
+			{element.text}
+		</text>
+	)
 }
 
 export function EditLabel({ element, setElement, onClick }: ElementEditProps<LabelElement>) {
@@ -57,13 +72,19 @@ export function EditLabel({ element, setElement, onClick }: ElementEditProps<Lab
 	const inputRef = React.useRef<HTMLInputElement>(null)
 	const [scale, setScale] = React.useState<number | undefined>()
 	const [text, setText] = React.useState<string | undefined>()
-	const [cursor, setCursor] = React.useState<[number , number] | undefined>()
+	const [cursor, setCursor] = React.useState<[number, number] | undefined>()
 	const len = ref.current?.getNumberOfChars() || 0
-	const cursorPos = ref.current && cursor && text !== undefined
-		? [
-			(cursor[0] < len ? ref.current.getStartPositionOfChar(cursor[0])! : ref.current.getEndPositionOfChar(len - 1)!),
-			(cursor[1] < len ? ref.current.getStartPositionOfChar(cursor[1])! : ref.current.getEndPositionOfChar(len - 1)!)
-		] : undefined
+	const cursorPos =
+		ref.current && cursor && text !== undefined
+			? [
+					cursor[0] < len
+						? ref.current.getStartPositionOfChar(cursor[0])!
+						: ref.current.getEndPositionOfChar(len - 1)!,
+					cursor[1] < len
+						? ref.current.getStartPositionOfChar(cursor[1])!
+						: ref.current.getEndPositionOfChar(len - 1)!
+				]
+			: undefined
 
 	function onResize(x: number, y: number, width: number, height: number) {
 		console.log('onResize', x, y, width, height)
@@ -73,8 +94,8 @@ export function EditLabel({ element, setElement, onClick }: ElementEditProps<Lab
 	function onClickText(evt: React.MouseEvent<SVGTextElement>) {
 		evt.stopPropagation()
 		setText(element.text)
-		const point = canvas.svg!.createSVGPoint();
-		[point.x, point.y] = canvas.translateTo(evt.clientX, evt.clientY)
+		const point = canvas.svg!.createSVGPoint()
+		;[point.x, point.y] = canvas.translateTo(evt.clientX, evt.clientY)
 		point.y = element.y
 		const curs = Math.max(ref.current?.getCharNumAtPosition(point) || 0, 0)
 		console.log('curs', point, curs, ref.current?.getNumberOfChars())
@@ -90,7 +111,10 @@ export function EditLabel({ element, setElement, onClick }: ElementEditProps<Lab
 	function onFocus() {
 		if (text == undefined) {
 			setText(element.text)
-			setTimeout(() => inputRef.current?.setSelectionRange(0, inputRef.current.value.length), 0)
+			setTimeout(
+				() => inputRef.current?.setSelectionRange(0, inputRef.current.value.length),
+				0
+			)
 		}
 	}
 
@@ -102,7 +126,12 @@ export function EditLabel({ element, setElement, onClick }: ElementEditProps<Lab
 	}
 
 	function onKeyDown(evt: React.KeyboardEvent<HTMLInputElement>) {
-		console.log('keyPress', evt.key, inputRef.current?.selectionStart, inputRef.current?.selectionEnd)
+		console.log(
+			'keyPress',
+			evt.key,
+			inputRef.current?.selectionStart,
+			inputRef.current?.selectionEnd
+		)
 		switch (evt.key) {
 			case 'Escape':
 				setText(element.text)
@@ -113,71 +142,90 @@ export function EditLabel({ element, setElement, onClick }: ElementEditProps<Lab
 		}
 	}
 
-	React.useEffect(function () {
-		console.log('effect', text, !!ref.current, element.width)
-		if (!ref.current) return
+	React.useEffect(
+		function () {
+			console.log('effect', text, !!ref.current, element.width)
+			if (!ref.current) return
 
-		const bbox = ref.current?.getBBox()
+			const bbox = ref.current?.getBBox()
 
-		if (element.width) {
-			const newScale = element.width / bbox.width * (scale || 1)
-			console.log('scale', scale, newScale)
-			setScale(scale => element.width / bbox.width * (scale || 1))
-		}
-
-	}, [text || element.text, ref.current, element.width])
+			if (element.width) {
+				const newScale = (element.width / bbox.width) * (scale || 1)
+				console.log('scale', scale, newScale)
+				setScale((scale) => (element.width / bbox.width) * (scale || 1))
+			}
+		},
+		[text || element.text, ref.current, element.width]
+	)
 
 	/* HACK for missing selection event */
-	React.useEffect(function () {
-		const interval = setInterval(function pollSelection() {
-			if (inputRef.current?.selectionStart !== cursor?.[0] || inputRef.current?.selectionEnd !== cursor?.[1]) {
-				console.log('selectionchange', inputRef.current?.selectionStart, inputRef.current?.selectionEnd)
-				setCursor([inputRef.current?.selectionStart || 0, inputRef.current?.selectionEnd || 0])
-			}
-		}, 100)
+	React.useEffect(
+		function () {
+			const interval = setInterval(function pollSelection() {
+				if (
+					inputRef.current?.selectionStart !== cursor?.[0] ||
+					inputRef.current?.selectionEnd !== cursor?.[1]
+				) {
+					console.log(
+						'selectionchange',
+						inputRef.current?.selectionStart,
+						inputRef.current?.selectionEnd
+					)
+					setCursor([
+						inputRef.current?.selectionStart || 0,
+						inputRef.current?.selectionEnd || 0
+					])
+				}
+			}, 100)
 
-		return () => clearInterval(interval)
-	}, [inputRef.current, cursor, setCursor])
+			return () => clearInterval(interval)
+		},
+		[inputRef.current, cursor, setCursor]
+	)
 
-	return <>
-		{ !!cursorPos && <>
-			<rect
-				x={cursorPos[0].x}
-				y={cursorPos[0].y - (scale || 1) * 17}
-				//y={shiftY(cursorPos[0].y, scale || 1)}
-				width={Math.max(cursorPos[1].x - cursorPos[0].x, 3)}
-				height={(scale || 1) * 16 * 1.15}
-				stroke='none'
-				fill='#88f'
-			/>
-				{/*
+	return (
+		<>
+			{!!cursorPos && (
+				<>
+					<rect
+						x={cursorPos[0].x}
+						y={cursorPos[0].y - (scale || 1) * 17}
+						//y={shiftY(cursorPos[0].y, scale || 1)}
+						width={Math.max(cursorPos[1].x - cursorPos[0].x, 3)}
+						height={(scale || 1) * 16 * 1.15}
+						stroke="none"
+						fill="#88f"
+					/>
+					{/*
 				<foreignObject style={{ display: 'none' }}>
 				*/}
-		</> }
-		<text
-			ref={ref}
-			x={element.x}
-			y={shiftY(element.y, scale || 1)}
-			fill='#ffff88'
-			fontSize={`${scale}rem`}
-			style={{ lineHeight: '100%' }}
-			onClick={onClickText}
-		>
-			{text === undefined ? element.text : text}
-		</text>
-		<foreignObject x={element.x} y={element.y} width={300} height={DEBUG ? 30 : 0}>
-			<input
-				ref={inputRef}
-				autoFocus
-				value={text || ''}
-				onChange={onChange}
-				onKeyDown={onKeyDown}
-				onFocus={onFocus}
-				onBlur={onBlur}
-				style={{ color: '#000', opacity: DEBUG ? 1 : 1 }}
-			/>
-		</foreignObject>
-	</>
+				</>
+			)}
+			<text
+				ref={ref}
+				x={element.x}
+				y={shiftY(element.y, scale || 1)}
+				fill="#ffff88"
+				fontSize={`${scale}rem`}
+				style={{ lineHeight: '100%' }}
+				onClick={onClickText}
+			>
+				{text === undefined ? element.text : text}
+			</text>
+			<foreignObject x={element.x} y={element.y} width={300} height={DEBUG ? 30 : 0}>
+				<input
+					ref={inputRef}
+					autoFocus
+					value={text || ''}
+					onChange={onChange}
+					onKeyDown={onKeyDown}
+					onFocus={onFocus}
+					onBlur={onBlur}
+					style={{ color: '#000', opacity: DEBUG ? 1 : 1 }}
+				/>
+			</foreignObject>
+		</>
+	)
 }
 
 export function EditLabelGadget({ element, setElement, onClick }: ElementEditProps<LabelElement>) {
@@ -198,7 +246,17 @@ export function EditLabelGadget({ element, setElement, onClick }: ElementEditPro
 		//setElement(el => ({ ...el, y, height }))
 	}
 
-	return <EditGadget state={{ bbox: { x: element.x, y: element.y, width: element.width, height: element.height }} } onMove={onMove} onResize={onResize} onResizeX={onResizeX} onResizeY={onResizeY}/>
+	return (
+		<EditGadget
+			state={{
+				bbox: { x: element.x, y: element.y, width: element.width, height: element.height }
+			}}
+			onMove={onMove}
+			onResize={onResize}
+			onResizeX={onResizeX}
+			onResizeY={onResizeY}
+		/>
+	)
 }
 
 // vim: ts=4

@@ -37,7 +37,11 @@ export interface PresentationModeProps {
 /**
  * Simplified shape renderer for presentation mode (no interaction)
  */
-function PresentationObjectShape({ object, style, textStyle }: {
+function PresentationObjectShape({
+	object,
+	style,
+	textStyle
+}: {
 	object: PrelloObject
 	style: ReturnType<typeof resolveShapeStyle>
 	textStyle: ReturnType<typeof resolveTextStyle>
@@ -58,34 +62,43 @@ function PresentationObjectShape({ object, style, textStyle }: {
 
 	switch (object.type) {
 		case 'rect':
-			return <rect
-				x={object.x}
-				y={object.y}
-				width={object.width}
-				height={object.height}
-				rx={(object as any).cornerRadius}
-				{...fillProps}
-				{...strokeProps}
-			/>
+			return (
+				<rect
+					x={object.x}
+					y={object.y}
+					width={object.width}
+					height={object.height}
+					rx={(object as any).cornerRadius}
+					{...fillProps}
+					{...strokeProps}
+				/>
+			)
 		case 'ellipse':
-			return <ellipse
-				cx={object.x + object.width / 2}
-				cy={object.y + object.height / 2}
-				rx={object.width / 2}
-				ry={object.height / 2}
-				{...fillProps}
-				{...strokeProps}
-			/>
+			return (
+				<ellipse
+					cx={object.x + object.width / 2}
+					cy={object.y + object.height / 2}
+					rx={object.width / 2}
+					ry={object.height / 2}
+					{...fillProps}
+					{...strokeProps}
+				/>
+			)
 		case 'line':
 			const lineObj = object as any
-			const [start, end] = lineObj.points || [[0, 0], [object.width, object.height]]
-			return <line
-				x1={object.x + start[0]}
-				y1={object.y + start[1]}
-				x2={object.x + end[0]}
-				y2={object.y + end[1]}
-				{...strokeProps}
-			/>
+			const [start, end] = lineObj.points || [
+				[0, 0],
+				[object.width, object.height]
+			]
+			return (
+				<line
+					x1={object.x + start[0]}
+					y1={object.y + start[1]}
+					x2={object.x + end[0]}
+					y2={object.y + end[1]}
+					{...strokeProps}
+				/>
+			)
 		case 'text':
 			const textObj = object as any
 			const presTextContent = textObj.text || ''
@@ -102,21 +115,23 @@ function PresentationObjectShape({ object, style, textStyle }: {
 				/>
 			)
 		default:
-			return <rect
-				x={object.x}
-				y={object.y}
-				width={object.width}
-				height={object.height}
-				{...fillProps}
-				{...strokeProps}
-			/>
+			return (
+				<rect
+					x={object.x}
+					y={object.y}
+					width={object.width}
+					height={object.height}
+					{...fillProps}
+					{...strokeProps}
+				/>
+			)
 	}
 }
 
 export function PresentationMode({ doc, views, initialViewId, onExit }: PresentationModeProps) {
 	const containerRef = React.useRef<HTMLDivElement>(null)
 	const [currentIndex, setCurrentIndex] = React.useState(() => {
-		const idx = views.findIndex(v => v.id === initialViewId)
+		const idx = views.findIndex((v) => v.id === initialViewId)
 		return idx >= 0 ? idx : 0
 	})
 
@@ -157,13 +172,13 @@ export function PresentationMode({ doc, views, initialViewId, onExit }: Presenta
 				case ' ':
 				case 'PageDown':
 					e.preventDefault()
-					setCurrentIndex(i => Math.min(i + 1, views.length - 1))
+					setCurrentIndex((i) => Math.min(i + 1, views.length - 1))
 					break
 				case 'ArrowLeft':
 				case 'ArrowUp':
 				case 'PageUp':
 					e.preventDefault()
-					setCurrentIndex(i => Math.max(i - 1, 0))
+					setCurrentIndex((i) => Math.max(i - 1, 0))
 					break
 				case 'Home':
 					e.preventDefault()
@@ -191,9 +206,9 @@ export function PresentationMode({ doc, views, initialViewId, onExit }: Presenta
 		if (rect) {
 			const clickX = e.clientX - rect.left
 			if (clickX > rect.width / 2) {
-				setCurrentIndex(i => Math.min(i + 1, views.length - 1))
+				setCurrentIndex((i) => Math.min(i + 1, views.length - 1))
 			} else {
-				setCurrentIndex(i => Math.max(i - 1, 0))
+				setCurrentIndex((i) => Math.max(i - 1, 0))
 			}
 		}
 	}
@@ -231,7 +246,7 @@ export function PresentationMode({ doc, views, initialViewId, onExit }: Presenta
 					backgroundColor: currentView.backgroundColor || '#ffffff'
 				}}
 			>
-				{viewObjects.map(object => {
+				{viewObjects.map((object) => {
 					const storedObj = doc.o.get(object.id)
 					const style = storedObj
 						? resolveShapeStyle(doc, storedObj)
@@ -252,14 +267,16 @@ export function PresentationMode({ doc, views, initialViewId, onExit }: Presenta
 			</svg>
 
 			{/* Slide counter */}
-			<div style={{
-				position: 'absolute',
-				bottom: 20,
-				right: 20,
-				color: 'rgba(255,255,255,0.5)',
-				fontSize: 14,
-				fontFamily: 'system-ui'
-			}}>
+			<div
+				style={{
+					position: 'absolute',
+					bottom: 20,
+					right: 20,
+					color: 'rgba(255,255,255,0.5)',
+					fontSize: 14,
+					fontFamily: 'system-ui'
+				}}
+			>
 				{currentIndex + 1} / {views.length}
 			</div>
 

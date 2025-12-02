@@ -12,22 +12,22 @@ import LRU from 'quick-lru'
 /***********/
 /* Storage */
 /***********/
-const DB_NAME = 'db';
-const STORE_NAME = 'secrets';
+const DB_NAME = 'db'
+const STORE_NAME = 'secrets'
 
 function initDB(): Promise<IDBDatabase> {
 	return new Promise((resolve, reject) => {
 		const request = indexedDB.open(DB_NAME, 1)
 
-		request.onupgradeneeded = evt => {
+		request.onupgradeneeded = (evt) => {
 			const db = (evt.target as IDBOpenDBRequest).result
 			if (!db.objectStoreNames.contains(STORE_NAME)) {
 				db.createObjectStore(STORE_NAME)
 			}
 		}
 
-		request.onsuccess = evt => resolve((evt.target as IDBOpenDBRequest).result)
-		request.onerror = evt => reject((evt.target as IDBOpenDBRequest).error)
+		request.onsuccess = (evt) => resolve((evt.target as IDBOpenDBRequest).result)
+		request.onerror = (evt) => reject((evt.target as IDBOpenDBRequest).error)
 	})
 }
 
@@ -40,7 +40,7 @@ async function setItem(key: string, value: string) {
 		const request = store.put(value, key)
 
 		request.onsuccess = () => resolve(true)
-		request.onerror = evt => reject((evt.target as IDBRequest).error)
+		request.onerror = (evt) => reject((evt.target as IDBRequest).error)
 	})
 }
 
@@ -52,8 +52,8 @@ async function getItem(key: string) {
 
 		const request = store.get(key)
 
-		request.onsuccess = evt => resolve((evt.target as IDBRequest).result)
-		request.onerror = evt => reject((evt.target as IDBRequest).error)
+		request.onsuccess = (evt) => resolve((evt.target as IDBRequest).result)
+		request.onerror = (evt) => reject((evt.target as IDBRequest).error)
 	})
 }
 
@@ -68,20 +68,24 @@ let idTag: string | undefined
 let authToken: string | undefined
 
 function onInstall(evt: any) {
-	evt.waitUntil(async function () {
-		console.log('[SW] INSTALL')
-		let cache = await caches.open(CACHE)
-		await cache.addAll(PRECACHE_URLS)
-		;(self as any).skipWaiting()
-	}())
+	evt.waitUntil(
+		(async function () {
+			console.log('[SW] INSTALL')
+			let cache = await caches.open(CACHE)
+			await cache.addAll(PRECACHE_URLS)
+			;(self as any).skipWaiting()
+		})()
+	)
 }
 
 function onActivate(evt: any) {
-	evt.waitUntil(async function () {
-		let cacheList = (await caches.keys()).filter(name => name !== CACHE)
-		await Promise.all(cacheList.map(name => caches.delete(name)))
-		await (self as any).clients.claim()
-	}())
+	evt.waitUntil(
+		(async function () {
+			let cacheList = (await caches.keys()).filter((name) => name !== CACHE)
+			await Promise.all(cacheList.map((name) => caches.delete(name)))
+			await (self as any).clients.claim()
+		})()
+	)
 }
 
 let fetchIdTagPromise: Promise<string> | undefined
@@ -90,7 +94,7 @@ async function fetchIdTag() {
 		const res = await fetch('/.well-known/cloudillo/id-tag')
 		return (await res.json()).idTag
 	} catch (err) {
-		console.error("[SW] failed to fetch idTag", err)
+		console.error('[SW] failed to fetch idTag', err)
 	}
 }
 
@@ -104,41 +108,48 @@ function onFetch(evt: any) {
 		return
 	}
 
-	evt.respondWith(async function () {
-		if (!idTag) {
-			log && console.log('[SW] fetching idTag')
-			if (!fetchIdTagPromise) fetchIdTagPromise = fetchIdTag()
-			idTag = await fetchIdTagPromise
-			log && console.log('[SW] idTag:', idTag)
-		}
+	evt.respondWith(
+		(async function () {
+			if (!idTag) {
+				log && console.log('[SW] fetching idTag')
+				if (!fetchIdTagPromise) fetchIdTagPromise = fetchIdTag()
+				idTag = await fetchIdTagPromise
+				log && console.log('[SW] idTag:', idTag)
+			}
 
-		if (reqUrl.hostname == 'cl-o.' + idTag) {
-			// Handle requests to our own idTag
-			log && console.log('[SW] OWN FETCH', evt.request.method, reqUrl.pathname)
-			try {
-				let request = evt.request
-				if (authToken && !evt.request.headers.get('Authorization')) {
-					log && console.log('[SW] OWN FETCH inserting token')
-					const headers = new Headers(evt.request.headers)
-					headers.set('Authorization', `Bearer ${authToken}`)
-					//request = new Request(evt.request, { headers: headers, mode: request.mode })
-					request = new Request(evt.request, { headers: headers, mode: 'cors' })
-				}
-
-				const origRes = fetch(request)
-
-				if (['/api/auth/login-token', '/api/auth/login', '/api/auth/set-password'].includes(reqUrl.pathname)) {
-					// Extract token from response
-					const res = (await origRes).clone()
-					log && console.log('[SW] OWN RES', res.status)
-					const j = await res.json()
-					log && console.log('[SW] OWN RES BODY', j)
-					if (j.data?.token) {
-						log && console.log('[SW] OWN RES TOKEN')
-						authToken = j.data?.token
-						//await setItem('authToken', j.token)
+			if (reqUrl.hostname == 'cl-o.' + idTag) {
+				// Handle requests to our own idTag
+				log && console.log('[SW] OWN FETCH', evt.request.method, reqUrl.pathname)
+				try {
+					let request = evt.request
+					if (authToken && !evt.request.headers.get('Authorization')) {
+						log && console.log('[SW] OWN FETCH inserting token')
+						const headers = new Headers(evt.request.headers)
+						headers.set('Authorization', `Bearer ${authToken}`)
+						//request = new Request(evt.request, { headers: headers, mode: request.mode })
+						request = new Request(evt.request, { headers: headers, mode: 'cors' })
 					}
-					/*
+
+					const origRes = fetch(request)
+
+					if (
+						[
+							'/api/auth/login-token',
+							'/api/auth/login',
+							'/api/auth/set-password'
+						].includes(reqUrl.pathname)
+					) {
+						// Extract token from response
+						const res = (await origRes).clone()
+						log && console.log('[SW] OWN RES', res.status)
+						const j = await res.json()
+						log && console.log('[SW] OWN RES BODY', j)
+						if (j.data?.token) {
+							log && console.log('[SW] OWN RES TOKEN')
+							authToken = j.data?.token
+							//await setItem('authToken', j.token)
+						}
+						/*
 					const cleanedRes = new Response(JSON.stringify({ ...j, token: undefined }), {
 						status: res.status,
 						statusText: res.statusText,
@@ -146,60 +157,69 @@ function onFetch(evt: any) {
 					})
 					return cleanedRes
 					*/
-
+					}
+					return origRes
+				} catch (err) {
+					log && console.log('[SW] FETCH ERROR', err)
 				}
-				return origRes
-			} catch (err) {
-				log && console.log('[SW] FETCH ERROR', err)
-			}
-		} else if (reqUrl.hostname.startsWith('cl-o.')
-			&& reqUrl.hostname != 'cl-o.' + idTag
-			&& reqUrl.pathname.startsWith('/api/')
-		) {
-			// Handle requests to other idTags
-			log && console.log('[SW] FETCH API', evt.request.method, evt.request.url)
-			const targetTag = new URL(evt.request.url).hostname.replace('cl-o.', '')
+			} else if (
+				reqUrl.hostname.startsWith('cl-o.') &&
+				reqUrl.hostname != 'cl-o.' + idTag &&
+				reqUrl.pathname.startsWith('/api/')
+			) {
+				// Handle requests to other idTags
+				log && console.log('[SW] FETCH API', evt.request.method, evt.request.url)
+				const targetTag = new URL(evt.request.url).hostname.replace('cl-o.', '')
 
-			log && console.log('[SW] PROXY TOKEN: ' + idTag + '/api/auth/proxy-token -> ' + targetTag)
-			try {
-				const headers = new Headers(evt.request.headers)
-				headers.set('Origin', location.origin)
+				log &&
+					console.log(
+						'[SW] PROXY TOKEN: ' + idTag + '/api/auth/proxy-token -> ' + targetTag
+					)
+				try {
+					const headers = new Headers(evt.request.headers)
+					headers.set('Origin', location.origin)
 
-				if (authToken) {
-					//let token = proxyTokenCache[targetTag]
-					let token = proxyTokenCache.get(targetTag)
+					if (authToken) {
+						//let token = proxyTokenCache[targetTag]
+						let token = proxyTokenCache.get(targetTag)
 
-					if (!token) {
-						const proxyTokenRes = await fetch('https://cl-o.' + idTag + `/api/auth/proxy-token?idTag=${targetTag}`, { credentials: 'include' })
-						token = (await proxyTokenRes.json())?.data?.token
-						log && console.log('PROXY TOKEN miss', idTag, targetTag, token)
-						// FIXME: expiration
-						if (token) proxyTokenCache.set(targetTag, token)
-					} else {
-						log && console.log('PROXY TOKEN cached', idTag, targetTag, token)
+						if (!token) {
+							const proxyTokenRes = await fetch(
+								'https://cl-o.' +
+									idTag +
+									`/api/auth/proxy-token?idTag=${targetTag}`,
+								{ credentials: 'include' }
+							)
+							token = (await proxyTokenRes.json())?.data?.token
+							log && console.log('PROXY TOKEN miss', idTag, targetTag, token)
+							// FIXME: expiration
+							if (token) proxyTokenCache.set(targetTag, token)
+						} else {
+							log && console.log('PROXY TOKEN cached', idTag, targetTag, token)
+						}
+
+						if (token) headers.set('Authorization', `Bearer ${token}`)
+						//const request = new Request(evt.request, { headers, credentials: 'include' })
 					}
 
-					if (token) headers.set('Authorization', `Bearer ${token}`)
-					//const request = new Request(evt.request, { headers, credentials: 'include' })
+					const request = new Request(evt.request, { headers, mode: 'cors' })
+					log &&
+						console.log('[SW] request', request, {
+							origin: headers.get('Origin'),
+							authorization: headers.get('Authorization')
+						})
+					const res = await fetch(request)
+					log && console.log('[SW] NOCACHE', res)
+					return res
+				} catch (err) {
+					console.log('[SW] FETCH ERROR', err)
+					throw err
 				}
-
-				const request = new Request(evt.request, { headers, mode: 'cors' })
-				log && console.log('[SW] request', request, {
-					origin: headers.get('Origin'),
-					authorization: headers.get('Authorization')
-				})
-				const res = await fetch(request)
-				log && console.log('[SW] NOCACHE', res)
-				return res
-			} catch (err) {
-				console.log('[SW] FETCH ERROR', err)
-				throw err
 			}
-		}
 
-		log && console.log('[SW] FETCH NO-API', evt.request.method, evt.request.url)
+			log && console.log('[SW] FETCH NO-API', evt.request.method, evt.request.url)
 
-		/*
+			/*
 		if (evt.request.method !== 'GET' || !evt.request.url.startsWith(self.location.origin)) {
 			return
 		}
@@ -209,12 +229,12 @@ function onFetch(evt: any) {
 		if (evt.request.cache === 'only-if-cached' && evt.request.mode !== 'same-origin') return
 		*/
 
-		// DISABLE CACHE:
-		const res = await fetch(evt.request)
-		log && console.log('[SW] NOCACHE', res)
-		return res
+			// DISABLE CACHE:
+			const res = await fetch(evt.request)
+			log && console.log('[SW] NOCACHE', res)
+			return res
 
-		/*
+			/*
 		res = await caches.match(evt.request)
 		if (res) {
 			log && console.log('[SW] CACHE HIT', evt.request.url)
@@ -239,26 +259,28 @@ function onFetch(evt: any) {
 			return null
 		}
 		*/
-	}())
+		})()
+	)
 }
 
 function onPushSubscriptionChange(evt: any) {
 	console.log('Subscription expired')
 	evt.waitUntil(
-		(self as any).registration.pushManager.subscribe({userVisibleOnly: true})
-			.then(function (subs: PushSubscription) {
-				console.log('Subscribed after expiration', JSON.stringify(subs))
-				return fetch('/api/notification/subscription', {
-					method: 'post',
-					headers: {
-						'Content-type': 'application/json'
-					},
-					body: JSON.stringify({
-						oldSubscription: evt.oldSubscription,
-						subscription: subs
-					})
+		(self as any).registration.pushManager.subscribe({ userVisibleOnly: true }).then(function (
+			subs: PushSubscription
+		) {
+			console.log('Subscribed after expiration', JSON.stringify(subs))
+			return fetch('/api/notification/subscription', {
+				method: 'post',
+				headers: {
+					'Content-type': 'application/json'
+				},
+				body: JSON.stringify({
+					oldSubscription: evt.oldSubscription,
+					subscription: subs
 				})
 			})
+		})
 	)
 }
 
@@ -283,20 +305,25 @@ function onPush(evt: any) {
 function onNotificationClick(evt: any) {
 	console.log('notification click', evt)
 	if (evt.notification && evt.notification.close) evt.notification.close()
-	evt.waitUntil((self as any).clients.matchAll({
-		type: 'window'
-	}).then(function (clientList: any) {
-		for (let i = 0; i < clientList.length; i++) {
-			let client = clientList[i]
-			//if (client.url == '/' && 'focus' in client) {
-			if ('focus' in client) {
-				console.log('CLIENT', client)
-				client.navigate(evt.notification.data.path || '/')
-				return client.focus()
-			}
-		}
-		if ((self as any).clients.openWindow) return (self as any).clients.openWindow(evt.notification.data.path || '/')
-	}))
+	evt.waitUntil(
+		(self as any).clients
+			.matchAll({
+				type: 'window'
+			})
+			.then(function (clientList: any) {
+				for (let i = 0; i < clientList.length; i++) {
+					let client = clientList[i]
+					//if (client.url == '/' && 'focus' in client) {
+					if ('focus' in client) {
+						console.log('CLIENT', client)
+						client.navigate(evt.notification.data.path || '/')
+						return client.focus()
+					}
+				}
+				if ((self as any).clients.openWindow)
+					return (self as any).clients.openWindow(evt.notification.data.path || '/')
+			})
+	)
 }
 
 self.addEventListener('install', onInstall as EventListener)

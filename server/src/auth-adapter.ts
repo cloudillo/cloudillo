@@ -17,10 +17,10 @@
 import * as T from '@symbion/runtype'
 
 export const tAccessToken = T.struct({
-	t: T.string,							// tenantTag
-	u: T.optional(T.string),				// User idTag
-	r: T.optional(T.array(T.string)),		// Roles
-	sub: T.optional(T.string)				// Subject ("resourceId:permission") for restricted access
+	t: T.string, // tenantTag
+	u: T.optional(T.string), // User idTag
+	r: T.optional(T.array(T.string)), // Roles
+	sub: T.optional(T.string) // Subject ("resourceId:permission") for restricted access
 })
 export type AccessToken = T.TypeOf<typeof tAccessToken>
 
@@ -52,11 +52,13 @@ export type ProxyToken = T.TypeOf<typeof tProxyToken>
 export const tAuthProfile = T.struct({
 	idTag: T.string,
 	roles: T.optional(T.array(T.string)),
-	keys: T.array(T.struct({
-		keyId: T.string,
-		publicKey: T.string,
-		expires: T.optional(T.number)
-	}))
+	keys: T.array(
+		T.struct({
+			keyId: T.string,
+			publicKey: T.string,
+			expires: T.optional(T.number)
+		})
+	)
 })
 export type AuthProfile = T.TypeOf<typeof tAuthProfile>
 
@@ -71,7 +73,7 @@ export const tAuthKeyData = T.struct({
 	id: T.number,
 	idTag: T.string,
 	keyId: T.string,
-	publicKey: T.string,
+	publicKey: T.string
 	//privateKey: T.string
 })
 export type AuthKeyData = T.TypeOf<typeof tAuthKeyData>
@@ -100,8 +102,8 @@ export interface AuthAdapter {
 	getAuthPasswordById: (tenantId: number) => Promise<AuthPasswordData | undefined>
 	setAuthPassword: (idTag: string, password: string) => Promise<void>
 	getAuthKey: (idTag: string) => Promise<AuthKeyData | undefined>
-	getAuthKeyById: (tnId: number ) => Promise<AuthKeyData | undefined>
-	getVapidKeys: (tnId: number) => Promise<{ vapidPublicKey: string, vapidPrivateKey: string }>
+	getAuthKeyById: (tnId: number) => Promise<AuthKeyData | undefined>
+	getVapidKeys: (tnId: number) => Promise<{ vapidPublicKey: string; vapidPrivateKey: string }>
 	getVapidPublicKey: (tnId: number) => Promise<string>
 	storeVapidKeys: (tnId: number, vapidPublicKey: string, vapidPrivateKey: string) => Promise<void>
 	setGlobal: (key: string, value: string) => Promise<void>
@@ -109,18 +111,46 @@ export interface AuthAdapter {
 	createTenantRegistration: (email: string) => Promise<void>
 	createTenant: (idTag: string, data: CreateTenantData) => Promise<number>
 	deleteTenant: (tnId: number) => Promise<void>
-	storeTenantCert: (tnId: number, idTag: string, domain: string, cert: string, key: string, expires: Date) => Promise<void>
-	processCertRenewals: (callback: (tnId: number, idTag: string, domain: string, expires: Date) => Promise<boolean>) => Promise<number>
-	getCertByTag: (idTag: string) => Promise<{ tnId: number, idTag: string, domain?: string, cert: string, key: string } | undefined>
-	getCertByDomain: (domain: string) => Promise<{ tnId: number, idTag: string, domain?: string, cert: string, key: string } | undefined>
+	storeTenantCert: (
+		tnId: number,
+		idTag: string,
+		domain: string,
+		cert: string,
+		key: string,
+		expires: Date
+	) => Promise<void>
+	processCertRenewals: (
+		callback: (tnId: number, idTag: string, domain: string, expires: Date) => Promise<boolean>
+	) => Promise<number>
+	getCertByTag: (
+		idTag: string
+	) => Promise<
+		{ tnId: number; idTag: string; domain?: string; cert: string; key: string } | undefined
+	>
+	getCertByDomain: (
+		domain: string
+	) => Promise<
+		{ tnId: number; idTag: string; domain?: string; cert: string; key: string } | undefined
+	>
 	listWebauthnCredentials: (tnId: number) => Promise<WebauthnData[]>
 	getWebauthnCredential: (tnId: number, credentialId: string) => Promise<WebauthnData | undefined>
 	createWebauthnCredential: (tnId: number, data: WebauthnData) => Promise<void>
-	updateWebauthnCredentialCounter: (tnId: number, credentialId: string, counter: number) => Promise<void>
+	updateWebauthnCredentialCounter: (
+		tnId: number,
+		credentialId: string,
+		counter: number
+	) => Promise<void>
 	deleteWebauthnCredential: (tnId: number, credentialId: string) => Promise<void>
-	createKey: (tnId: number) => Promise<{ keyId: string, publicKey: string }>
-	createToken: (tnId: number, data: Omit<ActionToken, 'iss' | 'k' | 'iat' | 'exp'>, opts?: { expiresIn?: string, expiresAt?: number }) => Promise<string | undefined>
-	createAccessToken: (data: AccessToken, opts?: { expiresIn?: string, expiresAt?: number }) => Promise<string>
+	createKey: (tnId: number) => Promise<{ keyId: string; publicKey: string }>
+	createToken: (
+		tnId: number,
+		data: Omit<ActionToken, 'iss' | 'k' | 'iat' | 'exp'>,
+		opts?: { expiresIn?: string; expiresAt?: number }
+	) => Promise<string | undefined>
+	createAccessToken: (
+		data: AccessToken,
+		opts?: { expiresIn?: string; expiresAt?: number }
+	) => Promise<string>
 	verifyAccessToken: (tenantTag: string, token: string) => Promise<AccessToken | undefined>
 }
 

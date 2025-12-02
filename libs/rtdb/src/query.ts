@@ -15,12 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { WebSocketManager } from './websocket.js'
-import {
-	QueryFilter,
-	QuerySnapshot,
-	ChangeEvent,
-	QueryMessage
-} from './types.js'
+import { QueryFilter, QuerySnapshot, ChangeEvent, QueryMessage } from './types.js'
 import { QuerySnapshotImpl, createDocumentFromEvent, normalizePath } from './utils.js'
 
 export class Query<T = any> {

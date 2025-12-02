@@ -32,17 +32,21 @@ export function ShapeSection({ doc, yDoc, object }: ShapeSectionProps) {
 	if (object.type !== 'rect') return null
 
 	const rectObject = object as RectObject
-	const cornerRadius = typeof rectObject.cornerRadius === 'number'
-		? rectObject.cornerRadius
-		: Array.isArray(rectObject.cornerRadius)
-			? rectObject.cornerRadius[0]
-			: 0
+	const cornerRadius =
+		typeof rectObject.cornerRadius === 'number'
+			? rectObject.cornerRadius
+			: Array.isArray(rectObject.cornerRadius)
+				? rectObject.cornerRadius[0]
+				: 0
 
-	const handleCornerRadiusChange = React.useCallback((value: number) => {
-		updateObject(yDoc, doc, object.id as ObjectId, {
-			cornerRadius: Math.max(0, value)
-		})
-	}, [yDoc, doc, object.id])
+	const handleCornerRadiusChange = React.useCallback(
+		(value: number) => {
+			updateObject(yDoc, doc, object.id as ObjectId, {
+				cornerRadius: Math.max(0, value)
+			})
+		},
+		[yDoc, doc, object.id]
+	)
 
 	return (
 		<PropertySection title="Shape" defaultExpanded>

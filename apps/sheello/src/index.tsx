@@ -21,13 +21,15 @@ import { BrowserRouter } from 'react-router-dom'
 import { SheelloApp } from './app.js'
 
 function App(props: React.PropsWithChildren<{}>) {
-	return <BrowserRouter basename="/">
-		<SheelloApp/>
-	</BrowserRouter>
+	return (
+		<BrowserRouter basename="/">
+			<SheelloApp />
+		</BrowserRouter>
+	)
 }
 
 const app = document.getElementById('app')
 const root = createRoot(app!)
-root.render(<App/>)
+root.render(<App />)
 
 // vim: ts=4

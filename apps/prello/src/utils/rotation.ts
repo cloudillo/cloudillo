@@ -69,10 +69,7 @@ export function rotatePointAroundCenter(
 ): [number, number] {
 	const dx = x - cx
 	const dy = y - cy
-	return [
-		cx + dx * matrix.cos - dy * matrix.sin,
-		cy + dx * matrix.sin + dy * matrix.cos
-	]
+	return [cx + dx * matrix.cos - dy * matrix.sin, cy + dx * matrix.sin + dy * matrix.cos]
 }
 
 /**
@@ -98,10 +95,7 @@ export function unrotatePointAroundCenter(
 	const dx = x - cx
 	const dy = y - cy
 	// Inverse rotation: use -angle (which means swap signs on sin terms)
-	return [
-		cx + dx * matrix.cos + dy * matrix.sin,
-		cy - dx * matrix.sin + dy * matrix.cos
-	]
+	return [cx + dx * matrix.cos + dy * matrix.sin, cy - dx * matrix.sin + dy * matrix.cos]
 }
 
 /**
@@ -114,15 +108,8 @@ export function unrotatePointAroundCenter(
  * @param matrix - Pre-calculated rotation matrix
  * @returns Tuple of [localDx, localDy]
  */
-export function unrotateDelta(
-	dx: number,
-	dy: number,
-	matrix: RotationMatrix
-): [number, number] {
-	return [
-		dx * matrix.cos + dy * matrix.sin,
-		-dx * matrix.sin + dy * matrix.cos
-	]
+export function unrotateDelta(dx: number, dy: number, matrix: RotationMatrix): [number, number] {
+	return [dx * matrix.cos + dy * matrix.sin, -dx * matrix.sin + dy * matrix.cos]
 }
 
 /**
@@ -133,15 +120,8 @@ export function unrotateDelta(
  * @param matrix - Pre-calculated rotation matrix
  * @returns Tuple of [screenDx, screenDy]
  */
-export function rotateDelta(
-	dx: number,
-	dy: number,
-	matrix: RotationMatrix
-): [number, number] {
-	return [
-		dx * matrix.cos - dy * matrix.sin,
-		dx * matrix.sin + dy * matrix.cos
-	]
+export function rotateDelta(dx: number, dy: number, matrix: RotationMatrix): [number, number] {
+	return [dx * matrix.cos - dy * matrix.sin, dx * matrix.sin + dy * matrix.cos]
 }
 
 /**

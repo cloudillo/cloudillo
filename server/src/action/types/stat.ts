@@ -16,7 +16,7 @@
 
 import * as T from '@symbion/runtype'
 
-import { registerActionType, ActionContext, Action, NewAction, createAction } from "../action.js";
+import { registerActionType, ActionContext, Action, NewAction, createAction } from '../action.js'
 import { metaAdapter } from '../../adapters.js'
 
 const tStatContent = T.type({
@@ -43,7 +43,8 @@ async function inboundHook({ tnId, idTag }: ActionContext, actionId: string, act
 	const contentRes = T.decode(tStatContent, action.content)
 	if (T.isOk(contentRes)) {
 		const { r, c } = contentRes.ok
-		if (action.parentId) await metaAdapter.updateActionData(tnId, action.parentId, { reactions: r, comments: c })
+		if (action.parentId)
+			await metaAdapter.updateActionData(tnId, action.parentId, { reactions: r, comments: c })
 	}
 }
 
@@ -56,7 +57,7 @@ export default function init() {
 		t: tStat,
 		generateKey,
 		broadcast: true,
-		inboundHook,
+		inboundHook
 	})
 }
 

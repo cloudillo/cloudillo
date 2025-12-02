@@ -26,14 +26,14 @@ import { accessToken } from '@cloudillo/base'
 
 // Create client
 const db = createRtdbClient({
-  dbId: 'my-database',
-  auth: {
-    getToken: () => accessToken
-  },
-  serverUrl: 'wss://cl-o.alice.example.com',
-  options: {
-    debug: true
-  }
+	dbId: 'my-database',
+	auth: {
+		getToken: () => accessToken
+	},
+	serverUrl: 'wss://cl-o.alice.example.com',
+	options: {
+		debug: true
+	}
 })
 
 // Connect
@@ -41,9 +41,9 @@ await db.connect()
 
 // Create document
 const ref = await db.collection('posts').create({
-  title: 'Hello World',
-  author: 'alice',
-  published: true
+	title: 'Hello World',
+	author: 'alice',
+	published: true
 })
 
 console.log('Created post:', ref.id)
@@ -51,18 +51,18 @@ console.log('Created post:', ref.id)
 // Read document
 const doc = await ref.get()
 if (doc.exists) {
-  console.log('Post:', doc.data())
+	console.log('Post:', doc.data())
 }
 
 // Subscribe to changes
 const unsubscribe = ref.onSnapshot((doc) => {
-  console.log('Post updated:', doc.data())
+	console.log('Post updated:', doc.data())
 })
 
 // Update document
 await ref.update({
-  title: 'Updated Title',
-  views: { $op: 'increment', by: 1 }
+	title: 'Updated Title',
+	views: { $op: 'increment', by: 1 }
 })
 
 // Delete document
@@ -82,15 +82,16 @@ await db.disconnect()
 Creates a new RTDB client instance.
 
 **Parameters:**
+
 - `dbId` (string) - Database identifier
 - `auth.getToken()` (function) - Returns auth token
 - `serverUrl` (string) - WebSocket server URL (wss://...)
 - `options` (object):
-  - `enableCache` (boolean) - Enable IndexedDB caching (default: false)
-  - `reconnect` (boolean) - Auto-reconnect on disconnect (default: true)
-  - `reconnectDelay` (number) - Initial reconnect delay in ms (default: 1000)
-  - `maxReconnectDelay` (number) - Max reconnect delay in ms (default: 30000)
-  - `debug` (boolean) - Enable debug logging (default: false)
+    - `enableCache` (boolean) - Enable IndexedDB caching (default: false)
+    - `reconnect` (boolean) - Auto-reconnect on disconnect (default: true)
+    - `reconnectDelay` (number) - Initial reconnect delay in ms (default: 1000)
+    - `maxReconnectDelay` (number) - Max reconnect delay in ms (default: 30000)
+    - `debug` (boolean) - Enable debug logging (default: false)
 
 **Returns:** `RtdbClient` instance
 
@@ -154,8 +155,8 @@ Creates a new document with auto-generated ID.
 
 ```typescript
 const ref = await db.collection('posts').create({
-  title: 'Hello',
-  author: 'alice'
+	title: 'Hello',
+	author: 'alice'
 })
 console.log('Created with ID:', ref.id)
 ```
@@ -167,7 +168,7 @@ Fetches all documents in collection.
 ```typescript
 const snapshot = await db.collection('posts').get()
 snapshot.forEach((doc) => {
-  console.log(doc.id, doc.data())
+	console.log(doc.id, doc.data())
 })
 ```
 
@@ -177,14 +178,14 @@ Subscribes to collection changes.
 
 ```typescript
 const unsubscribe = db.collection('posts').onSnapshot(
-  (snapshot) => {
-    snapshot.docChanges().forEach((change) => {
-      console.log(change.type, change.doc.data())
-    })
-  },
-  (error) => {
-    console.error('Subscription error:', error)
-  }
+	(snapshot) => {
+		snapshot.docChanges().forEach((change) => {
+			console.log(change.type, change.doc.data())
+		})
+	},
+	(error) => {
+		console.error('Subscription error:', error)
+	}
 )
 
 // Later: unsubscribe()
@@ -195,9 +196,7 @@ const unsubscribe = db.collection('posts').onSnapshot(
 Filters collection by field value.
 
 ```typescript
-const published = db.collection('posts')
-  .where('published', '==', true)
-  .get()
+const published = db.collection('posts').where('published', '==', true).get()
 ```
 
 #### `collection.orderBy(field, direction?)`
@@ -205,10 +204,7 @@ const published = db.collection('posts')
 Sorts results by field.
 
 ```typescript
-const recent = db.collection('posts')
-  .orderBy('createdAt', 'desc')
-  .limit(10)
-  .get()
+const recent = db.collection('posts').orderBy('createdAt', 'desc').limit(10).get()
 ```
 
 #### `collection.limit(n)`
@@ -216,9 +212,7 @@ const recent = db.collection('posts')
 Limits number of results.
 
 ```typescript
-const topPosts = db.collection('posts')
-  .limit(10)
-  .get()
+const topPosts = db.collection('posts').limit(10).get()
 ```
 
 ### Document Reference
@@ -230,7 +224,7 @@ Fetches the document.
 ```typescript
 const snapshot = await db.ref('posts/abc123').get()
 if (snapshot.exists) {
-  console.log(snapshot.data())
+	console.log(snapshot.data())
 }
 ```
 
@@ -240,8 +234,8 @@ Sets/replaces the entire document.
 
 ```typescript
 await db.ref('posts/abc123').set({
-  title: 'New Title',
-  author: 'bob'
+	title: 'New Title',
+	author: 'bob'
 })
 ```
 
@@ -251,8 +245,8 @@ Updates specific fields (partial update).
 
 ```typescript
 await db.ref('posts/abc123').update({
-  title: 'Updated Title',
-  views: { $op: 'increment', by: 1 }
+	title: 'Updated Title',
+	views: { $op: 'increment', by: 1 }
 })
 ```
 
@@ -270,14 +264,14 @@ Subscribes to document changes.
 
 ```typescript
 const unsubscribe = db.ref('posts/abc123').onSnapshot(
-  (doc) => {
-    if (doc.exists) {
-      console.log('Updated:', doc.data())
-    } else {
-      console.log('Deleted')
-    }
-  },
-  (error) => console.error(error)
+	(doc) => {
+		if (doc.exists) {
+			console.log('Updated:', doc.data())
+		} else {
+			console.log('Deleted')
+		}
+	},
+	(error) => console.error(error)
 )
 ```
 
@@ -296,8 +290,7 @@ const comments = db.ref('posts/abc123').collection('comments')
 Adds a filter condition.
 
 ```typescript
-query.where('author', '==', 'alice')
-     .where('published', '==', true)
+query.where('author', '==', 'alice').where('published', '==', true)
 ```
 
 #### `query.orderBy(field, direction?)`
@@ -321,7 +314,7 @@ query.limit(10)
 Skips first n documents.
 
 ```typescript
-query.limit(10).offset(20)  // Pagination
+query.limit(10).offset(20) // Pagination
 ```
 
 #### `query.get()`
@@ -338,7 +331,7 @@ Subscribes to query results.
 
 ```typescript
 const unsubscribe = query.onSnapshot((snapshot) => {
-  console.log('Results count:', snapshot.size)
+	console.log('Results count:', snapshot.size)
 })
 ```
 
@@ -350,10 +343,10 @@ Result of reading a single document.
 
 ```typescript
 const doc = await ref.get()
-doc.exists        // boolean
-doc.id            // string
-doc.data()        // T | undefined
-doc.get('field')  // any
+doc.exists // boolean
+doc.id // string
+doc.data() // T | undefined
+doc.get('field') // any
 ```
 
 #### `QuerySnapshot`
@@ -362,11 +355,11 @@ Result of querying a collection.
 
 ```typescript
 const snapshot = await query.get()
-snapshot.docs           // DocumentSnapshot[]
-snapshot.size           // number
-snapshot.empty          // boolean
-snapshot.forEach(fn)    // iterate documents
-snapshot.docChanges()   // DocumentChange[] (in subscriptions)
+snapshot.docs // DocumentSnapshot[]
+snapshot.size // number
+snapshot.empty // boolean
+snapshot.forEach(fn) // iterate documents
+snapshot.docChanges() // DocumentChange[] (in subscriptions)
 ```
 
 ## Computed Values
@@ -378,17 +371,17 @@ Update operations support computed values using special operators:
 ```typescript
 // Increment number
 await doc.update({
-  views: { $op: 'increment', by: 1 }
+	views: { $op: 'increment', by: 1 }
 })
 
 // Append to array
 await doc.update({
-  tags: { $op: 'append', values: ['featured'] }
+	tags: { $op: 'append', values: ['featured'] }
 })
 
 // Set if not exists
 await doc.update({
-  createdAt: { $op: 'setIfNotExists', value: Date.now() }
+	createdAt: { $op: 'setIfNotExists', value: Date.now() }
 })
 ```
 
@@ -399,17 +392,17 @@ Supported operations: `increment`, `decrement`, `multiply`, `append`, `remove`, 
 ```typescript
 // Current timestamp
 await doc.update({
-  updatedAt: { $fn: 'now' }
+	updatedAt: { $fn: 'now' }
 })
 
 // Generate UUID
 await doc.update({
-  sessionId: { $fn: 'uuid' }
+	sessionId: { $fn: 'uuid' }
 })
 
 // Slugify
 await doc.update({
-  slug: { $fn: 'slugify', args: [{ $field: 'title' }] }
+	slug: { $fn: 'slugify', args: [{ $field: 'title' }] }
 })
 ```
 
@@ -420,17 +413,17 @@ Supported functions: `now`, `uuid`, `slugify`, `hash`, `lowercase`, `uppercase`,
 ```typescript
 // Count documents
 await doc.update({
-  commentCount: { $query: 'count', path: 'posts/abc123/comments' }
+	commentCount: { $query: 'count', path: 'posts/abc123/comments' }
 })
 
 // Sum field
 await doc.update({
-  total: { $query: 'sum', path: 'orders/123/items', field: 'price' }
+	total: { $query: 'sum', path: 'orders/123/items', field: 'price' }
 })
 
 // Get max value
 await doc.update({
-  maxRating: { $query: 'max', path: 'products/xyz/reviews', field: 'rating' }
+	maxRating: { $query: 'max', path: 'products/xyz/reviews', field: 'rating' }
 })
 ```
 
@@ -445,22 +438,16 @@ const batch = db.batch()
 
 // Create post
 const postRef = batch.create(
-  db.collection('posts'),
-  { title: 'Hello', author: 'alice' },
-  { ref: '$post' }  // Assign reference
+	db.collection('posts'),
+	{ title: 'Hello', author: 'alice' },
+	{ ref: '$post' } // Assign reference
 )
 
 // Create comment referencing the post
-batch.create(
-  db.collection('posts/${$post}/comments'),
-  { text: 'First!', author: 'bob' }
-)
+batch.create(db.collection('posts/${$post}/comments'), { text: 'First!', author: 'bob' })
 
 // Update user
-batch.update(
-  db.ref('users/alice'),
-  { postCount: { $op: 'increment', by: 1 } }
-)
+batch.update(db.ref('users/alice'), { postCount: { $op: 'increment', by: 1 } })
 
 // Commit all atomically
 const results = await batch.commit()
@@ -471,29 +458,29 @@ console.log('Created post ID:', results[0].id)
 
 ```typescript
 import {
-  RtdbError,
-  ConnectionError,
-  AuthError,
-  PermissionError,
-  NotFoundError,
-  ValidationError,
-  TimeoutError
+	RtdbError,
+	ConnectionError,
+	AuthError,
+	PermissionError,
+	NotFoundError,
+	ValidationError,
+	TimeoutError
 } from '@cloudillo/rtdb'
 
 try {
-  const doc = await db.ref('posts/123').get()
+	const doc = await db.ref('posts/123').get()
 } catch (error) {
-  if (error instanceof NotFoundError) {
-    console.log('Document not found')
-  } else if (error instanceof PermissionError) {
-    console.log('Permission denied')
-  } else if (error instanceof ConnectionError) {
-    console.log('Connection failed, will retry...')
-  } else if (error instanceof AuthError) {
-    console.log('Authentication failed')
-  } else {
-    console.error('Unexpected error:', error)
-  }
+	if (error instanceof NotFoundError) {
+		console.log('Document not found')
+	} else if (error instanceof PermissionError) {
+		console.log('Permission denied')
+	} else if (error instanceof ConnectionError) {
+		console.log('Connection failed, will retry...')
+	} else if (error instanceof AuthError) {
+		console.log('Authentication failed')
+	} else {
+		console.error('Unexpected error:', error)
+	}
 }
 ```
 

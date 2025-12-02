@@ -20,14 +20,20 @@ import * as React from 'react'
 import { SvgCanvas, useSvgCanvas, ToolEvent } from 'react-svg-canvas'
 
 export interface EditGadgetProps {
-	state: { bbox: { x: number, y: number, width: number, height: number }}
+	state: { bbox: { x: number; y: number; width: number; height: number } }
 	onMove?: (x: number, y: number) => void
 	onResize?: (x: number, y: number, width: number, height: number) => void
 	onResizeX?: (x: number, width: number) => void
 	onResizeY?: (y: number, height: number) => void
 }
 
-export function EditGadget({state: { bbox }, onMove, onResize, onResizeX, onResizeY }: EditGadgetProps) {
+export function EditGadget({
+	state: { bbox },
+	onMove,
+	onResize,
+	onResizeX,
+	onResizeY
+}: EditGadgetProps) {
 	const svgCanvas = useSvgCanvas()
 	const translatedBbox = React.useMemo(() => {
 		if (!bbox) return undefined
@@ -43,7 +49,7 @@ export function EditGadget({state: { bbox }, onMove, onResize, onResizeX, onResi
 
 		svgCanvas.setDragHandler({
 			onDragMove: function (evt: ToolEvent) {
-				console.log('onDragMove', )
+				console.log('onDragMove')
 				onMove?.(evt.x - startX, evt.y - startY)
 			},
 			onDragEnd: function () {
@@ -55,19 +61,70 @@ export function EditGadget({state: { bbox }, onMove, onResize, onResizeX, onResi
 
 	if (!translatedBbox) return null
 
-	return <>
-		{/*
+	return (
+		<>
+			{/*
 		<rect x={bbox.x} y={bbox.y} width={bbox.width} height={bbox.height} stroke="blue" fill="none"/>
 		*/}
-		<rect x={translatedBbox.x} y={translatedBbox.y} width={translatedBbox.width} height={translatedBbox.height} stroke="#fff" fill="none" strokeDasharray={5}/>
-		{ !!onResize && <>
-			<rect x={translatedBbox.x - CONTROLLER_SIZE / 2} y={translatedBbox.y - CONTROLLER_SIZE / 2} width={CONTROLLER_SIZE} height={CONTROLLER_SIZE} stroke="red" fill="yellow"/>
-			<rect x={translatedBbox.x + translatedBbox.width - CONTROLLER_SIZE / 2} y={translatedBbox.y - CONTROLLER_SIZE / 2} width={CONTROLLER_SIZE} height={CONTROLLER_SIZE} stroke="red" fill="yellow" onClick={() => onResizeX?.(translatedBbox.x, translatedBbox.width)}/>
-			<rect x={translatedBbox.x + translatedBbox.width - CONTROLLER_SIZE / 2} y={translatedBbox.y + translatedBbox.height - CONTROLLER_SIZE / 2} width={CONTROLLER_SIZE} height={CONTROLLER_SIZE} stroke="red" fill="yellow" onClick={() => onResizeX?.(translatedBbox.x, translatedBbox.width)}/>
-			<rect x={translatedBbox.x - CONTROLLER_SIZE / 2} y={translatedBbox.y + translatedBbox.height - CONTROLLER_SIZE / 2} width={CONTROLLER_SIZE} height={CONTROLLER_SIZE} stroke="red" fill="yellow" onClick={() => onResizeX?.(translatedBbox.x, translatedBbox.width)}/>
-			<rect x={translatedBbox.x + translatedBbox.width / 2 - CONTROLLER_SIZE / 2} y={translatedBbox.y + translatedBbox.height / 2 - CONTROLLER_SIZE / 2} width={CONTROLLER_SIZE} height={CONTROLLER_SIZE} stroke="red" fill="#ffff00" onMouseDown={onMoveClick}/>
-		</> }
-	</>
+			<rect
+				x={translatedBbox.x}
+				y={translatedBbox.y}
+				width={translatedBbox.width}
+				height={translatedBbox.height}
+				stroke="#fff"
+				fill="none"
+				strokeDasharray={5}
+			/>
+			{!!onResize && (
+				<>
+					<rect
+						x={translatedBbox.x - CONTROLLER_SIZE / 2}
+						y={translatedBbox.y - CONTROLLER_SIZE / 2}
+						width={CONTROLLER_SIZE}
+						height={CONTROLLER_SIZE}
+						stroke="red"
+						fill="yellow"
+					/>
+					<rect
+						x={translatedBbox.x + translatedBbox.width - CONTROLLER_SIZE / 2}
+						y={translatedBbox.y - CONTROLLER_SIZE / 2}
+						width={CONTROLLER_SIZE}
+						height={CONTROLLER_SIZE}
+						stroke="red"
+						fill="yellow"
+						onClick={() => onResizeX?.(translatedBbox.x, translatedBbox.width)}
+					/>
+					<rect
+						x={translatedBbox.x + translatedBbox.width - CONTROLLER_SIZE / 2}
+						y={translatedBbox.y + translatedBbox.height - CONTROLLER_SIZE / 2}
+						width={CONTROLLER_SIZE}
+						height={CONTROLLER_SIZE}
+						stroke="red"
+						fill="yellow"
+						onClick={() => onResizeX?.(translatedBbox.x, translatedBbox.width)}
+					/>
+					<rect
+						x={translatedBbox.x - CONTROLLER_SIZE / 2}
+						y={translatedBbox.y + translatedBbox.height - CONTROLLER_SIZE / 2}
+						width={CONTROLLER_SIZE}
+						height={CONTROLLER_SIZE}
+						stroke="red"
+						fill="yellow"
+						onClick={() => onResizeX?.(translatedBbox.x, translatedBbox.width)}
+					/>
+					<rect
+						x={translatedBbox.x + translatedBbox.width / 2 - CONTROLLER_SIZE / 2}
+						y={translatedBbox.y + translatedBbox.height / 2 - CONTROLLER_SIZE / 2}
+						width={CONTROLLER_SIZE}
+						height={CONTROLLER_SIZE}
+						stroke="red"
+						fill="#ffff00"
+						onMouseDown={onMoveClick}
+					/>
+				</>
+			)}
+		</>
+	)
 }
 
 // vim: ts=4

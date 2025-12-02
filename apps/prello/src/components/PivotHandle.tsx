@@ -29,26 +29,26 @@ export interface PivotHandleProps {
 	rotation: number
 	pivotX: number
 	pivotY: number
-	scale: number  // Current canvas zoom scale for consistent handle size
+	scale: number // Current canvas zoom scale for consistent handle size
 	onPivotDragStart: (e: React.MouseEvent) => void
-	isDragging?: boolean  // Whether pivot is being dragged
-	snapEnabled?: boolean  // Whether snap to objects is enabled
-	snappedPoint?: { x: number; y: number } | null  // Currently snapped point (normalized 0-1)
-	originalBounds?: Bounds  // Original bounds before position compensation (for snap points)
-	initialPivot?: { x: number; y: number }  // Initial pivot for rotation transform of snap points
+	isDragging?: boolean // Whether pivot is being dragged
+	snapEnabled?: boolean // Whether snap to objects is enabled
+	snappedPoint?: { x: number; y: number } | null // Currently snapped point (normalized 0-1)
+	originalBounds?: Bounds // Original bounds before position compensation (for snap points)
+	initialPivot?: { x: number; y: number } // Initial pivot for rotation transform of snap points
 }
 
 // Pivot snap points: center, corners, and edge midpoints (in normalized 0-1 coordinates)
 export const PIVOT_SNAP_POINTS = [
-	{ x: 0.5, y: 0.5, label: 'center' },     // Center
-	{ x: 0, y: 0, label: 'top-left' },       // Top-left corner
-	{ x: 1, y: 0, label: 'top-right' },      // Top-right corner
-	{ x: 0, y: 1, label: 'bottom-left' },    // Bottom-left corner
-	{ x: 1, y: 1, label: 'bottom-right' },   // Bottom-right corner
-	{ x: 0.5, y: 0, label: 'top' },          // Top edge midpoint
-	{ x: 0.5, y: 1, label: 'bottom' },       // Bottom edge midpoint
-	{ x: 0, y: 0.5, label: 'left' },         // Left edge midpoint
-	{ x: 1, y: 0.5, label: 'right' },        // Right edge midpoint
+	{ x: 0.5, y: 0.5, label: 'center' }, // Center
+	{ x: 0, y: 0, label: 'top-left' }, // Top-left corner
+	{ x: 1, y: 0, label: 'top-right' }, // Top-right corner
+	{ x: 0, y: 1, label: 'bottom-left' }, // Bottom-left corner
+	{ x: 1, y: 1, label: 'bottom-right' }, // Bottom-right corner
+	{ x: 0.5, y: 0, label: 'top' }, // Top edge midpoint
+	{ x: 0.5, y: 1, label: 'bottom' }, // Bottom edge midpoint
+	{ x: 0, y: 0.5, label: 'left' }, // Left edge midpoint
+	{ x: 1, y: 0.5, label: 'right' } // Right edge midpoint
 ] as const
 
 // Snap threshold in normalized coordinates (how close to snap)
@@ -86,11 +86,12 @@ export function PivotHandle({
 	const snapPointActiveRadius = 6 / scale
 
 	// Calculate snap point positions in absolute coordinates (using original bounds)
-	const snapPointPositions = PIVOT_SNAP_POINTS.map(point => ({
+	const snapPointPositions = PIVOT_SNAP_POINTS.map((point) => ({
 		...point,
 		absX: snapBounds.x + snapBounds.width * point.x,
 		absY: snapBounds.y + snapBounds.height * point.y,
-		isSnapped: snappedPoint &&
+		isSnapped:
+			snappedPoint &&
 			Math.abs(snappedPoint.x - point.x) < 0.001 &&
 			Math.abs(snappedPoint.y - point.y) < 0.001
 	}))
@@ -99,7 +100,9 @@ export function PivotHandle({
 		<g style={{ pointerEvents: 'all' }}>
 			{/* Snap point indicators - shown when dragging with snap enabled */}
 			{isDragging && snapEnabled && (
-				<g transform={`rotate(${rotation} ${snapBounds.x + snapBounds.width * snapPivotX} ${snapBounds.y + snapBounds.height * snapPivotY})`}>
+				<g
+					transform={`rotate(${rotation} ${snapBounds.x + snapBounds.width * snapPivotX} ${snapBounds.y + snapBounds.height * snapPivotY})`}
+				>
 					{snapPointPositions.map(({ x, y, label, absX, absY, isSnapped }) => (
 						<g key={label}>
 							{/* Snap point dot */}

@@ -26,63 +26,67 @@ export function TenantSettings() {
 	if (!settings) return null
 
 	const sessionTimeoutSeconds = (settings['auth.session_timeout'] as number) || 86400
-	const sessionTimeoutHours = Math.round(sessionTimeoutSeconds / 3600 * 10) / 10
+	const sessionTimeoutHours = Math.round((sessionTimeoutSeconds / 3600) * 10) / 10
 
-	return <>
-		<div className="c-panel">
-			<h4>{t('Authentication')}</h4>
+	return (
+		<>
+			<div className="c-panel">
+				<h4>{t('Authentication')}</h4>
 
-			<label className="c-hbox pb-2">
-				<span className="flex-fill">{t('Session Timeout')}</span>
-				<input
-					className="c-input"
-					name="auth.session_timeout"
-					type="number"
-					min="60"
-					max="31536000"
-					value={String(sessionTimeoutSeconds)}
-					onChange={onSettingChange}
-				/>
-			</label>
-			<p className="c-hint mb-4">
-				{t('Session timeout in seconds')} ({sessionTimeoutHours} {t('hours')})
-			</p>
-		</div>
+				<label className="c-hbox pb-2">
+					<span className="flex-fill">{t('Session Timeout')}</span>
+					<input
+						className="c-input"
+						name="auth.session_timeout"
+						type="number"
+						min="60"
+						max="31536000"
+						value={String(sessionTimeoutSeconds)}
+						onChange={onSettingChange}
+					/>
+				</label>
+				<p className="c-hint mb-4">
+					{t('Session timeout in seconds')} ({sessionTimeoutHours} {t('hours')})
+				</p>
+			</div>
 
-		<div className="c-panel">
-			<h4>{t('Federation')}</h4>
+			<div className="c-panel">
+				<h4>{t('Federation')}</h4>
 
-			<label className="c-hbox pb-2">
-				<span className="flex-fill">{t('Auto-accept follow requests')}</span>
-				<input
-					className="c-toggle"
-					name="federation.auto_accept_followers"
-					type="checkbox"
-					checked={!!settings['federation.auto_accept_followers']}
-					onChange={onSettingChange}
-				/>
-			</label>
-			<p className="c-hint mb-4">{t('Automatically accept follow requests from other instances')}</p>
-		</div>
+				<label className="c-hbox pb-2">
+					<span className="flex-fill">{t('Auto-accept follow requests')}</span>
+					<input
+						className="c-toggle"
+						name="federation.auto_accept_followers"
+						type="checkbox"
+						checked={!!settings['federation.auto_accept_followers']}
+						onChange={onSettingChange}
+					/>
+				</label>
+				<p className="c-hint mb-4">
+					{t('Automatically accept follow requests from other instances')}
+				</p>
+			</div>
 
-		<div className="c-panel">
-			<h4>{t('Storage')}</h4>
+			<div className="c-panel">
+				<h4>{t('Storage')}</h4>
 
-			<label className="c-hbox pb-2">
-				<span className="flex-fill">{t('Maximum Storage Quota (GB)')}</span>
-				<input
-					className="c-input"
-					name="limits.max_storage_gb"
-					type="number"
-					min="1"
-					max="100000"
-					value={String(settings['limits.max_storage_gb'] || 100)}
-					onChange={onSettingChange}
-				/>
-			</label>
-			<p className="c-hint mb-4">{t('Total storage quota for this tenant')}</p>
-		</div>
-	</>
+				<label className="c-hbox pb-2">
+					<span className="flex-fill">{t('Maximum Storage Quota (GB)')}</span>
+					<input
+						className="c-input"
+						name="limits.max_storage_gb"
+						type="number"
+						min="1"
+						max="100000"
+						value={String(settings['limits.max_storage_gb'] || 100)}
+						onChange={onSettingChange}
+					/>
+				</label>
+				<p className="c-hint mb-4">{t('Total storage quota for this tenant')}</p>
+			</div>
+		</>
+	)
 }
 
 // vim: ts=4

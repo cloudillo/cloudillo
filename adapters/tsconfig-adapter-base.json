@@ -1,14 +1,14 @@
 {
-    "compilerOptions": {
-	"target": "es2023",
-	"module": "nodenext",
-	"moduleResolution": "nodenext",
-	"declaration": true,
+	"compilerOptions": {
+		"target": "es2023",
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
+		"declaration": true,
 
-	"jsx": "react",
-	"strict": true,
-	"resolveJsonModule": true,
-	"skipLibCheck": true,
-	"allowSyntheticDefaultImports": true
-    }
+		"jsx": "react",
+		"strict": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"allowSyntheticDefaultImports": true
+	}
 }

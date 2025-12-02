@@ -28,18 +28,13 @@ describe('DocumentReference', () => {
 
 	beforeEach(() => {
 		jest.useFakeTimers()
-		mockWs = new WebSocketManager(
-			'test-db',
-			() => 'token',
-			'wss://test.com',
-			{
-				enableCache: false,
-				reconnect: true,
-				reconnectDelay: 1000,
-				maxReconnectDelay: 30000,
-				debug: false
-			}
-		) as jest.Mocked<WebSocketManager>
+		mockWs = new WebSocketManager('test-db', () => 'token', 'wss://test.com', {
+			enableCache: false,
+			reconnect: true,
+			reconnectDelay: 1000,
+			maxReconnectDelay: 30000,
+			debug: false
+		}) as jest.Mocked<WebSocketManager>
 
 		docRef = new DocumentReference(mockWs, 'posts/123')
 	})

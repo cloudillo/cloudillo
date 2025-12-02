@@ -22,11 +22,11 @@ import { useTranslation } from 'react-i18next'
 import PhotoAlbum from 'react-photo-album'
 import Lightbox from 'yet-another-react-lightbox'
 import 'yet-another-react-lightbox/styles.css'
-import Fullscreen from "yet-another-react-lightbox/plugins/fullscreen"
-import Slideshow from "yet-another-react-lightbox/plugins/slideshow"
-import Thumbnails from "yet-another-react-lightbox/plugins/thumbnails"
-import Zoom from "yet-another-react-lightbox/plugins/zoom"
-import "yet-another-react-lightbox/plugins/thumbnails.css"
+import Fullscreen from 'yet-another-react-lightbox/plugins/fullscreen'
+import Slideshow from 'yet-another-react-lightbox/plugins/slideshow'
+import Thumbnails from 'yet-another-react-lightbox/plugins/thumbnails'
+import Zoom from 'yet-another-react-lightbox/plugins/zoom'
+import 'yet-another-react-lightbox/plugins/thumbnails.css'
 import 'react-photo-album/rows.css'
 
 import { useAuth, useApi, LoadingSpinner, EmptyState } from '@cloudillo/react'
@@ -60,49 +60,78 @@ export function GalleryApp() {
 	const [files, setFiles] = React.useState<File[] | undefined>()
 	const [lbIndex, setLbIndex] = React.useState<number | undefined>()
 
-	const photos = api && React.useMemo(() => files?.map(f => ({
-		src: `https://cl-o.${contextIdTag || auth?.idTag}/api/file/${f.variantId}`,
-		width: f.x?.dim?.[0] || 100,
-		height: f.x?.dim?.[1] || 100,
-		title: f.x?.caption || f.fileName
-	})), [files, contextIdTag, auth?.idTag])
+	const photos =
+		api &&
+		React.useMemo(
+			() =>
+				files?.map((f) => ({
+					src: `https://cl-o.${contextIdTag || auth?.idTag}/api/file/${f.variantId}`,
+					width: f.x?.dim?.[0] || 100,
+					height: f.x?.dim?.[1] || 100,
+					title: f.x?.caption || f.fileName
+				})),
+			[files, contextIdTag, auth?.idTag]
+		)
 
-	React.useEffect(function loadImageList() {
-		if (!api || !auth) return
+	React.useEffect(
+		function loadImageList() {
+			if (!api || !auth) return
+			;(async function () {
+				const qs: Record<string, string> = parseQS(location.search)
+				console.log('QS', location.search, qs)
 
-		(async function () {
-			const qs: Record<string, string> = parseQS(location.search)
-			console.log('QS', location.search, qs)
+				if (Object.keys(qs).length > 0) {
+					// Note: variant: 'tn' and preset: 'gallery' were in old API but not in new API
+					const files = await api.files.list({ ...qs })
+					console.log('RES', files)
+					setFiles(
+						files.map((f) => ({
+							...f,
+							preset: f.preset || '',
+							createdAt:
+								typeof f.createdAt === 'string'
+									? f.createdAt
+									: f.createdAt.toISOString(),
+							owner: f.owner ? { ...f.owner, name: f.owner.name || '' } : undefined,
+							variantId: undefined
+						})) as any
+					)
+				} else {
+					setFiles([])
+				}
+			})()
+		},
+		[api, auth, location.search, refreshHelper]
+	)
 
-			if (Object.keys(qs).length > 0) {
-				// Note: variant: 'tn' and preset: 'gallery' were in old API but not in new API
-				const files = await api.files.list({ ...qs })
-				console.log('RES', files)
-				setFiles(files.map(f => ({...f, preset: f.preset || "", createdAt: typeof f.createdAt === "string" ? f.createdAt : f.createdAt.toISOString(), owner: f.owner ? { ...f.owner, name: f.owner.name || "" } : undefined, variantId: undefined})) as any)
-			} else {
-				setFiles([])
-			}
-		})()
-	}, [api, auth, location.search, refreshHelper])
+	if (!photos)
+		return (
+			<div className="d-flex align-items-center justify-content-center h-100">
+				<LoadingSpinner size="lg" label={t('Loading gallery...')} />
+			</div>
+		)
 
-	if (!photos) return <div className="d-flex align-items-center justify-content-center h-100"><LoadingSpinner size="lg" label={t('Loading gallery...')}/></div>
+	if (photos.length === 0)
+		return (
+			<EmptyState
+				icon={<IcImage style={{ fontSize: '2.5rem' }} />}
+				title={t('No images found')}
+				description={t('Upload some images to see them here')}
+			/>
+		)
 
-	if (photos.length === 0) return <EmptyState
-		icon={<IcImage style={{ fontSize: '2.5rem' }} />}
-		title={t('No images found')}
-		description={t('Upload some images to see them here')}
-	/>
-
-	return <div className="m-panel h-100 overflow-y-scroll">
-		<PhotoAlbum layout="rows" photos={photos} onClick={({ index }) => setLbIndex(index)}/>
-		<Lightbox
-			slides={photos}
-			open={lbIndex !== undefined}
-			index={lbIndex}
-			close={() => setLbIndex(undefined)}
-			plugins={[Fullscreen, Slideshow, Thumbnails, Zoom]}
-		/>
-	</div>
+	return (
+		<div className="m-panel h-100 overflow-y-scroll">
+			<PhotoAlbum layout="rows" photos={photos} onClick={({ index }) => setLbIndex(index)} />
+			<Lightbox
+				slides={photos}
+				open={lbIndex !== undefined}
+				index={lbIndex}
+				close={() => setLbIndex(undefined)}
+				plugins={[Fullscreen, Slideshow, Thumbnails, Zoom]}
+			/>
+		</div>
+	)
 }
 
 // vim: ts=4

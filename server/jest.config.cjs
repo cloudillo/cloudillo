@@ -9,22 +9,23 @@ module.exports = {
 	},
 	moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
 	transform: {
-		'^.+\\.tsx?$': ['ts-jest', {
-			tsconfig: {
-				target: 'es2020',
-				module: 'commonjs',
-				moduleResolution: 'node',
-				esModuleInterop: true,
-				allowSyntheticDefaultImports: true,
-				strict: true,
-				skipLibCheck: true,
-				forceConsistentCasingInFileNames: true,
-				lib: ['es2020']
+		'^.+\\.tsx?$': [
+			'ts-jest',
+			{
+				tsconfig: {
+					target: 'es2020',
+					module: 'commonjs',
+					moduleResolution: 'node',
+					esModuleInterop: true,
+					allowSyntheticDefaultImports: true,
+					strict: true,
+					skipLibCheck: true,
+					forceConsistentCasingInFileNames: true,
+					lib: ['es2020']
+				}
 			}
-		}]
+		]
 	},
 	testPathIgnorePatterns: ['/node_modules/'],
-	transformIgnorePatterns: [
-		'node_modules/(?!.*(@symbion|@cloudillo))'
-	]
+	transformIgnorePatterns: ['node_modules/(?!.*(@symbion|@cloudillo))']
 }

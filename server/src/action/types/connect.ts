@@ -14,7 +14,17 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { registerActionType, CreateActionContext, ActionContext, Action, NewAction, ActionView, AudienceInfo, createAction, startFollowing } from "../action.js";
+import {
+	registerActionType,
+	CreateActionContext,
+	ActionContext,
+	Action,
+	NewAction,
+	ActionView,
+	AudienceInfo,
+	createAction,
+	startFollowing
+} from '../action.js'
 import { metaAdapter } from '../../adapters.js'
 
 import * as T from '@symbion/runtype'
@@ -33,16 +43,23 @@ const tConn = T.struct({
 	exp: T.optional(T.number)
 })
 
-async function createHook({ tnId, tenantTag }: CreateActionContext, action: NewAction, audience?: AudienceInfo) {
+async function createHook(
+	{ tnId, tenantTag }: CreateActionContext,
+	action: NewAction,
+	audience?: AudienceInfo
+) {
 	if (!audience) return
 
 	const request = await metaAdapter.getActionByKey(tnId, `CONN:${audience.idTag}:${tenantTag}`)
 	if (!action.subType && !audience?.connected) {
 		metaAdapter.updateProfile(tnId, audience.idTag, {
 			following: true,
-			connected: request && !request.subType ? true
-				: !request || request.subType == 'DEL' ? 'R'
-				: null
+			connected:
+				request && !request.subType
+					? true
+					: !request || request.subType == 'DEL'
+						? 'R'
+						: null
 		})
 	} else if (action.subType == 'DEL') {
 		metaAdapter.updateProfile(tnId, audience.idTag, { connected: null })
@@ -55,13 +72,19 @@ async function inboundHook(ctx: ActionContext, actionId: string, action: Action)
 
 	if (action.audienceTag == ctx.idTag) {
 		// Check if the current action is a response to a request we sent earlier
-		const req = await metaAdapter.getActionByKey(ctx.tnId, `CONN:${ctx.idTag}:${action.issuerTag}`)
+		const req = await metaAdapter.getActionByKey(
+			ctx.tnId,
+			`CONN:${ctx.idTag}:${action.issuerTag}`
+		)
 		switch (action.subType) {
 			case undefined:
 				if (req && req?.subType != 'DEL') {
 					// Conn action received and found a pending local conn req
 					// --> update profile to connected
-					await metaAdapter.updateProfile(ctx.tnId, action.issuerTag, { connected: true, following: true })
+					await metaAdapter.updateProfile(ctx.tnId, action.issuerTag, {
+						connected: true,
+						following: true
+					})
 					ctx.busAction.status = 'N'
 					await metaAdapter.updateActionData(ctx.tnId, actionId, { status: 'N' })
 					await startFollowing(ctx.tnId, action.issuerTag)
@@ -76,7 +99,11 @@ async function inboundHook(ctx: ActionContext, actionId: string, action: Action)
 						}
 						await createAction(ctx.tnId, connAction)
 						const profile = await metaAdapter.readProfile(ctx.tnId, action.issuerTag)
-						await metaAdapter.updateProfile(ctx.tnId, action.issuerTag, { connected: true, following: true, perm: profile?.perm || 'W' })
+						await metaAdapter.updateProfile(ctx.tnId, action.issuerTag, {
+							connected: true,
+							following: true,
+							perm: profile?.perm || 'W'
+						})
 					} else {
 						// Notify user about the request
 						ctx.busAction.status = 'C'
@@ -104,7 +131,10 @@ function generateKey(actionId: string, action: NewAction & { issuerTag: string }
 async function acceptHook(tnId: number, action: ActionView) {
 	if (action.subType == 'DEL' || !action.audience) return
 
-	const req = await metaAdapter.getActionByKey(tnId, `CONN:${action.audience.idTag}:${action.issuer.idTag}`)
+	const req = await metaAdapter.getActionByKey(
+		tnId,
+		`CONN:${action.audience.idTag}:${action.issuer.idTag}`
+	)
 	if (req && !req?.subType) {
 	} else {
 		await createAction(tnId, { type: 'CONN', audienceTag: action.issuer.idTag })

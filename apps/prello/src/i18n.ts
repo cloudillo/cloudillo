@@ -18,11 +18,10 @@ import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 
 const resources = {
-	en: { translation: {} },
+	en: { translation: {} }
 }
 
-i18n
-	.use(initReactI18next)
+i18n.use(initReactI18next)
 	.init({
 		resources,
 		fallbackLng: 'en',
@@ -30,9 +29,10 @@ i18n
 		nsSeparator: '$',
 		returnNull: false,
 		interpolation: {
-			escapeValue: false,
+			escapeValue: false
 		}
-	}).catch()
+	})
+	.catch()
 
 export default i18n
 

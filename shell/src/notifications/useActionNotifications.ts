@@ -24,14 +24,14 @@ import { useLocalNotifySettings, LocalNotifySettings } from './useLocalNotifySet
 
 // Map action types to setting keys
 const ACTION_TYPE_MAP: Record<string, keyof LocalNotifySettings> = {
-	'MSG': 'sound.message',
-	'CONN': 'sound.connection',
-	'FSHR': 'sound.file_share',
-	'FLLW': 'sound.follow',
-	'CMNT': 'sound.comment',
-	'REACT': 'sound.reaction',
-	'MNTN': 'sound.mention',
-	'POST': 'sound.post',
+	MSG: 'sound.message',
+	CONN: 'sound.connection',
+	FSHR: 'sound.file_share',
+	FLLW: 'sound.follow',
+	CMNT: 'sound.comment',
+	REACT: 'sound.reaction',
+	MNTN: 'sound.mention',
+	POST: 'sound.post'
 }
 
 function getSettingKey(actionType: string): string | undefined {
@@ -42,15 +42,24 @@ function getSettingKey(actionType: string): string | undefined {
 function getNotificationMessage(action: ActionView): string {
 	const name = action.issuer?.name || action.issuer?.idTag || 'Someone'
 	switch (action.type) {
-		case 'MSG': return `New message from ${name}`
-		case 'CONN': return `${name} wants to connect`
-		case 'FSHR': return `${name} shared a file with you`
-		case 'FLLW': return `${name} started following you`
-		case 'CMNT': return `${name} commented on your post`
-		case 'REACT': return `${name} reacted to your post`
-		case 'MNTN': return `${name} mentioned you`
-		case 'POST': return `New post from ${name}`
-		default: return `New notification from ${name}`
+		case 'MSG':
+			return `New message from ${name}`
+		case 'CONN':
+			return `${name} wants to connect`
+		case 'FSHR':
+			return `${name} shared a file with you`
+		case 'FLLW':
+			return `${name} started following you`
+		case 'CMNT':
+			return `${name} commented on your post`
+		case 'REACT':
+			return `${name} reacted to your post`
+		case 'MNTN':
+			return `${name} mentioned you`
+		case 'POST':
+			return `New post from ${name}`
+		default:
+			return `New notification from ${name}`
 	}
 }
 
@@ -76,7 +85,7 @@ export function useActionNotifications() {
 
 		return () => {
 			// Cleanup audio elements
-			Object.values(audioRefs.current).forEach(audio => {
+			Object.values(audioRefs.current).forEach((audio) => {
 				audio.pause()
 				audio.src = ''
 			})
@@ -94,24 +103,31 @@ export function useActionNotifications() {
 		}
 	}, [])
 
-	const notify = React.useCallback((action: ActionView) => {
-		const settingKey = getSettingKey(action.type)
-		if (!settingKey) return
+	const notify = React.useCallback(
+		(action: ActionView) => {
+			const settingKey = getSettingKey(action.type)
+			if (!settingKey) return
 
-		const currentSettings = settingsRef.current
-		// Play sound if configured (non-empty string)
-		const soundKey = currentSettings[`sound.${settingKey}` as keyof LocalNotifySettings] as string
-		if (soundKey) {
-			playSound(soundKey)
-		}
+			const currentSettings = settingsRef.current
+			// Play sound if configured (non-empty string)
+			const soundKey = currentSettings[
+				`sound.${settingKey}` as keyof LocalNotifySettings
+			] as string
+			if (soundKey) {
+				playSound(soundKey)
+			}
 
-		// Show toast if enabled
-		const toastEnabled = currentSettings.toast && currentSettings[`toast.${settingKey}` as keyof LocalNotifySettings]
-		if (toastEnabled) {
-			const message = getNotificationMessage(action)
-			info(message, { duration: 5000 })
-		}
-	}, [playSound, info])
+			// Show toast if enabled
+			const toastEnabled =
+				currentSettings.toast &&
+				currentSettings[`toast.${settingKey}` as keyof LocalNotifySettings]
+			if (toastEnabled) {
+				const message = getNotificationMessage(action)
+				info(message, { duration: 5000 })
+			}
+		},
+		[playSound, info]
+	)
 
 	useWsBus({ cmds: ['ACTION'] }, (msg) => {
 		const action = msg.data as ActionView

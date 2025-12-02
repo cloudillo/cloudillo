@@ -26,7 +26,7 @@ import {
 	LuPlus as IcAdd,
 	LuCopy as IcCopy,
 	LuTrash as IcDelete,
-	LuQrCode as IcQrCode,
+	LuQrCode as IcQrCode
 } from 'react-icons/lu'
 
 interface Ref {
@@ -38,7 +38,7 @@ interface Ref {
 	count: number
 }
 
-function Invitation({ ref, deleteRef }: { ref: Ref, deleteRef: () => void }) {
+function Invitation({ ref, deleteRef }: { ref: Ref; deleteRef: () => void }) {
 	const [qrCode, setQrCode] = React.useState<string | undefined>()
 	const url = `https://${location.host}/register/${ref.refId}`
 
@@ -50,33 +50,47 @@ function Invitation({ ref, deleteRef }: { ref: Ref, deleteRef: () => void }) {
 		setQrCode(url)
 	}
 
-	return <div className="c-panel">
-		<div className="c-hbox">
-			<h2 className="fill">{ref.description || ''}</h2>
-			<div className="c-hbox g-3">
-				<Button link onClick={() => copyUrlToClipboard()}><IcCopy/></Button>
-				<Button link onClick={() => showQrCode()}><IcQrCode/></Button>
-				<Button link onClick={() => deleteRef()}><IcDelete/></Button>
+	return (
+		<div className="c-panel">
+			<div className="c-hbox">
+				<h2 className="fill">{ref.description || ''}</h2>
+				<div className="c-hbox g-3">
+					<Button link onClick={() => copyUrlToClipboard()}>
+						<IcCopy />
+					</Button>
+					<Button link onClick={() => showQrCode()}>
+						<IcQrCode />
+					</Button>
+					<Button link onClick={() => deleteRef()}>
+						<IcDelete />
+					</Button>
+				</div>
 			</div>
-		</div>
-		<div className="c-hbox">
-			<div className="fill">
-				{ref.createdAt.toLocaleString()}
+			<div className="c-hbox">
+				<div className="fill">{ref.createdAt.toLocaleString()}</div>
+				<div>
+					{ref.count && (!ref.expiresAt || ref.expiresAt > new Date()) ? (
+						<div className="c-hbox text-success g-0">
+							<IcAvailable />
+							{ref.count > 1 && <span>{ref.count}</span>}
+						</div>
+					) : (
+						<IcUnavailable className="text-warning" />
+					)}
+				</div>
 			</div>
-			<div>
-				{ ref.count && (!ref.expiresAt || ref.expiresAt > new Date())
-					? <div className="c-hbox text-success g-0">
-						<IcAvailable/>
-						{ ref.count > 1 && <span>{ref.count}</span> }
-					</div>
-					: <IcUnavailable className="text-warning"/> }
-			</div>
-		</div>
 
-		{ qrCode && <Dialog open onClose={() => setQrCode(undefined)}>
-			<QRCode value={qrCode} className="p-4 h-auto mx-auto" style={{ background: '#fff', width: '100%', maxWidth: 'min(100%,50vh)' }}/>
-		</Dialog> }
-	</div>
+			{qrCode && (
+				<Dialog open onClose={() => setQrCode(undefined)}>
+					<QRCode
+						value={qrCode}
+						className="p-4 h-auto mx-auto"
+						style={{ background: '#fff', width: '100%', maxWidth: 'min(100%,50vh)' }}
+					/>
+				</Dialog>
+			)}
+		</div>
+	)
 }
 
 export function Invitations() {
@@ -86,42 +100,73 @@ export function Invitations() {
 	const dialog = useDialog()
 	const [refs, setRefs] = React.useState<Ref[] | undefined>()
 
-	React.useEffect(function loadRefs() {
-		if (!auth || !api) return
-
-		(async function () {
-			const res = await api.refs.list({ type: 'register' })
-			console.log('RES', res)
-			if (Array.isArray(res)) setRefs(res.map((ref: any) => ({ ...ref, createdAt: new Date(ref.createdAt) })))
-		})()
-	}, [auth, api])
+	React.useEffect(
+		function loadRefs() {
+			if (!auth || !api) return
+			;(async function () {
+				const res = await api.refs.list({ type: 'register' })
+				console.log('RES', res)
+				if (Array.isArray(res))
+					setRefs(res.map((ref: any) => ({ ...ref, createdAt: new Date(ref.createdAt) })))
+			})()
+		},
+		[auth, api]
+	)
 
 	async function createRef() {
 		if (!api) return
-		const description = await dialog.askText(t('Create invitation'), t('You can write a short description to help you distinguish the invitations later.'))
+		const description = await dialog.askText(
+			t('Create invitation'),
+			t('You can write a short description to help you distinguish the invitations later.')
+		)
 
 		const res = await api.refs.create({ type: 'register', description: description as string })
 		console.log('REF RES', res)
 		if (res) {
-			setRefs((refs) => [{ ...res, createdAt: new Date(res.createdAt) } as any, ...(refs || [])])
+			setRefs((refs) => [
+				{ ...res, createdAt: new Date(res.createdAt) } as any,
+				...(refs || [])
+			])
 		}
 	}
 
 	async function deleteRef(refId: string) {
 		if (!api) return
-		if (!await dialog.confirm(t('Delete invitation'), t('Are you sure you want to delete this invitation?'))) return
+		if (
+			!(await dialog.confirm(
+				t('Delete invitation'),
+				t('Are you sure you want to delete this invitation?')
+			))
+		)
+			return
 
 		await api.refs.delete(refId)
-		setRefs(refs => refs?.filter(ref => ref.refId !== refId))
-		console.log('DELETE', refId, refs, refs?.filter(ref => ref.refId !== refId))
+		setRefs((refs) => refs?.filter((ref) => ref.refId !== refId))
+		console.log(
+			'DELETE',
+			refId,
+			refs,
+			refs?.filter((ref) => ref.refId !== refId)
+		)
 	}
 
-	return <>
-		<div className="c-vbox">
-			{ refs && refs.map((ref) => <Invitation key={ref.refId} ref={ref} deleteRef={() => deleteRef(ref.refId)}/>) }
-		</div>
-		<button className="c-button primary float mb-5 me-2" onClick={createRef}><IcAdd/></button>
-	</>
+	return (
+		<>
+			<div className="c-vbox">
+				{refs &&
+					refs.map((ref) => (
+						<Invitation
+							key={ref.refId}
+							ref={ref}
+							deleteRef={() => deleteRef(ref.refId)}
+						/>
+					))}
+			</div>
+			<button className="c-button primary float mb-5 me-2" onClick={createRef}>
+				<IcAdd />
+			</button>
+		</>
+	)
 }
 
 // vim: ts=4

@@ -17,7 +17,7 @@
 const TAG_FORBIDDEN_CHARS = [' ', ',', '#', '\t', '\n']
 
 //import { Router } from './index.js'
-import { HttpError} from 'koa'
+import { HttpError } from 'koa'
 import { nanoid } from 'nanoid'
 import * as T from '@symbion/runtype'
 
@@ -25,7 +25,13 @@ import { tActionType, tActionStatus, tNewAction } from '@cloudillo/types'
 
 import { Context } from '../index.js'
 import { validate, validateQS, sha256 } from '../utils.js'
-import { createAction, createInboundActions, acceptAction, rejectAction, actionHooks } from './action.js'
+import {
+	createAction,
+	createInboundActions,
+	acceptAction,
+	rejectAction,
+	actionHooks
+} from './action.js'
 import { tProfile, getProfile } from '../profile/profile.js'
 import { metaAdapter } from '../adapters.js'
 import { cancelWait } from '../worker.js'
@@ -61,7 +67,7 @@ export async function listActions(ctx: Context) {
 
 	const actions = await metaAdapter.listActions(tnId, ctx.state.auth, {
 		...q,
-		types: fTypes.ok,
+		types: fTypes.ok
 		//parentId: q.parentId,
 		//rootId: q.rootId
 	})
@@ -112,17 +118,19 @@ export async function postAction(ctx: Context) {
 		...action,
 		actionId,
 		audienceTag: undefined,
-		audience: audience ? {
-			idTag: audience?.idTag,
-			name: audience?.name,
-			profilePic: audience?.profilePic
-		} : undefined,
+		audience: audience
+			? {
+					idTag: audience?.idTag,
+					name: audience?.name,
+					profilePic: audience?.profilePic
+				}
+			: undefined,
 		issuer: {
 			idTag: tenant?.idTag,
 			name: tenant?.name,
 			profilePic: tenant?.profilePic?.ic
 		},
-		createdAt: new Date(),
+		createdAt: new Date()
 	}
 }
 

@@ -36,33 +36,38 @@ export function TimeFormat({ time }: TimeFormatProps) {
 			}
 			const deltaSec = (now.getTime() - d.getTime()) / 1000
 			if (now.getMonth() !== d.getMonth() || now.getDate() !== d.getDate()) {
-				const todaySec = now.getHours() * 3600
-					+ now.getMinutes() * 60
-					+ now.getSeconds()
+				const todaySec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()
 				if (deltaSec > todaySec + 6 * 24 * 3600) {
 					return dayjs(d).format('MM/DD')
 				} else if (deltaSec > todaySec + 1 * 24 * 3600) {
 					switch (d.getDay()) {
-					case 0: return t('sunday')
-					case 1: return t('monday')
-					case 2: return t('tuesday')
-					case 3: return t('wednesday')
-					case 4: return t('thursday')
-					case 5: return t('friday')
-					case 6: return t('saturday')
+						case 0:
+							return t('sunday')
+						case 1:
+							return t('monday')
+						case 2:
+							return t('tuesday')
+						case 3:
+							return t('wednesday')
+						case 4:
+							return t('thursday')
+						case 5:
+							return t('friday')
+						case 6:
+							return t('saturday')
 					}
 				} else {
 					return 'yesterday'
 				}
 			}
 			if (deltaSec > 2 * 3600) {
-				return t('{{count}} hours', { count: Math.trunc(deltaSec / 3600)})
+				return t('{{count}} hours', { count: Math.trunc(deltaSec / 3600) })
 			}
 			if (deltaSec > 3600) {
 				return t('1 hour')
 			}
 			if (deltaSec > 2 * 60) {
-				return t('{{count}} minutes', { count: Math.trunc(deltaSec / 60)})
+				return t('{{count}} minutes', { count: Math.trunc(deltaSec / 60) })
 			}
 			if (deltaSec > 60) {
 				return t('1 min')
@@ -73,7 +78,11 @@ export function TimeFormat({ time }: TimeFormatProps) {
 		}
 	}
 
-	return <span className="c-hbox align-items-center"><IcClock/> {timeFormat(time)}</span>
+	return (
+		<span className="c-hbox align-items-center">
+			<IcClock /> {timeFormat(time)}
+		</span>
+	)
 }
 
 // vim: ts=4

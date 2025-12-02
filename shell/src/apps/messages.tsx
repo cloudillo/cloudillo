@@ -24,25 +24,33 @@ import debounce from 'debounce'
 import {
 	LuPlus as IcNew,
 	LuMessagesSquare as IcConvList,
-
 	LuImage as IcImage,
 	LuSendHorizontal as IcSend,
 	LuArrowDownToLine as IcScrollBottom,
-
 	LuMessageCircle as IcComment,
 	LuThumbsUp as IcLike,
 	LuForward as IcShare,
-
 	LuSmile as EmSmile,
 	LuLaugh as EmLaugh,
 	LuFrown as EmSad,
 	LuMeh as EmMeh,
-	LuHeart as EmHeart,
+	LuHeart as EmHeart
 } from 'react-icons/lu'
 
 import { Profile, ActionView, NewAction } from '@cloudillo/types'
 import * as Types from '@cloudillo/base'
-import { useAuth, useApi, Button, Fcd, IdentityTag, ProfileCard, mergeClasses, LoadingSpinner, EmptyState, SkeletonList } from '@cloudillo/react'
+import {
+	useAuth,
+	useApi,
+	Button,
+	Fcd,
+	IdentityTag,
+	ProfileCard,
+	mergeClasses,
+	LoadingSpinner,
+	EmptyState,
+	SkeletonList
+} from '@cloudillo/react'
 import '@cloudillo/react/src/components.css'
 
 import { useAppConfig, parseQS, qs } from '../utils.js'
@@ -82,16 +90,16 @@ export type ActionEvt = MsgAction | MsgTextAction | MsgImageAction
 // Text formatting //
 /////////////////////
 const emojis: Record<string, React.ReactNode> = {
-	':)': <EmSmile size="1em"/>, //'🙂',
-	':D': <EmLaugh size="1em"/>, //'😀',
+	':)': <EmSmile size="1em" />, //'🙂',
+	':D': <EmLaugh size="1em" />, //'😀',
 	':P': '😛',
 	';P': '😜',
-	':|': <EmMeh size="1em"/>, //'😐',
-	':(': <EmSad size="1em"/>, //'🙁',
+	':|': <EmMeh size="1em" />, //'😐',
+	':(': <EmSad size="1em" />, //'🙁',
 	//':O': '😮',
 	//':.(': '😢',
-	'<3': <EmHeart size="1em"/>, //'❤️️',
-	'::': <img src="https://w9.hu/w9.png"/>
+	'<3': <EmHeart size="1em" />, //'❤️️',
+	'::': <img src="https://w9.hu/w9.png" />
 	//'::': <span><img src="https://w9.hu/w9.png"/><span className="d-inline-block" style={{ width: 0, overflow: 'hidden' }}>::</span></span>
 }
 
@@ -107,7 +115,11 @@ function generateFragments(text: string): React.ReactNode[] {
 					if (w.startsWith(`https://${window.location.host}/`)) {
 						n = <Link to={w.replace(`https://${window.location.host}/`, '/')}>{w}</Link>
 					} else {
-						n = <a href={w} target="_blank">{w}</a>
+						n = (
+							<a href={w} target="_blank">
+								{w}
+							</a>
+						)
 					}
 				}
 				break
@@ -122,7 +134,17 @@ function generateFragments(text: string): React.ReactNode[] {
 			case '8':
 				const emoji = emojis[w]
 				if (typeof emoji == 'object') {
-					n = <span>{emojis[w]}<span className="d-inline-block" style={{ width: 0, overflow: 'hidden' }}>{w}</span></span>
+					n = (
+						<span>
+							{emojis[w]}
+							<span
+								className="d-inline-block"
+								style={{ width: 0, overflow: 'hidden' }}
+							>
+								{w}
+							</span>
+						</span>
+					)
 				} else {
 					n = emoji || w
 				}
@@ -170,23 +192,41 @@ function Msg({ className, action, local }: MsgProps) {
 		}
 	}
 
-	return <>
-		<div className={mergeClasses('c-panel c-msg p-2 px-3 mb-1', local ? 'local primary' : 'remote secondary', className)}>
-			{ !local && <div className="c-panel-header d-flex">
-				<Link to={`/profile/${action.issuer.idTag}`}>
-					<ProfileCard profile={action.issuer}/>
-				</Link>
-			</div> }
-			<div className="d-flex flex-column">
-				{ imgSrc && <img src={imgSrc} className="mb-2 mx-auto w-max-100"/> }
-				{ typeof action.content != 'string' ? null : action.content.split('\n\n').map((paragraph, i) => <p key={i}>
-					{ paragraph.split('\n').map((line, i) => <React.Fragment key={i}>
-						{ generateFragments(line).map((n, i) => <React.Fragment key={i}>{n}</React.Fragment>) }
-					<br/></React.Fragment>) }
-				</p>) }
-				{/* generateFragments(action.content) */}
-			</div>
-			{/*
+	return (
+		<>
+			<div
+				className={mergeClasses(
+					'c-panel c-msg p-2 px-3 mb-1',
+					local ? 'local primary' : 'remote secondary',
+					className
+				)}
+			>
+				{!local && (
+					<div className="c-panel-header d-flex">
+						<Link to={`/profile/${action.issuer.idTag}`}>
+							<ProfileCard profile={action.issuer} />
+						</Link>
+					</div>
+				)}
+				<div className="d-flex flex-column">
+					{imgSrc && <img src={imgSrc} className="mb-2 mx-auto w-max-100" />}
+					{typeof action.content != 'string'
+						? null
+						: action.content.split('\n\n').map((paragraph, i) => (
+								<p key={i}>
+									{paragraph.split('\n').map((line, i) => (
+										<React.Fragment key={i}>
+											{generateFragments(line).map((n, i) => (
+												<React.Fragment key={i}>{n}</React.Fragment>
+											))}
+											<br />
+										</React.Fragment>
+									))}
+								</p>
+							))}
+					{/* generateFragments(action.content) */}
+				</div>
+				{/*
 			<div className="c-group">
 				<Button link className={tab == 'CMNT' ? 'active' : ''} onClick={() => onTabClick('CMNT')}>
 					<IcComment/>
@@ -201,12 +241,23 @@ function Msg({ className, action, local }: MsgProps) {
 				</Button>
 			</div>
 			*/}
-		</div>
-	</>
+			</div>
+		</>
+	)
 }
 
 // New Msg
-export function NewMsg({ className, style, idTag, onSubmit }: { className?: string, style?: React.CSSProperties, idTag: string, onSubmit?: (action: ActionEvt) => void }) {
+export function NewMsg({
+	className,
+	style,
+	idTag,
+	onSubmit
+}: {
+	className?: string
+	style?: React.CSSProperties
+	idTag: string
+	onSubmit?: (action: ActionEvt) => void
+}) {
 	const { t } = useTranslation()
 	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
@@ -220,7 +271,11 @@ export function NewMsg({ className, style, idTag, onSubmit }: { className?: stri
 	useEditable(editorRef, onChange)
 
 	React.useEffect(() => {
-		setTimeout(function () { console.log('blur+focus', editorRef.current), editorRef.current?.blur(), editorRef.current?.focus() }, 1000)
+		setTimeout(function () {
+			console.log('blur+focus', editorRef.current),
+				editorRef.current?.blur(),
+				editorRef.current?.focus()
+		}, 1000)
 	}, [])
 
 	function onChange(text: string, pos: Position) {
@@ -260,7 +315,9 @@ export function NewMsg({ className, style, idTag, onSubmit }: { className?: stri
 			audience: undefined
 		} as ActionEvt)
 		imageUpload.reset()
-		setTimeout(function () { editorRef.current?.blur(), editorRef.current?.focus() }, 0)
+		setTimeout(function () {
+			editorRef.current?.blur(), editorRef.current?.focus()
+		}, 0)
 	}
 
 	function onKeyDown(e: React.KeyboardEvent) {
@@ -270,26 +327,56 @@ export function NewMsg({ className, style, idTag, onSubmit }: { className?: stri
 		}
 	}
 
-	return <>
-		<div className={mergeClasses('c-panel', className)}><div className="h-100" style={style}>
-		<div className="c-input-group">
-			<label htmlFor={imgInputId} className="c-button secondary align-self-start"><IcImage/></label>
-			<input ref={imgInputRef} id={imgInputId} type="file" accept="image/*" style={{ display: 'none' }} onChange={onFileChange}/>
-			<div ref={editorRef} className="c-input flex-fill" tabIndex={0} onKeyDown={onKeyDown}>
-				{ generateFragments(content).map((n, i) => <React.Fragment key={i}>{n}</React.Fragment>) }
+	return (
+		<>
+			<div className={mergeClasses('c-panel', className)}>
+				<div className="h-100" style={style}>
+					<div className="c-input-group">
+						<label htmlFor={imgInputId} className="c-button secondary align-self-start">
+							<IcImage />
+						</label>
+						<input
+							ref={imgInputRef}
+							id={imgInputId}
+							type="file"
+							accept="image/*"
+							style={{ display: 'none' }}
+							onChange={onFileChange}
+						/>
+						<div
+							ref={editorRef}
+							className="c-input flex-fill"
+							tabIndex={0}
+							onKeyDown={onKeyDown}
+						>
+							{generateFragments(content).map((n, i) => (
+								<React.Fragment key={i}>{n}</React.Fragment>
+							))}
+						</div>
+						<button className="c-button primary align-self-end" onClick={doSubmit}>
+							<IcSend />
+						</button>
+					</div>
+					{auth?.idTag && (
+						<AttachmentPreview
+							attachmentIds={imageUpload.attachmentIds}
+							idTag={auth.idTag}
+							onRemove={imageUpload.removeAttachment}
+							compact
+						/>
+					)}
+				</div>
 			</div>
-			<button className="c-button primary align-self-end" onClick={doSubmit}><IcSend/></button>
-		</div>
-		{ auth?.idTag && <AttachmentPreview
-			attachmentIds={imageUpload.attachmentIds}
-			idTag={auth.idTag}
-			onRemove={imageUpload.removeAttachment}
-			compact
-		/> }
-	</div>
-	</div>
-		{ imageUpload.attachment && <ImageUpload src={imageUpload.attachment} aspects={['', '4:1', '3:1', '2:1', '16:9', '3:2', '1:1']} onSubmit={imageUpload.uploadAttachment} onCancel={onCancelCrop}/> }
-	</>
+			{imageUpload.attachment && (
+				<ImageUpload
+					src={imageUpload.attachment}
+					aspects={['', '4:1', '3:1', '2:1', '16:9', '3:2', '1:1']}
+					onSubmit={imageUpload.uploadAttachment}
+					onCancel={onCancelCrop}
+				/>
+			)}
+		</>
+	)
 }
 
 ///////////////////////
@@ -300,14 +387,25 @@ interface Conversation {
 	profiles: Profile[]
 }
 
-export function ConversationCard({ className, conversation }: { className?: string, conversation: Conversation }) {
+export function ConversationCard({
+	className,
+	conversation
+}: {
+	className?: string
+	conversation: Conversation
+}) {
 	const [auth] = useAuth()
 	const contextIdTag = useCurrentContextIdTag()
 	const profile = conversation.profiles[0] || {}
 
-	return <Link className={mergeClasses('c-nav-item', className)} to={`/app/${contextIdTag || auth?.idTag}/messages/${conversation.id}`}>
-		<ProfileCard profile={profile}/>
-	</Link>
+	return (
+		<Link
+			className={mergeClasses('c-nav-item', className)}
+			to={`/app/${contextIdTag || auth?.idTag}/messages/${conversation.id}`}
+		>
+			<ProfileCard profile={profile} />
+		</Link>
+	)
 }
 
 interface ConversationFilter {
@@ -322,7 +420,13 @@ interface ConversationBarProps {
 	activeId?: string
 }
 
-function ConversationBar({ className, filter, setFilter, conversations, activeId }: ConversationBarProps) {
+function ConversationBar({
+	className,
+	filter,
+	setFilter,
+	conversations,
+	activeId
+}: ConversationBarProps) {
 	const { t } = useTranslation()
 	const location = useLocation()
 	const navigate = useNavigate()
@@ -330,25 +434,39 @@ function ConversationBar({ className, filter, setFilter, conversations, activeId
 
 	const qs = parseQS(location.search)
 
-	const setFilterDebounced = React.useCallback(debounce(function setFilterD({ q }: { q?: string }) {
-		setFilter(filter => ({ ...filter, q }))
-	}, 300), [setFilter])
+	const setFilterDebounced = React.useCallback(
+		debounce(function setFilterD({ q }: { q?: string }) {
+			setFilter((filter) => ({ ...filter, q }))
+		}, 300),
+		[setFilter]
+	)
 
 	function onSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
 		setSearch(e.target.value)
 		setFilterDebounced({ q: e.target.value })
 	}
 
-	return <div className={mergeClasses('c-nav vertical low', className)}>
-		<div className="c-input-group mb-1">
-			<input type="text" className="c-input" placeholder="Search" value={search} onChange={onSearchChange}/>
+	return (
+		<div className={mergeClasses('c-nav vertical low', className)}>
+			<div className="c-input-group mb-1">
+				<input
+					type="text"
+					className="c-input"
+					placeholder="Search"
+					value={search}
+					onChange={onSearchChange}
+				/>
+			</div>
+			{!!conversations &&
+				conversations.map((con) => (
+					<ConversationCard
+						key={con.profiles[0]?.idTag}
+						conversation={con}
+						className={activeId === con.id ? 'bg container-primary' : undefined}
+					/>
+				))}
 		</div>
-		{ !!conversations && conversations.map(con => <ConversationCard
-			key={con.profiles[0]?.idTag}
-			conversation={con}
-			className={activeId === con.id ? 'bg container-primary' : undefined}
-		/>) }
-	</div>
+	)
 }
 
 export function MessagesApp() {
@@ -368,50 +486,66 @@ export function MessagesApp() {
 	const [scrollBottom, setScrollBottom] = React.useState(true)
 
 	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
-		setMsg(msgs => [...(msgs || []), msg.data as ActionEvt])
+		setMsg((msgs) => [...(msgs || []), msg.data as ActionEvt])
 	})
 
-	React.useEffect(function loadConversations() {
-		setConversations([]);
-		if (!auth || !api) return
+	React.useEffect(
+		function loadConversations() {
+			setConversations([])
+			if (!auth || !api) return
+			;(async function () {
+				const conversationRes: { conversations: Conversation[] } = { conversations: [] }
+				const profiles = await api.profiles.list({
+					...filter,
+					type: 'person',
+					connected: true
+				})
+				console.log('profiles', profiles)
+				const profileConvs: Conversation[] = profiles.map((profile) => ({
+					id: profile.idTag,
+					profiles: [profile]
+				}))
+				setConversations([...conversationRes.conversations, ...profileConvs])
+			})()
+		},
+		[auth, api, filter]
+	)
 
-		(async function () {
-			const conversationRes: { conversations: Conversation[] } = { conversations: [] }
-			const profiles = await api.profiles.list({ ...filter, type: 'person', connected: true })
-			console.log('profiles', profiles)
-			const profileConvs: Conversation[] = profiles.map(profile => ({
-				id: profile.idTag,
-				profiles: [profile]
-			}))
-			setConversations([ ...conversationRes.conversations, ...profileConvs ])
-		})()
-	}, [auth, api, filter])
+	React.useEffect(
+		function loadMessages() {
+			setShowFilter(!convId)
+			if (!auth || !convId || !api) return
+			;(async function () {
+				// Get profile by idTag
+				try {
+					const profile = await api.profiles.get(convId)
+					const profiles = profile ? [profile] : []
+					console.log('profile', profiles)
 
-	React.useEffect(function loadMessages() {
-		setShowFilter(!convId)
-		if (!auth || !convId || !api) return
-		(async function () {
-			// Get profile by idTag
-			try {
-				const profile = await api.profiles.get(convId)
-				const profiles = profile ? [profile] : []
-				console.log('profile', profiles)
-
-				setConversation({ id: convId, profiles })
-				const actions = await api.actions.list({ involved: convId, type: 'MSG' })
-				console.log('Msg res', actions)
-				setMsg((actions as any).sort((a: any, b: any) => dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix()))
-				//convRef.current?.scrollTo({ top: convRef.current.scrollHeight })
-			} catch (err) {
-				console.error('Failed to load messages', err)
-			}
-		})()
-	}, [auth, convId, api])
+					setConversation({ id: convId, profiles })
+					const actions = await api.actions.list({ involved: convId, type: 'MSG' })
+					console.log('Msg res', actions)
+					setMsg(
+						(actions as any).sort(
+							(a: any, b: any) =>
+								dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix()
+						)
+					)
+					//convRef.current?.scrollTo({ top: convRef.current.scrollHeight })
+				} catch (err) {
+					console.error('Failed to load messages', err)
+				}
+			})()
+		},
+		[auth, convId, api]
+	)
 
 	function onConvScroll() {
 		if (!convRef.current) return
 
-		const bottom = convRef.current?.scrollHeight - (convRef.current?.scrollTop + convRef.current?.clientHeight)
+		const bottom =
+			convRef.current?.scrollHeight -
+			(convRef.current?.scrollTop + convRef.current?.clientHeight)
 		//console.log('conv scroll', convRef.current?.scrollTop, convRef.current?.scrollHeight, convRef.current?.clientHeight, bottom)
 		if (scrollBottom && bottom > 800) setScrollBottom(false)
 		if (!scrollBottom && bottom <= 800) setScrollBottom(true)
@@ -425,59 +559,90 @@ export function MessagesApp() {
 		})
 	}
 
-	React.useEffect(function scrollMessages() {
-		//console.log('scroll info', convRef.current?.scrollTop, convRef.current?.scrollHeight, convRef.current?.clientHeight)
-		if (scrollBottom) convRef.current?.scrollTo({
-			top: convRef.current.scrollHeight,
-			behavior: 'instant'
-		})
-	}, [msg])
+	React.useEffect(
+		function scrollMessages() {
+			//console.log('scroll info', convRef.current?.scrollTop, convRef.current?.scrollHeight, convRef.current?.clientHeight)
+			if (scrollBottom)
+				convRef.current?.scrollTo({
+					top: convRef.current.scrollHeight,
+					behavior: 'instant'
+				})
+		},
+		[msg]
+	)
 
 	function onSubmit(action: ActionEvt) {
 		console.log('onSubmit', action)
 		setMsg([...(msg || []), action])
 	}
 
-	return <><Fcd.Container className="g-1">
-		{ !!auth && <>
-			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-				<ConversationBar className="col col-md-4 col-lg-3 h-100"
-					filter={filter}
-					setFilter={setFilter}
-					conversations={conversations}
-					activeId={convId}
-				/>
-			</Fcd.Filter>
-			<Fcd.Content ref={convRef} onScroll={onConvScroll}
-				header={<div className="c-nav c-hbox md-hide lg-hide">
-					<IcConvList onClick={() => setShowFilter(true)}/>
-					{convId && <IdentityTag idTag={convId}/>}
-				</div>}
-			>
-				{ !scrollBottom && <button className="c-button float m-1 secondary pos-absolute bottom-0 right-0" onClick={onConvScrollBottomClick}><IcScrollBottom/></button> }
-				{ !convId
-					? <EmptyState
-						icon={<IcConvList style={{ fontSize: '2.5rem' }} />}
-						title={t('Select a conversation')}
-						description={t('Choose a contact from the list to start messaging')}
-					/>
-					: msg === undefined
-						? <SkeletonList count={5} showAvatar />
-						: msg.length === 0
-							? <EmptyState
-								icon={<IcConvList style={{ fontSize: '2.5rem' }} />}
-								title={t('No messages yet')}
-								description={t('Start the conversation by sending a message!')}
+	return (
+		<>
+			<Fcd.Container className="g-1">
+				{!!auth && (
+					<>
+						<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+							<ConversationBar
+								className="col col-md-4 col-lg-3 h-100"
+								filter={filter}
+								setFilter={setFilter}
+								conversations={conversations}
+								activeId={convId}
 							/>
-							: msg.sort((a, b) => +a.createdAt - +b.createdAt).map(action => <Msg key={action.actionId} action={action} local={action.issuer.idTag === auth?.idTag}/>)
-				}
-			</Fcd.Content>
-			<Fcd.Details>
-			</Fcd.Details>
-		</> }
-	</Fcd.Container>
-	{ !!auth && !!convId && <NewMsg className="mt-1" idTag={convId} onSubmit={onSubmit}/> }
-	</>
+						</Fcd.Filter>
+						<Fcd.Content
+							ref={convRef}
+							onScroll={onConvScroll}
+							header={
+								<div className="c-nav c-hbox md-hide lg-hide">
+									<IcConvList onClick={() => setShowFilter(true)} />
+									{convId && <IdentityTag idTag={convId} />}
+								</div>
+							}
+						>
+							{!scrollBottom && (
+								<button
+									className="c-button float m-1 secondary pos-absolute bottom-0 right-0"
+									onClick={onConvScrollBottomClick}
+								>
+									<IcScrollBottom />
+								</button>
+							)}
+							{!convId ? (
+								<EmptyState
+									icon={<IcConvList style={{ fontSize: '2.5rem' }} />}
+									title={t('Select a conversation')}
+									description={t(
+										'Choose a contact from the list to start messaging'
+									)}
+								/>
+							) : msg === undefined ? (
+								<SkeletonList count={5} showAvatar />
+							) : msg.length === 0 ? (
+								<EmptyState
+									icon={<IcConvList style={{ fontSize: '2.5rem' }} />}
+									title={t('No messages yet')}
+									description={t('Start the conversation by sending a message!')}
+								/>
+							) : (
+								msg
+									.sort((a, b) => +a.createdAt - +b.createdAt)
+									.map((action) => (
+										<Msg
+											key={action.actionId}
+											action={action}
+											local={action.issuer.idTag === auth?.idTag}
+										/>
+									))
+							)}
+						</Fcd.Content>
+						<Fcd.Details></Fcd.Details>
+					</>
+				)}
+			</Fcd.Container>
+			{!!auth && !!convId && <NewMsg className="mt-1" idTag={convId} onSubmit={onSubmit} />}
+		</>
+	)
 }
 
 // vim: ts=4

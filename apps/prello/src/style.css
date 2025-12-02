@@ -1,4 +1,6 @@
-html, body, #app {
+html,
+body,
+#app {
 	height: 100%;
 }
 
@@ -74,13 +76,13 @@ html, body, #app {
 }
 
 /* Hide number input spinners */
-.c-number-input .c-input[type="number"] {
+.c-number-input .c-input[type='number'] {
 	-moz-appearance: textfield;
 	appearance: textfield;
 }
 
-.c-number-input .c-input[type="number"]::-webkit-outer-spin-button,
-.c-number-input .c-input[type="number"]::-webkit-inner-spin-button {
+.c-number-input .c-input[type='number']::-webkit-outer-spin-button,
+.c-number-input .c-input[type='number']::-webkit-inner-spin-button {
 	-webkit-appearance: none;
 	margin: 0;
 }

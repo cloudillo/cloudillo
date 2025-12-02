@@ -1,26 +1,26 @@
 {
-    "name": "@cloudillo/crdt-adapter-leveldb",
-    "version": "0.0.1",
-    "description": "Cloudillo filesystem based CRDT adapter",
-    "type": "module",
-    "main": "lib/index.js",
-    "scripts": {
-        "build": "tsc",
-        "watch": "tsc -w",
-        "clean": "rimraf .cache lib"
-    },
-    "author": "Szilárd Hajba <szilu@cloudillo.org",
-    "license": "LGPL-3.0-or-later",
-    "dependencies": {
-        "@cloudillo/server": "workspace:^",
-        "@symbion/runtype": "^1.1.3",
-        "lib0": "^0.2.114",
-        "y-leveldb": "^0.2.0",
-        "yjs": "^13.6.27"
-    },
-    "devDependencies": {
-        "@types/node": "^24.10.1",
-        "rimraf": "^6.1.2",
-        "typescript": "^5.9.3"
-    }
+	"name": "@cloudillo/crdt-adapter-leveldb",
+	"version": "0.0.1",
+	"description": "Cloudillo filesystem based CRDT adapter",
+	"type": "module",
+	"main": "lib/index.js",
+	"scripts": {
+		"build": "tsc",
+		"watch": "tsc -w",
+		"clean": "rimraf .cache lib"
+	},
+	"author": "Szilárd Hajba <szilu@cloudillo.org",
+	"license": "LGPL-3.0-or-later",
+	"dependencies": {
+		"@cloudillo/server": "workspace:^",
+		"@symbion/runtype": "^1.1.3",
+		"lib0": "^0.2.114",
+		"y-leveldb": "^0.2.0",
+		"yjs": "^13.6.27"
+	},
+	"devDependencies": {
+		"@types/node": "^24.10.1",
+		"rimraf": "^6.1.2",
+		"typescript": "^5.9.3"
+	}
 }

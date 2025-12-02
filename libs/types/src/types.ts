@@ -26,15 +26,26 @@ export type Profile = T.TypeOf<typeof tProfile>
 export const tOptionalProfile = T.nullable(tProfile)
 export type OptionalProfile = T.TypeOf<typeof tOptionalProfile>
 
-export const tActionType = T.literal('CONN', 'FLLW', 'POST', 'REPOST', 'REACT', 'CMNT', 'FLLW', 'SHRE', 'MSG', 'FSHR')
+export const tActionType = T.literal(
+	'CONN',
+	'FLLW',
+	'POST',
+	'REPOST',
+	'REACT',
+	'CMNT',
+	'FLLW',
+	'SHRE',
+	'MSG',
+	'FSHR'
+)
 export type ActionType = T.TypeOf<typeof tActionType>
 
 export const tActionStatus = T.literal(
-	'P',	// Pending (draft/unpublished)
-	'A',	// Active (default when NULL - published/finalized)
-	'D',	// Deleted (soft delete)
-	'C',	// Created (pending approval - e.g. connection requests)
-	'N'		// New (notification - awaiting user acknowledgment)
+	'P', // Pending (draft/unpublished)
+	'A', // Active (default when NULL - published/finalized)
+	'D', // Deleted (soft delete)
+	'C', // Created (pending approval - e.g. connection requests)
+	'N' // New (notification - awaiting user acknowledgment)
 )
 export type ActionStatus = T.TypeOf<typeof tActionStatus>
 
@@ -80,37 +91,44 @@ export const tActionView = T.struct({
 		profilePic: T.optional(T.string),
 		type: T.optional(T.string)
 	}),
-	audience: T.optional(T.struct({
-		idTag: T.string,
-		name: T.optional(T.string),
-		profilePic: T.optional(T.string),
-		type: T.optional(T.string)
-	})),
+	audience: T.optional(
+		T.struct({
+			idTag: T.string,
+			name: T.optional(T.string),
+			profilePic: T.optional(T.string),
+			type: T.optional(T.string)
+		})
+	),
 	content: T.optional(T.unknown),
-	attachments: T.optional(T.array(T.struct({
-		fileId: T.string,
-		dim: T.optional(T.union(T.tuple(T.number, T.number), T.nullValue)),
-		localVariants: T.optional(T.array(T.string)),  // Locally available variants: ["vis.tn", "vis.sd", ...]
-	}))),
+	attachments: T.optional(
+		T.array(
+			T.struct({
+				fileId: T.string,
+				dim: T.optional(T.union(T.tuple(T.number, T.number), T.nullValue)),
+				localVariants: T.optional(T.array(T.string)) // Locally available variants: ["vis.tn", "vis.sd", ...]
+			})
+		)
+	),
 	subject: T.optional(T.string),
 	createdAt: T.union(T.string, T.number),
 	expiresAt: T.optional(T.union(T.string, T.number)),
 	status: T.optional(tActionStatus),
-	stat: T.optional(T.struct({
-		ownReaction: T.optional(T.string),
-		reactions: T.optional(T.number),
-		comments: T.optional(T.number),
-		commentsRead: T.optional(T.number)
-	}))
+	stat: T.optional(
+		T.struct({
+			ownReaction: T.optional(T.string),
+			reactions: T.optional(T.number),
+			comments: T.optional(T.number),
+			commentsRead: T.optional(T.number)
+		})
+	)
 })
 export type ActionView = T.TypeOf<typeof tActionView>
-
 
 // Action types //
 //////////////////
 
 // User relations
-export const tConnectAction =  T.struct({
+export const tConnectAction = T.struct({
 	type: T.literal('CONN'),
 	subType: T.undefinedValue,
 	content: T.optional(T.string),
@@ -145,7 +163,7 @@ export const tPostAction = T.struct({
 export type PostAction = T.TypeOf<typeof tPostAction>
 
 // Content spreading
-export const tAckAction =  T.struct({
+export const tAckAction = T.struct({
 	type: T.literal('ACK'),
 	subType: T.undefinedValue,
 	content: T.undefinedValue,
@@ -156,7 +174,7 @@ export const tAckAction =  T.struct({
 })
 export type AckAction = T.TypeOf<typeof tAckAction>
 
-export const tRepostAction =  T.struct({
+export const tRepostAction = T.struct({
 	type: T.literal('REPOST'),
 	subType: T.undefinedValue,
 	content: T.optional(T.string),
@@ -213,7 +231,7 @@ export const tReactionStatAction = T.struct({
 export type ReactionStatAction = T.TypeOf<typeof tReactionStatAction>
 
 // Messages
-export const tMessageAction =  T.struct({
+export const tMessageAction = T.struct({
 	type: T.literal('MSG'),
 	subType: T.string,
 	content: T.string,

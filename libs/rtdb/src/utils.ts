@@ -14,12 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import {
-	DocumentSnapshot,
-	QuerySnapshot,
-	DocumentChange,
-	ChangeEvent
-} from './types.js'
+import { DocumentSnapshot, QuerySnapshot, DocumentChange, ChangeEvent } from './types.js'
 
 export class DocumentSnapshotImpl<T = any> implements DocumentSnapshot<T> {
 	constructor(
@@ -46,9 +41,7 @@ export class QuerySnapshotImpl<T = any> implements QuerySnapshot<T> {
 	private _changes: DocumentChange<T>[] = []
 
 	constructor(documents: Array<{ id: string; data: any }>) {
-		this.docs = documents.map(
-			(doc) => new DocumentSnapshotImpl<T>(doc.id, true, doc.data)
-		)
+		this.docs = documents.map((doc) => new DocumentSnapshotImpl<T>(doc.id, true, doc.data))
 	}
 
 	get size(): number {

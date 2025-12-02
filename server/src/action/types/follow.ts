@@ -14,7 +14,14 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { registerActionType, CreateActionContext, ActionContext, Action, NewAction, AudienceInfo } from "../action.js";
+import {
+	registerActionType,
+	CreateActionContext,
+	ActionContext,
+	Action,
+	NewAction,
+	AudienceInfo
+} from '../action.js'
 import { metaAdapter } from '../../adapters.js'
 
 import * as T from '@symbion/runtype'
@@ -33,7 +40,11 @@ const tConnect = T.struct({
 	exp: T.optional(T.number)
 })
 
-async function createHook({ tnId, tenantTag }: CreateActionContext, action: NewAction, audience?: AudienceInfo) {
+async function createHook(
+	{ tnId, tenantTag }: CreateActionContext,
+	action: NewAction,
+	audience?: AudienceInfo
+) {
 	if (!audience) return
 
 	console.log('FOLLOW', audience)

@@ -198,18 +198,13 @@ describe('WriteBatch', () => {
 	let batch: WriteBatch
 
 	beforeEach(() => {
-		mockWs = new WebSocketManager(
-			'test-db',
-			() => 'token',
-			'wss://test.com',
-			{
-				enableCache: false,
-				reconnect: true,
-				reconnectDelay: 1000,
-				maxReconnectDelay: 30000,
-				debug: false
-			}
-		) as jest.Mocked<WebSocketManager>
+		mockWs = new WebSocketManager('test-db', () => 'token', 'wss://test.com', {
+			enableCache: false,
+			reconnect: true,
+			reconnectDelay: 1000,
+			maxReconnectDelay: 30000,
+			debug: false
+		}) as jest.Mocked<WebSocketManager>
 
 		batch = new WriteBatch(mockWs)
 	})
@@ -303,10 +298,7 @@ describe('WriteBatch', () => {
 		it('should return results with IDs', async () => {
 			mockWs.send = (jest.fn() as any).mockResolvedValue({
 				type: 'transactionResult',
-				results: [
-					{ id: 'new-doc-1' },
-					{ id: 'new-doc-2' }
-				]
+				results: [{ id: 'new-doc-1' }, { id: 'new-doc-2' }]
 			})
 
 			const mockColl = new CollectionReference(mockWs, 'posts')

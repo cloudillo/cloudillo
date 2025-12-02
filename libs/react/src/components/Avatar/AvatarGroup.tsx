@@ -47,11 +47,7 @@ export const AvatarGroup = createComponent<HTMLDivElement, AvatarGroupProps>(
 		return (
 			<div
 				ref={ref}
-				className={mergeClasses(
-					'c-avatar-group',
-					reverse && 'reverse',
-					className
-				)}
+				className={mergeClasses('c-avatar-group', reverse && 'reverse', className)}
 				{...props}
 			>
 				{displayChildren}

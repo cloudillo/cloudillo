@@ -22,7 +22,10 @@ import { ApiClient } from '@cloudillo/base'
 
 import { UsePWA } from '../pwa.js'
 import { useSettings } from './settings.js'
-import { useLocalNotifySettings, LocalNotifySettings } from '../notifications/useLocalNotifySettings.js'
+import {
+	useLocalNotifySettings,
+	LocalNotifySettings
+} from '../notifications/useLocalNotifySettings.js'
 import { NOTIFICATION_SOUNDS, SOUND_LABELS } from '../notifications/sounds.js'
 
 export async function subscribeNotifications(api: ApiClient | null, pwa: UsePWA) {
@@ -35,7 +38,13 @@ export async function subscribeNotifications(api: ApiClient | null, pwa: UsePWA)
 	}
 }
 
-function SoundSelect({ label, settingKey, localSettings, updateSetting, t }: {
+function SoundSelect({
+	label,
+	settingKey,
+	localSettings,
+	updateSetting,
+	t
+}: {
 	label: string
 	settingKey: keyof LocalNotifySettings
 	localSettings: LocalNotifySettings
@@ -54,16 +63,23 @@ function SoundSelect({ label, settingKey, localSettings, updateSetting, t }: {
 		}
 	}
 
-	return <label className="c-hbox mt-3 ms-2">
-		<span className="flex-fill">{label}</span>
-		<select className="c-select" value={localSettings[settingKey] as string || ''}
-			onChange={handleChange}>
-			<option value="">{t('Disabled')}</option>
-			{Object.entries(SOUND_LABELS).map(([key, soundLabel]) => (
-				<option key={key} value={key}>{soundLabel}</option>
-			))}
-		</select>
-	</label>
+	return (
+		<label className="c-hbox mt-3 ms-2">
+			<span className="flex-fill">{label}</span>
+			<select
+				className="c-select"
+				value={(localSettings[settingKey] as string) || ''}
+				onChange={handleChange}
+			>
+				<option value="">{t('Disabled')}</option>
+				{Object.entries(SOUND_LABELS).map(([key, soundLabel]) => (
+					<option key={key} value={key}>
+						{soundLabel}
+					</option>
+				))}
+			</select>
+		</label>
+	)
 }
 
 export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
@@ -71,11 +87,16 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 	const { api, setIdTag } = useApi()
 	const { settings, onSettingChange } = useSettings('notify')
 	const { settings: localSettings, updateSetting } = useLocalNotifySettings()
-	const [notificationSubscription, setNotificationSubscription] = React.useState<PushSubscription | undefined>()
+	const [notificationSubscription, setNotificationSubscription] = React.useState<
+		PushSubscription | undefined
+	>()
 
 	React.useEffect(function () {
-		(async function () {
-			const sw = window.Notification?.permission === 'granted' ? await navigator.serviceWorker.ready : undefined
+		;(async function () {
+			const sw =
+				window.Notification?.permission === 'granted'
+					? await navigator.serviceWorker.ready
+					: undefined
 			const subscription = (await sw?.pushManager?.getSubscription()) || undefined
 			setNotificationSubscription(subscription)
 		})()
@@ -99,161 +120,408 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 
 	if (!settings) return null
 
-	return <>
-		<div className="c-panel">
-			<label className="c-hbox">
-				<span className="flex-fill">{t('Enable push notifications on this device')}</span>
-				<input className="c-toggle primary" name="notify.push" type="checkbox"
-					checked={!!notificationSubscription}
-					onChange={onPushChange}
+	return (
+		<>
+			<div className="c-panel">
+				<label className="c-hbox">
+					<span className="flex-fill">
+						{t('Enable push notifications on this device')}
+					</span>
+					<input
+						className="c-toggle primary"
+						name="notify.push"
+						type="checkbox"
+						checked={!!notificationSubscription}
+						onChange={onPushChange}
+					/>
+				</label>
+
+				<label className="c-hbox mt-4">
+					<span className="flex-fill">{t('Enable push notifications')}</span>
+					<input
+						className="c-toggle primary"
+						name="notify.push"
+						type="checkbox"
+						checked={!!settings['notify.push']}
+						onChange={onSettingChange}
+					/>
+				</label>
+
+				{!!settings['notify.push'] && (
+					<>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">{t('Notify on direct messages')}</span>
+							<input
+								className="c-toggle"
+								name="notify.push.message"
+								type="checkbox"
+								checked={!!settings['notify.push.message']}
+								onChange={onSettingChange}
+							/>
+						</label>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">{t('Notify on connection requests')}</span>
+							<input
+								className="c-toggle"
+								name="notify.push.connection"
+								type="checkbox"
+								checked={!!settings['notify.push.connection']}
+								onChange={onSettingChange}
+							/>
+						</label>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">
+								{t('Notify when files are shared with you')}
+							</span>
+							<input
+								className="c-toggle"
+								name="notify.push.file_share"
+								type="checkbox"
+								checked={!!settings['notify.push.file_share']}
+								onChange={onSettingChange}
+							/>
+						</label>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">
+								{t('Notify when someone follows you')}
+							</span>
+							<input
+								className="c-toggle"
+								name="notify.push.follow"
+								type="checkbox"
+								checked={!!settings['notify.push.follow']}
+								onChange={onSettingChange}
+							/>
+						</label>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">
+								{t('Notify on comments to your posts')}
+							</span>
+							<input
+								className="c-toggle"
+								name="notify.push.comment"
+								type="checkbox"
+								checked={!!settings['notify.push.comment']}
+								onChange={onSettingChange}
+							/>
+						</label>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">
+								{t('Notify on reactions to your posts')}
+							</span>
+							<input
+								className="c-toggle"
+								name="notify.push.reaction"
+								type="checkbox"
+								checked={!!settings['notify.push.reaction']}
+								onChange={onSettingChange}
+							/>
+						</label>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">{t('Notify when you are mentioned')}</span>
+							<input
+								className="c-toggle"
+								name="notify.push.mention"
+								type="checkbox"
+								checked={!!settings['notify.push.mention']}
+								onChange={onSettingChange}
+							/>
+						</label>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">
+								{t('Notify on new posts from people you follow')}
+							</span>
+							<input
+								className="c-toggle"
+								name="notify.push.post"
+								type="checkbox"
+								checked={!!settings['notify.push.post']}
+								onChange={onSettingChange}
+							/>
+						</label>
+					</>
+				)}
+
+				<label className="c-hbox mt-4">
+					<span className="flex-fill">{t('Enable email notifications')}</span>
+					<input
+						className="c-toggle primary"
+						name="notify.email"
+						type="checkbox"
+						checked={!!settings['notify.email']}
+						onChange={onSettingChange}
+					/>
+				</label>
+
+				{!!settings['notify.email'] && (
+					<>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">{t('Notify on direct messages')}</span>
+							<input
+								className="c-toggle"
+								name="notify.email.message"
+								type="checkbox"
+								checked={!!settings['notify.email.message']}
+								onChange={onSettingChange}
+							/>
+						</label>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">{t('Notify on connection requests')}</span>
+							<input
+								className="c-toggle"
+								name="notify.email.connection"
+								type="checkbox"
+								checked={!!settings['notify.email.connection']}
+								onChange={onSettingChange}
+							/>
+						</label>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">
+								{t('Notify when files are shared with you')}
+							</span>
+							<input
+								className="c-toggle"
+								name="notify.email.file_share"
+								type="checkbox"
+								checked={!!settings['notify.email.file_share']}
+								onChange={onSettingChange}
+							/>
+						</label>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">
+								{t('Notify when someone follows you')}
+							</span>
+							<input
+								className="c-toggle"
+								name="notify.email.follow"
+								type="checkbox"
+								checked={!!settings['notify.email.follow']}
+								onChange={onSettingChange}
+							/>
+						</label>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">
+								{t('Notify on comments to your posts')}
+							</span>
+							<input
+								className="c-toggle"
+								name="notify.email.comment"
+								type="checkbox"
+								checked={!!settings['notify.email.comment']}
+								onChange={onSettingChange}
+							/>
+						</label>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">
+								{t('Notify on reactions to your posts')}
+							</span>
+							<input
+								className="c-toggle"
+								name="notify.email.reaction"
+								type="checkbox"
+								checked={!!settings['notify.email.reaction']}
+								onChange={onSettingChange}
+							/>
+						</label>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">{t('Notify when you are mentioned')}</span>
+							<input
+								className="c-toggle"
+								name="notify.email.mention"
+								type="checkbox"
+								checked={!!settings['notify.email.mention']}
+								onChange={onSettingChange}
+							/>
+						</label>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">
+								{t('Notify on new posts from people you follow')}
+							</span>
+							<input
+								className="c-toggle"
+								name="notify.email.post"
+								type="checkbox"
+								checked={!!settings['notify.email.post']}
+								onChange={onSettingChange}
+							/>
+						</label>
+					</>
+				)}
+
+				<h4 className="mt-4">{t('Sound notifications')}</h4>
+				<p className="text-muted">
+					{t('These settings are stored locally on this device')}
+				</p>
+				<p className="text-muted">
+					{t(
+						'Browsers may block sounds until you interact with the page. Click the test button to enable sounds.'
+					)}
+				</p>
+				<div className="c-hbox mt-2 mb-2">
+					<button
+						className="c-button secondary"
+						onClick={() => {
+							const firstSound = Object.values(NOTIFICATION_SOUNDS)[0]
+							if (firstSound) {
+								const audio = new Audio(`/sounds/${firstSound}`)
+								audio.play().catch(() => {})
+							}
+						}}
+					>
+						{t('Test sound')}
+					</button>
+				</div>
+
+				<SoundSelect
+					label={t('Direct messages')}
+					settingKey="sound.message"
+					localSettings={localSettings}
+					updateSetting={updateSetting}
+					t={t}
 				/>
-			</label>
+				<SoundSelect
+					label={t('Connection requests')}
+					settingKey="sound.connection"
+					localSettings={localSettings}
+					updateSetting={updateSetting}
+					t={t}
+				/>
+				<SoundSelect
+					label={t('File sharing')}
+					settingKey="sound.file_share"
+					localSettings={localSettings}
+					updateSetting={updateSetting}
+					t={t}
+				/>
+				<SoundSelect
+					label={t('New followers')}
+					settingKey="sound.follow"
+					localSettings={localSettings}
+					updateSetting={updateSetting}
+					t={t}
+				/>
+				<SoundSelect
+					label={t('Comments on your posts')}
+					settingKey="sound.comment"
+					localSettings={localSettings}
+					updateSetting={updateSetting}
+					t={t}
+				/>
+				<SoundSelect
+					label={t('Reactions to your posts')}
+					settingKey="sound.reaction"
+					localSettings={localSettings}
+					updateSetting={updateSetting}
+					t={t}
+				/>
+				<SoundSelect
+					label={t('Mentions')}
+					settingKey="sound.mention"
+					localSettings={localSettings}
+					updateSetting={updateSetting}
+					t={t}
+				/>
+				<SoundSelect
+					label={t('Posts from followed users')}
+					settingKey="sound.post"
+					localSettings={localSettings}
+					updateSetting={updateSetting}
+					t={t}
+				/>
 
-			<label className="c-hbox mt-4">
-				<span className="flex-fill">{t('Enable push notifications')}</span>
-				<input className="c-toggle primary" name="notify.push" type="checkbox" checked={!!settings['notify.push']} onChange={onSettingChange}/>
-			</label>
+				<label className="c-hbox mt-4">
+					<span className="flex-fill">{t('Enable toast notifications')}</span>
+					<input
+						className="c-toggle primary"
+						type="checkbox"
+						checked={!!localSettings.toast}
+						onChange={(e) => updateSetting('toast', e.target.checked)}
+					/>
+				</label>
 
-			{ !!settings['notify.push'] && <>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Notify on direct messages')}</span>
-					<input className="c-toggle" name="notify.push.message" type="checkbox" checked={!!settings['notify.push.message']} onChange={onSettingChange}/>
-				</label>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Notify on connection requests')}</span>
-					<input className="c-toggle" name="notify.push.connection" type="checkbox" checked={!!settings['notify.push.connection']} onChange={onSettingChange}/>
-				</label>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Notify when files are shared with you')}</span>
-					<input className="c-toggle" name="notify.push.file_share" type="checkbox" checked={!!settings['notify.push.file_share']} onChange={onSettingChange}/>
-				</label>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Notify when someone follows you')}</span>
-					<input className="c-toggle" name="notify.push.follow" type="checkbox" checked={!!settings['notify.push.follow']} onChange={onSettingChange}/>
-				</label>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Notify on comments to your posts')}</span>
-					<input className="c-toggle" name="notify.push.comment" type="checkbox" checked={!!settings['notify.push.comment']} onChange={onSettingChange}/>
-				</label>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Notify on reactions to your posts')}</span>
-					<input className="c-toggle" name="notify.push.reaction" type="checkbox" checked={!!settings['notify.push.reaction']} onChange={onSettingChange}/>
-				</label>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Notify when you are mentioned')}</span>
-					<input className="c-toggle" name="notify.push.mention" type="checkbox" checked={!!settings['notify.push.mention']} onChange={onSettingChange}/>
-				</label>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Notify on new posts from people you follow')}</span>
-					<input className="c-toggle" name="notify.push.post" type="checkbox" checked={!!settings['notify.push.post']} onChange={onSettingChange}/>
-				</label>
-			</> }
-
-			<label className="c-hbox mt-4">
-				<span className="flex-fill">{t('Enable email notifications')}</span>
-				<input className="c-toggle primary" name="notify.email" type="checkbox" checked={!!settings['notify.email']} onChange={onSettingChange}/>
-			</label>
-
-			{ !!settings['notify.email'] && <>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Notify on direct messages')}</span>
-					<input className="c-toggle" name="notify.email.message" type="checkbox" checked={!!settings['notify.email.message']} onChange={onSettingChange}/>
-				</label>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Notify on connection requests')}</span>
-					<input className="c-toggle" name="notify.email.connection" type="checkbox" checked={!!settings['notify.email.connection']} onChange={onSettingChange}/>
-				</label>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Notify when files are shared with you')}</span>
-					<input className="c-toggle" name="notify.email.file_share" type="checkbox" checked={!!settings['notify.email.file_share']} onChange={onSettingChange}/>
-				</label>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Notify when someone follows you')}</span>
-					<input className="c-toggle" name="notify.email.follow" type="checkbox" checked={!!settings['notify.email.follow']} onChange={onSettingChange}/>
-				</label>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Notify on comments to your posts')}</span>
-					<input className="c-toggle" name="notify.email.comment" type="checkbox" checked={!!settings['notify.email.comment']} onChange={onSettingChange}/>
-				</label>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Notify on reactions to your posts')}</span>
-					<input className="c-toggle" name="notify.email.reaction" type="checkbox" checked={!!settings['notify.email.reaction']} onChange={onSettingChange}/>
-				</label>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Notify when you are mentioned')}</span>
-					<input className="c-toggle" name="notify.email.mention" type="checkbox" checked={!!settings['notify.email.mention']} onChange={onSettingChange}/>
-				</label>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Notify on new posts from people you follow')}</span>
-					<input className="c-toggle" name="notify.email.post" type="checkbox" checked={!!settings['notify.email.post']} onChange={onSettingChange}/>
-				</label>
-			</> }
-
-			<h4 className="mt-4">{t('Sound notifications')}</h4>
-			<p className="text-muted">{t('These settings are stored locally on this device')}</p>
-			<p className="text-muted">{t('Browsers may block sounds until you interact with the page. Click the test button to enable sounds.')}</p>
-			<div className="c-hbox mt-2 mb-2">
-				<button className="c-button secondary" onClick={() => {
-					const firstSound = Object.values(NOTIFICATION_SOUNDS)[0]
-					if (firstSound) {
-						const audio = new Audio(`/sounds/${firstSound}`)
-						audio.play().catch(() => {})
-					}
-				}}>{t('Test sound')}</button>
+				{!!localSettings.toast && (
+					<>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">{t('Direct messages')}</span>
+							<input
+								className="c-toggle"
+								type="checkbox"
+								checked={!!localSettings['toast.message']}
+								onChange={(e) => updateSetting('toast.message', e.target.checked)}
+							/>
+						</label>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">{t('Connection requests')}</span>
+							<input
+								className="c-toggle"
+								type="checkbox"
+								checked={!!localSettings['toast.connection']}
+								onChange={(e) =>
+									updateSetting('toast.connection', e.target.checked)
+								}
+							/>
+						</label>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">{t('File sharing')}</span>
+							<input
+								className="c-toggle"
+								type="checkbox"
+								checked={!!localSettings['toast.file_share']}
+								onChange={(e) =>
+									updateSetting('toast.file_share', e.target.checked)
+								}
+							/>
+						</label>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">{t('New followers')}</span>
+							<input
+								className="c-toggle"
+								type="checkbox"
+								checked={!!localSettings['toast.follow']}
+								onChange={(e) => updateSetting('toast.follow', e.target.checked)}
+							/>
+						</label>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">{t('Comments on your posts')}</span>
+							<input
+								className="c-toggle"
+								type="checkbox"
+								checked={!!localSettings['toast.comment']}
+								onChange={(e) => updateSetting('toast.comment', e.target.checked)}
+							/>
+						</label>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">{t('Reactions to your posts')}</span>
+							<input
+								className="c-toggle"
+								type="checkbox"
+								checked={!!localSettings['toast.reaction']}
+								onChange={(e) => updateSetting('toast.reaction', e.target.checked)}
+							/>
+						</label>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">{t('Mentions')}</span>
+							<input
+								className="c-toggle"
+								type="checkbox"
+								checked={!!localSettings['toast.mention']}
+								onChange={(e) => updateSetting('toast.mention', e.target.checked)}
+							/>
+						</label>
+						<label className="c-hbox mt-3 ms-2">
+							<span className="flex-fill">{t('Posts from followed users')}</span>
+							<input
+								className="c-toggle"
+								type="checkbox"
+								checked={!!localSettings['toast.post']}
+								onChange={(e) => updateSetting('toast.post', e.target.checked)}
+							/>
+						</label>
+					</>
+				)}
 			</div>
-
-			<SoundSelect label={t('Direct messages')} settingKey="sound.message" localSettings={localSettings} updateSetting={updateSetting} t={t}/>
-			<SoundSelect label={t('Connection requests')} settingKey="sound.connection" localSettings={localSettings} updateSetting={updateSetting} t={t}/>
-			<SoundSelect label={t('File sharing')} settingKey="sound.file_share" localSettings={localSettings} updateSetting={updateSetting} t={t}/>
-			<SoundSelect label={t('New followers')} settingKey="sound.follow" localSettings={localSettings} updateSetting={updateSetting} t={t}/>
-			<SoundSelect label={t('Comments on your posts')} settingKey="sound.comment" localSettings={localSettings} updateSetting={updateSetting} t={t}/>
-			<SoundSelect label={t('Reactions to your posts')} settingKey="sound.reaction" localSettings={localSettings} updateSetting={updateSetting} t={t}/>
-			<SoundSelect label={t('Mentions')} settingKey="sound.mention" localSettings={localSettings} updateSetting={updateSetting} t={t}/>
-			<SoundSelect label={t('Posts from followed users')} settingKey="sound.post" localSettings={localSettings} updateSetting={updateSetting} t={t}/>
-
-			<label className="c-hbox mt-4">
-				<span className="flex-fill">{t('Enable toast notifications')}</span>
-				<input className="c-toggle primary" type="checkbox"
-					checked={!!localSettings.toast}
-					onChange={e => updateSetting('toast', e.target.checked)}/>
-			</label>
-
-			{ !!localSettings.toast && <>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Direct messages')}</span>
-					<input className="c-toggle" type="checkbox" checked={!!localSettings['toast.message']} onChange={e => updateSetting('toast.message', e.target.checked)}/>
-				</label>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Connection requests')}</span>
-					<input className="c-toggle" type="checkbox" checked={!!localSettings['toast.connection']} onChange={e => updateSetting('toast.connection', e.target.checked)}/>
-				</label>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('File sharing')}</span>
-					<input className="c-toggle" type="checkbox" checked={!!localSettings['toast.file_share']} onChange={e => updateSetting('toast.file_share', e.target.checked)}/>
-				</label>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('New followers')}</span>
-					<input className="c-toggle" type="checkbox" checked={!!localSettings['toast.follow']} onChange={e => updateSetting('toast.follow', e.target.checked)}/>
-				</label>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Comments on your posts')}</span>
-					<input className="c-toggle" type="checkbox" checked={!!localSettings['toast.comment']} onChange={e => updateSetting('toast.comment', e.target.checked)}/>
-				</label>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Reactions to your posts')}</span>
-					<input className="c-toggle" type="checkbox" checked={!!localSettings['toast.reaction']} onChange={e => updateSetting('toast.reaction', e.target.checked)}/>
-				</label>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Mentions')}</span>
-					<input className="c-toggle" type="checkbox" checked={!!localSettings['toast.mention']} onChange={e => updateSetting('toast.mention', e.target.checked)}/>
-				</label>
-				<label className="c-hbox mt-3 ms-2">
-					<span className="flex-fill">{t('Posts from followed users')}</span>
-					<input className="c-toggle" type="checkbox" checked={!!localSettings['toast.post']} onChange={e => updateSetting('toast.post', e.target.checked)}/>
-				</label>
-			</> }
-		</div>
-	</>
+		</>
+	)
 }
 
 // vim: ts=4

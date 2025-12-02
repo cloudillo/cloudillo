@@ -135,239 +135,284 @@ export function Toolbar({
 	isPanelVisible,
 	onTogglePanel
 }: ToolbarProps) {
-	return <div className={mergeClasses('c-nav c-hbox p-1 mb-1', className)}>
-		<button
-			onClick={() => setTool(null)}
-			className={mergeClasses('c-button icon', tool === null ? 'active' : '')}
-			title="Select"
-		>
-			<IcSelect/>
-		</button>
-
-		<button
-			onClick={() => setTool('rect')}
-			className={mergeClasses('c-button icon ms-1', tool === 'rect' ? 'active' : '')}
-			title="Rectangle"
-		>
-			<IcRect/>
-		</button>
-		<button
-			onClick={() => setTool('ellipse')}
-			className={mergeClasses('c-button icon', tool === 'ellipse' ? 'active' : '')}
-			title="Ellipse"
-		>
-			<IcEllipse/>
-		</button>
-		<button
-			onClick={() => setTool('line')}
-			className={mergeClasses('c-button icon', tool === 'line' ? 'active' : '')}
-			title="Line"
-		>
-			<IcLine/>
-		</button>
-		<button
-			onClick={() => setTool('text')}
-			className={mergeClasses('c-button icon ms-1', tool === 'text' ? 'active' : '')}
-			title="Text"
-		>
-			<IcLabel/>
-		</button>
-
-		{/* Snap toggles */}
-		<div className="c-hbox ms-2" style={{ borderLeft: '1px solid var(--c-border)', paddingLeft: '0.5rem' }}>
+	return (
+		<div className={mergeClasses('c-nav c-hbox p-1 mb-1', className)}>
 			<button
-				onClick={onToggleSnapToGrid}
-				className={mergeClasses('c-button icon', snapToGrid ? 'active' : '')}
-				title="Snap to grid"
+				onClick={() => setTool(null)}
+				className={mergeClasses('c-button icon', tool === null ? 'active' : '')}
+				title="Select"
 			>
-				<IcGrid/>
+				<IcSelect />
+			</button>
+
+			<button
+				onClick={() => setTool('rect')}
+				className={mergeClasses('c-button icon ms-1', tool === 'rect' ? 'active' : '')}
+				title="Rectangle"
+			>
+				<IcRect />
 			</button>
 			<button
-				onClick={onToggleSnapToObjects}
-				className={mergeClasses('c-button icon', snapToObjects ? 'active' : '')}
-				title="Snap to objects"
+				onClick={() => setTool('ellipse')}
+				className={mergeClasses('c-button icon', tool === 'ellipse' ? 'active' : '')}
+				title="Ellipse"
 			>
-				<IcSnapObjects/>
+				<IcEllipse />
 			</button>
 			<button
-				onClick={onToggleSnapToSizes}
-				className={mergeClasses('c-button icon', snapToSizes ? 'active' : '')}
-				title="Snap to sizes"
+				onClick={() => setTool('line')}
+				className={mergeClasses('c-button icon', tool === 'line' ? 'active' : '')}
+				title="Line"
 			>
-				<IcSnapSizes/>
+				<IcLine />
 			</button>
 			<button
-				onClick={onToggleSnapDebug}
-				className={mergeClasses('c-button icon ms-1', snapDebug ? 'active' : '')}
-				title="Snap debug mode"
+				onClick={() => setTool('text')}
+				className={mergeClasses('c-button icon ms-1', tool === 'text' ? 'active' : '')}
+				title="Text"
 			>
-				<IcDebug/>
+				<IcLabel />
 			</button>
-		</div>
 
-		{/* Panel toggle */}
-		<div className="c-hbox ms-2" style={{ borderLeft: '1px solid var(--c-border)', paddingLeft: '0.5rem' }}>
-			<button
-				onClick={onTogglePanel}
-				className={mergeClasses('c-button icon', isPanelVisible ? 'active' : '')}
-				title="Toggle properties panel"
+			{/* Snap toggles */}
+			<div
+				className="c-hbox ms-2"
+				style={{ borderLeft: '1px solid var(--c-border)', paddingLeft: '0.5rem' }}
 			>
-				<IcPanel/>
-			</button>
-		</div>
-
-		<div className="flex-fill"/>
-
-		<button
-			onClick={onUndo}
-			className="c-button icon"
-			disabled={!canUndo}
-			title="Undo"
-		>
-			<IcUndo/>
-		</button>
-		<button
-			onClick={onRedo}
-			className="c-button icon"
-			disabled={!canRedo}
-			title="Redo"
-		>
-			<IcRedo/>
-		</button>
-
-		{hasSelection && <>
-			<div className="c-hbox ms-2" style={{ borderLeft: '1px solid var(--c-border)', paddingLeft: '0.5rem' }}>
 				<button
-					onClick={onBringToFront}
-					className="c-button icon"
-					title="Bring to front"
+					onClick={onToggleSnapToGrid}
+					className={mergeClasses('c-button icon', snapToGrid ? 'active' : '')}
+					title="Snap to grid"
 				>
-					<IcBringToFront/>
+					<IcGrid />
 				</button>
 				<button
-					onClick={onBringForward}
-					className="c-button icon"
-					title="Bring forward"
+					onClick={onToggleSnapToObjects}
+					className={mergeClasses('c-button icon', snapToObjects ? 'active' : '')}
+					title="Snap to objects"
 				>
-					<IcBringForward/>
+					<IcSnapObjects />
 				</button>
 				<button
-					onClick={onSendBackward}
-					className="c-button icon"
-					title="Send backward"
+					onClick={onToggleSnapToSizes}
+					className={mergeClasses('c-button icon', snapToSizes ? 'active' : '')}
+					title="Snap to sizes"
 				>
-					<IcSendBackward/>
+					<IcSnapSizes />
 				</button>
 				<button
-					onClick={onSendToBack}
-					className="c-button icon"
-					title="Send to back"
+					onClick={onToggleSnapDebug}
+					className={mergeClasses('c-button icon ms-1', snapDebug ? 'active' : '')}
+					title="Snap debug mode"
 				>
-					<IcSendToBack/>
+					<IcDebug />
 				</button>
 			</div>
 
-			{hasTextSelection && <>
-				<div className="c-hbox ms-2" style={{ borderLeft: '1px solid var(--c-border)', paddingLeft: '0.5rem' }}>
-					<button
-						onClick={() => onTextAlignChange?.('left')}
-						className={mergeClasses('c-button icon', selectedTextAlign === 'left' ? 'active' : '')}
-						title="Align left"
-					>
-						<IcAlignLeft/>
-					</button>
-					<button
-						onClick={() => onTextAlignChange?.('center')}
-						className={mergeClasses('c-button icon', selectedTextAlign === 'center' ? 'active' : '')}
-						title="Align center"
-					>
-						<IcAlignCenter/>
-					</button>
-					<button
-						onClick={() => onTextAlignChange?.('right')}
-						className={mergeClasses('c-button icon', selectedTextAlign === 'right' ? 'active' : '')}
-						title="Align right"
-					>
-						<IcAlignRight/>
-					</button>
-					<button
-						onClick={() => onTextAlignChange?.('justify')}
-						className={mergeClasses('c-button icon', selectedTextAlign === 'justify' ? 'active' : '')}
-						title="Justify"
-					>
-						<IcAlignJustify/>
-					</button>
-				</div>
-				<div className="c-hbox ms-1">
-					<button
-						onClick={() => onVerticalAlignChange?.('top')}
-						className={mergeClasses('c-button icon', selectedVerticalAlign === 'top' ? 'active' : '')}
-						title="Align top"
-					>
-						<IcAlignTop/>
-					</button>
-					<button
-						onClick={() => onVerticalAlignChange?.('middle')}
-						className={mergeClasses('c-button icon', selectedVerticalAlign === 'middle' ? 'active' : '')}
-						title="Align middle"
-					>
-						<IcAlignMiddle/>
-					</button>
-					<button
-						onClick={() => onVerticalAlignChange?.('bottom')}
-						className={mergeClasses('c-button icon', selectedVerticalAlign === 'bottom' ? 'active' : '')}
-						title="Align bottom"
-					>
-						<IcAlignBottom/>
-					</button>
-				</div>
-				<div className="c-hbox ms-2" style={{ borderLeft: '1px solid var(--c-border)', paddingLeft: '0.5rem' }}>
-					<select
-						value={selectedFontSize || 16}
-						onChange={e => onFontSizeChange?.(Number(e.target.value))}
-						className="c-input"
-						style={{ width: '60px', padding: '2px 4px', fontSize: '12px' }}
-						title="Font size"
-					>
-						{FONT_SIZES.map(size => (
-							<option key={size} value={size}>{size}</option>
-						))}
-					</select>
-				</div>
-				<div className="c-hbox ms-1">
-					<button
-						onClick={onBoldToggle}
-						className={mergeClasses('c-button icon', selectedBold ? 'active' : '')}
-						title="Bold"
-					>
-						<IcBold/>
-					</button>
-					<button
-						onClick={onItalicToggle}
-						className={mergeClasses('c-button icon', selectedItalic ? 'active' : '')}
-						title="Italic"
-					>
-						<IcItalic/>
-					</button>
-					<button
-						onClick={onUnderlineToggle}
-						className={mergeClasses('c-button icon', selectedUnderline ? 'active' : '')}
-						title="Underline"
-					>
-						<IcUnderline/>
-					</button>
-				</div>
-			</>}
-
-			<button
-				onClick={onDelete}
-				className="c-button icon ms-1"
-				title="Delete"
+			{/* Panel toggle */}
+			<div
+				className="c-hbox ms-2"
+				style={{ borderLeft: '1px solid var(--c-border)', paddingLeft: '0.5rem' }}
 			>
-				<IcDelete/>
+				<button
+					onClick={onTogglePanel}
+					className={mergeClasses('c-button icon', isPanelVisible ? 'active' : '')}
+					title="Toggle properties panel"
+				>
+					<IcPanel />
+				</button>
+			</div>
+
+			<div className="flex-fill" />
+
+			<button onClick={onUndo} className="c-button icon" disabled={!canUndo} title="Undo">
+				<IcUndo />
 			</button>
-		</>}
-	</div>
+			<button onClick={onRedo} className="c-button icon" disabled={!canRedo} title="Redo">
+				<IcRedo />
+			</button>
+
+			{hasSelection && (
+				<>
+					<div
+						className="c-hbox ms-2"
+						style={{ borderLeft: '1px solid var(--c-border)', paddingLeft: '0.5rem' }}
+					>
+						<button
+							onClick={onBringToFront}
+							className="c-button icon"
+							title="Bring to front"
+						>
+							<IcBringToFront />
+						</button>
+						<button
+							onClick={onBringForward}
+							className="c-button icon"
+							title="Bring forward"
+						>
+							<IcBringForward />
+						</button>
+						<button
+							onClick={onSendBackward}
+							className="c-button icon"
+							title="Send backward"
+						>
+							<IcSendBackward />
+						</button>
+						<button
+							onClick={onSendToBack}
+							className="c-button icon"
+							title="Send to back"
+						>
+							<IcSendToBack />
+						</button>
+					</div>
+
+					{hasTextSelection && (
+						<>
+							<div
+								className="c-hbox ms-2"
+								style={{
+									borderLeft: '1px solid var(--c-border)',
+									paddingLeft: '0.5rem'
+								}}
+							>
+								<button
+									onClick={() => onTextAlignChange?.('left')}
+									className={mergeClasses(
+										'c-button icon',
+										selectedTextAlign === 'left' ? 'active' : ''
+									)}
+									title="Align left"
+								>
+									<IcAlignLeft />
+								</button>
+								<button
+									onClick={() => onTextAlignChange?.('center')}
+									className={mergeClasses(
+										'c-button icon',
+										selectedTextAlign === 'center' ? 'active' : ''
+									)}
+									title="Align center"
+								>
+									<IcAlignCenter />
+								</button>
+								<button
+									onClick={() => onTextAlignChange?.('right')}
+									className={mergeClasses(
+										'c-button icon',
+										selectedTextAlign === 'right' ? 'active' : ''
+									)}
+									title="Align right"
+								>
+									<IcAlignRight />
+								</button>
+								<button
+									onClick={() => onTextAlignChange?.('justify')}
+									className={mergeClasses(
+										'c-button icon',
+										selectedTextAlign === 'justify' ? 'active' : ''
+									)}
+									title="Justify"
+								>
+									<IcAlignJustify />
+								</button>
+							</div>
+							<div className="c-hbox ms-1">
+								<button
+									onClick={() => onVerticalAlignChange?.('top')}
+									className={mergeClasses(
+										'c-button icon',
+										selectedVerticalAlign === 'top' ? 'active' : ''
+									)}
+									title="Align top"
+								>
+									<IcAlignTop />
+								</button>
+								<button
+									onClick={() => onVerticalAlignChange?.('middle')}
+									className={mergeClasses(
+										'c-button icon',
+										selectedVerticalAlign === 'middle' ? 'active' : ''
+									)}
+									title="Align middle"
+								>
+									<IcAlignMiddle />
+								</button>
+								<button
+									onClick={() => onVerticalAlignChange?.('bottom')}
+									className={mergeClasses(
+										'c-button icon',
+										selectedVerticalAlign === 'bottom' ? 'active' : ''
+									)}
+									title="Align bottom"
+								>
+									<IcAlignBottom />
+								</button>
+							</div>
+							<div
+								className="c-hbox ms-2"
+								style={{
+									borderLeft: '1px solid var(--c-border)',
+									paddingLeft: '0.5rem'
+								}}
+							>
+								<select
+									value={selectedFontSize || 16}
+									onChange={(e) => onFontSizeChange?.(Number(e.target.value))}
+									className="c-input"
+									style={{ width: '60px', padding: '2px 4px', fontSize: '12px' }}
+									title="Font size"
+								>
+									{FONT_SIZES.map((size) => (
+										<option key={size} value={size}>
+											{size}
+										</option>
+									))}
+								</select>
+							</div>
+							<div className="c-hbox ms-1">
+								<button
+									onClick={onBoldToggle}
+									className={mergeClasses(
+										'c-button icon',
+										selectedBold ? 'active' : ''
+									)}
+									title="Bold"
+								>
+									<IcBold />
+								</button>
+								<button
+									onClick={onItalicToggle}
+									className={mergeClasses(
+										'c-button icon',
+										selectedItalic ? 'active' : ''
+									)}
+									title="Italic"
+								>
+									<IcItalic />
+								</button>
+								<button
+									onClick={onUnderlineToggle}
+									className={mergeClasses(
+										'c-button icon',
+										selectedUnderline ? 'active' : ''
+									)}
+									title="Underline"
+								>
+									<IcUnderline />
+								</button>
+							</div>
+						</>
+					)}
+
+					<button onClick={onDelete} className="c-button icon ms-1" title="Delete">
+						<IcDelete />
+					</button>
+				</>
+			)}
+		</div>
+	)
 }
 
 // vim: ts=4

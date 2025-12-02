@@ -22,7 +22,6 @@ import { useTranslation } from 'react-i18next'
 import {
 	LuSearch as IcSearch,
 	LuFilter as IcFilter,
-
 	LuUser as IcUser,
 	LuUserPlus as IcUserFollowing,
 	LuUserPlus as IcUserFollowed,
@@ -43,12 +42,16 @@ export interface Profile {
 	status: 'A' | 'B' | 'T'
 }
 
-function ProfileStatusIcon({ profile }: { profile: { connected?: true | 'R', following?: boolean, status: 'A' | 'B' | 'T' } }) {
-	if (profile.connected) return <IcUserConnected className="text-success"/>
-	if (profile.connected == 'R') return <IcUserConnected className="text-warning"/>
-	if (profile.following) return <IcUserFollowing className="text-success"/>
-	if (profile.status == 'B') return <IcUserBlocked className="text-error"/>
-	return <IcUser/>
+function ProfileStatusIcon({
+	profile
+}: {
+	profile: { connected?: true | 'R'; following?: boolean; status: 'A' | 'B' | 'T' }
+}) {
+	if (profile.connected) return <IcUserConnected className="text-success" />
+	if (profile.connected == 'R') return <IcUserConnected className="text-warning" />
+	if (profile.following) return <IcUserFollowing className="text-success" />
+	if (profile.status == 'B') return <IcUserBlocked className="text-error" />
+	return <IcUser />
 }
 
 function FilterBar({ className }: { className?: string }) {
@@ -61,47 +64,68 @@ function FilterBar({ className }: { className?: string }) {
 	const qs = parseQS(location.search)
 	console.log('qs', qs)
 
-	return <ul className={'c-nav vertical low' + (className || '')}>
-		<li className="c-nav-item">
-			<Link className={'c-nav-link ' + (qs.filter === 'connected' ? 'active' : '')} to="?connected=1"><IcUserConnected/> {t('Connected')}
-				{!!userStat.connected && <span className="c-badge bg error">{userStat.connected}</span>}
-			</Link>
-		</li>
-		<li className="c-nav-item">
-			<Link className={'c-nav-link ' + (qs.filter === 'followed' ? 'active' : '')} to="?filter=followed"><IcUserFollowed/> {t('Followed')}
-				{!!userStat.followed && <span className="c-badge bg error">{userStat.followed}</span>}
-			</Link>
-		</li>
-		<li className="c-nav-item">
-			<Link className={'c-nav-link ' + (!qs.filter ? 'active' : '')} to=""><IcUserAll/> {t('All')}
-				{!!userStat.all && <span className="c-badge bg error">{userStat.all}</span>}
-			</Link>
-		</li>
-		<hr className="w-100"/>
+	return (
+		<ul className={'c-nav vertical low' + (className || '')}>
+			<li className="c-nav-item">
+				<Link
+					className={'c-nav-link ' + (qs.filter === 'connected' ? 'active' : '')}
+					to="?connected=1"
+				>
+					<IcUserConnected /> {t('Connected')}
+					{!!userStat.connected && (
+						<span className="c-badge bg error">{userStat.connected}</span>
+					)}
+				</Link>
+			</li>
+			<li className="c-nav-item">
+				<Link
+					className={'c-nav-link ' + (qs.filter === 'followed' ? 'active' : '')}
+					to="?filter=followed"
+				>
+					<IcUserFollowed /> {t('Followed')}
+					{!!userStat.followed && (
+						<span className="c-badge bg error">{userStat.followed}</span>
+					)}
+				</Link>
+			</li>
+			<li className="c-nav-item">
+				<Link className={'c-nav-link ' + (!qs.filter ? 'active' : '')} to="">
+					<IcUserAll /> {t('All')}
+					{!!userStat.all && <span className="c-badge bg error">{userStat.all}</span>}
+				</Link>
+			</li>
+			<hr className="w-100" />
 
-		<div className="c-input-group">
-			<input type="text" className="c-input" placeholder="Search" />
-			<button className="c-button secondary" type="button"><IcSearch/></button>
-		</div>
-	</ul>
+			<div className="c-input-group">
+				<input type="text" className="c-input" placeholder="Search" />
+				<button className="c-button secondary" type="button">
+					<IcSearch />
+				</button>
+			</div>
+		</ul>
+	)
 }
 
 function ProfileDetails({ className }: { className?: string }) {
 	const { t } = useTranslation()
-	
-	return <div className={'c-panel p-1 ' + (className || '')}>
-	</div>
+
+	return <div className={'c-panel p-1 ' + (className || '')}></div>
 }
 
-export function ProfileListCard({ profile, srcTag }: { profile: Profile, srcTag?: string }) {
+export function ProfileListCard({ profile, srcTag }: { profile: Profile; srcTag?: string }) {
 	const { t } = useTranslation()
 	const params = useParams()
 	const contextIdTag = params.contextIdTag!
 
-	return <Link className="c-panel p-1 mb-1 flex-row" to={`/profile/${contextIdTag}/${profile.idTag}`}>
-		<ProfileCard className="flex-fill" profile={profile} srcTag={srcTag}/>
-		<ProfileStatusIcon profile={profile}/>
-	</Link>
+	return (
+		<Link
+			className="c-panel p-1 mb-1 flex-row"
+			to={`/profile/${contextIdTag}/${profile.idTag}`}
+		>
+			<ProfileCard className="flex-fill" profile={profile} srcTag={srcTag} />
+			<ProfileStatusIcon profile={profile} />
+		</Link>
+	)
 }
 
 export function PersonListPage({ idTag }: { idTag?: string }) {
@@ -115,33 +139,43 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 	// Extract contextIdTag from params if available (context-aware route)
 	const contextIdTag = params.contextIdTag || idTag
 
-	React.useEffect(function onLocationEffect() {
-		setShowFilter(false)
-	}, [location])
+	React.useEffect(
+		function onLocationEffect() {
+			setShowFilter(false)
+		},
+		[location]
+	)
 
-	React.useEffect(function loadPersonList() {
-		if (!auth) return
-		console.log('loadProfiles', auth, 'contextIdTag', contextIdTag)
-		;(async function () {
-			const qs: Record<string, string> = parseQS(location.search)
-			console.log('QS', location.search, qs)
+	React.useEffect(
+		function loadPersonList() {
+			if (!auth) return
+			console.log('loadProfiles', auth, 'contextIdTag', contextIdTag)
+			;(async function () {
+				const qs: Record<string, string> = parseQS(location.search)
+				console.log('QS', location.search, qs)
 
-			const profiles = await api!.profiles.list({ type: 'person' })
-			setProfiles(profiles as any)
-		})()
-	}, [auth, location.search, contextIdTag])
+				const profiles = await api!.profiles.list({ type: 'person' })
+				setProfiles(profiles as any)
+			})()
+		},
+		[auth, location.search, contextIdTag]
+	)
 
-	return <Fcd.Container className="g-1">
-		<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-			<FilterBar/>
-		</Fcd.Filter>
-		<Fcd.Content>
-			<div className="c-nav c-hbox md-hide lg-hide">
-				<IcFilter onClick={() => setShowFilter(true)}/>
-			</div>
-			{ !!profiles && profiles.map(profile => <ProfileListCard key={profile.idTag} profile={profile}/>) }
-		</Fcd.Content>
-		{/*
+	return (
+		<Fcd.Container className="g-1">
+			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+				<FilterBar />
+			</Fcd.Filter>
+			<Fcd.Content>
+				<div className="c-nav c-hbox md-hide lg-hide">
+					<IcFilter onClick={() => setShowFilter(true)} />
+				</div>
+				{!!profiles &&
+					profiles.map((profile) => (
+						<ProfileListCard key={profile.idTag} profile={profile} />
+					))}
+			</Fcd.Content>
+			{/*
 		<Fcd.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
 			{ selected && <div className="c-panel h-min-100">
 				<h3 className="c-panel-title">
@@ -150,7 +184,8 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 			</div> }
 		</Fcd.Details>
 		*/}
-	</Fcd.Container>
+		</Fcd.Container>
+	)
 }
 
 export function CommunityListPage() {
@@ -164,34 +199,44 @@ export function CommunityListPage() {
 	// Extract contextIdTag from params if available (context-aware route)
 	const contextIdTag = params.contextIdTag
 
-	React.useEffect(function onLocationEffect() {
-		setShowFilter(false)
-	}, [location])
+	React.useEffect(
+		function onLocationEffect() {
+			setShowFilter(false)
+		},
+		[location]
+	)
 
-	React.useEffect(function loadCommunities() {
-		if (!auth) return
-		console.log('loadCommunities', auth, 'contextIdTag', contextIdTag)
-		;(async function () {
-			const qs: Record<string, string> = parseQS(location.search)
-			console.log('QS', location.search, qs)
+	React.useEffect(
+		function loadCommunities() {
+			if (!auth) return
+			console.log('loadCommunities', auth, 'contextIdTag', contextIdTag)
+			;(async function () {
+				const qs: Record<string, string> = parseQS(location.search)
+				console.log('QS', location.search, qs)
 
-			const profiles = await api!.profiles.list({ type: 'community' })
-			console.log('profiles', profiles)
-			setProfiles(profiles as any)
-		})()
-	}, [auth, location.search, contextIdTag])
+				const profiles = await api!.profiles.list({ type: 'community' })
+				console.log('profiles', profiles)
+				setProfiles(profiles as any)
+			})()
+		},
+		[auth, location.search, contextIdTag]
+	)
 
-	return <Fcd.Container className="g-1">
-		<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-			<FilterBar/>
-		</Fcd.Filter>
-		<Fcd.Content>
-			<div className="c-nav c-hbox md-hide lg-hide">
-				<IcFilter onClick={() => setShowFilter(true)}/>
-			</div>
-			{ !!profiles && profiles.map(profile => <ProfileListCard key={profile.idTag} profile={profile}/>) }
-		</Fcd.Content>
-		{/*
+	return (
+		<Fcd.Container className="g-1">
+			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+				<FilterBar />
+			</Fcd.Filter>
+			<Fcd.Content>
+				<div className="c-nav c-hbox md-hide lg-hide">
+					<IcFilter onClick={() => setShowFilter(true)} />
+				</div>
+				{!!profiles &&
+					profiles.map((profile) => (
+						<ProfileListCard key={profile.idTag} profile={profile} />
+					))}
+			</Fcd.Content>
+			{/*
 		<Fcd.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
 			{ selected && <div className="c-panel h-min-100">
 				<h3 className="c-panel-title">
@@ -200,7 +245,8 @@ export function CommunityListPage() {
 			</div> }
 		</Fcd.Details>
 		*/}
-	</Fcd.Container>
+		</Fcd.Container>
+	)
 }
 
 // vim: ts=4

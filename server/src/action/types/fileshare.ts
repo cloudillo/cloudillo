@@ -14,14 +14,21 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { registerActionType, ActionContext, Action, NewAction, ActionView, createAction } from "../action.js";
+import {
+	registerActionType,
+	ActionContext,
+	Action,
+	NewAction,
+	ActionView,
+	createAction
+} from '../action.js'
 import { metaAdapter } from '../../adapters.js'
 
 import * as T from '@symbion/runtype'
 
 const tFshrContent = T.struct({
-		contentType: T.string,
-		fileName: T.string
+	contentType: T.string,
+	fileName: T.string
 })
 
 const tFshr = T.struct({
@@ -50,7 +57,11 @@ async function acceptHook(tnId: number, action: ActionView) {
 	const content = T.decode(tFshrContent, action.content)
 	if (!action?.subject || T.isErr(content)) return
 
-	await metaAdapter.createFile(tnId, action.subject, { ...content.ok, ownerTag: action.issuer.idTag, status: 'M' })
+	await metaAdapter.createFile(tnId, action.subject, {
+		...content.ok,
+		ownerTag: action.issuer.idTag,
+		status: 'M'
+	})
 }
 
 export function generateKey(actionId: string, action: NewAction & { issuerTag: string }) {

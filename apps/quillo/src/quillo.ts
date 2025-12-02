@@ -39,10 +39,8 @@ import * as T from '@symbion/runtype'
 import { createElement, Cloud, CloudOff } from 'lucide'
 
 import * as cloudillo from '@cloudillo/base'
-
-(async function() {
+;(async function () {
 	Quill.register('modules/cursors', QuillCursors as any)
-
 
 	console.log('location.hash', location.hash)
 	//const docId = location.hash.slice(1).split(':')[1]
@@ -70,8 +68,12 @@ import * as cloudillo from '@cloudillo/base'
 	doc.provider.on('status', function ({ status }: { status: string }) {
 		console.log('STATUS', status)
 		switch (status) {
-			case 'connected': iconEl.replaceChildren(createElement(Cloud, { class: 'text-success' })); break
-			case 'disconnected': iconEl.replaceChildren(createElement(CloudOff, { class: 'text-error' })); break
+			case 'connected':
+				iconEl.replaceChildren(createElement(Cloud, { class: 'text-success' }))
+				break
+			case 'disconnected':
+				iconEl.replaceChildren(createElement(CloudOff, { class: 'text-error' }))
+				break
 		}
 	})
 

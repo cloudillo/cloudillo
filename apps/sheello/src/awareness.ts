@@ -24,10 +24,7 @@ export interface UserPresence {
 /**
  * Initialize user presence
  */
-export async function initAwareness(
-	awareness: Awareness,
-	userId: string
-): Promise<void> {
+export async function initAwareness(awareness: Awareness, userId: string): Promise<void> {
 	awareness.setLocalStateField('user', {
 		name: userId,
 		color: await str2color(userId)
@@ -37,10 +34,7 @@ export async function initAwareness(
 /**
  * Update cursor position
  */
-export function updateCursorPosition(
-	awareness: Awareness,
-	workbook: WorkbookInstance
-): void {
+export function updateCursorPosition(awareness: Awareness, workbook: WorkbookInstance): void {
 	const selection = workbook.getSelection()
 	const sheet = workbook.getSheet()
 
@@ -59,20 +53,18 @@ export function updateCursorPosition(
 export function handleAwarenessChange(
 	awareness: Awareness,
 	workbook: WorkbookInstance,
-	evt: { added: number[], updated: number[], removed: number[] }
+	evt: { added: number[]; updated: number[]; removed: number[] }
 ): void {
 	// Remove departed users
 	if (evt.removed.length > 0) {
-		workbook.removePresences(
-			evt.removed.map(id => ({ userId: String(id), username: '' }))
-		)
+		workbook.removePresences(evt.removed.map((id) => ({ userId: String(id), username: '' })))
 	}
 
 	// Add/update active users
 	if (evt.added.length + evt.updated.length > 0) {
 		const states = awareness.getStates()
 		const presences = [...evt.added, ...evt.updated]
-			.map(id => {
+			.map((id) => {
 				const state = states.get(id) as UserPresence | undefined
 				if (!state?.cursor) return null
 
@@ -163,11 +155,7 @@ export function setupAwareness(
 	initAwareness(awareness, userId)
 
 	// Listen to awareness changes
-	const awarenessHandler = (evt: {
-		added: number[]
-		updated: number[]
-		removed: number[]
-	}) => {
+	const awarenessHandler = (evt: { added: number[]; updated: number[]; removed: number[] }) => {
 		handleAwarenessChange(awareness, workbook, evt)
 	}
 	awareness.on('change', awarenessHandler)

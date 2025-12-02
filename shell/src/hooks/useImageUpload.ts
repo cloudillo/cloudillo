@@ -55,75 +55,81 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 		reader.readAsDataURL(file)
 	}, [])
 
-	const uploadAttachment = React.useCallback(async (blob: Blob) => {
-		if (!auth) return
+	const uploadAttachment = React.useCallback(
+		async (blob: Blob) => {
+			if (!auth) return
 
-		setIsUploading(true)
+			setIsUploading(true)
 
-		const request = new XMLHttpRequest()
-		request.open('POST', `https://cl-o.${auth.idTag}/api/file/image/attachment`)
-		request.setRequestHeader('Authorization', `Bearer ${auth.token}`)
+			const request = new XMLHttpRequest()
+			request.open('POST', `https://cl-o.${auth.idTag}/api/file/image/attachment`)
+			request.setRequestHeader('Authorization', `Bearer ${auth.token}`)
 
-		request.addEventListener('load', function () {
-			setIsUploading(false)
-			const j = JSON.parse(request.response)
-			const fileId = j?.data?.fileId
-			if (fileId) {
-				setAttachmentIds(ids => [...ids, fileId])
-				setAttachmentType('image')
-				options?.onUploadComplete?.(fileId)
-			}
-			setAttachment(undefined)
-		})
+			request.addEventListener('load', function () {
+				setIsUploading(false)
+				const j = JSON.parse(request.response)
+				const fileId = j?.data?.fileId
+				if (fileId) {
+					setAttachmentIds((ids) => [...ids, fileId])
+					setAttachmentType('image')
+					options?.onUploadComplete?.(fileId)
+				}
+				setAttachment(undefined)
+			})
 
-		request.addEventListener('error', function () {
-			setIsUploading(false)
-			console.error('Upload failed')
-		})
+			request.addEventListener('error', function () {
+				setIsUploading(false)
+				console.error('Upload failed')
+			})
 
-		request.send(blob)
-	}, [auth, options])
+			request.send(blob)
+		},
+		[auth, options]
+	)
 
-	const uploadVideo = React.useCallback(async (file: File) => {
-		if (!auth) return
+	const uploadVideo = React.useCallback(
+		async (file: File) => {
+			if (!auth) return
 
-		setIsUploading(true)
-		setUploadProgress(0)
+			setIsUploading(true)
+			setUploadProgress(0)
 
-		const request = new XMLHttpRequest()
-		request.open('POST', `https://cl-o.${auth.idTag}/api/file/video/attachment`)
-		request.setRequestHeader('Authorization', `Bearer ${auth.token}`)
+			const request = new XMLHttpRequest()
+			request.open('POST', `https://cl-o.${auth.idTag}/api/file/video/attachment`)
+			request.setRequestHeader('Authorization', `Bearer ${auth.token}`)
 
-		request.upload.addEventListener('progress', (e) => {
-			if (e.lengthComputable) {
-				setUploadProgress(Math.round((e.loaded / e.total) * 100))
-			}
-		})
+			request.upload.addEventListener('progress', (e) => {
+				if (e.lengthComputable) {
+					setUploadProgress(Math.round((e.loaded / e.total) * 100))
+				}
+			})
 
-		request.addEventListener('load', function () {
-			setIsUploading(false)
-			setUploadProgress(undefined)
-			const j = JSON.parse(request.response)
-			const fileId = j?.data?.fileId
-			if (fileId) {
-				setAttachmentIds(ids => [...ids, fileId])
-				setAttachmentType('video')
-				options?.onUploadComplete?.(fileId)
-			}
-		})
+			request.addEventListener('load', function () {
+				setIsUploading(false)
+				setUploadProgress(undefined)
+				const j = JSON.parse(request.response)
+				const fileId = j?.data?.fileId
+				if (fileId) {
+					setAttachmentIds((ids) => [...ids, fileId])
+					setAttachmentType('video')
+					options?.onUploadComplete?.(fileId)
+				}
+			})
 
-		request.addEventListener('error', function () {
-			setIsUploading(false)
-			setUploadProgress(undefined)
-			console.error('Video upload failed')
-		})
+			request.addEventListener('error', function () {
+				setIsUploading(false)
+				setUploadProgress(undefined)
+				console.error('Video upload failed')
+			})
 
-		request.send(file)
-	}, [auth, options])
+			request.send(file)
+		},
+		[auth, options]
+	)
 
 	const removeAttachment = React.useCallback((id: string) => {
-		setAttachmentIds(ids => {
-			const newIds = ids.filter(i => i !== id)
+		setAttachmentIds((ids) => {
+			const newIds = ids.filter((i) => i !== id)
 			if (newIds.length === 0) {
 				setAttachmentType(undefined)
 			}

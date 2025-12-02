@@ -37,7 +37,7 @@ export const toRichTextId = (s: string): RichTextId => s as RichTextId
  * This provides collision resistance suitable for collaborative editing
  */
 function generateId(length: number = 12): string {
-	const bytes = new Uint8Array(Math.ceil(length * 6 / 8))
+	const bytes = new Uint8Array(Math.ceil((length * 6) / 8))
 	crypto.getRandomValues(bytes)
 	return btoa(String.fromCharCode(...bytes))
 		.replace(/\+/g, '-')

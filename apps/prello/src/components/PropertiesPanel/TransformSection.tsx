@@ -19,7 +19,12 @@ import * as Y from 'yjs'
 import { PropertySection, PropertyField, NumberInput } from '@cloudillo/react'
 
 import type { YPrelloDocument, PrelloObject, ObjectId } from '../../crdt'
-import { updateObjectPosition, updateObjectSize, updateObjectRotation, updateObject } from '../../crdt'
+import {
+	updateObjectPosition,
+	updateObjectSize,
+	updateObjectRotation,
+	updateObject
+} from '../../crdt'
 import type { PropertyPreview } from './PrelloPropertiesPanel'
 
 export interface TransformSectionProps {
@@ -30,41 +35,62 @@ export interface TransformSectionProps {
 }
 
 export function TransformSection({ doc, yDoc, object, onPreview }: TransformSectionProps) {
-	const handleXChange = React.useCallback((value: number) => {
-		updateObjectPosition(yDoc, doc, object.id as ObjectId, value, object.y)
-	}, [yDoc, doc, object.id, object.y])
+	const handleXChange = React.useCallback(
+		(value: number) => {
+			updateObjectPosition(yDoc, doc, object.id as ObjectId, value, object.y)
+		},
+		[yDoc, doc, object.id, object.y]
+	)
 
-	const handleYChange = React.useCallback((value: number) => {
-		updateObjectPosition(yDoc, doc, object.id as ObjectId, object.x, value)
-	}, [yDoc, doc, object.id, object.x])
+	const handleYChange = React.useCallback(
+		(value: number) => {
+			updateObjectPosition(yDoc, doc, object.id as ObjectId, object.x, value)
+		},
+		[yDoc, doc, object.id, object.x]
+	)
 
-	const handleWidthChange = React.useCallback((value: number) => {
-		updateObjectSize(yDoc, doc, object.id as ObjectId, Math.max(1, value), object.height)
-	}, [yDoc, doc, object.id, object.height])
+	const handleWidthChange = React.useCallback(
+		(value: number) => {
+			updateObjectSize(yDoc, doc, object.id as ObjectId, Math.max(1, value), object.height)
+		},
+		[yDoc, doc, object.id, object.height]
+	)
 
-	const handleHeightChange = React.useCallback((value: number) => {
-		updateObjectSize(yDoc, doc, object.id as ObjectId, object.width, Math.max(1, value))
-	}, [yDoc, doc, object.id, object.width])
+	const handleHeightChange = React.useCallback(
+		(value: number) => {
+			updateObjectSize(yDoc, doc, object.id as ObjectId, object.width, Math.max(1, value))
+		},
+		[yDoc, doc, object.id, object.width]
+	)
 
-	const handleRotationChange = React.useCallback((value: number) => {
-		// Normalize rotation to 0-360
-		const normalized = ((value % 360) + 360) % 360
-		updateObjectRotation(yDoc, doc, object.id as ObjectId, normalized)
-	}, [yDoc, doc, object.id])
+	const handleRotationChange = React.useCallback(
+		(value: number) => {
+			// Normalize rotation to 0-360
+			const normalized = ((value % 360) + 360) % 360
+			updateObjectRotation(yDoc, doc, object.id as ObjectId, normalized)
+		},
+		[yDoc, doc, object.id]
+	)
 
-	const handleOpacityChange = React.useCallback((value: number) => {
-		// Convert percentage to 0-1
-		const opacity = Math.max(0, Math.min(100, value)) / 100
-		updateObject(yDoc, doc, object.id as ObjectId, { opacity })
-		// Clear preview on commit
-		onPreview?.(null)
-	}, [yDoc, doc, object.id, onPreview])
+	const handleOpacityChange = React.useCallback(
+		(value: number) => {
+			// Convert percentage to 0-1
+			const opacity = Math.max(0, Math.min(100, value)) / 100
+			updateObject(yDoc, doc, object.id as ObjectId, { opacity })
+			// Clear preview on commit
+			onPreview?.(null)
+		},
+		[yDoc, doc, object.id, onPreview]
+	)
 
-	const handleOpacityScrub = React.useCallback((value: number) => {
-		// Convert percentage to 0-1 for preview
-		const opacity = Math.max(0, Math.min(100, value)) / 100
-		onPreview?.({ objectId: object.id as ObjectId, opacity })
-	}, [object.id, onPreview])
+	const handleOpacityScrub = React.useCallback(
+		(value: number) => {
+			// Convert percentage to 0-1 for preview
+			const opacity = Math.max(0, Math.min(100, value)) / 100
+			onPreview?.({ objectId: object.id as ObjectId, opacity })
+		},
+		[object.id, onPreview]
+	)
 
 	return (
 		<PropertySection title="Transform" defaultExpanded>

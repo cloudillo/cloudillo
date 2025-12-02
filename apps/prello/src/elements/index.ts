@@ -22,11 +22,14 @@ interface Element<E extends PrelloElement> {
 	Component: (props: ElementProps<E>) => JSX.Element
 	EditComponent: (props: ElementEditProps<E>) => JSX.Element
 	EditGadget: (props: ElementEditProps<E>) => JSX.Element
-
 }
 
 const elements: Record<string, Element<any>> = {
-	label: { Component: label.Label, EditComponent: label.EditLabel, EditGadget: label.EditLabelGadget }
+	label: {
+		Component: label.Label,
+		EditComponent: label.EditLabel,
+		EditGadget: label.EditLabelGadget
+	}
 }
 
 // vim: ts=4

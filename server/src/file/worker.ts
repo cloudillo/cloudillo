@@ -34,13 +34,27 @@ interface ImageVariantOpts {
 }
 
 const presets: Record<string, ImageVariantOpts[]> = {
-	'gallery': [
-		{ plugin: 'image', label: 'tn.jpg', cover: [100, 100], quality: 90, format: 'jpeg', public: true },
-		{ plugin: 'image', label: 'lg.jpg', cover: [800, 800], quality: 90, format: 'jpeg', public: true }
+	gallery: [
+		{
+			plugin: 'image',
+			label: 'tn.jpg',
+			cover: [100, 100],
+			quality: 90,
+			format: 'jpeg',
+			public: true
+		},
+		{
+			plugin: 'image',
+			label: 'lg.jpg',
+			cover: [800, 800],
+			quality: 90,
+			format: 'jpeg',
+			public: true
+		}
 	],
-	'pdf': [],
-	'xlsx': [],
-	'txt': [],
+	pdf: [],
+	xlsx: [],
+	txt: []
 }
 
 async function ImageVariant(varOpts: ImageVariantOpts, buf: Buffer, tnId: number, fileId: string) {
@@ -53,14 +67,20 @@ async function ImageVariant(varOpts: ImageVariantOpts, buf: Buffer, tnId: number
 		if (imgMeta.exif) {
 			const exifData = exif(imgMeta.exif)
 			if (exifData?.Image?.DateTime) createdAt = exifData.Image.DateTime
-			createdAt = exifData.Image?.DateTime ?? exifData.Photo?.DateTimeOriginal ?? exifData.Photo?.DateTimeDigitized
+			createdAt =
+				exifData.Image?.DateTime ??
+				exifData.Photo?.DateTimeOriginal ??
+				exifData.Photo?.DateTimeDigitized
 			//console.log('exif', exifData)
 		}
 
 		const meta = {
 			orientation: imgMeta.orientation || 0,
 			//dim: [imgMeta.width, imgMeta.height],
-			dim: (imgMeta.orientation || 0) >= 5 ? [imgMeta.height, imgMeta.width] : [imgMeta.width, imgMeta.height],
+			dim:
+				(imgMeta.orientation || 0) >= 5
+					? [imgMeta.height, imgMeta.width]
+					: [imgMeta.width, imgMeta.height]
 		}
 		const convBuf = await img
 			.rotate()
@@ -69,20 +89,22 @@ async function ImageVariant(varOpts: ImageVariantOpts, buf: Buffer, tnId: number
 			.toBuffer()
 		//console.log('meta', meta)
 
-		await blobAdapter.writeBlob(tnId, fileId, varOpts.label, convBuf, { public: varOpts.public, force: true })
+		await blobAdapter.writeBlob(tnId, fileId, varOpts.label, convBuf, {
+			public: varOpts.public,
+			force: true
+		})
 		await metaAdapter.updateFile(tnId, fileId, { meta, createdAt, status: 'I' })
 	} catch (err) {
 		console.log('ERROR', err)
 	}
 }
 
-
 ///////////////
 // File task //
 ///////////////
 async function fileTask() {
 	//const prepareList = await listMetaToPrepare()
-	return !!await metaAdapter.processPendingFilesPrepare(async function processMeta(tnId, file) {
+	return !!(await metaAdapter.processPendingFilesPrepare(async function processMeta(tnId, file) {
 		console.log('PREPARE', file)
 		const presetOpts = presets[file.preset || '']
 		if (presetOpts?.length) {
@@ -93,13 +115,14 @@ async function fileTask() {
 					case 'image':
 						//await ImageVariant(variant, buf, tnId, file.fileId)
 						break
-					default: console.log('Variant plugin error:', variant.plugin)
+					default:
+						console.log('Variant plugin error:', variant.plugin)
 				}
 			}
 		}
 		await metaAdapter.updateFile(tnId, file.fileId, { status: 'I' })
 		return true
-	})
+	}))
 }
 
 export async function initWorker() {

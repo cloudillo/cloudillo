@@ -43,20 +43,29 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 	const stored = doc.o.get(object.id)
 	const resolvedStyle = stored ? resolveTextStyle(doc, stored) : null
 
-	const handleFontSizeChange = React.useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-		const size = parseInt(e.target.value, 10)
-		updateObjectTextStyle(yDoc, doc, object.id as ObjectId, { fs: size })
-	}, [yDoc, doc, object.id])
+	const handleFontSizeChange = React.useCallback(
+		(e: React.ChangeEvent<HTMLSelectElement>) => {
+			const size = parseInt(e.target.value, 10)
+			updateObjectTextStyle(yDoc, doc, object.id as ObjectId, { fs: size })
+		},
+		[yDoc, doc, object.id]
+	)
 
-	const handleTextAlignChange = React.useCallback((align: 'left' | 'center' | 'right' | 'justify') => {
-		const taMap = { 'left': 'l', 'center': 'c', 'right': 'r', 'justify': 'j' } as const
-		updateObjectTextStyle(yDoc, doc, object.id as ObjectId, { ta: taMap[align] })
-	}, [yDoc, doc, object.id])
+	const handleTextAlignChange = React.useCallback(
+		(align: 'left' | 'center' | 'right' | 'justify') => {
+			const taMap = { left: 'l', center: 'c', right: 'r', justify: 'j' } as const
+			updateObjectTextStyle(yDoc, doc, object.id as ObjectId, { ta: taMap[align] })
+		},
+		[yDoc, doc, object.id]
+	)
 
-	const handleVerticalAlignChange = React.useCallback((align: 'top' | 'middle' | 'bottom') => {
-		const vaMap = { 'top': 't', 'middle': 'm', 'bottom': 'b' } as const
-		updateObjectTextStyle(yDoc, doc, object.id as ObjectId, { va: vaMap[align] })
-	}, [yDoc, doc, object.id])
+	const handleVerticalAlignChange = React.useCallback(
+		(align: 'top' | 'middle' | 'bottom') => {
+			const vaMap = { top: 't', middle: 'm', bottom: 'b' } as const
+			updateObjectTextStyle(yDoc, doc, object.id as ObjectId, { va: vaMap[align] })
+		},
+		[yDoc, doc, object.id]
+	)
 
 	if (!resolvedStyle) return null
 
@@ -69,8 +78,10 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 					onChange={handleFontSizeChange}
 					style={{ width: '100%' }}
 				>
-					{FONT_SIZES.map(size => (
-						<option key={size} value={size}>{size}px</option>
+					{FONT_SIZES.map((size) => (
+						<option key={size} value={size}>
+							{size}px
+						</option>
 					))}
 				</NativeSelect>
 			</PropertyField>
@@ -79,7 +90,10 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 			<PropertyField label="Align" labelWidth={40}>
 				<div className="c-hbox">
 					<button
-						className={mergeClasses('c-button icon', resolvedStyle.textAlign === 'left' ? 'active' : '')}
+						className={mergeClasses(
+							'c-button icon',
+							resolvedStyle.textAlign === 'left' ? 'active' : ''
+						)}
 						onClick={() => handleTextAlignChange('left')}
 						title="Align left"
 						style={{ padding: '4px' }}
@@ -87,7 +101,10 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 						<IcAlignLeft size={14} />
 					</button>
 					<button
-						className={mergeClasses('c-button icon', resolvedStyle.textAlign === 'center' ? 'active' : '')}
+						className={mergeClasses(
+							'c-button icon',
+							resolvedStyle.textAlign === 'center' ? 'active' : ''
+						)}
 						onClick={() => handleTextAlignChange('center')}
 						title="Align center"
 						style={{ padding: '4px' }}
@@ -95,7 +112,10 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 						<IcAlignCenter size={14} />
 					</button>
 					<button
-						className={mergeClasses('c-button icon', resolvedStyle.textAlign === 'right' ? 'active' : '')}
+						className={mergeClasses(
+							'c-button icon',
+							resolvedStyle.textAlign === 'right' ? 'active' : ''
+						)}
 						onClick={() => handleTextAlignChange('right')}
 						title="Align right"
 						style={{ padding: '4px' }}
@@ -103,7 +123,10 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 						<IcAlignRight size={14} />
 					</button>
 					<button
-						className={mergeClasses('c-button icon', resolvedStyle.textAlign === 'justify' ? 'active' : '')}
+						className={mergeClasses(
+							'c-button icon',
+							resolvedStyle.textAlign === 'justify' ? 'active' : ''
+						)}
 						onClick={() => handleTextAlignChange('justify')}
 						title="Justify"
 						style={{ padding: '4px' }}
@@ -117,7 +140,10 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 			<PropertyField label="V.Align" labelWidth={40}>
 				<div className="c-hbox">
 					<button
-						className={mergeClasses('c-button icon', resolvedStyle.verticalAlign === 'top' ? 'active' : '')}
+						className={mergeClasses(
+							'c-button icon',
+							resolvedStyle.verticalAlign === 'top' ? 'active' : ''
+						)}
 						onClick={() => handleVerticalAlignChange('top')}
 						title="Align top"
 						style={{ padding: '4px' }}
@@ -125,7 +151,10 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 						<IcAlignTop size={14} />
 					</button>
 					<button
-						className={mergeClasses('c-button icon', resolvedStyle.verticalAlign === 'middle' ? 'active' : '')}
+						className={mergeClasses(
+							'c-button icon',
+							resolvedStyle.verticalAlign === 'middle' ? 'active' : ''
+						)}
 						onClick={() => handleVerticalAlignChange('middle')}
 						title="Align middle"
 						style={{ padding: '4px' }}
@@ -133,7 +162,10 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 						<IcAlignMiddle size={14} />
 					</button>
 					<button
-						className={mergeClasses('c-button icon', resolvedStyle.verticalAlign === 'bottom' ? 'active' : '')}
+						className={mergeClasses(
+							'c-button icon',
+							resolvedStyle.verticalAlign === 'bottom' ? 'active' : ''
+						)}
 						onClick={() => handleVerticalAlignChange('bottom')}
 						title="Align bottom"
 						style={{ padding: '4px' }}

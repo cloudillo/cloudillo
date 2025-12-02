@@ -35,42 +35,57 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 	const hasFill = !!(resolvedStyle?.fill && resolvedStyle.fill !== 'none')
 	const hasStroke = !!(resolvedStyle?.stroke && resolvedStyle.stroke !== 'none')
 
-	const handleFillColorChange = React.useCallback((color: string) => {
-		const style = object.style || {}
-		updateObject(yDoc, doc, object.id as ObjectId, {
-			style: { ...style, fill: color }
-		})
-	}, [yDoc, doc, object.id, object.style])
+	const handleFillColorChange = React.useCallback(
+		(color: string) => {
+			const style = object.style || {}
+			updateObject(yDoc, doc, object.id as ObjectId, {
+				style: { ...style, fill: color }
+			})
+		},
+		[yDoc, doc, object.id, object.style]
+	)
 
-	const handleFillToggle = React.useCallback((checked: boolean) => {
-		const style = object.style || {}
-		// When turning on, always use a default color (since resolvedStyle.fill would be 'none')
-		updateObject(yDoc, doc, object.id as ObjectId, {
-			style: { ...style, fill: checked ? '#cccccc' : 'none' }
-		})
-	}, [yDoc, doc, object.id, object.style])
+	const handleFillToggle = React.useCallback(
+		(checked: boolean) => {
+			const style = object.style || {}
+			// When turning on, always use a default color (since resolvedStyle.fill would be 'none')
+			updateObject(yDoc, doc, object.id as ObjectId, {
+				style: { ...style, fill: checked ? '#cccccc' : 'none' }
+			})
+		},
+		[yDoc, doc, object.id, object.style]
+	)
 
-	const handleStrokeColorChange = React.useCallback((color: string) => {
-		const style = object.style || {}
-		updateObject(yDoc, doc, object.id as ObjectId, {
-			style: { ...style, stroke: color }
-		})
-	}, [yDoc, doc, object.id, object.style])
+	const handleStrokeColorChange = React.useCallback(
+		(color: string) => {
+			const style = object.style || {}
+			updateObject(yDoc, doc, object.id as ObjectId, {
+				style: { ...style, stroke: color }
+			})
+		},
+		[yDoc, doc, object.id, object.style]
+	)
 
-	const handleStrokeWidthChange = React.useCallback((width: number) => {
-		const style = object.style || {}
-		updateObject(yDoc, doc, object.id as ObjectId, {
-			style: { ...style, strokeWidth: Math.max(0, width) }
-		})
-	}, [yDoc, doc, object.id, object.style])
+	const handleStrokeWidthChange = React.useCallback(
+		(width: number) => {
+			const style = object.style || {}
+			updateObject(yDoc, doc, object.id as ObjectId, {
+				style: { ...style, strokeWidth: Math.max(0, width) }
+			})
+		},
+		[yDoc, doc, object.id, object.style]
+	)
 
-	const handleStrokeToggle = React.useCallback((checked: boolean) => {
-		const style = object.style || {}
-		// When turning on, always use a default color (since resolvedStyle.stroke would be 'none')
-		updateObject(yDoc, doc, object.id as ObjectId, {
-			style: { ...style, stroke: checked ? '#333333' : 'none' }
-		})
-	}, [yDoc, doc, object.id, object.style])
+	const handleStrokeToggle = React.useCallback(
+		(checked: boolean) => {
+			const style = object.style || {}
+			// When turning on, always use a default color (since resolvedStyle.stroke would be 'none')
+			updateObject(yDoc, doc, object.id as ObjectId, {
+				style: { ...style, stroke: checked ? '#333333' : 'none' }
+			})
+		},
+		[yDoc, doc, object.id, object.style]
+	)
 
 	if (!resolvedStyle) return null
 
@@ -81,7 +96,7 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 				<div className="c-hbox g-1" style={{ alignItems: 'center' }}>
 					<Toggle
 						checked={hasFill}
-						onChange={e => handleFillToggle(e.target.checked)}
+						onChange={(e) => handleFillToggle(e.target.checked)}
 					/>
 					{hasFill && (
 						<ColorInput
@@ -98,7 +113,7 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 				<div className="c-hbox g-1" style={{ alignItems: 'center' }}>
 					<Toggle
 						checked={hasStroke}
-						onChange={e => handleStrokeToggle(e.target.checked)}
+						onChange={(e) => handleStrokeToggle(e.target.checked)}
 					/>
 					{hasStroke && (
 						<>

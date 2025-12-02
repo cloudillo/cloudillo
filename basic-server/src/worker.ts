@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-if (!process.env.BASE_ID_TAG || !process.env.BASE_PASSWORD) throw new Error('ENV:BASE_ID_TAG and ENV:BASE_PASSWORD must be specified!')
+if (!process.env.BASE_ID_TAG || !process.env.BASE_PASSWORD)
+	throw new Error('ENV:BASE_ID_TAG and ENV:BASE_PASSWORD must be specified!')
 
 export const config = {
 	baseIdTag: process.env.BASE_ID_TAG,
@@ -47,6 +48,14 @@ const crdtAdapter = await CrdtAdapter.init({ dir: config.privateDir })
 const databaseAdapter = await DatabaseAdapter.init({ dir: config.privateDir })
 const messageBusAdapter = await MessageBusAdapter.init()
 
-Worker.run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter, databaseAdapter, messageBusAdapter })
+Worker.run({
+	config,
+	authAdapter,
+	metaAdapter,
+	blobAdapter,
+	crdtAdapter,
+	databaseAdapter,
+	messageBusAdapter
+})
 
 // vim: ts=4

@@ -10,20 +10,23 @@ module.exports = {
 	},
 	moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
 	transform: {
-		'^.+\\.tsx?$': ['ts-jest', {
-			useESM: true,
-			tsconfig: {
-				target: 'es2020',
-				module: 'esnext',
-				moduleResolution: 'bundler',
-				esModuleInterop: true,
-				allowSyntheticDefaultImports: true,
-				strict: true,
-				skipLibCheck: true,
-				forceConsistentCasingInFileNames: true,
-				lib: ['es2020', 'dom', 'dom.iterable']
+		'^.+\\.tsx?$': [
+			'ts-jest',
+			{
+				useESM: true,
+				tsconfig: {
+					target: 'es2020',
+					module: 'esnext',
+					moduleResolution: 'bundler',
+					esModuleInterop: true,
+					allowSyntheticDefaultImports: true,
+					strict: true,
+					skipLibCheck: true,
+					forceConsistentCasingInFileNames: true,
+					lib: ['es2020', 'dom', 'dom.iterable']
+				}
 			}
-		}]
+		]
 	},
 	testPathIgnorePatterns: ['/node_modules/'],
 	transformIgnorePatterns: []

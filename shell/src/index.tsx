@@ -25,17 +25,19 @@ import './i18n.js'
 import { Layout } from './layout.js'
 
 function App(props: React.PropsWithChildren<{}>) {
-	return <DndProvider backend={HTML5Backend}>
-		<IconContext.Provider value={{ size: '1.5rem' }}>
-			<BrowserRouter basename="/">
-				<Layout/>
-			</BrowserRouter>
-		</IconContext.Provider>	
-	</DndProvider>
+	return (
+		<DndProvider backend={HTML5Backend}>
+			<IconContext.Provider value={{ size: '1.5rem' }}>
+				<BrowserRouter basename="/">
+					<Layout />
+				</BrowserRouter>
+			</IconContext.Provider>
+		</DndProvider>
+	)
 }
 
 const app = document.getElementById('app')
 const root = createRoot(app!)
-root.render(<App/>)
+root.render(<App />)
 
 // vim: ts=4

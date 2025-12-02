@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
 import * as React from 'react'
 import { Routes, Route, Navigate, Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -24,10 +23,7 @@ import { Button, mergeClasses, useAuth } from '@cloudillo/react'
 
 import { useCurrentContextIdTag } from './context/index.js'
 
-import {
-	LuSearch as IcSearch,
-	LuX as IcCancel
-} from 'react-icons/lu'
+import { LuSearch as IcSearch, LuX as IcCancel } from 'react-icons/lu'
 
 export interface SearchState {
 	query?: string
@@ -39,13 +35,13 @@ export function useSearch() {
 	return useAtom(searchAtom)
 }
 
-export function SearchIcon () {
+export function SearchIcon() {
 	const [search, setSearch] = useSearch()
 
-	return <IcSearch onClick={() => setSearch({ query: '' })}/>
+	return <IcSearch onClick={() => setSearch({ query: '' })} />
 }
 
-export function SearchBar ({ className }: { className?: string }) {
+export function SearchBar({ className }: { className?: string }) {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
 	const [auth] = useAuth()
@@ -59,17 +55,32 @@ export function SearchBar ({ className }: { className?: string }) {
 		if (!search.query) {
 			return
 		} else if (search.query.match(/^\S+(\.\S+)+$/)) {
-			const idTag = (search.query.startsWith('@') ? search.query.slice(1) : search.query).toLowerCase()
+			const idTag = (
+				search.query.startsWith('@') ? search.query.slice(1) : search.query
+			).toLowerCase()
 			setSearch({})
 			navigate(`/profile/${contextIdTag || auth?.idTag}/${idTag}`)
 		}
 	}
 
-	return <form className={mergeClasses('c-input-group', className)} onSubmit={onSubmit}>
-		<input className="c-input" type="text" autoFocus placeholder={t('Type an Identity Tag')} value={search.query || ''} onChange={e => setSearch({ query: e.target.value })} />
-		<Button className="icon" onClick={() => setSearch({})}><IcCancel/></Button>
-		<Button className="icon primary" onClick={onSubmit}><SearchIcon/></Button>
-	</form>
+	return (
+		<form className={mergeClasses('c-input-group', className)} onSubmit={onSubmit}>
+			<input
+				className="c-input"
+				type="text"
+				autoFocus
+				placeholder={t('Type an Identity Tag')}
+				value={search.query || ''}
+				onChange={(e) => setSearch({ query: e.target.value })}
+			/>
+			<Button className="icon" onClick={() => setSearch({})}>
+				<IcCancel />
+			</Button>
+			<Button className="icon primary" onClick={onSubmit}>
+				<SearchIcon />
+			</Button>
+		</form>
+	)
 }
 
 // vim: ts=4

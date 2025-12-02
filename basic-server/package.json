@@ -1,45 +1,45 @@
 {
-  "name": "@cloudillo/basic-server",
-  "version": "0.1.3",
-  "description": "Cloudillo basic server",
-  "main": "src/index.js",
-  "type": "module",
-  "files": [
-    "build",
-    "node_modules"
-  ],
-  "jest": {
-    "preset": "ts-jest",
-    "moduleNameMapper": {
-      "^~/(.*)$": "<rootDir>/$1"
-    }
-  },
-  "scripts": {
-    "build": "tsc",
-    "bundle": "cross-env NODE_ENV=production rollup -c",
-    "watch": "tsc --watch",
-    "clean": "rimraf .cache build deploy node_modules_docker",
-    "start": "cross-env NODE_ENV=development MODE=proxy onchange -i -k --no-exclude 'build/**/*.js' 'node_modules/@cloudillo/*/**/*.js' -- node build/index.js CLOUDILLO-SERVER",
-    "start-standalone": "cross-env NODE_ENV=development MODE=standalone onchange -i -k --no-exclude 'build/**/*.js' 'node_modules/@cloudillo/*/**/*.js' -- node --trace-deprecation build/index.js CLOUDILLO-SERVER standalone",
-    "start-prod": "NODE_ENV=production node build/index.js",
-    "start-worker": "cross-env NODE_ENV=development onchange -i -k 'build/**/*.js' -- node build/worker.js",
-    "docker-build": "docker --context default build -t cloudillo-basic:$npm_package_version -t cloudillo-basic:latest ."
-  },
-  "author": "Szilárd Hajba <szilu@cloudillo.org",
-  "license": "LGPL-3.0-or-later",
-  "dependencies": {
-    "@cloudillo/auth-adapter-sqlite": "workspace:^",
-    "@cloudillo/blob-adapter-fs": "workspace:^",
-    "@cloudillo/crdt-adapter-leveldb": "workspace:^",
-    "@cloudillo/database-adapter-acebase": "workspace:^",
-    "@cloudillo/message-bus-adapter-inprocess": "workspace:^",
-    "@cloudillo/meta-adapter-sqlite": "workspace:^",
-    "@cloudillo/server": "workspace:^"
-  },
-  "devDependencies": {
-    "cross-env": "^10.1.0",
-    "onchange": "^7.1.0",
-    "rimraf": "^6.1.2",
-    "typescript": "^5.9.3"
-  }
+	"name": "@cloudillo/basic-server",
+	"version": "0.1.3",
+	"description": "Cloudillo basic server",
+	"main": "src/index.js",
+	"type": "module",
+	"files": [
+		"build",
+		"node_modules"
+	],
+	"jest": {
+		"preset": "ts-jest",
+		"moduleNameMapper": {
+			"^~/(.*)$": "<rootDir>/$1"
+		}
+	},
+	"scripts": {
+		"build": "tsc",
+		"bundle": "cross-env NODE_ENV=production rollup -c",
+		"watch": "tsc --watch",
+		"clean": "rimraf .cache build deploy node_modules_docker",
+		"start": "cross-env NODE_ENV=development MODE=proxy onchange -i -k --no-exclude 'build/**/*.js' 'node_modules/@cloudillo/*/**/*.js' -- node build/index.js CLOUDILLO-SERVER",
+		"start-standalone": "cross-env NODE_ENV=development MODE=standalone onchange -i -k --no-exclude 'build/**/*.js' 'node_modules/@cloudillo/*/**/*.js' -- node --trace-deprecation build/index.js CLOUDILLO-SERVER standalone",
+		"start-prod": "NODE_ENV=production node build/index.js",
+		"start-worker": "cross-env NODE_ENV=development onchange -i -k 'build/**/*.js' -- node build/worker.js",
+		"docker-build": "docker --context default build -t cloudillo-basic:$npm_package_version -t cloudillo-basic:latest ."
+	},
+	"author": "Szilárd Hajba <szilu@cloudillo.org",
+	"license": "LGPL-3.0-or-later",
+	"dependencies": {
+		"@cloudillo/auth-adapter-sqlite": "workspace:^",
+		"@cloudillo/blob-adapter-fs": "workspace:^",
+		"@cloudillo/crdt-adapter-leveldb": "workspace:^",
+		"@cloudillo/database-adapter-acebase": "workspace:^",
+		"@cloudillo/message-bus-adapter-inprocess": "workspace:^",
+		"@cloudillo/meta-adapter-sqlite": "workspace:^",
+		"@cloudillo/server": "workspace:^"
+	},
+	"devDependencies": {
+		"cross-env": "^10.1.0",
+		"onchange": "^7.1.0",
+		"rimraf": "^6.1.2",
+		"typescript": "^5.9.3"
+	}
 }

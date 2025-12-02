@@ -89,17 +89,17 @@ function useTodollo() {
 				// The client manages the WebSocket connection and provides the database API
 				console.log('[Todollo] Creating RTDB client...')
 				rtdbClient = new RtdbClient({
-					dbId: fileId,                    // Document/database identifier
+					dbId: fileId, // Document/database identifier
 					auth: {
-						getToken: () => token        // Auth token from cloudillo.init()
+						getToken: () => token // Auth token from cloudillo.init()
 					},
-					serverUrl,                       // WebSocket server URL
+					serverUrl, // WebSocket server URL
 					options: {
-						enableCache: true,           // Cache data locally
-						reconnect: true,             // Auto-reconnect on disconnect
-						reconnectDelay: 1000,        // Initial reconnect delay (ms)
-						maxReconnectDelay: 30000,    // Max reconnect delay (ms)
-						debug: false                 // Disable debug logging
+						enableCache: true, // Cache data locally
+						reconnect: true, // Auto-reconnect on disconnect
+						reconnectDelay: 1000, // Initial reconnect delay (ms)
+						maxReconnectDelay: 30000, // Max reconnect delay (ms)
+						debug: false // Disable debug logging
 					}
 				})
 
@@ -154,11 +154,7 @@ function useTodollo() {
  * 2. Receive automatic updates when data changes
  * 3. Perform CRUD operations using the RTDB client
  */
-function useTasks(
-	client: RtdbClient | undefined,
-	fileId: string,
-	idTag: string | undefined
-) {
+function useTasks(client: RtdbClient | undefined, fileId: string, idTag: string | undefined) {
 	const [tasks, setTasks] = React.useState<Task[]>([])
 	const [loading, setLoading] = React.useState(true)
 	const [error, setError] = React.useState<Error | undefined>()
@@ -181,7 +177,7 @@ function useTasks(
 		// The callback fires whenever ANY client creates, updates, or deletes a task
 		const unsubscribe = collectionRef.onSnapshot(
 			(snapshot) => {
-				const taskList = snapshot.docs.map(doc => ({
+				const taskList = snapshot.docs.map((doc) => ({
 					id: doc.id,
 					...doc.data()
 				})) as Task[]
@@ -202,48 +198,57 @@ function useTasks(
 	}, [client, fileId])
 
 	// Create a new task
-	const createTask = React.useCallback(async (text: string) => {
-		if (!client || !fileId) return
+	const createTask = React.useCallback(
+		async (text: string) => {
+			if (!client || !fileId) return
 
-		await client.collection('tasks').create({
-			text,
-			completed: false,
-			createdAt: new Date().toISOString()
-		})
-	}, [client, fileId])
+			await client.collection('tasks').create({
+				text,
+				completed: false,
+				createdAt: new Date().toISOString()
+			})
+		},
+		[client, fileId]
+	)
 
 	// Update task properties
-	const updateTask = React.useCallback(async (
-		id: string,
-		updates: Partial<Task>
-	) => {
-		if (!client || !fileId) return
+	const updateTask = React.useCallback(
+		async (id: string, updates: Partial<Task>) => {
+			if (!client || !fileId) return
 
-		await client.ref(`tasks/${id}`).update(updates)
-	}, [client, fileId])
+			await client.ref(`tasks/${id}`).update(updates)
+		},
+		[client, fileId]
+	)
 
 	// Delete a task
-	const deleteTask = React.useCallback(async (id: string) => {
-		if (!client || !fileId) return
+	const deleteTask = React.useCallback(
+		async (id: string) => {
+			if (!client || !fileId) return
 
-		await client.ref(`tasks/${id}`).delete()
-	}, [client, fileId])
+			await client.ref(`tasks/${id}`).delete()
+		},
+		[client, fileId]
+	)
 
 	// Toggle task completion status
-	const toggleTask = React.useCallback(async (id: string) => {
-		const task = tasks.find(t => t.id === id)
-		if (!task) return
+	const toggleTask = React.useCallback(
+		async (id: string) => {
+			const task = tasks.find((t) => t.id === id)
+			if (!task) return
 
-		await updateTask(id, { completed: !task.completed })
-	}, [tasks, updateTask])
+			await updateTask(id, { completed: !task.completed })
+		},
+		[tasks, updateTask]
+	)
 
 	// Apply filter to tasks
 	const filteredTasks = React.useMemo(() => {
 		switch (filter) {
 			case 'active':
-				return tasks.filter(t => !t.completed)
+				return tasks.filter((t) => !t.completed)
 			case 'completed':
-				return tasks.filter(t => t.completed)
+				return tasks.filter((t) => t.completed)
 			case 'all':
 			default:
 				return tasks
@@ -251,11 +256,14 @@ function useTasks(
 	}, [tasks, filter])
 
 	// Calculate simple statistics
-	const stats = React.useMemo(() => ({
-		totalCount: tasks.length,
-		activeCount: tasks.filter(t => !t.completed).length,
-		completedCount: tasks.filter(t => t.completed).length
-	}), [tasks])
+	const stats = React.useMemo(
+		() => ({
+			totalCount: tasks.length,
+			activeCount: tasks.filter((t) => !t.completed).length,
+			completedCount: tasks.filter((t) => t.completed).length
+		}),
+		[tasks]
+	)
 
 	return {
 		tasks: filteredTasks,
@@ -583,15 +591,9 @@ export function TodolloApp() {
 				completedCount={tasks.completedCount}
 			/>
 
-			<FilterBar
-				filter={tasks.filter}
-				onFilterChange={tasks.setFilter}
-			/>
+			<FilterBar filter={tasks.filter} onFilterChange={tasks.setFilter} />
 
-			<TaskInput
-				onCreateTask={tasks.createTask}
-				disabled={!todollo.connected}
-			/>
+			<TaskInput onCreateTask={tasks.createTask} disabled={!todollo.connected} />
 
 			<div className="task-list-container">
 				<TaskList

@@ -57,10 +57,25 @@ export function applySheetYEvent(
 					// bl: bold, it: italic, ff: font family, fs: font size
 					// fc: font color, bg: background color, ht: horizontal align, vt: vertical align
 					const cellAny = cell as any
-					const formatAttrs = ['bl', 'it', 'ff', 'fs', 'fc', 'bg', 'ht', 'vt', 'un', 'cl', 'st', 'tb']
+					const formatAttrs = [
+						'bl',
+						'it',
+						'ff',
+						'fs',
+						'fc',
+						'bg',
+						'ht',
+						'vt',
+						'un',
+						'cl',
+						'st',
+						'tb'
+					]
 					for (const attr of formatAttrs) {
 						if (cellAny[attr] !== undefined) {
-							wb.setCellFormat(rowIndex, colIndex, attr as any, cellAny[attr], { id: sheetId })
+							wb.setCellFormat(rowIndex, colIndex, attr as any, cellAny[attr], {
+								id: sheetId
+							})
 						}
 					}
 
@@ -181,7 +196,12 @@ export function applySheetYEvent(
 					if (border && border.style) {
 						// Apply border style using setCellFormat
 						// Fortune Sheet uses 'bd' attribute with the border object structure
-						debug.log('[yjs-events] Applying border to cell', rowIdx, colIdx, border.style)
+						debug.log(
+							'[yjs-events] Applying border to cell',
+							rowIdx,
+							colIdx,
+							border.style
+						)
 						wb.setCellFormat(rowIdx, colIdx, 'bd' as any, border.style, { id: sheetId })
 					} else {
 						// Border was removed - clear it

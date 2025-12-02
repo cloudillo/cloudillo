@@ -75,13 +75,19 @@ export interface LayerBrowserProps {
 // Get icon for object type
 function getObjectIcon(type: string) {
 	switch (type) {
-		case 'rect': return <IcRect size={14} />
-		case 'ellipse': return <IcEllipse size={14} />
-		case 'line': return <IcLine size={14} />
+		case 'rect':
+			return <IcRect size={14} />
+		case 'ellipse':
+			return <IcEllipse size={14} />
+		case 'line':
+			return <IcLine size={14} />
 		case 'text':
-		case 'textbox': return <IcText size={14} />
-		case 'image': return <IcImage size={14} />
-		default: return <IcDefault size={14} />
+		case 'textbox':
+			return <IcText size={14} />
+		case 'image':
+			return <IcImage size={14} />
+		default:
+			return <IcDefault size={14} />
 	}
 }
 
@@ -114,52 +120,64 @@ export function LayerBrowser({
 	const [dropTarget, setDropTarget] = React.useState<DropTarget | null>(null)
 
 	// Object visibility and lock handlers (using proper CRDT functions)
-	const handleToggleObjectVisibility = React.useCallback((e: React.MouseEvent, id: ObjectId) => {
-		e.stopPropagation()
-		toggleObjectVisibility(yDoc, doc, id)
-	}, [doc, yDoc])
+	const handleToggleObjectVisibility = React.useCallback(
+		(e: React.MouseEvent, id: ObjectId) => {
+			e.stopPropagation()
+			toggleObjectVisibility(yDoc, doc, id)
+		},
+		[doc, yDoc]
+	)
 
-	const handleToggleObjectLock = React.useCallback((e: React.MouseEvent, id: ObjectId) => {
-		e.stopPropagation()
-		toggleObjectLock(yDoc, doc, id)
-	}, [doc, yDoc])
+	const handleToggleObjectLock = React.useCallback(
+		(e: React.MouseEvent, id: ObjectId) => {
+			e.stopPropagation()
+			toggleObjectLock(yDoc, doc, id)
+		},
+		[doc, yDoc]
+	)
 
 	// Container visibility and lock handlers
-	const handleToggleContainerVisibility = React.useCallback((e: React.MouseEvent, id: ContainerId) => {
-		e.stopPropagation()
-		const container = doc.c.get(id)
-		if (!container) return
-		const visible = container.v !== false
-		yDoc.transact(() => {
-			if (visible) {
-				doc.c.set(id, { ...container, v: false })
-			} else {
-				const updated = { ...container }
-				delete updated.v
-				doc.c.set(id, updated)
-			}
-		})
-	}, [doc, yDoc])
+	const handleToggleContainerVisibility = React.useCallback(
+		(e: React.MouseEvent, id: ContainerId) => {
+			e.stopPropagation()
+			const container = doc.c.get(id)
+			if (!container) return
+			const visible = container.v !== false
+			yDoc.transact(() => {
+				if (visible) {
+					doc.c.set(id, { ...container, v: false })
+				} else {
+					const updated = { ...container }
+					delete updated.v
+					doc.c.set(id, updated)
+				}
+			})
+		},
+		[doc, yDoc]
+	)
 
-	const handleToggleContainerLock = React.useCallback((e: React.MouseEvent, id: ContainerId) => {
-		e.stopPropagation()
-		const container = doc.c.get(id)
-		if (!container) return
-		const locked = container.k === true
-		yDoc.transact(() => {
-			if (locked) {
-				const updated = { ...container }
-				delete updated.k
-				doc.c.set(id, updated)
-			} else {
-				doc.c.set(id, { ...container, k: true })
-			}
-		})
-	}, [doc, yDoc])
+	const handleToggleContainerLock = React.useCallback(
+		(e: React.MouseEvent, id: ContainerId) => {
+			e.stopPropagation()
+			const container = doc.c.get(id)
+			if (!container) return
+			const locked = container.k === true
+			yDoc.transact(() => {
+				if (locked) {
+					const updated = { ...container }
+					delete updated.k
+					doc.c.set(id, updated)
+				} else {
+					doc.c.set(id, { ...container, k: true })
+				}
+			})
+		},
+		[doc, yDoc]
+	)
 
 	// Toggle expanded state
 	const toggleExpanded = React.useCallback((id: string) => {
-		setExpandedContainers(prev => {
+		setExpandedContainers((prev) => {
 			const next = new Set(prev)
 			if (next.has(id)) {
 				next.delete(id)
@@ -176,42 +194,48 @@ export function LayerBrowser({
 			name: `Layer ${doc.r.length + 1}`
 		})
 		// Auto-expand the new layer
-		setExpandedContainers(prev => new Set(prev).add(containerId))
+		setExpandedContainers((prev) => new Set(prev).add(containerId))
 	}, [yDoc, doc])
 
 	// Drag-drop handlers
-	const handleDragStart = React.useCallback((e: React.DragEvent, data: TreeItemDragData, parentId: ContainerId | undefined) => {
-		setDraggedItem({ ...data, parentId })
-	}, [])
+	const handleDragStart = React.useCallback(
+		(e: React.DragEvent, data: TreeItemDragData, parentId: ContainerId | undefined) => {
+			setDraggedItem({ ...data, parentId })
+		},
+		[]
+	)
 
-	const handleDragOver = React.useCallback((
-		e: React.DragEvent,
-		targetId: string,
-		targetType: 'object' | 'container',
-		targetParentId: ContainerId | undefined,
-		position: 'before' | 'after' | 'inside'
-	) => {
-		// Prevent dropping on self
-		if (draggedItem && draggedItem.id === targetId) {
-			setDropTarget(null)
-			return
-		}
+	const handleDragOver = React.useCallback(
+		(
+			e: React.DragEvent,
+			targetId: string,
+			targetType: 'object' | 'container',
+			targetParentId: ContainerId | undefined,
+			position: 'before' | 'after' | 'inside'
+		) => {
+			// Prevent dropping on self
+			if (draggedItem && draggedItem.id === targetId) {
+				setDropTarget(null)
+				return
+			}
 
-		// Prevent dropping container inside itself (would create cycle)
-		if (draggedItem?.type === 'container' && position === 'inside') {
-			// Check if target is a descendant of dragged container
-			// For now, just prevent dropping containers inside other containers for simplicity
-			setDropTarget(null)
-			return
-		}
+			// Prevent dropping container inside itself (would create cycle)
+			if (draggedItem?.type === 'container' && position === 'inside') {
+				// Check if target is a descendant of dragged container
+				// For now, just prevent dropping containers inside other containers for simplicity
+				setDropTarget(null)
+				return
+			}
 
-		setDropTarget({
-			id: targetId,
-			type: targetType,
-			parentId: targetParentId,
-			position
-		})
-	}, [draggedItem])
+			setDropTarget({
+				id: targetId,
+				type: targetType,
+				parentId: targetParentId,
+				position
+			})
+		},
+		[draggedItem]
+	)
 
 	const handleDragLeave = React.useCallback((e: React.DragEvent) => {
 		// Only clear if leaving the tree entirely
@@ -221,81 +245,88 @@ export function LayerBrowser({
 		}
 	}, [])
 
-	const handleDrop = React.useCallback((
-		e: React.DragEvent,
-		targetId: string,
-		targetType: 'object' | 'container',
-		targetParentId: ContainerId | undefined,
-		position: 'before' | 'after' | 'inside'
-	) => {
-		if (!draggedItem || draggedItem.id === targetId) {
+	const handleDrop = React.useCallback(
+		(
+			e: React.DragEvent,
+			targetId: string,
+			targetType: 'object' | 'container',
+			targetParentId: ContainerId | undefined,
+			position: 'before' | 'after' | 'inside'
+		) => {
+			if (!draggedItem || draggedItem.id === targetId) {
+				setDraggedItem(null)
+				setDropTarget(null)
+				return
+			}
+
+			// Get the children array for calculating indices
+			const getChildren = (parentId: ContainerId | undefined): Y.Array<ChildRef> => {
+				if (parentId) {
+					return doc.ch.get(parentId) || doc.r
+				}
+				return doc.r
+			}
+
+			// Calculate the target index based on drop position
+			const calculateIndex = (
+				targetParentId: ContainerId | undefined,
+				targetId: string,
+				position: 'before' | 'after' | 'inside'
+			): number => {
+				if (position === 'inside') {
+					// Insert at the end of the container's children (top of z-order)
+					const containerChildren = doc.ch.get(targetId as ContainerId)
+					return containerChildren ? containerChildren.length : 0
+				}
+
+				const children = getChildren(targetParentId)
+				let targetIndex = -1
+
+				// Find the target item's index
+				children.forEach((ref: [number, string], i: number) => {
+					if (ref[1] === targetId) {
+						targetIndex = i
+					}
+				})
+
+				if (targetIndex < 0) return 0
+
+				// Note: The layer browser shows items reversed (top of visual = end of array)
+				// So 'before' in visual terms means higher array index, 'after' means lower
+				return position === 'before' ? targetIndex + 1 : targetIndex
+			}
+
+			const sameParent = draggedItem.parentId === targetParentId
+			const movingIntoContainer = position === 'inside'
+			const newParent = movingIntoContainer ? (targetId as ContainerId) : targetParentId
+			const targetIndex = calculateIndex(
+				movingIntoContainer ? (targetId as ContainerId) : targetParentId,
+				targetId,
+				position
+			)
+
+			if (draggedItem.type === 'object') {
+				if (sameParent && !movingIntoContainer) {
+					// Reorder within same parent
+					reorderObject(yDoc, doc, draggedItem.id as ObjectId, targetIndex)
+				} else {
+					// Move to different parent
+					moveObject(yDoc, doc, draggedItem.id as ObjectId, newParent, targetIndex)
+				}
+			} else {
+				// Container
+				if (sameParent && !movingIntoContainer) {
+					reorderContainer(yDoc, doc, draggedItem.id as ContainerId, targetIndex)
+				} else {
+					moveContainer(yDoc, doc, draggedItem.id as ContainerId, newParent, targetIndex)
+				}
+			}
+
 			setDraggedItem(null)
 			setDropTarget(null)
-			return
-		}
-
-		// Get the children array for calculating indices
-		const getChildren = (parentId: ContainerId | undefined): Y.Array<ChildRef> => {
-			if (parentId) {
-				return doc.ch.get(parentId) || doc.r
-			}
-			return doc.r
-		}
-
-		// Calculate the target index based on drop position
-		const calculateIndex = (
-			targetParentId: ContainerId | undefined,
-			targetId: string,
-			position: 'before' | 'after' | 'inside'
-		): number => {
-			if (position === 'inside') {
-				// Insert at the end of the container's children (top of z-order)
-				const containerChildren = doc.ch.get(targetId as ContainerId)
-				return containerChildren ? containerChildren.length : 0
-			}
-
-			const children = getChildren(targetParentId)
-			let targetIndex = -1
-
-			// Find the target item's index
-			children.forEach((ref: [number, string], i: number) => {
-				if (ref[1] === targetId) {
-					targetIndex = i
-				}
-			})
-
-			if (targetIndex < 0) return 0
-
-			// Note: The layer browser shows items reversed (top of visual = end of array)
-			// So 'before' in visual terms means higher array index, 'after' means lower
-			return position === 'before' ? targetIndex + 1 : targetIndex
-		}
-
-		const sameParent = draggedItem.parentId === targetParentId
-		const movingIntoContainer = position === 'inside'
-		const newParent = movingIntoContainer ? targetId as ContainerId : targetParentId
-		const targetIndex = calculateIndex(movingIntoContainer ? targetId as ContainerId : targetParentId, targetId, position)
-
-		if (draggedItem.type === 'object') {
-			if (sameParent && !movingIntoContainer) {
-				// Reorder within same parent
-				reorderObject(yDoc, doc, draggedItem.id as ObjectId, targetIndex)
-			} else {
-				// Move to different parent
-				moveObject(yDoc, doc, draggedItem.id as ObjectId, newParent, targetIndex)
-			}
-		} else {
-			// Container
-			if (sameParent && !movingIntoContainer) {
-				reorderContainer(yDoc, doc, draggedItem.id as ContainerId, targetIndex)
-			} else {
-				moveContainer(yDoc, doc, draggedItem.id as ContainerId, newParent, targetIndex)
-			}
-		}
-
-		setDraggedItem(null)
-		setDropTarget(null)
-	}, [doc, yDoc, draggedItem])
+		},
+		[doc, yDoc, draggedItem]
+	)
 
 	const handleDragEnd = React.useCallback((e: React.DragEvent) => {
 		setDraggedItem(null)
@@ -322,7 +353,11 @@ export function LayerBrowser({
 	}, [rootChildren])
 
 	// Render a container and its children
-	const renderContainer = (containerId: string, depth: number, parentId: ContainerId | undefined): React.ReactNode => {
+	const renderContainer = (
+		containerId: string,
+		depth: number,
+		parentId: ContainerId | undefined
+	): React.ReactNode => {
 		const stored = doc.c.get(containerId)
 		if (!stored) return null
 
@@ -372,7 +407,9 @@ export function LayerBrowser({
 				isDraggable
 				dragData={{ id: containerId, type: 'container', parentId } as DragData}
 				onItemDragStart={(e, data) => handleDragStart(e, data, parentId)}
-				onItemDragOver={(e, pos) => handleDragOver(e, containerId, 'container', parentId, pos)}
+				onItemDragOver={(e, pos) =>
+					handleDragOver(e, containerId, 'container', parentId, pos)
+				}
 				onItemDragLeave={handleDragLeave}
 				onItemDrop={(e, pos) => handleDrop(e, containerId, 'container', parentId, pos)}
 				onItemDragEnd={handleDragEnd}
@@ -382,7 +419,9 @@ export function LayerBrowser({
 							type="button"
 							className="c-button icon"
 							style={{ padding: '2px', minWidth: 'auto' }}
-							onClick={e => handleToggleContainerVisibility(e, containerId as ContainerId)}
+							onClick={(e) =>
+								handleToggleContainerVisibility(e, containerId as ContainerId)
+							}
 							title={isVisible ? 'Hide' : 'Show'}
 						>
 							{isVisible ? <IcVisible size={12} /> : <IcHidden size={12} />}
@@ -391,7 +430,9 @@ export function LayerBrowser({
 							type="button"
 							className="c-button icon"
 							style={{ padding: '2px', minWidth: 'auto' }}
-							onClick={e => handleToggleContainerLock(e, containerId as ContainerId)}
+							onClick={(e) =>
+								handleToggleContainerLock(e, containerId as ContainerId)
+							}
 							title={isLocked ? 'Unlock' : 'Lock'}
 						>
 							{isLocked ? <IcLocked size={12} /> : <IcUnlocked size={12} />}
@@ -399,19 +440,24 @@ export function LayerBrowser({
 					</>
 				}
 			>
-				{isExpanded && children.map(child => {
-					if (child.type === 'object') {
-						return renderObject(child.id, depth + 1, containerId as ContainerId)
-					} else {
-						return renderContainer(child.id, depth + 1, containerId as ContainerId)
-					}
-				})}
+				{isExpanded &&
+					children.map((child) => {
+						if (child.type === 'object') {
+							return renderObject(child.id, depth + 1, containerId as ContainerId)
+						} else {
+							return renderContainer(child.id, depth + 1, containerId as ContainerId)
+						}
+					})}
 			</TreeItem>
 		)
 	}
 
 	// Render an object
-	const renderObject = (objectId: string, depth: number, parentId: ContainerId | undefined): React.ReactNode => {
+	const renderObject = (
+		objectId: string,
+		depth: number,
+		parentId: ContainerId | undefined
+	): React.ReactNode => {
 		const stored = doc.o.get(objectId)
 		if (!stored) return null
 
@@ -448,7 +494,7 @@ export function LayerBrowser({
 							type="button"
 							className="c-button icon"
 							style={{ padding: '2px', minWidth: 'auto' }}
-							onClick={e => handleToggleObjectVisibility(e, objectId as ObjectId)}
+							onClick={(e) => handleToggleObjectVisibility(e, objectId as ObjectId)}
 							title={isVisible ? 'Hide' : 'Show'}
 						>
 							{isVisible ? <IcVisible size={12} /> : <IcHidden size={12} />}
@@ -457,7 +503,7 @@ export function LayerBrowser({
 							type="button"
 							className="c-button icon"
 							style={{ padding: '2px', minWidth: 'auto' }}
-							onClick={e => handleToggleObjectLock(e, objectId as ObjectId)}
+							onClick={(e) => handleToggleObjectLock(e, objectId as ObjectId)}
 							title={isLocked ? 'Unlock' : 'Lock'}
 						>
 							{isLocked ? <IcLocked size={12} /> : <IcUnlocked size={12} />}
@@ -481,7 +527,7 @@ export function LayerBrowser({
 				</button>
 			</div>
 			<TreeView>
-				{rootItems.map(item => {
+				{rootItems.map((item) => {
 					if (item.type === 'object') {
 						return renderObject(item.id, 0, undefined)
 					} else {

@@ -28,7 +28,10 @@ export interface ColorInputProps extends Omit<React.HTMLAttributes<HTMLDivElemen
 
 export const ColorInput = createComponent<HTMLDivElement, ColorInputProps>(
 	'ColorInput',
-	({ className, value = '#000000', onChange, onPreview, disabled, showHex = true, ...props }, ref) => {
+	(
+		{ className, value = '#000000', onChange, onPreview, disabled, showHex = true, ...props },
+		ref
+	) => {
 		// Local state to buffer color changes during drag
 		const [localColor, setLocalColor] = React.useState(value)
 		const [isEditing, setIsEditing] = React.useState(false)
@@ -44,19 +47,29 @@ export const ColorInput = createComponent<HTMLDivElement, ColorInputProps>(
 			}
 		}, [value, isEditing])
 
-		const handleColorDrag = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-			// Update local state and call preview callback (for live visual feedback)
-			// This handles both onInput and onChange during drag
-			const newColor = e.target.value
-			console.log('[ColorInput] drag:', newColor)
-			setLocalColor(newColor)
-			setIsEditing(true)
-			pendingColorRef.current = newColor
-			onPreview?.(newColor)
-		}, [onPreview])
+		const handleColorDrag = React.useCallback(
+			(e: React.ChangeEvent<HTMLInputElement>) => {
+				// Update local state and call preview callback (for live visual feedback)
+				// This handles both onInput and onChange during drag
+				const newColor = e.target.value
+				console.log('[ColorInput] drag:', newColor)
+				setLocalColor(newColor)
+				setIsEditing(true)
+				pendingColorRef.current = newColor
+				onPreview?.(newColor)
+			},
+			[onPreview]
+		)
 
 		const handleColorBlur = React.useCallback(() => {
-			console.log('[ColorInput] blur, isEditing:', isEditing, 'pending:', pendingColorRef.current, 'value:', value)
+			console.log(
+				'[ColorInput] blur, isEditing:',
+				isEditing,
+				'pending:',
+				pendingColorRef.current,
+				'value:',
+				value
+			)
 			// Commit only on blur (when picker closes)
 			if (isEditing && pendingColorRef.current !== value) {
 				onChange?.(pendingColorRef.current)
@@ -64,21 +77,28 @@ export const ColorInput = createComponent<HTMLDivElement, ColorInputProps>(
 			setIsEditing(false)
 		}, [onChange, isEditing, value])
 
-		const handleHexChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-			let hex = e.target.value
-			setLocalColor(hex)
-			// Add # if missing
-			if (hex && !hex.startsWith('#')) {
-				hex = '#' + hex
-			}
-			// Validate hex format and commit immediately for text input
-			if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
-				onChange?.(hex)
-			}
-		}, [onChange])
+		const handleHexChange = React.useCallback(
+			(e: React.ChangeEvent<HTMLInputElement>) => {
+				let hex = e.target.value
+				setLocalColor(hex)
+				// Add # if missing
+				if (hex && !hex.startsWith('#')) {
+					hex = '#' + hex
+				}
+				// Validate hex format and commit immediately for text input
+				if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+					onChange?.(hex)
+				}
+			},
+			[onChange]
+		)
 
 		return (
-			<div ref={ref} className={mergeClasses('c-color-input c-hbox g-1', className)} {...props}>
+			<div
+				ref={ref}
+				className={mergeClasses('c-color-input c-hbox g-1', className)}
+				{...props}
+			>
 				<input
 					type="color"
 					className="c-color-input-picker"

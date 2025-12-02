@@ -26,10 +26,7 @@ import { DEFAULT_ROWS, DEFAULT_COLS } from './constants'
 /**
  * Get or create sheet structure
  */
-export function getOrCreateSheet(
-	yDoc: Y.Doc,
-	sheetId: SheetId
-): YSheetStructure {
+export function getOrCreateSheet(yDoc: Y.Doc, sheetId: SheetId): YSheetStructure {
 	// Validate sheet ID - prevent undefined or invalid IDs
 	if (!sheetId || sheetId === 'undefined' || typeof sheetId !== 'string') {
 		throw new Error(`[getOrCreateSheet] Invalid sheet ID: ${sheetId}`)
@@ -42,7 +39,7 @@ export function getOrCreateSheet(
 	if (!sheet || !(sheet instanceof Y.Map)) {
 		debug.log('[getOrCreateSheet] Creating new sheet:', sheetId)
 		sheet = new Y.Map()
-		sheet.set('name', new Y.Text())  // Sheet name as Y.Text
+		sheet.set('name', new Y.Text()) // Sheet name as Y.Text
 		sheet.set('rowOrder', new Y.Array<RowId>())
 		sheet.set('colOrder', new Y.Array<ColId>())
 		sheet.set('rows', new Y.Map<Y.Map<Cell>>())
@@ -57,7 +54,7 @@ export function getOrCreateSheet(
 		sheet.set('hiddenCols', new Y.Map())
 		sheet.set('rowHeights', new Y.Map())
 		sheet.set('colWidths', new Y.Map())
-		sheet.set('frozen', new Y.Map())  // Initialize frozen as Y.Map
+		sheet.set('frozen', new Y.Map()) // Initialize frozen as Y.Map
 
 		sheets.set(sheetId, sheet)
 	} else {
@@ -76,7 +73,7 @@ export function getOrCreateSheet(
 	if (!sheet.has('hiddenCols')) sheet.set('hiddenCols', new Y.Map())
 	if (!sheet.has('rowHeights')) sheet.set('rowHeights', new Y.Map())
 	if (!sheet.has('colWidths')) sheet.set('colWidths', new Y.Map())
-	if (!sheet.has('frozen')) sheet.set('frozen', new Y.Map())  // Backward compatibility
+	if (!sheet.has('frozen')) sheet.set('frozen', new Y.Map()) // Backward compatibility
 
 	return {
 		name: sheet.get('name') as Y.Text,
@@ -166,7 +163,7 @@ export function setCell(
 	const cleanCell: Partial<Cell> = {}
 	for (const [key, value] of Object.entries(cell)) {
 		if (value !== undefined && key !== 'm') {
-			(cleanCell as Record<string, unknown>)[key] = value
+			;(cleanCell as Record<string, unknown>)[key] = value
 		}
 	}
 
@@ -176,11 +173,7 @@ export function setCell(
 /**
  * Clear cell
  */
-export function clearCell(
-	sheet: YSheetStructure,
-	rowIndex: number,
-	colIndex: number
-): void {
+export function clearCell(sheet: YSheetStructure, rowIndex: number, colIndex: number): void {
 	const rowId = sheet.rowOrder.get(rowIndex)
 	const colId = sheet.colOrder.get(colIndex)
 
@@ -203,7 +196,7 @@ export function clearCell(
 export function getRowCells(
 	sheet: YSheetStructure,
 	rowIndex: number
-): Array<{ colIndex: number, cell: Cell }> {
+): Array<{ colIndex: number; cell: Cell }> {
 	const rowId = sheet.rowOrder.get(rowIndex)
 	if (!rowId) return []
 
@@ -211,7 +204,7 @@ export function getRowCells(
 	if (!rowMap) return []
 
 	const colOrder = sheet.colOrder.toArray()
-	const cells: Array<{ colIndex: number, cell: Cell }> = []
+	const cells: Array<{ colIndex: number; cell: Cell }> = []
 
 	for (const [colId, cell] of rowMap.entries()) {
 		const colIndex = colOrder.indexOf(colId as ColId)
@@ -226,11 +219,7 @@ export function getRowCells(
 /**
  * Insert rows at position with collision detection
  */
-export function insertRows(
-	sheet: YSheetStructure,
-	index: number,
-	count: number
-): void {
+export function insertRows(sheet: YSheetStructure, index: number, count: number): void {
 	const existingRowIds = new Set(sheet.rowOrder.toArray())
 	const newRowIds = generateUniqueRowIds(count, existingRowIds)
 	sheet.rowOrder.insert(index, newRowIds)
@@ -239,15 +228,8 @@ export function insertRows(
 /**
  * Delete rows (also deletes cell data and cleans up ID-based features)
  */
-export function deleteRows(
-	sheet: YSheetStructure,
-	startIndex: number,
-	endIndex: number
-): void {
-	const count = Math.min(
-		endIndex - startIndex + 1,
-		sheet.rowOrder.length - startIndex
-	)
+export function deleteRows(sheet: YSheetStructure, startIndex: number, endIndex: number): void {
+	const count = Math.min(endIndex - startIndex + 1, sheet.rowOrder.length - startIndex)
 
 	if (count <= 0) return
 
@@ -273,11 +255,7 @@ export function deleteRows(
 /**
  * Insert columns at position with collision detection
  */
-export function insertColumns(
-	sheet: YSheetStructure,
-	index: number,
-	count: number
-): void {
+export function insertColumns(sheet: YSheetStructure, index: number, count: number): void {
 	const existingColIds = new Set(sheet.colOrder.toArray())
 	const newColIds = generateUniqueColIds(count, existingColIds)
 	sheet.colOrder.insert(index, newColIds)
@@ -286,15 +264,8 @@ export function insertColumns(
 /**
  * Delete columns (also deletes cell data and cleans up ID-based features)
  */
-export function deleteColumns(
-	sheet: YSheetStructure,
-	startIndex: number,
-	endIndex: number
-): void {
-	const count = Math.min(
-		endIndex - startIndex + 1,
-		sheet.colOrder.length - startIndex
-	)
+export function deleteColumns(sheet: YSheetStructure, startIndex: number, endIndex: number): void {
+	const count = Math.min(endIndex - startIndex + 1, sheet.colOrder.length - startIndex)
 
 	if (count <= 0) return
 
@@ -325,15 +296,15 @@ export function deleteColumns(
  * Returns object with celldata and config (for hidden rows/cols, borders, frozen panes)
  */
 export function transformSheetToCelldata(sheet: YSheetStructure): {
-	celldata: Array<{ r: number, c: number, v: Cell }>
+	celldata: Array<{ r: number; c: number; v: Cell }>
 	config?: SheetConfig
 } {
 	const rowOrder = sheet.rowOrder.toArray()
 	const colOrder = sheet.colOrder.toArray()
-	const celldata: Array<{ r: number, c: number, v: Cell }> = []
+	const celldata: Array<{ r: number; c: number; v: Cell }> = []
 
 	// Build a map of all cells in merges for quick lookup
-	const mergeMap = new Map<string, { r: number, c: number, rs: number, cs: number }>()
+	const mergeMap = new Map<string, { r: number; c: number; rs: number; cs: number }>()
 
 	for (const merge of sheet.merges.values()) {
 		const startRowIdx = rowIdToIndex(sheet, merge.startRow)
@@ -361,7 +332,12 @@ export function transformSheetToCelldata(sheet: YSheetStructure): {
 					mergeMap.set(`${rowId}_${colId}`, { r, c, rs: rowSpan, cs: colSpan })
 				} else {
 					// Other cells - merged cell reference
-					mergeMap.set(`${rowId}_${colId}`, { r: startRowIdx, c: startColIdx, rs: rowSpan, cs: colSpan })
+					mergeMap.set(`${rowId}_${colId}`, {
+						r: startRowIdx,
+						c: startColIdx,
+						rs: rowSpan,
+						cs: colSpan
+					})
 				}
 			}
 		}
@@ -413,12 +389,17 @@ export function transformSheetToCelldata(sheet: YSheetStructure): {
 		}>
 		frozen?: FrozenInfo
 		link?: Record<string, Omit<HyperlinkInfo, 'rowId' | 'colId'>>
-		dataVerification?: Record<string, Omit<ValidationRule, 'id' | 'startRow' | 'endRow' | 'startCol' | 'endCol'> & {
-			range: { row: [number, number]; column: [number, number] }
-		}>
-		conditionalFormats?: Array<Omit<ConditionalFormat, 'id' | 'startRow' | 'endRow' | 'startCol' | 'endCol'> & {
-			range: { row: [number, number]; column: [number, number] }
-		}>
+		dataVerification?: Record<
+			string,
+			Omit<ValidationRule, 'id' | 'startRow' | 'endRow' | 'startCol' | 'endCol'> & {
+				range: { row: [number, number]; column: [number, number] }
+			}
+		>
+		conditionalFormats?: Array<
+			Omit<ConditionalFormat, 'id' | 'startRow' | 'endRow' | 'startCol' | 'endCol'> & {
+				range: { row: [number, number]; column: [number, number] }
+			}
+		>
 	} = {}
 
 	// Add row heights (convert from ID-based to index-based)
@@ -452,7 +433,7 @@ export function transformSheetToCelldata(sheet: YSheetStructure): {
 	for (let r = 0; r < rowOrder.length; r++) {
 		const rowId = rowOrder[r]
 		if (sheet.hiddenRows.get(rowId) === true) {
-			rowhidden[r] = 0	// FortuneSheet uses 0 for hidden
+			rowhidden[r] = 0 // FortuneSheet uses 0 for hidden
 		}
 	}
 	if (Object.keys(rowhidden).length > 0) {
@@ -464,7 +445,7 @@ export function transformSheetToCelldata(sheet: YSheetStructure): {
 	for (let c = 0; c < colOrder.length; c++) {
 		const colId = colOrder[c]
 		if (sheet.hiddenCols.get(colId) === true) {
-			colhidden[c] = 0	// FortuneSheet uses 0 for hidden
+			colhidden[c] = 0 // FortuneSheet uses 0 for hidden
 		}
 	}
 	if (Object.keys(colhidden).length > 0) {
@@ -545,9 +526,12 @@ export function transformSheetToCelldata(sheet: YSheetStructure): {
 	}
 
 	// Add data validations
-	const dataVerification: Record<string, Omit<ValidationRule, 'id' | 'startRow' | 'endRow' | 'startCol' | 'endCol'> & {
-		range: { row: [number, number]; column: [number, number] }
-	}> = {}
+	const dataVerification: Record<
+		string,
+		Omit<ValidationRule, 'id' | 'startRow' | 'endRow' | 'startCol' | 'endCol'> & {
+			range: { row: [number, number]; column: [number, number] }
+		}
+	> = {}
 	for (const [key, validation] of sheet.validations.entries()) {
 		const startRowIdx = rowIdToIndex(sheet, validation.startRow)
 		const endRowIdx = rowIdToIndex(sheet, validation.endRow)
@@ -570,9 +554,11 @@ export function transformSheetToCelldata(sheet: YSheetStructure): {
 	}
 
 	// Add conditional formatting
-	const conditionalFormats: Array<Omit<ConditionalFormat, 'id' | 'startRow' | 'endRow' | 'startCol' | 'endCol'> & {
-		range: { row: [number, number]; column: [number, number] }
-	}> = []
+	const conditionalFormats: Array<
+		Omit<ConditionalFormat, 'id' | 'startRow' | 'endRow' | 'startCol' | 'endCol'> & {
+			range: { row: [number, number]; column: [number, number] }
+		}
+	> = []
 	for (const format of sheet.conditionalFormats.toArray()) {
 		const startRowIdx = rowIdToIndex(sheet, format.startRow)
 		const endRowIdx = rowIdToIndex(sheet, format.endRow)
@@ -608,20 +594,14 @@ export function transformSheetToCelldata(sheet: YSheetStructure): {
 /**
  * Convert row index to RowId
  */
-export function indexToRowId(
-	sheet: YSheetStructure,
-	rowIndex: number
-): RowId | undefined {
+export function indexToRowId(sheet: YSheetStructure, rowIndex: number): RowId | undefined {
 	return sheet.rowOrder.get(rowIndex)
 }
 
 /**
  * Convert RowId to index
  */
-export function rowIdToIndex(
-	sheet: YSheetStructure,
-	rowId: RowId
-): number {
+export function rowIdToIndex(sheet: YSheetStructure, rowId: RowId): number {
 	const rowOrder = sheet.rowOrder.toArray()
 	return rowOrder.indexOf(rowId)
 }
@@ -629,20 +609,14 @@ export function rowIdToIndex(
 /**
  * Convert column index to ColId
  */
-export function indexToColId(
-	sheet: YSheetStructure,
-	colIndex: number
-): ColId | undefined {
+export function indexToColId(sheet: YSheetStructure, colIndex: number): ColId | undefined {
 	return sheet.colOrder.get(colIndex)
 }
 
 /**
  * Convert ColId to index
  */
-export function colIdToIndex(
-	sheet: YSheetStructure,
-	colId: ColId
-): number {
+export function colIdToIndex(sheet: YSheetStructure, colId: ColId): number {
 	const colOrder = sheet.colOrder.toArray()
 	return colOrder.indexOf(colId)
 }
@@ -651,11 +625,7 @@ export function colIdToIndex(
  * Get all RowIds in range [startRow, endRow] (inclusive)
  * Returns empty array if either boundary ID not found
  */
-export function getRowRange(
-	sheet: YSheetStructure,
-	startRow: RowId,
-	endRow: RowId
-): RowId[] {
+export function getRowRange(sheet: YSheetStructure, startRow: RowId, endRow: RowId): RowId[] {
 	const rowOrder = sheet.rowOrder.toArray()
 	const startIdx = rowOrder.indexOf(startRow)
 	const endIdx = rowOrder.indexOf(endRow)
@@ -669,11 +639,7 @@ export function getRowRange(
  * Get all ColIds in range [startCol, endCol] (inclusive)
  * Returns empty array if either boundary ID not found
  */
-export function getColRange(
-	sheet: YSheetStructure,
-	startCol: ColId,
-	endCol: ColId
-): ColId[] {
+export function getColRange(sheet: YSheetStructure, startCol: ColId, endCol: ColId): ColId[] {
 	const colOrder = sheet.colOrder.toArray()
 	const startIdx = colOrder.indexOf(startCol)
 	const endIdx = colOrder.indexOf(endCol)
@@ -687,11 +653,7 @@ export function getColRange(
  * Calculate row span (number of rows) between startRow and endRow (inclusive)
  * Returns 0 if either boundary ID not found
  */
-export function calculateRowSpan(
-	sheet: YSheetStructure,
-	startRow: RowId,
-	endRow: RowId
-): number {
+export function calculateRowSpan(sheet: YSheetStructure, startRow: RowId, endRow: RowId): number {
 	const range = getRowRange(sheet, startRow, endRow)
 	return range.length
 }
@@ -700,11 +662,7 @@ export function calculateRowSpan(
  * Calculate column span (number of columns) between startCol and endCol (inclusive)
  * Returns 0 if either boundary ID not found
  */
-export function calculateColSpan(
-	sheet: YSheetStructure,
-	startCol: ColId,
-	endCol: ColId
-): number {
+export function calculateColSpan(sheet: YSheetStructure, startCol: ColId, endCol: ColId): number {
 	const range = getColRange(sheet, startCol, endCol)
 	return range.length
 }
@@ -732,10 +690,7 @@ export function setMerge(
 /**
  * Remove a merge by key
  */
-export function removeMerge(
-	sheet: YSheetStructure,
-	key: string
-): void {
+export function removeMerge(sheet: YSheetStructure, key: string): void {
 	sheet.merges.delete(key)
 }
 
@@ -768,11 +723,7 @@ export function getMergeAt(
 /**
  * Check if a cell is the start of a merge (top-left corner)
  */
-export function isMergeStart(
-	sheet: YSheetStructure,
-	rowIndex: number,
-	colIndex: number
-): boolean {
+export function isMergeStart(sheet: YSheetStructure, rowIndex: number, colIndex: number): boolean {
 	const rowId = indexToRowId(sheet, rowIndex)
 	const colId = indexToColId(sheet, colIndex)
 	if (!rowId || !colId) return false
@@ -788,10 +739,7 @@ export function isMergeStart(
 /**
  * Hide a row by index
  */
-export function hideRow(
-	sheet: YSheetStructure,
-	rowIndex: number
-): void {
+export function hideRow(sheet: YSheetStructure, rowIndex: number): void {
 	const rowId = indexToRowId(sheet, rowIndex)
 	if (rowId) {
 		sheet.hiddenRows.set(rowId, true)
@@ -801,10 +749,7 @@ export function hideRow(
 /**
  * Show a row by index
  */
-export function showRow(
-	sheet: YSheetStructure,
-	rowIndex: number
-): void {
+export function showRow(sheet: YSheetStructure, rowIndex: number): void {
 	const rowId = indexToRowId(sheet, rowIndex)
 	if (rowId) {
 		sheet.hiddenRows.delete(rowId)
@@ -814,10 +759,7 @@ export function showRow(
 /**
  * Check if row is hidden
  */
-export function isRowHidden(
-	sheet: YSheetStructure,
-	rowIndex: number
-): boolean {
+export function isRowHidden(sheet: YSheetStructure, rowIndex: number): boolean {
 	const rowId = indexToRowId(sheet, rowIndex)
 	return rowId ? sheet.hiddenRows.get(rowId) === true : false
 }
@@ -825,10 +767,7 @@ export function isRowHidden(
 /**
  * Hide a column by index
  */
-export function hideColumn(
-	sheet: YSheetStructure,
-	colIndex: number
-): void {
+export function hideColumn(sheet: YSheetStructure, colIndex: number): void {
 	const colId = indexToColId(sheet, colIndex)
 	if (colId) {
 		sheet.hiddenCols.set(colId, true)
@@ -838,10 +777,7 @@ export function hideColumn(
 /**
  * Show a column by index
  */
-export function showColumn(
-	sheet: YSheetStructure,
-	colIndex: number
-): void {
+export function showColumn(sheet: YSheetStructure, colIndex: number): void {
 	const colId = indexToColId(sheet, colIndex)
 	if (colId) {
 		sheet.hiddenCols.delete(colId)
@@ -851,10 +787,7 @@ export function showColumn(
 /**
  * Check if column is hidden
  */
-export function isColumnHidden(
-	sheet: YSheetStructure,
-	colIndex: number
-): boolean {
+export function isColumnHidden(sheet: YSheetStructure, colIndex: number): boolean {
 	const colId = indexToColId(sheet, colIndex)
 	return colId ? sheet.hiddenCols.get(colId) === true : false
 }
@@ -898,11 +831,7 @@ export function setBorder(
 /**
  * Remove border from a cell
  */
-export function removeBorder(
-	sheet: YSheetStructure,
-	rowIndex: number,
-	colIndex: number
-): void {
+export function removeBorder(sheet: YSheetStructure, rowIndex: number, colIndex: number): void {
 	const rowId = indexToRowId(sheet, rowIndex)
 	const colId = indexToColId(sheet, colIndex)
 
@@ -919,12 +848,14 @@ export function getBorderAt(
 	sheet: YSheetStructure,
 	rowIndex: number,
 	colIndex: number
-): {
-	top?: { style?: number; color?: string }
-	bottom?: { style?: number; color?: string }
-	left?: { style?: number; color?: string }
-	right?: { style?: number; color?: string }
-} | undefined {
+):
+	| {
+			top?: { style?: number; color?: string }
+			bottom?: { style?: number; color?: string }
+			left?: { style?: number; color?: string }
+			right?: { style?: number; color?: string }
+	  }
+	| undefined {
 	const rowId = indexToRowId(sheet, rowIndex)
 	const colId = indexToColId(sheet, colIndex)
 
@@ -963,11 +894,7 @@ export function setHyperlink(
 /**
  * Remove hyperlink from a cell
  */
-export function removeHyperlink(
-	sheet: YSheetStructure,
-	rowIndex: number,
-	colIndex: number
-): void {
+export function removeHyperlink(sheet: YSheetStructure, rowIndex: number, colIndex: number): void {
 	const rowId = indexToRowId(sheet, rowIndex)
 	const colId = indexToColId(sheet, colIndex)
 
@@ -984,11 +911,13 @@ export function getHyperlinkAt(
 	sheet: YSheetStructure,
 	rowIndex: number,
 	colIndex: number
-): {
-	linkAddress: string
-	linkTooltip?: string
-	linkType?: 'external' | 'internal' | 'email'
-} | undefined {
+):
+	| {
+			linkAddress: string
+			linkTooltip?: string
+			linkType?: 'external' | 'internal' | 'email'
+	  }
+	| undefined {
 	const rowId = indexToRowId(sheet, rowIndex)
 	const colId = indexToColId(sheet, colIndex)
 
@@ -1019,7 +948,6 @@ function validateAndRepairMerges(sheet: YSheetStructure): void {
 	const colOrder = sheet.colOrder.toArray()
 	const rowSet = new Set(rowOrder)
 	const colSet = new Set(colOrder)
-
 
 	for (const [key, merge] of sheet.merges.entries()) {
 		// Check if ALL boundary IDs still exist
@@ -1064,12 +992,8 @@ function validateAndRepairMerges(sheet: YSheetStructure): void {
  * Removes merges, borders, hyperlinks, validations, and conditional formats
  * that reference deleted rows
  */
-function cleanupAfterRowDeletion(
-	sheet: YSheetStructure,
-	deletedRowIds: RowId[]
-): void {
+function cleanupAfterRowDeletion(sheet: YSheetStructure, deletedRowIds: RowId[]): void {
 	const deletedSet = new Set(deletedRowIds)
-
 
 	// Clean up merges - remove if any boundary row deleted
 	for (const [key, merge] of sheet.merges.entries()) {
@@ -1126,12 +1050,8 @@ function cleanupAfterRowDeletion(
  * Removes merges, borders, hyperlinks, validations, and conditional formats
  * that reference deleted columns
  */
-function cleanupAfterColDeletion(
-	sheet: YSheetStructure,
-	deletedColIds: ColId[]
-): void {
+function cleanupAfterColDeletion(sheet: YSheetStructure, deletedColIds: ColId[]): void {
 	const deletedSet = new Set(deletedColIds)
-
 
 	// Clean up merges - remove if any boundary column deleted
 	for (const [key, merge] of sheet.merges.entries()) {

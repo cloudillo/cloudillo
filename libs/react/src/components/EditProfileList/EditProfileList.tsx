@@ -17,9 +17,7 @@
 import * as React from 'react'
 import { useLibTranslation } from '../../i18n.js'
 
-import {
-	LuTrash as IcDelete
-} from 'react-icons/lu'
+import { LuTrash as IcDelete } from 'react-icons/lu'
 
 import { Profile } from '@cloudillo/types'
 
@@ -35,7 +33,14 @@ export interface EditProfileListProps {
 	removeProfile?: (idTag: string) => Promise<void>
 }
 
-export function EditProfileList({ className, placeholder, profiles, listProfiles, addProfile, removeProfile }: EditProfileListProps) {
+export function EditProfileList({
+	className,
+	placeholder,
+	profiles,
+	listProfiles,
+	addProfile,
+	removeProfile
+}: EditProfileListProps) {
 	const [add, setAdd] = React.useState(false)
 	const { t } = useLibTranslation()
 
@@ -48,7 +53,7 @@ export function EditProfileList({ className, placeholder, profiles, listProfiles
 	}
 
 	function renderItem(profile: Profile) {
-		return <ProfileCard profile={profile}/>
+		return <ProfileCard profile={profile} />
 	}
 
 	function onAdd(profile?: Profile) {
@@ -59,17 +64,30 @@ export function EditProfileList({ className, placeholder, profiles, listProfiles
 		return profile && removeProfile?.(profile.idTag)
 	}
 
-	return <div className={className}>
-		<Select placeholder={placeholder ?? t('Search user')} getData={getData} itemToId={i => i.idTag} itemToString={i => i?.idTag || ''} renderItem={renderItem} onSelectItem={onAdd}/>
-		<div>
-			{(profiles || []).map((profile, i) => (
-				<button key={profile.idTag} className="c-link w-100 p-0 ps-1" onClick={() => onRemove(profile)}>
-					<ProfileCard className="w-100" profile={profile}/>
-					<IcDelete/>
-				</button>
-			))}
+	return (
+		<div className={className}>
+			<Select
+				placeholder={placeholder ?? t('Search user')}
+				getData={getData}
+				itemToId={(i) => i.idTag}
+				itemToString={(i) => i?.idTag || ''}
+				renderItem={renderItem}
+				onSelectItem={onAdd}
+			/>
+			<div>
+				{(profiles || []).map((profile, i) => (
+					<button
+						key={profile.idTag}
+						className="c-link w-100 p-0 ps-1"
+						onClick={() => onRemove(profile)}
+					>
+						<ProfileCard className="w-100" profile={profile} />
+						<IcDelete />
+					</button>
+				))}
+			</div>
 		</div>
-	</div>
+	)
 }
 
 // vim: ts=4

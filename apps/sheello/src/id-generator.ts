@@ -9,7 +9,7 @@ import { debug } from './debug'
  */
 function generateBase64UrlId(length: number): string {
 	// Calculate bytes needed: length * 6 bits / 8 bits per byte
-	const byteLength = Math.ceil(length * 6 / 8)
+	const byteLength = Math.ceil((length * 6) / 8)
 	const bytes = new Uint8Array(byteLength)
 	crypto.getRandomValues(bytes)
 
@@ -17,10 +17,7 @@ function generateBase64UrlId(length: number): string {
 	let base64 = btoa(String.fromCharCode(...bytes))
 
 	// Make URL-safe and remove padding
-	base64 = base64
-		.replace(/\+/g, '-')
-		.replace(/\//g, '_')
-		.replace(/=/g, '')
+	base64 = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 
 	// Return exactly the length needed
 	return base64.slice(0, length)
@@ -98,7 +95,9 @@ export function generateUniqueColId(existingIds: Set<ColId>): ColId {
 			return colId
 		}
 		attempts++
-		debug.warn(`[ID Collision] Column ID collision detected, attempt ${attempts}/${maxAttempts}`)
+		debug.warn(
+			`[ID Collision] Column ID collision detected, attempt ${attempts}/${maxAttempts}`
+		)
 	}
 
 	throw new Error(`Failed to generate unique column ID after ${maxAttempts} attempts`)

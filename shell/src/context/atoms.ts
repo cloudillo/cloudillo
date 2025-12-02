@@ -7,12 +7,12 @@
 import { atom } from 'jotai'
 import { atomWithStorage } from 'jotai/utils'
 import type {
-  ActiveContext,
-  CommunityRef,
-  ContextToken,
-  ContextDataCache,
-  SidebarState,
-  ContextSwitchEvent
+	ActiveContext,
+	CommunityRef,
+	ContextToken,
+	ContextDataCache,
+	SidebarState,
+	ContextSwitchEvent
 } from './types'
 
 /**
@@ -38,10 +38,7 @@ export const contextTokensAtom = atom<Map<string, ContextToken>>(new Map())
  *
  * Persisted to localStorage for quick loading
  */
-export const communitiesAtom = atomWithStorage<CommunityRef[]>(
-  'cloudillo:communities',
-  []
-)
+export const communitiesAtom = atomWithStorage<CommunityRef[]>('cloudillo:communities', [])
 
 /**
  * Favorite communities
@@ -49,10 +46,7 @@ export const communitiesAtom = atomWithStorage<CommunityRef[]>(
  *
  * Persisted to localStorage
  */
-export const favoritesAtom = atomWithStorage<string[]>(
-  'cloudillo:favorites',
-  []
-)
+export const favoritesAtom = atomWithStorage<string[]>('cloudillo:favorites', [])
 
 /**
  * Recent contexts (LRU)
@@ -61,23 +55,17 @@ export const favoritesAtom = atomWithStorage<string[]>(
  *
  * Persisted to localStorage
  */
-export const recentContextsAtom = atomWithStorage<string[]>(
-  'cloudillo:recent-contexts',
-  []
-)
+export const recentContextsAtom = atomWithStorage<string[]>('cloudillo:recent-contexts', [])
 
 /**
  * Sidebar state
  *
  * Persisted to localStorage
  */
-export const sidebarAtom = atomWithStorage<SidebarState>(
-  'cloudillo:sidebar',
-  {
-    isOpen: false,
-    isPinned: true
-  }
-)
+export const sidebarAtom = atomWithStorage<SidebarState>('cloudillo:sidebar', {
+	isOpen: false,
+	isPinned: true
+})
 
 /**
  * Context data cache
@@ -105,9 +93,9 @@ export const contextSwitchingAtom = atom<boolean>(false)
  * Returns communities that are marked as favorite
  */
 export const favoriteCommunitiesAtom = atom((get) => {
-  const communities = get(communitiesAtom)
-  const favorites = get(favoritesAtom)
-  return communities.filter(c => favorites.includes(c.idTag))
+	const communities = get(communitiesAtom)
+	const favorites = get(favoritesAtom)
+	return communities.filter((c) => favorites.includes(c.idTag))
 })
 
 /**
@@ -115,19 +103,19 @@ export const favoriteCommunitiesAtom = atom((get) => {
  * Returns communities in order of recent access
  */
 export const recentCommunitiesAtom = atom((get) => {
-  const communities = get(communitiesAtom)
-  const recentIdTags = get(recentContextsAtom)
+	const communities = get(communitiesAtom)
+	const recentIdTags = get(recentContextsAtom)
 
-  // Map recent idTags to communities
-  const recentCommunities: CommunityRef[] = []
-  for (const idTag of recentIdTags) {
-    const community = communities.find(c => c.idTag === idTag)
-    if (community) {
-      recentCommunities.push(community)
-    }
-  }
+	// Map recent idTags to communities
+	const recentCommunities: CommunityRef[] = []
+	for (const idTag of recentIdTags) {
+		const community = communities.find((c) => c.idTag === idTag)
+		if (community) {
+			recentCommunities.push(community)
+		}
+	}
 
-  return recentCommunities
+	return recentCommunities
 })
 
 /**
@@ -135,6 +123,6 @@ export const recentCommunitiesAtom = atom((get) => {
  * Sum of unread counts across all communities
  */
 export const totalUnreadCountAtom = atom((get) => {
-  const communities = get(communitiesAtom)
-  return communities.reduce((sum, c) => sum + c.unreadCount, 0)
+	const communities = get(communitiesAtom)
+	return communities.reduce((sum, c) => sum + c.unreadCount, 0)
 })

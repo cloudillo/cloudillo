@@ -77,7 +77,12 @@ export type {
 } from './runtime-types'
 
 // Document operations
-export { getOrCreateDocument, getContainerChildren, getDocumentMeta, updateDocumentMeta } from './document'
+export {
+	getOrCreateDocument,
+	getContainerChildren,
+	getDocumentMeta,
+	updateDocumentMeta
+} from './document'
 
 // Type converters
 export {

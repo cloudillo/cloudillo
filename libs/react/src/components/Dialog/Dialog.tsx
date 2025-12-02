@@ -22,11 +22,7 @@ import Markdown from 'react-markdown'
 import { Button } from '../Button/Button.js'
 import { mergeClasses } from '../utils.js'
 
-import {
-	LuX as IcClose,
-	LuCheck as IcOk,
-	LuX as IcCancel
-} from 'react-icons/lu'
+import { LuX as IcClose, LuCheck as IcOk, LuX as IcCancel } from 'react-icons/lu'
 
 /* Dialog component for HTML5 dialog */
 /*************************************/
@@ -41,23 +37,36 @@ export interface DialogProps {
 export function Dialog({ className, open, title, onClose, children }: DialogProps) {
 	const ref = React.useRef<HTMLDialogElement>(null)
 
-	React.useEffect(function () {
-		if (ref.current) {
-			if (open) {
-				ref.current.showModal()
-			} else {
-				ref.current.close()
+	React.useEffect(
+		function () {
+			if (ref.current) {
+				if (open) {
+					ref.current.showModal()
+				} else {
+					ref.current.close()
+				}
 			}
-		}
-	}, [open])
+		},
+		[open]
+	)
 
-	return <dialog ref={ref} className={className || 'c-dialog c-panel emph p-3'}>
-		<div className="c-hbox mb-2">
-			<h2 className="fill">{title}</h2>
-			<button type="button" className="c-link" data-bs-dismiss="modal" aria-label="Close" onClick={onClose}><IcClose/></button>
-		</div>
-		{children}
-	</dialog>
+	return (
+		<dialog ref={ref} className={className || 'c-dialog c-panel emph p-3'}>
+			<div className="c-hbox mb-2">
+				<h2 className="fill">{title}</h2>
+				<button
+					type="button"
+					className="c-link"
+					data-bs-dismiss="modal"
+					aria-label="Close"
+					onClick={onClose}
+				>
+					<IcClose />
+				</button>
+			</div>
+			{children}
+		</dialog>
+	)
 }
 
 /* useDialog() hook */
@@ -93,45 +102,98 @@ export function DialogContainer() {
 		dialogResolve && dialogResolve(undefined)
 	}
 
-	return <>
-		{dialog && <div className={mergeClasses('c-modal', dialog.className, dialog && 'show')} tabIndex={-1}>
-			{dialog && <div className="c-dialog c-panel h-max-100 emph p-4">
-				<div className="c-hbox">
-					<h2 className="fill mb-3">{dialog.title}</h2>
-					<button type="button" className="c-link pos-absolute top-0 right-0 m-3" data-bs-dismiss="modal" aria-label="Close" onClick={onCancel}><IcClose/></button>
-				</div>
-				<div className="c-markdown overflow-y-auto">
-					<Markdown>{dialog.descr}</Markdown>
-				</div>
-				{// dialog.descr.split(/\n\n\s*/).map((p, i) => <p key={i} className="mb-2">{p}</p>)
-				}
+	return (
+		<>
+			{dialog && (
+				<div
+					className={mergeClasses('c-modal', dialog.className, dialog && 'show')}
+					tabIndex={-1}
+				>
+					{dialog && (
+						<div className="c-dialog c-panel h-max-100 emph p-4">
+							<div className="c-hbox">
+								<h2 className="fill mb-3">{dialog.title}</h2>
+								<button
+									type="button"
+									className="c-link pos-absolute top-0 right-0 m-3"
+									data-bs-dismiss="modal"
+									aria-label="Close"
+									onClick={onCancel}
+								>
+									<IcClose />
+								</button>
+							</div>
+							<div className="c-markdown overflow-y-auto">
+								<Markdown>{dialog.descr}</Markdown>
+							</div>
+							{
+								// dialog.descr.split(/\n\n\s*/).map((p, i) => <p key={i} className="mb-2">{p}</p>)
+							}
 
-				{ dialog.type == 'Tell' && <div className="c-group g-2 mt-4">
-						<Button primary autoFocus onClick={() => onButtonClick(true)}>{t('OK')}</Button>
-				</div>}
-				{ dialog.type == 'OkCancel' && <div className="c-group g-2 mt-4">
-						<Button primary autoFocus onClick={() => onButtonClick(true)}>{t('OK')}</Button>
-						<Button onClick={onCancel}>{t('Cancel')}</Button>
-				</div>}
-				{ dialog.type == 'YesNo' && <div className="c-group g-2 mt-4">
-						<Button primary onClick={() => onButtonClick(true)}>{t('Yes')}</Button>
-						<Button onClick={() => onButtonClick(false)}>{t('No')}</Button>
-				</div>}
-				{ dialog.type == 'Text' && <>
-					<form onSubmit={e => { e.preventDefault(); onButtonClick(value) }}>
-						{ !dialog.multiline
-							? <input className="c-input mt-3" type="text" placeholder={dialog.placeholder} defaultValue={dialog.defaultValue} autoFocus onChange={e => setValue(e.target.value)}/>
-							: <textarea className="c-input mt-3" placeholder={dialog.placeholder} defaultValue={dialog.defaultValue} autoFocus onChange={e => setValue(e.target.value)}/>
-						}
-					</form>
-					<div className="c-group g-2 mt-4">
-						<Button primary onClick={() => onButtonClick(value)}>{t('OK')}</Button>
-						<Button onClick={onCancel}>{t('Cancel')}</Button>
-					</div>
-				</>}
-			</div>}
-		</div>}
-	</>
+							{dialog.type == 'Tell' && (
+								<div className="c-group g-2 mt-4">
+									<Button primary autoFocus onClick={() => onButtonClick(true)}>
+										{t('OK')}
+									</Button>
+								</div>
+							)}
+							{dialog.type == 'OkCancel' && (
+								<div className="c-group g-2 mt-4">
+									<Button primary autoFocus onClick={() => onButtonClick(true)}>
+										{t('OK')}
+									</Button>
+									<Button onClick={onCancel}>{t('Cancel')}</Button>
+								</div>
+							)}
+							{dialog.type == 'YesNo' && (
+								<div className="c-group g-2 mt-4">
+									<Button primary onClick={() => onButtonClick(true)}>
+										{t('Yes')}
+									</Button>
+									<Button onClick={() => onButtonClick(false)}>{t('No')}</Button>
+								</div>
+							)}
+							{dialog.type == 'Text' && (
+								<>
+									<form
+										onSubmit={(e) => {
+											e.preventDefault()
+											onButtonClick(value)
+										}}
+									>
+										{!dialog.multiline ? (
+											<input
+												className="c-input mt-3"
+												type="text"
+												placeholder={dialog.placeholder}
+												defaultValue={dialog.defaultValue}
+												autoFocus
+												onChange={(e) => setValue(e.target.value)}
+											/>
+										) : (
+											<textarea
+												className="c-input mt-3"
+												placeholder={dialog.placeholder}
+												defaultValue={dialog.defaultValue}
+												autoFocus
+												onChange={(e) => setValue(e.target.value)}
+											/>
+										)}
+									</form>
+									<div className="c-group g-2 mt-4">
+										<Button primary onClick={() => onButtonClick(value)}>
+											{t('OK')}
+										</Button>
+										<Button onClick={onCancel}>{t('Cancel')}</Button>
+									</div>
+								</>
+							)}
+						</div>
+					)}
+				</div>
+			)}
+		</>
+	)
 }
 
 export interface UseDialogReturn {
@@ -139,12 +201,16 @@ export interface UseDialogReturn {
 	tell: (title: string, descr: string, className?: string) => Promise<unknown>
 	confirm: (title: string, descr: string, className?: string) => Promise<unknown>
 	ask: (title: string, descr: string, className?: string) => Promise<unknown>
-	askText: (title: string, descr: string, opts?: {
-		className?: string
-		placeholder?: string
-		defaultValue?: string
-		multiline?: boolean
-	}) => Promise<unknown>
+	askText: (
+		title: string,
+		descr: string,
+		opts?: {
+			className?: string
+			placeholder?: string
+			defaultValue?: string
+			multiline?: boolean
+		}
+	) => Promise<unknown>
 }
 
 export function useDialog(): UseDialogReturn {
@@ -171,12 +237,21 @@ export function useDialog(): UseDialogReturn {
 		return ret()
 	}
 
-	function askText(title: string, descr: string, { className, placeholder, defaultValue, multiline }: {
-		className?: string
-		placeholder?: string
-		defaultValue?: string
-		multiline?: boolean
-	} = {}) {
+	function askText(
+		title: string,
+		descr: string,
+		{
+			className,
+			placeholder,
+			defaultValue,
+			multiline
+		}: {
+			className?: string
+			placeholder?: string
+			defaultValue?: string
+			multiline?: boolean
+		} = {}
+	) {
 		setDialog({ type: 'Text', title, descr, className, placeholder, defaultValue, multiline })
 		console.log('askText', { title, descr, className, placeholder, defaultValue, multiline })
 		return ret()

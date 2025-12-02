@@ -65,7 +65,12 @@ export function PrelloPropertiesPanel({
 			>
 				<h4
 					className="m-0 mb-2"
-					style={{ fontSize: '11px', fontWeight: 600, opacity: 0.6, textTransform: 'uppercase' }}
+					style={{
+						fontSize: '11px',
+						fontWeight: 600,
+						opacity: 0.6,
+						textTransform: 'uppercase'
+					}}
 				>
 					Layers
 				</h4>
@@ -81,13 +86,15 @@ export function PrelloPropertiesPanel({
 			</div>
 
 			{/* Property Editor - bottom section */}
-			<div
-				className="p-2 flex-fill"
-				style={{ overflow: 'auto' }}
-			>
+			<div className="p-2 flex-fill" style={{ overflow: 'auto' }}>
 				<h4
 					className="m-0 mb-2"
-					style={{ fontSize: '11px', fontWeight: 600, opacity: 0.6, textTransform: 'uppercase' }}
+					style={{
+						fontSize: '11px',
+						fontWeight: 600,
+						opacity: 0.6,
+						textTransform: 'uppercase'
+					}}
 				>
 					Properties
 				</h4>

@@ -18,7 +18,8 @@ import * as React from 'react'
 import { LuCheck as IcSave, LuX as IcCancel } from 'react-icons/lu'
 import { mergeClasses, createComponent } from '../utils.js'
 
-export interface InlineEditFormProps extends Omit<React.HTMLAttributes<HTMLFormElement>, 'onSubmit'> {
+export interface InlineEditFormProps
+	extends Omit<React.HTMLAttributes<HTMLFormElement>, 'onSubmit'> {
 	value: string
 	onSave: (value: string) => void
 	onCancel: () => void
@@ -33,20 +34,23 @@ export interface InlineEditFormProps extends Omit<React.HTMLAttributes<HTMLFormE
 
 export const InlineEditForm = createComponent<HTMLFormElement, InlineEditFormProps>(
 	'InlineEditForm',
-	({
-		className,
-		value,
-		onSave,
-		onCancel,
-		placeholder,
-		autoFocus = true,
-		selectOnFocus = true,
-		size,
-		saveIcon = <IcSave />,
-		cancelIcon = <IcCancel />,
-		inputClassName,
-		...props
-	}, ref) => {
+	(
+		{
+			className,
+			value,
+			onSave,
+			onCancel,
+			placeholder,
+			autoFocus = true,
+			selectOnFocus = true,
+			size,
+			saveIcon = <IcSave />,
+			cancelIcon = <IcCancel />,
+			inputClassName,
+			...props
+		},
+		ref
+	) => {
 		const [editValue, setEditValue] = React.useState(value)
 		const inputRef = React.useRef<HTMLInputElement>(null)
 
@@ -59,27 +63,36 @@ export const InlineEditForm = createComponent<HTMLFormElement, InlineEditFormPro
 			}
 		}, [autoFocus, selectOnFocus])
 
-		const handleSubmit = React.useCallback((evt: React.FormEvent) => {
-			evt.preventDefault()
-			evt.stopPropagation()
-			if (editValue.trim()) {
-				onSave(editValue.trim())
-			}
-		}, [editValue, onSave])
+		const handleSubmit = React.useCallback(
+			(evt: React.FormEvent) => {
+				evt.preventDefault()
+				evt.stopPropagation()
+				if (editValue.trim()) {
+					onSave(editValue.trim())
+				}
+			},
+			[editValue, onSave]
+		)
 
-		const handleCancel = React.useCallback((evt: React.MouseEvent) => {
-			evt.preventDefault()
-			evt.stopPropagation()
-			onCancel()
-		}, [onCancel])
-
-		const handleKeyDown = React.useCallback((evt: React.KeyboardEvent) => {
-			if (evt.key === 'Escape') {
+		const handleCancel = React.useCallback(
+			(evt: React.MouseEvent) => {
 				evt.preventDefault()
 				evt.stopPropagation()
 				onCancel()
-			}
-		}, [onCancel])
+			},
+			[onCancel]
+		)
+
+		const handleKeyDown = React.useCallback(
+			(evt: React.KeyboardEvent) => {
+				if (evt.key === 'Escape') {
+					evt.preventDefault()
+					evt.stopPropagation()
+					onCancel()
+				}
+			},
+			[onCancel]
+		)
 
 		const handleClick = React.useCallback((evt: React.MouseEvent) => {
 			evt.stopPropagation()
@@ -100,7 +113,7 @@ export const InlineEditForm = createComponent<HTMLFormElement, InlineEditFormPro
 					className={mergeClasses('c-input', inputClassName)}
 					type="text"
 					value={editValue}
-					onChange={e => setEditValue(e.target.value)}
+					onChange={(e) => setEditValue(e.target.value)}
 					onKeyDown={handleKeyDown}
 					placeholder={placeholder}
 				/>

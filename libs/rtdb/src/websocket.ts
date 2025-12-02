@@ -22,13 +22,7 @@ import {
 	ChangeEvent,
 	RtdbClientOptions
 } from './types.js'
-import {
-	ConnectionError,
-	AuthError,
-	ValidationError,
-	TimeoutError,
-	RtdbError
-} from './errors.js'
+import { ConnectionError, AuthError, ValidationError, TimeoutError, RtdbError } from './errors.js'
 
 interface PendingRequest {
 	resolve: (value: any) => void
@@ -194,17 +188,19 @@ export class WebSocketManager {
 			type: 'subscribe',
 			path,
 			filter
-		}).then((result: any) => {
-			// Get the server's subscription ID from the response
-			const subId = result.subscriptionId as string
-			serverSubscriptionId = subId
-			this.subscriptions.set(subId, { callback, onError })
-			this.log('Subscription established:', subId)
-		}).catch((error) => {
-			console.error('[RTDB] Subscribe failed:', error)
-			this.subscriptionDetails.delete(localId) // Clean up on error
-			onError(error)
 		})
+			.then((result: any) => {
+				// Get the server's subscription ID from the response
+				const subId = result.subscriptionId as string
+				serverSubscriptionId = subId
+				this.subscriptions.set(subId, { callback, onError })
+				this.log('Subscription established:', subId)
+			})
+			.catch((error) => {
+				console.error('[RTDB] Subscribe failed:', error)
+				this.subscriptionDetails.delete(localId) // Clean up on error
+				onError(error)
+			})
 
 		// Return unsubscribe function
 		return () => {
@@ -246,11 +242,7 @@ export class WebSocketManager {
 					this.pendingRequests.delete(message.id)
 
 					if (message.type === 'error') {
-						const error = new RtdbError(
-							message.message,
-							message.code,
-							message.details
-						)
+						const error = new RtdbError(message.message, message.code, message.details)
 						pending.reject(error)
 					} else {
 						pending.resolve(message)
@@ -270,7 +262,10 @@ export class WebSocketManager {
 						sub.onError(error as Error)
 					}
 				} else {
-					console.warn('[RTDB] Received change for unknown subscription:', message.subscriptionId)
+					console.warn(
+						'[RTDB] Received change for unknown subscription:',
+						message.subscriptionId
+					)
 				}
 			}
 
@@ -307,7 +302,9 @@ export class WebSocketManager {
 
 		// Re-subscribe to all stored subscriptions
 		if (this.subscriptionDetails.size > 0) {
-			console.log(`[RTDB] Re-establishing ${this.subscriptionDetails.size} subscriptions after reconnect`)
+			console.log(
+				`[RTDB] Re-establishing ${this.subscriptionDetails.size} subscriptions after reconnect`
+			)
 
 			for (const [localId, details] of this.subscriptionDetails.entries()) {
 				this.log(`Re-subscribing to ${details.path}`)
@@ -316,17 +313,24 @@ export class WebSocketManager {
 					type: 'subscribe',
 					path: details.path,
 					filter: details.filter
-				}).then((result: any) => {
-					const serverSubscriptionId = result.subscriptionId
-					this.subscriptions.set(serverSubscriptionId, {
-						callback: details.callback,
-						onError: details.onError
-					})
-					this.log('Subscription re-established:', serverSubscriptionId, 'for path:', details.path)
-				}).catch((error) => {
-					console.error('[RTDB] Failed to re-establish subscription:', error)
-					details.onError(error)
 				})
+					.then((result: any) => {
+						const serverSubscriptionId = result.subscriptionId
+						this.subscriptions.set(serverSubscriptionId, {
+							callback: details.callback,
+							onError: details.onError
+						})
+						this.log(
+							'Subscription re-established:',
+							serverSubscriptionId,
+							'for path:',
+							details.path
+						)
+					})
+					.catch((error) => {
+						console.error('[RTDB] Failed to re-establish subscription:', error)
+						details.onError(error)
+					})
 			}
 		}
 	}

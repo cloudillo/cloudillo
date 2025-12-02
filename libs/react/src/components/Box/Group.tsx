@@ -25,11 +25,7 @@ export const Group = createComponent<HTMLDivElement, GroupProps>(
 	'Group',
 	({ className, children, ...props }, ref) => {
 		return (
-			<div
-				ref={ref}
-				className={mergeClasses('c-group', className)}
-				{...props}
-			>
+			<div ref={ref} className={mergeClasses('c-group', className)} {...props}>
 				{children}
 			</div>
 		)

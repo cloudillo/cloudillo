@@ -20,40 +20,58 @@ import { Tenant, TenantData, TenantPatch } from '@cloudillo/server/types/meta-ad
 import { db, ql, update } from './db.js'
 
 export async function readTenant(tnId: number): Promise<Tenant | undefined> {
-	const tenant = await db.get<{
-		tnId: number,
-		idTag: string,
-		type?: string,
-		name: string,
-		profilePic?: string
-		coverPic?: string
-		x?: string,
-		createdAt: Date
-	} | undefined>("SELECT tnId, idTag, type, name, profilePic, coverPic, x, createdAt FROM tenants WHERE tnId = $tnId", { $tnId: tnId })
-	return tenant ? {
-		...tenant,
-		type: tenant.type == 'C' ? 'community' : 'person',
-		profilePic: tenant.profilePic ? JSON.parse(tenant.profilePic) : undefined,
-		coverPic: tenant.coverPic ? JSON.parse(tenant.coverPic) : undefined,
-		x: tenant.x ? JSON.parse(tenant.x) : {}
-	} : undefined
+	const tenant = await db.get<
+		| {
+				tnId: number
+				idTag: string
+				type?: string
+				name: string
+				profilePic?: string
+				coverPic?: string
+				x?: string
+				createdAt: Date
+		  }
+		| undefined
+	>(
+		'SELECT tnId, idTag, type, name, profilePic, coverPic, x, createdAt FROM tenants WHERE tnId = $tnId',
+		{ $tnId: tnId }
+	)
+	return tenant
+		? {
+				...tenant,
+				type: tenant.type == 'C' ? 'community' : 'person',
+				profilePic: tenant.profilePic ? JSON.parse(tenant.profilePic) : undefined,
+				coverPic: tenant.coverPic ? JSON.parse(tenant.coverPic) : undefined,
+				x: tenant.x ? JSON.parse(tenant.x) : {}
+			}
+		: undefined
 }
 
 export async function getTenantIdentityTag(tnId: number) {
-	const res = await db.get<{ idTag: string }>("SELECT idTag FROM tenants WHERE tnId = $tnId", { $tnId: tnId })
+	const res = await db.get<{ idTag: string }>('SELECT idTag FROM tenants WHERE tnId = $tnId', {
+		$tnId: tnId
+	})
 	return res?.idTag
 }
 
 export async function createTenant(tnId: number, idTag: string, tenant: TenantData) {
-	const res = await db.get<{ tnId: number }>(`INSERT INTO tenants (tnId, idTag, name, type, profilePic, x) VALUES
-		($tnId, $idTag, $name, $type, $profilePic, $x) RETURNING tnId`, {
-		$tnId: tnId,
-		$idTag: idTag,
-		$name: tenant.name,
-		$type: tenant.type == 'community' ? 'C' : null,
-		$profilePic: tenant.profilePic,
-		$x: JSON.stringify({ ...tenant, tag: undefined, name: undefined, profilePic: undefined })
-	})
+	const res = await db.get<{ tnId: number }>(
+		`INSERT INTO tenants (tnId, idTag, name, type, profilePic, x) VALUES
+		($tnId, $idTag, $name, $type, $profilePic, $x) RETURNING tnId`,
+		{
+			$tnId: tnId,
+			$idTag: idTag,
+			$name: tenant.name,
+			$type: tenant.type == 'community' ? 'C' : null,
+			$profilePic: tenant.profilePic,
+			$x: JSON.stringify({
+				...tenant,
+				tag: undefined,
+				name: undefined,
+				profilePic: undefined
+			})
+		}
+	)
 	return res.tnId
 }
 
@@ -61,7 +79,9 @@ export async function updateTenant(tnId: number, tenant: TenantPatch): Promise<T
 	let x: Record<string, unknown>
 
 	if (tenant.x) {
-		const old = await db.get<{ x?: string }>('SELECT x FROM tenants WHERE tnId = $tnId', { $tnId: tnId })
+		const old = await db.get<{ x?: string }>('SELECT x FROM tenants WHERE tnId = $tnId', {
+			$tnId: tnId
+		})
 		x = old.x ? JSON.parse(old.x) : {}
 		for (const [k, v] of Object.entries(tenant.x)) {
 			if (v !== undefined) {
@@ -70,7 +90,12 @@ export async function updateTenant(tnId: number, tenant: TenantPatch): Promise<T
 		}
 	}
 
-	const res = await update<Tenant & { profilePic?: string, coverPic?: string }>('tenants', ['tnId'], { ...tenant, tnId }, 'tnId, idTag, name, profilePic, coverPic, createdAt, x')
+	const res = await update<Tenant & { profilePic?: string; coverPic?: string }>(
+		'tenants',
+		['tnId'],
+		{ ...tenant, tnId },
+		'tnId, idTag, name, profilePic, coverPic, createdAt, x'
+	)
 	if (res) {
 		const tenant = {
 			...res,

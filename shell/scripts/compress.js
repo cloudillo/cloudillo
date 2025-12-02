@@ -48,7 +48,9 @@ function compressFile(filePath) {
 
 	console.log(`  ${filePath}`)
 	console.log(`    gzip:   ${content.length} → ${gzipped.length} bytes (${gzipRatio}% smaller)`)
-	console.log(`    brotli: ${content.length} → ${brotlied.length} bytes (${brotliRatio}% smaller)`)
+	console.log(
+		`    brotli: ${content.length} → ${brotlied.length} bytes (${brotliRatio}% smaller)`
+	)
 }
 
 function compressDirectory(dirPath) {

@@ -28,11 +28,7 @@ export const TagList = createComponent<HTMLDivElement, TagListProps>(
 		return (
 			<div
 				ref={ref}
-				className={mergeClasses(
-					'c-hbox flex-wrap',
-					`g-${gap}`,
-					className
-				)}
+				className={mergeClasses('c-hbox flex-wrap', `g-${gap}`, className)}
 				{...props}
 			>
 				{children}

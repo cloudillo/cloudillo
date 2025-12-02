@@ -20,7 +20,12 @@ import * as T from '@symbion/runtype'
 
 import { sha256 } from '../utils.js'
 import { Auth } from '../index.js'
-import { ProxyToken, createActionToken, createProxyToken, getIdentityTag } from '../auth/handlers.js'
+import {
+	ProxyToken,
+	createActionToken,
+	createProxyToken,
+	getIdentityTag
+} from '../auth/handlers.js'
 import { tFullProfile } from '../profile/profile.js'
 import { sendNotification } from '../notification/index.js'
 import { addTask, cancelWait } from '../worker.js'
@@ -31,7 +36,11 @@ import { init, handleInboundAction, handleInboundActionToken } from './action.js
 ///////////
 export async function processInboundActionTokens() {
 	//console.log('processInboundActions')
-	return metaAdapter.processPendingInboundActions(async function processInboundAction(tnId: number, actionId: string, token: string) {
+	return metaAdapter.processPendingInboundActions(async function processInboundAction(
+		tnId: number,
+		actionId: string,
+		token: string
+	) {
 		const idTag = await getIdentityTag(tnId)
 		//const actionId = sha256(action.token)
 		try {
@@ -48,13 +57,20 @@ export async function processInboundActionTokens() {
 ////////////
 export async function processOutboundActions() {
 	//console.log('processOutboundActions')
-	return metaAdapter.processPendingOutboundActions(async function processOutboundAction(tnId: number, actionId: string, type: string, token: string, recipientTag: string) {
+	return metaAdapter.processPendingOutboundActions(async function processOutboundAction(
+		tnId: number,
+		actionId: string,
+		type: string,
+		token: string,
+		recipientTag: string
+	) {
 		const url = `https://cl-o.${recipientTag}/api/inbox`
 		let related: string | undefined
 
 		if (type == 'ACK') {
 			const actionData = await metaAdapter.getActionData(tnId, actionId)
-			if (actionData?.subject) related = await metaAdapter.getActionToken(tnId, actionData.subject)
+			if (actionData?.subject)
+				related = await metaAdapter.getActionToken(tnId, actionData.subject)
 			console.log('ACK', actionId, actionData, related)
 		}
 
@@ -75,7 +91,7 @@ export async function processOutboundActions() {
 export async function actionWorker(): Promise<boolean> {
 	//console.log('ACTION WORKER start')
 	let ret = await processInboundActionTokens()
-	ret = await processOutboundActions() || ret
+	ret = (await processOutboundActions()) || ret
 	//console.log('ACTION WORKER end', ret)
 	return !!ret
 }

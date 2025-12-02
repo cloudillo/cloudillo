@@ -24,12 +24,17 @@ export interface AttachmentPreviewProps {
 	compact?: boolean
 }
 
-export function AttachmentPreview({ attachmentIds, idTag, onRemove, compact }: AttachmentPreviewProps) {
+export function AttachmentPreview({
+	attachmentIds,
+	idTag,
+	onRemove,
+	compact
+}: AttachmentPreviewProps) {
 	if (!attachmentIds.length) return null
 
 	return (
 		<div className={`c-hbox wrap ${compact ? 'g-1' : 'mu-2'}`}>
-			{attachmentIds.map(id => (
+			{attachmentIds.map((id) => (
 				<div key={id} className="pos-relative d-inline-block">
 					<img
 						className={compact ? 'c-thumbnail small' : 'c-thumbnail'}
@@ -39,10 +44,16 @@ export function AttachmentPreview({ attachmentIds, idTag, onRemove, compact }: A
 					<button
 						type="button"
 						className="c-button icon small pos-absolute"
-						style={{ top: 2, right: 2, padding: 2, minWidth: 'auto', borderRadius: '50%' }}
+						style={{
+							top: 2,
+							right: 2,
+							padding: 2,
+							minWidth: 'auto',
+							borderRadius: '50%'
+						}}
 						onClick={() => onRemove(id)}
 					>
-						<IcClose size={12}/>
+						<IcClose size={12} />
 					</button>
 				</div>
 			))}

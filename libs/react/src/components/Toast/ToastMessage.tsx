@@ -25,11 +25,7 @@ export const ToastMessage = createComponent<HTMLParagraphElement, ToastMessagePr
 	'ToastMessage',
 	({ className, children, ...props }, ref) => {
 		return (
-			<p
-				ref={ref}
-				className={mergeClasses('c-toast-message', className)}
-				{...props}
-			>
+			<p ref={ref} className={mergeClasses('c-toast-message', className)} {...props}>
 				{children}
 			</p>
 		)

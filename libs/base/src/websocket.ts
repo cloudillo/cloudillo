@@ -19,8 +19,8 @@ import { WebsocketProvider } from 'y-websocket'
 //import { IndexeddbPersistence } from 'y-indexeddb'
 
 export interface WebSocketOpts {
-  idTag: string
-  authToken: string
+	idTag: string
+	authToken: string
 }
 
 /**
@@ -52,18 +52,18 @@ export interface WebSocketOpts {
  * ```
  */
 export async function openCRDT(
-  yDoc: Y.Doc,
-  docId: string,
-  opts: WebSocketOpts
+	yDoc: Y.Doc,
+	docId: string,
+	opts: WebSocketOpts
 ): Promise<{ yDoc: Y.Doc; provider: WebsocketProvider }> {
-  const [targetTag, resId] = docId.split(':')
+	const [targetTag, resId] = docId.split(':')
 
-  if (!opts.authToken) {
-    throw new Error('No access token for CRDT connection')
-  }
+	if (!opts.authToken) {
+		throw new Error('No access token for CRDT connection')
+	}
 
-  // Set up offline persistence
-  /*
+	// Set up offline persistence
+	/*
   const idbProvider = new IndexeddbPersistence(docId, yDoc)
   await new Promise<void>((resolve) => {
     idbProvider.on('synced', () => {
@@ -73,15 +73,15 @@ export async function openCRDT(
   })
   */
 
-  // Connect to server
-  const wsUrl = `wss://cl-o.${targetTag}/ws/crdt`
-  console.log(`[CRDT] Connecting to ${wsUrl}`, { resId, token: opts.authToken })
+	// Connect to server
+	const wsUrl = `wss://cl-o.${targetTag}/ws/crdt`
+	console.log(`[CRDT] Connecting to ${wsUrl}`, { resId, token: opts.authToken })
 
-  const wsProvider = new WebsocketProvider(wsUrl, resId, yDoc, {
-    params: { token: opts.authToken },
-  })
+	const wsProvider = new WebsocketProvider(wsUrl, resId, yDoc, {
+		params: { token: opts.authToken }
+	})
 
-  return { yDoc, provider: wsProvider }
+	return { yDoc, provider: wsProvider }
 }
 
 /**
@@ -116,14 +116,14 @@ export async function openCRDT(
  * ```
  */
 export function openRTDB(fileId: string, opts: WebSocketOpts): WebSocket {
-  if (!opts.authToken) {
-    throw new Error('No access token for RTDB connection')
-  }
+	if (!opts.authToken) {
+		throw new Error('No access token for RTDB connection')
+	}
 
-  const wsUrl = `wss://cl-o.${opts.idTag}/ws/rtdb/${fileId}?token=${encodeURIComponent(opts.authToken)}`
-  console.log(`[RTDB] Connecting to ${wsUrl}`)
+	const wsUrl = `wss://cl-o.${opts.idTag}/ws/rtdb/${fileId}?token=${encodeURIComponent(opts.authToken)}`
+	console.log(`[RTDB] Connecting to ${wsUrl}`)
 
-  return new WebSocket(wsUrl)
+	return new WebSocket(wsUrl)
 }
 
 /**
@@ -154,14 +154,14 @@ export function openRTDB(fileId: string, opts: WebSocketOpts): WebSocket {
  * ```
  */
 export function openMessageBus(opts: WebSocketOpts): WebSocket {
-  if (!opts.authToken) {
-    throw new Error('No access token for message bus connection')
-  }
+	if (!opts.authToken) {
+		throw new Error('No access token for message bus connection')
+	}
 
-  const wsUrl = `wss://cl-o.${opts.idTag}/ws/bus?token=${encodeURIComponent(opts.authToken)}`
-  console.log(`[Bus] Connecting to ${wsUrl}`)
+	const wsUrl = `wss://cl-o.${opts.idTag}/ws/bus?token=${encodeURIComponent(opts.authToken)}`
+	console.log(`[Bus] Connecting to ${wsUrl}`)
 
-  return new WebSocket(wsUrl)
+	return new WebSocket(wsUrl)
 }
 
 // vim: ts=2

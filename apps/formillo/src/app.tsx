@@ -48,7 +48,7 @@ const MY_FORM: Form = {
 //const CLOUDILLO_FORM: Form = {
 
 const MY_FORM: Form = {
-	title: "Közösségi Media és tartalom megosztó platform használati kérdőív",
+	title: 'Közösségi Media és tartalom megosztó platform használati kérdőív',
 	descr: `
 		<p>Ez a kérdőív azt próbálja körbejárni, hogy milyen aggodalmak merülnek fel a felhasználókban, amikor hagyományos (multinacionális cégek által üzemeltetett) közösségi média és tartalommegosztó szolgáltatásokat használnak. A véleményed fontos számunkra, hogy megértsük a platformokat körülvevő sokszor ellentmondásos érzéseket.
 		</p><p>
@@ -57,7 +57,8 @@ const MY_FORM: Form = {
 		A kérdőív kitöltése körülbelül 10 percet vesz igénybe. Köszönjük, hogy időt szakítasz rá és megosztod velünk gondolataidat.
 		</p>
 	`,
-	thankYou: '<p>Köszönjük, hogy kitöltötted a felmérést!</p><p>Szívesen olvasnál a projektünkről? Látogass el a <a href="https://szilu.github.io/cloudillo-architecture/" target="_blank">https://szilu.github.io/cloudillo-architecture/</a> oldalra!</p>',
+	thankYou:
+		'<p>Köszönjük, hogy kitöltötted a felmérést!</p><p>Szívesen olvasnál a projektünkről? Látogass el a <a href="https://szilu.github.io/cloudillo-architecture/" target="_blank">https://szilu.github.io/cloudillo-architecture/</a> oldalra!</p>',
 	buttons: {
 		start: 'Kezdjük!',
 		previous: 'Előző',
@@ -66,265 +67,266 @@ const MY_FORM: Form = {
 	},
 	fields: [
 		{
-			name: "data_security",
-			type: "singlechoice",
-			category: "Adatkezelés",
-			label: "Mennyire bízol az adattároló felhőszolgáltatások (Google Drive/Docs, OneDrive, DropBox, stb.) oldalak biztonsági intézkedéseiben a személyes adataid, tartalmaid védelme terén?",
+			name: 'data_security',
+			type: 'singlechoice',
+			category: 'Adatkezelés',
+			label: 'Mennyire bízol az adattároló felhőszolgáltatások (Google Drive/Docs, OneDrive, DropBox, stb.) oldalak biztonsági intézkedéseiben a személyes adataid, tartalmaid védelme terén?',
 			options: [
-				{ id: 1, label: "Nagyon bízom" },
-				{ id: 2, label: "Valamennyire bízom" },
-				{ id: 3, label: "Nem bízom túlságosan" },
-				{ id: 4, label: "Egyáltalán nem bízom" },
-				{ id: '-', label: "Nem értem a kérdést" }
+				{ id: 1, label: 'Nagyon bízom' },
+				{ id: 2, label: 'Valamennyire bízom' },
+				{ id: 3, label: 'Nem bízom túlságosan' },
+				{ id: 4, label: 'Egyáltalán nem bízom' },
+				{ id: '-', label: 'Nem értem a kérdést' }
 			]
 		},
 		{
-			name: "data_ownership",
-			type: "singlechoice",
-			category: "Adatkezelés",
-			label: "Mennyire fontos számodra teljes kontrollal rendelkezni a közösségi média platformokon megosztott személyes adataid, tartalmaid felett?",
+			name: 'data_ownership',
+			type: 'singlechoice',
+			category: 'Adatkezelés',
+			label: 'Mennyire fontos számodra teljes kontrollal rendelkezni a közösségi média platformokon megosztott személyes adataid, tartalmaid felett?',
 			options: [
-				{ id: 1, label: "Nagyon fontos" },
-				{ id: 2, label: "Valamennyire fontos" },
-				{ id: 3, label: "Nem túl fontos" },
-				{ id: 4, label: "Egyáltalán nem fontos" },
-				{ id: '-', label: "Nem értem a kérdést" }
+				{ id: 1, label: 'Nagyon fontos' },
+				{ id: 2, label: 'Valamennyire fontos' },
+				{ id: 3, label: 'Nem túl fontos' },
+				{ id: 4, label: 'Egyáltalán nem fontos' },
+				{ id: '-', label: 'Nem értem a kérdést' }
 			]
 		},
 		{
-			name: "usability_vs_privacy",
-			type: "singlechoice",
-			category: "Adatkezelés",
-			label: "Milyen mértékben vagy hajlandó lemondani a kényelemről a közösségi média és egyéb tartalom megosztó szolgáltatások használatakor a fokozott adatvédelem és biztonság érdekében?",
+			name: 'usability_vs_privacy',
+			type: 'singlechoice',
+			category: 'Adatkezelés',
+			label: 'Milyen mértékben vagy hajlandó lemondani a kényelemről a közösségi média és egyéb tartalom megosztó szolgáltatások használatakor a fokozott adatvédelem és biztonság érdekében?',
 			options: [
-				{ id: 1, label: "Minden kényelmetlenséget elviselek, ha az adataim biztonságáról van szó" },
-				{ id: 2, label: "Valamennyi kényelmetlenséget elviselek" },
-				{ id: 3, label: "Nem nagyon viselek el kényelmetlenséget" },
-				{ id: 4, label: "Nekem csak a kényelem számít" },
-				{ id: '-', label: "Nem értem a kérdést" }
+				{
+					id: 1,
+					label: 'Minden kényelmetlenséget elviselek, ha az adataim biztonságáról van szó'
+				},
+				{ id: 2, label: 'Valamennyi kényelmetlenséget elviselek' },
+				{ id: 3, label: 'Nem nagyon viselek el kényelmetlenséget' },
+				{ id: 4, label: 'Nekem csak a kényelem számít' },
+				{ id: '-', label: 'Nem értem a kérdést' }
 			]
 		},
 		{
-			name: "algorithm_bias",
-			type: "singlechoice",
-			category: "Adatkezelés",
-			label: "Mennyire aggasztanak a platformok által használt algoritmusok, amelyek azt határozzák meg, hogy milyen tartalmakat, információkat látsz a különböző felületeken?",
+			name: 'algorithm_bias',
+			type: 'singlechoice',
+			category: 'Adatkezelés',
+			label: 'Mennyire aggasztanak a platformok által használt algoritmusok, amelyek azt határozzák meg, hogy milyen tartalmakat, információkat látsz a különböző felületeken?',
 			options: [
-				{ id: 1, label: "Nagyon aggasztanak" },
-				{ id: 2, label: "Valamennyire aggasztanak" },
-				{ id: 3, label: "Nem nagyon aggasztanak" },
-				{ id: 4, label: "Egyáltalán nem aggasztanak" },
-				{ id: '-', label: "Nem értem a kérdést" }
+				{ id: 1, label: 'Nagyon aggasztanak' },
+				{ id: 2, label: 'Valamennyire aggasztanak' },
+				{ id: 3, label: 'Nem nagyon aggasztanak' },
+				{ id: 4, label: 'Egyáltalán nem aggasztanak' },
+				{ id: '-', label: 'Nem értem a kérdést' }
 			]
 		},
 		{
-			name: "data_monetization",
-			type: "singlechoice",
-			category: "Adatkezelés",
-			label: "Mennyire zavar téged, hogy a hagyományos közösségi média platformok a felhasználói adatokat marketing célokra hasznosítják?",
+			name: 'data_monetization',
+			type: 'singlechoice',
+			category: 'Adatkezelés',
+			label: 'Mennyire zavar téged, hogy a hagyományos közösségi média platformok a felhasználói adatokat marketing célokra hasznosítják?',
 			options: [
-				{ id: 1, label: "Nagyon zavar" },
-				{ id: 2, label: "Valamennyire zavar" },
-				{ id: 3, label: "Nem túlságosan zavar" },
-				{ id: 4, label: "Egyáltalán nem zavar" },
-				{ id: '-', label: "Nem értem a kérdést" }
+				{ id: 1, label: 'Nagyon zavar' },
+				{ id: 2, label: 'Valamennyire zavar' },
+				{ id: 3, label: 'Nem túlságosan zavar' },
+				{ id: 4, label: 'Egyáltalán nem zavar' },
+				{ id: '-', label: 'Nem értem a kérdést' }
 			]
 		},
 		{
-			name: "user_profiling",
-			type: "singlechoice",
-			category: "Adatkezelés",
-			label: "Mennyire aggaszt, hogy a közössgi oldalak részletes felhasználói profilt hoznak létre rólad az online tevékenységeid és interakcióid alapján?",
+			name: 'user_profiling',
+			type: 'singlechoice',
+			category: 'Adatkezelés',
+			label: 'Mennyire aggaszt, hogy a közössgi oldalak részletes felhasználói profilt hoznak létre rólad az online tevékenységeid és interakcióid alapján?',
 			options: [
-				{ id: 1, label: "Nagyon aggaszt" },
-				{ id: 2, label: "Valamennyire aggaszt" },
-				{ id: 3, label: "Nem túlságosan aggaszt" },
-				{ id: 4, label: "Egyáltalán nem aggaszt" },
-				{ id: '-', label: "Nem értem a kérdést" }
+				{ id: 1, label: 'Nagyon aggaszt' },
+				{ id: 2, label: 'Valamennyire aggaszt' },
+				{ id: 3, label: 'Nem túlságosan aggaszt' },
+				{ id: 4, label: 'Egyáltalán nem aggaszt' },
+				{ id: '-', label: 'Nem értem a kérdést' }
 			]
 		},
 		{
-			name: "censorship",
-			type: "singlechoice",
-			category: "Adatkezelés",
-			label: "Mennyire aggódsz a tartalom szűrés, cenzúra miatt a közösségi média és tartalommegosztó platformokon?",
+			name: 'censorship',
+			type: 'singlechoice',
+			category: 'Adatkezelés',
+			label: 'Mennyire aggódsz a tartalom szűrés, cenzúra miatt a közösségi média és tartalommegosztó platformokon?',
 			options: [
-				{ id: 1, label: "Nagyon aggaszt" },
-				{ id: 2, label: "Valamennyire aggaszt" },
-				{ id: 3, label: "Nem túlságosan aggaszt" },
-				{ id: 4, label: "Egyáltalán nem aggaszt" },
-				{ id: '-', label: "Nem értem a kérdést" }
+				{ id: 1, label: 'Nagyon aggaszt' },
+				{ id: 2, label: 'Valamennyire aggaszt' },
+				{ id: 3, label: 'Nem túlságosan aggaszt' },
+				{ id: 4, label: 'Egyáltalán nem aggaszt' },
+				{ id: '-', label: 'Nem értem a kérdést' }
 			]
 		},
 		{
-			name: "tech_literacy",
-			type: "singlechoice",
-			category: "Technikai aggályok",
-			label: "Mennyire érzed magad képesnek arra, hogy egy saját eszközt üzemeltess (például egy NAS-t) a közösségi média és tartalommegosztó igényeid kiszolgálására, ily módon teljes kontrollt szerezve az adataid felett?",
+			name: 'tech_literacy',
+			type: 'singlechoice',
+			category: 'Technikai aggályok',
+			label: 'Mennyire érzed magad képesnek arra, hogy egy saját eszközt üzemeltess (például egy NAS-t) a közösségi média és tartalommegosztó igényeid kiszolgálására, ily módon teljes kontrollt szerezve az adataid felett?',
 			options: [
-				{ id: 1, label: "Biztosan megbírkóznék vele" },
-				{ id: 2, label: "Valamennyire képesnek érzem magam" },
-				{ id: 3, label: "Nem túlságosan bízom benne, hogy sikerülne" },
-				{ id: 4, label: "Kizárt, hogy képes lennék rá" },
-				{ id: '-', label: "Nem értem a kérdést" }
+				{ id: 1, label: 'Biztosan megbírkóznék vele' },
+				{ id: 2, label: 'Valamennyire képesnek érzem magam' },
+				{ id: 3, label: 'Nem túlságosan bízom benne, hogy sikerülne' },
+				{ id: 4, label: 'Kizárt, hogy képes lennék rá' },
+				{ id: '-', label: 'Nem értem a kérdést' }
 			]
 		},
 		{
-			name: "interoperability",
-			type: "singlechoice",
-			category: "Technikai aggályok",
-			label: "Mennyire fontos számodra, hogy a tartalmaidat (fényképalbumok, dokumentumok, táblázatok, jegyzetek, stb..) kezelő platform zökkenőmentesen együttműködjön különböző szolgáltatók alkalmazásaival és szolgáltatásaival?",
+			name: 'interoperability',
+			type: 'singlechoice',
+			category: 'Technikai aggályok',
+			label: 'Mennyire fontos számodra, hogy a tartalmaidat (fényképalbumok, dokumentumok, táblázatok, jegyzetek, stb..) kezelő platform zökkenőmentesen együttműködjön különböző szolgáltatók alkalmazásaival és szolgáltatásaival?',
 			options: [
-				{ id: 1, label: "Nagyon fontos" },
-				{ id: 2, label: "Valamennyire fontos" },
-				{ id: 3, label: "Nem túl fontos" },
-				{ id: 4, label: "Egyáltalán nem fontos" },
-				{ id: '-', label: "Nem értem a kérdést" }
+				{ id: 1, label: 'Nagyon fontos' },
+				{ id: 2, label: 'Valamennyire fontos' },
+				{ id: 3, label: 'Nem túl fontos' },
+				{ id: 4, label: 'Egyáltalán nem fontos' },
+				{ id: '-', label: 'Nem értem a kérdést' }
 			]
 		},
 
-
 		{
-			name: "share_friends_family",
-			type: "singlechoice",
-			category: "Közösségi média használat",
-			label: "Mennyire jellemzi a közösségi média használatodat, hogy saját tartalmakat osztasz meg barátokkal, családdal?",
+			name: 'share_friends_family',
+			type: 'singlechoice',
+			category: 'Közösségi média használat',
+			label: 'Mennyire jellemzi a közösségi média használatodat, hogy saját tartalmakat osztasz meg barátokkal, családdal?',
 			options: [
-				{ id: 1, label: "Nagyon jellemző" },
-				{ id: 2, label: "Valamennyire jellemző" },
-				{ id: 3, label: "Elég ritka" },
-				{ id: 4, label: "Egyáltalán nem jellemző" }
+				{ id: 1, label: 'Nagyon jellemző' },
+				{ id: 2, label: 'Valamennyire jellemző' },
+				{ id: 3, label: 'Elég ritka' },
+				{ id: 4, label: 'Egyáltalán nem jellemző' }
 			]
 		},
 		{
-			name: "share_group",
-			type: "singlechoice",
-			category: "Közösségi média használat",
-			label: "Mennyire jellemzi a közösségi média használatodat, hogy saját tartalmakat osztasz meg különböző csoportokkal (klubokkal, osztállyal, stb.)?",
+			name: 'share_group',
+			type: 'singlechoice',
+			category: 'Közösségi média használat',
+			label: 'Mennyire jellemzi a közösségi média használatodat, hogy saját tartalmakat osztasz meg különböző csoportokkal (klubokkal, osztállyal, stb.)?',
 			options: [
-				{ id: 1, label: "Nagyon jellemző" },
-				{ id: 2, label: "Valamennyire jellemző" },
-				{ id: 3, label: "Elég ritka" },
-				{ id: 4, label: "Egyáltalán nem jellemző" }
+				{ id: 1, label: 'Nagyon jellemző' },
+				{ id: 2, label: 'Valamennyire jellemző' },
+				{ id: 3, label: 'Elég ritka' },
+				{ id: 4, label: 'Egyáltalán nem jellemző' }
 			]
 		},
 		{
-			name: "share_public",
-			type: "singlechoice",
-			category: "Közösségi média használat",
-			label: "Mennyire jellemzi a közösségi média használatodat, hogy saját tartalmakat publikusan osztasz meg?",
+			name: 'share_public',
+			type: 'singlechoice',
+			category: 'Közösségi média használat',
+			label: 'Mennyire jellemzi a közösségi média használatodat, hogy saját tartalmakat publikusan osztasz meg?',
 			options: [
-				{ id: 1, label: "Nagyon jellemző" },
-				{ id: 2, label: "Valamennyire jellemző" },
-				{ id: 3, label: "Elég ritka" },
-				{ id: 4, label: "Egyáltalán nem jellemző" }
+				{ id: 1, label: 'Nagyon jellemző' },
+				{ id: 2, label: 'Valamennyire jellemző' },
+				{ id: 3, label: 'Elég ritka' },
+				{ id: 4, label: 'Egyáltalán nem jellemző' }
 			]
 		},
 		{
-			name: "consume_friends_family",
-			type: "singlechoice",
-			category: "Közösségi média használat",
-			label: "Mennyire jellemzi a közösségi média használatodat a barátaid és családod által megosztott tartalmak fogyasztása?",
+			name: 'consume_friends_family',
+			type: 'singlechoice',
+			category: 'Közösségi média használat',
+			label: 'Mennyire jellemzi a közösségi média használatodat a barátaid és családod által megosztott tartalmak fogyasztása?',
 			options: [
-				{ id: 1, label: "Nagyon jellemző" },
-				{ id: 2, label: "Valamennyire jellemző" },
-				{ id: 3, label: "Elég ritka" },
-				{ id: 4, label: "Egyáltalán nem jellemző" }
+				{ id: 1, label: 'Nagyon jellemző' },
+				{ id: 2, label: 'Valamennyire jellemző' },
+				{ id: 3, label: 'Elég ritka' },
+				{ id: 4, label: 'Egyáltalán nem jellemző' }
 			]
 		},
 		{
-			name: "consume_group",
-			type: "singlechoice",
-			category: "Közösségi média használat",
-			label: "Mennyire jellemzi a közösségi médis használatodat különböző csoportok (klubok, osztály, stb.) által megosztott tartalmak fogyasztása?",
+			name: 'consume_group',
+			type: 'singlechoice',
+			category: 'Közösségi média használat',
+			label: 'Mennyire jellemzi a közösségi médis használatodat különböző csoportok (klubok, osztály, stb.) által megosztott tartalmak fogyasztása?',
 			options: [
-				{ id: 1, label: "Nagyon jellemző" },
-				{ id: 2, label: "Valamennyire jellemző" },
-				{ id: 3, label: "Elég ritka" },
-				{ id: 4, label: "Egyáltalán nem jellemző" }
+				{ id: 1, label: 'Nagyon jellemző' },
+				{ id: 2, label: 'Valamennyire jellemző' },
+				{ id: 3, label: 'Elég ritka' },
+				{ id: 4, label: 'Egyáltalán nem jellemző' }
 			]
 		},
 		{
-			name: "consume_influencer",
-			type: "singlechoice",
-			category: "Közösségi média használat",
-			label: "Mennyire jellemzi a közösségi média használatodat influenszerek által megosztott tartalom fogyasztása?",
+			name: 'consume_influencer',
+			type: 'singlechoice',
+			category: 'Közösségi média használat',
+			label: 'Mennyire jellemzi a közösségi média használatodat influenszerek által megosztott tartalom fogyasztása?',
 			options: [
-				{ id: 1, label: "Nagyon jellemző" },
-				{ id: 2, label: "Valamennyire jellemző" },
-				{ id: 3, label: "Elég ritka" },
-				{ id: 4, label: "Egyáltalán nem jellemző" }
+				{ id: 1, label: 'Nagyon jellemző' },
+				{ id: 2, label: 'Valamennyire jellemző' },
+				{ id: 3, label: 'Elég ritka' },
+				{ id: 4, label: 'Egyáltalán nem jellemző' }
 			]
 		},
 		{
-			name: "consume_public",
-			type: "singlechoice",
-			category: "Közösségi média használat",
-			label: "Mennyire jellemzi a közösségi média használatodat ismeretlen emberek által megosztott felkapott tartalom fogyasztása?",
+			name: 'consume_public',
+			type: 'singlechoice',
+			category: 'Közösségi média használat',
+			label: 'Mennyire jellemzi a közösségi média használatodat ismeretlen emberek által megosztott felkapott tartalom fogyasztása?',
 			options: [
-				{ id: 1, label: "Nagyon jellemző" },
-				{ id: 2, label: "Valamennyire jellemző" },
-				{ id: 3, label: "Elég ritka" },
-				{ id: 4, label: "Egyáltalán nem jellemző" }
+				{ id: 1, label: 'Nagyon jellemző' },
+				{ id: 2, label: 'Valamennyire jellemző' },
+				{ id: 3, label: 'Elég ritka' },
+				{ id: 4, label: 'Egyáltalán nem jellemző' }
 			]
 		},
 		{
-			name: "trust_in_tech",
-			type: "singlechoice",
-			category: "Bizalom",
-			label: "A saját eszközeidben, vagy a felhőszolgáltatásokban bízol jobban, amikor a személyes adataid, tartalmaid védelméről van szó?",
+			name: 'trust_in_tech',
+			type: 'singlechoice',
+			category: 'Bizalom',
+			label: 'A saját eszközeidben, vagy a felhőszolgáltatásokban bízol jobban, amikor a személyes adataid, tartalmaid védelméről van szó?',
 			options: [
-				{ id: 1, label: "A saját eszközeimben jelentősen jobban bízom" },
-				{ id: 2, label: "Inkább a saját eszközeimben bízom" },
-				{ id: 3, label: "Inkább a felhőszolgáltatásokban megbízom" },
-				{ id: 4, label: "A felhőszolgáltatásokban jelentősen jobban bízom" },
-				{ id: '-', label: "Nem értem a kérdést" }
+				{ id: 1, label: 'A saját eszközeimben jelentősen jobban bízom' },
+				{ id: 2, label: 'Inkább a saját eszközeimben bízom' },
+				{ id: 3, label: 'Inkább a felhőszolgáltatásokban megbízom' },
+				{ id: 4, label: 'A felhőszolgáltatásokban jelentősen jobban bízom' },
+				{ id: '-', label: 'Nem értem a kérdést' }
 			]
 		},
 		{
-			name: "trust_friend",
-			type: "singlechoice",
-			category: "Bizalom",
-			label: "Egy barátod, vagy családtagod eszközében jobban megbíznál, mint a felhőszolgáltatásokban, ha a tartalmaidat az ő saját eszközén tárolhatnád?",
+			name: 'trust_friend',
+			type: 'singlechoice',
+			category: 'Bizalom',
+			label: 'Egy barátod, vagy családtagod eszközében jobban megbíznál, mint a felhőszolgáltatásokban, ha a tartalmaidat az ő saját eszközén tárolhatnád?',
 			options: [
-				{ id: 1, label: "A barátomban jelentősen jobban bízom" },
-				{ id: 2, label: "Inkább a barátomban bízom" },
-				{ id: 3, label: "Inkább a felhőszolgáltatásokban bízom" },
-				{ id: 4, label: "A felhőszolgáltatásokban jelentősen jobban bízom" },
-				{ id: '-', label: "Nem értem a kérdést" }
+				{ id: 1, label: 'A barátomban jelentősen jobban bízom' },
+				{ id: 2, label: 'Inkább a barátomban bízom' },
+				{ id: 3, label: 'Inkább a felhőszolgáltatásokban bízom' },
+				{ id: 4, label: 'A felhőszolgáltatásokban jelentősen jobban bízom' },
+				{ id: '-', label: 'Nem értem a kérdést' }
 			]
 		},
 		{
-			name: "pay_friend",
-			type: "singlechoice",
-			category: "Költségek",
-			label: "Ha egy barátod vagy családtagod jelentős tárhelyet (100 GB) biztosítana neked, amit a felhőszolgáltatásokhoz hasonlóan használhatsz tartalomkezelésre, megosztásra, akkor hajlandó lennél pénzben hozzájárulni a költségeihez? Amennyiben igen, mennyit lennél hajlandó évente felajánlani?",
+			name: 'pay_friend',
+			type: 'singlechoice',
+			category: 'Költségek',
+			label: 'Ha egy barátod vagy családtagod jelentős tárhelyet (100 GB) biztosítana neked, amit a felhőszolgáltatásokhoz hasonlóan használhatsz tartalomkezelésre, megosztásra, akkor hajlandó lennél pénzben hozzájárulni a költségeihez? Amennyiben igen, mennyit lennél hajlandó évente felajánlani?',
 			options: [
-				{ id: 1, label: "Miért tenném, ha ingyen használhatom a Google-t?" },
-				{ id: 2, label: "Kevesebbet fizetnék, mint 10 USD" },
-				{ id: 3, label: "10-20 USD között fizetnék" },
-				{ id: 4, label: "20-30 USD között fizetnék" },
-				{ id: 5, label: "Akár évi 30 USD-nél többet is fizetnék neki" }
+				{ id: 1, label: 'Miért tenném, ha ingyen használhatom a Google-t?' },
+				{ id: 2, label: 'Kevesebbet fizetnék, mint 10 USD' },
+				{ id: 3, label: '10-20 USD között fizetnék' },
+				{ id: 4, label: '20-30 USD között fizetnék' },
+				{ id: 5, label: 'Akár évi 30 USD-nél többet is fizetnék neki' }
 			]
 		},
 		{
-			name: "email",
-			type: "email",
-			category: "Kapcsolat",
-			label: "Érdekel a projektünk, melynek célja egy alternatív platform létrehozása? Amennyiben szívesen közreműködnél benne valamilyen formában, akkor megadhatod az email címedet.",
-			descr: "<p>Nem kisebb célt tűztünk ki, mint egy olyan nyílt operációs rendszer fejlesztését, mely a központosított felhőszolgáltatásokkal összemérhető felhasználói élményt nyújt.</p><p>A címet kizárólag kapcsolatfelvételhez használjuk, nem küldünk reklámanyagokat, illetve hírlevelet.</p>",
+			name: 'email',
+			type: 'email',
+			category: 'Kapcsolat',
+			label: 'Érdekel a projektünk, melynek célja egy alternatív platform létrehozása? Amennyiben szívesen közreműködnél benne valamilyen formában, akkor megadhatod az email címedet.',
+			descr: '<p>Nem kisebb célt tűztünk ki, mint egy olyan nyílt operációs rendszer fejlesztését, mely a központosított felhőszolgáltatásokkal összemérhető felhasználói élményt nyújt.</p><p>A címet kizárólag kapcsolatfelvételhez használjuk, nem küldünk reklámanyagokat, illetve hírlevelet.</p>',
 			optional: true
 		},
 		{
-			name: "note",
-			type: "multiline",
-			category: "Kapcsolat",
-			label: "Ha úgy érzed, hozzá tudnál járulni a projekt sikeréhez, akkor röviden leírhatod, hogy miben tudnál segíteni nekünk. Illetve visszajelzést is adhatsz a projekttel, kérdőívvel kapcsolatos gondolataidról.",
+			name: 'note',
+			type: 'multiline',
+			category: 'Kapcsolat',
+			label: 'Ha úgy érzed, hozzá tudnál járulni a projekt sikeréhez, akkor röviden leírhatod, hogy miben tudnál segíteni nekünk. Illetve visszajelzést is adhatsz a projekttel, kérdőívvel kapcsolatos gondolataidról.',
 			optional: true
-		},
+		}
 	]
 }
-
 
 /*
 const MY_FORM: Form = {
@@ -501,15 +503,43 @@ import { apiFetchHelper, accessToken } from '@cloudillo/base'
 import { useCloudillo, useApi, useAuth, Button, mergeClasses } from '@cloudillo/react'
 import './i18n.js'
 
-function Progress({ className, value, max }: { className?: string, value: number, max: number }) {
-	const r = 10, gap = 6
-	return <svg className={className} style={{ maxWidth: max * (r * 2 + gap) - gap}} viewBox={`0 0 ${max * (r * 2 + gap) - gap + 2} ${r * 2 + 2}`}>
-		{ Array.from({ length: max }).map((_, i) => <circle key={i} cx={r + 1 + i * (r * 2 + gap)} cy={r + 1} r={r} fill={i < value - 1 ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}/>) }
-		{ Array.from({ length: max - 1 }).map((_, i) => <path key={i} d={`M${r * 2 + 1 + i * (r * 2 + gap)} ${r + 1} l${gap} 0`} stroke="currentColor" strokeWidth={2}/>) }
-		<circle cx={r + 1 + (value - 1) * (r * 2 + gap)} cy={r + 1} r={r - 4} fill="currentColor"/>
-	</svg>
+function Progress({ className, value, max }: { className?: string; value: number; max: number }) {
+	const r = 10,
+		gap = 6
+	return (
+		<svg
+			className={className}
+			style={{ maxWidth: max * (r * 2 + gap) - gap }}
+			viewBox={`0 0 ${max * (r * 2 + gap) - gap + 2} ${r * 2 + 2}`}
+		>
+			{Array.from({ length: max }).map((_, i) => (
+				<circle
+					key={i}
+					cx={r + 1 + i * (r * 2 + gap)}
+					cy={r + 1}
+					r={r}
+					fill={i < value - 1 ? 'currentColor' : 'none'}
+					stroke="currentColor"
+					strokeWidth={2}
+				/>
+			))}
+			{Array.from({ length: max - 1 }).map((_, i) => (
+				<path
+					key={i}
+					d={`M${r * 2 + 1 + i * (r * 2 + gap)} ${r + 1} l${gap} 0`}
+					stroke="currentColor"
+					strokeWidth={2}
+				/>
+			))}
+			<circle
+				cx={r + 1 + (value - 1) * (r * 2 + gap)}
+				cy={r + 1}
+				r={r - 4}
+				fill="currentColor"
+			/>
+		</svg>
+	)
 }
-
 
 interface Field {
 	name: string
@@ -531,12 +561,12 @@ interface MultiLineTextField extends Field {
 
 interface SingleChoiceField extends Field {
 	type: 'singlechoice'
-	options: { id?: string | number, label: string }[]
+	options: { id?: string | number; label: string }[]
 }
 
 interface MultiChoiceField extends Field {
 	type: 'multichoice'
-	options: { id?: string | number, label: string }[]
+	options: { id?: string | number; label: string }[]
 }
 
 interface EmailField extends Field {
@@ -549,72 +579,171 @@ interface Form {
 	title: string
 	descr: string
 	thankYou?: string
-	buttons?: { start?: string, previous?: string, next?: string, submit?: string }
+	buttons?: { start?: string; previous?: string; next?: string; submit?: string }
 	fields: FormField[]
 	data?: FormData[]
 }
 
 type FormValue = string | number | (string | number)[] | undefined
-type FormData = Record<string, FormValue> & { _tm?: number, _ip?: string }
+type FormData = Record<string, FormValue> & { _tm?: number; _ip?: string }
 
 async function delay(ms: number) {
-	return new Promise(resolve => setTimeout(resolve, ms))
+	return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function TextFieldPage({ item, value, setValue, next }: { item: TextField, value: string | number, setValue: (value: string | number) => void, next?: () => void }) {
+function TextFieldPage({
+	item,
+	value,
+	setValue,
+	next
+}: {
+	item: TextField
+	value: string | number
+	setValue: (value: string | number) => void
+	next?: () => void
+}) {
 	async function onKeyDown(evt: React.KeyboardEvent<HTMLInputElement>) {
 		if (next && evt.key === 'Enter') {
 			next()
 		}
 	}
 
-	return <div>
-		<input className="m-input" type="text" autoFocus defaultValue={value} onChange={event => setValue(event.target.value)} onKeyDown={onKeyDown}/>
-	</div>
+	return (
+		<div>
+			<input
+				className="m-input"
+				type="text"
+				autoFocus
+				defaultValue={value}
+				onChange={(event) => setValue(event.target.value)}
+				onKeyDown={onKeyDown}
+			/>
+		</div>
+	)
 }
 
-function MultiLineTextFieldPage({ item, value, setValue }: { item: MultiLineTextField, value: string | number, setValue: (value: string | number) => void }) {
-	return <div>
-		<textarea className="m-input" autoFocus rows={8} defaultValue={value} onChange={event => setValue(event.target.value)}/>
-	</div>
+function MultiLineTextFieldPage({
+	item,
+	value,
+	setValue
+}: {
+	item: MultiLineTextField
+	value: string | number
+	setValue: (value: string | number) => void
+}) {
+	return (
+		<div>
+			<textarea
+				className="m-input"
+				autoFocus
+				rows={8}
+				defaultValue={value}
+				onChange={(event) => setValue(event.target.value)}
+			/>
+		</div>
+	)
 }
 
-function SingleChoiceFieldPage({ item, value, setValue, next }: { item: SingleChoiceField, value: string | number, setValue: (value: string | number) => void, next?: () => void }) {
+function SingleChoiceFieldPage({
+	item,
+	value,
+	setValue,
+	next
+}: {
+	item: SingleChoiceField
+	value: string | number
+	setValue: (value: string | number) => void
+	next?: () => void
+}) {
 	async function onChange(value: string | number) {
 		setValue(value)
 		next?.()
 	}
 
-		return <div>
+	return (
 		<div>
-			{item.options.map((option, idx) => <label key={idx} className={'m-button secondary d-block m-1' + (value === option.id || (option.id === undefined && value === option.label) ? ' text-emph' : '')}>
-				<input name="value" type="radio" checked={value === option.id || (option.id === undefined && value === option.label)} onChange={() => onChange(option.id || option.label)}/>
-				{option.label}
-			</label>)}
+			<div>
+				{item.options.map((option, idx) => (
+					<label
+						key={idx}
+						className={
+							'm-button secondary d-block m-1' +
+							(value === option.id ||
+							(option.id === undefined && value === option.label)
+								? ' text-emph'
+								: '')
+						}
+					>
+						<input
+							name="value"
+							type="radio"
+							checked={
+								value === option.id ||
+								(option.id === undefined && value === option.label)
+							}
+							onChange={() => onChange(option.id || option.label)}
+						/>
+						{option.label}
+					</label>
+				))}
+			</div>
 		</div>
-	</div>
+	)
 }
 
-function MultiChoiceFieldPage({ item, value, setValue }: { item: MultiChoiceField, value: (string| number)[], setValue: (value: (string | number)[]) => void }) {
+function MultiChoiceFieldPage({
+	item,
+	value,
+	setValue
+}: {
+	item: MultiChoiceField
+	value: (string | number)[]
+	setValue: (value: (string | number)[]) => void
+}) {
 	function onChange(event: React.ChangeEvent<HTMLInputElement>) {
 		const val = event.target.name
 		if (event.target.checked) {
 			setValue([...value, val])
 		} else {
-			setValue(value.filter(v => v !== val))
+			setValue(value.filter((v) => v !== val))
 		}
 	}
 
-	return <div>
+	return (
 		<div>
-			{item.options.map((option, idx) => <label key={idx} className={'m-button secondary d-block m-1' + (value.includes(option.id || option.label) ? ' text-emph' : '')}>
-				<input type="checkbox" checked={value.includes(option.id || option.label)} name={'' + option.id || option.label} onChange={onChange}/>
-				{option.label}
-			</label>)}
+			<div>
+				{item.options.map((option, idx) => (
+					<label
+						key={idx}
+						className={
+							'm-button secondary d-block m-1' +
+							(value.includes(option.id || option.label) ? ' text-emph' : '')
+						}
+					>
+						<input
+							type="checkbox"
+							checked={value.includes(option.id || option.label)}
+							name={'' + option.id || option.label}
+							onChange={onChange}
+						/>
+						{option.label}
+					</label>
+				))}
+			</div>
 		</div>
-	</div>
+	)
 }
-function EmailFieldPage({ item, value, setValue, next }: { item: EmailField, value: string | number, setValue: (value: string | number) => void, next?: () => void }) {
+function EmailFieldPage({
+	item,
+	value,
+	setValue,
+	next
+}: {
+	item: EmailField
+	value: string | number
+	setValue: (value: string | number) => void
+	next?: () => void
+}) {
 	const { t } = useTranslation()
 
 	async function onKeyDown(evt: React.KeyboardEvent<HTMLInputElement>) {
@@ -623,12 +752,22 @@ function EmailFieldPage({ item, value, setValue, next }: { item: EmailField, val
 		}
 	}
 
-	return <div>
-		<input className="m-input" type="email" autoFocus placeholder={'email@address.com'} defaultValue={value} onChange={event => setValue(event.target.value)} onKeyDown={onKeyDown}/>
-	</div>
+	return (
+		<div>
+			<input
+				className="m-input"
+				type="email"
+				autoFocus
+				placeholder={'email@address.com'}
+				defaultValue={value}
+				onChange={(event) => setValue(event.target.value)}
+				onKeyDown={onKeyDown}
+			/>
+		</div>
+	)
 }
 
-function FormPage({ ownerTag, fileId, form }: { ownerTag: string, fileId: string, form: Form }) {
+function FormPage({ ownerTag, fileId, form }: { ownerTag: string; fileId: string; form: Form }) {
 	const { t } = useTranslation()
 	const { api } = useApi()
 	const [page, setPageSt] = React.useState(0)
@@ -651,7 +790,6 @@ function FormPage({ ownerTag, fileId, form }: { ownerTag: string, fileId: string
 	}
 
 	function setField(name: string, value: FormValue) {
-
 		setData({
 			...data,
 			[name]: value
@@ -673,7 +811,10 @@ function FormPage({ ownerTag, fileId, form }: { ownerTag: string, fileId: string
 		setSubmitCls('')
 		if (lastPage) {
 			console.log('Form', data)
-			await apiFetchHelper(ownerTag, 'POST', `/db/${fileId}`, { data: { data }, authToken: accessToken })
+			await apiFetchHelper(ownerTag, 'POST', `/db/${fileId}`, {
+				data: { data },
+				authToken: accessToken
+			})
 			localStorage.setItem(`form.${fileId}`, 'true')
 			setPage(0)
 		} else {
@@ -686,67 +827,159 @@ function FormPage({ ownerTag, fileId, form }: { ownerTag: string, fileId: string
 	}
 
 	switch (item?.type) {
-		case 'text': 
-			formPage = <TextFieldPage item={item} value={singleValue} setValue={value => setField(item.name, value)} next={!lastPage ? next : undefined}/>
+		case 'text':
+			formPage = (
+				<TextFieldPage
+					item={item}
+					value={singleValue}
+					setValue={(value) => setField(item.name, value)}
+					next={!lastPage ? next : undefined}
+				/>
+			)
 			break
 		case 'multiline':
-			formPage = <MultiLineTextFieldPage item={item} value={singleValue} setValue={value => setField(item.name, value)}/>
+			formPage = (
+				<MultiLineTextFieldPage
+					item={item}
+					value={singleValue}
+					setValue={(value) => setField(item.name, value)}
+				/>
+			)
 			break
 		case 'singlechoice':
-			formPage = <SingleChoiceFieldPage item={item} value={singleValue} setValue={value => setField(item.name, value)} next={!lastPage ? next : undefined}/>
+			formPage = (
+				<SingleChoiceFieldPage
+					item={item}
+					value={singleValue}
+					setValue={(value) => setField(item.name, value)}
+					next={!lastPage ? next : undefined}
+				/>
+			)
 			break
 		case 'multichoice':
-			formPage = <MultiChoiceFieldPage item={item} value={multiValue} setValue={value => setField(item.name, value)}/>
+			formPage = (
+				<MultiChoiceFieldPage
+					item={item}
+					value={multiValue}
+					setValue={(value) => setField(item.name, value)}
+				/>
+			)
 			break
 		case 'email':
-			formPage = <EmailFieldPage item={item} value={singleValue} setValue={value => setField(item.name, value)} next={!lastPage ? next : undefined}/>
+			formPage = (
+				<EmailFieldPage
+					item={item}
+					value={singleValue}
+					setValue={(value) => setField(item.name, value)}
+					next={!lastPage ? next : undefined}
+				/>
+			)
 			break
 	}
 
-	return <div className="m-container g-1 mt-2">
-		<div className="row"><div className="col-0 col-md-2 col-lg-3"/>
-			<div className={"m-panel col col-md-8 col-lg-6 m-transition " + trans}>
-				{ !page ? <>
-					<h2>{form.title}</h2>
-					{ localStorage.getItem(`form.${fileId}`) ? <>
-						<div style={{ minHeight: '18rem' }} dangerouslySetInnerHTML={{ __html: form.thankYou ?? t('Thank you for completing the survey!') }}/>
-					</>
-					: <>
-						<div style={{ minHeight: '18rem' }} dangerouslySetInnerHTML={{ __html: form.descr }}/>
-						<div className="m-hbox mt-2">
-							<Button className="primary fill" onClick={() => setPage(1)}>{form.buttons?.start || t('Start')}</Button>
-						</div>
-					</> }
-				</>
-				: <form className="d-flex flex-column" onSubmit={onSubmit}>
-					<Progress className="align-self-center" value={page} max={form.fields.length}/>
-					{ !!item.category && <h2>{item.category}</h2> }
-					<div style={{ minHeight: '18rem' }}>
-						<h3>{item.label}</h3>
-						{ !!item.descr && <div dangerouslySetInnerHTML={{ __html: item.descr }}/> }
-						{ formPage }
-					</div>
-					<div className="m-group w-100 mt-2">
-						{ !!page && <Button className="secondary flex-fill" onClick={() => setPage(page - 1)}>{form.buttons?.previous || t('Previous')}</Button> }
-						<input className={mergeClasses("m-button primary flex-fill", submitCls)} disabled={!item.optional && (!val || (Array.isArray(val) && val.length === 0))} type="submit" value={lastPage ? form.buttons?.submit || t('Submit') : form.buttons?.next || t('Next')}/>
-					</div>
-				</form> }
+	return (
+		<div className="m-container g-1 mt-2">
+			<div className="row">
+				<div className="col-0 col-md-2 col-lg-3" />
+				<div className={'m-panel col col-md-8 col-lg-6 m-transition ' + trans}>
+					{!page ? (
+						<>
+							<h2>{form.title}</h2>
+							{localStorage.getItem(`form.${fileId}`) ? (
+								<>
+									<div
+										style={{ minHeight: '18rem' }}
+										dangerouslySetInnerHTML={{
+											__html:
+												form.thankYou ??
+												t('Thank you for completing the survey!')
+										}}
+									/>
+								</>
+							) : (
+								<>
+									<div
+										style={{ minHeight: '18rem' }}
+										dangerouslySetInnerHTML={{ __html: form.descr }}
+									/>
+									<div className="m-hbox mt-2">
+										<Button className="primary fill" onClick={() => setPage(1)}>
+											{form.buttons?.start || t('Start')}
+										</Button>
+									</div>
+								</>
+							)}
+						</>
+					) : (
+						<form className="d-flex flex-column" onSubmit={onSubmit}>
+							<Progress
+								className="align-self-center"
+								value={page}
+								max={form.fields.length}
+							/>
+							{!!item.category && <h2>{item.category}</h2>}
+							<div style={{ minHeight: '18rem' }}>
+								<h3>{item.label}</h3>
+								{!!item.descr && (
+									<div dangerouslySetInnerHTML={{ __html: item.descr }} />
+								)}
+								{formPage}
+							</div>
+							<div className="m-group w-100 mt-2">
+								{!!page && (
+									<Button
+										className="secondary flex-fill"
+										onClick={() => setPage(page - 1)}
+									>
+										{form.buttons?.previous || t('Previous')}
+									</Button>
+								)}
+								<input
+									className={mergeClasses(
+										'm-button primary flex-fill',
+										submitCls
+									)}
+									disabled={
+										!item.optional &&
+										(!val || (Array.isArray(val) && val.length === 0))
+									}
+									type="submit"
+									value={
+										lastPage
+											? form.buttons?.submit || t('Submit')
+											: form.buttons?.next || t('Next')
+									}
+								/>
+							</div>
+						</form>
+					)}
+				</div>
+				<div className="col-0 col-md-2 col-lg-3" />
 			</div>
-		<div className="col-0 col-md-2 col-lg-3"/></div>
-	</div>
+		</div>
+	)
 }
 
 function FormData({ form }: { form: Form }) {
 	const { t } = useTranslation()
 
-	return <div className="m-container g-1">
-		{ form.data?.reverse()?.map((row, idx) => <div className="m-panel" key={idx}>
-			<h2>{dayjs(row._tm).format('YYYY-MM-DD HH:mm:ss')} ({row._ip})</h2>
-			<ul className='m-panel'>
-				{ form.fields.map(item => <li key={item.name}><b>{item.name}:</b> {row[item.name]}</li>) }
-			</ul>
-		</div>) }
-		{/*
+	return (
+		<div className="m-container g-1">
+			{form.data?.reverse()?.map((row, idx) => (
+				<div className="m-panel" key={idx}>
+					<h2>
+						{dayjs(row._tm).format('YYYY-MM-DD HH:mm:ss')} ({row._ip})
+					</h2>
+					<ul className="m-panel">
+						{form.fields.map((item) => (
+							<li key={item.name}>
+								<b>{item.name}:</b> {row[item.name]}
+							</li>
+						))}
+					</ul>
+				</div>
+			))}
+			{/*
 		<div className='m-panel'>
 			<table className="m-table">
 				<thead><tr>
@@ -760,7 +993,8 @@ function FormData({ form }: { form: Form }) {
 			</table>
 		</div>
 		*/}
-	</div>
+		</div>
+	)
 }
 
 export function App() {
@@ -771,30 +1005,37 @@ export function App() {
 	const [auth] = useAuth()
 	const [form, setForm] = React.useState<Form | undefined>(undefined)
 
-	React.useEffect(function () {
-		(async function init() {
-			if (!api || !cloudillo) return
-			if (cloudillo?.roles?.includes('SADM')) {
-				const json = await api!.request('GET', `/db/${cloudillo.fileId}`, T.struct({ data: T.array(T.unknown) })) as { data: FormData[] }
-				console.log('RES', json)
-				setForm({
-					...MY_FORM,
-					data: json.data
-				})
-			} else {
-				setForm(MY_FORM)
-			}
-		})()
-	}, [api, cloudillo])
+	React.useEffect(
+		function () {
+			;(async function init() {
+				if (!api || !cloudillo) return
+				if (cloudillo?.roles?.includes('SADM')) {
+					const json = (await api!.request(
+						'GET',
+						`/db/${cloudillo.fileId}`,
+						T.struct({ data: T.array(T.unknown) })
+					)) as { data: FormData[] }
+					console.log('RES', json)
+					setForm({
+						...MY_FORM,
+						data: json.data
+					})
+				} else {
+					setForm(MY_FORM)
+				}
+			})()
+		},
+		[api, cloudillo]
+	)
 
 	if (!cloudillo || !cloudillo.fileId || !form) {
 		return <div>Loading...</div>
 	}
 
 	if (cloudillo.roles?.includes('SADM')) {
-		return <FormData form={form}/>
+		return <FormData form={form} />
 	} else {
-		return <FormPage ownerTag={cloudillo.ownerTag} fileId={cloudillo.fileId} form={form}/>
+		return <FormPage ownerTag={cloudillo.ownerTag} fileId={cloudillo.fileId} form={form} />
 	}
 }
 

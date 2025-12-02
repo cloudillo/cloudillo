@@ -59,7 +59,7 @@ async function taskRunner() {
 			//console.log('Running tasks...')
 			let busy = false
 			for (const task of tasks) {
-				busy = busy || await task()
+				busy = busy || (await task())
 			}
 			//if (!busy) await delay(10_000)
 			//console.log('taskRunner busy:', busy)
@@ -97,7 +97,7 @@ async function slowTaskRunner() {
 			//console.log('Running slow tasks...')
 			let busy = false
 			for (const task of slowTasks) {
-				busy = busy || await task()
+				busy = busy || (await task())
 			}
 			if (!busy) await delay(10_000)
 		} catch (err) {
@@ -128,14 +128,35 @@ export interface CloudilloWorkerOptions {
 	messageBusAdapter: MessageBusAdapter
 }
 
-export async function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter, databaseAdapter, messageBusAdapter }: CloudilloWorkerOptions) {
-	await initAdapters({ metaAdapter, blobAdapter, crdtAdapter, databaseAdapter, messageBusAdapter })
-	await initAuthWorker(authAdapter, { baseIdTag: config.baseIdTag, baseAppDomain: config.baseAppDomain, basePassword: config.basePassword, acmeEmail: config.acmeEmail })
+export async function run({
+	config,
+	authAdapter,
+	metaAdapter,
+	blobAdapter,
+	crdtAdapter,
+	databaseAdapter,
+	messageBusAdapter
+}: CloudilloWorkerOptions) {
+	await initAdapters({
+		metaAdapter,
+		blobAdapter,
+		crdtAdapter,
+		databaseAdapter,
+		messageBusAdapter
+	})
+	await initAuthWorker(authAdapter, {
+		baseIdTag: config.baseIdTag,
+		baseAppDomain: config.baseAppDomain,
+		basePassword: config.basePassword,
+		acmeEmail: config.acmeEmail
+	})
 	await initFileWorker()
 	await initActionWorker()
 	await initProfileWorker()
 	await initMessageBusWorker()
-	console.log('====[ Cloudillo worker service ready ]=================================================')
+	console.log(
+		'====[ Cloudillo worker service ready ]================================================='
+	)
 
 	//runWorker(metaAdapter)
 	taskRunner()

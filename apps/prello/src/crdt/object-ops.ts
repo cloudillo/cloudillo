@@ -122,7 +122,10 @@ export function createObject(
 			object = {
 				...base,
 				type: 'line',
-				points: [[0, height / 2], [width, height / 2]]
+				points: [
+					[0, height / 2],
+					[width, height / 2]
+				]
 			} as any
 			break
 		case 'path':
@@ -165,10 +168,7 @@ export function createObject(
 /**
  * Get an object by ID (returns runtime type)
  */
-export function getObject(
-	doc: YPrelloDocument,
-	objectId: ObjectId
-): PrelloObject | undefined {
+export function getObject(doc: YPrelloDocument, objectId: ObjectId): PrelloObject | undefined {
 	const stored = doc.o.get(objectId)
 	if (!stored) return undefined
 	return expandObject(objectId, stored)
@@ -362,16 +362,16 @@ export function updateObjectTextStyle(
 	doc: YPrelloDocument,
 	objectId: ObjectId,
 	textStyleUpdates: {
-		ta?: 'l' | 'c' | 'r' | 'j' | null  // textAlign: left/center/right/justify
-		va?: 't' | 'm' | 'b' | null        // verticalAlign: top/middle/bottom
-		ff?: string | null                  // fontFamily
-		fs?: number | null                  // fontSize
+		ta?: 'l' | 'c' | 'r' | 'j' | null // textAlign: left/center/right/justify
+		va?: 't' | 'm' | 'b' | null // verticalAlign: top/middle/bottom
+		ff?: string | null // fontFamily
+		fs?: number | null // fontSize
 		fw?: 'normal' | 'bold' | number | null // fontWeight
-		fi?: boolean | null                 // fontItalic
-		td?: 'u' | 's' | null              // textDecoration: underline/strikethrough
-		fc?: string | null                  // fill color
-		lh?: number | null                  // lineHeight
-		ls?: number | null                  // letterSpacing
+		fi?: boolean | null // fontItalic
+		td?: 'u' | 's' | null // textDecoration: underline/strikethrough
+		fc?: string | null // fill color
+		lh?: number | null // lineHeight
+		ls?: number | null // letterSpacing
 	}
 ): void {
 	const existing = doc.o.get(objectId)
@@ -434,11 +434,7 @@ export function updateObjectTextStyle(
 /**
  * Delete an object
  */
-export function deleteObject(
-	yDoc: Y.Doc,
-	doc: YPrelloDocument,
-	objectId: ObjectId
-): void {
+export function deleteObject(yDoc: Y.Doc, doc: YPrelloDocument, objectId: ObjectId): void {
 	const object = doc.o.get(objectId)
 	if (!object) return
 
@@ -466,13 +462,9 @@ export function deleteObject(
 /**
  * Delete multiple objects
  */
-export function deleteObjects(
-	yDoc: Y.Doc,
-	doc: YPrelloDocument,
-	objectIds: ObjectId[]
-): void {
+export function deleteObjects(yDoc: Y.Doc, doc: YPrelloDocument, objectIds: ObjectId[]): void {
 	yDoc.transact(() => {
-		objectIds.forEach(id => {
+		objectIds.forEach((id) => {
 			const object = doc.o.get(id)
 			if (!object) return
 
@@ -556,9 +548,7 @@ export function reorderObject(
 	const object = doc.o.get(objectId)
 	if (!object) return
 
-	const children = object.p
-		? doc.ch.get(object.p)
-		: doc.r
+	const children = object.p ? doc.ch.get(object.p) : doc.r
 
 	if (!children) return
 
@@ -592,9 +582,7 @@ function reorderInChildren(
 	const object = doc.o.get(objectId)
 	if (!object) return
 
-	const children = object.p
-		? doc.ch.get(object.p)
-		: doc.r
+	const children = object.p ? doc.ch.get(object.p) : doc.r
 
 	if (!children) return
 
@@ -643,44 +631,28 @@ function reorderInChildren(
 /**
  * Bring object to front (highest z-index in its container)
  */
-export function bringToFront(
-	yDoc: Y.Doc,
-	doc: YPrelloDocument,
-	objectId: ObjectId
-): void {
+export function bringToFront(yDoc: Y.Doc, doc: YPrelloDocument, objectId: ObjectId): void {
 	reorderInChildren(yDoc, doc, objectId, 'toFront')
 }
 
 /**
  * Send object to back (lowest z-index in its container)
  */
-export function sendToBack(
-	yDoc: Y.Doc,
-	doc: YPrelloDocument,
-	objectId: ObjectId
-): void {
+export function sendToBack(yDoc: Y.Doc, doc: YPrelloDocument, objectId: ObjectId): void {
 	reorderInChildren(yDoc, doc, objectId, 'toBack')
 }
 
 /**
  * Bring object forward one level (increase z-index by 1)
  */
-export function bringForward(
-	yDoc: Y.Doc,
-	doc: YPrelloDocument,
-	objectId: ObjectId
-): void {
+export function bringForward(yDoc: Y.Doc, doc: YPrelloDocument, objectId: ObjectId): void {
 	reorderInChildren(yDoc, doc, objectId, 'forward')
 }
 
 /**
  * Send object backward one level (decrease z-index by 1)
  */
-export function sendBackward(
-	yDoc: Y.Doc,
-	doc: YPrelloDocument,
-	objectId: ObjectId
-): void {
+export function sendBackward(yDoc: Y.Doc, doc: YPrelloDocument, objectId: ObjectId): void {
 	reorderInChildren(yDoc, doc, objectId, 'backward')
 }
 
@@ -710,11 +682,7 @@ export function toggleObjectVisibility(
 /**
  * Toggle object locked state
  */
-export function toggleObjectLock(
-	yDoc: Y.Doc,
-	doc: YPrelloDocument,
-	objectId: ObjectId
-): void {
+export function toggleObjectLock(yDoc: Y.Doc, doc: YPrelloDocument, objectId: ObjectId): void {
 	const object = doc.o.get(objectId)
 	if (!object) return
 
@@ -782,7 +750,7 @@ function removeChildRef(array: Y.Array<ChildRef>, ref: ChildRef): void {
 
 function findChildRefIndex(array: Y.Array<ChildRef>, ref: ChildRef): number {
 	const arr = array.toArray()
-	return arr.findIndex(r => r[0] === ref[0] && r[1] === ref[1])
+	return arr.findIndex((r) => r[0] === ref[0] && r[1] === ref[1])
 }
 
 // vim: ts=4

@@ -46,20 +46,29 @@ export interface WsConfig {
 	mode: 'standalone' | 'proxy' | 'stream_proxy'
 }
 
-export async function init(server: http.Server | http2.Http2Server, authAdapter: AuthAdapter, config: WsConfig) {
+export async function init(
+	server: http.Server | http2.Http2Server,
+	authAdapter: AuthAdapter,
+	config: WsConfig
+) {
 	wss = new WebSocketServer({ noServer: true, WebSocket: WebSocketExt })
 
 	server.on('upgrade', async function upgrade(req, socket, head) {
 		try {
-			const tenantTag = determineTenantTag(config.mode == 'proxy' ? req.headers['x-forwarded-host'] as string : req.headers.host)
+			const tenantTag = determineTenantTag(
+				config.mode == 'proxy'
+					? (req.headers['x-forwarded-host'] as string)
+					: req.headers.host
+			)
 			const tnId = await determineTnId(tenantTag)
 			console.log('WS BUS UPGRADE', tenantTag, req.url)
 			if (!tnId) throw 'Unauthorized'
 
 			// Check auth token
 			const tokenIdx = req.url?.indexOf('?token=') || -1
-			const params = tokenIdx >= 0 ? new URLSearchParams(req.url?.slice(tokenIdx + 1)) : undefined
-			const token = params?.get('token') || (new Cookies(req, undefined as any)).get('token')
+			const params =
+				tokenIdx >= 0 ? new URLSearchParams(req.url?.slice(tokenIdx + 1)) : undefined
+			const token = params?.get('token') || new Cookies(req, undefined as any).get('token')
 
 			// Decode token
 			const auth = token ? await authAdapter.verifyAccessToken(tenantTag, token) : undefined
@@ -71,11 +80,11 @@ export async function init(server: http.Server | http2.Http2Server, authAdapter:
 			}
 			wss.handleUpgrade(req, socket, head, async function doneUpgrade(ws: WebSocketExt) {
 				//ws.id = nextWsId()
-				ws.tnId = tnId,
-				ws.auth = {
-					idTag: auth.u || auth.t,
-					roles: auth.r || []
-				}
+				;(ws.tnId = tnId),
+					(ws.auth = {
+						idTag: auth.u || auth.t,
+						roles: auth.r || []
+					})
 
 				try {
 					const path = req.url?.slice(1).split('?')[0].split('/') || []
@@ -83,7 +92,12 @@ export async function init(server: http.Server | http2.Http2Server, authAdapter:
 					if (path[0] == 'ws') path.shift()
 					switch (path[0]) {
 						case 'bus': {
-							const deny = await checkPerm(tnId, tenantTag, { idTag: auth.u || auth.t, roles: auth.r || [], subject: auth.sub }, 'A')
+							const deny = await checkPerm(
+								tnId,
+								tenantTag,
+								{ idTag: auth.u || auth.t, roles: auth.r || [], subject: auth.sub },
+								'A'
+							)
 							if (deny) {
 								console.log('PERMISSION DENIED by WsDoc:', deny)
 								throw 'Unauthorized'
@@ -96,7 +110,13 @@ export async function init(server: http.Server | http2.Http2Server, authAdapter:
 							//const [targetTag, docId] = path.length >= 2 ? path[1].split(':') : ['', '']
 							const docId = path[1]
 							if (!docId) throw 'Unauthorized'
-							const deny = await checkPerm(tnId, tenantTag, { idTag: auth.u || auth.t, roles: auth.r || [], subject: auth.sub }, 'W', docId)
+							const deny = await checkPerm(
+								tnId,
+								tenantTag,
+								{ idTag: auth.u || auth.t, roles: auth.r || [], subject: auth.sub },
+								'W',
+								docId
+							)
 							if (deny) {
 								console.log('PERMISSION DENIED by WsDoc:', deny)
 								throw 'Unauthorized'

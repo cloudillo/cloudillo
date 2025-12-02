@@ -36,7 +36,10 @@ import type { ContainerId, ViewId, StyleId } from './ids'
  * @param initializeIfEmpty If true, will initialize with default data when empty.
  *                          Set to false during initial load before sync completes.
  */
-export function getOrCreateDocument(yDoc: Y.Doc, initializeIfEmpty: boolean = true): YPrelloDocument {
+export function getOrCreateDocument(
+	yDoc: Y.Doc,
+	initializeIfEmpty: boolean = true
+): YPrelloDocument {
 	const doc: YPrelloDocument = {
 		o: yDoc.getMap<StoredObject>('o'),
 		c: yDoc.getMap<StoredContainer>('c'),
@@ -267,8 +270,10 @@ export function updateDocumentMeta(
 ): void {
 	yDoc.transact(() => {
 		if (updates.name !== undefined) doc.m.set('name', updates.name)
-		if (updates.defaultViewWidth !== undefined) doc.m.set('defaultViewWidth', updates.defaultViewWidth)
-		if (updates.defaultViewHeight !== undefined) doc.m.set('defaultViewHeight', updates.defaultViewHeight)
+		if (updates.defaultViewWidth !== undefined)
+			doc.m.set('defaultViewWidth', updates.defaultViewWidth)
+		if (updates.defaultViewHeight !== undefined)
+			doc.m.set('defaultViewHeight', updates.defaultViewHeight)
 		if (updates.gridSize !== undefined) doc.m.set('gridSize', updates.gridSize)
 		if (updates.snapToGrid !== undefined) doc.m.set('snapToGrid', updates.snapToGrid)
 		if (updates.snapToObjects !== undefined) doc.m.set('snapToObjects', updates.snapToObjects)

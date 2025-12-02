@@ -35,16 +35,24 @@ export interface ProfileCardProps {
 export function ProfileCard({ className, profile, srcTag }: ProfileCardProps) {
 	const [auth] = useAuth()
 
-	return <div className={mergeClasses('c-profile-card', className)}>
-		{ auth && profile.profilePic
-			? <img className="picture" src={`https://cl-o.${srcTag ?? auth?.idTag}/api/file/${profile.profilePic}?variant=pf`}/>
-			: <UnknownProfilePicture/>
-		}
-		<div className="body">
-			<h4 className="name">{profile.name}</h4>
-			<div className="tag"><IdentityTag idTag={profile.idTag}/></div>
+	return (
+		<div className={mergeClasses('c-profile-card', className)}>
+			{auth && profile.profilePic ? (
+				<img
+					className="picture"
+					src={`https://cl-o.${srcTag ?? auth?.idTag}/api/file/${profile.profilePic}?variant=pf`}
+				/>
+			) : (
+				<UnknownProfilePicture />
+			)}
+			<div className="body">
+				<h4 className="name">{profile.name}</h4>
+				<div className="tag">
+					<IdentityTag idTag={profile.idTag} />
+				</div>
+			</div>
 		</div>
-	</div>
+	)
 }
 
 // vim: ts=4

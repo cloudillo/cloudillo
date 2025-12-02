@@ -136,7 +136,7 @@ export function deleteContainer(
 			const children = doc.ch.get(containerId)
 			if (children) {
 				const childArray = children.toArray()
-				childArray.forEach(ref => {
+				childArray.forEach((ref) => {
 					if (ref[0] === 0) {
 						// Object
 						const objId = toObjectId(ref[1])
@@ -161,7 +161,7 @@ export function deleteContainer(
 			const children = doc.ch.get(containerId)
 			if (children) {
 				const childArray = children.toArray()
-				childArray.forEach(ref => {
+				childArray.forEach((ref) => {
 					if (ref[0] === 0) {
 						// Object - update parent
 						const objId = toObjectId(ref[1])
@@ -192,7 +192,11 @@ export function deleteContainer(
 
 					// Add to parent's children
 					if (container.p) {
-						const parentChildren = getContainerChildren(yDoc, doc, toContainerId(container.p))
+						const parentChildren = getContainerChildren(
+							yDoc,
+							doc,
+							toContainerId(container.p)
+						)
 						parentChildren.push([ref])
 					} else {
 						doc.r.push([ref])
@@ -236,8 +240,10 @@ export function groupObjects(
 	}
 
 	// Calculate group bounds and find common parent
-	let minX = Infinity, minY = Infinity
-	let maxX = -Infinity, maxY = -Infinity
+	let minX = Infinity,
+		minY = Infinity
+	let maxX = -Infinity,
+		maxY = -Infinity
 	let commonParentId: ContainerId | undefined
 
 	objectIds.forEach((id, index) => {
@@ -282,7 +288,7 @@ export function groupObjects(
 		doc.ch.set(groupId, groupChildren)
 
 		// Move objects into group
-		objectIds.forEach(objectId => {
+		objectIds.forEach((objectId) => {
 			const obj = doc.o.get(objectId)
 			if (!obj) return
 
@@ -340,7 +346,7 @@ export function ungroupContainer(
 
 		const childArray = children.toArray()
 
-		childArray.forEach(childRef => {
+		childArray.forEach((childRef) => {
 			if (childRef[0] === 0) {
 				// Object
 				const objId = toObjectId(childRef[1])
@@ -467,9 +473,7 @@ export function reorderContainer(
 	const container = doc.c.get(containerId)
 	if (!container) return
 
-	const children = container.p
-		? doc.ch.get(container.p)
-		: doc.r
+	const children = container.p ? doc.ch.get(container.p) : doc.r
 
 	if (!children) return
 
@@ -553,7 +557,7 @@ export function toggleContainerExpanded(
 export function getLayers(doc: YPrelloDocument): ContainerNode[] {
 	const layers: ContainerNode[] = []
 
-	doc.r.toArray().forEach(ref => {
+	doc.r.toArray().forEach((ref) => {
 		if (ref[0] === 1) {
 			const container = doc.c.get(ref[1])
 			if (container && container.t === 'L') {
@@ -577,7 +581,7 @@ export function getContainerChildrenData(
 
 	const result: Array<{ type: 'object' | 'container'; data: PrelloObject | ContainerNode }> = []
 
-	children.toArray().forEach(ref => {
+	children.toArray().forEach((ref) => {
 		if (ref[0] === 0) {
 			const obj = doc.o.get(ref[1])
 			if (obj) {
@@ -605,7 +609,7 @@ function removeChildRef(array: Y.Array<ChildRef>, ref: ChildRef): void {
 
 function findChildRefIndex(array: Y.Array<ChildRef>, ref: ChildRef): number {
 	const arr = array.toArray()
-	return arr.findIndex(r => r[0] === ref[0] && r[1] === ref[1])
+	return arr.findIndex((r) => r[0] === ref[0] && r[1] === ref[1])
 }
 
 // vim: ts=4

@@ -40,10 +40,7 @@ export function useViews(doc: YPrelloDocument): ViewNode[] {
 /**
  * Get a single view by ID
  */
-export function useView(
-	doc: YPrelloDocument,
-	viewId: ViewId | null
-): ViewNode | null {
+export function useView(doc: YPrelloDocument, viewId: ViewId | null): ViewNode | null {
 	const views = useY(doc.v)
 
 	return React.useMemo(() => {
@@ -60,7 +57,7 @@ export function useViewIds(doc: YPrelloDocument): ViewId[] {
 
 	return React.useMemo(() => {
 		if (!viewOrder) return []
-		return viewOrder.map(id => toViewId(id))
+		return viewOrder.map((id) => toViewId(id))
 	}, [viewOrder])
 }
 

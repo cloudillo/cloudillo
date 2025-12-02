@@ -36,7 +36,7 @@ export const IconButton = createComponent<HTMLButtonElement, IconButtonProps>(
 			await delay(200)
 			setClicked(false)
 			if (type === 'submit') {
-				(evt.target as HTMLButtonElement).form?.requestSubmit()
+				;(evt.target as HTMLButtonElement).form?.requestSubmit()
 			} else {
 				onClick?.(evt)
 			}

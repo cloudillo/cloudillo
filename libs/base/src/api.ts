@@ -53,12 +53,18 @@ export interface ApiFetchResult<R> {
 }
 
 // Query string handling
-export function qs(obj: Record<string, string | number | boolean | string[] | number[] | undefined>) {
+export function qs(
+	obj: Record<string, string | number | boolean | string[] | number[] | undefined>
+) {
 	var str: string[] = []
 	for (var f in obj) {
 		const val = obj[f]
 		if (obj.hasOwnProperty(f) && val !== undefined) {
-			str.push(encodeURIComponent(f) + '=' + encodeURIComponent(Array.isArray(val) ? val.join(',') : val))
+			str.push(
+				encodeURIComponent(f) +
+					'=' +
+					encodeURIComponent(Array.isArray(val) ? val.join(',') : val)
+			)
 		}
 	}
 	return str.join('&')
@@ -97,7 +103,6 @@ export class FetchError extends Error {
 		return this.apiErrorCode === errorCode
 	}
 }
-
 
 export interface ApiFetchOpts<R, D> {
 	type?: T.Type<R>
@@ -185,7 +190,11 @@ export async function apiFetchHelper<R, D = any>(
 		try {
 			j = JSON.parse(textRes)
 		} catch (err) {
-			console.log('API-PARSE-JSON', err instanceof Error ? err.toString() : err, { idTag, method, path })
+			console.log('API-PARSE-JSON', err instanceof Error ? err.toString() : err, {
+				idTag,
+				method,
+				path
+			})
 			throw new FetchError(`API-PARSE-JSON`, textRes, res.status)
 		}
 
@@ -201,7 +210,10 @@ export async function apiFetchHelper<R, D = any>(
 		const d = T.decode(opts.type, data, { coerceDate: true, unknownFields: 'drop' })
 		if (T.isErr(d)) {
 			console.log('RES:', j)
-			throw new FetchError('API-PARSE-TYPE', d.err.map(err => `${err.path.join('.')}: ${err.error}`).join(', '))
+			throw new FetchError(
+				'API-PARSE-TYPE',
+				d.err.map((err) => `${err.path.join('.')}: ${err.error}`).join(', ')
+			)
 		}
 
 		return opts.returnMeta ? { data: d.ok, meta } : d.ok
@@ -228,6 +240,5 @@ export async function apiFetchHelper<R, D = any>(
 		)
 	}
 }
-
 
 // vim: ts=4

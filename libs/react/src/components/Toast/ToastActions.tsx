@@ -25,11 +25,7 @@ export const ToastActions = createComponent<HTMLDivElement, ToastActionsProps>(
 	'ToastActions',
 	({ className, children, ...props }, ref) => {
 		return (
-			<div
-				ref={ref}
-				className={mergeClasses('c-toast-actions', className)}
-				{...props}
-			>
+			<div ref={ref} className={mergeClasses('c-toast-actions', className)} {...props}>
 				{children}
 			</div>
 		)

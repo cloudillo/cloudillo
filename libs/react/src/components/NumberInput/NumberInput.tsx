@@ -17,7 +17,8 @@
 import * as React from 'react'
 import { mergeClasses, createComponent } from '../utils.js'
 
-export interface NumberInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'onChange' | 'value'> {
+export interface NumberInputProps
+	extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'onChange' | 'value'> {
 	value?: number
 	onChange?: (value: number) => void
 	/** Fires continuously during scrub for live preview (doesn't commit to CRDT) */
@@ -34,7 +35,21 @@ const SCRUB_THRESHOLD = 3 // pixels before entering scrub mode
 
 export const NumberInput = createComponent<HTMLDivElement, NumberInputProps>(
 	'NumberInput',
-	({ className, value, onChange, onScrub, suffix, min, max, step = 1, scrubSensitivity = 5, ...props }, ref) => {
+	(
+		{
+			className,
+			value,
+			onChange,
+			onScrub,
+			suffix,
+			min,
+			max,
+			step = 1,
+			scrubSensitivity = 5,
+			...props
+		},
+		ref
+	) => {
 		const inputRef = React.useRef<HTMLInputElement>(null)
 
 		// Local value for visual feedback during scrub (doesn't update CRDT)
@@ -56,11 +71,14 @@ export const NumberInput = createComponent<HTMLDivElement, NumberInputProps>(
 		}, [value, isScrubbing])
 
 		// Clamp value to min/max
-		const clampValue = React.useCallback((val: number) => {
-			if (min !== undefined) val = Math.max(min, val)
-			if (max !== undefined) val = Math.min(max, val)
-			return val
-		}, [min, max])
+		const clampValue = React.useCallback(
+			(val: number) => {
+				if (min !== undefined) val = Math.max(min, val)
+				if (max !== undefined) val = Math.min(max, val)
+				return val
+			},
+			[min, max]
+		)
 
 		// Calculate step multiplier based on modifier keys
 		const getMultiplier = React.useCallback((e: { shiftKey: boolean; altKey: boolean }) => {
@@ -70,26 +88,32 @@ export const NumberInput = createComponent<HTMLDivElement, NumberInputProps>(
 		}, [])
 
 		// Handle text input change (commit immediately for typing)
-		const handleChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-			const newValue = parseFloat(e.target.value)
-			if (!isNaN(newValue)) {
-				const clamped = clampValue(newValue)
-				setLocalValue(clamped)
-				onChange?.(clamped)
-			}
-		}, [onChange, clampValue])
+		const handleChange = React.useCallback(
+			(e: React.ChangeEvent<HTMLInputElement>) => {
+				const newValue = parseFloat(e.target.value)
+				if (!isNaN(newValue)) {
+					const clamped = clampValue(newValue)
+					setLocalValue(clamped)
+					onChange?.(clamped)
+				}
+			},
+			[onChange, clampValue]
+		)
 
 		// Mouse down - prepare for potential scrub
-		const handleMouseDown = React.useCallback((e: React.MouseEvent) => {
-			// Only start scrub on left mouse button
-			if (e.button !== 0) return
+		const handleMouseDown = React.useCallback(
+			(e: React.MouseEvent) => {
+				// Only start scrub on left mouse button
+				if (e.button !== 0) return
 
-			scrubState.current = {
-				startX: e.clientX,
-				startValue: value ?? 0,
-				isActive: false
-			}
-		}, [value])
+				scrubState.current = {
+					startX: e.clientX,
+					startValue: value ?? 0,
+					isActive: false
+				}
+			},
+			[value]
+		)
 
 		// Mouse move/up handlers (attached to document during potential scrub)
 		React.useEffect(() => {
@@ -109,7 +133,9 @@ export const NumberInput = createComponent<HTMLDivElement, NumberInputProps>(
 				if (scrubState.current.isActive) {
 					const multiplier = getMultiplier(e)
 					const steps = Math.round(delta / scrubSensitivity)
-					const newValue = clampValue(scrubState.current.startValue + (steps * step * multiplier))
+					const newValue = clampValue(
+						scrubState.current.startValue + steps * step * multiplier
+					)
 					setLocalValue(newValue)
 					// Call onScrub for live preview
 					onScrub?.(newValue)
@@ -119,7 +145,11 @@ export const NumberInput = createComponent<HTMLDivElement, NumberInputProps>(
 			const handleMouseUp = () => {
 				if (scrubState.current) {
 					// Commit to CRDT only on mouse up
-					if (scrubState.current.isActive && localValue !== undefined && localValue !== value) {
+					if (
+						scrubState.current.isActive &&
+						localValue !== undefined &&
+						localValue !== value
+					) {
 						onChange?.(localValue)
 					}
 					scrubState.current = null
@@ -134,22 +164,38 @@ export const NumberInput = createComponent<HTMLDivElement, NumberInputProps>(
 				document.removeEventListener('mousemove', handleMouseMove)
 				document.removeEventListener('mouseup', handleMouseUp)
 			}
-		}, [onChange, onScrub, value, localValue, step, scrubSensitivity, clampValue, getMultiplier])
+		}, [
+			onChange,
+			onScrub,
+			value,
+			localValue,
+			step,
+			scrubSensitivity,
+			clampValue,
+			getMultiplier
+		])
 
 		// Scroll wheel handler (commit immediately - discrete steps)
-		const handleWheel = React.useCallback((e: React.WheelEvent) => {
-			e.preventDefault()
-			const multiplier = getMultiplier(e)
-			const direction = e.deltaY < 0 ? 1 : -1
-			const newValue = clampValue((value ?? 0) + (direction * step * multiplier))
-			setLocalValue(newValue)
-			onChange?.(newValue)
-		}, [onChange, value, step, clampValue, getMultiplier])
+		const handleWheel = React.useCallback(
+			(e: React.WheelEvent) => {
+				e.preventDefault()
+				const multiplier = getMultiplier(e)
+				const direction = e.deltaY < 0 ? 1 : -1
+				const newValue = clampValue((value ?? 0) + direction * step * multiplier)
+				setLocalValue(newValue)
+				onChange?.(newValue)
+			},
+			[onChange, value, step, clampValue, getMultiplier]
+		)
 
 		return (
 			<div
 				ref={ref}
-				className={mergeClasses('c-number-input c-hbox', isScrubbing && 'scrubbing', className)}
+				className={mergeClasses(
+					'c-number-input c-hbox',
+					isScrubbing && 'scrubbing',
+					className
+				)}
 			>
 				<input
 					ref={inputRef}

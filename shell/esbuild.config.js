@@ -4,7 +4,15 @@ import esbuild from 'esbuild'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
-import { createConfig, buildHTML, compressAll, deleteCompressedFiles, isProd, isWatch, shouldCompress } from '../scripts/esbuild-common.js'
+import {
+	createConfig,
+	buildHTML,
+	compressAll,
+	deleteCompressedFiles,
+	isProd,
+	isWatch,
+	shouldCompress
+} from '../scripts/esbuild-common.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8'))
@@ -32,7 +40,7 @@ const swConfig = {
 	},
 	logLevel: 'info',
 	treeShaking: true,
-	metafile: isProd,
+	metafile: isProd
 }
 
 async function build() {
@@ -55,10 +63,7 @@ async function build() {
 			const appContext = await esbuild.context(appConfig)
 			const swContext = await esbuild.context(swConfig)
 
-			await Promise.all([
-				appContext.watch(),
-				swContext.watch()
-			])
+			await Promise.all([appContext.watch(), swContext.watch()])
 
 			console.log('Watching app and service worker for changes...')
 			console.log('Press Ctrl+C to stop')

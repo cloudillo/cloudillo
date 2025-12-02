@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { registerActionType, ActionContext, Action, NewAction, createAction } from "../action.js";
+import { registerActionType, ActionContext, Action, NewAction, createAction } from '../action.js'
 import { metaAdapter } from '../../adapters.js'
 
 import * as T from '@symbion/runtype'
@@ -50,8 +50,9 @@ const tReact = T.struct({
 async function inboundHook({ tnId, idTag }: ActionContext, actionId: string, action: Action) {
 	// Generate stat action
 	if (
-		((action.type == 'CMNT' || (action.type == 'REACT')) && action.parentId)
-		&& ((action.audienceTag || action.issuerTag) == idTag)
+		(action.type == 'CMNT' || action.type == 'REACT') &&
+		action.parentId &&
+		(action.audienceTag || action.issuerTag) == idTag
 	) {
 		const parentAction = await metaAdapter.getActionData(tnId, action.parentId)
 		if (parentAction) {
@@ -59,7 +60,7 @@ async function inboundHook({ tnId, idTag }: ActionContext, actionId: string, act
 				type: 'STAT',
 				//issuerTag: idTag,
 				parentId: action.parentId,
-				content: { r: parentAction.reactions, c: parentAction.comments },
+				content: { r: parentAction.reactions, c: parentAction.comments }
 				//createdAt: Math.trunc(Date.now() / 1000)
 			})
 		}
@@ -75,13 +76,13 @@ export default function init() {
 		t: tReact,
 		generateKey,
 		allowUnknown: true,
-		inboundHook,
+		inboundHook
 	})
 	registerActionType('CMNT', {
 		t: tCmnt,
 		generateKey,
 		allowUnknown: true,
-		inboundHook,
+		inboundHook
 	})
 }
 

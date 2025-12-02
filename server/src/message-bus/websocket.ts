@@ -57,11 +57,16 @@ export async function handleMessageBusConnection(ws: WebSocketExt, path: string[
 		console.log('WS error', err)
 	})
 
-	if (ws.auth?.idTag) messageBusAdapter.subscribeOnline('' + ws.id, '' + ws.auth.idTag, async (userId, msgType, payload) => {
-		//console.log('WS BUS ONLINE', userId, msgType, payload)
-		ws.send(JSON.stringify({ cmd: msgType, data: payload }))
-		return true
-	})
+	if (ws.auth?.idTag)
+		messageBusAdapter.subscribeOnline(
+			'' + ws.id,
+			'' + ws.auth.idTag,
+			async (userId, msgType, payload) => {
+				//console.log('WS BUS ONLINE', userId, msgType, payload)
+				ws.send(JSON.stringify({ cmd: msgType, data: payload }))
+				return true
+			}
+		)
 }
 
 // vim: ts=4

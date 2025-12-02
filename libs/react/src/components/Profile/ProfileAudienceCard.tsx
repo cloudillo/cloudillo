@@ -28,31 +28,50 @@ export interface ProfileAudienceCardProps {
 	srcTag?: string
 }
 
-export function ProfileAudienceCard({ className, audience, profile, srcTag }: ProfileAudienceCardProps) {
+export function ProfileAudienceCard({
+	className,
+	audience,
+	profile,
+	srcTag
+}: ProfileAudienceCardProps) {
 	const [auth] = useAuth()
 
-	return <div className={mergeClasses('c-profile-card', className)}>
-		<div className="pos-relative">
-			{ auth && audience.profilePic
-				? <img className="picture" src={`https://cl-o.${srcTag ?? auth?.idTag}/api/file/${audience.profilePic}?variant=pf`}/>
-				: <UnknownProfilePicture/>
-			}
-			{ auth && profile.profilePic
-				? <img className="picture tiny" src={`https://cl-o.${srcTag ?? auth?.idTag}/api/file/${profile.profilePic}?variant=pf`}/>
-				: <UnknownProfilePicture tiny/>
-			}
-		</div>
-		<div className="body">
-			<div className="c-hbox">
-				<h4 className="name">{audience.name}</h4>
-				<div className="tag">(<IdentityTag idTag={audience.idTag}/>)</div>
+	return (
+		<div className={mergeClasses('c-profile-card', className)}>
+			<div className="pos-relative">
+				{auth && audience.profilePic ? (
+					<img
+						className="picture"
+						src={`https://cl-o.${srcTag ?? auth?.idTag}/api/file/${audience.profilePic}?variant=pf`}
+					/>
+				) : (
+					<UnknownProfilePicture />
+				)}
+				{auth && profile.profilePic ? (
+					<img
+						className="picture tiny"
+						src={`https://cl-o.${srcTag ?? auth?.idTag}/api/file/${profile.profilePic}?variant=pf`}
+					/>
+				) : (
+					<UnknownProfilePicture tiny />
+				)}
 			</div>
-			<div className="c-hbox">
-				<h4 className="name">{profile.name}</h4>
-				<div className="tag">(<IdentityTag idTag={profile.idTag}/>)</div>
+			<div className="body">
+				<div className="c-hbox">
+					<h4 className="name">{audience.name}</h4>
+					<div className="tag">
+						(<IdentityTag idTag={audience.idTag} />)
+					</div>
+				</div>
+				<div className="c-hbox">
+					<h4 className="name">{profile.name}</h4>
+					<div className="tag">
+						(<IdentityTag idTag={profile.idTag} />)
+					</div>
+				</div>
 			</div>
 		</div>
-	</div>
+	)
 }
 
 // vim: ts=4

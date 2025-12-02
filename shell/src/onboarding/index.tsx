@@ -15,7 +15,15 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { Routes, Route, Link, Navigate, useParams, useLocation, useNavigate } from 'react-router-dom'
+import {
+	Routes,
+	Route,
+	Link,
+	Navigate,
+	useParams,
+	useLocation,
+	useNavigate
+} from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 
 import { Button, useApi } from '@cloudillo/react'
@@ -26,9 +34,7 @@ import { subscribeNotifications } from '../settings/notifications.js'
 import { Welcome } from './welcome.js'
 
 function next(api: ApiClient | null, location: string) {
-	const nextPage =
-		location == 'join' ? 'extras'
-		: null
+	const nextPage = location == 'join' ? 'extras' : null
 
 	if (api) {
 		api.settings.update('ui.onboarding', { value: nextPage })
@@ -52,18 +58,28 @@ function Join() {
 		navigate(next(api, 'join'))
 	}
 
-	return <div className="c-panel p-4">
-		<h1 className="mb-3">{t("You're in!")}</h1>
+	return (
+		<div className="c-panel p-4">
+			<h1 className="mb-3">{t("You're in!")}</h1>
 
-		<div className="c-panel primary p-4 my-4">
-			<h3 className="mb-3">🌍 {t('Join the Cloudillo Community')}</h3>
-			<p className="mb-3">{t('Connect with other Cloudillo users, get help, and stay updated on new features.')}</p>
-			<div className="c-group g-2">
-				<Button className="c-button primary" onClick={onJoin}>{t('Join Community')}</Button>
-				<Button className="c-button" onClick={onSkip}>{t('Maybe later')}</Button>
+			<div className="c-panel primary p-4 my-4">
+				<h3 className="mb-3">🌍 {t('Join the Cloudillo Community')}</h3>
+				<p className="mb-3">
+					{t(
+						'Connect with other Cloudillo users, get help, and stay updated on new features.'
+					)}
+				</p>
+				<div className="c-group g-2">
+					<Button className="c-button primary" onClick={onJoin}>
+						{t('Join Community')}
+					</Button>
+					<Button className="c-button" onClick={onSkip}>
+						{t('Maybe later')}
+					</Button>
+				</div>
 			</div>
 		</div>
-	</div>
+	)
 }
 
 // Combined convenience options (notifications + install)
@@ -82,7 +98,7 @@ function Extras({ pwa }: { pwa: UsePWA }) {
 		if (api) {
 			api.settings.update('ui.onboarding', { value: null })
 		}
-		return <Navigate to="/app/feed"/>
+		return <Navigate to="/app/feed" />
 	}
 
 	async function onContinue() {
@@ -105,81 +121,107 @@ function Extras({ pwa }: { pwa: UsePWA }) {
 		navigate('/app/feed')
 	}
 
-	return <div className="c-panel p-4">
-		<h3 className="mb-3">{t('A couple more things')} <span className="text-muted">({t('optional')})</span></h3>
+	return (
+		<div className="c-panel p-4">
+			<h3 className="mb-3">
+				{t('A couple more things')} <span className="text-muted">({t('optional')})</span>
+			</h3>
 
-		<div className="c-vbox g-3 my-4">
-			{canNotify && (
-				<label className="c-panel clickable p-3 d-flex align-items-center" style={{ cursor: 'pointer' }} onClick={() => setEnableNotifications(!enableNotifications)}>
-					<input
-						type="checkbox"
-						checked={enableNotifications}
-						onChange={(e) => setEnableNotifications(e.target.checked)}
-						className="me-3"
-					/>
-					<div>
-						<strong>{t('Enable notifications')}</strong>
-						<p className="text-muted small mb-0">{t('Know when someone messages you')}</p>
-					</div>
-				</label>
-			)}
+			<div className="c-vbox g-3 my-4">
+				{canNotify && (
+					<label
+						className="c-panel clickable p-3 d-flex align-items-center"
+						style={{ cursor: 'pointer' }}
+						onClick={() => setEnableNotifications(!enableNotifications)}
+					>
+						<input
+							type="checkbox"
+							checked={enableNotifications}
+							onChange={(e) => setEnableNotifications(e.target.checked)}
+							className="me-3"
+						/>
+						<div>
+							<strong>{t('Enable notifications')}</strong>
+							<p className="text-muted small mb-0">
+								{t('Know when someone messages you')}
+							</p>
+						</div>
+					</label>
+				)}
 
-			{canInstall && (
-				<label className="c-panel clickable p-3 d-flex align-items-center" style={{ cursor: 'pointer' }} onClick={() => setEnableInstall(!enableInstall)}>
-					<input
-						type="checkbox"
-						checked={enableInstall}
-						onChange={(e) => setEnableInstall(e.target.checked)}
-						className="me-3"
-					/>
-					<div>
-						<strong>{t('Add to home screen')}</strong>
-						<p className="text-muted small mb-0">{t('Quick access on your phone')}</p>
-					</div>
-				</label>
-			)}
+				{canInstall && (
+					<label
+						className="c-panel clickable p-3 d-flex align-items-center"
+						style={{ cursor: 'pointer' }}
+						onClick={() => setEnableInstall(!enableInstall)}
+					>
+						<input
+							type="checkbox"
+							checked={enableInstall}
+							onChange={(e) => setEnableInstall(e.target.checked)}
+							className="me-3"
+						/>
+						<div>
+							<strong>{t('Add to home screen')}</strong>
+							<p className="text-muted small mb-0">
+								{t('Quick access on your phone')}
+							</p>
+						</div>
+					</label>
+				)}
+			</div>
+
+			<div className="c-group g-2">
+				{(enableNotifications || enableInstall) && (
+					<Button className="c-button primary" onClick={onContinue}>
+						{t('Enable selected')}
+					</Button>
+				)}
+				<Button className="c-button" onClick={onSkip}>
+					{t('Skip and start using Cloudillo →')}
+				</Button>
+			</div>
 		</div>
-
-		<div className="c-group g-2">
-			{(enableNotifications || enableInstall) && (
-				<Button className="c-button primary" onClick={onContinue}>{t('Enable selected')}</Button>
-			)}
-			<Button className="c-button" onClick={onSkip}>{t('Skip and start using Cloudillo →')}</Button>
-		</div>
-	</div>
+	)
 }
 
 // Legacy routes for backwards compatibility
 function Notifications({ pwa }: { pwa: UsePWA }) {
-	return <Navigate to="/onboarding/extras"/>
+	return <Navigate to="/onboarding/extras" />
 }
 
 function Install({ pwa }: { pwa: UsePWA }) {
-	return <Navigate to="/onboarding/extras"/>
+	return <Navigate to="/onboarding/extras" />
 }
 
 function Page({ children }: { children: React.ReactNode }) {
-	return <div className="c-container"><div className="row">
-		<div className="col-0 col-md-1 col-lg-2"/>
-		<div className="col col-md-10 col-lg-8">
-			<div className="flex-fill-x">
-				{children}
+	return (
+		<div className="c-container">
+			<div className="row">
+				<div className="col-0 col-md-1 col-lg-2" />
+				<div className="col col-md-10 col-lg-8">
+					<div className="flex-fill-x">{children}</div>
+				</div>
+				<div className="col-0 col-md-1 col-lg-2" />
 			</div>
 		</div>
-		<div className="col-0 col-md-1 col-lg-2"/>
-	</div></div>
+	)
 }
 
 export function OnboardingRoutes({ pwa }: { pwa: UsePWA }) {
-	return <Page><Routes>
-		<Route path="/onboarding/welcome/:refId" element={<Welcome/>}/>
-		<Route path="/onboarding/join" element={<Join/>}/>
-		<Route path="/onboarding/extras" element={<Extras pwa={pwa}/>}/>
-		{/* Legacy routes for backwards compatibility */}
-		<Route path="/onboarding/notifications" element={<Notifications pwa={pwa}/>}/>
-		<Route path="/onboarding/install" element={<Install pwa={pwa}/>}/>
-		<Route path="/*" element={null}/>
-	</Routes></Page>
+	return (
+		<Page>
+			<Routes>
+				<Route path="/onboarding/welcome/:refId" element={<Welcome />} />
+				<Route path="/onboarding/join" element={<Join />} />
+				<Route path="/onboarding/extras" element={<Extras pwa={pwa} />} />
+				{/* Legacy routes for backwards compatibility */}
+				<Route path="/onboarding/notifications" element={<Notifications pwa={pwa} />} />
+				<Route path="/onboarding/install" element={<Install pwa={pwa} />} />
+				<Route path="/*" element={null} />
+			</Routes>
+		</Page>
+	)
 }
 
 // vim: ts=4

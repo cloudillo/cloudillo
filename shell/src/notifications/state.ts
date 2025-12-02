@@ -31,15 +31,17 @@ export function useNotifications() {
 	const { api, setIdTag } = useApi()
 	const [notifications, setNotifications] = useAtom(notificationAtom)
 
-	const loadNotifications = React.useCallback(async function () {
-		if (!api) return
-		const actions = await api.actions.list({ status: ['C', 'N'] })
-		console.log('NOTIFICATION RES', actions)
-		setNotifications({ notifications: actions })
-	}, [api, notifications, setNotifications])
+	const loadNotifications = React.useCallback(
+		async function () {
+			if (!api) return
+			const actions = await api.actions.list({ status: ['C', 'N'] })
+			console.log('NOTIFICATION RES', actions)
+			setNotifications({ notifications: actions })
+		},
+		[api, notifications, setNotifications]
+	)
 
 	return { notifications, setNotifications, loadNotifications }
 }
-
 
 // vim: ts=4

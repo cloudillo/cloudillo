@@ -23,9 +23,11 @@ export interface ContainerProps extends React.HTMLAttributes<HTMLElement> {
 }
 
 export function Container({ className, children, ...props }: ContainerProps) {
-	return <main className={mergeClasses('c-container h-100 overflow-y-auto', className)} {...props}>
-		{children}
-	</main>
+	return (
+		<main className={mergeClasses('c-container h-100 overflow-y-auto', className)} {...props}>
+			{children}
+		</main>
+	)
 }
 
 // vim: ts=4

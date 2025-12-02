@@ -32,17 +32,20 @@ export interface DropdownProps extends React.HTMLAttributes<HTMLDetailsElement> 
 
 export const Dropdown = createComponent<HTMLDetailsElement, DropdownProps>(
 	'Dropdown',
-	({
-		className,
-		trigger,
-		triggerClassName,
-		menuClassName,
-		elevation,
-		emph,
-		placement = 'bottom-start',
-		children,
-		...props
-	}, ref) => {
+	(
+		{
+			className,
+			trigger,
+			triggerClassName,
+			menuClassName,
+			elevation,
+			emph,
+			placement = 'bottom-start',
+			children,
+			...props
+		},
+		ref
+	) => {
 		const [popperRef, setPopperRef] = React.useState<HTMLElement | null>(null)
 		const [popperEl, setPopperEl] = React.useState<HTMLElement | null>(null)
 		const [isOpen, setIsOpen] = React.useState(false)
@@ -69,9 +72,8 @@ export const Dropdown = createComponent<HTMLDetailsElement, DropdownProps>(
 			}
 		}, [popperEl])
 
-		const popperContainer = typeof document !== 'undefined'
-			? document.getElementById('popper-container')
-			: null
+		const popperContainer =
+			typeof document !== 'undefined' ? document.getElementById('popper-container') : null
 
 		return (
 			<details
@@ -94,23 +96,25 @@ export const Dropdown = createComponent<HTMLDetailsElement, DropdownProps>(
 				>
 					{trigger}
 				</summary>
-				{isOpen && popperContainer && createPortal(
-					<div
-						ref={setPopperEl}
-						className={mergeClasses(
-							'c-nav vertical',
-							elevation,
-							emph && 'emph',
-							menuClassName
-						)}
-						style={popperStyles.popper}
-						onClick={() => setIsOpen(false)}
-						{...attributes.popper}
-					>
-						{children}
-					</div>,
-					popperContainer
-				)}
+				{isOpen &&
+					popperContainer &&
+					createPortal(
+						<div
+							ref={setPopperEl}
+							className={mergeClasses(
+								'c-nav vertical',
+								elevation,
+								emph && 'emph',
+								menuClassName
+							)}
+							style={popperStyles.popper}
+							onClick={() => setIsOpen(false)}
+							{...attributes.popper}
+						>
+							{children}
+						</div>,
+						popperContainer
+					)}
 			</details>
 		)
 	}

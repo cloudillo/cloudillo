@@ -1,5 +1,5 @@
 declare module 'bns' {
-	export = <any> {};
+	export = <any>{}
 }
 
 // vim: ts=4

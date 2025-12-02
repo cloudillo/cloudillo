@@ -33,17 +33,15 @@ import {
 	FiImage as IcImage,
 	FiFilm as IcVideo,
 	FiFileText as IcDocument,
-	FiFile as IcUnknown,
+	FiFile as IcUnknown
 } from 'react-icons/fi'
 
 import {
 	LuFilter as IcFilter,
-
 	LuFilePlus2 as IcNewFile,
 	LuCloud as IcAll,
 	LuFilePen as IcMutable,
 	LuFile as IcImmutable,
-
 	LuBookOpen as IcQuillo,
 	LuSheet as IcSheello,
 	LuShapes as IcIdeallo,
@@ -58,24 +56,39 @@ import '@symbion/ui-core/scroll.css'
 
 import { NewAction, ActionView, Profile } from '@cloudillo/types'
 import * as Types from '@cloudillo/base'
-import { useApi, useAuth, useDialog, useToast, Button, Fcd, ProfilePicture, EditProfileList, Popper, Dialog, mergeClasses, InlineEditForm, LoadingSpinner, EmptyState } from '@cloudillo/react'
+import {
+	useApi,
+	useAuth,
+	useDialog,
+	useToast,
+	Button,
+	Fcd,
+	ProfilePicture,
+	EditProfileList,
+	Popper,
+	Dialog,
+	mergeClasses,
+	InlineEditForm,
+	LoadingSpinner,
+	EmptyState
+} from '@cloudillo/react'
 
 import { useAppConfig, parseQS, qs } from '../utils.js'
 import { Tags, EditTags } from '../tags.js'
 import { useCurrentContextIdTag } from '../context/index.js'
 
 const icons: Record<string, React.ComponentType> = {
-//const icons: Record<string, (props: React.SVGProps<SVGSVGElement>) => React.ReactNode> = {
-	'image/jpeg': (props) => <IcImage {...props} style={{ color: 'lch(50 50 0)' }}/>,
-	'image/png': (props) => <IcImage {...props} style={{ color: 'lch(50 50 0)' }}/>,
-	'video/mp4': (props) => <IcVideo {...props} style={{ color: 'lch(50 50 0)' }}/>,
-	'application/pdf': (props) => <IcDocument {...props} style={{ color: 'lch(50 50 0)' }}/>,
-	'cloudillo/quillo': (props) => <IcQuillo {...props} style={{ color: 'lch(50 50 250)' }}/>,
-	'cloudillo/sheello': (props) => <IcSheello {...props} style={{ color: 'lch(50 50 150)' }}/>,
-	'cloudillo/ideallo': (props) => <IcIdeallo {...props} style={{ color: 'lch(50 50 60)' }}/>,
-	'cloudillo/prello': (props) => <IcPrello {...props} style={{ color: 'lch(50 50 100)' }}/>,
-	'cloudillo/formillo': (props) => <IcFormillo {...props} style={{ color: 'lch(50 50 300)' }}/>,
-	'cloudillo/todollo': (props) => <IcTodollo {...props} style={{ color: 'lch(50 50 180)' }}/>
+	//const icons: Record<string, (props: React.SVGProps<SVGSVGElement>) => React.ReactNode> = {
+	'image/jpeg': (props) => <IcImage {...props} style={{ color: 'lch(50 50 0)' }} />,
+	'image/png': (props) => <IcImage {...props} style={{ color: 'lch(50 50 0)' }} />,
+	'video/mp4': (props) => <IcVideo {...props} style={{ color: 'lch(50 50 0)' }} />,
+	'application/pdf': (props) => <IcDocument {...props} style={{ color: 'lch(50 50 0)' }} />,
+	'cloudillo/quillo': (props) => <IcQuillo {...props} style={{ color: 'lch(50 50 250)' }} />,
+	'cloudillo/sheello': (props) => <IcSheello {...props} style={{ color: 'lch(50 50 150)' }} />,
+	'cloudillo/ideallo': (props) => <IcIdeallo {...props} style={{ color: 'lch(50 50 60)' }} />,
+	'cloudillo/prello': (props) => <IcPrello {...props} style={{ color: 'lch(50 50 100)' }} />,
+	'cloudillo/formillo': (props) => <IcFormillo {...props} style={{ color: 'lch(50 50 300)' }} />,
+	'cloudillo/todollo': (props) => <IcTodollo {...props} style={{ color: 'lch(50 50 180)' }} />
 }
 
 interface File {
@@ -107,7 +120,17 @@ interface FileOps {
 	doDeleteFile: (fileId: string) => void
 }
 
-function TagsCell({ fileId, tags, setTags, editable }: { fileId: string, tags: string[] | undefined, setTags?: (tags: string[] | undefined) => void, editable?: boolean }) {
+function TagsCell({
+	fileId,
+	tags,
+	setTags,
+	editable
+}: {
+	fileId: string
+	tags: string[] | undefined
+	setTags?: (tags: string[] | undefined) => void
+	editable?: boolean
+}) {
 	const { api, setIdTag } = useApi()
 	const [isEditing, setIsEditing] = React.useState(false)
 
@@ -138,12 +161,18 @@ function TagsCell({ fileId, tags, setTags, editable }: { fileId: string, tags: s
 	}
 
 	if (isEditing) {
-		return <EditTags tags={tags} listTags={listTags} addTag={addTag} removeTag={removeTag}/>
+		return <EditTags tags={tags} listTags={listTags} addTag={addTag} removeTag={removeTag} />
 	} else {
-		return <div className="c-tag-list g-1">
-			<Tags tags={tags}/>
-			{ !!editable && <Button link onClick={() => setIsEditing(true)}><IcEdit/></Button> }
-		</div>
+		return (
+			<div className="c-tag-list g-1">
+				<Tags tags={tags} />
+				{!!editable && (
+					<Button link onClick={() => setIsEditing(true)}>
+						<IcEdit />
+					</Button>
+				)}
+			</div>
+		)
 	}
 }
 
@@ -159,24 +188,27 @@ function fileColumns({ t, fileOps, renameFileId, renameFileName }: FileColumnsAr
 			title: t('Name'),
 			defaultWidth: 50,
 			sort: true,
-			format: (v, r) => r.fileId === renameFileId && renameFileName !== undefined
-				? <InlineEditForm
-					value={renameFileName}
-					onSave={(newName) => fileOps.doRenameFile(r.fileId, newName)}
-					onCancel={() => fileOps.renameFile()}
-				/>
-				: v
+			format: (v, r) =>
+				r.fileId === renameFileId && renameFileName !== undefined ? (
+					<InlineEditForm
+						value={renameFileName}
+						onSave={(newName) => fileOps.doRenameFile(r.fileId, newName)}
+						onCancel={() => fileOps.renameFile()}
+					/>
+				) : (
+					v
+				)
 		},
 		contentType: {
 			title: t(''),
 			defaultWidth: 3,
-			format: v => React.createElement(icons[v] || IcUnknown)
+			format: (v) => React.createElement(icons[v] || IcUnknown)
 		},
 		createdAt: {
 			title: t('Created at'),
 			defaultWidth: 20,
 			sort: true,
-			format: v => dayjs(v).format('YYYY-MM-DD HH:mm')
+			format: (v) => dayjs(v).format('YYYY-MM-DD HH:mm')
 		},
 		preset: {
 			title: t('Preset'),
@@ -187,23 +219,37 @@ function fileColumns({ t, fileOps, renameFileId, renameFileName }: FileColumnsAr
 			title: t('Tags'),
 			defaultWidth: 30,
 			sort: true,
-			format: (v, r) => <TagsCell fileId={r.fileId} tags={r.tags}/>
+			format: (v, r) => <TagsCell fileId={r.fileId} tags={r.tags} />
 			//format: (v, r) => <EditTags tags={r.tags} listTags={listTags}/>
 		},
 		actions: {
 			title: '',
 			defaultWidth: 10,
-			format: (v, r) => <div className="d-flex">
-				<button className="c-link p-1" type="button" onClick={evt => (evt.stopPropagation(), fileOps.openFile(r.fileId))}><IcEdit/></button>
-				<div className="dropdown">
-					<details className="c-dropdown">
-						<summary className="c-link p-1"><IcMore/></summary>
-						<ul className="c-nav">
-							<li className="c-nav-item"><a href="#" onClick={() => fileOps.renameFile(r.fileId)}>{t('Rename...')}</a></li>
-						</ul>
-					</details>
+			format: (v, r) => (
+				<div className="d-flex">
+					<button
+						className="c-link p-1"
+						type="button"
+						onClick={(evt) => (evt.stopPropagation(), fileOps.openFile(r.fileId))}
+					>
+						<IcEdit />
+					</button>
+					<div className="dropdown">
+						<details className="c-dropdown">
+							<summary className="c-link p-1">
+								<IcMore />
+							</summary>
+							<ul className="c-nav">
+								<li className="c-nav-item">
+									<a href="#" onClick={() => fileOps.renameFile(r.fileId)}>
+										{t('Rename...')}
+									</a>
+								</li>
+							</ul>
+						</details>
+					</div>
 				</div>
-			</div>
+			)
 		}
 	}
 	return fileColumns
@@ -235,70 +281,90 @@ function useFileListData() {
 	const [files, setFiles] = React.useState<File[] | undefined>()
 	//console.log('DT state', sort, sortAsc, page)
 
-	React.useEffect(function loadFileList() {
-		if (!api || !auth) return
+	React.useEffect(
+		function loadFileList() {
+			if (!api || !auth) return
+			;(async function () {
+				const qs = parseQS(location.search)
+				setFilter(qs)
 
-		(async function () {
-			const qs = parseQS(location.search)
-			setFilter(qs)
+				if (Object.keys(qs).length > 0) {
+					// Note: variant: 'tn' was used in old API but not in new API
+					const files = await api.files.list(qs as Types.ListFilesQuery)
+					setFiles(
+						files.map((f) => ({
+							...f,
+							preset: f.preset || '',
+							createdAt:
+								typeof f.createdAt === 'string'
+									? f.createdAt
+									: f.createdAt.toISOString(),
+							owner: f.owner ? { ...f.owner, name: f.owner.name || '' } : undefined,
+							variantId: undefined
+						}))
+					)
+				} else {
+					setFiles([])
+				}
+			})()
+		},
+		[api, auth, location.search, refreshHelper]
+	)
 
-			if (Object.keys(qs).length > 0) {
-				// Note: variant: 'tn' was used in old API but not in new API
-				const files = await api.files.list(qs as Types.ListFilesQuery)
-				setFiles(files.map(f => ({
-					...f,
-					preset: f.preset || '',
-					createdAt: typeof f.createdAt === 'string' ? f.createdAt : f.createdAt.toISOString(),
-					owner: f.owner ? { ...f.owner, name: f.owner.name || '' } : undefined,
-					variantId: undefined
-				})))
-			} else {
-				setFiles([])
+	return React.useMemo(
+		function () {
+			function getData() {
+				return files || []
 			}
-		})()
-	}, [api, auth, location.search, refreshHelper])
 
-	return React.useMemo(function () {
-		function getData() {
-			return files || []
-		}
+			function setState(
+				sort: keyof File | undefined,
+				sortAsc: boolean | undefined,
+				page: number | undefined
+			) {
+				console.log('FL setState', sort, sortAsc, page)
+				if (sort !== undefined) setSort(sort)
+				if (sortAsc !== undefined) setSortAsc(sortAsc)
+				if (page !== undefined) setPage(page)
+			}
 
-		function setState(sort: keyof File | undefined, sortAsc: boolean | undefined, page: number | undefined) {
-			console.log('FL setState', sort, sortAsc, page)
-			if (sort !== undefined) setSort(sort)
-			if (sortAsc !== undefined) setSortAsc(sortAsc)
-			if (page !== undefined) setPage(page)
-		}
+			function setFileData(fileId: string, file: File) {
+				setFiles((files) => files?.map((f) => (f.fileId === fileId ? file : f)))
+			}
 
-		function setFileData(fileId: string, file: File) {
-			setFiles(files => files?.map(f => f.fileId === fileId ? file : f))
-		}
+			async function next() {
+				if (!page) setPage(page + 1)
+			}
 
-		async function next() {
-			if (!page) setPage(page + 1)
-		}
+			async function prev() {
+				if (page) setPage(page - 1)
+			}
 
-		async function prev() {
-			if (page) setPage(page - 1)
-		}
+			function refresh() {
+				setRefreshHelper((r) => !r)
+			}
 
-		function refresh() {
-			setRefreshHelper(r => !r)
-		}
-
-		return {
-			getData,
-			setFileData,
-			filter,
-			state: { sort, sortAsc },
-			setState,
-			/* page, lastPage: 1, next, prev, */
-			refresh
-		}
-	}, [files, filter, sort, sortAsc, page])
+			return {
+				getData,
+				setFileData,
+				filter,
+				state: { sort, sortAsc },
+				setState,
+				/* page, lastPage: 1, next, prev, */
+				refresh
+			}
+		},
+		[files, filter, sort, sortAsc, page]
+	)
 }
 
-const FilterBar = React.memo(function FilterBar({ className, contextIdTag }: { className?: string, contextIdTag?: string }) {
+const FilterBar = React.memo(function FilterBar({
+	className,
+	contextIdTag
+}: {
+	className?: string
+	contextIdTag?: string
+}) {
 	const { t } = useTranslation()
 	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
@@ -314,9 +380,13 @@ const FilterBar = React.memo(function FilterBar({ className, contextIdTag }: { c
 		if (!contentType) return
 		if (!api) return
 
-		const fileName = await dialog.askText(t('Create document'), t('Provide a name for the new document'), {
-			placeholder: t('Untitled document')
-		})
+		const fileName = await dialog.askText(
+			t('Create document'),
+			t('Provide a name for the new document'),
+			{
+				placeholder: t('Untitled document')
+			}
+		)
 		console.log('CONFIRM', fileName)
 		if (fileName === undefined) return
 
@@ -331,7 +401,8 @@ const FilterBar = React.memo(function FilterBar({ className, contextIdTag }: { c
 		}
 		console.log('CREATE FILE', res)
 		if (res?.fileId) {
-			const appPath = (appId: string) => `/app/${contextIdTag || auth?.idTag}/${appId}/${res.fileId}`
+			const appPath = (appId: string) =>
+				`/app/${contextIdTag || auth?.idTag}/${appId}/${res.fileId}`
 			switch (contentType) {
 				case 'cloudillo/quillo':
 					navigate(appPath('quillo'))
@@ -360,9 +431,13 @@ const FilterBar = React.memo(function FilterBar({ className, contextIdTag }: { c
 		if (!contentType) return
 		if (!api) return
 
-		const fileName = await dialog.askText(t('Create database'), t('Provide a name for the new database'), {
-			placeholder: t('Untitled database')
-		})
+		const fileName = await dialog.askText(
+			t('Create database'),
+			t('Provide a name for the new database'),
+			{
+				placeholder: t('Untitled database')
+			}
+		)
 		console.log('CONFIRM', fileName)
 		if (fileName === undefined) return
 
@@ -377,7 +452,8 @@ const FilterBar = React.memo(function FilterBar({ className, contextIdTag }: { c
 		}
 		console.log('CREATE DB', res)
 		if (res?.fileId) {
-			const appPath = (appId: string) => `/app/${contextIdTag || auth?.idTag}/${appId}/${res.fileId}`
+			const appPath = (appId: string) =>
+				`/app/${contextIdTag || auth?.idTag}/${appId}/${res.fileId}`
 			switch (contentType) {
 				case 'cloudillo/todollo':
 					navigate(appPath('todollo'))
@@ -386,68 +462,132 @@ const FilterBar = React.memo(function FilterBar({ className, contextIdTag }: { c
 		}
 	}
 
-
-	return <ul className={mergeClasses('c-nav vertical low', className)}>
-		<li className="c-nav-item">
-			{/*
+	return (
+		<ul className={mergeClasses('c-nav vertical low', className)}>
+			<li className="c-nav-item">
+				{/*
 			<details className="c-dropdown">
 			*/}
-			<Popper icon={<IcNewFile/>} label={t('Create document')}>
-				<ul className="c-nav vertical emph">
-					<li><button className="c-nav-item" onClick={() => createFile('cloudillo/quillo')}>
-						{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons['cloudillo/quillo'], { className: 'me-1' })}
-						{t('Quillo text document')}</button></li>
-					<li><a className="c-nav-item" href="#" onClick={() => createFile('cloudillo/sheello')}>
-						{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons['cloudillo/sheello'], { className: 'me-1' })}
-						{t('Sheello spreadsheet document')}</a></li>
-					<li><button className="c-nav-item" disabled={true || process.env.NODE_ENV === 'production'} onClick={() => createFile('cloudillo/ideallo')}>
-						{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons['cloudillo/ideallo'], { className: 'me-1' })}
-						{t('Ideallo whiteboard document')}</button></li>
-					<li><button className="c-nav-item" onClick={() => createFile('cloudillo/prello')}>
-						{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons['cloudillo/prello'], { className: 'me-1' })}
-						{t('Prello presentation document')}</button></li>
-					<li><button className="c-nav-item" onClick={() => createDb('cloudillo/todollo')}>
-						{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons['cloudillo/todollo'], { className: 'me-1' })}
-						{t('Todollo todo list')}</button></li>
-					{/*
+				<Popper icon={<IcNewFile />} label={t('Create document')}>
+					<ul className="c-nav vertical emph">
+						<li>
+							<button
+								className="c-nav-item"
+								onClick={() => createFile('cloudillo/quillo')}
+							>
+								{React.createElement<React.ComponentProps<typeof IcUnknown>>(
+									icons['cloudillo/quillo'],
+									{ className: 'me-1' }
+								)}
+								{t('Quillo text document')}
+							</button>
+						</li>
+						<li>
+							<a
+								className="c-nav-item"
+								href="#"
+								onClick={() => createFile('cloudillo/sheello')}
+							>
+								{React.createElement<React.ComponentProps<typeof IcUnknown>>(
+									icons['cloudillo/sheello'],
+									{ className: 'me-1' }
+								)}
+								{t('Sheello spreadsheet document')}
+							</a>
+						</li>
+						<li>
+							<button
+								className="c-nav-item"
+								disabled={true || process.env.NODE_ENV === 'production'}
+								onClick={() => createFile('cloudillo/ideallo')}
+							>
+								{React.createElement<React.ComponentProps<typeof IcUnknown>>(
+									icons['cloudillo/ideallo'],
+									{ className: 'me-1' }
+								)}
+								{t('Ideallo whiteboard document')}
+							</button>
+						</li>
+						<li>
+							<button
+								className="c-nav-item"
+								onClick={() => createFile('cloudillo/prello')}
+							>
+								{React.createElement<React.ComponentProps<typeof IcUnknown>>(
+									icons['cloudillo/prello'],
+									{ className: 'me-1' }
+								)}
+								{t('Prello presentation document')}
+							</button>
+						</li>
+						<li>
+							<button
+								className="c-nav-item"
+								onClick={() => createDb('cloudillo/todollo')}
+							>
+								{React.createElement<React.ComponentProps<typeof IcUnknown>>(
+									icons['cloudillo/todollo'],
+									{ className: 'me-1' }
+								)}
+								{t('Todollo todo list')}
+							</button>
+						</li>
+						{/*
 					<li><a className="c-nav-item" href="#" onClick={() => createFile('cloudillo/formillo')}>
 						{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons['cloudillo/formillo'], { className: 'me-1' })}
 						<IcFormillo/>
 						{t('Formillo document')}</a></li>
 					*/}
-				</ul>
-			</Popper>
-		</li>
-		<hr className="w-100"/>
+					</ul>
+				</Popper>
+			</li>
+			<hr className="w-100" />
 
-		<li className="c-nav-item">
-			<Link className={'c-nav-link ' + (!qs.fileTp ? 'active' : '')} to=""><IcAll/> {t('All')}
-				{!!fileStat.todo && <span className="c-badge bg error">{fileStat.mutable}</span>}
-			</Link>
-		</li>
-		<li className="c-nav-item">
-			<Link className={'c-nav-link ' + (qs.fileTp === 'CRDT,RTDB' ? 'active' : '')} to="?fileTp=CRDT,RTDB"><IcMutable/> {t('Editable')}
-				{!!fileStat.todo && <span className="c-badge bg error">{fileStat.mutable}</span>}
-			</Link>
-		</li>
-		<li className="c-nav-item">
-			<Link className={'c-nav-link ' + (qs.fileTp === 'BLOB' ? 'active' : '')} to="?fileTp=BLOB"><IcImmutable/> {t('Finalized')}
-				{!!fileStat.todo && <span className="c-badge bg error">{fileStat.todo}</span>}
-			</Link>
-		</li>
-		<hr className="w-100"/>
+			<li className="c-nav-item">
+				<Link className={'c-nav-link ' + (!qs.fileTp ? 'active' : '')} to="">
+					<IcAll /> {t('All')}
+					{!!fileStat.todo && (
+						<span className="c-badge bg error">{fileStat.mutable}</span>
+					)}
+				</Link>
+			</li>
+			<li className="c-nav-item">
+				<Link
+					className={'c-nav-link ' + (qs.fileTp === 'CRDT,RTDB' ? 'active' : '')}
+					to="?fileTp=CRDT,RTDB"
+				>
+					<IcMutable /> {t('Editable')}
+					{!!fileStat.todo && (
+						<span className="c-badge bg error">{fileStat.mutable}</span>
+					)}
+				</Link>
+			</li>
+			<li className="c-nav-item">
+				<Link
+					className={'c-nav-link ' + (qs.fileTp === 'BLOB' ? 'active' : '')}
+					to="?fileTp=BLOB"
+				>
+					<IcImmutable /> {t('Finalized')}
+					{!!fileStat.todo && <span className="c-badge bg error">{fileStat.todo}</span>}
+				</Link>
+			</li>
+			<hr className="w-100" />
 
-		<li className="c-nav-item">
-			<Link className="c-nav-link" to="?filter=new"><IcUploaded/> {t('New uploads')}
-				{!!fileStat.new && <span className="c-badge bg error">{fileStat.new}</span>}
-			</Link>
-		</li>
+			<li className="c-nav-item">
+				<Link className="c-nav-link" to="?filter=new">
+					<IcUploaded /> {t('New uploads')}
+					{!!fileStat.new && <span className="c-badge bg error">{fileStat.new}</span>}
+				</Link>
+			</li>
 
-		<div className="c-input-group">
-			<input type="text" className="c-input" placeholder="Search" />
-			<button className="c-button secondary" type="button"><IcSearch/></button>
-		</div>
-	</ul>
+			<div className="c-input-group">
+				<input type="text" className="c-input" placeholder="Search" />
+				<button className="c-button secondary" type="button">
+					<IcSearch />
+				</button>
+			</div>
+		</ul>
+	)
 })
 
 interface FileCardProps {
@@ -458,8 +598,14 @@ interface FileCardProps {
 	renameFileName?: string
 	fileOps: FileOps
 }
-const FileCard = React.memo(
-function FileCard({ className, file, onClick, renameFileId, renameFileName, fileOps }: FileCardProps) {
+const FileCard = React.memo(function FileCard({
+	className,
+	file,
+	onClick,
+	renameFileId,
+	renameFileName,
+	fileOps
+}: FileCardProps) {
 	const [auth] = useAuth()
 	const { t } = useTranslation()
 
@@ -467,37 +613,72 @@ function FileCard({ className, file, onClick, renameFileId, renameFileName, file
 		fileOps.setFile?.({ ...file, tags })
 	}
 
-	return <div className={'c-panel ' + (className || '')} onClick={evt => onClick?.(file)}>
-		<div className="c-panel-header d-flex">
-			<h3 className="c-panel-title d-flex flex-fill">
-				{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons[file.contentType] || IcUnknown, { className: 'me-1' })}
-				{ renameFileName !== undefined && file.fileId === renameFileId
-					? <InlineEditForm
-						value={renameFileName}
-						onSave={(newName) => fileOps.doRenameFile(file.fileId, newName)}
-						onCancel={() => fileOps.setRenameFileName(undefined)}
-						size="small"
-					/>
-					: file.fileName
-				}
-			</h3>
-			{/* file.ownerTag && <h4>{file.ownerTag}</h4> */}
-			<div className="c-hbox g-2">
-				{ !!file.owner && <ProfilePicture profile={file.owner} small/> }
-				<button className="c-link p-1" type="button" onClick={evt => (evt.stopPropagation(), fileOps.openFile(file.fileId))}><IcEdit/></button>
-				<Popper className="c-link" label={<IcMore/>}>
-					<ul className="c-nav vertical">
-						<li className="c-nav-item"><a className="c-link" href="#" onClick={() => fileOps.renameFile(file.fileId)}><IcEdit/> {t('Rename...')}</a></li>
-						<li className="c-nav-item"><a className="c-link" href="#" onClick={() => fileOps.doDeleteFile(file.fileId)}><IcDelete/>{t('Delete...')}</a></li>
-					</ul>
-				</Popper>
-				{ auth?.idTag && file.variantId && <img src={`https://cl-o.${auth.idTag}/api/file/${file.variantId}`}/> }
+	return (
+		<div className={'c-panel ' + (className || '')} onClick={(evt) => onClick?.(file)}>
+			<div className="c-panel-header d-flex">
+				<h3 className="c-panel-title d-flex flex-fill">
+					{React.createElement<React.ComponentProps<typeof IcUnknown>>(
+						icons[file.contentType] || IcUnknown,
+						{ className: 'me-1' }
+					)}
+					{renameFileName !== undefined && file.fileId === renameFileId ? (
+						<InlineEditForm
+							value={renameFileName}
+							onSave={(newName) => fileOps.doRenameFile(file.fileId, newName)}
+							onCancel={() => fileOps.setRenameFileName(undefined)}
+							size="small"
+						/>
+					) : (
+						file.fileName
+					)}
+				</h3>
+				{/* file.ownerTag && <h4>{file.ownerTag}</h4> */}
+				<div className="c-hbox g-2">
+					{!!file.owner && <ProfilePicture profile={file.owner} small />}
+					<button
+						className="c-link p-1"
+						type="button"
+						onClick={(evt) => (evt.stopPropagation(), fileOps.openFile(file.fileId))}
+					>
+						<IcEdit />
+					</button>
+					<Popper className="c-link" label={<IcMore />}>
+						<ul className="c-nav vertical">
+							<li className="c-nav-item">
+								<a
+									className="c-link"
+									href="#"
+									onClick={() => fileOps.renameFile(file.fileId)}
+								>
+									<IcEdit /> {t('Rename...')}
+								</a>
+							</li>
+							<li className="c-nav-item">
+								<a
+									className="c-link"
+									href="#"
+									onClick={() => fileOps.doDeleteFile(file.fileId)}
+								>
+									<IcDelete />
+									{t('Delete...')}
+								</a>
+							</li>
+						</ul>
+					</Popper>
+					{auth?.idTag && file.variantId && (
+						<img src={`https://cl-o.${auth.idTag}/api/file/${file.variantId}`} />
+					)}
+				</div>
 			</div>
+			{!!file.tags?.length && (
+				<div>
+					<div>
+						<TagsCell fileId={file.fileId} tags={file.tags} setTags={setTags} />
+					</div>
+				</div>
+			)}
 		</div>
-		{ !!file.tags?.length && <div>
-			<div><TagsCell fileId={file.fileId} tags={file.tags} setTags={setTags}/></div>
-		</div> }
-	</div>
+	)
 })
 
 interface FileDetailsProps {
@@ -514,25 +695,36 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 	const dialog = useDialog()
 	const [fileActions, setFileActions] = React.useState<ActionView[] | undefined>()
 
-	const readPerms = React.useMemo(function readPerms() {
-		return fileActions?.filter(a => a.type === 'FSHR' && a.subType === 'READ')
-			.sort((a, b) => a.audience?.idTag.localeCompare(b.audience?.idTag ?? '') || 0)
-	}, [fileActions])
-	const writePerms = React.useMemo(function writePerms() {
-		return fileActions?.filter(a => a.type === 'FSHR' && a.subType === 'WRITE')
-			.sort((a, b) => a.audience?.idTag.localeCompare(b.audience?.idTag ?? '') || 0)
-	}, [fileActions])
+	const readPerms = React.useMemo(
+		function readPerms() {
+			return fileActions
+				?.filter((a) => a.type === 'FSHR' && a.subType === 'READ')
+				.sort((a, b) => a.audience?.idTag.localeCompare(b.audience?.idTag ?? '') || 0)
+		},
+		[fileActions]
+	)
+	const writePerms = React.useMemo(
+		function writePerms() {
+			return fileActions
+				?.filter((a) => a.type === 'FSHR' && a.subType === 'WRITE')
+				.sort((a, b) => a.audience?.idTag.localeCompare(b.audience?.idTag ?? '') || 0)
+		},
+		[fileActions]
+	)
 	console.log({ readPerms, writePerms })
 
-	React.useEffect(function loadFileDetails() {
-		if (!api) return
-		(async function () {
-			// Query actions of type FSHR that apply to this file as the subject
-			const actions = await api.actions.list({ type: 'FSHR', subject: file.fileId })
-			console.log('loadFileDetails res', actions)
-			setFileActions(actions)
-		})()
-	}, [api, file.fileId])
+	React.useEffect(
+		function loadFileDetails() {
+			if (!api) return
+			;(async function () {
+				// Query actions of type FSHR that apply to this file as the subject
+				const actions = await api.actions.list({ type: 'FSHR', subject: file.fileId })
+				console.log('loadFileDetails res', actions)
+				setFileActions(actions)
+			})()
+		},
+		[api, file.fileId]
+	)
 
 	// Permissions //
 	/////////////////
@@ -561,12 +753,22 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 		const res = await api.actions.create(action)
 		console.log('FSHR res', res)
 		let found = false
-		setFileActions(fileActions => (fileActions || []).map(fa => fa.audience?.idTag === profile.idTag ? (found = true, res) : fa).concat(found ? [] : [res]))
+		setFileActions((fileActions) =>
+			(fileActions || [])
+				.map((fa) => (fa.audience?.idTag === profile.idTag ? ((found = true), res) : fa))
+				.concat(found ? [] : [res])
+		)
 	}
 
 	async function removePerm(idTag: string) {
 		if (!file || !api) return
-		if (!await dialog.confirm(t('Confirmation'), t("Are you sure you want to remove this user's permission?"))) return
+		if (
+			!(await dialog.confirm(
+				t('Confirmation'),
+				t("Are you sure you want to remove this user's permission?")
+			))
+		)
+			return
 
 		const action: NewAction = {
 			type: 'FSHR',
@@ -575,32 +777,47 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 		}
 
 		const _res = await api.actions.create(action)
-		setFileActions(fa => fa?.filter(fa => fa.audience?.idTag !== idTag))
+		setFileActions((fa) => fa?.filter((fa) => fa.audience?.idTag !== idTag))
 	}
 
-	return <div className="c-vbox g-2">
-		<div className="c-panel mid">
-			<div className="c-panel-header d-flex">
-				<h3 className="c-panel-title d-flex flex-fill">
-					{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons[file.contentType] || IcUnknown, { className: 'me-1' })}
-					{ renameFileName !== undefined && file.fileId === renameFileId
-						? <InlineEditForm
-							value={renameFileName}
-							onSave={(newName) => fileOps.doRenameFile(file.fileId, newName)}
-							onCancel={() => fileOps.setRenameFileName(undefined)}
-							size="small"
-						/>
-						: file.fileName
-					}
-				</h3>
-				<div className="c-hbox justify-content-end g-2 me-4">
-					<button className="c-link p-1" type="button" onClick={() => fileOps.openFile(file.fileId)}><IcEdit/></button>
-					<Popper className='c-link' icon={<IcMore/>}>
-						<ul className="c-nav">
-							<li className="c-nav-item"><a href="#" onClick={() => fileOps.renameFile(file.fileId)}>{t('Rename...')}</a></li>
-						</ul>
-					</Popper>
-					{/*
+	return (
+		<div className="c-vbox g-2">
+			<div className="c-panel mid">
+				<div className="c-panel-header d-flex">
+					<h3 className="c-panel-title d-flex flex-fill">
+						{React.createElement<React.ComponentProps<typeof IcUnknown>>(
+							icons[file.contentType] || IcUnknown,
+							{ className: 'me-1' }
+						)}
+						{renameFileName !== undefined && file.fileId === renameFileId ? (
+							<InlineEditForm
+								value={renameFileName}
+								onSave={(newName) => fileOps.doRenameFile(file.fileId, newName)}
+								onCancel={() => fileOps.setRenameFileName(undefined)}
+								size="small"
+							/>
+						) : (
+							file.fileName
+						)}
+					</h3>
+					<div className="c-hbox justify-content-end g-2 me-4">
+						<button
+							className="c-link p-1"
+							type="button"
+							onClick={() => fileOps.openFile(file.fileId)}
+						>
+							<IcEdit />
+						</button>
+						<Popper className="c-link" icon={<IcMore />}>
+							<ul className="c-nav">
+								<li className="c-nav-item">
+									<a href="#" onClick={() => fileOps.renameFile(file.fileId)}>
+										{t('Rename...')}
+									</a>
+								</li>
+							</ul>
+						</Popper>
+						{/*
 					<details className="c-dropdown">
 						<summary className="c-link p-1"><IcMore/></summary>
 						<ul className="c-nav">
@@ -608,32 +825,50 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 						</ul>
 					</details>
 					*/}
-					{ auth?.idTag && file.variantId && <img src={`https://cl-o.${auth.idTag}/api/file/${file.variantId}`}/> }
+						{auth?.idTag && file.variantId && (
+							<img src={`https://cl-o.${auth.idTag}/api/file/${file.variantId}`} />
+						)}
+					</div>
+				</div>
+				<div className="c-tag-list">
+					<TagsCell fileId={file.fileId} tags={file.tags} editable />
 				</div>
 			</div>
-			<div className="c-tag-list">
-				<TagsCell fileId={file.fileId} tags={file.tags} editable/>
-			</div>
-		</div>
 
-		{ file.owner?.idTag == auth?.idTag && <div className="c-panel mid">
-			<div className="c-panel-header d-flex">
-				<h3>{t('Permissions')}</h3>
-			</div>
-			<div>
-				{ !!writePerms && <>
-					<h4 className="py-2">{t('Write permissions')}</h4>
-					<EditProfileList className="my-2" placeholder={t('Add profile')} profiles={writePerms.filter(rp => rp.audience).map(rp => rp.audience) as Profile[]} listProfiles={listProfiles} addProfile={p => addPerm(p, 'WRITE')} removeProfile={removePerm}/>
-				</> }
-				{/* FIXME: Read only permissions not supported yet
+			{file.owner?.idTag == auth?.idTag && (
+				<div className="c-panel mid">
+					<div className="c-panel-header d-flex">
+						<h3>{t('Permissions')}</h3>
+					</div>
+					<div>
+						{!!writePerms && (
+							<>
+								<h4 className="py-2">{t('Write permissions')}</h4>
+								<EditProfileList
+									className="my-2"
+									placeholder={t('Add profile')}
+									profiles={
+										writePerms
+											.filter((rp) => rp.audience)
+											.map((rp) => rp.audience) as Profile[]
+									}
+									listProfiles={listProfiles}
+									addProfile={(p) => addPerm(p, 'WRITE')}
+									removeProfile={removePerm}
+								/>
+							</>
+						)}
+						{/* FIXME: Read only permissions not supported yet
 				{ !!readPerms && <>
 					<h4 className="py-2">{t('Read only permissions')}</h4>
 					<EditProfileList className="my-2" placeholder={t('Add profile')} profiles={readPerms.filter(rp => rp.audience).map(rp => rp.audience) as Profile[]} listProfiles={listProfiles} addProfile={p => addPerm(p, 'READ')} removeProfile={removePerm}/>
 				</> }
 				*/}
-			</div>
-		</div> }
-	</div>
+					</div>
+				</div>
+			)}
+		</div>
+	)
 }
 
 export function FilesApp() {
@@ -654,104 +889,140 @@ export function FilesApp() {
 	const [renameFileName, setRenameFileName] = React.useState<string | undefined>()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 
-	React.useEffect(function onLocationEffect() {
-		setShowFilter(false)
-	}, [location])
+	React.useEffect(
+		function onLocationEffect() {
+			setShowFilter(false)
+		},
+		[location]
+	)
 
 	function selectFile(file?: File) {
 		setSelectedFile(file)
 	}
 
 	const onClickFile = React.useCallback(function onClickFile(file: File) {
-		setSelectedFile(selectedFile => selectedFile === file ? undefined : file)
+		setSelectedFile((selectedFile) => (selectedFile === file ? undefined : file))
 	}, [])
 
-	const fileOps = React.useMemo(() => ({
-		setFile: function setFile(file: File) {
-			fileListData.setFileData(file.fileId, file)
-		},
+	const fileOps = React.useMemo(
+		() => ({
+			setFile: function setFile(file: File) {
+				fileListData.setFileData(file.fileId, file)
+			},
 
-		openFile: function openFile(fileId?: string) {
-			const file = fileListData.getData()?.find(f => f.fileId === fileId)
-			const app = file && appConfig?.mime[file?.contentType]
+			openFile: function openFile(fileId?: string) {
+				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
+				const app = file && appConfig?.mime[file?.contentType]
 
-			console.log('openFile', appConfig, file?.contentType, app)
-			if (app) {
-				// Extract app name from path like '/app/quillo' -> 'quillo'
-				const appName = app.split('/').pop()
-				navigate(`/app/${contextIdTag || auth?.idTag}/${appName}/${(file.owner?.idTag || auth?.idTag) + ':' }${file.fileId}`)
+				console.log('openFile', appConfig, file?.contentType, app)
+				if (app) {
+					// Extract app name from path like '/app/quillo' -> 'quillo'
+					const appName = app.split('/').pop()
+					navigate(
+						`/app/${contextIdTag || auth?.idTag}/${appName}/${(file.owner?.idTag || auth?.idTag) + ':'}${file.fileId}`
+					)
+				}
+			},
+
+			renameFile: function renameFile(fileId?: string) {
+				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
+				console.log('rename file', file)
+				setRenameFileId(fileId)
+				setRenameFileName(file?.fileName || '')
+			},
+
+			setRenameFileName,
+
+			doRenameFile: async function doRenameFile(fileId: string, fileName: string) {
+				if (!api) return
+				await api.files.update(fileId, { fileName })
+				setRenameFileId(undefined)
+				setRenameFileName(undefined)
+				fileListData.refresh()
+			},
+
+			doDeleteFile: async function doDeleteFile(fileId: string) {
+				if (!api) return
+				const res = await dialog.confirm(
+					t('Delete document'),
+					t('Are you sure you want to delete this document')
+				)
+				if (!res) return
+
+				await api.files.delete(fileId)
+				fileListData.refresh()
 			}
-		},
+		}),
+		[auth, api, appConfig, contextIdTag, navigate, t, fileListData, dialog]
+	)
 
-		renameFile: function renameFile(fileId?: string) {
-			const file = fileListData.getData()?.find(f => f.fileId === fileId)
-			console.log('rename file', file)
-			setRenameFileId(fileId)
-			setRenameFileName(file?.fileName || '')
-		},
+	if (!fileListData.getData())
+		return (
+			<div className="d-flex align-items-center justify-content-center h-100">
+				<LoadingSpinner size="lg" label={t('Loading files...')} />
+			</div>
+		)
 
-		setRenameFileName,
-
-		doRenameFile: async function doRenameFile(fileId: string, fileName: string) {
-			if (!api) return
-			await api.files.update(fileId, { fileName })
-			setRenameFileId(undefined)
-			setRenameFileName(undefined)
-			fileListData.refresh()
-		},
-
-		doDeleteFile: async function doDeleteFile(fileId: string) {
-			if (!api) return
-			const res = await dialog.confirm(t('Delete document'), t('Are you sure you want to delete this document'))
-			if (!res) return
-
-			await api.files.delete(fileId)
-			fileListData.refresh()
-		}
-	}), [auth, api, appConfig, contextIdTag, navigate, t, fileListData, dialog])
-
-	if (!fileListData.getData()) return <div className="d-flex align-items-center justify-content-center h-100"><LoadingSpinner size="lg" label={t('Loading files...')}/></div>
-
-	return <Fcd.Container className="g-1">
-		<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-			<FilterBar contextIdTag={contextIdTag}/>
-		</Fcd.Filter>
-		<Fcd.Content header={
-			<div className="c-nav c-hbox md-hide lg-hide">
-				<IcFilter onClick={() => setShowFilter(true)}/>
-				<div className="c-tag-list">
-					{ fileListData.filter?.fileTp == 'CRDT' && <div className="c-tag">{t('draft document')}</div> }
-					{ fileListData.filter?.fileTp == 'RTDB' && <div className="c-tag">{t('database')}</div> }
-					{ fileListData.filter?.fileTp == 'BLOB' && <div className="c-tag">{t('finalized')}</div> }
-				</div>
-			</div>}
-		>
-			{ fileListData.getData().length === 0
-				? <EmptyState
-					icon={<IcAll style={{ fontSize: '2.5rem' }} />}
-					title={t('No files found')}
-					description={t('Create a new document or upload files to get started')}
-				/>
-				: fileListData.getData().map(file => <FileCard
-					key={file.fileId}
-					className={mergeClasses('mb-1', selectedFile?.fileId === file.fileId && 'accent')}
-					file={file}
-					onClick={onClickFile}
-					renameFileId={renameFileId}
-					renameFileName={renameFileName}
-					fileOps={fileOps}
-				/>)
-			}
-		</Fcd.Content>
-		<Fcd.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
-			{ selectedFile && <FileDetails
-				file={selectedFile}
-				renameFileId={renameFileId}
-				renameFileName={renameFileName}
-				fileOps={fileOps}
-			/> }
-		</Fcd.Details>
-	</Fcd.Container>
+	return (
+		<Fcd.Container className="g-1">
+			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+				<FilterBar contextIdTag={contextIdTag} />
+			</Fcd.Filter>
+			<Fcd.Content
+				header={
+					<div className="c-nav c-hbox md-hide lg-hide">
+						<IcFilter onClick={() => setShowFilter(true)} />
+						<div className="c-tag-list">
+							{fileListData.filter?.fileTp == 'CRDT' && (
+								<div className="c-tag">{t('draft document')}</div>
+							)}
+							{fileListData.filter?.fileTp == 'RTDB' && (
+								<div className="c-tag">{t('database')}</div>
+							)}
+							{fileListData.filter?.fileTp == 'BLOB' && (
+								<div className="c-tag">{t('finalized')}</div>
+							)}
+						</div>
+					</div>
+				}
+			>
+				{fileListData.getData().length === 0 ? (
+					<EmptyState
+						icon={<IcAll style={{ fontSize: '2.5rem' }} />}
+						title={t('No files found')}
+						description={t('Create a new document or upload files to get started')}
+					/>
+				) : (
+					fileListData
+						.getData()
+						.map((file) => (
+							<FileCard
+								key={file.fileId}
+								className={mergeClasses(
+									'mb-1',
+									selectedFile?.fileId === file.fileId && 'accent'
+								)}
+								file={file}
+								onClick={onClickFile}
+								renameFileId={renameFileId}
+								renameFileName={renameFileName}
+								fileOps={fileOps}
+							/>
+						))
+				)}
+			</Fcd.Content>
+			<Fcd.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
+				{selectedFile && (
+					<FileDetails
+						file={selectedFile}
+						renameFileId={renameFileId}
+						renameFileName={renameFileName}
+						fileOps={fileOps}
+					/>
+				)}
+			</Fcd.Details>
+		</Fcd.Container>
+	)
 }
 
 // vim: ts=4

@@ -24,69 +24,97 @@ export function InlineEditFormStory() {
 	const [editing1, setEditing1] = React.useState(false)
 	const [editing2, setEditing2] = React.useState(true)
 
-	return <Story
-		name="InlineEditForm"
-		description="Inline editing form for quick text editing with save/cancel actions."
-		props={[
-			{ name: 'value', type: 'string', descr: 'Current value to edit', required: true },
-			{ name: 'onSave', type: '(value: string) => void', descr: 'Called when save button clicked', required: true },
-			{ name: 'onCancel', type: '() => void', descr: 'Called when cancel button clicked', required: true },
-			{ name: 'placeholder', type: 'string', descr: 'Input placeholder text' },
-			{ name: 'autoFocus', type: 'boolean', descr: 'Auto-focus input on mount (default: true)' },
-			{ name: 'selectOnFocus', type: 'boolean', descr: 'Select all text on focus (default: true)' },
-			{ name: 'size', type: '"small" | "default"', descr: 'Size variant' }
-		]}
-	>
-		<Variant name="Interactive Example">
-			<div className="c-vbox g-3" style={{ maxWidth: 400 }}>
-				{editing1 ? (
+	return (
+		<Story
+			name="InlineEditForm"
+			description="Inline editing form for quick text editing with save/cancel actions."
+			props={[
+				{ name: 'value', type: 'string', descr: 'Current value to edit', required: true },
+				{
+					name: 'onSave',
+					type: '(value: string) => void',
+					descr: 'Called when save button clicked',
+					required: true
+				},
+				{
+					name: 'onCancel',
+					type: '() => void',
+					descr: 'Called when cancel button clicked',
+					required: true
+				},
+				{ name: 'placeholder', type: 'string', descr: 'Input placeholder text' },
+				{
+					name: 'autoFocus',
+					type: 'boolean',
+					descr: 'Auto-focus input on mount (default: true)'
+				},
+				{
+					name: 'selectOnFocus',
+					type: 'boolean',
+					descr: 'Select all text on focus (default: true)'
+				},
+				{ name: 'size', type: '"small" | "default"', descr: 'Size variant' }
+			]}
+		>
+			<Variant name="Interactive Example">
+				<div className="c-vbox g-3" style={{ maxWidth: 400 }}>
+					{editing1 ? (
+						<InlineEditForm
+							value={value1}
+							onSave={(v) => {
+								setValue1(v)
+								setEditing1(false)
+							}}
+							onCancel={() => setEditing1(false)}
+							placeholder="Enter title"
+						/>
+					) : (
+						<div className="c-hbox g-2 align-items-center">
+							<span>{value1}</span>
+							<button
+								className="c-button small secondary"
+								onClick={() => setEditing1(true)}
+							>
+								Edit
+							</button>
+						</div>
+					)}
+				</div>
+			</Variant>
+
+			<Variant name="Default Size">
+				<div style={{ maxWidth: 400 }}>
 					<InlineEditForm
-						value={value1}
-						onSave={(v) => { setValue1(v); setEditing1(false) }}
-						onCancel={() => setEditing1(false)}
-						placeholder="Enter title"
+						value="Default size input"
+						onSave={() => {}}
+						onCancel={() => {}}
 					/>
-				) : (
-					<div className="c-hbox g-2 align-items-center">
-						<span>{value1}</span>
-						<button className="c-button small secondary" onClick={() => setEditing1(true)}>Edit</button>
-					</div>
-				)}
-			</div>
-		</Variant>
+				</div>
+			</Variant>
 
-		<Variant name="Default Size">
-			<div style={{ maxWidth: 400 }}>
-				<InlineEditForm
-					value="Default size input"
-					onSave={() => {}}
-					onCancel={() => {}}
-				/>
-			</div>
-		</Variant>
+			<Variant name="Small Size">
+				<div style={{ maxWidth: 300 }}>
+					<InlineEditForm
+						value="Small size input"
+						onSave={() => {}}
+						onCancel={() => {}}
+						size="small"
+					/>
+				</div>
+			</Variant>
 
-		<Variant name="Small Size">
-			<div style={{ maxWidth: 300 }}>
-				<InlineEditForm
-					value="Small size input"
-					onSave={() => {}}
-					onCancel={() => {}}
-					size="small"
-				/>
-			</div>
-		</Variant>
-
-		<Variant name="With Placeholder">
-			<div style={{ maxWidth: 400 }}>
-				<InlineEditForm
-					value=""
-					onSave={() => {}}
-					onCancel={() => {}}
-					placeholder="Enter a name..."
-				/>
-			</div>
-		</Variant>
-	</Story>
+			<Variant name="With Placeholder">
+				<div style={{ maxWidth: 400 }}>
+					<InlineEditForm
+						value=""
+						onSave={() => {}}
+						onCancel={() => {}}
+						placeholder="Enter a name..."
+					/>
+				</div>
+			</Variant>
+		</Story>
+	)
 }
 
 // vim: ts=4

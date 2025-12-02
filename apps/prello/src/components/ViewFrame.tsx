@@ -28,39 +28,41 @@ export interface ViewFrameProps {
 }
 
 export function ViewFrame({ view, isActive, onClick }: ViewFrameProps) {
-	return <g onClick={onClick} style={{ cursor: 'pointer' }}>
-		{/* Background */}
-		<rect
-			x={view.x}
-			y={view.y}
-			width={view.width}
-			height={view.height}
-			fill={view.backgroundColor || '#ffffff'}
-		/>
-
-		{/* Border */}
-		{view.showBorder && (
+	return (
+		<g onClick={onClick} style={{ cursor: 'pointer' }}>
+			{/* Background */}
 			<rect
 				x={view.x}
 				y={view.y}
 				width={view.width}
 				height={view.height}
-				fill="none"
-				stroke={isActive ? '#0066ff' : '#cccccc'}
-				strokeWidth={isActive ? 3 : 1}
+				fill={view.backgroundColor || '#ffffff'}
 			/>
-		)}
 
-		{/* View name label */}
-		<text
-			x={view.x + 10}
-			y={view.y - 10}
-			fill={isActive ? '#0066ff' : '#666666'}
-			fontSize={14}
-		>
-			{view.name}
-		</text>
-	</g>
+			{/* Border */}
+			{view.showBorder && (
+				<rect
+					x={view.x}
+					y={view.y}
+					width={view.width}
+					height={view.height}
+					fill="none"
+					stroke={isActive ? '#0066ff' : '#cccccc'}
+					strokeWidth={isActive ? 3 : 1}
+				/>
+			)}
+
+			{/* View name label */}
+			<text
+				x={view.x + 10}
+				y={view.y - 10}
+				fill={isActive ? '#0066ff' : '#666666'}
+				fontSize={14}
+			>
+				{view.name}
+			</text>
+		</g>
+	)
 }
 
 // vim: ts=4

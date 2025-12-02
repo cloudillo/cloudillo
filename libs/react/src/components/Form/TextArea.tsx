@@ -27,11 +27,7 @@ export const TextArea = createComponent<HTMLTextAreaElement, TextAreaProps>(
 		return (
 			<textarea
 				ref={ref}
-				className={mergeClasses(
-					'c-input',
-					resize && 'resize',
-					className
-				)}
+				className={mergeClasses('c-input', resize && 'resize', className)}
 				{...props}
 			/>
 		)

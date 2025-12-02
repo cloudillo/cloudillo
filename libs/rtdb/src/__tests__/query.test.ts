@@ -27,18 +27,13 @@ describe('Query', () => {
 
 	beforeEach(() => {
 		jest.useFakeTimers()
-		mockWs = new WebSocketManager(
-			'test-db',
-			() => 'token',
-			'wss://test.com',
-			{
-				enableCache: false,
-				reconnect: true,
-				reconnectDelay: 1000,
-				maxReconnectDelay: 30000,
-				debug: false
-			}
-		) as jest.Mocked<WebSocketManager>
+		mockWs = new WebSocketManager('test-db', () => 'token', 'wss://test.com', {
+			enableCache: false,
+			reconnect: true,
+			reconnectDelay: 1000,
+			maxReconnectDelay: 30000,
+			debug: false
+		}) as jest.Mocked<WebSocketManager>
 
 		query = new Query(mockWs, 'posts')
 	})
@@ -135,10 +130,7 @@ describe('Query', () => {
 		})
 
 		it('should work in any order', () => {
-			const result = query
-				.limit(20)
-				.where('status', '==', 'active')
-				.orderBy('name', 'asc')
+			const result = query.limit(20).where('status', '==', 'active').orderBy('name', 'asc')
 
 			expect(result).toBe(query)
 		})
@@ -154,10 +146,7 @@ describe('Query', () => {
 				]
 			})
 
-			const snapshot = await query
-				.where('published', '==', true)
-				.limit(10)
-				.get()
+			const snapshot = await query.where('published', '==', true).limit(10).get()
 
 			expect(mockWs.send).toHaveBeenCalled()
 			expect(snapshot.size).toBe(2)

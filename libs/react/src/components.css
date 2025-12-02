@@ -41,9 +41,20 @@
 }
 
 .c-markdown {
-	h1, h2, h3, h4, h5, h6 { margin: 0.5rem 0; }
-	p { margin: 0.5rem 0; }
-	strong { color: var(--col-em); }
+	h1,
+	h2,
+	h3,
+	h4,
+	h5,
+	h6 {
+		margin: 0.5rem 0;
+	}
+	p {
+		margin: 0.5rem 0;
+	}
+	strong {
+		color: var(--col-em);
+	}
 }
 
 #popper-container {
@@ -73,17 +84,42 @@
 	animation: c-loading-spinner-dash 1.5s ease-in-out infinite;
 }
 
-.c-loading-spinner.secondary .c-loading-spinner-indicator { stroke: var(--col-secondary); }
-.c-loading-spinner.accent .c-loading-spinner-indicator { stroke: var(--col-accent); }
-.c-loading-spinner.success .c-loading-spinner-indicator { stroke: var(--col-success); }
-.c-loading-spinner.warning .c-loading-spinner-indicator { stroke: var(--col-warning); }
-.c-loading-spinner.error .c-loading-spinner-indicator { stroke: var(--col-error); }
+.c-loading-spinner.secondary .c-loading-spinner-indicator {
+	stroke: var(--col-secondary);
+}
+.c-loading-spinner.accent .c-loading-spinner-indicator {
+	stroke: var(--col-accent);
+}
+.c-loading-spinner.success .c-loading-spinner-indicator {
+	stroke: var(--col-success);
+}
+.c-loading-spinner.warning .c-loading-spinner-indicator {
+	stroke: var(--col-warning);
+}
+.c-loading-spinner.error .c-loading-spinner-indicator {
+	stroke: var(--col-error);
+}
 
-.c-loading-spinner.xs .c-loading-spinner-svg { width: 1rem; height: 1rem; }
-.c-loading-spinner.sm .c-loading-spinner-svg { width: 1.5rem; height: 1.5rem; }
-.c-loading-spinner.md .c-loading-spinner-svg { width: 2rem; height: 2rem; }
-.c-loading-spinner.lg .c-loading-spinner-svg { width: 3rem; height: 3rem; }
-.c-loading-spinner.xl .c-loading-spinner-svg { width: 4rem; height: 4rem; }
+.c-loading-spinner.xs .c-loading-spinner-svg {
+	width: 1rem;
+	height: 1rem;
+}
+.c-loading-spinner.sm .c-loading-spinner-svg {
+	width: 1.5rem;
+	height: 1.5rem;
+}
+.c-loading-spinner.md .c-loading-spinner-svg {
+	width: 2rem;
+	height: 2rem;
+}
+.c-loading-spinner.lg .c-loading-spinner-svg {
+	width: 3rem;
+	height: 3rem;
+}
+.c-loading-spinner.xl .c-loading-spinner-svg {
+	width: 4rem;
+	height: 4rem;
+}
 
 .c-loading-spinner-label {
 	font-size: 0.875rem;
@@ -91,7 +127,9 @@
 }
 
 @keyframes c-loading-spinner-rotate {
-	100% { transform: rotate(360deg); }
+	100% {
+		transform: rotate(360deg);
+	}
 }
 
 @keyframes c-loading-spinner-dash {
@@ -138,7 +176,8 @@
 }
 
 @keyframes c-skeleton-pulse {
-	0%, 100% {
+	0%,
+	100% {
 		opacity: 1;
 	}
 	50% {

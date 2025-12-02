@@ -30,13 +30,7 @@ export const FilterBarComponent = createComponent<HTMLUListElement, FilterBarPro
 		return (
 			<ul
 				ref={ref}
-				className={mergeClasses(
-					'c-nav',
-					'c-filter-bar',
-					variant,
-					elevation,
-					className
-				)}
+				className={mergeClasses('c-nav', 'c-filter-bar', variant, elevation, className)}
 				{...props}
 			>
 				{children}
@@ -59,7 +53,23 @@ export interface FilterBarItemProps extends Omit<React.LiHTMLAttributes<HTMLLIEl
 
 export const FilterBarItem = createComponent<HTMLLIElement, FilterBarItemProps>(
 	'FilterBarItem',
-	({ className, icon, label, to, href, active, badge, badgeVariant = 'error', disabled, onClick, children, ...props }, ref) => {
+	(
+		{
+			className,
+			icon,
+			label,
+			to,
+			href,
+			active,
+			badge,
+			badgeVariant = 'error',
+			disabled,
+			onClick,
+			children,
+			...props
+		},
+		ref
+	) => {
 		const content = (
 			<>
 				{icon}
@@ -77,7 +87,11 @@ export const FilterBarItem = createComponent<HTMLLIElement, FilterBarItemProps>(
 		if (to) {
 			linkElement = (
 				<Link
-					className={mergeClasses('c-nav-link', active && 'active', disabled && 'disabled')}
+					className={mergeClasses(
+						'c-nav-link',
+						active && 'active',
+						disabled && 'disabled'
+					)}
 					to={to}
 				>
 					{content}
@@ -86,7 +100,11 @@ export const FilterBarItem = createComponent<HTMLLIElement, FilterBarItemProps>(
 		} else if (href) {
 			linkElement = (
 				<a
-					className={mergeClasses('c-nav-link', active && 'active', disabled && 'disabled')}
+					className={mergeClasses(
+						'c-nav-link',
+						active && 'active',
+						disabled && 'disabled'
+					)}
 					href={href}
 				>
 					{content}
@@ -119,7 +137,13 @@ export interface FilterBarDividerProps extends React.HTMLAttributes<HTMLHRElemen
 export const FilterBarDivider = createComponent<HTMLHRElement, FilterBarDividerProps>(
 	'FilterBarDivider',
 	({ className, ...props }, ref) => {
-		return <hr ref={ref} className={mergeClasses('c-filter-bar-divider', 'w-100', className)} {...props} />
+		return (
+			<hr
+				ref={ref}
+				className={mergeClasses('c-filter-bar-divider', 'w-100', className)}
+				{...props}
+			/>
+		)
 	}
 )
 
@@ -149,18 +173,27 @@ export const FilterBarSearch = createComponent<HTMLInputElement, FilterBarSearch
 	({ className, onSearch, searchIcon, onChange, ...props }, ref) => {
 		const [query, setQuery] = React.useState('')
 
-		const handleChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-			setQuery(e.target.value)
-			onChange?.(e)
-		}, [onChange])
+		const handleChange = React.useCallback(
+			(e: React.ChangeEvent<HTMLInputElement>) => {
+				setQuery(e.target.value)
+				onChange?.(e)
+			},
+			[onChange]
+		)
 
-		const handleSubmit = React.useCallback((e: React.FormEvent) => {
-			e.preventDefault()
-			onSearch?.(query)
-		}, [query, onSearch])
+		const handleSubmit = React.useCallback(
+			(e: React.FormEvent) => {
+				e.preventDefault()
+				onSearch?.(query)
+			},
+			[query, onSearch]
+		)
 
 		return (
-			<form className={mergeClasses('c-input-group', 'c-filter-bar-search', className)} onSubmit={handleSubmit}>
+			<form
+				className={mergeClasses('c-input-group', 'c-filter-bar-search', className)}
+				onSubmit={handleSubmit}
+			>
 				<input
 					ref={ref}
 					type="text"
@@ -184,7 +217,7 @@ export const FilterBar = Object.assign(FilterBarComponent, {
 	Item: FilterBarItem,
 	Divider: FilterBarDivider,
 	Section: FilterBarSection,
-	Search: FilterBarSearch,
+	Search: FilterBarSearch
 })
 
 // vim: ts=4

@@ -36,7 +36,7 @@ export interface ImageHash {
 export interface ImageVariant {
 	hash: string
 	dim: [number, number]
-	size: number,
+	size: number
 	orientation?: number
 	format: string
 }
@@ -70,7 +70,11 @@ export async function storeImage(tnId: number, sizes: string, buf: Buffer): Prom
 	if (imgMeta.exif) {
 		const exifData = exif(imgMeta.exif)
 		if (exifData?.Image?.DateTime) createdAt = exifData.Image.DateTime
-		createdAt = exifData.Image?.DateTime ?? exifData.Photo?.DateTimeOriginal ?? exifData.Photo?.DateTimeDigitized ?? new Date()
+		createdAt =
+			exifData.Image?.DateTime ??
+			exifData.Photo?.DateTimeOriginal ??
+			exifData.Photo?.DateTimeDigitized ??
+			new Date()
 		//console.log('exif', exifData)
 	} else {
 		createdAt = new Date()
@@ -115,7 +119,12 @@ export async function storeImage(tnId: number, sizes: string, buf: Buffer): Prom
 			.rotate()
 			.resize(IC_SIZE, IC_SIZE, { fit: 'inside' })
 			//.webp({ quality: 80, lossless: ['png', 'gif'].includes(imgMeta.format || '') })
-			.avif({ quality: 50, bitdepth: 8, effort: 4, lossless: ['png', 'gif'].includes(imgMeta.format || '') })
+			.avif({
+				quality: 50,
+				bitdepth: 8,
+				effort: 4,
+				lossless: ['png', 'gif'].includes(imgMeta.format || '')
+			})
 			.toBuffer({ resolveWithObject: true })
 		console.log(`	IC: ${Date.now() - t}ms`)
 		//hash.tn = crypto.createHash('sha256').update(tnBuf).digest('base64url')
@@ -139,7 +148,12 @@ export async function storeImage(tnId: number, sizes: string, buf: Buffer): Prom
 			.rotate()
 			.resize(TN_SIZE, TN_SIZE, { fit: 'inside', withoutEnlargement: true })
 			//.webp({ quality: 80, lossless: ['png', 'gif'].includes(imgMeta.format || '') })
-			.avif({ quality: 50, bitdepth: 8, effort: 4, lossless: ['png', 'gif'].includes(imgMeta.format || '') })
+			.avif({
+				quality: 50,
+				bitdepth: 8,
+				effort: 4,
+				lossless: ['png', 'gif'].includes(imgMeta.format || '')
+			})
 			.toBuffer({ resolveWithObject: true })
 		console.log(`	TN: ${Date.now() - t}ms`)
 		//hash.tn = crypto.createHash('sha256').update(tnBuf).digest('base64url')
@@ -167,14 +181,21 @@ export async function storeImage(tnId: number, sizes: string, buf: Buffer): Prom
 			//.resize(SD_SIZE, SD_SIZE, { fit: 'inside', withoutEnlargement: true })
 			.resize(SD_SIZE, SD_SIZE, { fit: 'inside' })
 			//.webp({ quality: 80, lossless: ['png', 'gif'].includes(imgMeta.format || '') })
-			.avif({ quality: 50, bitdepth: 8, effort: 4, lossless: ['png', 'gif'].includes(imgMeta.format || '') })
+			.avif({
+				quality: 50,
+				bitdepth: 8,
+				effort: 4,
+				lossless: ['png', 'gif'].includes(imgMeta.format || '')
+			})
 			.toBuffer({ resolveWithObject: true })
 		console.log(`	SD: ${Date.now() - t}ms`)
 		const hash = crypto.createHash('sha256').update(sdVar.data).digest('base64url')
 		if (hash != variants.tn?.hash && hash != variants.ic?.hash) {
 			variants.sd = {
 				hash: crypto.createHash('sha256').update(sdVar.data).digest('base64url'),
-				dim: rot ? [sdVar.info.height, sdVar.info.width] : [sdVar.info.width, sdVar.info.height],
+				dim: rot
+					? [sdVar.info.height, sdVar.info.width]
+					: [sdVar.info.width, sdVar.info.height],
 				size: sdVar.info.size,
 				//format: 'webp'
 				format: 'avif'
@@ -186,20 +207,30 @@ export async function storeImage(tnId: number, sizes: string, buf: Buffer): Prom
 	}
 
 	// HD
-	if (sizes.includes('h') && (!sizes.includes ('s') || (imgMeta.height > SD_SIZE || imgMeta.width > SD_SIZE))) {
+	if (
+		sizes.includes('h') &&
+		(!sizes.includes('s') || imgMeta.height > SD_SIZE || imgMeta.width > SD_SIZE)
+	) {
 		t = Date.now()
 		const hdVar = await img
 			.rotate()
 			.resize(HD_SIZE, HD_SIZE, { fit: 'inside', withoutEnlargement: true })
 			//.webp({ quality: 80, lossless: ['png', 'gif'].includes(imgMeta.format || '') })
-			.avif({ quality: 50, bitdepth: 8, effort: 4, lossless: ['png', 'gif'].includes(imgMeta.format || '') })
+			.avif({
+				quality: 50,
+				bitdepth: 8,
+				effort: 4,
+				lossless: ['png', 'gif'].includes(imgMeta.format || '')
+			})
 			.toBuffer({ resolveWithObject: true })
 		console.log(`	HD: ${Date.now() - t}ms`)
 		const hash = crypto.createHash('sha256').update(hdVar.data).digest('base64url')
 		if (hash != variants.sd?.hash && hash != variants.tn?.hash && hash != variants.ic?.hash) {
 			variants.hd = {
 				hash: crypto.createHash('sha256').update(hdVar.data).digest('base64url'),
-				dim: rot ? [hdVar.info.height, hdVar.info.width] : [hdVar.info.width, hdVar.info.height],
+				dim: rot
+					? [hdVar.info.height, hdVar.info.width]
+					: [hdVar.info.width, hdVar.info.height],
 				size: hdVar.info.size,
 				//format: 'webp'
 				format: 'avif'

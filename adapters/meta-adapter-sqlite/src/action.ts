@@ -16,24 +16,41 @@
 
 import * as T from '@symbion/runtype'
 import { ActionStatus } from '@cloudillo/types'
-import { Action, ActionView, ListActionsOptions, UpdateActionDataOptions, CreateOutboundActionOptions, Auth } from '@cloudillo/server/types/meta-adapter'
+import {
+	Action,
+	ActionView,
+	ListActionsOptions,
+	UpdateActionDataOptions,
+	CreateOutboundActionOptions,
+	Auth
+} from '@cloudillo/server/types/meta-adapter'
 
 import { db, ql, cleanRes } from './db.js'
 import { getIdentityTag } from './profile.js'
 
 async function getAttachment(tnId: number, attachment: string) {
 	const fileId = attachment.split(':')[1].split(',')[0] // FIXME
-	const rows = await db.all<{ fileId: string, x: string, variant: 'tn' | 'sd' | 'hd', variantId?: string }>(`SELECT f.fileId, f.x, fv.variant, fv.variantId
+	const rows = await db.all<{
+		fileId: string
+		x: string
+		variant: 'tn' | 'sd' | 'hd'
+		variantId?: string
+	}>(
+		`SELECT f.fileId, f.x, fv.variant, fv.variantId
 		FROM files f
 		LEFT JOIN file_variants fv ON f.tnId=fv.tnId AND f.fileId=fv.fileId AND variant IN ('tn', 'sd', 'hd')
 		WHERE f.tnId=$tnId AND f.fileId=$fileId
-	`, { $tnId: tnId, $fileId: fileId })
+	`,
+		{ $tnId: tnId, $fileId: fileId }
+	)
 	const x: { dim?: [number, number] } | undefined = JSON.parse(rows?.[0]?.x || '{}')
 
 	if (!rows?.length) return undefined
 
-	const ret: { fileId: string, dim: [number, number], tn?: string, sd?: string, hd?: string } =
-		{ fileId: rows?.[0]?.fileId, dim: x?.dim || [100, 100] }
+	const ret: { fileId: string; dim: [number, number]; tn?: string; sd?: string; hd?: string } = {
+		fileId: rows?.[0]?.fileId,
+		dim: x?.dim || [100, 100]
+	}
 	for (const row of rows) {
 		if (row.variant) ret[row.variant] = row.variantId
 	}
@@ -41,12 +58,22 @@ async function getAttachment(tnId: number, attachment: string) {
 	return ret
 }
 
-async function getAttachments(tnId: number, attachments: string[]): Promise<ActionView['attachments']> {
-	return (await Promise.all(attachments.map(a => getAttachment(tnId, a)))).filter(a => a) as ActionView['attachments']
+async function getAttachments(
+	tnId: number,
+	attachments: string[]
+): Promise<ActionView['attachments']> {
+	return (await Promise.all(attachments.map((a) => getAttachment(tnId, a)))).filter(
+		(a) => a
+	) as ActionView['attachments']
 }
 
-export async function listActions(tnId: number, auth: Auth | undefined, opts: ListActionsOptions): Promise<ActionView[]> {
-	const q = `SELECT a.type, a.subType, a.actionId, a.parentId, a.rootId, a.idTag as issuerTag,
+export async function listActions(
+	tnId: number,
+	auth: Auth | undefined,
+	opts: ListActionsOptions
+): Promise<ActionView[]> {
+	const q =
+		`SELECT a.type, a.subType, a.actionId, a.parentId, a.rootId, a.idTag as issuerTag,
 		pi.name as issuerName, pi.profilePic as issuerProfilePic,
 		a.audience as audienceTag, pa.name as audienceName, pa.profilePic as audienceProfilePic,
 		a.subject, a.content, a.createdAt, a.expiresAt,
@@ -58,17 +85,21 @@ export async function listActions(tnId: number, auth: Auth | undefined, opts: Li
 		LEFT JOIN actions ownReact ON ownReact.tnId=a.tnId AND ownReact.parentId=a.actionId AND ownReact.idTag=$idTag AND ownReact.type='REACT' AND coalesce(ownReact.status, 'A') NOT IN ('D')
 		WHERE a.tnId = $tnId
 		AND coalesce(a.status, 'A')
-			${opts.statuses ? ' IN (' + opts.statuses.map(s => ql(s)).join(',') + ')' : " NOT IN ('D')"}`
-		+ (opts.types ? ` AND a.type IN (${opts.types.map(tp => ql(tp)).join(',')})` : '')
-		+ (opts.audience ? ` AND (a.audience = ${ql(opts.audience)} OR (a.audience IS NULL AND a.idTag = ${ql(opts.audience)}))` : '')
-		+ (opts.involved ? ` AND (a.audience = ${ql(opts.involved)} OR (a.idTag = ${ql(opts.involved)}))` : '')
-		+ (opts.actionId ? ` AND a.actionId=${ql(opts.actionId)}` : '')
-		+ (!opts.parentId && !opts.rootId ? " AND a.parentId IS NULL" : '')
-		+ (opts.parentId ? ` AND a.parentId=${ql(opts.parentId)}` : '')
-		+ (opts.rootId ? ` AND a.rootId=${ql(opts.rootId)}` : '')
-		+ (opts.subject ? ` AND a.subject=${ql(opts.subject)}` : '')
+			${opts.statuses ? ' IN (' + opts.statuses.map((s) => ql(s)).join(',') + ')' : " NOT IN ('D')"}` +
+		(opts.types ? ` AND a.type IN (${opts.types.map((tp) => ql(tp)).join(',')})` : '') +
+		(opts.audience
+			? ` AND (a.audience = ${ql(opts.audience)} OR (a.audience IS NULL AND a.idTag = ${ql(opts.audience)}))`
+			: '') +
+		(opts.involved
+			? ` AND (a.audience = ${ql(opts.involved)} OR (a.idTag = ${ql(opts.involved)}))`
+			: '') +
+		(opts.actionId ? ` AND a.actionId=${ql(opts.actionId)}` : '') +
+		(!opts.parentId && !opts.rootId ? ' AND a.parentId IS NULL' : '') +
+		(opts.parentId ? ` AND a.parentId=${ql(opts.parentId)}` : '') +
+		(opts.rootId ? ` AND a.rootId=${ql(opts.rootId)}` : '') +
+		(opts.subject ? ` AND a.subject=${ql(opts.subject)}` : '') +
 		//+ (tag !== undefined ? " AND ','||tags||',' LIKE $tagLike" : '')
-		+ " ORDER BY a.createdAt DESC LIMIT 100"
+		' ORDER BY a.createdAt DESC LIMIT 100'
 	console.log('listActions', q)
 	const rows = await db.all<{
 		type: string
@@ -98,56 +129,71 @@ export async function listActions(tnId: number, auth: Auth | undefined, opts: Li
 	})
 	cleanRes(rows)
 	//console.log('ROWS', rows)
-	const actions: ActionView[] = await Promise.all(rows.map(async r => ({
-		type: r.type,
-		subType: r.subType,
-		actionId: r.actionId,
-		parentId: r.parentId,
-		rootId: r.rootId,
-		issuer: {
-			idTag: r.issuerTag,
-			name: r.issuerName || undefined,
-			profilePic: r.issuerProfilePic || undefined
-		},
-		audience: !r.audienceTag ? undefined : {
-			idTag: r.audienceTag,
-			name: r.audienceName || undefined,
-			profilePic: r.audienceProfilePic || undefined
-		},
-		subject: r.subject,
-		createdAt: new Date(r.createdAt * 1000).toISOString(),
-		expiresAt: r.expiresAt ? new Date(r.expiresAt * 1000).toISOString() : undefined,
-		content: r.content ? JSON.parse(r.content) : undefined,
-		attachments: r.attachments ? await getAttachments(tnId, JSON.parse(r.attachments)) : undefined,
-		status: r.status,
-		stat: {
-			ownReaction: r.ownReaction ? JSON.parse(r.ownReaction) : r.ownReaction,
-			reactions: r.reactions,
-			comments: r.comments,
-			commentsRead: r.commentsRead
-		}
-	})))
+	const actions: ActionView[] = await Promise.all(
+		rows.map(async (r) => ({
+			type: r.type,
+			subType: r.subType,
+			actionId: r.actionId,
+			parentId: r.parentId,
+			rootId: r.rootId,
+			issuer: {
+				idTag: r.issuerTag,
+				name: r.issuerName || undefined,
+				profilePic: r.issuerProfilePic || undefined
+			},
+			audience: !r.audienceTag
+				? undefined
+				: {
+						idTag: r.audienceTag,
+						name: r.audienceName || undefined,
+						profilePic: r.audienceProfilePic || undefined
+					},
+			subject: r.subject,
+			createdAt: new Date(r.createdAt * 1000).toISOString(),
+			expiresAt: r.expiresAt ? new Date(r.expiresAt * 1000).toISOString() : undefined,
+			content: r.content ? JSON.parse(r.content) : undefined,
+			attachments: r.attachments
+				? await getAttachments(tnId, JSON.parse(r.attachments))
+				: undefined,
+			status: r.status,
+			stat: {
+				ownReaction: r.ownReaction ? JSON.parse(r.ownReaction) : r.ownReaction,
+				reactions: r.reactions,
+				comments: r.comments,
+				commentsRead: r.commentsRead
+			}
+		}))
+	)
 	return actions
 }
 
-export async function listActionTokens(tnId: number, auth: Auth | undefined, opts: ListActionsOptions): Promise<string[]> {
-	const q = `SELECT at.token
+export async function listActionTokens(
+	tnId: number,
+	auth: Auth | undefined,
+	opts: ListActionsOptions
+): Promise<string[]> {
+	const q =
+		`SELECT at.token
 		FROM actions a
 		JOIN action_tokens at ON at.tnId = a.tnId AND at.actionId = a.actionId
 		WHERE a.tnId = $tnId
 		AND coalesce(a.status, 'A')
-			${opts.statuses ? ' IN (' + opts.statuses.map(s => ql(s)).join(',') + ')' : " NOT IN ('D')"}`
-		+ (opts.types ? ` AND a.type IN (${opts.types.map(tp => ql(tp)).join(',')})` : '')
-		+ (opts.audience ? ` AND (a.audience = ${ql(opts.audience)} OR (a.audience IS NULL AND a.idTag = ${ql(opts.audience)}))` : '')
-		+ (opts.involved ? ` AND (a.audience = ${ql(opts.involved)} OR (a.idTag = ${ql(opts.involved)}))` : '')
-		+ (opts.actionId ? ` AND a.actionId=${ql(opts.actionId)}` : '')
-		+ (!opts.parentId && !opts.rootId ? " AND a.parentId IS NULL" : '')
-		+ (opts.parentId ? ` AND a.parentId=${ql(opts.parentId)}` : '')
-		+ (opts.rootId ? ` AND a.rootId=${ql(opts.rootId)}` : '')
-		+ (opts.subject ? ` AND a.subject=${ql(opts.subject)}` : '')
-		+ (opts.createdAfter ? ` AND a.createdAt >= strftime('%s', ${ql(opts.createdAfter)})` : '')
+			${opts.statuses ? ' IN (' + opts.statuses.map((s) => ql(s)).join(',') + ')' : " NOT IN ('D')"}` +
+		(opts.types ? ` AND a.type IN (${opts.types.map((tp) => ql(tp)).join(',')})` : '') +
+		(opts.audience
+			? ` AND (a.audience = ${ql(opts.audience)} OR (a.audience IS NULL AND a.idTag = ${ql(opts.audience)}))`
+			: '') +
+		(opts.involved
+			? ` AND (a.audience = ${ql(opts.involved)} OR (a.idTag = ${ql(opts.involved)}))`
+			: '') +
+		(opts.actionId ? ` AND a.actionId=${ql(opts.actionId)}` : '') +
+		(!opts.parentId && !opts.rootId ? ' AND a.parentId IS NULL' : '') +
+		(opts.parentId ? ` AND a.parentId=${ql(opts.parentId)}` : '') +
+		(opts.rootId ? ` AND a.rootId=${ql(opts.rootId)}` : '') +
+		(opts.subject ? ` AND a.subject=${ql(opts.subject)}` : '') +
+		(opts.createdAfter ? ` AND a.createdAt >= strftime('%s', ${ql(opts.createdAfter)})` : '') +
 		//+ (tag !== undefined ? " AND ','||tags||',' LIKE $tagLike" : '')
-		+ ` ORDER BY a.createdAt DESC LIMIT ${opts._limit || 100}`
+		` ORDER BY a.createdAt DESC LIMIT ${opts._limit || 100}`
 	console.log('listActions', q)
 	const rows = await db.all<{
 		token: string
@@ -155,59 +201,68 @@ export async function listActionTokens(tnId: number, auth: Auth | undefined, opt
 		$tnId: tnId
 	})
 	//console.log('ROWS', rows)
-	const actions: string[] = rows.map(r => r.token)
+	const actions: string[] = rows.map((r) => r.token)
 	return actions
 }
 
 export async function getActionRootId(tnId: number, actionId: string) {
 	const res = await db.get<{ rootId: string }>(
-			"SELECT coalesce(rootId, actionId) as rootId FROM actions "
-			+ "WHERE tnId = $tnId AND actionId = $actionId",
-			{ $tnId: tnId, $actionId: actionId }
-		)
+		'SELECT coalesce(rootId, actionId) as rootId FROM actions ' +
+			'WHERE tnId = $tnId AND actionId = $actionId',
+		{ $tnId: tnId, $actionId: actionId }
+	)
 	return res?.rootId
 }
 
 export async function getActionData(tnId: number, actionId: string) {
-	const res = await db.get<{ subject?: string, reactions?: number, comments?: number }>(
-			"SELECT subject, reactions, comments FROM actions WHERE tnId = $tnId AND actionId = $actionId",
-			{ $tnId: tnId, $actionId: actionId }
-		)
+	const res = await db.get<{ subject?: string; reactions?: number; comments?: number }>(
+		'SELECT subject, reactions, comments FROM actions WHERE tnId = $tnId AND actionId = $actionId',
+		{ $tnId: tnId, $actionId: actionId }
+	)
 	return {
 		subject: res?.subject || undefined,
 		reactions: res?.reactions || undefined,
-		comments: res?.comments || undefined,
+		comments: res?.comments || undefined
 	}
 }
 
 export async function getActionByKey(tnId: number, actionKey: string) {
-	const res = await db.get<{ actionId: string, type: string, issuerTag: string, createdAt: number, subType?: string }>(
-			"SELECT actionId, type, idTag as issuerTag, createdAt, subType FROM actions WHERE tnId = $tnId AND key=$actionKey AND coalesce(status, '')!='D'",
-			{ $tnId: tnId, $actionKey: actionKey }
-		)
+	const res = await db.get<{
+		actionId: string
+		type: string
+		issuerTag: string
+		createdAt: number
+		subType?: string
+	}>(
+		"SELECT actionId, type, idTag as issuerTag, createdAt, subType FROM actions WHERE tnId = $tnId AND key=$actionKey AND coalesce(status, '')!='D'",
+		{ $tnId: tnId, $actionKey: actionKey }
+	)
 	console.log('getActionByKey', tnId, actionKey, res)
-	return !res ? undefined : {
-		actionId: res.actionId,
-		type: res.type,
-		issuerTag: res?.issuerTag,
-		createdAt: res?.createdAt,
-		subType: res?.subType || undefined,
-	}
+	return !res
+		? undefined
+		: {
+				actionId: res.actionId,
+				type: res.type,
+				issuerTag: res?.issuerTag,
+				createdAt: res?.createdAt,
+				subType: res?.subType || undefined
+			}
 }
 
 export async function getActionToken(tnId: number, actionId: string) {
 	const res = await db.get<{ token: string }>(
-			"SELECT token FROM action_tokens WHERE tnId = $tnId AND actionId = $actionId",
-			{ $tnId: tnId, $actionId: actionId }
-		)
+		'SELECT token FROM action_tokens WHERE tnId = $tnId AND actionId = $actionId',
+		{ $tnId: tnId, $actionId: actionId }
+	)
 	console.log('getActionToken', tnId, actionId, res?.token)
 	return res?.token
 }
 
 export async function createAction(tnId: number, action: Action, key?: string) {
 	console.log('createAction', tnId, action.actionId, JSON.stringify(action), key)
-	await db.run("INSERT OR IGNORE INTO actions (tnId, actionId, key, type, subType, parentId, rootId, idTag, audience, subject, content, createdAt, expiresAt, attachments) "
-		+ "VALUES ($tnId, $actionId, $key, $type, $subType, $parentId, $rootId, $idTag, $audienceTag, $subject, $content, $createdAt, $expiresAt, $attachments)",
+	await db.run(
+		'INSERT OR IGNORE INTO actions (tnId, actionId, key, type, subType, parentId, rootId, idTag, audience, subject, content, createdAt, expiresAt, attachments) ' +
+			'VALUES ($tnId, $actionId, $key, $type, $subType, $parentId, $rootId, $idTag, $audienceTag, $subject, $content, $createdAt, $expiresAt, $attachments)',
 		{
 			$tnId: tnId,
 			$actionId: action.actionId,
@@ -228,11 +283,14 @@ export async function createAction(tnId: number, action: Action, key?: string) {
 
 	let addReactions = action.content ? 1 : 0
 	if (key !== undefined) {
-		const res = await db.get<{ content?: string }>("UPDATE actions SET status='D' WHERE tnId = $tnId AND key = $key AND actionId != $actionId AND coalesce(status, '')!='D' RETURNING content", {
-			$tnId: tnId,
-			$key: key,
-			$actionId: action.actionId
-		})
+		const res = await db.get<{ content?: string }>(
+			"UPDATE actions SET status='D' WHERE tnId = $tnId AND key = $key AND actionId != $actionId AND coalesce(status, '')!='D' RETURNING content",
+			{
+				$tnId: tnId,
+				$key: key,
+				$actionId: action.actionId
+			}
+		)
 		console.log('UPDATE', res)
 		if (res?.content) addReactions -= 1
 	}
@@ -240,25 +298,35 @@ export async function createAction(tnId: number, action: Action, key?: string) {
 	console.log('ACTION', tnId, action.type, addReactions, action.parentId, action.content)
 	if (action.parentId) {
 		if (action.type == 'CMNT') {
-			await db.run('UPDATE actions SET comments=coalesce(comments, 0) + 1 WHERE tnId = $tnId '
-			+ 'AND actionId IN ($parentId, $rootId)', {
-				$tnId: tnId,
-				$parentId: action.parentId,
-				$rootId: action.rootId
-			})
+			await db.run(
+				'UPDATE actions SET comments=coalesce(comments, 0) + 1 WHERE tnId = $tnId ' +
+					'AND actionId IN ($parentId, $rootId)',
+				{
+					$tnId: tnId,
+					$parentId: action.parentId,
+					$rootId: action.rootId
+				}
+			)
 		} else if (action.type == 'REACT' && addReactions) {
-			await db.run('UPDATE actions SET reactions=coalesce(reactions, 0) + $addReactions WHERE tnId = $tnId '
-			+ 'AND actionId IN ($parentId, $rootId)', {
-				$tnId: tnId,
-				$parentId: action.parentId,
-				$rootId: action.rootId,
-				$addReactions: addReactions
-			})
+			await db.run(
+				'UPDATE actions SET reactions=coalesce(reactions, 0) + $addReactions WHERE tnId = $tnId ' +
+					'AND actionId IN ($parentId, $rootId)',
+				{
+					$tnId: tnId,
+					$parentId: action.parentId,
+					$rootId: action.rootId,
+					$addReactions: addReactions
+				}
+			)
 		}
 	}
 }
 
-export async function updateActionData(tnId: number, actionId: string, opts: UpdateActionDataOptions) {
+export async function updateActionData(
+	tnId: number,
+	actionId: string,
+	opts: UpdateActionDataOptions
+) {
 	const updList: string[] = []
 	if (opts.reactions !== undefined) updList.push(`reactions=${ql(opts.reactions)}`)
 	if (opts.comments !== undefined) updList.push(`comments=${ql(opts.comments)}`)
@@ -266,129 +334,195 @@ export async function updateActionData(tnId: number, actionId: string, opts: Upd
 	if (opts.commentsRead !== undefined) updList.push(`commentsRead=${ql(opts.commentsRead)}`)
 
 	if (updList.length > 0) {
-		const res = await db.run(`UPDATE actions SET ${updList.join(', ')} WHERE tnId = $tnId AND actionId = $actionId
-		`, {
-			$tnId: tnId,
-			$actionId: actionId
-		})
+		const res = await db.run(
+			`UPDATE actions SET ${updList.join(', ')} WHERE tnId = $tnId AND actionId = $actionId
+		`,
+			{
+				$tnId: tnId,
+				$actionId: actionId
+			}
+		)
 		console.log('updateInboundAction', updList, res, tnId, actionId)
 	}
 }
 
 /* Inbound actions */
-export async function createInboundAction(tnId: number, actionId: string, token: string, ackToken?: string) {
+export async function createInboundAction(
+	tnId: number,
+	actionId: string,
+	token: string,
+	ackToken?: string
+) {
 	console.log('inbound action', actionId)
-	await db.run('INSERT OR IGNORE INTO action_tokens (tnId, actionId, token, status, ack) '
-		+ 'VALUES ($tnId, $actionId, $token, $status, $ack)', {
-		$tnId: tnId,
-		$actionId: actionId,
-		$token: token,
-		$status: ackToken ? 'P' : null,
-		$ack: ackToken
-	})
+	await db.run(
+		'INSERT OR IGNORE INTO action_tokens (tnId, actionId, token, status, ack) ' +
+			'VALUES ($tnId, $actionId, $token, $status, $ack)',
+		{
+			$tnId: tnId,
+			$actionId: actionId,
+			$token: token,
+			$status: ackToken ? 'P' : null,
+			$ack: ackToken
+		}
+	)
 }
 
-export async function processPendingInboundActions(callback: (tnId: number, actionId: string, token: string) => Promise<boolean>) {
+export async function processPendingInboundActions(
+	callback: (tnId: number, actionId: string, token: string) => Promise<boolean>
+) {
 	let processed = 0
 
-	const actions = await db.all<{ actionId: string, tnId: number, token: string }>(
+	const actions = await db.all<{ actionId: string; tnId: number; token: string }>(
 		`SELECT a.actionId, a.tnId, a.token FROM action_tokens a
-			WHERE a.status ISNULL LIMIT 100`,)
+			WHERE a.status ISNULL LIMIT 100`
+	)
 	for (const action of actions) {
 		console.log('INBOUND ACTION', action.tnId, action.actionId, action.token)
 		try {
 			const val = await callback(action.tnId, action.actionId, action.token)
 			if (val) {
-				await db.run("UPDATE action_tokens SET status='R' WHERE tnId = $tnId AND actionId = $actionId AND status ISNULL", {
-					$tnId: action.tnId,
-					$actionId: action.actionId
-				})
+				await db.run(
+					"UPDATE action_tokens SET status='R' WHERE tnId = $tnId AND actionId = $actionId AND status ISNULL",
+					{
+						$tnId: action.tnId,
+						$actionId: action.actionId
+					}
+				)
 				processed++
 			}
 		} catch (err) {
 			console.log('ERROR', err)
-			await db.run("UPDATE action_tokens SET status='D' WHERE tnId = $tnId AND actionId = $actionId AND status ISNULL",
-				{ $tnId: action.tnId, $actionId: action.actionId })
+			await db.run(
+				"UPDATE action_tokens SET status='D' WHERE tnId = $tnId AND actionId = $actionId AND status ISNULL",
+				{ $tnId: action.tnId, $actionId: action.actionId }
+			)
 		}
 	}
 	return processed
 }
 
-export async function updateInboundAction(tnId: number, actionId: string, opts: { status?: 'R' | 'P' | 'D' | null }) {
-	const res = await db.run('UPDATE action_tokens SET status = $status WHERE tnId = $tnId AND actionId = $actionId', {
-		$tnId: tnId,
-		$actionId: actionId,
-		$status: opts.status
-	})
+export async function updateInboundAction(
+	tnId: number,
+	actionId: string,
+	opts: { status?: 'R' | 'P' | 'D' | null }
+) {
+	const res = await db.run(
+		'UPDATE action_tokens SET status = $status WHERE tnId = $tnId AND actionId = $actionId',
+		{
+			$tnId: tnId,
+			$actionId: actionId,
+			$status: opts.status
+		}
+	)
 	console.log('updateInboundAction', res, tnId, actionId)
 }
 
 // Outbound actions
-export async function createOutboundAction(tnId: number, actionId: string, token: string, opts: CreateOutboundActionOptions) {
+export async function createOutboundAction(
+	tnId: number,
+	actionId: string,
+	token: string,
+	opts: CreateOutboundActionOptions
+) {
 	const issuerTag = await getIdentityTag(tnId)
 	let count = 0
 
 	if (opts.followTag) {
-		const res = await db.run(`INSERT OR IGNORE INTO action_outbox_queue (actionId, tnId, idTag, next)
+		const res = await db.run(
+			`INSERT OR IGNORE INTO action_outbox_queue (actionId, tnId, idTag, next)
 			SELECT $actionId, $tnId, idTag, unixepoch() FROM actions
-			WHERE tnId = $tnId AND type IN ('FLLW', 'CONN') AND subType ISNULL AND idTag != $idTag AND coalesce(status, '') NOT IN ('D') GROUP BY idTag`, {
-			$actionId: actionId,
-			$tnId: tnId,
-			$idTag: issuerTag
-		})
+			WHERE tnId = $tnId AND type IN ('FLLW', 'CONN') AND subType ISNULL AND idTag != $idTag AND coalesce(status, '') NOT IN ('D') GROUP BY idTag`,
+			{
+				$actionId: actionId,
+				$tnId: tnId,
+				$idTag: issuerTag
+			}
+		)
 		console.log('createOutboundAction followTag', res)
 		count += res.changes
 	}
 	if (opts.audienceTag) {
-		const res = await db.run(`INSERT OR IGNORE INTO action_outbox_queue (actionId, tnId, idTag, next)
-			SELECT $actionId, $tnId, $audienceTag, unixepoch()`, {
-			$actionId: actionId,
-			$tnId: tnId,
-			$audienceTag: opts.audienceTag
-		})
+		const res = await db.run(
+			`INSERT OR IGNORE INTO action_outbox_queue (actionId, tnId, idTag, next)
+			SELECT $actionId, $tnId, $audienceTag, unixepoch()`,
+			{
+				$actionId: actionId,
+				$tnId: tnId,
+				$audienceTag: opts.audienceTag
+			}
+		)
 		console.log('createOutboundAction audienceTag', res)
 		count += res.changes
 	}
 	if (count) {
-		await db.run(`INSERT OR IGNORE INTO action_tokens (tnId, actionId, token, status, next)
-			VALUES ($tnId, $actionId, $token, 'L', unixepoch())`, {
-			$actionId: actionId,
-			$tnId: tnId,
-			$token: token
-		})
+		await db.run(
+			`INSERT OR IGNORE INTO action_tokens (tnId, actionId, token, status, next)
+			VALUES ($tnId, $actionId, $token, 'L', unixepoch())`,
+			{
+				$actionId: actionId,
+				$tnId: tnId,
+				$token: token
+			}
+		)
 	}
 }
 
-export async function processPendingOutboundActions(callback: (tnId: number, actionId: string, type: string, token: string, recipientTag: string) => Promise<boolean>) {
+export async function processPendingOutboundActions(
+	callback: (
+		tnId: number,
+		actionId: string,
+		type: string,
+		token: string,
+		recipientTag: string
+	) => Promise<boolean>
+) {
 	let processed = 0
 
-	const actions = await db.all<{ actionId: string, tnId: number, type: string, token: string, next?: Date }>(`
+	const actions = await db.all<{
+		actionId: string
+		tnId: number
+		type: string
+		token: string
+		next?: Date
+	}>(`
 		SELECT at.actionId, at.tnId, a.type, at.token, at.next FROM action_tokens at
 		JOIN actions a ON a.tnId = at.tnId AND a.actionId = at.actionId
 		WHERE at.status = 'L' AND at.next <= unixepoch()
 		ORDER BY at.next, at.actionId LIMIT 100`)
 	for (const action of actions) {
 		const destinations = await db.all<{ idTag: string }>(
-			'SELECT idTag FROM action_outbox_queue '
-			+ 'WHERE tnId = $tnId AND actionId = $actionId',
+			'SELECT idTag FROM action_outbox_queue ' +
+				'WHERE tnId = $tnId AND actionId = $actionId',
 			{ $tnId: action.tnId, $actionId: action.actionId }
 		)
 		for (const dst of destinations) {
 			try {
-				const val = await callback(action.tnId, action.actionId, action.type, action.token, dst.idTag)
+				const val = await callback(
+					action.tnId,
+					action.actionId,
+					action.type,
+					action.token,
+					dst.idTag
+				)
 
 				if (val) {
-					await db.run('UPDATE action_tokens SET next = NULL WHERE tnId = $tnId AND actionId = $actionId',
-						{ $tnId: action.tnId, $actionId: action.actionId })
+					await db.run(
+						'UPDATE action_tokens SET next = NULL WHERE tnId = $tnId AND actionId = $actionId',
+						{ $tnId: action.tnId, $actionId: action.actionId }
+					)
 					processed++
 				} else {
-					await db.run('UPDATE action_tokens SET next = next + 30 WHERE tnId = $tnId AND actionId = $actionId',
-						{ $tnId: action.tnId, $actionId: action.actionId })
+					await db.run(
+						'UPDATE action_tokens SET next = next + 30 WHERE tnId = $tnId AND actionId = $actionId',
+						{ $tnId: action.tnId, $actionId: action.actionId }
+					)
 				}
 			} catch (err) {
 				console.log('ERROR', err)
-				await db.run('UPDATE action_tokens SET next = next + 30 WHERE tnId = $tnId AND actionId = $actionId',
-					{ $tnId: action.tnId, $actionId: action.actionId, })
+				await db.run(
+					'UPDATE action_tokens SET next = next + 30 WHERE tnId = $tnId AND actionId = $actionId',
+					{ $tnId: action.tnId, $actionId: action.actionId }
+				)
 			}
 		}
 	}

@@ -52,7 +52,7 @@ const DEFAULT_DEBUG_CONFIG = {
  */
 export function useSnappingConfig(doc: YPrelloDocument): SnapConfiguration {
 	// Subscribe to meta changes - use counter to force re-render
-	const [version, forceUpdate] = React.useReducer(x => x + 1, 0)
+	const [version, forceUpdate] = React.useReducer((x) => x + 1, 0)
 
 	React.useEffect(() => {
 		const meta = doc.m
@@ -66,17 +66,17 @@ export function useSnappingConfig(doc: YPrelloDocument): SnapConfiguration {
 		const meta = doc.m
 
 		return {
-			enabled: meta.get('snapEnabled') as boolean ?? true,
-			snapToGrid: meta.get('snapToGrid') as boolean ?? false,
-			snapToObjects: meta.get('snapToObjects') as boolean ?? true,
-			snapToSizes: meta.get('snapToSizes') as boolean ?? true,
-			gridSize: meta.get('gridSize') as number ?? 10,
-			snapThreshold: meta.get('snapThreshold') as number ?? 8,
+			enabled: (meta.get('snapEnabled') as boolean) ?? true,
+			snapToGrid: (meta.get('snapToGrid') as boolean) ?? false,
+			snapToObjects: (meta.get('snapToObjects') as boolean) ?? true,
+			snapToSizes: (meta.get('snapToSizes') as boolean) ?? true,
+			gridSize: (meta.get('gridSize') as number) ?? 10,
+			snapThreshold: (meta.get('snapThreshold') as number) ?? 8,
 			weights: DEFAULT_SNAP_WEIGHTS,
 			guides: DEFAULT_GUIDES_CONFIG,
 			debug: {
 				...DEFAULT_DEBUG_CONFIG,
-				enabled: meta.get('snapDebug') as boolean ?? false
+				enabled: (meta.get('snapDebug') as boolean) ?? false
 			}
 		}
 	}, [doc.m, version])
@@ -86,17 +86,20 @@ export function useSnappingConfig(doc: YPrelloDocument): SnapConfiguration {
  * Get the parent ID for an object (for hierarchy weighting)
  */
 export function useGetParent(doc: YPrelloDocument): (id: string) => string | undefined {
-	return React.useCallback((id: string) => {
-		// Check if it's an object
-		const obj = doc.o.get(id)
-		if (obj?.p) return obj.p
+	return React.useCallback(
+		(id: string) => {
+			// Check if it's an object
+			const obj = doc.o.get(id)
+			if (obj?.p) return obj.p
 
-		// Check if it's a container
-		const container = doc.c.get(id)
-		if (container?.p) return container.p
+			// Check if it's a container
+			const container = doc.c.get(id)
+			if (container?.p) return container.p
 
-		return undefined
-	}, [doc])
+			return undefined
+		},
+		[doc]
+	)
 }
 
 /**
@@ -123,7 +126,7 @@ export interface UseSnapSettingsResult {
 
 export function useSnapSettings(doc: YPrelloDocument): UseSnapSettingsResult {
 	// Subscribe to meta changes - use counter to force re-render
-	const [version, forceUpdate] = React.useReducer(x => x + 1, 0)
+	const [version, forceUpdate] = React.useReducer((x) => x + 1, 0)
 
 	React.useEffect(() => {
 		const meta = doc.m
@@ -136,46 +139,58 @@ export function useSnapSettings(doc: YPrelloDocument): UseSnapSettingsResult {
 	const settings = React.useMemo<SnapSettings>(() => {
 		const meta = doc.m
 		return {
-			snapToGrid: meta.get('snapToGrid') as boolean ?? false,
-			snapToObjects: meta.get('snapToObjects') as boolean ?? true,
-			snapToSizes: meta.get('snapToSizes') as boolean ?? true,
-			snapDebug: meta.get('snapDebug') as boolean ?? false
+			snapToGrid: (meta.get('snapToGrid') as boolean) ?? false,
+			snapToObjects: (meta.get('snapToObjects') as boolean) ?? true,
+			snapToSizes: (meta.get('snapToSizes') as boolean) ?? true,
+			snapDebug: (meta.get('snapDebug') as boolean) ?? false
 		}
 	}, [doc.m, version])
 
-	const setSnapToGrid = React.useCallback((enabled: boolean) => {
-		doc.m.set('snapToGrid', enabled)
-	}, [doc.m])
+	const setSnapToGrid = React.useCallback(
+		(enabled: boolean) => {
+			doc.m.set('snapToGrid', enabled)
+		},
+		[doc.m]
+	)
 
-	const setSnapToObjects = React.useCallback((enabled: boolean) => {
-		doc.m.set('snapToObjects', enabled)
-	}, [doc.m])
+	const setSnapToObjects = React.useCallback(
+		(enabled: boolean) => {
+			doc.m.set('snapToObjects', enabled)
+		},
+		[doc.m]
+	)
 
-	const setSnapToSizes = React.useCallback((enabled: boolean) => {
-		doc.m.set('snapToSizes', enabled)
-	}, [doc.m])
+	const setSnapToSizes = React.useCallback(
+		(enabled: boolean) => {
+			doc.m.set('snapToSizes', enabled)
+		},
+		[doc.m]
+	)
 
-	const setSnapDebug = React.useCallback((enabled: boolean) => {
-		doc.m.set('snapDebug', enabled)
-	}, [doc.m])
+	const setSnapDebug = React.useCallback(
+		(enabled: boolean) => {
+			doc.m.set('snapDebug', enabled)
+		},
+		[doc.m]
+	)
 
 	const toggleSnapToGrid = React.useCallback(() => {
-		const current = doc.m.get('snapToGrid') as boolean ?? false
+		const current = (doc.m.get('snapToGrid') as boolean) ?? false
 		doc.m.set('snapToGrid', !current)
 	}, [doc.m])
 
 	const toggleSnapToObjects = React.useCallback(() => {
-		const current = doc.m.get('snapToObjects') as boolean ?? true
+		const current = (doc.m.get('snapToObjects') as boolean) ?? true
 		doc.m.set('snapToObjects', !current)
 	}, [doc.m])
 
 	const toggleSnapToSizes = React.useCallback(() => {
-		const current = doc.m.get('snapToSizes') as boolean ?? true
+		const current = (doc.m.get('snapToSizes') as boolean) ?? true
 		doc.m.set('snapToSizes', !current)
 	}, [doc.m])
 
 	const toggleSnapDebug = React.useCallback(() => {
-		const current = doc.m.get('snapDebug') as boolean ?? false
+		const current = (doc.m.get('snapDebug') as boolean) ?? false
 		doc.m.set('snapDebug', !current)
 	}, [doc.m])
 

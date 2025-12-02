@@ -52,12 +52,15 @@ const sidebarAtoms = new Map<string, ReturnType<typeof atom<SidebarState>>>()
 
 function getSidebarAtom(id: string, defaults: Partial<SidebarState>) {
 	if (!sidebarAtoms.has(id)) {
-		sidebarAtoms.set(id, atom<SidebarState>({
-			isOpen: defaults.isOpen ?? false,
-			isPinned: defaults.isPinned ?? false,
-			isCollapsed: defaults.isCollapsed ?? false,
-			width: defaults.width ?? 256
-		}))
+		sidebarAtoms.set(
+			id,
+			atom<SidebarState>({
+				isOpen: defaults.isOpen ?? false,
+				isPinned: defaults.isPinned ?? false,
+				isCollapsed: defaults.isCollapsed ?? false,
+				width: defaults.width ?? 256
+			})
+		)
 	}
 	return sidebarAtoms.get(id)!
 }
@@ -74,32 +77,37 @@ export function useSidebar(options: UseSidebarOptions = {}): UseSidebarReturn {
 	} = options
 
 	const sidebarAtom = React.useMemo(
-		() => getSidebarAtom(id, {
-			isOpen: defaultOpen,
-			isPinned: defaultPinned,
-			isCollapsed: defaultCollapsed,
-			width: defaultWidth
-		}),
+		() =>
+			getSidebarAtom(id, {
+				isOpen: defaultOpen,
+				isPinned: defaultPinned,
+				isCollapsed: defaultCollapsed,
+				width: defaultWidth
+			}),
 		[id]
 	)
 
 	const [state, setState] = useAtom(sidebarAtom)
 
-	const actions = React.useMemo(() => ({
-		open: () => setState(s => ({ ...s, isOpen: true })),
-		close: () => setState(s => ({ ...s, isOpen: false })),
-		toggle: () => setState(s => ({ ...s, isOpen: !s.isOpen })),
-		pin: () => setState(s => ({ ...s, isPinned: true })),
-		unpin: () => setState(s => ({ ...s, isPinned: false })),
-		togglePin: () => setState(s => ({ ...s, isPinned: !s.isPinned })),
-		collapse: () => setState(s => ({ ...s, isCollapsed: true })),
-		expand: () => setState(s => ({ ...s, isCollapsed: false })),
-		toggleCollapse: () => setState(s => ({ ...s, isCollapsed: !s.isCollapsed })),
-		setWidth: (width: number) => setState(s => ({
-			...s,
-			width: Math.max(minWidth, Math.min(maxWidth, width))
-		}))
-	}), [setState, minWidth, maxWidth])
+	const actions = React.useMemo(
+		() => ({
+			open: () => setState((s) => ({ ...s, isOpen: true })),
+			close: () => setState((s) => ({ ...s, isOpen: false })),
+			toggle: () => setState((s) => ({ ...s, isOpen: !s.isOpen })),
+			pin: () => setState((s) => ({ ...s, isPinned: true })),
+			unpin: () => setState((s) => ({ ...s, isPinned: false })),
+			togglePin: () => setState((s) => ({ ...s, isPinned: !s.isPinned })),
+			collapse: () => setState((s) => ({ ...s, isCollapsed: true })),
+			expand: () => setState((s) => ({ ...s, isCollapsed: false })),
+			toggleCollapse: () => setState((s) => ({ ...s, isCollapsed: !s.isCollapsed })),
+			setWidth: (width: number) =>
+				setState((s) => ({
+					...s,
+					width: Math.max(minWidth, Math.min(maxWidth, width))
+				}))
+		}),
+		[setState, minWidth, maxWidth]
+	)
 
 	return {
 		...state,

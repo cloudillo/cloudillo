@@ -31,7 +31,7 @@ import {
 	generateAuthenticationOptions,
 	generateRegistrationOptions,
 	verifyAuthenticationResponse,
-	verifyRegistrationResponse,
+	verifyRegistrationResponse
 	//GenerateRegistrationOptionsOpts,
 } from '@simplewebauthn/server'
 import WebPush from 'web-push'
@@ -130,15 +130,22 @@ interface LoginResult {
 	token: string
 }
 
-async function returnLogin(ctx: Context, login: Omit<LoginResult, 'token' | 'settings'>, remember: boolean = false) {
+async function returnLogin(
+	ctx: Context,
+	login: Omit<LoginResult, 'token' | 'settings'>,
+	remember: boolean = false
+) {
 	if (login.tnId) {
 		//if (!login.roles.includes() && login.userId === login.tnId) login.roles.push(0)
 
 		console.log('LOGIN', login)
-		const token = await authAdapter.createAccessToken({
-			t: login.idTag,
-			r: login.roles
-		}, { expiresIn: TOKEN_EXPIRE + 'h' })
+		const token = await authAdapter.createAccessToken(
+			{
+				t: login.idTag,
+				r: login.roles
+			},
+			{ expiresIn: TOKEN_EXPIRE + 'h' }
+		)
 		/*
 		ctx.cookies.set('token', token, { httpOnly: true, secure: true, maxAge: remember ? TOKEN_EXPIRE * 1000 * 3600 : undefined })
 		ctx.cookies.set('login', '1', { httpOnly: false, secure: true, maxAge: remember ? TOKEN_EXPIRE * 1000 * 3600 : undefined })
@@ -176,16 +183,20 @@ export async function postLogin(ctx: Context) {
 
 		if (!auth) ctx.throw(403)
 		//console.log(p.password, passwordHash(p.password, auth.passwordHash.split(':')[0]))
-		if (passwordHash(p.password, auth.passwordHash.split(':')[0]) !== auth.passwordHash) ctx.throw(403)
+		if (passwordHash(p.password, auth.passwordHash.split(':')[0]) !== auth.passwordHash)
+			ctx.throw(403)
 
-
-		await returnLogin(ctx, {
-			tnId,
-			idTag: auth.idTag,
-			name: '-',
-			//roles: roles ? JSON.parse(roles) : [],
-			roles: []
-		}, p.remember)
+		await returnLogin(
+			ctx,
+			{
+				tnId,
+				idTag: auth.idTag,
+				name: '-',
+				//roles: roles ? JSON.parse(roles) : [],
+				roles: []
+			},
+			p.remember
+		)
 	} catch (err) {
 		console.log('LOGIN ERROR', err)
 		ctx.throw(403)
@@ -203,13 +214,23 @@ export async function postLogout(ctx: Context) {
 //////////////
 // Register //
 //////////////
-async function verifyRegisterData(type: 'local' | 'domain', idTag: string, appDomain: string | undefined, localIps: string[]) {
+async function verifyRegisterData(
+	type: 'local' | 'domain',
+	idTag: string,
+	appDomain: string | undefined,
+	localIps: string[]
+) {
 	// Format
 	if (type == 'domain') {
 		const res = {
 			ip: localIps,
 			idTagError: !idTag.match(/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+$/) ? 'invalid' : false,
-			appDomainError: appDomain && (!appDomain.match(/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+$/) || appDomain.startsWith('cl-o.')) ? 'invalid' : false
+			appDomainError:
+				appDomain &&
+				(!appDomain.match(/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+$/) ||
+					appDomain.startsWith('cl-o.'))
+					? 'invalid'
+					: false
 		}
 		if (res.idTagError || res.appDomainError) return res
 	} else if (type == 'local') {
@@ -222,7 +243,7 @@ async function verifyRegisterData(type: 'local' | 'domain', idTag: string, appDo
 	}
 	// DNS
 	const resolver = new bns.RecursiveResolver({
-		minimize: true,
+		minimize: true
 	})
 	resolver.hints.setDefault()
 	//resolver.on('log', (args: any) => console.log('RESOLVER', args))
@@ -233,12 +254,9 @@ async function verifyRegisterData(type: 'local' | 'domain', idTag: string, appDo
 	if (type == 'local') {
 		return {
 			ip: localIps,
-			idTagError: tenantData ? 'used'
-				: false,
-			appDomainError: domainData ? 'used'
-				: false
+			idTagError: tenantData ? 'used' : false,
+			appDomainError: domainData ? 'used' : false
 		}
-		
 	} else {
 		const apiRes = await resolver.lookup('cl-o.' + idTag, 'A')
 		//console.log(apiRes)
@@ -250,16 +268,22 @@ async function verifyRegisterData(type: 'local' | 'domain', idTag: string, appDo
 
 		return {
 			ip: localIps,
-			idTagError: tenantData ? 'used'
-				: !apiIp ? 'nodns'
-				: !localIps.includes(apiIp) ? 'ip'
-				: false,
-			appDomainError: domainData ? 'used'
-				: !appIp ? 'nodns'
-				: !localIps.includes(appIp) ? 'ip'
-				: false,
+			idTagError: tenantData
+				? 'used'
+				: !apiIp
+					? 'nodns'
+					: !localIps.includes(apiIp)
+						? 'ip'
+						: false,
+			appDomainError: domainData
+				? 'used'
+				: !appIp
+					? 'nodns'
+					: !localIps.includes(appIp)
+						? 'ip'
+						: false,
 			apiIp,
-			appIp,
+			appIp
 		}
 	}
 }
@@ -310,7 +334,7 @@ export async function postRegister(ctx: Context) {
 	try {
 		newTnId = await authAdapter.createTenant(idTag, {
 			password: p.password,
-			email: p.email,
+			email: p.email
 		})
 		const name = idTag.replace(/\..*$/, '')
 		await metaAdapter.createTenant(newTnId, p.idTag, {
@@ -330,8 +354,7 @@ export async function postRegister(ctx: Context) {
 		ctx.throw(422)
 	}
 
-	ctx.body = {
-	}
+	ctx.body = {}
 }
 
 export async function getAcmeChallengeResponse(ctx: BaseContext) {
@@ -361,12 +384,16 @@ export async function getLoginToken(ctx: Context) {
 		const auth = await authAdapter.getAuthPassword(ctx.state.tenantTag)
 		if (!auth) ctx.throw(403)
 
-		await returnLogin(ctx, {
-			tnId,
-			idTag: auth.idTag,
-			name: 'FIXME',
-			roles: []
-			}, true /* FIXME */)
+		await returnLogin(
+			ctx,
+			{
+				tnId,
+				idTag: auth.idTag,
+				name: 'FIXME',
+				roles: []
+			},
+			true /* FIXME */
+		)
 	} catch (err) {
 		console.log('TOKEN ERROR', err)
 		ctx.throw(403)
@@ -384,10 +411,11 @@ export async function getAccessToken(ctx: Context) {
 	const q = validateQS(ctx, tGetAccessToken)
 	let token
 
-	const subject =
-		!q.subject ? undefined
-		: typeof q.subject == 'string' ? q.subject.split(':')
-		: q.subject
+	const subject = !q.subject
+		? undefined
+		: typeof q.subject == 'string'
+			? q.subject.split(':')
+			: q.subject
 	if (subject && subject.length != 3) ctx.throw(422, 'Invalid subject')
 
 	const [resIdTag, resId, resAccess] = subject || []
@@ -438,9 +466,17 @@ export async function getAccessToken(ctx: Context) {
 // Proxy token
 const proxyTokenCache: Record<number, LRUCache<string, string>> = {}
 
-export async function createProxyToken(tnId: number, targetTag: string, opts: { subject?: string } = {}) {
+export async function createProxyToken(
+	tnId: number,
+	targetTag: string,
+	opts: { subject?: string } = {}
+) {
 	let cache = !opts.subject ? undefined : proxyTokenCache[tnId]
-	if (!cache && !opts.subject) proxyTokenCache[tnId] = cache = new LRUCache({ max: 1000, ttl: 1000 * 60 * 60 * 1 /* 1h */ })
+	if (!cache && !opts.subject)
+		proxyTokenCache[tnId] = cache = new LRUCache({
+			max: 1000,
+			ttl: 1000 * 60 * 60 * 1 /* 1h */
+		})
 	let token = cache?.get(targetTag)
 	if (token) return token
 
@@ -449,17 +485,24 @@ export async function createProxyToken(tnId: number, targetTag: string, opts: { 
 		const profile = await metaAdapter.readProfile(tnId, targetTag)
 		if (!profile?.status) return
 
-		const authToken = await authAdapter.createToken(tnId, {
-			t: 'PROXY',
-			aud: targetTag
-		},
-		{
-			expiresIn: '1m'
-		})
+		const authToken = await authAdapter.createToken(
+			tnId,
+			{
+				t: 'PROXY',
+				aud: targetTag
+			},
+			{
+				expiresIn: '1m'
+			}
+		)
 
 		// Get access token to target
 		//console.log('authToken', authToken)
-		const tokenRes = await fetch('https://cl-o.' + targetTag + `/api/auth/access-token?token=${authToken}${opts.subject ? `&subject=${opts.subject}` : ''}`)
+		const tokenRes = await fetch(
+			'https://cl-o.' +
+				targetTag +
+				`/api/auth/access-token?token=${authToken}${opts.subject ? `&subject=${opts.subject}` : ''}`
+		)
 		if (tokenRes.ok) {
 			//console.log('tokenRes', tokenRes.status)
 			const token = (await tokenRes.json()).token
@@ -487,18 +530,26 @@ export async function getProxyToken(ctx: Context) {
 }
 
 // Action token
-export async function createActionToken(tnId: number, userId: number, action: Omit<Action, 'actionId'>) {
+export async function createActionToken(
+	tnId: number,
+	userId: number,
+	action: Omit<Action, 'actionId'>
+) {
 	try {
-		const token = await authAdapter.createToken(tnId, {
-			t: action.type + (action.subType ? ':' + action.subType : ''),
-			aud: action.audienceTag,
-			sub: action.subject,
-			p: action.parentId,
-			c: action.content,
-			a: action.attachments
-		}, {
-			expiresAt: action.expiresAt ? Math.trunc(action.expiresAt) : undefined
-		})
+		const token = await authAdapter.createToken(
+			tnId,
+			{
+				t: action.type + (action.subType ? ':' + action.subType : ''),
+				aud: action.audienceTag,
+				sub: action.subject,
+				p: action.parentId,
+				c: action.content,
+				a: action.attachments
+			},
+			{
+				expiresAt: action.expiresAt ? Math.trunc(action.expiresAt) : undefined
+			}
+		)
 		return token
 	} catch (err) {
 		console.log('TOKEN ERROR', err)
@@ -523,12 +574,18 @@ export async function postSetPassword(ctx: Context) {
 
 	try {
 		if (p.currentPassword !== undefined) {
-
 			const auth = await authAdapter.getAuthPassword(idTag)
 			console.log('AUTH', idTag, auth)
 			if (!auth) ctx.throw(403)
-			console.log(p.currentPassword, passwordHash(p.currentPassword, auth.passwordHash.split(':')[0]))
-			if (passwordHash(p.currentPassword, auth.passwordHash.split(':')[0]) !== auth.passwordHash) ctx.throw(403)
+			console.log(
+				p.currentPassword,
+				passwordHash(p.currentPassword, auth.passwordHash.split(':')[0])
+			)
+			if (
+				passwordHash(p.currentPassword, auth.passwordHash.split(':')[0]) !==
+				auth.passwordHash
+			)
+				ctx.throw(403)
 
 			await authAdapter.setAuthPassword(idTag, p.newPassword)
 			ctx.body = {}
@@ -544,8 +601,8 @@ export async function postSetPassword(ctx: Context) {
 }
 
 const tResetPasswordRequest = T.struct({
-	email: T.string,				// Primary user email
-	secEmail: T.optional(T.string)	// Email to send the request to
+	email: T.string, // Primary user email
+	secEmail: T.optional(T.string) // Email to send the request to
 })
 
 export async function postResetPasswordRequest(ctx: Context) {
@@ -553,8 +610,11 @@ export async function postResetPasswordRequest(ctx: Context) {
 
 	try {
 		const vfyCode = nanoid()
-		await ctx.db.proc('SELECT api.user__reset_password_request($1, $2, $3);',
-			[p.email, p.secEmail || p.email, vfyCode])
+		await ctx.db.proc('SELECT api.user__reset_password_request($1, $2, $3);', [
+			p.email,
+			p.secEmail || p.email,
+			vfyCode
+		])
 		// await sendMail('PWDC', {
 		// 	to: p.email,
 		// 	site: config.siteName,
@@ -594,7 +654,9 @@ export async function getWebauthnRegisterRequest(ctx: Context) {
 	ctx.body = {
 		options,
 		//challenge: options.challenge,
-		token: jwt.sign({ tnId, challenge: options.challenge }, webauthnJwtSecret, { expiresIn: '2m' })
+		token: jwt.sign({ tnId, challenge: options.challenge }, webauthnJwtSecret, {
+			expiresIn: '2m'
+		})
 	}
 }
 
@@ -658,7 +720,11 @@ export async function deleteWebauthnDeleteCredential(ctx: Context) {
 }
 
 export async function getWebauthnLoginRequest(ctx: Context) {
-	const allowCredentials = (await authAdapter.listWebauthnCredentials(ctx.state.tnId)).map(c => ({ id: c.credentialId }))
+	const allowCredentials = (await authAdapter.listWebauthnCredentials(ctx.state.tnId)).map(
+		(c) => ({
+			id: c.credentialId
+		})
+	)
 	const options = await generateAuthenticationOptions({
 		rpID: ctx.state.tenantTag,
 		allowCredentials,
@@ -668,7 +734,9 @@ export async function getWebauthnLoginRequest(ctx: Context) {
 	console.log('WEBAUTHN LOGIN REQUEST', options)
 	ctx.body = {
 		options,
-		token: jwt.sign({ tnId: ctx.state.tnId, challenge: options.challenge }, webauthnJwtSecret, { expiresIn: '2m' })
+		token: jwt.sign({ tnId: ctx.state.tnId, challenge: options.challenge }, webauthnJwtSecret, {
+			expiresIn: '2m'
+		})
 	}
 }
 
@@ -705,13 +773,17 @@ export async function postWebauthnLogin(ctx: Context) {
 				//credentialID: credential.credentialId,
 				id: response.id,
 				counter: credential.counter,
-				publicKey: Buffer.from(credential.publicKey, 'base64'),
+				publicKey: Buffer.from(credential.publicKey, 'base64')
 			}
 		})
 		if (!verification.verified || !verification.authenticationInfo) ctx.throw(403)
 
 		if (verification.authenticationInfo.newCounter != credential.counter) {
-			await authAdapter.updateWebauthnCredentialCounter(tnId, response.credentialId, verification.authenticationInfo.newCounter)
+			await authAdapter.updateWebauthnCredentialCounter(
+				tnId,
+				response.credentialId,
+				verification.authenticationInfo.newCounter
+			)
 		}
 
 		await returnLogin(ctx, {
@@ -719,7 +791,7 @@ export async function postWebauthnLogin(ctx: Context) {
 			idTag: tenantTag,
 			name: 'FIXME',
 			//roles: roles ? JSON.parse(roles) : [],
-			roles: [],
+			roles: []
 		})
 	} catch (err) {
 		console.log('WEBAUTHN REGISTER ERROR', err)

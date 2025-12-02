@@ -27,10 +27,7 @@ import { getObjectsInViewInZOrder, getObjectIdsInView } from '../crdt'
 /**
  * Get all objects visible in a view, in z-order
  */
-export function useViewObjects(
-	doc: YPrelloDocument,
-	viewId: ViewId | null
-): PrelloObject[] {
+export function useViewObjects(doc: YPrelloDocument, viewId: ViewId | null): PrelloObject[] {
 	const objects = useY(doc.o)
 	const containers = useY(doc.c)
 	const rootChildren = useY(doc.r)
@@ -45,10 +42,7 @@ export function useViewObjects(
 /**
  * Get object IDs visible in a view
  */
-export function useViewObjectIds(
-	doc: YPrelloDocument,
-	viewId: ViewId | null
-): ObjectId[] {
+export function useViewObjectIds(doc: YPrelloDocument, viewId: ViewId | null): ObjectId[] {
 	const objects = useY(doc.o)
 
 	return React.useMemo(() => {

@@ -38,9 +38,7 @@ export const PropertyField = createComponent<HTMLDivElement, PropertyFieldProps>
 				>
 					{label}
 				</span>
-				<div className="c-property-field-control flex-fill">
-					{children}
-				</div>
+				<div className="c-property-field-control flex-fill">{children}</div>
 			</div>
 		)
 	}

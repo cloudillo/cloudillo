@@ -27,10 +27,12 @@ interface PageProps {
 }
 
 export function Page({ title, noBackButton, actions, children }: PageProps) {
-	return <div>
-		{title && <h2>{title}</h2>}
-		{children}
-	</div>
+	return (
+		<div>
+			{title && <h2>{title}</h2>}
+			{children}
+		</div>
+	)
 }
 
 // vim: ts=4

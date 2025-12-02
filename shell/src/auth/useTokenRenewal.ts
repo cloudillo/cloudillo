@@ -41,7 +41,6 @@ export function useTokenRenewal() {
 		}
 	}, [])
 
-
 	// Perform token renewal
 	const renewToken = React.useCallback(async () => {
 		if (!api) return
@@ -63,44 +62,52 @@ export function useTokenRenewal() {
 	}, [api, setAuth])
 
 	// Schedule renewal at RENEWAL_THRESHOLD of remaining lifetime
-	const scheduleRenewal = React.useCallback((token: string) => {
-		const expiry = getTokenExpiry(token)
-		if (!expiry) {
-			console.warn('[TokenRenewal] Could not parse token expiry')
-			return
-		}
+	const scheduleRenewal = React.useCallback(
+		(token: string) => {
+			const expiry = getTokenExpiry(token)
+			if (!expiry) {
+				console.warn('[TokenRenewal] Could not parse token expiry')
+				return
+			}
 
-		const now = Date.now()
-		const remaining = expiry - now
+			const now = Date.now()
+			const remaining = expiry - now
 
-		if (remaining <= 0) {
-			console.warn('[TokenRenewal] Token already expired')
-			return
-		}
+			if (remaining <= 0) {
+				console.warn('[TokenRenewal] Token already expired')
+				return
+			}
 
-		const renewAt = remaining * RENEWAL_THRESHOLD
+			const renewAt = remaining * RENEWAL_THRESHOLD
 
-		// Clear any existing timer
-		if (renewalTimerRef.current) {
-			clearTimeout(renewalTimerRef.current)
-		}
-
-		renewalTimerRef.current = window.setTimeout(renewToken, renewAt)
-		console.log(`[TokenRenewal] Scheduled renewal in ${Math.round(renewAt / 1000 / 60)} minutes`)
-	}, [getTokenExpiry, renewToken])
-
-	// Effect: schedule renewal when auth token changes
-	React.useEffect(function onAuthChange() {
-		if (auth?.token) {
-			scheduleRenewal(auth.token)
-		}
-
-		return () => {
+			// Clear any existing timer
 			if (renewalTimerRef.current) {
 				clearTimeout(renewalTimerRef.current)
 			}
-		}
-	}, [auth?.token, scheduleRenewal])
+
+			renewalTimerRef.current = window.setTimeout(renewToken, renewAt)
+			console.log(
+				`[TokenRenewal] Scheduled renewal in ${Math.round(renewAt / 1000 / 60)} minutes`
+			)
+		},
+		[getTokenExpiry, renewToken]
+	)
+
+	// Effect: schedule renewal when auth token changes
+	React.useEffect(
+		function onAuthChange() {
+			if (auth?.token) {
+				scheduleRenewal(auth.token)
+			}
+
+			return () => {
+				if (renewalTimerRef.current) {
+					clearTimeout(renewalTimerRef.current)
+				}
+			}
+		},
+		[auth?.token, scheduleRenewal]
+	)
 
 	return { renewToken }
 }

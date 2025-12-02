@@ -33,19 +33,22 @@ export interface SidebarProps extends React.HTMLAttributes<HTMLElement> {
 
 export const Sidebar = createComponent<HTMLElement, SidebarProps>(
 	'Sidebar',
-	({
-		className,
-		side = 'left',
-		open,
-		pinned,
-		collapsed,
-		width,
-		autoPin,
-		sidebar,
-		style,
-		children,
-		...props
-	}, ref) => {
+	(
+		{
+			className,
+			side = 'left',
+			open,
+			pinned,
+			collapsed,
+			width,
+			autoPin,
+			sidebar,
+			style,
+			children,
+			...props
+		},
+		ref
+	) => {
 		// Use either controlled props or sidebar hook values
 		const isOpen = open ?? sidebar?.isOpen ?? false
 		const isPinned = pinned ?? sidebar?.isPinned ?? false

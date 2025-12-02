@@ -25,11 +25,7 @@ export const NativeSelect = createComponent<HTMLSelectElement, NativeSelectProps
 	'NativeSelect',
 	({ className, children, ...props }, ref) => {
 		return (
-			<select
-				ref={ref}
-				className={mergeClasses('c-select', className)}
-				{...props}
-			>
+			<select ref={ref} className={mergeClasses('c-select', className)} {...props}>
 				{children}
 			</select>
 		)

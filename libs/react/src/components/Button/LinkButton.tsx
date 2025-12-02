@@ -35,7 +35,7 @@ export const LinkButton = createComponent<HTMLButtonElement, LinkButtonProps>(
 			await delay(200)
 			setClicked(false)
 			if (type === 'submit') {
-				(evt.target as HTMLButtonElement).form?.requestSubmit()
+				;(evt.target as HTMLButtonElement).form?.requestSubmit()
 			} else {
 				onClick?.(evt)
 			}
@@ -44,12 +44,7 @@ export const LinkButton = createComponent<HTMLButtonElement, LinkButtonProps>(
 		return (
 			<button
 				ref={ref}
-				className={mergeClasses(
-					'c-link',
-					variant,
-					clicked && 'clicked',
-					className
-				)}
+				className={mergeClasses('c-link', variant, clicked && 'clicked', className)}
 				type={type}
 				onClick={handleClick}
 				{...props}

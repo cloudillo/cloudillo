@@ -94,9 +94,7 @@ export function Welcome() {
 			})
 			console.log('setPassword RES', res)
 			setProgress('success')
-			// Convert settings array to record
-			const settings = Object.fromEntries(res.settings)
-			setAuth({ ...res, settings })
+			setAuth({ ...res })
 			// Navigate to the onboarding process
 			setTimeout(() => {
 				navigate('/onboarding/join')

@@ -21,7 +21,7 @@ import { useApi } from '@cloudillo/react'
 
 import { useSettings } from './settings.js'
 
-function setTheme(theme: string | number | boolean, colors: string | number | boolean) {
+export function setTheme(theme: string | number | boolean | undefined, colors: string | number | boolean | undefined) {
 	//console.log('setTheme', theme, colors)
 
 	switch (theme) {

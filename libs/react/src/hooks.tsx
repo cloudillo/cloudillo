@@ -31,7 +31,6 @@ export interface AuthState {
 	name?: string
 	profilePic?: string
 	roles?: string[]
-	settings?: Record<string, unknown>
 	token?: string
 }
 
@@ -81,6 +80,7 @@ export const apiAtom = atom<ApiState>({})
  */
 export interface ApiHook {
 	api: ApiClient | null
+	authenticated: boolean
 	setIdTag: (idTag: string) => void
 }
 
@@ -124,10 +124,14 @@ export function useApi(): ApiHook {
 		return client
 	}, [apiState.idTag, auth?.idTag, auth?.token])
 
-	return {
+	const setIdTag = React.useCallback((idTag: string) => setApiState({ idTag }), [setApiState])
+	const authenticated = !!auth?.token
+
+	return React.useMemo(() => ({
 		api,
-		setIdTag: (idTag: string) => setApiState({ idTag })
-	}
+		authenticated,
+		setIdTag
+	}), [api, authenticated, setIdTag])
 }
 
 interface UseCloudillo {

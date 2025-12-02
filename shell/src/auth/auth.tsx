@@ -157,12 +157,6 @@ export function LoginForm() {
 	const [forgot, setForgot] = React.useState(false)
 	const [error, setError] = React.useState<string | undefined>()
 
-	function onLoggedIn(authState: AuthState) {
-		console.log('onLoggedIn', { authState })
-		setAuth(authState)
-		if (authState.token) localStorage.setItem('loginToken', authState.token)
-	}
-
 	async function onSubmit(evt: React.FormEvent) {
 		evt.preventDefault()
 
@@ -176,11 +170,10 @@ export function LoginForm() {
 				idTag: api.idTag,
 				password
 			})
-			const authState: AuthState = {
-				...loginResult,
-				settings: Object.fromEntries(loginResult.settings || [])
-			}
-			onLoggedIn(authState)
+			const authState: AuthState = { ...loginResult }
+			console.log('onLoggedIn', { authState })
+			setAuth(authState)
+			if (authState.token) localStorage.setItem('loginToken', authState.token)
 		} catch (err: any) {
 			console.error('Login failed:', err)
 			setError(err.message || 'Login failed')
@@ -194,10 +187,8 @@ export function LoginForm() {
 	}
 
 	if (auth) {
-		const navTo =
-			auth.settings?.['ui.onboarding'] && `/onboarding/${auth.settings['ui.onboarding']}`
-			|| appConfig?.menu?.find(m => m.id === appConfig.defaultMenu)?.path
-			|| '/app/feed'
+		// After login, layout.tsx will load settings and handle onboarding redirect
+		const navTo = appConfig?.menu?.find(m => m.id === appConfig.defaultMenu)?.path || '/app/feed'
 		return <Navigate to={navTo}/>
 	} else {
 		return <form className="c-panel p-3" onSubmit={onSubmit}>

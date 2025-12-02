@@ -49,10 +49,7 @@ export function useTokenRenewal() {
 		try {
 			console.log('[TokenRenewal] Renewing token...')
 			const result = await api.auth.getLoginToken()
-			const newAuth: AuthState = {
-				...result,
-				settings: Object.fromEntries(result.settings || [])
-			}
+			const newAuth: AuthState = { ...result }
 			setAuth(newAuth)
 
 			if (newAuth.token) {

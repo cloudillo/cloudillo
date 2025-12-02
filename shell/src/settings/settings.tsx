@@ -28,22 +28,27 @@ const DEBOUNCE_DELAYS = {
 }
 
 export function useSettings(prefix: string | string[]) {
-	const { api, setIdTag } = useApi()
+	const { api, authenticated } = useApi()
 	const [settings, setSettings] = React.useState<Record<string, string | number | boolean> | undefined>()
 	const prefixStr = React.useMemo(() => Array.isArray(prefix) ? prefix.join(',') : prefix, [prefix])
 	const debounceTimers = React.useRef<Record<string, NodeJS.Timeout>>({})
 
 	React.useEffect(function loadSettings() {
-		if (!api) return
+		// Only fetch settings if we have both api and auth token
+		if (!api || !authenticated) return
 		(async function () {
-			const res = await api.settings.list({ prefix: prefixStr })
-			// Convert array of SettingResponse to flat object mapping key -> value
-			const settingsMap = Object.fromEntries(
-				res.map((setting: any) => [setting.key, setting.value])
-			)
-			setSettings(settingsMap)
+			try {
+				const res = await api.settings.list({ prefix: prefixStr })
+				// Convert array of SettingResponse to flat object mapping key -> value
+				const settingsMap = Object.fromEntries(
+					res.map((setting: any) => [setting.key, setting.value])
+				)
+				setSettings(settingsMap)
+			} catch (err) {
+				console.error('Failed to load settings:', err)
+			}
 		})()
-	}, [api, prefixStr])
+	}, [api, authenticated, prefixStr])
 
 	// Cleanup debounce timers on unmount
 	React.useEffect(() => {

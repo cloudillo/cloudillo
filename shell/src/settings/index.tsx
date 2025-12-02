@@ -33,7 +33,8 @@ import { UsePWA } from '../pwa.js'
 import { useAppConfig, parseQS, qs } from '../utils.js'
 import { SecuritySettings } from './security.js'
 import { NotificationSettings } from './notifications.js'
-import { AppearanceSettings } from './appearance.js'
+import { AppearanceSettings, setTheme } from './appearance.js'
+export { setTheme }
 import { PrivacySettings } from './privacy.js'
 import { FilesSettings } from './files.js'
 

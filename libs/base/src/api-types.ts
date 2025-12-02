@@ -122,7 +122,6 @@ export const tLoginResult = T.struct({
   token: T.string,
   name: T.string,
   profilePic: T.string,
-  settings: T.array(T.tuple(T.string, T.string)),
 })
 export type LoginResult = T.TypeOf<typeof tLoginResult>
 

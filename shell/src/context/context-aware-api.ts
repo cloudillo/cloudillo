@@ -96,8 +96,21 @@ export function useContextAwareApi(): ApiHook {
     return client
   }, [activeContext, auth, contextTokens])
 
+  // Check if we have a valid token for authentication
+  const authenticated = (() => {
+    if (activeContext) {
+      if (activeContext.idTag === auth?.idTag) {
+        return !!auth?.token
+      }
+      const tokenData = contextTokens.get(activeContext.idTag)
+      return !!tokenData && tokenData.expiresAt > new Date()
+    }
+    return !!auth?.token
+  })()
+
   return {
     api,
+    authenticated,
     setIdTag: () => {
       console.warn('setIdTag() is not supported with context-aware API. Use setActiveContext() instead.')
     }

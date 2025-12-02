@@ -105,7 +105,7 @@ import { Sidebar, useSidebar, useCurrentContextIdTag, useContextPath } from './c
 import { OnboardingRoutes } from './onboarding'
 import { WsBusRoot, useWsBus } from './ws-bus.js'
 import { SearchIcon, SearchBar, useSearch } from './search.js'
-import { SettingsRoutes } from './settings'
+import { SettingsRoutes, setTheme } from './settings'
 import { SiteAdminRoutes } from './site-admin'
 import { AppRoutes } from './apps'
 import { ProfileRoutes } from './profile/profile.js'
@@ -246,23 +246,37 @@ function Header({ inert }: { inert?: boolean }) {
 						})
 						// Check for login cookie
 						const tokenRes = await tempApi.auth.getLoginToken()
-						const authState: AuthState | undefined = tokenRes ? {
-							...tokenRes,
-							settings: Object.fromEntries(tokenRes.settings || [])
-						} : undefined
+						const authState: AuthState | undefined = tokenRes ? { ...tokenRes } : undefined
 						console.log('authState', authState)
 						if (authState?.idTag) {
 							setAuth(authState)
 							if (authState.token) localStorage.setItem('loginToken', authState.token)
 
-							const navTo =
-								authState.settings?.['ui.onboarding'] && `/onboarding/${authState.settings['ui.onboarding']}`
-								|| appConfig?.menu?.find(m => m.id === appConfig.defaultMenu)?.path?.replace('/app/', `/app/${authState.idTag}/`)
-								|| `/app/${authState.idTag}/feed`
-							console.log('REDIRECT TO', navTo)
-							if (location.pathname == '/') {
-								console.log('NAVIGATE: ', navTo)
-								navigate(navTo)
+							// Load and apply UI settings
+							try {
+								const uiSettings = await tempApi.settings.list({ prefix: 'ui' })
+								const theme = uiSettings.find(s => s.key === 'ui.theme')?.value
+								const colors = uiSettings.find(s => s.key === 'ui.colors')?.value
+								const onboarding = uiSettings.find(s => s.key === 'ui.onboarding')?.value
+								setTheme(theme, colors)
+
+								const navTo =
+									onboarding && `/onboarding/${onboarding}`
+									|| appConfig?.menu?.find(m => m.id === appConfig.defaultMenu)?.path?.replace('/app/', `/app/${authState.idTag}/`)
+									|| `/app/${authState.idTag}/feed`
+								console.log('REDIRECT TO', navTo)
+								if (location.pathname == '/') {
+									console.log('NAVIGATE: ', navTo)
+									navigate(navTo)
+								}
+							} catch (err) {
+								console.error('Failed to load UI settings:', err)
+								// Navigate to default even if settings fail
+								const navTo = appConfig?.menu?.find(m => m.id === appConfig.defaultMenu)?.path?.replace('/app/', `/app/${authState.idTag}/`)
+									|| `/app/${authState.idTag}/feed`
+								if (location.pathname == '/') {
+									navigate(navTo)
+								}
 							}
 							return
 						}
@@ -281,6 +295,15 @@ function Header({ inert }: { inert?: boolean }) {
 			} else if (api && auth) {
 				// Load notification count
 				loadNotifications()
+				// Load and apply UI settings
+				try {
+					const uiSettings = await api.settings.list({ prefix: 'ui' })
+					const theme = uiSettings.find(s => s.key === 'ui.theme')?.value
+					const colors = uiSettings.find(s => s.key === 'ui.colors')?.value
+					setTheme(theme, colors)
+				} catch (err) {
+					console.error('Failed to load UI settings:', err)
+				}
 			}
 		})()
 	}, [api, auth])

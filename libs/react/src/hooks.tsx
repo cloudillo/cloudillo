@@ -144,6 +144,7 @@ interface UseCloudillo {
 	idTag?: string
 	tnId?: number
 	roles?: string[]
+	access?: 'read' | 'write'
 }
 
 export function useCloudillo(appNameArg?: string): UseCloudillo {
@@ -187,7 +188,8 @@ export function useCloudillo(appNameArg?: string): UseCloudillo {
 			ownerTag: ownerTag || '',
 			fileId,
 			idTag: cloudillo.idTag,
-			roles: cloudillo.roles
+			roles: cloudillo.roles,
+			access: cloudillo.access
 		}),
 		[auth, ownerTag, fileId]
 	)

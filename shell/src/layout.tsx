@@ -352,7 +352,10 @@ function Header({ inert }: { inert?: boolean }) {
 									const onboarding = uiSettings.find(
 										(s) => s.key === 'ui.onboarding'
 									)?.value
-									setTheme(theme, colors)
+									setTheme(
+										theme as string | undefined,
+										colors as string | undefined
+									)
 
 									const navTo =
 										(onboarding && `/onboarding/${onboarding}`) ||
@@ -405,7 +408,7 @@ function Header({ inert }: { inert?: boolean }) {
 						const uiSettings = await api.settings.list({ prefix: 'ui' })
 						const theme = uiSettings.find((s) => s.key === 'ui.theme')?.value
 						const colors = uiSettings.find((s) => s.key === 'ui.colors')?.value
-						setTheme(theme, colors)
+						setTheme(theme as string | undefined, colors as string | undefined)
 					} catch (err) {
 						console.error('Failed to load UI settings:', err)
 					}

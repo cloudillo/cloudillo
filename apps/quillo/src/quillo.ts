@@ -97,6 +97,13 @@ import * as cloudillo from '@cloudillo/base'
 	})
 
 	const binding = new QuillBinding(ytext, editor, doc.provider.awareness)
+
+	// Set read-only mode based on access level
+	if (cloudillo.access === 'read') {
+		editor.enable(false)
+		const toolbar = document.getElementById('toolbar')
+		if (toolbar) toolbar.style.display = 'none'
+	}
 })()
 
 // vim: ts=4

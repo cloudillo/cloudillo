@@ -149,7 +149,7 @@ function ExternalApp({ className }: { className?: string }) {
 	const location = useLocation()
 	const { contextIdTag, appId, '*': rest } = useParams()
 	// Use contextIdTag from URL, fallback to auth idTag
-	const idTag = contextIdTag || auth?.idTag || location.hostname
+	const idTag = contextIdTag || auth?.idTag || window.location.hostname
 
 	const app = appConfig?.apps.find((a) => a.id === appId)
 	console.log('[Shell] app', appId, app, rest)

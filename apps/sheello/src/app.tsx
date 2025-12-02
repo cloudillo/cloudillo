@@ -55,6 +55,7 @@ import {
 export function SheelloApp() {
 	const { t } = useTranslation()
 	const cloudillo = useCloudilloEditor(APP_NAME)
+	const isReadOnly = cloudillo.access === 'read'
 	const meta = cloudillo.yDoc.getMap('meta')
 	const [loaded, setLoaded] = React.useState(false)
 	const [initialized, setInitialized] = React.useState(false)
@@ -419,8 +420,9 @@ export function SheelloApp() {
 			<Workbook
 				ref={workbookRef}
 				data={origCellData}
-				onOp={onOp}
+				onOp={isReadOnly ? undefined : onOp}
 				generateSheetId={wrappedGenerateSheetId}
+				allowEdit={!isReadOnly}
 			/>
 		)
 	)

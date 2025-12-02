@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/todollo-app",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"description": "Todollo collaborative todo list app",
 	"type": "module",
 	"main": "src/index.js",

@@ -139,6 +139,7 @@ function useTodollo() {
 		client,
 		fileId,
 		idTag: cloudillo.idTag,
+		access: cloudillo.access,
 		connected,
 		error,
 		loading
@@ -396,7 +397,11 @@ function TaskInput({
 			<input
 				type="text"
 				className="task-input"
-				placeholder="Add a new task... (press Enter to add)"
+				placeholder={
+					disabled && !loading
+						? 'View-only mode'
+						: 'Add a new task... (press Enter to add)'
+				}
 				value={text}
 				onChange={(e) => setText(e.target.value)}
 				onKeyPress={handleKeyPress}
@@ -423,11 +428,13 @@ function TaskInput({
 function TaskItem({
 	task,
 	onToggle,
-	onDelete
+	onDelete,
+	readOnly
 }: {
 	task: Task
 	onToggle: (id: string) => Promise<void>
 	onDelete: (id: string) => Promise<void>
+	readOnly?: boolean
 }) {
 	const [loading, setLoading] = React.useState(false)
 	const [deleting, setDeleting] = React.useState(false)
@@ -463,23 +470,25 @@ function TaskItem({
 				className="task-checkbox"
 				checked={task.completed}
 				onChange={handleToggle}
-				disabled={loading}
+				disabled={loading || readOnly}
 				aria-label={`Mark "${task.text}" as ${task.completed ? 'incomplete' : 'complete'}`}
 			/>
 
 			<span className="task-title">{task.text}</span>
 
-			<div className="task-actions">
-				<button
-					onClick={handleDelete}
-					disabled={deleting}
-					className="c-button icon danger small"
-					title="Delete task"
-					aria-label={`Delete "${task.text}"`}
-				>
-					<IcDelete />
-				</button>
-			</div>
+			{!readOnly && (
+				<div className="task-actions">
+					<button
+						onClick={handleDelete}
+						disabled={deleting}
+						className="c-button icon danger small"
+						title="Delete task"
+						aria-label={`Delete "${task.text}"`}
+					>
+						<IcDelete />
+					</button>
+				</div>
+			)}
 		</div>
 	)
 }
@@ -494,13 +503,15 @@ function TaskList({
 	loading,
 	onToggleTask,
 	onUpdateTask,
-	onDeleteTask
+	onDeleteTask,
+	readOnly
 }: {
 	tasks: Task[]
 	loading: boolean
 	onToggleTask: (id: string) => Promise<void>
 	onUpdateTask: (id: string, updates: Partial<Task>) => Promise<void>
 	onDeleteTask: (id: string) => Promise<void>
+	readOnly?: boolean
 }) {
 	if (loading && tasks.length === 0) {
 		return (
@@ -529,6 +540,7 @@ function TaskList({
 					task={task}
 					onToggle={onToggleTask}
 					onDelete={onDeleteTask}
+					readOnly={readOnly}
 				/>
 			))}
 		</div>
@@ -555,6 +567,7 @@ function TaskList({
 export function TodolloApp() {
 	// Initialize Cloudillo connection and RTDB client
 	const todollo = useTodollo()
+	const isReadOnly = todollo.access === 'read'
 
 	// Subscribe to tasks and get CRUD operations
 	const tasks = useTasks(todollo.client, todollo.fileId, todollo.idTag)
@@ -593,7 +606,10 @@ export function TodolloApp() {
 
 			<FilterBar filter={tasks.filter} onFilterChange={tasks.setFilter} />
 
-			<TaskInput onCreateTask={tasks.createTask} disabled={!todollo.connected} />
+			<TaskInput
+				onCreateTask={tasks.createTask}
+				disabled={!todollo.connected || isReadOnly}
+			/>
 
 			<div className="task-list-container">
 				<TaskList
@@ -602,6 +618,7 @@ export function TodolloApp() {
 					onToggleTask={tasks.toggleTask}
 					onUpdateTask={tasks.updateTask}
 					onDeleteTask={tasks.deleteTask}
+					readOnly={isReadOnly}
 				/>
 			</div>
 		</div>

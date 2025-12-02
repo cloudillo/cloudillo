@@ -84,6 +84,7 @@ import {
 //////////////
 export function PrelloApp() {
 	const prello = usePrelloDocument()
+	const isReadOnly = prello.cloudillo.access === 'read'
 	const views = useViews(prello.doc)
 	const viewObjects = useViewObjects(prello.doc, prello.activeViewId)
 
@@ -247,6 +248,7 @@ export function PrelloApp() {
 
 	// Handle object double-click (edit text)
 	function handleObjectDoubleClick(e: React.MouseEvent, objectId: ObjectId) {
+		if (isReadOnly) return
 		e.stopPropagation()
 		const obj = prello.doc.o.get(objectId)
 		if (!obj) return
@@ -272,6 +274,9 @@ export function PrelloApp() {
 
 	// Handle object mouse down (start drag)
 	function handleObjectMouseDown(e: React.MouseEvent, objectId: ObjectId) {
+		// Don't allow drag in read-only mode
+		if (isReadOnly) return
+
 		// Only handle left button
 		if (e.button !== 0) return
 
@@ -451,6 +456,7 @@ export function PrelloApp() {
 
 	// Handle delete
 	function handleDelete() {
+		if (isReadOnly) return
 		prello.selectedIds.forEach((id) => {
 			deleteObject(prello.yDoc, prello.doc, id)
 		})
@@ -467,6 +473,7 @@ export function PrelloApp() {
 
 	// Handle resize start (from selection box handles)
 	function handleResizeStart(handle: ResizeHandle, e: React.MouseEvent) {
+		if (isReadOnly) return
 		e.preventDefault()
 		e.stopPropagation()
 
@@ -765,6 +772,7 @@ export function PrelloApp() {
 
 	// Handle rotation start (from rotation handle)
 	function handleRotateStart(e: React.MouseEvent) {
+		if (isReadOnly) return
 		e.preventDefault()
 		e.stopPropagation()
 
@@ -906,6 +914,7 @@ export function PrelloApp() {
 
 	// Handle pivot drag start
 	function handlePivotDragStart(e: React.MouseEvent) {
+		if (isReadOnly) return
 		e.preventDefault()
 		e.stopPropagation()
 
@@ -1071,6 +1080,7 @@ export function PrelloApp() {
 
 	// Handle tool start
 	function handleToolStart(evt: ToolEvent) {
+		if (isReadOnly) return // Don't allow tools in read-only mode
 		if (resizeState) return // Don't start drag while resizing
 
 		if (prello.activeTool) {
@@ -1145,7 +1155,7 @@ export function PrelloApp() {
 			switch (evt.key) {
 				case 'Delete':
 				case 'Backspace':
-					if (prello.selectedIds.size > 0) {
+					if (!isReadOnly && prello.selectedIds.size > 0) {
 						handleDelete()
 					}
 					break
@@ -1158,11 +1168,11 @@ export function PrelloApp() {
 		} else if (!evt.altKey && !evt.shiftKey && (evt.ctrlKey || evt.metaKey)) {
 			switch (evt.key) {
 				case 'z':
-					prello.undo()
+					if (!isReadOnly) prello.undo()
 					evt.preventDefault()
 					break
 				case 'y':
-					prello.redo()
+					if (!isReadOnly) prello.redo()
 					evt.preventDefault()
 					break
 				case 'a':
@@ -1328,60 +1338,66 @@ export function PrelloApp() {
 
 	return (
 		<>
-			<Toolbar
-				tool={prello.activeTool}
-				setTool={(tool) => {
-					prello.clearSelection()
-					prello.setActiveTool(tool)
-				}}
-				hasSelection={prello.selectedIds.size > 0}
-				onDelete={handleDelete}
-				canUndo={prello.canUndo}
-				canRedo={prello.canRedo}
-				onUndo={prello.undo}
-				onRedo={prello.redo}
-				onBringToFront={() => {
-					prello.selectedIds.forEach((id) => bringToFront(prello.yDoc, prello.doc, id))
-				}}
-				onBringForward={() => {
-					prello.selectedIds.forEach((id) => bringForward(prello.yDoc, prello.doc, id))
-				}}
-				onSendBackward={() => {
-					// Process in reverse to maintain relative order when moving down
-					Array.from(prello.selectedIds)
-						.reverse()
-						.forEach((id) => sendBackward(prello.yDoc, prello.doc, id))
-				}}
-				onSendToBack={() => {
-					// Process in reverse to maintain relative order when moving to back
-					Array.from(prello.selectedIds)
-						.reverse()
-						.forEach((id) => sendToBack(prello.yDoc, prello.doc, id))
-				}}
-				snapToGrid={snapSettings.settings.snapToGrid}
-				snapToObjects={snapSettings.settings.snapToObjects}
-				snapToSizes={snapSettings.settings.snapToSizes}
-				snapDebug={snapSettings.settings.snapDebug}
-				onToggleSnapToGrid={snapSettings.toggleSnapToGrid}
-				onToggleSnapToObjects={snapSettings.toggleSnapToObjects}
-				onToggleSnapToSizes={snapSettings.toggleSnapToSizes}
-				onToggleSnapDebug={snapSettings.toggleSnapDebug}
-				hasTextSelection={!!selectedTextObject}
-				selectedTextAlign={selectedTextStyle?.textAlign}
-				selectedVerticalAlign={selectedTextStyle?.verticalAlign}
-				onTextAlignChange={handleTextAlignChange}
-				onVerticalAlignChange={handleVerticalAlignChange}
-				selectedFontSize={selectedTextStyle?.fontSize}
-				selectedBold={selectedTextStyle?.fontWeight === 'bold'}
-				selectedItalic={selectedTextStyle?.fontItalic}
-				selectedUnderline={selectedTextStyle?.textDecoration === 'underline'}
-				onFontSizeChange={handleFontSizeChange}
-				onBoldToggle={handleBoldToggle}
-				onItalicToggle={handleItalicToggle}
-				onUnderlineToggle={handleUnderlineToggle}
-				isPanelVisible={isPanelVisible}
-				onTogglePanel={() => setIsPanelVisible((v) => !v)}
-			/>
+			{!isReadOnly && (
+				<Toolbar
+					tool={prello.activeTool}
+					setTool={(tool) => {
+						prello.clearSelection()
+						prello.setActiveTool(tool)
+					}}
+					hasSelection={prello.selectedIds.size > 0}
+					onDelete={handleDelete}
+					canUndo={prello.canUndo}
+					canRedo={prello.canRedo}
+					onUndo={prello.undo}
+					onRedo={prello.redo}
+					onBringToFront={() => {
+						prello.selectedIds.forEach((id) =>
+							bringToFront(prello.yDoc, prello.doc, id)
+						)
+					}}
+					onBringForward={() => {
+						prello.selectedIds.forEach((id) =>
+							bringForward(prello.yDoc, prello.doc, id)
+						)
+					}}
+					onSendBackward={() => {
+						// Process in reverse to maintain relative order when moving down
+						Array.from(prello.selectedIds)
+							.reverse()
+							.forEach((id) => sendBackward(prello.yDoc, prello.doc, id))
+					}}
+					onSendToBack={() => {
+						// Process in reverse to maintain relative order when moving to back
+						Array.from(prello.selectedIds)
+							.reverse()
+							.forEach((id) => sendToBack(prello.yDoc, prello.doc, id))
+					}}
+					snapToGrid={snapSettings.settings.snapToGrid}
+					snapToObjects={snapSettings.settings.snapToObjects}
+					snapToSizes={snapSettings.settings.snapToSizes}
+					snapDebug={snapSettings.settings.snapDebug}
+					onToggleSnapToGrid={snapSettings.toggleSnapToGrid}
+					onToggleSnapToObjects={snapSettings.toggleSnapToObjects}
+					onToggleSnapToSizes={snapSettings.toggleSnapToSizes}
+					onToggleSnapDebug={snapSettings.toggleSnapDebug}
+					hasTextSelection={!!selectedTextObject}
+					selectedTextAlign={selectedTextStyle?.textAlign}
+					selectedVerticalAlign={selectedTextStyle?.verticalAlign}
+					onTextAlignChange={handleTextAlignChange}
+					onVerticalAlignChange={handleVerticalAlignChange}
+					selectedFontSize={selectedTextStyle?.fontSize}
+					selectedBold={selectedTextStyle?.fontWeight === 'bold'}
+					selectedItalic={selectedTextStyle?.fontItalic}
+					selectedUnderline={selectedTextStyle?.textDecoration === 'underline'}
+					onFontSizeChange={handleFontSizeChange}
+					onBoldToggle={handleBoldToggle}
+					onItalicToggle={handleItalicToggle}
+					onUnderlineToggle={handleUnderlineToggle}
+					isPanelVisible={isPanelVisible}
+					onTogglePanel={() => setIsPanelVisible((v) => !v)}
+				/>
+			)}
 
 			<div className="c-hbox flex-fill" style={{ overflow: 'hidden' }}>
 				<div
@@ -1613,8 +1629,8 @@ export function PrelloApp() {
 							/>
 						)}
 
-						{/* Rotation and pivot handles (single selection only) */}
-						{selectionBounds && selectedObjectTransform && (
+						{/* Rotation and pivot handles (single selection only, hidden in read-only mode) */}
+						{!isReadOnly && selectionBounds && selectedObjectTransform && (
 							<>
 								<RotationHandle
 									bounds={selectionBounds}
@@ -1667,7 +1683,7 @@ export function PrelloApp() {
 					</SvgCanvas>
 				</div>
 
-				{isPanelVisible && (
+				{isPanelVisible && !isReadOnly && (
 					<PrelloPropertiesPanel
 						doc={prello.doc}
 						yDoc={prello.yDoc}
@@ -1689,6 +1705,7 @@ export function PrelloApp() {
 				onPrevView={handlePrevView}
 				onNextView={handleNextView}
 				onPresent={() => setIsPresentationMode(true)}
+				readOnly={isReadOnly}
 			/>
 
 			{isPresentationMode && (

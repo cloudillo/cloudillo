@@ -38,6 +38,7 @@ export interface ViewPickerProps {
 	onPrevView: () => void
 	onNextView: () => void
 	onPresent: () => void
+	readOnly?: boolean
 }
 
 export function ViewPicker({
@@ -47,7 +48,8 @@ export function ViewPicker({
 	onAddView,
 	onPrevView,
 	onNextView,
-	onPresent
+	onPresent,
+	readOnly
 }: ViewPickerProps) {
 	const activeIndex = views.findIndex((v) => v.id === activeViewId)
 
@@ -87,9 +89,11 @@ export function ViewPicker({
 				<IcNext />
 			</button>
 
-			<button onClick={onAddView} className="c-button icon" title="Add page">
-				<IcAdd />
-			</button>
+			{!readOnly && (
+				<button onClick={onAddView} className="c-button icon" title="Add page">
+					<IcAdd />
+				</button>
+			)}
 
 			<button
 				onClick={onPresent}

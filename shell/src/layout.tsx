@@ -134,6 +134,7 @@ import {
 	LuMenu as IcMenu,
 	LuList as IcFeed,
 	LuFile as IcFile,
+	LuFileText as IcFileText,
 	LuImage as IcGallery,
 	LuMessagesSquare as IcMessages,
 	LuBell as IcNotifications,
@@ -160,13 +161,20 @@ import usePWA from './pwa.js'
 import { AuthRoutes } from './auth/auth.js'
 import { useTokenRenewal } from './auth/useTokenRenewal.js'
 import { useActionNotifications } from './notifications/useActionNotifications.js'
-import { Sidebar, useSidebar, useCurrentContextIdTag, useContextPath } from './context/index.js'
+import {
+	Sidebar,
+	useSidebar,
+	useCurrentContextIdTag,
+	useContextPath,
+	useGuestDocument
+} from './context/index.js'
 import { OnboardingRoutes } from './onboarding'
 import { WsBusRoot, useWsBus } from './ws-bus.js'
 import { SearchIcon, SearchBar, useSearch } from './search.js'
 import { SettingsRoutes, setTheme } from './settings'
 import { SiteAdminRoutes } from './site-admin'
 import { AppRoutes } from './apps'
+import { SharedResourceView } from './apps/shared.js'
 import { ProfileRoutes } from './profile/profile.js'
 import { Notifications } from './notifications/notifications.js'
 import { useNotifications } from './notifications/state'
@@ -176,6 +184,22 @@ import '@symbion/opalui'
 import '@symbion/opalui/themes/opaque.css'
 import '@symbion/opalui/themes/glass.css'
 import './style.css'
+
+// Truncate filename while preserving extension
+function truncateFileName(name: string, maxLen: number = 12): string {
+	if (name.length <= maxLen) return name
+	const extIdx = name.lastIndexOf('.')
+	if (extIdx > 0 && name.length - extIdx <= 6) {
+		// Keep extension visible
+		const baseName = name.substring(0, extIdx)
+		const extension = name.substring(extIdx)
+		const available = maxLen - extension.length - 1 // -1 for "…"
+		if (available > 0) {
+			return baseName.substring(0, available) + '…' + extension
+		}
+	}
+	return name.substring(0, maxLen - 1) + '…'
+}
 
 function Menu({
 	className,
@@ -193,6 +217,7 @@ function Menu({
 	const [moreMenuOpen, setMoreMenuOpen] = React.useState(false)
 	const { contextIdTag, getContextPath } = useContextPath()
 	const sidebar = useSidebar()
+	const [guestDocument] = useGuestDocument()
 
 	React.useEffect(
 		function onLocationChange() {
@@ -205,10 +230,24 @@ function Menu({
 	const isAppView = location.pathname.startsWith('/app/')
 
 	// Filter visible menu items based on auth state
-	const visibleItems =
+	const staticItems =
 		appConfig?.menu.filter(
 			(item) => (!!auth && (!item.perm || auth.roles?.includes(item.perm))) || item.public
 		) || []
+
+	// Build guest document menu item if available
+	const guestDocMenuItem = guestDocument
+		? {
+				id: 'guest-doc',
+				icon: IcFileText,
+				label: truncateFileName(guestDocument.fileName),
+				path: `/app/${guestDocument.ownerIdTag}/${guestDocument.appId}/${guestDocument.resId}${guestDocument.accessLevel === 'read' ? '?access=read' : ''}`,
+				public: true
+			}
+		: null
+
+	// Prepend guest doc item to visible items
+	const visibleItems = guestDocMenuItem ? [guestDocMenuItem, ...staticItems] : staticItems
 
 	// Threshold for showing all items inline vs using "More" menu
 	const MAX_INLINE_ITEMS = 4
@@ -293,6 +332,7 @@ function isGuestPath(pathname: string): boolean {
 		pathname === '/' ||
 		pathname.startsWith('/app/') ||
 		pathname.startsWith('/profile/') ||
+		pathname.startsWith('/s/') || // Shared resource links
 		pathname.startsWith('/login') ||
 		pathname.startsWith('/register/') ||
 		pathname.startsWith('/onboarding/')
@@ -335,19 +375,16 @@ function Header({ inert }: { inert?: boolean }) {
 	})
 
 	async function doLogout() {
-		console.log('doLogout')
 		if (!api) throw new Error('Not authenticated')
 		await api.auth.logout()
 		setAuth(undefined)
 		localStorage.removeItem('loginToken')
 		setMenuOpen(false)
-		console.log('NAVIGATE: /login')
 		navigate('/login')
 	}
 
 	function setLang(evt: React.MouseEvent, lang: string) {
 		evt.preventDefault()
-		console.log('setLang', lang)
 		i18n.changeLanguage(lang)
 		setMenuOpen(false)
 	}
@@ -371,7 +408,6 @@ function Header({ inert }: { inert?: boolean }) {
 				if (!api?.idTag || !auth) {
 					// Determine idTag or authenticate
 					try {
-						console.log('[Shell] fetching idTag')
 						const loginToken = localStorage.getItem('loginToken') || undefined
 						const res = await fetch(
 							`https://${window.location.host}/.well-known/cloudillo/id-tag`
@@ -381,7 +417,6 @@ function Header({ inert }: { inert?: boolean }) {
 						}
 						const j = await res.json()
 						const ownerIdTag = typeof j.idTag === 'string' ? j.idTag : 'unknown'
-						console.log('[Shell] idTag', ownerIdTag)
 						setIdTag(ownerIdTag)
 
 						// Create temporary API client with the idTag to check login status
@@ -395,10 +430,8 @@ function Header({ inert }: { inert?: boolean }) {
 						try {
 							const tokenRes = await tempApi.auth.getLoginToken()
 							authState = tokenRes ? { ...tokenRes } : undefined
-							console.log('authState', authState)
 						} catch (err) {
 							// Not authenticated - continue as guest
-							console.log('Not authenticated, continuing as guest')
 						}
 
 						if (authState?.idTag) {
@@ -421,9 +454,7 @@ function Header({ inert }: { inert?: boolean }) {
 										?.find((m) => m.id === appConfig.defaultMenu)
 										?.path?.replace('/app/', `/app/${authState.idTag}/`) ||
 									`/app/${authState.idTag}/feed`
-								console.log('REDIRECT TO', navTo)
 								if (location.pathname == '/') {
-									console.log('NAVIGATE: ', navTo)
 									navigate(navTo)
 								}
 							} catch (err) {
@@ -444,14 +475,12 @@ function Header({ inert }: { inert?: boolean }) {
 						// Guest mode: handle redirect
 						const guestRedirect = getGuestRedirect(location.pathname, ownerIdTag)
 						if (guestRedirect) {
-							console.log('NAVIGATE:', guestRedirect, '(guest)')
 							navigate(guestRedirect)
 						}
 					} catch (err) {
-						console.log('ERROR fetching idTag:', err)
+						console.error('Failed to fetch idTag:', err)
 						// On error fetching idTag, redirect non-guest paths to login
 						if (!isGuestPath(location.pathname)) {
-							console.log('NAVIGATE: /login')
 							navigate('/login')
 						}
 					}
@@ -576,7 +605,7 @@ function Header({ inert }: { inert?: boolean }) {
 							</ul>
 						</Popper>
 					) : (
-						<Popper className="c-nav-item" icon={<IcUser />}>
+						<Popper className="c-nav-item" icon={<IcMenu />}>
 							<ul className="c-nav vertical emph">
 								{api?.idTag && (
 									<li>
@@ -663,6 +692,7 @@ export function Layout() {
 						<AppRoutes />
 						<OnboardingRoutes pwa={pwa} />
 						<Routes>
+							<Route path="/s/:refId" element={<SharedResourceView />} />
 							<Route path="/notifications" element={<Notifications />} />
 							<Route path="*" element={null} />
 						</Routes>

@@ -151,6 +151,16 @@ export class ApiClient {
 			}),
 
 		/**
+		 * GET /auth/access-token?refId={refId} - Exchange ref for scoped access token (unauthenticated)
+		 * @param refId - Reference ID for shared resource
+		 * @returns Scoped token with expiry
+		 */
+		getAccessTokenByRef: (refId: string) =>
+			this.request('GET', '/auth/access-token', Types.tRefAccessTokenResult, {
+				query: { refId }
+			}),
+
+		/**
 		 * GET /auth/proxy-token - Get proxy token for federation
 		 * @returns Token
 		 */
@@ -565,10 +575,10 @@ export class ApiClient {
 	refs = {
 		/**
 		 * GET /ref - List references
-		 * @param query - Optional type filter
+		 * @param query - Optional type and resourceId filter
 		 * @returns List of references
 		 */
-		list: (query?: { type?: string }) =>
+		list: (query?: Types.ListRefsQuery) =>
 			this.request('GET', '/refs', T.array(Types.tRef), { query }),
 
 		/**

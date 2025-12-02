@@ -21,7 +21,7 @@ import { useAuth, useApi, mergeClasses } from '@cloudillo/react'
 import { LuRefreshCw as IcLoading } from 'react-icons/lu'
 
 import { useAppConfig } from '../utils.js'
-import { useContextFromRoute } from '../context/index.js'
+import { useContextFromRoute, useGuestDocument } from '../context/index.js'
 import { FeedApp } from './feed.js'
 import { FilesApp } from './files.js'
 import { GalleryApp } from './gallery.js'
@@ -32,9 +32,7 @@ async function delay(ms: number): Promise<void> {
 }
 
 window.addEventListener('message', function onmessage(evt) {
-	if (evt.data?.cloudillo) {
-		console.log('[Shell] RECV:', evt.source, evt.data)
-	}
+	// Handle cloudillo messages from microfrontends
 })
 
 interface MicrofrontendContainerProps {
@@ -44,6 +42,7 @@ interface MicrofrontendContainerProps {
 	appUrl: string
 	trust?: boolean
 	access?: 'read' | 'write'
+	token?: string // Optional pre-fetched token (for guest access via share links)
 }
 
 export function MicrofrontendContainer({
@@ -52,7 +51,8 @@ export function MicrofrontendContainer({
 	resId,
 	appUrl,
 	trust,
-	access
+	access,
+	token: providedToken
 }: MicrofrontendContainerProps) {
 	const ref = React.useRef<HTMLIFrameElement>(null)
 	const { api, setIdTag } = useApi()
@@ -62,25 +62,22 @@ export function MicrofrontendContainer({
 	const [, , host, path] = (resId || '').match(/^(([a-zA-Z0-9-.]+):)?(.*)$/) || []
 	// Extract context from resId (format: "contextIdTag:resource-path")
 	const contextIdTag = host || auth?.idTag
-	console.log('app', app, host, path, 'contextIdTag', contextIdTag)
 
 	React.useEffect(
 		function onLoad() {
-			if (api && auth) {
-				//console.log('Sending load message', ref.current, ref.current?.contentWindow)
-				console.log('[Shell] app init', auth, 'access', access)
+			// Allow loading if we have auth OR a provided token (for guest share links)
+			if (api && (auth || providedToken)) {
 				const accessSuffix = access === 'read' ? 'R' : 'W'
-				const apiPromise = auth
-					? api.auth.getAccessToken({ scope: `${resId}:${accessSuffix}` })
-					: Promise.resolve({ token: undefined })
+				// Use provided token if available, otherwise fetch one
+				const apiPromise = providedToken
+					? Promise.resolve({ token: providedToken })
+					: auth
+						? api.auth.getAccessToken({ scope: `${resId}:${accessSuffix}` })
+						: Promise.resolve({ token: undefined })
 				ref.current?.addEventListener('load', async function onMicrofrontendLoad() {
-					console.log('[Shell] Loaded => waiting for app to start')
 					await delay(100) // FIXME (wait for app to start)
-					console.log('[Shell] Loaded => sending message')
 					try {
 						const res = await apiPromise
-						console.log('[Shell] API RES', res)
-
 						ref.current?.contentWindow?.postMessage(
 							{
 								cloudillo: true,
@@ -95,7 +92,7 @@ export function MicrofrontendContainer({
 							'*'
 						)
 					} catch (err) {
-						console.log('[Shell] ERROR', err)
+						console.error('[Shell] Failed to initialize app:', err)
 						ref.current?.contentWindow?.postMessage(
 							{
 								cloudillo: true,
@@ -112,7 +109,7 @@ export function MicrofrontendContainer({
 				setUrl(`${appUrl}#${resId}`)
 			}
 		},
-		[api, auth, resId, contextIdTag, access]
+		[api, auth, resId, contextIdTag, access, providedToken]
 	)
 
 	return (
@@ -148,18 +145,20 @@ function ExternalApp({ className }: { className?: string }) {
 	const [auth] = useAuth()
 	const location = useLocation()
 	const { contextIdTag, appId, '*': rest } = useParams()
+	const [guestDocument] = useGuestDocument()
 	// Use contextIdTag from URL, fallback to auth idTag
 	const idTag = contextIdTag || auth?.idTag || window.location.hostname
 
 	const app = appConfig?.apps.find((a) => a.id === appId)
-	console.log('[Shell] app', appId, app, rest)
 	const resId = (rest ?? '').indexOf(':') >= 0 ? rest : idTag + ':' + rest
-	console.log('[Shell] resId', resId)
 
 	// Parse access query parameter
 	const searchParams = new URLSearchParams(location.search)
 	const access = searchParams.get('access') === 'read' ? 'read' : 'write'
-	console.log('[Shell] access', access)
+
+	// Check if this is a guest document navigation and pass the stored token
+	const isGuestAccess = guestDocument && resId === guestDocument.resId
+	const guestToken = isGuestAccess ? guestDocument.token : undefined
 
 	return (
 		!!app && (
@@ -170,6 +169,7 @@ function ExternalApp({ className }: { className?: string }) {
 				appUrl={`${app.url}`}
 				trust={app.trust}
 				access={access}
+				token={guestToken}
 			/>
 		)
 	)

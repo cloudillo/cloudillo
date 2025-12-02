@@ -47,7 +47,11 @@ import {
 	LuShapes as IcIdeallo,
 	LuPresentation as IcPrello,
 	LuListTodo as IcFormillo,
-	LuListChecks as IcTodollo
+	LuListChecks as IcTodollo,
+	LuLink as IcLink,
+	LuCopy as IcCopy,
+	LuPlus as IcPlus,
+	LuTrash2 as IcTrash
 } from 'react-icons/lu'
 
 import { Columns, ColumnConfig, DataTable, TableDataProvider } from '@symbion/ui-core'
@@ -136,27 +140,18 @@ function TagsCell({
 
 	async function listTags(prefix: string) {
 		if (!api) return
-
-		const tags = await api.tags.list({ prefix })
-		console.log('TAGS', tags)
-		return tags
+		return api.tags.list({ prefix })
 	}
 
 	async function addTag(tag: string) {
 		if (!api) return
-
-		console.log('ADD TAG', tag)
 		const res = await api.files.addTag(fileId, tag)
-		console.log('NEW TAGS', res.tags)
 		if (res.tags) setTags?.(res.tags)
 	}
 
 	async function removeTag(tag: string) {
 		if (!api) return
-
-		console.log('REMOVE TAG', tag)
 		const res = await api.files.removeTag(fileId, tag)
-		console.log('NEW TAGS', res.tags)
 		if (res.tags) setTags?.(res.tags)
 	}
 
@@ -322,7 +317,6 @@ function useFileListData() {
 				sortAsc: boolean | undefined,
 				page: number | undefined
 			) {
-				console.log('FL setState', sort, sortAsc, page)
 				if (sort !== undefined) setSort(sort)
 				if (sortAsc !== undefined) setSortAsc(sortAsc)
 				if (page !== undefined) setPage(page)
@@ -376,7 +370,6 @@ const FilterBar = React.memo(function FilterBar({
 	const qs = parseQS(location.search)
 
 	async function createFile(contentType: string) {
-		console.log('createFile', contentType)
 		if (!contentType) return
 		if (!api) return
 
@@ -387,7 +380,6 @@ const FilterBar = React.memo(function FilterBar({
 				placeholder: t('Untitled document')
 			}
 		)
-		console.log('CONFIRM', fileName)
 		if (fileName === undefined) return
 
 		const res = await api.files.create({
@@ -399,7 +391,6 @@ const FilterBar = React.memo(function FilterBar({
 				fileName: (fileName || t('Untitled document')) as string
 			})
 		}
-		console.log('CREATE FILE', res)
 		if (res?.fileId) {
 			const appPath = (appId: string) =>
 				`/app/${contextIdTag || auth?.idTag}/${appId}/${res.fileId}`
@@ -427,7 +418,6 @@ const FilterBar = React.memo(function FilterBar({
 	}
 
 	async function createDb(contentType: string) {
-		console.log('createDb', contentType)
 		if (!contentType) return
 		if (!api) return
 
@@ -438,7 +428,6 @@ const FilterBar = React.memo(function FilterBar({
 				placeholder: t('Untitled database')
 			}
 		)
-		console.log('CONFIRM', fileName)
 		if (fileName === undefined) return
 
 		const res = await api.files.create({
@@ -450,7 +439,6 @@ const FilterBar = React.memo(function FilterBar({
 				fileName: (fileName || t('Untitled database')) as string
 			})
 		}
-		console.log('CREATE DB', res)
 		if (res?.fileId) {
 			const appPath = (appId: string) =>
 				`/app/${contextIdTag || auth?.idTag}/${appId}/${res.fileId}`
@@ -713,7 +701,10 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
 	const dialog = useDialog()
+	const toast = useToast()
 	const [fileActions, setFileActions] = React.useState<ActionView[] | undefined>()
+	const [shareRefs, setShareRefs] = React.useState<Types.Ref[] | undefined>()
+	const [newLinkAccess, setNewLinkAccess] = React.useState<'read' | 'write'>('read')
 
 	const readPerms = React.useMemo(
 		function readPerms() {
@@ -731,7 +722,6 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 		},
 		[fileActions]
 	)
-	console.log({ readPerms, writePerms })
 
 	React.useEffect(
 		function loadFileDetails() {
@@ -739,8 +729,11 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 			;(async function () {
 				// Query actions of type FSHR that apply to this file as the subject
 				const actions = await api.actions.list({ type: 'FSHR', subject: file.fileId })
-				console.log('loadFileDetails res', actions)
 				setFileActions(actions)
+
+				// Load share refs for this file
+				const refs = await api.refs.list({ type: 'share.file', resourceId: file.fileId })
+				setShareRefs(refs)
 			})()
 		},
 		[api, file.fileId]
@@ -771,7 +764,6 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 		}
 
 		const res = await api.actions.create(action)
-		console.log('FSHR res', res)
 		let found = false
 		setFileActions((fileActions) =>
 			(fileActions || [])
@@ -798,6 +790,59 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 
 		const _res = await api.actions.create(action)
 		setFileActions((fa) => fa?.filter((fa) => fa.audience?.idTag !== idTag))
+	}
+
+	// Public Links //
+	//////////////////
+	async function createShareLink() {
+		if (!file || !api) return
+
+		const label = await dialog.askText(
+			t('Create share link'),
+			t('Enter a label for this share link'),
+			{ placeholder: t('e.g. For review, Public access, etc.') }
+		)
+		if (label === undefined) return // Cancelled
+
+		try {
+			const ref = await api.refs.create({
+				type: 'share.file',
+				resourceId: file.fileId,
+				accessLevel: newLinkAccess,
+				description: label || file.fileName
+			})
+			setShareRefs((refs) => [...(refs || []), ref])
+			toast.success(t('Share link created'))
+		} catch (err) {
+			console.error('Failed to create share link', err)
+			toast.error(t('Failed to create share link'))
+		}
+	}
+
+	async function deleteShareLink(refId: string) {
+		if (!api) return
+		if (
+			!(await dialog.confirm(
+				t('Confirmation'),
+				t('Are you sure you want to delete this link?')
+			))
+		)
+			return
+
+		try {
+			await api.refs.delete(refId)
+			setShareRefs((refs) => refs?.filter((r) => r.refId !== refId))
+			toast.success(t('Share link deleted'))
+		} catch (err) {
+			console.error('Failed to delete share link', err)
+			toast.error(t('Failed to delete share link'))
+		}
+	}
+
+	function copyShareLink(refId: string) {
+		const url = `${window.location.origin}/s/${refId}`
+		navigator.clipboard.writeText(url)
+		toast.success(t('Link copied to clipboard'))
 	}
 
 	return (
@@ -895,6 +940,70 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 								/>
 							</>
 						)}
+
+						<hr className="my-3" />
+
+						<h4 className="py-2 d-flex align-items-center">
+							<IcLink className="me-2" />
+							{t('Public Link')}
+						</h4>
+						<div className="c-hbox g-2 mb-3">
+							<select
+								className="c-input"
+								value={newLinkAccess}
+								onChange={(e) =>
+									setNewLinkAccess(e.target.value as 'read' | 'write')
+								}
+							>
+								<option value="read">{t('Read only')}</option>
+								<option value="write">{t('Can edit')}</option>
+							</select>
+							<button
+								className="c-button primary"
+								type="button"
+								onClick={createShareLink}
+							>
+								<IcPlus className="me-1" />
+								{t('Create Link')}
+							</button>
+						</div>
+
+						{shareRefs && shareRefs.length > 0 && (
+							<div className="c-vbox g-2">
+								{shareRefs.map((ref) => (
+									<div
+										key={ref.refId}
+										className="c-hbox g-2 align-items-center p-2 bg-secondary-subtle rounded"
+									>
+										<IcLink className="flex-shrink-0" />
+										<div className="flex-fill text-truncate">
+											<div>{ref.description || ref.refId}</div>
+											<div className="text-secondary text-small">
+												{ref.accessLevel === 'write'
+													? t('Can edit')
+													: t('Read only')}
+												{ref.expiresAt &&
+													` · ${t('Expires')} ${dayjs(ref.expiresAt).format('YYYY-MM-DD')}`}
+											</div>
+										</div>
+										<a
+											className="c-link"
+											title={t('Copy link')}
+											onClick={() => copyShareLink(ref.refId)}
+										>
+											<IcCopy />
+										</a>
+										<a
+											className="c-link"
+											title={t('Delete link')}
+											onClick={() => deleteShareLink(ref.refId)}
+										>
+											<IcTrash />
+										</a>
+									</div>
+								))}
+							</div>
+						)}
 					</div>
 				</div>
 			)}
@@ -945,7 +1054,6 @@ export function FilesApp() {
 				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
 				const app = file && appConfig?.mime[file?.contentType]
 
-				console.log('openFile', appConfig, file?.contentType, app, 'access', access)
 				if (app) {
 					// Extract app name from path like '/app/quillo' -> 'quillo'
 					const appName = app.split('/').pop()
@@ -956,7 +1064,6 @@ export function FilesApp() {
 
 			renameFile: function renameFile(fileId?: string) {
 				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
-				console.log('rename file', file)
 				setRenameFileId(fileId)
 				setRenameFileName(file?.fileName || '')
 			},

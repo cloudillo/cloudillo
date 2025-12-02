@@ -453,6 +453,16 @@ export type GetSettingResult = T.TypeOf<typeof tGetSettingResult>
 export interface CreateRefRequest {
 	type: string
 	description?: string
+	resourceId?: string // file ID for share.file
+	accessLevel?: 'read' | 'write'
+	expiresAt?: number // Unix timestamp
+	count?: number // max uses
+}
+
+export interface ListRefsQuery {
+	type?: string
+	resourceId?: string
+	[key: string]: string | undefined
 }
 
 // Response types
@@ -460,7 +470,11 @@ export const tRef = T.struct({
 	refId: T.string,
 	type: T.string,
 	description: T.optional(T.string),
+	resourceId: T.optional(T.string),
+	accessLevel: T.optional(T.literal('read', 'write')),
 	createdAt: T.union(T.string, T.date),
+	expiresAt: T.optional(T.union(T.string, T.date)),
+	count: T.optional(T.number),
 	used: T.optional(T.boolean)
 })
 export type Ref = T.TypeOf<typeof tRef>
@@ -469,11 +483,23 @@ export const tRefResponse = T.struct({
 	refId: T.string,
 	type: T.string,
 	description: T.optional(T.string),
+	resourceId: T.optional(T.string),
+	accessLevel: T.optional(T.literal('read', 'write')),
 	createdAt: T.optional(T.number),
 	expiresAt: T.optional(T.number),
 	count: T.optional(T.number)
 })
 export type RefResponse = T.TypeOf<typeof tRefResponse>
+
+// Token exchange response for ref-based access
+export const tRefAccessTokenResult = T.struct({
+	token: T.string,
+	resourceId: T.string,
+	accessLevel: T.literal('read', 'write'),
+	scope: T.optional(T.string),
+	expiresAt: T.optional(T.number)
+})
+export type RefAccessTokenResult = T.TypeOf<typeof tRefAccessTokenResult>
 
 export const tDeleteRefResult = T.struct({
 	refId: T.string

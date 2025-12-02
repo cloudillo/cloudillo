@@ -1,6 +1,6 @@
 import * as Y from 'yjs'
 import { WorkbookInstance } from '@fortune-sheet/react'
-import type { YSheetStructure, SheetId, ColId } from './yjs-types'
+import type { YSheetStructure, SheetId, ColId, RowId } from './yjs-types'
 import { debug } from './debug'
 
 /**
@@ -22,66 +22,96 @@ export function applySheetYEvent(
 		const newName = sheet.name.toString()
 		wb.setSheetName(newName, { id: sheetId })
 	} else if (path[0] === 'rows' && evt instanceof Y.YMapEvent) {
-		// Cell data changed
+		// Cell data changed - but we need to distinguish between:
+		// - path.length === 1: top-level rows map change, keysChanged are ROW IDs
+		// - path.length === 2: change within a row (path[1] is row ID), keysChanged are COLUMN IDs
 		const rowOrder = sheet.rowOrder.toArray()
 		const colOrder = sheet.colOrder.toArray()
 
-		for (const rowId of evt.keysChanged) {
+		if (path.length === 2) {
+			// path = ['rows', rowId] - keysChanged are COLUMN IDs within this row
+			const rowId = path[1] as RowId
 			const rowIndex = rowOrder.indexOf(rowId)
-			if (rowIndex < 0) continue
+			if (rowIndex < 0) return needsRecalc
 
 			const rowMap = sheet.rows.get(rowId)
-			if (!rowMap) {
-				// Row was deleted - clear all cells
-				for (let c = 0; c < colOrder.length; c++) {
-					wb.clearCell(rowIndex, c, { id: sheetId })
-				}
-				continue
-			}
+			if (!rowMap) return needsRecalc
 
-			// Update changed cells in this row
-			for (const [colId, cell] of rowMap.entries()) {
-				const colIndex = colOrder.indexOf(colId as ColId)
+			// keysChanged are column IDs
+			for (const colId of evt.keysChanged) {
+				const colIndex = colOrder.indexOf(colId)
 				if (colIndex < 0) continue
 
+				const cell = rowMap.get(colId)
 				if (cell && (cell.v !== undefined || cell.f !== undefined)) {
 					const value = cell.f || cell.v
-					// First set the value
 					wb.setCellValue(rowIndex, colIndex, value, {
 						id: sheetId,
 						type: cell.f ? 'f' : 'v'
 					})
-
-					// Then apply cell formatting if present
-					// Common cell format properties in Fortune Sheet:
-					// bl: bold, it: italic, ff: font family, fs: font size
-					// fc: font color, bg: background color, ht: horizontal align, vt: vertical align
-					const cellAny = cell as any
-					const formatAttrs = [
-						'bl',
-						'it',
-						'ff',
-						'fs',
-						'fc',
-						'bg',
-						'ht',
-						'vt',
-						'un',
-						'cl',
-						'st',
-						'tb'
-					]
-					for (const attr of formatAttrs) {
-						if (cellAny[attr] !== undefined) {
-							wb.setCellFormat(rowIndex, colIndex, attr as any, cellAny[attr], {
-								id: sheetId
-							})
-						}
-					}
-
 					needsRecalc = true
 				} else {
 					wb.clearCell(rowIndex, colIndex, { id: sheetId })
+				}
+			}
+		} else {
+			// path = ['rows'] - keysChanged are ROW IDs
+			for (const rowId of evt.keysChanged) {
+				const rowIndex = rowOrder.indexOf(rowId)
+				if (rowIndex < 0) continue
+
+				const rowMap = sheet.rows.get(rowId)
+				if (!rowMap) {
+					// Row was deleted - clear all cells
+					for (let c = 0; c < colOrder.length; c++) {
+						wb.clearCell(rowIndex, c, { id: sheetId })
+					}
+					continue
+				}
+
+				// Update ALL cells in this row (entire row changed)
+				for (const [colId, cell] of rowMap.entries()) {
+					const colIndex = colOrder.indexOf(colId as ColId)
+					if (colIndex < 0) continue
+
+					if (cell && (cell.v !== undefined || cell.f !== undefined)) {
+						const value = cell.f || cell.v
+						wb.setCellValue(rowIndex, colIndex, value, {
+							id: sheetId,
+							type: cell.f ? 'f' : 'v'
+						})
+
+						// Then apply cell formatting if present
+						// Common cell format properties in Fortune Sheet:
+						// bl: bold, it: italic, ff: font family, fs: font size
+						// fc: font color, bg: background color, ht: horizontal align, vt: vertical align
+						const cellAny = cell as any
+						const formatAttrs = [
+							'bl',
+							'it',
+							'ff',
+							'fs',
+							'fc',
+							'bg',
+							'ht',
+							'vt',
+							'un',
+							'cl',
+							'st',
+							'tb'
+						]
+						for (const attr of formatAttrs) {
+							if (cellAny[attr] !== undefined) {
+								wb.setCellFormat(rowIndex, colIndex, attr as any, cellAny[attr], {
+									id: sheetId
+								})
+							}
+						}
+
+						needsRecalc = true
+					} else {
+						wb.clearCell(rowIndex, colIndex, { id: sheetId })
+					}
 				}
 			}
 		}

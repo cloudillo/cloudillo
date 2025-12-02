@@ -61,22 +61,31 @@ export function SheelloApp() {
 	const [initialized, setInitialized] = React.useState(false)
 	const [origCellData, setOrigCellData] = React.useState<FortuneSheet[] | undefined>()
 	const workbookRef = React.useRef<WorkbookInstance>(null)
+	// Track workbook instance via state so effect can react to it
+	const [workbookInstance, setWorkbookInstance] = React.useState<WorkbookInstance | null>(null)
 
 	// Create local echo guard to prevent feedback loops
 	const localEchoGuard = React.useMemo(() => createLocalEchoGuard(), [])
 
-	// Setup awareness on provider ready
+	// Setup awareness on provider ready - use state instead of ref for dependency
+	// Generate unique client ID for awareness (Yjs clientID + random suffix for same-user distinction)
+	const awarenessClientId = React.useMemo(
+		() => `${cloudillo.yDoc.clientID}-${Math.random().toString(36).slice(2, 8)}`,
+		[cloudillo.yDoc.clientID]
+	)
+
 	React.useEffect(() => {
-		if (!cloudillo.provider || !workbookRef.current) return
+		if (!cloudillo.provider || !workbookInstance) return
 
 		const cleanup = setupAwareness(
 			cloudillo.provider.awareness,
-			workbookRef.current,
-			cloudillo.idTag ?? 'anonymous'
+			workbookInstance,
+			// Use unique client ID for awareness to distinguish same-user clients
+			`${cloudillo.idTag ?? 'anonymous'} (${awarenessClientId.slice(-4)})`
 		)
 
 		return cleanup
-	}, [cloudillo.provider, workbookRef.current])
+	}, [cloudillo.provider, workbookInstance, awarenessClientId, cloudillo.idTag])
 
 	// Load initial data and setup observers
 	React.useEffect(() => {
@@ -156,14 +165,14 @@ export function SheelloApp() {
 
 		// Observe sheet data changes (deep observer for cell/config changes)
 		const sheetsDeepObserver = (evts: Y.YEvent<any>[]) => {
+			const txn = evts[0]?.transaction
 			if (!workbookRef.current) return
 
-			// Skip if this is from a load transaction (FIX: was missing!)
-			if (evts[0]?.transaction.origin === 'load') return
+			// Skip if this is from a load transaction
+			if (txn?.origin === 'load') return
 
 			// Skip local changes
-			if (evts[0]?.transaction.local) return
-
+			if (txn?.local) return
 			let needsRecalc = false
 
 			// Set flag to prevent onOp from writing back to Yjs
@@ -216,9 +225,11 @@ export function SheelloApp() {
 		}
 	}, [cloudillo.provider])
 
-	// Load workbook data
+	// Load workbook data - MUST wait for sync to complete before checking for sheets
+	// Otherwise race condition: multiple clients see empty sheets and each creates their own
 	React.useEffect(() => {
-		if (!loaded || origCellData) return
+		// Wait for BOTH: document is initialized AND sync has completed
+		if (!loaded || !cloudillo.synced || origCellData) return
 
 		const data: FortuneSheet[] = []
 		const ySheets = cloudillo.yDoc.getMap('sheets')
@@ -276,7 +287,7 @@ export function SheelloApp() {
 
 		setOrigCellData(dedupedData)
 		setInitialized(true)
-	}, [loaded, origCellData])
+	}, [loaded, cloudillo.synced, origCellData])
 
 	// Calculate formulas and apply frozen panes after initialization
 	React.useEffect(() => {
@@ -415,10 +426,19 @@ export function SheelloApp() {
 		return id
 	}, [])
 
+	// Combined ref that updates both the ref and state
+	const combinedRef = React.useCallback(
+		(instance: WorkbookInstance | null) => {
+			workbookRef.current = instance
+			setWorkbookInstance(instance)
+		},
+		[setWorkbookInstance]
+	)
+
 	return (
 		origCellData && (
 			<Workbook
-				ref={workbookRef}
+				ref={combinedRef}
 				data={origCellData}
 				onOp={isReadOnly ? undefined : onOp}
 				generateSheetId={wrappedGenerateSheetId}

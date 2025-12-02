@@ -51,3 +51,7 @@ export { useContextFromRoute, useCurrentContextIdTag } from './use-context-from-
 
 // Components
 export { Sidebar } from './sidebar'
+
+// Guest document state (for guest ref link navigation)
+export { guestDocumentAtom, useGuestDocument } from './guest-document'
+export type { GuestDocumentInfo } from './guest-document'

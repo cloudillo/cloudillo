@@ -32,8 +32,8 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 	const stored = doc.o.get(object.id)
 	const resolvedStyle = stored ? resolveShapeStyle(doc, stored) : null
 
-	const hasFill = resolvedStyle?.fill && resolvedStyle.fill !== 'none'
-	const hasStroke = resolvedStyle?.stroke && resolvedStyle.stroke !== 'none'
+	const hasFill = !!(resolvedStyle?.fill && resolvedStyle.fill !== 'none')
+	const hasStroke = !!(resolvedStyle?.stroke && resolvedStyle.stroke !== 'none')
 
 	const handleFillColorChange = React.useCallback((color: string) => {
 		const style = object.style || {}

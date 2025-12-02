@@ -112,8 +112,8 @@ export function SkeletonTextStory() {
 			</div>
 		</Variant>
 
-		<Variant name="Custom Last Line Width">
-			<SkeletonText lines={4} lastLineWidth="40%"/>
+		<Variant name="Four Lines">
+			<SkeletonText lines={4}/>
 		</Variant>
 	</Story>
 }

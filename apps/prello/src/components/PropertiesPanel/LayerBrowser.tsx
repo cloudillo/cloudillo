@@ -34,7 +34,7 @@ import {
 } from 'react-icons/pi'
 import { LuShapes as IcDefault } from 'react-icons/lu'
 
-import type { YPrelloDocument, ObjectId, ContainerId, ViewId } from '../../crdt'
+import type { YPrelloDocument, ObjectId, ContainerId, ViewId, ChildRef } from '../../crdt'
 import {
 	expandObject,
 	expandContainer,
@@ -235,7 +235,7 @@ export function LayerBrowser({
 		}
 
 		// Get the children array for calculating indices
-		const getChildren = (parentId: ContainerId | undefined): Y.Array<[number, string]> => {
+		const getChildren = (parentId: ContainerId | undefined): Y.Array<ChildRef> => {
 			if (parentId) {
 				return doc.ch.get(parentId) || doc.r
 			}
@@ -370,7 +370,7 @@ export function LayerBrowser({
 					}
 				}}
 				isDraggable
-				dragData={{ id: containerId, type: 'container', parentId }}
+				dragData={{ id: containerId, type: 'container', parentId } as DragData}
 				onItemDragStart={(e, data) => handleDragStart(e, data, parentId)}
 				onItemDragOver={(e, pos) => handleDragOver(e, containerId, 'container', parentId, pos)}
 				onItemDragLeave={handleDragLeave}
@@ -436,7 +436,7 @@ export function LayerBrowser({
 				dropPosition={dropPos}
 				onSelect={() => onSelectObject(objectId as ObjectId)}
 				isDraggable
-				dragData={{ id: objectId, type: 'object', parentId }}
+				dragData={{ id: objectId, type: 'object', parentId } as DragData}
 				onItemDragStart={(e, data) => handleDragStart(e, data, parentId)}
 				onItemDragOver={(e, pos) => handleDragOver(e, objectId, 'object', parentId, pos)}
 				onItemDragLeave={handleDragLeave}

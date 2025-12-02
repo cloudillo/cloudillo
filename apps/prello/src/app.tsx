@@ -1078,7 +1078,7 @@ export function PrelloApp() {
 		let parentId = selectedContainerId
 		if (!parentId) {
 			const layers = prello.doc.r.toArray().filter(ref => ref[0] === 1)
-			parentId = layers.length > 0 ? layers[0][1] : undefined
+			parentId = layers.length > 0 ? layers[0][1] : null
 		}
 
 		// Create object based on tool

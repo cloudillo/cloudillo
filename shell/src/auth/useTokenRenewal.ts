@@ -27,7 +27,7 @@ const RENEWAL_THRESHOLD = 0.8 // Renew at 80% of token lifetime
 export function useTokenRenewal() {
 	const [auth, setAuth] = useAuth()
 	const { api } = useApi()
-	const renewalTimerRef = React.useRef<number>()
+	const renewalTimerRef = React.useRef<number | undefined>(undefined)
 
 	// Parse JWT to get expiration timestamp (without verifying signature)
 	const getTokenExpiry = React.useCallback((token: string): number | null => {

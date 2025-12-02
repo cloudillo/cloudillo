@@ -46,7 +46,7 @@ import { useAuth, useApi, Button, Fcd, IdentityTag, ProfileCard, mergeClasses, L
 import '@cloudillo/react/src/components.css'
 
 import { useAppConfig, parseQS, qs } from '../utils.js'
-import { getBestImageId, ImageUpload } from '../image.js'
+import { ImageUpload } from '../image.js'
 import { useWsBus } from '../ws-bus.js'
 import { useImageUpload } from '../hooks/useImageUpload.js'
 import { AttachmentPreview } from '../components/AttachmentPreview.js'
@@ -156,8 +156,10 @@ function Msg({ className, action, local }: MsgProps) {
 	let imgSrc: string | undefined
 	if (action.subType == 'IMG' && action.attachments?.[0] && auth?.idTag) {
 		const att = action.attachments[0]
-		const fileId = typeof att === 'string' ? att : att.fileId
-		imgSrc = `https://cl-o.${auth.idTag}/api/file/${getBestImageId(fileId, 'sd')}`
+		if (typeof att !== 'string') {
+			// Always use local instance with preferred variant
+			imgSrc = `https://cl-o.${auth.idTag}/api/file/${att.fileId}?variant=vis.sd`
+		}
 	}
 
 	function onTabClick(clicked: 'CMNT' | 'LIKE' | 'SHRE') {

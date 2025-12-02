@@ -393,5 +393,15 @@
   "Auto-accept follow requests": "",
   "Automatically accept follow requests from other instances": "",
   "Maximum Storage Quota (GB)": "",
-  "Total storage quota for this tenant": ""
+  "Total storage quota for this tenant": "",
+  "File Synchronization": "Fájl szinkronizálás",
+  "Control which file variants are synchronized to your device": "Állítsd be, mely fájl változatokat szinkronizálja az eszközödre",
+  "Max image quality": "Max kép minőség",
+  "Max video quality": "Max videó minőség",
+  "Max audio quality": "Max hangfájl minőség",
+  "Thumbnail (tn)": "Bélyegkép",
+  "Standard (sd)": "Standard",
+  "Medium (md)": "Közepes",
+  "High (hd)": "Magas",
+  "Extra (xd)": "Extra magas"
 }

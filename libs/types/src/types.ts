@@ -90,12 +90,7 @@ export const tActionView = T.struct({
 	attachments: T.optional(T.array(T.struct({
 		fileId: T.string,
 		dim: T.optional(T.union(T.tuple(T.number, T.number), T.nullValue)),
-		/*
-		hd: T.optional(T.string),
-		sd: T.optional(T.string),
-		tn: T.optional(T.string),
-		ic: T.optional(T.string),
-		*/
+		localVariants: T.optional(T.array(T.string)),  // Locally available variants: ["vis.tn", "vis.sd", ...]
 	}))),
 	subject: T.optional(T.string),
 	createdAt: T.union(T.string, T.number),

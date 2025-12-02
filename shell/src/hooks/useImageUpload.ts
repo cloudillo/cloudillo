@@ -21,12 +21,17 @@ export interface UseImageUploadOptions {
 	onUploadComplete?: (fileId: string) => void
 }
 
+export type AttachmentType = 'image' | 'video' | undefined
+
 export interface UseImageUploadReturn {
 	attachment: string | undefined
 	attachmentIds: string[]
+	attachmentType: AttachmentType
 	isUploading: boolean
+	uploadProgress: number | undefined
 	selectFile: (file: File) => void
 	uploadAttachment: (blob: Blob) => Promise<void>
+	uploadVideo: (file: File) => Promise<void>
 	removeAttachment: (id: string) => void
 	cancelCrop: () => void
 	reset: () => void
@@ -36,7 +41,9 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 	const [auth] = useAuth()
 	const [attachment, setAttachment] = React.useState<string | undefined>()
 	const [attachmentIds, setAttachmentIds] = React.useState<string[]>([])
+	const [attachmentType, setAttachmentType] = React.useState<AttachmentType>(undefined)
 	const [isUploading, setIsUploading] = React.useState(false)
+	const [uploadProgress, setUploadProgress] = React.useState<number | undefined>()
 
 	const selectFile = React.useCallback((file: File) => {
 		const reader = new FileReader()
@@ -63,6 +70,7 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 			const fileId = j?.data?.fileId
 			if (fileId) {
 				setAttachmentIds(ids => [...ids, fileId])
+				setAttachmentType('image')
 				options?.onUploadComplete?.(fileId)
 			}
 			setAttachment(undefined)
@@ -76,8 +84,51 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 		request.send(blob)
 	}, [auth, options])
 
+	const uploadVideo = React.useCallback(async (file: File) => {
+		if (!auth) return
+
+		setIsUploading(true)
+		setUploadProgress(0)
+
+		const request = new XMLHttpRequest()
+		request.open('POST', `https://cl-o.${auth.idTag}/api/file/video/attachment`)
+		request.setRequestHeader('Authorization', `Bearer ${auth.token}`)
+
+		request.upload.addEventListener('progress', (e) => {
+			if (e.lengthComputable) {
+				setUploadProgress(Math.round((e.loaded / e.total) * 100))
+			}
+		})
+
+		request.addEventListener('load', function () {
+			setIsUploading(false)
+			setUploadProgress(undefined)
+			const j = JSON.parse(request.response)
+			const fileId = j?.data?.fileId
+			if (fileId) {
+				setAttachmentIds(ids => [...ids, fileId])
+				setAttachmentType('video')
+				options?.onUploadComplete?.(fileId)
+			}
+		})
+
+		request.addEventListener('error', function () {
+			setIsUploading(false)
+			setUploadProgress(undefined)
+			console.error('Video upload failed')
+		})
+
+		request.send(file)
+	}, [auth, options])
+
 	const removeAttachment = React.useCallback((id: string) => {
-		setAttachmentIds(ids => ids.filter(i => i !== id))
+		setAttachmentIds(ids => {
+			const newIds = ids.filter(i => i !== id)
+			if (newIds.length === 0) {
+				setAttachmentType(undefined)
+			}
+			return newIds
+		})
 	}, [])
 
 	const cancelCrop = React.useCallback(() => {
@@ -87,15 +138,20 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 	const reset = React.useCallback(() => {
 		setAttachment(undefined)
 		setAttachmentIds([])
+		setAttachmentType(undefined)
 		setIsUploading(false)
+		setUploadProgress(undefined)
 	}, [])
 
 	return {
 		attachment,
 		attachmentIds,
+		attachmentType,
 		isUploading,
+		uploadProgress,
 		selectFile,
 		uploadAttachment,
+		uploadVideo,
 		removeAttachment,
 		cancelCrop,
 		reset

@@ -33,7 +33,7 @@ export function AttachmentPreview({ attachmentIds, idTag, onRemove, compact }: A
 				<div key={id} className="pos-relative d-inline-block">
 					<img
 						className={compact ? 'c-thumbnail small' : 'c-thumbnail'}
-						src={`https://cl-o.${idTag}/api/file/${id}?variant=tn`}
+						src={`https://cl-o.${idTag}/api/file/${id}?variant=vis.tn`}
 						alt=""
 					/>
 					<button

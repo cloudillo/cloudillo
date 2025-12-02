@@ -63,7 +63,7 @@ import { useAuth, useApi, Button, Popper, ProfilePicture, ProfileCard, ProfileAu
 import '@cloudillo/react/src/components.css'
 
 import { useAppConfig, parseQS, qs } from '../utils.js'
-import { getBestImageId, ImageUpload } from '../image.js'
+import { ImageUpload } from '../image.js'
 import { useWsBus } from '../ws-bus.js'
 import { useCurrentContextIdTag } from '../context/index.js'
 import { useImageUpload } from '../hooks/useImageUpload.js'
@@ -91,28 +91,51 @@ export type ActionEvt = PostAction | ActionView
 //////////////////////
 // Image formatting //
 //////////////////////
+
+/** Variant quality order for finding best available */
+const VARIANT_QUALITY_ORDER = ['vis.xd', 'vis.hd', 'vis.md', 'vis.sd', 'vis.tn']
+
+/**
+ * Get local URL for a file variant (always fetches from own instance)
+ */
+function getLocalUrl(authIdTag: string, fileId: string, variant: string): string {
+	return `https://cl-o.${authIdTag}/api/file/${fileId}?variant=${variant}`
+}
+
+/**
+ * Find best available local variant from localVariants array
+ * Returns the highest quality variant that's available locally
+ */
+function getBestLocalVariant(localVariants?: string[], fallback = 'vis.hd'): string {
+	if (!localVariants?.length) return fallback
+	for (const variant of VARIANT_QUALITY_ORDER) {
+		if (localVariants.includes(variant)) return variant
+	}
+	return localVariants[0] // fallback to first available
+}
+
 interface ImagesProps {
-	idTag: string
 	width: number
-	srcTag?: string
 	attachments: ActionView['attachments']
 }
-export function Images({ idTag, width, srcTag, attachments }: ImagesProps) {
+export function Images({ width, attachments }: ImagesProps) {
 	const [auth] = useAuth()
 	const [lbIndex, setLbIndex] = React.useState<number | undefined>()
 	const gap = 8
-	const baseUrl = `https://cl-o.${srcTag || auth?.idTag || idTag}/api/file/`
 	const [img1, img2, img3] = attachments || []
-	//console.log('ATTACHMENTS', attachments, width)
 
+	if (!auth?.idTag || !attachments?.length) return null
+
+	// Inline images: always local, preferred variant (vis.sd)
+	const getInlineUrl = (att: NonNullable<typeof attachments>[0]) =>
+		getLocalUrl(auth.idTag!, att.fileId, 'vis.sd')
+
+	// Lightbox: best available local variant
 	const photos = React.useMemo(() => attachments?.map(im => ({
-		//src: `https://cl-o.${auth?.idTag}/api/file/${im.hd || im.sd || im.tn}`,
-		src: `${baseUrl}${im.fileId}?variant=hd`,
+		src: getLocalUrl(auth.idTag!, im.fileId, getBestLocalVariant(im.localVariants)),
 		width: im.dim?.[0] || 100,
 		height: im.dim?.[1] || 100
-	})), [attachments])
-
-	if (!attachments?.length) return null
+	})), [attachments, auth.idTag])
 
 	let imgNode: React.ReactNode
 
@@ -120,7 +143,7 @@ export function Images({ idTag, width, srcTag, attachments }: ImagesProps) {
 		case 0:
 			return null
 		case 1:
-			imgNode = <img className="cursor-pointer" onClick={() => setLbIndex(0)} src={baseUrl + img1.fileId + '?variant=sd'} style={{ maxWidth: '100%', maxHeight: '30rem', margin: '0 auto'}}/>
+			imgNode = <img className="cursor-pointer" onClick={() => setLbIndex(0)} src={getInlineUrl(img1)} style={{ maxWidth: '100%', maxHeight: '30rem', margin: '0 auto'}}/>
 			break
 		case 2: {
 			const aspect12 = (img1.dim?.[0] ?? 100) / (img1.dim?.[1] ?? 100) + (img2.dim?.[0] ?? 100) / (img2.dim?.[1] ?? 100)
@@ -128,8 +151,8 @@ export function Images({ idTag, width, srcTag, attachments }: ImagesProps) {
 			const height = (width - gap) / aspect12
 
 			imgNode = <div className="c-hbox g-2">
-				<img className="cursor-pointer" onClick={() => setLbIndex(0)} src={baseUrl + img1.fileId + '?variant=sd'} style={{ height, margin: '0 auto'}}/>
-				<img className="cursor-pointer" onClick={() => setLbIndex(1)} src={baseUrl + img2.fileId + '?variant=sd'} style={{ height, margin: '0 auto'}}/>
+				<img className="cursor-pointer" onClick={() => setLbIndex(0)} src={getInlineUrl(img1)} style={{ height, margin: '0 auto'}}/>
+				<img className="cursor-pointer" onClick={() => setLbIndex(1)} src={getInlineUrl(img2)} style={{ height, margin: '0 auto'}}/>
 			</div>
 			break
 		}
@@ -147,13 +170,13 @@ export function Images({ idTag, width, srcTag, attachments }: ImagesProps) {
 			//console.log('DIMS', { width, height, width23, attachmentsLength: attachments.length })
 
 			imgNode = <div className="c-hbox g-2">
-				<img className="cursor-pointer" onClick={() => setLbIndex(0)} src={baseUrl + img1.fileId + '?variant=sd'} style={{ height, margin: '0 auto'}}/>
+				<img className="cursor-pointer" onClick={() => setLbIndex(0)} src={getInlineUrl(img1)} style={{ height, margin: '0 auto'}}/>
 				<div className="c-vbox">
-					<img className="cursor-pointer" onClick={() => setLbIndex(1)} src={baseUrl + img2.fileId + '?variant=sd'} style={{ width: width23, margin: '0 auto'}}/>
+					<img className="cursor-pointer" onClick={() => setLbIndex(1)} src={getInlineUrl(img2)} style={{ width: width23, margin: '0 auto'}}/>
 					{ attachments.length == 3
-						? <img className="cursor-pointer" onClick={() => setLbIndex(2)} src={baseUrl + img3.fileId + '?variant=sd'} style={{ width: width23, margin: '0 auto'}}/>
+						? <img className="cursor-pointer" onClick={() => setLbIndex(2)} src={getInlineUrl(img3)} style={{ width: width23, margin: '0 auto'}}/>
 						: <div className="pos-relative" style={{ width: width23, margin: '0 auto'}}>
-							<img className="w-100" src={baseUrl + img3.fileId + '?variant=sd'}/>
+							<img className="w-100" src={getInlineUrl(img3)}/>
 							<div onClick={() => setLbIndex(2)} className="c-image-overlay-counter cursor-pointer">+{attachments.length - 3}</div>
 						</div>
 					}
@@ -172,6 +195,31 @@ export function Images({ idTag, width, srcTag, attachments }: ImagesProps) {
 			plugins={[Fullscreen, Slideshow, Thumbnails, Zoom]}
 		/>
 	</>
+}
+
+/////////////////////
+// Video component //
+/////////////////////
+interface VideoProps {
+	attachments: ActionView['attachments']
+	idTag: string | undefined
+}
+
+function Video({ attachments, idTag }: VideoProps) {
+	if (!idTag || !attachments?.length) return null
+
+	const videoAtt = attachments[0]
+	const videoUrl = `https://cl-o.${idTag}/api/file/${videoAtt.fileId}?variant=vid.hd`
+
+	return (
+		<video
+			controls
+			style={{ maxWidth: '100%', maxHeight: '30rem' }}
+			poster={`https://cl-o.${idTag}/api/file/${videoAtt.fileId}?variant=vid.sd`}
+		>
+			<source src={videoUrl} />
+		</video>
+	)
 }
 
 ////////////////////
@@ -375,7 +423,11 @@ function Post({ className, action, setAction, hideAudience, srcTag, width }: Pos
 						{ generateFragments(line).map((n, i) => <React.Fragment key={i}>{n}</React.Fragment>) }
 					<br/></React.Fragment>) }
 				</p>) }
-				{ !!action.attachments?.length && <Images idTag={action.issuer.idTag} width={width} srcTag={srcTag} attachments={action.attachments || []}/> }
+				{ !!action.attachments?.length && (
+					action.subType === 'VIDEO'
+						? <Video attachments={action.attachments} idTag={auth?.idTag} />
+						: <Images width={width} attachments={action.attachments}/>
+				)}
 				{/* generateFragments(action.content) */}
 			</div><div className="c-hbox">
 				<div className="c-hbox">
@@ -512,13 +564,19 @@ export const NewPost = React.memo(React.forwardRef(function NewPostInside({ clas
 	}
 
 	function onFileChange(which: 'file' | 'image' | 'video') {
-		if (!type) setType('IMG')
 		const inputRef = which === 'image' ? imgInputRef : which === 'video' ? videoInputRef : fileInputRef
 		const file = inputRef.current?.files?.[0]
-		if (file) {
+		if (!file) return
+
+		if (file.type.startsWith('video/')) {
+			// Direct upload for videos (no crop)
+			imageUpload.uploadVideo(file)
+		} else {
+			// Image flow with crop modal
+			if (!type) setType('IMG')
 			imageUpload.selectFile(file)
-			if (inputRef.current) inputRef.current.value = ''
 		}
+		if (inputRef.current) inputRef.current.value = ''
 	}
 
 	function onCancelCrop() {
@@ -529,9 +587,12 @@ export const NewPost = React.memo(React.forwardRef(function NewPostInside({ clas
 		if (!api || !auth?.idTag) return
 
 		setContent('')
+		const subType = imageUpload.attachmentType === 'video' ? 'VIDEO'
+			: imageUpload.attachmentType === 'image' ? 'IMG'
+			: 'TEXT'
 		const action: NewAction = {
 			type: 'POST',
-			subType: imageUpload.attachmentIds.length ? 'IMG' : 'TEXT',
+			subType,
 			content,
 			attachments: imageUpload.attachmentIds.length ? imageUpload.attachmentIds : undefined,
 			audienceTag: idTag,
@@ -572,18 +633,44 @@ export const NewPost = React.memo(React.forwardRef(function NewPostInside({ clas
 				idTag={auth.idTag}
 				onRemove={imageUpload.removeAttachment}
 			/>
+			{imageUpload.uploadProgress !== undefined && (
+				<div className="c-hbox g-2 align-items-center p-1">
+					<div className="c-progress flex-fill" style={{ height: '0.5rem', borderRadius: '0.25rem', background: 'var(--c-bg-secondary)' }}>
+						<div
+							className="c-progress-bar"
+							style={{
+								width: `${imageUpload.uploadProgress}%`,
+								height: '100%',
+								borderRadius: '0.25rem',
+								background: 'var(--c-primary)',
+								transition: 'width 0.2s ease'
+							}}
+						/>
+					</div>
+					<span className="text-sm">{imageUpload.uploadProgress}%</span>
+				</div>
+			)}
 			<hr className="w-100"/>
 			<div className="c-hbox g-3">
 				<button className="c-link" disabled={process.env.NODE_ENV == 'production'} onClick={() => setType('POLL')}><IcPoll/>Poll</button>
 				<button className="c-link" disabled={process.env.NODE_ENV == 'production'} onClick={() => setType('EVENT')}><IcEvent/>Event</button>
 				<div className="c-hbox ms-auto">
-					<label htmlFor={fileInputId} className="cursor-pointer"><IcImage/></label>
+					<label
+						htmlFor={imageUpload.attachmentType === 'video' || imageUpload.isUploading ? undefined : fileInputId}
+						className={imageUpload.attachmentType === 'video' || imageUpload.isUploading ? 'opacity-50' : 'cursor-pointer'}
+					><IcImage/></label>
 					<input ref={fileInputRef} id={fileInputId} type="file" accept="image/*,video/*,.pdf" style={{ display: 'none' }} onChange={() => onFileChange('file')}/>
 
-					<label htmlFor={imgInputId} className="cursor-pointer"><IcCamera/></label>
+					<label
+						htmlFor={imageUpload.attachmentType === 'video' || imageUpload.isUploading ? undefined : imgInputId}
+						className={imageUpload.attachmentType === 'video' || imageUpload.isUploading ? 'opacity-50' : 'cursor-pointer'}
+					><IcCamera/></label>
 					<input ref={imgInputRef} id={imgInputId} type="file" capture="environment" accept="image/*" style={{ display: 'none' }} onChange={() => onFileChange('image')}/>
 
-					<label htmlFor={videoInputId} className="cursor-pointer"><IcVideo/></label>
+					<label
+						htmlFor={imageUpload.attachmentType || imageUpload.isUploading ? undefined : videoInputId}
+						className={imageUpload.attachmentType || imageUpload.isUploading ? 'opacity-50' : 'cursor-pointer'}
+					><IcVideo/></label>
 					<input ref={videoInputRef} id={videoInputId} type="file" capture="environment" accept="video/*" style={{ display: 'none' }} onChange={() => onFileChange('video')}/>
 				</div>
 			</div>

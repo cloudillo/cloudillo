@@ -23,6 +23,7 @@ import {
 	LuBell as IcNotifications,
 	LuPalette as IcAppearance,
 	LuShield as IcPrivacy,
+	LuHardDrive as IcFiles,
 	LuMenu as IcMenu
 } from 'react-icons/lu'
 
@@ -34,6 +35,7 @@ import { SecuritySettings } from './security.js'
 import { NotificationSettings } from './notifications.js'
 import { AppearanceSettings } from './appearance.js'
 import { PrivacySettings } from './privacy.js'
+import { FilesSettings } from './files.js'
 
 interface SettingsProps {
 	title: string
@@ -63,6 +65,7 @@ export function Settings({ title, children }: SettingsProps) {
 				<li><NavLink className="c-nav-item" to={`${basePath}/privacy`}><IcPrivacy/> {t('Privacy')}</NavLink></li>
 				<li><NavLink className="c-nav-item" to={`${basePath}/notifications`}><IcNotifications/> {t('Notifications')}</NavLink></li>
 				<li><NavLink className="c-nav-item" to={`${basePath}/appearance`}><IcAppearance/> {t('Appearance')}</NavLink></li>
+				<li><NavLink className="c-nav-item" to={`${basePath}/files`}><IcFiles/> {t('Files')}</NavLink></li>
 			</ul>
 		</Fcd.Filter>
 		<Fcd.Content>
@@ -104,6 +107,11 @@ export function SettingsRoutes({ pwa }: { pwa: UsePWA }) {
 		<Route path="/settings/:contextIdTag/appearance" element={
 			<Settings title={t('Appearance')}>
 				<AppearanceSettings/>
+			</Settings>
+		}/>
+		<Route path="/settings/:contextIdTag/files" element={
+			<Settings title={t('Files')}>
+				<FilesSettings/>
 			</Settings>
 		}/>
 		<Route path="/*" element={null}/>

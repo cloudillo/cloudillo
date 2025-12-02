@@ -51,7 +51,14 @@ const APP_CONFIG: AppConfigState = {
 		'cloudillo/todollo': '/app/todollo'
 	},
 	menu: [
-		{ id: 'files', icon: IcFile, label: 'Files', trans: { hu: 'Fájlok' }, path: '/app/files?' },
+		{
+			id: 'files',
+			icon: IcFile,
+			label: 'Files',
+			trans: { hu: 'Fájlok' },
+			path: '/app/files?',
+			public: true
+		},
 		{
 			id: 'feed',
 			icon: IcFeed,
@@ -71,19 +78,36 @@ const APP_CONFIG: AppConfigState = {
 			id: 'messages',
 			icon: IcMessages,
 			label: 'Messages',
-			trans: { hu: 'Uzenetek' },
+			trans: { hu: 'Üzenetek' },
 			path: '/app/messages'
-		}
-		//{ id: 'myform', icon: IcFile, label: 'My Form', path: '/app/formillo/cloud.w9.hu/myform' },
-	],
-	menuEx: [
-		{ id: 'gallery', icon: IcGallery, label: 'Gallery', path: '/app/gallery' },
-		{ id: 'users', icon: IcUser, label: 'Users', path: '/users' },
-		{ id: 'settings', icon: IcSettings, label: 'Settings', path: '/settings' },
+		},
+		{
+			id: 'gallery',
+			icon: IcGallery,
+			label: 'Gallery',
+			trans: { hu: 'Galéria' },
+			path: '/app/gallery',
+			public: true
+		},
+		{
+			id: 'users',
+			icon: IcUser,
+			label: 'Users',
+			trans: { hu: 'Felhasználók' },
+			path: '/users'
+		},
+		{
+			id: 'settings',
+			icon: IcSettings,
+			label: 'Settings',
+			trans: { hu: 'Beállítások' },
+			path: '/settings'
+		},
 		{
 			id: 'site-admin',
 			icon: IcSiteAdmin,
 			label: 'Site admin',
+			trans: { hu: 'Webhely' },
 			path: '/site-admin',
 			perm: 'SADM'
 		}
@@ -166,19 +190,33 @@ function Menu({
 	const location = useLocation()
 	const [appConfig, setAppConfig] = useAppConfig()
 	const [auth, setAuth] = useAuth()
-	const [exMenuOpen, setExMenuOpen] = React.useState(false)
+	const [moreMenuOpen, setMoreMenuOpen] = React.useState(false)
 	const { contextIdTag, getContextPath } = useContextPath()
 	const sidebar = useSidebar()
 
 	React.useEffect(
 		function onLocationChange() {
-			setExMenuOpen(false)
+			setMoreMenuOpen(false)
 		},
 		[location]
 	)
 
 	// Check if we're in an app view (where sidebar should be shown)
 	const isAppView = location.pathname.startsWith('/app/')
+
+	// Filter visible menu items based on auth state
+	const visibleItems =
+		appConfig?.menu.filter(
+			(item) => (!!auth && (!item.perm || auth.roles?.includes(item.perm))) || item.public
+		) || []
+
+	// Threshold for showing all items inline vs using "More" menu
+	const MAX_INLINE_ITEMS = 4
+	const needsMoreMenu = visibleItems.length > MAX_INLINE_ITEMS
+
+	// Split items: first N inline, rest in "More" menu
+	const inlineItems = needsMoreMenu ? visibleItems.slice(0, MAX_INLINE_ITEMS) : visibleItems
+	const moreItems = needsMoreMenu ? visibleItems.slice(MAX_INLINE_ITEMS) : []
 
 	return (
 		!location.pathname.match('^/register/') && (
@@ -205,55 +243,76 @@ function Menu({
 						<h6>{contextIdTag || auth.idTag}</h6>
 					</button>
 				)}
-				<div inert={inert} className="c-menu-ex flex-order-end">
-					<nav className={mergeClasses('c-nav', exMenuOpen && 'open')}>
-						{appConfig &&
-							appConfig.menuEx.map(
-								(menuItem) =>
-									((!!auth &&
-										(!menuItem.perm || auth.roles?.includes(menuItem.perm))) ||
-										menuItem.public) && (
-										<NavLink
-											key={menuItem.id}
-											className="c-nav-link h-small vertical"
-											aria-current="page"
-											to={getContextPath(menuItem.path)}
-										>
-											{menuItem.icon && React.createElement(menuItem.icon)}
-											<h6>
-												{menuItem.trans?.[i18n.language] || menuItem.label}
-											</h6>
-										</NavLink>
-									)
-							)}
-					</nav>
-				</div>
-				{appConfig &&
-					appConfig.menu.map(
-						(menuItem) =>
-							((!!auth && (!menuItem.perm || auth.roles?.includes(menuItem.perm))) ||
-								menuItem.public) && (
+				{needsMoreMenu && (
+					<div inert={inert} className="c-menu-ex flex-order-end">
+						<nav className={mergeClasses('c-nav', moreMenuOpen && 'open')}>
+							{moreItems.map((menuItem) => (
 								<NavLink
 									key={menuItem.id}
-									className={mergeClasses('c-nav-link', vertical && 'vertical')}
+									className="c-nav-link h-small vertical"
 									aria-current="page"
 									to={getContextPath(menuItem.path)}
 								>
 									{menuItem.icon && React.createElement(menuItem.icon)}
 									<h6>{menuItem.trans?.[i18n.language] || menuItem.label}</h6>
 								</NavLink>
-							)
-					)}
-				<button
-					className={mergeClasses('c-nav-link', vertical && 'vertical')}
-					onClick={() => setExMenuOpen(!exMenuOpen)}
-				>
-					<IcApps />
-					<h6>{t('More')}</h6>
-				</button>
+							))}
+						</nav>
+					</div>
+				)}
+				{inlineItems.map((menuItem) => (
+					<NavLink
+						key={menuItem.id}
+						className={mergeClasses('c-nav-link', vertical && 'vertical')}
+						aria-current="page"
+						to={getContextPath(menuItem.path)}
+					>
+						{menuItem.icon && React.createElement(menuItem.icon)}
+						<h6>{menuItem.trans?.[i18n.language] || menuItem.label}</h6>
+					</NavLink>
+				))}
+				{needsMoreMenu && (
+					<button
+						className={mergeClasses('c-nav-link', vertical && 'vertical')}
+						onClick={() => setMoreMenuOpen(!moreMenuOpen)}
+					>
+						<IcApps />
+						<h6>{t('More')}</h6>
+					</button>
+				)}
 			</>
 		)
 	)
+}
+
+/**
+ * Check if a path is accessible to guests (unauthenticated users)
+ */
+function isGuestPath(pathname: string): boolean {
+	return (
+		pathname === '/' ||
+		pathname.startsWith('/app/') ||
+		pathname.startsWith('/profile/') ||
+		pathname.startsWith('/login') ||
+		pathname.startsWith('/register/') ||
+		pathname.startsWith('/onboarding/')
+	)
+}
+
+/**
+ * Handle guest/auth redirect based on current path
+ * Returns the path to navigate to, or undefined if no redirect needed
+ */
+function getGuestRedirect(pathname: string, ownerIdTag: string): string | undefined {
+	if (pathname === '/') {
+		// Redirect root to public feed
+		return `/app/${ownerIdTag}/feed`
+	}
+	if (!isGuestPath(pathname)) {
+		// Non-guest path requires login
+		return '/login'
+	}
+	return undefined
 }
 
 function Header({ inert }: { inert?: boolean }) {
@@ -317,85 +376,81 @@ function Header({ inert }: { inert?: boolean }) {
 						const res = await fetch(
 							`https://${window.location.host}/.well-known/cloudillo/id-tag`
 						)
-						if (res.ok) {
-							const j = await res.json()
-							if (typeof j.idTag == 'string') {
-								// idTag determined from .well-known endpoint
-								console.log('[Shell] idTag', j.idTag)
-								setIdTag(j.idTag)
-							}
-							// Create temporary API client with the idTag to check login status
-							const tempApi = createApiClient({
-								idTag: j.idTag || 'unknown',
-								authToken: loginToken
-							})
-							// Check for login cookie
-							const tokenRes = await tempApi.auth.getLoginToken()
-							const authState: AuthState | undefined = tokenRes
-								? { ...tokenRes }
-								: undefined
-							console.log('authState', authState)
-							if (authState?.idTag) {
-								setAuth(authState)
-								if (authState.token)
-									localStorage.setItem('loginToken', authState.token)
-
-								// Load and apply UI settings
-								try {
-									const uiSettings = await tempApi.settings.list({ prefix: 'ui' })
-									const theme = uiSettings.find(
-										(s) => s.key === 'ui.theme'
-									)?.value
-									const colors = uiSettings.find(
-										(s) => s.key === 'ui.colors'
-									)?.value
-									const onboarding = uiSettings.find(
-										(s) => s.key === 'ui.onboarding'
-									)?.value
-									setTheme(
-										theme as string | undefined,
-										colors as string | undefined
-									)
-
-									const navTo =
-										(onboarding && `/onboarding/${onboarding}`) ||
-										appConfig?.menu
-											?.find((m) => m.id === appConfig.defaultMenu)
-											?.path?.replace('/app/', `/app/${authState.idTag}/`) ||
-										`/app/${authState.idTag}/feed`
-									console.log('REDIRECT TO', navTo)
-									if (location.pathname == '/') {
-										console.log('NAVIGATE: ', navTo)
-										navigate(navTo)
-									}
-								} catch (err) {
-									console.error('Failed to load UI settings:', err)
-									// Navigate to default even if settings fail
-									const navTo =
-										appConfig?.menu
-											?.find((m) => m.id === appConfig.defaultMenu)
-											?.path?.replace('/app/', `/app/${authState.idTag}/`) ||
-										`/app/${authState.idTag}/feed`
-									if (location.pathname == '/') {
-										navigate(navTo)
-									}
-								}
-								return
-							}
+						if (!res.ok) {
+							throw new Error('Failed to fetch idTag')
 						}
-						if (
-							!location.pathname.startsWith('/register/') &&
-							!location.pathname.startsWith('/onboarding/')
-						) {
-							console.log('NAVIGATE: /login')
-							navigate('/login')
+						const j = await res.json()
+						const ownerIdTag = typeof j.idTag === 'string' ? j.idTag : 'unknown'
+						console.log('[Shell] idTag', ownerIdTag)
+						setIdTag(ownerIdTag)
+
+						// Create temporary API client with the idTag to check login status
+						const tempApi = createApiClient({
+							idTag: ownerIdTag,
+							authToken: loginToken
+						})
+
+						// Try to get login token (may fail if not authenticated)
+						let authState: AuthState | undefined
+						try {
+							const tokenRes = await tempApi.auth.getLoginToken()
+							authState = tokenRes ? { ...tokenRes } : undefined
+							console.log('authState', authState)
+						} catch (err) {
+							// Not authenticated - continue as guest
+							console.log('Not authenticated, continuing as guest')
+						}
+
+						if (authState?.idTag) {
+							setAuth(authState)
+							if (authState.token) localStorage.setItem('loginToken', authState.token)
+
+							// Load and apply UI settings
+							try {
+								const uiSettings = await tempApi.settings.list({ prefix: 'ui' })
+								const theme = uiSettings.find((s) => s.key === 'ui.theme')?.value
+								const colors = uiSettings.find((s) => s.key === 'ui.colors')?.value
+								const onboarding = uiSettings.find(
+									(s) => s.key === 'ui.onboarding'
+								)?.value
+								setTheme(theme as string | undefined, colors as string | undefined)
+
+								const navTo =
+									(onboarding && `/onboarding/${onboarding}`) ||
+									appConfig?.menu
+										?.find((m) => m.id === appConfig.defaultMenu)
+										?.path?.replace('/app/', `/app/${authState.idTag}/`) ||
+									`/app/${authState.idTag}/feed`
+								console.log('REDIRECT TO', navTo)
+								if (location.pathname == '/') {
+									console.log('NAVIGATE: ', navTo)
+									navigate(navTo)
+								}
+							} catch (err) {
+								console.error('Failed to load UI settings:', err)
+								// Navigate to default even if settings fail
+								const navTo =
+									appConfig?.menu
+										?.find((m) => m.id === appConfig.defaultMenu)
+										?.path?.replace('/app/', `/app/${authState.idTag}/`) ||
+									`/app/${authState.idTag}/feed`
+								if (location.pathname == '/') {
+									navigate(navTo)
+								}
+							}
+							return
+						}
+
+						// Guest mode: handle redirect
+						const guestRedirect = getGuestRedirect(location.pathname, ownerIdTag)
+						if (guestRedirect) {
+							console.log('NAVIGATE:', guestRedirect, '(guest)')
+							navigate(guestRedirect)
 						}
 					} catch (err) {
-						console.log('ERROR', err)
-						if (
-							!location.pathname.startsWith('/register/') &&
-							!location.pathname.startsWith('/onboarding/')
-						) {
+						console.log('ERROR fetching idTag:', err)
+						// On error fetching idTag, redirect non-guest paths to login
+						if (!isGuestPath(location.pathname)) {
 							console.log('NAVIGATE: /login')
 							navigate('/login')
 						}
@@ -521,18 +576,20 @@ function Header({ inert }: { inert?: boolean }) {
 							</ul>
 						</Popper>
 					) : (
-						<Popper className="c-nav-item" icon={<IcMenu />}>
+						<Popper className="c-nav-item" icon={<IcUser />}>
 							<ul className="c-nav vertical emph">
-								<li>
-									<Link
-										className="c-nav-item"
-										to="/login"
-										onClick={() => setMenuOpen(false)}
-									>
-										<IcUser />
-										{t('Login')}
-									</Link>
-								</li>
+								{api?.idTag && (
+									<li>
+										<Link
+											className="c-nav-item"
+											to={`/profile/${api.idTag}/${api.idTag}`}
+											onClick={() => setMenuOpen(false)}
+										>
+											<IcUser />
+											{t('Owner profile')}
+										</Link>
+									</li>
+								)}
 								<li>
 									<hr className="w-100" />
 								</li>
@@ -554,6 +611,9 @@ function Header({ inert }: { inert?: boolean }) {
 										Magyar
 									</button>
 								</li>
+								<li className="text-disabled">
+									Cloudillo V{process.env.CLOUDILLO_VERSION}
+								</li>
 							</ul>
 						</Popper>
 					)}
@@ -573,6 +633,7 @@ function Header({ inert }: { inert?: boolean }) {
 
 export function Layout() {
 	const pwa = usePWA({ swPath: `/sw-${version}.js` })
+	const [auth] = useAuth()
 	const { api, setIdTag } = useApi()
 	const dialog = useDialog()
 	const sidebar = useSidebar()
@@ -608,6 +669,11 @@ export function Layout() {
 					</div>
 					<div className="pt-1" />
 				</div>
+				{!auth && (
+					<Link to="/login" className="c-fab accent">
+						<IcLogin />
+					</Link>
+				)}
 				<div id="popper-container" />
 				<DialogContainer />
 				<ToastContainer position="bottom-right" />

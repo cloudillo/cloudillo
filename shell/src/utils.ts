@@ -142,7 +142,6 @@ export interface AppConfigState {
 	apps: AppConfig[]
 	mime: Record<string, string>
 	menu: MenuItem[]
-	menuEx: MenuItem[]
 	defaultMenu?: string
 }
 

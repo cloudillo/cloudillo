@@ -283,7 +283,7 @@ function useFileListData() {
 
 	React.useEffect(
 		function loadFileList() {
-			if (!api || !auth) return
+			if (!api) return // Allow guests (removed !auth check)
 			;(async function () {
 				const qs = parseQS(location.search)
 				setFilter(qs)
@@ -308,7 +308,7 @@ function useFileListData() {
 				}
 			})()
 		},
-		[api, auth, location.search, refreshHelper]
+		[api, location.search, refreshHelper]
 	)
 
 	return React.useMemo(
@@ -464,84 +464,86 @@ const FilterBar = React.memo(function FilterBar({
 
 	return (
 		<ul className={mergeClasses('c-nav vertical low', className)}>
-			<li className="c-nav-item">
-				{/*
-			<details className="c-dropdown">
-			*/}
-				<Popper icon={<IcNewFile />} label={t('Create document')}>
-					<ul className="c-nav vertical emph">
-						<li>
-							<button
-								className="c-nav-item"
-								onClick={() => createFile('cloudillo/quillo')}
-							>
-								{React.createElement<React.ComponentProps<typeof IcUnknown>>(
-									icons['cloudillo/quillo'],
-									{ className: 'me-1' }
-								)}
-								{t('Quillo text document')}
-							</button>
-						</li>
-						<li>
-							<a
-								className="c-nav-item"
-								href="#"
-								onClick={() => createFile('cloudillo/sheello')}
-							>
-								{React.createElement<React.ComponentProps<typeof IcUnknown>>(
-									icons['cloudillo/sheello'],
-									{ className: 'me-1' }
-								)}
-								{t('Sheello spreadsheet document')}
-							</a>
-						</li>
-						<li>
-							<button
-								className="c-nav-item"
-								disabled={true || process.env.NODE_ENV === 'production'}
-								onClick={() => createFile('cloudillo/ideallo')}
-							>
-								{React.createElement<React.ComponentProps<typeof IcUnknown>>(
-									icons['cloudillo/ideallo'],
-									{ className: 'me-1' }
-								)}
-								{t('Ideallo whiteboard document')}
-							</button>
-						</li>
-						<li>
-							<button
-								className="c-nav-item"
-								onClick={() => createFile('cloudillo/prello')}
-							>
-								{React.createElement<React.ComponentProps<typeof IcUnknown>>(
-									icons['cloudillo/prello'],
-									{ className: 'me-1' }
-								)}
-								{t('Prello presentation document')}
-							</button>
-						</li>
-						<li>
-							<button
-								className="c-nav-item"
-								onClick={() => createDb('cloudillo/todollo')}
-							>
-								{React.createElement<React.ComponentProps<typeof IcUnknown>>(
-									icons['cloudillo/todollo'],
-									{ className: 'me-1' }
-								)}
-								{t('Todollo todo list')}
-							</button>
-						</li>
-						{/*
+			{!!auth && (
+				<li className="c-nav-item">
+					{/*
+				<details className="c-dropdown">
+				*/}
+					<Popper icon={<IcNewFile />} label={t('Create document')}>
+						<ul className="c-nav vertical emph">
+							<li>
+								<button
+									className="c-nav-item"
+									onClick={() => createFile('cloudillo/quillo')}
+								>
+									{React.createElement<React.ComponentProps<typeof IcUnknown>>(
+										icons['cloudillo/quillo'],
+										{ className: 'me-1' }
+									)}
+									{t('Quillo text document')}
+								</button>
+							</li>
+							<li>
+								<a
+									className="c-nav-item"
+									href="#"
+									onClick={() => createFile('cloudillo/sheello')}
+								>
+									{React.createElement<React.ComponentProps<typeof IcUnknown>>(
+										icons['cloudillo/sheello'],
+										{ className: 'me-1' }
+									)}
+									{t('Sheello spreadsheet document')}
+								</a>
+							</li>
+							<li>
+								<button
+									className="c-nav-item"
+									disabled={true || process.env.NODE_ENV === 'production'}
+									onClick={() => createFile('cloudillo/ideallo')}
+								>
+									{React.createElement<React.ComponentProps<typeof IcUnknown>>(
+										icons['cloudillo/ideallo'],
+										{ className: 'me-1' }
+									)}
+									{t('Ideallo whiteboard document')}
+								</button>
+							</li>
+							<li>
+								<button
+									className="c-nav-item"
+									onClick={() => createFile('cloudillo/prello')}
+								>
+									{React.createElement<React.ComponentProps<typeof IcUnknown>>(
+										icons['cloudillo/prello'],
+										{ className: 'me-1' }
+									)}
+									{t('Prello presentation document')}
+								</button>
+							</li>
+							<li>
+								<button
+									className="c-nav-item"
+									onClick={() => createDb('cloudillo/todollo')}
+								>
+									{React.createElement<React.ComponentProps<typeof IcUnknown>>(
+										icons['cloudillo/todollo'],
+										{ className: 'me-1' }
+									)}
+									{t('Todollo todo list')}
+								</button>
+							</li>
+							{/*
 					<li><a className="c-nav-item" href="#" onClick={() => createFile('cloudillo/formillo')}>
 						{React.createElement<React.ComponentProps<typeof IcUnknown>>(icons['cloudillo/formillo'], { className: 'me-1' })}
 						<IcFormillo/>
 						{t('Formillo document')}</a></li>
 					*/}
-					</ul>
-				</Popper>
-			</li>
-			<hr className="w-100" />
+						</ul>
+					</Popper>
+				</li>
+			)}
+			{!!auth && <hr className="w-100" />}
 
 			<li className="c-nav-item">
 				<Link className={'c-nav-link ' + (!qs.fileTp ? 'active' : '')} to="">
@@ -645,40 +647,44 @@ const FileCard = React.memo(function FileCard({
 					>
 						<IcMonitor />
 					</button>
-					<button
-						className="c-link p-1"
-						type="button"
-						title={t('Edit')}
-						onClick={(evt) => (
-							evt.stopPropagation(), fileOps.openFile(file.fileId, 'write')
-						)}
-					>
-						<IcEdit />
-					</button>
+					{!!auth && (
+						<button
+							className="c-link p-1"
+							type="button"
+							title={t('Edit')}
+							onClick={(evt) => (
+								evt.stopPropagation(), fileOps.openFile(file.fileId, 'write')
+							)}
+						>
+							<IcEdit />
+						</button>
+					)}
 					{!!file.owner && <ProfilePicture profile={file.owner} small />}
-					<Popper className="c-link" label={<IcMore />}>
-						<ul className="c-nav vertical">
-							<li className="c-nav-item">
-								<a
-									className="c-link"
-									href="#"
-									onClick={() => fileOps.renameFile(file.fileId)}
-								>
-									<IcEdit /> {t('Rename...')}
-								</a>
-							</li>
-							<li className="c-nav-item">
-								<a
-									className="c-link"
-									href="#"
-									onClick={() => fileOps.doDeleteFile(file.fileId)}
-								>
-									<IcDelete />
-									{t('Delete...')}
-								</a>
-							</li>
-						</ul>
-					</Popper>
+					{!!auth && (
+						<Popper className="c-link" label={<IcMore />}>
+							<ul className="c-nav vertical">
+								<li className="c-nav-item">
+									<a
+										className="c-link"
+										href="#"
+										onClick={() => fileOps.renameFile(file.fileId)}
+									>
+										<IcEdit /> {t('Rename...')}
+									</a>
+								</li>
+								<li className="c-nav-item">
+									<a
+										className="c-link"
+										href="#"
+										onClick={() => fileOps.doDeleteFile(file.fileId)}
+									>
+										<IcDelete />
+										{t('Delete...')}
+									</a>
+								</li>
+							</ul>
+						</Popper>
+					)}
 					{auth?.idTag && file.variantId && (
 						<img src={`https://cl-o.${auth.idTag}/api/file/${file.variantId}`} />
 					)}

@@ -75,7 +75,7 @@ export function GalleryApp() {
 
 	React.useEffect(
 		function loadImageList() {
-			if (!api || !auth) return
+			if (!api) return // Allow guests (removed !auth check)
 			;(async function () {
 				const qs: Record<string, string> = parseQS(location.search)
 				console.log('QS', location.search, qs)
@@ -101,7 +101,7 @@ export function GalleryApp() {
 				}
 			})()
 		},
-		[api, auth, location.search, refreshHelper]
+		[api, location.search, refreshHelper]
 	)
 
 	if (!photos)

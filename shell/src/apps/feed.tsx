@@ -126,28 +126,28 @@ function getBestLocalVariant(localVariants?: string[], fallback = 'vis.hd'): str
 interface ImagesProps {
 	width: number
 	attachments: ActionView['attachments']
+	idTag: string | undefined
 }
-export function Images({ width, attachments }: ImagesProps) {
-	const [auth] = useAuth()
+export function Images({ width, attachments, idTag }: ImagesProps) {
 	const [lbIndex, setLbIndex] = React.useState<number | undefined>()
 	const gap = 8
 	const [img1, img2, img3] = attachments || []
 
-	if (!auth?.idTag || !attachments?.length) return null
+	if (!idTag || !attachments?.length) return null
 
 	// Inline images: always local, preferred variant (vis.sd)
 	const getInlineUrl = (att: NonNullable<typeof attachments>[0]) =>
-		getLocalUrl(auth.idTag!, att.fileId, 'vis.sd')
+		getLocalUrl(idTag, att.fileId, 'vis.sd')
 
 	// Lightbox: best available local variant
 	const photos = React.useMemo(
 		() =>
 			attachments?.map((im) => ({
-				src: getLocalUrl(auth.idTag!, im.fileId, getBestLocalVariant(im.localVariants)),
+				src: getLocalUrl(idTag, im.fileId, getBestLocalVariant(im.localVariants)),
 				width: im.dim?.[0] || 100,
 				height: im.dim?.[1] || 100
 			})),
-		[attachments, auth.idTag]
+		[attachments, idTag]
 	)
 
 	let imgNode: React.ReactNode
@@ -563,9 +563,16 @@ function Post({ className, action, setAction, hideAudience, srcTag, width }: Pos
 						))}
 					{!!action.attachments?.length &&
 						(action.subType === 'VIDEO' ? (
-							<Video attachments={action.attachments} idTag={auth?.idTag} />
+							<Video
+								attachments={action.attachments}
+								idTag={auth?.idTag || api?.idTag}
+							/>
 						) : (
-							<Images width={width} attachments={action.attachments} />
+							<Images
+								width={width}
+								attachments={action.attachments}
+								idTag={auth?.idTag || api?.idTag}
+							/>
 						))}
 					{/* generateFragments(action.content) */}
 				</div>
@@ -1032,6 +1039,7 @@ export function FeedApp() {
 	const [feed, setFeed] = React.useState<ActionEvt[] | undefined>()
 	const [text, setText] = React.useState('')
 	const ref = React.useRef<HTMLDivElement>(null)
+	const widthRef = React.useRef<HTMLDivElement>(null)
 	const [width, setWidth] = React.useState(0)
 
 	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
@@ -1070,34 +1078,44 @@ export function FeedApp() {
 
 	React.useLayoutEffect(
 		function () {
-			//if (!ref.current || !api || !auth?.roles) return
-			if (!ref.current || !api || !auth) return
-			function onResize() {
-				if (!ref.current) return
-				const styles = getComputedStyle(ref.current)
-				const w =
-					(ref.current?.clientWidth || 0) -
-					parseInt(styles.paddingLeft || '0') -
-					parseInt(styles.paddingRight || '0')
-				//console.log('WIDTH calc', ref.current, ref.current.clientWidth, styles, w, styles.paddingLeft, styles.paddingRight)
-				if (width != w) setWidth(w)
+			if (!widthRef.current) return
+
+			function measureWidth() {
+				if (!widthRef.current) return
+				// Find the first c-panel inside to measure its padding
+				const panel = widthRef.current.querySelector('.c-panel')
+				if (panel) {
+					const styles = getComputedStyle(panel)
+					const w =
+						panel.clientWidth -
+						parseInt(styles.paddingLeft || '0') -
+						parseInt(styles.paddingRight || '0')
+					if (w > 0 && width !== w) setWidth(w)
+				} else {
+					// Fallback: use container width
+					const w = widthRef.current.clientWidth
+					if (w > 0 && width !== w) setWidth(w)
+				}
 			}
 
-			onResize()
-			window.addEventListener('resize', onResize)
+			// Use ResizeObserver for reliable width tracking
+			const resizeObserver = new ResizeObserver(measureWidth)
+			resizeObserver.observe(widthRef.current)
+
+			// Initial measurement
+			measureWidth()
 
 			return function () {
-				window.removeEventListener('resize', onResize)
+				resizeObserver.disconnect()
 			}
 		},
-		[auth, api, ref]
+		[widthRef.current]
 	)
 
 	React.useEffect(
 		function onLoadFeed() {
 			console.log('FEED useEffect', !ref.current, !api, !auth)
-			if (!api || !api.idTag || !auth) return
-			const idTag = auth?.idTag
+			if (!api || !api.idTag) return // Allow guests (removed !auth check)
 
 			;(async function () {
 				const actions = await api.actions.list({ type: 'POST' })
@@ -1105,7 +1123,7 @@ export function FeedApp() {
 				setFeed(actions)
 			})()
 		},
-		[auth, api, ref]
+		[api, ref]
 	)
 
 	const setFeedAction = React.useCallback(function setFeedAction(
@@ -1124,48 +1142,48 @@ export function FeedApp() {
 	return (
 		<Fcd.Container className="g-1">
 			{!!auth && (
-				<>
-					<Fcd.Filter>
-						<FilterBar />
-					</Fcd.Filter>
-					<Fcd.Content>
-						<div>
-							<NewPost
-								ref={ref}
-								className="col"
-								style={style}
-								idTag={contextIdTag !== auth?.idTag ? contextIdTag : undefined}
-								onSubmit={onSubmit}
-							/>
-						</div>
-						{feed === undefined ? (
-							<div className="c-vbox g-2 p-2">
-								<SkeletonCard showAvatar showImage lines={2} />
-								<SkeletonCard showAvatar lines={3} />
-								<SkeletonCard showAvatar showImage lines={2} />
-							</div>
-						) : feed.length === 0 ? (
-							<EmptyState
-								icon={<IcAll style={{ fontSize: '2.5rem' }} />}
-								title={t('No posts yet')}
-								description={t(
-									'Be the first to share something with your community!'
-								)}
-							/>
-						) : (
-							feed.map((action) => (
-								<ActionComp
-									key={action.actionId}
-									action={action}
-									setAction={setFeedAction}
-									width={width}
-								/>
-							))
-						)}
-					</Fcd.Content>
-					<Fcd.Details></Fcd.Details>
-				</>
+				<Fcd.Filter>
+					<FilterBar />
+				</Fcd.Filter>
 			)}
+			<Fcd.Content>
+				{!!auth && (
+					<div>
+						<NewPost
+							ref={ref}
+							className="col"
+							style={style}
+							idTag={contextIdTag !== auth?.idTag ? contextIdTag : undefined}
+							onSubmit={onSubmit}
+						/>
+					</div>
+				)}
+				<div ref={widthRef} className="c-vbox g-1">
+					{feed === undefined ? (
+						<div className="c-vbox g-2 p-2">
+							<SkeletonCard showAvatar showImage lines={2} />
+							<SkeletonCard showAvatar lines={3} />
+							<SkeletonCard showAvatar showImage lines={2} />
+						</div>
+					) : feed.length === 0 ? (
+						<EmptyState
+							icon={<IcAll style={{ fontSize: '2.5rem' }} />}
+							title={t('No posts yet')}
+							description={t('Be the first to share something with your community!')}
+						/>
+					) : (
+						feed.map((action) => (
+							<ActionComp
+								key={action.actionId}
+								action={action}
+								setAction={setFeedAction}
+								width={width}
+							/>
+						))
+					)}
+				</div>
+			</Fcd.Content>
+			{!!auth && <Fcd.Details></Fcd.Details>}
 		</Fcd.Container>
 	)
 }

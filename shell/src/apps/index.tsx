@@ -43,6 +43,7 @@ interface MicrofrontendContainerProps {
 	resId?: string
 	appUrl: string
 	trust?: boolean
+	access?: 'read' | 'write'
 }
 
 export function MicrofrontendContainer({
@@ -50,7 +51,8 @@ export function MicrofrontendContainer({
 	app,
 	resId,
 	appUrl,
-	trust
+	trust,
+	access
 }: MicrofrontendContainerProps) {
 	const ref = React.useRef<HTMLIFrameElement>(null)
 	const { api, setIdTag } = useApi()
@@ -66,9 +68,10 @@ export function MicrofrontendContainer({
 		function onLoad() {
 			if (api && auth) {
 				//console.log('Sending load message', ref.current, ref.current?.contentWindow)
-				console.log('[Shell] app init', auth)
+				console.log('[Shell] app init', auth, 'access', access)
+				const accessSuffix = access === 'read' ? 'R' : 'W'
 				const apiPromise = auth
-					? api.auth.getAccessToken({ subject: `${resId}:W` })
+					? api.auth.getAccessToken({ scope: `${resId}:${accessSuffix}` })
 					: Promise.resolve({ token: undefined })
 				ref.current?.addEventListener('load', async function onMicrofrontendLoad() {
 					console.log('[Shell] Loaded => waiting for app to start')
@@ -86,7 +89,8 @@ export function MicrofrontendContainer({
 								roles: auth?.roles,
 								theme: 'glass',
 								darkMode: document.body.classList.contains('dark'),
-								token: res.token
+								token: res.token,
+								access: access || 'write'
 							},
 							'*'
 						)
@@ -108,7 +112,7 @@ export function MicrofrontendContainer({
 				setUrl(`${appUrl}#${resId}`)
 			}
 		},
-		[api, auth, resId, contextIdTag]
+		[api, auth, resId, contextIdTag, access]
 	)
 
 	return (
@@ -142,6 +146,7 @@ export function MicrofrontendContainer({
 function ExternalApp({ className }: { className?: string }) {
 	const [appConfig] = useAppConfig()
 	const [auth] = useAuth()
+	const location = useLocation()
 	const { contextIdTag, appId, '*': rest } = useParams()
 	// Use contextIdTag from URL, fallback to auth idTag
 	const idTag = contextIdTag || auth?.idTag || location.hostname
@@ -151,6 +156,11 @@ function ExternalApp({ className }: { className?: string }) {
 	const resId = (rest ?? '').indexOf(':') >= 0 ? rest : idTag + ':' + rest
 	console.log('[Shell] resId', resId)
 
+	// Parse access query parameter
+	const searchParams = new URLSearchParams(location.search)
+	const access = searchParams.get('access') === 'read' ? 'read' : 'write'
+	console.log('[Shell] access', access)
+
 	return (
 		!!app && (
 			<MicrofrontendContainer
@@ -159,6 +169,7 @@ function ExternalApp({ className }: { className?: string }) {
 				resId={resId}
 				appUrl={`${app.url}`}
 				trust={app.trust}
+				access={access}
 			/>
 		)
 	)

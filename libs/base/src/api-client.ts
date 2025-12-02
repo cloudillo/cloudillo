@@ -142,10 +142,10 @@ export class ApiClient {
 
 		/**
 		 * GET /auth/access-token - Get access token
-		 * @param query - Optional query parameters (subject, token)
+		 * @param query - Optional query parameters (scope, token)
 		 * @returns Token
 		 */
-		getAccessToken: (query?: { subject?: string; token?: string }) =>
+		getAccessToken: (query?: { scope?: string; token?: string }) =>
 			this.request('GET', '/auth/access-token', Types.tAccessTokenResult, {
 				query
 			}),

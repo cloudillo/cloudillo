@@ -25,6 +25,7 @@ export let idTag: string | undefined
 export let tnId: number | undefined
 export let roles: string[] | undefined
 export let darkMode: boolean | undefined
+export let access: 'read' | 'write' | undefined
 
 // Utility functions //
 export async function delay(ms: number) {
@@ -44,7 +45,8 @@ const tCloudilloMessage = T.taggedUnion('type')({
 		roles: T.optional(T.array(T.string)),
 		theme: T.string,
 		darkMode: T.optional(T.boolean),
-		token: T.optional(T.string)
+		token: T.optional(T.string),
+		access: T.optional(T.literal('read', 'write'))
 	}),
 	reply: T.struct({
 		cloudillo: T.trueValue,
@@ -71,6 +73,7 @@ export function init(app: string): Promise<string | undefined> {
 						tnId = msg.ok.tnId
 						roles = msg.ok.roles
 						darkMode = !!msg.ok.darkMode
+						access = msg.ok.access || 'write'
 						if (msg.ok.darkMode) {
 							console.log(`[${app}] setting dark mode`)
 							document.body.classList.add('theme-glass')
@@ -152,7 +155,7 @@ export async function openYDoc(
 	*/
 
 	const wsProvider = new WebsocketProvider(`wss://cl-o.${targetTag}/ws/crdt`, resId, yDoc, {
-		params: { token: accessToken }
+		params: { token: accessToken, access: access || 'write' }
 	})
 
 	return {

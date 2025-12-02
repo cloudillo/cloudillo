@@ -113,7 +113,7 @@ interface FileView extends File {
 
 interface FileOps {
 	setFile?: (file: File) => void
-	openFile: (fileId: string) => void
+	openFile: (fileId: string, access?: 'read' | 'write') => void
 	renameFile: (fileId?: string) => void
 	setRenameFileName: (name?: string) => void
 	doRenameFile: (fileId: string, fileName: string) => void
@@ -634,14 +634,28 @@ const FileCard = React.memo(function FileCard({
 				</h3>
 				{/* file.ownerTag && <h4>{file.ownerTag}</h4> */}
 				<div className="c-hbox g-2">
-					{!!file.owner && <ProfilePicture profile={file.owner} small />}
+					{/* Access level icons - for testing, show both */}
 					<button
 						className="c-link p-1"
 						type="button"
-						onClick={(evt) => (evt.stopPropagation(), fileOps.openFile(file.fileId))}
+						title={t('View (read-only)')}
+						onClick={(evt) => (
+							evt.stopPropagation(), fileOps.openFile(file.fileId, 'read')
+						)}
+					>
+						<IcMonitor />
+					</button>
+					<button
+						className="c-link p-1"
+						type="button"
+						title={t('Edit')}
+						onClick={(evt) => (
+							evt.stopPropagation(), fileOps.openFile(file.fileId, 'write')
+						)}
 					>
 						<IcEdit />
 					</button>
+					{!!file.owner && <ProfilePicture profile={file.owner} small />}
 					<Popper className="c-link" label={<IcMore />}>
 						<ul className="c-nav vertical">
 							<li className="c-nav-item">
@@ -858,12 +872,23 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 								/>
 							</>
 						)}
-						{/* FIXME: Read only permissions not supported yet
-				{ !!readPerms && <>
-					<h4 className="py-2">{t('Read only permissions')}</h4>
-					<EditProfileList className="my-2" placeholder={t('Add profile')} profiles={readPerms.filter(rp => rp.audience).map(rp => rp.audience) as Profile[]} listProfiles={listProfiles} addProfile={p => addPerm(p, 'READ')} removeProfile={removePerm}/>
-				</> }
-				*/}
+						{!!readPerms && (
+							<>
+								<h4 className="py-2">{t('Read only permissions')}</h4>
+								<EditProfileList
+									className="my-2"
+									placeholder={t('Add profile')}
+									profiles={
+										readPerms
+											.filter((rp) => rp.audience)
+											.map((rp) => rp.audience) as Profile[]
+									}
+									listProfiles={listProfiles}
+									addProfile={(p) => addPerm(p, 'READ')}
+									removeProfile={removePerm}
+								/>
+							</>
+						)}
 					</div>
 				</div>
 			)}
@@ -910,17 +935,16 @@ export function FilesApp() {
 				fileListData.setFileData(file.fileId, file)
 			},
 
-			openFile: function openFile(fileId?: string) {
+			openFile: function openFile(fileId?: string, access?: 'read' | 'write') {
 				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
 				const app = file && appConfig?.mime[file?.contentType]
 
-				console.log('openFile', appConfig, file?.contentType, app)
+				console.log('openFile', appConfig, file?.contentType, app, 'access', access)
 				if (app) {
 					// Extract app name from path like '/app/quillo' -> 'quillo'
 					const appName = app.split('/').pop()
-					navigate(
-						`/app/${contextIdTag || auth?.idTag}/${appName}/${(file.owner?.idTag || auth?.idTag) + ':'}${file.fileId}`
-					)
+					const basePath = `/app/${contextIdTag || auth?.idTag}/${appName}/${(file.owner?.idTag || auth?.idTag) + ':'}${file.fileId}`
+					navigate(access === 'read' ? `${basePath}?access=read` : basePath)
 				}
 			},
 

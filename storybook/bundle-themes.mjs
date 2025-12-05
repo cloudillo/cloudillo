@@ -1,15 +1,30 @@
-import { readFileSync, writeFileSync, mkdirSync } from 'fs'
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs'
+import { createRequire } from 'module'
 
 // Ensure .cache directory exists
 mkdirSync('.cache', { recursive: true })
 
+// Determine theme path: prefer local, fallback to npm package
+const localPath = '../local/opalui/themes'
+let themePath
+
+if (existsSync(localPath)) {
+	themePath = localPath
+} else {
+	const require = createRequire(import.meta.url)
+	const opaluiPath = require.resolve('@symbion/opalui')
+	themePath = opaluiPath.replace(/\/dist\/.*$/, '/themes')
+}
+
+console.log(`Using themes from: ${themePath}`)
+
 // Read theme CSS files
-const glassCSS = readFileSync('../local/opalui/themes/glass.css', 'utf-8')
-const opaqueCSS = readFileSync('../local/opalui/themes/opaque.css', 'utf-8')
+const glassCSS = readFileSync(`${themePath}/glass.css`, 'utf-8')
+const opaqueCSS = readFileSync(`${themePath}/opaque.css`, 'utf-8')
 
 // Read background images as base64
-const bgLight = readFileSync('../local/opalui/themes/bg.jpg')
-const bgDark = readFileSync('../local/opalui/themes/bg-dark.jpg')
+const bgLight = readFileSync(`${themePath}/bg.jpg`)
+const bgDark = readFileSync(`${themePath}/bg-dark.jpg`)
 
 const bgLightBase64 = bgLight.toString('base64')
 const bgDarkBase64 = bgDark.toString('base64')

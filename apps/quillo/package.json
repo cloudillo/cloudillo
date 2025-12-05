@@ -19,7 +19,7 @@
 	"license": "LGPL-3.0-or-later",
 	"devDependencies": {
 		"@cloudillo/base": "workspace:^",
-		"@symbion/opalui": "^^0.12.2",
+		"@symbion/opalui": "^0.12.2",
 		"@symbion/runtype": "^1.1.3",
 		"cross-env": "^10.1.0",
 		"dayjs": "^1.11.19",

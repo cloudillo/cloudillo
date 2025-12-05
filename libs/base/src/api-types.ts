@@ -94,14 +94,14 @@ export interface RegisterRequest {
 	idTag: string
 	appDomain?: string
 	email: string
-	registerToken: string
+	token: string
 }
 
 export interface RegisterVerifyRequest {
 	type: 'ref' | 'idp' | 'domain'
 	idTag: string
 	appDomain?: string
-	registerToken: string
+	token: string
 }
 
 /**
@@ -112,7 +112,7 @@ export interface VerifyProfileRequest {
 	type: 'ref' | 'idp' | 'domain'
 	idTag: string
 	appDomain?: string
-	registerToken?: string // Optional for community creation
+	token?: string // Optional for community creation
 }
 
 export interface PasswordChangeRequest {
@@ -487,7 +487,7 @@ export interface CreateRefRequest {
 	resourceId?: string // file ID for share.file
 	accessLevel?: 'read' | 'write'
 	expiresAt?: number // Unix timestamp
-	count?: number // max uses
+	count?: number | null // max uses (null = unlimited, omit = default to 1)
 }
 
 export interface ListRefsQuery {

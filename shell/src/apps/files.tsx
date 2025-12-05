@@ -809,7 +809,8 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 				type: 'share.file',
 				resourceId: file.fileId,
 				accessLevel: newLinkAccess,
-				description: label || file.fileName
+				description: label || file.fileName,
+				count: null // Unlimited uses for share links
 			})
 			setShareRefs((refs) => [...(refs || []), ref])
 			toast.success(t('Share link created'))

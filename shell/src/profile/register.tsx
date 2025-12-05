@@ -472,7 +472,7 @@ export function RegisterForm() {
 					const res = await api!.profile.verify({
 						type: 'ref',
 						idTag: '',
-						registerToken: token
+						token
 					})
 					console.log('REF VERIFY RES', res)
 					setShow(true)
@@ -567,7 +567,7 @@ export function RegisterForm() {
 									? idTag + '.' + effectiveProvider
 									: idTag,
 						appDomain,
-						registerToken: token
+						token
 					})
 					console.log('RES', res)
 					setProgress(undefined)
@@ -601,7 +601,7 @@ export function RegisterForm() {
 				idTag: fullIdTag,
 				appDomain,
 				email,
-				registerToken: token
+				token
 			})
 			console.log('RES', res)
 			setProgress('check')

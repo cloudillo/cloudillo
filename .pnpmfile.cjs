@@ -34,6 +34,16 @@ function getLocalPackages() {
 function readPackage(pkg, context) {
 	const locals = getLocalPackages()
 
+	// Add ignoreDependencies to root package to prevent pnpm upgrade from corrupting versions
+	if (pkg.name === undefined && locals.size > 0) {
+		pkg.pnpm = pkg.pnpm || {}
+		pkg.pnpm.updateConfig = pkg.pnpm.updateConfig || {}
+		pkg.pnpm.updateConfig.ignoreDependencies = [
+			...(pkg.pnpm.updateConfig.ignoreDependencies || []),
+			...locals
+		]
+	}
+
 	for (const depType of ['dependencies', 'devDependencies', 'peerDependencies']) {
 		if (!pkg[depType]) continue
 

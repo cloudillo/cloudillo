@@ -196,7 +196,7 @@ export interface UnsubscribeMessage extends ClientMessage {
 }
 
 export interface TransactionOperation {
-	type: 'create' | 'update' | 'delete'
+	type: 'create' | 'update' | 'replace' | 'delete'
 	path: string
 	data?: any
 	ref?: string

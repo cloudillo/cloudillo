@@ -55,7 +55,7 @@ export class DocumentReference<T = any> {
 			type: 'transaction',
 			operations: [
 				{
-					type: 'create',
+					type: 'replace',
 					path: normalizePath(this.path),
 					data
 				}

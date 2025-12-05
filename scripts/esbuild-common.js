@@ -1,8 +1,16 @@
 // Shared esbuild configuration and build utilities
 // Usage: import { createConfig, buildApp } from '../../scripts/esbuild-common.js'
 
-import { readFileSync, writeFileSync, readdirSync, statSync, unlinkSync, existsSync } from 'fs'
-import { join, extname } from 'path'
+import {
+	readFileSync,
+	writeFileSync,
+	readdirSync,
+	statSync,
+	unlinkSync,
+	existsSync,
+	mkdirSync
+} from 'fs'
+import { join, extname, dirname } from 'path'
 import { gzipSync, brotliCompressSync, constants } from 'zlib'
 
 // Environment
@@ -85,6 +93,7 @@ export function deleteCompressedFiles(dirPath) {
 export function buildHTML(srcPath, distPath, version) {
 	const sourceHtml = readFileSync(srcPath, 'utf-8')
 	const processedHtml = sourceHtml.replace(/@VERSION@/g, version)
+	mkdirSync(dirname(distPath), { recursive: true })
 	writeFileSync(distPath, processedHtml)
 	console.log('HTML processed')
 }

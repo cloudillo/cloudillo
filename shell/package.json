@@ -91,8 +91,5 @@
 		"y-websocket": "^3.0.0",
 		"yet-another-react-lightbox": "^3.25.0",
 		"yjs": "^13.6.27"
-	},
-	"dependencies": {
-		"@typescript/native-preview": "7.0.0-dev.20251204.1"
 	}
 }

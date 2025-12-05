@@ -27,7 +27,7 @@
 		"i18next": "^25.7.1",
 		"i18next-scanner": "^4.6.0",
 		"i18next-scanner-typescript": "^1.2.1",
-		"lucide": "^0.555.0",
+		"lucide": "^0.556.0",
 		"quill": "^2.0.3",
 		"quill-cursors": "^4.0.4",
 		"rimraf": "^6.1.2",

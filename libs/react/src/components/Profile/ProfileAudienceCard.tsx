@@ -42,7 +42,7 @@ export function ProfileAudienceCard({
 				{auth && audience.profilePic ? (
 					<img
 						className="picture"
-						src={`https://cl-o.${srcTag ?? auth?.idTag}/api/file/${audience.profilePic}?variant=pf`}
+						src={`https://cl-o.${srcTag ?? auth?.idTag}/api/file/${audience.profilePic}?variant=vis.pf`}
 					/>
 				) : (
 					<UnknownProfilePicture />
@@ -50,7 +50,7 @@ export function ProfileAudienceCard({
 				{auth && profile.profilePic ? (
 					<img
 						className="picture tiny"
-						src={`https://cl-o.${srcTag ?? auth?.idTag}/api/file/${profile.profilePic}?variant=pf`}
+						src={`https://cl-o.${srcTag ?? auth?.idTag}/api/file/${profile.profilePic}?variant=vis.pf`}
 					/>
 				) : (
 					<UnknownProfilePicture tiny />

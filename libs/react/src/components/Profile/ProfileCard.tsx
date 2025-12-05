@@ -40,7 +40,7 @@ export function ProfileCard({ className, profile, srcTag }: ProfileCardProps) {
 			{auth && profile.profilePic ? (
 				<img
 					className="picture"
-					src={`https://cl-o.${srcTag ?? auth?.idTag}/api/file/${profile.profilePic}?variant=pf`}
+					src={`https://cl-o.${srcTag ?? auth?.idTag}/api/file/${profile.profilePic}?variant=vis.pf`}
 				/>
 			) : (
 				<UnknownProfilePicture />

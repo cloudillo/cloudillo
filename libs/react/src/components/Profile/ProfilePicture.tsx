@@ -34,7 +34,7 @@ export function ProfilePicture({ className, profile, small, tiny, srcTag }: Prof
 			{auth && profile.profilePic ? (
 				<img
 					className={'picture' + (tiny ? ' tiny' : small ? ' small' : '')}
-					src={`https://cl-o.${srcTag ?? auth.idTag}/api/file/${profile.profilePic}?variant=pf`}
+					src={`https://cl-o.${srcTag ?? auth.idTag}/api/file/${profile.profilePic}?variant=vis.pf`}
 				/>
 			) : (
 				<UnknownProfilePicture small={small} tiny={tiny} />

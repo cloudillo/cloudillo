@@ -20,6 +20,7 @@ import { PiPlusBold as IcPlus, PiTrashBold as IcDelete } from 'react-icons/pi'
 
 import { RtdbClient } from '@cloudillo/rtdb'
 import * as cloudillo from '@cloudillo/base'
+import { Panel } from '@cloudillo/react'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
@@ -301,7 +302,7 @@ function Header({
 	completedCount: number
 }) {
 	return (
-		<div className="taskillo-header">
+		<Panel className="taskillo-header">
 			<h1 className="header-title">Taskillo</h1>
 
 			<div className="header-stats">
@@ -314,7 +315,7 @@ function Header({
 				<div className="status-indicator" />
 				<span>{connected ? 'Connected' : 'Disconnected'}</span>
 			</div>
-		</div>
+		</Panel>
 	)
 }
 
@@ -332,7 +333,7 @@ function FilterBar({
 	onFilterChange: (filter: TaskFilter) => void
 }) {
 	return (
-		<div className="filter-bar">
+		<Panel className="filter-bar flex-row g-1 flex-wrap">
 			<button
 				className={`filter-button ${filter === 'all' ? 'active' : ''}`}
 				onClick={() => onFilterChange('all')}
@@ -351,7 +352,7 @@ function FilterBar({
 			>
 				Completed
 			</button>
-		</div>
+		</Panel>
 	)
 }
 
@@ -393,30 +394,32 @@ function TaskInput({
 	}
 
 	return (
-		<form onSubmit={handleSubmit} className="task-input-container">
-			<input
-				type="text"
-				className="task-input"
-				placeholder={
-					disabled && !loading
-						? 'View-only mode'
-						: 'Add a new task... (press Enter to add)'
-				}
-				value={text}
-				onChange={(e) => setText(e.target.value)}
-				onKeyPress={handleKeyPress}
-				disabled={disabled || loading}
-			/>
+		<Panel className="task-input-panel">
+			<form onSubmit={handleSubmit} className="task-input-container">
+				<input
+					type="text"
+					className="task-input"
+					placeholder={
+						disabled && !loading
+							? 'View-only mode'
+							: 'Add a new task... (press Enter to add)'
+					}
+					value={text}
+					onChange={(e) => setText(e.target.value)}
+					onKeyPress={handleKeyPress}
+					disabled={disabled || loading}
+				/>
 
-			<button
-				type="submit"
-				disabled={!text.trim() || disabled || loading}
-				className="c-button primary"
-				style={{ padding: '0.5rem 1rem' }}
-			>
-				<IcPlus /> {loading ? 'Adding...' : 'Add'}
-			</button>
-		</form>
+				<button
+					type="submit"
+					disabled={!text.trim() || disabled || loading}
+					className="c-button primary"
+					style={{ padding: '0.5rem 1rem' }}
+				>
+					<IcPlus /> {loading ? 'Adding...' : 'Add'}
+				</button>
+			</form>
+		</Panel>
 	)
 }
 
@@ -576,8 +579,10 @@ export function TaskilloApp() {
 	if (taskillo.loading) {
 		return (
 			<div className="c-vbox w-100 h-100 justify-center align-center">
-				<div className="c-spinner large" />
-				<p className="mt-2">Connecting to Taskillo...</p>
+				<Panel className="c-vbox align-center p-2">
+					<div className="c-spinner large" />
+					<p className="mt-2">Connecting to Taskillo...</p>
+				</Panel>
 			</div>
 		)
 	}
@@ -586,10 +591,10 @@ export function TaskilloApp() {
 	if (taskillo.error) {
 		return (
 			<div className="c-vbox w-100 h-100 justify-center align-center">
-				<div className="c-alert error">
+				<Panel className="c-alert error">
 					<h3>Connection Error</h3>
 					<p>{taskillo.error.message}</p>
-				</div>
+				</Panel>
 			</div>
 		)
 	}
@@ -611,7 +616,7 @@ export function TaskilloApp() {
 				disabled={!taskillo.connected || isReadOnly}
 			/>
 
-			<div className="task-list-container">
+			<Panel className="task-list-container">
 				<TaskList
 					tasks={tasks.tasks}
 					loading={tasks.loading}
@@ -620,7 +625,7 @@ export function TaskilloApp() {
 					onDeleteTask={tasks.deleteTask}
 					readOnly={isReadOnly}
 				/>
-			</div>
+			</Panel>
 		</div>
 	)
 }

@@ -296,6 +296,44 @@ export function useCommunitiesList() {
 		[setCommunities, setFavorites]
 	)
 
+	/**
+	 * Add a newly created community (potentially pending DNS propagation)
+	 */
+	const addPendingCommunity = React.useCallback(
+		(community: Omit<CommunityRef, 'unreadCount' | 'lastActivityAt' | 'isFavorite'>) => {
+			const newCommunity: CommunityRef = {
+				...community,
+				isFavorite: false,
+				unreadCount: 0,
+				lastActivityAt: new Date(),
+				pendingSince: community.isPending ? new Date() : undefined
+			}
+
+			setCommunities((prev) => {
+				// Update existing or add new
+				if (prev.some((c) => c.idTag === community.idTag)) {
+					return prev.map((c) => (c.idTag === community.idTag ? newCommunity : c))
+				}
+				return [...prev, newCommunity]
+			})
+		},
+		[setCommunities]
+	)
+
+	/**
+	 * Mark a pending community as active (DNS resolved)
+	 */
+	const activatePendingCommunity = React.useCallback(
+		(idTag: string) => {
+			setCommunities((prev) =>
+				prev.map((c) =>
+					c.idTag === idTag ? { ...c, isPending: false, pendingSince: undefined } : c
+				)
+			)
+		},
+		[setCommunities]
+	)
+
 	return {
 		communities,
 		favorites: favoriteCommunities,
@@ -306,7 +344,9 @@ export function useCommunitiesList() {
 		refresh,
 		toggleFavorite,
 		addCommunity,
-		removeCommunity
+		removeCommunity,
+		addPendingCommunity,
+		activatePendingCommunity
 	}
 }
 

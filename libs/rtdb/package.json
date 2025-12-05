@@ -11,6 +11,7 @@
 		}
 	},
 	"scripts": {
+		"ts": "tsc --noEmit",
 		"build": "tsc",
 		"watch": "tsc -w",
 		"clean": "rimraf .cache lib*",
@@ -29,7 +30,7 @@
 		"@types/node": "^24.10.1",
 		"jest": "^30.2.0",
 		"rimraf": "^6.1.2",
-		"ts-jest": "^29.4.5",
+		"ts-jest": "^29.4.6",
 		"tslib": "^2.8.1",
 		"typescript": "^5.9.3"
 	}

@@ -64,6 +64,12 @@ export interface CommunityRef {
 
 	/** Description (optional) */
 	description?: string
+
+	/** Whether the community is pending (DNS propagation in progress) */
+	isPending?: boolean
+
+	/** When the community was created (for pending communities) */
+	pendingSince?: Date
 }
 
 /**

@@ -12,6 +12,7 @@
 		}
 	},
 	"scripts": {
+		"ts": "tsc --noEmit",
 		"build": "tsc",
 		"watch": "tsc -w",
 		"clean": "rimraf .cache lib*"

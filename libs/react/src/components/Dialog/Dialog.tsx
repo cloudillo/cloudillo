@@ -198,9 +198,9 @@ export function DialogContainer() {
 
 export interface UseDialogReturn {
 	isOpen: boolean
-	tell: (title: string, descr: string, className?: string) => Promise<unknown>
-	confirm: (title: string, descr: string, className?: string) => Promise<unknown>
-	ask: (title: string, descr: string, className?: string) => Promise<unknown>
+	tell: (title: string, descr: string, className?: string) => Promise<void>
+	confirm: (title: string, descr: string, className?: string) => Promise<boolean>
+	ask: (title: string, descr: string, className?: string) => Promise<boolean>
 	askText: (
 		title: string,
 		descr: string,
@@ -210,7 +210,7 @@ export interface UseDialogReturn {
 			defaultValue?: string
 			multiline?: boolean
 		}
-	) => Promise<unknown>
+	) => Promise<string | undefined>
 }
 
 export function useDialog(): UseDialogReturn {
@@ -222,19 +222,31 @@ export function useDialog(): UseDialogReturn {
 		})
 	}
 
-	function tell(title: string, descr: string, className: string | undefined = undefined) {
+	function tell(
+		title: string,
+		descr: string,
+		className: string | undefined = undefined
+	): Promise<void> {
 		setDialog({ type: 'Tell', title, descr, className })
-		return ret()
+		return ret() as Promise<void>
 	}
 
-	function confirm(title: string, descr: string, className: string | undefined = undefined) {
+	function confirm(
+		title: string,
+		descr: string,
+		className: string | undefined = undefined
+	): Promise<boolean> {
 		setDialog({ type: 'OkCancel', title, descr, className })
-		return ret()
+		return ret() as Promise<boolean>
 	}
 
-	function ask(title: string, descr: string, className: string | undefined = undefined) {
+	function ask(
+		title: string,
+		descr: string,
+		className: string | undefined = undefined
+	): Promise<boolean> {
 		setDialog({ type: 'YesNo', title, descr, className })
-		return ret()
+		return ret() as Promise<boolean>
 	}
 
 	function askText(
@@ -251,10 +263,10 @@ export function useDialog(): UseDialogReturn {
 			defaultValue?: string
 			multiline?: boolean
 		} = {}
-	) {
+	): Promise<string | undefined> {
 		setDialog({ type: 'Text', title, descr, className, placeholder, defaultValue, multiline })
 		console.log('askText', { title, descr, className, placeholder, defaultValue, multiline })
-		return ret()
+		return ret() as Promise<string | undefined>
 	}
 
 	return {

@@ -188,19 +188,44 @@ export class ApiClient {
 
 		/**
 		 * POST /auth/register - Register new user
+		 * @deprecated Use profile.register() instead
 		 * @param data - Registration request
 		 * @returns Login result with token and profile info
 		 */
 		register: (data: Types.RegisterRequest) =>
-			this.request('POST', '/auth/register', Types.tLoginResult, { data }),
+			this.request('POST', '/profile/register', Types.tLoginResult, { data }),
 
 		/**
 		 * POST /auth/register-verify - Verify registration information
+		 * @deprecated Use profile.verify() instead
 		 * @param data - Registration verify request
 		 * @returns Verification result with identity providers and validation errors
 		 */
 		registerVerify: (data: Types.RegisterVerifyRequest) =>
-			this.request('POST', '/auth/register-verify', Types.tRegisterVerifyResult, { data })
+			this.request('POST', '/profile/verify', Types.tRegisterVerifyResult, { data })
+	}
+
+	// ========================================================================
+	// PROFILE ENDPOINTS
+	// ========================================================================
+
+	/** Profile creation endpoints (registration, community creation) */
+	profile = {
+		/**
+		 * POST /profile/verify - Verify profile identity availability (registration or community)
+		 * @param data - Verification request (type: 'ref' | 'domain' | 'idp')
+		 * @returns Verification result with identity providers and validation errors
+		 */
+		verify: (data: Types.VerifyProfileRequest) =>
+			this.request('POST', '/profile/verify', Types.tVerifyProfileResult, { data }),
+
+		/**
+		 * POST /profile/register - Register new user or create community profile
+		 * @param data - Registration request (includes type: person or community)
+		 * @returns Login result with token and profile info
+		 */
+		register: (data: Types.RegisterRequest) =>
+			this.request('POST', '/profile/register', Types.tLoginResult, { data })
 	}
 
 	// ========================================================================
@@ -619,6 +644,31 @@ export class ApiClient {
 			apiFetchHelper<Types.IdpInfo, unknown>(providerDomain, 'GET', '/idp/info', {
 				type: Types.tIdpInfo
 			})
+	}
+
+	// ========================================================================
+	// COMMUNITY ENDPOINTS
+	// ========================================================================
+
+	/** Community management endpoints */
+	communities = {
+		/**
+		 * PUT /profile/{id_tag} - Create community profile
+		 * @param idTag - Community identity tag to create
+		 * @param data - Community creation request
+		 * @returns Created community profile
+		 */
+		create: (idTag: string, data: Types.CreateCommunityRequest) =>
+			this.request('PUT', `/profile/${idTag}`, Types.tCommunityProfileResponse, { data }),
+
+		/**
+		 * POST /auth/community-verify - Verify community identity availability
+		 * @deprecated Use profile.verify() instead
+		 * @param data - Verification request
+		 * @returns Verification result with errors and server addresses
+		 */
+		verify: (data: Types.VerifyCommunityRequest) =>
+			this.request('POST', '/profile/verify', Types.tCommunityVerifyResult, { data })
 	}
 }
 

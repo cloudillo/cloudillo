@@ -52,7 +52,7 @@ import { useAuth, AuthState, useApi, useDialog, Button } from '@cloudillo/react'
 import { useAppConfig, ServerError, arrayBufferToBase64Url, base64ToArrayBuffer } from '../utils.js'
 import { CloudilloLogo } from '../logo.js'
 import { Page } from '../ui.js'
-import { RegisterForm } from './register.js'
+import { RegisterForm } from '../profile/register.js'
 import { validIdTag, validPassword } from './utils.js'
 
 ////////////

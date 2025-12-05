@@ -47,6 +47,7 @@ import { parseQS } from '../utils.js'
 import { ImageUpload } from '../image.js'
 import { ActionEvt, ActionComp, NewPost } from '../apps/feed.js'
 import { Profile, ProfileListCard, PersonListPage, CommunityListPage } from './identities.js'
+import { CreateCommunity } from './community.js'
 
 Quill.register('modules/QuillMarkdown', QuillMarkdown)
 
@@ -874,6 +875,15 @@ export function ProfileRoutes() {
 			<Route path="/profile/:contextIdTag/:idTag/*" element={<Profile />} />
 			<Route path="/users/:contextIdTag" element={<PersonListPage />} />
 			<Route path="/communities/:contextIdTag" element={<CommunityListPage />} />
+			<Route path="/communities/create/:contextIdTag" element={<CreateCommunity />} />
+			<Route
+				path="/communities/create/:contextIdTag/:providerType"
+				element={<CreateCommunity />}
+			/>
+			<Route
+				path="/communities/create/:contextIdTag/:providerType/:idpStep"
+				element={<CreateCommunity />}
+			/>
 			<Route path="/*" element={null} />
 		</Routes>
 	)

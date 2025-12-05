@@ -18,7 +18,9 @@ import {
 	LuPlus as IcAdd,
 	LuChevronLeft as IcCollapse,
 	LuChevronRight as IcExpand,
-	LuLoader as IcLoading
+	LuLoader as IcLoading,
+	LuUsers as IcCreate,
+	LuClock3 as IcPending
 } from 'react-icons/lu'
 
 import { useCommunitiesList, useContextSwitch, useSidebar, activeContextAtom } from './index'
@@ -38,21 +40,37 @@ function CommunityListItem({
 	onSwitch,
 	onToggleFavorite
 }: CommunityListItemProps) {
+	const { t } = useTranslation()
+
 	return (
 		<div
-			className={mergeClasses('c-sidebar-item', isActive && 'active')}
+			className={mergeClasses(
+				'c-sidebar-item',
+				isActive && 'active',
+				community.isPending && 'pending'
+			)}
 			onClick={() => onSwitch(community.idTag)}
-			title={community.name}
+			title={community.isPending ? t('DNS propagation in progress...') : community.name}
 		>
 			<div className="c-sidebar-item-avatar">
 				<ProfilePicture
 					profile={{ profilePic: community.profilePic }}
 					srcTag={community.idTag}
 				/>
+				{community.isPending && (
+					<span className="c-sidebar-pending-indicator" title={t('Setting up...')}>
+						<IcPending size={12} />
+					</span>
+				)}
 			</div>
 			<div className="c-sidebar-item-info">
 				<div className="c-sidebar-item-name">{community.name}</div>
-				{community.unreadCount > 0 && (
+				{community.isPending && (
+					<span className="c-sidebar-item-subtitle text-muted small">
+						{t('Setting up...')}
+					</span>
+				)}
+				{!community.isPending && community.unreadCount > 0 && (
 					<span className="c-badge br bg error">{community.unreadCount}</span>
 				)}
 			</div>
@@ -213,7 +231,7 @@ export function Sidebar({ className }: SidebarProps) {
 					</div>
 				)}
 
-				{/* Add community button */}
+				{/* Community buttons */}
 				<div className="c-sidebar-footer">
 					<button
 						className="c-sidebar-add-button"
@@ -224,6 +242,16 @@ export function Sidebar({ className }: SidebarProps) {
 					>
 						<IcAdd />
 						<span>{t('Add community')}</span>
+					</button>
+					<button
+						className="c-sidebar-add-button"
+						onClick={() =>
+							navigate(`/communities/create/${activeContext?.idTag || auth?.idTag}`)
+						}
+						title={t('Create new community')}
+					>
+						<IcCreate />
+						<span>{t('Create community')}</span>
 					</button>
 				</div>
 			</aside>

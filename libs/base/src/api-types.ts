@@ -104,6 +104,17 @@ export interface RegisterVerifyRequest {
 	registerToken: string
 }
 
+/**
+ * Unified profile verification request (replaces RegisterVerifyRequest and VerifyCommunityRequest)
+ * Used for both user registration and community creation verification
+ */
+export interface VerifyProfileRequest {
+	type: 'ref' | 'idp' | 'domain'
+	idTag: string
+	appDomain?: string
+	registerToken?: string // Optional for community creation
+}
+
 export interface PasswordChangeRequest {
 	currentPassword: string
 	newPassword: string
@@ -158,6 +169,26 @@ export const tRegisterVerifyResult = T.struct({
 	appAddressType: T.optional(T.string)
 })
 export type RegisterVerifyResult = T.TypeOf<typeof tRegisterVerifyResult>
+
+/**
+ * Unified profile verification result (replaces RegisterVerifyResult and CommunityVerifyResult)
+ * Used for both user registration and community creation verification
+ */
+export const tVerifyProfileResult = T.struct({
+	address: T.array(T.string),
+	identityProviders: T.array(T.string),
+	idTagError: T.optional(
+		T.union(T.literal('invalid', 'used', 'nodns', 'address'), T.literal(''))
+	),
+	appDomainError: T.optional(
+		T.union(T.literal('invalid', 'used', 'nodns', 'address'), T.literal(''))
+	),
+	apiAddress: T.optional(T.string),
+	apiAddressType: T.optional(T.string),
+	appAddress: T.optional(T.string),
+	appAddressType: T.optional(T.string)
+})
+export type VerifyProfileResult = T.TypeOf<typeof tVerifyProfileResult>
 
 // Identity Provider info (fetched from provider's /api/idp/info endpoint)
 export const tIdpInfo = T.struct({
@@ -505,6 +536,45 @@ export const tDeleteRefResult = T.struct({
 	refId: T.string
 })
 export type DeleteRefResult = T.TypeOf<typeof tDeleteRefResult>
+
+// ============================================================================
+// COMMUNITY CREATION ENDPOINTS
+// ============================================================================
+
+// Request types
+export interface CreateCommunityRequest {
+	type: 'idp' | 'domain'
+	name?: string
+	appDomain?: string
+	token: string
+}
+
+export interface VerifyCommunityRequest {
+	type: 'idp' | 'domain'
+	idTag: string
+	appDomain?: string
+}
+
+// Response types
+export const tCommunityProfileResponse = T.struct({
+	idTag: T.string,
+	name: T.string,
+	profileType: T.literal('community'),
+	createdAt: T.number
+})
+export type CommunityProfileResponse = T.TypeOf<typeof tCommunityProfileResponse>
+
+export const tCommunityVerifyResult = T.struct({
+	address: T.array(T.string),
+	identityProviders: T.array(T.string),
+	idTagError: T.optional(
+		T.union(T.literal('invalid', 'used', 'nodns', 'address'), T.literal(''))
+	),
+	appDomainError: T.optional(
+		T.union(T.literal('invalid', 'used', 'nodns', 'address'), T.literal(''))
+	)
+})
+export type CommunityVerifyResult = T.TypeOf<typeof tCommunityVerifyResult>
 
 // ============================================================================
 // WEBSOCKET TYPES

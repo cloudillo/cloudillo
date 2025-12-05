@@ -241,6 +241,7 @@ function Menu({
 				id: 'guest-doc',
 				icon: IcFileText,
 				label: truncateFileName(guestDocument.fileName),
+				trans: {} as Record<string, string>,
 				path: `/app/${guestDocument.ownerIdTag}/${guestDocument.appId}/${guestDocument.resId}${guestDocument.accessLevel === 'read' ? '?access=read' : ''}`,
 				public: true
 			}

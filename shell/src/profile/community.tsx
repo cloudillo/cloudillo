@@ -532,7 +532,7 @@ export function CreateCommunity() {
 				const res = await api.profile.verify({
 					type: 'ref',
 					idTag: '',
-					registerToken: ''
+					token: ''
 				})
 				const providers =
 					res.identityProviders && res.identityProviders.length > 0
@@ -609,7 +609,7 @@ export function CreateCommunity() {
 					type: identityProvider || 'idp',
 					idTag: fullIdTag,
 					appDomain: identityProvider === 'domain' ? providerOrAppDomain : undefined,
-					registerToken: ''
+					token: ''
 				})
 				setVerifyProgress(undefined)
 				setVerifyState(res)

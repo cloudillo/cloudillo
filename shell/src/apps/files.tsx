@@ -43,11 +43,11 @@ import {
 	LuFilePen as IcMutable,
 	LuFile as IcImmutable,
 	LuBookOpen as IcQuillo,
-	LuSheet as IcSheello,
+	LuSheet as IcCalcillo,
 	LuShapes as IcIdeallo,
-	LuPresentation as IcPrello,
+	LuPresentation as IcPrezillo,
 	LuListTodo as IcFormillo,
-	LuListChecks as IcTodollo,
+	LuListChecks as IcTaskillo,
 	LuLink as IcLink,
 	LuCopy as IcCopy,
 	LuPlus as IcPlus,
@@ -88,11 +88,11 @@ const icons: Record<string, React.ComponentType> = {
 	'video/mp4': (props) => <IcVideo {...props} style={{ color: 'lch(50 50 0)' }} />,
 	'application/pdf': (props) => <IcDocument {...props} style={{ color: 'lch(50 50 0)' }} />,
 	'cloudillo/quillo': (props) => <IcQuillo {...props} style={{ color: 'lch(50 50 250)' }} />,
-	'cloudillo/sheello': (props) => <IcSheello {...props} style={{ color: 'lch(50 50 150)' }} />,
+	'cloudillo/calcillo': (props) => <IcCalcillo {...props} style={{ color: 'lch(50 50 150)' }} />,
 	'cloudillo/ideallo': (props) => <IcIdeallo {...props} style={{ color: 'lch(50 50 60)' }} />,
-	'cloudillo/prello': (props) => <IcPrello {...props} style={{ color: 'lch(50 50 100)' }} />,
+	'cloudillo/prezillo': (props) => <IcPrezillo {...props} style={{ color: 'lch(50 50 100)' }} />,
 	'cloudillo/formillo': (props) => <IcFormillo {...props} style={{ color: 'lch(50 50 300)' }} />,
-	'cloudillo/todollo': (props) => <IcTodollo {...props} style={{ color: 'lch(50 50 180)' }} />
+	'cloudillo/taskillo': (props) => <IcTaskillo {...props} style={{ color: 'lch(50 50 180)' }} />
 }
 
 interface File {
@@ -398,20 +398,20 @@ const FilterBar = React.memo(function FilterBar({
 				case 'cloudillo/quillo':
 					navigate(appPath('quillo'))
 					break
-				case 'cloudillo/sheello':
-					navigate(appPath('sheello'))
+				case 'cloudillo/calcillo':
+					navigate(appPath('calcillo'))
 					break
 				case 'cloudillo/ideallo':
 					navigate(appPath('ideallo'))
 					break
-				case 'cloudillo/prello':
-					navigate(appPath('prello'))
+				case 'cloudillo/prezillo':
+					navigate(appPath('prezillo'))
 					break
 				case 'cloudillo/formillo':
 					navigate(appPath('formillo'))
 					break
-				case 'cloudillo/todollo':
-					navigate(appPath('todollo'))
+				case 'cloudillo/taskillo':
+					navigate(appPath('taskillo'))
 					break
 			}
 		}
@@ -443,8 +443,8 @@ const FilterBar = React.memo(function FilterBar({
 			const appPath = (appId: string) =>
 				`/app/${contextIdTag || auth?.idTag}/${appId}/${res.fileId}`
 			switch (contentType) {
-				case 'cloudillo/todollo':
-					navigate(appPath('todollo'))
+				case 'cloudillo/taskillo':
+					navigate(appPath('taskillo'))
 					break
 			}
 		}
@@ -475,13 +475,13 @@ const FilterBar = React.memo(function FilterBar({
 								<a
 									className="c-nav-item"
 									href="#"
-									onClick={() => createFile('cloudillo/sheello')}
+									onClick={() => createFile('cloudillo/calcillo')}
 								>
 									{React.createElement<React.ComponentProps<typeof IcUnknown>>(
-										icons['cloudillo/sheello'],
+										icons['cloudillo/calcillo'],
 										{ className: 'me-1' }
 									)}
-									{t('Sheello spreadsheet document')}
+									{t('Calcillo spreadsheet document')}
 								</a>
 							</li>
 							<li>
@@ -500,25 +500,25 @@ const FilterBar = React.memo(function FilterBar({
 							<li>
 								<button
 									className="c-nav-item"
-									onClick={() => createFile('cloudillo/prello')}
+									onClick={() => createFile('cloudillo/prezillo')}
 								>
 									{React.createElement<React.ComponentProps<typeof IcUnknown>>(
-										icons['cloudillo/prello'],
+										icons['cloudillo/prezillo'],
 										{ className: 'me-1' }
 									)}
-									{t('Prello presentation document')}
+									{t('Prezillo presentation document')}
 								</button>
 							</li>
 							<li>
 								<button
 									className="c-nav-item"
-									onClick={() => createDb('cloudillo/todollo')}
+									onClick={() => createDb('cloudillo/taskillo')}
 								>
 									{React.createElement<React.ComponentProps<typeof IcUnknown>>(
-										icons['cloudillo/todollo'],
+										icons['cloudillo/taskillo'],
 										{ className: 'me-1' }
 									)}
-									{t('Todollo todo list')}
+									{t('Taskillo task list')}
 								</button>
 							</li>
 							{/*

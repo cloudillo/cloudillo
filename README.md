@@ -29,7 +29,7 @@ Repository Structure
 
 This repository contains:
 - **`shell/`** - Main web dashboard and application container
-- **`apps/`** - Plugin applications (Quillo, Prello, Sheello, Formillo)
+- **`apps/`** - Plugin applications (Quillo, Prezillo, Calcillo, Taskillo, Formillo)
 - **`libs/`** - Shared libraries for client SDK and React components
 - **`server/`** ⚠️ *Obsolete TypeScript server (deprecated)*
 - **`adapters/`** ⚠️ *Obsolete TypeScript adapters (deprecated)*
@@ -65,7 +65,7 @@ pnpm -r build
 
 This will build:
 - Shell (web dashboard) → `shell/dist/`
-- Apps (Quillo, Prello, Sheello, Formillo) → `apps/*/dist/`
+- Apps (Quillo, Prezillo, Calcillo, Taskillo, Formillo) → `apps/*/dist/`
 - Libraries → `libs/*/dist/`
 
 ### Serving the Frontend

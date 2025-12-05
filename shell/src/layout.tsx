@@ -22,12 +22,12 @@ const APP_CONFIG: AppConfigState = {
 			trust: true
 		},
 		{
-			id: 'sheello',
-			url: '/sheello/index.html'
+			id: 'calcillo',
+			url: '/calcillo/index.html'
 		},
 		{
-			id: 'prello',
-			url: '/prello/index.html',
+			id: 'prezillo',
+			url: '/prezillo/index.html',
 			trust: false
 		},
 		{
@@ -35,8 +35,8 @@ const APP_CONFIG: AppConfigState = {
 			url: '/formillo/index.html'
 		},
 		{
-			id: 'todollo',
-			url: '/todollo/index.html'
+			id: 'taskillo',
+			url: '/taskillo/index.html'
 		}
 	],
 	mime: {
@@ -45,10 +45,10 @@ const APP_CONFIG: AppConfigState = {
 		'video/mp4': '/app/gallery',
 		'application/pdf': '/app/pdfviewer',
 		'cloudillo/quillo': '/app/quillo',
-		'cloudillo/sheello': '/app/sheello',
-		'cloudillo/prello': '/app/prello',
+		'cloudillo/calcillo': '/app/calcillo',
+		'cloudillo/prezillo': '/app/prezillo',
 		'cloudillo/formillo': '/app/formillo',
-		'cloudillo/todollo': '/app/todollo'
+		'cloudillo/taskillo': '/app/taskillo'
 	},
 	menu: [
 		{

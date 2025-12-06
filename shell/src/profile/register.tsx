@@ -19,20 +19,21 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import debounce from 'debounce'
 
-import {
-	LuAtSign as IcAt,
-	LuRefreshCw as IcLoading,
-	LuCheck as IcOk,
-	LuTriangleAlert as IcError,
-	LuDoorOpen as IcSignUp,
-	LuChevronsLeft as IcGoBack
-} from 'react-icons/lu'
+import { LuDoorOpen as IcSignUp, LuChevronsLeft as IcGoBack } from 'react-icons/lu'
 
 import { useAuth, useApi, Button } from '@cloudillo/react'
 import * as Types from '@cloudillo/base'
 
 import { CloudilloLogo } from '../logo.js'
-import { ProviderSelectionStep, ProviderSelectorStep } from './shared.js'
+import {
+	ProviderSelectionStep,
+	ProviderSelectorStep,
+	IdTagInput,
+	IdTagErrorPanel,
+	AppDomainInput,
+	AppDomainErrorPanel,
+	DnsInstructions
+} from './shared.js'
 
 /////////////////////////
 // IdpRegistrationForm //
@@ -100,50 +101,18 @@ function IdpRegistrationForm({
 				</b>
 			</p>
 
-			<label className="d-block my-3">
-				{t('Your name')}
-				<div className="c-input-group">
-					<div className="c-button icon">
-						<IcAt />
-					</div>
-					<input
-						className="c-input"
-						name="idTag"
-						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => {
-							setIdTagInput(evt.target.value)
-							onVerify('idTag', evt.target.value, selectedProvider)
-						}}
-						value={idTagInput}
-						placeholder={t('yourname')}
-						aria-label={t('Your name')}
-						autoFocus
-					/>
-					{progress == 'vfy' && (
-						<IcLoading className="animate-rotate-cw my-auto f-none" />
-					)}
-					{!progress && idTagInput && verifyState?.idTagError === '' && (
-						<IcOk className="text-success my-auto f-none" />
-					)}
-					{!progress && idTagInput && verifyState?.idTagError && (
-						<IcError className="text-error my-auto f-none" />
-					)}
-					<div className="c-button">.{selectedProvider}</div>
-				</div>
-				{verifyState?.idTagError == 'invalid' && (
-					<div className="c-panel error mt-2">
-						<p>
-							{t(
-								'This name contains invalid characters. Use only letters, numbers, and hyphens.'
-							)}
-						</p>
-					</div>
-				)}
-				{verifyState?.idTagError == 'used' && (
-					<div className="c-panel error mt-2">
-						<p>{t('This name is already taken. Please try another one.')}</p>
-					</div>
-				)}
-			</label>
+			<IdTagInput
+				value={idTagInput}
+				onChange={setIdTagInput}
+				onVerify={(value) => onVerify('idTag', value, selectedProvider)}
+				progress={progress}
+				error={verifyState?.idTagError}
+				label={t('Your name')}
+				placeholder={t('yourname')}
+				suffix={selectedProvider}
+				mode="idp"
+			/>
+			<IdTagErrorPanel error={verifyState?.idTagError} mode="idp" />
 
 			<p className="small">{t('Pick something memorable that represents you.')}</p>
 
@@ -247,146 +216,48 @@ function DomainRegistrationForm({
 
 			<h3 className="my-3">{t('Use your domain as your identity')}</h3>
 
-			<label className="d-block my-3">
-				{t('Your domain')}
-				<div className="c-input-group pe-2">
-					<div className="c-button icon">
-						<IcAt />
-					</div>
-					<input
-						className="c-input"
-						name="idTag"
-						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => {
-							setIdTagInput(evt.target.value)
-							onVerify('idTag', evt.target.value, appDomain)
-						}}
-						value={idTagInput}
-						placeholder={t('example.com or alice.example.com')}
-						aria-label={t('Your domain')}
-						autoFocus
-					/>
-					{progress == 'vfy' && (
-						<IcLoading className="animate-rotate-cw my-auto f-none" />
-					)}
-					{!progress && idTagInput && verifyState?.idTagError === '' && (
-						<IcOk className="text-success my-auto f-none" />
-					)}
-					{!progress &&
-						idTagInput &&
-						(verifyState?.idTagError == 'nodns' ||
-							verifyState?.idTagError == 'address') && (
-							<IcError className="text-warning my-auto f-none" />
-						)}
-					{!progress &&
-						idTagInput &&
-						verifyState?.idTagError &&
-						verifyState.idTagError != 'nodns' &&
-						verifyState.idTagError != 'address' && (
-							<IcError className="text-error my-auto f-none" />
-						)}
-				</div>
-				{verifyState?.idTagError == 'invalid' && (
-					<div className="c-panel error mt-2">
-						<p>{t('Please enter a valid domain name (e.g., example.com)')}</p>
-					</div>
-				)}
-				{verifyState?.idTagError == 'used' && (
-					<div className="c-panel error mt-2">
-						<p>
-							{t('This domain is already registered with this Cloudillo instance.')}
-						</p>
-					</div>
-				)}
-			</label>
+			<IdTagInput
+				value={idTagInput}
+				onChange={setIdTagInput}
+				onVerify={(value) => onVerify('idTag', value, appDomain)}
+				progress={progress}
+				error={verifyState?.idTagError}
+				label={t('Your domain')}
+				placeholder={t('example.com or alice.example.com')}
+				mode="domain"
+			/>
+			<IdTagErrorPanel error={verifyState?.idTagError} mode="domain" />
 
 			{idTagInput &&
 				verifyState?.idTagError !== 'invalid' &&
 				verifyState?.idTagError !== 'used' && (
 					<>
-						<div className="my-3">
-							<label className="d-block">
-								{t('Where will you access Cloudillo?')}
-								<p className="text-muted small mb-2">
-									{t('Your identity:')} <b>@{idTagInput}</b> ✓
-								</p>
-								<div className="c-input-group px-2">
-									<span className="c-button text-muted">{t('App address:')}</span>
-									<input
-										className="c-input"
-										name="app-domain"
-										onChange={(evt: React.ChangeEvent<HTMLInputElement>) => {
-											setAppDomain(evt.target.value)
-											onVerify('appDomain', idTagInput, evt.target.value)
-										}}
-										value={appDomain}
-										placeholder={idTagInput}
-										aria-label={t('App address')}
-									/>
-									{progress == 'vfy' && (
-										<IcLoading className="animate-rotate-cw my-auto f-none" />
-									)}
-									{!progress && verifyState?.appDomainError === '' && (
-										<IcOk className="text-success my-auto f-none" />
-									)}
-									{!progress &&
-										(verifyState?.appDomainError == 'nodns' ||
-											verifyState?.appDomainError == 'address') && (
-											<IcError className="text-warning my-auto f-none" />
-										)}
-									{!progress &&
-										verifyState?.appDomainError &&
-										verifyState?.appDomainError != 'nodns' &&
-										verifyState?.appDomainError != 'address' && (
-											<IcError className="text-error my-auto f-none" />
-										)}
-								</div>
-							</label>
-							<p className="text-muted small mt-2">
-								💡{' '}
-								{t(
-									'Usually the same as your identity domain. Use a subdomain (like app.example.com) only if your main domain already has a website.'
-								)}
-							</p>
-						</div>
-
-						{verifyState?.appDomainError == 'invalid' && (
-							<div className="c-panel error mt-2">
-								<p>{t('Please enter a valid domain name.')}</p>
-							</div>
-						)}
-						{verifyState?.appDomainError == 'used' && (
-							<div className="c-panel error mt-2">
-								<p>{t('This app address is already in use.')}</p>
-							</div>
-						)}
-						{verifyState?.appDomainError == 'address' && !appDomain && (
-							<div className="c-panel warning mt-2">
-								<p>
-									{t(
-										'Your identity domain appears to have an existing website. Use a subdomain for Cloudillo (e.g., cloudillo.{{idTag}})',
-										{ idTag: idTagInput }
-									)}
-								</p>
-							</div>
-						)}
+						<AppDomainInput
+							value={appDomain}
+							onChange={setAppDomain}
+							onVerify={(value) => onVerify('appDomain', idTagInput, value)}
+							idTagInput={idTagInput}
+							progress={progress}
+							error={verifyState?.appDomainError}
+							identityLabel={t('Your identity:')}
+							accessLabel={t('Where will you access Cloudillo?')}
+						/>
+						<AppDomainErrorPanel
+							error={verifyState?.appDomainError}
+							idTagInput={idTagInput}
+							appDomain={appDomain}
+						/>
 					</>
 				)}
 
 			{showDnsInstructions && (
-				<div className="c-panel warning my-3">
-					<h4 className="mb-2">{t('One small step: connect your domain')}</h4>
-					<p className="small">{t('Add these records in your domain settings:')}</p>
-					<pre className="c-panel bg-light p-2 small" style={{ overflowX: 'auto' }}>
-						{`cl-o.${idTagInput.padEnd(20, ' ')} IN A ${verifyState!.address[0]}\n${(appDomain || idTagInput).padEnd(25, ' ')} IN A ${verifyState!.address[0]}`}
-					</pre>
-					<p className="small text-muted mb-0">
-						{t("Where to do this: GoDaddy, Namecheap, Cloudflare → 'DNS Settings'")}
-						<br />
-						{t('Not sure? Send this to whoever manages your domain.')}
-						<br />
-						{t('Changes can take 5-30 minutes to work.')}
-					</p>
-				</div>
+				<DnsInstructions
+					idTagInput={idTagInput}
+					appDomain={appDomain}
+					address={verifyState!.address[0]}
+					idTagError={verifyState?.idTagError}
+					appDomainError={verifyState?.appDomainError}
+				/>
 			)}
 
 			{showEmailField && (
@@ -440,8 +311,14 @@ export function RegisterForm() {
 	const {
 		token,
 		providerType,
-		idpStep: idpStepParam
-	} = useParams<{ token: string; providerType?: 'idp' | 'domain'; idpStep?: 'select' | 'name' }>()
+		idpStep: idpStepParam,
+		provider: providerParam
+	} = useParams<{
+		token: string
+		providerType?: 'idp' | 'domain'
+		idpStep?: 'select' | 'name'
+		provider?: string
+	}>()
 	const navigate = useNavigate()
 	const [auth, setAuth] = useAuth()
 
@@ -449,7 +326,9 @@ export function RegisterForm() {
 	const [identityProviders, setIdentityProviders] = React.useState<string[]>([])
 	// If idpStepParam is present, we're in IDP flow; otherwise use providerType
 	const identityProvider = idpStepParam ? 'idp' : providerType
-	const [selectedProvider, setSelectedProvider] = React.useState<string>('cloudillo.net')
+	const [selectedProvider, setSelectedProvider] = React.useState<string>(
+		providerParam || 'cloudillo.net'
+	)
 	const [providerInfoMap, setProviderInfoMap] = React.useState<Record<string, Types.IdpInfo>>({})
 	const idpStep = idpStepParam || 'select' // Get IDP step from URL, default to 'select'
 	const [email, setEmail] = React.useState('')
@@ -481,7 +360,10 @@ export function RegisterForm() {
 							? res.identityProviders
 							: ['cloudillo.net']
 					setIdentityProviders(providers)
-					setSelectedProvider(providers[0])
+					// Only set selected provider from API if not provided in URL
+					if (!providerParam) {
+						setSelectedProvider(providers[0])
+					}
 
 					// Fetch provider info for each provider (with fallback if API not available)
 					const infoMap: Record<string, Types.IdpInfo> = {}
@@ -520,7 +402,7 @@ export function RegisterForm() {
 	function onIdpProviderContinue() {
 		setIdTagInput('')
 		setVerifyState(undefined)
-		navigate(`/register/${token}/idp/name`)
+		navigate(`/register/${token}/idp/name/${encodeURIComponent(selectedProvider)}`)
 	}
 
 	// Go back handler
@@ -575,7 +457,12 @@ export function RegisterForm() {
 				} catch (err) {
 					console.log('ERROR', err)
 					setProgress(undefined)
-					setVerifyState(undefined)
+					// Set network error state so user knows verification failed
+					setVerifyState({
+						address: [],
+						identityProviders: [],
+						idTagError: 'network'
+					})
 				}
 			}.bind(null),
 			500

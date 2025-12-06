@@ -92,7 +92,7 @@ function ProfileConnection({
 	const dialog = useDialog()
 
 	async function onUnfollow() {
-		if (await dialog.confirm(t('Are you sure?'), t('Unfollow this person?'), 'danger'))
+		if (await dialog.confirm(t('Are you sure?'), t('Unfollow this person?'), 'error'))
 			cmds.onUnfollow()
 	}
 
@@ -882,6 +882,10 @@ export function ProfileRoutes() {
 			/>
 			<Route
 				path="/communities/create/:contextIdTag/:providerType/:idpStep"
+				element={<CreateCommunity />}
+			/>
+			<Route
+				path="/communities/create/:contextIdTag/:providerType/:idpStep/:provider"
 				element={<CreateCommunity />}
 			/>
 			<Route path="/*" element={null} />

@@ -543,7 +543,7 @@ function Header({ inert }: { inert?: boolean }) {
 						<Link className="c-nav-item pos-relative" to="/notifications">
 							<IcNotifications />
 							{!!notifications.notifications.length && (
-								<span className="c-badge br bg error">
+								<span className="c-badge br bg bg-error">
 									{notifications.notifications.length}
 								</span>
 							)}

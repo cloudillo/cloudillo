@@ -606,7 +606,7 @@ function Post({ className, action, setAction, hideAudience, srcTag, width }: Pos
 								</span>
 								{(action.stat?.comments || 0) - (action.stat?.commentsRead || 0) >
 									0 && (
-									<span className="c-badge pos-absolute top-0 left-100 bg error">
+									<span className="c-badge pos-absolute top-0 left-100 bg bg-error">
 										{(action.stat?.comments || 0) -
 											(action.stat?.commentsRead || 0)}
 									</span>

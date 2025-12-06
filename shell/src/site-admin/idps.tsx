@@ -237,7 +237,7 @@ export function IdpsSettings() {
 				</div>
 
 				{/* Error message */}
-				{error && <div className="c-alert danger mb-4">{error}</div>}
+				{error && <div className="c-alert error mb-4">{error}</div>}
 
 				{/* Domain list */}
 				{domains.length === 0 ? (
@@ -250,7 +250,7 @@ export function IdpsSettings() {
 							<div key={domain} className="c-hbox c-panel low p-3">
 								<span className="flex-fill font-mono">{domain}</span>
 								<button
-									className="c-link danger low"
+									className="c-link error low"
 									onClick={() => handleRemove(domain)}
 									title={t('Remove')}
 								>

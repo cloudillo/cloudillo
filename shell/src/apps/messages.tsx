@@ -462,7 +462,7 @@ function ConversationBar({
 					<ConversationCard
 						key={con.profiles[0]?.idTag}
 						conversation={con}
-						className={activeId === con.id ? 'bg container-primary' : undefined}
+						className={activeId === con.id ? 'bg bg-container-primary' : undefined}
 					/>
 				))}
 		</div>

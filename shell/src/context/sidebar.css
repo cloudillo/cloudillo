@@ -228,7 +228,7 @@
 	width: 100%;
 	padding: 0.5rem 0.25rem;
 	background: lch(from var(--col-surface) l c h / var(--op-hover));
-	border: var(--border-w-lg) dashed var(--col-outline);
+	border: none;
 	border-radius: var(--border-radius-md);
 	cursor: pointer;
 	transition: all 0.2s;

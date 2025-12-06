@@ -15,7 +15,6 @@ import { useAuth, mergeClasses, ProfilePicture } from '@cloudillo/react'
 import {
 	LuStar as IcStar,
 	LuClock as IcRecent,
-	LuPlus as IcAdd,
 	LuChevronLeft as IcCollapse,
 	LuChevronRight as IcExpand,
 	LuLoader as IcLoading,
@@ -71,7 +70,7 @@ function CommunityListItem({
 					</span>
 				)}
 				{!community.isPending && community.unreadCount > 0 && (
-					<span className="c-badge br bg error">{community.unreadCount}</span>
+					<span className="c-badge br bg bg-error">{community.unreadCount}</span>
 				)}
 			</div>
 			<button
@@ -233,16 +232,6 @@ export function Sidebar({ className }: SidebarProps) {
 
 				{/* Community buttons */}
 				<div className="c-sidebar-footer">
-					<button
-						className="c-sidebar-add-button"
-						onClick={() =>
-							navigate(`/communities/${activeContext?.idTag || auth?.idTag}`)
-						}
-						title={t('Browse communities')}
-					>
-						<IcAdd />
-						<span>{t('Add community')}</span>
-					</button>
 					<button
 						className="c-sidebar-add-button"
 						onClick={() =>

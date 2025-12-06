@@ -537,7 +537,7 @@ const FilterBar = React.memo(function FilterBar({
 				<Link className={'c-nav-link ' + (!qs.fileTp ? 'active' : '')} to="">
 					<IcAll /> {t('All')}
 					{!!fileStat.todo && (
-						<span className="c-badge bg error">{fileStat.mutable}</span>
+						<span className="c-badge bg bg-error">{fileStat.mutable}</span>
 					)}
 				</Link>
 			</li>
@@ -548,7 +548,7 @@ const FilterBar = React.memo(function FilterBar({
 				>
 					<IcMutable /> {t('Editable')}
 					{!!fileStat.todo && (
-						<span className="c-badge bg error">{fileStat.mutable}</span>
+						<span className="c-badge bg bg-error">{fileStat.mutable}</span>
 					)}
 				</Link>
 			</li>
@@ -558,7 +558,9 @@ const FilterBar = React.memo(function FilterBar({
 					to="?fileTp=BLOB"
 				>
 					<IcImmutable /> {t('Finalized')}
-					{!!fileStat.todo && <span className="c-badge bg error">{fileStat.todo}</span>}
+					{!!fileStat.todo && (
+						<span className="c-badge bg bg-error">{fileStat.todo}</span>
+					)}
 				</Link>
 			</li>
 			<hr className="w-100" />
@@ -566,7 +568,7 @@ const FilterBar = React.memo(function FilterBar({
 			<li className="c-nav-item">
 				<Link className="c-nav-link" to="?filter=new">
 					<IcUploaded /> {t('New uploads')}
-					{!!fileStat.new && <span className="c-badge bg error">{fileStat.new}</span>}
+					{!!fileStat.new && <span className="c-badge bg bg-error">{fileStat.new}</span>}
 				</Link>
 			</li>
 

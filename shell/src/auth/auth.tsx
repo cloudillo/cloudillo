@@ -468,6 +468,14 @@ export function AuthRoutes() {
 				}
 			/>
 			<Route
+				path="/register/:token/idp/:idpStep/:provider"
+				element={
+					<LoginPage>
+						<RegisterForm />
+					</LoginPage>
+				}
+			/>
+			<Route
 				path="/passwd"
 				element={
 					<LoginPage>

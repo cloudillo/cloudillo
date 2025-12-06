@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next'
 import debounce from 'debounce'
 
 import {
+	LuAtSign as IcAt,
 	LuRefreshCw as IcLoading,
 	LuCheck as IcOk,
 	LuTriangleAlert as IcError,
@@ -393,4 +394,284 @@ export function ProviderSelectorStep({
 		</>
 	)
 }
+
+/////////////////
+// IdTagInput //
+/////////////////
+export type IdTagError = '' | 'invalid' | 'used' | 'nodns' | 'address' | 'network' | undefined
+
+export interface IdTagInputProps {
+	value: string
+	onChange: (value: string) => void
+	onVerify: (value: string) => void
+	progress?: 'vfy'
+	error?: IdTagError
+	label: string
+	placeholder: string
+	suffix?: string // e.g., "cloudillo.net" for IDP mode, undefined for domain mode
+	mode: 'idp' | 'domain' // affects icon colors for nodns/address errors
+}
+
+export function IdTagInput({
+	value,
+	onChange,
+	onVerify,
+	progress,
+	error,
+	label,
+	placeholder,
+	suffix,
+	mode
+}: IdTagInputProps) {
+	const showWarning =
+		error === 'network' || (mode === 'domain' && (error === 'nodns' || error === 'address'))
+	const showError = error && error !== '' && error !== 'network' && !showWarning
+
+	return (
+		<label className="d-block my-3">
+			{label}
+			<div className={`c-input-group${suffix ? '' : ' pe-2'}`}>
+				<div className="c-button icon">
+					<IcAt />
+				</div>
+				<input
+					className="c-input"
+					name="idTag"
+					onChange={(evt: React.ChangeEvent<HTMLInputElement>) => {
+						onChange(evt.target.value)
+						onVerify(evt.target.value)
+					}}
+					value={value}
+					placeholder={placeholder}
+					aria-label={label}
+					autoFocus
+				/>
+				{progress === 'vfy' && <IcLoading className="animate-rotate-cw my-auto f-none" />}
+				{!progress && value && error === '' && (
+					<IcOk className="text-success my-auto f-none" />
+				)}
+				{!progress && value && showWarning && (
+					<IcError className="text-warning my-auto f-none" />
+				)}
+				{!progress && value && showError && (
+					<IcError className="text-error my-auto f-none" />
+				)}
+				{suffix && <div className="c-button">.{suffix}</div>}
+			</div>
+		</label>
+	)
+}
+
+/////////////////////
+// IdTagErrorPanel //
+/////////////////////
+export interface IdTagErrorPanelProps {
+	error?: IdTagError
+	mode: 'idp' | 'domain'
+}
+
+export function IdTagErrorPanel({ error, mode }: IdTagErrorPanelProps) {
+	const { t } = useTranslation()
+
+	if (error === 'network') {
+		return (
+			<div className="c-panel warning mt-2">
+				<p>
+					{t(
+						'Could not verify availability. Please check your internet connection and try again.'
+					)}
+				</p>
+			</div>
+		)
+	}
+
+	if (error === 'invalid') {
+		return (
+			<div className="c-panel error mt-2">
+				<p>
+					{mode === 'idp'
+						? t(
+								'This name contains invalid characters. Use only letters, numbers, and hyphens.'
+							)
+						: t('Please enter a valid domain name (e.g., example.com)')}
+				</p>
+			</div>
+		)
+	}
+
+	if (error === 'used') {
+		return (
+			<div className="c-panel error mt-2">
+				<p>
+					{mode === 'idp'
+						? t('This name is already taken. Please try another one.')
+						: t('This domain is already registered with this Cloudillo instance.')}
+				</p>
+			</div>
+		)
+	}
+
+	return null
+}
+
+////////////////////
+// AppDomainInput //
+////////////////////
+export interface AppDomainInputProps {
+	value: string
+	onChange: (value: string) => void
+	onVerify: (value: string) => void
+	idTagInput: string
+	progress?: 'vfy'
+	error?: IdTagError
+	identityLabel: string // "Your identity:" or "Community identity:"
+	accessLabel: string // "Where will you access Cloudillo?" or "Where will the community be accessed?"
+}
+
+export function AppDomainInput({
+	value,
+	onChange,
+	onVerify,
+	idTagInput,
+	progress,
+	error,
+	identityLabel,
+	accessLabel
+}: AppDomainInputProps) {
+	const { t } = useTranslation()
+
+	const showWarning = error === 'nodns' || error === 'address'
+	const showError = error && error !== '' && !showWarning
+
+	return (
+		<div className="my-3">
+			<label className="d-block">
+				{accessLabel}
+				<p className="text-muted small mb-2">
+					{identityLabel} <b>@{idTagInput}</b> ✓
+				</p>
+				<div className="c-input-group px-2">
+					<span className="c-button text-muted">{t('App address:')}</span>
+					<input
+						className="c-input"
+						name="app-domain"
+						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => {
+							onChange(evt.target.value)
+							onVerify(evt.target.value)
+						}}
+						value={value}
+						placeholder={idTagInput}
+						aria-label={t('App address')}
+					/>
+					{progress === 'vfy' && (
+						<IcLoading className="animate-rotate-cw my-auto f-none" />
+					)}
+					{!progress && error === '' && <IcOk className="text-success my-auto f-none" />}
+					{!progress && showWarning && (
+						<IcError className="text-warning my-auto f-none" />
+					)}
+					{!progress && showError && <IcError className="text-error my-auto f-none" />}
+				</div>
+			</label>
+			<p className="text-muted small mt-2">
+				{t(
+					'Usually the same as your identity domain. Use a subdomain only if your main domain already has a website.'
+				)}
+			</p>
+		</div>
+	)
+}
+
+/////////////////////////
+// AppDomainErrorPanel //
+/////////////////////////
+export interface AppDomainErrorPanelProps {
+	error?: IdTagError
+	idTagInput: string
+	appDomain: string
+}
+
+export function AppDomainErrorPanel({ error, idTagInput, appDomain }: AppDomainErrorPanelProps) {
+	const { t } = useTranslation()
+
+	if (error === 'invalid') {
+		return (
+			<div className="c-panel error mt-2">
+				<p>{t('Please enter a valid domain name.')}</p>
+			</div>
+		)
+	}
+
+	if (error === 'used') {
+		return (
+			<div className="c-panel error mt-2">
+				<p>{t('This app address is already in use.')}</p>
+			</div>
+		)
+	}
+
+	if (error === 'address' && !appDomain) {
+		return (
+			<div className="c-panel warning mt-2">
+				<p>
+					{t(
+						'Your identity domain appears to have an existing website. Use a subdomain for Cloudillo (e.g., cloudillo.{{idTag}})',
+						{ idTag: idTagInput }
+					)}
+				</p>
+			</div>
+		)
+	}
+
+	return null
+}
+
+/////////////////////
+// DnsInstructions //
+/////////////////////
+export interface DnsInstructionsProps {
+	idTagInput: string
+	appDomain: string
+	address: string
+	idTagError?: IdTagError
+	appDomainError?: IdTagError
+}
+
+export function DnsInstructions({
+	idTagInput,
+	appDomain,
+	address,
+	idTagError,
+	appDomainError
+}: DnsInstructionsProps) {
+	const { t } = useTranslation()
+
+	const recordType = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(address) ? 'A' : 'CNAME'
+	const needsApiDns = idTagError === 'nodns' || idTagError === 'address'
+	const needsAppDns = appDomainError === 'nodns' || appDomainError === 'address'
+
+	const records: string[] = []
+	if (needsApiDns) {
+		records.push(`cl-o.${idTagInput.padEnd(20, ' ')} IN ${recordType} ${address}`)
+	}
+	if (needsAppDns) {
+		records.push(`${(appDomain || idTagInput).padEnd(25, ' ')} IN ${recordType} ${address}`)
+	}
+
+	return (
+		<div className="c-panel warning my-3">
+			<h4 className="mb-2">{t('One small step: connect your domain')}</h4>
+			<p className="small">{t('Add these records in your domain settings:')}</p>
+			<pre className="c-panel bg-light p-2 small" style={{ overflowX: 'auto' }}>
+				{records.join('\n')}
+			</pre>
+			<p className="small text-muted mb-0">
+				{t("Where to do this: GoDaddy, Namecheap, Cloudflare - 'DNS Settings'")}
+				<br />
+				{t('Changes can take 5-30 minutes to work.')}
+			</p>
+		</div>
+	)
+}
+
 // vim: ts=4

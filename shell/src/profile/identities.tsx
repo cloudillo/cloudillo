@@ -73,7 +73,7 @@ function FilterBar({ className }: { className?: string }) {
 				>
 					<IcUserConnected /> {t('Connected')}
 					{!!userStat.connected && (
-						<span className="c-badge bg error">{userStat.connected}</span>
+						<span className="c-badge bg bg-error">{userStat.connected}</span>
 					)}
 				</Link>
 			</li>
@@ -84,14 +84,14 @@ function FilterBar({ className }: { className?: string }) {
 				>
 					<IcUserFollowed /> {t('Followed')}
 					{!!userStat.followed && (
-						<span className="c-badge bg error">{userStat.followed}</span>
+						<span className="c-badge bg bg-error">{userStat.followed}</span>
 					)}
 				</Link>
 			</li>
 			<li className="c-nav-item">
 				<Link className={'c-nav-link ' + (!qs.filter ? 'active' : '')} to="">
 					<IcUserAll /> {t('All')}
-					{!!userStat.all && <span className="c-badge bg error">{userStat.all}</span>}
+					{!!userStat.all && <span className="c-badge bg bg-error">{userStat.all}</span>}
 				</Link>
 			</li>
 			<hr className="w-100" />

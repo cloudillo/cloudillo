@@ -38,6 +38,7 @@ import { ServerSettings } from './server.js'
 import { StorageSettings } from './storage.js'
 import { EmailSettings } from './email.js'
 import { TenantSettings } from './tenant.js'
+import { AdminOverview } from './overview.js'
 
 export function SiteAdmin({ title, children }: { title: string; children?: React.ReactNode }) {
 	const navigate = useNavigate()
@@ -146,7 +147,14 @@ export function SiteAdminRoutes() {
 
 	return (
 		<Routes>
-			<Route path="/site-admin" element={<SiteAdmin title={t('Main')} />} />
+			<Route
+				path="/site-admin"
+				element={
+					<SiteAdmin title={t('Administration')}>
+						<AdminOverview />
+					</SiteAdmin>
+				}
+			/>
 			<Route
 				path="/site-admin/invitations"
 				element={

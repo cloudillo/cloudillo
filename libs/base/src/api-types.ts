@@ -200,6 +200,85 @@ export const tIdpInfo = T.struct({
 export type IdpInfo = T.TypeOf<typeof tIdpInfo>
 
 // ============================================================================
+// WEBAUTHN ENDPOINTS
+// ============================================================================
+
+// WebAuthn credential info
+export const tWebAuthnCredential = T.struct({
+	credentialId: T.string,
+	description: T.string
+})
+export type WebAuthnCredential = T.TypeOf<typeof tWebAuthnCredential>
+
+export const tWebAuthnCredentialList = T.array(tWebAuthnCredential)
+export type WebAuthnCredentialList = T.TypeOf<typeof tWebAuthnCredentialList>
+
+// WebAuthn registration challenge response
+export const tWebAuthnRegChallengeResult = T.struct({
+	options: T.unknown, // CreationChallengeResponse from webauthn-rs
+	token: T.string
+})
+export type WebAuthnRegChallengeResult = T.TypeOf<typeof tWebAuthnRegChallengeResult>
+
+// WebAuthn login challenge response
+export const tWebAuthnLoginChallengeResult = T.struct({
+	options: T.unknown, // RequestChallengeResponse from webauthn-rs
+	token: T.string
+})
+export type WebAuthnLoginChallengeResult = T.TypeOf<typeof tWebAuthnLoginChallengeResult>
+
+// WebAuthn registration request
+export interface WebAuthnRegisterRequest {
+	token: string
+	response: unknown // RegisterPublicKeyCredential
+	description?: string
+}
+
+// WebAuthn login request
+export interface WebAuthnLoginRequest {
+	token: string
+	response: unknown // PublicKeyCredential
+}
+
+// ============================================================================
+// API KEY ENDPOINTS
+// ============================================================================
+
+// API key list item
+export const tApiKeyListItem = T.struct({
+	keyId: T.number,
+	keyPrefix: T.string,
+	name: T.optional(T.string),
+	scopes: T.optional(T.string),
+	expiresAt: T.optional(T.number),
+	lastUsedAt: T.optional(T.number),
+	createdAt: T.number
+})
+export type ApiKeyListItem = T.TypeOf<typeof tApiKeyListItem>
+
+export const tApiKeyList = T.array(tApiKeyListItem)
+export type ApiKeyList = T.TypeOf<typeof tApiKeyList>
+
+// Create API key request
+export interface CreateApiKeyRequest {
+	name?: string
+	scopes?: string
+	expiresAt?: number
+}
+
+// Create API key result (includes plaintext key shown only once)
+export const tCreateApiKeyResult = T.struct({
+	keyId: T.number,
+	keyPrefix: T.string,
+	plaintextKey: T.string,
+	name: T.optional(T.string),
+	scopes: T.optional(T.string),
+	expiresAt: T.optional(T.number),
+	createdAt: T.number
+})
+export type CreateApiKeyResult = T.TypeOf<typeof tCreateApiKeyResult>
+
+// ============================================================================
 // ACTION ENDPOINTS
 // ============================================================================
 

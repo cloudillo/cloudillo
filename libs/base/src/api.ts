@@ -186,6 +186,18 @@ export async function apiFetchHelper<R, D = any>(
 	const textRes = await res.text()
 
 	if (res.ok) {
+		// Handle empty responses (e.g., 204 No Content)
+		if (!textRes || textRes.trim() === '') {
+			const emptyMeta: ApiResponseMeta = {
+				time: undefined,
+				reqId: undefined,
+				pagination: undefined
+			}
+			return (opts.returnMeta ? { data: undefined, meta: emptyMeta } : undefined) as
+				| R
+				| ApiFetchResult<R>
+		}
+
 		let j
 		try {
 			j = JSON.parse(textRes)

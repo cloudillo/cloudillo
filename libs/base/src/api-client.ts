@@ -202,7 +202,90 @@ export class ApiClient {
 		 * @returns Verification result with identity providers and validation errors
 		 */
 		registerVerify: (data: Types.RegisterVerifyRequest) =>
-			this.request('POST', '/profile/verify', Types.tRegisterVerifyResult, { data })
+			this.request('POST', '/profile/verify', Types.tRegisterVerifyResult, { data }),
+
+		// ====================================================================
+		// WEBAUTHN ENDPOINTS
+		// ====================================================================
+
+		/**
+		 * GET /auth/wa/reg - List WebAuthn credentials
+		 * @returns List of registered WebAuthn credentials
+		 */
+		listWebAuthnCredentials: () =>
+			this.request('GET', '/auth/wa/reg', Types.tWebAuthnCredentialList),
+
+		/**
+		 * GET /auth/wa/reg/challenge - Get WebAuthn registration challenge
+		 * @returns Registration options and challenge token
+		 */
+		getWebAuthnRegChallenge: () =>
+			this.request('GET', '/auth/wa/reg/challenge', Types.tWebAuthnRegChallengeResult),
+
+		/**
+		 * POST /auth/wa/reg - Register new WebAuthn credential
+		 * @param data - Registration response with token and credential
+		 * @returns Registered credential info
+		 */
+		registerWebAuthnCredential: (data: Types.WebAuthnRegisterRequest) =>
+			this.request('POST', '/auth/wa/reg', Types.tWebAuthnCredential, { data }),
+
+		/**
+		 * DELETE /auth/wa/reg/{credentialId} - Delete WebAuthn credential
+		 * @param credentialId - Credential ID to delete
+		 */
+		deleteWebAuthnCredential: (credentialId: string) =>
+			this.request('DELETE', `/auth/wa/reg/${encodeURIComponent(credentialId)}`, T.nullValue),
+
+		/**
+		 * GET /auth/wa/login/challenge - Get WebAuthn login challenge (public)
+		 * @returns Authentication options and challenge token
+		 */
+		getWebAuthnLoginChallenge: () =>
+			this.request('GET', '/auth/wa/login/challenge', Types.tWebAuthnLoginChallengeResult),
+
+		/**
+		 * POST /auth/wa/login - Authenticate with WebAuthn
+		 * @param data - Authentication response with token
+		 * @returns Login result with session token
+		 */
+		webAuthnLogin: (data: Types.WebAuthnLoginRequest) =>
+			this.request('POST', '/auth/wa/login', Types.tLoginResult, { data }),
+
+		// ====================================================================
+		// API KEY ENDPOINTS
+		// ====================================================================
+
+		/**
+		 * GET /auth/api-keys - List API keys
+		 * @returns List of API keys (without plaintext keys)
+		 */
+		listApiKeys: () => this.request('GET', '/auth/api-keys', Types.tApiKeyList),
+
+		/**
+		 * POST /auth/api-keys - Create new API key
+		 * @param data - API key creation options
+		 * @returns Created API key with plaintext key (shown only once)
+		 */
+		createApiKey: (data: Types.CreateApiKeyRequest) =>
+			this.request('POST', '/auth/api-keys', Types.tCreateApiKeyResult, { data }),
+
+		/**
+		 * DELETE /auth/api-keys/{keyId} - Delete API key
+		 * @param keyId - Key ID to delete
+		 */
+		deleteApiKey: (keyId: number) =>
+			this.request('DELETE', `/auth/api-keys/${keyId}`, T.struct({})),
+
+		/**
+		 * GET /auth/access-token?apiKey=... - Exchange API key for access token (unauthenticated)
+		 * @param apiKey - API key to exchange
+		 * @returns Access token
+		 */
+		getAccessTokenByApiKey: (apiKey: string) =>
+			this.request('GET', '/auth/access-token', Types.tLoginResult, {
+				query: { apiKey }
+			})
 	}
 
 	// ========================================================================

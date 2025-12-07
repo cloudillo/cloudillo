@@ -411,6 +411,7 @@ function Header({ inert }: { inert?: boolean }) {
 					// Determine idTag or authenticate
 					try {
 						const loginToken = localStorage.getItem('loginToken') || undefined
+						const storedApiKey = localStorage.getItem('cloudillo_api_key')
 						const res = await fetch(
 							`https://${window.location.host}/.well-known/cloudillo/id-tag`
 						)
@@ -427,13 +428,40 @@ function Header({ inert }: { inert?: boolean }) {
 							authToken: loginToken
 						})
 
-						// Try to get login token (may fail if not authenticated)
+						// Try API key auth if available (silent exchange)
 						let authState: AuthState | undefined
-						try {
-							const tokenRes = await tempApi.auth.getLoginToken()
-							authState = tokenRes ? { ...tokenRes } : undefined
-						} catch (err) {
-							// Not authenticated - continue as guest
+						if (storedApiKey) {
+							try {
+								// Exchange API key for access token
+								const tokenResult =
+									await tempApi.auth.getAccessTokenByApiKey(storedApiKey)
+								if (tokenResult?.token) {
+									// Create new API client with the fresh token
+									const authApi = createApiClient({
+										idTag: ownerIdTag,
+										authToken: tokenResult.token
+									})
+									// Get full login info
+									const loginInfo = await authApi.auth.getLoginToken()
+									if (loginInfo?.token) {
+										authState = { ...loginInfo }
+									}
+								}
+							} catch (err) {
+								console.error('API key auth failed, clearing stored key:', err)
+								localStorage.removeItem('cloudillo_api_key')
+								// Fall through to normal login flow
+							}
+						}
+
+						// If API key auth failed, try normal login token
+						if (!authState) {
+							try {
+								const tokenRes = await tempApi.auth.getLoginToken()
+								authState = tokenRes ? { ...tokenRes } : undefined
+							} catch (err) {
+								// Not authenticated - continue as guest
+							}
 						}
 
 						if (authState?.idTag) {

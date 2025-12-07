@@ -68,75 +68,39 @@ export async function logout() {
 //////////////
 // Web auth //
 //////////////
-// NOTE: WebAuthn is not supported in the Rust backend
-// Keeping these functions commented for reference
-/*
-function publicKeyCredentialToJSON(item: any): any {
-	if (item instanceof Array) return item.map(publicKeyCredentialToJSON)
-	else if (item instanceof ArrayBuffer || item instanceof Uint8Array) return arrayBufferToBase64Url(new Uint8Array(item))
-	else if (item instanceof Object) {
-		const obj: Record<any,any> = {}
-		for (const key in item) {
-			obj[key] = publicKeyCredentialToJSON(item[key])
-		}
-		return obj
-	}
-	return item
-}
+import type { ApiClient } from '@cloudillo/base'
 
-export async function addWebAuthn(api: ReturnType<typeof useApi>, idTag: string, name: string) {
-	const regChallengeData = await api.get('', '/auth/wa/register-req', {
-		type: T.struct({ options: T.any, token: T.string })
-	})
-	const { options, token } = regChallengeData
-	if (typeof options != 'object') throw new Error('Internal error')
-	if (typeof token != 'string') throw new Error('Internal error')
+/**
+ * Attempt WebAuthn login
+ * Returns AuthState on success, undefined on failure/cancel
+ */
+export async function webAuthnLogin(api: ApiClient): Promise<AuthState | undefined> {
+	try {
+		// Get login challenge from backend
+		const challengeData = await api.auth.getWebAuthnLoginChallenge()
 
-	console.log('options', options)
-	const response = await startRegistration({ optionsJSON: options })
-	console.log('response', response)
+		// Start browser authentication
+		// Note: options come from webauthn-rs which may have slightly different types
+		const response = await startAuthentication({
+			optionsJSON: challengeData.options as Parameters<
+				typeof startAuthentication
+			>[0]['optionsJSON']
+		})
 
-	const res = await api.post('', '/auth/wa/register', { data: { response, token }})
-	localStorage.setItem('crredential', response.id)
-	return response
-}
+		// Complete authentication with backend
+		const result = await api.auth.webAuthnLogin({
+			token: challengeData.token,
+			response
+		})
 
-export async function webAuthnLoginReq(api: ReturnType<typeof useApi>) {
-	const regChallengeData: any = await api.get('', '/auth/wa/login-req')
-	const { options, token } = regChallengeData
-	if (typeof options != 'object') throw new Error('Internal error')
-	if (typeof token != 'string') throw new Error('Internal error')
-}
-
-export async function webAuthnLogin(api: ReturnType<typeof useApi>): Promise<AuthState | undefined> {
-	const regChallengeData: any = await api.get('', '/auth/wa/login-req')
-	const { options, token } = regChallengeData
-	if (typeof options != 'object') throw new Error('Internal error')
-	if (typeof token != 'string') throw new Error('Internal error')
-
-	console.log('options', options)
-	console.log('browserSupportsWebAuthnAutofill', await browserSupportsWebAuthnAutofill())
-	const regData = await startAuthentication({ optionsJSON: options })
-	console.log('regData', regData)
-
-	const res = await api.post<AuthState>('', '/auth/wa/login', {
-		data: {
-			response: regData,
-			token
-		}
-	})
-	console.log({res})
-	return res
-}
-
-export async function deleteWebAuthn(api: ReturnType<typeof useApi>) {
-	const credential = localStorage.getItem('credential')
-	if (credential) {
-		await api.delete('', `/auth/wa/reg/${encodeURIComponent(credential)}`)
-		localStorage.removeItem('credential')
+		return result
+	} catch (err) {
+		// NotAllowedError means user cancelled or no credentials available
+		// Other errors should be logged but not throw
+		console.log('WebAuthn login failed or cancelled:', err)
+		return undefined
 	}
 }
-*/
 
 //////////////
 // AuthPage //
@@ -171,6 +135,31 @@ export function LoginForm() {
 	const [remember, setRemember] = React.useState(false)
 	const [forgot, setForgot] = React.useState(false)
 	const [error, setError] = React.useState<string | undefined>()
+	const [webAuthnAttempted, setWebAuthnAttempted] = React.useState(false)
+
+	// Auto-attempt WebAuthn login on page load
+	React.useEffect(
+		function attemptWebAuthnLogin() {
+			if (!api || webAuthnAttempted || auth) return
+			if (!browserSupportsWebAuthn()) return
+
+			setWebAuthnAttempted(true)
+
+			;(async () => {
+				try {
+					const result = await webAuthnLogin(api)
+					if (result) {
+						setAuth(result)
+						if (result.token) localStorage.setItem('loginToken', result.token)
+					}
+				} catch (err) {
+					// Silently fail - user can use password
+					console.log('WebAuthn auto-login not available')
+				}
+			})()
+		},
+		[api, webAuthnAttempted, auth]
+	)
 
 	async function onSubmit(evt: React.FormEvent) {
 		evt.preventDefault()
@@ -189,9 +178,9 @@ export function LoginForm() {
 			console.log('onLoggedIn', { authState })
 			setAuth(authState)
 			if (authState.token) localStorage.setItem('loginToken', authState.token)
-		} catch (err: any) {
+		} catch (err: unknown) {
 			console.error('Login failed:', err)
-			setError(err.message || 'Login failed')
+			setError(err instanceof Error ? err.message : 'Login failed')
 		}
 	}
 
@@ -351,12 +340,33 @@ function PasswordSet() {
 
 interface WebAuthProps {
 	idTag: string
-	credentials: any[]
 }
 
-export function WebAuth({ idTag, credentials }: WebAuthProps) {
-	// WebAuthn is not supported in the Rust backend
-	return <></>
+export function WebAuth({ idTag }: WebAuthProps) {
+	const { t } = useTranslation()
+	const { api } = useApi()
+	const [auth, setAuth] = useAuth()
+
+	async function handleWebAuthnLogin() {
+		if (!api) return
+
+		const result = await webAuthnLogin(api)
+		if (result) {
+			setAuth(result)
+			if (result.token) localStorage.setItem('loginToken', result.token)
+		}
+	}
+
+	if (!browserSupportsWebAuthn()) {
+		return null
+	}
+
+	return (
+		<Button onClick={handleWebAuthnLogin}>
+			<IcWebAuthn className="mr-1" />
+			{t('Login with passkey')}
+		</Button>
+	)
 }
 
 export function Password() {

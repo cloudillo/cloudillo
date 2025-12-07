@@ -37,7 +37,9 @@ import {
 } from './shared.js'
 
 // Extended local type that includes 'network' error (not returned by API, but used for local error handling)
-type LocalVerifyResult = Omit<Types.RegisterVerifyResult, 'idTagError'> & { idTagError?: IdTagError }
+type LocalVerifyResult = Omit<Types.RegisterVerifyResult, 'idTagError'> & {
+	idTagError?: IdTagError
+}
 
 /////////////////////////
 // IdpRegistrationForm //

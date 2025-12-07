@@ -37,6 +37,7 @@ import { AppearanceSettings, setTheme } from './appearance.js'
 export { setTheme }
 import { PrivacySettings } from './privacy.js'
 import { FilesSettings } from './files.js'
+import { SettingsOverview } from './overview.js'
 
 interface SettingsProps {
 	title: string
@@ -115,7 +116,14 @@ export function SettingsRoutes({ pwa }: { pwa: UsePWA }) {
 
 	return (
 		<Routes>
-			<Route path="/settings/:contextIdTag" element={<Settings title={t('Main')} />} />
+			<Route
+				path="/settings/:contextIdTag"
+				element={
+					<Settings title={t('Settings')}>
+						<SettingsOverview pwa={pwa} />
+					</Settings>
+				}
+			/>
 			<Route
 				path="/settings/:contextIdTag/security"
 				element={

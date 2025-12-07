@@ -577,5 +577,39 @@ export const tCommunityVerifyResult = T.struct({
 export type CommunityVerifyResult = T.TypeOf<typeof tCommunityVerifyResult>
 
 // ============================================================================
+// ADMIN TENANT ENDPOINTS
+// ============================================================================
+
+// Request types
+export interface ListTenantsQuery {
+	status?: string
+	q?: string
+	limit?: number
+	offset?: number
+}
+
+// Response types
+export const tTenantView = T.struct({
+	tnId: T.number,
+	idTag: T.string,
+	name: T.string,
+	type: T.literal('person', 'community'),
+	email: T.optional(T.string),
+	status: T.optional(T.string),
+	roles: T.optional(T.array(T.string)),
+	profilePic: T.optional(T.string),
+	createdAt: T.number
+})
+export type TenantView = T.TypeOf<typeof tTenantView>
+
+export const tListTenantsResult = T.array(tTenantView)
+export type ListTenantsResult = T.TypeOf<typeof tListTenantsResult>
+
+export const tPasswordResetResponse = T.struct({
+	message: T.string
+})
+export type PasswordResetResponse = T.TypeOf<typeof tPasswordResetResponse>
+
+// ============================================================================
 // WEBSOCKET TYPES
 // vim: ts=2

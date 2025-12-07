@@ -670,6 +670,35 @@ export class ApiClient {
 		verify: (data: Types.VerifyCommunityRequest) =>
 			this.request('POST', '/profile/verify', Types.tCommunityVerifyResult, { data })
 	}
+
+	// ========================================================================
+	// ADMIN ENDPOINTS
+	// ========================================================================
+
+	/** Admin endpoints for system administration */
+	admin = {
+		/**
+		 * GET /admin/tenants - List all tenants
+		 * @param query - Optional filter query
+		 * @returns List of tenants with combined auth and meta data
+		 */
+		listTenants: (query?: Types.ListTenantsQuery) =>
+			this.request('GET', '/admin/tenants', Types.tListTenantsResult, {
+				query: query as Record<string, string | number | boolean | undefined>
+			}),
+
+		/**
+		 * POST /admin/tenants/:idTag/password-reset - Send password reset email
+		 * @param idTag - Identity tag of the tenant
+		 * @returns Password reset response message
+		 */
+		sendPasswordReset: (idTag: string) =>
+			this.request(
+				'POST',
+				`/admin/tenants/${idTag}/password-reset`,
+				Types.tPasswordResetResponse
+			)
+	}
 }
 
 /**

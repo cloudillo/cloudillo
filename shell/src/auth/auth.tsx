@@ -54,6 +54,7 @@ import { CloudilloLogo } from '../logo.js'
 import { Page } from '../ui.js'
 import { RegisterForm } from '../profile/register.js'
 import { validIdTag, validPassword } from './utils.js'
+import { ResetPassword } from './reset-password.js'
 
 ////////////
 // Logout //
@@ -496,6 +497,14 @@ export function AuthRoutes() {
 				element={
 					<LoginPage>
 						<PasswordSet />
+					</LoginPage>
+				}
+			/>
+			<Route
+				path="/reset-password/:refId"
+				element={
+					<LoginPage>
+						<ResetPassword />
 					</LoginPage>
 				}
 			/>

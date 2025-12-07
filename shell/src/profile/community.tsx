@@ -37,8 +37,12 @@ import {
 	IdTagErrorPanel,
 	AppDomainInput,
 	AppDomainErrorPanel,
-	DnsInstructions
+	DnsInstructions,
+	IdTagError
 } from './shared.js'
+
+// Extended local type that includes 'network' error (not returned by API, but used for local error handling)
+type LocalVerifyResult = Omit<Types.CommunityVerifyResult, 'idTagError'> & { idTagError?: IdTagError }
 
 /////////////////
 // IdpNameStep //
@@ -50,7 +54,7 @@ interface IdpNameStepProps {
 	setIdTagInput: (value: string) => void
 	displayName: string
 	setDisplayName: (value: string) => void
-	verifyState: Types.CommunityVerifyResult | undefined
+	verifyState: LocalVerifyResult | undefined
 	progress: 'vfy' | undefined
 	onVerify: (idTag: string, provider?: string) => void
 	onSubmit: (evt: React.FormEvent) => void
@@ -151,7 +155,7 @@ interface DomainSetupStepProps {
 	setAppDomain: (value: string) => void
 	displayName: string
 	setDisplayName: (value: string) => void
-	verifyState: Types.CommunityVerifyResult | undefined
+	verifyState: LocalVerifyResult | undefined
 	progress: 'vfy' | undefined
 	onVerify: (idTag: string, appDomain?: string) => void
 	onSubmit: (evt: React.FormEvent) => void
@@ -406,7 +410,7 @@ export function CreateCommunity() {
 	const [idTagInput, setIdTagInput] = React.useState('')
 	const [appDomain, setAppDomain] = React.useState('')
 	const [displayName, setDisplayName] = React.useState('')
-	const [verifyState, setVerifyState] = React.useState<Types.CommunityVerifyResult | undefined>()
+	const [verifyState, setVerifyState] = React.useState<LocalVerifyResult | undefined>()
 	const [verifyProgress, setVerifyProgress] = React.useState<'vfy' | undefined>()
 	const [progress, setProgress] = React.useState<
 		undefined | 'creating' | 'checking' | 'done' | 'pending-dns' | 'error'

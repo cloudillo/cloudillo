@@ -32,8 +32,12 @@ import {
 	IdTagErrorPanel,
 	AppDomainInput,
 	AppDomainErrorPanel,
-	DnsInstructions
+	DnsInstructions,
+	IdTagError
 } from './shared.js'
+
+// Extended local type that includes 'network' error (not returned by API, but used for local error handling)
+type LocalVerifyResult = Omit<Types.RegisterVerifyResult, 'idTagError'> & { idTagError?: IdTagError }
 
 /////////////////////////
 // IdpRegistrationForm //
@@ -47,7 +51,7 @@ interface IdpRegistrationFormProps {
 	setIdTagInput: (value: string) => void
 	email: string
 	setEmail: (value: string) => void
-	verifyState: Types.RegisterVerifyResult | undefined
+	verifyState: LocalVerifyResult | undefined
 	progress: 'vfy' | undefined
 	onVerify: (
 		changed: 'idTag' | 'appDomain',
@@ -165,7 +169,7 @@ interface DomainRegistrationFormProps {
 	setAppDomain: (value: string) => void
 	email: string
 	setEmail: (value: string) => void
-	verifyState: Types.RegisterVerifyResult | undefined
+	verifyState: LocalVerifyResult | undefined
 	progress: 'vfy' | undefined
 	onVerify: (
 		changed: 'idTag' | 'appDomain',
@@ -334,7 +338,7 @@ export function RegisterForm() {
 	const [email, setEmail] = React.useState('')
 	const [idTagInput, setIdTagInput] = React.useState('')
 	const [appDomain, setAppDomain] = React.useState('')
-	const [verifyState, setVerifyState] = React.useState<Types.RegisterVerifyResult | undefined>()
+	const [verifyState, setVerifyState] = React.useState<LocalVerifyResult | undefined>()
 	const [progress, setProgress] = React.useState<
 		undefined | 'vfy' | 'reg' | 'check' | 'done' | 'wait-dns' | 'error'
 	>()

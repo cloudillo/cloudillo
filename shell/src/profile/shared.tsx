@@ -425,7 +425,7 @@ export function IdTagInput({
 }: IdTagInputProps) {
 	const showWarning =
 		error === 'network' || (mode === 'domain' && (error === 'nodns' || error === 'address'))
-	const showError = error && error !== '' && error !== 'network' && !showWarning
+	const showError = !!error && error !== 'network' && !showWarning
 
 	return (
 		<label className="d-block my-3">
@@ -541,7 +541,7 @@ export function AppDomainInput({
 	const { t } = useTranslation()
 
 	const showWarning = error === 'nodns' || error === 'address'
-	const showError = error && error !== '' && !showWarning
+	const showError = !!error && !showWarning
 
 	return (
 		<div className="my-3">

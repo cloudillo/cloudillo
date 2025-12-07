@@ -336,7 +336,8 @@ function isGuestPath(pathname: string): boolean {
 		pathname.startsWith('/s/') || // Shared resource links
 		pathname.startsWith('/login') ||
 		pathname.startsWith('/register/') ||
-		pathname.startsWith('/onboarding/')
+		pathname.startsWith('/onboarding/') ||
+		pathname.startsWith('/reset-password/') // Password reset links
 	)
 }
 

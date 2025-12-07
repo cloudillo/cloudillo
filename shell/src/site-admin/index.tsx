@@ -24,6 +24,7 @@ import {
 	LuHardDrive as IcStorage,
 	LuMail as IcMail,
 	LuUser as IcTenant,
+	LuUsers as IcTenants,
 	LuShieldCheck as IcIdps,
 	LuMenu as IcMenu
 } from 'react-icons/lu'
@@ -31,6 +32,7 @@ import {
 import { useAuth, useApi, Fcd, mergeClasses } from '@cloudillo/react'
 
 import { Invitations } from './invitations.js'
+import { Tenants } from './tenants.js'
 import { IdpsSettings } from './idps.js'
 import { ServerSettings } from './server.js'
 import { StorageSettings } from './storage.js'
@@ -63,6 +65,16 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 							to="/site-admin/invitations"
 						>
 							<IcInvitations /> {t('Invitations')}
+						</NavLink>
+					</li>
+					<li>
+						<NavLink
+							className={({ isActive }) =>
+								mergeClasses('c-nav-item', isActive && 'active')
+							}
+							to="/site-admin/tenants"
+						>
+							<IcTenants /> {t('Tenants')}
 						</NavLink>
 					</li>
 					<li>
@@ -140,6 +152,14 @@ export function SiteAdminRoutes() {
 				element={
 					<SiteAdmin title={t('Invitations')}>
 						<Invitations />
+					</SiteAdmin>
+				}
+			/>
+			<Route
+				path="/site-admin/tenants"
+				element={
+					<SiteAdmin title={t('Tenants')}>
+						<Tenants />
 					</SiteAdmin>
 				}
 			/>

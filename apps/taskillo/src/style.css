@@ -1,0 +1,295 @@
+/* Taskillo App Styles - Using OpalUI --col-* variables */
+
+.taskillo-app {
+	padding: 1rem;
+	background: var(--col-container-low);
+}
+
+/* Task Item */
+.task-item {
+	display: flex;
+	align-items: center;
+	padding: 0.75rem;
+	margin-bottom: 0.5rem;
+	border-radius: var(--radius-sm);
+	background: var(--col-container);
+	border: 1px solid var(--col-outline);
+	transition: all 0.2s ease;
+}
+
+.task-item:hover {
+	background: var(--col-container-high);
+	box-shadow: var(--shadow-sm);
+}
+
+.task-item.completed {
+	opacity: 0.6;
+}
+
+.task-item.completed .task-title {
+	text-decoration: line-through;
+	color: var(--col-on-surface);
+}
+
+.task-checkbox {
+	margin-right: 0.75rem;
+	cursor: pointer;
+}
+
+.task-priority {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	margin-right: 0.5rem;
+	flex-shrink: 0;
+}
+
+.task-priority.low {
+	background: var(--col-success);
+}
+
+.task-priority.medium {
+	background: var(--col-warning);
+}
+
+.task-priority.high {
+	background: var(--col-error);
+}
+
+.task-priority.critical {
+	background: var(--col-error);
+	box-shadow: 0 0 8px var(--col-error);
+}
+
+.task-title {
+	flex: 1;
+	font-size: 1rem;
+	color: var(--col-on-container);
+	margin: 0 0.5rem;
+}
+
+.task-due-date {
+	font-size: 0.875rem;
+	color: var(--col-on-surface);
+	margin-left: 0.5rem;
+	white-space: nowrap;
+}
+
+.task-due-date.overdue {
+	color: var(--col-error);
+	font-weight: bold;
+}
+
+.task-actions {
+	display: flex;
+	gap: 0.25rem;
+	opacity: 0;
+	transition: opacity 0.2s ease;
+	margin-left: 0.5rem;
+}
+
+.task-item:hover .task-actions {
+	opacity: 1;
+}
+
+/* Filter Bar */
+.filter-bar {
+	margin-bottom: 1rem;
+}
+
+.filter-button {
+	padding: 0.5rem 1rem;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--col-outline);
+	background: var(--col-container);
+	cursor: pointer;
+	transition: all 0.2s ease;
+	font-size: 0.9rem;
+}
+
+.filter-button:hover {
+	background: var(--col-container-high);
+}
+
+.filter-button.active {
+	background: var(--col-primary);
+	color: var(--col-on-primary);
+	border-color: var(--col-primary);
+}
+
+/* Task Input */
+.task-input-panel {
+	margin-bottom: 1rem;
+}
+
+.task-input-container {
+	display: flex;
+	gap: 0.5rem;
+}
+
+.task-input {
+	flex: 1;
+	padding: 0.5rem;
+	border: none;
+	background: transparent;
+	font-size: 1rem;
+	color: var(--col-on-container);
+}
+
+.task-input::placeholder {
+	color: var(--col-on-surface);
+}
+
+.task-input:focus {
+	outline: none;
+}
+
+/* Header */
+.taskillo-header {
+	display: flex;
+	gap: 1rem;
+	align-items: center;
+	margin-bottom: 1rem;
+}
+
+.header-title {
+	font-size: 1.5rem;
+	font-weight: 600;
+	color: var(--col-on-container);
+	margin: 0;
+}
+
+.header-stats {
+	display: flex;
+	gap: 1rem;
+	font-size: 0.9rem;
+	color: var(--col-on-surface);
+}
+
+.connection-status {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.5rem 1rem;
+	border-radius: var(--radius-sm);
+	font-size: 0.9rem;
+	margin-left: auto;
+}
+
+.connection-status.connected {
+	background: var(--col-container-success);
+	color: var(--col-on-container-success);
+}
+
+.connection-status.disconnected {
+	background: var(--col-container-error);
+	color: var(--col-on-container-error);
+}
+
+.status-indicator {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	animation: pulse 2s infinite;
+}
+
+.connection-status.connected .status-indicator {
+	background: var(--col-success);
+}
+
+.connection-status.disconnected .status-indicator {
+	background: var(--col-error);
+}
+
+@keyframes pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
+}
+
+/* Search */
+.search-input {
+	flex: 1;
+	padding: 0.5rem;
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-sm);
+	background: var(--col-container);
+	font-size: 0.95rem;
+	color: var(--col-on-container);
+}
+
+.search-input::placeholder {
+	color: var(--col-on-surface);
+}
+
+.search-input:focus {
+	outline: none;
+	border-color: var(--col-primary);
+	box-shadow: 0 0 0 2px var(--col-container-primary);
+}
+
+/* Empty State */
+.empty-state {
+	text-align: center;
+	padding: 3rem 1rem;
+	color: var(--col-on-surface);
+}
+
+.empty-state-icon {
+	font-size: 3rem;
+	opacity: 0.5;
+	margin-bottom: 1rem;
+}
+
+.empty-state-text {
+	font-size: 1.1rem;
+	margin: 0;
+}
+
+/* Loading State */
+.task-list-container {
+	flex: 1;
+	overflow-y: auto;
+	overflow-x: hidden;
+}
+
+.c-spinner {
+	display: inline-block;
+	animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* Error Alert */
+.c-alert {
+	padding: 1rem;
+	border-radius: var(--radius-sm);
+	margin-bottom: 1rem;
+}
+
+.c-alert.error {
+	background: var(--col-container-error);
+	border: 1px solid var(--col-error);
+	color: var(--col-on-container-error);
+}
+
+.c-alert h3 {
+	margin: 0 0 0.5rem 0;
+}
+
+.c-alert p {
+	margin: 0;
+}
+
+/* vim: ts=4 */

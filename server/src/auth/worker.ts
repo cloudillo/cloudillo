@@ -31,7 +31,10 @@ async function acmeTask() {
 	return false
 }
 
-export async function initWorker(auth: AuthAdapter, opts: { baseIdTag: string, baseAppDomain?: string, basePassword?: string, acmeEmail?: string }) {
+export async function initWorker(
+	auth: AuthAdapter,
+	opts: { baseIdTag: string; baseAppDomain?: string; basePassword?: string; acmeEmail?: string }
+) {
 	authAdapter = auth
 
 	// Check base tenant
@@ -53,9 +56,21 @@ export async function initWorker(auth: AuthAdapter, opts: { baseIdTag: string, b
 	if (opts.acmeEmail) {
 		await acme.init(authAdapter, opts.acmeEmail)
 		const baseCert = await authAdapter.getCertByTag(opts.baseIdTag)
-		console.log('BASE idTag / appDomain', opts.baseIdTag, opts.baseAppDomain, baseCert?.idTag, baseCert?.domain)
-		if (!baseCert || ((opts.baseAppDomain || opts.baseIdTag) != (baseCert.domain || baseCert.idTag))) {
-			if (baseCert) console.log(`Base domain changed: ${baseCert.domain || baseCert.idTag} -> ${opts.baseAppDomain || opts.baseIdTag}`)
+		console.log(
+			'BASE idTag / appDomain',
+			opts.baseIdTag,
+			opts.baseAppDomain,
+			baseCert?.idTag,
+			baseCert?.domain
+		)
+		if (
+			!baseCert ||
+			(opts.baseAppDomain || opts.baseIdTag) != (baseCert.domain || baseCert.idTag)
+		) {
+			if (baseCert)
+				console.log(
+					`Base domain changed: ${baseCert.domain || baseCert.idTag} -> ${opts.baseAppDomain || opts.baseIdTag}`
+				)
 			const cert = await authAdapter.getCertByTag(opts.baseIdTag)
 			if (!cert) {
 				await acme.createCert(1, authAdapter, opts.baseIdTag, opts.baseAppDomain)

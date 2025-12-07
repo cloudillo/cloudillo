@@ -21,13 +21,15 @@ import LanguageDetector from 'i18next-browser-languagedetector'
 import hu from './i18n/hu/translation.json'
 
 const resources = {
+	en: {
+		translation: {}
+	},
 	hu: {
 		translation: hu
 	}
 }
 
-i18n
-	.use(initReactI18next)
+i18n.use(initReactI18next)
 	.use(LanguageDetector)
 	.init({
 		resources,
@@ -44,10 +46,10 @@ i18n
 			//escapeValue: false,
 			format: (value, rawFormat, lng) => {
 				if (rawFormat) {
-					const [format, ...additionalValues] = rawFormat.split(',').map((v) => v.trim());
+					const [format, ...additionalValues] = rawFormat.split(',').map((v) => v.trim())
 					switch (format) {
 						case 'uppercase':
-							return value.toUpperCase();
+							return value.toUpperCase()
 						case 'number':
 							return typeof value == 'number'
 								? Intl.NumberFormat(lng).format(value)
@@ -60,7 +62,8 @@ i18n
 				}
 			}
 		}
-	}).catch()
+	})
+	.catch()
 
 export default i18n
 

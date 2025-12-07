@@ -1,7 +1,7 @@
 import bns from 'bns'
 
 const resolver = new bns.RecursiveResolver({
-	minimize: true,
+	minimize: true
 })
 
 resolver.hints.setDefault()

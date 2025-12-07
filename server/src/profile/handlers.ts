@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { HttpError} from 'koa'
+import { HttpError } from 'koa'
 import rawBody from 'raw-body'
 import { LRUCache } from 'lru-cache'
 
@@ -84,23 +84,30 @@ export async function getOwnProfileFull(ctx: Context) {
 	console.log('1', idTag)
 	const tenant = await metaAdapter.readTenant(ctx.state.tnId)
 	console.log('PROFILE', ctx.state.tenantTag, tenant)
-	const profile = tenant?.type == 'community' && idTag ? await metaAdapter.readProfile(ctx.state.tnId, idTag) : undefined
+	const profile =
+		tenant?.type == 'community' && idTag
+			? await metaAdapter.readProfile(ctx.state.tnId, idTag)
+			: undefined
 
 	ctx.body = {
 		...tenant,
-		profile: !profile ? undefined : {
-			perm: profile.perm
-		},
+		profile: !profile
+			? undefined
+			: {
+					perm: profile.perm
+				},
 		tnId: undefined
 	}
 }
 
 export const tProfilePatch = T.struct({
 	name: T.optional(T.string),
-	x: T.optional(T.struct({
-		category: T.nullable(T.string),
-		intro: T.nullable(T.string)
-	}))
+	x: T.optional(
+		T.struct({
+			category: T.nullable(T.string),
+			intro: T.nullable(T.string)
+		})
+	)
 })
 
 export async function patchOwnProfile(ctx: Context) {
@@ -128,16 +135,17 @@ export async function putOwnProfileImage(ctx: Context) {
 		// Store file
 		const buf = await rawBody(ctx.req, {
 			length: ctx.request.headers['content-length'],
-			limit: await Settings.get('upload.max') + 'mb'
+			limit: (await Settings.get('upload.max')) + 'mb'
 		})
 
 		const contentType = ctx.request.headers['content-type'] ?? ''
 		if (['image/jpeg', 'image/png'].includes(contentType)) {
 			const img = await storeImage(tnId, 'ohsti', buf)
-			const largestVariant = img.variants.orig || img.variants.hd || img.variants.sd || img.variants.tn
+			const largestVariant =
+				img.variants.orig || img.variants.hd || img.variants.sd || img.variants.tn
 			console.log('LARGEST', largestVariant)
 			if (!img.variants.ic?.hash) ctx.throw(400)
-			
+
 			if (largestVariant) {
 				const fileId = largestVariant.hash
 				await metaAdapter.createFile(tnId, fileId, {
@@ -149,21 +157,36 @@ export async function putOwnProfileImage(ctx: Context) {
 					x: { dim: largestVariant.dim, orientation: largestVariant.orientation }
 				})
 
-				if (img.variants.orig) await metaAdapter.createFileVariant(tnId, fileId, img.variants.orig.hash, {
-					variant: 'orig', format: img.variants.orig.format, size: img.variants.orig.size
-				})
-				if (img.variants.hd) await metaAdapter.createFileVariant(tnId, fileId, img.variants.hd.hash, {
-					variant: 'hd', format: img.variants.hd.format, size: img.variants.hd.size
-				})
-				if (img.variants.sd) await metaAdapter.createFileVariant(tnId, fileId, img.variants.sd.hash, {
-					variant: 'sd', format: img.variants.sd.format, size: img.variants.sd.size
-				})
-				if (img.variants.tn) await metaAdapter.createFileVariant(tnId, fileId, img.variants.tn.hash, {
-					variant: 'tn', format: img.variants.tn.format, size: img.variants.tn.size
-				})
-				if (img.variants.ic) await metaAdapter.createFileVariant(tnId, fileId, img.variants.ic.hash, {
-					variant: 'ic', format: img.variants.ic.format, size: img.variants.ic.size
-				})
+				if (img.variants.orig)
+					await metaAdapter.createFileVariant(tnId, fileId, img.variants.orig.hash, {
+						variant: 'orig',
+						format: img.variants.orig.format,
+						size: img.variants.orig.size
+					})
+				if (img.variants.hd)
+					await metaAdapter.createFileVariant(tnId, fileId, img.variants.hd.hash, {
+						variant: 'hd',
+						format: img.variants.hd.format,
+						size: img.variants.hd.size
+					})
+				if (img.variants.sd)
+					await metaAdapter.createFileVariant(tnId, fileId, img.variants.sd.hash, {
+						variant: 'sd',
+						format: img.variants.sd.format,
+						size: img.variants.sd.size
+					})
+				if (img.variants.tn)
+					await metaAdapter.createFileVariant(tnId, fileId, img.variants.tn.hash, {
+						variant: 'tn',
+						format: img.variants.tn.format,
+						size: img.variants.tn.size
+					})
+				if (img.variants.ic)
+					await metaAdapter.createFileVariant(tnId, fileId, img.variants.ic.hash, {
+						variant: 'ic',
+						format: img.variants.ic.format,
+						size: img.variants.ic.size
+					})
 				const ret = {
 					hd: img.variants.hd?.hash,
 					sd: img.variants.sd?.hash,
@@ -192,7 +215,7 @@ export async function putOwnCoverImage(ctx: Context) {
 		// Store file
 		const buf = await rawBody(ctx.req, {
 			length: ctx.request.headers['content-length'],
-			limit: await Settings.get('upload.max') + 'mb'
+			limit: (await Settings.get('upload.max')) + 'mb'
 		})
 
 		const contentType = ctx.request.headers['content-type'] ?? ''
@@ -201,7 +224,7 @@ export async function putOwnCoverImage(ctx: Context) {
 			const largestVariant = img.variants.hd || img.variants.sd
 			console.log('LARGEST', largestVariant)
 			if (!img.variants.sd?.hash) ctx.throw(400)
-			
+
 			if (largestVariant) {
 				const fileId = largestVariant.hash
 				await metaAdapter.createFile(tnId, fileId, {
@@ -213,15 +236,21 @@ export async function putOwnCoverImage(ctx: Context) {
 					x: { dim: largestVariant.dim, orientation: largestVariant.orientation }
 				})
 
-				if (img.variants.hd) await metaAdapter.createFileVariant(tnId, fileId, img.variants.hd.hash, {
-					variant: 'hd', format: img.variants.hd.format, size: img.variants.hd.size
-				})
-				if (img.variants.sd) await metaAdapter.createFileVariant(tnId, fileId, img.variants.sd.hash, {
-					variant: 'sd', format: img.variants.sd.format, size: img.variants.sd.size
-				})
+				if (img.variants.hd)
+					await metaAdapter.createFileVariant(tnId, fileId, img.variants.hd.hash, {
+						variant: 'hd',
+						format: img.variants.hd.format,
+						size: img.variants.hd.size
+					})
+				if (img.variants.sd)
+					await metaAdapter.createFileVariant(tnId, fileId, img.variants.sd.hash, {
+						variant: 'sd',
+						format: img.variants.sd.format,
+						size: img.variants.sd.size
+					})
 				const ret = {
 					hd: img.variants.hd?.hash,
-					sd: img.variants.sd?.hash,
+					sd: img.variants.sd?.hash
 				}
 				await metaAdapter.updateTenant(tnId, { coverPic: ret })
 				ctx.body = ret
@@ -253,8 +282,10 @@ export async function listProfiles(ctx: Context) {
 	const filt = validateQS(ctx, tListProfilesQuery)
 	console.log('GET profiles', tenantTag, idTag, filt)
 
-	const profiles = await metaAdapter.listProfiles(ctx.state.tnId,
-		idTag == tenantTag ? filt : { ...filt, connected: true })
+	const profiles = await metaAdapter.listProfiles(
+		ctx.state.tnId,
+		idTag == tenantTag ? filt : { ...filt, connected: true }
+	)
 	ctx.body = { profiles }
 }
 

@@ -16,7 +16,7 @@
 
 const TAG_FORBIDDEN_CHARS = [' ', ',', '#', '\t', '\n']
 
-import { HttpError} from 'koa'
+import { HttpError } from 'koa'
 
 import { Router } from './index.js'
 import { checkPermMW as perm, checkPermProfileMW as permProfile } from './perm.js'

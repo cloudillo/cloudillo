@@ -19,7 +19,9 @@ import { randomBytes } from 'crypto'
 const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.-'
 
 export function randomString(length: number = 20): string {
-	return Array.from(randomBytes(length)).map(b => chars[b % chars.length]).join('')
+	return Array.from(randomBytes(length))
+		.map((b) => chars[b % chars.length])
+		.join('')
 }
 
 // vim: ts=4

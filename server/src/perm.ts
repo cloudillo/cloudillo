@@ -17,7 +17,13 @@
 import { Auth, Context } from './index.js'
 import { metaAdapter } from './adapters.js'
 
-export async function checkPerm(tnId: number, tenantTag: string, auth: Auth | undefined, perm: 'W' | 'R' | 'A', resId?: string): Promise<string | false> {
+export async function checkPerm(
+	tnId: number,
+	tenantTag: string,
+	auth: Auth | undefined,
+	perm: 'W' | 'R' | 'A',
+	resId?: string
+): Promise<string | false> {
 	const [authResId, authResAccess] = auth?.subject?.split(':') || []
 	console.log(`[${tenantTag}] CHECK PERM`, auth, resId, perm)
 	if (!auth?.idTag) return 'no token'
@@ -46,7 +52,13 @@ export function checkPermMW(perm: 'W' | 'R' | 'A', param?: string) {
 	return async function checkPermMW(ctx: Context, next: () => Promise<void>) {
 		const { tnId, tenantTag } = ctx.state
 
-		const deny = await checkPerm(tnId, tenantTag, ctx.state.auth, perm, param != null ? ctx.params[param] : undefined)
+		const deny = await checkPerm(
+			tnId,
+			tenantTag,
+			ctx.state.auth,
+			perm,
+			param != null ? ctx.params[param] : undefined
+		)
 		if (deny) {
 			console.log('PERMISSION DENIED:', deny)
 			ctx.throw(403)

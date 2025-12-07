@@ -21,7 +21,7 @@ import React from 'react'
 //////////////
 
 function convertKey(base64Key: string): Uint8Array<ArrayBuffer> {
-	const padding = '='.repeat((4 - base64Key.length % 4) % 4)
+	const padding = '='.repeat((4 - (base64Key.length % 4)) % 4)
 	const base64 = (base64Key + padding).replace(/-/g, '+').replace(/_/g, '/')
 	const str = window.atob(base64)
 	let ret = new Uint8Array(str.length)
@@ -34,7 +34,7 @@ function convertKey(base64Key: string): Uint8Array<ArrayBuffer> {
 interface BeforeInstallPromptEvent extends Event {
 	prompt(): Promise<void>
 	readonly userChoice: Promise<{
-		outcome: 'accepted' | 'dismissed',
+		outcome: 'accepted' | 'dismissed'
 		platform: string
 	}>
 }
@@ -61,7 +61,9 @@ export default function usePWA(config: PWAConfig = {}): UsePWA {
 	const [notify, setNotify] = React.useState(false)
 	const [installEvt, setInstallEvt] = React.useState<BeforeInstallPromptEvent | undefined>()
 
-	const askNotify = React.useCallback(async function askNotify(vapidPublicKey: string): Promise<PushSubscription | undefined> {
+	const askNotify = React.useCallback(async function askNotify(
+		vapidPublicKey: string
+	): Promise<PushSubscription | undefined> {
 		// Notification permission
 		if (vapidPublicKey && 'Notification' in window) {
 			const stat = await Notification.requestPermission()
@@ -83,7 +85,7 @@ export default function usePWA(config: PWAConfig = {}): UsePWA {
 						console.log('subscription: ', sub)
 						//console.log('subscription: ', JSON.stringify(sub))
 						return sub
-					} catch(err) {
+					} catch (err) {
 						if (Notification.permission === 'denied') {
 							console.warn('Permission for notifications was denied')
 						} else {
@@ -107,7 +109,7 @@ export default function usePWA(config: PWAConfig = {}): UsePWA {
 
 	React.useEffect(function onMount() {
 		if ('serviceWorker' in navigator) {
-			(async function () {
+			;(async function () {
 				let sw = config.swPath || '/sw.js'
 				const reg = await navigator.serviceWorker.register(sw)
 				serviceWorker = reg
@@ -115,7 +117,10 @@ export default function usePWA(config: PWAConfig = {}): UsePWA {
 
 				// Install Prompt
 				//console.log('Registering beforeinstallprompt handler')
-				window.addEventListener('beforeinstallprompt' as keyof WindowEventMap, handleBeforeInstallPrompt as any)
+				window.addEventListener(
+					'beforeinstallprompt' as keyof WindowEventMap,
+					handleBeforeInstallPrompt as any
+				)
 			})()
 			return function onUnmount() {
 				//window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
@@ -142,7 +147,8 @@ export default function usePWA(config: PWAConfig = {}): UsePWA {
 
 	return {
 		doInstall: installEvt ? doInstall : undefined,
-		askNotify: 'Notification' in window && Notification.permission != 'denied' ? askNotify : undefined,
+		askNotify:
+			'Notification' in window && Notification.permission != 'denied' ? askNotify : undefined,
 		doNotify
 	}
 }

@@ -15,7 +15,14 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as T from '@symbion/runtype'
-import { Auth, File, ListFilesOptions, CreateFileOptions, CreateFileVariantOptions, UpdateFileOptions } from '@cloudillo/server/types/meta-adapter'
+import {
+	Auth,
+	File,
+	ListFilesOptions,
+	CreateFileOptions,
+	CreateFileVariantOptions,
+	UpdateFileOptions
+} from '@cloudillo/server/types/meta-adapter'
 
 import { db, ql } from './db.js'
 
@@ -45,13 +52,16 @@ export async function getPermCond(tnId: number, auth: Auth | undefined, perm: 'r
 	}
 
 	const userRoles = (auth?.roles.length || 0) > 0 ? ', ' + auth?.roles.join(', ') : ''
-	const tags = await db.all<{ tag: string }>(`SELECT DISTINCT tag FROM tags, json_each(tags.perms) as perm
+	const tags = await db.all<{ tag: string }>(
+		`SELECT DISTINCT tag FROM tags, json_each(tags.perms) as perm
 		WHERE tnId=$tnId AND perm.key IN ('@' || $userId${userRoles})
 		AND ${cond}
-	`, { $tnId: tnId, $userTag: auth?.idTag })
+	`,
+		{ $tnId: tnId, $userTag: auth?.idTag }
+	)
 	if (tags.length === 0) return ' AND false'
 
-	return ' AND (' + tags.map(t => `tag.value = ${ql(t.tag)}`).join(' OR ') + ')'
+	return ' AND (' + tags.map((t) => `tag.value = ${ql(t.tag)}`).join(' OR ') + ')'
 	//return ' AND (' + tags.map(t => `instr(tags, ${ql('#' + t.tag +'#')})`).join(' OR ') + ')'
 }
 
@@ -73,37 +83,45 @@ function mimeType(format: string) {
 //////////////
 // Handlers //
 //////////////
-export async function listFiles(tnId: number, auth: Auth | undefined, opts: ListFilesOptions): Promise<(File & { variantId?: string, variant?: string, variantFormat?: string })[]> {
+export async function listFiles(
+	tnId: number,
+	auth: Auth | undefined,
+	opts: ListFilesOptions
+): Promise<(File & { variantId?: string; variant?: string; variantFormat?: string })[]> {
 	const permCond = await getPermCond(tnId, auth, 'r')
 	console.log('PERM', permCond)
 
 	let statuses = "'M','I','P'"
 	switch (opts.filter) {
 		case 'mut':
-			statuses = "'M'"; break
+			statuses = "'M'"
+			break
 		case 'imm':
-			statuses = "'P','I'"; break
+			statuses = "'P','I'"
+			break
 	}
 
-	const q = `SELECT DISTINCT f.*, ${opts.variant || opts.variantId ? 'fv.variantId, fv.format as variantFormat, fv.variant,' : ''}
+	const q =
+		`SELECT DISTINCT f.*, ${opts.variant || opts.variantId ? 'fv.variantId, fv.format as variantFormat, fv.variant,' : ''}
 		p.name as ownerName, p.profilePic as ownerProfilePic,
 		t.idTag as tenantTag, t.name as tenantName, t.profilePic as tenantProfilePic
 		FROM files f
 		LEFT JOIN profiles p ON p.tnId=f.tnId AND p.idTag=f.ownerTag
 		LEFT JOIN tenants t ON t.tnId=f.tnId
-		LEFT JOIN json_each(f.tags) as tag `
-		+ (opts.variant ? `LEFT JOIN file_variants fv ON fv.tnId=f.tnId AND fv.fileId=f.fileId AND fv.variant=${ql(opts.variant)} `
-			: opts.variantId ? `JOIN file_variants fv ON fv.tnId=f.tnId AND fv.fileId=f.fileId AND fv.variantId=${ql(opts.variantId)} `
-			: ''
-		)
-		+ "WHERE f.tnId = $tnId"
-		+ (opts.fileId ? ` AND f.fileId = ${ql(opts.fileId)}` : '')
-		+ (statuses ? " AND f.status IN (" + statuses + ")" : '')
-		+ (opts.tag !== undefined ? ` AND ','||f.tags||',' LIKE ${ql('#' + opts.tag + '#')}` : '')
-		+ (opts.preset !== undefined ? ` AND preset=${ql(opts.preset)}` : '')
+		LEFT JOIN json_each(f.tags) as tag ` +
+		(opts.variant
+			? `LEFT JOIN file_variants fv ON fv.tnId=f.tnId AND fv.fileId=f.fileId AND fv.variant=${ql(opts.variant)} `
+			: opts.variantId
+				? `JOIN file_variants fv ON fv.tnId=f.tnId AND fv.fileId=f.fileId AND fv.variantId=${ql(opts.variantId)} `
+				: '') +
+		'WHERE f.tnId = $tnId' +
+		(opts.fileId ? ` AND f.fileId = ${ql(opts.fileId)}` : '') +
+		(statuses ? ' AND f.status IN (' + statuses + ')' : '') +
+		(opts.tag !== undefined ? ` AND ','||f.tags||',' LIKE ${ql('#' + opts.tag + '#')}` : '') +
+		(opts.preset !== undefined ? ` AND preset=${ql(opts.preset)}` : '') +
 		//+ (!opts.includeVariants ? " AND f.origId IS NULL" : '')
-		+ permCond
-		+ ` ORDER BY createdAt DESC LIMIT ${opts._limit || 100}`
+		permCond +
+		` ORDER BY createdAt DESC LIMIT ${opts._limit || 100}`
 	console.log(q)
 	const rows = await db.all<{
 		fileId: string
@@ -124,12 +142,14 @@ export async function listFiles(tnId: number, auth: Auth | undefined, opts: List
 		variantFormat?: string
 		x?: string
 	}>(q, { $tnId: tnId })
-	return rows.map(row => ({
+	return rows.map((row) => ({
 		fileId: row.fileId,
 		owner: {
 			idTag: row.ownerTag || row.tenantTag,
 			name: row.ownerName || row.tenantName,
-			profilePic: row.ownerProfilePic || (row.tenantProfilePic ? JSON.parse(row.tenantProfilePic)?.ic : undefined),
+			profilePic:
+				row.ownerProfilePic ||
+				(row.tenantProfilePic ? JSON.parse(row.tenantProfilePic)?.ic : undefined)
 		},
 		preset: row.preset,
 		contentType: row.contentType,
@@ -145,7 +165,8 @@ export async function listFiles(tnId: number, auth: Auth | undefined, opts: List
 }
 
 export async function getFileVariant(tnId: number, fileId: string, variant: string) {
-	const { variantId } = await db.get<{ variantId?: string }>(`SELECT variantId FROM file_variants
+	const { variantId } = await db.get<{ variantId?: string }>(
+		`SELECT variantId FROM file_variants
 		WHERE tnId = $tnId AND fileId = $fileId AND variant = $variant`,
 		{ $tnId: tnId, $fileId: fileId, $variant: variant }
 	)
@@ -153,47 +174,52 @@ export async function getFileVariant(tnId: number, fileId: string, variant: stri
 }
 
 export async function readFile(tnId: number, variantId: string) {
-	if (variantId.length < 30) { // FIXME
+	if (variantId.length < 30) {
+		// FIXME
 		const row = await db.get<{
-			fileId: string,
-			variantId: string,
-			idTag: string,
-			ownerTag?: string,
-			preset?: string,
-			contentType: string,
-			fileName: string,
-			status: 'M' | 'I' | 'P' | 'D',
-			createdAt: Date,
+			fileId: string
+			variantId: string
+			idTag: string
+			ownerTag?: string
+			preset?: string
+			contentType: string
+			fileName: string
+			status: 'M' | 'I' | 'P' | 'D'
+			createdAt: Date
 			tags?: string
 			x?: string
 		}>(
 			`SELECT f.* FROM files f
 				LEFT JOIN json_each(f.tags) as tag
 				WHERE f.tnId = $tnId AND f.fileId = $fileId
-			`, { $tnId: tnId, $fileId: variantId })
-		return !row ? undefined : {
-			fileId: row.fileId,
-			ownerTag: row.ownerTag || row.idTag,
-			preset: row.preset,
-			contentType: row.contentType,
-			fileName: row.fileName,
-			status: row.status,
-			createdAt: row.createdAt,
-			tags: JSON.parse(row.tags || '[]'),
-			//tags: row.tags?.split('#').filter(t => t),
-			x: row.x ? JSON.parse(row.x) : undefined
-		}
+			`,
+			{ $tnId: tnId, $fileId: variantId }
+		)
+		return !row
+			? undefined
+			: {
+					fileId: row.fileId,
+					ownerTag: row.ownerTag || row.idTag,
+					preset: row.preset,
+					contentType: row.contentType,
+					fileName: row.fileName,
+					status: row.status,
+					createdAt: row.createdAt,
+					tags: JSON.parse(row.tags || '[]'),
+					//tags: row.tags?.split('#').filter(t => t),
+					x: row.x ? JSON.parse(row.x) : undefined
+				}
 	} else {
 		const row = await db.get<{
-			fileId: string,
-			variantId: string,
-			idTag: string,
-			ownerTag?: string,
-			preset?: string,
-			contentType: string,
-			fileName: string,
-			status: 'M' | 'I' | 'P' | 'D',
-			createdAt: Date,
+			fileId: string
+			variantId: string
+			idTag: string
+			ownerTag?: string
+			preset?: string
+			contentType: string
+			fileName: string
+			status: 'M' | 'I' | 'P' | 'D'
+			createdAt: Date
 			tags?: string
 			x?: string
 		}>(
@@ -201,19 +227,23 @@ export async function readFile(tnId: number, variantId: string) {
 				JOIN files f ON f.tnId=fv.tnId AND f.fileId=fv.fileId
 				LEFT JOIN json_each(f.tags) as tag
 				WHERE fv.tnId = $tnId AND fv.variantId = $variantId
-			`, { $tnId: tnId, $variantId: variantId })
-		return !row ? undefined : {
-			fileId: row.fileId,
-			variantId: row.variantId,
-			ownerTag: row.ownerTag || row.idTag,
-			preset: row.preset,
-			contentType: row.contentType,
-			fileName: row.fileName,
-			status: row.status,
-			createdAt: row.createdAt,
-			tags: JSON.parse(row.tags || '[]'),
-			x: row.x ? JSON.parse(row.x) : undefined
-		}
+			`,
+			{ $tnId: tnId, $variantId: variantId }
+		)
+		return !row
+			? undefined
+			: {
+					fileId: row.fileId,
+					variantId: row.variantId,
+					ownerTag: row.ownerTag || row.idTag,
+					preset: row.preset,
+					contentType: row.contentType,
+					fileName: row.fileName,
+					status: row.status,
+					createdAt: row.createdAt,
+					tags: JSON.parse(row.tags || '[]'),
+					x: row.x ? JSON.parse(row.x) : undefined
+				}
 	}
 }
 
@@ -221,17 +251,18 @@ export async function readFileAuth(tnId: number, auth: Auth | undefined, variant
 	const permCond = await getPermCond(tnId, auth, 'r')
 	console.log('readFileAuth', auth, permCond)
 
-	if (variantId.length < 30) { // FIXME
+	if (variantId.length < 30) {
+		// FIXME
 		const row = await db.get<{
-			fileId: string,
-			variantId: string,
-			idTag: string,
-			ownerTag?: string,
-			preset?: string,
-			contentType: string,
-			fileName: string,
-			status: 'M' | 'I' | 'P' | 'D',
-			createdAt: Date,
+			fileId: string
+			variantId: string
+			idTag: string
+			ownerTag?: string
+			preset?: string
+			contentType: string
+			fileName: string
+			status: 'M' | 'I' | 'P' | 'D'
+			createdAt: Date
 			tags?: string
 			x?: string
 		}>(
@@ -239,30 +270,34 @@ export async function readFileAuth(tnId: number, auth: Auth | undefined, variant
 				LEFT JOIN json_each(f.tags) as tag
 				WHERE f.tnId = $tnId AND f.fileId = $fileId
 				${permCond}
-			`, { $tnId: tnId, $fileId: variantId })
-		return !row ? undefined : {
-			fileId: row.fileId,
-			ownerTag: row.ownerTag || row.idTag,
-			preset: row.preset,
-			contentType: row.contentType,
-			fileName: row.fileName,
-			status: row.status,
-			createdAt: row.createdAt,
-			tags: JSON.parse(row.tags || '[]'),
-			//tags: row.tags?.split('#').filter(t => t),
-			x: row.x ? JSON.parse(row.x) : undefined
-		}
+			`,
+			{ $tnId: tnId, $fileId: variantId }
+		)
+		return !row
+			? undefined
+			: {
+					fileId: row.fileId,
+					ownerTag: row.ownerTag || row.idTag,
+					preset: row.preset,
+					contentType: row.contentType,
+					fileName: row.fileName,
+					status: row.status,
+					createdAt: row.createdAt,
+					tags: JSON.parse(row.tags || '[]'),
+					//tags: row.tags?.split('#').filter(t => t),
+					x: row.x ? JSON.parse(row.x) : undefined
+				}
 	} else {
 		const row = await db.get<{
-			fileId: string,
-			variantId: string,
-			idTag: string,
-			ownerTag?: string,
-			preset?: string,
-			contentType: string,
-			fileName: string,
-			status: 'M' | 'I' | 'P' | 'D',
-			createdAt: Date,
+			fileId: string
+			variantId: string
+			idTag: string
+			ownerTag?: string
+			preset?: string
+			contentType: string
+			fileName: string
+			status: 'M' | 'I' | 'P' | 'D'
+			createdAt: Date
 			tags?: string
 			x?: string
 		}>(
@@ -271,27 +306,37 @@ export async function readFileAuth(tnId: number, auth: Auth | undefined, variant
 				LEFT JOIN json_each(f.tags) as tag
 				WHERE fv.tnId = $tnId AND fv.variantId = $variantId
 				${permCond}
-			`, { $tnId: tnId, $variantId: variantId })
-		return !row ? undefined : {
-			fileId: row.fileId,
-			variantId: row.variantId,
-			ownerTag: row.ownerTag || row.idTag,
-			preset: row.preset,
-			contentType: row.contentType,
-			fileName: row.fileName,
-			status: row.status,
-			createdAt: row.createdAt,
-			tags: JSON.parse(row.tags || '[]'),
-			//tags: row.tags?.split('#').filter(t => t),
-			x: row.x ? JSON.parse(row.x) : undefined
-		}
+			`,
+			{ $tnId: tnId, $variantId: variantId }
+		)
+		return !row
+			? undefined
+			: {
+					fileId: row.fileId,
+					variantId: row.variantId,
+					ownerTag: row.ownerTag || row.idTag,
+					preset: row.preset,
+					contentType: row.contentType,
+					fileName: row.fileName,
+					status: row.status,
+					createdAt: row.createdAt,
+					tags: JSON.parse(row.tags || '[]'),
+					//tags: row.tags?.split('#').filter(t => t),
+					x: row.x ? JSON.parse(row.x) : undefined
+				}
 	}
 }
 
-export async function createFile(tnId: number, fileId: string, { status, ownerTag, preset, contentType, fileName, createdAt, tags, x }: CreateFileOptions) {
+export async function createFile(
+	tnId: number,
+	fileId: string,
+	{ status, ownerTag, preset, contentType, fileName, createdAt, tags, x }: CreateFileOptions
+) {
 	console.log('WRITE', tnId, fileId, preset, contentType, tags)
-		const res = await db.run('INSERT OR IGNORE INTO files (tnId, fileId, status, ownerTag, preset, contentType, fileName, createdAt, tags, x) '
-			+ 'VALUES ($tnId, $fileId, $status, $ownerTag, $preset, $contentType, $fileName, $createdAt, $tags, $x)', {
+	const res = await db.run(
+		'INSERT OR IGNORE INTO files (tnId, fileId, status, ownerTag, preset, contentType, fileName, createdAt, tags, x) ' +
+			'VALUES ($tnId, $fileId, $status, $ownerTag, $preset, $contentType, $fileName, $createdAt, $tags, $x)',
+		{
 			$tnId: tnId,
 			$fileId: fileId,
 			$status: status,
@@ -302,46 +347,74 @@ export async function createFile(tnId: number, fileId: string, { status, ownerTa
 			$createdAt: (createdAt || new Date()).toISOString(),
 			$tags: tags?.join(','),
 			$x: x == null ? null : JSON.stringify(x)
-		})
+		}
+	)
 	console.log('INSERT', res)
 	//}
 }
 
-export async function createFileVariant(tnId: number, fileId: string | undefined, variantId: string, { variant, format, size }: CreateFileVariantOptions) {
-	const res = await db.run('INSERT OR IGNORE INTO file_variants (tnId, fileId, variant, variantId, format, size) '
-		+ 'VALUES ($tnId, $fileId, $variant, $variantId, $format, $size)', {
-		$tnId: tnId,
-		$fileId: fileId,
-		$variant: variant,
-		$variantId: variantId,
-		$format: format,
-		$size: size
-	})
+export async function createFileVariant(
+	tnId: number,
+	fileId: string | undefined,
+	variantId: string,
+	{ variant, format, size }: CreateFileVariantOptions
+) {
+	const res = await db.run(
+		'INSERT OR IGNORE INTO file_variants (tnId, fileId, variant, variantId, format, size) ' +
+			'VALUES ($tnId, $fileId, $variant, $variantId, $format, $size)',
+		{
+			$tnId: tnId,
+			$fileId: fileId,
+			$variant: variant,
+			$variantId: variantId,
+			$format: format,
+			$size: size
+		}
+	)
 	console.log('INSERT', res)
 }
 
-export async function updateFile(tnId: number, fileId: string, { fileName, createdAt, meta, status }: UpdateFileOptions) {
+export async function updateFile(
+	tnId: number,
+	fileId: string,
+	{ fileName, createdAt, meta, status }: UpdateFileOptions
+) {
 	console.log('UPDATE', tnId, fileId, fileName)
-	const actMeta: Record<string, unknown> = JSON.parse((await db.get<{ x?: string }>('SELECT x FROM files WHERE tnId = ? AND fileId = ?', [tnId, fileId])).x || '{}')
+	const actMeta: Record<string, unknown> = JSON.parse(
+		(
+			await db.get<{ x?: string }>('SELECT x FROM files WHERE tnId = ? AND fileId = ?', [
+				tnId,
+				fileId
+			])
+		).x || '{}'
+	)
 	console.log('    META', actMeta, meta, { ...actMeta, ...meta })
 
-	const res = await db.run('UPDATE files SET fileName=coalesce($fileName, fileName), createdAt=coalesce($createdAt, createdAt), status=coalesce($status, status), x=$x WHERE tnId=$tnId AND fileId=$fileId', {
-		$fileName: fileName,
-		$createdAt: createdAt,
-		$status: status,
-		$x: JSON.stringify({ ...actMeta, ...meta }),
-		$tnId: tnId,
-		$fileId: fileId
-	})
+	const res = await db.run(
+		'UPDATE files SET fileName=coalesce($fileName, fileName), createdAt=coalesce($createdAt, createdAt), status=coalesce($status, status), x=$x WHERE tnId=$tnId AND fileId=$fileId',
+		{
+			$fileName: fileName,
+			$createdAt: createdAt,
+			$status: status,
+			$x: JSON.stringify({ ...actMeta, ...meta }),
+			$tnId: tnId,
+			$fileId: fileId
+		}
+	)
 	console.log('UPDATE', res)
 }
 
 export async function deleteFile(tnId: number, fileId: string) {
 	console.log('DELETE FILE', tnId, fileId)
-	const res = await db.run("UPDATE files SET status='D' WHERE tnId=$tnId AND fileId=$fileId", { $tnId: tnId, $fileId: fileId })
+	const res = await db.run("UPDATE files SET status='D' WHERE tnId=$tnId AND fileId=$fileId", {
+		$tnId: tnId,
+		$fileId: fileId
+	})
 }
 
-export async function processPendingFilesPrepare(callback: (tnId: number, file: File) => Promise<boolean>) {
+export async function processPendingFilesPrepare(
+	callback: (tnId: number, file: File) => Promise<boolean>
+) {
 	let processed = 0
 
 	const rows = await db.all<{
@@ -356,23 +429,27 @@ export async function processPendingFilesPrepare(callback: (tnId: number, file: 
 		createdAt: Date
 		tags?: string
 		x?: string
-	}>("SELECT tnId, fileId, preset FROM files WHERE status IN ('P') ORDER BY createdAt DESC LIMIT 100")
+	}>(
+		"SELECT tnId, fileId, preset FROM files WHERE status IN ('P') ORDER BY createdAt DESC LIMIT 100"
+	)
 
 	for (const row of rows) {
-		if (await callback(row.tnId, {
-			fileId: row.fileId,
-			owner: {
-				idTag: row.ownerTag || row.idTag,
-			},
-			preset: row.preset,
-			contentType: row.contentType,
-			fileName: row.fileName,
-			status: row.status,
-			createdAt: row.createdAt,
-			//tags: row.tags?.split('#').filter(t => t),
-			tags: JSON.parse(row.tags || '[]'),
-			x: row.x ? JSON.parse(row.x) : undefined
-		})) {
+		if (
+			await callback(row.tnId, {
+				fileId: row.fileId,
+				owner: {
+					idTag: row.ownerTag || row.idTag
+				},
+				preset: row.preset,
+				contentType: row.contentType,
+				fileName: row.fileName,
+				status: row.status,
+				createdAt: row.createdAt,
+				//tags: row.tags?.split('#').filter(t => t),
+				tags: JSON.parse(row.tags || '[]'),
+				x: row.x ? JSON.parse(row.x) : undefined
+			})
+		) {
 			processed++
 		}
 	}

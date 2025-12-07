@@ -21,7 +21,7 @@ import { Context } from './index.js'
 
 // Delay asynchronously
 export async function delay(ms: number): Promise<void> {
-	return new Promise(resolve => setTimeout(() => resolve(), ms))
+	return new Promise((resolve) => setTimeout(() => resolve(), ms))
 }
 
 // Cancelable delay
@@ -48,7 +48,11 @@ export function cancelableDelay(ms: number): Delay {
 	return ret
 }
 
-export function validate<T>(ctx: Context, reqType: t.Type<T>, value: Object = ctx.request.body): T {
+export function validate<T>(
+	ctx: Context,
+	reqType: t.Type<T>,
+	value: Object = ctx.request.body instanceof Object ? ctx.request.body : {}
+): T {
 	const result = reqType.decode(value, { coerceDate: true })
 	if (t.isOk(result)) {
 		return result.ok
@@ -63,8 +67,15 @@ export function validate<T>(ctx: Context, reqType: t.Type<T>, value: Object = ct
 	}
 }
 
-export function validateQS<T>(ctx: Context, reqType: t.Type<T>, value: Object = ctx.request.query): T {
-	const result = reqType.decode(value, { coerceAll: true, coerceToArray: str => (typeof str === 'string') ? str.split(',') : [str] })
+export function validateQS<T>(
+	ctx: Context,
+	reqType: t.Type<T>,
+	value: Object = ctx.request.query
+): T {
+	const result = reqType.decode(value, {
+		coerceAll: true,
+		coerceToArray: (str) => (typeof str === 'string' ? str.split(',') : [str])
+	})
 	if (t.isOk(result)) {
 		return result.ok
 	} else {

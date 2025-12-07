@@ -19,35 +19,52 @@ import * as T from '@symbion/runtype'
 import { db, ql } from './db.js'
 
 export async function listTags(tnId: number, prefix?: string) {
-	const rows = await db.all<{ tag: string, privileged: boolean }>("SELECT tag, perms IS NOT NULL as privileged FROM tags WHERE tnId = $tnId AND tag LIKE $tagLike", { $tnId: tnId, $tagLike: (prefix || '') + '%' })
+	const rows = await db.all<{ tag: string; privileged: boolean }>(
+		'SELECT tag, perms IS NOT NULL as privileged FROM tags WHERE tnId = $tnId AND tag LIKE $tagLike',
+		{ $tnId: tnId, $tagLike: (prefix || '') + '%' }
+	)
 	return rows
 }
 
 export async function addTag(tnId: number, fileId: string, tag: string) {
-	await db.run(`INSERT OR IGNORE INTO tags (tnId, tag) VALUES ($tnId, $tag)
+	await db.run(
+		`INSERT OR IGNORE INTO tags (tnId, tag) VALUES ($tnId, $tag)
 		RETURNING permRead, permWrite, permAdmin`,
-		{ $tnId: tnId, $tag: tag })
-	const res = await db.get<{ tags?: string }>(`
+		{ $tnId: tnId, $tag: tag }
+	)
+	const res = await db.get<{ tags?: string }>(
+		`
 		UPDATE meta SET tags=json_set(coalesce(tags, '[]'), '$[#]', $tag)
 		WHERE tnId=$tnId AND fileId=$fileId AND coalesce(tags, '') NOT LIKE '%"'||$tag||'"%'
-		RETURNING tags`, { $tnId: tnId, $fileId: fileId, $tag: tag })
+		RETURNING tags`,
+		{ $tnId: tnId, $fileId: fileId, $tag: tag }
+	)
 	return JSON.parse(res?.tags || '[]')
 }
 
 export async function removeTag(tnId: number, fileId: string, tag: string) {
-	const res = await db.get<{ tags?: string }>(`UPDATE meta SET tags=json_remove(tags, '$['||tag.key||']')
+	const res = await db.get<{ tags?: string }>(
+		`UPDATE meta SET tags=json_remove(tags, '$['||tag.key||']')
 		FROM json_each(meta.tags) as tag
 		WHERE tnId=$tnId AND fileId=$fileId AND tag.value=$tag
 		RETURNING tags`,
-		{ $tnId: tnId, $fileId: fileId, $tag: tag })
+		{ $tnId: tnId, $fileId: fileId, $tag: tag }
+	)
 	return JSON.parse(res?.tags || '[]')
 }
 
-export async function setTagPerm(tnId: number, tag: string, perm: 'read' | 'write' | 'admin', userId: number) {
-	await db.run(`UPDATE tags SET perm${perm}=
+export async function setTagPerm(
+	tnId: number,
+	tag: string,
+	perm: 'read' | 'write' | 'admin',
+	userId: number
+) {
+	await db.run(
+		`UPDATE tags SET perm${perm}=
 		CASE WHEN perm${perm} IS NULL THEN '#'||$userId||'#' ELSE perm${perm}$userId||'#' END
 		WHERE tnId=$tnId AND tag=$tag`,
-		{ $tnId: tnId, $tag: tag, $userId: userId })
+		{ $tnId: tnId, $tag: tag, $userId: userId }
+	)
 }
 
 // vim: ts=4

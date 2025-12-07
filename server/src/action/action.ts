@@ -24,7 +24,12 @@ import { ActionType, ActionView, Action, NewAction, tFileShareAction } from '@cl
 import { sha256 } from '../utils.js'
 import { Auth } from '../index.js'
 import { cancelWait } from '../worker.js'
-import { ProxyToken, createActionToken, createProxyToken, getIdentityTag } from '../auth/handlers.js'
+import {
+	ProxyToken,
+	createActionToken,
+	createProxyToken,
+	getIdentityTag
+} from '../auth/handlers.js'
 import { tAuthProfile, ActionToken, tActionToken } from '../auth-adapter.js'
 import { ProfileStatus } from '../meta-adapter.js'
 import { getProfile } from '../profile/profile.js'
@@ -48,7 +53,7 @@ import initStat from './types/stat.js'
 // Utility functions //
 ///////////////////////
 export async function checkToken(tnId: number, token: string): Promise<ActionToken> {
-	const decoded = jwt.decode(token) as { t: string, iss: string, k: string }
+	const decoded = jwt.decode(token) as { t: string; iss: string; k: string }
 	if (decoded && decoded.iss && decoded.k && typeof decoded.t === 'string') {
 		//const { iss: issuerTag, k } = jwt.decode(token) as { iss: string, k: string }
 		let key = await metaAdapter.getProfilePublicKey(tnId, decoded.iss, decoded.k)
@@ -59,12 +64,13 @@ export async function checkToken(tnId: number, token: string): Promise<ActionTok
 				const profile = T.decode(tAuthProfile, await res.json(), { unknownFields: 'drop' })
 				if (T.isOk(profile)) {
 					//console.log('PROFILE', profile.ok)
-					key = profile.ok.keys.find(k => k.keyId == decoded.k)
-					if (key) await metaAdapter.addProfilePublicKey(tnId, decoded.iss, {
-						keyId: decoded.k,
-						publicKey: key.publicKey,
-						expires: key.expires ? dayjs(key.expires).unix() : undefined
-					})
+					key = profile.ok.keys.find((k) => k.keyId == decoded.k)
+					if (key)
+						await metaAdapter.addProfilePublicKey(tnId, decoded.iss, {
+							keyId: decoded.k,
+							publicKey: key.publicKey,
+							expires: key.expires ? dayjs(key.expires).unix() : undefined
+						})
 				} else {
 					console.log('IDENTITY KEY ERROR', JSON.stringify(profile, null, 4))
 				}
@@ -105,17 +111,17 @@ export interface ActionContext {
 }
 
 export interface AudienceInfo {
-    idTag: string;
-    name: string;
-    profilePic?: string | undefined;
-    status?: ProfileStatus;
-    following?: boolean;
-    connected?: boolean;
+	idTag: string
+	name: string
+	profilePic?: string | undefined
+	status?: ProfileStatus
+	following?: boolean
+	connected?: boolean
 }
 
 export interface ActionHook {
 	// Runtype for the action token
-	t: T.Type<any>,
+	t: T.Type<any>
 	// How to generate DB key for the action
 	generateKey?: (actionId: string, action: NewAction & { issuerTag: string }) => string
 	// Broadcat the action to followers
@@ -123,7 +129,11 @@ export interface ActionHook {
 	// Allow from unknown profiles
 	allowUnknown?: boolean
 	// Hook called when action is created
-	createHook?: (ctx: CreateActionContext, action: NewAction, audience: AudienceInfo | undefined) => Promise<void>
+	createHook?: (
+		ctx: CreateActionContext,
+		action: NewAction,
+		audience: AudienceInfo | undefined
+	) => Promise<void>
 	// Hook called when action is received
 	inboundHook?: (ctx: ActionContext, actionId: string, action: Action) => Promise<void>
 	// Hook called when action is accepted (in notifications)
@@ -165,7 +175,9 @@ export async function createAction(tnId: number, action: NewAction) {
 		const actionId = sha256(token)
 
 		// Determine rootId
-		const rootId = action.parentId ? await metaAdapter.getActionRootId(tnId, action.parentId) : undefined
+		const rootId = action.parentId
+			? await metaAdapter.getActionRootId(tnId, action.parentId)
+			: undefined
 		const key = generateActionKey(actionId, { ...action, issuerTag })
 		console.log('ROOT', rootId)
 
@@ -176,7 +188,7 @@ export async function createAction(tnId: number, action: NewAction) {
 			// Broadcast action to followers
 			// FIXME: filter followers by access
 			await metaAdapter.createOutboundAction(tnId, actionId, token, {
-				followTag: issuerTag,
+				followTag: issuerTag
 				//audienceTag: action.audienceTag
 			})
 		} else if (action.audienceTag && action.audienceTag != issuerTag) {
@@ -196,7 +208,13 @@ export async function createAction(tnId: number, action: NewAction) {
 export async function acceptAction(tnId: number, actionId: string) {
 	const action = (await metaAdapter.listActions(tnId, undefined, { actionId }))?.[0]
 	if (!action) return
-	console.log('acceptAction', action.type, action.subType, action.issuer?.idTag, action.audience?.idTag)
+	console.log(
+		'acceptAction',
+		action.type,
+		action.subType,
+		action.issuer?.idTag,
+		action.audience?.idTag
+	)
 	const actionHook = actionHooks[action.type]
 
 	await actionHook?.acceptHook?.(tnId, action)
@@ -212,15 +230,17 @@ export async function rejectAction(tnId: number, actionId: string) {
 	await metaAdapter.updateActionData(tnId, actionId, { status: 'D' })
 }
 
-
 export async function startFollowing(tnId: number, idTag: string) {
 	const proxyToken = await createProxyToken(tnId, idTag)
 	if (!proxyToken) throw new Error('Failed to create proxy token')
 
-	const res = await fetch(`https://cl-o.${idTag}/api/action/tokens?createdAfter=${dayjs().subtract(1, 'month').unix() / 1000}&_limit=10`, {
-		headers: { 'Authorization': `Bearer ${proxyToken}` },
-		credentials: 'include'
-	})
+	const res = await fetch(
+		`https://cl-o.${idTag}/api/action/tokens?createdAfter=${dayjs().subtract(1, 'month').unix() / 1000}&_limit=10`,
+		{
+			headers: { Authorization: `Bearer ${proxyToken}` },
+			credentials: 'include'
+		}
+	)
 	if (!res.ok) throw new Error('Failed to fetch feed')
 	const d: { actions: string[] } = await res.json()
 	for (const token of d.actions) {
@@ -230,15 +250,23 @@ export async function startFollowing(tnId: number, idTag: string) {
 export async function createInboundActions(tnId: number, token: string, relatedTokens?: string[]) {
 	const actionId = sha256(token)
 	await metaAdapter.createInboundAction(tnId, actionId, token)
-	if (relatedTokens) for (const r of relatedTokens) {
-		const relActionId = sha256(r)
-		await metaAdapter.createInboundAction(tnId, relActionId, r, token)
-	}
+	if (relatedTokens)
+		for (const r of relatedTokens) {
+			const relActionId = sha256(r)
+			await metaAdapter.createInboundAction(tnId, relActionId, r, token)
+		}
 }
 
-export async function handleInboundAction(tnId: number, idTag: string, actionId: string, action: Action) {
+export async function handleInboundAction(
+	tnId: number,
+	idTag: string,
+	actionId: string,
+	action: Action
+) {
 	const issuer = (await metaAdapter.readProfile(tnId, action.issuerTag))!
-	const audience = action.audienceTag ? await metaAdapter.readProfile(tnId, action.audienceTag) : undefined
+	const audience = action.audienceTag
+		? await metaAdapter.readProfile(tnId, action.audienceTag)
+		: undefined
 	const busAction: ActionView = {
 		actionId,
 		type: action.type,
@@ -270,7 +298,12 @@ export async function handleInboundAction(tnId: number, idTag: string, actionId:
 	console.log('WS BUS sent', cnt)
 }
 
-export async function handleInboundActionToken(tnId: number, actionId: string, token: string, opts?: { ack?: boolean}) {
+export async function handleInboundActionToken(
+	tnId: number,
+	actionId: string,
+	token: string,
+	opts?: { ack?: boolean }
+) {
 	const idTag = await getIdentityTag(tnId)
 	//const actionId = sha256(action.token)
 	try {
@@ -310,8 +343,9 @@ export async function handleInboundActionToken(tnId: number, actionId: string, t
 		// Sync attachments if needed
 		if (act.a && act.iss !== idTag) {
 			const syncVariants =
-				act.aud == idTag ? ['h', 's', 't']	// We are the audience, sync all HD and SD versions
-				: ['s', 't'] // Sync only SD and thumbnail (FIXME: setting)
+				act.aud == idTag
+					? ['h', 's', 't'] // We are the audience, sync all HD and SD versions
+					: ['s', 't'] // Sync only SD and thumbnail (FIXME: setting)
 
 			console.log('SYNC ATTACHMENTS', act.iss, '->', idTag, act)
 			const proxyToken = await createProxyToken(tnId, act.iss)
@@ -321,32 +355,51 @@ export async function handleInboundActionToken(tnId: number, actionId: string, t
 				let [flags, variantIdsStr] = attachment.split(':')
 				const variantIds = variantIdsStr.split(',')
 				console.log('Syncing attachment', flags, variantIds)
-				let meta: { fileId: string, contentType: string, fileName?: string, createdAt?: number, tags?: string[], x?: Record<string, unknown> } | undefined
+				let meta:
+					| {
+							fileId: string
+							contentType: string
+							fileName?: string
+							createdAt?: number
+							tags?: string[]
+							x?: Record<string, unknown>
+					  }
+					| undefined
 				for (const variantId of variantIds) {
 					console.log('Syncing attachment', variantId)
 					const binRes = await fetch(`https://cl-o.${act.iss}/api/store/${variantId}`, {
-						headers: { 'Authorization': `Bearer ${proxyToken}` },
+						headers: { Authorization: `Bearer ${proxyToken}` },
 						credentials: 'include'
 					})
 					if (!meta) {
-						const metaRes = await fetch(`https://cl-o.${act.iss}/api/store/${variantId}/meta`, {
-							headers: { 'Authorization': `Bearer ${proxyToken}` },
-							credentials: 'include'
-						})
+						const metaRes = await fetch(
+							`https://cl-o.${act.iss}/api/store/${variantId}/meta`,
+							{
+								headers: { Authorization: `Bearer ${proxyToken}` },
+								credentials: 'include'
+							}
+						)
 						try {
 							meta = await metaRes.json()
 							console.log('META', meta)
-						} catch (err) {
-						}
+						} catch (err) {}
 					}
 					const buf = Buffer.from(await binRes.arrayBuffer())
 					await blobAdapter.writeBlob(tnId, variantId, '', buf)
 					console.log('WRITE', variantId, buf.byteLength, !!meta, flags[0])
-					if (meta && syncVariants.includes(flags[0])) await metaAdapter.createFileVariant(tnId, meta.fileId, variantId, {
-						variant: flags[0] == 'h' ? 'hd' : flags[0] == 's' ? 'sd' : flags[0] == 't' ? 'tn' : 'orig',
-						format: 'avif', // FIXME
-						size: buf.byteLength
-					})
+					if (meta && syncVariants.includes(flags[0]))
+						await metaAdapter.createFileVariant(tnId, meta.fileId, variantId, {
+							variant:
+								flags[0] == 'h'
+									? 'hd'
+									: flags[0] == 's'
+										? 'sd'
+										: flags[0] == 't'
+											? 'tn'
+											: 'orig',
+							format: 'avif', // FIXME
+							size: buf.byteLength
+						})
 					flags = flags.slice(1)
 				}
 				if (meta) {
@@ -363,7 +416,7 @@ export async function handleInboundActionToken(tnId: number, actionId: string, t
 		}
 
 		// Split type
-		const [type, subType] = (act as any).st ? [act.t, (act as any).st]  : act.t.split(':')
+		const [type, subType] = (act as any).st ? [act.t, (act as any).st] : act.t.split(':')
 		// Determine rootId
 		const rootId = act.p ? await metaAdapter.getActionRootId(tnId, act.p) : undefined
 

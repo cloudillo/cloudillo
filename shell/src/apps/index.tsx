@@ -18,24 +18,21 @@ import * as React from 'react'
 import { Routes, Route, useLocation, useParams } from 'react-router-dom'
 import { useAuth, useApi, mergeClasses } from '@cloudillo/react'
 
-import {
-	LuRefreshCw as IcLoading
-} from 'react-icons/lu'
+import { LuRefreshCw as IcLoading } from 'react-icons/lu'
 
 import { useAppConfig } from '../utils.js'
+import { useContextFromRoute, useGuestDocument } from '../context/index.js'
 import { FeedApp } from './feed.js'
 import { FilesApp } from './files.js'
 import { GalleryApp } from './gallery.js'
 import { MessagesApp } from './messages.js'
 
 async function delay(ms: number): Promise<void> {
-	return new Promise(resolve => setTimeout(() => resolve(), ms))
+	return new Promise((resolve) => setTimeout(() => resolve(), ms))
 }
 
 window.addEventListener('message', function onmessage(evt) {
-	if (evt.data?.cloudillo) {
-		console.log('[Shell] RECV:', evt.source, evt.data)
-	}
+	// Handle cloudillo messages from microfrontends
 })
 
 interface MicrofrontendContainerProps {
@@ -44,76 +41,138 @@ interface MicrofrontendContainerProps {
 	resId?: string
 	appUrl: string
 	trust?: boolean
+	access?: 'read' | 'write'
+	token?: string // Optional pre-fetched token (for guest access via share links)
 }
 
-export function MicrofrontendContainer({ className, app, resId, appUrl, trust }: MicrofrontendContainerProps) {
+export function MicrofrontendContainer({
+	className,
+	app,
+	resId,
+	appUrl,
+	trust,
+	access,
+	token: providedToken
+}: MicrofrontendContainerProps) {
 	const ref = React.useRef<HTMLIFrameElement>(null)
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
 	const [url, setUrl] = React.useState<string | undefined>(undefined)
 	const [loading, setLoading] = React.useState(true)
-	const [,, host, path] = (resId || '').match(/^(([a-zA-Z0-9-.]+):)?(.*)$/) || []
-	console.log('app', app, host, path)
+	const [, , host, path] = (resId || '').match(/^(([a-zA-Z0-9-.]+):)?(.*)$/) || []
+	// Extract context from resId (format: "contextIdTag:resource-path")
+	const contextIdTag = host || auth?.idTag
 
-	React.useEffect(function onLoad() {
-		if (api && auth) {
-			//console.log('Sending load message', ref.current, ref.current?.contentWindow)
-			console.log('[Shell] app init', auth)
-			const apiPromise = auth
-				? api.get<{ token: string }>('', `/auth/access-token?subject=${resId}:W`)
-				: Promise.resolve({ token: undefined })
-			ref.current?.addEventListener('load', async function onMicrofrontendLoad() {
-				console.log('[Shell] Loaded => waiting for app to start')
-				await delay(100) // FIXME (wait for app to start)
-				console.log('[Shell] Loaded => sending message')
-				try {
-					const res = await apiPromise
-					console.log('[Shell] API RES', res)
+	React.useEffect(
+		function onLoad() {
+			// Allow loading if we have auth OR a provided token (for guest share links)
+			if (api && (auth || providedToken)) {
+				const accessSuffix = access === 'read' ? 'R' : 'W'
+				// Use provided token if available, otherwise fetch one
+				const apiPromise = providedToken
+					? Promise.resolve({ token: providedToken })
+					: auth
+						? api.auth.getAccessToken({ scope: `${resId}:${accessSuffix}` })
+						: Promise.resolve({ token: undefined })
+				ref.current?.addEventListener('load', async function onMicrofrontendLoad() {
+					await delay(100) // FIXME (wait for app to start)
+					try {
+						const res = await apiPromise
+						ref.current?.contentWindow?.postMessage(
+							{
+								cloudillo: true,
+								type: 'init',
+								idTag: contextIdTag,
+								roles: auth?.roles,
+								theme: 'glass',
+								darkMode: document.body.classList.contains('dark'),
+								token: res.token,
+								access: access || 'write'
+							},
+							'*'
+						)
+					} catch (err) {
+						console.error('[Shell] Failed to initialize app:', err)
+						ref.current?.contentWindow?.postMessage(
+							{
+								cloudillo: true,
+								type: 'init',
+								theme: 'glass',
+								darkMode: document.body.classList.contains('dark')
+							},
+							'*'
+						)
+					}
+					await delay(5000) // FIXME (wait for app to start)
+					setLoading(false)
+				})
+				setUrl(`${appUrl}#${resId}`)
+			}
+		},
+		[api, auth, resId, contextIdTag, access, providedToken]
+	)
 
-					ref.current?.contentWindow?.postMessage({
-						cloudillo: true,
-						type: 'init',
-						idTag: auth?.idTag,
-						roles: auth?.roles,
-						theme: 'glass',
-						darkMode: document.body.classList.contains('dark'),
-						token: res.token
-					}, '*')
-				} catch (err) {
-					console.log('[Shell] ERROR', err)
-					ref.current?.contentWindow?.postMessage({
-						cloudillo: true,
-						type: 'init',
-						theme: 'glass',
-						darkMode: document.body.classList.contains('dark')
-					}, '*')
-				}
-				await delay(5000) // FIXME (wait for app to start)
-				setLoading(false)
-			})
-			setUrl(`${appUrl}#${resId}`)
-		}
-	}, [api, auth])
-
-	return <div className={mergeClasses('c-app flex-fill pos relative', trust ? 'trusted' : trust == false ? 'untrusted' : undefined, className)}>
-		{ loading && <IcLoading size='5rem' className="pos absolute top-0 left-0 right-0 bottom-0 animate-rotate-cw m-auto z-1"/> }
-		<iframe ref={ref} src={url} className={mergeClasses('pos absolute top-0 left-0 right-0 bottom-0 z-2', className)} autoFocus/>
-	</div>
+	return (
+		<div
+			className={mergeClasses(
+				'c-app flex-fill pos-relative',
+				trust ? 'trusted' : trust == false ? 'untrusted' : undefined,
+				className
+			)}
+		>
+			{loading && (
+				<IcLoading
+					size="5rem"
+					className="pos-absolute top-0 left-0 right-0 bottom-0 animate-rotate-cw m-auto z-1"
+				/>
+			)}
+			<iframe
+				ref={ref}
+				src={url}
+				className={mergeClasses(
+					'pos-absolute top-0 left-0 right-0 bottom-0 z-2',
+					className
+				)}
+				autoFocus
+			/>
+		</div>
+	)
 	//return <iframe ref={ref} src={url} className={mergeClasses('c-app flex-fill untrusted', className)} autoFocus/>
 }
 
 function ExternalApp({ className }: { className?: string }) {
 	const [appConfig] = useAppConfig()
 	const [auth] = useAuth()
-	const { appId, rest } = useParams()
-	const idTag = auth?.idTag || location.hostname
+	const location = useLocation()
+	const { contextIdTag, appId, '*': rest } = useParams()
+	const [guestDocument] = useGuestDocument()
+	// Use contextIdTag from URL, fallback to auth idTag
+	const idTag = contextIdTag || auth?.idTag || window.location.hostname
 
-	const app = appConfig?.apps.find(a => a.id === appId)
-	console.log('[Shell] app', appId, app, rest)
+	const app = appConfig?.apps.find((a) => a.id === appId)
 	const resId = (rest ?? '').indexOf(':') >= 0 ? rest : idTag + ':' + rest
-	console.log('[Shell] resId', resId)
 
-	return !!app && <MicrofrontendContainer className={className} app={app.id} resId={resId} appUrl={`${app.url}`} trust={app.trust}/>
+	// Parse access query parameter
+	const searchParams = new URLSearchParams(location.search)
+	const access = searchParams.get('access') === 'read' ? 'read' : 'write'
+
+	// Check if this is a guest document navigation and pass the stored token
+	const isGuestAccess = guestDocument && resId === guestDocument.resId
+	const guestToken = isGuestAccess ? guestDocument.token : undefined
+
+	return (
+		!!app && (
+			<MicrofrontendContainer
+				className={className}
+				app={app.id}
+				resId={resId}
+				appUrl={`${app.url}`}
+				trust={app.trust}
+				access={access}
+				token={guestToken}
+			/>
+		)
+	)
 }
 
 function PlaceHolder({ title }: { title: string }) {
@@ -121,15 +180,30 @@ function PlaceHolder({ title }: { title: string }) {
 }
 
 export function AppRoutes() {
-	return <Routes>
-		<Route path="/" element={<PlaceHolder title="Home"/>}/>
-		<Route path="/app/files" element={<FilesApp/>}/>
-		<Route path="/app/feed" element={<FeedApp/>}/>
-		<Route path="/app/gallery" element={<GalleryApp/>}/>
-		<Route path="/app/messages/:convId?" element={<MessagesApp/>}/>
-		<Route path="/app/:appId/:rest" element={<ExternalApp className="w-100 h-100"/>}/>
-		<Route path="/*" element={null}/>
-	</Routes>
+	// Sync URL context with active context state
+	useContextFromRoute()
+
+	return (
+		<Routes>
+			<Route path="/" element={<PlaceHolder title="Home" />} />
+			{/* Context-aware routes */}
+			<Route path="/app/:contextIdTag/files" element={<FilesApp />} />
+			<Route path="/app/:contextIdTag/feed" element={<FeedApp />} />
+			<Route path="/app/:contextIdTag/gallery" element={<GalleryApp />} />
+			<Route path="/app/:contextIdTag/messages/:convId?" element={<MessagesApp />} />
+			<Route
+				path="/app/:contextIdTag/:appId/*"
+				element={<ExternalApp className="w-100 h-100" />}
+			/>
+			{/* Legacy routes (redirect to context-aware routes) */}
+			<Route path="/app/files" element={<FilesApp />} />
+			<Route path="/app/feed" element={<FeedApp />} />
+			<Route path="/app/gallery" element={<GalleryApp />} />
+			<Route path="/app/messages/:convId?" element={<MessagesApp />} />
+			<Route path="/app/:appId/*" element={<ExternalApp className="w-100 h-100" />} />
+			<Route path="/*" element={null} />
+		</Routes>
+	)
 }
 
 // vim: ts=4

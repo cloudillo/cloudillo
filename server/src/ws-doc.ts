@@ -16,7 +16,7 @@
 
 import * as Y from 'yjs'
 import * as syncProtocol from 'y-protocols/sync.js'
-import * as awarenessProtocol from  'y-protocols/awareness.js'
+import * as awarenessProtocol from 'y-protocols/awareness.js'
 //import { LeveldbPersistence } from 'y-leveldb'
 import * as Encoder from 'lib0/encoding.js'
 import * as Decoder from 'lib0/decoding.js'
@@ -24,7 +24,7 @@ import * as Decoder from 'lib0/decoding.js'
 import WS from 'ws'
 
 import { Auth } from './index.js'
-import{ determineTnId } from './auth.js'
+import { determineTnId } from './auth.js'
 import { WebSocketExt } from './websocket.js'
 //import { readMetaAuth } from './meta-store/index.js'
 import { metaAdapter, crdtAdapter } from './adapters.js'
@@ -47,7 +47,6 @@ interface WSDoc {
 export const docs = new Map<string, WSDoc>()
 
 async function loadDoc(tnId: number, docId: string) {
-
 	console.log('LOAD DOC', tnId, docId)
 	let ydoc = await crdtAdapter.getYDoc(docId)
 
@@ -63,8 +62,7 @@ async function loadDoc(tnId: number, docId: string) {
 	const doc = {
 		ydoc,
 		awareness: new awarenessProtocol.Awareness(ydoc),
-		conns: new Map<WebSocketExt,
-		Set<number>>()
+		conns: new Map<WebSocketExt, Set<number>>()
 	}
 
 	function updateHandler(update: Uint8Array) {
@@ -76,19 +74,25 @@ async function loadDoc(tnId: number, docId: string) {
 		doc.conns.forEach((_, c) => send(doc, c, message))
 	}
 
-	function awarenessHandler({ added, updated, removed }: { added: number[], updated: number[], removed: number[] }, ws: WebSocketExt) {
+	function awarenessHandler(
+		{ added, updated, removed }: { added: number[]; updated: number[]; removed: number[] },
+		ws: WebSocketExt
+	) {
 		const changedClients = added.concat(updated, removed)
 		if (ws !== null) {
 			const connControlledIDs = doc.conns.get(ws)
 			if (connControlledIDs !== undefined) {
-				added.forEach(id => connControlledIDs.add(id))
-				removed.forEach(id => connControlledIDs.delete(id))
+				added.forEach((id) => connControlledIDs.add(id))
+				removed.forEach((id) => connControlledIDs.delete(id))
 			}
 		}
 		// broadcast
 		const encoder = Encoder.createEncoder()
 		Encoder.writeVarUint(encoder, MSG_AWARENESS)
-		Encoder.writeVarUint8Array(encoder, awarenessProtocol.encodeAwarenessUpdate(doc.awareness, changedClients))
+		Encoder.writeVarUint8Array(
+			encoder,
+			awarenessProtocol.encodeAwarenessUpdate(doc.awareness, changedClients)
+		)
 		const buf = Encoder.toUint8Array(encoder)
 		doc.conns.forEach((_, c) => {
 			//console.log('send awareness', c.id)
@@ -107,7 +111,6 @@ function closeConn(doc: WSDoc, ws: WebSocketExt) {
 	if (doc.conns.has(ws)) {
 		//const controlledIds = doc.conns.get(ws)
 		doc.conns.delete(ws)
-
 	}
 }
 
@@ -117,7 +120,7 @@ function send(doc: WSDoc, ws: WebSocketExt, msg: Uint8Array) {
 		closeConn(doc, ws)
 	}
 	try {
-		ws.send(msg, err => {
+		ws.send(msg, (err) => {
 			if (err != null) {
 				console.error('ERROR: ws.send()', err)
 				closeConn(doc, ws)
@@ -144,7 +147,11 @@ function handleMessage(ws: WebSocketExt, doc: WSDoc, msg: Uint8Array) {
 				}
 				break
 			case MSG_AWARENESS:
-				awarenessProtocol.applyAwarenessUpdate(doc.awareness, Decoder.readVarUint8Array(decoder), ws)
+				awarenessProtocol.applyAwarenessUpdate(
+					doc.awareness,
+					Decoder.readVarUint8Array(decoder),
+					ws
+				)
 				break
 		}
 	} catch (err) {
@@ -152,7 +159,12 @@ function handleMessage(ws: WebSocketExt, doc: WSDoc, msg: Uint8Array) {
 	}
 }
 
-export async function handleDocConnection(ws: WebSocketExt, tnId: number, tenantTag: string, docId: string) {
+export async function handleDocConnection(
+	ws: WebSocketExt,
+	tnId: number,
+	tenantTag: string,
+	docId: string
+) {
 	//console.log('WS DOC', { docId })
 	ws.binaryType = 'arraybuffer'
 	ws.isAlive = true
@@ -165,7 +177,7 @@ export async function handleDocConnection(ws: WebSocketExt, tnId: number, tenant
 	if (!meta) return
 
 	// Load doc
-	let doc: WSDoc = docs.get(docId) || await loadDoc(tnId, docId)
+	let doc: WSDoc = docs.get(docId) || (await loadDoc(tnId, docId))
 
 	doc.conns.set(ws, new Set<number>())
 
@@ -219,7 +231,13 @@ export async function handleDocConnection(ws: WebSocketExt, tnId: number, tenant
 		if (awarenessStates.size > 0) {
 			const encoder = Encoder.createEncoder()
 			Encoder.writeVarUint(encoder, MSG_AWARENESS)
-			Encoder.writeVarUint8Array(encoder, awarenessProtocol.encodeAwarenessUpdate(doc.awareness, Array.from(awarenessStates.keys())))
+			Encoder.writeVarUint8Array(
+				encoder,
+				awarenessProtocol.encodeAwarenessUpdate(
+					doc.awareness,
+					Array.from(awarenessStates.keys())
+				)
+			)
 			send(doc, ws, Encoder.toUint8Array(encoder))
 		}
 	}

@@ -19,12 +19,14 @@ import * as T from '@symbion/runtype'
 import { db, ql } from './db.js'
 
 export async function listSubscriptions(tnId: number) {
-	const rows = await db.all<{ subsId: number, subscription: string, idTag: string }>(
+	const rows = await db.all<{ subsId: number; subscription: string; idTag: string }>(
 		`SELECT s.subsId, s.subscription, t.idTag FROM subscriptions s
 		JOIN tenants t ON t.tnId = s.tnId
 		WHERE s.tnId = $tnId
-	`, { $tnId: tnId })
-	const res = rows.map(row => ({
+	`,
+		{ $tnId: tnId }
+	)
+	const res = rows.map((row) => ({
 		id: row.subsId,
 		subscription: JSON.parse(row.subscription),
 		idTag: row.idTag

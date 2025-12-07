@@ -20,7 +20,7 @@ const TAG_FORBIDDEN_CHARS = [' ', ',', '#', '\t', '\n']
 import path from 'path'
 import fs from 'fs/promises'
 import crypto from 'crypto'
-import { HttpError} from 'koa'
+import { HttpError } from 'koa'
 import rawBody from 'raw-body'
 import { fileTypeFromBuffer } from 'file-type'
 import { nanoid } from 'nanoid'
@@ -46,10 +46,15 @@ export async function listFiles(ctx: Context) {
 
 	const files = await metaAdapter.listFiles(tnId, ctx.state.auth, q)
 	console.log('FILES', files.length)
-	ctx.body = { files: files.map(f => ({
-		...f,
-		thumbnail: f.preset === 'gallery' ? `https://${ctx.hostname}/api/store/${f.fileId}/tn.jpg` : undefined,
-	})) }
+	ctx.body = {
+		files: files.map((f) => ({
+			...f,
+			thumbnail:
+				f.preset === 'gallery'
+					? `https://${ctx.hostname}/api/store/${f.fileId}/tn.jpg`
+					: undefined
+		}))
+	}
 	console.log('auth', ctx.state.auth)
 }
 
@@ -109,15 +114,16 @@ export async function postFile(ctx: Context) {
 		// Store file
 		const buf = await rawBody(ctx.req, {
 			length: ctx.request.headers['content-length'],
-			limit: await Settings.get('upload.max') + 'mb'
+			limit: (await Settings.get('upload.max')) + 'mb'
 		})
 
 		const contentType = ctx.request.headers['content-type'] ?? ''
 		if (['image/jpeg', 'image/png'].includes(contentType)) {
 			const img = await storeImage(tnId, 'ohst', buf)
-			const largestVariant = img.variants.orig || img.variants.hd || img.variants.sd || img.variants.tn
+			const largestVariant =
+				img.variants.orig || img.variants.hd || img.variants.sd || img.variants.tn
 			console.log('LARGEST', largestVariant)
-			
+
 			if (largestVariant) {
 				const fileId = largestVariant.hash
 				await metaAdapter.createFile(tnId, fileId, {
@@ -130,18 +136,30 @@ export async function postFile(ctx: Context) {
 					x: { dim: largestVariant.dim, orientation: largestVariant.orientation }
 				})
 
-				if (img.variants.orig) await metaAdapter.createFileVariant(tnId, fileId, img.variants.orig.hash, {
-					variant: 'orig', format: img.variants.orig.format, size: img.variants.orig.size
-				})
-				if (img.variants.tn) await metaAdapter.createFileVariant(tnId, fileId, img.variants.tn.hash, {
-					variant: 'tn', format: img.variants.tn.format, size: img.variants.tn.size
-				})
-				if (img.variants.sd) await metaAdapter.createFileVariant(tnId, fileId, img.variants.sd.hash, {
-					variant: 'sd', format: img.variants.sd.format, size: img.variants.sd.size
-				})
-				if (img.variants.hd) await metaAdapter.createFileVariant(tnId, fileId, img.variants.hd.hash, {
-					variant: 'hd', format: img.variants.hd.format, size: img.variants.hd.size
-				})
+				if (img.variants.orig)
+					await metaAdapter.createFileVariant(tnId, fileId, img.variants.orig.hash, {
+						variant: 'orig',
+						format: img.variants.orig.format,
+						size: img.variants.orig.size
+					})
+				if (img.variants.tn)
+					await metaAdapter.createFileVariant(tnId, fileId, img.variants.tn.hash, {
+						variant: 'tn',
+						format: img.variants.tn.format,
+						size: img.variants.tn.size
+					})
+				if (img.variants.sd)
+					await metaAdapter.createFileVariant(tnId, fileId, img.variants.sd.hash, {
+						variant: 'sd',
+						format: img.variants.sd.format,
+						size: img.variants.sd.size
+					})
+				if (img.variants.hd)
+					await metaAdapter.createFileVariant(tnId, fileId, img.variants.hd.hash, {
+						variant: 'hd',
+						format: img.variants.hd.format,
+						size: img.variants.hd.size
+					})
 				ctx.body = { fileId, attachment: img.attachment }
 			}
 		} else {
@@ -229,7 +247,12 @@ export async function listTags(ctx: Context) {
 export async function putFileTag(ctx: Context) {
 	const fileId = ctx.params.fileId
 	const tag = ctx.params.tag
-	if (!ctx.state.user?.u || (ctx.state.user?.u != ctx.state.user?.t) || tag.includes(...TAG_FORBIDDEN_CHARS)) ctx.throw(403)
+	if (
+		!ctx.state.user?.u ||
+		ctx.state.user?.u != ctx.state.user?.t ||
+		tag.includes(...TAG_FORBIDDEN_CHARS)
+	)
+		ctx.throw(403)
 	const newTags = await metaAdapter.addTag(ctx.state.tnId, fileId, tag)
 	ctx.body = { tags: newTags }
 	console.log('POST', { fileId, tag, res: ctx.body })
@@ -238,7 +261,7 @@ export async function putFileTag(ctx: Context) {
 export async function deleteFileTag(ctx: Context) {
 	const fileId = ctx.params.fileId
 	const tag = ctx.params.tag
-	if (!ctx.state.user?.u || (ctx.state.user?.u != ctx.state.user?.t)) ctx.throw(403)
+	if (!ctx.state.user?.u || ctx.state.user?.u != ctx.state.user?.t) ctx.throw(403)
 	const newTags = await metaAdapter.removeTag(ctx.state.tnId, fileId, tag)
 	ctx.body = { tags: newTags }
 	console.log('DELETE', { fileId, tag, res: ctx.body, newTags })

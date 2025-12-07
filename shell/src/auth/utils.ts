@@ -21,4 +21,3 @@ export function validPassword(password: string) {
 export function validIdTag(idTag: string) {
 	return idTag.match(/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*$/)
 }
-

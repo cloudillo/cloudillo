@@ -21,8 +21,12 @@ type Handler = (idTag: string, msgType: string, payload: any) => Promise<boolean
 const online: Record<string, Record<string, Handler>> = {}
 const offline: Record<string, Handler> = {}
 
-async function subscribeOnline(subsId: string, idTag: string, callback: (idTag: string, msgType: string, payload: any) => Promise<boolean>) {
-	const identityOnline = (online[idTag] || (online[idTag] = {}))
+async function subscribeOnline(
+	subsId: string,
+	idTag: string,
+	callback: (idTag: string, msgType: string, payload: any) => Promise<boolean>
+) {
+	const identityOnline = online[idTag] || (online[idTag] = {})
 	identityOnline[subsId] = callback
 }
 
@@ -30,7 +34,10 @@ function unsubscribeOnline(subsId: string, idTag: string) {
 	delete online[idTag]?.[subsId]
 }
 
-async function subscribeOffline(subsId: string, callback: (idTag: string, msgType: string, payload: any) => Promise<boolean>) {
+async function subscribeOffline(
+	subsId: string,
+	callback: (idTag: string, msgType: string, payload: any) => Promise<boolean>
+) {
 	offline[subsId] = callback
 }
 

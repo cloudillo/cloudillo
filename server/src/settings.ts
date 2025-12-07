@@ -28,7 +28,7 @@ const settings: Settings = {
 	theme: 'auto',
 	'theme.dark': 'auto',
 	'upload.max': 50,
-	'image.orig': true,
+	'image.orig': true
 }
 
 export async function get<K extends keyof Settings>(key: K): Promise<Settings[K]> {

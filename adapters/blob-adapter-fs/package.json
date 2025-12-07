@@ -1,23 +1,23 @@
 {
-    "name": "@cloudillo/blob-adapter-fs",
-    "version": "0.0.1",
-    "description": "Cloudillo File System Blob Adapter",
-    "type": "module",
-    "main": "lib/index.js",
-    "scripts": {
-        "build": "tsc",
-        "watch": "tsc -w",
-        "clean": "rimraf .cache lib"
-    },
-    "author": "Szilárd Hajba <szilu@cloudillo.org",
-    "license": "LGPL-3.0-or-later",
-    "dependencies": {
-        "@cloudillo/server": "workspace:^",
-        "@symbion/runtype": "^1.1.3"
-    },
-    "devDependencies": {
-        "@types/node": "^24.3.0",
-        "rimraf": "^6.0.1",
-        "typescript": "^5.9.2"
-    }
+	"name": "@cloudillo/blob-adapter-fs",
+	"version": "0.0.1",
+	"description": "Cloudillo File System Blob Adapter",
+	"type": "module",
+	"main": "lib/index.js",
+	"scripts": {
+		"build": "tsc",
+		"watch": "tsc -w",
+		"clean": "rimraf .cache lib"
+	},
+	"author": "Szilárd Hajba <szilu@cloudillo.org",
+	"license": "LGPL-3.0-or-later",
+	"dependencies": {
+		"@cloudillo/server": "workspace:^",
+		"@symbion/runtype": "^1.1.3"
+	},
+	"devDependencies": {
+		"@types/node": "^24.10.1",
+		"rimraf": "^6.1.2",
+		"typescript": "^5.9.3"
+	}
 }

@@ -9,7 +9,6 @@ adapters/*/lib
 package-lock.json
 node_modules
 node_modules_docker
-pnpm-lock.yaml
 .*\.sw?
 *\.sav
 .cache

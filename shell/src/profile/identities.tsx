@@ -15,14 +15,13 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { useTranslation } from 'react-i18next'
 
 import {
 	LuSearch as IcSearch,
 	LuFilter as IcFilter,
-
 	LuUser as IcUser,
 	LuUserPlus as IcUserFollowing,
 	LuUserPlus as IcUserFollowed,
@@ -31,7 +30,7 @@ import {
 	LuUsers as IcUserAll
 } from 'react-icons/lu'
 
-import { useApi, useAuth, Fcb, Button, ProfileCard, mergeClasses } from '@cloudillo/react'
+import { useApi, useAuth, Fcd, Button, ProfileCard, mergeClasses } from '@cloudillo/react'
 import { useAppConfig, parseQS, qs } from '../utils.js'
 
 export interface Profile {
@@ -43,17 +42,21 @@ export interface Profile {
 	status: 'A' | 'B' | 'T'
 }
 
-function ProfileStatusIcon({ profile }: { profile: { connected?: true | 'R', following?: boolean, status: 'A' | 'B' | 'T' } }) {
-	if (profile.connected) return <IcUserConnected className="text-success"/>
-	if (profile.connected == 'R') return <IcUserConnected className="text-warning"/>
-	if (profile.following) return <IcUserFollowing className="text-success"/>
-	if (profile.status == 'B') return <IcUserBlocked className="text-error"/>
-	return <IcUser/>
+function ProfileStatusIcon({
+	profile
+}: {
+	profile: { connected?: true | 'R'; following?: boolean; status: 'A' | 'B' | 'T' }
+}) {
+	if (profile.connected) return <IcUserConnected className="text-success" />
+	if (profile.connected == 'R') return <IcUserConnected className="text-warning" />
+	if (profile.following) return <IcUserFollowing className="text-success" />
+	if (profile.status == 'B') return <IcUserBlocked className="text-error" />
+	return <IcUser />
 }
 
 function FilterBar({ className }: { className?: string }) {
 	const { t } = useTranslation()
-	const api = useApi()
+	const { api } = useApi()
 	const location = useLocation()
 	const navigate = useNavigate()
 	const userStat = { all: 0, connected: 0, followed: 0, following: 0, trusted: 0 }
@@ -61,142 +64,189 @@ function FilterBar({ className }: { className?: string }) {
 	const qs = parseQS(location.search)
 	console.log('qs', qs)
 
-	return <ul className={'c-nav vertical low' + (className || '')}>
-		<li className="c-nav-item">
-			<Link className={'c-nav-link ' + (qs.filter === 'connected' ? 'active' : '')} to="?connected=1"><IcUserConnected/> {t('Connected')}
-				{!!userStat.connected && <span className="c-badge bg error">{userStat.connected}</span>}
-			</Link>
-		</li>
-		<li className="c-nav-item">
-			<Link className={'c-nav-link ' + (qs.filter === 'followed' ? 'active' : '')} to="?filter=followed"><IcUserFollowed/> {t('Followed')}
-				{!!userStat.followed && <span className="c-badge bg error">{userStat.followed}</span>}
-			</Link>
-		</li>
-		<li className="c-nav-item">
-			<Link className={'c-nav-link ' + (!qs.filter ? 'active' : '')} to=""><IcUserAll/> {t('All')}
-				{!!userStat.all && <span className="c-badge bg error">{userStat.all}</span>}
-			</Link>
-		</li>
-		<hr className="w-100"/>
+	return (
+		<ul className={'c-nav vertical low' + (className || '')}>
+			<li className="c-nav-item">
+				<Link
+					className={'c-nav-link ' + (qs.filter === 'connected' ? 'active' : '')}
+					to="?connected=1"
+				>
+					<IcUserConnected /> {t('Connected')}
+					{!!userStat.connected && (
+						<span className="c-badge bg bg-error">{userStat.connected}</span>
+					)}
+				</Link>
+			</li>
+			<li className="c-nav-item">
+				<Link
+					className={'c-nav-link ' + (qs.filter === 'followed' ? 'active' : '')}
+					to="?filter=followed"
+				>
+					<IcUserFollowed /> {t('Followed')}
+					{!!userStat.followed && (
+						<span className="c-badge bg bg-error">{userStat.followed}</span>
+					)}
+				</Link>
+			</li>
+			<li className="c-nav-item">
+				<Link className={'c-nav-link ' + (!qs.filter ? 'active' : '')} to="">
+					<IcUserAll /> {t('All')}
+					{!!userStat.all && <span className="c-badge bg bg-error">{userStat.all}</span>}
+				</Link>
+			</li>
+			<hr className="w-100" />
 
-		<div className="c-input-group">
-			<input type="text" className="c-input" placeholder="Search" />
-			<button className="c-button secondary" type="button"><IcSearch/></button>
-		</div>
-	</ul>
+			<div className="c-input-group">
+				<input type="text" className="c-input" placeholder="Search" />
+				<button className="c-button secondary" type="button">
+					<IcSearch />
+				</button>
+			</div>
+		</ul>
+	)
 }
 
 function ProfileDetails({ className }: { className?: string }) {
 	const { t } = useTranslation()
-	
-	return <div className={'c-panel p-1 ' + (className || '')}>
-	</div>
+
+	return <div className={'c-panel p-1 ' + (className || '')}></div>
 }
 
-export function ProfileListCard({ profile, srcTag }: { profile: Profile, srcTag?: string }) {
+export function ProfileListCard({ profile, srcTag }: { profile: Profile; srcTag?: string }) {
 	const { t } = useTranslation()
+	const params = useParams()
+	const contextIdTag = params.contextIdTag!
 
-	return <Link className="c-panel p-1 mb-1 flex-row" to={`/profile/${profile.idTag}`}>
-		<ProfileCard className="flex-fill" profile={profile} srcTag={srcTag}/>
-		<ProfileStatusIcon profile={profile}/>
-	</Link>
+	return (
+		<Link
+			className="c-panel p-1 mb-1 flex-row"
+			to={`/profile/${contextIdTag}/${profile.idTag}`}
+		>
+			<ProfileCard className="flex-fill" profile={profile} srcTag={srcTag} />
+			<ProfileStatusIcon profile={profile} />
+		</Link>
+	)
 }
 
 export function PersonListPage({ idTag }: { idTag?: string }) {
 	const { t } = useTranslation()
 	const location = useLocation()
-	const api = useApi()
+	const params = useParams()
+	const { api } = useApi()
 	const [auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
+	// Extract contextIdTag from params if available (context-aware route)
+	const contextIdTag = params.contextIdTag || idTag
 
-	React.useEffect(function onLocationEffect() {
-		setShowFilter(false)
-	}, [location])
+	React.useEffect(
+		function onLocationEffect() {
+			setShowFilter(false)
+		},
+		[location]
+	)
 
-	React.useEffect(function loadPersonList() {
-		if (!auth) return
-		console.log('loadProfiles', auth)
-		;(async function () {
-			const qs: Record<string, string> = parseQS(location.search)
-			console.log('QS', location.search, qs)
+	React.useEffect(
+		function loadPersonList() {
+			if (!auth) return
+			console.log('loadProfiles', auth, 'contextIdTag', contextIdTag)
+			;(async function () {
+				const qs: Record<string, string> = parseQS(location.search)
+				console.log('QS', location.search, qs)
 
-			const res = await api.get<{ profiles: Profile[] }>(idTag || '', '/profile', {
-				query: { ...qs, type: 'person' }
-			})
-			setProfiles(res.profiles)
-		})()
-	}, [auth, location.search])
+				const profiles = await api!.profiles.list({ type: 'person' })
+				setProfiles(profiles as any)
+			})()
+		},
+		[auth, location.search, contextIdTag]
+	)
 
-	return <Fcb.Container className="g-1">
-		<Fcb.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-			<FilterBar/>
-		</Fcb.Filter>
-		<Fcb.Content>
-			<div className="c-nav c-hbox md-hide lg-hide">
-				<IcFilter onClick={() => setShowFilter(true)}/>
-			</div>
-			{ !!profiles && profiles.map(profile => <ProfileListCard key={profile.idTag} profile={profile}/>) }
-		</Fcb.Content>
-		{/*
-		<Fcb.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
+	return (
+		<Fcd.Container className="g-1">
+			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+				<FilterBar />
+			</Fcd.Filter>
+			<Fcd.Content>
+				<div className="c-nav c-hbox md-hide lg-hide">
+					<IcFilter onClick={() => setShowFilter(true)} />
+				</div>
+				{!!profiles &&
+					profiles.map((profile) => (
+						<ProfileListCard key={profile.idTag} profile={profile} />
+					))}
+			</Fcd.Content>
+			{/*
+		<Fcd.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
 			{ selected && <div className="c-panel h-min-100">
 				<h3 className="c-panel-title">
 					{selected.name}
 				</h3>
 			</div> }
-		</Fcb.Details>
+		</Fcd.Details>
 		*/}
-	</Fcb.Container>
+		</Fcd.Container>
+	)
 }
 
 export function CommunityListPage() {
 	const { t } = useTranslation()
 	const location = useLocation()
-	const api = useApi()
+	const params = useParams()
+	const { api } = useApi()
 	const [auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
+	// Extract contextIdTag from params if available (context-aware route)
+	const contextIdTag = params.contextIdTag
 
-	React.useEffect(function onLocationEffect() {
-		setShowFilter(false)
-	}, [location])
+	React.useEffect(
+		function onLocationEffect() {
+			setShowFilter(false)
+		},
+		[location]
+	)
 
-	React.useEffect(function loadCommunities() {
-		if (!auth) return
-		console.log('loadCommunities', auth)
-		;(async function () {
-			const qs: Record<string, string> = parseQS(location.search)
-			console.log('QS', location.search, qs)
+	React.useEffect(
+		function loadCommunities() {
+			if (!auth) return
+			console.log('loadCommunities', auth, 'contextIdTag', contextIdTag)
+			;(async function () {
+				const qs: Record<string, string> = parseQS(location.search)
+				console.log('QS', location.search, qs)
 
-			const res = await api.get<{ profiles: Profile[] }>('', '/profile', {
-				query: { ...qs, type: 'community' }
-			})
-			console.log(res)
-			setProfiles(res.profiles)
-		})()
-	}, [auth, location.search])
+				const profiles = await api!.profiles.list({ type: 'community' })
+				console.log('profiles', profiles)
+				setProfiles(profiles as any)
+			})()
+		},
+		[auth, location.search, contextIdTag]
+	)
 
-	return <Fcb.Container className="g-1">
-		<Fcb.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-			<FilterBar/>
-		</Fcb.Filter>
-		<Fcb.Content>
-			<div className="c-nav c-hbox md-hide lg-hide">
-				<IcFilter onClick={() => setShowFilter(true)}/>
-			</div>
-			{ !!profiles && profiles.map(profile => <ProfileListCard key={profile.idTag} profile={profile}/>) }
-		</Fcb.Content>
-		{/*
-		<Fcb.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
+	return (
+		<Fcd.Container className="g-1">
+			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+				<FilterBar />
+			</Fcd.Filter>
+			<Fcd.Content>
+				<div className="c-nav c-hbox md-hide lg-hide">
+					<IcFilter onClick={() => setShowFilter(true)} />
+				</div>
+				{!!profiles &&
+					profiles.map((profile) => (
+						<ProfileListCard key={profile.idTag} profile={profile} />
+					))}
+			</Fcd.Content>
+			{/*
+		<Fcd.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
 			{ selected && <div className="c-panel h-min-100">
 				<h3 className="c-panel-title">
 					{selected.name}
 				</h3>
 			</div> }
-		</Fcb.Details>
+		</Fcd.Details>
 		*/}
-	</Fcb.Container>
+		</Fcd.Container>
+	)
 }
 
 // vim: ts=4

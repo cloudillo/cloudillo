@@ -23,8 +23,18 @@ export interface ListDataOptions {
 }
 
 export interface DatabaseAdapter {
-	listData: <T = any>(tnId: number, fileId: string, path: string, {filter, tag, preset }: ListDataOptions) => Promise<T[]>
-	addData: <T = any>(tnId: number, fileId: string, path: string, data: T) => Promise<string | number>
+	listData: <T = any>(
+		tnId: number,
+		fileId: string,
+		path: string,
+		{ filter, tag, preset }: ListDataOptions
+	) => Promise<T[]>
+	addData: <T = any>(
+		tnId: number,
+		fileId: string,
+		path: string,
+		data: T
+	) => Promise<string | number>
 	readData: <T = any>(tnId: number, fileId: string, path: string) => Promise<T>
 }
 

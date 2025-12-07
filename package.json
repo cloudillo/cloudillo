@@ -1,12 +1,18 @@
 {
 	"version": "0.1.4",
 	"private": true,
+	"type": "module",
 	"packageManager": "pnpm@9.14.4",
 	"workspaces": [
 		"server",
 		"frontend"
 	],
 	"scripts": {
+		"format": "biome format --write .",
+		"format:check": "biome format .",
+		"test": "pnpm -r --filter=@cloudillo/rtdb --filter=@cloudillo/base test",
+		"test:watch": "pnpm -r --filter=@cloudillo/rtdb --filter=@cloudillo/base test:watch",
+		"test:coverage": "pnpm -r --filter=@cloudillo/rtdb --filter=@cloudillo/base test:coverage",
 		"build-docker": "docker --context default build --pull -t cloudillo/cloudillo:$npm_package_version -t cloudillo/cloudillo:latest -f Dockerfile.debian .",
 		"build-docker-slim": "docker --context default build --pull -t cloudillo/cloudillo:$npm_package_version-slim -t cloudillo/cloudillo:latest-slim -f Dockerfile.debian-slim .",
 		"build-docker-alpine": "docker --context default build --pull -t cloudillo/cloudillo:$npm_package_version-alpine -t cloudillo/cloudillo:latest-alpine -f Dockerfile.alpine .",
@@ -14,5 +20,9 @@
 		"publish-docker-slim": "docker --context default push cloudillo/cloudillo:$npm_package_version-slim && docker --context default push cloudillo/cloudillo:latest-slim",
 		"publish-docker-alpine": "docker --context default push cloudillo/cloudillo:$npm_package_version-alpine && docker --context default push cloudillo/cloudillo:latest-alpine",
 		"docker-all": "pnpm build-docker && pnpm build-docker-slim && pnpm build-docker-alpine && pnpm publish-docker && pnpm publish-docker-slim && pnpm publish-docker-alpine"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.3.8",
+		"prettier": "^3.7.4"
 	}
 }

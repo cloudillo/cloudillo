@@ -21,48 +21,51 @@ import { useApi } from '@cloudillo/react'
 
 import { useSettings } from './settings.js'
 
-function setTheme(theme: string | number | boolean, colors: string | number | boolean) {
+export function setTheme(
+	theme: string | number | boolean | undefined,
+	colors: string | number | boolean | undefined
+) {
 	//console.log('setTheme', theme, colors)
 
 	switch (theme) {
-	case 'glass':
-		document.body.classList.remove('theme-opaque')
-		document.body.classList.add('theme-glass')
-		break
-	case 'opaque':
-		document.body.classList.remove('theme-glass')
-		document.body.classList.add('theme-opaque')
-		break
-	default:
-		document.body.classList.remove('theme-opaque')
-		document.body.classList.add('theme-glass')
-		break
+		case 'glass':
+			document.body.classList.remove('theme-opaque')
+			document.body.classList.add('theme-glass')
+			break
+		case 'opaque':
+			document.body.classList.remove('theme-glass')
+			document.body.classList.add('theme-opaque')
+			break
+		default:
+			document.body.classList.remove('theme-opaque')
+			document.body.classList.add('theme-glass')
+			break
 	}
 
 	switch (colors) {
-	case 'dark':
-		document.body.classList.remove('light')
-		document.body.classList.add('dark')
-		break
-	case 'light':
-		document.body.classList.remove('dark')
-		document.body.classList.add('light')
-		break
-	default:
-		if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+		case 'dark':
 			document.body.classList.remove('light')
 			document.body.classList.add('dark')
-		} else {
+			break
+		case 'light':
 			document.body.classList.remove('dark')
 			document.body.classList.add('light')
-		}
-		break
+			break
+		default:
+			if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+				document.body.classList.remove('light')
+				document.body.classList.add('dark')
+			} else {
+				document.body.classList.remove('dark')
+				document.body.classList.add('light')
+			}
+			break
 	}
 }
 
 export function AppearanceSettings() {
 	const { t } = useTranslation()
-	const api = useApi()
+	const { api, setIdTag } = useApi()
 
 	const { settings, onSettingChange } = useSettings('ui')
 
@@ -77,25 +80,37 @@ export function AppearanceSettings() {
 
 	if (!settings) return null
 
-	return <>
-		<div className="c-panel">
-			<label className="c-hbox pb-2">
-				<span className="flex-fill">{t('Theme')}</span>
-				<select className="c-select" name="ui.theme" value={settings['ui.theme'] as string} onChange={onThemeChange}>
-					<option value="glass">{t('Glass')}</option>
-					<option value="opaque">{t('Opaque')}</option>
-				</select>
-			</label>
-			<label className="c-hbox pb-2">
-				<span className="flex-fill">{t('Theme')}</span>
-				<select className="c-select" name="ui.colors" value={settings['ui.colors'] as string} onChange={onThemeChange}>
-					<option value="default">{t('Use browser settings')}</option>
-					<option value="light">{t('Light')}</option>
-					<option value="dark">{t('Dark')}</option>
-				</select>
-			</label>
-		</div>
-	</>
+	return (
+		<>
+			<div className="c-panel">
+				<label className="c-settings-field">
+					<span>{t('Theme')}</span>
+					<select
+						className="c-select"
+						name="ui.theme"
+						value={settings['ui.theme'] as string}
+						onChange={onThemeChange}
+					>
+						<option value="glass">{t('Glass')}</option>
+						<option value="opaque">{t('Opaque')}</option>
+					</select>
+				</label>
+				<label className="c-settings-field">
+					<span>{t('Colors')}</span>
+					<select
+						className="c-select"
+						name="ui.colors"
+						value={settings['ui.colors'] as string}
+						onChange={onThemeChange}
+					>
+						<option value="default">{t('Use browser settings')}</option>
+						<option value="light">{t('Light')}</option>
+						<option value="dark">{t('Dark')}</option>
+					</select>
+				</label>
+			</div>
+		</>
+	)
 }
 
 // vim: ts=4

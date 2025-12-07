@@ -19,30 +19,49 @@ import { ListSettingsOptions } from '@cloudillo/server/types/meta-adapter'
 
 import { db, ql } from './db.js'
 
-export async function listSettings(tnId: number, opts: ListSettingsOptions = {}): Promise<Record<string, string | number | boolean | undefined>> {
-	const q = "SELECT name, value FROM settings WHERE tnId = $tnId"
-		+ (opts.prefix ? " AND (" + opts.prefix.map(prefix => `name LIKE ${ql(prefix + '.%')}`).join(' OR ') + ")" : '')
+export async function listSettings(
+	tnId: number,
+	opts: ListSettingsOptions = {}
+): Promise<Record<string, string | number | boolean | undefined>> {
+	const q =
+		'SELECT name, value FROM settings WHERE tnId = $tnId' +
+		(opts.prefix
+			? ' AND (' +
+				opts.prefix.map((prefix) => `name LIKE ${ql(prefix + '.%')}`).join(' OR ') +
+				')'
+			: '')
 	console.log('Query:', q)
-	const rows = await db.all<{ name: string, value: string }>(q, { $tnId: tnId })
+	const rows = await db.all<{ name: string; value: string }>(q, { $tnId: tnId })
 	return rows.reduce((acc, row) => ({ ...acc, [row.name]: row.value }), {})
 }
 
 export async function readSetting(tnId: number, name: string) {
 	const res = await db.get<{ value?: string | number | boolean }>(
-		"SELECT value FROM settings WHERE tnId = $tnId AND name = $name", { $tnId: tnId, $name: name }
+		'SELECT value FROM settings WHERE tnId = $tnId AND name = $name',
+		{ $tnId: tnId, $name: name }
 	)
 	return res?.value
 }
 
-export async function updateSetting(tnId: number, name: string, value?: string | number | boolean | null) {
+export async function updateSetting(
+	tnId: number,
+	name: string,
+	value?: string | number | boolean | null
+) {
 	if (value == null) {
-		await db.run('DELETE FROM settings WHERE tnId = $tnId AND name = $name', { $tnId: tnId, $name: name })
-	} else {
-		await db.run('INSERT OR REPLACE INTO settings (tnId, name, value) VALUES ($tnId, $name, $value)', {
+		await db.run('DELETE FROM settings WHERE tnId = $tnId AND name = $name', {
 			$tnId: tnId,
-			$name: name,
-			$value: value
+			$name: name
 		})
+	} else {
+		await db.run(
+			'INSERT OR REPLACE INTO settings (tnId, name, value) VALUES ($tnId, $name, $value)',
+			{
+				$tnId: tnId,
+				$name: name,
+				$value: value
+			}
+		)
 	}
 }
 

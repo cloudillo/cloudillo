@@ -26,28 +26,36 @@ export async function handleMsg(idTag: string, msgType: string, action: ActionVi
 	if (tnId && (action.content == null || typeof action.content == 'string')) {
 		switch (action.type) {
 			case 'CONN':
-				if (action.subType != 'DEL') await sendNotification(tnId, {
-					title: `Connection request from ${action.issuer.name ?? '-'} (@${action.issuer.idTag})`,
-					body: action.content ?? 'No content',
-					image: action.issuer.profilePic ? `https://cl-o.${idTag}/${action.issuer.profilePic}` : undefined,
-					path: '/notifications'
-				})
+				if (action.subType != 'DEL')
+					await sendNotification(tnId, {
+						title: `Connection request from ${action.issuer.name ?? '-'} (@${action.issuer.idTag})`,
+						body: action.content ?? 'No content',
+						image: action.issuer.profilePic
+							? `https://cl-o.${idTag}/${action.issuer.profilePic}`
+							: undefined,
+						path: '/notifications'
+					})
 				break
 			case 'MSG':
 				await sendNotification(tnId, {
 					title: `MSG from ${action.issuer.name ?? '-'} (@${action.issuer.idTag})`,
 					body: action.content ?? 'No content',
-					image: action.issuer.profilePic ? `https://cl-o.${idTag}/${action.issuer.profilePic}` : undefined,
+					image: action.issuer.profilePic
+						? `https://cl-o.${idTag}/${action.issuer.profilePic}`
+						: undefined,
 					path: `/app/messages/${action.issuer.idTag ?? ''}`
 				})
 				break
 			case 'FSHR':
-				if (action.subType != 'DEL') await sendNotification(tnId, {
-					title: `${action.issuer.name ?? '-'} (@${action.issuer.idTag}) shared a file with you`,
-					body: action.content ?? 'No content',
-					image: action.issuer.profilePic ? `https://cl-o.${idTag}/${action.issuer.profilePic}` : undefined,
-					path: '/notifications'
-				})
+				if (action.subType != 'DEL')
+					await sendNotification(tnId, {
+						title: `${action.issuer.name ?? '-'} (@${action.issuer.idTag}) shared a file with you`,
+						body: action.content ?? 'No content',
+						image: action.issuer.profilePic
+							? `https://cl-o.${idTag}/${action.issuer.profilePic}`
+							: undefined,
+						path: '/notifications'
+					})
 				break
 		}
 		return true

@@ -1,0 +1,348 @@
+/* Prezillo App Styles - Using OpalUI --col-* variables */
+
+html,
+body,
+#app {
+	height: 100%;
+}
+
+/* Properties Panel Components */
+.c-property-panel {
+	font-size: 12px;
+}
+
+.c-property-section {
+	border-bottom: 1px solid var(--col-outline);
+	padding-bottom: var(--space-2);
+	margin-bottom: var(--space-2);
+}
+
+.c-property-section:last-child {
+	border-bottom: none;
+	margin-bottom: 0;
+}
+
+.c-property-section-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	padding: var(--space-1) 0;
+	background: none;
+	border: none;
+	cursor: pointer;
+	width: 100%;
+	text-align: left;
+	font-size: 11px;
+	font-weight: 600;
+	opacity: 0.8;
+}
+
+.c-property-section-header:hover {
+	opacity: 1;
+}
+
+.c-property-section-content {
+	padding-top: var(--space-1);
+}
+
+.c-property-field {
+	align-items: center;
+	font-size: 11px;
+}
+
+.c-property-field-label {
+	opacity: 0.7;
+	flex-shrink: 0;
+}
+
+.c-property-field-control {
+	min-width: 0;
+}
+
+.c-property-field-control .c-input,
+.c-property-field-control .c-select {
+	padding: var(--space-1);
+	font-size: 11px;
+}
+
+/* Number Input */
+.c-number-input {
+	align-items: center;
+}
+
+.c-number-input .c-input {
+	flex: 1;
+	min-width: 0;
+	padding: var(--space-1);
+	font-size: 11px;
+}
+
+/* Hide number input spinners */
+.c-number-input .c-input[type='number'] {
+	-moz-appearance: textfield;
+	appearance: textfield;
+}
+
+.c-number-input .c-input[type='number']::-webkit-outer-spin-button,
+.c-number-input .c-input[type='number']::-webkit-inner-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
+/* Scrubbing mode */
+.c-number-input.scrubbing,
+.c-number-input.scrubbing .c-input {
+	cursor: ew-resize;
+	user-select: none;
+}
+
+.c-number-input .c-input:hover {
+	cursor: ew-resize;
+}
+
+.c-number-input-suffix {
+	margin-left: var(--space-1);
+	color: var(--col-txt-secondary);
+	font-size: 10px;
+}
+
+/* Color Input */
+.c-color-input {
+	align-items: center;
+}
+
+.c-color-input-picker {
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+}
+
+.c-color-input-hex {
+	width: 70px;
+	padding: var(--space-1);
+	font-size: 11px;
+	font-family: monospace;
+}
+
+/* Tree View */
+.c-tree-view {
+	font-size: 11px;
+}
+
+.c-tree-item {
+	user-select: none;
+}
+
+.c-tree-item-row {
+	display: flex;
+	align-items: center;
+	padding: var(--space-1);
+	cursor: pointer;
+	border-radius: var(--radius-sm);
+	gap: var(--space-1);
+}
+
+.c-tree-item-row:hover {
+	background: var(--col-container-high);
+}
+
+.c-tree-item.selected > .c-tree-item-row {
+	background: var(--col-container-primary);
+}
+
+.c-tree-item.dragging {
+	opacity: 0.5;
+}
+
+.c-tree-item.drop-target > .c-tree-item-row {
+	outline: 2px dashed var(--col-primary);
+}
+
+/* Drop position indicators */
+.c-tree-item.drop-before > .c-tree-item-row {
+	outline: none;
+	border-top: 2px solid var(--col-primary);
+}
+
+.c-tree-item.drop-after > .c-tree-item-row {
+	outline: none;
+	border-bottom: 2px solid var(--col-primary);
+}
+
+.c-tree-item.drop-inside > .c-tree-item-row {
+	background: var(--col-container-primary);
+	outline: 2px dashed var(--col-primary);
+}
+
+.c-tree-item-toggle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	cursor: pointer;
+}
+
+.c-tree-item-icon {
+	display: flex;
+	align-items: center;
+	opacity: 0.7;
+}
+
+.c-tree-item-label {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.c-tree-item-actions {
+	display: flex;
+	gap: var(--space-1);
+	opacity: 0;
+}
+
+.c-tree-item-row:hover .c-tree-item-actions {
+	opacity: 1;
+}
+
+.c-tree-item-actions .c-button {
+	padding: var(--space-1) !important;
+	min-width: auto !important;
+}
+
+/* Panel Headings - section titles like "Layers", "Properties" */
+.c-panel-heading {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	color: var(--col-txt-secondary);
+	padding: var(--space-2);
+}
+
+/* Panel section with border */
+.c-panel-section {
+	flex: 0 0 auto;
+	overflow: auto;
+	border-bottom: 1px solid var(--col-outline);
+}
+
+.c-panel-section--layers {
+	max-height: 40%;
+}
+
+/* Empty state / placeholder messages */
+.c-empty-message {
+	font-size: 12px;
+	color: var(--col-txt-secondary);
+	text-align: center;
+	padding: var(--space-3) 0;
+}
+
+/* Toolbar divider */
+.c-toolbar-divider {
+	border-left: 1px solid var(--col-outline);
+	padding-left: var(--space-2);
+}
+
+/* Toolbar buttons: link style with small size (32px) */
+.c-nav .c-button {
+	--btn-height: var(--size-sm);
+	background: none;
+	box-shadow: none;
+	color: var(--col-secondary);
+}
+
+.c-nav .c-button:hover:not([disabled]):not(.active) {
+	transform: none;
+	background: var(--col-container-low);
+	box-shadow: none;
+}
+
+.c-nav .c-button.active {
+	color: var(--col-primary);
+	background: var(--col-container-primary);
+}
+
+/* Full-width input */
+.c-input--full {
+	width: 100%;
+}
+
+/* Layer browser controls container */
+.c-layer-controls {
+	display: flex;
+	justify-content: flex-end;
+	margin-bottom: var(--space-1);
+}
+
+/* Font size select in toolbar */
+.c-font-size-select {
+	width: 60px;
+	padding: var(--space-1);
+	font-size: 12px;
+}
+
+/* Stroke width input - fixed narrow width */
+.c-stroke-width-input {
+	width: 50px;
+}
+
+/* View picker */
+.c-view-picker-tabs {
+	overflow-x: auto;
+}
+
+.c-view-picker-tab {
+	min-width: 60px;
+}
+
+/* Presentation mode */
+.c-presentation-container {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100vw;
+	height: 100vh;
+	background-color: #000;
+	z-index: 9999;
+	cursor: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.c-presentation-svg {
+	width: 100%;
+	height: 100%;
+}
+
+.c-presentation-counter {
+	position: absolute;
+	bottom: 20px;
+	right: 20px;
+	color: rgba(255, 255, 255, 0.5);
+	font-size: 14px;
+	font-family: system-ui;
+}
+
+.c-presentation-exit {
+	position: absolute;
+	top: 20px;
+	right: 20px;
+	background: rgba(255, 255, 255, 0.1);
+	border: none;
+	border-radius: var(--radius-sm);
+	padding: var(--space-2) var(--space-3);
+	color: rgba(255, 255, 255, 0.7);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.c-presentation-exit:hover {
+	background: rgba(255, 255, 255, 0.2);
+}

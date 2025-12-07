@@ -106,14 +106,14 @@ export type TenantPatch = T.PatchStruct<TenantData>
 
 /* Profiles */
 export type ProfileStatus =
-	'A'			// Active
-	| 'B'		// Blocked
-	| 'T'		// Trusted
+	| 'A' // Active
+	| 'B' // Blocked
+	| 'T' // Trusted
 
 export type ProfilePerm =
-	| 'M'		// Moderated
-	| 'W'		// Write
-	| 'A'		// Admin
+	| 'M' // Moderated
+	| 'W' // Write
+	| 'A' // Admin
 
 export interface Profile {
 	idTag: string
@@ -206,21 +206,41 @@ export interface Subscription {
 
 export interface MetaAdapter {
 	// Files
-	listFiles: (tnId: number, auth: Auth | undefined, opts: ListFilesOptions) => Promise<(File & { variantId?: string, variant?: string, variantFormat?: string })[]>
+	listFiles: (
+		tnId: number,
+		auth: Auth | undefined,
+		opts: ListFilesOptions
+	) => Promise<(File & { variantId?: string; variant?: string; variantFormat?: string })[]>
 	getFileVariant: (tnId: number, fileId: string, variant: string) => Promise<string | undefined>
 	readFile: (tnId: number, fileId: string) => Promise<File | undefined>
-	readFileAuth: (tnId: number, auth: Auth | undefined, fileId: string) => Promise<File | undefined>
+	readFileAuth: (
+		tnId: number,
+		auth: Auth | undefined,
+		fileId: string
+	) => Promise<File | undefined>
 	createFile: (tnId: number, fileId: string, opts: CreateFileOptions) => Promise<void>
-	createFileVariant: (tnId: number, fileId: string | undefined, variantId: string, opts: CreateFileVariantOptions) => Promise<void>
+	createFileVariant: (
+		tnId: number,
+		fileId: string | undefined,
+		variantId: string,
+		opts: CreateFileVariantOptions
+	) => Promise<void>
 	updateFile: (tnId: number, fileId: string, opts: UpdateFileOptions) => Promise<void>
 	deleteFile: (tnId: number, fileId: string) => Promise<void>
-	processPendingFilesPrepare: (callback: (tnId: number, meta: File) => Promise<boolean>) => Promise<number>
+	processPendingFilesPrepare: (
+		callback: (tnId: number, meta: File) => Promise<boolean>
+	) => Promise<number>
 
 	// Tags
 	listTags: (tnId: number, prefix?: string) => Promise<Tag[]>
 	addTag: (tnId: number, fileId: string, tag: string) => Promise<void>
 	removeTag: (tnId: number, fileId: string, tag: string) => Promise<void>
-	setTagPerm: (tnId: number, tag: string, perm: 'read' | 'write' | 'admin', userId: number) => Promise<void>
+	setTagPerm: (
+		tnId: number,
+		tag: string,
+		perm: 'read' | 'write' | 'admin',
+		userId: number
+	) => Promise<void>
 
 	// Tenants
 	readTenant: (tnId: number) => Promise<Tenant | undefined>
@@ -231,41 +251,97 @@ export interface MetaAdapter {
 
 	// Profiles
 	listProfiles: (tnId: number, opts: ListProfilesOptions) => Promise<Profile[]>
-	readProfile: (tnId: number, idTag: string) => Promise<Profile & { eTag?: string } | undefined>
+	readProfile: (tnId: number, idTag: string) => Promise<(Profile & { eTag?: string }) | undefined>
 	createProfile: (tnId: number, profile: Profile, eTag: string | undefined) => Promise<void>
 	updateProfile: (tnId: number, idTag: string, opts: UpdateProfileOptions) => Promise<void>
-	getProfilePublicKey: (tnId: number, idTag: string, keyId: string) => Promise<{ publicKey: string, expires?: number } | undefined>
-	addProfilePublicKey: (tnId: number, idTag: string, key: { keyId: string, publicKey: string, expires?: number }) => Promise<void>
-	processProfileRefresh: (callback: (tnId: number, idTag: string, eTag: string | undefined) => Promise<boolean>) => Promise<number>
+	getProfilePublicKey: (
+		tnId: number,
+		idTag: string,
+		keyId: string
+	) => Promise<{ publicKey: string; expires?: number } | undefined>
+	addProfilePublicKey: (
+		tnId: number,
+		idTag: string,
+		key: { keyId: string; publicKey: string; expires?: number }
+	) => Promise<void>
+	processProfileRefresh: (
+		callback: (tnId: number, idTag: string, eTag: string | undefined) => Promise<boolean>
+	) => Promise<number>
 
 	// Refs
 	listRefs: (tnId: number, opts?: ListRefsOptions) => Promise<Ref[]>
 	createRef: (tnId: number, refId: string, opts: CreateRefOptions) => Promise<Ref>
-	getRef: (tnId: number, refId: string) => Promise<{ refId: string, type: string } | undefined>
+	getRef: (tnId: number, refId: string) => Promise<{ refId: string; type: string } | undefined>
 	useRef: (tnId: number, refId: string) => Promise<{ count: number }>
 	deleteRef: (tnId: number, refId: string) => Promise<void>
 
 	// Actions
-	listActions: (tnId: number, auth: Auth | undefined, opts: ListActionsOptions) => Promise<ActionView[]>
-	listActionTokens: (tnId: number, auth: Auth | undefined, opts: ListActionsOptions) => Promise<string[]>
+	listActions: (
+		tnId: number,
+		auth: Auth | undefined,
+		opts: ListActionsOptions
+	) => Promise<ActionView[]>
+	listActionTokens: (
+		tnId: number,
+		auth: Auth | undefined,
+		opts: ListActionsOptions
+	) => Promise<string[]>
 	getActionRootId: (tnId: number, actionId: string) => Promise<string>
-	getActionData: (tnId: number, actionId: string) => Promise<{ subject?: string, reactions?: number, comments?: number } | undefined>
+	getActionData: (
+		tnId: number,
+		actionId: string
+	) => Promise<{ subject?: string; reactions?: number; comments?: number } | undefined>
 	getActionByKey: (tnId: number, actionKey: string) => Promise<Action | undefined>
 	getActionToken: (tnId: number, actionId: string) => Promise<string | undefined>
 	createAction: (tnId: number, action: Action, key?: string) => Promise<void>
-	updateActionData: (tnId: number, actionId: string, opts: UpdateActionDataOptions) => Promise<void>
+	updateActionData: (
+		tnId: number,
+		actionId: string,
+		opts: UpdateActionDataOptions
+	) => Promise<void>
 	// Inbound actions
-	createInboundAction: (tnId: number, actionId: string, token: string, rel?: string) => Promise<void>
-	processPendingInboundActions: (callback: (tnId: number, actionId: string, token: string) => Promise<boolean>) => Promise<number>
-	updateInboundAction: (tnId: number, actionId: string, opts: { status: 'R' | 'P' | 'D' | null }) => Promise<void>
+	createInboundAction: (
+		tnId: number,
+		actionId: string,
+		token: string,
+		rel?: string
+	) => Promise<void>
+	processPendingInboundActions: (
+		callback: (tnId: number, actionId: string, token: string) => Promise<boolean>
+	) => Promise<number>
+	updateInboundAction: (
+		tnId: number,
+		actionId: string,
+		opts: { status: 'R' | 'P' | 'D' | null }
+	) => Promise<void>
 	// Outbound actions
-	createOutboundAction: (tnId: number, actionId: string, token: string, opts: CreateOutboundActionOptions) => Promise<void>
-	processPendingOutboundActions: (callback: (tnId: number, actionId: string, type: string, token: string, recipientTag: string) => Promise<boolean>) => Promise<number>
+	createOutboundAction: (
+		tnId: number,
+		actionId: string,
+		token: string,
+		opts: CreateOutboundActionOptions
+	) => Promise<void>
+	processPendingOutboundActions: (
+		callback: (
+			tnId: number,
+			actionId: string,
+			type: string,
+			token: string,
+			recipientTag: string
+		) => Promise<boolean>
+	) => Promise<number>
 
 	// Settings
-	listSettings: (tnId: number, opts: ListSettingsOptions) => Promise<Record<string, string | number | boolean | undefined>>
+	listSettings: (
+		tnId: number,
+		opts: ListSettingsOptions
+	) => Promise<Record<string, string | number | boolean | undefined>>
 	readSetting: (tnId: number, name: string) => Promise<string | number | boolean | undefined>
-	updateSetting: (tnId: number, name: string, value?: string | number | boolean | null) => Promise<void>
+	updateSetting: (
+		tnId: number,
+		name: string,
+		value?: string | number | boolean | null
+	) => Promise<void>
 
 	// Subscriprions
 	listSubscriptions: (tnId: number) => Promise<Subscription[]>

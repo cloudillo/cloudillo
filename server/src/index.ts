@@ -35,7 +35,12 @@ import { CrdtAdapter } from './crdt-adapter.js'
 import { DatabaseAdapter } from './database-adapter.js'
 import { MessageBusAdapter } from './message-bus-adapter.js'
 import { init as initAdapters } from './adapters.js'
-import { init as initAuth, determineTenantTag, determineTnId, getAcmeChallengeResponse } from './auth/handlers.js'
+import {
+	init as initAuth,
+	determineTenantTag,
+	determineTnId,
+	getAcmeChallengeResponse
+} from './auth/handlers.js'
 import { init as initAction } from './action/action.js'
 import { init as initRoutes } from './routes.js'
 import { init as initWebsocket } from './websocket.js'
@@ -88,7 +93,11 @@ export type Router = KoaRouter<State, Context>
 // Middlewares //
 /////////////////
 function accept(ctx: Context, next: Next) {
-	if (ctx.method === 'GET' || ctx.method === 'DELETE' || ctx.header['content-type'] === 'application/json') {
+	if (
+		ctx.method === 'GET' ||
+		ctx.method === 'DELETE' ||
+		ctx.header['content-type'] === 'application/json'
+	) {
 		return next()
 	} else if (ctx.method == 'POST' && ctx.path.startsWith('/api/store/')) {
 		return next()
@@ -128,62 +137,95 @@ export interface CloudilloOptions {
 	messageBusAdapter: MessageBusAdapter
 }
 
-function createHttpsServer(authAdapter: AuthAdapter, callback: (req: http.IncomingMessage | http2.Http2ServerRequest, res: http.ServerResponse | http2.Http2ServerResponse) => Promise<void>) {
-	const server = https.createServer({
-		SNICallback: async function (hostname, cb) {
-			if (hostname.startsWith('cl-o.')) {
-				const certData = await authAdapter.getCertByTag(hostname.substring(5))
-				if (!certData) return cb(new Error(`No certificate found for ${hostname}`), undefined)
-				const sctx = tls.createSecureContext(certData)
-				cb(null, sctx)
-			} else {
-				const certData = await authAdapter.getCertByDomain(hostname)
-				if (!certData) return cb(new Error(`No certificate found for ${hostname}`), undefined)
-				const sctx = tls.createSecureContext(certData)
-				cb(null, sctx)
+function createHttpsServer(
+	authAdapter: AuthAdapter,
+	callback: (
+		req: http.IncomingMessage | http2.Http2ServerRequest,
+		res: http.ServerResponse | http2.Http2ServerResponse
+	) => Promise<void>
+) {
+	const server = https.createServer(
+		{
+			SNICallback: async function (hostname, cb) {
+				if (hostname.startsWith('cl-o.')) {
+					const certData = await authAdapter.getCertByTag(hostname.substring(5))
+					if (!certData)
+						return cb(new Error(`No certificate found for ${hostname}`), undefined)
+					const sctx = tls.createSecureContext(certData)
+					cb(null, sctx)
+				} else {
+					const certData = await authAdapter.getCertByDomain(hostname)
+					if (!certData)
+						return cb(new Error(`No certificate found for ${hostname}`), undefined)
+					const sctx = tls.createSecureContext(certData)
+					cb(null, sctx)
+				}
 			}
 		},
-	}, callback)
+		callback
+	)
 	return server
 }
 
-function createHttp2Server(authAdapter: AuthAdapter, callback: (req: http.IncomingMessage | http2.Http2ServerRequest, res: http.ServerResponse | http2.Http2ServerResponse) => Promise<void>) {
-	const server = http2.createSecureServer({
-		allowHTTP1: true,
-		SNICallback: async function (hostname: string, cb: any) {
-			if (hostname.startsWith('cl-o.')) {
-				const certData = await authAdapter.getCertByTag(hostname.substring(5))
-				if (!certData) return cb(new Error(`No certificate found for ${hostname}`), undefined)
-				const sctx = tls.createSecureContext(certData)
-				cb(null, sctx)
-			} else {
-				const certData = await authAdapter.getCertByDomain(hostname)
-				if (!certData) return cb(new Error(`No certificate found for ${hostname}`), undefined)
-				const sctx = tls.createSecureContext(certData)
-				cb(null, sctx)
+function createHttp2Server(
+	authAdapter: AuthAdapter,
+	callback: (
+		req: http.IncomingMessage | http2.Http2ServerRequest,
+		res: http.ServerResponse | http2.Http2ServerResponse
+	) => Promise<void>
+) {
+	const server = http2.createSecureServer(
+		{
+			allowHTTP1: true,
+			SNICallback: async function (hostname: string, cb: any) {
+				if (hostname.startsWith('cl-o.')) {
+					const certData = await authAdapter.getCertByTag(hostname.substring(5))
+					if (!certData)
+						return cb(new Error(`No certificate found for ${hostname}`), undefined)
+					const sctx = tls.createSecureContext(certData)
+					cb(null, sctx)
+				} else {
+					const certData = await authAdapter.getCertByDomain(hostname)
+					if (!certData)
+						return cb(new Error(`No certificate found for ${hostname}`), undefined)
+					const sctx = tls.createSecureContext(certData)
+					cb(null, sctx)
+				}
 			}
 		},
-	}, callback)
+		callback
+	)
 	return server
 }
 
-function createProxiedHttp2Server(authAdapter: AuthAdapter, callback: (req: http.IncomingMessage | http2.Http2ServerRequest, res: http.ServerResponse | http2.Http2ServerResponse) => Promise<void>) {
-	const server = proxiedHttp2.createSecureServer({
-		allowHTTP1: true,
-		SNICallback: async function (hostname: string, cb: any) {
-			if (hostname.startsWith('cl-o.')) {
-				const certData = await authAdapter.getCertByTag(hostname.substring(5))
-				if (!certData) return cb(new Error(`No certificate found for ${hostname}`), undefined)
-				const sctx = tls.createSecureContext(certData)
-				cb(null, sctx)
-			} else {
-				const certData = await authAdapter.getCertByDomain(hostname)
-				if (!certData) return cb(new Error(`No certificate found for ${hostname}`), undefined)
-				const sctx = tls.createSecureContext(certData)
-				cb(null, sctx)
+function createProxiedHttp2Server(
+	authAdapter: AuthAdapter,
+	callback: (
+		req: http.IncomingMessage | http2.Http2ServerRequest,
+		res: http.ServerResponse | http2.Http2ServerResponse
+	) => Promise<void>
+) {
+	const server = proxiedHttp2.createSecureServer(
+		{
+			allowHTTP1: true,
+			SNICallback: async function (hostname: string, cb: any) {
+				if (hostname.startsWith('cl-o.')) {
+					const certData = await authAdapter.getCertByTag(hostname.substring(5))
+					if (!certData)
+						return cb(new Error(`No certificate found for ${hostname}`), undefined)
+					const sctx = tls.createSecureContext(certData)
+					cb(null, sctx)
+				} else {
+					const certData = await authAdapter.getCertByDomain(hostname)
+					if (!certData)
+						return cb(new Error(`No certificate found for ${hostname}`), undefined)
+					const sctx = tls.createSecureContext(certData)
+					cb(null, sctx)
+				}
 			}
 		},
-	}, callback)
+		callback
+	)
 	/*
 	server.on('connection', async (socket) => {
 		socket.pause()
@@ -195,7 +237,15 @@ function createProxiedHttp2Server(authAdapter: AuthAdapter, callback: (req: http
 	return server
 }
 
-export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter, databaseAdapter, messageBusAdapter }: CloudilloOptions) {
+export function run({
+	config,
+	authAdapter,
+	metaAdapter,
+	blobAdapter,
+	crdtAdapter,
+	databaseAdapter,
+	messageBusAdapter
+}: CloudilloOptions) {
 	const koa = new Koa<State, Context>()
 	const router = new KoaRouter<State, Context>({ prefix: '/api' })
 	koa.proxy = config.mode == 'proxy'
@@ -205,52 +255,57 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 	console.log('====[ Cloudillo service booting ]===============================================')
 	console.log(`Running in ${config.mode} mode`)
 
-	koa
-		.use(async (ctx, next) => {
-			//if (ctx.method != 'OPTIONS' && ctx.hostname.startsWith('cl-o.')) {
-			if (ctx.hostname.startsWith('cl-o.')) {
-				ctx.state.tenantTag = determineTenantTag(ctx.hostname)
-				const tnId = await determineTnId(ctx.hostname)
-				if (!tnId) return ctx.throw(404)
-				ctx.state.tnId = tnId
+	koa.use(async (ctx, next) => {
+		//if (ctx.method != 'OPTIONS' && ctx.hostname.startsWith('cl-o.')) {
+		if (ctx.hostname.startsWith('cl-o.')) {
+			ctx.state.tenantTag = determineTenantTag(ctx.hostname)
+			const tnId = await determineTnId(ctx.hostname)
+			if (!tnId) return ctx.throw(404)
+			ctx.state.tnId = tnId
 
-				// JWT
-				let token: string | undefined
+			// JWT
+			let token: string | undefined
 
-				const authHeader = ctx.header.authorization?.trim().split(' ')
-				if (authHeader && authHeader[0] == 'Bearer') {
-					token = authHeader[1]
+			const authHeader = ctx.header.authorization?.trim().split(' ')
+			if (authHeader && authHeader[0] == 'Bearer') {
+				token = authHeader[1]
 				/*
 				} else {
 					token = ctx.cookies.get('token')
 				*/
-				}
-
-				if (token) {
-					try {
-						ctx.state.user = await authAdapter.verifyAccessToken(ctx.state.tenantTag, token)
-						ctx.state.auth = {
-							idTag: ctx.state.user?.u || ctx.state.user?.t,
-							roles: ctx.state.user?.r || [],
-							subject: ctx.state.user?.sub
-						}
-					} catch (err) {
-						console.log('JWT ERROR', err)
-					}
-				}
-				// / JWT
 			}
-			return next()
-		})
+
+			if (token) {
+				try {
+					ctx.state.user = await authAdapter.verifyAccessToken(ctx.state.tenantTag, token)
+					ctx.state.auth = {
+						idTag: ctx.state.user?.u || ctx.state.user?.t,
+						roles: ctx.state.user?.r || [],
+						subject: ctx.state.user?.sub
+					}
+				} catch (err) {
+					console.log('JWT ERROR', err)
+				}
+			}
+			// / JWT
+		}
+		return next()
+	})
 		.use(async (ctx, next) => {
 			const start = Date.now()
-			console.log(`HTTPS REQ 8<-------- ${(ctx.socket as any).clientAddress ?? ctx.request.ip} @${ctx.state.user?.t || '-'} ${ctx.hostname} ${ctx.method} ${ctx.path} ${ctx.querystring}`)
+			console.log(
+				`HTTPS REQ 8<-------- ${(ctx.socket as any).clientAddress ?? ctx.request.ip} @${ctx.state.user?.t || '-'} ${ctx.hostname} ${ctx.method} ${ctx.path} ${ctx.querystring}`
+			)
 			try {
 				await next()
-				console.log(`HTTPS REQ -------->8 ${(ctx.socket as any).clientAddress ?? ctx.request.ip} @${ctx.state.user?.t || '-'} ${ctx.status} ${ctx.hostname} ${ctx.method} ${ctx.path} ${Date.now() - start}ms`)
+				console.log(
+					`HTTPS REQ -------->8 ${(ctx.socket as any).clientAddress ?? ctx.request.ip} @${ctx.state.user?.t || '-'} ${ctx.status} ${ctx.hostname} ${ctx.method} ${ctx.path} ${Date.now() - start}ms`
+				)
 			} catch (err) {
 				if (err instanceof Error && 'status' in err) {
-					console.log(`HTTPS REQ -------->8 ${(ctx.socket as any).clientAddress ?? ctx.request.ip} @${ctx.state.user?.t || '-'} ${typeof err == 'object' && err && 'status' in err ? err.status : `500`} ${ctx.hostname} ${ctx.method} ${ctx.path} ${Date.now() - start}ms`)
+					console.log(
+						`HTTPS REQ -------->8 ${(ctx.socket as any).clientAddress ?? ctx.request.ip} @${ctx.state.user?.t || '-'} ${typeof err == 'object' && err && 'status' in err ? err.status : `500`} ${ctx.hostname} ${ctx.method} ${ctx.path} ${Date.now() - start}ms`
+					)
 				} else {
 					console.log('ERROR', err)
 				}
@@ -270,11 +325,20 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 						ctx.body = { idTag: certData?.idTag }
 					} else {
 						try {
-							return await koaSend(ctx, ctx.path, { root: config.distDir, index: 'index.html', gzip: true, brotli: true })
+							return await koaSend(ctx, ctx.path, {
+								root: config.distDir,
+								index: 'index.html',
+								gzip: true,
+								brotli: true
+							})
 						} catch (err) {
 							if (err instanceof Error) {
 								if ('status' in err && err.status == 404) {
-									return koaSend(ctx, '/index.html', { root: config.distDir, gzip: true, brotli: true })
+									return koaSend(ctx, '/index.html', {
+										root: config.distDir,
+										gzip: true,
+										brotli: true
+									})
 								} else {
 									console.log('KOA SEND ERROR', err.toString())
 									throw err
@@ -295,9 +359,11 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 		.use(koa.context.router.allowedMethods())
 
 	const server =
-		config.mode == 'standalone' ? createHttp2Server(authAdapter, koa.callback())
-		: config.mode == 'stream_proxy' ? createProxiedHttp2Server(authAdapter, koa.callback())
-		: http.createServer(koa.callback())
+		config.mode == 'standalone'
+			? createHttp2Server(authAdapter, koa.callback())
+			: config.mode == 'stream_proxy'
+				? createProxiedHttp2Server(authAdapter, koa.callback())
+				: http.createServer(koa.callback())
 	//const server = config.mode == 'standalone' ? createHttpsServer(authAdapter, koa.callback()) : http.createServer(koa.callback())
 
 	if (config.listenHttp) {
@@ -308,7 +374,9 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 			.use(async (ctx, next) => {
 				const start = Date.now()
 				await next()
-				console.log(`HTTP REQ: ${ctx.request.ip} @${ctx.state.user?.t || '-'} ${Date.now() - start}ms ${ctx.status} ${ctx.hostname} ${ctx.method} ${ctx.path} ${ctx.querystring}`)
+				console.log(
+					`HTTP REQ: ${ctx.request.ip} @${ctx.state.user?.t || '-'} ${Date.now() - start}ms ${ctx.status} ${ctx.hostname} ${ctx.method} ${ctx.path} ${ctx.querystring}`
+				)
 			})
 			.use(httpRouter.routes())
 			.use(httpRouter.allowedMethods())
@@ -317,13 +385,15 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 		httpServer.listen(config.listenHttp, async () => {
 			httpRouter.get('/.well-known/acme-challenge/:token', getAcmeChallengeResponse)
 			//httpRouter.get('{/*path}', ctx => ctx.redirect(`https://${ctx.hostname}${ctx.url}`))
-			httpRouter.get('/:path*', ctx => ctx.redirect(`https://${ctx.hostname}${ctx.url}`))
+			httpRouter.get('/:path*', (ctx) => ctx.redirect(`https://${ctx.hostname}${ctx.url}`))
 			console.log(`Listening on HTTP port http://localhost:${config.listenHttp}`)
 		})
 	}
 
 	server.listen(config.listen, async () => {
-		console.log(`Listening on HTTPS port ${config.mode == 'standalone' || config.mode == 'stream_proxy' ? 'https' : 'http'}://localhost:${config.listen}`)
+		console.log(
+			`Listening on HTTPS port ${config.mode == 'standalone' || config.mode == 'stream_proxy' ? 'https' : 'http'}://localhost:${config.listen}`
+		)
 		await initWebsocket(server, authAdapter, config)
 		await initAdapters({
 			metaAdapter,
@@ -335,7 +405,9 @@ export function run({ config, authAdapter, metaAdapter, blobAdapter, crdtAdapter
 		await initAuth(authAdapter, { acmeEmail: config.acmeEmail })
 		await initAction()
 		await initRoutes(router)
-		console.log('====[ Cloudillo service ready ]=================================================')
+		console.log(
+			'====[ Cloudillo service ready ]================================================='
+		)
 	})
 }
 

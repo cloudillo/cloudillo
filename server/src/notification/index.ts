@@ -35,13 +35,17 @@ export async function sendNotification(tnId: number, notification: Notification)
 
 	for (const subscription of subscriptions) {
 		try {
-			const res = await WebPush.sendNotification(subscription.subscription, JSON.stringify(notification), {
-				vapidDetails: {
-					subject: 'https://cl-o.' + subscription.idTag,
-					publicKey: vapidKeys.vapidPublicKey,
-					privateKey: vapidKeys.vapidPrivateKey
+			const res = await WebPush.sendNotification(
+				subscription.subscription,
+				JSON.stringify(notification),
+				{
+					vapidDetails: {
+						subject: 'https://cl-o.' + subscription.idTag,
+						publicKey: vapidKeys.vapidPublicKey,
+						privateKey: vapidKeys.vapidPrivateKey
+					}
 				}
-			})
+			)
 		} catch (e) {
 			const err = e as { statusCode: number; body: string }
 			if (400 <= err.statusCode && err.statusCode < 500) {

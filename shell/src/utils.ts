@@ -22,12 +22,18 @@ import * as T from '@symbion/runtype'
 import { useAuth } from '@cloudillo/react'
 
 // Query string handling
-export function qs(obj: Record<string, string | number | boolean | string[] | number[] | undefined>) {
+export function qs(
+	obj: Record<string, string | number | boolean | string[] | number[] | undefined>
+) {
 	var str: string[] = []
 	for (var f in obj) {
 		const val = obj[f]
 		if (obj.hasOwnProperty(f) && val !== undefined) {
-			str.push(encodeURIComponent(f) + '=' + encodeURIComponent(Array.isArray(val) ? val.join(',') : val))
+			str.push(
+				encodeURIComponent(f) +
+					'=' +
+					encodeURIComponent(Array.isArray(val) ? val.join(',') : val)
+			)
 		}
 	}
 	return str.join('&')
@@ -40,7 +46,7 @@ export function parseQS(qs: string) {
 
 // Delay asynchronously
 export async function delay(ms: number): Promise<void> {
-	return new Promise(resolve => setTimeout(() => resolve(), ms))
+	return new Promise((resolve) => setTimeout(() => resolve(), ms))
 }
 
 export const format = {
@@ -53,7 +59,9 @@ export const format = {
 	},
 
 	currency: function currency(n: number | undefined) {
-		return n ? n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'
+		return n
+			? n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+			: '-'
 	}
 }
 
@@ -71,7 +79,7 @@ export function humanDate(dt: dayjs.Dayjs) {
 // Base64 string to array buffer
 export function base64ToArrayBuffer(b64str: string): Uint8Array {
 	// Fix padding
-	const padding = '='.repeat((4 - b64str.length % 4) % 4)
+	const padding = '='.repeat((4 - (b64str.length % 4)) % 4)
 	// Convert URL padding to standard padding
 	const base64 = (b64str + padding).replace(/-/g, '+').replace(/_/g, '/')
 
@@ -134,7 +142,6 @@ export interface AppConfigState {
 	apps: AppConfig[]
 	mime: Record<string, string>
 	menu: MenuItem[]
-	menuEx: MenuItem[]
 	defaultMenu?: string
 }
 

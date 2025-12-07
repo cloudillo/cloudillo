@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>Cloudillo Component Storybook</title>
+		<meta
+			name="viewport"
+			content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1.0, minimum-scale=1.0"
+		/>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Oswald&family=Roboto:wght@400;700&display=swap"
+			rel="stylesheet"
+		/>
+		<link rel="stylesheet" href="assets-@VERSION@/index.css" />
+	</head>
+
+	<body class="theme-glass light">
+		<script>
+			// Set theme from localStorage before React loads to prevent flash
+			const theme = localStorage.getItem('storybook-theme') || 'glass'
+			const mode = localStorage.getItem('storybook-mode') || 'light'
+			document.body.className = `theme-${theme} ${mode}`
+		</script>
+		<div id="app"></div>
+		<div id="popper-container"></div>
+		<script type="module" src="assets-@VERSION@/index.js"></script>
+	</body>
+	<!-- vim: ts=4 -->
+</html>

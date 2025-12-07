@@ -1,19 +1,24 @@
 <!doctype html>
 <html lang="en">
 	<head>
-		<meta charset="utf-8">
+		<meta charset="utf-8" />
 		<title>Cloudillo</title>
-		<meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1.0, minimum-scale=1.0">
-		<link rel="manifest" href="/manifest.json"/>
-		<link rel="stylesheet" href="/assets-@VERSION@/bundle.css">
-		<link rel="icon" type="image/svg+xml" href="https://cloudillo.org/favicon.svg">
+		<meta
+			name="viewport"
+			content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1.0, minimum-scale=1.0"
+		/>
+		<link rel="manifest" href="/manifest.json" />
+		<link rel="stylesheet" href="/assets-@VERSION@/index.css" />
+		<link rel="icon" type="image/svg+xml" href="https://cloudillo.org/favicon.svg" />
 		<style>
-			/*
-			body.light, body { background: url("/bg.jpg"); }
-			body.dark { background: url("/bg-dark.jpg"); }
-			*/
-			body.light, body { background: var(--col-surface) !important; }
-			body.dark { background: var(--col-surface) !important; }
+			/* Only apply solid background for opaque theme, let glass theme use its gradient */
+			body.theme-opaque.light,
+			body.theme-opaque {
+				background: var(--col-surface);
+			}
+			body.theme-opaque.dark {
+				background: var(--col-surface);
+			}
 		</style>
 	</head>
 

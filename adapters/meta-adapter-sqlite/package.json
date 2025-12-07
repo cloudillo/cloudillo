@@ -1,29 +1,29 @@
 {
-    "name": "@cloudillo/meta-adapter-sqlite",
-    "version": "0.0.1",
-    "description": "Cloudillo SQLite Metadata Adapter",
-    "type": "module",
-    "main": "lib/index.js",
-    "scripts": {
-        "build": "tsc",
-        "watch": "tsc -w",
-        "clean": "rimraf .cache lib"
-    },
-    "author": "Szilárd Hajba <szilu@cloudillo.org",
-    "license": "LGPL-3.0-or-later",
-    "dependencies": {
-        "@cloudillo/base": "workspace:^",
-        "@cloudillo/server": "workspace:^",
-        "@symbion/runtype": "^1.1.3",
-        "lru-cache": "^11.1.0",
-        "promised-sqlite3": "^2.1.0",
-        "sqlite": "^5.1.1",
-        "sqlite3": "5.1.7"
-    },
-    "devDependencies": {
-        "@cloudillo/types": "workspace:^",
-        "@types/node": "^24.3.0",
-        "rimraf": "^6.0.1",
-        "typescript": "^5.9.2"
-    }
+	"name": "@cloudillo/meta-adapter-sqlite",
+	"version": "0.0.1",
+	"description": "Cloudillo SQLite Metadata Adapter",
+	"type": "module",
+	"main": "lib/index.js",
+	"scripts": {
+		"build": "tsc",
+		"watch": "tsc -w",
+		"clean": "rimraf .cache lib"
+	},
+	"author": "Szilárd Hajba <szilu@cloudillo.org",
+	"license": "LGPL-3.0-or-later",
+	"dependencies": {
+		"@cloudillo/base": "workspace:^",
+		"@cloudillo/server": "workspace:^",
+		"@symbion/runtype": "^1.1.3",
+		"lru-cache": "^11.2.4",
+		"promised-sqlite3": "^2.1.0",
+		"sqlite": "^5.1.1",
+		"sqlite3": "5.1.7"
+	},
+	"devDependencies": {
+		"@cloudillo/types": "workspace:^",
+		"@types/node": "^24.10.1",
+		"rimraf": "^6.1.2",
+		"typescript": "^5.9.3"
+	}
 }

@@ -67,12 +67,20 @@
 */
 
 @media screen and (max-width: 768px) {
-	.c-profile-pic { width: 8rem; left: 2rem; bottom: 4rem; }
-	.c-profile-pic { width: 8rem; }
+	.c-profile-pic {
+		width: 8rem;
+		left: 2rem;
+		bottom: 4rem;
+	}
+	.c-profile-pic {
+		width: 8rem;
+	}
 	/*
 	.c-profile-header { height: 4rem; padding-left: 12rem; }
 	*/
-	.c-profile-header { padding-bottom: 4rem; }
+	.c-profile-header {
+		padding-bottom: 4rem;
+	}
 }
 
 /* vim: ts=4

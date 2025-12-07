@@ -17,25 +17,50 @@ body {
 	font-size: 1rem;
 }
 
-.c-panel.ql-toolbar.ql-snow, .c-panel.ql-container.ql-snow {
+.c-panel.ql-toolbar.ql-snow,
+.c-panel.ql-container.ql-snow {
 	border: 0;
 	color: var(--col-on);
 }
 
-.c-panel.ql-toolbar.ql-snow .ql-stroke { stroke: var(--col-on); }
-.c-panel.ql-toolbar.ql-snow .ql-fill { fill: var(--col-on); }
-.c-panel.ql-toolbar.ql-snow button:hover .ql-stroke { stroke: var(--col-em); }
-.c-panel.ql-toolbar.ql-snow button:hover .ql-fill { fill: var(--col-em); }
-.c-panel.ql-toolbar.ql-snow .ql-active .ql-stroke { stroke: var(--col-primary); }
-.c-panel.ql-toolbar.ql-snow .ql-active .ql-fill { fill: var(--col-primary); }
+.c-panel.ql-toolbar.ql-snow .ql-stroke {
+	stroke: var(--col-on);
+}
+.c-panel.ql-toolbar.ql-snow .ql-fill {
+	fill: var(--col-on);
+}
+.c-panel.ql-toolbar.ql-snow button:hover .ql-stroke {
+	stroke: var(--col-em);
+}
+.c-panel.ql-toolbar.ql-snow button:hover .ql-fill {
+	fill: var(--col-em);
+}
+.c-panel.ql-toolbar.ql-snow .ql-active .ql-stroke {
+	stroke: var(--col-primary);
+}
+.c-panel.ql-toolbar.ql-snow .ql-active .ql-fill {
+	fill: var(--col-primary);
+}
 
 .c-panel.ql-snow .ql-picker {
 	color: var(--col-on);
 }
-.c-panel.ql-snow.ql-toolbar button:hover, .c-panel.ql-snow .ql-toolbar button:hover, .c-panel.ql-snow.ql-toolbar button:focus, .c-panel.ql-snow .ql-toolbar button:focus, .c-panel.ql-snow.ql-toolbar .ql-picker-label:hover, .c-panel.ql-snow .ql-toolbar .ql-picker-label:hover, .c-panel.ql-snow.ql-toolbar .ql-picker-item:hover, .c-panel.ql-snow .ql-toolbar .ql-picker-item:hover {
+.c-panel.ql-snow.ql-toolbar button:hover,
+.c-panel.ql-snow .ql-toolbar button:hover,
+.c-panel.ql-snow.ql-toolbar button:focus,
+.c-panel.ql-snow .ql-toolbar button:focus,
+.c-panel.ql-snow.ql-toolbar .ql-picker-label:hover,
+.c-panel.ql-snow .ql-toolbar .ql-picker-label:hover,
+.c-panel.ql-snow.ql-toolbar .ql-picker-item:hover,
+.c-panel.ql-snow .ql-toolbar .ql-picker-item:hover {
 	color: var(--col-on);
 }
-.c-panel.ql-snow.ql-toolbar button.ql-active, .c-panel.ql-snow .ql-toolbar button.ql-active, .c-panel.ql-snow.ql-toolbar .ql-picker-label.ql-active, .c-panel.ql-snow .ql-toolbar .ql-picker-label.ql-active, .c-panel.ql-snow.ql-toolbar .ql-picker-item.ql-selected, .c-panel.ql-snow .ql-toolbar .ql-picker-item.ql-selected {
+.c-panel.ql-snow.ql-toolbar button.ql-active,
+.c-panel.ql-snow .ql-toolbar button.ql-active,
+.c-panel.ql-snow.ql-toolbar .ql-picker-label.ql-active,
+.c-panel.ql-snow .ql-toolbar .ql-picker-label.ql-active,
+.c-panel.ql-snow.ql-toolbar .ql-picker-item.ql-selected,
+.c-panel.ql-snow .ql-toolbar .ql-picker-item.ql-selected {
 	color: var(--col-em);
 }
 

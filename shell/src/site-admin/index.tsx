@@ -20,51 +20,200 @@ import { useTranslation } from 'react-i18next'
 
 import {
 	LuAtSign as IcInvitations,
-	LuUserCog as IcUsers,
+	LuServer as IcServer,
+	LuHardDrive as IcStorage,
+	LuMail as IcMail,
+	LuUser as IcTenant,
+	LuUsers as IcTenants,
+	LuShieldCheck as IcIdps,
 	LuMenu as IcMenu
 } from 'react-icons/lu'
 
-import { useAuth, useApi, Fcb } from '@cloudillo/react'
+import { useAuth, useApi, Fcd, mergeClasses } from '@cloudillo/react'
 
 import { Invitations } from './invitations.js'
+import { Tenants } from './tenants.js'
+import { IdpsSettings } from './idps.js'
+import { ServerSettings } from './server.js'
+import { StorageSettings } from './storage.js'
+import { EmailSettings } from './email.js'
+import { TenantSettings } from './tenant.js'
+import { AdminOverview } from './overview.js'
 
-export function SiteAdmin({ title, children }: { title: string, children?: React.ReactNode }) {
+export function SiteAdmin({ title, children }: { title: string; children?: React.ReactNode }) {
 	const navigate = useNavigate()
 	const location = useLocation()
 	const { t } = useTranslation()
 	const [auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 
-	React.useEffect(function onLocationEffect() {
-		setShowFilter(false)
-	}, [location])
+	React.useEffect(
+		function onLocationEffect() {
+			setShowFilter(false)
+		},
+		[location]
+	)
 
-	return <Fcb.Container className="g-1">
-		<Fcb.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-			<ul className="c-nav vertical low">
-				<li><NavLink className="c-nav-link" to="/site-admin/invitations"><IcInvitations/> {t('Invitations')}</NavLink></li>
-			</ul>
-		</Fcb.Filter>
-		<Fcb.Content>
-			<div className="c-nav c-hbox md-hide lg-hide">
-				<IcMenu onClick={() => setShowFilter(true)}/>
-				<h3>{title}</h3>
-			</div>
-			{children}
-		</Fcb.Content>
-	</Fcb.Container>
+	return (
+		<Fcd.Container className="g-1">
+			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+				<ul className="c-nav vertical low">
+					<li>
+						<NavLink
+							className={({ isActive }) =>
+								mergeClasses('c-nav-item', isActive && 'active')
+							}
+							to="/site-admin/invitations"
+						>
+							<IcInvitations /> {t('Invitations')}
+						</NavLink>
+					</li>
+					<li>
+						<NavLink
+							className={({ isActive }) =>
+								mergeClasses('c-nav-item', isActive && 'active')
+							}
+							to="/site-admin/tenants"
+						>
+							<IcTenants /> {t('Tenants')}
+						</NavLink>
+					</li>
+					<li>
+						<NavLink
+							className={({ isActive }) =>
+								mergeClasses('c-nav-item', isActive && 'active')
+							}
+							to="/site-admin/idps"
+						>
+							<IcIdps /> {t('Identity Providers')}
+						</NavLink>
+					</li>
+					<li className="c-divider" />
+					<li>
+						<NavLink
+							className={({ isActive }) =>
+								mergeClasses('c-nav-item', isActive && 'active')
+							}
+							to="/site-admin/server"
+						>
+							<IcServer /> {t('Server & Federation')}
+						</NavLink>
+					</li>
+					<li>
+						<NavLink
+							className={({ isActive }) =>
+								mergeClasses('c-nav-item', isActive && 'active')
+							}
+							to="/site-admin/storage"
+						>
+							<IcStorage /> {t('Storage')}
+						</NavLink>
+					</li>
+					<li>
+						<NavLink
+							className={({ isActive }) =>
+								mergeClasses('c-nav-item', isActive && 'active')
+							}
+							to="/site-admin/email"
+						>
+							<IcMail /> {t('Email')}
+						</NavLink>
+					</li>
+					<li>
+						<NavLink
+							className={({ isActive }) =>
+								mergeClasses('c-nav-item', isActive && 'active')
+							}
+							to="/site-admin/tenant"
+						>
+							<IcTenant /> {t('Tenant Settings')}
+						</NavLink>
+					</li>
+				</ul>
+			</Fcd.Filter>
+			<Fcd.Content>
+				<div className="c-nav c-hbox md-hide lg-hide">
+					<IcMenu onClick={() => setShowFilter(true)} />
+					<h3>{title}</h3>
+				</div>
+				{children}
+			</Fcd.Content>
+		</Fcd.Container>
+	)
 }
 
 export function SiteAdminRoutes() {
 	const { t } = useTranslation()
 
-	return <Routes>
-		<Route path="/site-admin" element={<SiteAdmin title={t('Main')}/>}/>
-		<Route path="/site-admin/invitations" element={
-			<SiteAdmin title={t('Invitations')}><Invitations/></SiteAdmin>
-		}/>
-		<Route path="/*" element={null}/>
-	</Routes>
+	return (
+		<Routes>
+			<Route
+				path="/site-admin"
+				element={
+					<SiteAdmin title={t('Administration')}>
+						<AdminOverview />
+					</SiteAdmin>
+				}
+			/>
+			<Route
+				path="/site-admin/invitations"
+				element={
+					<SiteAdmin title={t('Invitations')}>
+						<Invitations />
+					</SiteAdmin>
+				}
+			/>
+			<Route
+				path="/site-admin/tenants"
+				element={
+					<SiteAdmin title={t('Tenants')}>
+						<Tenants />
+					</SiteAdmin>
+				}
+			/>
+			<Route
+				path="/site-admin/idps"
+				element={
+					<SiteAdmin title={t('Identity Providers')}>
+						<IdpsSettings />
+					</SiteAdmin>
+				}
+			/>
+			<Route
+				path="/site-admin/server"
+				element={
+					<SiteAdmin title={t('Server & Federation')}>
+						<ServerSettings />
+					</SiteAdmin>
+				}
+			/>
+			<Route
+				path="/site-admin/storage"
+				element={
+					<SiteAdmin title={t('Storage')}>
+						<StorageSettings />
+					</SiteAdmin>
+				}
+			/>
+			<Route
+				path="/site-admin/email"
+				element={
+					<SiteAdmin title={t('Email')}>
+						<EmailSettings />
+					</SiteAdmin>
+				}
+			/>
+			<Route
+				path="/site-admin/tenant"
+				element={
+					<SiteAdmin title={t('Tenant Settings')}>
+						<TenantSettings />
+					</SiteAdmin>
+				}
+			/>
+			<Route path="/*" element={null} />
+		</Routes>
+	)
 }
 
 // vim: ts=4

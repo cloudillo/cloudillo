@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { registerActionType, ActionContext, Action, NewAction, createAction } from "../action.js";
+import { registerActionType, ActionContext, Action, NewAction, createAction } from '../action.js'
 import { metaAdapter } from '../../adapters.js'
 
 import * as T from '@symbion/runtype'
@@ -37,7 +37,10 @@ async function inboundHook({ tnId, idTag }: ActionContext, actionId: string, act
 	console.log('POST', action.issuerTag, action.audienceTag, idTag)
 	if (action.issuerTag != idTag && action.audienceTag == idTag) {
 		const issuerProfile = await metaAdapter.readProfile(tnId, action.issuerTag)
-		console.log('ACK?', action.type, issuerProfile?.status, { issuerTag: action.issuerTag, idTag })
+		console.log('ACK?', action.type, issuerProfile?.status, {
+			issuerTag: action.issuerTag,
+			idTag
+		})
 
 		if (!['T', 'A'].includes(issuerProfile?.status as string)) {
 			throw new Error('Unknown issuer')
@@ -55,7 +58,7 @@ export default function init() {
 	registerActionType('POST', {
 		t: tPost,
 		broadcast: true,
-		inboundHook,
+		inboundHook
 	})
 }
 

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { registerActionType, ActionContext, Action, handleInboundActionToken } from "../action.js";
+import { registerActionType, ActionContext, Action, handleInboundActionToken } from '../action.js'
 import { metaAdapter } from '../../adapters.js'
 
 import * as T from '@symbion/runtype'
@@ -48,7 +48,7 @@ export default function init() {
 	registerActionType('ACK', {
 		t: tAck,
 		broadcast: true,
-		inboundHook,
+		inboundHook
 	})
 }
 

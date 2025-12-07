@@ -16,4 +16,4 @@ console.log(passwordData)
 
 console.log('\nsqlite3 data/priv/auth.db')
 console.log(`INSERT INTO users (password, status, userTag, userName, email, tnId)
-	VALUES ('${passwordData}', 'A', '${identityTag}', '${identityTag.split('.')[0]}', '${identityTag.replace(/\./, '@')}', 0);`);
+	VALUES ('${passwordData}', 'A', '${identityTag}', '${identityTag.split('.')[0]}', '${identityTag.replace(/\./, '@')}', 0);`)

@@ -26,12 +26,19 @@ import { MetaAdapter } from '@cloudillo/server/types/meta-adapter'
 export let db: AsyncDatabase
 
 export function ql(v: unknown): string {
-	return v === null || v === undefined ? 'NULL'
-		: v === true ? 'true'
-		: v === false ? 'false'
-		: Array.isArray(v) ? v.map( v => ql(v) ).join(', ') //ql('' + v).replace(/^'(.*)'$/, (match, p1) => `'{${p1}}'`)
-		: typeof v == 'object' ? ql(JSON.stringify(v))
-		: "'" + ('' + v).replace(/'/g, "''") + "'"
+	return v === null || v === undefined
+		? 'NULL'
+		: v === true
+			? 'true'
+			: v === false
+				? 'false'
+				: Array.isArray(v)
+					? v
+							.map((v) => ql(v))
+							.join(', ') //ql('' + v).replace(/^'(.*)'$/, (match, p1) => `'{${p1}}'`)
+					: typeof v == 'object'
+						? ql(JSON.stringify(v))
+						: "'" + ('' + v).replace(/'/g, "''") + "'"
 }
 
 export function cleanRes(res: unknown): unknown {
@@ -54,22 +61,35 @@ export function cleanRes(res: unknown): unknown {
 }
 
 //export async function update<T extends Record<string, unknown>>(table: string, keys: (keyof T & string)[], data: T, returning?: string[]): Promise<T | undefined> {
-export async function update<R extends {} = any, T extends {} = any>(table: string, keys: (keyof T & string)[], data: T, returning?: string | string[]): Promise<R | undefined> {
-	const flds = Object.keys(data).filter(f => !keys.includes(f as keyof T & string) && data[f as keyof T] !== undefined)
-
-	const query = `UPDATE ${table} SET `
-		+ flds.map(f => f + '=' + ql(data[f as keyof T])).join(', ')
-		+ ' WHERE '
-		+ keys.map(f => f + (data[f] === null ? 'ISNULL' : '=' + ql(data[f]))).join(' AND ')
-		+ (returning?.length
-			? ` RETURNING ${Array.isArray(returning) ? returning.map(f => f).join(', ') : returning}`
-			: ''
+export async function update<R extends {} = any, T extends {} = any>(
+	table: string,
+	keys: (keyof T & string)[],
+	data: T,
+	returning?: string | string[]
+): Promise<R | undefined> {
+	const flds = Object.keys(data).filter(
+		(f) => !keys.includes(f as keyof T & string) && data[f as keyof T] !== undefined
 	)
+
+	const query =
+		`UPDATE ${table} SET ` +
+		flds.map((f) => f + '=' + ql(data[f as keyof T])).join(', ') +
+		' WHERE ' +
+		keys.map((f) => f + (data[f] === null ? 'ISNULL' : '=' + ql(data[f]))).join(' AND ') +
+		(returning?.length
+			? ` RETURNING ${Array.isArray(returning) ? returning.map((f) => f).join(', ') : returning}`
+			: '')
 	console.log('Query', query)
 	return db.get<R>(query)
 }
 
-export async function init({ dir, sqliteBusyTimeout }: { dir: string, sqliteBusyTimeout?: number }) {
+export async function init({
+	dir,
+	sqliteBusyTimeout
+}: {
+	dir: string
+	sqliteBusyTimeout?: number
+}) {
 	sqlite.verbose()
 	await fs.mkdir(dir, { recursive: true })
 	console.log('INIT MetaAdapter:', path.join(dir, 'meta.db'))
@@ -110,7 +130,7 @@ export async function init({ dir, sqliteBusyTimeout }: { dir: string, sqliteBusy
 		value text,
 		PRIMARY KEY(tnId, name)
 	)`)
-		
+
 	await db.run(`CREATE TABLE IF NOT EXISTS settings (
 		tnId integer NOT NULL,
 		name text NOT NULL,
@@ -144,7 +164,9 @@ export async function init({ dir, sqliteBusyTimeout }: { dir: string, sqliteBusy
 		eTag text,
 		PRIMARY KEY(tnId, idTag)
 	)`)
-	await db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_tnId_idTag ON profiles(tnId, idTag)')
+	await db.run(
+		'CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_tnId_idTag ON profiles(tnId, idTag)'
+	)
 
 	// Metadata //
 	//////////////
@@ -169,15 +191,17 @@ export async function init({ dir, sqliteBusyTimeout }: { dir: string, sqliteBusy
 		(1, 190, 'doc', 'application/pdf', 'PDF document');
 	*/
 
-	await db.run('CREATE TABLE IF NOT EXISTS tags ('
-		+ 'tnId integer, '
-		+ 'tag text, '
-		+ 'perms json, '
-		//+ 'permRead json, '
-		//+ 'permWrite json, '
-		//+ 'permAdmin json, '
-		+ 'PRIMARY KEY(tnId, tag)'
-	+ ')')
+	await db.run(
+		'CREATE TABLE IF NOT EXISTS tags (' +
+			'tnId integer, ' +
+			'tag text, ' +
+			'perms json, ' +
+			//+ 'permRead json, '
+			//+ 'permWrite json, '
+			//+ 'permAdmin json, '
+			'PRIMARY KEY(tnId, tag)' +
+			')'
+	)
 
 	// Files
 	await db.run(`CREATE TABLE IF NOT EXISTS files (
@@ -208,7 +232,9 @@ export async function init({ dir, sqliteBusyTimeout }: { dir: string, sqliteBusy
 		global boolean,				-- true: stored in global cache
 		PRIMARY KEY(variantId, tnId)
 	)`)
-	await db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_file_variants_fileId ON file_variants(fileId, variant, tnId)')
+	await db.run(
+		'CREATE UNIQUE INDEX IF NOT EXISTS idx_file_variants_fileId ON file_variants(fileId, variant, tnId)'
+	)
 
 	// Refs //
 	//////////
@@ -260,7 +286,9 @@ export async function init({ dir, sqliteBusyTimeout }: { dir: string, sqliteBusy
 		commentsRead integer,
 		PRIMARY KEY(tnId, actionId)
 	)`)
-	await db.run('CREATE INDEX IF NOT EXISTS idx_actions_key ON actions(key, tnId) WHERE key NOT NULL')
+	await db.run(
+		'CREATE INDEX IF NOT EXISTS idx_actions_key ON actions(key, tnId) WHERE key NOT NULL'
+	)
 
 	await db.run(`CREATE TABLE IF NOT EXISTS action_tokens (
 		tnId integer NOT NULL,

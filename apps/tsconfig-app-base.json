@@ -1,13 +1,13 @@
 {
-    "compilerOptions": {
-	"target": "es2021",
-	"module": "esnext",
-	"moduleResolution": "node",
+	"compilerOptions": {
+		"target": "es2021",
+		"module": "esnext",
+		"moduleResolution": "bundler",
 
-	"jsx": "react",
-	"strict": true,
-	"resolveJsonModule": true,
-	"skipLibCheck": true,
-	"allowSyntheticDefaultImports": true
-    }
+		"jsx": "react",
+		"strict": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"allowSyntheticDefaultImports": true
+	}
 }

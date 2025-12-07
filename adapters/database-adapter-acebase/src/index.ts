@@ -22,7 +22,12 @@ import { DatabaseAdapter, ListDataOptions } from '@cloudillo/server/types/databa
 
 let db: AceBase
 
-async function listData(tnId: number, fileId: string, path: string, { filter, tag, preset }: ListDataOptions = {}) {
+async function listData(
+	tnId: number,
+	fileId: string,
+	path: string,
+	{ filter, tag, preset }: ListDataOptions = {}
+) {
 	//const permCond = await getPermCond(auth, 'r')
 
 	const snap = await db.ref(`${tnId}/db/${fileId}/${path}`).get()
@@ -39,14 +44,14 @@ export async function addData(tnId: number, fileId: string, path: string, data: 
 
 async function readData(tnId: number, fileId: string, path: string) {
 	//const permCond = await getPermCond(auth, 'r')
-	
+
 	const snap = await db.ref(`${tnId}/db/${fileId}/${path}`).get()
 	return snap.val()
 }
 
 export async function init({ dir }: { dir: string }): Promise<DatabaseAdapter> {
 	await fs.mkdir(dir, { recursive: true })
-	db = new AceBase('data', { storage: { path: dir }})
+	db = new AceBase('data', { storage: { path: dir } })
 	db.ready(function () {
 		console.log('DB ready')
 	})

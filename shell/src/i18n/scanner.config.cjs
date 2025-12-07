@@ -1,9 +1,7 @@
-const typescriptTransform = require('i18next-scanner-typescript');
+const typescriptTransform = require('i18next-scanner-typescript')
 
 module.exports = {
-	input: [
-		'src/**/*.{ts,tsx}'
-	],
+	input: ['src/**/*.{ts,tsx}', '../libs/react/src/**/*.{ts,tsx}'],
 	options: {
 		//removeUnusedKeys: true,
 		removeUnusedKeys: (lng, ns, key) => (console.log('UNUSED:', lng, ns, key), false),
@@ -11,7 +9,7 @@ module.exports = {
 		keySeparator: '$',
 		nsSeparator: '#',
 		func: {
-			list: ['t'],
+			list: ['t']
 		},
 		resource: {
 			loadPath: 'src/i18n/{{lng}}/{{ns}}.json',
@@ -23,7 +21,7 @@ module.exports = {
 		}
 		//debug: true
 	},
-	transform: typescriptTransform(),
+	transform: typescriptTransform()
 }
 
 // vim: ts=4

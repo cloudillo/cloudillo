@@ -59,8 +59,9 @@ export function useId(prefix = 'cl'): string {
  * Convert size prop to CSS class for buttons
  */
 export function buttonSizeClass(
-	size: 'small' | 'default' | 'large' | undefined
+	size: 'compact' | 'small' | 'default' | 'large' | undefined
 ): string | undefined {
+	if (size === 'compact') return 'compact'
 	if (size === 'small') return 'small'
 	if (size === 'large') return 'large'
 	return undefined

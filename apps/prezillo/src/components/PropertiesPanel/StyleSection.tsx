@@ -93,7 +93,7 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 		<PropertySection title="Style" defaultExpanded>
 			{/* Fill */}
 			<PropertyField label="Fill" labelWidth={40}>
-				<div className="c-hbox g-1" style={{ alignItems: 'center' }}>
+				<div className="c-hbox g-1 items-center">
 					<Toggle
 						checked={hasFill}
 						onChange={(e) => handleFillToggle(e.target.checked)}
@@ -110,7 +110,7 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 
 			{/* Stroke */}
 			<PropertyField label="Stroke" labelWidth={40}>
-				<div className="c-hbox g-1" style={{ alignItems: 'center' }}>
+				<div className="c-hbox g-1 items-center">
 					<Toggle
 						checked={hasStroke}
 						onChange={(e) => handleStrokeToggle(e.target.checked)}
@@ -128,7 +128,7 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 								min={0}
 								max={50}
 								step={1}
-								style={{ width: '50px' }}
+								className="c-stroke-width-input"
 							/>
 						</>
 					)}

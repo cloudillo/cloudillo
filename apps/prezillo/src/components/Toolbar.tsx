@@ -175,10 +175,7 @@ export function Toolbar({
 			</button>
 
 			{/* Snap toggles */}
-			<div
-				className="c-hbox ms-2"
-				style={{ borderLeft: '1px solid var(--c-border)', paddingLeft: '0.5rem' }}
-			>
+			<div className="c-hbox ms-2 c-toolbar-divider">
 				<button
 					onClick={onToggleSnapToGrid}
 					className={mergeClasses('c-button icon', snapToGrid ? 'active' : '')}
@@ -210,10 +207,7 @@ export function Toolbar({
 			</div>
 
 			{/* Panel toggle */}
-			<div
-				className="c-hbox ms-2"
-				style={{ borderLeft: '1px solid var(--c-border)', paddingLeft: '0.5rem' }}
-			>
+			<div className="c-hbox ms-2 c-toolbar-divider">
 				<button
 					onClick={onTogglePanel}
 					className={mergeClasses('c-button icon', isPanelVisible ? 'active' : '')}
@@ -234,10 +228,7 @@ export function Toolbar({
 
 			{hasSelection && (
 				<>
-					<div
-						className="c-hbox ms-2"
-						style={{ borderLeft: '1px solid var(--c-border)', paddingLeft: '0.5rem' }}
-					>
+					<div className="c-hbox ms-2 c-toolbar-divider">
 						<button
 							onClick={onBringToFront}
 							className="c-button icon"
@@ -270,13 +261,7 @@ export function Toolbar({
 
 					{hasTextSelection && (
 						<>
-							<div
-								className="c-hbox ms-2"
-								style={{
-									borderLeft: '1px solid var(--c-border)',
-									paddingLeft: '0.5rem'
-								}}
-							>
+							<div className="c-hbox ms-2 c-toolbar-divider">
 								<button
 									onClick={() => onTextAlignChange?.('left')}
 									className={mergeClasses(
@@ -350,18 +335,11 @@ export function Toolbar({
 									<IcAlignBottom />
 								</button>
 							</div>
-							<div
-								className="c-hbox ms-2"
-								style={{
-									borderLeft: '1px solid var(--c-border)',
-									paddingLeft: '0.5rem'
-								}}
-							>
+							<div className="c-hbox ms-2 c-toolbar-divider">
 								<select
 									value={selectedFontSize || 16}
 									onChange={(e) => onFontSizeChange?.(Number(e.target.value))}
-									className="c-input"
-									style={{ width: '60px', padding: '2px 4px', fontSize: '12px' }}
+									className="c-input c-font-size-select"
 									title="Font size"
 								>
 									{FONT_SIZES.map((size) => (

@@ -219,28 +219,11 @@ export function PresentationMode({ doc, views, initialViewId, onExit }: Presenta
 	const viewAspect = currentView.width / currentView.height
 
 	return (
-		<div
-			ref={containerRef}
-			onClick={handleClick}
-			style={{
-				position: 'fixed',
-				top: 0,
-				left: 0,
-				width: '100vw',
-				height: '100vh',
-				backgroundColor: '#000',
-				zIndex: 9999,
-				cursor: 'none',
-				display: 'flex',
-				alignItems: 'center',
-				justifyContent: 'center'
-			}}
-		>
+		<div ref={containerRef} onClick={handleClick} className="c-presentation-container">
 			<svg
 				viewBox={`${currentView.x} ${currentView.y} ${currentView.width} ${currentView.height}`}
+				className="c-presentation-svg"
 				style={{
-					width: '100%',
-					height: '100%',
 					maxWidth: `calc(100vh * ${viewAspect})`,
 					maxHeight: `calc(100vw / ${viewAspect})`,
 					backgroundColor: currentView.backgroundColor || '#ffffff'
@@ -267,16 +250,7 @@ export function PresentationMode({ doc, views, initialViewId, onExit }: Presenta
 			</svg>
 
 			{/* Slide counter */}
-			<div
-				style={{
-					position: 'absolute',
-					bottom: 20,
-					right: 20,
-					color: 'rgba(255,255,255,0.5)',
-					fontSize: 14,
-					fontFamily: 'system-ui'
-				}}
-			>
+			<div className="c-presentation-counter">
 				{currentIndex + 1} / {views.length}
 			</div>
 
@@ -286,20 +260,7 @@ export function PresentationMode({ doc, views, initialViewId, onExit }: Presenta
 					e.stopPropagation()
 					onExit()
 				}}
-				style={{
-					position: 'absolute',
-					top: 20,
-					right: 20,
-					background: 'rgba(255,255,255,0.1)',
-					border: 'none',
-					borderRadius: 4,
-					padding: '8px 12px',
-					color: 'rgba(255,255,255,0.7)',
-					cursor: 'pointer',
-					display: 'flex',
-					alignItems: 'center',
-					gap: 8
-				}}
+				className="c-presentation-exit"
 				title="Exit presentation (Esc)"
 			>
 				<IcClose />

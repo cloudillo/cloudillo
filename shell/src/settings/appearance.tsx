@@ -83,8 +83,8 @@ export function AppearanceSettings() {
 	return (
 		<>
 			<div className="c-panel">
-				<label className="c-hbox pb-2">
-					<span className="flex-fill">{t('Theme')}</span>
+				<label className="c-settings-field">
+					<span>{t('Theme')}</span>
 					<select
 						className="c-select"
 						name="ui.theme"
@@ -95,8 +95,8 @@ export function AppearanceSettings() {
 						<option value="opaque">{t('Opaque')}</option>
 					</select>
 				</label>
-				<label className="c-hbox pb-2">
-					<span className="flex-fill">{t('Theme')}</span>
+				<label className="c-settings-field">
+					<span>{t('Colors')}</span>
 					<select
 						className="c-select"
 						name="ui.colors"

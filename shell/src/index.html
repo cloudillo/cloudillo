@@ -11,16 +11,13 @@
 		<link rel="stylesheet" href="/assets-@VERSION@/index.css" />
 		<link rel="icon" type="image/svg+xml" href="https://cloudillo.org/favicon.svg" />
 		<style>
-			/*
-			body.light, body { background: url("/bg.jpg"); }
-			body.dark { background: url("/bg-dark.jpg"); }
-			*/
-			body.light,
-			body {
-				background: var(--col-surface) !important;
+			/* Only apply solid background for opaque theme, let glass theme use its gradient */
+			body.theme-opaque.light,
+			body.theme-opaque {
+				background: var(--col-surface);
 			}
-			body.dark {
-				background: var(--col-surface) !important;
+			body.theme-opaque.dark {
+				background: var(--col-surface);
 			}
 		</style>
 	</head>

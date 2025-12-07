@@ -71,6 +71,9 @@ import { InlineEditFormStory } from './inline-edit.story.js'
 import { FilterBarStory } from './filter-bar.story.js'
 import { EmptyStateStory } from './empty-state.story.js'
 
+// Design system documentation
+import { TokensStory, ColorsStory } from './tokens.story.js'
+
 ///////////////
 // StoryBook //
 ///////////////
@@ -87,6 +90,9 @@ function Contents() {
 				<p>Navigate through the components using the menu on the left.</p>
 				<h3>Component Categories</h3>
 				<ul>
+					<li>
+						<strong>Design System:</strong> Design Tokens, Color System
+					</li>
 					<li>
 						<strong>Layout:</strong> Box (HBox, VBox, Group), Panel, Container, Fcd,
 						Modal, Sidebar
@@ -105,13 +111,17 @@ function Contents() {
 						<strong>Feedback:</strong> Toast, Dialog, LoadingSpinner, Skeleton
 					</li>
 					<li>
-						<strong>Buttons:</strong> Button, LinkButton, IconButton, Popper
+						<strong>Buttons:</strong> Button, LinkButton, Popper
 					</li>
 					<li>
 						<strong>Profile:</strong> ProfilePicture, ProfileCard, IdentityTag
 					</li>
 				</ul>
 			</Story>
+
+			{/* Design System Documentation */}
+			<TokensStory />
+			<ColorsStory />
 
 			{/* Layout Components */}
 			<BoxStory />

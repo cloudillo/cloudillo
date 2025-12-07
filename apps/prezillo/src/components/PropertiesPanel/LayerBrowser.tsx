@@ -417,8 +417,7 @@ export function LayerBrowser({
 					<>
 						<button
 							type="button"
-							className="c-button icon"
-							style={{ padding: '2px', minWidth: 'auto' }}
+							className="c-button icon compact"
 							onClick={(e) =>
 								handleToggleContainerVisibility(e, containerId as ContainerId)
 							}
@@ -428,8 +427,7 @@ export function LayerBrowser({
 						</button>
 						<button
 							type="button"
-							className="c-button icon"
-							style={{ padding: '2px', minWidth: 'auto' }}
+							className="c-button icon compact"
 							onClick={(e) =>
 								handleToggleContainerLock(e, containerId as ContainerId)
 							}
@@ -492,8 +490,7 @@ export function LayerBrowser({
 					<>
 						<button
 							type="button"
-							className="c-button icon"
-							style={{ padding: '2px', minWidth: 'auto' }}
+							className="c-button icon compact"
 							onClick={(e) => handleToggleObjectVisibility(e, objectId as ObjectId)}
 							title={isVisible ? 'Hide' : 'Show'}
 						>
@@ -501,8 +498,7 @@ export function LayerBrowser({
 						</button>
 						<button
 							type="button"
-							className="c-button icon"
-							style={{ padding: '2px', minWidth: 'auto' }}
+							className="c-button icon compact"
 							onClick={(e) => handleToggleObjectLock(e, objectId as ObjectId)}
 							title={isLocked ? 'Unlock' : 'Lock'}
 						>
@@ -516,7 +512,7 @@ export function LayerBrowser({
 
 	return (
 		<div className="c-vbox g-1">
-			<div className="c-hbox" style={{ justifyContent: 'flex-end', marginBottom: '4px' }}>
+			<div className="c-layer-controls">
 				<button
 					type="button"
 					className="c-button icon sm"
@@ -534,11 +530,7 @@ export function LayerBrowser({
 						return renderContainer(item.id, 0, undefined)
 					}
 				})}
-				{rootItems.length === 0 && (
-					<div style={{ fontSize: '11px', opacity: 0.5, padding: '8px 0' }}>
-						No objects
-					</div>
-				)}
+				{rootItems.length === 0 && <div className="c-empty-message">No objects</div>}
 			</TreeView>
 		</div>
 	)

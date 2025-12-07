@@ -56,7 +56,7 @@ export function ShapeSection({ doc, yDoc, object }: ShapeSectionProps) {
 					onChange={handleCornerRadiusChange}
 					min={0}
 					step={1}
-					style={{ width: '100%' }}
+					className="c-input--full"
 				/>
 			</PropertyField>
 		</PropertySection>

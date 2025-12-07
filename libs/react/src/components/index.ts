@@ -45,8 +45,8 @@ export { HBox, VBox, Group } from './Box/index.js'
 export type { HBoxProps, VBoxProps, GroupProps } from './Box/index.js'
 
 // Button Components
-export { Button, LinkButton, IconButton } from './Button/index.js'
-export type { ButtonProps, LinkButtonProps, IconButtonProps } from './Button/index.js'
+export { Button, LinkButton } from './Button/index.js'
+export type { ButtonProps, LinkButtonProps } from './Button/index.js'
 
 // Dropdown Component
 export { Dropdown } from './Dropdown/index.js'
@@ -74,6 +74,10 @@ export type { NavProps, NavGroupProps, NavItemProps, NavLinkProps } from './Nav/
 // Panel Component
 export { Panel } from './Panel/index.js'
 export type { PanelProps } from './Panel/index.js'
+
+// Card Component
+export { Card } from './Card/index.js'
+export type { CardProps } from './Card/index.js'
 
 // Progress Component
 export { Progress } from './Progress/index.js'

@@ -33,7 +33,7 @@ export type Elevation = 'low' | 'mid' | 'high'
 export type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 
 // Button size variants
-export type ButtonSize = 'small' | 'default' | 'large'
+export type ButtonSize = 'compact' | 'small' | 'default' | 'large'
 
 // Position variants for positioned elements
 export type VerticalPosition = 'top' | 'middle' | 'bottom'

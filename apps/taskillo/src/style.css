@@ -1,8 +1,8 @@
-/* Taskillo App Styles */
+/* Taskillo App Styles - Using OpalUI --col-* variables */
 
 .taskillo-app {
 	padding: 1rem;
-	background: var(--c-bg-primary);
+	background: var(--col-container-low);
 }
 
 /* Task Item */
@@ -11,15 +11,15 @@
 	align-items: center;
 	padding: 0.75rem;
 	margin-bottom: 0.5rem;
-	border-radius: var(--c-border-radius);
-	background: var(--c-bg-secondary);
-	border: 1px solid var(--c-border-color);
+	border-radius: var(--radius-sm);
+	background: var(--col-container);
+	border: 1px solid var(--col-outline);
 	transition: all 0.2s ease;
 }
 
 .task-item:hover {
-	background: var(--c-bg-hover);
-	box-shadow: var(--c-shadow-sm);
+	background: var(--col-container-high);
+	box-shadow: var(--shadow-sm);
 }
 
 .task-item.completed {
@@ -28,7 +28,7 @@
 
 .task-item.completed .task-title {
 	text-decoration: line-through;
-	color: var(--c-text-secondary);
+	color: var(--col-on-surface);
 }
 
 .task-checkbox {
@@ -45,38 +45,38 @@
 }
 
 .task-priority.low {
-	background: var(--c-success);
+	background: var(--col-success);
 }
 
 .task-priority.medium {
-	background: var(--c-warning);
+	background: var(--col-warning);
 }
 
 .task-priority.high {
-	background: var(--c-error);
+	background: var(--col-error);
 }
 
 .task-priority.critical {
-	background: var(--c-error);
-	box-shadow: 0 0 8px var(--c-error);
+	background: var(--col-error);
+	box-shadow: 0 0 8px var(--col-error);
 }
 
 .task-title {
 	flex: 1;
 	font-size: 1rem;
-	color: var(--c-text-primary);
+	color: var(--col-on-container);
 	margin: 0 0.5rem;
 }
 
 .task-due-date {
 	font-size: 0.875rem;
-	color: var(--c-text-secondary);
+	color: var(--col-on-surface);
 	margin-left: 0.5rem;
 	white-space: nowrap;
 }
 
 .task-due-date.overdue {
-	color: var(--c-error);
+	color: var(--col-error);
 	font-weight: bold;
 }
 
@@ -99,22 +99,22 @@
 
 .filter-button {
 	padding: 0.5rem 1rem;
-	border-radius: var(--c-border-radius);
-	border: 1px solid var(--c-border-color);
-	background: var(--c-bg-secondary);
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--col-outline);
+	background: var(--col-container);
 	cursor: pointer;
 	transition: all 0.2s ease;
 	font-size: 0.9rem;
 }
 
 .filter-button:hover {
-	background: var(--c-bg-hover);
+	background: var(--col-container-high);
 }
 
 .filter-button.active {
-	background: var(--c-primary);
-	color: white;
-	border-color: var(--c-primary);
+	background: var(--col-primary);
+	color: var(--col-on-primary);
+	border-color: var(--col-primary);
 }
 
 /* Task Input */
@@ -133,11 +133,11 @@
 	border: none;
 	background: transparent;
 	font-size: 1rem;
-	color: var(--c-text-primary);
+	color: var(--col-on-container);
 }
 
 .task-input::placeholder {
-	color: var(--c-text-secondary);
+	color: var(--col-on-surface);
 }
 
 .task-input:focus {
@@ -155,7 +155,7 @@
 .header-title {
 	font-size: 1.5rem;
 	font-weight: 600;
-	color: var(--c-text-primary);
+	color: var(--col-on-container);
 	margin: 0;
 }
 
@@ -163,7 +163,7 @@
 	display: flex;
 	gap: 1rem;
 	font-size: 0.9rem;
-	color: var(--c-text-secondary);
+	color: var(--col-on-surface);
 }
 
 .connection-status {
@@ -171,19 +171,19 @@
 	align-items: center;
 	gap: 0.5rem;
 	padding: 0.5rem 1rem;
-	border-radius: var(--c-border-radius);
+	border-radius: var(--radius-sm);
 	font-size: 0.9rem;
 	margin-left: auto;
 }
 
 .connection-status.connected {
-	background: rgba(76, 175, 80, 0.1);
-	color: var(--c-success);
+	background: var(--col-container-success);
+	color: var(--col-on-container-success);
 }
 
 .connection-status.disconnected {
-	background: rgba(244, 67, 54, 0.1);
-	color: var(--c-error);
+	background: var(--col-container-error);
+	color: var(--col-on-container-error);
 }
 
 .status-indicator {
@@ -194,11 +194,11 @@
 }
 
 .connection-status.connected .status-indicator {
-	background: var(--c-success);
+	background: var(--col-success);
 }
 
 .connection-status.disconnected .status-indicator {
-	background: var(--c-error);
+	background: var(--col-error);
 }
 
 @keyframes pulse {
@@ -215,28 +215,28 @@
 .search-input {
 	flex: 1;
 	padding: 0.5rem;
-	border: 1px solid var(--c-border-color);
-	border-radius: var(--c-border-radius);
-	background: var(--c-bg-secondary);
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-sm);
+	background: var(--col-container);
 	font-size: 0.95rem;
-	color: var(--c-text-primary);
+	color: var(--col-on-container);
 }
 
 .search-input::placeholder {
-	color: var(--c-text-secondary);
+	color: var(--col-on-surface);
 }
 
 .search-input:focus {
 	outline: none;
-	border-color: var(--c-primary);
-	box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+	border-color: var(--col-primary);
+	box-shadow: 0 0 0 2px var(--col-container-primary);
 }
 
 /* Empty State */
 .empty-state {
 	text-align: center;
 	padding: 3rem 1rem;
-	color: var(--c-text-secondary);
+	color: var(--col-on-surface);
 }
 
 .empty-state-icon {
@@ -274,14 +274,14 @@
 /* Error Alert */
 .c-alert {
 	padding: 1rem;
-	border-radius: var(--c-border-radius);
+	border-radius: var(--radius-sm);
 	margin-bottom: 1rem;
 }
 
 .c-alert.error {
-	background: rgba(244, 67, 54, 0.1);
-	border: 1px solid var(--c-error);
-	color: var(--c-error);
+	background: var(--col-container-error);
+	border: 1px solid var(--col-error);
+	color: var(--col-on-container-error);
 }
 
 .c-alert h3 {

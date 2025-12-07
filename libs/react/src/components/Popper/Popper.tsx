@@ -17,16 +17,29 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { usePopper } from 'react-popper'
+import { mergeClasses } from '../utils.js'
+import type { Elevation } from '../types.js'
 
 export interface PopperProps {
 	className?: string
 	menuClassName?: string
+	contentClassName?: string
+	elevation?: Elevation
 	icon?: React.ReactNode
 	label?: React.ReactNode
 	children?: React.ReactNode
 }
 
-export function Popper({ className, menuClassName, icon, label, children, ...props }: PopperProps) {
+export function Popper({
+	className,
+	menuClassName,
+	contentClassName,
+	elevation = 'high',
+	icon,
+	label,
+	children,
+	...props
+}: PopperProps) {
 	const [popperRef, setPopperRef] = React.useState<HTMLElement | null>(null)
 	const [popperEl, setPopperEl] = React.useState<HTMLElement | null>(null)
 	const [isOpen, setIsOpen] = React.useState(false)
@@ -70,6 +83,7 @@ export function Popper({ className, menuClassName, icon, label, children, ...pro
 				createPortal(
 					<div
 						ref={setPopperEl}
+						className={mergeClasses('c-popper', elevation, contentClassName)}
 						style={popperStyles.popper}
 						onClick={(evt) => setIsOpen(false)}
 						{...attributes.popper}

@@ -532,16 +532,16 @@ function Post({ className, action, setAction, hideAudience, srcTag, width }: Pos
 						)}
 					</Link>
 					<div className="c-hbox ms-auto g-3">
-						<button
-							className="c-link"
+						<Button
+							link
 							disabled={process.env.NODE_ENV == 'production'}
 							onClick={() => console.log('share')}
 						>
 							<IcRepost />
-						</button>
-						<button className="c-link" onClick={() => console.log('more')}>
+						</Button>
+						<Button link onClick={() => console.log('more')}>
 							<IcMore />
-						</button>
+						</Button>
 					</div>
 				</div>
 				<div className="d-flex flex-column">
@@ -681,9 +681,9 @@ const visibilityOptions: {
 	icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
 	color: string
 }[] = [
-	{ value: 'F', labelKey: 'Followers', icon: IcUserCheck, color: 'var(--c-primary, #6366f1)' },
-	{ value: 'C', labelKey: 'Connected', icon: IcUsers, color: 'var(--c-warning, #f59e0b)' },
-	{ value: 'P', labelKey: 'Public', icon: IcGlobe, color: 'var(--c-success, #22c55e)' }
+	{ value: 'F', labelKey: 'Followers', icon: IcUserCheck, color: 'var(--col-primary)' },
+	{ value: 'C', labelKey: 'Connected', icon: IcUsers, color: 'var(--col-warning)' },
+	{ value: 'P', labelKey: 'Public', icon: IcGlobe, color: 'var(--col-success)' }
 ]
 
 interface VisibilitySelectorProps {
@@ -710,13 +710,14 @@ const VisibilitySelector = React.memo(function VisibilitySelector({
 					const isActive = value === opt.value
 					return (
 						<li key={opt.value}>
-							<button
-								className={mergeClasses('c-nav-item', isActive && 'active')}
+							<Button
+								navItem
+								className={mergeClasses(isActive && 'active')}
 								onClick={() => onChange(opt.value)}
 							>
 								<OptIcon style={{ color: opt.color }} />
 								{t(opt.labelKey)}
-							</button>
+							</Button>
 						</li>
 					)
 				})}
@@ -872,7 +873,7 @@ export const NewPost = React.memo(
 								style={{
 									height: '0.5rem',
 									borderRadius: '0.25rem',
-									background: 'var(--c-bg-secondary)'
+									background: 'var(--col-container)'
 								}}
 							>
 								<div
@@ -881,7 +882,7 @@ export const NewPost = React.memo(
 										width: `${imageUpload.uploadProgress}%`,
 										height: '100%',
 										borderRadius: '0.25rem',
-										background: 'var(--c-primary)',
+										background: 'var(--col-primary)',
 										transition: 'width 0.2s ease'
 									}}
 								/>
@@ -891,22 +892,22 @@ export const NewPost = React.memo(
 					)}
 					<hr className="w-100" />
 					<div className="c-hbox g-3">
-						<button
-							className="c-link"
+						<Button
+							link
 							disabled={process.env.NODE_ENV == 'production'}
 							onClick={() => setType('POLL')}
 						>
 							<IcPoll />
 							Poll
-						</button>
-						<button
-							className="c-link"
+						</Button>
+						<Button
+							link
 							disabled={process.env.NODE_ENV == 'production'}
 							onClick={() => setType('EVENT')}
 						>
 							<IcEvent />
 							Event
-						</button>
+						</Button>
 						<div className="c-hbox ms-auto">
 							<label
 								htmlFor={

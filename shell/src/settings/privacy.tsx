@@ -32,8 +32,8 @@ export function PrivacySettings() {
 		<>
 			<div className="c-panel">
 				<h4 className="pb-2">{t('Post visibility')}</h4>
-				<label className="c-hbox pb-2">
-					<span className="flex-fill">{t('Default visibility for new posts')}</span>
+				<label className="c-settings-field">
+					<span>{t('Default visibility for new posts')}</span>
 					<select
 						className="c-select"
 						name="privacy.default_visibility"
@@ -52,8 +52,8 @@ export function PrivacySettings() {
 
 			<div className="c-panel">
 				<h4 className="pb-2">{t('Followers')}</h4>
-				<label className="c-hbox pb-2">
-					<span className="flex-fill">{t('Allow others to follow you')}</span>
+				<label className="c-settings-field">
+					<span>{t('Allow others to follow you')}</span>
 					<input
 						className="c-toggle primary"
 						name="privacy.allow_followers"

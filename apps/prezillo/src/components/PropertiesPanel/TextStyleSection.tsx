@@ -76,7 +76,7 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 				<NativeSelect
 					value={resolvedStyle.fontSize}
 					onChange={handleFontSizeChange}
-					style={{ width: '100%' }}
+					className="c-input--full"
 				>
 					{FONT_SIZES.map((size) => (
 						<option key={size} value={size}>
@@ -91,45 +91,41 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 				<div className="c-hbox">
 					<button
 						className={mergeClasses(
-							'c-button icon',
+							'c-button icon compact',
 							resolvedStyle.textAlign === 'left' ? 'active' : ''
 						)}
 						onClick={() => handleTextAlignChange('left')}
 						title="Align left"
-						style={{ padding: '4px' }}
 					>
 						<IcAlignLeft size={14} />
 					</button>
 					<button
 						className={mergeClasses(
-							'c-button icon',
+							'c-button icon compact',
 							resolvedStyle.textAlign === 'center' ? 'active' : ''
 						)}
 						onClick={() => handleTextAlignChange('center')}
 						title="Align center"
-						style={{ padding: '4px' }}
 					>
 						<IcAlignCenter size={14} />
 					</button>
 					<button
 						className={mergeClasses(
-							'c-button icon',
+							'c-button icon compact',
 							resolvedStyle.textAlign === 'right' ? 'active' : ''
 						)}
 						onClick={() => handleTextAlignChange('right')}
 						title="Align right"
-						style={{ padding: '4px' }}
 					>
 						<IcAlignRight size={14} />
 					</button>
 					<button
 						className={mergeClasses(
-							'c-button icon',
+							'c-button icon compact',
 							resolvedStyle.textAlign === 'justify' ? 'active' : ''
 						)}
 						onClick={() => handleTextAlignChange('justify')}
 						title="Justify"
-						style={{ padding: '4px' }}
 					>
 						<IcAlignJustify size={14} />
 					</button>
@@ -141,34 +137,31 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 				<div className="c-hbox">
 					<button
 						className={mergeClasses(
-							'c-button icon',
+							'c-button icon compact',
 							resolvedStyle.verticalAlign === 'top' ? 'active' : ''
 						)}
 						onClick={() => handleVerticalAlignChange('top')}
 						title="Align top"
-						style={{ padding: '4px' }}
 					>
 						<IcAlignTop size={14} />
 					</button>
 					<button
 						className={mergeClasses(
-							'c-button icon',
+							'c-button icon compact',
 							resolvedStyle.verticalAlign === 'middle' ? 'active' : ''
 						)}
 						onClick={() => handleVerticalAlignChange('middle')}
 						title="Align middle"
-						style={{ padding: '4px' }}
 					>
 						<IcAlignMiddle size={14} />
 					</button>
 					<button
 						className={mergeClasses(
-							'c-button icon',
+							'c-button icon compact',
 							resolvedStyle.verticalAlign === 'bottom' ? 'active' : ''
 						)}
 						onClick={() => handleVerticalAlignChange('bottom')}
 						title="Align bottom"
-						style={{ padding: '4px' }}
 					>
 						<IcAlignBottom size={14} />
 					</button>

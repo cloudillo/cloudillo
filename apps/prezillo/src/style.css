@@ -1,3 +1,5 @@
+/* Prezillo App Styles - Using OpalUI --col-* variables */
+
 html,
 body,
 #app {
@@ -10,9 +12,9 @@ body,
 }
 
 .c-property-section {
-	border-bottom: 1px solid var(--c-border);
-	padding-bottom: 8px;
-	margin-bottom: 8px;
+	border-bottom: 1px solid var(--col-outline);
+	padding-bottom: var(--space-2);
+	margin-bottom: var(--space-2);
 }
 
 .c-property-section:last-child {
@@ -23,8 +25,8 @@ body,
 .c-property-section-header {
 	display: flex;
 	align-items: center;
-	gap: 4px;
-	padding: 4px 0;
+	gap: var(--space-1);
+	padding: var(--space-1) 0;
 	background: none;
 	border: none;
 	cursor: pointer;
@@ -40,7 +42,7 @@ body,
 }
 
 .c-property-section-content {
-	padding-top: 4px;
+	padding-top: var(--space-1);
 }
 
 .c-property-field {
@@ -59,7 +61,7 @@ body,
 
 .c-property-field-control .c-input,
 .c-property-field-control .c-select {
-	padding: 2px 4px;
+	padding: var(--space-1);
 	font-size: 11px;
 }
 
@@ -71,7 +73,7 @@ body,
 .c-number-input .c-input {
 	flex: 1;
 	min-width: 0;
-	padding: 2px 4px;
+	padding: var(--space-1);
 	font-size: 11px;
 }
 
@@ -99,8 +101,8 @@ body,
 }
 
 .c-number-input-suffix {
-	margin-left: 2px;
-	opacity: 0.6;
+	margin-left: var(--space-1);
+	color: var(--col-txt-secondary);
 	font-size: 10px;
 }
 
@@ -113,14 +115,14 @@ body,
 	width: 24px;
 	height: 24px;
 	padding: 0;
-	border: 1px solid var(--c-border);
-	border-radius: 4px;
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-sm);
 	cursor: pointer;
 }
 
 .c-color-input-hex {
 	width: 70px;
-	padding: 2px 4px;
+	padding: var(--space-1);
 	font-size: 11px;
 	font-family: monospace;
 }
@@ -137,18 +139,18 @@ body,
 .c-tree-item-row {
 	display: flex;
 	align-items: center;
-	padding: 2px 4px;
+	padding: var(--space-1);
 	cursor: pointer;
-	border-radius: 4px;
-	gap: 4px;
+	border-radius: var(--radius-sm);
+	gap: var(--space-1);
 }
 
 .c-tree-item-row:hover {
-	background: var(--c-hover-bg, rgba(0, 0, 0, 0.05));
+	background: var(--col-container-high);
 }
 
 .c-tree-item.selected > .c-tree-item-row {
-	background: var(--c-primary-bg, rgba(0, 102, 255, 0.1));
+	background: var(--col-container-primary);
 }
 
 .c-tree-item.dragging {
@@ -156,23 +158,23 @@ body,
 }
 
 .c-tree-item.drop-target > .c-tree-item-row {
-	outline: 2px dashed var(--c-primary);
+	outline: 2px dashed var(--col-primary);
 }
 
 /* Drop position indicators */
 .c-tree-item.drop-before > .c-tree-item-row {
 	outline: none;
-	border-top: 2px solid var(--c-primary, #0066ff);
+	border-top: 2px solid var(--col-primary);
 }
 
 .c-tree-item.drop-after > .c-tree-item-row {
 	outline: none;
-	border-bottom: 2px solid var(--c-primary, #0066ff);
+	border-bottom: 2px solid var(--col-primary);
 }
 
 .c-tree-item.drop-inside > .c-tree-item-row {
-	background: var(--c-primary-bg, rgba(0, 102, 255, 0.15));
-	outline: 2px dashed var(--c-primary, #0066ff);
+	background: var(--col-container-primary);
+	outline: 2px dashed var(--col-primary);
 }
 
 .c-tree-item-toggle {
@@ -198,7 +200,7 @@ body,
 
 .c-tree-item-actions {
 	display: flex;
-	gap: 2px;
+	gap: var(--space-1);
 	opacity: 0;
 }
 
@@ -207,6 +209,140 @@ body,
 }
 
 .c-tree-item-actions .c-button {
-	padding: 2px !important;
+	padding: var(--space-1) !important;
 	min-width: auto !important;
+}
+
+/* Panel Headings - section titles like "Layers", "Properties" */
+.c-panel-heading {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	color: var(--col-txt-secondary);
+	padding: var(--space-2);
+}
+
+/* Panel section with border */
+.c-panel-section {
+	flex: 0 0 auto;
+	overflow: auto;
+	border-bottom: 1px solid var(--col-outline);
+}
+
+.c-panel-section--layers {
+	max-height: 40%;
+}
+
+/* Empty state / placeholder messages */
+.c-empty-message {
+	font-size: 12px;
+	color: var(--col-txt-secondary);
+	text-align: center;
+	padding: var(--space-3) 0;
+}
+
+/* Toolbar divider */
+.c-toolbar-divider {
+	border-left: 1px solid var(--col-outline);
+	padding-left: var(--space-2);
+}
+
+/* Toolbar buttons: link style with small size (32px) */
+.c-nav .c-button {
+	--btn-height: var(--size-sm);
+	background: none;
+	box-shadow: none;
+	color: var(--col-secondary);
+}
+
+.c-nav .c-button:hover:not([disabled]):not(.active) {
+	transform: none;
+	background: var(--col-container-low);
+	box-shadow: none;
+}
+
+.c-nav .c-button.active {
+	color: var(--col-primary);
+	background: var(--col-container-primary);
+}
+
+/* Full-width input */
+.c-input--full {
+	width: 100%;
+}
+
+/* Layer browser controls container */
+.c-layer-controls {
+	display: flex;
+	justify-content: flex-end;
+	margin-bottom: var(--space-1);
+}
+
+/* Font size select in toolbar */
+.c-font-size-select {
+	width: 60px;
+	padding: var(--space-1);
+	font-size: 12px;
+}
+
+/* Stroke width input - fixed narrow width */
+.c-stroke-width-input {
+	width: 50px;
+}
+
+/* View picker */
+.c-view-picker-tabs {
+	overflow-x: auto;
+}
+
+.c-view-picker-tab {
+	min-width: 60px;
+}
+
+/* Presentation mode */
+.c-presentation-container {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100vw;
+	height: 100vh;
+	background-color: #000;
+	z-index: 9999;
+	cursor: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.c-presentation-svg {
+	width: 100%;
+	height: 100%;
+}
+
+.c-presentation-counter {
+	position: absolute;
+	bottom: 20px;
+	right: 20px;
+	color: rgba(255, 255, 255, 0.5);
+	font-size: 14px;
+	font-family: system-ui;
+}
+
+.c-presentation-exit {
+	position: absolute;
+	top: 20px;
+	right: 20px;
+	background: rgba(255, 255, 255, 0.1);
+	border: none;
+	border-radius: var(--radius-sm);
+	padding: var(--space-2) var(--space-3);
+	color: rgba(255, 255, 255, 0.7);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.c-presentation-exit:hover {
+	background: rgba(255, 255, 255, 0.2);
 }

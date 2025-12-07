@@ -54,56 +54,32 @@ export function PrezilloPropertiesPanel({
 	return (
 		<PropertyPanel width={280}>
 			{/* Layer Browser - top section */}
-			<div
-				className="p-2"
-				style={{
-					flex: '0 0 auto',
-					maxHeight: '40%',
-					overflow: 'auto',
-					borderBottom: '1px solid var(--c-border)'
-				}}
-			>
-				<h4
-					className="m-0 mb-2"
-					style={{
-						fontSize: '11px',
-						fontWeight: 600,
-						opacity: 0.6,
-						textTransform: 'uppercase'
-					}}
-				>
-					Layers
-				</h4>
-				<LayerBrowser
-					doc={doc}
-					yDoc={yDoc}
-					selectedIds={selectedIds}
-					onSelectObject={onSelectObject}
-					activeViewId={activeViewId}
-					selectedContainerId={selectedContainerId}
-					onSelectContainer={onSelectContainer}
-				/>
+			<div className="c-panel-section c-panel-section--layers">
+				<h4 className="c-panel-heading m-0">Layers</h4>
+				<div className="p-2 pt-0">
+					<LayerBrowser
+						doc={doc}
+						yDoc={yDoc}
+						selectedIds={selectedIds}
+						onSelectObject={onSelectObject}
+						activeViewId={activeViewId}
+						selectedContainerId={selectedContainerId}
+						onSelectContainer={onSelectContainer}
+					/>
+				</div>
 			</div>
 
 			{/* Property Editor - bottom section */}
-			<div className="p-2 flex-fill" style={{ overflow: 'auto' }}>
-				<h4
-					className="m-0 mb-2"
-					style={{
-						fontSize: '11px',
-						fontWeight: 600,
-						opacity: 0.6,
-						textTransform: 'uppercase'
-					}}
-				>
-					Properties
-				</h4>
-				<PropertyEditor
-					doc={doc}
-					yDoc={yDoc}
-					selectedIds={selectedIds}
-					onPreview={onPreview}
-				/>
+			<div className="c-panel-section flex-fill">
+				<h4 className="c-panel-heading m-0">Properties</h4>
+				<div className="p-2 pt-0">
+					<PropertyEditor
+						doc={doc}
+						yDoc={yDoc}
+						selectedIds={selectedIds}
+						onPreview={onPreview}
+					/>
+				</div>
 			</div>
 		</PropertyPanel>
 	)

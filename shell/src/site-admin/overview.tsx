@@ -34,7 +34,7 @@ import {
 	LuChevronRight as IcArrow
 } from 'react-icons/lu'
 
-import { useAuth, useApi, Button } from '@cloudillo/react'
+import { useAuth, useApi, Button, Card } from '@cloudillo/react'
 import { TenantView } from '@cloudillo/base'
 
 import { useSettings } from '../settings/settings.js'
@@ -107,7 +107,10 @@ export function AdminOverview() {
 		<>
 			{/* Critical Setup Warnings - only show after settings are loaded */}
 			{emailSettingsLoaded && !emailConfigured && (
-				<div className="c-panel" style={{ borderLeft: '4px solid var(--c-warning)' }}>
+				<div
+					className="c-panel animate-fade-slide-up"
+					style={{ borderLeft: '4px solid var(--col-warning)' }}
+				>
 					<div className="c-hbox py-2">
 						<IcWarning className="mr-3 text-warning" size={24} />
 						<div className="flex-fill">
@@ -124,7 +127,7 @@ export function AdminOverview() {
 			)}
 
 			{/* Stats Overview */}
-			<div className="c-panel">
+			<div className="c-panel animate-fade-slide-up stagger-1">
 				<h4 className="pb-3">{t('Overview')}</h4>
 
 				<div
@@ -135,7 +138,7 @@ export function AdminOverview() {
 					}}
 				>
 					{/* Profiles card with breakdown */}
-					<div className="c-panel p-3 text-center">
+					<Card className="text-center">
 						<div className="mb-1">
 							<IcUsers size={20} className="text-muted" />
 						</div>
@@ -158,7 +161,7 @@ export function AdminOverview() {
 								</span>
 							</div>
 						)}
-					</div>
+					</Card>
 					<StatCard
 						value={loading ? '...' : String(pendingInvitations.length)}
 						label={t('Pending Invitations')}
@@ -181,7 +184,7 @@ export function AdminOverview() {
 			</div>
 
 			{/* Quick Actions */}
-			<div className="c-panel">
+			<div className="c-panel animate-fade-slide-up stagger-2">
 				<h4 className="pb-3">{t('Administration')}</h4>
 
 				<div
@@ -240,11 +243,11 @@ interface StatCardProps {
 
 function StatCard({ value, label, icon }: StatCardProps) {
 	return (
-		<div className="c-panel p-3 text-center">
+		<Card className="text-center">
 			<div className="mb-1">{icon}</div>
 			<div style={{ fontSize: '1.75rem', fontWeight: 600, lineHeight: 1.2 }}>{value}</div>
 			<div className="c-hint small mt-1">{label}</div>
-		</div>
+		</Card>
 	)
 }
 
@@ -256,24 +259,10 @@ interface QuickActionCardProps {
 
 function QuickActionCard({ icon, label, onClick }: QuickActionCardProps) {
 	return (
-		<button
-			className="c-panel text-center p-3"
-			onClick={onClick}
-			style={{
-				cursor: 'pointer',
-				border: 'none',
-				transition: 'transform 0.15s ease, box-shadow 0.15s ease'
-			}}
-			onMouseEnter={(e) => {
-				e.currentTarget.style.transform = 'translateY(-2px)'
-			}}
-			onMouseLeave={(e) => {
-				e.currentTarget.style.transform = 'translateY(0)'
-			}}
-		>
+		<Card interactive className="text-center" onClick={onClick}>
 			<div className="mb-2 text-primary">{icon}</div>
 			<div className="small">{label}</div>
-		</button>
+		</Card>
 	)
 }
 

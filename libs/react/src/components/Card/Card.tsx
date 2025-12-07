@@ -15,49 +15,33 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { mergeClasses, createComponent, buttonSizeClass } from '../utils.js'
-import type { ColorVariant, ButtonSize } from '../types.js'
-import { delay } from '@cloudillo/base'
+import { mergeClasses, createComponent } from '../utils.js'
+import type { ColorVariant, Elevation } from '../types.js'
 
-export interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 	variant?: ColorVariant
-	size?: ButtonSize
+	elevation?: Elevation
+	interactive?: boolean
 	children?: React.ReactNode
 }
 
-export const IconButton = createComponent<HTMLButtonElement, IconButtonProps>(
-	'IconButton',
-	({ className, type = 'button', onClick, variant, size, children, ...props }, ref) => {
-		const [clicked, setClicked] = React.useState(false)
-
-		async function handleClick(evt: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
-			evt.preventDefault()
-			setClicked(true)
-			await delay(200)
-			setClicked(false)
-			if (type === 'submit') {
-				;(evt.target as HTMLButtonElement).form?.requestSubmit()
-			} else {
-				onClick?.(evt)
-			}
-		}
-
+export const Card = createComponent<HTMLDivElement, CardProps>(
+	'Card',
+	({ className, variant, elevation, interactive, children, ...props }, ref) => {
 		return (
-			<button
+			<div
 				ref={ref}
 				className={mergeClasses(
-					'c-icon',
+					'c-card',
 					variant,
-					buttonSizeClass(size),
-					clicked && 'clicked',
+					elevation,
+					interactive && 'interactive',
 					className
 				)}
-				type={type}
-				onClick={handleClick}
 				{...props}
 			>
 				{children}
-			</button>
+			</div>
 		)
 	}
 )

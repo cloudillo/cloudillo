@@ -31,6 +31,9 @@ export const ToastContainer = createComponent<HTMLDivElement, ToastContainerProp
 			<div
 				ref={ref}
 				className={mergeClasses('c-toast-container', position, className)}
+				role="region"
+				aria-live="polite"
+				aria-label="Notifications"
 				{...props}
 			>
 				{children}

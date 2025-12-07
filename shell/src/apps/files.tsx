@@ -222,13 +222,13 @@ function fileColumns({ t, fileOps, renameFileId, renameFileName }: FileColumnsAr
 			defaultWidth: 10,
 			format: (v, r) => (
 				<div className="d-flex">
-					<button
-						className="c-link p-1"
-						type="button"
+					<Button
+						link
+						className="p-1"
 						onClick={(evt) => (evt.stopPropagation(), fileOps.openFile(r.fileId))}
 					>
 						<IcEdit />
-					</button>
+					</Button>
 					<div className="dropdown">
 						<details className="c-dropdown">
 							<summary className="c-link p-1">
@@ -460,33 +460,26 @@ const FilterBar = React.memo(function FilterBar({
 					<Popper icon={<IcNewFile />} label={t('Create document')}>
 						<ul className="c-nav vertical emph">
 							<li>
-								<button
-									className="c-nav-item"
-									onClick={() => createFile('cloudillo/quillo')}
-								>
+								<Button navItem onClick={() => createFile('cloudillo/quillo')}>
 									{React.createElement<React.ComponentProps<typeof IcUnknown>>(
 										icons['cloudillo/quillo'],
 										{ className: 'me-1' }
 									)}
 									{t('Quillo text document')}
-								</button>
+								</Button>
 							</li>
 							<li>
-								<a
-									className="c-nav-item"
-									href="#"
-									onClick={() => createFile('cloudillo/calcillo')}
-								>
+								<Button navItem onClick={() => createFile('cloudillo/calcillo')}>
 									{React.createElement<React.ComponentProps<typeof IcUnknown>>(
 										icons['cloudillo/calcillo'],
 										{ className: 'me-1' }
 									)}
 									{t('Calcillo spreadsheet document')}
-								</a>
+								</Button>
 							</li>
 							<li>
-								<button
-									className="c-nav-item"
+								<Button
+									navItem
 									disabled={true || process.env.NODE_ENV === 'production'}
 									onClick={() => createFile('cloudillo/ideallo')}
 								>
@@ -495,31 +488,25 @@ const FilterBar = React.memo(function FilterBar({
 										{ className: 'me-1' }
 									)}
 									{t('Ideallo whiteboard document')}
-								</button>
+								</Button>
 							</li>
 							<li>
-								<button
-									className="c-nav-item"
-									onClick={() => createFile('cloudillo/prezillo')}
-								>
+								<Button navItem onClick={() => createFile('cloudillo/prezillo')}>
 									{React.createElement<React.ComponentProps<typeof IcUnknown>>(
 										icons['cloudillo/prezillo'],
 										{ className: 'me-1' }
 									)}
 									{t('Prezillo presentation document')}
-								</button>
+								</Button>
 							</li>
 							<li>
-								<button
-									className="c-nav-item"
-									onClick={() => createDb('cloudillo/taskillo')}
-								>
+								<Button navItem onClick={() => createDb('cloudillo/taskillo')}>
 									{React.createElement<React.ComponentProps<typeof IcUnknown>>(
 										icons['cloudillo/taskillo'],
 										{ className: 'me-1' }
 									)}
 									{t('Taskillo task list')}
-								</button>
+								</Button>
 							</li>
 							{/*
 					<li><a className="c-nav-item" href="#" onClick={() => createFile('cloudillo/formillo')}>
@@ -574,9 +561,9 @@ const FilterBar = React.memo(function FilterBar({
 
 			<div className="c-input-group">
 				<input type="text" className="c-input" placeholder="Search" />
-				<button className="c-button secondary" type="button">
+				<Button secondary>
 					<IcSearch />
-				</button>
+				</Button>
 			</div>
 		</ul>
 	)
@@ -627,27 +614,27 @@ const FileCard = React.memo(function FileCard({
 				{/* file.ownerTag && <h4>{file.ownerTag}</h4> */}
 				<div className="c-hbox g-2">
 					{/* Access level icons - for testing, show both */}
-					<button
-						className="c-link p-1"
-						type="button"
+					<Button
+						link
+						className="p-1"
 						title={t('View (read-only)')}
 						onClick={(evt) => (
 							evt.stopPropagation(), fileOps.openFile(file.fileId, 'read')
 						)}
 					>
 						<IcMonitor />
-					</button>
+					</Button>
 					{!!auth && (
-						<button
-							className="c-link p-1"
-							type="button"
+						<Button
+							link
+							className="p-1"
 							title={t('Edit')}
 							onClick={(evt) => (
 								evt.stopPropagation(), fileOps.openFile(file.fileId, 'write')
 							)}
 						>
 							<IcEdit />
-						</button>
+						</Button>
 					)}
 					{!!file.owner && <ProfilePicture profile={file.owner} small />}
 					{!!auth && (
@@ -869,13 +856,9 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 						)}
 					</h3>
 					<div className="c-hbox justify-content-end g-2 me-4">
-						<button
-							className="c-link p-1"
-							type="button"
-							onClick={() => fileOps.openFile(file.fileId)}
-						>
+						<Button link className="p-1" onClick={() => fileOps.openFile(file.fileId)}>
 							<IcEdit />
-						</button>
+						</Button>
 						<Popper className="c-link" icon={<IcMore />}>
 							<ul className="c-nav">
 								<li className="c-nav-item">
@@ -961,14 +944,10 @@ function FileDetails({ className, file, renameFileId, renameFileName, fileOps }:
 								<option value="read">{t('Read only')}</option>
 								<option value="write">{t('Can edit')}</option>
 							</select>
-							<button
-								className="c-button primary"
-								type="button"
-								onClick={createShareLink}
-							>
+							<Button primary onClick={createShareLink}>
 								<IcPlus className="me-1" />
 								{t('Create Link')}
-							</button>
+							</Button>
 						</div>
 
 						{shareRefs && shareRefs.length > 0 && (

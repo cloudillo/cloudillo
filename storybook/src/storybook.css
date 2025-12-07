@@ -34,7 +34,7 @@
 	padding: var(--p-nav-item-y, 0.5rem) var(--p-nav-item-x, 0.5rem);
 	text-decoration: none;
 	color: var(--col-on, #333);
-	border-radius: var(--border-radius-sm, 0.25rem);
+	border-radius: var(--radius-sm);
 	transition: background-color 0.2s;
 }
 
@@ -144,7 +144,7 @@
 	margin: 1rem 0;
 	padding: 1rem;
 	background: var(--col-container-low, #f5f5f5);
-	border-radius: var(--border-radius-sm, 0.25rem);
+	border-radius: var(--radius-sm);
 	border: var(--border-w-sm, 1px) solid var(--col-outline, #ddd);
 }
 
@@ -167,7 +167,7 @@
 	padding: 0.25rem 0.75rem;
 	background: var(--col-container, white);
 	border: var(--border-w-sm, 1px) solid var(--col-outline, #ccc);
-	border-radius: var(--border-radius-sm, 0.25rem);
+	border-radius: var(--radius-sm);
 	cursor: pointer;
 	font-size: 0.8rem;
 }
@@ -188,7 +188,7 @@
 code {
 	background: var(--col-container-low, #f5f5f5);
 	padding: 0.2rem 0.4rem;
-	border-radius: var(--border-radius-sm, 0.2rem);
+	border-radius: var(--radius-sm);
 	font-family: 'Courier New', monospace;
 	font-size: 0.9em;
 }

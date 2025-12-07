@@ -123,20 +123,20 @@ function ProfileConnection({
 					{t('Followed')}
 				</div>
 			) : localProfile.status == 'B' ? (
-				<button className="c-link" onClick={cmds.onBlock}>
+				<Button link onClick={cmds.onBlock}>
 					<IcBlock />
 					{t('Unblock')}
-				</button>
+				</Button>
 			) : !localProfile.following ? (
-				<button className="c-link" onClick={cmds.onFollow}>
+				<Button link onClick={cmds.onFollow}>
 					<IcFollow />
 					{t('Follow')}
-				</button>
+				</Button>
 			) : !localProfile.connected ? (
-				<button className="c-link" onClick={cmds.onConnect}>
+				<Button link onClick={cmds.onConnect}>
 					<IcConnect />
 					{t('Connect')}
-				</button>
+				</Button>
 			) : null}
 			<div className="separator" />
 			{/*
@@ -146,60 +146,60 @@ function ProfileConnection({
 				<ul className="c-nav vertical">
 					{!localProfile.following && (
 						<li>
-							<button className="c-nav-item" onClick={cmds.onFollow}>
+							<Button navItem onClick={cmds.onFollow}>
 								<IcFollow />
 								{t('Follow')}
-							</button>
+							</Button>
 						</li>
 					)}
 					{localProfile.following && (
 						<li>
-							<button className="c-nav-item" onClick={onUnfollow}>
+							<Button navItem onClick={onUnfollow}>
 								<IcFollow />
 								{t('Unfollow')}
-							</button>
+							</Button>
 						</li>
 					)}
 
 					{!localProfile.connected && (
 						<li>
-							<button className="c-nav-item" onClick={cmds.onConnect}>
+							<Button navItem onClick={cmds.onConnect}>
 								<IcConnect />
 								{t('Connect')}
-							</button>
+							</Button>
 						</li>
 					)}
 					{localProfile.connected == 'R' && (
 						<li className="c-nav-item">
-							<button className="c-nav-item" onClick={cmds.onDisconnect}>
+							<Button navItem onClick={cmds.onDisconnect}>
 								<IcConnect />
 								{t('Cancel request')}
-							</button>
+							</Button>
 						</li>
 					)}
 					{localProfile.connected == true && (
 						<li>
-							<button className="c-nav-item" onClick={cmds.onDisconnect}>
+							<Button navItem onClick={cmds.onDisconnect}>
 								<IcConnect />
 								{t('Disconnect')}
-							</button>
+							</Button>
 						</li>
 					)}
 
 					{localProfile.status != 'B' && (
 						<li>
-							<button className="c-nav-item" onClick={cmds.onBlock}>
+							<Button navItem onClick={cmds.onBlock}>
 								<IcBlock />
 								{t('Block')}
-							</button>
+							</Button>
 						</li>
 					)}
 					{localProfile.status == 'B' && (
 						<li>
-							<button className="c-nav-item" onClick={cmds.onUnblock}>
+							<Button navItem onClick={cmds.onUnblock}>
 								<IcBlock />
 								{t('Unblock')}
-							</button>
+							</Button>
 						</li>
 					)}
 				</ul>

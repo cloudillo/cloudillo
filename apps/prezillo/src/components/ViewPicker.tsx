@@ -64,16 +64,15 @@ export function ViewPicker({
 				<IcPrev />
 			</button>
 
-			<div className="c-hbox gap-1 flex-fill" style={{ overflowX: 'auto' }}>
+			<div className="c-hbox gap-1 flex-fill c-view-picker-tabs">
 				{views.map((view, index) => (
 					<button
 						key={view.id}
 						onClick={() => onViewSelect(view.id)}
 						className={mergeClasses(
-							'c-button',
+							'c-button c-view-picker-tab',
 							view.id === activeViewId ? 'active' : ''
 						)}
-						style={{ minWidth: 60 }}
 					>
 						{index + 1}
 					</button>

@@ -31,6 +31,8 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 	secondary?: boolean
 	accent?: boolean
 	link?: boolean
+	navItem?: boolean
+	navLink?: boolean
 	children?: React.ReactNode
 }
 
@@ -50,6 +52,8 @@ export const Button = createComponent<HTMLButtonElement, ButtonProps>(
 			secondary,
 			accent,
 			link,
+			navItem,
+			navLink,
 			children,
 			...props
 		},
@@ -63,6 +67,15 @@ export const Button = createComponent<HTMLButtonElement, ButtonProps>(
 			(primary ? 'primary' : undefined) ||
 			(secondary ? 'secondary' : undefined) ||
 			(accent ? 'accent' : undefined)
+
+		// Determine base class: navLink > navItem > link > button
+		const baseClass = navLink
+			? 'c-nav-link'
+			: navItem
+				? 'c-nav-item'
+				: link
+					? 'c-link'
+					: 'c-button'
 
 		async function handleClick(evt: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
 			evt.preventDefault()
@@ -80,7 +93,7 @@ export const Button = createComponent<HTMLButtonElement, ButtonProps>(
 			<button
 				ref={ref}
 				className={mergeClasses(
-					link ? 'c-link' : 'c-button',
+					baseClass,
 					variantClass,
 					buttonSizeClass(size),
 					mode,

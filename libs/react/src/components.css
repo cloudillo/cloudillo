@@ -1,3 +1,92 @@
+/* ==========================================================================
+   CSS Variable Compatibility Layer
+   Maps legacy --c-* prefixes to OpalUI --col-* system for backward compatibility
+   ========================================================================== */
+
+:root {
+	/* Primary colors */
+	--c-primary: var(--col-primary);
+	--c-secondary: var(--col-secondary);
+	--c-accent: var(--col-accent);
+
+	/* Semantic colors */
+	--c-error: var(--col-error);
+	--c-warning: var(--col-warning);
+	--c-success: var(--col-success);
+
+	/* Background colors */
+	--c-bg-primary: var(--col-container-low);
+	--c-bg-secondary: var(--col-container);
+	--c-bg-hover: var(--col-container-high);
+	--c-primary-bg: var(--col-container-primary);
+	--c-hover-bg: var(--col-container-high);
+
+	/* Text colors */
+	--c-text-primary: var(--col-on-container);
+	--c-text-secondary: var(--col-on-surface);
+
+	/* Border and outline */
+	--c-border: var(--col-outline);
+	--c-border-color: var(--col-outline);
+	--c-border-radius: var(--radius-sm);
+
+	/* Shadows */
+	--c-shadow-sm: var(--shadow-sm);
+	--c-shadow-md: var(--shadow-md);
+	--c-shadow-lg: var(--shadow-lg);
+}
+
+/* ==========================================================================
+   Accessibility Base Styles
+   Focus rings and screen reader utilities
+   ========================================================================== */
+
+/* Screen reader only - visually hidden but accessible */
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+/* Skip link for keyboard navigation */
+.skip-link {
+	position: absolute;
+	top: -100%;
+	left: 0;
+	z-index: var(--z-tooltip, 800);
+	padding: 0.5rem 1rem;
+	background: var(--col-primary);
+	color: var(--col-on-primary);
+	text-decoration: none;
+	transition: top 0.2s;
+}
+
+.skip-link:focus {
+	top: 0;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}
+
+/* ==========================================================================
+   Profile Card Component
+   ========================================================================== */
+
 .c-profile-card {
 	display: flex;
 	text-align: left;
@@ -150,7 +239,7 @@
 /* Skeleton */
 .c-skeleton {
 	background: var(--col-bg-emph, rgba(128, 128, 128, 0.15));
-	border-radius: var(--br-sm, 0.25rem);
+	border-radius: var(--radius-sm);
 }
 
 .c-skeleton--text {
@@ -168,7 +257,7 @@
 }
 
 .c-skeleton--rounded {
-	border-radius: var(--br-md, 0.5rem);
+	border-radius: var(--radius-md);
 }
 
 .c-skeleton--animate {
@@ -189,7 +278,7 @@
 .c-skeleton-text {
 	display: flex;
 	flex-direction: column;
-	gap: 0.25rem;
+	gap: var(--space-1);
 }
 
 /* Skeleton Card */
@@ -197,40 +286,40 @@
 	padding: 1rem;
 	display: flex;
 	flex-direction: column;
-	gap: 0.75rem;
+	gap: var(--space-2);
 }
 
 .c-skeleton-card-header {
 	display: flex;
 	align-items: center;
-	gap: 0.75rem;
+	gap: var(--space-2);
 }
 
 .c-skeleton-card-header-text {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
-	gap: 0.25rem;
+	gap: var(--space-1);
 }
 
 /* Skeleton List */
 .c-skeleton-list {
 	display: flex;
 	flex-direction: column;
-	gap: 0.75rem;
+	gap: var(--space-2);
 }
 
 .c-skeleton-list-item {
 	display: flex;
 	align-items: center;
-	gap: 0.75rem;
+	gap: var(--space-2);
 }
 
 .c-skeleton-list-item-content {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
-	gap: 0.25rem;
+	gap: var(--space-1);
 }
 
 /* Inline Edit Form */
@@ -253,7 +342,7 @@
 .c-filter-bar {
 	display: flex;
 	flex-direction: column;
-	gap: 0.25rem;
+	gap: var(--space-1);
 }
 
 .c-filter-bar.horizontal {
@@ -278,7 +367,7 @@
 .c-filter-bar-section {
 	display: flex;
 	flex-direction: column;
-	gap: 0.25rem;
+	gap: var(--space-1);
 }
 
 .c-filter-bar-section-title {
@@ -302,7 +391,7 @@
 	justify-content: center;
 	text-align: center;
 	padding: 2rem;
-	gap: 0.75rem;
+	gap: var(--space-2);
 }
 
 .c-empty-state--sm {

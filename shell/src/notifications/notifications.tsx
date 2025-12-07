@@ -82,13 +82,13 @@ function ConnectNotification({
 					<ProfileCard profile={action.issuer} />
 				</Link>
 				<div className="c-hbox ms-auto g-3">
-					<button className="c-link" onClick={onAccept}>
+					<Button link onClick={onAccept}>
 						<IcAccept />
-					</button>
+					</Button>
 					{action.status == 'C' && (
-						<button className="c-link" onClick={onReject}>
+						<Button link onClick={onReject}>
 							<IcReject />
-						</button>
+						</Button>
 					)}
 				</div>
 			</div>
@@ -159,12 +159,12 @@ function FileShareNotification({
 					<ProfileCard profile={action.issuer} />
 				</Link>
 				<div className="c-hbox ms-auto g-3">
-					<button className="c-link" onClick={onAccept}>
+					<Button link onClick={onAccept}>
 						<IcAccept />
-					</button>
-					<button className="c-link" onClick={onReject}>
+					</Button>
+					<Button link onClick={onReject}>
 						<IcReject />
-					</button>
+					</Button>
 				</div>
 			</div>
 			<div className="d-flex flex-column">

@@ -14,10 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-export { Button } from './Button.js'
-export type { ButtonProps } from './Button.js'
-
-export { LinkButton } from './LinkButton.js'
-export type { LinkButtonProps } from './LinkButton.js'
+export { Card } from './Card.js'
+export type { CardProps } from './Card.js'
 
 // vim: ts=4

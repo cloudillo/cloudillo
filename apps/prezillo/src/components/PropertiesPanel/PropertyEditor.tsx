@@ -47,29 +47,17 @@ export function PropertyEditor({ doc, yDoc, selectedIds, onPreview }: PropertyEd
 
 	// No selection
 	if (selectedIds.size === 0) {
-		return (
-			<div style={{ fontSize: '12px', opacity: 0.5, textAlign: 'center', padding: '16px 0' }}>
-				No selection
-			</div>
-		)
+		return <div className="c-empty-message">No selection</div>
 	}
 
 	// Multiple selection
 	if (selectedIds.size > 1) {
-		return (
-			<div style={{ fontSize: '12px', opacity: 0.5, textAlign: 'center', padding: '16px 0' }}>
-				{selectedIds.size} objects selected
-			</div>
-		)
+		return <div className="c-empty-message">{selectedIds.size} objects selected</div>
 	}
 
 	// Single selection but object not found
 	if (!selectedObject) {
-		return (
-			<div style={{ fontSize: '12px', opacity: 0.5, textAlign: 'center', padding: '16px 0' }}>
-				Object not found
-			</div>
-		)
+		return <div className="c-empty-message">Object not found</div>
 	}
 
 	// Check if object is a text type

@@ -45,8 +45,8 @@ export function FilesSettings() {
 					{t('Control which file variants are synchronized to your device')}
 				</p>
 
-				<label className="c-hbox pb-2">
-					<span className="flex-fill">{t('Max image quality')}</span>
+				<label className="c-settings-field">
+					<span>{t('Max image quality')}</span>
 					<select
 						className="c-select"
 						name="file.sync_max_vis"
@@ -61,8 +61,8 @@ export function FilesSettings() {
 					</select>
 				</label>
 
-				<label className="c-hbox pb-2">
-					<span className="flex-fill">{t('Max video quality')}</span>
+				<label className="c-settings-field">
+					<span>{t('Max video quality')}</span>
 					<select
 						className="c-select"
 						name="file.sync_max_vid"
@@ -77,8 +77,8 @@ export function FilesSettings() {
 					</select>
 				</label>
 
-				<label className="c-hbox pb-2">
-					<span className="flex-fill">{t('Max audio quality')}</span>
+				<label className="c-settings-field">
+					<span>{t('Max audio quality')}</span>
 					<select
 						className="c-select"
 						name="file.sync_max_aud"

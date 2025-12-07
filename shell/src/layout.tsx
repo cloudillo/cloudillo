@@ -152,6 +152,7 @@ import {
 	mergeClasses,
 	ProfilePicture,
 	Popper,
+	Button,
 	DialogContainer,
 	ToastContainer
 } from '@cloudillo/react'
@@ -263,8 +264,9 @@ function Menu({
 			<>
 				{/* Sidebar toggle button on mobile (first item) - shows current context */}
 				{vertical && isAppView && auth && (
-					<button
-						className={mergeClasses('c-nav-link vertical', sidebar.isOpen && 'active')}
+					<Button
+						navLink
+						className={mergeClasses('vertical', sidebar.isOpen && 'active')}
 						onClick={() => sidebar.toggle()}
 					>
 						<div
@@ -281,7 +283,7 @@ function Menu({
 							/>
 						</div>
 						<h6>{contextIdTag || auth.idTag}</h6>
-					</button>
+					</Button>
 				)}
 				{needsMoreMenu && (
 					<div inert={inert} className="c-menu-ex flex-order-end">
@@ -312,13 +314,14 @@ function Menu({
 					</NavLink>
 				))}
 				{needsMoreMenu && (
-					<button
-						className={mergeClasses('c-nav-link', vertical && 'vertical')}
+					<Button
+						navLink
+						className={mergeClasses(vertical && 'vertical')}
 						onClick={() => setMoreMenuOpen(!moreMenuOpen)}
 					>
 						<IcApps />
 						<h6>{t('More')}</h6>
-					</button>
+					</Button>
 				)}
 			</>
 		)
@@ -603,31 +606,28 @@ function Header({ inert }: { inert?: boolean }) {
 									<hr className="w-100" />
 								</li>
 								<li>
-									<button className="c-nav-item" onClick={doLogout}>
+									<Button navItem onClick={doLogout}>
 										<IcLogout />
 										{t('Logout')}
-									</button>
+									</Button>
 								</li>
 								<li>
 									<hr className="w-100" />
 								</li>
 								<li>
-									<button
-										className="c-nav-item"
+									<Button
+										navItem
 										onClick={(evt) => (
 											evt.preventDefault(), i18n.changeLanguage('en')
 										)}
 									>
 										English
-									</button>
+									</Button>
 								</li>
 								<li>
-									<button
-										className="c-nav-item"
-										onClick={(evt) => setLang(evt, 'hu')}
-									>
+									<Button navItem onClick={(evt) => setLang(evt, 'hu')}>
 										Magyar
-									</button>
+									</Button>
 								</li>
 								<li className="text-disabled">
 									Cloudillo V{process.env.CLOUDILLO_VERSION}
@@ -653,22 +653,19 @@ function Header({ inert }: { inert?: boolean }) {
 									<hr className="w-100" />
 								</li>
 								<li>
-									<button
-										className="c-nav-item"
+									<Button
+										navItem
 										onClick={(evt) => (
 											evt.preventDefault(), i18n.changeLanguage('en')
 										)}
 									>
 										English
-									</button>
+									</Button>
 								</li>
 								<li>
-									<button
-										className="c-nav-item"
-										onClick={(evt) => setLang(evt, 'hu')}
-									>
+									<Button navItem onClick={(evt) => setLang(evt, 'hu')}>
 										Magyar
-									</button>
+									</Button>
 								</li>
 								<li className="text-disabled">
 									Cloudillo V{process.env.CLOUDILLO_VERSION}

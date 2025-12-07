@@ -64,8 +64,8 @@ function SoundSelect({
 	}
 
 	return (
-		<label className="c-hbox mt-3 ms-2">
-			<span className="flex-fill">{label}</span>
+		<label className="c-settings-field ms-2">
+			<span>{label}</span>
 			<select
 				className="c-select"
 				value={(localSettings[settingKey] as string) || ''}
@@ -123,10 +123,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 	return (
 		<>
 			<div className="c-panel">
-				<label className="c-hbox">
-					<span className="flex-fill">
-						{t('Enable push notifications on this device')}
-					</span>
+				<label className="c-settings-field">
+					<span>{t('Enable push notifications on this device')}</span>
 					<input
 						className="c-toggle primary"
 						name="notify.push"
@@ -136,8 +134,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 					/>
 				</label>
 
-				<label className="c-hbox mt-4">
-					<span className="flex-fill">{t('Enable push notifications')}</span>
+				<label className="c-settings-field mt-4">
+					<span>{t('Enable push notifications')}</span>
 					<input
 						className="c-toggle primary"
 						name="notify.push"
@@ -149,8 +147,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 
 				{!!settings['notify.push'] && (
 					<>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">{t('Notify on direct messages')}</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Notify on direct messages')}</span>
 							<input
 								className="c-toggle"
 								name="notify.push.message"
@@ -159,8 +157,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 								onChange={onSettingChange}
 							/>
 						</label>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">{t('Notify on connection requests')}</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Notify on connection requests')}</span>
 							<input
 								className="c-toggle"
 								name="notify.push.connection"
@@ -169,10 +167,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 								onChange={onSettingChange}
 							/>
 						</label>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">
-								{t('Notify when files are shared with you')}
-							</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Notify when files are shared with you')}</span>
 							<input
 								className="c-toggle"
 								name="notify.push.file_share"
@@ -181,10 +177,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 								onChange={onSettingChange}
 							/>
 						</label>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">
-								{t('Notify when someone follows you')}
-							</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Notify when someone follows you')}</span>
 							<input
 								className="c-toggle"
 								name="notify.push.follow"
@@ -193,10 +187,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 								onChange={onSettingChange}
 							/>
 						</label>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">
-								{t('Notify on comments to your posts')}
-							</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Notify on comments to your posts')}</span>
 							<input
 								className="c-toggle"
 								name="notify.push.comment"
@@ -205,10 +197,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 								onChange={onSettingChange}
 							/>
 						</label>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">
-								{t('Notify on reactions to your posts')}
-							</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Notify on reactions to your posts')}</span>
 							<input
 								className="c-toggle"
 								name="notify.push.reaction"
@@ -217,8 +207,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 								onChange={onSettingChange}
 							/>
 						</label>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">{t('Notify when you are mentioned')}</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Notify when you are mentioned')}</span>
 							<input
 								className="c-toggle"
 								name="notify.push.mention"
@@ -227,10 +217,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 								onChange={onSettingChange}
 							/>
 						</label>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">
-								{t('Notify on new posts from people you follow')}
-							</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Notify on new posts from people you follow')}</span>
 							<input
 								className="c-toggle"
 								name="notify.push.post"
@@ -242,8 +230,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 					</>
 				)}
 
-				<label className="c-hbox mt-4">
-					<span className="flex-fill">{t('Enable email notifications')}</span>
+				<label className="c-settings-field mt-4">
+					<span>{t('Enable email notifications')}</span>
 					<input
 						className="c-toggle primary"
 						name="notify.email"
@@ -255,8 +243,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 
 				{!!settings['notify.email'] && (
 					<>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">{t('Notify on direct messages')}</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Notify on direct messages')}</span>
 							<input
 								className="c-toggle"
 								name="notify.email.message"
@@ -265,8 +253,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 								onChange={onSettingChange}
 							/>
 						</label>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">{t('Notify on connection requests')}</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Notify on connection requests')}</span>
 							<input
 								className="c-toggle"
 								name="notify.email.connection"
@@ -275,10 +263,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 								onChange={onSettingChange}
 							/>
 						</label>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">
-								{t('Notify when files are shared with you')}
-							</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Notify when files are shared with you')}</span>
 							<input
 								className="c-toggle"
 								name="notify.email.file_share"
@@ -287,10 +273,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 								onChange={onSettingChange}
 							/>
 						</label>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">
-								{t('Notify when someone follows you')}
-							</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Notify when someone follows you')}</span>
 							<input
 								className="c-toggle"
 								name="notify.email.follow"
@@ -299,10 +283,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 								onChange={onSettingChange}
 							/>
 						</label>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">
-								{t('Notify on comments to your posts')}
-							</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Notify on comments to your posts')}</span>
 							<input
 								className="c-toggle"
 								name="notify.email.comment"
@@ -311,10 +293,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 								onChange={onSettingChange}
 							/>
 						</label>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">
-								{t('Notify on reactions to your posts')}
-							</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Notify on reactions to your posts')}</span>
 							<input
 								className="c-toggle"
 								name="notify.email.reaction"
@@ -323,8 +303,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 								onChange={onSettingChange}
 							/>
 						</label>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">{t('Notify when you are mentioned')}</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Notify when you are mentioned')}</span>
 							<input
 								className="c-toggle"
 								name="notify.email.mention"
@@ -333,10 +313,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 								onChange={onSettingChange}
 							/>
 						</label>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">
-								{t('Notify on new posts from people you follow')}
-							</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Notify on new posts from people you follow')}</span>
 							<input
 								className="c-toggle"
 								name="notify.email.post"
@@ -429,8 +407,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 					t={t}
 				/>
 
-				<label className="c-hbox mt-4">
-					<span className="flex-fill">{t('Enable toast notifications')}</span>
+				<label className="c-settings-field mt-4">
+					<span>{t('Enable toast notifications')}</span>
 					<input
 						className="c-toggle primary"
 						type="checkbox"
@@ -441,8 +419,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 
 				{!!localSettings.toast && (
 					<>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">{t('Direct messages')}</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Direct messages')}</span>
 							<input
 								className="c-toggle"
 								type="checkbox"
@@ -450,8 +428,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 								onChange={(e) => updateSetting('toast.message', e.target.checked)}
 							/>
 						</label>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">{t('Connection requests')}</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Connection requests')}</span>
 							<input
 								className="c-toggle"
 								type="checkbox"
@@ -461,8 +439,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 								}
 							/>
 						</label>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">{t('File sharing')}</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('File sharing')}</span>
 							<input
 								className="c-toggle"
 								type="checkbox"
@@ -472,8 +450,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 								}
 							/>
 						</label>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">{t('New followers')}</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('New followers')}</span>
 							<input
 								className="c-toggle"
 								type="checkbox"
@@ -481,8 +459,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 								onChange={(e) => updateSetting('toast.follow', e.target.checked)}
 							/>
 						</label>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">{t('Comments on your posts')}</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Comments on your posts')}</span>
 							<input
 								className="c-toggle"
 								type="checkbox"
@@ -490,8 +468,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 								onChange={(e) => updateSetting('toast.comment', e.target.checked)}
 							/>
 						</label>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">{t('Reactions to your posts')}</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Reactions to your posts')}</span>
 							<input
 								className="c-toggle"
 								type="checkbox"
@@ -499,8 +477,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 								onChange={(e) => updateSetting('toast.reaction', e.target.checked)}
 							/>
 						</label>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">{t('Mentions')}</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Mentions')}</span>
 							<input
 								className="c-toggle"
 								type="checkbox"
@@ -508,8 +486,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 								onChange={(e) => updateSetting('toast.mention', e.target.checked)}
 							/>
 						</label>
-						<label className="c-hbox mt-3 ms-2">
-							<span className="flex-fill">{t('Posts from followed users')}</span>
+						<label className="c-settings-field ms-2">
+							<span>{t('Posts from followed users')}</span>
 							<input
 								className="c-toggle"
 								type="checkbox"

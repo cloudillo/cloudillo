@@ -100,7 +100,7 @@ export function TransformSection({ doc, yDoc, object, onPreview }: TransformSect
 						value={Math.round(object.x)}
 						onChange={handleXChange}
 						step={1}
-						style={{ width: '100%' }}
+						className="c-input--full"
 					/>
 				</PropertyField>
 				<PropertyField label="Y" labelWidth={20}>
@@ -108,7 +108,7 @@ export function TransformSection({ doc, yDoc, object, onPreview }: TransformSect
 						value={Math.round(object.y)}
 						onChange={handleYChange}
 						step={1}
-						style={{ width: '100%' }}
+						className="c-input--full"
 					/>
 				</PropertyField>
 			</div>
@@ -119,7 +119,7 @@ export function TransformSection({ doc, yDoc, object, onPreview }: TransformSect
 						onChange={handleWidthChange}
 						min={1}
 						step={1}
-						style={{ width: '100%' }}
+						className="c-input--full"
 					/>
 				</PropertyField>
 				<PropertyField label="H" labelWidth={20}>
@@ -128,7 +128,7 @@ export function TransformSection({ doc, yDoc, object, onPreview }: TransformSect
 						onChange={handleHeightChange}
 						min={1}
 						step={1}
-						style={{ width: '100%' }}
+						className="c-input--full"
 					/>
 				</PropertyField>
 			</div>
@@ -141,7 +141,7 @@ export function TransformSection({ doc, yDoc, object, onPreview }: TransformSect
 						max={360}
 						step={1}
 						suffix="°"
-						style={{ width: '100%' }}
+						className="c-input--full"
 					/>
 				</PropertyField>
 				<PropertyField label="Op" labelWidth={30}>
@@ -153,7 +153,7 @@ export function TransformSection({ doc, yDoc, object, onPreview }: TransformSect
 						max={100}
 						step={1}
 						suffix="%"
-						style={{ width: '100%' }}
+						className="c-input--full"
 					/>
 				</PropertyField>
 			</div>

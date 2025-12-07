@@ -21,6 +21,7 @@ import Markdown from 'react-markdown'
 
 import { Button } from '../Button/Button.js'
 import { mergeClasses } from '../utils.js'
+import type { Elevation } from '../types.js'
 
 import { LuX as IcClose, LuCheck as IcOk, LuX as IcCancel } from 'react-icons/lu'
 
@@ -30,11 +31,19 @@ export interface DialogProps {
 	className?: string
 	open?: boolean
 	title?: string
+	elevation?: Elevation
 	onClose?: () => void
 	children: React.ReactNode
 }
 
-export function Dialog({ className, open, title, onClose, children }: DialogProps) {
+export function Dialog({
+	className,
+	open,
+	title,
+	elevation = 'high',
+	onClose,
+	children
+}: DialogProps) {
 	const ref = React.useRef<HTMLDialogElement>(null)
 
 	React.useEffect(
@@ -51,7 +60,10 @@ export function Dialog({ className, open, title, onClose, children }: DialogProp
 	)
 
 	return (
-		<dialog ref={ref} className={className || 'c-dialog c-panel emph p-3'}>
+		<dialog
+			ref={ref}
+			className={mergeClasses('c-dialog c-panel emph p-3', elevation, className)}
+		>
 			<div className="c-hbox mb-2">
 				<h2 className="fill">{title}</h2>
 				<button

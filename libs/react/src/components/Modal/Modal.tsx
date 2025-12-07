@@ -17,17 +17,19 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { mergeClasses, createComponent } from '../utils.js'
+import type { Elevation } from '../types.js'
 
 export interface ModalProps extends React.HTMLAttributes<HTMLDivElement> {
 	open?: boolean
 	onClose?: () => void
 	closeOnBackdrop?: boolean
+	elevation?: Elevation
 	children?: React.ReactNode
 }
 
 export const Modal = createComponent<HTMLDivElement, ModalProps>(
 	'Modal',
-	({ className, open, onClose, closeOnBackdrop = true, children, ...props }, ref) => {
+	({ className, open, onClose, closeOnBackdrop = true, elevation, children, ...props }, ref) => {
 		// Close on escape key
 		React.useEffect(() => {
 			if (!open) return
@@ -67,7 +69,9 @@ export const Modal = createComponent<HTMLDivElement, ModalProps>(
 		const modalContent = (
 			<div
 				ref={ref}
-				className={mergeClasses('c-modal', open && 'show', className)}
+				className={mergeClasses('c-modal', open && 'show', elevation, className)}
+				role="dialog"
+				aria-modal="true"
 				onClick={handleBackdropClick}
 				{...props}
 			>

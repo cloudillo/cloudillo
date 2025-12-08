@@ -283,24 +283,19 @@ function useFileListData() {
 				const qs = parseQS(location.search)
 				setFilter(qs)
 
-				if (Object.keys(qs).length > 0) {
-					// Note: variant: 'tn' was used in old API but not in new API
-					const files = await api.files.list(qs as Types.ListFilesQuery)
-					setFiles(
-						files.map((f) => ({
-							...f,
-							preset: f.preset || '',
-							createdAt:
-								typeof f.createdAt === 'string'
-									? f.createdAt
-									: f.createdAt.toISOString(),
-							owner: f.owner ? { ...f.owner, name: f.owner.name || '' } : undefined,
-							variantId: undefined
-						}))
-					)
-				} else {
-					setFiles([])
-				}
+				const files = await api.files.list(qs as Types.ListFilesQuery)
+				setFiles(
+					files.map((f) => ({
+						...f,
+						preset: f.preset || '',
+						createdAt:
+							typeof f.createdAt === 'string'
+								? f.createdAt
+								: f.createdAt.toISOString(),
+						owner: f.owner ? { ...f.owner, name: f.owner.name || '' } : undefined,
+						variantId: undefined
+					}))
+				)
 			})()
 		},
 		[api, location.search, refreshHelper]

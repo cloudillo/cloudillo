@@ -275,7 +275,7 @@ export class ApiClient {
 		 * @param keyId - Key ID to delete
 		 */
 		deleteApiKey: (keyId: number) =>
-			this.request('DELETE', `/auth/api-keys/${keyId}`, T.struct({})),
+			this.request('DELETE', `/auth/api-keys/${keyId}`, T.nullValue),
 
 		/**
 		 * GET /auth/access-token?apiKey=... - Exchange API key for access token (unauthenticated)

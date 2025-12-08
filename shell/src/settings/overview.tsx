@@ -69,7 +69,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 	// Load security data
 	React.useEffect(
 		function loadSecurityData() {
-			if (!api) return
+			if (!api || !auth) return
 
 			async function load() {
 				try {
@@ -85,7 +85,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 			}
 			load()
 		},
-		[api]
+		[api, auth]
 	)
 
 	// Check notification subscription status

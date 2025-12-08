@@ -1142,11 +1142,7 @@ export function FeedApp() {
 
 	return (
 		<Fcd.Container className="g-1">
-			{!!auth && (
-				<Fcd.Filter>
-					<FilterBar />
-				</Fcd.Filter>
-			)}
+			<Fcd.Filter>{!!auth && <FilterBar />}</Fcd.Filter>
 			<Fcd.Content>
 				{!!auth && (
 					<div>
@@ -1184,7 +1180,7 @@ export function FeedApp() {
 					)}
 				</div>
 			</Fcd.Content>
-			{!!auth && <Fcd.Details></Fcd.Details>}
+			<Fcd.Details></Fcd.Details>
 		</Fcd.Container>
 	)
 }

@@ -125,6 +125,10 @@ export interface SetPasswordRequest {
 	newPassword: string
 }
 
+export interface ForgotPasswordRequest {
+	email: string
+}
+
 // Response types (with runtype validators - runtime validation)
 export const tLoginResult = T.struct({
 	tnId: T.number,

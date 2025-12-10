@@ -192,6 +192,14 @@ export class ApiClient {
 			this.request('POST', '/auth/set-password', Types.tSetPasswordResult, { data }),
 
 		/**
+		 * POST /auth/forgot-password - Request password reset email
+		 * @param data - Email address to send reset link to
+		 * @returns Success message (always succeeds for security)
+		 */
+		forgotPassword: (data: Types.ForgotPasswordRequest) =>
+			this.request('POST', '/auth/forgot-password', Types.tPasswordResetResponse, { data }),
+
+		/**
 		 * POST /profiles/register - Register new user
 		 * @deprecated Use profile.register() instead
 		 * @param data - Registration request

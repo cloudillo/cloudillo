@@ -53,6 +53,7 @@ import {
 } from 'react-icons/lu'
 
 import { NewAction, ActionView } from '@cloudillo/types'
+import { getFileUrl, getOptimalImageVariant, getOptimalVideoVariant } from '@cloudillo/base'
 import {
 	useAuth,
 	useApi,
@@ -101,28 +102,6 @@ export type ActionEvt = PostAction | ActionView
 // Image formatting //
 //////////////////////
 
-/** Variant quality order for finding best available */
-const VARIANT_QUALITY_ORDER = ['vis.xd', 'vis.hd', 'vis.md', 'vis.sd', 'vis.tn']
-
-/**
- * Get local URL for a file variant (always fetches from own instance)
- */
-function getLocalUrl(authIdTag: string, fileId: string, variant: string): string {
-	return `https://cl-o.${authIdTag}/api/file/${fileId}?variant=${variant}`
-}
-
-/**
- * Find best available local variant from localVariants array
- * Returns the highest quality variant that's available locally
- */
-function getBestLocalVariant(localVariants?: string[], fallback = 'vis.hd'): string {
-	if (!localVariants?.length) return fallback
-	for (const variant of VARIANT_QUALITY_ORDER) {
-		if (localVariants.includes(variant)) return variant
-	}
-	return localVariants[0] // fallback to first available
-}
-
 interface ImagesProps {
 	width: number
 	attachments: ActionView['attachments']
@@ -135,15 +114,19 @@ export function Images({ width, attachments, idTag }: ImagesProps) {
 
 	if (!idTag || !attachments?.length) return null
 
-	// Inline images: always local, preferred variant (vis.sd)
+	// Inline images: always local, preferred variant for preview
 	const getInlineUrl = (att: NonNullable<typeof attachments>[0]) =>
-		getLocalUrl(idTag, att.fileId, 'vis.sd')
+		getFileUrl(idTag, att.fileId, getOptimalImageVariant('preview', att.localVariants))
 
-	// Lightbox: best available local variant
+	// Lightbox: best available local variant for fullscreen
 	const photos = React.useMemo(
 		() =>
 			attachments?.map((im) => ({
-				src: getLocalUrl(idTag, im.fileId, getBestLocalVariant(im.localVariants)),
+				src: getFileUrl(
+					idTag,
+					im.fileId,
+					getOptimalImageVariant('fullscreen', im.localVariants)
+				),
 				width: im.dim?.[0] || 100,
 				height: im.dim?.[1] || 100
 			})),
@@ -272,13 +255,21 @@ function Video({ attachments, idTag }: VideoProps) {
 	if (!idTag || !attachments?.length) return null
 
 	const videoAtt = attachments[0]
-	const videoUrl = `https://cl-o.${idTag}/api/file/${videoAtt.fileId}?variant=vid.hd`
+	const videoUrl = getFileUrl(
+		idTag,
+		videoAtt.fileId,
+		getOptimalVideoVariant('fullscreen', videoAtt.localVariants)
+	)
 
 	return (
 		<video
 			controls
 			style={{ maxWidth: '100%', maxHeight: '30rem' }}
-			poster={`https://cl-o.${idTag}/api/file/${videoAtt.fileId}?variant=vid.sd`}
+			poster={getFileUrl(
+				idTag,
+				videoAtt.fileId,
+				getOptimalVideoVariant('preview', videoAtt.localVariants)
+			)}
 		>
 			<source src={videoUrl} />
 		</video>

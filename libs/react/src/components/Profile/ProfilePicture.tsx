@@ -17,6 +17,8 @@
 import * as React from 'react'
 import { useAuth } from '../../hooks.js'
 import { UnknownProfilePicture } from './UnknownProfilePicture.js'
+import { getFileUrl } from '@cloudillo/base'
+import { mergeClasses } from '../utils.js'
 
 export interface ProfilePictureProps {
 	className?: string
@@ -29,12 +31,14 @@ export interface ProfilePictureProps {
 export function ProfilePicture({ className, profile, small, tiny, srcTag }: ProfilePictureProps) {
 	const [auth] = useAuth()
 
+	const idTag = srcTag ?? auth?.idTag
+
 	return (
-		<div className="c-profile-card">
-			{auth && profile.profilePic ? (
+		<div className={mergeClasses('c-profile-card', className)}>
+			{idTag && profile.profilePic ? (
 				<img
 					className={'picture' + (tiny ? ' tiny' : small ? ' small' : '')}
-					src={`https://cl-o.${srcTag ?? auth.idTag}/api/file/${profile.profilePic}?variant=vis.pf`}
+					src={getFileUrl(idTag, profile.profilePic, 'vis.pf')}
 				/>
 			) : (
 				<UnknownProfilePicture small={small} tiny={tiny} />

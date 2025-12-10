@@ -40,10 +40,13 @@ const APP_CONFIG: AppConfigState = {
 		}
 	],
 	mime: {
-		'image/jpeg': '/app/gallery',
-		'image/png': '/app/gallery',
-		'video/mp4': '/app/gallery',
-		'application/pdf': '/app/pdfviewer',
+		'image/jpeg': '/app/view',
+		'image/png': '/app/view',
+		'image/gif': '/app/view',
+		'image/webp': '/app/view',
+		'video/mp4': '/app/view',
+		'video/webm': '/app/view',
+		'application/pdf': '/app/view',
 		'cloudillo/quillo': '/app/quillo',
 		'cloudillo/calcillo': '/app/calcillo',
 		'cloudillo/prezillo': '/app/prezillo',
@@ -340,7 +343,8 @@ function isGuestPath(pathname: string): boolean {
 		pathname.startsWith('/login') ||
 		pathname.startsWith('/register/') ||
 		pathname.startsWith('/onboarding/') ||
-		pathname.startsWith('/reset-password/') // Password reset links
+		pathname.startsWith('/reset-password/') || // Password reset links
+		pathname.startsWith('/idp/activate/') // IDP activation links
 	)
 }
 

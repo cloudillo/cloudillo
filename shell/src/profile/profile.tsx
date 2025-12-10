@@ -24,6 +24,7 @@ import Turndown from 'turndown'
 
 import { Button, Popper, Container, Fcd, useDialog, mergeClasses } from '@cloudillo/react'
 import { NewAction } from '@cloudillo/types'
+import { getInstanceUrl, getFileUrl } from '@cloudillo/base'
 
 import {
 	LuPencil as IcEdit,
@@ -248,7 +249,7 @@ export function ProfilePage({
 
 		// Upload
 		const request = new XMLHttpRequest()
-		request.open('PUT', `https://cl-o.${api?.idTag}/api/me/cover`)
+		request.open('PUT', `${getInstanceUrl(api?.idTag || '')}/api/me/cover`)
 		request.setRequestHeader('Authorization', `Bearer ${auth?.token}`)
 
 		request.upload.addEventListener('progress', function (e) {
@@ -286,7 +287,7 @@ export function ProfilePage({
 
 		// Upload
 		const request = new XMLHttpRequest()
-		request.open('PUT', `https://cl-o.${api?.idTag}/api/me/image`)
+		request.open('PUT', `${getInstanceUrl(api?.idTag || '')}/api/me/image`)
 		request.setRequestHeader('Authorization', `Bearer ${auth?.token}`)
 
 		request.upload.addEventListener('progress', function (e) {
@@ -353,7 +354,7 @@ export function ProfilePage({
 						{profile.coverPic && (
 							<img
 								className="c-profile-cover w-100"
-								src={`https://cl-o.${profile.idTag}/api/file/${profile.coverPic}?variant=vis.hd`}
+								src={getFileUrl(profile.idTag, profile.coverPic, 'vis.hd')}
 							/>
 						)}
 						{own && (
@@ -377,7 +378,7 @@ export function ProfilePage({
 							{profile.profilePic ? (
 								<img
 									className="c-profile-pic"
-									src={`https://cl-o.${profile.idTag}/api/file/${profile.profilePic}?variant=vis.sd`}
+									src={getFileUrl(profile.idTag, profile.profilePic, 'vis.sd')}
 									alt="Profile picture"
 								/>
 							) : (

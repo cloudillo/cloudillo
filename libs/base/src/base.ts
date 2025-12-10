@@ -20,6 +20,8 @@ import { WebsocketProvider } from 'y-websocket'
 
 import * as T from '@symbion/runtype'
 
+import { getCrdtUrl } from './urls.js'
+
 export let accessToken: string | undefined
 export let idTag: string | undefined
 export let tnId: number | undefined
@@ -154,7 +156,7 @@ export async function openYDoc(
 	idbProvider.on('sync', () => console.log('content loaded from local storage'))
 	*/
 
-	const wsProvider = new WebsocketProvider(`wss://cl-o.${targetTag}/ws/crdt`, resId, yDoc, {
+	const wsProvider = new WebsocketProvider(getCrdtUrl(targetTag), resId, yDoc, {
 		params: { token: accessToken, access: access || 'write' }
 	})
 

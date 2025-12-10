@@ -150,4 +150,33 @@ export function generateFragments(text: string): React.ReactNode[] {
 	return fragments
 }
 
+/**
+ * Component to render formatted text with paragraphs, line breaks, links, hashtags, and emojis
+ */
+export interface FormattedTextProps {
+	content: string
+	className?: string
+}
+
+export function FormattedText({ content, className }: FormattedTextProps) {
+	if (!content) return null
+
+	return (
+		<div className={className}>
+			{content.split('\n\n').map((paragraph, i) => (
+				<p key={i}>
+					{paragraph.split('\n').map((line, j) => (
+						<React.Fragment key={j}>
+							{generateFragments(line).map((n, k) => (
+								<React.Fragment key={k}>{n}</React.Fragment>
+							))}
+							{j < paragraph.split('\n').length - 1 && <br />}
+						</React.Fragment>
+					))}
+				</p>
+			))}
+		</div>
+	)
+}
+
 // vim: ts=4

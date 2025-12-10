@@ -105,10 +105,14 @@
 	.picture.tiny {
 		width: 1.5rem;
 		height: 1.5rem;
+	}
+
+	/* Absolute positioning only when inside a relative container (e.g., ProfileAudienceCard overlay) */
+	.pos-relative .picture.tiny {
 		position: absolute;
 		right: 0;
 		bottom: 0;
-		border: 1px solid #000;
+		border: 1px solid var(--col-surface, #000);
 	}
 
 	.body {
@@ -147,7 +151,7 @@
 }
 
 #popper-container {
-	z-index: 100;
+	z-index: var(--z-popover, 700);
 }
 
 /* Loading Spinner */
@@ -457,6 +461,413 @@
 
 .c-empty-state-action {
 	margin-top: 0.5rem;
+}
+
+/* ==========================================================================
+   Toolbar Component
+   ========================================================================== */
+
+.c-toolbar {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-2);
+	background: var(--col-container-low);
+	border-radius: var(--radius-control);
+}
+
+.c-toolbar.compact {
+	padding: var(--space-1);
+	gap: var(--space-1);
+}
+
+.c-toolbar-divider {
+	width: 1px;
+	height: 1.5rem;
+	background: var(--col-outline);
+	margin: 0 var(--space-1);
+}
+
+.c-toolbar-spacer {
+	flex: 1;
+}
+
+.c-toolbar-group {
+	display: flex;
+	align-items: center;
+	gap: 0;
+}
+
+.c-toolbar-group > .c-button:not(:first-child) {
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
+}
+
+.c-toolbar-group > .c-button:not(:last-child) {
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+	border-right: 1px solid var(--col-outline);
+}
+
+/* ==========================================================================
+   Menu Component (Context Menu, Dropdown Menu)
+   ========================================================================== */
+
+.c-menu {
+	position: fixed;
+	background: var(--col-surface);
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-lg);
+	z-index: var(--z-popover, 1000);
+	min-width: 12rem;
+	padding: var(--space-1);
+	overflow: hidden;
+}
+
+.c-menu-item {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	width: 100%;
+	padding: var(--space-2) var(--space-3);
+	border: none;
+	background: transparent;
+	color: var(--col-on-surface);
+	font-size: var(--text-sm);
+	text-align: left;
+	cursor: pointer;
+	border-radius: var(--radius-sm);
+	transition: background var(--duration-fast) var(--ease-default);
+}
+
+.c-menu-item:hover {
+	background: var(--col-container-low);
+}
+
+.c-menu-item:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.c-menu-item.danger {
+	color: var(--col-error);
+}
+
+.c-menu-item.danger:hover {
+	background: rgba(var(--col-rgb-error, 239 68 68), 0.1);
+}
+
+.c-menu-item-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 1rem;
+	flex-shrink: 0;
+}
+
+.c-menu-item-label {
+	flex: 1;
+}
+
+.c-menu-item-shortcut {
+	font-size: var(--text-xs);
+	color: var(--col-secondary);
+	margin-left: auto;
+}
+
+.c-menu-divider {
+	height: 1px;
+	background: var(--col-outline);
+	margin: var(--space-1) 0;
+}
+
+.c-menu-header {
+	padding: var(--space-1) var(--space-3);
+	font-size: var(--text-xs);
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--col-secondary);
+}
+
+/* ==========================================================================
+   ActionSheet Component (Mobile Bottom Sheet)
+   Following OpalUI patterns and theme variables
+   ========================================================================== */
+
+.c-action-sheet-backdrop {
+	position: fixed;
+	inset: 0;
+	background: lch(from var(--col-shadow) l c h / 0.4);
+	backdrop-filter: blur(var(--blur-radius));
+	z-index: var(--z-modal, 600);
+	opacity: 0;
+	transition: opacity var(--duration-normal, 0.3s) var(--ease-default);
+	display: flex;
+	align-items: flex-end;
+}
+
+.c-action-sheet-backdrop.show {
+	opacity: 1;
+}
+
+.c-action-sheet {
+	width: 100%;
+	background-color: lch(from var(--col-container) l c h / var(--op-panel, 0.95));
+	backdrop-filter: blur(var(--blur-radius));
+	border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+	box-shadow:
+		var(--shadow-lg),
+		inset 0px 0px 1rem var(--col-frost);
+	transform: translateY(100%);
+	transition: transform var(--duration-normal, 0.3s) var(--ease-out);
+	padding-bottom: env(safe-area-inset-bottom, 0);
+	max-height: 80vh;
+	overflow-y: auto;
+	color: var(--col-on-container);
+}
+
+.c-action-sheet.show {
+	transform: translateY(0);
+}
+
+.c-action-sheet-header {
+	padding: var(--p-panel, 1rem);
+	text-align: center;
+	border-bottom: var(--border-w-sm, 1px) solid var(--col-outline);
+}
+
+.c-action-sheet-title {
+	font-size: var(--text-sm);
+	font-weight: 500;
+	color: var(--col-txt-muted, var(--col-on-container));
+	display: block;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.c-action-sheet-content {
+	padding: var(--space-2, 0.5rem) 0;
+}
+
+.c-action-sheet-item {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3, 0.75rem);
+	width: 100%;
+	min-height: 3rem;
+	padding: var(--space-3, 0.75rem) var(--p-panel, 1rem);
+	border: none;
+	background: transparent;
+	color: var(--col-on-container);
+	font-size: var(--text-base, 1rem);
+	text-align: left;
+	cursor: pointer;
+	transition: background var(--duration-fast, 0.15s) var(--ease-default);
+}
+
+.c-action-sheet-item:active {
+	background: lch(from var(--col-container-low) l c h / 0.5);
+}
+
+.c-action-sheet-item:disabled {
+	opacity: var(--op-disabled, 0.5);
+	cursor: not-allowed;
+}
+
+.c-action-sheet-item.danger {
+	color: var(--col-error);
+}
+
+.c-action-sheet-item-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.5rem;
+	font-size: 1.25rem;
+}
+
+.c-action-sheet-item-label {
+	flex: 1;
+}
+
+.c-action-sheet-divider {
+	height: var(--border-w-sm, 1px);
+	background: var(--col-outline);
+	margin: var(--space-2, 0.5rem) 0;
+}
+
+/* ==========================================================================
+   TagInput Component
+   ========================================================================== */
+
+.c-tag-input {
+	position: relative;
+}
+
+.c-tag-input.inline {
+	display: inline-flex;
+}
+
+.c-tag-input-field {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-1);
+	padding: var(--space-2);
+	background: var(--col-container-low);
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-control);
+	min-height: 2.5rem;
+	cursor: text;
+	transition:
+		border-color var(--duration-fast) var(--ease-default),
+		box-shadow var(--duration-fast) var(--ease-default);
+}
+
+.c-tag-input-field:focus-within {
+	border-color: var(--col-primary);
+	box-shadow: 0 0 0 2px rgba(var(--col-rgb-primary, 99 102 241), 0.2);
+}
+
+.c-tag-input-field input {
+	flex: 1;
+	min-width: 4rem;
+	border: none;
+	background: transparent;
+	color: var(--col-on-surface);
+	font-size: var(--text-sm);
+	padding: 0;
+	outline: none;
+}
+
+.c-tag-input-field input::placeholder {
+	color: var(--col-secondary);
+}
+
+.c-tag-input-suggestions {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	right: 0;
+	margin-top: var(--space-1);
+	background: var(--col-surface);
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-lg);
+	z-index: var(--z-popover, 1000);
+	list-style: none;
+	padding: var(--space-1);
+	margin-bottom: 0;
+}
+
+.c-tag-input-suggestion {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-2);
+	cursor: pointer;
+	border-radius: var(--radius-sm);
+	transition: background var(--duration-fast) var(--ease-default);
+}
+
+.c-tag-input-suggestion:hover,
+.c-tag-input-suggestion.highlighted {
+	background: var(--col-container-low);
+}
+
+.c-tag-input-suggestion-count {
+	font-size: var(--text-xs);
+	color: var(--col-secondary);
+}
+
+.c-tag-input-suggestion-new {
+	font-size: var(--text-xs);
+	color: var(--col-primary);
+	font-style: italic;
+}
+
+/* ==========================================================================
+   Accordion Component
+   ========================================================================== */
+
+.c-accordion {
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-md);
+	overflow: hidden;
+}
+
+.c-accordion.borderless {
+	border: none;
+	gap: var(--space-1);
+}
+
+.c-accordion.compact .c-accordion-header {
+	padding: var(--space-2);
+}
+
+.c-accordion-item {
+	border-bottom: 1px solid var(--col-outline);
+}
+
+.c-accordion.borderless .c-accordion-item {
+	border-bottom: none;
+	border-radius: var(--radius-sm);
+	overflow: hidden;
+}
+
+.c-accordion-item:last-child {
+	border-bottom: none;
+}
+
+.c-accordion-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	width: 100%;
+	padding: var(--space-3);
+	border: none;
+	background: transparent;
+	color: var(--col-on-surface);
+	font-size: var(--text-sm);
+	font-weight: 500;
+	text-align: left;
+	cursor: pointer;
+	transition: background var(--duration-fast) var(--ease-default);
+}
+
+.c-accordion-header:hover {
+	background: var(--col-container-low);
+}
+
+.c-accordion-header-icon {
+	display: flex;
+	align-items: center;
+	flex-shrink: 0;
+}
+
+.c-accordion-icon {
+	margin-left: auto;
+	flex-shrink: 0;
+	transition: transform var(--duration-fast) var(--ease-default);
+}
+
+.c-accordion-item.open .c-accordion-icon {
+	transform: rotate(90deg);
+}
+
+.c-accordion-content {
+	display: none;
+	padding: 0 var(--space-3) var(--space-3);
+}
+
+.c-accordion-item.open .c-accordion-content {
+	display: block;
 }
 
 /*

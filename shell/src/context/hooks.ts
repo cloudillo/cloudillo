@@ -62,9 +62,11 @@ export function useApiContext() {
 
 	/**
 	 * Get API client for specific context
+	 * @param idTag - ID tag of the context
+	 * @param token - Optional token to use (bypasses cache lookup)
 	 */
 	const getClientFor = React.useCallback(
-		(idTag: string): ApiClient | null => {
+		(idTag: string, token?: string): ApiClient | null => {
 			// Return cached client if exists
 			if (apiClientsRef.current.has(idTag)) {
 				return apiClientsRef.current.get(idTag)!
@@ -75,23 +77,27 @@ export function useApiContext() {
 				return primaryApi
 			}
 
-			// Get token for context
-			const tokenData = contextTokens.get(idTag)
-			if (!tokenData) {
-				console.warn(`No token available for context: ${idTag}`)
-				return null
-			}
+			// Use provided token or get from cache
+			let authToken = token
+			if (!authToken) {
+				const tokenData = contextTokens.get(idTag)
+				if (!tokenData) {
+					console.warn(`No token available for context: ${idTag}`)
+					return null
+				}
 
-			// Check if token is expired
-			if (tokenData.expiresAt <= new Date()) {
-				console.warn(`Token expired for context: ${idTag}`)
-				return null
+				// Check if token is expired
+				if (tokenData.expiresAt <= new Date()) {
+					console.warn(`Token expired for context: ${idTag}`)
+					return null
+				}
+				authToken = tokenData.token
 			}
 
 			// Create new client
 			const client = createApiClient({
 				idTag,
-				authToken: tokenData.token
+				authToken
 			})
 
 			// Cache it
@@ -125,8 +131,8 @@ export function useApiContext() {
 			}
 
 			try {
-				// Fetch new proxy token
-				const result = await primaryApi.auth.getProxyToken()
+				// Fetch new proxy token for the target idTag
+				const result = await primaryApi.auth.getProxyToken(idTag)
 
 				// Cache it (proxy tokens expire after 24h, cache for 23h)
 				const expiresAt = new Date(Date.now() + 23 * 60 * 60 * 1000)
@@ -167,8 +173,8 @@ export function useApiContext() {
 					throw new Error(`Failed to get token for context: ${idTag}`)
 				}
 
-				// Get API client
-				const contextApi = getClientFor(idTag)
+				// Get API client - pass token directly since state update may be async
+				const contextApi = getClientFor(idTag, token)
 				if (!contextApi) {
 					throw new Error(`Failed to create API client for context: ${idTag}`)
 				}

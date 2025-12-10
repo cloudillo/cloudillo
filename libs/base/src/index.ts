@@ -20,5 +20,6 @@ export * from './api-types.js'
 export * from './api-client.js'
 export * from './websocket.js'
 export * from './utils.js'
+export * from './urls.js'
 
 // vim: ts=4

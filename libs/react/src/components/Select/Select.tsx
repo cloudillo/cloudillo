@@ -50,7 +50,6 @@ export function Select<T>({
 	const deboucedOnInputValueChange = React.useCallback(
 		debounce(async function onInputValueChange({ inputValue }: { inputValue?: string }) {
 			const data = await getData(inputValue || '')
-			console.log('onInputValueChange', inputValue, data)
 			setItems(data || [])
 		}, 500),
 		[]
@@ -68,14 +67,12 @@ export function Select<T>({
 		onSelectedItemChange: ({ selectedItem }) => {
 			if (selectedItem) onChange?.(selectedItem)
 			onSelectItem?.(selectedItem || undefined)
-			console.log('onSelectedItemChange', selectedItem)
 			s.setInputValue('')
 		}
 	})
 
 	React.useEffect(function effect() {
 		return function cleanup() {
-			console.log('cleanup')
 			deboucedOnInputValueChange.clear()
 		}
 	}, [])
@@ -121,7 +118,7 @@ export function Select<T>({
 				<ul
 					{...getMenuProps()}
 					style={{ ...popperStyles.popper, ...(items.length ? {} : { display: 'none' }) }}
-					className="c-nav flex-column"
+					className="c-nav flex-column text-start"
 					{...attributes.popper}
 				>
 					{items.map((item, idx) => (

@@ -29,16 +29,12 @@ import {
 	LuArrowDownToLine as IcScrollBottom,
 	LuMessageCircle as IcComment,
 	LuThumbsUp as IcLike,
-	LuForward as IcShare,
-	LuSmile as EmSmile,
-	LuLaugh as EmLaugh,
-	LuFrown as EmSad,
-	LuMeh as EmMeh,
-	LuHeart as EmHeart
+	LuForward as IcShare
 } from 'react-icons/lu'
 
 import { Profile, ActionView, NewAction } from '@cloudillo/types'
 import * as Types from '@cloudillo/base'
+import { getFileUrl } from '@cloudillo/base'
 import {
 	useAuth,
 	useApi,
@@ -47,6 +43,7 @@ import {
 	IdentityTag,
 	ProfileCard,
 	mergeClasses,
+	generateFragments,
 	LoadingSpinner,
 	EmptyState,
 	SkeletonList
@@ -86,81 +83,6 @@ interface MsgImageAction extends MsgAction {
 }
 export type ActionEvt = MsgAction | MsgTextAction | MsgImageAction
 
-/////////////////////
-// Text formatting //
-/////////////////////
-const emojis: Record<string, React.ReactNode> = {
-	':)': <EmSmile size="1em" />, //'🙂',
-	':D': <EmLaugh size="1em" />, //'😀',
-	':P': '😛',
-	';P': '😜',
-	':|': <EmMeh size="1em" />, //'😐',
-	':(': <EmSad size="1em" />, //'🙁',
-	//':O': '😮',
-	//':.(': '😢',
-	'<3': <EmHeart size="1em" />, //'❤️️',
-	'::': <img src="https://w9.hu/w9.png" />
-	//'::': <span><img src="https://w9.hu/w9.png"/><span className="d-inline-block" style={{ width: 0, overflow: 'hidden' }}>::</span></span>
-}
-
-function generateFragments(text: string): React.ReactNode[] {
-	const fragments: React.ReactNode[] = []
-
-	for (const w of text.split(/(\s+)/)) {
-		let n: React.ReactNode = w
-
-		switch (w[0]) {
-			case 'h':
-				if (w.match(/^https?:\/\//)) {
-					if (w.startsWith(`https://${window.location.host}/`)) {
-						n = <Link to={w.replace(`https://${window.location.host}/`, '/')}>{w}</Link>
-					} else {
-						n = (
-							<a href={w} target="_blank">
-								{w}
-							</a>
-						)
-					}
-				}
-				break
-			case '#':
-				if (w.match(/^#\S+/)) {
-					n = <span className="c-tag">{w}</span>
-				}
-				break
-			case ':':
-			case ';':
-			case '<':
-			case '8':
-				const emoji = emojis[w]
-				if (typeof emoji == 'object') {
-					n = (
-						<span>
-							{emojis[w]}
-							<span
-								className="d-inline-block"
-								style={{ width: 0, overflow: 'hidden' }}
-							>
-								{w}
-							</span>
-						</span>
-					)
-				} else {
-					n = emoji || w
-				}
-				break
-		}
-		//if (typeof n == 'string') n = htmlEncode(n)
-		const last = fragments[fragments.length - 1]
-		if (typeof n == 'string' && typeof last == 'string') {
-			fragments[fragments.length - 1] = last + n
-		} else {
-			fragments.push(n)
-		}
-	}
-	return fragments
-}
-
 /////////////////
 // Msg Action //
 /////////////////
@@ -180,7 +102,7 @@ function Msg({ className, action, local }: MsgProps) {
 		const att = action.attachments[0]
 		if (typeof att !== 'string') {
 			// Always use local instance with preferred variant
-			imgSrc = `https://cl-o.${auth.idTag}/api/file/${att.fileId}?variant=vis.sd`
+			imgSrc = getFileUrl(auth.idTag, att.fileId, 'vis.sd')
 		}
 	}
 

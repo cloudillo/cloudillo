@@ -216,30 +216,39 @@ export function ProviderSelectorStep({
 		onSelectProvider('')
 	}
 
-	// Debounced provider check
-	const checkCustomProvider = React.useCallback(
-		debounce(async (provider: string) => {
-			if (!provider.includes('.') || !api) {
-				setCustomProviderState('idle')
-				return
-			}
+	// Debounced provider check - use useMemo to create stable debounced function
+	// and useEffect to clean up pending calls when dependencies change or unmount
+	const checkCustomProvider = React.useMemo(
+		() =>
+			debounce(async (provider: string) => {
+				if (!provider.includes('.') || !api) {
+					setCustomProviderState('idle')
+					return
+				}
 
-			setCustomProviderState('checking')
-			try {
-				const info = await api.idp.getInfo(provider)
-				setCustomProviderState('valid')
-				setCustomProviderInfo(info)
-				onSelectProvider(provider)
-				onProviderInfoFetched(provider, info)
-			} catch (e) {
-				console.log(`Provider ${provider} is not available`, e)
-				setCustomProviderState('invalid')
-				setCustomProviderInfo(undefined)
-				onSelectProvider('')
-			}
-		}, 500),
+				setCustomProviderState('checking')
+				try {
+					const info = await api.idp.getInfo(provider)
+					setCustomProviderState('valid')
+					setCustomProviderInfo(info)
+					onSelectProvider(provider)
+					onProviderInfoFetched(provider, info)
+				} catch (e) {
+					console.log(`Provider ${provider} is not available`, e)
+					setCustomProviderState('invalid')
+					setCustomProviderInfo(undefined)
+					onSelectProvider('')
+				}
+			}, 500),
 		[api, onSelectProvider, onProviderInfoFetched]
 	)
+
+	// Clean up debounced function on unmount or when dependencies change
+	React.useEffect(() => {
+		return () => {
+			checkCustomProvider.clear()
+		}
+	}, [checkCustomProvider])
 
 	function handleCustomChange(value: string) {
 		setCustomProvider(value)

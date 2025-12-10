@@ -17,6 +17,7 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { mergeClasses, createComponent } from '../utils.js'
+import { useBodyScrollLock, useEscapeKey } from '../hooks.js'
 import type { Elevation } from '../types.js'
 
 export interface ModalProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -30,33 +31,11 @@ export interface ModalProps extends React.HTMLAttributes<HTMLDivElement> {
 export const Modal = createComponent<HTMLDivElement, ModalProps>(
 	'Modal',
 	({ className, open, onClose, closeOnBackdrop = true, elevation, children, ...props }, ref) => {
-		// Close on escape key
-		React.useEffect(() => {
-			if (!open) return
+		// Close on escape key using shared hook
+		useEscapeKey(onClose || (() => {}), !!open && !!onClose)
 
-			function handleKeyDown(evt: KeyboardEvent) {
-				if (evt.key === 'Escape' && onClose) {
-					onClose()
-				}
-			}
-
-			document.addEventListener('keydown', handleKeyDown)
-			return () => {
-				document.removeEventListener('keydown', handleKeyDown)
-			}
-		}, [open, onClose])
-
-		// Prevent body scroll when modal is open
-		React.useEffect(() => {
-			if (open) {
-				document.body.style.overflow = 'hidden'
-			} else {
-				document.body.style.overflow = ''
-			}
-			return () => {
-				document.body.style.overflow = ''
-			}
-		}, [open])
+		// Prevent body scroll when modal is open using shared hook
+		useBodyScrollLock(!!open)
 
 		if (!open) return null
 

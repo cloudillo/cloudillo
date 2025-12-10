@@ -17,6 +17,7 @@
 import * as T from '@symbion/runtype'
 import { apiFetchHelper, ApiFetchResult } from './api.js'
 import * as Types from './api-types.js'
+import { getInstanceUrl } from './urls.js'
 
 /**
  * Options for creating an API client
@@ -162,9 +163,13 @@ export class ApiClient {
 
 		/**
 		 * GET /auth/proxy-token - Get proxy token for federation
+		 * @param idTag - Optional target idTag for cross-server federation
 		 * @returns Token
 		 */
-		getProxyToken: () => this.request('GET', '/auth/proxy-token', Types.tAccessTokenResult),
+		getProxyToken: (idTag?: string) =>
+			this.request('GET', '/auth/proxy-token', Types.tAccessTokenResult, {
+				query: idTag ? { idTag } : undefined
+			}),
 
 		/**
 		 * GET /auth/vapid - Get VAPID public key for push notifications
@@ -187,22 +192,22 @@ export class ApiClient {
 			this.request('POST', '/auth/set-password', Types.tSetPasswordResult, { data }),
 
 		/**
-		 * POST /auth/register - Register new user
+		 * POST /profiles/register - Register new user
 		 * @deprecated Use profile.register() instead
 		 * @param data - Registration request
 		 * @returns Login result with token and profile info
 		 */
 		register: (data: Types.RegisterRequest) =>
-			this.request('POST', '/profile/register', Types.tLoginResult, { data }),
+			this.request('POST', '/profiles/register', Types.tLoginResult, { data }),
 
 		/**
-		 * POST /auth/register-verify - Verify registration information
+		 * POST /profiles/verify - Verify registration information
 		 * @deprecated Use profile.verify() instead
 		 * @param data - Registration verify request
 		 * @returns Verification result with identity providers and validation errors
 		 */
 		registerVerify: (data: Types.RegisterVerifyRequest) =>
-			this.request('POST', '/profile/verify', Types.tRegisterVerifyResult, { data }),
+			this.request('POST', '/profiles/verify', Types.tRegisterVerifyResult, { data }),
 
 		// ====================================================================
 		// WEBAUTHN ENDPOINTS
@@ -295,20 +300,20 @@ export class ApiClient {
 	/** Profile creation endpoints (registration, community creation) */
 	profile = {
 		/**
-		 * POST /profile/verify - Verify profile identity availability (registration or community)
+		 * POST /profiles/verify - Verify profile identity availability (registration or community)
 		 * @param data - Verification request (type: 'ref' | 'domain' | 'idp')
 		 * @returns Verification result with identity providers and validation errors
 		 */
 		verify: (data: Types.VerifyProfileRequest) =>
-			this.request('POST', '/profile/verify', Types.tVerifyProfileResult, { data }),
+			this.request('POST', '/profiles/verify', Types.tVerifyProfileResult, { data }),
 
 		/**
-		 * POST /profile/register - Register new user or create community profile
+		 * POST /profiles/register - Register new user or create community profile
 		 * @param data - Registration request (includes type: person or community)
 		 * @returns Login result with token and profile info
 		 */
 		register: (data: Types.RegisterRequest) =>
-			this.request('POST', '/profile/register', Types.tLoginResult, { data })
+			this.request('POST', '/profiles/register', Types.tLoginResult, { data })
 	}
 
 	// ========================================================================
@@ -318,79 +323,79 @@ export class ApiClient {
 	/** Action endpoints */
 	actions = {
 		/**
-		 * GET /action - List actions
+		 * GET /actions - List actions
 		 * @param query - Filter and pagination options
 		 * @returns List of actions
 		 */
 		list: (query?: Types.ListActionsQuery) =>
-			this.request('GET', '/action', Types.tListActionsResult, {
+			this.request('GET', '/actions', Types.tListActionsResult, {
 				query: query as any
 			}),
 
 		/**
-		 * POST /action - Create action
+		 * POST /actions - Create action
 		 * @param data - Action data
 		 * @returns Created action
 		 */
 		create: (data: Types.NewAction) =>
-			this.request('POST', '/action', Types.tActionView, { data }),
+			this.request('POST', '/actions', Types.tActionView, { data }),
 
 		/**
-		 * GET /action/:actionId - Get single action
+		 * GET /actions/:actionId - Get single action
 		 * @param actionId - Action ID
 		 * @returns Action details
 		 */
-		get: (actionId: string) => this.request('GET', `/action/${actionId}`, Types.tActionView),
+		get: (actionId: string) => this.request('GET', `/actions/${actionId}`, Types.tActionView),
 
 		/**
-		 * PATCH /action/:actionId - Update action (draft only)
+		 * PATCH /actions/:actionId - Update action (draft only)
 		 * @param actionId - Action ID
 		 * @param patch - Patch data
 		 * @returns Updated action
 		 */
 		update: (actionId: string, patch: unknown) =>
-			this.request('PATCH', `/action/${actionId}`, Types.tActionView, {
+			this.request('PATCH', `/actions/${actionId}`, Types.tActionView, {
 				data: patch
 			}),
 
 		/**
-		 * DELETE /action/:actionId - Delete action
+		 * DELETE /actions/:actionId - Delete action
 		 * @param actionId - Action ID
 		 */
-		delete: (actionId: string) => this.request('DELETE', `/action/${actionId}`, T.struct({})),
+		delete: (actionId: string) => this.request('DELETE', `/actions/${actionId}`, T.struct({})),
 
 		/**
-		 * POST /action/:actionId/accept - Accept action
+		 * POST /actions/:actionId/accept - Accept action
 		 * @param actionId - Action ID
 		 */
 		accept: (actionId: string) =>
-			this.request('POST', `/action/${actionId}/accept`, T.nullValue),
+			this.request('POST', `/actions/${actionId}/accept`, T.nullValue),
 
 		/**
-		 * POST /action/:actionId/reject - Reject action
+		 * POST /actions/:actionId/reject - Reject action
 		 * @param actionId - Action ID
 		 */
 		reject: (actionId: string) =>
-			this.request('POST', `/action/${actionId}/reject`, T.nullValue),
+			this.request('POST', `/actions/${actionId}/reject`, T.nullValue),
 
 		/**
-		 * POST /action/:actionId/stat - Update action statistics
+		 * POST /actions/:actionId/stat - Update action statistics
 		 * @param actionId - Action ID
 		 * @param data - Statistics update
 		 */
 		updateStat: (actionId: string, data: Types.ActionStatUpdate) =>
-			this.request('POST', `/action/${actionId}/stat`, T.struct({}), {
+			this.request('POST', `/actions/${actionId}/stat`, T.struct({}), {
 				data
 			}),
 
 		/**
-		 * POST /action/:actionId/reaction - Add reaction to action
+		 * POST /actions/:actionId/reaction - Add reaction to action
 		 * @param actionId - Action ID
 		 * @param data - Reaction data
 		 * @returns Reaction ID
 		 */
 		addReaction: (actionId: string, data: Types.ReactionRequest) =>
-			this.request('POST', `/action/${actionId}/reaction`, Types.tReactionResponse, { data })
+			this.request('POST', `/actions/${actionId}/reaction`, Types.tReactionResponse, { data })
 	}
 
 	// ========================================================================
@@ -400,25 +405,25 @@ export class ApiClient {
 	/** File endpoints */
 	files = {
 		/**
-		 * GET /file - List files
+		 * GET /files - List files
 		 * @param query - Filter and pagination options
 		 * @returns List of files
 		 */
 		list: (query?: Types.ListFilesQuery) =>
-			this.request('GET', '/file', Types.tListFilesResult, {
+			this.request('GET', '/files', Types.tListFilesResult, {
 				query: query as any
 			}),
 
 		/**
-		 * POST /file - Create file (metadata-only: CRDT, RTDB, etc.)
+		 * POST /files - Create file (metadata-only: CRDT, RTDB, etc.)
 		 * @param data - File creation request
 		 * @returns Created file ID
 		 */
 		create: (data: Types.CreateFileRequest) =>
-			this.request('POST', '/file', Types.tCreateFileResult, { data }),
+			this.request('POST', '/files', Types.tCreateFileResult, { data }),
 
 		/**
-		 * POST /file/{preset}/{fileName} - Upload file blob
+		 * POST /files/{preset}/{fileName} - Upload file blob
 		 * @param preset - File preset (e.g., "profile", "cover", "gallery")
 		 * @param fileName - File name
 		 * @param fileData - File data (Blob, File, or ArrayBuffer)
@@ -431,7 +436,7 @@ export class ApiClient {
 			fileData: Blob | File | ArrayBuffer,
 			contentType?: string
 		) => {
-			const url = `https://cl-o.${this.opts.idTag}/api/file/${preset}/${fileName}`
+			const url = `${getInstanceUrl(this.opts.idTag)}/api/files/${preset}/${fileName}`
 			const body =
 				fileData instanceof ArrayBuffer ? fileData : await (fileData as Blob).arrayBuffer()
 
@@ -456,7 +461,8 @@ export class ApiClient {
 			}
 
 			const result = await res.json()
-			const decoded = T.decode(Types.tUploadFileResult, result)
+			// Backend wraps response in ApiResponse envelope with data, time, req_id fields
+			const decoded = T.decode(Types.tUploadFileResult, result.data)
 			if (T.isErr(decoded)) {
 				throw new Error(`Invalid response: ${decoded.err.map((e) => e.error).join(', ')}`)
 			}
@@ -464,27 +470,27 @@ export class ApiClient {
 		},
 
 		/**
-		 * GET /file/variant/:variantId - Get specific file variant
+		 * GET /files/variant/:variantId - Get specific file variant
 		 * @param variantId - Variant ID
 		 * @returns Binary file data
 		 */
 		getVariant: (variantId: string) =>
-			fetch(`https://cl-o.${this.opts.idTag}/api/file/variant/${variantId}`, {
+			fetch(`${getInstanceUrl(this.opts.idTag)}/api/files/variant/${variantId}`, {
 				headers: {
 					Authorization: `Bearer ${this.opts.authToken}`
 				}
 			}),
 
 		/**
-		 * GET /file/:fileId/descriptor - Get file descriptor and variants
+		 * GET /files/:fileId/descriptor - Get file descriptor and variants
 		 * @param fileId - File ID
 		 * @returns File descriptor
 		 */
 		getDescriptor: (fileId: string) =>
-			this.request('GET', `/file/${fileId}/descriptor`, Types.tFileDescriptor),
+			this.request('GET', `/files/${fileId}/descriptor`, Types.tFileDescriptor),
 
 		/**
-		 * GET /file/:fileId - Get file (best variant selected)
+		 * GET /files/:fileId - Get file (best variant selected)
 		 * @param fileId - File ID
 		 * @param selector - Optional variant selector
 		 * @returns Binary file data
@@ -500,7 +506,7 @@ export class ApiClient {
 					)
 				: undefined
 
-			return fetch(`https://cl-o.${this.opts.idTag}/api/file/${fileId}`, {
+			return fetch(`${getInstanceUrl(this.opts.idTag)}/api/files/${fileId}`, {
 				headers: {
 					Authorization: `Bearer ${this.opts.authToken}`
 				}
@@ -508,41 +514,168 @@ export class ApiClient {
 		},
 
 		/**
-		 * PATCH /file/:fileId - Update file metadata
+		 * PATCH /files/:fileId - Update file metadata
 		 * @param fileId - File ID
 		 * @param data - Patch data
 		 * @returns Updated file data
 		 */
 		update: (fileId: string, data: Types.PatchFileRequest) =>
-			this.request('PATCH', `/file/${fileId}`, Types.tPatchFileResult, {
+			this.request('PATCH', `/files/${fileId}`, Types.tPatchFileResult, {
 				data
 			}),
 
 		/**
-		 * DELETE /file/:fileId - Delete file
+		 * DELETE /files/:fileId - Move file to trash (soft delete)
 		 * @param fileId - File ID
-		 * @returns Deleted file ID
+		 * @returns Deleted file result with permanent flag
 		 */
 		delete: (fileId: string) =>
-			this.request('DELETE', `/file/${fileId}`, Types.tDeleteFileResult),
+			this.request('DELETE', `/files/${fileId}`, Types.tDeleteFileResult),
 
 		/**
-		 * PUT /file/:fileId/tag/:tag - Add tag to file
+		 * DELETE /files/:fileId?permanent=true - Permanently delete file (must be in trash)
+		 * @param fileId - File ID
+		 * @returns Deleted file result
+		 */
+		permanentDelete: (fileId: string) =>
+			this.request('DELETE', `/files/${fileId}`, Types.tDeleteFileResult, {
+				query: { permanent: true }
+			}),
+
+		/**
+		 * POST /files/:fileId/restore - Restore file from trash
+		 * @param fileId - File ID
+		 * @param parentId - Optional target folder (null = root)
+		 * @returns Restored file info
+		 */
+		restore: (fileId: string, parentId?: string) =>
+			this.request('POST', `/files/${fileId}/restore`, Types.tRestoreFileResult, {
+				data: { parentId }
+			}),
+
+		/**
+		 * PUT /files/:fileId/tag/:tag - Add tag to file
 		 * @param fileId - File ID
 		 * @param tag - Tag name
 		 * @returns File tags
 		 */
 		addTag: (fileId: string, tag: string) =>
-			this.request('PUT', `/file/${fileId}/tag/${tag}`, Types.tTagResult),
+			this.request('PUT', `/files/${fileId}/tag/${tag}`, Types.tTagResult),
 
 		/**
-		 * DELETE /file/:fileId/tag/:tag - Remove tag from file
+		 * DELETE /files/:fileId/tag/:tag - Remove tag from file
 		 * @param fileId - File ID
 		 * @param tag - Tag name
 		 * @returns File tags
 		 */
 		removeTag: (fileId: string, tag: string) =>
-			this.request('DELETE', `/file/${fileId}/tag/${tag}`, Types.tTagResult)
+			this.request('DELETE', `/files/${fileId}/tag/${tag}`, Types.tTagResult),
+
+		/**
+		 * Add file to favorites collection
+		 * @param fileId - File ID
+		 */
+		favorite: (fileId: string) =>
+			this.request(
+				'POST',
+				`/collections/FAVR/${encodeURIComponent(fileId)}`,
+				Types.tCollectionResponse
+			),
+
+		/**
+		 * Remove file from favorites collection
+		 * @param fileId - File ID
+		 */
+		unfavorite: (fileId: string) =>
+			this.request(
+				'DELETE',
+				`/collections/FAVR/${encodeURIComponent(fileId)}`,
+				Types.tCollectionResponse
+			),
+
+		/**
+		 * GET /files?collection=FAVR - List favorite files
+		 * @param query - Optional limit
+		 * @returns List of favorite files
+		 */
+		listFavorites: (query?: { limit?: number }) =>
+			this.request('GET', '/files', Types.tListFilesResult, {
+				query: { ...query, collection: 'FAVR' }
+			}),
+
+		/**
+		 * GET /files?collection=RCNT - List recent files
+		 * @param query - Optional limit
+		 * @returns List of recently accessed files
+		 */
+		listRecent: (query?: { limit?: number }) =>
+			this.request('GET', '/files', Types.tListFilesResult, {
+				query: { ...query, collection: 'RCNT' }
+			})
+	}
+
+	// ========================================================================
+	// TRASH ENDPOINTS
+	// ========================================================================
+
+	/** Trash management endpoints */
+	trash = {
+		/**
+		 * GET /files?parentId=__trash__ - List files in trash
+		 * @returns List of trashed files
+		 */
+		list: (query?: { limit?: number }) =>
+			this.request('GET', '/files', Types.tListFilesResult, {
+				query: { ...query, parentId: '__trash__' }
+			}),
+
+		/**
+		 * DELETE /trash - Empty trash (permanently delete all trashed files)
+		 * @returns Number of files deleted
+		 */
+		empty: () => this.request('DELETE', '/trash', Types.tEmptyTrashResult)
+	}
+
+	// ========================================================================
+	// COLLECTION ENDPOINTS
+	// ========================================================================
+
+	/** Collection management endpoints (favorites, recent, bookmarks, pins) */
+	collections = {
+		/**
+		 * GET /collections/:collType - List items in a collection
+		 * @param collType - Collection type: 'FAVR', 'RCNT', 'BKMK', 'PIND'
+		 * @param query - Optional limit
+		 * @returns List of collection items
+		 */
+		list: (collType: Types.CollectionType, query?: { limit?: number }) =>
+			this.request('GET', `/collections/${collType}`, Types.tListCollectionResult, { query }),
+
+		/**
+		 * POST /collections/:collType/:itemId - Add item to collection
+		 * @param collType - Collection type
+		 * @param itemId - Item ID to add
+		 * @returns Collection response
+		 */
+		add: (collType: Types.CollectionType, itemId: string) =>
+			this.request(
+				'POST',
+				`/collections/${collType}/${encodeURIComponent(itemId)}`,
+				Types.tCollectionResponse
+			),
+
+		/**
+		 * DELETE /collections/:collType/:itemId - Remove item from collection
+		 * @param collType - Collection type
+		 * @param itemId - Item ID to remove
+		 * @returns Collection response
+		 */
+		remove: (collType: Types.CollectionType, itemId: string) =>
+			this.request(
+				'DELETE',
+				`/collections/${collType}/${encodeURIComponent(itemId)}`,
+				Types.tCollectionResponse
+			)
 	}
 
 	// ========================================================================
@@ -552,12 +685,12 @@ export class ApiClient {
 	/** Tag endpoints */
 	tags = {
 		/**
-		 * GET /tag - List tags
-		 * @param query - Optional prefix filter
-		 * @returns List of tags
+		 * GET /tags - List tags
+		 * @param query - Optional filters (prefix, withCounts, limit)
+		 * @returns List of tags with optional counts
 		 */
-		list: (query?: { prefix?: string }) =>
-			this.request('GET', '/tag', Types.tListTagsResult, { query })
+		list: (query?: Types.ListTagsQuery) =>
+			this.request('GET', '/tags', Types.tListTagsResult, { query: query as any })
 	}
 
 	// ========================================================================
@@ -597,38 +730,38 @@ export class ApiClient {
 			this.request('PATCH', '/me', Types.tUpdateProfileResult, { data }),
 
 		/**
-		 * GET /profile - List profiles
+		 * GET /profiles - List profiles
 		 * @param query - Filter options
 		 * @returns List of profiles
 		 */
 		list: (query?: Types.ListProfilesQuery) =>
-			this.request('GET', '/profile', Types.tListProfilesResult, {
+			this.request('GET', '/profiles', Types.tListProfilesResult, {
 				query: query as any
 			}),
 
 		/**
-		 * GET /profile/:idTag - Get profile by ID tag (local relationship state)
+		 * GET /profiles/:idTag - Get profile by ID tag (local relationship state)
 		 * @param idTag - Identity tag
 		 * @returns Profile or null if not found locally
 		 */
-		get: (idTag: string) => this.request('GET', `/profile/${idTag}`, Types.tOptionalProfile),
+		get: (idTag: string) => this.request('GET', `/profiles/${idTag}`, Types.tOptionalProfile),
 
 		/**
-		 * PATCH /profile/:idTag - Update profile connection/relationship
+		 * PATCH /profiles/:idTag - Update profile connection/relationship
 		 * @param idTag - Identity tag
 		 * @param data - Patch data
 		 */
 		updateConnection: (idTag: string, data: Types.PatchProfileConnection) =>
-			this.request('PATCH', `/profile/${idTag}`, T.struct({}), { data }),
+			this.request('PATCH', `/profiles/${idTag}`, T.struct({}), { data }),
 
 		/**
-		 * PATCH /admin/profile/:idTag - Admin update profile
+		 * PATCH /admin/profiles/:idTag - Admin update profile
 		 * @param idTag - Identity tag
 		 * @param data - Profile patch data
 		 * @returns Updated profile
 		 */
 		adminUpdate: (idTag: string, data: Types.ProfilePatch) =>
-			this.request('PATCH', `/admin/profile/${idTag}`, Types.tUpdateProfileResult, { data })
+			this.request('PATCH', `/admin/profiles/${idTag}`, Types.tUpdateProfileResult, { data })
 	}
 
 	// ========================================================================
@@ -668,11 +801,11 @@ export class ApiClient {
 	/** Notification endpoints */
 	notifications = {
 		/**
-		 * POST /notification/subscription - Subscribe to push notifications
+		 * POST /notifications/subscription - Subscribe to push notifications
 		 * @param data - Push subscription object
 		 */
 		subscribe: (data: { subscription: PushSubscription }) =>
-			this.request('POST', '/notification/subscription', T.struct({}), { data })
+			this.request('POST', '/notifications/subscription', T.struct({}), { data })
 	}
 
 	// ========================================================================
@@ -726,7 +859,15 @@ export class ApiClient {
 		getInfo: (providerDomain: string) =>
 			apiFetchHelper<Types.IdpInfo, unknown>(providerDomain, 'GET', '/idp/info', {
 				type: Types.tIdpInfo
-			})
+			}),
+
+		/**
+		 * POST /idp/activate - Activate an identity using a ref token
+		 * @param data - Activation request with refId
+		 * @returns Activation result with identity status
+		 */
+		activate: (data: Types.IdpActivateRequest) =>
+			this.request('POST', '/idp/activate', Types.tIdpActivateResult, { data })
 	}
 
 	// ========================================================================
@@ -736,22 +877,22 @@ export class ApiClient {
 	/** Community management endpoints */
 	communities = {
 		/**
-		 * PUT /profile/{id_tag} - Create community profile
+		 * PUT /profiles/{id_tag} - Create community profile
 		 * @param idTag - Community identity tag to create
 		 * @param data - Community creation request
 		 * @returns Created community profile
 		 */
 		create: (idTag: string, data: Types.CreateCommunityRequest) =>
-			this.request('PUT', `/profile/${idTag}`, Types.tCommunityProfileResponse, { data }),
+			this.request('PUT', `/profiles/${idTag}`, Types.tCommunityProfileResponse, { data }),
 
 		/**
-		 * POST /auth/community-verify - Verify community identity availability
+		 * POST /profiles/verify - Verify community identity availability
 		 * @deprecated Use profile.verify() instead
 		 * @param data - Verification request
 		 * @returns Verification result with errors and server addresses
 		 */
 		verify: (data: Types.VerifyCommunityRequest) =>
-			this.request('POST', '/profile/verify', Types.tCommunityVerifyResult, { data })
+			this.request('POST', '/profiles/verify', Types.tCommunityVerifyResult, { data })
 	}
 
 	// ========================================================================

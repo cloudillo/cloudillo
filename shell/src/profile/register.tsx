@@ -428,53 +428,62 @@ export function RegisterForm() {
 	}
 
 	console.log('VERIFY STATE', verifyState)
-	const onChangeVerify = React.useCallback(
-		debounce(
-			async function onVerify(
-				changed: 'idTag' | 'appDomain',
-				idTag: string,
-				provider?: string,
-				appDomain?: string
-			) {
-				if (!idTag || !api || !identityProvider || !token) return
+	// Debounced verification - use useMemo to create stable debounced function
+	const onChangeVerify = React.useMemo(
+		() =>
+			debounce(
+				async function onVerify(
+					changed: 'idTag' | 'appDomain',
+					idTag: string,
+					provider?: string,
+					appDomain?: string
+				) {
+					if (!idTag || !api || !identityProvider || !token) return
 
-				const effectiveProvider = provider || selectedProvider
+					const effectiveProvider = provider || selectedProvider
 
-				setProgress('vfy')
-				console.log('ON VERIFY', changed, idTag, effectiveProvider, appDomain)
-				if (changed == 'appDomain')
-					setVerifyState((vs) => (!vs ? undefined : { ...vs, appDomainError: '' }))
-				else setVerifyState(undefined)
-				try {
-					const res = await api.profile.verify({
-						type: identityProvider,
-						idTag:
-							identityProvider == 'domain'
-								? idTag
-								: effectiveProvider
-									? idTag + '.' + effectiveProvider
-									: idTag,
-						appDomain,
-						token
-					})
-					console.log('RES', res)
-					setProgress(undefined)
-					setVerifyState(res)
-				} catch (err) {
-					console.log('ERROR', err)
-					setProgress(undefined)
-					// Set network error state so user knows verification failed
-					setVerifyState({
-						address: [],
-						identityProviders: [],
-						idTagError: 'network'
-					})
-				}
-			}.bind(null),
-			500
-		),
+					setProgress('vfy')
+					console.log('ON VERIFY', changed, idTag, effectiveProvider, appDomain)
+					if (changed == 'appDomain')
+						setVerifyState((vs) => (!vs ? undefined : { ...vs, appDomainError: '' }))
+					else setVerifyState(undefined)
+					try {
+						const res = await api.profile.verify({
+							type: identityProvider,
+							idTag:
+								identityProvider == 'domain'
+									? idTag
+									: effectiveProvider
+										? idTag + '.' + effectiveProvider
+										: idTag,
+							appDomain,
+							token
+						})
+						console.log('RES', res)
+						setProgress(undefined)
+						setVerifyState(res)
+					} catch (err) {
+						console.log('ERROR', err)
+						setProgress(undefined)
+						// Set network error state so user knows verification failed
+						setVerifyState({
+							address: [],
+							identityProviders: [],
+							idTagError: 'network'
+						})
+					}
+				}.bind(null),
+				500
+			),
 		[identityProvider, selectedProvider, token, api]
 	)
+
+	// Clean up debounced function on unmount or when dependencies change
+	React.useEffect(() => {
+		return () => {
+			onChangeVerify.clear()
+		}
+	}, [onChangeVerify])
 
 	async function onSubmit(evt: React.FormEvent) {
 		evt.preventDefault()

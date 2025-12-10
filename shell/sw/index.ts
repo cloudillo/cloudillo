@@ -188,7 +188,10 @@ function onFetch(evt: any) {
 								'https://cl-o.' +
 									idTag +
 									`/api/auth/proxy-token?idTag=${targetTag}`,
-								{ credentials: 'include' }
+								{
+									credentials: 'include',
+									headers: { Authorization: `Bearer ${authToken}` }
+								}
 							)
 							token = (await proxyTokenRes.json())?.data?.token
 							log && console.log('PROXY TOKEN miss', idTag, targetTag, token)
@@ -270,7 +273,7 @@ function onPushSubscriptionChange(evt: any) {
 			subs: PushSubscription
 		) {
 			console.log('Subscribed after expiration', JSON.stringify(subs))
-			return fetch('/api/notification/subscription', {
+			return fetch('/api/notifications/subscription', {
 				method: 'post',
 				headers: {
 					'Content-type': 'application/json'

@@ -20,6 +20,7 @@ import { mergeClasses } from '../utils.js'
 import { UnknownProfilePicture } from './UnknownProfilePicture.js'
 import { IdentityTag } from './IdentityTag.js'
 import type { Profile } from './ProfileCard.js'
+import { getFileUrl } from '@cloudillo/base'
 
 export interface ProfileAudienceCardProps {
 	className?: string
@@ -42,7 +43,7 @@ export function ProfileAudienceCard({
 				{auth && audience.profilePic ? (
 					<img
 						className="picture"
-						src={`https://cl-o.${srcTag ?? auth?.idTag}/api/file/${audience.profilePic}?variant=vis.pf`}
+						src={getFileUrl(srcTag ?? auth?.idTag ?? '', audience.profilePic, 'vis.pf')}
 					/>
 				) : (
 					<UnknownProfilePicture />
@@ -50,7 +51,7 @@ export function ProfileAudienceCard({
 				{auth && profile.profilePic ? (
 					<img
 						className="picture tiny"
-						src={`https://cl-o.${srcTag ?? auth?.idTag}/api/file/${profile.profilePic}?variant=vis.pf`}
+						src={getFileUrl(srcTag ?? auth?.idTag ?? '', profile.profilePic, 'vis.pf')}
 					/>
 				) : (
 					<UnknownProfilePicture tiny />

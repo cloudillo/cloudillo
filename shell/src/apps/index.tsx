@@ -26,6 +26,7 @@ import { FeedApp } from './feed.js'
 import { FilesApp } from './files.js'
 import { GalleryApp } from './gallery.js'
 import { MessagesApp } from './messages.js'
+import { FileViewerApp } from './viewer/index.js'
 
 async function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(() => resolve(), ms))
@@ -191,6 +192,7 @@ export function AppRoutes() {
 			<Route path="/app/:contextIdTag/feed" element={<FeedApp />} />
 			<Route path="/app/:contextIdTag/gallery" element={<GalleryApp />} />
 			<Route path="/app/:contextIdTag/messages/:convId?" element={<MessagesApp />} />
+			<Route path="/app/:contextIdTag/view/:resId" element={<FileViewerApp />} />
 			<Route
 				path="/app/:contextIdTag/:appId/*"
 				element={<ExternalApp className="w-100 h-100" />}
@@ -200,6 +202,7 @@ export function AppRoutes() {
 			<Route path="/app/feed" element={<FeedApp />} />
 			<Route path="/app/gallery" element={<GalleryApp />} />
 			<Route path="/app/messages/:convId?" element={<MessagesApp />} />
+			<Route path="/app/view/:resId" element={<FileViewerApp />} />
 			<Route path="/app/:appId/*" element={<ExternalApp className="w-100 h-100" />} />
 			<Route path="/*" element={null} />
 		</Routes>

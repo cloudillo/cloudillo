@@ -55,6 +55,7 @@ import { Page } from '../ui.js'
 import { RegisterForm } from '../profile/register.js'
 import { validIdTag, validPassword } from './utils.js'
 import { ResetPassword } from './reset-password.js'
+import { IdpActivate } from './idp-activate.js'
 
 ////////////
 // Logout //
@@ -515,6 +516,14 @@ export function AuthRoutes() {
 				element={
 					<LoginPage>
 						<ResetPassword />
+					</LoginPage>
+				}
+			/>
+			<Route
+				path="/idp/activate/:refId"
+				element={
+					<LoginPage>
+						<IdpActivate />
 					</LoginPage>
 				}
 			/>

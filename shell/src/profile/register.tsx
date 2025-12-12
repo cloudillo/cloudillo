@@ -19,7 +19,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import debounce from 'debounce'
 
-import { LuDoorOpen as IcSignUp, LuChevronsLeft as IcGoBack } from 'react-icons/lu'
+import {
+	LuDoorOpen as IcSignUp,
+	LuChevronsLeft as IcGoBack,
+	LuCircleCheck as IcSuccess,
+	LuLightbulb as IcTip
+} from 'react-icons/lu'
 
 import { useAuth, useApi, Button } from '@cloudillo/react'
 import * as Types from '@cloudillo/base'
@@ -685,60 +690,82 @@ export function RegisterForm() {
 			{/************************/}
 			{progress == 'done' && (
 				<>
-					<header>
-						<h1 className="mb-3">{t('Welcome to Cloudillo!')}</h1>
-					</header>
-					<div className="c-vbox align-items-center p-5">
-						<CloudilloLogo className="c-logo w-50 ps-3 pb-w" />
-						<h3 className="my-3">{t('Your registration was successful.')}</h3>
+					<div className="c-vbox align-items-center">
+						<CloudilloLogo className="c-logo" style={{ maxWidth: '8rem' }} />
+
+						<div className="c-success-header">
+							<IcSuccess className="c-success-icon" aria-hidden="true" />
+							<h1 className="mb-0">{t('Registration Successful!')}</h1>
+							<p className="text-muted">{t('Welcome to Cloudillo!')}</p>
+						</div>
+
 						{identityProvider == 'idp' ? (
-							<>
-								<p>
-									{t(
-										'You will receive two emails to complete your registration:'
-									)}
-								</p>
-								<ul className="text-start">
-									<li>
-										<strong>{t('Activation email')}</strong>{' '}
-										{t('from your Identity Provider')}
-										<br />
-										<span className="text-muted small">
+							<div className="w-100" style={{ maxWidth: '28rem' }}>
+								<h3 className="mb-3">{t('What happens next?')}</h3>
+
+								<div className="c-step-card">
+									<div className="c-step-number">1</div>
+									<div className="c-step-content">
+										<strong>{t('Activation email')}</strong>
+										<span className="text-muted">
+											{' '}
+											{t('from your Identity Provider')}
+										</span>
+										<hr className="my-2" />
+										<p className="text-muted small mb-0">
 											{t('Click to activate your federated identity')}
+										</p>
+									</div>
+								</div>
+
+								<div className="c-step-card">
+									<div className="c-step-number">2</div>
+									<div className="c-step-content">
+										<strong>{t('Onboarding email')}</strong>
+										<span className="text-muted">
+											{' '}
+											{t('from this Cloudillo instance')}
 										</span>
-									</li>
-									<li>
-										<strong>{t('Onboarding email')}</strong>{' '}
-										{t('from this Cloudillo instance')}
-										<br />
-										<span className="text-muted small">
+										<hr className="my-2" />
+										<p className="text-muted small mb-0">
 											{t('Click to set up your account and password')}
-										</span>
-									</li>
-								</ul>
-								<p className="text-muted small">
-									{t(
-										'Please check your inbox and complete both activations. It may take up to an hour before your account is fully ready.'
-									)}
-								</p>
-							</>
+										</p>
+									</div>
+								</div>
+
+								<div className="c-info-tip mt-3">
+									<IcTip className="c-info-tip-icon" aria-hidden="true" />
+									<div>
+										<p className="mb-1">{t('Check your inbox to continue.')}</p>
+										<p className="text-muted small mb-0">
+											{t(
+												'It may take up to an hour before your account is fully ready.'
+											)}
+										</p>
+									</div>
+								</div>
+							</div>
 						) : (
-							<>
-								<p>
+							<div className="w-100" style={{ maxWidth: '28rem' }}>
+								<p className="mb-3">
 									{t(
 										'We have sent an onboarding link to your email address. Please check your inbox to continue setting up your account.'
 									)}
 								</p>
 								{identityProvider == 'domain' && (
-									<p className="text-muted small">
-										{t(
-											'If you set up custom DNS records, it may take some time for changes to propagate.'
-										)}
-									</p>
+									<div className="c-info-tip">
+										<IcTip className="c-info-tip-icon" aria-hidden="true" />
+										<p className="text-muted small mb-0">
+											{t(
+												'If you set up custom DNS records, it may take some time for changes to propagate.'
+											)}
+										</p>
+									</div>
 								)}
-							</>
+							</div>
 						)}
-						<p className="text-muted small">{t('You can close this page now.')}</p>
+
+						<p className="text-muted mt-4">{t("You're all set here!")}</p>
 					</div>
 				</>
 			)}
@@ -747,60 +774,82 @@ export function RegisterForm() {
 			{/****************/}
 			{progress == 'wait-dns' && (
 				<>
-					<header>
-						<h1 className="mb-3">{t('Welcome to Cloudillo!')}</h1>
-					</header>
-					<div className="c-vbox align-items-center p-5">
-						<CloudilloLogo className="c-logo w-50 ps-3 pb-w" />
-						<h3 className="my-3">{t('Your registration was successful.')}</h3>
+					<div className="c-vbox align-items-center">
+						<CloudilloLogo className="c-logo" style={{ maxWidth: '8rem' }} />
+
+						<div className="c-success-header">
+							<IcSuccess className="c-success-icon" aria-hidden="true" />
+							<h1 className="mb-0">{t('Registration Successful!')}</h1>
+							<p className="text-muted">{t('Welcome to Cloudillo!')}</p>
+						</div>
+
 						{identityProvider == 'idp' ? (
-							<>
-								<p>
-									{t(
-										'You will receive two emails to complete your registration:'
-									)}
-								</p>
-								<ul className="text-start">
-									<li>
-										<strong>{t('Activation email')}</strong>{' '}
-										{t('from your Identity Provider')}
-										<br />
-										<span className="text-muted small">
+							<div className="w-100" style={{ maxWidth: '28rem' }}>
+								<h3 className="mb-3">{t('What happens next?')}</h3>
+
+								<div className="c-step-card">
+									<div className="c-step-number">1</div>
+									<div className="c-step-content">
+										<strong>{t('Activation email')}</strong>
+										<span className="text-muted">
+											{' '}
+											{t('from your Identity Provider')}
+										</span>
+										<hr className="my-2" />
+										<p className="text-muted small mb-0">
 											{t('Click to activate your federated identity')}
+										</p>
+									</div>
+								</div>
+
+								<div className="c-step-card">
+									<div className="c-step-number">2</div>
+									<div className="c-step-content">
+										<strong>{t('Onboarding email')}</strong>
+										<span className="text-muted">
+											{' '}
+											{t('from this Cloudillo instance')}
 										</span>
-									</li>
-									<li>
-										<strong>{t('Onboarding email')}</strong>{' '}
-										{t('from this Cloudillo instance')}
-										<br />
-										<span className="text-muted small">
+										<hr className="my-2" />
+										<p className="text-muted small mb-0">
 											{t('Click to set up your account and password')}
-										</span>
-									</li>
-								</ul>
-								<p className="text-muted small">
-									{t(
-										'Please check your inbox and complete both activations. It may take up to an hour before your account is fully ready.'
-									)}
-								</p>
-							</>
+										</p>
+									</div>
+								</div>
+
+								<div className="c-info-tip mt-3">
+									<IcTip className="c-info-tip-icon" aria-hidden="true" />
+									<div>
+										<p className="mb-1">{t('Check your inbox to continue.')}</p>
+										<p className="text-muted small mb-0">
+											{t(
+												'It may take up to an hour before your account is fully ready.'
+											)}
+										</p>
+									</div>
+								</div>
+							</div>
 						) : (
-							<>
-								<p>
+							<div className="w-100" style={{ maxWidth: '28rem' }}>
+								<p className="mb-3">
 									{t(
 										'We have sent an onboarding link to your email address. Please check your inbox to continue setting up your account.'
 									)}
 								</p>
 								{identityProvider == 'domain' && (
-									<p className="text-muted small">
-										{t(
-											'If you set up custom DNS records, it may take some time for changes to propagate.'
-										)}
-									</p>
+									<div className="c-info-tip">
+										<IcTip className="c-info-tip-icon" aria-hidden="true" />
+										<p className="text-muted small mb-0">
+											{t(
+												'If you set up custom DNS records, it may take some time for changes to propagate.'
+											)}
+										</p>
+									</div>
 								)}
-							</>
+							</div>
 						)}
-						<p className="text-muted small">{t('You can close this page now.')}</p>
+
+						<p className="text-muted mt-4">{t("You're all set here!")}</p>
 					</div>
 				</>
 			)}

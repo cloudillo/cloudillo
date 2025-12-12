@@ -357,6 +357,12 @@ export function ProviderSelectorStep({
 										type="text"
 										value={customProvider}
 										onChange={(e) => handleCustomChange(e.target.value)}
+										onKeyDown={(e) => {
+											if (e.key === 'Enter') {
+												e.preventDefault()
+												if (isValid) onContinue()
+											}
+										}}
 										placeholder={t('example.provider.net')}
 										onClick={(e) => e.stopPropagation()}
 									/>

@@ -230,5 +230,65 @@ body {
 	}
 }
 
+/* Registration success page */
+.c-success-header {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 1.5rem;
+	margin-bottom: 1.5rem;
+}
+
+.c-success-icon {
+	width: 5rem;
+	height: 5rem;
+	color: var(--col-success, #22c55e);
+	margin-bottom: 0.75rem;
+}
+
+.c-step-card {
+	display: flex;
+	gap: 1rem;
+	padding: 1rem;
+	margin-bottom: 1rem;
+	border-radius: var(--bd-radius);
+	background: var(--col-bg-2);
+	border: 1px solid var(--col-border);
+}
+
+.c-step-number {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 2rem;
+	height: 2rem;
+	border-radius: 50%;
+	background: var(--col-primary);
+	color: white;
+	font-weight: bold;
+	flex-shrink: 0;
+}
+
+.c-step-content {
+	flex: 1;
+}
+
+.c-info-tip {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	padding: 1rem;
+	border-radius: var(--bd-radius);
+	background: var(--col-bg-2);
+	border: 1px solid var(--col-border);
+}
+
+.c-info-tip-icon {
+	width: 2rem;
+	height: 2rem;
+	flex-shrink: 0;
+	color: var(--col-warning, #f59e0b);
+}
+
 /* vim: ts=4
 */

@@ -130,7 +130,7 @@ function onFetch(evt: any) {
 						request = new Request(evt.request, { headers: headers, mode: 'cors' })
 					}
 
-					const origRes = fetch(request)
+					const origRes = await fetch(request)
 
 					if (
 						[
@@ -140,7 +140,7 @@ function onFetch(evt: any) {
 						].includes(reqUrl.pathname)
 					) {
 						// Extract token from response
-						const res = (await origRes).clone()
+						const res = origRes.clone()
 						log && console.log('[SW] OWN RES', res.status)
 						const j = await res.json()
 						log && console.log('[SW] OWN RES BODY', j)
@@ -161,6 +161,7 @@ function onFetch(evt: any) {
 					return origRes
 				} catch (err) {
 					log && console.log('[SW] FETCH ERROR', err)
+					throw err
 				}
 			} else if (
 				reqUrl.hostname.startsWith('cl-o.') &&

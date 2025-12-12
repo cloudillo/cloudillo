@@ -23,6 +23,7 @@ import { LuDoorOpen as IcSignUp, LuChevronsLeft as IcGoBack } from 'react-icons/
 
 import { useAuth, useApi, Button } from '@cloudillo/react'
 import * as Types from '@cloudillo/base'
+import { FetchError } from '@cloudillo/base'
 
 import { CloudilloLogo } from '../logo.js'
 import {
@@ -82,6 +83,13 @@ function IdpRegistrationForm({
 }: IdpRegistrationFormProps) {
 	const { t } = useTranslation()
 
+	// Debounced display name for smooth animation (only animate when user pauses typing)
+	const [displayName, setDisplayName] = React.useState(idTagInput)
+	React.useEffect(() => {
+		const timer = setTimeout(() => setDisplayName(idTagInput), 300)
+		return () => clearTimeout(timer)
+	}, [idTagInput])
+
 	// When custom provider (contains a dot), user already selected their full provider domain
 	const isCustom = selectedProvider.includes('.')
 	const providerDomain = isCustom ? selectedProvider : selectedProvider
@@ -95,47 +103,60 @@ function IdpRegistrationForm({
 				<h1 className="mb-3">{t('Welcome to Cloudillo!')}</h1>
 			</header>
 
-			<h3 className="my-3">
-				{t('Choose your name on {{provider}}', {
-					provider: providerInfo?.name || selectedProvider
-				})}
-			</h3>
-			<p className="text-muted mb-3">
-				{t("You'll be known as")}{' '}
-				<b>
-					@{idTagInput || 'yourname'}.{selectedProvider}
-				</b>
-			</p>
+			{/* Identity preview panel with animation */}
+			<div className="animate-fade-slide-up stagger-1">
+				<h3 className="my-3">
+					{t('Choose your name on {{provider}}', {
+						provider: providerInfo?.name || selectedProvider
+					})}
+				</h3>
+				<div className="c-panel mid text-center py-3 my-3">
+					<p className="text-muted small mb-1">{t("You'll be known as")}</p>
+					<p key={displayName} className="text-xl font-semibold mb-2 animate-scale-in">
+						<span className={idTagInput ? 'text-accent' : 'text-disabled'}>
+							@{idTagInput || 'yourname'}
+						</span>
+						<span className="text-primary">.{selectedProvider}</span>
+					</p>
+					<p className="text-muted small mb-0">
+						{t('Pick something memorable that represents you.')}
+					</p>
+				</div>
+			</div>
 
-			<IdTagInput
-				value={idTagInput}
-				onChange={setIdTagInput}
-				onVerify={(value) => onVerify('idTag', value, selectedProvider)}
-				progress={progress}
-				error={verifyState?.idTagError}
-				label={t('Your name')}
-				placeholder={t('yourname')}
-				suffix={selectedProvider}
-				mode="idp"
-			/>
-			<IdTagErrorPanel error={verifyState?.idTagError} mode="idp" />
-
-			<p className="small">{t('Pick something memorable that represents you.')}</p>
-
-			<label className="d-block my-3">
-				{t('Your email (for account recovery)')}
-				<input
-					className="c-input px-3"
-					name="email"
-					type="email"
-					onChange={(evt: React.ChangeEvent<HTMLInputElement>) =>
-						setEmail(evt.target.value)
-					}
-					value={email}
-					placeholder={t('you@example.com')}
-					aria-label={t('Email address')}
+			{/* Name input with animation */}
+			<div className="animate-fade-slide-up stagger-2">
+				<IdTagInput
+					value={idTagInput}
+					onChange={setIdTagInput}
+					onVerify={(value) => onVerify('idTag', value, selectedProvider)}
+					progress={progress}
+					error={verifyState?.idTagError}
+					label={t('Your name')}
+					placeholder={t('yourname')}
+					suffix={selectedProvider}
+					mode="idp"
 				/>
-			</label>
+				<IdTagErrorPanel error={verifyState?.idTagError} mode="idp" />
+			</div>
+
+			{/* Email input with animation */}
+			<div className="animate-fade-slide-up stagger-3">
+				<label className="d-block my-3">
+					{t('Your email (for account recovery)')}
+					<input
+						className="c-input px-3"
+						name="email"
+						type="email"
+						onChange={(evt: React.ChangeEvent<HTMLInputElement>) =>
+							setEmail(evt.target.value)
+						}
+						value={email}
+						placeholder={t('you@example.com')}
+						aria-label={t('Email address')}
+					/>
+				</label>
+			</div>
 
 			{providerInfo && (
 				<p className="text-muted small mt-3">
@@ -329,6 +350,7 @@ export function RegisterForm() {
 	const [auth, setAuth] = useAuth()
 
 	const [show, setShow] = React.useState<boolean | undefined>()
+	const [tokenError, setTokenError] = React.useState<'invalid' | 'rate-limit' | undefined>()
 	const [identityProviders, setIdentityProviders] = React.useState<string[]>([])
 	// If idpStepParam is present, we're in IDP flow; otherwise use providerType
 	const identityProvider = idpStepParam ? 'idp' : providerType
@@ -385,6 +407,11 @@ export function RegisterForm() {
 					setProviderInfoMap(infoMap)
 				} catch (err) {
 					console.log('ERROR', err)
+					if (err instanceof FetchError && err.httpStatus === 429) {
+						setTokenError('rate-limit')
+					} else {
+						setTokenError('invalid')
+					}
 					setShow(false)
 				}
 			})()
@@ -540,14 +567,21 @@ export function RegisterForm() {
 		}
 	}
 
-	// Invalid token
+	// Invalid token or rate limit
 	if (show == undefined) return
 	if (!show)
 		return (
 			<div className="c-panel">
 				<CloudilloLogo className="c-logo w-50 float-right ps-3 pb-3" />
 				<header>
-					<h1 className="mb-3">{t('This registration link is invalid!')}</h1>
+					{tokenError === 'rate-limit' ? (
+						<>
+							<h1 className="mb-3">{t('Too many requests')}</h1>
+							<p className="text-muted">{t('Please wait a moment and try again.')}</p>
+						</>
+					) : (
+						<h1 className="mb-3">{t('This registration link is invalid!')}</h1>
+					)}
 				</header>
 			</div>
 		)
@@ -657,22 +691,52 @@ export function RegisterForm() {
 					<div className="c-vbox align-items-center p-5">
 						<CloudilloLogo className="c-logo w-50 ps-3 pb-w" />
 						<h3 className="my-3">{t('Your registration was successful.')}</h3>
-						<p>
-							{t(
-								'We have sent an onboarding link to your email address. Please check your inbox to continue setting up your account.'
-							)}
-						</p>
-						{identityProvider == 'idp' && (
-							<p className="text-muted small">
-								{t('It may take up to an hour before your account is fully ready.')}
-							</p>
-						)}
-						{identityProvider == 'domain' && (
-							<p className="text-muted small">
-								{t(
-									'If you set up custom DNS records, it may take some time for changes to propagate.'
+						{identityProvider == 'idp' ? (
+							<>
+								<p>
+									{t(
+										'You will receive two emails to complete your registration:'
+									)}
+								</p>
+								<ul className="text-start">
+									<li>
+										<strong>{t('Activation email')}</strong>{' '}
+										{t('from your Identity Provider')}
+										<br />
+										<span className="text-muted small">
+											{t('Click to activate your federated identity')}
+										</span>
+									</li>
+									<li>
+										<strong>{t('Onboarding email')}</strong>{' '}
+										{t('from this Cloudillo instance')}
+										<br />
+										<span className="text-muted small">
+											{t('Click to set up your account and password')}
+										</span>
+									</li>
+								</ul>
+								<p className="text-muted small">
+									{t(
+										'Please check your inbox and complete both activations. It may take up to an hour before your account is fully ready.'
+									)}
+								</p>
+							</>
+						) : (
+							<>
+								<p>
+									{t(
+										'We have sent an onboarding link to your email address. Please check your inbox to continue setting up your account.'
+									)}
+								</p>
+								{identityProvider == 'domain' && (
+									<p className="text-muted small">
+										{t(
+											'If you set up custom DNS records, it may take some time for changes to propagate.'
+										)}
+									</p>
 								)}
-							</p>
+							</>
 						)}
 						<p className="text-muted small">{t('You can close this page now.')}</p>
 					</div>
@@ -689,22 +753,52 @@ export function RegisterForm() {
 					<div className="c-vbox align-items-center p-5">
 						<CloudilloLogo className="c-logo w-50 ps-3 pb-w" />
 						<h3 className="my-3">{t('Your registration was successful.')}</h3>
-						<p>
-							{t(
-								'We have sent an onboarding link to your email address. Please check your inbox to continue setting up your account.'
-							)}
-						</p>
-						{identityProvider == 'idp' && (
-							<p className="text-muted small">
-								{t('It may take up to an hour before your account is fully ready.')}
-							</p>
-						)}
-						{identityProvider == 'domain' && (
-							<p className="text-muted small">
-								{t(
-									'If you set up custom DNS records, it may take some time for changes to propagate.'
+						{identityProvider == 'idp' ? (
+							<>
+								<p>
+									{t(
+										'You will receive two emails to complete your registration:'
+									)}
+								</p>
+								<ul className="text-start">
+									<li>
+										<strong>{t('Activation email')}</strong>{' '}
+										{t('from your Identity Provider')}
+										<br />
+										<span className="text-muted small">
+											{t('Click to activate your federated identity')}
+										</span>
+									</li>
+									<li>
+										<strong>{t('Onboarding email')}</strong>{' '}
+										{t('from this Cloudillo instance')}
+										<br />
+										<span className="text-muted small">
+											{t('Click to set up your account and password')}
+										</span>
+									</li>
+								</ul>
+								<p className="text-muted small">
+									{t(
+										'Please check your inbox and complete both activations. It may take up to an hour before your account is fully ready.'
+									)}
+								</p>
+							</>
+						) : (
+							<>
+								<p>
+									{t(
+										'We have sent an onboarding link to your email address. Please check your inbox to continue setting up your account.'
+									)}
+								</p>
+								{identityProvider == 'domain' && (
+									<p className="text-muted small">
+										{t(
+											'If you set up custom DNS records, it may take some time for changes to propagate.'
+										)}
+									</p>
 								)}
-							</p>
+							</>
 						)}
 						<p className="text-muted small">{t('You can close this page now.')}</p>
 					</div>

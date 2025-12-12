@@ -174,6 +174,11 @@ export const tRegisterVerifyResult = T.struct({
 })
 export type RegisterVerifyResult = T.TypeOf<typeof tRegisterVerifyResult>
 
+// Registration result - server returns empty object for both IDP and domain registration
+// User must verify email and set password before they can log in
+export const tRegisterResult = T.struct({})
+export type RegisterResult = T.TypeOf<typeof tRegisterResult>
+
 /**
  * Unified profile verification result (replaces RegisterVerifyResult and CommunityVerifyResult)
  * Used for both user registration and community creation verification

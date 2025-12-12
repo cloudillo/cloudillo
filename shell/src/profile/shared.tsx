@@ -72,13 +72,12 @@ Your identity is separate from where your data is stored. You control your data 
 
 				<h3 className="my-3">{t('How would you like to be known?')}</h3>
 
-				<div className="c-container">
+				<div className="c-container overflow-hidden">
 					<div className="row g-3">
-						<div className="col col-md-6">
+						<div className="col col-md-6 animate-fade-slide-up stagger-1">
 							<div
-								className="c-panel clickable h-100"
+								className="c-panel interactive clickable h-100"
 								onClick={() => onSelectProvider('domain')}
-								style={{ cursor: 'pointer' }}
 							>
 								<h4 className="mb-2">{t('Use my own domain as my identity')}</h4>
 								<p className="text-muted mb-2">
@@ -87,11 +86,10 @@ Your identity is separate from where your data is stored. You control your data 
 								<p className="small">{t('Full control, requires DNS setup')}</p>
 							</div>
 						</div>
-						<div className="col col-md-6">
+						<div className="col col-md-6 animate-fade-slide-up stagger-2">
 							<div
-								className="c-panel primary clickable h-100"
+								className="c-panel primary interactive emph clickable h-100"
 								onClick={() => onSelectProvider('idp')}
-								style={{ cursor: 'pointer' }}
 							>
 								<h4 className="mb-2">{t('Use an Identity Provider')}</h4>
 								<p className="text-muted mb-2">
@@ -132,13 +130,12 @@ Your identity is separate from where your data is stored. You control your data 
 
 			<h3 className="my-3">{t('How would you like your community to be identified?')}</h3>
 
-			<div className="c-container">
+			<div className="c-container overflow-hidden">
 				<div className="row g-3">
-					<div className="col col-md-6">
+					<div className="col col-md-6 animate-fade-slide-up stagger-1">
 						<div
-							className="c-panel clickable h-100"
+							className="c-panel interactive clickable h-100"
 							onClick={() => onSelectProvider('domain')}
-							style={{ cursor: 'pointer' }}
 						>
 							<h4 className="mb-2">{t('Use your own domain')}</h4>
 							<p className="text-muted mb-2">
@@ -147,11 +144,10 @@ Your identity is separate from where your data is stored. You control your data 
 							<p className="small">{t('Full control, requires DNS setup')}</p>
 						</div>
 					</div>
-					<div className="col col-md-6">
+					<div className="col col-md-6 animate-fade-slide-up stagger-2">
 						<div
-							className="c-panel primary clickable h-100"
+							className="c-panel primary interactive emph clickable h-100"
 							onClick={() => onSelectProvider('idp')}
-							style={{ cursor: 'pointer' }}
 						>
 							<h4 className="mb-2">{t('Use an Identity Provider')}</h4>
 							<p className="text-muted mb-2">
@@ -281,12 +277,17 @@ export function ProviderSelectorStep({
 			)}
 
 			<h3 className="my-3">{t('Choose an Identity Provider')}</h3>
-			<p className="text-muted mb-3">
-				{mode === 'register' ? t('Your identity will be') : t('Your community will be')}{' '}
-				<b>
-					@{previewName}.{selectedProvider || 'provider.net'}
-				</b>
-			</p>
+			<div className="c-panel mid text-center py-3 my-3">
+				<p className="text-muted small mb-1">
+					{mode === 'register' ? t('Your identity will be') : t('Your community will be')}
+				</p>
+				<p key={selectedProvider} className="text-xl font-semibold mb-0 animate-scale-in">
+					<span className="text-accent">@{previewName}</span>
+					<span className={selectedProvider ? 'text-primary' : 'text-disabled'}>
+						.{selectedProvider || 'provider.net'}
+					</span>
+				</p>
+			</div>
 
 			<div className="c-vbox g-2 mb-3">
 				{identityProviders.map((provider, index) => {
@@ -295,9 +296,8 @@ export function ProviderSelectorStep({
 					return (
 						<div
 							key={provider}
-							className={`c-panel clickable ${isSelected ? 'primary' : ''}`}
+							className={`c-panel interactive clickable ${isSelected ? 'primary' : ''}`}
 							onClick={() => handleProviderSelect(provider)}
-							style={{ cursor: 'pointer' }}
 						>
 							<div className="d-flex align-items-center">
 								<input
@@ -334,9 +334,8 @@ export function ProviderSelectorStep({
 
 				{/* Other provider option */}
 				<div
-					className={`c-panel clickable ${showCustom ? 'primary' : ''}`}
+					className={`c-panel interactive clickable ${showCustom ? 'primary' : ''}`}
 					onClick={handleCustomSelect}
-					style={{ cursor: 'pointer' }}
 				>
 					<div className="d-flex align-items-center">
 						<input

@@ -120,15 +120,15 @@ export function IdpActivate() {
 
 					<div className="c-panel info mt-3">
 						<h3 className="mb-2">{t("What's next?")}</h3>
-						<p>{t('You should have received two emails:')}</p>
+						<p>{t('You will receive two emails to complete your registration:')}</p>
 						<ul className="mt-2">
-							<li>{t('One from the Identity Provider (this activation)')}</li>
-							<li>{t('One from your Cloudillo instance (onboarding)')}</li>
+							<li>{t('Activation email from your Identity Provider (this one)')}</li>
+							<li>{t('Onboarding email from your Cloudillo instance')}</li>
 						</ul>
 						<p className="mt-3">
 							<strong>
 								{t(
-									'Please check your inbox and continue onboarding by clicking the link in the second email.'
+									'Please also check your inbox for the onboarding email and complete that activation too.'
 								)}
 							</strong>
 						</p>

@@ -199,24 +199,6 @@ export class ApiClient {
 		forgotPassword: (data: Types.ForgotPasswordRequest) =>
 			this.request('POST', '/auth/forgot-password', Types.tPasswordResetResponse, { data }),
 
-		/**
-		 * POST /profiles/register - Register new user
-		 * @deprecated Use profile.register() instead
-		 * @param data - Registration request
-		 * @returns Login result with token and profile info
-		 */
-		register: (data: Types.RegisterRequest) =>
-			this.request('POST', '/profiles/register', Types.tLoginResult, { data }),
-
-		/**
-		 * POST /profiles/verify - Verify registration information
-		 * @deprecated Use profile.verify() instead
-		 * @param data - Registration verify request
-		 * @returns Verification result with identity providers and validation errors
-		 */
-		registerVerify: (data: Types.RegisterVerifyRequest) =>
-			this.request('POST', '/profiles/verify', Types.tRegisterVerifyResult, { data }),
-
 		// ====================================================================
 		// WEBAUTHN ENDPOINTS
 		// ====================================================================
@@ -318,10 +300,10 @@ export class ApiClient {
 		/**
 		 * POST /profiles/register - Register new user or create community profile
 		 * @param data - Registration request (includes type: person or community)
-		 * @returns Login result with token and profile info
+		 * @returns Empty object (user must verify email and set password before logging in)
 		 */
 		register: (data: Types.RegisterRequest) =>
-			this.request('POST', '/profiles/register', Types.tLoginResult, { data })
+			this.request('POST', '/profiles/register', Types.tRegisterResult, { data })
 	}
 
 	// ========================================================================

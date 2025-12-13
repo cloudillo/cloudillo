@@ -20,8 +20,7 @@ import { atom, useAtom } from 'jotai'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 
-import * as cloudillo from '@cloudillo/base'
-import { createApiClient, ApiClient } from '@cloudillo/base'
+import { getAppBus, openYDoc, createApiClient, ApiClient } from '@cloudillo/base'
 
 // useAuth() //
 ///////////////
@@ -167,12 +166,13 @@ export function useCloudillo(appNameArg?: string): UseCloudillo {
 		function () {
 			;(async function init() {
 				try {
-					const token = await cloudillo.init(appName)
+					const bus = getAppBus()
+					const state = await bus.init(appName)
 					setAuth({
-						idTag: cloudillo.idTag,
-						tnId: cloudillo.tnId ?? 0,
-						roles: cloudillo.roles,
-						token
+						idTag: state.idTag,
+						tnId: state.tnId ?? 0,
+						roles: state.roles,
+						token: state.accessToken
 					})
 				} catch (e) {
 					console.error('useCloudillo INIT ERROR', e)
@@ -182,17 +182,17 @@ export function useCloudillo(appNameArg?: string): UseCloudillo {
 		[appName]
 	)
 
-	const struct = React.useMemo(
-		() => ({
+	const struct = React.useMemo(() => {
+		const bus = getAppBus()
+		return {
 			token: auth?.token,
 			ownerTag: ownerTag || '',
 			fileId,
-			idTag: cloudillo.idTag,
-			roles: cloudillo.roles,
-			access: cloudillo.access
-		}),
-		[auth, ownerTag, fileId]
-	)
+			idTag: bus.idTag,
+			roles: bus.roles,
+			access: bus.access
+		}
+	}, [auth, ownerTag, fileId])
 
 	return struct
 }
@@ -209,7 +209,7 @@ export function useCloudilloEditor(appName: string) {
 		function () {
 			if (cl.token && docId) {
 				;(async function initDoc() {
-					const { provider } = await cloudillo.openYDoc(yDoc, docId)
+					const { provider } = await openYDoc(yDoc, docId)
 					setProvider(provider)
 
 					// Wait for initial sync before marking as ready

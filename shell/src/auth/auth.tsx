@@ -58,6 +58,7 @@ import { RegisterForm } from '../profile/register.js'
 import { validIdTag, validPassword } from './utils.js'
 import { ResetPassword } from './reset-password.js'
 import { IdpActivate } from './idp-activate.js'
+import { registerServiceWorker } from '../pwa.js'
 
 ////////////
 // Logout //
@@ -95,6 +96,9 @@ export async function webAuthnLogin(api: ApiClient): Promise<AuthState | undefin
 			token: challengeData.token,
 			response
 		})
+
+		// Set up SW with encryption key and token
+		await registerServiceWorker(result.swEncryptionKey, result.token)
 
 		return result
 	} catch (err) {
@@ -158,7 +162,7 @@ export function LoginForm() {
 					const result = await webAuthnLogin(api)
 					if (result) {
 						setAuth(result)
-						if (result.token) localStorage.setItem('loginToken', result.token)
+						// Token is stored in SW encrypted storage via registerServiceWorker()
 					}
 				} catch (err) {
 					// Silently fail - user can use password
@@ -185,7 +189,10 @@ export function LoginForm() {
 			const authState: AuthState = { ...loginResult }
 			console.log('onLoggedIn', { authState })
 			setAuth(authState)
-			if (authState.token) localStorage.setItem('loginToken', authState.token)
+			// Token is stored in SW encrypted storage via registerServiceWorker()
+
+			// Set up SW with encryption key and token
+			await registerServiceWorker(loginResult.swEncryptionKey, loginResult.token)
 		} catch (err: unknown) {
 			console.error('Login failed:', err)
 			setError(err instanceof Error ? err.message : 'Login failed')
@@ -478,7 +485,7 @@ export function WebAuth({ idTag }: WebAuthProps) {
 		const result = await webAuthnLogin(api)
 		if (result) {
 			setAuth(result)
-			if (result.token) localStorage.setItem('loginToken', result.token)
+			// Token is stored in SW encrypted storage via registerServiceWorker()
 		}
 	}
 

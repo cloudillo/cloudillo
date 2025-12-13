@@ -136,7 +136,8 @@ export const tLoginResult = T.struct({
 	roles: T.optional(T.array(T.string)),
 	token: T.string,
 	name: T.string,
-	profilePic: T.string
+	profilePic: T.string,
+	swEncryptionKey: T.optional(T.string)
 })
 export type LoginResult = T.TypeOf<typeof tLoginResult>
 

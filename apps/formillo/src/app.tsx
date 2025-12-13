@@ -499,7 +499,7 @@ import '@symbion/opalui/themes/glass.css'
 
 import * as T from '@symbion/runtype'
 
-import { apiFetchHelper, accessToken } from '@cloudillo/base'
+import { apiFetchHelper, getAppBus } from '@cloudillo/base'
 import { useCloudillo, useApi, useAuth, Button, mergeClasses } from '@cloudillo/react'
 import './i18n.js'
 
@@ -813,7 +813,7 @@ function FormPage({ ownerTag, fileId, form }: { ownerTag: string; fileId: string
 			console.log('Form', data)
 			await apiFetchHelper(ownerTag, 'POST', `/db/${fileId}`, {
 				data: { data },
-				authToken: accessToken
+				authToken: getAppBus().accessToken
 			})
 			localStorage.setItem(`form.${fileId}`, 'true')
 			setPage(0)

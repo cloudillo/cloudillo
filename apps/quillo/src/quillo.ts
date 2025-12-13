@@ -38,7 +38,7 @@ import * as T from '@symbion/runtype'
 
 import { createElement, Cloud, CloudOff } from 'lucide'
 
-import * as cloudillo from '@cloudillo/base'
+import { getAppBus, openYDoc, str2color } from '@cloudillo/base'
 ;(async function () {
 	Quill.register('modules/cursors', QuillCursors as any)
 
@@ -47,14 +47,15 @@ import * as cloudillo from '@cloudillo/base'
 	const docId = location.hash.slice(1)
 	console.log('docId', docId)
 
-	const token = await cloudillo.init('quillo')
-	console.log('[quillo] token', token)
-	console.log('[quillo] cloudillo.idTag', cloudillo.idTag)
+	const bus = getAppBus()
+	const state = await bus.init('quillo')
+	console.log('[quillo] token', state.accessToken)
+	console.log('[quillo] idTag', bus.idTag)
 	const yDoc = new Y.Doc()
-	const doc = await cloudillo.openYDoc(yDoc, docId)
+	const doc = await openYDoc(yDoc, docId)
 	doc.provider.awareness.setLocalStateField('user', {
-		name: cloudillo.idTag,
-		color: await cloudillo.str2color(cloudillo.idTag ?? '', 40, 70, cloudillo.darkMode)
+		name: bus.idTag,
+		color: await str2color(bus.idTag ?? '', 40, 70, bus.darkMode)
 	})
 	/*
 	doc.provider.awareness.on('change', function (changes: any) {
@@ -99,7 +100,7 @@ import * as cloudillo from '@cloudillo/base'
 	const binding = new QuillBinding(ytext, editor, doc.provider.awareness)
 
 	// Set read-only mode based on access level
-	if (cloudillo.access === 'read') {
+	if (bus.access === 'read') {
 		editor.enable(false)
 		const toolbar = document.getElementById('toolbar')
 		if (toolbar) toolbar.style.display = 'none'

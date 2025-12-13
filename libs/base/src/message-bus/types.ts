@@ -1,0 +1,377 @@
+// This file is part of the Cloudillo Platform.
+// Copyright (C) 2024  Szilárd Hajba
+//
+// Cloudillo is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Message Bus Type Definitions
+ *
+ * This module defines all message types for inter-frame communication
+ * between shell, apps, and service worker. All messages are validated
+ * at runtime using @symbion/runtype.
+ */
+
+import * as T from '@symbion/runtype'
+
+// Protocol version - increment on breaking changes
+export const PROTOCOL_VERSION = 1
+
+// ============================================
+// BASE ENVELOPE
+// ============================================
+
+/**
+ * Base envelope that all messages must have
+ */
+export const tMessageEnvelope = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.string
+})
+export type MessageEnvelope = T.TypeOf<typeof tMessageEnvelope>
+
+// ============================================
+// MESSAGE DIRECTIONS
+// ============================================
+
+export type MessageDirection = 'app>shell' | 'shell>app' | 'shell>sw' | 'sw>shell'
+
+// ============================================
+// MESSAGE CATEGORIES
+// ============================================
+
+export type MessageCategory = 'auth' | 'storage' | 'sw' | 'nav' | 'ui' | 'crdt'
+
+// ============================================
+// AUTH MESSAGES
+// ============================================
+
+/**
+ * App requests initialization from shell
+ * Direction: app -> shell
+ */
+export const tAuthInitReq = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('auth:init.req'),
+	id: T.number,
+	payload: T.struct({
+		appName: T.string,
+		resId: T.optional(T.string) // Resource ID from URL hash
+	})
+})
+export type AuthInitReq = T.TypeOf<typeof tAuthInitReq>
+
+/**
+ * Shell responds with initialization data
+ * Direction: shell -> app
+ */
+export const tAuthInitRes = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('auth:init.res'),
+	replyTo: T.number,
+	ok: T.boolean,
+	data: T.optional(
+		T.struct({
+			idTag: T.optional(T.string),
+			tnId: T.optional(T.id),
+			roles: T.optional(T.array(T.string)),
+			theme: T.string,
+			darkMode: T.optional(T.boolean),
+			token: T.optional(T.string),
+			access: T.optional(T.literal('read', 'write')),
+			tokenLifetime: T.optional(T.number)
+		})
+	),
+	error: T.optional(T.string)
+})
+export type AuthInitRes = T.TypeOf<typeof tAuthInitRes>
+
+/**
+ * App requests token refresh
+ * Direction: app -> shell
+ */
+export const tAuthTokenRefreshReq = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('auth:token.refresh.req'),
+	id: T.number
+})
+export type AuthTokenRefreshReq = T.TypeOf<typeof tAuthTokenRefreshReq>
+
+/**
+ * Shell responds with new token
+ * Direction: shell -> app
+ */
+export const tAuthTokenRefreshRes = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('auth:token.refresh.res'),
+	replyTo: T.number,
+	ok: T.boolean,
+	data: T.optional(
+		T.struct({
+			token: T.string,
+			tokenLifetime: T.optional(T.number)
+		})
+	),
+	error: T.optional(T.string)
+})
+export type AuthTokenRefreshRes = T.TypeOf<typeof tAuthTokenRefreshRes>
+
+/**
+ * Shell proactively pushes token update to app
+ * Direction: shell -> app (notification, no response expected)
+ */
+export const tAuthTokenPush = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('auth:token.push'),
+	payload: T.struct({
+		token: T.string,
+		tokenLifetime: T.optional(T.number)
+	})
+})
+export type AuthTokenPush = T.TypeOf<typeof tAuthTokenPush>
+
+/**
+ * Shell proactively pushes initialization data to app
+ * Direction: shell -> app (notification, no response expected)
+ *
+ * Used when shell initializes app before app requests init.
+ */
+export const tAuthInitPush = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('auth:init.push'),
+	payload: T.struct({
+		idTag: T.optional(T.string),
+		tnId: T.optional(T.id),
+		roles: T.optional(T.array(T.string)),
+		theme: T.string,
+		darkMode: T.optional(T.boolean),
+		token: T.optional(T.string),
+		access: T.optional(T.literal('read', 'write')),
+		tokenLifetime: T.optional(T.number)
+	})
+})
+export type AuthInitPush = T.TypeOf<typeof tAuthInitPush>
+
+// ============================================
+// STORAGE MESSAGES
+// ============================================
+
+/**
+ * Storage operation types
+ */
+export const tStorageOp = T.literal('get', 'set', 'delete', 'list', 'clear', 'quota')
+export type StorageOp = T.TypeOf<typeof tStorageOp>
+
+/**
+ * App requests storage operation
+ * Direction: app -> shell
+ */
+export const tStorageOpReq = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('storage:op.req'),
+	id: T.number,
+	payload: T.struct({
+		op: tStorageOp,
+		ns: T.string,
+		key: T.optional(T.string),
+		value: T.optional(T.unknown),
+		prefix: T.optional(T.string)
+	})
+})
+export type StorageOpReq = T.TypeOf<typeof tStorageOpReq>
+
+/**
+ * Shell responds to storage operation
+ * Direction: shell -> app
+ */
+export const tStorageOpRes = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('storage:op.res'),
+	replyTo: T.number,
+	ok: T.boolean,
+	data: T.optional(T.unknown),
+	error: T.optional(T.string)
+})
+export type StorageOpRes = T.TypeOf<typeof tStorageOpRes>
+
+// ============================================
+// SERVICE WORKER MESSAGES
+// ============================================
+
+/**
+ * Shell sets auth token in service worker
+ * Direction: shell -> sw
+ */
+export const tSwTokenSet = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('sw:token.set'),
+	payload: T.struct({
+		token: T.string
+	})
+})
+export type SwTokenSet = T.TypeOf<typeof tSwTokenSet>
+
+/**
+ * Shell clears auth token in service worker (logout)
+ * Direction: shell -> sw
+ */
+export const tSwTokenClear = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('sw:token.clear')
+})
+export type SwTokenClear = T.TypeOf<typeof tSwTokenClear>
+
+/**
+ * Shell stores API key in service worker
+ * Direction: shell -> sw
+ */
+export const tSwApiKeySet = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('sw:apikey.set'),
+	payload: T.struct({
+		apiKey: T.string
+	})
+})
+export type SwApiKeySet = T.TypeOf<typeof tSwApiKeySet>
+
+/**
+ * Shell requests API key from service worker
+ * Direction: shell -> sw
+ */
+export const tSwApiKeyGetReq = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('sw:apikey.get.req'),
+	id: T.number
+})
+export type SwApiKeyGetReq = T.TypeOf<typeof tSwApiKeyGetReq>
+
+/**
+ * Service worker responds with API key
+ * Direction: sw -> shell
+ */
+export const tSwApiKeyGetRes = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('sw:apikey.get.res'),
+	replyTo: T.number,
+	ok: T.boolean,
+	data: T.optional(
+		T.struct({
+			apiKey: T.optional(T.string)
+		})
+	),
+	error: T.optional(T.string)
+})
+export type SwApiKeyGetRes = T.TypeOf<typeof tSwApiKeyGetRes>
+
+/**
+ * Shell deletes API key from service worker
+ * Direction: shell -> sw
+ */
+export const tSwApiKeyDel = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('sw:apikey.del')
+})
+export type SwApiKeyDel = T.TypeOf<typeof tSwApiKeyDel>
+
+// ============================================
+// UNION OF ALL MESSAGES
+// ============================================
+
+/**
+ * Union of all message types for validation
+ */
+export const tCloudilloMessage = T.taggedUnion('type')({
+	// Auth messages
+	'auth:init.req': tAuthInitReq,
+	'auth:init.res': tAuthInitRes,
+	'auth:init.push': tAuthInitPush,
+	'auth:token.refresh.req': tAuthTokenRefreshReq,
+	'auth:token.refresh.res': tAuthTokenRefreshRes,
+	'auth:token.push': tAuthTokenPush,
+
+	// Storage messages
+	'storage:op.req': tStorageOpReq,
+	'storage:op.res': tStorageOpRes,
+
+	// Service worker messages
+	'sw:token.set': tSwTokenSet,
+	'sw:token.clear': tSwTokenClear,
+	'sw:apikey.set': tSwApiKeySet,
+	'sw:apikey.get.req': tSwApiKeyGetReq,
+	'sw:apikey.get.res': tSwApiKeyGetRes,
+	'sw:apikey.del': tSwApiKeyDel
+})
+export type CloudilloMessage = T.TypeOf<typeof tCloudilloMessage>
+
+/**
+ * All valid message type strings
+ */
+export type MessageType = CloudilloMessage['type']
+
+// ============================================
+// HELPER TYPES
+// ============================================
+
+/**
+ * Extract request message types (those with id field)
+ */
+export type RequestMessage = Extract<CloudilloMessage, { id: number }>
+export type RequestType = RequestMessage['type']
+
+/**
+ * Extract response message types (those with replyTo field)
+ */
+export type ResponseMessage = Extract<CloudilloMessage, { replyTo: number }>
+export type ResponseType = ResponseMessage['type']
+
+/**
+ * Extract notification message types (those with payload but no id/replyTo)
+ */
+export type NotifyMessage = Exclude<CloudilloMessage, RequestMessage | ResponseMessage>
+export type NotifyType = NotifyMessage['type']
+
+/**
+ * Message type to response type mapping
+ */
+export type ResponseFor<T extends RequestType> = T extends 'auth:init.req'
+	? 'auth:init.res'
+	: T extends 'auth:token.refresh.req'
+		? 'auth:token.refresh.res'
+		: T extends 'storage:op.req'
+			? 'storage:op.res'
+			: T extends 'sw:apikey.get.req'
+				? 'sw:apikey.get.res'
+				: never
+
+/**
+ * Extract the data type from a response message
+ */
+export type ResponseData<T extends ResponseType> =
+	Extract<CloudilloMessage, { type: T }> extends { data?: infer D } ? D : never
+
+// vim: ts=4

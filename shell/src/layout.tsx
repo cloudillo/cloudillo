@@ -18,25 +18,25 @@ const APP_CONFIG: AppConfigState = {
 	apps: [
 		{
 			id: 'quillo',
-			url: '/quillo/index.html',
+			url: '/apps/quillo/index.html',
 			trust: true
 		},
 		{
 			id: 'calcillo',
-			url: '/calcillo/index.html'
+			url: '/apps/calcillo/index.html'
 		},
 		{
 			id: 'prezillo',
-			url: '/prezillo/index.html',
+			url: '/apps/prezillo/index.html',
 			trust: false
 		},
 		{
 			id: 'formillo',
-			url: '/formillo/index.html'
+			url: '/apps/formillo/index.html'
 		},
 		{
 			id: 'taskillo',
-			url: '/taskillo/index.html'
+			url: '/apps/taskillo/index.html'
 		}
 	],
 	mime: {
@@ -161,7 +161,7 @@ import {
 } from '@cloudillo/react'
 import { createApiClient } from '@cloudillo/base'
 import { AppConfigState, useAppConfig } from './utils.js'
-import usePWA from './pwa.js'
+import usePWA, { registerServiceWorker, getApiKey, clearAuthToken } from './pwa.js'
 import { AuthRoutes } from './auth/auth.js'
 import { useTokenRenewal } from './auth/useTokenRenewal.js'
 import { useActionNotifications } from './notifications/useActionNotifications.js'
@@ -178,6 +178,7 @@ import { SearchIcon, SearchBar, useSearch } from './search.js'
 import { SettingsRoutes, setTheme } from './settings'
 import { SiteAdminRoutes } from './site-admin'
 import { AppRoutes } from './apps'
+import { initShellBus, getShellBus } from './message-bus'
 import { SharedResourceView } from './apps/shared.js'
 import { ProfileRoutes } from './profile/profile.js'
 import { Notifications } from './notifications/notifications.js'
@@ -387,7 +388,7 @@ function Header({ inert }: { inert?: boolean }) {
 		if (!api) throw new Error('Not authenticated')
 		await api.auth.logout()
 		setAuth(undefined)
-		localStorage.removeItem('loginToken')
+		await clearAuthToken()
 		setMenuOpen(false)
 		navigate('/login')
 	}
@@ -417,8 +418,8 @@ function Header({ inert }: { inert?: boolean }) {
 				if (!api?.idTag || !auth) {
 					// Determine idTag or authenticate
 					try {
-						const loginToken = localStorage.getItem('loginToken') || undefined
-						const storedApiKey = localStorage.getItem('cloudillo_api_key')
+						// Try to get API key from SW encrypted storage
+						const storedApiKey = await getApiKey()
 						const res = await fetch(
 							`https://${window.location.host}/.well-known/cloudillo/id-tag`
 						)
@@ -429,10 +430,9 @@ function Header({ inert }: { inert?: boolean }) {
 						const ownerIdTag = typeof j.idTag === 'string' ? j.idTag : 'unknown'
 						setIdTag(ownerIdTag)
 
-						// Create temporary API client with the idTag to check login status
+						// Create temporary API client - SW handles authentication
 						const tempApi = createApiClient({
-							idTag: ownerIdTag,
-							authToken: loginToken
+							idTag: ownerIdTag
 						})
 
 						// Try API key auth if available (silent exchange)
@@ -452,11 +452,15 @@ function Header({ inert }: { inert?: boolean }) {
 									const loginInfo = await authApi.auth.getLoginToken()
 									if (loginInfo?.token) {
 										authState = { ...loginInfo }
+										// Register SW with encryption key and token
+										await registerServiceWorker(
+											loginInfo.swEncryptionKey,
+											loginInfo.token
+										)
 									}
 								}
 							} catch (err) {
-								console.error('API key auth failed, clearing stored key:', err)
-								localStorage.removeItem('cloudillo_api_key')
+								console.error('API key auth failed:', err)
 								// Fall through to normal login flow
 							}
 						}
@@ -465,15 +469,33 @@ function Header({ inert }: { inert?: boolean }) {
 						if (!authState) {
 							try {
 								const tokenRes = await tempApi.auth.getLoginToken()
+								console.log('[Layout] getLoginToken result:', {
+									hasToken: !!tokenRes?.token,
+									hasKey: !!tokenRes?.swEncryptionKey,
+									keyPreview: tokenRes?.swEncryptionKey?.slice(0, 8)
+								})
 								authState = tokenRes ? { ...tokenRes } : undefined
+								// Register SW with encryption key and token
+								if (tokenRes?.swEncryptionKey && tokenRes?.token) {
+									console.log('[Layout] Calling registerServiceWorker...')
+									await registerServiceWorker(
+										tokenRes.swEncryptionKey,
+										tokenRes.token
+									)
+								} else {
+									console.log(
+										'[Layout] Missing key or token, skipping SW registration'
+									)
+								}
 							} catch (err) {
 								// Not authenticated - continue as guest
+								console.log('[Layout] getLoginToken failed:', err)
 							}
 						}
 
 						if (authState?.idTag) {
 							setAuth(authState)
-							if (authState.token) localStorage.setItem('loginToken', authState.token)
+							// Token is already stored in SW encrypted storage via registerServiceWorker()
 
 							// Load and apply UI settings
 							try {
@@ -700,6 +722,47 @@ export function Layout() {
 	const location = useLocation()
 	useTokenRenewal() // Automatic token renewal
 	useActionNotifications() // Sound and toast notifications for incoming actions
+
+	// Store current api/auth in refs for shell bus callbacks
+	const apiRef = React.useRef(api)
+	const authRef = React.useRef(auth)
+	React.useEffect(() => {
+		apiRef.current = api
+		authRef.current = auth
+	}, [api, auth])
+
+	// Initialize shell message bus on mount
+	React.useEffect(() => {
+		if (!getShellBus()) {
+			initShellBus({
+				debug: process.env.NODE_ENV !== 'production',
+				getAccessToken: async (resId, access) => {
+					const currentApi = apiRef.current
+					if (!currentApi) return undefined
+					try {
+						const res = await currentApi.auth.getAccessToken({
+							scope: `${resId}:${access === 'read' ? 'R' : 'W'}`
+						})
+						return res ? { token: res.token } : undefined
+					} catch {
+						return undefined
+					}
+				},
+				getAuthState: () => {
+					const currentAuth = authRef.current
+					if (!currentAuth) return null
+					return {
+						idTag: currentAuth.idTag,
+						tnId: currentAuth.tnId,
+						roles: currentAuth.roles
+					}
+				},
+				getThemeState: () => ({
+					darkMode: document.body.classList.contains('dark')
+				})
+			})
+		}
+	}, [])
 
 	// Check if we're in an app view (where sidebar should be shown)
 	const isAppView = location.pathname.startsWith('/app/')

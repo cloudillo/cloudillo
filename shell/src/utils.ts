@@ -122,10 +122,19 @@ export class ServerError extends Error {
 
 // useAppConfig() //
 ////////////////////
+
+/**
+ * Trust levels for microfrontend apps:
+ * - 'trusted': First-party apps with full storage access (allow-same-origin)
+ * - 'semi-trusted': Verified third-party apps with storage access (allow-same-origin)
+ * - 'untrusted': Unverified apps with sandboxed storage (no allow-same-origin, opaque origin)
+ */
+export type TrustLevel = 'trusted' | 'semi-trusted' | 'untrusted'
+
 export interface AppConfig {
 	id: string
 	url: string
-	trust?: boolean
+	trust?: TrustLevel | boolean // boolean for backwards compatibility
 }
 
 export interface MenuItem {

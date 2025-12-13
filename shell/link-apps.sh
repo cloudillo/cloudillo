@@ -1,6 +1,8 @@
 #!/bin/sh
 
-ln -nfs ../../apps/quillo/dist ./dist/quillo
-ln -nfs ../../apps/calcillo/dist ./dist/calcillo
-ln -nfs ../../apps/prezillo/dist ./dist/prezillo
-ln -nfs ../../apps/taskillo/dist ./dist/taskillo
+mkdir -p ./dist/apps
+
+ln -nfs ../../../apps/quillo/dist ./dist/apps/quillo
+ln -nfs ../../../apps/calcillo/dist ./dist/apps/calcillo
+ln -nfs ../../../apps/prezillo/dist ./dist/apps/prezillo
+ln -nfs ../../../apps/taskillo/dist ./dist/apps/taskillo

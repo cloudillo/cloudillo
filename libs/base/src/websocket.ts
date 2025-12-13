@@ -18,6 +18,8 @@ import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 //import { IndexeddbPersistence } from 'y-indexeddb'
 
+import { getCrdtUrl, getRtdbUrl, getMessageBusUrl } from './urls.js'
+
 export interface WebSocketOpts {
 	idTag: string
 	authToken: string
@@ -74,7 +76,7 @@ export async function openCRDT(
   */
 
 	// Connect to server
-	const wsUrl = `wss://cl-o.${targetTag}/ws/crdt`
+	const wsUrl = getCrdtUrl(targetTag)
 	console.log(`[CRDT] Connecting to ${wsUrl}`, { resId, token: opts.authToken })
 
 	const wsProvider = new WebsocketProvider(wsUrl, resId, yDoc, {
@@ -120,7 +122,7 @@ export function openRTDB(fileId: string, opts: WebSocketOpts): WebSocket {
 		throw new Error('No access token for RTDB connection')
 	}
 
-	const wsUrl = `wss://cl-o.${opts.idTag}/ws/rtdb/${fileId}?token=${encodeURIComponent(opts.authToken)}`
+	const wsUrl = getRtdbUrl(opts.idTag, fileId, opts.authToken)
 	console.log(`[RTDB] Connecting to ${wsUrl}`)
 
 	return new WebSocket(wsUrl)
@@ -158,7 +160,7 @@ export function openMessageBus(opts: WebSocketOpts): WebSocket {
 		throw new Error('No access token for message bus connection')
 	}
 
-	const wsUrl = `wss://cl-o.${opts.idTag}/ws/bus?token=${encodeURIComponent(opts.authToken)}`
+	const wsUrl = getMessageBusUrl(opts.idTag, opts.authToken)
 	console.log(`[Bus] Connecting to ${wsUrl}`)
 
 	return new WebSocket(wsUrl)

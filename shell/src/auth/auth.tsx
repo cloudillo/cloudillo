@@ -44,7 +44,9 @@ import {
 	LuCheck as IcOk,
 	LuX as IcError,
 	LuFingerprint as IcWebAuthn,
-	LuLogIn as IcLogin
+	LuLogIn as IcLogin,
+	LuMail as IcMail,
+	LuArrowLeft as IcBack
 } from 'react-icons/lu'
 
 import { useAuth, AuthState, useApi, useDialog, Button } from '@cloudillo/react'
@@ -55,6 +57,8 @@ import { Page } from '../ui.js'
 import { RegisterForm } from '../profile/register.js'
 import { validIdTag, validPassword } from './utils.js'
 import { ResetPassword } from './reset-password.js'
+import { IdpActivate } from './idp-activate.js'
+import { registerServiceWorker } from '../pwa.js'
 
 ////////////
 // Logout //
@@ -92,6 +96,9 @@ export async function webAuthnLogin(api: ApiClient): Promise<AuthState | undefin
 			token: challengeData.token,
 			response
 		})
+
+		// Set up SW with encryption key and token
+		await registerServiceWorker(result.swEncryptionKey, result.token)
 
 		return result
 	} catch (err) {
@@ -137,6 +144,11 @@ export function LoginForm() {
 	const [error, setError] = React.useState<string | undefined>()
 	const [webAuthnAttempted, setWebAuthnAttempted] = React.useState(false)
 
+	// Forgot password state
+	const [email, setEmail] = React.useState('')
+	const [forgotStatus, setForgotStatus] = React.useState<'idle' | 'loading' | 'success'>('idle')
+	const [forgotError, setForgotError] = React.useState<string | undefined>()
+
 	// Auto-attempt WebAuthn login on page load
 	React.useEffect(
 		function attemptWebAuthnLogin() {
@@ -150,7 +162,7 @@ export function LoginForm() {
 					const result = await webAuthnLogin(api)
 					if (result) {
 						setAuth(result)
-						if (result.token) localStorage.setItem('loginToken', result.token)
+						// Token is stored in SW encrypted storage via registerServiceWorker()
 					}
 				} catch (err) {
 					// Silently fail - user can use password
@@ -177,7 +189,10 @@ export function LoginForm() {
 			const authState: AuthState = { ...loginResult }
 			console.log('onLoggedIn', { authState })
 			setAuth(authState)
-			if (authState.token) localStorage.setItem('loginToken', authState.token)
+			// Token is stored in SW encrypted storage via registerServiceWorker()
+
+			// Set up SW with encryption key and token
+			await registerServiceWorker(loginResult.swEncryptionKey, loginResult.token)
 		} catch (err: unknown) {
 			console.error('Login failed:', err)
 			setError(err instanceof Error ? err.message : 'Login failed')
@@ -188,6 +203,40 @@ export function LoginForm() {
 		evt.preventDefault()
 		setForgot(!forgot)
 		setError(undefined)
+		// Reset forgot password state when toggling
+		setForgotStatus('idle')
+		setEmail('')
+		setForgotError(undefined)
+	}
+
+	async function onForgotSubmit(evt: React.FormEvent) {
+		console.log('onForgotSubmit called', { evt, api, email })
+		evt.preventDefault()
+		if (!api) {
+			console.log('No API available')
+			return
+		}
+
+		// Basic email validation
+		if (!email || !email.includes('@')) {
+			console.log('Invalid email')
+			setForgotError(t('Please enter a valid email address'))
+			return
+		}
+
+		console.log('Calling forgotPassword API...')
+		setForgotStatus('loading')
+		setForgotError(undefined)
+
+		try {
+			const result = await api.auth.forgotPassword({ email })
+			console.log('forgotPassword result:', result)
+			setForgotStatus('success')
+		} catch (err) {
+			console.error('forgotPassword error:', err)
+			// Always show success for security (no email enumeration)
+			setForgotStatus('success')
+		}
 	}
 
 	if (auth) {
@@ -197,9 +246,9 @@ export function LoginForm() {
 		return <Navigate to={navTo} />
 	} else {
 		return (
-			<form className="c-panel p-3" onSubmit={onSubmit}>
+			<form className="c-panel p-3" onSubmit={forgot ? onForgotSubmit : onSubmit}>
 				<header>
-					<h2>{t('Login')}</h2>
+					<h2>{forgot ? t('Reset Password') : t('Login')}</h2>
 				</header>
 
 				{!forgot ? (
@@ -235,17 +284,100 @@ export function LoginForm() {
 								{t('Remember me on this device')}
 							</label>
 						</div>
+						<div className="mb-3">
+							<button type="button" className="c-link small" onClick={onForgot}>
+								{t('Forgot password?')}
+							</button>
+						</div>
 					</>
 				) : (
-					/* forgotten password */ <></>
+					<>
+						{forgotStatus !== 'success' ? (
+							<>
+								<p className="text-muted mb-3">
+									{t(
+										"Enter your email address and we'll send you a link to reset your password."
+									)}
+								</p>
+								<div className="c-input-group mb-3">
+									<span className="c-button icon">
+										<IcMail />
+									</span>
+									<input
+										className="c-input"
+										name="email"
+										type="email"
+										value={email}
+										onChange={(evt: React.ChangeEvent<HTMLInputElement>) => {
+											setEmail(evt.target.value)
+											setForgotError(undefined)
+										}}
+										placeholder={t('Email address')}
+										aria-label={t('Email address')}
+										disabled={forgotStatus === 'loading'}
+										autoFocus
+									/>
+								</div>
+								{forgotError && (
+									<div className="c-invalid-feedback mb-2">{forgotError}</div>
+								)}
+							</>
+						) : (
+							<div className="c-panel success p-3 mb-3">
+								<div className="c-hbox align-items-center g-2">
+									<IcOk
+										style={{ fontSize: '1.5rem', color: 'var(--col-success)' }}
+									/>
+									<p className="mb-0">
+										{t(
+											"If an account with this email exists, you'll receive a password reset link shortly."
+										)}
+									</p>
+								</div>
+							</div>
+						)}
+					</>
 				)}
 
-				<div className="c-invalid-feedback">{error}</div>
+				{!forgot && <div className="c-invalid-feedback">{error}</div>}
 				<footer className="c-group g-2">
-					<Button type="submit" primary disabled={!api?.idTag}>
-						<IcLogin />
-						{t('Login')}
-					</Button>
+					{forgot ? (
+						<>
+							<Button
+								type="button"
+								onClick={() => {
+									setForgot(false)
+									setForgotStatus('idle')
+									setEmail('')
+									setForgotError(undefined)
+								}}
+							>
+								<IcBack />
+								{t('Back')}
+							</Button>
+							{forgotStatus !== 'success' && (
+								<Button
+									type="button"
+									primary
+									disabled={forgotStatus === 'loading' || !email}
+									onClick={onForgotSubmit}
+								>
+									{forgotStatus === 'loading' && (
+										<IcLoading className="animate-rotate-cw" />
+									)}
+									{t('Send reset link')}
+								</Button>
+							)}
+						</>
+					) : (
+						<>
+							<Button type="submit" primary disabled={!api?.idTag}>
+								<IcLogin />
+								{t('Login')}
+							</Button>
+							{browserSupportsWebAuthn() && <WebAuth idTag={api?.idTag || ''} />}
+						</>
+					)}
 				</footer>
 			</form>
 		)
@@ -353,7 +485,7 @@ export function WebAuth({ idTag }: WebAuthProps) {
 		const result = await webAuthnLogin(api)
 		if (result) {
 			setAuth(result)
-			if (result.token) localStorage.setItem('loginToken', result.token)
+			// Token is stored in SW encrypted storage via registerServiceWorker()
 		}
 	}
 
@@ -515,6 +647,14 @@ export function AuthRoutes() {
 				element={
 					<LoginPage>
 						<ResetPassword />
+					</LoginPage>
+				}
+			/>
+			<Route
+				path="/idp/activate/:refId"
+				element={
+					<LoginPage>
+						<IdpActivate />
 					</LoginPage>
 				}
 			/>

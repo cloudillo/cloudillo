@@ -30,8 +30,11 @@ import { useAuth, useApi, useDialog, Button } from '@cloudillo/react'
 import type { WebAuthnCredential, ApiKeyListItem } from '@cloudillo/base'
 
 import { useSettings } from './settings.js'
-
-const STORAGE_KEY_API_KEY = 'cloudillo_api_key'
+import {
+	setApiKey as swSetApiKey,
+	getApiKey as swGetApiKey,
+	deleteApiKey as swDeleteApiKey
+} from '../pwa.js'
 
 export function SecuritySettings() {
 	const { t } = useTranslation()
@@ -53,6 +56,7 @@ export function SecuritySettings() {
 	// API Key state
 	const [apiKeys, setApiKeys] = React.useState<ApiKeyListItem[]>([])
 	const [stayLoggedIn, setStayLoggedIn] = React.useState(false)
+	const [currentDeviceKeyPrefix, setCurrentDeviceKeyPrefix] = React.useState<string | undefined>()
 
 	// Load passkeys and API keys on mount
 	React.useEffect(
@@ -85,9 +89,14 @@ export function SecuritySettings() {
 		}
 	}
 
-	function checkStayLoggedIn() {
-		const storedKey = localStorage.getItem(STORAGE_KEY_API_KEY)
+	async function checkStayLoggedIn() {
+		const storedKey = await swGetApiKey()
 		setStayLoggedIn(!!storedKey)
+		if (storedKey) {
+			setCurrentDeviceKeyPrefix(storedKey.substring(0, 8))
+		} else {
+			setCurrentDeviceKeyPrefix(undefined)
+		}
 	}
 
 	async function addPasskey() {
@@ -157,8 +166,7 @@ export function SecuritySettings() {
 		if (!api) return
 
 		// Check if this is the current device's key
-		const storedKey = localStorage.getItem(STORAGE_KEY_API_KEY)
-		const isCurrentDevice = storedKey && storedKey.startsWith(keyPrefix)
+		const isCurrentDevice = currentDeviceKeyPrefix === keyPrefix
 
 		const confirmed = await dialog.confirm(
 			t('Delete API key?'),
@@ -174,8 +182,9 @@ export function SecuritySettings() {
 		try {
 			await api.auth.deleteApiKey(keyId)
 			if (isCurrentDevice) {
-				localStorage.removeItem(STORAGE_KEY_API_KEY)
+				await swDeleteApiKey()
 				setStayLoggedIn(false)
+				setCurrentDeviceKeyPrefix(undefined)
 			}
 			await loadApiKeys()
 		} catch (err: unknown) {
@@ -206,9 +215,10 @@ export function SecuritySettings() {
 					name: deviceName
 				})
 
-				// Store the plaintext key
-				localStorage.setItem(STORAGE_KEY_API_KEY, result.plaintextKey)
+				// Store the plaintext key in SW encrypted storage
+				await swSetApiKey(result.plaintextKey)
 				setStayLoggedIn(true)
+				setCurrentDeviceKeyPrefix(result.plaintextKey.substring(0, 8))
 				await loadApiKeys()
 			} catch (err: unknown) {
 				if (err instanceof Error) {
@@ -217,11 +227,8 @@ export function SecuritySettings() {
 			}
 		} else {
 			// Find and delete the API key for this device
-			const storedKey = localStorage.getItem(STORAGE_KEY_API_KEY)
-			if (storedKey) {
-				// Find the key by prefix (first 8 chars of the key)
-				const keyPrefix = storedKey.substring(0, 8)
-				const matchingKey = apiKeys.find((k) => k.keyPrefix === keyPrefix)
+			if (currentDeviceKeyPrefix) {
+				const matchingKey = apiKeys.find((k) => k.keyPrefix === currentDeviceKeyPrefix)
 
 				if (matchingKey) {
 					try {
@@ -232,8 +239,9 @@ export function SecuritySettings() {
 				}
 			}
 
-			localStorage.removeItem(STORAGE_KEY_API_KEY)
+			await swDeleteApiKey()
 			setStayLoggedIn(false)
+			setCurrentDeviceKeyPrefix(undefined)
 			await loadApiKeys()
 		}
 	}
@@ -369,8 +377,7 @@ export function SecuritySettings() {
 
 					<div>
 						{apiKeys.map((key) => {
-							const storedKey = localStorage.getItem(STORAGE_KEY_API_KEY)
-							const isCurrentDevice = storedKey && storedKey.startsWith(key.keyPrefix)
+							const isCurrentDevice = currentDeviceKeyPrefix === key.keyPrefix
 							return (
 								<div key={key.keyId} className="c-hbox py-2 border-bottom">
 									<IcApiKey className="mr-2" />

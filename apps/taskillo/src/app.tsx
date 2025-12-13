@@ -19,7 +19,7 @@ import { useLocation } from 'react-router-dom'
 import { PiPlusBold as IcPlus, PiTrashBold as IcDelete } from 'react-icons/pi'
 
 import { RtdbClient } from '@cloudillo/rtdb'
-import * as cloudillo from '@cloudillo/base'
+import { getAppBus } from '@cloudillo/base'
 import { Panel } from '@cloudillo/react'
 
 import '@symbion/opalui'
@@ -51,6 +51,8 @@ function useTaskillo() {
 	const [loading, setLoading] = React.useState(true)
 	const [error, setError] = React.useState<Error | undefined>()
 	const [fileId, setFileId] = React.useState('')
+	const [idTag, setIdTag] = React.useState<string | undefined>()
+	const [access, setAccess] = React.useState<'read' | 'write'>('write')
 
 	// Parse document ID from URL hash
 	// Cloudillo apps receive the document ID in the format: #tenant:path
@@ -76,8 +78,11 @@ function useTaskillo() {
 				// This waits for the parent shell to send an init message with the auth token
 				// Apps run in iframes and communicate with the shell via postMessage
 				console.log('[Taskillo] Initializing cloudillo...')
-				const token = await cloudillo.init(APP_NAME)
+				const bus = getAppBus()
+				const state = await bus.init(APP_NAME)
 				console.log('[Taskillo] Token received')
+				setIdTag(bus.idTag)
+				setAccess(bus.access)
 
 				if (unmounted) return
 
@@ -92,7 +97,7 @@ function useTaskillo() {
 				rtdbClient = new RtdbClient({
 					dbId: fileId, // Document/database identifier
 					auth: {
-						getToken: () => token // Auth token from cloudillo.init()
+						getToken: () => state.accessToken // Auth token from bus.init()
 					},
 					serverUrl, // WebSocket server URL
 					options: {
@@ -139,8 +144,8 @@ function useTaskillo() {
 	return {
 		client,
 		fileId,
-		idTag: cloudillo.idTag,
-		access: cloudillo.access,
+		idTag,
+		access,
 		connected,
 		error,
 		loading

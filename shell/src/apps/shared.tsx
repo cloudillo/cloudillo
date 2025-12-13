@@ -21,7 +21,7 @@ import { useTranslation } from 'react-i18next'
 import { LuFileWarning as IcError, LuRefreshCw as IcLoading } from 'react-icons/lu'
 
 import { useApi, LoadingSpinner, mergeClasses } from '@cloudillo/react'
-import { createApiClient, FileView, RefAccessTokenResult } from '@cloudillo/base'
+import { createApiClient, FileView, RefAccessTokenResult, getFileUrl } from '@cloudillo/base'
 
 import { useAppConfig } from '../utils.js'
 import { useGuestDocument } from '../context/index.js'
@@ -207,7 +207,7 @@ interface BlobViewerProps {
 function BlobViewer({ file, token, idTag }: BlobViewerProps) {
 	const { t } = useTranslation()
 	const contentType = file.contentType
-	const fileUrl = `https://cl-o.${idTag}/api/file/${file.fileId}`
+	const fileUrl = getFileUrl(idTag, file.fileId)
 
 	// Image files
 	if (contentType.startsWith('image/')) {

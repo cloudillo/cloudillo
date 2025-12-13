@@ -9,6 +9,14 @@ const PRECACHE_URLS: string[] = [
 //import { LRUCache } from 'lru-cache'
 import LRU from 'quick-lru'
 
+import { handleSwMessage, type SwStorageFunctions } from './message-bus/handlers.js'
+
+/************************/
+/* Encryption Key       */
+/* Injected by server   */
+/************************/
+const ENCRYPTION_KEY = '__CLOUDILLO_SW_ENCRYPTION_KEY__'
+
 /***********/
 /* Storage */
 /***********/
@@ -57,6 +65,120 @@ async function getItem(key: string) {
 	})
 }
 
+async function deleteItem(key: string) {
+	const db = await initDB()
+	return new Promise((resolve, reject) => {
+		const transaction = db.transaction(STORE_NAME, 'readwrite')
+		const store = transaction.objectStore(STORE_NAME)
+
+		const request = store.delete(key)
+
+		request.onsuccess = () => resolve(true)
+		request.onerror = (evt) => reject((evt.target as IDBRequest).error)
+	})
+}
+
+/**************/
+/* Encryption */
+/**************/
+let cryptoKey: CryptoKey | null = null
+let encryptionAvailable = false
+
+async function initCryptoKey(): Promise<CryptoKey | null> {
+	if (cryptoKey) return cryptoKey
+	// Check if key is the placeholder (not injected by server)
+	// Base64 never starts with underscore, but our placeholder does
+	if (ENCRYPTION_KEY.startsWith('_')) {
+		// No encryption key - SW should not have been registered without one
+		console.error('[SW] CRITICAL: No encryption key available - token storage disabled')
+		encryptionAvailable = false
+		return null
+	}
+	try {
+		const keyData = Uint8Array.from(atob(ENCRYPTION_KEY), (c) => c.charCodeAt(0))
+		cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'AES-GCM' }, false, [
+			'encrypt',
+			'decrypt'
+		])
+		encryptionAvailable = true
+		return cryptoKey
+	} catch (err) {
+		console.error('[SW] Failed to import encryption key:', err)
+		encryptionAvailable = false
+		return null
+	}
+}
+
+async function encryptData(plaintext: string): Promise<string | null> {
+	const key = await initCryptoKey()
+	if (!key) {
+		// Never store unencrypted - return null to skip storage
+		console.error('[SW] Cannot encrypt: no encryption key - skipping storage')
+		return null
+	}
+
+	const iv = crypto.getRandomValues(new Uint8Array(12))
+	const ciphertext = await crypto.subtle.encrypt(
+		{ name: 'AES-GCM', iv },
+		key,
+		new TextEncoder().encode(plaintext)
+	)
+	const combined = new Uint8Array(iv.length + ciphertext.byteLength)
+	combined.set(iv)
+	combined.set(new Uint8Array(ciphertext), iv.length)
+	return 'enc:' + btoa(String.fromCharCode(...combined))
+}
+
+async function decryptData(encrypted: string): Promise<string | null> {
+	// Reject unencrypted data - we never store unencrypted
+	if (!encrypted.startsWith('enc:')) {
+		console.error('[SW] Rejecting unencrypted data - clearing legacy storage')
+		return null
+	}
+
+	const key = await initCryptoKey()
+	if (!key) {
+		console.error('[SW] Cannot decrypt: no encryption key')
+		return null
+	}
+
+	try {
+		const combined = Uint8Array.from(atob(encrypted.slice(4)), (c) => c.charCodeAt(0))
+		const iv = combined.slice(0, 12)
+		const ciphertext = combined.slice(12)
+		const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext)
+		return new TextDecoder().decode(decrypted)
+	} catch (err) {
+		console.error('[SW] Decryption failed:', err)
+		return null
+	}
+}
+
+async function setSecureItem(key: string, value: string) {
+	const encrypted = await encryptData(value)
+	if (encrypted) {
+		await setItem(key, encrypted)
+	}
+	// If encryption failed, don't store anything (no unencrypted fallback)
+}
+
+async function getSecureItem(key: string): Promise<string | null> {
+	const encrypted = (await getItem(key)) as string | undefined
+	if (!encrypted) return null
+	return decryptData(encrypted)
+}
+
+async function deleteSecureItem(key: string): Promise<void> {
+	await deleteItem(key)
+}
+
+// Storage functions for message bus
+const swStorage: SwStorageFunctions = {
+	setSecureItem,
+	getSecureItem,
+	deleteSecureItem
+}
+
 /******************/
 /* Service worker */
 /******************/
@@ -83,6 +205,16 @@ function onActivate(evt: any) {
 		(async function () {
 			let cacheList = (await caches.keys()).filter((name) => name !== CACHE)
 			await Promise.all(cacheList.map((name) => caches.delete(name)))
+
+			// Load persisted token on activation
+			if (!authToken) {
+				const persistedToken = await getSecureItem('authToken')
+				if (persistedToken) {
+					authToken = persistedToken
+					log && console.log('[SW] Loaded persisted auth token')
+				}
+			}
+
 			await (self as any).clients.claim()
 		})()
 	)
@@ -130,7 +262,7 @@ function onFetch(evt: any) {
 						request = new Request(evt.request, { headers: headers, mode: 'cors' })
 					}
 
-					const origRes = fetch(request)
+					const origRes = await fetch(request)
 
 					if (
 						[
@@ -140,14 +272,15 @@ function onFetch(evt: any) {
 						].includes(reqUrl.pathname)
 					) {
 						// Extract token from response
-						const res = (await origRes).clone()
+						const res = origRes.clone()
 						log && console.log('[SW] OWN RES', res.status)
 						const j = await res.json()
 						log && console.log('[SW] OWN RES BODY', j)
 						if (j.data?.token) {
 							log && console.log('[SW] OWN RES TOKEN')
-							authToken = j.data?.token
-							//await setItem('authToken', j.token)
+							authToken = j.data.token as string
+							// Persist encrypted token
+							await setSecureItem('authToken', authToken)
 						}
 						/*
 					const cleanedRes = new Response(JSON.stringify({ ...j, token: undefined }), {
@@ -161,6 +294,7 @@ function onFetch(evt: any) {
 					return origRes
 				} catch (err) {
 					log && console.log('[SW] FETCH ERROR', err)
+					throw err
 				}
 			} else if (
 				reqUrl.hostname.startsWith('cl-o.') &&
@@ -188,7 +322,10 @@ function onFetch(evt: any) {
 								'https://cl-o.' +
 									idTag +
 									`/api/auth/proxy-token?idTag=${targetTag}`,
-								{ credentials: 'include' }
+								{
+									credentials: 'include',
+									headers: { Authorization: `Bearer ${authToken}` }
+								}
 							)
 							token = (await proxyTokenRes.json())?.data?.token
 							log && console.log('PROXY TOKEN miss', idTag, targetTag, token)
@@ -270,7 +407,7 @@ function onPushSubscriptionChange(evt: any) {
 			subs: PushSubscription
 		) {
 			console.log('Subscribed after expiration', JSON.stringify(subs))
-			return fetch('/api/notification/subscription', {
+			return fetch('/api/notifications/subscription', {
 				method: 'post',
 				headers: {
 					'Content-type': 'application/json'
@@ -326,9 +463,57 @@ function onNotificationClick(evt: any) {
 	)
 }
 
+// Handle messages from shell (e.g., token injection after SW registration)
+async function onMessage(evt: MessageEvent) {
+	// Try new message bus first
+	const handled = await handleSwMessage(evt, swStorage, (token) => {
+		authToken = token
+	})
+
+	if (handled) return
+
+	// Legacy fallback (for backward compatibility during transition)
+	const msg = evt.data
+	if (!msg?.cloudillo) return
+
+	if (msg.type === 'setToken' && msg.token) {
+		log && console.log('[SW] Received token via postMessage (legacy)')
+		authToken = msg.token as string
+		setSecureItem('authToken', authToken)
+	}
+
+	if (msg.type === 'setApiKey' && msg.apiKey) {
+		log && console.log('[SW] Storing API key (legacy)')
+		setSecureItem('apiKey', msg.apiKey)
+	}
+
+	if (msg.type === 'getApiKey') {
+		log && console.log('[SW] Retrieving API key (legacy)')
+		const apiKey = await getSecureItem('apiKey')
+		;(evt.source as any)?.postMessage({
+			cloudillo: true,
+			type: 'apiKeyReply',
+			id: msg.id,
+			apiKey
+		})
+	}
+
+	if (msg.type === 'deleteApiKey') {
+		log && console.log('[SW] Deleting API key (legacy)')
+		deleteSecureItem('apiKey')
+	}
+
+	if (msg.type === 'logout') {
+		log && console.log('[SW] Clearing auth token (legacy)')
+		authToken = undefined
+		deleteSecureItem('authToken')
+	}
+}
+
 self.addEventListener('install', onInstall as EventListener)
 self.addEventListener('activate', onActivate as EventListener)
 self.addEventListener('fetch', onFetch as EventListener)
+self.addEventListener('message', onMessage as unknown as EventListener)
 self.addEventListener('pushsubscriptionchange', onPushSubscriptionChange)
 self.addEventListener('push', onPush)
 self.addEventListener('notificationclick', onNotificationClick)

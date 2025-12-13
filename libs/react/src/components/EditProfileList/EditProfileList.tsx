@@ -17,7 +17,7 @@
 import * as React from 'react'
 import { useLibTranslation } from '../../i18n.js'
 
-import { LuTrash as IcDelete } from 'react-icons/lu'
+import { LuTrash as IcDelete, LuX as IcCancel, LuCheck as IcConfirm } from 'react-icons/lu'
 
 import { Profile } from '@cloudillo/types'
 
@@ -31,6 +31,11 @@ export interface EditProfileListProps {
 	listProfiles: (q: string) => Promise<Profile[] | undefined>
 	addProfile?: (profile: Profile) => Promise<void>
 	removeProfile?: (idTag: string) => Promise<void>
+	confirmingRemove?: string | null
+	onRequestRemove?: (idTag: string) => void
+	onCancelRemove?: () => void
+	onConfirmRemove?: (idTag: string) => void
+	removeConfirmText?: string
 }
 
 export function EditProfileList({
@@ -39,10 +44,18 @@ export function EditProfileList({
 	profiles,
 	listProfiles,
 	addProfile,
-	removeProfile
+	removeProfile,
+	confirmingRemove,
+	onRequestRemove,
+	onCancelRemove,
+	onConfirmRemove,
+	removeConfirmText
 }: EditProfileListProps) {
 	const [add, setAdd] = React.useState(false)
 	const { t } = useLibTranslation()
+
+	// Use inline confirmation if the confirmation props are provided
+	const useInlineConfirmation = onRequestRemove !== undefined
 
 	async function getData(q: string): Promise<Profile[] | undefined> {
 		console.log('getData', q)
@@ -61,7 +74,11 @@ export function EditProfileList({
 	}
 
 	function onRemove(profile: Profile) {
-		return profile && removeProfile?.(profile.idTag)
+		if (useInlineConfirmation) {
+			onRequestRemove?.(profile.idTag)
+		} else {
+			removeProfile?.(profile.idTag)
+		}
 	}
 
 	return (
@@ -75,16 +92,39 @@ export function EditProfileList({
 				onSelectItem={onAdd}
 			/>
 			<div>
-				{(profiles || []).map((profile, i) => (
-					<button
-						key={profile.idTag}
-						className="c-link w-100 p-0 ps-1"
-						onClick={() => onRemove(profile)}
-					>
-						<ProfileCard className="w-100" profile={profile} />
-						<IcDelete />
-					</button>
-				))}
+				{(profiles || []).map((profile) =>
+					confirmingRemove === profile.idTag ? (
+						<div key={profile.idTag} className="c-hbox g-2 align-items-center p-1 ps-2">
+							<span className="flex-fill text-small">
+								{removeConfirmText ?? t('Remove access?')}
+							</span>
+							<button
+								type="button"
+								className="c-button small"
+								onClick={onCancelRemove}
+							>
+								{t('Cancel')}
+							</button>
+							<button
+								type="button"
+								className="c-button small primary"
+								onClick={() => onConfirmRemove?.(profile.idTag)}
+							>
+								{t('Remove')}
+							</button>
+						</div>
+					) : (
+						<button
+							key={profile.idTag}
+							type="button"
+							className="c-link w-100 p-0 ps-1"
+							onClick={() => onRemove(profile)}
+						>
+							<ProfileCard className="w-100" profile={profile} />
+							<IcDelete />
+						</button>
+					)
+				)}
 			</div>
 		</div>
 	)

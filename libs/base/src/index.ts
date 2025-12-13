@@ -20,5 +20,9 @@ export * from './api-types.js'
 export * from './api-client.js'
 export * from './websocket.js'
 export * from './utils.js'
+export * from './urls.js'
+
+// Message bus (unified communication layer)
+export * from './message-bus/index.js'
 
 // vim: ts=4

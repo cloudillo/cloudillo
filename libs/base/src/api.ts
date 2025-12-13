@@ -16,6 +16,8 @@
 
 import * as T from '@symbion/runtype'
 
+import { getApiUrl } from './urls.js'
+
 // ============================================================================
 // API RESPONSE TYPES
 // ============================================================================
@@ -162,7 +164,7 @@ export async function apiFetchHelper<R, D = any>(
 	if (!idTag) throw new Error('No idTag in API call')
 
 	const abortCtrl = new AbortController()
-	const url = `https://cl-o.${idTag}/api${path}`
+	const url = `${getApiUrl(idTag)}${path}`
 
 	// Build headers
 	const headers: Record<string, string> = {

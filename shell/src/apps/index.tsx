@@ -20,29 +20,63 @@ import { useAuth, useApi, mergeClasses } from '@cloudillo/react'
 
 import { LuRefreshCw as IcLoading } from 'react-icons/lu'
 
-import { useAppConfig } from '../utils.js'
+import { useAppConfig, TrustLevel } from '../utils.js'
+import { getShellBus } from '../message-bus/shell-bus.js'
 import { useContextFromRoute, useGuestDocument } from '../context/index.js'
 import { FeedApp } from './feed.js'
 import { FilesApp } from './files.js'
 import { GalleryApp } from './gallery.js'
 import { MessagesApp } from './messages.js'
+import { FileViewerApp } from './viewer/index.js'
 
 async function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(() => resolve(), ms))
 }
-
-window.addEventListener('message', function onmessage(evt) {
-	// Handle cloudillo messages from microfrontends
-})
 
 interface MicrofrontendContainerProps {
 	className?: string
 	app: string
 	resId?: string
 	appUrl: string
-	trust?: boolean
+	trust?: TrustLevel | boolean
 	access?: 'read' | 'write'
 	token?: string // Optional pre-fetched token (for guest access via share links)
+}
+
+/**
+ * Normalize trust value to TrustLevel
+ * - true → 'trusted' (backwards compatibility)
+ * - false/undefined → 'untrusted' (backwards compatibility)
+ * - TrustLevel string → as-is
+ */
+function normalizeTrust(trust: TrustLevel | boolean | undefined): TrustLevel {
+	if (trust === true) return 'trusted'
+	if (trust === false || trust === undefined) return 'untrusted'
+	return trust
+}
+
+/**
+ * Get iframe sandbox attribute value
+ * All trust levels use 'allow-scripts allow-forms' without 'allow-same-origin'
+ * This gives apps an opaque origin, preventing access to shell's serviceWorker API
+ * and protecting the SW encryption key from being read via scriptURL
+ */
+function getSandboxValue(_trust: TrustLevel): string {
+	return 'allow-scripts allow-forms'
+}
+
+/**
+ * Parse JWT to get expiration timestamp (without verifying signature)
+ */
+function getTokenExpiry(token: string): number | null {
+	try {
+		const [, payload] = token.split('.')
+		if (!payload) return null
+		const decoded = JSON.parse(atob(payload))
+		return decoded.exp ? decoded.exp * 1000 : null // convert to ms
+	} catch {
+		return null
+	}
 }
 
 export function MicrofrontendContainer({
@@ -62,46 +96,120 @@ export function MicrofrontendContainer({
 	const [, , host, path] = (resId || '').match(/^(([a-zA-Z0-9-.]+):)?(.*)$/) || []
 	// Extract context from resId (format: "contextIdTag:resource-path")
 	const contextIdTag = host || auth?.idTag
+	const trustLevel = normalizeTrust(trust)
+	const renewalTimerRef = React.useRef<number | undefined>(undefined)
+
+	// Function to request a new token
+	const requestToken = React.useCallback(async () => {
+		if (!api || !auth) return undefined
+		const accessSuffix = access === 'read' ? 'R' : 'W'
+		try {
+			const res = await api.auth.getAccessToken({
+				scope: `${resId}:${accessSuffix}`
+			})
+			return res.token
+		} catch (err) {
+			console.error('[Shell] Failed to get access token:', err)
+			return undefined
+		}
+	}, [api, auth, resId, access])
+
+	// Send token update to app via message bus
+	const sendTokenToApp = React.useCallback((token: string) => {
+		const appWindow = ref.current?.contentWindow
+		if (!appWindow) return
+		const shellBus = getShellBus()
+		shellBus?.sendTokenUpdate(appWindow, token)
+	}, [])
+
+	// Schedule proactive token renewal at 80% of lifetime
+	const scheduleRenewal = React.useCallback(
+		(token: string) => {
+			const expiry = getTokenExpiry(token)
+			if (!expiry) return
+
+			const now = Date.now()
+			const remaining = expiry - now
+			if (remaining <= 0) return
+
+			const renewAt = remaining * 0.8
+
+			if (renewalTimerRef.current) {
+				clearTimeout(renewalTimerRef.current)
+			}
+
+			renewalTimerRef.current = window.setTimeout(async () => {
+				const newToken = await requestToken()
+				if (newToken) {
+					sendTokenToApp(newToken)
+					scheduleRenewal(newToken)
+				}
+			}, renewAt)
+		},
+		[requestToken, sendTokenToApp]
+	)
+
+	// Cleanup timer on unmount
+	React.useEffect(() => {
+		return () => {
+			if (renewalTimerRef.current) {
+				clearTimeout(renewalTimerRef.current)
+			}
+		}
+	}, [])
 
 	React.useEffect(
 		function onLoad() {
 			// Allow loading if we have auth OR a provided token (for guest share links)
 			if (api && (auth || providedToken)) {
-				const accessSuffix = access === 'read' ? 'R' : 'W'
 				// Use provided token if available, otherwise fetch one
 				const apiPromise = providedToken
 					? Promise.resolve({ token: providedToken })
-					: auth
-						? api.auth.getAccessToken({ scope: `${resId}:${accessSuffix}` })
-						: Promise.resolve({ token: undefined })
+					: requestToken().then((token) => ({ token }))
+
 				ref.current?.addEventListener('load', async function onMicrofrontendLoad() {
+					// Pre-register app with resId IMMEDIATELY on load
+					// This must happen before the app sends auth:init.req
+					// Note: contentWindow changes when src is set, so we must get it here
+					const currentShellBus = getShellBus()
+					const currentAppWindow = ref.current?.contentWindow
+
+					if (!currentShellBus || !currentAppWindow) {
+						console.error('[Shell] Failed to initialize app: no shell bus or window')
+						setLoading(false)
+						return
+					}
+
+					// Pre-register with resId so auth:init.req can get a token
+					currentShellBus.preRegisterApp(currentAppWindow, {
+						appName: app,
+						resId,
+						idTag: contextIdTag,
+						access: access || 'write'
+					})
+
 					await delay(100) // FIXME (wait for app to start)
+
 					try {
 						const res = await apiPromise
-						ref.current?.contentWindow?.postMessage(
-							{
-								cloudillo: true,
-								type: 'init',
-								idTag: contextIdTag,
-								roles: auth?.roles,
-								theme: 'glass',
-								darkMode: document.body.classList.contains('dark'),
-								token: res.token,
-								access: access || 'write'
-							},
-							'*'
-						)
+						currentShellBus.initApp(currentAppWindow, {
+							idTag: contextIdTag,
+							tnId: auth?.tnId,
+							roles: auth?.roles,
+							darkMode: document.body.classList.contains('dark'),
+							token: res.token,
+							access: access || 'write',
+							resId
+						})
+						// Schedule proactive token renewal
+						if (res.token) {
+							scheduleRenewal(res.token)
+						}
 					} catch (err) {
 						console.error('[Shell] Failed to initialize app:', err)
-						ref.current?.contentWindow?.postMessage(
-							{
-								cloudillo: true,
-								type: 'init',
-								theme: 'glass',
-								darkMode: document.body.classList.contains('dark')
-							},
-							'*'
-						)
+						currentShellBus.initApp(currentAppWindow, {
+							darkMode: document.body.classList.contains('dark')
+						})
 					}
 					await delay(5000) // FIXME (wait for app to start)
 					setLoading(false)
@@ -109,17 +217,11 @@ export function MicrofrontendContainer({
 				setUrl(`${appUrl}#${resId}`)
 			}
 		},
-		[api, auth, resId, contextIdTag, access, providedToken]
+		[api, auth, app, resId, contextIdTag, access, providedToken, requestToken, scheduleRenewal]
 	)
 
 	return (
-		<div
-			className={mergeClasses(
-				'c-app flex-fill pos-relative',
-				trust ? 'trusted' : trust == false ? 'untrusted' : undefined,
-				className
-			)}
-		>
+		<div className={mergeClasses('c-app flex-fill pos-relative', trustLevel, className)}>
 			{loading && (
 				<IcLoading
 					size="5rem"
@@ -129,6 +231,7 @@ export function MicrofrontendContainer({
 			<iframe
 				ref={ref}
 				src={url}
+				sandbox={getSandboxValue(trustLevel)}
 				className={mergeClasses(
 					'pos-absolute top-0 left-0 right-0 bottom-0 z-2',
 					className
@@ -137,7 +240,6 @@ export function MicrofrontendContainer({
 			/>
 		</div>
 	)
-	//return <iframe ref={ref} src={url} className={mergeClasses('c-app flex-fill untrusted', className)} autoFocus/>
 }
 
 function ExternalApp({ className }: { className?: string }) {
@@ -191,6 +293,7 @@ export function AppRoutes() {
 			<Route path="/app/:contextIdTag/feed" element={<FeedApp />} />
 			<Route path="/app/:contextIdTag/gallery" element={<GalleryApp />} />
 			<Route path="/app/:contextIdTag/messages/:convId?" element={<MessagesApp />} />
+			<Route path="/app/:contextIdTag/view/:resId" element={<FileViewerApp />} />
 			<Route
 				path="/app/:contextIdTag/:appId/*"
 				element={<ExternalApp className="w-100 h-100" />}
@@ -200,6 +303,7 @@ export function AppRoutes() {
 			<Route path="/app/feed" element={<FeedApp />} />
 			<Route path="/app/gallery" element={<GalleryApp />} />
 			<Route path="/app/messages/:convId?" element={<MessagesApp />} />
+			<Route path="/app/view/:resId" element={<FileViewerApp />} />
 			<Route path="/app/:appId/*" element={<ExternalApp className="w-100 h-100" />} />
 			<Route path="/*" element={null} />
 		</Routes>

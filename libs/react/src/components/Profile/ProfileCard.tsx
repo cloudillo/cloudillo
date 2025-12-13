@@ -19,6 +19,7 @@ import { useAuth } from '../../hooks.js'
 import { mergeClasses } from '../utils.js'
 import { UnknownProfilePicture } from './UnknownProfilePicture.js'
 import { IdentityTag } from './IdentityTag.js'
+import { getFileUrl } from '@cloudillo/base'
 
 export interface Profile {
 	name?: string
@@ -40,7 +41,7 @@ export function ProfileCard({ className, profile, srcTag }: ProfileCardProps) {
 			{auth && profile.profilePic ? (
 				<img
 					className="picture"
-					src={`https://cl-o.${srcTag ?? auth?.idTag}/api/file/${profile.profilePic}?variant=vis.pf`}
+					src={getFileUrl(srcTag ?? auth?.idTag ?? '', profile.profilePic, 'vis.pf')}
 				/>
 			) : (
 				<UnknownProfilePicture />

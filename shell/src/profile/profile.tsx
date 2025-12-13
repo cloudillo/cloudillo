@@ -24,6 +24,7 @@ import Turndown from 'turndown'
 
 import { Button, Popper, Container, Fcd, useDialog, mergeClasses } from '@cloudillo/react'
 import { NewAction } from '@cloudillo/types'
+import { getInstanceUrl, getFileUrl } from '@cloudillo/base'
 
 import {
 	LuPencil as IcEdit,
@@ -248,7 +249,7 @@ export function ProfilePage({
 
 		// Upload
 		const request = new XMLHttpRequest()
-		request.open('PUT', `https://cl-o.${api?.idTag}/api/me/cover`)
+		request.open('PUT', `${getInstanceUrl(api?.idTag || '')}/api/me/cover`)
 		request.setRequestHeader('Authorization', `Bearer ${auth?.token}`)
 
 		request.upload.addEventListener('progress', function (e) {
@@ -286,7 +287,7 @@ export function ProfilePage({
 
 		// Upload
 		const request = new XMLHttpRequest()
-		request.open('PUT', `https://cl-o.${api?.idTag}/api/me/image`)
+		request.open('PUT', `${getInstanceUrl(api?.idTag || '')}/api/me/image`)
 		request.setRequestHeader('Authorization', `Bearer ${auth?.token}`)
 
 		request.upload.addEventListener('progress', function (e) {
@@ -343,164 +344,152 @@ export function ProfilePage({
 
 	return (
 		<Fcd.Container className="g-1">
-			{!!auth && (
-				<>
-					<Fcd.Filter></Fcd.Filter>
-					<Fcd.Content>
-						<div className="c-panel p-0 pos-relative d-flex flex-column">
-							<div
-								className="c-profile-header pos-relative w-100"
-								style={{ minHeight: '160px' }}
-							>
-								{profile.coverPic && (
-									<img
-										className="c-profile-cover w-100"
-										src={`https://cl-o.${profile.idTag}/api/file/${profile.coverPic}?variant=vis.hd`}
+			<Fcd.Filter></Fcd.Filter>
+			<Fcd.Content>
+				<div className="c-panel p-0 pos-relative d-flex flex-column">
+					<div
+						className="c-profile-header pos-relative w-100"
+						style={{ minHeight: '160px' }}
+					>
+						{profile.coverPic && (
+							<img
+								className="c-profile-cover w-100"
+								src={getFileUrl(profile.idTag, profile.coverPic, 'vis.hd')}
+							/>
+						)}
+						{own && (
+							<>
+								<label
+									htmlFor={inputId}
+									className="c-overlay-icon pos-absolute top-0 right-0 m-2"
+								>
+									<IcEdit size="2rem" />
+								</label>
+								<input
+									id={inputId}
+									type="file"
+									accept="image/*"
+									style={{ display: 'none' }}
+									onChange={changeCover}
+								/>
+							</>
+						)}
+						<div className="c-profile-pic-container">
+							{profile.profilePic ? (
+								<img
+									className="c-profile-pic"
+									src={getFileUrl(profile.idTag, profile.profilePic, 'vis.sd')}
+									alt="Profile picture"
+								/>
+							) : (
+								<svg className="c-profile-pic" viewBox="4 4 16 16" fill="none">
+									<path
+										d="M12 22.01C17.5228 22.01 22 17.5329 22 12.01C22 6.48716 17.5228 2.01001 12 2.01001C6.47715 2.01001 2 6.48716 2 12.01C2 17.5329 6.47715 22.01 12 22.01Z"
+										fill="#ADB3BA"
 									/>
-								)}
-								{own && (
-									<>
-										<label
-											htmlFor={inputId}
-											className="c-overlay-icon pos-absolute top-0 right-0 m-2"
-										>
-											<IcEdit size="2rem" />
-										</label>
-										<input
-											id={inputId}
-											type="file"
-											accept="image/*"
-											style={{ display: 'none' }}
-											onChange={changeCover}
-										/>
-									</>
-								)}
-								<div className="c-profile-pic-container">
-									{profile.profilePic ? (
-										<img
-											className="c-profile-pic"
-											src={`https://cl-o.${profile.idTag}/api/file/${profile.profilePic}?variant=vis.sd`}
-											alt="Profile picture"
-										/>
-									) : (
-										<svg
-											className="c-profile-pic"
-											viewBox="4 4 16 16"
-											fill="none"
-										>
-											<path
-												d="M12 22.01C17.5228 22.01 22 17.5329 22 12.01C22 6.48716 17.5228 2.01001 12 2.01001C6.47715 2.01001 2 6.48716 2 12.01C2 17.5329 6.47715 22.01 12 22.01Z"
-												fill="#ADB3BA"
-											/>
-											<path
-												d="M12 6.93994C9.93 6.93994 8.25 8.61994 8.25 10.6899C8.25 12.7199 9.84 14.3699 11.95 14.4299C11.98 14.4299 12.02 14.4299 12.04 14.4299C12.06 14.4299 12.09 14.4299 12.11 14.4299C12.12 14.4299 12.13 14.4299 12.13 14.4299C14.15 14.3599 15.74 12.7199 15.75 10.6899C15.75 8.61994 14.07 6.93994 12 6.93994Z"
-												fill="#292D32"
-											/>
-											<path
-												d="M18.7807 19.36C17.0007 21 14.6207 22.01 12.0007 22.01C9.3807 22.01 7.0007 21 5.2207 19.36C5.4607 18.45 6.1107 17.62 7.0607 16.98C9.7907 15.16 14.2307 15.16 16.9407 16.98C17.9007 17.62 18.5407 18.45 18.7807 19.36Z"
-												fill="#292D32"
-											/>
-										</svg>
-									)}
-									{own && (
-										<>
-											<label
-												htmlFor={profileInputId}
-												className="c-overlay-icon pos-absolute"
-												style={{ bottom: '1.5rem', right: '2.5rem' }}
-											>
-												<IcEdit size="2rem" />
-											</label>
-											<input
-												id={profileInputId}
-												type="file"
-												accept="image/*"
-												style={{ display: 'none' }}
-												onChange={changeProfile}
-											/>
-										</>
-									)}
-								</div>
-							</div>
-							<div className="c-hbox">
-								<div className="c-profile-title">
-									<h2 className="mt-2">{profile.name}</h2>
-									<h4>
-										<IdentityTag idTag={profile.idTag} />
-									</h4>
-								</div>
-								<div className="flex-fill" />
-								{auth?.idTag && !own && (
-									<>
-										{profile.type == 'person' &&
-											localProfile?.connected == true && (
-												<Link
-													className="c-button"
-													to={`/app/messages/${profile.idTag}`}
-												>
-													<IcMessage />
-													{t('Message')}
-												</Link>
-											)}
-										<ProfileConnection
-											localProfile={localProfile}
-											cmds={profileCmds}
-										/>
-									</>
-								)}
-							</div>
-							<div className="c-tabs">
-								<NavLink
-									className="c-tab"
-									to={`/profile/${contextIdTag}/${own ? 'me' : profile.idTag}/feed`}
-									end
-								>
-									{t('Feed')}
-								</NavLink>
-								<NavLink
-									className="c-tab"
-									to={`/profile/${contextIdTag}/${own ? 'me' : profile.idTag}/about`}
-									end
-								>
-									{t('About')}
-								</NavLink>
-								<NavLink
-									className="c-tab"
-									to={`/profile/${contextIdTag}/${own ? 'me' : profile.idTag}/connections`}
-									end
-								>
-									{profile.type == 'community' ? t('Members') : t('Connections')}
-								</NavLink>
-								{own && (
-									<>
-										<NavLink className="c-tab" to={`/settings/${contextIdTag}`}>
-											{t('Settings')}
-										</NavLink>
-									</>
-								)}
-							</div>
+									<path
+										d="M12 6.93994C9.93 6.93994 8.25 8.61994 8.25 10.6899C8.25 12.7199 9.84 14.3699 11.95 14.4299C11.98 14.4299 12.02 14.4299 12.04 14.4299C12.06 14.4299 12.09 14.4299 12.11 14.4299C12.12 14.4299 12.13 14.4299 12.13 14.4299C14.15 14.3599 15.74 12.7199 15.75 10.6899C15.75 8.61994 14.07 6.93994 12 6.93994Z"
+										fill="#292D32"
+									/>
+									<path
+										d="M18.7807 19.36C17.0007 21 14.6207 22.01 12.0007 22.01C9.3807 22.01 7.0007 21 5.2207 19.36C5.4607 18.45 6.1107 17.62 7.0607 16.98C9.7907 15.16 14.2307 15.16 16.9407 16.98C17.9007 17.62 18.5407 18.45 18.7807 19.36Z"
+										fill="#292D32"
+									/>
+								</svg>
+							)}
+							{own && (
+								<>
+									<label
+										htmlFor={profileInputId}
+										className="c-overlay-icon pos-absolute"
+										style={{ bottom: '1.5rem', right: '2.5rem' }}
+									>
+										<IcEdit size="2rem" />
+									</label>
+									<input
+										id={profileInputId}
+										type="file"
+										accept="image/*"
+										style={{ display: 'none' }}
+										onChange={changeProfile}
+									/>
+								</>
+							)}
 						</div>
-						{children}
-						{coverUpload && (
-							<ImageUpload
-								src={coverUpload}
-								aspects={['', '4:1', '3:1']}
-								onSubmit={uploadCover}
-								onCancel={onCancel}
-							/>
+					</div>
+					<div className="c-hbox">
+						<div className="c-profile-title">
+							<h2 className="mt-2">{profile.name}</h2>
+							<h4>
+								<IdentityTag idTag={profile.idTag} />
+							</h4>
+						</div>
+						<div className="flex-fill" />
+						{auth?.idTag && !own && (
+							<>
+								{profile.type == 'person' && localProfile?.connected == true && (
+									<Link
+										className="c-button"
+										to={`/app/messages/${profile.idTag}`}
+									>
+										<IcMessage />
+										{t('Message')}
+									</Link>
+								)}
+								<ProfileConnection localProfile={localProfile} cmds={profileCmds} />
+							</>
 						)}
-						{profileUpload && (
-							<ImageUpload
-								src={profileUpload}
-								aspects={['circle']}
-								onSubmit={uploadProfile}
-								onCancel={onCancel}
-							/>
+					</div>
+					<div className="c-tabs">
+						<NavLink
+							className="c-tab"
+							to={`/profile/${contextIdTag}/${own ? 'me' : profile.idTag}/feed`}
+							end
+						>
+							{t('Feed')}
+						</NavLink>
+						<NavLink
+							className="c-tab"
+							to={`/profile/${contextIdTag}/${own ? 'me' : profile.idTag}/about`}
+							end
+						>
+							{t('About')}
+						</NavLink>
+						<NavLink
+							className="c-tab"
+							to={`/profile/${contextIdTag}/${own ? 'me' : profile.idTag}/connections`}
+							end
+						>
+							{profile.type == 'community' ? t('Members') : t('Connections')}
+						</NavLink>
+						{own && (
+							<>
+								<NavLink className="c-tab" to={`/settings/${contextIdTag}`}>
+									{t('Settings')}
+								</NavLink>
+							</>
 						)}
-					</Fcd.Content>
-					<Fcd.Details></Fcd.Details>
-				</>
-			)}
+					</div>
+				</div>
+				{children}
+				{coverUpload && (
+					<ImageUpload
+						src={coverUpload}
+						aspects={['', '4:1', '3:1']}
+						onSubmit={uploadCover}
+						onCancel={onCancel}
+					/>
+				)}
+				{profileUpload && (
+					<ImageUpload
+						src={profileUpload}
+						aspects={['circle']}
+						onSubmit={uploadProfile}
+						onCancel={onCancel}
+					/>
+				)}
+			</Fcd.Content>
+			<Fcd.Details></Fcd.Details>
 		</Fcd.Container>
 	)
 }

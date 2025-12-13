@@ -79,13 +79,27 @@ export const Button = createComponent<HTMLButtonElement, ButtonProps>(
 
 		async function handleClick(evt: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
 			evt.preventDefault()
+			// Capture form reference before async delay (React synthetic events are pooled)
+			const form = (evt.currentTarget as HTMLButtonElement).form
+
+			// Animation
 			setClicked(true)
 			await delay(200)
 			setClicked(false)
+
+			// After animation, trigger the action
 			if (type === 'submit') {
-				;(evt.target as HTMLButtonElement).form?.requestSubmit()
-			} else {
-				onClick?.(evt)
+				form?.requestSubmit()
+			} else if (onClick) {
+				// Create a minimal event-like object since original event is stale after await
+				// preventDefault was already called at the start
+				const syntheticEvent = {
+					preventDefault: () => {},
+					stopPropagation: () => {},
+					target: form,
+					currentTarget: form
+				} as unknown as React.MouseEvent<HTMLButtonElement, MouseEvent>
+				onClick(syntheticEvent)
 			}
 		}
 

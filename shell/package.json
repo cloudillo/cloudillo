@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/shell",
-	"version": "0.1.3",
+	"version": "0.8.0",
 	"description": "Cloudillo shell",
 	"type": "module",
 	"main": "src/index.js",

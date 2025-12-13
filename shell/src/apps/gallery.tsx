@@ -30,6 +30,7 @@ import 'yet-another-react-lightbox/plugins/thumbnails.css'
 import 'react-photo-album/rows.css'
 
 import { useAuth, useApi, LoadingSpinner, EmptyState } from '@cloudillo/react'
+import { getFileUrl } from '@cloudillo/base'
 import { LuImage as IcImage } from 'react-icons/lu'
 
 import { parseQS, qs } from '../utils.js'
@@ -65,7 +66,7 @@ export function GalleryApp() {
 		React.useMemo(
 			() =>
 				files?.map((f) => ({
-					src: `https://cl-o.${contextIdTag || auth?.idTag}/api/file/${f.variantId}`,
+					src: getFileUrl(contextIdTag || auth?.idTag || '', f.variantId || f.fileId),
 					width: f.x?.dim?.[0] || 100,
 					height: f.x?.dim?.[1] || 100,
 					title: f.x?.caption || f.fileName

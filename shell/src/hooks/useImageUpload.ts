@@ -16,6 +16,7 @@
 
 import * as React from 'react'
 import { useAuth } from '@cloudillo/react'
+import { getInstanceUrl } from '@cloudillo/base'
 
 export interface UseImageUploadOptions {
 	onUploadComplete?: (fileId: string) => void
@@ -57,12 +58,12 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 
 	const uploadAttachment = React.useCallback(
 		async (blob: Blob) => {
-			if (!auth) return
+			if (!auth?.idTag) return
 
 			setIsUploading(true)
 
 			const request = new XMLHttpRequest()
-			request.open('POST', `https://cl-o.${auth.idTag}/api/file/image/attachment`)
+			request.open('POST', `${getInstanceUrl(auth.idTag)}/api/files/image/attachment`)
 			request.setRequestHeader('Authorization', `Bearer ${auth.token}`)
 
 			request.addEventListener('load', function () {
@@ -89,13 +90,13 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 
 	const uploadVideo = React.useCallback(
 		async (file: File) => {
-			if (!auth) return
+			if (!auth?.idTag) return
 
 			setIsUploading(true)
 			setUploadProgress(0)
 
 			const request = new XMLHttpRequest()
-			request.open('POST', `https://cl-o.${auth.idTag}/api/file/video/attachment`)
+			request.open('POST', `${getInstanceUrl(auth.idTag)}/api/files/video/attachment`)
 			request.setRequestHeader('Authorization', `Bearer ${auth.token}`)
 
 			request.upload.addEventListener('progress', (e) => {

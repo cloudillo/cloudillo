@@ -16,6 +16,7 @@
 
 import * as React from 'react'
 import { LuX as IcClose } from 'react-icons/lu'
+import { getFileUrl } from '@cloudillo/base'
 
 export interface AttachmentPreviewProps {
 	attachmentIds: string[]
@@ -38,7 +39,7 @@ export function AttachmentPreview({
 				<div key={id} className="pos-relative d-inline-block">
 					<img
 						className={compact ? 'c-thumbnail small' : 'c-thumbnail'}
-						src={`https://cl-o.${idTag}/api/file/${id}?variant=vis.tn`}
+						src={getFileUrl(idTag, id, 'vis.tn')}
 						alt=""
 					/>
 					<button

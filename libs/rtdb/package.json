@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/rtdb",
-	"version": "0.0.1",
+	"version": "0.8.0",
 	"description": "Cloudillo Real-Time Database client library",
 	"type": "module",
 	"main": "lib/index.js",

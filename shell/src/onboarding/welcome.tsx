@@ -124,7 +124,7 @@ export function Welcome() {
 	if (!refValid) {
 		return (
 			<div className="c-panel p-4">
-				<CloudilloLogo className="c-logo w-50 float-right ps-3 pb-3 slow" />
+				<CloudilloLogo className="c-logo w-50 float-right ps-3 pb-3" />
 				<header>
 					<h1 className="mb-3">{t('Welcome to Cloudillo!')}</h1>
 				</header>
@@ -137,7 +137,7 @@ export function Welcome() {
 
 	return (
 		<div className="c-panel p-4">
-			<CloudilloLogo className="c-logo w-50 float-right ps-3 pb-3 slow" />
+			<CloudilloLogo className="c-logo w-50 float-right ps-3 pb-3" />
 			<header>
 				<h1 className="mb-3">{t('Welcome to Cloudillo!')}</h1>
 			</header>

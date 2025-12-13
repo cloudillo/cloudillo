@@ -56,8 +56,167 @@ interface PWAState {
 }
 
 let serviceWorker: ServiceWorkerRegistration
+let swConfig: PWAConfig = {}
+
+/**
+ * Register or re-register the service worker with encryption key and auth token
+ * ONLY call this after login when we have the encryption key
+ * Never registers without a key to ensure token storage is always encrypted
+ *
+ * @param swEncryptionKey - The encryption key for secure token storage
+ * @param authToken - Optional auth token to send to SW after registration
+ */
+export async function registerServiceWorker(
+	swEncryptionKey: string | undefined,
+	authToken?: string
+): Promise<void> {
+	if (!('serviceWorker' in navigator)) return
+
+	// Never register without encryption key
+	if (!swEncryptionKey) {
+		console.log('[PWA] Skipping SW registration - no encryption key')
+		return
+	}
+
+	console.log('[PWA] Registering SW with key:', swEncryptionKey.slice(0, 8) + '...')
+
+	let swPath = swConfig.swPath || '/sw.js'
+	const separator = swPath.includes('?') ? '&' : '?'
+	swPath = `${swPath}${separator}key=${swEncryptionKey}`
+
+	try {
+		// Unregister old SW first to ensure new key is used
+		const existingReg = await navigator.serviceWorker.getRegistration()
+		if (existingReg) {
+			await existingReg.unregister()
+		}
+
+		const reg = await navigator.serviceWorker.register(swPath)
+		serviceWorker = reg
+		console.log('[PWA] Service worker registered with encryption key')
+
+		// Wait for SW to be active, then send the token
+		if (authToken) {
+			await navigator.serviceWorker.ready
+			navigator.serviceWorker.controller?.postMessage({
+				cloudillo: true,
+				v: 1,
+				type: 'sw:token.set',
+				payload: { token: authToken }
+			})
+			console.log('[PWA] Token sent to service worker')
+		}
+	} catch (err) {
+		console.error('[PWA] SW registration failed:', err)
+	}
+}
+
+//////////////////////////
+// API Key SW Storage   //
+//////////////////////////
+
+let apiKeyRequestId = 0
+const apiKeyPendingRequests = new Map<number, (apiKey: string | undefined) => void>()
+
+// Listen for API key replies from SW
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+	navigator.serviceWorker.addEventListener('message', (evt) => {
+		const msg = evt.data
+		if (!msg?.cloudillo || msg.type !== 'sw:apikey.get.res') return
+
+		const resolve = apiKeyPendingRequests.get(msg.replyTo)
+		if (resolve) {
+			apiKeyPendingRequests.delete(msg.replyTo)
+			resolve(msg.data?.apiKey)
+		}
+	})
+}
+
+/**
+ * Store API key in SW encrypted storage
+ */
+export async function setApiKey(apiKey: string): Promise<void> {
+	if (!('serviceWorker' in navigator)) return
+
+	await navigator.serviceWorker.ready
+	navigator.serviceWorker.controller?.postMessage({
+		cloudillo: true,
+		v: 1,
+		type: 'sw:apikey.set',
+		payload: { apiKey }
+	})
+	console.log('[PWA] API key sent to service worker for storage')
+}
+
+/**
+ * Retrieve API key from SW encrypted storage
+ * Returns undefined if no SW, no controller, or no stored key
+ */
+export async function getApiKey(): Promise<string | undefined> {
+	if (!('serviceWorker' in navigator)) return undefined
+
+	const reg = await navigator.serviceWorker.getRegistration()
+	if (!reg?.active) return undefined
+
+	await navigator.serviceWorker.ready
+	const controller = navigator.serviceWorker.controller
+	if (!controller) return undefined
+
+	const id = ++apiKeyRequestId
+	return new Promise((resolve) => {
+		// Timeout after 3 seconds
+		const timeout = setTimeout(() => {
+			apiKeyPendingRequests.delete(id)
+			console.warn('[PWA] API key request timed out')
+			resolve(undefined)
+		}, 3000)
+
+		apiKeyPendingRequests.set(id, (apiKey) => {
+			clearTimeout(timeout)
+			resolve(apiKey)
+		})
+
+		controller.postMessage({
+			cloudillo: true,
+			v: 1,
+			type: 'sw:apikey.get.req',
+			id
+		})
+	})
+}
+
+/**
+ * Delete API key from SW encrypted storage
+ */
+export async function deleteApiKey(): Promise<void> {
+	if (!('serviceWorker' in navigator)) return
+
+	await navigator.serviceWorker.ready
+	navigator.serviceWorker.controller?.postMessage({
+		cloudillo: true,
+		v: 1,
+		type: 'sw:apikey.del'
+	})
+	console.log('[PWA] API key deletion requested')
+}
+
+/**
+ * Clear auth token from SW (used on logout)
+ */
+export async function clearAuthToken(): Promise<void> {
+	if (!('serviceWorker' in navigator)) return
+
+	await navigator.serviceWorker.ready
+	navigator.serviceWorker.controller?.postMessage({
+		cloudillo: true,
+		v: 1,
+		type: 'sw:token.clear'
+	})
+	console.log('[PWA] Auth token cleared')
+}
 
 export default function usePWA(config: PWAConfig = {}): UsePWA {
+	swConfig = config
 	const [notify, setNotify] = React.useState(false)
 	const [installEvt, setInstallEvt] = React.useState<BeforeInstallPromptEvent | undefined>()
 
@@ -108,23 +267,19 @@ export default function usePWA(config: PWAConfig = {}): UsePWA {
 	}
 
 	React.useEffect(function onMount() {
-		if ('serviceWorker' in navigator) {
-			;(async function () {
-				let sw = config.swPath || '/sw.js'
-				const reg = await navigator.serviceWorker.register(sw)
-				serviceWorker = reg
-				//console.log('Service worker installed')
+		// Note: SW registration is NOT done here - it requires encryption key from login
+		// registerServiceWorker() is called after login with the key
 
-				// Install Prompt
-				//console.log('Registering beforeinstallprompt handler')
-				window.addEventListener(
-					'beforeinstallprompt' as keyof WindowEventMap,
-					handleBeforeInstallPrompt as any
-				)
-			})()
-			return function onUnmount() {
-				//window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-			}
+		// Install Prompt handler
+		window.addEventListener(
+			'beforeinstallprompt' as keyof WindowEventMap,
+			handleBeforeInstallPrompt as any
+		)
+		return function onUnmount() {
+			window.removeEventListener(
+				'beforeinstallprompt' as keyof WindowEventMap,
+				handleBeforeInstallPrompt as any
+			)
 		}
 	}, [])
 

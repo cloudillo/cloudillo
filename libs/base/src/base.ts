@@ -14,148 +14,89 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+/**
+ * Cloudillo Base Module
+ *
+ * This module provides the core functionality for Cloudillo apps.
+ * The main API is the AppMessageBus via getAppBus().
+ *
+ * @example
+ * ```typescript
+ * import { getAppBus, openYDoc } from '@cloudillo/base'
+ *
+ * const bus = getAppBus()
+ * const state = await bus.init('my-app')
+ *
+ * // Access state
+ * console.log(bus.accessToken, bus.idTag, bus.access)
+ *
+ * // Storage
+ * await bus.storage.set('my-app', 'key', value)
+ *
+ * // Open CRDT document
+ * const { yDoc, provider } = await openYDoc(new Y.Doc(), 'idTag:docId')
+ * ```
+ */
+
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
-//import { IndexeddbPersistence } from 'y-indexeddb'
 
-import * as T from '@symbion/runtype'
+import { getCrdtUrl } from './urls.js'
+import { getAppBus } from './message-bus/index.js'
 
-export let accessToken: string | undefined
-export let idTag: string | undefined
-export let tnId: number | undefined
-export let roles: string[] | undefined
-export let darkMode: boolean | undefined
-export let access: 'read' | 'write' | undefined
+// ============================================
+// UTILITY FUNCTIONS
+// ============================================
 
-// Utility functions //
-export async function delay(ms: number) {
+/**
+ * Delay execution for a specified time
+ */
+export async function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-const tCloudilloMessage = T.taggedUnion('type')({
-	initReq: T.struct({
-		cloudillo: T.trueValue,
-		type: T.literal('initReq')
-	}),
-	init: T.struct({
-		cloudillo: T.trueValue,
-		type: T.literal('init'),
-		idTag: T.optional(T.string),
-		tnId: T.optional(T.id),
-		roles: T.optional(T.array(T.string)),
-		theme: T.string,
-		darkMode: T.optional(T.boolean),
-		token: T.optional(T.string),
-		access: T.optional(T.literal('read', 'write'))
-	}),
-	reply: T.struct({
-		cloudillo: T.trueValue,
-		type: T.literal('reply'),
-		id: T.number,
-		data: T.unknown
-	})
-})
+// ============================================
+// CRDT DOCUMENT FUNCTIONS
+// ============================================
 
-export function init(app: string): Promise<string | undefined> {
-	console.log(`[${app}] cloudillo.init`, app)
-	return new Promise((resolve, reject) => {
-		window.addEventListener('message', function onMessage(evt) {
-			console.log(`[${app}] RECV:`, evt.source, evt.data)
-			if (!evt.data.cloudillo) return
-			const msg = T.decode(tCloudilloMessage, evt.data)
-			console.log(`[${app}] Decode:`, msg)
-
-			if (T.isOk(msg)) {
-				switch (msg.ok.type) {
-					case 'init':
-						accessToken = msg.ok.token
-						idTag = msg.ok.idTag
-						tnId = msg.ok.tnId
-						roles = msg.ok.roles
-						darkMode = !!msg.ok.darkMode
-						access = msg.ok.access || 'write'
-						if (msg.ok.darkMode) {
-							console.log(`[${app}] setting dark mode`)
-							document.body.classList.add('theme-glass')
-							document.body.classList.add('dark')
-							document.body.classList.remove('light')
-						} else {
-							console.log(`[${app}] setting light mode`)
-							document.body.classList.add('theme-glass')
-							document.body.classList.add('light')
-							document.body.classList.remove('dark')
-						}
-						return resolve(accessToken)
-					case 'reply':
-						if (reqMap[msg.ok.id]) {
-							reqMap[msg.ok.id].resolve(msg.ok.data)
-							delete reqMap[msg.ok.id]
-						}
-						return
-				}
-			} else {
-				console.log(`[${app}] Invalid message`, evt.data, msg.err)
-				reject('Invalid message')
-			}
-		})
-
-		console.log(`[${app}] Send:`, 'initReq')
-		window.parent?.postMessage(
-			{
-				cloudillo: true,
-				type: 'initReq'
-			},
-			'*'
-		)
-	})
-}
-
-let reqId = 0
-const reqMap: Record<
-	number,
-	{
-		resolve: (data: unknown) => void
-		reject: (reason?: any) => void
-	}
-> = {}
-
-async function shellRequest() {
-	const id = reqId++
-	return new Promise((resolve, reject) => {
-		reqMap[id] = {
-			resolve,
-			reject
-		}
-		window.postMessage(
-			{
-				cloudillo: true,
-				type: 'shellRequest',
-				id
-			},
-			'*'
-		)
-	})
-}
-
-//async function getToken(): Promise<string> {
-async function getToken() {
-	return accessToken
-}
-
+/**
+ * Open a Yjs document with WebSocket synchronization
+ *
+ * This function connects to the Cloudillo CRDT server and sets up
+ * real-time synchronization for the document.
+ *
+ * @param yDoc - The Yjs document to synchronize
+ * @param docId - Document ID in format "targetTag:resourceId"
+ * @returns The document and WebSocket provider
+ *
+ * @example
+ * ```typescript
+ * const yDoc = new Y.Doc()
+ * const { provider } = await openYDoc(yDoc, 'alice:my-document')
+ *
+ * // Access shared types
+ * const yText = yDoc.getText('content')
+ * ```
+ */
 export async function openYDoc(
 	yDoc: Y.Doc,
 	docId: string
 ): Promise<{ yDoc: Y.Doc; provider: WebsocketProvider }> {
+	const bus = getAppBus()
+	const token = bus.accessToken
+	const accessLevel = bus.access
+
+	if (!token) {
+		throw new Error('No access token. Call init() first.')
+	}
+
 	const [targetTag, resId] = docId.split(':')
-	if (!accessToken) throw new Error('No access token')
+	if (!targetTag || !resId) {
+		throw new Error('Invalid docId format. Expected "targetTag:resourceId"')
+	}
 
-	/*
-	const idbProvider = new IndexeddbPersistence(docId, yDoc)
-	idbProvider.on('sync', () => console.log('content loaded from local storage'))
-	*/
-
-	const wsProvider = new WebsocketProvider(`wss://cl-o.${targetTag}/ws/crdt`, resId, yDoc, {
-		params: { token: accessToken, access: access || 'write' }
+	const wsProvider = new WebsocketProvider(getCrdtUrl(targetTag), resId, yDoc, {
+		params: { token, access: accessLevel || 'write' }
 	})
 
 	return {

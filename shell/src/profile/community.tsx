@@ -495,39 +495,47 @@ export function CreateCommunity() {
 		}
 	}
 
-	// Debounced verification
-	const onChangeVerify = React.useCallback(
-		debounce(async function onVerify(idTag: string, providerOrAppDomain?: string) {
-			if (!idTag || !api) return
+	// Debounced verification - use useMemo to create stable debounced function
+	const onChangeVerify = React.useMemo(
+		() =>
+			debounce(async function onVerify(idTag: string, providerOrAppDomain?: string) {
+				if (!idTag || !api) return
 
-			setVerifyProgress('vfy')
-			setVerifyState(undefined)
+				setVerifyProgress('vfy')
+				setVerifyState(undefined)
 
-			try {
-				const fullIdTag =
-					identityProvider === 'domain' ? idTag : idTag + '.' + selectedProvider
+				try {
+					const fullIdTag =
+						identityProvider === 'domain' ? idTag : idTag + '.' + selectedProvider
 
-				const res = await api.profile.verify({
-					type: identityProvider || 'idp',
-					idTag: fullIdTag,
-					appDomain: identityProvider === 'domain' ? providerOrAppDomain : undefined,
-					token: ''
-				})
-				setVerifyProgress(undefined)
-				setVerifyState(res)
-			} catch (err) {
-				console.log('ERROR', err)
-				setVerifyProgress(undefined)
-				// Set network error state so user knows verification failed
-				setVerifyState({
-					address: [],
-					identityProviders: [],
-					idTagError: 'network'
-				})
-			}
-		}, 500),
+					const res = await api.profile.verify({
+						type: identityProvider || 'idp',
+						idTag: fullIdTag,
+						appDomain: identityProvider === 'domain' ? providerOrAppDomain : undefined,
+						token: ''
+					})
+					setVerifyProgress(undefined)
+					setVerifyState(res)
+				} catch (err) {
+					console.log('ERROR', err)
+					setVerifyProgress(undefined)
+					// Set network error state so user knows verification failed
+					setVerifyState({
+						address: [],
+						identityProviders: [],
+						idTagError: 'network'
+					})
+				}
+			}, 500),
 		[identityProvider, selectedProvider, api]
 	)
+
+	// Clean up debounced function on unmount or when dependencies change
+	React.useEffect(() => {
+		return () => {
+			onChangeVerify.clear()
+		}
+	}, [onChangeVerify])
 
 	// Check if domain is accessible
 	async function checkDomainAccessible(idTag: string): Promise<boolean> {

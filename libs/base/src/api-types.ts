@@ -125,6 +125,10 @@ export interface SetPasswordRequest {
 	newPassword: string
 }
 
+export interface ForgotPasswordRequest {
+	email: string
+}
+
 // Response types (with runtype validators - runtime validation)
 export const tLoginResult = T.struct({
 	tnId: T.number,
@@ -132,7 +136,8 @@ export const tLoginResult = T.struct({
 	roles: T.optional(T.array(T.string)),
 	token: T.string,
 	name: T.string,
-	profilePic: T.string
+	profilePic: T.string,
+	swEncryptionKey: T.optional(T.string)
 })
 export type LoginResult = T.TypeOf<typeof tLoginResult>
 
@@ -170,6 +175,11 @@ export const tRegisterVerifyResult = T.struct({
 })
 export type RegisterVerifyResult = T.TypeOf<typeof tRegisterVerifyResult>
 
+// Registration result - server returns empty object for both IDP and domain registration
+// User must verify email and set password before they can log in
+export const tRegisterResult = T.struct({})
+export type RegisterResult = T.TypeOf<typeof tRegisterResult>
+
 /**
  * Unified profile verification result (replaces RegisterVerifyResult and CommunityVerifyResult)
  * Used for both user registration and community creation verification
@@ -198,6 +208,18 @@ export const tIdpInfo = T.struct({
 	url: T.optional(T.string)
 })
 export type IdpInfo = T.TypeOf<typeof tIdpInfo>
+
+// IDP Activation request/response
+export const tIdpActivateRequest = T.struct({
+	refId: T.string
+})
+export type IdpActivateRequest = T.TypeOf<typeof tIdpActivateRequest>
+
+export const tIdpActivateResult = T.struct({
+	idTag: T.string,
+	status: T.string
+})
+export type IdpActivateResult = T.TypeOf<typeof tIdpActivateResult>
 
 // ============================================================================
 // WEBAUTHN ENDPOINTS
@@ -330,14 +352,17 @@ export type InboundAction = T.TypeOf<typeof tInboundAction>
 
 // Request types
 export interface CreateFileRequest {
-	fileTp: string // "CRDT", "RTDB", "BLOB", etc.
+	fileTp: string // "CRDT", "RTDB", "BLOB", "FLDR", etc.
 	contentType?: string
+	fileName?: string // File name (required for FLDR)
+	parentId?: string // Parent folder ID (null = root)
 	createdAt?: number
 	tags?: string
 }
 
 export interface PatchFileRequest {
 	fileName?: string
+	parentId?: string | null // Move file to folder (null = root)
 }
 
 export interface GetFileVariantSelector {
@@ -349,23 +374,27 @@ export interface GetFileVariantSelector {
 
 export interface ListFilesQuery {
 	fileId?: string
+	parentId?: string // Filter by folder: null=root, "__trash__"=trash, or folder fileId
 	preset?: string
 	tag?: string
 	status?: ('P' | 'A')[]
+	fileTp?: string // File type: 'BLOB', 'CRDT', 'RTDB', 'FLDR'
 	contentType?: string
 	createdAfter?: string | number
 	createdBefore?: string | number
+	collection?: string // Collection filter: 'FAVR', 'RCNT', 'BKMK', 'PIND'
 	_limit?: number
 }
 
 // Response types
 export const tFileView = T.struct({
 	fileId: T.string,
+	parentId: T.optional(T.string), // Parent folder ID (null = root, "__trash__" = in trash)
 	status: T.literal('P', 'A'),
 	preset: T.optional(T.string),
 	contentType: T.string,
 	fileName: T.string,
-	fileTp: T.optional(T.string),
+	fileTp: T.optional(T.string), // 'BLOB', 'CRDT', 'RTDB', 'FLDR'
 	createdAt: T.union(T.string, T.date),
 	tags: T.optional(T.array(T.string)),
 	x: T.optional(T.unknown),
@@ -376,7 +405,8 @@ export const tFileView = T.struct({
 			profilePic: T.optional(T.string),
 			type: T.optional(T.string)
 		})
-	)
+	),
+	accessLevel: T.optional(T.literal('read', 'write', 'none'))
 })
 export type FileView = T.TypeOf<typeof tFileView>
 
@@ -411,9 +441,46 @@ export const tPatchFileResult = T.struct({
 export type PatchFileResult = T.TypeOf<typeof tPatchFileResult>
 
 export const tDeleteFileResult = T.struct({
-	fileId: T.string
+	fileId: T.string,
+	permanent: T.optional(T.boolean) // True if permanently deleted, false if moved to trash
 })
 export type DeleteFileResult = T.TypeOf<typeof tDeleteFileResult>
+
+// Restore file from trash
+export const tRestoreFileResult = T.struct({
+	fileId: T.string,
+	parentId: T.optional(T.string) // Target folder after restore (null = root)
+})
+export type RestoreFileResult = T.TypeOf<typeof tRestoreFileResult>
+
+// Empty trash result
+export const tEmptyTrashResult = T.struct({
+	deleted_count: T.number
+})
+export type EmptyTrashResult = T.TypeOf<typeof tEmptyTrashResult>
+
+// ============================================================================
+// COLLECTION ENDPOINTS (Favorites, Recent, Bookmarks, Pins)
+// ============================================================================
+
+// Collection types: 'FAVR' (favorites), 'RCNT' (recent), 'BKMK' (bookmarks), 'PIND' (pinned)
+export type CollectionType = 'FAVR' | 'RCNT' | 'BKMK' | 'PIND'
+
+export const tCollectionItem = T.struct({
+	itemId: T.string, // Entity ID with type prefix (f1~..., a1~..., etc.)
+	createdAt: T.union(T.string, T.date),
+	updatedAt: T.union(T.string, T.date)
+})
+export type CollectionItem = T.TypeOf<typeof tCollectionItem>
+
+export const tListCollectionResult = T.array(tCollectionItem)
+export type ListCollectionResult = T.TypeOf<typeof tListCollectionResult>
+
+export const tCollectionResponse = T.struct({
+	collType: T.string,
+	itemId: T.string
+})
+export type CollectionResponse = T.TypeOf<typeof tCollectionResponse>
 
 export const tTagResult = T.struct({
 	tags: T.array(T.string)
@@ -427,6 +494,8 @@ export type TagResult = T.TypeOf<typeof tTagResult>
 // Request types
 export interface ListTagsQuery {
 	prefix?: string
+	withCounts?: boolean
+	limit?: number
 }
 
 // Response types
@@ -436,12 +505,9 @@ export const tTagInfo = T.struct({
 })
 export type TagInfo = T.TypeOf<typeof tTagInfo>
 
-/*
 export const tListTagsResult = T.struct({
-  tags: T.array(tTagInfo),
+	tags: T.array(tTagInfo)
 })
-*/
-export const tListTagsResult = T.array(tTagInfo)
 export type ListTagsResult = T.TypeOf<typeof tListTagsResult>
 
 // ============================================================================

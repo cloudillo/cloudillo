@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/base",
-	"version": "0.0.1",
+	"version": "0.8.0",
 	"description": "Cloudillo base library",
 	"type": "module",
 	"main": "lib/index.js",

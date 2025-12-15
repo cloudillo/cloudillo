@@ -23,7 +23,8 @@ export { ProfileAudienceCard } from './ProfileAudienceCard.js'
 export type { UnknownProfilePictureProps } from './UnknownProfilePicture.js'
 export type { IdentityTagProps } from './IdentityTag.js'
 export type { ProfilePictureProps } from './ProfilePicture.js'
-export type { Profile, ProfileCardProps } from './ProfileCard.js'
+export type { Profile } from '@cloudillo/types'
+export type { ProfileCardProps } from './ProfileCard.js'
 export type { ProfileAudienceCardProps } from './ProfileAudienceCard.js'
 
 // vim: ts=4

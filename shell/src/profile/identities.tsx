@@ -30,27 +30,16 @@ import {
 	LuUsers as IcUserAll
 } from 'react-icons/lu'
 
+import { Profile } from '@cloudillo/types'
 import { useApi, useAuth, Fcd, Button, ProfileCard, mergeClasses } from '@cloudillo/react'
 import { useAppConfig, parseQS, qs } from '../utils.js'
 
-export interface Profile {
-	idTag: string
-	name: string
-	profilePic?: string
-	following?: boolean
-	connected?: true | 'R'
-	status: 'A' | 'B' | 'T'
-}
-
-function ProfileStatusIcon({
-	profile
-}: {
-	profile: { connected?: true | 'R'; following?: boolean; status: 'A' | 'B' | 'T' }
-}) {
-	if (profile.connected) return <IcUserConnected className="text-success" />
-	if (profile.connected == 'R') return <IcUserConnected className="text-warning" />
+function ProfileStatusIcon({ profile }: { profile: Profile }) {
+	// Check for exactly true (connected) vs 'R' (pending request)
+	if (profile.connected === true) return <IcUserConnected className="text-success" />
+	if (profile.connected === 'R') return <IcUserConnected className="text-warning" />
 	if (profile.following) return <IcUserFollowing className="text-success" />
-	if (profile.status == 'B') return <IcUserBlocked className="text-error" />
+	if (profile.status === 'B') return <IcUserBlocked className="text-error" />
 	return <IcUser />
 }
 
@@ -155,7 +144,7 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 				console.log('QS', location.search, qs)
 
 				const profiles = await api!.profiles.list({ type: 'person' })
-				setProfiles(profiles as any)
+				setProfiles(profiles)
 			})()
 		},
 		[auth, location.search, contextIdTag]
@@ -216,7 +205,7 @@ export function CommunityListPage() {
 
 				const profiles = await api!.profiles.list({ type: 'community' })
 				console.log('profiles', profiles)
-				setProfiles(profiles as any)
+				setProfiles(profiles)
 			})()
 		},
 		[auth, location.search, contextIdTag]

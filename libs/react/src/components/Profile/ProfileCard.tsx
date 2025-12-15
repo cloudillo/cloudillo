@@ -15,17 +15,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
+import { Profile } from '@cloudillo/types'
 import { useAuth } from '../../hooks.js'
 import { mergeClasses } from '../utils.js'
 import { UnknownProfilePicture } from './UnknownProfilePicture.js'
 import { IdentityTag } from './IdentityTag.js'
 import { getFileUrl } from '@cloudillo/base'
-
-export interface Profile {
-	name?: string
-	idTag: string
-	profilePic?: string
-}
 
 export interface ProfileCardProps {
 	className?: string

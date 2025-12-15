@@ -16,10 +16,22 @@
 
 import * as T from '@symbion/runtype'
 
+// Profile connection status: true = connected, 'R' = request pending, undefined = not connected
+export const tProfileConnectionStatus = T.union(T.boolean, T.literal('R'))
+export type ProfileConnectionStatus = T.TypeOf<typeof tProfileConnectionStatus>
+
+// Profile status: A = Active, T = Trusted, B = Blocked, M = Muted, S = Suspended
+export const tProfileStatus = T.literal('A', 'T', 'B', 'M', 'S')
+export type ProfileStatus = T.TypeOf<typeof tProfileStatus>
+
 export const tProfile = T.struct({
 	idTag: T.string,
 	name: T.optional(T.string),
-	profilePic: T.optional(T.string)
+	type: T.optional(T.literal('person', 'community')),
+	profilePic: T.optional(T.string),
+	status: T.optional(tProfileStatus),
+	connected: T.optional(tProfileConnectionStatus),
+	following: T.optional(T.boolean)
 })
 export type Profile = T.TypeOf<typeof tProfile>
 
@@ -79,26 +91,23 @@ export const tNewAction = T.struct({
 })
 export type NewAction = T.TypeOf<typeof tNewAction>
 
+// Profile info embedded in actions (subset of Profile)
+export const tProfileInfo = T.struct({
+	idTag: T.string,
+	name: T.optional(T.string),
+	profilePic: T.optional(T.string),
+	type: T.optional(T.literal('person', 'community'))
+})
+export type ProfileInfo = T.TypeOf<typeof tProfileInfo>
+
 export const tActionView = T.struct({
 	actionId: T.string,
 	type: T.string,
 	subType: T.optional(T.string),
 	parentId: T.optional(T.string),
 	rootId: T.optional(T.string),
-	issuer: T.struct({
-		idTag: T.string,
-		name: T.optional(T.string),
-		profilePic: T.optional(T.string),
-		type: T.optional(T.string)
-	}),
-	audience: T.optional(
-		T.struct({
-			idTag: T.string,
-			name: T.optional(T.string),
-			profilePic: T.optional(T.string),
-			type: T.optional(T.string)
-		})
-	),
+	issuer: tProfileInfo,
+	audience: T.optional(tProfileInfo),
 	content: T.optional(T.unknown),
 	attachments: T.optional(
 		T.array(

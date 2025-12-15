@@ -47,7 +47,8 @@ import { useAuth, useApi, IdentityTag } from '@cloudillo/react'
 import { parseQS } from '../utils.js'
 import { ImageUpload } from '../image.js'
 import { ActionEvt, ActionComp, NewPost } from '../apps/feed.js'
-import { Profile, ProfileListCard, PersonListPage, CommunityListPage } from './identities.js'
+import { Profile } from '@cloudillo/types'
+import { ProfileListCard, PersonListPage, CommunityListPage } from './identities.js'
 import { CreateCommunity } from './community.js'
 
 Quill.register('modules/QuillMarkdown', QuillMarkdown)

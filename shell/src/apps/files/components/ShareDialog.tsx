@@ -348,11 +348,9 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 								<h4 className="mb-2">{t('Can edit')}</h4>
 								<EditProfileList
 									placeholder={t('Add people with edit access...')}
-									profiles={
-										writePerms
-											.filter((rp) => rp.audience)
-											.map((rp) => rp.audience) as Profile[]
-									}
+									profiles={writePerms.flatMap((rp) =>
+										rp.audience ? [rp.audience] : []
+									)}
 									listProfiles={listProfiles}
 									addProfile={(p) => addPerm(p, 'WRITE')}
 									confirmingRemove={confirmingRemovePerm}
@@ -367,11 +365,9 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 								<h4 className="mb-2">{t('Read only')}</h4>
 								<EditProfileList
 									placeholder={t('Add people with view access...')}
-									profiles={
-										readPerms
-											.filter((rp) => rp.audience)
-											.map((rp) => rp.audience) as Profile[]
-									}
+									profiles={readPerms.flatMap((rp) =>
+										rp.audience ? [rp.audience] : []
+									)}
 									listProfiles={listProfiles}
 									addProfile={(p) => addPerm(p, 'READ')}
 									confirmingRemove={confirmingRemovePerm}

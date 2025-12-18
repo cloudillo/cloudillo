@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next'
 import { LuLock as IcLock, LuRefreshCw as IcLoading } from 'react-icons/lu'
 
 import { useApi, useAuth, Button } from '@cloudillo/react'
+import { registerServiceWorker } from '../pwa.js'
 import { CloudilloLogo } from '../logo.js'
 
 export function Welcome() {
@@ -90,6 +91,12 @@ export function Welcome() {
 				newPassword: password
 			})
 			console.log('setPassword RES', res)
+
+			// Register SW with encryption key and token (like login does)
+			if (res.swEncryptionKey && res.token) {
+				await registerServiceWorker(res.swEncryptionKey, res.token)
+			}
+
 			setProgress('success')
 			setAuth({ ...res })
 			// Navigate to the onboarding process

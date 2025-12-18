@@ -78,33 +78,76 @@ export async function registerServiceWorker(
 		return
 	}
 
-	console.log('[PWA] Registering SW with key:', swEncryptionKey.slice(0, 8) + '...')
-
-	let swPath = swConfig.swPath || '/sw.js'
-	const separator = swPath.includes('?') ? '&' : '?'
-	swPath = `${swPath}${separator}key=${swEncryptionKey}`
+	const swBasePath = swConfig.swPath || '/sw.js'
+	const separator = swBasePath.includes('?') ? '&' : '?'
+	const swPath = `${swBasePath}${separator}key=${swEncryptionKey}`
 
 	try {
-		// Unregister old SW first to ensure new key is used
 		const existingReg = await navigator.serviceWorker.getRegistration()
-		if (existingReg) {
+
+		// Check if existing SW already has the same encryption key
+		if (existingReg?.active) {
+			const existingUrl = existingReg.active.scriptURL
+			if (existingUrl.includes(`key=${swEncryptionKey}`)) {
+				// Same key - just update token without re-registering
+				serviceWorker = existingReg
+				if (authToken) {
+					// Use the active worker directly instead of controller
+					existingReg.active.postMessage({
+						cloudillo: true,
+						v: 1,
+						type: 'sw:token.set',
+						payload: { token: authToken }
+					})
+					console.log('[PWA] Token updated in existing service worker')
+				}
+				return
+			}
+			// Different key - need to re-register
+			console.log('[PWA] Encryption key changed, re-registering SW')
 			await existingReg.unregister()
 		}
 
+		console.log('[PWA] Registering SW with key:', swEncryptionKey.slice(0, 8) + '...')
 		const reg = await navigator.serviceWorker.register(swPath)
 		serviceWorker = reg
 		console.log('[PWA] Service worker registered with encryption key')
 
 		// Wait for SW to be active, then send the token
 		if (authToken) {
-			await navigator.serviceWorker.ready
-			navigator.serviceWorker.controller?.postMessage({
-				cloudillo: true,
-				v: 1,
-				type: 'sw:token.set',
-				payload: { token: authToken }
-			})
-			console.log('[PWA] Token sent to service worker')
+			// Wait for the SW to become active
+			let activeWorker = reg.active
+			if (!activeWorker) {
+				const installingWorker = reg.installing || reg.waiting
+				if (installingWorker) {
+					await new Promise<void>((resolve) => {
+						installingWorker.addEventListener('statechange', function handler() {
+							if (installingWorker.state === 'activated') {
+								activeWorker = installingWorker
+								installingWorker.removeEventListener('statechange', handler)
+								resolve()
+							}
+						})
+						// Check if already activated
+						if (installingWorker.state === 'activated') {
+							activeWorker = installingWorker
+							resolve()
+						}
+					})
+				}
+			}
+
+			if (activeWorker) {
+				activeWorker.postMessage({
+					cloudillo: true,
+					v: 1,
+					type: 'sw:token.set',
+					payload: { token: authToken }
+				})
+				console.log('[PWA] Token sent to service worker')
+			} else {
+				console.warn('[PWA] No active service worker to send token to')
+			}
 		}
 	} catch (err) {
 		console.error('[PWA] SW registration failed:', err)

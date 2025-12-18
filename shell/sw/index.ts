@@ -95,7 +95,10 @@ async function initCryptoKey(): Promise<CryptoKey | null> {
 		return null
 	}
 	try {
-		const keyData = Uint8Array.from(atob(ENCRYPTION_KEY), (c) => c.charCodeAt(0))
+		// Convert base64url to standard base64 (replace - with +, _ with /, add padding)
+		const padding = '='.repeat((4 - (ENCRYPTION_KEY.length % 4)) % 4)
+		const base64 = (ENCRYPTION_KEY + padding).replace(/-/g, '+').replace(/_/g, '/')
+		const keyData = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
 		cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'AES-GCM' }, false, [
 			'encrypt',
 			'decrypt'

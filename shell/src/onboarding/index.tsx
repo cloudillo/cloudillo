@@ -127,46 +127,40 @@ function Extras({ pwa }: { pwa: UsePWA }) {
 				{t('A couple more things')} <span className="text-muted">({t('optional')})</span>
 			</h3>
 
-			<div className="c-vbox g-3 my-4">
+			<div className="c-panel my-4">
 				{canNotify && (
-					<label
-						className="c-panel clickable p-3 d-flex align-items-center"
-						style={{ cursor: 'pointer' }}
-						onClick={() => setEnableNotifications(!enableNotifications)}
-					>
+					<label className="c-settings-field" style={{ maxWidth: 'none' }}>
+						<span>
+							{t('Enable notifications')}
+							<br />
+							<span className="text-muted small">
+								{t('Know when someone messages you')}
+							</span>
+						</span>
 						<input
+							className="c-toggle primary"
 							type="checkbox"
 							checked={enableNotifications}
 							onChange={(e) => setEnableNotifications(e.target.checked)}
-							className="me-3"
 						/>
-						<div>
-							<strong>{t('Enable notifications')}</strong>
-							<p className="text-muted small mb-0">
-								{t('Know when someone messages you')}
-							</p>
-						</div>
 					</label>
 				)}
 
 				{canInstall && (
-					<label
-						className="c-panel clickable p-3 d-flex align-items-center"
-						style={{ cursor: 'pointer' }}
-						onClick={() => setEnableInstall(!enableInstall)}
-					>
+					<label className="c-settings-field" style={{ maxWidth: 'none' }}>
+						<span>
+							{t('Add to home screen')}
+							<br />
+							<span className="text-muted small">
+								{t('Quick access on your phone')}
+							</span>
+						</span>
 						<input
+							className="c-toggle primary"
 							type="checkbox"
 							checked={enableInstall}
 							onChange={(e) => setEnableInstall(e.target.checked)}
-							className="me-3"
 						/>
-						<div>
-							<strong>{t('Add to home screen')}</strong>
-							<p className="text-muted small mb-0">
-								{t('Quick access on your phone')}
-							</p>
-						</div>
 					</label>
 				)}
 			</div>

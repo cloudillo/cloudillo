@@ -96,6 +96,14 @@ export function useActionNotifications() {
 	const playSound = React.useCallback((soundKey: string) => {
 		const audio = audioRefs.current[soundKey]
 		if (audio) {
+			// Get volume based on window state
+			const currentSettings = settingsRef.current
+			const isActive = document.visibilityState === 'visible'
+			const volumePercent = isActive
+				? (currentSettings['volume.active'] ?? 50)
+				: (currentSettings['volume.inactive'] ?? 100)
+
+			audio.volume = volumePercent / 100 // HTMLAudioElement.volume is 0.0 - 1.0
 			audio.currentTime = 0
 			audio.play().catch(() => {
 				// Silently fail if blocked by browser autoplay policy
@@ -131,8 +139,8 @@ export function useActionNotifications() {
 
 	useWsBus({ cmds: ['ACTION'] }, (msg) => {
 		const action = msg.data as ActionView
-		// Real-time WS messages are inherently new - notify unless explicitly handled (status 'A' = accepted, etc.)
-		if (!action.status || action.status === 'N' || action.status === 'C') {
+		// Play sounds for active notifications (not drafts or deleted)
+		if (!action.status || ['N', 'C', 'A'].includes(action.status)) {
 			notify(action)
 		}
 	})

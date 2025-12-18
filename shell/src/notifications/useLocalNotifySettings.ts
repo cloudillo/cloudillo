@@ -30,6 +30,9 @@ export interface LocalNotifySettings {
 	'sound.reaction': string
 	'sound.mention': string
 	'sound.post': string
+	// Volume settings (0-100)
+	'volume.active': number // Volume when tab is focused
+	'volume.inactive': number // Volume when tab is in background
 	// Toast settings: boolean per action type
 	'toast.message': boolean
 	'toast.connection': boolean
@@ -51,6 +54,8 @@ const defaultSettings: LocalNotifySettings = {
 	'sound.reaction': '',
 	'sound.mention': '',
 	'sound.post': '',
+	'volume.active': 50,
+	'volume.inactive': 100,
 	'toast.message': false,
 	'toast.connection': false,
 	'toast.file_share': false,
@@ -85,7 +90,7 @@ export function useLocalNotifySettings() {
 	const [settings, setSettings] = React.useState<LocalNotifySettings>(loadSettings)
 
 	const updateSetting = React.useCallback(
-		(key: keyof LocalNotifySettings, value: string | boolean) => {
+		(key: keyof LocalNotifySettings, value: string | boolean | number) => {
 			setSettings((prev) => {
 				const newSettings = { ...prev, [key]: value }
 				saveSettings(newSettings)

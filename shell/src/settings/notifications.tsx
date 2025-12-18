@@ -48,7 +48,7 @@ function SoundSelect({
 	label: string
 	settingKey: keyof LocalNotifySettings
 	localSettings: LocalNotifySettings
-	updateSetting: (key: keyof LocalNotifySettings, value: string | boolean) => void
+	updateSetting: (key: keyof LocalNotifySettings, value: string | boolean | number) => void
 	t: (key: string) => string
 }) {
 	function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
@@ -78,6 +78,46 @@ function SoundSelect({
 					</option>
 				))}
 			</select>
+		</label>
+	)
+}
+
+function VolumeSlider({
+	label,
+	settingKey,
+	localSettings,
+	updateSetting
+}: {
+	label: string
+	settingKey: keyof LocalNotifySettings
+	localSettings: LocalNotifySettings
+	updateSetting: (key: keyof LocalNotifySettings, value: string | boolean | number) => void
+}) {
+	const value = (localSettings[settingKey] as number) ?? 50
+	return (
+		<label className="c-settings-field ms-2">
+			<span>{label}</span>
+			<span
+				style={{
+					flex: '0 0 auto',
+					display: 'flex',
+					alignItems: 'center',
+					gap: '0.5rem',
+					minWidth: '150px',
+					maxWidth: '200px'
+				}}
+			>
+				<input
+					type="range"
+					min="0"
+					max="100"
+					step="10"
+					value={value}
+					onChange={(e) => updateSetting(settingKey, parseInt(e.target.value))}
+					style={{ flex: 1 }}
+				/>
+				<span style={{ minWidth: '3em', textAlign: 'right' }}>{value}%</span>
+			</span>
 		</label>
 	)
 }
@@ -349,6 +389,19 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 						{t('Test sound')}
 					</button>
 				</div>
+
+				<VolumeSlider
+					label={t('Volume when tab is active')}
+					settingKey="volume.active"
+					localSettings={localSettings}
+					updateSetting={updateSetting}
+				/>
+				<VolumeSlider
+					label={t('Volume when tab is inactive (background)')}
+					settingKey="volume.inactive"
+					localSettings={localSettings}
+					updateSetting={updateSetting}
+				/>
 
 				<SoundSelect
 					label={t('Direct messages')}

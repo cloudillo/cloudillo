@@ -42,6 +42,7 @@ import {
 } from '@cloudillo/react'
 
 import { useNotifications } from './state'
+import { useCurrentContextIdTag } from '../context/index.js'
 
 function FilterBar() {
 	return null
@@ -180,6 +181,73 @@ function FileShareNotification({
 	)
 }
 
+function InviteNotification({
+	className,
+	action,
+	onClick
+}: {
+	className?: string
+	action: ActionView
+	onClick?: (action: ActionView) => void
+}) {
+	const { t } = useTranslation()
+	const navigate = useNavigate()
+	const { api } = useApi()
+	const [auth] = useAuth()
+	const contextIdTag = useCurrentContextIdTag()
+
+	// Parse invitation content (may contain role, message, groupName)
+	const content = action.content as
+		| { role?: string; message?: string; groupName?: string }
+		| undefined
+
+	async function onAccept() {
+		if (!api || !action?.actionId) return
+
+		// Accept the invitation
+		await api.actions.accept(action.actionId)
+		onClick?.(action)
+
+		// Navigate to the group conversation
+		if (action.subject) {
+			navigate(`/app/${contextIdTag || auth?.idTag}/messages/${action.subject}`)
+		}
+	}
+
+	async function onReject() {
+		if (!api || !action?.actionId) return
+		await api.actions.reject(action.actionId)
+		onClick?.(action)
+	}
+
+	return (
+		<div className={mergeClasses('c-panel g-2', className)}>
+			<div className="c-panel-header c-hbox">
+				<Link to={`/profile/${action.issuer.idTag}`}>
+					<ProfileCard profile={action.issuer} />
+				</Link>
+				<div className="c-hbox ms-auto g-3">
+					<Button link onClick={onAccept} title={t('Accept')}>
+						<IcAccept />
+					</Button>
+					<Button link onClick={onReject} title={t('Reject')}>
+						<IcReject />
+					</Button>
+				</div>
+			</div>
+			<div className="d-flex flex-column">
+				<h3>{t('Invited you to join a group')}</h3>
+				{content?.groupName && (
+					<div className="text-muted">
+						{t('Group')}: <span className="text-emph">{content.groupName}</span>
+					</div>
+				)}
+				{content?.message && <p className="mt-2">{content.message}</p>}
+			</div>
+		</div>
+	)
+}
+
 function Notification({
 	action,
 	onClick
@@ -192,6 +260,8 @@ function Notification({
 			return <ConnectNotification action={action} onClick={onClick} />
 		case 'FSHR':
 			return <FileShareNotification action={action} onClick={onClick} />
+		case 'INVT':
+			return <InviteNotification action={action} onClick={onClick} />
 		default:
 			return null
 	}

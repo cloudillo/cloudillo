@@ -468,6 +468,10 @@ async function onMessage(evt: MessageEvent) {
 	// Try new message bus first
 	const handled = await handleSwMessage(evt, swStorage, (token) => {
 		authToken = token
+		// Clear proxy token cache on logout
+		if (token === undefined) {
+			proxyTokenCache.clear()
+		}
 	})
 
 	if (handled) return
@@ -506,6 +510,7 @@ async function onMessage(evt: MessageEvent) {
 	if (msg.type === 'logout') {
 		log && console.log('[SW] Clearing auth token (legacy)')
 		authToken = undefined
+		proxyTokenCache.clear()
 		deleteSecureItem('authToken')
 	}
 }

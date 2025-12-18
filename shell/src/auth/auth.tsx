@@ -143,6 +143,7 @@ export function LoginForm() {
 	const [forgot, setForgot] = React.useState(false)
 	const [error, setError] = React.useState<string | undefined>()
 	const [webAuthnAttempted, setWebAuthnAttempted] = React.useState(false)
+	const [hasPasskeys, setHasPasskeys] = React.useState<boolean | undefined>(undefined)
 
 	// Forgot password state
 	const [email, setEmail] = React.useState('')
@@ -159,13 +160,39 @@ export function LoginForm() {
 
 			;(async () => {
 				try {
-					const result = await webAuthnLogin(api)
-					if (result) {
-						setAuth(result)
-						// Token is stored in SW encrypted storage via registerServiceWorker()
+					// Get challenge first to check if passkeys are available
+					const challengeData = await api.auth.getWebAuthnLoginChallenge()
+					const options = challengeData.options as {
+						allowCredentials?: { id: string }[]
 					}
+
+					// Check if any passkeys are registered
+					if (!options.allowCredentials || options.allowCredentials.length === 0) {
+						setHasPasskeys(false)
+						return
+					}
+
+					setHasPasskeys(true)
+
+					// Attempt browser authentication
+					const response = await startAuthentication({
+						optionsJSON: challengeData.options as Parameters<
+							typeof startAuthentication
+						>[0]['optionsJSON']
+					})
+
+					// Complete authentication with backend
+					const result = await api.auth.webAuthnLogin({
+						token: challengeData.token,
+						response
+					})
+
+					// Set up SW with encryption key and token
+					await registerServiceWorker(result.swEncryptionKey, result.token)
+					setAuth(result)
 				} catch (err) {
 					// Silently fail - user can use password
+					// NotAllowedError means user cancelled - keep button visible
 					console.log('WebAuthn auto-login not available')
 				}
 			})()
@@ -375,7 +402,9 @@ export function LoginForm() {
 								<IcLogin />
 								{t('Login')}
 							</Button>
-							{browserSupportsWebAuthn() && <WebAuth idTag={api?.idTag || ''} />}
+							{browserSupportsWebAuthn() && hasPasskeys !== false && (
+								<WebAuth idTag={api?.idTag || ''} />
+							)}
 						</>
 					)}
 				</footer>

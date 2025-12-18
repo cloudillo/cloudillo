@@ -161,7 +161,7 @@ import {
 } from '@cloudillo/react'
 import { createApiClient } from '@cloudillo/base'
 import { AppConfigState, useAppConfig } from './utils.js'
-import usePWA, { registerServiceWorker, getApiKey, clearAuthToken } from './pwa.js'
+import usePWA, { registerServiceWorker, getApiKey, deleteApiKey, clearAuthToken } from './pwa.js'
 import { AuthRoutes } from './auth/auth.js'
 import { useTokenRenewal } from './auth/useTokenRenewal.js'
 import { useActionNotifications } from './notifications/useActionNotifications.js'
@@ -386,9 +386,11 @@ function Header({ inert }: { inert?: boolean }) {
 
 	async function doLogout() {
 		if (!api) throw new Error('Not authenticated')
-		await api.auth.logout()
+		const apiKey = await getApiKey()
+		await api.auth.logout({ apiKey })
 		setAuth(undefined)
 		await clearAuthToken()
+		await deleteApiKey()
 		setMenuOpen(false)
 		navigate('/login')
 	}

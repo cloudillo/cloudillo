@@ -132,8 +132,10 @@ export class ApiClient {
 
 		/**
 		 * POST /auth/logout - User logout
+		 * @param data - Optional data containing API key to delete on server
 		 */
-		logout: () => this.request('POST', '/auth/logout', T.nullValue),
+		logout: (data?: { apiKey?: string }) =>
+			this.request('POST', '/auth/logout', T.nullValue, { data: data ?? {} }),
 
 		/**
 		 * GET /auth/login-token - Get login token for current session

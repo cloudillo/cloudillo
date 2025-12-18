@@ -95,8 +95,8 @@ const APP_CONFIG: AppConfigState = {
 		{
 			id: 'users',
 			icon: IcUser,
-			label: 'Users',
-			trans: { hu: 'Felhasználók' },
+			label: 'People',
+			trans: { hu: 'Emberek' },
 			path: '/users'
 		},
 		{

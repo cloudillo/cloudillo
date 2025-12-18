@@ -317,6 +317,7 @@ export interface ReactionRequest {
 export interface ListActionsQuery {
 	type?: string | string[]
 	status?: string | string[]
+	issuer?: string
 	audience?: string
 	involved?: string
 	parentId?: string

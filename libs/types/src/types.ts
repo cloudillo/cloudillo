@@ -129,7 +129,8 @@ export const tActionView = T.struct({
 			comments: T.optional(T.number),
 			commentsRead: T.optional(T.number)
 		})
-	)
+	),
+	x: T.optional(T.unknown) // Extensible metadata (x.role for SUBS, etc.)
 })
 export type ActionView = T.TypeOf<typeof tActionView>
 
@@ -245,9 +246,9 @@ export const tMessageAction = T.struct({
 	subType: T.string,
 	content: T.string,
 	attachments: T.optional(T.array(T.string)),
-	parentId: T.undefinedValue,
-	audience: T.optional(T.string),
-	subject: T.undefinedValue
+	parentId: T.optional(T.string), // CONV_id for group messages, MSG_id for replies
+	audience: T.optional(T.string), // For DMs only
+	subject: T.undefinedValue // Forbidden (use parentId for CONV hierarchy)
 })
 export type MessageAction = T.TypeOf<typeof tMessageAction>
 

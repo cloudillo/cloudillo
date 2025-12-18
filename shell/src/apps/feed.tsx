@@ -489,7 +489,7 @@ function Post({ className, action, setAction, hideAudience, srcTag, width }: Pos
 			type: 'REACT',
 			audienceTag: action.audience?.idTag || action.issuer.idTag,
 			content: reaction !== action.stat?.ownReaction ? reaction : undefined,
-			parentId: action.actionId
+			subject: action.actionId
 		}
 		const actionRes = await api.actions.create(ra)
 		console.log('react res', actionRes)

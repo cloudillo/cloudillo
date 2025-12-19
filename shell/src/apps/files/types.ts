@@ -14,6 +14,13 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+export interface FileUserData {
+	accessedAt?: string
+	modifiedAt?: string
+	pinned?: boolean
+	starred?: boolean
+}
+
 export interface File {
 	fileId: string
 	fileName: string
@@ -25,6 +32,9 @@ export interface File {
 	fileTp?: string
 	contentType: string
 	createdAt: string
+	accessedAt?: string // Global access timestamp
+	modifiedAt?: string // Global modification timestamp
+	userData?: FileUserData // User-specific data (pinned, starred, etc.)
 	preset: string
 	tags?: string[]
 	variantId?: string
@@ -46,11 +56,15 @@ export interface FileOps {
 	doRestoreFile?: (fileId: string, parentId?: string) => void
 	doPermanentDeleteFile?: (fileId: string) => void
 	toggleFavorite?: (fileId: string) => void
+	toggleStarred?: (fileId: string) => void
+	togglePinned?: (fileId: string) => void
 	// Batch operations for multi-select
 	doDeleteFiles?: (fileIds: string[]) => void
 	doRestoreFiles?: (fileIds: string[], parentId?: string) => void
 	doPermanentDeleteFiles?: (fileIds: string[]) => void
 	toggleFavorites?: (fileIds: string[], add: boolean) => void
+	toggleStarredBatch?: (fileIds: string[], starred: boolean) => void
+	togglePinnedBatch?: (fileIds: string[], pinned: boolean) => void
 }
 
 export interface FileFiltState {
@@ -60,7 +74,7 @@ export interface FileFiltState {
 	parentId?: string | null
 }
 
-export type ViewMode = 'all' | 'live' | 'static' | 'favorites' | 'recent' | 'trash'
+export type ViewMode = 'all' | 'live' | 'static' | 'recent' | 'trash' | 'starred' | 'pinned'
 
 export const TRASH_FOLDER_ID = '__trash__'
 

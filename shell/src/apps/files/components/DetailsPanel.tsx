@@ -23,7 +23,9 @@ import {
 	LuLink as IcLink,
 	LuCopy as IcCopy,
 	LuShare2 as IcShare,
-	LuTrash2 as IcTrash
+	LuTrash2 as IcTrash,
+	LuStar as IcStar,
+	LuPin as IcPin
 } from 'react-icons/lu'
 
 import { ActionView, NewAction } from '@cloudillo/types'
@@ -42,6 +44,7 @@ import {
 
 import { getFileIcon, IcUnknown } from '../icons.js'
 import { TagsCell } from './TagsCell.js'
+import { formatRelativeTime } from '../utils.js'
 import type { File, FileOps } from '../types.js'
 
 interface DetailsPanelProps {
@@ -192,6 +195,45 @@ export function DetailsPanel({
 							{React.createElement<React.ComponentProps<typeof IcUnknown>>(Icon, {})}
 						</div>
 					)}
+				</div>
+			)}
+
+			{/* Quick actions bar */}
+			<div className="c-hbox g-2 mb-1">
+				<Button
+					className={file.userData?.starred ? 'accent' : 'secondary'}
+					onClick={() => fileOps.toggleStarred?.(file.fileId)}
+				>
+					<IcStar /> {file.userData?.starred ? t('Starred') : t('Star')}
+				</Button>
+				<Button
+					className={file.userData?.pinned ? 'accent' : 'secondary'}
+					onClick={() => fileOps.togglePinned?.(file.fileId)}
+				>
+					<IcPin /> {file.userData?.pinned ? t('Pinned') : t('Pin')}
+				</Button>
+			</div>
+
+			{/* Activity section */}
+			{(file.userData?.accessedAt || file.userData?.modifiedAt) && (
+				<div className="c-panel mid">
+					<h4 className="c-panel-title">{t('Activity')}</h4>
+					<dl className="c-description-list">
+						{file.userData?.accessedAt && (
+							<>
+								<dt>{t('Last opened')}</dt>
+								<dd>{formatRelativeTime(file.userData.accessedAt)}</dd>
+							</>
+						)}
+						{file.userData?.modifiedAt && (
+							<>
+								<dt>{t('Last edited')}</dt>
+								<dd>{formatRelativeTime(file.userData.modifiedAt)}</dd>
+							</>
+						)}
+						<dt>{t('Created')}</dt>
+						<dd>{formatRelativeTime(file.createdAt)}</dd>
+					</dl>
 				</div>
 			)}
 

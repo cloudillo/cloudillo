@@ -27,7 +27,8 @@ import {
 	LuStar as IcFavorites,
 	LuClock as IcRecent,
 	LuTrash2 as IcTrash,
-	LuTag as IcTag
+	LuTag as IcTag,
+	LuPin as IcPin
 } from 'react-icons/lu'
 
 import { useApi, useAuth, useDialog, Button, Popper, mergeClasses } from '@cloudillo/react'
@@ -279,14 +280,14 @@ export const Sidebar = React.memo(function Sidebar({
 
 			<li className="c-nav-item">
 				<a
-					className={mergeClasses('c-nav-link', viewMode === 'favorites' && 'active')}
+					className={mergeClasses('c-nav-link', viewMode === 'starred' && 'active')}
 					href="#"
 					onClick={(e) => {
 						e.preventDefault()
-						onViewModeChange('favorites')
+						onViewModeChange('starred')
 					}}
 				>
-					<IcFavorites /> {t('Favorites')}
+					<IcFavorites /> {t('Starred')}
 				</a>
 			</li>
 			<li className="c-nav-item">
@@ -299,6 +300,18 @@ export const Sidebar = React.memo(function Sidebar({
 					}}
 				>
 					<IcRecent /> {t('Recent')}
+				</a>
+			</li>
+			<li className="c-nav-item">
+				<a
+					className={mergeClasses('c-nav-link', viewMode === 'pinned' && 'active')}
+					href="#"
+					onClick={(e) => {
+						e.preventDefault()
+						onViewModeChange('pinned')
+					}}
+				>
+					<IcPin /> {t('Pinned')}
 				</a>
 			</li>
 

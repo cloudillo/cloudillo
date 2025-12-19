@@ -327,6 +327,66 @@
 	opacity: 1 !important;
 }
 
+/* Star button in file card */
+.c-file-card-star {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0.25rem;
+	border: none;
+	background: transparent;
+	color: var(--col-secondary);
+	cursor: pointer;
+	border-radius: var(--radius-sm);
+	opacity: 0;
+	transition:
+		opacity var(--duration-fast) var(--ease-default),
+		color var(--duration-fast) var(--ease-default);
+}
+
+.c-file-card:hover .c-file-card-star {
+	opacity: 0.6;
+}
+
+.c-file-card-star:hover {
+	opacity: 1 !important;
+	color: var(--col-warning);
+}
+
+.c-file-card-star.active {
+	opacity: 1;
+	color: var(--col-warning);
+}
+
+/* Pinned state - left accent border */
+.c-file-card.pinned {
+	border-left: 3px solid var(--col-primary);
+	padding-left: calc(var(--space-3) - 3px);
+}
+
+/* Pin indicator icon in file card */
+.c-file-card-pin {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--col-primary);
+	font-size: 1rem;
+}
+
+/* Live document indicator - green dot */
+.c-file-card-live {
+	position: absolute;
+	bottom: 2px;
+	left: 2px;
+	width: 8px;
+	height: 8px;
+	background: var(--col-success);
+	border-radius: 50%;
+	box-shadow: 0 0 4px var(--col-success);
+}
+
 /* File Preview in Details Panel */
 .c-file-preview {
 	display: flex;
@@ -675,6 +735,80 @@
 /* Make grid item position relative for absolute positioned info button */
 .c-file-grid-item {
 	position: relative;
+}
+
+/* Grid view: Star button */
+.c-file-grid-star {
+	position: absolute;
+	top: var(--space-1);
+	right: var(--space-1);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 4px;
+	border: none;
+	background: rgba(0, 0, 0, 0.3);
+	color: var(--col-on-surface);
+	cursor: pointer;
+	border-radius: var(--radius-sm);
+	opacity: 0;
+	transition:
+		opacity var(--duration-fast) var(--ease-default),
+		color var(--duration-fast) var(--ease-default);
+	font-size: 0.875rem;
+	line-height: 1;
+}
+
+.c-file-grid-item:hover .c-file-grid-star {
+	opacity: 0.8;
+}
+
+.c-file-grid-star:hover {
+	opacity: 1 !important;
+}
+
+.c-file-grid-star.active {
+	opacity: 1;
+	color: var(--col-warning);
+}
+
+/* Grid view: Pin indicator */
+.c-file-grid-pin {
+	position: absolute;
+	top: var(--space-1);
+	left: var(--space-1);
+	font-size: 0.75rem;
+	color: var(--col-primary);
+	background: rgba(0, 0, 0, 0.3);
+	border-radius: var(--radius-sm);
+	padding: 2px;
+	line-height: 1;
+}
+
+/* Grid view: Pinned state */
+.c-file-grid-item.pinned {
+	box-shadow: inset 0 3px 0 var(--col-primary);
+}
+
+/* Grid view: Live indicator */
+.c-file-grid-live {
+	position: absolute;
+	bottom: var(--space-1);
+	right: var(--space-1);
+	width: 8px;
+	height: 8px;
+	background: var(--col-success);
+	border-radius: 50%;
+	box-shadow: 0 0 4px var(--col-success);
+}
+
+/* Grid view: Timestamp */
+.c-file-grid-timestamp {
+	width: 100%;
+	text-align: center;
+	font-size: var(--text-xs);
+	color: var(--col-txt-muted);
+	margin-top: 2px;
 }
 
 /* vim: ts=4

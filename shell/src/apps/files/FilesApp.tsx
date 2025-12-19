@@ -364,10 +364,26 @@ export function FilesApp() {
 					setFavorites((prev) => new Set(prev).add(fileId))
 				}
 
-				// Refresh if viewing favorites
-				if (viewMode === 'favorites') {
+				// Refresh if viewing starred
+				if (viewMode === 'starred') {
 					fileListData.refresh()
 				}
+			},
+
+			toggleStarred: async function toggleStarred(fileId: string) {
+				if (!api) return
+				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
+				const isStarred = file?.userData?.starred ?? false
+				await api.files.setStarred(fileId, !isStarred)
+				fileListData.refresh()
+			},
+
+			togglePinned: async function togglePinned(fileId: string) {
+				if (!api) return
+				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
+				const isPinned = file?.userData?.pinned ?? false
+				await api.files.setPinned(fileId, !isPinned)
+				fileListData.refresh()
 			},
 
 			// Batch operations for multi-select
@@ -430,10 +446,28 @@ export function FilesApp() {
 					})
 				}
 
-				// Refresh if viewing favorites
-				if (viewMode === 'favorites') {
+				// Refresh if viewing starred
+				if (viewMode === 'starred') {
 					fileListData.refresh()
 				}
+			},
+
+			toggleStarredBatch: async function toggleStarredBatch(
+				fileIds: string[],
+				starred: boolean
+			) {
+				if (!api || fileIds.length === 0) return
+				await Promise.all(fileIds.map((id) => api.files.setStarred(id, starred)))
+				fileListData.refresh()
+			},
+
+			togglePinnedBatch: async function togglePinnedBatch(
+				fileIds: string[],
+				pinned: boolean
+			) {
+				if (!api || fileIds.length === 0) return
+				await Promise.all(fileIds.map((id) => api.files.setPinned(id, pinned)))
+				fileListData.refresh()
 			}
 		}),
 		[
@@ -477,7 +511,25 @@ export function FilesApp() {
 			</div>
 		)
 
-	const files = fileListData.getData()
+	// Sort files: pinned first, then folders, then regular files
+	const files = React.useMemo(() => {
+		const data = fileListData.getData()
+		return [...data].sort((a, b) => {
+			// Pinned files first
+			const aPinned = a.userData?.pinned ? 1 : 0
+			const bPinned = b.userData?.pinned ? 1 : 0
+			if (aPinned !== bPinned) return bPinned - aPinned
+
+			// Folders second
+			const aFolder = a.fileTp === 'FLDR' ? 1 : 0
+			const bFolder = b.fileTp === 'FLDR' ? 1 : 0
+			if (aFolder !== bFolder) return bFolder - aFolder
+
+			// Default: keep original order (from API)
+			return 0
+		})
+	}, [fileListData])
+
 	const isTrashView = viewMode === 'trash'
 
 	// Disable drag-drop in trash view
@@ -511,8 +563,8 @@ export function FilesApp() {
 										{viewMode === 'static' && (
 											<div className="c-tag">{t('static')}</div>
 										)}
-										{viewMode === 'favorites' && (
-											<div className="c-tag">{t('favorites')}</div>
+										{viewMode === 'starred' && (
+											<div className="c-tag">{t('starred')}</div>
 										)}
 										{viewMode === 'recent' && (
 											<div className="c-tag">{t('recent')}</div>
@@ -551,13 +603,15 @@ export function FilesApp() {
 											? t('No live documents')
 											: viewMode === 'static'
 												? t('No static files')
-												: viewMode === 'favorites'
-													? t('No favorites yet')
+												: viewMode === 'starred'
+													? t('No starred files yet')
 													: viewMode === 'recent'
 														? t('No recent files')
-														: currentFolderId
-															? t('This folder is empty')
-															: t('No files found')
+														: viewMode === 'pinned'
+															? t('No pinned files yet')
+															: currentFolderId
+																? t('This folder is empty')
+																: t('No files found')
 								}
 								description={
 									isTrashView
@@ -566,13 +620,15 @@ export function FilesApp() {
 											? t('Create a document to collaborate in real-time')
 											: viewMode === 'static'
 												? t('Upload files or export documents')
-												: viewMode === 'favorites'
-													? t('Star files to add them to favorites')
+												: viewMode === 'starred'
+													? t('Star files to quickly access them later')
 													: viewMode === 'recent'
 														? t('Files you open will appear here')
-														: t(
-																'Create a new document or upload files to get started'
-															)
+														: viewMode === 'pinned'
+															? t('Pin files to keep them at the top')
+															: t(
+																	'Create a new document or upload files to get started'
+																)
 								}
 							/>
 						) : displayMode === 'grid' ? (

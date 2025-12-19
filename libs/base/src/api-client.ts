@@ -546,6 +546,39 @@ export class ApiClient {
 			}),
 
 		/**
+		 * PATCH /files/:fileId/user - Update user-specific file data
+		 * @param fileId - File ID
+		 * @param data - User data (pinned, starred)
+		 * @returns Updated user data
+		 */
+		updateUserData: (fileId: string, data: Types.UpdateFileUserDataRequest) =>
+			this.request('PATCH', `/files/${fileId}/user`, Types.tUpdateFileUserDataResult, {
+				data
+			}),
+
+		/**
+		 * Set starred status for a file
+		 * @param fileId - File ID
+		 * @param starred - New starred state
+		 * @returns Updated user data
+		 */
+		setStarred: (fileId: string, starred: boolean) =>
+			this.request('PATCH', `/files/${fileId}/user`, Types.tUpdateFileUserDataResult, {
+				data: { starred }
+			}),
+
+		/**
+		 * Set pinned status for a file
+		 * @param fileId - File ID
+		 * @param pinned - New pinned state
+		 * @returns Updated user data
+		 */
+		setPinned: (fileId: string, pinned: boolean) =>
+			this.request('PATCH', `/files/${fileId}/user`, Types.tUpdateFileUserDataResult, {
+				data: { pinned }
+			}),
+
+		/**
 		 * PUT /files/:fileId/tag/:tag - Add tag to file
 		 * @param fileId - File ID
 		 * @param tag - Tag name

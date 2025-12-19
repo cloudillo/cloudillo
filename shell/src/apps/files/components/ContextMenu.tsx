@@ -23,6 +23,8 @@ import {
 	LuShare2 as IcShare,
 	LuStar as IcStar,
 	LuStarOff as IcStarOff,
+	LuPin as IcPin,
+	LuPinOff as IcPinOff,
 	LuPencil as IcRename,
 	LuFolderInput as IcMove,
 	LuTrash2 as IcTrash,
@@ -88,6 +90,12 @@ export function ContextMenu({
 	const allFavorites = selectedFiles.every((f) => favoriteIds.has(f.fileId))
 	const noneFavorites = selectedFiles.every((f) => !favoriteIds.has(f.fileId))
 	const isFavorite = isSingleSelect ? favoriteIds.has(file.fileId) : allFavorites
+
+	// Starred/Pinned state for single/multi selection
+	const allStarred = selectedFiles.every((f) => f.userData?.starred)
+	const allPinned = selectedFiles.every((f) => f.userData?.pinned)
+	const isStarred = isSingleSelect ? (file.userData?.starred ?? false) : allStarred
+	const isPinned = isSingleSelect ? (file.userData?.pinned ?? false) : allPinned
 
 	const handleAction = (action: () => void) => () => {
 		action()
@@ -176,22 +184,41 @@ export function ContextMenu({
 				/>
 			)}
 
-			{/* Favorite toggle - always available */}
+			{/* Star toggle - always available */}
 			<Item
-				icon={isFavorite ? <IcStarOff /> : <IcStar />}
+				icon={isStarred ? <IcStarOff /> : <IcStar />}
 				label={
 					isSingleSelect
-						? isFavorite
-							? t('Remove from favorites')
-							: t('Add to favorites')
-						: isFavorite
-							? t('Remove {{count}} from favorites', { count })
-							: t('Add {{count}} to favorites', { count })
+						? isStarred
+							? t('Remove star')
+							: t('Add star')
+						: isStarred
+							? t('Remove star from {{count}} items', { count })
+							: t('Add star to {{count}} items', { count })
 				}
 				onClick={handleAction(() =>
 					isSingleSelect
-						? fileOps.toggleFavorite?.(file.fileId)
-						: fileOps.toggleFavorites?.(selectedFileIds, !isFavorite)
+						? fileOps.toggleStarred?.(file.fileId)
+						: fileOps.toggleStarredBatch?.(selectedFileIds, !isStarred)
+				)}
+			/>
+
+			{/* Pin toggle - always available */}
+			<Item
+				icon={isPinned ? <IcPinOff /> : <IcPin />}
+				label={
+					isSingleSelect
+						? isPinned
+							? t('Unpin')
+							: t('Pin to top')
+						: isPinned
+							? t('Unpin {{count}} items', { count })
+							: t('Pin {{count}} items to top', { count })
+				}
+				onClick={handleAction(() =>
+					isSingleSelect
+						? fileOps.togglePinned?.(file.fileId)
+						: fileOps.togglePinnedBatch?.(selectedFileIds, !isPinned)
 				)}
 			/>
 

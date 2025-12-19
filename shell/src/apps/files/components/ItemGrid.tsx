@@ -18,10 +18,11 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
-	LuStar as IcFavorite,
+	LuStar as IcStar,
 	LuEye as IcView,
 	LuLock as IcLock,
-	LuInfo as IcInfo
+	LuInfo as IcInfo,
+	LuPin as IcPin
 } from 'react-icons/lu'
 
 import { useAuth, InlineEditForm, mergeClasses } from '@cloudillo/react'
@@ -30,6 +31,7 @@ import { getFileUrl } from '@cloudillo/base'
 import { getFileIcon, IcUnknown } from '../icons.js'
 import type { File, FileOps, ViewMode } from '../types.js'
 import { TRASH_FOLDER_ID } from '../types.js'
+import { getSmartTimestamp } from '../utils.js'
 
 interface ItemGridProps {
 	className?: string
@@ -93,16 +95,25 @@ export const ItemGrid = React.memo(function ItemGrid({
 	}
 
 	const isInTrashView = viewMode === 'trash'
+	const isPinned = file.userData?.pinned ?? false
+	const isStarred = file.userData?.starred ?? false
+	const isLive = file.fileTp === 'CRDT' || file.fileTp === 'RTDB'
+	const smartTimestamp = getSmartTimestamp(file)
+
+	function handleStarClick(evt: React.MouseEvent) {
+		evt.stopPropagation()
+		fileOps.toggleStarred?.(file.fileId)
+	}
 
 	return (
 		<div
-			className={mergeClasses('c-file-grid-item', className)}
+			className={mergeClasses('c-file-grid-item', isPinned && 'pinned', className)}
 			data-file-id={file.fileId}
 			onClick={handleClick}
 			onDoubleClick={handleDoubleClick}
 			onContextMenu={handleContextMenu}
 		>
-			{/* Thumbnail or Icon with access badge */}
+			{/* Thumbnail or Icon with badges */}
 			<div className="c-file-grid-thumb">
 				{(hasThumbnail || isImage) && auth?.idTag ? (
 					<img
@@ -116,11 +127,36 @@ export const ItemGrid = React.memo(function ItemGrid({
 						{React.createElement<React.ComponentProps<typeof IcUnknown>>(Icon)}
 					</div>
 				)}
-				{isFavorite && (
-					<span className="c-file-grid-favorite">
-						<IcFavorite />
+
+				{/* Pin badge - top left */}
+				{isPinned && (
+					<span className="c-file-grid-pin" title={t('Pinned')}>
+						<IcPin />
 					</span>
 				)}
+
+				{/* Star button - top right (clickable) */}
+				{!isInTrashView && (
+					<button
+						type="button"
+						className={mergeClasses('c-file-grid-star', isStarred && 'active')}
+						onClick={handleStarClick}
+						title={isStarred ? t('Unstar') : t('Star')}
+					>
+						<IcStar />
+					</button>
+				)}
+
+				{/* Favorite indicator (if not starred, for backwards compat) */}
+				{isFavorite && !isStarred && (
+					<span className="c-file-grid-favorite">
+						<IcStar />
+					</span>
+				)}
+
+				{/* Live indicator - bottom right */}
+				{isLive && <span className="c-file-grid-live" title={t('Live document')} />}
+
 				{/* Access level badge for non-write access */}
 				{!isFolder && file.accessLevel && file.accessLevel !== 'write' && (
 					<span className="c-file-grid-access-badge">
@@ -141,6 +177,14 @@ export const ItemGrid = React.memo(function ItemGrid({
 				) : (
 					<span className="c-file-grid-name-text">{file.fileName}</span>
 				)}
+			</div>
+
+			{/* Smart timestamp */}
+			<div className="c-file-grid-timestamp">
+				{smartTimestamp.label && (
+					<span className="text-muted">{t(smartTimestamp.label)} </span>
+				)}
+				{smartTimestamp.time}
 			</div>
 
 			{/* Info button (visible on mobile only) */}

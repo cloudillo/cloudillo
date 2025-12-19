@@ -383,9 +383,21 @@ export interface ListFilesQuery {
 	contentType?: string
 	createdAfter?: string | number
 	createdBefore?: string | number
-	collection?: string // Collection filter: 'FAVR', 'RCNT', 'BKMK', 'PIND'
+	pinned?: boolean // Filter by pinned status (user-specific)
+	starred?: boolean // Filter by starred status (user-specific)
+	sort?: 'name' | 'created' | 'modified' | 'recent' // Sort field
+	sortDir?: 'asc' | 'desc' // Sort direction
 	_limit?: number
 }
+
+// User-specific file data (pinned, starred, per-user timestamps)
+export const tFileUserData = T.struct({
+	accessedAt: T.optional(T.union(T.string, T.date)),
+	modifiedAt: T.optional(T.union(T.string, T.date)),
+	pinned: T.optional(T.boolean),
+	starred: T.optional(T.boolean)
+})
+export type FileUserData = T.TypeOf<typeof tFileUserData>
 
 // Response types
 export const tFileView = T.struct({
@@ -397,6 +409,9 @@ export const tFileView = T.struct({
 	fileName: T.string,
 	fileTp: T.optional(T.string), // 'BLOB', 'CRDT', 'RTDB', 'FLDR'
 	createdAt: T.union(T.string, T.date),
+	accessedAt: T.optional(T.union(T.string, T.date)), // Global access timestamp
+	modifiedAt: T.optional(T.union(T.string, T.date)), // Global modification timestamp
+	userData: T.optional(tFileUserData), // User-specific data (pinned, starred, etc.)
 	tags: T.optional(T.array(T.string)),
 	x: T.optional(T.unknown),
 	owner: T.optional(
@@ -459,6 +474,22 @@ export const tEmptyTrashResult = T.struct({
 	deleted_count: T.number
 })
 export type EmptyTrashResult = T.TypeOf<typeof tEmptyTrashResult>
+
+// Update user-specific file data request
+export interface UpdateFileUserDataRequest {
+	pinned?: boolean
+	starred?: boolean
+}
+
+// Update user-specific file data result
+export const tUpdateFileUserDataResult = T.struct({
+	fileId: T.string,
+	accessedAt: T.optional(T.union(T.string, T.date)),
+	modifiedAt: T.optional(T.union(T.string, T.date)),
+	pinned: T.optional(T.boolean),
+	starred: T.optional(T.boolean)
+})
+export type UpdateFileUserDataResult = T.TypeOf<typeof tUpdateFileUserDataResult>
 
 // ============================================================================
 // COLLECTION ENDPOINTS (Favorites, Recent, Bookmarks, Pins)

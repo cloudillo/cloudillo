@@ -34,6 +34,32 @@ function convertFileView(f: Types.FileView): File {
 		...f,
 		preset: f.preset || '',
 		createdAt: typeof f.createdAt === 'string' ? f.createdAt : f.createdAt.toISOString(),
+		accessedAt: f.accessedAt
+			? typeof f.accessedAt === 'string'
+				? f.accessedAt
+				: f.accessedAt.toISOString()
+			: undefined,
+		modifiedAt: f.modifiedAt
+			? typeof f.modifiedAt === 'string'
+				? f.modifiedAt
+				: f.modifiedAt.toISOString()
+			: undefined,
+		userData: f.userData
+			? {
+					accessedAt: f.userData.accessedAt
+						? typeof f.userData.accessedAt === 'string'
+							? f.userData.accessedAt
+							: f.userData.accessedAt.toISOString()
+						: undefined,
+					modifiedAt: f.userData.modifiedAt
+						? typeof f.userData.modifiedAt === 'string'
+							? f.userData.modifiedAt
+							: f.userData.modifiedAt.toISOString()
+						: undefined,
+					pinned: f.userData.pinned,
+					starred: f.userData.starred
+				}
+			: undefined,
 		owner: f.owner ? { ...f.owner, name: f.owner.name || '' } : undefined,
 		variantId: undefined
 	}
@@ -67,15 +93,25 @@ export function useFileList(options?: UseFileListOptions) {
 				let fileList: File[] = []
 
 				switch (viewMode) {
-					case 'favorites': {
-						// Use collection filter for favorites
-						const files = await api.files.list({ collection: 'FAVR', tag: tagsParam })
+					case 'starred': {
+						// Starred files
+						const files = await api.files.list({ starred: true, tag: tagsParam })
 						fileList = files.map(convertFileView)
 						break
 					}
 					case 'recent': {
-						// Use collection filter for recent files
-						const files = await api.files.list({ collection: 'RCNT', tag: tagsParam })
+						// Recent files sorted by last access/modification
+						const files = await api.files.list({
+							sort: 'recent',
+							sortDir: 'desc',
+							tag: tagsParam
+						})
+						fileList = files.map(convertFileView)
+						break
+					}
+					case 'pinned': {
+						// Pinned files (user-specific)
+						const files = await api.files.list({ pinned: true, tag: tagsParam })
 						fileList = files.map(convertFileView)
 						break
 					}

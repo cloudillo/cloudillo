@@ -16,7 +16,6 @@
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import dayjs from 'dayjs'
 
 import {
 	LuChevronRight as IcOpenFolder,
@@ -24,8 +23,9 @@ import {
 	LuPencil as IcEdit,
 	LuEye as IcView,
 	LuLock as IcLock,
-	LuStar as IcFavorite,
-	LuInfo as IcInfo
+	LuStar as IcStar,
+	LuInfo as IcInfo,
+	LuPin as IcPin
 } from 'react-icons/lu'
 
 import { useAuth, InlineEditForm, Tag, ProfilePicture, mergeClasses } from '@cloudillo/react'
@@ -33,6 +33,7 @@ import { useAuth, InlineEditForm, Tag, ProfilePicture, mergeClasses } from '@clo
 import { getFileIcon, IcUnknown } from '../icons.js'
 import type { File, FileOps, ViewMode } from '../types.js'
 import { TRASH_FOLDER_ID } from '../types.js'
+import { getSmartTimestamp, formatRelativeTime } from '../utils.js'
 
 interface ItemCardProps {
 	className?: string
@@ -46,41 +47,6 @@ interface ItemCardProps {
 	fileOps: FileOps
 	viewMode?: ViewMode
 	isFavorite?: boolean
-}
-
-function formatRelativeTime(dateInput: string | number): string {
-	try {
-		// Handle Unix timestamp (seconds) - if it's a number or looks like one
-		let d: Date
-		if (typeof dateInput === 'number') {
-			// Unix timestamp in seconds
-			d = new Date(dateInput * 1000)
-		} else if (/^\d+$/.test(dateInput)) {
-			// String that looks like a Unix timestamp
-			d = new Date(parseInt(dateInput, 10) * 1000)
-		} else {
-			// ISO string or other date format
-			d = new Date(dateInput)
-		}
-
-		// Check for invalid date
-		if (isNaN(d.getTime())) return ''
-
-		const now = new Date()
-		const deltaSec = (now.getTime() - d.getTime()) / 1000
-
-		if (deltaSec < 0) return dayjs(d).format('MMM D') // Future date
-		if (deltaSec < 60) return 'just now'
-		if (deltaSec < 3600) return `${Math.floor(deltaSec / 60)}m ago`
-		if (deltaSec < 86400) return `${Math.floor(deltaSec / 3600)}h ago`
-		if (deltaSec < 604800) return `${Math.floor(deltaSec / 86400)}d ago`
-		if (now.getFullYear() === d.getFullYear()) {
-			return dayjs(d).format('MMM D')
-		}
-		return dayjs(d).format('MMM D, YYYY')
-	} catch {
-		return ''
-	}
 }
 
 export const ItemCard = React.memo(function ItemCard({
@@ -160,15 +126,32 @@ export const ItemCard = React.memo(function ItemCard({
 		}
 	}
 
+	const isPinned = file.userData?.pinned ?? false
+	const isStarred = file.userData?.starred ?? false
+	const isLive = file.fileTp === 'CRDT' || file.fileTp === 'RTDB'
+	const smartTimestamp = getSmartTimestamp(file)
+
+	function handleStarClick(evt: React.MouseEvent) {
+		evt.stopPropagation()
+		fileOps.toggleStarred?.(file.fileId)
+	}
+
 	return (
 		<div
-			className={mergeClasses('c-file-card', className)}
+			className={mergeClasses('c-file-card', isPinned && 'pinned', className)}
 			data-file-id={file.fileId}
 			onClick={handleClick}
 			onDoubleClick={handleDoubleClick}
 			onContextMenu={handleContextMenu}
 		>
-			{/* File Icon with access badge */}
+			{/* Pin indicator */}
+			{isPinned && (
+				<span className="c-file-card-pin" title={t('Pinned')}>
+					<IcPin />
+				</span>
+			)}
+
+			{/* File Icon with access badge and live indicator */}
 			<div className="c-file-card-icon">
 				{React.createElement<React.ComponentProps<typeof IcUnknown>>(Icon)}
 				{!isFolder && file.accessLevel && file.accessLevel !== 'write' && (
@@ -176,11 +159,12 @@ export const ItemCard = React.memo(function ItemCard({
 						{file.accessLevel === 'read' ? <IcView /> : <IcLock />}
 					</span>
 				)}
+				{isLive && <span className="c-file-card-live" title={t('Live document')} />}
 			</div>
 
 			{/* Content: name, meta, tags */}
 			<div className="c-file-card-content">
-				{/* File name with inline edit */}
+				{/* File name with inline edit and star button */}
 				<div className="c-file-card-name">
 					{isRenaming ? (
 						<InlineEditForm
@@ -192,13 +176,26 @@ export const ItemCard = React.memo(function ItemCard({
 					) : (
 						<span className="text-truncate">{file.fileName}</span>
 					)}
-					{isFavorite && <IcFavorite className="c-file-card-favorite" />}
+					{!isInTrash && (
+						<button
+							type="button"
+							className={mergeClasses('c-file-card-star', isStarred && 'active')}
+							onClick={handleStarClick}
+							title={isStarred ? t('Unstar') : t('Star')}
+						>
+							<IcStar />
+						</button>
+					)}
+					{isFavorite && !isStarred && <IcStar className="c-file-card-favorite" />}
 				</div>
 
-				{/* Meta line: time and owner */}
+				{/* Meta line: smart timestamp and owner */}
 				<div className="c-file-card-meta">
 					<span className="c-file-card-meta-date">
-						{formatRelativeTime(file.createdAt)}
+						{smartTimestamp.label && (
+							<span className="text-muted">{t(smartTimestamp.label)} </span>
+						)}
+						{smartTimestamp.time}
 					</span>
 					{file.owner && (
 						<>
@@ -249,18 +246,18 @@ export const ItemCard = React.memo(function ItemCard({
 					title={
 						isFolder
 							? t('Open folder')
-							: file.accessLevel === 'write'
+							: isLive && file.accessLevel === 'write'
 								? t('Edit (hold for view mode)')
-								: file.accessLevel === 'read'
+								: file.accessLevel !== 'none'
 									? t('View')
 									: t('No access')
 					}
 				>
 					{isFolder ? (
 						<IcOpenFolder />
-					) : file.accessLevel === 'write' ? (
+					) : isLive && file.accessLevel === 'write' ? (
 						<IcEdit />
-					) : file.accessLevel === 'read' ? (
+					) : file.accessLevel !== 'none' ? (
 						<IcView />
 					) : (
 						<IcLock />

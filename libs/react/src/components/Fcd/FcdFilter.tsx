@@ -39,7 +39,7 @@ export function FcdFilter({ className, isVisible, hide, children }: FcdFilterPro
 			<div className="pos-absolute top-0 right-0 bottom-0 left-0 bg-shadow md-hide lg-hide" />
 			<Button
 				link
-				className="pos-absolute top-0 right-0 m-1 p-2 z-4 md-hide lg-hide"
+				className="pos-absolute top-0 right-0 m-1 p-2 z-10 md-hide lg-hide"
 				onClick={hide}
 			>
 				<IcClose />

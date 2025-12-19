@@ -499,9 +499,12 @@ export function FilesApp() {
 					<Fcd.Content
 						header={
 							<div className="c-vbox g-2">
-								<div className="c-nav c-hbox md-hide lg-hide">
-									<IcFilter onClick={() => setShowFilter(true)} />
-									<div className="c-tag-list">
+								<div className="c-nav c-hbox g-2">
+									<IcFilter
+										className="md-hide lg-hide"
+										onClick={() => setShowFilter(true)}
+									/>
+									<div className="c-tag-list md-hide lg-hide">
 										{viewMode === 'live' && (
 											<div className="c-tag">{t('live')}</div>
 										)}
@@ -518,17 +521,17 @@ export function FilesApp() {
 											<div className="c-tag">{t('trash')}</div>
 										)}
 									</div>
+									<Toolbar
+										displayMode={displayMode}
+										onDisplayModeChange={setDisplayMode}
+										onFilesSelected={uploadQueue.addFiles}
+										onCreateFolder={
+											viewMode === 'all' ? handleCreateFolder : undefined
+										}
+										onEmptyTrash={isTrashView ? handleEmptyTrash : undefined}
+										isTrashView={isTrashView}
+									/>
 								</div>
-								<Toolbar
-									displayMode={displayMode}
-									onDisplayModeChange={setDisplayMode}
-									onFilesSelected={uploadQueue.addFiles}
-									onCreateFolder={
-										viewMode === 'all' ? handleCreateFolder : undefined
-									}
-									onEmptyTrash={isTrashView ? handleEmptyTrash : undefined}
-									isTrashView={isTrashView}
-								/>
 								{viewMode === 'all' && breadcrumbs.length > 1 && (
 									<Breadcrumbs
 										items={breadcrumbs}

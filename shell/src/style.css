@@ -96,6 +96,8 @@ body {
 }
 
 .c-menu-ex {
+	position: relative;
+
 	.c-nav {
 		position: absolute;
 		left: 0;
@@ -107,10 +109,17 @@ body {
 		margin: 0 auto;
 		flex-flow: row wrap;
 		z-index: 8;
-		transition: transform 0.3s ease;
+		transition:
+			transform 0.3s ease,
+			visibility 0s 0.3s;
+		visibility: hidden;
 
 		&.open {
 			transform: translate(0, 0);
+			visibility: visible;
+			transition:
+				transform 0.3s ease,
+				visibility 0s 0s;
 		}
 		.c-nav-link {
 			height: 4rem;
@@ -120,6 +129,10 @@ body {
 }
 
 .c-nav.nav-top {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
 	z-index: 10;
 
 	& > .c-nav-link > h6,
@@ -136,6 +149,35 @@ body {
 		}
 	}
 }
+
+/* Desktop extra menu portal - positioned below nav-top */
+.c-extra-menu-portal-desktop {
+	position: fixed;
+	top: 4rem;
+	left: 0;
+	right: 0;
+	z-index: 9; /* Below nav-top (10) */
+	overflow: hidden;
+}
+
+.c-extra-menu-portal-desktop .c-extra-menu {
+	padding: 1rem;
+	max-width: calc(20rem + 2rem);
+	margin: 0 auto;
+	flex-flow: row wrap;
+	transform: translateY(-100%);
+	transition: transform 0.3s ease;
+}
+
+.c-extra-menu-portal-desktop .c-extra-menu.open {
+	transform: translateY(0);
+}
+
+.c-extra-menu-portal-desktop .c-extra-menu .c-nav-link {
+	height: 4rem;
+	justify-content: center;
+}
+
 .c-nav.nav-bottom {
 	z-index: 10;
 
@@ -149,6 +191,60 @@ body {
 	}
 	.c-nav-link {
 		width: 4rem;
+	}
+	/* Ensure active state takes precedence over sticky hover on mobile */
+	.c-nav-link.active,
+	.c-nav-link.active:hover {
+		color: var(--col-primary);
+	}
+}
+
+/* Mobile: use fixed positioning for bottom nav for reliability */
+@media (max-width: 1199px) {
+	.c-nav.nav-bottom {
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		background: var(--col-container);
+		backdrop-filter: blur(10px);
+		-webkit-backdrop-filter: blur(10px);
+		border-top: 1px solid var(--col-border);
+		z-index: 100;
+	}
+
+	/* Extra menu portal container - positioned before nav-bottom in DOM */
+	.c-extra-menu-portal {
+		position: fixed;
+		bottom: 4.5rem;
+		left: 0;
+		right: 0;
+		z-index: 99; /* Below nav-bottom (100) */
+		overflow: hidden; /* Clip the sliding menu */
+	}
+
+	/* Extra menu - completely separate styles from .c-menu-ex */
+	.c-extra-menu-portal .c-extra-menu {
+		padding: 1rem;
+		max-width: calc(20rem + 2rem);
+		margin: 0 auto;
+		flex-flow: row wrap;
+		transform: translateY(100%);
+		transition: transform 0.3s ease;
+	}
+
+	.c-extra-menu-portal .c-extra-menu.open {
+		transform: translateY(0);
+	}
+
+	.c-extra-menu-portal .c-extra-menu .c-nav-link {
+		height: 4rem;
+		justify-content: center;
+	}
+
+	/* Reduce layout height to account for fixed header and bottom nav */
+	.c-layout {
+		height: calc(100% - 3.5rem - 4.5rem); /* header (3.5rem) + bottom nav (4.5rem) */
 	}
 }
 
@@ -206,7 +302,8 @@ body {
 .c-layout {
 	display: flex;
 	flex-direction: column;
-	height: 100%;
+	height: calc(100% - 3.5rem); /* Account for header height */
+	margin-top: 3.5rem; /* Position below header */
 	min-width: 0; /* Prevent overflow */
 	transition: margin-left 0.3s ease;
 	--sidebar-width: 5rem; /* Default sidebar width */

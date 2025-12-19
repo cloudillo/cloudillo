@@ -15,8 +15,6 @@ import { useAuth, mergeClasses, ProfilePicture } from '@cloudillo/react'
 import {
 	LuStar as IcStar,
 	LuClock as IcRecent,
-	LuChevronLeft as IcCollapse,
-	LuChevronRight as IcExpand,
 	LuLoader as IcLoading,
 	LuUsers as IcCreate,
 	LuClock3 as IcPending
@@ -97,30 +95,19 @@ export function Sidebar({ className }: SidebarProps) {
 	const [activeContext] = useAtom(activeContextAtom)
 	const { favorites, recent, totalUnread, toggleFavorite } = useCommunitiesList()
 	const { switchTo, isSwitching } = useContextSwitch()
-	const { isOpen, isPinned, open, close, toggle, pin, unpin } = useSidebar()
+	const { isOpen, isPinned, close } = useSidebar()
 	const navigate = useNavigate()
 	const [isDesktop, setIsDesktop] = React.useState(window.innerWidth >= 1024)
-	const initializedRef = React.useRef(false)
 
-	// Auto-pin and open on desktop, close on mobile (only on initial load)
+	// Track desktop/mobile mode for responsive behavior
 	React.useEffect(() => {
 		const handleResize = () => {
-			const desktop = window.innerWidth >= 1024
-			setIsDesktop(desktop)
-			if (desktop) {
-				if (!isPinned) pin()
-				if (!isOpen) open()
-			} else if (!initializedRef.current) {
-				// Close sidebar on mobile only on initial load
-				if (isOpen) close()
-			}
-			initializedRef.current = true
+			setIsDesktop(window.innerWidth >= 1024)
 		}
-
-		handleResize() // Initial check
+		handleResize()
 		window.addEventListener('resize', handleResize)
 		return () => window.removeEventListener('resize', handleResize)
-	}, [isPinned, isOpen, pin, open, close])
+	}, [])
 
 	// Handle context switch
 	const handleSwitch = React.useCallback(
@@ -149,24 +136,14 @@ export function Sidebar({ className }: SidebarProps) {
 					className
 				)}
 			>
-				{/* Header with toggle pin button */}
+				{/* Header */}
 				<div className="c-sidebar-header">
 					<h6>{t('Contexts')}</h6>
-					<div className="c-sidebar-header-actions">
-						{isSwitching && (
+					{isSwitching && (
+						<div className="c-sidebar-header-actions">
 							<IcLoading className="c-sidebar-loading-spinner" size={16} />
-						)}
-						{/* Pin button only visible on mobile */}
-						{!isDesktop && (
-							<button
-								className="c-sidebar-pin"
-								onClick={() => (isPinned ? unpin() : pin())}
-								title={isPinned ? t('Unpin sidebar') : t('Pin sidebar')}
-							>
-								{isPinned ? <IcCollapse /> : <IcExpand />}
-							</button>
-						)}
-					</div>
+						</div>
+					)}
 				</div>
 
 				{/* User's own profile */}
@@ -247,8 +224,8 @@ export function Sidebar({ className }: SidebarProps) {
 
 			{/* Backdrop for mobile when sidebar is open */}
 			<div
-				className={mergeClasses('c-sidebar-backdrop', isOpen && !isPinned && 'show')}
-				onClick={toggle}
+				className={mergeClasses('c-sidebar-backdrop', isOpen && !isDesktop && 'show')}
+				onClick={close}
 			/>
 		</>
 	)

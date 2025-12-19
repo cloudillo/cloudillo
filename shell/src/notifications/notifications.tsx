@@ -18,7 +18,7 @@ import * as React from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
-import { LuCheck as IcAccept, LuX as IcReject } from 'react-icons/lu'
+import { LuCheck as IcAccept, LuX as IcReject, LuFilter as IcFilter } from 'react-icons/lu'
 
 import * as T from '@symbion/runtype'
 
@@ -269,10 +269,19 @@ function Notification({
 
 export function Notifications() {
 	const { t } = useTranslation()
+	const location = useLocation()
 	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
+	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	//const [notifications, setNotifications] = React.useState<ActionView[] | undefined>()
 	const { notifications, setNotifications, loadNotifications } = useNotifications()
+
+	React.useEffect(
+		function onLocationEffect() {
+			setShowFilter(false)
+		},
+		[location]
+	)
 
 	React.useEffect(
 		function onLoadNotifications() {
@@ -302,10 +311,13 @@ export function Notifications() {
 		<Fcd.Container className="g-1">
 			{!!auth && (
 				<>
-					<Fcd.Filter>
+					<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 						<FilterBar />
 					</Fcd.Filter>
 					<Fcd.Content>
+						<div className="c-nav c-hbox md-hide lg-hide">
+							<IcFilter onClick={() => setShowFilter(true)} />
+						</div>
 						{notifications && !notifications.notifications.length && (
 							<h3>{t('You have no notifications')}</h3>
 						)}

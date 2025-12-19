@@ -121,6 +121,7 @@ const APP_CONFIG: AppConfigState = {
 import { version } from '../package.json'
 
 import * as React from 'react'
+import { createPortal } from 'react-dom'
 import { Routes, Route, Navigate, Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
@@ -209,11 +210,13 @@ function truncateFileName(name: string, maxLen: number = 12): string {
 function Menu({
 	className,
 	inert,
-	vertical
+	vertical,
+	extraMenuPortal
 }: {
 	className?: string
 	inert?: boolean
 	vertical?: boolean
+	extraMenuPortal?: HTMLElement | null
 }) {
 	const { t, i18n } = useTranslation()
 	const location = useLocation()
@@ -230,9 +233,6 @@ function Menu({
 		},
 		[location]
 	)
-
-	// Check if we're in an app view (where sidebar should be shown)
-	const isAppView = location.pathname.startsWith('/app/')
 
 	// Filter visible menu items based on auth state
 	const staticItems =
@@ -267,29 +267,43 @@ function Menu({
 		!location.pathname.match('^/register/') && (
 			<>
 				{/* Sidebar toggle button on mobile (first item) - shows current context */}
-				{vertical && isAppView && auth && (
+				{vertical && auth && (
 					<Button
 						navLink
 						className={mergeClasses('vertical', sidebar.isOpen && 'active')}
 						onClick={() => sidebar.toggle()}
 					>
-						<div
-							style={{
-								width: '1.5rem',
-								height: '1.5rem',
-								borderRadius: '50%',
-								overflow: 'hidden'
-							}}
-						>
-							<ProfilePicture
-								profile={{ profilePic: auth.profilePic }}
-								srcTag={contextIdTag || auth.idTag}
-							/>
-						</div>
+						<ProfilePicture
+							profile={{ profilePic: auth.profilePic }}
+							srcTag={contextIdTag || auth.idTag}
+							tiny
+						/>
 						<h6>{contextIdTag || auth.idTag}</h6>
 					</Button>
 				)}
-				{needsMoreMenu && (
+				{/* Extra menu: use portal on mobile (when extraMenuPortal is provided), inline otherwise */}
+				{needsMoreMenu &&
+					extraMenuPortal &&
+					createPortal(
+						<nav
+							inert={inert}
+							className={mergeClasses('c-nav c-extra-menu', moreMenuOpen && 'open')}
+						>
+							{moreItems.map((menuItem) => (
+								<NavLink
+									key={menuItem.id}
+									className="c-nav-link h-small vertical"
+									aria-current="page"
+									to={getContextPath(menuItem.path)}
+								>
+									{menuItem.icon && React.createElement(menuItem.icon)}
+									<h6>{menuItem.trans?.[i18n.language] || menuItem.label}</h6>
+								</NavLink>
+							))}
+						</nav>,
+						extraMenuPortal
+					)}
+				{needsMoreMenu && !extraMenuPortal && (
 					<div inert={inert} className="c-menu-ex flex-order-end">
 						<nav className={mergeClasses('c-nav', moreMenuOpen && 'open')}>
 							{moreItems.map((menuItem) => (
@@ -377,6 +391,11 @@ function Header({ inert }: { inert?: boolean }) {
 	const { notifications, setNotifications, loadNotifications } = useNotifications()
 	const [menuOpen, setMenuOpen] = React.useState(false)
 	const contextIdTag = useCurrentContextIdTag()
+	const [extraMenuPortalMobile, setExtraMenuPortalMobile] = React.useState<HTMLDivElement | null>(
+		null
+	)
+	const [extraMenuPortalDesktop, setExtraMenuPortalDesktop] =
+		React.useState<HTMLDivElement | null>(null)
 
 	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
 		const action = msg.data as ActionView
@@ -565,6 +584,11 @@ function Header({ inert }: { inert?: boolean }) {
 
 	return (
 		<>
+			{/* Portal container for extra menu on desktop - rendered before nav-top */}
+			<div
+				ref={setExtraMenuPortalDesktop}
+				className="c-extra-menu-portal-desktop sm-hide md-hide"
+			/>
 			<nav
 				inert={inert}
 				className="c-nav nav-top justify-content-between border-radius-0 mb-2 g-1"
@@ -595,7 +619,7 @@ function Header({ inert }: { inert?: boolean }) {
 				</ul>
 				{search.query == undefined && (
 					<ul className="c-nav-group g-3 sm-hide md-hide">
-						<Menu inert={inert} />
+						<Menu inert={inert} extraMenuPortal={extraMenuPortalDesktop} />
 					</ul>
 				)}
 				<ul className="c-nav-group c-hbox">
@@ -704,12 +728,16 @@ function Header({ inert }: { inert?: boolean }) {
 				</ul>
 			</nav>
 			{!location.pathname.match('^/register/') && (
-				<nav
-					inert={inert}
-					className="c-nav nav-bottom w-100 border-radius-0 justify-content-center flex-order-end lg-hide"
-				>
-					<Menu vertical inert={inert} />
-				</nav>
+				<>
+					{/* Portal container for extra menu - rendered before nav-bottom to avoid stacking issues */}
+					<div ref={setExtraMenuPortalMobile} className="c-extra-menu-portal lg-hide" />
+					<nav
+						inert={inert}
+						className="c-nav nav-bottom w-100 border-radius-0 justify-content-center flex-order-end lg-hide"
+					>
+						<Menu vertical inert={inert} extraMenuPortal={extraMenuPortalMobile} />
+					</nav>
+				</>
 			)}
 		</>
 	)
@@ -766,20 +794,17 @@ export function Layout() {
 		}
 	}, [])
 
-	// Check if we're in an app view (where sidebar should be shown)
+	// Check if we're in an app view (for Menu component)
 	const isAppView = location.pathname.startsWith('/app/')
 
 	return (
 		<>
 			<WsBusRoot>
-				{isAppView && <Sidebar />}
+				{auth && <Sidebar />}
+				<Header inert={dialog.isOpen} />
 				<div
-					className={mergeClasses(
-						'c-layout',
-						sidebar.isPinned && isAppView && 'with-sidebar'
-					)}
+					className={mergeClasses('c-layout', sidebar.isPinned && auth && 'with-sidebar')}
 				>
-					<Header inert={dialog.isOpen} />
 					<div inert={dialog.isOpen} className="c-vbox flex-fill h-min-0">
 						<ProfileRoutes />
 						<AuthRoutes />

@@ -34,6 +34,7 @@ import { FiPlus as IcNew } from 'react-icons/fi'
 
 import {
 	LuCloud as IcAll,
+	LuFilter as IcFilter,
 	LuLockKeyhole as IcPrivate,
 	LuLockKeyholeOpen as IcPublic,
 	LuUser as IcUser,
@@ -1023,6 +1024,7 @@ const FilterBar = React.memo(function FilterBar() {
 
 export function FeedApp() {
 	const navigate = useNavigate()
+	const location = useLocation()
 	const { t } = useTranslation()
 	const [appConfig] = useAppConfig()
 	const { api, setIdTag } = useApi()
@@ -1030,9 +1032,17 @@ export function FeedApp() {
 	const contextIdTag = useCurrentContextIdTag()
 	const [feed, setFeed] = React.useState<ActionEvt[] | undefined>()
 	const [text, setText] = React.useState('')
+	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	const ref = React.useRef<HTMLDivElement>(null)
 	const widthRef = React.useRef<HTMLDivElement>(null)
 	const [width, setWidth] = React.useState(0)
+
+	React.useEffect(
+		function onLocationEffect() {
+			setShowFilter(false)
+		},
+		[location]
+	)
 
 	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
 		const action = msg.data as ActionView
@@ -1133,8 +1143,13 @@ export function FeedApp() {
 
 	return (
 		<Fcd.Container className="g-1">
-			<Fcd.Filter>{!!auth && <FilterBar />}</Fcd.Filter>
+			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+				{!!auth && <FilterBar />}
+			</Fcd.Filter>
 			<Fcd.Content>
+				<div className="c-nav c-hbox md-hide lg-hide">
+					<IcFilter onClick={() => setShowFilter(true)} />
+				</div>
 				{!!auth && (
 					<div>
 						<NewPost

@@ -6,27 +6,28 @@
  */
 
 /* Sidebar container - extends OpalUI c-sidebar */
-.c-sidebar {
+.c-sidebar.left {
 	/* Override OpalUI defaults for narrower Discord/Slack style (5rem = 80px) */
 	--sidebar-width: 5rem !important;
 	--sidebar-min-width: 5rem !important;
 	--sidebar-max-width: 12rem !important;
 
-	/* Ensure fixed positioning (override OpalUI if needed) */
-	position: fixed;
-	top: 3.5rem; /* Start below the header navbar */
-	left: 0;
-	bottom: 0;
-	width: var(--sidebar-width) !important; /* Force use of CSS variable */
+	/* Override OpalUI positioning - start below header */
+	position: fixed !important;
+	top: 3.5rem !important; /* Start below the header navbar */
+	left: 0 !important;
+	width: var(--sidebar-width) !important;
 	min-width: var(--sidebar-min-width) !important;
 	max-width: var(--sidebar-max-width) !important;
-	z-index: 9; /* Below header (z-index: 10) but above content */
+	/* Keep z-index above backdrop (99) - OpalUI default is 400 */
+	z-index: 100 !important;
 }
 
-/* On desktop, sidebar is always visible and pinned */
+/* On desktop, sidebar is always visible */
 @media (min-width: 1024px) {
-	.c-sidebar {
-		transform: translateX(0);
+	.c-sidebar.left {
+		bottom: 0 !important;
+		transform: translateX(0) !important;
 	}
 }
 
@@ -265,13 +266,27 @@
 
 /* Mobile adjustments */
 @media (max-width: 1023px) {
-	.c-sidebar {
-		bottom: 4.5rem; /* Account for bottom navbar on mobile */
+	.c-sidebar.left {
+		bottom: 3.5rem !important; /* Account for bottom navbar on mobile */
 		transform: translateX(-100%) !important; /* Hidden by default on mobile */
 		transition: transform 0.3s ease;
 	}
 
-	.c-sidebar.open {
+	.c-sidebar.left.open {
 		transform: translateX(0) !important; /* Show when open */
+	}
+}
+
+/* Backdrop - override OpalUI defaults */
+/* Must be BELOW sidebar and header, but ABOVE content */
+.c-sidebar-backdrop {
+	z-index: 9 !important; /* Below header (10) and sidebar (100) */
+	top: 3rem !important; /* Start just below header, cover app toolbars */
+	bottom: 0 !important;
+}
+
+@media (max-width: 1023px) {
+	.c-sidebar-backdrop {
+		bottom: 3.5rem !important; /* Don't cover bottom nav */
 	}
 }

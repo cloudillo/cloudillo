@@ -108,7 +108,7 @@ body {
 		overflow-y: auto;
 		margin: 0 auto;
 		flex-flow: row wrap;
-		z-index: 8;
+		z-index: var(--z-dropdown);
 		transition:
 			transform 0.3s ease,
 			visibility 0s 0.3s;
@@ -133,7 +133,7 @@ body {
 	top: 0;
 	left: 0;
 	right: 0;
-	z-index: 10;
+	z-index: var(--z-fixed);
 
 	& > .c-nav-link > h6,
 	& > .c-nav-group > .c-nav-link > h6 {
@@ -156,8 +156,9 @@ body {
 	top: 4rem;
 	left: 0;
 	right: 0;
-	z-index: 9; /* Below nav-top (10) */
+	z-index: var(--z-popover);
 	overflow: hidden;
+	pointer-events: none; /* Prevent stealing mouse events when hidden */
 }
 
 .c-extra-menu-portal-desktop .c-extra-menu {
@@ -171,6 +172,7 @@ body {
 
 .c-extra-menu-portal-desktop .c-extra-menu.open {
 	transform: translateY(0);
+	pointer-events: auto; /* Enable interactions when visible */
 }
 
 .c-extra-menu-portal-desktop .c-extra-menu .c-nav-link {
@@ -179,7 +181,7 @@ body {
 }
 
 .c-nav.nav-bottom {
-	z-index: 10;
+	z-index: var(--z-fixed);
 
 	.c-menu-ex .c-nav {
 		bottom: 4.5rem;
@@ -210,7 +212,7 @@ body {
 		backdrop-filter: blur(10px);
 		-webkit-backdrop-filter: blur(10px);
 		border-top: 1px solid var(--col-border);
-		z-index: 100;
+		z-index: var(--z-fixed);
 	}
 
 	/* Extra menu portal container - positioned before nav-bottom in DOM */
@@ -219,8 +221,9 @@ body {
 		bottom: 4.5rem;
 		left: 0;
 		right: 0;
-		z-index: 99; /* Below nav-bottom (100) */
+		z-index: var(--z-popover);
 		overflow: hidden; /* Clip the sliding menu */
+		pointer-events: none; /* Prevent stealing mouse events when hidden */
 	}
 
 	/* Extra menu - completely separate styles from .c-menu-ex */
@@ -235,6 +238,7 @@ body {
 
 	.c-extra-menu-portal .c-extra-menu.open {
 		transform: translateY(0);
+		pointer-events: auto; /* Enable interactions when visible */
 	}
 
 	.c-extra-menu-portal .c-extra-menu .c-nav-link {

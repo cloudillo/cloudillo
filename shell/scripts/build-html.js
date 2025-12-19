@@ -21,4 +21,15 @@ writeFileSync(join(rootDir, 'dist/index.html'), processedHtml)
 
 console.log(`✅ HTML processed: version ${pkg.version}`)
 
+// Read source manifest
+const sourceManifest = readFileSync(join(rootDir, 'src/manifest.json'), 'utf-8')
+
+// Replace @VERSION@ with actual version
+const processedManifest = sourceManifest.replace(/@VERSION@/g, pkg.version)
+
+// Write to dist
+writeFileSync(join(rootDir, 'dist/manifest.json'), processedManifest)
+
+console.log(`✅ Manifest processed: version ${pkg.version}`)
+
 // vim: ts=4

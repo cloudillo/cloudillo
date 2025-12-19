@@ -1,0 +1,22 @@
+{
+	"short_name": "Cloudillo",
+	"name": "Cloudillo",
+	"version": "@VERSION@",
+	"icons": [
+		{
+			"src": "icon-192.png",
+			"type": "image/png",
+			"sizes": "192x192"
+		},
+		{
+			"src": "icon-512.png",
+			"type": "image/png",
+			"sizes": "512x512"
+		}
+	],
+	"start_url": "/",
+	"background_color": "#fff",
+	"display": "standalone",
+	"scope": "/",
+	"theme_color": "#3c3c56"
+}

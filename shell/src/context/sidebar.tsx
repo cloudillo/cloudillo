@@ -8,17 +8,11 @@
 import './sidebar.css'
 
 import * as React from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth, mergeClasses, ProfilePicture } from '@cloudillo/react'
 
-import {
-	LuStar as IcStar,
-	LuClock as IcRecent,
-	LuLoader as IcLoading,
-	LuUsers as IcCreate,
-	LuClock3 as IcPending
-} from 'react-icons/lu'
+import { LuClock3 as IcPending } from 'react-icons/lu'
 
 import { useCommunitiesList, useContextSwitch, useSidebar, activeContextAtom } from './index'
 import { useAtom } from 'jotai'
@@ -28,14 +22,27 @@ interface CommunityListItemProps {
 	community: CommunityRef
 	isActive: boolean
 	onSwitch: (idTag: string) => void
-	onToggleFavorite: (idTag: string) => void
+	// Drag-and-drop props (optional, only for pinned items)
+	draggable?: boolean
+	isDragging?: boolean
+	isDragOver?: boolean
+	onDragStart?: (e: React.DragEvent) => void
+	onDragOver?: (e: React.DragEvent) => void
+	onDrop?: (e: React.DragEvent) => void
+	onDragEnd?: () => void
 }
 
 function CommunityListItem({
 	community,
 	isActive,
 	onSwitch,
-	onToggleFavorite
+	draggable,
+	isDragging,
+	isDragOver,
+	onDragStart,
+	onDragOver,
+	onDrop,
+	onDragEnd
 }: CommunityListItemProps) {
 	const { t } = useTranslation()
 
@@ -44,10 +51,17 @@ function CommunityListItem({
 			className={mergeClasses(
 				'c-sidebar-item',
 				isActive && 'active',
-				community.isPending && 'pending'
+				community.isPending && 'pending',
+				isDragging && 'dragging',
+				isDragOver && 'drag-over'
 			)}
 			onClick={() => onSwitch(community.idTag)}
 			title={community.isPending ? t('DNS propagation in progress...') : community.name}
+			draggable={draggable}
+			onDragStart={onDragStart}
+			onDragOver={onDragOver}
+			onDrop={onDrop}
+			onDragEnd={onDragEnd}
 		>
 			<div className="c-sidebar-item-avatar">
 				<ProfilePicture
@@ -71,16 +85,6 @@ function CommunityListItem({
 					<span className="c-badge br bg bg-error">{community.unreadCount}</span>
 				)}
 			</div>
-			<button
-				className="c-sidebar-item-favorite"
-				onClick={(e) => {
-					e.stopPropagation()
-					onToggleFavorite(community.idTag)
-				}}
-				title={community.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-			>
-				<IcStar className={community.isFavorite ? 'filled' : ''} />
-			</button>
 		</div>
 	)
 }
@@ -93,11 +97,15 @@ export function Sidebar({ className }: SidebarProps) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
 	const [activeContext] = useAtom(activeContextAtom)
-	const { favorites, recent, totalUnread, toggleFavorite } = useCommunitiesList()
+	const { favorites, reorderFavorites } = useCommunitiesList()
 	const { switchTo, isSwitching } = useContextSwitch()
 	const { isOpen, isPinned, close } = useSidebar()
-	const navigate = useNavigate()
+	const location = useLocation()
 	const [isDesktop, setIsDesktop] = React.useState(window.innerWidth >= 1024)
+
+	// Drag-and-drop state for reordering pinned communities
+	const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null)
+	const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null)
 
 	// Track desktop/mobile mode for responsive behavior
 	React.useEffect(() => {
@@ -109,16 +117,49 @@ export function Sidebar({ className }: SidebarProps) {
 		return () => window.removeEventListener('resize', handleResize)
 	}, [])
 
-	// Handle context switch
+	// Drag-and-drop handlers for pinned communities
+	const handleDragStart = React.useCallback((e: React.DragEvent, index: number) => {
+		setDraggedIndex(index)
+		e.dataTransfer.effectAllowed = 'move'
+	}, [])
+
+	const handleDragOver = React.useCallback((e: React.DragEvent, index: number) => {
+		e.preventDefault()
+		setDragOverIndex(index)
+	}, [])
+
+	const handleDrop = React.useCallback(
+		(e: React.DragEvent, targetIndex: number) => {
+			e.preventDefault()
+			if (draggedIndex !== null && draggedIndex !== targetIndex) {
+				reorderFavorites(draggedIndex, targetIndex)
+			}
+			setDraggedIndex(null)
+			setDragOverIndex(null)
+		},
+		[draggedIndex, reorderFavorites]
+	)
+
+	const handleDragEnd = React.useCallback(() => {
+		setDraggedIndex(null)
+		setDragOverIndex(null)
+	}, [])
+
+	// Handle context switch - preserve current app path
 	const handleSwitch = React.useCallback(
 		(idTag: string) => {
-			switchTo(idTag, '/feed').catch((err) => {
+			// Extract current app path from URL: /app/{contextIdTag}/{appPath}
+			// We want to keep the appPath when switching contexts
+			const match = location.pathname.match(/^\/app\/[^/]+\/(.+)$/)
+			const currentAppPath = match ? `/${match[1]}` : '/feed'
+
+			switchTo(idTag, currentAppPath).catch((err) => {
 				console.error('❌ Failed to switch context:', err)
 				// TODO: Show toast notification when toast system is available
 				// For now, error is logged and isSwitching state is reset in finally block
 			})
 		},
-		[switchTo]
+		[switchTo, location.pathname]
 	)
 
 	if (!auth) return null
@@ -136,16 +177,6 @@ export function Sidebar({ className }: SidebarProps) {
 					className
 				)}
 			>
-				{/* Header */}
-				<div className="c-sidebar-header">
-					<h6>{t('Contexts')}</h6>
-					{isSwitching && (
-						<div className="c-sidebar-header-actions">
-							<IcLoading className="c-sidebar-loading-spinner" size={16} />
-						</div>
-					)}
-				</div>
-
 				{/* User's own profile */}
 				<div className="c-sidebar-section">
 					<div
@@ -162,64 +193,38 @@ export function Sidebar({ className }: SidebarProps) {
 								srcTag={auth.idTag}
 							/>
 						</div>
-						<div className="c-sidebar-item-info">
-							<div className="c-sidebar-item-name">{auth.name || t('Me')}</div>
-							<div className="c-sidebar-item-subtitle">{auth.idTag}</div>
-						</div>
 					</div>
 				</div>
 
-				{/* Favorite communities */}
+				{/* Pinned communities */}
 				{favorites.length > 0 && (
 					<div className="c-sidebar-section">
-						<div className="c-sidebar-section-header">
-							<IcStar size={14} />
-							<span>{t('Favorites')}</span>
-						</div>
-						{favorites.map((community) => (
+						{favorites.map((community, index) => (
 							<CommunityListItem
 								key={community.idTag}
 								community={community}
 								isActive={activeContext?.idTag === community.idTag}
 								onSwitch={handleSwitch}
-								onToggleFavorite={toggleFavorite}
+								draggable
+								isDragging={draggedIndex === index}
+								isDragOver={dragOverIndex === index}
+								onDragStart={(e) => handleDragStart(e, index)}
+								onDragOver={(e) => handleDragOver(e, index)}
+								onDrop={(e) => handleDrop(e, index)}
+								onDragEnd={handleDragEnd}
 							/>
 						))}
+						{/* Drop zone after last item */}
+						<div
+							className={mergeClasses(
+								'c-sidebar-drop-zone',
+								dragOverIndex === favorites.length && 'drag-over'
+							)}
+							onDragOver={(e) => handleDragOver(e, favorites.length)}
+							onDrop={(e) => handleDrop(e, favorites.length)}
+						/>
 					</div>
 				)}
-
-				{/* Recent communities */}
-				{recent.length > 0 && (
-					<div className="c-sidebar-section">
-						<div className="c-sidebar-section-header">
-							<IcRecent size={14} />
-							<span>{t('Recent')}</span>
-						</div>
-						{recent.map((community) => (
-							<CommunityListItem
-								key={community.idTag}
-								community={community}
-								isActive={activeContext?.idTag === community.idTag}
-								onSwitch={handleSwitch}
-								onToggleFavorite={toggleFavorite}
-							/>
-						))}
-					</div>
-				)}
-
-				{/* Community buttons */}
-				<div className="c-sidebar-footer">
-					<button
-						className="c-sidebar-add-button"
-						onClick={() =>
-							navigate(`/communities/create/${activeContext?.idTag || auth?.idTag}`)
-						}
-						title={t('Create new community')}
-					>
-						<IcCreate />
-						<span>{t('Create community')}</span>
-					</button>
-				</div>
 			</aside>
 
 			{/* Backdrop for mobile when sidebar is open */}

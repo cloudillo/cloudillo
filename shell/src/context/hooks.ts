@@ -229,6 +229,7 @@ export function useApiContext() {
  * ```
  */
 export function useCommunitiesList() {
+	const { api } = useApi()
 	const [communities, setCommunities] = useAtom(communitiesAtom)
 	const [favorites, setFavorites] = useAtom(favoritesAtom)
 	const [favoriteCommunities] = useAtom(favoriteCommunitiesAtom)
@@ -238,41 +239,121 @@ export function useCommunitiesList() {
 	const [error, setError] = React.useState<Error | undefined>()
 
 	/**
-	 * Refresh communities list from backend
-	 * TODO: Implement when backend endpoint is available
+	 * Save pinned communities to backend
 	 */
-	const refresh = React.useCallback(async () => {
+	const savePinnedCommunities = React.useCallback(
+		async (newFavorites: string[]) => {
+			if (!api) return
+			try {
+				await api.settings.update('ui.pinned_communities', { value: newFavorites })
+			} catch (err) {
+				console.error('Failed to save pinned communities:', err)
+			}
+		},
+		[api]
+	)
+
+	/**
+	 * Load pinned communities from backend
+	 */
+	const loadPinnedCommunities = React.useCallback(async () => {
+		if (!api) return
+		try {
+			const result = await api.settings.get('ui.pinned_communities')
+			if (result?.value && Array.isArray(result.value)) {
+				setFavorites(result.value as string[])
+			}
+		} catch (err) {
+			// Setting may not exist yet - that's OK
+			console.log('No pinned communities setting found, using empty list')
+			setFavorites([])
+		}
+	}, [api, setFavorites])
+
+	/**
+	 * Load communities from backend (called on app init)
+	 */
+	const loadCommunities = React.useCallback(async () => {
+		if (!api) return
+
 		setIsLoading(true)
 		setError(undefined)
 
 		try {
-			// TODO: Fetch communities from backend
-			// const result = await api.communities.list()
-			// setCommunities(result)
+			// Fetch community profiles from backend
+			const profiles = await api.profiles.list({ type: 'community' })
 
-			console.warn('Communities refresh not implemented yet - using localStorage cache')
+			// Convert profiles to CommunityRef format and update atom
+			setCommunities((prev) => {
+				// Create a map of existing communities for quick lookup
+				const existingMap = new Map(prev.map((c) => [c.idTag, c]))
+
+				// Only sync connected communities
+				const connectedProfiles = profiles.filter((p) => p.connected === true)
+
+				// Update or add communities
+				const updated: CommunityRef[] = connectedProfiles.map((profile) => {
+					const existing = existingMap.get(profile.idTag)
+					return {
+						idTag: profile.idTag,
+						name: profile.name || profile.idTag, // Fallback to idTag if name is missing
+						profilePic: profile.profilePic,
+						// Preserve existing metadata if available
+						isFavorite: existing?.isFavorite || false,
+						unreadCount: existing?.unreadCount || 0,
+						lastActivityAt: existing?.lastActivityAt || null,
+						isPending: existing?.isPending || false,
+						pendingSince: existing?.pendingSince
+					}
+				})
+
+				return updated
+			})
 		} catch (err) {
 			setError(err as Error)
-			console.error('Failed to refresh communities:', err)
+			console.error('Failed to load communities:', err)
 		} finally {
 			setIsLoading(false)
 		}
-	}, [])
+	}, [api, setCommunities])
 
 	/**
-	 * Toggle favorite status of a community
+	 * Refresh communities list from backend (alias for loadCommunities)
+	 */
+	const refresh = loadCommunities
+
+	/**
+	 * Toggle pinned status of a community (with backend sync)
 	 */
 	const toggleFavorite = React.useCallback(
 		(idTag: string) => {
 			setFavorites((prev) => {
-				if (prev.includes(idTag)) {
-					return prev.filter((id) => id !== idTag)
-				} else {
-					return [...prev, idTag]
-				}
+				const newFavorites = prev.includes(idTag)
+					? prev.filter((id) => id !== idTag)
+					: [...prev, idTag]
+				// Save to backend (async, non-blocking)
+				savePinnedCommunities(newFavorites)
+				return newFavorites
 			})
 		},
-		[setFavorites]
+		[setFavorites, savePinnedCommunities]
+	)
+
+	/**
+	 * Reorder pinned communities (with backend sync)
+	 */
+	const reorderFavorites = React.useCallback(
+		(fromIndex: number, toIndex: number) => {
+			setFavorites((prev) => {
+				const result = [...prev]
+				const [removed] = result.splice(fromIndex, 1)
+				result.splice(toIndex, 0, removed)
+				// Save to backend (async, non-blocking)
+				savePinnedCommunities(result)
+				return result
+			})
+		},
+		[setFavorites, savePinnedCommunities]
 	)
 
 	/**
@@ -343,12 +424,16 @@ export function useCommunitiesList() {
 	return {
 		communities,
 		favorites: favoriteCommunities,
+		pinnedIdTags: favorites,
 		recent: recentCommunities,
 		totalUnread,
 		isLoading,
 		error,
 		refresh,
+		loadCommunities,
+		loadPinnedCommunities,
 		toggleFavorite,
+		reorderFavorites,
 		addCommunity,
 		removeCommunity,
 		addPendingCommunity,

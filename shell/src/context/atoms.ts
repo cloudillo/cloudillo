@@ -41,12 +41,12 @@ export const contextTokensAtom = atom<Map<string, ContextToken>>(new Map())
 export const communitiesAtom = atomWithStorage<CommunityRef[]>('cloudillo:communities', [])
 
 /**
- * Favorite communities
- * Array of idTags that are favorited/pinned
+ * Pinned communities
+ * Array of idTags that are pinned to sidebar
  *
- * Persisted to localStorage
+ * Backend sync handled in hooks - stored via settings API as 'ui.pinned_communities'
  */
-export const favoritesAtom = atomWithStorage<string[]>('cloudillo:favorites', [])
+export const favoritesAtom = atom<string[]>([])
 
 /**
  * Recent contexts (LRU)
@@ -89,13 +89,16 @@ export const lastContextSwitchAtom = atom<ContextSwitchEvent | null>(null)
 export const contextSwitchingAtom = atom<boolean>(false)
 
 /**
- * Derived atom: Favorite communities
- * Returns communities that are marked as favorite
+ * Derived atom: Pinned communities
+ * Returns communities that are pinned, preserving user's custom order
  */
 export const favoriteCommunitiesAtom = atom((get) => {
 	const communities = get(communitiesAtom)
 	const favorites = get(favoritesAtom)
-	return communities.filter((c) => favorites.includes(c.idTag))
+	// Map favorites array to communities, preserving order from favorites
+	return favorites
+		.map((idTag) => communities.find((c) => c.idTag === idTag))
+		.filter((c): c is CommunityRef => c !== undefined)
 })
 
 /**

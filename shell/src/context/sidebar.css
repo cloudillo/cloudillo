@@ -249,6 +249,56 @@
 	opacity: 0.6;
 }
 
+/* Drag-and-drop for reordering pinned communities */
+.c-sidebar-item[draggable='true'] {
+	cursor: grab;
+}
+
+.c-sidebar-item[draggable='true']:active {
+	cursor: grabbing;
+}
+
+.c-sidebar-item.dragging {
+	opacity: 0.5;
+}
+
+.c-sidebar-item.dragging.active::before {
+	display: none;
+}
+
+.c-sidebar-item.drag-over::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 2px;
+	background: var(--col-primary);
+	pointer-events: none;
+}
+
+/* Drop zone after last item */
+.c-sidebar-drop-zone {
+	position: relative;
+	height: 0.5rem;
+	transition: height 0.2s;
+}
+
+.c-sidebar-drop-zone.drag-over {
+	height: 3rem;
+}
+
+.c-sidebar-drop-zone.drag-over::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 2px;
+	background: var(--col-primary);
+	pointer-events: none;
+}
+
 /* Unread badge */
 .c-sidebar-item .c-badge {
 	position: absolute;

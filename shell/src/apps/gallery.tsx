@@ -29,12 +29,12 @@ import Zoom from 'yet-another-react-lightbox/plugins/zoom'
 import 'yet-another-react-lightbox/plugins/thumbnails.css'
 import 'react-photo-album/rows.css'
 
-import { useAuth, useApi, LoadingSpinner, EmptyState } from '@cloudillo/react'
+import { useAuth, LoadingSpinner, EmptyState } from '@cloudillo/react'
 import { getFileUrl } from '@cloudillo/base'
 import { LuImage as IcImage } from 'react-icons/lu'
 
 import { parseQS, qs } from '../utils.js'
-import { useCurrentContextIdTag } from '../context/index.js'
+import { useCurrentContextIdTag, useContextAwareApi } from '../context/index.js'
 
 interface File {
 	fileId: string
@@ -53,7 +53,7 @@ interface File {
 export function GalleryApp() {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
-	const { api, setIdTag } = useApi()
+	const { api } = useContextAwareApi()
 	const [auth] = useAuth()
 	const contextIdTag = useCurrentContextIdTag()
 	const location = useLocation()
@@ -102,7 +102,7 @@ export function GalleryApp() {
 				}
 			})()
 		},
-		[api, location.search, refreshHelper]
+		[api, location.search, refreshHelper, contextIdTag]
 	)
 
 	if (!photos)

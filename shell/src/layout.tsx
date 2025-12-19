@@ -169,6 +169,7 @@ import { useActionNotifications } from './notifications/useActionNotifications.j
 import {
 	Sidebar,
 	useSidebar,
+	useCommunitiesList,
 	useCurrentContextIdTag,
 	useContextPath,
 	useGuestDocument
@@ -749,9 +750,18 @@ export function Layout() {
 	const { api, setIdTag } = useApi()
 	const dialog = useDialog()
 	const sidebar = useSidebar()
+	const { loadPinnedCommunities, loadCommunities } = useCommunitiesList()
 	const location = useLocation()
 	useTokenRenewal() // Automatic token renewal
 	useActionNotifications() // Sound and toast notifications for incoming actions
+
+	// Load pinned communities and communities list from backend when authenticated
+	React.useEffect(() => {
+		if (auth?.idTag) {
+			loadPinnedCommunities()
+			loadCommunities()
+		}
+	}, [auth?.idTag, loadPinnedCommunities, loadCommunities])
 
 	// Store current api/auth in refs for shell bus callbacks
 	const apiRef = React.useRef(api)

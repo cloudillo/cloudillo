@@ -16,9 +16,10 @@
 
 import * as React from 'react'
 import { useLocation } from 'react-router-dom'
-import { useApi, useAuth } from '@cloudillo/react'
+import { useAuth } from '@cloudillo/react'
 import * as Types from '@cloudillo/base'
 import { parseQS } from '../../../utils.js'
+import { useCurrentContextIdTag, useContextAwareApi } from '../../../context/index.js'
 import type { File, ViewMode } from '../types.js'
 import { TRASH_FOLDER_ID } from '../types.js'
 
@@ -39,9 +40,10 @@ function convertFileView(f: Types.FileView): File {
 }
 
 export function useFileList(options?: UseFileListOptions) {
-	const { api } = useApi()
+	const { api } = useContextAwareApi()
 	const [auth] = useAuth()
 	const location = useLocation()
+	const contextIdTag = useCurrentContextIdTag()
 	const [sort, setSort] = React.useState<keyof File | undefined>()
 	const [sortAsc, setSortAsc] = React.useState(false)
 	const [page, setPage] = React.useState(0)
@@ -118,7 +120,7 @@ export function useFileList(options?: UseFileListOptions) {
 				setFiles(fileList)
 			})()
 		},
-		[api, location.search, refreshHelper, viewMode, parentId, tagsParam]
+		[api, location.search, refreshHelper, viewMode, parentId, tagsParam, contextIdTag]
 	)
 
 	return React.useMemo(

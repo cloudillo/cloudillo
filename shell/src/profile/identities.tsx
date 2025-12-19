@@ -27,12 +27,16 @@ import {
 	LuUserPlus as IcUserFollowed,
 	LuHandshake as IcUserConnected,
 	LuCircleOff as IcUserBlocked,
-	LuUsers as IcUserAll
+	LuUsers as IcUserAll,
+	LuPin as IcPin,
+	LuPinOff as IcPinOff,
+	LuPlus as IcPlus
 } from 'react-icons/lu'
 
 import { Profile } from '@cloudillo/types'
 import { useApi, useAuth, Fcd, Button, ProfileCard, mergeClasses } from '@cloudillo/react'
 import { useAppConfig, parseQS, qs } from '../utils.js'
+import { useCommunitiesList } from '../context/index.js'
 
 function ProfileStatusIcon({ profile }: { profile: Profile }) {
 	// Check for exactly true (connected) vs 'R' (pending request)
@@ -101,17 +105,42 @@ function ProfileDetails({ className }: { className?: string }) {
 	return <div className={'c-panel p-1 ' + (className || '')}></div>
 }
 
-export function ProfileListCard({ profile, srcTag }: { profile: Profile; srcTag?: string }) {
+interface ProfileListCardProps {
+	profile: Profile
+	srcTag?: string
+	showPinButton?: boolean
+}
+
+export function ProfileListCard({ profile, srcTag, showPinButton }: ProfileListCardProps) {
 	const { t } = useTranslation()
 	const params = useParams()
 	const contextIdTag = params.contextIdTag!
+	const { pinnedIdTags, toggleFavorite } = useCommunitiesList()
+
+	const isPinned = pinnedIdTags.includes(profile.idTag)
+	// Only show pin for connected communities when showPinButton is true
+	const canShowPin = showPinButton && profile.connected === true
 
 	return (
 		<Link
-			className="c-panel p-1 mb-1 flex-row"
+			className="c-panel p-1 mb-1 flex-row ai-center"
 			to={`/profile/${contextIdTag}/${profile.idTag}`}
 		>
 			<ProfileCard className="flex-fill" profile={profile} srcTag={srcTag} />
+			{canShowPin && (
+				<button
+					className="c-button icon ghost"
+					onClick={(e) => {
+						e.preventDefault()
+						e.stopPropagation()
+						toggleFavorite(profile.idTag)
+					}}
+					title={isPinned ? t('Unpin from sidebar') : t('Pin to sidebar')}
+					aria-pressed={isPinned}
+				>
+					{isPinned ? <IcPinOff /> : <IcPin />}
+				</button>
+			)}
 			<ProfileStatusIcon profile={profile} />
 		</Link>
 	)
@@ -180,6 +209,7 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 export function CommunityListPage() {
 	const { t } = useTranslation()
 	const location = useLocation()
+	const navigate = useNavigate()
 	const params = useParams()
 	const { api } = useApi()
 	const [auth] = useAuth()
@@ -212,29 +242,31 @@ export function CommunityListPage() {
 	)
 
 	return (
-		<Fcd.Container className="g-1">
-			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-				<FilterBar />
-			</Fcd.Filter>
-			<Fcd.Content>
-				<div className="c-nav c-hbox md-hide lg-hide">
-					<IcFilter onClick={() => setShowFilter(true)} />
-				</div>
-				{!!profiles &&
-					profiles.map((profile) => (
-						<ProfileListCard key={profile.idTag} profile={profile} />
-					))}
-			</Fcd.Content>
-			{/*
-		<Fcd.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
-			{ selected && <div className="c-panel h-min-100">
-				<h3 className="c-panel-title">
-					{selected.name}
-				</h3>
-			</div> }
-		</Fcd.Details>
-		*/}
-		</Fcd.Container>
+		<>
+			<Fcd.Container className="g-1">
+				<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+					<FilterBar />
+				</Fcd.Filter>
+				<Fcd.Content>
+					<div className="c-nav c-hbox md-hide lg-hide">
+						<IcFilter onClick={() => setShowFilter(true)} />
+					</div>
+					{!!profiles &&
+						profiles.map((profile) => (
+							<ProfileListCard key={profile.idTag} profile={profile} showPinButton />
+						))}
+				</Fcd.Content>
+			</Fcd.Container>
+
+			{/* FAB for creating new community */}
+			<button
+				className="c-fab"
+				onClick={() => navigate(`/communities/create/${contextIdTag || auth?.idTag}`)}
+				title={t('Create new community')}
+			>
+				<IcPlus />
+			</button>
+		</>
 	)
 }
 

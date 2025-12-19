@@ -1116,16 +1116,25 @@ export function FeedApp() {
 
 	React.useEffect(
 		function onLoadFeed() {
-			console.log('FEED useEffect', !ref.current, !api, !auth)
+			console.log('FEED useEffect', !ref.current, !api, !auth, 'context:', contextIdTag)
 			if (!api || !api.idTag) return // Allow guests (removed !auth check)
 
+			// Clear feed when context changes to show loading state
+			setFeed(undefined)
+
 			;(async function () {
-				const actions = await api.actions.list({ type: 'POST' })
+				// Only filter by audience when viewing a community (not user's own context)
+				// When viewing own context, show all relevant posts (from followed users, etc.)
+				const isOwnContext = !contextIdTag || contextIdTag === auth?.idTag
+				const actions = await api.actions.list({
+					type: 'POST',
+					audience: isOwnContext ? undefined : contextIdTag
+				})
 				if (ref) console.log('Feed res', actions)
 				setFeed(actions)
 			})()
 		},
-		[api, ref]
+		[api, ref, contextIdTag, auth?.idTag]
 	)
 
 	const setFeedAction = React.useCallback(function setFeedAction(

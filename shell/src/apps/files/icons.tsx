@@ -36,6 +36,10 @@ import {
 export const fileIcons: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
 	'image/jpeg': (props) => <IcImage {...props} style={{ color: 'lch(50 50 0)' }} />,
 	'image/png': (props) => <IcImage {...props} style={{ color: 'lch(50 50 0)' }} />,
+	'image/webp': (props) => <IcImage {...props} style={{ color: 'lch(50 50 0)' }} />,
+	'image/avif': (props) => <IcImage {...props} style={{ color: 'lch(50 50 0)' }} />,
+	'image/gif': (props) => <IcImage {...props} style={{ color: 'lch(50 50 0)' }} />,
+	'image/svg+xml': (props) => <IcImage {...props} style={{ color: 'lch(50 50 0)' }} />,
 	'video/mp4': (props) => <IcVideo {...props} style={{ color: 'lch(50 50 0)' }} />,
 	'application/pdf': (props) => <IcDocument {...props} style={{ color: 'lch(50 50 0)' }} />,
 	'cloudillo/quillo': (props) => <IcQuillo {...props} style={{ color: 'lch(50 50 250)' }} />,
@@ -54,7 +58,17 @@ export function getFileIcon(
 	if (fileTp === 'FLDR') {
 		return fileIcons['cloudillo/folder'] || IcFolder
 	}
-	return fileIcons[contentType] || IcUnknown
+	if (fileIcons[contentType]) {
+		return fileIcons[contentType]
+	}
+	// Fallback for any image/* or video/* type
+	if (contentType.startsWith('image/')) {
+		return (props) => <IcImage {...props} style={{ color: 'lch(50 50 0)' }} />
+	}
+	if (contentType.startsWith('video/')) {
+		return (props) => <IcVideo {...props} style={{ color: 'lch(50 50 0)' }} />
+	}
+	return IcUnknown
 }
 
 export {

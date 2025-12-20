@@ -1,4 +1,5 @@
-const CACHE = 'cache-25.02.04'
+const VERSION = process.env.CLOUDILLO_VERSION || 'unknown'
+const CACHE = `cache-${VERSION}`
 const log = 1
 
 const PRECACHE_URLS: string[] = [
@@ -195,7 +196,7 @@ let authToken: string | undefined
 function onInstall(evt: any) {
 	evt.waitUntil(
 		(async function () {
-			console.log('[SW] INSTALL')
+			console.log(`[SW] INSTALL v${VERSION}, cache: ${CACHE}`)
 			let cache = await caches.open(CACHE)
 			await cache.addAll(PRECACHE_URLS)
 			;(self as any).skipWaiting()
@@ -206,7 +207,11 @@ function onInstall(evt: any) {
 function onActivate(evt: any) {
 	evt.waitUntil(
 		(async function () {
-			let cacheList = (await caches.keys()).filter((name) => name !== CACHE)
+			console.log(`[SW] ACTIVATE v${VERSION}, cache: ${CACHE}`)
+			const cacheList = (await caches.keys()).filter((name) => name !== CACHE)
+			if (cacheList.length > 0) {
+				console.log(`[SW] Deleting old caches:`, cacheList)
+			}
 			await Promise.all(cacheList.map((name) => caches.delete(name)))
 
 			// Load persisted token on activation

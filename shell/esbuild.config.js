@@ -36,7 +36,8 @@ const swConfig = {
 	sourcemap: !isProd,
 	minify: false,
 	define: {
-		'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development')
+		'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
+		'process.env.CLOUDILLO_VERSION': JSON.stringify(pkg.version)
 	},
 	logLevel: 'info',
 	treeShaking: true,

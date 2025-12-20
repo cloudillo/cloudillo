@@ -1,5 +1,5 @@
 {
-	"version": "0.8.0",
+	"version": "0.8.1",
 	"private": true,
 	"type": "module",
 	"packageManager": "pnpm@9.14.4",
@@ -22,7 +22,7 @@
 		"docker-all": "pnpm build-docker && pnpm build-docker-slim && pnpm build-docker-alpine && pnpm publish-docker && pnpm publish-docker-slim && pnpm publish-docker-alpine"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.3.8",
+		"@biomejs/biome": "^2.3.10",
 		"prettier": "^3.7.4"
 	}
 }

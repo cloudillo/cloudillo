@@ -54,6 +54,13 @@ async function build() {
 			pkg.version
 		)
 
+		// Build manifest.json (also uses @VERSION@ placeholder)
+		buildHTML(
+			join(__dirname, 'src/manifest.json'),
+			join(__dirname, 'dist/manifest.json'),
+			pkg.version
+		)
+
 		if (isWatch) {
 			// Delete stale compressed files
 			const deleted = deleteCompressedFiles(distDir)

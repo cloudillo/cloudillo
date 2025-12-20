@@ -3,6 +3,14 @@ body {
 	height: 100%;
 }
 
+/* Use small viewport height on mobile for accurate sizing with browser chrome */
+@media (max-width: 1199px) {
+	html,
+	body {
+		height: 100svh; /* Small viewport - accounts for browser UI */
+	}
+}
+
 p {
 	margin: 0;
 	padding: 0;
@@ -22,6 +30,12 @@ body {
 #app {
 	height: 100%;
 	overflow: hidden;
+}
+
+@media (max-width: 1199px) {
+	#app {
+		height: 100svh; /* Small viewport - accounts for browser UI */
+	}
 }
 
 .c-logo {
@@ -213,6 +227,8 @@ body {
 		-webkit-backdrop-filter: blur(10px);
 		border-top: 1px solid var(--col-border);
 		z-index: var(--z-fixed);
+		/* Account for safe area on devices with home indicator */
+		padding-bottom: env(safe-area-inset-bottom, 0);
 	}
 
 	/* Extra menu portal container - positioned before nav-bottom in DOM */

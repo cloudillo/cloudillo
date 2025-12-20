@@ -45,6 +45,13 @@
 	animation: upload-panel-slide-in var(--anim-toast) forwards;
 }
 
+/* Position upload panel above bottom nav on mobile */
+@media (max-width: 1199px) {
+	.c-upload-panel {
+		bottom: calc(4.5rem + var(--space-3));
+	}
+}
+
 @keyframes upload-panel-slide-in {
 	from {
 		opacity: 0;

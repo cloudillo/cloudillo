@@ -31,7 +31,10 @@ export const FcdContent = React.forwardRef<HTMLDivElement, FcdContentProps>(
 				{header}
 				<div
 					ref={ref}
-					className={mergeClasses('c-vbox fill overflow-y-auto', className)}
+					className={mergeClasses(
+						'c-fcd-content-scroll c-vbox fill overflow-y-auto',
+						className
+					)}
 					onScroll={onScroll}
 				>
 					{children}

@@ -870,6 +870,23 @@
 	display: block;
 }
 
+/* ==========================================================================
+   FcdContent Mobile Scrolling Fix
+   Adds extra scroll space on mobile to account for browser chrome
+   ========================================================================== */
+
+.c-fcd-content-scroll {
+	/* Add padding at bottom to ensure all content can scroll into view */
+	padding-bottom: 1rem;
+}
+
+@media (max-width: 1199px) {
+	.c-fcd-content-scroll {
+		/* Extra padding on mobile for browser bottom bars */
+		padding-bottom: 4rem;
+	}
+}
+
 /*
  vim: ts=4
  */

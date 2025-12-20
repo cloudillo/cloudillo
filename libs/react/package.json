@@ -4,6 +4,10 @@
 	"description": "Cloudillo React library",
 	"type": "module",
 	"main": "lib/index.js",
+	"exports": {
+		".": "./lib/index.js",
+		"./components.css": "./src/components.css"
+	},
 	"jest": {
 		"preset": "ts-jest",
 		"moduleNameMapper": {

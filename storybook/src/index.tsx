@@ -6,7 +6,7 @@ import { initReactI18next } from 'react-i18next'
 
 // CSS imports
 import '@symbion/opalui/dist/opalui.css'
-import '@cloudillo/react/src/components.css'
+import '@cloudillo/react/components.css'
 import '../.cache/themes.css'
 import './storybook.css'
 

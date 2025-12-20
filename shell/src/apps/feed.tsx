@@ -71,7 +71,7 @@ import {
 	SkeletonCard,
 	TimeFormat
 } from '@cloudillo/react'
-import '@cloudillo/react/src/components.css'
+import '@cloudillo/react/components.css'
 
 import { useAppConfig, parseQS, qs } from '../utils.js'
 import { ImageUpload } from '../image.js'

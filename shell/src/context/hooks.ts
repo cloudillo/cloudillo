@@ -111,12 +111,13 @@ export function useApiContext() {
 	/**
 	 * Get proxy token for specific context
 	 * Fetches from backend if not cached or expired
+	 * @returns Object with token and roles (roles may be empty for federated tokens)
 	 */
 	const getTokenFor = React.useCallback(
-		async (idTag: string): Promise<string | null> => {
+		async (idTag: string): Promise<{ token: string; roles: string[] } | null> => {
 			// User's own context uses primary token
 			if (idTag === auth?.idTag) {
-				return auth?.token || null
+				return auth?.token ? { token: auth.token, roles: [] } : null
 			}
 
 			// Check if we have primary API
@@ -124,10 +125,11 @@ export function useApiContext() {
 				throw new Error('Not authenticated')
 			}
 
-			// Check cache
+			// Check cache (roles are now cached alongside token)
 			const cached = contextTokens.get(idTag)
 			if (cached && cached.expiresAt > new Date()) {
-				return cached.token
+				// Return cached token with cached roles
+				return { token: cached.token, roles: cached.roles || [] }
 			}
 
 			try {
@@ -139,6 +141,7 @@ export function useApiContext() {
 				const tokenData: ContextToken = {
 					token: result.token,
 					tnId: 0, // TODO: Get tnId from result if available
+					roles: result.roles || [],
 					expiresAt
 				}
 
@@ -148,7 +151,7 @@ export function useApiContext() {
 					return next
 				})
 
-				return result.token
+				return { token: result.token, roles: result.roles || [] }
 			} catch (err) {
 				console.error(`Failed to get proxy token for ${idTag}:`, err)
 				throw err
@@ -167,25 +170,24 @@ export function useApiContext() {
 			setError(undefined)
 
 			try {
-				// Get token (will fetch if needed)
-				const token = await getTokenFor(idTag)
-				if (!token) {
+				// Get token and roles (will fetch if needed)
+				const tokenResult = await getTokenFor(idTag)
+				if (!tokenResult) {
 					throw new Error(`Failed to get token for context: ${idTag}`)
 				}
 
 				// Get API client - pass token directly since state update may be async
-				const contextApi = getClientFor(idTag, token)
+				const contextApi = getClientFor(idTag, tokenResult.token)
 				if (!contextApi) {
 					throw new Error(`Failed to create API client for context: ${idTag}`)
 				}
 
-				// For now, create a basic context without fetching metadata
-				// TODO: Add API endpoint to fetch context metadata
+				// Create context with roles from proxy token response
 				const newContext: ActiveContext = {
 					idTag,
 					type: idTag === auth?.idTag ? 'me' : 'community',
 					name: idTag,
-					roles: [],
+					roles: tokenResult.roles,
 					permissions: [],
 					metadata: {}
 				}

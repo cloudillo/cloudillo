@@ -146,6 +146,12 @@ export const tAccessTokenResult = T.struct({
 })
 export type AccessTokenResult = T.TypeOf<typeof tAccessTokenResult>
 
+export const tProxyTokenResult = T.struct({
+	token: T.string,
+	roles: T.optional(T.array(T.string))
+})
+export type ProxyTokenResult = T.TypeOf<typeof tProxyTokenResult>
+
 export const tIdTagResult = T.struct({
 	idTag: T.string
 })
@@ -553,6 +559,14 @@ export interface ProfilePatch {
 		category?: string | null
 		intro?: string | null
 	}
+}
+
+// Admin profile update (for role changes, status updates)
+export interface AdminProfilePatch {
+	name?: string
+	roles?: string[]
+	status?: 'A' | 'T' | 'B' | 'S' | null // Active, Trusted, Blocked, Suspended
+	ban_reason?: string | null
 }
 
 export interface PatchProfileConnection {

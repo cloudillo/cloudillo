@@ -22,8 +22,19 @@ import ReactQuill, { Quill } from 'react-quill-new'
 import QuillMarkdown from 'quilljs-markdown'
 import Turndown from 'turndown'
 
-import { Button, Popper, Container, Fcd, useDialog, mergeClasses } from '@cloudillo/react'
-import { NewAction } from '@cloudillo/types'
+import { useAtom } from 'jotai'
+
+import {
+	Button,
+	Popper,
+	Container,
+	Fcd,
+	useDialog,
+	useToast,
+	ProfileCard,
+	mergeClasses
+} from '@cloudillo/react'
+import { NewAction, CommunityRole, ROLE_LEVELS } from '@cloudillo/types'
 import { getInstanceUrl, getFileUrl } from '@cloudillo/base'
 
 import {
@@ -34,7 +45,8 @@ import {
 	LuUserPlus as IcFollow,
 	LuHandshake as IcConnect,
 	LuCircleOff as IcBlock,
-	LuMessageCircle as IcMessage
+	LuMessageCircle as IcMessage,
+	LuUserMinus as IcRemoveMember
 } from 'react-icons/lu'
 
 import 'quill/dist/quill.core.css'
@@ -50,8 +62,27 @@ import { ActionEvt, ActionComp, NewPost } from '../apps/feed.js'
 import { Profile } from '@cloudillo/types'
 import { ProfileListCard, PersonListPage, CommunityListPage } from './identities.js'
 import { CreateCommunity } from './community.js'
+import { activeContextAtom, useApiContext } from '../context/index.js'
 
 Quill.register('modules/QuillMarkdown', QuillMarkdown)
+
+/**
+ * Get the highest role from a list of roles
+ * Roles are ordered from lowest to highest: public, follower, supporter, contributor, moderator, leader
+ */
+function getHighestRole(roles: string[] | undefined): CommunityRole | undefined {
+	if (!roles || roles.length === 0) return undefined
+	let highest: CommunityRole | undefined
+	let highestLevel = -1
+	for (const role of roles) {
+		const level = ROLE_LEVELS[role as CommunityRole]
+		if (level !== undefined && level > highestLevel) {
+			highestLevel = level
+			highest = role as CommunityRole
+		}
+	}
+	return highest
+}
 
 interface FullProfile {
 	tnId: number
@@ -218,6 +249,10 @@ interface ProfilePageProps {
 	updateProfile?: (profile: FullProfile) => void
 	profileCmds: ProfileConnectionCmds
 	children: React.ReactNode
+	/** User's roles in the viewed community (for non-context-switched viewing) */
+	communityRoles?: string[]
+	/** Function to get proxy token for a target idTag */
+	getTokenFor?: (idTag: string) => Promise<{ token: string; roles?: string[] } | null>
 }
 export function ProfilePage({
 	profile,
@@ -225,11 +260,14 @@ export function ProfilePage({
 	localProfile,
 	updateProfile,
 	profileCmds,
-	children
+	children,
+	communityRoles = [],
+	getTokenFor
 }: ProfilePageProps) {
 	const { t } = useTranslation()
 	const [auth, setAuth] = useAuth()
 	const params = useParams()
+	const [activeContext] = useAtom(activeContextAtom)
 	// Extract contextIdTag from params if available (context-aware route)
 	const contextIdTag = params.contextIdTag
 	const own = auth?.idTag === profile.idTag
@@ -238,6 +276,35 @@ export function ProfilePage({
 	const [profileUpload, setProfileUpload] = React.useState<string | undefined>()
 	const inputId = React.useId()
 	const profileInputId = React.useId()
+
+	// Check if user has leader role for community settings access
+	// Use communityRoles (from prop, fetched by parent) OR activeContext roles if we're in the viewed community
+	const isCommunity = profile.type === 'community'
+	const isInViewedCommunity = activeContext?.idTag === profile.idTag
+	const userRole = isInViewedCommunity
+		? getHighestRole(activeContext?.roles)
+		: getHighestRole(communityRoles)
+	const canAccessSettings = own || (isCommunity && userRole === 'leader')
+
+	// Debug: log roles to verify
+	console.log('ProfilePage:', {
+		activeContextIdTag: activeContext?.idTag,
+		profileIdTag: profile.idTag,
+		isInViewedCommunity,
+		communityRoles,
+		userRole,
+		canAccessSettings
+	})
+	console.log(
+		'Settings tab visible?',
+		canAccessSettings,
+		'own:',
+		own,
+		'isCommunity:',
+		isCommunity,
+		'userRole:',
+		userRole
+	)
 
 	function onCancel() {
 		setProfileUpload(undefined)
@@ -248,10 +315,24 @@ export function ProfilePage({
 		console.log('upload cover', img)
 		if (!auth) return
 
+		// For community profiles, use proxy token and community's idTag
+		let targetIdTag = profile.idTag
+		let token = auth.token
+
+		if (isCommunity && getTokenFor) {
+			const proxyResult = await getTokenFor(profile.idTag)
+			if (proxyResult?.token) {
+				token = proxyResult.token
+			} else {
+				console.error('Failed to get proxy token for community upload')
+				return
+			}
+		}
+
 		// Upload
 		const request = new XMLHttpRequest()
-		request.open('PUT', `${getInstanceUrl(api?.idTag || '')}/api/me/cover`)
-		request.setRequestHeader('Authorization', `Bearer ${auth?.token}`)
+		request.open('PUT', `${getInstanceUrl(targetIdTag)}/api/me/cover`)
+		request.setRequestHeader('Authorization', `Bearer ${token}`)
 
 		request.upload.addEventListener('progress', function (e) {
 			const percent_completed = (e.loaded / e.total) * 100
@@ -286,10 +367,24 @@ export function ProfilePage({
 		console.log('upload profile', img)
 		if (!auth) return
 
+		// For community profiles, use proxy token and community's idTag
+		let targetIdTag = profile.idTag
+		let token = auth.token
+
+		if (isCommunity && getTokenFor) {
+			const proxyResult = await getTokenFor(profile.idTag)
+			if (proxyResult?.token) {
+				token = proxyResult.token
+			} else {
+				console.error('Failed to get proxy token for community upload')
+				return
+			}
+		}
+
 		// Upload
 		const request = new XMLHttpRequest()
-		request.open('PUT', `${getInstanceUrl(api?.idTag || '')}/api/me/image`)
-		request.setRequestHeader('Authorization', `Bearer ${auth?.token}`)
+		request.open('PUT', `${getInstanceUrl(targetIdTag)}/api/me/image`)
+		request.setRequestHeader('Authorization', `Bearer ${token}`)
 
 		request.upload.addEventListener('progress', function (e) {
 			const percent_completed = (e.loaded / e.total) * 100
@@ -302,7 +397,9 @@ export function ProfilePage({
 					const res = JSON.parse(request.response)
 					const profilePic = res.fileId || res
 					if (profile) setProfile((p) => (p ? { ...p, profilePic } : p))
-					if (auth?.tnId == profile.tnId) setAuth((a) => (a ? { ...a, profilePic } : a))
+					// Only update auth state if this is user's own profile
+					if (!isCommunity && auth?.tnId == profile.tnId)
+						setAuth((a) => (a ? { ...a, profilePic } : a))
 					setProfileUpload(undefined)
 				} catch (err) {
 					console.error('Failed to parse response:', err)
@@ -358,7 +455,7 @@ export function ProfilePage({
 								src={getFileUrl(profile.idTag, profile.coverPic, 'vis.hd')}
 							/>
 						)}
-						{own && (
+						{canAccessSettings && (
 							<>
 								<label
 									htmlFor={inputId}
@@ -398,7 +495,7 @@ export function ProfilePage({
 									/>
 								</svg>
 							)}
-							{own && (
+							{canAccessSettings && (
 								<>
 									<label
 										htmlFor={profileInputId}
@@ -463,12 +560,17 @@ export function ProfilePage({
 						>
 							{profile.type == 'community' ? t('Members') : t('Connections')}
 						</NavLink>
-						{own && (
-							<>
-								<NavLink className="c-tab" to={`/settings/${contextIdTag}`}>
-									{t('Settings')}
-								</NavLink>
-							</>
+						{canAccessSettings && (
+							<NavLink
+								className="c-tab"
+								to={
+									isCommunity
+										? `/profile/${contextIdTag}/${profile.idTag}/settings`
+										: `/settings/${contextIdTag}`
+								}
+							>
+								{t('Settings')}
+							</NavLink>
 						)}
 					</div>
 				</div>
@@ -498,6 +600,12 @@ export function ProfilePage({
 interface ProfileTabProps {
 	profile: FullProfile
 	updateProfile?: (patch: ProfilePatch) => Promise<void>
+	/** User's roles in the viewed community (for non-context-switched viewing) */
+	communityRoles?: string[]
+	/** Whether this is a community profile (resolved from profile.type or localProfile.type) */
+	isCommunity?: boolean
+	/** Function to get proxy token for a target idTag */
+	getTokenFor?: (idTag: string) => Promise<{ token: string; roles?: string[] } | null>
 }
 
 function ProfileAbout({ profile, updateProfile }: ProfileTabProps) {
@@ -665,12 +773,108 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 	)
 }
 
-export function ProfileConnections({ profile }: ProfileTabProps) {
+// MemberCard component for community member management
+interface MemberCardProps {
+	member: Profile
+	srcTag?: string
+	showRoleControls?: boolean
+	canChangeRole?: boolean
+	onRoleChange?: (idTag: string, role: CommunityRole) => void
+	onRemove?: (idTag: string) => void
+}
+
+function MemberCard({
+	member,
+	srcTag,
+	showRoleControls,
+	canChangeRole,
+	onRoleChange,
+	onRemove
+}: MemberCardProps) {
+	const { t } = useTranslation()
+	const dialog = useDialog()
+
+	// Get the member's highest role
+	const memberRole = getHighestRole(member.roles) || 'follower'
+
+	async function handleRemove() {
+		const confirmed = await dialog.confirm(
+			t('Remove member'),
+			t('Are you sure you want to remove {{name}} from this community?', {
+				name: member.name || member.idTag
+			}),
+			'error'
+		)
+		if (confirmed && onRemove) {
+			onRemove(member.idTag)
+		}
+	}
+
+	return (
+		<div className="c-panel p-2 mb-1 c-hbox g-2 ai-center">
+			<ProfileCard className="flex-fill" profile={member} srcTag={srcTag} />
+
+			{showRoleControls && (
+				<div className="c-hbox g-2 ai-center" style={{ flexShrink: 0 }}>
+					{/* Role badge/dropdown */}
+					{canChangeRole ? (
+						<select
+							className="c-select"
+							value={memberRole}
+							onChange={(e) =>
+								onRoleChange?.(member.idTag, e.target.value as CommunityRole)
+							}
+							style={{ minWidth: 110 }}
+						>
+							<option value="follower">{t('Follower')}</option>
+							<option value="supporter">{t('Supporter')}</option>
+							<option value="contributor">{t('Contributor')}</option>
+							<option value="moderator">{t('Moderator')}</option>
+							<option value="leader">{t('Leader')}</option>
+						</select>
+					) : (
+						<span className="c-badge">{t(memberRole)}</span>
+					)}
+
+					{/* Remove button */}
+					{onRemove && (
+						<button
+							className="c-button icon ghost"
+							onClick={handleRemove}
+							title={t('Remove member')}
+						>
+							<IcRemoveMember className="text-error" />
+						</button>
+					)}
+				</div>
+			)}
+		</div>
+	)
+}
+
+export function ProfileConnections({
+	profile,
+	communityRoles,
+	isCommunity = false
+}: ProfileTabProps) {
 	const { t } = useTranslation()
 	const location = useLocation()
 	const { api } = useApi()
 	const [auth] = useAuth()
+	const toast = useToast()
+	const dialog = useDialog()
+	const [activeContext] = useAtom(activeContextAtom)
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
+
+	// Check user's role in community context
+	// Use communityRoles prop (from proxy token) OR activeContext roles if we're in the viewed community
+	const isInViewedCommunity = activeContext?.idTag === profile.idTag
+	const userRole = isInViewedCommunity
+		? getHighestRole(activeContext?.roles)
+		: getHighestRole(communityRoles)
+	const userRoleLevel = userRole ? ROLE_LEVELS[userRole] : 0
+	const canManageMembers = isCommunity && userRoleLevel >= ROLE_LEVELS.moderator
+	const canChangeRoles = isCommunity && userRoleLevel >= ROLE_LEVELS.leader
 
 	React.useEffect(
 		function loadConnections() {
@@ -687,9 +891,267 @@ export function ProfileConnections({ profile }: ProfileTabProps) {
 		[auth, location.search]
 	)
 
+	// Handle role change
+	async function handleRoleChange(memberIdTag: string, newRole: CommunityRole) {
+		try {
+			await api!.profiles.adminUpdate(memberIdTag, { roles: [newRole] })
+			// Update local state
+			setProfiles((prev) =>
+				prev.map((p) => (p.idTag === memberIdTag ? { ...p, roles: [newRole] } : p))
+			)
+			toast.success(t('Role updated'))
+		} catch (err) {
+			console.error('Failed to update role:', err)
+			toast.error(t('Failed to update role'))
+		}
+	}
+
+	// Handle member removal
+	async function handleRemoveMember(memberIdTag: string) {
+		try {
+			// Update status to 'S' (Suspended) or remove connection
+			await api!.profiles.adminUpdate(memberIdTag, { status: 'S' })
+			// Remove from local state
+			setProfiles((prev) => prev.filter((p) => p.idTag !== memberIdTag))
+			toast.success(t('Member removed'))
+		} catch (err) {
+			console.error('Failed to remove member:', err)
+			toast.error(t('Failed to remove member'))
+		}
+	}
+
+	// For communities, use MemberCard with role management
+	if (isCommunity) {
+		return (
+			<>
+				{profiles.map((p) => (
+					<MemberCard
+						key={p.idTag}
+						member={p}
+						srcTag={profile.idTag}
+						showRoleControls={canManageMembers}
+						canChangeRole={canChangeRoles}
+						onRoleChange={canChangeRoles ? handleRoleChange : undefined}
+						onRemove={canManageMembers ? handleRemoveMember : undefined}
+					/>
+				))}
+			</>
+		)
+	}
+
+	// For personal profiles, use original ProfileListCard
 	return (
-		!!profiles &&
-		profiles.map((p) => <ProfileListCard key={p.idTag} profile={p} srcTag={profile.idTag} />)
+		<>
+			{profiles.map((p) => (
+				<ProfileListCard key={p.idTag} profile={p} srcTag={profile.idTag} />
+			))}
+		</>
+	)
+}
+
+// ProfileSettings component for community settings
+export function ProfileSettings({
+	profile,
+	communityRoles,
+	isCommunity = false,
+	getTokenFor
+}: ProfileTabProps) {
+	const { t } = useTranslation()
+	const [activeContext] = useAtom(activeContextAtom)
+	const [settings, setSettings] = React.useState<Record<string, string | number | boolean>>({})
+	const [loading, setLoading] = React.useState(true)
+	const debounceTimers = React.useRef<Record<string, NodeJS.Timeout>>({})
+
+	// Check if user has leader role (can edit settings)
+	// Use communityRoles prop (from proxy token) OR activeContext roles if we're in the viewed community
+	const isInViewedCommunity = activeContext?.idTag === profile.idTag
+	const userRole = isInViewedCommunity
+		? getHighestRole(activeContext?.roles)
+		: getHighestRole(communityRoles)
+	const canEditSettings = userRole === 'leader'
+
+	// Fetch settings from community server
+	React.useEffect(
+		function loadSettings() {
+			if (!isCommunity || !getTokenFor || !canEditSettings) {
+				setLoading(false)
+				return
+			}
+
+			;(async function () {
+				try {
+					const proxyResult = await getTokenFor(profile.idTag)
+					if (!proxyResult?.token) {
+						console.error('Failed to get proxy token for settings')
+						setLoading(false)
+						return
+					}
+
+					const response = await fetch(
+						`${getInstanceUrl(profile.idTag)}/api/settings?prefix=profile`,
+						{
+							headers: {
+								Authorization: `Bearer ${proxyResult.token}`,
+								'Content-Type': 'application/json'
+							}
+						}
+					)
+
+					if (response.ok) {
+						const data = await response.json()
+						// API response wraps array in 'data' field (ApiResponse<Vec<SettingResponse>>)
+						const settingsArray = data.data || []
+						const settingsMap = Object.fromEntries(
+							settingsArray.map((s: any) => [s.key, s.value])
+						)
+						setSettings(settingsMap)
+					}
+				} catch (err) {
+					console.error('Failed to load community settings:', err)
+				} finally {
+					setLoading(false)
+				}
+			})()
+		},
+		[isCommunity, getTokenFor, profile.idTag, canEditSettings]
+	)
+
+	// Cleanup debounce timers on unmount
+	React.useEffect(() => {
+		return () => {
+			Object.values(debounceTimers.current).forEach((timer) => clearTimeout(timer))
+		}
+	}, [])
+
+	async function onSettingChange(
+		evt: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+	) {
+		if (!getTokenFor) return
+
+		const { name, type } = evt.target
+		const value =
+			type === 'checkbox' ? (evt.target as HTMLInputElement).checked : evt.target.value
+
+		// Update local state immediately
+		setSettings((prev) => ({ ...prev, [name]: value }))
+
+		// Clear existing timer
+		if (debounceTimers.current[name]) {
+			clearTimeout(debounceTimers.current[name])
+		}
+
+		// Debounce for text inputs, immediate for toggles/selects
+		const delay = type === 'checkbox' ? 0 : type === 'text' ? 800 : 300
+
+		const saveToServer = async () => {
+			try {
+				const proxyResult = await getTokenFor(profile.idTag)
+				if (!proxyResult?.token) return
+
+				await fetch(
+					`${getInstanceUrl(profile.idTag)}/api/settings/${encodeURIComponent(name)}`,
+					{
+						method: 'PUT',
+						headers: {
+							Authorization: `Bearer ${proxyResult.token}`,
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({ value })
+					}
+				)
+			} catch (err) {
+				console.error('Failed to save setting:', name, err)
+			}
+		}
+
+		if (delay === 0) {
+			await saveToServer()
+		} else {
+			debounceTimers.current[name] = setTimeout(saveToServer, delay)
+		}
+	}
+
+	// Only show for communities
+	if (!isCommunity) {
+		return null
+	}
+
+	// Only leaders can access settings
+	if (!canEditSettings) {
+		return (
+			<div className="c-panel p-3">
+				<p className="text-muted">
+					{t('You need leader permissions to access community settings.')}
+				</p>
+			</div>
+		)
+	}
+
+	if (loading) {
+		return (
+			<div className="c-panel p-3">
+				<p className="text-muted">{t('Loading settings...')}</p>
+			</div>
+		)
+	}
+
+	return (
+		<>
+			{/* Connection & Privacy Settings */}
+			<div className="c-panel mb-2 p-3">
+				<h4 className="pb-2 border-bottom mb-3">{t('Connections')}</h4>
+				<label className="c-settings-field">
+					<span>{t('Connection Mode')}</span>
+					<select
+						className="c-select"
+						name="profile.connection_mode"
+						value={(settings['profile.connection_mode'] as string) ?? 'M'}
+						onChange={onSettingChange}
+					>
+						<option value="M">{t('Manual approval')}</option>
+						<option value="A">{t('Auto-accept')}</option>
+						<option value="I">{t('Ignore requests')}</option>
+					</select>
+				</label>
+				<p className="c-hint mt-1">
+					{t('Controls how connection requests to this community are handled.')}
+				</p>
+
+				<label className="c-settings-field mt-3">
+					<span>{t('Allow followers')}</span>
+					<input
+						className="c-toggle primary"
+						type="checkbox"
+						name="profile.allow_followers"
+						checked={settings['profile.allow_followers'] !== false}
+						onChange={onSettingChange}
+					/>
+				</label>
+				<p className="c-hint mt-1">
+					{t('Allow users to follow this community without becoming members.')}
+				</p>
+			</div>
+
+			{/* Federation Settings */}
+			<div className="c-panel mb-2 p-3">
+				<h4 className="pb-2 border-bottom mb-3">{t('Federation')}</h4>
+				<label className="c-settings-field">
+					<span>{t('Auto-approve incoming actions')}</span>
+					<input
+						className="c-toggle primary"
+						type="checkbox"
+						name="profile.auto_approve_actions"
+						checked={settings['profile.auto_approve_actions'] === true}
+						onChange={onSettingChange}
+					/>
+				</label>
+				<p className="c-hint mt-1">
+					{t(
+						'When enabled, posts and messages from trusted sources are automatically approved.'
+					)}
+				</p>
+			</div>
+		</>
 	)
 }
 
@@ -699,6 +1161,7 @@ function Profile() {
 
 	const [auth] = useAuth()
 	const { api } = useApi()
+	const { getTokenFor } = useApiContext()
 	const dialog = useDialog()
 	const params = useParams()
 	// Extract contextIdTag from params if available (context-aware route)
@@ -707,7 +1170,32 @@ function Profile() {
 	const own = idTag == auth?.idTag
 	const [profile, setProfile] = React.useState<FullProfile>()
 	const [localProfile, setLocalProfile] = React.useState<Partial<Profile>>()
+	// User's roles in the viewed community (fetched via proxy token)
+	const [communityRoles, setCommunityRoles] = React.useState<string[]>([])
 	//console.log('Profile', idTag, profile, 'contextIdTag', contextIdTag)
+
+	// Fetch user's roles when viewing a community profile
+	React.useEffect(
+		function loadCommunityRoles() {
+			if (!idTag || own) {
+				setCommunityRoles([])
+				return
+			}
+			// Fetch proxy token to get user's roles in this community
+			getTokenFor(idTag)
+				.then((result) => {
+					if (result?.roles) {
+						console.log('Profile: loaded communityRoles for', idTag, result.roles)
+						setCommunityRoles(result.roles)
+					}
+				})
+				.catch((err) => {
+					console.warn('Profile: failed to fetch community roles:', err)
+					setCommunityRoles([])
+				})
+		},
+		[idTag, own, getTokenFor]
+	)
 
 	React.useEffect(
 		function load() {
@@ -828,6 +1316,9 @@ function Profile() {
 		setLocalProfile((p) => (p ? { ...p, status: 'A' } : p))
 	}
 
+	// Determine if this is a community profile
+	const isCommunity = profile?.type === 'community'
+
 	return !profile ? null : (
 		<ProfilePage
 			profile={profile}
@@ -835,6 +1326,8 @@ function Profile() {
 			localProfile={localProfile}
 			updateProfile={idTag == auth?.idTag ? updateProfile : undefined}
 			profileCmds={{ onFollow, onUnfollow, onConnect, onDisconnect, onBlock, onUnblock }}
+			communityRoles={communityRoles}
+			getTokenFor={getTokenFor}
 		>
 			<Routes>
 				<Route
@@ -851,7 +1344,26 @@ function Profile() {
 				/>
 				<Route
 					path="/connections"
-					element={<ProfileConnections profile={profile} updateProfile={updateProfile} />}
+					element={
+						<ProfileConnections
+							profile={profile}
+							updateProfile={updateProfile}
+							communityRoles={communityRoles}
+							isCommunity={isCommunity}
+						/>
+					}
+				/>
+				<Route
+					path="/settings"
+					element={
+						<ProfileSettings
+							profile={profile}
+							updateProfile={updateProfile}
+							communityRoles={communityRoles}
+							isCommunity={isCommunity}
+							getTokenFor={getTokenFor}
+						/>
+					}
 				/>
 				<Route path="/*" element={null} />
 			</Routes>

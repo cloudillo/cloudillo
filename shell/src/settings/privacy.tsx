@@ -24,7 +24,7 @@ import { useSettings } from './settings.js'
 export function PrivacySettings() {
 	const { t } = useTranslation()
 	const { api } = useApi()
-	const { settings, onSettingChange } = useSettings('privacy')
+	const { settings, onSettingChange } = useSettings('profile')
 
 	if (!settings) return null
 
@@ -36,8 +36,8 @@ export function PrivacySettings() {
 					<span>{t('Default visibility for new posts')}</span>
 					<select
 						className="c-select"
-						name="privacy.default_visibility"
-						value={(settings['privacy.default_visibility'] as string) || 'F'}
+						name="profile.default_visibility"
+						value={(settings['profile.default_visibility'] as string) || 'F'}
 						onChange={onSettingChange}
 					>
 						<option value="F">{t('Followers')}</option>
@@ -56,9 +56,9 @@ export function PrivacySettings() {
 					<span>{t('Allow others to follow you')}</span>
 					<input
 						className="c-toggle primary"
-						name="privacy.allow_followers"
+						name="profile.allow_followers"
 						type="checkbox"
-						checked={settings['privacy.allow_followers'] !== false}
+						checked={settings['profile.allow_followers'] !== false}
 						onChange={onSettingChange}
 					/>
 				</label>

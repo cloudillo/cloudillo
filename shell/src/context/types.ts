@@ -87,6 +87,9 @@ export interface ContextToken {
 
 	/** Refresh token (if available) */
 	refreshToken?: string
+
+	/** User's roles in this context (cached from proxy token response) */
+	roles?: string[]
 }
 
 /**

@@ -166,10 +166,10 @@ export class ApiClient {
 		/**
 		 * GET /auth/proxy-token - Get proxy token for federation
 		 * @param idTag - Optional target idTag for cross-server federation
-		 * @returns Token
+		 * @returns Token and optionally roles (for local context)
 		 */
 		getProxyToken: (idTag?: string) =>
-			this.request('GET', '/auth/proxy-token', Types.tAccessTokenResult, {
+			this.request('GET', '/auth/proxy-token', Types.tProxyTokenResult, {
 				query: idTag ? { idTag } : undefined
 			}),
 
@@ -780,12 +780,12 @@ export class ApiClient {
 			this.request('PATCH', `/profiles/${idTag}`, T.struct({}), { data }),
 
 		/**
-		 * PATCH /admin/profiles/:idTag - Admin update profile
+		 * PATCH /admin/profiles/:idTag - Admin update profile (roles, status)
 		 * @param idTag - Identity tag
-		 * @param data - Profile patch data
+		 * @param data - Admin profile patch data (roles, status, ban_reason)
 		 * @returns Updated profile
 		 */
-		adminUpdate: (idTag: string, data: Types.ProfilePatch) =>
+		adminUpdate: (idTag: string, data: Types.AdminProfilePatch) =>
 			this.request('PATCH', `/admin/profiles/${idTag}`, Types.tUpdateProfileResult, { data })
 	}
 

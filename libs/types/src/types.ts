@@ -24,6 +24,27 @@ export type ProfileConnectionStatus = T.TypeOf<typeof tProfileConnectionStatus>
 export const tProfileStatus = T.literal('A', 'T', 'B', 'M', 'S')
 export type ProfileStatus = T.TypeOf<typeof tProfileStatus>
 
+// Community role hierarchy (matches backend core/roles.rs)
+export const tCommunityRole = T.literal(
+	'public',
+	'follower',
+	'supporter',
+	'contributor',
+	'moderator',
+	'leader'
+)
+export type CommunityRole = T.TypeOf<typeof tCommunityRole>
+
+// Numeric role levels for permission comparison
+export const ROLE_LEVELS: Record<CommunityRole, number> = {
+	public: 0,
+	follower: 1,
+	supporter: 2,
+	contributor: 3,
+	moderator: 4,
+	leader: 5
+}
+
 export const tProfile = T.struct({
 	idTag: T.string,
 	name: T.optional(T.string),
@@ -31,7 +52,8 @@ export const tProfile = T.struct({
 	profilePic: T.optional(T.string),
 	status: T.optional(tProfileStatus),
 	connected: T.optional(tProfileConnectionStatus),
-	following: T.optional(T.boolean)
+	following: T.optional(T.boolean),
+	roles: T.optional(T.array(T.string)) // Community roles (e.g., ['leader'], ['moderator'])
 })
 export type Profile = T.TypeOf<typeof tProfile>
 

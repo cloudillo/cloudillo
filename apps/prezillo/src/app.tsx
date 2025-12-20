@@ -20,6 +20,7 @@ import {
 	useSvgCanvas,
 	ToolEvent,
 	SelectionBox,
+	type SelectionBoxProps,
 	type ResizeHandle,
 	useSnapping,
 	SnapGuides,
@@ -38,6 +39,90 @@ function FixedSnapGuides(props: Omit<SnapGuidesProps, 'transformPoint'>) {
 	return <SnapGuides {...props} transformPoint={translateFrom} />
 }
 
+/**
+ * Wrapper component for SelectionBox that renders in the fixed layer
+ * Transforms canvas coordinates to screen coordinates
+ */
+function FixedSelectionBox(props: Omit<SelectionBoxProps, 'bounds'> & { canvasBounds: Bounds }) {
+	const { translateFrom, scale } = useSvgCanvas()
+
+	// Transform bounds from canvas space to screen space
+	const [screenX, screenY] = translateFrom(props.canvasBounds.x, props.canvasBounds.y)
+	const screenBounds = {
+		x: screenX,
+		y: screenY,
+		width: props.canvasBounds.width * scale,
+		height: props.canvasBounds.height * scale
+	}
+
+	return <SelectionBox {...props} bounds={screenBounds} />
+}
+
+/**
+ * Wrapper component for RotationHandle that renders in the fixed layer
+ * Transforms canvas coordinates to screen coordinates
+ */
+function FixedRotationHandle(
+	props: Omit<RotationHandleProps, 'scale' | 'bounds'> & { canvasBounds: Bounds }
+) {
+	const { translateFrom, scale } = useSvgCanvas()
+
+	const [screenX, screenY] = translateFrom(props.canvasBounds.x, props.canvasBounds.y)
+	const screenBounds = {
+		x: screenX,
+		y: screenY,
+		width: props.canvasBounds.width * scale,
+		height: props.canvasBounds.height * scale
+	}
+
+	return <RotationHandle {...props} bounds={screenBounds} scale={1} />
+}
+
+/**
+ * Wrapper component for PivotHandle that renders in the fixed layer
+ * Transforms canvas coordinates to screen coordinates
+ */
+function FixedPivotHandle(
+	props: Omit<PivotHandleProps, 'scale' | 'bounds'> & {
+		canvasBounds: Bounds
+		canvasOriginalBounds?: Bounds
+	}
+) {
+	const { translateFrom, scale } = useSvgCanvas()
+
+	const [screenX, screenY] = translateFrom(props.canvasBounds.x, props.canvasBounds.y)
+	const screenBounds = {
+		x: screenX,
+		y: screenY,
+		width: props.canvasBounds.width * scale,
+		height: props.canvasBounds.height * scale
+	}
+
+	// Transform original bounds for snap point visualization
+	let screenOriginalBounds: Bounds | undefined
+	if (props.canvasOriginalBounds) {
+		const [origX, origY] = translateFrom(
+			props.canvasOriginalBounds.x,
+			props.canvasOriginalBounds.y
+		)
+		screenOriginalBounds = {
+			x: origX,
+			y: origY,
+			width: props.canvasOriginalBounds.width * scale,
+			height: props.canvasOriginalBounds.height * scale
+		}
+	}
+
+	return (
+		<PivotHandle
+			{...props}
+			bounds={screenBounds}
+			originalBounds={screenOriginalBounds}
+			scale={1}
+		/>
+	)
+}
+
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
 import '@cloudillo/react/components.css'
@@ -47,8 +132,17 @@ import { usePrezilloDocument, useSnappingConfig, useGetParent, useSnapSettings }
 import { useViewObjects } from './hooks/useViewObjects'
 import { useViews } from './hooks/useViews'
 import { setEditingState, clearEditingState } from './awareness'
-import { RotationHandle, SNAP_ZONE_RATIO } from './components/RotationHandle'
-import { PivotHandle, PIVOT_SNAP_POINTS, PIVOT_SNAP_THRESHOLD } from './components/PivotHandle'
+import {
+	RotationHandle,
+	SNAP_ZONE_RATIO,
+	type RotationHandleProps
+} from './components/RotationHandle'
+import {
+	PivotHandle,
+	PIVOT_SNAP_POINTS,
+	PIVOT_SNAP_THRESHOLD,
+	type PivotHandleProps
+} from './components/PivotHandle'
 import { Toolbar } from './components/Toolbar'
 import { ViewPicker } from './components/ViewPicker'
 import { ViewFrame } from './components/ViewFrame'
@@ -510,7 +604,7 @@ export function PrezilloApp() {
 	}, [prezillo])
 
 	// Handle resize start (from selection box handles)
-	function handleResizeStart(handle: ResizeHandle, e: React.MouseEvent) {
+	function handleResizeStart(handle: ResizeHandle, e: React.PointerEvent) {
 		if (isReadOnly) return
 		e.preventDefault()
 		e.stopPropagation()
@@ -633,8 +727,8 @@ export function PrezilloApp() {
 			height: obj.wh[1]
 		})
 
-		// Add window event listeners for mouse move and up
-		const handleMouseMove = (moveEvent: MouseEvent) => {
+		// Add window event listeners for pointer move and up
+		const handlePointerMove = (moveEvent: PointerEvent) => {
 			const state = resizeStateRef.current
 			if (!state) return
 
@@ -771,7 +865,7 @@ export function PrezilloApp() {
 			}
 		}
 
-		const handleMouseUp = () => {
+		const handlePointerUp = () => {
 			// Commit final bounds to CRDT (only now!)
 			const currentPrezillo = prezilloRef.current
 			updateObjectBounds(
@@ -800,16 +894,16 @@ export function PrezilloApp() {
 			// Prevent canvas click from clearing selection
 			justFinishedInteractionRef.current = true
 
-			window.removeEventListener('mousemove', handleMouseMove)
-			window.removeEventListener('mouseup', handleMouseUp)
+			window.removeEventListener('pointermove', handlePointerMove)
+			window.removeEventListener('pointerup', handlePointerUp)
 		}
 
-		window.addEventListener('mousemove', handleMouseMove)
-		window.addEventListener('mouseup', handleMouseUp)
+		window.addEventListener('pointermove', handlePointerMove)
+		window.addEventListener('pointerup', handlePointerUp)
 	}
 
 	// Handle rotation start (from rotation handle)
-	function handleRotateStart(e: React.MouseEvent) {
+	function handleRotateStart(e: React.PointerEvent) {
 		if (isReadOnly) return
 		e.preventDefault()
 		e.stopPropagation()
@@ -862,7 +956,7 @@ export function PrezilloApp() {
 		})
 		setRotationState({ isRotating: true, isSnapActive: false })
 
-		const handleMouseMove = (moveEvent: MouseEvent) => {
+		const handlePointerMove = (moveEvent: PointerEvent) => {
 			const ctx = canvasContextRef.current
 			if (!ctx?.translateTo) return
 
@@ -925,7 +1019,7 @@ export function PrezilloApp() {
 			}
 		}
 
-		const handleMouseUp = () => {
+		const handlePointerUp = () => {
 			// Commit final rotation to CRDT
 			const currentPrezillo = prezilloRef.current
 			updateObjectRotation(
@@ -947,16 +1041,16 @@ export function PrezilloApp() {
 			// Prevent canvas click from clearing selection
 			justFinishedInteractionRef.current = true
 
-			window.removeEventListener('mousemove', handleMouseMove)
-			window.removeEventListener('mouseup', handleMouseUp)
+			window.removeEventListener('pointermove', handlePointerMove)
+			window.removeEventListener('pointerup', handlePointerUp)
 		}
 
-		window.addEventListener('mousemove', handleMouseMove)
-		window.addEventListener('mouseup', handleMouseUp)
+		window.addEventListener('pointermove', handlePointerMove)
+		window.addEventListener('pointerup', handlePointerUp)
 	}
 
 	// Handle pivot drag start
-	function handlePivotDragStart(e: React.MouseEvent) {
+	function handlePivotDragStart(e: React.PointerEvent) {
 		if (isReadOnly) return
 		e.preventDefault()
 		e.stopPropagation()
@@ -1017,7 +1111,7 @@ export function PrezilloApp() {
 		})
 		setPivotDragState({ isDragging: true, snappedPoint: null, originalBounds, initialPivot })
 
-		const handleMouseMove = (moveEvent: MouseEvent) => {
+		const handlePointerMove = (moveEvent: PointerEvent) => {
 			const ctx = canvasContextRef.current
 			if (!ctx?.translateTo) return
 
@@ -1090,9 +1184,9 @@ export function PrezilloApp() {
 			})
 		}
 
-		const handleMouseUp = () => {
-			window.removeEventListener('mousemove', handleMouseMove)
-			window.removeEventListener('mouseup', handleMouseUp)
+		const handlePointerUp = () => {
+			window.removeEventListener('pointermove', handlePointerMove)
+			window.removeEventListener('pointerup', handlePointerUp)
 
 			// Commit final pivot to CRDT (only once!)
 			const currentPrezillo = prezilloRef.current
@@ -1117,8 +1211,8 @@ export function PrezilloApp() {
 			justFinishedInteractionRef.current = true
 		}
 
-		window.addEventListener('mousemove', handleMouseMove)
-		window.addEventListener('mouseup', handleMouseUp)
+		window.addEventListener('pointermove', handlePointerMove)
+		window.addEventListener('pointerup', handlePointerUp)
 	}
 
 	// Handle tool start
@@ -1458,24 +1552,74 @@ export function PrezilloApp() {
 						onToolEnd={prezillo.activeTool ? handleToolEnd : undefined}
 						onContextReady={handleCanvasContextReady}
 						fixed={
-							<FixedSnapGuides
-								activeSnaps={activeSnaps}
-								allCandidates={snapConfig.debug.enabled ? allCandidates : undefined}
-								config={snapConfig.guides}
-								debugConfig={snapConfig.debug}
-								viewBounds={viewBounds}
-								draggedBounds={
-									tempObjectState
-										? {
-												x: tempObjectState.x,
-												y: tempObjectState.y,
-												width: tempObjectState.width,
-												height: tempObjectState.height,
-												rotation: 0
+							<>
+								<FixedSnapGuides
+									activeSnaps={activeSnaps}
+									allCandidates={
+										snapConfig.debug.enabled ? allCandidates : undefined
+									}
+									config={snapConfig.guides}
+									debugConfig={snapConfig.debug}
+									viewBounds={viewBounds}
+									draggedBounds={
+										tempObjectState
+											? {
+													x: tempObjectState.x,
+													y: tempObjectState.y,
+													width: tempObjectState.width,
+													height: tempObjectState.height,
+													rotation: 0
+												}
+											: undefined
+									}
+								/>
+								{/* Selection box - fixed layer for constant screen size */}
+								{selectionBounds && (
+									<FixedSelectionBox
+										canvasBounds={selectionBounds}
+										rotation={selectedObjectTransform?.rotation ?? 0}
+										pivotX={selectedObjectTransform?.pivotX ?? 0.5}
+										pivotY={selectedObjectTransform?.pivotY ?? 0.5}
+										onResizeStart={handleResizeStart}
+									/>
+								)}
+								{/* Rotation and pivot handles - fixed layer for constant screen size */}
+								{!isReadOnly && selectionBounds && selectedObjectTransform && (
+									<>
+										<FixedRotationHandle
+											canvasBounds={selectionBounds}
+											rotation={selectedObjectTransform.rotation}
+											pivotX={selectedObjectTransform.pivotX}
+											pivotY={selectedObjectTransform.pivotY}
+											onRotateStart={handleRotateStart}
+											onSnapClick={(angle) => {
+												updateObjectRotation(
+													prezillo.yDoc,
+													prezillo.doc,
+													selectedObjectTransform.id,
+													angle
+												)
+											}}
+											isRotating={rotationState.isRotating}
+											isSnapActive={rotationState.isSnapActive}
+										/>
+										<FixedPivotHandle
+											canvasBounds={selectionBounds}
+											rotation={selectedObjectTransform.rotation}
+											pivotX={selectedObjectTransform.pivotX}
+											pivotY={selectedObjectTransform.pivotY}
+											onPivotDragStart={handlePivotDragStart}
+											isDragging={pivotDragState.isDragging}
+											snapEnabled={snapSettings.settings.snapToObjects}
+											snappedPoint={pivotDragState.snappedPoint}
+											canvasOriginalBounds={
+												pivotDragState.originalBounds ?? undefined
 											}
-										: undefined
-								}
-							/>
+											initialPivot={pivotDragState.initialPivot ?? undefined}
+										/>
+									</>
+								)}
+							</>
 						}
 					>
 						{/* Render all views as frames */}
@@ -1663,54 +1807,6 @@ export function PrezilloApp() {
 									</g>
 								)
 							}
-						)}
-
-						{/* Selection box */}
-						{selectionBounds && (
-							<SelectionBox
-								bounds={selectionBounds}
-								rotation={selectedObjectTransform?.rotation ?? 0}
-								pivotX={selectedObjectTransform?.pivotX ?? 0.5}
-								pivotY={selectedObjectTransform?.pivotY ?? 0.5}
-								onResizeStart={handleResizeStart}
-							/>
-						)}
-
-						{/* Rotation and pivot handles (single selection only, hidden in read-only mode) */}
-						{!isReadOnly && selectionBounds && selectedObjectTransform && (
-							<>
-								<RotationHandle
-									bounds={selectionBounds}
-									rotation={selectedObjectTransform.rotation}
-									pivotX={selectedObjectTransform.pivotX}
-									pivotY={selectedObjectTransform.pivotY}
-									scale={1}
-									onRotateStart={handleRotateStart}
-									onSnapClick={(angle) => {
-										updateObjectRotation(
-											prezillo.yDoc,
-											prezillo.doc,
-											selectedObjectTransform.id,
-											angle
-										)
-									}}
-									isRotating={rotationState.isRotating}
-									isSnapActive={rotationState.isSnapActive}
-								/>
-								<PivotHandle
-									bounds={selectionBounds}
-									rotation={selectedObjectTransform.rotation}
-									pivotX={selectedObjectTransform.pivotX}
-									pivotY={selectedObjectTransform.pivotY}
-									scale={1}
-									onPivotDragStart={handlePivotDragStart}
-									isDragging={pivotDragState.isDragging}
-									snapEnabled={snapSettings.settings.snapToObjects}
-									snappedPoint={pivotDragState.snappedPoint}
-									originalBounds={pivotDragState.originalBounds ?? undefined}
-									initialPivot={pivotDragState.initialPivot ?? undefined}
-								/>
-							</>
 						)}
 
 						{/* Tool preview */}

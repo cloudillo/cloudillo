@@ -31,7 +31,7 @@ export interface RotationHandleProps {
 	pivotX: number
 	pivotY: number
 	scale: number // Current canvas zoom scale for consistent handle size
-	onRotateStart: (e: React.MouseEvent) => void
+	onRotateStart: (e: React.PointerEvent) => void
 	onSnapClick?: (angle: number) => void // Called when a snap blob is clicked
 	isRotating?: boolean // Whether rotation drag is currently active
 	isSnapActive?: boolean // Whether snap mode is active (mouse inside inner zone)
@@ -179,7 +179,11 @@ export function RotationHandle({
 				stroke="#0066ff"
 				strokeWidth={2 / scale}
 				style={{ cursor: 'grab' }}
-				onMouseDown={onRotateStart}
+				onPointerDown={(e) => {
+					e.stopPropagation()
+					e.preventDefault()
+					onRotateStart(e)
+				}}
 			/>
 
 			{/* Angle display - shown during rotation */}

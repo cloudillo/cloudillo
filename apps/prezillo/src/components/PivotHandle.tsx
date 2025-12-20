@@ -30,7 +30,7 @@ export interface PivotHandleProps {
 	pivotX: number
 	pivotY: number
 	scale: number // Current canvas zoom scale for consistent handle size
-	onPivotDragStart: (e: React.MouseEvent) => void
+	onPivotDragStart: (e: React.PointerEvent) => void
 	isDragging?: boolean // Whether pivot is being dragged
 	snapEnabled?: boolean // Whether snap to objects is enabled
 	snappedPoint?: { x: number; y: number } | null // Currently snapped point (normalized 0-1)
@@ -172,7 +172,11 @@ export function PivotHandle({
 					r={hitAreaRadius}
 					fill="transparent"
 					style={{ cursor: 'move' }}
-					onMouseDown={onPivotDragStart}
+					onPointerDown={(e) => {
+						e.stopPropagation()
+						e.preventDefault()
+						onPivotDragStart(e)
+					}}
 				/>
 			</g>
 		</g>

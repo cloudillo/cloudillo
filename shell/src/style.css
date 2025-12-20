@@ -261,11 +261,6 @@ body {
 		height: 4rem;
 		justify-content: center;
 	}
-
-	/* Reduce layout height to account for fixed header and bottom nav */
-	.c-layout {
-		height: calc(100% - 3.5rem - 4.5rem); /* header (3.5rem) + bottom nav (4.5rem) */
-	}
 }
 
 .c-app {
@@ -342,6 +337,23 @@ body {
 
 /* On mobile, layout doesn't shift */
 @media (max-width: 1023px) {
+	.c-layout.with-sidebar {
+		margin-left: 0;
+	}
+}
+
+/* Mobile: use fixed positioning to fill space between header and bottom nav */
+@media (max-width: 1199px) {
+	.c-layout {
+		position: fixed;
+		top: 3.5rem;
+		left: 0;
+		right: 0;
+		bottom: 4rem; /* Bottom nav height */
+		height: auto;
+		margin-top: 0;
+	}
+
 	.c-layout.with-sidebar {
 		margin-left: 0;
 	}

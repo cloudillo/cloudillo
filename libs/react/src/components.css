@@ -887,6 +887,100 @@
 	}
 }
 
+/* ==========================================================================
+   BottomSheet Component (Draggable Mobile Panel)
+   ========================================================================== */
+
+.c-bottom-sheet {
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	background-color: lch(from var(--col-container) l c h / var(--op-panel, 0.95));
+	backdrop-filter: blur(var(--blur-radius));
+	border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+	box-shadow:
+		0 -4px 20px rgba(0, 0, 0, 0.15),
+		inset 0px 0px 1rem var(--col-frost);
+	z-index: 9999;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	transition-property: height;
+	transition-timing-function: var(--ease-out);
+	padding-bottom: env(safe-area-inset-bottom, 0);
+	touch-action: none;
+}
+
+.c-bottom-sheet.dragging {
+	transition-duration: 0ms !important;
+}
+
+.c-bottom-sheet-backdrop {
+	position: fixed;
+	inset: 0;
+	background: lch(from var(--col-shadow) l c h / 0.3);
+	backdrop-filter: blur(2px);
+	z-index: calc(var(--z-modal, 600) - 1);
+	opacity: 0;
+	transition-property: opacity;
+	transition-timing-function: var(--ease-default);
+	pointer-events: none;
+}
+
+.c-bottom-sheet-backdrop.show {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+.c-bottom-sheet-handle-area {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: var(--space-3) var(--space-2);
+	cursor: grab;
+	touch-action: none;
+	user-select: none;
+	flex-shrink: 0;
+}
+
+.c-bottom-sheet-handle-area:active {
+	cursor: grabbing;
+}
+
+.c-bottom-sheet-handle {
+	width: 36px;
+	height: 4px;
+	background: var(--col-outline);
+	border-radius: 2px;
+	transition: background var(--duration-fast) var(--ease-default);
+}
+
+.c-bottom-sheet-handle-area:hover .c-bottom-sheet-handle,
+.c-bottom-sheet.dragging .c-bottom-sheet-handle {
+	background: var(--col-secondary);
+}
+
+.c-bottom-sheet-header {
+	padding: 0 var(--space-3) var(--space-2);
+	border-bottom: var(--border-w-sm, 1px) solid var(--col-outline);
+	flex-shrink: 0;
+}
+
+.c-bottom-sheet-content {
+	flex: 1;
+	overflow-y: auto;
+	overflow-x: hidden;
+	-webkit-overflow-scrolling: touch;
+	overscroll-behavior: contain;
+}
+
+/* Prevent content from being selectable during drag */
+.c-bottom-sheet.dragging .c-bottom-sheet-content {
+	pointer-events: none;
+	user-select: none;
+}
+
 /*
  vim: ts=4
  */

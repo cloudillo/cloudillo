@@ -132,4 +132,65 @@ export function useOutsideClick<T extends HTMLElement>(
 	}, [ref, onOutsideClick, enabled])
 }
 
+/**
+ * Hook to detect if viewport matches a media query
+ *
+ * @param query - Media query string (e.g., '(max-width: 768px)')
+ * @returns Whether the media query matches
+ *
+ * @example
+ * const isMobile = useMediaQuery('(max-width: 767px)')
+ * const prefersDark = useMediaQuery('(prefers-color-scheme: dark)')
+ */
+export function useMediaQuery(query: string): boolean {
+	const [matches, setMatches] = React.useState(() => {
+		if (typeof window === 'undefined') return false
+		return window.matchMedia(query).matches
+	})
+
+	React.useEffect(() => {
+		const mediaQuery = window.matchMedia(query)
+
+		const handleChange = (e: MediaQueryListEvent) => {
+			setMatches(e.matches)
+		}
+
+		// Set initial value
+		setMatches(mediaQuery.matches)
+
+		// Listen for changes
+		mediaQuery.addEventListener('change', handleChange)
+		return () => mediaQuery.removeEventListener('change', handleChange)
+	}, [query])
+
+	return matches
+}
+
+/**
+ * Hook to detect if viewport is mobile-sized
+ *
+ * @param breakpoint - Width breakpoint in pixels (default: 768)
+ * @returns Whether viewport width is below the breakpoint
+ *
+ * @example
+ * const isMobile = useIsMobile()
+ * const isSmall = useIsMobile(480)
+ */
+export function useIsMobile(breakpoint = 768): boolean {
+	return useMediaQuery(`(max-width: ${breakpoint - 1}px)`)
+}
+
+/**
+ * Hook to detect if user prefers reduced motion
+ *
+ * @returns Whether user prefers reduced motion
+ *
+ * @example
+ * const prefersReducedMotion = usePrefersReducedMotion()
+ * const duration = prefersReducedMotion ? 0 : 300
+ */
+export function usePrefersReducedMotion(): boolean {
+	return useMediaQuery('(prefers-reduced-motion: reduce)')
+}
+
 // vim: ts=4

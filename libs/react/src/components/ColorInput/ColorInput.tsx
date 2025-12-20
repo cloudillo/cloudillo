@@ -36,8 +36,9 @@ export const ColorInput = createComponent<HTMLDivElement, ColorInputProps>(
 		const [localColor, setLocalColor] = React.useState(value)
 		const [isEditing, setIsEditing] = React.useState(false)
 
-		// Track the latest color during editing for commit on blur
+		// Track the latest color during editing for commit on close
 		const pendingColorRef = React.useRef<string>(value)
+		const debounceTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
 		// Sync local state when external value changes (and we're not actively editing)
 		React.useEffect(() => {
@@ -47,30 +48,46 @@ export const ColorInput = createComponent<HTMLDivElement, ColorInputProps>(
 			}
 		}, [value, isEditing])
 
+		// Cleanup debounce timer on unmount
+		React.useEffect(() => {
+			return () => {
+				if (debounceTimerRef.current) {
+					clearTimeout(debounceTimerRef.current)
+				}
+			}
+		}, [])
+
+		const commitColor = React.useCallback(() => {
+			if (pendingColorRef.current !== value) {
+				onChange?.(pendingColorRef.current)
+			}
+			setIsEditing(false)
+		}, [onChange, value])
+
 		const handleColorDrag = React.useCallback(
 			(e: React.ChangeEvent<HTMLInputElement>) => {
-				// Update local state and call preview callback (for live visual feedback)
-				// This handles both onInput and onChange during drag
+				// Update local state and call preview callback (for live visual feedback during drag)
 				const newColor = e.target.value
-				console.log('[ColorInput] drag:', newColor)
 				setLocalColor(newColor)
 				setIsEditing(true)
 				pendingColorRef.current = newColor
 				onPreview?.(newColor)
+
+				// Debounce: commit after 1s of no changes (picker likely closed)
+				if (debounceTimerRef.current) {
+					clearTimeout(debounceTimerRef.current)
+				}
+				debounceTimerRef.current = setTimeout(commitColor, 1000)
 			},
-			[onPreview]
+			[onPreview, commitColor]
 		)
 
 		const handleColorBlur = React.useCallback(() => {
-			console.log(
-				'[ColorInput] blur, isEditing:',
-				isEditing,
-				'pending:',
-				pendingColorRef.current,
-				'value:',
-				value
-			)
-			// Commit only on blur (when picker closes)
+			// Cancel debounce and commit immediately on blur
+			if (debounceTimerRef.current) {
+				clearTimeout(debounceTimerRef.current)
+				debounceTimerRef.current = null
+			}
 			if (isEditing && pendingColorRef.current !== value) {
 				onChange?.(pendingColorRef.current)
 			}

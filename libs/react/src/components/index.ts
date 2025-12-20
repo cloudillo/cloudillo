@@ -31,7 +31,10 @@ export {
 	useMergedRefs,
 	useBodyScrollLock,
 	useEscapeKey,
-	useOutsideClick
+	useOutsideClick,
+	useMediaQuery,
+	useIsMobile,
+	usePrefersReducedMotion
 } from './hooks.js'
 
 // Types
@@ -309,5 +312,13 @@ export type { TagSuggestion, TagInputProps } from './TagInput/index.js'
 // Accordion Components
 export { Accordion, AccordionItem } from './Accordion/index.js'
 export type { AccordionProps, AccordionItemProps } from './Accordion/index.js'
+
+// BottomSheet Component
+export { BottomSheet } from './BottomSheet/index.js'
+export type {
+	BottomSheetSnapPoint,
+	BottomSheetSnapConfig,
+	BottomSheetProps
+} from './BottomSheet/index.js'
 
 // vim: ts=4

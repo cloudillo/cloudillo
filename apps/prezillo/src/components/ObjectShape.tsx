@@ -34,7 +34,7 @@ export interface ObjectShapeProps {
 	isHovered: boolean
 	onClick: (e: React.MouseEvent) => void
 	onDoubleClick?: (e: React.MouseEvent) => void
-	onMouseDown?: (e: React.MouseEvent) => void
+	onPointerDown?: (e: React.PointerEvent) => void
 	onMouseEnter?: (e: React.MouseEvent) => void
 	onMouseLeave?: (e: React.MouseEvent) => void
 	// Optional bounds override for temporary state during drag/resize/rotate/pivot
@@ -101,7 +101,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 	isHovered,
 	onClick,
 	onDoubleClick,
-	onMouseDown,
+	onPointerDown,
 	onMouseEnter,
 	onMouseLeave,
 	tempBounds
@@ -129,7 +129,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 	const commonProps = {
 		onClick,
 		onDoubleClick,
-		onMouseDown,
+		onPointerDown,
 		onPointerEnter: onMouseEnter,
 		onPointerLeave: onMouseLeave,
 		style: { cursor: 'pointer', pointerEvents: 'all' as const }

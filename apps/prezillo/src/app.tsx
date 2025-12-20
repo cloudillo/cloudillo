@@ -40,6 +40,7 @@ function FixedSnapGuides(props: Omit<SnapGuidesProps, 'transformPoint'>) {
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
+import '@cloudillo/react/components.css'
 import './style.css'
 
 import { usePrezilloDocument, useSnappingConfig, useGetParent, useSnapSettings } from './hooks'
@@ -54,7 +55,12 @@ import { ViewFrame } from './components/ViewFrame'
 import { TextEditOverlay } from './components/TextEditOverlay'
 import { ObjectShape } from './components/ObjectShape'
 import { PresentationMode } from './components/PresentationMode'
-import { PrezilloPropertiesPanel, type PropertyPreview } from './components/PropertiesPanel'
+import {
+	PrezilloPropertiesPanel,
+	MobilePropertyPanel,
+	type PropertyPreview
+} from './components/PropertiesPanel'
+import { useIsMobile, type BottomSheetSnapPoint } from '@cloudillo/react'
 
 import type { ObjectId, ViewId, PrezilloObject, ViewNode, Bounds, YPrezilloDocument } from './crdt'
 import {
@@ -124,8 +130,15 @@ export function PrezilloApp() {
 	// Presentation mode state
 	const [isPresentationMode, setIsPresentationMode] = React.useState(false)
 
-	// Properties panel visibility
+	// Mobile detection
+	const isMobile = useIsMobile()
+
+	// Properties panel visibility (desktop)
 	const [isPanelVisible, setIsPanelVisible] = React.useState(true)
+
+	// Mobile bottom sheet state
+	const [mobileSnapPoint, setMobileSnapPoint] = React.useState<BottomSheetSnapPoint>('closed')
+	const userCollapsedRef = React.useRef(false)
 
 	// Text editing state - which object is being text-edited
 	const [editingTextId, setEditingTextId] = React.useState<ObjectId | null>(null)
@@ -193,6 +206,31 @@ export function PrezilloApp() {
 			)
 		}
 	}, [prezillo.activeViewId])
+
+	// Auto-expand/collapse mobile panel based on selection
+	React.useEffect(() => {
+		if (!isMobile) return
+
+		if (prezillo.selectedIds.size > 0) {
+			// Object selected - expand to peek if not user-collapsed
+			if (!userCollapsedRef.current && mobileSnapPoint === 'closed') {
+				setMobileSnapPoint('peek')
+			}
+		} else {
+			// Deselected - collapse and reset user preference
+			setMobileSnapPoint('closed')
+			userCollapsedRef.current = false
+		}
+	}, [isMobile, prezillo.selectedIds.size, mobileSnapPoint])
+
+	// Handle mobile snap point change (from user gesture)
+	const handleMobileSnapChange = React.useCallback((snapPoint: BottomSheetSnapPoint) => {
+		setMobileSnapPoint(snapPoint)
+		// Track if user manually collapsed
+		if (snapPoint === 'closed') {
+			userCollapsedRef.current = true
+		}
+	}, [])
 
 	// Create spatial objects for snapping
 	const snapObjects = React.useMemo<SnapSpatialObject[]>(() => {
@@ -272,12 +310,12 @@ export function PrezilloApp() {
 		setEditingTextId(null)
 	}
 
-	// Handle object mouse down (start drag)
-	function handleObjectMouseDown(e: React.MouseEvent, objectId: ObjectId) {
+	// Handle object pointer down (start drag) - works for both mouse and touch
+	function handleObjectPointerDown(e: React.PointerEvent, objectId: ObjectId) {
 		// Don't allow drag in read-only mode
 		if (isReadOnly) return
 
-		// Only handle left button
+		// Only handle primary button (left mouse or touch)
 		if (e.button !== 0) return
 
 		// Don't start drag if using a tool
@@ -344,8 +382,8 @@ export function PrezilloApp() {
 			height: obj.wh[1]
 		})
 
-		// Handle drag with window events for smooth dragging
-		const handleMouseMove = (moveEvent: MouseEvent) => {
+		// Handle drag with window events for smooth dragging (pointer events work for both mouse and touch)
+		const handlePointerMove = (moveEvent: PointerEvent) => {
 			const ctx = canvasContextRef.current
 			if (!ctx?.translateTo) return
 
@@ -406,7 +444,7 @@ export function PrezilloApp() {
 			}
 		}
 
-		const handleMouseUp = () => {
+		const handlePointerUp = () => {
 			// Only commit to CRDT if position actually changed
 			if (
 				currentX !== initialDragState.objectStartX ||
@@ -432,12 +470,12 @@ export function PrezilloApp() {
 			// Clear local state
 			setDragState(null)
 			setTempObjectState(null)
-			window.removeEventListener('mousemove', handleMouseMove)
-			window.removeEventListener('mouseup', handleMouseUp)
+			window.removeEventListener('pointermove', handlePointerMove)
+			window.removeEventListener('pointerup', handlePointerUp)
 		}
 
-		window.addEventListener('mousemove', handleMouseMove)
-		window.addEventListener('mouseup', handleMouseUp)
+		window.addEventListener('pointermove', handlePointerMove)
+		window.addEventListener('pointerup', handlePointerUp)
 	}
 
 	// Handle canvas click (deselect)
@@ -1092,8 +1130,8 @@ export function PrezilloApp() {
 			// Start drawing a new shape
 			setToolEvent(evt)
 		}
-		// Note: Dragging selected objects is now handled by ObjectShape's onMouseDown
-		// via handleObjectDragStart, not here
+		// Note: Dragging selected objects is now handled by ObjectShape's onPointerDown
+		// via handleObjectPointerDown, not here
 	}
 
 	// Handle tool move
@@ -1415,9 +1453,9 @@ export function PrezilloApp() {
 					<SvgCanvas
 						ref={canvasRef}
 						className="w-100 h-100"
-						onToolStart={handleToolStart}
-						onToolMove={handleToolMove}
-						onToolEnd={handleToolEnd}
+						onToolStart={prezillo.activeTool ? handleToolStart : undefined}
+						onToolMove={prezillo.activeTool ? handleToolMove : undefined}
+						onToolEnd={prezillo.activeTool ? handleToolEnd : undefined}
 						onContextReady={handleCanvasContextReady}
 						fixed={
 							<FixedSnapGuides
@@ -1522,7 +1560,7 @@ export function PrezilloApp() {
 									isHovered={!hasSelection && isThisHovered}
 									onClick={(e) => handleObjectClick(e, object.id)}
 									onDoubleClick={(e) => handleObjectDoubleClick(e, object.id)}
-									onMouseDown={(e) => handleObjectMouseDown(e, object.id)}
+									onPointerDown={(e) => handleObjectPointerDown(e, object.id)}
 									onMouseEnter={() => setHoveredObjectId(object.id as ObjectId)}
 									onMouseLeave={() => setHoveredObjectId(null)}
 									tempBounds={objectTempBounds}
@@ -1692,7 +1730,8 @@ export function PrezilloApp() {
 					</SvgCanvas>
 				</div>
 
-				{isPanelVisible && !isReadOnly && (
+				{/* Desktop: Sidebar panel */}
+				{!isMobile && isPanelVisible && !isReadOnly && (
 					<PrezilloPropertiesPanel
 						doc={prezillo.doc}
 						yDoc={prezillo.yDoc}
@@ -1705,6 +1744,18 @@ export function PrezilloApp() {
 					/>
 				)}
 			</div>
+
+			{/* Mobile: Bottom sheet panel */}
+			{isMobile && !isReadOnly && (
+				<MobilePropertyPanel
+					doc={prezillo.doc}
+					yDoc={prezillo.yDoc}
+					selectedIds={prezillo.selectedIds}
+					snapPoint={mobileSnapPoint}
+					onSnapChange={handleMobileSnapChange}
+					onPreview={setPropertyPreview}
+				/>
+			)}
 
 			<ViewPicker
 				views={views}

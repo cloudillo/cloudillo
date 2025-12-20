@@ -14,10 +14,11 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-export { PrezilloPropertiesPanel } from './PrezilloPropertiesPanel'
-export type { PrezilloPropertiesPanelProps, PropertyPreview } from './PrezilloPropertiesPanel'
-
-export { MobilePropertyPanel } from './MobilePropertyPanel'
-export type { MobilePropertyPanelProps } from './MobilePropertyPanel'
+export { BottomSheet } from './BottomSheet.js'
+export type {
+	BottomSheetSnapPoint,
+	BottomSheetSnapConfig,
+	BottomSheetProps
+} from './BottomSheet.js'
 
 // vim: ts=4

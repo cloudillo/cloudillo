@@ -85,11 +85,14 @@ export async function registerServiceWorker(
 	try {
 		const existingReg = await navigator.serviceWorker.getRegistration()
 
-		// Check if existing SW already has the same encryption key
+		// Check if existing SW already has the same version and encryption key
 		if (existingReg?.active) {
 			const existingUrl = existingReg.active.scriptURL
-			if (existingUrl.includes(`key=${swEncryptionKey}`)) {
-				// Same key - just update token without re-registering
+			if (
+				existingUrl.includes(swBasePath) &&
+				existingUrl.includes(`key=${swEncryptionKey}`)
+			) {
+				// Same version and key - just update token without re-registering
 				serviceWorker = existingReg
 				if (authToken) {
 					// Use the active worker directly instead of controller
@@ -103,8 +106,8 @@ export async function registerServiceWorker(
 				}
 				return
 			}
-			// Different key - need to re-register
-			console.log('[PWA] Encryption key changed, re-registering SW')
+			// Different version or key - need to re-register
+			console.log('[PWA] SW version or key changed, re-registering')
 			await existingReg.unregister()
 		}
 

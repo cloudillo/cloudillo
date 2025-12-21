@@ -750,7 +750,7 @@ export interface VerifyCommunityRequest {
 export const tCommunityProfileResponse = T.struct({
 	idTag: T.string,
 	name: T.string,
-	profileType: T.literal('community'),
+	type: T.literal('community'),
 	createdAt: T.number
 })
 export type CommunityProfileResponse = T.TypeOf<typeof tCommunityProfileResponse>

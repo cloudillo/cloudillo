@@ -1,0 +1,600 @@
+/* Ideallo - Collaborative Whiteboard Styles */
+
+/* Ensure full viewport height (opalui doesn't set these) */
+html,
+body,
+#app {
+	height: 100%;
+}
+
+.ideallo-app {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	outline: none;
+	overflow: hidden;
+}
+
+/* Loading state */
+.ideallo-loading {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	gap: 16px;
+	color: #666;
+	font-family: system-ui, -apple-system, sans-serif;
+}
+
+.ideallo-loading-spinner {
+	width: 32px;
+	height: 32px;
+	border: 3px solid #e0e0e0;
+	border-top-color: #1971c2;
+	border-radius: 50%;
+	animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* Canvas fills the available space */
+.ideallo-app > svg {
+	flex: 1;
+	min-height: 0;
+}
+
+/* Tool-specific cursors */
+.ideallo-app[data-tool='select'] > svg {
+	cursor: default;
+}
+
+.ideallo-app[data-tool='pen'] > svg {
+	cursor: crosshair;
+}
+
+.ideallo-app[data-tool='rect'] > svg,
+.ideallo-app[data-tool='ellipse'] > svg,
+.ideallo-app[data-tool='line'] > svg,
+.ideallo-app[data-tool='arrow'] > svg {
+	cursor: crosshair;
+}
+
+.ideallo-app[data-tool='text'] > svg {
+	cursor: text;
+}
+
+.ideallo-app[data-tool='eraser'] > svg {
+	cursor: none; /* Hide default cursor, we render custom SVG cursor */
+}
+
+/* Floating toolbar at bottom center */
+.ideallo-toolbar {
+	position: fixed;
+	bottom: 16px;
+	left: 50%;
+	transform: translateX(-50%);
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 8px;
+	background: rgba(255, 255, 255, 0.9);
+	backdrop-filter: blur(10px);
+	-webkit-backdrop-filter: blur(10px);
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: 12px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+	z-index: 100;
+}
+
+.ideallo-tool-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	padding: 0;
+	border: none;
+	border-radius: 8px;
+	background: transparent;
+	color: #333;
+	cursor: pointer;
+	transition:
+		background-color 0.15s,
+		transform 0.1s;
+}
+
+.ideallo-tool-btn:hover {
+	background: rgba(0, 0, 0, 0.05);
+}
+
+.ideallo-tool-btn:active {
+	transform: scale(0.95);
+}
+
+.ideallo-tool-btn.active {
+	background: rgba(25, 113, 194, 0.15);
+	color: #1971c2;
+}
+
+.ideallo-tool-btn:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.ideallo-tool-btn:disabled:hover {
+	background: transparent;
+}
+
+.ideallo-toolbar-divider {
+	width: 1px;
+	height: 24px;
+	margin: 0 4px;
+	background: rgba(0, 0, 0, 0.1);
+}
+
+/* Status indicator in top-right */
+.ideallo-status {
+	position: fixed;
+	top: 16px;
+	right: 16px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	background: rgba(255, 255, 255, 0.9);
+	backdrop-filter: blur(10px);
+	-webkit-backdrop-filter: blur(10px);
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: 8px;
+	font-family: system-ui, -apple-system, sans-serif;
+	font-size: 13px;
+	color: #666;
+	z-index: 100;
+}
+
+.ideallo-users {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.ideallo-users::before {
+	content: '';
+	display: block;
+	width: 8px;
+	height: 8px;
+	background: #2f9e44;
+	border-radius: 50%;
+}
+
+/* Zoom controls in bottom-left */
+.ideallo-zoom-controls {
+	position: fixed;
+	bottom: 16px;
+	left: 16px;
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	padding: 4px;
+	background: rgba(255, 255, 255, 0.9);
+	backdrop-filter: blur(10px);
+	-webkit-backdrop-filter: blur(10px);
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: 8px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+	z-index: 100;
+}
+
+.ideallo-zoom-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: none;
+	border-radius: 6px;
+	background: transparent;
+	color: #333;
+	cursor: pointer;
+	transition: background-color 0.15s;
+}
+
+.ideallo-zoom-btn:hover {
+	background: rgba(0, 0, 0, 0.05);
+}
+
+.ideallo-zoom-btn:active {
+	background: rgba(0, 0, 0, 0.1);
+}
+
+.ideallo-zoom-btn:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.ideallo-zoom-btn:disabled:hover {
+	background: transparent;
+}
+
+.ideallo-zoom-level {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 50px;
+	height: 28px;
+	padding: 0 4px;
+	border: none;
+	border-radius: 4px;
+	background: transparent;
+	color: #333;
+	font-family: system-ui, -apple-system, sans-serif;
+	font-size: 12px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: background-color 0.15s;
+}
+
+.ideallo-zoom-level:hover {
+	background: rgba(0, 0, 0, 0.05);
+}
+
+/* Floating property bar above selection */
+.ideallo-property-bar {
+	position: fixed;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	background: rgba(255, 255, 255, 0.9);
+	backdrop-filter: blur(10px);
+	-webkit-backdrop-filter: blur(10px);
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: 8px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+	z-index: 100;
+	pointer-events: auto;
+}
+
+.ideallo-property-group {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.ideallo-property-label {
+	font-family: system-ui, -apple-system, sans-serif;
+	font-size: 12px;
+	font-weight: 500;
+	color: #666;
+	user-select: none;
+}
+
+.ideallo-property-divider {
+	width: 1px;
+	height: 24px;
+	background: rgba(0, 0, 0, 0.1);
+}
+
+/* Fill toggle button */
+.ideallo-fill-toggle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: 1px solid rgba(0, 0, 0, 0.15);
+	border-radius: 4px;
+	background: #fff;
+	cursor: pointer;
+	transition: border-color 0.15s;
+}
+
+.ideallo-fill-toggle:hover {
+	border-color: rgba(0, 0, 0, 0.3);
+}
+
+.ideallo-fill-toggle.active {
+	border-color: #1971c2;
+}
+
+.ideallo-fill-swatch {
+	width: 16px;
+	height: 16px;
+	border-radius: 2px;
+	border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.ideallo-fill-none {
+	width: 16px;
+	height: 16px;
+	position: relative;
+	border-radius: 2px;
+	border: 1px solid rgba(0, 0, 0, 0.15);
+	background: linear-gradient(45deg, transparent 45%, #e03131 45%, #e03131 55%, transparent 55%);
+}
+
+/* Color input sizing */
+.ideallo-property-bar .c-color-input-picker {
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: 1px solid rgba(0, 0, 0, 0.15);
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+/* Number input sizing */
+.ideallo-property-bar .c-number-input {
+	height: 28px;
+}
+
+.ideallo-property-bar .c-number-input .c-input {
+	height: 28px;
+	padding: 0 4px;
+	font-size: 12px;
+	border-radius: 4px;
+}
+
+.ideallo-property-bar .c-number-input-suffix {
+	font-size: 11px;
+	color: #888;
+	margin-left: -2px;
+}
+
+/* ============================================
+   Color Palette Variables
+   ============================================ */
+
+:root {
+	/* Neutrals (light mode: black → white) */
+	--palette-n0: hsl(0, 0%, 0%);
+	--palette-n1: hsl(0, 0%, 25%);
+	--palette-n2: hsl(0, 0%, 50%);
+	--palette-n3: hsl(0, 0%, 75%);
+	--palette-n4: hsl(0, 0%, 90%);
+	--palette-n5: hsl(0, 0%, 100%);
+
+	/* Normal colors (50% L, 70% S) */
+	--palette-red: hsl(0, 70%, 50%);
+	--palette-orange: hsl(30, 70%, 50%);
+	--palette-yellow: hsl(50, 70%, 50%);
+	--palette-green: hsl(140, 70%, 40%);
+	--palette-cyan: hsl(180, 70%, 40%);
+	--palette-blue: hsl(220, 70%, 50%);
+	--palette-purple: hsl(270, 70%, 50%);
+	--palette-pink: hsl(330, 70%, 50%);
+
+	/* Pastel colors (75% L, 60% S) */
+	--palette-red-p: hsl(0, 60%, 75%);
+	--palette-orange-p: hsl(30, 60%, 75%);
+	--palette-yellow-p: hsl(50, 60%, 80%);
+	--palette-green-p: hsl(140, 60%, 75%);
+	--palette-cyan-p: hsl(180, 60%, 75%);
+	--palette-blue-p: hsl(220, 60%, 75%);
+	--palette-purple-p: hsl(270, 60%, 75%);
+	--palette-pink-p: hsl(330, 60%, 75%);
+}
+
+.dark {
+	/* Neutrals inverted (white → black) */
+	--palette-n0: hsl(0, 0%, 100%);
+	--palette-n1: hsl(0, 0%, 75%);
+	--palette-n2: hsl(0, 0%, 50%);
+	--palette-n3: hsl(0, 0%, 25%);
+	--palette-n4: hsl(0, 0%, 10%);
+	--palette-n5: hsl(0, 0%, 0%);
+
+	/* Normal colors unchanged (50% L) */
+
+	/* Pastel → Dark tints (25% L) */
+	--palette-red-p: hsl(0, 60%, 25%);
+	--palette-orange-p: hsl(30, 60%, 25%);
+	--palette-yellow-p: hsl(50, 60%, 30%);
+	--palette-green-p: hsl(140, 60%, 25%);
+	--palette-cyan-p: hsl(180, 60%, 25%);
+	--palette-blue-p: hsl(220, 60%, 25%);
+	--palette-purple-p: hsl(270, 60%, 25%);
+	--palette-pink-p: hsl(330, 60%, 25%);
+}
+
+/* ============================================
+   Color Palette Component
+   ============================================ */
+
+.ideallo-color-palette {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 8px;
+	background: var(--col-container, #fff);
+	border-radius: 8px;
+	min-width: 200px;
+}
+
+.palette-row {
+	display: flex;
+	gap: 4px;
+}
+
+.palette-swatch {
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: 1px solid rgba(0, 0, 0, 0.15);
+	border-radius: 4px;
+	cursor: pointer;
+	transition: transform 0.1s;
+}
+
+.palette-swatch:hover {
+	transform: scale(1.15);
+	z-index: 1;
+}
+
+.palette-swatch.selected {
+	outline: 2px solid var(--col-primary, #1971c2);
+	outline-offset: 1px;
+}
+
+.palette-swatch.transparent {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background:
+		linear-gradient(45deg, #ccc 25%, transparent 25%),
+		linear-gradient(-45deg, #ccc 25%, transparent 25%),
+		linear-gradient(45deg, transparent 75%, #ccc 75%),
+		linear-gradient(-45deg, transparent 75%, #ccc 75%);
+	background-size: 8px 8px;
+	background-position:
+		0 0,
+		0 4px,
+		4px -4px,
+		-4px 0;
+}
+
+.swatch-none {
+	color: #e03131;
+	font-weight: bold;
+	font-size: 14px;
+}
+
+.palette-hex {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding-top: 6px;
+	margin-top: 2px;
+	border-top: 1px solid rgba(0, 0, 0, 0.1);
+	font-family: system-ui, -apple-system, sans-serif;
+	font-size: 12px;
+	color: #666;
+}
+
+.palette-hex input {
+	width: 70px;
+	padding: 4px 6px;
+	border: 1px solid rgba(0, 0, 0, 0.15);
+	border-radius: 4px;
+	font-family: monospace;
+	font-size: 12px;
+	background: var(--col-surface, #fff);
+	color: var(--col-on-surface, #333);
+}
+
+.palette-hex input:focus {
+	outline: 2px solid var(--col-primary, #1971c2);
+	outline-offset: -1px;
+}
+
+/* Color swatch button in property bar */
+.palette-swatch-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: 1px solid rgba(0, 0, 0, 0.15);
+	border-radius: 4px;
+	cursor: pointer;
+	transition: border-color 0.15s;
+}
+
+.palette-swatch-btn:hover {
+	border-color: rgba(0, 0, 0, 0.3);
+}
+
+.palette-swatch-btn.transparent {
+	background:
+		linear-gradient(45deg, #ccc 25%, transparent 25%),
+		linear-gradient(-45deg, #ccc 25%, transparent 25%),
+		linear-gradient(45deg, transparent 75%, #ccc 75%),
+		linear-gradient(-45deg, transparent 75%, #ccc 75%);
+	background-size: 8px 8px;
+	background-position:
+		0 0,
+		0 4px,
+		4px -4px,
+		-4px 0;
+}
+
+/* Dark mode adjustments */
+.dark .palette-swatch {
+	border-color: rgba(255, 255, 255, 0.15);
+}
+
+.dark .palette-swatch-btn {
+	border-color: rgba(255, 255, 255, 0.15);
+}
+
+.dark .palette-swatch-btn:hover {
+	border-color: rgba(255, 255, 255, 0.3);
+}
+
+.dark .palette-hex {
+	border-top-color: rgba(255, 255, 255, 0.1);
+	color: #aaa;
+}
+
+.dark .palette-hex input {
+	border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* ============================================
+   Eraser Tool Highlight Effect
+   ============================================ */
+
+.eraser-highlighted {
+	opacity: 0.5;
+	filter: drop-shadow(0 0 4px rgba(255, 100, 100, 0.7));
+}
+
+.eraser-highlighted path,
+.eraser-highlighted rect,
+.eraser-highlighted ellipse,
+.eraser-highlighted line,
+.eraser-highlighted polygon,
+.eraser-highlighted text {
+	stroke: #ff6666 !important;
+}
+
+/* Eraser cursor styling */
+.eraser-cursor {
+	pointer-events: none;
+}
+
+/* Color picker with popover */
+.ideallo-color-picker {
+	position: relative;
+}
+
+.ideallo-color-popover {
+	position: absolute;
+	top: 100%;
+	left: 50%;
+	transform: translateX(-50%);
+	margin-top: 8px;
+	z-index: 200;
+}
+
+.ideallo-color-popover .ideallo-color-palette {
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+	border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.dark .ideallo-color-popover .ideallo-color-palette {
+	border-color: rgba(255, 255, 255, 0.1);
+	background: var(--col-container, #2a2a2a);
+}
+
+/* vim: ts=4 */

@@ -26,6 +26,10 @@ const APP_CONFIG: AppConfigState = {
 			url: '/apps/calcillo/index.html'
 		},
 		{
+			id: 'ideallo',
+			url: '/apps/ideallo/index.html'
+		},
+		{
 			id: 'prezillo',
 			url: '/apps/prezillo/index.html',
 			trust: false
@@ -49,6 +53,7 @@ const APP_CONFIG: AppConfigState = {
 		'application/pdf': '/app/view',
 		'cloudillo/quillo': '/app/quillo',
 		'cloudillo/calcillo': '/app/calcillo',
+		'cloudillo/ideallo': '/app/ideallo',
 		'cloudillo/prezillo': '/app/prezillo',
 		'cloudillo/formillo': '/app/formillo',
 		'cloudillo/taskillo': '/app/taskillo'
@@ -782,6 +787,18 @@ export function Layout() {
 					try {
 						const res = await currentApi.auth.getAccessToken({
 							scope: `${resId}:${access === 'read' ? 'R' : 'W'}`
+						})
+						return res ? { token: res.token } : undefined
+					} catch {
+						return undefined
+					}
+				},
+				refreshTokenByRef: async (refId) => {
+					const currentApi = apiRef.current
+					if (!currentApi) return undefined
+					try {
+						const res = await currentApi.auth.getAccessTokenByRef(refId, {
+							refresh: true
 						})
 						return res ? { token: res.token } : undefined
 					} catch {

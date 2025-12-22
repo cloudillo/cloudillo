@@ -203,7 +203,7 @@ export const Sidebar = React.memo(function Sidebar({
 								<li>
 									<Button
 										navItem
-										disabled={true || process.env.NODE_ENV === 'production'}
+										//										disabled={true || process.env.NODE_ENV === 'production'}
 										onClick={() => createFile('cloudillo/ideallo')}
 									>
 										{React.createElement<

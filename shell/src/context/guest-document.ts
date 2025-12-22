@@ -25,6 +25,7 @@ export interface GuestDocumentInfo {
 	token: string
 	accessLevel: 'read' | 'write'
 	ownerIdTag: string
+	guestName?: string // Guest display name for awareness
 }
 
 export const guestDocumentAtom = atom<GuestDocumentInfo | null>(null)

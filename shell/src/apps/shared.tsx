@@ -26,10 +26,12 @@ import { createApiClient, FileView, RefAccessTokenResult, getFileUrl } from '@cl
 import { useAppConfig } from '../utils.js'
 import { useGuestDocument } from '../context/index.js'
 import { MicrofrontendContainer } from './index.js'
+import { GuestNameDialog } from '../components/GuestNameDialog.js'
 
 type SharedState =
 	| { status: 'loading' }
 	| { status: 'error'; code: string; message: string }
+	| { status: 'awaiting-name'; tokenResult: RefAccessTokenResult; file: FileView }
 	| { status: 'ready'; tokenResult: RefAccessTokenResult; file: FileView }
 
 /**
@@ -50,6 +52,7 @@ export function SharedResourceView() {
 	const { api } = useApi()
 	const [appConfig] = useAppConfig()
 	const [state, setState] = React.useState<SharedState>({ status: 'loading' })
+	const [guestName, setGuestName] = React.useState<string | undefined>(undefined)
 	const [, setGuestDocument] = useGuestDocument()
 
 	React.useEffect(
@@ -78,11 +81,16 @@ export function SharedResourceView() {
 						return
 					}
 
-					setState({
-						status: 'ready',
-						tokenResult,
-						file: files[0]
-					})
+					const file = files[0]
+					const fileTp = file.fileTp || 'BLOB'
+
+					// For CRDT/RTDB files, always show guest name dialog
+					if (fileTp === 'CRDT' || fileTp === 'RTDB') {
+						setState({ status: 'awaiting-name', tokenResult, file })
+					} else {
+						// BLOB files don't need guest name
+						setState({ status: 'ready', tokenResult, file })
+					}
 				} catch (err: any) {
 					console.error('[SharedResourceView] Error:', err)
 					const code = err?.code || 'UNKNOWN'
@@ -125,13 +133,26 @@ export function SharedResourceView() {
 						resId,
 						token: tokenResult.token,
 						accessLevel: tokenResult.accessLevel,
-						ownerIdTag: api.idTag
+						ownerIdTag: api.idTag,
+						guestName
 					})
 				}
 			}
 		},
-		[state, appConfig, api?.idTag, setGuestDocument]
+		[state, appConfig, api?.idTag, setGuestDocument, guestName]
 	)
+
+	// Handle guest name confirmation
+	const handleGuestNameConfirm = (name: string) => {
+		setGuestName(name)
+		if (state.status === 'awaiting-name') {
+			setState({
+				status: 'ready',
+				tokenResult: state.tokenResult,
+				file: state.file
+			})
+		}
+	}
 
 	if (state.status === 'loading') {
 		return (
@@ -149,6 +170,11 @@ export function SharedResourceView() {
 				<p className="text-secondary">{state.message}</p>
 			</div>
 		)
+	}
+
+	// Show dialog when awaiting guest name
+	if (state.status === 'awaiting-name') {
+		return <GuestNameDialog open={true} onConfirm={handleGuestNameConfirm} />
 	}
 
 	const { tokenResult, file } = state
@@ -177,6 +203,8 @@ export function SharedResourceView() {
 						trust={app.trust}
 						access={access}
 						token={tokenResult.token}
+						refId={refId}
+						guestName={guestName}
 					/>
 				)
 			}

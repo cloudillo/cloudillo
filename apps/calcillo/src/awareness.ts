@@ -24,9 +24,13 @@ export interface UserPresence {
 /**
  * Initialize user presence
  */
-export async function initAwareness(awareness: Awareness, userId: string): Promise<void> {
+export async function initAwareness(
+	awareness: Awareness,
+	userId: string,
+	displayName?: string
+): Promise<void> {
 	awareness.setLocalStateField('user', {
-		name: userId,
+		name: displayName || userId || 'Anonymous',
 		color: await str2color(userId)
 	})
 }
@@ -149,10 +153,11 @@ function createDebouncedCursorUpdate(
 export function setupAwareness(
 	awareness: Awareness,
 	workbook: WorkbookInstance,
-	userId: string
+	userId: string,
+	displayName?: string
 ): () => void {
 	// Initialize
-	initAwareness(awareness, userId)
+	initAwareness(awareness, userId, displayName)
 
 	// Listen to awareness changes
 	const awarenessHandler = (evt: { added: number[]; updated: number[]; removed: number[] }) => {

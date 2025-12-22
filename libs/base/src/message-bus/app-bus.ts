@@ -63,6 +63,8 @@ export interface AppState {
 	tokenLifetime?: number
 	/** Theme name */
 	theme: string
+	/** Display name for anonymous guests (used in awareness) */
+	displayName?: string
 }
 
 // ============================================
@@ -186,6 +188,11 @@ export class AppMessageBus extends MessageBusBase {
 		return this.state.tokenLifetime
 	}
 
+	/** Display name for anonymous guests (used in awareness) */
+	get displayName(): string | undefined {
+		return this.state.displayName
+	}
+
 	/** Get full state (readonly) */
 	getState(): Readonly<AppState> {
 		return { ...this.state }
@@ -236,7 +243,8 @@ export class AppMessageBus extends MessageBusBase {
 				access: initData.access || 'write',
 				darkMode: !!initData.darkMode,
 				tokenLifetime: initData.tokenLifetime,
-				theme: initData.theme
+				theme: initData.theme,
+				displayName: initData.displayName
 			}
 
 			// Apply theme to document
@@ -262,7 +270,8 @@ export class AppMessageBus extends MessageBusBase {
 				access: msg.payload.access || 'write',
 				darkMode: !!msg.payload.darkMode,
 				tokenLifetime: msg.payload.tokenLifetime,
-				theme: msg.payload.theme
+				theme: msg.payload.theme,
+				displayName: msg.payload.displayName
 			}
 			this.applyTheme()
 			this.initialized = true

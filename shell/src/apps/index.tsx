@@ -41,6 +41,8 @@ interface MicrofrontendContainerProps {
 	trust?: TrustLevel | boolean
 	access?: 'read' | 'write'
 	token?: string // Optional pre-fetched token (for guest access via share links)
+	refId?: string // Share link ref ID for guest token refresh
+	guestName?: string // Optional guest display name for awareness
 }
 
 /**
@@ -86,7 +88,9 @@ export function MicrofrontendContainer({
 	appUrl,
 	trust,
 	access,
-	token: providedToken
+	token: providedToken,
+	refId,
+	guestName
 }: MicrofrontendContainerProps) {
 	const ref = React.useRef<HTMLIFrameElement>(null)
 	const { api, setIdTag } = useApi()
@@ -167,9 +171,22 @@ export function MicrofrontendContainer({
 					? Promise.resolve({ token: providedToken })
 					: requestToken().then((token) => ({ token }))
 
+				const shellBus = getShellBus()
+
+				// Set pending registration BEFORE loading iframe
+				// This ensures token/refId is available when auth:init.req arrives
+				if (shellBus && resId && (providedToken || refId)) {
+					shellBus.setPendingRegistration(resId, {
+						token: providedToken,
+						refId,
+						access: access || 'write',
+						idTag: contextIdTag,
+						displayName: guestName
+					})
+				}
+
 				ref.current?.addEventListener('load', async function onMicrofrontendLoad() {
-					// Pre-register app with resId IMMEDIATELY on load
-					// This must happen before the app sends auth:init.req
+					// Pre-register app with resId on load (also updates if already registered)
 					// Note: contentWindow changes when src is set, so we must get it here
 					const currentShellBus = getShellBus()
 					const currentAppWindow = ref.current?.contentWindow
@@ -180,12 +197,14 @@ export function MicrofrontendContainer({
 						return
 					}
 
-					// Pre-register with resId so auth:init.req can get a token
+					// Pre-register/update with Window reference now that we have it
 					currentShellBus.preRegisterApp(currentAppWindow, {
 						appName: app,
 						resId,
 						idTag: contextIdTag,
-						access: access || 'write'
+						access: access || 'write',
+						token: providedToken,
+						refId
 					})
 
 					await delay(100) // FIXME (wait for app to start)
@@ -199,7 +218,8 @@ export function MicrofrontendContainer({
 							darkMode: document.body.classList.contains('dark'),
 							token: res.token,
 							access: access || 'write',
-							resId
+							resId,
+							displayName: guestName
 						})
 						// Schedule proactive token renewal
 						if (res.token) {
@@ -217,7 +237,19 @@ export function MicrofrontendContainer({
 				setUrl(`${appUrl}#${resId}`)
 			}
 		},
-		[api, auth, app, resId, contextIdTag, access, providedToken, requestToken, scheduleRenewal]
+		[
+			api,
+			auth,
+			app,
+			resId,
+			contextIdTag,
+			access,
+			providedToken,
+			refId,
+			guestName,
+			requestToken,
+			scheduleRenewal
+		]
 	)
 
 	return (
@@ -258,9 +290,10 @@ function ExternalApp({ className }: { className?: string }) {
 	const searchParams = new URLSearchParams(location.search)
 	const access = searchParams.get('access') === 'read' ? 'read' : 'write'
 
-	// Check if this is a guest document navigation and pass the stored token
+	// Check if this is a guest document navigation and pass the stored token/name
 	const isGuestAccess = guestDocument && resId === guestDocument.resId
 	const guestToken = isGuestAccess ? guestDocument.token : undefined
+	const guestName = isGuestAccess ? guestDocument.guestName : undefined
 
 	return (
 		!!app && (
@@ -272,6 +305,7 @@ function ExternalApp({ className }: { className?: string }) {
 				trust={app.trust}
 				access={access}
 				token={guestToken}
+				guestName={guestName}
 			/>
 		)
 	)

@@ -103,8 +103,8 @@ export class WebSocketManager {
 					reject(error)
 				}
 
-				this.ws.onclose = () => {
-					this.handleDisconnect()
+				this.ws.onclose = (event: CloseEvent) => {
+					this.handleDisconnect(event.code, event.reason)
 				}
 
 				// Timeout for connection
@@ -335,10 +335,18 @@ export class WebSocketManager {
 		}
 	}
 
-	private handleDisconnect(): void {
-		this.log('Disconnected from server')
+	private handleDisconnect(code?: number, reason?: string): void {
+		this.log('Disconnected from server', { code, reason })
 		this.connected = false
 		this.stopPingInterval()
+
+		// Don't reconnect on auth/resource errors from backend:
+		// 4401 = Unauthorized, 4403 = Access denied, 4404 = Not found
+		if (code !== undefined && code >= 4400 && code < 4500) {
+			this.log('Auth/resource error, not reconnecting', { code, reason })
+			this.handleError(new AuthError(`Connection closed: ${reason || 'auth error'}`))
+			return
+		}
 
 		if (this.options.reconnect) {
 			this.attemptReconnect()
@@ -428,6 +436,18 @@ export class WebSocketManager {
 
 	getSubscriptionCount(): number {
 		return this.subscriptions.size
+	}
+
+	/**
+	 * Stop any pending reconnection attempts and disable auto-reconnect.
+	 * Call this when you want to permanently stop the connection.
+	 */
+	stopReconnection(): void {
+		if (this.reconnectTimeout) {
+			clearTimeout(this.reconnectTimeout)
+			this.reconnectTimeout = null
+		}
+		this.options = { ...this.options, reconnect: false }
 	}
 }
 

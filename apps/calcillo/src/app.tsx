@@ -81,11 +81,18 @@ export function CalcilloApp() {
 			cloudillo.provider.awareness,
 			workbookInstance,
 			// Use unique client ID for awareness to distinguish same-user clients
-			`${cloudillo.idTag ?? 'anonymous'} (${awarenessClientId.slice(-4)})`
+			`${cloudillo.idTag ?? 'anonymous'} (${awarenessClientId.slice(-4)})`,
+			cloudillo.displayName
 		)
 
 		return cleanup
-	}, [cloudillo.provider, workbookInstance, awarenessClientId, cloudillo.idTag])
+	}, [
+		cloudillo.provider,
+		workbookInstance,
+		awarenessClientId,
+		cloudillo.idTag,
+		cloudillo.displayName
+	])
 
 	// Load initial data and setup observers
 	React.useEffect(() => {

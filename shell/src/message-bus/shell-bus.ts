@@ -72,6 +72,8 @@ export interface TokenResult {
 export interface ShellMessageBusConfig extends Partial<MessageBusConfig> {
 	/** Get access token for a resource */
 	getAccessToken: (resId: string, access: 'read' | 'write') => Promise<TokenResult | undefined>
+	/** Refresh token using share link refId (for guest access) */
+	refreshTokenByRef?: (refId: string) => Promise<TokenResult | undefined>
 	/** Get current auth state */
 	getAuthState: () => AuthState | null
 	/** Get current theme state */
@@ -150,6 +152,30 @@ export class ShellMessageBus extends MessageBusBase {
 		access: 'read' | 'write'
 	): Promise<TokenResult | undefined> {
 		return this.shellConfig.getAccessToken(resId, access)
+	}
+
+	/**
+	 * Refresh token using share link refId (for guest access)
+	 */
+	async refreshTokenByRef(refId: string): Promise<TokenResult | undefined> {
+		return this.shellConfig.refreshTokenByRef?.(refId)
+	}
+
+	/**
+	 * Set a pending registration for an app before it loads.
+	 * This stores token/refId keyed by resId so auth:init.req can find it.
+	 */
+	setPendingRegistration(
+		resId: string,
+		data: {
+			token?: string
+			refId?: string
+			access?: 'read' | 'write'
+			idTag?: string
+			displayName?: string
+		}
+	): void {
+		this.appTracker.setPendingRegistration(resId, data)
 	}
 
 	// ============================================
@@ -272,15 +298,28 @@ export class ShellMessageBus extends MessageBusBase {
 			resId?: string
 			idTag?: string
 			access?: 'read' | 'write'
+			token?: string
+			refId?: string
 		}
 	): void {
-		if (!this.appTracker.isKnownApp(appWindow)) {
+		const existing = this.appTracker.getApp(appWindow)
+		if (existing) {
+			// Update existing connection with token/refId (may have been created by early auth:init.req)
+			if (options.token) existing.token = options.token
+			if (options.refId) existing.refId = options.refId
+			if (options.appName) existing.appName = options.appName
+			if (options.idTag) existing.idTag = options.idTag
+			if (options.access) existing.access = options.access
+			this.log('Updated existing app registration:', options.appName, options.resId)
+		} else {
 			this.appTracker.registerApp({
 				window: appWindow,
 				appName: options.appName,
 				resId: options.resId,
 				idTag: options.idTag,
-				access: options.access
+				access: options.access,
+				token: options.token,
+				refId: options.refId
 			})
 			this.log('Pre-registered app:', options.appName, options.resId)
 		}
@@ -302,6 +341,7 @@ export class ShellMessageBus extends MessageBusBase {
 			darkMode?: boolean
 			tokenLifetime?: number
 			resId?: string
+			displayName?: string
 		}
 	): void {
 		// Register if not already (with resId for token fetching)
@@ -326,7 +366,8 @@ export class ShellMessageBus extends MessageBusBase {
 			darkMode: data.darkMode,
 			token: data.token,
 			access: data.access || 'write',
-			tokenLifetime: data.tokenLifetime
+			tokenLifetime: data.tokenLifetime,
+			displayName: data.displayName
 		})
 	}
 

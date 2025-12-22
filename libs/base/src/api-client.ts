@@ -156,11 +156,12 @@ export class ApiClient {
 		/**
 		 * GET /auth/access-token?refId={refId} - Exchange ref for scoped access token (unauthenticated)
 		 * @param refId - Reference ID for shared resource
+		 * @param options - Optional parameters (refresh: true to refresh without consuming usage count)
 		 * @returns Scoped token with expiry
 		 */
-		getAccessTokenByRef: (refId: string) =>
+		getAccessTokenByRef: (refId: string, options?: { refresh?: boolean }) =>
 			this.request('GET', '/auth/access-token', Types.tRefAccessTokenResult, {
-				query: { refId }
+				query: { refId, refresh: options?.refresh }
 			}),
 
 		/**

@@ -54,7 +54,7 @@ import { getAppBus, openYDoc, str2color } from '@cloudillo/base'
 	const yDoc = new Y.Doc()
 	const doc = await openYDoc(yDoc, docId)
 	doc.provider.awareness.setLocalStateField('user', {
-		name: bus.idTag,
+		name: bus.displayName || bus.idTag || 'Anonymous',
 		color: await str2color(bus.idTag ?? '', 40, 70, bus.darkMode)
 	})
 	/*

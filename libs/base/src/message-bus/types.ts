@@ -92,7 +92,8 @@ export const tAuthInitRes = T.struct({
 			darkMode: T.optional(T.boolean),
 			token: T.optional(T.string),
 			access: T.optional(T.literal('read', 'write')),
-			tokenLifetime: T.optional(T.number)
+			tokenLifetime: T.optional(T.number),
+			displayName: T.optional(T.string)
 		})
 	),
 	error: T.optional(T.string)
@@ -164,7 +165,8 @@ export const tAuthInitPush = T.struct({
 		darkMode: T.optional(T.boolean),
 		token: T.optional(T.string),
 		access: T.optional(T.literal('read', 'write')),
-		tokenLifetime: T.optional(T.number)
+		tokenLifetime: T.optional(T.number),
+		displayName: T.optional(T.string)
 	})
 })
 export type AuthInitPush = T.TypeOf<typeof tAuthInitPush>

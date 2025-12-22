@@ -144,6 +144,7 @@ interface UseCloudillo {
 	tnId?: number
 	roles?: string[]
 	access?: 'read' | 'write'
+	displayName?: string
 }
 
 export function useCloudillo(appNameArg?: string): UseCloudillo {
@@ -190,7 +191,8 @@ export function useCloudillo(appNameArg?: string): UseCloudillo {
 			fileId,
 			idTag: bus.idTag,
 			roles: bus.roles,
-			access: bus.access
+			access: bus.access,
+			displayName: bus.displayName
 		}
 	}, [auth, ownerTag, fileId])
 

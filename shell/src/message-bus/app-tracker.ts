@@ -46,6 +46,10 @@ export interface AppConnection {
 	registeredAt: number
 	/** When the app was last active */
 	lastActiveAt: number
+	/** Pre-provided token for guest access via share links */
+	token?: string
+	/** Share link ref ID for token refresh */
+	refId?: string
 }
 
 /**
@@ -57,6 +61,23 @@ export interface RegisterAppOptions {
 	resId?: string
 	idTag?: string
 	access?: 'read' | 'write'
+	/** Pre-provided token for guest access via share links */
+	token?: string
+	/** Share link ref ID for token refresh */
+	refId?: string
+}
+
+/**
+ * Pending registration data for apps that haven't loaded yet.
+ * Keyed by resId so we can look it up when auth:init.req arrives.
+ */
+export interface PendingRegistration {
+	token?: string
+	refId?: string
+	access?: 'read' | 'write'
+	idTag?: string
+	appName?: string
+	displayName?: string
 }
 
 // ============================================
@@ -68,6 +89,7 @@ export interface RegisterAppOptions {
  */
 export class AppTracker {
 	private connections = new Map<Window, AppConnection>()
+	private pendingRegistrations = new Map<string, PendingRegistration>()
 	private debug: boolean
 
 	constructor(debug = false) {
@@ -95,12 +117,47 @@ export class AppTracker {
 			access: options.access || 'write',
 			initialized: false,
 			registeredAt: now,
-			lastActiveAt: now
+			lastActiveAt: now,
+			token: options.token,
+			refId: options.refId
 		}
 
 		this.connections.set(options.window, connection)
 		this.log('Registered app:', options.appName, options.resId)
 		return connection
+	}
+
+	// ============================================
+	// PENDING REGISTRATIONS
+	// ============================================
+
+	/**
+	 * Set a pending registration for an app before it loads.
+	 * This allows us to store token/refId before we have the Window reference.
+	 * When auth:init.req arrives with matching resId, we can look this up.
+	 */
+	setPendingRegistration(resId: string, data: PendingRegistration): void {
+		this.pendingRegistrations.set(resId, data)
+		this.log('Set pending registration for:', resId)
+	}
+
+	/**
+	 * Get pending registration by resId
+	 */
+	getPendingRegistration(resId: string): PendingRegistration | undefined {
+		return this.pendingRegistrations.get(resId)
+	}
+
+	/**
+	 * Consume and remove a pending registration
+	 */
+	consumePendingRegistration(resId: string): PendingRegistration | undefined {
+		const pending = this.pendingRegistrations.get(resId)
+		if (pending) {
+			this.pendingRegistrations.delete(resId)
+			this.log('Consumed pending registration for:', resId)
+		}
+		return pending
 	}
 
 	/**
@@ -228,11 +285,12 @@ export class AppTracker {
 	}
 
 	/**
-	 * Clear all connections
+	 * Clear all connections and pending registrations
 	 */
 	clear(): void {
 		this.connections.clear()
-		this.log('Cleared all connections')
+		this.pendingRegistrations.clear()
+		this.log('Cleared all connections and pending registrations')
 	}
 }
 

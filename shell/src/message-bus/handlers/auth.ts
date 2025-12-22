@@ -38,20 +38,30 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 		}
 
 		let connection = bus.getAppTracker().getApp(appWindow)
+		let displayName: string | undefined
 
 		// If app isn't registered but sent resId, register it now
 		// This handles the race condition where app sends init.req before load event
 		if (!connection && msg.payload.resId) {
+			// Check for pending registration (set before iframe loaded)
+			const pending = bus.getAppTracker().consumePendingRegistration(msg.payload.resId)
+			displayName = pending?.displayName
+
 			console.log(
 				'[Auth] Registering app from init.req:',
 				msg.payload.appName,
-				msg.payload.resId
+				msg.payload.resId,
+				pending ? '(with pending token/refId)' : '(no pending registration)'
 			)
+
 			connection = bus.getAppTracker().registerApp({
 				window: appWindow,
 				appName: msg.payload.appName,
 				resId: msg.payload.resId,
-				access: 'write' // Default, will be updated if needed
+				access: pending?.access || 'write',
+				idTag: pending?.idTag,
+				token: pending?.token,
+				refId: pending?.refId
 			})
 		} else if (!connection) {
 			console.warn('[Auth] Init request from unregistered app without resId')
@@ -62,12 +72,29 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 			const authState = bus.getAuthState()
 			const themeState = bus.getThemeState()
 
-			// Get token for this app - use connection.resId or message payload
+			// Get token for this app
 			let token: string | undefined
 			let tokenLifetime: number | undefined
 			const resId = connection?.resId || msg.payload.resId
 
-			if (resId) {
+			// Check if connection has pre-provided token (guest access via share link)
+			if (connection?.token) {
+				token = connection.token
+				// Calculate remaining lifetime from token expiry
+				try {
+					const [, payload] = token.split('.')
+					if (payload) {
+						const decoded = JSON.parse(atob(payload))
+						if (decoded.exp) {
+							const remaining = decoded.exp * 1000 - Date.now()
+							tokenLifetime = Math.max(0, Math.floor(remaining / 1000))
+						}
+					}
+				} catch {
+					// Ignore token parsing errors
+				}
+			} else if (resId) {
+				// Fetch token via API for authenticated users
 				const tokenResult = await bus.getAccessToken(resId, connection?.access || 'write')
 				token = tokenResult?.token
 				tokenLifetime = tokenResult?.tokenLifetime
@@ -87,7 +114,8 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 				darkMode: themeState.darkMode,
 				token,
 				access: connection?.access || 'write',
-				tokenLifetime
+				tokenLifetime,
+				displayName
 			})
 
 			console.log('[Auth] App initialized:', msg.payload.appName)
@@ -127,8 +155,16 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 		}
 
 		try {
-			// Get fresh token
-			const tokenResult = await bus.getAccessToken(connection.resId!, connection.access)
+			// Get fresh token - use refId for guest access, resId for authenticated
+			let tokenResult: { token: string; tokenLifetime?: number } | undefined
+
+			if (connection.refId) {
+				// Guest access via share link - refresh using refId
+				tokenResult = await bus.refreshTokenByRef(connection.refId)
+			} else if (connection.resId) {
+				// Authenticated access - refresh using resId
+				tokenResult = await bus.getAccessToken(connection.resId, connection.access)
+			}
 
 			if (!tokenResult?.token) {
 				bus.sendResponse(
@@ -140,6 +176,11 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 					'Failed to get token'
 				)
 				return
+			}
+
+			// Update the stored token for future init requests
+			if (connection.refId) {
+				connection.token = tokenResult.token
 			}
 
 			bus.sendResponse(appWindow, 'auth:token.refresh.res', msg.id, true, {

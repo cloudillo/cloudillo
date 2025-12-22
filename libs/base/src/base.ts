@@ -99,6 +99,40 @@ export async function openYDoc(
 		params: { token, access: accessLevel || 'write' }
 	})
 
+	// Intercept WebSocket close to handle auth errors and prevent infinite reconnection
+	const setupCloseHandler = () => {
+		const ws = wsProvider.ws
+		if (ws) {
+			const originalOnclose = ws.onclose
+			ws.onclose = (event: CloseEvent) => {
+				// Check for auth/resource errors from backend:
+				// 4401 = Unauthorized, 4403 = Access denied, 4404 = Not found
+				if (event.code >= 4400 && event.code < 4500) {
+					console.log(
+						'[CRDT] Auth/resource error, stopping reconnection:',
+						event.code,
+						event.reason
+					)
+					wsProvider.shouldConnect = false
+					wsProvider.disconnect()
+					// Don't call original - prevent reconnection attempt
+					return
+				}
+				// For other errors, let y-websocket handle normally
+				if (originalOnclose) {
+					originalOnclose.call(ws, event)
+				}
+			}
+		}
+	}
+
+	// Setup handler when WebSocket connects (and on each reconnection)
+	wsProvider.on('status', ({ status }: { status: string }) => {
+		if (status === 'connected') {
+			setupCloseHandler()
+		}
+	})
+
 	return {
 		yDoc,
 		provider: wsProvider

@@ -75,7 +75,7 @@ export function addObject(
 				doc.o.set(objectId, storedTextbox)
 			}
 		}
-	})
+	}, yDoc.clientID)
 
 	return objectId
 }
@@ -147,7 +147,7 @@ export function createObject(
 			// Create the Y.Text
 			yDoc.transact(() => {
 				doc.rt.set(textId, new Y.Text())
-			})
+			}, yDoc.clientID)
 			break
 		case 'image':
 			object = { ...base, type: 'image', src: '' } as any
@@ -192,7 +192,7 @@ export function updateObject(
 
 	yDoc.transact(() => {
 		doc.o.set(objectId, compacted)
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -213,7 +213,7 @@ export function updateObjectPosition(
 			...existing,
 			xy: [x, y]
 		})
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -234,7 +234,7 @@ export function updateObjectSize(
 			...existing,
 			wh: [width, height]
 		})
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -258,7 +258,7 @@ export function updateObjectBounds(
 			xy: [x, y],
 			wh: [width, height]
 		})
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -287,7 +287,7 @@ export function updateObjectRotation(
 				r: normalizedRotation
 			})
 		}
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -350,7 +350,7 @@ export function updateObjectPivot(
 		}
 
 		doc.o.set(objectId, updated)
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -428,7 +428,7 @@ export function updateObjectTextStyle(
 			...existing,
 			ts: newTs
 		})
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -456,7 +456,7 @@ export function deleteObject(yDoc: Y.Doc, doc: YPrezilloDocument, objectId: Obje
 		if (object.t === 'B' && (object as any).tid) {
 			doc.rt.delete((object as any).tid)
 		}
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -486,7 +486,7 @@ export function deleteObjects(yDoc: Y.Doc, doc: YPrezilloDocument, objectIds: Ob
 				doc.rt.delete((object as any).tid)
 			}
 		})
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -533,7 +533,7 @@ export function moveObject(
 
 		// Update object's parentId
 		doc.o.set(objectId, { ...object, p: newParentId })
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -561,7 +561,7 @@ export function reorderObject(
 			const adjustedIndex = newIndex > currentIndex ? newIndex - 1 : newIndex
 			children.insert(Math.min(adjustedIndex, children.length), [childRef])
 		}
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -625,7 +625,7 @@ function reorderInChildren(
 			// Touch object to trigger observers
 			doc.o.set(objectId, { ...object })
 		}
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -676,7 +676,7 @@ export function toggleObjectVisibility(
 			delete updated.v
 			doc.o.set(objectId, updated)
 		}
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -695,7 +695,7 @@ export function toggleObjectLock(yDoc: Y.Doc, doc: YPrezilloDocument, objectId: 
 		} else {
 			doc.o.set(objectId, { ...object, k: true })
 		}
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -731,7 +731,7 @@ export function duplicateObject(
 				const newText = new Y.Text()
 				newText.insert(0, originalText.toString())
 				doc.rt.set(newTextId, newText)
-			})
+			}, yDoc.clientID)
 			;(duplicated as any).textContentId = newTextId
 		}
 	}

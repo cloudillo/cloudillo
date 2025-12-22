@@ -99,7 +99,7 @@ export function createView(
 		} else {
 			doc.vo.push([viewId])
 		}
-	})
+	}, yDoc.clientID)
 
 	return viewId
 }
@@ -154,7 +154,7 @@ export function updateView(
 
 	yDoc.transact(() => {
 		doc.v.set(viewId, compacted)
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -172,7 +172,7 @@ export function updateViewPosition(
 
 	yDoc.transact(() => {
 		doc.v.set(viewId, { ...existing, x, y })
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -190,7 +190,7 @@ export function updateViewSize(
 
 	yDoc.transact(() => {
 		doc.v.set(viewId, { ...existing, width, height })
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -210,7 +210,7 @@ export function updateViewBounds(
 
 	yDoc.transact(() => {
 		doc.v.set(viewId, { ...existing, x, y, width, height })
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -227,7 +227,7 @@ export function deleteView(yDoc: Y.Doc, doc: YPrezilloDocument, viewId: ViewId):
 			doc.vo.delete(idx, 1)
 		}
 		doc.v.delete(viewId)
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -246,7 +246,7 @@ export function reorderView(
 			const adjustedIndex = newIndex > currentIndex ? newIndex - 1 : newIndex
 			doc.vo.insert(Math.min(adjustedIndex, doc.vo.length), [viewId])
 		}
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -285,7 +285,7 @@ export function rearrangeViewsOnCanvas(
 				x += view.width + gap
 			}
 		})
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -429,7 +429,7 @@ export function toggleViewHidden(yDoc: Y.Doc, doc: YPrezilloDocument, viewId: Vi
 		} else {
 			doc.v.set(viewId, { ...view, hidden: true })
 		}
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -452,7 +452,7 @@ export function setViewTransition(
 			delete updated.transition
 			doc.v.set(viewId, updated)
 		}
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -475,7 +475,7 @@ export function setViewNotes(
 			delete updated.notes
 			doc.v.set(viewId, updated)
 		}
-	})
+	}, yDoc.clientID)
 }
 
 // vim: ts=4

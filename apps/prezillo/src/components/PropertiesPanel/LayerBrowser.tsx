@@ -151,7 +151,7 @@ export function LayerBrowser({
 					delete updated.v
 					doc.c.set(id, updated)
 				}
-			})
+			}, yDoc.clientID)
 		},
 		[doc, yDoc]
 	)
@@ -170,7 +170,7 @@ export function LayerBrowser({
 				} else {
 					doc.c.set(id, { ...container, k: true })
 				}
-			})
+			}, yDoc.clientID)
 		},
 		[doc, yDoc]
 	)

@@ -1,0 +1,30 @@
+{
+	"name": "@cloudillo/canvas-tools",
+	"version": "0.8.0",
+	"description": "Cloudillo canvas tools - rotation handle, pivot handle, transform gizmo",
+	"type": "module",
+	"main": "lib/index.js",
+	"exports": {
+		".": "./lib/index.js"
+	},
+	"scripts": {
+		"ts": "tsc --noEmit",
+		"build": "tsc",
+		"watch": "tsc -w",
+		"clean": "rimraf .cache lib*"
+	},
+	"author": "Szilárd Hajba <szilu@cloudillo.org>",
+	"license": "LGPL-3.0-or-later",
+	"dependencies": {
+		"react-svg-canvas": "workspace:^"
+	},
+	"devDependencies": {
+		"@types/react": "^19.2.7",
+		"rimraf": "^6.1.2",
+		"tslib": "^2.8.1",
+		"typescript": "^5.9.3"
+	},
+	"peerDependencies": {
+		"react": "^19.1.0"
+	}
+}

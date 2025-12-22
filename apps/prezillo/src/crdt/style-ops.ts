@@ -111,7 +111,7 @@ export function createStyle(
 		}
 
 		doc.st.set(styleId, style)
-	})
+	}, yDoc.clientID)
 
 	return styleId
 }
@@ -159,7 +159,7 @@ export function updateStyle(
 
 	yDoc.transact(() => {
 		doc.st.set(styleId, { ...existing, ...updates })
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -196,7 +196,7 @@ export function deleteStyle(yDoc: Y.Doc, doc: YPrezilloDocument, styleId: StyleI
 		})
 
 		doc.st.delete(styleId)
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -388,7 +388,7 @@ export function applyStyleToObjects(
 				doc.o.set(id, updated)
 			}
 		})
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -469,7 +469,7 @@ export function detachStyleFromObjects(
 				doc.o.set(id, updated)
 			}
 		})
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -498,7 +498,7 @@ export function setStyleOverride(
 		}
 
 		doc.o.set(objectId, updated)
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -523,7 +523,7 @@ export function clearStyleOverrides(
 		}
 
 		doc.o.set(objectId, updated)
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -550,7 +550,7 @@ export function createStyleVariation(
 			p: parentStyleId,
 			...overrides
 		})
-	})
+	}, yDoc.clientID)
 
 	return styleId
 }

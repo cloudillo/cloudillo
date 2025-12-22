@@ -45,7 +45,7 @@ export const DEFAULT_SHAPE_STYLE = {
 /** Default style values for text */
 export const DEFAULT_TEXT_STYLE = {
 	fontFamily: 'system-ui, sans-serif',
-	fontSize: 16,
+	fontSize: 64,
 	fontWeight: 'normal' as const,
 	fontItalic: false,
 	textDecoration: 'none' as const,

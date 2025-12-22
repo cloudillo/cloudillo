@@ -73,7 +73,7 @@ export function getContainerChildren(
 		children = new Y.Array<ChildRef>()
 		yDoc.transact(() => {
 			doc.ch.set(containerId, children!)
-		})
+		}, yDoc.clientID)
 	}
 	return children
 }
@@ -121,7 +121,7 @@ function initializeDocument(yDoc: Y.Doc, doc: YPrezilloDocument): void {
 
 		// Add default styles
 		addDefaultStyles(doc)
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -277,7 +277,7 @@ export function updateDocumentMeta(
 		if (updates.gridSize !== undefined) doc.m.set('gridSize', updates.gridSize)
 		if (updates.snapToGrid !== undefined) doc.m.set('snapToGrid', updates.snapToGrid)
 		if (updates.snapToObjects !== undefined) doc.m.set('snapToObjects', updates.snapToObjects)
-	})
+	}, yDoc.clientID)
 }
 
 // vim: ts=4

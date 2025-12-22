@@ -78,7 +78,7 @@ export function createContainer(
 				doc.r.push([childRef])
 			}
 		}
-	})
+	}, yDoc.clientID)
 
 	return containerId
 }
@@ -113,7 +113,7 @@ export function updateContainer(
 
 	yDoc.transact(() => {
 		doc.c.set(containerId, compacted)
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -221,7 +221,7 @@ export function deleteContainer(
 
 		// Delete container itself
 		doc.c.delete(containerId)
-	})
+	}, yDoc.clientID)
 
 	return deletedObjectIds
 }
@@ -322,7 +322,7 @@ export function groupObjects(
 		} else {
 			doc.r.push([groupRef])
 		}
-	})
+	}, yDoc.clientID)
 
 	return groupId
 }
@@ -403,7 +403,7 @@ export function ungroupContainer(
 		// Delete container's children array and the container itself
 		doc.ch.delete(containerId)
 		doc.c.delete(containerId)
-	})
+	}, yDoc.clientID)
 
 	return freedObjectIds
 }
@@ -458,7 +458,7 @@ export function moveContainer(
 			delete updated.p
 			doc.c.set(containerId, updated)
 		}
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -486,7 +486,7 @@ export function reorderContainer(
 			const adjustedIndex = newIndex > currentIndex ? newIndex - 1 : newIndex
 			children.insert(Math.min(adjustedIndex, children.length), [childRef])
 		}
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -509,7 +509,7 @@ export function toggleContainerVisibility(
 			delete updated.v
 			doc.c.set(containerId, updated)
 		}
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -532,7 +532,7 @@ export function toggleContainerLock(
 		} else {
 			doc.c.set(containerId, { ...container, k: true })
 		}
-	})
+	}, yDoc.clientID)
 }
 
 /**
@@ -548,7 +548,7 @@ export function toggleContainerExpanded(
 
 	yDoc.transact(() => {
 		doc.c.set(containerId, { ...container, x: !container.x })
-	})
+	}, yDoc.clientID)
 }
 
 /**

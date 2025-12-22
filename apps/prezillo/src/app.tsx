@@ -28,8 +28,20 @@ import {
 	type SnapSpatialObject,
 	type SnapGuidesProps,
 	type SvgCanvasContext,
-	type SvgCanvasHandle
+	type SvgCanvasHandle,
+	DEFAULT_PIVOT_SNAP_POINTS,
+	DEFAULT_PIVOT_SNAP_THRESHOLD,
+	// Hooks for interactions
+	useResizable,
+	useRotatable,
+	usePivotDrag
 } from 'react-svg-canvas'
+import {
+	RotationHandle,
+	PivotHandle,
+	type RotationHandleProps,
+	type PivotHandleProps
+} from '@cloudillo/canvas-tools'
 
 /**
  * Wrapper component for SnapGuides that uses the fixed layer transform
@@ -83,11 +95,13 @@ function FixedRotationHandle(
  * Transforms canvas coordinates to screen coordinates
  */
 function FixedPivotHandle(
-	props: Omit<PivotHandleProps, 'scale' | 'bounds'> & {
+	props: Omit<PivotHandleProps, 'scale' | 'bounds' | 'originalBounds' | 'initialPivot'> & {
 		canvasBounds: Bounds
 		canvasOriginalBounds?: Bounds
+		initialPivot?: { x: number; y: number }
 	}
 ) {
+	const { canvasOriginalBounds, initialPivot, ...rest } = props
 	const { translateFrom, scale } = useSvgCanvas()
 
 	const [screenX, screenY] = translateFrom(props.canvasBounds.x, props.canvasBounds.y)
@@ -98,26 +112,24 @@ function FixedPivotHandle(
 		height: props.canvasBounds.height * scale
 	}
 
-	// Transform original bounds for snap point visualization
+	// Transform original bounds for snap points during drag
 	let screenOriginalBounds: Bounds | undefined
-	if (props.canvasOriginalBounds) {
-		const [origX, origY] = translateFrom(
-			props.canvasOriginalBounds.x,
-			props.canvasOriginalBounds.y
-		)
+	if (canvasOriginalBounds) {
+		const [origX, origY] = translateFrom(canvasOriginalBounds.x, canvasOriginalBounds.y)
 		screenOriginalBounds = {
 			x: origX,
 			y: origY,
-			width: props.canvasOriginalBounds.width * scale,
-			height: props.canvasOriginalBounds.height * scale
+			width: canvasOriginalBounds.width * scale,
+			height: canvasOriginalBounds.height * scale
 		}
 	}
 
 	return (
 		<PivotHandle
-			{...props}
+			{...rest}
 			bounds={screenBounds}
 			originalBounds={screenOriginalBounds}
+			initialPivot={initialPivot}
 			scale={1}
 		/>
 	)
@@ -132,17 +144,6 @@ import { usePrezilloDocument, useSnappingConfig, useGetParent, useSnapSettings }
 import { useViewObjects } from './hooks/useViewObjects'
 import { useViews } from './hooks/useViews'
 import { setEditingState, clearEditingState } from './awareness'
-import {
-	RotationHandle,
-	SNAP_ZONE_RATIO,
-	type RotationHandleProps
-} from './components/RotationHandle'
-import {
-	PivotHandle,
-	PIVOT_SNAP_POINTS,
-	PIVOT_SNAP_THRESHOLD,
-	type PivotHandleProps
-} from './components/PivotHandle'
 import { Toolbar } from './components/Toolbar'
 import { ViewPicker } from './components/ViewPicker'
 import { ViewFrame } from './components/ViewFrame'
@@ -201,25 +202,6 @@ export function PrezilloApp() {
 		objectStartX: number
 		objectStartY: number
 	} | null>(null)
-	const [resizeState, setResizeState] = React.useState<{
-		objectId: ObjectId
-		handle: ResizeHandle
-		startX: number
-		startY: number
-		objectStartX: number
-		objectStartY: number
-		objectStartWidth: number
-		objectStartHeight: number
-		rotation: number
-		cos: number
-		sin: number
-		pivotX: number
-		pivotY: number
-		anchorNormX: number
-		anchorNormY: number
-		anchorScreenX: number
-		anchorScreenY: number
-	} | null>(null)
 
 	// Presentation mode state
 	const [isPresentationMode, setIsPresentationMode] = React.useState(false)
@@ -257,20 +239,6 @@ export function PrezilloApp() {
 		pivotX?: number
 		pivotY?: number
 	} | null>(null)
-
-	// Rotation state for snap feature
-	const [rotationState, setRotationState] = React.useState<{
-		isRotating: boolean
-		isSnapActive: boolean
-	}>({ isRotating: false, isSnapActive: false })
-
-	// Pivot drag state for snap feature
-	const [pivotDragState, setPivotDragState] = React.useState<{
-		isDragging: boolean
-		snappedPoint: { x: number; y: number } | null
-		originalBounds: Bounds | null // Original bounds before position compensation
-		initialPivot: { x: number; y: number } | null // Initial pivot for rotation transform
-	}>({ isDragging: false, snappedPoint: null, originalBounds: null, initialPivot: null })
 
 	// Track grab point for snap weighting
 	const grabPointRef = React.useRef<{ x: number; y: number }>({ x: 0.5, y: 0.5 })
@@ -369,6 +337,267 @@ export function PrezilloApp() {
 	snapDragRef.current = snapDrag
 	const snapResizeRef = React.useRef(snapResize)
 	snapResizeRef.current = snapResize
+
+	// Ref to capture initial selection state at interaction start (prevents stale closure issues)
+	const interactionStartRef = React.useRef<{
+		id: ObjectId
+		bounds: { x: number; y: number; width: number; height: number }
+		rotation: number
+		pivotX: number
+		pivotY: number
+	} | null>(null)
+
+	// Get stored bounds for the single selected object (used by resize/rotate/pivot hooks)
+	// Uses react-yjs reactive snapshot (prezillo.objects) instead of raw Y.Map
+	// This ensures proper re-renders when CRDT data changes
+	const storedSelection = React.useMemo(() => {
+		if (prezillo.selectedIds.size !== 1) return null
+		const id = Array.from(prezillo.selectedIds)[0]
+		// Use react-yjs reactive snapshot instead of raw doc.o.get()
+		const obj = prezillo.objects?.[id]
+		if (!obj) return null
+		return {
+			id: id as ObjectId,
+			bounds: { x: obj.xy[0], y: obj.xy[1], width: obj.wh[0], height: obj.wh[1] },
+			rotation: obj.r ?? 0,
+			pivotX: obj.pv?.[0] ?? 0.5,
+			pivotY: obj.pv?.[1] ?? 0.5
+		}
+	}, [prezillo.selectedIds, prezillo.objects])
+
+	// Ref to access latest storedSelection from callbacks (avoids stale closure)
+	const storedSelectionRef = React.useRef(storedSelection)
+	storedSelectionRef.current = storedSelection
+
+	// Transform functions that use canvasContextRef (since hooks are outside SvgCanvas context)
+	const translateToRef = React.useCallback((x: number, y: number): [number, number] => {
+		const ctx = canvasContextRef.current
+		if (!ctx?.translateTo) return [x, y]
+		return ctx.translateTo(x, y)
+	}, [])
+
+	const translateFromRef = React.useCallback((x: number, y: number): [number, number] => {
+		const ctx = canvasContextRef.current
+		if (!ctx?.translateFrom) return [x, y]
+		return ctx.translateFrom(x, y)
+	}, [])
+
+	// Custom transform for useResizable (takes clientX, clientY, element)
+	const resizeTransformCoordinates = React.useCallback(
+		(clientX: number, clientY: number, element: Element): { x: number; y: number } => {
+			const ctx = canvasContextRef.current
+			if (!ctx?.translateTo) {
+				// Fallback to basic rect-based transform
+				const rect = element.getBoundingClientRect()
+				return { x: clientX - rect.left, y: clientY - rect.top }
+			}
+			const rect = element.getBoundingClientRect()
+			const [x, y] = ctx.translateTo(clientX - rect.left, clientY - rect.top)
+			return { x, y }
+		},
+		[]
+	)
+
+	// Resize hook - provides rotation-aware resize with snapping
+	const { isResizing, activeHandle, handleResizeStart } = useResizable({
+		bounds: storedSelection?.bounds ?? { x: 0, y: 0, width: 0, height: 0 },
+		rotation: storedSelection?.rotation ?? 0,
+		pivotX: storedSelection?.pivotX ?? 0.5,
+		pivotY: storedSelection?.pivotY ?? 0.5,
+		objectId: storedSelection?.id,
+		snapResize: snapResizeRef.current,
+		transformCoordinates: resizeTransformCoordinates,
+		disabled: isReadOnly || !storedSelection,
+		onResizeStart: ({ handle, bounds }) => {
+			// Use ref to get latest storedSelection (react-yjs keeps it updated)
+			const current = storedSelectionRef.current
+			if (!current) return
+			interactionStartRef.current = current
+			setTempObjectState({
+				objectId: current.id,
+				x: bounds.x,
+				y: bounds.y,
+				width: bounds.width,
+				height: bounds.height
+			})
+		},
+		onResize: ({ handle, bounds, originalBounds }) => {
+			// Use captured initial state to prevent stale closure issues
+			const initial = interactionStartRef.current
+			if (!initial) return
+			setTempObjectState({
+				objectId: initial.id,
+				x: bounds.x,
+				y: bounds.y,
+				width: bounds.width,
+				height: bounds.height
+			})
+			// Broadcast to other clients
+			if (prezillo.awareness) {
+				setEditingState(
+					prezillo.awareness,
+					initial.id,
+					'resize',
+					bounds.x,
+					bounds.y,
+					bounds.width,
+					bounds.height
+				)
+			}
+		},
+		onResizeEnd: ({ handle, bounds, originalBounds }) => {
+			// Use captured initial state to prevent stale closure issues
+			const initial = interactionStartRef.current
+			if (!initial) return
+			// Commit to CRDT
+			updateObjectBounds(
+				prezillo.yDoc,
+				prezillo.doc,
+				initial.id,
+				bounds.x,
+				bounds.y,
+				bounds.width,
+				bounds.height
+			)
+			// Clear awareness and temp state
+			if (prezillo.awareness) {
+				clearEditingState(prezillo.awareness)
+			}
+			clearSnaps()
+			setTempObjectState(null)
+			interactionStartRef.current = null
+			justFinishedInteractionRef.current = true
+		}
+	})
+
+	// Rotation hook - provides rotation with snap zone
+	const {
+		rotationState,
+		handleRotateStart: hookRotateStart,
+		arcRadius,
+		pivotPosition
+	} = useRotatable({
+		bounds: storedSelection?.bounds ?? { x: 0, y: 0, width: 0, height: 0 },
+		rotation: storedSelection?.rotation ?? 0,
+		pivotX: storedSelection?.pivotX ?? 0.5,
+		pivotY: storedSelection?.pivotY ?? 0.5,
+		translateTo: translateToRef,
+		translateFrom: translateFromRef,
+		screenSpaceSnapZone: true,
+		disabled: isReadOnly || !storedSelection,
+		onRotateStart: (angle) => {
+			// Use ref to get latest storedSelection (react-yjs keeps it updated)
+			const current = storedSelectionRef.current
+			if (!current) return
+			interactionStartRef.current = current
+			setTempObjectState({
+				objectId: current.id,
+				x: current.bounds.x,
+				y: current.bounds.y,
+				width: current.bounds.width,
+				height: current.bounds.height,
+				rotation: current.rotation
+			})
+		},
+		onRotate: (newRotation, isSnapped) => {
+			// Use captured initial state to prevent stale closure issues
+			const initial = interactionStartRef.current
+			if (!initial) return
+			setTempObjectState({
+				objectId: initial.id,
+				x: initial.bounds.x,
+				y: initial.bounds.y,
+				width: initial.bounds.width,
+				height: initial.bounds.height,
+				rotation: newRotation
+			})
+			// Broadcast to other clients
+			if (prezillo.awareness) {
+				setEditingState(
+					prezillo.awareness,
+					initial.id,
+					'rotate',
+					initial.bounds.x,
+					initial.bounds.y,
+					initial.bounds.width,
+					initial.bounds.height,
+					newRotation
+				)
+			}
+		},
+		onRotateEnd: (finalRotation) => {
+			// Use captured initial state to prevent stale closure issues
+			const initial = interactionStartRef.current
+			if (!initial) return
+			// Commit to CRDT
+			updateObjectRotation(prezillo.yDoc, prezillo.doc, initial.id, finalRotation)
+			// Clear awareness and temp state
+			if (prezillo.awareness) {
+				clearEditingState(prezillo.awareness)
+			}
+			setTempObjectState(null)
+			interactionStartRef.current = null
+			justFinishedInteractionRef.current = true
+		}
+	})
+
+	// Pivot drag hook - provides pivot positioning with snap to 9 points
+	const {
+		pivotState,
+		handlePivotDragStart: hookPivotDragStart,
+		getPositionCompensation
+	} = usePivotDrag({
+		bounds: storedSelection?.bounds ?? { x: 0, y: 0, width: 0, height: 0 },
+		rotation: storedSelection?.rotation ?? 0,
+		pivotX: storedSelection?.pivotX ?? 0.5,
+		pivotY: storedSelection?.pivotY ?? 0.5,
+		translateTo: translateToRef,
+		snapPoints: snapSettings.settings.snapToObjects ? DEFAULT_PIVOT_SNAP_POINTS : [],
+		snapThreshold: DEFAULT_PIVOT_SNAP_THRESHOLD,
+		disabled: isReadOnly || !storedSelection,
+		onDragStart: (pivot) => {
+			// Use ref to get latest storedSelection (react-yjs keeps it updated)
+			const current = storedSelectionRef.current
+			if (!current) return
+			interactionStartRef.current = current
+			setTempObjectState({
+				objectId: current.id,
+				x: current.bounds.x,
+				y: current.bounds.y,
+				width: current.bounds.width,
+				height: current.bounds.height,
+				pivotX: pivot.x,
+				pivotY: pivot.y
+			})
+		},
+		onDrag: (pivot, snappedPoint, compensation) => {
+			// Use captured initial state to prevent stale closure issues
+			const initial = interactionStartRef.current
+			if (!initial) return
+			// The hook already calculates compensation for position relative to initial state
+			const compensatedX = initial.bounds.x + compensation.x
+			const compensatedY = initial.bounds.y + compensation.y
+			setTempObjectState({
+				objectId: initial.id,
+				x: compensatedX,
+				y: compensatedY,
+				width: initial.bounds.width,
+				height: initial.bounds.height,
+				pivotX: pivot.x,
+				pivotY: pivot.y
+			})
+		},
+		onDragEnd: (pivot, compensation) => {
+			// Use captured initial state to prevent stale closure issues
+			const initial = interactionStartRef.current
+			if (!initial) return
+			// Commit to CRDT - updateObjectPivot handles position compensation internally
+			updateObjectPivot(prezillo.yDoc, prezillo.doc, initial.id, pivot.x, pivot.y)
+			setTempObjectState(null)
+			interactionStartRef.current = null
+			justFinishedInteractionRef.current = true
+		}
+	})
 
 	// Handle object click
 	function handleObjectClick(e: React.MouseEvent, objectId: ObjectId) {
@@ -595,630 +824,10 @@ export function PrezilloApp() {
 		prezillo.clearSelection()
 	}
 
-	// Refs to store state for use in event handlers (avoids stale closure)
-	const resizeStateRef = React.useRef<typeof resizeState>(null)
-	const prezilloRef = React.useRef(prezillo)
-	React.useEffect(() => {
-		// Only update prezilloRef, not resizeStateRef (which is managed manually during resize)
-		prezilloRef.current = prezillo
-	}, [prezillo])
-
-	// Handle resize start (from selection box handles)
-	function handleResizeStart(handle: ResizeHandle, e: React.PointerEvent) {
-		if (isReadOnly) return
-		e.preventDefault()
-		e.stopPropagation()
-
-		if (prezillo.selectedIds.size !== 1) return
-
-		const objectId = Array.from(prezillo.selectedIds)[0]
-		const obj = prezillo.doc.o.get(objectId)
-		if (!obj) return
-
-		// Get the SVG element and canvas context for zoom-aware coordinate transformation
-		const svgElement = (e.target as SVGElement).ownerSVGElement
-		if (!svgElement) return
-
-		const canvasCtx = canvasContextRef.current
-		if (!canvasCtx?.translateTo) return
-
-		// Get SVG-relative client coordinates, then transform through canvas zoom
-		const rect = svgElement.getBoundingClientRect()
-		const [svgX, svgY] = canvasCtx.translateTo(e.clientX - rect.left, e.clientY - rect.top)
-		const svgPoint = { x: svgX, y: svgY }
-
-		// Get rotation and pivot for coordinate transformation
-		const rotation = obj.r ?? 0
-		const radians = rotation * (Math.PI / 180)
-		const cos = Math.cos(radians)
-		const sin = Math.sin(radians)
-		const pivotX = obj.pv?.[0] ?? 0.5
-		const pivotY = obj.pv?.[1] ?? 0.5
-
-		// Determine anchor point (opposite corner/edge) - in normalized coords (0 or 1)
-		let anchorNormX = 0.5,
-			anchorNormY = 0.5
-		switch (handle) {
-			case 'nw':
-				anchorNormX = 1
-				anchorNormY = 1
-				break // anchor SE
-			case 'n':
-				anchorNormX = 0.5
-				anchorNormY = 1
-				break // anchor S center
-			case 'ne':
-				anchorNormX = 0
-				anchorNormY = 1
-				break // anchor SW
-			case 'e':
-				anchorNormX = 0
-				anchorNormY = 0.5
-				break // anchor W center
-			case 'se':
-				anchorNormX = 0
-				anchorNormY = 0
-				break // anchor NW
-			case 's':
-				anchorNormX = 0.5
-				anchorNormY = 0
-				break // anchor N center
-			case 'sw':
-				anchorNormX = 1
-				anchorNormY = 0
-				break // anchor NE
-			case 'w':
-				anchorNormX = 1
-				anchorNormY = 0.5
-				break // anchor E center
-		}
-
-		// Calculate initial anchor screen position
-		const x = obj.xy[0],
-			y = obj.xy[1],
-			w = obj.wh[0],
-			h = obj.wh[1]
-		const anchorLocalX = x + w * anchorNormX
-		const anchorLocalY = y + h * anchorNormY
-		const pivotAbsX = x + w * pivotX
-		const pivotAbsY = y + h * pivotY
-		// Rotate anchor around pivot
-		const anchorScreenX =
-			pivotAbsX + (anchorLocalX - pivotAbsX) * cos - (anchorLocalY - pivotAbsY) * sin
-		const anchorScreenY =
-			pivotAbsY + (anchorLocalX - pivotAbsX) * sin + (anchorLocalY - pivotAbsY) * cos
-
-		const initialState = {
-			objectId,
-			handle,
-			startX: svgPoint.x,
-			startY: svgPoint.y,
-			objectStartX: obj.xy[0],
-			objectStartY: obj.xy[1],
-			objectStartWidth: obj.wh[0],
-			objectStartHeight: obj.wh[1],
-			rotation,
-			cos,
-			sin,
-			pivotX,
-			pivotY,
-			anchorNormX,
-			anchorNormY,
-			anchorScreenX,
-			anchorScreenY
-		}
-
-		// Track current bounds for final commit (mutable to avoid stale closure)
-		let currentX = obj.xy[0]
-		let currentY = obj.xy[1]
-		let currentWidth = obj.wh[0]
-		let currentHeight = obj.wh[1]
-
-		// Set both ref (for event handlers) and state (for UI updates)
-		resizeStateRef.current = initialState
-		setResizeState(initialState)
-
-		// Initialize temp state for visual feedback
-		setTempObjectState({
-			objectId,
-			x: obj.xy[0],
-			y: obj.xy[1],
-			width: obj.wh[0],
-			height: obj.wh[1]
-		})
-
-		// Add window event listeners for pointer move and up
-		const handlePointerMove = (moveEvent: PointerEvent) => {
-			const state = resizeStateRef.current
-			if (!state) return
-
-			const ctx = canvasContextRef.current
-			if (!ctx?.translateTo) return
-
-			// Transform screen coords to canvas coords (zoom-aware)
-			const rect = svgElement.getBoundingClientRect()
-			const [moveX, moveY] = ctx.translateTo(
-				moveEvent.clientX - rect.left,
-				moveEvent.clientY - rect.top
-			)
-
-			const screenDx = moveX - state.startX
-			const screenDy = moveY - state.startY
-
-			// Un-rotate mouse delta to get movement in object-local space
-			const dx = screenDx * state.cos + screenDy * state.sin
-			const dy = -screenDx * state.sin + screenDy * state.cos
-
-			let newWidth = state.objectStartWidth
-			let newHeight = state.objectStartHeight
-
-			// Calculate new size based on handle (in local/object space)
-			switch (state.handle) {
-				case 'nw':
-					newWidth = state.objectStartWidth - dx
-					newHeight = state.objectStartHeight - dy
-					break
-				case 'n':
-					newHeight = state.objectStartHeight - dy
-					break
-				case 'ne':
-					newWidth = state.objectStartWidth + dx
-					newHeight = state.objectStartHeight - dy
-					break
-				case 'e':
-					newWidth = state.objectStartWidth + dx
-					break
-				case 'se':
-					newWidth = state.objectStartWidth + dx
-					newHeight = state.objectStartHeight + dy
-					break
-				case 's':
-					newHeight = state.objectStartHeight + dy
-					break
-				case 'sw':
-					newWidth = state.objectStartWidth - dx
-					newHeight = state.objectStartHeight + dy
-					break
-				case 'w':
-					newWidth = state.objectStartWidth - dx
-					break
-			}
-
-			// Ensure minimum size
-			const minSize = 10
-			if (newWidth < minSize) newWidth = minSize
-			if (newHeight < minSize) newHeight = minSize
-
-			// Now calculate position to keep anchor point fixed on screen
-			// The anchor offset from pivot (in local coords) after resize:
-			const newAnchorOffsetX = newWidth * (state.anchorNormX - state.pivotX)
-			const newAnchorOffsetY = newHeight * (state.anchorNormY - state.pivotY)
-
-			// Rotate this offset to get screen-space offset from pivot to anchor
-			const rotatedOffsetX = newAnchorOffsetX * state.cos - newAnchorOffsetY * state.sin
-			const rotatedOffsetY = newAnchorOffsetX * state.sin + newAnchorOffsetY * state.cos
-
-			// The pivot screen position should be such that pivot + rotatedOffset = anchorScreen
-			const newPivotScreenX = state.anchorScreenX - rotatedOffsetX
-			const newPivotScreenY = state.anchorScreenY - rotatedOffsetY
-
-			// Now pivot = (newX + newWidth * pivotX, newY + newHeight * pivotY)
-			// So newX = pivotScreenX - newWidth * pivotX, etc.
-			let newX = newPivotScreenX - newWidth * state.pivotX
-			let newY = newPivotScreenY - newHeight * state.pivotY
-
-			// Apply snapping (use ref to get latest config)
-			const snapResult = snapResizeRef.current({
-				originalBounds: {
-					x: state.objectStartX,
-					y: state.objectStartY,
-					width: state.objectStartWidth,
-					height: state.objectStartHeight,
-					rotation: obj.r || 0
-				},
-				currentBounds: {
-					x: newX,
-					y: newY,
-					width: newWidth,
-					height: newHeight,
-					rotation: obj.r || 0
-				},
-				objectId: state.objectId,
-				handle: state.handle,
-				delta: { x: dx, y: dy },
-				excludeIds: new Set([state.objectId])
-			})
-
-			// Use snapped bounds
-			newX = snapResult.bounds.x
-			newY = snapResult.bounds.y
-			newWidth = snapResult.bounds.width
-			newHeight = snapResult.bounds.height
-
-			// Update tracking variables
-			currentX = newX
-			currentY = newY
-			currentWidth = newWidth
-			currentHeight = newHeight
-
-			// Update local temp state (visual only)
-			setTempObjectState({
-				objectId: state.objectId,
-				x: newX,
-				y: newY,
-				width: newWidth,
-				height: newHeight
-			})
-
-			// Broadcast to other clients via awareness
-			const currentPrezillo = prezilloRef.current
-			if (currentPrezillo.awareness) {
-				setEditingState(
-					currentPrezillo.awareness,
-					state.objectId,
-					'resize',
-					newX,
-					newY,
-					newWidth,
-					newHeight
-				)
-			}
-		}
-
-		const handlePointerUp = () => {
-			// Commit final bounds to CRDT (only now!)
-			const currentPrezillo = prezilloRef.current
-			updateObjectBounds(
-				currentPrezillo.yDoc,
-				currentPrezillo.doc,
-				objectId,
-				currentX,
-				currentY,
-				currentWidth,
-				currentHeight
-			)
-
-			// Clear awareness
-			if (currentPrezillo.awareness) {
-				clearEditingState(currentPrezillo.awareness)
-			}
-
-			// Clear snapping state
-			clearSnaps()
-
-			// Clear local state
-			resizeStateRef.current = null
-			setResizeState(null)
-			setTempObjectState(null)
-
-			// Prevent canvas click from clearing selection
-			justFinishedInteractionRef.current = true
-
-			window.removeEventListener('pointermove', handlePointerMove)
-			window.removeEventListener('pointerup', handlePointerUp)
-		}
-
-		window.addEventListener('pointermove', handlePointerMove)
-		window.addEventListener('pointerup', handlePointerUp)
-	}
-
-	// Handle rotation start (from rotation handle)
-	function handleRotateStart(e: React.PointerEvent) {
-		if (isReadOnly) return
-		e.preventDefault()
-		e.stopPropagation()
-
-		if (prezillo.selectedIds.size !== 1) return
-
-		const objectId = Array.from(prezillo.selectedIds)[0]
-		const obj = prezillo.doc.o.get(objectId)
-		if (!obj) return
-
-		// Get the SVG element and canvas context
-		const svgElement = (e.target as SVGElement).ownerSVGElement
-		if (!svgElement) return
-
-		const canvasCtx = canvasContextRef.current
-		if (!canvasCtx?.translateTo) return
-
-		// Get SVG-relative coordinates
-		const rect = svgElement.getBoundingClientRect()
-		const [svgX, svgY] = canvasCtx.translateTo(e.clientX - rect.left, e.clientY - rect.top)
-
-		// Calculate pivot point in absolute coordinates
-		const pivotX = obj.pv?.[0] ?? 0.5
-		const pivotY = obj.pv?.[1] ?? 0.5
-		const cx = obj.xy[0] + obj.wh[0] * pivotX
-		const cy = obj.xy[1] + obj.wh[1] * pivotY
-
-		// Calculate arc radius (same as RotationHandle)
-		const halfW = obj.wh[0] / 2
-		const halfH = obj.wh[1] / 2
-		const maxDist = Math.sqrt(halfW * halfW + halfH * halfH)
-		const arcRadius = maxDist + 25 // Add padding for the arc
-		const snapZoneRadius = arcRadius * SNAP_ZONE_RATIO
-
-		// Calculate initial angle from pivot to mouse
-		const initialAngle = Math.atan2(svgY - cy, svgX - cx) * (180 / Math.PI)
-		const initialRotation = obj.r || 0
-
-		// Track current rotation for final commit
-		let currentRotation = initialRotation
-
-		// Initialize temp state and rotation state
-		setTempObjectState({
-			objectId,
-			x: obj.xy[0],
-			y: obj.xy[1],
-			width: obj.wh[0],
-			height: obj.wh[1],
-			rotation: initialRotation
-		})
-		setRotationState({ isRotating: true, isSnapActive: false })
-
-		const handlePointerMove = (moveEvent: PointerEvent) => {
-			const ctx = canvasContextRef.current
-			if (!ctx?.translateTo) return
-
-			const rect = svgElement.getBoundingClientRect()
-			const [moveX, moveY] = ctx.translateTo(
-				moveEvent.clientX - rect.left,
-				moveEvent.clientY - rect.top
-			)
-
-			// Calculate distance from mouse to pivot
-			const distanceFromPivot = Math.sqrt(Math.pow(moveX - cx, 2) + Math.pow(moveY - cy, 2))
-
-			// Determine if snap mode is active (mouse inside inner zone)
-			const isSnapActive = distanceFromPivot <= snapZoneRadius
-
-			// Calculate current angle from pivot to mouse
-			const currentAngle = Math.atan2(moveY - cy, moveX - cx) * (180 / Math.PI)
-			const deltaAngle = currentAngle - initialAngle
-			let newRotation = initialRotation + deltaAngle
-
-			// Normalize to 0-360
-			newRotation = ((newRotation % 360) + 360) % 360
-
-			// Apply snapping if in snap zone
-			if (isSnapActive) {
-				// Snap to nearest 15 degrees
-				newRotation = Math.round(newRotation / 15) * 15
-				// Normalize again in case we hit 360
-				newRotation = newRotation % 360
-			}
-
-			currentRotation = newRotation
-
-			// Update rotation state
-			setRotationState({ isRotating: true, isSnapActive })
-
-			// Update temp state for visual feedback
-			setTempObjectState({
-				objectId,
-				x: obj.xy[0],
-				y: obj.xy[1],
-				width: obj.wh[0],
-				height: obj.wh[1],
-				rotation: newRotation
-			})
-
-			// Broadcast to other clients
-			const currentPrezillo = prezilloRef.current
-			if (currentPrezillo.awareness) {
-				setEditingState(
-					currentPrezillo.awareness,
-					objectId,
-					'rotate',
-					obj.xy[0],
-					obj.xy[1],
-					obj.wh[0],
-					obj.wh[1],
-					newRotation
-				)
-			}
-		}
-
-		const handlePointerUp = () => {
-			// Commit final rotation to CRDT
-			const currentPrezillo = prezilloRef.current
-			updateObjectRotation(
-				currentPrezillo.yDoc,
-				currentPrezillo.doc,
-				objectId,
-				currentRotation
-			)
-
-			// Clear awareness
-			if (currentPrezillo.awareness) {
-				clearEditingState(currentPrezillo.awareness)
-			}
-
-			// Clear local state
-			setTempObjectState(null)
-			setRotationState({ isRotating: false, isSnapActive: false })
-
-			// Prevent canvas click from clearing selection
-			justFinishedInteractionRef.current = true
-
-			window.removeEventListener('pointermove', handlePointerMove)
-			window.removeEventListener('pointerup', handlePointerUp)
-		}
-
-		window.addEventListener('pointermove', handlePointerMove)
-		window.addEventListener('pointerup', handlePointerUp)
-	}
-
-	// Handle pivot drag start
-	function handlePivotDragStart(e: React.PointerEvent) {
-		if (isReadOnly) return
-		e.preventDefault()
-		e.stopPropagation()
-
-		if (prezillo.selectedIds.size !== 1) return
-
-		const objectId = Array.from(prezillo.selectedIds)[0]
-		const initialObj = prezillo.doc.o.get(objectId)
-		if (!initialObj) return
-
-		// Get the SVG element and canvas context
-		const svgElement = (e.target as SVGElement).ownerSVGElement
-		if (!svgElement) return
-
-		const canvasCtx = canvasContextRef.current
-		if (!canvasCtx?.translateTo) return
-
-		// Capture initial state (these don't change during drag)
-		const initialX = initialObj.xy[0]
-		const initialY = initialObj.xy[1]
-		const objW = initialObj.wh[0]
-		const objH = initialObj.wh[1]
-		const initialPivotX = initialObj.pv?.[0] ?? 0.5
-		const initialPivotY = initialObj.pv?.[1] ?? 0.5
-		const rotation = initialObj.r ?? 0
-
-		// Pre-calculate rotation values for position compensation
-		const radians = rotation * (Math.PI / 180)
-		const cos = Math.cos(radians)
-		const sin = Math.sin(radians)
-
-		// Get initial mouse position
-		const rect = svgElement.getBoundingClientRect()
-		const [startX, startY] = canvasCtx.translateTo(e.clientX - rect.left, e.clientY - rect.top)
-
-		// Track current values for final commit
-		let currentPivotX = initialPivotX
-		let currentPivotY = initialPivotY
-
-		// Store original bounds and initial pivot for snap point visualization
-		const originalBounds: Bounds = {
-			x: initialX,
-			y: initialY,
-			width: objW,
-			height: objH
-		}
-		const initialPivot = { x: initialPivotX, y: initialPivotY }
-
-		// Initialize temp state and pivot drag state
-		setTempObjectState({
-			objectId,
-			x: initialX,
-			y: initialY,
-			width: objW,
-			height: objH,
-			pivotX: initialPivotX,
-			pivotY: initialPivotY
-		})
-		setPivotDragState({ isDragging: true, snappedPoint: null, originalBounds, initialPivot })
-
-		const handlePointerMove = (moveEvent: PointerEvent) => {
-			const ctx = canvasContextRef.current
-			if (!ctx?.translateTo) return
-
-			const rect = svgElement.getBoundingClientRect()
-			const [moveX, moveY] = ctx.translateTo(
-				moveEvent.clientX - rect.left,
-				moveEvent.clientY - rect.top
-			)
-
-			// Calculate mouse delta from start position (in canvas/screen space)
-			const dx = moveX - startX
-			const dy = moveY - startY
-
-			// Un-rotate mouse delta to get movement in object-local space
-			// (pivot coordinates are in unrotated object space)
-			const localDx = dx * cos + dy * sin
-			const localDy = -dx * sin + dy * cos
-
-			// Convert to pivot delta
-			const deltaPivotX = localDx / objW
-			const deltaPivotY = localDy / objH
-
-			// Calculate new pivot position (raw, before snapping)
-			let newPivotX = Math.max(0, Math.min(1, initialPivotX + deltaPivotX))
-			let newPivotY = Math.max(0, Math.min(1, initialPivotY + deltaPivotY))
-
-			// Check if snap to objects is enabled and apply snapping
-			let snappedPoint: { x: number; y: number } | null = null
-			if (snapSettings.settings.snapToObjects) {
-				// Find the nearest snap point
-				let nearestDist = Infinity
-				for (const point of PIVOT_SNAP_POINTS) {
-					const dist = Math.sqrt(
-						Math.pow(newPivotX - point.x, 2) + Math.pow(newPivotY - point.y, 2)
-					)
-					if (dist < nearestDist && dist <= PIVOT_SNAP_THRESHOLD) {
-						nearestDist = dist
-						snappedPoint = { x: point.x, y: point.y }
-					}
-				}
-
-				// Apply snap if within threshold
-				if (snappedPoint) {
-					newPivotX = snappedPoint.x
-					newPivotY = snappedPoint.y
-				}
-			}
-
-			// Update pivot drag state with snapped point info (preserve originalBounds and initialPivot)
-			setPivotDragState({ isDragging: true, snappedPoint, originalBounds, initialPivot })
-
-			// Calculate position compensation to keep object visually in place
-			// Same formula as updateObjectPivot in object-ops.ts
-			const dpx = initialPivotX - newPivotX
-			const dpy = initialPivotY - newPivotY
-			const compensatedX = initialX + objW * dpx * (1 - cos) + objH * dpy * sin
-			const compensatedY = initialY + objH * dpy * (1 - cos) - objW * dpx * sin
-
-			currentPivotX = newPivotX
-			currentPivotY = newPivotY
-
-			setTempObjectState({
-				objectId,
-				x: compensatedX,
-				y: compensatedY,
-				width: objW,
-				height: objH,
-				pivotX: newPivotX,
-				pivotY: newPivotY
-			})
-		}
-
-		const handlePointerUp = () => {
-			window.removeEventListener('pointermove', handlePointerMove)
-			window.removeEventListener('pointerup', handlePointerUp)
-
-			// Commit final pivot to CRDT (only once!)
-			const currentPrezillo = prezilloRef.current
-			updateObjectPivot(
-				currentPrezillo.yDoc,
-				currentPrezillo.doc,
-				objectId,
-				currentPivotX,
-				currentPivotY
-			)
-
-			// Clear temp state and pivot drag state
-			setTempObjectState(null)
-			setPivotDragState({
-				isDragging: false,
-				snappedPoint: null,
-				originalBounds: null,
-				initialPivot: null
-			})
-
-			// Prevent canvas click from clearing selection
-			justFinishedInteractionRef.current = true
-		}
-
-		window.addEventListener('pointermove', handlePointerMove)
-		window.addEventListener('pointerup', handlePointerUp)
-	}
-
 	// Handle tool start
 	function handleToolStart(evt: ToolEvent) {
 		if (isReadOnly) return // Don't allow tools in read-only mode
-		if (resizeState) return // Don't start drag while resizing
+		if (isResizing) return // Don't start drag while resizing
 
 		if (prezillo.activeTool) {
 			// Start drawing a new shape
@@ -1230,7 +839,7 @@ export function PrezilloApp() {
 
 	// Handle tool move
 	function handleToolMove(evt: ToolEvent) {
-		if (resizeState) return // Resize is handled by window events
+		if (isResizing) return // Resize is handled by window events
 		if (dragState) return // Drag is handled by window events
 
 		if (prezillo.activeTool) {
@@ -1240,7 +849,7 @@ export function PrezilloApp() {
 
 	// Handle tool end
 	function handleToolEnd() {
-		if (resizeState) return // Resize is handled by window events
+		if (isResizing) return // Resize is handled by window events
 
 		if (dragState) {
 			setDragState(null)
@@ -1591,7 +1200,7 @@ export function PrezilloApp() {
 											rotation={selectedObjectTransform.rotation}
 											pivotX={selectedObjectTransform.pivotX}
 											pivotY={selectedObjectTransform.pivotY}
-											onRotateStart={handleRotateStart}
+											onRotateStart={hookRotateStart}
 											onSnapClick={(angle) => {
 												updateObjectRotation(
 													prezillo.yDoc,
@@ -1601,21 +1210,34 @@ export function PrezilloApp() {
 												)
 											}}
 											isRotating={rotationState.isRotating}
-											isSnapActive={rotationState.isSnapActive}
+											isSnapActive={rotationState.isInSnapZone}
 										/>
 										<FixedPivotHandle
 											canvasBounds={selectionBounds}
-											rotation={selectedObjectTransform.rotation}
-											pivotX={selectedObjectTransform.pivotX}
-											pivotY={selectedObjectTransform.pivotY}
-											onPivotDragStart={handlePivotDragStart}
-											isDragging={pivotDragState.isDragging}
-											snapEnabled={snapSettings.settings.snapToObjects}
-											snappedPoint={pivotDragState.snappedPoint}
 											canvasOriginalBounds={
-												pivotDragState.originalBounds ?? undefined
+												storedSelection?.bounds ?? undefined
 											}
-											initialPivot={pivotDragState.initialPivot ?? undefined}
+											initialPivot={
+												storedSelection
+													? {
+															x: storedSelection.pivotX,
+															y: storedSelection.pivotY
+														}
+													: undefined
+											}
+											rotation={selectedObjectTransform.rotation}
+											pivotX={
+												tempObjectState?.pivotX ??
+												selectedObjectTransform.pivotX
+											}
+											pivotY={
+												tempObjectState?.pivotY ??
+												selectedObjectTransform.pivotY
+											}
+											onPivotDragStart={hookPivotDragStart}
+											isDragging={pivotState.isDragging}
+											snapEnabled={snapSettings.settings.snapToObjects}
+											snappedPoint={pivotState.snappedPoint}
 										/>
 									</>
 								)}

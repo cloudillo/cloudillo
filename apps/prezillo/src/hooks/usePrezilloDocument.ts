@@ -222,11 +222,11 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 		// Initialize with consistent color based on user ID
 		str2color(cloudillo.idTag).then((color) => {
 			awareness.setLocalStateField('user', {
-				name: cloudillo.idTag,
+				name: cloudillo.displayName || cloudillo.idTag || 'Anonymous',
 				color
 			})
 		})
-	}, [awareness, cloudillo.idTag])
+	}, [awareness, cloudillo.idTag, cloudillo.displayName])
 
 	// Listen for awareness changes from remote clients
 	React.useEffect(() => {

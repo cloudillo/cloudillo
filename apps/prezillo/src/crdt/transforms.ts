@@ -32,7 +32,7 @@ import type {
 import { expandObject, expandContainer, expandView } from './type-converters'
 
 // Import utilities used in this file
-import { composeTransforms, unionBounds } from 'react-svg-canvas'
+import { composeTransforms, unionBounds, boundsIntersectsView } from 'react-svg-canvas'
 
 // Re-export generic geometry utilities from react-svg-canvas
 export {
@@ -46,7 +46,27 @@ export {
 	scalePoint,
 	distance,
 	snapToGrid,
-	snapPointToGrid
+	snapPointToGrid,
+	// View coordinate utilities
+	canvasToView,
+	viewToCanvas,
+	isPointInView,
+	boundsIntersectsView,
+	// RotationMatrix utilities
+	type RotationMatrix,
+	createRotationMatrix,
+	rotatePointWithMatrix,
+	unrotatePointWithMatrix,
+	rotateDeltaWithMatrix,
+	unrotateDeltaWithMatrix,
+	// Resize utilities
+	type ResizeState,
+	getAnchorForHandle,
+	getRotatedAnchorPosition,
+	calculateResizedDimensions,
+	calculateResizedPosition,
+	initResizeState,
+	calculateResizeBounds
 } from 'react-svg-canvas'
 
 /**
@@ -240,55 +260,6 @@ export function getContainerBounds(
 		width: maxX - minX,
 		height: maxY - minY
 	}
-}
-
-/**
- * Convert canvas coordinates to view-local coordinates
- */
-export function canvasToView(point: Point, view: StoredView): Point {
-	return {
-		x: point.x - view.x,
-		y: point.y - view.y
-	}
-}
-
-/**
- * Convert view-local coordinates to canvas coordinates
- */
-export function viewToCanvas(point: Point, view: StoredView): Point {
-	return {
-		x: point.x + view.x,
-		y: point.y + view.y
-	}
-}
-
-/**
- * Check if a point (in canvas coords) is inside a view
- */
-export function isPointInView(point: Point, view: StoredView): boolean {
-	return (
-		point.x >= view.x &&
-		point.x <= view.x + view.width &&
-		point.y >= view.y &&
-		point.y <= view.y + view.height
-	)
-}
-
-/**
- * Check if a bounds intersects with a view
- */
-export function boundsIntersectsView(bounds: Bounds, view: StoredView): boolean {
-	const boundsRight = bounds.x + bounds.width
-	const boundsBottom = bounds.y + bounds.height
-	const viewRight = view.x + view.width
-	const viewBottom = view.y + view.height
-
-	return !(
-		bounds.x > viewRight ||
-		boundsRight < view.x ||
-		bounds.y > viewBottom ||
-		boundsBottom < view.y
-	)
 }
 
 /**

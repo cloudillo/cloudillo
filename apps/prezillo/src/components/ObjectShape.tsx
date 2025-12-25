@@ -25,6 +25,7 @@ import * as React from 'react'
 import type { PrezilloObject } from '../crdt'
 import { resolveShapeStyle, resolveTextStyle } from '../crdt'
 import { WrappedText } from './WrappedText'
+import { ImageRenderer } from './ImageRenderer'
 
 export interface ObjectShapeProps {
 	object: PrezilloObject
@@ -47,6 +48,9 @@ export interface ObjectShapeProps {
 		pivotX?: number
 		pivotY?: number
 	}
+	// Image rendering props
+	ownerTag?: string
+	scale?: number
 }
 
 /**
@@ -104,7 +108,9 @@ export const ObjectShape = React.memo(function ObjectShape({
 	onPointerDown,
 	onMouseEnter,
 	onMouseLeave,
-	tempBounds
+	tempBounds,
+	ownerTag,
+	scale
 }: ObjectShapeProps) {
 	// Use temp bounds if provided, otherwise use object bounds
 	const x = tempBounds?.x ?? object.x
@@ -238,6 +244,28 @@ export const ObjectShape = React.memo(function ObjectShape({
 						isPlaceholder={isEmpty}
 					/>
 					{/* Invisible rect for click handling since foreignObject has pointerEvents: none */}
+					<rect
+						x={x}
+						y={y}
+						width={width}
+						height={height}
+						fill="transparent"
+						stroke="none"
+					/>
+					{hoverOverlay}
+				</g>
+			)
+
+		case 'image':
+			return (
+				<g transform={rotationTransform} opacity={objectOpacity} {...commonProps}>
+					<ImageRenderer
+						object={object}
+						ownerTag={ownerTag}
+						scale={scale}
+						bounds={{ x, y, width, height }}
+					/>
+					{/* Invisible rect for click handling */}
 					<rect
 						x={x}
 						y={y}

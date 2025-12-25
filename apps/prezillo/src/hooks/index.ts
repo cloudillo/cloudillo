@@ -27,4 +27,7 @@ export { useViews, useView, useViewIds } from './useViews'
 export { useSnappingConfig, useGetParent, useSnapSettings } from './useSnappingConfig'
 export type { SnapSettings, UseSnapSettingsResult } from './useSnappingConfig'
 
+export { useImageHandler } from './useImageHandler'
+export type { UseImageHandlerOptions } from './useImageHandler'
+
 // vim: ts=4

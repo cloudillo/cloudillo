@@ -21,10 +21,11 @@
 import * as React from 'react'
 import { PiXBold as IcClose } from 'react-icons/pi'
 
-import type { ViewId, ViewNode, PrezilloObject, YPrezilloDocument } from '../crdt'
+import type { ViewId, ViewNode, PrezilloObject, YPrezilloDocument, ImageObject } from '../crdt'
 import { resolveShapeStyle, resolveTextStyle } from '../crdt'
 import { useViewObjects } from '../hooks/useViewObjects'
 import { WrappedText } from './WrappedText'
+import { ImageRenderer } from './ImageRenderer'
 import { DEFAULT_SHAPE_STYLE, DEFAULT_TEXT_STYLE } from '../utils/constants'
 
 export interface PresentationModeProps {
@@ -32,6 +33,7 @@ export interface PresentationModeProps {
 	views: ViewNode[]
 	initialViewId: ViewId | null
 	onExit: () => void
+	ownerTag?: string
 }
 
 /**
@@ -40,11 +42,13 @@ export interface PresentationModeProps {
 function PresentationObjectShape({
 	object,
 	style,
-	textStyle
+	textStyle,
+	ownerTag
 }: {
 	object: PrezilloObject
 	style: ReturnType<typeof resolveShapeStyle>
 	textStyle: ReturnType<typeof resolveTextStyle>
+	ownerTag?: string
 }) {
 	const strokeProps = {
 		stroke: style.stroke,
@@ -60,21 +64,34 @@ function PresentationObjectShape({
 		fillOpacity: style.fillOpacity
 	}
 
+	// Calculate rotation transform around pivot point
+	const pivotX = object.pivotX ?? 0.5
+	const pivotY = object.pivotY ?? 0.5
+	const cx = object.x + object.width * pivotX
+	const cy = object.y + object.height * pivotY
+	const rotation = object.rotation ?? 0
+	const rotationTransform = rotation !== 0 ? `rotate(${rotation} ${cx} ${cy})` : undefined
+	const objectOpacity = object.opacity !== 1 ? object.opacity : undefined
+
+	let content: React.ReactNode
+
 	switch (object.type) {
 		case 'rect':
-			return (
+			const rectObj = object as any
+			content = (
 				<rect
 					x={object.x}
 					y={object.y}
 					width={object.width}
 					height={object.height}
-					rx={(object as any).cornerRadius}
+					rx={typeof rectObj.cornerRadius === 'number' ? rectObj.cornerRadius : undefined}
 					{...fillProps}
 					{...strokeProps}
 				/>
 			)
+			break
 		case 'ellipse':
-			return (
+			content = (
 				<ellipse
 					cx={object.x + object.width / 2}
 					cy={object.y + object.height / 2}
@@ -84,13 +101,14 @@ function PresentationObjectShape({
 					{...strokeProps}
 				/>
 			)
+			break
 		case 'line':
 			const lineObj = object as any
 			const [start, end] = lineObj.points || [
-				[0, 0],
-				[object.width, object.height]
+				[0, object.height / 2],
+				[object.width, object.height / 2]
 			]
-			return (
+			content = (
 				<line
 					x1={object.x + start[0]}
 					y1={object.y + start[1]}
@@ -99,12 +117,13 @@ function PresentationObjectShape({
 					{...strokeProps}
 				/>
 			)
+			break
 		case 'text':
 			const textObj = object as any
 			const presTextContent = textObj.text || ''
 			// In presentation mode, don't show empty text objects
 			if (presTextContent.trim() === '') return null
-			return (
+			content = (
 				<WrappedText
 					x={object.x}
 					y={object.y}
@@ -114,8 +133,12 @@ function PresentationObjectShape({
 					textStyle={textStyle}
 				/>
 			)
+			break
+		case 'image':
+			content = <ImageRenderer object={object as ImageObject} ownerTag={ownerTag} scale={1} />
+			break
 		default:
-			return (
+			content = (
 				<rect
 					x={object.x}
 					y={object.y}
@@ -126,9 +149,26 @@ function PresentationObjectShape({
 				/>
 			)
 	}
+
+	// Wrap with rotation and opacity if needed
+	if (rotationTransform || objectOpacity !== undefined) {
+		return (
+			<g transform={rotationTransform} opacity={objectOpacity}>
+				{content}
+			</g>
+		)
+	}
+
+	return content
 }
 
-export function PresentationMode({ doc, views, initialViewId, onExit }: PresentationModeProps) {
+export function PresentationMode({
+	doc,
+	views,
+	initialViewId,
+	onExit,
+	ownerTag
+}: PresentationModeProps) {
 	const containerRef = React.useRef<HTMLDivElement>(null)
 	const [currentIndex, setCurrentIndex] = React.useState(() => {
 		const idx = views.findIndex((v) => v.id === initialViewId)
@@ -244,6 +284,7 @@ export function PresentationMode({ doc, views, initialViewId, onExit }: Presenta
 							object={object}
 							style={style}
 							textStyle={textStyle}
+							ownerTag={ownerTag}
 						/>
 					)
 				})}

@@ -140,7 +140,13 @@ import '@symbion/opalui/themes/glass.css'
 import '@cloudillo/react/components.css'
 import './style.css'
 
-import { usePrezilloDocument, useSnappingConfig, useGetParent, useSnapSettings } from './hooks'
+import {
+	usePrezilloDocument,
+	useSnappingConfig,
+	useGetParent,
+	useSnapSettings,
+	useImageHandler
+} from './hooks'
 import { useViewObjects } from './hooks/useViewObjects'
 import { useViews } from './hooks/useViews'
 import { setEditingState, clearEditingState } from './awareness'
@@ -250,12 +256,44 @@ export function PrezilloApp() {
 	// Track if we just finished an interaction (resize/rotate/pivot) to prevent canvas click from clearing selection
 	const justFinishedInteractionRef = React.useRef(false)
 
+	// Canvas scale for image variant selection
+	const [canvasScale, setCanvasScale] = React.useState(1)
+
 	const handleCanvasContextReady = React.useCallback((ctx: SvgCanvasContext) => {
 		canvasContextRef.current = ctx
+		setCanvasScale(ctx.scale)
 	}, [])
+
+	// Image handler for inserting images via MediaPicker
+	const imageHandlerRef = React.useRef<{ insertImage: (x: number, y: number) => void } | null>(
+		null
+	)
+	const imageHandler = useImageHandler({
+		yDoc: prezillo.yDoc,
+		doc: prezillo.doc,
+		enabled: prezillo.activeTool === 'image',
+		documentFileId: prezillo.cloudillo.fileId,
+		onObjectCreated: (id) => {
+			prezillo.selectObject(id)
+		},
+		onInsertComplete: () => {
+			prezillo.setActiveTool(null)
+		}
+	})
+	imageHandlerRef.current = imageHandler
 
 	// Get active view
 	const activeView = prezillo.activeViewId ? getView(prezillo.doc, prezillo.activeViewId) : null
+
+	// Trigger image insertion when image tool is activated
+	React.useEffect(() => {
+		if (prezillo.activeTool === 'image' && activeView && !imageHandler.isInserting) {
+			// Insert at view center
+			const centerX = activeView.x + activeView.width / 2
+			const centerY = activeView.y + activeView.height / 2
+			imageHandler.insertImage(centerX, centerY)
+		}
+	}, [prezillo.activeTool, activeView, imageHandler])
 
 	// Center on active view when it changes
 	React.useEffect(() => {
@@ -369,6 +407,16 @@ export function PrezilloApp() {
 	const storedSelectionRef = React.useRef(storedSelection)
 	storedSelectionRef.current = storedSelection
 
+	// Compute aspect ratio for single image selection
+	// This is used by useResizable for aspect-locked resize
+	const selectionAspectRatio = React.useMemo(() => {
+		if (prezillo.selectedIds.size !== 1) return undefined
+		const id = Array.from(prezillo.selectedIds)[0]
+		const obj = prezillo.objects?.[id]
+		if (!obj || obj.t !== 'I') return undefined // 'I' = image type
+		return obj.wh[0] / obj.wh[1] // width / height
+	}, [prezillo.selectedIds, prezillo.objects])
+
 	// Transform functions that use canvasContextRef (since hooks are outside SvgCanvas context)
 	const translateToRef = React.useCallback((x: number, y: number): [number, number] => {
 		const ctx = canvasContextRef.current
@@ -408,6 +456,7 @@ export function PrezilloApp() {
 		snapResize: snapResizeRef.current,
 		transformCoordinates: resizeTransformCoordinates,
 		disabled: isReadOnly || !storedSelection,
+		aspectRatio: selectionAspectRatio,
 		onResizeStart: ({ handle, bounds }) => {
 			// Use ref to get latest storedSelection (react-yjs keeps it updated)
 			const current = storedSelectionRef.current
@@ -1330,6 +1379,8 @@ export function PrezilloApp() {
 									onMouseEnter={() => setHoveredObjectId(object.id as ObjectId)}
 									onMouseLeave={() => setHoveredObjectId(null)}
 									tempBounds={objectTempBounds}
+									ownerTag={prezillo.cloudillo.idTag}
+									scale={canvasScale}
 								/>
 							)
 						})}
@@ -1492,6 +1543,7 @@ export function PrezilloApp() {
 					views={views}
 					initialViewId={prezillo.activeViewId}
 					onExit={() => setIsPresentationMode(false)}
+					ownerTag={prezillo.cloudillo.idTag}
 				/>
 			)}
 		</>

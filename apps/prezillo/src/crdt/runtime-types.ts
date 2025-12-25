@@ -220,9 +220,7 @@ export interface TextboxObject extends PrezilloObjectBase {
 // Image object
 export interface ImageObject extends PrezilloObjectBase {
 	type: 'image'
-	src: string
-	alt?: string
-	objectFit?: 'contain' | 'cover' | 'fill' | 'none'
+	fileId: string
 }
 
 // Embed object

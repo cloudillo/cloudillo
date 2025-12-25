@@ -190,9 +190,7 @@ export interface StoredTextbox extends StoredObjectBase {
 // Image
 export interface StoredImage extends StoredObjectBase {
 	t: 'I'
-	src: string
-	alt?: string
-	fit?: 'contain' | 'cover' | 'fill' | 'none'
+	fid: string // fileId from MediaPicker
 }
 
 // Embed (media)

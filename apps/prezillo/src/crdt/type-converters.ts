@@ -408,9 +408,7 @@ export function expandObject(id: string, stored: Stored.StoredObject): Runtime.P
 			return {
 				...base,
 				type: 'image',
-				src: (stored as Stored.StoredImage).src,
-				alt: (stored as Stored.StoredImage).alt,
-				objectFit: (stored as Stored.StoredImage).fit
+				fileId: (stored as Stored.StoredImage).fid
 			} as Runtime.ImageObject
 
 		case 'M':
@@ -530,9 +528,7 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 			return {
 				...base,
 				t: 'I',
-				src: img.src,
-				alt: img.alt,
-				fit: img.objectFit
+				fid: img.fileId
 			} as Stored.StoredImage
 
 		case 'embed':

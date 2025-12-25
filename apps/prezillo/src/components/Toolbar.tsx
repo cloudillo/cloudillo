@@ -27,6 +27,7 @@ import {
 	PiRectangleBold as IcRect,
 	PiCircleBold as IcEllipse,
 	PiMinusBold as IcLine,
+	PiImageBold as IcImage,
 	PiTrashBold as IcDelete,
 	PiArrowArcLeftBold as IcUndo,
 	PiArrowArcRightBold as IcRedo,
@@ -190,6 +191,15 @@ export function Toolbar({
 				title="Text"
 			>
 				<IcLabel />
+			</button>
+
+			{/* Image tool */}
+			<button
+				onClick={() => setTool('image')}
+				className={mergeClasses('c-button icon', tool === 'image' ? 'active' : '')}
+				title="Image"
+			>
+				<IcImage />
 			</button>
 
 			<div className="c-toolbar-divider" />

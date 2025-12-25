@@ -150,7 +150,7 @@ export function createObject(
 			}, yDoc.clientID)
 			break
 		case 'image':
-			object = { ...base, type: 'image', src: '' } as any
+			object = { ...base, type: 'image', fileId: '' } as any
 			break
 		case 'embed':
 			object = { ...base, type: 'embed', embedType: 'iframe', src: '' } as any

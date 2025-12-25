@@ -48,6 +48,97 @@ import * as T from '@symbion/runtype'
 import { createElement, Cloud, CloudOff } from 'lucide'
 
 import { getAppBus, openYDoc, str2color } from '@cloudillo/base'
+
+// ============================================
+// Color Palette System
+// ============================================
+
+const PALETTE = {
+	neutrals: ['n0', 'n1', 'n2', 'n3', 'n4', 'n5'],
+	normal: ['red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'purple', 'pink'],
+	pastel: ['red-p', 'orange-p', 'yellow-p', 'green-p', 'cyan-p', 'blue-p', 'purple-p', 'pink-p']
+}
+
+function paletteKeyToCss(key: string): string {
+	if (key === 'clear' || key === 'none') return ''
+	return `var(--palette-${key})`
+}
+
+function createColorPicker(
+	type: 'color' | 'background',
+	onSelect: (color: string) => void
+): HTMLElement {
+	const picker = document.createElement('div')
+	picker.className = 'quillo-color-picker hidden'
+	picker.id = `${type}-picker`
+
+	// Clear option row
+	const clearRow = document.createElement('div')
+	clearRow.className = 'quillo-color-row'
+	const clearBtn = document.createElement('button')
+	clearBtn.className = 'quillo-color-swatch clear'
+	clearBtn.title = 'Clear'
+	clearBtn.dataset.color = 'clear'
+	clearBtn.addEventListener('click', () => {
+		onSelect('')
+		picker.classList.add('hidden')
+	})
+	clearRow.appendChild(clearBtn)
+	picker.appendChild(clearRow)
+
+	// Neutrals row
+	const neutralRow = document.createElement('div')
+	neutralRow.className = 'quillo-color-row'
+	for (const key of PALETTE.neutrals) {
+		const swatch = document.createElement('button')
+		swatch.className = 'quillo-color-swatch'
+		swatch.style.backgroundColor = paletteKeyToCss(key)
+		swatch.title = key
+		swatch.dataset.color = key
+		swatch.addEventListener('click', () => {
+			onSelect(paletteKeyToCss(key))
+			picker.classList.add('hidden')
+		})
+		neutralRow.appendChild(swatch)
+	}
+	picker.appendChild(neutralRow)
+
+	// Normal colors row
+	const normalRow = document.createElement('div')
+	normalRow.className = 'quillo-color-row'
+	for (const key of PALETTE.normal) {
+		const swatch = document.createElement('button')
+		swatch.className = 'quillo-color-swatch'
+		swatch.style.backgroundColor = paletteKeyToCss(key)
+		swatch.title = key
+		swatch.dataset.color = key
+		swatch.addEventListener('click', () => {
+			onSelect(paletteKeyToCss(key))
+			picker.classList.add('hidden')
+		})
+		normalRow.appendChild(swatch)
+	}
+	picker.appendChild(normalRow)
+
+	// Pastel colors row
+	const pastelRow = document.createElement('div')
+	pastelRow.className = 'quillo-color-row'
+	for (const key of PALETTE.pastel) {
+		const swatch = document.createElement('button')
+		swatch.className = 'quillo-color-swatch'
+		swatch.style.backgroundColor = paletteKeyToCss(key)
+		swatch.title = key
+		swatch.dataset.color = key
+		swatch.addEventListener('click', () => {
+			onSelect(paletteKeyToCss(key))
+			picker.classList.add('hidden')
+		})
+		pastelRow.appendChild(swatch)
+	}
+	picker.appendChild(pastelRow)
+
+	return picker
+}
 ;(async function () {
 	// Register modules
 	Quill.register('modules/cursors', QuillCursors as any)
@@ -155,6 +246,109 @@ import { getAppBus, openYDoc, str2color } from '@cloudillo/base'
 			editor.setSelection(range.index + 1, 0, 'silent')
 		} catch (error) {
 			console.error('[quillo] Failed to insert image:', error)
+		}
+	})
+
+	// ============================================
+	// Custom Color Picker Setup
+	// ============================================
+
+	const colorBtn = document.getElementById('color-btn')
+	const backgroundBtn = document.getElementById('background-btn')
+	const colorIndicator = document.getElementById('color-indicator')
+	const backgroundIndicator = document.getElementById('background-indicator')
+
+	let currentTextColor = 'var(--palette-n0)'
+	let currentBackgroundColor = 'var(--palette-yellow-p)'
+
+	// Create color pickers
+	const colorPicker = createColorPicker('color', (color) => {
+		editor.format('color', color || false)
+		if (color && colorIndicator) {
+			colorIndicator.style.backgroundColor = color
+			currentTextColor = color
+		}
+	})
+
+	const backgroundPicker = createColorPicker('background', (color) => {
+		editor.format('background', color || false)
+		if (color && backgroundIndicator) {
+			backgroundIndicator.style.backgroundColor = color
+			currentBackgroundColor = color
+		}
+	})
+
+	// Add pickers to body
+	document.body.appendChild(colorPicker)
+	document.body.appendChild(backgroundPicker)
+
+	// Position picker above button
+	function showPicker(picker: HTMLElement, button: HTMLElement) {
+		const rect = button.getBoundingClientRect()
+
+		// Temporarily show off-screen to measure height
+		picker.style.visibility = 'hidden'
+		picker.style.top = '0'
+		picker.style.left = '0'
+		picker.classList.remove('hidden')
+
+		const pickerHeight = picker.offsetHeight
+		const pickerWidth = picker.offsetWidth
+
+		// Calculate position: above button, aligned left
+		let top = rect.top - pickerHeight - 8
+		let left = rect.left
+
+		// Ensure picker stays within viewport
+		if (top < 8) top = rect.bottom + 8 // flip below if no room above
+		if (left + pickerWidth > window.innerWidth - 8) {
+			left = window.innerWidth - pickerWidth - 8
+		}
+
+		// Apply position and show
+		picker.style.top = `${top}px`
+		picker.style.left = `${left}px`
+		picker.style.visibility = ''
+	}
+
+	// Toggle color picker
+	colorBtn?.addEventListener('click', (e) => {
+		e.stopPropagation()
+		backgroundPicker.classList.add('hidden')
+		if (colorPicker.classList.contains('hidden')) {
+			showPicker(colorPicker, colorBtn)
+		} else {
+			colorPicker.classList.add('hidden')
+		}
+	})
+
+	// Toggle background picker
+	backgroundBtn?.addEventListener('click', (e) => {
+		e.stopPropagation()
+		colorPicker.classList.add('hidden')
+		if (backgroundPicker.classList.contains('hidden')) {
+			showPicker(backgroundPicker, backgroundBtn)
+		} else {
+			backgroundPicker.classList.add('hidden')
+		}
+	})
+
+	// Close pickers on outside click
+	document.addEventListener('click', (e) => {
+		const target = e.target as HTMLElement
+		if (!colorPicker.contains(target) && target !== colorBtn) {
+			colorPicker.classList.add('hidden')
+		}
+		if (!backgroundPicker.contains(target) && target !== backgroundBtn) {
+			backgroundPicker.classList.add('hidden')
+		}
+	})
+
+	// Close pickers on Escape key
+	document.addEventListener('keydown', (e) => {
+		if (e.key === 'Escape') {
+			colorPicker.classList.add('hidden')
+			backgroundPicker.classList.add('hidden')
 		}
 	})
 })()

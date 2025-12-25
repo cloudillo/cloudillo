@@ -1,3 +1,61 @@
+/* ============================================
+   Color Palette Variables (Dark/Light Mode)
+   ============================================ */
+
+:root {
+	/* Neutrals (light mode: black → white) */
+	--palette-n0: hsl(0, 0%, 0%);
+	--palette-n1: hsl(0, 0%, 25%);
+	--palette-n2: hsl(0, 0%, 50%);
+	--palette-n3: hsl(0, 0%, 75%);
+	--palette-n4: hsl(0, 0%, 90%);
+	--palette-n5: hsl(0, 0%, 100%);
+
+	/* Normal colors (50% L, 70% S) */
+	--palette-red: hsl(0, 70%, 50%);
+	--palette-orange: hsl(30, 70%, 50%);
+	--palette-yellow: hsl(50, 70%, 50%);
+	--palette-green: hsl(140, 70%, 40%);
+	--palette-cyan: hsl(180, 70%, 40%);
+	--palette-blue: hsl(220, 70%, 50%);
+	--palette-purple: hsl(270, 70%, 50%);
+	--palette-pink: hsl(330, 70%, 50%);
+
+	/* Pastel colors (75% L, 60% S) */
+	--palette-red-p: hsl(0, 60%, 75%);
+	--palette-orange-p: hsl(30, 60%, 75%);
+	--palette-yellow-p: hsl(50, 60%, 80%);
+	--palette-green-p: hsl(140, 60%, 75%);
+	--palette-cyan-p: hsl(180, 60%, 75%);
+	--palette-blue-p: hsl(220, 60%, 75%);
+	--palette-purple-p: hsl(270, 60%, 75%);
+	--palette-pink-p: hsl(330, 60%, 75%);
+}
+
+.dark {
+	/* Neutrals inverted (white → black) */
+	--palette-n0: hsl(0, 0%, 100%);
+	--palette-n1: hsl(0, 0%, 75%);
+	--palette-n2: hsl(0, 0%, 50%);
+	--palette-n3: hsl(0, 0%, 25%);
+	--palette-n4: hsl(0, 0%, 10%);
+	--palette-n5: hsl(0, 0%, 0%);
+
+	/* Normal colors unchanged (50% L) */
+
+	/* Pastel → Dark tints (25% L) */
+	--palette-red-p: hsl(0, 60%, 25%);
+	--palette-orange-p: hsl(30, 60%, 25%);
+	--palette-yellow-p: hsl(50, 60%, 30%);
+	--palette-green-p: hsl(140, 60%, 25%);
+	--palette-cyan-p: hsl(180, 60%, 25%);
+	--palette-blue-p: hsl(220, 60%, 25%);
+	--palette-purple-p: hsl(270, 60%, 25%);
+	--palette-pink-p: hsl(330, 60%, 25%);
+}
+
+/* ============================================ */
+
 body {
 	margin: 0;
 	display: flex;
@@ -79,6 +137,108 @@ body {
 		color: var(--col-on);
 		opacity: 0.6;
 	}
+}
+
+/* Headers */
+.ql-editor h1 {
+	font-size: 2rem;
+	font-weight: 700;
+	margin: 1.5rem 0 0.75rem;
+	line-height: 1.2;
+}
+
+.ql-editor h2 {
+	font-size: 1.5rem;
+	font-weight: 600;
+	margin: 1.25rem 0 0.5rem;
+	line-height: 1.3;
+}
+
+.ql-editor h3 {
+	font-size: 1.25rem;
+	font-weight: 600;
+	margin: 1rem 0 0.4rem;
+	line-height: 1.4;
+}
+
+/* Blockquote */
+.ql-editor blockquote {
+	border-left: 4px solid var(--col-primary, #0589f3);
+	padding-left: 1rem;
+	margin: 0.75rem 0;
+	background: color-mix(in srgb, var(--col-surface-dim, #f5f5f5) 50%, transparent);
+	border-radius: 0 var(--border-radius-sm, 4px) var(--border-radius-sm, 4px) 0;
+	padding: 0.5rem 0.5rem 0.5rem 1rem;
+	font-style: italic;
+	color: var(--col-on-secondary, inherit);
+}
+
+/* Links */
+.ql-editor a {
+	color: var(--col-primary, #0589f3);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.ql-editor a:hover {
+	text-decoration-thickness: 2px;
+}
+
+/* Link tooltip styling */
+.ql-snow .ql-tooltip {
+	background: var(--col-bg, #fff);
+	border: 1px solid var(--col-outline, #ccc);
+	border-radius: var(--border-radius-lg, 8px);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	color: var(--col-on);
+	padding: 8px 12px;
+}
+
+.ql-snow .ql-tooltip input[type='text'] {
+	background: var(--col-surface, #f5f5f5);
+	border: 1px solid var(--col-outline, #ccc);
+	border-radius: var(--border-radius-sm, 4px);
+	color: var(--col-on);
+	padding: 4px 8px;
+}
+
+.ql-snow .ql-tooltip a.ql-action,
+.ql-snow .ql-tooltip a.ql-remove {
+	color: var(--col-primary, #0589f3);
+}
+
+/* Indent styles */
+.ql-editor .ql-indent-1 {
+	padding-left: 2rem;
+}
+.ql-editor .ql-indent-2 {
+	padding-left: 4rem;
+}
+.ql-editor .ql-indent-3 {
+	padding-left: 6rem;
+}
+.ql-editor .ql-indent-4 {
+	padding-left: 8rem;
+}
+.ql-editor .ql-indent-5 {
+	padding-left: 10rem;
+}
+
+/* Color picker styling */
+.c-panel.ql-toolbar.ql-snow .ql-color-picker,
+.c-panel.ql-toolbar.ql-snow .ql-background {
+	width: auto;
+}
+
+.c-panel.ql-toolbar.ql-snow .ql-color-picker .ql-picker-label,
+.c-panel.ql-toolbar.ql-snow .ql-background .ql-picker-label {
+	padding: 2px 4px;
+}
+
+.c-panel.ql-toolbar.ql-snow .ql-color-picker .ql-picker-options,
+.c-panel.ql-toolbar.ql-snow .ql-background .ql-picker-options {
+	padding: 8px;
+	width: auto;
 }
 
 /* Cloudillo Image Blot */
@@ -163,6 +323,236 @@ body {
 /* Table resize handles */
 .ql-table-resize-box {
 	border: 2px dashed var(--col-primary, #0589f3);
+}
+
+/* ============================================
+   Mobile & Touch Improvements
+   ============================================ */
+
+/* Responsive toolbar - scrollable on mobile */
+@media (max-width: 640px) {
+	#toolbar {
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		overflow-y: hidden;
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: none; /* Firefox */
+		-ms-overflow-style: none; /* IE/Edge */
+	}
+
+	#toolbar::-webkit-scrollbar {
+		display: none; /* Chrome/Safari */
+	}
+
+	#toolbar .ql-formats {
+		flex-shrink: 0;
+	}
+
+	/* Hide less-used buttons on small screens */
+	#toolbar .ql-formats-script,
+	#toolbar .ql-formats-table,
+	#toolbar .ql-formats-align {
+		display: none;
+	}
+
+	/* Compact dropdowns */
+	.c-panel.ql-toolbar.ql-snow .ql-picker-label {
+		padding: 0 4px;
+	}
+}
+
+/* Very small screens - minimal toolbar */
+@media (max-width: 400px) {
+	#toolbar .ql-formats:has(.ql-color),
+	#toolbar .ql-formats:has(.ql-blockquote) {
+		display: none;
+	}
+}
+
+/* Touch-friendly button sizes */
+@media (pointer: coarse) {
+	#toolbar button,
+	#toolbar .ql-picker-label {
+		min-width: 40px;
+		min-height: 40px;
+		padding: 8px;
+	}
+
+	#toolbar .ql-formats {
+		gap: 2px;
+		margin-right: 8px;
+	}
+
+	/* Larger color picker swatches for touch */
+	.c-panel.ql-toolbar.ql-snow .ql-color-picker .ql-picker-item,
+	.c-panel.ql-toolbar.ql-snow .ql-background .ql-picker-item {
+		width: 28px;
+		height: 28px;
+	}
+
+	/* Larger resize handles for images on touch */
+	.blot-formatter__resize-handle {
+		width: 16px !important;
+		height: 16px !important;
+	}
+
+	/* Larger link tooltip buttons */
+	.ql-snow .ql-tooltip a.ql-action,
+	.ql-snow .ql-tooltip a.ql-remove {
+		padding: 8px 12px;
+	}
+}
+
+/* Ensure toolbar is always visible and accessible */
+#toolbar {
+	position: sticky;
+	bottom: 0;
+	z-index: 100;
+}
+
+/* Header dropdown labels for Quill snow theme */
+.c-panel.ql-toolbar.ql-snow .ql-header .ql-picker-label::before,
+.c-panel.ql-toolbar.ql-snow .ql-header .ql-picker-item::before {
+	content: 'Normal';
+}
+
+.c-panel.ql-toolbar.ql-snow .ql-header .ql-picker-label[data-value='1']::before,
+.c-panel.ql-toolbar.ql-snow .ql-header .ql-picker-item[data-value='1']::before {
+	content: 'Heading 1';
+}
+
+.c-panel.ql-toolbar.ql-snow .ql-header .ql-picker-label[data-value='2']::before,
+.c-panel.ql-toolbar.ql-snow .ql-header .ql-picker-item[data-value='2']::before {
+	content: 'Heading 2';
+}
+
+.c-panel.ql-toolbar.ql-snow .ql-header .ql-picker-label[data-value='3']::before,
+.c-panel.ql-toolbar.ql-snow .ql-header .ql-picker-item[data-value='3']::before {
+	content: 'Heading 3';
+}
+
+/* ============================================
+   Custom Color Picker Component
+   ============================================ */
+
+/* Color button in toolbar */
+.quillo-color-btn {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	padding: 4px 6px;
+	border-radius: 4px;
+}
+
+.quillo-color-btn:hover {
+	background: rgba(0, 0, 0, 0.1);
+}
+
+.quillo-color-btn svg {
+	stroke: var(--col-on, #444);
+}
+
+.quillo-color-btn .color-indicator {
+	display: block;
+	width: 16px;
+	height: 3px;
+	margin-top: 1px;
+	border-radius: 1px;
+	background: var(--palette-n0);
+}
+
+#background-indicator {
+	background: var(--palette-yellow-p);
+}
+
+/* Color picker popover */
+.quillo-color-picker {
+	position: fixed;
+	top: 0;
+	left: 0;
+	z-index: 10000;
+	background: var(--col-bg, #fff);
+	border-radius: var(--border-radius-lg, 8px);
+	box-shadow:
+		0 4px 12px rgba(0, 0, 0, 0.25),
+		inset 0 0 0.5rem var(--col-bg, #fff);
+	backdrop-filter: blur(var(--blur-radius, 10px));
+	padding: 8px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.quillo-color-picker.hidden {
+	display: none;
+}
+
+.quillo-color-row {
+	display: flex;
+	gap: 4px;
+}
+
+.quillo-color-swatch {
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: 1px solid rgba(0, 0, 0, 0.15);
+	border-radius: 4px;
+	cursor: pointer;
+	transition: transform 0.1s;
+	position: relative;
+}
+
+.quillo-color-swatch:hover {
+	transform: scale(1.15);
+	z-index: 1;
+}
+
+.quillo-color-swatch.selected {
+	outline: 2px solid var(--col-primary, #0589f3);
+	outline-offset: 1px;
+}
+
+/* Clear/none color swatch */
+.quillo-color-swatch.clear {
+	background:
+		linear-gradient(45deg, #ccc 25%, transparent 25%),
+		linear-gradient(-45deg, #ccc 25%, transparent 25%),
+		linear-gradient(45deg, transparent 75%, #ccc 75%),
+		linear-gradient(-45deg, transparent 75%, #ccc 75%);
+	background-size: 8px 8px;
+	background-position:
+		0 0,
+		0 4px,
+		4px -4px,
+		-4px 0px;
+}
+
+.quillo-color-swatch.clear::after {
+	content: '';
+	position: absolute;
+	top: 50%;
+	left: -2px;
+	right: -2px;
+	height: 2px;
+	background: hsl(0, 70%, 50%);
+	transform: rotate(-45deg);
+}
+
+/* Dark mode adjustments */
+.dark .quillo-color-swatch {
+	border-color: rgba(255, 255, 255, 0.2);
+}
+
+.dark .quillo-color-picker {
+	box-shadow:
+		0 4px 12px rgba(0, 0, 0, 0.4),
+		inset 0 0 0.5rem var(--col-bg, #1a1a1a);
 }
 
 /* vim: ts=4

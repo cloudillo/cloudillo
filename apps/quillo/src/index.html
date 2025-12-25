@@ -27,36 +27,69 @@
 	<body style="background: transparent">
 		<div id="editor" class="c-panel m-1"></div>
 		<div id="toolbar" class="c-panel flex-order-start z-1 m-1 flex-row">
+			<!-- Text formatting -->
 			<span class="ql-formats">
-				<select class="ql-size" defaultValue="">
-					<option value="small"></option>
+				<select class="ql-header" title="Heading">
 					<option selected></option>
-					<option value="large"></option>
-					<option value="huge"></option>
+					<option value="1"></option>
+					<option value="2"></option>
+					<option value="3"></option>
 				</select>
-				<button class="ql-bold"></button>
-				<button class="ql-italic"></button>
-				<button class="ql-underline"></button>
 			</span>
 			<span class="ql-formats">
-				<button class="ql-script" value="sub"></button>
-				<button class="ql-script" value="super"></button>
+				<button class="ql-bold" title="Bold"></button>
+				<button class="ql-italic" title="Italic"></button>
+				<button class="ql-underline" title="Underline"></button>
+				<button class="ql-strike" title="Strikethrough"></button>
 			</span>
+			<!-- Colors (custom buttons with icons) -->
 			<span class="ql-formats">
-				<button class="ql-list" value="ordered"></button>
-				<button class="ql-list" value="bullet"></button>
+				<button id="color-btn" class="quillo-color-btn" title="Text Color">
+					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<polyline points="4 7 4 4 20 4 20 7"></polyline>
+						<line x1="9" y1="20" x2="15" y2="20"></line>
+						<line x1="12" y1="4" x2="12" y2="20"></line>
+					</svg>
+					<span class="color-indicator" id="color-indicator"></span>
+				</button>
+				<button id="background-btn" class="quillo-color-btn" title="Highlight Color">
+					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="m9 11-6 6v3h9l3-3"></path>
+						<path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"></path>
+					</svg>
+					<span class="color-indicator" id="background-indicator"></span>
+				</button>
 			</span>
-			<span class="ql-formats">
-				<button class="ql-align" value=""></button>
-				<button class="ql-align" value="center"></button>
-				<button class="ql-align" value="right"></button>
-				<button class="ql-align" value="justify"></button>
+			<!-- Script -->
+			<span class="ql-formats ql-formats-script">
+				<button class="ql-script" value="sub" title="Subscript"></button>
+				<button class="ql-script" value="super" title="Superscript"></button>
 			</span>
+			<!-- Lists & Indent -->
 			<span class="ql-formats">
-				<button class="ql-image"></button>
+				<button class="ql-list" value="ordered" title="Numbered List"></button>
+				<button class="ql-list" value="bullet" title="Bullet List"></button>
+				<button class="ql-indent" value="-1" title="Decrease Indent"></button>
+				<button class="ql-indent" value="+1" title="Increase Indent"></button>
 			</span>
+			<!-- Block formats -->
 			<span class="ql-formats">
-				<button class="ql-table-better"></button>
+				<button class="ql-blockquote" title="Quote"></button>
+			</span>
+			<!-- Alignment -->
+			<span class="ql-formats ql-formats-align">
+				<button class="ql-align" value="" title="Align Left"></button>
+				<button class="ql-align" value="center" title="Align Center"></button>
+				<button class="ql-align" value="right" title="Align Right"></button>
+				<button class="ql-align" value="justify" title="Justify"></button>
+			</span>
+			<!-- Insert -->
+			<span class="ql-formats">
+				<button class="ql-link" title="Insert Link"></button>
+				<button class="ql-image" title="Insert Image"></button>
+			</span>
+			<span class="ql-formats ql-formats-table">
+				<button class="ql-table-better" title="Insert Table"></button>
 			</span>
 			<span class="flex-fill"></span>
 			<span id="ws-bus-status" class="ql-formats"></span>

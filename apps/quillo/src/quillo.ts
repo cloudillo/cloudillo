@@ -31,6 +31,7 @@ import 'quill-table-better/dist/quill-table-better.css'
 
 import { ClImageBlot } from './blots/ClImageBlot.js'
 import { ClImageSpec } from './blots/ClImageSpec.js'
+import { registerSafeTableBlots } from './blots/SafeTableBlots.js'
 
 import './quillo.css'
 
@@ -54,6 +55,9 @@ import { getAppBus, openYDoc, str2color } from '@cloudillo/base'
 
 	// Register table-better module
 	Quill.register({ 'modules/table-better': QuillTableBetter }, true)
+
+	// Fix: Override table blots with null-safe versions (fixes crash on Yjs sync)
+	registerSafeTableBlots()
 
 	console.log('location.hash', location.hash)
 	//const docId = location.hash.slice(1).split(':')[1]

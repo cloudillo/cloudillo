@@ -175,4 +175,37 @@ export function getOptimalVideoVariant(
 	return localVariants[0]
 }
 
+/**
+ * Variant pixel thresholds (approximate max dimension for each variant)
+ */
+const VARIANT_SIZE_THRESHOLDS = {
+	'vis.tn': 150,
+	'vis.sd': 640,
+	'vis.md': 1280,
+	'vis.hd': 1920,
+	'vis.xd': Infinity
+} as const
+
+/**
+ * Get optimal image variant for a given display size in pixels.
+ * Useful for canvas/SVG apps where display size = canvas size * zoom scale.
+ *
+ * @param displayWidth - Width in screen pixels
+ * @param displayHeight - Height in screen pixels
+ * @returns The optimal variant string (e.g., 'vis.sd', 'vis.hd')
+ *
+ * @example
+ * // For a 300x200 canvas object at 2x zoom (600x400 screen pixels)
+ * const variant = getImageVariantForDisplaySize(600, 400) // returns 'vis.sd'
+ */
+export function getImageVariantForDisplaySize(displayWidth: number, displayHeight: number): string {
+	const maxDimension = Math.max(displayWidth, displayHeight)
+
+	if (maxDimension <= VARIANT_SIZE_THRESHOLDS['vis.tn']) return 'vis.tn'
+	if (maxDimension <= VARIANT_SIZE_THRESHOLDS['vis.sd']) return 'vis.sd'
+	if (maxDimension <= VARIANT_SIZE_THRESHOLDS['vis.md']) return 'vis.md'
+	if (maxDimension <= VARIANT_SIZE_THRESHOLDS['vis.hd']) return 'vis.hd'
+	return 'vis.xd'
+}
+
 // vim: ts=4

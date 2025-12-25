@@ -81,5 +81,47 @@ body {
 	}
 }
 
+/* Cloudillo Image Blot */
+.ql-cl-image {
+	max-width: 100%;
+	height: auto;
+	display: block;
+	margin: 0.5rem 0;
+	cursor: pointer;
+}
+
+/* Alignment classes (applied by quill-blot-formatter2) */
+.ql-cl-image[data-blot-align='left'] {
+	float: left;
+	margin: 0.5rem 1rem 0.5rem 0;
+}
+
+.ql-cl-image[data-blot-align='center'] {
+	display: block;
+	margin: 0.5rem auto;
+	float: none;
+}
+
+.ql-cl-image[data-blot-align='right'] {
+	float: right;
+	margin: 0.5rem 0 0.5rem 1rem;
+}
+
+/* Clear floats after images */
+.ql-editor::after {
+	content: '';
+	display: table;
+	clear: both;
+}
+
+/* Loading state (before image loads) */
+.ql-cl-image:not([src]),
+.ql-cl-image[src=''] {
+	min-width: 200px;
+	min-height: 150px;
+	background: var(--col-surface-dim, #f5f5f5);
+	border: 2px dashed var(--col-outline, #ccc);
+}
+
 /* vim: ts=4
  */

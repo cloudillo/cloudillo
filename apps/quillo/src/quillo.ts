@@ -23,6 +23,11 @@ import { QuillBinding } from 'y-quill'
 import Quill from 'quill'
 //import QuillCursors from 'quill-cursors'
 import QuillCursors from 'quill-cursors'
+import BlotFormatter from '@enzedonline/quill-blot-formatter2'
+import '@enzedonline/quill-blot-formatter2/dist/css/quill-blot-formatter2.css'
+
+import { ClImageBlot } from './blots/ClImageBlot.js'
+import { ClImageSpec } from './blots/ClImageSpec.js'
 
 import './quillo.css'
 
@@ -41,6 +46,7 @@ import { createElement, Cloud, CloudOff } from 'lucide'
 import { getAppBus, openYDoc, str2color } from '@cloudillo/base'
 ;(async function () {
 	Quill.register('modules/cursors', QuillCursors as any)
+	Quill.register('modules/blotFormatter2', BlotFormatter)
 
 	console.log('location.hash', location.hash)
 	//const docId = location.hash.slice(1).split(':')[1]
@@ -51,6 +57,9 @@ import { getAppBus, openYDoc, str2color } from '@cloudillo/base'
 	const state = await bus.init('quillo')
 	console.log('[quillo] token', state.accessToken)
 	console.log('[quillo] idTag', bus.idTag)
+
+	// Set ownerTag for image URL construction
+	ClImageBlot.ownerTag = bus.idTag
 	const yDoc = new Y.Doc()
 	const doc = await openYDoc(yDoc, docId)
 	doc.provider.awareness.setLocalStateField('user', {
@@ -82,13 +91,9 @@ import { getAppBus, openYDoc, str2color } from '@cloudillo/base'
 		modules: {
 			cursors: true,
 			toolbar: '#toolbar',
-			/*
-			toolbar: [
-				[{ header: [1, 2, false] }],
-				['bold', 'italic', 'underline'],
-				['image', 'code-block']
-			],
-			*/
+			blotFormatter2: {
+				specs: [ClImageSpec]
+			},
 			history: {
 				userOnly: true
 			}
@@ -105,6 +110,33 @@ import { getAppBus, openYDoc, str2color } from '@cloudillo/base'
 		const toolbar = document.getElementById('toolbar')
 		if (toolbar) toolbar.style.display = 'none'
 	}
+
+	// Register image insertion handler
+	const toolbarModule = editor.getModule('toolbar') as any
+	toolbarModule.addHandler('image', async () => {
+		if (bus.access === 'read') return
+
+		try {
+			const result = await bus.pickMedia({
+				mediaType: 'image/*',
+				documentFileId: docId,
+				title: 'Insert Image'
+			})
+
+			if (!result) return // User cancelled
+
+			// Get current selection range
+			const range = editor.getSelection(true)
+
+			// Insert the cl-image blot at cursor
+			editor.insertEmbed(range.index, 'cl-image', { fileId: result.fileId, alt: '' }, 'user')
+
+			// Move cursor after the image
+			editor.setSelection(range.index + 1, 0, 'silent')
+		} catch (error) {
+			console.error('[quillo] Failed to insert image:', error)
+		}
+	})
 })()
 
 // vim: ts=4

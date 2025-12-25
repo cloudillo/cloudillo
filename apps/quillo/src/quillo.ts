@@ -26,6 +26,9 @@ import QuillCursors from 'quill-cursors'
 import BlotFormatter from '@enzedonline/quill-blot-formatter2'
 import '@enzedonline/quill-blot-formatter2/dist/css/quill-blot-formatter2.css'
 
+import QuillTableBetter from 'quill-table-better'
+import 'quill-table-better/dist/quill-table-better.css'
+
 import { ClImageBlot } from './blots/ClImageBlot.js'
 import { ClImageSpec } from './blots/ClImageSpec.js'
 
@@ -45,8 +48,12 @@ import { createElement, Cloud, CloudOff } from 'lucide'
 
 import { getAppBus, openYDoc, str2color } from '@cloudillo/base'
 ;(async function () {
+	// Register modules
 	Quill.register('modules/cursors', QuillCursors as any)
 	Quill.register('modules/blotFormatter2', BlotFormatter)
+
+	// Register table-better module
+	Quill.register({ 'modules/table-better': QuillTableBetter }, true)
 
 	console.log('location.hash', location.hash)
 	//const docId = location.hash.slice(1).split(':')[1]
@@ -96,6 +103,15 @@ import { getAppBus, openYDoc, str2color } from '@cloudillo/base'
 			},
 			history: {
 				userOnly: true
+			},
+			table: false, // Disable Quill's built-in table module
+			'table-better': {
+				language: 'en_US',
+				menus: ['column', 'row', 'merge', 'table', 'cell', 'wrap', 'delete'],
+				toolbarTable: true
+			},
+			keyboard: {
+				bindings: QuillTableBetter.keyboardBindings
 			}
 		},
 		placeholder: 'Start collaborating...',

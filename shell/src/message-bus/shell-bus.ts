@@ -37,6 +37,7 @@ import {
 } from './app-tracker.js'
 import { initAuthHandlers } from './handlers/auth.js'
 import { initStorageHandlers } from './handlers/storage.js'
+import { initMediaHandlers } from './handlers/media.js'
 
 // ============================================
 // TYPES
@@ -114,6 +115,7 @@ export class ShellMessageBus extends MessageBusBase {
 		// Initialize handlers
 		initAuthHandlers(this)
 		initStorageHandlers(this)
+		initMediaHandlers(this)
 
 		this.initialized = true
 		this.log('Initialized')

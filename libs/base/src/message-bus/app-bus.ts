@@ -34,7 +34,11 @@ import {
 	AuthTokenRefreshRes,
 	AuthTokenPush,
 	StorageOp,
-	StorageOpRes
+	StorageOpRes,
+	MediaPickAck,
+	MediaPickResultPush,
+	CropAspect,
+	Visibility
 } from './types.js'
 import { validateMessage } from './registry.js'
 import { MessageBusBase, MessageBusConfig } from './core.js'
@@ -65,6 +69,63 @@ export interface AppState {
 	theme: string
 	/** Display name for anonymous guests (used in awareness) */
 	displayName?: string
+}
+
+// ============================================
+// STORAGE API
+// ============================================
+
+// ============================================
+// MEDIA PICKER API
+// ============================================
+
+/**
+ * Options for the media picker
+ */
+export interface MediaPickOptions {
+	/**
+	 * Filter by media type (MIME pattern)
+	 * Examples: 'image/*', 'video/*', 'audio/*', 'application/pdf'
+	 */
+	mediaType?: string
+	/**
+	 * Explicit visibility level for comparison with selected media
+	 */
+	documentVisibility?: Visibility
+	/**
+	 * File ID to fetch visibility from (alternative to documentVisibility)
+	 */
+	documentFileId?: string
+	/**
+	 * Enable image cropping (for image media only)
+	 */
+	enableCrop?: boolean
+	/**
+	 * Allowed crop aspect ratios
+	 */
+	cropAspects?: CropAspect[]
+	/**
+	 * Custom dialog title
+	 */
+	title?: string
+}
+
+/**
+ * Result from the media picker
+ */
+export interface MediaPickResult {
+	/** Selected file ID */
+	fileId: string
+	/** File name */
+	fileName: string
+	/** MIME content type */
+	contentType: string
+	/** Visibility of the selected media */
+	visibility?: Visibility
+	/** Whether user acknowledged visibility warning */
+	visibilityAcknowledged?: boolean
+	/** Cropped variant ID if cropping was applied */
+	croppedVariantId?: string
 }
 
 // ============================================
@@ -286,6 +347,11 @@ export class AppMessageBus extends MessageBusBase {
 			}
 			this.log('Token updated via push')
 		})
+
+		// Handle media picker result push from shell
+		this.on('media:pick.result', (msg: MediaPickResultPush) => {
+			this.handleMediaPickResult(msg)
+		})
 	}
 
 	/**
@@ -378,6 +444,138 @@ export class AppMessageBus extends MessageBusBase {
 	}
 
 	// ============================================
+	// MEDIA PICKER
+	// ============================================
+
+	// Timeout for ACK (dialog opening confirmation) - 5 seconds
+	private static readonly MEDIA_PICK_ACK_TIMEOUT = 5000
+
+	// Track pending media picker sessions for result correlation
+	private pendingMediaSessions = new Map<
+		string,
+		{
+			resolve: (result: MediaPickResult | undefined) => void
+			reject: (error: Error) => void
+		}
+	>()
+
+	/**
+	 * Open the media picker to select a file
+	 *
+	 * Opens a shell-provided dialog for selecting or uploading media files.
+	 * Supports filtering by media type, optional cropping for images, and
+	 * visibility comparison with the target document.
+	 *
+	 * Uses ACK + push pattern:
+	 * 1. Sends request, waits for ACK (5 second timeout) confirming dialog is opening
+	 * 2. Waits indefinitely for result push when user selects/cancels
+	 *
+	 * This pattern ensures the request doesn't timeout while user is browsing.
+	 *
+	 * @param options - Media picker configuration
+	 * @returns Promise resolving to selected media or undefined if cancelled
+	 *
+	 * @example
+	 * ```typescript
+	 * const result = await bus.pickMedia({
+	 *   mediaType: 'image/*',
+	 *   documentFileId: 'abc123',  // Will check visibility
+	 *   enableCrop: true,
+	 *   cropAspects: ['16:9', '1:1']
+	 * })
+	 * if (result) {
+	 *   console.log('Selected file:', result.fileId)
+	 *   if (result.visibilityAcknowledged) {
+	 *     console.log('User acknowledged visibility warning')
+	 *   }
+	 * }
+	 * ```
+	 */
+	async pickMedia(options?: MediaPickOptions): Promise<MediaPickResult | undefined> {
+		if (!this.initialized) {
+			throw new Error('AppBus not initialized. Call init() first.')
+		}
+
+		this.log('Opening media picker:', options)
+
+		// Generate unique session ID for correlating result
+		const sessionId = `mp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+
+		// Phase 1: Send request and wait for ACK (short timeout)
+		// This confirms the shell received the request and is opening the dialog
+		try {
+			const ackData = await this.sendRequest<MediaPickAck['data']>((id) => {
+				this.sendToShell(
+					this.createRequestWithPayload('media:pick.req', id, {
+						sessionId,
+						mediaType: options?.mediaType,
+						documentVisibility: options?.documentVisibility,
+						documentFileId: options?.documentFileId,
+						enableCrop: options?.enableCrop,
+						cropAspects: options?.cropAspects,
+						title: options?.title
+					})
+				)
+			}, AppMessageBus.MEDIA_PICK_ACK_TIMEOUT)
+
+			// Verify session ID from ACK matches
+			if (ackData?.sessionId !== sessionId) {
+				this.logWarn(
+					'Media picker ACK sessionId mismatch:',
+					ackData?.sessionId,
+					'vs',
+					sessionId
+				)
+				throw new Error('Session ID mismatch in ACK response')
+			}
+
+			this.log('Media picker ACK received, sessionId:', sessionId)
+
+			// Phase 2: Wait for result push (no timeout - user takes as long as needed)
+			return new Promise<MediaPickResult | undefined>((resolve, reject) => {
+				// Store the promise handlers for this session
+				this.pendingMediaSessions.set(sessionId, { resolve, reject })
+			})
+		} catch (error) {
+			// Clean up if ACK fails
+			this.pendingMediaSessions.delete(sessionId)
+			throw error
+		}
+	}
+
+	/**
+	 * Handle media picker result push from shell
+	 * Called internally when media:pick.result message is received
+	 */
+	private handleMediaPickResult(msg: MediaPickResultPush): void {
+		const sessionId = msg.payload.sessionId
+		const pending = this.pendingMediaSessions.get(sessionId)
+
+		if (!pending) {
+			this.logWarn('Received media picker result for unknown session:', sessionId)
+			return
+		}
+
+		// Clean up the pending session
+		this.pendingMediaSessions.delete(sessionId)
+
+		if (msg.payload.selected && msg.payload.fileId) {
+			this.log('Media picker result:', msg.payload)
+			pending.resolve({
+				fileId: msg.payload.fileId,
+				fileName: msg.payload.fileName || '',
+				contentType: msg.payload.contentType || '',
+				visibility: msg.payload.visibility,
+				visibilityAcknowledged: msg.payload.visibilityAcknowledged,
+				croppedVariantId: msg.payload.croppedVariantId
+			})
+		} else {
+			this.log('Media picker cancelled')
+			pending.resolve(undefined)
+		}
+	}
+
+	// ============================================
 	// STORAGE API
 	// ============================================
 
@@ -461,6 +659,14 @@ export class AppMessageBus extends MessageBusBase {
 			window.removeEventListener('message', this.messageListener)
 			this.messageListener = null
 		}
+
+		// Reject all pending media picker sessions
+		for (const [sessionId, pending] of this.pendingMediaSessions) {
+			pending.reject(new Error('AppBus destroyed'))
+			this.log('Cancelled pending media session:', sessionId)
+		}
+		this.pendingMediaSessions.clear()
+
 		super.destroy()
 	}
 }

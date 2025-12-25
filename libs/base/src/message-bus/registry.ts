@@ -33,6 +33,10 @@ import {
 	tAuthTokenPush,
 	tStorageOpReq,
 	tStorageOpRes,
+	tMediaPickReq,
+	tMediaPickAck,
+	tMediaPickResultPush,
+	tMediaPickRes,
 	tSwTokenSet,
 	tSwTokenClear,
 	tSwApiKeySet,
@@ -96,6 +100,27 @@ export const MESSAGE_REGISTRY: Record<MessageType, MessageAccessRule> = {
 		directions: ['shell>app'],
 		requiresAuth: false,
 		validator: tStorageOpRes
+	},
+	'media:pick.req': {
+		directions: ['app>shell'],
+		requiresAuth: true,
+		validator: tMediaPickReq
+	},
+	'media:pick.ack': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tMediaPickAck
+	},
+	'media:pick.result': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tMediaPickResultPush
+	},
+	'media:pick.res': {
+		// Deprecated - kept for backwards compatibility
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tMediaPickRes
 	},
 	'sw:token.set': {
 		directions: ['shell>sw'],

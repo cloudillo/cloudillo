@@ -229,12 +229,14 @@ export class AppTracker {
 		source: MessageEventSource | null,
 		requireInit = false
 	): AppConnection | undefined {
-		if (!source || !(source instanceof Window)) {
-			this.log('Invalid source - not a Window')
+		// Use duck-type check instead of instanceof to handle cross-origin WindowProxy
+		if (!source || typeof (source as Window).postMessage !== 'function') {
+			this.log('Invalid source - not a Window-like object')
 			return undefined
 		}
 
-		const connection = this.connections.get(source)
+		// Cast to Window for Map lookup (safe after duck-type check above)
+		const connection = this.connections.get(source as Window)
 		if (!connection) {
 			this.log('Unknown source - app not registered')
 			return undefined

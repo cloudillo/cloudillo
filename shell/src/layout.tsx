@@ -190,6 +190,7 @@ import { SharedResourceView } from './apps/shared.js'
 import { ProfileRoutes } from './profile/profile.js'
 import { Notifications } from './notifications/notifications.js'
 import { useNotifications } from './notifications/state'
+import { MediaPicker } from './components/MediaPicker/index.js'
 
 import '@symbion/opalui'
 //import '@symbion/opalui/src/opalui.css'
@@ -855,6 +856,7 @@ export function Layout() {
 				<div id="popper-container" />
 				<DialogContainer />
 				<ToastContainer position="bottom-right" />
+				<MediaPicker />
 			</WsBusRoot>
 		</>
 	)

@@ -1,0 +1,372 @@
+// This file is part of the Cloudillo Platform.
+// Copyright (C) 2024  Szilárd Hajba
+//
+// Cloudillo is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * MediaPickerBrowseTab Component
+ *
+ * File browsing tab for the media picker.
+ * Allows users to search and navigate through their files.
+ */
+
+import React, { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
+
+import {
+	LuSearch as IcSearch,
+	LuFolder as IcFolder,
+	LuChevronRight as IcChevronRight,
+	LuHouse as IcHome,
+	LuImage as IcImage,
+	LuVideo as IcVideo,
+	LuMusic as IcAudio,
+	LuFileText as IcDocument,
+	LuFile as IcFile,
+	LuTriangleAlert as IcWarning
+} from 'react-icons/lu'
+
+import { useApi, useAuth, type AuthState } from '@cloudillo/react'
+import { getFileUrl } from '@cloudillo/base'
+import { VISIBILITY_ORDER, type Visibility } from '@cloudillo/base'
+
+import type { MediaPickerResult } from '../../context/media-picker-atom.js'
+
+// Simplified file type for MediaPicker - only the fields we need
+interface MediaFile {
+	fileId: string
+	fileName: string
+	fileTp?: string
+	contentType: string
+}
+
+interface BreadcrumbItem {
+	id: string | null
+	name: string
+}
+
+interface MediaPickerBrowseTabProps {
+	mediaType?: string
+	documentVisibility?: Visibility
+	documentFileId?: string
+	selectedFile: MediaPickerResult | null
+	onSelect: (file: MediaPickerResult) => void
+	onDoubleClick: (file: MediaPickerResult) => void
+}
+
+/**
+ * Check if a file matches the media type filter
+ */
+function matchesMediaType(file: MediaFile, mediaType?: string): boolean {
+	if (!mediaType) return true
+	if (file.fileTp === 'FLDR') return true // Always show folders
+
+	const contentType = file.contentType || ''
+	if (mediaType.endsWith('/*')) {
+		const prefix = mediaType.slice(0, -1) // Remove '*'
+		return contentType.startsWith(prefix)
+	}
+	return contentType === mediaType
+}
+
+/**
+ * Get icon for file type
+ */
+function getFileIcon(file: MediaFile): React.ReactNode {
+	if (file.fileTp === 'FLDR') return <IcFolder />
+	const contentType = file.contentType || ''
+	if (contentType.startsWith('image/')) return <IcImage />
+	if (contentType.startsWith('video/')) return <IcVideo />
+	if (contentType.startsWith('audio/')) return <IcAudio />
+	if (contentType === 'application/pdf') return <IcDocument />
+	return <IcFile />
+}
+
+/**
+ * Check if file is an image (which can have a thumbnail)
+ */
+function isImage(file: MediaFile): boolean {
+	const contentType = file.contentType || ''
+	return contentType.startsWith('image/')
+}
+
+export function MediaPickerBrowseTab({
+	mediaType,
+	documentVisibility,
+	documentFileId,
+	selectedFile,
+	onSelect,
+	onDoubleClick
+}: MediaPickerBrowseTabProps) {
+	const { t } = useTranslation()
+	const { api } = useApi()
+	const [auth] = useAuth()
+
+	// State
+	const [searchQuery, setSearchQuery] = useState('')
+	const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
+	const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([
+		{ id: null, name: t('Home') }
+	])
+	const [files, setFiles] = useState<MediaFile[]>([])
+	const [loading, setLoading] = useState(true)
+	const [resolvedDocVisibility, setResolvedDocVisibility] = useState<Visibility | undefined>(
+		documentVisibility
+	)
+	const [showVisibilityWarning, setShowVisibilityWarning] = useState(false)
+
+	// Fetch files when folder changes
+	useEffect(() => {
+		async function fetchFiles() {
+			if (!api) return
+
+			setLoading(true)
+			try {
+				const query: Record<string, unknown> = {
+					parentId: currentFolderId || undefined
+				}
+				if (searchQuery) {
+					query.fileName = searchQuery
+				}
+
+				const result = await api.files.list(query as Parameters<typeof api.files.list>[0])
+				setFiles(result || [])
+			} catch (err) {
+				console.error('Failed to fetch files:', err)
+				setFiles([])
+			} finally {
+				setLoading(false)
+			}
+		}
+
+		fetchFiles()
+	}, [api, currentFolderId, searchQuery])
+
+	// Resolve document visibility from fileId if needed
+	useEffect(() => {
+		async function fetchDocumentVisibility() {
+			if (documentVisibility) {
+				setResolvedDocVisibility(documentVisibility)
+				return
+			}
+
+			// Skip visibility check if no documentFileId provided
+			// This is common for new documents that haven't been saved yet
+			if (!documentFileId || !api) return
+
+			try {
+				const fileInfo = await api.files.getDescriptor(documentFileId)
+				// Map accessLevel to visibility (simplified - in real app would need proper mapping)
+				// For now, assume 'read' = 'F' (followers), 'write' = 'F', 'none' = 'P' (public)
+				// This is a placeholder - actual visibility would come from file metadata
+				setResolvedDocVisibility('F')
+			} catch {
+				// Silently ignore - visibility check is optional
+				// This can fail for new documents or if the API doesn't support this endpoint
+			}
+		}
+
+		fetchDocumentVisibility()
+	}, [api, documentFileId, documentVisibility])
+
+	// Filter files by media type
+	const filteredFiles = files.filter((file) => matchesMediaType(file, mediaType))
+
+	// Handle folder navigation
+	const handleFolderClick = useCallback((file: MediaFile) => {
+		setCurrentFolderId(file.fileId)
+		setBreadcrumbs((prev) => [...prev, { id: file.fileId, name: file.fileName }])
+	}, [])
+
+	// Handle breadcrumb navigation
+	const handleBreadcrumbClick = useCallback(
+		(index: number) => {
+			setBreadcrumbs((prev) => prev.slice(0, index + 1))
+			setCurrentFolderId((prev) => {
+				const newBreadcrumbs = breadcrumbs.slice(0, index + 1)
+				return newBreadcrumbs[newBreadcrumbs.length - 1].id
+			})
+		},
+		[breadcrumbs]
+	)
+
+	// Handle file selection
+	const handleFileClick = useCallback(
+		(file: MediaFile) => {
+			if (file.fileTp === 'FLDR') {
+				handleFolderClick(file)
+				return
+			}
+
+			// Check visibility
+			// For now, assume all files have visibility 'F' (followers)
+			// In real implementation, this would come from file metadata
+			const fileVisibility: Visibility = 'F'
+			const needsWarning =
+				resolvedDocVisibility &&
+				VISIBILITY_ORDER[fileVisibility] > VISIBILITY_ORDER[resolvedDocVisibility]
+
+			const result: MediaPickerResult = {
+				fileId: file.fileId,
+				fileName: file.fileName,
+				contentType: file.contentType,
+				visibility: fileVisibility,
+				visibilityAcknowledged: false
+			}
+
+			if (needsWarning) {
+				setShowVisibilityWarning(true)
+			}
+
+			onSelect(result)
+		},
+		[handleFolderClick, onSelect, resolvedDocVisibility]
+	)
+
+	// Handle double click
+	const handleFileDoubleClick = useCallback(
+		(file: MediaFile) => {
+			if (file.fileTp === 'FLDR') {
+				handleFolderClick(file)
+				return
+			}
+
+			const result: MediaPickerResult = {
+				fileId: file.fileId,
+				fileName: file.fileName,
+				contentType: file.contentType,
+				visibility: 'F',
+				visibilityAcknowledged: showVisibilityWarning
+			}
+
+			onDoubleClick(result)
+		},
+		[handleFolderClick, onDoubleClick, showVisibilityWarning]
+	)
+
+	// Acknowledge visibility warning
+	const handleAcknowledgeWarning = useCallback(() => {
+		if (selectedFile) {
+			onSelect({
+				...selectedFile,
+				visibilityAcknowledged: true
+			})
+		}
+		setShowVisibilityWarning(false)
+	}, [selectedFile, onSelect])
+
+	return (
+		<div className="media-picker-browse">
+			{/* Search */}
+			<div className="media-picker-search">
+				<div className="c-input-group">
+					<span className="c-input-addon">
+						<IcSearch />
+					</span>
+					<input
+						type="text"
+						className="c-input"
+						placeholder={t('Search files...')}
+						value={searchQuery}
+						onChange={(e) => setSearchQuery(e.target.value)}
+					/>
+				</div>
+			</div>
+
+			{/* Breadcrumbs */}
+			<div className="media-picker-breadcrumbs">
+				{breadcrumbs.map((crumb, index) => (
+					<React.Fragment key={crumb.id ?? 'home'}>
+						{index > 0 && <IcChevronRight size={14} />}
+						<button type="button" onClick={() => handleBreadcrumbClick(index)}>
+							{index === 0 ? <IcHome size={14} /> : crumb.name}
+						</button>
+					</React.Fragment>
+				))}
+			</div>
+
+			{/* Visibility warning */}
+			{showVisibilityWarning && selectedFile && (
+				<div className="media-picker-visibility-warning">
+					<IcWarning />
+					<div className="media-picker-visibility-warning-content">
+						<strong>{t('Visibility mismatch')}</strong>
+						<p>
+							{t(
+								'This file has more restrictive visibility than your document. Some viewers may not be able to see this media.'
+							)}
+						</p>
+						<div className="media-picker-visibility-warning-actions">
+							<button
+								type="button"
+								className="c-button small"
+								onClick={() => setShowVisibilityWarning(false)}
+							>
+								{t('Cancel')}
+							</button>
+							<button
+								type="button"
+								className="c-button small primary"
+								onClick={handleAcknowledgeWarning}
+							>
+								{t('Use anyway')}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* File grid */}
+			<div className="media-picker-files">
+				{loading ? (
+					<div className="media-picker-loading">
+						<span>{t('Loading...')}</span>
+					</div>
+				) : filteredFiles.length === 0 ? (
+					<div className="media-picker-empty">
+						<IcFile />
+						<span>{t('No files found')}</span>
+					</div>
+				) : (
+					<div className="media-picker-grid">
+						{filteredFiles.map((file) => (
+							<div
+								key={file.fileId}
+								className={`media-picker-item ${
+									selectedFile?.fileId === file.fileId ? 'selected' : ''
+								}`}
+								onClick={() => handleFileClick(file)}
+								onDoubleClick={() => handleFileDoubleClick(file)}
+							>
+								<div className="media-picker-item-thumbnail">
+									{isImage(file) && auth?.idTag ? (
+										<img
+											src={getFileUrl(auth.idTag, file.fileId, 'vis.tn')}
+											alt={file.fileName}
+										/>
+									) : (
+										getFileIcon(file)
+									)}
+								</div>
+								<span className="media-picker-item-name">{file.fileName}</span>
+							</div>
+						))}
+					</div>
+				)}
+			</div>
+		</div>
+	)
+}
+
+// vim: ts=4

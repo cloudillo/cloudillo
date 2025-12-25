@@ -61,6 +61,14 @@ export {
 	type StorageOp,
 	type StorageOpReq,
 	type StorageOpRes,
+	// Media picker messages
+	type Visibility,
+	type CropAspect,
+	type MediaPickReq,
+	type MediaPickAck,
+	type MediaPickResultPush,
+	type MediaPickRes,
+	VISIBILITY_ORDER,
 	// Service worker messages
 	type SwTokenSet,
 	type SwTokenClear,
@@ -90,6 +98,12 @@ export {
 	tStorageOp,
 	tStorageOpReq,
 	tStorageOpRes,
+	tVisibility,
+	tCropAspect,
+	tMediaPickReq,
+	tMediaPickAck,
+	tMediaPickResultPush,
+	tMediaPickRes,
 	tSwTokenSet,
 	tSwTokenClear,
 	tSwApiKeySet,
@@ -123,6 +137,8 @@ export {
 	// Types
 	type AppState,
 	type StorageApi,
+	type MediaPickOptions,
+	type MediaPickResult,
 	// Class
 	AppMessageBus,
 	// Singleton

@@ -15,11 +15,10 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Renders a freehand stroke path
+ * Renders a freehand stroke path (bezier)
  */
 
 import * as React from 'react'
-import { pointsToSmoothPath } from '../utils/index.js'
 import type { FreehandObject } from '../crdt/index.js'
 import { colorToCss } from '../utils/palette.js'
 
@@ -36,10 +35,6 @@ export const FreehandPath = React.memo(function FreehandPath({
 	onClick,
 	onPointerDown
 }: FreehandPathProps) {
-	const pathData = React.useMemo(() => {
-		return pointsToSmoothPath(object.points)
-	}, [object.points])
-
 	const strokeStyle = object.style
 
 	// Get stroke dasharray based on style
@@ -55,20 +50,27 @@ export const FreehandPath = React.memo(function FreehandPath({
 			strokeDasharray = undefined
 	}
 
+	// Closed paths can be filled
+	const fill = object.closed ? colorToCss(strokeStyle.fillColor) : 'none'
+
+	// Path data uses relative coordinates (relative to bounds origin)
+	// Apply translation to position at object.x, object.y
 	return (
-		<path
-			d={pathData}
-			fill="none"
-			stroke={colorToCss(strokeStyle.strokeColor)}
-			strokeWidth={strokeStyle.strokeWidth}
-			strokeLinecap="round"
-			strokeLinejoin="round"
-			strokeDasharray={strokeDasharray}
-			opacity={strokeStyle.opacity}
-			style={{ cursor: 'move' }}
-			onClick={onClick}
-			onPointerDown={onPointerDown}
-		/>
+		<g transform={`translate(${object.x}, ${object.y})`}>
+			<path
+				d={object.pathData}
+				fill={fill}
+				stroke={colorToCss(strokeStyle.strokeColor)}
+				strokeWidth={strokeStyle.strokeWidth}
+				strokeLinecap="round"
+				strokeLinejoin="round"
+				strokeDasharray={strokeDasharray}
+				opacity={strokeStyle.opacity}
+				style={{ cursor: 'move' }}
+				onClick={onClick}
+				onPointerDown={onPointerDown}
+			/>
+		</g>
 	)
 })
 

@@ -158,9 +158,9 @@ export function useIdealloDocument(): UseIdealloDocumentResult {
 		strokeWidth: 2
 	})
 
-	// Undo manager
+	// Undo manager - tracks objects, text content, geometry, and paths
 	const undoManager = React.useMemo(() => {
-		return new Y.UndoManager([doc.o], {
+		return new Y.UndoManager([doc.o, doc.txt, doc.geo, doc.paths], {
 			trackedOrigins: new Set([cloudillo.yDoc.clientID])
 		})
 	}, [cloudillo.yDoc, doc])
@@ -254,21 +254,32 @@ export function useIdealloDocument(): UseIdealloDocumentResult {
 	}, [awareness, cloudillo.idTag, cloudillo.displayName])
 
 	// Listen for awareness changes from remote clients
+	// IMPORTANT: Only update state when content actually changes to avoid
+	// triggering re-renders during resize/rotate (which broadcast local awareness)
+	// Note: We use JSON comparison because awareness.getStates() returns new object
+	// references on every call, even when the content hasn't changed.
+	const remotePresenceRef = React.useRef<string>('')
+
 	React.useEffect(() => {
 		if (!awareness) return
 
 		const handler = () => {
 			const states = awareness.getStates()
 			const localClientId = awareness.clientID
-			const result = new Map<number, IdealloPresence>()
+			const newPresence = new Map<number, IdealloPresence>()
 
 			states.forEach((state: any, clientId: number) => {
 				if (clientId !== localClientId && state) {
-					result.set(clientId, state as IdealloPresence)
+					newPresence.set(clientId, state as IdealloPresence)
 				}
 			})
 
-			setRemotePresence(result)
+			// Serialize for comparison (awareness states are new objects each time)
+			const serialized = JSON.stringify(Array.from(newPresence.entries()))
+			if (serialized !== remotePresenceRef.current) {
+				remotePresenceRef.current = serialized
+				setRemotePresence(newPresence)
+			}
 		}
 
 		// Initial state

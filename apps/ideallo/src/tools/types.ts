@@ -31,6 +31,7 @@ export type ToolType =
 	| 'arrow'
 	| 'text'
 	| 'sticky'
+	| 'image'
 
 export interface ToolContext {
 	currentStyle: Partial<Style>

@@ -34,6 +34,7 @@ export type {
 	StoredArrow,
 	StoredPolygon,
 	StoredText,
+	StoredSticky,
 	StoredObject,
 	StoredMeta,
 	YIdealloDocument
@@ -54,6 +55,7 @@ export type {
 	PolygonObject,
 	TextObject,
 	StickyObject,
+	ImageObject,
 	IdealloObject,
 	Bounds
 } from './runtime-types.js'
@@ -66,6 +68,14 @@ export { expandObject, compactObject } from './type-converters.js'
 export { getOrCreateDocument, getDocumentMeta, updateDocumentMeta } from './document.js'
 
 // Object operations
+export type {
+	NewObjectInput,
+	NewFreehandInput,
+	NewPolygonInput,
+	NewTextInput,
+	NewStickyInput,
+	NewImageInput
+} from './object-ops.js'
 export {
 	addObject,
 	getObject,
@@ -78,7 +88,12 @@ export {
 	deleteObject,
 	deleteObjects,
 	duplicateObject,
-	toggleObjectLock
+	duplicateAsLinkedCopy,
+	toggleObjectLock,
+	getObjectYText,
+	getObjectYArray,
+	appendGeometryPoints,
+	replaceGeometryPoints
 } from './object-ops.js'
 
 // Transforms and geometry utilities

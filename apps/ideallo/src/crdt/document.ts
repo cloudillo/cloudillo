@@ -33,7 +33,10 @@ export function getOrCreateDocument(
 ): YIdealloDocument {
 	const doc: YIdealloDocument = {
 		o: yDoc.getMap<StoredObject>('o'),
-		m: yDoc.getMap<unknown>('m')
+		m: yDoc.getMap<unknown>('m'),
+		txt: yDoc.getMap<Y.Text>('txt'),
+		geo: yDoc.getMap<Y.Array<number>>('geo'),
+		paths: yDoc.getMap<string>('paths')
 	}
 
 	if (initializeIfEmpty && doc.m.get('initialized') !== true) {

@@ -21,18 +21,19 @@
 
 import * as React from 'react'
 import type { IdealloPresence } from '../hooks/index.js'
-import type { IdealloObject, ObjectId, StoredObject } from '../crdt/index.js'
+import type { IdealloObject, ObjectId, StoredObject, YIdealloDocument } from '../crdt/index.js'
 import { expandObject, toObjectId } from '../crdt/index.js'
 import { ObjectRenderer } from './ObjectRenderer.js'
 
 const GHOST_OPACITY = 0.5
 
 export interface GhostEditingProps {
+	doc: YIdealloDocument
 	remotePresence: Map<number, IdealloPresence>
 	objects: Record<string, StoredObject> | null
 }
 
-export function GhostEditing({ remotePresence, objects }: GhostEditingProps) {
+export function GhostEditing({ doc, remotePresence, objects }: GhostEditingProps) {
 	if (!objects) return null
 
 	return (
@@ -52,7 +53,7 @@ export function GhostEditing({ remotePresence, objects }: GhostEditingProps) {
 							if (!stored) return null
 
 							const objectId = toObjectId(id)
-							const obj = expandObject(objectId, stored)
+							const obj = expandObject(objectId, stored, doc)
 
 							// Apply offset to the object
 							const offsetObj = applyOffset(obj, dx, dy)
@@ -73,7 +74,8 @@ export function GhostEditing({ remotePresence, objects }: GhostEditingProps) {
 									getObjectX(
 										expandObject(
 											toObjectId(objectIds[0]),
-											objects[objectIds[0]]
+											objects[objectIds[0]],
+											doc
 										)
 									) +
 									dx +
@@ -83,7 +85,8 @@ export function GhostEditing({ remotePresence, objects }: GhostEditingProps) {
 									getObjectY(
 										expandObject(
 											toObjectId(objectIds[0]),
-											objects[objectIds[0]]
+											objects[objectIds[0]],
+											doc
 										)
 									) +
 									dy -
@@ -120,13 +123,6 @@ function getObjectY(obj: IdealloObject): number {
 
 function applyOffset(obj: IdealloObject, dx: number, dy: number): IdealloObject {
 	switch (obj.type) {
-		case 'freehand':
-			return {
-				...obj,
-				x: obj.x + dx,
-				y: obj.y + dy,
-				points: obj.points.map(([px, py]) => [px + dx, py + dy] as [number, number])
-			}
 		case 'line':
 		case 'arrow':
 			return {
@@ -139,6 +135,8 @@ function applyOffset(obj: IdealloObject, dx: number, dy: number): IdealloObject 
 				endY: obj.endY + dy
 			}
 		default:
+			// For freehand, pathData uses absolute coords - position only update
+			// (ghost rendering will use transform for visual offset)
 			return {
 				...obj,
 				x: obj.x + dx,

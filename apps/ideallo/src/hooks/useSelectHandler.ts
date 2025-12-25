@@ -64,14 +64,14 @@ interface DragState {
 function getObjectBounds(obj: IdealloObject): Bounds {
 	switch (obj.type) {
 		case 'freehand':
-			return getBoundsFromPoints(obj.points)
-		case 'polygon':
-			return getBoundsFromPoints(obj.vertices)
 		case 'rect':
 		case 'ellipse':
 		case 'text':
 		case 'sticky':
+		case 'image':
 			return { x: obj.x, y: obj.y, width: obj.width, height: obj.height }
+		case 'polygon':
+			return getBoundsFromPoints(obj.vertices)
 		case 'line':
 		case 'arrow':
 			return {
@@ -106,13 +106,10 @@ function hitTestObject(obj: IdealloObject, point: Point): boolean {
 		return dist <= HIT_TOLERANCE
 	}
 
-	// For freehand, check distance to any segment
-	if (obj.type === 'freehand' && obj.points.length >= 2) {
-		for (let i = 0; i < obj.points.length - 1; i++) {
-			const dist = perpendicularDistance(point, obj.points[i], obj.points[i + 1])
-			if (dist <= HIT_TOLERANCE) return true
-		}
-		return false
+	// For freehand, use bounds-based hit testing
+	// (precise path hit testing would require parsing SVG path data)
+	if (obj.type === 'freehand') {
+		return pointInBounds(point, expandedBounds)
 	}
 
 	// For shapes with fill, point in bounds is enough
@@ -253,16 +250,9 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 							endX: origObj.endX + dx,
 							endY: origObj.endY + dy
 						} as any)
-					} else if (origObj.type === 'freehand') {
-						const newPoints = origObj.points.map(
-							([px, py]) => [px + dx, py + dy] as [number, number]
-						)
-						updateObject(yDoc, doc, objectId, {
-							x: origObj.x + dx,
-							y: origObj.y + dy,
-							points: newPoints
-						} as any)
 					} else {
+						// For freehand and shapes, just update position
+						// (freehand pathData uses absolute coords, handled by transform)
 						updateObject(yDoc, doc, objectId, {
 							x: origObj.x + dx,
 							y: origObj.y + dy
@@ -281,15 +271,21 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 	// Without this, the returned object changes on every render, causing
 	// callbacks in app.tsx that depend on selectHandler to recreate,
 	// which can trigger cascading re-renders
+	//
+	// IMPORTANT: We intentionally do NOT include dragState in dependencies.
+	// - isDragging is derived from dragOffset !== null (which already depends on dragState internally)
+	// - The handlers use dragStateRef (ref) to avoid recreating on every dragState change
+	// - Including dragState here would cause the return object to change on every mouse move
+	//   during drag, triggering cascading re-renders (Maximum update depth exceeded)
 	return React.useMemo(
 		() => ({
-			isDragging: dragState !== null,
+			isDragging: dragOffset !== null,
 			dragOffset,
 			handlePointerDown,
 			handlePointerMove,
 			handlePointerUp
 		}),
-		[dragState, dragOffset, handlePointerDown, handlePointerMove, handlePointerUp]
+		[dragOffset, handlePointerDown, handlePointerMove, handlePointerUp]
 	)
 }
 

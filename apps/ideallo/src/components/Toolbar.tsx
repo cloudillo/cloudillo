@@ -243,6 +243,44 @@ export function Toolbar({
 				</svg>
 			</ToolButton>
 
+			<ToolButton
+				tool="image"
+				activeTool={activeTool}
+				title="Image"
+				shortcut="I"
+				onToolChange={onToolChange}
+			>
+				<svg viewBox="0 0 24 24" width="24" height="24">
+					<rect
+						x="3"
+						y="3"
+						width="18"
+						height="18"
+						rx="2"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="2"
+					/>
+					<circle cx="8" cy="8" r="2" fill="currentColor" />
+					<path
+						d="M21 15l-5-5-6 6"
+						stroke="currentColor"
+						strokeWidth="2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						fill="none"
+					/>
+					<path
+						d="M14 14l-3 3"
+						stroke="currentColor"
+						strokeWidth="2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						fill="none"
+					/>
+				</svg>
+			</ToolButton>
+
 			<div className="ideallo-toolbar-divider" />
 
 			{/* Undo/Redo */}

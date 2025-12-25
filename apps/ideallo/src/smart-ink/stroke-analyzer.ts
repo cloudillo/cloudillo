@@ -121,12 +121,11 @@ export function classifyIntent(metrics: StrokeMetrics): DrawingIntent {
 }
 
 /**
- * Determine if shape detection should be applied
+ * @deprecated Shape detection is now always attempted.
+ * Confidence thresholds in each detector decide if a shape is recognized.
  */
-export function shouldDetectShapes(metrics: StrokeMetrics): boolean {
-	const intent = classifyIntent(metrics)
-	// Don't detect shapes for fast, expressive strokes
-	return intent !== 'expressive'
+export function shouldDetectShapes(_metrics: StrokeMetrics): boolean {
+	return true
 }
 
 /**

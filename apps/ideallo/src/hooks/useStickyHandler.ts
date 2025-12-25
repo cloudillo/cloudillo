@@ -25,7 +25,7 @@
 import * as React from 'react'
 import * as Y from 'yjs'
 
-import type { YIdealloDocument, ObjectId, StickyObject } from '../crdt/index.js'
+import type { YIdealloDocument, ObjectId, StickyObject, NewStickyInput } from '../crdt/index.js'
 import { addObject, updateObject, DEFAULT_STYLE } from '../crdt/index.js'
 import type { StickyInputState } from '../tools/types.js'
 
@@ -75,7 +75,7 @@ export function useStickyHandler(options: UseStickyHandlerOptions) {
 					? DEFAULT_STICKY_FILL
 					: currentStyle.fillColor
 
-			const obj: Omit<StickyObject, 'id'> = {
+			const obj: NewStickyInput = {
 				type: 'sticky',
 				x: x - DEFAULT_STICKY_WIDTH / 2, // Center on click point
 				y: y - DEFAULT_STICKY_HEIGHT / 2,

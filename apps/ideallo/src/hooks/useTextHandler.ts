@@ -21,7 +21,7 @@
 import * as React from 'react'
 import * as Y from 'yjs'
 
-import type { YIdealloDocument, ObjectId, TextObject } from '../crdt/index.js'
+import type { YIdealloDocument, ObjectId, TextObject, NewTextInput } from '../crdt/index.js'
 import { addObject, DEFAULT_STYLE } from '../crdt/index.js'
 import type { TextInputState } from '../tools/types.js'
 
@@ -76,7 +76,7 @@ export function useTextHandler(options: UseTextHandlerOptions) {
 			return
 		}
 
-		const obj: Omit<TextObject, 'id'> = {
+		const obj: NewTextInput = {
 			type: 'text',
 			x: textInput.x,
 			y: textInput.y,

@@ -19,6 +19,7 @@
  */
 
 import type { ObjectId } from './ids.js'
+import { toObjectId } from './ids.js'
 import type {
 	StoredObject,
 	StoredFreehand,
@@ -29,8 +30,10 @@ import type {
 	StoredText,
 	StoredPolygon,
 	StoredSticky,
+	StoredImage,
 	ObjectTypeCode,
-	StrokeStyleCode
+	StrokeStyleCode,
+	YIdealloDocument
 } from './stored-types.js'
 import type {
 	IdealloObject,
@@ -42,6 +45,7 @@ import type {
 	TextObject,
 	PolygonObject,
 	StickyObject,
+	ImageObject,
 	ObjectType,
 	StrokeStyle,
 	ArrowheadPosition,
@@ -58,7 +62,8 @@ const TYPE_CODE_TO_TYPE: Record<ObjectTypeCode, ObjectType> = {
 	A: 'arrow',
 	T: 'text',
 	P: 'polygon',
-	S: 'sticky'
+	S: 'sticky',
+	I: 'image'
 }
 
 const TYPE_TO_TYPE_CODE: Record<ObjectType, ObjectTypeCode> = {
@@ -69,8 +74,11 @@ const TYPE_TO_TYPE_CODE: Record<ObjectType, ObjectTypeCode> = {
 	arrow: 'A',
 	text: 'T',
 	polygon: 'P',
-	sticky: 'S'
+	sticky: 'S',
+	image: 'I'
 }
+
+// NOTE: StoredBezierFreehand removed - we just use StoredFreehand with type 'B' removed
 
 // Stroke style mappings
 const STROKE_STYLE_CODE_TO_STYLE: Record<StrokeStyleCode, StrokeStyle> = {
@@ -100,8 +108,16 @@ const ARROWHEAD_POSITION_TO_CODE: Record<ArrowheadPosition, 'S' | 'E' | 'B'> = {
 
 /**
  * Expand a stored object to runtime format
+ *
+ * @param id - The object ID
+ * @param stored - The stored object data
+ * @param doc - The document (needed to access txt/geo maps)
  */
-export function expandObject(id: ObjectId, stored: StoredObject): IdealloObject {
+export function expandObject(
+	id: ObjectId,
+	stored: StoredObject,
+	doc: YIdealloDocument
+): IdealloObject {
 	const baseStyle: Style = {
 		strokeColor: stored.sc ?? DEFAULT_STYLE.strokeColor,
 		fillColor: stored.fc ?? DEFAULT_STYLE.fillColor,
@@ -125,14 +141,18 @@ export function expandObject(id: ObjectId, stored: StoredObject): IdealloObject 
 	switch (stored.t) {
 		case 'F': {
 			const fh = stored as StoredFreehand
-			const points: [number, number][] = []
-			for (let i = 0; i < fh.pts.length; i += 2) {
-				points.push([fh.pts[i], fh.pts[i + 1]])
-			}
+			// Use pid if present (linked copy), otherwise use object ID
+			const pathKey = fh.pid ?? id
+			const pathData = doc.paths.get(pathKey) ?? ''
 			return {
 				...base,
 				type: 'freehand',
-				points
+				width: fh.wh[0],
+				height: fh.wh[1],
+				// Only include pid if it's a linked copy (differs from object ID)
+				...(fh.pid ? { pid: toObjectId(fh.pid) } : {}),
+				pathData,
+				closed: fh.cl ?? false
 			} as FreehandObject
 		}
 		case 'R': {
@@ -179,37 +199,63 @@ export function expandObject(id: ObjectId, stored: StoredObject): IdealloObject 
 		}
 		case 'T': {
 			const text = stored as StoredText
+			// Use tid if present (linked copy), otherwise use object ID
+			const txtKey = text.tid ?? id
+			const yText = doc.txt.get(txtKey)
 			return {
 				...base,
 				type: 'text',
 				width: text.wh[0],
 				height: text.wh[1],
-				text: text.txt,
+				// Only include tid if it's a linked copy (differs from object ID)
+				...(text.tid ? { tid: toObjectId(text.tid) } : {}),
+				text: yText?.toString() ?? '',
 				fontFamily: text.ff,
 				fontSize: text.fz
 			} as TextObject
 		}
 		case 'P': {
 			const polygon = stored as StoredPolygon
+			// Use gid if present (linked copy), otherwise use object ID
+			const geoKey = polygon.gid ?? id
+			const yArray = doc.geo.get(geoKey)
+			const vts = yArray?.toArray() ?? []
 			const vertices: [number, number][] = []
-			for (let i = 0; i < polygon.vts.length; i += 2) {
-				vertices.push([polygon.vts[i], polygon.vts[i + 1]])
+			for (let i = 0; i < vts.length; i += 2) {
+				vertices.push([vts[i], vts[i + 1]])
 			}
 			return {
 				...base,
 				type: 'polygon',
+				// Only include gid if it's a linked copy (differs from object ID)
+				...(polygon.gid ? { gid: toObjectId(polygon.gid) } : {}),
 				vertices
 			} as PolygonObject
 		}
 		case 'S': {
 			const sticky = stored as StoredSticky
+			// Use tid if present (linked copy), otherwise use object ID
+			const txtKey = sticky.tid ?? id
+			const yText = doc.txt.get(txtKey)
 			return {
 				...base,
 				type: 'sticky',
 				width: sticky.wh[0],
 				height: sticky.wh[1],
-				text: sticky.txt
+				// Only include tid if it's a linked copy (differs from object ID)
+				...(sticky.tid ? { tid: toObjectId(sticky.tid) } : {}),
+				text: yText?.toString() ?? ''
 			} as StickyObject
+		}
+		case 'I': {
+			const img = stored as StoredImage
+			return {
+				...base,
+				type: 'image',
+				width: img.wh[0],
+				height: img.wh[1],
+				fileId: img.fid
+			} as ImageObject
 		}
 		default:
 			throw new Error(`Unknown object type: ${(stored as any).t}`)
@@ -218,6 +264,8 @@ export function expandObject(id: ObjectId, stored: StoredObject): IdealloObject 
 
 /**
  * Compact a runtime object to stored format
+ * Note: This only stores the reference IDs (tid/gid), not the actual content.
+ * The content (text/points) is stored separately in the txt/geo maps.
  */
 export function compactObject(obj: IdealloObject): StoredObject {
 	const baseStored: Partial<StoredObject> = {
@@ -260,15 +308,20 @@ export function compactObject(obj: IdealloObject): StoredObject {
 	switch (obj.type) {
 		case 'freehand': {
 			const fh = obj as FreehandObject
-			const pts: number[] = []
-			for (const [x, y] of fh.points) {
-				pts.push(x, y)
-			}
-			return {
-				...baseStored,
+			const stored: StoredFreehand = {
+				...(baseStored as any),
 				t: 'F',
-				pts
-			} as StoredFreehand
+				wh: [fh.width, fh.height]
+			}
+			// Only store pid if it's a linked copy (explicit pid set)
+			if (fh.pid) {
+				stored.pid = fh.pid
+			}
+			// Only store closed flag if true
+			if (fh.closed) {
+				stored.cl = true
+			}
+			return stored
 		}
 		case 'rect': {
 			const rect = obj as RectObject
@@ -321,8 +374,11 @@ export function compactObject(obj: IdealloObject): StoredObject {
 			const stored: StoredText = {
 				...(baseStored as any),
 				t: 'T',
-				wh: [text.width, text.height],
-				txt: text.text
+				wh: [text.width, text.height]
+			}
+			// Only store tid if it's a linked copy (explicit tid set)
+			if (text.tid) {
+				stored.tid = text.tid
 			}
 			if (text.fontFamily) {
 				stored.ff = text.fontFamily
@@ -334,24 +390,37 @@ export function compactObject(obj: IdealloObject): StoredObject {
 		}
 		case 'polygon': {
 			const polygon = obj as PolygonObject
-			const vts: number[] = []
-			for (const [x, y] of polygon.vertices) {
-				vts.push(x, y)
+			const stored: StoredPolygon = {
+				...(baseStored as any),
+				t: 'P'
 			}
-			return {
-				...baseStored,
-				t: 'P',
-				vts
-			} as StoredPolygon
+			// Only store gid if it's a linked copy (explicit gid set)
+			if (polygon.gid) {
+				stored.gid = polygon.gid
+			}
+			return stored
 		}
 		case 'sticky': {
 			const sticky = obj as StickyObject
+			const stored: StoredSticky = {
+				...(baseStored as any),
+				t: 'S',
+				wh: [sticky.width, sticky.height]
+			}
+			// Only store tid if it's a linked copy (explicit tid set)
+			if (sticky.tid) {
+				stored.tid = sticky.tid
+			}
+			return stored
+		}
+		case 'image': {
+			const img = obj as ImageObject
 			return {
 				...baseStored,
-				t: 'S',
-				wh: [sticky.width, sticky.height],
-				txt: sticky.text
-			} as StoredSticky
+				t: 'I',
+				wh: [img.width, img.height],
+				fid: img.fileId
+			} as StoredImage
 		}
 		default:
 			throw new Error(`Unknown object type: ${(obj as any).type}`)

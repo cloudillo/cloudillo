@@ -35,7 +35,8 @@ import {
 	useTextHandler,
 	useStickyHandler,
 	useSelectHandler,
-	useEraserHandler
+	useEraserHandler,
+	useImageHandler
 } from './hooks/index.js'
 import {
 	useResizable,
@@ -62,14 +63,14 @@ import type { MorphAnimationState } from './smart-ink/index.js'
 function getObjectBounds(obj: IdealloObject): Bounds {
 	switch (obj.type) {
 		case 'freehand':
-			return getBoundsFromPoints(obj.points)
-		case 'polygon':
-			return getBoundsFromPoints(obj.vertices)
 		case 'rect':
 		case 'ellipse':
 		case 'text':
 		case 'sticky':
+		case 'image':
 			return { x: obj.x, y: obj.y, width: obj.width, height: obj.height }
+		case 'polygon':
+			return getBoundsFromPoints(obj.vertices)
 		case 'line':
 		case 'arrow':
 			return {
@@ -137,7 +138,8 @@ export function IdealloApp() {
 	} | null>(null)
 
 	// Temp state for visual feedback during interactions (not persisted until release)
-	const [tempObjectState, setTempObjectState] = React.useState<{
+	// Use ref + RAF to avoid re-render cascade on every pointer move
+	type TempObjectState = {
 		objectId: ObjectId
 		x: number
 		y: number
@@ -146,6 +148,47 @@ export function IdealloApp() {
 		rotation?: number
 		pivotX?: number
 		pivotY?: number
+	}
+	const tempObjectStateRef = React.useRef<TempObjectState | null>(null)
+	const [tempObjectState, setTempObjectStateInternal] = React.useState<TempObjectState | null>(
+		null
+	)
+	const rafIdRef = React.useRef<number | null>(null)
+
+	// Batched update via RAF to prevent cascading re-renders
+	const setTempObjectState = React.useCallback((value: TempObjectState | null) => {
+		tempObjectStateRef.current = value
+		if (value === null) {
+			// Immediate update on clear (interaction end)
+			if (rafIdRef.current) {
+				cancelAnimationFrame(rafIdRef.current)
+				rafIdRef.current = null
+			}
+			setTempObjectStateInternal(null)
+		} else if (!rafIdRef.current) {
+			// Batch updates via RAF during interaction
+			rafIdRef.current = requestAnimationFrame(() => {
+				rafIdRef.current = null
+				setTempObjectStateInternal(tempObjectStateRef.current)
+			})
+		}
+	}, [])
+
+	// Cleanup RAF on unmount
+	React.useEffect(() => {
+		return () => {
+			if (rafIdRef.current) {
+				cancelAnimationFrame(rafIdRef.current)
+			}
+		}
+	}, [])
+
+	// Locked bounds during resize/rotate to prevent prop changes from re-triggering hooks
+	const [lockedHookState, setLockedHookState] = React.useState<{
+		bounds: Bounds
+		rotation: number
+		pivotX: number
+		pivotY: number
 	} | null>(null)
 
 	// Handle Smart Ink morph animation updates
@@ -246,6 +289,33 @@ export function IdealloApp() {
 		scale
 	})
 
+	// Image handler for image tool
+	const imageHandler = useImageHandler({
+		yDoc: ideallo.yDoc,
+		doc: ideallo.doc,
+		enabled: ideallo.activeTool === 'image',
+		documentFileId: ideallo.cloudillo.fileId,
+		onObjectCreated: (id) => {
+			// Select the newly created image
+			selectObject(id)
+		},
+		onInsertComplete: () => {
+			// Switch to select tool after insertion
+			ideallo.setActiveTool('select')
+		}
+	})
+
+	// Trigger image picker when image tool is activated
+	// Use a ref to avoid re-triggering when imageHandler changes
+	const imageHandlerRef = React.useRef(imageHandler)
+	imageHandlerRef.current = imageHandler
+
+	React.useEffect(() => {
+		if (ideallo.activeTool === 'image') {
+			imageHandlerRef.current.insertImage()
+		}
+	}, [ideallo.activeTool])
+
 	// We need selectionBounds before we can initialize resize handler
 	// Compute basic selection bounds first (without offsets)
 	const baseSelectionBounds = React.useMemo<Bounds | null>(() => {
@@ -313,6 +383,16 @@ export function IdealloApp() {
 	const storedSelectionRef = React.useRef(storedSelection)
 	storedSelectionRef.current = storedSelection
 
+	// Compute aspect ratio for single image selection
+	// This is used by useResizable for aspect-locked resize
+	const selectionAspectRatio = React.useMemo(() => {
+		if (selectedIds.size !== 1 || !ideallo.doc) return undefined
+		const id = Array.from(selectedIds)[0]
+		const obj = getObject(ideallo.doc, id)
+		if (!obj || obj.type !== 'image') return undefined
+		return obj.width / obj.height
+	}, [selectedIds, ideallo.doc, ideallo.objects])
+
 	// Coordinate transform callbacks for library hooks
 	// Note: SvgCanvasContext.translateTo returns [number, number], but hooks expect Point { x, y }
 	const resizeTransformCoordinates = React.useCallback(
@@ -377,26 +457,37 @@ export function IdealloApp() {
 		}
 	}, [ideallo.awareness])
 
-	// Resize hook - provides rotation-aware resize
-	const {
-		isResizing,
-		activeHandle,
-		handleResizeStart: hookResizeStart
-	} = useResizable({
-		bounds: storedSelection?.bounds ?? { x: 0, y: 0, width: 0, height: 0 },
-		rotation: storedSelection?.rotation ?? 0,
-		pivotX: storedSelection?.pivotX ?? 0.5,
-		pivotY: storedSelection?.pivotY ?? 0.5,
-		objectId: storedSelection?.id,
-		transformCoordinates: resizeTransformCoordinates,
-		disabled: ideallo.activeTool !== 'select' || !storedSelection,
-		onResizeStart: ({ handle, bounds }) => {
+	// Stable fallback bounds to avoid creating new object on every render
+	const emptyBounds = React.useMemo(() => ({ x: 0, y: 0, width: 0, height: 0 }), [])
+
+	// Refs for resize/rotate callbacks to avoid recreating on every render
+	// This prevents useResizable/useRotatable from re-triggering effects
+	const selectedIdsRef = React.useRef(selectedIds)
+	selectedIdsRef.current = selectedIds
+	const idealloRef = React.useRef(ideallo)
+	idealloRef.current = ideallo
+	const broadcastEditingRef = React.useRef(broadcastEditing)
+	broadcastEditingRef.current = broadcastEditing
+	const clearEditingStateRef = React.useRef(clearEditingState)
+	clearEditingStateRef.current = clearEditingState
+
+	// Stable resize callbacks using refs
+	const onResizeStart = React.useCallback(
+		({ handle, bounds }: { handle: ResizeHandle; bounds: Bounds }) => {
 			const current = storedSelectionRef.current
-			if (!current || !ideallo.doc) return
+			const doc = idealloRef.current.doc
+			if (!current || !doc) return
+			// Lock the hook state to prevent prop changes during resize
+			setLockedHookState({
+				bounds: current.bounds,
+				rotation: current.rotation,
+				pivotX: current.pivotX,
+				pivotY: current.pivotY
+			})
 			// Store all selected objects for multi-object resize
 			const originalObjects = new Map<ObjectId, IdealloObject>()
-			selectedIds.forEach((id) => {
-				const obj = getObject(ideallo.doc!, id)
+			selectedIdsRef.current.forEach((id) => {
+				const obj = getObject(doc, id)
 				if (obj) originalObjects.set(id, obj)
 			})
 			interactionStartRef.current = { ...current, originalObjects }
@@ -408,7 +499,11 @@ export function IdealloApp() {
 				height: bounds.height
 			})
 		},
-		onResize: ({ handle, bounds }) => {
+		[]
+	)
+
+	const onResize = React.useCallback(
+		({ handle, bounds }: { handle: ResizeHandle; bounds: Bounds }) => {
 			const initial = interactionStartRef.current
 			if (!initial) return
 			setTempObjectState({
@@ -418,11 +513,31 @@ export function IdealloApp() {
 				width: bounds.width,
 				height: bounds.height
 			})
-			broadcastEditing(initial.id, 'resize', bounds.x, bounds.y, bounds.width, bounds.height)
+			broadcastEditingRef.current(
+				initial.id,
+				'resize',
+				bounds.x,
+				bounds.y,
+				bounds.width,
+				bounds.height
+			)
 		},
-		onResizeEnd: ({ handle, bounds, originalBounds }) => {
+		[]
+	)
+
+	const onResizeEnd = React.useCallback(
+		({
+			handle,
+			bounds,
+			originalBounds
+		}: {
+			handle: ResizeHandle
+			bounds: Bounds
+			originalBounds: Bounds
+		}) => {
 			const initial = interactionStartRef.current
-			if (!initial || !ideallo.yDoc || !ideallo.doc) return
+			const { yDoc, doc } = idealloRef.current
+			if (!initial || !yDoc || !doc) return
 
 			// Calculate scale factors
 			const scaleX = bounds.width / originalBounds.width
@@ -431,7 +546,7 @@ export function IdealloApp() {
 			const dy = bounds.y - originalBounds.y
 
 			if (dx !== 0 || dy !== 0 || scaleX !== 1 || scaleY !== 1) {
-				ideallo.yDoc.transact(() => {
+				yDoc.transact(() => {
 					initial.originalObjects.forEach((origObj, objectId) => {
 						// Calculate object's relative position within selection
 						const relX = origObj.x - originalBounds.x
@@ -449,7 +564,7 @@ export function IdealloApp() {
 						) {
 							const objNewWidth = origObj.width * scaleX
 							const objNewHeight = origObj.height * scaleY
-							updateObject(ideallo.yDoc, ideallo.doc!, objectId, {
+							updateObject(yDoc, doc, objectId, {
 								x: objNewX,
 								y: objNewY,
 								width: Math.max(10, objNewWidth),
@@ -461,7 +576,7 @@ export function IdealloApp() {
 							const relStartY = origObj.startY - originalBounds.y
 							const relEndX = origObj.endX - originalBounds.x
 							const relEndY = origObj.endY - originalBounds.y
-							updateObject(ideallo.yDoc, ideallo.doc!, objectId, {
+							updateObject(yDoc, doc, objectId, {
 								x: objNewX,
 								y: objNewY,
 								startX: originalBounds.x + dx + relStartX * scaleX,
@@ -470,109 +585,159 @@ export function IdealloApp() {
 								endY: originalBounds.y + dy + relEndY * scaleY
 							} as any)
 						} else if (origObj.type === 'freehand') {
-							// Scale all points relative to selection origin
-							const newPoints = origObj.points.map(([px, py]) => {
-								const relPx = px - originalBounds.x
-								const relPy = py - originalBounds.y
-								return [
-									originalBounds.x + dx + relPx * scaleX,
-									originalBounds.y + dy + relPy * scaleY
-								] as [number, number]
-							})
-							updateObject(ideallo.yDoc, ideallo.doc!, objectId, {
+							// Freehand paths are immutable - just update bounds
+							// Note: Actual path scaling would require SVG transform
+							updateObject(yDoc, doc, objectId, {
 								x: objNewX,
 								y: objNewY,
-								points: newPoints
+								width: origObj.width * scaleX,
+								height: origObj.height * scaleY
+							} as any)
+						} else if (origObj.type === 'image') {
+							// For single image selection, bounds are already aspect-constrained by hook
+							// For multi-selection, use the dominant scale to maintain aspect ratio
+							const origAspectRatio = origObj.width / origObj.height
+							// Use the scale factor that had more proportional change
+							const propChangeX = Math.abs(scaleX - 1)
+							const propChangeY = Math.abs(scaleY - 1)
+							const uniformScale = propChangeX >= propChangeY ? scaleX : scaleY
+							const objNewWidth = origObj.width * uniformScale
+							const objNewHeight = objNewWidth / origAspectRatio
+							updateObject(yDoc, doc, objectId, {
+								x: objNewX,
+								y: objNewY,
+								width: Math.max(20, objNewWidth),
+								height: Math.max(20, objNewHeight)
 							} as any)
 						}
 					})
 				})
 			}
 
-			clearEditingState()
+			clearEditingStateRef.current()
 			setTempObjectState(null)
+			setLockedHookState(null)
 			interactionStartRef.current = null
-		}
+		},
+		[]
+	)
+
+	// Resize hook - provides rotation-aware resize
+	// Use lockedHookState during active interactions to prevent prop changes from re-triggering
+	const {
+		isResizing,
+		activeHandle,
+		handleResizeStart: hookResizeStart
+	} = useResizable({
+		bounds: lockedHookState?.bounds ?? storedSelection?.bounds ?? emptyBounds,
+		rotation: lockedHookState?.rotation ?? storedSelection?.rotation ?? 0,
+		pivotX: lockedHookState?.pivotX ?? storedSelection?.pivotX ?? 0.5,
+		pivotY: lockedHookState?.pivotY ?? storedSelection?.pivotY ?? 0.5,
+		objectId: storedSelection?.id,
+		transformCoordinates: resizeTransformCoordinates,
+		disabled: ideallo.activeTool !== 'select' || !storedSelection,
+		aspectRatio: selectionAspectRatio,
+		onResizeStart,
+		onResize,
+		onResizeEnd
 	})
 
+	// Stable rotation callbacks using refs
+	const onRotateStart = React.useCallback((angle: number) => {
+		const current = storedSelectionRef.current
+		const doc = idealloRef.current.doc
+		if (!current || !doc) return
+		// Lock the hook state to prevent prop changes during rotation
+		setLockedHookState({
+			bounds: current.bounds,
+			rotation: current.rotation,
+			pivotX: current.pivotX,
+			pivotY: current.pivotY
+		})
+		// Store all selected objects for multi-object rotation
+		const originalObjects = new Map<ObjectId, IdealloObject>()
+		selectedIdsRef.current.forEach((id) => {
+			const obj = getObject(doc, id)
+			if (obj) originalObjects.set(id, obj)
+		})
+		interactionStartRef.current = { ...current, originalObjects }
+		setTempObjectState({
+			objectId: current.id,
+			x: current.bounds.x,
+			y: current.bounds.y,
+			width: current.bounds.width,
+			height: current.bounds.height,
+			rotation: current.rotation
+		})
+	}, [])
+
+	const onRotate = React.useCallback((newRotation: number, isSnapped: boolean) => {
+		const initial = interactionStartRef.current
+		if (!initial) return
+		setTempObjectState({
+			objectId: initial.id,
+			x: initial.bounds.x,
+			y: initial.bounds.y,
+			width: initial.bounds.width,
+			height: initial.bounds.height,
+			rotation: newRotation
+		})
+		broadcastEditingRef.current(
+			initial.id,
+			'rotate',
+			initial.bounds.x,
+			initial.bounds.y,
+			initial.bounds.width,
+			initial.bounds.height,
+			newRotation
+		)
+	}, [])
+
+	const onRotateEnd = React.useCallback((finalRotation: number) => {
+		const initial = interactionStartRef.current
+		const { yDoc, doc } = idealloRef.current
+		if (!initial || !yDoc || !doc) return
+
+		const normalizedRotation = normalizeAngle(finalRotation)
+
+		if (
+			Math.abs(normalizedRotation - initial.rotation) > 0.5 ||
+			normalizedRotation !== initial.rotation
+		) {
+			yDoc.transact(() => {
+				initial.originalObjects.forEach((origObj, objectId) => {
+					updateObject(yDoc, doc, objectId, {
+						rotation: normalizedRotation === 0 ? undefined : normalizedRotation
+					} as any)
+				})
+			})
+		}
+
+		clearEditingStateRef.current()
+		setTempObjectState(null)
+		setLockedHookState(null)
+		interactionStartRef.current = null
+	}, [])
+
 	// Rotation hook - provides rotation with snap zone
+	// Use lockedHookState during active interactions to prevent prop changes from re-triggering
 	const {
 		rotationState,
 		handleRotateStart: hookRotateStart,
 		arcRadius,
 		pivotPosition
 	} = useRotatable({
-		bounds: storedSelection?.bounds ?? { x: 0, y: 0, width: 0, height: 0 },
-		rotation: storedSelection?.rotation ?? 0,
-		pivotX: storedSelection?.pivotX ?? 0.5,
-		pivotY: storedSelection?.pivotY ?? 0.5,
+		bounds: lockedHookState?.bounds ?? storedSelection?.bounds ?? emptyBounds,
+		rotation: lockedHookState?.rotation ?? storedSelection?.rotation ?? 0,
+		pivotX: lockedHookState?.pivotX ?? storedSelection?.pivotX ?? 0.5,
+		pivotY: lockedHookState?.pivotY ?? storedSelection?.pivotY ?? 0.5,
 		translateTo: translateToRef,
 		translateFrom: translateFromRef,
 		screenSpaceSnapZone: true,
 		disabled: ideallo.activeTool !== 'select' || !storedSelection,
-		onRotateStart: (angle) => {
-			const current = storedSelectionRef.current
-			if (!current || !ideallo.doc) return
-			// Store all selected objects for multi-object rotation
-			const originalObjects = new Map<ObjectId, IdealloObject>()
-			selectedIds.forEach((id) => {
-				const obj = getObject(ideallo.doc!, id)
-				if (obj) originalObjects.set(id, obj)
-			})
-			interactionStartRef.current = { ...current, originalObjects }
-			setTempObjectState({
-				objectId: current.id,
-				x: current.bounds.x,
-				y: current.bounds.y,
-				width: current.bounds.width,
-				height: current.bounds.height,
-				rotation: current.rotation
-			})
-		},
-		onRotate: (newRotation, isSnapped) => {
-			const initial = interactionStartRef.current
-			if (!initial) return
-			setTempObjectState({
-				objectId: initial.id,
-				x: initial.bounds.x,
-				y: initial.bounds.y,
-				width: initial.bounds.width,
-				height: initial.bounds.height,
-				rotation: newRotation
-			})
-			broadcastEditing(
-				initial.id,
-				'rotate',
-				initial.bounds.x,
-				initial.bounds.y,
-				initial.bounds.width,
-				initial.bounds.height,
-				newRotation
-			)
-		},
-		onRotateEnd: (finalRotation) => {
-			const initial = interactionStartRef.current
-			if (!initial || !ideallo.yDoc || !ideallo.doc) return
-
-			const normalizedRotation = normalizeAngle(finalRotation)
-
-			if (
-				Math.abs(normalizedRotation - initial.rotation) > 0.5 ||
-				normalizedRotation !== initial.rotation
-			) {
-				ideallo.yDoc.transact(() => {
-					initial.originalObjects.forEach((origObj, objectId) => {
-						updateObject(ideallo.yDoc, ideallo.doc!, objectId, {
-							rotation: normalizedRotation === 0 ? undefined : normalizedRotation
-						} as any)
-					})
-				})
-			}
-
-			clearEditingState()
-			setTempObjectState(null)
-			interactionStartRef.current = null
-		}
+		onRotateStart,
+		onRotate,
+		onRotateEnd
 	})
 
 	// Derived states
@@ -770,6 +935,9 @@ export function IdealloApp() {
 					case 's':
 						ideallo.setActiveTool('sticky')
 						break
+					case 'i':
+						ideallo.setActiveTool('image')
+						break
 				}
 			}
 
@@ -853,6 +1021,7 @@ export function IdealloApp() {
 			{/* Canvas */}
 			<Canvas
 				ref={canvasRef}
+				doc={ideallo.doc}
 				objects={ideallo.objects}
 				activeStroke={drawingHandler.activeStroke}
 				shapePreview={shapeHandler.shapePreview}
@@ -911,6 +1080,8 @@ export function IdealloApp() {
 				eraserHighlightedIds={eraserHandler.highlightedIds}
 				isErasing={eraserHandler.isErasing}
 				onEraserLeave={eraserHandler.handlePointerLeave}
+				// Image loading
+				ownerTag={ideallo.cloudillo.idTag}
 			/>
 
 			{/* Toolbar */}

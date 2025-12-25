@@ -18,17 +18,15 @@
  * Smart Ink - Intelligent stroke processing
  *
  * Main entry point for the Smart Ink feature.
- * Analyzes freehand strokes and optionally converts them to shapes
- * based on user drawing intent (speed-based).
+ * Analyzes freehand strokes and optionally converts them to shapes.
+ * Shape detection is always attempted - confidence thresholds decide.
  */
 
-import { isClosedPath, type Point } from '../utils/geometry.js'
-import { rdpSimplify } from '../utils/index.js'
+import { isClosedPath, getBoundsFromPoints, type Point } from '../utils/geometry.js'
+import { fitBezierPath, type BezierFitResult } from '../utils/bezier-fitting.js'
 import {
 	analyzeStroke,
 	classifyIntent,
-	shouldDetectShapes,
-	getSmoothingFactor,
 	type TimedPoint,
 	type StrokeMetrics,
 	type DrawingIntent
@@ -55,16 +53,11 @@ import {
 	isConfidentArrow,
 	type ArrowCandidate
 } from './shape-detectors/index.js'
-import { adaptiveSmooth } from './path-processing/index.js'
-
 // Re-export types and utilities
 export * from './stroke-analyzer.js'
 export * from './shape-detectors/index.js'
 export * from './path-processing/index.js'
 export * from './morph-animation.js'
-
-// Processing configuration
-const RDP_TOLERANCE = 1.5
 
 // Debug configuration - set to true to enable console logging
 const DEBUG_SMART_INK = true
@@ -99,12 +92,7 @@ export interface SmartInkResult {
 	type: SmartInkResultType
 
 	/**
-	 * Processed points (smoothed and/or simplified)
-	 */
-	points: Point[]
-
-	/**
-	 * Original input points (for undo)
+	 * Original input points (for undo/animation)
 	 */
 	originalPoints: Point[]
 
@@ -126,6 +114,11 @@ export interface SmartInkResult {
 	rectangleCandidate?: RectangleCandidate
 	polygonCandidate?: PolygonCandidate
 	arrowCandidate?: ArrowCandidate
+
+	/**
+	 * Bezier path result (for freehand type only)
+	 */
+	bezierResult?: BezierFitResult
 
 	/**
 	 * Whether shape was auto-detected (for snapped flag)
@@ -166,24 +159,15 @@ export function processSmartInk(timedPoints: TimedPoint[]): SmartInkResult {
 		intent
 	})
 
-	// Default result (freehand with RDP simplification)
+	// Default result (freehand with bezier fitting)
+	const bezierResult = fitBezierPath(timedPoints, metrics, intent)
 	let result: SmartInkResult = {
 		type: 'freehand',
-		points: rdpSimplify(originalPoints, RDP_TOLERANCE),
 		originalPoints,
 		metrics,
 		intent,
+		bezierResult,
 		snapped: false
-	}
-
-	// Check if we should attempt shape detection
-	const shouldDetect = shouldDetectShapes(metrics)
-	if (!shouldDetect) {
-		debugLog('Detection Skipped', {
-			reason: 'Speed too high or stroke too short',
-			shouldDetect
-		})
-		return result
 	}
 
 	// Check if path is closed for closed-shape detection
@@ -218,7 +202,6 @@ export function processSmartInk(timedPoints: TimedPoint[]): SmartInkResult {
 			})
 			return {
 				type: 'rect',
-				points: rectangleCandidate!.corners,
 				originalPoints,
 				metrics,
 				intent,
@@ -243,7 +226,6 @@ export function processSmartInk(timedPoints: TimedPoint[]): SmartInkResult {
 			})
 			return {
 				type: 'polygon',
-				points: polygonCandidate!.vertices,
 				originalPoints,
 				metrics,
 				intent,
@@ -269,7 +251,6 @@ export function processSmartInk(timedPoints: TimedPoint[]): SmartInkResult {
 			debugLog('Result', { type: 'ellipse', snapped: true })
 			return {
 				type: 'ellipse',
-				points: originalPoints, // Points will be regenerated for ellipse
 				originalPoints,
 				metrics,
 				intent,
@@ -296,7 +277,6 @@ export function processSmartInk(timedPoints: TimedPoint[]): SmartInkResult {
 			})
 			return {
 				type: 'arrow',
-				points: [arrowCandidate!.start, arrowCandidate!.end],
 				originalPoints,
 				metrics,
 				intent,
@@ -322,7 +302,6 @@ export function processSmartInk(timedPoints: TimedPoint[]): SmartInkResult {
 			debugLog('Result', { type: 'line', snapped: true })
 			return {
 				type: 'line',
-				points: [lineCandidate!.start, lineCandidate!.end],
 				originalPoints,
 				metrics,
 				intent,
@@ -332,12 +311,13 @@ export function processSmartInk(timedPoints: TimedPoint[]): SmartInkResult {
 		}
 	}
 
-	// No confident shape detected - apply adaptive smoothing
-	const smoothingFactor = getSmoothingFactor(metrics)
-	const smoothed = adaptiveSmooth(originalPoints, smoothingFactor)
-	result.points = rdpSimplify(smoothed, RDP_TOLERANCE)
-
-	debugLog('Result', { type: 'freehand', snapped: false, smoothingFactor })
+	// No confident shape detected - bezier path already computed as default
+	debugLog('Result', {
+		type: 'freehand',
+		snapped: false,
+		pathLength: bezierResult.pathData.length,
+		closed: bezierResult.closed
+	})
 
 	return result
 }

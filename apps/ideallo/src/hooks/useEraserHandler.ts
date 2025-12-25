@@ -61,14 +61,14 @@ export interface EraserPosition {
 function getObjectBounds(obj: IdealloObject): Bounds {
 	switch (obj.type) {
 		case 'freehand':
-			return getBoundsFromPoints(obj.points)
-		case 'polygon':
-			return getBoundsFromPoints(obj.vertices)
 		case 'rect':
 		case 'ellipse':
 		case 'text':
 		case 'sticky':
+		case 'image':
 			return { x: obj.x, y: obj.y, width: obj.width, height: obj.height }
+		case 'polygon':
+			return getBoundsFromPoints(obj.vertices)
 		case 'line':
 		case 'arrow':
 			return {
@@ -116,7 +116,7 @@ export function useEraserHandler(options: UseEraserHandlerOptions) {
 
 			Object.entries(objects).forEach(([id, stored]) => {
 				const objectId = toObjectId(id)
-				const obj = expandObject(objectId, stored)
+				const obj = expandObject(objectId, stored, doc)
 
 				// Skip locked objects
 				if (obj.locked) return

@@ -22,8 +22,8 @@
  * - t   = type
  * - xy  = position [x, y]
  * - wh  = dimensions [width, height]
- * - pts = points (freehand path, line endpoints)
- * - txt = text content
+ * - tid = text ID (optional: if omitted, object ID used as key in txt map)
+ * - gid = geometry ID (optional: if omitted, object ID used as key in geo map)
  * - r   = rotation
  * - sc  = stroke color
  * - fc  = fill color
@@ -37,7 +37,7 @@ import * as Y from 'yjs'
 
 // Object type codes
 export type ObjectTypeCode =
-	| 'F' // Freehand path
+	| 'F' // Freehand path (bezier, stored in paths map as SVG path string)
 	| 'R' // Rectangle
 	| 'E' // Ellipse
 	| 'L' // Line
@@ -45,6 +45,7 @@ export type ObjectTypeCode =
 	| 'T' // Text label
 	| 'P' // Polygon (triangle, pentagon, etc.)
 	| 'S' // Sticky note
+	| 'I' // Image
 
 // Stroke style codes
 export type StrokeStyleCode = 'S' | 'D' | 'T' // Solid, Dashed, Dotted
@@ -68,10 +69,12 @@ export interface StoredObjectBase extends StoredStyle {
 	sn?: true // snapped (omit if false) - Smart Ink: was auto-detected as shape
 }
 
-// Freehand path
+// Freehand path (bezier, SVG path string stored in paths map)
 export interface StoredFreehand extends StoredObjectBase {
 	t: 'F'
-	pts: number[] // Flat array [x0,y0,x1,y1,...] - absolute coords
+	wh: [number, number] // [width, height] - bounds of the path
+	pid?: string // Optional: if omitted, uses object ID as key in paths map
+	cl?: true // closed path (omit if open)
 }
 
 // Rectangle
@@ -100,26 +103,33 @@ export interface StoredArrow extends StoredObjectBase {
 	ah?: 'S' | 'E' | 'B' // arrowhead: Start, End, Both (default 'E')
 }
 
-// Text label
+// Text label (content stored separately in txt map)
 export interface StoredText extends StoredObjectBase {
 	t: 'T'
 	wh: [number, number] // [width, height]
-	txt: string // text content
+	tid?: string // Optional: if omitted, uses object ID as key in txt map
 	ff?: string // font family
 	fz?: number // font size
 }
 
-// Polygon (triangle, pentagon, hexagon, etc.)
+// Polygon (triangle, pentagon, hexagon, etc.) - geometry stored separately in geo map
 export interface StoredPolygon extends StoredObjectBase {
 	t: 'P'
-	vts: number[] // Flat vertices array [x0,y0,x1,y1,...] - absolute coords
+	gid?: string // Optional: if omitted, uses object ID as key in geo map
 }
 
 // Sticky note (uses standard fillColor from style for background)
 export interface StoredSticky extends StoredObjectBase {
 	t: 'S'
 	wh: [number, number] // [width, height]
-	txt: string // text content
+	tid?: string // Optional: if omitted, uses object ID as key in txt map
+}
+
+// Image
+export interface StoredImage extends StoredObjectBase {
+	t: 'I'
+	wh: [number, number] // [width, height]
+	fid: string // fileId from MediaPicker
 }
 
 // Union of all stored object types
@@ -132,6 +142,7 @@ export type StoredObject =
 	| StoredText
 	| StoredPolygon
 	| StoredSticky
+	| StoredImage
 
 // Document metadata
 export interface StoredMeta {
@@ -143,8 +154,11 @@ export interface StoredMeta {
 
 // Document structure - simpler than prezillo (no containers, views)
 export interface YIdealloDocument {
-	o: Y.Map<StoredObject> // objects
+	o: Y.Map<StoredObject> // objects (metadata + style only)
 	m: Y.Map<unknown> // metadata
+	txt: Y.Map<Y.Text> // text content for Text/Sticky objects
+	geo: Y.Map<Y.Array<number>> // geometry for Polygon objects
+	paths: Y.Map<string> // SVG path strings for Freehand objects
 }
 
 // vim: ts=4

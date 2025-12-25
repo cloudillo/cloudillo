@@ -31,7 +31,9 @@ import type {
 	EllipseObject,
 	RectObject,
 	ArrowObject,
-	PolygonObject
+	PolygonObject,
+	NewFreehandInput,
+	NewPolygonInput
 } from '../crdt/index.js'
 import { addObject, deleteObject, DEFAULT_STYLE } from '../crdt/index.js'
 import { streamSimplify } from '../utils/index.js'
@@ -242,7 +244,7 @@ export function useDrawingHandler(options: UseDrawingHandlerOptions) {
 				case 'polygon': {
 					const polygon = smartInkResult.polygonCandidate!
 					const bounds = getBoundsFromPoints(polygon.vertices)
-					const polygonObject: Omit<PolygonObject, 'id'> = {
+					const polygonObject: NewPolygonInput = {
 						type: 'polygon',
 						x: bounds.x,
 						y: bounds.y,
@@ -281,15 +283,16 @@ export function useDrawingHandler(options: UseDrawingHandlerOptions) {
 				}
 
 				default: {
-					// Freehand (possibly smoothed)
-					const points = smartInkResult.points
-					const bounds = getBoundsFromPoints(points)
-
-					const freehandObject: Omit<FreehandObject, 'id'> = {
+					// Freehand (bezier fitted)
+					const bezier = smartInkResult.bezierResult!
+					const freehandObject: NewFreehandInput = {
 						type: 'freehand',
-						x: bounds.x,
-						y: bounds.y,
-						points: points as [number, number][],
+						x: bezier.bounds.x,
+						y: bezier.bounds.y,
+						width: bezier.bounds.width,
+						height: bezier.bounds.height,
+						pathData: bezier.pathData,
+						closed: bezier.closed,
 						rotation: 0,
 						pivotX: 0.5,
 						pivotY: 0.5,
@@ -474,7 +477,7 @@ export function useDrawingHandler(options: UseDrawingHandlerOptions) {
 				case 'polygon': {
 					const polygon = result.polygonCandidate!
 					const bounds = getBoundsFromPoints(polygon.vertices)
-					const polygonObject: Omit<PolygonObject, 'id'> = {
+					const polygonObject: NewPolygonInput = {
 						type: 'polygon',
 						x: bounds.x,
 						y: bounds.y,
@@ -513,14 +516,16 @@ export function useDrawingHandler(options: UseDrawingHandlerOptions) {
 				}
 
 				default: {
-					// Freehand
-					const points = result.points
-					const bounds = getBoundsFromPoints(points)
-					const freehandObject: Omit<FreehandObject, 'id'> = {
+					// Freehand (bezier fitted)
+					const bezier = result.bezierResult!
+					const freehandObject: NewFreehandInput = {
 						type: 'freehand',
-						x: bounds.x,
-						y: bounds.y,
-						points: points as [number, number][],
+						x: bezier.bounds.x,
+						y: bezier.bounds.y,
+						width: bezier.bounds.width,
+						height: bezier.bounds.height,
+						pathData: bezier.pathData,
+						closed: bezier.closed,
 						rotation: 0,
 						pivotX: 0.5,
 						pivotY: 0.5,

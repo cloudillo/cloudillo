@@ -101,6 +101,16 @@ export function PropertyBar({
 		return obj?.style ?? null
 	}, [doc, selectedIds])
 
+	// Check if selection contains only images (for showing opacity-only UI)
+	const isImageOnlySelection = React.useMemo(() => {
+		if (selectedIds.size === 0) return false
+		for (const id of selectedIds) {
+			const obj = getObject(doc, id)
+			if (!obj || obj.type !== 'image') return false
+		}
+		return true
+	}, [doc, selectedIds])
+
 	// Local style state - updated immediately on change, synced from selection
 	const [localStyle, setLocalStyle] = React.useState(() => {
 		const style = getSelectedStyle()
@@ -108,10 +118,11 @@ export function PropertyBar({
 			return {
 				strokeColor: style.strokeColor,
 				fillColor: style.fillColor,
-				strokeWidth: style.strokeWidth
+				strokeWidth: style.strokeWidth,
+				opacity: style.opacity ?? 1
 			}
 		}
-		return currentStyle
+		return { ...currentStyle, opacity: 1 }
 	})
 
 	// Sync local style when selection changes
@@ -121,10 +132,11 @@ export function PropertyBar({
 			setLocalStyle({
 				strokeColor: style.strokeColor,
 				fillColor: style.fillColor,
-				strokeWidth: style.strokeWidth
+				strokeWidth: style.strokeWidth,
+				opacity: style.opacity ?? 1
 			})
 		} else {
-			setLocalStyle(currentStyle)
+			setLocalStyle({ ...currentStyle, opacity: 1 })
 		}
 	}, [selectedIds, getSelectedStyle, currentStyle])
 
@@ -180,6 +192,14 @@ export function PropertyBar({
 		[updateSelectedStyle]
 	)
 
+	// Handle opacity change
+	const handleOpacityChange = React.useCallback(
+		(opacity: number) => {
+			updateSelectedStyle({ opacity })
+		},
+		[updateSelectedStyle]
+	)
+
 	// Calculate position - above or below selection based on rotation handle position
 	const position = React.useMemo(() => {
 		if (!screenBounds) return null
@@ -222,6 +242,35 @@ export function PropertyBar({
 
 	// Don't render if nothing selected
 	if (selectedIds.size === 0 || !position) return null
+
+	// Image-only selection: show opacity control only
+	if (isImageOnlySelection) {
+		return (
+			<div
+				className="ideallo-property-bar"
+				ref={popoverRef}
+				style={{
+					top: position.top,
+					left: position.left,
+					transform: 'translateX(-50%)'
+				}}
+			>
+				{/* Opacity */}
+				<div className="ideallo-property-group">
+					<label className="ideallo-property-label">Opacity</label>
+					<NumberInput
+						value={Math.round(displayStyle.opacity * 100)}
+						onChange={(v) => handleOpacityChange(v / 100)}
+						min={10}
+						max={100}
+						step={10}
+						suffix="%"
+						style={{ width: 70 }}
+					/>
+				</div>
+			</div>
+		)
+	}
 
 	return (
 		<div

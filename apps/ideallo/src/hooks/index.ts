@@ -42,4 +42,7 @@ export { useSelectHandler } from './useSelectHandler.js'
 export type { UseEraserHandlerOptions, EraserPosition } from './useEraserHandler.js'
 export { useEraserHandler } from './useEraserHandler.js'
 
+export type { UseImageHandlerOptions } from './useImageHandler.js'
+export { useImageHandler } from './useImageHandler.js'
+
 // vim: ts=4

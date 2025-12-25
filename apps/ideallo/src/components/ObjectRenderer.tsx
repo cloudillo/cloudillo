@@ -31,10 +31,16 @@ import {
 } from './ShapeRenderer.js'
 import { TextLabel } from './TextLabel.js'
 import { StickyNote } from './StickyNote.js'
+import { ImageRenderer } from './ImageRenderer.js'
 import { getBoundsFromPoints } from '../utils/geometry.js'
+import type { PolygonObject } from '../crdt/index.js'
 
 export interface ObjectRendererProps {
 	object: IdealloObject
+	// Owner tag for image URLs
+	ownerTag?: string
+	// Current canvas scale/zoom for optimal image variant selection
+	scale?: number
 	// Sticky editing props (passed when this sticky is being edited)
 	isEditing?: boolean
 	onTextChange?: (text: string) => void
@@ -51,28 +57,23 @@ function getRotationCenter(obj: IdealloObject): { cx: number; cy: number } {
 	const pivotY = obj.pivotY ?? 0.5
 
 	switch (obj.type) {
-		case 'freehand': {
-			const bounds = getBoundsFromPoints(obj.points)
-			return {
-				cx: bounds.x + bounds.width * pivotX,
-				cy: bounds.y + bounds.height * pivotY
-			}
-		}
-		case 'polygon': {
-			const bounds = getBoundsFromPoints(obj.vertices)
-			return {
-				cx: bounds.x + bounds.width * pivotX,
-				cy: bounds.y + bounds.height * pivotY
-			}
-		}
+		case 'freehand':
 		case 'rect':
 		case 'ellipse':
 		case 'text':
 		case 'sticky':
+		case 'image':
 			return {
 				cx: obj.x + obj.width * pivotX,
 				cy: obj.y + obj.height * pivotY
 			}
+		case 'polygon': {
+			const bounds = getBoundsFromPoints((obj as PolygonObject).vertices)
+			return {
+				cx: bounds.x + bounds.width * pivotX,
+				cy: bounds.y + bounds.height * pivotY
+			}
+		}
 		case 'line':
 		case 'arrow': {
 			const minX = Math.min(obj.startX, obj.endX)
@@ -90,7 +91,10 @@ function getRotationCenter(obj: IdealloObject): { cx: number; cy: number } {
 // Render the appropriate component for the object type
 function renderObject(
 	object: IdealloObject,
-	props: Pick<ObjectRendererProps, 'isEditing' | 'onTextChange' | 'onEditComplete'>
+	props: Pick<
+		ObjectRendererProps,
+		'ownerTag' | 'scale' | 'isEditing' | 'onTextChange' | 'onEditComplete'
+	>
 ): React.ReactNode {
 	switch (object.type) {
 		case 'freehand':
@@ -116,6 +120,8 @@ function renderObject(
 					onEditComplete={props.onEditComplete}
 				/>
 			)
+		case 'image':
+			return <ImageRenderer object={object} ownerTag={props.ownerTag} scale={props.scale} />
 		default:
 			return null
 	}
@@ -123,13 +129,21 @@ function renderObject(
 
 export function ObjectRenderer({
 	object,
+	ownerTag,
+	scale,
 	isEditing,
 	onTextChange,
 	onEditComplete,
 	onDoubleClick,
 	isHighlighted = false
 }: ObjectRendererProps) {
-	const content = renderObject(object, { isEditing, onTextChange, onEditComplete })
+	const content = renderObject(object, {
+		ownerTag,
+		scale,
+		isEditing,
+		onTextChange,
+		onEditComplete
+	})
 	if (!content) return null
 
 	// Build class name with optional highlight

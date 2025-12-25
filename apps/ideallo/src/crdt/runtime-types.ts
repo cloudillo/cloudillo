@@ -30,6 +30,7 @@ export type ObjectType =
 	| 'text'
 	| 'polygon'
 	| 'sticky'
+	| 'image'
 
 export type StrokeStyle = 'solid' | 'dashed' | 'dotted'
 
@@ -58,7 +59,11 @@ export interface IdealloObjectBase {
 
 export interface FreehandObject extends IdealloObjectBase {
 	type: 'freehand'
-	points: [number, number][] // Absolute coordinates
+	width: number // Bounds width
+	height: number // Bounds height
+	pid?: ObjectId // Optional: if omitted, object ID used as key in paths map (linked copy uses explicit pid)
+	pathData: string // SVG path string (expanded from paths map)
+	closed: boolean // Whether path is closed
 }
 
 export interface RectObject extends IdealloObjectBase {
@@ -95,14 +100,16 @@ export interface TextObject extends IdealloObjectBase {
 	type: 'text'
 	width: number
 	height: number
-	text: string
+	tid?: ObjectId // Optional: if omitted, object ID used as key in txt map (linked copy uses explicit tid)
+	text: string // Expanded text content (from txt map)
 	fontFamily?: string
 	fontSize?: number
 }
 
 export interface PolygonObject extends IdealloObjectBase {
 	type: 'polygon'
-	vertices: [number, number][] // Array of vertex points (absolute coords)
+	gid?: ObjectId // Optional: if omitted, object ID used as key in geo map (linked copy uses explicit gid)
+	vertices: [number, number][] // Array of vertex points (expanded from geo map)
 }
 
 // Sticky note (uses standard style.fillColor for background)
@@ -110,7 +117,16 @@ export interface StickyObject extends IdealloObjectBase {
 	type: 'sticky'
 	width: number
 	height: number
-	text: string
+	tid?: ObjectId // Optional: if omitted, object ID used as key in txt map (linked copy uses explicit tid)
+	text: string // Expanded text content (from txt map)
+}
+
+// Image
+export interface ImageObject extends IdealloObjectBase {
+	type: 'image'
+	width: number
+	height: number
+	fileId: string // fileId from MediaPicker
 }
 
 export type IdealloObject =
@@ -122,6 +138,7 @@ export type IdealloObject =
 	| TextObject
 	| PolygonObject
 	| StickyObject
+	| ImageObject
 
 // Bounds helper type
 export interface Bounds {

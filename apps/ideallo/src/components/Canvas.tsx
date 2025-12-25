@@ -32,7 +32,7 @@ import {
 	type Point
 } from 'react-svg-canvas'
 
-import type { StoredObject, Bounds, ObjectId } from '../crdt/index.js'
+import type { StoredObject, Bounds, ObjectId, YIdealloDocument } from '../crdt/index.js'
 import { expandObject, toObjectId } from '../crdt/index.js'
 import type {
 	IdealloPresence,
@@ -142,6 +142,7 @@ import type { MorphAnimationState } from '../smart-ink/index.js'
 import { pointsToSmoothPath } from '../utils/index.js'
 
 export interface CanvasProps {
+	doc: YIdealloDocument
 	objects: Record<string, StoredObject> | null
 	activeStroke: ActiveStrokeType | null
 	shapePreview: ShapePreviewType | null
@@ -192,6 +193,8 @@ export interface CanvasProps {
 	eraserHighlightedIds?: Set<ObjectId>
 	isErasing?: boolean
 	onEraserLeave?: () => void
+	// Image loading
+	ownerTag?: string
 }
 
 export interface CanvasHandle {
@@ -202,6 +205,7 @@ export interface CanvasHandle {
 
 export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canvas(
 	{
+		doc,
 		objects,
 		activeStroke,
 		shapePreview,
@@ -248,7 +252,9 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 		eraserRadius = 16,
 		eraserHighlightedIds,
 		isErasing = false,
-		onEraserLeave
+		onEraserLeave,
+		// Image loading
+		ownerTag
 	},
 	ref
 ) {
@@ -378,8 +384,25 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 	}, [selectionBounds, canvasMatrix])
 
 	// Report screen bounds changes for PropertyBar positioning
+	// Use ref to compare values and avoid triggering on reference-only changes
+	const prevScreenBoundsRef = React.useRef<Bounds | null>(null)
 	React.useEffect(() => {
-		onScreenBoundsChange?.(screenSelectionBounds)
+		const prev = prevScreenBoundsRef.current
+		const curr = screenSelectionBounds
+
+		// Compare by value to avoid infinite loops from reference changes
+		const changed =
+			prev === null || curr === null
+				? prev !== curr
+				: prev.x !== curr.x ||
+					prev.y !== curr.y ||
+					prev.width !== curr.width ||
+					prev.height !== curr.height
+
+		if (changed) {
+			prevScreenBoundsRef.current = curr
+			onScreenBoundsChange?.(curr)
+		}
 	}, [screenSelectionBounds, onScreenBoundsChange])
 
 	// Convert stored objects to runtime format for rendering
@@ -389,7 +412,7 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 
 		return Object.entries(objects).map(([id, stored]) => {
 			const objectId = toObjectId(id)
-			let obj = expandObject(objectId, stored)
+			let obj = expandObject(objectId, stored, doc)
 
 			// Apply local drag offset if this object is being dragged
 			if (dragOffset && dragOffset.objectIds.has(objectId)) {
@@ -405,16 +428,8 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 								endX: obj.endX + dragOffset.dx,
 								endY: obj.endY + dragOffset.dy
 							}
-						: {}),
-					// For freehand, also offset points
-					...(obj.type === 'freehand'
-						? {
-								points: obj.points.map(
-									([px, py]) =>
-										[px + dragOffset.dx, py + dragOffset.dy] as [number, number]
-								)
-							}
 						: {})
+					// Note: Freehand pathData uses absolute coords, position update handled above
 				}
 			}
 
@@ -509,6 +524,8 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 					<ObjectRenderer
 						key={obj.id}
 						object={obj}
+						ownerTag={ownerTag}
+						scale={scale}
 						// Pass editing props for sticky notes
 						isEditing={obj.type === 'sticky' && editingSticky?.id === obj.id}
 						onTextChange={
@@ -539,7 +556,7 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 				<GhostShapes remotePresence={remotePresence} />
 
 				{/* Render objects being edited (dragged) by remote users */}
-				<GhostEditing remotePresence={remotePresence} objects={objects} />
+				<GhostEditing doc={doc} remotePresence={remotePresence} objects={objects} />
 
 				{/* Render remote user cursors */}
 				<Cursors remotePresence={remotePresence} />

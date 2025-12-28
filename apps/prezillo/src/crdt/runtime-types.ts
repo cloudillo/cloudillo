@@ -111,6 +111,7 @@ export interface TextStyle {
 	verticalAlign?: 'top' | 'middle' | 'bottom'
 	lineHeight?: number
 	letterSpacing?: number
+	listBullet?: string
 }
 
 // Resolved (fully computed) styles with defaults applied
@@ -142,6 +143,7 @@ export interface ResolvedTextStyle {
 	verticalAlign: 'top' | 'middle' | 'bottom'
 	lineHeight: number
 	letterSpacing: number
+	listBullet?: string
 }
 
 // Base object (common fields)
@@ -206,6 +208,7 @@ export interface PolygonObject extends PrezilloObjectBase {
 export interface TextObject extends PrezilloObjectBase {
 	type: 'text'
 	text: string
+	minHeight?: number // Original height at creation for auto-sizing
 }
 
 // Textbox object (rich text)

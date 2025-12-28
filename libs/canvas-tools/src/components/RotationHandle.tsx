@@ -175,8 +175,7 @@ export function RotationHandle({
 					{/* Snap blobs at snap angle intervals */}
 					{snapPoints.map(({ angle, x, y }) => {
 						const isCurrentSnap = isSnapped && angle === closestSnapAngle
-						// When snap mode is active, make all blobs larger and more visible
-						const baseRadius = isSnapActive ? snapBlobRadius * 1.3 : snapBlobRadius
+						const baseRadius = snapBlobRadius
 						const radius = isCurrentSnap ? activeSnapRadius : baseRadius
 						// Increase opacity when snap is active
 						const baseOpacity = angle % 90 === 0 ? 0.8 : angle % 45 === 0 ? 0.5 : 0.3
@@ -196,7 +195,7 @@ export function RotationHandle({
 											: handleColor
 								}
 								stroke={arcColor}
-								strokeWidth={isSnapActive ? strokeWidth * 1.2 : strokeWidth}
+								strokeWidth={strokeWidth}
 								opacity={opacity}
 								style={{ cursor: 'pointer' }}
 								onClick={(e) => {

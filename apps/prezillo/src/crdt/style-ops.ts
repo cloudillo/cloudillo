@@ -50,13 +50,13 @@ export const DEFAULT_SHAPE_STYLE: ResolvedShapeStyle = {
 
 export const DEFAULT_TEXT_STYLE: ResolvedTextStyle = {
 	fontFamily: 'system-ui, sans-serif',
-	fontSize: 16,
+	fontSize: 64,
 	fontWeight: 'normal',
 	fontItalic: false,
 	textDecoration: 'none',
 	fill: '#333333',
-	textAlign: 'left',
-	verticalAlign: 'top',
+	textAlign: 'center',
+	verticalAlign: 'middle',
 	lineHeight: 1.2,
 	letterSpacing: 0
 }
@@ -108,6 +108,7 @@ export function createStyle(
 			if (props.va !== undefined) style.va = props.va
 			if (props.lh !== undefined) style.lh = props.lh
 			if (props.ls !== undefined) style.ls = props.ls
+			if (props.lb !== undefined) style.lb = props.lb
 		}
 
 		doc.st.set(styleId, style)
@@ -329,7 +330,8 @@ function mergeTextStyle(base: ResolvedTextStyle, override: StoredStyle): Resolve
 			? ({ t: 'top', m: 'middle', b: 'bottom' }[override.va] as any)
 			: base.verticalAlign,
 		lineHeight: override.lh ?? base.lineHeight,
-		letterSpacing: override.ls ?? base.letterSpacing
+		letterSpacing: override.ls ?? base.letterSpacing,
+		listBullet: override.lb ?? base.listBullet
 	}
 }
 
@@ -355,7 +357,8 @@ function mergeTextStyleFromStored(base: ResolvedTextStyle, override: TextStyle):
 			? ({ t: 'top', m: 'middle', b: 'bottom' }[override.va] as any)
 			: base.verticalAlign,
 		lineHeight: override.lh ?? base.lineHeight,
-		letterSpacing: override.ls ?? base.letterSpacing
+		letterSpacing: override.ls ?? base.letterSpacing,
+		listBullet: override.lb ?? base.listBullet
 	}
 }
 
@@ -465,6 +468,7 @@ export function detachStyleFromObjects(
 				}
 				if (resolved.lineHeight !== 1.2) updated.ts.lh = resolved.lineHeight
 				if (resolved.letterSpacing !== 0) updated.ts.ls = resolved.letterSpacing
+				if (resolved.listBullet) updated.ts.lb = resolved.listBullet
 
 				doc.o.set(id, updated)
 			}

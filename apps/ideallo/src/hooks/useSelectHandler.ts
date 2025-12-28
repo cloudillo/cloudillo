@@ -176,8 +176,17 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 			}
 
 			if (hitObject) {
+				// Check if object was already selected BEFORE any selection changes
+				// Only allow drag if object was already selected (industry standard UX pattern)
+				const wasAlreadySelected = selectedIds.has(hitObject.id)
+
 				// Select the object
 				selectObject(hitObject.id, shiftKey)
+
+				// Don't start drag if we just selected it
+				if (!wasAlreadySelected) {
+					return
+				}
 
 				// Determine which objects to drag
 				const idsToTrack = shiftKey

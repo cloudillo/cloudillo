@@ -135,7 +135,7 @@ export function createObject(
 			object = { ...base, type: 'polygon', points: [], closed: true } as any
 			break
 		case 'text':
-			object = { ...base, type: 'text', text: 'Text' } as any
+			object = { ...base, type: 'text', text: '', minHeight: height } as any
 			break
 		case 'textbox':
 			const textId = generateRichTextId()
@@ -372,6 +372,7 @@ export function updateObjectTextStyle(
 		fc?: string | null // fill color
 		lh?: number | null // lineHeight
 		ls?: number | null // letterSpacing
+		lb?: string | null // listBullet
 	}
 ): void {
 	const existing = doc.o.get(objectId)
@@ -422,6 +423,10 @@ export function updateObjectTextStyle(
 		if (textStyleUpdates.ls !== undefined) {
 			if (textStyleUpdates.ls === null) delete newTs.ls
 			else newTs.ls = textStyleUpdates.ls
+		}
+		if (textStyleUpdates.lb !== undefined) {
+			if (textStyleUpdates.lb === null) delete newTs.lb
+			else newTs.lb = textStyleUpdates.lb
 		}
 
 		doc.o.set(objectId, {

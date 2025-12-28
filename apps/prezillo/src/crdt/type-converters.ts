@@ -253,6 +253,7 @@ export function expandTextStyle(
 	if (stored.va !== undefined) result.verticalAlign = VERT_ALIGN_MAP[stored.va]
 	if (stored.lh !== undefined) result.lineHeight = stored.lh
 	if (stored.ls !== undefined) result.letterSpacing = stored.ls
+	if (stored.lb !== undefined) result.listBullet = stored.lb
 
 	return result
 }
@@ -277,6 +278,7 @@ export function compactTextStyle(
 		result.va = VERT_ALIGN_REVERSE[runtime.verticalAlign] as 't' | 'm' | 'b'
 	if (runtime.lineHeight !== undefined) result.lh = runtime.lineHeight
 	if (runtime.letterSpacing !== undefined) result.ls = runtime.letterSpacing
+	if (runtime.listBullet !== undefined) result.lb = runtime.listBullet
 
 	return Object.keys(result).length > 0 ? result : undefined
 }
@@ -391,7 +393,8 @@ export function expandObject(id: string, stored: Stored.StoredObject): Runtime.P
 			return {
 				...base,
 				type: 'text',
-				text: (stored as Stored.StoredText).tx
+				text: (stored as Stored.StoredText).tx,
+				minHeight: (stored as Stored.StoredText).mh
 			} as Runtime.TextObject
 
 		case 'B':
@@ -506,10 +509,12 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 			} as Stored.StoredPolygon
 
 		case 'text':
+			const textObj = runtime as Runtime.TextObject
 			return {
 				...base,
 				t: 'T',
-				tx: (runtime as Runtime.TextObject).text
+				tx: textObj.text,
+				mh: textObj.minHeight
 			} as Stored.StoredText
 
 		case 'textbox':

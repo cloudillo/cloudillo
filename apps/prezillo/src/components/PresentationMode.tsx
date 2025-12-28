@@ -175,6 +175,9 @@ export function PresentationMode({
 		return idx >= 0 ? idx : 0
 	})
 
+	const [showControls, setShowControls] = React.useState(true)
+	const hideTimeoutRef = React.useRef<ReturnType<typeof setTimeout>>(undefined)
+
 	const currentView = views[currentIndex]
 	const viewObjects = useViewObjects(doc, currentView?.id || null)
 
@@ -239,6 +242,21 @@ export function PresentationMode({
 		return () => window.removeEventListener('keydown', handleKeyDown)
 	}, [views.length, onExit])
 
+	// Auto-hide controls after inactivity
+	React.useEffect(() => {
+		const handleMouseMove = () => {
+			setShowControls(true)
+			if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
+			hideTimeoutRef.current = setTimeout(() => setShowControls(false), 1000)
+		}
+		handleMouseMove() // Start timer immediately
+		window.addEventListener('mousemove', handleMouseMove)
+		return () => {
+			window.removeEventListener('mousemove', handleMouseMove)
+			if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
+		}
+	}, [])
+
 	// Click to advance
 	const handleClick = (e: React.MouseEvent) => {
 		// Right side of screen = next, left side = previous
@@ -259,7 +277,11 @@ export function PresentationMode({
 	const viewAspect = currentView.width / currentView.height
 
 	return (
-		<div ref={containerRef} onClick={handleClick} className="c-presentation-container">
+		<div
+			ref={containerRef}
+			onClick={handleClick}
+			className={`c-presentation-container${showControls ? '' : ' c-controls-hidden'}`}
+		>
 			<svg
 				viewBox={`${currentView.x} ${currentView.y} ${currentView.width} ${currentView.height}`}
 				className="c-presentation-svg"

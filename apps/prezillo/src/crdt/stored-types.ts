@@ -116,6 +116,7 @@ export interface TextStyle {
 	va?: 't' | 'm' | 'b' // verticalAlign: top/middle/bottom
 	lh?: number // lineHeight
 	ls?: number // letterSpacing
+	lb?: string // listBullet: UTF-8 character for list prefix
 }
 
 // Base object fields (common to all objects)
@@ -176,6 +177,7 @@ export interface StoredPolygon extends StoredObjectBase {
 export interface StoredText extends StoredObjectBase {
 	t: 'T'
 	tx: string // text content
+	mh?: number // minHeight - original height at creation for auto-sizing
 }
 
 // Textbox (rich text)
@@ -300,6 +302,7 @@ export interface StoredStyle {
 	va?: 't' | 'm' | 'b' // verticalAlign
 	lh?: number // lineHeight
 	ls?: number // letterSpacing
+	lb?: string // listBullet
 }
 
 // Document structure with Yjs types

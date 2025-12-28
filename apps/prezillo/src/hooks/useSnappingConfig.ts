@@ -31,7 +31,8 @@ const DEFAULT_SNAP_WEIGHTS = {
 	edgePriority: 1.2,
 	centerPriority: 1.0,
 	gridPriority: 0.8,
-	sizePriority: 0.9
+	sizePriority: 0.9,
+	distributionPriority: 1.1
 }
 
 const DEFAULT_GUIDES_CONFIG = {
@@ -70,6 +71,7 @@ export function useSnappingConfig(doc: YPrezilloDocument): SnapConfiguration {
 			snapToGrid: (meta.get('snapToGrid') as boolean) ?? false,
 			snapToObjects: (meta.get('snapToObjects') as boolean) ?? true,
 			snapToSizes: (meta.get('snapToSizes') as boolean) ?? true,
+			snapToDistribution: (meta.get('snapToDistribution') as boolean) ?? true,
 			gridSize: (meta.get('gridSize') as number) ?? 10,
 			snapThreshold: (meta.get('snapThreshold') as number) ?? 8,
 			weights: DEFAULT_SNAP_WEIGHTS,
@@ -109,6 +111,7 @@ export interface SnapSettings {
 	snapToGrid: boolean
 	snapToObjects: boolean
 	snapToSizes: boolean
+	snapToDistribution: boolean
 	snapDebug: boolean
 }
 
@@ -117,10 +120,12 @@ export interface UseSnapSettingsResult {
 	setSnapToGrid: (enabled: boolean) => void
 	setSnapToObjects: (enabled: boolean) => void
 	setSnapToSizes: (enabled: boolean) => void
+	setSnapToDistribution: (enabled: boolean) => void
 	setSnapDebug: (enabled: boolean) => void
 	toggleSnapToGrid: () => void
 	toggleSnapToObjects: () => void
 	toggleSnapToSizes: () => void
+	toggleSnapToDistribution: () => void
 	toggleSnapDebug: () => void
 }
 
@@ -142,6 +147,7 @@ export function useSnapSettings(doc: YPrezilloDocument): UseSnapSettingsResult {
 			snapToGrid: (meta.get('snapToGrid') as boolean) ?? false,
 			snapToObjects: (meta.get('snapToObjects') as boolean) ?? true,
 			snapToSizes: (meta.get('snapToSizes') as boolean) ?? true,
+			snapToDistribution: (meta.get('snapToDistribution') as boolean) ?? true,
 			snapDebug: (meta.get('snapDebug') as boolean) ?? false
 		}
 	}, [doc.m, version])
@@ -163,6 +169,13 @@ export function useSnapSettings(doc: YPrezilloDocument): UseSnapSettingsResult {
 	const setSnapToSizes = React.useCallback(
 		(enabled: boolean) => {
 			doc.m.set('snapToSizes', enabled)
+		},
+		[doc.m]
+	)
+
+	const setSnapToDistribution = React.useCallback(
+		(enabled: boolean) => {
+			doc.m.set('snapToDistribution', enabled)
 		},
 		[doc.m]
 	)
@@ -189,6 +202,11 @@ export function useSnapSettings(doc: YPrezilloDocument): UseSnapSettingsResult {
 		doc.m.set('snapToSizes', !current)
 	}, [doc.m])
 
+	const toggleSnapToDistribution = React.useCallback(() => {
+		const current = (doc.m.get('snapToDistribution') as boolean) ?? true
+		doc.m.set('snapToDistribution', !current)
+	}, [doc.m])
+
 	const toggleSnapDebug = React.useCallback(() => {
 		const current = (doc.m.get('snapDebug') as boolean) ?? false
 		doc.m.set('snapDebug', !current)
@@ -199,10 +217,12 @@ export function useSnapSettings(doc: YPrezilloDocument): UseSnapSettingsResult {
 		setSnapToGrid,
 		setSnapToObjects,
 		setSnapToSizes,
+		setSnapToDistribution,
 		setSnapDebug,
 		toggleSnapToGrid,
 		toggleSnapToObjects,
 		toggleSnapToSizes,
+		toggleSnapToDistribution,
 		toggleSnapDebug
 	}
 }

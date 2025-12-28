@@ -239,7 +239,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 						y={y}
 						width={width}
 						height={height}
-						text={isEmpty ? 'Double-click to edit' : textContent}
+						text={isEmpty ? 'Click to add text' : textContent}
 						textStyle={textStyle}
 						isPlaceholder={isEmpty}
 					/>

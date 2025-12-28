@@ -44,6 +44,14 @@ export function WrappedText({
 }: WrappedTextProps) {
 	const textDecorationCSS = getTextDecorationCSS(textStyle.textDecoration)
 
+	// Apply list bullets if set
+	const displayText = textStyle.listBullet
+		? text
+				.split('\n')
+				.map((line) => `${textStyle.listBullet} ${line}`)
+				.join('\n')
+		: text
+
 	return (
 		<foreignObject x={x} y={y} width={width} height={height} style={{ overflow: 'visible' }}>
 			<div
@@ -77,7 +85,7 @@ export function WrappedText({
 						overflowWrap: 'break-word'
 					}}
 				>
-					{text}
+					{displayText}
 				</div>
 			</div>
 		</foreignObject>

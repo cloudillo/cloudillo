@@ -25,12 +25,16 @@ import {
 	PiTextAlignJustifyBold as IcAlignJustify,
 	PiAlignTopBold as IcAlignTop,
 	PiAlignCenterVerticalBold as IcAlignMiddle,
-	PiAlignBottomBold as IcAlignBottom
+	PiAlignBottomBold as IcAlignBottom,
+	PiListBulletsBold as IcListBullets
 } from 'react-icons/pi'
 
 import type { YPrezilloDocument, PrezilloObject, ObjectId } from '../../crdt'
 import { resolveTextStyle, updateObjectTextStyle } from '../../crdt'
 import { FONT_SIZES } from '../../utils/text-styles'
+
+// Bullet character options for list mode
+const BULLET_OPTIONS = ['', '•', '◦', '▪', '▸', '→', '★', '✓', '✦', '❯', '○', '▹']
 
 export interface TextStyleSectionProps {
 	doc: YPrezilloDocument
@@ -39,9 +43,21 @@ export interface TextStyleSectionProps {
 }
 
 export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
+	const [showBulletPicker, setShowBulletPicker] = React.useState(false)
+
 	// Get resolved text style
 	const stored = doc.o.get(object.id)
 	const resolvedStyle = stored ? resolveTextStyle(doc, stored) : null
+
+	const handleBulletChange = React.useCallback(
+		(bullet: string) => {
+			updateObjectTextStyle(yDoc, doc, object.id as ObjectId, {
+				lb: bullet || (null as any)
+			})
+			setShowBulletPicker(false)
+		},
+		[yDoc, doc, object.id]
+	)
 
 	const handleFontSizeChange = React.useCallback(
 		(e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -165,6 +181,63 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 					>
 						<IcAlignBottom size={14} />
 					</button>
+				</div>
+			</PropertyField>
+
+			{/* List Bullet */}
+			<PropertyField label="List" labelWidth={40}>
+				<div style={{ position: 'relative' }}>
+					<button
+						className={mergeClasses(
+							'c-button icon compact',
+							resolvedStyle.listBullet ? 'active' : ''
+						)}
+						onClick={() => setShowBulletPicker(!showBulletPicker)}
+						title="List bullet"
+						style={{ minWidth: 32, fontSize: 16 }}
+					>
+						{resolvedStyle.listBullet || <IcListBullets size={14} />}
+					</button>
+					{showBulletPicker && (
+						<div
+							style={{
+								position: 'absolute',
+								top: '100%',
+								left: 0,
+								zIndex: 100,
+								background: 'var(--bg-surface, #fff)',
+								border: '1px solid var(--border, #ccc)',
+								borderRadius: 4,
+								padding: 4,
+								display: 'grid',
+								gridTemplateColumns: 'repeat(4, 1fr)',
+								gap: 2,
+								boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+							}}
+						>
+							{BULLET_OPTIONS.map((bullet, i) => (
+								<button
+									key={i}
+									className={mergeClasses(
+										'c-button icon compact',
+										resolvedStyle.listBullet === bullet ? 'active' : ''
+									)}
+									onClick={() => handleBulletChange(bullet)}
+									style={{
+										width: 32,
+										height: 32,
+										fontSize: 18,
+										display: 'flex',
+										alignItems: 'center',
+										justifyContent: 'center'
+									}}
+									title={bullet || 'None'}
+								>
+									{bullet || '✕'}
+								</button>
+							))}
+						</div>
+					)}
 				</div>
 			</PropertyField>
 		</PropertySection>

@@ -169,6 +169,7 @@ import {
 	updateObject,
 	updateObjectBounds,
 	updateObjectPosition,
+	updateObjectSize,
 	updateObjectRotation,
 	updateObjectPivot,
 	updateObjectTextStyle,
@@ -183,8 +184,10 @@ import {
 	bringToFront,
 	bringForward,
 	sendBackward,
-	sendToBack
+	sendToBack,
+	expandObject
 } from './crdt'
+import { measureTextHeight } from './utils'
 
 //////////////
 // Main App //
@@ -224,6 +227,8 @@ export function PrezilloApp() {
 
 	// Text editing state - which object is being text-edited
 	const [editingTextId, setEditingTextId] = React.useState<ObjectId | null>(null)
+	// Ref to store current editing text for save-on-click-outside
+	const editingTextRef = React.useRef<string>('')
 
 	// Hover state - which object is being hovered (only active when nothing selected)
 	const [hoveredObjectId, setHoveredObjectId] = React.useState<ObjectId | null>(null)
@@ -652,6 +657,16 @@ export function PrezilloApp() {
 	function handleObjectClick(e: React.MouseEvent, objectId: ObjectId) {
 		e.stopPropagation()
 		const addToSelection = e.shiftKey || e.ctrlKey || e.metaKey
+
+		// Single-click to edit: if clicking an already-selected text object, enter edit mode
+		if (!isReadOnly && !addToSelection && prezillo.selectedIds.has(objectId)) {
+			const obj = prezillo.doc.o.get(objectId)
+			if (obj?.t === 'T') {
+				setEditingTextId(objectId)
+				return
+			}
+		}
+
 		prezillo.selectObject(objectId, addToSelection)
 		prezillo.setActiveTool(null)
 	}
@@ -673,7 +688,39 @@ export function PrezilloApp() {
 	function handleTextEditSave(text: string) {
 		if (!editingTextId) return
 
+		const storedObj = prezillo.doc.o.get(editingTextId)
+		if (!storedObj || storedObj.t !== 'T') {
+			setEditingTextId(null)
+			return
+		}
+
+		// Get the expanded object and text style
+		const obj = expandObject(editingTextId, storedObj)
+		const originalText = (obj as any).text ?? ''
+
+		// Skip update if text hasn't changed
+		if (text === originalText) {
+			setEditingTextId(null)
+			return
+		}
+
+		const textStyle = resolveTextStyle(prezillo.doc, storedObj)
+
+		// Measure the text height with current width and style
+		const measuredHeight = measureTextHeight(text, obj.width, textStyle)
+
+		// Use minHeight if set, otherwise use current height as minimum
+		const minHeight = (obj as any).minHeight ?? obj.height
+		const newHeight = Math.max(measuredHeight, minHeight)
+
+		// Update text content
 		updateObject(prezillo.yDoc, prezillo.doc, editingTextId, { text } as any)
+
+		// Update height if it changed
+		if (newHeight !== obj.height) {
+			updateObjectSize(prezillo.yDoc, prezillo.doc, editingTextId, obj.width, newHeight)
+		}
+
 		setEditingTextId(null)
 	}
 
@@ -711,10 +758,16 @@ export function PrezilloApp() {
 		const [svgX, svgY] = canvasCtx.translateTo(e.clientX - rect.left, e.clientY - rect.top)
 		const svgPoint = { x: svgX, y: svgY }
 
+		// Check if object was already selected BEFORE any selection changes
+		// Only allow drag if object was already selected (industry standard UX pattern)
+		const wasAlreadySelected = prezillo.selectedIds.has(objectId)
+
 		// Select the object if not already selected
-		if (!prezillo.selectedIds.has(objectId)) {
+		if (!wasAlreadySelected) {
 			const addToSelection = e.shiftKey || e.ctrlKey || e.metaKey
 			prezillo.selectObject(objectId, addToSelection)
+			// Don't start drag - just selected the object
+			return
 		}
 
 		const initialDragState = {
@@ -857,11 +910,14 @@ export function PrezilloApp() {
 			justFinishedInteractionRef.current = false
 			return
 		}
+		// If we're editing text, save it before clearing
+		if (editingTextId) {
+			handleTextEditSave(editingTextRef.current)
+			return // Don't clear selection when exiting text edit
+		}
 		if (!prezillo.activeTool) {
 			prezillo.clearSelection()
 		}
-		// Cancel text editing if clicking outside
-		setEditingTextId(null)
 	}
 
 	// Handle delete
@@ -907,15 +963,24 @@ export function PrezilloApp() {
 
 		if (!toolEvent || !prezillo.activeTool) return
 
-		const x = Math.min(toolEvent.startX, toolEvent.x)
-		const y = Math.min(toolEvent.startY, toolEvent.y)
-		const width = Math.abs(toolEvent.x - toolEvent.startX)
-		const height = Math.abs(toolEvent.y - toolEvent.startY)
+		let x = Math.min(toolEvent.startX, toolEvent.x)
+		let y = Math.min(toolEvent.startY, toolEvent.y)
+		let width = Math.abs(toolEvent.x - toolEvent.startX)
+		let height = Math.abs(toolEvent.y - toolEvent.startY)
+
+		const isTextTool = prezillo.activeTool === 'text'
 
 		if (width < 5 || height < 5) {
-			// Too small, ignore
-			setToolEvent(undefined)
-			return
+			if (isTextTool) {
+				// Click-to-create: use default size at click point
+				x = toolEvent.startX
+				y = toolEvent.startY
+				width = 800
+				height = 80
+			} else {
+				setToolEvent(undefined)
+				return
+			}
 		}
 
 		// Use selected container, or first layer if none selected
@@ -940,6 +1005,11 @@ export function PrezilloApp() {
 		prezillo.setActiveTool(null)
 		setToolEvent(undefined)
 		prezillo.selectObject(objectId)
+
+		// Start editing immediately for text objects (better UX - no double-click needed)
+		if (isTextTool) {
+			setEditingTextId(objectId)
+		}
 	}
 
 	// Handle keyboard
@@ -1171,10 +1241,12 @@ export function PrezilloApp() {
 					snapToGrid={snapSettings.settings.snapToGrid}
 					snapToObjects={snapSettings.settings.snapToObjects}
 					snapToSizes={snapSettings.settings.snapToSizes}
+					snapToDistribution={snapSettings.settings.snapToDistribution}
 					snapDebug={snapSettings.settings.snapDebug}
 					onToggleSnapToGrid={snapSettings.toggleSnapToGrid}
 					onToggleSnapToObjects={snapSettings.toggleSnapToObjects}
 					onToggleSnapToSizes={snapSettings.toggleSnapToSizes}
+					onToggleSnapToDistribution={snapSettings.toggleSnapToDistribution}
 					onToggleSnapDebug={snapSettings.toggleSnapDebug}
 					hasTextSelection={!!selectedTextObject}
 					selectedTextAlign={selectedTextStyle?.textAlign}
@@ -1342,6 +1414,10 @@ export function PrezilloApp() {
 										textStyle={textStyle}
 										onSave={handleTextEditSave}
 										onCancel={handleTextEditCancel}
+										onTextChange={(t) => {
+											editingTextRef.current = t
+										}}
+										onDragStart={(e) => handleObjectPointerDown(e, object.id)}
 									/>
 								)
 							}

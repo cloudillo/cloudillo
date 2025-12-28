@@ -34,6 +34,7 @@ import {
 	PiGridFourBold as IcGrid,
 	PiMagnetBold as IcSnapObjects,
 	PiArrowsOutSimpleBold as IcSnapSizes,
+	PiEqualsBold as IcSnapDistribution,
 	PiBugBold as IcDebug,
 	PiArrowLineUpBold as IcBringToFront,
 	PiArrowUpBold as IcBringForward,
@@ -73,10 +74,12 @@ export interface ToolbarProps {
 	snapToGrid: boolean
 	snapToObjects: boolean
 	snapToSizes: boolean
+	snapToDistribution: boolean
 	snapDebug: boolean
 	onToggleSnapToGrid: () => void
 	onToggleSnapToObjects: () => void
 	onToggleSnapToSizes: () => void
+	onToggleSnapToDistribution: () => void
 	onToggleSnapDebug: () => void
 	// Text alignment (only shown when text object selected)
 	hasTextSelection?: boolean
@@ -115,10 +118,12 @@ export function Toolbar({
 	snapToGrid,
 	snapToObjects,
 	snapToSizes,
+	snapToDistribution,
 	snapDebug,
 	onToggleSnapToGrid,
 	onToggleSnapToObjects,
 	onToggleSnapToSizes,
+	onToggleSnapToDistribution,
 	onToggleSnapDebug,
 	hasTextSelection,
 	selectedTextAlign,
@@ -225,6 +230,13 @@ export function Toolbar({
 				title="Snap to sizes"
 			>
 				<IcSnapSizes />
+			</button>
+			<button
+				onClick={onToggleSnapToDistribution}
+				className={mergeClasses('c-button icon', snapToDistribution ? 'active' : '')}
+				title="Snap to equal spacing"
+			>
+				<IcSnapDistribution />
 			</button>
 			<button
 				onClick={onToggleSnapDebug}

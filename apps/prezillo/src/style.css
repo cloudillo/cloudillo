@@ -349,6 +349,17 @@ body,
 	background: rgba(255, 255, 255, 0.2);
 }
 
+.c-presentation-exit,
+.c-presentation-counter {
+	transition: opacity 0.3s ease;
+}
+
+.c-controls-hidden .c-presentation-exit,
+.c-controls-hidden .c-presentation-counter {
+	opacity: 0;
+	pointer-events: none;
+}
+
 /* ==========================================================================
    Mobile Property Panel
    ========================================================================== */

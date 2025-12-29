@@ -173,6 +173,7 @@ import {
 	updateObjectRotation,
 	updateObjectPivot,
 	updateObjectTextStyle,
+	updateObjectPageAssociation,
 	deleteObject,
 	createView,
 	getView,
@@ -181,11 +182,13 @@ import {
 	resolveTextStyle,
 	getNextView,
 	getPreviousView,
+	moveViewInPresentation,
 	bringToFront,
 	bringForward,
 	sendBackward,
 	sendToBack,
-	expandObject
+	expandObject,
+	findViewAtPoint
 } from './crdt'
 import { measureTextHeight } from './utils'
 
@@ -368,12 +371,13 @@ export function PrezilloApp() {
 	}, [activeView])
 
 	// Initialize snapping hook
-	const { snapDrag, snapResize, activeSnaps, allCandidates, clearSnaps } = useSnapping({
-		objects: snapObjects,
-		config: snapConfig,
-		viewBounds,
-		getParent
-	})
+	const { snapDrag, snapResize, activeSnaps, activeSnapEdges, allCandidates, clearSnaps } =
+		useSnapping({
+			objects: snapObjects,
+			config: snapConfig,
+			viewBounds,
+			getParent
+		})
 
 	// Use refs to always get latest snap functions (avoids stale closure in drag/resize handlers)
 	const snapDragRef = React.useRef(snapDrag)
@@ -882,6 +886,41 @@ export function PrezilloApp() {
 					currentX,
 					currentY
 				)
+
+				// Check if object should transfer to a different page
+				const obj = prezillo.doc.o.get(initialDragState.objectId)
+				if (obj) {
+					const currentPageId = obj.vi as ViewId | undefined
+					const objWidth = obj.wh[0]
+					const objHeight = obj.wh[1]
+
+					// Calculate object center in global coords
+					let centerX = currentX + objWidth / 2
+					let centerY = currentY + objHeight / 2
+
+					// If currently on a page, add page offset to get global coords
+					if (currentPageId) {
+						const currentPage = prezillo.doc.v.get(currentPageId)
+						if (currentPage) {
+							centerX += currentPage.x
+							centerY += currentPage.y
+						}
+					}
+
+					// Find which page the center is now in
+					const newPageId = findViewAtPoint(prezillo.doc, centerX, centerY)
+
+					// If page changed, update association
+					if (newPageId !== currentPageId) {
+						updateObjectPageAssociation(
+							prezillo.yDoc,
+							prezillo.doc,
+							initialDragState.objectId,
+							newPageId,
+							{ preserveGlobalPosition: true }
+						)
+					}
+				}
 			}
 
 			// Clear awareness
@@ -990,16 +1029,32 @@ export function PrezilloApp() {
 			parentId = layers.length > 0 ? layers[0][1] : null
 		}
 
+		// Determine which page the object should be created on (page-relative coords)
+		const targetPageId = findViewAtPoint(prezillo.doc, toolEvent.startX, toolEvent.startY)
+
+		// If creating on a page, convert to page-relative coordinates
+		let createX = x
+		let createY = y
+		if (targetPageId) {
+			const view = getView(prezillo.doc, targetPageId)
+			if (view) {
+				createX = x - view.x
+				createY = y - view.y
+			}
+		}
+
 		// Create object based on tool
 		const objectId = createObject(
 			prezillo.yDoc,
 			prezillo.doc,
 			prezillo.activeTool as any,
-			x,
-			y,
+			createX,
+			createY,
 			width,
 			height,
-			parentId as any
+			parentId as any,
+			undefined, // insertIndex
+			targetPageId ?? undefined // pageId - page-relative if on a page
 		)
 
 		prezillo.setActiveTool(null)
@@ -1072,6 +1127,10 @@ export function PrezilloApp() {
 			copyFromViewId: prezillo.activeViewId || undefined
 		})
 		prezillo.setActiveViewId(viewId)
+	}
+
+	function handleReorderView(viewId: ViewId, newIndex: number) {
+		moveViewInPresentation(prezillo.yDoc, prezillo.doc, viewId, newIndex)
 	}
 
 	// Get selection bounds (use tempObjectState for immediate visual feedback during drag/resize)
@@ -1285,6 +1344,7 @@ export function PrezilloApp() {
 							<>
 								<FixedSnapGuides
 									activeSnaps={activeSnaps}
+									activeSnapEdges={activeSnapEdges}
 									allCandidates={
 										snapConfig.debug.enabled ? allCandidates : undefined
 									}
@@ -1611,6 +1671,7 @@ export function PrezilloApp() {
 				onNextView={handleNextView}
 				onPresent={() => setIsPresentationMode(true)}
 				readOnly={isReadOnly}
+				onReorderView={handleReorderView}
 			/>
 
 			{isPresentationMode && (

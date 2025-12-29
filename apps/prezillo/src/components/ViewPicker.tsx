@@ -39,6 +39,19 @@ export interface ViewPickerProps {
 	onNextView: () => void
 	onPresent: () => void
 	readOnly?: boolean
+	/** Callback to reorder a view to a new index in presentation order */
+	onReorderView?: (viewId: ViewId, newIndex: number) => void
+}
+
+// Drag state types
+interface ViewDragData {
+	viewId: ViewId
+	originalIndex: number
+}
+
+interface ViewDropTarget {
+	viewId: ViewId
+	position: 'before' | 'after'
 }
 
 export function ViewPicker({
@@ -49,9 +62,100 @@ export function ViewPicker({
 	onPrevView,
 	onNextView,
 	onPresent,
-	readOnly
+	readOnly,
+	onReorderView
 }: ViewPickerProps) {
 	const activeIndex = views.findIndex((v) => v.id === activeViewId)
+
+	// Drag-and-drop state
+	const [draggedView, setDraggedView] = React.useState<ViewDragData | null>(null)
+	const [dropTarget, setDropTarget] = React.useState<ViewDropTarget | null>(null)
+
+	// Check if drag-drop is enabled
+	const isDragEnabled = !readOnly && !!onReorderView
+
+	// Cleanup helper
+	const clearDragState = React.useCallback(() => {
+		setDraggedView(null)
+		setDropTarget(null)
+	}, [])
+
+	// Drag start handler
+	const handleDragStart = React.useCallback(
+		(e: React.DragEvent, viewId: ViewId, index: number) => {
+			if (!isDragEnabled) return
+
+			e.dataTransfer.effectAllowed = 'move'
+			e.dataTransfer.setData('text/plain', viewId)
+			setDraggedView({ viewId, originalIndex: index })
+		},
+		[isDragEnabled]
+	)
+
+	// Drag over handler - calculate drop position
+	const handleDragOver = React.useCallback(
+		(e: React.DragEvent, targetViewId: ViewId) => {
+			e.preventDefault()
+			e.stopPropagation()
+
+			// Don't allow dropping on self
+			if (!draggedView || draggedView.viewId === targetViewId) {
+				setDropTarget(null)
+				return
+			}
+
+			// Calculate position based on mouse X within the target element
+			const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+			const x = e.clientX - rect.left
+			const position: 'before' | 'after' = x < rect.width * 0.5 ? 'before' : 'after'
+
+			e.dataTransfer.dropEffect = 'move'
+			setDropTarget({ viewId: targetViewId, position })
+		},
+		[draggedView]
+	)
+
+	// Drag leave handler
+	const handleDragLeave = React.useCallback((e: React.DragEvent) => {
+		// Only clear if leaving the tabs container entirely
+		const relatedTarget = e.relatedTarget as Element | null
+		if (!relatedTarget || !relatedTarget.closest?.('.c-view-picker-tabs')) {
+			setDropTarget(null)
+		}
+	}, [])
+
+	// Drop handler - execute reorder
+	const handleDrop = React.useCallback(
+		(e: React.DragEvent, targetViewId: ViewId, targetIndex: number) => {
+			e.preventDefault()
+			e.stopPropagation()
+
+			if (!draggedView || !dropTarget || !onReorderView) {
+				clearDragState()
+				return
+			}
+
+			// Calculate new index based on drop position
+			// Note: reorderView() handles the adjustment for removing the source item
+			let newIndex = targetIndex
+			if (dropTarget.position === 'after') {
+				newIndex = targetIndex + 1
+			}
+
+			// Only reorder if position actually changed
+			if (newIndex !== draggedView.originalIndex) {
+				onReorderView(draggedView.viewId, newIndex)
+			}
+
+			clearDragState()
+		},
+		[draggedView, dropTarget, onReorderView, clearDragState]
+	)
+
+	// Drag end handler - cleanup
+	const handleDragEnd = React.useCallback(() => {
+		clearDragState()
+	}, [clearDragState])
 
 	return (
 		<div className="c-nav c-hbox p-1 gap-1">
@@ -71,8 +175,21 @@ export function ViewPicker({
 						onClick={() => onViewSelect(view.id)}
 						className={mergeClasses(
 							'c-button c-view-picker-tab',
-							view.id === activeViewId ? 'active' : ''
+							view.id === activeViewId && 'active',
+							draggedView?.viewId === view.id && 'dragging',
+							dropTarget?.viewId === view.id &&
+								dropTarget.position === 'before' &&
+								'drop-before',
+							dropTarget?.viewId === view.id &&
+								dropTarget.position === 'after' &&
+								'drop-after'
 						)}
+						draggable={isDragEnabled}
+						onDragStart={(e) => handleDragStart(e, view.id, index)}
+						onDragOver={(e) => handleDragOver(e, view.id)}
+						onDragLeave={handleDragLeave}
+						onDrop={(e) => handleDrop(e, view.id, index)}
+						onDragEnd={handleDragEnd}
 					>
 						{index + 1}
 					</button>

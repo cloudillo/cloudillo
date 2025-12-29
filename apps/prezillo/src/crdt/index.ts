@@ -116,6 +116,7 @@ export {
 	updateObjectRotation,
 	updateObjectPivot,
 	updateObjectTextStyle,
+	updateObjectPageAssociation,
 	deleteObject,
 	deleteObjects,
 	moveObject,
@@ -215,12 +216,18 @@ export {
 	getBoundsCenter,
 	distance,
 	snapToGrid,
-	snapPointToGrid
+	snapPointToGrid,
+	// Page-relative coordinate helpers
+	canvasToPageCoords,
+	pageToCanvasCoords,
+	isPointInViewBounds,
+	findViewAtPoint
 } from './transforms'
 
 // Query helpers
 export {
 	getObjectsInView,
+	getPageObjects,
 	getObjectIdsInView,
 	getAllObjectsInZOrder,
 	getAllObjectIdsInZOrder,

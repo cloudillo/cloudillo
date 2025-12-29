@@ -332,6 +332,7 @@ export function expandObject(id: string, stored: Stored.StoredObject): Runtime.P
 		id: toObjectId(id),
 		type: OBJECT_TYPE_MAP[stored.t],
 		parentId: stored.p ? toContainerId(stored.p) : undefined,
+		pageId: stored.vi ? toViewId(stored.vi) : undefined,
 		x: stored.xy[0],
 		y: stored.xy[1],
 		width: stored.wh[0],
@@ -451,6 +452,7 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 
 	// Only include non-default values
 	if (runtime.parentId) base.p = runtime.parentId
+	if (runtime.pageId) base.vi = runtime.pageId
 	if (runtime.rotation) base.r = runtime.rotation
 	// Only store pivot if not center (default is 0.5, 0.5)
 	if (runtime.pivotX !== 0.5 || runtime.pivotY !== 0.5) {

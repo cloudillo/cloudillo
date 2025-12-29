@@ -295,10 +295,43 @@ body,
 /* View picker */
 .c-view-picker-tabs {
 	overflow-x: auto;
+	padding-left: 6px; /* Space for drop indicator before first tab */
+	margin-left: -6px; /* Compensate for padding */
 }
 
 .c-view-picker-tab {
+	position: relative;
 	min-width: 60px;
+	cursor: grab;
+}
+
+.c-view-picker-tab:active {
+	cursor: grabbing;
+}
+
+/* Drag-and-drop states */
+.c-view-picker-tab.dragging {
+	opacity: 0.5;
+	cursor: grabbing;
+}
+
+.c-view-picker-tab.drop-before::before,
+.c-view-picker-tab.drop-after::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 3px;
+	background: var(--col-primary);
+	border-radius: 1.5px;
+}
+
+.c-view-picker-tab.drop-before::before {
+	left: -3px;
+}
+
+.c-view-picker-tab.drop-after::after {
+	right: -3px;
 }
 
 /* Presentation mode */

@@ -214,7 +214,9 @@ export function updateViewBounds(
 }
 
 /**
- * Delete a view
+ * Delete a view.
+ * Objects associated with this view (page-relative) are converted to floating
+ * with their global position preserved.
  */
 export function deleteView(yDoc: Y.Doc, doc: YPrezilloDocument, viewId: ViewId): void {
 	if (doc.vo.length <= 1) {
@@ -222,6 +224,23 @@ export function deleteView(yDoc: Y.Doc, doc: YPrezilloDocument, viewId: ViewId):
 	}
 
 	yDoc.transact(() => {
+		const view = doc.v.get(viewId)
+
+		// Convert page-relative objects to floating (preserve global position)
+		if (view) {
+			doc.o.forEach((obj, id) => {
+				if (obj.vi === viewId) {
+					// Convert to global coords and remove page association
+					doc.o.set(id, {
+						...obj,
+						vi: undefined,
+						xy: [view.x + obj.xy[0], view.y + obj.xy[1]] as [number, number]
+					})
+				}
+			})
+		}
+
+		// Delete view from order and map
 		const idx = doc.vo.toArray().indexOf(viewId)
 		if (idx >= 0) {
 			doc.vo.delete(idx, 1)

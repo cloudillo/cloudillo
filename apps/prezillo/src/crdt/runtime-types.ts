@@ -151,6 +151,7 @@ export interface PrezilloObjectBase {
 	id: ObjectId
 	type: ObjectType
 	parentId?: ContainerId
+	pageId?: ViewId // If set, x/y are relative to page origin (page-relative coords)
 	x: number
 	y: number
 	width: number

@@ -20,7 +20,8 @@
  *
  * Field naming conventions:
  * - t  = type
- * - p  = parentId
+ * - p  = parentId (container hierarchy)
+ * - vi = viewId (page association - if set, xy is relative to view origin)
  * - xy = position [x, y]
  * - wh = dimensions [width, height]
  * - r  = rotation
@@ -123,7 +124,8 @@ export interface TextStyle {
 export interface StoredObjectBase {
 	t: ObjectTypeCode
 	p?: string // parentId (omit if root)
-	xy: [number, number] // [x, y]
+	vi?: string // viewId - if set, xy is relative to view origin (page-relative coords)
+	xy: [number, number] // [x, y] - global canvas coords OR page-relative if vi is set
 	wh: [number, number] // [width, height]
 	r?: number // rotation (omit if 0)
 	pv?: [number, number] // pivot point [px, py] relative (0-1), center [0.5, 0.5] is default

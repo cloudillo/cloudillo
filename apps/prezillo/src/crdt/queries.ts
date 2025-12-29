@@ -38,7 +38,13 @@ import {
 } from './transforms'
 
 /**
- * Get all objects visible in a view (pure spatial query)
+ * Get all objects visible in a view.
+ *
+ * An object is "in view" if:
+ * 1. It has pageId === viewId (explicitly on this page), OR
+ * 2. It's floating (no pageId) and spatially intersects the view
+ *
+ * Objects with pageId pointing to OTHER pages are excluded.
  */
 export function getObjectsInView(doc: YPrezilloDocument, viewId: ViewId): PrezilloObject[] {
 	const view = doc.v.get(viewId)
@@ -48,6 +54,17 @@ export function getObjectsInView(doc: YPrezilloDocument, viewId: ViewId): Prezil
 
 	doc.o.forEach((obj, id) => {
 		if (obj.v === false) return
+
+		// Page-relative objects: include only if on THIS page
+		if (obj.vi) {
+			if (obj.vi === viewId) {
+				result.push(expandObject(id, obj))
+			}
+			// Objects on other pages are excluded
+			return
+		}
+
+		// Floating objects (no pageId): include if spatially intersecting
 		if (objectIntersectsView(doc, obj, view)) {
 			result.push(expandObject(id, obj))
 		}
@@ -57,7 +74,25 @@ export function getObjectsInView(doc: YPrezilloDocument, viewId: ViewId): Prezil
 }
 
 /**
- * Get all object IDs visible in a view
+ * Get objects explicitly associated with a page (page-relative objects only).
+ * Does not include floating objects that happen to intersect spatially.
+ */
+export function getPageObjects(doc: YPrezilloDocument, viewId: ViewId): PrezilloObject[] {
+	const result: PrezilloObject[] = []
+
+	doc.o.forEach((obj, id) => {
+		if (obj.v === false) return
+		if (obj.vi === viewId) {
+			result.push(expandObject(id, obj))
+		}
+	})
+
+	return result
+}
+
+/**
+ * Get all object IDs visible in a view.
+ * Uses the same combined logic as getObjectsInView.
  */
 export function getObjectIdsInView(doc: YPrezilloDocument, viewId: ViewId): ObjectId[] {
 	const view = doc.v.get(viewId)
@@ -67,6 +102,16 @@ export function getObjectIdsInView(doc: YPrezilloDocument, viewId: ViewId): Obje
 
 	doc.o.forEach((obj, id) => {
 		if (obj.v === false) return
+
+		// Page-relative objects: include only if on THIS page
+		if (obj.vi) {
+			if (obj.vi === viewId) {
+				result.push(toObjectId(id))
+			}
+			return
+		}
+
+		// Floating objects: include if spatially intersecting
 		if (objectIntersectsView(doc, obj, view)) {
 			result.push(toObjectId(id))
 		}
@@ -136,7 +181,8 @@ export function getAllObjectIdsInZOrder(doc: YPrezilloDocument): ObjectId[] {
 }
 
 /**
- * Get objects visible in a view, in z-order
+ * Get objects visible in a view, in z-order.
+ * Uses the same combined logic as getObjectsInView.
  */
 export function getObjectsInViewInZOrder(doc: YPrezilloDocument, viewId: ViewId): PrezilloObject[] {
 	const storedView = doc.v.get(viewId)
@@ -149,7 +195,18 @@ export function getObjectsInViewInZOrder(doc: YPrezilloDocument, viewId: ViewId)
 		children.forEach((ref) => {
 			if (ref[0] === 0) {
 				const obj = doc.o.get(ref[1])
-				if (obj && obj.v !== false && objectIntersectsView(doc, obj, view)) {
+				if (!obj || obj.v === false) return
+
+				// Page-relative objects: include only if on THIS page
+				if (obj.vi) {
+					if (obj.vi === viewId) {
+						result.push(expandObject(ref[1], obj))
+					}
+					return
+				}
+
+				// Floating objects: include if spatially intersecting
+				if (objectIntersectsView(doc, obj, view)) {
 					result.push(expandObject(ref[1], obj))
 				}
 			} else {

@@ -15,28 +15,51 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Hook for getting objects visible in current view
+ * Hook for getting objects visible in current view.
+ * Returns objects with computed global canvas coordinates for rendering.
  */
 
 import * as React from 'react'
 import { useY } from 'react-yjs'
 
 import type { ViewId, YPrezilloDocument, PrezilloObject, ObjectId } from '../crdt'
-import { getObjectsInViewInZOrder, getObjectIdsInView } from '../crdt'
+import { getObjectsInViewInZOrder, getObjectIdsInView, getAbsolutePositionStored } from '../crdt'
 
 /**
- * Get all objects visible in a view, in z-order
+ * Get all objects visible in a view, in z-order.
+ * Objects are returned with computed global canvas coordinates for rendering.
  */
 export function useViewObjects(doc: YPrezilloDocument, viewId: ViewId | null): PrezilloObject[] {
 	const objects = useY(doc.o)
+	const views = useY(doc.v) // Subscribe to view changes (affects page-relative objects)
 	const containers = useY(doc.c)
 	const rootChildren = useY(doc.r)
 	const containerChildren = useY(doc.ch)
 
 	return React.useMemo(() => {
 		if (!viewId || !objects) return []
-		return getObjectsInViewInZOrder(doc, viewId)
-	}, [doc, objects, containers, rootChildren, containerChildren, viewId])
+
+		const objectsInView = getObjectsInViewInZOrder(doc, viewId)
+
+		// Compute global positions for rendering
+		return objectsInView.map((obj) => {
+			const stored = doc.o.get(obj.id)
+			if (!stored) return obj
+
+			// If object has pageId, we need to compute global position
+			if (stored.vi) {
+				const globalPos = getAbsolutePositionStored(doc, stored)
+				return {
+					...obj,
+					x: globalPos.x,
+					y: globalPos.y
+				}
+			}
+
+			// Floating objects already have global coords
+			return obj
+		})
+	}, [doc, objects, views, containers, rootChildren, containerChildren, viewId])
 }
 
 /**

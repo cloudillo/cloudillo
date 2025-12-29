@@ -20,24 +20,27 @@
 
 import * as Y from 'yjs'
 import type { YPrezilloDocument, ChildRef, StoredObject } from './stored-types'
-import type { ObjectId, ContainerId, RichTextId } from './ids'
+import type { ObjectId, ContainerId, ViewId, RichTextId } from './ids'
 import { generateObjectId, generateRichTextId } from './ids'
 import type { PrezilloObject } from './runtime-types'
 import { compactObject, expandObject } from './type-converters'
 import { getContainerChildren } from './document'
+import { getAbsolutePositionStored } from './transforms'
 
 /**
- * Add a new object to the document
+ * Add a new object to the document.
+ * @param pageId - If provided, object coordinates are page-relative
  */
 export function addObject(
 	yDoc: Y.Doc,
 	doc: YPrezilloDocument,
 	object: PrezilloObject,
 	parentId?: ContainerId,
-	insertIndex?: number
+	insertIndex?: number,
+	pageId?: ViewId
 ): ObjectId {
 	const objectId = object.id || generateObjectId()
-	const stored = compactObject({ ...object, id: objectId, parentId })
+	const stored = compactObject({ ...object, id: objectId, parentId, pageId })
 
 	yDoc.transact(() => {
 		// Store the object
@@ -81,7 +84,8 @@ export function addObject(
 }
 
 /**
- * Create a new object with defaults
+ * Create a new object with defaults.
+ * @param pageId - If provided, x/y are page-relative coordinates
  */
 export function createObject(
 	yDoc: Y.Doc,
@@ -92,7 +96,8 @@ export function createObject(
 	width: number,
 	height: number,
 	parentId?: ContainerId,
-	insertIndex?: number
+	insertIndex?: number,
+	pageId?: ViewId
 ): ObjectId {
 	const objectId = generateObjectId()
 
@@ -162,7 +167,7 @@ export function createObject(
 			throw new Error(`Unknown object type: ${type}`)
 	}
 
-	return addObject(yDoc, doc, object, parentId, insertIndex)
+	return addObject(yDoc, doc, object, parentId, insertIndex, pageId)
 }
 
 /**
@@ -347,6 +352,67 @@ export function updateObjectPivot(
 			delete updated.pv
 		} else {
 			updated.pv = [newPx, newPy]
+		}
+
+		doc.o.set(objectId, updated)
+	}, yDoc.clientID)
+}
+
+/**
+ * Update an object's page association.
+ * Converts coordinates between global and page-relative as needed.
+ *
+ * @param newPageId - Target page (null = make floating with global coords)
+ * @param options.preserveGlobalPosition - If true (default), converts coords to keep visual position
+ */
+export function updateObjectPageAssociation(
+	yDoc: Y.Doc,
+	doc: YPrezilloDocument,
+	objectId: ObjectId,
+	newPageId: ViewId | null,
+	options?: { preserveGlobalPosition?: boolean }
+): void {
+	const object = doc.o.get(objectId)
+	if (!object) return
+
+	const currentPageId = object.vi
+	// No change needed
+	if (currentPageId === newPageId || (currentPageId === undefined && newPageId === null)) return
+
+	const preserveGlobal = options?.preserveGlobalPosition !== false
+
+	yDoc.transact(() => {
+		let newX = object.xy[0]
+		let newY = object.xy[1]
+
+		if (preserveGlobal) {
+			// Get current global position
+			const globalPos = getAbsolutePositionStored(doc, object)
+
+			if (newPageId) {
+				// Converting to page-relative: subtract view origin
+				const newPage = doc.v.get(newPageId)
+				if (newPage) {
+					newX = globalPos.x - newPage.x
+					newY = globalPos.y - newPage.y
+				}
+			} else {
+				// Becoming floating: use global coordinates
+				newX = globalPos.x
+				newY = globalPos.y
+			}
+		}
+
+		// Build updated object
+		const updated: StoredObject = {
+			...object,
+			xy: [newX, newY] as [number, number]
+		}
+
+		if (newPageId) {
+			updated.vi = newPageId
+		} else {
+			delete updated.vi
 		}
 
 		doc.o.set(objectId, updated)
@@ -723,6 +789,7 @@ export function duplicateObject(
 		id: newId,
 		x: expanded.x + offsetX,
 		y: expanded.y + offsetY,
+		pageId: expanded.pageId, // Preserve page association
 		name: expanded.name ? `${expanded.name} (copy)` : undefined
 	}
 

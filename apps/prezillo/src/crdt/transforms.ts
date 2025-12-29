@@ -70,22 +70,41 @@ export {
 } from 'react-svg-canvas'
 
 /**
- * Get the absolute canvas position of an object
- * by walking up the container hierarchy
+ * Get the absolute canvas position of an object by ID.
+ * Delegates to getAbsolutePositionStored which handles page-relative coordinates.
  */
 export function getAbsolutePosition(doc: YPrezilloDocument, objectId: ObjectId): Point | null {
 	const object = doc.o.get(objectId)
 	if (!object) return null
+	return getAbsolutePositionStored(doc, object)
+}
 
+/**
+ * Get absolute position for a stored object.
+ * If the object has a viewId (vi), its coordinates are page-relative
+ * and we add the view origin first before applying container transforms.
+ */
+export function getAbsolutePositionStored(doc: YPrezilloDocument, object: StoredObject): Point {
 	let x = object.xy[0]
 	let y = object.xy[1]
+
+	// If object is page-relative, add view origin first
+	if (object.vi) {
+		const view = doc.v.get(object.vi)
+		if (view) {
+			x += view.x
+			y += view.y
+		}
+		// If view doesn't exist, treat as floating (edge case for deleted views)
+	}
+
+	// Then apply container hierarchy
 	let parentId = object.p
 
 	while (parentId) {
 		const parent = doc.c.get(parentId)
 		if (!parent) break
 
-		// Apply parent transform
 		const rotation = ((parent.r || 0) * Math.PI) / 180
 		const cos = Math.cos(rotation)
 		const sin = Math.sin(rotation)
@@ -104,32 +123,74 @@ export function getAbsolutePosition(doc: YPrezilloDocument, objectId: ObjectId):
 }
 
 /**
- * Get absolute position for a stored object
+ * Convert global canvas coordinates to page-relative coordinates
  */
-export function getAbsolutePositionStored(doc: YPrezilloDocument, object: StoredObject): Point {
-	let x = object.xy[0]
-	let y = object.xy[1]
-	let parentId = object.p
+export function canvasToPageCoords(
+	doc: YPrezilloDocument,
+	pageId: ViewId,
+	canvasX: number,
+	canvasY: number
+): Point | null {
+	const view = doc.v.get(pageId)
+	if (!view) return null
+	return { x: canvasX - view.x, y: canvasY - view.y }
+}
 
-	while (parentId) {
-		const parent = doc.c.get(parentId)
-		if (!parent) break
+/**
+ * Convert page-relative coordinates to global canvas coordinates
+ */
+export function pageToCanvasCoords(
+	doc: YPrezilloDocument,
+	pageId: ViewId,
+	localX: number,
+	localY: number
+): Point | null {
+	const view = doc.v.get(pageId)
+	if (!view) return null
+	return { x: view.x + localX, y: view.y + localY }
+}
 
-		const rotation = ((parent.r || 0) * Math.PI) / 180
-		const cos = Math.cos(rotation)
-		const sin = Math.sin(rotation)
-		const sx = parent.sc?.[0] ?? 1
-		const sy = parent.sc?.[1] ?? 1
+/**
+ * Check if a point is inside a view's bounds
+ */
+export function isPointInViewBounds(
+	doc: YPrezilloDocument,
+	pageId: ViewId,
+	canvasX: number,
+	canvasY: number
+): boolean {
+	const view = doc.v.get(pageId)
+	if (!view) return false
+	return (
+		canvasX >= view.x &&
+		canvasX <= view.x + view.width &&
+		canvasY >= view.y &&
+		canvasY <= view.y + view.height
+	)
+}
 
-		const newX = parent.xy[0] + (x * cos - y * sin) * sx
-		const newY = parent.xy[1] + (x * sin + y * cos) * sy
-
-		x = newX
-		y = newY
-		parentId = parent.p
+/**
+ * Find which view contains a given canvas point.
+ * Returns the first matching view or null if point is outside all views.
+ */
+export function findViewAtPoint(
+	doc: YPrezilloDocument,
+	canvasX: number,
+	canvasY: number
+): ViewId | null {
+	for (const viewId of doc.vo.toArray()) {
+		const view = doc.v.get(viewId)
+		if (!view) continue
+		if (
+			canvasX >= view.x &&
+			canvasX <= view.x + view.width &&
+			canvasY >= view.y &&
+			canvasY <= view.y + view.height
+		) {
+			return viewId as ViewId
+		}
 	}
-
-	return { x, y }
+	return null
 }
 
 /**

@@ -228,13 +228,24 @@ function onActivate(evt: any) {
 	)
 }
 
-let fetchIdTagPromise: Promise<string> | undefined
-async function fetchIdTag() {
+let fetchIdTagPromise: Promise<string | undefined> | undefined
+async function fetchIdTag(): Promise<string | undefined> {
 	try {
 		const res = await fetch('/.well-known/cloudillo/id-tag')
-		return (await res.json()).idTag
+		if (!res.ok) {
+			console.error('[SW] failed to fetch idTag: HTTP', res.status)
+			return undefined
+		}
+		const json = await res.json()
+		const tag = json?.idTag
+		if (typeof tag !== 'string') {
+			console.error('[SW] invalid idTag response:', json)
+			return undefined
+		}
+		return tag
 	} catch (err) {
 		console.error('[SW] failed to fetch idTag', err)
+		return undefined
 	}
 }
 
@@ -253,7 +264,13 @@ function onFetch(evt: any) {
 			if (!idTag) {
 				log && console.log('[SW] fetching idTag')
 				if (!fetchIdTagPromise) fetchIdTagPromise = fetchIdTag()
-				idTag = await fetchIdTagPromise
+				const fetchedTag = await fetchIdTagPromise
+				if (fetchedTag) {
+					idTag = fetchedTag
+				} else {
+					// Reset promise on failure to allow retry on next request
+					fetchIdTagPromise = undefined
+				}
 				log && console.log('[SW] idTag:', idTag)
 			}
 
@@ -305,11 +322,12 @@ function onFetch(evt: any) {
 					throw err
 				}
 			} else if (
+				idTag &&
 				reqUrl.hostname.startsWith('cl-o.') &&
 				reqUrl.hostname != 'cl-o.' + idTag &&
 				reqUrl.pathname.startsWith('/api/')
 			) {
-				// Handle requests to other idTags
+				// Handle requests to other idTags (federated requests)
 				log && console.log('[SW] FETCH API', evt.request.method, evt.request.url)
 				const targetTag = new URL(evt.request.url).hostname.replace('cl-o.', '')
 
@@ -362,6 +380,17 @@ function onFetch(evt: any) {
 				}
 			}
 
+			// Log when falling through with missing idTag (helps debug auth issues)
+			if (
+				!idTag &&
+				reqUrl.hostname.startsWith('cl-o.') &&
+				reqUrl.pathname.startsWith('/api/')
+			) {
+				console.warn(
+					'[SW] Falling through to direct fetch without idTag for:',
+					evt.request.url
+				)
+			}
 			log && console.log('[SW] FETCH NO-API', evt.request.method, evt.request.url)
 
 			/*

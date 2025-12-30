@@ -19,12 +19,13 @@ import * as Y from 'yjs'
 import { useY } from 'react-yjs'
 import { BottomSheet, type BottomSheetSnapPoint, Tabs, Tab } from '@cloudillo/react'
 
-import type { YPrezilloDocument, ObjectId, PrezilloObject } from '../../crdt'
+import type { YPrezilloDocument, ObjectId, ViewId, PrezilloObject } from '../../crdt'
 import { getObject } from '../../crdt'
 import { TransformSection } from './TransformSection'
 import { StyleSection } from './StyleSection'
 import { TextStyleSection } from './TextStyleSection'
 import { ShapeSection } from './ShapeSection'
+import { ViewPropertiesPanel } from './ViewPropertiesPanel'
 import type { PropertyPreview } from './PrezilloPropertiesPanel'
 
 type PropertyTab = 'transform' | 'style' | 'text'
@@ -33,6 +34,8 @@ export interface MobilePropertyPanelProps {
 	doc: YPrezilloDocument
 	yDoc: Y.Doc
 	selectedIds: Set<ObjectId>
+	activeViewId?: ViewId | null
+	selectedViewId?: ViewId | null
 	snapPoint: BottomSheetSnapPoint
 	onSnapChange: (snapPoint: BottomSheetSnapPoint) => void
 	onPreview?: (preview: PropertyPreview | null) => void
@@ -42,6 +45,8 @@ export function MobilePropertyPanel({
 	doc,
 	yDoc,
 	selectedIds,
+	activeViewId,
+	selectedViewId,
 	snapPoint,
 	onSnapChange,
 	onPreview
@@ -62,8 +67,13 @@ export function MobilePropertyPanel({
 	const isTextObject = selectedObject?.type === 'text' || selectedObject?.type === 'textbox'
 	const isRectObject = selectedObject?.type === 'rect'
 
+	// Check if we should show view properties
+	const showViewProperties = selectedViewId || (selectedIds.size === 0 && activeViewId)
+	const viewIdToShow = selectedViewId || activeViewId
+
 	// Get object label for header
 	const objectLabel = React.useMemo(() => {
+		if (showViewProperties) return 'Page Properties'
 		if (selectedIds.size === 0) return 'No selection'
 		if (selectedIds.size > 1) return `${selectedIds.size} objects`
 		if (!selectedObject) return 'Unknown'
@@ -79,7 +89,7 @@ export function MobilePropertyPanel({
 			layer: 'Layer'
 		}
 		return typeLabels[selectedObject.type] || selectedObject.type
-	}, [selectedIds.size, selectedObject])
+	}, [showViewProperties, selectedIds.size, selectedObject])
 
 	// Determine available tabs
 	const availableTabs = React.useMemo(() => {
@@ -107,6 +117,17 @@ export function MobilePropertyPanel({
 		// No selection or panel closed
 		if (snapPoint === 'closed') {
 			return null
+		}
+
+		// Show view properties when a view is selected
+		if (showViewProperties && viewIdToShow) {
+			return (
+				<div className="c-mobile-property-content">
+					<div className="c-mobile-property-tab-content">
+						<ViewPropertiesPanel doc={doc} yDoc={yDoc} activeViewId={viewIdToShow} />
+					</div>
+				</div>
+			)
 		}
 
 		// Multi-selection not supported

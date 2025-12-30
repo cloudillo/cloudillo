@@ -20,44 +20,111 @@
 
 import * as React from 'react'
 import type { ViewNode } from '../crdt'
+import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
 
 export interface ViewFrameProps {
 	view: ViewNode
 	isActive: boolean
+	isSelected?: boolean
 	onClick: () => void
 }
 
-export function ViewFrame({ view, isActive, onClick }: ViewFrameProps) {
+export function ViewFrame({ view, isActive, isSelected, onClick }: ViewFrameProps) {
+	// Generate unique gradient ID for this view
+	const gradientId = `view-bg-${view.id}`
+
+	// Check if we have a gradient to render
+	const gradient = view.backgroundGradient
+	const hasGradient =
+		gradient && gradient.type !== 'solid' && gradient.stops && gradient.stops.length >= 2
+
+	// Determine fill value
+	const fill = hasGradient ? `url(#${gradientId})` : view.backgroundColor || '#ffffff'
+
+	// Generate gradient definition
+	const gradientDef = React.useMemo(() => {
+		if (!hasGradient || !gradient || !gradient.stops) return null
+
+		if (gradient.type === 'linear') {
+			return {
+				type: 'linear' as const,
+				def: createLinearGradientDef(gradient.angle ?? 180, gradient.stops)
+			}
+		} else if (gradient.type === 'radial') {
+			return {
+				type: 'radial' as const,
+				def: createRadialGradientDef(
+					gradient.centerX ?? 0.5,
+					gradient.centerY ?? 0.5,
+					gradient.stops
+				)
+			}
+		}
+		return null
+	}, [hasGradient, gradient])
+
 	return (
 		<g onClick={onClick} style={{ cursor: 'pointer' }}>
+			{/* Gradient definitions */}
+			{gradientDef && (
+				<defs>
+					{gradientDef.type === 'linear' ? (
+						<linearGradient
+							id={gradientId}
+							x1={gradientDef.def.x1}
+							y1={gradientDef.def.y1}
+							x2={gradientDef.def.x2}
+							y2={gradientDef.def.y2}
+						>
+							{gradientDef.def.stops.map((stop, i) => (
+								<stop key={i} offset={stop.offset} stopColor={stop.stopColor} />
+							))}
+						</linearGradient>
+					) : (
+						<radialGradient
+							id={gradientId}
+							cx={gradientDef.def.cx}
+							cy={gradientDef.def.cy}
+							r={gradientDef.def.r}
+						>
+							{gradientDef.def.stops.map((stop, i) => (
+								<stop key={i} offset={stop.offset} stopColor={stop.stopColor} />
+							))}
+						</radialGradient>
+					)}
+				</defs>
+			)}
+
 			{/* Background */}
+			<rect x={view.x} y={view.y} width={view.width} height={view.height} fill={fill} />
+
+			{/* Border - shows selection state */}
 			<rect
 				x={view.x}
 				y={view.y}
 				width={view.width}
 				height={view.height}
-				fill={view.backgroundColor || '#ffffff'}
+				fill="none"
+				stroke={
+					isSelected
+						? '#0066ff'
+						: isActive
+							? '#4a90d9'
+							: view.showBorder
+								? '#cccccc'
+								: 'none'
+				}
+				strokeWidth={isSelected ? 3 : isActive ? 2 : 1}
+				strokeDasharray={isSelected ? 'none' : isActive ? '8,4' : 'none'}
 			/>
-
-			{/* Border */}
-			{view.showBorder && (
-				<rect
-					x={view.x}
-					y={view.y}
-					width={view.width}
-					height={view.height}
-					fill="none"
-					stroke={isActive ? '#0066ff' : '#cccccc'}
-					strokeWidth={isActive ? 3 : 1}
-				/>
-			)}
 
 			{/* View name label */}
 			<text
 				x={view.x + 10}
 				y={view.y - 10}
-				fill={isActive ? '#0066ff' : '#666666'}
+				fill={isSelected ? '#0066ff' : isActive ? '#4a90d9' : '#666666'}
 				fontSize={14}
+				fontWeight={isSelected ? 600 : 400}
 			>
 				{view.name}
 			</text>

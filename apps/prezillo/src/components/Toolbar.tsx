@@ -19,7 +19,10 @@
  */
 
 import * as React from 'react'
+import * as Y from 'yjs'
 import { mergeClasses } from '../utils'
+import type { YPrezilloDocument } from '../crdt'
+import { ThemeDropdown } from './ThemeDropdown'
 
 import {
 	PiSelection as IcSelect,
@@ -57,6 +60,10 @@ import { FONT_SIZES } from '../utils/text-styles'
 
 export interface ToolbarProps {
 	className?: string
+	// Document refs for theme dropdown
+	doc?: YPrezilloDocument
+	yDoc?: Y.Doc
+	// Tool state
 	tool: string | null
 	setTool: (tool: string | null) => void
 	hasSelection: boolean
@@ -103,6 +110,8 @@ export interface ToolbarProps {
 
 export function Toolbar({
 	className,
+	doc,
+	yDoc,
 	tool,
 	setTool,
 	hasSelection,
@@ -420,6 +429,9 @@ export function Toolbar({
 					</button>
 				</>
 			)}
+
+			{/* Theme dropdown */}
+			{doc && yDoc && <ThemeDropdown doc={doc} yDoc={yDoc} />}
 
 			<div className="c-toolbar-divider" />
 

@@ -18,22 +18,33 @@ import * as React from 'react'
 import * as Y from 'yjs'
 import { useY } from 'react-yjs'
 
-import type { YPrezilloDocument, ObjectId, PrezilloObject } from '../../crdt'
+import type { YPrezilloDocument, ObjectId, ViewId, PrezilloObject } from '../../crdt'
 import { getObject } from '../../crdt'
 import { TransformSection } from './TransformSection'
 import { StyleSection } from './StyleSection'
 import { TextStyleSection } from './TextStyleSection'
 import { ShapeSection } from './ShapeSection'
+import { ViewPropertiesPanel } from './ViewPropertiesPanel'
 import type { PropertyPreview } from './PrezilloPropertiesPanel'
 
 export interface PropertyEditorProps {
 	doc: YPrezilloDocument
 	yDoc: Y.Doc
 	selectedIds: Set<ObjectId>
+	activeViewId?: ViewId
+	/** Currently selected view (for showing view properties) */
+	selectedViewId?: ViewId
 	onPreview?: (preview: PropertyPreview | null) => void
 }
 
-export function PropertyEditor({ doc, yDoc, selectedIds, onPreview }: PropertyEditorProps) {
+export function PropertyEditor({
+	doc,
+	yDoc,
+	selectedIds,
+	activeViewId,
+	selectedViewId,
+	onPreview
+}: PropertyEditorProps) {
 	// Subscribe to object changes - useY returns a version number that changes on updates
 	useY(doc.o)
 
@@ -45,7 +56,30 @@ export function PropertyEditor({ doc, yDoc, selectedIds, onPreview }: PropertyEd
 		selectedObject = getObject(doc, id) ?? null
 	}
 
-	// No selection
+	// Show view properties when:
+	// 1. A view is explicitly selected (selectedViewId is set)
+	// 2. No objects are selected and we have an active view
+	const showViewProperties = selectedViewId || (selectedIds.size === 0 && activeViewId)
+	const viewIdToShow = selectedViewId || activeViewId
+
+	// Calculate page number for display
+	const viewIndex = React.useMemo(() => {
+		if (!viewIdToShow) return 0
+		const viewOrder = doc.vo?.toArray() ?? []
+		const idx = viewOrder.indexOf(viewIdToShow)
+		return idx >= 0 ? idx + 1 : 0
+	}, [doc.vo, viewIdToShow])
+
+	if (showViewProperties && viewIdToShow) {
+		return (
+			<div className="c-vbox">
+				<div className="c-property-editor-header">Page {viewIndex}</div>
+				<ViewPropertiesPanel doc={doc} yDoc={yDoc} activeViewId={viewIdToShow} />
+			</div>
+		)
+	}
+
+	// No selection and no view to show
 	if (selectedIds.size === 0) {
 		return <div className="c-empty-message">No selection</div>
 	}

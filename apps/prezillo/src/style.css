@@ -11,6 +11,16 @@ body,
 	font-size: 12px;
 }
 
+/* Page header shown when editing view/page properties */
+.c-property-editor-header {
+	padding: var(--space-2) var(--space-3);
+	border-bottom: 1px solid var(--col-outline);
+	background: var(--col-surface-secondary);
+	font-weight: 600;
+	font-size: var(--text-sm);
+	color: var(--col-text-secondary);
+}
+
 .c-property-section {
 	border-bottom: 1px solid var(--col-outline);
 	padding-bottom: var(--space-2);
@@ -34,6 +44,7 @@ body,
 	text-align: left;
 	font-size: 11px;
 	font-weight: 600;
+	color: var(--col-on-container);
 	opacity: 0.8;
 }
 
@@ -51,6 +62,7 @@ body,
 }
 
 .c-property-field-label {
+	color: var(--col-on-container);
 	opacity: 0.7;
 	flex-shrink: 0;
 }

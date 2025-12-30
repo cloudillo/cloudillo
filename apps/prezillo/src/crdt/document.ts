@@ -25,10 +25,13 @@ import type {
 	StoredContainer,
 	StoredView,
 	StoredStyle,
+	StoredPalette,
 	ChildRef
 } from './stored-types'
 import { generateContainerId, generateViewId, generateStyleId } from './ids'
 import type { ContainerId, ViewId, StyleId } from './ids'
+import { compactPalette } from './type-converters'
+import { DEFAULT_PALETTE } from './palette-ops'
 
 /**
  * Get or create the Prezillo document structure from a Y.Doc
@@ -49,6 +52,7 @@ export function getOrCreateDocument(
 		m: yDoc.getMap<unknown>('m'),
 		rt: yDoc.getMap<Y.Text>('rt'),
 		st: yDoc.getMap<StoredStyle>('st'),
+		pl: yDoc.getMap<StoredPalette>('pl'),
 		ch: yDoc.getMap<Y.Array<ChildRef>>('ch')
 	}
 
@@ -118,6 +122,9 @@ function initializeDocument(yDoc: Y.Doc, doc: YPrezilloDocument): void {
 		doc.m.set('defaultViewWidth', 1920)
 		doc.m.set('defaultViewHeight', 1080)
 		doc.m.set('name', 'Untitled Presentation')
+
+		// Initialize default palette
+		doc.pl.set('default', compactPalette(DEFAULT_PALETTE))
 
 		// Add default styles
 		addDefaultStyles(doc)

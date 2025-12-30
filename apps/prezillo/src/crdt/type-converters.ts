@@ -22,6 +22,7 @@ import type { ObjectId, ContainerId, ViewId, StyleId, RichTextId } from './ids'
 import { toObjectId, toContainerId, toViewId, toStyleId, toRichTextId } from './ids'
 import type * as Stored from './stored-types'
 import type * as Runtime from './runtime-types'
+import type { Gradient, GradientStop } from '@cloudillo/canvas-tools'
 
 // Type code mappings
 const OBJECT_TYPE_MAP: Record<Stored.ObjectTypeCode, Runtime.ObjectType> = {
@@ -184,26 +185,30 @@ const TEXT_DECO_REVERSE: Record<string, string> = {
 }
 
 // Shape style conversion
+// Note: Color fields can be string or PaletteRef in stored format.
+// This function only extracts string colors - palette refs should be resolved in style-ops.ts
 export function expandShapeStyle(
 	stored: Stored.ShapeStyle | undefined
 ): Runtime.ShapeStyle | undefined {
 	if (!stored) return undefined
 	const result: Runtime.ShapeStyle = {}
 
-	if (stored.f !== undefined) result.fill = stored.f
+	// Only extract string colors, skip PaletteRefs (they'll be resolved in style-ops)
+	if (stored.f !== undefined && typeof stored.f === 'string') result.fill = stored.f
 	if (stored.fo !== undefined) result.fillOpacity = stored.fo
-	if (stored.s !== undefined) result.stroke = stored.s
+	if (stored.s !== undefined && typeof stored.s === 'string') result.stroke = stored.s
 	if (stored.sw !== undefined) result.strokeWidth = stored.sw
 	if (stored.so !== undefined) result.strokeOpacity = stored.so
 	if (stored.sd !== undefined) result.strokeDasharray = stored.sd
 	if (stored.sc !== undefined) result.strokeLinecap = stored.sc
 	if (stored.sj !== undefined) result.strokeLinejoin = stored.sj
 	if (stored.sh !== undefined) {
+		const shadowColor = stored.sh[3]
 		result.shadow = {
 			offsetX: stored.sh[0],
 			offsetY: stored.sh[1],
 			blur: stored.sh[2],
-			color: stored.sh[3]
+			color: typeof shadowColor === 'string' ? shadowColor : '#000000'
 		}
 	}
 
@@ -237,6 +242,8 @@ export function compactShapeStyle(
 }
 
 // Text style conversion
+// Note: Color field (fc) can be string or PaletteRef in stored format.
+// This function only extracts string colors - palette refs should be resolved in style-ops.ts
 export function expandTextStyle(
 	stored: Stored.TextStyle | undefined
 ): Runtime.TextStyle | undefined {
@@ -248,7 +255,8 @@ export function expandTextStyle(
 	if (stored.fw !== undefined) result.fontWeight = stored.fw
 	if (stored.fi !== undefined) result.fontItalic = stored.fi
 	if (stored.td !== undefined) result.textDecoration = TEXT_DECO_MAP[stored.td]
-	if (stored.fc !== undefined) result.fill = stored.fc
+	// Only extract string colors, skip PaletteRefs
+	if (stored.fc !== undefined && typeof stored.fc === 'string') result.fill = stored.fc
 	if (stored.ta !== undefined) result.textAlign = TEXT_ALIGN_MAP[stored.ta]
 	if (stored.va !== undefined) result.verticalAlign = VERT_ALIGN_MAP[stored.va]
 	if (stored.lh !== undefined) result.lineHeight = stored.lh
@@ -608,6 +616,63 @@ export function compactContainer(runtime: Runtime.ContainerNode): Stored.StoredC
 	return result
 }
 
+// Background gradient conversion
+export function expandBackgroundGradient(
+	stored: Stored.StoredBackgroundGradient | undefined
+): Gradient | undefined {
+	if (!stored) return undefined
+
+	// Determine type from gt field
+	const type = stored.gt === 'l' ? 'linear' : stored.gt === 'r' ? 'radial' : 'solid'
+
+	const gradient: Gradient = { type }
+
+	if (type === 'linear') {
+		gradient.angle = stored.ga ?? 180
+		gradient.stops = stored.gs?.map(([color, position]) => ({ color, position })) ?? []
+	} else if (type === 'radial') {
+		gradient.centerX = stored.gx ?? 0.5
+		gradient.centerY = stored.gy ?? 0.5
+		gradient.stops = stored.gs?.map(([color, position]) => ({ color, position })) ?? []
+	}
+
+	return gradient
+}
+
+export function compactBackgroundGradient(
+	runtime: Gradient | undefined
+): Stored.StoredBackgroundGradient | undefined {
+	if (!runtime) return undefined
+
+	// Solid color doesn't need gradient storage
+	if (runtime.type === 'solid') {
+		return undefined
+	}
+
+	const compact: Stored.StoredBackgroundGradient = {
+		gt: runtime.type === 'linear' ? 'l' : 'r'
+	}
+
+	if (runtime.type === 'linear') {
+		if (runtime.angle !== undefined && runtime.angle !== 180) {
+			compact.ga = runtime.angle
+		}
+	} else if (runtime.type === 'radial') {
+		if (runtime.centerX !== undefined && runtime.centerX !== 0.5) {
+			compact.gx = runtime.centerX
+		}
+		if (runtime.centerY !== undefined && runtime.centerY !== 0.5) {
+			compact.gy = runtime.centerY
+		}
+	}
+
+	if (runtime.stops && runtime.stops.length > 0) {
+		compact.gs = runtime.stops.map((s) => [s.color, s.position])
+	}
+
+	return compact
+}
+
 // View conversion
 export function expandView(id: string, stored: Stored.StoredView): Runtime.ViewNode {
 	return {
@@ -618,6 +683,7 @@ export function expandView(id: string, stored: Stored.StoredView): Runtime.ViewN
 		width: stored.width,
 		height: stored.height,
 		backgroundColor: stored.backgroundColor,
+		backgroundGradient: expandBackgroundGradient(stored.backgroundGradient),
 		backgroundImage: stored.backgroundImage,
 		backgroundFit: stored.backgroundFit,
 		showBorder: stored.showBorder,
@@ -638,6 +704,8 @@ export function compactView(runtime: Runtime.ViewNode): Stored.StoredView {
 	}
 
 	if (runtime.backgroundColor) result.backgroundColor = runtime.backgroundColor
+	const compactGradient = compactBackgroundGradient(runtime.backgroundGradient)
+	if (compactGradient) result.backgroundGradient = compactGradient
 	if (runtime.backgroundImage) result.backgroundImage = runtime.backgroundImage
 	if (runtime.backgroundFit) result.backgroundFit = runtime.backgroundFit
 	if (runtime.showBorder !== undefined) result.showBorder = runtime.showBorder
@@ -647,6 +715,156 @@ export function compactView(runtime: Runtime.ViewNode): Stored.StoredView {
 	if (runtime.duration) result.duration = runtime.duration
 
 	return result
+}
+
+// ============================================================================
+// Palette Converters
+// ============================================================================
+
+// Palette slot mapping (compact to expanded)
+const PALETTE_SLOT_MAP: Record<Stored.PaletteSlot, Runtime.PaletteSlotName> = {
+	bg: 'background',
+	tx: 'text',
+	a1: 'accent1',
+	a2: 'accent2',
+	a3: 'accent3',
+	a4: 'accent4',
+	a5: 'accent5',
+	a6: 'accent6',
+	g1: 'gradient1',
+	g2: 'gradient2',
+	g3: 'gradient3',
+	g4: 'gradient4'
+}
+
+const PALETTE_SLOT_REVERSE: Record<Runtime.PaletteSlotName, Stored.PaletteSlot> = {
+	background: 'bg',
+	text: 'tx',
+	accent1: 'a1',
+	accent2: 'a2',
+	accent3: 'a3',
+	accent4: 'a4',
+	accent5: 'a5',
+	accent6: 'a6',
+	gradient1: 'g1',
+	gradient2: 'g2',
+	gradient3: 'g3',
+	gradient4: 'g4'
+}
+
+/**
+ * Type guard to check if a color value is a palette reference
+ * Accepts unknown for flexibility in checking arbitrary values
+ */
+export function isPaletteRef(value: unknown): value is Stored.StoredPaletteRef {
+	return typeof value === 'object' && value !== null && 'pi' in value
+}
+
+/**
+ * Expand a stored palette reference to runtime format
+ */
+export function expandPaletteRef(stored: Stored.StoredPaletteRef): Runtime.PaletteRef {
+	return {
+		slotId: PALETTE_SLOT_MAP[stored.pi],
+		opacity: stored.o,
+		tint: stored.t
+	}
+}
+
+/**
+ * Compact a runtime palette reference to stored format
+ */
+export function compactPaletteRef(runtime: Runtime.PaletteRef): Stored.StoredPaletteRef {
+	const result: Stored.StoredPaletteRef = {
+		pi: PALETTE_SLOT_REVERSE[runtime.slotId]
+	}
+	if (runtime.opacity !== undefined && runtime.opacity !== 1) {
+		result.o = runtime.opacity
+	}
+	if (runtime.tint !== undefined && runtime.tint !== 0) {
+		result.t = runtime.tint
+	}
+	return result
+}
+
+/**
+ * Expand a color value (string or palette ref) to string or PaletteRef
+ */
+export function expandColorValue(
+	value: Stored.ColorValue | undefined
+): string | Runtime.PaletteRef | undefined {
+	if (value === undefined) return undefined
+	if (typeof value === 'string') return value
+	return expandPaletteRef(value)
+}
+
+/**
+ * Compact a color value (string or PaletteRef) to stored format
+ */
+export function compactColorValue(
+	value: string | Runtime.PaletteRef | undefined
+): Stored.ColorValue | undefined {
+	if (value === undefined) return undefined
+	if (typeof value === 'string') return value
+	return compactPaletteRef(value)
+}
+
+/**
+ * Expand a stored palette to runtime format
+ */
+export function expandPalette(stored: Stored.StoredPalette): Runtime.Palette {
+	const palette: Runtime.Palette = { name: stored.n }
+
+	// Color slots
+	if (stored.bg) palette.background = { color: stored.bg.c }
+	if (stored.tx) palette.text = { color: stored.tx.c }
+	if (stored.a1) palette.accent1 = { color: stored.a1.c }
+	if (stored.a2) palette.accent2 = { color: stored.a2.c }
+	if (stored.a3) palette.accent3 = { color: stored.a3.c }
+	if (stored.a4) palette.accent4 = { color: stored.a4.c }
+	if (stored.a5) palette.accent5 = { color: stored.a5.c }
+	if (stored.a6) palette.accent6 = { color: stored.a6.c }
+
+	// Gradient slots
+	if (stored.g1) palette.gradient1 = expandBackgroundGradient(stored.g1)
+	if (stored.g2) palette.gradient2 = expandBackgroundGradient(stored.g2)
+	if (stored.g3) palette.gradient3 = expandBackgroundGradient(stored.g3)
+	if (stored.g4) palette.gradient4 = expandBackgroundGradient(stored.g4)
+
+	return palette
+}
+
+/**
+ * Compact a runtime palette to stored format
+ */
+export function compactPalette(runtime: Runtime.Palette): Stored.StoredPalette {
+	const stored: Stored.StoredPalette = { n: runtime.name }
+
+	// Color slots
+	if (runtime.background) stored.bg = { c: runtime.background.color }
+	if (runtime.text) stored.tx = { c: runtime.text.color }
+	if (runtime.accent1) stored.a1 = { c: runtime.accent1.color }
+	if (runtime.accent2) stored.a2 = { c: runtime.accent2.color }
+	if (runtime.accent3) stored.a3 = { c: runtime.accent3.color }
+	if (runtime.accent4) stored.a4 = { c: runtime.accent4.color }
+	if (runtime.accent5) stored.a5 = { c: runtime.accent5.color }
+	if (runtime.accent6) stored.a6 = { c: runtime.accent6.color }
+
+	// Gradient slots
+	if (runtime.gradient1) {
+		stored.g1 = compactBackgroundGradient(runtime.gradient1) as Stored.StoredBackgroundGradient
+	}
+	if (runtime.gradient2) {
+		stored.g2 = compactBackgroundGradient(runtime.gradient2) as Stored.StoredBackgroundGradient
+	}
+	if (runtime.gradient3) {
+		stored.g3 = compactBackgroundGradient(runtime.gradient3) as Stored.StoredBackgroundGradient
+	}
+	if (runtime.gradient4) {
+		stored.g4 = compactBackgroundGradient(runtime.gradient4) as Stored.StoredBackgroundGradient
+	}
+
+	return stored
 }
 
 // Child reference conversion

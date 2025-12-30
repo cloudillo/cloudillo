@@ -22,10 +22,45 @@
  */
 
 import * as React from 'react'
+import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
+import type { Gradient } from '@cloudillo/canvas-tools'
 import type { PrezilloObject } from '../crdt'
 import { resolveShapeStyle, resolveTextStyle } from '../crdt'
 import { WrappedText } from './WrappedText'
 import { ImageRenderer } from './ImageRenderer'
+
+/**
+ * Render SVG gradient definition using library functions
+ */
+function GradientDef({ id, gradient }: { id: string; gradient: Gradient }) {
+	if (gradient.type === 'linear' && gradient.stops) {
+		const def = createLinearGradientDef(gradient.angle ?? 180, gradient.stops)
+		return (
+			<linearGradient id={id} x1={def.x1} y1={def.y1} x2={def.x2} y2={def.y2}>
+				{def.stops.map((stop, i) => (
+					<stop key={i} offset={stop.offset} stopColor={stop.stopColor} />
+				))}
+			</linearGradient>
+		)
+	}
+
+	if (gradient.type === 'radial' && gradient.stops) {
+		const def = createRadialGradientDef(
+			gradient.centerX ?? 0.5,
+			gradient.centerY ?? 0.5,
+			gradient.stops
+		)
+		return (
+			<radialGradient id={id} cx={def.cx} cy={def.cy} r={def.r}>
+				{def.stops.map((stop, i) => (
+					<stop key={i} offset={stop.offset} stopColor={stop.stopColor} />
+				))}
+			</radialGradient>
+		)
+	}
+
+	return null
+}
 
 export interface ObjectShapeProps {
 	object: PrezilloObject
@@ -167,15 +202,31 @@ export const ObjectShape = React.memo(function ObjectShape({
 		strokeLinejoin: style.strokeLinejoin
 	}
 
+	// Generate gradient ID if using gradient fill
+	const gradientId = style.fillGradient ? `grad-${object.id}` : null
+
 	const fillProps = {
-		fill: style.fill === 'none' ? 'transparent' : style.fill,
+		fill: gradientId
+			? `url(#${gradientId})`
+			: style.fill === 'none'
+				? 'transparent'
+				: style.fill,
 		fillOpacity: style.fillOpacity
 	}
+
+	// Gradient definition element (if needed)
+	const gradientDef =
+		gradientId && style.fillGradient ? (
+			<defs>
+				<GradientDef id={gradientId} gradient={style.fillGradient} />
+			</defs>
+		) : null
 
 	switch (object.type) {
 		case 'rect':
 			return (
 				<g transform={rotationTransform} opacity={objectOpacity}>
+					{gradientDef}
 					<rect
 						x={x}
 						y={y}
@@ -197,6 +248,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 		case 'ellipse':
 			return (
 				<g transform={rotationTransform} opacity={objectOpacity}>
+					{gradientDef}
 					<ellipse
 						cx={x + width / 2}
 						cy={y + height / 2}
@@ -282,6 +334,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 			// Fallback rectangle for unsupported types
 			return (
 				<g transform={rotationTransform} opacity={objectOpacity}>
+					{gradientDef}
 					<rect
 						x={x}
 						y={y}

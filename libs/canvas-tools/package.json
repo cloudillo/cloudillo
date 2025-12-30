@@ -5,7 +5,8 @@
 	"type": "module",
 	"main": "lib/index.js",
 	"exports": {
-		".": "./lib/index.js"
+		".": "./lib/index.js",
+		"./components.css": "./src/components.css"
 	},
 	"scripts": {
 		"ts": "tsc --noEmit",
@@ -16,6 +17,7 @@
 	"author": "Szilárd Hajba <szilu@cloudillo.org>",
 	"license": "LGPL-3.0-or-later",
 	"devDependencies": {
+		"@cloudillo/react": "workspace:^",
 		"@types/react": "^19.2.7",
 		"react-svg-canvas": "^0.1.2",
 		"rimraf": "^6.1.2",

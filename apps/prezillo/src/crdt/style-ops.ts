@@ -24,7 +24,8 @@ import type {
 	StoredStyle,
 	StoredObject,
 	ShapeStyle,
-	TextStyle
+	TextStyle,
+	StoredPaletteRef
 } from './stored-types'
 import type { StyleId, ObjectId } from './ids'
 import { generateStyleId, toStyleId } from './ids'
@@ -32,9 +33,18 @@ import type {
 	ResolvedShapeStyle,
 	ResolvedTextStyle,
 	StyleDefinition,
-	PrezilloObject
+	PrezilloObject,
+	Palette
 } from './runtime-types'
-import { expandObject, expandShapeStyle, expandTextStyle } from './type-converters'
+import {
+	expandObject,
+	expandShapeStyle,
+	expandTextStyle,
+	isPaletteRef,
+	expandPaletteRef
+} from './type-converters'
+import { getPalette, getResolvedColor, resolvePaletteRef, isGradientSlot } from './palette-ops'
+import type { Gradient } from '@cloudillo/canvas-tools'
 
 // Default styles
 export const DEFAULT_SHAPE_STYLE: ResolvedShapeStyle = {
@@ -224,11 +234,15 @@ export function getStyleChain(doc: YPrezilloDocument, styleId: StyleId): StoredS
 
 /**
  * Resolve full shape style for an object
+ * Gets the palette from the document to resolve palette color references
  */
 export function resolveShapeStyle(
 	doc: YPrezilloDocument,
 	object: StoredObject
 ): ResolvedShapeStyle {
+	// Get palette for resolving color references
+	const palette = getPalette(doc)
+
 	// Start with defaults
 	let result = { ...DEFAULT_SHAPE_STYLE }
 
@@ -236,18 +250,18 @@ export function resolveShapeStyle(
 	if (object.si) {
 		const styleChain = getStyleChain(doc, toStyleId(object.si))
 		for (const style of styleChain) {
-			result = mergeShapeStyle(result, style)
+			result = mergeShapeStyle(result, style, palette)
 		}
 	}
 
 	// Apply inline style (if no reference)
 	if (object.s && !object.si) {
-		result = mergeShapeStyle(result, object.s)
+		result = mergeShapeStyle(result, object.s, palette)
 	}
 
 	// Apply overrides (if reference exists)
 	if (object.so) {
-		result = mergeShapeStyle(result, object.so)
+		result = mergeShapeStyle(result, object.so, palette)
 	}
 
 	return result
@@ -255,8 +269,12 @@ export function resolveShapeStyle(
 
 /**
  * Resolve full text style for an object
+ * Gets the palette from the document to resolve palette color references
  */
 export function resolveTextStyle(doc: YPrezilloDocument, object: StoredObject): ResolvedTextStyle {
+	// Get palette for resolving color references
+	const palette = getPalette(doc)
+
 	// Start with defaults
 	let result = { ...DEFAULT_TEXT_STYLE }
 
@@ -264,34 +282,93 @@ export function resolveTextStyle(doc: YPrezilloDocument, object: StoredObject): 
 	if (object.ti) {
 		const styleChain = getStyleChain(doc, toStyleId(object.ti))
 		for (const style of styleChain) {
-			result = mergeTextStyle(result, style)
+			result = mergeTextStyle(result, style, palette)
 		}
 	}
 
 	// Apply inline style (if no reference)
 	if (object.ts && !object.ti) {
-		result = mergeTextStyleFromStored(result, object.ts)
+		result = mergeTextStyleFromStored(result, object.ts, palette)
 	}
 
 	// Apply overrides (if reference exists)
 	if (object.to) {
-		result = mergeTextStyleFromStored(result, object.to)
+		result = mergeTextStyleFromStored(result, object.to, palette)
 	}
 
 	return result
 }
 
 /**
+ * Resolve a color value (string or palette ref) to a string color
+ * If palette is provided and value is a palette ref, resolves it
+ * Otherwise returns the string value or undefined
+ */
+function resolveColorField(
+	value: unknown,
+	palette: Palette | undefined,
+	defaultColor: string
+): string {
+	if (typeof value === 'string') {
+		return value
+	}
+	if (palette && isPaletteRef(value)) {
+		return getResolvedColor(palette, value as StoredPaletteRef, defaultColor)
+	}
+	return defaultColor
+}
+
+/**
+ * Resolve a fill value and extract gradient info if applicable
+ * Returns both the color string and optional gradient
+ */
+function resolveFillField(
+	value: unknown,
+	palette: Palette | undefined,
+	defaultColor: string
+): { color: string; gradient?: Gradient } {
+	if (typeof value === 'string') {
+		return { color: value }
+	}
+	if (palette && isPaletteRef(value)) {
+		const storedRef = value as StoredPaletteRef
+		// Expand stored ref to runtime format before resolving
+		const ref = expandPaletteRef(storedRef)
+		const resolved = resolvePaletteRef(palette, ref)
+		if (resolved.type === 'gradient' && resolved.gradient) {
+			// For gradients, return first stop color as fallback + gradient info
+			const fallbackColor = resolved.gradient.stops?.[0]?.color ?? defaultColor
+			return { color: fallbackColor, gradient: resolved.gradient }
+		}
+		return { color: resolved.color ?? defaultColor }
+	}
+	return { color: defaultColor }
+}
+
+/**
  * Merge shape style properties
+ * Resolves palette refs if palette is provided
  */
 function mergeShapeStyle(
 	base: ResolvedShapeStyle,
-	override: Partial<StoredStyle | ShapeStyle>
+	override: Partial<StoredStyle | ShapeStyle>,
+	palette?: Palette
 ): ResolvedShapeStyle {
+	const fill =
+		override.f !== undefined
+			? resolveFillField(override.f, palette, base.fill)
+			: { color: base.fill, gradient: base.fillGradient }
+	const strokeColor =
+		override.s !== undefined ? resolveColorField(override.s, palette, base.stroke) : base.stroke
+	const shadowColor = override.sh
+		? resolveColorField(override.sh[3], palette, base.shadow?.color ?? '#000000')
+		: (base.shadow?.color ?? '#000000')
+
 	return {
-		fill: override.f ?? base.fill,
+		fill: fill.color,
 		fillOpacity: override.fo ?? base.fillOpacity,
-		stroke: override.s ?? base.stroke,
+		fillGradient: fill.gradient,
+		stroke: strokeColor,
 		strokeWidth: override.sw ?? base.strokeWidth,
 		strokeOpacity: override.so ?? base.strokeOpacity,
 		strokeDasharray: override.sd ?? base.strokeDasharray,
@@ -302,7 +379,7 @@ function mergeShapeStyle(
 					offsetX: override.sh[0],
 					offsetY: override.sh[1],
 					blur: override.sh[2],
-					color: override.sh[3]
+					color: shadowColor
 				}
 			: base.shadow
 	}
@@ -310,8 +387,15 @@ function mergeShapeStyle(
 
 /**
  * Merge text style properties from stored style
+ * Resolves palette refs if palette is provided
  */
-function mergeTextStyle(base: ResolvedTextStyle, override: StoredStyle): ResolvedTextStyle {
+function mergeTextStyle(
+	base: ResolvedTextStyle,
+	override: StoredStyle,
+	palette?: Palette
+): ResolvedTextStyle {
+	const fillColor =
+		override.fc !== undefined ? resolveColorField(override.fc, palette, base.fill) : base.fill
 	return {
 		fontFamily: override.ff ?? base.fontFamily,
 		fontSize: override.fs ?? base.fontSize,
@@ -322,7 +406,7 @@ function mergeTextStyle(base: ResolvedTextStyle, override: StoredStyle): Resolve
 				? 'underline'
 				: 'line-through'
 			: base.textDecoration,
-		fill: override.fc ?? base.fill,
+		fill: fillColor,
 		textAlign: override.ta
 			? ({ l: 'left', c: 'center', r: 'right', j: 'justify' }[override.ta] as any)
 			: base.textAlign,
@@ -337,8 +421,15 @@ function mergeTextStyle(base: ResolvedTextStyle, override: StoredStyle): Resolve
 
 /**
  * Merge text style from stored text style (not full StoredStyle)
+ * Resolves palette refs if palette is provided
  */
-function mergeTextStyleFromStored(base: ResolvedTextStyle, override: TextStyle): ResolvedTextStyle {
+function mergeTextStyleFromStored(
+	base: ResolvedTextStyle,
+	override: TextStyle,
+	palette?: Palette
+): ResolvedTextStyle {
+	const fillColor =
+		override.fc !== undefined ? resolveColorField(override.fc, palette, base.fill) : base.fill
 	return {
 		fontFamily: override.ff ?? base.fontFamily,
 		fontSize: override.fs ?? base.fontSize,
@@ -349,7 +440,7 @@ function mergeTextStyleFromStored(base: ResolvedTextStyle, override: TextStyle):
 				? 'underline'
 				: 'line-through'
 			: base.textDecoration,
-		fill: override.fc ?? base.fill,
+		fill: fillColor,
 		textAlign: override.ta
 			? ({ l: 'left', c: 'center', r: 'right', j: 'justify' }[override.ta] as any)
 			: base.textAlign,

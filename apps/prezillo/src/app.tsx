@@ -138,6 +138,7 @@ function FixedPivotHandle(
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
 import '@cloudillo/react/components.css'
+import '@cloudillo/canvas-tools/components.css'
 import './style.css'
 
 import {
@@ -1264,6 +1265,8 @@ export function PrezilloApp() {
 		<>
 			{!isReadOnly && (
 				<Toolbar
+					doc={prezillo.doc}
+					yDoc={prezillo.yDoc}
 					tool={prezillo.activeTool}
 					setTool={(tool) => {
 						prezillo.clearSelection()
@@ -1431,7 +1434,8 @@ export function PrezilloApp() {
 								key={view.id}
 								view={view}
 								isActive={view.id === prezillo.activeViewId}
-								onClick={() => prezillo.setActiveViewId(view.id)}
+								isSelected={view.id === prezillo.selectedViewId}
+								onClick={() => prezillo.selectView(view.id)}
 							/>
 						))}
 
@@ -1643,6 +1647,7 @@ export function PrezilloApp() {
 						selectedIds={prezillo.selectedIds}
 						onSelectObject={prezillo.selectObject}
 						activeViewId={prezillo.activeViewId}
+						selectedViewId={prezillo.selectedViewId}
 						onPreview={setPropertyPreview}
 						selectedContainerId={selectedContainerId as any}
 						onSelectContainer={setSelectedContainerId as any}
@@ -1656,6 +1661,8 @@ export function PrezilloApp() {
 					doc={prezillo.doc}
 					yDoc={prezillo.yDoc}
 					selectedIds={prezillo.selectedIds}
+					activeViewId={prezillo.activeViewId}
+					selectedViewId={prezillo.selectedViewId}
 					snapPoint={mobileSnapPoint}
 					onSnapChange={handleMobileSnapChange}
 					onPreview={setPropertyPreview}

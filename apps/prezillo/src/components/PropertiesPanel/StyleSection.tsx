@@ -16,7 +16,7 @@
 
 import * as React from 'react'
 import * as Y from 'yjs'
-import { PropertySection, PropertyField, ColorInput, NumberInput, Toggle } from '@cloudillo/react'
+import { PropertySection, PropertyField, NumberInput, Toggle } from '@cloudillo/react'
 
 import type { YPrezilloDocument, PrezilloObject, ObjectId } from '../../crdt'
 import {
@@ -25,6 +25,8 @@ import {
 	updateObject,
 	updateObjectTextStyle
 } from '../../crdt'
+import { usePaletteValue } from '../../hooks'
+import { PaletteColorPicker, ColorPickerValue } from './PaletteColorPicker'
 
 export interface StyleSectionProps {
 	doc: YPrezilloDocument
@@ -33,6 +35,9 @@ export interface StyleSectionProps {
 }
 
 export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
+	// Get palette for color picker
+	const palette = usePaletteValue(doc)
+
 	// Check if this is a text object
 	const isTextObject = object.type === 'text' || object.type === 'textbox'
 
@@ -41,25 +46,40 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 	const resolvedShapeStyle = stored ? resolveShapeStyle(doc, stored) : null
 	const resolvedTextStyle = stored ? resolveTextStyle(doc, stored) : null
 
+	// Get raw color values (may be palette refs or hex strings)
+	const rawFillValue: ColorPickerValue | undefined = isTextObject
+		? (stored?.ts?.fc ?? stored?.to?.fc)
+		: (stored?.s?.f ?? stored?.so?.f)
+
 	// For text objects, use text fill; for others, use shape fill
 	const fillColor = isTextObject ? resolvedTextStyle?.fill : resolvedShapeStyle?.fill
 	const hasFill = !!(fillColor && fillColor !== 'none')
 	const hasStroke = !!(resolvedShapeStyle?.stroke && resolvedShapeStyle.stroke !== 'none')
 
+	// Get raw stroke value (may be palette ref or hex string)
+	const rawStrokeValue: ColorPickerValue | undefined = stored?.s?.s ?? stored?.so?.s
+
 	const handleFillColorChange = React.useCallback(
-		(color: string) => {
+		(value: ColorPickerValue) => {
 			if (isTextObject) {
 				// Update text style fill for text objects
-				updateObjectTextStyle(yDoc, doc, object.id as ObjectId, { fc: color })
+				// ColorPickerValue is already in stored format (string | StoredPaletteRef)
+				updateObjectTextStyle(yDoc, doc, object.id as ObjectId, { fc: value })
 			} else {
 				// Update shape style fill for other objects
-				const style = object.style || {}
-				updateObject(yDoc, doc, object.id as ObjectId, {
-					style: { ...style, fill: color }
-				})
+				// For shape style, we need to update the stored style directly
+				yDoc.transact(() => {
+					const storedObj = doc.o.get(object.id)
+					if (storedObj) {
+						const newObj = { ...storedObj }
+						if (!newObj.s) newObj.s = {}
+						newObj.s = { ...newObj.s, f: value }
+						doc.o.set(object.id, newObj)
+					}
+				}, yDoc.clientID)
 			}
 		},
-		[yDoc, doc, object.id, object.style, isTextObject]
+		[yDoc, doc, object.id, isTextObject]
 	)
 
 	const handleFillToggle = React.useCallback(
@@ -81,13 +101,19 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 	)
 
 	const handleStrokeColorChange = React.useCallback(
-		(color: string) => {
-			const style = object.style || {}
-			updateObject(yDoc, doc, object.id as ObjectId, {
-				style: { ...style, stroke: color }
-			})
+		(value: ColorPickerValue) => {
+			// Update shape style stroke directly in stored format
+			yDoc.transact(() => {
+				const storedObj = doc.o.get(object.id)
+				if (storedObj) {
+					const newObj = { ...storedObj }
+					if (!newObj.s) newObj.s = {}
+					newObj.s = { ...newObj.s, s: value }
+					doc.o.set(object.id, newObj)
+				}
+			}, yDoc.clientID)
 		},
-		[yDoc, doc, object.id, object.style]
+		[yDoc, doc, object.id]
 	)
 
 	const handleStrokeWidthChange = React.useCallback(
@@ -125,10 +151,11 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 						/>
 					)}
 					{(isTextObject || hasFill) && fillColor && (
-						<ColorInput
-							value={fillColor}
+						<PaletteColorPicker
+							value={rawFillValue ?? fillColor}
 							onChange={handleFillColorChange}
-							showHex={false}
+							palette={palette}
+							showGradients={!isTextObject}
 						/>
 					)}
 				</div>
@@ -144,10 +171,11 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 						/>
 						{hasStroke && (
 							<>
-								<ColorInput
-									value={resolvedShapeStyle.stroke}
+								<PaletteColorPicker
+									value={rawStrokeValue ?? resolvedShapeStyle.stroke}
 									onChange={handleStrokeColorChange}
-									showHex={false}
+									palette={palette}
+									showGradients={false}
 								/>
 								<NumberInput
 									value={resolvedShapeStyle.strokeWidth}

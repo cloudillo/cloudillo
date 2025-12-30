@@ -20,6 +20,7 @@
  */
 
 import type { ObjectId, ContainerId, ViewId, StyleId, RichTextId } from './ids'
+import type { Gradient } from '@cloudillo/canvas-tools'
 
 // Object types (expanded)
 export type ObjectType =
@@ -118,6 +119,8 @@ export interface TextStyle {
 export interface ResolvedShapeStyle {
 	fill: string
 	fillOpacity: number
+	/** Optional gradient for fill (when using palette gradient) */
+	fillGradient?: Gradient
 	stroke: string
 	strokeWidth: number
 	strokeOpacity: number
@@ -293,6 +296,7 @@ export interface ViewNode {
 	width: number
 	height: number
 	backgroundColor?: string
+	backgroundGradient?: Gradient // Background gradient (takes precedence over backgroundColor)
 	backgroundImage?: string
 	backgroundFit?: 'contain' | 'cover' | 'fill' | 'tile'
 	showBorder?: boolean
@@ -328,6 +332,68 @@ export interface StyleDefinition {
 	textStyle?: Partial<TextStyle>
 	// Extra shape-specific
 	cornerRadius?: number
+}
+
+// ============================================================================
+// Palette System Types (Runtime)
+// ============================================================================
+
+// Palette color slot names (expanded)
+export type PaletteColorSlotName =
+	| 'background'
+	| 'text'
+	| 'accent1'
+	| 'accent2'
+	| 'accent3'
+	| 'accent4'
+	| 'accent5'
+	| 'accent6'
+
+// Palette gradient slot names
+export type PaletteGradientSlotName = 'gradient1' | 'gradient2' | 'gradient3' | 'gradient4'
+
+// All palette slot names
+export type PaletteSlotName = PaletteColorSlotName | PaletteGradientSlotName
+
+// Palette color entry (runtime)
+export interface PaletteColor {
+	color: string // hex color
+}
+
+// Full palette definition (runtime)
+export interface Palette {
+	name: string
+	// Color slots
+	background?: PaletteColor
+	text?: PaletteColor
+	accent1?: PaletteColor
+	accent2?: PaletteColor
+	accent3?: PaletteColor
+	accent4?: PaletteColor
+	accent5?: PaletteColor
+	accent6?: PaletteColor
+	// Gradient slots
+	gradient1?: Gradient
+	gradient2?: Gradient
+	gradient3?: Gradient
+	gradient4?: Gradient
+}
+
+// Palette reference (runtime)
+export interface PaletteRef {
+	slotId: PaletteSlotName
+	opacity?: number // 0-1, default 1
+	tint?: number // -1 to 1 (negative = shade, positive = tint)
+}
+
+// Resolved color value (after palette lookup)
+export interface ResolvedColorValue {
+	type: 'solid' | 'gradient'
+	color?: string // for solid colors
+	gradient?: Gradient // for gradients
+	opacity: number
+	isPaletteRef: boolean
+	paletteSlot?: PaletteSlotName
 }
 
 // Re-export generic types from react-svg-canvas

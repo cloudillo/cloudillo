@@ -92,17 +92,32 @@ export type AnchorPoint = AnchorPointCode | [number, number]
 // Routing type codes
 export type RoutingCode = 'S' | 'O' | 'C' // Straight/Orthogonal/Curved
 
+// Palette slot codes (needed for ShapeStyle/TextStyle below)
+export type PaletteColorSlot = 'bg' | 'tx' | 'a1' | 'a2' | 'a3' | 'a4' | 'a5' | 'a6'
+export type PaletteGradientSlot = 'g1' | 'g2' | 'g3' | 'g4'
+export type PaletteSlot = PaletteColorSlot | PaletteGradientSlot
+
+// Palette reference (used in color fields below)
+export interface StoredPaletteRef {
+	pi: PaletteSlot // palette slot id
+	o?: number // opacity override (0-1, default 1)
+	t?: number // tint/shade adjustment (-1 to 1, 0 = original)
+}
+
+// Color value: can be raw hex string OR palette reference
+export type ColorValue = string | StoredPaletteRef
+
 // Shape style (compact)
 export interface ShapeStyle {
-	f?: string // fill color
+	f?: string | StoredPaletteRef // fill color (hex OR palette reference)
 	fo?: number // fillOpacity
-	s?: string // stroke color
+	s?: string | StoredPaletteRef // stroke color (hex OR palette reference)
 	sw?: number // strokeWidth
 	so?: number // strokeOpacity
 	sd?: string // strokeDasharray
 	sc?: 'butt' | 'round' | 'square' // strokeLinecap
 	sj?: 'miter' | 'round' | 'bevel' // strokeLinejoin
-	sh?: [number, number, number, string] // shadow: [offsetX, offsetY, blur, color]
+	sh?: [number, number, number, string | StoredPaletteRef] // shadow: [offsetX, offsetY, blur, color]
 }
 
 // Text style (compact)
@@ -112,7 +127,7 @@ export interface TextStyle {
 	fw?: 'normal' | 'bold' | number // fontWeight
 	fi?: boolean // fontItalic
 	td?: 'u' | 's' // textDecoration: underline/strikethrough
-	fc?: string // fill color
+	fc?: string | StoredPaletteRef // fill color (hex OR palette reference)
 	ta?: 'l' | 'c' | 'r' | 'j' // textAlign: left/center/right/justify
 	va?: 't' | 'm' | 'b' // verticalAlign: top/middle/bottom
 	lh?: number // lineHeight
@@ -246,6 +261,43 @@ export interface StoredContainer {
 	// Note: children is a Y.Array, not stored directly
 }
 
+// Background gradient (compact format)
+export interface StoredBackgroundGradient {
+	gt?: 'l' | 'r' // gradientType: 'l'=linear, 'r'=radial (omit for solid)
+	ga?: number // gradientAngle (linear only)
+	gx?: number // centerX (radial only, 0-1)
+	gy?: number // centerY (radial only, 0-1)
+	gs?: Array<[string, number]> // stops: [[color, position], ...]
+}
+
+// ============================================================================
+// Palette System Types
+// ============================================================================
+
+// Stored palette color entry (solid color, no opacity)
+export interface StoredPaletteColor {
+	c: string // hex color
+}
+
+// Full palette definition
+export interface StoredPalette {
+	n: string // palette name (e.g., "Office Blue", "Custom Theme")
+	// Color slots
+	bg?: StoredPaletteColor // background
+	tx?: StoredPaletteColor // text
+	a1?: StoredPaletteColor // accent 1
+	a2?: StoredPaletteColor // accent 2
+	a3?: StoredPaletteColor // accent 3
+	a4?: StoredPaletteColor // accent 4
+	a5?: StoredPaletteColor // accent 5
+	a6?: StoredPaletteColor // accent 6
+	// Gradient slots (reuse StoredBackgroundGradient structure)
+	g1?: StoredBackgroundGradient
+	g2?: StoredBackgroundGradient
+	g3?: StoredBackgroundGradient
+	g4?: StoredBackgroundGradient
+}
+
 // View (page/slide)
 export interface StoredView {
 	name: string
@@ -254,6 +306,7 @@ export interface StoredView {
 	width: number
 	height: number
 	backgroundColor?: string
+	backgroundGradient?: StoredBackgroundGradient // Background gradient (takes precedence over backgroundColor)
 	backgroundImage?: string
 	backgroundFit?: 'contain' | 'cover' | 'fill' | 'tile'
 	showBorder?: boolean
@@ -283,15 +336,15 @@ export interface StoredStyle {
 	t: 'S' | 'T' // type: Shape or Text
 	p?: string // parent styleId (inheritance)
 	// Shape style properties (when t='S')
-	f?: string // fill
+	f?: string | StoredPaletteRef // fill (hex or palette ref)
 	fo?: number // fillOpacity
-	s?: string // stroke
+	s?: string | StoredPaletteRef // stroke (hex or palette ref)
 	sw?: number // strokeWidth
 	so?: number // strokeOpacity
 	sd?: string // strokeDasharray
 	sc?: 'butt' | 'round' | 'square' // strokeLinecap
 	sj?: 'miter' | 'round' | 'bevel' // strokeLinejoin
-	sh?: [number, number, number, string] // shadow
+	sh?: [number, number, number, string | StoredPaletteRef] // shadow (color can be palette ref)
 	cr?: number // cornerRadius (for rects)
 	// Text style properties (when t='T')
 	ff?: string // fontFamily
@@ -299,7 +352,7 @@ export interface StoredStyle {
 	fw?: 'normal' | 'bold' | number // fontWeight
 	fi?: boolean // fontItalic
 	td?: 'u' | 's' // textDecoration
-	fc?: string // fill color
+	fc?: string | StoredPaletteRef // fill color (hex or palette ref)
 	ta?: 'l' | 'c' | 'r' | 'j' // textAlign
 	va?: 't' | 'm' | 'b' // verticalAlign
 	lh?: number // lineHeight
@@ -317,6 +370,7 @@ export interface YPrezilloDocument {
 	m: Y.Map<unknown> // meta
 	rt: Y.Map<Y.Text> // richTexts (for textbox content)
 	st: Y.Map<StoredStyle> // styles (global definitions)
+	pl: Y.Map<StoredPalette> // palette (single entry keyed by 'default')
 	// Container children are stored separately
 	ch: Y.Map<Y.Array<ChildRef>> // children arrays by containerId
 }

@@ -33,6 +33,8 @@ export interface PrezilloPropertiesPanelProps {
 	selectedIds: Set<ObjectId>
 	onSelectObject: (id: ObjectId, addToSelection?: boolean) => void
 	activeViewId: ViewId | null
+	/** Currently selected view (for showing view properties) */
+	selectedViewId?: ViewId | null
 	/** Callback for live preview during scrubbing */
 	onPreview?: (preview: PropertyPreview | null) => void
 	/** Currently selected container (layer) ID */
@@ -47,6 +49,7 @@ export function PrezilloPropertiesPanel({
 	selectedIds,
 	onSelectObject,
 	activeViewId,
+	selectedViewId,
 	onPreview,
 	selectedContainerId,
 	onSelectContainer
@@ -77,6 +80,8 @@ export function PrezilloPropertiesPanel({
 						doc={doc}
 						yDoc={yDoc}
 						selectedIds={selectedIds}
+						activeViewId={activeViewId ?? undefined}
+						selectedViewId={selectedViewId ?? undefined}
 						onPreview={onPreview}
 					/>
 				</div>

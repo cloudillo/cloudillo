@@ -1,0 +1,146 @@
+/* PaletteColorPicker styles */
+
+.c-palette-color-picker {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	position: relative;
+	padding-right: 32px; /* Make room for preview swatch */
+}
+
+/* Tab buttons */
+.c-palette-color-picker-tabs {
+	display: flex;
+	gap: 0;
+	border-bottom: 1px solid var(--col-outline, #e0e0e0);
+}
+
+.c-palette-color-picker-tab {
+	flex: 1;
+	padding: 0.5rem 0.75rem;
+	border: none;
+	background: transparent;
+	color: var(--col-on-container, #666);
+	font-size: 0.8125rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition:
+		color 0.15s,
+		border-color 0.15s;
+	border-bottom: 2px solid transparent;
+	margin-bottom: -1px;
+}
+
+.c-palette-color-picker-tab:hover {
+	color: var(--col-on, #333);
+}
+
+.c-palette-color-picker-tab--active {
+	color: var(--col-primary, #4a90d9);
+	border-bottom-color: var(--col-primary, #4a90d9);
+}
+
+.c-palette-color-picker-tab:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* Tab content */
+.c-palette-color-picker-content {
+	padding: 0.5rem 0;
+}
+
+.c-palette-color-picker-theme {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.c-palette-color-picker-custom {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+/* Detach button */
+.c-palette-color-picker-detach {
+	padding: 0.375rem 0.5rem;
+	border: 1px solid var(--col-outline, #e0e0e0);
+	border-radius: 4px;
+	background: transparent;
+	color: var(--col-on-container, #666);
+	font-size: 0.75rem;
+	cursor: pointer;
+	transition:
+		background 0.15s,
+		border-color 0.15s;
+	align-self: flex-start;
+}
+
+.c-palette-color-picker-detach:hover {
+	background: var(--col-container, #f5f5f5);
+	border-color: var(--col-outline-variant, #ccc);
+}
+
+.c-palette-color-picker-detach:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* Opacity slider */
+.c-palette-color-picker-opacity {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding-top: 0.5rem;
+	border-top: 1px solid var(--col-outline-low, #f0f0f0);
+	margin-top: 0.25rem;
+}
+
+.c-palette-color-picker-opacity-label {
+	font-size: 0.75rem;
+	color: var(--col-on-container, #666);
+	white-space: nowrap;
+}
+
+.c-palette-color-picker-opacity .c-slider {
+	flex: 1;
+}
+
+.c-palette-color-picker-opacity-value {
+	font-size: 0.75rem;
+	color: var(--col-on-container, #666);
+	min-width: 2.5rem;
+	text-align: right;
+}
+
+/* Color preview */
+.c-palette-color-picker-preview {
+	position: absolute;
+	top: 4px;
+	right: 0;
+	width: 24px;
+	height: 24px;
+	border-radius: 4px;
+	border: 1px solid var(--col-outline, #e0e0e0);
+	box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+.c-palette-color-picker-preview-badge {
+	position: absolute;
+	bottom: -4px;
+	right: -4px;
+	width: 14px;
+	height: 14px;
+	border-radius: 50%;
+	background: var(--col-primary, #4a90d9);
+	color: white;
+	font-size: 9px;
+	font-weight: bold;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid var(--col-container, white);
+}
+
+/* vim: ts=4 */

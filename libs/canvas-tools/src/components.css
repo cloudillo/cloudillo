@@ -1,0 +1,425 @@
+/* ==========================================================================
+   @cloudillo/canvas-tools Component Styles
+   ========================================================================== */
+
+/* ==========================================================================
+   GradientPicker Component
+   ========================================================================== */
+
+.c-gradient-picker {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+}
+
+/* Type tabs */
+.c-gradient-type-tabs {
+	display: flex;
+	gap: var(--space-1);
+	padding-bottom: var(--space-2);
+	border-bottom: 1px solid var(--col-outline);
+}
+
+.c-gradient-type-tabs button {
+	flex: 1;
+}
+
+/* Preview area */
+.c-gradient-preview {
+	position: relative;
+	border-radius: var(--radius-md);
+	border: 1px solid var(--col-outline);
+	overflow: hidden;
+	min-height: 60px;
+}
+
+/* Angle overlay for linear gradients */
+.c-gradient-angle-overlay {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+
+.c-gradient-angle-btn {
+	position: absolute;
+	pointer-events: auto;
+	width: 32px;
+	height: 32px;
+	border: none;
+	background: transparent;
+	color: white;
+	text-shadow:
+		0 0 4px rgba(0, 0, 0, 0.9),
+		0 0 8px rgba(0, 0, 0, 0.5);
+	font-size: 22px;
+	cursor: pointer;
+	border-radius: 50%;
+	transition:
+		transform 0.15s,
+		opacity 0.15s;
+	opacity: 0.8;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+/* Straight arrows are visually smaller in Unicode, scale them up */
+.c-gradient-angle-btn--0,
+.c-gradient-angle-btn--90,
+.c-gradient-angle-btn--180,
+.c-gradient-angle-btn--270 {
+	font-size: 26px;
+}
+
+.c-gradient-angle-btn:hover {
+	opacity: 1;
+}
+
+.c-gradient-angle-btn:focus-visible {
+	outline: 2px solid var(--col-primary);
+	outline-offset: 2px;
+	opacity: 1;
+}
+
+.c-gradient-angle-btn--active {
+	opacity: 1;
+	color: var(--col-primary, #4a90d9);
+	text-shadow:
+		0 0 4px currentColor,
+		0 0 8px currentColor,
+		0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Positions for each angle (clockwise from top) */
+.c-gradient-angle-btn--0 {
+	top: 4px;
+	left: 50%;
+	transform: translateX(-50%);
+}
+.c-gradient-angle-btn--45 {
+	top: 4px;
+	right: 4px;
+}
+.c-gradient-angle-btn--90 {
+	top: 50%;
+	right: 4px;
+	transform: translateY(-50%);
+}
+.c-gradient-angle-btn--135 {
+	bottom: 4px;
+	right: 4px;
+}
+.c-gradient-angle-btn--180 {
+	bottom: 4px;
+	left: 50%;
+	transform: translateX(-50%);
+}
+.c-gradient-angle-btn--225 {
+	bottom: 4px;
+	left: 4px;
+}
+.c-gradient-angle-btn--270 {
+	top: 50%;
+	left: 4px;
+	transform: translateY(-50%);
+}
+.c-gradient-angle-btn--315 {
+	top: 4px;
+	left: 4px;
+}
+.c-gradient-angle-btn--center {
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	font-size: 24px;
+}
+
+/* Hover states need to include position transforms */
+.c-gradient-angle-btn--0:hover,
+.c-gradient-angle-btn--0:focus-visible {
+	transform: translateX(-50%) scale(1.2);
+}
+.c-gradient-angle-btn--45:hover,
+.c-gradient-angle-btn--45:focus-visible,
+.c-gradient-angle-btn--135:hover,
+.c-gradient-angle-btn--135:focus-visible,
+.c-gradient-angle-btn--225:hover,
+.c-gradient-angle-btn--225:focus-visible,
+.c-gradient-angle-btn--315:hover,
+.c-gradient-angle-btn--315:focus-visible {
+	transform: scale(1.2);
+}
+.c-gradient-angle-btn--90:hover,
+.c-gradient-angle-btn--90:focus-visible {
+	transform: translateY(-50%) scale(1.2);
+}
+.c-gradient-angle-btn--180:hover,
+.c-gradient-angle-btn--180:focus-visible {
+	transform: translateX(-50%) scale(1.2);
+}
+.c-gradient-angle-btn--270:hover,
+.c-gradient-angle-btn--270:focus-visible {
+	transform: translateY(-50%) scale(1.2);
+}
+.c-gradient-angle-btn--center:hover,
+.c-gradient-angle-btn--center:focus-visible {
+	transform: translate(-50%, -50%) scale(1.2);
+}
+
+/* Solid color controls */
+.c-gradient-solid-controls {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+/* Presets section */
+.c-gradient-presets-section {
+	margin-bottom: var(--space-2);
+}
+
+/* Preset grid */
+.c-gradient-preset-grid {
+	display: grid;
+	gap: var(--space-2);
+}
+
+.c-gradient-preset-item {
+	aspect-ratio: 16 / 9;
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	border: 2px solid transparent;
+	transition:
+		border-color 0.15s,
+		transform 0.1s;
+	padding: 0;
+	min-height: 32px;
+}
+
+.c-gradient-preset-item:hover {
+	border-color: var(--col-outline);
+	transform: scale(1.02);
+}
+
+.c-gradient-preset-item:focus-visible {
+	outline: 2px solid var(--col-primary);
+	outline-offset: 2px;
+}
+
+.c-gradient-preset-item.selected {
+	border-color: var(--col-primary);
+	box-shadow: 0 0 0 1px var(--col-primary);
+}
+
+/* Gradient bar container */
+.c-gradient-bar-container {
+	padding: var(--space-2) 0;
+}
+
+/* Gradient bar */
+.c-gradient-bar {
+	position: relative;
+	height: 24px;
+	border-radius: var(--radius-sm);
+	cursor: crosshair;
+	border: 1px solid var(--col-outline);
+}
+
+.c-gradient-bar:focus-visible {
+	outline: 2px solid var(--col-primary);
+	outline-offset: 2px;
+}
+
+/* Color stop handles */
+.c-gradient-bar-stop {
+	position: absolute;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	border: 2px solid white;
+	box-shadow:
+		0 1px 3px rgba(0, 0, 0, 0.3),
+		inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+	cursor: grab;
+	transition:
+		transform 0.1s,
+		box-shadow 0.1s,
+		opacity 0.15s;
+	z-index: 1;
+}
+
+.c-gradient-bar-stop::before {
+	/* Invisible touch target expansion */
+	content: '';
+	position: absolute;
+	top: -16px;
+	left: -16px;
+	right: -16px;
+	bottom: -16px;
+}
+
+.c-gradient-bar-stop:hover {
+	transform: translate(-50%, -50%) scale(1.1);
+}
+
+.c-gradient-bar-stop:focus-visible {
+	outline: 2px solid var(--col-primary);
+	outline-offset: 2px;
+}
+
+.c-gradient-bar-stop.selected {
+	border-color: var(--col-primary);
+	box-shadow:
+		0 0 0 2px var(--col-primary),
+		0 2px 4px rgba(0, 0, 0, 0.3);
+	z-index: 2;
+}
+
+.c-gradient-bar-stop.dragging {
+	cursor: grabbing;
+	transform: translate(-50%, -50%) scale(1.15);
+}
+
+.c-gradient-bar-stop.removing {
+	opacity: 0.4;
+	transform: translate(-50%, -50%) scale(0.8);
+	border-style: dashed;
+	cursor: not-allowed;
+}
+
+/* Stop controls */
+.c-gradient-stop-controls {
+	align-items: flex-end;
+}
+
+.c-gradient-stop-color {
+	flex: 1;
+}
+
+.c-gradient-stop-position {
+	min-width: 60px;
+	text-align: right;
+}
+
+.c-gradient-position-display {
+	font-family: var(--font-mono, monospace);
+	font-size: var(--text-sm);
+	color: var(--col-text-secondary);
+}
+
+/* Angle control */
+.c-angle-control {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+.c-angle-presets {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-1);
+}
+
+.c-angle-preset-btn {
+	min-width: 36px;
+	padding: var(--space-1) var(--space-2);
+	font-size: 14px;
+}
+
+.c-angle-input-wrapper {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+}
+
+.c-angle-input {
+	width: 60px;
+	text-align: right;
+}
+
+.c-angle-unit {
+	color: var(--col-text-secondary);
+	font-size: var(--text-sm);
+}
+
+/* Position control */
+.c-position-control {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+.c-position-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: var(--space-1);
+	max-width: 150px;
+}
+
+.c-position-btn {
+	aspect-ratio: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 36px;
+	min-height: 36px;
+	font-size: 14px;
+}
+
+/* Section labels */
+.c-gradient-angle-section,
+.c-gradient-position-section {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+/* Mobile optimizations */
+@media (max-width: 767px) {
+	.c-gradient-bar {
+		height: 40px;
+	}
+
+	.c-gradient-bar-stop {
+		width: 24px;
+		height: 24px;
+	}
+
+	.c-gradient-preset-grid {
+		grid-template-columns: repeat(3, 1fr) !important;
+	}
+
+	.c-angle-preset-btn {
+		min-width: 44px;
+		min-height: 44px;
+		font-size: 16px;
+	}
+
+	.c-position-btn {
+		min-width: 44px;
+		min-height: 44px;
+		font-size: 16px;
+	}
+
+	.c-gradient-type-tabs button {
+		min-height: 44px;
+	}
+
+	/* Larger touch targets for angle overlay buttons */
+	.c-gradient-angle-btn {
+		width: 40px;
+		height: 40px;
+		font-size: 26px;
+	}
+
+	.c-gradient-angle-btn--0,
+	.c-gradient-angle-btn--90,
+	.c-gradient-angle-btn--180,
+	.c-gradient-angle-btn--270 {
+		font-size: 30px;
+	}
+}
+
+/* vim: ts=4 */

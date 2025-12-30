@@ -38,7 +38,15 @@ export type {
 	BlendModeCode,
 	ArrowDef,
 	AnchorPoint as StoredAnchorPoint,
-	RoutingCode
+	RoutingCode,
+	// Palette types (stored)
+	StoredPalette,
+	StoredPaletteRef,
+	StoredPaletteColor,
+	PaletteSlot,
+	PaletteColorSlot,
+	PaletteGradientSlot,
+	ColorValue
 } from './stored-types'
 
 export type {
@@ -73,7 +81,15 @@ export type {
 	Point,
 	Bounds,
 	Transform,
-	ChildRef as RuntimeChildRef
+	ChildRef as RuntimeChildRef,
+	// Palette types (runtime)
+	Palette,
+	PaletteRef,
+	PaletteColor,
+	PaletteSlotName,
+	PaletteColorSlotName,
+	PaletteGradientSlotName,
+	ResolvedColorValue
 } from './runtime-types'
 
 // Document operations
@@ -101,7 +117,15 @@ export {
 	expandArrowStyle,
 	compactArrowStyle,
 	expandAnchorPoint,
-	compactAnchorPoint
+	compactAnchorPoint,
+	// Palette converters
+	isPaletteRef,
+	expandPaletteRef,
+	compactPaletteRef,
+	expandColorValue,
+	compactColorValue,
+	expandPalette,
+	compactPalette
 } from './type-converters'
 
 // Object operations
@@ -191,6 +215,56 @@ export {
 	clearStyleOverrides,
 	createStyleVariation
 } from './style-ops'
+
+// Palette operations
+export {
+	DEFAULT_PALETTE,
+	getPalette,
+	setPalette,
+	updatePaletteColorSlot,
+	updatePaletteGradientSlot,
+	updatePaletteName,
+	applyPreset,
+	resetPaletteToDefault,
+	isGradientSlot,
+	getPaletteSlotValue,
+	resolvePaletteRef,
+	resolveColorValue,
+	getResolvedColor,
+	getObjectsUsingPaletteSlot,
+	getPaletteUsageCounts,
+	createPaletteRef,
+	getPaletteSlotDisplayName,
+	getSlotDisplayName,
+	getColorSlotNames,
+	getGradientSlotNames,
+	getAllSlotNames,
+	COLOR_SLOT_NAMES,
+	GRADIENT_SLOT_NAMES,
+	ALL_SLOT_NAMES
+} from './palette-ops'
+
+// Palette presets
+export type { PalettePreset } from './palette-presets'
+export {
+	PALETTE_PRESETS,
+	getPresetById,
+	getPresetsByCategory,
+	getCategoryDisplayName,
+	PRESET_CATEGORIES
+} from './palette-presets'
+
+// Color utilities
+export {
+	hexToRgb,
+	rgbToHex,
+	applyTint,
+	applyTintToGradient,
+	applyOpacity,
+	interpolateColor,
+	isLightColor,
+	getContrastColor
+} from './color-utils'
 
 // Transform utilities
 export {

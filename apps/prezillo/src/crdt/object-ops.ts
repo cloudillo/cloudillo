@@ -19,7 +19,7 @@
  */
 
 import * as Y from 'yjs'
-import type { YPrezilloDocument, ChildRef, StoredObject } from './stored-types'
+import type { YPrezilloDocument, ChildRef, StoredObject, StoredPaletteRef } from './stored-types'
 import type { ObjectId, ContainerId, ViewId, RichTextId } from './ids'
 import { generateObjectId, generateRichTextId } from './ids'
 import type { PrezilloObject } from './runtime-types'
@@ -435,7 +435,7 @@ export function updateObjectTextStyle(
 		fw?: 'normal' | 'bold' | number | null // fontWeight
 		fi?: boolean | null // fontItalic
 		td?: 'u' | 's' | null // textDecoration: underline/strikethrough
-		fc?: string | null // fill color
+		fc?: string | StoredPaletteRef | null // fill color (hex or palette ref)
 		lh?: number | null // lineHeight
 		ls?: number | null // letterSpacing
 		lb?: string | null // listBullet

@@ -107,4 +107,64 @@ export {
 	calculateResizeBounds
 } from 'react-svg-canvas'
 
+// Gradient types
+export type {
+	GradientType,
+	GradientStop,
+	Gradient,
+	CompactGradient,
+	GradientPresetCategory,
+	GradientPreset
+} from './types/gradient'
+
+// Gradient utilities
+export {
+	DEFAULT_LINEAR_GRADIENT,
+	DEFAULT_RADIAL_GRADIENT,
+	expandGradient,
+	compactGradient,
+	gradientToCSS,
+	createLinearGradientDef,
+	createRadialGradientDef,
+	addStop,
+	removeStop,
+	updateStop,
+	sortStops,
+	interpolateColor,
+	getColorAtPosition,
+	reverseStops
+} from './utils/gradient'
+export type {
+	SVGGradientStop,
+	LinearGradientDef,
+	RadialGradientDef
+} from './utils/gradient'
+
+// Gradient presets
+export {
+	GRADIENT_PRESETS,
+	getPresetsByCategory,
+	getPresetById,
+	getCategories
+} from './presets/gradients'
+
+// GradientPicker components
+export {
+	GradientPicker,
+	GradientBar,
+	GradientPreview,
+	GradientPresetGrid,
+	AngleControl,
+	DEFAULT_ANGLE_PRESETS,
+	PositionControl
+} from './components/GradientPicker'
+export type {
+	GradientPickerProps,
+	GradientBarProps,
+	GradientPreviewProps,
+	GradientPresetGridProps,
+	AngleControlProps,
+	PositionControlProps
+} from './components/GradientPicker'
+
 // vim: ts=4

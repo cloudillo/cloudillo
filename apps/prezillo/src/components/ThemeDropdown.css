@@ -1,0 +1,45 @@
+/* ThemeDropdown - Toolbar dropdown for presentation theme settings */
+
+/* Wrapper for positioning */
+.c-theme-dropdown-wrapper {
+	position: relative;
+	display: inline-block;
+}
+
+/* Popover panel */
+.c-theme-dropdown-popover {
+	position: absolute;
+	top: 100%;
+	right: 0;
+	z-index: 1000;
+	width: 320px;
+	max-height: 80vh;
+	overflow-y: auto;
+	padding: var(--space-3);
+	margin-top: var(--space-1);
+	background: var(--col-surface);
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-lg);
+}
+
+.c-theme-dropdown-header {
+	margin-bottom: var(--space-3);
+	padding-bottom: var(--space-2);
+	border-bottom: 1px solid var(--col-outline);
+}
+
+.c-theme-dropdown-title {
+	display: block;
+	font-weight: 600;
+	font-size: var(--text-base);
+}
+
+.c-theme-dropdown-subtitle {
+	display: block;
+	font-size: var(--text-sm);
+	color: var(--col-text-secondary);
+	margin-top: var(--space-1);
+}
+
+/* vim: ts=4 */

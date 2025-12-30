@@ -50,6 +50,8 @@ export interface UsePrezilloDocumentResult {
 	// UI state
 	activeViewId: ViewId | null
 	setActiveViewId: (id: ViewId | null) => void
+	selectedViewId: ViewId | null // Currently selected view (for showing view properties)
+	selectView: (id: ViewId) => void // Select a view (also sets activeViewId, clears object selection)
 	selectedIds: Set<ObjectId>
 	setSelectedIds: React.Dispatch<React.SetStateAction<Set<ObjectId>>>
 	activeContainerId: ContainerId | null
@@ -110,6 +112,7 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 
 	// UI state
 	const [activeViewId, setActiveViewId] = React.useState<ViewId | null>(null)
+	const [selectedViewId, setSelectedViewId] = React.useState<ViewId | null>(null)
 	const [selectedIds, setSelectedIds] = React.useState<Set<ObjectId>>(new Set())
 	const [activeContainerId, setActiveContainerId] = React.useState<ContainerId | null>(null)
 
@@ -167,6 +170,7 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 
 	// Selection helpers
 	const selectObject = React.useCallback((id: ObjectId, addToSelection: boolean = false) => {
+		setSelectedViewId(null) // Clear view selection when selecting objects
 		setSelectedIds((prev) => {
 			if (addToSelection) {
 				const next = new Set(prev)
@@ -178,6 +182,7 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 	}, [])
 
 	const selectObjects = React.useCallback((ids: ObjectId[], addToSelection: boolean = false) => {
+		setSelectedViewId(null) // Clear view selection when selecting objects
 		setSelectedIds((prev) => {
 			if (addToSelection) {
 				const next = new Set(prev)
@@ -198,6 +203,13 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 
 	const clearSelection = React.useCallback(() => {
 		setSelectedIds(new Set())
+	}, [])
+
+	// Select a view (for showing view properties in sidebar)
+	const selectView = React.useCallback((viewId: ViewId) => {
+		setSelectedViewId(viewId)
+		setActiveViewId(viewId)
+		setSelectedIds(new Set()) // Clear object selection
 	}, [])
 
 	const isSelected = React.useCallback(
@@ -259,6 +271,8 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 		// UI state
 		activeViewId,
 		setActiveViewId,
+		selectedViewId,
+		selectView,
 		selectedIds,
 		setSelectedIds,
 		activeContainerId,

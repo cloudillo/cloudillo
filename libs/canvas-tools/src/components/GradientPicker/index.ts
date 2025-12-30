@@ -14,23 +14,22 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-/**
- * React hooks exports
- */
+export { GradientPicker } from './GradientPicker.js'
+export type { GradientPickerProps } from './GradientPicker.js'
 
-export { usePrezilloDocument } from './usePrezilloDocument'
-export type { UsePrezilloDocumentResult } from './usePrezilloDocument'
+export { GradientBar } from './GradientBar.js'
+export type { GradientBarProps } from './GradientBar.js'
 
-export { useViewObjects, useViewObjectIds } from './useViewObjects'
-export { useLayers, useLayerIds } from './useLayers'
-export { useViews, useView, useViewIds } from './useViews'
-export { useSnappingConfig, useGetParent, useSnapSettings } from './useSnappingConfig'
-export type { SnapSettings, UseSnapSettingsResult } from './useSnappingConfig'
+export { GradientPreview } from './GradientPreview.js'
+export type { GradientPreviewProps } from './GradientPreview.js'
 
-export { useImageHandler } from './useImageHandler'
-export type { UseImageHandlerOptions } from './useImageHandler'
+export { GradientPresetGrid } from './GradientPresetGrid.js'
+export type { GradientPresetGridProps } from './GradientPresetGrid.js'
 
-export { usePalette, usePaletteValue } from './usePalette'
-export type { UsePaletteReturn } from './usePalette'
+export { AngleControl, DEFAULT_ANGLE_PRESETS } from './AngleControl.js'
+export type { AngleControlProps } from './AngleControl.js'
+
+export { PositionControl } from './PositionControl.js'
+export type { PositionControlProps } from './PositionControl.js'
 
 // vim: ts=4

@@ -112,4 +112,9 @@
 	opacity: 1;
 }
 
+/* Transparent swatch - checkered pattern (industry standard) */
+.c-palette-swatch--transparent {
+	background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50% / 8px 8px;
+}
+
 /* vim: ts=4 */

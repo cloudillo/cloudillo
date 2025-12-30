@@ -49,6 +49,12 @@ export interface PaletteSwatchGridProps {
 	size?: 'sm' | 'md' | 'lg'
 	/** Show gradient swatches */
 	showGradients?: boolean
+	/** Show transparent/none option */
+	showTransparent?: boolean
+	/** Whether transparent is currently selected */
+	isTransparentSelected?: boolean
+	/** Called when transparent is clicked */
+	onTransparentSelect?: () => void
 	/** Class name for the container */
 	className?: string
 }
@@ -63,6 +69,9 @@ export function PaletteSwatchGrid({
 	showLabels = true,
 	size = 'md',
 	showGradients = false,
+	showTransparent = false,
+	isTransparentSelected = false,
+	onTransparentSelect,
 	className = ''
 }: PaletteSwatchGridProps) {
 	const colorSlots = getColorSlotNames()
@@ -149,10 +158,30 @@ export function PaletteSwatchGrid({
 		)
 	}
 
+	// Render transparent swatch
+	const renderTransparentSwatch = () => (
+		<button
+			type="button"
+			className={`c-palette-swatch c-palette-swatch--${size} c-palette-swatch--transparent${isTransparentSelected ? ' c-palette-swatch--selected' : ''}`}
+			onClick={onTransparentSelect}
+			title="Transparent"
+			aria-label="Transparent"
+			aria-pressed={isTransparentSelected}
+		>
+			{isTransparentSelected && (
+				<span className="c-palette-swatch-check" style={{ color: '#666' }}>
+					✓
+				</span>
+			)}
+			{showLabels && <span className="c-palette-swatch-label">Transparent</span>}
+		</button>
+	)
+
 	return (
 		<div className={`c-palette-swatch-grid ${className}`}>
-			{/* Main colors row: Background and Text */}
+			{/* Main colors row: Transparent (optional), Background and Text */}
 			<div className="c-palette-swatch-row c-palette-swatch-row--main">
+				{showTransparent && renderTransparentSwatch()}
 				{renderSwatch('background', colorSlots)}
 				{renderSwatch('text', colorSlots)}
 			</div>

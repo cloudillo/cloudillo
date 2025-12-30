@@ -143,4 +143,9 @@
 	border: 1px solid var(--col-container, white);
 }
 
+/* Transparent preview - checkered pattern */
+.c-palette-color-picker-preview--transparent {
+	background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50% / 8px 8px;
+}
+
 /* vim: ts=4 */

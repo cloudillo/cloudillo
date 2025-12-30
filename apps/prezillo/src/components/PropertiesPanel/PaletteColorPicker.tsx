@@ -48,6 +48,8 @@ export interface PaletteColorPickerProps {
 	palette: Palette
 	/** Show gradient options in palette */
 	showGradients?: boolean
+	/** Show transparent/none option */
+	showTransparent?: boolean
 	/** Show opacity slider */
 	showOpacity?: boolean
 	/** Current opacity (0-1) - only used if showOpacity is true */
@@ -72,31 +74,40 @@ export function PaletteColorPicker({
 	onDetach,
 	palette,
 	showGradients = false,
+	showTransparent = false,
 	showOpacity = false,
 	opacity = 1,
 	onOpacityChange,
 	disabled = false,
 	className = ''
 }: PaletteColorPickerProps) {
+	// Check if value is transparent/none
+	const isTransparent = value === 'none'
+
 	// Determine if current value is a palette reference
-	const isPaletteValue = value !== undefined && isPaletteRef(value)
+	const isPaletteValue = value !== undefined && !isTransparent && isPaletteRef(value)
 	const paletteRef = isPaletteValue ? expandPaletteRef(value as StoredPaletteRef) : null
 
 	// Get the currently selected palette slot (if using palette)
 	const selectedSlot = paletteRef?.slotId ?? null
 
-	// Get the resolved color for display
-	const resolvedColor = getResolvedColor(palette, value, '#cccccc')
+	// Get the resolved color for display (use transparent for 'none')
+	const resolvedColor = isTransparent
+		? 'transparent'
+		: getResolvedColor(palette, value, '#cccccc')
 
 	// Determine initial tab based on current value
-	const [activeTab, setActiveTab] = React.useState<TabType>(isPaletteValue ? 'theme' : 'custom')
+	// Transparent is selected from theme tab, so treat it as a theme value
+	const [activeTab, setActiveTab] = React.useState<TabType>(
+		isPaletteValue || isTransparent ? 'theme' : 'custom'
+	)
 
 	// Update tab when value type changes externally
 	React.useEffect(() => {
-		if (isPaletteValue && activeTab !== 'theme') {
+		if ((isPaletteValue || isTransparent) && activeTab !== 'theme') {
 			setActiveTab('theme')
 		}
-	}, [isPaletteValue, activeTab])
+	}, [isPaletteValue, isTransparent, activeTab])
 
 	// Handle palette slot selection
 	const handleSlotSelect = React.useCallback(
@@ -112,6 +123,11 @@ export function PaletteColorPicker({
 		},
 		[onChange, showGradients, opacity]
 	)
+
+	// Handle transparent selection
+	const handleTransparentSelect = React.useCallback(() => {
+		onChange('none')
+	}, [onChange])
 
 	// Handle custom color change
 	const handleCustomColorChange = React.useCallback(
@@ -185,6 +201,9 @@ export function PaletteColorPicker({
 							selectedSlot={selectedSlot}
 							onSelect={handleSlotSelect}
 							showGradients={showGradients}
+							showTransparent={showTransparent}
+							isTransparentSelected={isTransparent}
+							onTransparentSelect={handleTransparentSelect}
 							showLabels={true}
 							size="md"
 						/>
@@ -239,9 +258,15 @@ export function PaletteColorPicker({
 
 			{/* Color preview swatch */}
 			<div
-				className="c-palette-color-picker-preview"
-				style={{ backgroundColor: resolvedColor }}
-				title={isPaletteValue ? `Theme: ${selectedSlot}` : `Custom: ${resolvedColor}`}
+				className={`c-palette-color-picker-preview${isTransparent ? ' c-palette-color-picker-preview--transparent' : ''}`}
+				style={isTransparent ? undefined : { backgroundColor: resolvedColor }}
+				title={
+					isTransparent
+						? 'Transparent'
+						: isPaletteValue
+							? `Theme: ${selectedSlot}`
+							: `Custom: ${resolvedColor}`
+				}
 			>
 				{isPaletteValue && <span className="c-palette-color-picker-preview-badge">T</span>}
 			</div>

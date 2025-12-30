@@ -16,7 +16,7 @@
 
 import * as React from 'react'
 import * as Y from 'yjs'
-import { PropertySection, PropertyField, NumberInput, Toggle } from '@cloudillo/react'
+import { PropertySection, PropertyField, NumberInput } from '@cloudillo/react'
 
 import type { YPrezilloDocument, PrezilloObject, ObjectId } from '../../crdt'
 import {
@@ -53,7 +53,6 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 
 	// For text objects, use text fill; for others, use shape fill
 	const fillColor = isTextObject ? resolvedTextStyle?.fill : resolvedShapeStyle?.fill
-	const hasFill = !!(fillColor && fillColor !== 'none')
 	const hasStroke = !!(resolvedShapeStyle?.stroke && resolvedShapeStyle.stroke !== 'none')
 
 	// Get raw stroke value (may be palette ref or hex string)
@@ -82,24 +81,6 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 		[yDoc, doc, object.id, isTextObject]
 	)
 
-	const handleFillToggle = React.useCallback(
-		(checked: boolean) => {
-			if (isTextObject) {
-				// Text objects always have fill, use default text color
-				updateObjectTextStyle(yDoc, doc, object.id as ObjectId, {
-					fc: checked ? '#333333' : '#cccccc'
-				})
-			} else {
-				const style = object.style || {}
-				// When turning on, always use a default color (since resolvedShapeStyle.fill would be 'none')
-				updateObject(yDoc, doc, object.id as ObjectId, {
-					style: { ...style, fill: checked ? '#cccccc' : 'none' }
-				})
-			}
-		},
-		[yDoc, doc, object.id, object.style, isTextObject]
-	)
-
 	const handleStrokeColorChange = React.useCallback(
 		(value: ColorPickerValue) => {
 			// Update shape style stroke directly in stored format
@@ -126,69 +107,46 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 		[yDoc, doc, object.id, object.style]
 	)
 
-	const handleStrokeToggle = React.useCallback(
-		(checked: boolean) => {
-			const style = object.style || {}
-			// When turning on, always use a default color (since resolvedStyle.stroke would be 'none')
-			updateObject(yDoc, doc, object.id as ObjectId, {
-				style: { ...style, stroke: checked ? '#333333' : 'none' }
-			})
-		},
-		[yDoc, doc, object.id, object.style]
-	)
-
 	if (!resolvedShapeStyle && !resolvedTextStyle) return null
 
 	return (
 		<PropertySection title="Style" defaultExpanded>
 			{/* Fill (text color for text objects) */}
 			<PropertyField label={isTextObject ? 'Color' : 'Fill'} labelWidth={40}>
-				<div className="c-hbox g-1 items-center">
-					{!isTextObject && (
-						<Toggle
-							checked={hasFill}
-							onChange={(e) => handleFillToggle(e.target.checked)}
-						/>
-					)}
-					{(isTextObject || hasFill) && fillColor && (
-						<PaletteColorPicker
-							value={rawFillValue ?? fillColor}
-							onChange={handleFillColorChange}
-							palette={palette}
-							showGradients={!isTextObject}
-						/>
-					)}
-				</div>
+				<PaletteColorPicker
+					value={rawFillValue ?? fillColor ?? 'none'}
+					onChange={handleFillColorChange}
+					palette={palette}
+					showGradients={!isTextObject}
+					showTransparent={!isTextObject}
+				/>
 			</PropertyField>
 
 			{/* Stroke - only show for non-text objects */}
 			{!isTextObject && resolvedShapeStyle && (
-				<PropertyField label="Stroke" labelWidth={40}>
-					<div className="c-hbox g-1 items-center">
-						<Toggle
-							checked={hasStroke}
-							onChange={(e) => handleStrokeToggle(e.target.checked)}
+				<>
+					<PropertyField label="Stroke" labelWidth={40}>
+						<PaletteColorPicker
+							value={rawStrokeValue ?? resolvedShapeStyle.stroke ?? 'none'}
+							onChange={handleStrokeColorChange}
+							palette={palette}
+							showGradients={false}
+							showTransparent={true}
 						/>
-						{hasStroke && (
-							<>
-								<PaletteColorPicker
-									value={rawStrokeValue ?? resolvedShapeStyle.stroke}
-									onChange={handleStrokeColorChange}
-									palette={palette}
-									showGradients={false}
-								/>
-								<NumberInput
-									value={resolvedShapeStyle.strokeWidth}
-									onChange={handleStrokeWidthChange}
-									min={0}
-									max={50}
-									step={1}
-									className="c-stroke-width-input"
-								/>
-							</>
-						)}
-					</div>
-				</PropertyField>
+					</PropertyField>
+					{hasStroke && (
+						<PropertyField label="Width" labelWidth={40}>
+							<NumberInput
+								value={resolvedShapeStyle.strokeWidth}
+								onChange={handleStrokeWidthChange}
+								min={0}
+								max={50}
+								step={1}
+								className="c-stroke-width-input"
+							/>
+						</PropertyField>
+					)}
+				</>
 			)}
 		</PropertySection>
 	)

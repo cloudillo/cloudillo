@@ -468,6 +468,12 @@ export function FilesApp() {
 				if (!api || fileIds.length === 0) return
 				await Promise.all(fileIds.map((id) => api.files.setPinned(id, pinned)))
 				fileListData.refresh()
+			},
+
+			setVisibility: async function setVisibility(fileId: string, visibility) {
+				if (!api) return
+				await api.files.update(fileId, { visibility })
+				fileListData.refresh()
 			}
 		}),
 		[

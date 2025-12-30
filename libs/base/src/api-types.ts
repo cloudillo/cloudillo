@@ -370,6 +370,7 @@ export interface CreateFileRequest {
 export interface PatchFileRequest {
 	fileName?: string
 	parentId?: string | null // Move file to folder (null = root)
+	visibility?: 'D' | 'P' | 'V' | '2' | 'F' | 'C' | null // File visibility level
 }
 
 export interface GetFileVariantSelector {
@@ -428,7 +429,8 @@ export const tFileView = T.struct({
 			type: T.optional(T.string)
 		})
 	),
-	accessLevel: T.optional(T.literal('read', 'write', 'none'))
+	accessLevel: T.optional(T.literal('read', 'write', 'none')),
+	visibility: T.optional(T.union(T.literal('D', 'P', 'V', '2', 'F', 'C'), T.nullValue)) // null/D=Direct, P=Public, V=Verified, 2=2nd degree, F=Followers, C=Connected
 })
 export type FileView = T.TypeOf<typeof tFileView>
 

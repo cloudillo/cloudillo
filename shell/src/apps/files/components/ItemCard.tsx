@@ -33,7 +33,12 @@ import { useAuth, InlineEditForm, Tag, ProfilePicture, mergeClasses } from '@clo
 import { getFileIcon, IcUnknown } from '../icons.js'
 import type { File, FileOps, ViewMode } from '../types.js'
 import { TRASH_FOLDER_ID } from '../types.js'
-import { getSmartTimestamp, formatRelativeTime } from '../utils.js'
+import {
+	getSmartTimestamp,
+	formatRelativeTime,
+	getVisibilityIcon,
+	getVisibilityLabelKey
+} from '../utils.js'
 
 interface ItemCardProps {
 	className?: string
@@ -189,7 +194,7 @@ export const ItemCard = React.memo(function ItemCard({
 					{isFavorite && !isStarred && <IcStar className="c-file-card-favorite" />}
 				</div>
 
-				{/* Meta line: smart timestamp and owner */}
+				{/* Meta line: smart timestamp, visibility, and owner */}
 				<div className="c-file-card-meta">
 					<span className="c-file-card-meta-date">
 						{smartTimestamp.label && (
@@ -197,6 +202,18 @@ export const ItemCard = React.memo(function ItemCard({
 						)}
 						{smartTimestamp.time}
 					</span>
+					{/* Visibility badge */}
+					{(() => {
+						const VisibilityIcon = getVisibilityIcon(file.visibility ?? null)
+						return (
+							<span
+								className="c-file-card-visibility"
+								title={t(getVisibilityLabelKey(file.visibility ?? null))}
+							>
+								<VisibilityIcon />
+							</span>
+						)
+					})()}
 					{file.owner && (
 						<>
 							<ProfilePicture profile={file.owner} tiny />

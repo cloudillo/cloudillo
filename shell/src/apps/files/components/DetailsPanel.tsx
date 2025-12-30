@@ -25,7 +25,8 @@ import {
 	LuShare2 as IcShare,
 	LuTrash2 as IcTrash,
 	LuStar as IcStar,
-	LuPin as IcPin
+	LuPin as IcPin,
+	LuChevronDown as IcChevronDown
 } from 'react-icons/lu'
 
 import { ActionView, NewAction } from '@cloudillo/types'
@@ -44,8 +45,13 @@ import {
 
 import { getFileIcon, IcUnknown } from '../icons.js'
 import { TagsCell } from './TagsCell.js'
-import { formatRelativeTime } from '../utils.js'
-import type { File, FileOps } from '../types.js'
+import {
+	formatRelativeTime,
+	getVisibilityIcon,
+	getVisibilityLabelKey,
+	VISIBILITY_DROPDOWN_OPTIONS
+} from '../utils.js'
+import type { File, FileOps, FileVisibility } from '../types.js'
 
 interface DetailsPanelProps {
 	className?: string
@@ -212,6 +218,47 @@ export function DetailsPanel({
 				>
 					<IcPin /> {file.userData?.pinned ? t('Pinned') : t('Pin')}
 				</Button>
+			</div>
+
+			{/* Visibility section */}
+			<div className="c-panel mid">
+				<h4 className="c-panel-title">{t('Visibility')}</h4>
+				<div className="c-hbox g-2 align-items-center">
+					{(() => {
+						const VisibilityIcon = getVisibilityIcon(file.visibility ?? null)
+						return <VisibilityIcon className="text-secondary" />
+					})()}
+					{file.owner?.idTag === auth?.idTag && fileOps.setVisibility ? (
+						<Popper
+							menuClassName="c-button secondary c-hbox g-2 align-items-center"
+							icon={<span>{t(getVisibilityLabelKey(file.visibility ?? null))}</span>}
+							label={<IcChevronDown className="text-secondary" />}
+						>
+							<ul className="c-nav vertical">
+								{VISIBILITY_DROPDOWN_OPTIONS.map((opt) => {
+									const OptionIcon = opt.icon
+									const isCurrentVisibility =
+										(file.visibility ?? null) === opt.value
+									return (
+										<li key={opt.value ?? 'null'} className="c-nav-item">
+											<a
+												className={isCurrentVisibility ? 'active' : ''}
+												onClick={() =>
+													fileOps.setVisibility!(file.fileId, opt.value)
+												}
+											>
+												<OptionIcon className="me-2" />
+												{t(opt.labelKey)}
+											</a>
+										</li>
+									)
+								})}
+							</ul>
+						</Popper>
+					) : (
+						<span>{t(getVisibilityLabelKey(file.visibility ?? null))}</span>
+					)}
+				</div>
 			</div>
 
 			{/* Activity section */}

@@ -31,7 +31,7 @@ import { getFileUrl } from '@cloudillo/base'
 import { getFileIcon, IcUnknown } from '../icons.js'
 import type { File, FileOps, ViewMode } from '../types.js'
 import { TRASH_FOLDER_ID } from '../types.js'
-import { getSmartTimestamp } from '../utils.js'
+import { getSmartTimestamp, getVisibilityIcon, getVisibilityLabelKey } from '../utils.js'
 
 interface ItemGridProps {
 	className?: string
@@ -163,6 +163,19 @@ export const ItemGrid = React.memo(function ItemGrid({
 						{file.accessLevel === 'read' ? <IcView /> : <IcLock />}
 					</span>
 				)}
+
+				{/* Visibility badge - bottom left */}
+				{(() => {
+					const VisibilityIcon = getVisibilityIcon(file.visibility ?? null)
+					return (
+						<span
+							className="c-file-grid-visibility"
+							title={t(getVisibilityLabelKey(file.visibility ?? null))}
+						>
+							<VisibilityIcon />
+						</span>
+					)
+				})()}
 			</div>
 
 			{/* File name */}

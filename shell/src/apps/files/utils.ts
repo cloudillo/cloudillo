@@ -15,7 +15,16 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import dayjs from 'dayjs'
-import type { File } from './types.js'
+import type { IconType } from 'react-icons'
+import {
+	LuLock as IcDirect,
+	LuGlobe as IcPublic,
+	LuShieldCheck as IcVerified,
+	LuUsers as Ic2ndDegree,
+	LuUserPlus as IcFollowers,
+	LuUserCheck as IcConnected
+} from 'react-icons/lu'
+import type { File, FileVisibility } from './types.js'
 
 /**
  * Format a date/timestamp as a relative time string
@@ -95,5 +104,53 @@ export function getSmartTimestamp(file: File): SmartTimestamp {
 	// Otherwise show created date
 	return { label: '', time: formatRelativeTime(file.createdAt) }
 }
+
+/**
+ * Visibility options configuration
+ */
+export interface VisibilityOption {
+	value: FileVisibility
+	labelKey: string // Translation key
+	icon: IconType
+}
+
+export const VISIBILITY_OPTIONS: VisibilityOption[] = [
+	{ value: null, labelKey: 'Direct', icon: IcDirect },
+	{ value: 'D', labelKey: 'Direct', icon: IcDirect },
+	{ value: 'P', labelKey: 'Public', icon: IcPublic },
+	{ value: 'V', labelKey: 'Verified', icon: IcVerified },
+	{ value: '2', labelKey: '2nd Degree', icon: Ic2ndDegree },
+	{ value: 'F', labelKey: 'Followers', icon: IcFollowers },
+	{ value: 'C', labelKey: 'Connected', icon: IcConnected }
+]
+
+/**
+ * Get visibility option by value (normalized: null and 'D' both mean Direct)
+ */
+export function getVisibilityOption(visibility: FileVisibility): VisibilityOption {
+	const normalizedValue = visibility === 'D' ? null : visibility
+	return VISIBILITY_OPTIONS.find((opt) => opt.value === normalizedValue) || VISIBILITY_OPTIONS[0]
+}
+
+/**
+ * Get the label key for a visibility value (for translation)
+ */
+export function getVisibilityLabelKey(visibility: FileVisibility): string {
+	return getVisibilityOption(visibility).labelKey
+}
+
+/**
+ * Get the icon component for a visibility value
+ */
+export function getVisibilityIcon(visibility: FileVisibility): IconType {
+	return getVisibilityOption(visibility).icon
+}
+
+/**
+ * Visibility options for dropdown (excludes duplicate 'D' since null is the same)
+ */
+export const VISIBILITY_DROPDOWN_OPTIONS: VisibilityOption[] = VISIBILITY_OPTIONS.filter(
+	(opt) => opt.value !== 'D'
+)
 
 // vim: ts=4

@@ -21,6 +21,9 @@ export interface FileUserData {
 	starred?: boolean
 }
 
+// File visibility levels: D=Direct (owner only), P=Public, V=Verified, 2=2nd degree, F=Followers, C=Connected
+export type FileVisibility = 'D' | 'P' | 'V' | '2' | 'F' | 'C' | null
+
 export interface File {
 	fileId: string
 	fileName: string
@@ -40,6 +43,7 @@ export interface File {
 	variantId?: string
 	parentId?: string | null
 	accessLevel?: 'read' | 'write' | 'none'
+	visibility?: FileVisibility
 }
 
 export interface FileView extends File {
@@ -65,6 +69,7 @@ export interface FileOps {
 	toggleFavorites?: (fileIds: string[], add: boolean) => void
 	toggleStarredBatch?: (fileIds: string[], starred: boolean) => void
 	togglePinnedBatch?: (fileIds: string[], pinned: boolean) => void
+	setVisibility?: (fileId: string, visibility: FileVisibility) => void
 }
 
 export interface FileFiltState {

@@ -42,7 +42,8 @@ import {
 } from '@cloudillo/react'
 import { getFileUrl } from '@cloudillo/base'
 
-import type { File, FileOps, ViewMode } from '../types.js'
+import type { File, FileOps, ViewMode, FileVisibility } from '../types.js'
+import { VISIBILITY_DROPDOWN_OPTIONS, getVisibilityIcon } from '../utils.js'
 
 export interface ContextMenuPosition {
 	x: number
@@ -182,6 +183,28 @@ export function ContextMenu({
 					label={t('Share...')}
 					onClick={handleAction(() => onShare(file))}
 				/>
+			)}
+
+			{/* Visibility - only for single selection and owner */}
+			{isSingleSelect && file.owner?.idTag === auth?.idTag && fileOps.setVisibility && (
+				<>
+					<Divider />
+					{VISIBILITY_DROPDOWN_OPTIONS.map((opt) => {
+						const VisibilityIcon = getVisibilityIcon(opt.value)
+						const isCurrentVisibility = (file.visibility ?? null) === opt.value
+						return (
+							<Item
+								key={opt.value ?? 'null'}
+								icon={<VisibilityIcon />}
+								label={t(opt.labelKey)}
+								onClick={handleAction(() =>
+									fileOps.setVisibility!(file.fileId, opt.value)
+								)}
+								disabled={isCurrentVisibility}
+							/>
+						)
+					})}
+				</>
 			)}
 
 			{/* Star toggle - always available */}

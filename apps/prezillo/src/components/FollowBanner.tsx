@@ -39,30 +39,40 @@ export interface FollowBannerProps {
 	totalViews: number
 	onStopFollowing: () => void
 	onEnterFullscreen: () => void
+	/** Mobile mode - icon-only buttons, truncated text */
+	isMobile?: boolean
 }
 
 export function FollowBanner({
 	presenter,
 	totalViews,
 	onStopFollowing,
-	onEnterFullscreen
+	onEnterFullscreen,
+	isMobile = false
 }: FollowBannerProps) {
 	const { t } = useTranslation()
 	const slideNum = presenter.viewIndex + 1
 
+	// Truncate name on mobile (max 12 chars)
+	const displayName = isMobile
+		? presenter.user.name.slice(0, 12) + (presenter.user.name.length > 12 ? '…' : '')
+		: presenter.user.name
+
 	return (
 		<div
-			className="c-follow-banner"
+			className={`c-follow-banner${isMobile ? ' c-follow-banner--mobile' : ''}`}
 			style={{ '--presenter-color': presenter.user.color } as React.CSSProperties}
 		>
 			<div className="c-follow-banner__content">
 				<IcLink className="c-follow-banner__icon" />
 				<span className="c-follow-banner__text">
-					{t('prezillo.followingUser', { name: presenter.user.name })}
+					{isMobile ? displayName : t('prezillo.followingUser', { name: displayName })}
 				</span>
 				<span className="c-follow-banner__separator" />
 				<span className="c-follow-banner__slide">
-					{t('prezillo.slide')} {slideNum}/{totalViews}
+					{isMobile
+						? `${slideNum}/${totalViews}`
+						: `${t('prezillo.slide')} ${slideNum}/${totalViews}`}
 				</span>
 			</div>
 
@@ -73,7 +83,7 @@ export function FollowBanner({
 					title={t('prezillo.enterFullscreen')}
 				>
 					<IcFullscreen />
-					<span>{t('prezillo.fullscreen')}</span>
+					{!isMobile && <span>{t('prezillo.fullscreen')}</span>}
 				</button>
 				<button
 					className="c-follow-banner__btn c-follow-banner__btn--stop"
@@ -81,7 +91,7 @@ export function FollowBanner({
 					title={t('prezillo.stopFollowing')}
 				>
 					<IcClose />
-					<span>{t('prezillo.stopFollowing')}</span>
+					{!isMobile && <span>{t('prezillo.stopFollowing')}</span>}
 				</button>
 			</div>
 		</div>

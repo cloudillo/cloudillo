@@ -25,7 +25,11 @@
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { PiCaretDownBold as IcCaret, PiCrownBold as IcOwner } from 'react-icons/pi'
+import {
+	PiCaretDownBold as IcCaret,
+	PiCrownBold as IcOwner,
+	PiLinkBold as IcLink
+} from 'react-icons/pi'
 
 import type { PresenterInfo } from '../awareness'
 
@@ -35,6 +39,8 @@ export interface PresenterIndicatorProps {
 	totalViews: number
 	onFollow: (clientId: number) => void
 	onUnfollow: () => void
+	/** Mobile mode - shows compact pill instead of inline info */
+	isMobile?: boolean
 }
 
 export function PresenterIndicator({
@@ -42,7 +48,8 @@ export function PresenterIndicator({
 	followingClientId,
 	totalViews,
 	onFollow,
-	onUnfollow
+	onUnfollow,
+	isMobile = false
 }: PresenterIndicatorProps) {
 	const { t } = useTranslation()
 	const [isOpen, setIsOpen] = React.useState(false)
@@ -79,12 +86,74 @@ export function PresenterIndicator({
 		return null
 	}
 
-	// Single presenter - show inline without dropdown
+	// Single presenter
 	if (presenters.length === 1) {
 		const presenter = presenters[0]
 		const isFollowing = followingClientId === presenter.clientId
 		const slideNum = presenter.viewIndex + 1
 
+		// Mobile: compact pill with dropdown
+		if (isMobile) {
+			return (
+				<div ref={containerRef} className="c-presenter-indicator">
+					<button
+						className={`c-presenter-indicator__pill${isFollowing ? ' following' : ''}`}
+						style={{ borderColor: presenter.user.color }}
+						onClick={() => setIsOpen(!isOpen)}
+						title={presenter.user.name}
+					>
+						<span
+							className="c-presenter-indicator__pill-avatar"
+							style={{ backgroundColor: presenter.user.color }}
+						>
+							{presenter.user.name.charAt(0).toUpperCase()}
+						</span>
+						{isFollowing && (
+							<span className="c-presenter-indicator__pill-following">
+								<IcLink size={12} />
+							</span>
+						)}
+					</button>
+
+					{isOpen && (
+						<div className="c-presenter-indicator__dropdown">
+							<div
+								className={`c-presenter-indicator__item${presenter.isOwner ? ' owner' : ''}`}
+							>
+								<div
+									className="c-presenter-indicator__avatar"
+									style={{ backgroundColor: presenter.user.color }}
+								>
+									{presenter.user.name.charAt(0).toUpperCase()}
+								</div>
+								<div className="c-presenter-indicator__info">
+									<div className="c-presenter-indicator__name">
+										{presenter.user.name}
+										{presenter.isOwner && (
+											<IcOwner
+												className="c-presenter-indicator__owner-badge"
+												title={t('prezillo.owner')}
+											/>
+										)}
+									</div>
+									<div className="c-presenter-indicator__slide">
+										{t('prezillo.slide')} {slideNum}/{totalViews}
+									</div>
+								</div>
+								<button
+									className={`c-button compact${isFollowing ? ' accent' : ' primary'}`}
+									onClick={() => handleFollowClick(presenter.clientId)}
+								>
+									{isFollowing ? t('prezillo.following') : t('prezillo.follow')}
+								</button>
+							</div>
+						</div>
+					)}
+				</div>
+			)
+		}
+
+		// Desktop: inline display without dropdown
 		return (
 			<div className="c-presenter-indicator c-presenter-indicator--single">
 				<div

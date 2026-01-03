@@ -157,7 +157,6 @@ import { ViewFrame } from './components/ViewFrame'
 import { TextEditOverlay } from './components/TextEditOverlay'
 import { ObjectShape } from './components/ObjectShape'
 import { PresentationMode } from './components/PresentationMode'
-import { PresenterIndicator } from './components/PresenterIndicator'
 import {
 	PrezilloPropertiesPanel,
 	MobilePropertyPanel,
@@ -1768,13 +1767,8 @@ export function PrezilloApp() {
 					isPresenting={prezillo.isPresenting}
 					onStopPresenting={handleStopPresenting}
 					activePresenters={prezillo.activePresenters}
-				/>
-
-				{/* Presenter indicator - shown when presenters exist */}
-				<PresenterIndicator
-					presenters={prezillo.activePresenters}
+					isMobile={isMobile}
 					followingClientId={prezillo.followingClientId}
-					totalViews={views.length}
 					onFollow={prezillo.followPresenter}
 					onUnfollow={prezillo.unfollowPresenter}
 				/>

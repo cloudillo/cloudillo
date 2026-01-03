@@ -326,6 +326,19 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 		updatePresentingView(awareness, activeViewId, viewIndex)
 	}, [awareness, isPresenting, activeViewId, viewOrder])
 
+	// Periodic awareness broadcast while presenting (every 2 seconds)
+	// This ensures followers stay synchronized even without navigation events
+	React.useEffect(() => {
+		if (!awareness || !isPresenting || !activeViewId || !viewOrder) return
+
+		const intervalId = setInterval(() => {
+			const viewIndex = viewOrder.indexOf(activeViewId)
+			updatePresentingView(awareness, activeViewId, viewIndex)
+		}, 2000)
+
+		return () => clearInterval(intervalId)
+	}, [awareness, isPresenting, activeViewId, viewOrder])
+
 	// Follow a presenter - sync view with their current slide
 	const followPresenter = React.useCallback(
 		(clientId: number) => {

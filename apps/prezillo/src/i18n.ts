@@ -22,6 +22,7 @@ const resources = {
 		translation: {
 			'prezillo.presenting': 'presenting',
 			'prezillo.presentersActive': '{{count}} presenting',
+			'prezillo.live': 'Live',
 			'prezillo.slide': 'Slide',
 			'prezillo.follow': 'Follow',
 			'prezillo.following': 'Following',

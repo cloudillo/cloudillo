@@ -21,11 +21,19 @@
 import * as React from 'react'
 import { PiXBold as IcClose } from 'react-icons/pi'
 
-import type { ViewId, ViewNode, PrezilloObject, YPrezilloDocument, ImageObject } from '../crdt'
+import type {
+	ViewId,
+	ViewNode,
+	PrezilloObject,
+	YPrezilloDocument,
+	ImageObject,
+	QrCodeObject
+} from '../crdt'
 import { resolveShapeStyle, resolveTextStyle } from '../crdt'
 import { useViewObjects } from '../hooks/useViewObjects'
 import { WrappedText } from './WrappedText'
 import { ImageRenderer } from './ImageRenderer'
+import { QRCodeRenderer } from './QRCodeRenderer'
 import { DEFAULT_SHAPE_STYLE, DEFAULT_TEXT_STYLE } from '../utils/constants'
 
 export interface PresentationModeProps {
@@ -142,6 +150,19 @@ function PresentationObjectShape({
 			break
 		case 'image':
 			content = <ImageRenderer object={object as ImageObject} ownerTag={ownerTag} scale={1} />
+			break
+		case 'qrcode':
+			content = (
+				<QRCodeRenderer
+					object={object as QrCodeObject}
+					bounds={{
+						x: object.x,
+						y: object.y,
+						width: object.width,
+						height: object.height
+					}}
+				/>
+			)
 			break
 		default:
 			content = (

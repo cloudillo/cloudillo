@@ -35,10 +35,8 @@ import { colorToCss } from '../utils/palette.js'
 // Border width for the drag zone around the textarea
 const BORDER_WIDTH = 8
 
-// Sticky note text color - use a fixed dark color for reliability
-const STICKY_TEXT_COLOR = '#1e1e1e'
-// Caret color should be highly visible
-const CARET_COLOR = '#000000'
+// Sticky note text uses theme variable for proper theming support (same as StickyNote)
+const STICKY_TEXT_COLOR = 'var(--palette-n0, #1e1e1e)'
 
 export interface StickyEditOverlayProps {
 	object: StickyObject
@@ -156,18 +154,7 @@ export function StickyEditOverlay({
 				onPointerDown={handleBorderPointerDown}
 			/>
 
-			{/* Main background */}
-			<rect
-				x={x}
-				y={y}
-				width={width}
-				height={height}
-				fill={bgColor}
-				rx={2}
-				opacity={style.opacity}
-			/>
-
-			{/* Textarea for editing */}
+			{/* Textarea for editing - background color is set on textarea itself */}
 			<foreignObject x={x} y={y} width={width} height={height}>
 				<textarea
 					ref={inputRef}
@@ -190,9 +177,10 @@ export function StickyEditOverlay({
 						lineHeight: DEFAULT_LINE_HEIGHT,
 						fontFamily: 'system-ui, -apple-system, sans-serif',
 						color: STICKY_TEXT_COLOR,
-						caretColor: CARET_COLOR,
-						background: 'transparent',
+						caretColor: STICKY_TEXT_COLOR,
+						background: bgColor,
 						border: 'none',
+						borderRadius: '2px', // Match sticky note corners
 						outline: 'none',
 						resize: 'none',
 						overflow: 'hidden',

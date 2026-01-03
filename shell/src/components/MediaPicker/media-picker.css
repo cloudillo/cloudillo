@@ -121,7 +121,9 @@
 	backdrop-filter: blur(var(--blur-radius));
 	color: var(--col-on);
 	border-radius: var(--border-radius-lg);
-	box-shadow: var(--shadow-lg), inset 0px 0px 1rem var(--col-shadow);
+	box-shadow:
+		var(--shadow-lg),
+		inset 0px 0px 1rem var(--col-shadow);
 	/* Entrance animation */
 	animation: fade-slide-down var(--duration-fast) var(--ease-out) both;
 	transform-origin: top center;

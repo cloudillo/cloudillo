@@ -176,11 +176,7 @@ export function ImageUpload({
 				aspect={aspect ? aspectMap[aspect] / 36 : undefined}
 				circularCrop={aspect == 'circle'}
 			>
-				<img
-					ref={imgRef}
-					src={src}
-					onLoad={handleImageLoaded}
-				/>
+				<img ref={imgRef} src={src} onLoad={handleImageLoaded} />
 			</ReactCrop>
 		</div>
 	) : (

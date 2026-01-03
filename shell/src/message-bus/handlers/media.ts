@@ -28,6 +28,7 @@
 
 import type { ShellMessageBus } from '../shell-bus.js'
 import type { MediaPickReq } from '@cloudillo/base'
+import { registerPendingTempId } from '../../services/file-id-resolver.js'
 
 /**
  * Media picker options passed to the component
@@ -39,6 +40,7 @@ export interface MediaPickerOpenOptions {
 	enableCrop?: boolean
 	cropAspects?: Array<'16:9' | '4:3' | '3:2' | '1:1' | 'circle' | 'free'>
 	title?: string
+	isExternalContext?: boolean // True when opened from external app via bus
 }
 
 /**
@@ -48,6 +50,7 @@ export interface MediaPickerResultData {
 	fileId: string
 	fileName: string
 	contentType: string
+	dim?: [number, number]
 	visibility?: 'P' | 'C' | 'F'
 	visibilityAcknowledged?: boolean
 	croppedVariantId?: string
@@ -143,11 +146,19 @@ export function initMediaHandlers(bus: ShellMessageBus): void {
 				documentFileId: msg.payload.documentFileId,
 				enableCrop: msg.payload.enableCrop,
 				cropAspects: msg.payload.cropAspects,
-				title: msg.payload.title
+				title: msg.payload.title,
+				isExternalContext: true // Always true when opened via bus protocol
 			},
 			(result) => {
 				if (result) {
 					console.log('[Media] Media picker result:', result)
+
+					// Register pending temp ID if it's a temporary ID (starts with @)
+					// This enables resolution when FILE_ID_GENERATED event arrives
+					if (result.fileId.startsWith('@')) {
+						registerPendingTempId(result.fileId, appWindow)
+					}
+
 					// Send result as push notification (not response)
 					bus.sendNotify(appWindow, 'media:pick.result', {
 						sessionId,
@@ -155,6 +166,7 @@ export function initMediaHandlers(bus: ShellMessageBus): void {
 						fileId: result.fileId,
 						fileName: result.fileName,
 						contentType: result.contentType,
+						dim: result.dim,
 						visibility: result.visibility,
 						visibilityAcknowledged: result.visibilityAcknowledged,
 						croppedVariantId: result.croppedVariantId

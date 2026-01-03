@@ -20,6 +20,7 @@ import { atom, useAtom } from 'jotai'
 import { useAuth } from '@cloudillo/react'
 
 import { delay } from './utils.js'
+import { handleFileIdGenerated } from './services/file-id-resolver.js'
 
 let ws: WebSocket | undefined
 const connSendBuf: string[] = []
@@ -132,6 +133,12 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 				switch (j.cmd) {
 					case 'debug':
 						console.log('WS DEBUG', j)
+						break
+					case 'FILE_ID_GENERATED':
+						// Handle file ID resolution
+						if (j.data?.tempId && j.data?.fileId) {
+							handleFileIdGenerated(j.data.tempId, j.data.fileId)
+						}
 						break
 				}
 				setWsBus((prev) => ({ ...prev, lastMsg: j }))

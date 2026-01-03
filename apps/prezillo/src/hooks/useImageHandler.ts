@@ -27,10 +27,10 @@
 
 import * as React from 'react'
 import * as Y from 'yjs'
-import { getAppBus } from '@cloudillo/base'
+import { getAppBus, type MediaFileResolvedPush } from '@cloudillo/base'
 
 import type { YPrezilloDocument, ObjectId, ImageObject } from '../crdt/index.js'
-import { addObject } from '../crdt/index.js'
+import { addObject, updateObject } from '../crdt/index.js'
 
 export interface UseImageHandlerOptions {
 	yDoc: Y.Doc
@@ -44,11 +44,41 @@ export interface UseImageHandlerOptions {
 // Default image size (will be square, aspect ratio determined by actual image)
 const DEFAULT_IMAGE_SIZE = 300
 
+// Track temp file ID -> object ID mapping for resolution
+// This is module-level since it needs to persist across re-renders
+const pendingTempIds = new Map<
+	string,
+	{ yDoc: Y.Doc; doc: YPrezilloDocument; objectId: ObjectId }
+>()
+
 export function useImageHandler(options: UseImageHandlerOptions) {
 	const { yDoc, doc, enabled, documentFileId, onObjectCreated, onInsertComplete } = options
 
 	// Track if we're currently inserting (to prevent double-opens)
 	const [isInserting, setIsInserting] = React.useState(false)
+
+	// Set up listener for file ID resolution messages
+	React.useEffect(() => {
+		const bus = getAppBus()
+
+		const handleFileResolved = (msg: MediaFileResolvedPush) => {
+			const { tempId, finalId } = msg.payload
+			const pending = pendingTempIds.get(tempId)
+
+			if (pending) {
+				console.log('[ImageHandler] Resolving temp ID:', tempId, '->', finalId)
+				// Update the object's fileId in the CRDT
+				updateObject(pending.yDoc, pending.doc, pending.objectId, { fileId: finalId })
+				pendingTempIds.delete(tempId)
+			}
+		}
+
+		bus.on('media:file.resolved', handleFileResolved)
+
+		return () => {
+			bus.off('media:file.resolved')
+		}
+	}, [])
 
 	/**
 	 * Open MediaPicker and insert image at given canvas coordinates
@@ -75,13 +105,16 @@ export function useImageHandler(options: UseImageHandlerOptions) {
 					return
 				}
 
+				// Use dimensions from MediaPicker result, fallback to default
+				const [width, height] = result.dim || [DEFAULT_IMAGE_SIZE, DEFAULT_IMAGE_SIZE]
+
 				// Create image object at specified center
 				const obj: Omit<ImageObject, 'id'> = {
 					type: 'image',
-					x: centerX - DEFAULT_IMAGE_SIZE / 2,
-					y: centerY - DEFAULT_IMAGE_SIZE / 2,
-					width: DEFAULT_IMAGE_SIZE,
-					height: DEFAULT_IMAGE_SIZE,
+					x: centerX - width / 2,
+					y: centerY - height / 2,
+					width,
+					height,
 					fileId: result.fileId,
 					rotation: 0,
 					pivotX: 0.5,
@@ -92,6 +125,12 @@ export function useImageHandler(options: UseImageHandlerOptions) {
 				}
 
 				const objectId = addObject(yDoc, doc, obj as ImageObject)
+
+				// Register for file ID resolution if this is a temp ID
+				if (result.fileId.startsWith('@')) {
+					pendingTempIds.set(result.fileId, { yDoc, doc, objectId })
+				}
+
 				onObjectCreated?.(objectId)
 				onInsertComplete?.()
 			} catch (error) {

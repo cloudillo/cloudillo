@@ -22,6 +22,8 @@ export interface MediaPickerOptions {
 	cropAspects?: Array<'16:9' | '4:3' | '3:2' | '1:1' | 'circle' | 'free'>
 	/** Custom dialog title */
 	title?: string
+	/** True when opened from external app via bus protocol */
+	isExternalContext?: boolean
 }
 
 /**
@@ -34,6 +36,8 @@ export interface MediaPickerResult {
 	fileName: string
 	/** MIME content type */
 	contentType: string
+	/** Image dimensions [width, height] (for images only) */
+	dim?: [number, number]
 	/** Visibility of the selected media */
 	visibility?: 'P' | 'C' | 'F'
 	/** Whether user acknowledged visibility warning */

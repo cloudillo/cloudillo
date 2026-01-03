@@ -118,9 +118,8 @@ export function MediaPickerUploadTab({
 
 	// Convert CropAspect to Aspect - provide defaults if none specified
 	const getAspects = useCallback((): Aspect[] => {
-		const aspects = cropAspects && cropAspects.length > 0
-			? cropAspects
-			: ['free', '16:9', '4:3', '1:1'] // Default aspects, free first
+		const aspects =
+			cropAspects && cropAspects.length > 0 ? cropAspects : ['free', '16:9', '4:3', '1:1'] // Default aspects, free first
 		return aspects.map((a) => {
 			if (a === 'free') return ''
 			return a as Aspect
@@ -318,7 +317,9 @@ export function MediaPickerUploadTab({
 				<div className="media-picker-upload-warning">
 					<IcWarning />
 					<span>
-						{t('Only public files can be embedded. Some viewers may not see this file.')}
+						{t(
+							'Only public files can be embedded. Some viewers may not see this file.'
+						)}
 					</span>
 				</div>
 			)}

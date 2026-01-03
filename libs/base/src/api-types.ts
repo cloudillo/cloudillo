@@ -420,7 +420,11 @@ export const tFileView = T.struct({
 	modifiedAt: T.optional(T.union(T.string, T.date)), // Global modification timestamp
 	userData: T.optional(tFileUserData), // User-specific data (pinned, starred, etc.)
 	tags: T.optional(T.array(T.string)),
-	x: T.optional(T.unknown),
+	x: T.optional(
+		T.struct({
+			dim: T.optional(T.tuple(T.number, T.number)) // Image dimensions [width, height]
+		})
+	),
 	owner: T.optional(
 		T.struct({
 			idTag: T.string,
@@ -449,7 +453,8 @@ export type CreateFileResult = T.TypeOf<typeof tCreateFileResult>
 
 export const tUploadFileResult = T.struct({
 	fileId: T.string,
-	thumbnailVariantId: T.optional(T.string)
+	thumbnailVariantId: T.optional(T.string),
+	dim: T.optional(T.tuple(T.number, T.number))
 })
 export type UploadFileResult = T.TypeOf<typeof tUploadFileResult>
 

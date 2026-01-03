@@ -42,7 +42,8 @@ import {
 	tSwApiKeySet,
 	tSwApiKeyGetReq,
 	tSwApiKeyGetRes,
-	tSwApiKeyDel
+	tSwApiKeyDel,
+	tMediaFileResolvedPush
 } from './types.js'
 
 // ============================================
@@ -121,6 +122,11 @@ export const MESSAGE_REGISTRY: Record<MessageType, MessageAccessRule> = {
 		directions: ['shell>app'],
 		requiresAuth: false,
 		validator: tMediaPickRes
+	},
+	'media:file.resolved': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tMediaFileResolvedPush
 	},
 	'sw:token.set': {
 		directions: ['shell>sw'],

@@ -138,9 +138,12 @@ export function MediaPicker() {
 	}, [])
 
 	// Handle upload completion - close dialog and return result
-	const handleUploadComplete = useCallback((file: MediaPickerResult) => {
-		closeMediaPicker(file)
-	}, [closeMediaPicker])
+	const handleUploadComplete = useCallback(
+		(file: MediaPickerResult) => {
+			closeMediaPicker(file)
+		},
+		[closeMediaPicker]
+	)
 
 	const handleDoubleClick = useCallback(
 		(file: MediaPickerResult) => {

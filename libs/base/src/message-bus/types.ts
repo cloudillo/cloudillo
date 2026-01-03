@@ -397,6 +397,8 @@ export const tMediaPickResultPush = T.struct({
 		fileId: T.optional(T.string),
 		fileName: T.optional(T.string),
 		contentType: T.optional(T.string),
+		// Image dimensions [width, height] (for images only)
+		dim: T.optional(T.tuple(T.number, T.number)),
 		// Visibility of selected media
 		visibility: T.optional(tVisibility),
 		// Whether user acknowledged visibility warning
@@ -406,6 +408,26 @@ export const tMediaPickResultPush = T.struct({
 	})
 })
 export type MediaPickResultPush = T.TypeOf<typeof tMediaPickResultPush>
+
+/**
+ * Shell pushes file ID resolution to app
+ * Direction: shell -> app (notification, no response expected)
+ *
+ * Sent when a temp file ID (e.g., @123) is resolved to its final
+ * content-addressed ID (e.g., f1~abc123...) after variant processing.
+ */
+export const tMediaFileResolvedPush = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('media:file.resolved'),
+	payload: T.struct({
+		// The temporary file ID (e.g., @123)
+		tempId: T.string,
+		// The final content-addressed file ID (e.g., f1~abc123...)
+		finalId: T.string
+	})
+})
+export type MediaFileResolvedPush = T.TypeOf<typeof tMediaFileResolvedPush>
 
 /**
  * Shell responds with selected media (DEPRECATED - kept for backwards compatibility)
@@ -464,6 +486,7 @@ export const tCloudilloMessage = T.taggedUnion('type')({
 	'media:pick.ack': tMediaPickAck,
 	'media:pick.result': tMediaPickResultPush,
 	'media:pick.res': tMediaPickRes, // Deprecated
+	'media:file.resolved': tMediaFileResolvedPush,
 
 	// Service worker messages
 	'sw:token.set': tSwTokenSet,

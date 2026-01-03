@@ -138,7 +138,9 @@ const VISIBILITY_FILTER_OPTIONS: Array<{
  * Get visibility filter option by value
  */
 function getVisibilityFilterOption(value: VisibilityFilter) {
-	return VISIBILITY_FILTER_OPTIONS.find((opt) => opt.value === value) || VISIBILITY_FILTER_OPTIONS[0]
+	return (
+		VISIBILITY_FILTER_OPTIONS.find((opt) => opt.value === value) || VISIBILITY_FILTER_OPTIONS[0]
+	)
 }
 
 /**
@@ -315,7 +317,6 @@ export function MediaPickerBrowseTab({
 		},
 		[breadcrumbs]
 	)
-
 
 	// Handle file selection
 	const handleFileClick = useCallback(
@@ -536,9 +537,16 @@ export function MediaPickerBrowseTab({
 					<div className="media-picker-visibility-warning-content">
 						<strong>{t('Visibility mismatch')}</strong>
 						<p>
-							{t('This file is {{visibility}}. Some viewers may not be able to see this media.', {
-								visibility: t(getVisibilityLabel(selectedFile.visibility as FileVisibility))
-							})}
+							{t(
+								'This file is {{visibility}}. Some viewers may not be able to see this media.',
+								{
+									visibility: t(
+										getVisibilityLabel(
+											selectedFile.visibility as FileVisibility
+										)
+									)
+								}
+							)}
 						</p>
 						<div className="media-picker-visibility-warning-actions">
 							<button
@@ -560,7 +568,9 @@ export function MediaPickerBrowseTab({
 								}
 								disabled={updatingFileId === selectedFile.fileId}
 							>
-								{updatingFileId === selectedFile.fileId ? t('Updating...') : t('Make Public')}
+								{updatingFileId === selectedFile.fileId
+									? t('Updating...')
+									: t('Make Public')}
 							</button>
 							<button
 								type="button"
@@ -623,7 +633,8 @@ export function MediaPickerBrowseTab({
 													if (isUpdating || isConfirming) return
 
 													// Determine which half was clicked (vertical split)
-													const rect = e.currentTarget.getBoundingClientRect()
+													const rect =
+														e.currentTarget.getBoundingClientRect()
 													const clickY = e.clientY - rect.top
 													const isTopClick = clickY < rect.height / 2
 
@@ -645,13 +656,25 @@ export function MediaPickerBrowseTab({
 															onClick={(e) => {
 																e.stopPropagation()
 																if (confirmSide === 'top') {
-																	handleMakePublic(file.fileId, file.fileName, file.contentType)
+																	handleMakePublic(
+																		file.fileId,
+																		file.fileName,
+																		file.contentType
+																	)
 																}
 																setConfirmingFile(null)
 															}}
 														>
-															{confirmSide === 'top' ? <IcCheck /> : <IcX />}
-															<span>{confirmSide === 'top' ? t('Confirm') : t('Cancel')}</span>
+															{confirmSide === 'top' ? (
+																<IcCheck />
+															) : (
+																<IcX />
+															)}
+															<span>
+																{confirmSide === 'top'
+																	? t('Confirm')
+																	: t('Cancel')}
+															</span>
 														</div>
 														{/* Bottom half */}
 														<div
@@ -659,13 +682,25 @@ export function MediaPickerBrowseTab({
 															onClick={(e) => {
 																e.stopPropagation()
 																if (confirmSide === 'bottom') {
-																	handleMakePublic(file.fileId, file.fileName, file.contentType)
+																	handleMakePublic(
+																		file.fileId,
+																		file.fileName,
+																		file.contentType
+																	)
 																}
 																setConfirmingFile(null)
 															}}
 														>
-															{confirmSide === 'bottom' ? <IcCheck /> : <IcX />}
-															<span>{confirmSide === 'bottom' ? t('Confirm') : t('Cancel')}</span>
+															{confirmSide === 'bottom' ? (
+																<IcCheck />
+															) : (
+																<IcX />
+															)}
+															<span>
+																{confirmSide === 'bottom'
+																	? t('Confirm')
+																	: t('Cancel')}
+															</span>
 														</div>
 													</div>
 												) : (
@@ -679,14 +714,18 @@ export function MediaPickerBrowseTab({
 											</div>
 										)}
 										{/* Visibility badge for non-public files */}
-										{!isFileDisabled && visibilityIcon && file.fileTp !== 'FLDR' && (
-											<div
-												className="media-picker-item-visibility"
-												title={t(getVisibilityLabel(file.visibility ?? null))}
-											>
-												{visibilityIcon}
-											</div>
-										)}
+										{!isFileDisabled &&
+											visibilityIcon &&
+											file.fileTp !== 'FLDR' && (
+												<div
+													className="media-picker-item-visibility"
+													title={t(
+														getVisibilityLabel(file.visibility ?? null)
+													)}
+												>
+													{visibilityIcon}
+												</div>
+											)}
 									</div>
 									<span className="media-picker-item-name">{file.fileName}</span>
 								</div>

@@ -120,6 +120,8 @@ export interface MediaPickResult {
 	fileName: string
 	/** MIME content type */
 	contentType: string
+	/** Image dimensions [width, height] (for images only) */
+	dim?: [number, number]
 	/** Visibility of the selected media */
 	visibility?: Visibility
 	/** Whether user acknowledged visibility warning */
@@ -565,6 +567,7 @@ export class AppMessageBus extends MessageBusBase {
 				fileId: msg.payload.fileId,
 				fileName: msg.payload.fileName || '',
 				contentType: msg.payload.contentType || '',
+				dim: msg.payload.dim,
 				visibility: msg.payload.visibility,
 				visibilityAcknowledged: msg.payload.visibilityAcknowledged,
 				croppedVariantId: msg.payload.croppedVariantId

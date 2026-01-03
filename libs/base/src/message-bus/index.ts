@@ -68,6 +68,7 @@ export {
 	type MediaPickAck,
 	type MediaPickResultPush,
 	type MediaPickRes,
+	type MediaFileResolvedPush,
 	VISIBILITY_ORDER,
 	// Service worker messages
 	type SwTokenSet,

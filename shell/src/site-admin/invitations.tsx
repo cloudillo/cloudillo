@@ -16,9 +16,8 @@
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import QRCode from 'react-qr-code'
 
-import { useApi, useAuth, useDialog, Button, Dialog } from '@cloudillo/react'
+import { useApi, useAuth, useDialog, Button, QRCodeDialog } from '@cloudillo/react'
 
 import {
 	LuCheck as IcAvailable,
@@ -80,15 +79,7 @@ function Invitation({ ref, deleteRef }: { ref: Ref; deleteRef: () => void }) {
 				</div>
 			</div>
 
-			{qrCode && (
-				<Dialog open onClose={() => setQrCode(undefined)}>
-					<QRCode
-						value={qrCode}
-						className="p-4 h-auto mx-auto"
-						style={{ background: '#fff', width: '100%', maxWidth: 'min(100%,50vh)' }}
-					/>
-				</Dialog>
-			)}
+			<QRCodeDialog value={qrCode} onClose={() => setQrCode(undefined)} />
 		</div>
 	)
 }

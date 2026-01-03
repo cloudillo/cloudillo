@@ -22,6 +22,7 @@ import { FiEdit2 as IcEdit, FiMoreVertical as IcMore } from 'react-icons/fi'
 import {
 	LuLink as IcLink,
 	LuCopy as IcCopy,
+	LuQrCode as IcQrCode,
 	LuShare2 as IcShare,
 	LuTrash2 as IcTrash,
 	LuStar as IcStar,
@@ -40,7 +41,8 @@ import {
 	Button,
 	Popper,
 	ProfileCard,
-	InlineEditForm
+	InlineEditForm,
+	QRCodeDialog
 } from '@cloudillo/react'
 
 import { getFileIcon, IcUnknown } from '../icons.js'
@@ -78,6 +80,7 @@ export function DetailsPanel({
 	const [fileActions, setFileActions] = React.useState<ActionView[] | undefined>()
 	const [shareRefs, setShareRefs] = React.useState<Types.Ref[] | undefined>()
 	const [debouncedFileId, setDebouncedFileId] = React.useState(file.fileId)
+	const [qrCodeUrl, setQrCodeUrl] = React.useState<string | undefined>()
 
 	const Icon = getFileIcon(file.contentType, file.fileTp)
 	const isImage = file.contentType?.startsWith('image/')
@@ -435,6 +438,18 @@ export function DetailsPanel({
 											<button
 												type="button"
 												className="c-link p-1"
+												title={t('Show QR code')}
+												onClick={() =>
+													setQrCodeUrl(
+														`${window.location.origin}/s/${ref.refId}`
+													)
+												}
+											>
+												<IcQrCode />
+											</button>
+											<button
+												type="button"
+												className="c-link p-1"
 												title={t('Delete link')}
 												onClick={() => deleteShareLink(ref.refId)}
 											>
@@ -469,6 +484,7 @@ export function DetailsPanel({
 					</div>
 				</div>
 			)}
+			<QRCodeDialog value={qrCodeUrl} onClose={() => setQrCodeUrl(undefined)} />
 		</div>
 	)
 }

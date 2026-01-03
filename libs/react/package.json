@@ -25,6 +25,7 @@
 	"devDependencies": {
 		"@cloudillo/base": "workspace:^",
 		"@cloudillo/types": "workspace:^",
+		"react-qr-code": "^2.0.18",
 		"@symbion/runtype": "^1.2.1",
 		"@types/react": "^19.2.7",
 		"@types/react-dom": "^19.2.3",

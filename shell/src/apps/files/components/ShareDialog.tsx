@@ -22,6 +22,7 @@ import {
 	LuUsers as IcUsers,
 	LuLink as IcLink,
 	LuCopy as IcCopy,
+	LuQrCode as IcQrCode,
 	LuTrash2 as IcTrash,
 	LuX as IcClose
 } from 'react-icons/lu'
@@ -36,7 +37,8 @@ import {
 	Tabs,
 	Tab,
 	Toggle,
-	EditProfileList
+	EditProfileList,
+	QRCodeDialog
 } from '@cloudillo/react'
 
 import { getFileIcon, IcUnknown } from '../icons.js'
@@ -74,6 +76,7 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 	const [neverExpires, setNeverExpires] = React.useState(true)
 	const [creatingLink, setCreatingLink] = React.useState(false)
 	const [confirmingDeleteRef, setConfirmingDeleteRef] = React.useState<string | null>(null)
+	const [qrCodeUrl, setQrCodeUrl] = React.useState<string | undefined>()
 
 	const Icon = getFileIcon(file.contentType, file.fileTp)
 	const isFolder = file.fileTp === 'FLDR'
@@ -516,6 +519,18 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 													<button
 														type="button"
 														className="c-link p-1"
+														title={t('Show QR code')}
+														onClick={() =>
+															setQrCodeUrl(
+																`${window.location.origin}/s/${ref.refId}`
+															)
+														}
+													>
+														<IcQrCode />
+													</button>
+													<button
+														type="button"
+														className="c-link p-1"
 														title={t('Delete link')}
 														onClick={() =>
 															requestDeleteShareLink(ref.refId)
@@ -539,6 +554,7 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 					)}
 				</div>
 			</div>
+			<QRCodeDialog value={qrCodeUrl} onClose={() => setQrCodeUrl(undefined)} />
 		</div>
 	)
 }

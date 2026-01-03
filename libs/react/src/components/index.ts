@@ -321,4 +321,8 @@ export type {
 	BottomSheetProps
 } from './BottomSheet/index.js'
 
+// QRCodeDialog Component
+export { QRCodeDialog } from './QRCodeDialog/index.js'
+export type { QRCodeDialogProps } from './QRCodeDialog/index.js'
+
 // vim: ts=4

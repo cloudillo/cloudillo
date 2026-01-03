@@ -354,6 +354,33 @@ function Menu({
 }
 
 /**
+ * Built-in app IDs that are rendered directly as React components (not microfrontends)
+ */
+const BUILTIN_APPS = ['files', 'feed', 'gallery', 'messages', 'view']
+
+/**
+ * Check if a path is an external app (microfrontend loaded in iframe)
+ */
+function isExternalAppPath(pathname: string): boolean {
+	// Match /app/:contextIdTag/:appId/* or /app/:appId/*
+	const match = pathname.match(/^\/app\/(?:([^/]+)\/)?([^/]+)/)
+	if (!match) return false
+
+	// Check if it's a context-aware route or legacy route
+	const [, contextIdTag, segment] = match
+
+	// If we have a contextIdTag-like segment followed by an appId
+	if (contextIdTag && segment) {
+		// segment is the appId
+		return !BUILTIN_APPS.includes(segment)
+	}
+
+	// Legacy route: /app/:appId/*
+	// contextIdTag is actually the appId here
+	return !BUILTIN_APPS.includes(contextIdTag)
+}
+
+/**
  * Check if a path is accessible to guests (unauthenticated users)
  */
 function isGuestPath(pathname: string): boolean {
@@ -848,11 +875,13 @@ export function Layout() {
 					</div>
 					<div className="pt-1" />
 				</div>
-				{!auth && (
-					<Link to="/login" className="c-fab accent">
-						<IcLogin />
-					</Link>
-				)}
+				{!auth &&
+					!isExternalAppPath(location.pathname) &&
+					!location.pathname.startsWith('/s/') && (
+						<Link to="/login" className="c-fab accent">
+							<IcLogin />
+						</Link>
+					)}
 				<div id="popper-container" />
 				<DialogContainer />
 				<ToastContainer position="bottom-right" />

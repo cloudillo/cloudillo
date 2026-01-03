@@ -328,4 +328,13 @@ export {
 	getContainerCount
 } from './queries'
 
+// Export functionality
+export { exportDocument, downloadExport } from './export'
+export type {
+	PrezilloExportDocument,
+	PrezilloExportMeta,
+	RichTextExport,
+	StyleExport
+} from './export'
+
 // vim: ts=4

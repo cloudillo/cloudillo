@@ -59,12 +59,12 @@ function normalizeTrust(trust: TrustLevel | boolean | undefined): TrustLevel {
 
 /**
  * Get iframe sandbox attribute value
- * All trust levels use 'allow-scripts allow-forms' without 'allow-same-origin'
+ * All trust levels use 'allow-scripts allow-forms allow-downloads' without 'allow-same-origin'
  * This gives apps an opaque origin, preventing access to shell's serviceWorker API
  * and protecting the SW encryption key from being read via scriptURL
  */
 function getSandboxValue(_trust: TrustLevel): string {
-	return 'allow-scripts allow-forms'
+	return 'allow-scripts allow-forms allow-downloads'
 }
 
 /**

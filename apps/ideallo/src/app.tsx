@@ -55,7 +55,7 @@ import {
 } from './components/index.js'
 import type { ToolType } from './tools/index.js'
 import type { ObjectId, Bounds, IdealloObject } from './crdt/index.js'
-import { getObject, updateObject, deleteObjects } from './crdt/index.js'
+import { getObject, updateObject, deleteObjects, downloadExport } from './crdt/index.js'
 import { getBoundsFromPoints } from './utils/geometry.js'
 import type { MorphAnimationState } from './smart-ink/index.js'
 
@@ -1092,6 +1092,11 @@ export function IdealloApp() {
 				onToolChange={ideallo.setActiveTool}
 				onUndo={ideallo.undo}
 				onRedo={ideallo.redo}
+				onExport={() => {
+					if (ideallo.yDoc && ideallo.doc) {
+						downloadExport(ideallo.yDoc, ideallo.doc)
+					}
+				}}
 			/>
 
 			{/* Property bar for selection styling */}

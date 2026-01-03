@@ -34,6 +34,7 @@ import {
 	PiTrashBold as IcDelete,
 	PiArrowArcLeftBold as IcUndo,
 	PiArrowArcRightBold as IcRedo,
+	PiExportBold as IcExport,
 	PiGridFourBold as IcGrid,
 	PiMagnetBold as IcSnapObjects,
 	PiArrowsOutSimpleBold as IcSnapSizes,
@@ -72,6 +73,7 @@ export interface ToolbarProps {
 	canRedo: boolean
 	onUndo?: () => void
 	onRedo?: () => void
+	onExport?: () => void
 	// Z-index ordering
 	onBringToFront?: () => void
 	onBringForward?: () => void
@@ -120,6 +122,7 @@ export function Toolbar({
 	canRedo,
 	onUndo,
 	onRedo,
+	onExport,
 	onBringToFront,
 	onBringForward,
 	onSendBackward,
@@ -158,6 +161,13 @@ export function Toolbar({
 			</button>
 			<button onClick={onRedo} className="c-button icon" disabled={!canRedo} title="Redo">
 				<IcRedo />
+			</button>
+
+			<div className="c-toolbar-divider" />
+
+			{/* Export */}
+			<button onClick={onExport} className="c-button icon" title="Export">
+				<IcExport />
 			</button>
 
 			<div className="c-toolbar-divider" />

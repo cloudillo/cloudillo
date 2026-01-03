@@ -189,7 +189,8 @@ import {
 	sendBackward,
 	sendToBack,
 	expandObject,
-	findViewAtPoint
+	findViewAtPoint,
+	downloadExport
 } from './crdt'
 import { measureTextHeight } from './utils'
 
@@ -1278,6 +1279,11 @@ export function PrezilloApp() {
 					canRedo={prezillo.canRedo}
 					onUndo={prezillo.undo}
 					onRedo={prezillo.redo}
+					onExport={() => {
+						if (prezillo.yDoc && prezillo.doc) {
+							downloadExport(prezillo.yDoc, prezillo.doc)
+						}
+					}}
 					onBringToFront={() => {
 						prezillo.selectedIds.forEach((id) =>
 							bringToFront(prezillo.yDoc, prezillo.doc, id)

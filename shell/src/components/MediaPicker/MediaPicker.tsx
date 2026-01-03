@@ -89,6 +89,9 @@ export function MediaPicker() {
 	// Selection state
 	const [selectedFile, setSelectedFile] = useState<MediaPickerResult | null>(null)
 
+	// Track when crop mode is active (to hide footer)
+	const [isCropping, setIsCropping] = useState(false)
+
 	// Close handlers
 	useEscapeKey(() => handleCancel(), state.isOpen)
 	useBodyScrollLock(state.isOpen)
@@ -116,6 +119,7 @@ export function MediaPicker() {
 		if (state.isOpen) {
 			setActiveTab('browse')
 			setSelectedFile(null)
+			setIsCropping(false)
 		}
 	}, [state.isOpen])
 
@@ -133,6 +137,11 @@ export function MediaPicker() {
 		setSelectedFile(file)
 	}, [])
 
+	// Handle upload completion - close dialog and return result
+	const handleUploadComplete = useCallback((file: MediaPickerResult) => {
+		closeMediaPicker(file)
+	}, [closeMediaPicker])
+
 	const handleDoubleClick = useCallback(
 		(file: MediaPickerResult) => {
 			closeMediaPicker(file)
@@ -144,6 +153,10 @@ export function MediaPicker() {
 
 	const title = state.options?.title || t('Select media')
 	const mediaType = state.options?.mediaType
+
+	// Default enableCrop to true for images unless explicitly disabled
+	const enableCrop =
+		state.options?.enableCrop !== false && (!mediaType || mediaType.startsWith('image/'))
 
 	const content = (
 		<div className="c-modal show media-picker-overlay" onClick={handleCancel}>
@@ -166,17 +179,17 @@ export function MediaPicker() {
 				</div>
 
 				{/* Tabs */}
-				<div className="media-picker-tabs">
+				<div className="c-tabs media-picker-tabs">
 					<button
 						type="button"
-						className={`c-button ${activeTab === 'browse' ? 'primary' : 'ghost'}`}
+						className={`c-tab ${activeTab === 'browse' ? 'active' : ''}`}
 						onClick={() => setActiveTab('browse')}
 					>
 						{t('Browse')}
 					</button>
 					<button
 						type="button"
-						className={`c-button ${activeTab === 'upload' ? 'primary' : 'ghost'}`}
+						className={`c-tab ${activeTab === 'upload' ? 'active' : ''}`}
 						onClick={() => setActiveTab('upload')}
 					>
 						{t('Upload')}
@@ -190,6 +203,7 @@ export function MediaPicker() {
 							mediaType={mediaType}
 							documentVisibility={state.options?.documentVisibility}
 							documentFileId={state.options?.documentFileId}
+							isExternalContext={state.options?.isExternalContext}
 							selectedFile={selectedFile}
 							onSelect={handleFileSelected}
 							onDoubleClick={handleDoubleClick}
@@ -197,20 +211,24 @@ export function MediaPicker() {
 					) : (
 						<MediaPickerUploadTab
 							mediaType={mediaType}
-							enableCrop={state.options?.enableCrop}
+							enableCrop={enableCrop}
 							cropAspects={state.options?.cropAspects}
-							onUploadComplete={handleFileSelected}
+							isExternalContext={state.options?.isExternalContext}
+							onUploadComplete={handleUploadComplete}
+							onCroppingChange={setIsCropping}
 						/>
 					)}
 				</div>
 
-				{/* Footer */}
-				<div className="media-picker-footer">
-					<Button onClick={handleCancel}>{t('Cancel')}</Button>
-					<Button primary disabled={!selectedFile} onClick={handleSelect}>
-						{t('Select')}
-					</Button>
-				</div>
+				{/* Footer - hidden during crop mode */}
+				{!isCropping && (
+					<div className="media-picker-footer">
+						<Button onClick={handleCancel}>{t('Cancel')}</Button>
+						<Button primary disabled={!selectedFile} onClick={handleSelect}>
+							{t('Select')}
+						</Button>
+					</div>
+				)}
 			</div>
 		</div>
 	)

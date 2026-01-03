@@ -21,10 +21,22 @@
  * Allows users to upload new files with optional image cropping.
  */
 
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { LuUpload as IcUpload, LuX as IcClose, LuCheck as IcCheck } from 'react-icons/lu'
+import {
+	LuUpload as IcUpload,
+	LuX as IcClose,
+	LuCheck as IcCheck,
+	LuInfo as IcInfo,
+	LuTriangleAlert as IcWarning,
+	LuGlobe as IcPublic,
+	LuUserPlus as IcFollowers,
+	LuUserCheck as IcConnected,
+	LuChevronDown as IcChevronDown
+} from 'react-icons/lu'
+
+import type { Visibility } from '@cloudillo/base'
 
 import { useApi, Button } from '@cloudillo/react'
 import type { CropAspect } from '@cloudillo/base'
@@ -36,16 +48,40 @@ interface MediaPickerUploadTabProps {
 	mediaType?: string
 	enableCrop?: boolean
 	cropAspects?: CropAspect[]
+	isExternalContext?: boolean // True when opened from external app
 	onUploadComplete: (file: MediaPickerResult) => void
+	onCroppingChange?: (isCropping: boolean) => void // Signal when crop mode is active
 }
 
 type UploadState = 'idle' | 'uploading' | 'cropping' | 'complete' | 'error'
+
+/**
+ * Visibility options for the dropdown
+ */
+const VISIBILITY_OPTIONS: Array<{
+	value: Visibility
+	labelKey: string
+	icon: React.ComponentType<{ className?: string }>
+}> = [
+	{ value: 'P', labelKey: 'Public', icon: IcPublic },
+	{ value: 'F', labelKey: 'Followers', icon: IcFollowers },
+	{ value: 'C', labelKey: 'Connected', icon: IcConnected }
+]
+
+/**
+ * Get visibility option by value
+ */
+function getVisibilityOption(value: Visibility) {
+	return VISIBILITY_OPTIONS.find((opt) => opt.value === value) || VISIBILITY_OPTIONS[0]
+}
 
 export function MediaPickerUploadTab({
 	mediaType,
 	enableCrop,
 	cropAspects,
-	onUploadComplete
+	isExternalContext,
+	onUploadComplete,
+	onCroppingChange
 }: MediaPickerUploadTabProps) {
 	const { t } = useTranslation()
 	const { api } = useApi()
@@ -61,6 +97,15 @@ export function MediaPickerUploadTab({
 	const [cropImageSrc, setCropImageSrc] = useState<string | null>(null)
 	const [originalFile, setOriginalFile] = useState<globalThis.File | null>(null)
 
+	// Visibility state: default to 'P' (Public) for external context, 'F' (Followers) otherwise
+	const [visibility, setVisibility] = useState<Visibility>(isExternalContext ? 'P' : 'F')
+	const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false)
+
+	// Notify parent when cropping state changes
+	useEffect(() => {
+		onCroppingChange?.(uploadState === 'cropping')
+	}, [uploadState, onCroppingChange])
+
 	// Get accepted file types for input
 	const getAcceptType = useCallback(() => {
 		if (!mediaType) return '*/*'
@@ -71,10 +116,12 @@ export function MediaPickerUploadTab({
 		return mediaType
 	}, [mediaType])
 
-	// Convert CropAspect to Aspect
-	const getAspects = useCallback((): Aspect[] | undefined => {
-		if (!cropAspects || cropAspects.length === 0) return undefined
-		return cropAspects.map((a) => {
+	// Convert CropAspect to Aspect - provide defaults if none specified
+	const getAspects = useCallback((): Aspect[] => {
+		const aspects = cropAspects && cropAspects.length > 0
+			? cropAspects
+			: ['free', '16:9', '4:3', '1:1'] // Default aspects, free first
+		return aspects.map((a) => {
 			if (a === 'free') return ''
 			return a as Aspect
 		})
@@ -130,12 +177,16 @@ export function MediaPickerUploadTab({
 				const result = await api.files.uploadBlob('media', name, file, contentType)
 
 				if (result?.fileId) {
+					// Apply visibility setting to the uploaded file
+					await api.files.update(result.fileId, { visibility })
+
 					setUploadState('complete')
 					onUploadComplete({
 						fileId: result.fileId,
 						fileName: name,
 						contentType: contentType,
-						visibility: 'F' // Default visibility
+						dim: result.dim,
+						visibility: visibility
 					})
 				} else {
 					throw new Error('No file ID returned')
@@ -146,7 +197,7 @@ export function MediaPickerUploadTab({
 				setUploadState('error')
 			}
 		},
-		[api, onUploadComplete, t]
+		[api, onUploadComplete, t, visibility]
 	)
 
 	// Handle crop complete
@@ -217,6 +268,12 @@ export function MediaPickerUploadTab({
 		setOriginalFile(null)
 	}, [])
 
+	// Handle visibility change
+	const handleVisibilityChange = useCallback((value: Visibility) => {
+		setVisibility(value)
+		setShowVisibilityDropdown(false)
+	}, [])
+
 	// Show cropping dialog
 	if (uploadState === 'cropping' && cropImageSrc) {
 		return (
@@ -225,9 +282,16 @@ export function MediaPickerUploadTab({
 				aspects={getAspects()}
 				onSubmit={handleCropComplete}
 				onCancel={handleCropCancel}
+				embedded
 			/>
 		)
 	}
+
+	const currentVisibilityOption = getVisibilityOption(visibility)
+	const VisibilityIcon = currentVisibilityOption.icon
+
+	// Check if non-public visibility is selected in external context
+	const showNonPublicWarning = isExternalContext && visibility !== 'P'
 
 	return (
 		<div className="media-picker-upload">
@@ -238,6 +302,62 @@ export function MediaPickerUploadTab({
 				style={{ display: 'none' }}
 				onChange={handleInputChange}
 			/>
+
+			{/* Info banner for external context */}
+			{isExternalContext && uploadState === 'idle' && !showNonPublicWarning && (
+				<div className="media-picker-upload-info">
+					<IcInfo />
+					<span>
+						{t('Public visibility ensures all document viewers can see this file.')}
+					</span>
+				</div>
+			)}
+
+			{/* Warning when non-public visibility selected in external context */}
+			{showNonPublicWarning && uploadState === 'idle' && (
+				<div className="media-picker-upload-warning">
+					<IcWarning />
+					<span>
+						{t('Only public files can be embedded. Some viewers may not see this file.')}
+					</span>
+				</div>
+			)}
+
+			{/* Visibility selector */}
+			{uploadState === 'idle' && (
+				<div className="media-picker-upload-visibility">
+					<label>{t('Visibility')}</label>
+					<div className="media-picker-visibility-selector">
+						<button
+							type="button"
+							className="c-button ghost small"
+							onClick={() => setShowVisibilityDropdown(!showVisibilityDropdown)}
+						>
+							<VisibilityIcon />
+							<span>{t(currentVisibilityOption.labelKey)}</span>
+							<IcChevronDown />
+						</button>
+						{showVisibilityDropdown && (
+							<div className="media-picker-visibility-dropdown">
+								{VISIBILITY_OPTIONS.map((opt) => {
+									const OptionIcon = opt.icon
+									return (
+										<button
+											key={opt.value}
+											type="button"
+											className={`media-picker-visibility-option ${visibility === opt.value ? 'active' : ''}`}
+											onClick={() => handleVisibilityChange(opt.value)}
+										>
+											<OptionIcon />
+											<span>{t(opt.labelKey)}</span>
+										</button>
+									)
+								})}
+							</div>
+						)}
+					</div>
+				</div>
+			)}
 
 			{uploadState === 'idle' && (
 				<div

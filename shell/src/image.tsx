@@ -76,12 +76,14 @@ export function ImageUpload({
 	src,
 	aspects,
 	onSubmit,
-	onCancel
+	onCancel,
+	embedded
 }: {
 	src: string
 	aspects?: Aspect[]
 	onSubmit: (blob: Blob) => void
 	onCancel: () => void
+	embedded?: boolean // When true, renders without modal wrapper to fit inside a container
 }) {
 	const { t } = useTranslation()
 	const [aspect, setAspect] = React.useState<Aspect>() // Aspect ratio = aspect / 36
@@ -90,7 +92,8 @@ export function ImageUpload({
 
 	function handleImageLoaded(evt: React.SyntheticEvent<HTMLImageElement>) {
 		console.log('handleImageLoaded', aspects)
-		if (aspects?.[0]) changeAspect(aspects[0])
+		// Use first aspect if available (check length, not value, since '' is valid for free)
+		if (aspects?.length && aspects[0] !== '') changeAspect(aspects[0])
 	}
 
 	function changeCrop(newCrop: Crop, percCrop: Crop) {
@@ -165,40 +168,74 @@ export function ImageUpload({
 	}, [crop])
 	*/
 
+	const cropArea = embedded ? (
+		<div className="crop-image-wrapper">
+			<ReactCrop
+				crop={crop}
+				onChange={changeCrop}
+				aspect={aspect ? aspectMap[aspect] / 36 : undefined}
+				circularCrop={aspect == 'circle'}
+			>
+				<img
+					ref={imgRef}
+					src={src}
+					onLoad={handleImageLoaded}
+				/>
+			</ReactCrop>
+		</div>
+	) : (
+		<ReactCrop
+			crop={crop}
+			onChange={changeCrop}
+			aspect={aspect ? aspectMap[aspect] / 36 : undefined}
+			circularCrop={aspect == 'circle'}
+		>
+			<img
+				ref={imgRef}
+				src={src}
+				onLoad={handleImageLoaded}
+				style={{ maxWidth: '80vw', maxHeight: '80vh' }}
+			/>
+		</ReactCrop>
+	)
+
+	const toolbar = (
+		<div className="crop-toolbar">
+			<div className="crop-toolbar-aspects">
+				{aspects?.map((asp) => (
+					<button
+						key={asp}
+						className={`crop-aspect-btn ${aspect === asp ? 'active' : ''}`}
+						onClick={() => changeAspect(asp)}
+						title={asp === 'circle' ? t('Circle') : asp || t('Free')}
+					>
+						{asp == 'circle' ? <IcCircleSelect /> : asp || <IcBoxSelect />}
+					</button>
+				))}
+			</div>
+			<div className="crop-toolbar-actions">
+				<Button onClick={onCancel}>{t('Cancel')}</Button>
+				<Button primary onClick={handleSubmit}>
+					{t('Upload')}
+				</Button>
+			</div>
+		</div>
+	)
+
+	if (embedded) {
+		return (
+			<div className="image-upload-embedded">
+				{cropArea}
+				{toolbar}
+			</div>
+		)
+	}
+
 	return (
 		<div className="c-modal show">
 			<div className="c-panel g-1">
-				<ReactCrop
-					crop={crop}
-					onChange={changeCrop}
-					aspect={aspect ? aspectMap[aspect] / 36 : undefined}
-					circularCrop={aspect == 'circle'}
-				>
-					<img
-						ref={imgRef}
-						src={src}
-						onLoad={handleImageLoaded}
-						style={{ maxWidth: '80vw', maxHeight: '80vh' }}
-					/>
-				</ReactCrop>
-				<div className="c-group mx-auto">
-					{(aspects?.length || 0) > 1 &&
-						aspects?.map((asp) => (
-							<button
-								key={asp}
-								className="c-link px-2"
-								onClick={() => changeAspect(asp)}
-							>
-								{asp == 'circle' ? <IcCircleSelect /> : asp || <IcBoxSelect />}
-							</button>
-						))}
-				</div>
-				<div className="c-group">
-					<Button primary onClick={handleSubmit}>
-						{t('Upload')}
-					</Button>
-					<Button onClick={onCancel}>{t('Cancel')}</Button>
-				</div>
+				{cropArea}
+				{toolbar}
 			</div>
 		</div>
 	)

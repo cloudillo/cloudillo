@@ -12,9 +12,9 @@
 	display: flex;
 	flex-direction: column;
 	width: 90vw;
-	max-width: 700px;
-	height: 80vh;
-	max-height: 600px;
+	max-width: 900px;
+	height: 85vh;
+	max-height: 700px;
 	border-radius: var(--border-radius-lg, 12px);
 	overflow: hidden;
 }
@@ -25,7 +25,7 @@
 	align-items: center;
 	justify-content: space-between;
 	padding: 1rem 1.25rem;
-	border-bottom: 1px solid var(--color-border);
+	border-bottom: 1px solid var(--col-outline);
 	flex-shrink: 0;
 }
 
@@ -35,17 +35,15 @@
 }
 
 /* Tabs */
-.media-picker-tabs {
-	display: flex;
-	gap: 0.5rem;
-	padding: 0.75rem 1.25rem;
-	border-bottom: 1px solid var(--color-border);
+.media-picker-tabs.c-tabs {
+	margin: 0.75rem 1.25rem;
 	flex-shrink: 0;
 }
 
 /* Content area */
 .media-picker-content {
-	flex: 1;
+	flex: 1 1 0;
+	min-height: 0; /* Critical: allow flex shrinking for nested content */
 	overflow: hidden;
 	display: flex;
 	flex-direction: column;
@@ -57,7 +55,7 @@
 	justify-content: flex-end;
 	gap: 0.75rem;
 	padding: 1rem 1.25rem;
-	border-top: 1px solid var(--color-border);
+	border-top: 1px solid var(--col-outline);
 	flex-shrink: 0;
 }
 
@@ -70,12 +68,93 @@
 }
 
 .media-picker-search {
+	display: flex;
+	gap: 0.5rem;
 	padding: 0.75rem 1.25rem;
 	flex-shrink: 0;
 }
 
+.media-picker-search .c-input-group {
+	flex: 1;
+}
+
 .media-picker-search input {
 	width: 100%;
+}
+
+/* Visibility filter dropdown */
+.media-picker-visibility-filter {
+	position: relative;
+	flex-shrink: 0;
+}
+
+.media-picker-visibility-filter > button {
+	display: flex;
+	align-items: center;
+	gap: 0.375rem;
+	white-space: nowrap;
+}
+
+.media-picker-visibility-filter > button svg {
+	width: 16px;
+	height: 16px;
+}
+
+.media-picker-visibility-filter > button svg:last-child {
+	width: 14px;
+	height: 14px;
+	opacity: 0.6;
+}
+
+.media-picker-visibility-dropdown {
+	position: absolute;
+	top: 100%;
+	right: 0;
+	z-index: var(--z-dropdown, 100);
+	min-width: 140px;
+	margin-top: 0.25rem;
+	padding: 0.375rem;
+	/* Use OpalUI design system colors */
+	--col-bg: var(--col-container-high);
+	--col-on: var(--col-on-container-high);
+	background-color: lch(from var(--col-bg) l c h / var(--op-panel));
+	backdrop-filter: blur(var(--blur-radius));
+	color: var(--col-on);
+	border-radius: var(--border-radius-lg);
+	box-shadow: var(--shadow-lg), inset 0px 0px 1rem var(--col-shadow);
+	/* Entrance animation */
+	animation: fade-slide-down var(--duration-fast) var(--ease-out) both;
+	transform-origin: top center;
+}
+
+.media-picker-visibility-option {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	width: 100%;
+	padding: 0.5rem 0.75rem;
+	background: none;
+	border: none;
+	border-radius: var(--border-radius);
+	color: var(--col-on);
+	cursor: pointer;
+	text-align: left;
+	font-size: 0.875rem;
+}
+
+.media-picker-visibility-option:hover {
+	background: var(--col-container-low);
+}
+
+.media-picker-visibility-option.active {
+	background: var(--col-container-primary);
+	color: var(--col-on-container-primary);
+}
+
+.media-picker-visibility-option svg {
+	width: 16px;
+	height: 16px;
+	flex-shrink: 0;
 }
 
 .media-picker-breadcrumbs {
@@ -84,7 +163,7 @@
 	gap: 0.25rem;
 	padding: 0 1.25rem 0.5rem;
 	font-size: 0.875rem;
-	color: var(--color-text-muted);
+	color: var(--col-secondary);
 	flex-shrink: 0;
 	overflow-x: auto;
 }
@@ -93,14 +172,14 @@
 	padding: 0.25rem 0.5rem;
 	background: none;
 	border: none;
-	color: var(--color-primary);
+	color: var(--col-primary);
 	cursor: pointer;
 	border-radius: var(--border-radius);
 	white-space: nowrap;
 }
 
 .media-picker-breadcrumbs button:hover {
-	background: var(--color-bg-hover);
+	background: var(--col-container-low);
 }
 
 .media-picker-breadcrumbs span {
@@ -120,6 +199,7 @@
 }
 
 .media-picker-item {
+	position: relative;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -128,20 +208,32 @@
 	border-radius: var(--border-radius);
 	cursor: pointer;
 	transition: all 0.15s ease;
-	background: var(--color-bg);
+	background: var(--col-container-low);
 }
 
 .media-picker-item:hover {
-	background: var(--color-bg-hover);
-	border-color: var(--color-border);
+	background: var(--col-container);
+	border-color: var(--col-outline);
 }
 
 .media-picker-item.selected {
-	border-color: var(--color-primary);
-	background: var(--color-primary-alpha, rgba(var(--color-primary-rgb), 0.1));
+	border-color: var(--col-primary);
+	background: var(--col-container-primary);
+}
+
+/* Disabled state for non-public files */
+.media-picker-item.disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.media-picker-item.disabled:hover {
+	background: var(--col-container-low);
+	border-color: transparent;
 }
 
 .media-picker-item-thumbnail {
+	position: relative;
 	width: 80px;
 	height: 80px;
 	display: flex;
@@ -149,8 +241,137 @@
 	justify-content: center;
 	border-radius: var(--border-radius);
 	overflow: hidden;
-	background: var(--color-bg-subtle);
+	background: var(--col-container);
 	margin-bottom: 0.5rem;
+}
+
+/* Interactive lock overlay for disabled files */
+.media-picker-item-lock {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 0.25rem;
+	background: rgba(0, 0, 0, 0.4);
+	border-radius: var(--border-radius);
+	cursor: pointer;
+	transition: background 0.15s ease;
+}
+
+.media-picker-item-lock:hover {
+	background: rgba(0, 0, 0, 0.6);
+}
+
+.media-picker-item-lock svg {
+	width: 24px;
+	height: 24px;
+	color: white;
+}
+
+.media-picker-item-lock-label {
+	font-size: 0.625rem;
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	color: white;
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+
+.media-picker-item-lock:hover .media-picker-item-lock-label {
+	opacity: 1;
+}
+
+/* Split confirmation state - vertical split */
+.media-picker-item-lock.confirming {
+	background: transparent;
+	padding: 0;
+	gap: 0;
+}
+
+.media-picker-lock-split {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	border-radius: var(--border-radius);
+	overflow: hidden;
+}
+
+.media-picker-lock-half {
+	flex: 1;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	gap: 0.25rem;
+	font-size: 0.625rem;
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	color: white;
+	cursor: pointer;
+	transition: filter 0.15s ease;
+}
+
+.media-picker-lock-half:hover {
+	filter: brightness(1.1);
+}
+
+.media-picker-lock-half.cancel {
+	background: rgba(0, 0, 0, 0.6);
+}
+
+.media-picker-lock-half.confirm {
+	background: rgba(34, 139, 34, 0.8);
+}
+
+.media-picker-lock-half svg {
+	width: 14px;
+	height: 14px;
+}
+
+/* Loading spinner for lock overlay */
+.media-picker-lock-spinner {
+	width: 20px;
+	height: 20px;
+	border: 2px solid rgba(255, 255, 255, 0.3);
+	border-top-color: white;
+	border-radius: 50%;
+	animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.media-picker-item-lock.loading {
+	cursor: wait;
+}
+
+/* Visibility badge for non-public files */
+.media-picker-item-visibility {
+	position: absolute;
+	bottom: 4px;
+	right: 4px;
+	width: 18px;
+	height: 18px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: lch(from var(--col-container-high) l c h / 0.85);
+	backdrop-filter: blur(4px);
+	border-radius: var(--border-radius-sm);
+	color: var(--col-on-container-high);
+}
+
+.media-picker-item-visibility svg {
+	width: 12px;
+	height: 12px;
 }
 
 .media-picker-item-thumbnail img {
@@ -162,7 +383,7 @@
 .media-picker-item-thumbnail svg {
 	width: 32px;
 	height: 32px;
-	color: var(--color-text-muted);
+	color: var(--col-secondary);
 }
 
 .media-picker-item-name {
@@ -183,7 +404,7 @@
 	align-items: center;
 	justify-content: center;
 	height: 100%;
-	color: var(--color-text-muted);
+	color: var(--col-secondary);
 	gap: 0.5rem;
 }
 
@@ -202,13 +423,85 @@
 	gap: 1rem;
 }
 
+/* Upload info banner */
+.media-picker-upload-info {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.75rem 1rem;
+	background: var(--col-container-primary);
+	border: 1px solid var(--col-primary);
+	border-radius: var(--border-radius);
+	color: var(--col-on-container-primary);
+	font-size: 0.875rem;
+}
+
+.media-picker-upload-info svg {
+	flex-shrink: 0;
+	width: 18px;
+	height: 18px;
+}
+
+/* Upload warning banner */
+.media-picker-upload-warning {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.75rem 1rem;
+	background: var(--col-container-warning);
+	border: 1px solid var(--col-warning);
+	border-radius: var(--border-radius);
+	color: var(--col-on-container-warning);
+	font-size: 0.875rem;
+}
+
+.media-picker-upload-warning svg {
+	flex-shrink: 0;
+	width: 18px;
+	height: 18px;
+}
+
+/* Upload visibility selector */
+.media-picker-upload-visibility {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+}
+
+.media-picker-upload-visibility label {
+	font-size: 0.875rem;
+	font-weight: 500;
+	color: var(--col-secondary);
+}
+
+.media-picker-visibility-selector {
+	position: relative;
+}
+
+.media-picker-visibility-selector > button {
+	display: flex;
+	align-items: center;
+	gap: 0.375rem;
+}
+
+.media-picker-visibility-selector > button svg {
+	width: 16px;
+	height: 16px;
+}
+
+.media-picker-visibility-selector > button svg:last-child {
+	width: 14px;
+	height: 14px;
+	opacity: 0.6;
+}
+
 .media-picker-dropzone {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	border: 2px dashed var(--color-border);
+	border: 2px dashed var(--col-outline);
 	border-radius: var(--border-radius-lg);
 	cursor: pointer;
 	transition: all 0.15s ease;
@@ -217,36 +510,36 @@
 
 .media-picker-dropzone:hover,
 .media-picker-dropzone.dragover {
-	border-color: var(--color-primary);
-	background: var(--color-primary-alpha, rgba(var(--color-primary-rgb), 0.05));
+	border-color: var(--col-primary);
+	background: var(--col-container-primary);
 }
 
 .media-picker-dropzone svg {
 	width: 48px;
 	height: 48px;
-	color: var(--color-text-muted);
+	color: var(--col-secondary);
 }
 
 .media-picker-dropzone-text {
 	text-align: center;
-	color: var(--color-text-muted);
+	color: var(--col-secondary);
 }
 
 .media-picker-dropzone-text strong {
 	display: block;
-	color: var(--color-text);
+	color: var(--col-on);
 	margin-bottom: 0.25rem;
 }
 
 .media-picker-upload-progress {
 	padding: 1rem;
-	background: var(--color-bg-subtle);
+	background: var(--col-container-low);
 	border-radius: var(--border-radius);
 }
 
 .media-picker-upload-progress-bar {
 	height: 4px;
-	background: var(--color-bg);
+	background: var(--col-container);
 	border-radius: 2px;
 	overflow: hidden;
 	margin-top: 0.5rem;
@@ -254,7 +547,7 @@
 
 .media-picker-upload-progress-fill {
 	height: 100%;
-	background: var(--color-primary);
+	background: var(--col-primary);
 	transition: width 0.2s ease;
 }
 
@@ -265,10 +558,10 @@
 	gap: 0.75rem;
 	padding: 0.75rem 1rem;
 	margin: 0 1.25rem;
-	background: var(--color-warning-alpha, rgba(255, 193, 7, 0.15));
-	border: 1px solid var(--color-warning, #ffc107);
+	background: var(--col-container-warning);
+	border: 1px solid var(--col-warning);
 	border-radius: var(--border-radius);
-	color: var(--color-warning-text, #856404);
+	color: var(--col-on-container-warning);
 }
 
 .media-picker-visibility-warning svg {
@@ -293,6 +586,101 @@
 	align-items: center;
 	justify-content: center;
 	height: 100%;
+}
+
+/* Embedded image crop UI */
+.image-upload-embedded {
+	display: grid;
+	grid-template-rows: 1fr auto;
+	height: 100%;
+	overflow: hidden;
+}
+
+/* Wrapper for the crop area */
+.crop-image-wrapper {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 1rem;
+	overflow: hidden;
+	min-height: 0;
+}
+
+/* ReactCrop - constrained to wrapper */
+.crop-image-wrapper > .ReactCrop {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+/* The image inside ReactCrop - constrained to fit dialog */
+/* Dialog: width min(90vw, 56.25rem), height min(85vh, 43.75rem) */
+/* Overhead: height ~13rem (header+tabs+toolbar+padding), width ~4rem (padding) */
+.crop-image-wrapper .ReactCrop img {
+	display: block;
+	max-width: min(calc(90vw - 4rem), 52rem);
+	max-height: min(calc(85vh - 13rem), 30rem);
+}
+
+/* Remove dark background from ReactCrop */
+.crop-image-wrapper .ReactCrop__child-wrapper {
+	background: transparent !important;
+}
+
+/* Crop toolbar - single row with aspects left, actions right */
+.crop-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: 0.75rem 1rem;
+	border-top: 1px solid var(--col-outline);
+	background: var(--col-container-low);
+	flex-shrink: 0;
+}
+
+.crop-toolbar-aspects {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+}
+
+.crop-aspect-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 2.25rem;
+	height: 2.25rem;
+	padding: 0 0.5rem;
+	background: none;
+	border: 1px solid transparent;
+	border-radius: var(--border-radius);
+	color: var(--col-secondary);
+	cursor: pointer;
+	font-size: 0.75rem;
+	font-weight: 500;
+	transition: all 0.15s ease;
+}
+
+.crop-aspect-btn:hover {
+	background: var(--col-container);
+	color: var(--col-on);
+}
+
+.crop-aspect-btn.active {
+	background: var(--col-container-primary);
+	border-color: var(--col-primary);
+	color: var(--col-on-container-primary);
+}
+
+.crop-aspect-btn svg {
+	width: 18px;
+	height: 18px;
+}
+
+.crop-toolbar-actions {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
 }
 
 /* Mobile responsiveness */

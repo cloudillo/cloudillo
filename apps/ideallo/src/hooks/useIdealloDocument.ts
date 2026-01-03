@@ -77,6 +77,7 @@ export interface UseIdealloDocumentResult {
 
 	// Reactive data (re-renders on change)
 	objects: Record<string, StoredObject> | null
+	textContent: Record<string, string> | null // Text content (serialized), triggers re-render on changes
 
 	// Selection
 	selectedIds: Set<ObjectId>
@@ -139,7 +140,9 @@ export function useIdealloDocument(): UseIdealloDocumentResult {
 	}, [cloudillo.yDoc, cloudillo.synced])
 
 	// Observe reactive CRDT data
+	// useY uses observeDeep, so it should trigger on nested Y.Text changes too
 	const objects = useY(doc.o)
+	const textContent = useY(doc.txt)
 
 	// Selection state
 	const [selectedIds, setSelectedIds] = React.useState<Set<ObjectId>>(new Set())
@@ -296,6 +299,7 @@ export function useIdealloDocument(): UseIdealloDocumentResult {
 
 		// Reactive data
 		objects,
+		textContent,
 
 		// Selection
 		selectedIds,

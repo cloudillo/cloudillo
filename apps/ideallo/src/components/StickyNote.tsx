@@ -15,13 +15,15 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Sticky note component with auto-scaling text
+ * Sticky note component with auto-scaling text (display-only)
  * Renders a colored note with text that automatically adjusts font size
  * Uses standard fill color from style for background
+ *
+ * For editing, use StickyEditOverlay instead.
  */
 
 import * as React from 'react'
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import type { StickyObject } from '../crdt/index.js'
 import {
 	calculateOptimalFontSize,
@@ -37,19 +39,10 @@ const STICKY_TEXT_COLOR = 'var(--palette-n0, #1e1e1e)'
 
 export interface StickyNoteProps {
 	object: StickyObject
-	isEditing?: boolean
-	onTextChange?: (text: string) => void
-	onEditComplete?: () => void
 }
 
-export function StickyNote({
-	object,
-	isEditing = false,
-	onTextChange,
-	onEditComplete
-}: StickyNoteProps) {
+export function StickyNote({ object }: StickyNoteProps) {
 	const { x, y, width, height, text, style } = object
-	const textRef = useRef<HTMLDivElement>(null)
 	const [fontSize, setFontSize] = useState(MAX_FONT_SIZE)
 
 	// Use standard fill color for background
@@ -65,56 +58,6 @@ export function StickyNote({
 		})
 		setFontSize(optimalSize)
 	}, [text, width, height])
-
-	// Track if we're actively editing to prevent text prop from resetting cursor
-	const isEditingRef = useRef(false)
-
-	// Focus the text area when entering edit mode
-	useEffect(() => {
-		if (isEditing && textRef.current) {
-			isEditingRef.current = true
-			// Set initial text content when starting to edit
-			textRef.current.textContent = text
-			textRef.current.focus()
-			// Select all text for easy replacement
-			const selection = window.getSelection()
-			const range = document.createRange()
-			range.selectNodeContents(textRef.current)
-			selection?.removeAllRanges()
-			selection?.addRange(range)
-		} else {
-			isEditingRef.current = false
-		}
-	}, [isEditing]) // Note: intentionally not including `text` to avoid resetting during edit
-
-	// Handle text input
-	const handleInput = useCallback(
-		(e: React.FormEvent<HTMLDivElement>) => {
-			const newText = e.currentTarget.textContent || ''
-			onTextChange?.(newText)
-		},
-		[onTextChange]
-	)
-
-	// Handle blur (exit edit mode)
-	const handleBlur = useCallback(() => {
-		onEditComplete?.()
-	}, [onEditComplete])
-
-	// Handle key events
-	const handleKeyDown = useCallback(
-		(e: React.KeyboardEvent) => {
-			if (e.key === 'Escape') {
-				e.preventDefault()
-				onEditComplete?.()
-			}
-			// Tab also exits edit mode
-			if (e.key === 'Tab') {
-				onEditComplete?.()
-			}
-		},
-		[onEditComplete]
-	)
 
 	// Generate a subtle random rotation for organic feel (-0.5 to +0.5 degrees)
 	// Use object ID to ensure consistent rotation per note
@@ -156,7 +99,6 @@ export function StickyNote({
 			{/* Text content using foreignObject for HTML rendering */}
 			<foreignObject x={x} y={y} width={width} height={height}>
 				<div
-					ref={textRef}
 					style={{
 						width: '100%',
 						height: '100%',
@@ -166,24 +108,15 @@ export function StickyNote({
 						lineHeight: DEFAULT_LINE_HEIGHT,
 						fontFamily: 'system-ui, -apple-system, sans-serif',
 						color: STICKY_TEXT_COLOR,
-						caretColor: STICKY_TEXT_COLOR,
 						overflow: 'hidden',
 						wordWrap: 'break-word',
 						whiteSpace: 'pre-wrap',
-						outline: 'none',
-						cursor: isEditing ? 'text' : 'default',
-						userSelect: isEditing ? 'text' : 'none'
+						userSelect: 'none'
 					}}
-					contentEditable={isEditing}
-					suppressContentEditableWarning
-					onInput={handleInput}
-					onBlur={handleBlur}
-					onKeyDown={handleKeyDown}
 					// @ts-expect-error - xmlns needed for foreignObject
 					xmlns="http://www.w3.org/1999/xhtml"
 				>
-					{/* Only render text when not editing - during editing, contentEditable manages its own state */}
-					{!isEditing && text}
+					{text}
 				</div>
 			</foreignObject>
 		</g>

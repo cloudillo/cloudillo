@@ -26,8 +26,9 @@ import * as React from 'react'
 import * as Y from 'yjs'
 
 import type { YIdealloDocument, ObjectId, StickyObject, NewStickyInput } from '../crdt/index.js'
-import { addObject, updateObject, DEFAULT_STYLE } from '../crdt/index.js'
+import { addObject, getObjectYText, DEFAULT_STYLE } from '../crdt/index.js'
 import type { StickyInputState } from '../tools/types.js'
+import { applyTextDiff } from '../utils/text-diff.js'
 
 export interface UseStickyHandlerOptions {
 	yDoc: Y.Doc
@@ -113,24 +114,63 @@ export function useStickyHandler(options: UseStickyHandlerOptions) {
 		[enabled, editingSticky, yDoc, doc, currentStyle, onObjectCreated, onEditStart]
 	)
 
+	// Ref to track the current editing sticky ID (avoids stale closure issues)
+	const editingStickyRef = React.useRef<StickyInputState | null>(null)
+	React.useEffect(() => {
+		editingStickyRef.current = editingSticky
+	}, [editingSticky])
+
+	/**
+	 * Update the Y.Text content for a sticky note using minimal diff
+	 */
+	const updateStickyText = React.useCallback(
+		(objectId: ObjectId, text: string) => {
+			const yText = getObjectYText(doc, objectId)
+			if (!yText) return
+
+			// Use diff-based update for proper CRDT collaborative editing
+			applyTextDiff(yDoc, yText, text)
+		},
+		[yDoc, doc]
+	)
+
 	/**
 	 * Handle text change during editing
 	 */
 	const handleTextChange = React.useCallback(
 		(text: string) => {
-			if (!editingSticky?.id) return
+			// Use ref to get current value, avoiding stale closure
+			const current = editingStickyRef.current
+			if (!current?.id) return
 
 			// Update local state
 			setEditingSticky((prev) => (prev ? { ...prev, text } : null))
 
-			// Update CRDT
-			updateObject(yDoc, doc, editingSticky.id, { text })
+			// Update Y.Text in CRDT
+			updateStickyText(current.id, text)
 		},
-		[editingSticky, yDoc, doc]
+		[updateStickyText]
 	)
 
 	/**
-	 * Commit editing (on blur or escape)
+	 * Save and commit editing (on blur or escape)
+	 * Takes text as parameter to ensure final text is saved
+	 */
+	const saveSticky = React.useCallback(
+		(text: string) => {
+			const current = editingStickyRef.current
+			if (current?.id) {
+				// Ensure text is saved to CRDT before closing
+				updateStickyText(current.id, text)
+			}
+			setEditingSticky(null)
+			onEditEnd?.()
+		},
+		[updateStickyText, onEditEnd]
+	)
+
+	/**
+	 * Commit editing without saving (legacy, use saveSticky instead)
 	 */
 	const commitSticky = React.useCallback(() => {
 		setEditingSticky(null)
@@ -179,6 +219,7 @@ export function useStickyHandler(options: UseStickyHandlerOptions) {
 			editingSticky,
 			handlePointerDown,
 			handleTextChange,
+			saveSticky,
 			commitSticky,
 			cancelSticky,
 			startEditing,
@@ -188,6 +229,7 @@ export function useStickyHandler(options: UseStickyHandlerOptions) {
 			editingSticky,
 			handlePointerDown,
 			handleTextChange,
+			saveSticky,
 			commitSticky,
 			cancelSticky,
 			startEditing,

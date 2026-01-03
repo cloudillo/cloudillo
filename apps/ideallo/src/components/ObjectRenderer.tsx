@@ -31,6 +31,7 @@ import {
 } from './ShapeRenderer.js'
 import { TextLabel } from './TextLabel.js'
 import { StickyNote } from './StickyNote.js'
+import { StickyEditOverlay } from './StickyEditOverlay.js'
 import { ImageRenderer } from './ImageRenderer.js'
 import { getBoundsFromPoints } from '../utils/geometry.js'
 import type { PolygonObject } from '../crdt/index.js'
@@ -44,7 +45,9 @@ export interface ObjectRendererProps {
 	// Sticky editing props (passed when this sticky is being edited)
 	isEditing?: boolean
 	onTextChange?: (text: string) => void
-	onEditComplete?: () => void
+	onSave?: (text: string) => void
+	onCancel?: () => void
+	onDragStart?: (e: React.PointerEvent) => void
 	// Double-click handler for entering edit mode
 	onDoubleClick?: () => void
 	// Eraser highlight (object is under eraser brush)
@@ -93,7 +96,7 @@ function renderObject(
 	object: IdealloObject,
 	props: Pick<
 		ObjectRendererProps,
-		'ownerTag' | 'scale' | 'isEditing' | 'onTextChange' | 'onEditComplete'
+		'ownerTag' | 'scale' | 'isEditing' | 'onTextChange' | 'onSave' | 'onCancel' | 'onDragStart'
 	>
 ): React.ReactNode {
 	switch (object.type) {
@@ -112,14 +115,19 @@ function renderObject(
 		case 'text':
 			return <TextLabel object={object} />
 		case 'sticky':
-			return (
-				<StickyNote
-					object={object}
-					isEditing={props.isEditing}
-					onTextChange={props.onTextChange}
-					onEditComplete={props.onEditComplete}
-				/>
-			)
+			// When editing, use the overlay instead of the display component
+			if (props.isEditing && props.onSave && props.onCancel) {
+				return (
+					<StickyEditOverlay
+						object={object}
+						onSave={props.onSave}
+						onCancel={props.onCancel}
+						onTextChange={props.onTextChange}
+						onDragStart={props.onDragStart}
+					/>
+				)
+			}
+			return <StickyNote object={object} />
 		case 'image':
 			return <ImageRenderer object={object} ownerTag={props.ownerTag} scale={props.scale} />
 		default:
@@ -133,7 +141,9 @@ export function ObjectRenderer({
 	scale,
 	isEditing,
 	onTextChange,
-	onEditComplete,
+	onSave,
+	onCancel,
+	onDragStart,
 	onDoubleClick,
 	isHighlighted = false
 }: ObjectRendererProps) {
@@ -142,7 +152,9 @@ export function ObjectRenderer({
 		scale,
 		isEditing,
 		onTextChange,
-		onEditComplete
+		onSave,
+		onCancel,
+		onDragStart
 	})
 	if (!content) return null
 

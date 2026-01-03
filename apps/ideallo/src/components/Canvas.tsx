@@ -144,6 +144,7 @@ import { pointsToSmoothPath } from '../utils/index.js'
 export interface CanvasProps {
 	doc: YIdealloDocument
 	objects: Record<string, StoredObject> | null
+	textContent?: Record<string, unknown> | null // Text content map, used to trigger re-render
 	activeStroke: ActiveStrokeType | null
 	shapePreview: ShapePreviewType | null
 	textInput: TextInputState | null
@@ -166,7 +167,9 @@ export interface CanvasProps {
 	// Sticky editing
 	editingSticky?: StickyInputState | null
 	onStickyTextChange?: (text: string) => void
-	onStickyEditComplete?: () => void
+	onStickySave?: (text: string) => void
+	onStickyCancel?: () => void
+	onStickyDragStart?: (e: React.PointerEvent, objectId: ObjectId) => void
 	onStickyDoubleClick?: (objectId: ObjectId) => void
 	onScaleChange?: (scale: number) => void
 	onContextReady?: (ctx: SvgCanvasContext) => void
@@ -207,6 +210,7 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 	{
 		doc,
 		objects,
+		textContent,
 		activeStroke,
 		shapePreview,
 		textInput,
@@ -229,7 +233,9 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 		// Sticky editing
 		editingSticky,
 		onStickyTextChange,
-		onStickyEditComplete,
+		onStickySave,
+		onStickyCancel,
+		onStickyDragStart,
 		onStickyDoubleClick,
 		onScaleChange,
 		onContextReady,
@@ -435,7 +441,7 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 
 			return obj
 		})
-	}, [objects, dragOffset])
+	}, [objects, textContent, dragOffset])
 
 	// Get current scale for RotationHandle and pivot conversion
 	const scale = canvasMatrix[0]
@@ -533,9 +539,21 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 								? onStickyTextChange
 								: undefined
 						}
-						onEditComplete={
+						onSave={
 							obj.type === 'sticky' && editingSticky?.id === obj.id
-								? onStickyEditComplete
+								? onStickySave
+								: undefined
+						}
+						onCancel={
+							obj.type === 'sticky' && editingSticky?.id === obj.id
+								? onStickyCancel
+								: undefined
+						}
+						onDragStart={
+							obj.type === 'sticky' &&
+							editingSticky?.id === obj.id &&
+							onStickyDragStart
+								? (e) => onStickyDragStart(e, obj.id)
 								: undefined
 						}
 						// Double-click to edit sticky notes

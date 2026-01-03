@@ -1023,6 +1023,7 @@ export function IdealloApp() {
 				ref={canvasRef}
 				doc={ideallo.doc}
 				objects={ideallo.objects}
+				textContent={ideallo.textContent}
 				activeStroke={drawingHandler.activeStroke}
 				shapePreview={shapeHandler.shapePreview}
 				textInput={textHandler.textInput}
@@ -1045,7 +1046,8 @@ export function IdealloApp() {
 				// Sticky editing
 				editingSticky={stickyHandler.editingSticky}
 				onStickyTextChange={stickyHandler.handleTextChange}
-				onStickyEditComplete={stickyHandler.commitSticky}
+				onStickySave={stickyHandler.saveSticky}
+				onStickyCancel={stickyHandler.cancelSticky}
 				onStickyDoubleClick={(objectId) => {
 					const obj = ideallo.doc && getObject(ideallo.doc, objectId)
 					if (obj && obj.type === 'sticky') {

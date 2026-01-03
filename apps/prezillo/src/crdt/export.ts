@@ -179,12 +179,16 @@ export function exportDocument(yDoc: Y.Doc, doc: YPrezilloDocument): PrezilloExp
 	})
 
 	// 4. Export root children
-	const rootChildren: RuntimeChildRef[] = doc.r.toArray().map((ref: ChildRef) => expandChildRef(ref))
+	const rootChildren: RuntimeChildRef[] = doc.r
+		.toArray()
+		.map((ref: ChildRef) => expandChildRef(ref))
 
 	// 5. Export container children
 	const containerChildren: Record<string, RuntimeChildRef[]> = {}
 	doc.ch.forEach((yArray: Y.Array<ChildRef>, containerId: string) => {
-		containerChildren[containerId] = yArray.toArray().map((ref: ChildRef) => expandChildRef(ref))
+		containerChildren[containerId] = yArray
+			.toArray()
+			.map((ref: ChildRef) => expandChildRef(ref))
 	})
 
 	// 6. Export views

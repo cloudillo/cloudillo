@@ -28,6 +28,7 @@ import type { PrezilloObject } from '../crdt'
 import { resolveShapeStyle, resolveTextStyle } from '../crdt'
 import { WrappedText } from './WrappedText'
 import { ImageRenderer } from './ImageRenderer'
+import { QRCodeRenderer } from './QRCodeRenderer'
 
 /**
  * Render SVG gradient definition using library functions
@@ -108,22 +109,8 @@ function shallowEqual(a: Record<string, any>, b: Record<string, any>): boolean {
  * Only re-renders when relevant props change
  */
 function arePropsEqual(prev: ObjectShapeProps, next: ObjectShapeProps): boolean {
-	// Check text content for text objects
-	const prevText = prev.object.type === 'text' ? prev.object.text : undefined
-	const nextText = next.object.type === 'text' ? next.object.text : undefined
-
 	return (
-		prev.object.id === next.object.id &&
-		prev.object.x === next.object.x &&
-		prev.object.y === next.object.y &&
-		prev.object.width === next.object.width &&
-		prev.object.height === next.object.height &&
-		prev.object.rotation === next.object.rotation &&
-		prev.object.pivotX === next.object.pivotX &&
-		prev.object.pivotY === next.object.pivotY &&
-		prev.object.opacity === next.object.opacity &&
-		prev.object.type === next.object.type &&
-		prevText === nextText &&
+		prev.object === next.object &&
 		prev.isSelected === next.isSelected &&
 		prev.isHovered === next.isHovered &&
 		prev.tempBounds === next.tempBounds &&
@@ -317,6 +304,23 @@ export const ObjectShape = React.memo(function ObjectShape({
 						scale={scale}
 						bounds={{ x, y, width, height }}
 					/>
+					{/* Invisible rect for click handling */}
+					<rect
+						x={x}
+						y={y}
+						width={width}
+						height={height}
+						fill="transparent"
+						stroke="none"
+					/>
+					{hoverOverlay}
+				</g>
+			)
+
+		case 'qrcode':
+			return (
+				<g transform={rotationTransform} opacity={objectOpacity} {...commonProps}>
+					<QRCodeRenderer object={object} bounds={{ x, y, width, height }} />
 					{/* Invisible rect for click handling */}
 					<rect
 						x={x}

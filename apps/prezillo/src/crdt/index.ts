@@ -62,6 +62,8 @@ export type {
 	ImageObject,
 	EmbedObject,
 	ConnectorObject,
+	QrCodeObject,
+	QrErrorCorrection,
 	ContainerNode,
 	ViewNode,
 	DocumentMeta,

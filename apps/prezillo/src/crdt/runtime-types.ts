@@ -34,6 +34,10 @@ export type ObjectType =
 	| 'image'
 	| 'embed'
 	| 'connector'
+	| 'qrcode'
+
+// QR Code error correction levels (expanded)
+export type QrErrorCorrection = 'low' | 'medium' | 'quartile' | 'high'
 
 // Container types
 export type ContainerType = 'layer' | 'group'
@@ -250,6 +254,15 @@ export interface ConnectorObject extends PrezilloObjectBase {
 	endArrow?: ArrowStyle
 }
 
+// QR Code object
+export interface QrCodeObject extends PrezilloObjectBase {
+	type: 'qrcode'
+	url: string // URL to encode
+	errorCorrection?: QrErrorCorrection // default 'medium'
+	foreground?: string // QR code color (default '#000000')
+	background?: string // background color (default '#ffffff')
+}
+
 // Union of all object types
 export type PrezilloObject =
 	| RectObject
@@ -262,6 +275,7 @@ export type PrezilloObject =
 	| ImageObject
 	| EmbedObject
 	| ConnectorObject
+	| QrCodeObject
 
 // Container (layer or group)
 export interface ContainerNode {

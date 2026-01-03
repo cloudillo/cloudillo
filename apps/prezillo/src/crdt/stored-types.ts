@@ -43,11 +43,14 @@ import * as Y from 'yjs'
 export type ChildRef = [0 | 1, string]
 
 // Object type codes
-export type ObjectTypeCode = 'R' | 'E' | 'L' | 'P' | 'G' | 'T' | 'B' | 'I' | 'M' | 'C'
+export type ObjectTypeCode = 'R' | 'E' | 'L' | 'P' | 'G' | 'T' | 'B' | 'I' | 'M' | 'C' | 'Q'
 // R=rect, E=ellipse, L=line, P=path, G=polygon
 // T=text, B=textbox
 // I=image, M=embed (media)
-// C=connector
+// C=connector, Q=qrcode
+
+// QR Code error correction level codes
+export type QrErrorCorrectionLevel = 'L' | 'M' | 'Q' | 'H'
 
 // Container type codes
 export type ContainerTypeCode = 'L' | 'G' // Layer or Group
@@ -232,6 +235,15 @@ export interface StoredConnector extends StoredObjectBase {
 	ear?: ArrowDef // endArrow
 }
 
+// QR Code
+export interface StoredQrCode extends StoredObjectBase {
+	t: 'Q'
+	url: string // URL to encode
+	ecl?: QrErrorCorrectionLevel // error correction level (default 'M')
+	fg?: string // foreground color (default '#000000')
+	bg?: string // background color (default '#ffffff')
+}
+
 // Union of all stored object types
 export type StoredObject =
 	| StoredRect
@@ -244,6 +256,7 @@ export type StoredObject =
 	| StoredImage
 	| StoredEmbed
 	| StoredConnector
+	| StoredQrCode
 
 // Container (layer or group)
 export interface StoredContainer {

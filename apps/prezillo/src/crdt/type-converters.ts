@@ -35,7 +35,8 @@ const OBJECT_TYPE_MAP: Record<Stored.ObjectTypeCode, Runtime.ObjectType> = {
 	B: 'textbox',
 	I: 'image',
 	M: 'embed',
-	C: 'connector'
+	C: 'connector',
+	Q: 'qrcode'
 }
 
 const OBJECT_TYPE_REVERSE: Record<Runtime.ObjectType, Stored.ObjectTypeCode> = {
@@ -48,7 +49,26 @@ const OBJECT_TYPE_REVERSE: Record<Runtime.ObjectType, Stored.ObjectTypeCode> = {
 	textbox: 'B',
 	image: 'I',
 	embed: 'M',
-	connector: 'C'
+	connector: 'C',
+	qrcode: 'Q'
+}
+
+// QR Code error correction level mappings
+const QR_ERROR_CORRECTION_MAP: Record<Stored.QrErrorCorrectionLevel, Runtime.QrErrorCorrection> = {
+	L: 'low',
+	M: 'medium',
+	Q: 'quartile',
+	H: 'high'
+}
+
+const QR_ERROR_CORRECTION_REVERSE: Record<
+	Runtime.QrErrorCorrection,
+	Stored.QrErrorCorrectionLevel
+> = {
+	low: 'L',
+	medium: 'M',
+	quartile: 'Q',
+	high: 'H'
 }
 
 const CONTAINER_TYPE_MAP: Record<Stored.ContainerTypeCode, Runtime.ContainerType> = {
@@ -446,6 +466,17 @@ export function expandObject(id: string, stored: Stored.StoredObject): Runtime.P
 				endArrow: expandArrowStyle(conn.ear)
 			} as Runtime.ConnectorObject
 
+		case 'Q':
+			const qr = stored as Stored.StoredQrCode
+			return {
+				...base,
+				type: 'qrcode',
+				url: qr.url,
+				errorCorrection: qr.ecl ? QR_ERROR_CORRECTION_MAP[qr.ecl] : 'medium',
+				foreground: qr.fg ?? '#000000',
+				background: qr.bg ?? '#ffffff'
+			} as Runtime.QrCodeObject
+
 		default:
 			throw new Error(`Unknown object type: ${(stored as any).t}`)
 	}
@@ -569,6 +600,26 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 				sar: compactArrowStyle(conn.startArrow),
 				ear: compactArrowStyle(conn.endArrow)
 			} as Stored.StoredConnector
+
+		case 'qrcode':
+			const qrObj = runtime as Runtime.QrCodeObject
+			return {
+				...base,
+				t: 'Q',
+				url: qrObj.url,
+				ecl:
+					qrObj.errorCorrection && qrObj.errorCorrection !== 'medium'
+						? QR_ERROR_CORRECTION_REVERSE[qrObj.errorCorrection]
+						: undefined,
+				fg:
+					qrObj.foreground && qrObj.foreground !== '#000000'
+						? qrObj.foreground
+						: undefined,
+				bg:
+					qrObj.background && qrObj.background !== '#ffffff'
+						? qrObj.background
+						: undefined
+			} as Stored.StoredQrCode
 
 		default:
 			throw new Error(`Unknown object type: ${(runtime as any).type}`)

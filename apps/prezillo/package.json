@@ -24,6 +24,7 @@
 		"@cloudillo/base": "workspace:^",
 		"@cloudillo/canvas-tools": "workspace:^",
 		"@cloudillo/react": "workspace:^",
+		"react-qr-code": "^2.0.18",
 		"@popperjs/core": "^2.11.8",
 		"@symbion/opalui": "^0.14.3",
 		"@symbion/runtype": "^1.2.1",

@@ -490,14 +490,18 @@ export function PrezilloApp() {
 	const storedSelectionRef = React.useRef(storedSelection)
 	storedSelectionRef.current = storedSelection
 
-	// Compute aspect ratio for single image selection
+	// Compute aspect ratio for single image/qrcode selection
 	// This is used by useResizable for aspect-locked resize
 	const selectionAspectRatio = React.useMemo(() => {
 		if (prezillo.selectedIds.size !== 1) return undefined
 		const id = Array.from(prezillo.selectedIds)[0]
 		const obj = prezillo.objects?.[id]
-		if (!obj || obj.t !== 'I') return undefined // 'I' = image type
-		return obj.wh[0] / obj.wh[1] // width / height
+		if (!obj) return undefined
+		// 'I' = image type - preserve original aspect ratio
+		if (obj.t === 'I') return obj.wh[0] / obj.wh[1]
+		// 'Q' = qrcode type - always square (1:1)
+		if (obj.t === 'Q') return 1
+		return undefined
 	}, [prezillo.selectedIds, prezillo.objects])
 
 	// Transform functions that use canvasContextRef (since hooks are outside SvgCanvas context)

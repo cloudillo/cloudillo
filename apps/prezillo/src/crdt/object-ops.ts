@@ -163,6 +163,13 @@ export function createObject(
 		case 'connector':
 			object = { ...base, type: 'connector' } as any
 			break
+		case 'qrcode':
+			object = {
+				...base,
+				type: 'qrcode',
+				url: ''
+			} as any
+			break
 		default:
 			throw new Error(`Unknown object type: ${type}`)
 	}

@@ -31,6 +31,7 @@ import {
 	PiCircleBold as IcEllipse,
 	PiMinusBold as IcLine,
 	PiImageBold as IcImage,
+	PiQrCodeBold as IcQrCode,
 	PiTrashBold as IcDelete,
 	PiArrowArcLeftBold as IcUndo,
 	PiArrowArcRightBold as IcRedo,
@@ -224,6 +225,15 @@ export function Toolbar({
 				title="Image"
 			>
 				<IcImage />
+			</button>
+
+			{/* QR Code tool */}
+			<button
+				onClick={() => setTool('qrcode')}
+				className={mergeClasses('c-button icon', tool === 'qrcode' ? 'active' : '')}
+				title="QR Code"
+			>
+				<IcQrCode />
 			</button>
 
 			<div className="c-toolbar-divider" />

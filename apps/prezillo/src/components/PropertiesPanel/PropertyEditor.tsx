@@ -24,6 +24,7 @@ import { TransformSection } from './TransformSection'
 import { StyleSection } from './StyleSection'
 import { TextStyleSection } from './TextStyleSection'
 import { ShapeSection } from './ShapeSection'
+import { QRCodeSection } from './QRCodeSection'
 import { ViewPropertiesPanel } from './ViewPropertiesPanel'
 import type { PropertyPreview } from './PrezilloPropertiesPanel'
 
@@ -100,15 +101,20 @@ export function PropertyEditor({
 	// Check if object is a rect (has corner radius)
 	const isRectObject = selectedObject.type === 'rect'
 
+	// Check if object is a QR code
+	const isQrCodeObject = selectedObject.type === 'qrcode'
+
 	return (
 		<div className="c-vbox g-2">
 			<TransformSection doc={doc} yDoc={yDoc} object={selectedObject} onPreview={onPreview} />
 
-			<StyleSection doc={doc} yDoc={yDoc} object={selectedObject} />
+			{!isQrCodeObject && <StyleSection doc={doc} yDoc={yDoc} object={selectedObject} />}
 
 			{isTextObject && <TextStyleSection doc={doc} yDoc={yDoc} object={selectedObject} />}
 
 			{isRectObject && <ShapeSection doc={doc} yDoc={yDoc} object={selectedObject} />}
+
+			{isQrCodeObject && <QRCodeSection doc={doc} yDoc={yDoc} object={selectedObject} />}
 		</div>
 	)
 }

@@ -25,7 +25,7 @@
 		"@cloudillo/react": "workspace:^",
 		"@fortune-sheet/core": "^1.0.4",
 		"@fortune-sheet/react": "^1.0.4",
-		"@symbion/opalui": "^0.14.2",
+		"@symbion/opalui": "^0.14.3",
 		"@symbion/runtype": "^1.2.1",
 		"@types/debounce": "^1.2.4",
 		"@types/react": "^19.2.7",
@@ -38,10 +38,10 @@
 		"i18next": "^25.7.3",
 		"i18next-scanner": "^4.6.0",
 		"i18next-scanner-typescript": "^1.2.1",
-		"jotai": "^2.16.0",
+		"jotai": "^2.16.1",
 		"react": "^19.2.3",
 		"react-dom": "^19.2.3",
-		"react-i18next": "^16.5.0",
+		"react-i18next": "^16.5.1",
 		"react-icons": "^5.5.0",
 		"react-router-dom": "^7.11.0",
 		"react-yjs": "^2.0.1",
@@ -53,6 +53,6 @@
 		"yjs": "^13.6.28"
 	},
 	"dependencies": {
-		"lib0": "^0.2.116"
+		"lib0": "^0.2.117"
 	}
 }

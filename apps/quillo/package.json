@@ -20,7 +20,7 @@
 	"devDependencies": {
 		"@cloudillo/base": "workspace:^",
 		"@enzedonline/quill-blot-formatter2": "^3.0.3",
-		"@symbion/opalui": "^0.14.2",
+		"@symbion/opalui": "^0.14.3",
 		"@symbion/runtype": "^1.2.1",
 		"cross-env": "^10.1.0",
 		"dayjs": "^1.11.19",

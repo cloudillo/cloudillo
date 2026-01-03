@@ -22,6 +22,7 @@
  */
 
 import type { Awareness } from 'y-protocols/awareness'
+import type { ViewId } from './crdt/index.js'
 
 export interface PrezilloPresence {
 	user: {
@@ -38,6 +39,28 @@ export interface PrezilloPresence {
 		height?: number
 		rotation?: number
 	}
+	// Presentation state - broadcasted when user is presenting
+	presenting?: {
+		viewId: ViewId
+		viewIndex: number
+		isOwner: boolean
+		startedAt: number // timestamp for ordering multiple presenters
+	}
+}
+
+/**
+ * Presenter info with client ID for tracking who to follow
+ */
+export interface PresenterInfo {
+	clientId: number
+	user: {
+		name: string
+		color: string
+	}
+	viewId: ViewId
+	viewIndex: number
+	isOwner: boolean
+	startedAt: number
 }
 
 /**
@@ -103,6 +126,85 @@ export async function str2color(str: string): Promise<string> {
 	const b = Math.floor(hashArray[2] * 0.6 + 100)
 
 	return `rgb(${r}, ${g}, ${b})`
+}
+
+/**
+ * Start presenting - broadcast current view to other clients
+ */
+export function setPresenting(
+	awareness: Awareness,
+	viewId: ViewId,
+	viewIndex: number,
+	isOwner: boolean
+): void {
+	awareness.setLocalStateField('presenting', {
+		viewId,
+		viewIndex,
+		isOwner,
+		startedAt: Date.now()
+	})
+}
+
+/**
+ * Stop presenting
+ */
+export function clearPresenting(awareness: Awareness): void {
+	awareness.setLocalStateField('presenting', undefined)
+}
+
+/**
+ * Update the current view while presenting (when navigating slides)
+ */
+export function updatePresentingView(
+	awareness: Awareness,
+	viewId: ViewId,
+	viewIndex: number
+): void {
+	const currentState = awareness.getLocalState()
+	if (currentState?.presenting) {
+		awareness.setLocalStateField('presenting', {
+			...currentState.presenting,
+			viewId,
+			viewIndex
+		})
+	}
+}
+
+/**
+ * Get all active presenters, sorted by owner first, then by startedAt
+ */
+export function getActivePresenters(awareness: Awareness): PresenterInfo[] {
+	const states = awareness.getStates()
+	const presenters: PresenterInfo[] = []
+
+	states.forEach((state: any, clientId: number) => {
+		if (state?.presenting && state?.user) {
+			presenters.push({
+				clientId,
+				user: state.user,
+				viewId: state.presenting.viewId,
+				viewIndex: state.presenting.viewIndex,
+				isOwner: state.presenting.isOwner,
+				startedAt: state.presenting.startedAt
+			})
+		}
+	})
+
+	// Sort: owners first, then by startedAt (earliest first)
+	return presenters.sort((a, b) => {
+		if (a.isOwner !== b.isOwner) {
+			return a.isOwner ? -1 : 1
+		}
+		return a.startedAt - b.startedAt
+	})
+}
+
+/**
+ * Check if the local client is currently presenting
+ */
+export function isLocalPresenting(awareness: Awareness): boolean {
+	const state = awareness.getLocalState()
+	return !!state?.presenting
 }
 
 // vim: ts=4

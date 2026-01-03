@@ -18,7 +18,20 @@ import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 
 const resources = {
-	en: { translation: {} }
+	en: {
+		translation: {
+			'prezillo.presenting': 'presenting',
+			'prezillo.presentersActive': '{{count}} presenting',
+			'prezillo.slide': 'Slide',
+			'prezillo.follow': 'Follow',
+			'prezillo.following': 'Following',
+			'prezillo.owner': 'Owner',
+			'prezillo.followingUser': 'Following {{name}}',
+			'prezillo.enterFullscreen': 'Enter fullscreen',
+			'prezillo.fullscreen': 'Fullscreen',
+			'prezillo.stopFollowing': 'Stop Following'
+		}
+	}
 }
 
 i18n.use(initReactI18next)

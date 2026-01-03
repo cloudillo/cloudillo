@@ -25,10 +25,12 @@ import {
 	PiPlusBold as IcAdd,
 	PiCaretLeftBold as IcPrev,
 	PiCaretRightBold as IcNext,
-	PiPlayBold as IcPlay
+	PiPlayBold as IcPlay,
+	PiStopBold as IcStop
 } from 'react-icons/pi'
 
 import type { ViewId, ViewNode } from '../crdt'
+import type { PresenterInfo } from '../awareness'
 
 export interface ViewPickerProps {
 	views: ViewNode[]
@@ -41,6 +43,12 @@ export interface ViewPickerProps {
 	readOnly?: boolean
 	/** Callback to reorder a view to a new index in presentation order */
 	onReorderView?: (viewId: ViewId, newIndex: number) => void
+	/** Whether the local user is currently presenting */
+	isPresenting?: boolean
+	/** Callback to stop presenting */
+	onStopPresenting?: () => void
+	/** Active presenters for showing badges */
+	activePresenters?: PresenterInfo[]
 }
 
 // Drag state types
@@ -63,9 +71,17 @@ export function ViewPicker({
 	onNextView,
 	onPresent,
 	readOnly,
-	onReorderView
+	onReorderView,
+	isPresenting,
+	onStopPresenting,
+	activePresenters = []
 }: ViewPickerProps) {
 	const activeIndex = views.findIndex((v) => v.id === activeViewId)
+
+	// Get presenter badges for each slide
+	const getPresenterBadges = (viewId: ViewId): PresenterInfo[] => {
+		return activePresenters.filter((p) => p.viewId === viewId)
+	}
 
 	// Drag-and-drop state
 	const [draggedView, setDraggedView] = React.useState<ViewDragData | null>(null)
@@ -169,31 +185,48 @@ export function ViewPicker({
 			</button>
 
 			<div className="c-hbox gap-1 flex-fill c-view-picker-tabs">
-				{views.map((view, index) => (
-					<button
-						key={view.id}
-						onClick={() => onViewSelect(view.id)}
-						className={mergeClasses(
-							'c-button c-view-picker-tab',
-							view.id === activeViewId && 'active',
-							draggedView?.viewId === view.id && 'dragging',
-							dropTarget?.viewId === view.id &&
-								dropTarget.position === 'before' &&
-								'drop-before',
-							dropTarget?.viewId === view.id &&
-								dropTarget.position === 'after' &&
-								'drop-after'
-						)}
-						draggable={isDragEnabled}
-						onDragStart={(e) => handleDragStart(e, view.id, index)}
-						onDragOver={(e) => handleDragOver(e, view.id)}
-						onDragLeave={handleDragLeave}
-						onDrop={(e) => handleDrop(e, view.id, index)}
-						onDragEnd={handleDragEnd}
-					>
-						{index + 1}
-					</button>
-				))}
+				{views.map((view, index) => {
+					const presenters = getPresenterBadges(view.id)
+
+					return (
+						<button
+							key={view.id}
+							onClick={() => onViewSelect(view.id)}
+							className={mergeClasses(
+								'c-button c-view-picker-tab',
+								view.id === activeViewId && 'active',
+								draggedView?.viewId === view.id && 'dragging',
+								dropTarget?.viewId === view.id &&
+									dropTarget.position === 'before' &&
+									'drop-before',
+								dropTarget?.viewId === view.id &&
+									dropTarget.position === 'after' &&
+									'drop-after',
+								presenters.length > 0 && 'has-presenter'
+							)}
+							draggable={isDragEnabled}
+							onDragStart={(e) => handleDragStart(e, view.id, index)}
+							onDragOver={(e) => handleDragOver(e, view.id)}
+							onDragLeave={handleDragLeave}
+							onDrop={(e) => handleDrop(e, view.id, index)}
+							onDragEnd={handleDragEnd}
+						>
+							{index + 1}
+							{presenters.length > 0 && (
+								<span className="c-view-picker-tab__presenter-badge">
+									{presenters.map((p, i) => (
+										<span
+											key={p.clientId}
+											className="c-view-picker-tab__presenter-dot"
+											style={{ backgroundColor: p.user.color }}
+											title={p.user.name}
+										/>
+									))}
+								</span>
+							)}
+						</button>
+					)
+				})}
 			</div>
 
 			<button
@@ -211,14 +244,24 @@ export function ViewPicker({
 				</button>
 			)}
 
-			<button
-				onClick={onPresent}
-				className="c-button icon ms-2"
-				title="Present (fullscreen)"
-				disabled={views.length === 0}
-			>
-				<IcPlay />
-			</button>
+			{isPresenting ? (
+				<button
+					onClick={onStopPresenting}
+					className="c-button icon ms-2 presenting"
+					title="Stop presenting"
+				>
+					<IcStop />
+				</button>
+			) : (
+				<button
+					onClick={onPresent}
+					className="c-button icon ms-2"
+					title="Present (fullscreen)"
+					disabled={views.length === 0}
+				>
+					<IcPlay />
+				</button>
+			)}
 		</div>
 	)
 }

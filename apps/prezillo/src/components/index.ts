@@ -20,6 +20,12 @@ export type { ObjectShapeProps } from './ObjectShape'
 export { PresentationMode } from './PresentationMode'
 export type { PresentationModeProps } from './PresentationMode'
 
+export { PresenterIndicator } from './PresenterIndicator'
+export type { PresenterIndicatorProps } from './PresenterIndicator'
+
+export { FollowBanner } from './FollowBanner'
+export type { FollowBannerProps } from './FollowBanner'
+
 export { TextEditOverlay } from './TextEditOverlay'
 export type { TextEditOverlayProps } from './TextEditOverlay'
 

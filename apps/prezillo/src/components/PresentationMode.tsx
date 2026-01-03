@@ -34,6 +34,12 @@ export interface PresentationModeProps {
 	initialViewId: ViewId | null
 	onExit: () => void
 	ownerTag?: string
+	/** Whether following a presenter (synced mode) */
+	isFollowing?: boolean
+	/** Current view index from presenter (when following) */
+	followingViewIndex?: number
+	/** Callback when local navigation happens (for presenting) */
+	onViewChange?: (viewIndex: number, viewId: ViewId) => void
 }
 
 /**
@@ -167,13 +173,38 @@ export function PresentationMode({
 	views,
 	initialViewId,
 	onExit,
-	ownerTag
+	ownerTag,
+	isFollowing,
+	followingViewIndex,
+	onViewChange
 }: PresentationModeProps) {
 	const containerRef = React.useRef<HTMLDivElement>(null)
 	const [currentIndex, setCurrentIndex] = React.useState(() => {
 		const idx = views.findIndex((v) => v.id === initialViewId)
 		return idx >= 0 ? idx : 0
 	})
+
+	// Sync with presenter when following
+	React.useEffect(() => {
+		if (
+			isFollowing &&
+			followingViewIndex !== undefined &&
+			followingViewIndex !== currentIndex
+		) {
+			setCurrentIndex(followingViewIndex)
+		}
+	}, [isFollowing, followingViewIndex, currentIndex])
+
+	// Notify when view changes (for presenting mode)
+	const handleIndexChange = React.useCallback(
+		(newIndex: number) => {
+			setCurrentIndex(newIndex)
+			if (onViewChange && views[newIndex]) {
+				onViewChange(newIndex, views[newIndex].id)
+			}
+		},
+		[onViewChange, views]
+	)
 
 	const [showControls, setShowControls] = React.useState(true)
 	const hideTimeoutRef = React.useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -206,30 +237,39 @@ export function PresentationMode({
 		}
 	}, [onExit])
 
-	// Keyboard navigation
+	// Keyboard navigation (disabled when following)
 	React.useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
+			// When following, only allow Escape to exit
+			if (isFollowing) {
+				if (e.key === 'Escape') {
+					e.preventDefault()
+					onExit()
+				}
+				return
+			}
+
 			switch (e.key) {
 				case 'ArrowRight':
 				case 'ArrowDown':
 				case ' ':
 				case 'PageDown':
 					e.preventDefault()
-					setCurrentIndex((i) => Math.min(i + 1, views.length - 1))
+					handleIndexChange(Math.min(currentIndex + 1, views.length - 1))
 					break
 				case 'ArrowLeft':
 				case 'ArrowUp':
 				case 'PageUp':
 					e.preventDefault()
-					setCurrentIndex((i) => Math.max(i - 1, 0))
+					handleIndexChange(Math.max(currentIndex - 1, 0))
 					break
 				case 'Home':
 					e.preventDefault()
-					setCurrentIndex(0)
+					handleIndexChange(0)
 					break
 				case 'End':
 					e.preventDefault()
-					setCurrentIndex(views.length - 1)
+					handleIndexChange(views.length - 1)
 					break
 				case 'Escape':
 					e.preventDefault()
@@ -240,7 +280,7 @@ export function PresentationMode({
 
 		window.addEventListener('keydown', handleKeyDown)
 		return () => window.removeEventListener('keydown', handleKeyDown)
-	}, [views.length, onExit])
+	}, [views.length, onExit, isFollowing, currentIndex, handleIndexChange])
 
 	// Auto-hide controls after inactivity
 	React.useEffect(() => {
@@ -257,16 +297,19 @@ export function PresentationMode({
 		}
 	}, [])
 
-	// Click to advance
+	// Click to advance (disabled when following)
 	const handleClick = (e: React.MouseEvent) => {
+		// When following, clicks do nothing (synced with presenter)
+		if (isFollowing) return
+
 		// Right side of screen = next, left side = previous
 		const rect = containerRef.current?.getBoundingClientRect()
 		if (rect) {
 			const clickX = e.clientX - rect.left
 			if (clickX > rect.width / 2) {
-				setCurrentIndex((i) => Math.min(i + 1, views.length - 1))
+				handleIndexChange(Math.min(currentIndex + 1, views.length - 1))
 			} else {
-				setCurrentIndex((i) => Math.max(i - 1, 0))
+				handleIndexChange(Math.max(currentIndex - 1, 0))
 			}
 		}
 	}
@@ -280,7 +323,7 @@ export function PresentationMode({
 		<div
 			ref={containerRef}
 			onClick={handleClick}
-			className={`c-presentation-container${showControls ? '' : ' c-controls-hidden'}`}
+			className={`c-presentation-container${showControls ? '' : ' c-controls-hidden'}${isFollowing ? ' following' : ''}`}
 		>
 			<svg
 				viewBox={`${currentView.x} ${currentView.y} ${currentView.width} ${currentView.height}`}

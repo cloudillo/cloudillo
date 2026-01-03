@@ -157,12 +157,13 @@ import { ViewFrame } from './components/ViewFrame'
 import { TextEditOverlay } from './components/TextEditOverlay'
 import { ObjectShape } from './components/ObjectShape'
 import { PresentationMode } from './components/PresentationMode'
+import { PresenterIndicator } from './components/PresenterIndicator'
 import {
 	PrezilloPropertiesPanel,
 	MobilePropertyPanel,
 	type PropertyPreview
 } from './components/PropertiesPanel'
-import { useIsMobile, type BottomSheetSnapPoint } from '@cloudillo/react'
+import { useIsMobile, useToast, ToastContainer, type BottomSheetSnapPoint } from '@cloudillo/react'
 
 import type { ObjectId, ViewId, PrezilloObject, ViewNode, Bounds, YPrezilloDocument } from './crdt'
 import {
@@ -219,6 +220,78 @@ export function PrezilloApp() {
 
 	// Presentation mode state
 	const [isPresentationMode, setIsPresentationMode] = React.useState(false)
+
+	// Fullscreen following mode (when following presenter in fullscreen)
+	const [isFullscreenFollowing, setIsFullscreenFollowing] = React.useState(false)
+
+	// Toast for presenter notifications
+	const { toast } = useToast()
+
+	// Track previous presenters to detect new ones
+	const prevPresentersRef = React.useRef<Set<number>>(new Set())
+
+	// Show toast when a new presenter starts
+	React.useEffect(() => {
+		const currentIds = new Set(prezillo.activePresenters.map((p) => p.clientId))
+		const prevIds = prevPresentersRef.current
+
+		// Find new presenters (excluding local client)
+		for (const presenter of prezillo.activePresenters) {
+			if (
+				!prevIds.has(presenter.clientId) &&
+				presenter.clientId !== prezillo.awareness?.clientID
+			) {
+				toast({
+					variant: 'info',
+					title: `${presenter.user.name} started presenting`,
+					duration: 4000,
+					actions: (
+						<button
+							className="c-button primary small"
+							onClick={() => prezillo.followPresenter(presenter.clientId)}
+						>
+							Follow
+						</button>
+					)
+				})
+			}
+		}
+
+		prevPresentersRef.current = currentIds
+	}, [prezillo.activePresenters, prezillo.awareness?.clientID, prezillo.followPresenter, toast])
+
+	// Get presenter being followed
+	const followedPresenter = React.useMemo(() => {
+		if (!prezillo.followingClientId) return null
+		return prezillo.activePresenters.find((p) => p.clientId === prezillo.followingClientId)
+	}, [prezillo.followingClientId, prezillo.activePresenters])
+
+	// Auto-enter fullscreen when starting to follow
+	React.useEffect(() => {
+		if (prezillo.followingClientId && !isFullscreenFollowing) {
+			setIsFullscreenFollowing(true)
+		} else if (!prezillo.followingClientId && isFullscreenFollowing) {
+			setIsFullscreenFollowing(false)
+		}
+	}, [prezillo.followingClientId, isFullscreenFollowing])
+
+	// Handle exiting fullscreen following mode
+	const handleExitFullscreenFollowing = React.useCallback(() => {
+		setIsFullscreenFollowing(false)
+		prezillo.unfollowPresenter()
+	}, [prezillo.unfollowPresenter])
+
+	// Handle starting presentation (with fullscreen)
+	const handleStartPresenting = React.useCallback(() => {
+		prezillo.startPresenting()
+		setIsPresentationMode(true)
+	}, [prezillo.startPresenting])
+
+	// Handle stopping presentation
+	const handleStopPresenting = React.useCallback(() => {
+		prezillo.stopPresenting()
+		setIsPresentationMode(false)
+	}, [prezillo.stopPresenting])
 
 	// Mobile detection
 	const isMobile = useIsMobile()
@@ -1675,27 +1748,67 @@ export function PrezilloApp() {
 				/>
 			)}
 
-			<ViewPicker
-				views={views}
-				activeViewId={prezillo.activeViewId}
-				onViewSelect={(id) => prezillo.setActiveViewId(id)}
-				onAddView={handleAddView}
-				onPrevView={handlePrevView}
-				onNextView={handleNextView}
-				onPresent={() => setIsPresentationMode(true)}
-				readOnly={isReadOnly}
-				onReorderView={handleReorderView}
-			/>
+			<div className="c-nav-container c-hbox">
+				<ViewPicker
+					views={views}
+					activeViewId={prezillo.activeViewId}
+					onViewSelect={(id) => {
+						// When following and user clicks a view, stop following
+						if (prezillo.followingClientId) {
+							prezillo.unfollowPresenter()
+						}
+						prezillo.setActiveViewId(id)
+					}}
+					onAddView={handleAddView}
+					onPrevView={handlePrevView}
+					onNextView={handleNextView}
+					onPresent={handleStartPresenting}
+					readOnly={isReadOnly}
+					onReorderView={handleReorderView}
+					isPresenting={prezillo.isPresenting}
+					onStopPresenting={handleStopPresenting}
+					activePresenters={prezillo.activePresenters}
+				/>
 
+				{/* Presenter indicator - shown when presenters exist */}
+				<PresenterIndicator
+					presenters={prezillo.activePresenters}
+					followingClientId={prezillo.followingClientId}
+					totalViews={views.length}
+					onFollow={prezillo.followPresenter}
+					onUnfollow={prezillo.unfollowPresenter}
+				/>
+			</div>
+
+			{/* Presentation mode - local presenting */}
 			{isPresentationMode && (
 				<PresentationMode
 					doc={prezillo.doc}
 					views={views}
 					initialViewId={prezillo.activeViewId}
-					onExit={() => setIsPresentationMode(false)}
+					onExit={handleStopPresenting}
 					ownerTag={prezillo.cloudillo.idTag}
+					onViewChange={(viewIndex, viewId) => {
+						prezillo.setActiveViewId(viewId)
+					}}
 				/>
 			)}
+
+			{/* Fullscreen following mode */}
+			{isFullscreenFollowing && followedPresenter && (
+				<PresentationMode
+					doc={prezillo.doc}
+					views={views}
+					initialViewId={followedPresenter.viewId}
+					onExit={handleExitFullscreenFollowing}
+					ownerTag={prezillo.cloudillo.idTag}
+					isFollowing={true}
+					followingViewIndex={followedPresenter.viewIndex}
+				/>
+			)}
+
+			{/* Toast container for notifications */}
+			<ToastContainer position="top-right" />
 		</>
 	)
 }

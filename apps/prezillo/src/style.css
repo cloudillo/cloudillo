@@ -497,3 +497,307 @@ body,
 		display: none;
 	}
 }
+
+/* ==========================================================================
+   Remote Presentation Feature
+   ========================================================================== */
+
+/* Nav container to hold ViewPicker and PresenterIndicator */
+.c-nav-container {
+	display: flex;
+	align-items: center;
+	width: 100%;
+}
+
+.c-nav-container .c-nav {
+	flex: 1;
+}
+
+/* Presenter Indicator - toolbar badge + dropdown */
+.c-presenter-indicator {
+	position: relative;
+	margin-right: var(--space-2);
+}
+
+/* Single presenter - inline display */
+.c-presenter-indicator--single {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-1) var(--space-2);
+	background: var(--col-container-low);
+	border-radius: var(--radius-sm);
+}
+
+.c-presenter-indicator--single .c-presenter-indicator__avatar {
+	width: 24px;
+	height: 24px;
+	font-size: 11px;
+}
+
+.c-presenter-indicator--single .c-presenter-indicator__info {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.c-presenter-indicator--single .c-presenter-indicator__name {
+	font-size: 12px;
+}
+
+.c-presenter-indicator--single .c-presenter-indicator__slide {
+	font-size: 11px;
+}
+
+.c-presenter-indicator__badge {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	padding: var(--space-1) var(--space-2);
+	background: var(--col-container-primary);
+	border: none;
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	font-size: 12px;
+	color: var(--col-primary);
+	transition: background 0.2s;
+}
+
+.c-presenter-indicator__badge:hover {
+	background: var(--col-container-primary-high);
+}
+
+.c-presenter-indicator__icon {
+	position: relative;
+	width: 8px;
+	height: 8px;
+	background: var(--col-primary);
+	border-radius: 50%;
+}
+
+.c-presenter-indicator__pulse {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: var(--col-primary);
+	border-radius: 50%;
+	animation: presenter-pulse 2s infinite;
+}
+
+@keyframes presenter-pulse {
+	0% {
+		transform: scale(1);
+		opacity: 0.7;
+	}
+	70% {
+		transform: scale(2);
+		opacity: 0;
+	}
+	100% {
+		transform: scale(2);
+		opacity: 0;
+	}
+}
+
+.c-presenter-indicator__count {
+	font-weight: 500;
+}
+
+.c-presenter-indicator__caret {
+	transition: transform 0.2s;
+}
+
+.c-presenter-indicator__caret.open {
+	transform: rotate(180deg);
+}
+
+/* Dropdown - opens upward since toolbar is at bottom */
+.c-presenter-indicator__dropdown {
+	position: absolute;
+	bottom: 100%;
+	right: 0;
+	margin-bottom: var(--space-1);
+	min-width: 280px;
+	background: var(--col-surface);
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-lg);
+	z-index: 100;
+	overflow: hidden;
+}
+
+.c-presenter-indicator__item {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-2) var(--space-3);
+	border-bottom: 1px solid var(--col-outline);
+}
+
+.c-presenter-indicator__item:last-child {
+	border-bottom: none;
+}
+
+.c-presenter-indicator__item.owner {
+	background: var(--col-container-primary);
+}
+
+.c-presenter-indicator__avatar {
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: white;
+	font-weight: 600;
+	font-size: 14px;
+	flex-shrink: 0;
+}
+
+.c-presenter-indicator__info {
+	flex: 1;
+	min-width: 0;
+}
+
+.c-presenter-indicator__name {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	font-weight: 500;
+	font-size: 13px;
+}
+
+.c-presenter-indicator__owner-badge {
+	color: var(--col-warning);
+	font-size: 12px;
+}
+
+.c-presenter-indicator__slide {
+	font-size: 11px;
+	color: var(--col-txt-secondary);
+}
+
+/* Follow Banner - shown when following a presenter */
+.c-follow-banner {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: var(--space-2) var(--space-3);
+	background: var(--col-surface);
+	border-bottom: 3px solid var(--presenter-color, var(--col-primary));
+	z-index: 50;
+	animation: follow-banner-slide-in 0.3s ease;
+}
+
+@keyframes follow-banner-slide-in {
+	from {
+		transform: translateY(-100%);
+	}
+	to {
+		transform: translateY(0);
+	}
+}
+
+.c-follow-banner__content {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	font-size: 13px;
+}
+
+.c-follow-banner__icon {
+	color: var(--presenter-color, var(--col-primary));
+}
+
+.c-follow-banner__text {
+	font-weight: 500;
+}
+
+.c-follow-banner__separator {
+	width: 1px;
+	height: 16px;
+	background: var(--col-outline);
+}
+
+.c-follow-banner__slide {
+	color: var(--col-txt-secondary);
+}
+
+.c-follow-banner__actions {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.c-follow-banner__btn {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	padding: var(--space-1) var(--space-2);
+	border: none;
+	border-radius: var(--radius-sm);
+	font-size: 12px;
+	cursor: pointer;
+	transition: background 0.2s;
+}
+
+.c-follow-banner__btn--fullscreen {
+	background: var(--col-container-low);
+	color: var(--col-txt);
+}
+
+.c-follow-banner__btn--fullscreen:hover {
+	background: var(--col-container-high);
+}
+
+.c-follow-banner__btn--stop {
+	background: var(--col-container-low);
+	color: var(--col-error);
+}
+
+.c-follow-banner__btn--stop:hover {
+	background: var(--col-error);
+	color: var(--col-on-error);
+}
+
+/* View picker - presenter badges */
+.c-view-picker-tab.has-presenter {
+	position: relative;
+}
+
+.c-view-picker-tab__presenter-badge {
+	position: absolute;
+	top: -4px;
+	right: -4px;
+	display: flex;
+	gap: 2px;
+}
+
+.c-view-picker-tab__presenter-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	border: 1px solid var(--col-surface);
+}
+
+/* Presenting button state */
+.c-nav .c-button.presenting {
+	background: var(--col-error);
+	color: var(--col-on-error);
+}
+
+.c-nav .c-button.presenting:hover {
+	background: var(--col-error-high);
+}
+
+/* Presentation mode - following indicator */
+.c-presentation-container.following {
+	border: 4px solid var(--col-primary);
+}

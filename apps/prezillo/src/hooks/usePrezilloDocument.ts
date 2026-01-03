@@ -27,8 +27,16 @@ import type { Awareness } from 'y-protocols/awareness'
 
 import type { ObjectId, ContainerId, ViewId, YPrezilloDocument } from '../crdt'
 import { getOrCreateDocument, toViewId } from '../crdt'
-import type { PrezilloPresence } from '../awareness'
-import { getRemotePresenceStates, str2color } from '../awareness'
+import type { PrezilloPresence, PresenterInfo } from '../awareness'
+import {
+	getRemotePresenceStates,
+	str2color,
+	setPresenting,
+	clearPresenting,
+	updatePresentingView,
+	getActivePresenters,
+	isLocalPresenting
+} from '../awareness'
 
 export interface UsePrezilloDocumentResult {
 	// Cloudillo context
@@ -84,6 +92,15 @@ export interface UsePrezilloDocumentResult {
 	// Awareness/presence
 	awareness: Awareness | null
 	remotePresence: Map<number, PrezilloPresence>
+
+	// Remote presentation
+	isPresenting: boolean
+	followingClientId: number | null
+	activePresenters: PresenterInfo[]
+	startPresenting: () => void
+	stopPresenting: () => void
+	followPresenter: (clientId: number) => void
+	unfollowPresenter: () => void
 }
 
 const APP_NAME = 'Prezillo'
@@ -255,6 +272,96 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 		return () => awareness.off('change', handler)
 	}, [awareness])
 
+	// Presenting state - track if local user is presenting
+	const [isPresenting, setIsPresenting] = React.useState(false)
+
+	// Following state - track which client we're following
+	const [followingClientId, setFollowingClientId] = React.useState<number | null>(null)
+
+	// Active presenters - computed from remote presence
+	const [activePresenters, setActivePresenters] = React.useState<PresenterInfo[]>([])
+
+	// Update active presenters when awareness changes
+	React.useEffect(() => {
+		if (!awareness) return
+
+		const handler = () => {
+			setActivePresenters(getActivePresenters(awareness))
+			// Also update local presenting state
+			setIsPresenting(isLocalPresenting(awareness))
+		}
+
+		// Initial state
+		handler()
+
+		awareness.on('change', handler)
+		return () => awareness.off('change', handler)
+	}, [awareness])
+
+	// Start presenting - broadcast current view to other clients
+	const startPresenting = React.useCallback(() => {
+		if (!awareness || !activeViewId || !viewOrder) return
+
+		const viewIndex = viewOrder.indexOf(activeViewId)
+		// Check if user is the owner by comparing idTag with ownerTag
+		const isOwner = cloudillo.idTag === cloudillo.ownerTag
+
+		setPresenting(awareness, activeViewId, viewIndex, isOwner)
+		setIsPresenting(true)
+	}, [awareness, activeViewId, viewOrder, cloudillo.idTag, cloudillo.ownerTag])
+
+	// Stop presenting
+	const stopPresenting = React.useCallback(() => {
+		if (!awareness) return
+
+		clearPresenting(awareness)
+		setIsPresenting(false)
+	}, [awareness])
+
+	// Update presenting view when activeViewId changes while presenting
+	React.useEffect(() => {
+		if (!awareness || !isPresenting || !activeViewId || !viewOrder) return
+
+		const viewIndex = viewOrder.indexOf(activeViewId)
+		updatePresentingView(awareness, activeViewId, viewIndex)
+	}, [awareness, isPresenting, activeViewId, viewOrder])
+
+	// Follow a presenter - sync view with their current slide
+	const followPresenter = React.useCallback(
+		(clientId: number) => {
+			setFollowingClientId(clientId)
+
+			// Find the presenter and navigate to their current view
+			const presenter = activePresenters.find((p) => p.clientId === clientId)
+			if (presenter) {
+				setActiveViewId(presenter.viewId)
+			}
+		},
+		[activePresenters, setActiveViewId]
+	)
+
+	// Unfollow presenter
+	const unfollowPresenter = React.useCallback(() => {
+		setFollowingClientId(null)
+	}, [])
+
+	// Sync view with followed presenter when they navigate
+	React.useEffect(() => {
+		if (!followingClientId) return
+
+		const presenter = activePresenters.find((p) => p.clientId === followingClientId)
+		if (!presenter) {
+			// Presenter left - unfollow
+			setFollowingClientId(null)
+			return
+		}
+
+		// Navigate to presenter's current view
+		if (presenter.viewId !== activeViewId) {
+			setActiveViewId(presenter.viewId)
+		}
+	}, [followingClientId, activePresenters, activeViewId, setActiveViewId])
+
 	return {
 		cloudillo,
 		yDoc: cloudillo.yDoc,
@@ -304,7 +411,16 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 
 		// Awareness/presence
 		awareness,
-		remotePresence
+		remotePresence,
+
+		// Remote presentation
+		isPresenting,
+		followingClientId,
+		activePresenters,
+		startPresenting,
+		stopPresenting,
+		followPresenter,
+		unfollowPresenter
 	}
 }
 

@@ -29,8 +29,8 @@ import * as Y from 'yjs'
 import type { YPrezilloDocument, StoredObject } from './stored-types'
 import type { PrezilloObject } from './runtime-types'
 import type { ObjectId, ViewId, ContainerId } from './ids'
-import { toObjectId, toViewId, toContainerId } from './ids'
-import { expandObject } from './type-converters'
+import { toObjectId, toViewId, toContainerId, toStyleId } from './ids'
+import { expandObject, expandShapeStyle, expandTextStyle } from './type-converters'
 
 /**
  * Resolve an object with prototype inheritance (single level)
@@ -116,21 +116,16 @@ function mergeObjectWithPrototype(
 	if (instance.vi !== undefined) base.pageId = toObjectId(instance.vi) as unknown as ViewId
 	if (instance.p !== undefined) base.parentId = toObjectId(instance.p) as unknown as ContainerId
 
-	// Style references and overrides
-	// Note: Instance can have its own style refs/overrides that override prototype's
-	// For now, if instance has any style field set, it completely overrides prototype
-	if (instance.si !== undefined || instance.so !== undefined || instance.s !== undefined) {
-		const instanceExpanded = expandObject(objectId, instance)
-		base.shapeStyleId = instanceExpanded.shapeStyleId
-		base.shapeStyleOverrides = instanceExpanded.shapeStyleOverrides
-		base.style = instanceExpanded.style
+	// Style references - instance can have its own style refs that override prototype's
+	// Extract style fields directly without calling expandObject (which requires xy/wh)
+	if (instance.si !== undefined || instance.s !== undefined) {
+		base.shapeStyleId = instance.si ? toStyleId(instance.si) : undefined
+		base.style = expandShapeStyle(instance.s)
 	}
 
-	if (instance.ti !== undefined || instance.to !== undefined || instance.ts !== undefined) {
-		const instanceExpanded = expandObject(objectId, instance)
-		base.textStyleId = instanceExpanded.textStyleId
-		base.textStyleOverrides = instanceExpanded.textStyleOverrides
-		base.textStyle = instanceExpanded.textStyle
+	if (instance.ti !== undefined || instance.ts !== undefined) {
+		base.textStyleId = instance.ti ? toStyleId(instance.ti) : undefined
+		base.textStyle = expandTextStyle(instance.ts)
 	}
 
 	// Type-specific fields - use instance values if present
@@ -291,9 +286,7 @@ export function hasOverrides(doc: YPrezilloDocument, objectId: ObjectId): boolea
 		'k',
 		'n',
 		'si',
-		'so',
 		'ti',
-		'to',
 		's',
 		'ts',
 		// Type-specific fields
@@ -333,9 +326,7 @@ export function getOverriddenProperties(doc: YPrezilloDocument, objectId: Object
 		k: 'locked',
 		n: 'name',
 		si: 'shapeStyleId',
-		so: 'shapeStyleOverrides',
 		ti: 'textStyleId',
-		to: 'textStyleOverrides',
 		s: 'style',
 		ts: 'textStyle',
 		cr: 'cornerRadius',
@@ -403,8 +394,8 @@ const propertyGroupFields: Record<PropertyGroup, string[]> = {
 	size: ['wh'],
 	rotation: ['r'],
 	opacity: ['o'],
-	shapeStyle: ['si', 'so', 's'], // Shape style contains fill + stroke
-	textStyle: ['ti', 'to', 'ts'],
+	shapeStyle: ['si', 's'], // Shape style contains fill + stroke
+	textStyle: ['ti', 'ts'],
 	cornerRadius: ['cr'],
 	qrUrl: ['url'],
 	qrColors: ['fg', 'bg'],
@@ -508,6 +499,95 @@ export function resetPropertyGroup(
 		}
 
 		doc.o.set(objectId, updated as StoredObject)
+	}, yDoc.clientID)
+}
+
+// ============================================================================
+// Per-Field Text Style Operations
+// For granular lock/unlock/reset of individual text style properties
+// ============================================================================
+
+/** Text style field names */
+export type TextStyleField =
+	| 'ff'
+	| 'fs'
+	| 'fw'
+	| 'fi'
+	| 'td'
+	| 'fc'
+	| 'ta'
+	| 'va'
+	| 'lh'
+	| 'ls'
+	| 'lb'
+
+/**
+ * Check if a specific text style field is overridden (has local value)
+ * Returns false if object is not an instance
+ */
+export function isTextStyleFieldOverridden(
+	doc: YPrezilloDocument,
+	objectId: ObjectId,
+	field: TextStyleField
+): boolean {
+	const stored = doc.o.get(objectId)
+	if (!stored?.proto) return false
+	return stored.ts?.[field] !== undefined
+}
+
+/**
+ * Unlock a text style field by copying the prototype's value to the instance
+ * This creates a local override with the current inherited value
+ */
+export function unlockTextStyleField(
+	yDoc: Y.Doc,
+	doc: YPrezilloDocument,
+	objectId: ObjectId,
+	field: TextStyleField
+): void {
+	const stored = doc.o.get(objectId)
+	if (!stored?.proto) return
+
+	const protoStored = doc.o.get(stored.proto)
+	if (!protoStored) return
+
+	yDoc.transact(() => {
+		const obj = doc.o.get(objectId)
+		if (!obj) return
+
+		// Get the prototype's value for this field
+		const protoValue = protoStored.ts?.[field]
+		if (protoValue === undefined) return
+
+		// Copy to instance
+		const newTs = { ...(obj.ts || {}), [field]: protoValue }
+		doc.o.set(objectId, { ...obj, ts: newTs } as StoredObject)
+	}, yDoc.clientID)
+}
+
+/**
+ * Reset a text style field to inherit from prototype
+ * Removes the local override for this field
+ */
+export function resetTextStyleField(
+	yDoc: Y.Doc,
+	doc: YPrezilloDocument,
+	objectId: ObjectId,
+	field: TextStyleField
+): void {
+	const stored = doc.o.get(objectId)
+	if (!stored?.proto || !stored.ts) return
+
+	yDoc.transact(() => {
+		const obj = doc.o.get(objectId)
+		if (!obj?.ts) return
+
+		const newTs = { ...obj.ts }
+		delete newTs[field]
+
+		// If no fields left, remove ts entirely
+		const hasProps = Object.keys(newTs).length > 0
+		doc.o.set(objectId, { ...obj, ts: hasProps ? newTs : undefined } as StoredObject)
 	}, yDoc.clientID)
 }
 

@@ -231,10 +231,14 @@ export {
 	// Prototype resolution helpers (for stored objects)
 	getResolvedXy,
 	getResolvedWh,
-	getResolvedBounds
+	getResolvedBounds,
+	// Per-field text style operations
+	isTextStyleFieldOverridden,
+	unlockTextStyleField,
+	resetTextStyleField
 } from './prototype-ops'
 
-export type { PropertyGroup } from './prototype-ops'
+export type { PropertyGroup, TextStyleField } from './prototype-ops'
 
 // Template operations
 export {

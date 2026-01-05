@@ -460,60 +460,62 @@ export function updateObjectTextStyle(
 	const existing = doc.o.get(objectId)
 	if (!existing) return
 
+	// Always use ts - works for both instances and non-instances
+	// Resolution handles inheritance automatically
+	const existingStyle = existing.ts || {}
+	const newStyle: typeof existingStyle = { ...existingStyle }
+
+	// Apply updates (null means delete the property)
+	if (textStyleUpdates.ta !== undefined) {
+		if (textStyleUpdates.ta === null) delete newStyle.ta
+		else newStyle.ta = textStyleUpdates.ta
+	}
+	if (textStyleUpdates.va !== undefined) {
+		if (textStyleUpdates.va === null) delete newStyle.va
+		else newStyle.va = textStyleUpdates.va
+	}
+	if (textStyleUpdates.ff !== undefined) {
+		if (textStyleUpdates.ff === null) delete newStyle.ff
+		else newStyle.ff = textStyleUpdates.ff
+	}
+	if (textStyleUpdates.fs !== undefined) {
+		if (textStyleUpdates.fs === null) delete newStyle.fs
+		else newStyle.fs = textStyleUpdates.fs
+	}
+	if (textStyleUpdates.fw !== undefined) {
+		if (textStyleUpdates.fw === null) delete newStyle.fw
+		else newStyle.fw = textStyleUpdates.fw
+	}
+	if (textStyleUpdates.fi !== undefined) {
+		if (textStyleUpdates.fi === null) delete newStyle.fi
+		else newStyle.fi = textStyleUpdates.fi
+	}
+	if (textStyleUpdates.td !== undefined) {
+		if (textStyleUpdates.td === null) delete newStyle.td
+		else newStyle.td = textStyleUpdates.td
+	}
+	if (textStyleUpdates.fc !== undefined) {
+		if (textStyleUpdates.fc === null) delete newStyle.fc
+		else newStyle.fc = textStyleUpdates.fc
+	}
+	if (textStyleUpdates.lh !== undefined) {
+		if (textStyleUpdates.lh === null) delete newStyle.lh
+		else newStyle.lh = textStyleUpdates.lh
+	}
+	if (textStyleUpdates.ls !== undefined) {
+		if (textStyleUpdates.ls === null) delete newStyle.ls
+		else newStyle.ls = textStyleUpdates.ls
+	}
+	if (textStyleUpdates.lb !== undefined) {
+		if (textStyleUpdates.lb === null) delete newStyle.lb
+		else newStyle.lb = textStyleUpdates.lb
+	}
+
 	yDoc.transact(() => {
-		// Merge with existing text style or create new
-		const existingTs = existing.ts || {}
-		const newTs = { ...existingTs }
-
-		// Apply updates (null means delete the property)
-		if (textStyleUpdates.ta !== undefined) {
-			if (textStyleUpdates.ta === null) delete newTs.ta
-			else newTs.ta = textStyleUpdates.ta
-		}
-		if (textStyleUpdates.va !== undefined) {
-			if (textStyleUpdates.va === null) delete newTs.va
-			else newTs.va = textStyleUpdates.va
-		}
-		if (textStyleUpdates.ff !== undefined) {
-			if (textStyleUpdates.ff === null) delete newTs.ff
-			else newTs.ff = textStyleUpdates.ff
-		}
-		if (textStyleUpdates.fs !== undefined) {
-			if (textStyleUpdates.fs === null) delete newTs.fs
-			else newTs.fs = textStyleUpdates.fs
-		}
-		if (textStyleUpdates.fw !== undefined) {
-			if (textStyleUpdates.fw === null) delete newTs.fw
-			else newTs.fw = textStyleUpdates.fw
-		}
-		if (textStyleUpdates.fi !== undefined) {
-			if (textStyleUpdates.fi === null) delete newTs.fi
-			else newTs.fi = textStyleUpdates.fi
-		}
-		if (textStyleUpdates.td !== undefined) {
-			if (textStyleUpdates.td === null) delete newTs.td
-			else newTs.td = textStyleUpdates.td
-		}
-		if (textStyleUpdates.fc !== undefined) {
-			if (textStyleUpdates.fc === null) delete newTs.fc
-			else newTs.fc = textStyleUpdates.fc
-		}
-		if (textStyleUpdates.lh !== undefined) {
-			if (textStyleUpdates.lh === null) delete newTs.lh
-			else newTs.lh = textStyleUpdates.lh
-		}
-		if (textStyleUpdates.ls !== undefined) {
-			if (textStyleUpdates.ls === null) delete newTs.ls
-			else newTs.ls = textStyleUpdates.ls
-		}
-		if (textStyleUpdates.lb !== undefined) {
-			if (textStyleUpdates.lb === null) delete newTs.lb
-			else newTs.lb = textStyleUpdates.lb
-		}
-
+		const hasProperties = Object.keys(newStyle).length > 0
 		doc.o.set(objectId, {
 			...existing,
-			ts: newTs
+			ts: hasProperties ? newStyle : undefined
 		})
 	}, yDoc.clientID)
 }

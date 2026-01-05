@@ -17,7 +17,6 @@
 import * as React from 'react'
 import {
 	PiLockSimpleFill as IcLocked,
-	PiLockSimpleOpenBold as IcUnlocked,
 	PiArrowCounterClockwiseBold as IcReset
 } from 'react-icons/pi'
 
@@ -62,30 +61,19 @@ export function PropertyLockButton({
 					type="button"
 					className="c-property-lock__btn c-property-lock__btn--locked"
 					onClick={onUnlock}
-					title="Unlock to edit (currently inheriting from template)"
+					title="Click to unlock and edit"
 				>
 					<IcLocked />
 				</button>
 			) : (
-				<>
-					<button
-						type="button"
-						className="c-property-lock__btn c-property-lock__btn--unlocked"
-						onClick={onUnlock}
-						title="Property is unlocked (override active)"
-						disabled
-					>
-						<IcUnlocked />
-					</button>
-					<button
-						type="button"
-						className="c-property-lock__btn c-property-lock__btn--reset"
-						onClick={onReset}
-						title="Reset to template value"
-					>
-						<IcReset />
-					</button>
-				</>
+				<button
+					type="button"
+					className="c-property-lock__btn c-property-lock__btn--reset"
+					onClick={onReset}
+					title="Reset to template value"
+				>
+					<IcReset />
+				</button>
 			)}
 		</div>
 	)

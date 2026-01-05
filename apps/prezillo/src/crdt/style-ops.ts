@@ -34,47 +34,6 @@ import { isPaletteRef, expandPaletteRef } from './type-converters'
 import { getPalette, getResolvedColor, resolvePaletteRef } from './palette-ops'
 import type { Gradient } from '@cloudillo/canvas-tools'
 
-/**
- * Merge style-related fields from prototype into instance
- * Returns a StoredObject with prototype's style fields as base, overridden by instance's
- */
-function mergeStyleFieldsWithPrototype(
-	doc: YPrezilloDocument,
-	instance: StoredObject
-): StoredObject {
-	// No prototype - return as-is
-	if (!instance.proto) {
-		return instance
-	}
-
-	const prototype = doc.o.get(instance.proto)
-	if (!prototype) {
-		return instance
-	}
-
-	// Merge style-related fields from prototype, with instance overriding
-	// We need to merge at the stored level for style resolution
-	const merged: StoredObject = { ...instance }
-
-	// Shape style: si (styleId), s (inline style), so (overrides)
-	// Use prototype's if instance doesn't have any shape style fields
-	if (merged.si === undefined && merged.s === undefined && merged.so === undefined) {
-		if (prototype.si !== undefined) merged.si = prototype.si
-		if (prototype.s !== undefined) merged.s = prototype.s
-		if (prototype.so !== undefined) merged.so = prototype.so
-	}
-
-	// Text style: ti (styleId), ts (inline style), to (overrides)
-	// Use prototype's if instance doesn't have any text style fields
-	if (merged.ti === undefined && merged.ts === undefined && merged.to === undefined) {
-		if (prototype.ti !== undefined) merged.ti = prototype.ti
-		if (prototype.ts !== undefined) merged.ts = prototype.ts
-		if (prototype.to !== undefined) merged.to = prototype.to
-	}
-
-	return merged
-}
-
 // Default styles
 export const DEFAULT_SHAPE_STYLE: ResolvedShapeStyle = {
 	fill: '#e0e0e0',
@@ -264,37 +223,48 @@ export function getStyleChain(doc: YPrezilloDocument, styleId: StyleId): StoredS
 /**
  * Resolve full shape style for an object
  * Gets the palette from the document to resolve palette color references
- * Handles prototype inheritance for instance objects
+ * Handles prototype inheritance for instance objects (1 level)
+ *
+ * Resolution order:
+ * - Non-instance: defaults → si chain → s
+ * - Instance: prototype's resolved style → s
  */
 export function resolveShapeStyle(
 	doc: YPrezilloDocument,
 	object: StoredObject
 ): ResolvedShapeStyle {
-	// Merge style fields from prototype if this is an instance
-	const obj = mergeStyleFieldsWithPrototype(doc, object)
-
-	// Get palette for resolving color references
 	const palette = getPalette(doc)
-
-	// Start with defaults
 	let result = { ...DEFAULT_SHAPE_STYLE }
 
-	// Apply referenced style (with inheritance chain)
-	if (obj.si) {
-		const styleChain = getStyleChain(doc, toStyleId(obj.si))
-		for (const style of styleChain) {
-			result = mergeShapeStyle(result, style, palette)
+	if (object.proto) {
+		// Instance: start with prototype's fully resolved style
+		const prototype = doc.o.get(object.proto)
+		if (prototype) {
+			// Apply prototype's named style chain
+			if (prototype.si) {
+				const styleChain = getStyleChain(doc, toStyleId(prototype.si))
+				for (const style of styleChain) {
+					result = mergeShapeStyle(result, style, palette)
+				}
+			}
+			// Apply prototype's inline style (always)
+			if (prototype.s) {
+				result = mergeShapeStyle(result, prototype.s, palette)
+			}
+		}
+	} else {
+		// Non-instance: apply own named style chain
+		if (object.si) {
+			const styleChain = getStyleChain(doc, toStyleId(object.si))
+			for (const style of styleChain) {
+				result = mergeShapeStyle(result, style, palette)
+			}
 		}
 	}
 
-	// Apply inline style (if no reference)
-	if (obj.s && !obj.si) {
-		result = mergeShapeStyle(result, obj.s, palette)
-	}
-
-	// Apply overrides (if reference exists)
-	if (obj.so) {
-		result = mergeShapeStyle(result, obj.so, palette)
+	// Apply this object's s (always - works as overrides for both cases)
+	if (object.s) {
+		result = mergeShapeStyle(result, object.s, palette)
 	}
 
 	return result
@@ -303,34 +273,45 @@ export function resolveShapeStyle(
 /**
  * Resolve full text style for an object
  * Gets the palette from the document to resolve palette color references
- * Handles prototype inheritance for instance objects
+ * Handles prototype inheritance for instance objects (1 level)
+ *
+ * Resolution order:
+ * - Non-instance: defaults → ti chain → ts
+ * - Instance: prototype's resolved style → ts
  */
 export function resolveTextStyle(doc: YPrezilloDocument, object: StoredObject): ResolvedTextStyle {
-	// Merge style fields from prototype if this is an instance
-	const obj = mergeStyleFieldsWithPrototype(doc, object)
-
-	// Get palette for resolving color references
 	const palette = getPalette(doc)
-
-	// Start with defaults
 	let result = { ...DEFAULT_TEXT_STYLE }
 
-	// Apply referenced style (with inheritance chain)
-	if (obj.ti) {
-		const styleChain = getStyleChain(doc, toStyleId(obj.ti))
-		for (const style of styleChain) {
-			result = mergeTextStyle(result, style, palette)
+	if (object.proto) {
+		// Instance: start with prototype's fully resolved style
+		const prototype = doc.o.get(object.proto)
+		if (prototype) {
+			// Apply prototype's named style chain
+			if (prototype.ti) {
+				const styleChain = getStyleChain(doc, toStyleId(prototype.ti))
+				for (const style of styleChain) {
+					result = mergeTextStyle(result, style, palette)
+				}
+			}
+			// Apply prototype's inline style (always)
+			if (prototype.ts) {
+				result = mergeTextStyleFromStored(result, prototype.ts, palette)
+			}
+		}
+	} else {
+		// Non-instance: apply own named style chain
+		if (object.ti) {
+			const styleChain = getStyleChain(doc, toStyleId(object.ti))
+			for (const style of styleChain) {
+				result = mergeTextStyle(result, style, palette)
+			}
 		}
 	}
 
-	// Apply inline style (if no reference)
-	if (obj.ts && !obj.ti) {
-		result = mergeTextStyleFromStored(result, obj.ts, palette)
-	}
-
-	// Apply overrides (if reference exists)
-	if (obj.to) {
-		result = mergeTextStyleFromStored(result, obj.to, palette)
+	// Apply this object's ts (always - works as overrides for both cases)
+	if (object.ts) {
+		result = mergeTextStyleFromStored(result, object.ts, palette)
 	}
 
 	return result

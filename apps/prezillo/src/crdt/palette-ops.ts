@@ -302,7 +302,7 @@ export function getObjectsUsingPaletteSlot(
 	doc.o.forEach((obj, id) => {
 		let usesSlot = false
 
-		// Check inline shape style
+		// Check shape style
 		if (obj.s) {
 			if (isPaletteRef(obj.s.f) && obj.s.f.pi === slotCode) usesSlot = true
 			if (isPaletteRef(obj.s.s) && obj.s.s.pi === slotCode) usesSlot = true
@@ -311,17 +311,8 @@ export function getObjectsUsingPaletteSlot(
 				usesSlot = true
 		}
 
-		// Check shape style overrides
-		if (obj.so) {
-			if (isPaletteRef(obj.so.f) && obj.so.f.pi === slotCode) usesSlot = true
-			if (isPaletteRef(obj.so.s) && obj.so.s.pi === slotCode) usesSlot = true
-		}
-
-		// Check inline text style
+		// Check text style
 		if (obj.ts && isPaletteRef(obj.ts.fc) && obj.ts.fc.pi === slotCode) usesSlot = true
-
-		// Check text style overrides
-		if (obj.to && isPaletteRef(obj.to.fc) && obj.to.fc.pi === slotCode) usesSlot = true
 
 		if (usesSlot && !objectIds.includes(id)) {
 			objectIds.push(id)

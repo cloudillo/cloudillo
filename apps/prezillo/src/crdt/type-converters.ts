@@ -374,9 +374,7 @@ export function expandObject(id: string, stored: Stored.StoredObject): Runtime.P
 		locked: stored.k === true,
 		name: stored.n,
 		shapeStyleId: stored.si ? toStyleId(stored.si) : undefined,
-		shapeStyleOverrides: expandShapeStyle(stored.so),
 		textStyleId: stored.ti ? toStyleId(stored.ti) : undefined,
-		textStyleOverrides: expandTextStyle(stored.to),
 		style: expandShapeStyle(stored.s),
 		textStyle: expandTextStyle(stored.ts)
 	}
@@ -504,9 +502,7 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 	if (runtime.locked) base.k = true
 	if (runtime.name) base.n = runtime.name
 	if (runtime.shapeStyleId) base.si = runtime.shapeStyleId
-	if (runtime.shapeStyleOverrides) base.so = compactShapeStyle(runtime.shapeStyleOverrides)
 	if (runtime.textStyleId) base.ti = runtime.textStyleId
-	if (runtime.textStyleOverrides) base.to = compactTextStyle(runtime.textStyleOverrides)
 	if (runtime.style) base.s = compactShapeStyle(runtime.style)
 	if (runtime.textStyle) base.ts = compactTextStyle(runtime.textStyle)
 

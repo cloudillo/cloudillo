@@ -75,16 +75,14 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 	const resolvedTextStyle = stored ? resolveTextStyle(doc, stored) : null
 
 	// Get raw color values (may be palette refs or hex strings)
-	const rawFillValue: ColorPickerValue | undefined = isTextObject
-		? (stored?.ts?.fc ?? stored?.to?.fc)
-		: (stored?.s?.f ?? stored?.so?.f)
+	const rawFillValue: ColorPickerValue | undefined = isTextObject ? stored?.ts?.fc : stored?.s?.f
 
 	// For text objects, use text fill; for others, use shape fill
 	const fillColor = isTextObject ? resolvedTextStyle?.fill : resolvedShapeStyle?.fill
 	const hasStroke = !!(resolvedShapeStyle?.stroke && resolvedShapeStyle.stroke !== 'none')
 
 	// Get raw stroke value (may be palette ref or hex string)
-	const rawStrokeValue: ColorPickerValue | undefined = stored?.s?.s ?? stored?.so?.s
+	const rawStrokeValue: ColorPickerValue | undefined = stored?.s?.s
 
 	// Determine if style editing is disabled
 	const styleDisabled = objectIsInstance && styleLocked

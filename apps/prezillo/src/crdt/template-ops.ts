@@ -297,25 +297,18 @@ export function deleteTemplate(
 
 			if (options.viewAction === 'keep-background') {
 				// Copy template background to view before removing reference
+				// Only copy if view doesn't already have its own value
 				const updated: StoredView = { ...view }
-				if (stored.bc && !view.bco) updated.backgroundColor = stored.bc
-				if (stored.bg && !view.bgo) updated.backgroundGradient = stored.bg
-				if (stored.bi && !view.bio) updated.backgroundImage = stored.bi
-				if (stored.bf && !view.bfo) updated.backgroundFit = stored.bf
+				if (stored.bc && !view.backgroundColor) updated.backgroundColor = stored.bc
+				if (stored.bg && !view.backgroundGradient) updated.backgroundGradient = stored.bg
+				if (stored.bi && !view.backgroundImage) updated.backgroundImage = stored.bi
+				if (stored.bf && !view.backgroundFit) updated.backgroundFit = stored.bf
 				delete updated.tpl
-				delete updated.bco
-				delete updated.bgo
-				delete updated.bio
-				delete updated.bfo
 				doc.v.set(viewId, updated)
 			} else {
 				// Just remove template reference
 				const updated: StoredView = { ...view }
 				delete updated.tpl
-				delete updated.bco
-				delete updated.bgo
-				delete updated.bio
-				delete updated.bfo
 				doc.v.set(viewId, updated)
 			}
 
@@ -553,13 +546,9 @@ export function applyTemplateToView(
 	yDoc.transact(() => {
 		// Set template reference on view
 		const updatedView: StoredView = { ...view, tpl: templateId }
-		// Clear any existing overrides
-		delete updatedView.bco
-		delete updatedView.bgo
-		delete updatedView.bio
-		delete updatedView.bfo
+		// Clear hidden prototype objects
 		delete updatedView.hpo
-		// Clear old background fields (template will provide background)
+		// Clear background fields (template will provide background)
 		delete updatedView.backgroundColor
 		delete updatedView.backgroundGradient
 		delete updatedView.backgroundImage
@@ -639,10 +628,6 @@ export function removeTemplateFromView(
 		// Remove template reference from view
 		const updatedView: StoredView = { ...view }
 		delete updatedView.tpl
-		delete updatedView.bco
-		delete updatedView.bgo
-		delete updatedView.bio
-		delete updatedView.bfo
 		delete updatedView.hpo
 		doc.v.set(viewId, updatedView)
 	}, yDoc.clientID)

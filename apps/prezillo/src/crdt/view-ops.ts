@@ -472,6 +472,9 @@ export function getViewTemplate(doc: YPrezilloDocument, viewId: ViewId): Templat
 /**
  * Resolve view background with template inheritance
  * Returns the effective background properties and tracks which are overridden
+ *
+ * Resolution: template background → view's background fields (if present)
+ * Standard fields (backgroundColor, etc.) act as overrides when template is set
  */
 export function resolveViewBackground(
 	doc: YPrezilloDocument,
@@ -498,7 +501,7 @@ export function resolveViewBackground(
 		}
 	}
 
-	// Start with template values if referenced
+	// Get base values from template if present
 	if (view.tpl) {
 		const template = doc.tpl.get(view.tpl)
 		if (template) {
@@ -512,51 +515,38 @@ export function resolveViewBackground(
 		}
 	}
 
-	// Apply view-level overrides
-	// Check for override fields (bco, bgo, bio, bfo) when template is set
-	if (view.tpl) {
-		if (view.bco !== undefined) {
-			result.backgroundColor = view.bco
-			result.overrides.backgroundColor = true
-		}
-		if (view.bgo !== undefined) {
-			result.backgroundGradient = expandBackgroundGradient(view.bgo)
-			result.overrides.backgroundGradient = true
-		}
-		if (view.bio !== undefined) {
-			result.backgroundImage = view.bio
-			result.overrides.backgroundImage = true
-		}
-		if (view.bfo !== undefined) {
-			result.backgroundFit = view.bfo
-			result.overrides.backgroundFit = true
-		}
-	} else {
-		// No template: use view's own values (stored in standard fields)
-		if (view.backgroundColor) result.backgroundColor = view.backgroundColor
-		if (view.backgroundGradient)
-			result.backgroundGradient = expandBackgroundGradient(view.backgroundGradient)
-		if (view.backgroundImage) result.backgroundImage = view.backgroundImage
-		if (view.backgroundFit) result.backgroundFit = view.backgroundFit
+	// Apply view's own values (override template if present)
+	if (view.backgroundColor !== undefined) {
+		result.backgroundColor = view.backgroundColor
+		if (view.tpl) result.overrides.backgroundColor = true
+	}
+	if (view.backgroundGradient !== undefined) {
+		result.backgroundGradient = expandBackgroundGradient(view.backgroundGradient)
+		if (view.tpl) result.overrides.backgroundGradient = true
+	}
+	if (view.backgroundImage !== undefined) {
+		result.backgroundImage = view.backgroundImage
+		if (view.tpl) result.overrides.backgroundImage = true
+	}
+	if (view.backgroundFit !== undefined) {
+		result.backgroundFit = view.backgroundFit
+		if (view.tpl) result.overrides.backgroundFit = true
 	}
 
 	return result
 }
 
-// Background property field mappings (property -> [overrideField, standardField])
-const BACKGROUND_FIELD_MAP = {
-	backgroundColor: ['bco', 'backgroundColor'],
-	backgroundGradient: ['bgo', 'backgroundGradient'],
-	backgroundImage: ['bio', 'backgroundImage'],
-	backgroundFit: ['bfo', 'backgroundFit']
-} as const
-
-type BackgroundProperty = keyof typeof BACKGROUND_FIELD_MAP
+type BackgroundProperty =
+	| 'backgroundColor'
+	| 'backgroundGradient'
+	| 'backgroundImage'
+	| 'backgroundFit'
 
 /**
- * Set a background override on a view (when view has a template)
+ * Set a background property on a view
+ * Always uses standard fields - resolution handles template inheritance
  */
-export function setViewBackgroundOverride(
+export function setViewBackground(
 	yDoc: Y.Doc,
 	doc: YPrezilloDocument,
 	viewId: ViewId,
@@ -567,33 +557,32 @@ export function setViewBackgroundOverride(
 	if (!view) return
 
 	yDoc.transact(() => {
-		// Use type assertion to allow dynamic field access
-		const updated = { ...view } as unknown as Record<string, unknown>
-
-		// Choose field based on whether view has a template
-		const [overrideField, standardField] = BACKGROUND_FIELD_MAP[property]
-		const field = view.tpl ? overrideField : standardField
+		const updated = { ...view } as Record<string, unknown>
 
 		if (value === null) {
-			delete updated[field]
+			delete updated[property]
 		} else if (property === 'backgroundGradient') {
-			updated[field] = compactBackgroundGradient(value as Gradient)
+			updated[property] = compactBackgroundGradient(value as Gradient)
 		} else {
-			updated[field] = value
+			updated[property] = value
 		}
 
 		doc.v.set(viewId, updated as unknown as StoredView)
 	}, yDoc.clientID)
 }
 
+// Keep old name as alias for backwards compatibility
+export const setViewBackgroundOverride = setViewBackground
+
 /**
  * Reset a background property to inherit from template
+ * Deletes the standard field so resolution falls back to template value
  */
 export function resetViewBackgroundToTemplate(
 	yDoc: Y.Doc,
 	doc: YPrezilloDocument,
 	viewId: ViewId,
-	property: 'backgroundColor' | 'backgroundGradient' | 'backgroundImage' | 'backgroundFit' | 'all'
+	property: BackgroundProperty | 'all'
 ): void {
 	const view = doc.v.get(viewId)
 	if (!view || !view.tpl) return
@@ -602,16 +591,16 @@ export function resetViewBackgroundToTemplate(
 		const updated = { ...view }
 
 		if (property === 'all' || property === 'backgroundColor') {
-			delete updated.bco
+			delete updated.backgroundColor
 		}
 		if (property === 'all' || property === 'backgroundGradient') {
-			delete updated.bgo
+			delete updated.backgroundGradient
 		}
 		if (property === 'all' || property === 'backgroundImage') {
-			delete updated.bio
+			delete updated.backgroundImage
 		}
 		if (property === 'all' || property === 'backgroundFit') {
-			delete updated.bfo
+			delete updated.backgroundFit
 		}
 
 		doc.v.set(viewId, updated)

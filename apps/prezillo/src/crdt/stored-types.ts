@@ -31,13 +31,12 @@
  * - v  = visible (only stored if false)
  * - k  = locked (only stored if true)
  * - n  = name
- * - s  = style (shape style)
- * - ts = text style
- * - si = styleId (reference to global style)
- * - so = style overrides
+ * - s  = style (shape style, applied on top of si chain)
+ * - ts = text style (applied on top of ti chain)
+ * - si = styleId (reference to global shape style)
+ * - ti = textStyleId (reference to global text style)
  * - ch = children
  * - tpl = templateId (view's template reference)
- * - bco/bgo/bio/bfo = background overrides (when overriding template)
  * - hpo = hidden prototype objects
  */
 
@@ -156,14 +155,11 @@ export interface StoredObjectBase {
 	v?: false // visible (omit if true)
 	k?: true // locked (omit if false)
 	n?: string // name
-	// Style system
+	// Style system - resolution: defaults → si/ti chain → s/ts
 	si?: string // shapeStyleId (reference to global style)
-	so?: Partial<ShapeStyle> // shape style overrides
 	ti?: string // textStyleId (for text objects)
-	to?: Partial<TextStyle> // text style overrides
-	// Inline style (when no si/ti reference)
-	s?: ShapeStyle
-	ts?: TextStyle
+	s?: ShapeStyle // shape style (applied on top of si chain)
+	ts?: TextStyle // text style (applied on top of ti chain)
 }
 
 // Rect
@@ -359,12 +355,8 @@ export interface StoredView {
 	notes?: string
 	hidden?: boolean
 	duration?: number
-	// Template support
+	// Template support - background fields override template when present
 	tpl?: string // templateId reference
-	bco?: string // backgroundColor override (only when overriding template)
-	bgo?: StoredBackgroundGradient // backgroundGradient override
-	bio?: string // backgroundImage override
-	bfo?: 'contain' | 'cover' | 'fill' | 'tile' // backgroundFit override
 	hpo?: string[] // hiddenPrototypeObjects (objectIds to hide on this page)
 }
 

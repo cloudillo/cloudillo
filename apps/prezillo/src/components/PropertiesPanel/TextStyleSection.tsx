@@ -29,14 +29,14 @@ import {
 	PiListBulletsBold as IcListBullets
 } from 'react-icons/pi'
 
-import type { YPrezilloDocument, PrezilloObject, ObjectId } from '../../crdt'
+import type { YPrezilloDocument, PrezilloObject, ObjectId, TextStyleField } from '../../crdt'
 import {
 	resolveTextStyle,
 	updateObjectTextStyle,
 	isInstance,
-	isPropertyGroupLocked,
-	unlockPropertyGroup,
-	resetPropertyGroup
+	isTextStyleFieldOverridden,
+	unlockTextStyleField,
+	resetTextStyleField
 } from '../../crdt'
 import { FONT_SIZES } from '../../utils/text-styles'
 import { PropertyLockButton } from './PropertyLockButton'
@@ -57,20 +57,27 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 	// Check if this object is an instance of a template prototype
 	const objectIsInstance = isInstance(doc, objectId)
 
-	// Check lock state for text style
-	const textStyleLocked = isPropertyGroupLocked(doc, objectId, 'textStyle')
+	// Check per-field override state
+	const isFontOverridden = isTextStyleFieldOverridden(doc, objectId, 'ff')
+	const isSizeOverridden = isTextStyleFieldOverridden(doc, objectId, 'fs')
+	const isAlignOverridden = isTextStyleFieldOverridden(doc, objectId, 'ta')
+	const isVAlignOverridden = isTextStyleFieldOverridden(doc, objectId, 'va')
+	const isBulletOverridden = isTextStyleFieldOverridden(doc, objectId, 'lb')
 
-	// Unlock/reset handlers
-	const handleUnlockTextStyle = React.useCallback(() => {
-		unlockPropertyGroup(yDoc, doc, objectId, 'textStyle')
-	}, [yDoc, doc, objectId])
+	// Per-field unlock/reset handlers
+	const handleUnlockField = React.useCallback(
+		(field: TextStyleField) => {
+			unlockTextStyleField(yDoc, doc, objectId, field)
+		},
+		[yDoc, doc, objectId]
+	)
 
-	const handleResetTextStyle = React.useCallback(() => {
-		resetPropertyGroup(yDoc, doc, objectId, 'textStyle')
-	}, [yDoc, doc, objectId])
-
-	// Determine if editing is disabled
-	const styleDisabled = objectIsInstance && textStyleLocked
+	const handleResetField = React.useCallback(
+		(field: TextStyleField) => {
+			resetTextStyleField(yDoc, doc, objectId, field)
+		},
+		[yDoc, doc, objectId]
+	)
 
 	// Get resolved text style
 	const stored = doc.o.get(object.id)
@@ -78,81 +85,81 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 
 	const handleBulletChange = React.useCallback(
 		(bullet: string) => {
-			if (styleDisabled) return
 			updateObjectTextStyle(yDoc, doc, objectId, {
 				lb: bullet || (null as any)
 			})
 			setShowBulletPicker(false)
 		},
-		[yDoc, doc, objectId, styleDisabled]
+		[yDoc, doc, objectId]
 	)
 
 	const handleFontFamilyChange = React.useCallback(
 		(family: string) => {
-			if (styleDisabled) return
 			updateObjectTextStyle(yDoc, doc, objectId, { ff: family })
 		},
-		[yDoc, doc, objectId, styleDisabled]
+		[yDoc, doc, objectId]
 	)
 
 	const handleFontSizeChange = React.useCallback(
 		(e: React.ChangeEvent<HTMLSelectElement>) => {
-			if (styleDisabled) return
 			const size = parseInt(e.target.value, 10)
 			updateObjectTextStyle(yDoc, doc, objectId, { fs: size })
 		},
-		[yDoc, doc, objectId, styleDisabled]
+		[yDoc, doc, objectId]
 	)
 
 	const handleTextAlignChange = React.useCallback(
 		(align: 'left' | 'center' | 'right' | 'justify') => {
-			if (styleDisabled) return
 			const taMap = { left: 'l', center: 'c', right: 'r', justify: 'j' } as const
 			updateObjectTextStyle(yDoc, doc, objectId, { ta: taMap[align] })
 		},
-		[yDoc, doc, objectId, styleDisabled]
+		[yDoc, doc, objectId]
 	)
 
 	const handleVerticalAlignChange = React.useCallback(
 		(align: 'top' | 'middle' | 'bottom') => {
-			if (styleDisabled) return
 			const vaMap = { top: 't', middle: 'm', bottom: 'b' } as const
 			updateObjectTextStyle(yDoc, doc, objectId, { va: vaMap[align] })
 		},
-		[yDoc, doc, objectId, styleDisabled]
+		[yDoc, doc, objectId]
 	)
 
 	if (!resolvedStyle) return null
 
+	// Determine field lock states for instances
+	const fontLocked = objectIsInstance && !isFontOverridden
+	const sizeLocked = objectIsInstance && !isSizeOverridden
+	const alignLocked = objectIsInstance && !isAlignOverridden
+	const vAlignLocked = objectIsInstance && !isVAlignOverridden
+	const bulletLocked = objectIsInstance && !isBulletOverridden
+
 	return (
 		<PropertySection title="Text" defaultExpanded>
-			{/* Lock button for text style section */}
-			<div className="c-hbox ai-center jc-end mb-1">
-				<PropertyLockButton
-					isInstance={objectIsInstance}
-					isLocked={textStyleLocked}
-					onUnlock={handleUnlockTextStyle}
-					onReset={handleResetTextStyle}
-				/>
-			</div>
-
-			<div className={styleDisabled ? 'c-property-field--locked' : ''}>
-				{/* Font Family */}
-				<PropertyField label="Font" labelWidth={40}>
+			{/* Font Family */}
+			<PropertyField label="Font" labelWidth={40}>
+				<div className="c-hbox ai-center g-1 f-1">
 					<FontPicker
 						value={resolvedStyle.fontFamily}
 						onChange={handleFontFamilyChange}
-						disabled={styleDisabled}
+						disabled={fontLocked}
 					/>
-				</PropertyField>
+					<PropertyLockButton
+						isInstance={objectIsInstance}
+						isLocked={fontLocked}
+						onUnlock={() => handleUnlockField('ff')}
+						onReset={() => handleResetField('ff')}
+					/>
+				</div>
+			</PropertyField>
 
-				{/* Font Size */}
-				<PropertyField label="Size" labelWidth={40}>
+			{/* Font Size */}
+			<PropertyField label="Size" labelWidth={40}>
+				<div className="c-hbox ai-center g-1 f-1">
 					<NativeSelect
 						value={resolvedStyle.fontSize}
 						onChange={handleFontSizeChange}
 						className="c-input--full"
-						disabled={styleDisabled}
+						disabled={sizeLocked}
 					>
 						{FONT_SIZES.map((size) => (
 							<option key={size} value={size}>
@@ -160,10 +167,18 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 							</option>
 						))}
 					</NativeSelect>
-				</PropertyField>
+					<PropertyLockButton
+						isInstance={objectIsInstance}
+						isLocked={sizeLocked}
+						onUnlock={() => handleUnlockField('fs')}
+						onReset={() => handleResetField('fs')}
+					/>
+				</div>
+			</PropertyField>
 
-				{/* Text Align */}
-				<PropertyField label="Align" labelWidth={40}>
+			{/* Text Align */}
+			<PropertyField label="Align" labelWidth={40}>
+				<div className="c-hbox ai-center g-1 f-1">
 					<div className="c-hbox">
 						<button
 							className={mergeClasses(
@@ -172,7 +187,7 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 							)}
 							onClick={() => handleTextAlignChange('left')}
 							title="Align left"
-							disabled={styleDisabled}
+							disabled={alignLocked}
 						>
 							<IcAlignLeft size={14} />
 						</button>
@@ -183,7 +198,7 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 							)}
 							onClick={() => handleTextAlignChange('center')}
 							title="Align center"
-							disabled={styleDisabled}
+							disabled={alignLocked}
 						>
 							<IcAlignCenter size={14} />
 						</button>
@@ -194,7 +209,7 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 							)}
 							onClick={() => handleTextAlignChange('right')}
 							title="Align right"
-							disabled={styleDisabled}
+							disabled={alignLocked}
 						>
 							<IcAlignRight size={14} />
 						</button>
@@ -205,15 +220,23 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 							)}
 							onClick={() => handleTextAlignChange('justify')}
 							title="Justify"
-							disabled={styleDisabled}
+							disabled={alignLocked}
 						>
 							<IcAlignJustify size={14} />
 						</button>
 					</div>
-				</PropertyField>
+					<PropertyLockButton
+						isInstance={objectIsInstance}
+						isLocked={alignLocked}
+						onUnlock={() => handleUnlockField('ta')}
+						onReset={() => handleResetField('ta')}
+					/>
+				</div>
+			</PropertyField>
 
-				{/* Vertical Align */}
-				<PropertyField label="V.Align" labelWidth={40}>
+			{/* Vertical Align */}
+			<PropertyField label="V.Align" labelWidth={40}>
+				<div className="c-hbox ai-center g-1 f-1">
 					<div className="c-hbox">
 						<button
 							className={mergeClasses(
@@ -222,7 +245,7 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 							)}
 							onClick={() => handleVerticalAlignChange('top')}
 							title="Align top"
-							disabled={styleDisabled}
+							disabled={vAlignLocked}
 						>
 							<IcAlignTop size={14} />
 						</button>
@@ -233,7 +256,7 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 							)}
 							onClick={() => handleVerticalAlignChange('middle')}
 							title="Align middle"
-							disabled={styleDisabled}
+							disabled={vAlignLocked}
 						>
 							<IcAlignMiddle size={14} />
 						</button>
@@ -244,29 +267,37 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 							)}
 							onClick={() => handleVerticalAlignChange('bottom')}
 							title="Align bottom"
-							disabled={styleDisabled}
+							disabled={vAlignLocked}
 						>
 							<IcAlignBottom size={14} />
 						</button>
 					</div>
-				</PropertyField>
+					<PropertyLockButton
+						isInstance={objectIsInstance}
+						isLocked={vAlignLocked}
+						onUnlock={() => handleUnlockField('va')}
+						onReset={() => handleResetField('va')}
+					/>
+				</div>
+			</PropertyField>
 
-				{/* List Bullet */}
-				<PropertyField label="List" labelWidth={40}>
+			{/* List Bullet */}
+			<PropertyField label="List" labelWidth={40}>
+				<div className="c-hbox ai-center g-1 f-1">
 					<div style={{ position: 'relative' }}>
 						<button
 							className={mergeClasses(
 								'c-button icon compact',
 								resolvedStyle.listBullet ? 'active' : ''
 							)}
-							onClick={() => !styleDisabled && setShowBulletPicker(!showBulletPicker)}
+							onClick={() => !bulletLocked && setShowBulletPicker(!showBulletPicker)}
 							title="List bullet"
 							style={{ minWidth: 32, fontSize: 16 }}
-							disabled={styleDisabled}
+							disabled={bulletLocked}
 						>
 							{resolvedStyle.listBullet || <IcListBullets size={14} />}
 						</button>
-						{showBulletPicker && !styleDisabled && (
+						{showBulletPicker && !bulletLocked && (
 							<div
 								style={{
 									position: 'absolute',
@@ -307,8 +338,14 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 							</div>
 						)}
 					</div>
-				</PropertyField>
-			</div>
+					<PropertyLockButton
+						isInstance={objectIsInstance}
+						isLocked={bulletLocked}
+						onUnlock={() => handleUnlockField('lb')}
+						onReset={() => handleResetField('lb')}
+					/>
+				</div>
+			</PropertyField>
 		</PropertySection>
 	)
 }

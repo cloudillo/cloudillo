@@ -171,14 +171,11 @@ export interface PrezilloObjectBase {
 	visible: boolean
 	locked: boolean
 	name?: string
-	// Style references
+	// Style system - resolution: defaults → styleId chain → style/textStyle
 	shapeStyleId?: StyleId
-	shapeStyleOverrides?: Partial<ShapeStyle>
 	textStyleId?: StyleId
-	textStyleOverrides?: Partial<TextStyle>
-	// Inline styles (when no reference)
-	style?: ShapeStyle
-	textStyle?: TextStyle
+	style?: ShapeStyle // applied on top of shapeStyleId chain
+	textStyle?: TextStyle // applied on top of textStyleId chain
 }
 
 // Rect object

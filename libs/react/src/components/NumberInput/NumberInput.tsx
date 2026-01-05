@@ -175,19 +175,6 @@ export const NumberInput = createComponent<HTMLDivElement, NumberInputProps>(
 			getMultiplier
 		])
 
-		// Scroll wheel handler (commit immediately - discrete steps)
-		const handleWheel = React.useCallback(
-			(e: React.WheelEvent) => {
-				e.preventDefault()
-				const multiplier = getMultiplier(e)
-				const direction = e.deltaY < 0 ? 1 : -1
-				const newValue = clampValue((value ?? 0) + direction * step * multiplier)
-				setLocalValue(newValue)
-				onChange?.(newValue)
-			},
-			[onChange, value, step, clampValue, getMultiplier]
-		)
-
 		return (
 			<div
 				ref={ref}
@@ -204,7 +191,6 @@ export const NumberInput = createComponent<HTMLDivElement, NumberInputProps>(
 					value={localValue ?? ''}
 					onChange={handleChange}
 					onMouseDown={handleMouseDown}
-					onWheel={handleWheel}
 					min={min}
 					max={max}
 					step={step}

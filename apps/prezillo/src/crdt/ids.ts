@@ -24,6 +24,7 @@ export type ContainerId = string & { readonly __brand: 'ContainerId' }
 export type ViewId = string & { readonly __brand: 'ViewId' }
 export type StyleId = string & { readonly __brand: 'StyleId' }
 export type RichTextId = string & { readonly __brand: 'RichTextId' }
+export type TemplateId = string & { readonly __brand: 'TemplateId' }
 
 // Type converters
 export const toObjectId = (s: string): ObjectId => s as ObjectId
@@ -31,6 +32,7 @@ export const toContainerId = (s: string): ContainerId => s as ContainerId
 export const toViewId = (s: string): ViewId => s as ViewId
 export const toStyleId = (s: string): StyleId => s as StyleId
 export const toRichTextId = (s: string): RichTextId => s as RichTextId
+export const toTemplateId = (s: string): TemplateId => s as TemplateId
 
 /**
  * Generate a random ID with 72-bit entropy (12 base64url chars)
@@ -51,5 +53,6 @@ export const generateContainerId = (): ContainerId => toContainerId(generateId()
 export const generateViewId = (): ViewId => toViewId(generateId())
 export const generateStyleId = (): StyleId => toStyleId(generateId())
 export const generateRichTextId = (): RichTextId => toRichTextId(generateId())
+export const generateTemplateId = (): TemplateId => toTemplateId(generateId())
 
 // vim: ts=4

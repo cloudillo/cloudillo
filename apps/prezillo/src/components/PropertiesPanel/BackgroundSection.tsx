@@ -19,9 +19,16 @@ import * as Y from 'yjs'
 import { PropertySection, PropertyField, ColorInput } from '@cloudillo/react'
 import { GradientPicker } from '@cloudillo/canvas-tools'
 import type { Gradient } from '@cloudillo/canvas-tools'
+import { PiArrowCounterClockwiseBold as IcReset } from 'react-icons/pi'
 
 import type { YPrezilloDocument, ViewId, ViewNode } from '../../crdt'
-import { updateView } from '../../crdt'
+import {
+	updateView,
+	getViewTemplate,
+	resolveViewBackground,
+	setViewBackgroundOverride,
+	resetViewBackgroundToTemplate
+} from '../../crdt'
 
 type BackgroundType = 'solid' | 'gradient'
 
@@ -32,18 +39,34 @@ export interface BackgroundSectionProps {
 }
 
 export function BackgroundSection({ doc, yDoc, view }: BackgroundSectionProps) {
-	// Determine current background type
+	// Check if view has a template
+	const templateId = getViewTemplate(doc, view.id)
+	const hasTemplate = !!templateId
+
+	// Resolve background with template inheritance
+	const resolvedBackground = React.useMemo(
+		() => resolveViewBackground(doc, view.id),
+		[doc, view.id, view.backgroundColor, view.backgroundGradient, templateId]
+	)
+
+	// Check if background is overridden (only relevant when template is assigned)
+	const isOverridden =
+		hasTemplate &&
+		(resolvedBackground.overrides.backgroundColor ||
+			resolvedBackground.overrides.backgroundGradient)
+
+	// Determine current background type from resolved values
 	const backgroundType: BackgroundType = React.useMemo(() => {
-		const gradient = view.backgroundGradient
+		const gradient = resolvedBackground.backgroundGradient
 		if (gradient && gradient.type !== 'solid' && gradient.stops && gradient.stops.length >= 2) {
 			return 'gradient'
 		}
 		return 'solid'
-	}, [view.backgroundGradient])
+	}, [resolvedBackground.backgroundGradient])
 
 	const [activeType, setActiveType] = React.useState<BackgroundType>(backgroundType)
 
-	// Sync activeType when view changes
+	// Sync activeType when resolved background changes
 	React.useEffect(() => {
 		setActiveType(backgroundType)
 	}, [backgroundType])
@@ -51,12 +74,18 @@ export function BackgroundSection({ doc, yDoc, view }: BackgroundSectionProps) {
 	// Handle solid color change
 	const handleSolidColorChange = React.useCallback(
 		(color: string) => {
-			updateView(yDoc, doc, view.id, {
-				backgroundColor: color,
-				backgroundGradient: undefined
-			})
+			if (hasTemplate) {
+				// Use override mechanism when template is assigned
+				setViewBackgroundOverride(yDoc, doc, view.id, 'backgroundColor', color)
+				setViewBackgroundOverride(yDoc, doc, view.id, 'backgroundGradient', null)
+			} else {
+				updateView(yDoc, doc, view.id, {
+					backgroundColor: color,
+					backgroundGradient: undefined
+				})
+			}
 		},
-		[yDoc, doc, view.id]
+		[yDoc, doc, view.id, hasTemplate]
 	)
 
 	// Handle gradient change
@@ -64,18 +93,34 @@ export function BackgroundSection({ doc, yDoc, view }: BackgroundSectionProps) {
 		(gradient: Gradient) => {
 			if (gradient.type === 'solid') {
 				// User switched to solid in the picker
-				updateView(yDoc, doc, view.id, {
-					backgroundColor: gradient.color ?? '#ffffff',
-					backgroundGradient: undefined
-				})
+				if (hasTemplate) {
+					setViewBackgroundOverride(
+						yDoc,
+						doc,
+						view.id,
+						'backgroundColor',
+						gradient.color ?? '#ffffff'
+					)
+					setViewBackgroundOverride(yDoc, doc, view.id, 'backgroundGradient', null)
+				} else {
+					updateView(yDoc, doc, view.id, {
+						backgroundColor: gradient.color ?? '#ffffff',
+						backgroundGradient: undefined
+					})
+				}
 			} else {
-				updateView(yDoc, doc, view.id, {
-					backgroundGradient: gradient,
-					backgroundColor: undefined
-				})
+				if (hasTemplate) {
+					setViewBackgroundOverride(yDoc, doc, view.id, 'backgroundGradient', gradient)
+					setViewBackgroundOverride(yDoc, doc, view.id, 'backgroundColor', null)
+				} else {
+					updateView(yDoc, doc, view.id, {
+						backgroundGradient: gradient,
+						backgroundColor: undefined
+					})
+				}
 			}
 		},
-		[yDoc, doc, view.id]
+		[yDoc, doc, view.id, hasTemplate]
 	)
 
 	// Handle type switch
@@ -86,14 +131,21 @@ export function BackgroundSection({ doc, yDoc, view }: BackgroundSectionProps) {
 			if (type === 'solid') {
 				// Switch to solid - use first stop color if gradient exists
 				const color =
-					view.backgroundGradient?.stops?.[0]?.color ?? view.backgroundColor ?? '#ffffff'
-				updateView(yDoc, doc, view.id, {
-					backgroundColor: color,
-					backgroundGradient: undefined
-				})
+					resolvedBackground.backgroundGradient?.stops?.[0]?.color ??
+					resolvedBackground.backgroundColor ??
+					'#ffffff'
+				if (hasTemplate) {
+					setViewBackgroundOverride(yDoc, doc, view.id, 'backgroundColor', color)
+					setViewBackgroundOverride(yDoc, doc, view.id, 'backgroundGradient', null)
+				} else {
+					updateView(yDoc, doc, view.id, {
+						backgroundColor: color,
+						backgroundGradient: undefined
+					})
+				}
 			} else {
 				// Switch to gradient - create default gradient from current color
-				const currentColor = view.backgroundColor ?? '#ffffff'
+				const currentColor = resolvedBackground.backgroundColor ?? '#ffffff'
 				const gradient: Gradient = {
 					type: 'linear',
 					angle: 180,
@@ -102,23 +154,43 @@ export function BackgroundSection({ doc, yDoc, view }: BackgroundSectionProps) {
 						{ color: '#e0e0e0', position: 1 }
 					]
 				}
-				updateView(yDoc, doc, view.id, {
-					backgroundGradient: gradient,
-					backgroundColor: undefined
-				})
+				if (hasTemplate) {
+					setViewBackgroundOverride(yDoc, doc, view.id, 'backgroundGradient', gradient)
+					setViewBackgroundOverride(yDoc, doc, view.id, 'backgroundColor', null)
+				} else {
+					updateView(yDoc, doc, view.id, {
+						backgroundGradient: gradient,
+						backgroundColor: undefined
+					})
+				}
 			}
 		},
-		[yDoc, doc, view.id, view.backgroundColor, view.backgroundGradient]
+		[
+			yDoc,
+			doc,
+			view.id,
+			hasTemplate,
+			resolvedBackground.backgroundColor,
+			resolvedBackground.backgroundGradient
+		]
 	)
 
-	// Get current gradient value for picker
+	// Handle reset to template
+	const handleResetToTemplate = React.useCallback(() => {
+		resetViewBackgroundToTemplate(yDoc, doc, view.id, 'all')
+	}, [yDoc, doc, view.id])
+
+	// Get current gradient value for picker (from resolved background)
 	const gradientValue: Gradient = React.useMemo(() => {
 		if (activeType === 'solid') {
-			return { type: 'solid', color: view.backgroundColor ?? '#ffffff' }
+			return { type: 'solid', color: resolvedBackground.backgroundColor ?? '#ffffff' }
 		}
 
-		if (view.backgroundGradient && view.backgroundGradient.type !== 'solid') {
-			return view.backgroundGradient
+		if (
+			resolvedBackground.backgroundGradient &&
+			resolvedBackground.backgroundGradient.type !== 'solid'
+		) {
+			return resolvedBackground.backgroundGradient
 		}
 
 		// Default gradient
@@ -126,14 +198,34 @@ export function BackgroundSection({ doc, yDoc, view }: BackgroundSectionProps) {
 			type: 'linear',
 			angle: 180,
 			stops: [
-				{ color: view.backgroundColor ?? '#ffffff', position: 0 },
+				{ color: resolvedBackground.backgroundColor ?? '#ffffff', position: 0 },
 				{ color: '#e0e0e0', position: 1 }
 			]
 		}
-	}, [activeType, view.backgroundColor, view.backgroundGradient])
+	}, [activeType, resolvedBackground.backgroundColor, resolvedBackground.backgroundGradient])
 
 	return (
 		<PropertySection title="Background" defaultExpanded>
+			{/* Template inheritance indicator */}
+			{hasTemplate && !isOverridden && (
+				<div className="c-background-inherited-badge">From template</div>
+			)}
+
+			{/* Reset to template button when overridden */}
+			{isOverridden && (
+				<div className="c-hbox jc-end mb-2">
+					<button
+						type="button"
+						className="c-button compact small"
+						onClick={handleResetToTemplate}
+						title="Reset to template background"
+					>
+						<IcReset />
+						Reset to Template
+					</button>
+				</div>
+			)}
+
 			{/* Type selector */}
 			<div className="c-hbox g-1 mb-2">
 				<button
@@ -156,7 +248,7 @@ export function BackgroundSection({ doc, yDoc, view }: BackgroundSectionProps) {
 			{activeType === 'solid' && (
 				<PropertyField label="Color">
 					<ColorInput
-						value={view.backgroundColor ?? '#ffffff'}
+						value={resolvedBackground.backgroundColor ?? '#ffffff'}
 						onChange={handleSolidColorChange}
 					/>
 				</PropertyField>

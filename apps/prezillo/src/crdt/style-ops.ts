@@ -29,22 +29,51 @@ import type {
 } from './stored-types'
 import type { StyleId, ObjectId } from './ids'
 import { generateStyleId, toStyleId } from './ids'
-import type {
-	ResolvedShapeStyle,
-	ResolvedTextStyle,
-	StyleDefinition,
-	PrezilloObject,
-	Palette
-} from './runtime-types'
-import {
-	expandObject,
-	expandShapeStyle,
-	expandTextStyle,
-	isPaletteRef,
-	expandPaletteRef
-} from './type-converters'
-import { getPalette, getResolvedColor, resolvePaletteRef, isGradientSlot } from './palette-ops'
+import type { ResolvedShapeStyle, ResolvedTextStyle, Palette } from './runtime-types'
+import { isPaletteRef, expandPaletteRef } from './type-converters'
+import { getPalette, getResolvedColor, resolvePaletteRef } from './palette-ops'
 import type { Gradient } from '@cloudillo/canvas-tools'
+
+/**
+ * Merge style-related fields from prototype into instance
+ * Returns a StoredObject with prototype's style fields as base, overridden by instance's
+ */
+function mergeStyleFieldsWithPrototype(
+	doc: YPrezilloDocument,
+	instance: StoredObject
+): StoredObject {
+	// No prototype - return as-is
+	if (!instance.proto) {
+		return instance
+	}
+
+	const prototype = doc.o.get(instance.proto)
+	if (!prototype) {
+		return instance
+	}
+
+	// Merge style-related fields from prototype, with instance overriding
+	// We need to merge at the stored level for style resolution
+	const merged: StoredObject = { ...instance }
+
+	// Shape style: si (styleId), s (inline style), so (overrides)
+	// Use prototype's if instance doesn't have any shape style fields
+	if (merged.si === undefined && merged.s === undefined && merged.so === undefined) {
+		if (prototype.si !== undefined) merged.si = prototype.si
+		if (prototype.s !== undefined) merged.s = prototype.s
+		if (prototype.so !== undefined) merged.so = prototype.so
+	}
+
+	// Text style: ti (styleId), ts (inline style), to (overrides)
+	// Use prototype's if instance doesn't have any text style fields
+	if (merged.ti === undefined && merged.ts === undefined && merged.to === undefined) {
+		if (prototype.ti !== undefined) merged.ti = prototype.ti
+		if (prototype.ts !== undefined) merged.ts = prototype.ts
+		if (prototype.to !== undefined) merged.to = prototype.to
+	}
+
+	return merged
+}
 
 // Default styles
 export const DEFAULT_SHAPE_STYLE: ResolvedShapeStyle = {
@@ -235,11 +264,15 @@ export function getStyleChain(doc: YPrezilloDocument, styleId: StyleId): StoredS
 /**
  * Resolve full shape style for an object
  * Gets the palette from the document to resolve palette color references
+ * Handles prototype inheritance for instance objects
  */
 export function resolveShapeStyle(
 	doc: YPrezilloDocument,
 	object: StoredObject
 ): ResolvedShapeStyle {
+	// Merge style fields from prototype if this is an instance
+	const obj = mergeStyleFieldsWithPrototype(doc, object)
+
 	// Get palette for resolving color references
 	const palette = getPalette(doc)
 
@@ -247,21 +280,21 @@ export function resolveShapeStyle(
 	let result = { ...DEFAULT_SHAPE_STYLE }
 
 	// Apply referenced style (with inheritance chain)
-	if (object.si) {
-		const styleChain = getStyleChain(doc, toStyleId(object.si))
+	if (obj.si) {
+		const styleChain = getStyleChain(doc, toStyleId(obj.si))
 		for (const style of styleChain) {
 			result = mergeShapeStyle(result, style, palette)
 		}
 	}
 
 	// Apply inline style (if no reference)
-	if (object.s && !object.si) {
-		result = mergeShapeStyle(result, object.s, palette)
+	if (obj.s && !obj.si) {
+		result = mergeShapeStyle(result, obj.s, palette)
 	}
 
 	// Apply overrides (if reference exists)
-	if (object.so) {
-		result = mergeShapeStyle(result, object.so, palette)
+	if (obj.so) {
+		result = mergeShapeStyle(result, obj.so, palette)
 	}
 
 	return result
@@ -270,8 +303,12 @@ export function resolveShapeStyle(
 /**
  * Resolve full text style for an object
  * Gets the palette from the document to resolve palette color references
+ * Handles prototype inheritance for instance objects
  */
 export function resolveTextStyle(doc: YPrezilloDocument, object: StoredObject): ResolvedTextStyle {
+	// Merge style fields from prototype if this is an instance
+	const obj = mergeStyleFieldsWithPrototype(doc, object)
+
 	// Get palette for resolving color references
 	const palette = getPalette(doc)
 
@@ -279,21 +316,21 @@ export function resolveTextStyle(doc: YPrezilloDocument, object: StoredObject): 
 	let result = { ...DEFAULT_TEXT_STYLE }
 
 	// Apply referenced style (with inheritance chain)
-	if (object.ti) {
-		const styleChain = getStyleChain(doc, toStyleId(object.ti))
+	if (obj.ti) {
+		const styleChain = getStyleChain(doc, toStyleId(obj.ti))
 		for (const style of styleChain) {
 			result = mergeTextStyle(result, style, palette)
 		}
 	}
 
 	// Apply inline style (if no reference)
-	if (object.ts && !object.ti) {
-		result = mergeTextStyleFromStored(result, object.ts, palette)
+	if (obj.ts && !obj.ti) {
+		result = mergeTextStyleFromStored(result, obj.ts, palette)
 	}
 
 	// Apply overrides (if reference exists)
-	if (object.to) {
-		result = mergeTextStyleFromStored(result, object.to, palette)
+	if (obj.to) {
+		result = mergeTextStyleFromStored(result, obj.to, palette)
 	}
 
 	return result
@@ -385,13 +422,26 @@ function mergeShapeStyle(
 	}
 }
 
+// Text style field mappings (stored abbreviation -> runtime value)
+const TEXT_DECORATION_MAP = { u: 'underline', s: 'line-through' } as const
+const TEXT_ALIGN_MAP = { l: 'left', c: 'center', r: 'right', j: 'justify' } as const
+const VERTICAL_ALIGN_MAP = { t: 'top', m: 'middle', b: 'bottom' } as const
+
 /**
- * Merge text style properties from stored style
+ * Text style override source - can be either StoredStyle or TextStyle
+ * Both have the same text style fields
+ */
+type TextStyleSource = Partial<
+	Pick<StoredStyle, 'ff' | 'fs' | 'fw' | 'fi' | 'td' | 'fc' | 'ta' | 'va' | 'lh' | 'ls' | 'lb'>
+>
+
+/**
+ * Merge text style properties from any source (StoredStyle or TextStyle)
  * Resolves palette refs if palette is provided
  */
-function mergeTextStyle(
+function mergeTextStyleFields(
 	base: ResolvedTextStyle,
-	override: StoredStyle,
+	override: TextStyleSource,
 	palette?: Palette
 ): ResolvedTextStyle {
 	const fillColor =
@@ -402,16 +452,16 @@ function mergeTextStyle(
 		fontWeight: override.fw ?? base.fontWeight,
 		fontItalic: override.fi ?? base.fontItalic,
 		textDecoration: override.td
-			? override.td === 'u'
-				? 'underline'
-				: 'line-through'
+			? (TEXT_DECORATION_MAP[override.td as keyof typeof TEXT_DECORATION_MAP] ??
+				base.textDecoration)
 			: base.textDecoration,
 		fill: fillColor,
 		textAlign: override.ta
-			? ({ l: 'left', c: 'center', r: 'right', j: 'justify' }[override.ta] as any)
+			? (TEXT_ALIGN_MAP[override.ta as keyof typeof TEXT_ALIGN_MAP] ?? base.textAlign)
 			: base.textAlign,
 		verticalAlign: override.va
-			? ({ t: 'top', m: 'middle', b: 'bottom' }[override.va] as any)
+			? (VERTICAL_ALIGN_MAP[override.va as keyof typeof VERTICAL_ALIGN_MAP] ??
+				base.verticalAlign)
 			: base.verticalAlign,
 		lineHeight: override.lh ?? base.lineHeight,
 		letterSpacing: override.ls ?? base.letterSpacing,
@@ -419,235 +469,8 @@ function mergeTextStyle(
 	}
 }
 
-/**
- * Merge text style from stored text style (not full StoredStyle)
- * Resolves palette refs if palette is provided
- */
-function mergeTextStyleFromStored(
-	base: ResolvedTextStyle,
-	override: TextStyle,
-	palette?: Palette
-): ResolvedTextStyle {
-	const fillColor =
-		override.fc !== undefined ? resolveColorField(override.fc, palette, base.fill) : base.fill
-	return {
-		fontFamily: override.ff ?? base.fontFamily,
-		fontSize: override.fs ?? base.fontSize,
-		fontWeight: override.fw ?? base.fontWeight,
-		fontItalic: override.fi ?? base.fontItalic,
-		textDecoration: override.td
-			? override.td === 'u'
-				? 'underline'
-				: 'line-through'
-			: base.textDecoration,
-		fill: fillColor,
-		textAlign: override.ta
-			? ({ l: 'left', c: 'center', r: 'right', j: 'justify' }[override.ta] as any)
-			: base.textAlign,
-		verticalAlign: override.va
-			? ({ t: 'top', m: 'middle', b: 'bottom' }[override.va] as any)
-			: base.verticalAlign,
-		lineHeight: override.lh ?? base.lineHeight,
-		letterSpacing: override.ls ?? base.letterSpacing,
-		listBullet: override.lb ?? base.listBullet
-	}
-}
-
-/**
- * Apply style to objects
- */
-export function applyStyleToObjects(
-	yDoc: Y.Doc,
-	doc: YPrezilloDocument,
-	objectIds: ObjectId[],
-	styleId: StyleId,
-	type: 'shape' | 'text' = 'shape'
-): void {
-	yDoc.transact(() => {
-		objectIds.forEach((id) => {
-			const object = doc.o.get(id)
-			if (object) {
-				const updated = { ...object }
-
-				if (type === 'shape') {
-					updated.si = styleId
-					delete updated.so // Clear overrides
-					delete updated.s // Clear inline style
-				} else {
-					updated.ti = styleId
-					delete updated.to // Clear overrides
-					delete updated.ts // Clear inline text style
-				}
-
-				doc.o.set(id, updated)
-			}
-		})
-	}, yDoc.clientID)
-}
-
-/**
- * Remove style from objects (convert to inline)
- */
-export function detachStyleFromObjects(
-	yDoc: Y.Doc,
-	doc: YPrezilloDocument,
-	objectIds: ObjectId[],
-	type: 'shape' | 'text' = 'shape'
-): void {
-	yDoc.transact(() => {
-		objectIds.forEach((id) => {
-			const object = doc.o.get(id)
-			if (!object) return
-
-			if (type === 'shape' && object.si) {
-				// Resolve full style
-				const resolved = resolveShapeStyle(doc, object)
-				const updated = { ...object }
-
-				// Convert to inline style
-				delete updated.si
-				delete updated.so
-				updated.s = {
-					f: resolved.fill,
-					s: resolved.stroke,
-					sw: resolved.strokeWidth
-				}
-				if (resolved.fillOpacity !== 1) updated.s.fo = resolved.fillOpacity
-				if (resolved.strokeOpacity !== 1) updated.s.so = resolved.strokeOpacity
-				if (resolved.strokeDasharray) updated.s.sd = resolved.strokeDasharray
-				if (resolved.strokeLinecap !== 'butt') updated.s.sc = resolved.strokeLinecap
-				if (resolved.strokeLinejoin !== 'miter') updated.s.sj = resolved.strokeLinejoin
-				if (resolved.shadow) {
-					updated.s.sh = [
-						resolved.shadow.offsetX,
-						resolved.shadow.offsetY,
-						resolved.shadow.blur,
-						resolved.shadow.color
-					]
-				}
-
-				doc.o.set(id, updated)
-			}
-
-			if (type === 'text' && object.ti) {
-				// Resolve full style
-				const resolved = resolveTextStyle(doc, object)
-				const updated = { ...object }
-
-				// Convert to inline style
-				delete updated.ti
-				delete updated.to
-				updated.ts = {
-					ff: resolved.fontFamily,
-					fs: resolved.fontSize,
-					fc: resolved.fill
-				}
-				if (resolved.fontWeight !== 'normal') updated.ts.fw = resolved.fontWeight
-				if (resolved.fontItalic) updated.ts.fi = resolved.fontItalic
-				if (resolved.textDecoration !== 'none') {
-					updated.ts.td = resolved.textDecoration === 'underline' ? 'u' : 's'
-				}
-				if (resolved.textAlign !== 'left') {
-					updated.ts.ta = { left: 'l', center: 'c', right: 'r', justify: 'j' }[
-						resolved.textAlign
-					] as any
-				}
-				if (resolved.verticalAlign !== 'top') {
-					updated.ts.va = { top: 't', middle: 'm', bottom: 'b' }[
-						resolved.verticalAlign
-					] as any
-				}
-				if (resolved.lineHeight !== 1.2) updated.ts.lh = resolved.lineHeight
-				if (resolved.letterSpacing !== 0) updated.ts.ls = resolved.letterSpacing
-				if (resolved.listBullet) updated.ts.lb = resolved.listBullet
-
-				doc.o.set(id, updated)
-			}
-		})
-	}, yDoc.clientID)
-}
-
-/**
- * Set style override on an object
- */
-export function setStyleOverride(
-	yDoc: Y.Doc,
-	doc: YPrezilloDocument,
-	objectId: ObjectId,
-	type: 'shape' | 'text',
-	property: string,
-	value: any
-): void {
-	const object = doc.o.get(objectId)
-	if (!object) return
-
-	yDoc.transact(() => {
-		const updated = { ...object }
-
-		if (type === 'shape') {
-			if (!updated.so) updated.so = {}
-			;(updated.so as any)[property] = value
-		} else {
-			if (!updated.to) updated.to = {}
-			;(updated.to as any)[property] = value
-		}
-
-		doc.o.set(objectId, updated)
-	}, yDoc.clientID)
-}
-
-/**
- * Clear style overrides on an object
- */
-export function clearStyleOverrides(
-	yDoc: Y.Doc,
-	doc: YPrezilloDocument,
-	objectId: ObjectId,
-	type: 'shape' | 'text'
-): void {
-	const object = doc.o.get(objectId)
-	if (!object) return
-
-	yDoc.transact(() => {
-		const updated = { ...object }
-
-		if (type === 'shape') {
-			delete updated.so
-		} else {
-			delete updated.to
-		}
-
-		doc.o.set(objectId, updated)
-	}, yDoc.clientID)
-}
-
-/**
- * Create a style variation (child style)
- */
-export function createStyleVariation(
-	yDoc: Y.Doc,
-	doc: YPrezilloDocument,
-	parentStyleId: StyleId,
-	name: string,
-	overrides: Partial<StoredStyle>
-): StyleId {
-	const parent = doc.st.get(parentStyleId)
-	if (!parent) {
-		throw new Error(`Parent style ${parentStyleId} not found`)
-	}
-
-	const styleId = generateStyleId()
-
-	yDoc.transact(() => {
-		doc.st.set(styleId, {
-			n: name,
-			t: parent.t,
-			p: parentStyleId,
-			...overrides
-		})
-	}, yDoc.clientID)
-
-	return styleId
-}
+// Aliases for backward compatibility with existing call sites
+const mergeTextStyle = mergeTextStyleFields
+const mergeTextStyleFromStored = mergeTextStyleFields
 
 // vim: ts=4

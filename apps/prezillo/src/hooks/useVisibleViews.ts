@@ -15,39 +15,37 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Hook for getting document layers
+ * Hook for getting views visible in the current viewport.
+ * Used for multi-page rendering - only render objects on pages that are visible.
  */
 
 import * as React from 'react'
 import { useY } from 'react-yjs'
 
-import type { YPrezilloDocument, ContainerNode, ContainerId } from '../crdt'
-import { getLayers, getLayerIds } from '../crdt'
+import type { YPrezilloDocument, ViewNode, Bounds } from '../crdt'
+import { getAllViews, boundsIntersect } from '../crdt'
 
 /**
- * Get all layers in the document
+ * Get all views that intersect with the given viewport bounds.
+ * Returns views in presentation order.
  */
-export function useLayers(doc: YPrezilloDocument): ContainerNode[] {
-	const containers = useY(doc.c)
-	const rootChildren = useY(doc.r)
+export function useVisibleViews(doc: YPrezilloDocument, viewportBounds: Bounds | null): ViewNode[] {
+	const views = useY(doc.v)
+	const viewOrder = useY(doc.vo)
 
 	return React.useMemo(() => {
-		if (!containers || !rootChildren) return []
-		return getLayers(doc)
-	}, [doc, containers, rootChildren])
-}
+		if (!views || !viewOrder || !viewportBounds) return []
 
-/**
- * Get layer IDs
- */
-export function useLayerIds(doc: YPrezilloDocument): ContainerId[] {
-	const containers = useY(doc.c)
-	const rootChildren = useY(doc.r)
+		const allViews = getAllViews(doc)
 
-	return React.useMemo(() => {
-		if (!containers || !rootChildren) return []
-		return getLayerIds(doc)
-	}, [doc, containers, rootChildren])
+		// Filter to only views that intersect the viewport
+		return allViews.filter((view) =>
+			boundsIntersect(
+				{ x: view.x, y: view.y, width: view.width, height: view.height },
+				viewportBounds
+			)
+		)
+	}, [doc, views, viewOrder, viewportBounds])
 }
 
 // vim: ts=4

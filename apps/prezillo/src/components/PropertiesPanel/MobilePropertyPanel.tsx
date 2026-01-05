@@ -35,7 +35,7 @@ export interface MobilePropertyPanelProps {
 	yDoc: Y.Doc
 	selectedIds: Set<ObjectId>
 	activeViewId?: ViewId | null
-	selectedViewId?: ViewId | null
+	isViewFocused?: boolean
 	snapPoint: BottomSheetSnapPoint
 	onSnapChange: (snapPoint: BottomSheetSnapPoint) => void
 	onPreview?: (preview: PropertyPreview | null) => void
@@ -46,7 +46,7 @@ export function MobilePropertyPanel({
 	yDoc,
 	selectedIds,
 	activeViewId,
-	selectedViewId,
+	isViewFocused,
 	snapPoint,
 	onSnapChange,
 	onPreview
@@ -68,8 +68,7 @@ export function MobilePropertyPanel({
 	const isRectObject = selectedObject?.type === 'rect'
 
 	// Check if we should show view properties
-	const showViewProperties = selectedViewId || (selectedIds.size === 0 && activeViewId)
-	const viewIdToShow = selectedViewId || activeViewId
+	const showViewProperties = isViewFocused && activeViewId
 
 	// Get object label for header
 	const objectLabel = React.useMemo(() => {
@@ -119,12 +118,12 @@ export function MobilePropertyPanel({
 			return null
 		}
 
-		// Show view properties when a view is selected
-		if (showViewProperties && viewIdToShow) {
+		// Show view properties when view is focused
+		if (showViewProperties && activeViewId) {
 			return (
 				<div className="c-mobile-property-content">
 					<div className="c-mobile-property-tab-content">
-						<ViewPropertiesPanel doc={doc} yDoc={yDoc} activeViewId={viewIdToShow} />
+						<ViewPropertiesPanel doc={doc} yDoc={yDoc} activeViewId={activeViewId} />
 					</div>
 				</div>
 			)

@@ -26,6 +26,7 @@ import type {
 	StoredView,
 	StoredStyle,
 	StoredPalette,
+	StoredTemplate,
 	ChildRef
 } from './stored-types'
 import { generateContainerId, generateViewId, generateStyleId } from './ids'
@@ -53,7 +54,10 @@ export function getOrCreateDocument(
 		rt: yDoc.getMap<Y.Text>('rt'),
 		st: yDoc.getMap<StoredStyle>('st'),
 		pl: yDoc.getMap<StoredPalette>('pl'),
-		ch: yDoc.getMap<Y.Array<ChildRef>>('ch')
+		ch: yDoc.getMap<Y.Array<ChildRef>>('ch'),
+		// Template system
+		tpl: yDoc.getMap<StoredTemplate>('tpl'),
+		tpo: yDoc.getMap<Y.Array<string>>('tpo')
 	}
 
 	// Initialize if empty (only if requested - wait for sync before initializing)

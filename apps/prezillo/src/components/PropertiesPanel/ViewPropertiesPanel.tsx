@@ -25,6 +25,7 @@ import { useY } from 'react-yjs'
 import type { YPrezilloDocument, ViewId, ViewNode } from '../../crdt'
 import { getView } from '../../crdt'
 import { BackgroundSection } from './BackgroundSection'
+import { TemplateSelector } from '../TemplateSelector'
 
 export interface ViewPropertiesPanelProps {
 	doc: YPrezilloDocument
@@ -44,6 +45,7 @@ export function ViewPropertiesPanel({ doc, yDoc, activeViewId }: ViewPropertiesP
 
 	return (
 		<div className="c-vbox g-2">
+			<TemplateSelector doc={doc} yDoc={yDoc} viewId={activeViewId} />
 			<BackgroundSection doc={doc} yDoc={yDoc} view={view} />
 			{/* Future: TransitionSection, NotesSection, etc. */}
 		</div>

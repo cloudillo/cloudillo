@@ -25,8 +25,8 @@ import { useCloudilloEditor } from '@cloudillo/react'
 
 import type { Awareness } from 'y-protocols/awareness'
 
-import type { ObjectId, ContainerId, ViewId, YPrezilloDocument } from '../crdt'
-import { getOrCreateDocument, toViewId } from '../crdt'
+import type { ObjectId, ContainerId, ViewId, TemplateId, YPrezilloDocument } from '../crdt'
+import { getOrCreateDocument, toViewId, toTemplateId } from '../crdt'
 import type { PrezilloPresence, PresenterInfo } from '../awareness'
 import {
 	getRemotePresenceStates,
@@ -58,7 +58,7 @@ export interface UsePrezilloDocumentResult {
 	// UI state
 	activeViewId: ViewId | null
 	setActiveViewId: (id: ViewId | null) => void
-	selectedViewId: ViewId | null // Currently selected view (for showing view properties)
+	isViewFocused: boolean // True when view background is clicked (show view properties)
 	selectView: (id: ViewId) => void // Select a view (also sets activeViewId, clears object selection)
 	selectedIds: Set<ObjectId>
 	setSelectedIds: React.Dispatch<React.SetStateAction<Set<ObjectId>>>
@@ -88,6 +88,17 @@ export interface UsePrezilloDocumentResult {
 	deselectObject: (id: ObjectId) => void
 	clearSelection: () => void
 	isSelected: (id: ObjectId) => boolean
+	autoSwitchToObjectPage: (id: ObjectId) => void
+
+	// Template editing mode
+	editingTemplateId: TemplateId | null
+	startEditingTemplate: (templateId: TemplateId) => void
+	stopEditingTemplate: () => void
+
+	// Template selection (for properties panel, not editing)
+	selectedTemplateId: TemplateId | null
+	selectTemplate: (templateId: TemplateId | null) => void
+	clearTemplateSelection: () => void
 
 	// Awareness/presence
 	awareness: Awareness | null
@@ -128,8 +139,14 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 	const styles = useY(doc.st)
 
 	// UI state
-	const [activeViewId, setActiveViewId] = React.useState<ViewId | null>(null)
-	const [selectedViewId, setSelectedViewId] = React.useState<ViewId | null>(null)
+	const [activeViewId, setActiveViewIdInternal] = React.useState<ViewId | null>(null)
+	const [isViewFocused, setIsViewFocused] = React.useState(false)
+
+	// Wrapper that clears isViewFocused when switching pages via navigation
+	const setActiveViewId = React.useCallback((id: ViewId | null) => {
+		setActiveViewIdInternal(id)
+		setIsViewFocused(false)
+	}, [])
 	const [selectedIds, setSelectedIds] = React.useState<Set<ObjectId>>(new Set())
 	const [activeContainerId, setActiveContainerId] = React.useState<ContainerId | null>(null)
 
@@ -140,10 +157,10 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 	// Tool state
 	const [activeTool, setActiveTool] = React.useState<string | null>(null)
 
-	// Initialize active view
+	// Initialize active view (use internal setter to avoid clearing isViewFocused on init)
 	React.useEffect(() => {
 		if (viewOrder && viewOrder.length > 0 && !activeViewId) {
-			setActiveViewId(toViewId(viewOrder[0]))
+			setActiveViewIdInternal(toViewId(viewOrder[0]))
 		}
 	}, [viewOrder, activeViewId])
 
@@ -187,7 +204,8 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 
 	// Selection helpers
 	const selectObject = React.useCallback((id: ObjectId, addToSelection: boolean = false) => {
-		setSelectedViewId(null) // Clear view selection when selecting objects
+		setIsViewFocused(false) // Clear view focus when selecting objects
+		setSelectedTemplateId(null) // Clear template selection when selecting objects
 		setSelectedIds((prev) => {
 			if (addToSelection) {
 				const next = new Set(prev)
@@ -199,7 +217,8 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 	}, [])
 
 	const selectObjects = React.useCallback((ids: ObjectId[], addToSelection: boolean = false) => {
-		setSelectedViewId(null) // Clear view selection when selecting objects
+		setIsViewFocused(false) // Clear view focus when selecting objects
+		setSelectedTemplateId(null) // Clear template selection when selecting objects
 		setSelectedIds((prev) => {
 			if (addToSelection) {
 				const next = new Set(prev)
@@ -224,10 +243,22 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 
 	// Select a view (for showing view properties in sidebar)
 	const selectView = React.useCallback((viewId: ViewId) => {
-		setSelectedViewId(viewId)
-		setActiveViewId(viewId)
+		setActiveViewIdInternal(viewId)
 		setSelectedIds(new Set()) // Clear object selection
+		setSelectedTemplateId(null) // Clear template selection
+		setIsViewFocused(true) // Mark view as focused for properties panel
 	}, [])
+
+	// Auto-switch to object's page if clicking on an object from a different page
+	const autoSwitchToObjectPage = React.useCallback(
+		(objectId: ObjectId) => {
+			const obj = doc.o.get(objectId)
+			if (obj?.vi && obj.vi !== activeViewId) {
+				setActiveViewId(obj.vi as ViewId)
+			}
+		},
+		[doc, activeViewId, setActiveViewId]
+	)
 
 	const isSelected = React.useCallback(
 		(id: ObjectId) => {
@@ -235,6 +266,34 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 		},
 		[selectedIds]
 	)
+
+	// Template editing mode
+	const [editingTemplateId, setEditingTemplateId] = React.useState<TemplateId | null>(null)
+
+	const startEditingTemplate = React.useCallback((templateId: TemplateId) => {
+		setEditingTemplateId(templateId)
+		setSelectedTemplateId(templateId) // Also select the template
+		setSelectedIds(new Set()) // Clear object selection
+		setIsViewFocused(false) // Clear view focus
+	}, [])
+
+	const stopEditingTemplate = React.useCallback(() => {
+		setEditingTemplateId(null)
+		setSelectedIds(new Set()) // Clear selection
+	}, [])
+
+	// Template selection (for properties panel, not editing)
+	const [selectedTemplateId, setSelectedTemplateId] = React.useState<TemplateId | null>(null)
+
+	const selectTemplate = React.useCallback((templateId: TemplateId | null) => {
+		setSelectedTemplateId(templateId)
+		setSelectedIds(new Set()) // Clear object selection
+		setIsViewFocused(false) // Clear view focus
+	}, [])
+
+	const clearTemplateSelection = React.useCallback(() => {
+		setSelectedTemplateId(null)
+	}, [])
 
 	// Remote presence state
 	const [remotePresence, setRemotePresence] = React.useState<Map<number, PrezilloPresence>>(
@@ -391,7 +450,7 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 		// UI state
 		activeViewId,
 		setActiveViewId,
-		selectedViewId,
+		isViewFocused,
 		selectView,
 		selectedIds,
 		setSelectedIds,
@@ -421,6 +480,17 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 		deselectObject,
 		clearSelection,
 		isSelected,
+		autoSwitchToObjectPage,
+
+		// Template editing mode
+		editingTemplateId,
+		startEditingTemplate,
+		stopEditingTemplate,
+
+		// Template selection (for properties panel)
+		selectedTemplateId,
+		selectTemplate,
+		clearTemplateSelection,
 
 		// Awareness/presence
 		awareness,

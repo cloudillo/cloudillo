@@ -21,44 +21,33 @@
 import * as React from 'react'
 import { useY } from 'react-yjs'
 
-import type { YPrezilloDocument, ViewNode, ViewId } from '../crdt'
-import { getAllViews, getView, toViewId } from '../crdt'
+import type { YPrezilloDocument, ViewNode } from '../crdt'
+import { getAllViews, resolveViewBackground } from '../crdt'
 
 /**
- * Get all views in presentation order
+ * Get all views in presentation order with resolved backgrounds (including template inheritance)
  */
 export function useViews(doc: YPrezilloDocument): ViewNode[] {
 	const views = useY(doc.v)
 	const viewOrder = useY(doc.vo)
+	const templates = useY(doc.tpl)
 
 	return React.useMemo(() => {
 		if (!views || !viewOrder) return []
-		return getAllViews(doc)
-	}, [doc, views, viewOrder])
-}
 
-/**
- * Get a single view by ID
- */
-export function useView(doc: YPrezilloDocument, viewId: ViewId | null): ViewNode | null {
-	const views = useY(doc.v)
-
-	return React.useMemo(() => {
-		if (!views || !viewId) return null
-		return getView(doc, viewId) || null
-	}, [doc, views, viewId])
-}
-
-/**
- * Get view IDs in presentation order
- */
-export function useViewIds(doc: YPrezilloDocument): ViewId[] {
-	const viewOrder = useY(doc.vo)
-
-	return React.useMemo(() => {
-		if (!viewOrder) return []
-		return viewOrder.map((id) => toViewId(id))
-	}, [viewOrder])
+		// Get all views and enhance with resolved backgrounds from templates
+		return getAllViews(doc).map((view) => {
+			const resolved = resolveViewBackground(doc, view.id)
+			return {
+				...view,
+				// Override with resolved background values (includes template inheritance)
+				backgroundColor: resolved.backgroundColor ?? view.backgroundColor,
+				backgroundGradient: resolved.backgroundGradient ?? view.backgroundGradient,
+				backgroundImage: resolved.backgroundImage ?? view.backgroundImage,
+				backgroundFit: resolved.backgroundFit ?? view.backgroundFit
+			}
+		})
+	}, [doc, views, viewOrder, templates])
 }
 
 // vim: ts=4

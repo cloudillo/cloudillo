@@ -23,10 +23,15 @@ import {
 	resolveShapeStyle,
 	resolveTextStyle,
 	updateObject,
-	updateObjectTextStyle
+	updateObjectTextStyle,
+	isInstance,
+	isPropertyGroupLocked,
+	unlockPropertyGroup,
+	resetPropertyGroup
 } from '../../crdt'
 import { usePaletteValue } from '../../hooks'
 import { PaletteColorPicker, ColorPickerValue } from './PaletteColorPicker'
+import { PropertyLockButton } from './PropertyLockButton'
 
 export interface StyleSectionProps {
 	doc: YPrezilloDocument
@@ -35,11 +40,34 @@ export interface StyleSectionProps {
 }
 
 export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
+	const objectId = object.id as ObjectId
+
 	// Get palette for color picker
 	const palette = usePaletteValue(doc)
 
 	// Check if this is a text object
 	const isTextObject = object.type === 'text' || object.type === 'textbox'
+
+	// Check if this object is an instance of a template prototype
+	const objectIsInstance = isInstance(doc, objectId)
+
+	// Check lock state for style groups
+	// For text objects, we use textStyle; for shape objects, we use shapeStyle
+	const shapeStyleLocked = isPropertyGroupLocked(doc, objectId, 'shapeStyle')
+	const textStyleLocked = isPropertyGroupLocked(doc, objectId, 'textStyle')
+
+	// Determine which lock to use based on object type
+	const styleLocked = isTextObject ? textStyleLocked : shapeStyleLocked
+	const styleGroup = isTextObject ? 'textStyle' : 'shapeStyle'
+
+	// Unlock/reset handlers
+	const handleUnlockStyle = React.useCallback(() => {
+		unlockPropertyGroup(yDoc, doc, objectId, styleGroup)
+	}, [yDoc, doc, objectId, styleGroup])
+
+	const handleResetStyle = React.useCallback(() => {
+		resetPropertyGroup(yDoc, doc, objectId, styleGroup)
+	}, [yDoc, doc, objectId, styleGroup])
 
 	// Get resolved styles
 	const stored = doc.o.get(object.id)
@@ -58,12 +86,16 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 	// Get raw stroke value (may be palette ref or hex string)
 	const rawStrokeValue: ColorPickerValue | undefined = stored?.s?.s ?? stored?.so?.s
 
+	// Determine if style editing is disabled
+	const styleDisabled = objectIsInstance && styleLocked
+
 	const handleFillColorChange = React.useCallback(
 		(value: ColorPickerValue) => {
+			if (styleDisabled) return
 			if (isTextObject) {
 				// Update text style fill for text objects
 				// ColorPickerValue is already in stored format (string | StoredPaletteRef)
-				updateObjectTextStyle(yDoc, doc, object.id as ObjectId, { fc: value })
+				updateObjectTextStyle(yDoc, doc, objectId, { fc: value })
 			} else {
 				// Update shape style fill for other objects
 				// For shape style, we need to update the stored style directly
@@ -78,11 +110,12 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 				}, yDoc.clientID)
 			}
 		},
-		[yDoc, doc, object.id, isTextObject]
+		[yDoc, doc, object.id, objectId, isTextObject, styleDisabled]
 	)
 
 	const handleStrokeColorChange = React.useCallback(
 		(value: ColorPickerValue) => {
+			if (styleDisabled) return
 			// Update shape style stroke directly in stored format
 			yDoc.transact(() => {
 				const storedObj = doc.o.get(object.id)
@@ -94,60 +127,76 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 				}
 			}, yDoc.clientID)
 		},
-		[yDoc, doc, object.id]
+		[yDoc, doc, object.id, styleDisabled]
 	)
 
 	const handleStrokeWidthChange = React.useCallback(
 		(width: number) => {
+			if (styleDisabled) return
 			const style = object.style || {}
-			updateObject(yDoc, doc, object.id as ObjectId, {
+			updateObject(yDoc, doc, objectId, {
 				style: { ...style, strokeWidth: Math.max(0, width) }
 			})
 		},
-		[yDoc, doc, object.id, object.style]
+		[yDoc, doc, objectId, object.style, styleDisabled]
 	)
 
 	if (!resolvedShapeStyle && !resolvedTextStyle) return null
 
 	return (
 		<PropertySection title="Style" defaultExpanded>
-			{/* Fill (text color for text objects) */}
-			<PropertyField label={isTextObject ? 'Color' : 'Fill'} labelWidth={40}>
-				<PaletteColorPicker
-					value={rawFillValue ?? fillColor ?? 'none'}
-					onChange={handleFillColorChange}
-					palette={palette}
-					showGradients={!isTextObject}
-					showTransparent={!isTextObject}
+			{/* Lock button for entire style section */}
+			<div className="c-hbox ai-center jc-end mb-1">
+				<PropertyLockButton
+					isInstance={objectIsInstance}
+					isLocked={styleLocked}
+					onUnlock={handleUnlockStyle}
+					onReset={handleResetStyle}
 				/>
-			</PropertyField>
+			</div>
 
-			{/* Stroke - only show for non-text objects */}
-			{!isTextObject && resolvedShapeStyle && (
-				<>
-					<PropertyField label="Stroke" labelWidth={40}>
-						<PaletteColorPicker
-							value={rawStrokeValue ?? resolvedShapeStyle.stroke ?? 'none'}
-							onChange={handleStrokeColorChange}
-							palette={palette}
-							showGradients={false}
-							showTransparent={true}
-						/>
-					</PropertyField>
-					{hasStroke && (
-						<PropertyField label="Width" labelWidth={40}>
-							<NumberInput
-								value={resolvedShapeStyle.strokeWidth}
-								onChange={handleStrokeWidthChange}
-								min={0}
-								max={50}
-								step={1}
-								className="c-stroke-width-input"
+			<div className={styleDisabled ? 'c-property-field--locked' : ''}>
+				{/* Fill (text color for text objects) */}
+				<PropertyField label={isTextObject ? 'Color' : 'Fill'} labelWidth={40}>
+					<PaletteColorPicker
+						value={rawFillValue ?? fillColor ?? 'none'}
+						onChange={handleFillColorChange}
+						palette={palette}
+						showGradients={!isTextObject}
+						showTransparent={!isTextObject}
+						disabled={styleDisabled}
+					/>
+				</PropertyField>
+
+				{/* Stroke - only show for non-text objects */}
+				{!isTextObject && resolvedShapeStyle && (
+					<>
+						<PropertyField label="Stroke" labelWidth={40}>
+							<PaletteColorPicker
+								value={rawStrokeValue ?? resolvedShapeStyle.stroke ?? 'none'}
+								onChange={handleStrokeColorChange}
+								palette={palette}
+								showGradients={false}
+								showTransparent={true}
+								disabled={styleDisabled}
 							/>
 						</PropertyField>
-					)}
-				</>
-			)}
+						{hasStroke && (
+							<PropertyField label="Width" labelWidth={40}>
+								<NumberInput
+									value={resolvedShapeStyle.strokeWidth}
+									onChange={handleStrokeWidthChange}
+									min={0}
+									max={50}
+									step={1}
+									className="c-stroke-width-input"
+									disabled={styleDisabled}
+								/>
+							</PropertyField>
+						)}
+					</>
+				)}
+			</div>
 		</PropertySection>
 	)
 }

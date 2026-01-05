@@ -33,6 +33,7 @@ import { expandObject, expandContainer, expandView } from './type-converters'
 
 // Import utilities used in this file
 import { composeTransforms, unionBounds, boundsIntersectsView } from 'react-svg-canvas'
+import { getResolvedXy, getResolvedWh } from './prototype-ops'
 
 // Re-export generic geometry utilities from react-svg-canvas
 export {
@@ -83,10 +84,17 @@ export function getAbsolutePosition(doc: YPrezilloDocument, objectId: ObjectId):
  * Get absolute position for a stored object.
  * If the object has a viewId (vi), its coordinates are page-relative
  * and we add the view origin first before applying container transforms.
+ * Returns null if the object has no xy coordinates (neither own nor prototype).
  */
-export function getAbsolutePositionStored(doc: YPrezilloDocument, object: StoredObject): Point {
-	let x = object.xy[0]
-	let y = object.xy[1]
+export function getAbsolutePositionStored(
+	doc: YPrezilloDocument,
+	object: StoredObject
+): Point | null {
+	const xy = getResolvedXy(doc, object)
+	if (!xy) return null
+
+	let x = xy[0]
+	let y = xy[1]
 
 	// If object is page-relative, add view origin first
 	if (object.vi) {
@@ -239,26 +247,37 @@ export function getAbsoluteBounds(doc: YPrezilloDocument, objectId: ObjectId): B
 	if (!object) return null
 
 	const pos = getAbsolutePositionStored(doc, object)
+	if (!pos) return null
+
+	const wh = getResolvedWh(doc, object)
+	if (!wh) return null
 
 	return {
 		x: pos.x,
 		y: pos.y,
-		width: object.wh[0],
-		height: object.wh[1]
+		width: wh[0],
+		height: wh[1]
 	}
 }
 
 /**
  * Get absolute bounds for a stored object
  */
-export function getAbsoluteBoundsStored(doc: YPrezilloDocument, object: StoredObject): Bounds {
+export function getAbsoluteBoundsStored(
+	doc: YPrezilloDocument,
+	object: StoredObject
+): Bounds | null {
 	const pos = getAbsolutePositionStored(doc, object)
+	if (!pos) return null
+
+	const wh = getResolvedWh(doc, object)
+	if (!wh) return null
 
 	return {
 		x: pos.x,
 		y: pos.y,
-		width: object.wh[0],
-		height: object.wh[1]
+		width: wh[0],
+		height: wh[1]
 	}
 }
 
@@ -332,6 +351,7 @@ export function objectIntersectsView(
 	view: StoredView
 ): boolean {
 	const bounds = getAbsoluteBoundsStored(doc, object)
+	if (!bounds) return false
 	return boundsIntersectsView(bounds, view)
 }
 

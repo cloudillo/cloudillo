@@ -129,6 +129,15 @@ export interface UseSnapSettingsResult {
 	toggleSnapDebug: () => void
 }
 
+// Default values for snap settings
+const SNAP_DEFAULTS: Record<string, boolean> = {
+	snapToGrid: false,
+	snapToObjects: true,
+	snapToSizes: true,
+	snapToDistribution: true,
+	snapDebug: false
+}
+
 export function useSnapSettings(doc: YPrezilloDocument): UseSnapSettingsResult {
 	// Subscribe to meta changes - use counter to force re-render
 	const [version, forceUpdate] = React.useReducer((x) => x + 1, 0)
@@ -144,73 +153,48 @@ export function useSnapSettings(doc: YPrezilloDocument): UseSnapSettingsResult {
 	const settings = React.useMemo<SnapSettings>(() => {
 		const meta = doc.m
 		return {
-			snapToGrid: (meta.get('snapToGrid') as boolean) ?? false,
-			snapToObjects: (meta.get('snapToObjects') as boolean) ?? true,
-			snapToSizes: (meta.get('snapToSizes') as boolean) ?? true,
-			snapToDistribution: (meta.get('snapToDistribution') as boolean) ?? true,
-			snapDebug: (meta.get('snapDebug') as boolean) ?? false
+			snapToGrid: (meta.get('snapToGrid') as boolean) ?? SNAP_DEFAULTS.snapToGrid,
+			snapToObjects: (meta.get('snapToObjects') as boolean) ?? SNAP_DEFAULTS.snapToObjects,
+			snapToSizes: (meta.get('snapToSizes') as boolean) ?? SNAP_DEFAULTS.snapToSizes,
+			snapToDistribution:
+				(meta.get('snapToDistribution') as boolean) ?? SNAP_DEFAULTS.snapToDistribution,
+			snapDebug: (meta.get('snapDebug') as boolean) ?? SNAP_DEFAULTS.snapDebug
 		}
 	}, [doc.m, version])
 
-	const setSnapToGrid = React.useCallback(
-		(enabled: boolean) => {
-			doc.m.set('snapToGrid', enabled)
+	// Factory for creating setter callbacks
+	const createSetter = React.useCallback(
+		(key: string) => (enabled: boolean) => doc.m.set(key, enabled),
+		[doc.m]
+	)
+
+	// Factory for creating toggle callbacks
+	const createToggle = React.useCallback(
+		(key: string) => () => {
+			const current = (doc.m.get(key) as boolean) ?? SNAP_DEFAULTS[key]
+			doc.m.set(key, !current)
 		},
 		[doc.m]
 	)
 
-	const setSnapToObjects = React.useCallback(
-		(enabled: boolean) => {
-			doc.m.set('snapToObjects', enabled)
-		},
-		[doc.m]
+	// Create all setters and toggles using factories
+	const setSnapToGrid = React.useMemo(() => createSetter('snapToGrid'), [createSetter])
+	const setSnapToObjects = React.useMemo(() => createSetter('snapToObjects'), [createSetter])
+	const setSnapToSizes = React.useMemo(() => createSetter('snapToSizes'), [createSetter])
+	const setSnapToDistribution = React.useMemo(
+		() => createSetter('snapToDistribution'),
+		[createSetter]
 	)
+	const setSnapDebug = React.useMemo(() => createSetter('snapDebug'), [createSetter])
 
-	const setSnapToSizes = React.useCallback(
-		(enabled: boolean) => {
-			doc.m.set('snapToSizes', enabled)
-		},
-		[doc.m]
+	const toggleSnapToGrid = React.useMemo(() => createToggle('snapToGrid'), [createToggle])
+	const toggleSnapToObjects = React.useMemo(() => createToggle('snapToObjects'), [createToggle])
+	const toggleSnapToSizes = React.useMemo(() => createToggle('snapToSizes'), [createToggle])
+	const toggleSnapToDistribution = React.useMemo(
+		() => createToggle('snapToDistribution'),
+		[createToggle]
 	)
-
-	const setSnapToDistribution = React.useCallback(
-		(enabled: boolean) => {
-			doc.m.set('snapToDistribution', enabled)
-		},
-		[doc.m]
-	)
-
-	const setSnapDebug = React.useCallback(
-		(enabled: boolean) => {
-			doc.m.set('snapDebug', enabled)
-		},
-		[doc.m]
-	)
-
-	const toggleSnapToGrid = React.useCallback(() => {
-		const current = (doc.m.get('snapToGrid') as boolean) ?? false
-		doc.m.set('snapToGrid', !current)
-	}, [doc.m])
-
-	const toggleSnapToObjects = React.useCallback(() => {
-		const current = (doc.m.get('snapToObjects') as boolean) ?? true
-		doc.m.set('snapToObjects', !current)
-	}, [doc.m])
-
-	const toggleSnapToSizes = React.useCallback(() => {
-		const current = (doc.m.get('snapToSizes') as boolean) ?? true
-		doc.m.set('snapToSizes', !current)
-	}, [doc.m])
-
-	const toggleSnapToDistribution = React.useCallback(() => {
-		const current = (doc.m.get('snapToDistribution') as boolean) ?? true
-		doc.m.set('snapToDistribution', !current)
-	}, [doc.m])
-
-	const toggleSnapDebug = React.useCallback(() => {
-		const current = (doc.m.get('snapDebug') as boolean) ?? false
-		doc.m.set('snapDebug', !current)
-	}, [doc.m])
+	const toggleSnapDebug = React.useMemo(() => createToggle('snapDebug'), [createToggle])
 
 	return {
 		settings,

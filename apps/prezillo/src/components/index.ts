@@ -20,12 +20,6 @@ export type { ObjectShapeProps } from './ObjectShape'
 export { PresentationMode } from './PresentationMode'
 export type { PresentationModeProps } from './PresentationMode'
 
-export { PresenterIndicator } from './PresenterIndicator'
-export type { PresenterIndicatorProps } from './PresenterIndicator'
-
-export { FollowBanner } from './FollowBanner'
-export type { FollowBannerProps } from './FollowBanner'
-
 export { TextEditOverlay } from './TextEditOverlay'
 export type { TextEditOverlayProps } from './TextEditOverlay'
 
@@ -39,5 +33,20 @@ export { ViewPicker } from './ViewPicker'
 export type { ViewPickerProps } from './ViewPicker'
 
 export { WrappedText } from './WrappedText'
+
+export { TemplateGuideRenderer, useTemplateGuideVisibility } from './TemplateGuideRenderer'
+export type { TemplateGuideRendererProps } from './TemplateGuideRenderer'
+
+export { TemplatePanel } from './TemplatePanel'
+export type { TemplatePanelProps } from './TemplatePanel'
+
+export { TemplateSelector } from './TemplateSelector'
+export type { TemplateSelectorProps } from './TemplateSelector'
+
+export { TemplatesRow } from './TemplatesRow'
+export type { TemplatesRowProps } from './TemplatesRow'
+
+export { TemplateThumbnail } from './TemplateThumbnail'
+export type { TemplateThumbnailProps } from './TemplateThumbnail'
 
 // vim: ts=4

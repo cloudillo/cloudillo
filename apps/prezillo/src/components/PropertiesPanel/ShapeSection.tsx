@@ -19,7 +19,14 @@ import * as Y from 'yjs'
 import { PropertySection, PropertyField, NumberInput } from '@cloudillo/react'
 
 import type { YPrezilloDocument, PrezilloObject, ObjectId, RectObject } from '../../crdt'
-import { updateObject } from '../../crdt'
+import {
+	updateObject,
+	isInstance,
+	isPropertyGroupLocked,
+	unlockPropertyGroup,
+	resetPropertyGroup
+} from '../../crdt'
+import { PropertyLockButton } from './PropertyLockButton'
 
 export interface ShapeSectionProps {
 	doc: YPrezilloDocument
@@ -28,8 +35,28 @@ export interface ShapeSectionProps {
 }
 
 export function ShapeSection({ doc, yDoc, object }: ShapeSectionProps) {
+	const objectId = object.id as ObjectId
+
 	// Only show for rect objects
 	if (object.type !== 'rect') return null
+
+	// Check if this object is an instance of a template prototype
+	const objectIsInstance = isInstance(doc, objectId)
+
+	// Check lock state for corner radius
+	const cornerRadiusLocked = isPropertyGroupLocked(doc, objectId, 'cornerRadius')
+
+	// Unlock/reset handlers
+	const handleUnlockCornerRadius = React.useCallback(() => {
+		unlockPropertyGroup(yDoc, doc, objectId, 'cornerRadius')
+	}, [yDoc, doc, objectId])
+
+	const handleResetCornerRadius = React.useCallback(() => {
+		resetPropertyGroup(yDoc, doc, objectId, 'cornerRadius')
+	}, [yDoc, doc, objectId])
+
+	// Determine if editing is disabled
+	const isDisabled = objectIsInstance && cornerRadiusLocked
 
 	const rectObject = object as RectObject
 	const cornerRadius =
@@ -41,24 +68,38 @@ export function ShapeSection({ doc, yDoc, object }: ShapeSectionProps) {
 
 	const handleCornerRadiusChange = React.useCallback(
 		(value: number) => {
-			updateObject(yDoc, doc, object.id as ObjectId, {
+			if (isDisabled) return
+			updateObject(yDoc, doc, objectId, {
 				cornerRadius: Math.max(0, value)
 			})
 		},
-		[yDoc, doc, object.id]
+		[yDoc, doc, objectId, isDisabled]
 	)
 
 	return (
 		<PropertySection title="Shape" defaultExpanded>
-			<PropertyField label="Radius" labelWidth={45}>
-				<NumberInput
-					value={cornerRadius}
-					onChange={handleCornerRadiusChange}
-					min={0}
-					step={1}
-					className="c-input--full"
+			{/* Lock button for corner radius */}
+			<div className="c-hbox ai-center jc-end mb-1">
+				<PropertyLockButton
+					isInstance={objectIsInstance}
+					isLocked={cornerRadiusLocked}
+					onUnlock={handleUnlockCornerRadius}
+					onReset={handleResetCornerRadius}
 				/>
-			</PropertyField>
+			</div>
+
+			<div className={isDisabled ? 'c-property-field--locked' : ''}>
+				<PropertyField label="Radius" labelWidth={45}>
+					<NumberInput
+						value={cornerRadius}
+						onChange={handleCornerRadiusChange}
+						min={0}
+						step={1}
+						className="c-input--full"
+						disabled={isDisabled}
+					/>
+				</PropertyField>
+			</div>
 		</PropertySection>
 	)
 }

@@ -22,6 +22,7 @@
  * - t  = type
  * - p  = parentId (container hierarchy)
  * - vi = viewId (page association - if set, xy is relative to view origin)
+ * - proto = prototypeId (prototype inheritance - if set, inherit from prototype)
  * - xy = position [x, y]
  * - wh = dimensions [width, height]
  * - r  = rotation
@@ -35,6 +36,9 @@
  * - si = styleId (reference to global style)
  * - so = style overrides
  * - ch = children
+ * - tpl = templateId (view's template reference)
+ * - bco/bgo/bio/bfo = background overrides (when overriding template)
+ * - hpo = hidden prototype objects
  */
 
 import * as Y from 'yjs'
@@ -143,6 +147,7 @@ export interface StoredObjectBase {
 	t: ObjectTypeCode
 	p?: string // parentId (omit if root)
 	vi?: string // viewId - if set, xy is relative to view origin (page-relative coords)
+	proto?: string // prototypeId - if set, inherit properties from prototype object
 	xy: [number, number] // [x, y] - global canvas coords OR page-relative if vi is set
 	wh: [number, number] // [width, height]
 	r?: number // rotation (omit if 0)
@@ -284,6 +289,29 @@ export interface StoredBackgroundGradient {
 }
 
 // ============================================================================
+// Template System Types
+// ============================================================================
+
+// Snap guide definition (for templates)
+export interface StoredSnapGuide {
+	d: 'h' | 'v' // direction: 'h'=horizontal, 'v'=vertical
+	p: number // position: percentage (0-1) or absolute pixels
+	a?: boolean // absolute: if true, p is in pixels; otherwise percentage
+}
+
+// Template definition (background + guides; objects use proto reference)
+export interface StoredTemplate {
+	n: string // name
+	w: number // width (default page size)
+	h: number // height (default page size)
+	bc?: string // backgroundColor
+	bg?: StoredBackgroundGradient // backgroundGradient
+	bi?: string // backgroundImage
+	bf?: 'contain' | 'cover' | 'fill' | 'tile' // backgroundFit
+	sg?: StoredSnapGuide[] // snapGuides
+}
+
+// ============================================================================
 // Palette System Types
 // ============================================================================
 
@@ -331,6 +359,13 @@ export interface StoredView {
 	notes?: string
 	hidden?: boolean
 	duration?: number
+	// Template support
+	tpl?: string // templateId reference
+	bco?: string // backgroundColor override (only when overriding template)
+	bgo?: StoredBackgroundGradient // backgroundGradient override
+	bio?: string // backgroundImage override
+	bfo?: 'contain' | 'cover' | 'fill' | 'tile' // backgroundFit override
+	hpo?: string[] // hiddenPrototypeObjects (objectIds to hide on this page)
 }
 
 // Document meta
@@ -386,6 +421,9 @@ export interface YPrezilloDocument {
 	pl: Y.Map<StoredPalette> // palette (single entry keyed by 'default')
 	// Container children are stored separately
 	ch: Y.Map<Y.Array<ChildRef>> // children arrays by containerId
+	// Template system
+	tpl: Y.Map<StoredTemplate> // templates (background + guides)
+	tpo: Y.Map<Y.Array<string>> // template prototype objects: templateId → [objectId, ...]
 }
 
 // vim: ts=4

@@ -20,4 +20,13 @@ export type { PrezilloPropertiesPanelProps, PropertyPreview } from './PrezilloPr
 export { MobilePropertyPanel } from './MobilePropertyPanel'
 export type { MobilePropertyPanelProps } from './MobilePropertyPanel'
 
+export { PropertyLockButton, usePropertyLock } from './PropertyLockButton'
+export type { PropertyLockButtonProps } from './PropertyLockButton'
+
+export { PropertyGroupHeader } from './PropertyGroupHeader'
+export type { PropertyGroupHeaderProps } from './PropertyGroupHeader'
+
+export { TemplatePropertiesPanel } from './TemplatePropertiesPanel'
+export type { TemplatePropertiesPanelProps } from './TemplatePropertiesPanel'
+
 // vim: ts=4

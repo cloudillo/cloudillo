@@ -36,7 +36,7 @@ import { LuShapes as IcDefault } from 'react-icons/lu'
 
 import type { YPrezilloDocument, ObjectId, ContainerId, ViewId, ChildRef } from '../../crdt'
 import {
-	expandObject,
+	resolveObject,
 	expandContainer,
 	moveObject,
 	reorderObject,
@@ -456,10 +456,9 @@ export function LayerBrowser({
 		depth: number,
 		parentId: ContainerId | undefined
 	): React.ReactNode => {
-		const stored = doc.o.get(objectId)
-		if (!stored) return null
-
-		const obj = expandObject(objectId, stored)
+		// Use resolveObject to handle prototype inheritance properly
+		const obj = resolveObject(doc, objectId as ObjectId)
+		if (!obj) return null
 		const isSelected = selectedIds.has(objectId as ObjectId)
 		const isVisible = obj.visible
 		const isLocked = obj.locked

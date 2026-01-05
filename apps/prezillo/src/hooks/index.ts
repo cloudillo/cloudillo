@@ -21,9 +21,9 @@
 export { usePrezilloDocument } from './usePrezilloDocument'
 export type { UsePrezilloDocumentResult } from './usePrezilloDocument'
 
-export { useViewObjects, useViewObjectIds } from './useViewObjects'
-export { useLayers, useLayerIds } from './useLayers'
-export { useViews, useView, useViewIds } from './useViews'
+export { useViewObjects, useViewObjectIds, useVisibleViewObjects } from './useViewObjects'
+export { useVisibleViews } from './useVisibleViews'
+export { useViews } from './useViews'
 export { useSnappingConfig, useGetParent, useSnapSettings } from './useSnappingConfig'
 export type { SnapSettings, UseSnapSettingsResult } from './useSnappingConfig'
 
@@ -32,5 +32,17 @@ export type { UseImageHandlerOptions } from './useImageHandler'
 
 export { usePalette, usePaletteValue } from './usePalette'
 export type { UsePaletteReturn } from './usePalette'
+
+export { useTemplateGuides, guideToSnapTargets } from './useTemplateGuides'
+export type { UseTemplateGuidesResult } from './useTemplateGuides'
+
+export { useTemplateObjects } from './useTemplateObjects'
+export type { TemplateEditingContext } from './useTemplateObjects'
+
+export { useTemplates } from './useTemplates'
+export type { TemplateWithUsage, UseTemplatesResult } from './useTemplates'
+
+export { useLockableProperty } from './useLockableProperty'
+export type { UseLockablePropertyResult } from './useLockableProperty'
 
 // vim: ts=4

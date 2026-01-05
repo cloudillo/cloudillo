@@ -26,6 +26,7 @@ import type { PrezilloObject } from './runtime-types'
 import { compactObject, expandObject } from './type-converters'
 import { getContainerChildren } from './document'
 import { getAbsolutePositionStored } from './transforms'
+import { resolveObject, getInstancesOfPrototype } from './prototype-ops'
 
 /**
  * Add a new object to the document.
@@ -178,12 +179,10 @@ export function createObject(
 }
 
 /**
- * Get an object by ID (returns runtime type)
+ * Get an object by ID (returns runtime type with prototype values resolved)
  */
 export function getObject(doc: YPrezilloDocument, objectId: ObjectId): PrezilloObject | undefined {
-	const stored = doc.o.get(objectId)
-	if (!stored) return undefined
-	return expandObject(objectId, stored)
+	return resolveObject(doc, objectId)
 }
 
 /**
@@ -198,7 +197,12 @@ export function updateObject(
 	const existing = doc.o.get(objectId)
 	if (!existing) return
 
-	const expanded = expandObject(objectId, existing)
+	// Use resolveObject for prototype instances to get inherited values
+	const expanded = existing.proto
+		? resolveObject(doc, objectId)
+		: expandObject(objectId, existing)
+	if (!expanded) return
+
 	const updated = { ...expanded, ...updates, id: objectId }
 	const compacted = compactObject(updated as PrezilloObject)
 
@@ -388,13 +392,18 @@ export function updateObjectPageAssociation(
 
 	const preserveGlobal = options?.preserveGlobalPosition !== false
 
+	// Resolve xy from prototype if needed
+	const xy = object.xy ?? (object.proto ? doc.o.get(object.proto as ObjectId)?.xy : undefined)
+	if (!xy) return
+
 	yDoc.transact(() => {
-		let newX = object.xy[0]
-		let newY = object.xy[1]
+		let newX = xy[0]
+		let newY = xy[1]
 
 		if (preserveGlobal) {
 			// Get current global position
 			const globalPos = getAbsolutePositionStored(doc, object)
+			if (!globalPos) return
 
 			if (newPageId) {
 				// Converting to page-relative: subtract view origin
@@ -564,6 +573,92 @@ export function deleteObjects(yDoc: Y.Doc, doc: YPrezilloDocument, objectIds: Ob
 				doc.rt.delete((object as any).tid)
 			}
 		})
+	}, yDoc.clientID)
+}
+
+/**
+ * Delete a prototype object and handle its instances
+ * @param strategy - 'delete-instances' removes instances, 'detach-instances' copies prototype values to instances
+ */
+export function deletePrototypeWithInstances(
+	yDoc: Y.Doc,
+	doc: YPrezilloDocument,
+	prototypeId: ObjectId,
+	strategy: 'delete-instances' | 'detach-instances' = 'delete-instances'
+): void {
+	const instances = getInstancesOfPrototype(doc, prototypeId)
+
+	yDoc.transact(() => {
+		if (strategy === 'delete-instances') {
+			// Delete all instances first
+			for (const instanceId of instances) {
+				const instance = doc.o.get(instanceId)
+				if (!instance) continue
+
+				// Remove from parent's children
+				if (instance.p) {
+					const children = doc.ch.get(instance.p)
+					if (children) {
+						removeChildRef(children, [0, instanceId])
+					}
+				} else {
+					removeChildRef(doc.r, [0, instanceId])
+				}
+
+				// Delete instance
+				doc.o.delete(instanceId)
+
+				// Clean up rich text if textbox
+				if (instance.t === 'B' && (instance as any).tid) {
+					doc.rt.delete((instance as any).tid)
+				}
+			}
+		} else {
+			// Detach: copy prototype values to instances
+			const prototype = doc.o.get(prototypeId)
+			if (prototype) {
+				for (const instanceId of instances) {
+					const instance = doc.o.get(instanceId)
+					if (!instance) continue
+
+					// Merge prototype values into instance (instance overrides prototype)
+					const merged = {
+						...prototype,
+						...instance,
+						proto: undefined // Remove proto reference since we're detaching
+					}
+					// Keep instance's page/parent association
+					if (instance.vi) merged.vi = instance.vi
+					if (instance.p) merged.p = instance.p
+					// Clean up undefined proto field
+					delete merged.proto
+
+					doc.o.set(instanceId, merged as StoredObject)
+				}
+			}
+		}
+
+		// Now delete the prototype itself
+		const prototype = doc.o.get(prototypeId)
+		if (prototype) {
+			// Remove from parent's children
+			if (prototype.p) {
+				const children = doc.ch.get(prototype.p)
+				if (children) {
+					removeChildRef(children, [0, prototypeId])
+				}
+			} else {
+				removeChildRef(doc.r, [0, prototypeId])
+			}
+
+			// Delete prototype
+			doc.o.delete(prototypeId)
+
+			// Clean up rich text if textbox
+			if (prototype.t === 'B' && (prototype as any).tid) {
+				doc.rt.delete((prototype as any).tid)
+			}
+		}
 	}, yDoc.clientID)
 }
 

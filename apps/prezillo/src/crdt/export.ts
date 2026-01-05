@@ -29,6 +29,7 @@ import type {
 	StoredView,
 	StoredStyle,
 	StoredPalette,
+	StoredTemplate,
 	ChildRef
 } from './stored-types.js'
 import type {
@@ -38,16 +39,18 @@ import type {
 	Palette,
 	ChildRef as RuntimeChildRef
 } from './runtime-types.js'
+import type { Gradient } from '@cloudillo/canvas-tools'
 import {
 	expandObject,
 	expandContainer,
 	expandView,
 	expandChildRef,
-	expandPalette
+	expandPalette,
+	expandBackgroundGradient
 } from './type-converters.js'
 
 // Export version - increment when format changes
-const EXPORT_VERSION = '1.0.0'
+const EXPORT_VERSION = '1.1.0'
 const CONTENT_TYPE = 'application/vnd.cloudillo.prezillo+json'
 
 /**
@@ -111,6 +114,29 @@ export interface StyleExport {
 }
 
 /**
+ * Snap guide for export
+ */
+export interface SnapGuideExport {
+	direction: 'horizontal' | 'vertical'
+	position: number
+	absolute?: boolean
+}
+
+/**
+ * Template definition for export
+ */
+export interface TemplateExport {
+	name: string
+	width: number
+	height: number
+	backgroundColor?: string
+	backgroundGradient?: Gradient
+	backgroundImage?: string
+	backgroundFit?: 'contain' | 'cover' | 'fill' | 'tile'
+	snapGuides?: SnapGuideExport[]
+}
+
+/**
  * Complete export document structure
  */
 export interface PrezilloExportDocument {
@@ -130,6 +156,8 @@ export interface PrezilloExportDocument {
 		viewOrder: string[]
 		richTexts: Record<string, RichTextExport>
 		styles: Record<string, StyleExport>
+		templates: Record<string, TemplateExport>
+		templatePrototypeObjects: Record<string, string[]>
 		palette: Palette | null
 	}
 }
@@ -226,7 +254,32 @@ export function exportDocument(yDoc: Y.Doc, doc: YPrezilloDocument): PrezilloExp
 		}
 	})
 
-	// 9. Export palette
+	// 9. Export templates
+	const templates: Record<string, TemplateExport> = {}
+	doc.tpl.forEach((stored: StoredTemplate, id: string) => {
+		templates[id] = {
+			name: stored.n,
+			width: stored.w,
+			height: stored.h,
+			backgroundColor: stored.bc,
+			backgroundGradient: stored.bg ? expandBackgroundGradient(stored.bg) : undefined,
+			backgroundImage: stored.bi,
+			backgroundFit: stored.bf,
+			snapGuides: stored.sg?.map((g) => ({
+				direction: g.d === 'h' ? 'horizontal' : 'vertical',
+				position: g.p,
+				absolute: g.a
+			}))
+		}
+	})
+
+	// 10. Export template prototype object mappings
+	const templatePrototypeObjects: Record<string, string[]> = {}
+	doc.tpo.forEach((yArray: Y.Array<string>, templateId: string) => {
+		templatePrototypeObjects[templateId] = yArray.toArray()
+	})
+
+	// 11. Export palette
 	let palette: Palette | null = null
 	const storedPalette = doc.pl.get('default')
 	if (storedPalette) {
@@ -247,6 +300,8 @@ export function exportDocument(yDoc: Y.Doc, doc: YPrezilloDocument): PrezilloExp
 			viewOrder,
 			richTexts,
 			styles,
+			templates,
+			templatePrototypeObjects,
 			palette
 		}
 	}

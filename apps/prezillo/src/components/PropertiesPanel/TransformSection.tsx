@@ -25,7 +25,9 @@ import {
 	updateObjectRotation,
 	updateObject
 } from '../../crdt'
+import { useLockableProperty } from '../../hooks'
 import type { PropertyPreview } from './PrezilloPropertiesPanel'
+import { PropertyGroupHeader } from './PropertyGroupHeader'
 
 export interface TransformSectionProps {
 	doc: YPrezilloDocument
@@ -35,72 +37,97 @@ export interface TransformSectionProps {
 }
 
 export function TransformSection({ doc, yDoc, object, onPreview }: TransformSectionProps) {
+	const objectId = object.id as ObjectId
+
+	// Use centralized hook for lockable property groups
+	const position = useLockableProperty(yDoc, doc, objectId, 'position')
+	const size = useLockableProperty(yDoc, doc, objectId, 'size')
+	const rotation = useLockableProperty(yDoc, doc, objectId, 'rotation')
+	const opacity = useLockableProperty(yDoc, doc, objectId, 'opacity')
+
+	// Value change handlers (only work when unlocked)
 	const handleXChange = React.useCallback(
 		(value: number) => {
-			updateObjectPosition(yDoc, doc, object.id as ObjectId, value, object.y)
+			if (position.isDisabled) return
+			updateObjectPosition(yDoc, doc, objectId, value, object.y)
 		},
-		[yDoc, doc, object.id, object.y]
+		[yDoc, doc, objectId, object.y, position.isDisabled]
 	)
 
 	const handleYChange = React.useCallback(
 		(value: number) => {
-			updateObjectPosition(yDoc, doc, object.id as ObjectId, object.x, value)
+			if (position.isDisabled) return
+			updateObjectPosition(yDoc, doc, objectId, object.x, value)
 		},
-		[yDoc, doc, object.id, object.x]
+		[yDoc, doc, objectId, object.x, position.isDisabled]
 	)
 
 	const handleWidthChange = React.useCallback(
 		(value: number) => {
-			updateObjectSize(yDoc, doc, object.id as ObjectId, Math.max(1, value), object.height)
+			if (size.isDisabled) return
+			updateObjectSize(yDoc, doc, objectId, Math.max(1, value), object.height)
 		},
-		[yDoc, doc, object.id, object.height]
+		[yDoc, doc, objectId, object.height, size.isDisabled]
 	)
 
 	const handleHeightChange = React.useCallback(
 		(value: number) => {
-			updateObjectSize(yDoc, doc, object.id as ObjectId, object.width, Math.max(1, value))
+			if (size.isDisabled) return
+			updateObjectSize(yDoc, doc, objectId, object.width, Math.max(1, value))
 		},
-		[yDoc, doc, object.id, object.width]
+		[yDoc, doc, objectId, object.width, size.isDisabled]
 	)
 
 	const handleRotationChange = React.useCallback(
 		(value: number) => {
+			if (rotation.isDisabled) return
 			// Normalize rotation to 0-360
 			const normalized = ((value % 360) + 360) % 360
-			updateObjectRotation(yDoc, doc, object.id as ObjectId, normalized)
+			updateObjectRotation(yDoc, doc, objectId, normalized)
 		},
-		[yDoc, doc, object.id]
+		[yDoc, doc, objectId, rotation.isDisabled]
 	)
 
 	const handleOpacityChange = React.useCallback(
 		(value: number) => {
+			if (opacity.isDisabled) return
 			// Convert percentage to 0-1
-			const opacity = Math.max(0, Math.min(100, value)) / 100
-			updateObject(yDoc, doc, object.id as ObjectId, { opacity })
+			const opacityValue = Math.max(0, Math.min(100, value)) / 100
+			updateObject(yDoc, doc, objectId, { opacity: opacityValue })
 			// Clear preview on commit
 			onPreview?.(null)
 		},
-		[yDoc, doc, object.id, onPreview]
+		[yDoc, doc, objectId, onPreview, opacity.isDisabled]
 	)
 
 	const handleOpacityScrub = React.useCallback(
 		(value: number) => {
+			if (opacity.isDisabled) return
 			// Convert percentage to 0-1 for preview
-			const opacity = Math.max(0, Math.min(100, value)) / 100
-			onPreview?.({ objectId: object.id as ObjectId, opacity })
+			const opacityValue = Math.max(0, Math.min(100, value)) / 100
+			onPreview?.({ objectId, opacity: opacityValue })
 		},
-		[object.id, onPreview]
+		[objectId, onPreview, opacity.isDisabled]
 	)
 
 	return (
 		<PropertySection title="Transform" defaultExpanded>
-			<div className="c-hbox g-2">
+			{/* Position group (X, Y) */}
+			<PropertyGroupHeader
+				label="Position"
+				isInstance={position.isInstance}
+				isLocked={position.isLocked}
+				onUnlock={position.handleUnlock}
+				onReset={position.handleReset}
+			/>
+			<div className={`c-hbox g-2 ${position.isDisabled ? 'c-property-field--locked' : ''}`}>
 				<PropertyField label="X" labelWidth={20}>
 					<NumberInput
 						value={Math.round(object.x)}
 						onChange={handleXChange}
 						step={1}
 						className="c-input--full"
+						disabled={position.isDisabled}
 					/>
 				</PropertyField>
 				<PropertyField label="Y" labelWidth={20}>
@@ -109,10 +136,21 @@ export function TransformSection({ doc, yDoc, object, onPreview }: TransformSect
 						onChange={handleYChange}
 						step={1}
 						className="c-input--full"
+						disabled={position.isDisabled}
 					/>
 				</PropertyField>
 			</div>
-			<div className="c-hbox g-2">
+
+			{/* Size group (W, H) */}
+			<PropertyGroupHeader
+				label="Size"
+				isInstance={size.isInstance}
+				isLocked={size.isLocked}
+				onUnlock={size.handleUnlock}
+				onReset={size.handleReset}
+				className="mt-2"
+			/>
+			<div className={`c-hbox g-2 ${size.isDisabled ? 'c-property-field--locked' : ''}`}>
 				<PropertyField label="W" labelWidth={20}>
 					<NumberInput
 						value={Math.round(object.width)}
@@ -120,6 +158,7 @@ export function TransformSection({ doc, yDoc, object, onPreview }: TransformSect
 						min={1}
 						step={1}
 						className="c-input--full"
+						disabled={size.isDisabled}
 					/>
 				</PropertyField>
 				<PropertyField label="H" labelWidth={20}>
@@ -129,33 +168,59 @@ export function TransformSection({ doc, yDoc, object, onPreview }: TransformSect
 						min={1}
 						step={1}
 						className="c-input--full"
+						disabled={size.isDisabled}
 					/>
 				</PropertyField>
 			</div>
-			<div className="c-hbox g-2">
-				<PropertyField label="Rot" labelWidth={30}>
-					<NumberInput
-						value={Math.round(object.rotation)}
-						onChange={handleRotationChange}
-						min={0}
-						max={360}
-						step={1}
-						suffix="°"
-						className="c-input--full"
+
+			{/* Rotation and Opacity row */}
+			<div className="c-hbox g-2 mt-2">
+				{/* Rotation */}
+				<div className="flex-1">
+					<PropertyGroupHeader
+						label="Rot"
+						isInstance={rotation.isInstance}
+						isLocked={rotation.isLocked}
+						onUnlock={rotation.handleUnlock}
+						onReset={rotation.handleReset}
 					/>
-				</PropertyField>
-				<PropertyField label="Op" labelWidth={30}>
-					<NumberInput
-						value={Math.round(object.opacity * 100)}
-						onChange={handleOpacityChange}
-						onScrub={handleOpacityScrub}
-						min={0}
-						max={100}
-						step={1}
-						suffix="%"
-						className="c-input--full"
+					<div className={rotation.isDisabled ? 'c-property-field--locked' : ''}>
+						<NumberInput
+							value={Math.round(object.rotation)}
+							onChange={handleRotationChange}
+							min={0}
+							max={360}
+							step={1}
+							suffix="°"
+							className="c-input--full"
+							disabled={rotation.isDisabled}
+						/>
+					</div>
+				</div>
+
+				{/* Opacity */}
+				<div className="flex-1">
+					<PropertyGroupHeader
+						label="Op"
+						isInstance={opacity.isInstance}
+						isLocked={opacity.isLocked}
+						onUnlock={opacity.handleUnlock}
+						onReset={opacity.handleReset}
 					/>
-				</PropertyField>
+					<div className={opacity.isDisabled ? 'c-property-field--locked' : ''}>
+						<NumberInput
+							value={Math.round(object.opacity * 100)}
+							onChange={handleOpacityChange}
+							onScrub={handleOpacityScrub}
+							min={0}
+							max={100}
+							step={1}
+							suffix="%"
+							className="c-input--full"
+							disabled={opacity.isDisabled}
+						/>
+					</div>
+				</div>
 			</div>
 		</PropertySection>
 	)

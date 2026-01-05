@@ -26,6 +26,7 @@ import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/can
 import type { Gradient } from '@cloudillo/canvas-tools'
 import type { PrezilloObject } from '../crdt'
 import { resolveShapeStyle, resolveTextStyle } from '../crdt'
+import { calculateRotationTransformFromBounds, buildStrokeProps, buildFillProps } from '../utils'
 import { WrappedText } from './WrappedText'
 import { ImageRenderer } from './ImageRenderer'
 import { QRCodeRenderer } from './QRCodeRenderer'
@@ -87,6 +88,8 @@ export interface ObjectShapeProps {
 	// Image rendering props
 	ownerTag?: string
 	scale?: number
+	// Show instance indicator
+	showInstanceIndicator?: boolean
 }
 
 /**
@@ -114,6 +117,7 @@ function arePropsEqual(prev: ObjectShapeProps, next: ObjectShapeProps): boolean 
 		prev.isSelected === next.isSelected &&
 		prev.isHovered === next.isHovered &&
 		prev.tempBounds === next.tempBounds &&
+		prev.showInstanceIndicator === next.showInstanceIndicator &&
 		shallowEqual(prev.style, next.style) &&
 		shallowEqual(prev.textStyle, next.textStyle)
 	)
@@ -132,23 +136,28 @@ export const ObjectShape = React.memo(function ObjectShape({
 	onMouseLeave,
 	tempBounds,
 	ownerTag,
-	scale
+	scale,
+	showInstanceIndicator
 }: ObjectShapeProps) {
 	// Use temp bounds if provided, otherwise use object bounds
 	const x = tempBounds?.x ?? object.x
 	const y = tempBounds?.y ?? object.y
 	const width = tempBounds?.width ?? object.width
 	const height = tempBounds?.height ?? object.height
-	const rotation = tempBounds?.rotation ?? object.rotation
+	const rotation = tempBounds?.rotation ?? object.rotation ?? 0
 	const pivotX = tempBounds?.pivotX ?? object.pivotX ?? 0.5
 	const pivotY = tempBounds?.pivotY ?? object.pivotY ?? 0.5
 
-	// Calculate pivot point in absolute coordinates
-	const cx = x + width * pivotX
-	const cy = y + height * pivotY
-
-	// Apply rotation transform if non-zero
-	const rotationTransform = rotation !== 0 ? `rotate(${rotation} ${cx} ${cy})` : undefined
+	// Apply rotation transform using centralized utility
+	const rotationTransform = calculateRotationTransformFromBounds(
+		x,
+		y,
+		width,
+		height,
+		rotation,
+		pivotX,
+		pivotY
+	)
 
 	// Object opacity (different from fill/stroke opacity)
 	const objectOpacity =
@@ -180,26 +189,33 @@ export const ObjectShape = React.memo(function ObjectShape({
 			/>
 		) : null
 
-	const strokeProps = {
-		stroke: style.stroke,
-		strokeWidth: isSelected ? style.strokeWidth + 2 : style.strokeWidth,
-		strokeOpacity: style.strokeOpacity,
-		strokeDasharray: style.strokeDasharray || undefined,
-		strokeLinecap: style.strokeLinecap,
-		strokeLinejoin: style.strokeLinejoin
-	}
+	// Instance indicator for prototype instances (small link icon in top-left)
+	// Only show when object has prototypeId or showInstanceIndicator is true
+	const isInstance = object.prototypeId !== undefined || showInstanceIndicator
+	const indicatorScale = scale ? 1 / scale : 1
+	const instanceIndicator = isInstance ? (
+		<g
+			transform={`translate(${x + 4 * indicatorScale}, ${y + 4 * indicatorScale}) scale(${indicatorScale})`}
+			pointerEvents="none"
+			className="instance-indicator"
+		>
+			{/* Small link/chain icon to indicate prototype instance */}
+			<circle r="8" fill="rgba(0, 102, 255, 0.9)" />
+			<path
+				d="M-3 0h2.5a2.5 2.5 0 0 1 0 5h-2.5M3 0h-2.5a2.5 2.5 0 0 0 0 5h2.5M-1 2.5h2"
+				transform="translate(0, -2.5) scale(0.8)"
+				fill="none"
+				stroke="white"
+				strokeWidth="1.5"
+				strokeLinecap="round"
+			/>
+		</g>
+	) : null
 
-	// Generate gradient ID if using gradient fill
+	// Build SVG stroke and fill props using centralized utilities
+	const strokeProps = buildStrokeProps(style, isSelected)
 	const gradientId = style.fillGradient ? `grad-${object.id}` : null
-
-	const fillProps = {
-		fill: gradientId
-			? `url(#${gradientId})`
-			: style.fill === 'none'
-				? 'transparent'
-				: style.fill,
-		fillOpacity: style.fillOpacity
-	}
+	const fillProps = buildFillProps(style, gradientId)
 
 	// Gradient definition element (if needed)
 	const gradientDef =
@@ -229,6 +245,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 						{...commonProps}
 					/>
 					{hoverOverlay}
+					{instanceIndicator}
 				</g>
 			)
 
@@ -246,6 +263,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 						{...commonProps}
 					/>
 					{hoverOverlay}
+					{instanceIndicator}
 				</g>
 			)
 
@@ -265,6 +283,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 						{...commonProps}
 					/>
 					{hoverOverlay}
+					{instanceIndicator}
 				</g>
 			)
 
@@ -292,6 +311,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 						stroke="none"
 					/>
 					{hoverOverlay}
+					{instanceIndicator}
 				</g>
 			)
 
@@ -314,6 +334,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 						stroke="none"
 					/>
 					{hoverOverlay}
+					{instanceIndicator}
 				</g>
 			)
 
@@ -331,6 +352,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 						stroke="none"
 					/>
 					{hoverOverlay}
+					{instanceIndicator}
 				</g>
 			)
 
@@ -349,6 +371,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 						{...commonProps}
 					/>
 					{hoverOverlay}
+					{instanceIndicator}
 				</g>
 			)
 	}

@@ -29,6 +29,7 @@ import type { ObjectId, ContainerId, ViewId } from './ids'
 import { toObjectId, toContainerId, toViewId } from './ids'
 import type { Point, Bounds, PrezilloObject, ContainerNode, ViewNode } from './runtime-types'
 import { expandObject, expandContainer, expandView } from './type-converters'
+import { resolveObject } from './prototype-ops'
 import {
 	getAbsolutePositionStored,
 	getAbsoluteBoundsStored,
@@ -36,6 +37,18 @@ import {
 	boundsIntersect,
 	pointInBounds
 } from './transforms'
+
+/**
+ * Get all prototype object IDs (objects that are templates for instances).
+ * These should be excluded from regular view queries.
+ */
+function getAllPrototypeIds(doc: YPrezilloDocument): Set<string> {
+	const protoIds = new Set<string>()
+	doc.tpo.forEach((yArray) => {
+		yArray.toArray().forEach((id) => protoIds.add(id))
+	})
+	return protoIds
+}
 
 /**
  * Get all objects visible in a view.
@@ -50,15 +63,19 @@ export function getObjectsInView(doc: YPrezilloDocument, viewId: ViewId): Prezil
 	const view = doc.v.get(viewId)
 	if (!view) return []
 
+	const protoIds = getAllPrototypeIds(doc)
 	const result: PrezilloObject[] = []
 
 	doc.o.forEach((obj, id) => {
 		if (obj.v === false) return
+		// Skip prototype objects (they're for templates, not direct rendering)
+		if (protoIds.has(id)) return
 
 		// Page-relative objects: include only if on THIS page
 		if (obj.vi) {
 			if (obj.vi === viewId) {
-				result.push(expandObject(id, obj))
+				const resolved = resolveObject(doc, toObjectId(id))
+				if (resolved) result.push(resolved)
 			}
 			// Objects on other pages are excluded
 			return
@@ -66,7 +83,8 @@ export function getObjectsInView(doc: YPrezilloDocument, viewId: ViewId): Prezil
 
 		// Floating objects (no pageId): include if spatially intersecting
 		if (objectIntersectsView(doc, obj, view)) {
-			result.push(expandObject(id, obj))
+			const resolved = resolveObject(doc, toObjectId(id))
+			if (resolved) result.push(resolved)
 		}
 	})
 
@@ -83,7 +101,8 @@ export function getPageObjects(doc: YPrezilloDocument, viewId: ViewId): Prezillo
 	doc.o.forEach((obj, id) => {
 		if (obj.v === false) return
 		if (obj.vi === viewId) {
-			result.push(expandObject(id, obj))
+			const resolved = resolveObject(doc, toObjectId(id))
+			if (resolved) result.push(resolved)
 		}
 	})
 
@@ -98,10 +117,13 @@ export function getObjectIdsInView(doc: YPrezilloDocument, viewId: ViewId): Obje
 	const view = doc.v.get(viewId)
 	if (!view) return []
 
+	const protoIds = getAllPrototypeIds(doc)
 	const result: ObjectId[] = []
 
 	doc.o.forEach((obj, id) => {
 		if (obj.v === false) return
+		// Skip prototype objects
+		if (protoIds.has(id)) return
 
 		// Page-relative objects: include only if on THIS page
 		if (obj.vi) {
@@ -121,10 +143,15 @@ export function getObjectIdsInView(doc: YPrezilloDocument, viewId: ViewId): Obje
 }
 
 /**
- * Get all objects in z-order (respecting container hierarchy)
+ * Generic z-order traversal that collects results via a callback.
+ * The callback receives (objectId, storedObject) and can return a value to collect,
+ * or undefined to skip the object.
  */
-export function getAllObjectsInZOrder(doc: YPrezilloDocument): PrezilloObject[] {
-	const result: PrezilloObject[] = []
+function traverseInZOrder<T>(
+	doc: YPrezilloDocument,
+	collector: (id: string, obj: StoredObject) => T | undefined
+): T[] {
+	const result: T[] = []
 
 	function traverse(children: ChildRef[]) {
 		children.forEach((ref) => {
@@ -132,7 +159,8 @@ export function getAllObjectsInZOrder(doc: YPrezilloDocument): PrezilloObject[] 
 				// Object
 				const obj = doc.o.get(ref[1])
 				if (obj && obj.v !== false) {
-					result.push(expandObject(ref[1], obj))
+					const collected = collector(ref[1], obj)
+					if (collected !== undefined) result.push(collected)
 				}
 			} else {
 				// Container
@@ -152,32 +180,17 @@ export function getAllObjectsInZOrder(doc: YPrezilloDocument): PrezilloObject[] 
 }
 
 /**
+ * Get all objects in z-order (respecting container hierarchy)
+ */
+export function getAllObjectsInZOrder(doc: YPrezilloDocument): PrezilloObject[] {
+	return traverseInZOrder(doc, (id) => resolveObject(doc, toObjectId(id)))
+}
+
+/**
  * Get all object IDs in z-order
  */
 export function getAllObjectIdsInZOrder(doc: YPrezilloDocument): ObjectId[] {
-	const result: ObjectId[] = []
-
-	function traverse(children: ChildRef[]) {
-		children.forEach((ref) => {
-			if (ref[0] === 0) {
-				const obj = doc.o.get(ref[1])
-				if (obj && obj.v !== false) {
-					result.push(toObjectId(ref[1]))
-				}
-			} else {
-				const container = doc.c.get(ref[1])
-				if (container && container.v !== false) {
-					const containerChildren = doc.ch.get(ref[1])
-					if (containerChildren) {
-						traverse(containerChildren.toArray())
-					}
-				}
-			}
-		})
-	}
-
-	traverse(doc.r.toArray())
-	return result
+	return traverseInZOrder(doc, (id) => toObjectId(id))
 }
 
 /**
@@ -189,6 +202,7 @@ export function getObjectsInViewInZOrder(doc: YPrezilloDocument, viewId: ViewId)
 	if (!storedView) return []
 	const view = storedView // Non-null for use in closure
 
+	const protoIds = getAllPrototypeIds(doc)
 	const result: PrezilloObject[] = []
 
 	function traverse(children: ChildRef[]) {
@@ -196,18 +210,22 @@ export function getObjectsInViewInZOrder(doc: YPrezilloDocument, viewId: ViewId)
 			if (ref[0] === 0) {
 				const obj = doc.o.get(ref[1])
 				if (!obj || obj.v === false) return
+				// Skip prototype objects (they're for templates, not direct rendering)
+				if (protoIds.has(ref[1])) return
 
 				// Page-relative objects: include only if on THIS page
 				if (obj.vi) {
 					if (obj.vi === viewId) {
-						result.push(expandObject(ref[1], obj))
+						const resolved = resolveObject(doc, toObjectId(ref[1]))
+						if (resolved) result.push(resolved)
 					}
 					return
 				}
 
 				// Floating objects: include if spatially intersecting
 				if (objectIntersectsView(doc, obj, view)) {
-					result.push(expandObject(ref[1], obj))
+					const resolved = resolveObject(doc, toObjectId(ref[1]))
+					if (resolved) result.push(resolved)
 				}
 			} else {
 				const container = doc.c.get(ref[1])
@@ -238,8 +256,10 @@ export function getObjectsAtPoint(
 	const result: PrezilloObject[] = []
 
 	allObjects.forEach((obj) => {
-		const bounds = getAbsoluteBoundsStored(doc, doc.o.get(obj.id)!)
-		if (pointInBounds({ x: canvasX, y: canvasY }, bounds)) {
+		const stored = doc.o.get(obj.id)
+		if (!stored) return
+		const bounds = getAbsoluteBoundsStored(doc, stored)
+		if (bounds && pointInBounds({ x: canvasX, y: canvasY }, bounds)) {
 			result.push(obj)
 		}
 	})
@@ -263,7 +283,7 @@ export function getObjectIdsAtPoint(
 		const obj = doc.o.get(id)
 		if (obj) {
 			const bounds = getAbsoluteBoundsStored(doc, obj)
-			if (pointInBounds({ x: canvasX, y: canvasY }, bounds)) {
+			if (bounds && pointInBounds({ x: canvasX, y: canvasY }, bounds)) {
 				result.push(id)
 			}
 		}
@@ -306,8 +326,9 @@ export function getObjectsInRect(doc: YPrezilloDocument, rect: Bounds): Prezillo
 		if (obj.v === false) return
 
 		const bounds = getAbsoluteBoundsStored(doc, obj)
-		if (boundsIntersect(bounds, rect)) {
-			result.push(expandObject(id, obj))
+		if (bounds && boundsIntersect(bounds, rect)) {
+			const resolved = resolveObject(doc, toObjectId(id))
+			if (resolved) result.push(resolved)
 		}
 	})
 
@@ -324,7 +345,7 @@ export function getObjectIdsInRect(doc: YPrezilloDocument, rect: Bounds): Object
 		if (obj.v === false) return
 
 		const bounds = getAbsoluteBoundsStored(doc, obj)
-		if (boundsIntersect(bounds, rect)) {
+		if (bounds && boundsIntersect(bounds, rect)) {
 			result.push(toObjectId(id))
 		}
 	})
@@ -343,12 +364,14 @@ export function getObjectsContainedInRect(doc: YPrezilloDocument, rect: Bounds):
 
 		const bounds = getAbsoluteBoundsStored(doc, obj)
 		if (
+			bounds &&
 			bounds.x >= rect.x &&
 			bounds.y >= rect.y &&
 			bounds.x + bounds.width <= rect.x + rect.width &&
 			bounds.y + bounds.height <= rect.y + rect.height
 		) {
-			result.push(expandObject(id, obj))
+			const resolved = resolveObject(doc, toObjectId(id))
+			if (resolved) result.push(resolved)
 		}
 	})
 
@@ -567,7 +590,8 @@ export function searchObjectsByName(
 		if (name) {
 			const compareName = caseSensitive ? name : name.toLowerCase()
 			if (compareName.includes(searchQuery)) {
-				result.push(expandObject(id, obj))
+				const resolved = resolveObject(doc, toObjectId(id))
+				if (resolved) result.push(resolved)
 			}
 		}
 	})

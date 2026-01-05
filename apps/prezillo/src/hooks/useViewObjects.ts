@@ -22,8 +22,36 @@
 import * as React from 'react'
 import { useY } from 'react-yjs'
 
-import type { ViewId, YPrezilloDocument, PrezilloObject, ObjectId } from '../crdt'
+import type { ViewId, YPrezilloDocument, PrezilloObject, ObjectId, StoredObject } from '../crdt'
 import { getObjectsInViewInZOrder, getObjectIdsInView, getAbsolutePositionStored } from '../crdt'
+
+/**
+ * Resolve global position for an object.
+ * Handles page-relative objects and template instances without local xy.
+ */
+function resolveGlobalPosition(
+	doc: YPrezilloDocument,
+	obj: PrezilloObject,
+	stored: StoredObject
+): PrezilloObject {
+	// If object has pageId, we need to compute global position
+	if (stored.vi) {
+		// For template instances without local xy, use resolved obj coordinates + view offset
+		if (!stored.xy) {
+			const view = doc.v.get(stored.vi)
+			if (view) {
+				return { ...obj, x: obj.x + view.x, y: obj.y + view.y }
+			}
+			return obj
+		}
+		const globalPos = getAbsolutePositionStored(doc, stored)
+		if (!globalPos) return obj
+		return { ...obj, x: globalPos.x, y: globalPos.y }
+	}
+
+	// Floating objects already have global coords
+	return obj
+}
 
 /**
  * Get all objects visible in a view, in z-order.
@@ -41,23 +69,11 @@ export function useViewObjects(doc: YPrezilloDocument, viewId: ViewId | null): P
 
 		const objectsInView = getObjectsInViewInZOrder(doc, viewId)
 
-		// Compute global positions for rendering
+		// Compute global positions for rendering using centralized helper
 		return objectsInView.map((obj) => {
 			const stored = doc.o.get(obj.id)
 			if (!stored) return obj
-
-			// If object has pageId, we need to compute global position
-			if (stored.vi) {
-				const globalPos = getAbsolutePositionStored(doc, stored)
-				return {
-					...obj,
-					x: globalPos.x,
-					y: globalPos.y
-				}
-			}
-
-			// Floating objects already have global coords
-			return obj
+			return resolveGlobalPosition(doc, obj, stored)
 		})
 	}, [doc, objects, views, containers, rootChildren, containerChildren, viewId])
 }
@@ -72,6 +88,46 @@ export function useViewObjectIds(doc: YPrezilloDocument, viewId: ViewId | null):
 		if (!viewId || !objects) return []
 		return getObjectIdsInView(doc, viewId)
 	}, [doc, objects, viewId])
+}
+
+/**
+ * Get all objects visible in multiple views, in z-order.
+ * Objects are returned with computed global canvas coordinates for rendering.
+ * Used for multi-page rendering where objects from all visible pages are shown.
+ */
+export function useVisibleViewObjects(
+	doc: YPrezilloDocument,
+	visibleViewIds: ViewId[]
+): PrezilloObject[] {
+	const objects = useY(doc.o)
+	const views = useY(doc.v)
+	const containers = useY(doc.c)
+	const rootChildren = useY(doc.r)
+	const containerChildren = useY(doc.ch)
+
+	return React.useMemo(() => {
+		if (!objects || visibleViewIds.length === 0) return []
+
+		const allObjects: PrezilloObject[] = []
+		const seenIds = new Set<string>()
+
+		// Get objects from all visible views in z-order
+		for (const viewId of visibleViewIds) {
+			const objectsInView = getObjectsInViewInZOrder(doc, viewId)
+
+			// Compute global positions for rendering using centralized helper
+			for (const obj of objectsInView) {
+				// Avoid duplicates (floating objects might appear in multiple views)
+				if (seenIds.has(obj.id)) continue
+				seenIds.add(obj.id)
+
+				const stored = doc.o.get(obj.id)
+				allObjects.push(stored ? resolveGlobalPosition(doc, obj, stored) : obj)
+			}
+		}
+
+		return allObjects
+	}, [doc, objects, views, containers, rootChildren, containerChildren, visibleViewIds])
 }
 
 // vim: ts=4

@@ -46,12 +46,16 @@ export type {
 	PaletteSlot,
 	PaletteColorSlot,
 	PaletteGradientSlot,
-	ColorValue
+	ColorValue,
+	// Template types (stored)
+	StoredTemplate,
+	StoredSnapGuide
 } from './stored-types'
 
 export type {
 	// Runtime types
 	PrezilloObject,
+	PrezilloObjectBase,
 	RectObject,
 	EllipseObject,
 	LineObject,
@@ -91,7 +95,11 @@ export type {
 	PaletteSlotName,
 	PaletteColorSlotName,
 	PaletteGradientSlotName,
-	ResolvedColorValue
+	ResolvedColorValue,
+	// Template types (runtime)
+	Template,
+	SnapGuide,
+	ResolvedViewBackground
 } from './runtime-types'
 
 // Document operations
@@ -145,6 +153,7 @@ export {
 	updateObjectPageAssociation,
 	deleteObject,
 	deleteObjects,
+	deletePrototypeWithInstances,
 	moveObject,
 	reorderObject,
 	bringToFront,
@@ -195,9 +204,72 @@ export {
 	getLastView,
 	getViewIndex,
 	toggleViewHidden,
-	setViewTransition,
-	setViewNotes
+	// Template integration
+	getViewTemplate,
+	resolveViewBackground,
+	setViewBackgroundOverride,
+	resetViewBackgroundToTemplate,
+	getViewSnapGuides,
+	getViewInstanceObjects,
+	isTemplateInstance
 } from './view-ops'
+
+// Prototype operations (single-level inheritance)
+export {
+	resolveObject,
+	isInstance,
+	getPrototypeId,
+	hasOverrides,
+	getOverriddenProperties,
+	getInstancesOfPrototype,
+	isPrototype,
+	// Property group operations for lock/unlock UI
+	isPropertyGroupOverridden,
+	isPropertyGroupLocked,
+	unlockPropertyGroup,
+	resetPropertyGroup,
+	// Prototype resolution helpers (for stored objects)
+	getResolvedXy,
+	getResolvedWh,
+	getResolvedBounds
+} from './prototype-ops'
+
+export type { PropertyGroup } from './prototype-ops'
+
+// Template operations
+export {
+	// Template CRUD
+	createTemplate,
+	getTemplate,
+	getAllTemplates,
+	updateTemplate,
+	deleteTemplate,
+	duplicateTemplate,
+	// Template object management
+	addObjectToTemplate,
+	removeObjectFromTemplate,
+	getTemplatePrototypeObjects,
+	getTemplatePrototypeIds,
+	// Apply template to view
+	applyTemplateToView,
+	removeTemplateFromView,
+	getViewsUsingTemplate,
+	// Snap guide management
+	addSnapGuide,
+	updateSnapGuide,
+	removeSnapGuide,
+	setSnapGuides,
+	// Hidden prototype objects
+	hidePrototypeOnView,
+	showPrototypeOnView,
+	isPrototypeHiddenOnView
+} from './template-ops'
+
+export type {
+	CreateTemplateOptions,
+	UpdateTemplateOptions,
+	DeleteTemplateOptions
+} from './template-ops'
 
 // Style operations
 export {
@@ -210,12 +282,7 @@ export {
 	deleteStyle,
 	getStyleChain,
 	resolveShapeStyle,
-	resolveTextStyle,
-	applyStyleToObjects,
-	detachStyleFromObjects,
-	setStyleOverride,
-	clearStyleOverrides,
-	createStyleVariation
+	resolveTextStyle
 } from './style-ops'
 
 // Palette operations

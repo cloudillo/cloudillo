@@ -33,8 +33,8 @@ export interface PropertyEditorProps {
 	yDoc: Y.Doc
 	selectedIds: Set<ObjectId>
 	activeViewId?: ViewId
-	/** Currently selected view (for showing view properties) */
-	selectedViewId?: ViewId
+	/** True when view background was explicitly clicked */
+	isViewFocused?: boolean
 	onPreview?: (preview: PropertyPreview | null) => void
 }
 
@@ -43,7 +43,7 @@ export function PropertyEditor({
 	yDoc,
 	selectedIds,
 	activeViewId,
-	selectedViewId,
+	isViewFocused,
 	onPreview
 }: PropertyEditorProps) {
 	// Subscribe to object changes - useY returns a version number that changes on updates
@@ -57,25 +57,22 @@ export function PropertyEditor({
 		selectedObject = getObject(doc, id) ?? null
 	}
 
-	// Show view properties when:
-	// 1. A view is explicitly selected (selectedViewId is set)
-	// 2. No objects are selected and we have an active view
-	const showViewProperties = selectedViewId || (selectedIds.size === 0 && activeViewId)
-	const viewIdToShow = selectedViewId || activeViewId
+	// Show view properties when view background was explicitly clicked
+	const showViewProperties = isViewFocused && activeViewId
 
 	// Calculate page number for display
 	const viewIndex = React.useMemo(() => {
-		if (!viewIdToShow) return 0
+		if (!activeViewId) return 0
 		const viewOrder = doc.vo?.toArray() ?? []
-		const idx = viewOrder.indexOf(viewIdToShow)
+		const idx = viewOrder.indexOf(activeViewId)
 		return idx >= 0 ? idx + 1 : 0
-	}, [doc.vo, viewIdToShow])
+	}, [doc.vo, activeViewId])
 
-	if (showViewProperties && viewIdToShow) {
+	if (showViewProperties && activeViewId) {
 		return (
 			<div className="c-vbox">
 				<div className="c-property-editor-header">Page {viewIndex}</div>
-				<ViewPropertiesPanel doc={doc} yDoc={yDoc} activeViewId={viewIdToShow} />
+				<ViewPropertiesPanel doc={doc} yDoc={yDoc} activeViewId={activeViewId} />
 			</div>
 		)
 	}

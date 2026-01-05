@@ -19,12 +19,18 @@
  */
 
 import * as Y from 'yjs'
-import type { YPrezilloDocument, StoredView } from './stored-types'
-import type { ViewId } from './ids'
-import { generateViewId, toViewId } from './ids'
-import type { ViewNode } from './runtime-types'
-import { expandView, compactView } from './type-converters'
+import type { YPrezilloDocument, StoredView, StoredBackgroundGradient } from './stored-types'
+import type { ViewId, TemplateId, ObjectId } from './ids'
+import { generateViewId, toViewId, toTemplateId, toObjectId } from './ids'
+import type { ViewNode, ResolvedViewBackground, Template, SnapGuide } from './runtime-types'
+import {
+	expandView,
+	compactView,
+	expandBackgroundGradient,
+	compactBackgroundGradient
+} from './type-converters'
 import { getDocumentMeta } from './document'
+import type { Gradient } from '@cloudillo/canvas-tools'
 
 /**
  * Create a new view (page/slide)
@@ -451,50 +457,219 @@ export function toggleViewHidden(yDoc: Y.Doc, doc: YPrezilloDocument, viewId: Vi
 	}, yDoc.clientID)
 }
 
+// ============================================================================
+// Template Integration
+// ============================================================================
+
 /**
- * Set view transition
+ * Get the template assigned to a view
  */
-export function setViewTransition(
+export function getViewTemplate(doc: YPrezilloDocument, viewId: ViewId): TemplateId | undefined {
+	const view = doc.v.get(viewId)
+	return view?.tpl ? toTemplateId(view.tpl) : undefined
+}
+
+/**
+ * Resolve view background with template inheritance
+ * Returns the effective background properties and tracks which are overridden
+ */
+export function resolveViewBackground(
+	doc: YPrezilloDocument,
+	viewId: ViewId
+): ResolvedViewBackground {
+	const view = doc.v.get(viewId)
+	if (!view) {
+		return {
+			overrides: {
+				backgroundColor: false,
+				backgroundGradient: false,
+				backgroundImage: false,
+				backgroundFit: false
+			}
+		}
+	}
+
+	const result: ResolvedViewBackground = {
+		overrides: {
+			backgroundColor: false,
+			backgroundGradient: false,
+			backgroundImage: false,
+			backgroundFit: false
+		}
+	}
+
+	// Start with template values if referenced
+	if (view.tpl) {
+		const template = doc.tpl.get(view.tpl)
+		if (template) {
+			result.inheritedFrom = toTemplateId(view.tpl)
+
+			// Template provides base values
+			if (template.bc) result.backgroundColor = template.bc
+			if (template.bg) result.backgroundGradient = expandBackgroundGradient(template.bg)
+			if (template.bi) result.backgroundImage = template.bi
+			if (template.bf) result.backgroundFit = template.bf
+		}
+	}
+
+	// Apply view-level overrides
+	// Check for override fields (bco, bgo, bio, bfo) when template is set
+	if (view.tpl) {
+		if (view.bco !== undefined) {
+			result.backgroundColor = view.bco
+			result.overrides.backgroundColor = true
+		}
+		if (view.bgo !== undefined) {
+			result.backgroundGradient = expandBackgroundGradient(view.bgo)
+			result.overrides.backgroundGradient = true
+		}
+		if (view.bio !== undefined) {
+			result.backgroundImage = view.bio
+			result.overrides.backgroundImage = true
+		}
+		if (view.bfo !== undefined) {
+			result.backgroundFit = view.bfo
+			result.overrides.backgroundFit = true
+		}
+	} else {
+		// No template: use view's own values (stored in standard fields)
+		if (view.backgroundColor) result.backgroundColor = view.backgroundColor
+		if (view.backgroundGradient)
+			result.backgroundGradient = expandBackgroundGradient(view.backgroundGradient)
+		if (view.backgroundImage) result.backgroundImage = view.backgroundImage
+		if (view.backgroundFit) result.backgroundFit = view.backgroundFit
+	}
+
+	return result
+}
+
+// Background property field mappings (property -> [overrideField, standardField])
+const BACKGROUND_FIELD_MAP = {
+	backgroundColor: ['bco', 'backgroundColor'],
+	backgroundGradient: ['bgo', 'backgroundGradient'],
+	backgroundImage: ['bio', 'backgroundImage'],
+	backgroundFit: ['bfo', 'backgroundFit']
+} as const
+
+type BackgroundProperty = keyof typeof BACKGROUND_FIELD_MAP
+
+/**
+ * Set a background override on a view (when view has a template)
+ */
+export function setViewBackgroundOverride(
 	yDoc: Y.Doc,
 	doc: YPrezilloDocument,
 	viewId: ViewId,
-	transition: ViewNode['transition'] | null
+	property: BackgroundProperty,
+	value: string | Gradient | 'contain' | 'cover' | 'fill' | 'tile' | null
 ): void {
 	const view = doc.v.get(viewId)
 	if (!view) return
 
 	yDoc.transact(() => {
-		if (transition) {
-			doc.v.set(viewId, { ...view, transition })
+		// Use type assertion to allow dynamic field access
+		const updated = { ...view } as unknown as Record<string, unknown>
+
+		// Choose field based on whether view has a template
+		const [overrideField, standardField] = BACKGROUND_FIELD_MAP[property]
+		const field = view.tpl ? overrideField : standardField
+
+		if (value === null) {
+			delete updated[field]
+		} else if (property === 'backgroundGradient') {
+			updated[field] = compactBackgroundGradient(value as Gradient)
 		} else {
-			const updated = { ...view }
-			delete updated.transition
-			doc.v.set(viewId, updated)
+			updated[field] = value
 		}
+
+		doc.v.set(viewId, updated as unknown as StoredView)
 	}, yDoc.clientID)
 }
 
 /**
- * Set view notes (speaker notes)
+ * Reset a background property to inherit from template
  */
-export function setViewNotes(
+export function resetViewBackgroundToTemplate(
 	yDoc: Y.Doc,
 	doc: YPrezilloDocument,
 	viewId: ViewId,
-	notes: string | null
+	property: 'backgroundColor' | 'backgroundGradient' | 'backgroundImage' | 'backgroundFit' | 'all'
 ): void {
 	const view = doc.v.get(viewId)
-	if (!view) return
+	if (!view || !view.tpl) return
 
 	yDoc.transact(() => {
-		if (notes) {
-			doc.v.set(viewId, { ...view, notes })
-		} else {
-			const updated = { ...view }
-			delete updated.notes
-			doc.v.set(viewId, updated)
+		const updated = { ...view }
+
+		if (property === 'all' || property === 'backgroundColor') {
+			delete updated.bco
 		}
+		if (property === 'all' || property === 'backgroundGradient') {
+			delete updated.bgo
+		}
+		if (property === 'all' || property === 'backgroundImage') {
+			delete updated.bio
+		}
+		if (property === 'all' || property === 'backgroundFit') {
+			delete updated.bfo
+		}
+
+		doc.v.set(viewId, updated)
 	}, yDoc.clientID)
+}
+
+/**
+ * Get template snap guides for a view (if view has a template)
+ */
+export function getViewSnapGuides(doc: YPrezilloDocument, viewId: ViewId): SnapGuide[] {
+	const view = doc.v.get(viewId)
+	if (!view?.tpl) return []
+
+	const template = doc.tpl.get(view.tpl)
+	if (!template?.sg) return []
+
+	return template.sg.map((sg) => ({
+		direction: sg.d === 'h' ? 'horizontal' : 'vertical',
+		position: sg.p,
+		absolute: sg.a
+	}))
+}
+
+/**
+ * Get instance objects on a view (objects that reference template prototypes)
+ */
+export function getViewInstanceObjects(doc: YPrezilloDocument, viewId: ViewId): ObjectId[] {
+	const view = doc.v.get(viewId)
+	if (!view?.tpl) return []
+
+	const protoIds = doc.tpo.get(view.tpl)?.toArray() || []
+	const instances: ObjectId[] = []
+
+	doc.o.forEach((obj, id) => {
+		if (obj.vi === viewId && obj.proto && protoIds.includes(obj.proto)) {
+			instances.push(toObjectId(id))
+		}
+	})
+
+	return instances
+}
+
+/**
+ * Check if an object on a view is a template instance
+ */
+export function isTemplateInstance(
+	doc: YPrezilloDocument,
+	viewId: ViewId,
+	objectId: ObjectId
+): boolean {
+	const view = doc.v.get(viewId)
+	if (!view?.tpl) return false
+
+	const obj = doc.o.get(objectId)
+	if (!obj?.proto) return false
+
+	const protoIds = doc.tpo.get(view.tpl)?.toArray() || []
+	return protoIds.includes(obj.proto)
 }
 
 // vim: ts=4

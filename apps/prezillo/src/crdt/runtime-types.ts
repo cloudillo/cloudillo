@@ -19,7 +19,7 @@
  * These are the types used in application logic and UI
  */
 
-import type { ObjectId, ContainerId, ViewId, StyleId, RichTextId } from './ids'
+import type { ObjectId, ContainerId, ViewId, StyleId, RichTextId, TemplateId } from './ids'
 import type { Gradient } from '@cloudillo/canvas-tools'
 
 // Object types (expanded)
@@ -159,6 +159,7 @@ export interface PrezilloObjectBase {
 	type: ObjectType
 	parentId?: ContainerId
 	pageId?: ViewId // If set, x/y are relative to page origin (page-relative coords)
+	prototypeId?: ObjectId // If set, this object inherits from prototype (single level)
 	x: number
 	y: number
 	width: number
@@ -322,6 +323,54 @@ export interface ViewNode {
 	notes?: string
 	hidden?: boolean
 	duration?: number
+	// Template support
+	templateId?: TemplateId
+	backgroundOverrides?: {
+		backgroundColor?: boolean
+		backgroundGradient?: boolean
+		backgroundImage?: boolean
+		backgroundFit?: boolean
+	}
+	hiddenPrototypeObjects?: Set<ObjectId>
+}
+
+// ============================================================================
+// Template System Types (Runtime)
+// ============================================================================
+
+// Snap guide (runtime)
+export interface SnapGuide {
+	direction: 'horizontal' | 'vertical'
+	position: number // percentage (0-1) or absolute pixels
+	absolute?: boolean // if true, position is in pixels
+}
+
+// Template (runtime)
+export interface Template {
+	id: TemplateId
+	name: string
+	width: number
+	height: number
+	backgroundColor?: string
+	backgroundGradient?: Gradient
+	backgroundImage?: string
+	backgroundFit?: 'contain' | 'cover' | 'fill' | 'tile'
+	snapGuides: SnapGuide[]
+}
+
+// Resolved view background (with inheritance info)
+export interface ResolvedViewBackground {
+	backgroundColor?: string
+	backgroundGradient?: Gradient
+	backgroundImage?: string
+	backgroundFit?: 'contain' | 'cover' | 'fill' | 'tile'
+	inheritedFrom?: TemplateId
+	overrides: {
+		backgroundColor: boolean
+		backgroundGradient: boolean
+		backgroundImage: boolean
+		backgroundFit: boolean
+	}
 }
 
 // Document metadata

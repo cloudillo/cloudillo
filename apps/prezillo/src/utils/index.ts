@@ -22,6 +22,8 @@ export * from './constants'
 export * from './coordinates'
 export * from './text-styles'
 export * from './measure-text'
+export * from './transforms'
+export * from './style-props'
 
 /**
  * Merge CSS class names, filtering out falsy values

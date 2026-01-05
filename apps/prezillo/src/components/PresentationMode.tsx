@@ -31,10 +31,17 @@ import type {
 } from '../crdt'
 import { resolveShapeStyle, resolveTextStyle } from '../crdt'
 import { useViewObjects } from '../hooks/useViewObjects'
+import {
+	calculateRotationTransform,
+	buildStrokeProps,
+	buildFillProps,
+	DEFAULT_SHAPE_STYLE,
+	DEFAULT_TEXT_STYLE
+} from '../utils'
+import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
 import { WrappedText } from './WrappedText'
 import { ImageRenderer } from './ImageRenderer'
 import { QRCodeRenderer } from './QRCodeRenderer'
-import { DEFAULT_SHAPE_STYLE, DEFAULT_TEXT_STYLE } from '../utils/constants'
 
 export interface PresentationModeProps {
 	doc: YPrezilloDocument
@@ -64,27 +71,12 @@ function PresentationObjectShape({
 	textStyle: ReturnType<typeof resolveTextStyle>
 	ownerTag?: string
 }) {
-	const strokeProps = {
-		stroke: style.stroke,
-		strokeWidth: style.strokeWidth,
-		strokeOpacity: style.strokeOpacity,
-		strokeDasharray: style.strokeDasharray || undefined,
-		strokeLinecap: style.strokeLinecap,
-		strokeLinejoin: style.strokeLinejoin
-	}
+	// Build SVG props using centralized utilities
+	const strokeProps = buildStrokeProps(style)
+	const fillProps = buildFillProps(style)
 
-	const fillProps = {
-		fill: style.fill === 'none' ? 'transparent' : style.fill,
-		fillOpacity: style.fillOpacity
-	}
-
-	// Calculate rotation transform around pivot point
-	const pivotX = object.pivotX ?? 0.5
-	const pivotY = object.pivotY ?? 0.5
-	const cx = object.x + object.width * pivotX
-	const cy = object.y + object.height * pivotY
-	const rotation = object.rotation ?? 0
-	const rotationTransform = rotation !== 0 ? `rotate(${rotation} ${cx} ${cy})` : undefined
+	// Use centralized rotation transform calculation
+	const rotationTransform = calculateRotationTransform(object)
 	const objectOpacity = object.opacity !== 1 ? object.opacity : undefined
 
 	let content: React.ReactNode
@@ -189,6 +181,116 @@ function PresentationObjectShape({
 	return content
 }
 
+/**
+ * Pre-rendered slide component - memoized for performance
+ */
+interface PresentationSlideProps {
+	view: ViewNode
+	objects: PrezilloObject[]
+	doc: YPrezilloDocument
+	ownerTag?: string
+	isVisible: boolean
+}
+
+const PresentationSlide = React.memo(function PresentationSlide({
+	view,
+	objects,
+	doc,
+	ownerTag,
+	isVisible
+}: PresentationSlideProps) {
+	const viewAspect = view.width / view.height
+
+	// Compute gradient background
+	const gradient = view.backgroundGradient
+	const hasGradient = gradient && gradient.type !== 'solid' && (gradient.stops?.length ?? 0) >= 2
+	const gradientId = `pres-bg-${view.id}`
+
+	const gradientDef = React.useMemo(() => {
+		if (!hasGradient || !gradient || !gradient.stops) return null
+
+		if (gradient.type === 'linear') {
+			return {
+				type: 'linear' as const,
+				def: createLinearGradientDef(gradient.angle ?? 180, gradient.stops)
+			}
+		} else if (gradient.type === 'radial') {
+			return {
+				type: 'radial' as const,
+				def: createRadialGradientDef(
+					gradient.centerX ?? 0.5,
+					gradient.centerY ?? 0.5,
+					gradient.stops
+				)
+			}
+		}
+		return null
+	}, [hasGradient, gradient])
+
+	const fill = hasGradient ? `url(#${gradientId})` : view.backgroundColor || '#ffffff'
+
+	return (
+		<svg
+			viewBox={`${view.x} ${view.y} ${view.width} ${view.height}`}
+			className={`c-presentation-svg${isVisible ? '' : ' c-presentation-svg--hidden'}`}
+			style={{
+				maxWidth: `calc(100vh * ${viewAspect})`,
+				maxHeight: `calc(100vw / ${viewAspect})`
+			}}
+		>
+			{/* Gradient definitions */}
+			{gradientDef && (
+				<defs>
+					{gradientDef.type === 'linear' ? (
+						<linearGradient
+							id={gradientId}
+							x1={gradientDef.def.x1}
+							y1={gradientDef.def.y1}
+							x2={gradientDef.def.x2}
+							y2={gradientDef.def.y2}
+						>
+							{gradientDef.def.stops.map((stop, i) => (
+								<stop key={i} offset={stop.offset} stopColor={stop.stopColor} />
+							))}
+						</linearGradient>
+					) : (
+						<radialGradient
+							id={gradientId}
+							cx={gradientDef.def.cx}
+							cy={gradientDef.def.cy}
+							r={gradientDef.def.r}
+						>
+							{gradientDef.def.stops.map((stop, i) => (
+								<stop key={i} offset={stop.offset} stopColor={stop.stopColor} />
+							))}
+						</radialGradient>
+					)}
+				</defs>
+			)}
+
+			{/* Background */}
+			<rect x={view.x} y={view.y} width={view.width} height={view.height} fill={fill} />
+
+			{/* Objects */}
+			{objects.map((object) => {
+				const storedObj = doc.o.get(object.id)
+				const style = storedObj ? resolveShapeStyle(doc, storedObj) : DEFAULT_SHAPE_STYLE
+				const textStyle = storedObj ? resolveTextStyle(doc, storedObj) : DEFAULT_TEXT_STYLE
+
+				return (
+					<PresentationObjectShape
+						key={object.id}
+						object={object}
+						style={style}
+						textStyle={textStyle}
+						ownerTag={ownerTag}
+					/>
+				)
+			})}
+		</svg>
+	)
+})
+
 export function PresentationMode({
 	doc,
 	views,
@@ -230,8 +332,15 @@ export function PresentationMode({
 	const [showControls, setShowControls] = React.useState(true)
 	const hideTimeoutRef = React.useRef<ReturnType<typeof setTimeout>>(undefined)
 
+	// Get current, previous, and next views for pre-rendering
 	const currentView = views[currentIndex]
-	const viewObjects = useViewObjects(doc, currentView?.id || null)
+	const prevView = currentIndex > 0 ? views[currentIndex - 1] : null
+	const nextView = currentIndex < views.length - 1 ? views[currentIndex + 1] : null
+
+	// Get objects for all three slides (pre-render for smooth transitions)
+	const currentObjects = useViewObjects(doc, currentView?.id || null)
+	const prevObjects = useViewObjects(doc, prevView?.id || null)
+	const nextObjects = useViewObjects(doc, nextView?.id || null)
 
 	// Enter fullscreen on mount
 	React.useEffect(() => {
@@ -337,44 +446,45 @@ export function PresentationMode({
 
 	if (!currentView) return null
 
-	// Calculate scale to fit view in screen
-	const viewAspect = currentView.width / currentView.height
-
 	return (
 		<div
 			ref={containerRef}
 			onClick={handleClick}
 			className={`c-presentation-container${showControls ? '' : ' c-controls-hidden'}${isFollowing ? ' following' : ''}`}
 		>
-			<svg
-				viewBox={`${currentView.x} ${currentView.y} ${currentView.width} ${currentView.height}`}
-				className="c-presentation-svg"
-				style={{
-					maxWidth: `calc(100vh * ${viewAspect})`,
-					maxHeight: `calc(100vw / ${viewAspect})`,
-					backgroundColor: currentView.backgroundColor || '#ffffff'
-				}}
-			>
-				{viewObjects.map((object) => {
-					const storedObj = doc.o.get(object.id)
-					const style = storedObj
-						? resolveShapeStyle(doc, storedObj)
-						: DEFAULT_SHAPE_STYLE
-					const textStyle = storedObj
-						? resolveTextStyle(doc, storedObj)
-						: DEFAULT_TEXT_STYLE
+			{/* Pre-rendered previous slide (hidden) */}
+			{prevView && (
+				<PresentationSlide
+					key={`prev-${prevView.id}`}
+					view={prevView}
+					objects={prevObjects}
+					doc={doc}
+					ownerTag={ownerTag}
+					isVisible={false}
+				/>
+			)}
 
-					return (
-						<PresentationObjectShape
-							key={object.id}
-							object={object}
-							style={style}
-							textStyle={textStyle}
-							ownerTag={ownerTag}
-						/>
-					)
-				})}
-			</svg>
+			{/* Current slide (visible) */}
+			<PresentationSlide
+				key={`current-${currentView.id}`}
+				view={currentView}
+				objects={currentObjects}
+				doc={doc}
+				ownerTag={ownerTag}
+				isVisible={true}
+			/>
+
+			{/* Pre-rendered next slide (hidden) */}
+			{nextView && (
+				<PresentationSlide
+					key={`next-${nextView.id}`}
+					view={nextView}
+					objects={nextObjects}
+					doc={doc}
+					ownerTag={ownerTag}
+					isVisible={false}
+				/>
+			)}
 
 			{/* Slide counter */}
 			<div className="c-presentation-counter">

@@ -20,7 +20,7 @@
 
 import * as React from 'react'
 import type { PrezilloObject, ResolvedTextStyle } from '../crdt'
-import { TEXT_ALIGN_CSS, getTextDecorationCSS } from '../utils/text-styles'
+import { TEXT_ALIGN_CSS, getTextDecorationCSS, calculateRotationTransform } from '../utils'
 
 // Border width for the drag zone around the textarea
 const BORDER_WIDTH = 8
@@ -32,6 +32,10 @@ export interface TextEditOverlayProps {
 	onCancel: () => void
 	onTextChange?: (text: string) => void
 	onDragStart?: (e: React.PointerEvent) => void
+	/** Text from prototype (for template instances) - shown as placeholder */
+	prototypeText?: string
+	/** Whether the instance has its own local text (not inheriting) */
+	hasLocalText?: boolean
 }
 
 export function TextEditOverlay({
@@ -40,11 +44,19 @@ export function TextEditOverlay({
 	onSave,
 	onCancel,
 	onTextChange,
-	onDragStart
+	onDragStart,
+	prototypeText,
+	hasLocalText
 }: TextEditOverlayProps) {
 	const inputRef = React.useRef<HTMLTextAreaElement>(null)
-	const initialText = object.type === 'text' ? object.text : ''
+	// For instances inheriting text, start with empty to show placeholder
+	// For instances with local text or non-instances, use the object's text
+	const isInheritingText = prototypeText !== undefined && !hasLocalText
+	const initialText = isInheritingText ? '' : object.type === 'text' ? object.text : ''
 	const [text, setText] = React.useState(initialText)
+
+	// Placeholder: use prototype text if inheriting, otherwise default
+	const placeholder = isInheritingText ? prototypeText : 'Type here...'
 
 	// Notify parent of initial text and any changes
 	React.useEffect(() => {
@@ -104,13 +116,8 @@ export function TextEditOverlay({
 
 	const textDecorationCSS = getTextDecorationCSS(textStyle.textDecoration)
 
-	// Calculate rotation transform (same as ObjectShape)
-	const rotation = object.rotation ?? 0
-	const pivotX = object.pivotX ?? 0.5
-	const pivotY = object.pivotY ?? 0.5
-	const cx = object.x + object.width * pivotX
-	const cy = object.y + object.height * pivotY
-	const rotationTransform = rotation !== 0 ? `rotate(${rotation} ${cx} ${cy})` : undefined
+	// Calculate rotation transform using centralized utility
+	const rotationTransform = calculateRotationTransform(object)
 
 	return (
 		<g transform={rotationTransform}>
@@ -136,7 +143,7 @@ export function TextEditOverlay({
 				<textarea
 					ref={inputRef}
 					value={text}
-					placeholder="Type here..."
+					placeholder={placeholder}
 					onChange={(e) => setText(e.target.value)}
 					onKeyDown={handleKeyDown}
 					onBlur={handleBlur}

@@ -29,7 +29,14 @@ import type {
 	QrCodeObject,
 	QrErrorCorrection
 } from '../../crdt'
-import { updateObject } from '../../crdt'
+import {
+	updateObject,
+	isInstance,
+	isPropertyGroupLocked,
+	unlockPropertyGroup,
+	resetPropertyGroup
+} from '../../crdt'
+import { PropertyLockButton } from './PropertyLockButton'
 
 export interface QRCodeSectionProps {
 	doc: YPrezilloDocument
@@ -45,10 +52,50 @@ const ERROR_CORRECTION_OPTIONS: { value: QrErrorCorrection; label: string }[] = 
 ]
 
 export function QRCodeSection({ doc, yDoc, object }: QRCodeSectionProps) {
+	const objectId = object.id as ObjectId
+
 	// Only show for qrcode objects
 	if (object.type !== 'qrcode') return null
 
 	const qrObject = object as QrCodeObject
+
+	// Check if this object is an instance of a template prototype
+	const objectIsInstance = isInstance(doc, objectId)
+
+	// Check lock state for each property group
+	const urlLocked = isPropertyGroupLocked(doc, objectId, 'qrUrl')
+	const colorsLocked = isPropertyGroupLocked(doc, objectId, 'qrColors')
+	const errorCorrectionLocked = isPropertyGroupLocked(doc, objectId, 'qrErrorCorrection')
+
+	// Unlock/reset handlers
+	const handleUnlockUrl = React.useCallback(() => {
+		unlockPropertyGroup(yDoc, doc, objectId, 'qrUrl')
+	}, [yDoc, doc, objectId])
+
+	const handleResetUrl = React.useCallback(() => {
+		resetPropertyGroup(yDoc, doc, objectId, 'qrUrl')
+	}, [yDoc, doc, objectId])
+
+	const handleUnlockColors = React.useCallback(() => {
+		unlockPropertyGroup(yDoc, doc, objectId, 'qrColors')
+	}, [yDoc, doc, objectId])
+
+	const handleResetColors = React.useCallback(() => {
+		resetPropertyGroup(yDoc, doc, objectId, 'qrColors')
+	}, [yDoc, doc, objectId])
+
+	const handleUnlockErrorCorrection = React.useCallback(() => {
+		unlockPropertyGroup(yDoc, doc, objectId, 'qrErrorCorrection')
+	}, [yDoc, doc, objectId])
+
+	const handleResetErrorCorrection = React.useCallback(() => {
+		resetPropertyGroup(yDoc, doc, objectId, 'qrErrorCorrection')
+	}, [yDoc, doc, objectId])
+
+	// Determine disabled states
+	const urlDisabled = objectIsInstance && urlLocked
+	const colorsDisabled = objectIsInstance && colorsLocked
+	const errorCorrectionDisabled = objectIsInstance && errorCorrectionLocked
 
 	// Local state for URL input - only sync to CRDT on blur
 	const [localUrl, setLocalUrl] = React.useState(qrObject.url || '')
@@ -60,13 +107,13 @@ export function QRCodeSection({ doc, yDoc, object }: QRCodeSectionProps) {
 
 	// Flush pending URL change to CRDT
 	const flushPendingUrl = React.useCallback(() => {
-		if (pendingUrlRef.current !== null) {
+		if (pendingUrlRef.current !== null && !urlDisabled) {
 			updateObject(yDoc, doc, objectIdRef.current as ObjectId, {
 				url: pendingUrlRef.current
 			})
 			pendingUrlRef.current = null
 		}
-	}, [yDoc, doc])
+	}, [yDoc, doc, urlDisabled])
 
 	// Flush pending changes on unmount
 	React.useEffect(() => {
@@ -82,11 +129,15 @@ export function QRCodeSection({ doc, yDoc, object }: QRCodeSectionProps) {
 		}
 	}, [qrObject.url])
 
-	const handleUrlChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-		const value = e.target.value
-		setLocalUrl(value)
-		pendingUrlRef.current = value
-	}, [])
+	const handleUrlChange = React.useCallback(
+		(e: React.ChangeEvent<HTMLInputElement>) => {
+			if (urlDisabled) return
+			const value = e.target.value
+			setLocalUrl(value)
+			pendingUrlRef.current = value
+		},
+		[urlDisabled]
+	)
 
 	const handleUrlBlur = React.useCallback(() => {
 		flushPendingUrl()
@@ -94,48 +145,73 @@ export function QRCodeSection({ doc, yDoc, object }: QRCodeSectionProps) {
 
 	const handleErrorCorrectionChange = React.useCallback(
 		(e: React.ChangeEvent<HTMLSelectElement>) => {
-			updateObject(yDoc, doc, object.id as ObjectId, {
+			if (errorCorrectionDisabled) return
+			updateObject(yDoc, doc, objectId, {
 				errorCorrection: e.target.value as QrErrorCorrection
 			})
 		},
-		[yDoc, doc, object.id]
+		[yDoc, doc, objectId, errorCorrectionDisabled]
 	)
 
 	const handleForegroundChange = React.useCallback(
 		(color: string) => {
-			updateObject(yDoc, doc, object.id as ObjectId, {
+			if (colorsDisabled) return
+			updateObject(yDoc, doc, objectId, {
 				foreground: color
 			})
 		},
-		[yDoc, doc, object.id]
+		[yDoc, doc, objectId, colorsDisabled]
 	)
 
 	const handleBackgroundChange = React.useCallback(
 		(color: string) => {
-			updateObject(yDoc, doc, object.id as ObjectId, {
+			if (colorsDisabled) return
+			updateObject(yDoc, doc, objectId, {
 				background: color
 			})
 		},
-		[yDoc, doc, object.id]
+		[yDoc, doc, objectId, colorsDisabled]
 	)
 
 	return (
 		<PropertySection title="QR Code" defaultExpanded>
-			<PropertyField label="URL" labelWidth={60}>
+			{/* URL with lock */}
+			<div className="c-hbox ai-center mb-1">
+				<span className="c-property-group-label flex-1">URL</span>
+				<PropertyLockButton
+					isInstance={objectIsInstance}
+					isLocked={urlLocked}
+					onUnlock={handleUnlockUrl}
+					onReset={handleResetUrl}
+				/>
+			</div>
+			<div className={urlDisabled ? 'c-property-field--locked mb-2' : 'mb-2'}>
 				<Input
 					value={localUrl}
 					onChange={handleUrlChange}
 					onBlur={handleUrlBlur}
 					placeholder="https://cloudillo.org"
 					className="c-input--full"
+					disabled={urlDisabled}
 				/>
-			</PropertyField>
+			</div>
 
-			<PropertyField label="Level" labelWidth={60}>
+			{/* Error correction level with lock */}
+			<div className="c-hbox ai-center mb-1">
+				<span className="c-property-group-label flex-1">Level</span>
+				<PropertyLockButton
+					isInstance={objectIsInstance}
+					isLocked={errorCorrectionLocked}
+					onUnlock={handleUnlockErrorCorrection}
+					onReset={handleResetErrorCorrection}
+				/>
+			</div>
+			<div className={errorCorrectionDisabled ? 'c-property-field--locked mb-2' : 'mb-2'}>
 				<select
 					value={qrObject.errorCorrection || 'medium'}
 					onChange={handleErrorCorrectionChange}
 					className="c-input c-input--full"
+					disabled={errorCorrectionDisabled}
 				>
 					{ERROR_CORRECTION_OPTIONS.map((opt) => (
 						<option key={opt.value} value={opt.value}>
@@ -143,21 +219,35 @@ export function QRCodeSection({ doc, yDoc, object }: QRCodeSectionProps) {
 						</option>
 					))}
 				</select>
-			</PropertyField>
+			</div>
 
-			<PropertyField label="FG" labelWidth={60}>
-				<ColorInput
-					value={qrObject.foreground || '#000000'}
-					onChange={handleForegroundChange}
+			{/* Colors with lock */}
+			<div className="c-hbox ai-center mb-1">
+				<span className="c-property-group-label flex-1">Colors</span>
+				<PropertyLockButton
+					isInstance={objectIsInstance}
+					isLocked={colorsLocked}
+					onUnlock={handleUnlockColors}
+					onReset={handleResetColors}
 				/>
-			</PropertyField>
+			</div>
+			<div className={colorsDisabled ? 'c-property-field--locked' : ''}>
+				<PropertyField label="FG" labelWidth={30}>
+					<ColorInput
+						value={qrObject.foreground || '#000000'}
+						onChange={handleForegroundChange}
+						disabled={colorsDisabled}
+					/>
+				</PropertyField>
 
-			<PropertyField label="BG" labelWidth={60}>
-				<ColorInput
-					value={qrObject.background || '#ffffff'}
-					onChange={handleBackgroundChange}
-				/>
-			</PropertyField>
+				<PropertyField label="BG" labelWidth={30}>
+					<ColorInput
+						value={qrObject.background || '#ffffff'}
+						onChange={handleBackgroundChange}
+						disabled={colorsDisabled}
+					/>
+				</PropertyField>
+			</div>
 		</PropertySection>
 	)
 }

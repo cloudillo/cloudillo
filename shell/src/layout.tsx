@@ -194,8 +194,9 @@ import { MediaPicker } from './components/MediaPicker/index.js'
 
 import '@symbion/opalui'
 //import '@symbion/opalui/src/opalui.css'
-import '@symbion/opalui/themes/opaque.css'
-import '@symbion/opalui/themes/glass.css'
+// Use Cloudillo-specific themes with local fonts (no Google Fonts CDN)
+import './themes/opaque.css'
+import './themes/glass.css'
 import './style.css'
 
 // Truncate filename while preserving extension

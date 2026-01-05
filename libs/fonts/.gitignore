@@ -1,0 +1,2 @@
+# Font files are downloaded during install, not committed to git
+fonts/

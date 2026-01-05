@@ -139,6 +139,7 @@ function FixedPivotHandle(
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
+import '@cloudillo/fonts/fonts.css'
 import '@cloudillo/react/components.css'
 import '@cloudillo/canvas-tools/components.css'
 import './style.css'

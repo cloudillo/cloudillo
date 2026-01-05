@@ -325,4 +325,8 @@ export type {
 export { QRCodeDialog } from './QRCodeDialog/index.js'
 export type { QRCodeDialogProps } from './QRCodeDialog/index.js'
 
+// FontPicker Component
+export { FontPicker } from './FontPicker/index.js'
+export type { FontPickerProps } from './FontPicker/index.js'
+
 // vim: ts=4

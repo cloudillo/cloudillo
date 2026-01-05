@@ -1,0 +1,73 @@
+/**
+ * Cloudillo Opaque Theme
+ *
+ * This is a Cloudillo-specific version of the OpalUI opaque theme.
+ * Uses locally-hosted fonts from @cloudillo/fonts instead of Google Fonts CDN
+ * for privacy and offline support.
+ *
+ * Based on: @symbion/opalui/themes/opaque.css
+ */
+
+/* Local fonts instead of Google Fonts CDN */
+@import '@cloudillo/fonts/fonts.css';
+
+body.theme-opaque {
+	/* Border sizing */
+	--border-w-lg: calc(2rem / 16);
+	--border-w-sm: calc(1rem / 16);
+
+	/* Border radius */
+	--border-radius-lg: 0.5rem;
+	--border-radius-sm: 0.25rem;
+
+	/* No blur for opaque theme */
+	--blur-radius: 0;
+
+	/* Spacing */
+	--p-nav: 0.5rem;
+	--p-nav-item-y: 0.5rem;
+	--p-nav-item-x: 0.5rem;
+	--p-panel: 1rem;
+	--p-fieldset: 0.5rem 1rem;
+	--m-container: 0.5rem;
+	--m-button-y: 0.5rem;
+	--m-button-r: 0.5rem;
+	--g-grid: 1rem;
+
+	/* Focus shadow */
+	--sh-focus: 0.25rem;
+
+	/* Typography */
+	font-family: 'Roboto', sans-serif;
+	color: var(--col-on);
+	background-color: var(--col-container-low);
+	transition:
+		background-color 0.3s,
+		color 0.2s;
+}
+
+/* Light mode - Opaque theme */
+body.theme-opaque.light {
+	--color-primary: lch(45 60 250);
+	--color-frost: lch(100 0 0 / 0.1);
+	--color-focus: var(--col-primary);
+}
+
+/* Dark mode - Opaque theme */
+body.theme-opaque.dark {
+	--color-primary: lch(68 50 250);
+	--color-frost: lch(100 0 0 / 0.15);
+	--color-focus: lch(100 0 0 / 0.5);
+}
+
+/* Heading typography */
+body.theme-opaque h1,
+body.theme-opaque h2,
+body.theme-opaque h3,
+body.theme-opaque h4,
+body.theme-opaque h5,
+body.theme-opaque h6 {
+	font-family: 'Oswald', sans-serif;
+}
+
+/* vim: ts=4 */

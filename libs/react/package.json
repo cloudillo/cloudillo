@@ -24,6 +24,7 @@
 	"license": "LGPL-3.0-or-later",
 	"devDependencies": {
 		"@cloudillo/base": "workspace:^",
+		"@cloudillo/fonts": "workspace:^",
 		"@cloudillo/types": "workspace:^",
 		"react-qr-code": "^2.0.18",
 		"@symbion/runtype": "^1.2.1",

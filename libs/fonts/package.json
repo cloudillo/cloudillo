@@ -1,0 +1,24 @@
+{
+	"name": "@cloudillo/fonts",
+	"version": "0.1.0",
+	"description": "Curated font collection for Cloudillo applications",
+	"license": "LGPL-3.0-or-later",
+	"type": "module",
+	"main": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./fonts.css": "./src/fonts.css"
+	},
+	"files": [
+		"src",
+		"fonts"
+	],
+	"scripts": {
+		"postinstall": "node scripts/download-fonts.js",
+		"download": "node scripts/download-fonts.js",
+		"download:force": "node scripts/download-fonts.js --force"
+	},
+	"devDependencies": {
+		"typescript": "^5.9.0"
+	}
+}

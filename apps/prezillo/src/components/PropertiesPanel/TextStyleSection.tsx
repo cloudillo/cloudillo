@@ -16,7 +16,7 @@
 
 import * as React from 'react'
 import * as Y from 'yjs'
-import { PropertySection, PropertyField, NativeSelect } from '@cloudillo/react'
+import { PropertySection, PropertyField, NativeSelect, FontPicker } from '@cloudillo/react'
 import { mergeClasses } from '../../utils'
 import {
 	PiTextAlignLeftBold as IcAlignLeft,
@@ -87,6 +87,14 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 		[yDoc, doc, objectId, styleDisabled]
 	)
 
+	const handleFontFamilyChange = React.useCallback(
+		(family: string) => {
+			if (styleDisabled) return
+			updateObjectTextStyle(yDoc, doc, objectId, { ff: family })
+		},
+		[yDoc, doc, objectId, styleDisabled]
+	)
+
 	const handleFontSizeChange = React.useCallback(
 		(e: React.ChangeEvent<HTMLSelectElement>) => {
 			if (styleDisabled) return
@@ -129,6 +137,15 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 			</div>
 
 			<div className={styleDisabled ? 'c-property-field--locked' : ''}>
+				{/* Font Family */}
+				<PropertyField label="Font" labelWidth={40}>
+					<FontPicker
+						value={resolvedStyle.fontFamily}
+						onChange={handleFontFamilyChange}
+						disabled={styleDisabled}
+					/>
+				</PropertyField>
+
 				{/* Font Size */}
 				<PropertyField label="Size" labelWidth={40}>
 					<NativeSelect

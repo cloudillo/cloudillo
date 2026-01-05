@@ -1,0 +1,151 @@
+/**
+ * Cloudillo Glass Theme
+ *
+ * This is a Cloudillo-specific version of the OpalUI glass theme.
+ * Uses locally-hosted fonts from @cloudillo/fonts instead of Google Fonts CDN
+ * for privacy and offline support.
+ *
+ * Based on: @symbion/opalui/themes/glass.css
+ */
+
+/* Local fonts instead of Google Fonts CDN */
+@import '@cloudillo/fonts/fonts.css';
+
+body.theme-glass {
+	/* Border sizing */
+	--border-w-lg: calc(2rem / 16);
+	--border-w-sm: calc(1rem / 16);
+
+	/* Border radius */
+	--border-radius-lg: 0.5rem;
+	--border-radius-sm: 0.25rem;
+
+	/* Glass effect - Enhanced blur */
+	--blur-radius: 1.5rem;
+
+	/* Noise texture for glass depth */
+	--glass-noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+
+	/* Glass depth - inner glow for panels */
+	--glass-glow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+	--glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+	--glass-border: 1px solid rgba(255, 255, 255, 0.1);
+
+	/* Spacing */
+	--p-nav: 0.5rem;
+	--p-nav-item-y: 0.5rem;
+	--p-nav-item-x: 0.5rem;
+	--p-panel: 1rem;
+	--p-fieldset: 0.5rem 1rem;
+	--m-container: 0.5rem;
+	--m-button-y: 0.5rem;
+	--m-button-r: 0.5rem;
+	--g-grid: 1rem;
+
+	/* Focus shadow */
+	--sh-focus: 0.25rem;
+
+	/* Opacity - Glass effect */
+	--op-panel: 0.75 !important;
+	--op-button: 0.8 !important;
+
+	/* Typography */
+	font-family: 'Roboto', sans-serif;
+	color: var(--col-on);
+	transition:
+		background-color 0.3s,
+		color 0.2s;
+}
+
+/* Glass panel depth enhancement */
+body.theme-glass .c-panel {
+	box-shadow: var(--glass-glow), var(--glass-shadow);
+	border: var(--glass-border);
+}
+
+body.theme-glass .c-panel.emph {
+	box-shadow:
+		var(--glass-glow),
+		var(--glass-shadow),
+		inset 0px 0px 2rem var(--col-frost);
+}
+
+/* Glass nav enhancement */
+body.theme-glass .c-nav {
+	box-shadow: var(--glass-glow), var(--glass-shadow);
+	border: var(--glass-border);
+}
+
+/* Glass modal enhancement */
+body.theme-glass .c-modal > .c-dialog {
+	box-shadow:
+		var(--glass-glow),
+		0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* Glass toast enhancement */
+body.theme-glass .c-toast {
+	box-shadow:
+		var(--glass-glow),
+		0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Glass dropdown enhancement */
+body.theme-glass details.c-dropdown[open] > :last-child {
+	box-shadow:
+		var(--glass-glow),
+		var(--glass-shadow),
+		inset 0px 0px 1rem var(--col-shadow);
+}
+
+/* Light mode - Glass theme */
+body.theme-glass.light {
+	--color-primary: lch(68 50 250);
+	--color-frost: lch(100 0 0 / 0.25);
+	--color-focus: lch(100 0 0);
+
+	/* Enhanced glass depth for light mode */
+	--glass-glow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+	--glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+	--glass-border: 1px solid rgba(255, 255, 255, 0.2);
+
+	/* Subtle gradient with integrated noise */
+	background:
+		var(--glass-noise),
+		linear-gradient(135deg, lch(88 8 250) 0%, lch(90 6 280) 50%, lch(87 10 230) 100%);
+	background-attachment: fixed;
+	background-blend-mode: overlay, normal;
+	min-height: 100vh;
+}
+
+/* Dark mode - Glass theme */
+body.theme-glass.dark {
+	--color-primary: lch(68 50 250);
+	--color-frost: lch(100 0 0 / 0.12);
+	--color-focus: lch(100 0 0);
+
+	/* Enhanced glass depth for dark mode */
+	--glass-glow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+	--glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+	--glass-border: 1px solid rgba(255, 255, 255, 0.06);
+
+	/* Subtle gradient with integrated noise */
+	background:
+		var(--glass-noise),
+		linear-gradient(135deg, lch(12 10 250) 0%, lch(15 8 280) 50%, lch(10 12 230) 100%);
+	background-attachment: fixed;
+	background-blend-mode: overlay, normal;
+	min-height: 100vh;
+}
+
+/* Heading typography */
+body.theme-glass h1,
+body.theme-glass h2,
+body.theme-glass h3,
+body.theme-glass h4,
+body.theme-glass h5,
+body.theme-glass h6 {
+	font-family: 'Oswald', sans-serif;
+}
+
+/* vim: ts=4 */

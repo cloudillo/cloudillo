@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import esbuild from 'esbuild'
-import { readFileSync } from 'fs'
+import { readFileSync, existsSync, mkdirSync, cpSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import {
@@ -17,11 +17,38 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8'))
 
+/**
+ * Copy fonts from libs/fonts to dist/fonts
+ * Fonts are served at /fonts/ and loaded by apps via absolute URLs
+ */
+function copyFonts() {
+	const fontsSource = join(__dirname, '..', 'libs', 'fonts', 'fonts')
+	const fontsDest = join(__dirname, 'dist', 'fonts')
+
+	if (!existsSync(fontsSource)) {
+		console.log('Fonts not found - run pnpm install to download fonts')
+		return
+	}
+
+	// Create destination directory
+	if (!existsSync(fontsDest)) {
+		mkdirSync(fontsDest, { recursive: true })
+	}
+
+	// Copy all font directories
+	cpSync(fontsSource, fontsDest, { recursive: true })
+	console.log('Fonts copied to dist/fonts/')
+}
+
 // Main app config
 const appConfig = createConfig({
 	outdir: `dist/assets-${pkg.version}`,
 	define: {
 		'process.env.CLOUDILLO_VERSION': JSON.stringify(pkg.version)
+	},
+	extra: {
+		// Mark font paths as external - they're served at runtime from /fonts/
+		external: ['/fonts/*']
 	}
 })
 
@@ -61,6 +88,9 @@ async function build() {
 			join(__dirname, 'dist/manifest.json'),
 			pkg.version
 		)
+
+		// Copy fonts to dist/fonts/
+		copyFonts()
 
 		if (isWatch) {
 			// Delete stale compressed files

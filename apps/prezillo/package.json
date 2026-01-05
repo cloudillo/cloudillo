@@ -23,6 +23,7 @@
 	"devDependencies": {
 		"@cloudillo/base": "workspace:^",
 		"@cloudillo/canvas-tools": "workspace:^",
+		"@cloudillo/fonts": "workspace:^",
 		"@cloudillo/react": "workspace:^",
 		"react-qr-code": "^2.0.18",
 		"@popperjs/core": "^2.11.8",

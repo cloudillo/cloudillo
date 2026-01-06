@@ -17,7 +17,7 @@
 		"@cloudillo/base": "workspace:^",
 		"@cloudillo/react": "workspace:^",
 		"@cloudillo/rtdb": "workspace:^",
-		"@symbion/opalui": "^0.14.3",
+		"@symbion/opalui": "^0.14.4",
 		"@types/react": "^19.2.7",
 		"@types/react-dom": "^19.2.3",
 		"cross-env": "^10.1.0",

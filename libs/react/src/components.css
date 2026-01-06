@@ -1028,6 +1028,10 @@
 
 .c-font-picker__menu {
 	position: fixed;
+	display: grid;
+	grid-template-columns: repeat(3, minmax(10rem, auto));
+	grid-auto-rows: 1fr;
+	gap: 0;
 	background-color: lch(from var(--col-container) l c h / var(--op-panel, 0.95));
 	backdrop-filter: blur(var(--blur-radius));
 	border: 1px solid var(--col-outline);
@@ -1036,19 +1040,35 @@
 		var(--shadow-lg),
 		inset 0px 0px 1rem var(--col-frost);
 	z-index: var(--z-popover, 1000);
-	min-width: 12rem;
-	max-width: 18rem;
-	max-height: 20rem;
+	max-height: 24rem;
 	overflow-y: auto;
-	padding: var(--space-1);
+	padding: var(--space-2);
+}
+
+.c-font-picker__column {
+	display: flex;
+	flex-direction: column;
+	align-self: stretch;
+	border-right: 1px solid var(--col-outline);
+	padding-right: var(--space-2);
+	margin-right: var(--space-2);
+}
+
+.c-font-picker__column:last-child {
+	border-right: none;
+	padding-right: 0;
+	margin-right: 0;
 }
 
 .c-font-picker__group {
-	margin-bottom: var(--space-1);
+	display: flex;
+	flex-direction: column;
 }
 
-.c-font-picker__group:last-child {
-	margin-bottom: 0;
+.c-font-picker__group + .c-font-picker__group {
+	margin-top: var(--space-3);
+	padding-top: var(--space-2);
+	border-top: 1px solid var(--col-outline);
 }
 
 .c-font-picker__group-label {
@@ -1062,7 +1082,7 @@
 
 .c-font-picker__item {
 	display: flex;
-	align-items: center;
+	align-items: baseline;
 	justify-content: space-between;
 	gap: var(--space-2);
 	width: 100%;

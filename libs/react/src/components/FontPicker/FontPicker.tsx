@@ -59,7 +59,8 @@ const CATEGORY_LABELS: Record<FontCategory, string> = {
 	monospace: 'Monospace'
 }
 
-const CATEGORY_ORDER: FontCategory[] = ['sans-serif', 'serif', 'display', 'monospace']
+// Column layout: [['sans-serif'], ['serif'], ['display', 'monospace']]
+const COLUMN_CATEGORIES: FontCategory[][] = [['sans-serif'], ['serif'], ['display', 'monospace']]
 
 /**
  * FontPicker component for selecting fonts from the curated collection.
@@ -113,32 +114,37 @@ export function FontPicker({
 		return new Set([...asHeading, ...asBody])
 	}, [suggestPairingsFor])
 
-	// Group fonts by category
-	const groups = React.useMemo((): FontGroup[] => {
-		const result: FontGroup[] = []
+	// Group fonts by category, organized into columns
+	const columns = React.useMemo((): FontGroup[][] => {
+		return COLUMN_CATEGORIES.map((categories) => {
+			const columnGroups: FontGroup[] = []
 
-		for (const category of CATEGORY_ORDER) {
-			const categoryFonts = fonts.filter((f) => f.category === category)
-			if (categoryFonts.length > 0) {
-				// Sort: suggested fonts first, then alphabetically
-				const sorted = [...categoryFonts].sort((a, b) => {
-					const aSuggested = suggestedFonts.has(a.family)
-					const bSuggested = suggestedFonts.has(b.family)
-					if (aSuggested && !bSuggested) return -1
-					if (!aSuggested && bSuggested) return 1
-					return a.displayName.localeCompare(b.displayName)
-				})
+			for (const category of categories) {
+				const categoryFonts = fonts.filter((f) => f.category === category)
+				if (categoryFonts.length > 0) {
+					// Sort: suggested fonts first, then alphabetically
+					const sorted = [...categoryFonts].sort((a, b) => {
+						const aSuggested = suggestedFonts.has(a.family)
+						const bSuggested = suggestedFonts.has(b.family)
+						if (aSuggested && !bSuggested) return -1
+						if (!aSuggested && bSuggested) return 1
+						return a.displayName.localeCompare(b.displayName)
+					})
 
-				result.push({
-					category,
-					label: CATEGORY_LABELS[category],
-					fonts: sorted
-				})
+					columnGroups.push({
+						category,
+						label: CATEGORY_LABELS[category],
+						fonts: sorted
+					})
+				}
 			}
-		}
 
-		return result
+			return columnGroups
+		})
 	}, [fonts, suggestedFonts])
+
+	// Flat groups for keyboard navigation
+	const groups = React.useMemo(() => columns.flat(), [columns])
 
 	// Flat list of fonts for keyboard navigation
 	const flatFonts = React.useMemo(() => {
@@ -268,40 +274,51 @@ export function FontPicker({
 						role="listbox"
 						{...attributes.popper}
 					>
-						{groups.map((group) => (
-							<div key={group.category} className="c-font-picker__group">
-								<div className="c-font-picker__group-label">{group.label}</div>
-								{group.fonts.map((font) => {
-									const flatIndex = getFlatIndex(font.family)
-									const isSelected = font.family === value
-									const isHighlighted = flatIndex === highlightedIndex
-									const isSuggested = suggestedFonts.has(font.family)
+						{columns.map((columnGroups, colIdx) => (
+							<div key={colIdx} className="c-font-picker__column">
+								{columnGroups.map((group) => (
+									<div key={group.category} className="c-font-picker__group">
+										<div className="c-font-picker__group-label">
+											{group.label}
+										</div>
+										{group.fonts.map((font) => {
+											const flatIndex = getFlatIndex(font.family)
+											const isSelected = font.family === value
+											const isHighlighted = flatIndex === highlightedIndex
+											const isSuggested = suggestedFonts.has(font.family)
 
-									return (
-										<button
-											key={font.family}
-											type="button"
-											className={mergeClasses(
-												'c-font-picker__item c-nav-item',
-												isSelected && 'selected',
-												isHighlighted && 'highlighted',
-												isSuggested && 'c-font-picker__item--suggested'
-											)}
-											style={{ fontFamily: `'${font.family}', sans-serif` }}
-											onClick={() => handleSelect(font.family)}
-											onMouseEnter={() => setHighlightedIndex(flatIndex)}
-											role="option"
-											aria-selected={isSelected}
-										>
-											{font.displayName}
-											{isSuggested && (
-												<span className="c-font-picker__suggested-badge">
-													Pair
-												</span>
-											)}
-										</button>
-									)
-								})}
+											return (
+												<button
+													key={font.family}
+													type="button"
+													className={mergeClasses(
+														'c-font-picker__item c-nav-item',
+														isSelected && 'selected',
+														isHighlighted && 'highlighted',
+														isSuggested &&
+															'c-font-picker__item--suggested'
+													)}
+													style={{
+														fontFamily: `'${font.family}', sans-serif`
+													}}
+													onClick={() => handleSelect(font.family)}
+													onMouseEnter={() =>
+														setHighlightedIndex(flatIndex)
+													}
+													role="option"
+													aria-selected={isSelected}
+												>
+													{font.displayName}
+													{isSuggested && (
+														<span className="c-font-picker__suggested-badge">
+															Pair
+														</span>
+													)}
+												</button>
+											)
+										})}
+									</div>
+								))}
 							</div>
 						))}
 					</div>,

@@ -42,11 +42,11 @@ export interface TemplatesRowProps {
 	templates: TemplateWithUsage[]
 	/** Currently selected template ID */
 	selectedTemplateId: TemplateId | null
-	/** Template currently being edited */
-	editingTemplateId: TemplateId | null
+	/** @deprecated No longer used - templates are edited directly on canvas */
+	editingTemplateId?: TemplateId | null
 	/** Callback when a template is selected */
 	onSelectTemplate: (id: TemplateId | null) => void
-	/** Callback when a template should be edited (double-click) */
+	/** Callback when a template should be selected (double-click now just selects) */
 	onEditTemplate: (id: TemplateId) => void
 	/** Y position for the row */
 	rowY: number
@@ -65,7 +65,6 @@ export function TemplatesRow({
 	yDoc,
 	templates,
 	selectedTemplateId,
-	editingTemplateId,
 	onSelectTemplate,
 	onEditTemplate,
 	rowY,
@@ -196,7 +195,6 @@ export function TemplatesRow({
 						width={THUMBNAIL_WIDTH}
 						height={THUMBNAIL_HEIGHT}
 						isSelected={selectedTemplateId === template.id}
-						isEditing={editingTemplateId === template.id}
 						onClick={(e) => handleTemplateClick(e, template.id)}
 						onDoubleClick={(e) => handleTemplateDoubleClick(e, template.id)}
 						readOnly={readOnly}

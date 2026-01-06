@@ -43,8 +43,6 @@ export interface PrezilloPropertiesPanelProps {
 	selectedContainerId?: ContainerId | null
 	/** Callback when a container is selected */
 	onSelectContainer?: (id: ContainerId | null) => void
-	/** Callback when user wants to edit template content on canvas */
-	onStartEditingTemplate?: (templateId: TemplateId) => void
 	/** Currently selected template ID (from canvas templates row) */
 	selectedTemplateId?: TemplateId | null
 	/** Callback to clear template selection */
@@ -63,7 +61,6 @@ export function PrezilloPropertiesPanel({
 	onPreview,
 	selectedContainerId,
 	onSelectContainer,
-	onStartEditingTemplate,
 	selectedTemplateId,
 	onClearTemplateSelection,
 	onSelectTemplate
@@ -110,7 +107,7 @@ export function PrezilloPropertiesPanel({
 						yDoc={yDoc}
 						selectedTemplateId={null}
 						onSelectTemplate={onSelectTemplate ?? (() => {})}
-						onEditTemplate={onStartEditingTemplate ?? (() => {})}
+						onEditTemplate={onSelectTemplate ?? (() => {})}
 					/>
 				</div>
 			</div>

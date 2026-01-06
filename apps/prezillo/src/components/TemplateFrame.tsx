@@ -28,13 +28,13 @@ import type { TemplateLayout } from '../hooks/useTemplateLayout'
 // Purple color scheme for templates
 const TEMPLATE_COLOR = '#9b59b6'
 const TEMPLATE_COLOR_LIGHT = 'rgba(155, 89, 182, 0.1)'
-const EDITING_COLOR = '#27ae60'
 
 export interface TemplateFrameProps {
 	template: TemplateWithUsage
 	layout: TemplateLayout
 	isSelected: boolean
-	isEditing: boolean
+	/** @deprecated No longer used - templates are edited directly on canvas */
+	isEditing?: boolean
 	onClick: (e: React.MouseEvent) => void
 	onDoubleClick: (e: React.MouseEvent) => void
 	readOnly?: boolean
@@ -44,7 +44,6 @@ export function TemplateFrame({
 	template,
 	layout,
 	isSelected,
-	isEditing,
 	onClick,
 	onDoubleClick,
 	readOnly
@@ -83,9 +82,9 @@ export function TemplateFrame({
 	}, [hasGradient, gradient])
 
 	// Determine border styling based on state
-	const borderColor = isEditing ? EDITING_COLOR : TEMPLATE_COLOR
-	const borderWidth = isSelected || isEditing ? 3 : 2
-	const borderDasharray = isSelected || isEditing ? 'none' : '8,4'
+	const borderColor = TEMPLATE_COLOR
+	const borderWidth = isSelected ? 3 : 2
+	const borderDasharray = isSelected ? 'none' : '8,4'
 
 	// Usage badge text
 	const usageText =
@@ -97,7 +96,7 @@ export function TemplateFrame({
 
 	return (
 		<g
-			className={`c-template-frame${isSelected ? ' c-template-frame--selected' : ''}${isEditing ? ' c-template-frame--editing' : ''}`}
+			className={`c-template-frame${isSelected ? ' c-template-frame--selected' : ''}`}
 			onClick={onClick}
 			onDoubleClick={onDoubleClick}
 			style={{ cursor: readOnly ? 'default' : 'pointer' }}
@@ -162,7 +161,7 @@ export function TemplateFrame({
 				strokeWidth={borderWidth}
 				strokeDasharray={borderDasharray}
 				style={
-					isSelected && !isEditing
+					isSelected
 						? { filter: 'drop-shadow(0 0 8px rgba(155, 89, 182, 0.5))' }
 						: undefined
 				}
@@ -174,7 +173,7 @@ export function TemplateFrame({
 				y={layout.y - 10}
 				fill={borderColor}
 				fontSize={14}
-				fontWeight={isSelected || isEditing ? 600 : 500}
+				fontWeight={isSelected ? 600 : 500}
 			>
 				Template: {template.name}
 			</text>

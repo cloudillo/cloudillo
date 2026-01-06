@@ -22,14 +22,24 @@ import * as React from 'react'
 import type { ViewNode } from '../crdt'
 import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
 
+// Template highlight color (matches TemplateFrame)
+const TEMPLATE_HIGHLIGHT_COLOR = '#9b59b6'
+
 export interface ViewFrameProps {
 	view: ViewNode
 	isActive: boolean
 	isSelected?: boolean
+	isHighlightedByTemplate?: boolean
 	onClick: () => void
 }
 
-export function ViewFrame({ view, isActive, isSelected, onClick }: ViewFrameProps) {
+export function ViewFrame({
+	view,
+	isActive,
+	isSelected,
+	isHighlightedByTemplate,
+	onClick
+}: ViewFrameProps) {
 	// Generate unique gradient ID for this view
 	const gradientId = `view-bg-${view.id}`
 
@@ -98,6 +108,23 @@ export function ViewFrame({ view, isActive, isSelected, onClick }: ViewFrameProp
 			{/* Background */}
 			<rect x={view.x} y={view.y} width={view.width} height={view.height} fill={fill} />
 
+			{/* Template highlight glow (behind main border) */}
+			{isHighlightedByTemplate && (
+				<rect
+					x={view.x - 4}
+					y={view.y - 4}
+					width={view.width + 8}
+					height={view.height + 8}
+					fill="none"
+					stroke={TEMPLATE_HIGHLIGHT_COLOR}
+					strokeWidth={2}
+					strokeOpacity={0.4}
+					rx={4}
+					ry={4}
+					style={{ filter: 'drop-shadow(0 0 6px rgba(155, 89, 182, 0.4))' }}
+				/>
+			)}
+
 			{/* Border - shows selection state */}
 			<rect
 				x={view.x}
@@ -108,13 +135,15 @@ export function ViewFrame({ view, isActive, isSelected, onClick }: ViewFrameProp
 				stroke={
 					isSelected
 						? '#0066ff'
-						: isActive
-							? '#4a90d9'
-							: view.showBorder
-								? '#cccccc'
-								: 'none'
+						: isHighlightedByTemplate
+							? TEMPLATE_HIGHLIGHT_COLOR
+							: isActive
+								? '#4a90d9'
+								: view.showBorder
+									? '#cccccc'
+									: 'none'
 				}
-				strokeWidth={isSelected ? 3 : isActive ? 2 : 1}
+				strokeWidth={isSelected ? 3 : isHighlightedByTemplate ? 2 : isActive ? 2 : 1}
 				strokeDasharray={isSelected ? 'none' : isActive ? '8,4' : 'none'}
 			/>
 

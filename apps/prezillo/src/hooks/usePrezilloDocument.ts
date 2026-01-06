@@ -90,12 +90,7 @@ export interface UsePrezilloDocumentResult {
 	isSelected: (id: ObjectId) => boolean
 	autoSwitchToObjectPage: (id: ObjectId) => void
 
-	// Template editing mode
-	editingTemplateId: TemplateId | null
-	startEditingTemplate: (templateId: TemplateId) => void
-	stopEditingTemplate: () => void
-
-	// Template selection (for properties panel, not editing)
+	// Template selection (for properties panel)
 	selectedTemplateId: TemplateId | null
 	selectTemplate: (templateId: TemplateId | null) => void
 	clearTemplateSelection: () => void
@@ -271,22 +266,7 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 		[selectedIds]
 	)
 
-	// Template editing mode
-	const [editingTemplateId, setEditingTemplateId] = React.useState<TemplateId | null>(null)
-
-	const startEditingTemplate = React.useCallback((templateId: TemplateId) => {
-		setEditingTemplateId(templateId)
-		setSelectedTemplateId(templateId) // Also select the template
-		setSelectedIds(new Set()) // Clear object selection
-		setIsViewFocused(false) // Clear view focus
-	}, [])
-
-	const stopEditingTemplate = React.useCallback(() => {
-		setEditingTemplateId(null)
-		setSelectedIds(new Set()) // Clear selection
-	}, [])
-
-	// Template selection (for properties panel, not editing)
+	// Template selection (for properties panel)
 	const [selectedTemplateId, setSelectedTemplateId] = React.useState<TemplateId | null>(null)
 	const [isTemplateFocused, setIsTemplateFocused] = React.useState(false)
 
@@ -488,11 +468,6 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 		clearSelection,
 		isSelected,
 		autoSwitchToObjectPage,
-
-		// Template editing mode
-		editingTemplateId,
-		startEditingTemplate,
-		stopEditingTemplate,
 
 		// Template selection (for properties panel)
 		selectedTemplateId,

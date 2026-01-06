@@ -32,8 +32,30 @@ export interface TemplateLayout {
 	height: number
 }
 
+/** View bounds for zone divider positioning */
+export interface ViewBounds {
+	left: number
+	right: number
+	top: number
+}
+
+/** Empty state position for when no templates exist */
+export interface EmptyStatePosition {
+	x: number
+	y: number
+	width: number
+}
+
+/** Complete result from the template layout hook */
+export interface TemplateLayoutResult {
+	layouts: Map<TemplateId, TemplateLayout>
+	dividerY: number | null
+	viewBounds: ViewBounds | null
+	emptyStatePosition: EmptyStatePosition | null
+}
+
 /** Gap between template zone and view zone */
-const TEMPLATE_ZONE_GAP = 150
+export const TEMPLATE_ZONE_GAP = 150
 
 /** Gap between template frames */
 const TEMPLATE_GAP = 100
@@ -41,17 +63,14 @@ const TEMPLATE_GAP = 100
 /**
  * Compute layout positions for template frames above the views.
  * Templates are arranged horizontally, centered above the views.
+ * Also computes zone divider position and empty state position.
  */
 export function useTemplateLayout(
 	views: ViewNode[],
 	templates: TemplateWithUsage[]
-): Map<TemplateId, TemplateLayout> {
+): TemplateLayoutResult {
 	return React.useMemo(() => {
 		const layoutMap = new Map<TemplateId, TemplateLayout>()
-
-		if (templates.length === 0) {
-			return layoutMap
-		}
 
 		// Find the topmost view Y position and view bounds
 		let topViewY = Infinity
@@ -71,11 +90,37 @@ export function useTemplateLayout(
 			rightmostViewX = 1920
 		}
 
+		const viewBounds: ViewBounds = {
+			left: leftmostViewX,
+			right: rightmostViewX,
+			top: topViewY
+		}
+
+		// If no templates, return empty state position
+		if (templates.length === 0) {
+			const viewsCenterX = (leftmostViewX + rightmostViewX) / 2
+			const viewsWidth = rightmostViewX - leftmostViewX
+
+			return {
+				layouts: layoutMap,
+				dividerY: null,
+				viewBounds,
+				emptyStatePosition: {
+					x: viewsCenterX,
+					y: topViewY - 200,
+					width: Math.min(viewsWidth, 600)
+				}
+			}
+		}
+
 		// Find the tallest template to determine template zone Y
 		const maxTemplateHeight = Math.max(...templates.map((t) => t.height))
 
 		// Template zone Y position (above views)
 		const templateZoneY = topViewY - TEMPLATE_ZONE_GAP - maxTemplateHeight
+
+		// Divider Y is in the middle of the gap between templates and views
+		const dividerY = topViewY - TEMPLATE_ZONE_GAP / 2
 
 		// Calculate total width of all templates with gaps
 		const totalTemplateWidth = templates.reduce(
@@ -102,7 +147,12 @@ export function useTemplateLayout(
 			currentX += template.width + TEMPLATE_GAP
 		}
 
-		return layoutMap
+		return {
+			layouts: layoutMap,
+			dividerY,
+			viewBounds,
+			emptyStatePosition: null
+		}
 	}, [views, templates])
 }
 

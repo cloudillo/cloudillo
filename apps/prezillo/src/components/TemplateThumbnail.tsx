@@ -39,8 +39,8 @@ export interface TemplateThumbnailProps {
 	height: number
 	/** Whether this template is selected */
 	isSelected: boolean
-	/** Whether this template is being edited */
-	isEditing: boolean
+	/** @deprecated No longer used - templates are edited directly on canvas */
+	isEditing?: boolean
 	/** Click handler */
 	onClick: (e: React.MouseEvent) => void
 	/** Double-click handler */
@@ -58,7 +58,6 @@ export function TemplateThumbnail({
 	width,
 	height,
 	isSelected,
-	isEditing,
 	onClick,
 	onDoubleClick,
 	readOnly
@@ -99,9 +98,9 @@ export function TemplateThumbnail({
 		? `url(#${gradientId})`
 		: (template.backgroundColor ?? '#ffffff')
 
-	// Selection/editing state colors
-	const borderColor = isEditing ? '#22c55e' : isSelected ? '#3b82f6' : '#d1d5db'
-	const borderWidth = isSelected || isEditing ? 3 : 1
+	// Selection state colors
+	const borderColor = isSelected ? '#3b82f6' : '#d1d5db'
+	const borderWidth = isSelected ? 3 : 1
 
 	// Badge text
 	const badgeText =
@@ -187,8 +186,8 @@ export function TemplateThumbnail({
 				y={y + height + 18}
 				textAnchor="middle"
 				fontSize={14}
-				fontWeight={isSelected || isEditing ? 600 : 400}
-				fill={isEditing ? '#22c55e' : isSelected ? '#3b82f6' : '#374151'}
+				fontWeight={isSelected ? 600 : 400}
+				fill={isSelected ? '#3b82f6' : '#374151'}
 			>
 				{template.name}
 			</text>

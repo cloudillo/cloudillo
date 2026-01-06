@@ -49,6 +49,7 @@ export interface TemplatePanelProps {
 	yDoc: Y.Doc
 	selectedTemplateId: TemplateId | null
 	onSelectTemplate: (templateId: TemplateId | null) => void
+	/** Called when "Edit" is clicked in context menu - typically scrolls to template on canvas */
 	onEditTemplate: (templateId: TemplateId) => void
 	readOnly?: boolean
 }
@@ -122,8 +123,7 @@ export function TemplatePanel({
 			backgroundColor: '#ffffff'
 		})
 		onSelectTemplate(templateId)
-		onEditTemplate(templateId)
-	}, [yDoc, doc, templates.length, onSelectTemplate, onEditTemplate])
+	}, [yDoc, doc, templates.length, onSelectTemplate])
 
 	// Handle template click (select on canvas)
 	const handleClick = React.useCallback(

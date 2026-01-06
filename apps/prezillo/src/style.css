@@ -2015,3 +2015,13 @@ body,
 	margin: 0 var(--space-2);
 	flex-shrink: 0;
 }
+
+/* Zone Divider - separates template zone from view zone */
+.c-zone-divider {
+	pointer-events: none;
+}
+
+/* Template Zone Empty State */
+.c-template-empty-state {
+	pointer-events: all;
+}

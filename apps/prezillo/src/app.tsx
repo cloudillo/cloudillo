@@ -149,7 +149,6 @@ import {
 	useSnapSettings,
 	useImageHandler,
 	useTemplateGuides,
-	useTemplateObjects,
 	useTemplates,
 	useTextEditing,
 	useTextStyling,
@@ -171,7 +170,8 @@ import { TemplateGuideRenderer } from './components/TemplateGuideRenderer'
 import { TemplateFrame } from './components/TemplateFrame'
 import { ContextMenu } from './components/ContextMenu'
 import { RemotePresenceOverlay } from './components/RemotePresenceOverlay'
-import { TemplateEditingCanvas } from './components/TemplateEditingCanvas'
+import { ZoneDivider } from './components/ZoneDivider'
+import { TemplateZoneEmptyState } from './components/TemplateZoneEmptyState'
 import { useTemplateLayout } from './hooks/useTemplateLayout'
 import {
 	PrezilloPropertiesPanel,
@@ -245,7 +245,9 @@ import {
 	getResolvedWh,
 	duplicateObject,
 	duplicateView,
-	deleteView
+	deleteView,
+	getViewsUsingTemplate,
+	createTemplate
 } from './crdt'
 import { measureTextHeight } from './utils'
 
@@ -269,9 +271,6 @@ export function PrezilloApp() {
 
 	// Template guides for current view
 	const templateGuides = useTemplateGuides(prezillo.doc, prezillo.activeViewId)
-
-	// Template objects for editing mode
-	const templateEditingContext = useTemplateObjects(prezillo.doc, prezillo.editingTemplateId)
 
 	// Templates for the templates row
 	const { templates: templatesWithUsage, getTemplateObjects } = useTemplates(prezillo.doc)
@@ -468,15 +467,22 @@ export function PrezilloApp() {
 	const visibleViewObjects = useVisibleViewObjects(prezillo.doc, visibleViewIds)
 
 	// Calculate template frame positions (above the views)
-	const templateLayouts = useTemplateLayout(views, templatesWithUsage)
+	const templateLayoutResult = useTemplateLayout(views, templatesWithUsage)
+	const {
+		layouts: templateLayouts,
+		dividerY,
+		viewBounds: templateZoneBounds,
+		emptyStatePosition
+	} = templateLayoutResult
 
-	// Determine which objects to render: template prototypes when editing, visible view objects otherwise
-	// In normal mode, render both view objects AND template prototype objects (offset to template positions)
+	// Compute which views are highlighted when a template is selected
+	const highlightedViewIds = React.useMemo(() => {
+		if (!prezillo.selectedTemplateId) return new Set<ViewId>()
+		return new Set(getViewsUsingTemplate(prezillo.doc, prezillo.selectedTemplateId))
+	}, [prezillo.selectedTemplateId, prezillo.doc])
+
+	// Render view objects AND template prototype objects (offset to template positions)
 	const canvasObjects: CanvasObject[] = React.useMemo(() => {
-		if (prezillo.editingTemplateId && templateEditingContext) {
-			return templateEditingContext.objects
-		}
-
 		// Start with view objects
 		const objects: CanvasObject[] = [...visibleViewObjects]
 		const seenIds = new Set(objects.map((o) => o.id))
@@ -505,14 +511,7 @@ export function PrezilloApp() {
 		}
 
 		return objects
-	}, [
-		prezillo.editingTemplateId,
-		templateEditingContext,
-		visibleViewObjects,
-		templatesWithUsage,
-		templateLayouts,
-		getTemplateObjects
-	])
+	}, [visibleViewObjects, templatesWithUsage, templateLayouts, getTemplateObjects])
 
 	// Image handler for inserting images via MediaPicker
 	const imageHandlerRef = React.useRef<{ insertImage: (x: number, y: number) => void } | null>(
@@ -571,27 +570,9 @@ export function PrezilloApp() {
 		}
 	}, [prezillo.activeViewId])
 
-	// Center on template when entering template edit mode
+	// Center on selected template (template frames above views)
 	React.useEffect(() => {
-		if (prezillo.editingTemplateId && templateEditingContext && canvasRef.current) {
-			// Template is rendered at (0, 0) in edit mode
-			canvasRef.current.centerOnRectAnimated(
-				0,
-				0,
-				templateEditingContext.templateWidth,
-				templateEditingContext.templateHeight,
-				{ duration: 350, zoomOutFactor: 0.15 }
-			)
-		}
-	}, [
-		prezillo.editingTemplateId,
-		templateEditingContext?.templateWidth,
-		templateEditingContext?.templateHeight
-	])
-
-	// Center on selected template (in normal mode - template frames above views)
-	React.useEffect(() => {
-		if (!prezillo.selectedTemplateId || prezillo.editingTemplateId || !canvasRef.current) return
+		if (!prezillo.selectedTemplateId || !canvasRef.current) return
 
 		const layout = templateLayouts.get(prezillo.selectedTemplateId)
 		if (!layout) return
@@ -616,7 +597,7 @@ export function PrezilloApp() {
 				{ duration: 350, zoomOutFactor: 0.15 }
 			)
 		}
-	}, [prezillo.selectedTemplateId, prezillo.editingTemplateId, templateLayouts])
+	}, [prezillo.selectedTemplateId, templateLayouts])
 
 	// Auto-expand/collapse mobile panel based on selection
 	React.useEffect(() => {
@@ -679,11 +660,7 @@ export function PrezilloApp() {
 	// Create spatial objects for snapping (active page only - cross-page snapping would be confusing)
 	const snapObjects = React.useMemo<SnapSpatialObject[]>(() => {
 		// Use activeViewObjects for snapping (only objects on the active page)
-		const objectsForSnapping =
-			prezillo.editingTemplateId && templateEditingContext
-				? templateEditingContext.objects
-				: activeViewObjects
-		return objectsForSnapping.map((obj) => ({
+		return activeViewObjects.map((obj) => ({
 			id: obj.id,
 			bounds: {
 				x: obj.x,
@@ -696,18 +673,10 @@ export function PrezilloApp() {
 			pivotY: obj.pivotY,
 			parentId: obj.parentId
 		}))
-	}, [prezillo.editingTemplateId, templateEditingContext, activeViewObjects])
+	}, [activeViewObjects])
 
-	// View bounds for snapping (use template dimensions when editing template)
+	// View bounds for snapping
 	const viewBounds = React.useMemo(() => {
-		if (prezillo.editingTemplateId && templateEditingContext) {
-			return {
-				x: 0,
-				y: 0,
-				width: templateEditingContext.templateWidth,
-				height: templateEditingContext.templateHeight
-			}
-		}
 		if (!activeView) {
 			return { x: 0, y: 0, width: 1920, height: 1080 }
 		}
@@ -717,7 +686,7 @@ export function PrezilloApp() {
 			width: activeView.width,
 			height: activeView.height
 		}
-	}, [activeView, prezillo.editingTemplateId, templateEditingContext])
+	}, [activeView])
 
 	// Initialize snapping hook
 	const { snapDrag, snapResize, activeSnaps, activeSnapEdges, allCandidates, clearSnaps } =
@@ -1308,36 +1277,6 @@ export function PrezilloApp() {
 			return
 		}
 
-		// Legacy: Template editing mode (can be removed once direct editing is confirmed working)
-		if (prezillo.editingTemplateId) {
-			// Create object without page association (prototype)
-			const objectId = createObject(
-				prezillo.yDoc,
-				prezillo.doc,
-				prezillo.activeTool as any,
-				x,
-				y,
-				width,
-				height,
-				undefined, // No parent (template prototypes go to root)
-				undefined,
-				undefined // No pageId - prototype is not bound to any page
-			)
-
-			// Add to template's prototype tracking
-			addObjectToTemplate(prezillo.yDoc, prezillo.doc, prezillo.editingTemplateId, objectId)
-
-			prezillo.setActiveTool(null)
-			setToolEvent(undefined)
-			prezillo.selectObject(objectId)
-
-			// Start editing immediately for text objects
-			if (isTextTool) {
-				setEditingTextId(objectId)
-			}
-			return
-		}
-
 		// Normal mode: use selected container, or first layer if none selected
 		let parentId = selectedContainerId
 		if (!parentId) {
@@ -1415,8 +1354,8 @@ export function PrezilloApp() {
 					evt.preventDefault()
 					break
 				case 'a':
-					// Select all objects (in view or template)
-					if (prezillo.activeViewId || prezillo.editingTemplateId) {
+					// Select all objects in the active view
+					if (prezillo.activeViewId) {
 						const ids = canvasObjects.map((o) => o.id)
 						prezillo.selectObjects(ids)
 					}
@@ -1593,29 +1532,6 @@ export function PrezilloApp() {
 				/>
 			)}
 
-			{/* Template editing mode banner */}
-			{prezillo.editingTemplateId && (
-				<div className="c-template-editing-banner">
-					<span className="c-template-editing-banner__text">
-						Editing Template:{' '}
-						<strong>
-							{getTemplate(prezillo.doc, prezillo.editingTemplateId)?.name ??
-								'Untitled'}
-						</strong>
-					</span>
-					<span className="c-template-editing-banner__hint">
-						Objects created here will appear on all pages using this template
-					</span>
-					<button
-						type="button"
-						className="c-button primary small"
-						onClick={prezillo.stopEditingTemplate}
-					>
-						Done Editing
-					</button>
-				</div>
-			)}
-
 			<div className="c-hbox flex-fill" style={{ overflow: 'hidden' }}>
 				<div
 					ref={canvasContainerRef}
@@ -1718,10 +1634,36 @@ export function PrezilloApp() {
 							</>
 						}
 					>
-						{/* Render views or template canvas based on mode */}
-						{!prezillo.editingTemplateId ? (
+						{/* Template zone: either empty state or template frames + divider */}
+						{templatesWithUsage.length === 0 ? (
+							/* Empty state when no templates */
+							emptyStatePosition && (
+								<TemplateZoneEmptyState
+									x={emptyStatePosition.x}
+									y={emptyStatePosition.y}
+									width={emptyStatePosition.width}
+									readOnly={isReadOnly}
+									onCreateTemplate={() => {
+										// Create a default template
+										if (!isReadOnly) {
+											const templateId = createTemplate(
+												prezillo.yDoc,
+												prezillo.doc,
+												{
+													name: 'Template 1',
+													width: 1920,
+													height: 1080,
+													backgroundColor: '#ffffff'
+												}
+											)
+											prezillo.selectTemplate(templateId)
+										}
+									}}
+								/>
+							)
+						) : (
+							/* Template frames (full-size, above views) */
 							<>
-								{/* Template frames (full-size, above views) */}
 								{templatesWithUsage.map((template) => {
 									const layout = templateLayouts.get(template.id)
 									if (!layout) return null
@@ -1731,50 +1673,53 @@ export function PrezilloApp() {
 											template={template}
 											layout={layout}
 											isSelected={prezillo.selectedTemplateId === template.id}
-											isEditing={prezillo.editingTemplateId === template.id}
+											isEditing={false}
 											onClick={(e) => {
 												e.stopPropagation()
 												prezillo.selectTemplate(template.id)
 											}}
 											onDoubleClick={(e) => {
+												// Double-click just selects the template
 												e.stopPropagation()
-												if (!isReadOnly) {
-													prezillo.startEditingTemplate(template.id)
-												}
+												prezillo.selectTemplate(template.id)
 											}}
 											readOnly={isReadOnly}
 										/>
 									)
 								})}
 
-								{/* Normal mode: Render all views as frames */}
-								{views.map((view) => (
-									<ViewFrame
-										key={view.id}
-										view={view}
-										isActive={view.id === prezillo.activeViewId}
-										isSelected={
-											prezillo.isViewFocused &&
-											view.id === prezillo.activeViewId
-										}
-										onClick={() => prezillo.selectView(view.id)}
-									/>
-								))}
-
-								{/* Template guides for current view */}
-								{activeView && templateGuides.hasTemplateGuides && (
-									<TemplateGuideRenderer
-										view={activeView}
-										guides={templateGuides.guides}
-										visible={templateGuides.visible}
+								{/* Zone divider between templates and views */}
+								{dividerY !== null && templateZoneBounds && (
+									<ZoneDivider
+										y={dividerY}
+										leftX={templateZoneBounds.left}
+										rightX={templateZoneBounds.right}
 									/>
 								)}
 							</>
-						) : (
-							/* Template editing mode: Render virtual template canvas */
-							templateEditingContext && (
-								<TemplateEditingCanvas context={templateEditingContext} />
-							)
+						)}
+
+						{/* Render all views as frames */}
+						{views.map((view) => (
+							<ViewFrame
+								key={view.id}
+								view={view}
+								isActive={view.id === prezillo.activeViewId}
+								isSelected={
+									prezillo.isViewFocused && view.id === prezillo.activeViewId
+								}
+								isHighlightedByTemplate={highlightedViewIds.has(view.id)}
+								onClick={() => prezillo.selectView(view.id)}
+							/>
+						))}
+
+						{/* Template guides for current view */}
+						{activeView && templateGuides.hasTemplateGuides && (
+							<TemplateGuideRenderer
+								view={activeView}
+								guides={templateGuides.guides}
+								visible={templateGuides.visible}
+							/>
 						)}
 
 						{/* Render objects (view objects or template prototypes) */}
@@ -1913,7 +1858,6 @@ export function PrezilloApp() {
 						onPreview={setPropertyPreview}
 						selectedContainerId={selectedContainerId as any}
 						onSelectContainer={setSelectedContainerId as any}
-						onStartEditingTemplate={prezillo.startEditingTemplate}
 						selectedTemplateId={prezillo.selectedTemplateId}
 						onClearTemplateSelection={prezillo.clearTemplateSelection}
 						onSelectTemplate={prezillo.selectTemplate}

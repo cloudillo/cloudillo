@@ -99,6 +99,7 @@ export interface UsePrezilloDocumentResult {
 	selectedTemplateId: TemplateId | null
 	selectTemplate: (templateId: TemplateId | null) => void
 	clearTemplateSelection: () => void
+	isTemplateFocused: boolean // True when template frame background is clicked (show template properties)
 
 	// Awareness/presence
 	awareness: Awareness | null
@@ -205,6 +206,7 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 	// Selection helpers
 	const selectObject = React.useCallback((id: ObjectId, addToSelection: boolean = false) => {
 		setIsViewFocused(false) // Clear view focus when selecting objects
+		setIsTemplateFocused(false) // Clear template focus when selecting objects
 		setSelectedTemplateId(null) // Clear template selection when selecting objects
 		setSelectedIds((prev) => {
 			if (addToSelection) {
@@ -218,6 +220,7 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 
 	const selectObjects = React.useCallback((ids: ObjectId[], addToSelection: boolean = false) => {
 		setIsViewFocused(false) // Clear view focus when selecting objects
+		setIsTemplateFocused(false) // Clear template focus when selecting objects
 		setSelectedTemplateId(null) // Clear template selection when selecting objects
 		setSelectedIds((prev) => {
 			if (addToSelection) {
@@ -246,6 +249,7 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 		setActiveViewIdInternal(viewId)
 		setSelectedIds(new Set()) // Clear object selection
 		setSelectedTemplateId(null) // Clear template selection
+		setIsTemplateFocused(false) // Clear template focus
 		setIsViewFocused(true) // Mark view as focused for properties panel
 	}, [])
 
@@ -284,15 +288,18 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 
 	// Template selection (for properties panel, not editing)
 	const [selectedTemplateId, setSelectedTemplateId] = React.useState<TemplateId | null>(null)
+	const [isTemplateFocused, setIsTemplateFocused] = React.useState(false)
 
 	const selectTemplate = React.useCallback((templateId: TemplateId | null) => {
 		setSelectedTemplateId(templateId)
+		setIsTemplateFocused(templateId !== null) // Set template focus when selecting
 		setSelectedIds(new Set()) // Clear object selection
 		setIsViewFocused(false) // Clear view focus
 	}, [])
 
 	const clearTemplateSelection = React.useCallback(() => {
 		setSelectedTemplateId(null)
+		setIsTemplateFocused(false)
 	}, [])
 
 	// Remote presence state
@@ -491,6 +498,7 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 		selectedTemplateId,
 		selectTemplate,
 		clearTemplateSelection,
+		isTemplateFocused,
 
 		// Awareness/presence
 		awareness,

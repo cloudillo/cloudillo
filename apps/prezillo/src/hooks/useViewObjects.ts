@@ -23,7 +23,12 @@ import * as React from 'react'
 import { useY } from 'react-yjs'
 
 import type { ViewId, YPrezilloDocument, PrezilloObject, ObjectId, StoredObject } from '../crdt'
-import { getObjectsInViewInZOrder, getObjectIdsInView, getAbsolutePositionStored } from '../crdt'
+import {
+	getObjectsInViewInZOrder,
+	getObjectIdsInView,
+	getAbsolutePositionStored,
+	resolveObject
+} from '../crdt'
 
 /**
  * Resolve global position for an object.
@@ -94,6 +99,7 @@ export function useViewObjectIds(doc: YPrezilloDocument, viewId: ViewId | null):
  * Get all objects visible in multiple views, in z-order.
  * Objects are returned with computed global canvas coordinates for rendering.
  * Used for multi-page rendering where objects from all visible pages are shown.
+ * Also includes ALL floating objects (not associated with any page) regardless of position.
  */
 export function useVisibleViewObjects(
 	doc: YPrezilloDocument,
@@ -123,6 +129,22 @@ export function useVisibleViewObjects(
 
 				const stored = doc.o.get(obj.id)
 				allObjects.push(stored ? resolveGlobalPosition(doc, obj, stored) : obj)
+			}
+		}
+
+		// Also include ALL floating objects (no page association) that weren't already found
+		// This ensures floating objects are always visible regardless of view overlap
+		for (const [id, stored] of doc.o.entries()) {
+			if (seenIds.has(id)) continue
+			// Skip page-relative objects (they're handled by view iteration above)
+			if (stored.vi) continue
+			// Skip prototype objects (they're for templates, not direct rendering)
+			if (stored.proto === undefined && (!stored.xy || !stored.wh)) continue
+
+			const resolved = resolveObject(doc, id as ObjectId)
+			if (resolved) {
+				seenIds.add(id)
+				allObjects.push(resolveGlobalPosition(doc, resolved, stored))
 			}
 		}
 

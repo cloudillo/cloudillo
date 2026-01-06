@@ -45,7 +45,7 @@ import {
 	PiTrashBold as IcDelete,
 	PiArrowsHorizontalBold as IcArrowsHorizontal,
 	PiArrowsVerticalBold as IcArrowsVertical,
-	PiPencilBold as IcEdit
+	PiWarningBold as IcWarning
 } from 'react-icons/pi'
 
 import type { YPrezilloDocument, TemplateId, Template, SnapGuide, ViewId } from '../../crdt'
@@ -65,8 +65,6 @@ export interface TemplatePropertiesPanelProps {
 	doc: YPrezilloDocument
 	yDoc: Y.Doc
 	templateId: TemplateId
-	/** Called when user wants to edit template content on canvas */
-	onEditContent: (templateId: TemplateId) => void
 	/** Called when template is deleted */
 	onDelete?: () => void
 	/** Called when user clicks close/back */
@@ -79,7 +77,6 @@ export function TemplatePropertiesPanel({
 	doc,
 	yDoc,
 	templateId,
-	onEditContent,
 	onDelete,
 	onClose
 }: TemplatePropertiesPanelProps) {
@@ -262,20 +259,16 @@ export function TemplatePropertiesPanel({
 				)}
 			</div>
 
-			{/* Edit Content button */}
-			<div className="c-template-properties__edit-content p-2">
-				<button
-					type="button"
-					className="c-button primary w-100"
-					onClick={() => onEditContent(templateId)}
-				>
-					<IcEdit />
-					Edit Template Content
-				</button>
-				<p className="c-template-properties__edit-hint">
-					Add or edit objects that appear on all pages using this template
-				</p>
-			</div>
+			{/* Warning banner when template affects pages */}
+			{viewsUsingTemplate.length > 0 && (
+				<div className="c-template-warning-banner">
+					<IcWarning />
+					<span>
+						Changes affect {viewsUsingTemplate.length}{' '}
+						{viewsUsingTemplate.length === 1 ? 'page' : 'pages'}
+					</span>
+				</div>
+			)}
 
 			<div className="c-template-properties__content">
 				{/* General Section */}

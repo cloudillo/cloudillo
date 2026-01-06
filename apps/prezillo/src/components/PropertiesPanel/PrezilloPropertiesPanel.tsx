@@ -76,7 +76,6 @@ export function PrezilloPropertiesPanel({
 					doc={doc}
 					yDoc={yDoc}
 					templateId={selectedTemplateId}
-					onEditContent={(id) => onStartEditingTemplate?.(id)}
 					onDelete={onClearTemplateSelection}
 					onClose={onClearTemplateSelection}
 				/>

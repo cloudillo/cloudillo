@@ -42,6 +42,9 @@ export type { TemplateEditingContext } from './useTemplateObjects'
 export { useTemplates } from './useTemplates'
 export type { TemplateWithUsage, UseTemplatesResult } from './useTemplates'
 
+export { useTemplateLayout } from './useTemplateLayout'
+export type { TemplateLayout } from './useTemplateLayout'
+
 export { useLockableProperty } from './useLockableProperty'
 export type { UseLockablePropertyResult } from './useLockableProperty'
 

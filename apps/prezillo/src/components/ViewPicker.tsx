@@ -35,8 +35,9 @@ import {
 } from 'react-icons/pi'
 import { useTranslation } from 'react-i18next'
 
-import type { ViewId, ViewNode } from '../crdt'
+import type { ViewId, ViewNode, TemplateId } from '../crdt'
 import type { PresenterInfo } from '../awareness'
+import type { TemplateWithUsage } from '../hooks/useTemplates'
 
 export interface ViewPickerProps {
 	views: ViewNode[]
@@ -63,6 +64,12 @@ export interface ViewPickerProps {
 	onFollow?: (clientId: number) => void
 	/** Callback to unfollow presenter */
 	onUnfollow?: () => void
+	/** Templates for template tabs */
+	templates?: TemplateWithUsage[]
+	/** Currently selected template ID */
+	selectedTemplateId?: TemplateId | null
+	/** Callback when a template tab is clicked */
+	onTemplateSelect?: (id: TemplateId) => void
 }
 
 /**
@@ -172,7 +179,10 @@ export function ViewPicker({
 	isMobile = false,
 	followingClientId = null,
 	onFollow,
-	onUnfollow
+	onUnfollow,
+	templates = [],
+	selectedTemplateId = null,
+	onTemplateSelect
 }: ViewPickerProps) {
 	const { t } = useTranslation()
 	const activeIndex = views.findIndex((v) => v.id === activeViewId)
@@ -338,6 +348,27 @@ export function ViewPicker({
 			) : (
 				/* Desktop: full tab list with drag-and-drop */
 				<div className="c-hbox gap-1 flex-fill c-view-picker-tabs">
+					{/* Template tabs */}
+					{templates.length > 0 && (
+						<>
+							{templates.map((template, index) => (
+								<button
+									key={template.id}
+									onClick={() => onTemplateSelect?.(template.id)}
+									className={mergeClasses(
+										'c-button c-view-picker-tab c-view-picker-tab--template',
+										selectedTemplateId === template.id && 'active'
+									)}
+									title={`Template: ${template.name}`}
+								>
+									T{index + 1}
+								</button>
+							))}
+							<div className="c-view-picker-separator" />
+						</>
+					)}
+
+					{/* Page tabs */}
 					{views.map((view, index) => {
 						const presenters = getPresenterBadges(view.id)
 

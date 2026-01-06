@@ -165,7 +165,8 @@ import { TextEditOverlay } from './components/TextEditOverlay'
 import { ObjectShape } from './components/ObjectShape'
 import { PresentationMode } from './components/PresentationMode'
 import { TemplateGuideRenderer } from './components/TemplateGuideRenderer'
-import { TemplatesRow } from './components/TemplatesRow'
+import { TemplateFrame } from './components/TemplateFrame'
+import { useTemplateLayout } from './hooks/useTemplateLayout'
 import {
 	PrezilloPropertiesPanel,
 	MobilePropertyPanel,
@@ -179,7 +180,26 @@ import {
 	type BottomSheetSnapPoint
 } from '@cloudillo/react'
 
-import type { ObjectId, ViewId, PrezilloObject, ViewNode, Bounds, YPrezilloDocument } from './crdt'
+import type {
+	ObjectId,
+	ViewId,
+	TemplateId,
+	PrezilloObject,
+	ViewNode,
+	Bounds,
+	YPrezilloDocument
+} from './crdt'
+
+/**
+ * Extended type for canvas objects that may include template metadata
+ * Used when rendering prototype objects on template frames
+ */
+type CanvasObject = PrezilloObject & {
+	/** Template ID if this is a prototype rendered on a template frame */
+	_templateId?: TemplateId
+	/** True if this is a prototype object (not a regular view object) */
+	_isPrototype?: boolean
+}
 import {
 	createObject,
 	updateObject,
@@ -245,9 +265,6 @@ export function PrezilloApp() {
 
 	// Templates for the templates row
 	const { templates: templatesWithUsage, getTemplateObjects } = useTemplates(prezillo.doc)
-
-	// Templates row collapsed state (expanded by default)
-	const [templatesRowCollapsed, setTemplatesRowCollapsed] = React.useState(false)
 
 	// Dialog for confirmations
 	const dialog = useDialog()
@@ -384,6 +401,12 @@ export function PrezilloApp() {
 	// Track if we just finished an interaction (resize/rotate/pivot) to prevent canvas click from clearing selection
 	const justFinishedInteractionRef = React.useRef(false)
 
+	// Track if page zoom was triggered from ViewPicker (explicit navigation should always zoom)
+	const forceZoomRef = React.useRef(false)
+
+	// Track if template zoom was triggered from explicit selection
+	const forceZoomTemplateRef = React.useRef(false)
+
 	// Canvas scale for image variant selection
 	const [canvasScale, setCanvasScale] = React.useState(1)
 
@@ -443,24 +466,47 @@ export function PrezilloApp() {
 	const visibleViewIds = React.useMemo(() => visibleViews.map((v) => v.id), [visibleViews])
 	const visibleViewObjects = useVisibleViewObjects(prezillo.doc, visibleViewIds)
 
-	// Calculate templates row Y position (above the first view)
-	const templatesRowY = React.useMemo(() => {
-		if (views.length === 0) return -300
-		// Find the topmost view
-		const topView = views.reduce((top, v) => (v.y < top.y ? v : top), views[0])
-		// Position templates row above the first view with margin
-		// Row height: ~180px (thumbnail + labels + padding)
-		return topView.y - 220
-	}, [views])
+	// Calculate template frame positions (above the views)
+	const templateLayouts = useTemplateLayout(views, templatesWithUsage)
 
 	// Determine which objects to render: template prototypes when editing, visible view objects otherwise
-	const canvasObjects = React.useMemo(() => {
+	// In normal mode, render both view objects AND template prototype objects (offset to template positions)
+	const canvasObjects: CanvasObject[] = React.useMemo(() => {
 		if (prezillo.editingTemplateId && templateEditingContext) {
 			return templateEditingContext.objects
 		}
-		// Use visible view objects for multi-page rendering
-		return visibleViewObjects
-	}, [prezillo.editingTemplateId, templateEditingContext, visibleViewObjects])
+
+		// Start with view objects
+		const objects: CanvasObject[] = [...visibleViewObjects]
+
+		// Add prototype objects from each template, offset to template position
+		for (const template of templatesWithUsage) {
+			const layout = templateLayouts.get(template.id)
+			if (!layout) continue
+
+			const prototypeObjects = getTemplateObjects(template.id)
+			for (const proto of prototypeObjects) {
+				objects.push({
+					...proto,
+					// Offset to template frame position on canvas
+					x: proto.x + layout.x,
+					y: proto.y + layout.y,
+					// Track which template this belongs to for click handling and offset conversion
+					_templateId: template.id,
+					_isPrototype: true
+				})
+			}
+		}
+
+		return objects
+	}, [
+		prezillo.editingTemplateId,
+		templateEditingContext,
+		visibleViewObjects,
+		templatesWithUsage,
+		templateLayouts,
+		getTemplateObjects
+	])
 
 	// Image handler for inserting images via MediaPicker
 	const imageHandlerRef = React.useRef<{ insertImage: (x: number, y: number) => void } | null>(
@@ -493,27 +539,42 @@ export function PrezilloApp() {
 		}
 	}, [prezillo.activeTool, activeView, imageHandler])
 
-	// Center on active view when it changes
+	// Center on active view when it changes (smart zoom - only if page is off-screen or explicit navigation)
 	React.useEffect(() => {
 		if (activeView && canvasRef.current) {
-			canvasRef.current.centerOnRect(
+			const isInView = canvasRef.current.isRectInView(
 				activeView.x,
 				activeView.y,
 				activeView.width,
 				activeView.height
 			)
+
+			// Zoom if: explicit navigation (ViewPicker click) OR page center is off-screen
+			const shouldZoom = forceZoomRef.current || !isInView
+			forceZoomRef.current = false // Reset flag
+
+			if (shouldZoom) {
+				canvasRef.current.centerOnRectAnimated(
+					activeView.x,
+					activeView.y,
+					activeView.width,
+					activeView.height,
+					{ duration: 350, zoomOutFactor: 0.15 }
+				)
+			}
 		}
 	}, [prezillo.activeViewId])
 
 	// Center on template when entering template edit mode
 	React.useEffect(() => {
 		if (prezillo.editingTemplateId && templateEditingContext && canvasRef.current) {
-			// Template is rendered at (0, 0)
-			canvasRef.current.centerOnRect(
+			// Template is rendered at (0, 0) in edit mode
+			canvasRef.current.centerOnRectAnimated(
 				0,
 				0,
 				templateEditingContext.templateWidth,
-				templateEditingContext.templateHeight
+				templateEditingContext.templateHeight,
+				{ duration: 350, zoomOutFactor: 0.15 }
 			)
 		}
 	}, [
@@ -521,6 +582,35 @@ export function PrezilloApp() {
 		templateEditingContext?.templateWidth,
 		templateEditingContext?.templateHeight
 	])
+
+	// Center on selected template (in normal mode - template frames above views)
+	React.useEffect(() => {
+		if (!prezillo.selectedTemplateId || prezillo.editingTemplateId || !canvasRef.current) return
+
+		const layout = templateLayouts.get(prezillo.selectedTemplateId)
+		if (!layout) return
+
+		const isInView = canvasRef.current.isRectInView(
+			layout.x,
+			layout.y,
+			layout.width,
+			layout.height
+		)
+
+		// Zoom if: explicit selection OR template center is off-screen
+		const shouldZoom = forceZoomTemplateRef.current || !isInView
+		forceZoomTemplateRef.current = false
+
+		if (shouldZoom) {
+			canvasRef.current.centerOnRectAnimated(
+				layout.x,
+				layout.y,
+				layout.width,
+				layout.height,
+				{ duration: 350, zoomOutFactor: 0.15 }
+			)
+		}
+	}, [prezillo.selectedTemplateId, prezillo.editingTemplateId, templateLayouts])
 
 	// Auto-expand/collapse mobile panel based on selection
 	React.useEffect(() => {
@@ -612,29 +702,59 @@ export function PrezilloApp() {
 		rotation: number
 		pivotX: number
 		pivotY: number
+		// Offsets for converting canvas coords back to stored coords when saving
+		pageOffset?: { x: number; y: number }
+		prototypeTemplateOffset?: { x: number; y: number }
 	} | null>(null)
 
-	// Get stored bounds for the single selected object (used by resize/rotate/pivot hooks)
-	// Uses react-yjs reactive snapshot (prezillo.objects) instead of raw Y.Map
-	// This ensures proper re-renders when CRDT data changes
+	// Get canvas bounds for the single selected object (used by resize/rotate/pivot hooks)
+	// Uses canvasObjects which has global canvas coordinates matching the rendering
+	// Also includes offset info for converting back to stored coords when saving
 	const storedSelection = React.useMemo(() => {
 		if (prezillo.selectedIds.size !== 1) return null
 		const id = Array.from(prezillo.selectedIds)[0]
-		const stored = prezillo.doc.o.get(id)
-		if (!stored) return null
 
-		// Use centralized prototype resolution helper
-		const bounds = getResolvedBounds(prezillo.doc, stored)
-		if (!bounds) return null
+		// Look up from canvasObjects to get global canvas coordinates
+		const canvasObj = canvasObjects.find((o) => o.id === id)
+		if (!canvasObj) return null
+
+		// Calculate offsets for converting canvas coords back to stored coords
+		let pageOffset: { x: number; y: number } | undefined
+		let prototypeTemplateOffset: { x: number; y: number } | undefined
+
+		// Check for prototype on template frame
+		if (canvasObj._isPrototype && canvasObj._templateId) {
+			const layout = templateLayouts.get(canvasObj._templateId)
+			if (layout) {
+				prototypeTemplateOffset = { x: layout.x, y: layout.y }
+			}
+		}
+
+		// Check for page-relative object
+		const stored = prezillo.doc.o.get(id)
+		if (stored?.vi) {
+			const view = prezillo.doc.v.get(stored.vi)
+			if (view) {
+				pageOffset = { x: view.x, y: view.y }
+			}
+		}
 
 		return {
 			id: id as ObjectId,
-			bounds: { x: bounds.xy[0], y: bounds.xy[1], width: bounds.wh[0], height: bounds.wh[1] },
-			rotation: bounds.r,
-			pivotX: bounds.pv[0],
-			pivotY: bounds.pv[1]
+			bounds: {
+				x: canvasObj.x,
+				y: canvasObj.y,
+				width: canvasObj.width,
+				height: canvasObj.height
+			},
+			rotation: canvasObj.rotation ?? 0,
+			pivotX: canvasObj.pivotX ?? 0.5,
+			pivotY: canvasObj.pivotY ?? 0.5,
+			// Offsets for converting back to stored coords when saving
+			pageOffset,
+			prototypeTemplateOffset
 		}
-	}, [prezillo.selectedIds, prezillo.objects])
+	}, [prezillo.selectedIds, canvasObjects, templateLayouts, prezillo.doc.o, prezillo.doc.v])
 
 	// Ref to access latest storedSelection from callbacks (avoids stale closure)
 	const storedSelectionRef = React.useRef(storedSelection)
@@ -745,13 +865,30 @@ export function PrezilloApp() {
 			// Use captured initial state to prevent stale closure issues
 			const initial = interactionStartRef.current
 			if (!initial) return
-			// Commit to CRDT
+
+			// Convert canvas coords back to stored coords for CRDT
+			let saveX = bounds.x
+			let saveY = bounds.y
+
+			// For prototypes on template frames, subtract template offset
+			if (initial.prototypeTemplateOffset) {
+				saveX -= initial.prototypeTemplateOffset.x
+				saveY -= initial.prototypeTemplateOffset.y
+			}
+
+			// For page-relative objects, subtract page offset
+			if (initial.pageOffset) {
+				saveX -= initial.pageOffset.x
+				saveY -= initial.pageOffset.y
+			}
+
+			// Commit to CRDT with stored coords
 			updateObjectBounds(
 				prezillo.yDoc,
 				prezillo.doc,
 				initial.id,
-				bounds.x,
-				bounds.y,
+				saveX,
+				saveY,
 				bounds.width,
 				bounds.height
 			)
@@ -907,8 +1044,20 @@ export function PrezilloApp() {
 		e.stopPropagation()
 		const addToSelection = e.shiftKey || e.ctrlKey || e.metaKey
 
-		// Auto-switch to object's page if clicking on an object from a different page
-		prezillo.autoSwitchToObjectPage(objectId)
+		// Find the object to check if it's a prototype on a template
+		const clickedObj = canvasObjects.find((o) => o.id === objectId)
+
+		// If clicking a prototype, also select its template
+		if (clickedObj?._templateId && clickedObj?._isPrototype) {
+			prezillo.selectTemplate(clickedObj._templateId)
+		} else {
+			// Clear template selection when clicking non-template objects
+			if (prezillo.selectedTemplateId) {
+				prezillo.clearTemplateSelection()
+			}
+			// Auto-switch to object's page if clicking on an object from a different page
+			prezillo.autoSwitchToObjectPage(objectId)
+		}
 
 		// Single-click to edit: if clicking an already-selected text object, enter edit mode
 		const obj = prezillo.doc.o.get(objectId)
@@ -1048,10 +1197,34 @@ export function PrezilloApp() {
 			return
 		}
 
-		// Use centralized prototype resolution
-		const resolvedBounds = getResolvedBounds(prezillo.doc, obj)
-		if (!resolvedBounds) return
-		const { xy, wh } = resolvedBounds
+		// Get object from canvasObjects which has global canvas coordinates
+		// This ensures tempObjectState uses the same coordinate system as rendering
+		const canvasObj = canvasObjects.find((o) => o.id === objectId)
+		if (!canvasObj) return
+
+		// Use global canvas coordinates from canvasObjects
+		const xy: [number, number] = [canvasObj.x, canvasObj.y]
+		const wh: [number, number] = [canvasObj.width, canvasObj.height]
+
+		// Track offsets for converting back to stored coords when saving
+		let prototypeTemplateOffset: { x: number; y: number } | undefined
+		let pageOffset: { x: number; y: number } | undefined
+
+		// Check if this is a prototype object on a template frame
+		if (canvasObj._isPrototype && canvasObj._templateId) {
+			const layout = templateLayouts.get(canvasObj._templateId)
+			if (layout) {
+				prototypeTemplateOffset = { x: layout.x, y: layout.y }
+			}
+		}
+
+		// Check if this is a page-relative object (needs offset conversion when saving)
+		if (obj.vi) {
+			const view = prezillo.doc.v.get(obj.vi)
+			if (view) {
+				pageOffset = { x: view.x, y: view.y }
+			}
+		}
 
 		// Get SVG element and canvas context for zoom-aware coordinate transformation
 		const svgElement = (e.target as SVGElement).ownerSVGElement
@@ -1084,7 +1257,10 @@ export function PrezilloApp() {
 			objectStartX: xy[0],
 			objectStartY: xy[1],
 			objectWidth: wh[0],
-			objectHeight: wh[1]
+			objectHeight: wh[1],
+			// Track offsets for converting back to stored coords when saving
+			prototypeTemplateOffset,
+			pageOffset
 		}
 
 		// Calculate grab point for snap weighting (normalized 0-1)
@@ -1182,12 +1358,28 @@ export function PrezilloApp() {
 				currentX !== initialDragState.objectStartX ||
 				currentY !== initialDragState.objectStartY
 			) {
+				// Convert global canvas coords back to stored coords for CRDT
+				let saveX = currentX
+				let saveY = currentY
+
+				// For prototypes on template frames, subtract template offset
+				if (initialDragState.prototypeTemplateOffset) {
+					saveX -= initialDragState.prototypeTemplateOffset.x
+					saveY -= initialDragState.prototypeTemplateOffset.y
+				}
+
+				// For page-relative objects, subtract page offset
+				if (initialDragState.pageOffset) {
+					saveX -= initialDragState.pageOffset.x
+					saveY -= initialDragState.pageOffset.y
+				}
+
 				updateObjectPosition(
 					prezillo.yDoc,
 					prezillo.doc,
 					initialDragState.objectId,
-					currentX,
-					currentY
+					saveX,
+					saveY
 				)
 
 				// Check if object should transfer to a different page
@@ -1205,17 +1397,9 @@ export function PrezilloApp() {
 					const objHeight = objWh[1]
 
 					// Calculate object center in global coords
-					let centerX = currentX + objWidth / 2
-					let centerY = currentY + objHeight / 2
-
-					// If currently on a page, add page offset to get global coords
-					if (currentPageId) {
-						const currentPage = prezillo.doc.v.get(currentPageId)
-						if (currentPage) {
-							centerX += currentPage.x
-							centerY += currentPage.y
-						}
-					}
+					// currentX/currentY are already global canvas coords
+					const centerX = currentX + objWidth / 2
+					const centerY = currentY + objHeight / 2
 
 					// Find which page the center is now in
 					const newPageId = findViewAtPoint(prezillo.doc, centerX, centerY)
@@ -1246,6 +1430,9 @@ export function PrezilloApp() {
 			setTempObjectState(null)
 			window.removeEventListener('pointermove', handlePointerMove)
 			window.removeEventListener('pointerup', handlePointerUp)
+
+			// Prevent canvas click from clearing selection immediately after drag
+			justFinishedInteractionRef.current = true
 		}
 
 		window.addEventListener('pointermove', handlePointerMove)
@@ -1485,18 +1672,24 @@ export function PrezilloApp() {
 		}
 	}
 
-	// View navigation
+	// View navigation (keyboard/button nav always zooms)
 	function handlePrevView() {
 		if (prezillo.activeViewId) {
 			const prev = getPreviousView(prezillo.doc, prezillo.activeViewId)
-			if (prev) prezillo.setActiveViewId(prev)
+			if (prev) {
+				forceZoomRef.current = true
+				prezillo.setActiveViewId(prev)
+			}
 		}
 	}
 
 	function handleNextView() {
 		if (prezillo.activeViewId) {
 			const next = getNextView(prezillo.doc, prezillo.activeViewId)
-			if (next) prezillo.setActiveViewId(next)
+			if (next) {
+				forceZoomRef.current = true
+				prezillo.setActiveViewId(next)
+			}
 		}
 	}
 
@@ -1504,6 +1697,7 @@ export function PrezilloApp() {
 		const viewId = createView(prezillo.yDoc, prezillo.doc, {
 			copyFromViewId: prezillo.activeViewId || undefined
 		})
+		forceZoomRef.current = true
 		prezillo.setActiveViewId(viewId)
 	}
 
@@ -1546,10 +1740,22 @@ export function PrezilloApp() {
 			} else {
 				const bounds = getAbsoluteBounds(prezillo.doc, id)
 				if (bounds) {
-					minX = Math.min(minX, bounds.x)
-					minY = Math.min(minY, bounds.y)
-					maxX = Math.max(maxX, bounds.x + bounds.width)
-					maxY = Math.max(maxY, bounds.y + bounds.height)
+					// Check if this is a prototype object on a template frame
+					const canvasObj = canvasObjects.find((o) => o.id === id)
+					let offsetX = 0
+					let offsetY = 0
+					if (canvasObj?._isPrototype && canvasObj._templateId) {
+						const layout = templateLayouts.get(canvasObj._templateId)
+						if (layout) {
+							offsetX = layout.x
+							offsetY = layout.y
+						}
+					}
+
+					minX = Math.min(minX, bounds.x + offsetX)
+					minY = Math.min(minY, bounds.y + offsetY)
+					maxX = Math.max(maxX, bounds.x + bounds.width + offsetX)
+					maxY = Math.max(maxY, bounds.y + bounds.height + offsetY)
 				}
 			}
 		})
@@ -1562,7 +1768,7 @@ export function PrezilloApp() {
 			width: maxX - minX,
 			height: maxY - minY
 		}
-	}, [prezillo.selectedIds, prezillo.doc.o, canvasObjects, tempObjectState])
+	}, [prezillo.selectedIds, prezillo.doc.o, canvasObjects, tempObjectState, templateLayouts])
 
 	// Get selected object rotation and pivot (for single selection only)
 	const selectedObjectTransform = React.useMemo(() => {
@@ -1853,23 +2059,31 @@ export function PrezilloApp() {
 						{/* Render views or template canvas based on mode */}
 						{!prezillo.editingTemplateId ? (
 							<>
-								{/* Templates row (above views) */}
-								{templatesWithUsage.length > 0 && !isMobile && (
-									<TemplatesRow
-										doc={prezillo.doc}
-										yDoc={prezillo.yDoc}
-										templates={templatesWithUsage}
-										selectedTemplateId={prezillo.selectedTemplateId}
-										editingTemplateId={prezillo.editingTemplateId}
-										onSelectTemplate={prezillo.selectTemplate}
-										onEditTemplate={prezillo.startEditingTemplate}
-										rowY={templatesRowY}
-										collapsed={templatesRowCollapsed}
-										onToggleCollapse={() => setTemplatesRowCollapsed((c) => !c)}
-										readOnly={isReadOnly}
-										getTemplateObjects={getTemplateObjects}
-									/>
-								)}
+								{/* Template frames (full-size, above views) */}
+								{templatesWithUsage.map((template) => {
+									const layout = templateLayouts.get(template.id)
+									if (!layout) return null
+									return (
+										<TemplateFrame
+											key={template.id}
+											template={template}
+											layout={layout}
+											isSelected={prezillo.selectedTemplateId === template.id}
+											isEditing={prezillo.editingTemplateId === template.id}
+											onClick={(e) => {
+												e.stopPropagation()
+												prezillo.selectTemplate(template.id)
+											}}
+											onDoubleClick={(e) => {
+												e.stopPropagation()
+												if (!isReadOnly) {
+													prezillo.startEditingTemplate(template.id)
+												}
+											}}
+											readOnly={isReadOnly}
+										/>
+									)
+								})}
 
 								{/* Normal mode: Render all views as frames */}
 								{views.map((view) => (
@@ -2240,6 +2454,8 @@ export function PrezilloApp() {
 						if (prezillo.followingClientId) {
 							prezillo.unfollowPresenter()
 						}
+						// Explicit ViewPicker navigation should always zoom to the page
+						forceZoomRef.current = true
 						prezillo.setActiveViewId(id)
 					}}
 					onAddView={handleAddView}
@@ -2255,6 +2471,13 @@ export function PrezilloApp() {
 					followingClientId={prezillo.followingClientId}
 					onFollow={prezillo.followPresenter}
 					onUnfollow={prezillo.unfollowPresenter}
+					templates={templatesWithUsage}
+					selectedTemplateId={prezillo.selectedTemplateId}
+					onTemplateSelect={(id) => {
+						// Explicit template selection should always zoom
+						forceZoomTemplateRef.current = true
+						prezillo.selectTemplate(id)
+					}}
 				/>
 			</div>
 

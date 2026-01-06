@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/quillo-app",
-	"version": "0.8.3",
+	"version": "0.8.4",
 	"description": "Quillo text editor app",
 	"type": "module",
 	"main": "src/index.js",
@@ -20,7 +20,7 @@
 	"devDependencies": {
 		"@cloudillo/base": "workspace:^",
 		"@enzedonline/quill-blot-formatter2": "^3.0.3",
-		"@symbion/opalui": "^0.14.3",
+		"@symbion/opalui": "^0.14.4",
 		"@symbion/runtype": "^1.2.1",
 		"cross-env": "^10.1.0",
 		"dayjs": "^1.11.19",
@@ -38,6 +38,6 @@
 		"y-indexeddb": "^9.0.12",
 		"y-quill": "^1.0.0",
 		"y-websocket": "^3.0.0",
-		"yjs": "^13.6.28"
+		"yjs": "^13.6.29"
 	}
 }

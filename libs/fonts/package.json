@@ -19,6 +19,6 @@
 		"download:force": "node scripts/download-fonts.js --force"
 	},
 	"devDependencies": {
-		"typescript": "^5.9.0"
+		"typescript": "^5.9.3"
 	}
 }

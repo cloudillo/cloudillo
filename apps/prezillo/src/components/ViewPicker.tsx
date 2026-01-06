@@ -31,7 +31,9 @@ import {
 	PiCheckBold as IcCheck,
 	PiCaretDownBold as IcCaret,
 	PiCrownBold as IcOwner,
-	PiLinkBold as IcLink
+	PiLinkBold as IcLink,
+	PiCopyBold as IcDuplicate,
+	PiTrashBold as IcDelete
 } from 'react-icons/pi'
 import { useTranslation } from 'react-i18next'
 
@@ -70,6 +72,10 @@ export interface ViewPickerProps {
 	selectedTemplateId?: TemplateId | null
 	/** Callback when a template tab is clicked */
 	onTemplateSelect?: (id: TemplateId) => void
+	/** Callback to duplicate a view */
+	onDuplicateView?: (viewId: ViewId) => void
+	/** Callback to delete a view */
+	onDeleteView?: (viewId: ViewId) => void
 }
 
 /**
@@ -182,13 +188,21 @@ export function ViewPicker({
 	onUnfollow,
 	templates = [],
 	selectedTemplateId = null,
-	onTemplateSelect
+	onTemplateSelect,
+	onDuplicateView,
+	onDeleteView
 }: ViewPickerProps) {
 	const { t } = useTranslation()
 	const activeIndex = views.findIndex((v) => v.id === activeViewId)
 
 	// Mobile page picker popup state
 	const [showPagePicker, setShowPagePicker] = React.useState(false)
+
+	// View context menu state
+	const [viewMenu, setViewMenu] = React.useState<{ x: number; y: number; viewId: ViewId } | null>(
+		null
+	)
+	const viewMenuRef = React.useRef<HTMLDivElement>(null)
 
 	// Presenter dropdown state
 	const [showPresenterDropdown, setShowPresenterDropdown] = React.useState(false)
@@ -207,6 +221,48 @@ export function ViewPicker({
 		document.addEventListener('mousedown', handleClickOutside)
 		return () => document.removeEventListener('mousedown', handleClickOutside)
 	}, [showPresenterDropdown])
+
+	// Close view context menu on outside click or Escape key
+	React.useEffect(() => {
+		if (!viewMenu) return
+		const handlePointerDown = (e: PointerEvent) => {
+			// Don't close if clicking inside the menu
+			if (viewMenuRef.current?.contains(e.target as Node)) return
+			// Close menu and consume the click
+			e.stopPropagation()
+			e.preventDefault()
+			setViewMenu(null)
+		}
+		const handleContextMenu = (e: MouseEvent) => {
+			// Prevent new context menu from opening while closing this one
+			if (viewMenuRef.current?.contains(e.target as Node)) return
+			e.stopPropagation()
+			e.preventDefault()
+			setViewMenu(null)
+		}
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') setViewMenu(null)
+		}
+		// Use capture phase to catch events before they reach other elements
+		document.addEventListener('pointerdown', handlePointerDown, true)
+		document.addEventListener('contextmenu', handleContextMenu, true)
+		document.addEventListener('keydown', handleKeyDown)
+		return () => {
+			document.removeEventListener('pointerdown', handlePointerDown, true)
+			document.removeEventListener('contextmenu', handleContextMenu, true)
+			document.removeEventListener('keydown', handleKeyDown)
+		}
+	}, [viewMenu])
+
+	// Handle view context menu
+	const handleViewContextMenu = React.useCallback(
+		(e: React.MouseEvent, viewId: ViewId) => {
+			e.preventDefault()
+			if (readOnly) return
+			setViewMenu({ x: e.clientX, y: e.clientY, viewId })
+		},
+		[readOnly]
+	)
 
 	// Handle follow/unfollow
 	const handleFollowClick = React.useCallback(
@@ -376,6 +432,7 @@ export function ViewPicker({
 							<button
 								key={view.id}
 								onClick={() => onViewSelect(view.id)}
+								onContextMenu={(e) => handleViewContextMenu(e, view.id)}
 								className={mergeClasses(
 									'c-button c-view-picker-tab',
 									view.id === activeViewId && 'active',
@@ -535,6 +592,35 @@ export function ViewPicker({
 					onSelect={handlePageSelect}
 					onClose={() => setShowPagePicker(false)}
 				/>
+			)}
+
+			{/* View context menu */}
+			{viewMenu && !readOnly && (
+				<div
+					ref={viewMenuRef}
+					className="c-context-menu"
+					style={{ position: 'fixed', left: viewMenu.x, top: viewMenu.y, zIndex: 1000 }}
+				>
+					<button
+						className="c-context-menu__item"
+						onClick={() => {
+							onDuplicateView?.(viewMenu.viewId)
+							setViewMenu(null)
+						}}
+					>
+						<IcDuplicate /> Duplicate
+					</button>
+					<button
+						className="c-context-menu__item danger"
+						onClick={() => {
+							onDeleteView?.(viewMenu.viewId)
+							setViewMenu(null)
+						}}
+						disabled={views.length <= 1}
+					>
+						<IcDelete /> Delete
+					</button>
+				</div>
 			)}
 		</div>
 	)

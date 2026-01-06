@@ -80,10 +80,14 @@ export function TemplateSelector({ doc, yDoc, viewId, disabled }: TemplateSelect
 	// Handle template selection
 	const handleSelectTemplate = React.useCallback(
 		(templateId: TemplateId) => {
+			// Remove old template instances first if switching templates
+			if (currentTemplateId && currentTemplateId !== templateId) {
+				removeTemplateFromView(yDoc, doc, viewId, { instanceAction: 'delete' })
+			}
 			applyTemplateToView(yDoc, doc, viewId, templateId)
 			setIsOpen(false)
 		},
-		[yDoc, doc, viewId]
+		[yDoc, doc, viewId, currentTemplateId]
 	)
 
 	// Handle template removal

@@ -1428,6 +1428,49 @@ body,
 	color: var(--col-txt);
 }
 
+/* Context Menu (reusable) */
+.c-context-menu {
+	background: var(--col-surface);
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-lg);
+	padding: var(--space-1);
+	min-width: 120px;
+}
+
+.c-context-menu__item {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	width: 100%;
+	padding: var(--space-2);
+	background: none;
+	border: none;
+	cursor: pointer;
+	font-size: 12px;
+	color: var(--col-on-surface);
+	border-radius: var(--radius-sm);
+	transition: background 0.15s;
+}
+
+.c-context-menu__item:hover {
+	background: var(--col-container-low);
+}
+
+.c-context-menu__item:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.c-context-menu__item.danger {
+	color: var(--col-error);
+}
+
+.c-context-menu__item.danger:hover:not(:disabled) {
+	background: var(--col-error);
+	color: var(--col-on-error);
+}
+
 /* Template Panel Menu */
 .c-template-panel__menu {
 	background: var(--col-surface);
@@ -1448,6 +1491,7 @@ body,
 	border: none;
 	cursor: pointer;
 	font-size: 12px;
+	color: var(--col-on-surface);
 	border-radius: var(--radius-sm);
 	transition: background 0.15s;
 }

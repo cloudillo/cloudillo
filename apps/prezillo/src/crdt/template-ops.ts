@@ -437,6 +437,32 @@ export function addObjectToTemplate(
 		if (!protoArray.toArray().includes(objectId)) {
 			protoArray.push([objectId])
 		}
+
+		// Create instances on all views using this template
+		const viewsUsingTemplate = getViewsUsingTemplate(doc, templateId)
+		const proto = doc.o.get(objectId)
+		if (proto) {
+			for (const vId of viewsUsingTemplate) {
+				// Check if an instance already exists for this view/prototype combination
+				let instanceExists = false
+				doc.o.forEach((existingObj) => {
+					if (existingObj.proto === objectId && existingObj.vi === vId) {
+						instanceExists = true
+					}
+				})
+				if (instanceExists) continue
+
+				const instanceId = generateObjectId()
+				// Instance only needs type, proto reference, and view - all else inherited
+				const instance: Partial<StoredObject> = {
+					t: proto.t,
+					proto: objectId,
+					vi: vId
+				}
+				doc.o.set(instanceId, instance as StoredObject)
+				doc.r.push([[0, instanceId]])
+			}
+		}
 	}, yDoc.clientID)
 }
 
@@ -546,8 +572,6 @@ export function applyTemplateToView(
 	yDoc.transact(() => {
 		// Set template reference on view
 		const updatedView: StoredView = { ...view, tpl: templateId }
-		// Clear hidden prototype objects
-		delete updatedView.hpo
 		// Clear background fields (template will provide background)
 		delete updatedView.backgroundColor
 		delete updatedView.backgroundGradient
@@ -560,14 +584,22 @@ export function applyTemplateToView(
 			const proto = doc.o.get(protoId)
 			if (!proto) continue
 
-			// Create instance with proto reference
+			// Check if an instance already exists for this view/prototype combination
+			let instanceExists = false
+			doc.o.forEach((existingObj) => {
+				if (existingObj.proto === protoId && existingObj.vi === viewId) {
+					instanceExists = true
+				}
+			})
+			if (instanceExists) continue
+
+			// Create instance with proto reference - only type, proto, and view needed
+			// All other properties are inherited from prototype
 			const instanceId = generateObjectId()
 			const instance: Partial<StoredObject> = {
-				t: proto.t, // Same type
-				proto: protoId, // Link to prototype
-				vi: viewId, // Belongs to this view
-				xy: proto.xy, // Start with same position
-				wh: proto.wh // Start with same size
+				t: proto.t,
+				proto: protoId,
+				vi: viewId
 			}
 
 			doc.o.set(instanceId, instance as StoredObject)
@@ -628,7 +660,6 @@ export function removeTemplateFromView(
 		// Remove template reference from view
 		const updatedView: StoredView = { ...view }
 		delete updatedView.tpl
-		delete updatedView.hpo
 		doc.v.set(viewId, updatedView)
 	}, yDoc.clientID)
 }
@@ -734,61 +765,82 @@ export function setSnapGuides(
 }
 
 // ============================================================================
-// Hidden Prototype Objects (per-view visibility)
+// Hidden Objects (per-instance visibility)
 // ============================================================================
 
 /**
- * Hide a prototype object on a specific view
+ * Find instance object by prototype and view
+ */
+function findInstanceByProtoAndView(
+	doc: YPrezilloDocument,
+	prototypeId: ObjectId,
+	viewId: ViewId
+): string | undefined {
+	let instanceId: string | undefined
+	doc.o.forEach((obj, id) => {
+		if (obj.proto === prototypeId && obj.vi === viewId) {
+			instanceId = id
+		}
+	})
+	return instanceId
+}
+
+/**
+ * Hide a prototype's instance on a specific view
  */
 export function hidePrototypeOnView(
 	yDoc: Y.Doc,
 	doc: YPrezilloDocument,
 	viewId: ViewId,
-	objectId: ObjectId
+	prototypeId: ObjectId
 ): void {
-	const view = doc.v.get(viewId)
-	if (!view) return
+	const instanceId = findInstanceByProtoAndView(doc, prototypeId, viewId)
+	if (!instanceId) return
+
+	const instance = doc.o.get(instanceId)
+	if (!instance) return
 
 	yDoc.transact(() => {
-		const updated = { ...view }
-		const hidden = new Set(updated.hpo || [])
-		hidden.add(objectId)
-		updated.hpo = Array.from(hidden)
-		doc.v.set(viewId, updated)
+		const updated = { ...instance, hid: true as const }
+		doc.o.set(instanceId, updated)
 	}, yDoc.clientID)
 }
 
 /**
- * Show a hidden prototype object on a specific view
+ * Show a hidden prototype's instance on a specific view
  */
 export function showPrototypeOnView(
 	yDoc: Y.Doc,
 	doc: YPrezilloDocument,
 	viewId: ViewId,
-	objectId: ObjectId
+	prototypeId: ObjectId
 ): void {
-	const view = doc.v.get(viewId)
-	if (!view || !view.hpo) return
+	const instanceId = findInstanceByProtoAndView(doc, prototypeId, viewId)
+	if (!instanceId) return
+
+	const instance = doc.o.get(instanceId)
+	if (!instance) return
 
 	yDoc.transact(() => {
-		const updated = { ...view }
-		const hidden = new Set(updated.hpo || [])
-		hidden.delete(objectId)
-		updated.hpo = hidden.size > 0 ? Array.from(hidden) : undefined
-		doc.v.set(viewId, updated)
+		const updated = { ...instance }
+		delete updated.hid
+		doc.o.set(instanceId, updated as StoredObject)
 	}, yDoc.clientID)
 }
 
 /**
- * Check if a prototype object is hidden on a view
+ * Check if a prototype's instance is hidden on a view
  */
 export function isPrototypeHiddenOnView(
 	doc: YPrezilloDocument,
 	viewId: ViewId,
-	objectId: ObjectId
+	prototypeId: ObjectId
 ): boolean {
-	const view = doc.v.get(viewId)
-	return view?.hpo?.includes(objectId) ?? false
+	const instanceId = findInstanceByProtoAndView(doc, prototypeId, viewId)
+	if (!instanceId) return false
+
+	const instance = doc.o.get(instanceId)
+	return instance?.hid === true
 }
 
 // ============================================================================

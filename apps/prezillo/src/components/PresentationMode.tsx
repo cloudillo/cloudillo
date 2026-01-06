@@ -71,6 +71,9 @@ function PresentationObjectShape({
 	textStyle: ReturnType<typeof resolveTextStyle>
 	ownerTag?: string
 }) {
+	// Hidden objects are not rendered in presentation mode
+	if (object.hidden) return null
+
 	// Build SVG props using centralized utilities
 	const strokeProps = buildStrokeProps(style)
 	const fillProps = buildFillProps(style)

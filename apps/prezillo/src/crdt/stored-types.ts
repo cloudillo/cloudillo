@@ -30,6 +30,7 @@
  * - o  = opacity
  * - v  = visible (only stored if false)
  * - k  = locked (only stored if true)
+ * - hid = hidden (only stored if true)
  * - n  = name
  * - s  = style (shape style, applied on top of si chain)
  * - ts = text style (applied on top of ti chain)
@@ -37,7 +38,6 @@
  * - ti = textStyleId (reference to global text style)
  * - ch = children
  * - tpl = templateId (view's template reference)
- * - hpo = hidden prototype objects
  */
 
 import * as Y from 'yjs'
@@ -154,6 +154,7 @@ export interface StoredObjectBase {
 	o?: number // opacity (omit if 1)
 	v?: false // visible (omit if true)
 	k?: true // locked (omit if false)
+	hid?: true // hidden (omit if false) - visible in edit mode at 50% opacity, invisible in presentation
 	n?: string // name
 	// Style system - resolution: defaults → si/ti chain → s/ts
 	si?: string // shapeStyleId (reference to global style)
@@ -357,7 +358,6 @@ export interface StoredView {
 	duration?: number
 	// Template support - background fields override template when present
 	tpl?: string // templateId reference
-	hpo?: string[] // hiddenPrototypeObjects (objectIds to hide on this page)
 }
 
 // Document meta

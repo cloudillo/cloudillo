@@ -162,6 +162,7 @@ export {
 	sendBackward,
 	toggleObjectVisibility,
 	toggleObjectLock,
+	toggleObjectHidden,
 	duplicateObject
 } from './object-ops'
 
@@ -223,6 +224,7 @@ export {
 	getOverriddenProperties,
 	getInstancesOfPrototype,
 	isPrototype,
+	detachInstance,
 	// Property group operations for lock/unlock UI
 	isPropertyGroupOverridden,
 	isPropertyGroupLocked,

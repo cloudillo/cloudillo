@@ -170,6 +170,7 @@ export interface PrezilloObjectBase {
 	opacity: number
 	visible: boolean
 	locked: boolean
+	hidden: boolean // Hidden in presentation mode, shown at 50% opacity in edit mode
 	name?: string
 	// Style system - resolution: defaults → styleId chain → style/textStyle
 	shapeStyleId?: StyleId
@@ -328,7 +329,6 @@ export interface ViewNode {
 		backgroundImage?: boolean
 		backgroundFit?: boolean
 	}
-	hiddenPrototypeObjects?: Set<ObjectId>
 }
 
 // ============================================================================

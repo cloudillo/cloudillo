@@ -78,18 +78,39 @@ export function TemplatePanel({
 	// Get all templates
 	const templates = getAllTemplates(doc)
 
-	// Close menu on outside click
+	// Close menu on outside click or Escape key
 	React.useEffect(() => {
 		if (!menuState) return
 
-		function handleClickOutside(evt: MouseEvent) {
+		function handlePointerDown(evt: PointerEvent) {
 			if (menuRef.current && !menuRef.current.contains(evt.target as Node)) {
+				// Close menu and consume the click
+				evt.stopPropagation()
+				evt.preventDefault()
 				setMenuState(null)
 			}
 		}
+		function handleContextMenu(evt: MouseEvent) {
+			if (menuRef.current && !menuRef.current.contains(evt.target as Node)) {
+				// Prevent new context menu from opening while closing this one
+				evt.stopPropagation()
+				evt.preventDefault()
+				setMenuState(null)
+			}
+		}
+		function handleKeyDown(e: KeyboardEvent) {
+			if (e.key === 'Escape') setMenuState(null)
+		}
 
-		document.addEventListener('mousedown', handleClickOutside)
-		return () => document.removeEventListener('mousedown', handleClickOutside)
+		// Use capture phase to catch events before they reach other elements
+		document.addEventListener('pointerdown', handlePointerDown, true)
+		document.addEventListener('contextmenu', handleContextMenu, true)
+		document.addEventListener('keydown', handleKeyDown)
+		return () => {
+			document.removeEventListener('pointerdown', handlePointerDown, true)
+			document.removeEventListener('contextmenu', handleContextMenu, true)
+			document.removeEventListener('keydown', handleKeyDown)
+		}
 	}, [menuState])
 
 	// Handle create new template

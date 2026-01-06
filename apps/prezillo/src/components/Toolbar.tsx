@@ -33,6 +33,7 @@ import {
 	PiImageBold as IcImage,
 	PiQrCodeBold as IcQrCode,
 	PiTrashBold as IcDelete,
+	PiCopyBold as IcDuplicate,
 	PiArrowArcLeftBold as IcUndo,
 	PiArrowArcRightBold as IcRedo,
 	PiExportBold as IcExport,
@@ -70,6 +71,7 @@ export interface ToolbarProps {
 	setTool: (tool: string | null) => void
 	hasSelection: boolean
 	onDelete?: () => void
+	onDuplicate?: () => void
 	canUndo: boolean
 	canRedo: boolean
 	onUndo?: () => void
@@ -119,6 +121,7 @@ export function Toolbar({
 	setTool,
 	hasSelection,
 	onDelete,
+	onDuplicate,
 	canUndo,
 	canRedo,
 	onUndo,
@@ -442,6 +445,15 @@ export function Toolbar({
 					)}
 
 					<div className="c-toolbar-divider" />
+
+					{/* Duplicate */}
+					<button
+						onClick={onDuplicate}
+						className="c-button icon"
+						title="Duplicate (Ctrl+D)"
+					>
+						<IcDuplicate />
+					</button>
 
 					{/* Delete */}
 					<button onClick={onDelete} className="c-button icon" title="Delete">

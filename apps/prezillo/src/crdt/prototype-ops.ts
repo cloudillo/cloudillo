@@ -108,6 +108,7 @@ function mergeObjectWithPrototype(
 	if (instance.o !== undefined) base.opacity = instance.o
 	if (instance.v !== undefined) base.visible = instance.v !== false
 	if (instance.k !== undefined) base.locked = instance.k === true
+	if (instance.hid !== undefined) base.hidden = instance.hid === true
 
 	// Metadata
 	if (instance.n !== undefined) base.name = instance.n
@@ -365,6 +366,35 @@ export function getInstancesOfPrototype(doc: YPrezilloDocument, prototypeId: Obj
  */
 export function isPrototype(doc: YPrezilloDocument, objectId: ObjectId): boolean {
 	return getInstancesOfPrototype(doc, objectId).length > 0
+}
+
+/**
+ * Detach an instance from its prototype.
+ * Copies all inherited values from the prototype to the instance,
+ * then removes the proto reference, making it a standalone object.
+ */
+export function detachInstance(yDoc: Y.Doc, doc: YPrezilloDocument, objectId: ObjectId): void {
+	const stored = doc.o.get(objectId)
+	if (!stored?.proto) return // Not an instance
+
+	const protoStored = doc.o.get(stored.proto)
+
+	yDoc.transact(() => {
+		const obj = doc.o.get(objectId)
+		if (!obj) return
+
+		if (protoStored) {
+			// Merge prototype values into instance (prototype as base, instance overrides)
+			const merged = { ...protoStored, ...obj } as StoredObject
+			delete merged.proto
+			doc.o.set(objectId, merged)
+		} else {
+			// Prototype not found - just remove the reference
+			const updated = { ...obj }
+			delete updated.proto
+			doc.o.set(objectId, updated as StoredObject)
+		}
+	}, yDoc.clientID)
 }
 
 // ============================================================================

@@ -34,4 +34,7 @@ const app = document.getElementById('app')
 const root = createRoot(app!)
 root.render(<App />)
 
+// Debug: log when index loads
+console.log('Prezillo index.tsx loaded')
+
 // vim: ts=4

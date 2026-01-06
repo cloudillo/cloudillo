@@ -372,6 +372,7 @@ export function expandObject(id: string, stored: Stored.StoredObject): Runtime.P
 		opacity: stored.o ?? 1,
 		visible: stored.v !== false,
 		locked: stored.k === true,
+		hidden: stored.hid === true,
 		name: stored.n,
 		shapeStyleId: stored.si ? toStyleId(stored.si) : undefined,
 		textStyleId: stored.ti ? toStyleId(stored.ti) : undefined,
@@ -500,6 +501,7 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 	if (runtime.opacity !== 1) base.o = runtime.opacity
 	if (!runtime.visible) base.v = false
 	if (runtime.locked) base.k = true
+	if (runtime.hidden) base.hid = true
 	if (runtime.name) base.n = runtime.name
 	if (runtime.shapeStyleId) base.si = runtime.shapeStyleId
 	if (runtime.textStyleId) base.ti = runtime.textStyleId

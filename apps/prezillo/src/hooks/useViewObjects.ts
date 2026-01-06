@@ -110,9 +110,16 @@ export function useVisibleViewObjects(
 	const containers = useY(doc.c)
 	const rootChildren = useY(doc.r)
 	const containerChildren = useY(doc.ch)
+	const templatePrototypes = useY(doc.tpo) // Subscribe to prototype changes
 
 	return React.useMemo(() => {
 		if (!objects || visibleViewIds.length === 0) return []
+
+		// Build set of all prototype IDs (objects that belong to templates)
+		const prototypeIds = new Set<string>()
+		doc.tpo.forEach((protoArray) => {
+			protoArray.toArray().forEach((id) => prototypeIds.add(id))
+		})
 
 		const allObjects: PrezilloObject[] = []
 		const seenIds = new Set<string>()
@@ -138,8 +145,10 @@ export function useVisibleViewObjects(
 			if (seenIds.has(id)) continue
 			// Skip page-relative objects (they're handled by view iteration above)
 			if (stored.vi) continue
-			// Skip prototype objects (they're for templates, not direct rendering)
-			if (stored.proto === undefined && (!stored.xy || !stored.wh)) continue
+			// Skip prototype objects (they belong to templates, rendered separately)
+			if (prototypeIds.has(id)) continue
+			// Skip incomplete objects (no position or size)
+			if (!stored.xy || !stored.wh) continue
 
 			const resolved = resolveObject(doc, id as ObjectId)
 			if (resolved) {
@@ -149,7 +158,16 @@ export function useVisibleViewObjects(
 		}
 
 		return allObjects
-	}, [doc, objects, views, containers, rootChildren, containerChildren, visibleViewIds])
+	}, [
+		doc,
+		objects,
+		views,
+		containers,
+		rootChildren,
+		containerChildren,
+		templatePrototypes,
+		visibleViewIds
+	])
 }
 
 // vim: ts=4

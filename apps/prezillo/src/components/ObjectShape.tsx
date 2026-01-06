@@ -72,6 +72,7 @@ export interface ObjectShapeProps {
 	isHovered: boolean
 	onClick: (e: React.MouseEvent) => void
 	onDoubleClick?: (e: React.MouseEvent) => void
+	onContextMenu?: (e: React.MouseEvent) => void
 	onPointerDown?: (e: React.PointerEvent) => void
 	onMouseEnter?: (e: React.MouseEvent) => void
 	onMouseLeave?: (e: React.MouseEvent) => void
@@ -131,6 +132,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 	isHovered,
 	onClick,
 	onDoubleClick,
+	onContextMenu,
 	onPointerDown,
 	onMouseEnter,
 	onMouseLeave,
@@ -160,12 +162,16 @@ export const ObjectShape = React.memo(function ObjectShape({
 	)
 
 	// Object opacity (different from fill/stroke opacity)
-	const objectOpacity =
-		object.opacity !== undefined && object.opacity !== 1 ? object.opacity : undefined
+	// Hidden objects render at 50% opacity in edit mode
+	const baseOpacity = object.opacity ?? 1
+	const hiddenMultiplier = object.hidden ? 0.5 : 1
+	const finalOpacity = baseOpacity * hiddenMultiplier
+	const objectOpacity = finalOpacity !== 1 ? finalOpacity : undefined
 
 	const commonProps = {
 		onClick,
 		onDoubleClick,
+		onContextMenu,
 		onPointerDown,
 		onPointerEnter: onMouseEnter,
 		onPointerLeave: onMouseLeave,
@@ -212,6 +218,32 @@ export const ObjectShape = React.memo(function ObjectShape({
 		</g>
 	) : null
 
+	// Hidden indicator (crossed eye icon in top-right corner)
+	// Always show for hidden objects so they're clearly identifiable
+	const hiddenIndicator = object.hidden ? (
+		<g
+			transform={`translate(${x + width - 4 * indicatorScale}, ${y + 4 * indicatorScale}) scale(${indicatorScale})`}
+			pointerEvents="none"
+			className="hidden-indicator"
+		>
+			{/* Crossed eye icon to indicate hidden object */}
+			<circle r="8" fill="rgba(100, 100, 100, 0.9)" />
+			{/* Eye shape */}
+			<ellipse cx="0" cy="0" rx="4" ry="2.5" fill="none" stroke="white" strokeWidth="1.2" />
+			<circle cx="0" cy="0" r="1.2" fill="white" />
+			{/* Diagonal slash */}
+			<line
+				x1="-4"
+				y1="4"
+				x2="4"
+				y2="-4"
+				stroke="white"
+				strokeWidth="1.5"
+				strokeLinecap="round"
+			/>
+		</g>
+	) : null
+
 	// Build SVG stroke and fill props using centralized utilities
 	const strokeProps = buildStrokeProps(style, isSelected)
 	const gradientId = style.fillGradient ? `grad-${object.id}` : null
@@ -246,6 +278,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 					/>
 					{hoverOverlay}
 					{instanceIndicator}
+					{hiddenIndicator}
 				</g>
 			)
 
@@ -264,6 +297,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 					/>
 					{hoverOverlay}
 					{instanceIndicator}
+					{hiddenIndicator}
 				</g>
 			)
 
@@ -284,6 +318,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 					/>
 					{hoverOverlay}
 					{instanceIndicator}
+					{hiddenIndicator}
 				</g>
 			)
 
@@ -312,6 +347,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 					/>
 					{hoverOverlay}
 					{instanceIndicator}
+					{hiddenIndicator}
 				</g>
 			)
 
@@ -335,6 +371,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 					/>
 					{hoverOverlay}
 					{instanceIndicator}
+					{hiddenIndicator}
 				</g>
 			)
 
@@ -353,6 +390,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 					/>
 					{hoverOverlay}
 					{instanceIndicator}
+					{hiddenIndicator}
 				</g>
 			)
 
@@ -372,6 +410,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 					/>
 					{hoverOverlay}
 					{instanceIndicator}
+					{hiddenIndicator}
 				</g>
 			)
 	}

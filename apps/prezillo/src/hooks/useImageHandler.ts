@@ -121,7 +121,8 @@ export function useImageHandler(options: UseImageHandlerOptions) {
 					pivotY: 0.5,
 					opacity: 1,
 					visible: true,
-					locked: false
+					locked: false,
+					hidden: false
 				}
 
 				const objectId = addObject(yDoc, doc, obj as ImageObject)

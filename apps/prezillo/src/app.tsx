@@ -145,6 +145,14 @@ import '@cloudillo/canvas-tools/components.css'
 import './style.css'
 
 import {
+	PiCopyBold as IcDuplicate,
+	PiTrashBold as IcDelete,
+	PiLinkBreakBold as IcDetach,
+	PiEyeBold as IcShow,
+	PiEyeSlashBold as IcHide
+} from 'react-icons/pi'
+
+import {
 	usePrezilloDocument,
 	useSnappingConfig,
 	useGetParent,
@@ -233,11 +241,16 @@ import {
 	// Template instance lock checking
 	isInstance,
 	isPropertyGroupLocked,
+	detachInstance,
+	toggleObjectHidden,
+	getObject,
 	// Prototype resolution helpers
 	resolveObject,
 	getResolvedBounds,
 	getResolvedWh,
-	duplicateObject
+	duplicateObject,
+	duplicateView,
+	deleteView
 } from './crdt'
 import { measureTextHeight } from './utils'
 
@@ -246,6 +259,8 @@ import { measureTextHeight } from './utils'
 //////////////
 export function PrezilloApp() {
 	const prezillo = usePrezilloDocument()
+	// Debug helper - access via window.prezillo in browser console
+	;(window as any).prezillo = prezillo
 	const isReadOnly = prezillo.cloudillo.access === 'read'
 	const views = useViews(prezillo.doc)
 
@@ -377,6 +392,9 @@ export function PrezilloApp() {
 	// Selected container (layer) for creating objects inside
 	const [selectedContainerId, setSelectedContainerId] = React.useState<string | null>(null)
 
+	// Context menu state for object actions (Duplicate/Delete)
+	const [objectMenu, setObjectMenu] = React.useState<{ x: number; y: number } | null>(null)
+
 	// Temporary object state during drag/resize/rotate (local visual only, not persisted)
 	const [tempObjectState, setTempObjectState] = React.useState<{
 		objectId: ObjectId
@@ -397,6 +415,8 @@ export function PrezilloApp() {
 	const canvasRef = React.useRef<SvgCanvasHandle | null>(null)
 	// Container ref for viewport bounds calculation
 	const canvasContainerRef = React.useRef<HTMLDivElement | null>(null)
+	// Ref for context menu (to check if click is inside)
+	const objectMenuRef = React.useRef<HTMLDivElement | null>(null)
 
 	// Track if we just finished an interaction (resize/rotate/pivot) to prevent canvas click from clearing selection
 	const justFinishedInteractionRef = React.useRef(false)
@@ -478,6 +498,7 @@ export function PrezilloApp() {
 
 		// Start with view objects
 		const objects: CanvasObject[] = [...visibleViewObjects]
+		const seenIds = new Set(objects.map((o) => o.id))
 
 		// Add prototype objects from each template, offset to template position
 		for (const template of templatesWithUsage) {
@@ -486,6 +507,10 @@ export function PrezilloApp() {
 
 			const prototypeObjects = getTemplateObjects(template.id)
 			for (const proto of prototypeObjects) {
+				// Skip if already in canvasObjects (avoid duplicate keys)
+				if (seenIds.has(proto.id)) continue
+				seenIds.add(proto.id)
+
 				objects.push({
 					...proto,
 					// Offset to template frame position on canvas
@@ -627,6 +652,39 @@ export function PrezilloApp() {
 			userCollapsedRef.current = false
 		}
 	}, [isMobile, prezillo.selectedIds.size, mobileSnapPoint])
+
+	// Close object context menu on click outside or Escape key
+	React.useEffect(() => {
+		if (!objectMenu) return
+		const handlePointerDown = (e: PointerEvent) => {
+			// Don't close if clicking inside the menu
+			if (objectMenuRef.current?.contains(e.target as Node)) return
+			// Close menu and consume the click (don't let it select another object)
+			e.stopPropagation()
+			e.preventDefault()
+			setObjectMenu(null)
+		}
+		const handleContextMenu = (e: MouseEvent) => {
+			// Prevent new context menu from opening while closing this one
+			if (objectMenuRef.current?.contains(e.target as Node)) return
+			e.stopPropagation()
+			e.preventDefault()
+			setObjectMenu(null)
+		}
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') setObjectMenu(null)
+		}
+		// Use capture phase to catch events before they reach other elements
+		// pointerdown is what triggers selection in ObjectShape
+		document.addEventListener('pointerdown', handlePointerDown, true)
+		document.addEventListener('contextmenu', handleContextMenu, true)
+		document.addEventListener('keydown', handleKeyDown)
+		return () => {
+			document.removeEventListener('pointerdown', handlePointerDown, true)
+			document.removeEventListener('contextmenu', handleContextMenu, true)
+			document.removeEventListener('keydown', handleKeyDown)
+		}
+	}, [objectMenu])
 
 	// Handle mobile snap point change (from user gesture)
 	const handleMobileSnapChange = React.useCallback((snapPoint: BottomSheetSnapPoint) => {
@@ -1382,7 +1440,7 @@ export function PrezilloApp() {
 					saveY
 				)
 
-				// Check if object should transfer to a different page
+				// Check if object should transfer to a template or different page
 				const obj = prezillo.doc.o.get(initialDragState.objectId)
 				if (obj) {
 					const currentPageId = obj.vi as ViewId | undefined
@@ -1401,18 +1459,45 @@ export function PrezilloApp() {
 					const centerX = currentX + objWidth / 2
 					const centerY = currentY + objHeight / 2
 
-					// Find which page the center is now in
-					const newPageId = findViewAtPoint(prezillo.doc, centerX, centerY)
+					// Check if dropped on a template frame (convert to prototype)
+					const templateAtDrop = findTemplateAtPoint(centerX, centerY)
+					if (templateAtDrop && !obj.proto) {
+						// Convert to template-relative coordinates
+						const layout = templateLayouts.get(templateAtDrop)!
+						const relX = currentX - layout.x
+						const relY = currentY - layout.y
 
-					// If page changed, update association
-					if (newPageId !== currentPageId) {
-						updateObjectPageAssociation(
+						// Update position to template-relative
+						updateObjectPosition(
 							prezillo.yDoc,
 							prezillo.doc,
 							initialDragState.objectId,
-							newPageId,
-							{ preserveGlobalPosition: true }
+							relX,
+							relY
 						)
+
+						// Add to template (converts to prototype)
+						addObjectToTemplate(
+							prezillo.yDoc,
+							prezillo.doc,
+							templateAtDrop,
+							initialDragState.objectId
+						)
+						// Don't check page association - object is now a prototype
+					} else {
+						// Find which page the center is now in
+						const newPageId = findViewAtPoint(prezillo.doc, centerX, centerY)
+
+						// If page changed, update association
+						if (newPageId !== currentPageId) {
+							updateObjectPageAssociation(
+								prezillo.yDoc,
+								prezillo.doc,
+								initialDragState.objectId,
+								newPageId,
+								{ preserveGlobalPosition: true }
+							)
+						}
 					}
 				}
 			}
@@ -1519,6 +1604,21 @@ export function PrezilloApp() {
 		}
 	}
 
+	// Find template at canvas point (for direct template editing)
+	function findTemplateAtPoint(canvasX: number, canvasY: number): TemplateId | null {
+		for (const [templateId, layout] of templateLayouts) {
+			if (
+				canvasX >= layout.x &&
+				canvasX <= layout.x + layout.width &&
+				canvasY >= layout.y &&
+				canvasY <= layout.y + layout.height
+			) {
+				return templateId
+			}
+		}
+		return null
+	}
+
 	// Handle tool end
 	function handleToolEnd() {
 		if (isResizing) return // Resize is handled by window events
@@ -1550,7 +1650,43 @@ export function PrezilloApp() {
 			}
 		}
 
-		// Template editing mode: create as prototype
+		// Check if creating on a template frame (direct template editing)
+		const templateAtPoint = findTemplateAtPoint(toolEvent.startX, toolEvent.startY)
+		if (templateAtPoint) {
+			// Convert to template-relative coordinates
+			const layout = templateLayouts.get(templateAtPoint)!
+			const relX = x - layout.x
+			const relY = y - layout.y
+
+			// Create object without page association (prototype)
+			const objectId = createObject(
+				prezillo.yDoc,
+				prezillo.doc,
+				prezillo.activeTool as any,
+				relX,
+				relY,
+				width,
+				height,
+				undefined, // No parent (template prototypes go to root)
+				undefined,
+				undefined // No pageId - prototype is not bound to any page
+			)
+
+			// Add to template's prototype tracking
+			addObjectToTemplate(prezillo.yDoc, prezillo.doc, templateAtPoint, objectId)
+
+			prezillo.setActiveTool(null)
+			setToolEvent(undefined)
+			prezillo.selectObject(objectId)
+
+			// Start editing immediately for text objects
+			if (isTextTool) {
+				setEditingTextId(objectId)
+			}
+			return
+		}
+
+		// Legacy: Template editing mode (can be removed once direct editing is confirmed working)
 		if (prezillo.editingTemplateId) {
 			// Create object without page association (prototype)
 			const objectId = createObject(
@@ -1627,7 +1763,10 @@ export function PrezilloApp() {
 
 	// Handle keyboard
 	function handleKeyDown(evt: React.KeyboardEvent) {
-		if (evt.target !== evt.currentTarget) return
+		const hasModifier = evt.ctrlKey || evt.metaKey
+		// Allow modifier key combinations from any element (Ctrl+D, Ctrl+Z, etc.)
+		// but block regular keys (Delete, Escape) when focus is on child elements
+		if (!hasModifier && evt.target !== evt.currentTarget) return
 
 		if (!evt.altKey && !evt.shiftKey && !evt.ctrlKey && !evt.metaKey) {
 			switch (evt.key) {
@@ -1707,7 +1846,15 @@ export function PrezilloApp() {
 
 		const newIds: ObjectId[] = []
 		prezillo.selectedIds.forEach((id) => {
-			const newId = duplicateObject(prezillo.yDoc, prezillo.doc, id, 20, 20)
+			// Pass activeViewId so prototype objects (templates) get placed on current page
+			const newId = duplicateObject(
+				prezillo.yDoc,
+				prezillo.doc,
+				id,
+				20,
+				20,
+				prezillo.activeViewId ?? undefined
+			)
 			if (newId) newIds.push(newId)
 		})
 
@@ -1719,6 +1866,56 @@ export function PrezilloApp() {
 
 	function handleReorderView(viewId: ViewId, newIndex: number) {
 		moveViewInPresentation(prezillo.yDoc, prezillo.doc, viewId, newIndex)
+	}
+
+	function handleDuplicateView(viewId: ViewId) {
+		const newViewId = duplicateView(prezillo.yDoc, prezillo.doc, viewId)
+		if (newViewId) {
+			forceZoomRef.current = true
+			prezillo.setActiveViewId(newViewId)
+		}
+	}
+
+	function handleDeleteView(viewId: ViewId) {
+		// Don't delete the last view
+		if (views.length <= 1) return
+
+		// If deleting current view, switch to previous or next first
+		if (viewId === prezillo.activeViewId) {
+			const prev = getPreviousView(prezillo.doc, viewId)
+			const next = getNextView(prezillo.doc, viewId)
+			if (prev) {
+				prezillo.setActiveViewId(prev)
+			} else if (next) {
+				prezillo.setActiveViewId(next)
+			}
+		}
+
+		deleteView(prezillo.yDoc, prezillo.doc, viewId)
+	}
+
+	// Handle context menu on canvas or object
+	// If objectId is provided, select that object first (standard UX: right-click selects)
+	function handleObjectContextMenu(evt: React.MouseEvent, objectId?: ObjectId) {
+		evt.preventDefault()
+		evt.stopPropagation() // Prevent canvas handler from firing
+		if (isReadOnly) return
+
+		// If clicking on an object, select it first (unless already in selection)
+		if (objectId) {
+			if (!prezillo.isSelected(objectId)) {
+				// Object not selected - select it (replacing current selection)
+				// Use Shift to add to selection instead
+				const addToSelection = evt.shiftKey || evt.ctrlKey || evt.metaKey
+				prezillo.selectObject(objectId, addToSelection)
+			}
+			// If already selected, keep current selection (might be multi-select)
+		}
+
+		// Only show menu if we have a selection now
+		if (objectId || prezillo.selectedIds.size > 0) {
+			setObjectMenu({ x: evt.clientX, y: evt.clientY })
+		}
 	}
 
 	// Get selection bounds (use tempObjectState for immediate visual feedback during drag/resize)
@@ -1873,6 +2070,7 @@ export function PrezilloApp() {
 					}}
 					hasSelection={prezillo.selectedIds.size > 0}
 					onDelete={handleDelete}
+					onDuplicate={handleDuplicate}
 					canUndo={prezillo.canUndo}
 					canRedo={prezillo.canRedo}
 					onUndo={prezillo.undo}
@@ -1962,6 +2160,7 @@ export function PrezilloApp() {
 					tabIndex={0}
 					onKeyDown={handleKeyDown}
 					onClick={handleCanvasClick}
+					onContextMenu={handleObjectContextMenu}
 					style={{ outline: 'none', minWidth: 0 }}
 				>
 					<SvgCanvas
@@ -2287,6 +2486,7 @@ export function PrezilloApp() {
 									isHovered={!hasSelection && isThisHovered}
 									onClick={(e) => handleObjectClick(e, object.id)}
 									onDoubleClick={(e) => handleObjectDoubleClick(e, object.id)}
+									onContextMenu={(e) => handleObjectContextMenu(e, object.id)}
 									onPointerDown={(e) => handleObjectPointerDown(e, object.id)}
 									onMouseEnter={() => setHoveredObjectId(object.id as ObjectId)}
 									onMouseLeave={() => setHoveredObjectId(null)}
@@ -2478,6 +2678,8 @@ export function PrezilloApp() {
 						forceZoomTemplateRef.current = true
 						prezillo.selectTemplate(id)
 					}}
+					onDuplicateView={handleDuplicateView}
+					onDeleteView={handleDeleteView}
 				/>
 			</div>
 
@@ -2506,6 +2708,79 @@ export function PrezilloApp() {
 					isFollowing={true}
 					followingViewIndex={followedPresenter.viewIndex}
 				/>
+			)}
+
+			{/* Object context menu */}
+			{objectMenu && (
+				<div
+					ref={objectMenuRef}
+					className="c-context-menu"
+					style={{
+						position: 'fixed',
+						left: objectMenu.x,
+						top: objectMenu.y,
+						zIndex: 1000
+					}}
+				>
+					<button
+						className="c-context-menu__item"
+						onClick={() => {
+							handleDuplicate()
+							setObjectMenu(null)
+						}}
+					>
+						<IcDuplicate /> Duplicate
+					</button>
+					{/* Hide/Show toggle */}
+					{prezillo.selectedIds.size === 1 &&
+						(() => {
+							const objectId = [...prezillo.selectedIds][0]
+							const obj = getObject(prezillo.doc, objectId)
+							const isHidden = obj?.hidden ?? false
+							return (
+								<button
+									className="c-context-menu__item"
+									onClick={() => {
+										toggleObjectHidden(prezillo.yDoc, prezillo.doc, objectId)
+										setObjectMenu(null)
+									}}
+								>
+									{isHidden ? (
+										<>
+											<IcShow /> Show
+										</>
+									) : (
+										<>
+											<IcHide /> Hide
+										</>
+									)}
+								</button>
+							)
+						})()}
+					{/* Show Detach option only for instances (objects with proto) */}
+					{prezillo.selectedIds.size === 1 &&
+						isInstance(prezillo.doc, [...prezillo.selectedIds][0]) && (
+							<button
+								className="c-context-menu__item"
+								onClick={() => {
+									const objectId = [...prezillo.selectedIds][0]
+									detachInstance(prezillo.yDoc, prezillo.doc, objectId)
+									setObjectMenu(null)
+								}}
+							>
+								<IcDetach /> Detach from template
+							</button>
+						)}
+					<button
+						className="c-context-menu__item danger"
+						onClick={() => {
+							handleDelete()
+							setObjectMenu(null)
+						}}
+					>
+						<IcDelete /> Delete
+					</button>
+				</div>
 			)}
 
 			{/* Toast container for notifications */}

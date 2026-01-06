@@ -527,6 +527,15 @@ export function deleteObject(yDoc: Y.Doc, doc: YPrezilloDocument, objectId: Obje
 	const object = doc.o.get(objectId)
 	if (!object) return
 
+	// Template instances cannot be deleted - hide them instead
+	if (object.proto && object.vi) {
+		yDoc.transact(() => {
+			const updated = { ...object, hid: true as const }
+			doc.o.set(objectId, updated)
+		}, yDoc.clientID)
+		return
+	}
+
 	yDoc.transact(() => {
 		// Remove from parent's children
 		if (object.p) {
@@ -556,6 +565,13 @@ export function deleteObjects(yDoc: Y.Doc, doc: YPrezilloDocument, objectIds: Ob
 		objectIds.forEach((id) => {
 			const object = doc.o.get(id)
 			if (!object) return
+
+			// Template instances cannot be deleted - hide them instead
+			if (object.proto && object.vi) {
+				const updated = { ...object, hid: true as const }
+				doc.o.set(id, updated)
+				return // Skip normal deletion
+			}
 
 			// Remove from parent's children
 			if (object.p) {
@@ -874,27 +890,57 @@ export function toggleObjectLock(yDoc: Y.Doc, doc: YPrezilloDocument, objectId: 
 }
 
 /**
+ * Toggle object hidden state
+ * Hidden objects are visible in edit mode (50% opacity) but invisible in presentation mode
+ */
+export function toggleObjectHidden(yDoc: Y.Doc, doc: YPrezilloDocument, objectId: ObjectId): void {
+	const object = doc.o.get(objectId)
+	if (!object) return
+
+	yDoc.transact(() => {
+		const isHidden = object.hid === true
+		if (isHidden) {
+			const updated = { ...object }
+			delete updated.hid
+			doc.o.set(objectId, updated)
+		} else {
+			doc.o.set(objectId, { ...object, hid: true })
+		}
+	}, yDoc.clientID)
+}
+
+/**
  * Duplicate an object
+ * @param targetViewId - If provided and object has no pageId, place duplicate on this view
+ *                       This is important for duplicating prototype objects (templates)
  */
 export function duplicateObject(
 	yDoc: Y.Doc,
 	doc: YPrezilloDocument,
 	objectId: ObjectId,
 	offsetX: number = 20,
-	offsetY: number = 20
+	offsetY: number = 20,
+	targetViewId?: ViewId
 ): ObjectId | undefined {
 	const object = doc.o.get(objectId)
 	if (!object) return undefined
 
 	const expanded = expandObject(objectId, object)
 	const newId = generateObjectId()
+
+	// Use object's pageId if it has one, otherwise use targetViewId
+	// This ensures prototypes (which have no pageId) get placed on the current page
+	const pageId = expanded.pageId ?? targetViewId
+
 	const duplicated: PrezilloObject = {
 		...expanded,
 		id: newId,
 		x: expanded.x + offsetX,
 		y: expanded.y + offsetY,
-		pageId: expanded.pageId, // Preserve page association
-		name: expanded.name ? `${expanded.name} (copy)` : undefined
+		pageId, // Use resolved pageId
+		name: expanded.name ? `${expanded.name} (copy)` : undefined,
+		// Remove prototype association - duplicate should be standalone
+		prototypeId: undefined
 	}
 
 	// Handle textbox duplication
@@ -912,7 +958,7 @@ export function duplicateObject(
 		}
 	}
 
-	return addObject(yDoc, doc, duplicated, expanded.parentId)
+	return addObject(yDoc, doc, duplicated, expanded.parentId, undefined, pageId)
 }
 
 // Helper functions

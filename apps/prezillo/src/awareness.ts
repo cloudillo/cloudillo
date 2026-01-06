@@ -46,6 +46,12 @@ export interface PrezilloPresence {
 		isOwner: boolean
 		startedAt: number // timestamp for ordering multiple presenters
 	}
+	// Poll vote state - broadcasted when user votes on a poll frame
+	vote?: {
+		frameId: string // ObjectId of the poll frame
+		viewId: string // ViewId where the vote was cast
+		timestamp: number // For ordering/display purposes
+	}
 }
 
 /**
@@ -205,6 +211,108 @@ export function getActivePresenters(awareness: Awareness): PresenterInfo[] {
 export function isLocalPresenting(awareness: Awareness): boolean {
 	const state = awareness.getLocalState()
 	return !!state?.presenting
+}
+
+// ============================================================================
+// Poll Voting Functions
+// ============================================================================
+
+/**
+ * Cast a vote on a poll frame
+ */
+export function setVote(awareness: Awareness, frameId: string, viewId: string): void {
+	awareness.setLocalStateField('vote', {
+		frameId,
+		viewId,
+		timestamp: Date.now()
+	})
+}
+
+/**
+ * Clear current vote
+ */
+export function clearVote(awareness: Awareness): void {
+	awareness.setLocalStateField('vote', undefined)
+}
+
+/**
+ * Get the local client's current vote
+ */
+export function getLocalVote(awareness: Awareness): { frameId: string; viewId: string } | null {
+	const state = awareness.getLocalState()
+	return state?.vote ?? null
+}
+
+/**
+ * Get all votes for a specific poll frame on a specific view
+ */
+export function getVotesForFrame(
+	awareness: Awareness,
+	frameId: string,
+	viewId: string
+): Array<{ clientId: number; user: { name: string; color: string } }> {
+	const states = awareness.getStates()
+	const votes: Array<{ clientId: number; user: { name: string; color: string } }> = []
+
+	states.forEach((state: any, clientId: number) => {
+		if (state?.vote?.frameId === frameId && state?.vote?.viewId === viewId && state?.user) {
+			votes.push({
+				clientId,
+				user: state.user
+			})
+		}
+	})
+
+	return votes
+}
+
+/**
+ * Get vote counts for all poll frames on a view
+ */
+export function getVoteCounts(awareness: Awareness, viewId: string): Map<string, number> {
+	const states = awareness.getStates()
+	const counts = new Map<string, number>()
+
+	states.forEach((state: any) => {
+		if (state?.vote?.viewId === viewId) {
+			const frameId = state.vote.frameId
+			counts.set(frameId, (counts.get(frameId) || 0) + 1)
+		}
+	})
+
+	return counts
+}
+
+/**
+ * Get the winning frame ID(s) for a view (may be multiple if tie)
+ */
+export function getWinningFrames(awareness: Awareness, viewId: string): string[] {
+	const counts = getVoteCounts(awareness, viewId)
+	let maxCount = 0
+	let winners: string[] = []
+
+	counts.forEach((count, frameId) => {
+		if (count > maxCount) {
+			maxCount = count
+			winners = [frameId]
+		} else if (count === maxCount && count > 0) {
+			winners.push(frameId)
+		}
+	})
+
+	return winners
+}
+
+/**
+ * Get total number of votes across all poll frames on a view
+ */
+export function getTotalVotes(awareness: Awareness, viewId: string): number {
+	const counts = getVoteCounts(awareness, viewId)
+	let total = 0
+	counts.forEach((count) => {
+		total += count
+	})
+	return total
 }
 
 // vim: ts=4

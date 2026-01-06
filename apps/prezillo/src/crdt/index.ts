@@ -68,6 +68,7 @@ export type {
 	ConnectorObject,
 	QrCodeObject,
 	QrErrorCorrection,
+	PollFrameObject,
 	ContainerNode,
 	ViewNode,
 	DocumentMeta,

@@ -46,11 +46,11 @@ import * as Y from 'yjs'
 export type ChildRef = [0 | 1, string]
 
 // Object type codes
-export type ObjectTypeCode = 'R' | 'E' | 'L' | 'P' | 'G' | 'T' | 'B' | 'I' | 'M' | 'C' | 'Q'
+export type ObjectTypeCode = 'R' | 'E' | 'L' | 'P' | 'G' | 'T' | 'B' | 'I' | 'M' | 'C' | 'Q' | 'F'
 // R=rect, E=ellipse, L=line, P=path, G=polygon
 // T=text, B=textbox
 // I=image, M=embed (media)
-// C=connector, Q=qrcode
+// C=connector, Q=qrcode, F=pollframe
 
 // QR Code error correction level codes
 export type QrErrorCorrectionLevel = 'L' | 'M' | 'Q' | 'H'
@@ -246,6 +246,13 @@ export interface StoredQrCode extends StoredObjectBase {
 	bg?: string // background color (default '#ffffff')
 }
 
+// Poll Frame (interactive voting element for presentations)
+export interface StoredPollFrame extends StoredObjectBase {
+	t: 'F'
+	sh?: 'R' | 'E' // shape: R=rect (default), E=ellipse
+	lb?: string // label text to display on frame
+}
+
 // Union of all stored object types
 export type StoredObject =
 	| StoredRect
@@ -259,6 +266,7 @@ export type StoredObject =
 	| StoredEmbed
 	| StoredConnector
 	| StoredQrCode
+	| StoredPollFrame
 
 // Container (layer or group)
 export interface StoredContainer {

@@ -35,6 +35,7 @@ export type ObjectType =
 	| 'embed'
 	| 'connector'
 	| 'qrcode'
+	| 'pollframe'
 
 // QR Code error correction levels (expanded)
 export type QrErrorCorrection = 'low' | 'medium' | 'quartile' | 'high'
@@ -262,6 +263,13 @@ export interface QrCodeObject extends PrezilloObjectBase {
 	background?: string // background color (default '#ffffff')
 }
 
+// Poll Frame object (interactive voting element for presentations)
+export interface PollFrameObject extends PrezilloObjectBase {
+	type: 'pollframe'
+	shape?: 'rect' | 'ellipse' // Shape variant (default: 'rect')
+	label?: string // Display label text
+}
+
 // Union of all object types
 export type PrezilloObject =
 	| RectObject
@@ -275,6 +283,7 @@ export type PrezilloObject =
 	| EmbedObject
 	| ConnectorObject
 	| QrCodeObject
+	| PollFrameObject
 
 // Container (layer or group)
 export interface ContainerNode {

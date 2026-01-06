@@ -30,6 +30,7 @@ import { calculateRotationTransformFromBounds, buildStrokeProps, buildFillProps 
 import { WrappedText } from './WrappedText'
 import { ImageRenderer } from './ImageRenderer'
 import { QRCodeRenderer } from './QRCodeRenderer'
+import { PollFrameRenderer } from './PollFrameRenderer'
 
 /**
  * Render SVG gradient definition using library functions
@@ -387,6 +388,26 @@ export const ObjectShape = React.memo(function ObjectShape({
 						height={height}
 						fill="transparent"
 						stroke="none"
+					/>
+					{hoverOverlay}
+					{instanceIndicator}
+					{hiddenIndicator}
+				</g>
+			)
+
+		case 'pollframe':
+			return (
+				<g transform={rotationTransform} opacity={objectOpacity} {...commonProps}>
+					<PollFrameRenderer
+						object={object}
+						style={style}
+						textStyle={textStyle}
+						bounds={{ x, y, width, height }}
+						voteCount={0}
+						isWinner={false}
+						hasMyVote={false}
+						isInteractive={false}
+						isEditMode={true}
 					/>
 					{hoverOverlay}
 					{instanceIndicator}

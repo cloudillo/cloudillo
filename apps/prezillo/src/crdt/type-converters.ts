@@ -36,7 +36,8 @@ const OBJECT_TYPE_MAP: Record<Stored.ObjectTypeCode, Runtime.ObjectType> = {
 	I: 'image',
 	M: 'embed',
 	C: 'connector',
-	Q: 'qrcode'
+	Q: 'qrcode',
+	F: 'pollframe'
 }
 
 const OBJECT_TYPE_REVERSE: Record<Runtime.ObjectType, Stored.ObjectTypeCode> = {
@@ -50,7 +51,19 @@ const OBJECT_TYPE_REVERSE: Record<Runtime.ObjectType, Stored.ObjectTypeCode> = {
 	image: 'I',
 	embed: 'M',
 	connector: 'C',
-	qrcode: 'Q'
+	qrcode: 'Q',
+	pollframe: 'F'
+}
+
+// Poll frame shape mappings
+const POLL_SHAPE_MAP: Record<'R' | 'E', 'rect' | 'ellipse'> = {
+	R: 'rect',
+	E: 'ellipse'
+}
+
+const POLL_SHAPE_REVERSE: Record<'rect' | 'ellipse', 'R' | 'E'> = {
+	rect: 'R',
+	ellipse: 'E'
 }
 
 // QR Code error correction level mappings
@@ -477,6 +490,15 @@ export function expandObject(id: string, stored: Stored.StoredObject): Runtime.P
 				background: qr.bg ?? '#ffffff'
 			} as Runtime.QrCodeObject
 
+		case 'F':
+			const pf = stored as Stored.StoredPollFrame
+			return {
+				...base,
+				type: 'pollframe',
+				shape: pf.sh ? POLL_SHAPE_MAP[pf.sh] : 'rect',
+				label: pf.lb
+			} as Runtime.PollFrameObject
+
 		default:
 			throw new Error(`Unknown object type: ${(stored as any).t}`)
 	}
@@ -620,6 +642,18 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 						? qrObj.background
 						: undefined
 			} as Stored.StoredQrCode
+
+		case 'pollframe':
+			const pfObj = runtime as Runtime.PollFrameObject
+			return {
+				...base,
+				t: 'F',
+				sh:
+					pfObj.shape && pfObj.shape !== 'rect'
+						? POLL_SHAPE_REVERSE[pfObj.shape]
+						: undefined,
+				lb: pfObj.label || undefined
+			} as Stored.StoredPollFrame
 
 		default:
 			throw new Error(`Unknown object type: ${(runtime as any).type}`)

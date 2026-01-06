@@ -20,6 +20,7 @@
 
 import * as React from 'react'
 import { PiXBold as IcClose } from 'react-icons/pi'
+import type { Awareness } from 'y-protocols/awareness'
 
 import type {
 	ViewId,
@@ -27,7 +28,8 @@ import type {
 	PrezilloObject,
 	YPrezilloDocument,
 	ImageObject,
-	QrCodeObject
+	QrCodeObject,
+	PollFrameObject
 } from '../crdt'
 import { resolveShapeStyle, resolveTextStyle } from '../crdt'
 import { useViewObjects } from '../hooks/useViewObjects'
@@ -42,6 +44,15 @@ import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/can
 import { WrappedText } from './WrappedText'
 import { ImageRenderer } from './ImageRenderer'
 import { QRCodeRenderer } from './QRCodeRenderer'
+import { PollFrameRenderer } from './PollFrameRenderer'
+import {
+	setVote,
+	clearVote,
+	getVoteCounts,
+	getWinningFrames,
+	getLocalVote,
+	getTotalVotes
+} from '../awareness'
 
 export interface PresentationModeProps {
 	doc: YPrezilloDocument
@@ -55,6 +66,8 @@ export interface PresentationModeProps {
 	followingViewIndex?: number
 	/** Callback when local navigation happens (for presenting) */
 	onViewChange?: (viewIndex: number, viewId: ViewId) => void
+	/** Awareness for poll voting */
+	awareness?: Awareness | null
 }
 
 /**
@@ -64,12 +77,24 @@ function PresentationObjectShape({
 	object,
 	style,
 	textStyle,
-	ownerTag
+	ownerTag,
+	voteCount = 0,
+	totalVotes = 0,
+	isWinner = false,
+	hasMyVote = false,
+	onPollClick,
+	isFocused = false
 }: {
 	object: PrezilloObject
 	style: ReturnType<typeof resolveShapeStyle>
 	textStyle: ReturnType<typeof resolveTextStyle>
 	ownerTag?: string
+	voteCount?: number
+	totalVotes?: number
+	isWinner?: boolean
+	hasMyVote?: boolean
+	onPollClick?: (frameId: string) => void
+	isFocused?: boolean
 }) {
 	// Hidden objects are not rendered in presentation mode
 	if (object.hidden) return null
@@ -159,6 +184,35 @@ function PresentationObjectShape({
 				/>
 			)
 			break
+		case 'pollframe':
+			content = (
+				<PollFrameRenderer
+					object={object as PollFrameObject}
+					style={style}
+					textStyle={textStyle}
+					bounds={{
+						x: object.x,
+						y: object.y,
+						width: object.width,
+						height: object.height
+					}}
+					voteCount={voteCount}
+					totalVotes={totalVotes}
+					isWinner={isWinner}
+					hasMyVote={hasMyVote}
+					onClick={
+						onPollClick
+							? (e) => {
+									e.stopPropagation()
+									onPollClick(object.id)
+								}
+							: undefined
+					}
+					isInteractive={!!onPollClick}
+					isFocused={isFocused}
+				/>
+			)
+			break
 		default:
 			content = (
 				<rect
@@ -193,6 +247,13 @@ interface PresentationSlideProps {
 	doc: YPrezilloDocument
 	ownerTag?: string
 	isVisible: boolean
+	// Poll voting props
+	voteCounts?: Map<string, number>
+	totalVotes?: number
+	winningFrames?: string[]
+	myVote?: string | null
+	onPollClick?: (frameId: string) => void
+	focusedPollId?: string | null
 }
 
 const PresentationSlide = React.memo(function PresentationSlide({
@@ -200,7 +261,13 @@ const PresentationSlide = React.memo(function PresentationSlide({
 	objects,
 	doc,
 	ownerTag,
-	isVisible
+	isVisible,
+	voteCounts,
+	totalVotes,
+	winningFrames,
+	myVote,
+	onPollClick,
+	focusedPollId
 }: PresentationSlideProps) {
 	const viewAspect = view.width / view.height
 
@@ -280,6 +347,14 @@ const PresentationSlide = React.memo(function PresentationSlide({
 				const style = storedObj ? resolveShapeStyle(doc, storedObj) : DEFAULT_SHAPE_STYLE
 				const textStyle = storedObj ? resolveTextStyle(doc, storedObj) : DEFAULT_TEXT_STYLE
 
+				// Poll-specific props
+				const isPollFrame = object.type === 'pollframe'
+				const voteCount = isPollFrame && voteCounts ? voteCounts.get(object.id) || 0 : 0
+				const isWinner =
+					isPollFrame && winningFrames ? winningFrames.includes(object.id) : false
+				const hasMyVote = isPollFrame && myVote === object.id
+				const isFocused = isPollFrame && focusedPollId === object.id
+
 				return (
 					<PresentationObjectShape
 						key={object.id}
@@ -287,6 +362,12 @@ const PresentationSlide = React.memo(function PresentationSlide({
 						style={style}
 						textStyle={textStyle}
 						ownerTag={ownerTag}
+						voteCount={voteCount}
+						totalVotes={totalVotes}
+						isWinner={isWinner}
+						hasMyVote={hasMyVote}
+						onPollClick={isPollFrame ? onPollClick : undefined}
+						isFocused={isFocused}
 					/>
 				)
 			})}
@@ -302,7 +383,8 @@ export function PresentationMode({
 	ownerTag,
 	isFollowing,
 	followingViewIndex,
-	onViewChange
+	onViewChange,
+	awareness
 }: PresentationModeProps) {
 	const containerRef = React.useRef<HTMLDivElement>(null)
 	const [currentIndex, setCurrentIndex] = React.useState(() => {
@@ -345,6 +427,63 @@ export function PresentationMode({
 	const prevObjects = useViewObjects(doc, prevView?.id || null)
 	const nextObjects = useViewObjects(doc, nextView?.id || null)
 
+	// ============================================================================
+	// Poll Voting State
+	// ============================================================================
+
+	const [voteCounts, setVoteCounts] = React.useState<Map<string, number>>(new Map())
+	const [totalVotes, setTotalVotes] = React.useState(0)
+	const [winningFrames, setWinningFrames] = React.useState<string[]>([])
+	const [myVote, setMyVote] = React.useState<string | null>(null)
+	const [focusedPollIndex, setFocusedPollIndex] = React.useState(-1)
+
+	// Get poll frames on current slide for keyboard navigation
+	const pollFrames = React.useMemo(
+		() => currentObjects.filter((obj) => obj.type === 'pollframe'),
+		[currentObjects]
+	)
+
+	const focusedPollId =
+		focusedPollIndex >= 0 && focusedPollIndex < pollFrames.length
+			? pollFrames[focusedPollIndex].id
+			: null
+
+	// Subscribe to awareness changes for vote updates
+	React.useEffect(() => {
+		if (!awareness || !currentView) return
+
+		const updateVotes = () => {
+			const viewId = currentView.id
+			setVoteCounts(getVoteCounts(awareness, viewId))
+			setTotalVotes(getTotalVotes(awareness, viewId))
+			setWinningFrames(getWinningFrames(awareness, viewId))
+
+			const localVote = getLocalVote(awareness)
+			setMyVote(localVote?.viewId === viewId ? localVote.frameId : null)
+		}
+
+		updateVotes()
+		awareness.on('change', updateVotes)
+		return () => awareness.off('change', updateVotes)
+	}, [awareness, currentView?.id])
+
+	// Handle poll click - cast or toggle vote
+	const handlePollClick = React.useCallback(
+		(frameId: string) => {
+			if (!awareness || !currentView) return
+
+			const currentVote = getLocalVote(awareness)
+			if (currentVote?.frameId === frameId && currentVote?.viewId === currentView.id) {
+				// Toggle off if clicking same frame
+				clearVote(awareness)
+			} else {
+				// Cast new vote
+				setVote(awareness, frameId, currentView.id)
+			}
+		},
+		[awareness, currentView?.id]
+	)
+
 	// Enter fullscreen on mount
 	React.useEffect(() => {
 		const container = containerRef.current
@@ -385,10 +524,18 @@ export function PresentationMode({
 			switch (e.key) {
 				case 'ArrowRight':
 				case 'ArrowDown':
-				case ' ':
 				case 'PageDown':
 					e.preventDefault()
 					handleIndexChange(Math.min(currentIndex + 1, views.length - 1))
+					break
+				case ' ':
+					// Space: if poll focused, vote; otherwise advance slide
+					e.preventDefault()
+					if (focusedPollIndex >= 0 && focusedPollIndex < pollFrames.length) {
+						handlePollClick(pollFrames[focusedPollIndex].id)
+					} else {
+						handleIndexChange(Math.min(currentIndex + 1, views.length - 1))
+					}
 					break
 				case 'ArrowLeft':
 				case 'ArrowUp':
@@ -408,12 +555,42 @@ export function PresentationMode({
 					e.preventDefault()
 					onExit()
 					break
+				case 'Tab':
+					// Tab cycles through poll frames on the current slide
+					if (pollFrames.length > 0) {
+						e.preventDefault()
+						const nextIndex = e.shiftKey
+							? focusedPollIndex <= 0
+								? pollFrames.length - 1
+								: focusedPollIndex - 1
+							: focusedPollIndex >= pollFrames.length - 1
+								? 0
+								: focusedPollIndex + 1
+						setFocusedPollIndex(nextIndex)
+					}
+					break
+				case 'Enter':
+					// Enter casts vote on focused poll
+					if (focusedPollIndex >= 0 && focusedPollIndex < pollFrames.length) {
+						e.preventDefault()
+						handlePollClick(pollFrames[focusedPollIndex].id)
+					}
+					break
 			}
 		}
 
 		window.addEventListener('keydown', handleKeyDown)
 		return () => window.removeEventListener('keydown', handleKeyDown)
-	}, [views.length, onExit, isFollowing, currentIndex, handleIndexChange])
+	}, [
+		views.length,
+		onExit,
+		isFollowing,
+		currentIndex,
+		handleIndexChange,
+		pollFrames,
+		focusedPollIndex,
+		handlePollClick
+	])
 
 	// Auto-hide controls after inactivity
 	React.useEffect(() => {
@@ -475,6 +652,12 @@ export function PresentationMode({
 				doc={doc}
 				ownerTag={ownerTag}
 				isVisible={true}
+				voteCounts={voteCounts}
+				totalVotes={totalVotes}
+				winningFrames={winningFrames}
+				myVote={myVote}
+				onPollClick={awareness ? handlePollClick : undefined}
+				focusedPollId={focusedPollId}
 			/>
 
 			{/* Pre-rendered next slide (hidden) */}

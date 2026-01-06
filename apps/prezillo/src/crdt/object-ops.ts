@@ -171,6 +171,14 @@ export function createObject(
 				url: ''
 			} as any
 			break
+		case 'pollframe':
+			object = {
+				...base,
+				type: 'pollframe',
+				shape: 'rect',
+				label: ''
+			} as any
+			break
 		default:
 			throw new Error(`Unknown object type: ${type}`)
 	}

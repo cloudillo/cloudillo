@@ -1928,6 +1928,7 @@ export function PrezilloApp() {
 					onViewChange={(viewIndex, viewId) => {
 						prezillo.setActiveViewId(viewId)
 					}}
+					awareness={prezillo.awareness}
 				/>
 			)}
 
@@ -1941,6 +1942,7 @@ export function PrezilloApp() {
 					ownerTag={prezillo.cloudillo.idTag}
 					isFollowing={true}
 					followingViewIndex={followedPresenter.viewIndex}
+					awareness={prezillo.awareness}
 				/>
 			)}
 

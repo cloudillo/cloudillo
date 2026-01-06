@@ -32,6 +32,7 @@ import {
 	PiMinusBold as IcLine,
 	PiImageBold as IcImage,
 	PiQrCodeBold as IcQrCode,
+	PiChartBarBold as IcPollFrame,
 	PiTrashBold as IcDelete,
 	PiCopyBold as IcDuplicate,
 	PiArrowArcLeftBold as IcUndo,
@@ -237,6 +238,15 @@ export function Toolbar({
 				title="QR Code"
 			>
 				<IcQrCode />
+			</button>
+
+			{/* Poll Frame tool */}
+			<button
+				onClick={() => setTool('pollframe')}
+				className={mergeClasses('c-button icon', tool === 'pollframe' ? 'active' : '')}
+				title="Poll Frame"
+			>
+				<IcPollFrame />
 			</button>
 
 			<div className="c-toolbar-divider" />

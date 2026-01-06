@@ -48,4 +48,27 @@ export type { TemplateLayout } from './useTemplateLayout'
 export { useLockableProperty } from './useLockableProperty'
 export type { UseLockablePropertyResult } from './useLockableProperty'
 
+export { useTextEditing } from './useTextEditing'
+export type { UseTextEditingOptions, UseTextEditingResult } from './useTextEditing'
+
+export { useTextStyling } from './useTextStyling'
+export type { UseTextStylingOptions, UseTextStylingResult } from './useTextStyling'
+
+export { usePresentationMode } from './usePresentationMode.js'
+export type {
+	UsePresentationModeOptions,
+	UsePresentationModeResult
+} from './usePresentationMode.js'
+
+export { useViewNavigation } from './useViewNavigation'
+export type { UseViewNavigationOptions, UseViewNavigationResult } from './useViewNavigation'
+
+export { useObjectDrag } from './useObjectDrag'
+export type {
+	UseObjectDragOptions,
+	UseObjectDragResult,
+	DragState,
+	TempObjectState
+} from './useObjectDrag'
+
 // vim: ts=4

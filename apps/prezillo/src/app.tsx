@@ -40,9 +40,7 @@ import {
 	RotationHandle,
 	PivotHandle,
 	type RotationHandleProps,
-	type PivotHandleProps,
-	createLinearGradientDef,
-	createRadialGradientDef
+	type PivotHandleProps
 } from '@cloudillo/canvas-tools'
 
 /**
@@ -145,14 +143,6 @@ import '@cloudillo/canvas-tools/components.css'
 import './style.css'
 
 import {
-	PiCopyBold as IcDuplicate,
-	PiTrashBold as IcDelete,
-	PiLinkBreakBold as IcDetach,
-	PiEyeBold as IcShow,
-	PiEyeSlashBold as IcHide
-} from 'react-icons/pi'
-
-import {
 	usePrezilloDocument,
 	useSnappingConfig,
 	useGetParent,
@@ -160,7 +150,12 @@ import {
 	useImageHandler,
 	useTemplateGuides,
 	useTemplateObjects,
-	useTemplates
+	useTemplates,
+	useTextEditing,
+	useTextStyling,
+	usePresentationMode,
+	useViewNavigation,
+	useObjectDrag
 } from './hooks'
 import { useViewObjects, useVisibleViewObjects } from './hooks/useViewObjects'
 import { useVisibleViews } from './hooks/useVisibleViews'
@@ -174,6 +169,9 @@ import { ObjectShape } from './components/ObjectShape'
 import { PresentationMode } from './components/PresentationMode'
 import { TemplateGuideRenderer } from './components/TemplateGuideRenderer'
 import { TemplateFrame } from './components/TemplateFrame'
+import { ContextMenu } from './components/ContextMenu'
+import { RemotePresenceOverlay } from './components/RemotePresenceOverlay'
+import { TemplateEditingCanvas } from './components/TemplateEditingCanvas'
 import { useTemplateLayout } from './hooks/useTemplateLayout'
 import {
 	PrezilloPropertiesPanel,
@@ -241,9 +239,6 @@ import {
 	// Template instance lock checking
 	isInstance,
 	isPropertyGroupLocked,
-	detachInstance,
-	toggleObjectHidden,
-	getObject,
 	// Prototype resolution helpers
 	resolveObject,
 	getResolvedBounds,
@@ -285,88 +280,28 @@ export function PrezilloApp() {
 	const dialog = useDialog()
 
 	const [toolEvent, setToolEvent] = React.useState<ToolEvent | undefined>()
-	const [dragState, setDragState] = React.useState<{
-		objectId: ObjectId
-		startX: number
-		startY: number
-		objectStartX: number
-		objectStartY: number
-	} | null>(null)
 
-	// Presentation mode state
-	const [isPresentationMode, setIsPresentationMode] = React.useState(false)
-
-	// Fullscreen following mode (when following presenter in fullscreen)
-	const [isFullscreenFollowing, setIsFullscreenFollowing] = React.useState(false)
-
-	// Toast for presenter notifications
+	// Toast for notifications
 	const { toast } = useToast()
 
-	// Track previous presenters to detect new ones
-	const prevPresentersRef = React.useRef<Set<number>>(new Set())
-
-	// Show toast when a new presenter starts
-	React.useEffect(() => {
-		const currentIds = new Set(prezillo.activePresenters.map((p) => p.clientId))
-		const prevIds = prevPresentersRef.current
-
-		// Find new presenters (excluding local client)
-		for (const presenter of prezillo.activePresenters) {
-			if (
-				!prevIds.has(presenter.clientId) &&
-				presenter.clientId !== prezillo.awareness?.clientID
-			) {
-				toast({
-					variant: 'info',
-					title: `${presenter.user.name} started presenting`,
-					duration: 4000,
-					actions: (
-						<button
-							className="c-button primary small"
-							onClick={() => prezillo.followPresenter(presenter.clientId)}
-						>
-							Follow
-						</button>
-					)
-				})
-			}
-		}
-
-		prevPresentersRef.current = currentIds
-	}, [prezillo.activePresenters, prezillo.awareness?.clientID, prezillo.followPresenter, toast])
-
-	// Get presenter being followed
-	const followedPresenter = React.useMemo(() => {
-		if (!prezillo.followingClientId) return null
-		return prezillo.activePresenters.find((p) => p.clientId === prezillo.followingClientId)
-	}, [prezillo.followingClientId, prezillo.activePresenters])
-
-	// Auto-enter fullscreen when starting to follow
-	React.useEffect(() => {
-		if (prezillo.followingClientId && !isFullscreenFollowing) {
-			setIsFullscreenFollowing(true)
-		} else if (!prezillo.followingClientId && isFullscreenFollowing) {
-			setIsFullscreenFollowing(false)
-		}
-	}, [prezillo.followingClientId, isFullscreenFollowing])
-
-	// Handle exiting fullscreen following mode
-	const handleExitFullscreenFollowing = React.useCallback(() => {
-		setIsFullscreenFollowing(false)
-		prezillo.unfollowPresenter()
-	}, [prezillo.unfollowPresenter])
-
-	// Handle starting presentation (with fullscreen)
-	const handleStartPresenting = React.useCallback(() => {
-		prezillo.startPresenting()
-		setIsPresentationMode(true)
-	}, [prezillo.startPresenting])
-
-	// Handle stopping presentation
-	const handleStopPresenting = React.useCallback(() => {
-		prezillo.stopPresenting()
-		setIsPresentationMode(false)
-	}, [prezillo.stopPresenting])
+	// Presentation mode (extracted hook)
+	const {
+		isPresentationMode,
+		isFullscreenFollowing,
+		followedPresenter,
+		handleStartPresenting,
+		handleStopPresenting,
+		handleExitFullscreenFollowing
+	} = usePresentationMode({
+		activePresenters: prezillo.activePresenters,
+		followingClientId: prezillo.followingClientId,
+		localClientId: prezillo.awareness?.clientID,
+		startPresenting: prezillo.startPresenting,
+		stopPresenting: prezillo.stopPresenting,
+		followPresenter: prezillo.followPresenter,
+		unfollowPresenter: prezillo.unfollowPresenter,
+		toast
+	})
 
 	// Mobile detection
 	const isMobile = useIsMobile()
@@ -378,10 +313,35 @@ export function PrezilloApp() {
 	const [mobileSnapPoint, setMobileSnapPoint] = React.useState<BottomSheetSnapPoint>('closed')
 	const userCollapsedRef = React.useRef(false)
 
-	// Text editing state - which object is being text-edited
-	const [editingTextId, setEditingTextId] = React.useState<ObjectId | null>(null)
-	// Ref to store current editing text for save-on-click-outside
-	const editingTextRef = React.useRef<string>('')
+	// Text editing (extracted hook)
+	const {
+		editingTextId,
+		setEditingTextId,
+		editingTextRef,
+		selectedTextObject,
+		selectedTextStyle,
+		handleTextEditSave,
+		handleTextEditCancel
+	} = useTextEditing({
+		yDoc: prezillo.yDoc,
+		doc: prezillo.doc,
+		selectedIds: prezillo.selectedIds
+	})
+
+	// Text styling (extracted hook)
+	const {
+		handleTextAlignChange,
+		handleVerticalAlignChange,
+		handleFontSizeChange,
+		handleBoldToggle,
+		handleItalicToggle,
+		handleUnderlineToggle
+	} = useTextStyling({
+		yDoc: prezillo.yDoc,
+		doc: prezillo.doc,
+		selectedTextObject,
+		selectedTextStyle
+	})
 
 	// Hover state - which object is being hovered (only active when nothing selected)
 	const [hoveredObjectId, setHoveredObjectId] = React.useState<ObjectId | null>(null)
@@ -426,6 +386,27 @@ export function PrezilloApp() {
 
 	// Track if template zoom was triggered from explicit selection
 	const forceZoomTemplateRef = React.useRef(false)
+
+	// View navigation (extracted hook)
+	const {
+		handlePrevView,
+		handleNextView,
+		handleAddView,
+		handleDuplicate,
+		handleReorderView,
+		handleDuplicateView,
+		handleDeleteView
+	} = useViewNavigation({
+		yDoc: prezillo.yDoc,
+		doc: prezillo.doc,
+		activeViewId: prezillo.activeViewId,
+		setActiveViewId: prezillo.setActiveViewId,
+		selectedIds: prezillo.selectedIds,
+		selectObjects: prezillo.selectObjects,
+		viewsLength: views.length,
+		isReadOnly,
+		forceZoomRef
+	})
 
 	// Canvas scale for image variant selection
 	const [canvasScale, setCanvasScale] = React.useState(1)
@@ -752,6 +733,26 @@ export function PrezilloApp() {
 	snapDragRef.current = snapDrag
 	const snapResizeRef = React.useRef(snapResize)
 	snapResizeRef.current = snapResize
+
+	// Object drag hook
+	const { dragState, setDragState, handleObjectPointerDown } = useObjectDrag({
+		yDoc: prezillo.yDoc,
+		doc: prezillo.doc,
+		isReadOnly,
+		activeTool: prezillo.activeTool,
+		selectedIds: prezillo.selectedIds,
+		selectObject: prezillo.selectObject,
+		autoSwitchToObjectPage: prezillo.autoSwitchToObjectPage,
+		canvasObjects,
+		canvasContextRef,
+		templateLayouts,
+		awareness: prezillo.awareness,
+		snapDragRef,
+		clearSnaps,
+		grabPointRef,
+		justFinishedInteractionRef,
+		setTempObjectState
+	})
 
 	// Ref to capture initial selection state at interaction start (prevents stale closure issues)
 	const interactionStartRef = React.useRef<{
@@ -1145,385 +1146,6 @@ export function PrezilloApp() {
 		}
 	}
 
-	// Handle text edit save
-	function handleTextEditSave(text: string) {
-		if (!editingTextId) return
-
-		const storedObj = prezillo.doc.o.get(editingTextId)
-		if (!storedObj || storedObj.t !== 'T') {
-			setEditingTextId(null)
-			return
-		}
-
-		// Check if this is a template instance
-		const isInstanceObj = storedObj.proto !== undefined
-		const hasLocalText = storedObj.tx !== undefined
-
-		// Get the resolved object (handles prototype inheritance) and text style
-		const obj = resolveObject(prezillo.doc, editingTextId)
-		if (!obj) {
-			setEditingTextId(null)
-			return
-		}
-		const originalText = (obj as any).text ?? ''
-
-		// For instances: empty text means "inherit from prototype" (clear local override)
-		// For non-instances or instances with local text that hasn't changed: check if text changed
-		if (isInstanceObj && text === '' && !hasLocalText) {
-			// Instance was inheriting and user didn't type anything - no change needed
-			setEditingTextId(null)
-			return
-		}
-
-		// Skip update if text hasn't changed
-		if (text === originalText) {
-			setEditingTextId(null)
-			return
-		}
-
-		const textStyle = resolveTextStyle(prezillo.doc, storedObj)
-
-		// For height calculation, use new text or prototype text if clearing to inherit
-		let displayText = text
-		if (isInstanceObj && text === '') {
-			// Clearing local text - will inherit from prototype
-			const protoObj = prezillo.doc.o.get(storedObj.proto!)
-			displayText = protoObj && 'tx' in protoObj ? (protoObj.tx as string) : ''
-		}
-
-		// Measure the text height with current width and style
-		const measuredHeight = measureTextHeight(displayText, obj.width, textStyle)
-
-		// Use minHeight if set, otherwise use current height as minimum
-		const minHeight = (obj as any).minHeight ?? obj.height
-		const newHeight = Math.max(measuredHeight, minHeight)
-
-		// Update text content
-		// For instances with empty text, clear local override by setting text to undefined
-		if (isInstanceObj && text === '') {
-			// Clear local text to inherit from prototype
-			prezillo.yDoc.transact(() => {
-				const currentObj = prezillo.doc.o.get(editingTextId)
-				if (currentObj) {
-					const updated = { ...currentObj }
-					delete (updated as any).tx
-					prezillo.doc.o.set(editingTextId, updated)
-				}
-			}, prezillo.yDoc.clientID)
-		} else {
-			updateObject(prezillo.yDoc, prezillo.doc, editingTextId, { text } as any)
-		}
-
-		// Update height if it changed
-		if (newHeight !== obj.height) {
-			updateObjectSize(prezillo.yDoc, prezillo.doc, editingTextId, obj.width, newHeight)
-		}
-
-		setEditingTextId(null)
-	}
-
-	// Handle text edit cancel
-	function handleTextEditCancel() {
-		setEditingTextId(null)
-	}
-
-	// Handle object pointer down (start drag) - works for both mouse and touch
-	function handleObjectPointerDown(e: React.PointerEvent, objectId: ObjectId) {
-		// Don't allow drag in read-only mode
-		if (isReadOnly) return
-
-		// Only handle primary button (left mouse or touch)
-		if (e.button !== 0) return
-
-		// Don't start drag if using a tool
-		if (prezillo.activeTool) return
-
-		e.stopPropagation()
-		e.preventDefault()
-
-		// Auto-switch to object's page if clicking on an object from a different page
-		prezillo.autoSwitchToObjectPage(objectId)
-
-		const obj = prezillo.doc.o.get(objectId)
-		if (!obj) return
-
-		// Block drag for locked template instance position
-		if (
-			isInstance(prezillo.doc, objectId) &&
-			isPropertyGroupLocked(prezillo.doc, objectId, 'position')
-		) {
-			return
-		}
-
-		// Get object from canvasObjects which has global canvas coordinates
-		// This ensures tempObjectState uses the same coordinate system as rendering
-		const canvasObj = canvasObjects.find((o) => o.id === objectId)
-		if (!canvasObj) return
-
-		// Use global canvas coordinates from canvasObjects
-		const xy: [number, number] = [canvasObj.x, canvasObj.y]
-		const wh: [number, number] = [canvasObj.width, canvasObj.height]
-
-		// Track offsets for converting back to stored coords when saving
-		let prototypeTemplateOffset: { x: number; y: number } | undefined
-		let pageOffset: { x: number; y: number } | undefined
-
-		// Check if this is a prototype object on a template frame
-		if (canvasObj._isPrototype && canvasObj._templateId) {
-			const layout = templateLayouts.get(canvasObj._templateId)
-			if (layout) {
-				prototypeTemplateOffset = { x: layout.x, y: layout.y }
-			}
-		}
-
-		// Check if this is a page-relative object (needs offset conversion when saving)
-		if (obj.vi) {
-			const view = prezillo.doc.v.get(obj.vi)
-			if (view) {
-				pageOffset = { x: view.x, y: view.y }
-			}
-		}
-
-		// Get SVG element and canvas context for zoom-aware coordinate transformation
-		const svgElement = (e.target as SVGElement).ownerSVGElement
-		if (!svgElement) return
-
-		const canvasCtx = canvasContextRef.current
-		if (!canvasCtx?.translateTo) return
-
-		// Get SVG-relative client coordinates, then transform through canvas zoom
-		const rect = svgElement.getBoundingClientRect()
-		const [svgX, svgY] = canvasCtx.translateTo(e.clientX - rect.left, e.clientY - rect.top)
-		const svgPoint = { x: svgX, y: svgY }
-
-		// Check if object was already selected BEFORE any selection changes
-		// Only allow drag if object was already selected (industry standard UX pattern)
-		const wasAlreadySelected = prezillo.selectedIds.has(objectId)
-
-		// Select the object if not already selected
-		if (!wasAlreadySelected) {
-			const addToSelection = e.shiftKey || e.ctrlKey || e.metaKey
-			prezillo.selectObject(objectId, addToSelection)
-			// Don't start drag - just selected the object
-			return
-		}
-
-		const initialDragState = {
-			objectId,
-			startX: svgPoint.x,
-			startY: svgPoint.y,
-			objectStartX: xy[0],
-			objectStartY: xy[1],
-			objectWidth: wh[0],
-			objectHeight: wh[1],
-			// Track offsets for converting back to stored coords when saving
-			prototypeTemplateOffset,
-			pageOffset
-		}
-
-		// Calculate grab point for snap weighting (normalized 0-1)
-		grabPointRef.current = computeGrabPoint(
-			{ x: svgPoint.x, y: svgPoint.y },
-			{
-				x: xy[0],
-				y: xy[1],
-				width: wh[0],
-				height: wh[1],
-				rotation: obj.r || 0
-			}
-		)
-
-		// Track current position for final commit (mutable to avoid stale closure)
-		let currentX = xy[0]
-		let currentY = xy[1]
-
-		setDragState(initialDragState)
-
-		// Initialize temp state
-		setTempObjectState({
-			objectId,
-			x: xy[0],
-			y: xy[1],
-			width: wh[0],
-			height: wh[1]
-		})
-
-		// Handle drag with window events for smooth dragging (pointer events work for both mouse and touch)
-		const handlePointerMove = (moveEvent: PointerEvent) => {
-			const ctx = canvasContextRef.current
-			if (!ctx?.translateTo) return
-
-			// Transform screen coords to canvas coords (zoom-aware)
-			const rect = svgElement.getBoundingClientRect()
-			const [moveX, moveY] = ctx.translateTo(
-				moveEvent.clientX - rect.left,
-				moveEvent.clientY - rect.top
-			)
-
-			const dx = moveX - initialDragState.startX
-			const dy = moveY - initialDragState.startY
-
-			// Calculate proposed position before snapping
-			const proposedX = initialDragState.objectStartX + dx
-			const proposedY = initialDragState.objectStartY + dy
-
-			// Apply snapping (use ref to get latest config)
-			const snapResult = snapDragRef.current({
-				bounds: {
-					x: proposedX,
-					y: proposedY,
-					width: initialDragState.objectWidth,
-					height: initialDragState.objectHeight,
-					rotation: obj.r || 0,
-					pivotX: obj.pv?.[0] ?? 0.5,
-					pivotY: obj.pv?.[1] ?? 0.5
-				},
-				objectId: initialDragState.objectId,
-				delta: { x: dx, y: dy },
-				grabPoint: grabPointRef.current,
-				excludeIds: new Set([initialDragState.objectId])
-			})
-
-			currentX = snapResult.position.x
-			currentY = snapResult.position.y
-
-			// Update local temp state (visual only)
-			setTempObjectState({
-				objectId: initialDragState.objectId,
-				x: currentX,
-				y: currentY,
-				width: initialDragState.objectWidth,
-				height: initialDragState.objectHeight
-			})
-
-			// Broadcast to other clients via awareness
-			if (prezillo.awareness) {
-				setEditingState(
-					prezillo.awareness,
-					initialDragState.objectId,
-					'drag',
-					currentX,
-					currentY,
-					initialDragState.objectWidth,
-					initialDragState.objectHeight
-				)
-			}
-		}
-
-		const handlePointerUp = () => {
-			// Only commit to CRDT if position actually changed
-			if (
-				currentX !== initialDragState.objectStartX ||
-				currentY !== initialDragState.objectStartY
-			) {
-				// Convert global canvas coords back to stored coords for CRDT
-				let saveX = currentX
-				let saveY = currentY
-
-				// For prototypes on template frames, subtract template offset
-				if (initialDragState.prototypeTemplateOffset) {
-					saveX -= initialDragState.prototypeTemplateOffset.x
-					saveY -= initialDragState.prototypeTemplateOffset.y
-				}
-
-				// For page-relative objects, subtract page offset
-				if (initialDragState.pageOffset) {
-					saveX -= initialDragState.pageOffset.x
-					saveY -= initialDragState.pageOffset.y
-				}
-
-				updateObjectPosition(
-					prezillo.yDoc,
-					prezillo.doc,
-					initialDragState.objectId,
-					saveX,
-					saveY
-				)
-
-				// Check if object should transfer to a template or different page
-				const obj = prezillo.doc.o.get(initialDragState.objectId)
-				if (obj) {
-					const currentPageId = obj.vi as ViewId | undefined
-					// Resolve dimensions from prototype if needed
-					let objWh: [number, number] | undefined = obj.wh
-					if (!objWh && obj.proto) {
-						const proto = prezillo.doc.o.get(obj.proto)
-						objWh = proto?.wh
-					}
-					if (!objWh) return
-					const objWidth = objWh[0]
-					const objHeight = objWh[1]
-
-					// Calculate object center in global coords
-					// currentX/currentY are already global canvas coords
-					const centerX = currentX + objWidth / 2
-					const centerY = currentY + objHeight / 2
-
-					// Check if dropped on a template frame (convert to prototype)
-					const templateAtDrop = findTemplateAtPoint(centerX, centerY)
-					if (templateAtDrop && !obj.proto) {
-						// Convert to template-relative coordinates
-						const layout = templateLayouts.get(templateAtDrop)!
-						const relX = currentX - layout.x
-						const relY = currentY - layout.y
-
-						// Update position to template-relative
-						updateObjectPosition(
-							prezillo.yDoc,
-							prezillo.doc,
-							initialDragState.objectId,
-							relX,
-							relY
-						)
-
-						// Add to template (converts to prototype)
-						addObjectToTemplate(
-							prezillo.yDoc,
-							prezillo.doc,
-							templateAtDrop,
-							initialDragState.objectId
-						)
-						// Don't check page association - object is now a prototype
-					} else {
-						// Find which page the center is now in
-						const newPageId = findViewAtPoint(prezillo.doc, centerX, centerY)
-
-						// If page changed, update association
-						if (newPageId !== currentPageId) {
-							updateObjectPageAssociation(
-								prezillo.yDoc,
-								prezillo.doc,
-								initialDragState.objectId,
-								newPageId,
-								{ preserveGlobalPosition: true }
-							)
-						}
-					}
-				}
-			}
-
-			// Clear awareness
-			if (prezillo.awareness) {
-				clearEditingState(prezillo.awareness)
-			}
-
-			// Clear snapping state
-			clearSnaps()
-
-			// Clear local state
-			setDragState(null)
-			setTempObjectState(null)
-			window.removeEventListener('pointermove', handlePointerMove)
-			window.removeEventListener('pointerup', handlePointerUp)
-
-			// Prevent canvas click from clearing selection immediately after drag
-			justFinishedInteractionRef.current = true
-		}
-
-		window.addEventListener('pointermove', handlePointerMove)
-		window.addEventListener('pointerup', handlePointerUp)
-	}
-
 	// Handle canvas click (deselect)
 	function handleCanvasClick() {
 		// Skip if we just finished a resize/rotate/pivot interaction
@@ -1811,89 +1433,6 @@ export function PrezilloApp() {
 		}
 	}
 
-	// View navigation (keyboard/button nav always zooms)
-	function handlePrevView() {
-		if (prezillo.activeViewId) {
-			const prev = getPreviousView(prezillo.doc, prezillo.activeViewId)
-			if (prev) {
-				forceZoomRef.current = true
-				prezillo.setActiveViewId(prev)
-			}
-		}
-	}
-
-	function handleNextView() {
-		if (prezillo.activeViewId) {
-			const next = getNextView(prezillo.doc, prezillo.activeViewId)
-			if (next) {
-				forceZoomRef.current = true
-				prezillo.setActiveViewId(next)
-			}
-		}
-	}
-
-	function handleAddView() {
-		const viewId = createView(prezillo.yDoc, prezillo.doc, {
-			copyFromViewId: prezillo.activeViewId || undefined
-		})
-		forceZoomRef.current = true
-		prezillo.setActiveViewId(viewId)
-	}
-
-	function handleDuplicate() {
-		if (isReadOnly) return
-		if (prezillo.selectedIds.size === 0) return
-
-		const newIds: ObjectId[] = []
-		prezillo.selectedIds.forEach((id) => {
-			// Pass activeViewId so prototype objects (templates) get placed on current page
-			const newId = duplicateObject(
-				prezillo.yDoc,
-				prezillo.doc,
-				id,
-				20,
-				20,
-				prezillo.activeViewId ?? undefined
-			)
-			if (newId) newIds.push(newId)
-		})
-
-		// Select the duplicated objects
-		if (newIds.length > 0) {
-			prezillo.selectObjects(newIds)
-		}
-	}
-
-	function handleReorderView(viewId: ViewId, newIndex: number) {
-		moveViewInPresentation(prezillo.yDoc, prezillo.doc, viewId, newIndex)
-	}
-
-	function handleDuplicateView(viewId: ViewId) {
-		const newViewId = duplicateView(prezillo.yDoc, prezillo.doc, viewId)
-		if (newViewId) {
-			forceZoomRef.current = true
-			prezillo.setActiveViewId(newViewId)
-		}
-	}
-
-	function handleDeleteView(viewId: ViewId) {
-		// Don't delete the last view
-		if (views.length <= 1) return
-
-		// If deleting current view, switch to previous or next first
-		if (viewId === prezillo.activeViewId) {
-			const prev = getPreviousView(prezillo.doc, viewId)
-			const next = getNextView(prezillo.doc, viewId)
-			if (prev) {
-				prezillo.setActiveViewId(prev)
-			} else if (next) {
-				prezillo.setActiveViewId(next)
-			}
-		}
-
-		deleteView(prezillo.yDoc, prezillo.doc, viewId)
-	}
-
 	// Handle context menu on canvas or object
 	// If objectId is provided, select that object first (standard UX: right-click selects)
 	function handleObjectContextMenu(evt: React.MouseEvent, objectId?: ObjectId) {
@@ -1980,82 +1519,6 @@ export function PrezilloApp() {
 			pivotY: tempObjectState?.pivotY ?? obj.pv?.[1] ?? 0.5
 		}
 	}, [prezillo.selectedIds, prezillo.doc.o, tempObjectState])
-
-	// Check if selection is a text object
-	// prezillo.doc.o in deps ensures this recalculates when any object updates
-	const selectedTextObject = React.useMemo(() => {
-		if (prezillo.selectedIds.size !== 1) return null
-		const id = Array.from(prezillo.selectedIds)[0]
-		const obj = prezillo.doc.o.get(id)
-		if (!obj || (obj.t !== 'T' && obj.t !== 'B')) return null
-		return { id, obj }
-	}, [prezillo.selectedIds, prezillo.doc.o])
-
-	// Get current text style for selected text object
-	const selectedTextStyle = React.useMemo(() => {
-		if (!selectedTextObject) return null
-		// Re-fetch fresh object to get latest style
-		const freshObj = prezillo.doc.o.get(selectedTextObject.id)
-		if (!freshObj) return null
-		return resolveTextStyle(prezillo.doc, freshObj)
-	}, [selectedTextObject, prezillo.doc.o, prezillo.doc])
-
-	// Handle text alignment change
-	function handleTextAlignChange(align: 'left' | 'center' | 'right' | 'justify') {
-		if (!selectedTextObject) return
-		const taMap = { left: 'l', center: 'c', right: 'r', justify: 'j' } as const
-		updateObjectTextStyle(prezillo.yDoc, prezillo.doc, selectedTextObject.id as ObjectId, {
-			ta: taMap[align]
-		})
-	}
-
-	// Handle vertical alignment change
-	function handleVerticalAlignChange(align: 'top' | 'middle' | 'bottom') {
-		if (!selectedTextObject) return
-		const vaMap = { top: 't', middle: 'm', bottom: 'b' } as const
-		updateObjectTextStyle(prezillo.yDoc, prezillo.doc, selectedTextObject.id as ObjectId, {
-			va: vaMap[align]
-		})
-	}
-
-	// Handle font size change
-	function handleFontSizeChange(size: number) {
-		if (!selectedTextObject) return
-		updateObjectTextStyle(prezillo.yDoc, prezillo.doc, selectedTextObject.id as ObjectId, {
-			fs: size
-		})
-	}
-
-	// Handle bold toggle
-	function handleBoldToggle() {
-		if (!selectedTextObject || !selectedTextStyle) return
-		// Toggle bold: if currently bold, remove it (null to reset to default); otherwise set bold
-		const newWeight = selectedTextStyle.fontWeight === 'bold' ? null : 'bold'
-		updateObjectTextStyle(prezillo.yDoc, prezillo.doc, selectedTextObject.id as ObjectId, {
-			fw: newWeight
-		})
-	}
-
-	// Handle italic toggle
-	function handleItalicToggle() {
-		if (!selectedTextObject || !selectedTextStyle) return
-		// Toggle italic: if currently italic, remove it (null); otherwise set true
-		const newItalic = selectedTextStyle.fontItalic ? null : true
-		updateObjectTextStyle(prezillo.yDoc, prezillo.doc, selectedTextObject.id as ObjectId, {
-			fi: newItalic
-		})
-	}
-
-	// Handle underline toggle
-	function handleUnderlineToggle() {
-		if (!selectedTextObject || !selectedTextStyle) return
-		const currentDecoration = selectedTextStyle.textDecoration
-		// Toggle underline: if currently underline, remove it (null); otherwise set underline
-		const newDecoration = currentDecoration === 'underline' ? null : 'u'
-		updateObjectTextStyle(prezillo.yDoc, prezillo.doc, selectedTextObject.id as ObjectId, {
-			td: newDecoration
-		})
-	}
 
 	return (
 		<>
@@ -2309,91 +1772,9 @@ export function PrezilloApp() {
 							</>
 						) : (
 							/* Template editing mode: Render virtual template canvas */
-							templateEditingContext &&
-							(() => {
-								const gradient = templateEditingContext.backgroundGradient
-								const hasGradient =
-									gradient &&
-									gradient.type !== 'solid' &&
-									gradient.stops?.length >= 2
-								const gradientId = 'template-bg-gradient'
-
-								// Generate gradient definition
-								const gradientDef = hasGradient
-									? gradient.type === 'linear'
-										? {
-												type: 'linear' as const,
-												def: createLinearGradientDef(
-													gradient.angle ?? 180,
-													gradient.stops
-												)
-											}
-										: gradient.type === 'radial'
-											? {
-													type: 'radial' as const,
-													def: createRadialGradientDef(
-														gradient.centerX ?? 0.5,
-														gradient.centerY ?? 0.5,
-														gradient.stops
-													)
-												}
-											: null
-									: null
-
-								const fill = hasGradient
-									? `url(#${gradientId})`
-									: (templateEditingContext.backgroundColor ?? '#ffffff')
-
-								return (
-									<g>
-										{/* Gradient definition */}
-										{gradientDef && (
-											<defs>
-												{gradientDef.type === 'linear' ? (
-													<linearGradient
-														id={gradientId}
-														x1={gradientDef.def.x1}
-														y1={gradientDef.def.y1}
-														x2={gradientDef.def.x2}
-														y2={gradientDef.def.y2}
-													>
-														{gradientDef.def.stops.map((stop, i) => (
-															<stop
-																key={i}
-																offset={stop.offset}
-																stopColor={stop.stopColor}
-															/>
-														))}
-													</linearGradient>
-												) : (
-													<radialGradient
-														id={gradientId}
-														cx={gradientDef.def.cx}
-														cy={gradientDef.def.cy}
-														r={gradientDef.def.r}
-													>
-														{gradientDef.def.stops.map((stop, i) => (
-															<stop
-																key={i}
-																offset={stop.offset}
-																stopColor={stop.stopColor}
-															/>
-														))}
-													</radialGradient>
-												)}
-											</defs>
-										)}
-										<rect
-											x={0}
-											y={0}
-											width={templateEditingContext.templateWidth}
-											height={templateEditingContext.templateHeight}
-											fill={fill}
-											className="c-template-editing-canvas"
-										/>
-									</g>
-								)
-							})()
+							templateEditingContext && (
+								<TemplateEditingCanvas context={templateEditingContext} />
+							)
 						)}
 
 						{/* Render objects (view objects or template prototypes) */}
@@ -2498,101 +1879,10 @@ export function PrezilloApp() {
 						})}
 
 						{/* Ghost overlays for remote users' edits */}
-						{Array.from(prezillo.remotePresence.entries()).map(
-							([clientId, presence]) => {
-								if (!presence.editing) return null
-
-								// Find the object being edited
-								const obj = canvasObjects.find(
-									(o) => o.id === presence.editing!.objectId
-								)
-								if (!obj) return null
-
-								const editing = presence.editing
-								const user = presence.user
-								const color = user?.color || '#888888'
-								const x = editing.x
-								const y = editing.y
-								const width = editing.width ?? obj.width
-								const height = editing.height ?? obj.height
-
-								// Render the ghost shape based on object type
-								let ghostShape: React.ReactNode
-								switch (obj.type) {
-									case 'ellipse':
-										ghostShape = (
-											<ellipse
-												cx={x + width / 2}
-												cy={y + height / 2}
-												rx={width / 2}
-												ry={height / 2}
-												fill={color}
-												stroke={color}
-												strokeWidth={2}
-												strokeDasharray="4,4"
-											/>
-										)
-										break
-									case 'line':
-										const points = obj.points || [
-											[0, height / 2],
-											[width, height / 2]
-										]
-										ghostShape = (
-											<line
-												x1={x + points[0][0]}
-												y1={y + points[0][1]}
-												x2={x + points[1][0]}
-												y2={y + points[1][1]}
-												stroke={color}
-												strokeWidth={3}
-												strokeDasharray="4,4"
-											/>
-										)
-										break
-									case 'text':
-										ghostShape = (
-											<text
-												x={x}
-												y={y + height * 0.8}
-												fill={color}
-												fontSize={Math.min(height, 64)}
-											>
-												{obj.text}
-											</text>
-										)
-										break
-									default: // rect and fallback
-										ghostShape = (
-											<rect
-												x={x}
-												y={y}
-												width={width}
-												height={height}
-												rx={
-													'cornerRadius' in obj &&
-													typeof obj.cornerRadius === 'number'
-														? obj.cornerRadius
-														: undefined
-												}
-												fill={color}
-												stroke={color}
-												strokeWidth={2}
-												strokeDasharray="4,4"
-											/>
-										)
-								}
-
-								return (
-									<g key={`ghost-${clientId}`} opacity={0.4} pointerEvents="none">
-										{ghostShape}
-										<text x={x} y={y - 5} fill={color} fontSize={10}>
-											{user?.name || 'Unknown'}
-										</text>
-									</g>
-								)
-							}
-						)}
+						<RemotePresenceOverlay
+							remotePresence={prezillo.remotePresence}
+							canvasObjects={canvasObjects}
+						/>
 
 						{/* Tool preview */}
 						{toolEvent && prezillo.activeTool && (
@@ -2712,75 +2002,16 @@ export function PrezilloApp() {
 
 			{/* Object context menu */}
 			{objectMenu && (
-				<div
-					ref={objectMenuRef}
-					className="c-context-menu"
-					style={{
-						position: 'fixed',
-						left: objectMenu.x,
-						top: objectMenu.y,
-						zIndex: 1000
-					}}
-				>
-					<button
-						className="c-context-menu__item"
-						onClick={() => {
-							handleDuplicate()
-							setObjectMenu(null)
-						}}
-					>
-						<IcDuplicate /> Duplicate
-					</button>
-					{/* Hide/Show toggle */}
-					{prezillo.selectedIds.size === 1 &&
-						(() => {
-							const objectId = [...prezillo.selectedIds][0]
-							const obj = getObject(prezillo.doc, objectId)
-							const isHidden = obj?.hidden ?? false
-							return (
-								<button
-									className="c-context-menu__item"
-									onClick={() => {
-										toggleObjectHidden(prezillo.yDoc, prezillo.doc, objectId)
-										setObjectMenu(null)
-									}}
-								>
-									{isHidden ? (
-										<>
-											<IcShow /> Show
-										</>
-									) : (
-										<>
-											<IcHide /> Hide
-										</>
-									)}
-								</button>
-							)
-						})()}
-					{/* Show Detach option only for instances (objects with proto) */}
-					{prezillo.selectedIds.size === 1 &&
-						isInstance(prezillo.doc, [...prezillo.selectedIds][0]) && (
-							<button
-								className="c-context-menu__item"
-								onClick={() => {
-									const objectId = [...prezillo.selectedIds][0]
-									detachInstance(prezillo.yDoc, prezillo.doc, objectId)
-									setObjectMenu(null)
-								}}
-							>
-								<IcDetach /> Detach from template
-							</button>
-						)}
-					<button
-						className="c-context-menu__item danger"
-						onClick={() => {
-							handleDelete()
-							setObjectMenu(null)
-						}}
-					>
-						<IcDelete /> Delete
-					</button>
-				</div>
+				<ContextMenu
+					menuRef={objectMenuRef}
+					position={objectMenu}
+					onClose={() => setObjectMenu(null)}
+					onDuplicate={handleDuplicate}
+					onDelete={handleDelete}
+					selectedIds={prezillo.selectedIds}
+					doc={prezillo.doc}
+					yDoc={prezillo.yDoc}
+				/>
 			)}
 
 			{/* Toast container for notifications */}

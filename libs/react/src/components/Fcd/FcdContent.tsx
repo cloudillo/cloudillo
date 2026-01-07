@@ -22,12 +22,20 @@ export interface FcdContentProps {
 	onScroll?: () => void
 	header?: React.ReactNode
 	children?: React.ReactNode
+	/** When true, content expands to fill available space (use when no details panel) */
+	fluid?: boolean
 }
 
 export const FcdContent = React.forwardRef<HTMLDivElement, FcdContentProps>(
-	function FcdContentInside({ className, onScroll, header, children }, ref) {
+	function FcdContentInside({ className, onScroll, header, children, fluid }, ref) {
 		return (
-			<div className={mergeClasses('c-vbox col col-md-8 col-lg-6 h-100', className)}>
+			<div
+				className={mergeClasses(
+					'c-vbox col h-100',
+					fluid ? 'col-md-8 col-lg-9' : 'col-md-8 col-lg-6',
+					className
+				)}
+			>
 				{header}
 				<div
 					ref={ref}

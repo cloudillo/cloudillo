@@ -14,7 +14,33 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Re-export from new modular structure
-export { GalleryApp } from './gallery/GalleryApp.js'
+export type GalleryViewMode = 'all' | 'starred' | 'recent'
+export type GalleryLayout = 'rows' | 'masonry'
+export type TimeFilter = 'all' | 'today' | 'week' | 'month' | 'year'
+export type SortOption = 'created' | 'name'
+export type SortDir = 'asc' | 'desc'
+
+export interface GalleryFilterState {
+	viewMode: GalleryViewMode
+	timeFilter: TimeFilter
+	selectedTags: string[]
+	sort: SortOption
+	sortDir: SortDir
+	layout: GalleryLayout
+}
+
+export interface Photo {
+	fileId: string
+	variantId?: string
+	fileName: string
+	contentType: string
+	createdAt: string
+	preset: string
+	tags?: string[]
+	x?: {
+		dim?: [number, number]
+		caption?: string
+	}
+}
 
 // vim: ts=4

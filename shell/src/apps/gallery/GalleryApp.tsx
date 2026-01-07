@@ -18,39 +18,19 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuImage as IcImage } from 'react-icons/lu'
 
-import { useAuth, LoadingSpinner, EmptyState, Fcd } from '@cloudillo/react'
+import { useAuth, LoadingSpinner, EmptyState, Fcd, LoadMoreTrigger } from '@cloudillo/react'
 import { getFileUrl } from '@cloudillo/base'
 
-import { useCurrentContextIdTag, useContextAwareApi } from '../../context/index.js'
+import { useCurrentContextIdTag } from '../../context/index.js'
 import { useGalleryFilters } from './hooks/useGalleryFilters.js'
+import { useGalleryImages } from './hooks/useGalleryImages.js'
 import { GallerySidebar } from './components/GallerySidebar.js'
 import { ActiveFilters } from './components/ActiveFilters.js'
 import { GalleryToolbar } from './components/GalleryToolbar.js'
 import { GalleryGrid } from './components/GalleryGrid.js'
-import type { Photo } from './types.js'
-
-interface FileResponse {
-	fileId: string
-	variantId?: string
-	fileName: string
-	contentType: string
-	createdAt: string | Date
-	preset?: string
-	tags?: string[]
-	owner?: {
-		idTag: string
-		name?: string
-		profilePic?: string
-	}
-	x?: {
-		dim?: [number, number]
-		caption?: string
-	}
-}
 
 export function GalleryApp() {
 	const { t } = useTranslation()
-	const { api } = useContextAwareApi()
 	const [auth] = useAuth()
 	const contextIdTag = useCurrentContextIdTag()
 
@@ -70,8 +50,19 @@ export function GalleryApp() {
 
 	// UI state
 	const [showFilter, setShowFilter] = React.useState(false)
-	const [files, setFiles] = React.useState<Photo[] | undefined>()
-	const [totalCount, setTotalCount] = React.useState<number | undefined>()
+
+	// Use infinite scroll hook for images
+	const {
+		photos: files,
+		isLoading,
+		isLoadingMore,
+		error,
+		hasMore,
+		loadMore,
+		sentinelRef
+	} = useGalleryImages({
+		apiQueryParams
+	})
 
 	// Convert files to photo format for the grid
 	const photos = React.useMemo(
@@ -92,52 +83,10 @@ export function GalleryApp() {
 		[files, contextIdTag, auth?.idTag]
 	)
 
-	// Load images when filters change
-	React.useEffect(
-		function loadImageList() {
-			if (!api) return
-
-			;(async function () {
-				try {
-					// Get all files to calculate total count
-					const allFiles = await api.files.list({
-						contentType: 'image/*'
-					})
-					setTotalCount(allFiles.length)
-
-					// Get filtered files
-					const filteredFiles = await api.files.list({
-						contentType: 'image/*',
-						...apiQueryParams
-					})
-
-					setFiles(
-						filteredFiles.map((f: FileResponse) => ({
-							fileId: f.fileId,
-							variantId: undefined,
-							fileName: f.fileName,
-							contentType: f.contentType,
-							createdAt:
-								typeof f.createdAt === 'string'
-									? f.createdAt
-									: f.createdAt.toISOString(),
-							preset: f.preset || '',
-							tags: f.tags,
-							x: f.x
-						}))
-					)
-				} catch {
-					setFiles([])
-				}
-			})()
-		},
-		[api, apiQueryParams]
-	)
-
 	// Render content based on state
 	const renderContent = () => {
-		// Loading state
-		if (!photos) {
+		// Loading state (initial load only)
+		if (isLoading && files.length === 0) {
 			return (
 				<div className="d-flex align-items-center justify-content-center h-100">
 					<LoadingSpinner size="lg" label={t('Loading gallery...')} />
@@ -146,7 +95,7 @@ export function GalleryApp() {
 		}
 
 		// Empty state (no photos at all)
-		if (photos.length === 0 && !hasActiveFilters) {
+		if (files.length === 0 && !hasActiveFilters) {
 			return (
 				<EmptyState
 					icon={<IcImage style={{ fontSize: '2.5rem' }} />}
@@ -157,7 +106,7 @@ export function GalleryApp() {
 		}
 
 		// Empty state (filters applied but no results)
-		if (photos.length === 0 && hasActiveFilters) {
+		if (files.length === 0 && hasActiveFilters) {
 			return (
 				<EmptyState
 					icon={<IcImage style={{ fontSize: '2.5rem' }} />}
@@ -167,8 +116,22 @@ export function GalleryApp() {
 			)
 		}
 
-		// Photo grid - FcdContent handles scrolling, just add padding
-		return <GalleryGrid photos={photos} layout={filters.layout} className="p-3" />
+		// Photo grid with LoadMoreTrigger - FcdContent handles scrolling
+		return (
+			<>
+				<GalleryGrid photos={photos || []} layout={filters.layout} className="p-3" />
+				<LoadMoreTrigger
+					ref={sentinelRef}
+					isLoading={isLoadingMore}
+					hasMore={hasMore}
+					error={error}
+					onRetry={loadMore}
+					loadingLabel={t('Loading more images...')}
+					retryLabel={t('Retry')}
+					errorPrefix={t('Failed to load:')}
+				/>
+			</>
+		)
 	}
 
 	return (
@@ -198,7 +161,7 @@ export function GalleryApp() {
 					/>
 				}
 			>
-				{photos && (
+				{files.length > 0 && (
 					<ActiveFilters
 						viewMode={filters.viewMode}
 						selectedTags={filters.selectedTags}
@@ -207,8 +170,8 @@ export function GalleryApp() {
 						onClearTimeFilter={() => setTimeFilter('all')}
 						onClearViewMode={() => setViewMode('all')}
 						onClearAll={clearAll}
-						totalCount={totalCount}
-						filteredCount={photos.length}
+						totalCount={undefined}
+						filteredCount={files.length}
 					/>
 				)}
 

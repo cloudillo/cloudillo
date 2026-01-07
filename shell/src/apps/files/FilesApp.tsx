@@ -29,7 +29,8 @@ import {
 	Fcd,
 	mergeClasses,
 	LoadingSpinner,
-	EmptyState
+	EmptyState,
+	LoadMoreTrigger
 } from '@cloudillo/react'
 
 import { useAppConfig } from '../../utils.js'
@@ -510,14 +511,8 @@ export function FilesApp() {
 		onSelectAll: multiSelect.selectAll
 	})
 
-	if (!fileListData.getData())
-		return (
-			<div className="d-flex align-items-center justify-content-center h-100">
-				<LoadingSpinner size="lg" label={t('Loading files...')} />
-			</div>
-		)
-
 	// Sort files: pinned first, then folders, then regular files
+	// NOTE: This useMemo MUST be before any early returns to follow React hooks rules
 	const files = React.useMemo(() => {
 		const data = fileListData.getData()
 		return [...data].sort((a, b) => {
@@ -537,6 +532,14 @@ export function FilesApp() {
 	}, [fileListData])
 
 	const isTrashView = viewMode === 'trash'
+
+	// Show loading spinner only for initial load
+	if (fileListData.isLoading && files.length === 0)
+		return (
+			<div className="d-flex align-items-center justify-content-center h-100">
+				<LoadingSpinner size="lg" label={t('Loading files...')} />
+			</div>
+		)
 
 	// Disable drag-drop in trash view
 	const canUpload = viewMode === 'all'
@@ -638,11 +641,45 @@ export function FilesApp() {
 								}
 							/>
 						) : displayMode === 'grid' ? (
-							<div className="c-file-grid-container">
+							<>
+								<div className="c-file-grid-container">
+									{files.map((file) => (
+										<ItemGrid
+											key={file.fileId}
+											className={mergeClasses(
+												multiSelect.isSelected(file.fileId) && 'accent'
+											)}
+											file={file}
+											onClick={onClickFile}
+											onDoubleClick={onDoubleClickFile}
+											onContextMenu={onContextMenuFile}
+											onInfoClick={onInfoClick}
+											renameFileId={renameFileId}
+											renameFileName={renameFileName}
+											fileOps={fileOps}
+											viewMode={viewMode}
+											isFavorite={favorites.has(file.fileId)}
+										/>
+									))}
+								</div>
+								<LoadMoreTrigger
+									ref={fileListData.sentinelRef}
+									isLoading={fileListData.isLoadingMore}
+									hasMore={fileListData.hasMore}
+									error={fileListData.error}
+									onRetry={fileListData.loadMore}
+									loadingLabel={t('Loading more files...')}
+									retryLabel={t('Retry')}
+									errorPrefix={t('Failed to load:')}
+								/>
+							</>
+						) : (
+							<>
 								{files.map((file) => (
-									<ItemGrid
+									<ItemCard
 										key={file.fileId}
 										className={mergeClasses(
+											'mb-1',
 											multiSelect.isSelected(file.fileId) && 'accent'
 										)}
 										file={file}
@@ -657,27 +694,17 @@ export function FilesApp() {
 										isFavorite={favorites.has(file.fileId)}
 									/>
 								))}
-							</div>
-						) : (
-							files.map((file) => (
-								<ItemCard
-									key={file.fileId}
-									className={mergeClasses(
-										'mb-1',
-										multiSelect.isSelected(file.fileId) && 'accent'
-									)}
-									file={file}
-									onClick={onClickFile}
-									onDoubleClick={onDoubleClickFile}
-									onContextMenu={onContextMenuFile}
-									onInfoClick={onInfoClick}
-									renameFileId={renameFileId}
-									renameFileName={renameFileName}
-									fileOps={fileOps}
-									viewMode={viewMode}
-									isFavorite={favorites.has(file.fileId)}
+								<LoadMoreTrigger
+									ref={fileListData.sentinelRef}
+									isLoading={fileListData.isLoadingMore}
+									hasMore={fileListData.hasMore}
+									error={fileListData.error}
+									onRetry={fileListData.loadMore}
+									loadingLabel={t('Loading more files...')}
+									retryLabel={t('Retry')}
+									errorPrefix={t('Failed to load:')}
 								/>
-							))
+							</>
 						)}
 					</Fcd.Content>
 					<Fcd.Details

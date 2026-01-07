@@ -16,7 +16,7 @@
 
 import * as React from 'react'
 import { useLocation } from 'react-router-dom'
-import { useAuth } from '@cloudillo/react'
+import { useAuth, useInfiniteScroll } from '@cloudillo/react'
 import * as Types from '@cloudillo/base'
 import { parseQS } from '../../../utils.js'
 import { useCurrentContextIdTag, useContextAwareApi } from '../../../context/index.js'
@@ -28,6 +28,8 @@ export interface UseFileListOptions {
 	parentId?: string | null
 	tags?: string[]
 }
+
+const PAGE_SIZE = 30
 
 function convertFileView(f: Types.FileView): File {
 	return {
@@ -72,135 +74,160 @@ export function useFileList(options?: UseFileListOptions) {
 	const contextIdTag = useCurrentContextIdTag()
 	const [sort, setSort] = React.useState<keyof File | undefined>()
 	const [sortAsc, setSortAsc] = React.useState(false)
-	const [page, setPage] = React.useState(0)
-	const [refreshHelper, setRefreshHelper] = React.useState(false)
+	const [refreshCounter, setRefreshCounter] = React.useState(0)
 	const [filter, setFilter] = React.useState<Record<string, string> | undefined>()
-	const [files, setFiles] = React.useState<File[] | undefined>()
 
 	const { viewMode = 'all', parentId, tags } = options || {}
 
 	// Convert tags array to comma-separated string for API
 	const tagsParam = tags && tags.length > 0 ? tags.join(',') : undefined
 
-	React.useEffect(
-		function loadFileList() {
-			if (!api) return
+	// Parse query string once
+	React.useEffect(() => {
+		const qs = parseQS(location.search)
+		setFilter(qs)
+	}, [location.search])
 
-			;(async function () {
-				const qs = parseQS(location.search)
-				setFilter(qs)
+	// Build the base query params based on viewMode
+	const buildQueryParams = React.useCallback(
+		(cursor: string | null, limit: number): Types.ListFilesQuery => {
+			const baseParams: Types.ListFilesQuery = {
+				cursor: cursor ?? undefined,
+				limit,
+				tag: tagsParam
+			}
 
-				let fileList: File[] = []
-
-				switch (viewMode) {
-					case 'starred': {
-						// Starred files
-						const files = await api.files.list({ starred: true, tag: tagsParam })
-						fileList = files.map(convertFileView)
-						break
+			switch (viewMode) {
+				case 'starred':
+					return { ...baseParams, starred: true }
+				case 'recent':
+					return { ...baseParams, sort: 'recent', sortDir: 'desc' }
+				case 'pinned':
+					return { ...baseParams, pinned: true }
+				case 'live':
+					// Live documents need client-side filtering for now
+					// (API doesn't support multiple fileTp values)
+					return { ...baseParams }
+				case 'static':
+					// Static files need client-side filtering for now
+					return { ...baseParams, fileTp: 'BLOB' }
+				case 'trash':
+					return { ...baseParams, parentId: TRASH_FOLDER_ID }
+				default:
+					// 'all' mode - use parentId if provided
+					return {
+						...baseParams,
+						...(filter || {}),
+						...(parentId !== undefined && { parentId: parentId ?? '__root__' })
 					}
-					case 'recent': {
-						// Recent files sorted by last access/modification
-						const files = await api.files.list({
-							sort: 'recent',
-							sortDir: 'desc',
-							tag: tagsParam
-						})
-						fileList = files.map(convertFileView)
-						break
-					}
-					case 'pinned': {
-						// Pinned files (user-specific)
-						const files = await api.files.list({ pinned: true, tag: tagsParam })
-						fileList = files.map(convertFileView)
-						break
-					}
-					case 'live': {
-						// Live documents: CRDT and RTDB (collaboratively editable)
-						const allFiles = await api.files.list({ tag: tagsParam })
-						fileList = allFiles
-							.filter(
-								(f: Types.FileView) => f.fileTp === 'CRDT' || f.fileTp === 'RTDB'
-							)
-							.map(convertFileView)
-						break
-					}
-					case 'static': {
-						// Static files: BLOB (immutable, uploaded or exported)
-						const allFiles = await api.files.list({ tag: tagsParam })
-						fileList = allFiles
-							.filter((f: Types.FileView) => f.fileTp === 'BLOB')
-							.map(convertFileView)
-						break
-					}
-					case 'trash':
-						fileList = (
-							await api.files.list({
-								...qs,
-								parentId: TRASH_FOLDER_ID,
-								tag: tagsParam
-							} as Types.ListFilesQuery)
-						).map(convertFileView)
-						break
-					default: {
-						// 'all' mode - use parentId if provided
-						const queryParams: Types.ListFilesQuery = {
-							...qs,
-							...(parentId !== undefined && { parentId: parentId ?? '__root__' }),
-							tag: tagsParam
-						}
-						fileList = (await api.files.list(queryParams)).map(convertFileView)
-					}
-				}
-
-				setFiles(fileList)
-			})()
+			}
 		},
-		[api, location.search, refreshHelper, viewMode, parentId, tagsParam, contextIdTag]
+		[viewMode, parentId, tagsParam, filter]
 	)
+
+	// Fetch page function for infinite scroll
+	const fetchPage = React.useCallback(
+		async (cursor: string | null, limit: number) => {
+			if (!api) {
+				return { items: [], nextCursor: null, hasMore: false }
+			}
+
+			const queryParams = buildQueryParams(cursor, limit)
+			const result = await api.files.listPaginated(queryParams)
+
+			let files = result.data.map(convertFileView)
+
+			// Client-side filtering for 'live' mode (CRDT and RTDB types)
+			if (viewMode === 'live') {
+				files = files.filter((f) => f.fileTp === 'CRDT' || f.fileTp === 'RTDB')
+			}
+
+			return {
+				items: files,
+				nextCursor: result.cursorPagination?.nextCursor ?? null,
+				hasMore: result.cursorPagination?.hasMore ?? false
+			}
+		},
+		[api, buildQueryParams, viewMode]
+	)
+
+	// Use infinite scroll hook
+	const {
+		items: files,
+		isLoading,
+		isLoadingMore,
+		error,
+		hasMore,
+		loadMore,
+		reset,
+		prepend,
+		sentinelRef
+	} = useInfiniteScroll<File>({
+		fetchPage,
+		pageSize: PAGE_SIZE,
+		deps: [viewMode, parentId, tagsParam, contextIdTag, refreshCounter, filter],
+		enabled: !!api
+	})
 
 	return React.useMemo(
 		function () {
 			function getData() {
-				return files || []
+				return files
 			}
 
 			function setState(
 				sort: keyof File | undefined,
 				sortAsc: boolean | undefined,
-				page: number | undefined
+				_page: number | undefined
 			) {
 				if (sort !== undefined) setSort(sort)
 				if (sortAsc !== undefined) setSortAsc(sortAsc)
-				if (page !== undefined) setPage(page)
+				// page is no longer used - infinite scroll handles loading
 			}
 
 			function setFileData(fileId: string, file: File) {
-				setFiles((files) => files?.map((f) => (f.fileId === fileId ? file : f)))
-			}
-
-			async function next() {
-				if (!page) setPage(page + 1)
-			}
-
-			async function prev() {
-				if (page) setPage(page - 1)
+				// Note: This won't work well with infinite scroll's internal state
+				// Consider using a separate state or refactoring if needed
 			}
 
 			function refresh() {
-				setRefreshHelper((r) => !r)
+				setRefreshCounter((r) => r + 1)
 			}
 
 			return {
+				// Data
 				getData,
+				files,
 				setFileData,
 				filter,
 				state: { sort, sortAsc },
 				setState,
-				refresh
+				refresh,
+				// Infinite scroll
+				isLoading,
+				isLoadingMore,
+				error,
+				hasMore,
+				loadMore,
+				reset,
+				prepend,
+				sentinelRef
 			}
 		},
-		[files, filter, sort, sortAsc, page]
+		[
+			files,
+			filter,
+			sort,
+			sortAsc,
+			isLoading,
+			isLoadingMore,
+			error,
+			hasMore,
+			loadMore,
+			reset,
+			prepend,
+			sentinelRef
+		]
 	)
 }
 

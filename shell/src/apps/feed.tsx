@@ -69,7 +69,8 @@ import {
 	LoadingSpinner,
 	EmptyState,
 	SkeletonCard,
-	TimeFormat
+	TimeFormat,
+	LoadMoreTrigger
 } from '@cloudillo/react'
 import '@cloudillo/react/components.css'
 
@@ -79,6 +80,7 @@ import { useWsBus } from '../ws-bus.js'
 import { useCurrentContextIdTag } from '../context/index.js'
 import { useImageUpload } from '../hooks/useImageUpload.js'
 import { AttachmentPreview } from '../components/AttachmentPreview.js'
+import { useFeedPosts, NewPostsBanner } from './feed/index.js'
 
 //////////////////////
 // Action datatypes //
@@ -1030,12 +1032,34 @@ export function FeedApp() {
 	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
 	const contextIdTag = useCurrentContextIdTag()
-	const [feed, setFeed] = React.useState<ActionEvt[] | undefined>()
-	const [text, setText] = React.useState('')
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	const ref = React.useRef<HTMLDivElement>(null)
 	const widthRef = React.useRef<HTMLDivElement>(null)
 	const [width, setWidth] = React.useState(0)
+
+	// Determine audience for feed (undefined for own context, contextIdTag for community)
+	const isOwnContext = !contextIdTag || contextIdTag === auth?.idTag
+	const audience = isOwnContext ? undefined : contextIdTag
+
+	// Use infinite scroll hook for feed
+	const {
+		posts: feed,
+		isLoading,
+		isLoadingMore,
+		error,
+		hasMore,
+		loadMore,
+		sentinelRef,
+		newPostsCount,
+		showNewPosts,
+		addPost
+	} = useFeedPosts({
+		audience,
+		enabled: !!api?.idTag
+	})
+
+	// Local state for post updates (reactions, comments, etc.)
+	const [feedUpdates, setFeedUpdates] = React.useState<Record<string, Partial<ActionEvt>>>({})
 
 	React.useEffect(
 		function onLocationEffect() {
@@ -1044,37 +1068,21 @@ export function FeedApp() {
 		[location]
 	)
 
+	// Handle STAT updates from WebSocket
 	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
 		const action = msg.data as ActionView
 
-		switch (action.type) {
-			case 'POST':
-				return setFeed(function (feed) {
-					const fIdx = feed?.findIndex((f) => f.actionId === action.parentId) ?? -1
-					return fIdx >= 0 ? feed : [action, ...(feed || [])]
-				})
-			case 'STAT':
-				return setFeed(function (feed) {
-					const fIdx = feed?.findIndex((f) => f.actionId === action.parentId) ?? -1
-					console.log('STAT inside fIdx', action.parentId, fIdx, feed)
-					if (fIdx >= 0) {
-						return feed?.map((f) => {
-							const content = action.content as { r?: number; c?: number }
-							return f.actionId === action.parentId
-								? {
-										...f,
-										stat: {
-											...f.stat,
-											reactions: content.r,
-											comments: content.c
-										}
-									}
-								: f
-						})
-					} else {
-						return feed
+		if (action.type === 'STAT') {
+			const content = action.content as { r?: number; c?: number }
+			setFeedUpdates((prev) => ({
+				...prev,
+				[action.parentId!]: {
+					stat: {
+						reactions: content.r,
+						comments: content.c
 					}
-				})
+				}
+			}))
 		}
 	})
 
@@ -1114,39 +1122,33 @@ export function FeedApp() {
 		[widthRef.current]
 	)
 
-	React.useEffect(
-		function onLoadFeed() {
-			console.log('FEED useEffect', !ref.current, !api, !auth, 'context:', contextIdTag)
-			if (!api || !api.idTag) return // Allow guests (removed !auth check)
-
-			// Clear feed when context changes to show loading state
-			setFeed(undefined)
-
-			;(async function () {
-				// Only filter by audience when viewing a community (not user's own context)
-				// When viewing own context, show all relevant posts (from followed users, etc.)
-				const isOwnContext = !contextIdTag || contextIdTag === auth?.idTag
-				const actions = await api.actions.list({
-					type: 'POST',
-					audience: isOwnContext ? undefined : contextIdTag
-				})
-				if (ref) console.log('Feed res', actions)
-				setFeed(actions)
-			})()
-		},
-		[api, ref, contextIdTag, auth?.idTag]
-	)
+	// Merge feed posts with local updates
+	const mergedFeed = React.useMemo(() => {
+		return feed.map((post) => {
+			const update = feedUpdates[post.actionId]
+			if (update) {
+				return { ...post, ...update } as ActionEvt
+			}
+			return post as ActionEvt
+		})
+	}, [feed, feedUpdates])
 
 	const setFeedAction = React.useCallback(function setFeedAction(
 		actionId: string,
 		action: ActionEvt
 	) {
-		setFeed((feed) => (!feed ? feed : feed.map((f) => (f.actionId === actionId ? action : f))))
+		setFeedUpdates((prev) => ({
+			...prev,
+			[actionId]: action
+		}))
 	}, [])
 
-	const onSubmit = React.useCallback(function onSubmit(action: ActionEvt) {
-		setFeed((feed) => [action, ...(feed || [])])
-	}, [])
+	const onSubmit = React.useCallback(
+		function onSubmit(action: ActionEvt) {
+			addPost(action)
+		},
+		[addPost]
+	)
 
 	const style = React.useMemo(() => ({ minHeight: '3rem' }), [])
 
@@ -1170,28 +1172,43 @@ export function FeedApp() {
 						/>
 					</div>
 				)}
+				{newPostsCount > 0 && (
+					<NewPostsBanner count={newPostsCount} onClick={showNewPosts} className="my-2" />
+				)}
 				<div ref={widthRef} className="c-vbox g-1">
-					{feed === undefined ? (
+					{isLoading && feed.length === 0 ? (
 						<div className="c-vbox g-2 p-2">
 							<SkeletonCard showAvatar showImage lines={2} />
 							<SkeletonCard showAvatar lines={3} />
 							<SkeletonCard showAvatar showImage lines={2} />
 						</div>
-					) : feed.length === 0 ? (
+					) : mergedFeed.length === 0 ? (
 						<EmptyState
 							icon={<IcAll style={{ fontSize: '2.5rem' }} />}
 							title={t('No posts yet')}
 							description={t('Be the first to share something with your community!')}
 						/>
 					) : (
-						feed.map((action) => (
-							<ActionComp
-								key={action.actionId}
-								action={action}
-								setAction={setFeedAction}
-								width={width}
+						<>
+							{mergedFeed.map((action) => (
+								<ActionComp
+									key={action.actionId}
+									action={action}
+									setAction={setFeedAction}
+									width={width}
+								/>
+							))}
+							<LoadMoreTrigger
+								ref={sentinelRef}
+								isLoading={isLoadingMore}
+								hasMore={hasMore}
+								error={error}
+								onRetry={loadMore}
+								loadingLabel={t('Loading more posts...')}
+								retryLabel={t('Retry')}
+								errorPrefix={t('Failed to load:')}
 							/>
-						))
+						</>
 					)}
 				</div>
 			</Fcd.Content>

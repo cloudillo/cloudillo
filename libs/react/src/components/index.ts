@@ -329,4 +329,8 @@ export type { QRCodeDialogProps } from './QRCodeDialog/index.js'
 export { FontPicker } from './FontPicker/index.js'
 export type { FontPickerProps } from './FontPicker/index.js'
 
+// InfiniteScroll Components
+export { LoadMoreTrigger } from './InfiniteScroll/index.js'
+export type { LoadMoreTriggerProps } from './InfiniteScroll/index.js'
+
 // vim: ts=4

@@ -277,4 +277,211 @@ export function useCloudilloEditor(appName: string) {
 	}
 }
 
+// useInfiniteScroll() //
+/////////////////////////
+
+export interface UseInfiniteScrollOptions<T> {
+	/** Function to fetch a page of data */
+	fetchPage: (
+		cursor: string | null,
+		limit: number
+	) => Promise<{
+		items: T[]
+		nextCursor: string | null
+		hasMore: boolean
+	}>
+	/** Items per page (default: 20) */
+	pageSize?: number
+	/** Dependencies that trigger a reset when changed */
+	deps?: React.DependencyList
+	/** Whether infinite scroll is enabled (default: true) */
+	enabled?: boolean
+}
+
+export interface UseInfiniteScrollReturn<T> {
+	/** All loaded items */
+	items: T[]
+	/** Whether initial load is in progress */
+	isLoading: boolean
+	/** Whether more pages are being fetched */
+	isLoadingMore: boolean
+	/** Error from last fetch */
+	error: Error | null
+	/** Whether there are more items to load */
+	hasMore: boolean
+	/** Function to load next page */
+	loadMore: () => void
+	/** Function to reset and reload */
+	reset: () => void
+	/** Function to prepend items (for real-time updates) */
+	prepend: (newItems: T[]) => void
+	/** Ref to attach to scroll sentinel element */
+	sentinelRef: React.RefObject<HTMLDivElement | null>
+}
+
+/**
+ * Hook for cursor-based infinite scroll pagination
+ *
+ * Uses IntersectionObserver for efficient scroll detection.
+ * Accumulates items across pages and provides prepend() for real-time updates.
+ *
+ * @example
+ * ```typescript
+ * const { items, isLoading, hasMore, sentinelRef } = useInfiniteScroll({
+ *   fetchPage: async (cursor, limit) => {
+ *     const result = await api.files.list({ cursor, limit })
+ *     return {
+ *       items: result.data,
+ *       nextCursor: result.cursorPagination?.nextCursor ?? null,
+ *       hasMore: result.cursorPagination?.hasMore ?? false
+ *     }
+ *   },
+ *   pageSize: 30,
+ *   deps: [folderId, sortField]
+ * })
+ *
+ * return (
+ *   <div>
+ *     {items.map(item => <Item key={item.id} item={item} />)}
+ *     <div ref={sentinelRef} /> // Triggers loadMore when visible
+ *   </div>
+ * )
+ * ```
+ */
+export function useInfiniteScroll<T>(
+	options: UseInfiniteScrollOptions<T>
+): UseInfiniteScrollReturn<T> {
+	const { fetchPage, pageSize = 20, deps = [], enabled = true } = options
+
+	const [items, setItems] = React.useState<T[]>([])
+	const [cursor, setCursor] = React.useState<string | null>(null)
+	const [isLoading, setIsLoading] = React.useState(false)
+	const [isLoadingMore, setIsLoadingMore] = React.useState(false)
+	const [error, setError] = React.useState<Error | null>(null)
+	const [hasMore, setHasMore] = React.useState(true)
+
+	const sentinelRef = React.useRef<HTMLDivElement | null>(null)
+	const isMountedRef = React.useRef(true)
+	const fetchingRef = React.useRef(false)
+
+	// Reset when deps change
+	React.useEffect(() => {
+		isMountedRef.current = true
+		setItems([])
+		setCursor(null)
+		setHasMore(true)
+		setError(null)
+		fetchingRef.current = false
+
+		return () => {
+			isMountedRef.current = false
+		}
+	}, deps)
+
+	// Fetch function
+	const fetchItems = React.useCallback(
+		async (currentCursor: string | null) => {
+			if (!enabled || fetchingRef.current) return
+
+			fetchingRef.current = true
+			const isInitialLoad = currentCursor === null
+
+			try {
+				if (isInitialLoad) {
+					setIsLoading(true)
+				} else {
+					setIsLoadingMore(true)
+				}
+				setError(null)
+
+				const result = await fetchPage(currentCursor, pageSize)
+
+				if (!isMountedRef.current) return
+
+				setItems((prev) => (isInitialLoad ? result.items : [...prev, ...result.items]))
+				setCursor(result.nextCursor)
+				setHasMore(result.hasMore)
+			} catch (err) {
+				if (!isMountedRef.current) return
+				setError(err instanceof Error ? err : new Error('Failed to fetch'))
+			} finally {
+				if (isMountedRef.current) {
+					setIsLoading(false)
+					setIsLoadingMore(false)
+					fetchingRef.current = false
+				}
+			}
+		},
+		[fetchPage, pageSize, enabled]
+	)
+
+	// Initial load
+	React.useEffect(() => {
+		if (enabled && items.length === 0 && hasMore && !isLoading) {
+			fetchItems(null)
+		}
+	}, [enabled, items.length, hasMore, isLoading, fetchItems])
+
+	// Load more function
+	const loadMore = React.useCallback(() => {
+		if (hasMore && !isLoading && !isLoadingMore && cursor) {
+			fetchItems(cursor)
+		}
+	}, [hasMore, isLoading, isLoadingMore, cursor, fetchItems])
+
+	// Reset function
+	const reset = React.useCallback(() => {
+		setItems([])
+		setCursor(null)
+		setHasMore(true)
+		setError(null)
+		fetchingRef.current = false
+		// Trigger refetch
+		setTimeout(() => fetchItems(null), 0)
+	}, [fetchItems])
+
+	// Prepend function (for real-time updates)
+	const prepend = React.useCallback((newItems: T[]) => {
+		setItems((prev) => [...newItems, ...prev])
+	}, [])
+
+	// IntersectionObserver for scroll detection
+	React.useEffect(() => {
+		const sentinel = sentinelRef.current
+		if (!sentinel || !enabled) return
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				const entry = entries[0]
+				if (entry?.isIntersecting && hasMore && !isLoading && !isLoadingMore) {
+					loadMore()
+				}
+			},
+			{
+				root: null,
+				rootMargin: '100px',
+				threshold: 0
+			}
+		)
+
+		observer.observe(sentinel)
+
+		return () => {
+			observer.disconnect()
+		}
+	}, [enabled, hasMore, isLoading, isLoadingMore, loadMore])
+
+	return {
+		items,
+		isLoading,
+		isLoadingMore,
+		error,
+		hasMore,
+		loadMore,
+		reset,
+		prepend,
+		sentinelRef
+	}
+}
+
 // vim: ts=4

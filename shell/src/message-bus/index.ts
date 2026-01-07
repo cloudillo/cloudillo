@@ -63,4 +63,7 @@ export {
 	resetShellBus
 } from './shell-bus.js'
 
+// Lifecycle handlers
+export { type AppReadyCallback, onAppReady, offAppReady } from './handlers/lifecycle.js'
+
 // vim: ts=4

@@ -33,6 +33,7 @@ import {
 	AuthInitPush,
 	AuthTokenRefreshRes,
 	AuthTokenPush,
+	AppReadyStage,
 	StorageOp,
 	StorageOpRes,
 	MediaPickAck,
@@ -316,6 +317,10 @@ export class AppMessageBus extends MessageBusBase {
 
 		this.initialized = true
 		this.log('Initialized with state:', this.state)
+
+		// Notify shell that auth initialization is complete
+		this.notifyReady('auth')
+
 		return this.getState()
 	}
 
@@ -339,6 +344,9 @@ export class AppMessageBus extends MessageBusBase {
 			this.applyTheme()
 			this.initialized = true
 			this.log('Initialized via push')
+
+			// Notify shell that auth initialization is complete
+			this.notifyReady('auth')
 		})
 
 		// Handle token updates pushed from shell
@@ -443,6 +451,44 @@ export class AppMessageBus extends MessageBusBase {
 
 		this.logWarn('Token refresh returned no token')
 		return undefined
+	}
+
+	// ============================================
+	// APP LIFECYCLE
+	// ============================================
+
+	/**
+	 * Notify the shell that the app has reached a loading stage
+	 *
+	 * Call this to inform the shell about your app's loading progress.
+	 * The shell uses this to hide loading indicators at the appropriate time.
+	 *
+	 * @param stage - The loading stage reached:
+	 *   - 'auth': App has received and processed auth data
+	 *   - 'synced': CRDT/data sync is complete
+	 *   - 'ready': App is fully interactive (default)
+	 *
+	 * @example
+	 * ```typescript
+	 * // After auth init
+	 * bus.notifyReady('auth')
+	 *
+	 * // After CRDT sync complete
+	 * bus.notifyReady('synced')
+	 *
+	 * // When fully ready (or just call without args)
+	 * bus.notifyReady('ready')
+	 * bus.notifyReady() // same as 'ready'
+	 * ```
+	 */
+	notifyReady(stage: AppReadyStage = 'ready'): void {
+		this.log('Notifying ready:', stage)
+		this.sendToShell({
+			cloudillo: true,
+			v: PROTOCOL_VERSION,
+			type: 'app:ready.notify',
+			payload: { stage }
+		})
 	}
 
 	// ============================================

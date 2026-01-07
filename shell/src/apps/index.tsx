@@ -18,16 +18,16 @@ import * as React from 'react'
 import { Routes, Route, useLocation, useParams } from 'react-router-dom'
 import { useAuth, useApi, mergeClasses } from '@cloudillo/react'
 
-import { LuRefreshCw as IcLoading } from 'react-icons/lu'
-
 import { useAppConfig, TrustLevel } from '../utils.js'
 import { getShellBus } from '../message-bus/shell-bus.js'
+import { onAppReady, offAppReady } from '../message-bus/index.js'
 import { useContextFromRoute, useGuestDocument } from '../context/index.js'
 import { FeedApp } from './feed.js'
 import { FilesApp } from './files.js'
 import { GalleryApp } from './gallery.js'
 import { MessagesApp } from './messages.js'
 import { FileViewerApp } from './viewer/index.js'
+import { AppLoadingIndicator, type LoadingStage } from './AppLoadingIndicator.js'
 
 async function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(() => resolve(), ms))
@@ -81,6 +81,9 @@ function getTokenExpiry(token: string): number | null {
 	}
 }
 
+// Timeout before showing error state (15 seconds)
+const LOADING_TIMEOUT_MS = 15000
+
 export function MicrofrontendContainer({
 	className,
 	app,
@@ -96,12 +99,14 @@ export function MicrofrontendContainer({
 	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
 	const [url, setUrl] = React.useState<string | undefined>(undefined)
-	const [loading, setLoading] = React.useState(true)
+	const [loadingStage, setLoadingStage] = React.useState<LoadingStage>('connecting')
+	const [retryCount, setRetryCount] = React.useState(0)
 	const [, , host, path] = (resId || '').match(/^(([a-zA-Z0-9-.]+):)?(.*)$/) || []
 	// Extract context from resId (format: "contextIdTag:resource-path")
 	const contextIdTag = host || auth?.idTag
 	const trustLevel = normalizeTrust(trust)
 	const renewalTimerRef = React.useRef<number | undefined>(undefined)
+	const timeoutRef = React.useRef<number | undefined>(undefined)
 
 	// Function to request a new token
 	const requestToken = React.useCallback(async () => {
@@ -153,12 +158,31 @@ export function MicrofrontendContainer({
 		[requestToken, sendTokenToApp]
 	)
 
-	// Cleanup timer on unmount
+	// Cleanup timers on unmount
 	React.useEffect(() => {
 		return () => {
 			if (renewalTimerRef.current) {
 				clearTimeout(renewalTimerRef.current)
 			}
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current)
+			}
+		}
+	}, [])
+
+	// Retry handler
+	const handleRetry = React.useCallback(() => {
+		setLoadingStage('connecting')
+		setRetryCount((c) => c + 1)
+		// Reset the iframe src to trigger reload
+		if (ref.current) {
+			const currentSrc = ref.current.src
+			ref.current.src = ''
+			setTimeout(() => {
+				if (ref.current) {
+					ref.current.src = currentSrc
+				}
+			}, 100)
 		}
 	}, [])
 
@@ -166,6 +190,9 @@ export function MicrofrontendContainer({
 		function onLoad() {
 			// Allow loading if we have auth OR a provided token (for guest share links)
 			if (api && (auth || providedToken)) {
+				// Reset loading stage on mount or retry
+				setLoadingStage('connecting')
+
 				// Use provided token if available, otherwise fetch one
 				const apiPromise = providedToken
 					? Promise.resolve({ token: providedToken })
@@ -185,6 +212,11 @@ export function MicrofrontendContainer({
 					})
 				}
 
+				// Set timeout for error state
+				timeoutRef.current = window.setTimeout(() => {
+					setLoadingStage('error')
+				}, LOADING_TIMEOUT_MS)
+
 				ref.current?.addEventListener('load', async function onMicrofrontendLoad() {
 					// Pre-register app with resId on load (also updates if already registered)
 					// Note: contentWindow changes when src is set, so we must get it here
@@ -193,9 +225,30 @@ export function MicrofrontendContainer({
 
 					if (!currentShellBus || !currentAppWindow) {
 						console.error('[Shell] Failed to initialize app: no shell bus or window')
-						setLoading(false)
+						setLoadingStage('error')
+						if (timeoutRef.current) {
+							clearTimeout(timeoutRef.current)
+						}
 						return
 					}
+
+					// Subscribe to ready notifications from the app
+					let unsubscribed = false
+					const unsubscribe = onAppReady(currentAppWindow, (_window, stage) => {
+						// Clear timeout when app reports any ready stage
+						if (timeoutRef.current) {
+							clearTimeout(timeoutRef.current)
+						}
+
+						// Any ready notification means the app is functional
+						// 'auth' = auth complete, 'synced' = CRDT synced, 'ready' = fully ready
+						setLoadingStage('ready')
+						if (!unsubscribed) {
+							unsubscribed = true
+							// Defer unsubscribe to avoid calling before it's defined
+							queueMicrotask(() => unsubscribe())
+						}
+					})
 
 					// Pre-register/update with Window reference now that we have it
 					currentShellBus.preRegisterApp(currentAppWindow, {
@@ -207,7 +260,7 @@ export function MicrofrontendContainer({
 						refId
 					})
 
-					await delay(100) // FIXME (wait for app to start)
+					await delay(100) // Wait for app JavaScript to initialize
 
 					try {
 						const res = await apiPromise
@@ -231,10 +284,21 @@ export function MicrofrontendContainer({
 							darkMode: document.body.classList.contains('dark')
 						})
 					}
-					await delay(5000) // FIXME (wait for app to start)
-					setLoading(false)
+
+					// Note: We no longer use fixed delay - we wait for app:ready.notify
 				})
 				setUrl(`${appUrl}#${resId}`)
+
+				// Cleanup on unmount
+				return () => {
+					const currentAppWindow = ref.current?.contentWindow
+					if (currentAppWindow) {
+						offAppReady(currentAppWindow)
+					}
+					if (timeoutRef.current) {
+						clearTimeout(timeoutRef.current)
+					}
+				}
 			}
 		},
 		[
@@ -248,18 +312,14 @@ export function MicrofrontendContainer({
 			refId,
 			guestName,
 			requestToken,
-			scheduleRenewal
+			scheduleRenewal,
+			retryCount // Include retryCount to re-run effect on retry
 		]
 	)
 
 	return (
 		<div className={mergeClasses('c-app flex-fill pos-relative', trustLevel, className)}>
-			{loading && (
-				<IcLoading
-					size="5rem"
-					className="pos-absolute top-0 left-0 right-0 bottom-0 animate-rotate-cw m-auto z-1"
-				/>
-			)}
+			<AppLoadingIndicator stage={loadingStage} onRetry={handleRetry} />
 			<iframe
 				ref={ref}
 				src={url}
@@ -267,9 +327,10 @@ export function MicrofrontendContainer({
 				allow="fullscreen"
 				allowFullScreen
 				className={mergeClasses(
-					'pos-absolute top-0 left-0 right-0 bottom-0 z-2',
+					'pos-absolute top-0 left-0 right-0 bottom-0 z-1',
 					className
 				)}
+				style={{ width: '100%', height: '100%' }}
 				autoFocus
 			/>
 		</div>

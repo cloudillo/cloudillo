@@ -189,6 +189,15 @@ function createColorPicker(
 		}
 	})
 
+	// Notify shell when CRDT sync is complete
+	if (doc.provider.synced) {
+		bus.notifyReady('synced')
+	} else {
+		doc.provider.once('sync', () => {
+			bus.notifyReady('synced')
+		})
+	}
+
 	const editor = new Quill('#editor', {
 		modules: {
 			cursors: true,

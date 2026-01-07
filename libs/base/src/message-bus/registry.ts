@@ -31,6 +31,7 @@ import {
 	tAuthTokenRefreshReq,
 	tAuthTokenRefreshRes,
 	tAuthTokenPush,
+	tAppReadyNotify,
 	tStorageOpReq,
 	tStorageOpRes,
 	tMediaPickReq,
@@ -91,6 +92,11 @@ export const MESSAGE_REGISTRY: Record<MessageType, MessageAccessRule> = {
 		directions: ['shell>app'],
 		requiresAuth: false,
 		validator: tAuthTokenPush
+	},
+	'app:ready.notify': {
+		directions: ['app>shell'],
+		requiresAuth: false, // Allow before full auth to signal early stages
+		validator: tAppReadyNotify
 	},
 	'storage:op.req': {
 		directions: ['app>shell'],

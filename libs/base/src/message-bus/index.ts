@@ -57,6 +57,9 @@ export {
 	type AuthTokenRefreshReq,
 	type AuthTokenRefreshRes,
 	type AuthTokenPush,
+	// App lifecycle messages
+	type AppReadyStage,
+	type AppReadyNotify,
 	// Storage messages
 	type StorageOp,
 	type StorageOpReq,
@@ -96,6 +99,8 @@ export {
 	tAuthTokenRefreshReq,
 	tAuthTokenRefreshRes,
 	tAuthTokenPush,
+	tAppReadyStage,
+	tAppReadyNotify,
 	tStorageOp,
 	tStorageOpReq,
 	tStorageOpRes,

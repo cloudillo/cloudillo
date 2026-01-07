@@ -172,6 +172,38 @@ export const tAuthInitPush = T.struct({
 export type AuthInitPush = T.TypeOf<typeof tAuthInitPush>
 
 // ============================================
+// APP LIFECYCLE MESSAGES
+// ============================================
+
+/**
+ * Loading stage for app ready notification
+ */
+export const tAppReadyStage = T.literal('auth', 'synced', 'ready')
+export type AppReadyStage = T.TypeOf<typeof tAppReadyStage>
+
+/**
+ * App notifies shell it has reached a loading stage
+ * Direction: app -> shell (notification, no response expected)
+ *
+ * Used to inform shell about app loading progress so it can
+ * hide loading indicators at the right time.
+ *
+ * Stages:
+ * - 'auth': App has received and processed auth data
+ * - 'synced': CRDT/data sync is complete
+ * - 'ready': App is fully interactive (default if no stage specified)
+ */
+export const tAppReadyNotify = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('app:ready.notify'),
+	payload: T.struct({
+		stage: T.optional(tAppReadyStage)
+	})
+})
+export type AppReadyNotify = T.TypeOf<typeof tAppReadyNotify>
+
+// ============================================
 // STORAGE MESSAGES
 // ============================================
 
@@ -476,6 +508,9 @@ export const tCloudilloMessage = T.taggedUnion('type')({
 	'auth:token.refresh.req': tAuthTokenRefreshReq,
 	'auth:token.refresh.res': tAuthTokenRefreshRes,
 	'auth:token.push': tAuthTokenPush,
+
+	// App lifecycle messages
+	'app:ready.notify': tAppReadyNotify,
 
 	// Storage messages
 	'storage:op.req': tStorageOpReq,

@@ -175,6 +175,7 @@ export function useCloudillo(appNameArg?: string): UseCloudillo {
 						roles: state.roles,
 						token: state.accessToken
 					})
+					// Note: bus.init() automatically calls notifyReady('auth')
 				} catch (e) {
 					console.error('useCloudillo INIT ERROR', e)
 				}
@@ -214,17 +215,23 @@ export function useCloudilloEditor(appName: string) {
 					const { provider } = await openYDoc(yDoc, docId)
 					setProvider(provider)
 
+					const bus = getAppBus()
+
 					// Wait for initial sync before marking as ready
 					const handleSync = (isSynced: boolean) => {
 						if (isSynced) {
 							setSynced(true)
 							provider.off('sync', handleSync)
+							// Notify shell that CRDT sync is complete - app is now fully ready
+							bus.notifyReady('synced')
 						}
 					}
 
 					// Check if already synced
 					if (provider.synced) {
 						setSynced(true)
+						// Notify shell that CRDT sync is complete - app is now fully ready
+						bus.notifyReady('synced')
 					} else {
 						provider.on('sync', handleSync)
 					}

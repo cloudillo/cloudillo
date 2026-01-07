@@ -277,6 +277,64 @@ body {
 	}
 }
 
+/* App Loading Indicator */
+.c-app-loading {
+	background: var(--col-bg, #fff);
+	opacity: 1;
+	transition: opacity 200ms ease-out;
+}
+
+.c-app-loading--fade-out {
+	opacity: 0;
+	pointer-events: none;
+}
+
+.c-app-loading__icon {
+	color: var(--col-txt-muted, #6b7280);
+}
+
+.c-app-loading__icon--spinner {
+	animation: c-app-loading-rotate 1.5s linear infinite;
+}
+
+.c-app-loading__icon--error {
+	color: var(--col-danger, #dc3545);
+}
+
+.c-app-loading__text {
+	font-size: 1rem;
+	color: var(--col-txt-muted, #6b7280);
+	margin: 0;
+}
+
+.c-app-loading__text--error {
+	color: var(--col-danger, #dc3545);
+}
+
+.c-app-loading__retry {
+	min-width: 6rem;
+}
+
+@keyframes c-app-loading-rotate {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+	.c-app-loading {
+		transition: none;
+	}
+
+	.c-app-loading__icon--spinner {
+		animation: none;
+	}
+}
+
 .c-thumbnail {
 	height: 3rem;
 }

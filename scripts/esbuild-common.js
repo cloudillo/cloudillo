@@ -16,7 +16,7 @@ import { gzipSync, brotliCompressSync, constants } from 'zlib'
 // Environment
 export const isProd = process.env.NODE_ENV === 'production'
 export const isWatch = process.argv.includes('--watch') || process.argv.includes('-w')
-export const shouldCompress = isProd && !isWatch
+export const shouldCompress = process.env.COMPRESS === 'true' && !isWatch
 
 // Compression settings
 const COMPRESSIBLE_EXTENSIONS = ['.js', '.css', '.html', '.json', '.svg', '.xml']

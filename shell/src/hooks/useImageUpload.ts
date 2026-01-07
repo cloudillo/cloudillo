@@ -36,6 +36,7 @@ export interface UseImageUploadReturn {
 	removeAttachment: (id: string) => void
 	cancelCrop: () => void
 	reset: () => void
+	abortUpload: () => void
 }
 
 export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadReturn {
@@ -45,6 +46,19 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 	const [attachmentType, setAttachmentType] = React.useState<AttachmentType>(undefined)
 	const [isUploading, setIsUploading] = React.useState(false)
 	const [uploadProgress, setUploadProgress] = React.useState<number | undefined>()
+
+	// Track active XHR for cleanup
+	const activeXhrRef = React.useRef<XMLHttpRequest | null>(null)
+
+	// Cleanup on unmount - abort any active upload
+	React.useEffect(() => {
+		return () => {
+			if (activeXhrRef.current) {
+				activeXhrRef.current.abort()
+				activeXhrRef.current = null
+			}
+		}
+	}, [])
 
 	const selectFile = React.useCallback((file: File) => {
 		const reader = new FileReader()
@@ -60,13 +74,21 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 		async (blob: Blob) => {
 			if (!auth?.idTag) return
 
+			// Abort any existing upload
+			if (activeXhrRef.current) {
+				activeXhrRef.current.abort()
+			}
+
 			setIsUploading(true)
 
 			const request = new XMLHttpRequest()
+			activeXhrRef.current = request
+
 			request.open('POST', `${getInstanceUrl(auth.idTag)}/api/files/image/attachment`)
 			request.setRequestHeader('Authorization', `Bearer ${auth.token}`)
 
 			request.addEventListener('load', function () {
+				activeXhrRef.current = null
 				setIsUploading(false)
 				const j = JSON.parse(request.response)
 				const fileId = j?.data?.fileId
@@ -79,8 +101,14 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 			})
 
 			request.addEventListener('error', function () {
+				activeXhrRef.current = null
 				setIsUploading(false)
 				console.error('Upload failed')
+			})
+
+			request.addEventListener('abort', function () {
+				activeXhrRef.current = null
+				setIsUploading(false)
 			})
 
 			request.send(blob)
@@ -92,10 +120,17 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 		async (file: File) => {
 			if (!auth?.idTag) return
 
+			// Abort any existing upload
+			if (activeXhrRef.current) {
+				activeXhrRef.current.abort()
+			}
+
 			setIsUploading(true)
 			setUploadProgress(0)
 
 			const request = new XMLHttpRequest()
+			activeXhrRef.current = request
+
 			request.open('POST', `${getInstanceUrl(auth.idTag)}/api/files/video/attachment`)
 			request.setRequestHeader('Authorization', `Bearer ${auth.token}`)
 
@@ -106,6 +141,7 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 			})
 
 			request.addEventListener('load', function () {
+				activeXhrRef.current = null
 				setIsUploading(false)
 				setUploadProgress(undefined)
 				const j = JSON.parse(request.response)
@@ -118,9 +154,16 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 			})
 
 			request.addEventListener('error', function () {
+				activeXhrRef.current = null
 				setIsUploading(false)
 				setUploadProgress(undefined)
 				console.error('Video upload failed')
+			})
+
+			request.addEventListener('abort', function () {
+				activeXhrRef.current = null
+				setIsUploading(false)
+				setUploadProgress(undefined)
 			})
 
 			request.send(file)
@@ -150,6 +193,13 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 		setUploadProgress(undefined)
 	}, [])
 
+	const abortUpload = React.useCallback(() => {
+		if (activeXhrRef.current) {
+			activeXhrRef.current.abort()
+			activeXhrRef.current = null
+		}
+	}, [])
+
 	return {
 		attachment,
 		attachmentIds,
@@ -161,7 +211,8 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 		uploadVideo,
 		removeAttachment,
 		cancelCrop,
-		reset
+		reset,
+		abortUpload
 	}
 }
 

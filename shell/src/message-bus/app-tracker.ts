@@ -88,7 +88,10 @@ export interface PendingRegistration {
  * Tracks active app connections for message source validation
  */
 export class AppTracker {
-	private connections = new Map<Window, AppConnection>()
+	// Using WeakMap to allow garbage collection when iframe windows are destroyed
+	private connections = new WeakMap<Window, AppConnection>()
+	// Track count separately since WeakMap doesn't have size
+	private connectionCount = 0
 	private pendingRegistrations = new Map<string, PendingRegistration>()
 	private debug: boolean
 
@@ -122,6 +125,10 @@ export class AppTracker {
 			refId: options.refId
 		}
 
+		// Only increment count if this is a new connection
+		if (!this.connections.has(options.window)) {
+			this.connectionCount++
+		}
 		this.connections.set(options.window, connection)
 		this.log('Registered app:', options.appName, options.resId)
 		return connection
@@ -188,6 +195,7 @@ export class AppTracker {
 		}
 
 		this.connections.delete(window)
+		this.connectionCount = Math.max(0, this.connectionCount - 1)
 		this.log('Unregistered app:', connection.appName)
 		return true
 	}
@@ -252,45 +260,20 @@ export class AppTracker {
 	}
 
 	/**
-	 * Get all active connections
-	 */
-	getConnections(): AppConnection[] {
-		return Array.from(this.connections.values())
-	}
-
-	/**
-	 * Get count of active connections
+	 * Get approximate count of active connections
+	 * Note: This is approximate since WeakMap entries may be GC'd
 	 */
 	getConnectionCount(): number {
-		return this.connections.size
+		return this.connectionCount
 	}
 
 	/**
-	 * Cleanup stale connections (apps that haven't been active)
-	 *
-	 * @param maxAge - Maximum age in milliseconds
-	 * @returns Number of connections cleaned up
-	 */
-	cleanup(maxAge: number = 30 * 60 * 1000): number {
-		const now = Date.now()
-		let count = 0
-
-		for (const [window, connection] of this.connections) {
-			if (now - connection.lastActiveAt > maxAge) {
-				this.connections.delete(window)
-				this.log('Cleaned up stale connection:', connection.appName)
-				count++
-			}
-		}
-
-		return count
-	}
-
-	/**
-	 * Clear all connections and pending registrations
+	 * Clear pending registrations and reset count
+	 * Note: WeakMap connections will be garbage collected automatically
 	 */
 	clear(): void {
-		this.connections.clear()
+		this.connections = new WeakMap()
+		this.connectionCount = 0
 		this.pendingRegistrations.clear()
 		this.log('Cleared all connections and pending registrations')
 	}

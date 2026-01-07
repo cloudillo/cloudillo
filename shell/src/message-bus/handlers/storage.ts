@@ -139,36 +139,113 @@ async function storageClear(prefix: string): Promise<void> {
 // QUOTA TRACKING
 // ============================================
 
-// Per-namespace quota tracking (in-memory, refreshed on list)
-const quotaUsage = new Map<string, number>()
 const DEFAULT_QUOTA_LIMIT = 50 * 1024 * 1024 // 50MB per namespace
 
 /**
- * Get quota usage for a namespace
+ * Per-namespace quota tracking with incremental updates
+ * Tracks both total size and per-key sizes to avoid recalculating on every operation
  */
-async function getQuotaUsage(ns: string): Promise<{ limit: number; used: number }> {
+interface NamespaceQuota {
+	totalSize: number
+	keySizes: Map<string, number>
+	initialized: boolean
+}
+
+const namespaceQuotas = new Map<string, NamespaceQuota>()
+
+/**
+ * Get or create quota tracking for a namespace
+ */
+function getOrCreateQuota(ns: string): NamespaceQuota {
+	let quota = namespaceQuotas.get(ns)
+	if (!quota) {
+		quota = { totalSize: 0, keySizes: new Map(), initialized: false }
+		namespaceQuotas.set(ns, quota)
+	}
+	return quota
+}
+
+/**
+ * Initialize quota tracking for a namespace by scanning existing keys
+ * Only called once per namespace on first access
+ */
+async function initializeQuota(ns: string): Promise<NamespaceQuota> {
+	const quota = getOrCreateQuota(ns)
+	if (quota.initialized) return quota
+
 	const prefix = `${ns}:`
 	const keys = await storageList(prefix)
 
-	let totalSize = 0
+	quota.totalSize = 0
+	quota.keySizes.clear()
+
 	for (const key of keys) {
 		const value = await storageGet(key)
 		if (value !== undefined) {
-			totalSize += JSON.stringify(value).length
+			const size = JSON.stringify(value).length
+			quota.keySizes.set(key, size)
+			quota.totalSize += size
 		}
 	}
 
-	quotaUsage.set(ns, totalSize)
-	return { limit: DEFAULT_QUOTA_LIMIT, used: totalSize }
+	quota.initialized = true
+	return quota
+}
+
+/**
+ * Get quota usage for a namespace (lazy-initialized)
+ */
+async function getQuotaUsage(ns: string): Promise<{ limit: number; used: number }> {
+	const quota = await initializeQuota(ns)
+	return { limit: DEFAULT_QUOTA_LIMIT, used: quota.totalSize }
 }
 
 /**
  * Check if a set operation would exceed quota
+ * Uses incremental tracking to avoid recalculating all keys
  */
-async function checkQuota(ns: string, value: unknown): Promise<boolean> {
-	const quota = await getQuotaUsage(ns)
-	const valueSize = JSON.stringify(value).length
-	return quota.used + valueSize <= quota.limit
+async function checkQuota(ns: string, fullKey: string, value: unknown): Promise<boolean> {
+	const quota = await initializeQuota(ns)
+	const newSize = JSON.stringify(value).length
+	const existingSize = quota.keySizes.get(fullKey) || 0
+	const deltaSize = newSize - existingSize
+	return quota.totalSize + deltaSize <= DEFAULT_QUOTA_LIMIT
+}
+
+/**
+ * Update quota after a successful set operation
+ */
+function updateQuotaOnSet(ns: string, fullKey: string, value: unknown): void {
+	const quota = namespaceQuotas.get(ns)
+	if (!quota || !quota.initialized) return
+
+	const newSize = JSON.stringify(value).length
+	const existingSize = quota.keySizes.get(fullKey) || 0
+	quota.totalSize += newSize - existingSize
+	quota.keySizes.set(fullKey, newSize)
+}
+
+/**
+ * Update quota after a successful delete operation
+ */
+function updateQuotaOnDelete(ns: string, fullKey: string): void {
+	const quota = namespaceQuotas.get(ns)
+	if (!quota || !quota.initialized) return
+
+	const existingSize = quota.keySizes.get(fullKey) || 0
+	quota.totalSize -= existingSize
+	quota.keySizes.delete(fullKey)
+}
+
+/**
+ * Clear quota tracking for a namespace (used after clear operation)
+ */
+function clearQuotaForNamespace(ns: string): void {
+	const quota = namespaceQuotas.get(ns)
+	if (!quota) return
+
+	quota.totalSize = 0
+	quota.keySizes.clear()
 }
 
 // ============================================
@@ -222,11 +299,13 @@ export function initStorageHandlers(bus: ShellMessageBus): void {
 					if (!fullKey) {
 						throw new Error('Key required for set operation')
 					}
-					// Check quota
-					if (!(await checkQuota(ns, value))) {
+					// Check quota with incremental tracking
+					if (!(await checkQuota(ns, fullKey, value))) {
 						throw new Error('Quota exceeded')
 					}
 					await storageSet(fullKey, value)
+					// Update quota tracking after successful write
+					updateQuotaOnSet(ns, fullKey, value)
 					result = undefined
 					break
 
@@ -235,6 +314,8 @@ export function initStorageHandlers(bus: ShellMessageBus): void {
 						throw new Error('Key required for delete operation')
 					}
 					await storageDelete(fullKey)
+					// Update quota tracking after successful delete
+					updateQuotaOnDelete(ns, fullKey)
 					result = undefined
 					break
 
@@ -246,6 +327,8 @@ export function initStorageHandlers(bus: ShellMessageBus): void {
 
 				case 'clear':
 					await storageClear(fullPrefix)
+					// Clear quota tracking for this namespace
+					clearQuotaForNamespace(ns)
 					result = undefined
 					break
 

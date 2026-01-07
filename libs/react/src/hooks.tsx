@@ -210,18 +210,31 @@ export function useCloudilloEditor(appName: string) {
 
 	React.useEffect(
 		function () {
+			// Track if cleanup has run to prevent state updates after unmount
+			let isMounted = true
+			let currentProvider: WebsocketProvider | undefined
+			let handleSync: ((isSynced: boolean) => void) | undefined
+
 			if (cl.token && docId) {
 				;(async function initDoc() {
 					const { provider } = await openYDoc(yDoc, docId)
+
+					// Check if component unmounted during async operation
+					if (!isMounted) {
+						provider.destroy()
+						return
+					}
+
+					currentProvider = provider
 					setProvider(provider)
 
 					const bus = getAppBus()
 
-					// Wait for initial sync before marking as ready
-					const handleSync = (isSynced: boolean) => {
-						if (isSynced) {
+					// Define handleSync for cleanup access
+					handleSync = (isSynced: boolean) => {
+						if (isSynced && isMounted) {
 							setSynced(true)
-							provider.off('sync', handleSync)
+							provider.off('sync', handleSync!)
 							// Notify shell that CRDT sync is complete - app is now fully ready
 							bus.notifyReady('synced')
 						}
@@ -236,6 +249,21 @@ export function useCloudilloEditor(appName: string) {
 						provider.on('sync', handleSync)
 					}
 				})()
+			}
+
+			// Cleanup function
+			return () => {
+				isMounted = false
+
+				// Remove sync listener if still registered
+				if (currentProvider && handleSync) {
+					currentProvider.off('sync', handleSync)
+				}
+
+				// Destroy the provider (closes WebSocket, removes all listeners)
+				if (currentProvider) {
+					currentProvider.destroy()
+				}
 			}
 		},
 		[cl.token, docId]

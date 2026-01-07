@@ -217,7 +217,11 @@ export function MicrofrontendContainer({
 					setLoadingStage('error')
 				}, LOADING_TIMEOUT_MS)
 
-				ref.current?.addEventListener('load', async function onMicrofrontendLoad() {
+				// Store iframe element reference for cleanup
+				const iframeElement = ref.current
+
+				// Define handler as named function for removal
+				const onMicrofrontendLoad = async function () {
 					// Pre-register app with resId on load (also updates if already registered)
 					// Note: contentWindow changes when src is set, so we must get it here
 					const currentShellBus = getShellBus()
@@ -286,14 +290,22 @@ export function MicrofrontendContainer({
 					}
 
 					// Note: We no longer use fixed delay - we wait for app:ready.notify
-				})
+				}
+
+				iframeElement?.addEventListener('load', onMicrofrontendLoad)
 				setUrl(`${appUrl}#${resId}`)
 
 				// Cleanup on unmount
 				return () => {
+					// Remove load event listener
+					iframeElement?.removeEventListener('load', onMicrofrontendLoad)
+
 					const currentAppWindow = ref.current?.contentWindow
 					if (currentAppWindow) {
 						offAppReady(currentAppWindow)
+						// Unregister app from tracker to allow GC
+						const currentShellBus = getShellBus()
+						currentShellBus?.getAppTracker().unregisterApp(currentAppWindow)
 					}
 					if (timeoutRef.current) {
 						clearTimeout(timeoutRef.current)

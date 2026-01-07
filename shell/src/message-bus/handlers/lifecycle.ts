@@ -30,10 +30,12 @@ import type { AppReadyNotify } from '@cloudillo/base'
 export type AppReadyCallback = (appWindow: Window, stage: 'auth' | 'synced' | 'ready') => void
 
 // Registry of ready callbacks per window
-const readyCallbacks = new Map<Window, AppReadyCallback>()
+// Using WeakMap to allow garbage collection when iframe windows are destroyed
+const readyCallbacks = new WeakMap<Window, AppReadyCallback>()
 
 // Store pending notifications that arrived before subscription
-const pendingNotifications = new Map<Window, 'auth' | 'synced' | 'ready'>()
+// Using WeakMap to allow garbage collection when iframe windows are destroyed
+const pendingNotifications = new WeakMap<Window, 'auth' | 'synced' | 'ready'>()
 
 /**
  * Register a callback for when an app sends a ready notification

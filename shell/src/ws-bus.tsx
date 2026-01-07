@@ -104,7 +104,7 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 					console.log('WS sending', sm)
 					newWs.send(sm)
 				}
-				//connSendBuf = []
+				connSendBuf.length = 0
 			}
 
 			newWs.onclose = async function close(event) {

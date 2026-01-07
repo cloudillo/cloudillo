@@ -23,6 +23,14 @@ import { getApiUrl } from './urls.js'
 // ============================================================================
 
 /**
+ * Cursor-based pagination info from API response
+ */
+export interface CursorPaginationMeta {
+	nextCursor: string | null
+	hasMore: boolean
+}
+
+/**
  * Response metadata from API envelope
  */
 export interface ApiResponseMeta {
@@ -30,12 +38,14 @@ export interface ApiResponseMeta {
 	time?: number
 	/** Request ID for tracing */
 	reqId?: string
-	/** Pagination info (list endpoints only) */
+	/** Pagination info (list endpoints only) - deprecated offset-based */
 	pagination?: {
 		offset: number
 		limit: number
 		total: number
 	}
+	/** Cursor-based pagination info (list endpoints) */
+	cursorPagination?: CursorPaginationMeta
 }
 
 /**
@@ -118,14 +128,15 @@ export interface ApiFetchOpts<R, D> {
 }
 /**
  * Helper function to unwrap API response envelope
- * Handles both old format (direct data) and new format ({ data, time, reqId, pagination })
+ * Handles both old format (direct data) and new format ({ data, time, reqId, pagination, cursorPagination })
  */
 function unwrapResponseEnvelope(response: any): { data: any; meta: ApiResponseMeta } {
 	// Extract metadata from envelope
 	const meta: ApiResponseMeta = {
 		time: response.time,
 		reqId: response.reqId,
-		pagination: response.pagination
+		pagination: response.pagination,
+		cursorPagination: response.cursorPagination
 	}
 
 	// Check for new envelope format - if 'data' field exists, use it

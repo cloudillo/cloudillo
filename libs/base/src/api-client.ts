@@ -326,6 +326,21 @@ export class ApiClient {
 			}),
 
 		/**
+		 * GET /actions - List actions with cursor pagination
+		 * @param query - Filter and pagination options (including cursor, limit)
+		 * @returns Actions with cursor pagination info
+		 */
+		listPaginated: async (query?: Types.ListActionsQuery) => {
+			const result = await this.requestWithMeta('GET', '/actions', Types.tListActionsResult, {
+				query: query as any
+			})
+			return {
+				data: result.data,
+				cursorPagination: result.meta.cursorPagination
+			}
+		},
+
+		/**
 		 * POST /actions - Create action
 		 * @param data - Action data
 		 * @returns Created action
@@ -406,6 +421,21 @@ export class ApiClient {
 			this.request('GET', '/files', Types.tListFilesResult, {
 				query: query as any
 			}),
+
+		/**
+		 * GET /files - List files with cursor pagination
+		 * @param query - Filter and pagination options (including cursor, limit)
+		 * @returns Files with cursor pagination info
+		 */
+		listPaginated: async (query?: Types.ListFilesQuery) => {
+			const result = await this.requestWithMeta('GET', '/files', Types.tListFilesResult, {
+				query: query as any
+			})
+			return {
+				data: result.data,
+				cursorPagination: result.meta.cursorPagination
+			}
+		},
 
 		/**
 		 * POST /files - Create file (metadata-only: CRDT, RTDB, etc.)

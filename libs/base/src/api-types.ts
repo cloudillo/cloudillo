@@ -307,6 +307,27 @@ export const tCreateApiKeyResult = T.struct({
 export type CreateApiKeyResult = T.TypeOf<typeof tCreateApiKeyResult>
 
 // ============================================================================
+// CURSOR PAGINATION
+// ============================================================================
+
+/**
+ * Cursor-based pagination info returned by API
+ */
+export const tCursorPaginationInfo = T.struct({
+	nextCursor: T.union(T.string, T.nullValue),
+	hasMore: T.boolean
+})
+export type CursorPaginationInfo = T.TypeOf<typeof tCursorPaginationInfo>
+
+/**
+ * API response with cursor pagination
+ */
+export interface PaginatedResponse<T> {
+	data: T[]
+	cursorPagination?: CursorPaginationInfo
+}
+
+// ============================================================================
 // ACTION ENDPOINTS
 // ============================================================================
 
@@ -330,7 +351,9 @@ export interface ListActionsQuery {
 	rootId?: string
 	subject?: string
 	createdAfter?: string | number
-	_limit?: number
+	cursor?: string // Cursor for pagination
+	limit?: number // Items per page (replaces _limit)
+	_limit?: number // @deprecated Use limit instead
 }
 
 // Response types
@@ -394,7 +417,9 @@ export interface ListFilesQuery {
 	starred?: boolean // Filter by starred status (user-specific)
 	sort?: 'name' | 'created' | 'modified' | 'recent' // Sort field
 	sortDir?: 'asc' | 'desc' // Sort direction
-	_limit?: number
+	cursor?: string // Cursor for pagination
+	limit?: number // Items per page (replaces _limit)
+	_limit?: number // @deprecated Use limit instead
 }
 
 // User-specific file data (pinned, starred, per-user timestamps)

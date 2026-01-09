@@ -2105,6 +2105,24 @@ body,
 	filter: brightness(1.1);
 }
 
+/* Non-interactive objects should not capture pointer events in presentation mode.
+   This allows clicks to pass through to poll frames underneath or to the background
+   for slide navigation. */
+.c-presentation-svg > g:not(.prezillo-pollframe),
+.c-presentation-svg > rect:not(:first-child),
+.c-presentation-svg > ellipse,
+.c-presentation-svg > line,
+.c-presentation-svg > text,
+.c-presentation-svg > image,
+.c-presentation-svg > foreignObject {
+	pointer-events: none;
+}
+
+/* Ensure interactive poll frames capture pointer events */
+.c-presentation-svg .prezillo-pollframe.interactive {
+	pointer-events: auto;
+}
+
 /* Vote counter badge animation */
 .poll-badge {
 	/* Use fill-box so transform-origin works relative to the element */

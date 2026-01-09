@@ -166,6 +166,7 @@ function CreateIdentityModal({ open, idpDomain, onClose, onCreated }: CreateIden
 	const [error, setError] = React.useState<string | undefined>()
 	const [nameError, setNameError] = React.useState<string | undefined>()
 	const [emailError, setEmailError] = React.useState<string | undefined>()
+	const [sendActivationEmail, setSendActivationEmail] = React.useState(true)
 
 	// Reset form when modal opens
 	React.useEffect(() => {
@@ -177,6 +178,7 @@ function CreateIdentityModal({ open, idpDomain, onClose, onCreated }: CreateIden
 			setError(undefined)
 			setNameError(undefined)
 			setEmailError(undefined)
+			setSendActivationEmail(true)
 		}
 	}, [open])
 
@@ -222,6 +224,7 @@ function CreateIdentityModal({ open, idpDomain, onClose, onCreated }: CreateIden
 			const result = await api.idpManagement.createIdentity({
 				idTag: `${idTagPrefix}.${idpDomain}`,
 				email,
+				sendActivationEmail,
 				createApiKey,
 				apiKeyName: createApiKey && apiKeyName ? apiKeyName : undefined
 			})
@@ -294,9 +297,26 @@ function CreateIdentityModal({ open, idpDomain, onClose, onCreated }: CreateIden
 						aria-invalid={!!emailError}
 					/>
 					{emailError && <div className="c-hint small text-error mt-1">{emailError}</div>}
-					<div className="c-hint small mt-1">
-						{t('An activation link will be sent to this address.')}
-					</div>
+				</div>
+
+				{/* Activation email toggle */}
+				<div className="c-panel bg-muted p-2 mb-3">
+					<label className="c-hbox ai-center">
+						<input
+							type="checkbox"
+							className="c-toggle primary mr-2"
+							checked={sendActivationEmail}
+							onChange={(e) => setSendActivationEmail(e.target.checked)}
+						/>
+						<div>
+							<span>{t('Send activation email')}</span>
+							<div className="c-hint small">
+								{sendActivationEmail
+									? t('User will receive an activation link via email.')
+									: t('Identity will be created as active immediately.')}
+							</div>
+						</div>
+					</label>
 				</div>
 
 				{/* API key toggle */}
@@ -783,13 +803,13 @@ function IdentityDetailsModal({
 				</div>
 
 				{/* Footer actions */}
-				<div className="c-hbox jc-between">
-					<Button className="text-error" onClick={() => onDelete(identity)}>
+				<footer className="c-hbox g-2 mt-3 pt-3 border-top jc-between">
+					<Button className="error" onClick={() => onDelete(identity)}>
 						<IcDelete className="mr-1" />
 						{t('Delete Identity')}
 					</Button>
 					<Button onClick={onClose}>{t('Close')}</Button>
-				</div>
+				</footer>
 			</div>
 		</Modal>
 	)
@@ -923,10 +943,11 @@ export function IdentitiesSettings() {
 	const [auth] = useAuth()
 	const dialog = useDialog()
 
-	// State
-	const [identities, setIdentities] = React.useState<IdpIdentity[]>([])
+	// State - all identities (unfiltered)
+	const [allIdentities, setAllIdentities] = React.useState<IdpIdentity[]>([])
 	const [loading, setLoading] = React.useState(true)
 	const [search, setSearch] = React.useState('')
+	const [debouncedSearch, setDebouncedSearch] = React.useState('')
 	const [statusFilter, setStatusFilter] = React.useState<string | undefined>()
 	const [roles, setRoles] = React.useState<string[]>([])
 	const [rolesLoading, setRolesLoading] = React.useState(true)
@@ -964,44 +985,58 @@ export function IdentitiesSettings() {
 
 	const isLeader = roles.includes('leader')
 
-	// Load identities
+	// Load all identities once
 	const loadIdentities = React.useCallback(async () => {
 		if (!api) return
 		setLoading(true)
 		try {
-			const query: { q?: string; status?: string } = {}
-			if (search) query.q = search
-			if (statusFilter) query.status = statusFilter
-			const result = await api.idpManagement.listIdentities(query)
-			setIdentities(result)
+			const result = await api.idpManagement.listIdentities({})
+			setAllIdentities(result)
 		} catch (err) {
 			console.error('Failed to load identities:', err)
 		} finally {
 			setLoading(false)
 		}
-	}, [api, search, statusFilter])
+	}, [api])
 
-	// Debounced search
+	// Debounce search input
 	React.useEffect(() => {
 		const timer = setTimeout(() => {
-			if (isLeader) {
-				loadIdentities()
-			}
+			setDebouncedSearch(search)
 		}, 300)
 		return () => clearTimeout(timer)
-	}, [search, statusFilter, isLeader, loadIdentities])
+	}, [search])
 
-	// Initial load
+	// Initial load when leader status is known
 	React.useEffect(() => {
 		if (isLeader && !rolesLoading) {
 			loadIdentities()
 		}
 	}, [isLeader, rolesLoading, loadIdentities])
 
+	// Filter identities client-side
+	const identities = React.useMemo(() => {
+		let filtered = allIdentities
+		// Apply status filter
+		if (statusFilter) {
+			filtered = filtered.filter((id) => id.status === statusFilter)
+		}
+		// Apply search filter (name or email)
+		if (debouncedSearch) {
+			const q = debouncedSearch.toLowerCase()
+			filtered = filtered.filter(
+				(id) =>
+					id.idTag.toLowerCase().includes(q) ||
+					(id.email && id.email.toLowerCase().includes(q))
+			)
+		}
+		return filtered
+	}, [allIdentities, statusFilter, debouncedSearch])
+
 	// Handle identity creation
 	function handleIdentityCreated(result: IdpCreateIdentityResult) {
 		// Result is the identity directly (with optional apiKey field)
-		setIdentities((prev) => [result, ...prev])
+		setAllIdentities((prev) => [result, ...prev])
 		setSelectedIdentity(result)
 		if (result.apiKey) {
 			// Create a mock ApiKeyResult for the modal
@@ -1043,7 +1078,7 @@ export function IdentitiesSettings() {
 
 		try {
 			await api!.idpManagement.deleteIdentity(identity.idTag)
-			setIdentities((prev) => prev.filter((i) => i.idTag !== identity.idTag))
+			setAllIdentities((prev) => prev.filter((i) => i.idTag !== identity.idTag))
 			setShowDetailsModal(false)
 		} catch (err: unknown) {
 			if (err instanceof Error) {
@@ -1052,16 +1087,16 @@ export function IdentitiesSettings() {
 		}
 	}
 
-	// Count identities by status
+	// Count identities by status (from all identities, not filtered)
 	const counts = React.useMemo(() => {
 		const c = { active: 0, pending: 0, suspended: 0 }
-		for (const id of identities) {
+		for (const id of allIdentities) {
 			if (id.status in c) {
 				c[id.status as keyof typeof c]++
 			}
 		}
 		return c
-	}, [identities])
+	}, [allIdentities])
 
 	// Loading roles
 	if (rolesLoading) {
@@ -1116,7 +1151,7 @@ export function IdentitiesSettings() {
 				{/* Status filter chips */}
 				<div className="c-hbox g-1 flex-wrap">
 					<FilterChip active={!statusFilter} onClick={() => setStatusFilter(undefined)}>
-						{t('All')} ({identities.length})
+						{t('All')} ({allIdentities.length})
 					</FilterChip>
 					<FilterChip
 						active={statusFilter === 'active'}

@@ -290,6 +290,7 @@ export interface CreateIdpIdentityRequest {
 	idTag: string
 	email: string
 	ownerIdTag?: string
+	sendActivationEmail?: boolean
 	createApiKey?: boolean
 	apiKeyName?: string
 }

@@ -555,5 +555,374 @@ body {
 		inset 0 0 0.5rem var(--col-bg, #1a1a1a);
 }
 
+/* ============================================
+   Quill Font Picker Labels (Native Style)
+   ============================================ */
+
+/* Font picker dropdown sizing */
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-options {
+	min-width: 180px;
+	max-height: 300px;
+	overflow-y: auto;
+}
+
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item {
+	padding: 6px 12px;
+}
+
+/* Prevent font name wrapping in dropdown */
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item::before {
+	white-space: nowrap;
+}
+
+/* Constrain font picker label width in toolbar */
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label {
+	max-width: 120px;
+	overflow: hidden;
+}
+
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label::before {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	display: block;
+	max-width: 100px;
+}
+
+/* Font picker - show "Default font" when empty */
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item::before {
+	content: 'Default font';
+}
+
+/* Each font option shows its name in that font */
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='roboto']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='roboto']::before {
+	content: 'Roboto';
+	font-family: 'Roboto', sans-serif;
+}
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='open-sans']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='open-sans']::before {
+	content: 'Open Sans';
+	font-family: 'Open Sans', sans-serif;
+}
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='montserrat']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='montserrat']::before {
+	content: 'Montserrat';
+	font-family: 'Montserrat', sans-serif;
+}
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='lato']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='lato']::before {
+	content: 'Lato';
+	font-family: 'Lato', sans-serif;
+}
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='poppins']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='poppins']::before {
+	content: 'Poppins';
+	font-family: 'Poppins', sans-serif;
+}
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='inter']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='inter']::before {
+	content: 'Inter';
+	font-family: 'Inter', sans-serif;
+}
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='nunito-sans']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='nunito-sans']::before {
+	content: 'Nunito Sans';
+	font-family: 'Nunito Sans', sans-serif;
+}
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='work-sans']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='work-sans']::before {
+	content: 'Work Sans';
+	font-family: 'Work Sans', sans-serif;
+}
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='raleway']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='raleway']::before {
+	content: 'Raleway';
+	font-family: 'Raleway', sans-serif;
+}
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='dm-sans']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='dm-sans']::before {
+	content: 'DM Sans';
+	font-family: 'DM Sans', sans-serif;
+}
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='source-sans-3']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='source-sans-3']::before {
+	content: 'Source Sans 3';
+	font-family: 'Source Sans 3', sans-serif;
+}
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='playfair-display']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='playfair-display']::before {
+	content: 'Playfair Display';
+	font-family: 'Playfair Display', serif;
+}
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='merriweather']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='merriweather']::before {
+	content: 'Merriweather';
+	font-family: 'Merriweather', serif;
+}
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='lora']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='lora']::before {
+	content: 'Lora';
+	font-family: 'Lora', serif;
+}
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='crimson-pro']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='crimson-pro']::before {
+	content: 'Crimson Pro';
+	font-family: 'Crimson Pro', serif;
+}
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='source-serif-4']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='source-serif-4']::before {
+	content: 'Source Serif 4';
+	font-family: 'Source Serif 4', serif;
+}
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='dm-serif-display']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='dm-serif-display']::before {
+	content: 'DM Serif Display';
+	font-family: 'DM Serif Display', serif;
+}
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='oswald']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='oswald']::before {
+	content: 'Oswald';
+	font-family: 'Oswald', sans-serif;
+}
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='bebas-neue']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='bebas-neue']::before {
+	content: 'Bebas Neue';
+	font-family: 'Bebas Neue', sans-serif;
+}
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='abril-fatface']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='abril-fatface']::before {
+	content: 'Abril Fatface';
+	font-family: 'Abril Fatface', serif;
+}
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='permanent-marker']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='permanent-marker']::before {
+	content: 'Permanent Marker';
+	font-family: 'Permanent Marker', cursive;
+}
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item[data-value='jetbrains-mono']::before,
+.c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label[data-value='jetbrains-mono']::before {
+	content: 'JetBrains Mono';
+	font-family: 'JetBrains Mono', monospace;
+}
+
+/* ============================================
+   Quill Size Picker Labels
+   ============================================ */
+
+/* Size picker - default label */
+.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-label::before,
+.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-item::before {
+	content: 'Default size';
+}
+
+/* Size options - dropdown shows hint, toolbar shows just pt */
+.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-item[data-value='9pt']::before {
+	content: '9pt (Small)';
+}
+.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-label[data-value='9pt']::before {
+	content: '9pt';
+}
+
+.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-item[data-value='12pt']::before {
+	content: '12pt (Normal)';
+}
+.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-label[data-value='12pt']::before {
+	content: '12pt';
+}
+
+.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-item[data-value='16pt']::before {
+	content: '16pt (Medium)';
+}
+.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-label[data-value='16pt']::before {
+	content: '16pt';
+}
+
+.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-item[data-value='24pt']::before {
+	content: '24pt (Large)';
+}
+.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-label[data-value='24pt']::before {
+	content: '24pt';
+}
+
+.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-item[data-value='36pt']::before {
+	content: '36pt (Heading)';
+}
+.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-label[data-value='36pt']::before {
+	content: '36pt';
+}
+
+.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-item[data-value='48pt']::before {
+	content: '48pt (Title)';
+}
+.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-label[data-value='48pt']::before {
+	content: '48pt';
+}
+
+.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-item[data-value='72pt']::before {
+	content: '72pt (Display)';
+}
+.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-label[data-value='72pt']::before {
+	content: '72pt';
+}
+
+/* Size format classes - using rem for web responsiveness */
+.ql-size-9pt {
+	font-size: 0.75rem;
+} /* 9pt ≈ 12px */
+.ql-size-12pt {
+	font-size: 1rem;
+} /* 12pt ≈ 16px (base) */
+.ql-size-16pt {
+	font-size: 1.333rem;
+} /* 16pt ≈ 21px */
+.ql-size-24pt {
+	font-size: 2rem;
+} /* 24pt ≈ 32px */
+.ql-size-36pt {
+	font-size: 3rem;
+} /* 36pt ≈ 48px */
+.ql-size-48pt {
+	font-size: 4rem;
+} /* 48pt ≈ 64px */
+.ql-size-72pt {
+	font-size: 6rem;
+} /* 72pt ≈ 96px */
+
+/* ============================================
+   Document-level Font Inheritance
+   Using #editor for higher specificity to override theme styles
+   ============================================ */
+
+#editor .ql-editor {
+	font-family: var(--doc-body-font, inherit);
+}
+#editor .ql-editor h1,
+#editor .ql-editor h2,
+#editor .ql-editor h3 {
+	font-family: var(--doc-heading-font, inherit);
+}
+
+/* ============================================
+   Settings Button
+   ============================================ */
+
+.quillo-settings-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	padding: 4px 6px;
+	border-radius: 4px;
+	color: var(--col-on);
+}
+.quillo-settings-btn:hover {
+	background: rgba(0, 0, 0, 0.1);
+}
+.quillo-settings-btn svg {
+	stroke: var(--col-on);
+}
+.dark .quillo-settings-btn:hover {
+	background: rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================
+   Settings Dialog (uses OpalUI classes)
+   ============================================ */
+
+.quillo-settings-dialog {
+	background: transparent;
+	border: none;
+	padding: 0;
+	max-width: 480px;
+	width: 90vw;
+}
+
+.quillo-settings-dialog::backdrop {
+	background: rgba(0, 0, 0, 0.5);
+	backdrop-filter: blur(4px);
+}
+
+/* Override OpalUI c-dialog default width */
+.quillo-settings-dialog > .c-dialog {
+	width: 100%;
+	max-width: 100%;
+	min-width: auto;
+}
+
+/* ============================================
+   Quill Font Format Styles
+   ============================================ */
+
+.ql-font-roboto {
+	font-family: 'Roboto', sans-serif;
+}
+.ql-font-open-sans {
+	font-family: 'Open Sans', sans-serif;
+}
+.ql-font-montserrat {
+	font-family: 'Montserrat', sans-serif;
+}
+.ql-font-lato {
+	font-family: 'Lato', sans-serif;
+}
+.ql-font-poppins {
+	font-family: 'Poppins', sans-serif;
+}
+.ql-font-inter {
+	font-family: 'Inter', sans-serif;
+}
+.ql-font-nunito-sans {
+	font-family: 'Nunito Sans', sans-serif;
+}
+.ql-font-work-sans {
+	font-family: 'Work Sans', sans-serif;
+}
+.ql-font-raleway {
+	font-family: 'Raleway', sans-serif;
+}
+.ql-font-dm-sans {
+	font-family: 'DM Sans', sans-serif;
+}
+.ql-font-source-sans-3 {
+	font-family: 'Source Sans 3', sans-serif;
+}
+.ql-font-playfair-display {
+	font-family: 'Playfair Display', serif;
+}
+.ql-font-merriweather {
+	font-family: 'Merriweather', serif;
+}
+.ql-font-lora {
+	font-family: 'Lora', serif;
+}
+.ql-font-crimson-pro {
+	font-family: 'Crimson Pro', serif;
+}
+.ql-font-source-serif-4 {
+	font-family: 'Source Serif 4', serif;
+}
+.ql-font-dm-serif-display {
+	font-family: 'DM Serif Display', serif;
+}
+.ql-font-oswald {
+	font-family: 'Oswald', sans-serif;
+}
+.ql-font-bebas-neue {
+	font-family: 'Bebas Neue', sans-serif;
+}
+.ql-font-abril-fatface {
+	font-family: 'Abril Fatface', serif;
+}
+.ql-font-permanent-marker {
+	font-family: 'Permanent Marker', cursive;
+}
+.ql-font-jetbrains-mono {
+	font-family: 'JetBrains Mono', monospace;
+}
+
 /* vim: ts=4
  */

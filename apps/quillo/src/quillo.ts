@@ -48,6 +48,14 @@ import * as T from '@symbion/runtype'
 import { createElement, Cloud, CloudOff } from 'lucide'
 
 import { getAppBus, openYDoc, str2color } from '@cloudillo/base'
+import {
+	FONTS,
+	getFontsByCategory,
+	getSuggestedBodyFonts,
+	getSuggestedHeadingFonts,
+	type FontCategory
+} from '@cloudillo/fonts'
+import '@cloudillo/fonts/fonts.css'
 
 // ============================================
 // Color Palette System
@@ -139,6 +147,194 @@ function createColorPicker(
 
 	return picker
 }
+
+// ============================================
+// Font Utilities
+// ============================================
+
+const CATEGORY_LABELS: Record<FontCategory, string> = {
+	'sans-serif': 'Sans Serif',
+	serif: 'Serif',
+	display: 'Display',
+	monospace: 'Monospace'
+}
+
+function sanitizeFontName(family: string): string {
+	return family.toLowerCase().replace(/\s+/g, '-')
+}
+
+// ============================================
+// Settings Dialog System
+// ============================================
+
+function createSettingsDialog(
+	settingsMap: Y.Map<any>,
+	applyDocumentFonts: () => void
+): HTMLDialogElement {
+	const dialog = document.createElement('dialog')
+	dialog.className = 'quillo-settings-dialog'
+	dialog.id = 'settings-dialog'
+
+	// Dialog container with OpalUI styling
+	const container = document.createElement('div')
+	container.className = 'c-dialog c-panel emph p-0'
+
+	// Header
+	const header = document.createElement('div')
+	header.className = 'c-hbox g-2 p-3 border-bottom'
+	const title = document.createElement('h3')
+	title.className = 'm-0'
+	title.textContent = 'Document Settings'
+	header.appendChild(title)
+	container.appendChild(header)
+
+	// Content
+	const content = document.createElement('div')
+	content.className = 'c-vbox g-3 p-3'
+
+	// Section title
+	const sectionTitle = document.createElement('div')
+	sectionTitle.className = 'text-secondary text-uppercase small'
+	sectionTitle.style.letterSpacing = '0.05em'
+	sectionTitle.textContent = 'Typography'
+	content.appendChild(sectionTitle)
+
+	// Heading font picker
+	const headingField = document.createElement('div')
+	headingField.className = 'c-vbox g-1'
+	const headingLabel = document.createElement('label')
+	headingLabel.className = 'small'
+	headingLabel.textContent = 'Heading Font'
+	headingField.appendChild(headingLabel)
+
+	const headingSelect = createDocFontSelect('heading', () => bodySelect.value)
+	headingSelect.value = settingsMap.get('headingFont') || ''
+	headingField.appendChild(headingSelect)
+	content.appendChild(headingField)
+
+	// Body font picker
+	const bodyField = document.createElement('div')
+	bodyField.className = 'c-vbox g-1'
+	const bodyLabel = document.createElement('label')
+	bodyLabel.className = 'small'
+	bodyLabel.textContent = 'Body Font'
+	bodyField.appendChild(bodyLabel)
+
+	const bodySelect = createDocFontSelect('body', () => headingSelect.value)
+	bodySelect.value = settingsMap.get('bodyFont') || ''
+	bodyField.appendChild(bodySelect)
+	content.appendChild(bodyField)
+
+	// Update pairing suggestions when either changes
+	headingSelect.addEventListener('change', () => {
+		updatePairingBadges(bodySelect, 'body', headingSelect.value)
+	})
+	bodySelect.addEventListener('change', () => {
+		updatePairingBadges(headingSelect, 'heading', bodySelect.value)
+	})
+
+	// Initial pairing badge update
+	setTimeout(() => {
+		updatePairingBadges(bodySelect, 'body', headingSelect.value)
+		updatePairingBadges(headingSelect, 'heading', bodySelect.value)
+	}, 0)
+
+	container.appendChild(content)
+
+	// Footer with actions
+	const footer = document.createElement('div')
+	footer.className = 'c-hbox g-2 p-3 border-top jc-end'
+
+	const cancelBtn = document.createElement('button')
+	cancelBtn.type = 'button'
+	cancelBtn.className = 'c-button secondary'
+	cancelBtn.textContent = 'Cancel'
+	cancelBtn.addEventListener('click', () => {
+		// Reset to current values
+		headingSelect.value = settingsMap.get('headingFont') || ''
+		bodySelect.value = settingsMap.get('bodyFont') || ''
+		dialog.close()
+	})
+	footer.appendChild(cancelBtn)
+
+	const applyBtn = document.createElement('button')
+	applyBtn.type = 'button'
+	applyBtn.className = 'c-button primary'
+	applyBtn.textContent = 'Apply'
+	applyBtn.addEventListener('click', () => {
+		settingsMap.set('headingFont', headingSelect.value)
+		settingsMap.set('bodyFont', bodySelect.value)
+		applyDocumentFonts()
+		dialog.close()
+	})
+	footer.appendChild(applyBtn)
+
+	container.appendChild(footer)
+	dialog.appendChild(container)
+	return dialog
+}
+
+function createDocFontSelect(
+	type: 'heading' | 'body',
+	getOtherFont: () => string
+): HTMLSelectElement {
+	const select = document.createElement('select')
+	select.className = 'c-select'
+	select.id = `settings-${type}-font`
+
+	// Default option (inherit)
+	const defaultOpt = document.createElement('option')
+	defaultOpt.value = ''
+	defaultOpt.textContent = type === 'heading' ? 'Default heading font' : 'Default body font'
+	select.appendChild(defaultOpt)
+
+	// Group fonts by category
+	for (const category of ['sans-serif', 'serif', 'display', 'monospace'] as FontCategory[]) {
+		const fonts = getFontsByCategory(category)
+		if (fonts.length === 0) continue
+
+		const optgroup = document.createElement('optgroup')
+		optgroup.label = CATEGORY_LABELS[category]
+
+		for (const font of fonts) {
+			const option = document.createElement('option')
+			option.value = font.family
+			option.textContent = font.displayName
+			option.style.fontFamily = `'${font.family}', sans-serif`
+			optgroup.appendChild(option)
+		}
+
+		select.appendChild(optgroup)
+	}
+
+	return select
+}
+
+function updatePairingBadges(
+	select: HTMLSelectElement,
+	type: 'heading' | 'body',
+	otherFontFamily: string
+): void {
+	// Get suggested fonts based on the other picker's selection
+	const suggestedFamilies = otherFontFamily
+		? type === 'body'
+			? getSuggestedBodyFonts(otherFontFamily)
+			: getSuggestedHeadingFonts(otherFontFamily)
+		: []
+
+	// Update option labels with "Pair" badge
+	for (const option of select.querySelectorAll('option')) {
+		const fontFamily = option.value
+		if (!fontFamily) continue
+
+		const font = FONTS.find((f) => f.family === fontFamily)
+		if (!font) continue
+
+		const isPair = suggestedFamilies.includes(fontFamily)
+		option.textContent = isPair ? `${font.displayName} ★` : font.displayName
+	}
+}
+
 ;(async function () {
 	// Register modules
 	Quill.register('modules/cursors', QuillCursors as any)
@@ -146,6 +342,22 @@ function createColorPicker(
 
 	// Register table-better module
 	Quill.register({ 'modules/table-better': QuillTableBetter }, true)
+
+	// Register Font format with whitelist (class-based for .ql-font-xxx styles)
+	const Parchment = Quill.import('parchment') as any
+	const fontWhitelist = FONTS.map((f) => sanitizeFontName(f.family))
+	const FontClass = new Parchment.ClassAttributor('font', 'ql-font', {
+		scope: Parchment.Scope.INLINE,
+		whitelist: fontWhitelist
+	})
+	Quill.register('formats/font', FontClass, true)
+
+	// Register Size format with whitelist (class-based for .ql-size-xxx styles)
+	const SizeClass = new Parchment.ClassAttributor('size', 'ql-size', {
+		scope: Parchment.Scope.INLINE,
+		whitelist: ['9pt', '12pt', '16pt', '24pt', '36pt', '48pt', '72pt']
+	})
+	Quill.register('formats/size', SizeClass, true)
 
 	// Fix: Override table blots with null-safe versions (fixes crash on Yjs sync)
 	registerSafeTableBlots()
@@ -196,6 +408,20 @@ function createColorPicker(
 		doc.provider.once('sync', () => {
 			bus.notifyReady('synced')
 		})
+	}
+
+	// ============================================
+	// Populate Font Select Options (BEFORE Quill init)
+	// ============================================
+	// Must populate before Quill transforms the select into its picker UI
+	const toolbarEl = document.getElementById('toolbar')
+	const fontSelect = toolbarEl?.querySelector('.ql-font') as HTMLSelectElement | null
+	if (fontSelect) {
+		for (const font of FONTS) {
+			const option = document.createElement('option')
+			option.value = sanitizeFontName(font.family)
+			fontSelect.appendChild(option)
+		}
 	}
 
 	const editor = new Quill('#editor', {
@@ -342,7 +568,62 @@ function createColorPicker(
 		}
 	})
 
-	// Close pickers on outside click
+	// ============================================
+	// Document Settings (Yjs Storage)
+	// ============================================
+
+	const settingsMap = doc.yDoc.getMap<string>('settings')
+
+	// Apply document fonts as CSS custom properties
+	function applyDocumentFonts() {
+		const headingFont = settingsMap.get('headingFont') || ''
+		const bodyFont = settingsMap.get('bodyFont') || ''
+
+		const editorEl = document.querySelector('.ql-editor') as HTMLElement | null
+		if (editorEl) {
+			editorEl.style.setProperty(
+				'--doc-heading-font',
+				headingFont ? `'${headingFont}', sans-serif` : 'inherit'
+			)
+			editorEl.style.setProperty(
+				'--doc-body-font',
+				bodyFont ? `'${bodyFont}', sans-serif` : 'inherit'
+			)
+		}
+	}
+
+	// Apply initial fonts and observe changes
+	applyDocumentFonts()
+	settingsMap.observe(applyDocumentFonts)
+
+	// Create settings dialog
+	const settingsDialog = createSettingsDialog(settingsMap, applyDocumentFonts)
+	document.body.appendChild(settingsDialog)
+
+	// Settings button click handler
+	const settingsBtn = document.getElementById('settings-btn')
+	settingsBtn?.addEventListener('click', () => {
+		// Refresh select values from Yjs before showing dialog
+		const headingSelect = document.getElementById(
+			'settings-heading-font'
+		) as HTMLSelectElement | null
+		const bodySelect = document.getElementById('settings-body-font') as HTMLSelectElement | null
+		if (headingSelect) headingSelect.value = settingsMap.get('headingFont') || ''
+		if (bodySelect) bodySelect.value = settingsMap.get('bodyFont') || ''
+		settingsDialog.showModal()
+	})
+
+	// Close dialog on Escape
+	settingsDialog.addEventListener('keydown', (e) => {
+		if (e.key === 'Escape') {
+			settingsDialog.close()
+		}
+	})
+
+	// ============================================
+	// Close Pickers on Outside Click / Escape
+	// ============================================
+
 	document.addEventListener('click', (e) => {
 		const target = e.target as HTMLElement
 		if (!colorPicker.contains(target) && target !== colorBtn) {
@@ -353,7 +634,6 @@ function createColorPicker(
 		}
 	})
 
-	// Close pickers on Escape key
 	document.addEventListener('keydown', (e) => {
 		if (e.key === 'Escape') {
 			colorPicker.classList.add('hidden')

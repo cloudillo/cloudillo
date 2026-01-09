@@ -927,6 +927,88 @@ export class ApiClient {
 	}
 
 	// ========================================================================
+	// IDP MANAGEMENT ENDPOINTS (for identity provider administrators)
+	// ========================================================================
+
+	/** IDP Management endpoints for identity provider administrators */
+	idpManagement = {
+		/**
+		 * GET /idp/identities - List identities managed by this IDP
+		 * @param query - Filter and pagination options (q, status, cursor, limit)
+		 * @returns List of identities
+		 */
+		listIdentities: (query?: Types.ListIdpIdentitiesQuery) =>
+			this.request('GET', '/idp/identities', Types.tIdpIdentityList, {
+				query: query as Record<string, string | number | boolean | undefined>
+			}),
+
+		/**
+		 * POST /idp/identities - Create new identity
+		 * @param data - Identity creation data (idTag, email, ownerIdTag?, createApiKey?, apiKeyName?)
+		 * @returns Created identity (with apiKey field if API key was created)
+		 */
+		createIdentity: (data: Types.CreateIdpIdentityRequest) =>
+			this.request('POST', '/idp/identities', Types.tIdpCreateIdentityResult, { data }),
+
+		/**
+		 * GET /idp/identities/{idTag} - Get identity details
+		 * @param idTag - Identity tag (e.g., "alice.cloudillo.net")
+		 * @returns Identity details
+		 */
+		getIdentity: (idTag: string) =>
+			this.request('GET', `/idp/identities/${encodeURIComponent(idTag)}`, Types.tIdpIdentity),
+
+		/**
+		 * DELETE /idp/identities/{idTag} - Delete identity
+		 * @param idTag - Identity tag (e.g., "alice.cloudillo.net")
+		 */
+		deleteIdentity: (idTag: string) =>
+			this.request('DELETE', `/idp/identities/${encodeURIComponent(idTag)}`, T.nullValue),
+
+		/**
+		 * PATCH /idp/identities/{idTag} - Update identity settings
+		 * @param idTag - Identity tag (e.g., "alice.cloudillo.net")
+		 * @param data - Settings to update (dyndns)
+		 * @returns Updated identity
+		 */
+		updateIdentity: (idTag: string, data: { dyndns?: boolean }) =>
+			this.request(
+				'PATCH',
+				`/idp/identities/${encodeURIComponent(idTag)}`,
+				Types.tIdpIdentity,
+				{ data }
+			),
+
+		/**
+		 * GET /idp/api-keys - List API keys for a specified identity
+		 * @param idTag - Identity tag to list API keys for (e.g., "alice.cloudillo.net")
+		 * @returns List of API keys (without plaintext keys)
+		 */
+		listApiKeys: (idTag: string) =>
+			this.request('GET', '/idp/api-keys', Types.tIdpApiKeyList, {
+				query: { idTag }
+			}),
+
+		/**
+		 * POST /idp/api-keys - Create API key for a specified identity
+		 * @param data - API key creation request (idTag, name?)
+		 * @returns Created API key with plaintext key (shown only once)
+		 */
+		createApiKey: (data: { idTag: string; name?: string }) =>
+			this.request('POST', '/idp/api-keys', Types.tIdpCreateApiKeyResult, { data }),
+
+		/**
+		 * DELETE /idp/api-keys/{keyId} - Revoke API key
+		 * @param keyId - Key ID to revoke
+		 * @param idTag - Identity tag the key belongs to (e.g., "alice.cloudillo.net")
+		 */
+		deleteApiKey: (keyId: number, idTag: string) =>
+			this.request('DELETE', `/idp/api-keys/${keyId}`, T.nullValue, {
+				query: { idTag }
+			})
+	}
+
+	// ========================================================================
 	// COMMUNITY ENDPOINTS
 	// ========================================================================
 

@@ -228,6 +228,85 @@ export const tIdpActivateResult = T.struct({
 export type IdpActivateResult = T.TypeOf<typeof tIdpActivateResult>
 
 // ============================================================================
+// IDP MANAGEMENT TYPES (for identity provider administrators)
+// ============================================================================
+
+// IDP Identity status
+export const tIdpIdentityStatus = T.literal('pending', 'active', 'suspended')
+export type IdpIdentityStatus = T.TypeOf<typeof tIdpIdentityStatus>
+
+// IDP Identity address type
+export const tIdpAddressType = T.literal('ipv4', 'ipv6', 'hostname')
+export type IdpAddressType = T.TypeOf<typeof tIdpAddressType>
+
+// IDP Identity
+export const tIdpIdentity = T.struct({
+	idTag: T.string,
+	email: T.optional(T.string),
+	registrarIdTag: T.string,
+	ownerIdTag: T.optional(T.string),
+	address: T.optional(T.string),
+	addressUpdatedAt: T.optional(T.string),
+	dyndns: T.boolean,
+	status: tIdpIdentityStatus,
+	createdAt: T.string,
+	updatedAt: T.string,
+	expiresAt: T.string,
+	apiKey: T.optional(T.string)
+})
+export type IdpIdentity = T.TypeOf<typeof tIdpIdentity>
+
+export const tIdpIdentityList = T.array(tIdpIdentity)
+export type IdpIdentityList = T.TypeOf<typeof tIdpIdentityList>
+
+// IDP API Key (list item - no plaintext key)
+export const tIdpApiKey = T.struct({
+	id: T.number,
+	idTag: T.string,
+	keyPrefix: T.string,
+	name: T.optional(T.string),
+	createdAt: T.string,
+	lastUsedAt: T.optional(T.string),
+	expiresAt: T.optional(T.string)
+})
+export type IdpApiKey = T.TypeOf<typeof tIdpApiKey>
+
+export const tIdpApiKeyList = T.array(tIdpApiKey)
+export type IdpApiKeyList = T.TypeOf<typeof tIdpApiKeyList>
+
+// IDP API Key creation result (includes plaintext key shown only once)
+export const tIdpCreateApiKeyResult = T.struct({
+	apiKey: tIdpApiKey,
+	plaintextKey: T.string
+})
+export type IdpCreateApiKeyResult = T.TypeOf<typeof tIdpCreateApiKeyResult>
+
+// IDP Identity creation result is the same as IdpIdentity (apiKey field is included when created)
+export const tIdpCreateIdentityResult = tIdpIdentity
+export type IdpCreateIdentityResult = IdpIdentity
+
+// Request types for IDP management
+export interface CreateIdpIdentityRequest {
+	idTag: string
+	email: string
+	ownerIdTag?: string
+	createApiKey?: boolean
+	apiKeyName?: string
+}
+
+export interface CreateIdpApiKeyRequest {
+	idTag: string
+	name?: string
+}
+
+export interface ListIdpIdentitiesQuery {
+	q?: string
+	status?: string
+	cursor?: string
+	limit?: number
+}
+
+// ============================================================================
 // WEBAUTHN ENDPOINTS
 // ============================================================================
 

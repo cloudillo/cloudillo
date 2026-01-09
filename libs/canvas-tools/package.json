@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/canvas-tools",
-	"version": "0.8.0",
+	"version": "0.8.5",
 	"description": "Cloudillo canvas tools - rotation handle, pivot handle, transform gizmo",
 	"type": "module",
 	"main": "lib/index.js",

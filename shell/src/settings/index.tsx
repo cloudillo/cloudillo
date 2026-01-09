@@ -24,6 +24,7 @@ import {
 	LuPalette as IcAppearance,
 	LuShield as IcPrivacy,
 	LuHardDrive as IcFiles,
+	LuUsers as IcIdentities,
 	LuMenu as IcMenu
 } from 'react-icons/lu'
 
@@ -37,6 +38,7 @@ import { AppearanceSettings, setTheme } from './appearance.js'
 export { setTheme }
 import { PrivacySettings } from './privacy.js'
 import { FilesSettings } from './files.js'
+import { IdentitiesSettings } from './identities.js'
 import { SettingsOverview } from './overview.js'
 
 interface SettingsProps {
@@ -90,6 +92,11 @@ export function Settings({ title, children }: SettingsProps) {
 					<li>
 						<NavLink className="c-nav-item" to={`${basePath}/files`}>
 							<IcFiles /> {t('Files')}
+						</NavLink>
+					</li>
+					<li>
+						<NavLink className="c-nav-item" to={`${basePath}/identities`}>
+							<IcIdentities /> {t('Identities')}
 						</NavLink>
 					</li>
 				</ul>
@@ -161,6 +168,14 @@ export function SettingsRoutes({ pwa }: { pwa: UsePWA }) {
 				element={
 					<Settings title={t('Files')}>
 						<FilesSettings />
+					</Settings>
+				}
+			/>
+			<Route
+				path="/settings/:contextIdTag/identities"
+				element={
+					<Settings title={t('Identities')}>
+						<IdentitiesSettings />
 					</Settings>
 				}
 			/>

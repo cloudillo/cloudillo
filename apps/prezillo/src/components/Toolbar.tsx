@@ -38,6 +38,7 @@ import {
 	PiArrowArcLeftBold as IcUndo,
 	PiArrowArcRightBold as IcRedo,
 	PiExportBold as IcExport,
+	PiFilePdfBold as IcPDF,
 	PiGridFourBold as IcGrid,
 	PiMagnetBold as IcSnapObjects,
 	PiArrowsOutSimpleBold as IcSnapSizes,
@@ -78,6 +79,8 @@ export interface ToolbarProps {
 	onUndo?: () => void
 	onRedo?: () => void
 	onExport?: () => void
+	onExportPDF?: () => void
+	isExportingPDF?: boolean
 	// Z-index ordering
 	onBringToFront?: () => void
 	onBringForward?: () => void
@@ -128,6 +131,8 @@ export function Toolbar({
 	onUndo,
 	onRedo,
 	onExport,
+	onExportPDF,
+	isExportingPDF,
 	onBringToFront,
 	onBringForward,
 	onSendBackward,
@@ -171,8 +176,16 @@ export function Toolbar({
 			<div className="c-toolbar-divider" />
 
 			{/* Export */}
-			<button onClick={onExport} className="c-button icon" title="Export">
+			<button onClick={onExport} className="c-button icon" title="Export to JSON">
 				<IcExport />
+			</button>
+			<button
+				onClick={onExportPDF}
+				className="c-button icon"
+				disabled={isExportingPDF}
+				title="Export to PDF"
+			>
+				<IcPDF />
 			</button>
 
 			<div className="c-toolbar-divider" />

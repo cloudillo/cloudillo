@@ -249,6 +249,7 @@ import {
 	getViewsUsingTemplate,
 	createTemplate
 } from './crdt'
+import { downloadPDF } from './export'
 import { measureTextHeight } from './utils'
 
 //////////////
@@ -307,6 +308,9 @@ export function PrezilloApp() {
 
 	// Properties panel visibility (desktop)
 	const [isPanelVisible, setIsPanelVisible] = React.useState(true)
+
+	// PDF export state
+	const [isExportingPDF, setIsExportingPDF] = React.useState(false)
 
 	// Mobile bottom sheet state
 	const [mobileSnapPoint, setMobileSnapPoint] = React.useState<BottomSheetSnapPoint>('closed')
@@ -1482,6 +1486,19 @@ export function PrezilloApp() {
 							downloadExport(prezillo.yDoc, prezillo.doc)
 						}
 					}}
+					onExportPDF={async () => {
+						if (prezillo.doc && views.length > 0) {
+							setIsExportingPDF(true)
+							try {
+								await downloadPDF(prezillo.doc, views, prezillo.cloudillo.idTag)
+							} catch (error) {
+								console.error('PDF export failed:', error)
+							} finally {
+								setIsExportingPDF(false)
+							}
+						}
+					}}
+					isExportingPDF={isExportingPDF}
 					onBringToFront={() => {
 						prezillo.selectedIds.forEach((id) =>
 							bringToFront(prezillo.yDoc, prezillo.doc, id)

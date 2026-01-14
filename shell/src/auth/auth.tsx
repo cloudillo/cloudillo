@@ -58,7 +58,7 @@ import { RegisterForm } from '../profile/register.js'
 import { validIdTag, validPassword } from './utils.js'
 import { ResetPassword } from './reset-password.js'
 import { IdpActivate } from './idp-activate.js'
-import { registerServiceWorker } from '../pwa.js'
+import { registerServiceWorker, ensureEncryptionKey } from '../pwa.js'
 
 ////////////
 // Logout //
@@ -97,8 +97,9 @@ export async function webAuthnLogin(api: ApiClient): Promise<AuthState | undefin
 			response
 		})
 
-		// Set up SW with encryption key and token
-		await registerServiceWorker(result.swEncryptionKey, result.token)
+		// Set up SW with token
+		await registerServiceWorker(result.token)
+		await ensureEncryptionKey()
 
 		return result
 	} catch (err) {
@@ -187,8 +188,9 @@ export function LoginForm() {
 						response
 					})
 
-					// Set up SW with encryption key and token
-					await registerServiceWorker(result.swEncryptionKey, result.token)
+					// Set up SW with token
+					await registerServiceWorker(result.token)
+					await ensureEncryptionKey()
 					setAuth(result)
 				} catch (err) {
 					// Silently fail - user can use password
@@ -218,8 +220,9 @@ export function LoginForm() {
 			setAuth(authState)
 			// Token is stored in SW encrypted storage via registerServiceWorker()
 
-			// Set up SW with encryption key and token
-			await registerServiceWorker(loginResult.swEncryptionKey, loginResult.token)
+			// Set up SW with token
+			await registerServiceWorker(loginResult.token)
+			await ensureEncryptionKey()
 		} catch (err: unknown) {
 			console.error('Login failed:', err)
 			setError(err instanceof Error ? err.message : 'Login failed')

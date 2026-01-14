@@ -16,7 +16,7 @@
 
 import * as React from 'react'
 import { useAuth, AuthState, useApi } from '@cloudillo/react'
-import { registerServiceWorker } from '../pwa.js'
+import { registerServiceWorker, ensureEncryptionKey } from '../pwa.js'
 
 const RENEWAL_THRESHOLD = 0.8 // Renew at 80% of token lifetime
 
@@ -49,14 +49,19 @@ export function useTokenRenewal() {
 		try {
 			console.log('[TokenRenewal] Renewing token...')
 			const result = await api.auth.getLoginToken()
+			if (!result) {
+				console.log('[TokenRenewal] No session, skipping renewal')
+				return
+			}
 			const newAuth: AuthState = { ...result }
 			setAuth(newAuth)
 			console.log('[TokenRenewal] Token renewed successfully')
 
-			// Update SW with encryption key and token if provided
+			// Update SW with token
 			// Token is stored in SW encrypted storage via registerServiceWorker()
-			if (result.swEncryptionKey && result.token) {
-				await registerServiceWorker(result.swEncryptionKey, result.token)
+			if (result.token) {
+				await registerServiceWorker(result.token)
+				await ensureEncryptionKey()
 			}
 		} catch (err) {
 			console.error('[TokenRenewal] Token renewal failed:', err)

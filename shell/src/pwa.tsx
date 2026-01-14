@@ -31,6 +31,85 @@ function convertKey(base64Key: string): Uint8Array<ArrayBuffer> {
 	return ret
 }
 
+//////////////////////////////
+// Encryption Key (Cookie)  //
+//////////////////////////////
+const KEY_COOKIE_NAME = 'swKey'
+
+// Generate a random 256-bit key, return as base64url
+function generateKey(): string {
+	const keyBytes = crypto.getRandomValues(new Uint8Array(32))
+	return btoa(String.fromCharCode(...keyBytes))
+		.replace(/\+/g, '-')
+		.replace(/\//g, '_')
+		.replace(/=+$/, '')
+}
+
+// Get or create key from cookie (for fallback browsers without Cookie Store API)
+function getOrCreateKeyFromCookie(): string {
+	// Try to read existing
+	const existing = document.cookie
+		.split('; ')
+		.find((row) => row.startsWith(`${KEY_COOKIE_NAME}=`))
+		?.split('=')[1]
+
+	if (existing) return existing
+
+	// Generate new key
+	const newKey = generateKey()
+	document.cookie = `${KEY_COOKIE_NAME}=${newKey}; Secure; SameSite=Strict; Path=/; Max-Age=2147483647`
+	console.log('[PWA] Generated new encryption key')
+	return newKey
+}
+
+/**
+ * Ensure SW has encryption key (for browsers without Cookie Store API)
+ * Chrome/Edge: SW reads cookie directly via Cookie Store API
+ * Firefox/Safari: Main thread generates/reads key and relays to SW
+ */
+export async function ensureEncryptionKey(): Promise<void> {
+	if (!('serviceWorker' in navigator)) return
+
+	// Chrome/Edge: SW handles everything via Cookie Store API
+	if ('cookieStore' in window) return
+
+	// Firefox/Safari: Generate key in main thread, relay to SW
+	const key = getOrCreateKeyFromCookie()
+
+	await navigator.serviceWorker.ready
+	navigator.serviceWorker.controller?.postMessage({
+		cloudillo: true,
+		v: 1,
+		type: 'sw:key.set',
+		payload: { key }
+	})
+	console.log('[PWA] Encryption key relayed to service worker')
+}
+
+/**
+ * Migrate encryption key from old URL-based storage to cookie-based storage
+ * This handles the transition for existing users who have SW registered with key in URL
+ */
+async function migrateKeyFromUrl(): Promise<void> {
+	const existingReg = await navigator.serviceWorker.getRegistration()
+	if (!existingReg?.active) return
+
+	const url = existingReg.active.scriptURL
+	const keyMatch = url.match(/[?&]key=([^&]+)/)
+
+	if (keyMatch) {
+		const oldKey = keyMatch[1]
+		console.log('[PWA] Migrating key from URL to cookie')
+
+		// Store key in cookie (same format, no conversion needed)
+		document.cookie = `${KEY_COOKIE_NAME}=${oldKey}; Secure; SameSite=Strict; Path=/; Max-Age=2147483647`
+
+		// Unregister old SW so new one can take over
+		await existingReg.unregister()
+		console.log('[PWA] Old SW unregistered, key migrated to cookie')
+	}
+}
+
 interface BeforeInstallPromptEvent extends Event {
 	prompt(): Promise<void>
 	readonly userChoice: Promise<{
@@ -59,66 +138,80 @@ let serviceWorker: ServiceWorkerRegistration
 let swConfig: PWAConfig = {}
 
 /**
- * Register or re-register the service worker with encryption key and auth token
- * ONLY call this after login when we have the encryption key
- * Never registers without a key to ensure token storage is always encrypted
+ * Register the service worker
+ * Can be called early on page load - encryption key is managed via cookie
  *
- * @param swEncryptionKey - The encryption key for secure token storage
  * @param authToken - Optional auth token to send to SW after registration
  */
-export async function registerServiceWorker(
-	swEncryptionKey: string | undefined,
-	authToken?: string
-): Promise<void> {
+export async function registerServiceWorker(authToken?: string): Promise<void> {
 	if (!('serviceWorker' in navigator)) return
 
-	// Never register without encryption key
-	if (!swEncryptionKey) {
-		console.log('[PWA] Skipping SW registration - no encryption key')
-		return
-	}
+	// Migrate key from URL to cookie if this is an old SW
+	await migrateKeyFromUrl()
 
-	const swBasePath = swConfig.swPath || '/sw.js'
-	const separator = swBasePath.includes('?') ? '&' : '?'
-	const swPath = `${swBasePath}${separator}key=${swEncryptionKey}`
+	const swPath = swConfig.swPath || '/sw.js'
 
 	try {
 		const existingReg = await navigator.serviceWorker.getRegistration()
 
-		// Check if existing SW already has the same version and encryption key
+		// Check if SW already registered
 		if (existingReg?.active) {
-			const existingUrl = existingReg.active.scriptURL
-			if (
-				existingUrl.includes(swBasePath) &&
-				existingUrl.includes(`key=${swEncryptionKey}`)
-			) {
-				// Same version and key - just update token without re-registering
-				serviceWorker = existingReg
-				if (authToken) {
-					// Use the active worker directly instead of controller
-					existingReg.active.postMessage({
+			serviceWorker = existingReg
+			if (authToken) {
+				existingReg.active.postMessage({
+					cloudillo: true,
+					v: 1,
+					type: 'sw:token.set',
+					payload: { token: authToken }
+				})
+				console.log('[PWA] Token updated in existing service worker')
+			}
+
+			// On hard reload (Ctrl+Shift+R), SW is active but not controlling.
+			// Request SW to claim this page so it can intercept API requests.
+			if (!navigator.serviceWorker.controller) {
+				console.log('[PWA] Waiting for SW to become controller...')
+				await new Promise<void>((resolve) => {
+					// Set up listener for controller change
+					const onControllerChange = () => {
+						navigator.serviceWorker.removeEventListener(
+							'controllerchange',
+							onControllerChange
+						)
+						console.log('[PWA] SW is now controlling the page')
+						resolve()
+					}
+					navigator.serviceWorker.addEventListener('controllerchange', onControllerChange)
+
+					// Request SW to claim control
+					existingReg.active!.postMessage({
 						cloudillo: true,
 						v: 1,
-						type: 'sw:token.set',
-						payload: { token: authToken }
+						type: 'sw:claim'
 					})
-					console.log('[PWA] Token updated in existing service worker')
-				}
-				return
+
+					// Also check if controller became available (race condition)
+					if (navigator.serviceWorker.controller) {
+						navigator.serviceWorker.removeEventListener(
+							'controllerchange',
+							onControllerChange
+						)
+						console.log('[PWA] SW is now controlling the page')
+						resolve()
+					}
+				})
 			}
-			// Different version or key - need to re-register
-			console.log('[PWA] SW version or key changed, re-registering')
-			await existingReg.unregister()
+
+			return
 		}
 
-		console.log('[PWA] Registering SW with key:', swEncryptionKey.slice(0, 8) + '...')
+		console.log('[PWA] Registering service worker')
 		const reg = await navigator.serviceWorker.register(swPath)
 		serviceWorker = reg
-		console.log('[PWA] Service worker registered with encryption key')
+		console.log('[PWA] Service worker registered')
 
 		// Wait for SW to be active, then send the token
 		if (authToken) {
-			// Wait for the SW to become active
 			let activeWorker = reg.active
 			if (!activeWorker) {
 				const installingWorker = reg.installing || reg.waiting
@@ -131,7 +224,6 @@ export async function registerServiceWorker(
 								resolve()
 							}
 						})
-						// Check if already activated
 						if (installingWorker.state === 'activated') {
 							activeWorker = installingWorker
 							resolve()
@@ -313,8 +405,8 @@ export default function usePWA(config: PWAConfig = {}): UsePWA {
 	}
 
 	React.useEffect(function onMount() {
-		// Note: SW registration is NOT done here - it requires encryption key from login
-		// registerServiceWorker() is called after login with the key
+		// Register SW early and ensure encryption key is available
+		registerServiceWorker().then(() => ensureEncryptionKey())
 
 		// Install Prompt handler
 		window.addEventListener(

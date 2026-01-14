@@ -10,13 +10,89 @@ const PRECACHE_URLS: string[] = [
 //import { LRUCache } from 'lru-cache'
 import LRU from 'quick-lru'
 
-import { handleSwMessage, type SwStorageFunctions } from './message-bus/handlers.js'
+/************************/
+/* Message Protocol     */
+/************************/
+const PROTOCOL_VERSION = 1
+
+interface SwMessage {
+	cloudillo: true
+	v: number
+	type: string
+	payload?: unknown
+	id?: number
+}
+
+function isValidSwMessage(data: unknown): data is SwMessage {
+	if (!data || typeof data !== 'object') return false
+	const msg = data as Record<string, unknown>
+	return msg.cloudillo === true && msg.v === PROTOCOL_VERSION
+}
 
 /************************/
 /* Encryption Key       */
-/* Injected by server   */
+/* Client-generated, stored in cookie (app-bound encryption in Chrome) */
 /************************/
-const ENCRYPTION_KEY = '__CLOUDILLO_SW_ENCRYPTION_KEY__'
+const KEY_COOKIE_NAME = 'swKey'
+
+// Cached key from postMessage (fallback for Firefox/Safari)
+let cachedKeyString: string | null = null
+
+// Generate a random 256-bit key, return as base64url
+function generateKey(): string {
+	const keyBytes = crypto.getRandomValues(new Uint8Array(32))
+	return btoa(String.fromCharCode(...keyBytes))
+		.replace(/\+/g, '-')
+		.replace(/\//g, '_')
+		.replace(/=+$/, '')
+}
+
+// Read key from cookie (Chrome/Edge with Cookie Store API)
+async function getKeyFromCookie(): Promise<string | null> {
+	if (!('cookieStore' in self)) return null
+	try {
+		const cookie = await (self as any).cookieStore.get(KEY_COOKIE_NAME)
+		return cookie?.value || null
+	} catch {
+		return null
+	}
+}
+
+// Store key in cookie
+async function setKeyToCookie(key: string): Promise<boolean> {
+	if (!('cookieStore' in self)) return false
+	try {
+		await (self as any).cookieStore.set({
+			name: KEY_COOKIE_NAME,
+			value: key,
+			secure: true,
+			sameSite: 'strict',
+			expires: Date.now() + 2147483647 * 1000 // ~68 years (max)
+		})
+		return true
+	} catch {
+		return false
+	}
+}
+
+// Get or create encryption key
+async function getOrCreateKey(): Promise<string | null> {
+	// Try to read existing key from cookie
+	let keyString = await getKeyFromCookie()
+
+	// If no key exists and we can use Cookie Store API, generate one
+	if (!keyString && 'cookieStore' in self) {
+		keyString = generateKey()
+		const stored = await setKeyToCookie(keyString)
+		if (!stored) {
+			console.error('[SW] Failed to store generated key')
+			return null
+		}
+		log && console.log('[SW] Generated and stored new encryption key')
+	}
+
+	return keyString
+}
 
 /***********/
 /* Storage */
@@ -87,18 +163,20 @@ let encryptionAvailable = false
 
 async function initCryptoKey(): Promise<CryptoKey | null> {
 	if (cryptoKey) return cryptoKey
-	// Check if key is the placeholder (not injected by server)
-	// Base64 never starts with underscore, but our placeholder does
-	if (ENCRYPTION_KEY.startsWith('_')) {
-		// No encryption key - SW should not have been registered without one
-		console.error('[SW] CRITICAL: No encryption key available - token storage disabled')
+
+	// Try cookie first (Chrome/Edge), fall back to cached key from postMessage (Firefox/Safari)
+	const keyString = (await getOrCreateKey()) || cachedKeyString
+
+	if (!keyString) {
+		log && console.log('[SW] No encryption key available')
 		encryptionAvailable = false
 		return null
 	}
+
 	try {
 		// Convert base64url to standard base64 (replace - with +, _ with /, add padding)
-		const padding = '='.repeat((4 - (ENCRYPTION_KEY.length % 4)) % 4)
-		const base64 = (ENCRYPTION_KEY + padding).replace(/-/g, '+').replace(/_/g, '/')
+		const padding = '='.repeat((4 - (keyString.length % 4)) % 4)
+		const base64 = (keyString + padding).replace(/-/g, '+').replace(/_/g, '/')
 		const keyData = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
 		cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'AES-GCM' }, false, [
 			'encrypt',
@@ -174,13 +252,6 @@ async function getSecureItem(key: string): Promise<string | null> {
 
 async function deleteSecureItem(key: string): Promise<void> {
 	await deleteItem(key)
-}
-
-// Storage functions for message bus
-const swStorage: SwStorageFunctions = {
-	setSecureItem,
-	getSecureItem,
-	deleteSecureItem
 }
 
 /******************/
@@ -502,53 +573,58 @@ function onNotificationClick(evt: any) {
 
 // Handle messages from shell (e.g., token injection after SW registration)
 async function onMessage(evt: MessageEvent) {
-	// Try new message bus first
-	const handled = await handleSwMessage(evt, swStorage, (token) => {
-		authToken = token
-		// Clear proxy token cache on logout
-		if (token === undefined) {
-			proxyTokenCache.clear()
-		}
-	})
-
-	if (handled) return
-
-	// Legacy fallback (for backward compatibility during transition)
 	const msg = evt.data
-	if (!msg?.cloudillo) return
+	if (!isValidSwMessage(msg)) return
 
-	if (msg.type === 'setToken' && msg.token) {
-		log && console.log('[SW] Received token via postMessage (legacy)')
-		authToken = msg.token as string
-		setSecureItem('authToken', authToken)
-	}
+	log && console.log('[SW] Received:', msg.type)
 
-	if (msg.type === 'setApiKey' && msg.apiKey) {
-		log && console.log('[SW] Storing API key (legacy)')
-		setSecureItem('apiKey', msg.apiKey)
-	}
+	switch (msg.type) {
+		case 'sw:token.set':
+			authToken = (msg.payload as { token: string }).token
+			await setSecureItem('authToken', authToken)
+			break
 
-	if (msg.type === 'getApiKey') {
-		log && console.log('[SW] Retrieving API key (legacy)')
-		const apiKey = await getSecureItem('apiKey')
-		;(evt.source as any)?.postMessage({
-			cloudillo: true,
-			type: 'apiKeyReply',
-			id: msg.id,
-			apiKey
-		})
-	}
+		case 'sw:token.clear':
+			authToken = undefined
+			proxyTokenCache.clear()
+			await deleteSecureItem('authToken')
+			break
 
-	if (msg.type === 'deleteApiKey') {
-		log && console.log('[SW] Deleting API key (legacy)')
-		deleteSecureItem('apiKey')
-	}
+		case 'sw:apikey.set':
+			await setSecureItem('apiKey', (msg.payload as { apiKey: string }).apiKey)
+			break
 
-	if (msg.type === 'logout') {
-		log && console.log('[SW] Clearing auth token (legacy)')
-		authToken = undefined
-		proxyTokenCache.clear()
-		deleteSecureItem('authToken')
+		case 'sw:apikey.get.req': {
+			const apiKey = await getSecureItem('apiKey')
+			if (evt.source && 'postMessage' in evt.source) {
+				;(evt.source as any).postMessage({
+					cloudillo: true,
+					v: PROTOCOL_VERSION,
+					type: 'sw:apikey.get.res',
+					replyTo: msg.id,
+					ok: true,
+					data: { apiKey: apiKey || undefined }
+				})
+			}
+			break
+		}
+
+		case 'sw:apikey.del':
+			await deleteSecureItem('apiKey')
+			break
+
+		case 'sw:key.set':
+			// Fallback for Firefox/Safari: receive key from main thread
+			cachedKeyString = (msg.payload as { key: string }).key
+			cryptoKey = null // Force re-import with new key
+			log && console.log('[SW] Encryption key received via postMessage')
+			break
+
+		case 'sw:claim':
+			// Claim control of the page (used after hard reload)
+			await (self as any).clients.claim()
+			log && console.log('[SW] Claimed clients')
+			break
 	}
 }
 

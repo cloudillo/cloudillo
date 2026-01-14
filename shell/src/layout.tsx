@@ -167,7 +167,13 @@ import {
 } from '@cloudillo/react'
 import { createApiClient } from '@cloudillo/base'
 import { AppConfigState, useAppConfig } from './utils.js'
-import usePWA, { registerServiceWorker, getApiKey, deleteApiKey, clearAuthToken } from './pwa.js'
+import usePWA, {
+	registerServiceWorker,
+	ensureEncryptionKey,
+	getApiKey,
+	deleteApiKey,
+	clearAuthToken
+} from './pwa.js'
 import { AuthRoutes } from './auth/auth.js'
 import { useTokenRenewal } from './auth/useTokenRenewal.js'
 import { useActionNotifications } from './notifications/useActionNotifications.js'
@@ -474,6 +480,9 @@ function Header({ inert }: { inert?: boolean }) {
 				if (!api?.idTag || !auth) {
 					// Determine idTag or authenticate
 					try {
+						// Ensure SW is registered and controlling (for hard reload scenarios)
+						await registerServiceWorker()
+
 						// Try to get API key from SW encrypted storage
 						const storedApiKey = await getApiKey()
 						const res = await fetch(
@@ -508,11 +517,9 @@ function Header({ inert }: { inert?: boolean }) {
 									const loginInfo = await authApi.auth.getLoginToken()
 									if (loginInfo?.token) {
 										authState = { ...loginInfo }
-										// Register SW with encryption key and token
-										await registerServiceWorker(
-											loginInfo.swEncryptionKey,
-											loginInfo.token
-										)
+										// Register SW with token
+										await registerServiceWorker(loginInfo.token)
+										await ensureEncryptionKey()
 									}
 								}
 							} catch (err) {
@@ -526,22 +533,16 @@ function Header({ inert }: { inert?: boolean }) {
 							try {
 								const tokenRes = await tempApi.auth.getLoginToken()
 								console.log('[Layout] getLoginToken result:', {
-									hasToken: !!tokenRes?.token,
-									hasKey: !!tokenRes?.swEncryptionKey,
-									keyPreview: tokenRes?.swEncryptionKey?.slice(0, 8)
+									hasToken: !!tokenRes?.token
 								})
 								authState = tokenRes ? { ...tokenRes } : undefined
-								// Register SW with encryption key and token
-								if (tokenRes?.swEncryptionKey && tokenRes?.token) {
+								// Register SW with token
+								if (tokenRes?.token) {
 									console.log('[Layout] Calling registerServiceWorker...')
-									await registerServiceWorker(
-										tokenRes.swEncryptionKey,
-										tokenRes.token
-									)
+									await registerServiceWorker(tokenRes.token)
+									await ensureEncryptionKey()
 								} else {
-									console.log(
-										'[Layout] Missing key or token, skipping SW registration'
-									)
+									console.log('[Layout] Missing token, skipping SW registration')
 								}
 							} catch (err) {
 								// Not authenticated - continue as guest

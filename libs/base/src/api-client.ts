@@ -141,7 +141,8 @@ export class ApiClient {
 		 * GET /auth/login-token - Get login token for current session
 		 * @returns Login result with token
 		 */
-		getLoginToken: () => this.request('GET', '/auth/login-token', Types.tLoginResult),
+		getLoginToken: () =>
+			this.request('GET', '/auth/login-token', T.nullable(Types.tLoginResult)),
 
 		/**
 		 * GET /auth/access-token - Get access token

@@ -18,8 +18,8 @@
 	"license": "LGPL-3.0-or-later",
 	"devDependencies": {
 		"@cloudillo/react": "workspace:^",
-		"@types/react": "^19.2.7",
-		"react-svg-canvas": "^0.1.4",
+		"@types/react": "^19.2.8",
+		"react-svg-canvas": "^0.1.5",
 		"rimraf": "^6.1.2",
 		"tslib": "^2.8.1",
 		"typescript": "^5.9.3"

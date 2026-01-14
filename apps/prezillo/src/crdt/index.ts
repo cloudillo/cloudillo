@@ -403,7 +403,11 @@ export {
 	getObjectsWithStyle,
 	searchObjectsByName,
 	getObjectCount,
-	getContainerCount
+	getContainerCount,
+	// Stacked object queries (for sticky movement)
+	calculateOverlapPercentage,
+	getStackedObjects,
+	getStackedObjectsForSelection
 } from './queries'
 
 // Export functionality

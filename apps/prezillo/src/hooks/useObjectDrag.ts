@@ -30,7 +30,9 @@ import {
 	addObjectToTemplate,
 	findViewAtPoint,
 	isInstance,
-	isPropertyGroupLocked
+	isPropertyGroupLocked,
+	getStackedObjects,
+	getAbsoluteBounds
 } from '../crdt'
 import { setEditingState, clearEditingState } from '../awareness'
 import type { TemplateLayout } from './useTemplateLayout'
@@ -40,12 +42,23 @@ type CanvasObject = PrezilloObject & {
 	_isPrototype?: boolean
 }
 
+export interface StackedObjectInfo {
+	id: ObjectId
+	startX: number
+	startY: number
+	width: number
+	height: number
+	pageOffset?: { x: number; y: number }
+}
+
 export interface DragState {
 	objectId: ObjectId
 	startX: number
 	startY: number
 	objectStartX: number
 	objectStartY: number
+	// Stacked objects that should move together with the primary object
+	stackedObjects?: StackedObjectInfo[]
 }
 
 export interface TempObjectState {
@@ -57,6 +70,14 @@ export interface TempObjectState {
 	rotation?: number
 	pivotX?: number
 	pivotY?: number
+	// Additional objects being dragged together (stacked objects)
+	stackedObjects?: Array<{
+		objectId: ObjectId
+		x: number
+		y: number
+		width: number
+		height: number
+	}>
 }
 
 export interface UseObjectDragOptions {
@@ -200,6 +221,33 @@ export function useObjectDrag({
 				return
 			}
 
+			// Calculate stacked objects (unless Alt key is held to bypass)
+			let stackedObjects: StackedObjectInfo[] = []
+			if (!e.altKey) {
+				const stackedIds = getStackedObjects(doc, objectId)
+				for (const id of stackedIds) {
+					const bounds = getAbsoluteBounds(doc, id)
+					if (!bounds) continue
+					const stackedObj = doc.o.get(id)
+					// Calculate page offset for stacked object if it's page-relative
+					let stackedPageOffset: { x: number; y: number } | undefined
+					if (stackedObj?.vi) {
+						const view = doc.v.get(stackedObj.vi)
+						if (view) {
+							stackedPageOffset = { x: view.x, y: view.y }
+						}
+					}
+					stackedObjects.push({
+						id,
+						startX: bounds.x,
+						startY: bounds.y,
+						width: bounds.width,
+						height: bounds.height,
+						pageOffset: stackedPageOffset
+					})
+				}
+			}
+
 			const initialDragState = {
 				objectId,
 				startX: svgPoint.x,
@@ -209,7 +257,8 @@ export function useObjectDrag({
 				objectWidth: wh[0],
 				objectHeight: wh[1],
 				prototypeTemplateOffset,
-				pageOffset
+				pageOffset,
+				stackedObjects
 			}
 
 			// Calculate grab point for snap weighting (normalized 0-1)
@@ -230,13 +279,20 @@ export function useObjectDrag({
 
 			setDragState(initialDragState)
 
-			// Initialize temp state
+			// Initialize temp state (including stacked objects)
 			setTempObjectState({
 				objectId,
 				x: xy[0],
 				y: xy[1],
 				width: wh[0],
-				height: wh[1]
+				height: wh[1],
+				stackedObjects: stackedObjects.map((so) => ({
+					objectId: so.id,
+					x: so.startX,
+					y: so.startY,
+					width: so.width,
+					height: so.height
+				}))
 			})
 
 			// Handle drag with window events for smooth dragging
@@ -278,13 +334,24 @@ export function useObjectDrag({
 				currentX = snapResult?.position.x ?? proposedX
 				currentY = snapResult?.position.y ?? proposedY
 
-				// Update local temp state (visual only)
+				// Calculate delta from start position
+				const deltaX = currentX - initialDragState.objectStartX
+				const deltaY = currentY - initialDragState.objectStartY
+
+				// Update local temp state (visual only) - including stacked objects
 				setTempObjectState({
 					objectId: initialDragState.objectId,
 					x: currentX,
 					y: currentY,
 					width: initialDragState.objectWidth,
-					height: initialDragState.objectHeight
+					height: initialDragState.objectHeight,
+					stackedObjects: initialDragState.stackedObjects?.map((so) => ({
+						objectId: so.id,
+						x: so.startX + deltaX,
+						y: so.startY + deltaY,
+						width: so.width,
+						height: so.height
+					}))
 				})
 
 				// Broadcast to other clients via awareness
@@ -307,6 +374,10 @@ export function useObjectDrag({
 					currentX !== initialDragState.objectStartX ||
 					currentY !== initialDragState.objectStartY
 				) {
+					// Calculate delta for stacked objects
+					const deltaX = currentX - initialDragState.objectStartX
+					const deltaY = currentY - initialDragState.objectStartY
+
 					// Convert global canvas coords back to stored coords for CRDT
 					let saveX = currentX
 					let saveY = currentY
@@ -323,7 +394,34 @@ export function useObjectDrag({
 						saveY -= initialDragState.pageOffset.y
 					}
 
-					updateObjectPosition(yDoc, doc, initialDragState.objectId, saveX, saveY)
+					// Update all positions in a single transaction for atomicity
+					// Note: yDoc.clientID origin is required for UndoManager to track this change
+					yDoc.transact(() => {
+						// Update primary object
+						updateObjectPosition(yDoc, doc, initialDragState.objectId, saveX, saveY)
+
+						// Update all stacked objects
+						if (initialDragState.stackedObjects) {
+							for (const stackedObj of initialDragState.stackedObjects) {
+								let stackedSaveX = stackedObj.startX + deltaX
+								let stackedSaveY = stackedObj.startY + deltaY
+
+								// Subtract page offset if stacked object is page-relative
+								if (stackedObj.pageOffset) {
+									stackedSaveX -= stackedObj.pageOffset.x
+									stackedSaveY -= stackedObj.pageOffset.y
+								}
+
+								updateObjectPosition(
+									yDoc,
+									doc,
+									stackedObj.id,
+									stackedSaveX,
+									stackedSaveY
+								)
+							}
+						}
+					}, yDoc.clientID)
 
 					// Check if object should transfer to a template or different page
 					const obj = doc.o.get(initialDragState.objectId)

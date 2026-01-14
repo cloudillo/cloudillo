@@ -155,7 +155,8 @@ import {
 	usePresentationMode,
 	useViewNavigation,
 	useObjectDrag,
-	useTableGridSnaps
+	useTableGridSnaps,
+	type TempObjectState
 } from './hooks'
 import { useViewObjects, useVisibleViewObjects } from './hooks/useViewObjects'
 import { useVisibleViews } from './hooks/useVisibleViews'
@@ -249,7 +250,9 @@ import {
 	duplicateView,
 	deleteView,
 	getViewsUsingTemplate,
-	createTemplate
+	createTemplate,
+	// Stacked object queries for sticky movement
+	getStackedObjects
 } from './crdt'
 import { downloadPDF } from './export'
 import { measureTextHeight } from './utils'
@@ -351,6 +354,27 @@ export function PrezilloApp() {
 	// Hover state - which object is being hovered (only active when nothing selected)
 	const [hoveredObjectId, setHoveredObjectId] = React.useState<ObjectId | null>(null)
 
+	// Calculate stacked objects for hover or selection (for sticky movement visual feedback)
+	React.useEffect(() => {
+		const allStacked = new Set<ObjectId>()
+
+		// If hovering (and nothing selected), show stacked for hovered object
+		if (hoveredObjectId && prezillo.selectedIds.size === 0) {
+			const stackedIds = getStackedObjects(prezillo.doc, hoveredObjectId)
+			stackedIds.forEach((id) => allStacked.add(id))
+		}
+
+		// If objects are selected, show stacked for all selected objects
+		if (prezillo.selectedIds.size > 0) {
+			for (const selectedId of prezillo.selectedIds) {
+				const stackedIds = getStackedObjects(prezillo.doc, selectedId)
+				stackedIds.forEach((id) => allStacked.add(id))
+			}
+		}
+
+		prezillo.setStackedHighlightIds(allStacked)
+	}, [hoveredObjectId, prezillo.selectedIds, prezillo.doc])
+
 	// Property preview state for live feedback during property scrubbing (doesn't persist)
 	const [propertyPreview, setPropertyPreview] = React.useState<PropertyPreview | null>(null)
 
@@ -361,16 +385,7 @@ export function PrezilloApp() {
 	const [objectMenu, setObjectMenu] = React.useState<{ x: number; y: number } | null>(null)
 
 	// Temporary object state during drag/resize/rotate (local visual only, not persisted)
-	const [tempObjectState, setTempObjectState] = React.useState<{
-		objectId: ObjectId
-		x: number
-		y: number
-		width: number
-		height: number
-		rotation?: number
-		pivotX?: number
-		pivotY?: number
-	} | null>(null)
+	const [tempObjectState, setTempObjectState] = React.useState<TempObjectState | null>(null)
 
 	// Track grab point for snap weighting
 	const grabPointRef = React.useRef<{ x: number; y: number }>({ x: 0.5, y: 0.5 })
@@ -1812,10 +1827,13 @@ export function PrezilloApp() {
 							}
 
 							// Pass temp bounds if this object is being dragged/resized
+							// Also check if this object is a stacked object being dragged with the primary
 							const objectTempBounds =
 								tempObjectState?.objectId === object.id
 									? tempObjectState
-									: undefined
+									: tempObjectState?.stackedObjects?.find(
+											(so) => so.objectId === object.id
+										)
 
 							// Apply property preview if this object is being scrubbed
 							const displayObject =
@@ -1838,6 +1856,9 @@ export function PrezilloApp() {
 									textStyle={textStyle}
 									isSelected={prezillo.isSelected(object.id)}
 									isHovered={!hasSelection && isThisHovered}
+									isStackedHighlight={prezillo.stackedHighlightIds.has(
+										object.id as ObjectId
+									)}
 									onClick={(e) => handleObjectClick(e, object.id)}
 									onDoubleClick={(e) => handleObjectDoubleClick(e, object.id)}
 									onContextMenu={(e) => handleObjectContextMenu(e, object.id)}

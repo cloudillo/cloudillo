@@ -72,6 +72,7 @@ export interface ObjectShapeProps {
 	textStyle: ReturnType<typeof resolveTextStyle>
 	isSelected: boolean
 	isHovered: boolean
+	isStackedHighlight?: boolean // Shows when this object will move with a hovered object
 	onClick: (e: React.MouseEvent) => void
 	onDoubleClick?: (e: React.MouseEvent) => void
 	onContextMenu?: (e: React.MouseEvent) => void
@@ -119,6 +120,7 @@ function arePropsEqual(prev: ObjectShapeProps, next: ObjectShapeProps): boolean 
 		prev.object === next.object &&
 		prev.isSelected === next.isSelected &&
 		prev.isHovered === next.isHovered &&
+		prev.isStackedHighlight === next.isStackedHighlight &&
 		prev.tempBounds === next.tempBounds &&
 		prev.showInstanceIndicator === next.showInstanceIndicator &&
 		shallowEqual(prev.style, next.style) &&
@@ -132,6 +134,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 	textStyle,
 	isSelected,
 	isHovered,
+	isStackedHighlight,
 	onClick,
 	onDoubleClick,
 	onContextMenu,
@@ -196,6 +199,31 @@ export const ObjectShape = React.memo(function ObjectShape({
 				pointerEvents="none"
 			/>
 		) : null
+
+	// Stacked highlight overlay (shown when this object will move with a hovered object)
+	const stackedOverlay = isStackedHighlight ? (
+		<rect
+			x={x - 2}
+			y={y - 2}
+			width={width + 4}
+			height={height + 4}
+			fill="none"
+			stroke="#0066ff"
+			strokeWidth={2}
+			strokeOpacity={0.7}
+			strokeDasharray="6 3"
+			pointerEvents="none"
+		>
+			{/* Subtle animation to draw attention */}
+			<animate
+				attributeName="stroke-dashoffset"
+				from="0"
+				to="18"
+				dur="1s"
+				repeatCount="indefinite"
+			/>
+		</rect>
+	) : null
 
 	// Instance indicator for prototype instances (small link icon in top-left)
 	// Only show when object has prototypeId or showInstanceIndicator is true
@@ -279,6 +307,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 						{...commonProps}
 					/>
 					{hoverOverlay}
+					{stackedOverlay}
 					{instanceIndicator}
 					{hiddenIndicator}
 				</g>
@@ -298,6 +327,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 						{...commonProps}
 					/>
 					{hoverOverlay}
+					{stackedOverlay}
 					{instanceIndicator}
 					{hiddenIndicator}
 				</g>
@@ -319,6 +349,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 						{...commonProps}
 					/>
 					{hoverOverlay}
+					{stackedOverlay}
 					{instanceIndicator}
 					{hiddenIndicator}
 				</g>
@@ -348,6 +379,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 						stroke="none"
 					/>
 					{hoverOverlay}
+					{stackedOverlay}
 					{instanceIndicator}
 					{hiddenIndicator}
 				</g>
@@ -372,6 +404,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 						stroke="none"
 					/>
 					{hoverOverlay}
+					{stackedOverlay}
 					{instanceIndicator}
 					{hiddenIndicator}
 				</g>
@@ -391,6 +424,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 						stroke="none"
 					/>
 					{hoverOverlay}
+					{stackedOverlay}
 					{instanceIndicator}
 					{hiddenIndicator}
 				</g>
@@ -411,6 +445,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 						isEditMode={true}
 					/>
 					{hoverOverlay}
+					{stackedOverlay}
 					{instanceIndicator}
 					{hiddenIndicator}
 				</g>
@@ -434,6 +469,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 						stroke="none"
 					/>
 					{hoverOverlay}
+					{stackedOverlay}
 					{instanceIndicator}
 					{hiddenIndicator}
 				</g>
@@ -454,6 +490,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 						{...commonProps}
 					/>
 					{hoverOverlay}
+					{stackedOverlay}
 					{instanceIndicator}
 					{hiddenIndicator}
 				</g>

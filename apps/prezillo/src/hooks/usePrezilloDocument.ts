@@ -96,6 +96,10 @@ export interface UsePrezilloDocumentResult {
 	clearTemplateSelection: () => void
 	isTemplateFocused: boolean // True when template frame background is clicked (show template properties)
 
+	// Stacked object highlighting (for sticky movement visual feedback)
+	stackedHighlightIds: Set<ObjectId>
+	setStackedHighlightIds: React.Dispatch<React.SetStateAction<Set<ObjectId>>>
+
 	// Awareness/presence
 	awareness: Awareness | null
 	remotePresence: Map<number, PrezilloPresence>
@@ -269,6 +273,9 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 	// Template selection (for properties panel)
 	const [selectedTemplateId, setSelectedTemplateId] = React.useState<TemplateId | null>(null)
 	const [isTemplateFocused, setIsTemplateFocused] = React.useState(false)
+
+	// Stacked object highlighting (for sticky movement visual feedback)
+	const [stackedHighlightIds, setStackedHighlightIds] = React.useState<Set<ObjectId>>(new Set())
 
 	const selectTemplate = React.useCallback((templateId: TemplateId | null) => {
 		setSelectedTemplateId(templateId)
@@ -474,6 +481,10 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 		selectTemplate,
 		clearTemplateSelection,
 		isTemplateFocused,
+
+		// Stacked object highlighting (for sticky movement visual feedback)
+		stackedHighlightIds,
+		setStackedHighlightIds,
 
 		// Awareness/presence
 		awareness,

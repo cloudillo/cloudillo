@@ -607,6 +607,170 @@ export function getObjectCount(doc: YPrezilloDocument): number {
 }
 
 /**
+ * Calculate the overlap percentage of boundsB relative to itself.
+ * Returns a value from 0 to 1 representing how much of boundsB overlaps with boundsA.
+ */
+export function calculateOverlapPercentage(boundsA: Bounds, boundsB: Bounds): number {
+	// Calculate intersection
+	const intersectLeft = Math.max(boundsA.x, boundsB.x)
+	const intersectRight = Math.min(boundsA.x + boundsA.width, boundsB.x + boundsB.width)
+	const intersectTop = Math.max(boundsA.y, boundsB.y)
+	const intersectBottom = Math.min(boundsA.y + boundsA.height, boundsB.y + boundsB.height)
+
+	// No intersection
+	if (intersectLeft >= intersectRight || intersectTop >= intersectBottom) {
+		return 0
+	}
+
+	const intersectionArea = (intersectRight - intersectLeft) * (intersectBottom - intersectTop)
+	const boundsBAREA = boundsB.width * boundsB.height
+
+	// Avoid division by zero for zero-area objects
+	if (boundsBAREA === 0) return 0
+
+	return intersectionArea / boundsBAREA
+}
+
+/**
+ * Get objects that are "stacked on top of" the given object.
+ * An object is considered stacked if:
+ * 1. It has a higher z-index (appears later in z-order traversal)
+ * 2. Its bounding box overlaps with the target by at least the specified threshold (default 50%)
+ * 3. It is not locked
+ *
+ * This recursively finds all stacked objects (if A is on B and C is on A, moving B moves both A and C).
+ */
+export function getStackedObjects(
+	doc: YPrezilloDocument,
+	objectId: ObjectId,
+	overlapThreshold: number = 0.5
+): ObjectId[] {
+	// Get all objects in z-order
+	const allObjectIds = getAllObjectIdsInZOrder(doc)
+	const targetIndex = allObjectIds.indexOf(objectId)
+
+	if (targetIndex === -1) return []
+
+	const targetObj = doc.o.get(objectId)
+	if (!targetObj) return []
+
+	const targetBounds = getAbsoluteBoundsStored(doc, targetObj)
+	if (!targetBounds) return []
+
+	// Find direct children (objects immediately above with sufficient overlap)
+	const directChildren: ObjectId[] = []
+
+	// Only check objects with higher z-index
+	for (let i = targetIndex + 1; i < allObjectIds.length; i++) {
+		const candidateId = allObjectIds[i]
+		const candidateObj = doc.o.get(candidateId)
+
+		if (!candidateObj) continue
+		// Skip locked objects
+		if (candidateObj.k) continue
+		// Skip invisible objects
+		if (candidateObj.v === false) continue
+
+		const candidateBounds = getAbsoluteBoundsStored(doc, candidateObj)
+		if (!candidateBounds) continue
+
+		const overlap = calculateOverlapPercentage(targetBounds, candidateBounds)
+		if (overlap >= overlapThreshold) {
+			directChildren.push(candidateId)
+		}
+	}
+
+	// Recursively collect stacked objects (objects stacked on top of our direct children)
+	const allStacked = new Set<ObjectId>(directChildren)
+	const visited = new Set<ObjectId>([objectId])
+
+	function collectRecursive(ids: ObjectId[]) {
+		for (const id of ids) {
+			if (visited.has(id)) continue
+			visited.add(id)
+
+			const childStacked = getStackedObjectsDirect(doc, id, allObjectIds, overlapThreshold)
+			for (const childId of childStacked) {
+				if (!allStacked.has(childId)) {
+					allStacked.add(childId)
+					collectRecursive([childId])
+				}
+			}
+		}
+	}
+
+	collectRecursive(directChildren)
+
+	return Array.from(allStacked)
+}
+
+/**
+ * Internal helper: get directly stacked objects without recursion.
+ * Used by getStackedObjects for recursive collection.
+ */
+function getStackedObjectsDirect(
+	doc: YPrezilloDocument,
+	objectId: ObjectId,
+	allObjectIds: ObjectId[],
+	overlapThreshold: number
+): ObjectId[] {
+	const targetIndex = allObjectIds.indexOf(objectId)
+	if (targetIndex === -1) return []
+
+	const targetObj = doc.o.get(objectId)
+	if (!targetObj) return []
+
+	const targetBounds = getAbsoluteBoundsStored(doc, targetObj)
+	if (!targetBounds) return []
+
+	const result: ObjectId[] = []
+
+	for (let i = targetIndex + 1; i < allObjectIds.length; i++) {
+		const candidateId = allObjectIds[i]
+		const candidateObj = doc.o.get(candidateId)
+
+		if (!candidateObj) continue
+		if (candidateObj.k) continue
+		if (candidateObj.v === false) continue
+
+		const candidateBounds = getAbsoluteBoundsStored(doc, candidateObj)
+		if (!candidateBounds) continue
+
+		const overlap = calculateOverlapPercentage(targetBounds, candidateBounds)
+		if (overlap >= overlapThreshold) {
+			result.push(candidateId)
+		}
+	}
+
+	return result
+}
+
+/**
+ * Get all objects stacked on any of the given objects (for multi-selection).
+ * Deduplicates results and excludes the input objects themselves.
+ */
+export function getStackedObjectsForSelection(
+	doc: YPrezilloDocument,
+	objectIds: ObjectId[],
+	overlapThreshold: number = 0.5
+): ObjectId[] {
+	const inputSet = new Set(objectIds)
+	const allStacked = new Set<ObjectId>()
+
+	for (const id of objectIds) {
+		const stacked = getStackedObjects(doc, id, overlapThreshold)
+		for (const stackedId of stacked) {
+			// Don't include objects that are already in the selection
+			if (!inputSet.has(stackedId)) {
+				allStacked.add(stackedId)
+			}
+		}
+	}
+
+	return Array.from(allStacked)
+}
+
+/**
  * Get container count
  */
 export function getContainerCount(doc: YPrezilloDocument): number {

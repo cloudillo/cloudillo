@@ -154,8 +154,21 @@ async function downloadFile(url, destPath) {
 function checkWawoff2() {
 	try {
 		// wawoff2 npm package provides woff2_decompress.js (shell wrapper)
-		const woff2Decompress = join(__dirname, '..', 'node_modules', '.bin', 'woff2_decompress.js')
-		if (existsSync(woff2Decompress)) return woff2Decompress
+		// Check local node_modules first (for standalone installs)
+		const localBin = join(__dirname, '..', 'node_modules', '.bin', 'woff2_decompress.js')
+		if (existsSync(localBin)) return localBin
+
+		// Check root node_modules (for pnpm monorepo with hoisting)
+		const rootBin = join(
+			__dirname,
+			'..',
+			'..',
+			'..',
+			'node_modules',
+			'.bin',
+			'woff2_decompress.js'
+		)
+		if (existsSync(rootBin)) return rootBin
 
 		// Try global woff2_decompress
 		execFileSync('which', ['woff2_decompress'], { encoding: 'utf-8' })

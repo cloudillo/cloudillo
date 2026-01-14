@@ -18,13 +18,20 @@ import * as React from 'react'
 import * as Y from 'yjs'
 import { useY } from 'react-yjs'
 
-import type { YPrezilloDocument, ObjectId, ViewId, PrezilloObject } from '../../crdt'
+import type {
+	YPrezilloDocument,
+	ObjectId,
+	ViewId,
+	PrezilloObject,
+	TableGridObject
+} from '../../crdt'
 import { getObject } from '../../crdt'
 import { TransformSection } from './TransformSection'
 import { StyleSection } from './StyleSection'
 import { TextStyleSection } from './TextStyleSection'
 import { ShapeSection } from './ShapeSection'
 import { QRCodeSection } from './QRCodeSection'
+import { TableGridSection } from './TableGridSection'
 import { ViewPropertiesPanel } from './ViewPropertiesPanel'
 import type { PropertyPreview } from './PrezilloPropertiesPanel'
 
@@ -93,13 +100,16 @@ export function PropertyEditor({
 	}
 
 	// Check if object is a text type
-	const isTextObject = selectedObject.type === 'text' || selectedObject.type === 'textbox'
+	const isTextObject = selectedObject.type === 'text'
 
 	// Check if object is a rect (has corner radius)
 	const isRectObject = selectedObject.type === 'rect'
 
 	// Check if object is a QR code
 	const isQrCodeObject = selectedObject.type === 'qrcode'
+
+	// Check if object is a table grid
+	const isTableGridObject = selectedObject.type === 'tablegrid'
 
 	return (
 		<div className="c-vbox g-2">
@@ -112,6 +122,14 @@ export function PropertyEditor({
 			{isRectObject && <ShapeSection doc={doc} yDoc={yDoc} object={selectedObject} />}
 
 			{isQrCodeObject && <QRCodeSection doc={doc} yDoc={yDoc} object={selectedObject} />}
+
+			{isTableGridObject && (
+				<TableGridSection
+					doc={doc}
+					yDoc={yDoc}
+					object={selectedObject as TableGridObject}
+				/>
+			)}
 		</div>
 	)
 }

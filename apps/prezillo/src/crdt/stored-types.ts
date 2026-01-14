@@ -46,11 +46,10 @@ import * as Y from 'yjs'
 export type ChildRef = [0 | 1, string]
 
 // Object type codes
-export type ObjectTypeCode = 'R' | 'E' | 'L' | 'P' | 'G' | 'T' | 'B' | 'I' | 'M' | 'C' | 'Q' | 'F'
-// R=rect, E=ellipse, L=line, P=path, G=polygon
-// T=text, B=textbox
+export type ObjectTypeCode = 'R' | 'E' | 'L' | 'P' | 'G' | 'T' | 'I' | 'M' | 'C' | 'Q' | 'F' | 'Tg'
+// R=rect, E=ellipse, L=line, P=path, G=polygon, T=text
 // I=image, M=embed (media)
-// C=connector, Q=qrcode, F=pollframe
+// C=connector, Q=qrcode, F=pollframe, Tg=tablegrid
 
 // QR Code error correction level codes
 export type QrErrorCorrectionLevel = 'L' | 'M' | 'Q' | 'H'
@@ -202,15 +201,6 @@ export interface StoredText extends StoredObjectBase {
 	mh?: number // minHeight - original height at creation for auto-sizing
 }
 
-// Textbox (rich text)
-export interface StoredTextbox extends StoredObjectBase {
-	t: 'B'
-	tid: string // textContentId (ref to richTexts)
-	pd?: number | [number, number, number, number] // padding
-	bg?: string // background
-	bd?: ShapeStyle // border
-}
-
 // Image
 export interface StoredImage extends StoredObjectBase {
 	t: 'I'
@@ -253,6 +243,16 @@ export interface StoredPollFrame extends StoredObjectBase {
 	lb?: string // label text to display on frame
 }
 
+// Table Grid (visual layout helper with snap points)
+export interface StoredTableGrid extends StoredObjectBase {
+	t: 'Tg'
+	c: number // cols (column count)
+	rw: number // rows (row count)
+	cw?: number[] // column widths (proportions 0-1, equal if omitted)
+	rh?: number[] // row heights (proportions 0-1, equal if omitted)
+	// Border styling via inherited ShapeStyle (s field) - line color, thickness
+}
+
 // Union of all stored object types
 export type StoredObject =
 	| StoredRect
@@ -261,12 +261,12 @@ export type StoredObject =
 	| StoredPath
 	| StoredPolygon
 	| StoredText
-	| StoredTextbox
 	| StoredImage
 	| StoredEmbed
 	| StoredConnector
 	| StoredQrCode
 	| StoredPollFrame
+	| StoredTableGrid
 
 // Container (layer or group)
 export interface StoredContainer {

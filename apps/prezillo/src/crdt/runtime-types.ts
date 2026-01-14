@@ -19,7 +19,7 @@
  * These are the types used in application logic and UI
  */
 
-import type { ObjectId, ContainerId, ViewId, StyleId, RichTextId, TemplateId } from './ids'
+import type { ObjectId, ContainerId, ViewId, StyleId, TemplateId } from './ids'
 import type { Gradient } from '@cloudillo/canvas-tools'
 
 // Object types (expanded)
@@ -30,12 +30,12 @@ export type ObjectType =
 	| 'path'
 	| 'polygon'
 	| 'text'
-	| 'textbox'
 	| 'image'
 	| 'embed'
 	| 'connector'
 	| 'qrcode'
 	| 'pollframe'
+	| 'tablegrid'
 
 // QR Code error correction levels (expanded)
 export type QrErrorCorrection = 'low' | 'medium' | 'quartile' | 'high'
@@ -219,15 +219,6 @@ export interface TextObject extends PrezilloObjectBase {
 	minHeight?: number // Original height at creation for auto-sizing
 }
 
-// Textbox object (rich text)
-export interface TextboxObject extends PrezilloObjectBase {
-	type: 'textbox'
-	textContentId: RichTextId
-	padding?: number | [number, number, number, number]
-	background?: string
-	border?: ShapeStyle
-}
-
 // Image object
 export interface ImageObject extends PrezilloObjectBase {
 	type: 'image'
@@ -270,6 +261,16 @@ export interface PollFrameObject extends PrezilloObjectBase {
 	label?: string // Display label text
 }
 
+// Table Grid object (visual layout helper with snap points)
+export interface TableGridObject extends PrezilloObjectBase {
+	type: 'tablegrid'
+	cols: number // Column count
+	rows: number // Row count
+	columnWidths?: number[] // Column width proportions (0-1), equal if omitted
+	rowHeights?: number[] // Row height proportions (0-1), equal if omitted
+	// Border styling via inherited ShapeStyle (style field) - line color, thickness
+}
+
 // Union of all object types
 export type PrezilloObject =
 	| RectObject
@@ -278,12 +279,12 @@ export type PrezilloObject =
 	| PathObject
 	| PolygonObject
 	| TextObject
-	| TextboxObject
 	| ImageObject
 	| EmbedObject
 	| ConnectorObject
 	| QrCodeObject
 	| PollFrameObject
+	| TableGridObject
 
 // Container (layer or group)
 export interface ContainerNode {

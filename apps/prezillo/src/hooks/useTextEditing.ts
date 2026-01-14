@@ -62,7 +62,7 @@ export function useTextEditing({
 		if (selectedIds.size !== 1) return null
 		const id = Array.from(selectedIds)[0]
 		const obj = doc.o.get(id)
-		if (!obj || (obj.t !== 'T' && obj.t !== 'B')) return null
+		if (!obj || obj.t !== 'T') return null
 		return { id, obj }
 	}, [selectedIds, doc.o])
 

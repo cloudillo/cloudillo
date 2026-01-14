@@ -31,6 +31,7 @@ import { WrappedText } from './WrappedText'
 import { ImageRenderer } from './ImageRenderer'
 import { QRCodeRenderer } from './QRCodeRenderer'
 import { PollFrameRenderer } from './PollFrameRenderer'
+import { TableGridRenderer } from './TableGridRenderer'
 
 /**
  * Render SVG gradient definition using library functions
@@ -408,6 +409,29 @@ export const ObjectShape = React.memo(function ObjectShape({
 						hasMyVote={false}
 						isInteractive={false}
 						isEditMode={true}
+					/>
+					{hoverOverlay}
+					{instanceIndicator}
+					{hiddenIndicator}
+				</g>
+			)
+
+		case 'tablegrid':
+			return (
+				<g transform={rotationTransform} opacity={objectOpacity} {...commonProps}>
+					<TableGridRenderer
+						object={object}
+						style={style}
+						bounds={{ x, y, width, height }}
+					/>
+					{/* Invisible rect for click handling */}
+					<rect
+						x={x}
+						y={y}
+						width={width}
+						height={height}
+						fill="transparent"
+						stroke="none"
 					/>
 					{hoverOverlay}
 					{instanceIndicator}

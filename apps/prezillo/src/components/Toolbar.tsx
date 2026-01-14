@@ -33,6 +33,7 @@ import {
 	PiImageBold as IcImage,
 	PiQrCodeBold as IcQrCode,
 	PiChartBarBold as IcPollFrame,
+	PiTableBold as IcTable,
 	PiTrashBold as IcDelete,
 	PiCopyBold as IcDuplicate,
 	PiArrowArcLeftBold as IcUndo,
@@ -260,6 +261,15 @@ export function Toolbar({
 				title="Poll Frame"
 			>
 				<IcPollFrame />
+			</button>
+
+			{/* Table Grid tool */}
+			<button
+				onClick={() => setTool('tablegrid')}
+				className={mergeClasses('c-button icon', tool === 'tablegrid' ? 'active' : '')}
+				title="Table Grid"
+			>
+				<IcTable />
 			</button>
 
 			<div className="c-toolbar-divider" />

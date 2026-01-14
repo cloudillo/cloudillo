@@ -126,7 +126,10 @@ export function calculateTextLayout(
 
 	// Word wrap the text
 	const wrappedLines = wrapText(displayText, bounds.width, style)
-	const totalHeight = wrappedLines.length * lineSpacing
+	// Use visual height for centering: (n-1) gaps between lines + fontSize for last line
+	// This matches how CSS flexbox calculates vertical centering
+	const totalHeight =
+		wrappedLines.length > 0 ? (wrappedLines.length - 1) * lineSpacing + fontSize : 0
 
 	// Calculate vertical offset based on vertical alignment
 	let yOffset: number

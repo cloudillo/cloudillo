@@ -82,7 +82,6 @@ function getObjectIcon(type: string) {
 		case 'line':
 			return <IcLine size={14} />
 		case 'text':
-		case 'textbox':
 			return <IcText size={14} />
 		case 'image':
 			return <IcImage size={14} />

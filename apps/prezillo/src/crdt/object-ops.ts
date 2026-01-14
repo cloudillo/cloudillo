@@ -20,8 +20,8 @@
 
 import * as Y from 'yjs'
 import type { YPrezilloDocument, ChildRef, StoredObject, StoredPaletteRef } from './stored-types'
-import type { ObjectId, ContainerId, ViewId, RichTextId } from './ids'
-import { generateObjectId, generateRichTextId } from './ids'
+import type { ObjectId, ContainerId, ViewId } from './ids'
+import { generateObjectId } from './ids'
 import type { PrezilloObject } from './runtime-types'
 import { compactObject, expandObject } from './type-converters'
 import { getContainerChildren } from './document'
@@ -63,20 +63,6 @@ export function addObject(
 				doc.r.insert(insertIndex, [childRef])
 			} else {
 				doc.r.push([childRef])
-			}
-		}
-
-		// Handle textbox: create rich text entry
-		if (object.type === 'textbox') {
-			const textboxObj = object as any
-			if (!textboxObj.textContentId) {
-				const textId = generateRichTextId()
-				const yText = new Y.Text()
-				doc.rt.set(textId, yText)
-				// Update stored object with textContentId
-				const storedTextbox = stored as any
-				storedTextbox.tid = textId
-				doc.o.set(objectId, storedTextbox)
 			}
 		}
 	}, yDoc.clientID)
@@ -143,18 +129,6 @@ export function createObject(
 		case 'text':
 			object = { ...base, type: 'text', text: '', minHeight: height } as any
 			break
-		case 'textbox':
-			const textId = generateRichTextId()
-			object = {
-				...base,
-				type: 'textbox',
-				textContentId: textId
-			} as any
-			// Create the Y.Text
-			yDoc.transact(() => {
-				doc.rt.set(textId, new Y.Text())
-			}, yDoc.clientID)
-			break
 		case 'image':
 			object = { ...base, type: 'image', fileId: '' } as any
 			break
@@ -179,9 +153,69 @@ export function createObject(
 				label: ''
 			} as any
 			break
+		case 'tablegrid':
+			object = {
+				...base,
+				type: 'tablegrid',
+				cols: 3,
+				rows: 3,
+				// Default style: transparent fill, light gray stroke for grid lines
+				s: {
+					f: 'none',
+					s: '#cccccc',
+					sw: 1
+				}
+			} as any
+			break
 		default:
 			throw new Error(`Unknown object type: ${type}`)
 	}
+
+	return addObject(yDoc, doc, object, parentId, insertIndex, pageId)
+}
+
+/**
+ * Create a table grid with specified rows and columns.
+ * @param pageId - If provided, x/y are page-relative coordinates
+ */
+export function createTableGrid(
+	yDoc: Y.Doc,
+	doc: YPrezilloDocument,
+	cols: number,
+	rows: number,
+	x: number,
+	y: number,
+	width: number,
+	height: number,
+	parentId?: ContainerId,
+	insertIndex?: number,
+	pageId?: ViewId
+): ObjectId {
+	const objectId = generateObjectId()
+
+	const object: PrezilloObject = {
+		id: objectId,
+		type: 'tablegrid',
+		x,
+		y,
+		width,
+		height,
+		rotation: 0,
+		pivotX: 0.5,
+		pivotY: 0.5,
+		opacity: 1,
+		visible: true,
+		locked: false,
+		hidden: false,
+		cols,
+		rows,
+		// Default style: transparent fill, light gray stroke for grid lines
+		style: {
+			fill: 'none',
+			stroke: '#cccccc',
+			strokeWidth: 1
+		}
+	} as any
 
 	return addObject(yDoc, doc, object, parentId, insertIndex, pageId)
 }
@@ -309,6 +343,34 @@ export function updateObjectRotation(
 			doc.o.set(objectId, {
 				...existing,
 				r: normalizedRotation
+			})
+		}
+	}, yDoc.clientID)
+}
+
+/**
+ * Update object opacity directly on stored format.
+ * Avoids expand/compact cycle which loses palette references in style.
+ */
+export function updateObjectOpacity(
+	yDoc: Y.Doc,
+	doc: YPrezilloDocument,
+	objectId: ObjectId,
+	opacity: number
+): void {
+	const existing = doc.o.get(objectId)
+	if (!existing) return
+
+	yDoc.transact(() => {
+		if (opacity === 1) {
+			// Remove opacity field if default (1)
+			const updated = { ...existing }
+			delete updated.o
+			doc.o.set(objectId, updated)
+		} else {
+			doc.o.set(objectId, {
+				...existing,
+				o: opacity
 			})
 		}
 	}, yDoc.clientID)
@@ -557,11 +619,6 @@ export function deleteObject(yDoc: Y.Doc, doc: YPrezilloDocument, objectId: Obje
 
 		// Delete object
 		doc.o.delete(objectId)
-
-		// Clean up rich text if textbox
-		if (object.t === 'B' && (object as any).tid) {
-			doc.rt.delete((object as any).tid)
-		}
 	}, yDoc.clientID)
 }
 
@@ -593,11 +650,6 @@ export function deleteObjects(yDoc: Y.Doc, doc: YPrezilloDocument, objectIds: Ob
 
 			// Delete object
 			doc.o.delete(id)
-
-			// Clean up rich text if textbox
-			if (object.t === 'B' && (object as any).tid) {
-				doc.rt.delete((object as any).tid)
-			}
 		})
 	}, yDoc.clientID)
 }
@@ -633,11 +685,6 @@ export function deletePrototypeWithInstances(
 
 				// Delete instance
 				doc.o.delete(instanceId)
-
-				// Clean up rich text if textbox
-				if (instance.t === 'B' && (instance as any).tid) {
-					doc.rt.delete((instance as any).tid)
-				}
 			}
 		} else {
 			// Detach: copy prototype values to instances
@@ -679,11 +726,6 @@ export function deletePrototypeWithInstances(
 
 			// Delete prototype
 			doc.o.delete(prototypeId)
-
-			// Clean up rich text if textbox
-			if (prototype.t === 'B' && (prototype as any).tid) {
-				doc.rt.delete((prototype as any).tid)
-			}
 		}
 	}, yDoc.clientID)
 }
@@ -949,21 +991,6 @@ export function duplicateObject(
 		name: expanded.name ? `${expanded.name} (copy)` : undefined,
 		// Remove prototype association - duplicate should be standalone
 		prototypeId: undefined
-	}
-
-	// Handle textbox duplication
-	if (duplicated.type === 'textbox') {
-		const originalTextId = (expanded as any).textContentId
-		const originalText = doc.rt.get(originalTextId)
-		if (originalText) {
-			const newTextId = generateRichTextId()
-			yDoc.transact(() => {
-				const newText = new Y.Text()
-				newText.insert(0, originalText.toString())
-				doc.rt.set(newTextId, newText)
-			}, yDoc.clientID)
-			;(duplicated as any).textContentId = newTextId
-		}
 	}
 
 	return addObject(yDoc, doc, duplicated, expanded.parentId, undefined, pageId)

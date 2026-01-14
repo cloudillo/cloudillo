@@ -64,7 +64,7 @@ export function MobilePropertyPanel({
 	}
 
 	// Check object types for available tabs
-	const isTextObject = selectedObject?.type === 'text' || selectedObject?.type === 'textbox'
+	const isTextObject = selectedObject?.type === 'text'
 	const isRectObject = selectedObject?.type === 'rect'
 
 	// Check if we should show view properties

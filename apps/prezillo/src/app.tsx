@@ -154,7 +154,8 @@ import {
 	useTextStyling,
 	usePresentationMode,
 	useViewNavigation,
-	useObjectDrag
+	useObjectDrag,
+	useTableGridSnaps
 } from './hooks'
 import { useViewObjects, useVisibleViewObjects } from './hooks/useViewObjects'
 import { useVisibleViews } from './hooks/useVisibleViews'
@@ -191,6 +192,7 @@ import type {
 	ViewId,
 	TemplateId,
 	PrezilloObject,
+	TableGridObject,
 	ViewNode,
 	Bounds,
 	YPrezilloDocument
@@ -692,13 +694,22 @@ export function PrezilloApp() {
 		}
 	}, [activeView])
 
+	// Filter table grid objects for snap target generation
+	const tableGridObjects = React.useMemo<TableGridObject[]>(() => {
+		return activeViewObjects.filter((obj): obj is TableGridObject => obj.type === 'tablegrid')
+	}, [activeViewObjects])
+
+	// Generate snap targets from table grid cells (edges + centers)
+	const { targets: tableGridSnapTargets } = useTableGridSnaps(tableGridObjects)
+
 	// Initialize snapping hook
 	const { snapDrag, snapResize, activeSnaps, activeSnapEdges, allCandidates, clearSnaps } =
 		useSnapping({
 			objects: snapObjects,
 			config: snapConfig,
 			viewBounds,
-			getParent
+			getParent,
+			customTargets: tableGridSnapTargets
 		})
 
 	// Use refs to always get latest snap functions (avoids stale closure in drag/resize handlers)

@@ -18,8 +18,8 @@
  * Conversion functions between stored (compact) and runtime (expanded) types
  */
 
-import type { ObjectId, ContainerId, ViewId, StyleId, RichTextId } from './ids'
-import { toObjectId, toContainerId, toViewId, toStyleId, toRichTextId } from './ids'
+import type { ObjectId, ContainerId, ViewId, StyleId } from './ids'
+import { toObjectId, toContainerId, toViewId, toStyleId } from './ids'
 import type * as Stored from './stored-types'
 import type * as Runtime from './runtime-types'
 import type { Gradient, GradientStop } from '@cloudillo/canvas-tools'
@@ -32,12 +32,12 @@ const OBJECT_TYPE_MAP: Record<Stored.ObjectTypeCode, Runtime.ObjectType> = {
 	P: 'path',
 	G: 'polygon',
 	T: 'text',
-	B: 'textbox',
 	I: 'image',
 	M: 'embed',
 	C: 'connector',
 	Q: 'qrcode',
-	F: 'pollframe'
+	F: 'pollframe',
+	Tg: 'tablegrid'
 }
 
 const OBJECT_TYPE_REVERSE: Record<Runtime.ObjectType, Stored.ObjectTypeCode> = {
@@ -47,12 +47,12 @@ const OBJECT_TYPE_REVERSE: Record<Runtime.ObjectType, Stored.ObjectTypeCode> = {
 	path: 'P',
 	polygon: 'G',
 	text: 'T',
-	textbox: 'B',
 	image: 'I',
 	embed: 'M',
 	connector: 'C',
 	qrcode: 'Q',
-	pollframe: 'F'
+	pollframe: 'F',
+	tablegrid: 'Tg'
 }
 
 // Poll frame shape mappings
@@ -439,16 +439,6 @@ export function expandObject(id: string, stored: Stored.StoredObject): Runtime.P
 				minHeight: (stored as Stored.StoredText).mh
 			} as Runtime.TextObject
 
-		case 'B':
-			return {
-				...base,
-				type: 'textbox',
-				textContentId: toRichTextId((stored as Stored.StoredTextbox).tid),
-				padding: (stored as Stored.StoredTextbox).pd,
-				background: (stored as Stored.StoredTextbox).bg,
-				border: expandShapeStyle((stored as Stored.StoredTextbox).bd)
-			} as Runtime.TextboxObject
-
 		case 'I':
 			return {
 				...base,
@@ -498,6 +488,17 @@ export function expandObject(id: string, stored: Stored.StoredObject): Runtime.P
 				shape: pf.sh ? POLL_SHAPE_MAP[pf.sh] : 'rect',
 				label: pf.lb
 			} as Runtime.PollFrameObject
+
+		case 'Tg':
+			const tg = stored as Stored.StoredTableGrid
+			return {
+				...base,
+				type: 'tablegrid',
+				cols: tg.c,
+				rows: tg.rw,
+				columnWidths: tg.cw,
+				rowHeights: tg.rh
+			} as Runtime.TableGridObject
 
 		default:
 			throw new Error(`Unknown object type: ${(stored as any).t}`)
@@ -580,17 +581,6 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 				mh: textObj.minHeight
 			} as Stored.StoredText
 
-		case 'textbox':
-			const textbox = runtime as Runtime.TextboxObject
-			return {
-				...base,
-				t: 'B',
-				tid: textbox.textContentId,
-				pd: textbox.padding,
-				bg: textbox.background,
-				bd: compactShapeStyle(textbox.border)
-			} as Stored.StoredTextbox
-
 		case 'image':
 			const img = runtime as Runtime.ImageObject
 			return {
@@ -654,6 +644,17 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 						: undefined,
 				lb: pfObj.label || undefined
 			} as Stored.StoredPollFrame
+
+		case 'tablegrid':
+			const tgObj = runtime as Runtime.TableGridObject
+			return {
+				...base,
+				t: 'Tg',
+				c: tgObj.cols,
+				rw: tgObj.rows,
+				cw: tgObj.columnWidths,
+				rh: tgObj.rowHeights
+			} as Stored.StoredTableGrid
 
 		default:
 			throw new Error(`Unknown object type: ${(runtime as any).type}`)

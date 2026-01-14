@@ -188,11 +188,6 @@ export function exportDocument(yDoc: Y.Doc, doc: YPrezilloDocument): PrezilloExp
 	// Round numeric fields for cleaner export
 	const objects: Record<string, Omit<PrezilloObject, 'id'>> = {}
 	doc.o.forEach((stored: StoredObject, id: string) => {
-		// Track rich text references for textbox objects
-		if (stored.t === 'B' && 'tid' in stored) {
-			referencedRichTextIds.add(stored.tid)
-		}
-
 		const { id: _id, ...objectWithoutId } = expandObject(id, stored)
 		objects[id] = roundObjectFields(objectWithoutId)
 	})

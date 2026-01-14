@@ -23,7 +23,7 @@ import {
 	updateObjectPosition,
 	updateObjectSize,
 	updateObjectRotation,
-	updateObject
+	updateObjectOpacity
 } from '../../crdt'
 import { useLockableProperty } from '../../hooks'
 import type { PropertyPreview } from './PrezilloPropertiesPanel'
@@ -93,7 +93,7 @@ export function TransformSection({ doc, yDoc, object, onPreview }: TransformSect
 			if (opacity.isDisabled) return
 			// Convert percentage to 0-1
 			const opacityValue = Math.max(0, Math.min(100, value)) / 100
-			updateObject(yDoc, doc, objectId, { opacity: opacityValue })
+			updateObjectOpacity(yDoc, doc, objectId, opacityValue)
 			// Clear preview on commit
 			onPreview?.(null)
 		},

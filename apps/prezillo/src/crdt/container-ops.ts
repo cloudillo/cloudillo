@@ -143,10 +143,6 @@ export function deleteContainer(
 						const obj = doc.o.get(objId)
 						if (obj) {
 							doc.o.delete(objId)
-							// Clean up rich text
-							if (obj.t === 'B' && (obj as any).tid) {
-								doc.rt.delete((obj as any).tid)
-							}
 							deletedObjectIds.push(objId)
 						}
 					} else {

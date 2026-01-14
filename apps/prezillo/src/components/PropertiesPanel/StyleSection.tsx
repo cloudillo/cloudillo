@@ -46,7 +46,7 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 	const palette = usePaletteValue(doc)
 
 	// Check if this is a text object
-	const isTextObject = object.type === 'text' || object.type === 'textbox'
+	const isTextObject = object.type === 'text'
 
 	// Check if this object is an instance of a template prototype
 	const objectIsInstance = isInstance(doc, objectId)

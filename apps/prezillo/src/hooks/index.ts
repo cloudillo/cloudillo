@@ -71,4 +71,7 @@ export type {
 	TempObjectState
 } from './useObjectDrag'
 
+export { useTableGridSnaps, generateTableGridSnapTargets } from './useTableGridSnaps'
+export type { UseTableGridSnapsResult } from './useTableGridSnaps'
+
 // vim: ts=4

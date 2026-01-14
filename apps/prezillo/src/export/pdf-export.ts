@@ -34,7 +34,8 @@ import type {
 	ImageObject,
 	QrCodeObject,
 	TextObject,
-	PollFrameObject
+	PollFrameObject,
+	TableGridObject
 } from '../crdt'
 import {
 	resolveShapeStyle,
@@ -46,6 +47,7 @@ import {
 	getAbsolutePositionStored
 } from '../crdt'
 import { calculateRotationTransform, buildStrokeProps, buildFillProps } from '../utils'
+import { calculateGridPositions } from '../components/TableGridRenderer'
 import type { PDFExportOptions, RenderContext, Bounds } from './types'
 import { createSVGTextElement } from './text-converter'
 import { createQRCodeSVGElements } from './qr-renderer'
@@ -303,6 +305,79 @@ async function renderObjectToSVG(
 					pdfLabelStyle
 				)
 				if (labelEl) fragment.appendChild(labelEl)
+			}
+
+			content = fragment
+			break
+		}
+
+		case 'tablegrid': {
+			// Render table grid as SVG lines
+			const gridObj = object as TableGridObject
+			const { cols, rows, columnWidths, rowHeights } = gridObj
+
+			// Calculate column and row positions
+			const colPositions = calculateGridPositions(cols, columnWidths, object.width)
+			const rowPositions = calculateGridPositions(rows, rowHeights, object.height)
+
+			// Use stroke style for grid lines (default to light gray)
+			const strokeColor = style.stroke || '#e5e7eb'
+			const strokeWidth = style.strokeWidth || 1
+			const strokeOpacity = style.strokeOpacity ?? 1
+
+			// Use fill style for background (default to none/transparent)
+			const fillColor = style.fill || 'none'
+			const fillOpacity = style.fillOpacity ?? 1
+
+			const fragment = document.createDocumentFragment()
+
+			// Outer border rect with fill
+			const borderRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+			borderRect.setAttribute('x', String(object.x))
+			borderRect.setAttribute('y', String(object.y))
+			borderRect.setAttribute('width', String(object.width))
+			borderRect.setAttribute('height', String(object.height))
+			borderRect.setAttribute('fill', fillColor)
+			if (fillOpacity !== 1) {
+				borderRect.setAttribute('fill-opacity', String(fillOpacity))
+			}
+			borderRect.setAttribute('stroke', strokeColor)
+			borderRect.setAttribute('stroke-width', String(strokeWidth))
+			if (strokeOpacity !== 1) {
+				borderRect.setAttribute('stroke-opacity', String(strokeOpacity))
+			}
+			fragment.appendChild(borderRect)
+
+			// Vertical lines (column dividers) - skip first and last
+			for (let i = 1; i < colPositions.length - 1; i++) {
+				const xPos = colPositions[i]
+				const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+				line.setAttribute('x1', String(object.x + xPos))
+				line.setAttribute('y1', String(object.y))
+				line.setAttribute('x2', String(object.x + xPos))
+				line.setAttribute('y2', String(object.y + object.height))
+				line.setAttribute('stroke', strokeColor)
+				line.setAttribute('stroke-width', String(strokeWidth))
+				if (strokeOpacity !== 1) {
+					line.setAttribute('stroke-opacity', String(strokeOpacity))
+				}
+				fragment.appendChild(line)
+			}
+
+			// Horizontal lines (row dividers) - skip first and last
+			for (let i = 1; i < rowPositions.length - 1; i++) {
+				const yPos = rowPositions[i]
+				const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+				line.setAttribute('x1', String(object.x))
+				line.setAttribute('y1', String(object.y + yPos))
+				line.setAttribute('x2', String(object.x + object.width))
+				line.setAttribute('y2', String(object.y + yPos))
+				line.setAttribute('stroke', strokeColor)
+				line.setAttribute('stroke-width', String(strokeWidth))
+				if (strokeOpacity !== 1) {
+					line.setAttribute('stroke-opacity', String(strokeOpacity))
+				}
+				fragment.appendChild(line)
 			}
 
 			content = fragment

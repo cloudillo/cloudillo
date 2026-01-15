@@ -435,7 +435,7 @@ export function ViewPicker({
 								onContextMenu={(e) => handleViewContextMenu(e, view.id)}
 								className={mergeClasses(
 									'c-button c-view-picker-tab',
-									view.id === activeViewId && 'active',
+									view.id === activeViewId && !selectedTemplateId && 'active',
 									draggedView?.viewId === view.id && 'dragging',
 									dropTarget?.viewId === view.id &&
 										dropTarget.position === 'before' &&

@@ -39,6 +39,7 @@ import {
 import {
 	RotationHandle,
 	PivotHandle,
+	calculateArcRadius,
 	type RotationHandleProps,
 	type PivotHandleProps
 } from '@cloudillo/canvas-tools'
@@ -185,6 +186,7 @@ import {
 	useToast,
 	ToastContainer,
 	useDialog,
+	DialogContainer,
 	type BottomSheetSnapPoint
 } from '@cloudillo/react'
 
@@ -222,6 +224,7 @@ import {
 	deleteObject,
 	deletePrototypeWithInstances,
 	getInstancesOfPrototype,
+	getTemplateIdForPrototype,
 	createView,
 	getView,
 	getAbsoluteBounds,
@@ -252,8 +255,13 @@ import {
 	getViewsUsingTemplate,
 	createTemplate,
 	// Stacked object queries for sticky movement
-	getStackedObjects
+	getStackedObjects,
+	// Document consistency/maintenance
+	checkDocumentConsistency,
+	fixDocumentIssues
 } from './crdt'
+
+import type { DocumentConsistencyReport } from './crdt'
 import { downloadPDF } from './export'
 import { measureTextHeight } from './utils'
 
@@ -544,6 +552,21 @@ export function PrezilloApp() {
 		enabled: prezillo.activeTool === 'image',
 		documentFileId: prezillo.cloudillo.fileId,
 		onObjectCreated: (id) => {
+			// If we're on a template page, convert to template-relative coords and add to template
+			if (prezillo.selectedTemplateId) {
+				const layout = templateLayouts.get(prezillo.selectedTemplateId)
+				if (layout) {
+					// Get current object position and convert to template-relative
+					const obj = prezillo.doc.o.get(id)
+					if (obj?.xy) {
+						const relX = obj.xy[0] - layout.x
+						const relY = obj.xy[1] - layout.y
+						updateObjectPosition(prezillo.yDoc, prezillo.doc, id, relX, relY)
+					}
+				}
+				addObjectToTemplate(prezillo.yDoc, prezillo.doc, prezillo.selectedTemplateId, id)
+			}
+			// selectObject automatically handles template/page selection
 			prezillo.selectObject(id)
 		},
 		onInsertComplete: () => {
@@ -557,13 +580,31 @@ export function PrezilloApp() {
 
 	// Trigger image insertion when image tool is activated
 	React.useEffect(() => {
-		if (prezillo.activeTool === 'image' && activeView && !imageHandler.isInserting) {
-			// Insert at view center
-			const centerX = activeView.x + activeView.width / 2
-			const centerY = activeView.y + activeView.height / 2
-			imageHandler.insertImage(centerX, centerY)
+		if (prezillo.activeTool === 'image' && !imageHandler.isInserting) {
+			// If on a template page, use template frame center
+			if (prezillo.selectedTemplateId) {
+				const layout = templateLayouts.get(prezillo.selectedTemplateId)
+				if (layout) {
+					const centerX = layout.x + layout.width / 2
+					const centerY = layout.y + layout.height / 2
+					imageHandler.insertImage(centerX, centerY)
+					return
+				}
+			}
+			// Otherwise use active view center
+			if (activeView) {
+				const centerX = activeView.x + activeView.width / 2
+				const centerY = activeView.y + activeView.height / 2
+				imageHandler.insertImage(centerX, centerY)
+			}
 		}
-	}, [prezillo.activeTool, activeView, imageHandler])
+	}, [
+		prezillo.activeTool,
+		activeView,
+		prezillo.selectedTemplateId,
+		templateLayouts,
+		imageHandler
+	])
 
 	// Center on active view when it changes (smart zoom - only if page is off-screen or explicit navigation)
 	React.useEffect(() => {
@@ -970,6 +1011,16 @@ export function PrezilloApp() {
 	} = useRotatable({
 		bounds: storedSelection?.bounds ?? { x: 0, y: 0, width: 0, height: 0 },
 		rotation: storedSelection?.rotation ?? 0,
+		// Calculate screen-space arc radius to match the visual RotationHandle exactly
+		screenArcRadius: calculateArcRadius({
+			bounds: {
+				x: 0,
+				y: 0, // Position doesn't matter for arc radius calculation
+				width: (storedSelection?.bounds.width ?? 0) * canvasScale,
+				height: (storedSelection?.bounds.height ?? 0) * canvasScale
+			},
+			scale: 1 // Screen space, no additional scaling
+		}),
 		pivotX: storedSelection?.pivotX ?? 0.5,
 		pivotY: storedSelection?.pivotY ?? 0.5,
 		translateTo: translateToRef,
@@ -1053,6 +1104,11 @@ export function PrezilloApp() {
 		snapPoints: snapSettings.settings.snapToObjects ? DEFAULT_PIVOT_SNAP_POINTS : [],
 		snapThreshold: DEFAULT_PIVOT_SNAP_THRESHOLD,
 		disabled: isReadOnly || !storedSelection,
+		onPointerDown: () => {
+			// Set flag immediately on pointer down to prevent canvas click from clearing selection
+			// This is needed even if the user doesn't actually drag (just clicks)
+			justFinishedInteractionRef.current = true
+		},
 		onDragStart: (pivot) => {
 			// Use ref to get latest storedSelection (react-yjs keeps it updated)
 			const current = storedSelectionRef.current
@@ -1102,21 +1158,6 @@ export function PrezilloApp() {
 		e.stopPropagation()
 		const addToSelection = e.shiftKey || e.ctrlKey || e.metaKey
 
-		// Find the object to check if it's a prototype on a template
-		const clickedObj = canvasObjects.find((o) => o.id === objectId)
-
-		// If clicking a prototype, also select its template
-		if (clickedObj?._templateId && clickedObj?._isPrototype) {
-			prezillo.selectTemplate(clickedObj._templateId)
-		} else {
-			// Clear template selection when clicking non-template objects
-			if (prezillo.selectedTemplateId) {
-				prezillo.clearTemplateSelection()
-			}
-			// Auto-switch to object's page if clicking on an object from a different page
-			prezillo.autoSwitchToObjectPage(objectId)
-		}
-
 		// Single-click to edit: if clicking an already-selected text object, enter edit mode
 		const obj = prezillo.doc.o.get(objectId)
 		if (!isReadOnly && !addToSelection && prezillo.selectedIds.has(objectId)) {
@@ -1126,6 +1167,7 @@ export function PrezilloApp() {
 			}
 		}
 
+		// selectObject automatically handles template/page selection based on the object
 		prezillo.selectObject(objectId, addToSelection)
 		prezillo.setActiveTool(null)
 	}
@@ -1146,8 +1188,14 @@ export function PrezilloApp() {
 	}
 
 	// Handle canvas click (deselect)
-	function handleCanvasClick() {
-		// Skip if we just finished a resize/rotate/pivot interaction
+	function handleCanvasClick(e: React.MouseEvent) {
+		// Skip if click originated from inside the SVG (e.g., pivot handle, rotation handle)
+		// These clicks should be handled by their own handlers, not trigger deselection
+		const target = e.target as HTMLElement
+		if (target.tagName === 'circle' || target.tagName === 'line' || target.tagName === 'path') {
+			return
+		}
+		// Skip if we just finished a resize/rotate/pivot interaction or object selection
 		if (justFinishedInteractionRef.current) {
 			justFinishedInteractionRef.current = false
 			return
@@ -1168,29 +1216,51 @@ export function PrezilloApp() {
 
 	// Handle delete
 	async function handleDelete() {
+		console.log('[handleDelete] called, selectedIds:', [...prezillo.selectedIds])
 		if (isReadOnly) return
 
-		// Check if any selected objects are prototypes with instances
+		// Check if any selected objects are prototypes (in a template's tpo array)
 		let totalInstances = 0
 		const prototypesToDelete: ObjectId[] = []
 
 		for (const id of prezillo.selectedIds) {
-			const instances = getInstancesOfPrototype(prezillo.doc, id)
-			if (instances.length > 0) {
+			// Check if this object is a prototype (belongs to a template)
+			const templateId = getTemplateIdForPrototype(prezillo.doc, id)
+			console.log('[handleDelete] checking id:', id, 'templateId:', templateId)
+			if (templateId) {
+				// It's a prototype - count its instances
+				const instances = getInstancesOfPrototype(prezillo.doc, id)
 				totalInstances += instances.length
 				prototypesToDelete.push(id)
 			}
 		}
 
-		// Show confirmation dialog if deleting prototypes
+		console.log(
+			'[handleDelete] prototypesToDelete:',
+			prototypesToDelete,
+			'totalInstances:',
+			totalInstances
+		)
+
+		// Show confirmation dialog if deleting prototypes with instances
 		if (totalInstances > 0) {
+			console.log('[handleDelete] showing dialog for prototypes with instances')
 			const confirmed = await dialog.confirm(
 				'Delete Prototype Objects?',
 				`This will also delete ${totalInstances} instance(s) that depend on these prototypes. Continue?`
 			)
 			if (!confirmed) return
+		} else if (prototypesToDelete.length > 0) {
+			// Prototypes without instances - still confirm
+			console.log('[handleDelete] showing dialog for prototypes without instances')
+			const confirmed = await dialog.confirm(
+				'Delete Prototype Objects?',
+				'Delete these prototype objects from the template?'
+			)
+			if (!confirmed) return
 		}
 
+		console.log('[handleDelete] proceeding with deletion')
 		// Proceed with deletion
 		prezillo.selectedIds.forEach((id) => {
 			if (prototypesToDelete.includes(id)) {
@@ -1200,6 +1270,38 @@ export function PrezilloApp() {
 			}
 		})
 		prezillo.clearSelection()
+	}
+
+	// Handle document consistency check
+	async function handleCheckDocument() {
+		const report = checkDocumentConsistency(prezillo.doc)
+
+		if (report.summary.total === 0) {
+			await dialog.tell('Document Check', 'No issues found. The document is consistent.')
+			return
+		}
+
+		// Build summary message
+		const lines: string[] = [`Found ${report.summary.total} issue(s):`]
+		if (report.summary.orphanedInstances > 0) {
+			lines.push(
+				`• ${report.summary.orphanedInstances} orphaned instance(s) (missing prototype)`
+			)
+		}
+		if (report.summary.orphanedChildRefs > 0) {
+			lines.push(`• ${report.summary.orphanedChildRefs} orphaned child reference(s)`)
+		}
+		if (report.summary.missingViewRefs > 0) {
+			lines.push(`• ${report.summary.missingViewRefs} invalid view reference(s)`)
+		}
+		lines.push('')
+		lines.push('Would you like to fix these issues?')
+
+		const confirmed = await dialog.confirm('Document Check', lines.join('\n'))
+		if (confirmed) {
+			const result = fixDocumentIssues(prezillo.yDoc, prezillo.doc, report)
+			await dialog.tell('Document Fixed', `Fixed ${result.fixed} issue(s).`)
+		}
 	}
 
 	// Handle tool start
@@ -1298,6 +1400,7 @@ export function PrezilloApp() {
 
 			prezillo.setActiveTool(null)
 			setToolEvent(undefined)
+			// selectObject automatically handles template/page selection
 			prezillo.selectObject(objectId)
 
 			// Start editing immediately for text objects
@@ -1572,6 +1675,7 @@ export function PrezilloApp() {
 					onUnderlineToggle={handleUnderlineToggle}
 					isPanelVisible={isPanelVisible}
 					onTogglePanel={() => setIsPanelVisible((v) => !v)}
+					onCheckDocument={handleCheckDocument}
 				/>
 			)}
 
@@ -1667,7 +1771,11 @@ export function PrezilloApp() {
 												tempObjectState?.pivotY ??
 												selectedObjectTransform.pivotY
 											}
-											onPivotDragStart={hookPivotDragStart}
+											onPivotDragStart={(e) => {
+												// Set flag immediately to prevent canvas click from clearing selection
+												justFinishedInteractionRef.current = true
+												hookPivotDragStart(e)
+											}}
 											isDragging={pivotState.isDragging}
 											snapEnabled={snapSettings.settings.snapToObjects}
 											snappedPoint={pivotState.snappedPoint}
@@ -1940,6 +2048,8 @@ export function PrezilloApp() {
 						// Explicit ViewPicker navigation should always zoom to the page
 						forceZoomRef.current = true
 						prezillo.setActiveViewId(id)
+						// Clear template selection when selecting a page
+						prezillo.clearTemplateSelection()
 					}}
 					onAddView={handleAddView}
 					onPrevView={handlePrevView}
@@ -2011,6 +2121,8 @@ export function PrezilloApp() {
 
 			{/* Toast container for notifications */}
 			<ToastContainer position="top-right" />
+			{/* Dialog container for confirmation dialogs */}
+			<DialogContainer />
 		</>
 	)
 }

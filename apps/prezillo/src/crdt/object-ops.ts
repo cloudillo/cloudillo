@@ -26,7 +26,8 @@ import type { PrezilloObject } from './runtime-types'
 import { compactObject, expandObject } from './type-converters'
 import { getContainerChildren } from './document'
 import { getAbsolutePositionStored } from './transforms'
-import { resolveObject, getInstancesOfPrototype } from './prototype-ops'
+import { resolveObject, getInstancesOfPrototype, detachInstance } from './prototype-ops'
+import { getTemplateIdForPrototype } from './template-ops'
 
 /**
  * Add a new object to the document.
@@ -665,6 +666,8 @@ export function deletePrototypeWithInstances(
 	strategy: 'delete-instances' | 'detach-instances' = 'delete-instances'
 ): void {
 	const instances = getInstancesOfPrototype(doc, prototypeId)
+	// Find which template this prototype belongs to
+	const templateId = getTemplateIdForPrototype(doc, prototypeId)
 
 	yDoc.transact(() => {
 		if (strategy === 'delete-instances') {
@@ -707,6 +710,17 @@ export function deletePrototypeWithInstances(
 					delete merged.proto
 
 					doc.o.set(instanceId, merged as StoredObject)
+				}
+			}
+		}
+
+		// Remove prototype from template's tpo array
+		if (templateId) {
+			const protoArray = doc.tpo.get(templateId)
+			if (protoArray) {
+				const index = protoArray.toArray().indexOf(prototypeId)
+				if (index !== -1) {
+					protoArray.delete(index, 1)
 				}
 			}
 		}
@@ -1008,6 +1022,173 @@ function removeChildRef(array: Y.Array<ChildRef>, ref: ChildRef): void {
 function findChildRefIndex(array: Y.Array<ChildRef>, ref: ChildRef): number {
 	const arr = array.toArray()
 	return arr.findIndex((r) => r[0] === ref[0] && r[1] === ref[1])
+}
+
+// ============================================================================
+// Document Consistency / Maintenance Operations
+// ============================================================================
+
+export type DocumentIssueType = 'orphaned-instance' | 'orphaned-child-ref' | 'missing-view-ref'
+
+export interface DocumentIssue {
+	type: DocumentIssueType
+	objectId: string
+	description: string
+	details?: string
+}
+
+export interface DocumentConsistencyReport {
+	issues: DocumentIssue[]
+	summary: {
+		orphanedInstances: number
+		orphanedChildRefs: number
+		missingViewRefs: number
+		total: number
+	}
+}
+
+/**
+ * Check document for consistency issues without modifying anything
+ * Returns a report of all issues found
+ */
+export function checkDocumentConsistency(doc: YPrezilloDocument): DocumentConsistencyReport {
+	const issues: DocumentIssue[] = []
+
+	// Check for orphaned instances (proto points to non-existent object)
+	doc.o.forEach((obj, objId) => {
+		if (obj.proto && !doc.o.has(obj.proto)) {
+			issues.push({
+				type: 'orphaned-instance',
+				objectId: objId,
+				description: `Instance references missing prototype`,
+				details: `Object ${objId} has proto="${obj.proto}" but that object doesn't exist`
+			})
+		}
+	})
+
+	// Check for orphaned child refs in root array
+	const rootArray = doc.r.toArray()
+	for (const [type, id] of rootArray) {
+		if (type === 0 && !doc.o.has(id)) {
+			issues.push({
+				type: 'orphaned-child-ref',
+				objectId: id,
+				description: `Root child reference to missing object`,
+				details: `Root array contains reference to object ${id} which doesn't exist`
+			})
+		} else if (type === 1 && !doc.c.has(id)) {
+			issues.push({
+				type: 'orphaned-child-ref',
+				objectId: id,
+				description: `Root child reference to missing container`,
+				details: `Root array contains reference to container ${id} which doesn't exist`
+			})
+		}
+	}
+
+	// Check for objects with view refs to non-existent views
+	doc.o.forEach((obj, objId) => {
+		if (obj.vi && !doc.v.has(obj.vi)) {
+			issues.push({
+				type: 'missing-view-ref',
+				objectId: objId,
+				description: `Object references missing view`,
+				details: `Object ${objId} has vi="${obj.vi}" but that view doesn't exist`
+			})
+		}
+	})
+
+	// Build summary
+	const summary = {
+		orphanedInstances: issues.filter((i) => i.type === 'orphaned-instance').length,
+		orphanedChildRefs: issues.filter((i) => i.type === 'orphaned-child-ref').length,
+		missingViewRefs: issues.filter((i) => i.type === 'missing-view-ref').length,
+		total: issues.length
+	}
+
+	return { issues, summary }
+}
+
+/**
+ * Fix all document consistency issues
+ * Should be called after checkDocumentConsistency to fix the reported issues
+ */
+export function fixDocumentIssues(
+	yDoc: Y.Doc,
+	doc: YPrezilloDocument,
+	report: DocumentConsistencyReport
+): { fixed: number } {
+	if (report.issues.length === 0) {
+		return { fixed: 0 }
+	}
+
+	let fixed = 0
+
+	yDoc.transact(() => {
+		for (const issue of report.issues) {
+			switch (issue.type) {
+				case 'orphaned-instance': {
+					// Delete the orphaned instance
+					doc.o.delete(issue.objectId)
+					// Remove from root children
+					const rootArray = doc.r.toArray()
+					for (let i = rootArray.length - 1; i >= 0; i--) {
+						if (rootArray[i][1] === issue.objectId) {
+							doc.r.delete(i, 1)
+						}
+					}
+					fixed++
+					break
+				}
+				case 'orphaned-child-ref': {
+					// Remove orphaned reference from root array
+					const rootArr = doc.r.toArray()
+					for (let i = rootArr.length - 1; i >= 0; i--) {
+						if (rootArr[i][1] === issue.objectId) {
+							doc.r.delete(i, 1)
+						}
+					}
+					fixed++
+					break
+				}
+				case 'missing-view-ref': {
+					// Clear the invalid view reference
+					const obj = doc.o.get(issue.objectId)
+					if (obj) {
+						const updated = { ...obj }
+						delete updated.vi
+						doc.o.set(issue.objectId, updated as StoredObject)
+					}
+					fixed++
+					break
+				}
+			}
+		}
+	}, yDoc.clientID)
+
+	console.log(`[fixDocumentIssues] Fixed ${fixed} issues`)
+	return { fixed }
+}
+
+/**
+ * Legacy cleanup function - use checkDocumentConsistency + fixDocumentIssues instead
+ * @deprecated
+ */
+export function cleanupOrphanedInstances(
+	yDoc: Y.Doc,
+	doc: YPrezilloDocument
+): { deleted: string[]; count: number } {
+	const report = checkDocumentConsistency(doc)
+	const orphanedIds = report.issues
+		.filter((i) => i.type === 'orphaned-instance')
+		.map((i) => i.objectId)
+
+	if (orphanedIds.length === 0) {
+		return { deleted: [], count: 0 }
+	}
+
+	fixDocumentIssues(yDoc, doc, report)
+	return { deleted: orphanedIds, count: orphanedIds.length }
 }
 
 // vim: ts=4

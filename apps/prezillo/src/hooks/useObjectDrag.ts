@@ -28,11 +28,14 @@ import {
 	updateObjectPosition,
 	updateObjectPageAssociation,
 	addObjectToTemplate,
+	removeObjectFromTemplate,
 	findViewAtPoint,
 	isInstance,
 	isPropertyGroupLocked,
 	getStackedObjects,
-	getAbsoluteBounds
+	getAbsoluteBounds,
+	getTemplateIdForPrototype,
+	detachInstance
 } from '../crdt'
 import { setEditingState, clearEditingState } from '../awareness'
 import type { TemplateLayout } from './useTemplateLayout'
@@ -181,9 +184,11 @@ export function useObjectDrag({
 			// Track offsets for converting back to stored coords when saving
 			let prototypeTemplateOffset: { x: number; y: number } | undefined
 			let pageOffset: { x: number; y: number } | undefined
+			let originalTemplateId: TemplateId | undefined
 
 			// Check if this is a prototype object on a template frame
 			if (canvasObj._isPrototype && canvasObj._templateId) {
+				originalTemplateId = canvasObj._templateId
 				const layout = templateLayouts.get(canvasObj._templateId)
 				if (layout) {
 					prototypeTemplateOffset = { x: layout.x, y: layout.y }
@@ -214,9 +219,12 @@ export function useObjectDrag({
 			const wasAlreadySelected = selectedIds.has(objectId)
 
 			// Select the object if not already selected
+			// selectObject automatically handles template/page selection
 			if (!wasAlreadySelected) {
 				const addToSelection = e.shiftKey || e.ctrlKey || e.metaKey
 				selectObject(objectId, addToSelection)
+				// Set flag to prevent canvas click from immediately clearing selection
+				justFinishedInteractionRef.current = true
 				// Don't start drag - just selected the object
 				return
 			}
@@ -257,6 +265,7 @@ export function useObjectDrag({
 				objectWidth: wh[0],
 				objectHeight: wh[1],
 				prototypeTemplateOffset,
+				originalTemplateId,
 				pageOffset,
 				stackedObjects
 			}
@@ -443,34 +452,99 @@ export function useObjectDrag({
 
 							// Check if dropped on a template frame (convert to prototype)
 							const templateAtDrop = findTemplateAtPoint(centerX, centerY)
-							if (templateAtDrop && !obj.proto) {
-								// Convert to template-relative coordinates
-								const layout = templateLayouts.get(templateAtDrop)!
-								const relX = currentX - layout.x
-								const relY = currentY - layout.y
+							if (templateAtDrop) {
+								// Check if this is the same template we started from
+								if (initialDragState.originalTemplateId === templateAtDrop) {
+									// Same template - position already updated, nothing more to do
+								} else {
+									// Moving to a different template (or from non-template to template)
 
-								// Update position to template-relative
-								updateObjectPosition(
-									yDoc,
-									doc,
-									initialDragState.objectId,
-									relX,
-									relY
-								)
+									// If object was a prototype on another template, remove it first
+									if (initialDragState.originalTemplateId) {
+										removeObjectFromTemplate(
+											yDoc,
+											doc,
+											initialDragState.originalTemplateId,
+											initialDragState.objectId,
+											{ deleteObject: false, deleteInstances: true }
+										)
+									}
 
-								// Add to template (converts to prototype)
-								addObjectToTemplate(
-									yDoc,
-									doc,
-									templateAtDrop,
-									initialDragState.objectId
-								)
+									// If object is an instance, detach it first
+									if (obj.proto) {
+										detachInstance(yDoc, doc, initialDragState.objectId)
+									}
+
+									// Convert to template-relative coordinates
+									const layout = templateLayouts.get(templateAtDrop)!
+									const relX = currentX - layout.x
+									const relY = currentY - layout.y
+
+									// Update position to template-relative
+									updateObjectPosition(
+										yDoc,
+										doc,
+										initialDragState.objectId,
+										relX,
+										relY
+									)
+
+									// Add to new template (converts to prototype)
+									addObjectToTemplate(
+										yDoc,
+										doc,
+										templateAtDrop,
+										initialDragState.objectId
+									)
+								}
 							} else {
+								// Dropped outside any template frame
+								// If this was a prototype, remove it from its template
+								if (initialDragState.originalTemplateId) {
+									console.log(
+										'[useObjectDrag] Removing prototype from template:',
+										{
+											objectId: initialDragState.objectId,
+											templateId: initialDragState.originalTemplateId,
+											currentX,
+											currentY
+										}
+									)
+									// Delete all instances and remove prototype from template
+									removeObjectFromTemplate(
+										yDoc,
+										doc,
+										initialDragState.originalTemplateId,
+										initialDragState.objectId,
+										{ deleteObject: false, deleteInstances: true }
+									)
+
+									// 2. Then update prototype position to global coords
+									updateObjectPosition(
+										yDoc,
+										doc,
+										initialDragState.objectId,
+										currentX,
+										currentY
+									)
+									console.log(
+										'[useObjectDrag] After removal, object:',
+										doc.o.get(initialDragState.objectId)
+									)
+								}
+
 								// Find which page the center is now in
 								const newPageId = findViewAtPoint(doc, centerX, centerY)
+								console.log(
+									'[useObjectDrag] newPageId:',
+									newPageId,
+									'currentPageId:',
+									currentPageId
+								)
 
 								// If page changed, update association
 								if (newPageId !== currentPageId) {
+									console.log('[useObjectDrag] Updating page association')
 									updateObjectPageAssociation(
 										yDoc,
 										doc,

@@ -59,7 +59,9 @@ import {
 	PiTextBBold as IcBold,
 	PiTextItalicBold as IcItalic,
 	PiTextUnderlineBold as IcUnderline,
-	PiSidebarSimpleBold as IcPanel
+	PiSidebarSimpleBold as IcPanel,
+	PiDotsThreeVerticalBold as IcMenu,
+	PiWrenchBold as IcRepair
 } from 'react-icons/pi'
 
 import { FONT_SIZES } from '../utils/text-styles'
@@ -116,6 +118,8 @@ export interface ToolbarProps {
 	// Properties panel
 	isPanelVisible?: boolean
 	onTogglePanel?: () => void
+	// Menu actions
+	onCheckDocument?: () => void
 }
 
 export function Toolbar({
@@ -162,8 +166,25 @@ export function Toolbar({
 	onItalicToggle,
 	onUnderlineToggle,
 	isPanelVisible,
-	onTogglePanel
+	onTogglePanel,
+	onCheckDocument
 }: ToolbarProps) {
+	const [menuOpen, setMenuOpen] = React.useState(false)
+	const menuRef = React.useRef<HTMLDivElement>(null)
+
+	// Close menu when clicking outside
+	React.useEffect(() => {
+		function handleClickOutside(event: MouseEvent) {
+			if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+				setMenuOpen(false)
+			}
+		}
+		if (menuOpen) {
+			document.addEventListener('mousedown', handleClickOutside)
+			return () => document.removeEventListener('mousedown', handleClickOutside)
+		}
+	}, [menuOpen])
+
 	return (
 		<div className={mergeClasses('c-nav c-hbox p-1 mb-1', className)}>
 			{/* Undo/Redo */}
@@ -176,10 +197,7 @@ export function Toolbar({
 
 			<div className="c-toolbar-divider" />
 
-			{/* Export */}
-			<button onClick={onExport} className="c-button icon" title="Export to JSON">
-				<IcExport />
-			</button>
+			{/* PDF Export - keep prominent */}
 			<button
 				onClick={onExportPDF}
 				className="c-button icon"
@@ -302,13 +320,6 @@ export function Toolbar({
 				title="Snap to equal spacing"
 			>
 				<IcSnapDistribution />
-			</button>
-			<button
-				onClick={onToggleSnapDebug}
-				className={mergeClasses('c-button icon', snapDebug ? 'active' : '')}
-				title="Snap debug mode"
-			>
-				<IcDebug />
 			</button>
 
 			<div className="flex-fill" />
@@ -508,6 +519,62 @@ export function Toolbar({
 			>
 				<IcPanel />
 			</button>
+
+			<div className="c-toolbar-divider" />
+
+			{/* More menu */}
+			<div ref={menuRef} style={{ position: 'relative' }}>
+				<button
+					onClick={() => setMenuOpen(!menuOpen)}
+					className={mergeClasses('c-button icon', menuOpen ? 'active' : '')}
+					title="More options"
+				>
+					<IcMenu />
+				</button>
+				{menuOpen && (
+					<div className="c-menu" style={{ position: 'absolute', top: '100%', right: 0 }}>
+						<button
+							onClick={() => {
+								onExport?.()
+								setMenuOpen(false)
+							}}
+							className="c-menu-item"
+						>
+							<span className="c-menu-item-icon">
+								<IcExport />
+							</span>
+							<span className="c-menu-item-label">Export to JSON</span>
+						</button>
+						<div className="c-menu-divider" />
+						<button
+							onClick={() => {
+								onToggleSnapDebug?.()
+								setMenuOpen(false)
+							}}
+							className="c-menu-item"
+						>
+							<span className="c-menu-item-icon">
+								<IcDebug />
+							</span>
+							<span className="c-menu-item-label">
+								Snap Debug Mode {snapDebug ? '✓' : ''}
+							</span>
+						</button>
+						<button
+							onClick={() => {
+								onCheckDocument?.()
+								setMenuOpen(false)
+							}}
+							className="c-menu-item"
+						>
+							<span className="c-menu-item-icon">
+								<IcRepair />
+							</span>
+							<span className="c-menu-item-label">Check Document...</span>
+						</button>
+					</div>
+				)}
+			</div>
 		</div>
 	)
 }

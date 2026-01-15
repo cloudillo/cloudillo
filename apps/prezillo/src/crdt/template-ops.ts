@@ -468,14 +468,17 @@ export function addObjectToTemplate(
 
 /**
  * Remove an object from template prototypes
- * Option to delete the object or keep it as standalone
+ * Options:
+ * - deleteObject: Delete the prototype object entirely
+ * - deleteInstances: Delete all instances (use when moving prototype out of template)
+ * - detachInstances: Detach all instances (merge prototype into them)
  */
 export function removeObjectFromTemplate(
 	yDoc: Y.Doc,
 	doc: YPrezilloDocument,
 	templateId: TemplateId,
 	objectId: ObjectId,
-	options?: { deleteObject?: boolean }
+	options?: { deleteObject?: boolean; deleteInstances?: boolean; detachInstances?: boolean }
 ): void {
 	const protoArray = doc.tpo.get(templateId)
 	if (!protoArray) return
@@ -487,26 +490,43 @@ export function removeObjectFromTemplate(
 			protoArray.delete(index, 1)
 		}
 
-		if (options?.deleteObject) {
-			// Delete the prototype object
-			doc.o.delete(objectId)
-			removeObjectFromChildren(doc, objectId)
-
-			// Also detach all instances
+		// Delete all instances if requested
+		if (options?.deleteInstances) {
+			const instancesToDelete: string[] = []
 			doc.o.forEach((obj, objId) => {
 				if (obj.proto === objectId) {
-					const protoObj = doc.o.get(objectId)
+					instancesToDelete.push(objId)
+				}
+			})
+			for (const instanceId of instancesToDelete) {
+				doc.o.delete(instanceId)
+				removeObjectFromChildren(doc, toObjectId(instanceId))
+			}
+		}
+		// Detach all instances if requested (or if deleting prototype)
+		else if (options?.detachInstances || options?.deleteObject) {
+			const protoObj = doc.o.get(objectId)
+			doc.o.forEach((obj, objId) => {
+				if (obj.proto === objectId) {
 					if (protoObj) {
+						// Merge prototype properties into instance
 						const merged = { ...protoObj, ...obj } as StoredObject
 						delete merged.proto
 						doc.o.set(objId, merged)
 					} else {
+						// Just remove proto reference
 						const updated = { ...obj }
 						delete updated.proto
 						doc.o.set(objId, updated as StoredObject)
 					}
 				}
 			})
+		}
+
+		if (options?.deleteObject) {
+			// Delete the prototype object
+			doc.o.delete(objectId)
+			removeObjectFromChildren(doc, objectId)
 		}
 	}, yDoc.clientID)
 }
@@ -846,6 +866,22 @@ export function isPrototypeHiddenOnView(
 // ============================================================================
 // Helper Functions
 // ============================================================================
+
+/**
+ * Get the template ID that contains a given prototype object
+ * Returns undefined if the object is not a prototype in any template
+ */
+export function getTemplateIdForPrototype(
+	doc: YPrezilloDocument,
+	prototypeId: ObjectId
+): TemplateId | undefined {
+	for (const [templateId, protoArray] of doc.tpo.entries()) {
+		if (protoArray.toArray().includes(prototypeId)) {
+			return toTemplateId(templateId)
+		}
+	}
+	return undefined
+}
 
 /**
  * Remove an object from all children arrays

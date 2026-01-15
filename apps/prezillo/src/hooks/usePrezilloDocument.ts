@@ -26,7 +26,7 @@ import { useCloudilloEditor } from '@cloudillo/react'
 import type { Awareness } from 'y-protocols/awareness'
 
 import type { ObjectId, ContainerId, ViewId, TemplateId, YPrezilloDocument } from '../crdt'
-import { getOrCreateDocument, toViewId, toTemplateId } from '../crdt'
+import { getOrCreateDocument, toViewId, toTemplateId, getTemplateIdForPrototype } from '../crdt'
 import type { PrezilloPresence, PresenterInfo } from '../awareness'
 import {
 	getRemotePresenceStates,
@@ -203,19 +203,39 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 	}, [undoManager])
 
 	// Selection helpers
-	const selectObject = React.useCallback((id: ObjectId, addToSelection: boolean = false) => {
-		setIsViewFocused(false) // Clear view focus when selecting objects
-		setIsTemplateFocused(false) // Clear template focus when selecting objects
-		setSelectedTemplateId(null) // Clear template selection when selecting objects
-		setSelectedIds((prev) => {
-			if (addToSelection) {
-				const next = new Set(prev)
-				next.add(id)
-				return next
+	// Automatically selects the appropriate context (template or page) based on the object
+	const selectObject = React.useCallback(
+		(id: ObjectId, addToSelection: boolean = false) => {
+			setIsViewFocused(false) // Clear view focus when selecting objects
+
+			// Determine if this object is a template prototype
+			const templateId = getTemplateIdForPrototype(doc, id)
+			if (templateId) {
+				// Object is a template prototype - select its template
+				setSelectedTemplateId(templateId)
+				setIsTemplateFocused(true)
+			} else {
+				// Object is on a regular page - clear template selection
+				setSelectedTemplateId(null)
+				setIsTemplateFocused(false)
+				// Auto-switch to object's page if it has one
+				const obj = doc.o.get(id)
+				if (obj?.vi && obj.vi !== activeViewId) {
+					setActiveViewId(obj.vi as ViewId)
+				}
 			}
-			return new Set([id])
-		})
-	}, [])
+
+			setSelectedIds((prev) => {
+				if (addToSelection) {
+					const next = new Set(prev)
+					next.add(id)
+					return next
+				}
+				return new Set([id])
+			})
+		},
+		[doc, activeViewId, setActiveViewId]
+	)
 
 	const selectObjects = React.useCallback((ids: ObjectId[], addToSelection: boolean = false) => {
 		setIsViewFocused(false) // Clear view focus when selecting objects

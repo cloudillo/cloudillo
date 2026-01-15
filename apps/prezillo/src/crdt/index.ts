@@ -166,7 +166,17 @@ export {
 	toggleObjectVisibility,
 	toggleObjectLock,
 	toggleObjectHidden,
-	duplicateObject
+	duplicateObject,
+	// Document consistency/maintenance
+	checkDocumentConsistency,
+	fixDocumentIssues,
+	cleanupOrphanedInstances
+} from './object-ops'
+
+export type {
+	DocumentIssueType,
+	DocumentIssue,
+	DocumentConsistencyReport
 } from './object-ops'
 
 // Container operations
@@ -259,6 +269,7 @@ export {
 	removeObjectFromTemplate,
 	getTemplatePrototypeObjects,
 	getTemplatePrototypeIds,
+	getTemplateIdForPrototype,
 	// Apply template to view
 	applyTemplateToView,
 	removeTemplateFromView,

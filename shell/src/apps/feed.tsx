@@ -783,6 +783,10 @@ export const NewPost = React.memo(
 			if (file.type.startsWith('video/')) {
 				// Direct upload for videos (no crop)
 				imageUpload.uploadVideo(file)
+			} else if (file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')) {
+				// SVG files should be uploaded directly (no crop - vector graphics)
+				if (!type) setType('IMG')
+				imageUpload.uploadSvg(file)
 			} else {
 				// Image flow with crop modal
 				if (!type) setType('IMG')
@@ -949,7 +953,7 @@ export const NewPost = React.memo(
 								id={imgInputId}
 								type="file"
 								capture="environment"
-								accept="image/*"
+								accept="image/*,.svg"
 								style={{ display: 'none' }}
 								onChange={() => onFileChange('image')}
 							/>

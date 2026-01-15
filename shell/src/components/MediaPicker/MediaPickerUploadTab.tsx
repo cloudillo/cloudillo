@@ -109,7 +109,7 @@ export function MediaPickerUploadTab({
 	// Get accepted file types for input
 	const getAcceptType = useCallback(() => {
 		if (!mediaType) return '*/*'
-		if (mediaType === 'image/*') return 'image/*'
+		if (mediaType === 'image/*') return 'image/*,.svg' // Include SVG files
 		if (mediaType === 'video/*') return 'video/*'
 		if (mediaType === 'audio/*') return 'audio/*'
 		if (mediaType === 'application/pdf') return '.pdf'
@@ -133,8 +133,11 @@ export function MediaPickerUploadTab({
 
 			// Check if we should show crop dialog for images
 			const isImage = file.type.startsWith('image/')
-			if (isImage && enableCrop) {
-				// Read file as data URL for cropping
+			// SVG files should NOT be cropped (they're vector graphics that scale perfectly)
+			const isSvg = file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')
+
+			if (isImage && enableCrop && !isSvg) {
+				// Read file as data URL for cropping (only for raster images)
 				const reader = new FileReader()
 				reader.onload = (e) => {
 					setCropImageSrc(e.target?.result as string)
@@ -149,7 +152,7 @@ export function MediaPickerUploadTab({
 				return
 			}
 
-			// Upload directly
+			// Upload directly (including SVG files)
 			await uploadFile(file)
 		},
 		[enableCrop, t]

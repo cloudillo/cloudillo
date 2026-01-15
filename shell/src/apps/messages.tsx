@@ -260,7 +260,12 @@ export function NewMsg({
 	function onFileChange() {
 		const file = imgInputRef.current?.files?.[0]
 		if (file) {
-			imageUpload.selectFile(file)
+			if (file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')) {
+				// SVG files should be uploaded directly (no crop - vector graphics)
+				imageUpload.uploadSvg(file)
+			} else {
+				imageUpload.selectFile(file)
+			}
 			if (imgInputRef.current) imgInputRef.current.value = ''
 		}
 	}
@@ -320,7 +325,7 @@ export function NewMsg({
 							ref={imgInputRef}
 							id={imgInputId}
 							type="file"
-							accept="image/*"
+							accept="image/*,.svg"
 							style={{ display: 'none' }}
 							onChange={onFileChange}
 						/>

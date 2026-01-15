@@ -32,6 +32,7 @@ export interface UseImageUploadReturn {
 	uploadProgress: number | undefined
 	selectFile: (file: File) => void
 	uploadAttachment: (blob: Blob) => Promise<void>
+	uploadSvg: (file: File) => Promise<void>
 	uploadVideo: (file: File) => Promise<void>
 	removeAttachment: (id: string) => void
 	cancelCrop: () => void
@@ -112,6 +113,52 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 			})
 
 			request.send(blob)
+		},
+		[auth, options]
+	)
+
+	const uploadSvg = React.useCallback(
+		async (file: File) => {
+			if (!auth?.idTag) return
+
+			// Abort any existing upload
+			if (activeXhrRef.current) {
+				activeXhrRef.current.abort()
+			}
+
+			setIsUploading(true)
+
+			const request = new XMLHttpRequest()
+			activeXhrRef.current = request
+
+			request.open('POST', `${getInstanceUrl(auth.idTag)}/api/files/image/attachment`)
+			request.setRequestHeader('Authorization', `Bearer ${auth.token}`)
+			request.setRequestHeader('Content-Type', 'image/svg+xml')
+
+			request.addEventListener('load', function () {
+				activeXhrRef.current = null
+				setIsUploading(false)
+				const j = JSON.parse(request.response)
+				const fileId = j?.data?.fileId
+				if (fileId) {
+					setAttachmentIds((ids) => [...ids, fileId])
+					setAttachmentType('image')
+					options?.onUploadComplete?.(fileId)
+				}
+			})
+
+			request.addEventListener('error', function () {
+				activeXhrRef.current = null
+				setIsUploading(false)
+				console.error('SVG upload failed')
+			})
+
+			request.addEventListener('abort', function () {
+				activeXhrRef.current = null
+				setIsUploading(false)
+			})
+
+			request.send(file)
 		},
 		[auth, options]
 	)
@@ -208,6 +255,7 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 		uploadProgress,
 		selectFile,
 		uploadAttachment,
+		uploadSvg,
 		uploadVideo,
 		removeAttachment,
 		cancelCrop,

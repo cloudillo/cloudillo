@@ -20,7 +20,7 @@ import { useAuth, useApi, mergeClasses } from '@cloudillo/react'
 
 import { useAppConfig, TrustLevel } from '../utils.js'
 import { getShellBus } from '../message-bus/shell-bus.js'
-import { onAppReady, offAppReady } from '../message-bus/index.js'
+import { onAppReady } from '../message-bus/index.js'
 import { useContextFromRoute, useGuestDocument } from '../context/index.js'
 import { FeedApp } from './feed.js'
 import { FilesApp } from './files.js'
@@ -107,6 +107,24 @@ export function MicrofrontendContainer({
 	const trustLevel = normalizeTrust(trust)
 	const renewalTimerRef = React.useRef<number | undefined>(undefined)
 	const timeoutRef = React.useRef<number | undefined>(undefined)
+	// Track the app window for subscription persistence across effect re-runs
+	const appWindowRef = React.useRef<Window | null>(null)
+	// Track whether we've subscribed to avoid duplicate subscriptions
+	const subscribedRef = React.useRef(false)
+	// Track whether initial setup is complete (prevents re-running on auth changes)
+	const initializedRef = React.useRef(false)
+	// Refs for values that change but shouldn't trigger effect re-runs
+	// Initialize with current values, updated in effect below
+	const authRef = React.useRef(auth)
+	const apiRef = React.useRef(api)
+	const accessRef = React.useRef(access)
+	const contextIdTagRef = React.useRef(contextIdTag)
+	const providedTokenRef = React.useRef(providedToken)
+	const refIdRef = React.useRef(refId)
+	const guestNameRef = React.useRef(guestName)
+	// These refs are for callbacks defined below - initialized to null, updated in effect
+	const requestTokenRef = React.useRef<(() => Promise<string | undefined>) | null>(null)
+	const scheduleRenewalRef = React.useRef<((token: string) => void) | null>(null)
 
 	// Function to request a new token
 	const requestToken = React.useCallback(async () => {
@@ -158,6 +176,20 @@ export function MicrofrontendContainer({
 		[requestToken, sendTokenToApp]
 	)
 
+	// Keep refs updated with latest values
+	// This effect runs on every render to ensure refs always have current values
+	React.useEffect(() => {
+		authRef.current = auth
+		apiRef.current = api
+		accessRef.current = access
+		contextIdTagRef.current = contextIdTag
+		providedTokenRef.current = providedToken
+		refIdRef.current = refId
+		guestNameRef.current = guestName
+		requestTokenRef.current = requestToken
+		scheduleRenewalRef.current = scheduleRenewal
+	})
+
 	// Cleanup timers on unmount
 	React.useEffect(() => {
 		return () => {
@@ -188,27 +220,47 @@ export function MicrofrontendContainer({
 
 	React.useEffect(
 		function onLoad() {
+			// Skip if already initialized (prevents re-running on auth/api changes)
+			// Only re-run when core structure changes (app, resId, retry)
+			if (initializedRef.current) {
+				return
+			}
+
 			// Allow loading if we have auth OR a provided token (for guest share links)
-			if (api && (auth || providedToken)) {
+			// Use refs for values that change but shouldn't trigger re-runs
+			const currentApi = apiRef.current
+			const currentAuth = authRef.current
+			const currentProvidedToken = providedTokenRef.current
+			const currentAccess = accessRef.current
+			const currentContextIdTag = contextIdTagRef.current
+			const currentRefId = refIdRef.current
+			const currentGuestName = guestNameRef.current
+			const currentRequestToken = requestTokenRef.current
+			const currentScheduleRenewal = scheduleRenewalRef.current
+
+			if (currentApi && (currentAuth || currentProvidedToken) && currentRequestToken) {
+				// Mark as initialized to prevent re-running
+				initializedRef.current = true
+
 				// Reset loading stage on mount or retry
 				setLoadingStage('connecting')
 
 				// Use provided token if available, otherwise fetch one
-				const apiPromise = providedToken
-					? Promise.resolve({ token: providedToken })
-					: requestToken().then((token) => ({ token }))
+				const apiPromise = currentProvidedToken
+					? Promise.resolve({ token: currentProvidedToken })
+					: currentRequestToken().then((token) => ({ token }))
 
 				const shellBus = getShellBus()
 
 				// Set pending registration BEFORE loading iframe
 				// This ensures token/refId is available when auth:init.req arrives
-				if (shellBus && resId && (providedToken || refId)) {
+				if (shellBus && resId && (currentProvidedToken || currentRefId)) {
 					shellBus.setPendingRegistration(resId, {
-						token: providedToken,
-						refId,
-						access: access || 'write',
-						idTag: contextIdTag,
-						displayName: guestName
+						token: currentProvidedToken,
+						refId: currentRefId,
+						access: currentAccess || 'write',
+						idTag: currentContextIdTag,
+						displayName: currentGuestName
 					})
 				}
 
@@ -236,55 +288,71 @@ export function MicrofrontendContainer({
 						return
 					}
 
-					// Subscribe to ready notifications from the app
-					let unsubscribed = false
-					const unsubscribe = onAppReady(currentAppWindow, (_window, stage) => {
-						// Clear timeout when app reports any ready stage
-						if (timeoutRef.current) {
-							clearTimeout(timeoutRef.current)
-						}
+					// Store the window reference for subscription persistence
+					appWindowRef.current = currentAppWindow
 
-						// Any ready notification means the app is functional
-						// 'auth' = auth complete, 'synced' = CRDT synced, 'ready' = fully ready
-						setLoadingStage('ready')
-						if (!unsubscribed) {
-							unsubscribed = true
-							// Defer unsubscribe to avoid calling before it's defined
-							queueMicrotask(() => unsubscribe())
-						}
-					})
+					// Subscribe to ready notifications from the app
+					// Use refs to ensure subscription persists across effect re-runs
+					if (!subscribedRef.current) {
+						subscribedRef.current = true
+						onAppReady(currentAppWindow, (_window, stage) => {
+							// Clear timeout when app reports any ready stage
+							if (timeoutRef.current) {
+								clearTimeout(timeoutRef.current)
+								timeoutRef.current = undefined
+							}
+
+							// Any ready notification means the app is functional
+							// 'auth' = auth complete, 'synced' = CRDT synced, 'ready' = fully ready
+							setLoadingStage('ready')
+							// Don't unsubscribe - keep subscription active for potential reconnection scenarios
+						})
+					}
+
+					// Read latest values from refs for pre-registration
+					const latestAccess = accessRef.current
+					const latestContextIdTag = contextIdTagRef.current
+					const latestProvidedToken = providedTokenRef.current
+					const latestRefId = refIdRef.current
 
 					// Pre-register/update with Window reference now that we have it
 					currentShellBus.preRegisterApp(currentAppWindow, {
 						appName: app,
 						resId,
-						idTag: contextIdTag,
-						access: access || 'write',
-						token: providedToken,
-						refId
+						idTag: latestContextIdTag,
+						access: latestAccess || 'write',
+						token: latestProvidedToken,
+						refId: latestRefId
 					})
 
 					await delay(100) // Wait for app JavaScript to initialize
 
 					try {
 						const res = await apiPromise
+						// Read latest auth values for initApp
+						const latestAuth = authRef.current
+						const latestGuestName = guestNameRef.current
+						const latestScheduleRenewal = scheduleRenewalRef.current
+
 						currentShellBus.initApp(currentAppWindow, {
-							idTag: contextIdTag,
-							tnId: auth?.tnId,
-							roles: auth?.roles,
+							appName: app,
+							idTag: latestContextIdTag,
+							tnId: latestAuth?.tnId,
+							roles: latestAuth?.roles,
 							darkMode: document.body.classList.contains('dark'),
 							token: res.token,
-							access: access || 'write',
+							access: latestAccess || 'write',
 							resId,
-							displayName: guestName
+							displayName: latestGuestName
 						})
 						// Schedule proactive token renewal
-						if (res.token) {
-							scheduleRenewal(res.token)
+						if (res.token && latestScheduleRenewal) {
+							latestScheduleRenewal(res.token)
 						}
 					} catch (err) {
 						console.error('[Shell] Failed to initialize app:', err)
 						currentShellBus.initApp(currentAppWindow, {
+							appName: app,
 							darkMode: document.body.classList.contains('dark')
 						})
 					}
@@ -295,38 +363,28 @@ export function MicrofrontendContainer({
 				iframeElement?.addEventListener('load', onMicrofrontendLoad)
 				setUrl(`${appUrl}#${resId}`)
 
-				// Cleanup on unmount
+				// Cleanup on unmount or when core dependencies change (app, resId, retryCount)
 				return () => {
 					// Remove load event listener
 					iframeElement?.removeEventListener('load', onMicrofrontendLoad)
 
-					const currentAppWindow = ref.current?.contentWindow
-					if (currentAppWindow) {
-						offAppReady(currentAppWindow)
-						// Unregister app from tracker to allow GC
-						const currentShellBus = getShellBus()
-						currentShellBus?.getAppTracker().unregisterApp(currentAppWindow)
-					}
+					// Clean up subscription and initialization state when effect truly re-runs
+					// (component unmount or retry, NOT on auth/token changes)
+					subscribedRef.current = false
+					appWindowRef.current = null
+					initializedRef.current = false
+
 					if (timeoutRef.current) {
 						clearTimeout(timeoutRef.current)
+						timeoutRef.current = undefined
 					}
 				}
 			}
 		},
-		[
-			api,
-			auth,
-			app,
-			resId,
-			contextIdTag,
-			access,
-			providedToken,
-			refId,
-			guestName,
-			requestToken,
-			scheduleRenewal,
-			retryCount // Include retryCount to re-run effect on retry
-		]
+		// Minimal dependencies - only things that require re-creating the iframe/subscription
+		// Auth/token changes are handled by token refresh mechanism and refs, not effect re-runs
+		// Also include api/auth/providedToken to trigger initial run when they become available
+		[app, appUrl, resId, retryCount, api, auth, providedToken]
 	)
 
 	return (

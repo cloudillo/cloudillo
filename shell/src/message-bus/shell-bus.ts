@@ -337,6 +337,7 @@ export class ShellMessageBus extends MessageBusBase {
 	initApp(
 		appWindow: Window,
 		data: {
+			appName?: string
 			idTag?: string
 			tnId?: number
 			roles?: string[]
@@ -352,6 +353,7 @@ export class ShellMessageBus extends MessageBusBase {
 		if (!this.appTracker.isKnownApp(appWindow)) {
 			this.appTracker.registerApp({
 				window: appWindow,
+				appName: data.appName,
 				idTag: data.idTag,
 				access: data.access,
 				resId: data.resId

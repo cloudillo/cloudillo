@@ -44,9 +44,19 @@ interface PendingTempId {
 // Map of tempId -> PendingTempId info
 const pendingTempIds = new Map<string, PendingTempId[]>()
 
+// Queue for FILE_ID_GENERATED messages that arrive before registration
+// This handles the race condition where the WebSocket message arrives before
+// the app has registered the temp ID
+interface EarlyResolution {
+	finalId: string
+	queuedAt: number
+}
+const earlyResolutions = new Map<string, EarlyResolution>()
+
 // Cleanup interval - remove stale entries after 10 minutes
 const CLEANUP_INTERVAL = 10 * 60 * 1000
 const MAX_PENDING_AGE = 10 * 60 * 1000
+const MAX_EARLY_RESOLUTION_AGE = 30 * 1000 // 30 seconds for early resolutions
 
 /**
  * Register a pending temp ID for resolution
@@ -58,6 +68,37 @@ const MAX_PENDING_AGE = 10 * 60 * 1000
  * @param appWindow - The app window that will receive the resolution
  */
 export function registerPendingTempId(tempId: string, appWindow: Window): void {
+	// Check if resolution already arrived before registration (race condition fix)
+	const earlyResolution = earlyResolutions.get(tempId)
+	if (earlyResolution) {
+		console.log(
+			'[FileIdResolver] Found early resolution for temp ID:',
+			tempId,
+			'->',
+			earlyResolution.finalId
+		)
+		earlyResolutions.delete(tempId)
+
+		// Forward resolution immediately to the app
+		try {
+			const message = {
+				cloudillo: true,
+				v: PROTOCOL_VERSION,
+				type: 'media:file.resolved',
+				payload: {
+					tempId,
+					finalId: earlyResolution.finalId
+				}
+			}
+			appWindow.postMessage(message, '*')
+			console.log('[FileIdResolver] Sent early resolution to app window')
+		} catch (err) {
+			console.warn('[FileIdResolver] Failed to send early resolution to app window:', err)
+		}
+		return
+	}
+
+	// No early resolution, register for later
 	const pending = pendingTempIds.get(tempId) || []
 	pending.push({
 		appWindow,
@@ -80,8 +121,13 @@ export function handleFileIdGenerated(tempId: string, finalId: string): void {
 	const pending = pendingTempIds.get(tempId)
 
 	if (!pending || pending.length === 0) {
-		// No one is tracking this temp ID - that's fine, not all uploads are from apps
-		console.log('[FileIdResolver] No pending registration for temp ID:', tempId)
+		// No registration yet - queue the resolution for when registration happens
+		// This handles the race condition where FILE_ID_GENERATED arrives before registration
+		console.log('[FileIdResolver] Queuing early resolution for temp ID:', tempId)
+		earlyResolutions.set(tempId, {
+			finalId,
+			queuedAt: Date.now()
+		})
 		return
 	}
 
@@ -111,13 +157,14 @@ export function handleFileIdGenerated(tempId: string, finalId: string): void {
 }
 
 /**
- * Cleanup stale pending entries
+ * Cleanup stale pending entries and early resolutions
  * Called periodically to prevent memory leaks
  */
 function cleanup(): void {
 	const now = Date.now()
 	let cleaned = 0
 
+	// Clean up stale pending registrations
 	for (const [tempId, pending] of pendingTempIds.entries()) {
 		// Filter out stale entries
 		const fresh = pending.filter((p) => now - p.registeredAt < MAX_PENDING_AGE)
@@ -131,8 +178,16 @@ function cleanup(): void {
 		}
 	}
 
+	// Clean up stale early resolutions (resolutions that were never claimed)
+	for (const [tempId, resolution] of earlyResolutions.entries()) {
+		if (now - resolution.queuedAt > MAX_EARLY_RESOLUTION_AGE) {
+			earlyResolutions.delete(tempId)
+			cleaned++
+		}
+	}
+
 	if (cleaned > 0) {
-		console.log('[FileIdResolver] Cleaned up', cleaned, 'stale pending entries')
+		console.log('[FileIdResolver] Cleaned up', cleaned, 'stale entries')
 	}
 }
 

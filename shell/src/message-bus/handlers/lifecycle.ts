@@ -37,6 +37,14 @@ const readyCallbacks = new WeakMap<Window, AppReadyCallback>()
 // Using WeakMap to allow garbage collection when iframe windows are destroyed
 const pendingNotifications = new WeakMap<Window, 'auth' | 'synced' | 'ready'>()
 
+// Stage priority for keeping the "best" pending notification
+// Higher number = further along in loading = preferred
+const stagePriority: Record<string, number> = {
+	auth: 1,
+	synced: 2,
+	ready: 3
+}
+
 /**
  * Register a callback for when an app sends a ready notification
  *
@@ -48,6 +56,7 @@ const pendingNotifications = new WeakMap<Window, 'auth' | 'synced' | 'ready'>()
  * @returns Cleanup function to unregister the callback
  */
 export function onAppReady(appWindow: Window, callback: AppReadyCallback): () => void {
+	console.log('[Lifecycle] Subscribing to app ready notifications')
 	readyCallbacks.set(appWindow, callback)
 
 	// Check if notification arrived before subscription
@@ -56,9 +65,12 @@ export function onAppReady(appWindow: Window, callback: AppReadyCallback): () =>
 		console.log('[Lifecycle] Delivering pending notification:', pendingStage)
 		pendingNotifications.delete(appWindow)
 		callback(appWindow, pendingStage)
+	} else {
+		console.log('[Lifecycle] No pending notifications, waiting for app')
 	}
 
 	return () => {
+		console.log('[Lifecycle] Unsubscribing from app ready notifications')
 		readyCallbacks.delete(appWindow)
 		pendingNotifications.delete(appWindow)
 	}
@@ -90,11 +102,30 @@ export function initLifecycleHandlers(bus: ShellMessageBus): void {
 		// Call registered callback if any
 		const callback = readyCallbacks.get(appWindow)
 		if (callback) {
+			console.log('[Lifecycle] Invoking callback for stage:', stage)
 			callback(appWindow, stage)
 		} else {
 			// Store for later - subscription might not be set up yet
-			console.log('[Lifecycle] Storing pending notification:', stage)
-			pendingNotifications.set(appWindow, stage)
+			// Keep the highest priority stage (synced > auth > ready)
+			const existingStage = pendingNotifications.get(appWindow)
+			const existingPriority = existingStage ? (stagePriority[existingStage] ?? 0) : 0
+			const newPriority = stagePriority[stage] ?? 0
+
+			if (newPriority >= existingPriority) {
+				console.log(
+					'[Lifecycle] Storing pending notification:',
+					stage,
+					existingStage ? `(replacing ${existingStage})` : ''
+				)
+				pendingNotifications.set(appWindow, stage)
+			} else {
+				console.log(
+					'[Lifecycle] Ignoring lower priority notification:',
+					stage,
+					'keeping:',
+					existingStage
+				)
+			}
 		}
 	})
 }

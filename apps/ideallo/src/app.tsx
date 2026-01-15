@@ -45,6 +45,7 @@ import {
 	type ResizeHandle,
 	type Point as SvgPoint
 } from 'react-svg-canvas'
+import { calculateArcRadius } from '@cloudillo/canvas-tools'
 import { normalizeAngle } from './utils/geometry.js'
 import {
 	Canvas,
@@ -141,6 +142,11 @@ export function IdealloApp() {
 
 	// Canvas context ref for coordinate transforms
 	const canvasContextRef = React.useRef<SvgCanvasContext | null>(null)
+
+	// Stable callback for context updates (prevents infinite re-render loop)
+	const handleContextReady = React.useCallback((ctx: SvgCanvasContext) => {
+		canvasContextRef.current = ctx
+	}, [])
 
 	// Track initial state at start of interaction (for CRDT commit)
 	const interactionStartRef = React.useRef<{
@@ -736,14 +742,25 @@ export function IdealloApp() {
 
 	// Rotation hook - provides rotation with snap zone
 	// Use lockedHookState during active interactions to prevent prop changes from re-triggering
+	const currentBounds = lockedHookState?.bounds ?? storedSelection?.bounds ?? emptyBounds
 	const {
 		rotationState,
 		handleRotateStart: hookRotateStart,
 		arcRadius,
 		pivotPosition
 	} = useRotatable({
-		bounds: lockedHookState?.bounds ?? storedSelection?.bounds ?? emptyBounds,
+		bounds: currentBounds,
 		rotation: lockedHookState?.rotation ?? storedSelection?.rotation ?? 0,
+		// Calculate screen-space arc radius to match the visual RotationHandle exactly
+		screenArcRadius: calculateArcRadius({
+			bounds: {
+				x: 0,
+				y: 0, // Position doesn't matter for arc radius calculation
+				width: currentBounds.width * scale,
+				height: currentBounds.height * scale
+			},
+			scale: 1 // Screen space, no additional scaling
+		}),
 		pivotX: lockedHookState?.pivotX ?? storedSelection?.pivotX ?? 0.5,
 		pivotY: lockedHookState?.pivotY ?? storedSelection?.pivotY ?? 0.5,
 		translateTo: translateToRef,
@@ -799,10 +816,13 @@ export function IdealloApp() {
 		return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
 	}, [selectedIds, ideallo.doc, ideallo.objects, selectHandler.dragOffset, tempObjectState])
 
+	// Ref to track pivot dragging state - prevents object movement during pivot drag
+	const isPivotDraggingRef = React.useRef(false)
+
 	// Unified pointer handlers that route to the right tool
 	const handlePointerDown = React.useCallback(
 		(x: number, y: number, shiftKey: boolean = false) => {
-			if (ideallo.activeTool === 'select') {
+			if (ideallo.activeTool === 'select' && !isPivotDraggingRef.current) {
 				selectHandler.handlePointerDown(x, y, shiftKey)
 			} else if (ideallo.activeTool === 'pen') {
 				drawingHandler.handlePointerDown(x, y)
@@ -869,13 +889,51 @@ export function IdealloApp() {
 		canvasRef.current?.zoomReset()
 	}, [])
 
-	// Handle pivot commit from usePivotDrag hook
-	const handlePivotCommit = React.useCallback(
-		(finalPivot: { x: number; y: number }, compensation: { x: number; y: number }) => {
-			if (selectedIds.size !== 1 || !ideallo.yDoc || !ideallo.doc) return
+	// Handle pivot drag start
+	const handlePivotDragStart = React.useCallback(() => {
+		isPivotDraggingRef.current = true
+	}, [])
+
+	// Handle pivot drag (update temp state for visual feedback)
+	const handlePivotDrag = React.useCallback(
+		(pivot: { x: number; y: number }, compensation: { x: number; y: number }) => {
+			if (selectedIds.size !== 1 || !ideallo.doc) return
 			const objectId = Array.from(selectedIds)[0]
 			const obj = getObject(ideallo.doc, objectId)
 			if (!obj) return
+
+			const bounds = getObjectBounds(obj)
+			if (!bounds) return
+
+			setTempObjectState({
+				objectId,
+				x: bounds.x + compensation.x,
+				y: bounds.y + compensation.y,
+				width: bounds.width,
+				height: bounds.height,
+				rotation: obj.rotation,
+				pivotX: pivot.x,
+				pivotY: pivot.y
+			})
+		},
+		[selectedIds, ideallo.doc, setTempObjectState]
+	)
+
+	// Handle pivot commit from usePivotDrag hook
+	const handlePivotCommit = React.useCallback(
+		(finalPivot: { x: number; y: number }, compensation: { x: number; y: number }) => {
+			if (selectedIds.size !== 1 || !ideallo.yDoc || !ideallo.doc) {
+				isPivotDraggingRef.current = false
+				setTempObjectState(null)
+				return
+			}
+			const objectId = Array.from(selectedIds)[0]
+			const obj = getObject(ideallo.doc, objectId)
+			if (!obj) {
+				isPivotDraggingRef.current = false
+				setTempObjectState(null)
+				return
+			}
 
 			updateObject(ideallo.yDoc, ideallo.doc, objectId, {
 				pivotX: finalPivot.x,
@@ -883,8 +941,10 @@ export function IdealloApp() {
 				x: obj.x + compensation.x,
 				y: obj.y + compensation.y
 			} as any)
+			isPivotDraggingRef.current = false
+			setTempObjectState(null)
 		},
-		[selectedIds, ideallo]
+		[selectedIds, ideallo, setTempObjectState]
 	)
 
 	// Handle keyboard shortcuts
@@ -992,8 +1052,8 @@ export function IdealloApp() {
 	const cursorThrottleRef = React.useRef<number | null>(null)
 	const handleCursorMove = React.useCallback(
 		(x: number, y: number) => {
-			// Update hover state when select tool is active
-			if (ideallo.activeTool === 'select') {
+			// Update hover state when select tool is active (skip during pivot drag)
+			if (ideallo.activeTool === 'select' && !isPivotDraggingRef.current) {
 				selectHandler.handlePointerMove(x, y)
 			}
 			// Update eraser position on hover (not just during active erasing)
@@ -1074,9 +1134,7 @@ export function IdealloApp() {
 					}
 				}}
 				onScaleChange={setScale}
-				onContextReady={(ctx) => {
-					canvasContextRef.current = ctx
-				}}
+				onContextReady={handleContextReady}
 				// Pass hook handlers for resize/rotate
 				onResizeStart={hookResizeStart}
 				onRotateStart={hookRotateStart}
@@ -1085,6 +1143,8 @@ export function IdealloApp() {
 				rotationState={rotationState}
 				arcRadius={arcRadius}
 				pivotPosition={pivotPosition}
+				onPivotDragStart={handlePivotDragStart}
+				onPivotDrag={handlePivotDrag}
 				onPivotCommit={handlePivotCommit}
 				// Smart Ink
 				morphAnimations={morphAnimations}

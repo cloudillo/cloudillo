@@ -84,6 +84,8 @@ function FixedPivotHandle(
 	> & {
 		canvasBounds: Bounds
 		activeTool: string
+		onPivotDragStart?: () => void
+		onPivotDrag?: (pivot: Point, compensation: Point) => void
 		onPivotCommit?: (finalPivot: Point, compensation: Point) => void
 	}
 ) {
@@ -94,12 +96,26 @@ function FixedPivotHandle(
 	const ctxRef = React.useRef(canvasContext)
 	ctxRef.current = canvasContext
 
+	// Calculate scale-aware snap threshold (15 screen pixels)
+	// Normalized threshold = screenPixels / (objectSize * scale)
+	const SNAP_SCREEN_PIXELS = 15
+	const avgObjectSize = (props.canvasBounds.width + props.canvasBounds.height) / 2
+	const snapThreshold = avgObjectSize > 0 ? SNAP_SCREEN_PIXELS / (avgObjectSize * scale) : 0.08
+
 	const pivotDrag = usePivotDrag({
 		bounds: props.canvasBounds,
 		rotation: props.rotation,
 		pivotX: props.pivotX,
 		pivotY: props.pivotY,
 		translateTo: (x, y) => ctxRef.current.translateTo(x, y),
+		snapThreshold,
+		onPointerDown: () => {
+			// Fire immediately on pointer down to prevent object dragging
+			props.onPivotDragStart?.()
+		},
+		onDrag: (pivot, _snappedPoint, compensation) => {
+			props.onPivotDrag?.(pivot, compensation)
+		},
 		onDragEnd: (finalPivot, compensation) => {
 			props.onPivotCommit?.(finalPivot, compensation)
 		},
@@ -183,6 +199,8 @@ export interface CanvasProps {
 	arcRadius?: number
 	pivotPosition?: Point
 	// Pivot
+	onPivotDragStart?: () => void
+	onPivotDrag?: (pivot: Point, compensation: Point) => void
 	onPivotCommit?: (finalPivot: Point, compensation: Point) => void
 	// Smart Ink
 	morphAnimations?: Map<string, MorphAnimationState>
@@ -250,6 +268,8 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 		rotationState,
 		arcRadius,
 		pivotPosition,
+		onPivotDragStart,
+		onPivotDrag,
 		onPivotCommit,
 		// Smart Ink
 		morphAnimations,
@@ -504,6 +524,8 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 					pivotX={selectedObjectPivotX}
 					pivotY={selectedObjectPivotY}
 					activeTool={activeTool}
+					onPivotDragStart={onPivotDragStart}
+					onPivotDrag={onPivotDrag}
 					onPivotCommit={onPivotCommit}
 					snapEnabled={true}
 				/>

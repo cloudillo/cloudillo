@@ -568,6 +568,36 @@ body,
 	stroke: #ff6666 !important;
 }
 
+/* ============================================
+   Object Hover Effect
+   ============================================ */
+
+.object-hovered {
+	filter: drop-shadow(0 0 6px var(--c-primary, #3b82f6))
+		drop-shadow(0 0 2px var(--c-primary, #3b82f6));
+}
+
+.object-hovered path,
+.object-hovered rect,
+.object-hovered ellipse,
+.object-hovered line,
+.object-hovered polygon {
+	stroke-opacity: 0.8;
+}
+
+/* Eraser hover effect (red shadow) */
+.eraser-hovered {
+	filter: drop-shadow(0 0 6px #ef4444) drop-shadow(0 0 2px #ef4444);
+}
+
+.eraser-hovered path,
+.eraser-hovered rect,
+.eraser-hovered ellipse,
+.eraser-hovered line,
+.eraser-hovered polygon {
+	stroke-opacity: 0.8;
+}
+
 /* Eraser cursor styling */
 .eraser-cursor {
 	pointer-events: none;

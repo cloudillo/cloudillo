@@ -125,6 +125,7 @@ function FixedPivotHandle(
 			onPivotDragStart={pivotDrag.handlePivotDragStart}
 			isDragging={pivotDrag.pivotState.isDragging}
 			snappedPoint={pivotDrag.pivotState.snappedPoint}
+			initialPivot={pivotDrag.pivotState.initialPivot ?? undefined}
 		/>
 	)
 }
@@ -196,6 +197,9 @@ export interface CanvasProps {
 	eraserHighlightedIds?: Set<ObjectId>
 	isErasing?: boolean
 	onEraserLeave?: () => void
+	// Hover effect
+	hoveredId?: ObjectId | null
+	onPointerLeave?: () => void
 	// Image loading
 	ownerTag?: string
 }
@@ -259,6 +263,9 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 		eraserHighlightedIds,
 		isErasing = false,
 		onEraserLeave,
+		// Hover effect
+		hoveredId,
+		onPointerLeave,
 		// Image loading
 		ownerTag
 	},
@@ -507,7 +514,8 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 	// Handle pointer leaving the canvas
 	const handlePointerLeave = React.useCallback(() => {
 		onEraserLeave?.()
-	}, [onEraserLeave])
+		onPointerLeave?.()
+	}, [onEraserLeave, onPointerLeave])
 
 	return (
 		<div
@@ -562,8 +570,17 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 								? () => onStickyDoubleClick(obj.id)
 								: undefined
 						}
-						// Eraser highlight
+						// Eraser highlight (during active erasing)
 						isHighlighted={eraserHighlightedIds?.has(obj.id) ?? false}
+						// Eraser hover (preview before erasing)
+						isEraserHovered={activeTool === 'eraser' && hoveredId === obj.id}
+						// Hover effect (select tool only, not dragging/selected)
+						isHovered={
+							activeTool === 'select' &&
+							!dragOffset &&
+							hoveredId === obj.id &&
+							!selectedIds.has(obj.id)
+						}
 					/>
 				))}
 

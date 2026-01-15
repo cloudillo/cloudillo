@@ -24,21 +24,18 @@ import * as React from 'react'
 import type { Awareness } from 'y-protocols/awareness'
 import * as Y from 'yjs'
 
-import type {
-	YIdealloDocument,
-	ObjectId,
-	StoredObject,
-	IdealloObject,
-	Bounds
-} from '../crdt/index.js'
-import { deleteObjects, getObject, expandObject, toObjectId } from '../crdt/index.js'
-import { circleIntersectsBounds, getBoundsFromPoints } from '../utils/geometry.js'
+import type { YIdealloDocument, ObjectId, StoredObject, IdealloObject } from '../crdt/index.js'
+import { deleteObjects, expandObject, toObjectId, getAllObjects } from '../crdt/index.js'
+import { hitTestObject } from '../utils/hit-testing.js'
 
 // Default brush size in screen pixels
 const DEFAULT_BRUSH_SIZE = 32
 
 // Throttle awareness broadcasts
 const BROADCAST_THROTTLE_MS = 50
+
+// Minimum drag distance before accumulating multiple objects (in canvas units)
+const DRAG_THRESHOLD = 5
 
 export interface UseEraserHandlerOptions {
 	yDoc: Y.Doc
@@ -53,31 +50,6 @@ export interface UseEraserHandlerOptions {
 export interface EraserPosition {
 	x: number
 	y: number
-}
-
-/**
- * Get bounds for an object (same logic as app.tsx getObjectBounds)
- */
-function getObjectBounds(obj: IdealloObject): Bounds {
-	switch (obj.type) {
-		case 'freehand':
-		case 'rect':
-		case 'ellipse':
-		case 'text':
-		case 'sticky':
-		case 'image':
-			return { x: obj.x, y: obj.y, width: obj.width, height: obj.height }
-		case 'polygon':
-			return getBoundsFromPoints(obj.vertices)
-		case 'line':
-		case 'arrow':
-			return {
-				x: Math.min(obj.startX, obj.endX),
-				y: Math.min(obj.startY, obj.endY),
-				width: Math.abs(obj.endX - obj.startX),
-				height: Math.abs(obj.endY - obj.startY)
-			}
-	}
 }
 
 export function useEraserHandler(options: UseEraserHandlerOptions) {
@@ -95,10 +67,14 @@ export function useEraserHandler(options: UseEraserHandlerOptions) {
 	const [isErasing, setIsErasing] = React.useState(false)
 	const [eraserPosition, setEraserPosition] = React.useState<EraserPosition | null>(null)
 	const [highlightedIds, setHighlightedIds] = React.useState<Set<ObjectId>>(new Set())
+	const [hoveredId, setHoveredId] = React.useState<ObjectId | null>(null)
 
 	// Refs for accumulated objects to delete (avoids re-renders during drag)
 	const objectsToDeleteRef = React.useRef<Set<ObjectId>>(new Set())
 	const throttleRef = React.useRef<number | null>(null)
+	// Track initial click position and whether drag threshold exceeded
+	const startPositionRef = React.useRef<{ x: number; y: number } | null>(null)
+	const isDraggingRef = React.useRef(false)
 
 	// Compute canvas-space radius from screen-space brush size
 	const canvasRadius = React.useMemo(() => {
@@ -106,7 +82,8 @@ export function useEraserHandler(options: UseEraserHandlerOptions) {
 	}, [brushSize, scale])
 
 	/**
-	 * Find all objects that intersect with the eraser circle at given position
+	 * Find all objects that intersect with the eraser at given position
+	 * Uses precise hit testing with eraser radius as tolerance
 	 */
 	const findObjectsAtPosition = React.useCallback(
 		(x: number, y: number): Set<ObjectId> => {
@@ -121,17 +98,37 @@ export function useEraserHandler(options: UseEraserHandlerOptions) {
 				// Skip locked objects
 				if (obj.locked) return
 
-				const bounds = getObjectBounds(obj)
-
-				// Check if eraser circle intersects object bounds
-				if (circleIntersectsBounds(x, y, canvasRadius, bounds)) {
+				// Precise hit testing with eraser radius as tolerance
+				if (hitTestObject(obj, [x, y], canvasRadius)) {
 					hitIds.add(objectId)
 				}
 			})
 
 			return hitIds
 		},
-		[objects, canvasRadius]
+		[objects, doc, canvasRadius]
+	)
+
+	/**
+	 * Find the topmost object at given position (for hover preview)
+	 * Iterates in reverse z-order (top to bottom) and returns first hit
+	 */
+	const findTopmostObjectAtPosition = React.useCallback(
+		(x: number, y: number): ObjectId | null => {
+			const allObjects = getAllObjects(doc)
+			// Iterate in reverse order (topmost objects first)
+			for (let i = allObjects.length - 1; i >= 0; i--) {
+				const obj = allObjects[i]
+				// Skip locked objects
+				if (obj.locked) continue
+				// Precise hit testing with eraser radius as tolerance
+				if (hitTestObject(obj, [x, y], canvasRadius)) {
+					return obj.id
+				}
+			}
+			return null
+		},
+		[doc, canvasRadius]
 	)
 
 	/**
@@ -169,19 +166,26 @@ export function useEraserHandler(options: UseEraserHandlerOptions) {
 			setIsErasing(true)
 			setEraserPosition({ x, y })
 			objectsToDeleteRef.current = new Set()
+			startPositionRef.current = { x, y }
+			isDraggingRef.current = false
 
-			// Find objects at initial position
-			const hits = findObjectsAtPosition(x, y)
-			hits.forEach((id) => objectsToDeleteRef.current.add(id))
+			// On click, only target the topmost object
+			// (dragging will accumulate more objects via handlePointerMove)
+			const topmost = findTopmostObjectAtPosition(x, y)
+			if (topmost) {
+				objectsToDeleteRef.current.add(topmost)
+			}
 			setHighlightedIds(new Set(objectsToDeleteRef.current))
 
 			broadcastEraserState(x, y)
 		},
-		[enabled, findObjectsAtPosition, broadcastEraserState]
+		[enabled, findTopmostObjectAtPosition, broadcastEraserState]
 	)
 
 	/**
 	 * Handle pointer move - detect objects under eraser
+	 * Shows hover preview when not erasing, accumulates targets when erasing
+	 * Only starts accumulating multiple objects after exceeding drag threshold
 	 */
 	const handlePointerMove = React.useCallback(
 		(x: number, y: number) => {
@@ -190,16 +194,39 @@ export function useEraserHandler(options: UseEraserHandlerOptions) {
 			// Always update eraser position for cursor rendering
 			setEraserPosition({ x, y })
 
-			if (!isErasing) return
+			if (isErasing) {
+				// Check if we've exceeded drag threshold
+				if (!isDraggingRef.current && startPositionRef.current) {
+					const dx = x - startPositionRef.current.x
+					const dy = y - startPositionRef.current.y
+					const distance = Math.sqrt(dx * dx + dy * dy)
+					if (distance > DRAG_THRESHOLD) {
+						isDraggingRef.current = true
+					}
+				}
 
-			// Find objects at current position
-			const hits = findObjectsAtPosition(x, y)
-			hits.forEach((id) => objectsToDeleteRef.current.add(id))
-			setHighlightedIds(new Set(objectsToDeleteRef.current))
+				// Only accumulate all objects if actually dragging
+				if (isDraggingRef.current) {
+					const hits = findObjectsAtPosition(x, y)
+					hits.forEach((id) => objectsToDeleteRef.current.add(id))
+					setHighlightedIds(new Set(objectsToDeleteRef.current))
+				}
 
-			broadcastEraserState(x, y)
+				setHoveredId(null)
+				broadcastEraserState(x, y)
+			} else {
+				// Not erasing: show hover preview for topmost object only
+				const topmost = findTopmostObjectAtPosition(x, y)
+				setHoveredId(topmost)
+			}
 		},
-		[enabled, isErasing, findObjectsAtPosition, broadcastEraserState]
+		[
+			enabled,
+			isErasing,
+			findObjectsAtPosition,
+			findTopmostObjectAtPosition,
+			broadcastEraserState
+		]
 	)
 
 	/**
@@ -262,6 +289,7 @@ export function useEraserHandler(options: UseEraserHandlerOptions) {
 		if (!enabled) {
 			setEraserPosition(null)
 			setHighlightedIds(new Set())
+			setHoveredId(null)
 			if (isErasing) {
 				handleCancel()
 			}
@@ -283,6 +311,7 @@ export function useEraserHandler(options: UseEraserHandlerOptions) {
 			isErasing,
 			eraserPosition,
 			highlightedIds,
+			hoveredId,
 			brushSize,
 			canvasRadius,
 			handlePointerDown,
@@ -295,6 +324,7 @@ export function useEraserHandler(options: UseEraserHandlerOptions) {
 			isErasing,
 			eraserPosition,
 			highlightedIds,
+			hoveredId,
 			brushSize,
 			canvasRadius,
 			handlePointerDown,

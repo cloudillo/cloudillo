@@ -57,12 +57,27 @@ import type { ToolType } from './tools/index.js'
 import type { ObjectId, Bounds, IdealloObject } from './crdt/index.js'
 import { getObject, updateObject, deleteObjects, downloadExport } from './crdt/index.js'
 import { getBoundsFromPoints } from './utils/geometry.js'
+import { calculatePathBounds } from './utils/hit-testing.js'
 import type { MorphAnimationState } from './smart-ink/index.js'
 
 // Helper to compute bounds for an object
 function getObjectBounds(obj: IdealloObject): Bounds {
 	switch (obj.type) {
-		case 'freehand':
+		case 'freehand': {
+			// Calculate actual bounds from path data at runtime
+			// Path data can have negative coords (control points extend beyond stored bounds)
+			const pathBounds = calculatePathBounds(obj.pathData)
+			if (pathBounds) {
+				return {
+					x: obj.x + pathBounds.x,
+					y: obj.y + pathBounds.y,
+					width: pathBounds.width,
+					height: pathBounds.height
+				}
+			}
+			// Fallback to stored bounds
+			return { x: obj.x, y: obj.y, width: obj.width, height: obj.height }
+		}
 		case 'rect':
 		case 'ellipse':
 		case 'text':
@@ -977,6 +992,10 @@ export function IdealloApp() {
 	const cursorThrottleRef = React.useRef<number | null>(null)
 	const handleCursorMove = React.useCallback(
 		(x: number, y: number) => {
+			// Update hover state when select tool is active
+			if (ideallo.activeTool === 'select') {
+				selectHandler.handlePointerMove(x, y)
+			}
 			// Update eraser position on hover (not just during active erasing)
 			if (ideallo.activeTool === 'eraser') {
 				eraserHandler.handlePointerMove(x, y)
@@ -989,7 +1008,7 @@ export function IdealloApp() {
 				ideallo.awareness?.setLocalStateField('cursor', { x, y })
 			}, CURSOR_BROADCAST_THROTTLE_MS)
 		},
-		[ideallo.awareness, ideallo.activeTool, eraserHandler]
+		[ideallo.awareness, ideallo.activeTool, selectHandler, eraserHandler]
 	)
 
 	// Cleanup throttle on unmount
@@ -1082,6 +1101,13 @@ export function IdealloApp() {
 				eraserHighlightedIds={eraserHandler.highlightedIds}
 				isErasing={eraserHandler.isErasing}
 				onEraserLeave={eraserHandler.handlePointerLeave}
+				// Hover effect (use eraser's hover when eraser tool is active)
+				hoveredId={
+					ideallo.activeTool === 'eraser'
+						? eraserHandler.hoveredId
+						: selectHandler.hoveredId
+				}
+				onPointerLeave={selectHandler.handlePointerLeave}
 				// Image loading
 				ownerTag={ideallo.cloudillo.idTag}
 			/>

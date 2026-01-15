@@ -50,8 +50,12 @@ export interface ObjectRendererProps {
 	onDragStart?: (e: React.PointerEvent) => void
 	// Double-click handler for entering edit mode
 	onDoubleClick?: () => void
-	// Eraser highlight (object is under eraser brush)
+	// Eraser highlight (object is under eraser brush during drag)
 	isHighlighted?: boolean
+	// Hover effect (object is under cursor in select mode)
+	isHovered?: boolean
+	// Eraser hover effect (object is under eraser cursor)
+	isEraserHovered?: boolean
 }
 
 // Calculate rotation center for an object using its pivot point
@@ -145,7 +149,9 @@ export function ObjectRenderer({
 	onCancel,
 	onDragStart,
 	onDoubleClick,
-	isHighlighted = false
+	isHighlighted = false,
+	isHovered = false,
+	isEraserHovered = false
 }: ObjectRendererProps) {
 	const content = renderObject(object, {
 		ownerTag,
@@ -158,8 +164,12 @@ export function ObjectRenderer({
 	})
 	if (!content) return null
 
-	// Build class name with optional highlight
-	const className = isHighlighted ? 'eraser-highlighted' : undefined
+	// Build class name with optional highlight/hover
+	const classNames: string[] = []
+	if (isHighlighted) classNames.push('eraser-highlighted')
+	if (isHovered) classNames.push('object-hovered')
+	if (isEraserHovered) classNames.push('eraser-hovered')
+	const className = classNames.length > 0 ? classNames.join(' ') : undefined
 
 	// Handle double-click for entering edit mode (sticky notes)
 	const handleDoubleClick = onDoubleClick
@@ -183,8 +193,8 @@ export function ObjectRenderer({
 		)
 	}
 
-	// Wrap in group if highlighted or has double-click handler
-	if (isHighlighted || handleDoubleClick) {
+	// Wrap in group if highlighted, hovered, or has double-click handler
+	if (isHighlighted || isHovered || isEraserHovered || handleDoubleClick) {
 		return (
 			<g className={className} onDoubleClick={handleDoubleClick}>
 				{content}

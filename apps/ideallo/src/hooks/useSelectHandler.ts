@@ -25,10 +25,10 @@ import * as React from 'react'
 import * as Y from 'yjs'
 import type { Awareness } from 'y-protocols/awareness'
 
-import type { YIdealloDocument, ObjectId, IdealloObject, Bounds } from '../crdt/index.js'
+import type { YIdealloDocument, ObjectId, IdealloObject } from '../crdt/index.js'
 import { updateObject, getObject, getAllObjects } from '../crdt/index.js'
-import { pointInBounds, getBoundsFromPoints, perpendicularDistance } from '../utils/geometry.js'
 import type { Point } from '../utils/geometry.js'
+import { hitTestObject } from '../utils/hit-testing.js'
 
 const HIT_TOLERANCE = 8
 
@@ -59,66 +59,23 @@ interface DragState {
 }
 
 /**
- * Get bounds for an object (for hit testing)
+ * Find the topmost object at a given point
  */
-function getObjectBounds(obj: IdealloObject): Bounds {
-	switch (obj.type) {
-		case 'freehand':
-		case 'rect':
-		case 'ellipse':
-		case 'text':
-		case 'sticky':
-		case 'image':
-			return { x: obj.x, y: obj.y, width: obj.width, height: obj.height }
-		case 'polygon':
-			return getBoundsFromPoints(obj.vertices)
-		case 'line':
-		case 'arrow':
-			return {
-				x: Math.min(obj.startX, obj.endX),
-				y: Math.min(obj.startY, obj.endY),
-				width: Math.abs(obj.endX - obj.startX),
-				height: Math.abs(obj.endY - obj.startY)
-			}
+function findObjectAtPoint(doc: YIdealloDocument, point: Point): IdealloObject | null {
+	const objects = getAllObjects(doc)
+	// Hit test in reverse order (top objects first)
+	for (let i = objects.length - 1; i >= 0; i--) {
+		if (hitTestObject(objects[i], point, HIT_TOLERANCE)) {
+			return objects[i]
+		}
 	}
-}
-
-/**
- * Hit test a point against an object
- */
-function hitTestObject(obj: IdealloObject, point: Point): boolean {
-	const bounds = getObjectBounds(obj)
-	const expandedBounds = {
-		x: bounds.x - HIT_TOLERANCE,
-		y: bounds.y - HIT_TOLERANCE,
-		width: bounds.width + HIT_TOLERANCE * 2,
-		height: bounds.height + HIT_TOLERANCE * 2
-	}
-
-	// Quick bounds check first
-	if (!pointInBounds(point, expandedBounds)) {
-		return false
-	}
-
-	// For lines/arrows, do more precise hit testing
-	if (obj.type === 'line' || obj.type === 'arrow') {
-		const dist = perpendicularDistance(point, [obj.startX, obj.startY], [obj.endX, obj.endY])
-		return dist <= HIT_TOLERANCE
-	}
-
-	// For freehand, use bounds-based hit testing
-	// (precise path hit testing would require parsing SVG path data)
-	if (obj.type === 'freehand') {
-		return pointInBounds(point, expandedBounds)
-	}
-
-	// For shapes with fill, point in bounds is enough
-	return pointInBounds(point, bounds)
+	return null
 }
 
 export function useSelectHandler(options: UseSelectHandlerOptions) {
 	const { yDoc, doc, awareness, selectedIds, selectObject, clearSelection, enabled } = options
 	const [dragState, setDragState] = React.useState<DragState | null>(null)
+	const [hoveredId, setHoveredId] = React.useState<ObjectId | null>(null)
 	const dragStateRef = React.useRef<DragState | null>(null)
 
 	React.useEffect(() => {
@@ -169,7 +126,7 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 			// Hit test in reverse order (top objects first)
 			let hitObject: IdealloObject | null = null
 			for (let i = objects.length - 1; i >= 0; i--) {
-				if (hitTestObject(objects[i], point)) {
+				if (hitTestObject(objects[i], point, HIT_TOLERANCE)) {
 					hitObject = objects[i]
 					break
 				}
@@ -223,19 +180,30 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 
 	const handlePointerMove = React.useCallback(
 		(x: number, y: number) => {
-			if (!enabled || !dragStateRef.current) return
+			if (!enabled) return
 
-			const drag = dragStateRef.current
-			const dx = x - drag.startX
-			const dy = y - drag.startY
+			// If dragging, handle drag movement
+			if (dragStateRef.current) {
+				const drag = dragStateRef.current
+				const dx = x - drag.startX
+				const dy = y - drag.startY
 
-			// Update local drag state (NOT CRDT)
-			setDragState((prev) => (prev ? { ...prev, currentX: x, currentY: y } : null))
+				// Update local drag state (NOT CRDT)
+				setDragState((prev) => (prev ? { ...prev, currentX: x, currentY: y } : null))
 
-			// Broadcast offset via awareness for other clients
-			broadcastEditing(drag.objectIds, 'drag', dx, dy)
+				// Broadcast offset via awareness for other clients
+				broadcastEditing(drag.objectIds, 'drag', dx, dy)
+
+				// Clear hover during drag
+				setHoveredId(null)
+			} else {
+				// Not dragging - update hover state
+				const point: Point = [x, y]
+				const hitObj = findObjectAtPoint(doc, point)
+				setHoveredId(hitObj?.id ?? null)
+			}
 		},
-		[enabled, broadcastEditing]
+		[enabled, doc, broadcastEditing]
 	)
 
 	const handlePointerUp = React.useCallback(() => {
@@ -276,6 +244,11 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 		broadcastEditing(null, null)
 	}, [enabled, yDoc, doc, broadcastEditing])
 
+	// Clear hover on pointer leave
+	const handlePointerLeave = React.useCallback(() => {
+		setHoveredId(null)
+	}, [])
+
 	// Memoize return value to prevent infinite re-render loops
 	// Without this, the returned object changes on every render, causing
 	// callbacks in app.tsx that depend on selectHandler to recreate,
@@ -290,11 +263,20 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 		() => ({
 			isDragging: dragOffset !== null,
 			dragOffset,
+			hoveredId,
 			handlePointerDown,
 			handlePointerMove,
-			handlePointerUp
+			handlePointerUp,
+			handlePointerLeave
 		}),
-		[dragOffset, handlePointerDown, handlePointerMove, handlePointerUp]
+		[
+			dragOffset,
+			hoveredId,
+			handlePointerDown,
+			handlePointerMove,
+			handlePointerUp,
+			handlePointerLeave
+		]
 	)
 }
 

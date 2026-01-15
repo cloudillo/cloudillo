@@ -74,12 +74,30 @@ export function PivotHandle({
 	crosshairColor = '#ff6600',
 	snapIndicatorColor = '#ff6600'
 }: PivotHandleProps) {
-	// Simple pivot position calculation.
-	// When position compensation is applied correctly to the object during pivot drag,
-	// this simple formula gives the correct crosshair position that matches the mouse.
-	// No rotation calculation needed for position - only the crosshair LINES are rotated.
-	const cx = bounds.x + bounds.width * pivotX
-	const cy = bounds.y + bounds.height * pivotY
+	// Pivot position calculation
+	// When originalBounds is provided, bounds are compensated and simple formula works.
+	// When NOT provided (e.g., ideallo), we need to calculate the rotated position.
+	let cx: number
+	let cy: number
+
+	if (isDragging && !originalBounds && rotation !== 0 && initialPivot) {
+		// Calculate rotated position relative to initial pivot (rotation center)
+		const rad = rotation * (Math.PI / 180)
+		const cos = Math.cos(rad)
+		const sin = Math.sin(rad)
+		const localX = (pivotX - initialPivot.x) * bounds.width
+		const localY = (pivotY - initialPivot.y) * bounds.height
+		const rotatedX = localX * cos - localY * sin
+		const rotatedY = localX * sin + localY * cos
+		const pivotCenterX = bounds.x + bounds.width * initialPivot.x
+		const pivotCenterY = bounds.y + bounds.height * initialPivot.y
+		cx = pivotCenterX + rotatedX
+		cy = pivotCenterY + rotatedY
+	} else {
+		// Simple formula works when bounds are compensated or no rotation
+		cx = bounds.x + bounds.width * pivotX
+		cy = bounds.y + bounds.height * pivotY
+	}
 
 	// Scale-independent sizes
 	const circleRadius = 6 / scale
@@ -209,11 +227,8 @@ export function PivotHandle({
 					r={hitAreaRadius}
 					fill="transparent"
 					style={{ cursor: 'move' }}
-					onPointerDown={(e) => {
-						e.stopPropagation()
-						e.preventDefault()
-						onPivotDragStart(e)
-					}}
+					onPointerDown={onPivotDragStart}
+					onClick={(e) => e.stopPropagation()}
 				/>
 			</g>
 		</g>

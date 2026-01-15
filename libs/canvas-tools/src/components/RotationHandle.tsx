@@ -24,12 +24,8 @@
 
 import * as React from 'react'
 import type { Bounds } from 'react-svg-canvas'
-import {
-	DEFAULT_SNAP_ANGLES,
-	DEFAULT_SNAP_ZONE_RATIO,
-	normalizeAngle,
-	getMaxDistanceFromPivot
-} from 'react-svg-canvas'
+import { DEFAULT_SNAP_ANGLES, DEFAULT_SNAP_ZONE_RATIO, normalizeAngle } from 'react-svg-canvas'
+import { calculateArcRadius } from '../utils/rotation'
 
 export interface RotationHandleProps {
 	/** Bounding box of the object being rotated */
@@ -84,10 +80,8 @@ export function RotationHandle({
 	const cx = bounds.x + bounds.width * pivotX
 	const cy = bounds.y + bounds.height * pivotY
 
-	// Arc radius: max distance from pivot to any corner + padding
-	// Must match the calculation in useRotatable for consistent snap behavior
-	const maxDist = getMaxDistanceFromPivot(bounds, pivotX, pivotY)
-	const arcRadius = maxDist + arcPadding / scale
+	// Arc radius with viewport-relative clamping
+	const arcRadius = calculateArcRadius({ bounds, scale, arcPadding })
 	const snapZoneRadius = arcRadius * DEFAULT_SNAP_ZONE_RATIO
 
 	// Handle sizes (scale-independent)

@@ -76,6 +76,15 @@ export {
 	getSvgElement
 } from './utils/coordinates'
 
+// Rotation handle sizing
+export {
+	ARC_RADIUS_MIN_VIEWPORT_RATIO,
+	ARC_RADIUS_MAX_VIEWPORT_RATIO,
+	DEFAULT_ARC_PADDING,
+	calculateArcRadius
+} from './utils/rotation'
+export type { CalculateArcRadiusOptions } from './utils/rotation'
+
 // Re-export new geometry utilities from react-svg-canvas
 
 // RotationMatrix - pre-calculated trigonometry for performance

@@ -114,23 +114,22 @@ export function StickyEditOverlay({
 	}
 
 	// Generate organic rotation (same as StickyNote)
+	// Note: Main rotation is handled by ObjectRenderer, we only add organic rotation here
 	const organicRotation = React.useMemo(() => {
 		const hash = object.id.charCodeAt(0) + object.id.charCodeAt(1)
 		return ((hash % 3) - 1) * 0.5
 	}, [object.id])
 
-	// Calculate rotation transform
-	const rotation = object.rotation ?? 0
-	const totalRotation = rotation + organicRotation
+	// Calculate organic rotation transform only (main rotation handled by ObjectRenderer)
 	const pivotX = object.pivotX ?? 0.5
 	const pivotY = object.pivotY ?? 0.5
 	const cx = x + width * pivotX
 	const cy = y + height * pivotY
-	const rotationTransform =
-		totalRotation !== 0 ? `rotate(${totalRotation} ${cx} ${cy})` : undefined
+	const organicTransform =
+		organicRotation !== 0 ? `rotate(${organicRotation} ${cx} ${cy})` : undefined
 
 	return (
-		<g transform={rotationTransform}>
+		<g transform={organicTransform}>
 			{/* Shadow effect */}
 			<rect
 				x={x + 2}

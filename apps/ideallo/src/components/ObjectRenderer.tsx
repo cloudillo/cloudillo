@@ -100,7 +100,15 @@ function renderObject(
 	object: IdealloObject,
 	props: Pick<
 		ObjectRendererProps,
-		'ownerTag' | 'scale' | 'isEditing' | 'onTextChange' | 'onSave' | 'onCancel' | 'onDragStart'
+		| 'ownerTag'
+		| 'scale'
+		| 'isEditing'
+		| 'onTextChange'
+		| 'onSave'
+		| 'onCancel'
+		| 'onDragStart'
+		| 'isHovered'
+		| 'isEraserHovered'
 	>
 ): React.ReactNode {
 	switch (object.type) {
@@ -133,7 +141,15 @@ function renderObject(
 			}
 			return <StickyNote object={object} />
 		case 'image':
-			return <ImageRenderer object={object} ownerTag={props.ownerTag} scale={props.scale} />
+			return (
+				<ImageRenderer
+					object={object}
+					ownerTag={props.ownerTag}
+					scale={props.scale}
+					isHovered={props.isHovered}
+					isEraserHovered={props.isEraserHovered}
+				/>
+			)
 		default:
 			return null
 	}
@@ -160,15 +176,19 @@ export function ObjectRenderer({
 		onTextChange,
 		onSave,
 		onCancel,
-		onDragStart
+		onDragStart,
+		isHovered,
+		isEraserHovered
 	})
 	if (!content) return null
 
 	// Build class name with optional highlight/hover
+	// Images handle hover effects internally to avoid flickering issues with the loading placeholder
+	const isImage = object.type === 'image'
 	const classNames: string[] = []
 	if (isHighlighted) classNames.push('eraser-highlighted')
-	if (isHovered) classNames.push('object-hovered')
-	if (isEraserHovered) classNames.push('eraser-hovered')
+	if (isHovered && !isImage) classNames.push('object-hovered')
+	if (isEraserHovered && !isImage) classNames.push('eraser-hovered')
 	const className = classNames.length > 0 ? classNames.join(' ') : undefined
 
 	// Handle double-click for entering edit mode (sticky notes)
@@ -193,16 +213,13 @@ export function ObjectRenderer({
 		)
 	}
 
-	// Wrap in group if highlighted, hovered, or has double-click handler
-	if (isHighlighted || isHovered || isEraserHovered || handleDoubleClick) {
-		return (
-			<g className={className} onDoubleClick={handleDoubleClick}>
-				{content}
-			</g>
-		)
-	}
-
-	return content
+	// Always wrap in group to maintain consistent DOM structure
+	// (conditional wrapping causes re-mounts which flicker images)
+	return (
+		<g className={className} onDoubleClick={handleDoubleClick}>
+			{content}
+		</g>
+	)
 }
 
 // vim: ts=4

@@ -34,13 +34,31 @@ export interface ImageRendererProps {
 	ownerTag?: string
 	/** Current canvas scale/zoom for optimal variant selection */
 	scale?: number
+	/** Hover effect (object is under cursor in select mode) */
+	isHovered?: boolean
+	/** Eraser hover effect (object is under eraser cursor) */
+	isEraserHovered?: boolean
 }
 
 type LoadState = 'loading' | 'loaded' | 'error'
 
-export function ImageRenderer({ object, ownerTag, scale = 1 }: ImageRendererProps) {
+export function ImageRenderer({
+	object,
+	ownerTag,
+	scale = 1,
+	isHovered,
+	isEraserHovered
+}: ImageRendererProps) {
 	const { x, y, width, height, fileId, style } = object
 	const [loadState, setLoadState] = React.useState<LoadState>('loading')
+
+	// Calculate hover filter - only apply when image is fully loaded to avoid flickering
+	const hoverFilter =
+		loadState === 'loaded' && isHovered
+			? 'drop-shadow(0 0 6px var(--c-primary, #3b82f6)) drop-shadow(0 0 2px var(--c-primary, #3b82f6))'
+			: loadState === 'loaded' && isEraserHovered
+				? 'drop-shadow(0 0 6px #ef4444) drop-shadow(0 0 2px #ef4444)'
+				: undefined
 
 	// Compute optimal variant based on display size (canvas size * zoom)
 	const variant = React.useMemo(() => {
@@ -148,7 +166,8 @@ export function ImageRenderer({ object, ownerTag, scale = 1 }: ImageRendererProp
 				style={{
 					display: loadState === 'error' ? 'none' : 'block',
 					opacity: loadState === 'loaded' ? 1 : 0,
-					transition: 'opacity 0.15s ease-in'
+					transition: 'opacity 0.15s ease-in',
+					filter: hoverFilter
 				}}
 			/>
 		</g>

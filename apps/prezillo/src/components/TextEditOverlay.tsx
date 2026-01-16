@@ -149,7 +149,6 @@ export function TextEditOverlay({
 					onBlur={handleBlur}
 					onPointerDown={(e) => e.stopPropagation()}
 					onClick={(e) => e.stopPropagation()}
-					onMouseDown={(e) => e.stopPropagation()}
 					style={{
 						width: '100%',
 						minWidth: object.width,

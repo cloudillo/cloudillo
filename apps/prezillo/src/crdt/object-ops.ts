@@ -19,11 +19,36 @@
  */
 
 import * as Y from 'yjs'
-import type { YPrezilloDocument, ChildRef, StoredObject, StoredPaletteRef } from './stored-types'
+import type {
+	YPrezilloDocument,
+	ChildRef,
+	StoredObject,
+	StoredPaletteRef,
+	StoredText,
+	StoredRect,
+	StoredImage,
+	StoredPath,
+	StoredLine,
+	StoredPolygon,
+	StoredQrCode,
+	StoredPollFrame,
+	StoredTableGrid,
+	StoredSymbol,
+	StoredEmbed,
+	StoredConnector
+} from './stored-types'
 import type { ObjectId, ContainerId, ViewId } from './ids'
 import { generateObjectId } from './ids'
 import type { PrezilloObject } from './runtime-types'
-import { compactObject, expandObject } from './type-converters'
+import type * as Runtime from './runtime-types'
+import {
+	compactObject,
+	expandObject,
+	compactShapeStyle,
+	compactTextStyle,
+	compactArrowStyle,
+	compactAnchorPoint
+} from './type-converters'
 import { getContainerChildren } from './document'
 import { getAbsolutePositionStored } from './transforms'
 import { resolveObject, getInstancesOfPrototype, detachInstance } from './prototype-ops'
@@ -235,8 +260,319 @@ export function getObject(doc: YPrezilloDocument, objectId: ObjectId): PrezilloO
 	return resolveObject(doc, objectId)
 }
 
+// Routing type reverse map for connector routing conversion
+const ROUTING_REVERSE: Record<Runtime.Routing, 'S' | 'O' | 'C'> = {
+	straight: 'S',
+	orthogonal: 'O',
+	curved: 'C'
+}
+
+// Poll frame shape reverse map
+const POLL_SHAPE_REVERSE: Record<'rect' | 'ellipse', 'R' | 'E'> = {
+	rect: 'R',
+	ellipse: 'E'
+}
+
+// QR Error correction reverse map
+const QR_ERROR_CORRECTION_REVERSE: Record<Runtime.QrErrorCorrection, 'L' | 'M' | 'Q' | 'H'> = {
+	low: 'L',
+	medium: 'M',
+	quartile: 'Q',
+	high: 'H'
+}
+
 /**
- * Update an existing object
+ * Apply a single runtime property update directly to a stored object.
+ * This preserves existing stored properties (like palette refs) that aren't being updated.
+ * @param stored - The stored object to update (mutated in place)
+ * @param key - The runtime property name
+ * @param value - The runtime property value
+ */
+function applyRuntimeUpdateToStored(stored: StoredObject, key: string, value: unknown): void {
+	switch (key) {
+		// Skip immutable fields
+		case 'id':
+		case 'type':
+			break
+
+		// Base position/size fields
+		case 'x':
+			stored.xy = [value as number, stored.xy[1]]
+			break
+		case 'y':
+			stored.xy = [stored.xy[0], value as number]
+			break
+		case 'width':
+			stored.wh = [value as number, stored.wh[1]]
+			break
+		case 'height':
+			stored.wh = [stored.wh[0], value as number]
+			break
+		case 'rotation':
+			if (value === 0) delete stored.r
+			else stored.r = value as number
+			break
+		case 'pivotX':
+			if (value === 0.5 && (stored.pv?.[1] ?? 0.5) === 0.5) delete stored.pv
+			else stored.pv = [value as number, stored.pv?.[1] ?? 0.5]
+			break
+		case 'pivotY':
+			if ((stored.pv?.[0] ?? 0.5) === 0.5 && value === 0.5) delete stored.pv
+			else stored.pv = [stored.pv?.[0] ?? 0.5, value as number]
+			break
+		case 'opacity':
+			if (value === 1) delete stored.o
+			else stored.o = value as number
+			break
+		case 'visible':
+			if (value === true) delete stored.v
+			else stored.v = false
+			break
+		case 'locked':
+			if (value === false) delete stored.k
+			else stored.k = true
+			break
+		case 'hidden':
+			if (value === false) delete stored.hid
+			else stored.hid = true
+			break
+
+		// Reference fields
+		case 'name':
+			if (!value) delete stored.n
+			else stored.n = value as string
+			break
+		case 'pageId':
+			if (!value) delete stored.vi
+			else stored.vi = value as string
+			break
+		case 'parentId':
+			if (!value) delete stored.p
+			else stored.p = value as string
+			break
+		case 'prototypeId':
+			if (!value) delete stored.proto
+			else stored.proto = value as string
+			break
+		case 'shapeStyleId':
+			if (!value) delete stored.si
+			else stored.si = value as string
+			break
+		case 'textStyleId':
+			if (!value) delete stored.ti
+			else stored.ti = value as string
+			break
+
+		// Style: MERGE into existing s, don't replace (preserves palette refs)
+		case 'style':
+			if (value) {
+				const compacted = compactShapeStyle(value as Runtime.ShapeStyle)
+				if (compacted) {
+					stored.s = { ...(stored.s || {}), ...compacted }
+				}
+			}
+			break
+
+		// Text style: MERGE into existing ts, don't replace (preserves palette refs)
+		case 'textStyle':
+			if (value) {
+				const compacted = compactTextStyle(value as Runtime.TextStyle)
+				if (compacted) {
+					stored.ts = { ...(stored.ts || {}), ...compacted }
+				}
+			}
+			break
+
+		// Type-specific: Text
+		case 'text':
+			if (stored.t === 'T') (stored as StoredText).tx = value as string
+			break
+		case 'minHeight':
+			if (stored.t === 'T') {
+				if (!value) delete (stored as StoredText).mh
+				else (stored as StoredText).mh = value as number
+			}
+			break
+
+		// Type-specific: Rect
+		case 'cornerRadius':
+			if (stored.t === 'R') {
+				if (!value) delete (stored as StoredRect).cr
+				else (stored as StoredRect).cr = value as number | [number, number, number, number]
+			}
+			break
+
+		// Type-specific: Image
+		case 'fileId':
+			if (stored.t === 'I') (stored as StoredImage).fid = value as string
+			break
+
+		// Type-specific: Path
+		case 'pathData':
+			if (stored.t === 'P') (stored as StoredPath).d = value as string
+			break
+
+		// Type-specific: Line
+		case 'points':
+			if (stored.t === 'L') {
+				;(stored as StoredLine).pts = value as [[number, number], [number, number]]
+			} else if (stored.t === 'G') {
+				;(stored as StoredPolygon).pts = value as [number, number][]
+			}
+			break
+
+		// Type-specific: Polygon
+		case 'closed':
+			if (stored.t === 'G') {
+				if (!value) delete (stored as StoredPolygon).cl
+				else (stored as StoredPolygon).cl = value as boolean
+			}
+			break
+
+		// Type-specific: QrCode
+		case 'url':
+			if (stored.t === 'Q') (stored as StoredQrCode).url = value as string
+			break
+		case 'errorCorrection':
+			if (stored.t === 'Q') {
+				const ecl = value as Runtime.QrErrorCorrection
+				if (ecl === 'medium') delete (stored as StoredQrCode).ecl
+				else (stored as StoredQrCode).ecl = QR_ERROR_CORRECTION_REVERSE[ecl]
+			}
+			break
+		case 'foreground':
+			if (stored.t === 'Q') {
+				if (value === '#000000') delete (stored as StoredQrCode).fg
+				else (stored as StoredQrCode).fg = value as string
+			}
+			break
+		case 'background':
+			if (stored.t === 'Q') {
+				if (value === '#ffffff') delete (stored as StoredQrCode).bg
+				else (stored as StoredQrCode).bg = value as string
+			}
+			break
+
+		// Type-specific: TableGrid
+		case 'cols':
+			if (stored.t === 'Tg') (stored as StoredTableGrid).c = value as number
+			break
+		case 'rows':
+			if (stored.t === 'Tg') (stored as StoredTableGrid).rw = value as number
+			break
+		case 'columnWidths':
+			if (stored.t === 'Tg') {
+				if (!value) delete (stored as StoredTableGrid).cw
+				else (stored as StoredTableGrid).cw = value as number[]
+			}
+			break
+		case 'rowHeights':
+			if (stored.t === 'Tg') {
+				if (!value) delete (stored as StoredTableGrid).rh
+				else (stored as StoredTableGrid).rh = value as number[]
+			}
+			break
+
+		// Type-specific: Symbol
+		case 'symbolId':
+			if (stored.t === 'S') (stored as StoredSymbol).sid = value as string
+			break
+
+		// Type-specific: Embed
+		case 'embedType':
+			if (stored.t === 'M') (stored as StoredEmbed).mt = value as 'iframe' | 'video' | 'audio'
+			break
+		case 'src':
+			if (stored.t === 'M') (stored as StoredEmbed).src = value as string
+			break
+
+		// Type-specific: PollFrame
+		case 'label':
+			if (stored.t === 'F') {
+				if (!value) delete (stored as StoredPollFrame).lb
+				else (stored as StoredPollFrame).lb = value as string
+			}
+			break
+		case 'shape':
+			if (stored.t === 'F') {
+				const shape = value as 'rect' | 'ellipse'
+				if (shape === 'rect') delete (stored as StoredPollFrame).sh
+				else (stored as StoredPollFrame).sh = POLL_SHAPE_REVERSE[shape]
+			}
+			break
+
+		// Type-specific: Connector
+		case 'startObjectId':
+			if (stored.t === 'C') {
+				if (!value) delete (stored as StoredConnector).so_
+				else (stored as StoredConnector).so_ = value as string
+			}
+			break
+		case 'endObjectId':
+			if (stored.t === 'C') {
+				if (!value) delete (stored as StoredConnector).eo
+				else (stored as StoredConnector).eo = value as string
+			}
+			break
+		case 'startAnchor':
+			if (stored.t === 'C') {
+				const anchor = compactAnchorPoint(value as Runtime.AnchorPoint)
+				if (!anchor) delete (stored as StoredConnector).sa
+				else (stored as StoredConnector).sa = anchor
+			}
+			break
+		case 'endAnchor':
+			if (stored.t === 'C') {
+				const anchor = compactAnchorPoint(value as Runtime.AnchorPoint)
+				if (!anchor) delete (stored as StoredConnector).ea
+				else (stored as StoredConnector).ea = anchor
+			}
+			break
+		case 'waypoints':
+			if (stored.t === 'C') {
+				if (!value || (value as [number, number][]).length === 0)
+					delete (stored as StoredConnector).wp
+				else (stored as StoredConnector).wp = value as [number, number][]
+			}
+			break
+		case 'routing':
+			if (stored.t === 'C') {
+				const routing = value as Runtime.Routing | undefined
+				if (!routing) delete (stored as StoredConnector).rt
+				else (stored as StoredConnector).rt = ROUTING_REVERSE[routing]
+			}
+			break
+
+		// Arrow styles (used by both Line and Connector)
+		case 'startArrow':
+			if (stored.t === 'L') {
+				const arrow = compactArrowStyle(value as Runtime.ArrowStyle)
+				if (!arrow) delete (stored as StoredLine).sa
+				else (stored as StoredLine).sa = arrow
+			} else if (stored.t === 'C') {
+				const arrow = compactArrowStyle(value as Runtime.ArrowStyle)
+				if (!arrow) delete (stored as StoredConnector).sar
+				else (stored as StoredConnector).sar = arrow
+			}
+			break
+		case 'endArrow':
+			if (stored.t === 'L') {
+				const arrow = compactArrowStyle(value as Runtime.ArrowStyle)
+				if (!arrow) delete (stored as StoredLine).ea
+				else (stored as StoredLine).ea = arrow
+			} else if (stored.t === 'C') {
+				const arrow = compactArrowStyle(value as Runtime.ArrowStyle)
+				if (!arrow) delete (stored as StoredConnector).ear
+				else (stored as StoredConnector).ear = arrow
+			}
+			break
+	}
+}
+
+/**
+ * Update an existing object.
+ * Works directly on stored format to preserve palette references and other data
+ * that isn't properly handled by the expand/compact cycle.
  */
 export function updateObject(
 	yDoc: Y.Doc,
@@ -247,17 +583,16 @@ export function updateObject(
 	const existing = doc.o.get(objectId)
 	if (!existing) return
 
-	// Use resolveObject for prototype instances to get inherited values
-	const expanded = existing.proto
-		? resolveObject(doc, objectId)
-		: expandObject(objectId, existing)
-	if (!expanded) return
-
-	const updated = { ...expanded, ...updates, id: objectId }
-	const compacted = compactObject(updated as PrezilloObject)
-
 	yDoc.transact(() => {
-		doc.o.set(objectId, compacted)
+		// Clone existing stored object (preserves ALL data including palette refs)
+		const updated = { ...existing }
+
+		// Apply each update directly to stored format
+		for (const [key, value] of Object.entries(updates)) {
+			applyRuntimeUpdateToStored(updated, key, value)
+		}
+
+		doc.o.set(objectId, updated)
 	}, yDoc.clientID)
 }
 

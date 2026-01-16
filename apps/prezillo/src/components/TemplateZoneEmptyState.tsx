@@ -51,8 +51,8 @@ export function TemplateZoneEmptyState({
 			className="c-template-empty-state"
 			style={{ cursor: readOnly ? 'default' : 'pointer' }}
 			onClick={readOnly ? undefined : onCreateTemplate}
-			onMouseEnter={() => setIsHovered(true)}
-			onMouseLeave={() => setIsHovered(false)}
+			onPointerEnter={() => setIsHovered(true)}
+			onPointerLeave={() => setIsHovered(false)}
 		>
 			{/* Background */}
 			<rect

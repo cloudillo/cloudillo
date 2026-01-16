@@ -84,6 +84,18 @@ export function ImageRenderer({ object, ownerTag, scale = 1, bounds }: ImageRend
 		setLoadState('loading')
 	}, [fileId])
 
+	// Check if image is already cached/loaded on mount
+	// This fixes images appearing as white rectangles after scrolling back into view
+	// because SVG <image> elements may not fire onLoad for cached images
+	React.useLayoutEffect(() => {
+		// Probe the image URL to check if it's already in browser cache
+		const img = new Image()
+		img.src = imageUrl
+		if (img.complete && img.naturalWidth > 0) {
+			setLoadState('loaded')
+		}
+	}, [imageUrl])
+
 	return (
 		<g className="prezillo-image">
 			{/* Loading placeholder */}

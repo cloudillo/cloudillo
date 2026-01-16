@@ -78,8 +78,8 @@ export interface ObjectShapeProps {
 	onDoubleClick?: (e: React.MouseEvent) => void
 	onContextMenu?: (e: React.MouseEvent) => void
 	onPointerDown?: (e: React.PointerEvent) => void
-	onMouseEnter?: (e: React.MouseEvent) => void
-	onMouseLeave?: (e: React.MouseEvent) => void
+	onPointerEnter?: (e: React.PointerEvent) => void
+	onPointerLeave?: (e: React.PointerEvent) => void
 	// Optional bounds override for temporary state during drag/resize/rotate/pivot
 	tempBounds?: {
 		x: number
@@ -140,8 +140,8 @@ export const ObjectShape = React.memo(function ObjectShape({
 	onDoubleClick,
 	onContextMenu,
 	onPointerDown,
-	onMouseEnter,
-	onMouseLeave,
+	onPointerEnter,
+	onPointerLeave,
 	tempBounds,
 	ownerTag,
 	scale,
@@ -179,8 +179,8 @@ export const ObjectShape = React.memo(function ObjectShape({
 		onDoubleClick,
 		onContextMenu,
 		onPointerDown,
-		onPointerEnter: onMouseEnter,
-		onPointerLeave: onMouseLeave,
+		onPointerEnter,
+		onPointerLeave,
 		style: { cursor: 'pointer', pointerEvents: 'all' as const }
 	}
 

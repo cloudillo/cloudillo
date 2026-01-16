@@ -350,6 +350,37 @@ export function PrezilloApp() {
 		selectedIds: prezillo.selectedIds
 	})
 
+	// Wrap handleTextEditSave to set justFinishedInteractionRef
+	// This prevents canvas click from clearing selection after text edit blur
+	const handleTextEditSaveWithFlag = React.useCallback(
+		(text: string) => {
+			if (editingTextId) {
+				justFinishedInteractionRef.current = true
+			}
+			handleTextEditSave(text)
+		},
+		[editingTextId, handleTextEditSave]
+	)
+
+	// Close text editing on click outside editor
+	// For middle-click: also prevents X11 paste on Linux
+	// For left-click: ensures proper close before blur event
+	React.useEffect(() => {
+		if (!editingTextId) return
+		const handleClickOutside = (e: PointerEvent) => {
+			const target = e.target as HTMLElement
+			// Only close if clicking outside the textarea
+			if (target.tagName !== 'TEXTAREA') {
+				// Prevent middle-click paste on Linux
+				if (e.button === 1) e.preventDefault()
+				handleTextEditSaveWithFlag(editingTextRef.current)
+			}
+		}
+		// Use capture phase to catch event before blur fires
+		document.addEventListener('pointerdown', handleClickOutside, true)
+		return () => document.removeEventListener('pointerdown', handleClickOutside, true)
+	}, [editingTextId, handleTextEditSaveWithFlag])
+
 	// Text styling (extracted hook)
 	const {
 		handleTextAlignChange,
@@ -1208,11 +1239,6 @@ export function PrezilloApp() {
 			justFinishedInteractionRef.current = false
 			return
 		}
-		// If we're editing text, save it before clearing
-		if (editingTextId) {
-			handleTextEditSave(editingTextRef.current)
-			return // Don't clear selection when exiting text edit
-		}
 		if (!prezillo.activeTool) {
 			prezillo.clearSelection()
 			// Also clear template selection when clicking canvas background
@@ -2015,7 +2041,7 @@ export function PrezilloApp() {
 										key={object.id}
 										object={object}
 										textStyle={textStyle}
-										onSave={handleTextEditSave}
+										onSave={handleTextEditSaveWithFlag}
 										onCancel={handleTextEditCancel}
 										onTextChange={(t) => {
 											editingTextRef.current = t
@@ -2064,8 +2090,8 @@ export function PrezilloApp() {
 									onDoubleClick={(e) => handleObjectDoubleClick(e, object.id)}
 									onContextMenu={(e) => handleObjectContextMenu(e, object.id)}
 									onPointerDown={(e) => handleObjectPointerDown(e, object.id)}
-									onMouseEnter={() => setHoveredObjectId(object.id as ObjectId)}
-									onMouseLeave={() => setHoveredObjectId(null)}
+									onPointerEnter={() => setHoveredObjectId(object.id as ObjectId)}
+									onPointerLeave={() => setHoveredObjectId(null)}
 									tempBounds={objectTempBounds}
 									ownerTag={prezillo.cloudillo.idTag}
 									scale={canvasScale}

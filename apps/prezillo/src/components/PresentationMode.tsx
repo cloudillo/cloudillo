@@ -29,7 +29,8 @@ import type {
 	YPrezilloDocument,
 	ImageObject,
 	QrCodeObject,
-	PollFrameObject
+	PollFrameObject,
+	SymbolObject
 } from '../crdt'
 import { resolveShapeStyle, resolveTextStyle } from '../crdt'
 import { useViewObjects } from '../hooks/useViewObjects'
@@ -45,6 +46,7 @@ import { WrappedText } from './WrappedText'
 import { ImageRenderer } from './ImageRenderer'
 import { QRCodeRenderer } from './QRCodeRenderer'
 import { PollFrameRenderer } from './PollFrameRenderer'
+import { SymbolRenderer } from './SymbolRenderer'
 import {
 	setVote,
 	clearVote,
@@ -184,6 +186,20 @@ function PresentationObjectShape({
 				/>
 			)
 			break
+		case 'symbol':
+			content = (
+				<SymbolRenderer
+					object={object as SymbolObject}
+					style={style}
+					bounds={{
+						x: object.x,
+						y: object.y,
+						width: object.width,
+						height: object.height
+					}}
+				/>
+			)
+			break
 		case 'pollframe':
 			content = (
 				<PollFrameRenderer
@@ -240,13 +256,15 @@ function PresentationObjectShape({
 
 /**
  * Pre-rendered slide component - memoized for performance
+ * Each slide fetches its own objects to maintain stable identity
  */
 interface PresentationSlideProps {
 	view: ViewNode
-	objects: PrezilloObject[]
 	doc: YPrezilloDocument
 	ownerTag?: string
 	isVisible: boolean
+	/** Whether to render content (objects). False = empty placeholder for performance */
+	renderContent?: boolean
 	// Poll voting props
 	voteCounts?: Map<string, number>
 	totalVotes?: number
@@ -258,10 +276,10 @@ interface PresentationSlideProps {
 
 const PresentationSlide = React.memo(function PresentationSlide({
 	view,
-	objects,
 	doc,
 	ownerTag,
 	isVisible,
+	renderContent = true,
 	voteCounts,
 	totalVotes,
 	winningFrames,
@@ -269,6 +287,9 @@ const PresentationSlide = React.memo(function PresentationSlide({
 	onPollClick,
 	focusedPollId
 }: PresentationSlideProps) {
+	// Each slide fetches its own objects - this keeps the component stable
+	// Only fetch when renderContent is true to avoid unnecessary work
+	const objects = useViewObjects(doc, renderContent ? view.id : null)
 	const viewAspect = view.width / view.height
 
 	// Compute gradient background
@@ -417,15 +438,11 @@ export function PresentationMode({
 	const [showControls, setShowControls] = React.useState(true)
 	const hideTimeoutRef = React.useRef<ReturnType<typeof setTimeout>>(undefined)
 
-	// Get current, previous, and next views for pre-rendering
+	// Get current view for poll voting
 	const currentView = views[currentIndex]
-	const prevView = currentIndex > 0 ? views[currentIndex - 1] : null
-	const nextView = currentIndex < views.length - 1 ? views[currentIndex + 1] : null
 
-	// Get objects for all three slides (pre-render for smooth transitions)
+	// Get objects for current view (needed for poll keyboard navigation)
 	const currentObjects = useViewObjects(doc, currentView?.id || null)
-	const prevObjects = useViewObjects(doc, prevView?.id || null)
-	const nextObjects = useViewObjects(doc, nextView?.id || null)
 
 	// ============================================================================
 	// Poll Voting State
@@ -632,45 +649,27 @@ export function PresentationMode({
 			onClick={handleClick}
 			className={`c-presentation-container${showControls ? '' : ' c-controls-hidden'}${isFollowing ? ' following' : ''}`}
 		>
-			{/* Pre-rendered previous slide (hidden) */}
-			{prevView && (
-				<PresentationSlide
-					key={`prev-${prevView.id}`}
-					view={prevView}
-					objects={prevObjects}
-					doc={doc}
-					ownerTag={ownerTag}
-					isVisible={false}
-				/>
-			)}
-
-			{/* Current slide (visible) */}
-			<PresentationSlide
-				key={`current-${currentView.id}`}
-				view={currentView}
-				objects={currentObjects}
-				doc={doc}
-				ownerTag={ownerTag}
-				isVisible={true}
-				voteCounts={voteCounts}
-				totalVotes={totalVotes}
-				winningFrames={winningFrames}
-				myVote={myVote}
-				onPollClick={awareness ? handlePollClick : undefined}
-				focusedPollId={focusedPollId}
-			/>
-
-			{/* Pre-rendered next slide (hidden) */}
-			{nextView && (
-				<PresentationSlide
-					key={`next-${nextView.id}`}
-					view={nextView}
-					objects={nextObjects}
-					doc={doc}
-					ownerTag={ownerTag}
-					isVisible={false}
-				/>
-			)}
+			{/* Render ALL slide containers (stable keys), but only populate nearby ones */}
+			{views.map((view, index) => {
+				const isCurrentSlide = index === currentIndex
+				const isNearby = Math.abs(index - currentIndex) <= 1
+				return (
+					<PresentationSlide
+						key={view.id}
+						view={view}
+						doc={doc}
+						ownerTag={ownerTag}
+						isVisible={isCurrentSlide}
+						renderContent={isNearby}
+						voteCounts={isCurrentSlide ? voteCounts : undefined}
+						totalVotes={isCurrentSlide ? totalVotes : undefined}
+						winningFrames={isCurrentSlide ? winningFrames : undefined}
+						myVote={isCurrentSlide ? myVote : undefined}
+						onPollClick={isCurrentSlide && awareness ? handlePollClick : undefined}
+						focusedPollId={isCurrentSlide ? focusedPollId : undefined}
+					/>
+				)
+			})}
 
 			{/* Slide counter */}
 			<div className="c-presentation-counter">

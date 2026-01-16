@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/canvas-tools",
-	"version": "0.8.5",
+	"version": "0.8.6",
 	"description": "Cloudillo canvas tools - rotation handle, pivot handle, transform gizmo",
 	"type": "module",
 	"main": "lib/index.js",
@@ -19,7 +19,7 @@
 	"devDependencies": {
 		"@cloudillo/react": "workspace:^",
 		"@types/react": "^19.2.8",
-		"react-svg-canvas": "^0.1.5",
+		"react-svg-canvas": "^0.1.6",
 		"rimraf": "^6.1.2",
 		"tslib": "^2.8.1",
 		"typescript": "^5.9.3"

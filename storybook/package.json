@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/storybook",
-	"version": "0.8.5",
+	"version": "0.8.6",
 	"description": "Cloudillo Component Storybook",
 	"type": "module",
 	"main": "src/index.js",

@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/prezillo-app",
-	"version": "0.8.5",
+	"version": "0.8.6",
 	"description": "Prezillo presentations",
 	"type": "module",
 	"main": "src/index.js",
@@ -49,7 +49,7 @@
 		"react-popper": "^2.3.0",
 		"react-qr-code": "^2.0.18",
 		"react-router-dom": "^7.12.0",
-		"react-svg-canvas": "^0.1.5",
+		"react-svg-canvas": "^0.1.6",
 		"react-yjs": "^2.0.1",
 		"rimraf": "^6.1.2",
 		"svg2pdf.js": "^2.7.0",

@@ -27,6 +27,7 @@ import { TemplatePanel } from '../'
 export interface PropertyPreview {
 	objectId: ObjectId
 	opacity?: number
+	lineHeight?: number
 }
 
 export interface PrezilloPropertiesPanelProps {

@@ -16,7 +16,13 @@
 
 import * as React from 'react'
 import * as Y from 'yjs'
-import { PropertySection, PropertyField, NativeSelect, FontPicker } from '@cloudillo/react'
+import {
+	PropertySection,
+	PropertyField,
+	NativeSelect,
+	FontPicker,
+	NumberInput
+} from '@cloudillo/react'
 import { mergeClasses } from '../../utils'
 import {
 	PiTextAlignLeftBold as IcAlignLeft,
@@ -40,6 +46,7 @@ import {
 } from '../../crdt'
 import { FONT_SIZES } from '../../utils/text-styles'
 import { PropertyLockButton } from './PropertyLockButton'
+import type { PropertyPreview } from './PrezilloPropertiesPanel'
 
 // Bullet character options for list mode
 const BULLET_OPTIONS = ['', '•', '◦', '▪', '▸', '→', '★', '✓', '✦', '❯', '○', '▹']
@@ -48,9 +55,10 @@ export interface TextStyleSectionProps {
 	doc: YPrezilloDocument
 	yDoc: Y.Doc
 	object: PrezilloObject
+	onPreview?: (preview: PropertyPreview | null) => void
 }
 
-export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
+export function TextStyleSection({ doc, yDoc, object, onPreview }: TextStyleSectionProps) {
 	const objectId = object.id as ObjectId
 	const [showBulletPicker, setShowBulletPicker] = React.useState(false)
 
@@ -63,6 +71,7 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 	const isAlignOverridden = isTextStyleFieldOverridden(doc, objectId, 'ta')
 	const isVAlignOverridden = isTextStyleFieldOverridden(doc, objectId, 'va')
 	const isBulletOverridden = isTextStyleFieldOverridden(doc, objectId, 'lb')
+	const isLineHeightOverridden = isTextStyleFieldOverridden(doc, objectId, 'lh')
 
 	// Per-field unlock/reset handlers
 	const handleUnlockField = React.useCallback(
@@ -124,6 +133,28 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 		[yDoc, doc, objectId]
 	)
 
+	const handleLineHeightChange = React.useCallback(
+		(value: number) => {
+			// Round to 2 decimals to avoid floating point errors
+			const rounded = Math.round(value * 100) / 100
+			updateObjectTextStyle(yDoc, doc, objectId, { lh: rounded })
+			// Clear preview on commit
+			onPreview?.(null)
+		},
+		[yDoc, doc, objectId, onPreview]
+	)
+
+	const handleLineHeightScrub = React.useCallback(
+		(value: number) => {
+			// Check lock state using base values (lineHeightLocked is computed later)
+			if (objectIsInstance && !isLineHeightOverridden) return
+			// Round to 2 decimals to avoid floating point errors (e.g., 1.1999999)
+			const rounded = Math.round(value * 100) / 100
+			onPreview?.({ objectId, lineHeight: rounded })
+		},
+		[objectId, onPreview, objectIsInstance, isLineHeightOverridden]
+	)
+
 	if (!resolvedStyle) return null
 
 	// Determine field lock states for instances
@@ -132,6 +163,7 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 	const alignLocked = objectIsInstance && !isAlignOverridden
 	const vAlignLocked = objectIsInstance && !isVAlignOverridden
 	const bulletLocked = objectIsInstance && !isBulletOverridden
+	const lineHeightLocked = objectIsInstance && !isLineHeightOverridden
 
 	return (
 		<PropertySection title="Text" defaultExpanded>
@@ -277,6 +309,28 @@ export function TextStyleSection({ doc, yDoc, object }: TextStyleSectionProps) {
 						isLocked={vAlignLocked}
 						onUnlock={() => handleUnlockField('va')}
 						onReset={() => handleResetField('va')}
+					/>
+				</div>
+			</PropertyField>
+
+			{/* Line Height */}
+			<PropertyField label="Line" labelWidth={40}>
+				<div className="c-hbox ai-center g-1 f-1">
+					<NumberInput
+						value={resolvedStyle.lineHeight}
+						onChange={handleLineHeightChange}
+						onScrub={handleLineHeightScrub}
+						min={0.5}
+						max={3.0}
+						step={0.1}
+						suffix="×"
+						disabled={lineHeightLocked}
+					/>
+					<PropertyLockButton
+						isInstance={objectIsInstance}
+						isLocked={lineHeightLocked}
+						onUnlock={() => handleUnlockField('lh')}
+						onReset={() => handleResetField('lh')}
 					/>
 				</div>
 			</PropertyField>

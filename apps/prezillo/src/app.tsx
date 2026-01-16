@@ -2071,6 +2071,16 @@ export function PrezilloApp() {
 										}
 									: object
 
+							// Apply text style preview (lineHeight) if this object is being scrubbed
+							const displayTextStyle =
+								propertyPreview?.objectId === object.id &&
+								propertyPreview.lineHeight !== undefined
+									? {
+											...textStyle,
+											lineHeight: propertyPreview.lineHeight
+										}
+									: textStyle
+
 							// Only show hover when nothing is selected
 							const hasSelection = prezillo.selectedIds.size > 0
 							const isThisHovered = hoveredObjectId === object.id
@@ -2080,7 +2090,7 @@ export function PrezilloApp() {
 									key={object.id}
 									object={displayObject}
 									style={style}
-									textStyle={textStyle}
+									textStyle={displayTextStyle}
 									isSelected={prezillo.isSelected(object.id)}
 									isHovered={!hasSelection && isThisHovered}
 									isStackedHighlight={prezillo.stackedHighlightIds.has(

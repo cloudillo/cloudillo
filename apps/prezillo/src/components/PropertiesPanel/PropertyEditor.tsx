@@ -117,7 +117,14 @@ export function PropertyEditor({
 
 			{!isQrCodeObject && <StyleSection doc={doc} yDoc={yDoc} object={selectedObject} />}
 
-			{isTextObject && <TextStyleSection doc={doc} yDoc={yDoc} object={selectedObject} />}
+			{isTextObject && (
+				<TextStyleSection
+					doc={doc}
+					yDoc={yDoc}
+					object={selectedObject}
+					onPreview={onPreview}
+				/>
+			)}
 
 			{isRectObject && <ShapeSection doc={doc} yDoc={yDoc} object={selectedObject} />}
 

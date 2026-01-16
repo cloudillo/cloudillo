@@ -37,7 +37,8 @@ const OBJECT_TYPE_MAP: Record<Stored.ObjectTypeCode, Runtime.ObjectType> = {
 	C: 'connector',
 	Q: 'qrcode',
 	F: 'pollframe',
-	Tg: 'tablegrid'
+	Tg: 'tablegrid',
+	S: 'symbol'
 }
 
 const OBJECT_TYPE_REVERSE: Record<Runtime.ObjectType, Stored.ObjectTypeCode> = {
@@ -52,7 +53,8 @@ const OBJECT_TYPE_REVERSE: Record<Runtime.ObjectType, Stored.ObjectTypeCode> = {
 	connector: 'C',
 	qrcode: 'Q',
 	pollframe: 'F',
-	tablegrid: 'Tg'
+	tablegrid: 'Tg',
+	symbol: 'S'
 }
 
 // Poll frame shape mappings
@@ -500,6 +502,14 @@ export function expandObject(id: string, stored: Stored.StoredObject): Runtime.P
 				rowHeights: tg.rh
 			} as Runtime.TableGridObject
 
+		case 'S':
+			const sym = stored as Stored.StoredSymbol
+			return {
+				...base,
+				type: 'symbol',
+				symbolId: sym.sid
+			} as Runtime.SymbolObject
+
 		default:
 			throw new Error(`Unknown object type: ${(stored as any).t}`)
 	}
@@ -655,6 +665,14 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 				cw: tgObj.columnWidths,
 				rh: tgObj.rowHeights
 			} as Stored.StoredTableGrid
+
+		case 'symbol':
+			const symObj = runtime as Runtime.SymbolObject
+			return {
+				...base,
+				t: 'S',
+				sid: symObj.symbolId
+			} as Stored.StoredSymbol
 
 		default:
 			throw new Error(`Unknown object type: ${(runtime as any).type}`)

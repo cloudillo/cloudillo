@@ -32,6 +32,7 @@ import { ImageRenderer } from './ImageRenderer'
 import { QRCodeRenderer } from './QRCodeRenderer'
 import { PollFrameRenderer } from './PollFrameRenderer'
 import { TableGridRenderer } from './TableGridRenderer'
+import { SymbolRenderer } from './SymbolRenderer'
 
 /**
  * Render SVG gradient definition using library functions
@@ -458,6 +459,32 @@ export const ObjectShape = React.memo(function ObjectShape({
 						object={object}
 						style={style}
 						bounds={{ x, y, width, height }}
+					/>
+					{/* Invisible rect for click handling */}
+					<rect
+						x={x}
+						y={y}
+						width={width}
+						height={height}
+						fill="transparent"
+						stroke="none"
+					/>
+					{hoverOverlay}
+					{stackedOverlay}
+					{instanceIndicator}
+					{hiddenIndicator}
+				</g>
+			)
+
+		case 'symbol':
+			return (
+				<g transform={rotationTransform} opacity={objectOpacity} {...commonProps}>
+					{gradientDef}
+					<SymbolRenderer
+						object={object}
+						style={style}
+						bounds={{ x, y, width, height }}
+						gradientId={gradientId}
 					/>
 					{/* Invisible rect for click handling */}
 					<rect

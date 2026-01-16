@@ -23,6 +23,7 @@ import * as Y from 'yjs'
 import { mergeClasses } from '../utils'
 import type { YPrezilloDocument } from '../crdt'
 import { ThemeDropdown } from './ThemeDropdown'
+import { SymbolPicker } from './SymbolPicker'
 
 import {
 	PiSelection as IcSelect,
@@ -120,6 +121,9 @@ export interface ToolbarProps {
 	onTogglePanel?: () => void
 	// Menu actions
 	onCheckDocument?: () => void
+	// Symbol picker
+	selectedSymbolId?: string | null
+	onSelectSymbol?: (symbolId: string) => void
 }
 
 export function Toolbar({
@@ -167,7 +171,9 @@ export function Toolbar({
 	onUnderlineToggle,
 	isPanelVisible,
 	onTogglePanel,
-	onCheckDocument
+	onCheckDocument,
+	selectedSymbolId,
+	onSelectSymbol
 }: ToolbarProps) {
 	const [menuOpen, setMenuOpen] = React.useState(false)
 	const menuRef = React.useRef<HTMLDivElement>(null)
@@ -289,6 +295,19 @@ export function Toolbar({
 			>
 				<IcTable />
 			</button>
+
+			{/* Symbol tool */}
+			<SymbolPicker
+				isActive={tool === 'symbol'}
+				selectedSymbolId={selectedSymbolId ?? null}
+				onSelectSymbol={(symbolId) => {
+					onSelectSymbol?.(symbolId)
+					setTool('symbol')
+				}}
+				onClose={() => {
+					if (tool === 'symbol') setTool(null)
+				}}
+			/>
 
 			<div className="c-toolbar-divider" />
 

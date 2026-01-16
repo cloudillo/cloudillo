@@ -46,10 +46,23 @@ import * as Y from 'yjs'
 export type ChildRef = [0 | 1, string]
 
 // Object type codes
-export type ObjectTypeCode = 'R' | 'E' | 'L' | 'P' | 'G' | 'T' | 'I' | 'M' | 'C' | 'Q' | 'F' | 'Tg'
+export type ObjectTypeCode =
+	| 'R'
+	| 'E'
+	| 'L'
+	| 'P'
+	| 'G'
+	| 'T'
+	| 'I'
+	| 'M'
+	| 'C'
+	| 'Q'
+	| 'F'
+	| 'Tg'
+	| 'S'
 // R=rect, E=ellipse, L=line, P=path, G=polygon, T=text
 // I=image, M=embed (media)
-// C=connector, Q=qrcode, F=pollframe, Tg=tablegrid
+// C=connector, Q=qrcode, F=pollframe, Tg=tablegrid, S=symbol
 
 // QR Code error correction level codes
 export type QrErrorCorrectionLevel = 'L' | 'M' | 'Q' | 'H'
@@ -253,6 +266,12 @@ export interface StoredTableGrid extends StoredObjectBase {
 	// Border styling via inherited ShapeStyle (s field) - line color, thickness
 }
 
+// Symbol (from symbol library)
+export interface StoredSymbol extends StoredObjectBase {
+	t: 'S'
+	sid: string // symbolId - reference to symbol library
+}
+
 // Union of all stored object types
 export type StoredObject =
 	| StoredRect
@@ -267,6 +286,7 @@ export type StoredObject =
 	| StoredQrCode
 	| StoredPollFrame
 	| StoredTableGrid
+	| StoredSymbol
 
 // Container (layer or group)
 export interface StoredContainer {

@@ -195,6 +195,7 @@ import type {
 	ViewId,
 	TemplateId,
 	PrezilloObject,
+	SymbolObject,
 	TableGridObject,
 	ViewNode,
 	Bounds,
@@ -212,6 +213,7 @@ type CanvasObject = PrezilloObject & {
 	_isPrototype?: boolean
 }
 import {
+	addObject,
 	createObject,
 	updateObject,
 	updateObjectBounds,
@@ -258,7 +260,8 @@ import {
 	getStackedObjects,
 	// Document consistency/maintenance
 	checkDocumentConsistency,
-	fixDocumentIssues
+	fixDocumentIssues,
+	generateObjectId
 } from './crdt'
 
 import type { DocumentConsistencyReport } from './crdt'
@@ -324,6 +327,9 @@ export function PrezilloApp() {
 
 	// PDF export state
 	const [isExportingPDF, setIsExportingPDF] = React.useState(false)
+
+	// Symbol picker state
+	const [selectedSymbolId, setSelectedSymbolId] = React.useState<string | null>(null)
 
 	// Mobile bottom sheet state
 	const [mobileSnapPoint, setMobileSnapPoint] = React.useState<BottomSheetSnapPoint>('closed')
@@ -859,7 +865,7 @@ export function PrezilloApp() {
 	const storedSelectionRef = React.useRef(storedSelection)
 	storedSelectionRef.current = storedSelection
 
-	// Compute aspect ratio for single image/qrcode selection
+	// Compute aspect ratio for single image/qrcode/symbol selection
 	// This is used by useResizable for aspect-locked resize
 	const selectionAspectRatio = React.useMemo(() => {
 		if (prezillo.selectedIds.size !== 1) return undefined
@@ -873,6 +879,8 @@ export function PrezilloApp() {
 		if (stored.t === 'I') return wh[0] / wh[1]
 		// 'Q' = qrcode type - always square (1:1)
 		if (stored.t === 'Q') return 1
+		// 'S' = symbol type - always square (1:1)
+		if (stored.t === 'S') return 1
 		return undefined
 	}, [prezillo.selectedIds, prezillo.objects])
 
@@ -1359,6 +1367,15 @@ export function PrezilloApp() {
 		let height = Math.abs(toolEvent.y - toolEvent.startY)
 
 		const isTextTool = prezillo.activeTool === 'text'
+		const isSymbolTool = prezillo.activeTool === 'symbol'
+		const isQRCodeTool = prezillo.activeTool === 'qrcode'
+
+		// Enforce 1:1 aspect ratio for symbol and qrcode tools during drag
+		if (isSymbolTool || isQRCodeTool) {
+			const maxDim = Math.max(width, height)
+			width = maxDim
+			height = maxDim
+		}
 
 		if (width < 5 || height < 5) {
 			if (isTextTool) {
@@ -1367,6 +1384,18 @@ export function PrezilloApp() {
 				y = toolEvent.startY
 				width = 800
 				height = 80
+			} else if (isSymbolTool) {
+				// Click-to-create: 80x80 symbol centered on click
+				x = toolEvent.startX - 40
+				y = toolEvent.startY - 40
+				width = 80
+				height = 80
+			} else if (isQRCodeTool) {
+				// Click-to-create: 200x200 QR code centered on click
+				x = toolEvent.startX - 100
+				y = toolEvent.startY - 100
+				width = 200
+				height = 200
 			} else {
 				setToolEvent(undefined)
 				return
@@ -1381,19 +1410,50 @@ export function PrezilloApp() {
 			const relX = x - layout.x
 			const relY = y - layout.y
 
-			// Create object without page association (prototype)
-			const objectId = createObject(
-				prezillo.yDoc,
-				prezillo.doc,
-				prezillo.activeTool as any,
-				relX,
-				relY,
-				width,
-				height,
-				undefined, // No parent (template prototypes go to root)
-				undefined,
-				undefined // No pageId - prototype is not bound to any page
-			)
+			let objectId: ObjectId
+
+			// Handle symbol tool specially
+			if (prezillo.activeTool === 'symbol' && selectedSymbolId) {
+				objectId = generateObjectId()
+				const symbolObject: SymbolObject = {
+					id: objectId,
+					type: 'symbol',
+					x: relX,
+					y: relY,
+					width,
+					height,
+					rotation: 0,
+					pivotX: 0.5,
+					pivotY: 0.5,
+					opacity: 1,
+					visible: true,
+					locked: false,
+					hidden: false,
+					symbolId: selectedSymbolId
+				}
+				addObject(
+					prezillo.yDoc,
+					prezillo.doc,
+					symbolObject,
+					undefined, // No parent (template prototypes go to root)
+					undefined,
+					undefined // No pageId - prototype is not bound to any page
+				)
+			} else {
+				// Create object without page association (prototype)
+				objectId = createObject(
+					prezillo.yDoc,
+					prezillo.doc,
+					prezillo.activeTool as any,
+					relX,
+					relY,
+					width,
+					height,
+					undefined, // No parent (template prototypes go to root)
+					undefined,
+					undefined // No pageId - prototype is not bound to any page
+				)
+			}
 
 			// Add to template's prototype tracking
 			addObjectToTemplate(prezillo.yDoc, prezillo.doc, templateAtPoint, objectId)
@@ -1431,19 +1491,50 @@ export function PrezilloApp() {
 			}
 		}
 
-		// Create object based on tool
-		const objectId = createObject(
-			prezillo.yDoc,
-			prezillo.doc,
-			prezillo.activeTool as any,
-			createX,
-			createY,
-			width,
-			height,
-			parentId as any,
-			undefined, // insertIndex
-			targetPageId ?? undefined // pageId - page-relative if on a page
-		)
+		let objectId: ObjectId
+
+		// Handle symbol tool specially
+		if (prezillo.activeTool === 'symbol' && selectedSymbolId) {
+			objectId = generateObjectId()
+			const symbolObject: SymbolObject = {
+				id: objectId,
+				type: 'symbol',
+				x: createX,
+				y: createY,
+				width,
+				height,
+				rotation: 0,
+				pivotX: 0.5,
+				pivotY: 0.5,
+				opacity: 1,
+				visible: true,
+				locked: false,
+				hidden: false,
+				symbolId: selectedSymbolId
+			}
+			addObject(
+				prezillo.yDoc,
+				prezillo.doc,
+				symbolObject,
+				parentId as any,
+				undefined, // insertIndex
+				targetPageId ?? undefined // pageId - page-relative if on a page
+			)
+		} else {
+			// Create object based on tool
+			objectId = createObject(
+				prezillo.yDoc,
+				prezillo.doc,
+				prezillo.activeTool as any,
+				createX,
+				createY,
+				width,
+				height,
+				parentId as any,
+				undefined, // insertIndex
+				targetPageId ?? undefined // pageId - page-relative if on a page
+			)
+		}
 
 		prezillo.setActiveTool(null)
 		setToolEvent(undefined)
@@ -1676,6 +1767,8 @@ export function PrezilloApp() {
 					isPanelVisible={isPanelVisible}
 					onTogglePanel={() => setIsPanelVisible((v) => !v)}
 					onCheckDocument={handleCheckDocument}
+					selectedSymbolId={selectedSymbolId}
+					onSelectSymbol={setSelectedSymbolId}
 				/>
 			)}
 
@@ -1987,19 +2080,34 @@ export function PrezilloApp() {
 						/>
 
 						{/* Tool preview */}
-						{toolEvent && prezillo.activeTool && (
-							<rect
-								x={Math.min(toolEvent.startX, toolEvent.x)}
-								y={Math.min(toolEvent.startY, toolEvent.y)}
-								width={Math.abs(toolEvent.x - toolEvent.startX)}
-								height={Math.abs(toolEvent.y - toolEvent.startY)}
-								stroke="#0066ff"
-								strokeWidth={2}
-								strokeDasharray="4,4"
-								fill="rgba(0, 102, 255, 0.1)"
-								pointerEvents="none"
-							/>
-						)}
+						{toolEvent &&
+							prezillo.activeTool &&
+							(() => {
+								let previewWidth = Math.abs(toolEvent.x - toolEvent.startX)
+								let previewHeight = Math.abs(toolEvent.y - toolEvent.startY)
+								// Enforce square for symbol and qrcode tools
+								if (
+									prezillo.activeTool === 'symbol' ||
+									prezillo.activeTool === 'qrcode'
+								) {
+									const maxDim = Math.max(previewWidth, previewHeight)
+									previewWidth = maxDim
+									previewHeight = maxDim
+								}
+								return (
+									<rect
+										x={Math.min(toolEvent.startX, toolEvent.x)}
+										y={Math.min(toolEvent.startY, toolEvent.y)}
+										width={previewWidth}
+										height={previewHeight}
+										stroke="#0066ff"
+										strokeWidth={2}
+										strokeDasharray="4,4"
+										fill="rgba(0, 102, 255, 0.1)"
+										pointerEvents="none"
+									/>
+								)
+							})()}
 					</SvgCanvas>
 				</div>
 

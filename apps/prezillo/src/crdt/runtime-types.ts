@@ -36,6 +36,7 @@ export type ObjectType =
 	| 'qrcode'
 	| 'pollframe'
 	| 'tablegrid'
+	| 'symbol'
 
 // QR Code error correction levels (expanded)
 export type QrErrorCorrection = 'low' | 'medium' | 'quartile' | 'high'
@@ -271,6 +272,12 @@ export interface TableGridObject extends PrezilloObjectBase {
 	// Border styling via inherited ShapeStyle (style field) - line color, thickness
 }
 
+// Symbol object (from symbol library)
+export interface SymbolObject extends PrezilloObjectBase {
+	type: 'symbol'
+	symbolId: string // Reference to symbol in library
+}
+
 // Union of all object types
 export type PrezilloObject =
 	| RectObject
@@ -285,6 +292,7 @@ export type PrezilloObject =
 	| QrCodeObject
 	| PollFrameObject
 	| TableGridObject
+	| SymbolObject
 
 // Container (layer or group)
 export interface ContainerNode {

@@ -2233,3 +2233,116 @@ body,
 		animation: none;
 	}
 }
+
+/* ============================================================================
+ * Symbol Picker Styles
+ * ============================================================================ */
+
+.c-symbol-picker {
+	display: inline-block;
+}
+
+.c-symbol-dropdown {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	z-index: 100;
+	min-width: 240px;
+	background: var(--col-surface);
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-2);
+	box-shadow: var(--shadow-lg);
+	overflow: hidden;
+}
+
+.c-symbol-tabs {
+	display: flex;
+	border-bottom: 1px solid var(--col-outline);
+	background: var(--col-container-low);
+}
+
+.c-symbol-tab {
+	flex: 1;
+	padding: var(--space-2) var(--space-3);
+	background: none;
+	border: none;
+	border-bottom: 2px solid transparent;
+	cursor: pointer;
+	font-size: var(--text-sm);
+	color: var(--col-txt-secondary);
+	transition: all 0.15s ease;
+}
+
+.c-symbol-tab:hover {
+	color: var(--col-txt);
+	background: var(--col-container-high);
+}
+
+.c-symbol-tab.active {
+	color: var(--col-primary);
+	border-bottom-color: var(--col-primary);
+}
+
+.c-symbol-grid {
+	display: grid;
+	grid-template-columns: repeat(5, 1fr);
+	gap: var(--space-1);
+	padding: var(--space-2);
+	max-height: 280px;
+	overflow-y: auto;
+}
+
+.c-symbol-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 44px;
+	height: 44px;
+	padding: var(--space-2);
+	background: var(--col-container-low);
+	border: 1px solid transparent;
+	border-radius: var(--radius-1);
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.c-symbol-btn:hover {
+	background: var(--col-container-high);
+	border-color: var(--col-outline);
+}
+
+.c-symbol-btn.active {
+	background: var(--col-container-primary);
+	border-color: var(--col-primary);
+}
+
+.c-symbol-icon {
+	width: 24px;
+	height: 24px;
+	color: var(--col-on-container);
+}
+
+.c-symbol-btn.active .c-symbol-icon {
+	color: var(--col-primary);
+}
+
+/* Mobile responsive - larger touch targets */
+@media (max-width: 768px) {
+	.c-symbol-dropdown {
+		min-width: 280px;
+	}
+
+	.c-symbol-grid {
+		grid-template-columns: repeat(4, 1fr);
+	}
+
+	.c-symbol-btn {
+		width: 56px;
+		height: 56px;
+	}
+
+	.c-symbol-icon {
+		width: 28px;
+		height: 28px;
+	}
+}

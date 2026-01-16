@@ -657,6 +657,9 @@ export function getStackedObjects(
 	const targetBounds = getAbsoluteBoundsStored(doc, targetObj)
 	if (!targetBounds) return []
 
+	// Get prototype IDs to exclude (prototypes are template objects, not real objects)
+	const prototypeIds = getAllPrototypeIds(doc)
+
 	// Find direct children (objects immediately above with sufficient overlap)
 	const directChildren: ObjectId[] = []
 
@@ -670,6 +673,8 @@ export function getStackedObjects(
 		if (candidateObj.k) continue
 		// Skip invisible objects
 		if (candidateObj.v === false) continue
+		// Skip prototype objects (they're for templates, not direct manipulation)
+		if (prototypeIds.has(candidateId)) continue
 
 		const candidateBounds = getAbsoluteBoundsStored(doc, candidateObj)
 		if (!candidateBounds) continue
@@ -689,7 +694,13 @@ export function getStackedObjects(
 			if (visited.has(id)) continue
 			visited.add(id)
 
-			const childStacked = getStackedObjectsDirect(doc, id, allObjectIds, overlapThreshold)
+			const childStacked = getStackedObjectsDirect(
+				doc,
+				id,
+				allObjectIds,
+				overlapThreshold,
+				prototypeIds
+			)
 			for (const childId of childStacked) {
 				if (!allStacked.has(childId)) {
 					allStacked.add(childId)
@@ -712,7 +723,8 @@ function getStackedObjectsDirect(
 	doc: YPrezilloDocument,
 	objectId: ObjectId,
 	allObjectIds: ObjectId[],
-	overlapThreshold: number
+	overlapThreshold: number,
+	prototypeIds: Set<string>
 ): ObjectId[] {
 	const targetIndex = allObjectIds.indexOf(objectId)
 	if (targetIndex === -1) return []
@@ -732,6 +744,8 @@ function getStackedObjectsDirect(
 		if (!candidateObj) continue
 		if (candidateObj.k) continue
 		if (candidateObj.v === false) continue
+		// Skip prototype objects (they're for templates, not direct manipulation)
+		if (prototypeIds.has(candidateId)) continue
 
 		const candidateBounds = getAbsoluteBoundsStored(doc, candidateObj)
 		if (!candidateBounds) continue

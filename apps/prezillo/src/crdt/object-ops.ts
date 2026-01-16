@@ -168,6 +168,13 @@ export function createObject(
 				}
 			} as any
 			break
+		case 'symbol':
+			object = {
+				...base,
+				type: 'symbol',
+				symbolId: '' // Will be set by caller via addObject
+			} as any
+			break
 		default:
 			throw new Error(`Unknown object type: ${type}`)
 	}

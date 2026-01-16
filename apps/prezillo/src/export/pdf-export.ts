@@ -35,7 +35,8 @@ import type {
 	QrCodeObject,
 	TextObject,
 	PollFrameObject,
-	TableGridObject
+	TableGridObject,
+	SymbolObject
 } from '../crdt'
 import {
 	resolveShapeStyle,
@@ -47,6 +48,7 @@ import {
 	getAbsolutePositionStored
 } from '../crdt'
 import { calculateRotationTransform, buildStrokeProps, buildFillProps } from '../utils'
+import { getSymbolById } from '../data/symbol-library'
 import { calculateGridPositions } from '../components/TableGridRenderer'
 import type { PDFExportOptions, RenderContext, Bounds } from './types'
 import { createSVGTextElement } from './text-converter'
@@ -381,6 +383,95 @@ async function renderObjectToSVG(
 			}
 
 			content = fragment
+			break
+		}
+
+		case 'symbol': {
+			const symbolObj = object as SymbolObject
+			const symbol = getSymbolById(symbolObj.symbolId)
+
+			if (!symbol) {
+				// Fallback: render placeholder rect if symbol not found
+				const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+				rect.setAttribute('x', String(object.x))
+				rect.setAttribute('y', String(object.y))
+				rect.setAttribute('width', String(object.width))
+				rect.setAttribute('height', String(object.height))
+				rect.setAttribute('fill', '#cccccc')
+				rect.setAttribute('stroke', '#999999')
+				rect.setAttribute('stroke-width', '1')
+				rect.setAttribute('stroke-dasharray', '4 2')
+				content = rect
+				break
+			}
+
+			const [vbX, vbY, vbWidth, vbHeight] = symbol.viewBox
+
+			// Calculate transform to fit symbol in bounds while preserving aspect ratio
+			const symbolAspect = vbWidth / vbHeight
+			const boundsAspect = object.width / object.height
+
+			let scaleX: number
+			let scaleY: number
+			let offsetX = 0
+			let offsetY = 0
+
+			if (symbolAspect > boundsAspect) {
+				// Symbol is wider - fit to width, center vertically
+				scaleX = object.width / vbWidth
+				scaleY = scaleX
+				offsetY = (object.height - vbHeight * scaleY) / 2
+			} else {
+				// Symbol is taller - fit to height, center horizontally
+				scaleY = object.height / vbHeight
+				scaleX = scaleY
+				offsetX = (object.width - vbWidth * scaleX) / 2
+			}
+
+			// Build fill value - use gradient if provided, otherwise use solid fill
+			const fillValue = gradientId
+				? `url(#${gradientId})`
+				: fillProps.fill === 'none'
+					? 'none'
+					: fillProps.fill
+
+			// Create group with transform
+			const symbolG = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+			const translateX = object.x + offsetX - vbX * scaleX
+			const translateY = object.y + offsetY - vbY * scaleY
+			symbolG.setAttribute(
+				'transform',
+				`translate(${translateX}, ${translateY}) scale(${scaleX}, ${scaleY})`
+			)
+
+			// Create path element
+			const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+			path.setAttribute('d', symbol.pathData)
+			path.setAttribute('fill', fillValue || '#333333')
+			if (style.fillOpacity !== undefined && style.fillOpacity !== 1) {
+				path.setAttribute('fill-opacity', String(style.fillOpacity))
+			}
+
+			// Apply stroke (adjusted for scaling)
+			if (style.stroke && style.stroke !== 'none') {
+				path.setAttribute('stroke', style.stroke)
+				path.setAttribute('stroke-width', String((style.strokeWidth || 1) / scaleX))
+				if (style.strokeOpacity !== undefined && style.strokeOpacity !== 1) {
+					path.setAttribute('stroke-opacity', String(style.strokeOpacity))
+				}
+				if (style.strokeDasharray) {
+					path.setAttribute('stroke-dasharray', style.strokeDasharray)
+				}
+				if (style.strokeLinecap) {
+					path.setAttribute('stroke-linecap', style.strokeLinecap)
+				}
+				if (style.strokeLinejoin) {
+					path.setAttribute('stroke-linejoin', style.strokeLinejoin)
+				}
+			}
+
+			symbolG.appendChild(path)
+			content = symbolG
 			break
 		}
 

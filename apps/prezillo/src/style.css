@@ -2094,15 +2094,23 @@ body,
 	transition: all 0.2s ease;
 }
 
+.prezillo-pollframe rect,
+.prezillo-pollframe ellipse {
+	transition: filter 0.2s ease;
+}
+
 /* Interactive state in presentation mode */
 .prezillo-pollframe.interactive {
 	cursor: pointer;
+	touch-action: manipulation;
 }
 
-/* Hover effect for interactive poll frames */
-.prezillo-pollframe.interactive:hover rect,
-.prezillo-pollframe.interactive:hover ellipse {
-	filter: brightness(1.1);
+/* Hover effect for interactive poll frames - only on devices with hover support */
+@media (hover: hover) {
+	.prezillo-pollframe.interactive:hover rect,
+	.prezillo-pollframe.interactive:hover ellipse {
+		filter: brightness(1.2) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.25));
+	}
 }
 
 /* Non-interactive objects should not capture pointer events in presentation mode.
@@ -2131,8 +2139,10 @@ body,
 	transition: transform 0.2s ease;
 }
 
-.prezillo-pollframe:hover .poll-badge {
-	transform: scale(1.15);
+@media (hover: hover) {
+	.prezillo-pollframe:hover .poll-badge {
+		transform: scale(1.15);
+	}
 }
 
 /* User's vote indicator pulse animation */

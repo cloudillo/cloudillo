@@ -20,10 +20,65 @@
 
 import * as React from 'react'
 import type { PrezilloObject, ResolvedTextStyle } from '../crdt'
-import { TEXT_ALIGN_CSS, getTextDecorationCSS, calculateRotationTransform } from '../utils'
+import {
+	TEXT_ALIGN_CSS,
+	VERTICAL_ALIGN_CSS,
+	getTextDecorationCSS,
+	calculateRotationTransform
+} from '../utils'
+import { getBulletIcon, migrateBullet } from '../data/bullet-icons'
 
 // Border width for the drag zone around the textarea
 const BORDER_WIDTH = 8
+
+/**
+ * Measure text width using Canvas API for accurate bullet positioning
+ */
+function measureTextWidth(text: string, style: ResolvedTextStyle): number {
+	const canvas = document.createElement('canvas')
+	const ctx = canvas.getContext('2d')
+	if (!ctx) return 0
+
+	const fontStyle = style.fontItalic ? 'italic' : 'normal'
+	const fontWeight = style.fontWeight || 'normal'
+	const fontSize = style.fontSize || 64
+	const fontFamily = style.fontFamily || 'system-ui, sans-serif'
+
+	ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`
+
+	// Apply letter spacing if set
+	if (style.letterSpacing && style.letterSpacing !== 0) {
+		let width = 0
+		for (const char of text) {
+			width += ctx.measureText(char).width + style.letterSpacing
+		}
+		return width - style.letterSpacing
+	}
+
+	return ctx.measureText(text).width
+}
+
+/**
+ * Inline SVG bullet icon component for edit mode
+ * Renders bullet as SVG positioned at line start
+ */
+function BulletIcon({ bulletId, size, color }: { bulletId: string; size: number; color: string }) {
+	const icon = getBulletIcon(bulletId)
+	if (!icon) return null
+
+	const [vbX, vbY, vbW, vbH] = icon.viewBox
+
+	return (
+		<svg
+			width={size}
+			height={size}
+			viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
+			style={{ display: 'block' }}
+		>
+			<path d={icon.pathData} fill={color} />
+		</svg>
+	)
+}
 
 export interface TextEditOverlayProps {
 	object: PrezilloObject
@@ -71,9 +126,10 @@ export function TextEditOverlay({
 			// Reset height to measure scrollHeight accurately
 			inputRef.current.style.height = 'auto'
 			const scrollHeight = inputRef.current.scrollHeight
-			const newHeight = Math.max(scrollHeight, object.height)
-			inputRef.current.style.height = `${newHeight}px`
-			setTextareaHeight(newHeight)
+			// Always set explicit height to content size
+			inputRef.current.style.height = `${scrollHeight}px`
+			// foreignObject needs to be at least object.height for vertical alignment
+			setTextareaHeight(Math.max(scrollHeight, object.height))
 		}
 	}, [object.height])
 
@@ -116,6 +172,30 @@ export function TextEditOverlay({
 
 	const textDecorationCSS = getTextDecorationCSS(textStyle.textDecoration)
 
+	// Calculate bullet indent for padding (must match WrappedText)
+	const bulletId = migrateBullet(textStyle.listBullet)
+	const bulletIcon = bulletId ? getBulletIcon(bulletId) : null
+	const bulletSize = textStyle.fontSize * 0.6
+	const bulletGap = textStyle.fontSize * 0.3
+	const bulletIndent = bulletIcon ? bulletSize + bulletGap : 0
+	const lineHeightPx = textStyle.fontSize * textStyle.lineHeight
+
+	// Split text into lines for bullet positioning
+	const lines = text.split('\n')
+
+	// Calculate textarea content height for vertical alignment offset
+	const textContentHeight = lines.length * lineHeightPx
+
+	// Match the vertical offset that the textarea gets from flex alignment
+	// This ensures bullets stay aligned with the text when verticalAlign is middle or bottom
+	let bulletOverlayTop = 0
+	const containerHeight = textareaHeight
+	if (textStyle.verticalAlign === 'middle' && textContentHeight < containerHeight) {
+		bulletOverlayTop = (containerHeight - textContentHeight) / 2
+	} else if (textStyle.verticalAlign === 'bottom' && textContentHeight < containerHeight) {
+		bulletOverlayTop = containerHeight - textContentHeight
+	}
+
 	// Calculate rotation transform using centralized utility
 	const rotationTransform = calculateRotationTransform(object)
 
@@ -140,37 +220,101 @@ export function TextEditOverlay({
 				height={textareaHeight}
 				style={{ overflow: 'visible' }}
 			>
-				<textarea
-					ref={inputRef}
-					value={text}
-					placeholder={placeholder}
-					onChange={(e) => setText(e.target.value)}
-					onKeyDown={handleKeyDown}
-					onBlur={handleBlur}
-					onPointerDown={(e) => e.stopPropagation()}
-					onClick={(e) => e.stopPropagation()}
+				<div
 					style={{
 						width: '100%',
-						minWidth: object.width,
-						minHeight: object.height,
-						fontSize: `${textStyle.fontSize}px`,
-						fontFamily: textStyle.fontFamily,
-						fontWeight: textStyle.fontWeight,
-						fontStyle: textStyle.fontItalic ? 'italic' : 'normal',
-						textDecoration: textDecorationCSS,
-						textAlign: TEXT_ALIGN_CSS[textStyle.textAlign] as any,
-						lineHeight: textStyle.lineHeight,
-						letterSpacing: `${textStyle.letterSpacing}px`,
-						color: textStyle.fill,
-						border: 'none',
-						padding: '4px 6px',
-						boxSizing: 'border-box',
-						resize: 'none',
-						background: 'rgba(255, 255, 255, 0.95)',
-						outline: 'none',
-						overflow: 'hidden'
+						height: '100%',
+						display: 'flex',
+						alignItems: VERTICAL_ALIGN_CSS[textStyle.verticalAlign] || 'flex-start',
+						overflow: 'visible',
+						position: 'relative'
 					}}
-				/>
+					onClick={() => inputRef.current?.focus()}
+				>
+					{/* Bullet icons overlay - positioned at line starts (respecting indentation) */}
+					{bulletIcon && bulletId && (
+						<div
+							style={{
+								position: 'absolute',
+								left: 0,
+								top: bulletOverlayTop,
+								pointerEvents: 'none'
+							}}
+						>
+							{lines.map((line, index) => {
+								if (line.trim() === '') return null
+								// Measure leading whitespace to position bullet after indentation
+								const leadingMatch = line.match(/^(\s*)/)
+								const leadingSpace = leadingMatch ? leadingMatch[1] : ''
+								const leadingWidth = leadingSpace
+									? measureTextWidth(leadingSpace, textStyle)
+									: 0
+
+								// Calculate bullet position with x-height offset
+								// Shift down from line-height center to align with text x-height center
+								const xHeightOffset = 0.1 * textStyle.fontSize
+
+								return (
+									<div
+										key={index}
+										style={{
+											position: 'absolute',
+											top:
+												index * lineHeightPx +
+												(lineHeightPx - bulletSize) / 2 +
+												xHeightOffset,
+											left: leadingWidth,
+											display: 'flex',
+											alignItems: 'center',
+											height: bulletSize
+										}}
+									>
+										<BulletIcon
+											bulletId={bulletId}
+											size={bulletSize}
+											color={textStyle.fill}
+										/>
+									</div>
+								)
+							})}
+						</div>
+					)}
+					<textarea
+						ref={inputRef}
+						value={text}
+						placeholder={placeholder}
+						onChange={(e) => setText(e.target.value)}
+						onKeyDown={handleKeyDown}
+						onBlur={handleBlur}
+						onPointerDown={(e) => e.stopPropagation()}
+						onClick={(e) => e.stopPropagation()}
+						style={{
+							width: '100%',
+							minWidth: object.width,
+							fontSize: `${textStyle.fontSize}px`,
+							fontFamily: textStyle.fontFamily,
+							fontWeight: textStyle.fontWeight,
+							fontStyle: textStyle.fontItalic ? 'italic' : 'normal',
+							textDecoration: textDecorationCSS,
+							textAlign: TEXT_ALIGN_CSS[textStyle.textAlign] as any,
+							lineHeight: textStyle.lineHeight,
+							letterSpacing: `${textStyle.letterSpacing}px`,
+							color: textStyle.fill,
+							border: 'none',
+							// Add left padding to account for bullet indent
+							padding: `0 0 0 ${bulletIndent}px`,
+							boxSizing: 'border-box',
+							resize: 'none',
+							background: 'transparent',
+							outline: 'none',
+							overflow: 'hidden',
+							// Match WrappedText styling for consistent text wrapping
+							whiteSpace: 'pre-wrap',
+							wordWrap: 'break-word',
+							overflowWrap: 'break-word'
+						}}
+					/>
+				</div>
 			</foreignObject>
 		</g>
 	)

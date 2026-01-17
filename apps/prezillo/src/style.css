@@ -2346,3 +2346,75 @@ body,
 		height: 28px;
 	}
 }
+
+/* Bullet Picker */
+.c-bullet-picker {
+	position: relative;
+	display: inline-block;
+}
+
+.c-bullet-preview {
+	font-size: 20px;
+	line-height: 1;
+}
+
+.c-bullet-dropdown {
+	position: absolute;
+	bottom: 100%;
+	left: 0;
+	z-index: 100;
+	margin-bottom: var(--space-1);
+	background: var(--col-surface);
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-2);
+	box-shadow: var(--shadow-lg);
+	overflow: hidden;
+}
+
+.c-bullet-grid {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: var(--space-1);
+	padding: var(--space-2);
+}
+
+.c-bullet-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	font-size: 20px;
+	background: var(--col-container-low);
+	border: 1px solid transparent;
+	border-radius: var(--radius-1);
+	cursor: pointer;
+	transition: all 0.15s ease;
+	color: var(--col-on-container);
+}
+
+.c-bullet-btn:hover {
+	background: var(--col-container-high);
+	border-color: var(--col-outline);
+}
+
+.c-bullet-btn.active {
+	background: var(--col-container-primary);
+	border-color: var(--col-primary);
+	color: var(--col-primary);
+}
+
+/* None option - visually distinct */
+.c-bullet-btn.c-bullet-none {
+	color: var(--col-on-container);
+	opacity: 0.5;
+}
+
+.c-bullet-btn.c-bullet-none:hover {
+	color: var(--col-on-container);
+	opacity: 0.8;
+}
+
+.c-bullet-btn.c-bullet-none.active {
+	color: var(--col-primary);
+}

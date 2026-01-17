@@ -32,7 +32,8 @@ import {
 	PiAlignTopBold as IcAlignTop,
 	PiAlignCenterVerticalBold as IcAlignMiddle,
 	PiAlignBottomBold as IcAlignBottom,
-	PiListBulletsBold as IcListBullets
+	PiListBulletsBold as IcListBullets,
+	PiProhibitBold as IcNone
 } from 'react-icons/pi'
 
 import type { YPrezilloDocument, PrezilloObject, ObjectId, TextStyleField } from '../../crdt'
@@ -47,15 +48,34 @@ import {
 import { FONT_SIZES } from '../../utils/text-styles'
 import { PropertyLockButton } from './PropertyLockButton'
 import type { PropertyPreview } from './PrezilloPropertiesPanel'
-
-// Bullet character options for list mode
-const BULLET_OPTIONS = ['', '•', '◦', '▪', '▸', '→', '★', '✓', '✦', '❯', '○', '▹']
+import { BULLET_ICONS, getBulletIcon, migrateBullet } from '../../data/bullet-icons'
 
 export interface TextStyleSectionProps {
 	doc: YPrezilloDocument
 	yDoc: Y.Doc
 	object: PrezilloObject
 	onPreview?: (preview: PropertyPreview | null) => void
+}
+
+/**
+ * SVG icon component for bullet preview
+ */
+function BulletIconPreview({ bulletId, size = 20 }: { bulletId: string; size?: number }) {
+	const icon = getBulletIcon(bulletId)
+	if (!icon) return null
+
+	const [vbX, vbY, vbW, vbH] = icon.viewBox
+
+	return (
+		<svg
+			width={size}
+			height={size}
+			viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
+			style={{ display: 'block' }}
+		>
+			<path d={icon.pathData} fill="currentColor" />
+		</svg>
+	)
 }
 
 export function TextStyleSection({ doc, yDoc, object, onPreview }: TextStyleSectionProps) {
@@ -92,10 +112,15 @@ export function TextStyleSection({ doc, yDoc, object, onPreview }: TextStyleSect
 	const stored = doc.o.get(object.id)
 	const resolvedStyle = stored ? resolveTextStyle(doc, stored) : null
 
+	// Get migrated bullet ID for display
+	const currentBulletId = resolvedStyle?.listBullet
+		? migrateBullet(resolvedStyle.listBullet)
+		: undefined
+
 	const handleBulletChange = React.useCallback(
-		(bullet: string) => {
+		(bulletId: string) => {
 			updateObjectTextStyle(yDoc, doc, objectId, {
-				lb: bullet || (null as any)
+				lb: bulletId || (null as any)
 			})
 			setShowBulletPicker(false)
 		},
@@ -338,57 +363,52 @@ export function TextStyleSection({ doc, yDoc, object, onPreview }: TextStyleSect
 			{/* List Bullet */}
 			<PropertyField label="List" labelWidth={40}>
 				<div className="c-hbox ai-center g-1 f-1">
-					<div style={{ position: 'relative' }}>
+					<div className="c-bullet-picker">
 						<button
 							className={mergeClasses(
 								'c-button icon compact',
-								resolvedStyle.listBullet ? 'active' : ''
+								currentBulletId ? 'active' : ''
 							)}
 							onClick={() => !bulletLocked && setShowBulletPicker(!showBulletPicker)}
 							title="List bullet"
-							style={{ minWidth: 32, fontSize: 16 }}
 							disabled={bulletLocked}
 						>
-							{resolvedStyle.listBullet || <IcListBullets size={14} />}
+							{currentBulletId ? (
+								<BulletIconPreview bulletId={currentBulletId} size={18} />
+							) : (
+								<IcListBullets size={18} />
+							)}
 						</button>
 						{showBulletPicker && !bulletLocked && (
-							<div
-								style={{
-									position: 'absolute',
-									top: '100%',
-									left: 0,
-									zIndex: 100,
-									background: 'var(--bg-surface, #fff)',
-									border: '1px solid var(--border, #ccc)',
-									borderRadius: 4,
-									padding: 4,
-									display: 'grid',
-									gridTemplateColumns: 'repeat(4, 1fr)',
-									gap: 2,
-									boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
-								}}
-							>
-								{BULLET_OPTIONS.map((bullet, i) => (
+							<div className="c-bullet-dropdown">
+								<div className="c-bullet-grid">
+									{/* None option - visually distinct */}
 									<button
-										key={i}
 										className={mergeClasses(
-											'c-button icon compact',
-											resolvedStyle.listBullet === bullet ? 'active' : ''
+											'c-bullet-btn',
+											!currentBulletId ? 'active' : '',
+											'c-bullet-none'
 										)}
-										onClick={() => handleBulletChange(bullet)}
-										style={{
-											width: 32,
-											height: 32,
-											fontSize: 18,
-											display: 'flex',
-											alignItems: 'center',
-											justifyContent: 'center'
-										}}
-										title={bullet || 'None'}
+										onClick={() => handleBulletChange('')}
+										title="No bullets"
 									>
-										{bullet || '✕'}
+										<IcNone size={20} />
 									</button>
-								))}
+									{/* Bullet icon options */}
+									{BULLET_ICONS.map((bullet) => (
+										<button
+											key={bullet.id}
+											className={mergeClasses(
+												'c-bullet-btn',
+												currentBulletId === bullet.id ? 'active' : ''
+											)}
+											onClick={() => handleBulletChange(bullet.id)}
+											title={bullet.name}
+										>
+											<BulletIconPreview bulletId={bullet.id} size={20} />
+										</button>
+									))}
+								</div>
 							</div>
 						)}
 					</div>

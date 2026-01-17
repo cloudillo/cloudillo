@@ -22,6 +22,7 @@
 import * as React from 'react'
 import type { ResolvedTextStyle } from '../crdt'
 import { TEXT_ALIGN_CSS, VERTICAL_ALIGN_CSS, getTextDecorationCSS } from '../utils/text-styles'
+import { getBulletIcon, migrateBullet } from '../data/bullet-icons'
 
 interface WrappedTextProps {
 	x: number
@@ -31,6 +32,32 @@ interface WrappedTextProps {
 	text: string
 	textStyle: ResolvedTextStyle
 	isPlaceholder?: boolean
+}
+
+/**
+ * Inline SVG bullet icon component
+ * Renders bullet as inline SVG within HTML content
+ */
+function BulletIcon({ bulletId, size, color }: { bulletId: string; size: number; color: string }) {
+	const icon = getBulletIcon(bulletId)
+	if (!icon) return null
+
+	const [vbX, vbY, vbW, vbH] = icon.viewBox
+
+	return (
+		<svg
+			width={size}
+			height={size}
+			viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
+			style={{
+				display: 'inline-block',
+				verticalAlign: 'middle',
+				flexShrink: 0
+			}}
+		>
+			<path d={icon.pathData} fill={color} />
+		</svg>
+	)
 }
 
 export function WrappedText({
@@ -44,13 +71,72 @@ export function WrappedText({
 }: WrappedTextProps) {
 	const textDecorationCSS = getTextDecorationCSS(textStyle.textDecoration)
 
-	// Apply list bullets if set
-	const displayText = textStyle.listBullet
-		? text
-				.split('\n')
-				.map((line) => `${textStyle.listBullet} ${line}`)
-				.join('\n')
-		: text
+	// Migrate bullet ID if it's an old Unicode bullet
+	const bulletId = migrateBullet(textStyle.listBullet)
+	const bulletIcon = bulletId ? getBulletIcon(bulletId) : null
+
+	// Calculate bullet sizing relative to font size (60% for good visibility)
+	const bulletSize = textStyle.fontSize * 0.6
+	const bulletGap = textStyle.fontSize * 0.3
+
+	// If we have a bullet, render lines with bullet icons
+	const renderContent = () => {
+		if (!bulletIcon) {
+			// No bullet - render text normally
+			return text
+		}
+
+		// Split into lines and render each with a bullet
+		const lines = text.split('\n')
+		const textColor = isPlaceholder ? '#999999' : textStyle.fill
+
+		return lines.map((line, index) => {
+			// Empty lines - no bullet, just preserve the line
+			if (line.trim() === '') {
+				return (
+					<div
+						key={index}
+						style={{ minHeight: `${textStyle.fontSize * textStyle.lineHeight}px` }}
+					>
+						{'\u00A0'}
+					</div>
+				)
+			}
+
+			// Find leading whitespace and content
+			const match = line.match(/^(\s*)(.*)$/)
+			const leadingSpace = match ? match[1] : ''
+			const content = match ? match[2] : line
+
+			return (
+				<div
+					key={index}
+					style={{
+						display: 'flex',
+						alignItems: 'flex-start',
+						gap: `${bulletGap}px`
+					}}
+				>
+					{/* Indentation space */}
+					{leadingSpace && <span style={{ whiteSpace: 'pre' }}>{leadingSpace}</span>}
+					{/* Bullet icon - aligned with text x-height center */}
+					<span
+						style={{
+							display: 'flex',
+							alignItems: 'center',
+							height: `${textStyle.fontSize * textStyle.lineHeight}px`,
+							marginTop: `${0.1 * textStyle.fontSize}px`,
+							flexShrink: 0
+						}}
+					>
+						<BulletIcon bulletId={bulletId!} size={bulletSize} color={textColor} />
+					</span>
+					{/* Text content */}
+					<span style={{ flex: 1 }}>{content}</span>
+				</div>
+			)
+		})
+	}
 
 	return (
 		<foreignObject x={x} y={y} width={width} height={height} style={{ overflow: 'visible' }}>
@@ -85,7 +171,7 @@ export function WrappedText({
 						overflowWrap: 'break-word'
 					}}
 				>
-					{displayText}
+					{renderContent()}
 				</div>
 			</div>
 		</foreignObject>

@@ -420,19 +420,25 @@ export function PresentationMode({
 			followingViewIndex !== undefined &&
 			followingViewIndex !== currentIndex
 		) {
+			// Clear vote when slide changes (poll session ends)
+			if (awareness) clearVote(awareness)
 			setCurrentIndex(followingViewIndex)
+			setFocusedPollIndex(-1) // Reset poll focus when slide changes
 		}
-	}, [isFollowing, followingViewIndex, currentIndex])
+	}, [isFollowing, followingViewIndex, currentIndex, awareness])
 
 	// Notify when view changes (for presenting mode)
 	const handleIndexChange = React.useCallback(
 		(newIndex: number) => {
+			// Clear vote when slide changes (poll session ends)
+			if (awareness) clearVote(awareness)
 			setCurrentIndex(newIndex)
+			setFocusedPollIndex(-1) // Reset poll focus when slide changes
 			if (onViewChange && views[newIndex]) {
 				onViewChange(newIndex, views[newIndex].id)
 			}
 		},
-		[onViewChange, views]
+		[awareness, onViewChange, views]
 	)
 
 	const [showControls, setShowControls] = React.useState(true)

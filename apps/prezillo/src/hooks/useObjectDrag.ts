@@ -108,7 +108,15 @@ export interface UseObjectDragOptions {
 export interface UseObjectDragResult {
 	dragState: DragState | null
 	setDragState: React.Dispatch<React.SetStateAction<DragState | null>>
-	handleObjectPointerDown: (e: React.PointerEvent, objectId: ObjectId) => void
+	handleObjectPointerDown: (
+		e: React.PointerEvent,
+		objectId: ObjectId,
+		options?: {
+			grabPointOverride?: { x: number; y: number }
+			/** Skip the "select first" check and force start dragging immediately */
+			forceStartDrag?: boolean
+		}
+	) => void
 }
 
 export function useObjectDrag({
@@ -149,7 +157,15 @@ export function useObjectDrag({
 	const [dragState, setDragState] = React.useState<DragState | null>(null)
 
 	const handleObjectPointerDown = React.useCallback(
-		(e: React.PointerEvent, objectId: ObjectId) => {
+		(
+			e: React.PointerEvent,
+			objectId: ObjectId,
+			options?: {
+				grabPointOverride?: { x: number; y: number }
+				forceStartDrag?: boolean
+			}
+		) => {
+			const { grabPointOverride, forceStartDrag } = options ?? {}
 			// Don't allow drag in read-only mode
 			if (isReadOnly) return
 
@@ -220,7 +236,8 @@ export function useObjectDrag({
 
 			// Select the object if not already selected
 			// selectObject automatically handles template/page selection
-			if (!wasAlreadySelected) {
+			// Skip this check if forceStartDrag is true (e.g., dragging from edit mode)
+			if (!wasAlreadySelected && !forceStartDrag) {
 				const addToSelection = e.shiftKey || e.ctrlKey || e.metaKey
 				selectObject(objectId, addToSelection)
 				// Set flag to prevent canvas click from immediately clearing selection
@@ -271,16 +288,21 @@ export function useObjectDrag({
 			}
 
 			// Calculate grab point for snap weighting (normalized 0-1)
-			grabPointRef.current = computeGrabPoint(
-				{ x: svgPoint.x, y: svgPoint.y },
-				{
-					x: xy[0],
-					y: xy[1],
-					width: wh[0],
-					height: wh[1],
-					rotation: obj.r || 0
-				}
-			)
+			// Use override if provided, otherwise compute from click position
+			if (grabPointOverride) {
+				grabPointRef.current = grabPointOverride
+			} else {
+				grabPointRef.current = computeGrabPoint(
+					{ x: svgPoint.x, y: svgPoint.y },
+					{
+						x: xy[0],
+						y: xy[1],
+						width: wh[0],
+						height: wh[1],
+						rotation: obj.r || 0
+					}
+				)
+			}
 
 			// Track current position for final commit (mutable to avoid stale closure)
 			let currentX = xy[0]
@@ -574,9 +596,15 @@ export function useObjectDrag({
 				window.removeEventListener('pointermove', handlePointerMove)
 				window.removeEventListener('pointerup', handlePointerUp)
 
+				// Re-enable text selection after drag
+				document.body.style.userSelect = ''
+
 				// Prevent canvas click from clearing selection immediately after drag
 				justFinishedInteractionRef.current = true
 			}
+
+			// Prevent text selection during drag
+			document.body.style.userSelect = 'none'
 
 			window.addEventListener('pointermove', handlePointerMove)
 			window.addEventListener('pointerup', handlePointerUp)

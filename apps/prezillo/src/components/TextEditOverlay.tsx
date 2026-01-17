@@ -86,11 +86,18 @@ export interface TextEditOverlayProps {
 	onSave: (text: string) => void
 	onCancel: () => void
 	onTextChange?: (text: string) => void
-	onDragStart?: (e: React.PointerEvent) => void
+	onDragStart?: (
+		e: React.PointerEvent,
+		options?: { grabPointOverride?: { x: number; y: number }; forceStartDrag?: boolean }
+	) => void
 	/** Text from prototype (for template instances) - shown as placeholder */
 	prototypeText?: string
 	/** Whether the instance has its own local text (not inheriting) */
 	hasLocalText?: boolean
+	/** Callback to check if blur should be ignored (e.g., when dragging from handle bar) */
+	shouldIgnoreBlur?: () => boolean
+	/** Callback to set the drag flag (prevents blur from closing editor during drag) */
+	onSetDragFlag?: () => void
 }
 
 export function TextEditOverlay({
@@ -101,7 +108,9 @@ export function TextEditOverlay({
 	onTextChange,
 	onDragStart,
 	prototypeText,
-	hasLocalText
+	hasLocalText,
+	shouldIgnoreBlur,
+	onSetDragFlag
 }: TextEditOverlayProps) {
 	const inputRef = React.useRef<HTMLTextAreaElement>(null)
 	// For instances inheriting text, start with empty to show placeholder
@@ -162,12 +171,41 @@ export function TextEditOverlay({
 	function handleBlur() {
 		// Ignore blur events before we're ready (prevents immediate blur from click)
 		if (!isReadyRef.current) return
+		// Ignore blur when dragging from handle bar (blur caused by clicking fixed layer element)
+		if (shouldIgnoreBlur?.()) return
 		onSave(text)
 	}
 
 	function handleBorderPointerDown(e: React.PointerEvent) {
+		// preventDefault stops the blur from firing on the textarea
+		e.preventDefault()
 		e.stopPropagation()
-		onDragStart?.(e)
+		// Set drag flag to prevent blur from closing editor
+		onSetDragFlag?.()
+		onDragStart?.(e, { forceStartDrag: true })
+	}
+
+	// Handle modifier+drag from textarea for center grab point
+	function handleTextareaPointerDown(e: React.PointerEvent) {
+		// Alt+drag (Option on Mac) allows dragging from inside text area
+		// This enables center snap points by grabbing from the middle of the object
+		if (e.altKey) {
+			e.preventDefault()
+			e.stopPropagation()
+			// Set drag flag to prevent blur from closing editor
+			onSetDragFlag?.()
+			// Calculate grab point based on click position relative to object bounds
+			const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+			const grabPointX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+			const grabPointY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height))
+			onDragStart?.(e, {
+				grabPointOverride: { x: grabPointX, y: grabPointY },
+				forceStartDrag: true
+			})
+			return
+		}
+		// Normal click - just stop propagation to allow text selection
+		e.stopPropagation()
 	}
 
 	const textDecorationCSS = getTextDecorationCSS(textStyle.textDecoration)
@@ -203,6 +241,7 @@ export function TextEditOverlay({
 		<g transform={rotationTransform}>
 			{/* Border drag zone - visible border that can be dragged to move the textbox */}
 			<rect
+				data-text-edit-handle="true"
 				x={object.x - BORDER_WIDTH / 2}
 				y={object.y - BORDER_WIDTH / 2}
 				width={object.width + BORDER_WIDTH}
@@ -286,7 +325,7 @@ export function TextEditOverlay({
 						onChange={(e) => setText(e.target.value)}
 						onKeyDown={handleKeyDown}
 						onBlur={handleBlur}
-						onPointerDown={(e) => e.stopPropagation()}
+						onPointerDown={handleTextareaPointerDown}
 						onClick={(e) => e.stopPropagation()}
 						style={{
 							width: '100%',

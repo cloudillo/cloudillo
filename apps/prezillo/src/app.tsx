@@ -136,6 +136,124 @@ function FixedPivotHandle(
 	)
 }
 
+/**
+ * Fixed layer text edit handle bar for dragging text objects during editing
+ * Renders at constant screen size regardless of zoom level
+ *
+ * The handle bar has three zones:
+ * - Left third: edge snapping (grab point x=0-0.33, y=0)
+ * - Center third: center snapping (grab point 0.5, 0.5) - visually distinct
+ * - Right third: edge snapping (grab point x=0.67-1, y=0)
+ */
+function FixedTextEditHandle({
+	canvasBounds,
+	rotation,
+	onDragStart
+}: {
+	canvasBounds: { x: number; y: number; width: number; height: number }
+	rotation?: number
+	onDragStart: (e: React.PointerEvent, grabPointOverride: { x: number; y: number }) => void
+}) {
+	const { translateFrom, scale } = useSvgCanvas()
+
+	// Transform canvas coords to screen coords
+	const [screenX, screenY] = translateFrom(canvasBounds.x, canvasBounds.y)
+	const screenWidth = canvasBounds.width * scale
+	const screenHeight = canvasBounds.height * scale
+
+	const HANDLE_HEIGHT = 20
+	const HANDLE_GAP = 6
+
+	// Position handle bar above the text box (in screen coords)
+	const handleY = screenY - HANDLE_GAP - HANDLE_HEIGHT
+	const handleCenterY = handleY + HANDLE_HEIGHT / 2
+
+	// Center zone boundaries (middle third)
+	const CENTER_ZONE_START = 1 / 3
+	const CENTER_ZONE_END = 2 / 3
+
+	function handlePointerDown(e: React.PointerEvent) {
+		e.preventDefault()
+		e.stopPropagation()
+		const rect = (e.target as SVGElement).getBoundingClientRect()
+		const relativeX = (e.clientX - rect.left) / rect.width
+		const normalizedX = Math.max(0, Math.min(1, relativeX))
+
+		// Check if click is in center zone
+		const isInCenterZone = normalizedX >= CENTER_ZONE_START && normalizedX <= CENTER_ZONE_END
+
+		if (isInCenterZone) {
+			// Center zone: use true center grab point for center snapping (both axes)
+			onDragStart(e, { x: 0.5, y: 0.5 })
+		} else {
+			// Edge zones: use horizontal position, y=0 (top edge)
+			onDragStart(e, { x: normalizedX, y: 0 })
+		}
+	}
+
+	// Calculate rotation transform around object center (in screen coords)
+	const centerX = screenX + screenWidth / 2
+	const centerY = screenY + screenHeight / 2
+	const rotationTransform = rotation ? `rotate(${rotation} ${centerX} ${centerY})` : undefined
+
+	// Center zone visual boundaries
+	const centerZoneX = screenX + screenWidth * CENTER_ZONE_START
+	const centerZoneWidth = screenWidth * (CENTER_ZONE_END - CENTER_ZONE_START)
+
+	return (
+		<g transform={rotationTransform}>
+			{/* Main handle bar background */}
+			<rect
+				data-text-edit-handle="true"
+				x={screenX}
+				y={handleY}
+				width={screenWidth}
+				height={HANDLE_HEIGHT}
+				fill="#0066ff"
+				fillOpacity={0.1}
+				stroke="#0066ff"
+				strokeWidth={1}
+				rx={4}
+				style={{ cursor: 'grab', pointerEvents: 'all' }}
+				onPointerDown={handlePointerDown}
+			/>
+			{/* Center zone highlight */}
+			<rect
+				x={centerZoneX}
+				y={handleY}
+				width={centerZoneWidth}
+				height={HANDLE_HEIGHT}
+				fill="#0066ff"
+				fillOpacity={0.15}
+				rx={2}
+				style={{ pointerEvents: 'none' }}
+			/>
+			{/* Center zone grip pattern (denser vertical lines) */}
+			<g pointerEvents="none" opacity={0.5}>
+				{[-8, -4, 0, 4, 8].map((offset) => (
+					<line
+						key={offset}
+						x1={centerX + offset}
+						y1={handleCenterY - 5}
+						x2={centerX + offset}
+						y2={handleCenterY + 5}
+						stroke="#0066ff"
+						strokeWidth={1.5}
+						strokeLinecap="round"
+					/>
+				))}
+			</g>
+			{/* Edge zone grip pattern (lighter dots) */}
+			<g pointerEvents="none" opacity={0.3}>
+				{/* Left edge indicator */}
+				<circle cx={screenX + screenWidth * 0.15} cy={handleCenterY} r={2} fill="#0066ff" />
+				{/* Right edge indicator */}
+				<circle cx={screenX + screenWidth * 0.85} cy={handleCenterY} r={2} fill="#0066ff" />
+			</g>
+		</g>
+	)
+}
+
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
 import '@cloudillo/fonts/fonts.css'
@@ -335,6 +453,9 @@ export function PrezilloApp() {
 	const [mobileSnapPoint, setMobileSnapPoint] = React.useState<BottomSheetSnapPoint>('closed')
 	const userCollapsedRef = React.useRef(false)
 
+	// Ref to track when handle bar drag is initiated (prevents blur from closing editor)
+	const isDraggingFromHandleRef = React.useRef(false)
+
 	// Text editing (extracted hook)
 	const {
 		editingTextId,
@@ -368,9 +489,14 @@ export function PrezilloApp() {
 	React.useEffect(() => {
 		if (!editingTextId) return
 		const handleClickOutside = (e: PointerEvent) => {
-			const target = e.target as HTMLElement
-			// Only close if clicking outside the textarea
+			const target = e.target as Element
+			// Only close if clicking outside the textarea and not on the text edit handle bar
 			if (target.tagName !== 'TEXTAREA') {
+				// Don't close when clicking on the text edit handle bar (for dragging)
+				// Use getAttribute for SVG elements (dataset doesn't work reliably on SVG)
+				if (target.getAttribute?.('data-text-edit-handle') === 'true') {
+					return
+				}
 				// Prevent middle-click paste on Linux
 				if (e.button === 1) e.preventDefault()
 				handleTextEditSaveWithFlag(editingTextRef.current)
@@ -830,6 +956,13 @@ export function PrezilloApp() {
 		justFinishedInteractionRef,
 		setTempObjectState
 	})
+
+	// Reset handle bar drag flag when drag ends
+	React.useEffect(() => {
+		if (!dragState) {
+			isDraggingFromHandleRef.current = false
+		}
+	}, [dragState])
 
 	// Ref to capture initial selection state at interaction start (prevents stale closure issues)
 	const interactionStartRef = React.useRef<{
@@ -1901,6 +2034,43 @@ export function PrezilloApp() {
 										/>
 									</>
 								)}
+								{/* Text edit handle - fixed layer for constant screen size during drag */}
+								{editingTextId &&
+									(() => {
+										const editingObject = canvasObjects.find(
+											(o) => o.id === editingTextId
+										)
+										if (!editingObject || editingObject.type !== 'text')
+											return null
+										// Use temp bounds during drag for visual feedback
+										const editTempBounds =
+											tempObjectState?.objectId === editingTextId
+												? tempObjectState
+												: undefined
+										return (
+											<FixedTextEditHandle
+												canvasBounds={{
+													x: editTempBounds?.x ?? editingObject.x,
+													y: editTempBounds?.y ?? editingObject.y,
+													width:
+														editTempBounds?.width ??
+														editingObject.width,
+													height:
+														editTempBounds?.height ??
+														editingObject.height
+												}}
+												rotation={editingObject.rotation}
+												onDragStart={(e, grabPoint) => {
+													// Set flag to prevent blur from closing editor
+													isDraggingFromHandleRef.current = true
+													handleObjectPointerDown(e, editingTextId, {
+														grabPointOverride: grabPoint,
+														forceStartDrag: true
+													})
+												}}
+											/>
+										)
+									})()}
 							</>
 						}
 					>
@@ -2022,6 +2192,15 @@ export function PrezilloApp() {
 										letterSpacing: 0
 									}
 
+							// Pass temp bounds if this object is being dragged/resized
+							// Also check if this object is a stacked object being dragged with the primary
+							const objectTempBounds =
+								tempObjectState?.objectId === object.id
+									? tempObjectState
+									: tempObjectState?.stackedObjects?.find(
+											(so) => so.objectId === object.id
+										)
+
 							// If this object is being text-edited, render the overlay instead
 							if (editingTextId === object.id) {
 								// For template instances, get prototype text for placeholder
@@ -2036,31 +2215,39 @@ export function PrezilloApp() {
 									hasLocalText = 'tx' in storedObj && storedObj.tx !== undefined
 								}
 
+								// Apply temp bounds during drag for visual feedback
+								const editObject = objectTempBounds
+									? {
+											...object,
+											x: objectTempBounds.x,
+											y: objectTempBounds.y,
+											width: objectTempBounds.width,
+											height: objectTempBounds.height
+										}
+									: object
+
 								return (
 									<TextEditOverlay
 										key={object.id}
-										object={object}
+										object={editObject}
 										textStyle={textStyle}
 										onSave={handleTextEditSaveWithFlag}
 										onCancel={handleTextEditCancel}
 										onTextChange={(t) => {
 											editingTextRef.current = t
 										}}
-										onDragStart={(e) => handleObjectPointerDown(e, object.id)}
+										onDragStart={(e, options) =>
+											handleObjectPointerDown(e, object.id, options)
+										}
 										prototypeText={prototypeText}
 										hasLocalText={hasLocalText}
+										shouldIgnoreBlur={() => isDraggingFromHandleRef.current}
+										onSetDragFlag={() => {
+											isDraggingFromHandleRef.current = true
+										}}
 									/>
 								)
 							}
-
-							// Pass temp bounds if this object is being dragged/resized
-							// Also check if this object is a stacked object being dragged with the primary
-							const objectTempBounds =
-								tempObjectState?.objectId === object.id
-									? tempObjectState
-									: tempObjectState?.stackedObjects?.find(
-											(so) => so.objectId === object.id
-										)
 
 							// Apply property preview if this object is being scrubbed
 							const displayObject =

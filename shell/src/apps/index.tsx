@@ -126,20 +126,65 @@ export function MicrofrontendContainer({
 	const requestTokenRef = React.useRef<(() => Promise<string | undefined>) | null>(null)
 	const scheduleRenewalRef = React.useRef<((token: string) => void) | null>(null)
 
+	// Boolean flag that only transitions once (false → true)
+	// This prevents effect re-runs on token renewal (api/auth object changes)
+	const isReady = !!(api && (auth || providedToken))
+
 	// Function to request a new token
 	const requestToken = React.useCallback(async () => {
-		if (!api || !auth) return undefined
+		// Use refs to get latest api/auth after potential renewal
+		const currentApi = apiRef.current
+		const currentAuth = authRef.current
+		if (!currentApi || !currentAuth) return undefined
+
 		const accessSuffix = access === 'read' ? 'R' : 'W'
+
 		try {
-			const res = await api.auth.getAccessToken({
+			const res = await currentApi.auth.getAccessToken({
 				scope: `${resId}:${accessSuffix}`
 			})
 			return res.token
-		} catch (err) {
+		} catch (err: unknown) {
+			// Duck-type check for FetchError with 401 status
+			// Don't rely on instanceof which can fail with multiple bundle copies
+			const httpStatus = (err as { httpStatus?: number })?.httpStatus
+			const isAuthError = httpStatus === 401 || httpStatus === 403
+
+			console.log('[Shell] Access token request failed:', {
+				httpStatus,
+				isAuthError,
+				errorType: err?.constructor?.name,
+				message: (err as Error)?.message
+			})
+
+			if (isAuthError) {
+				console.log('[Shell] Auth error detected, waiting for token renewal...')
+
+				// Wait for token renewal to complete (typically < 1 second)
+				await new Promise((resolve) => setTimeout(resolve, 3000))
+
+				// Get the potentially updated api client
+				const renewedApi = apiRef.current
+				console.log('[Shell] After wait - api changed:', renewedApi !== currentApi)
+
+				if (renewedApi) {
+					console.log('[Shell] Retrying access token request...')
+					try {
+						const res = await renewedApi.auth.getAccessToken({
+							scope: `${resId}:${accessSuffix}`
+						})
+						console.log('[Shell] Retry succeeded!')
+						return res.token
+					} catch (retryErr) {
+						console.error('[Shell] Retry failed:', retryErr)
+					}
+				}
+			}
+
 			console.error('[Shell] Failed to get access token:', err)
 			return undefined
 		}
-	}, [api, auth, resId, access])
+	}, [resId, access]) // Note: api/auth removed from deps, using refs instead
 
 	// Send token update to app via message bus
 	const sendTokenToApp = React.useCallback((token: string) => {
@@ -383,8 +428,8 @@ export function MicrofrontendContainer({
 		},
 		// Minimal dependencies - only things that require re-creating the iframe/subscription
 		// Auth/token changes are handled by token refresh mechanism and refs, not effect re-runs
-		// Also include api/auth/providedToken to trigger initial run when they become available
-		[app, appUrl, resId, retryCount, api, auth, providedToken]
+		// isReady transitions false→true once when api/auth become available, preventing re-runs on token renewal
+		[app, appUrl, resId, retryCount, isReady]
 	)
 
 	return (

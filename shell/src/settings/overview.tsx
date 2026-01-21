@@ -29,7 +29,8 @@ import {
 	LuHardDrive as IcFiles,
 	LuKeyRound as IcKey,
 	LuMonitor as IcDevice,
-	LuChevronRight as IcArrow
+	LuChevronRight as IcArrow,
+	LuServerCog as IcServer
 } from 'react-icons/lu'
 
 import { useAuth, useApi, Button } from '@cloudillo/react'
@@ -252,6 +253,26 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 					/>
 				</div>
 			</div>
+
+			{/* Server Settings Link (for admins) */}
+			{auth?.roles?.includes('SADM') && (
+				<div className="c-panel">
+					<button
+						className="c-hbox ai-center p-2 w-100 text-start"
+						onClick={() => navigate('/site-admin')}
+						style={{ cursor: 'pointer', border: 'none', background: 'transparent' }}
+					>
+						<IcServer className="text-primary mr-3" size={24} />
+						<div className="flex-fill">
+							<div className="fw-medium">{t('Server Settings')}</div>
+							<div className="c-hint small">
+								{t('Configure server-wide settings and policies')}
+							</div>
+						</div>
+						<IcArrow className="text-muted" />
+					</button>
+				</div>
+			)}
 		</>
 	)
 }

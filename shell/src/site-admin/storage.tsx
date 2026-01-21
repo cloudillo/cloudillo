@@ -48,7 +48,7 @@ export function StorageSettings() {
 				<label className="c-hbox pb-2">
 					<span className="flex-fill">{t('Maximum file upload size (MB)')}</span>
 					<input
-						className="c-input"
+						className="c-input w-xs"
 						name="file.max_file_size_mb"
 						type="number"
 						min="1"
@@ -62,7 +62,7 @@ export function StorageSettings() {
 				<label className="c-hbox pb-2">
 					<span className="flex-fill">{t('Maximum size variant to generate')}</span>
 					<select
-						className="c-select"
+						className="c-select w-sm"
 						name="file.max_generate_variant"
 						value={(settings['file.max_generate_variant'] as string) || 'hd'}
 						onChange={onSettingChange}
@@ -81,7 +81,7 @@ export function StorageSettings() {
 				<label className="c-hbox pb-2">
 					<span className="flex-fill">{t('Maximum size variant to cache')}</span>
 					<select
-						className="c-select"
+						className="c-select w-sm"
 						name="file.max_cache_variant"
 						value={(settings['file.max_cache_variant'] as string) || 'md'}
 						onChange={onSettingChange}
@@ -100,7 +100,7 @@ export function StorageSettings() {
 				<label className="c-hbox pb-2">
 					<span className="flex-fill">{t('Thumbnail format')}</span>
 					<select
-						className="c-select"
+						className="c-select w-sm"
 						name="file.thumbnail_format"
 						value={(settings['file.thumbnail_format'] as string) || 'webp'}
 						onChange={onSettingChange}
@@ -120,7 +120,7 @@ export function StorageSettings() {
 				<label className="c-hbox pb-2">
 					<span className="flex-fill">{t('Image format for larger variants')}</span>
 					<select
-						className="c-select"
+						className="c-select w-sm"
 						name="file.image_format"
 						value={(settings['file.image_format'] as string) || 'webp'}
 						onChange={onSettingChange}
@@ -144,7 +144,7 @@ export function StorageSettings() {
 				<label className="c-hbox pb-2">
 					<span className="flex-fill">{t('Maximum storage quota (GB)')}</span>
 					<input
-						className="c-input"
+						className="c-input w-xs"
 						name="limits.max_storage_gb"
 						type="number"
 						min="1"

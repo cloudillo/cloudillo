@@ -264,7 +264,7 @@ export function SecuritySettings() {
 				<label className="c-hbox pb-2">
 					<span className="flex-fill">{t('Current password')}</span>
 					<input
-						className="c-input"
+						className="c-input w-md"
 						name="sec.current_password"
 						type="password"
 						value={currentPassword}
@@ -274,7 +274,7 @@ export function SecuritySettings() {
 				<label className="c-hbox pb-2">
 					<span className="flex-fill">{t('New password')}</span>
 					<input
-						className="c-input"
+						className="c-input w-md"
 						name="sec.new_password"
 						type="password"
 						value={newPassword}
@@ -324,7 +324,7 @@ export function SecuritySettings() {
 					{/* Add new passkey */}
 					<div className="c-hbox g-2">
 						<input
-							className="c-input flex-fill"
+							className="c-input w-lg"
 							placeholder={t('Passkey name (optional)')}
 							value={passkeyDescription}
 							onChange={(e) => setPasskeyDescription(e.target.value)}

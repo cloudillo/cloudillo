@@ -112,10 +112,17 @@ const APP_CONFIG: AppConfigState = {
 			path: '/settings'
 		},
 		{
+			id: 'idp',
+			icon: IcIdp,
+			label: 'IDP',
+			trans: { hu: 'IDP' },
+			path: '/idp'
+		},
+		{
 			id: 'site-admin',
 			icon: IcSiteAdmin,
-			label: 'Site admin',
-			trans: { hu: 'Webhely' },
+			label: 'Server',
+			trans: { hu: 'Szerver' },
 			path: '/site-admin',
 			perm: 'SADM'
 		}
@@ -148,7 +155,8 @@ import {
 	LuMessagesSquare as IcMessages,
 	LuBell as IcNotifications,
 	LuSettings as IcSettings,
-	LuServerCog as IcSiteAdmin
+	LuServerCog as IcSiteAdmin,
+	LuFingerprint as IcIdp
 } from 'react-icons/lu'
 import { CloudilloLogo } from './logo.js'
 
@@ -190,6 +198,7 @@ import { WsBusRoot, useWsBus } from './ws-bus.js'
 import { SearchIcon, SearchBar, useSearch } from './search.js'
 import { SettingsRoutes, setTheme } from './settings'
 import { SiteAdminRoutes } from './site-admin'
+import { IdpRoutes } from './idp'
 import { AppRoutes } from './apps'
 import { initShellBus, getShellBus } from './message-bus'
 import { SharedResourceView } from './apps/shared.js'
@@ -867,6 +876,7 @@ export function Layout() {
 						<AuthRoutes />
 						<SettingsRoutes pwa={pwa} />
 						<SiteAdminRoutes />
+						<IdpRoutes />
 						<AppRoutes />
 						<OnboardingRoutes pwa={pwa} />
 						<Routes>

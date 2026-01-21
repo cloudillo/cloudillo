@@ -625,6 +625,7 @@ export function useContextPath() {
 			if (path === '/users') return `/users/${contextIdTag}`
 			if (path === '/communities') return `/communities/${contextIdTag}`
 			if (path === '/settings') return `/settings/${contextIdTag}`
+			if (path === '/idp') return `/idp/${contextIdTag}`
 
 			// Profile routes
 			if (path.startsWith('/profile/')) {

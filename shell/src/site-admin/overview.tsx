@@ -31,7 +31,8 @@ import {
 	LuUser as IcTenant,
 	LuCheck as IcCheck,
 	LuX as IcError,
-	LuChevronRight as IcArrow
+	LuChevronRight as IcArrow,
+	LuSettings as IcSettings
 } from 'react-icons/lu'
 
 import { useAuth, useApi, Button, Card } from '@cloudillo/react'
@@ -183,8 +184,26 @@ export function AdminOverview() {
 				</div>
 			</div>
 
+			{/* Personal Settings Link */}
+			<Card
+				interactive
+				className="animate-fade-slide-up stagger-2"
+				onClick={() => navigate(`/settings/${auth?.idTag}`)}
+			>
+				<div className="c-hbox ai-center p-2">
+					<IcSettings className="text-primary mr-3" size={24} />
+					<div className="flex-fill">
+						<div className="fw-medium">{t('Personal Settings')}</div>
+						<div className="c-hint small">
+							{t('Configure your personal account settings')}
+						</div>
+					</div>
+					<IcArrow className="text-muted" />
+				</div>
+			</Card>
+
 			{/* Quick Actions */}
-			<div className="c-panel animate-fade-slide-up stagger-2">
+			<div className="c-panel animate-fade-slide-up stagger-3">
 				<h4 className="pb-3">{t('Administration')}</h4>
 
 				<div
@@ -201,12 +220,12 @@ export function AdminOverview() {
 					/>
 					<QuickActionCard
 						icon={<IcUsers size={28} />}
-						label={t('Tenants')}
+						label={t('Users & Communities')}
 						onClick={() => navigate('/site-admin/tenants')}
 					/>
 					<QuickActionCard
 						icon={<IcIdps size={28} />}
-						label={t('Identity Providers')}
+						label={t('Suggested Providers')}
 						onClick={() => navigate('/site-admin/idps')}
 					/>
 					<QuickActionCard
@@ -226,7 +245,7 @@ export function AdminOverview() {
 					/>
 					<QuickActionCard
 						icon={<IcTenant size={28} />}
-						label={t('Tenant Settings')}
+						label={t('Default Policies')}
 						onClick={() => navigate('/site-admin/tenant')}
 					/>
 				</div>

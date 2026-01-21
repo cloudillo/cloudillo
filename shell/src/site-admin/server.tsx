@@ -21,7 +21,7 @@ import { useSettings } from '../settings/settings.js'
 
 export function ServerSettings() {
 	const { t } = useTranslation()
-	const { settings, onSettingChange } = useSettings(['server', 'federation'])
+	const { settings, onSettingChange } = useSettings(['server'])
 
 	if (!settings) return null
 
@@ -42,26 +42,6 @@ export function ServerSettings() {
 				</label>
 				<p className="c-hint mb-4">
 					{t('Controls whether new users can register on this instance')}
-				</p>
-			</div>
-
-			<div className="c-panel">
-				<h4>{t('Federation')}</h4>
-
-				<label className="c-hbox pb-2">
-					<span className="flex-fill">{t('Enable federation with other instances')}</span>
-					<input
-						className="c-toggle primary"
-						name="federation.enabled"
-						type="checkbox"
-						checked={!!settings['federation.enabled']}
-						onChange={onSettingChange}
-					/>
-				</label>
-				<p className="c-hint mb-4">
-					{t(
-						'Allow this instance to communicate and share data with other Cloudillo instances'
-					)}
 				</p>
 			</div>
 		</>

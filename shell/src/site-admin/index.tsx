@@ -33,7 +33,7 @@ import { useAuth, useApi, Fcd, mergeClasses } from '@cloudillo/react'
 
 import { Invitations } from './invitations.js'
 import { Tenants } from './tenants.js'
-import { IdpsSettings } from './idps.js'
+import { SuggestedProvidersSettings } from './idps.js'
 import { ServerSettings } from './server.js'
 import { StorageSettings } from './storage.js'
 import { EmailSettings } from './email.js'
@@ -58,6 +58,7 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 		<Fcd.Container className="g-1">
 			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 				<ul className="c-nav vertical low">
+					<li className="c-nav-header">{t('User Management')}</li>
 					<li>
 						<NavLink
 							className={({ isActive }) =>
@@ -75,9 +76,11 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 							}
 							to="/site-admin/tenants"
 						>
-							<IcTenants /> {t('Tenants')}
+							<IcTenants /> {t('Users & Communities')}
 						</NavLink>
 					</li>
+					<li className="c-divider" />
+					<li className="c-nav-header">{t('Registration')}</li>
 					<li>
 						<NavLink
 							className={({ isActive }) =>
@@ -85,10 +88,11 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 							}
 							to="/site-admin/idps"
 						>
-							<IcIdps /> {t('Identity Providers')}
+							<IcIdps /> {t('Suggested Providers')}
 						</NavLink>
 					</li>
 					<li className="c-divider" />
+					<li className="c-nav-header">{t('System')}</li>
 					<li>
 						<NavLink
 							className={({ isActive }) =>
@@ -96,7 +100,7 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 							}
 							to="/site-admin/server"
 						>
-							<IcServer /> {t('Server & Federation')}
+							<IcServer /> {t('Server')}
 						</NavLink>
 					</li>
 					<li>
@@ -126,7 +130,7 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 							}
 							to="/site-admin/tenant"
 						>
-							<IcTenant /> {t('Tenant Settings')}
+							<IcTenant /> {t('Default Policies')}
 						</NavLink>
 					</li>
 				</ul>
@@ -166,7 +170,7 @@ export function SiteAdminRoutes() {
 			<Route
 				path="/site-admin/tenants"
 				element={
-					<SiteAdmin title={t('Tenants')}>
+					<SiteAdmin title={t('Users & Communities')}>
 						<Tenants />
 					</SiteAdmin>
 				}
@@ -174,15 +178,15 @@ export function SiteAdminRoutes() {
 			<Route
 				path="/site-admin/idps"
 				element={
-					<SiteAdmin title={t('Identity Providers')}>
-						<IdpsSettings />
+					<SiteAdmin title={t('Suggested Providers')}>
+						<SuggestedProvidersSettings />
 					</SiteAdmin>
 				}
 			/>
 			<Route
 				path="/site-admin/server"
 				element={
-					<SiteAdmin title={t('Server & Federation')}>
+					<SiteAdmin title={t('Server')}>
 						<ServerSettings />
 					</SiteAdmin>
 				}
@@ -206,7 +210,7 @@ export function SiteAdminRoutes() {
 			<Route
 				path="/site-admin/tenant"
 				element={
-					<SiteAdmin title={t('Tenant Settings')}>
+					<SiteAdmin title={t('Default Policies')}>
 						<TenantSettings />
 					</SiteAdmin>
 				}

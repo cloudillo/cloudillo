@@ -36,7 +36,7 @@ export function TenantSettings() {
 				<label className="c-hbox pb-2">
 					<span className="flex-fill">{t('Session Timeout')}</span>
 					<input
-						className="c-input"
+						className="c-input w-sm"
 						name="auth.session_timeout"
 						type="number"
 						min="60"
@@ -74,7 +74,7 @@ export function TenantSettings() {
 				<label className="c-hbox pb-2">
 					<span className="flex-fill">{t('Maximum Storage Quota (GB)')}</span>
 					<input
-						className="c-input"
+						className="c-input w-xs"
 						name="limits.max_storage_gb"
 						type="number"
 						min="1"

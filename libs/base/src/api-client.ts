@@ -1060,7 +1060,15 @@ export class ApiClient {
 				'POST',
 				`/admin/tenants/${idTag}/password-reset`,
 				Types.tPasswordResetResponse
-			)
+			),
+
+		/**
+		 * POST /admin/email/test - Send a test email to verify SMTP configuration
+		 * @param to - Recipient email address
+		 * @returns Empty response on success
+		 */
+		sendTestEmail: (to: string) =>
+			this.request('POST', '/admin/email/test', T.struct({}), { data: { to } })
 	}
 }
 

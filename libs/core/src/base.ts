@@ -22,7 +22,7 @@
  *
  * @example
  * ```typescript
- * import { getAppBus, openYDoc } from '@cloudillo/base'
+ * import { getAppBus, openYDoc } from '@cloudillo/core'
  *
  * const bus = getAppBus()
  * const state = await bus.init('my-app')

@@ -19,7 +19,7 @@ import { useTranslation } from 'react-i18next'
 import debounce from 'debounce'
 
 import { useApi, useAuth, useDialog, Button, ProfilePicture } from '@cloudillo/react'
-import { TenantView } from '@cloudillo/base'
+import { TenantView } from '@cloudillo/core'
 
 import {
 	LuMail as IcMail,

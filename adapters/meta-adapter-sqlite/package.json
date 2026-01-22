@@ -12,7 +12,7 @@
 	"author": "Szilárd Hajba <szilu@cloudillo.org",
 	"license": "LGPL-3.0-or-later",
 	"dependencies": {
-		"@cloudillo/base": "workspace:^",
+		"@cloudillo/core": "workspace:^",
 		"@cloudillo/server": "workspace:^",
 		"@symbion/runtype": "^1.1.3",
 		"lru-cache": "^11.2.4",

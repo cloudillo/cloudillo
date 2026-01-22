@@ -17,7 +17,7 @@
 import * as React from 'react'
 import { useAuth } from '../../hooks.js'
 import { UnknownProfilePicture } from './UnknownProfilePicture.js'
-import { getFileUrl } from '@cloudillo/base'
+import { getFileUrl } from '@cloudillo/core'
 import { mergeClasses } from '../utils.js'
 
 export interface ProfilePictureProps {

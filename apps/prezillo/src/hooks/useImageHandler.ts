@@ -27,7 +27,7 @@
 
 import * as React from 'react'
 import * as Y from 'yjs'
-import { getAppBus, type MediaFileResolvedPush } from '@cloudillo/base'
+import { getAppBus, type MediaFileResolvedPush } from '@cloudillo/core'
 
 import type { YPrezilloDocument, ObjectId, ImageObject } from '../crdt/index.js'
 import { addObject, updateObject } from '../crdt/index.js'

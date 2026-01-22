@@ -27,7 +27,7 @@ import {
 import { useTranslation, Trans } from 'react-i18next'
 
 import { Button, useApi } from '@cloudillo/react'
-import { ApiClient } from '@cloudillo/base'
+import { ApiClient } from '@cloudillo/core'
 
 import { UsePWA } from '../pwa.js'
 import { subscribeNotifications } from '../settings/notifications.js'

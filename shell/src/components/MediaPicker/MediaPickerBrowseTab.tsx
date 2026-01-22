@@ -45,8 +45,8 @@ import {
 } from 'react-icons/lu'
 
 import { useApi, useAuth, type AuthState } from '@cloudillo/react'
-import { getFileUrl } from '@cloudillo/base'
-import { VISIBILITY_ORDER, type Visibility } from '@cloudillo/base'
+import { getFileUrl } from '@cloudillo/core'
+import { VISIBILITY_ORDER, type Visibility } from '@cloudillo/core'
 
 import type { MediaPickerResult } from '../../context/media-picker-atom.js'
 

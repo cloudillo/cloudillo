@@ -27,7 +27,7 @@
  */
 
 import type { ShellMessageBus } from '../shell-bus.js'
-import type { MediaPickReq } from '@cloudillo/base'
+import type { MediaPickReq } from '@cloudillo/core'
 import { registerPendingTempId } from '../../services/file-id-resolver.js'
 
 /**

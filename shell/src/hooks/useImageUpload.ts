@@ -16,7 +16,7 @@
 
 import * as React from 'react'
 import { useAuth } from '@cloudillo/react'
-import { getInstanceUrl } from '@cloudillo/base'
+import { getInstanceUrl } from '@cloudillo/core'
 
 export interface UseImageUploadOptions {
 	onUploadComplete?: (fileId: string) => void

@@ -43,7 +43,7 @@ import type {
 	IdpApiKey,
 	IdpCreateApiKeyResult,
 	IdpCreateIdentityResult
-} from '@cloudillo/base'
+} from '@cloudillo/core'
 import { useAuth, useApi, useDialog, Button, Modal, mergeClasses } from '@cloudillo/react'
 
 // Status badge configuration

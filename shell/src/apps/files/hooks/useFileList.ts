@@ -17,7 +17,7 @@
 import * as React from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAuth, useInfiniteScroll } from '@cloudillo/react'
-import * as Types from '@cloudillo/base'
+import * as Types from '@cloudillo/core'
 import { parseQS } from '../../../utils.js'
 import { useCurrentContextIdTag, useContextAwareApi } from '../../../context/index.js'
 import type { File, ViewMode } from '../types.js'

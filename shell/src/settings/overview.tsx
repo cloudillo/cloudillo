@@ -34,7 +34,7 @@ import {
 } from 'react-icons/lu'
 
 import { useAuth, useApi, Button } from '@cloudillo/react'
-import type { WebAuthnCredential, ApiKeyListItem } from '@cloudillo/base'
+import type { WebAuthnCredential, ApiKeyListItem } from '@cloudillo/core'
 
 import { UsePWA } from '../pwa.js'
 import { subscribeNotifications } from './notifications.js'

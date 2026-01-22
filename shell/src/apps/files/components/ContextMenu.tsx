@@ -40,7 +40,7 @@ import {
 	ActionSheetDivider,
 	useAuth
 } from '@cloudillo/react'
-import { getFileUrl } from '@cloudillo/base'
+import { getFileUrl } from '@cloudillo/core'
 
 import type { File, FileOps, ViewMode, FileVisibility } from '../types.js'
 import { VISIBILITY_DROPDOWN_OPTIONS, getVisibilityIcon } from '../utils.js'

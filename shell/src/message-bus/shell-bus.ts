@@ -27,7 +27,7 @@ import {
 	CloudilloMessage,
 	PROTOCOL_VERSION,
 	validateMessage
-} from '@cloudillo/base'
+} from '@cloudillo/core'
 
 import {
 	AppTracker,

@@ -27,7 +27,7 @@ import {
 } from 'react-icons/lu'
 
 import { useAuth, useApi, useDialog, Button } from '@cloudillo/react'
-import type { WebAuthnCredential, ApiKeyListItem } from '@cloudillo/base'
+import type { WebAuthnCredential, ApiKeyListItem } from '@cloudillo/core'
 
 import { useSettings } from './settings.js'
 import {

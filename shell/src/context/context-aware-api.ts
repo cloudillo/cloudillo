@@ -11,7 +11,7 @@
 
 import * as React from 'react'
 import { useAtom } from 'jotai'
-import { createApiClient, ApiClient } from '@cloudillo/base'
+import { createApiClient, ApiClient } from '@cloudillo/core'
 import { useAuth, type ApiHook } from '@cloudillo/react'
 
 import { activeContextAtom, contextTokensAtom } from './atoms'

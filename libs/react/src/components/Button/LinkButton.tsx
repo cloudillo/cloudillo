@@ -17,7 +17,7 @@
 import * as React from 'react'
 import { mergeClasses, createComponent } from '../utils.js'
 import type { ColorVariant } from '../types.js'
-import { delay } from '@cloudillo/base'
+import { delay } from '@cloudillo/core'
 
 export interface LinkButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 	variant?: ColorVariant

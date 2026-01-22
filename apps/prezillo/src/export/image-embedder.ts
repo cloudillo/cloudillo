@@ -23,7 +23,7 @@
  * 3. Converting them to base64 data URLs for embedding
  */
 
-import { getFileUrl } from '@cloudillo/base'
+import { getFileUrl } from '@cloudillo/core'
 import type { ImageObject, PrezilloObject, YPrezilloDocument } from '../crdt'
 
 // Use HD variant for PDF quality

@@ -29,7 +29,7 @@
  */
 
 import { getShellBus } from '../message-bus/shell-bus.js'
-import { PROTOCOL_VERSION } from '@cloudillo/base'
+import { PROTOCOL_VERSION } from '@cloudillo/core'
 
 /**
  * Information about a pending temp ID

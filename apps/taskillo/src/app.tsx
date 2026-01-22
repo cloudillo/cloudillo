@@ -19,7 +19,7 @@ import { useLocation } from 'react-router-dom'
 import { PiPlusBold as IcPlus, PiTrashBold as IcDelete } from 'react-icons/pi'
 
 import { RtdbClient } from '@cloudillo/rtdb'
-import { getAppBus } from '@cloudillo/base'
+import { getAppBus } from '@cloudillo/core'
 import { Panel } from '@cloudillo/react'
 
 import '@symbion/opalui'

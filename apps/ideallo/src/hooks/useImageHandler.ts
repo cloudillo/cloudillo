@@ -27,7 +27,7 @@
 
 import * as React from 'react'
 import * as Y from 'yjs'
-import { getAppBus, type MediaFileResolvedPush } from '@cloudillo/base'
+import { getAppBus, type MediaFileResolvedPush } from '@cloudillo/core'
 
 import type { YIdealloDocument, ObjectId, NewImageInput } from '../crdt/index.js'
 import { addObject, updateObject, DEFAULT_STYLE } from '../crdt/index.js'

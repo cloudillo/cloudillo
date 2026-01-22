@@ -36,10 +36,10 @@ import {
 	LuChevronDown as IcChevronDown
 } from 'react-icons/lu'
 
-import type { Visibility } from '@cloudillo/base'
+import type { Visibility } from '@cloudillo/core'
 
 import { useApi, Button } from '@cloudillo/react'
-import type { CropAspect } from '@cloudillo/base'
+import type { CropAspect } from '@cloudillo/core'
 
 import { ImageUpload, type Aspect } from '../../image.js'
 import type { MediaPickerResult } from '../../context/media-picker-atom.js'

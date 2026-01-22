@@ -23,7 +23,7 @@
 	"author": "Szilárd Hajba <szilu@cloudillo.org",
 	"license": "LGPL-3.0-or-later",
 	"devDependencies": {
-		"@cloudillo/base": "workspace:^",
+		"@cloudillo/core": "workspace:^",
 		"@cloudillo/fonts": "workspace:^",
 		"@cloudillo/react": "workspace:^",
 		"@cloudillo/types": "workspace:^",

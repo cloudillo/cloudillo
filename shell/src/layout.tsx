@@ -173,7 +173,7 @@ import {
 	DialogContainer,
 	ToastContainer
 } from '@cloudillo/react'
-import { createApiClient } from '@cloudillo/base'
+import { createApiClient } from '@cloudillo/core'
 import { AppConfigState, useAppConfig } from './utils.js'
 import usePWA, {
 	registerServiceWorker,

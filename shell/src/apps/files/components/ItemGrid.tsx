@@ -26,7 +26,7 @@ import {
 } from 'react-icons/lu'
 
 import { useAuth, InlineEditForm, mergeClasses } from '@cloudillo/react'
-import { getFileUrl } from '@cloudillo/base'
+import { getFileUrl } from '@cloudillo/core'
 
 import { getFileIcon, IcUnknown } from '../icons.js'
 import type { File, FileOps, ViewMode } from '../types.js'

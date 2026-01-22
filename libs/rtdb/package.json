@@ -22,7 +22,7 @@
 	"author": "Szilárd Hajba <szilu@cloudillo.org",
 	"license": "LGPL-3.0-or-later",
 	"devDependencies": {
-		"@cloudillo/base": "workspace:^",
+		"@cloudillo/core": "workspace:^",
 		"@cloudillo/types": "workspace:^",
 		"@jest/globals": "^30.2.0",
 		"@symbion/runtype": "^1.2.1",

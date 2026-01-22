@@ -36,7 +36,7 @@ import {
 } from 'react-icons/lu'
 
 import { useAuth, useApi, Button, Card } from '@cloudillo/react'
-import { TenantView } from '@cloudillo/base'
+import { TenantView } from '@cloudillo/core'
 
 import { useSettings } from '../settings/settings.js'
 

@@ -16,7 +16,7 @@
 
 import * as React from 'react'
 import { LuX as IcClose } from 'react-icons/lu'
-import { getFileUrl } from '@cloudillo/base'
+import { getFileUrl } from '@cloudillo/core'
 
 export interface AttachmentPreviewProps {
 	attachmentIds: string[]

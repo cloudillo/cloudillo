@@ -35,7 +35,7 @@ import {
 	mergeClasses
 } from '@cloudillo/react'
 import { NewAction, CommunityRole, ROLE_LEVELS } from '@cloudillo/types'
-import { getInstanceUrl, getFileUrl } from '@cloudillo/base'
+import { getInstanceUrl, getFileUrl } from '@cloudillo/core'
 
 import {
 	LuPencil as IcEdit,

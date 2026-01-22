@@ -22,7 +22,7 @@
  */
 
 import type { ShellMessageBus } from '../shell-bus.js'
-import type { AppReadyNotify } from '@cloudillo/base'
+import type { AppReadyNotify } from '@cloudillo/core'
 
 /**
  * Callback for app ready notifications

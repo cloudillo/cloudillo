@@ -20,7 +20,7 @@ import { useAuth } from '../../hooks.js'
 import { mergeClasses } from '../utils.js'
 import { UnknownProfilePicture } from './UnknownProfilePicture.js'
 import { IdentityTag } from './IdentityTag.js'
-import { getFileUrl } from '@cloudillo/base'
+import { getFileUrl } from '@cloudillo/core'
 
 export interface ProfileAudienceCardProps {
 	className?: string

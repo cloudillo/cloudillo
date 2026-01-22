@@ -26,7 +26,7 @@
  */
 
 import * as React from 'react'
-import { getFileUrl, getImageVariantForDisplaySize } from '@cloudillo/base'
+import { getFileUrl, getImageVariantForDisplaySize } from '@cloudillo/core'
 import type { ImageObject } from '../crdt/index.js'
 
 export interface ImageRendererProps {

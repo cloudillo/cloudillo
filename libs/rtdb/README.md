@@ -15,14 +15,14 @@ A Firebase-like real-time database client library for Cloudillo. Provides TypeSc
 ## Installation
 
 ```bash
-pnpm add @cloudillo/rtdb @cloudillo/base
+pnpm add @cloudillo/rtdb @cloudillo/core
 ```
 
 ## Quick Start
 
 ```typescript
 import { createRtdbClient } from '@cloudillo/rtdb'
-import { accessToken } from '@cloudillo/base'
+import { accessToken } from '@cloudillo/core'
 
 // Create client
 const db = createRtdbClient({
@@ -507,6 +507,6 @@ LGPL-3.0-or-later
 
 ## See Also
 
-- [@cloudillo/base](../base/) - Client initialization and authentication
+- [@cloudillo/core](../core/) - Client initialization and authentication
 - [@cloudillo/types](../types/) - Shared type definitions
 - [RTDB Architecture](../../claude-docs/rtdb-client-library-plan.md)

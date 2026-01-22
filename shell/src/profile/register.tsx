@@ -27,8 +27,8 @@ import {
 } from 'react-icons/lu'
 
 import { useAuth, useApi, Button } from '@cloudillo/react'
-import * as Types from '@cloudillo/base'
-import { FetchError } from '@cloudillo/base'
+import * as Types from '@cloudillo/core'
+import { FetchError } from '@cloudillo/core'
 
 import { CloudilloLogo } from '../logo.js'
 import {

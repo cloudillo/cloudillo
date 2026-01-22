@@ -1,7 +1,7 @@
 import { WorkbookInstance } from '@fortune-sheet/react'
 // @ts-ignore - y-protocols types may not be available
 import { Awareness } from 'y-protocols/awareness'
-import { str2color } from '@cloudillo/base'
+import { str2color } from '@cloudillo/core'
 import type { SheetId } from './yjs-types'
 import {
 	CURSOR_POLL_INTERVAL_MS,

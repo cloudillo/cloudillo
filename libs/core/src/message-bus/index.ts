@@ -22,7 +22,7 @@
  *
  * @example App usage
  * ```typescript
- * import { getAppBus } from '@cloudillo/base'
+ * import { getAppBus } from '@cloudillo/core'
  *
  * const bus = getAppBus()
  * const state = await bus.init('my-app')

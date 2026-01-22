@@ -26,7 +26,7 @@ import {
 } from 'react-icons/lu'
 
 import { useApi, Button, mergeClasses } from '@cloudillo/react'
-import type { TagInfo } from '@cloudillo/base'
+import type { TagInfo } from '@cloudillo/core'
 
 import type { GalleryViewMode, TimeFilter } from '../types.js'
 

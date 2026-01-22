@@ -499,7 +499,7 @@ import '@symbion/opalui/themes/glass.css'
 
 import * as T from '@symbion/runtype'
 
-import { apiFetchHelper, getAppBus } from '@cloudillo/base'
+import { apiFetchHelper, getAppBus } from '@cloudillo/core'
 import { useCloudillo, useApi, useAuth, Button, mergeClasses } from '@cloudillo/react'
 import './i18n.js'
 

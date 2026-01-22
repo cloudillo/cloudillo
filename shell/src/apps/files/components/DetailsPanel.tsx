@@ -31,8 +31,8 @@ import {
 } from 'react-icons/lu'
 
 import { ActionView, NewAction } from '@cloudillo/types'
-import * as Types from '@cloudillo/base'
-import { getFileUrl } from '@cloudillo/base'
+import * as Types from '@cloudillo/core'
+import { getFileUrl } from '@cloudillo/core'
 import {
 	useApi,
 	useAuth,

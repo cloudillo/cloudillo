@@ -19,7 +19,7 @@ import { useTranslation } from 'react-i18next'
 import { LuImage as IcImage } from 'react-icons/lu'
 
 import { useAuth, LoadingSpinner, EmptyState, Fcd, LoadMoreTrigger } from '@cloudillo/react'
-import { getFileUrl } from '@cloudillo/base'
+import { getFileUrl } from '@cloudillo/core'
 
 import { useCurrentContextIdTag } from '../../context/index.js'
 import { useGalleryFilters } from './hooks/useGalleryFilters.js'

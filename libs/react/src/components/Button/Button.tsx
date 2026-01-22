@@ -17,7 +17,7 @@
 import * as React from 'react'
 import { mergeClasses, createComponent, buttonSizeClass } from '../utils.js'
 import type { ColorVariant, ContainerColorVariant, ButtonSize } from '../types.js'
-import { delay } from '@cloudillo/base'
+import { delay } from '@cloudillo/core'
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 	// New variant prop (preferred)

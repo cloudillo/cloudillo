@@ -24,7 +24,7 @@
  */
 
 import Quill from 'quill'
-import { getFileUrl } from '@cloudillo/base'
+import { getFileUrl } from '@cloudillo/core'
 
 const BlockEmbed = Quill.import('blots/block/embed') as any
 

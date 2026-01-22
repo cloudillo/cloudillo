@@ -72,7 +72,7 @@ export async function logout() {
 //////////////
 // Web auth //
 //////////////
-import type { ApiClient } from '@cloudillo/base'
+import type { ApiClient } from '@cloudillo/core'
 
 /**
  * Attempt WebAuthn login

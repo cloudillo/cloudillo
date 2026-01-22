@@ -47,7 +47,7 @@ import * as T from '@symbion/runtype'
 
 import { createElement, Cloud, CloudOff } from 'lucide'
 
-import { getAppBus, openYDoc, str2color } from '@cloudillo/base'
+import { getAppBus, openYDoc, str2color } from '@cloudillo/core'
 import {
 	FONTS,
 	getFontsByCategory,

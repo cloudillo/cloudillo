@@ -23,7 +23,7 @@
  */
 
 import type { ShellMessageBus } from '../shell-bus.js'
-import type { AuthInitReq, AuthTokenRefreshReq } from '@cloudillo/base'
+import type { AuthInitReq, AuthTokenRefreshReq } from '@cloudillo/core'
 
 /**
  * Initialize auth message handlers on the shell bus

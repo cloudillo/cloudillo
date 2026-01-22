@@ -54,7 +54,7 @@ import {
 } from 'react-icons/lu'
 
 import { NewAction, ActionView } from '@cloudillo/types'
-import { getFileUrl, getOptimalImageVariant, getOptimalVideoVariant } from '@cloudillo/base'
+import { getFileUrl, getOptimalImageVariant, getOptimalVideoVariant } from '@cloudillo/core'
 import {
 	useAuth,
 	useApi,

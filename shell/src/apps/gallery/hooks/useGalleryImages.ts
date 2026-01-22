@@ -16,7 +16,7 @@
 
 import * as React from 'react'
 import { useInfiniteScroll } from '@cloudillo/react'
-import type { ListFilesQuery, FileView } from '@cloudillo/base'
+import type { ListFilesQuery, FileView } from '@cloudillo/core'
 import { useContextAwareApi } from '../../../context/index.js'
 import type { Photo } from '../types.js'
 

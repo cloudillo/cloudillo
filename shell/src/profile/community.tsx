@@ -26,7 +26,7 @@ import {
 } from 'react-icons/lu'
 
 import { useAuth, useApi, Button } from '@cloudillo/react'
-import * as Types from '@cloudillo/base'
+import * as Types from '@cloudillo/core'
 
 import { useCommunitiesList, useContextSwitch } from '../context/index.js'
 import { CloudilloLogo } from '../logo.js'

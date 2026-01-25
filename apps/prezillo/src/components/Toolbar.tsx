@@ -35,6 +35,7 @@ import {
 	PiQrCodeBold as IcQrCode,
 	PiChartBarBold as IcPollFrame,
 	PiTableBold as IcTable,
+	PiUsersBold as IcStateVar,
 	PiTrashBold as IcDelete,
 	PiCopyBold as IcDuplicate,
 	PiArrowArcLeftBold as IcUndo,
@@ -66,6 +67,9 @@ import {
 } from 'react-icons/pi'
 
 import { FONT_SIZES } from '../utils/text-styles'
+
+// App version injected at build time
+declare const __APP_VERSION__: string
 
 export interface ToolbarProps {
 	className?: string
@@ -294,6 +298,15 @@ export function Toolbar({
 				title="Table Grid"
 			>
 				<IcTable />
+			</button>
+
+			{/* State Variable tool (live user count) */}
+			<button
+				onClick={() => setTool('statevar')}
+				className={mergeClasses('c-button icon', tool === 'statevar' ? 'active' : '')}
+				title="Live Users Count"
+			>
+				<IcStateVar />
 			</button>
 
 			{/* Symbol tool */}
@@ -591,6 +604,13 @@ export function Toolbar({
 							</span>
 							<span className="c-menu-item-label">Check Document...</span>
 						</button>
+						<div className="c-menu-divider" />
+						<div
+							className="c-menu-item disabled"
+							style={{ opacity: 0.6, cursor: 'default' }}
+						>
+							<span className="c-menu-item-label">Prezillo v{__APP_VERSION__}</span>
+						</div>
 					</div>
 				)}
 			</div>

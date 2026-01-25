@@ -31,6 +31,8 @@ export type {
 	StoredStyle,
 	StoredMeta,
 	StoredSymbol,
+	StoredStateVar,
+	StateVarTypeCode,
 	ChildRef,
 	ShapeStyle,
 	TextStyle,
@@ -71,6 +73,8 @@ export type {
 	PollFrameObject,
 	TableGridObject,
 	SymbolObject,
+	StateVarObject,
+	StateVarType,
 	ContainerNode,
 	ViewNode,
 	DocumentMeta,
@@ -428,8 +432,7 @@ export { exportDocument, downloadExport } from './export'
 export type {
 	PrezilloExportDocument,
 	PrezilloExportMeta,
-	RichTextExport,
-	StyleExport
+	RichTextExport
 } from './export'
 
 // vim: ts=4

@@ -33,6 +33,7 @@ import { QRCodeRenderer } from './QRCodeRenderer'
 import { PollFrameRenderer } from './PollFrameRenderer'
 import { TableGridRenderer } from './TableGridRenderer'
 import { SymbolRenderer } from './SymbolRenderer'
+import { StateVarRenderer } from './StateVarRenderer'
 
 /**
  * Render SVG gradient definition using library functions
@@ -95,6 +96,10 @@ export interface ObjectShapeProps {
 	scale?: number
 	// Show instance indicator
 	showInstanceIndicator?: boolean
+	// State values for statevar objects
+	stateValues?: {
+		userCount: number
+	}
 }
 
 /**
@@ -145,7 +150,8 @@ export const ObjectShape = React.memo(function ObjectShape({
 	tempBounds,
 	ownerTag,
 	scale,
-	showInstanceIndicator
+	showInstanceIndicator,
+	stateValues
 }: ObjectShapeProps) {
 	// Use temp bounds if provided, otherwise use object bounds
 	const x = tempBounds?.x ?? object.x
@@ -485,6 +491,31 @@ export const ObjectShape = React.memo(function ObjectShape({
 						style={style}
 						bounds={{ x, y, width, height }}
 						gradientId={gradientId}
+					/>
+					{/* Invisible rect for click handling */}
+					<rect
+						x={x}
+						y={y}
+						width={width}
+						height={height}
+						fill="transparent"
+						stroke="none"
+					/>
+					{hoverOverlay}
+					{stackedOverlay}
+					{instanceIndicator}
+					{hiddenIndicator}
+				</g>
+			)
+
+		case 'statevar':
+			return (
+				<g transform={rotationTransform} opacity={objectOpacity} {...commonProps}>
+					<StateVarRenderer
+						object={object}
+						textStyle={textStyle}
+						bounds={{ x, y, width, height }}
+						stateValues={stateValues ?? { userCount: 1 }}
 					/>
 					{/* Invisible rect for click handling */}
 					<rect

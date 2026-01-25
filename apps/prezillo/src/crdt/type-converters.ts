@@ -38,7 +38,8 @@ const OBJECT_TYPE_MAP: Record<Stored.ObjectTypeCode, Runtime.ObjectType> = {
 	Q: 'qrcode',
 	F: 'pollframe',
 	Tg: 'tablegrid',
-	S: 'symbol'
+	S: 'symbol',
+	V: 'statevar'
 }
 
 const OBJECT_TYPE_REVERSE: Record<Runtime.ObjectType, Stored.ObjectTypeCode> = {
@@ -54,8 +55,13 @@ const OBJECT_TYPE_REVERSE: Record<Runtime.ObjectType, Stored.ObjectTypeCode> = {
 	qrcode: 'Q',
 	pollframe: 'F',
 	tablegrid: 'Tg',
-	symbol: 'S'
+	symbol: 'S',
+	statevar: 'V'
 }
+
+// State variable type mappings
+const STATE_VAR_MAP: Record<Stored.StateVarTypeCode, Runtime.StateVarType> = { u: 'users' }
+const STATE_VAR_REVERSE: Record<Runtime.StateVarType, Stored.StateVarTypeCode> = { users: 'u' }
 
 // Poll frame shape mappings
 const POLL_SHAPE_MAP: Record<'R' | 'E', 'rect' | 'ellipse'> = {
@@ -510,6 +516,14 @@ export function expandObject(id: string, stored: Stored.StoredObject): Runtime.P
 				symbolId: sym.sid
 			} as Runtime.SymbolObject
 
+		case 'V':
+			const sv = stored as Stored.StoredStateVar
+			return {
+				...base,
+				type: 'statevar',
+				varType: STATE_VAR_MAP[sv.var] || 'users'
+			} as Runtime.StateVarObject
+
 		default:
 			throw new Error(`Unknown object type: ${(stored as any).t}`)
 	}
@@ -673,6 +687,14 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 				t: 'S',
 				sid: symObj.symbolId
 			} as Stored.StoredSymbol
+
+		case 'statevar':
+			const svObj = runtime as Runtime.StateVarObject
+			return {
+				...base,
+				t: 'V',
+				var: STATE_VAR_REVERSE[svObj.varType] || 'u'
+			} as Stored.StoredStateVar
 
 		default:
 			throw new Error(`Unknown object type: ${(runtime as any).type}`)

@@ -30,7 +30,8 @@ import type {
 	ImageObject,
 	QrCodeObject,
 	PollFrameObject,
-	SymbolObject
+	SymbolObject,
+	StateVarObject
 } from '../crdt'
 import { resolveShapeStyle, resolveTextStyle } from '../crdt'
 import { useViewObjects } from '../hooks/useViewObjects'
@@ -47,13 +48,16 @@ import { ImageRenderer } from './ImageRenderer'
 import { QRCodeRenderer } from './QRCodeRenderer'
 import { PollFrameRenderer } from './PollFrameRenderer'
 import { SymbolRenderer } from './SymbolRenderer'
+import { StateVarRenderer } from './StateVarRenderer'
 import {
 	setVote,
 	clearVote,
 	getVoteCounts,
 	getWinningFrames,
 	getLocalVote,
-	getTotalVotes
+	getTotalVotes,
+	getLocalPresenterFollowerCount,
+	getFollowerCount
 } from '../awareness'
 
 export interface PresentationModeProps {
@@ -66,6 +70,8 @@ export interface PresentationModeProps {
 	isFollowing?: boolean
 	/** Current view index from presenter (when following) */
 	followingViewIndex?: number
+	/** Client ID of the presenter being followed (for follower count) */
+	followingPresenterClientId?: number
 	/** Callback when local navigation happens (for presenting) */
 	onViewChange?: (viewIndex: number, viewId: ViewId) => void
 	/** Awareness for poll voting */
@@ -85,7 +91,8 @@ function PresentationObjectShape({
 	isWinner = false,
 	hasMyVote = false,
 	onPollClick,
-	isFocused = false
+	isFocused = false,
+	userCount = 1
 }: {
 	object: PrezilloObject
 	style: ReturnType<typeof resolveShapeStyle>
@@ -97,6 +104,7 @@ function PresentationObjectShape({
 	hasMyVote?: boolean
 	onPollClick?: (frameId: string) => void
 	isFocused?: boolean
+	userCount?: number
 }) {
 	// Hidden objects are not rendered in presentation mode
 	if (object.hidden) return null
@@ -229,6 +237,21 @@ function PresentationObjectShape({
 				/>
 			)
 			break
+		case 'statevar':
+			content = (
+				<StateVarRenderer
+					object={object as StateVarObject}
+					textStyle={textStyle}
+					bounds={{
+						x: object.x,
+						y: object.y,
+						width: object.width,
+						height: object.height
+					}}
+					stateValues={{ userCount }}
+				/>
+			)
+			break
 		default:
 			content = (
 				<rect
@@ -272,6 +295,8 @@ interface PresentationSlideProps {
 	myVote?: string | null
 	onPollClick?: (frameId: string) => void
 	focusedPollId?: string | null
+	// State variable props
+	userCount?: number
 }
 
 const PresentationSlide = React.memo(function PresentationSlide({
@@ -285,7 +310,8 @@ const PresentationSlide = React.memo(function PresentationSlide({
 	winningFrames,
 	myVote,
 	onPollClick,
-	focusedPollId
+	focusedPollId,
+	userCount = 1
 }: PresentationSlideProps) {
 	// Each slide fetches its own objects - this keeps the component stable
 	// Only fetch when renderContent is true to avoid unnecessary work
@@ -389,6 +415,7 @@ const PresentationSlide = React.memo(function PresentationSlide({
 						hasMyVote={hasMyVote}
 						onPollClick={isPollFrame ? onPollClick : undefined}
 						isFocused={isFocused}
+						userCount={userCount}
 					/>
 				)
 			})}
@@ -404,6 +431,7 @@ export function PresentationMode({
 	ownerTag,
 	isFollowing,
 	followingViewIndex,
+	followingPresenterClientId,
 	onViewChange,
 	awareness
 }: PresentationModeProps) {
@@ -459,6 +487,7 @@ export function PresentationMode({
 	const [winningFrames, setWinningFrames] = React.useState<string[]>([])
 	const [myVote, setMyVote] = React.useState<string | null>(null)
 	const [focusedPollIndex, setFocusedPollIndex] = React.useState(-1)
+	const [userCount, setUserCount] = React.useState(1)
 
 	// Get poll frames on current slide for keyboard navigation
 	const pollFrames = React.useMemo(
@@ -471,7 +500,7 @@ export function PresentationMode({
 			? pollFrames[focusedPollIndex].id
 			: null
 
-	// Subscribe to awareness changes for vote updates
+	// Subscribe to awareness changes for vote updates and follower count
 	React.useEffect(() => {
 		if (!awareness || !currentView) return
 
@@ -483,12 +512,21 @@ export function PresentationMode({
 
 			const localVote = getLocalVote(awareness)
 			setMyVote(localVote?.viewId === viewId ? localVote.frameId : null)
+
+			// Update follower count
+			// If following, show the follower count for the presenter being followed
+			// If presenting, show our own follower count
+			if (isFollowing && followingPresenterClientId !== undefined) {
+				setUserCount(getFollowerCount(awareness, followingPresenterClientId))
+			} else {
+				setUserCount(getLocalPresenterFollowerCount(awareness))
+			}
 		}
 
 		updateVotes()
 		awareness.on('change', updateVotes)
 		return () => awareness.off('change', updateVotes)
-	}, [awareness, currentView?.id])
+	}, [awareness, currentView?.id, isFollowing, followingPresenterClientId])
 
 	// Handle poll click - cast or toggle vote
 	const handlePollClick = React.useCallback(
@@ -673,6 +711,7 @@ export function PresentationMode({
 						myVote={isCurrentSlide ? myVote : undefined}
 						onPollClick={isCurrentSlide && awareness ? handlePollClick : undefined}
 						focusedPollId={isCurrentSlide ? focusedPollId : undefined}
+						userCount={userCount}
 					/>
 				)
 			})}

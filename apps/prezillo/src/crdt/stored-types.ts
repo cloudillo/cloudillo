@@ -60,9 +60,13 @@ export type ObjectTypeCode =
 	| 'F'
 	| 'Tg'
 	| 'S'
+	| 'V'
 // R=rect, E=ellipse, L=line, P=path, G=polygon, T=text
 // I=image, M=embed (media)
-// C=connector, Q=qrcode, F=pollframe, Tg=tablegrid, S=symbol
+// C=connector, Q=qrcode, F=pollframe, Tg=tablegrid, S=symbol, V=statevar
+
+// State variable type codes
+export type StateVarTypeCode = 'u' // u=users, future: t=time, s=slide, etc.
 
 // QR Code error correction level codes
 export type QrErrorCorrectionLevel = 'L' | 'M' | 'Q' | 'H'
@@ -272,6 +276,12 @@ export interface StoredSymbol extends StoredObjectBase {
 	sid: string // symbolId - reference to symbol library
 }
 
+// State Variable (displays dynamic runtime values)
+export interface StoredStateVar extends StoredObjectBase {
+	t: 'V'
+	var: StateVarTypeCode // Which variable to display
+}
+
 // Union of all stored object types
 export type StoredObject =
 	| StoredRect
@@ -287,6 +297,7 @@ export type StoredObject =
 	| StoredPollFrame
 	| StoredTableGrid
 	| StoredSymbol
+	| StoredStateVar
 
 // Container (layer or group)
 export interface StoredContainer {

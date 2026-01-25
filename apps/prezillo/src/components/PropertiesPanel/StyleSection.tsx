@@ -45,8 +45,8 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 	// Get palette for color picker
 	const palette = usePaletteValue(doc)
 
-	// Check if this is a text object
-	const isTextObject = object.type === 'text'
+	// Check if this is a text-based object (text or statevar)
+	const isTextObject = object.type === 'text' || object.type === 'statevar'
 
 	// Check if this object is an instance of a template prototype
 	const objectIsInstance = isInstance(doc, objectId)

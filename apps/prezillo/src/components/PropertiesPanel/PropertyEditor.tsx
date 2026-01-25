@@ -99,8 +99,8 @@ export function PropertyEditor({
 		return <div className="c-empty-message">Object not found</div>
 	}
 
-	// Check if object is a text type
-	const isTextObject = selectedObject.type === 'text'
+	// Check if object is a text type (includes statevar which displays text)
+	const isTextObject = selectedObject.type === 'text' || selectedObject.type === 'statevar'
 
 	// Check if object is a rect (has corner radius)
 	const isRectObject = selectedObject.type === 'rect'

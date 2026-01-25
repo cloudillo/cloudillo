@@ -37,6 +37,10 @@ export type ObjectType =
 	| 'pollframe'
 	| 'tablegrid'
 	| 'symbol'
+	| 'statevar'
+
+// State variable types (extensible for future: 'time' | 'slide' | 'total-slides')
+export type StateVarType = 'users'
 
 // QR Code error correction levels (expanded)
 export type QrErrorCorrection = 'low' | 'medium' | 'quartile' | 'high'
@@ -278,6 +282,12 @@ export interface SymbolObject extends PrezilloObjectBase {
 	symbolId: string // Reference to symbol in library
 }
 
+// State Variable object (displays dynamic runtime values)
+export interface StateVarObject extends PrezilloObjectBase {
+	type: 'statevar'
+	varType: StateVarType // Which variable to display
+}
+
 // Union of all object types
 export type PrezilloObject =
 	| RectObject
@@ -293,6 +303,7 @@ export type PrezilloObject =
 	| PollFrameObject
 	| TableGridObject
 	| SymbolObject
+	| StateVarObject
 
 // Container (layer or group)
 export interface ContainerNode {

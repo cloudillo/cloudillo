@@ -200,6 +200,13 @@ export function createObject(
 				symbolId: '' // Will be set by caller via addObject
 			} as any
 			break
+		case 'statevar':
+			object = {
+				...base,
+				type: 'statevar',
+				varType: 'users'
+			} as any
+			break
 		default:
 			throw new Error(`Unknown object type: ${type}`)
 	}

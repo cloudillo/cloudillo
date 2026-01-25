@@ -19,6 +19,8 @@
  *
  * Exports the CRDT document as a JSON file with .prezillo extension.
  * Uses a metadata envelope with contentType for format identification.
+ *
+ * v2.0.0: Exports raw compact CRDT structure directly for simpler round-trips.
  */
 
 import * as Y from 'yjs'
@@ -32,54 +34,32 @@ import type {
 	StoredTemplate,
 	ChildRef
 } from './stored-types.js'
-import type {
-	PrezilloObject,
-	ContainerNode,
-	ViewNode,
-	Palette,
-	ChildRef as RuntimeChildRef
-} from './runtime-types.js'
-import type { Gradient } from '@cloudillo/canvas-tools'
-import {
-	expandObject,
-	expandContainer,
-	expandView,
-	expandChildRef,
-	expandPalette,
-	expandBackgroundGradient
-} from './type-converters.js'
 
-// Export version - increment when format changes
-const EXPORT_VERSION = '1.1.0'
+// App version injected at build time
+declare const __APP_VERSION__: string
+
+// Export format version - v2.0.0 uses raw compact CRDT format
+const EXPORT_FORMAT_VERSION = '2.0.0'
 const CONTENT_TYPE = 'application/vnd.cloudillo.prezillo+json'
 
 /**
- * Round a number to specified decimal places
+ * Recursively round numeric values in an object for cleaner export (3 decimal places)
  */
-function round(value: number, decimals: number = 2): number {
-	const factor = Math.pow(10, decimals)
-	return Math.round(value * factor) / factor
-}
-
-/**
- * Round numeric fields in an object for export
- * Uses 3 decimals for pivot (0-1 range), 2 for everything else
- */
-function roundObjectFields<T extends Record<string, unknown>>(obj: T): T {
-	const result: Record<string, unknown> = {}
-	for (const [key, value] of Object.entries(obj)) {
-		if (typeof value === 'number') {
-			const decimals = key === 'pivotX' || key === 'pivotY' ? 3 : 2
-			result[key] = round(value, decimals)
-		} else if (Array.isArray(value)) {
-			result[key] = value.map((v) => (typeof v === 'number' ? round(v, 2) : v))
-		} else if (value && typeof value === 'object') {
-			result[key] = roundObjectFields(value as Record<string, unknown>)
-		} else {
-			result[key] = value
-		}
+function roundNumericValues<T>(value: T): T {
+	if (typeof value === 'number') {
+		return (Math.round(value * 1000) / 1000) as T
 	}
-	return result as T
+	if (Array.isArray(value)) {
+		return value.map(roundNumericValues) as T
+	}
+	if (value && typeof value === 'object') {
+		const result: Record<string, unknown> = {}
+		for (const [key, val] of Object.entries(value)) {
+			result[key] = roundNumericValues(val)
+		}
+		return result as T
+	}
+	return value
 }
 
 /**
@@ -103,67 +83,37 @@ export interface RichTextExport {
 }
 
 /**
- * Style definition for export
- * Note: id is the key in the styles record, not included here
- */
-export interface StyleExport {
-	name: string
-	type: 'shape' | 'text'
-	parentId?: string
-	properties: Record<string, unknown>
-}
-
-/**
- * Snap guide for export
- */
-export interface SnapGuideExport {
-	direction: 'horizontal' | 'vertical'
-	position: number
-	absolute?: boolean
-}
-
-/**
- * Template definition for export
- */
-export interface TemplateExport {
-	name: string
-	width: number
-	height: number
-	backgroundColor?: string
-	backgroundGradient?: Gradient
-	backgroundImage?: string
-	backgroundFit?: 'contain' | 'cover' | 'fill' | 'tile'
-	snapGuides?: SnapGuideExport[]
-}
-
-/**
- * Complete export document structure
+ * Complete export document structure (v2.0.0)
+ * Uses raw compact CRDT format for simpler round-trips
  */
 export interface PrezilloExportDocument {
 	// Metadata envelope
 	contentType: typeof CONTENT_TYPE
-	version: string
+	appVersion: string // App version that created this export
+	formatVersion: string // Export format version
 	exportedAt: string
 
-	// Document content
+	// Document content (raw compact CRDT format)
 	data: {
 		meta: PrezilloExportMeta
-		objects: Record<string, Omit<PrezilloObject, 'id'>>
-		containers: Record<string, Omit<ContainerNode, 'id'>>
-		rootChildren: RuntimeChildRef[]
-		containerChildren: Record<string, RuntimeChildRef[]>
-		views: Record<string, Omit<ViewNode, 'id'>>
+		objects: Record<string, StoredObject>
+		containers: Record<string, StoredContainer>
+		rootChildren: ChildRef[]
+		containerChildren: Record<string, ChildRef[]>
+		views: Record<string, StoredView>
 		viewOrder: string[]
 		richTexts: Record<string, RichTextExport>
-		styles: Record<string, StyleExport>
-		templates: Record<string, TemplateExport>
+		styles: Record<string, StoredStyle>
+		templates: Record<string, StoredTemplate>
 		templatePrototypeObjects: Record<string, string[]>
-		palette: Palette | null
+		palette: StoredPalette | null
 	}
 }
 
 /**
  * Export the document to a serializable JSON structure
+ *
+ * Uses raw compact CRDT format directly via .toJSON() for simpler round-trips.
  *
  * @param yDoc - The Yjs document
  * @param doc - The Prezillo document structure
@@ -171,119 +121,46 @@ export interface PrezilloExportDocument {
  */
 export function exportDocument(yDoc: Y.Doc, doc: YPrezilloDocument): PrezilloExportDocument {
 	// 1. Collect metadata
-	const meta: PrezilloExportMeta = {
-		name: doc.m.get('name') as string | undefined,
-		defaultViewWidth: doc.m.get('defaultViewWidth') as number | undefined,
-		defaultViewHeight: doc.m.get('defaultViewHeight') as number | undefined,
-		gridSize: doc.m.get('gridSize') as number | undefined,
-		snapToGrid: doc.m.get('snapToGrid') as boolean | undefined,
-		snapToObjects: doc.m.get('snapToObjects') as boolean | undefined
-	}
+	const meta = doc.m.toJSON() as PrezilloExportMeta
 
-	// Track referenced IDs to filter orphaned entries
-	const referencedRichTextIds = new Set<string>()
+	// 2. Export raw CRDT structures with rounded numeric values for cleaner output
+	const objects = roundNumericValues(doc.o.toJSON() as Record<string, StoredObject>)
+	const containers = roundNumericValues(doc.c.toJSON() as Record<string, StoredContainer>)
+	const rootChildren = doc.r.toArray() as ChildRef[]
+	const views = roundNumericValues(doc.v.toJSON() as Record<string, StoredView>)
+	const viewOrder = doc.vo.toArray() as string[]
+	const styles = roundNumericValues(doc.st.toJSON() as Record<string, StoredStyle>)
+	const templates = roundNumericValues(doc.tpl.toJSON() as Record<string, StoredTemplate>)
 
-	// 2. Export objects (expanded format for readability)
-	// Remove 'id' field since it's already the key in the record
-	// Round numeric fields for cleaner export
-	const objects: Record<string, Omit<PrezilloObject, 'id'>> = {}
-	doc.o.forEach((stored: StoredObject, id: string) => {
-		const { id: _id, ...objectWithoutId } = expandObject(id, stored)
-		objects[id] = roundObjectFields(objectWithoutId)
+	// 3. Container children (Y.Map<Y.Array<ChildRef>>)
+	const containerChildren: Record<string, ChildRef[]> = {}
+	doc.ch.forEach((yArray, containerId) => {
+		containerChildren[containerId] = yArray.toArray()
 	})
 
-	// 3. Export containers (layers/groups)
-	// Remove 'id' field since it's already the key in the record
-	// Round numeric fields for cleaner export
-	const containers: Record<string, Omit<ContainerNode, 'id'>> = {}
-	doc.c.forEach((stored: StoredContainer, id: string) => {
-		const { id: _id, ...containerWithoutId } = expandContainer(id, stored)
-		containers[id] = roundObjectFields(containerWithoutId)
-	})
-
-	// 4. Export root children
-	const rootChildren: RuntimeChildRef[] = doc.r
-		.toArray()
-		.map((ref: ChildRef) => expandChildRef(ref))
-
-	// 5. Export container children
-	const containerChildren: Record<string, RuntimeChildRef[]> = {}
-	doc.ch.forEach((yArray: Y.Array<ChildRef>, containerId: string) => {
-		containerChildren[containerId] = yArray
-			.toArray()
-			.map((ref: ChildRef) => expandChildRef(ref))
-	})
-
-	// 6. Export views
-	// Remove 'id' field since it's already the key in the record
-	// Round numeric fields for cleaner export
-	const views: Record<string, Omit<ViewNode, 'id'>> = {}
-	doc.v.forEach((stored: StoredView, id: string) => {
-		const { id: _id, ...viewWithoutId } = expandView(id, stored)
-		views[id] = roundObjectFields(viewWithoutId)
-	})
-	const viewOrder = doc.vo.toArray()
-
-	// 7. Export rich text content (only referenced entries)
-	const richTexts: Record<string, RichTextExport> = {}
-	doc.rt.forEach((yText: Y.Text, id: string) => {
-		if (referencedRichTextIds.has(id)) {
-			richTexts[id] = {
-				plainText: yText.toString(),
-				delta: yText.toDelta()
-			}
-		}
-	})
-
-	// 8. Export styles
-	// id is already the key in the record, so don't include it in the value
-	const styles: Record<string, StyleExport> = {}
-	doc.st.forEach((stored: StoredStyle, id: string) => {
-		// Extract style properties (excluding metadata fields)
-		const { n, t, p, ...properties } = stored
-		styles[id] = {
-			name: n,
-			type: t === 'S' ? 'shape' : 'text',
-			parentId: p,
-			properties
-		}
-	})
-
-	// 9. Export templates
-	const templates: Record<string, TemplateExport> = {}
-	doc.tpl.forEach((stored: StoredTemplate, id: string) => {
-		templates[id] = {
-			name: stored.n,
-			width: stored.w,
-			height: stored.h,
-			backgroundColor: stored.bc,
-			backgroundGradient: stored.bg ? expandBackgroundGradient(stored.bg) : undefined,
-			backgroundImage: stored.bi,
-			backgroundFit: stored.bf,
-			snapGuides: stored.sg?.map((g) => ({
-				direction: g.d === 'h' ? 'horizontal' : 'vertical',
-				position: g.p,
-				absolute: g.a
-			}))
-		}
-	})
-
-	// 10. Export template prototype object mappings
+	// 4. Template prototype objects (Y.Map<Y.Array<string>>)
 	const templatePrototypeObjects: Record<string, string[]> = {}
-	doc.tpo.forEach((yArray: Y.Array<string>, templateId: string) => {
+	doc.tpo.forEach((yArray, templateId) => {
 		templatePrototypeObjects[templateId] = yArray.toArray()
 	})
 
-	// 11. Export palette
-	let palette: Palette | null = null
+	// 5. Rich texts (Y.Text needs special handling for delta)
+	const richTexts: Record<string, RichTextExport> = {}
+	doc.rt.forEach((yText, id) => {
+		richTexts[id] = {
+			plainText: yText.toString(),
+			delta: yText.toDelta()
+		}
+	})
+
+	// 6. Palette (single entry keyed by 'default')
 	const storedPalette = doc.pl.get('default')
-	if (storedPalette) {
-		palette = expandPalette(storedPalette)
-	}
+	const palette = storedPalette ? roundNumericValues(storedPalette) : null
 
 	return {
 		contentType: CONTENT_TYPE,
-		version: EXPORT_VERSION,
+		appVersion: __APP_VERSION__,
+		formatVersion: EXPORT_FORMAT_VERSION,
 		exportedAt: new Date().toISOString(),
 		data: {
 			meta,

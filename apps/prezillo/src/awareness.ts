@@ -46,6 +46,11 @@ export interface PrezilloPresence {
 		isOwner: boolean
 		startedAt: number // timestamp for ordering multiple presenters
 	}
+	// Following state - broadcasted when user is following a presentation
+	following?: {
+		presenterClientId: number // Client ID of the presenter being followed
+		startedAt: number
+	}
 	// Poll vote state - broadcasted when user votes on a poll frame
 	vote?: {
 		frameId: string // ObjectId of the poll frame
@@ -211,6 +216,59 @@ export function getActivePresenters(awareness: Awareness): PresenterInfo[] {
 export function isLocalPresenting(awareness: Awareness): boolean {
 	const state = awareness.getLocalState()
 	return !!state?.presenting
+}
+
+/**
+ * Start following a presenter
+ */
+export function setFollowing(awareness: Awareness, presenterClientId: number): void {
+	awareness.setLocalStateField('following', {
+		presenterClientId,
+		startedAt: Date.now()
+	})
+}
+
+/**
+ * Stop following
+ */
+export function clearFollowing(awareness: Awareness): void {
+	awareness.setLocalStateField('following', undefined)
+}
+
+/**
+ * Check if the local client is currently following
+ */
+export function isLocalFollowing(awareness: Awareness): boolean {
+	const state = awareness.getLocalState()
+	return !!state?.following
+}
+
+/**
+ * Get follower count for a specific presenter (by client ID)
+ * Counts users who have `following.presenterClientId` matching the presenter
+ */
+export function getFollowerCount(awareness: Awareness, presenterClientId: number): number {
+	const states = awareness.getStates()
+	let count = 0
+
+	states.forEach((state: any) => {
+		if (state?.following?.presenterClientId === presenterClientId) {
+			count++
+		}
+	})
+
+	return count
+}
+
+/**
+ * Get total follower count for the local presenter
+ * Returns 0 if not presenting
+ */
+export function getLocalPresenterFollowerCount(awareness: Awareness): number {
+	const localState = awareness.getLocalState()
+	if (!localState?.presenting) return 0
+
+	return getFollowerCount(awareness, awareness.clientID)
 }
 
 // ============================================================================

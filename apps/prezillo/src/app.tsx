@@ -2404,6 +2404,7 @@ export function PrezilloApp() {
 					}}
 					onDuplicateView={handleDuplicateView}
 					onDeleteView={handleDeleteView}
+					awareness={prezillo.awareness}
 				/>
 			</div>
 
@@ -2432,6 +2433,7 @@ export function PrezilloApp() {
 					ownerTag={prezillo.cloudillo.idTag}
 					isFollowing={true}
 					followingViewIndex={followedPresenter.viewIndex}
+					followingPresenterClientId={followedPresenter.clientId}
 					awareness={prezillo.awareness}
 				/>
 			)}

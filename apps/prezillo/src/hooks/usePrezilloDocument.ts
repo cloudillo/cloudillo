@@ -35,7 +35,9 @@ import {
 	clearPresenting,
 	updatePresentingView,
 	getActivePresenters,
-	isLocalPresenting
+	isLocalPresenting,
+	setFollowing,
+	clearFollowing
 } from '../awareness'
 
 export interface UsePrezilloDocumentResult {
@@ -417,19 +419,29 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 		(clientId: number) => {
 			setFollowingClientId(clientId)
 
+			// Broadcast following state via awareness
+			if (awareness) {
+				setFollowing(awareness, clientId)
+			}
+
 			// Find the presenter and navigate to their current view
 			const presenter = activePresenters.find((p) => p.clientId === clientId)
 			if (presenter) {
 				setActiveViewId(presenter.viewId)
 			}
 		},
-		[activePresenters, setActiveViewId]
+		[awareness, activePresenters, setActiveViewId]
 	)
 
 	// Unfollow presenter
 	const unfollowPresenter = React.useCallback(() => {
 		setFollowingClientId(null)
-	}, [])
+
+		// Clear following state in awareness
+		if (awareness) {
+			clearFollowing(awareness)
+		}
+	}, [awareness])
 
 	// Sync view with followed presenter when they navigate
 	React.useEffect(() => {

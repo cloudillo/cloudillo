@@ -37,8 +37,10 @@ import {
 } from 'react-icons/pi'
 import { useTranslation } from 'react-i18next'
 
+import type { Awareness } from 'y-protocols/awareness'
 import type { ViewId, ViewNode, TemplateId } from '../crdt'
 import type { PresenterInfo } from '../awareness'
+import { getFollowerCount } from '../awareness'
 import type { TemplateWithUsage } from '../hooks/useTemplates'
 
 export interface ViewPickerProps {
@@ -76,6 +78,8 @@ export interface ViewPickerProps {
 	onDuplicateView?: (viewId: ViewId) => void
 	/** Callback to delete a view */
 	onDeleteView?: (viewId: ViewId) => void
+	/** Awareness for follower count */
+	awareness?: Awareness | null
 }
 
 /**
@@ -190,7 +194,8 @@ export function ViewPicker({
 	selectedTemplateId = null,
 	onTemplateSelect,
 	onDuplicateView,
-	onDeleteView
+	onDeleteView,
+	awareness
 }: ViewPickerProps) {
 	const { t } = useTranslation()
 	const activeIndex = views.findIndex((v) => v.id === activeViewId)
@@ -538,6 +543,9 @@ export function ViewPicker({
 							{activePresenters.map((presenter) => {
 								const isFollowing = followingClientId === presenter.clientId
 								const slideNum = presenter.viewIndex + 1
+								const followerCount = awareness
+									? getFollowerCount(awareness, presenter.clientId)
+									: 0
 
 								return (
 									<div
@@ -565,6 +573,15 @@ export function ViewPicker({
 											</div>
 											<div className="c-presenter-indicator__slide">
 												{t('prezillo.slide')} {slideNum}/{views.length}
+												{followerCount > 0 && (
+													<span className="c-presenter-indicator__followers">
+														{' · '}
+														{followerCount}{' '}
+														{t('prezillo.followers', {
+															count: followerCount
+														})}
+													</span>
+												)}
 											</div>
 										</div>
 										<button

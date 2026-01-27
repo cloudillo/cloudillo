@@ -160,15 +160,15 @@ function ProfileConnection({
 					<IcBlock />
 					{t('Unblock')}
 				</Button>
-			) : !localProfile.following ? (
-				<Button link onClick={cmds.onFollow}>
-					<IcFollow />
-					{t('Follow')}
-				</Button>
 			) : !localProfile.connected ? (
 				<Button link onClick={cmds.onConnect}>
 					<IcConnect />
 					{t('Connect')}
+				</Button>
+			) : !localProfile.following ? (
+				<Button link onClick={cmds.onFollow}>
+					<IcFollow />
+					{t('Follow')}
 				</Button>
 			) : null}
 			<div className="separator" />

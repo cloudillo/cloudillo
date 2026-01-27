@@ -64,10 +64,10 @@ export const ColorInput = createComponent<HTMLDivElement, ColorInputProps>(
 			setIsEditing(false)
 		}, [onChange, value])
 
-		const handleColorDrag = React.useCallback(
-			(e: React.ChangeEvent<HTMLInputElement>) => {
+		const handleColorDrag: React.FormEventHandler<HTMLInputElement> = React.useCallback(
+			(e) => {
 				// Update local state and call preview callback (for live visual feedback during drag)
-				const newColor = e.target.value
+				const newColor = e.currentTarget.value
 				setLocalColor(newColor)
 				setIsEditing(true)
 				pendingColorRef.current = newColor

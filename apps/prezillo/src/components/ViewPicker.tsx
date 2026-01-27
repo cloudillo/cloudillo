@@ -388,6 +388,25 @@ export function ViewPicker({
 
 	return (
 		<div className="c-nav c-hbox p-1 gap-1">
+			{isPresenting ? (
+				<button
+					onClick={onStopPresenting}
+					className="c-button icon me-2 presenting"
+					title="Stop presenting"
+				>
+					<IcStop />
+				</button>
+			) : (
+				<button
+					onClick={onPresent}
+					className="c-button icon me-2"
+					title="Present (fullscreen)"
+					disabled={views.length === 0}
+				>
+					<IcPlay />
+				</button>
+			)}
+
 			<button
 				onClick={onPrevView}
 				className="c-button icon"
@@ -488,25 +507,6 @@ export function ViewPicker({
 			{!readOnly && (
 				<button onClick={onAddView} className="c-button icon" title="Add page">
 					<IcAdd />
-				</button>
-			)}
-
-			{isPresenting ? (
-				<button
-					onClick={onStopPresenting}
-					className="c-button icon ms-2 presenting"
-					title="Stop presenting"
-				>
-					<IcStop />
-				</button>
-			) : (
-				<button
-					onClick={onPresent}
-					className="c-button icon ms-2"
-					title="Present (fullscreen)"
-					disabled={views.length === 0}
-				>
-					<IcPlay />
 				</button>
 			)}
 

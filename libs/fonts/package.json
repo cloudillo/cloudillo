@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/fonts",
-	"version": "0.8.6",
+	"version": "0.8.7",
 	"description": "Curated font collection for Cloudillo applications",
 	"license": "LGPL-3.0-or-later",
 	"type": "module",

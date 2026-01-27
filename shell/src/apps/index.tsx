@@ -18,6 +18,8 @@ import * as React from 'react'
 import { Routes, Route, useLocation, useParams } from 'react-router-dom'
 import { useAuth, useApi, mergeClasses } from '@cloudillo/react'
 
+import { version } from '../../package.json'
+
 import { useAppConfig, TrustLevel } from '../utils.js'
 import { getShellBus } from '../message-bus/shell-bus.js'
 import { onAppReady } from '../message-bus/index.js'
@@ -406,7 +408,7 @@ export function MicrofrontendContainer({
 				}
 
 				iframeElement?.addEventListener('load', onMicrofrontendLoad)
-				setUrl(`${appUrl}#${resId}`)
+				setUrl(`${appUrl}?v=${version}#${resId}`)
 
 				// Cleanup on unmount or when core dependencies change (app, resId, retryCount)
 				return () => {

@@ -152,98 +152,80 @@ export async function registerServiceWorker(authToken?: string): Promise<void> {
 	const swPath = swConfig.swPath || '/sw.js'
 
 	try {
-		const existingReg = await navigator.serviceWorker.getRegistration()
-
-		// Check if SW already registered
-		if (existingReg?.active) {
-			serviceWorker = existingReg
-			if (authToken) {
-				existingReg.active.postMessage({
-					cloudillo: true,
-					v: 1,
-					type: 'sw:token.set',
-					payload: { token: authToken }
-				})
-				console.log('[PWA] Token updated in existing service worker')
-			}
-
-			// On hard reload (Ctrl+Shift+R), SW is active but not controlling.
-			// Request SW to claim this page so it can intercept API requests.
-			if (!navigator.serviceWorker.controller) {
-				console.log('[PWA] Waiting for SW to become controller...')
-				await new Promise<void>((resolve) => {
-					// Set up listener for controller change
-					const onControllerChange = () => {
-						navigator.serviceWorker.removeEventListener(
-							'controllerchange',
-							onControllerChange
-						)
-						console.log('[PWA] SW is now controlling the page')
-						resolve()
-					}
-					navigator.serviceWorker.addEventListener('controllerchange', onControllerChange)
-
-					// Request SW to claim control
-					existingReg.active!.postMessage({
-						cloudillo: true,
-						v: 1,
-						type: 'sw:claim'
-					})
-
-					// Also check if controller became available (race condition)
-					if (navigator.serviceWorker.controller) {
-						navigator.serviceWorker.removeEventListener(
-							'controllerchange',
-							onControllerChange
-						)
-						console.log('[PWA] SW is now controlling the page')
-						resolve()
-					}
-				})
-			}
-
-			return
-		}
-
-		console.log('[PWA] Registering service worker')
+		// Always register - browser handles updates if script changed
+		// This fixes the bug where version updates (e.g., sw-0.8.6.js -> sw-0.8.7.js)
+		// were not applied because we returned early when any SW was registered
+		console.log('[PWA] Registering service worker:', swPath)
 		const reg = await navigator.serviceWorker.register(swPath)
 		serviceWorker = reg
-		console.log('[PWA] Service worker registered')
 
-		// Wait for SW to be active, then send the token
-		if (authToken) {
-			let activeWorker = reg.active
-			if (!activeWorker) {
-				const installingWorker = reg.installing || reg.waiting
-				if (installingWorker) {
-					await new Promise<void>((resolve) => {
-						installingWorker.addEventListener('statechange', function handler() {
-							if (installingWorker.state === 'activated') {
-								activeWorker = installingWorker
-								installingWorker.removeEventListener('statechange', handler)
-								resolve()
-							}
-						})
+		// Wait for SW to be active
+		let activeWorker = reg.active
+		if (!activeWorker) {
+			const installingWorker = reg.installing || reg.waiting
+			if (installingWorker) {
+				await new Promise<void>((resolve) => {
+					installingWorker.addEventListener('statechange', function handler() {
 						if (installingWorker.state === 'activated') {
 							activeWorker = installingWorker
+							installingWorker.removeEventListener('statechange', handler)
 							resolve()
 						}
 					})
-				}
-			}
-
-			if (activeWorker) {
-				activeWorker.postMessage({
-					cloudillo: true,
-					v: 1,
-					type: 'sw:token.set',
-					payload: { token: authToken }
+					if (installingWorker.state === 'activated') {
+						activeWorker = installingWorker
+						resolve()
+					}
 				})
-				console.log('[PWA] Token sent to service worker')
-			} else {
-				console.warn('[PWA] No active service worker to send token to')
 			}
 		}
+
+		// Send token to active worker
+		if (authToken && activeWorker) {
+			activeWorker.postMessage({
+				cloudillo: true,
+				v: 1,
+				type: 'sw:token.set',
+				payload: { token: authToken }
+			})
+			console.log('[PWA] Token sent to service worker')
+		}
+
+		// Ensure SW is controlling this page
+		// On hard reload (Ctrl+Shift+R), SW is active but not controlling.
+		// Request SW to claim this page so it can intercept API requests.
+		if (!navigator.serviceWorker.controller) {
+			console.log('[PWA] Waiting for SW to become controller...')
+			await new Promise<void>((resolve) => {
+				const onControllerChange = () => {
+					navigator.serviceWorker.removeEventListener(
+						'controllerchange',
+						onControllerChange
+					)
+					console.log('[PWA] SW is now controlling the page')
+					resolve()
+				}
+				navigator.serviceWorker.addEventListener('controllerchange', onControllerChange)
+
+				// Request SW to claim control
+				activeWorker?.postMessage({
+					cloudillo: true,
+					v: 1,
+					type: 'sw:claim'
+				})
+
+				// Also check if controller became available (race condition)
+				if (navigator.serviceWorker.controller) {
+					navigator.serviceWorker.removeEventListener(
+						'controllerchange',
+						onControllerChange
+					)
+					resolve()
+				}
+			})
+		}
+
+		console.log('[PWA] Service worker ready')
 	} catch (err) {
 		console.error('[PWA] SW registration failed:', err)
 	}

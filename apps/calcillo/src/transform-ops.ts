@@ -250,6 +250,28 @@ function transformConfigOp(sheet: YSheetStructure, op: Op): void {
 							}
 						}
 					}
+
+					// Handle columnlen in full config replacement
+					if (op.value.columnlen && typeof op.value.columnlen === 'object') {
+						for (const [colIdxStr, width] of Object.entries(op.value.columnlen)) {
+							const colIndex = Number(colIdxStr)
+							const colId = indexToColId(sheet, colIndex)
+							if (colId && typeof width === 'number') {
+								sheet.colWidths.set(colId, width)
+							}
+						}
+					}
+
+					// Handle rowlen in full config replacement
+					if (op.value.rowlen && typeof op.value.rowlen === 'object') {
+						for (const [rowIdxStr, height] of Object.entries(op.value.rowlen)) {
+							const rowIndex = Number(rowIdxStr)
+							const rowId = indexToRowId(sheet, rowIndex)
+							if (rowId && typeof height === 'number') {
+								sheet.rowHeights.set(rowId, height)
+							}
+						}
+					}
 				} else if (op.path.length === 3 && op.path[1] === 'columnlen') {
 					// Column width update - store by ID, not index!
 					const colIndex = Number(op.path[2])
@@ -257,12 +279,34 @@ function transformConfigOp(sheet: YSheetStructure, op: Op): void {
 					if (colId) {
 						sheet.colWidths.set(colId, op.value)
 					}
+				} else if (op.path.length === 2 && op.path[1] === 'columnlen') {
+					// Whole columnlen object replacement (e.g., first resize or full config sync)
+					if (op.value && typeof op.value === 'object') {
+						for (const [colIdxStr, width] of Object.entries(op.value)) {
+							const colIndex = Number(colIdxStr)
+							const colId = indexToColId(sheet, colIndex)
+							if (colId && typeof width === 'number') {
+								sheet.colWidths.set(colId, width)
+							}
+						}
+					}
 				} else if (op.path.length === 3 && op.path[1] === 'rowlen') {
 					// Row height update - store by ID, not index!
 					const rowIndex = Number(op.path[2])
 					const rowId = indexToRowId(sheet, rowIndex)
 					if (rowId) {
 						sheet.rowHeights.set(rowId, op.value)
+					}
+				} else if (op.path.length === 2 && op.path[1] === 'rowlen') {
+					// Whole rowlen object replacement (e.g., first resize or full config sync)
+					if (op.value && typeof op.value === 'object') {
+						for (const [rowIdxStr, height] of Object.entries(op.value)) {
+							const rowIndex = Number(rowIdxStr)
+							const rowId = indexToRowId(sheet, rowIndex)
+							if (rowId && typeof height === 'number') {
+								sheet.rowHeights.set(rowId, height)
+							}
+						}
 					}
 				} else if (op.path.length === 3 && op.path[1] === 'rowhidden') {
 					// Row hide/show operation: config.rowhidden.{index}
@@ -427,6 +471,8 @@ function transformConfigOp(sheet: YSheetStructure, op: Op): void {
 						// Unfreeze - clear the map
 						sheet.frozen.clear()
 					}
+				} else {
+					debug.warn('[transformConfigOp] Unhandled config op:', op.op, 'path:', op.path)
 				}
 			}
 			break
@@ -495,6 +541,8 @@ function transformConfigOp(sheet: YSheetStructure, op: Op): void {
 			} else if (op.path.length === 2 && op.path[1] === 'frozen') {
 				// Remove frozen panes - clear the Y.Map
 				sheet.frozen.clear()
+			} else {
+				debug.warn('[transformConfigOp] Unhandled remove config op, path:', op.path)
 			}
 			break
 		}
@@ -531,6 +579,10 @@ function transformSheetOp(sheet: YSheetStructure, op: Op): void {
 			}
 			break
 		}
+
+		default:
+			debug.warn('[transformSheetOp] Unhandled sheet op:', op.op)
+			break
 	}
 }
 
@@ -600,6 +652,8 @@ export function transformOp(sheet: YSheetStructure, op: Op): void {
 		transformFrozenOp(sheet, op)
 	} else if (op.path.length === 0) {
 		transformSheetOp(sheet, op)
+	} else {
+		debug.warn('[transformOp] Unhandled op, path:', op.path, 'op:', op.op)
 	}
 }
 

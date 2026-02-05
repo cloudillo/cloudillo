@@ -156,7 +156,10 @@ import {
 	LuBell as IcNotifications,
 	LuSettings as IcSettings,
 	LuServerCog as IcSiteAdmin,
-	LuFingerprint as IcIdp
+	LuFingerprint as IcIdp,
+	LuCircleAlert as IcWarning,
+	LuRefreshCw as IcRefresh,
+	LuTrash2 as IcClear
 } from 'react-icons/lu'
 import { CloudilloLogo } from './logo.js'
 
@@ -180,7 +183,10 @@ import usePWA, {
 	ensureEncryptionKey,
 	getApiKey,
 	deleteApiKey,
-	clearAuthToken
+	clearAuthToken,
+	onKeyAccessError,
+	resetEncryptionState,
+	KeyErrorReason
 } from './pwa.js'
 import { AuthRoutes } from './auth/auth.js'
 import { useTokenRenewal } from './auth/useTokenRenewal.js'
@@ -788,6 +794,88 @@ function Header({ inert }: { inert?: boolean }) {
 	)
 }
 
+/**
+ * Blocking error overlay shown when encryption key is inaccessible or incorrect
+ * but encrypted data exists (prevents data loss from key regeneration)
+ */
+function KeyAccessError({
+	reason,
+	onRetry,
+	onReset
+}: {
+	reason: KeyErrorReason
+	onRetry: () => void
+	onReset: () => void
+}) {
+	const { t } = useTranslation()
+	const [resetting, setResetting] = React.useState(false)
+
+	async function handleReset() {
+		if (
+			!confirm(
+				t(
+					'This will clear all locally stored data and require you to log in again. Continue?'
+				)
+			)
+		) {
+			return
+		}
+		setResetting(true)
+		await resetEncryptionState()
+		onReset()
+	}
+
+	const isMissing = reason === 'key_missing'
+
+	return (
+		<div className="c-overlay c-vbox align-items-center justify-content-center p-4">
+			<div className="c-card p-4" style={{ maxWidth: 480 }}>
+				<div className="c-hbox align-items-center g-2 mb-3">
+					<IcWarning size={32} className="text-error" />
+					<h2 className="m-0">{t('Encryption Key Error')}</h2>
+				</div>
+				{isMissing ? (
+					<>
+						<p className="mb-3">
+							{t(
+								'Your encryption key cookie is missing, but encrypted data still exists. This can happen if your browser cookie storage was temporarily inaccessible (e.g., when Chrome cannot access its encrypted database).'
+							)}
+						</p>
+						<p className="mb-4 text-muted">
+							{t(
+								'Generating a new key would make your existing data unrecoverable. Please try reloading the page first.'
+							)}
+						</p>
+					</>
+				) : (
+					<>
+						<p className="mb-3">
+							{t(
+								'Your encryption key does not match your stored data. This can happen if the key cookie was corrupted, or if you are accessing data from a different browser or device.'
+							)}
+						</p>
+						<p className="mb-4 text-muted">
+							{t(
+								'Your stored data cannot be decrypted with the current key. If you recently had browser issues, try reloading. Otherwise, you may need to start fresh and log in again.'
+							)}
+						</p>
+					</>
+				)}
+				<div className="c-hbox g-2 justify-content-end">
+					<Button onClick={handleReset} disabled={resetting}>
+						<IcClear />
+						{t('Start Fresh')}
+					</Button>
+					<Button className="primary" onClick={onRetry}>
+						<IcRefresh />
+						{t('Retry')}
+					</Button>
+				</div>
+			</div>
+		</div>
+	)
+}
+
 export function Layout() {
 	const pwa = usePWA({ swPath: `/sw-${version}.js` })
 	const [auth] = useAuth()
@@ -796,8 +884,16 @@ export function Layout() {
 	const sidebar = useSidebar()
 	const { loadPinnedCommunities, loadCommunities } = useCommunitiesList()
 	const location = useLocation()
+	const [keyAccessError, setKeyAccessError] = React.useState<KeyErrorReason | null>(null)
 	useTokenRenewal() // Automatic token renewal
 	useActionNotifications() // Sound and toast notifications for incoming actions
+
+	// Listen for key access errors from service worker
+	React.useEffect(() => {
+		return onKeyAccessError((reason) => {
+			setKeyAccessError(reason)
+		})
+	}, [])
 
 	// Load pinned communities and communities list from backend when authenticated
 	React.useEffect(() => {
@@ -862,6 +958,17 @@ export function Layout() {
 
 	// Check if we're in an app view (for Menu component)
 	const isAppView = location.pathname.startsWith('/app/')
+
+	// Show key access error overlay if encryption key is inaccessible or incorrect
+	if (keyAccessError) {
+		return (
+			<KeyAccessError
+				reason={keyAccessError}
+				onRetry={() => window.location.reload()}
+				onReset={() => window.location.reload()}
+			/>
+		)
+	}
 
 	return (
 		<>

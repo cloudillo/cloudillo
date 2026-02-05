@@ -35,6 +35,17 @@ function convertKey(base64Key: string): Uint8Array<ArrayBuffer> {
 // Encryption Key (Cookie)  //
 //////////////////////////////
 const KEY_COOKIE_NAME = 'swKey'
+const HAD_ENCRYPTED_DATA_KEY = 'cloudillo-had-encrypted-data'
+
+// Track that we have stored encrypted data (for Firefox/Safari fallback)
+export function markHadEncryptedData(): void {
+	localStorage.setItem(HAD_ENCRYPTED_DATA_KEY, '1')
+}
+
+// Check if we've ever had encrypted data (for Firefox/Safari fallback)
+function hadEncryptedData(): boolean {
+	return localStorage.getItem(HAD_ENCRYPTED_DATA_KEY) === '1'
+}
 
 // Generate a random 256-bit key, return as base64url
 function generateKey(): string {
@@ -46,7 +57,7 @@ function generateKey(): string {
 }
 
 // Get or create key from cookie (for fallback browsers without Cookie Store API)
-function getOrCreateKeyFromCookie(): string {
+function getOrCreateKeyFromCookie(): string | null {
 	// Try to read existing
 	const existing = document.cookie
 		.split('; ')
@@ -54,6 +65,15 @@ function getOrCreateKeyFromCookie(): string {
 		?.split('=')[1]
 
 	if (existing) return existing
+
+	// Check if we've ever had encrypted data (Firefox/Safari fallback)
+	if (hadEncryptedData()) {
+		console.error('[PWA] CRITICAL: Key cookie missing but encrypted data may exist!')
+		console.error(
+			'[PWA] This may happen if browser cookie storage is temporarily inaccessible.'
+		)
+		return null // Do NOT generate new key
+	}
 
 	// Generate new key
 	const newKey = generateKey()
@@ -66,15 +86,21 @@ function getOrCreateKeyFromCookie(): string {
  * Ensure SW has encryption key (for browsers without Cookie Store API)
  * Chrome/Edge: SW reads cookie directly via Cookie Store API
  * Firefox/Safari: Main thread generates/reads key and relays to SW
+ * @returns true if key is available, false if key is inaccessible
  */
-export async function ensureEncryptionKey(): Promise<void> {
-	if (!('serviceWorker' in navigator)) return
+export async function ensureEncryptionKey(): Promise<boolean> {
+	if (!('serviceWorker' in navigator)) return true
 
 	// Chrome/Edge: SW handles everything via Cookie Store API
-	if ('cookieStore' in window) return
+	if ('cookieStore' in window) return true
 
 	// Firefox/Safari: Generate key in main thread, relay to SW
 	const key = getOrCreateKeyFromCookie()
+
+	if (!key) {
+		console.error('[PWA] Cannot relay key - cookie inaccessible')
+		return false
+	}
 
 	await navigator.serviceWorker.ready
 	navigator.serviceWorker.controller?.postMessage({
@@ -84,6 +110,125 @@ export async function ensureEncryptionKey(): Promise<void> {
 		payload: { key }
 	})
 	console.log('[PWA] Encryption key relayed to service worker')
+	return true
+}
+
+//////////////////////////////
+// Key Access Error Handling //
+//////////////////////////////
+export type KeyErrorReason = 'key_missing' | 'key_mismatch'
+export type KeyErrorCallback = (reason: KeyErrorReason) => void
+let keyErrorCallback: KeyErrorCallback | null = null
+let pendingKeyError: KeyErrorReason | null = null // Store error if callback not yet registered
+let deliveredError: KeyErrorReason | null = null // Track delivered error to prevent duplicates
+
+/**
+ * Register a callback for key access errors
+ * @returns Unsubscribe function
+ */
+export function onKeyAccessError(callback: KeyErrorCallback): () => void {
+	keyErrorCallback = callback
+
+	// If there's a pending error from before the callback was registered, deliver it now
+	if (pendingKeyError) {
+		const error = pendingKeyError
+		pendingKeyError = null
+		deliveredError = error
+		// Use setTimeout to ensure React state update happens after mount
+		setTimeout(() => callback(error), 0)
+	} else {
+		// Proactively check with SW if there's an error state we might have missed
+		// This handles the case where SW sent error before any clients were ready
+		checkKeyErrorState()
+	}
+
+	return () => {
+		keyErrorCallback = null
+		deliveredError = null
+	}
+}
+
+/**
+ * Ask the SW if there's a key error state
+ * Used when callback is registered to catch errors that occurred before
+ */
+function checkKeyErrorState(): void {
+	if (!('serviceWorker' in navigator)) return
+
+	navigator.serviceWorker.ready.then(() => {
+		navigator.serviceWorker.controller?.postMessage({
+			cloudillo: true,
+			v: 1,
+			type: 'sw:key.error.check'
+		})
+	})
+}
+
+/**
+ * Reset encryption state to allow fresh key generation
+ * This clears encrypted data in SW and localStorage tracking
+ */
+export async function resetEncryptionState(): Promise<void> {
+	// Clear localStorage tracking
+	localStorage.removeItem(HAD_ENCRYPTED_DATA_KEY)
+
+	// Clear error tracking state
+	pendingKeyError = null
+	deliveredError = null
+
+	// Clear encrypted data in SW and wait for acknowledgment
+	if ('serviceWorker' in navigator) {
+		await navigator.serviceWorker.ready
+		const controller = navigator.serviceWorker.controller
+		if (controller) {
+			await new Promise<void>((resolve) => {
+				const timeout = setTimeout(() => {
+					console.warn('[PWA] Key reset acknowledgment timed out')
+					resolve()
+				}, 3000)
+
+				const handler = (evt: MessageEvent) => {
+					const msg = evt.data
+					if (msg?.cloudillo && msg.type === 'sw:key.reset.ack') {
+						clearTimeout(timeout)
+						navigator.serviceWorker.removeEventListener('message', handler)
+						resolve()
+					}
+				}
+				navigator.serviceWorker.addEventListener('message', handler)
+
+				controller.postMessage({
+					cloudillo: true,
+					v: 1,
+					type: 'sw:key.reset'
+				})
+			})
+		}
+	}
+	console.log('[PWA] Encryption state reset')
+}
+
+// Listen for key access error messages from SW
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+	navigator.serviceWorker.addEventListener('message', (evt) => {
+		const msg = evt.data
+		if (msg?.cloudillo && msg.type === 'sw:key.error') {
+			const reason = (msg.payload?.error as KeyErrorReason) || 'key_missing'
+			// Prevent duplicate delivery of the same error
+			if (deliveredError === reason) {
+				console.log('[PWA] Ignoring duplicate key error:', reason)
+				return
+			}
+			if (keyErrorCallback) {
+				deliveredError = reason
+				keyErrorCallback(reason)
+			} else {
+				// Store for later delivery when callback is registered
+				pendingKeyError = reason
+				console.log('[PWA] Key error received before callback registered, storing:', reason)
+			}
+		}
+	})
 }
 
 /**
@@ -257,6 +402,9 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
  */
 export async function setApiKey(apiKey: string): Promise<void> {
 	if (!('serviceWorker' in navigator)) return
+
+	// Track that we have encrypted data (for Firefox/Safari fallback)
+	markHadEncryptedData()
 
 	await navigator.serviceWorker.ready
 	navigator.serviceWorker.controller?.postMessage({

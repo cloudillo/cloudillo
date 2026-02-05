@@ -75,13 +75,44 @@ async function setKeyToCookie(key: string): Promise<boolean> {
 	}
 }
 
+// Notify all window clients about key access error
+async function notifyKeyAccessError(reason: 'key_missing' | 'key_mismatch'): Promise<void> {
+	// Store error state so main thread can query it
+	keyErrorState = reason
+
+	const clients = await (self as any).clients.matchAll({ type: 'window' })
+	for (const client of clients) {
+		client.postMessage({
+			cloudillo: true,
+			v: PROTOCOL_VERSION,
+			type: 'sw:key.error',
+			payload: { error: reason }
+		})
+	}
+	log && console.log('[SW] Key error notification sent to', clients.length, 'clients:', reason)
+}
+
 // Get or create encryption key
 async function getOrCreateKey(): Promise<string | null> {
 	// Try to read existing key from cookie
 	let keyString = await getKeyFromCookie()
 
-	// If no key exists and we can use Cookie Store API, generate one
-	if (!keyString && 'cookieStore' in self) {
+	if (keyString) {
+		// Clear any previous error state - key is now accessible
+		keyErrorState = null
+		return keyString
+	}
+
+	// No cookie - check if there's encrypted data that would become inaccessible
+	if (await hasEncryptedData()) {
+		console.error('[SW] CRITICAL: Encryption key cookie missing but encrypted data exists!')
+		console.error('[SW] This may happen if browser cookie storage is temporarily inaccessible.')
+		notifyKeyAccessError('key_missing')
+		return null // Do NOT generate new key - would destroy existing data
+	}
+
+	// No encrypted data - safe to generate new key
+	if ('cookieStore' in self) {
 		keyString = generateKey()
 		const stored = await setKeyToCookie(keyString)
 		if (!stored) {
@@ -155,11 +186,23 @@ async function deleteItem(key: string) {
 	})
 }
 
+// Check if encrypted data exists in storage (used to prevent key regeneration)
+async function hasEncryptedData(): Promise<boolean> {
+	try {
+		const authToken = (await getItem('authToken')) as string | undefined
+		const apiKey = (await getItem('apiKey')) as string | undefined
+		return (authToken?.startsWith('enc:') || apiKey?.startsWith('enc:')) ?? false
+	} catch {
+		return false
+	}
+}
+
 /**************/
 /* Encryption */
 /**************/
 let cryptoKey: CryptoKey | null = null
 let encryptionAvailable = false
+let keyErrorState: 'key_missing' | 'key_mismatch' | null = null // Store error state for main thread to query
 
 async function initCryptoKey(): Promise<CryptoKey | null> {
 	if (cryptoKey) return cryptoKey
@@ -232,6 +275,8 @@ async function decryptData(encrypted: string): Promise<string | null> {
 		return new TextDecoder().decode(decrypted)
 	} catch (err) {
 		console.error('[SW] Decryption failed:', err)
+		console.error('[SW] CRITICAL: Encryption key may be incorrect or data is corrupted!')
+		notifyKeyAccessError('key_mismatch')
 		return null
 	}
 }
@@ -618,6 +663,37 @@ async function onMessage(evt: MessageEvent) {
 			cachedKeyString = (msg.payload as { key: string }).key
 			cryptoKey = null // Force re-import with new key
 			log && console.log('[SW] Encryption key received via postMessage')
+			break
+
+		case 'sw:key.reset':
+			// Clear encrypted data to allow fresh key generation
+			await deleteItem('authToken')
+			await deleteItem('apiKey')
+			keyErrorState = null // Clear error state
+			cryptoKey = null // Clear cached key
+			cachedKeyString = null // Clear cached key from postMessage
+			log && console.log('[SW] Encrypted data cleared for key reset')
+			// Send acknowledgment back to main thread
+			if (evt.source && 'postMessage' in evt.source) {
+				;(evt.source as any).postMessage({
+					cloudillo: true,
+					v: PROTOCOL_VERSION,
+					type: 'sw:key.reset.ack'
+				})
+			}
+			break
+
+		case 'sw:key.error.check':
+			// Main thread is asking if there's a key error state
+			if (keyErrorState && evt.source && 'postMessage' in evt.source) {
+				;(evt.source as any).postMessage({
+					cloudillo: true,
+					v: PROTOCOL_VERSION,
+					type: 'sw:key.error',
+					payload: { error: keyErrorState }
+				})
+				log && console.log('[SW] Key error state sent on check:', keyErrorState)
+			}
 			break
 
 		case 'sw:claim':

@@ -16,11 +16,14 @@
 
 const APP_NAME = 'Calcillo'
 
+declare const __APP_VERSION__: string
+
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Sheet as FortuneSheet, SheetConfig, Op } from '@fortune-sheet/core'
 import { Workbook, WorkbookInstance } from '@fortune-sheet/react'
 import * as Y from 'yjs'
+import { PiDotsThreeVerticalBold, PiExportBold } from 'react-icons/pi'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
@@ -28,6 +31,7 @@ import '@fortune-sheet/react/dist/index.css'
 import './style.css'
 
 import { useCloudilloEditor } from '@cloudillo/react'
+import { downloadExport } from './export.js'
 
 // Import modules
 import type { SheetId } from './yjs-types'
@@ -63,6 +67,23 @@ export function CalcilloApp() {
 	const workbookRef = React.useRef<WorkbookInstance>(null)
 	// Track workbook instance via state so effect can react to it
 	const [workbookInstance, setWorkbookInstance] = React.useState<WorkbookInstance | null>(null)
+
+	// Toolbar menu state
+	const [menuOpen, setMenuOpen] = React.useState(false)
+	const menuRef = React.useRef<HTMLDivElement>(null)
+	const [menuAnchorRect, setMenuAnchorRect] = React.useState<DOMRect | null>(null)
+
+	// Close menu on click outside
+	React.useEffect(() => {
+		if (!menuOpen) return
+		const handleClickOutside = (e: MouseEvent) => {
+			if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+				setMenuOpen(false)
+			}
+		}
+		document.addEventListener('pointerdown', handleClickOutside)
+		return () => document.removeEventListener('pointerdown', handleClickOutside)
+	}, [menuOpen])
 
 	// Create local echo guard to prevent feedback loops
 	const localEchoGuard = React.useMemo(() => createLocalEchoGuard(), [])
@@ -442,15 +463,66 @@ export function CalcilloApp() {
 		[setWorkbookInstance]
 	)
 
+	// Memoize to avoid infinite re-renders (FortuneSheet uses this in a useEffect dep)
+	const customToolbarItems = React.useMemo(
+		() => [
+			{
+				key: 'menu',
+				tooltip: 'Menu',
+				icon: <PiDotsThreeVerticalBold />,
+				onClick: (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+					setMenuAnchorRect(e.currentTarget.getBoundingClientRect())
+					setMenuOpen((v) => !v)
+				}
+			}
+		],
+		[]
+	)
+
 	return (
 		origCellData && (
-			<Workbook
-				ref={combinedRef}
-				data={origCellData}
-				onOp={isReadOnly ? undefined : onOp}
-				generateSheetId={wrappedGenerateSheetId}
-				allowEdit={!isReadOnly}
-			/>
+			<>
+				<Workbook
+					ref={combinedRef}
+					data={origCellData}
+					onOp={isReadOnly ? undefined : onOp}
+					generateSheetId={wrappedGenerateSheetId}
+					allowEdit={!isReadOnly}
+					customToolbarItems={customToolbarItems}
+				/>
+				{menuOpen && menuAnchorRect && (
+					<div
+						ref={menuRef}
+						className="c-menu"
+						style={{
+							position: 'fixed',
+							top: menuAnchorRect.bottom,
+							left: menuAnchorRect.left,
+							zIndex: 1000
+						}}
+					>
+						<div
+							className="c-menu-item"
+							onClick={() => {
+								downloadExport(cloudillo.yDoc)
+								setMenuOpen(false)
+							}}
+						>
+							<span className="c-menu-item-icon">
+								<PiExportBold />
+							</span>
+							<span className="c-menu-item-label">{t('Export to JSON')}</span>
+						</div>
+						<div className="c-menu-divider" />
+						<div
+							className="c-menu-item"
+							style={{ opacity: 0.5, pointerEvents: 'none' }}
+						>
+							<span className="c-menu-item-label">v{__APP_VERSION__}</span>
+						</div>
+					</div>
+				)}
+			</>
 		)
 	)
 }

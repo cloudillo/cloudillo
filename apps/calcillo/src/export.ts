@@ -24,6 +24,7 @@
 import * as Y from 'yjs'
 import type { SheetId } from './yjs-types.js'
 import { getOrCreateSheet } from './ydoc-helpers.js'
+import { stripCellDefaults } from './cell-defaults.js'
 
 // App version injected at build time
 declare const __APP_VERSION__: string
@@ -52,24 +53,25 @@ function roundNumericValues<T>(value: T): T {
 }
 
 /**
- * Strip transient `m` property from cell values in rows data
+ * Strip default and transient cell properties from rows data.
+ * Cleans existing bloated data in CRDT during export.
  */
-function stripTransientCellProps(rows: Record<string, unknown>): Record<string, unknown> {
+function stripDefaultsFromRows(rows: Record<string, unknown>): Record<string, unknown> {
 	const result: Record<string, unknown> = {}
 	for (const [rowId, rowData] of Object.entries(rows)) {
 		if (rowData && typeof rowData === 'object') {
 			const cleanRow: Record<string, unknown> = {}
 			for (const [colId, cell] of Object.entries(rowData as Record<string, unknown>)) {
 				if (cell && typeof cell === 'object') {
-					const { m, ...rest } = cell as Record<string, unknown>
-					cleanRow[colId] = rest
-				} else {
-					cleanRow[colId] = cell
+					const cleaned = stripCellDefaults(cell as any)
+					if (cleaned) {
+						cleanRow[colId] = cleaned
+					}
 				}
 			}
-			result[rowId] = cleanRow
-		} else {
-			result[rowId] = rowData
+			if (Object.keys(cleanRow).length > 0) {
+				result[rowId] = cleanRow
+			}
 		}
 	}
 	return result
@@ -121,7 +123,7 @@ export function exportDocument(yDoc: Y.Doc): CalcilloExportDocument {
 		const sheet = getOrCreateSheet(yDoc, sheetId)
 
 		const rawRows = sheet.rows.toJSON() as Record<string, unknown>
-		const rows = stripTransientCellProps(rawRows)
+		const rows = stripDefaultsFromRows(rawRows)
 
 		sheets[sheetId] = {
 			name: sheet.name.toString(),

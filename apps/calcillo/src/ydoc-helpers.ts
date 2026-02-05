@@ -22,6 +22,7 @@ import {
 } from './id-generator'
 import { debug } from './debug'
 import { DEFAULT_ROWS, DEFAULT_COLS } from './constants'
+import { stripCellDefaults } from './cell-defaults'
 
 /**
  * Get or create sheet structure
@@ -152,19 +153,26 @@ export function setCell(
 		return
 	}
 
+	// Strip defaults, undefined, and transient props
+	const cleanCell = stripCellDefaults(cell)
+
+	if (!cleanCell) {
+		// Cell is all defaults / empty — delete it from CRDT
+		const rowMap = sheet.rows.get(rowId)
+		if (rowMap) {
+			rowMap.delete(colId)
+			if (rowMap.size === 0) {
+				sheet.rows.delete(rowId)
+			}
+		}
+		return
+	}
+
 	// Get or create row map
 	let rowMap = sheet.rows.get(rowId)
 	if (!rowMap) {
 		rowMap = new Y.Map<Cell>()
 		sheet.rows.set(rowId, rowMap)
-	}
-
-	// Clean cell: remove undefined and m property
-	const cleanCell: Partial<Cell> = {}
-	for (const [key, value] of Object.entries(cell)) {
-		if (value !== undefined && key !== 'm') {
-			;(cleanCell as Record<string, unknown>)[key] = value
-		}
 	}
 
 	rowMap.set(colId, cleanCell)

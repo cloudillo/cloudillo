@@ -102,7 +102,7 @@ describe('YDoc Helpers', () => {
 			expect(cell).toBeUndefined()
 		})
 
-		it('cleans cell data (removes undefined and m property)', () => {
+		it('cleans cell data (removes undefined, m, and default style values)', () => {
 			const sheet = getOrCreateSheet(doc, sheetId)
 			ensureSheetDimensions(sheet, 10, 10)
 
@@ -110,13 +110,90 @@ describe('YDoc Helpers', () => {
 				v: 'Test',
 				ct: { t: 's' },
 				m: 'should be removed',
+				bl: 0, // default bold off — should be stripped
+				it: 0, // default italic off — should be stripped
+				ff: 0, // default font family — should be stripped
+				fs: 10, // default font size — should be stripped
+				fc: '#000000', // default font color — should be stripped
+				ht: 1, // default h-align — should be stripped
+				vt: 0, // default v-align — should be stripped
 				undefinedProp: undefined
 			} as any)
 
 			const cell = getCell(sheet, 2, 3)
 			expect(cell?.v).toBe('Test')
+			expect(cell?.ct).toEqual({ t: 's' })
 			expect(cell).not.toHaveProperty('m')
 			expect(cell).not.toHaveProperty('undefinedProp')
+			expect(cell).not.toHaveProperty('bl')
+			expect(cell).not.toHaveProperty('it')
+			expect(cell).not.toHaveProperty('ff')
+			expect(cell).not.toHaveProperty('fs')
+			expect(cell).not.toHaveProperty('fc')
+			expect(cell).not.toHaveProperty('ht')
+			expect(cell).not.toHaveProperty('vt')
+		})
+
+		it('preserves non-default style values', () => {
+			const sheet = getOrCreateSheet(doc, sheetId)
+			ensureSheetDimensions(sheet, 10, 10)
+
+			setCell(sheet, 2, 3, {
+				v: 'Bold',
+				bl: 1, // bold ON — should be kept
+				fs: 14, // non-default font size — should be kept
+				fc: '#ff0000' // red text — should be kept
+			} as any)
+
+			const cell = getCell(sheet, 2, 3)
+			expect(cell?.v).toBe('Bold')
+			expect(cell?.bl).toBe(1)
+			expect(cell?.fs).toBe(14)
+			expect(cell?.fc).toBe('#ff0000')
+		})
+
+		it('deletes cell from CRDT when all values are defaults', () => {
+			const sheet = getOrCreateSheet(doc, sheetId)
+			ensureSheetDimensions(sheet, 10, 10)
+
+			// First set a real value
+			setCell(sheet, 2, 3, { v: 'Hello' })
+			expect(getCell(sheet, 2, 3)).toBeDefined()
+
+			// Now set only default values (no v/f) — should delete the cell
+			setCell(sheet, 2, 3, {
+				bl: 0,
+				it: 0,
+				ff: 0,
+				fs: 10,
+				ct: { t: 'g', fa: 'General' }
+			} as any)
+
+			expect(getCell(sheet, 2, 3)).toBeUndefined()
+		})
+
+		it('strips default ct (General format) but keeps ct with rich-text', () => {
+			const sheet = getOrCreateSheet(doc, sheetId)
+			ensureSheetDimensions(sheet, 10, 10)
+
+			// Default ct should be stripped
+			setCell(sheet, 1, 1, {
+				v: 42,
+				ct: { t: 'g', fa: 'General' }
+			} as any)
+
+			const cell1 = getCell(sheet, 1, 1)
+			expect(cell1?.v).toBe(42)
+			expect(cell1).not.toHaveProperty('ct')
+
+			// ct with rich-text `s` key should be kept
+			setCell(sheet, 1, 2, {
+				v: 'Rich',
+				ct: { t: 'g', fa: 'General', s: [{ v: 'Rich' }] }
+			} as any)
+
+			const cell2 = getCell(sheet, 1, 2)
+			expect(cell2?.ct).toEqual({ t: 'g', fa: 'General', s: [{ v: 'Rich' }] })
 		})
 
 		it('handles cell overwriting', () => {

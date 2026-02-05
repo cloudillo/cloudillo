@@ -114,7 +114,7 @@ describe('DocumentReference', () => {
 
 			const message = mockWs.send.mock.calls[0][0]
 			expect(message.type).toBe('transaction')
-			expect(message.operations[0].type).toBe('create')
+			expect(message.operations[0].type).toBe('replace')
 			expect(message.operations[0].data).toEqual(data)
 		})
 	})

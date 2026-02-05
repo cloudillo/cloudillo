@@ -10,9 +10,9 @@
 	"scripts": {
 		"format": "biome format --write .",
 		"format:check": "biome format .",
-		"test": "pnpm -r --filter=@cloudillo/rtdb --filter=@cloudillo/core test",
-		"test:watch": "pnpm -r --filter=@cloudillo/rtdb --filter=@cloudillo/core test:watch",
-		"test:coverage": "pnpm -r --filter=@cloudillo/rtdb --filter=@cloudillo/core test:coverage",
+		"test": "pnpm -r test",
+		"test:watch": "pnpm -r test:watch",
+		"test:coverage": "pnpm -r test:coverage",
 		"version-bump": "pnpm -r --filter='!./local/**' exec pnpm version patch",
 		"build-docker": "docker --context default build --pull -t cloudillo/cloudillo:$npm_package_version -t cloudillo/cloudillo:latest -f Dockerfile.debian .",
 		"build-docker-slim": "docker --context default build --pull -t cloudillo/cloudillo:$npm_package_version-slim -t cloudillo/cloudillo:latest-slim -f Dockerfile.debian-slim .",

@@ -10,7 +10,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8'))
 
 const config = createConfig({
-	outdir: `dist/assets-${pkg.version}`
+	outdir: `dist/assets-${pkg.version}`,
+	define: {
+		__APP_VERSION__: JSON.stringify(pkg.version)
+	}
 })
 
 buildApp(esbuild, {

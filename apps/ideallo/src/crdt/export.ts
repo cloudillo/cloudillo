@@ -19,73 +19,57 @@
  *
  * Exports the CRDT document as a JSON file with .ideallo extension.
  * Uses a metadata envelope with contentType for format identification.
+ *
+ * v2.0.0: Exports raw compact CRDT structure directly for simpler round-trips.
  */
 
 import * as Y from 'yjs'
-import type { YIdealloDocument, StoredObject } from './stored-types.js'
-import type { IdealloObject } from './runtime-types.js'
-import { expandObject } from './type-converters.js'
-import type { ObjectId } from './ids.js'
-import { toObjectId } from './ids.js'
+import type { YIdealloDocument, StoredObject, StoredMeta } from './stored-types.js'
 
-// Export version - increment when format changes
-const EXPORT_VERSION = '1.0.0'
+// App version injected at build time
+declare const __APP_VERSION__: string
+
+// Export format version - v2.0.0 uses raw compact CRDT format
+const EXPORT_FORMAT_VERSION = '2.0.0'
 const CONTENT_TYPE = 'application/vnd.cloudillo.ideallo+json'
 
 /**
- * Round a number to specified decimal places
+ * Recursively round numeric values in an object for cleaner export (3 decimal places)
  */
-function round(value: number, decimals: number = 2): number {
-	const factor = Math.pow(10, decimals)
-	return Math.round(value * factor) / factor
-}
-
-/**
- * Round numeric fields in an object for export
- * Uses 3 decimals for pivot (0-1 range), 2 for everything else
- */
-function roundObjectFields<T extends Record<string, unknown>>(obj: T): T {
-	const result: Record<string, unknown> = {}
-	for (const [key, value] of Object.entries(obj)) {
-		if (typeof value === 'number') {
-			const decimals = key === 'pivotX' || key === 'pivotY' ? 3 : 2
-			result[key] = round(value, decimals)
-		} else if (Array.isArray(value)) {
-			result[key] = value.map((v) => (typeof v === 'number' ? round(v, 2) : v))
-		} else if (value && typeof value === 'object') {
-			result[key] = roundObjectFields(value as Record<string, unknown>)
-		} else {
-			result[key] = value
-		}
+function roundNumericValues<T>(value: T): T {
+	if (typeof value === 'number') {
+		return (Math.round(value * 1000) / 1000) as T
 	}
-	return result as T
+	if (Array.isArray(value)) {
+		return value.map(roundNumericValues) as T
+	}
+	if (value && typeof value === 'object') {
+		const result: Record<string, unknown> = {}
+		for (const [key, val] of Object.entries(value)) {
+			result[key] = roundNumericValues(val)
+		}
+		return result as T
+	}
+	return value
 }
 
 /**
- * Document metadata for export
- */
-export interface IdealloExportMeta {
-	name?: string
-	backgroundColor?: string
-	gridSize?: number
-	snapToGrid?: boolean
-}
-
-/**
- * Complete export document structure
+ * Complete export document structure (v2.0.0)
+ * Uses raw compact CRDT format for simpler round-trips
  */
 export interface IdealloExportDocument {
 	// Metadata envelope
 	contentType: typeof CONTENT_TYPE
-	version: string
+	appVersion: string // App version that created this export
+	formatVersion: string // Export format version
 	exportedAt: string
 
-	// Document content
+	// Document content (raw compact CRDT format)
 	data: {
-		meta: IdealloExportMeta
-		objects: Record<string, Omit<IdealloObject, 'id'>>
+		meta: StoredMeta
+		objects: Record<string, StoredObject>
 		texts: Record<string, string>
-		geometry: Record<string, [number, number][]>
+		geometry: Record<string, number[]>
 		paths: Record<string, string>
 	}
 }
@@ -93,83 +77,32 @@ export interface IdealloExportDocument {
 /**
  * Export the document to a serializable JSON structure
  *
+ * Uses raw compact CRDT format directly via .toJSON() for simpler round-trips.
+ *
  * @param yDoc - The Yjs document
  * @param doc - The Ideallo document structure
  * @returns The export document ready for JSON serialization
  */
 export function exportDocument(yDoc: Y.Doc, doc: YIdealloDocument): IdealloExportDocument {
 	// 1. Collect metadata
-	const meta: IdealloExportMeta = {
-		name: doc.m.get('name') as string | undefined,
-		backgroundColor: doc.m.get('backgroundColor') as string | undefined,
-		gridSize: doc.m.get('gridSize') as number | undefined,
-		snapToGrid: doc.m.get('snapToGrid') as boolean | undefined
-	}
+	const meta = doc.m.toJSON() as StoredMeta
 
-	// Track referenced IDs to filter orphaned entries
-	const referencedTextIds = new Set<string>()
-	const referencedGeoIds = new Set<string>()
-	const referencedPathIds = new Set<string>()
+	// 2. Export raw CRDT structures with rounded numeric values for cleaner output
+	const objects = roundNumericValues(doc.o.toJSON() as Record<string, StoredObject>)
 
-	// 2. Export objects (expanded format for readability)
-	// Remove 'id' field since it's already the key in the record
-	// Round numeric fields for cleaner export
-	const objects: Record<string, Omit<IdealloObject, 'id'>> = {}
-	doc.o.forEach((stored: StoredObject, id: string) => {
-		// Track references based on object type
-		switch (stored.t) {
-			case 'T': // Text
-				referencedTextIds.add('tid' in stored && stored.tid ? stored.tid : id)
-				break
-			case 'S': // Sticky
-				referencedTextIds.add('tid' in stored && stored.tid ? stored.tid : id)
-				break
-			case 'P': // Polygon
-				referencedGeoIds.add('gid' in stored && stored.gid ? stored.gid : id)
-				break
-			case 'F': // Freehand
-				referencedPathIds.add('pid' in stored && stored.pid ? stored.pid : id)
-				break
-		}
+	// 3. Export text content (Y.Text.toJSON() returns string)
+	const texts = doc.txt.toJSON() as Record<string, string>
 
-		const objectId = toObjectId(id)
-		const { id: _id, ...objectWithoutId } = expandObject(objectId, stored, doc)
-		objects[id] = roundObjectFields(objectWithoutId)
-	})
+	// 4. Export geometry (Y.Array.toJSON() returns flat number array)
+	const geometry = roundNumericValues(doc.geo.toJSON() as Record<string, number[]>)
 
-	// 3. Export text content (only referenced entries)
-	const texts: Record<string, string> = {}
-	doc.txt.forEach((yText: Y.Text, id: string) => {
-		if (referencedTextIds.has(id)) {
-			texts[id] = yText.toString()
-		}
-	})
-
-	// 4. Export geometry (only referenced entries)
-	// Round coordinate values for cleaner export
-	const geometry: Record<string, [number, number][]> = {}
-	doc.geo.forEach((yArray: Y.Array<number>, id: string) => {
-		if (referencedGeoIds.has(id)) {
-			const flat = yArray.toArray()
-			const vertices: [number, number][] = []
-			for (let i = 0; i < flat.length; i += 2) {
-				vertices.push([round(flat[i], 2), round(flat[i + 1], 2)])
-			}
-			geometry[id] = vertices
-		}
-	})
-
-	// 5. Export paths (only referenced entries)
-	const paths: Record<string, string> = {}
-	doc.paths.forEach((pathStr: string, id: string) => {
-		if (referencedPathIds.has(id)) {
-			paths[id] = pathStr
-		}
-	})
+	// 5. Export paths
+	const paths = doc.paths.toJSON() as Record<string, string>
 
 	return {
 		contentType: CONTENT_TYPE,
-		version: EXPORT_VERSION,
+		appVersion: __APP_VERSION__,
+		formatVersion: EXPORT_FORMAT_VERSION,
 		exportedAt: new Date().toISOString(),
 		data: {
 			meta,

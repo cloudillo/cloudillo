@@ -101,9 +101,6 @@ export * from './transforms.js'
 
 // Export functionality
 export { exportDocument, downloadExport } from './export.js'
-export type {
-	IdealloExportDocument,
-	IdealloExportMeta
-} from './export.js'
+export type { IdealloExportDocument } from './export.js'
 
 // vim: ts=4

@@ -59,15 +59,17 @@ export function handleAwarenessChange(
 	workbook: WorkbookInstance,
 	evt: { added: number[]; updated: number[]; removed: number[] }
 ): void {
-	// Remove departed users
-	if (evt.removed.length > 0) {
-		workbook.removePresences(evt.removed.map((id) => ({ userId: String(id), username: '' })))
+	// Remove departed users (exclude local client)
+	const removed = evt.removed.filter((id) => id !== awareness.clientID)
+	if (removed.length > 0) {
+		workbook.removePresences(removed.map((id) => ({ userId: String(id), username: '' })))
 	}
 
-	// Add/update active users
+	// Add/update active users (exclude local client)
 	if (evt.added.length + evt.updated.length > 0) {
 		const states = awareness.getStates()
 		const presences = [...evt.added, ...evt.updated]
+			.filter((id) => id !== awareness.clientID)
 			.map((id) => {
 				const state = states.get(id) as UserPresence | undefined
 				if (!state?.cursor) return null

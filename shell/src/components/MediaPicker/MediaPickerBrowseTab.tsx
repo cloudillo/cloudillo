@@ -198,6 +198,7 @@ export function MediaPickerBrowseTab({
 	const { t } = useTranslation()
 	const { api } = useApi()
 	const [auth] = useAuth()
+	const idTag = auth?.idTag || api?.idTag
 
 	// State
 	const [searchQuery, setSearchQuery] = useState('')
@@ -616,9 +617,9 @@ export function MediaPickerBrowseTab({
 									onDoubleClick={() => handleFileDoubleClick(file)}
 								>
 									<div className="media-picker-item-thumbnail">
-										{isImage(file) && auth?.idTag ? (
+										{isImage(file) && idTag ? (
 											<img
-												src={getFileUrl(auth.idTag, file.fileId, 'vis.tn')}
+												src={getFileUrl(idTag, file.fileId, 'vis.tn')}
 												alt={file.fileName}
 											/>
 										) : (

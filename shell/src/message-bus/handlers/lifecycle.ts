@@ -22,16 +22,24 @@
  */
 
 import type { ShellMessageBus } from '../shell-bus.js'
-import type { AppReadyNotify } from '@cloudillo/core'
+import type { AppReadyNotify, AppErrorNotify } from '@cloudillo/core'
 
 /**
  * Callback for app ready notifications
  */
 export type AppReadyCallback = (appWindow: Window, stage: 'auth' | 'synced' | 'ready') => void
 
+/**
+ * Callback for app error notifications
+ */
+export type AppErrorCallback = (appWindow: Window, code: number, message: string) => void
+
 // Registry of ready callbacks per window
 // Using WeakMap to allow garbage collection when iframe windows are destroyed
 const readyCallbacks = new WeakMap<Window, AppReadyCallback>()
+
+// Registry of error callbacks per window
+const errorCallbacks = new WeakMap<Window, AppErrorCallback>()
 
 // Store pending notifications that arrived before subscription
 // Using WeakMap to allow garbage collection when iframe windows are destroyed
@@ -85,6 +93,23 @@ export function offAppReady(appWindow: Window): void {
 }
 
 /**
+ * Register a callback for when an app sends an error notification
+ *
+ * @param appWindow - The app window to listen for
+ * @param callback - Function to call when error notification received
+ */
+export function onAppError(appWindow: Window, callback: AppErrorCallback): void {
+	errorCallbacks.set(appWindow, callback)
+}
+
+/**
+ * Unregister an error callback for an app window
+ */
+export function offAppError(appWindow: Window): void {
+	errorCallbacks.delete(appWindow)
+}
+
+/**
  * Initialize app lifecycle message handlers on the shell bus
  */
 export function initLifecycleHandlers(bus: ShellMessageBus): void {
@@ -126,6 +151,22 @@ export function initLifecycleHandlers(bus: ShellMessageBus): void {
 					existingStage
 				)
 			}
+		}
+	})
+
+	// Handle error notification from apps
+	bus.on('app:error.notify', (msg: AppErrorNotify, source) => {
+		const appWindow = source as Window
+		if (!appWindow) {
+			console.error('[Lifecycle] Error notification with no source window')
+			return
+		}
+
+		console.log('[Lifecycle] App error:', msg.payload.code, msg.payload.message)
+
+		const callback = errorCallbacks.get(appWindow)
+		if (callback) {
+			callback(appWindow, msg.payload.code, msg.payload.message)
 		}
 	})
 }

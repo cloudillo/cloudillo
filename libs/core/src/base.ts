@@ -115,6 +115,10 @@ export async function openYDoc(
 					)
 					wsProvider.shouldConnect = false
 					wsProvider.disconnect()
+					// Notify shell about the error (send raw code + reason, shell handles i18n)
+					bus.notifyError(event.code, event.reason || '')
+					// Emit connection-close event for React hooks to observe
+					wsProvider.emit('connection-close', [event, wsProvider])
 					// Don't call original - prevent reconnection attempt
 					return
 				}

@@ -22,7 +22,7 @@ import { version } from '../../package.json'
 
 import { useAppConfig, TrustLevel } from '../utils.js'
 import { getShellBus } from '../message-bus/shell-bus.js'
-import { onAppReady } from '../message-bus/index.js'
+import { onAppReady, onAppError } from '../message-bus/index.js'
 import { useContextFromRoute, useGuestDocument } from '../context/index.js'
 import { FeedApp } from './feed.js'
 import { FilesApp } from './files.js'
@@ -102,6 +102,8 @@ export function MicrofrontendContainer({
 	const [auth] = useAuth()
 	const [url, setUrl] = React.useState<string | undefined>(undefined)
 	const [loadingStage, setLoadingStage] = React.useState<LoadingStage>('connecting')
+	const [errorMessage, setErrorMessage] = React.useState<string | undefined>(undefined)
+	const [errorCode, setErrorCode] = React.useState<number | undefined>(undefined)
 	const [retryCount, setRetryCount] = React.useState(0)
 	const [, , host, path] = (resId || '').match(/^(([a-zA-Z0-9-.]+):)?(.*)$/) || []
 	// Extract context from resId (format: "contextIdTag:resource-path")
@@ -252,6 +254,8 @@ export function MicrofrontendContainer({
 	// Retry handler
 	const handleRetry = React.useCallback(() => {
 		setLoadingStage('connecting')
+		setErrorMessage(undefined)
+		setErrorCode(undefined)
 		setRetryCount((c) => c + 1)
 		// Reset the iframe src to trigger reload
 		if (ref.current) {
@@ -354,6 +358,16 @@ export function MicrofrontendContainer({
 							setLoadingStage('ready')
 							// Don't unsubscribe - keep subscription active for potential reconnection scenarios
 						})
+						onAppError(currentAppWindow, (_window, code, message) => {
+							// Clear timeout since we have a definitive error
+							if (timeoutRef.current) {
+								clearTimeout(timeoutRef.current)
+								timeoutRef.current = undefined
+							}
+							setErrorCode(code)
+							setErrorMessage(message)
+							setLoadingStage('error')
+						})
 					}
 
 					// Read latest values from refs for pre-registration
@@ -436,7 +450,12 @@ export function MicrofrontendContainer({
 
 	return (
 		<div className={mergeClasses('c-app flex-fill pos-relative', trustLevel, className)}>
-			<AppLoadingIndicator stage={loadingStage} onRetry={handleRetry} />
+			<AppLoadingIndicator
+				stage={loadingStage}
+				onRetry={handleRetry}
+				errorMessage={errorMessage}
+				errorCode={errorCode}
+			/>
 			<iframe
 				ref={ref}
 				src={url}

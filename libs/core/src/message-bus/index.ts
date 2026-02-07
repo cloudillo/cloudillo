@@ -60,6 +60,7 @@ export {
 	// App lifecycle messages
 	type AppReadyStage,
 	type AppReadyNotify,
+	type AppErrorNotify,
 	// Storage messages
 	type StorageOp,
 	type StorageOpReq,
@@ -101,6 +102,7 @@ export {
 	tAuthTokenPush,
 	tAppReadyStage,
 	tAppReadyNotify,
+	tAppErrorNotify,
 	tStorageOp,
 	tStorageOpReq,
 	tStorageOpRes,

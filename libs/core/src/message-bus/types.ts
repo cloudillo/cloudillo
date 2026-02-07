@@ -203,6 +203,24 @@ export const tAppReadyNotify = T.struct({
 })
 export type AppReadyNotify = T.TypeOf<typeof tAppReadyNotify>
 
+/**
+ * App notifies shell of an error (e.g., CRDT connection failure)
+ * Direction: app -> shell (notification, no response expected)
+ *
+ * Used to inform the shell that a critical error occurred so it can
+ * display an error UI overlay instead of showing an empty document.
+ */
+export const tAppErrorNotify = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('app:error.notify'),
+	payload: T.struct({
+		code: T.number,
+		message: T.string
+	})
+})
+export type AppErrorNotify = T.TypeOf<typeof tAppErrorNotify>
+
 // ============================================
 // STORAGE MESSAGES
 // ============================================
@@ -511,6 +529,7 @@ export const tCloudilloMessage = T.taggedUnion('type')({
 
 	// App lifecycle messages
 	'app:ready.notify': tAppReadyNotify,
+	'app:error.notify': tAppErrorNotify,
 
 	// Storage messages
 	'storage:op.req': tStorageOpReq,

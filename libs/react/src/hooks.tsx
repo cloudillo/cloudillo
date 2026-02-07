@@ -207,6 +207,7 @@ export function useCloudilloEditor(appName: string) {
 	const [yDoc, setYDoc] = React.useState<Y.Doc>(new Y.Doc())
 	const [provider, setProvider] = React.useState<WebsocketProvider | undefined>(undefined)
 	const [synced, setSynced] = React.useState(false)
+	const [error, setError] = React.useState<{ code: number; reason?: string } | null>(null)
 
 	React.useEffect(
 		function () {
@@ -239,6 +240,14 @@ export function useCloudilloEditor(appName: string) {
 							bus.notifyReady('synced')
 						}
 					}
+
+					// Listen for connection-close events (440x errors from CRDT server)
+					const handleConnectionClose = (event: CloseEvent | null) => {
+						if (isMounted && event && event.code >= 4400 && event.code < 4500) {
+							setError({ code: event.code, reason: event.reason || undefined })
+						}
+					}
+					provider.on('connection-close', handleConnectionClose)
 
 					// Check if already synced
 					if (provider.synced) {
@@ -273,7 +282,8 @@ export function useCloudilloEditor(appName: string) {
 		...cl,
 		yDoc,
 		provider,
-		synced
+		synced,
+		error
 	}
 }
 

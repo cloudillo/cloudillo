@@ -491,6 +491,25 @@ export class AppMessageBus extends MessageBusBase {
 		})
 	}
 
+	/**
+	 * Notify the shell that an error occurred
+	 *
+	 * Call this to inform the shell about critical errors (e.g., CRDT connection failures)
+	 * so it can display an error overlay instead of showing an empty document.
+	 *
+	 * @param code - Error code (e.g., 4401 for auth failure)
+	 * @param message - Human-readable error message
+	 */
+	notifyError(code: number, message: string): void {
+		this.log('Notifying error:', code, message)
+		this.sendToShell({
+			cloudillo: true,
+			v: PROTOCOL_VERSION,
+			type: 'app:error.notify',
+			payload: { code, message }
+		})
+	}
+
 	// ============================================
 	// MEDIA PICKER
 	// ============================================

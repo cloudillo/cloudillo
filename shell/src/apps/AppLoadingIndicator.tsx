@@ -37,17 +37,41 @@ interface AppLoadingIndicatorProps {
 	stage: LoadingStage
 	/** Callback when retry button is clicked (only shown in error state) */
 	onRetry?: () => void
-	/** Custom error message */
+	/** Custom error message (fallback text) */
 	errorMessage?: string
+	/** Error code from CRDT/backend (used for localized error messages) */
+	errorCode?: number
 }
 
 // Delay before showing the loading indicator (300ms per UX best practices)
 const SHOW_DELAY_MS = 300
 
+function getErrorText(
+	code: number | undefined,
+	fallback: string | undefined,
+	t: ReturnType<typeof useTranslation>['t']
+): string {
+	switch (code) {
+		case 4401:
+			return t('Authentication failed')
+		case 4403:
+			return t('Access denied')
+		case 4404:
+			return t('Document not found')
+		default:
+			return fallback || t('app.loading.error', 'Failed to load app')
+	}
+}
+
 /**
  * App loading indicator with progressive stages and error handling
  */
-export function AppLoadingIndicator({ stage, onRetry, errorMessage }: AppLoadingIndicatorProps) {
+export function AppLoadingIndicator({
+	stage,
+	onRetry,
+	errorMessage,
+	errorCode
+}: AppLoadingIndicatorProps) {
 	const { t } = useTranslation()
 	const [visible, setVisible] = React.useState(false)
 	const [fadingOut, setFadingOut] = React.useState(false)
@@ -87,7 +111,7 @@ export function AppLoadingIndicator({ stage, onRetry, errorMessage }: AppLoading
 			case 'syncing':
 				return t('app.loading.syncing', 'Syncing...')
 			case 'error':
-				return errorMessage || t('app.loading.error', 'Failed to load app')
+				return getErrorText(errorCode, errorMessage, t)
 			case 'ready':
 				return null
 		}

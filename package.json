@@ -1,5 +1,5 @@
 {
-	"version": "0.8.2",
+	"version": "0.8.7",
 	"private": true,
 	"type": "module",
 	"packageManager": "pnpm@9.14.4",
@@ -13,7 +13,10 @@
 		"test": "pnpm -r test",
 		"test:watch": "pnpm -r test:watch",
 		"test:coverage": "pnpm -r test:coverage",
-		"version-bump": "pnpm -r --filter='!./local/**' exec pnpm version patch",
+		"version-sync": "pnpm -r --filter '!./local/**' exec npm pkg set version=$npm_package_version",
+		"version-bump": "pnpm version patch --no-git-tag-version && pnpm version-sync",
+		"version-bump:minor": "pnpm version minor --no-git-tag-version && pnpm version-sync",
+		"version-bump:major": "pnpm version major --no-git-tag-version && pnpm version-sync",
 		"build-docker": "docker --context default build --pull -t cloudillo/cloudillo:$npm_package_version -t cloudillo/cloudillo:latest -f Dockerfile.debian .",
 		"build-docker-slim": "docker --context default build --pull -t cloudillo/cloudillo:$npm_package_version-slim -t cloudillo/cloudillo:latest-slim -f Dockerfile.debian-slim .",
 		"build-docker-alpine": "docker --context default build --pull -t cloudillo/cloudillo:$npm_package_version-alpine -t cloudillo/cloudillo:latest-alpine -f Dockerfile.alpine .",

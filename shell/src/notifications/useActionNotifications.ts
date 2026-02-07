@@ -34,9 +34,37 @@ const ACTION_TYPE_MAP: Record<string, keyof LocalNotifySettings> = {
 	POST: 'sound.post'
 }
 
+// Actionable types get a longer toast duration
+const ACTIONABLE_TYPES = new Set(['CONN', 'FSHR', 'INVT'])
+
 function getSettingKey(actionType: string): string | undefined {
 	const key = ACTION_TYPE_MAP[actionType]
 	return key?.replace('sound.', '')
+}
+
+function getNotificationTitle(actionType: string): string {
+	switch (actionType) {
+		case 'MSG':
+			return 'New Message'
+		case 'CONN':
+			return 'Connection Request'
+		case 'FSHR':
+			return 'File Shared'
+		case 'FLLW':
+			return 'New Follower'
+		case 'CMNT':
+			return 'New Comment'
+		case 'REACT':
+			return 'New Reaction'
+		case 'MNTN':
+			return 'Mention'
+		case 'POST':
+			return 'New Post'
+		case 'INVT':
+			return 'Group Invitation'
+		default:
+			return 'Notification'
+	}
 }
 
 function getNotificationMessage(action: ActionView): string {
@@ -58,6 +86,8 @@ function getNotificationMessage(action: ActionView): string {
 			return `${name} mentioned you`
 		case 'POST':
 			return `New post from ${name}`
+		case 'INVT':
+			return `${name} invited you to join a group`
 		default:
 			return `New notification from ${name}`
 	}
@@ -69,7 +99,7 @@ function getNotificationMessage(action: ActionView): string {
  */
 export function useActionNotifications() {
 	const { settings } = useLocalNotifySettings()
-	const { info } = useToast()
+	const { toast } = useToast()
 	const audioRefs = React.useRef<Record<string, HTMLAudioElement>>({})
 	// Use ref to avoid stale closure in useWsBus callback
 	const settingsRef = React.useRef(settings)
@@ -88,6 +118,7 @@ export function useActionNotifications() {
 			Object.values(audioRefs.current).forEach((audio) => {
 				audio.pause()
 				audio.src = ''
+				audio.load()
 			})
 			audioRefs.current = {}
 		}
@@ -130,11 +161,13 @@ export function useActionNotifications() {
 				currentSettings.toast &&
 				currentSettings[`toast.${settingKey}` as keyof LocalNotifySettings]
 			if (toastEnabled) {
+				const title = getNotificationTitle(action.type)
 				const message = getNotificationMessage(action)
-				info(message, { duration: 5000 })
+				const duration = ACTIONABLE_TYPES.has(action.type) ? 7000 : 5000
+				toast({ variant: 'info', title, message, duration })
 			}
 		},
-		[playSound, info]
+		[playSound, toast]
 	)
 
 	useWsBus({ cmds: ['ACTION'] }, (msg) => {

@@ -668,5 +668,22 @@
 	"Configure server-wide settings and policies": "Szerver-szintű beállítások és házirendek konfigurálása",
 	"Personal Settings": "Személyes beállítások",
 	"Configure your personal account settings": "Személyes fiók beállítások konfigurálása",
-	"Identities": "Azonosítók"
+	"Identities": "Azonosítók",
+	"Started following you": "Követni kezdett",
+	"Sent you a message": "Üzenetet küldött neked",
+	"Commented on your post": "Hozzászólt a bejegyzésedhez",
+	"Reacted to your post": "Reagált a bejegyzésedre",
+	"Mentioned you": "Megemlített téged",
+	"Published a new post": "Új bejegyzést tett közzé",
+	"New notification": "Új értesítés",
+	"Social": "Közösségi",
+	"All caught up!": "Nincs több értesítés!",
+	"You have no new notifications.": "Nincs új értesítésed.",
+	"See all": "Összes megtekintése",
+	"No new notifications": "Nincs új értesítés",
+	"Disconnected": "Szétkapcsolt",
+	"Shared a file": "Fájlt osztott meg",
+	"Authentication failed": "Hitelesítés sikertelen",
+	"Access denied": "Hozzáférés megtagadva",
+	"Document not found": "Dokumentum nem található"
 }

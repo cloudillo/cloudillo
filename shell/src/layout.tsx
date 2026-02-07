@@ -211,6 +211,7 @@ import { SharedResourceView } from './apps/shared.js'
 import { ProfileRoutes } from './profile/profile.js'
 import { Notifications } from './notifications/notifications.js'
 import { useNotifications } from './notifications/state'
+import { NotificationPopover } from './notifications/NotificationPopover.js'
 import { MediaPicker } from './components/MediaPicker/index.js'
 
 import '@symbion/opalui'
@@ -456,7 +457,10 @@ function Header({ inert }: { inert?: boolean }) {
 	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
 		const action = msg.data as ActionView
 		if (action.status == 'N' || action.status == 'C')
-			setNotifications((n) => ({ notifications: [...n.notifications, action] }))
+			setNotifications((n) => {
+				if (n.notifications.some((a) => a.actionId === action.actionId)) return n
+				return { notifications: [action, ...n.notifications] }
+			})
 	})
 
 	async function doLogout() {
@@ -674,16 +678,7 @@ function Header({ inert }: { inert?: boolean }) {
 					</ul>
 				)}
 				<ul className="c-nav-group c-hbox">
-					{auth && (
-						<Link className="c-nav-item pos-relative" to="/notifications">
-							<IcNotifications />
-							{!!notifications.notifications.length && (
-								<span className="c-badge br bg bg-error">
-									{notifications.notifications.length}
-								</span>
-							)}
-						</Link>
-					)}
+					{auth && <NotificationPopover />}
 					{auth ? (
 						<Popper className="c-nav-item" icon={<ProfilePicture profile={auth} />}>
 							<ul className="c-nav vertical emph">
@@ -920,9 +915,8 @@ export function Layout() {
 					const currentApi = apiRef.current
 					if (!currentApi) return undefined
 					try {
-						const res = await currentApi.auth.getAccessToken({
-							scope: `${resId}:${access === 'read' ? 'R' : 'W'}`
-						})
+						const [targetTag] = resId.split(':')
+						const res = await currentApi.auth.getProxyToken(targetTag)
 						return res ? { token: res.token } : undefined
 					} catch {
 						return undefined

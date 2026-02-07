@@ -45,7 +45,7 @@ export interface LocalNotifySettings {
 }
 
 const defaultSettings: LocalNotifySettings = {
-	toast: false,
+	toast: true,
 	'sound.message': '',
 	'sound.connection': '',
 	'sound.file_share': '',
@@ -56,13 +56,13 @@ const defaultSettings: LocalNotifySettings = {
 	'sound.post': '',
 	'volume.active': 50,
 	'volume.inactive': 100,
-	'toast.message': false,
-	'toast.connection': false,
-	'toast.file_share': false,
+	'toast.message': true,
+	'toast.connection': true,
+	'toast.file_share': true,
 	'toast.follow': false,
 	'toast.comment': false,
 	'toast.reaction': false,
-	'toast.mention': false,
+	'toast.mention': true,
 	'toast.post': false
 }
 

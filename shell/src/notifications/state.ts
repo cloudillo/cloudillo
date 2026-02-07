@@ -16,7 +16,6 @@
 
 import * as React from 'react'
 import { atom, useAtom } from 'jotai'
-import * as T from '@symbion/runtype'
 
 import { ActionView } from '@cloudillo/types'
 import { useAuth, useApi } from '@cloudillo/react'
@@ -35,13 +34,54 @@ export function useNotifications() {
 		async function () {
 			if (!api) return
 			const actions = await api.actions.list({ status: ['C', 'N'] })
-			console.log('NOTIFICATION RES', actions)
 			setNotifications({ notifications: actions })
 		},
-		[api, notifications, setNotifications]
+		[api, setNotifications]
 	)
 
-	return { notifications, setNotifications, loadNotifications }
+	const dismissNotification = React.useCallback(
+		async function (action: ActionView) {
+			if (!api || !action.actionId) return
+			// Optimistically remove from state
+			setNotifications((n) => ({
+				notifications: n.notifications.filter((a) => a.actionId !== action.actionId)
+			}))
+			try {
+				await api.actions.dismiss(action.actionId)
+			} catch {
+				// Restore on failure
+				loadNotifications()
+			}
+		},
+		[api, setNotifications, loadNotifications]
+	)
+
+	const dismissAllNotifications = React.useCallback(
+		async function () {
+			if (!api) return
+			const toDismiss = notifications.notifications.filter((a) => a.status !== 'C')
+			// Keep only 'C' items in state
+			setNotifications((n) => ({
+				notifications: n.notifications.filter((a) => a.status === 'C')
+			}))
+			try {
+				await Promise.all(
+					toDismiss.map((a) => a.actionId && api.actions.dismiss(a.actionId))
+				)
+			} catch {
+				loadNotifications()
+			}
+		},
+		[api, notifications.notifications, setNotifications, loadNotifications]
+	)
+
+	return {
+		notifications,
+		setNotifications,
+		loadNotifications,
+		dismissNotification,
+		dismissAllNotifications
+	}
 }
 
 // vim: ts=4

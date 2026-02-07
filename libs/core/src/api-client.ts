@@ -388,6 +388,13 @@ export class ApiClient {
 			this.request('POST', `/actions/${actionId}/reject`, T.nullValue),
 
 		/**
+		 * POST /actions/:actionId/dismiss - Dismiss notification
+		 * @param actionId - Action ID
+		 */
+		dismiss: (actionId: string) =>
+			this.request('POST', `/actions/${actionId}/dismiss`, T.nullValue),
+
+		/**
 		 * POST /actions/:actionId/stat - Update action statistics
 		 * @param actionId - Action ID
 		 * @param data - Statistics update

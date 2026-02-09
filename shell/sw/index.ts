@@ -3,9 +3,42 @@ const CACHE = `cache-${VERSION}`
 const log = 1
 
 const PRECACHE_URLS: string[] = [
-	//'index.html', './',
-	//'icon-192.png'
+	'/',
+	'/index.html',
+	'/manifest.json',
+	'/icon-192.png',
+	'/offline.html'
 ]
+
+type CacheStrategy = 'cache-first' | 'network-first' | 'network-only'
+
+function getCacheStrategy(pathname: string): CacheStrategy {
+	// API and WebSocket endpoints: never cache
+	if (pathname.startsWith('/api/') || pathname.startsWith('/ws/')) return 'network-only'
+
+	// Versioned assets, fonts, sounds, icons, favicons: immutable / long-lived
+	if (
+		/^\/assets-[^/]+\//.test(pathname) || // /assets-1.2.3/*
+		/^\/apps\/[^/]+\/assets-[^/]+\//.test(pathname) || // /apps/quillo/assets-1.0.0/*
+		pathname.startsWith('/fonts/') ||
+		pathname.startsWith('/sounds/') ||
+		/^\/icon-[^/]+\.png$/.test(pathname) || // /icon-192.png, /icon-512.png
+		/^\/favicon\./.test(pathname) // /favicon.svg, /favicon.ico
+	)
+		return 'cache-first'
+
+	// HTML and manifest: try network first so updates land quickly
+	if (
+		pathname === '/' ||
+		pathname === '/index.html' ||
+		pathname === '/manifest.json' ||
+		/^\/apps\/[^/]+\/index\.html$/.test(pathname)
+	)
+		return 'network-first'
+
+	// Everything else: network-first as a safe default
+	return 'network-first'
+}
 
 //import { LRUCache } from 'lru-cache'
 import LRU from 'quick-lru'
@@ -377,178 +410,191 @@ function onFetch(evt: any) {
 
 	evt.respondWith(
 		(async function () {
-			if (!idTag) {
-				log && console.log('[SW] fetching idTag')
-				if (!fetchIdTagPromise) fetchIdTagPromise = fetchIdTag()
-				const fetchedTag = await fetchIdTagPromise
-				if (fetchedTag) {
-					idTag = fetchedTag
-				} else {
-					// Reset promise on failure to allow retry on next request
-					fetchIdTagPromise = undefined
-				}
-				log && console.log('[SW] idTag:', idTag)
-			}
-
-			if (reqUrl.hostname == 'cl-o.' + idTag) {
-				// Handle requests to our own idTag
-				log && console.log('[SW] OWN FETCH', evt.request.method, reqUrl.pathname)
-				try {
-					let request = evt.request
-					if (authToken && !evt.request.headers.get('Authorization')) {
-						log && console.log('[SW] OWN FETCH inserting token')
-						const headers = new Headers(evt.request.headers)
-						headers.set('Authorization', `Bearer ${authToken}`)
-						//request = new Request(evt.request, { headers: headers, mode: request.mode })
-						request = new Request(evt.request, { headers: headers, mode: 'cors' })
+			// Only resolve idTag for cl-o.* requests that need auth/proxy handling.
+			// Static assets (sounds, fonts, etc.) must not be blocked on idTag resolution,
+			// as the delay can cause the browser to abort preload requests.
+			if (reqUrl.hostname.startsWith('cl-o.')) {
+				if (!idTag) {
+					log && console.log('[SW] fetching idTag')
+					if (!fetchIdTagPromise) fetchIdTagPromise = fetchIdTag()
+					const fetchedTag = await fetchIdTagPromise
+					if (fetchedTag) {
+						idTag = fetchedTag
+					} else {
+						// Reset promise on failure to allow retry on next request
+						fetchIdTagPromise = undefined
 					}
-
-					const origRes = await fetch(request)
-
-					if (
-						[
-							'/api/auth/login-token',
-							'/api/auth/login',
-							'/api/auth/set-password'
-						].includes(reqUrl.pathname)
-					) {
-						// Extract token from response
-						const res = origRes.clone()
-						log && console.log('[SW] OWN RES', res.status)
-						const j = await res.json()
-						log && console.log('[SW] OWN RES BODY', j)
-						if (j.data?.token) {
-							log && console.log('[SW] OWN RES TOKEN')
-							authToken = j.data.token as string
-							// Persist encrypted token
-							await setSecureItem('authToken', authToken)
-						}
-						/*
-					const cleanedRes = new Response(JSON.stringify({ ...j, token: undefined }), {
-						status: res.status,
-						statusText: res.statusText,
-						headers: res.headers
-					})
-					return cleanedRes
-					*/
-					}
-					return origRes
-				} catch (err) {
-					log && console.log('[SW] FETCH ERROR', err)
-					throw err
+					log && console.log('[SW] idTag:', idTag)
 				}
-			} else if (
-				idTag &&
-				reqUrl.hostname.startsWith('cl-o.') &&
-				reqUrl.hostname != 'cl-o.' + idTag &&
-				reqUrl.pathname.startsWith('/api/')
-			) {
-				// Handle requests to other idTags (federated requests)
-				log && console.log('[SW] FETCH API', evt.request.method, evt.request.url)
-				const targetTag = new URL(evt.request.url).hostname.replace('cl-o.', '')
 
-				log &&
-					console.log(
-						'[SW] PROXY TOKEN: ' + idTag + '/api/auth/proxy-token -> ' + targetTag
-					)
-				try {
-					const headers = new Headers(evt.request.headers)
-					headers.set('Origin', location.origin)
-
-					if (authToken) {
-						//let token = proxyTokenCache[targetTag]
-						let token = proxyTokenCache.get(targetTag)
-
-						if (!token) {
-							const proxyTokenRes = await fetch(
-								'https://cl-o.' +
-									idTag +
-									`/api/auth/proxy-token?idTag=${targetTag}`,
-								{
-									credentials: 'include',
-									headers: { Authorization: `Bearer ${authToken}` }
-								}
-							)
-							token = (await proxyTokenRes.json())?.data?.token
-							log && console.log('PROXY TOKEN miss', idTag, targetTag, token)
-							// FIXME: expiration
-							if (token) proxyTokenCache.set(targetTag, token)
-						} else {
-							log && console.log('PROXY TOKEN cached', idTag, targetTag, token)
+				if (idTag && reqUrl.hostname == 'cl-o.' + idTag) {
+					// Handle requests to our own idTag
+					log && console.log('[SW] OWN FETCH', evt.request.method, reqUrl.pathname)
+					try {
+						let request = evt.request
+						if (authToken && !evt.request.headers.get('Authorization')) {
+							log && console.log('[SW] OWN FETCH inserting token')
+							const headers = new Headers(evt.request.headers)
+							headers.set('Authorization', `Bearer ${authToken}`)
+							//request = new Request(evt.request, { headers: headers, mode: request.mode })
+							request = new Request(evt.request, { headers: headers, mode: 'cors' })
 						}
 
-						if (token) headers.set('Authorization', `Bearer ${token}`)
-						//const request = new Request(evt.request, { headers, credentials: 'include' })
-					}
+						const origRes = await fetch(request)
 
-					const request = new Request(evt.request, { headers, mode: 'cors' })
-					log &&
-						console.log('[SW] request', request, {
-							origin: headers.get('Origin'),
-							authorization: headers.get('Authorization')
+						if (
+							[
+								'/api/auth/login-token',
+								'/api/auth/login',
+								'/api/auth/set-password'
+							].includes(reqUrl.pathname)
+						) {
+							// Extract token from response
+							const res = origRes.clone()
+							log && console.log('[SW] OWN RES', res.status)
+							const j = await res.json()
+							log && console.log('[SW] OWN RES BODY', j)
+							if (j.data?.token) {
+								log && console.log('[SW] OWN RES TOKEN')
+								authToken = j.data.token as string
+								// Persist encrypted token
+								await setSecureItem('authToken', authToken)
+							}
+							/*
+						const cleanedRes = new Response(JSON.stringify({ ...j, token: undefined }), {
+							status: res.status,
+							statusText: res.statusText,
+							headers: res.headers
 						})
-					const res = await fetch(request)
-					log && console.log('[SW] NOCACHE', res)
-					return res
-				} catch (err) {
-					console.log('[SW] FETCH ERROR', err)
-					throw err
-				}
-			}
+						return cleanedRes
+						*/
+						}
+						return origRes
+					} catch (err) {
+						log && console.log('[SW] FETCH ERROR', err)
+						throw err
+					}
+				} else if (
+					idTag &&
+					reqUrl.hostname != 'cl-o.' + idTag &&
+					reqUrl.pathname.startsWith('/api/')
+				) {
+					// Handle requests to other idTags (federated requests)
+					log && console.log('[SW] FETCH API', evt.request.method, evt.request.url)
+					const targetTag = new URL(evt.request.url).hostname.replace('cl-o.', '')
 
-			// Log when falling through with missing idTag (helps debug auth issues)
-			if (
-				!idTag &&
-				reqUrl.hostname.startsWith('cl-o.') &&
-				reqUrl.pathname.startsWith('/api/')
-			) {
-				console.warn(
-					'[SW] Falling through to direct fetch without idTag for:',
-					evt.request.url
-				)
+					log &&
+						console.log(
+							'[SW] PROXY TOKEN: ' + idTag + '/api/auth/proxy-token -> ' + targetTag
+						)
+					try {
+						const headers = new Headers(evt.request.headers)
+						headers.set('Origin', location.origin)
+
+						if (authToken) {
+							//let token = proxyTokenCache[targetTag]
+							let token = proxyTokenCache.get(targetTag)
+
+							if (!token) {
+								const proxyTokenRes = await fetch(
+									'https://cl-o.' +
+										idTag +
+										`/api/auth/proxy-token?idTag=${targetTag}`,
+									{
+										credentials: 'include',
+										headers: { Authorization: `Bearer ${authToken}` }
+									}
+								)
+								token = (await proxyTokenRes.json())?.data?.token
+								log && console.log('PROXY TOKEN miss', idTag, targetTag, token)
+								// FIXME: expiration
+								if (token) proxyTokenCache.set(targetTag, token)
+							} else {
+								log && console.log('PROXY TOKEN cached', idTag, targetTag, token)
+							}
+
+							if (token) headers.set('Authorization', `Bearer ${token}`)
+							//const request = new Request(evt.request, { headers, credentials: 'include' })
+						}
+
+						const request = new Request(evt.request, { headers, mode: 'cors' })
+						log &&
+							console.log('[SW] request', request, {
+								origin: headers.get('Origin'),
+								authorization: headers.get('Authorization')
+							})
+						const res = await fetch(request)
+						log && console.log('[SW] NOCACHE', res)
+						return res
+					} catch (err) {
+						console.log('[SW] FETCH ERROR', err)
+						throw err
+					}
+				}
+
+				// Log when falling through with missing idTag (helps debug auth issues)
+				if (!idTag && reqUrl.pathname.startsWith('/api/')) {
+					console.warn(
+						'[SW] Falling through to direct fetch without idTag for:',
+						evt.request.url
+					)
+				}
 			}
 			log && console.log('[SW] FETCH NO-API', evt.request.method, evt.request.url)
 
-			/*
-		if (evt.request.method !== 'GET' || !evt.request.url.startsWith(self.location.origin)) {
-			return
-		}
-
-		let res
-		// Chromium bug workaround
-		if (evt.request.cache === 'only-if-cached' && evt.request.mode !== 'same-origin') return
-		*/
-
-			// DISABLE CACHE:
-			const res = await fetch(evt.request)
-			log && console.log('[SW] NOCACHE', res)
-			return res
-
-			/*
-		res = await caches.match(evt.request)
-		if (res) {
-			log && console.log('[SW] CACHE HIT', evt.request.url)
-			return res
-		}
-		let cache = await caches.open(CACHE)
-		try {
-			log && console.log('[SW] GET', evt.request.url)
-			res = await fetch(evt.request)
-			log && console.log('[SW] RES', res.headers)
-			if (!evt.request.url.match(/\/api\//)
-				&& !evt.request.url.match(/\.js$/)
-			) {
-				await cache.put(evt.request, res.clone())
-				log && console.log('[SW] CACHE', evt.request.url)
-			} else {
-				log && console.log('[SW] NO CACHE', evt.request.url)
+			// Only cache GET requests to our own origin
+			if (evt.request.method !== 'GET' || reqUrl.origin !== (self as any).location.origin) {
+				return fetch(evt.request)
 			}
-			return res
-		} catch (err) {
-			log && console.log('RES null')
-			return null
-		}
-		*/
+
+			const strategy = getCacheStrategy(reqUrl.pathname)
+			log && console.log('[SW] strategy', strategy, reqUrl.pathname)
+
+			if (strategy === 'network-only') {
+				return fetch(evt.request)
+			}
+
+			const cache = await caches.open(CACHE)
+
+			if (strategy === 'cache-first') {
+				const cached = await cache.match(evt.request)
+				if (cached) {
+					log && console.log('[SW] CACHE HIT', evt.request.url)
+					return cached
+				}
+				try {
+					const res = await fetch(new Request(evt.request.url))
+					if (res.ok) {
+						await cache.put(evt.request, res.clone())
+						log && console.log('[SW] CACHED', evt.request.url)
+					}
+					return res
+				} catch {
+					return new Response('Network error', { status: 408 })
+				}
+			}
+
+			// network-first
+			try {
+				const res = await fetch(new Request(evt.request.url))
+				if (res.ok) {
+					await cache.put(evt.request, res.clone())
+					log && console.log('[SW] CACHED (nf)', evt.request.url)
+				}
+				return res
+			} catch {
+				const cached = await cache.match(evt.request)
+				if (cached) {
+					log && console.log('[SW] CACHE FALLBACK', evt.request.url)
+					return cached
+				}
+				// Serve offline page for navigation requests
+				if (evt.request.mode === 'navigate') {
+					const offlinePage = await cache.match('/offline.html')
+					if (offlinePage) return offlinePage
+				}
+				return new Response('Network error', { status: 408 })
+			}
 		})()
 	)
 }

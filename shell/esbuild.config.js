@@ -89,6 +89,13 @@ async function build() {
 			pkg.version
 		)
 
+		// Copy offline fallback page
+		buildHTML(
+			join(__dirname, 'src/offline.html'),
+			join(__dirname, 'dist/offline.html'),
+			pkg.version
+		)
+
 		// Copy fonts to dist/fonts/
 		copyFonts()
 

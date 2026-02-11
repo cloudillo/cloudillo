@@ -914,5 +914,91 @@ export const tPasswordResetResponse = T.struct({
 export type PasswordResetResponse = T.TypeOf<typeof tPasswordResetResponse>
 
 // ============================================================================
+// ADMIN PROXY SITE ENDPOINTS
+// ============================================================================
+
+// Proxy site status: A=Active, D=Disabled
+export const tProxySiteStatus = T.literal('A', 'D')
+export type ProxySiteStatus = T.TypeOf<typeof tProxySiteStatus>
+
+// Proxy site type
+export const tProxySiteType = T.literal('basic', 'advanced')
+export type ProxySiteType = T.TypeOf<typeof tProxySiteType>
+
+// Proxy site configuration
+export const tProxySiteConfig = T.struct({
+	connectTimeoutSecs: T.optional(T.number),
+	readTimeoutSecs: T.optional(T.number),
+	preserveHost: T.optional(T.boolean),
+	proxyProtocol: T.optional(T.boolean),
+	customHeaders: T.optional(T.unknown),
+	forwardHeaders: T.optional(T.boolean),
+	websocket: T.optional(T.boolean)
+})
+export type ProxySiteConfig = T.TypeOf<typeof tProxySiteConfig>
+
+// Proxy site data (returned by API)
+export const tProxySiteData = T.struct({
+	siteId: T.number,
+	domain: T.string,
+	backendUrl: T.string,
+	status: tProxySiteStatus,
+	type: tProxySiteType,
+	certExpiresAt: T.optional(T.string),
+	config: tProxySiteConfig,
+	createdAt: T.string,
+	updatedAt: T.string
+})
+export type ProxySiteData = T.TypeOf<typeof tProxySiteData>
+
+// List proxy sites result
+export const tListProxySitesResult = T.array(tProxySiteData)
+export type ListProxySitesResult = T.TypeOf<typeof tListProxySitesResult>
+
+// Delete proxy site result
+export const tDeleteProxySiteResult = T.struct({
+	siteId: T.number
+})
+export type DeleteProxySiteResult = T.TypeOf<typeof tDeleteProxySiteResult>
+
+// Renew cert result
+export const tRenewProxySiteCertResult = T.struct({
+	siteId: T.number,
+	message: T.optional(T.string)
+})
+export type RenewProxySiteCertResult = T.TypeOf<typeof tRenewProxySiteCertResult>
+
+// Request types for proxy site management
+export interface CreateProxySiteRequest {
+	domain: string
+	backendUrl: string
+	type?: 'basic' | 'advanced'
+	config?: {
+		connectTimeoutSecs?: number
+		readTimeoutSecs?: number
+		preserveHost?: boolean
+		proxyProtocol?: boolean
+		customHeaders?: Record<string, string>
+		forwardHeaders?: boolean
+		websocket?: boolean
+	}
+}
+
+export interface UpdateProxySiteRequest {
+	backendUrl?: string
+	status?: 'A' | 'D'
+	type?: 'basic' | 'advanced'
+	config?: {
+		connectTimeoutSecs?: number
+		readTimeoutSecs?: number
+		preserveHost?: boolean
+		proxyProtocol?: boolean
+		customHeaders?: Record<string, string>
+		forwardHeaders?: boolean
+		websocket?: boolean
+	}
+}
+
+// ============================================================================
 // WEBSOCKET TYPES
 // vim: ts=2

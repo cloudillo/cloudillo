@@ -1075,7 +1075,59 @@ export class ApiClient {
 		 * @returns Empty response on success
 		 */
 		sendTestEmail: (to: string) =>
-			this.request('POST', '/admin/email/test', T.struct({}), { data: { to } })
+			this.request('POST', '/admin/email/test', T.struct({}), { data: { to } }),
+
+		/**
+		 * GET /admin/proxy-sites - List all proxy sites
+		 * @returns List of proxy site configurations
+		 */
+		listProxySites: () =>
+			this.request('GET', '/admin/proxy-sites', Types.tListProxySitesResult),
+
+		/**
+		 * POST /admin/proxy-sites - Create a new proxy site
+		 * @param data - Proxy site configuration
+		 * @returns Created proxy site data
+		 */
+		createProxySite: (data: Types.CreateProxySiteRequest) =>
+			this.request('POST', '/admin/proxy-sites', Types.tProxySiteData, { data }),
+
+		/**
+		 * GET /admin/proxy-sites/:siteId - Get a proxy site by ID
+		 * @param siteId - Proxy site ID
+		 * @returns Proxy site data
+		 */
+		getProxySite: (siteId: number) =>
+			this.request('GET', `/admin/proxy-sites/${siteId}`, Types.tProxySiteData),
+
+		/**
+		 * PATCH /admin/proxy-sites/:siteId - Update a proxy site
+		 * @param siteId - Proxy site ID
+		 * @param data - Fields to update
+		 * @returns Updated proxy site data
+		 */
+		updateProxySite: (siteId: number, data: Types.UpdateProxySiteRequest) =>
+			this.request('PATCH', `/admin/proxy-sites/${siteId}`, Types.tProxySiteData, { data }),
+
+		/**
+		 * DELETE /admin/proxy-sites/:siteId - Delete a proxy site
+		 * @param siteId - Proxy site ID
+		 * @returns Deleted site ID
+		 */
+		deleteProxySite: (siteId: number) =>
+			this.request('DELETE', `/admin/proxy-sites/${siteId}`, Types.tDeleteProxySiteResult),
+
+		/**
+		 * POST /admin/proxy-sites/:siteId/renew-cert - Trigger certificate renewal
+		 * @param siteId - Proxy site ID
+		 * @returns Renewal result
+		 */
+		renewProxySiteCert: (siteId: number) =>
+			this.request(
+				'POST',
+				`/admin/proxy-sites/${siteId}/renew-cert`,
+				Types.tRenewProxySiteCertResult
+			)
 	}
 }
 

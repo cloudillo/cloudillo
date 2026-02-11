@@ -23,6 +23,7 @@ import {
 	LuServer as IcServer,
 	LuHardDrive as IcStorage,
 	LuMail as IcMail,
+	LuNetwork as IcProxy,
 	LuUser as IcTenant,
 	LuUsers as IcTenants,
 	LuShieldCheck as IcIdps,
@@ -37,6 +38,7 @@ import { SuggestedProvidersSettings } from './idps.js'
 import { ServerSettings } from './server.js'
 import { StorageSettings } from './storage.js'
 import { EmailSettings } from './email.js'
+import { ProxySites } from './proxy-sites.js'
 import { TenantSettings } from './tenant.js'
 import { AdminOverview } from './overview.js'
 
@@ -128,6 +130,16 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 							className={({ isActive }) =>
 								mergeClasses('c-nav-item', isActive && 'active')
 							}
+							to="/site-admin/proxy-sites"
+						>
+							<IcProxy /> {t('Reverse Proxy')}
+						</NavLink>
+					</li>
+					<li>
+						<NavLink
+							className={({ isActive }) =>
+								mergeClasses('c-nav-item', isActive && 'active')
+							}
 							to="/site-admin/tenant"
 						>
 							<IcTenant /> {t('Default Policies')}
@@ -204,6 +216,14 @@ export function SiteAdminRoutes() {
 				element={
 					<SiteAdmin title={t('Email')}>
 						<EmailSettings />
+					</SiteAdmin>
+				}
+			/>
+			<Route
+				path="/site-admin/proxy-sites"
+				element={
+					<SiteAdmin title={t('Reverse Proxy')}>
+						<ProxySites />
 					</SiteAdmin>
 				}
 			/>

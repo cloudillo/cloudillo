@@ -28,6 +28,7 @@ import {
 	LuAtSign as IcInvitations,
 	LuServer as IcServer,
 	LuHardDrive as IcStorage,
+	LuNetwork as IcProxy,
 	LuUser as IcTenant,
 	LuCheck as IcCheck,
 	LuX as IcError,
@@ -242,6 +243,11 @@ export function AdminOverview() {
 						icon={<IcMail size={28} />}
 						label={t('Email')}
 						onClick={() => navigate('/site-admin/email')}
+					/>
+					<QuickActionCard
+						icon={<IcProxy size={28} />}
+						label={t('Reverse Proxy')}
+						onClick={() => navigate('/site-admin/proxy-sites')}
 					/>
 					<QuickActionCard
 						icon={<IcTenant size={28} />}

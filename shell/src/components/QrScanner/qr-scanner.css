@@ -1,0 +1,47 @@
+.qr-scanner-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 1050;
+	background: rgba(0, 0, 0, 0.9);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+}
+
+.qr-scanner-overlay video {
+	width: 100%;
+	max-width: 480px;
+	max-height: 60vh;
+	border-radius: 12px;
+	object-fit: cover;
+}
+
+.qr-scanner-header {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 1rem;
+	color: #fff;
+	z-index: 1;
+}
+
+.qr-scanner-header h3 {
+	margin: 0;
+	color: #fff;
+}
+
+.qr-scanner-status {
+	margin-top: 1.5rem;
+	text-align: center;
+	color: #fff;
+	min-height: 2em;
+}
+
+.qr-scanner-status .text-error {
+	color: var(--error, #ef4444);
+}

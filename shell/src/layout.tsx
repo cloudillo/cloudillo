@@ -159,7 +159,9 @@ import {
 	LuFingerprint as IcIdp,
 	LuCircleAlert as IcWarning,
 	LuRefreshCw as IcRefresh,
-	LuTrash2 as IcClear
+	LuTrash2 as IcClear,
+	LuQrCode as IcQrCode,
+	LuScanLine as IcScan
 } from 'react-icons/lu'
 import { CloudilloLogo } from './logo.js'
 
@@ -213,6 +215,8 @@ import { Notifications } from './notifications/notifications.js'
 import { useNotifications } from './notifications/state'
 import { NotificationPopover } from './notifications/NotificationPopover.js'
 import { MediaPicker } from './components/MediaPicker/index.js'
+import { BusinessCardDialog } from './components/BusinessCard/BusinessCardDialog.js'
+import { QrScannerDialog, useQrScanner } from './components/QrScanner/index.js'
 
 import '@symbion/opalui'
 //import '@symbion/opalui/src/opalui.css'
@@ -256,6 +260,7 @@ function Menu({
 	const { contextIdTag, getContextPath } = useContextPath()
 	const sidebar = useSidebar()
 	const [guestDocument] = useGuestDocument()
+	const [, setQrScannerOpen] = useQrScanner()
 
 	React.useEffect(
 		function onLocationChange() {
@@ -330,6 +335,16 @@ function Menu({
 									<h6>{menuItem.trans?.[i18n.language] || menuItem.label}</h6>
 								</NavLink>
 							))}
+							{auth && (
+								<Button
+									navLink
+									className="h-small vertical"
+									onClick={() => setQrScannerOpen(true)}
+								>
+									<IcScan />
+									<h6>{t('Scan QR')}</h6>
+								</Button>
+							)}
 						</nav>,
 						extraMenuPortal
 					)}
@@ -347,6 +362,16 @@ function Menu({
 									<h6>{menuItem.trans?.[i18n.language] || menuItem.label}</h6>
 								</NavLink>
 							))}
+							{auth && (
+								<Button
+									navLink
+									className="h-small vertical"
+									onClick={() => setQrScannerOpen(true)}
+								>
+									<IcScan />
+									<h6>{t('Scan QR')}</h6>
+								</Button>
+							)}
 						</nav>
 					</div>
 				)}
@@ -447,6 +472,7 @@ function Header({ inert }: { inert?: boolean }) {
 	//const [notifications, setNotifications] = React.useState<{ notifications?: number }>({})
 	const { notifications, setNotifications, loadNotifications } = useNotifications()
 	const [menuOpen, setMenuOpen] = React.useState(false)
+	const [businessCardOpen, setBusinessCardOpen] = React.useState(false)
 	const contextIdTag = useCurrentContextIdTag()
 	const [extraMenuPortalMobile, setExtraMenuPortalMobile] = React.useState<HTMLDivElement | null>(
 		null
@@ -692,6 +718,12 @@ function Header({ inert }: { inert?: boolean }) {
 									</Link>
 								</li>
 								<li>
+									<Button navItem onClick={() => setBusinessCardOpen(true)}>
+										<IcQrCode />
+										{t('My Card')}
+									</Button>
+								</li>
+								<li>
 									<Link
 										className="c-nav-item"
 										to={`/settings/${contextIdTag || auth.idTag}`}
@@ -785,6 +817,10 @@ function Header({ inert }: { inert?: boolean }) {
 					</nav>
 				</>
 			)}
+			<BusinessCardDialog
+				open={businessCardOpen}
+				onClose={() => setBusinessCardOpen(false)}
+			/>
 		</>
 	)
 }
@@ -879,6 +915,8 @@ export function Layout() {
 	const sidebar = useSidebar()
 	const { loadPinnedCommunities, loadCommunities } = useCommunitiesList()
 	const location = useLocation()
+	const navigate = useNavigate()
+	const contextIdTag = useCurrentContextIdTag()
 	const [keyAccessError, setKeyAccessError] = React.useState<KeyErrorReason | null>(null)
 	useTokenRenewal() // Automatic token renewal
 	useActionNotifications() // Sound and toast notifications for incoming actions
@@ -999,6 +1037,9 @@ export function Layout() {
 				<DialogContainer />
 				<ToastContainer position="bottom-right" />
 				<MediaPicker />
+				<QrScannerDialog
+					onScan={(idTag) => navigate(`/profile/${contextIdTag || auth?.idTag}/${idTag}`)}
+				/>
 			</WsBusRoot>
 		</>
 	)

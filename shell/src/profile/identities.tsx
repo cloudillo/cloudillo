@@ -30,13 +30,15 @@ import {
 	LuUsers as IcUserAll,
 	LuPin as IcPin,
 	LuPinOff as IcPinOff,
-	LuPlus as IcPlus
+	LuPlus as IcPlus,
+	LuScanLine as IcScan
 } from 'react-icons/lu'
 
 import { Profile } from '@cloudillo/types'
 import { useApi, useAuth, Fcd, Button, ProfileCard, mergeClasses } from '@cloudillo/react'
 import { useAppConfig, parseQS, qs } from '../utils.js'
 import { useCommunitiesList } from '../context/index.js'
+import { useQrScanner } from '../components/QrScanner/index.js'
 
 function ProfileStatusIcon({ profile }: { profile: Profile }) {
 	// Check for exactly true (connected) vs 'R' (pending request)
@@ -154,6 +156,7 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 	const [auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
+	const [, setQrScannerOpen] = useQrScanner()
 	// Extract contextIdTag from params if available (context-aware route)
 	const contextIdTag = params.contextIdTag || idTag
 
@@ -180,29 +183,32 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 	)
 
 	return (
-		<Fcd.Container className="g-1">
-			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-				<FilterBar />
-			</Fcd.Filter>
-			<Fcd.Content>
-				<div className="c-nav c-hbox md-hide lg-hide">
-					<IcFilter onClick={() => setShowFilter(true)} />
-				</div>
-				{!!profiles &&
-					profiles.map((profile) => (
-						<ProfileListCard key={profile.idTag} profile={profile} />
-					))}
-			</Fcd.Content>
-			{/*
-		<Fcd.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
-			{ selected && <div className="c-panel h-min-100">
-				<h3 className="c-panel-title">
-					{selected.name}
-				</h3>
-			</div> }
-		</Fcd.Details>
-		*/}
-		</Fcd.Container>
+		<>
+			<Fcd.Container className="g-1">
+				<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+					<FilterBar />
+				</Fcd.Filter>
+				<Fcd.Content>
+					<div className="c-nav c-hbox md-hide lg-hide">
+						<IcFilter onClick={() => setShowFilter(true)} />
+					</div>
+					{!!profiles &&
+						profiles.map((profile) => (
+							<ProfileListCard key={profile.idTag} profile={profile} />
+						))}
+				</Fcd.Content>
+			</Fcd.Container>
+
+			{auth && (
+				<button
+					className="c-fab"
+					onClick={() => setQrScannerOpen(true)}
+					title={t('Scan QR code')}
+				>
+					<IcScan />
+				</button>
+			)}
+		</>
 	)
 }
 

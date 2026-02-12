@@ -725,5 +725,13 @@
 	"active": "aktív",
 	"disabled": "kikapcsolt",
 	"Please enter a valid HTTP or HTTPS URL": "Kérlek adj meg egy érvényes HTTP vagy HTTPS URL-t",
-	"Enabled": "Engedélyezve"
+	"Enabled": "Engedélyezve",
+	"My Card": "Névjegyem",
+	"Copy identity tag": "Azonosító másolása",
+	"Copied!": "Másolva!",
+	"Scan QR": "QR beolvasás",
+	"Scan QR Code": "QR kód beolvasása",
+	"Scan QR code": "QR kód beolvasása",
+	"Not a Cloudillo QR code": "Nem Cloudillo QR kód",
+	"Camera access denied": "Kamera hozzáférés megtagadva"
 }

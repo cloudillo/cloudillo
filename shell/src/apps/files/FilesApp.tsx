@@ -111,9 +111,6 @@ export function FilesApp() {
 	// Display mode (grid/list)
 	const [displayMode, setDisplayMode] = React.useState<DisplayMode>('list')
 
-	// Favorites cache
-	const [favorites, setFavorites] = React.useState<Set<string>>(new Set())
-
 	// Context menu state
 	const [contextMenuFile, setContextMenuFile] = React.useState<File | undefined>()
 	const [contextMenuPosition, setContextMenuPosition] = React.useState<
@@ -130,24 +127,6 @@ export function FilesApp() {
 	// On desktop (>=768px), details panel follows selection
 	// On mobile (<768px), details panel only shows when explicitly requested via info button
 	const [showMobileDetails, setShowMobileDetails] = React.useState<boolean>(false)
-
-	// Load favorites
-	React.useEffect(
-		function loadFavorites() {
-			if (!api) return
-
-			;(async function () {
-				try {
-					const favList = await api.collections.list('FAVR')
-					// itemId is the raw file ID (no prefix for CRDT/RTDB files)
-					setFavorites(new Set(favList.map((f) => f.itemId)))
-				} catch {
-					// Ignore errors loading favorites
-				}
-			})()
-		},
-		[api]
-	)
 
 	// Reset filter on location change
 	React.useEffect(
@@ -349,28 +328,6 @@ export function FilesApp() {
 				fileListData.refresh()
 			},
 
-			toggleFavorite: async function toggleFavorite(fileId: string) {
-				if (!api) return
-				const isFav = favorites.has(fileId)
-
-				if (isFav) {
-					await api.files.unfavorite(fileId)
-					setFavorites((prev) => {
-						const next = new Set(prev)
-						next.delete(fileId)
-						return next
-					})
-				} else {
-					await api.files.favorite(fileId)
-					setFavorites((prev) => new Set(prev).add(fileId))
-				}
-
-				// Refresh if viewing starred
-				if (viewMode === 'starred') {
-					fileListData.refresh()
-				}
-			},
-
 			toggleStarred: async function toggleStarred(fileId: string) {
 				if (!api) return
 				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
@@ -428,31 +385,6 @@ export function FilesApp() {
 				fileListData.refresh()
 			},
 
-			toggleFavorites: async function toggleFavorites(fileIds: string[], add: boolean) {
-				if (!api || fileIds.length === 0) return
-
-				if (add) {
-					await Promise.all(fileIds.map((id) => api.files.favorite(id)))
-					setFavorites((prev) => {
-						const next = new Set(prev)
-						fileIds.forEach((id) => next.add(id))
-						return next
-					})
-				} else {
-					await Promise.all(fileIds.map((id) => api.files.unfavorite(id)))
-					setFavorites((prev) => {
-						const next = new Set(prev)
-						fileIds.forEach((id) => next.delete(id))
-						return next
-					})
-				}
-
-				// Refresh if viewing starred
-				if (viewMode === 'starred') {
-					fileListData.refresh()
-				}
-			},
-
 			toggleStarredBatch: async function toggleStarredBatch(
 				fileIds: string[],
 				starred: boolean
@@ -486,7 +418,6 @@ export function FilesApp() {
 			t,
 			fileListData,
 			dialog,
-			favorites,
 			viewMode,
 			multiSelect
 		]
@@ -658,7 +589,6 @@ export function FilesApp() {
 											renameFileName={renameFileName}
 											fileOps={fileOps}
 											viewMode={viewMode}
-											isFavorite={favorites.has(file.fileId)}
 										/>
 									))}
 								</div>
@@ -691,7 +621,6 @@ export function FilesApp() {
 										renameFileName={renameFileName}
 										fileOps={fileOps}
 										viewMode={viewMode}
-										isFavorite={favorites.has(file.fileId)}
 									/>
 								))}
 								<LoadMoreTrigger
@@ -746,7 +675,6 @@ export function FilesApp() {
 					position={contextMenuPosition}
 					viewMode={viewMode}
 					fileOps={fileOps}
-					favoriteIds={favorites}
 					onClose={closeContextMenu}
 					onMoveFiles={setMoveFileIds}
 					onShare={(file) => {

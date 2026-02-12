@@ -51,7 +51,6 @@ interface ItemCardProps {
 	renameFileName?: string
 	fileOps: FileOps
 	viewMode?: ViewMode
-	isFavorite?: boolean
 }
 
 export const ItemCard = React.memo(function ItemCard({
@@ -64,8 +63,7 @@ export const ItemCard = React.memo(function ItemCard({
 	renameFileId,
 	renameFileName,
 	fileOps,
-	viewMode = 'all',
-	isFavorite = false
+	viewMode = 'all'
 }: ItemCardProps) {
 	const [auth] = useAuth()
 	const { t } = useTranslation()
@@ -191,7 +189,6 @@ export const ItemCard = React.memo(function ItemCard({
 							<IcStar />
 						</button>
 					)}
-					{isFavorite && !isStarred && <IcStar className="c-file-card-favorite" />}
 				</div>
 
 				{/* Meta line: smart timestamp, visibility, and owner */}

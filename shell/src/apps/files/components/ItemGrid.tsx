@@ -44,7 +44,6 @@ interface ItemGridProps {
 	renameFileName?: string
 	fileOps: FileOps
 	viewMode?: ViewMode
-	isFavorite?: boolean
 }
 
 export const ItemGrid = React.memo(function ItemGrid({
@@ -57,8 +56,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 	renameFileId,
 	renameFileName,
 	fileOps,
-	viewMode = 'all',
-	isFavorite = false
+	viewMode = 'all'
 }: ItemGridProps) {
 	const [auth] = useAuth()
 	const { t } = useTranslation()
@@ -145,13 +143,6 @@ export const ItemGrid = React.memo(function ItemGrid({
 					>
 						<IcStar />
 					</button>
-				)}
-
-				{/* Favorite indicator (if not starred, for backwards compat) */}
-				{isFavorite && !isStarred && (
-					<span className="c-file-grid-favorite">
-						<IcStar />
-					</span>
 				)}
 
 				{/* Live indicator - bottom right */}

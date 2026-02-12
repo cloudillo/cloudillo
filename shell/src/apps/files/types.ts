@@ -59,14 +59,12 @@ export interface FileOps {
 	doDeleteFile: (fileId: string) => void
 	doRestoreFile?: (fileId: string, parentId?: string) => void
 	doPermanentDeleteFile?: (fileId: string) => void
-	toggleFavorite?: (fileId: string) => void
 	toggleStarred?: (fileId: string) => void
 	togglePinned?: (fileId: string) => void
 	// Batch operations for multi-select
 	doDeleteFiles?: (fileIds: string[]) => void
 	doRestoreFiles?: (fileIds: string[], parentId?: string) => void
 	doPermanentDeleteFiles?: (fileIds: string[]) => void
-	toggleFavorites?: (fileIds: string[], add: boolean) => void
 	toggleStarredBatch?: (fileIds: string[], starred: boolean) => void
 	togglePinnedBatch?: (fileIds: string[], pinned: boolean) => void
 	setVisibility?: (fileId: string, visibility: FileVisibility) => void

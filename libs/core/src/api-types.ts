@@ -609,29 +609,6 @@ export const tUpdateFileUserDataResult = T.struct({
 })
 export type UpdateFileUserDataResult = T.TypeOf<typeof tUpdateFileUserDataResult>
 
-// ============================================================================
-// COLLECTION ENDPOINTS (Favorites, Recent, Bookmarks, Pins)
-// ============================================================================
-
-// Collection types: 'FAVR' (favorites), 'RCNT' (recent), 'BKMK' (bookmarks), 'PIND' (pinned)
-export type CollectionType = 'FAVR' | 'RCNT' | 'BKMK' | 'PIND'
-
-export const tCollectionItem = T.struct({
-	itemId: T.string, // Entity ID with type prefix (f1~..., a1~..., etc.)
-	createdAt: T.union(T.string, T.date),
-	updatedAt: T.union(T.string, T.date)
-})
-export type CollectionItem = T.TypeOf<typeof tCollectionItem>
-
-export const tListCollectionResult = T.array(tCollectionItem)
-export type ListCollectionResult = T.TypeOf<typeof tListCollectionResult>
-
-export const tCollectionResponse = T.struct({
-	collType: T.string,
-	itemId: T.string
-})
-export type CollectionResponse = T.TypeOf<typeof tCollectionResponse>
-
 export const tTagResult = T.struct({
 	tags: T.array(T.string)
 })

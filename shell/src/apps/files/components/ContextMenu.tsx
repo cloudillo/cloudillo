@@ -56,7 +56,6 @@ export interface ContextMenuProps {
 	position: ContextMenuPosition
 	viewMode: ViewMode
 	fileOps: FileOps
-	favoriteIds: Set<string>
 	onClose: () => void
 	onMoveFiles?: (fileIds: string[]) => void
 	onShare?: (file: File) => void
@@ -68,7 +67,6 @@ export function ContextMenu({
 	position,
 	viewMode,
 	fileOps,
-	favoriteIds,
 	onClose,
 	onMoveFiles,
 	onShare
@@ -86,11 +84,6 @@ export function ContextMenu({
 	const hasFile = selectedFiles.some((f) => f.fileTp !== 'FLDR')
 	const isFolder = file.fileTp === 'FLDR'
 	const isTrashView = viewMode === 'trash'
-
-	// Favorite state for single/multi selection
-	const allFavorites = selectedFiles.every((f) => favoriteIds.has(f.fileId))
-	const noneFavorites = selectedFiles.every((f) => !favoriteIds.has(f.fileId))
-	const isFavorite = isSingleSelect ? favoriteIds.has(file.fileId) : allFavorites
 
 	// Starred/Pinned state for single/multi selection
 	const allStarred = selectedFiles.every((f) => f.userData?.starred)

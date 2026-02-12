@@ -633,49 +633,7 @@ export class ApiClient {
 		 * @returns File tags
 		 */
 		removeTag: (fileId: string, tag: string) =>
-			this.request('DELETE', `/files/${fileId}/tag/${tag}`, Types.tTagResult),
-
-		/**
-		 * Add file to favorites collection
-		 * @param fileId - File ID
-		 */
-		favorite: (fileId: string) =>
-			this.request(
-				'POST',
-				`/collections/FAVR/${encodeURIComponent(fileId)}`,
-				Types.tCollectionResponse
-			),
-
-		/**
-		 * Remove file from favorites collection
-		 * @param fileId - File ID
-		 */
-		unfavorite: (fileId: string) =>
-			this.request(
-				'DELETE',
-				`/collections/FAVR/${encodeURIComponent(fileId)}`,
-				Types.tCollectionResponse
-			),
-
-		/**
-		 * GET /files?collection=FAVR - List favorite files
-		 * @param query - Optional limit
-		 * @returns List of favorite files
-		 */
-		listFavorites: (query?: { limit?: number }) =>
-			this.request('GET', '/files', Types.tListFilesResult, {
-				query: { ...query, collection: 'FAVR' }
-			}),
-
-		/**
-		 * GET /files?collection=RCNT - List recent files
-		 * @param query - Optional limit
-		 * @returns List of recently accessed files
-		 */
-		listRecent: (query?: { limit?: number }) =>
-			this.request('GET', '/files', Types.tListFilesResult, {
-				query: { ...query, collection: 'RCNT' }
-			})
+			this.request('DELETE', `/files/${fileId}/tag/${tag}`, Types.tTagResult)
 	}
 
 	// ========================================================================
@@ -698,48 +656,6 @@ export class ApiClient {
 		 * @returns Number of files deleted
 		 */
 		empty: () => this.request('DELETE', '/trash', Types.tEmptyTrashResult)
-	}
-
-	// ========================================================================
-	// COLLECTION ENDPOINTS
-	// ========================================================================
-
-	/** Collection management endpoints (favorites, recent, bookmarks, pins) */
-	collections = {
-		/**
-		 * GET /collections/:collType - List items in a collection
-		 * @param collType - Collection type: 'FAVR', 'RCNT', 'BKMK', 'PIND'
-		 * @param query - Optional limit
-		 * @returns List of collection items
-		 */
-		list: (collType: Types.CollectionType, query?: { limit?: number }) =>
-			this.request('GET', `/collections/${collType}`, Types.tListCollectionResult, { query }),
-
-		/**
-		 * POST /collections/:collType/:itemId - Add item to collection
-		 * @param collType - Collection type
-		 * @param itemId - Item ID to add
-		 * @returns Collection response
-		 */
-		add: (collType: Types.CollectionType, itemId: string) =>
-			this.request(
-				'POST',
-				`/collections/${collType}/${encodeURIComponent(itemId)}`,
-				Types.tCollectionResponse
-			),
-
-		/**
-		 * DELETE /collections/:collType/:itemId - Remove item from collection
-		 * @param collType - Collection type
-		 * @param itemId - Item ID to remove
-		 * @returns Collection response
-		 */
-		remove: (collType: Types.CollectionType, itemId: string) =>
-			this.request(
-				'DELETE',
-				`/collections/${collType}/${encodeURIComponent(itemId)}`,
-				Types.tCollectionResponse
-			)
 	}
 
 	// ========================================================================

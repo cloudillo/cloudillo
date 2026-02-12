@@ -765,43 +765,51 @@ function Header({ inert }: { inert?: boolean }) {
 							</ul>
 						</Popper>
 					) : (
-						<Popper className="c-nav-item" icon={<IcMenu />}>
-							<ul className="c-nav vertical emph">
-								{api?.idTag && (
+						<>
+							<Popper className="c-nav-item" icon={<IcMenu />}>
+								<ul className="c-nav vertical emph">
+									{api?.idTag && (
+										<li>
+											<Link
+												className="c-nav-item"
+												to={`/profile/${api.idTag}/${api.idTag}`}
+												onClick={() => setMenuOpen(false)}
+											>
+												<IcUser />
+												{t('Owner profile')}
+											</Link>
+										</li>
+									)}
 									<li>
-										<Link
-											className="c-nav-item"
-											to={`/profile/${api.idTag}/${api.idTag}`}
-											onClick={() => setMenuOpen(false)}
-										>
-											<IcUser />
-											{t('Owner profile')}
-										</Link>
+										<hr className="w-100" />
 									</li>
-								)}
-								<li>
-									<hr className="w-100" />
-								</li>
-								<li>
-									<Button
-										navItem
-										onClick={(evt) => (
-											evt.preventDefault(), i18n.changeLanguage('en')
-										)}
-									>
-										English
-									</Button>
-								</li>
-								<li>
-									<Button navItem onClick={(evt) => setLang(evt, 'hu')}>
-										Magyar
-									</Button>
-								</li>
-								<li className="text-disabled">
-									Cloudillo V{process.env.CLOUDILLO_VERSION}
-								</li>
-							</ul>
-						</Popper>
+									<li>
+										<Button
+											navItem
+											onClick={(evt) => (
+												evt.preventDefault(), i18n.changeLanguage('en')
+											)}
+										>
+											English
+										</Button>
+									</li>
+									<li>
+										<Button navItem onClick={(evt) => setLang(evt, 'hu')}>
+											Magyar
+										</Button>
+									</li>
+									<li className="text-disabled">
+										Cloudillo V{process.env.CLOUDILLO_VERSION}
+									</li>
+								</ul>
+							</Popper>
+							<li className="c-nav-item">
+								<Link to="/login" className="c-button accent pill small">
+									<IcLogin />
+									{t('Sign in')}
+								</Link>
+							</li>
+						</>
 					)}
 				</ul>
 			</nav>
@@ -1026,13 +1034,6 @@ export function Layout() {
 					</div>
 					<div className="pt-1" />
 				</div>
-				{!auth &&
-					!isExternalAppPath(location.pathname) &&
-					!location.pathname.startsWith('/s/') && (
-						<Link to="/login" className="c-fab accent">
-							<IcLogin />
-						</Link>
-					)}
 				<div id="popper-container" />
 				<DialogContainer />
 				<ToastContainer position="bottom-right" />

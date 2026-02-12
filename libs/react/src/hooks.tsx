@@ -427,10 +427,10 @@ export function useInfiniteScroll<T>(
 
 	// Initial load
 	React.useEffect(() => {
-		if (enabled && items.length === 0 && hasMore && !isLoading) {
+		if (enabled && items.length === 0 && hasMore && !isLoading && !error) {
 			fetchItems(null)
 		}
-	}, [enabled, items.length, hasMore, isLoading, fetchItems])
+	}, [enabled, items.length, hasMore, isLoading, error, fetchItems])
 
 	// Load more function
 	const loadMore = React.useCallback(() => {
@@ -463,7 +463,7 @@ export function useInfiniteScroll<T>(
 		const observer = new IntersectionObserver(
 			(entries) => {
 				const entry = entries[0]
-				if (entry?.isIntersecting && hasMore && !isLoading && !isLoadingMore) {
+				if (entry?.isIntersecting && hasMore && !isLoading && !isLoadingMore && !error) {
 					loadMore()
 				}
 			},
@@ -479,7 +479,7 @@ export function useInfiniteScroll<T>(
 		return () => {
 			observer.disconnect()
 		}
-	}, [enabled, hasMore, isLoading, isLoadingMore, loadMore])
+	}, [enabled, hasMore, isLoading, isLoadingMore, error, loadMore])
 
 	return {
 		items,

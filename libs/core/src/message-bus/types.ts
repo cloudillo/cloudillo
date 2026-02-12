@@ -512,6 +512,48 @@ export const tMediaPickRes = T.struct({
 export type MediaPickRes = T.TypeOf<typeof tMediaPickRes>
 
 // ============================================
+// CRDT MESSAGES
+// ============================================
+
+/**
+ * App requests a reusable clientId for a Yjs document
+ * Direction: app -> shell
+ *
+ * The shell manages a pool of clientIds in IndexedDB and uses
+ * Web Locks to ensure no two tabs use the same clientId for the
+ * same document simultaneously.
+ */
+export const tCrdtClientIdReq = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('crdt:clientid.req'),
+	id: T.number,
+	payload: T.struct({
+		docId: T.string
+	})
+})
+export type CrdtClientIdReq = T.TypeOf<typeof tCrdtClientIdReq>
+
+/**
+ * Shell responds with a reusable clientId
+ * Direction: shell -> app
+ */
+export const tCrdtClientIdRes = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('crdt:clientid.res'),
+	replyTo: T.number,
+	ok: T.boolean,
+	data: T.optional(
+		T.struct({
+			clientId: T.number
+		})
+	),
+	error: T.optional(T.string)
+})
+export type CrdtClientIdRes = T.TypeOf<typeof tCrdtClientIdRes>
+
+// ============================================
 // UNION OF ALL MESSAGES
 // ============================================
 
@@ -541,6 +583,10 @@ export const tCloudilloMessage = T.taggedUnion('type')({
 	'media:pick.result': tMediaPickResultPush,
 	'media:pick.res': tMediaPickRes, // Deprecated
 	'media:file.resolved': tMediaFileResolvedPush,
+
+	// CRDT messages
+	'crdt:clientid.req': tCrdtClientIdReq,
+	'crdt:clientid.res': tCrdtClientIdRes,
 
 	// Service worker messages
 	'sw:token.set': tSwTokenSet,
@@ -590,9 +636,11 @@ export type ResponseFor<T extends RequestType> = T extends 'auth:init.req'
 			? 'storage:op.res'
 			: T extends 'media:pick.req'
 				? 'media:pick.res'
-				: T extends 'sw:apikey.get.req'
-					? 'sw:apikey.get.res'
-					: never
+				: T extends 'crdt:clientid.req'
+					? 'crdt:clientid.res'
+					: T extends 'sw:apikey.get.req'
+						? 'sw:apikey.get.res'
+						: never
 
 /**
  * Extract the data type from a response message

@@ -39,6 +39,7 @@ import { initAuthHandlers } from './handlers/auth.js'
 import { initStorageHandlers } from './handlers/storage.js'
 import { initMediaHandlers } from './handlers/media.js'
 import { initLifecycleHandlers } from './handlers/lifecycle.js'
+import { initCrdtHandlers } from './handlers/crdt.js'
 
 // ============================================
 // TYPES
@@ -118,6 +119,7 @@ export class ShellMessageBus extends MessageBusBase {
 		initStorageHandlers(this)
 		initMediaHandlers(this)
 		initLifecycleHandlers(this)
+		initCrdtHandlers(this)
 
 		this.initialized = true
 		this.log('Initialized')

@@ -45,7 +45,9 @@ import {
 	tSwApiKeyGetReq,
 	tSwApiKeyGetRes,
 	tSwApiKeyDel,
-	tMediaFileResolvedPush
+	tMediaFileResolvedPush,
+	tCrdtClientIdReq,
+	tCrdtClientIdRes
 } from './types.js'
 
 // ============================================
@@ -139,6 +141,16 @@ export const MESSAGE_REGISTRY: Record<MessageType, MessageAccessRule> = {
 		directions: ['shell>app'],
 		requiresAuth: false,
 		validator: tMediaFileResolvedPush
+	},
+	'crdt:clientid.req': {
+		directions: ['app>shell'],
+		requiresAuth: true,
+		validator: tCrdtClientIdReq
+	},
+	'crdt:clientid.res': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tCrdtClientIdRes
 	},
 	'sw:token.set': {
 		directions: ['shell>sw'],

@@ -95,6 +95,22 @@ export async function openYDoc(
 		throw new Error('Invalid docId format. Expected "targetTag:resourceId"')
 	}
 
+	// Request a reusable clientId from the shell to prevent unbounded
+	// state vector growth. Falls back to the random clientId if unavailable.
+	const clientId = await bus.requestClientId(docId)
+	if (clientId != null) {
+		yDoc.clientID = clientId
+	}
+
+	// TEMP DEBUG: Log the clientId being used for this document
+	console.log(
+		'[CRDT] openYDoc clientId:',
+		yDoc.clientID,
+		'for doc:',
+		docId,
+		clientId != null ? '(reused)' : '(random)'
+	)
+
 	const wsProvider = new WebsocketProvider(getCrdtUrl(targetTag), resId, yDoc, {
 		params: { token, access: accessLevel || 'write' }
 	})
@@ -135,6 +151,17 @@ export async function openYDoc(
 		if (status === 'connected') {
 			setupCloseHandler()
 		}
+	})
+
+	// TEMP DEBUG: Log state vector after initial sync
+	wsProvider.once('sync', () => {
+		const sv = Y.encodeStateVector(yDoc)
+		const decoded = Y.decodeStateVector(sv)
+		const entries = Array.from(decoded.entries())
+		console.log(
+			`[CRDT] State vector for ${docId} (${entries.length} entries):`,
+			entries.map(([c, k]) => `${c}:${k}`).join(', ')
+		)
 	})
 
 	return {

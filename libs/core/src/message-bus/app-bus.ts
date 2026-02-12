@@ -511,6 +511,39 @@ export class AppMessageBus extends MessageBusBase {
 	}
 
 	// ============================================
+	// CRDT CLIENT ID
+	// ============================================
+
+	/**
+	 * Request a reusable Yjs clientId from the shell
+	 *
+	 * The shell manages a pool of clientIds coordinated via Web Locks
+	 * to ensure no two tabs use the same clientId for the same document.
+	 * This prevents unbounded growth of Yjs state vectors.
+	 *
+	 * @param docId - Document ID in format "targetTag:resourceId"
+	 * @returns ClientId number, or undefined if unavailable (falls back to random)
+	 */
+	async requestClientId(docId: string): Promise<number | undefined> {
+		if (!this.initialized) {
+			throw new Error('AppBus not initialized. Call init() first.')
+		}
+
+		this.log('Requesting clientId for:', docId)
+
+		try {
+			const data = await this.sendRequest<{ clientId: number }>((id) => {
+				this.sendToShell(this.createRequestWithPayload('crdt:clientid.req', id, { docId }))
+			})
+			this.log('Received clientId:', data?.clientId)
+			return data?.clientId
+		} catch (err) {
+			this.logWarn('Failed to get clientId, will use random:', (err as Error).message)
+			return undefined
+		}
+	}
+
+	// ============================================
 	// MEDIA PICKER
 	// ============================================
 

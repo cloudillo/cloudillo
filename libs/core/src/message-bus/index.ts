@@ -73,6 +73,9 @@ export {
 	type MediaPickResultPush,
 	type MediaPickRes,
 	type MediaFileResolvedPush,
+	// CRDT messages
+	type CrdtClientIdReq,
+	type CrdtClientIdRes,
 	VISIBILITY_ORDER,
 	// Service worker messages
 	type SwTokenSet,
@@ -112,6 +115,8 @@ export {
 	tMediaPickAck,
 	tMediaPickResultPush,
 	tMediaPickRes,
+	tCrdtClientIdReq,
+	tCrdtClientIdRes,
 	tSwTokenSet,
 	tSwTokenClear,
 	tSwApiKeySet,

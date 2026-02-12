@@ -23,6 +23,7 @@ import { version } from '../../package.json'
 import { useAppConfig, TrustLevel } from '../utils.js'
 import { getShellBus } from '../message-bus/shell-bus.js'
 import { onAppReady, onAppError } from '../message-bus/index.js'
+import { releaseClientIdsForWindow } from '../message-bus/handlers/crdt.js'
 import { useContextFromRoute, useGuestDocument } from '../context/index.js'
 import { FeedApp } from './feed.js'
 import { FilesApp } from './files.js'
@@ -428,6 +429,12 @@ export function MicrofrontendContainer({
 				return () => {
 					// Remove load event listener
 					iframeElement?.removeEventListener('load', onMicrofrontendLoad)
+
+					// Release any Yjs clientId locks held by this app
+					const appWindow = appWindowRef.current
+					if (appWindow) {
+						releaseClientIdsForWindow(appWindow)
+					}
 
 					// Clean up subscription and initialization state when effect truly re-runs
 					// (component unmount or retry, NOT on auth/token changes)

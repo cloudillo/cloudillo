@@ -25,6 +25,7 @@ import {
 	LuStarOff as IcStarOff,
 	LuPin as IcPin,
 	LuPinOff as IcPinOff,
+	LuCopyPlus as IcDuplicate,
 	LuPencil as IcRename,
 	LuFolderInput as IcMove,
 	LuTrash2 as IcTrash,
@@ -246,6 +247,15 @@ export function ContextMenu({
 					icon={<IcRename />}
 					label={t('Rename')}
 					onClick={handleAction(() => fileOps.renameFile(file.fileId))}
+				/>
+			)}
+
+			{/* Duplicate - only for single CRDT/RTDB files */}
+			{isSingleSelect && (file.fileTp === 'CRDT' || file.fileTp === 'RTDB') && (
+				<Item
+					icon={<IcDuplicate />}
+					label={t('Duplicate')}
+					onClick={handleAction(() => fileOps.doDuplicateFile?.(file.fileId))}
 				/>
 			)}
 

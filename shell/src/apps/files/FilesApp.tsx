@@ -26,6 +26,7 @@ import {
 	useApi,
 	useAuth,
 	useDialog,
+	useToast,
 	Fcd,
 	mergeClasses,
 	LoadingSpinner,
@@ -69,6 +70,7 @@ export function FilesApp() {
 	const [auth] = useAuth()
 	const contextIdTag = useCurrentContextIdTag()
 	const dialog = useDialog()
+	const toast = useToast()
 
 	// Navigation state
 	const {
@@ -407,6 +409,29 @@ export function FilesApp() {
 				if (!api) return
 				await api.files.update(fileId, { visibility })
 				fileListData.refresh()
+			},
+
+			doDuplicateFile: async function doDuplicateFile(fileId: string) {
+				if (!api) return
+
+				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
+				const defaultName = t('Copy of {{name}}', { name: file?.fileName || '' })
+
+				const fileName = await dialog.askText(
+					t('Duplicate'),
+					t('Provide a name for the duplicate'),
+					{ defaultValue: defaultName }
+				)
+				if (fileName === undefined) return
+
+				try {
+					await api.files.duplicate(fileId, { fileName: fileName || defaultName })
+					toast.success(t('File duplicated'))
+					fileListData.refresh()
+				} catch (err) {
+					console.error('Failed to duplicate file', err)
+					toast.error(t('Failed to duplicate file'))
+				}
 			}
 		}),
 		[
@@ -418,6 +443,7 @@ export function FilesApp() {
 			t,
 			fileListData,
 			dialog,
+			toast,
 			viewMode,
 			multiSelect
 		]

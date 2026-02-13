@@ -587,6 +587,12 @@ export const tRestoreFileResult = T.struct({
 })
 export type RestoreFileResult = T.TypeOf<typeof tRestoreFileResult>
 
+// Duplicate file request
+export interface DuplicateFileRequest {
+	fileName?: string
+	parentId?: string
+}
+
 // Empty trash result
 export const tEmptyTrashResult = T.struct({
 	deleted_count: T.number

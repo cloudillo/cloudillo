@@ -68,6 +68,7 @@ export interface FileOps {
 	toggleStarredBatch?: (fileIds: string[], starred: boolean) => void
 	togglePinnedBatch?: (fileIds: string[], pinned: boolean) => void
 	setVisibility?: (fileId: string, visibility: FileVisibility) => void
+	doDuplicateFile?: (fileId: string) => void
 }
 
 export interface FileFiltState {

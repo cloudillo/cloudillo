@@ -585,6 +585,17 @@ export class ApiClient {
 			}),
 
 		/**
+		 * POST /files/:fileId/duplicate - Duplicate a CRDT/RTDB file
+		 * @param fileId - File ID
+		 * @param data - Optional fileName and parentId overrides
+		 * @returns New file ID
+		 */
+		duplicate: (fileId: string, data?: Types.DuplicateFileRequest) =>
+			this.request('POST', `/files/${fileId}/duplicate`, Types.tCreateFileResult, {
+				data: data ?? {}
+			}),
+
+		/**
 		 * PATCH /files/:fileId/user - Update user-specific file data
 		 * @param fileId - File ID
 		 * @param data - User data (pinned, starred)

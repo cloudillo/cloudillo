@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/types",
-	"version": "0.8.7",
+	"version": "0.8.8",
 	"description": "Cloudillo types",
 	"type": "module",
 	"main": "lib/types.js",

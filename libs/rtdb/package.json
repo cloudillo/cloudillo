@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/rtdb",
-	"version": "0.8.7",
+	"version": "0.8.8",
 	"description": "Cloudillo Real-Time Database client library",
 	"type": "module",
 	"main": "lib/index.js",
@@ -27,7 +27,7 @@
 		"@jest/globals": "^30.2.0",
 		"@symbion/runtype": "^1.2.1",
 		"@types/jest": "^30.0.0",
-		"@types/node": "^25.0.10",
+		"@types/node": "^25.2.3",
 		"jest": "^30.2.0",
 		"rimraf": "^6.1.2",
 		"ts-jest": "^29.4.6",

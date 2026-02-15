@@ -22,6 +22,7 @@ import type {
 	YPrezilloDocument,
 	ObjectId,
 	ViewId,
+	TemplateId,
 	PrezilloObject,
 	TableGridObject
 } from '../../crdt'
@@ -33,6 +34,7 @@ import { ShapeSection } from './ShapeSection'
 import { QRCodeSection } from './QRCodeSection'
 import { TableGridSection } from './TableGridSection'
 import { ViewPropertiesPanel } from './ViewPropertiesPanel'
+import { TemplateViewPropertiesPanel } from './TemplateViewPropertiesPanel'
 import type { PropertyPreview } from './PrezilloPropertiesPanel'
 
 export interface PropertyEditorProps {
@@ -42,6 +44,10 @@ export interface PropertyEditorProps {
 	activeViewId?: ViewId
 	/** True when view background was explicitly clicked */
 	isViewFocused?: boolean
+	/** Currently selected template ID */
+	selectedTemplateId?: TemplateId | null
+	/** True when template background was explicitly clicked */
+	isTemplateFocused?: boolean
 	onPreview?: (preview: PropertyPreview | null) => void
 }
 
@@ -51,6 +57,8 @@ export function PropertyEditor({
 	selectedIds,
 	activeViewId,
 	isViewFocused,
+	selectedTemplateId,
+	isTemplateFocused,
 	onPreview
 }: PropertyEditorProps) {
 	// Subscribe to object changes - useY returns a version number that changes on updates
@@ -74,6 +82,11 @@ export function PropertyEditor({
 		const idx = viewOrder.indexOf(activeViewId)
 		return idx >= 0 ? idx + 1 : 0
 	}, [doc.vo, activeViewId])
+
+	// Show template properties when template background was explicitly clicked
+	if (isTemplateFocused && selectedTemplateId) {
+		return <TemplateViewPropertiesPanel doc={doc} yDoc={yDoc} templateId={selectedTemplateId} />
+	}
 
 	if (showViewProperties && activeViewId) {
 		return (

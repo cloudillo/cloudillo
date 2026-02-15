@@ -21,7 +21,6 @@ import { PropertyPanel } from '@cloudillo/react'
 import type { YPrezilloDocument, ObjectId, ViewId, ContainerId, TemplateId } from '../../crdt'
 import { LayerBrowser } from './LayerBrowser'
 import { PropertyEditor } from './PropertyEditor'
-import { TemplatePropertiesPanel } from './TemplatePropertiesPanel'
 import { TemplatePanel } from '../'
 
 export interface PropertyPreview {
@@ -38,6 +37,8 @@ export interface PrezilloPropertiesPanelProps {
 	activeViewId: ViewId | null
 	/** True when view background was explicitly clicked */
 	isViewFocused?: boolean
+	/** True when template background was explicitly clicked */
+	isTemplateFocused?: boolean
 	/** Callback for live preview during scrubbing */
 	onPreview?: (preview: PropertyPreview | null) => void
 	/** Currently selected container (layer) ID */
@@ -59,6 +60,7 @@ export function PrezilloPropertiesPanel({
 	onSelectObject,
 	activeViewId,
 	isViewFocused,
+	isTemplateFocused,
 	onPreview,
 	selectedContainerId,
 	onSelectContainer,
@@ -66,21 +68,6 @@ export function PrezilloPropertiesPanel({
 	onClearTemplateSelection,
 	onSelectTemplate
 }: PrezilloPropertiesPanelProps) {
-	// If a template is selected, show template properties panel
-	if (selectedTemplateId) {
-		return (
-			<PropertyPanel width={280}>
-				<TemplatePropertiesPanel
-					doc={doc}
-					yDoc={yDoc}
-					templateId={selectedTemplateId}
-					onDelete={onClearTemplateSelection}
-					onClose={onClearTemplateSelection}
-				/>
-			</PropertyPanel>
-		)
-	}
-
 	return (
 		<PropertyPanel width={280}>
 			{/* Layer Browser - top section */}
@@ -106,7 +93,7 @@ export function PrezilloPropertiesPanel({
 					<TemplatePanel
 						doc={doc}
 						yDoc={yDoc}
-						selectedTemplateId={null}
+						selectedTemplateId={selectedTemplateId ?? null}
 						onSelectTemplate={onSelectTemplate ?? (() => {})}
 						onEditTemplate={onSelectTemplate ?? (() => {})}
 					/>
@@ -123,6 +110,8 @@ export function PrezilloPropertiesPanel({
 						selectedIds={selectedIds}
 						activeViewId={activeViewId ?? undefined}
 						isViewFocused={isViewFocused}
+						selectedTemplateId={selectedTemplateId}
+						isTemplateFocused={isTemplateFocused}
 						onPreview={onPreview}
 					/>
 				</div>

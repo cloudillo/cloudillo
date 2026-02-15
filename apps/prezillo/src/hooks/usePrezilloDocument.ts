@@ -215,7 +215,7 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 			if (templateId) {
 				// Object is a template prototype - select its template
 				setSelectedTemplateId(templateId)
-				setIsTemplateFocused(true)
+				setIsTemplateFocused(false)
 			} else {
 				// Object is on a regular page - clear template selection
 				setSelectedTemplateId(null)

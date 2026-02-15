@@ -2343,6 +2343,7 @@ export function PrezilloApp() {
 						onSelectObject={prezillo.selectObject}
 						activeViewId={prezillo.activeViewId}
 						isViewFocused={prezillo.isViewFocused}
+						isTemplateFocused={prezillo.isTemplateFocused}
 						onPreview={setPropertyPreview}
 						selectedContainerId={selectedContainerId as any}
 						onSelectContainer={setSelectedContainerId as any}

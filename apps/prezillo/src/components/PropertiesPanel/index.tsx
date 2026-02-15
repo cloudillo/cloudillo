@@ -26,7 +26,4 @@ export type { PropertyLockButtonProps } from './PropertyLockButton'
 export { PropertyGroupHeader } from './PropertyGroupHeader'
 export type { PropertyGroupHeaderProps } from './PropertyGroupHeader'
 
-export { TemplatePropertiesPanel } from './TemplatePropertiesPanel'
-export type { TemplatePropertiesPanelProps } from './TemplatePropertiesPanel'
-
 // vim: ts=4

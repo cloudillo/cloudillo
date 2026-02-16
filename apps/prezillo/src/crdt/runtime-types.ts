@@ -217,10 +217,10 @@ export interface PolygonObject extends PrezilloObjectBase {
 	closed?: boolean
 }
 
-// Text object (plain text)
+// Text object (rich text via Y.Text in doc.rt)
 export interface TextObject extends PrezilloObjectBase {
 	type: 'text'
-	text: string
+	text: string // plain text representation (for display/measurement fallback)
 	minHeight?: number // Original height at creation for auto-sizing
 }
 

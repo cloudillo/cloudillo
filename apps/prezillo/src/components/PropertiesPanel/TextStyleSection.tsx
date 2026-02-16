@@ -16,6 +16,7 @@
 
 import * as React from 'react'
 import * as Y from 'yjs'
+import type Quill from 'quill'
 import {
 	PropertySection,
 	PropertyField,
@@ -33,7 +34,12 @@ import {
 	PiAlignCenterVerticalBold as IcAlignMiddle,
 	PiAlignBottomBold as IcAlignBottom,
 	PiListBulletsBold as IcListBullets,
-	PiProhibitBold as IcNone
+	PiListNumbersBold as IcListNumbers,
+	PiProhibitBold as IcNone,
+	PiTextBBold as IcBold,
+	PiTextItalicBold as IcItalic,
+	PiTextUnderlineBold as IcUnderline,
+	PiTextStrikethroughBold as IcStrikethrough
 } from 'react-icons/pi'
 
 import type { YPrezilloDocument, PrezilloObject, ObjectId, TextStyleField } from '../../crdt'
@@ -55,6 +61,10 @@ export interface TextStyleSectionProps {
 	yDoc: Y.Doc
 	object: PrezilloObject
 	onPreview?: (preview: PropertyPreview | null) => void
+	/** Quill instance ref for inline formatting (available when editing text) */
+	quillRef?: React.MutableRefObject<Quill | null>
+	/** Whether a text object is currently being edited */
+	isEditing?: boolean
 }
 
 /**
@@ -78,7 +88,14 @@ function BulletIconPreview({ bulletId, size = 20 }: { bulletId: string; size?: n
 	)
 }
 
-export function TextStyleSection({ doc, yDoc, object, onPreview }: TextStyleSectionProps) {
+export function TextStyleSection({
+	doc,
+	yDoc,
+	object,
+	onPreview,
+	quillRef,
+	isEditing
+}: TextStyleSectionProps) {
 	const objectId = object.id as ObjectId
 	const [showBulletPicker, setShowBulletPicker] = React.useState(false)
 
@@ -180,6 +197,70 @@ export function TextStyleSection({ doc, yDoc, object, onPreview }: TextStyleSect
 		[objectId, onPreview, objectIsInstance, isLineHeightOverridden]
 	)
 
+	// Inline formatting handlers (apply to Quill selection when editing)
+	const handleInlineBold = React.useCallback(() => {
+		const quill = quillRef?.current
+		if (!quill) return
+		const format = quill.getFormat()
+		quill.format('bold', !format.bold)
+	}, [quillRef])
+
+	const handleInlineItalic = React.useCallback(() => {
+		const quill = quillRef?.current
+		if (!quill) return
+		const format = quill.getFormat()
+		quill.format('italic', !format.italic)
+	}, [quillRef])
+
+	const handleInlineUnderline = React.useCallback(() => {
+		const quill = quillRef?.current
+		if (!quill) return
+		const format = quill.getFormat()
+		quill.format('underline', !format.underline)
+	}, [quillRef])
+
+	const handleInlineStrikethrough = React.useCallback(() => {
+		const quill = quillRef?.current
+		if (!quill) return
+		const format = quill.getFormat()
+		quill.format('strike', !format.strike)
+	}, [quillRef])
+
+	const handleListBullet = React.useCallback(() => {
+		const quill = quillRef?.current
+		if (!quill) return
+		const format = quill.getFormat()
+		quill.format('list', format.list === 'bullet' ? false : 'bullet')
+	}, [quillRef])
+
+	const handleListOrdered = React.useCallback(() => {
+		const quill = quillRef?.current
+		if (!quill) return
+		const format = quill.getFormat()
+		quill.format('list', format.list === 'ordered' ? false : 'ordered')
+	}, [quillRef])
+
+	// Get current Quill selection format for button active state
+	const [selectionFormat, setSelectionFormat] = React.useState<Record<string, unknown>>({})
+	React.useEffect(() => {
+		const quill = quillRef?.current
+		if (!quill || !isEditing) {
+			setSelectionFormat({})
+			return
+		}
+		const onSelectionChange = () => {
+			setSelectionFormat(quill.getFormat() || {})
+		}
+		quill.on('selection-change', onSelectionChange)
+		quill.on('text-change', onSelectionChange)
+		// Get initial format
+		onSelectionChange()
+		return () => {
+			quill.off('selection-change', onSelectionChange)
+			quill.off('text-change', onSelectionChange)
+		}
+	}, [quillRef, isEditing])
+
 	if (!resolvedStyle) return null
 
 	// Determine field lock states for instances
@@ -232,6 +313,75 @@ export function TextStyleSection({ doc, yDoc, object, onPreview }: TextStyleSect
 					/>
 				</div>
 			</PropertyField>
+
+			{/* Inline Formatting (visible when editing) */}
+			{isEditing && (
+				<PropertyField label="Style" labelWidth={40}>
+					<div className="c-hbox">
+						<button
+							className={mergeClasses(
+								'c-button icon compact',
+								selectionFormat.bold ? 'active' : ''
+							)}
+							onClick={handleInlineBold}
+							title="Bold (Ctrl+B)"
+						>
+							<IcBold size={14} />
+						</button>
+						<button
+							className={mergeClasses(
+								'c-button icon compact',
+								selectionFormat.italic ? 'active' : ''
+							)}
+							onClick={handleInlineItalic}
+							title="Italic (Ctrl+I)"
+						>
+							<IcItalic size={14} />
+						</button>
+						<button
+							className={mergeClasses(
+								'c-button icon compact',
+								selectionFormat.underline ? 'active' : ''
+							)}
+							onClick={handleInlineUnderline}
+							title="Underline (Ctrl+U)"
+						>
+							<IcUnderline size={14} />
+						</button>
+						<button
+							className={mergeClasses(
+								'c-button icon compact',
+								selectionFormat.strike ? 'active' : ''
+							)}
+							onClick={handleInlineStrikethrough}
+							title="Strikethrough"
+						>
+							<IcStrikethrough size={14} />
+						</button>
+						<div className="c-toolbar-divider" />
+						<button
+							className={mergeClasses(
+								'c-button icon compact',
+								selectionFormat.list === 'bullet' ? 'active' : ''
+							)}
+							onClick={handleListBullet}
+							title="Bullet list"
+						>
+							<IcListBullets size={14} />
+						</button>
+						<button
+							className={mergeClasses(
+								'c-button icon compact',
+								selectionFormat.list === 'ordered' ? 'active' : ''
+							)}
+							onClick={handleListOrdered}
+							title="Numbered list"
+						>
+							<IcListNumbers size={14} />
+						</button>
+					</div>
+				</PropertyField>
+			)}
 
 			{/* Text Align */}
 			<PropertyField label="Align" labelWidth={40}>

@@ -284,7 +284,9 @@ import { setEditingState, clearEditingState } from './awareness'
 import { Toolbar } from './components/Toolbar'
 import { ViewPicker } from './components/ViewPicker'
 import { ViewFrame } from './components/ViewFrame'
-import { TextEditOverlay } from './components/TextEditOverlay'
+import { RichTextEditor } from '@cloudillo/canvas-text'
+import type { BaseTextStyle } from '@cloudillo/canvas-text'
+import { getBulletIcon, migrateBullet } from './data/bullet-icons'
 import { ObjectShape } from './components/ObjectShape'
 import { PresentationMode } from './components/PresentationMode'
 import { TemplateGuideRenderer } from './components/TemplateGuideRenderer'
@@ -455,12 +457,14 @@ export function PrezilloApp() {
 
 	// Ref to track when handle bar drag is initiated (prevents blur from closing editor)
 	const isDraggingFromHandleRef = React.useRef(false)
+	// Ref to track when properties panel is clicked (prevents blur from closing editor)
+	const isPanelClickRef = React.useRef(false)
 
 	// Text editing (extracted hook)
 	const {
 		editingTextId,
 		setEditingTextId,
-		editingTextRef,
+		quillRef,
 		selectedTextObject,
 		selectedTextStyle,
 		handleTextEditSave,
@@ -473,15 +477,12 @@ export function PrezilloApp() {
 
 	// Wrap handleTextEditSave to set justFinishedInteractionRef
 	// This prevents canvas click from clearing selection after text edit blur
-	const handleTextEditSaveWithFlag = React.useCallback(
-		(text: string) => {
-			if (editingTextId) {
-				justFinishedInteractionRef.current = true
-			}
-			handleTextEditSave(text)
-		},
-		[editingTextId, handleTextEditSave]
-	)
+	const handleTextEditSaveWithFlag = React.useCallback(() => {
+		if (editingTextId) {
+			justFinishedInteractionRef.current = true
+		}
+		handleTextEditSave()
+	}, [editingTextId, handleTextEditSave])
 
 	// Close text editing on click outside editor
 	// For middle-click: also prevents X11 paste on Linux
@@ -490,17 +491,27 @@ export function PrezilloApp() {
 		if (!editingTextId) return
 		const handleClickOutside = (e: PointerEvent) => {
 			const target = e.target as Element
-			// Only close if clicking outside the textarea and not on the text edit handle bar
-			if (target.tagName !== 'TEXTAREA') {
-				// Don't close when clicking on the text edit handle bar (for dragging)
-				// Use getAttribute for SVG elements (dataset doesn't work reliably on SVG)
-				if (target.getAttribute?.('data-text-edit-handle') === 'true') {
-					return
-				}
-				// Prevent middle-click paste on Linux
-				if (e.button === 1) e.preventDefault()
-				handleTextEditSaveWithFlag(editingTextRef.current)
+
+			// Don't close when clicking on the text edit handle bar (for dragging)
+			if (target.getAttribute?.('data-text-edit-handle') === 'true') return
+
+			// Don't close when clicking inside the editor (Quill uses contenteditable div, not textarea)
+			if (target.closest?.('[data-rich-text-editor]')) return
+
+			// Don't close when clicking inside the properties panel (for inline formatting buttons)
+			if (target.closest?.('[data-properties-panel]')) {
+				// Set flag so the Quill blur handler also ignores this blur
+				isPanelClickRef.current = true
+				requestAnimationFrame(() => {
+					isPanelClickRef.current = false
+				})
+				return
 			}
+
+			// Prevent middle-click paste on Linux
+			if (e.button === 1) e.preventDefault()
+
+			handleTextEditSaveWithFlag()
 		}
 		// Use capture phase to catch event before blur fires
 		document.addEventListener('pointerdown', handleClickOutside, true)
@@ -2203,16 +2214,12 @@ export function PrezilloApp() {
 
 							// If this object is being text-edited, render the overlay instead
 							if (editingTextId === object.id) {
-								// For template instances, get prototype text for placeholder
-								let prototypeText: string | undefined
-								let hasLocalText = true
-								if (storedObj?.proto) {
-									const protoObj = prezillo.doc.o.get(storedObj.proto)
-									if (protoObj && 'tx' in protoObj) {
-										prototypeText = protoObj.tx as string
-									}
-									// Instance has local text if tx is explicitly defined
-									hasLocalText = 'tx' in storedObj && storedObj.tx !== undefined
+								// Get or create Y.Text for this object
+								const editYText = prezillo.doc.rt.get(object.id)
+								if (!editYText) {
+									// Should not happen after migration, but handle gracefully
+									setEditingTextId(null)
+									return null
 								}
 
 								// Apply temp bounds during drag for visual feedback
@@ -2226,25 +2233,69 @@ export function PrezilloApp() {
 										}
 									: object
 
+								// Build rotation transform for the editor
+								const editRotation = editObject.rotation ?? 0
+								const editPivotX = editObject.pivotX ?? 0.5
+								const editPivotY = editObject.pivotY ?? 0.5
+								const editCX = editObject.x + editObject.width * editPivotX
+								const editCY = editObject.y + editObject.height * editPivotY
+								const editRotationTransform =
+									editRotation !== 0
+										? `rotate(${editRotation}, ${editCX}, ${editCY})`
+										: undefined
+
+								// Build bullet icon URL for custom list markers
+								const editBulletIconUrl = (() => {
+									const lb = textStyle.listBullet
+									if (!lb) return undefined
+									const bulletId = migrateBullet(lb)
+									if (!bulletId) return undefined
+									const icon = getBulletIcon(bulletId)
+									if (!icon) return undefined
+									const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='${icon.viewBox.join(' ')}'><path d='${icon.pathData}' fill='black'/></svg>`
+									return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
+								})()
+
 								return (
-									<TextEditOverlay
+									<RichTextEditor
 										key={object.id}
-										object={editObject}
-										textStyle={textStyle}
+										x={editObject.x}
+										y={editObject.y}
+										width={editObject.width}
+										height={editObject.height}
+										yText={editYText}
+										baseStyle={{
+											fontFamily: textStyle.fontFamily,
+											fontSize: textStyle.fontSize,
+											fontWeight: textStyle.fontWeight,
+											fontItalic: textStyle.fontItalic,
+											textDecoration: textStyle.textDecoration,
+											fill: textStyle.fill,
+											textAlign: textStyle.textAlign,
+											verticalAlign: textStyle.verticalAlign,
+											lineHeight: textStyle.lineHeight,
+											letterSpacing: textStyle.letterSpacing,
+											listBullet: textStyle.listBullet
+										}}
+										bulletIconUrl={editBulletIconUrl}
 										onSave={handleTextEditSaveWithFlag}
 										onCancel={handleTextEditCancel}
-										onTextChange={(t) => {
-											editingTextRef.current = t
-										}}
-										onDragStart={(e, options) =>
-											handleObjectPointerDown(e, object.id, options)
+										quillRef={quillRef}
+										onDragStart={(
+											e: React.PointerEvent,
+											options?: {
+												grabPointOverride?: { x: number; y: number }
+												forceStartDrag?: boolean
+											}
+										) => handleObjectPointerDown(e, object.id, options)}
+										shouldIgnoreBlur={() =>
+											isDraggingFromHandleRef.current ||
+											isPanelClickRef.current
 										}
-										prototypeText={prototypeText}
-										hasLocalText={hasLocalText}
-										shouldIgnoreBlur={() => isDraggingFromHandleRef.current}
 										onSetDragFlag={() => {
 											isDraggingFromHandleRef.current = true
 										}}
+										rotationTransform={editRotationTransform}
 									/>
 								)
 							}
@@ -2276,6 +2327,7 @@ export function PrezilloApp() {
 								<ObjectShape
 									key={object.id}
 									object={displayObject}
+									doc={prezillo.doc}
 									style={style}
 									textStyle={displayTextStyle}
 									isSelected={prezillo.isSelected(object.id)}
@@ -2350,6 +2402,8 @@ export function PrezilloApp() {
 						selectedTemplateId={prezillo.selectedTemplateId}
 						onClearTemplateSelection={prezillo.clearTemplateSelection}
 						onSelectTemplate={prezillo.selectTemplate}
+						quillRef={quillRef}
+						editingTextId={editingTextId}
 					/>
 				)}
 			</div>

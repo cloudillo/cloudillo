@@ -24,10 +24,13 @@
 import * as React from 'react'
 import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
 import type { Gradient } from '@cloudillo/canvas-tools'
-import type { PrezilloObject } from '../crdt'
+import type * as Y from 'yjs'
+import { RichTextDisplay } from '@cloudillo/canvas-text'
+import type { BaseTextStyle } from '@cloudillo/canvas-text'
+import type { PrezilloObject, ResolvedTextStyle, YPrezilloDocument } from '../crdt'
 import { resolveShapeStyle, resolveTextStyle } from '../crdt'
 import { calculateRotationTransformFromBounds, buildStrokeProps, buildFillProps } from '../utils'
-import { WrappedText } from './WrappedText'
+import { getBulletIcon, migrateBullet } from '../data/bullet-icons'
 import { ImageRenderer } from './ImageRenderer'
 import { QRCodeRenderer } from './QRCodeRenderer'
 import { PollFrameRenderer } from './PollFrameRenderer'
@@ -70,6 +73,7 @@ function GradientDef({ id, gradient }: { id: string; gradient: Gradient }) {
 
 export interface ObjectShapeProps {
 	object: PrezilloObject
+	doc: YPrezilloDocument
 	style: ReturnType<typeof resolveShapeStyle>
 	textStyle: ReturnType<typeof resolveTextStyle>
 	isSelected: boolean
@@ -124,6 +128,7 @@ function shallowEqual(a: Record<string, any>, b: Record<string, any>): boolean {
 function arePropsEqual(prev: ObjectShapeProps, next: ObjectShapeProps): boolean {
 	return (
 		prev.object === next.object &&
+		prev.doc === next.doc &&
 		prev.isSelected === next.isSelected &&
 		prev.isHovered === next.isHovered &&
 		prev.isStackedHighlight === next.isStackedHighlight &&
@@ -134,8 +139,41 @@ function arePropsEqual(prev: ObjectShapeProps, next: ObjectShapeProps): boolean 
 	)
 }
 
+/**
+ * Build a CSS url(...) value for a bullet icon SVG
+ */
+function buildBulletIconUrl(listBullet: string | undefined): string | undefined {
+	if (!listBullet) return undefined
+	const bulletId = migrateBullet(listBullet)
+	if (!bulletId) return undefined
+	const icon = getBulletIcon(bulletId)
+	if (!icon) return undefined
+	const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='${icon.viewBox.join(' ')}'><path d='${icon.pathData}' fill='black'/></svg>`
+	return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
+}
+
+/**
+ * Convert ResolvedTextStyle to BaseTextStyle for canvas-text
+ */
+function toBaseTextStyle(ts: ResolvedTextStyle): BaseTextStyle {
+	return {
+		fontFamily: ts.fontFamily,
+		fontSize: ts.fontSize,
+		fontWeight: ts.fontWeight,
+		fontItalic: ts.fontItalic,
+		textDecoration: ts.textDecoration,
+		fill: ts.fill,
+		textAlign: ts.textAlign,
+		verticalAlign: ts.verticalAlign,
+		lineHeight: ts.lineHeight,
+		letterSpacing: ts.letterSpacing,
+		listBullet: ts.listBullet
+	}
+}
+
 export const ObjectShape = React.memo(function ObjectShape({
 	object,
+	doc,
 	style,
 	textStyle,
 	isSelected,
@@ -363,19 +401,44 @@ export const ObjectShape = React.memo(function ObjectShape({
 			)
 
 		case 'text':
+			const yText = doc.rt.get(object.id)
 			const textContent = object.text || ''
-			const isEmpty = textContent.trim() === ''
+			const isEmpty = !yText || (yText.length === 0 && textContent.trim() === '')
+			const bulletIconUrl = buildBulletIconUrl(textStyle.listBullet)
 			return (
 				<g transform={rotationTransform} opacity={objectOpacity} {...commonProps}>
-					<WrappedText
-						x={x}
-						y={y}
-						width={width}
-						height={height}
-						text={isEmpty ? 'Click to add text' : textContent}
-						textStyle={textStyle}
-						isPlaceholder={isEmpty}
-					/>
+					{yText ? (
+						<RichTextDisplay
+							x={x}
+							y={y}
+							width={width}
+							height={height}
+							yText={yText}
+							baseStyle={toBaseTextStyle(textStyle)}
+							bulletIconUrl={bulletIconUrl}
+							isPlaceholder={isEmpty}
+						/>
+					) : (
+						// Fallback for objects without Y.Text (shouldn't happen after migration)
+						<foreignObject
+							x={x}
+							y={y}
+							width={width}
+							height={height}
+							style={{ overflow: 'visible' }}
+						>
+							<div
+								style={{
+									color: '#999',
+									fontStyle: 'italic',
+									fontFamily: textStyle.fontFamily,
+									fontSize: textStyle.fontSize
+								}}
+							>
+								Click to add text
+							</div>
+						</foreignObject>
+					)}
 					{/* Invisible rect for click handling since foreignObject has pointerEvents: none */}
 					<rect
 						x={x}

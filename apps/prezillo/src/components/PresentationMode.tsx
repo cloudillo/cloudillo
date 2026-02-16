@@ -43,7 +43,9 @@ import {
 	DEFAULT_TEXT_STYLE
 } from '../utils'
 import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
-import { WrappedText } from './WrappedText'
+import { RichTextDisplay } from '@cloudillo/canvas-text'
+import type { BaseTextStyle } from '@cloudillo/canvas-text'
+import { getBulletIcon, migrateBullet } from '../data/bullet-icons'
 import { ImageRenderer } from './ImageRenderer'
 import { QRCodeRenderer } from './QRCodeRenderer'
 import { PollFrameRenderer } from './PollFrameRenderer'
@@ -83,6 +85,7 @@ export interface PresentationModeProps {
  */
 function PresentationObjectShape({
 	object,
+	doc,
 	style,
 	textStyle,
 	ownerTag,
@@ -95,6 +98,7 @@ function PresentationObjectShape({
 	userCount = 1
 }: {
 	object: PrezilloObject
+	doc: YPrezilloDocument
 	style: ReturnType<typeof resolveShapeStyle>
 	textStyle: ReturnType<typeof resolveTextStyle>
 	ownerTag?: string
@@ -163,20 +167,50 @@ function PresentationObjectShape({
 			)
 			break
 		case 'text':
-			const textObj = object as any
-			const presTextContent = textObj.text || ''
+			const yText = doc.rt.get(object.id)
+			const presTextContent = (object as any).text || ''
 			// In presentation mode, don't show empty text objects
-			if (presTextContent.trim() === '') return null
-			content = (
-				<WrappedText
-					x={object.x}
-					y={object.y}
-					width={object.width}
-					height={object.height}
-					text={presTextContent}
-					textStyle={textStyle}
-				/>
-			)
+			if (!yText && presTextContent.trim() === '') return null
+			// Build bullet icon URL for custom list markers
+			const presBulletIconUrl = (() => {
+				const lb = textStyle.listBullet
+				if (!lb) return undefined
+				const bulletId = migrateBullet(lb)
+				if (!bulletId) return undefined
+				const icon = getBulletIcon(bulletId)
+				if (!icon) return undefined
+				const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='${icon.viewBox.join(' ')}'><path d='${icon.pathData}' fill='black'/></svg>`
+				return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
+			})()
+			if (yText) {
+				content = (
+					<RichTextDisplay
+						x={object.x}
+						y={object.y}
+						width={object.width}
+						height={object.height}
+						yText={yText}
+						baseStyle={{
+							fontFamily: textStyle.fontFamily,
+							fontSize: textStyle.fontSize,
+							fontWeight: textStyle.fontWeight,
+							fontItalic: textStyle.fontItalic,
+							textDecoration: textStyle.textDecoration,
+							fill: textStyle.fill,
+							textAlign: textStyle.textAlign,
+							verticalAlign: textStyle.verticalAlign,
+							lineHeight: textStyle.lineHeight,
+							letterSpacing: textStyle.letterSpacing,
+							listBullet: textStyle.listBullet
+						}}
+						bulletIconUrl={presBulletIconUrl}
+						linksClickable={true}
+					/>
+				)
+			} else {
+				// Fallback - shouldn't happen after migration
+				return null
+			}
 			break
 		case 'image':
 			content = <ImageRenderer object={object as ImageObject} ownerTag={ownerTag} scale={1} />
@@ -406,6 +440,7 @@ const PresentationSlide = React.memo(function PresentationSlide({
 					<PresentationObjectShape
 						key={object.id}
 						object={object}
+						doc={doc}
 						style={style}
 						textStyle={textStyle}
 						ownerTag={ownerTag}

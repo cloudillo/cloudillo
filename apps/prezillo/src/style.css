@@ -2428,3 +2428,98 @@ body,
 .c-bullet-btn.c-bullet-none.active {
 	color: var(--col-primary);
 }
+
+/* ==========================================================================
+   Quill Editor Resets
+   Match RichTextDisplay positioning by resetting Quill's default styles
+   ========================================================================== */
+
+.ql-editor {
+	padding: 0;
+	line-height: inherit;
+	counter-reset: list-0 list-1 list-2 list-3 list-4 list-5 list-6 list-7 list-8 list-9;
+}
+
+.ql-editor p,
+.ql-editor ol,
+.ql-editor pre,
+.ql-editor blockquote {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.ql-editor li {
+	list-style-type: none;
+	position: relative;
+}
+
+.ql-editor li > .ql-ui:before {
+	display: inline-block;
+	margin-right: 0.3em;
+}
+
+/* Bullet lists - default filled circle */
+.ql-editor li[data-list='bullet'] > .ql-ui:before {
+	content: '\2022';
+}
+
+/* Bullet lists - custom icon via CSS variable (class added when bulletIconUrl is set) */
+.custom-bullet li[data-list='bullet'] > .ql-ui:before {
+	content: '';
+	width: 0.5em;
+	height: 0.5em;
+	background: currentColor;
+	-webkit-mask-image: var(--bullet-icon);
+	mask-image: var(--bullet-icon);
+	-webkit-mask-size: contain;
+	mask-size: contain;
+	vertical-align: middle;
+}
+
+/* Ordered lists - CSS counters */
+.ql-editor li[data-list] {
+	counter-reset: list-1 list-2 list-3 list-4 list-5 list-6 list-7 list-8 list-9;
+}
+
+.ql-editor li[data-list='ordered'] {
+	counter-increment: list-0;
+}
+
+.ql-editor li[data-list='ordered'] > .ql-ui:before {
+	content: counter(list-0, decimal) '. ';
+}
+
+/* ==========================================================================
+   RichTextDisplay list styles (matching Quill structure)
+   ========================================================================== */
+
+.rt-list-bullet,
+.rt-list-ordered {
+	position: relative;
+}
+
+.rt-list-bullet::before {
+	content: '\2022';
+	display: inline-block;
+	margin-right: 0.3em;
+}
+
+/* Custom bullet icon for display mode (class added when bulletIconUrl is set) */
+.custom-bullet .rt-list-bullet::before {
+	content: '';
+	width: 0.5em;
+	height: 0.5em;
+	background: currentColor;
+	-webkit-mask-image: var(--bullet-icon);
+	mask-image: var(--bullet-icon);
+	-webkit-mask-size: contain;
+	mask-size: contain;
+	vertical-align: middle;
+}
+
+.rt-list-ordered::before {
+	content: attr(data-index) '. ';
+	display: inline-block;
+	margin-right: 0.3em;
+}

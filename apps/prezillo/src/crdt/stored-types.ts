@@ -211,10 +211,10 @@ export interface StoredPolygon extends StoredObjectBase {
 	cl?: boolean // closed
 }
 
-// Text (plain)
+// Text (rich text stored in doc.rt Y.Map<Y.Text>, plain text fallback in tx)
 export interface StoredText extends StoredObjectBase {
 	t: 'T'
-	tx: string // text content
+	tx?: string // legacy plain text content (migrated to doc.rt on load)
 	mh?: number // minHeight - original height at creation for auto-sizing
 }
 

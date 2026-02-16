@@ -52,6 +52,8 @@ import { getSymbolById } from '../data/symbol-library'
 import { calculateGridPositions } from '../components/TableGridRenderer'
 import type { PDFExportOptions, RenderContext, Bounds } from './types'
 import { createSVGTextElement } from './text-converter'
+import { createRichTextSVGElement } from '@cloudillo/canvas-text'
+import type { DeltaOp, BaseTextStyle } from '@cloudillo/canvas-text'
 import { createQRCodeSVGElements } from './qr-renderer'
 import {
 	preloadImages,
@@ -235,26 +237,57 @@ async function renderObjectToSVG(
 		}
 
 		case 'text': {
-			const textObj = object as TextObject
-			const textContent = textObj.text || ''
-			if (textContent.trim() === '') return null
+			// Try rich text from Y.Text first, fall back to plain text
+			const yText = context.doc.rt.get(object.id)
+			const pdfFontFamily = getPDFFontFamily(textStyle.fontFamily || 'Lato')
 
-			// Map font family to actual registered PDF font
-			const pdfTextStyle = {
-				...textStyle,
-				fontFamily: getPDFFontFamily(textStyle.fontFamily || 'Lato')
+			if (yText && yText.length > 0) {
+				const delta = yText.toDelta() as DeltaOp[]
+				const baseStyle: BaseTextStyle = {
+					fontFamily: pdfFontFamily,
+					fontSize: textStyle.fontSize,
+					fontWeight: textStyle.fontWeight,
+					fontItalic: textStyle.fontItalic,
+					textDecoration: textStyle.textDecoration,
+					fill: textStyle.fill,
+					textAlign: textStyle.textAlign,
+					verticalAlign: textStyle.verticalAlign,
+					lineHeight: textStyle.lineHeight,
+					letterSpacing: textStyle.letterSpacing,
+					listBullet: textStyle.listBullet
+				}
+				content = createRichTextSVGElement(
+					delta,
+					{
+						x: object.x,
+						y: object.y,
+						width: object.width,
+						height: object.height
+					},
+					baseStyle
+				)
+			} else {
+				// Fallback to plain text (legacy)
+				const textObj = object as TextObject
+				const textContent = textObj.text || ''
+				if (textContent.trim() === '') return null
+
+				const pdfTextStyle = {
+					...textStyle,
+					fontFamily: pdfFontFamily
+				}
+
+				content = createSVGTextElement(
+					textContent,
+					{
+						x: object.x,
+						y: object.y,
+						width: object.width,
+						height: object.height
+					},
+					pdfTextStyle
+				)
 			}
-
-			content = createSVGTextElement(
-				textContent,
-				{
-					x: object.x,
-					y: object.y,
-					width: object.width,
-					height: object.height
-				},
-				pdfTextStyle
-			)
 			break
 		}
 

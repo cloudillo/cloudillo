@@ -27,6 +27,7 @@ import type {
 	StoredStyle,
 	StoredPalette,
 	StoredTemplate,
+	StoredText,
 	ChildRef
 } from './stored-types'
 import { generateContainerId, generateViewId, generateStyleId } from './ids'
@@ -63,6 +64,11 @@ export function getOrCreateDocument(
 	// Initialize if empty (only if requested - wait for sync before initializing)
 	if (initializeIfEmpty && doc.r.length === 0) {
 		initializeDocument(yDoc, doc)
+	}
+
+	// Migrate plain text objects (tx string) to rich text (doc.rt Y.Text)
+	if (initializeIfEmpty) {
+		migrateTextToRichText(yDoc, doc)
 	}
 
 	return doc
@@ -241,6 +247,66 @@ function addDefaultStyles(doc: YPrezilloDocument): void {
 		fc: '#666666',
 		fi: true
 	})
+}
+
+/**
+ * Migrate text objects from plain text (tx string) to rich text (doc.rt Y.Text).
+ * Idempotent: skips objects that already have a Y.Text entry in doc.rt.
+ * Runs in a single Yjs transaction.
+ */
+function migrateTextToRichText(yDoc: Y.Doc, doc: YPrezilloDocument): void {
+	const toMigrate: Array<{ id: string; text: string }> = []
+
+	doc.o.forEach((obj, id) => {
+		if (obj.t === 'T') {
+			const textObj = obj as StoredText
+			// Migrate if tx exists and no Y.Text in doc.rt yet
+			if (textObj.tx !== undefined && !doc.rt.has(id)) {
+				toMigrate.push({ id, text: textObj.tx })
+			}
+			// Also ensure objects without tx have an entry in doc.rt
+			if (textObj.tx === undefined && !doc.rt.has(id)) {
+				toMigrate.push({ id, text: '' })
+			}
+		}
+	})
+
+	if (toMigrate.length === 0) return
+
+	yDoc.transact(() => {
+		for (const { id, text } of toMigrate) {
+			const yText = new Y.Text()
+			if (text) {
+				yText.insert(0, text)
+			}
+			doc.rt.set(id, yText)
+
+			// Remove tx from stored object (content now lives in doc.rt)
+			const obj = doc.o.get(id)
+			if (obj && 'tx' in obj) {
+				const updated = { ...obj }
+				delete (updated as StoredText).tx
+				doc.o.set(id, updated)
+			}
+		}
+	}, yDoc.clientID)
+
+	console.log(`[migrateTextToRichText] Migrated ${toMigrate.length} text objects`)
+}
+
+/**
+ * Get or create a Y.Text entry in doc.rt for a text object.
+ * Creates a new Y.Text if one doesn't exist.
+ */
+export function getOrCreateRichText(yDoc: Y.Doc, doc: YPrezilloDocument, objectId: string): Y.Text {
+	let yText = doc.rt.get(objectId)
+	if (!yText) {
+		yText = new Y.Text()
+		yDoc.transact(() => {
+			doc.rt.set(objectId, yText!)
+		}, yDoc.clientID)
+	}
+	return yText
 }
 
 /**

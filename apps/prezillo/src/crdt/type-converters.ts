@@ -443,7 +443,7 @@ export function expandObject(id: string, stored: Stored.StoredObject): Runtime.P
 			return {
 				...base,
 				type: 'text',
-				text: (stored as Stored.StoredText).tx,
+				text: (stored as Stored.StoredText).tx ?? '',
 				minHeight: (stored as Stored.StoredText).mh
 			} as Runtime.TextObject
 
@@ -601,7 +601,8 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 			return {
 				...base,
 				t: 'T',
-				tx: textObj.text,
+				// tx is omitted when content lives in doc.rt (rich text)
+				tx: textObj.text || undefined,
 				mh: textObj.minHeight
 			} as Stored.StoredText
 

@@ -16,6 +16,7 @@
 
 import * as React from 'react'
 import * as Y from 'yjs'
+import type Quill from 'quill'
 import { PropertyPanel } from '@cloudillo/react'
 
 import type { YPrezilloDocument, ObjectId, ViewId, ContainerId, TemplateId } from '../../crdt'
@@ -51,6 +52,10 @@ export interface PrezilloPropertiesPanelProps {
 	onClearTemplateSelection?: () => void
 	/** Callback to select a template */
 	onSelectTemplate?: (templateId: TemplateId | null) => void
+	/** Quill instance ref for inline formatting */
+	quillRef?: React.MutableRefObject<Quill | null>
+	/** ID of the text object currently being edited */
+	editingTextId?: ObjectId | null
 }
 
 export function PrezilloPropertiesPanel({
@@ -66,10 +71,12 @@ export function PrezilloPropertiesPanel({
 	onSelectContainer,
 	selectedTemplateId,
 	onClearTemplateSelection,
-	onSelectTemplate
+	onSelectTemplate,
+	quillRef,
+	editingTextId
 }: PrezilloPropertiesPanelProps) {
 	return (
-		<PropertyPanel width={280}>
+		<PropertyPanel width={280} data-properties-panel="true">
 			{/* Layer Browser - top section */}
 			<div className="c-panel-section c-panel-section--layers">
 				<h4 className="c-panel-heading m-0">Layers</h4>
@@ -113,6 +120,8 @@ export function PrezilloPropertiesPanel({
 						selectedTemplateId={selectedTemplateId}
 						isTemplateFocused={isTemplateFocused}
 						onPreview={onPreview}
+						quillRef={quillRef}
+						editingTextId={editingTextId}
 					/>
 				</div>
 			</div>

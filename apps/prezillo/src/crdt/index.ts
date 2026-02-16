@@ -113,6 +113,7 @@ export type {
 export {
 	getOrCreateDocument,
 	getContainerChildren,
+	getOrCreateRichText,
 	getDocumentMeta,
 	updateDocumentMeta
 } from './document'

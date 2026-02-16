@@ -49,7 +49,7 @@ import {
 	compactArrowStyle,
 	compactAnchorPoint
 } from './type-converters'
-import { getContainerChildren } from './document'
+import { getContainerChildren, getOrCreateRichText } from './document'
 import { getAbsolutePositionStored } from './transforms'
 import { resolveObject, getInstancesOfPrototype, detachInstance } from './prototype-ops'
 import { getTemplateIdForPrototype } from './template-ops'
@@ -72,6 +72,22 @@ export function addObject(
 	yDoc.transact(() => {
 		// Store the object
 		doc.o.set(objectId, stored)
+
+		// For text objects, create Y.Text entry in doc.rt
+		if (stored.t === 'T') {
+			const yText = new Y.Text()
+			const textContent = (stored as StoredText).tx
+			if (textContent) {
+				yText.insert(0, textContent)
+			}
+			doc.rt.set(objectId, yText)
+			// Remove tx from stored object (content lives in doc.rt)
+			if (textContent !== undefined) {
+				const updated = { ...stored }
+				delete (updated as StoredText).tx
+				doc.o.set(objectId, updated)
+			}
+		}
 
 		// Create child reference
 		const childRef: ChildRef = [0, objectId]
@@ -391,8 +407,10 @@ function applyRuntimeUpdateToStored(stored: StoredObject, key: string, value: un
 			break
 
 		// Type-specific: Text
+		// Note: text content is now stored in doc.rt Y.Text, not in tx.
+		// The 'text' runtime field is a read-only plain text representation.
 		case 'text':
-			if (stored.t === 'T') (stored as StoredText).tx = value as string
+			// Legacy: only write to tx if explicitly set (for backwards compat during transition)
 			break
 		case 'minHeight':
 			if (stored.t === 'T') {
@@ -967,6 +985,11 @@ export function deleteObject(yDoc: Y.Doc, doc: YPrezilloDocument, objectId: Obje
 			removeChildRef(doc.r, [0, objectId])
 		}
 
+		// Clean up Y.Text entry for text objects
+		if (object.t === 'T') {
+			doc.rt.delete(objectId)
+		}
+
 		// Delete object
 		doc.o.delete(objectId)
 	}, yDoc.clientID)
@@ -1356,7 +1379,27 @@ export function duplicateObject(
 		prototypeId: undefined
 	}
 
-	return addObject(yDoc, doc, duplicated, expanded.parentId, undefined, pageId)
+	const resultId = addObject(yDoc, doc, duplicated, expanded.parentId, undefined, pageId)
+
+	// For text objects, copy the Y.Text content from the original
+	if (object.t === 'T') {
+		const originalYText = doc.rt.get(objectId)
+		if (originalYText) {
+			const newYText = doc.rt.get(resultId)
+			if (newYText) {
+				// Apply the original delta to the new Y.Text
+				const delta = originalYText.toDelta()
+				yDoc.transact(() => {
+					if (delta && delta.length > 0) {
+						newYText.delete(0, newYText.length)
+						newYText.applyDelta(delta)
+					}
+				}, yDoc.clientID)
+			}
+		}
+	}
+
+	return resultId
 }
 
 // Helper functions

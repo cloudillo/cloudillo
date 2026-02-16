@@ -16,6 +16,7 @@
 
 import * as React from 'react'
 import * as Y from 'yjs'
+import type Quill from 'quill'
 import { useY } from 'react-yjs'
 
 import type {
@@ -49,6 +50,10 @@ export interface PropertyEditorProps {
 	/** True when template background was explicitly clicked */
 	isTemplateFocused?: boolean
 	onPreview?: (preview: PropertyPreview | null) => void
+	/** Quill instance ref for inline formatting */
+	quillRef?: React.MutableRefObject<Quill | null>
+	/** ID of the text object currently being edited */
+	editingTextId?: ObjectId | null
 }
 
 export function PropertyEditor({
@@ -59,7 +64,9 @@ export function PropertyEditor({
 	isViewFocused,
 	selectedTemplateId,
 	isTemplateFocused,
-	onPreview
+	onPreview,
+	quillRef,
+	editingTextId
 }: PropertyEditorProps) {
 	// Subscribe to object changes - useY returns a version number that changes on updates
 	useY(doc.o)
@@ -136,6 +143,8 @@ export function PropertyEditor({
 					yDoc={yDoc}
 					object={selectedObject}
 					onPreview={onPreview}
+					quillRef={quillRef}
+					isEditing={editingTextId === selectedObject.id}
 				/>
 			)}
 

@@ -34,6 +34,8 @@ export interface TreeItemProps extends React.HTMLAttributes<HTMLDivElement> {
 	selected?: boolean
 	/** Whether item has children (shows expand toggle) */
 	hasChildren?: boolean
+	/** Allow drop-inside zone even without children (for items that can become containers) */
+	allowDropInside?: boolean
 	/** Icon to display before the label */
 	icon?: React.ReactNode
 	/** Label text */
@@ -80,6 +82,7 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 			expanded = false,
 			selected = false,
 			hasChildren = false,
+			allowDropInside = hasChildren,
 			icon,
 			label,
 			actions,
@@ -144,7 +147,7 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 				const height = rect.height
 
 				let position: 'before' | 'after' | 'inside'
-				if (hasChildren) {
+				if (allowDropInside) {
 					// For containers, divide into 3 zones
 					if (y < height * 0.25) {
 						position = 'before'
@@ -165,7 +168,7 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 				e.dataTransfer.dropEffect = 'move'
 				onItemDragOver(e, position)
 			},
-			[hasChildren, onItemDragOver]
+			[allowDropInside, onItemDragOver]
 		)
 
 		const handleDragLeave = React.useCallback(
@@ -191,7 +194,7 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 				const height = rect.height
 
 				let position: 'before' | 'after' | 'inside'
-				if (hasChildren) {
+				if (allowDropInside) {
 					if (y < height * 0.25) {
 						position = 'before'
 					} else if (y > height * 0.75) {
@@ -209,7 +212,7 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 
 				onItemDrop(e, position)
 			},
-			[hasChildren, onItemDrop]
+			[allowDropInside, onItemDrop]
 		)
 
 		const handleDragEnd = React.useCallback(

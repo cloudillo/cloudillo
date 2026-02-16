@@ -45,10 +45,14 @@ interface SubscriptionDetails {
 export class WebSocketManager {
 	private ws: WebSocket | null = null
 	private connected = false
+	private connecting = false
+	private connectPromise: Promise<void> | null = null
+	private connectionId = 0
 	private reconnectAttempts = 0
 	private pendingRequests = new Map<number, PendingRequest>()
 	private subscriptions = new Map<string, Subscription>()
 	private subscriptionDetails = new Map<string, SubscriptionDetails>() // Store subscription info for reconnection
+	private pendingSubscriptionEvents = new Map<string, ChangeEvent[]>() // Buffer events that arrive before subscription is registered
 	private messageQueue: ClientMessage[] = []
 	private requestId = 0
 	private pingInterval: ReturnType<typeof setInterval> | null = null
@@ -64,9 +68,43 @@ export class WebSocketManager {
 		this.debug = options.debug
 	}
 
+	private cleanupWebSocket(): void {
+		if (this.ws) {
+			this.ws.onopen = null
+			this.ws.onclose = null
+			this.ws.onerror = null
+			this.ws.onmessage = null
+			if (
+				this.ws.readyState === WebSocket.OPEN ||
+				this.ws.readyState === WebSocket.CONNECTING
+			) {
+				this.ws.close()
+			}
+			this.ws = null
+		}
+	}
+
 	async connect(): Promise<void> {
 		if (this.connected) return
+		if (this.connecting && this.connectPromise) return this.connectPromise
 
+		// Cancel any pending reconnect
+		if (this.reconnectTimeout) {
+			clearTimeout(this.reconnectTimeout)
+			this.reconnectTimeout = null
+		}
+
+		this.connecting = true
+		this.connectPromise = this._doConnect()
+		try {
+			await this.connectPromise
+		} finally {
+			this.connecting = false
+			this.connectPromise = null
+		}
+	}
+
+	private async _doConnect(): Promise<void> {
 		try {
 			const token = await this.getToken()
 			if (!token) {
@@ -76,6 +114,12 @@ export class WebSocketManager {
 			return new Promise((resolve, reject) => {
 				const wsUrl = `${this.serverUrl}/ws/rtdb/${this.dbId}?token=${encodeURIComponent(token)}`
 
+				// Clean up any previous WebSocket before creating a new one
+				this.cleanupWebSocket()
+
+				// Capture connection ID to detect stale handlers
+				const connId = ++this.connectionId
+
 				try {
 					this.ws = new WebSocket(wsUrl)
 				} catch (error) {
@@ -84,6 +128,7 @@ export class WebSocketManager {
 				}
 
 				this.ws.onopen = () => {
+					if (connId !== this.connectionId) return // Stale handler
 					this.log('Connected to server')
 					this.connected = true
 					this.reconnectAttempts = 0
@@ -94,16 +139,19 @@ export class WebSocketManager {
 				}
 
 				this.ws.onmessage = (event) => {
+					if (connId !== this.connectionId) return // Stale handler
 					this.handleMessage(event.data)
 				}
 
 				this.ws.onerror = (event) => {
+					if (connId !== this.connectionId) return // Stale handler
 					const error = new ConnectionError('WebSocket error', { cause: event })
 					this.handleError(error)
 					reject(error)
 				}
 
 				this.ws.onclose = (event: CloseEvent) => {
+					if (connId !== this.connectionId) return // Stale handler
 					this.handleDisconnect(event.code, event.reason)
 				}
 
@@ -128,9 +176,9 @@ export class WebSocketManager {
 	}
 
 	async disconnect(): Promise<void> {
-		if (this.ws) {
-			this.ws.close()
-		}
+		this.connecting = false
+		this.connectPromise = null
+		this.cleanupWebSocket()
 		this.connected = false
 		this.stopPingInterval()
 		this.clearPendingRequests()
@@ -154,7 +202,7 @@ export class WebSocketManager {
 				timeout
 			})
 
-			if (this.connected && this.ws) {
+			if (this.connected && this.ws && this.ws.readyState === WebSocket.OPEN) {
 				try {
 					this.ws.send(JSON.stringify(messageWithId))
 					this.log('Sent:', messageWithId)
@@ -163,6 +211,11 @@ export class WebSocketManager {
 					clearTimeout(timeout)
 					reject(new ConnectionError('Failed to send message', { cause: error }))
 				}
+			} else if (this.connected && this.ws) {
+				// WebSocket exists but is not in OPEN state — reject immediately
+				this.pendingRequests.delete(id)
+				clearTimeout(timeout)
+				reject(new ConnectionError('WebSocket is not in OPEN state'))
 			} else {
 				this.messageQueue.push(messageWithId)
 				this.log('Queued:', messageWithId)
@@ -179,6 +232,7 @@ export class WebSocketManager {
 		// Generate a local ID for tracking this subscription
 		const localId = `local_sub_${++this.requestId}`
 		let serverSubscriptionId: string | null = null
+		let cancelled = false
 
 		// Store subscription details for reconnection
 		this.subscriptionDetails.set(localId, { path, filter, callback, onError })
@@ -190,13 +244,43 @@ export class WebSocketManager {
 			filter
 		})
 			.then((result: any) => {
-				// Get the server's subscription ID from the response
 				const subId = result.subscriptionId as string
+
+				// If unsubscribe was called before the server responded,
+				// immediately tell the server to unsubscribe
+				if (cancelled) {
+					this.send({
+						type: 'unsubscribe',
+						subscriptionId: subId
+					}).catch((error) => {
+						this.log('Error unsubscribing cancelled subscription:', error)
+					})
+					this.pendingSubscriptionEvents.delete(subId)
+					return
+				}
+
 				serverSubscriptionId = subId
 				this.subscriptions.set(subId, { callback, onError })
-				this.log('Subscription established:', subId)
+
+				// Replay any events that arrived before the subscription was registered
+				const buffered = this.pendingSubscriptionEvents.get(subId)
+				if (buffered) {
+					this.pendingSubscriptionEvents.delete(subId)
+					for (const event of buffered) {
+						try {
+							callback(event)
+						} catch (error) {
+							console.error(
+								'[RTDB] Error in subscription callback (replayed):',
+								error
+							)
+							onError(error as Error)
+						}
+					}
+				}
 			})
 			.catch((error) => {
+				if (cancelled) return
 				console.error('[RTDB] Subscribe failed:', error)
 				this.subscriptionDetails.delete(localId) // Clean up on error
 				onError(error)
@@ -204,6 +288,7 @@ export class WebSocketManager {
 
 		// Return unsubscribe function
 		return () => {
+			cancelled = true
 			this.subscriptionDetails.delete(localId) // Remove from re-subscription list
 			if (serverSubscriptionId) {
 				this.subscriptions.delete(serverSubscriptionId)
@@ -215,6 +300,7 @@ export class WebSocketManager {
 					this.log('Error unsubscribing:', error)
 				})
 			}
+			// If serverSubscriptionId is null, the .then() handler will send unsubscribe
 		}
 	}
 
@@ -262,10 +348,13 @@ export class WebSocketManager {
 						sub.onError(error as Error)
 					}
 				} else {
-					console.warn(
-						'[RTDB] Received change for unknown subscription:',
-						message.subscriptionId
-					)
+					// Buffer events that arrive before subscription is registered (race condition)
+					const buf = this.pendingSubscriptionEvents.get(message.subscriptionId)
+					if (buf) {
+						buf.push(message.event)
+					} else {
+						this.pendingSubscriptionEvents.set(message.subscriptionId, [message.event])
+					}
 				}
 			}
 
@@ -338,13 +427,24 @@ export class WebSocketManager {
 	private handleDisconnect(code?: number, reason?: string): void {
 		this.log('Disconnected from server', { code, reason })
 		this.connected = false
+		this.connecting = false
 		this.stopPingInterval()
+
+		// Always clear pending requests on disconnect — they can't succeed on a closed socket
+		this.clearPendingRequests()
+
+		// Clear stale buffered subscription events
+		this.pendingSubscriptionEvents.clear()
 
 		// Don't reconnect on auth/resource errors from backend:
 		// 4401 = Unauthorized, 4403 = Access denied, 4404 = Not found
 		if (code !== undefined && code >= 4400 && code < 4500) {
 			this.log('Auth/resource error, not reconnecting', { code, reason })
-			this.handleError(new AuthError(`Connection closed: ${reason || 'auth error'}`))
+			// For auth errors, also notify subscription error handlers
+			const authError = new AuthError(`Connection closed: ${reason || 'auth error'}`)
+			for (const [, sub] of this.subscriptions.entries()) {
+				sub.onError(authError)
+			}
 			return
 		}
 
@@ -376,19 +476,27 @@ export class WebSocketManager {
 	private flushMessageQueue(): void {
 		if (this.messageQueue.length === 0) return
 
+		if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+			this.log('Cannot flush message queue: WebSocket not open')
+			return
+		}
+
 		this.log(`Flushing ${this.messageQueue.length} queued messages`)
 
 		const queue = this.messageQueue
 		this.messageQueue = []
 
 		for (const message of queue) {
-			if (this.ws) {
+			if (this.ws && this.ws.readyState === WebSocket.OPEN) {
 				try {
 					this.ws.send(JSON.stringify(message))
 				} catch (error) {
 					this.log('Error sending queued message:', error)
 					this.messageQueue.push(message)
 				}
+			} else {
+				// Socket closed mid-flush, re-queue remaining
+				this.messageQueue.push(message)
 			}
 		}
 	}
@@ -397,7 +505,7 @@ export class WebSocketManager {
 		this.stopPingInterval()
 
 		this.pingInterval = setInterval(() => {
-			if (this.connected && this.ws) {
+			if (this.connected && this.ws && this.ws.readyState === WebSocket.OPEN) {
 				this.send({ type: 'ping' }).catch((error) => {
 					this.log('Ping failed:', error)
 				})

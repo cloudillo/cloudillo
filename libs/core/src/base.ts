@@ -97,23 +97,32 @@ export async function openYDoc(
 
 	// Request a reusable clientId from the shell to prevent unbounded
 	// state vector growth. Falls back to the random clientId if unavailable.
+	// Don't set clientId yet — doing so on a fresh doc triggers Yjs's
+	// conflict detection when the remote state arrives with operations
+	// already under this clientId.
 	const clientId = await bus.requestClientId(docId)
-	if (clientId != null) {
-		yDoc.clientID = clientId
-	}
-
-	// TEMP DEBUG: Log the clientId being used for this document
-	console.log(
-		'[CRDT] openYDoc clientId:',
-		yDoc.clientID,
-		'for doc:',
-		docId,
-		clientId != null ? '(reused)' : '(random)'
-	)
 
 	const wsProvider = new WebsocketProvider(getCrdtUrl(targetTag), resId, yDoc, {
 		params: { token, access: accessLevel || 'write' }
 	})
+
+	if (clientId != null) {
+		const applyClientId = () => {
+			yDoc.clientID = clientId
+			console.log('[CRDT] Set reused clientId:', clientId, 'for doc:', docId, 'after sync')
+		}
+		if (wsProvider.synced) {
+			applyClientId()
+		} else {
+			wsProvider.once('sync', (isSynced: boolean) => {
+				if (isSynced) {
+					applyClientId()
+				}
+			})
+		}
+	} else {
+		console.log('[CRDT] openYDoc clientId:', yDoc.clientID, 'for doc:', docId, '(random)')
+	}
 
 	// Intercept WebSocket close to handle auth errors and prevent infinite reconnection
 	const setupCloseHandler = () => {

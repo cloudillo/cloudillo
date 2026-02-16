@@ -169,6 +169,9 @@ export const Sidebar = React.memo(function Sidebar({
 				case 'cloudillo/taskillo':
 					navigate(appPath('taskillo'))
 					break
+				case 'cloudillo/notillo':
+					navigate(appPath('notillo'))
+					break
 			}
 		}
 	}
@@ -229,6 +232,14 @@ export const Sidebar = React.memo(function Sidebar({
 											React.ComponentProps<typeof IcUnknown>
 										>(fileIcons['cloudillo/taskillo'], { className: 'me-1' })}
 										{t('Taskillo task list')}
+									</Button>
+								</li>
+								<li>
+									<Button navItem onClick={() => createDb('cloudillo/notillo')}>
+										{React.createElement<
+											React.ComponentProps<typeof IcUnknown>
+										>(fileIcons['cloudillo/notillo'], { className: 'me-1' })}
+										{t('Notillo wiki')}
 									</Button>
 								</li>
 							</ul>

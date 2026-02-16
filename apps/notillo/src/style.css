@@ -1,0 +1,291 @@
+/* Notillo App Styles - Using OpalUI --col-* variables */
+
+/* ── Sidebar ── */
+
+.c-tree-item {
+	user-select: none;
+}
+
+.c-tree-item-row {
+	display: flex;
+	align-items: center;
+	padding: var(--space-1);
+	cursor: pointer;
+	border-radius: var(--radius-sm);
+	gap: var(--space-1);
+}
+
+.c-tree-item-row:hover {
+	background: var(--col-container-high);
+}
+
+.c-tree-item.selected > .c-tree-item-row {
+	background: var(--col-container-primary);
+}
+
+.c-tree-item.dragging {
+	opacity: 0.5;
+}
+
+.c-tree-item.drop-target > .c-tree-item-row {
+	outline: 2px dashed var(--col-primary);
+}
+
+.c-tree-item.drop-before > .c-tree-item-row {
+	outline: none;
+	border-top: 2px solid var(--col-primary);
+}
+
+.c-tree-item.drop-after > .c-tree-item-row {
+	outline: none;
+	border-bottom: 2px solid var(--col-primary);
+}
+
+.c-tree-item.drop-inside > .c-tree-item-row {
+	background: var(--col-container-primary);
+	outline: 2px dashed var(--col-primary);
+}
+
+.c-tree-item-toggle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	cursor: pointer;
+}
+
+.c-tree-item-icon {
+	display: flex;
+	align-items: center;
+	opacity: 0.7;
+}
+
+.c-tree-item-label {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.c-tree-item-actions {
+	display: flex;
+	gap: var(--space-1);
+	opacity: 0;
+}
+
+.c-tree-item-row:hover .c-tree-item-actions {
+	opacity: 1;
+}
+
+.c-tree-item.selected > .c-tree-item-row .c-tree-item-actions {
+	opacity: 1;
+}
+
+.page-tree-action {
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: var(--col-on-surface);
+	padding: 0.25rem;
+	border-radius: var(--radius-sm);
+	display: flex;
+	align-items: center;
+	font-size: 0.875rem;
+}
+
+.page-tree-action:hover {
+	color: var(--col-primary);
+}
+
+.page-tree-delete {
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: var(--col-on-surface);
+	padding: 0.25rem;
+	border-radius: var(--radius-sm);
+	display: flex;
+	align-items: center;
+	font-size: 0.875rem;
+}
+
+.page-tree-delete:hover {
+	color: var(--col-error);
+}
+
+/* ── Wiki-links ── */
+
+.notillo-wiki-link {
+	color: var(--col-primary);
+	background: color-mix(in srgb, var(--col-primary) 10%, transparent);
+	padding: 0.05em 0.3em;
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	text-decoration: none;
+	font-weight: 500;
+	transition: background var(--duration-fast) var(--ease-default);
+}
+
+.notillo-wiki-link:hover {
+	background: color-mix(in srgb, var(--col-primary) 20%, transparent);
+	text-decoration: underline;
+}
+
+.notillo-wiki-link.broken {
+	color: var(--col-error);
+	text-decoration: line-through;
+	opacity: 0.7;
+}
+
+/* ── Tags ── */
+
+.notillo-tag {
+	display: inline-flex;
+	align-items: center;
+	background: color-mix(in srgb, var(--col-tertiary, var(--col-secondary)) 15%, transparent);
+	color: var(--col-tertiary, var(--col-secondary));
+	padding: 0.05em 0.4em;
+	border-radius: var(--radius-sm);
+	font-size: 0.875em;
+	font-weight: 500;
+	cursor: pointer;
+}
+
+.notillo-tag:hover {
+	background: color-mix(in srgb, var(--col-tertiary, var(--col-secondary)) 25%, transparent);
+}
+
+/* ── Tag Cloud ── */
+
+.tag-cloud-section {
+	flex-shrink: 0;
+}
+
+.tag-cloud {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-1);
+}
+
+.tag-cloud-item {
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25em;
+	border: none;
+	font-size: 0.8rem;
+}
+
+.tag-cloud-item .c-badge {
+	font-size: 0.65rem;
+	min-width: 1.1em;
+	text-align: center;
+}
+
+.tag-clear-btn {
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: var(--col-on-surface);
+	padding: 0.125rem;
+	border-radius: var(--radius-sm);
+	display: flex;
+	align-items: center;
+	font-size: 0.8rem;
+}
+
+.tag-clear-btn:hover {
+	color: var(--col-error);
+}
+
+/* ── Tag Filtered Page List ── */
+
+.tag-filtered-page {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	padding: var(--space-1) var(--space-2);
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+}
+
+.tag-filtered-page:hover {
+	background: var(--col-container-high);
+}
+
+.tag-filtered-page.active {
+	background: var(--col-container-primary);
+}
+
+.tag-filtered-page-icon {
+	display: flex;
+	align-items: center;
+	opacity: 0.7;
+	font-size: 0.9rem;
+}
+
+.tag-filtered-page-title {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 0.9rem;
+}
+
+/* ── Page Header ── */
+
+.page-header-title-input {
+	font-size: 1.5rem;
+	font-weight: 600;
+	color: var(--col-on-container);
+	background: transparent;
+	border: none;
+	border-bottom: 2px solid var(--col-primary);
+	outline: none;
+	padding: 0.25rem 0;
+	flex: 1;
+	font-family: inherit;
+	line-height: 1.3;
+}
+
+/* ── Editor ── */
+
+.notillo-editor {
+	flex: 1;
+	position: relative;
+	padding: 1rem 0;
+	min-height: 0;
+	overflow: visible;
+}
+
+.notillo-editor .bn-container {
+	max-width: 900px;
+	margin: 0 auto;
+}
+
+/* Block lock indicators are injected dynamically via <style> in useLockIndicators.ts
+   to survive ProseMirror DOM reconstruction. */
+
+/* ── Error / Alert (reuse from Taskillo pattern) ── */
+
+.c-alert {
+	padding: 1rem;
+	border-radius: var(--radius-sm);
+	margin-bottom: 1rem;
+}
+
+.c-alert.error {
+	background: var(--col-container-error);
+	border: 1px solid var(--col-error);
+	color: var(--col-on-container-error);
+}
+
+.c-alert h3 {
+	margin: 0 0 0.5rem 0;
+}
+
+.c-alert p {
+	margin: 0;
+}
+
+/* vim: ts=4 */

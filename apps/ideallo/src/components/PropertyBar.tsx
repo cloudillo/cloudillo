@@ -21,7 +21,14 @@
 
 import * as React from 'react'
 import * as Y from 'yjs'
+import type Quill from 'quill'
 import { NumberInput } from '@cloudillo/react'
+import {
+	PiTextBBold as IcBold,
+	PiTextItalicBold as IcItalic,
+	PiListBulletsBold as IcListBullets,
+	PiListNumbersBold as IcListNumbers
+} from 'react-icons/pi'
 
 import type { ObjectId, YIdealloDocument, Bounds, Style, IdealloObject } from '../crdt/index.js'
 import { getObject, updateObject } from '../crdt/index.js'
@@ -50,6 +57,10 @@ export interface PropertyBarProps {
 			strokeWidth: number
 		}>
 	) => void
+	/** Quill instance ref for inline formatting (available when editing text) */
+	quillRef?: React.MutableRefObject<Quill | null>
+	/** Whether a text object is currently being edited */
+	isTextEditing?: boolean
 }
 
 // Minimum distance from viewport edges
@@ -68,11 +79,67 @@ export function PropertyBar({
 	screenBounds,
 	rotation = 0,
 	currentStyle,
-	onCurrentStyleChange
+	onCurrentStyleChange,
+	quillRef,
+	isTextEditing = false
 }: PropertyBarProps) {
 	// Popover state
 	const [openPopover, setOpenPopover] = React.useState<PopoverType>(null)
 	const popoverRef = React.useRef<HTMLDivElement>(null)
+
+	// Prevent mousedown on formatting buttons from stealing focus from Quill editor
+	const preventBlur = React.useCallback((e: React.MouseEvent) => {
+		e.preventDefault()
+	}, [])
+
+	// Inline formatting handlers
+	const handleInlineBold = React.useCallback(() => {
+		const quill = quillRef?.current
+		if (!quill) return
+		const format = quill.getFormat()
+		quill.format('bold', !format.bold)
+	}, [quillRef])
+
+	const handleInlineItalic = React.useCallback(() => {
+		const quill = quillRef?.current
+		if (!quill) return
+		const format = quill.getFormat()
+		quill.format('italic', !format.italic)
+	}, [quillRef])
+
+	const handleListBullet = React.useCallback(() => {
+		const quill = quillRef?.current
+		if (!quill) return
+		const format = quill.getFormat()
+		quill.format('list', format.list === 'bullet' ? false : 'bullet')
+	}, [quillRef])
+
+	const handleListOrdered = React.useCallback(() => {
+		const quill = quillRef?.current
+		if (!quill) return
+		const format = quill.getFormat()
+		quill.format('list', format.list === 'ordered' ? false : 'ordered')
+	}, [quillRef])
+
+	// Track Quill selection format for button active state
+	const [selectionFormat, setSelectionFormat] = React.useState<Record<string, unknown>>({})
+	React.useEffect(() => {
+		const quill = quillRef?.current
+		if (!quill || !isTextEditing) {
+			setSelectionFormat({})
+			return
+		}
+		const onSelectionChange = () => {
+			setSelectionFormat(quill.getFormat() || {})
+		}
+		quill.on('selection-change', onSelectionChange)
+		quill.on('text-change', onSelectionChange)
+		onSelectionChange()
+		return () => {
+			quill.off('selection-change', onSelectionChange)
+			quill.off('text-change', onSelectionChange)
+		}
+	}, [quillRef, isTextEditing])
 
 	// Close popover when selection changes
 	React.useEffect(() => {
@@ -282,6 +349,51 @@ export function PropertyBar({
 				transform: 'translateX(-50%)'
 			}}
 		>
+			{/* Text formatting buttons (visible when editing text) */}
+			{isTextEditing && quillRef && (
+				<>
+					<div className="ideallo-property-group">
+						<button
+							type="button"
+							className={`ideallo-format-btn${selectionFormat.bold ? ' active' : ''}`}
+							onMouseDown={preventBlur}
+							onClick={handleInlineBold}
+							title="Bold (Ctrl+B)"
+						>
+							<IcBold size={14} />
+						</button>
+						<button
+							type="button"
+							className={`ideallo-format-btn${selectionFormat.italic ? ' active' : ''}`}
+							onMouseDown={preventBlur}
+							onClick={handleInlineItalic}
+							title="Italic (Ctrl+I)"
+						>
+							<IcItalic size={14} />
+						</button>
+						<button
+							type="button"
+							className={`ideallo-format-btn${selectionFormat.list === 'bullet' ? ' active' : ''}`}
+							onMouseDown={preventBlur}
+							onClick={handleListBullet}
+							title="Bullet list"
+						>
+							<IcListBullets size={14} />
+						</button>
+						<button
+							type="button"
+							className={`ideallo-format-btn${selectionFormat.list === 'ordered' ? ' active' : ''}`}
+							onMouseDown={preventBlur}
+							onClick={handleListOrdered}
+							title="Numbered list"
+						>
+							<IcListNumbers size={14} />
+						</button>
+					</div>
+					<div className="ideallo-property-divider" />
+				</>
+			)}
+
 			{/* Stroke color */}
 			<div className="ideallo-property-group">
 				<label className="ideallo-property-label">Stroke</label>

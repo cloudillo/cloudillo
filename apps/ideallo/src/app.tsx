@@ -34,6 +34,7 @@ import {
 	useShapeHandler,
 	useTextHandler,
 	useStickyHandler,
+	useTextLabelHandler,
 	useSelectHandler,
 	useEraserHandler,
 	useImageHandler
@@ -54,6 +55,7 @@ import {
 	PropertyBar,
 	type CanvasHandle
 } from './components/index.js'
+import type Quill from 'quill'
 import type { ToolType } from './tools/index.js'
 import type { ObjectId, Bounds, IdealloObject } from './crdt/index.js'
 import { getObject, updateObject, deleteObjects, downloadExport } from './crdt/index.js'
@@ -288,6 +290,18 @@ export function IdealloApp() {
 		currentStyle: ideallo.currentStyle,
 		enabled: ideallo.activeTool === 'sticky'
 	})
+
+	// Text label handler for double-click editing
+	const textLabelHandler = useTextLabelHandler({
+		yDoc: ideallo.yDoc,
+		doc: ideallo.doc
+	})
+
+	// Quill ref for formatting from PropertyBar
+	const quillRef = React.useRef<Quill | null>(null)
+
+	// Shared ref for editor content height (used to persist auto-grown height on save)
+	const editContentHeightRef = React.useRef<number | null>(null)
 
 	// Select handler for select tool
 	const selectHandler = useSelectHandler({
@@ -822,6 +836,36 @@ export function IdealloApp() {
 	// Unified pointer handlers that route to the right tool
 	const handlePointerDown = React.useCallback(
 		(x: number, y: number, shiftKey: boolean = false) => {
+			// Close any active text/sticky editor when clicking on the canvas
+			if (stickyHandler.editingSticky) {
+				const editId = stickyHandler.editingSticky.id
+				const grownHeight = editContentHeightRef.current
+				stickyHandler.saveSticky(stickyHandler.editingSticky.text)
+				if (editId && grownHeight && ideallo.yDoc && ideallo.doc) {
+					const obj = getObject(ideallo.doc, editId)
+					if (obj && 'height' in obj && grownHeight > obj.height) {
+						updateObject(ideallo.yDoc, ideallo.doc, editId, {
+							height: grownHeight
+						} as any)
+					}
+				}
+				editContentHeightRef.current = null
+			}
+			if (textLabelHandler.editingText) {
+				const editId = textLabelHandler.editingText.id
+				const grownHeight = editContentHeightRef.current
+				textLabelHandler.saveText()
+				if (editId && grownHeight && ideallo.yDoc && ideallo.doc) {
+					const obj = getObject(ideallo.doc, editId)
+					if (obj && 'height' in obj && grownHeight > obj.height) {
+						updateObject(ideallo.yDoc, ideallo.doc, editId, {
+							height: grownHeight
+						} as any)
+					}
+				}
+				editContentHeightRef.current = null
+			}
+
 			if (ideallo.activeTool === 'select' && !isPivotDraggingRef.current) {
 				selectHandler.handlePointerDown(x, y, shiftKey)
 			} else if (ideallo.activeTool === 'pen') {
@@ -843,7 +887,8 @@ export function IdealloApp() {
 			eraserHandler,
 			shapeHandler,
 			textHandler,
-			stickyHandler
+			stickyHandler,
+			textLabelHandler
 		]
 	)
 
@@ -1125,14 +1170,54 @@ export function IdealloApp() {
 				// Sticky editing
 				editingSticky={stickyHandler.editingSticky}
 				onStickyTextChange={stickyHandler.handleTextChange}
-				onStickySave={stickyHandler.saveSticky}
+				onStickySave={(text: string) => {
+					const editId = stickyHandler.editingSticky?.id
+					const grownHeight = editContentHeightRef.current
+					stickyHandler.saveSticky(text)
+					if (editId && grownHeight && ideallo.yDoc && ideallo.doc) {
+						const obj = getObject(ideallo.doc, editId)
+						if (obj && 'height' in obj && grownHeight > obj.height) {
+							updateObject(ideallo.yDoc, ideallo.doc, editId, {
+								height: grownHeight
+							} as any)
+						}
+					}
+					editContentHeightRef.current = null
+				}}
 				onStickyCancel={stickyHandler.cancelSticky}
+				onEditHeightChange={(h) => {
+					editContentHeightRef.current = h
+				}}
 				onStickyDoubleClick={(objectId) => {
 					const obj = ideallo.doc && getObject(ideallo.doc, objectId)
 					if (obj && obj.type === 'sticky') {
 						stickyHandler.startEditing(obj)
 					}
 				}}
+				// Text label editing
+				editingText={textLabelHandler.editingText}
+				onTextLabelSave={() => {
+					const editId = textLabelHandler.editingText?.id
+					const grownHeight = editContentHeightRef.current
+					textLabelHandler.saveText()
+					if (editId && grownHeight && ideallo.yDoc && ideallo.doc) {
+						const obj = getObject(ideallo.doc, editId)
+						if (obj && 'height' in obj && grownHeight > obj.height) {
+							updateObject(ideallo.yDoc, ideallo.doc, editId, {
+								height: grownHeight
+							} as any)
+						}
+					}
+					editContentHeightRef.current = null
+				}}
+				onTextLabelCancel={textLabelHandler.cancelText}
+				onTextDoubleClick={(objectId) => {
+					const obj = ideallo.doc && getObject(ideallo.doc, objectId)
+					if (obj && obj.type === 'text') {
+						textLabelHandler.startEditing(obj)
+					}
+				}}
+				quillRef={quillRef}
 				onScaleChange={setScale}
 				onContextReady={handleContextReady}
 				// Pass hook handlers for resize/rotate
@@ -1199,6 +1284,8 @@ export function IdealloApp() {
 					onCurrentStyleChange={(updates) => {
 						ideallo.setCurrentStyle((prev) => ({ ...prev, ...updates }))
 					}}
+					quillRef={quillRef}
+					isTextEditing={!!stickyHandler.editingSticky || !!textLabelHandler.editingText}
 				/>
 			)}
 

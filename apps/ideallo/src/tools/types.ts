@@ -76,4 +76,16 @@ export interface StickyInputState {
 	text: string
 }
 
+/**
+ * Text label edit state (for double-click editing of existing text objects)
+ */
+export interface TextEditState {
+	id: ObjectId
+	x: number
+	y: number
+	width: number
+	height: number
+	text: string
+}
+
 // vim: ts=4

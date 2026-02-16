@@ -36,6 +36,9 @@ export { useTextHandler } from './useTextHandler.js'
 export type { UseStickyHandlerOptions } from './useStickyHandler.js'
 export { useStickyHandler } from './useStickyHandler.js'
 
+export type { UseTextLabelHandlerOptions } from './useTextLabelHandler.js'
+export { useTextLabelHandler } from './useTextLabelHandler.js'
+
 export type { UseSelectHandlerOptions, DragOffset } from './useSelectHandler.js'
 export { useSelectHandler } from './useSelectHandler.js'
 

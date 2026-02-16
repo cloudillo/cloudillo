@@ -15,49 +15,37 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Sticky note component with auto-scaling text (display-only)
- * Renders a colored note with text that automatically adjusts font size
+ * Sticky note component (display-only)
+ * Renders a colored note with fixed 18px text, auto-grows height during editing
  * Uses standard fill color from style for background
  *
  * For editing, use StickyEditOverlay instead.
  */
 
 import * as React from 'react'
-import { useEffect, useState, useMemo } from 'react'
+import { useMemo } from 'react'
+import * as Y from 'yjs'
 import type { StickyObject } from '../crdt/index.js'
-import {
-	calculateOptimalFontSize,
-	DEFAULT_PADDING,
-	DEFAULT_LINE_HEIGHT,
-	MIN_FONT_SIZE,
-	MAX_FONT_SIZE
-} from '../utils/text-scaling.js'
+import { DEFAULT_PADDING, DEFAULT_LINE_HEIGHT } from '../utils/text-scaling.js'
 import { colorToCss } from '../utils/palette.js'
+import { RichTextDisplay } from '@cloudillo/canvas-text'
+import type { BaseTextStyle } from '@cloudillo/canvas-text'
+
+const STICKY_FONT_SIZE = 18
 
 // Sticky note text uses theme variable for proper theming support
 const STICKY_TEXT_COLOR = 'var(--palette-n0, #1e1e1e)'
 
 export interface StickyNoteProps {
 	object: StickyObject
+	yText?: Y.Text
 }
 
-export function StickyNote({ object }: StickyNoteProps) {
+export function StickyNote({ object, yText }: StickyNoteProps) {
 	const { x, y, width, height, text, style } = object
-	const [fontSize, setFontSize] = useState(MAX_FONT_SIZE)
 
 	// Use standard fill color for background
 	const bgColor = colorToCss(style.fillColor)
-
-	// Calculate optimal font size when text or dimensions change
-	useEffect(() => {
-		const optimalSize = calculateOptimalFontSize(text, width, height, {
-			padding: DEFAULT_PADDING,
-			minFontSize: MIN_FONT_SIZE,
-			maxFontSize: MAX_FONT_SIZE,
-			lineHeight: DEFAULT_LINE_HEIGHT
-		})
-		setFontSize(optimalSize)
-	}, [text, width, height])
 
 	// Generate a subtle random rotation for organic feel (-0.5 to +0.5 degrees)
 	// Use object ID to ensure consistent rotation per note
@@ -67,6 +55,19 @@ export function StickyNote({ object }: StickyNoteProps) {
 		const hash = object.id.charCodeAt(0) + object.id.charCodeAt(1)
 		return ((hash % 3) - 1) * 0.5 // -0.5 to +0.5 degrees
 	}, [object.id])
+
+	const baseStyle: BaseTextStyle = {
+		fontFamily: 'system-ui, -apple-system, sans-serif',
+		fontSize: STICKY_FONT_SIZE,
+		fontWeight: 'normal',
+		fontItalic: false,
+		textDecoration: 'none',
+		fill: STICKY_TEXT_COLOR,
+		textAlign: 'left',
+		verticalAlign: 'top',
+		lineHeight: DEFAULT_LINE_HEIGHT,
+		letterSpacing: 0
+	}
 
 	return (
 		<g
@@ -96,29 +97,44 @@ export function StickyNote({ object }: StickyNoteProps) {
 				opacity={style.opacity}
 			/>
 
-			{/* Text content using foreignObject for HTML rendering */}
-			<foreignObject x={x} y={y} width={width} height={height}>
-				<div
-					style={{
-						width: '100%',
-						height: '100%',
-						padding: `${DEFAULT_PADDING}px`,
-						boxSizing: 'border-box',
-						fontSize: `${fontSize}px`,
-						lineHeight: DEFAULT_LINE_HEIGHT,
-						fontFamily: 'system-ui, -apple-system, sans-serif',
-						color: STICKY_TEXT_COLOR,
-						overflow: 'hidden',
-						wordWrap: 'break-word',
-						whiteSpace: 'pre-wrap',
-						userSelect: 'none'
+			{yText ? (
+				<RichTextDisplay
+					x={x}
+					y={y}
+					width={width}
+					height={height}
+					yText={yText}
+					baseStyle={baseStyle}
+					containerStyle={{
+						padding: DEFAULT_PADDING,
+						background: 'transparent'
 					}}
-					// @ts-expect-error - xmlns needed for foreignObject
-					xmlns="http://www.w3.org/1999/xhtml"
-				>
-					{text}
-				</div>
-			</foreignObject>
+				/>
+			) : (
+				/* Fallback: Text content using foreignObject for HTML rendering */
+				<foreignObject x={x} y={y} width={width} height={height}>
+					<div
+						style={{
+							width: '100%',
+							height: '100%',
+							padding: `${DEFAULT_PADDING}px`,
+							boxSizing: 'border-box',
+							fontSize: `${STICKY_FONT_SIZE}px`,
+							lineHeight: DEFAULT_LINE_HEIGHT,
+							fontFamily: 'system-ui, -apple-system, sans-serif',
+							color: STICKY_TEXT_COLOR,
+							overflow: 'hidden',
+							wordWrap: 'break-word',
+							whiteSpace: 'pre-wrap',
+							userSelect: 'none'
+						}}
+						// @ts-expect-error - xmlns needed for foreignObject
+						xmlns="http://www.w3.org/1999/xhtml"
+					>
+						{text}
+					</div>
+				</foreignObject>
+			)}
 		</g>
 	)
 }

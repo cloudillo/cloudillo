@@ -15,25 +15,38 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Renders text label objects using RichTextDisplay from canvas-text
+ * TextEditOverlay component - Rich text editor for text label objects
+ *
+ * Uses RichTextEditor from @cloudillo/canvas-text for collaborative editing.
+ * Similar to StickyEditOverlay but without container background/padding.
  */
 
 import * as React from 'react'
 import * as Y from 'yjs'
+import type Quill from 'quill'
 import type { TextObject } from '../crdt/index.js'
 import { colorToCss } from '../utils/palette.js'
-import { RichTextDisplay } from '@cloudillo/canvas-text'
+import { RichTextEditor } from '@cloudillo/canvas-text'
 import type { BaseTextStyle } from '@cloudillo/canvas-text'
 
-export interface TextLabelProps {
+export interface TextEditOverlayProps {
 	object: TextObject
 	yText?: Y.Text
+	onSave: () => void
+	onCancel: () => void
+	quillRef?: React.MutableRefObject<Quill | null>
+	onHeightChange?: (height: number) => void
 }
 
-export function TextLabel({ object, yText }: TextLabelProps) {
-	const { x, y, fontSize = 16, fontFamily, style, width, height } = object
-
-	// Text color comes from strokeColor for text objects
+export function TextEditOverlay({
+	object,
+	yText,
+	onSave,
+	onCancel,
+	quillRef,
+	onHeightChange
+}: TextEditOverlayProps) {
+	const { x, y, width, height, fontSize = 16, fontFamily, style } = object
 	const textColor = colorToCss(style.strokeColor)
 
 	const baseStyle: BaseTextStyle = {
@@ -51,30 +64,26 @@ export function TextLabel({ object, yText }: TextLabelProps) {
 
 	if (yText) {
 		return (
-			<RichTextDisplay
+			<RichTextEditor
 				x={x}
 				y={y}
 				width={width}
 				height={height}
 				yText={yText}
 				baseStyle={baseStyle}
+				onSave={onSave}
+				onCancel={onCancel}
+				quillRef={quillRef}
+				containerStyle={{
+					background: 'transparent',
+					borderRadius: 0
+				}}
+				onHeightChange={onHeightChange}
 			/>
 		)
 	}
 
-	// Fallback for objects without Y.Text (shouldn't happen normally)
-	return (
-		<text
-			x={x}
-			y={y + (fontSize ?? 16)}
-			fill={textColor}
-			fontSize={fontSize}
-			fontFamily={fontFamily || 'system-ui, sans-serif'}
-			opacity={style.opacity}
-		>
-			{object.text}
-		</text>
-	)
+	return null
 }
 
 // vim: ts=4

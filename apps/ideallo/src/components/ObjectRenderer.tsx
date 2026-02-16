@@ -20,7 +20,9 @@
  */
 
 import * as React from 'react'
-import type { IdealloObject } from '../crdt/index.js'
+import type Quill from 'quill'
+import type { IdealloObject, YIdealloDocument } from '../crdt/index.js'
+import { getObjectYText } from '../crdt/index.js'
 import { FreehandPath } from './FreehandPath.js'
 import {
 	RectRenderer,
@@ -30,6 +32,7 @@ import {
 	PolygonRenderer
 } from './ShapeRenderer.js'
 import { TextLabel } from './TextLabel.js'
+import { TextEditOverlay } from './TextEditOverlay.js'
 import { StickyNote } from './StickyNote.js'
 import { StickyEditOverlay } from './StickyEditOverlay.js'
 import { ImageRenderer } from './ImageRenderer.js'
@@ -38,11 +41,13 @@ import type { PolygonObject } from '../crdt/index.js'
 
 export interface ObjectRendererProps {
 	object: IdealloObject
+	/** Document for accessing Y.Text content */
+	doc?: YIdealloDocument
 	// Owner tag for image URLs
 	ownerTag?: string
 	// Current canvas scale/zoom for optimal image variant selection
 	scale?: number
-	// Sticky editing props (passed when this sticky is being edited)
+	// Sticky/text editing props (passed when this object is being edited)
 	isEditing?: boolean
 	onTextChange?: (text: string) => void
 	onSave?: (text: string) => void
@@ -50,6 +55,10 @@ export interface ObjectRendererProps {
 	onDragStart?: (e: React.PointerEvent) => void
 	// Double-click handler for entering edit mode
 	onDoubleClick?: () => void
+	// Quill ref for text formatting from PropertyBar
+	quillRef?: React.MutableRefObject<Quill | null>
+	// Callback when editor content height changes (for auto-grow)
+	onHeightChange?: (height: number) => void
 	// Eraser highlight (object is under eraser brush during drag)
 	isHighlighted?: boolean
 	// Hover effect (object is under cursor in select mode)
@@ -100,6 +109,7 @@ function renderObject(
 	object: IdealloObject,
 	props: Pick<
 		ObjectRendererProps,
+		| 'doc'
 		| 'ownerTag'
 		| 'scale'
 		| 'isEditing'
@@ -107,6 +117,8 @@ function renderObject(
 		| 'onSave'
 		| 'onCancel'
 		| 'onDragStart'
+		| 'quillRef'
+		| 'onHeightChange'
 		| 'isHovered'
 		| 'isEraserHovered'
 	>
@@ -124,22 +136,41 @@ function renderObject(
 			return <ArrowRenderer object={object} />
 		case 'polygon':
 			return <PolygonRenderer object={object} />
-		case 'text':
-			return <TextLabel object={object} />
-		case 'sticky':
+		case 'text': {
+			const yText = props.doc ? getObjectYText(props.doc, object.id as any) : undefined
+			if (props.isEditing && props.onCancel) {
+				return (
+					<TextEditOverlay
+						object={object}
+						yText={yText}
+						onSave={props.onCancel}
+						onCancel={props.onCancel}
+						quillRef={props.quillRef}
+						onHeightChange={props.onHeightChange}
+					/>
+				)
+			}
+			return <TextLabel object={object} yText={yText} />
+		}
+		case 'sticky': {
+			const yText = props.doc ? getObjectYText(props.doc, object.id as any) : undefined
 			// When editing, use the overlay instead of the display component
 			if (props.isEditing && props.onSave && props.onCancel) {
 				return (
 					<StickyEditOverlay
 						object={object}
+						yText={yText}
 						onSave={props.onSave}
 						onCancel={props.onCancel}
 						onTextChange={props.onTextChange}
 						onDragStart={props.onDragStart}
+						quillRef={props.quillRef}
+						onHeightChange={props.onHeightChange}
 					/>
 				)
 			}
-			return <StickyNote object={object} />
+			return <StickyNote object={object} yText={yText} />
+		}
 		case 'image':
 			return (
 				<ImageRenderer
@@ -157,6 +188,7 @@ function renderObject(
 
 export function ObjectRenderer({
 	object,
+	doc,
 	ownerTag,
 	scale,
 	isEditing,
@@ -165,11 +197,14 @@ export function ObjectRenderer({
 	onCancel,
 	onDragStart,
 	onDoubleClick,
+	quillRef,
+	onHeightChange,
 	isHighlighted = false,
 	isHovered = false,
 	isEraserHovered = false
 }: ObjectRendererProps) {
 	const content = renderObject(object, {
+		doc,
 		ownerTag,
 		scale,
 		isEditing,
@@ -177,6 +212,8 @@ export function ObjectRenderer({
 		onSave,
 		onCancel,
 		onDragStart,
+		quillRef,
+		onHeightChange,
 		isHovered,
 		isEraserHovered
 	})

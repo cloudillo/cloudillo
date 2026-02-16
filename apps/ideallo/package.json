@@ -14,6 +14,7 @@
 	"author": "Cloudillo <info@cloudillo.org>",
 	"license": "LGPL-3.0-or-later",
 	"devDependencies": {
+		"@cloudillo/canvas-text": "workspace:^",
 		"@cloudillo/canvas-tools": "workspace:^",
 		"@cloudillo/core": "workspace:^",
 		"@cloudillo/react": "workspace:^",
@@ -38,6 +39,8 @@
 		"y-indexeddb": "^9.0.12",
 		"y-protocols": "^1.0.7",
 		"y-websocket": "^3.0.0",
+		"quill": "^2.0.3",
+		"y-quill": "^0.1.5",
 		"yjs": "^13.6.29"
 	}
 }

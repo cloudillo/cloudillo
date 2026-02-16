@@ -350,6 +350,31 @@ body,
 	margin-left: -2px;
 }
 
+/* Text formatting buttons in property bar */
+.ideallo-format-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	border: none;
+	border-radius: 4px;
+	background: transparent;
+	color: #555;
+	cursor: pointer;
+	padding: 0;
+}
+
+.ideallo-format-btn:hover {
+	background: rgba(0, 0, 0, 0.08);
+	color: #333;
+}
+
+.ideallo-format-btn.active {
+	background: rgba(0, 0, 0, 0.12);
+	color: #1a1a1a;
+}
+
 /* ============================================
    Color Palette Variables
    ============================================ */
@@ -625,6 +650,71 @@ body,
 .dark .ideallo-color-popover .ideallo-color-palette {
 	border-color: rgba(255, 255, 255, 0.1);
 	background: var(--col-container, #2a2a2a);
+}
+
+/* ==========================================================================
+   Quill Editor List Styles
+   ========================================================================== */
+
+.ql-editor {
+	padding: 0;
+	line-height: inherit;
+	counter-reset: list-0 list-1 list-2 list-3 list-4 list-5 list-6 list-7 list-8 list-9;
+}
+
+.ql-editor p,
+.ql-editor ol,
+.ql-editor pre,
+.ql-editor blockquote {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.ql-editor li {
+	list-style-type: none;
+	position: relative;
+}
+
+.ql-editor li > .ql-ui:before {
+	display: inline-block;
+	margin-right: 0.3em;
+}
+
+/* Bullet lists */
+.ql-editor li[data-list='bullet'] > .ql-ui:before {
+	content: '\2022';
+}
+
+/* Ordered lists - CSS counters */
+.ql-editor li[data-list] {
+	counter-reset: list-1 list-2 list-3 list-4 list-5 list-6 list-7 list-8 list-9;
+}
+
+.ql-editor li[data-list='ordered'] {
+	counter-increment: list-0;
+}
+
+.ql-editor li[data-list='ordered'] > .ql-ui:before {
+	content: counter(list-0, decimal) '. ';
+}
+
+/* RichTextDisplay list styles */
+.rt-list-bullet,
+.rt-list-ordered {
+	position: relative;
+}
+
+.rt-list-bullet::before {
+	content: '\2022';
+	display: inline-block;
+	margin-right: 0.3em;
+}
+
+.rt-list-ordered::before {
+	content: attr(data-index) '. ';
+	display: inline-block;
+	margin-right: 0.3em;
 }
 
 /* vim: ts=4 */

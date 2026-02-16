@@ -23,6 +23,7 @@ export type {
 	ShapePreview,
 	TextInputState,
 	StickyInputState,
+	TextEditState,
 	ToolContext
 } from './types.js'
 

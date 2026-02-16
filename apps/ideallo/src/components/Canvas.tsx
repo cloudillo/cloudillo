@@ -43,9 +43,11 @@ import type {
 	ShapePreview as ShapePreviewType,
 	TextInputState,
 	StickyInputState,
+	TextEditState,
 	ToolType
 } from '../tools/index.js'
 
+import type Quill from 'quill'
 import {
 	RotationHandle,
 	PivotHandle,
@@ -188,6 +190,15 @@ export interface CanvasProps {
 	onStickyCancel?: () => void
 	onStickyDragStart?: (e: React.PointerEvent, objectId: ObjectId) => void
 	onStickyDoubleClick?: (objectId: ObjectId) => void
+	// Text label editing
+	editingText?: TextEditState | null
+	onTextLabelSave?: () => void
+	onTextLabelCancel?: () => void
+	onTextDoubleClick?: (objectId: ObjectId) => void
+	// Callback when editor content height changes (for auto-grow)
+	onEditHeightChange?: (height: number) => void
+	// Quill ref for text formatting
+	quillRef?: React.MutableRefObject<Quill | null>
 	onScaleChange?: (scale: number) => void
 	onContextReady?: (ctx: SvgCanvasContext) => void
 	// Resize/Rotate - hooks receive raw pointer events
@@ -259,6 +270,15 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 		onStickyCancel,
 		onStickyDragStart,
 		onStickyDoubleClick,
+		// Text label editing
+		editingText,
+		onTextLabelSave,
+		onTextLabelCancel,
+		onTextDoubleClick,
+		// Height change callback
+		onEditHeightChange,
+		// Quill ref
+		quillRef,
 		onScaleChange,
 		onContextReady,
 		onResizeStart,
@@ -556,55 +576,52 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 				fixed={fixedContent}
 			>
 				{/* Render committed objects */}
-				{objectsToRender.map((obj) => (
-					<ObjectRenderer
-						key={obj.id}
-						object={obj}
-						ownerTag={ownerTag}
-						scale={scale}
-						// Pass editing props for sticky notes
-						isEditing={obj.type === 'sticky' && editingSticky?.id === obj.id}
-						onTextChange={
-							obj.type === 'sticky' && editingSticky?.id === obj.id
-								? onStickyTextChange
-								: undefined
-						}
-						onSave={
-							obj.type === 'sticky' && editingSticky?.id === obj.id
-								? onStickySave
-								: undefined
-						}
-						onCancel={
-							obj.type === 'sticky' && editingSticky?.id === obj.id
-								? onStickyCancel
-								: undefined
-						}
-						onDragStart={
-							obj.type === 'sticky' &&
-							editingSticky?.id === obj.id &&
-							onStickyDragStart
-								? (e) => onStickyDragStart(e, obj.id)
-								: undefined
-						}
-						// Double-click to edit sticky notes
-						onDoubleClick={
-							obj.type === 'sticky' && onStickyDoubleClick
-								? () => onStickyDoubleClick(obj.id)
-								: undefined
-						}
-						// Eraser highlight (during active erasing)
-						isHighlighted={eraserHighlightedIds?.has(obj.id) ?? false}
-						// Eraser hover (preview before erasing)
-						isEraserHovered={activeTool === 'eraser' && hoveredId === obj.id}
-						// Hover effect (select tool only, not dragging/selected)
-						isHovered={
-							activeTool === 'select' &&
-							!dragOffset &&
-							hoveredId === obj.id &&
-							!selectedIds.has(obj.id)
-						}
-					/>
-				))}
+				{objectsToRender.map((obj) => {
+					const isStickyEditing = obj.type === 'sticky' && editingSticky?.id === obj.id
+					const isTextEditing = obj.type === 'text' && editingText?.id === obj.id
+					const isEditing = isStickyEditing || isTextEditing
+					return (
+						<ObjectRenderer
+							key={obj.id}
+							object={obj}
+							doc={doc}
+							ownerTag={ownerTag}
+							scale={scale}
+							isEditing={isEditing}
+							onTextChange={isStickyEditing ? onStickyTextChange : undefined}
+							onSave={isStickyEditing ? onStickySave : undefined}
+							onCancel={
+								isStickyEditing
+									? onStickyCancel
+									: isTextEditing
+										? onTextLabelCancel
+										: undefined
+							}
+							onDragStart={
+								isStickyEditing && onStickyDragStart
+									? (e) => onStickyDragStart(e, obj.id)
+									: undefined
+							}
+							onDoubleClick={
+								obj.type === 'sticky' && onStickyDoubleClick
+									? () => onStickyDoubleClick(obj.id)
+									: obj.type === 'text' && onTextDoubleClick
+										? () => onTextDoubleClick(obj.id)
+										: undefined
+							}
+							quillRef={isEditing ? quillRef : undefined}
+							onHeightChange={isEditing ? onEditHeightChange : undefined}
+							isHighlighted={eraserHighlightedIds?.has(obj.id) ?? false}
+							isEraserHovered={activeTool === 'eraser' && hoveredId === obj.id}
+							isHovered={
+								activeTool === 'select' &&
+								!dragOffset &&
+								hoveredId === obj.id &&
+								!selectedIds.has(obj.id)
+							}
+						/>
+					)
+				})}
 
 				{/* Render ghost strokes from remote users */}
 				<GhostStrokes remotePresence={remotePresence} />

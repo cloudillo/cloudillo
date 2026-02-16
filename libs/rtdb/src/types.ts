@@ -37,10 +37,32 @@ export interface SubscriptionOptions {
 	filter?: QueryFilter
 }
 
+export interface LockEventData {
+	userId: string
+	mode: 'soft' | 'hard'
+	connId: string
+}
+
+export interface UnlockEventData {
+	userId: string
+	connId: string
+}
+
 export interface ChangeEvent {
-	action: 'create' | 'update' | 'delete'
+	action: 'create' | 'update' | 'delete' | 'lock' | 'unlock' | 'ready'
 	path: string
 	data?: any
+}
+
+export interface SnapshotOptions {
+	onError?: (error: Error) => void
+	onLock?: (event: ChangeEvent) => void
+}
+
+export interface LockResult {
+	locked: boolean
+	holder?: string
+	mode?: 'soft' | 'hard'
 }
 
 export interface DocumentSnapshot<T = any> {
@@ -103,9 +125,16 @@ export const tQueryOptions = T.struct({
 })
 
 export const tChangeEvent = T.struct({
-	action: T.union(T.literal('create'), T.literal('update'), T.literal('delete')),
+	action: T.union(
+		T.literal('create'),
+		T.literal('update'),
+		T.literal('delete'),
+		T.literal('lock'),
+		T.literal('unlock'),
+		T.literal('ready')
+	),
 	path: T.string,
-	data: T.optional(T.unknown)
+	data: T.optional(T.nullable(T.unknown))
 })
 
 export const tServerMessage = T.taggedUnion('type')({
@@ -147,6 +176,17 @@ export const tServerMessage = T.taggedUnion('type')({
 				id: T.nullable(T.string)
 			})
 		)
+	}),
+	lockResult: T.struct({
+		type: T.literal('lockResult'),
+		id: T.number,
+		locked: T.boolean,
+		holder: T.optional(T.string),
+		mode: T.optional(T.union(T.literal('soft'), T.literal('hard')))
+	}),
+	unlockResult: T.struct({
+		type: T.literal('unlockResult'),
+		id: T.number
 	}),
 	error: T.struct({
 		type: T.literal('error'),
@@ -205,6 +245,17 @@ export interface TransactionOperation {
 export interface TransactionMessage extends ClientMessage {
 	type: 'transaction'
 	operations: TransactionOperation[]
+}
+
+export interface LockMessage extends ClientMessage {
+	type: 'lock'
+	path: string
+	mode: 'soft' | 'hard'
+}
+
+export interface UnlockMessage extends ClientMessage {
+	type: 'unlock'
+	path: string
 }
 
 export interface PingMessage extends ClientMessage {

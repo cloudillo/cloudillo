@@ -239,13 +239,14 @@ describe('Query', () => {
 
 			mockWs.subscribe = (jest.fn() as any).mockImplementation(
 				(path: any, filter: any, cb: any) => {
-					// Simulate server sending a change
+					// Simulate server sending initial docs then ready
 					setTimeout(() => {
 						cb({
 							action: 'create',
 							path: 'posts/doc1',
 							data: { title: 'Post 1' }
 						})
+						cb({ action: 'ready', path: 'posts' })
 					}, 0)
 					return unsubscribeFn
 				}
@@ -272,6 +273,115 @@ describe('Query', () => {
 				expect.anything(),
 				errorFn
 			)
+		})
+
+		it('should handle error callback in options object', () => {
+			const errorFn = jest.fn()
+			mockWs.subscribe = jest.fn()
+
+			query.onSnapshot(jest.fn(), { onError: errorFn })
+
+			expect(mockWs.subscribe).toHaveBeenCalledWith(
+				expect.anything(),
+				expect.anything(),
+				expect.anything(),
+				errorFn
+			)
+		})
+
+		it('should forward lock/unlock events to onLock callback', async () => {
+			const snapshotCb = jest.fn()
+			const onLock = jest.fn()
+
+			mockWs.subscribe = (jest.fn() as any).mockImplementation(
+				(path: any, filter: any, cb: any) => {
+					setTimeout(() => {
+						// Initial load
+						cb({ action: 'create', path: 'posts/doc1', data: { title: 'Post 1' } })
+						cb({ action: 'ready', path: 'posts' })
+						// Lock event
+						cb({
+							action: 'lock',
+							path: 'posts/doc1',
+							data: { userId: 'u1', mode: 'soft' }
+						})
+						// Unlock event
+						cb({ action: 'unlock', path: 'posts/doc1', data: {} })
+					}, 0)
+					return jest.fn()
+				}
+			)
+
+			query.onSnapshot(snapshotCb, { onLock })
+
+			await jest.advanceTimersByTimeAsync(10)
+
+			// Snapshot callback should fire once (for ready)
+			expect(snapshotCb).toHaveBeenCalledTimes(1)
+			// onLock should receive both lock and unlock events
+			expect(onLock).toHaveBeenCalledTimes(2)
+			expect(onLock).toHaveBeenCalledWith(
+				expect.objectContaining({ action: 'lock', path: 'posts/doc1' })
+			)
+			expect(onLock).toHaveBeenCalledWith(
+				expect.objectContaining({ action: 'unlock', path: 'posts/doc1' })
+			)
+		})
+
+		it('should forward lock events before ready state', async () => {
+			const snapshotCb = jest.fn()
+			const onLock = jest.fn()
+
+			mockWs.subscribe = (jest.fn() as any).mockImplementation(
+				(path: any, filter: any, cb: any) => {
+					setTimeout(() => {
+						// Lock event BEFORE ready
+						cb({
+							action: 'lock',
+							path: 'posts/doc1',
+							data: { userId: 'u1', mode: 'hard' }
+						})
+						// Then ready
+						cb({ action: 'create', path: 'posts/doc1', data: { title: 'Post 1' } })
+						cb({ action: 'ready', path: 'posts' })
+					}, 0)
+					return jest.fn()
+				}
+			)
+
+			query.onSnapshot(snapshotCb, { onLock })
+
+			await jest.advanceTimersByTimeAsync(10)
+
+			// onLock should fire even before ready
+			expect(onLock).toHaveBeenCalledTimes(1)
+			expect(onLock).toHaveBeenCalledWith(expect.objectContaining({ action: 'lock' }))
+		})
+
+		it('should silently drop lock events when no onLock is provided', async () => {
+			const snapshotCb = jest.fn()
+
+			mockWs.subscribe = (jest.fn() as any).mockImplementation(
+				(path: any, filter: any, cb: any) => {
+					setTimeout(() => {
+						cb({ action: 'create', path: 'posts/doc1', data: { title: 'Post 1' } })
+						cb({ action: 'ready', path: 'posts' })
+						cb({
+							action: 'lock',
+							path: 'posts/doc1',
+							data: { userId: 'u1', mode: 'soft' }
+						})
+					}, 0)
+					return jest.fn()
+				}
+			)
+
+			query.onSnapshot(snapshotCb)
+
+			await jest.advanceTimersByTimeAsync(10)
+
+			// Only the ready snapshot fires, lock is silently dropped
+			expect(snapshotCb).toHaveBeenCalledTimes(1)
 		})
 	})
 })

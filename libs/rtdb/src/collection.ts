@@ -17,7 +17,7 @@
 import { WebSocketManager } from './websocket.js'
 import { DocumentReference } from './document.js'
 import { Query } from './query.js'
-import { QuerySnapshot, TransactionMessage } from './types.js'
+import { QuerySnapshot, SnapshotOptions, TransactionMessage } from './types.js'
 import { normalizePath } from './utils.js'
 
 export class CollectionReference<T = any> {
@@ -77,9 +77,9 @@ export class CollectionReference<T = any> {
 
 	onSnapshot(
 		callback: (snapshot: QuerySnapshot<T>) => void,
-		onError?: (error: Error) => void
+		optionsOrOnError?: ((error: Error) => void) | SnapshotOptions
 	): () => void {
-		return this.query().onSnapshot(callback, onError)
+		return this.query().onSnapshot(callback, optionsOrOnError)
 	}
 }
 

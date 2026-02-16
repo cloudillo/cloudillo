@@ -16,7 +16,15 @@
 
 import { WebSocketManager } from './websocket.js'
 import { CollectionReference } from './collection.js'
-import { DocumentSnapshot, ChangeEvent, GetMessage, TransactionMessage } from './types.js'
+import {
+	DocumentSnapshot,
+	ChangeEvent,
+	GetMessage,
+	TransactionMessage,
+	LockMessage,
+	UnlockMessage,
+	LockResult
+} from './types.js'
 import { DocumentSnapshotImpl, createDocumentFromEvent, normalizePath } from './utils.js'
 
 export class DocumentReference<T = any> {
@@ -94,17 +102,50 @@ export class DocumentReference<T = any> {
 		await this.ws.send(message)
 	}
 
+	async lock(mode: 'soft' | 'hard' = 'soft'): Promise<LockResult> {
+		const message: LockMessage = {
+			type: 'lock',
+			path: normalizePath(this.path),
+			mode
+		}
+		return this.ws.send<LockResult>(message)
+	}
+
+	async unlock(): Promise<void> {
+		const message: UnlockMessage = {
+			type: 'unlock',
+			path: normalizePath(this.path)
+		}
+		await this.ws.send(message)
+	}
+
 	onSnapshot(
 		callback: (snapshot: DocumentSnapshot<T>) => void,
 		onError?: (error: Error) => void
 	): () => void {
 		let lastSnapshot: DocumentSnapshot<T> | null = null
+		let bufferedSnapshot: DocumentSnapshot<T> | null = null
+		let ready = false
 
 		const unsubscribe = this.ws.subscribe(
 			normalizePath(this.path),
 			undefined,
 			(event: ChangeEvent) => {
+				if (event.action === 'ready') {
+					ready = true
+					// Fire buffered or empty snapshot
+					const snapshot = bufferedSnapshot || new DocumentSnapshotImpl<T>(this.id, false)
+					lastSnapshot = snapshot
+					callback(snapshot)
+					return
+				}
+
 				const snapshot = createDocumentFromEvent(event) as DocumentSnapshot<T>
+
+				if (!ready) {
+					bufferedSnapshot = snapshot
+					return
+				}
 
 				// Only call callback if data actually changed
 				if (

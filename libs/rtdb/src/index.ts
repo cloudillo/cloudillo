@@ -29,7 +29,11 @@ export type {
 	DocumentSnapshot,
 	QuerySnapshot,
 	DocumentChange,
-	ChangeEvent
+	ChangeEvent,
+	LockEventData,
+	UnlockEventData,
+	SnapshotOptions,
+	LockResult
 } from './types.js'
 
 // Errors

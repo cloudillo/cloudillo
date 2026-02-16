@@ -214,6 +214,7 @@ describe('DocumentReference', () => {
 							path: 'posts/123',
 							data: { title: 'Updated' }
 						})
+						cb({ action: 'ready', path: 'posts/123' })
 					}, 0)
 					return unsubscribeFn
 				}
@@ -238,6 +239,7 @@ describe('DocumentReference', () => {
 							action: 'delete',
 							path: 'posts/123'
 						})
+						cb({ action: 'ready', path: 'posts/123' })
 					}, 0)
 					return unsubscribeFn
 				}

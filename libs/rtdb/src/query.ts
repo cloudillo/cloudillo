@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { WebSocketManager } from './websocket.js'
-import { QueryFilter, QuerySnapshot, ChangeEvent, QueryMessage } from './types.js'
+import { QueryFilter, QuerySnapshot, ChangeEvent, SnapshotOptions, QueryMessage } from './types.js'
 import { QuerySnapshotImpl, createDocumentFromEvent, normalizePath } from './utils.js'
 
 export class Query<T = any> {
@@ -95,34 +95,27 @@ export class Query<T = any> {
 
 	onSnapshot(
 		callback: (snapshot: QuerySnapshot<T>) => void,
-		onError?: (error: Error) => void
+		optionsOrOnError?: ((error: Error) => void) | SnapshotOptions
 	): () => void {
-		// Track documents by ID for detecting changes
+		const onError =
+			typeof optionsOrOnError === 'function' ? optionsOrOnError : optionsOrOnError?.onError
+		const onLock = typeof optionsOrOnError === 'object' ? optionsOrOnError?.onLock : undefined
+
 		const documentMap = new Map<string, any>()
-		let initialSnapshot = true
+		let ready = false
 
 		const unsubscribe = this.ws.subscribe(
 			normalizePath(this.path),
 			this.filters,
 			(event: ChangeEvent) => {
-				const id = event.path.split('/').pop() || ''
-
-				if (event.action === 'create' || event.action === 'update') {
-					documentMap.set(id, event.data)
-				} else if (event.action === 'delete') {
-					documentMap.delete(id)
-				}
-
-				// Create snapshot from current documents
-				const documents = Array.from(documentMap.entries()).map(([id, data]) => ({
-					id,
-					data
-				}))
-
-				const snapshot = new QuerySnapshotImpl<T>(documents)
-
-				// For initial snapshot, return all documents as added
-				if (initialSnapshot) {
+				if (event.action === 'ready') {
+					// Initial load complete — fire first callback
+					ready = true
+					const documents = Array.from(documentMap.entries()).map(([id, data]) => ({
+						id,
+						data
+					}))
+					const snapshot = new QuerySnapshotImpl<T>(documents)
 					const changes = documents.map((doc, index) => ({
 						type: 'added' as const,
 						doc: createDocumentFromEvent({
@@ -134,13 +127,36 @@ export class Query<T = any> {
 						newIndex: index
 					}))
 					snapshot.setChanges(changes)
-					initialSnapshot = false
-				} else {
-					// For updates, determine change type
-					const doc = createDocumentFromEvent(event)
-					const index = documents.findIndex((d) => d.id === doc.id)
+					callback(snapshot)
+					return
+				}
 
-					const change: any = {
+				// Forward lock/unlock events to onLock callback (regardless of ready state)
+				if (event.action === 'lock' || event.action === 'unlock') {
+					onLock?.(event)
+					return
+				}
+
+				if (event.action === 'create' || event.action === 'update') {
+					const id = event.path.split('/').pop() || ''
+					documentMap.set(id, event.data)
+				} else if (event.action === 'delete') {
+					const id = event.path.split('/').pop() || ''
+					documentMap.delete(id)
+				}
+
+				if (!ready) return // Still buffering initial docs
+
+				// Live update — fire incremental callback
+				const documents = Array.from(documentMap.entries()).map(([id, data]) => ({
+					id,
+					data
+				}))
+				const snapshot = new QuerySnapshotImpl<T>(documents)
+				const doc = createDocumentFromEvent(event)
+				const index = documents.findIndex((d) => d.id === doc.id)
+				snapshot.setChanges([
+					{
 						type:
 							event.action === 'create'
 								? 'added'
@@ -151,10 +167,7 @@ export class Query<T = any> {
 						oldIndex: event.action === 'delete' ? index : -1,
 						newIndex: event.action === 'delete' ? -1 : index
 					}
-
-					snapshot.setChanges([change])
-				}
-
+				])
 				callback(snapshot)
 			},
 			onError || ((error: Error) => console.error('Subscription error:', error))

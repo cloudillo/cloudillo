@@ -14,7 +14,39 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import type { StoredBlockRecord, BlockRecord, StoredPageRecord, PageRecord } from './types.js'
+import type {
+	StoredBlockRecord,
+	BlockRecord,
+	StoredPageRecord,
+	PageRecord,
+	InlineContent
+} from './types.js'
+
+// ── Sanitization helpers ──
+
+export function cleanProps(
+	props: Record<string, any> | undefined
+): Record<string, any> | undefined {
+	if (!props) return undefined
+	const cleaned: Record<string, any> = {}
+	for (const [key, value] of Object.entries(props)) {
+		if (value === 'default') continue
+		if (key === 'textAlignment' && value === 'left') continue
+		cleaned[key] = value
+	}
+	return Object.keys(cleaned).length > 0 ? cleaned : undefined
+}
+
+export function cleanContent(content: InlineContent[] | undefined): InlineContent[] | undefined {
+	if (!content || content.length === 0) return undefined
+	return content.map((item) => {
+		if (item.type === 'text' && item.styles && Object.keys(item.styles).length === 0) {
+			const { styles, ...rest } = item
+			return rest as InlineContent
+		}
+		return item
+	})
+}
 
 // ── Block transformers ──
 
@@ -32,12 +64,14 @@ export function fromStoredBlock(stored: StoredBlockRecord): BlockRecord {
 }
 
 export function toStoredBlock(block: BlockRecord): StoredBlockRecord {
+	const pr = cleanProps(block.props)
+	const c = cleanContent(block.content)
 	return {
 		p: block.pageId,
 		t: block.type,
-		...(block.props !== undefined && { pr: block.props }),
-		...(block.content !== undefined && { c: block.content }),
-		...(block.parentBlockId !== undefined && { pb: block.parentBlockId }),
+		...(pr !== undefined && { pr }),
+		...(c !== undefined && { c }),
+		...(block.parentBlockId != null && { pb: block.parentBlockId }),
 		o: block.order,
 		ua: block.updatedAt,
 		ub: block.updatedBy
@@ -52,10 +86,13 @@ export function fromStoredPage(stored: StoredPageRecord): PageRecord {
 		...(stored.ic !== undefined && { icon: stored.ic }),
 		...(stored.ci !== undefined && { coverImage: stored.ci }),
 		...(stored.pp !== undefined && { parentPageId: stored.pp }),
+		...(stored.hc !== undefined && { hasChildren: stored.hc }),
+		...(stored.ae !== undefined && { autoExpand: stored.ae }),
 		order: stored.o,
 		createdAt: stored.ca,
 		updatedAt: stored.ua,
-		createdBy: stored.cb
+		createdBy: stored.cb,
+		...(stored.tg !== undefined && { tags: stored.tg })
 	}
 }
 
@@ -65,10 +102,13 @@ export function toStoredPage(page: PageRecord): StoredPageRecord {
 		...(page.icon !== undefined && { ic: page.icon }),
 		...(page.coverImage !== undefined && { ci: page.coverImage }),
 		...(page.parentPageId !== undefined && { pp: page.parentPageId }),
+		...(page.hasChildren !== undefined && { hc: page.hasChildren }),
+		...(page.autoExpand !== undefined && { ae: page.autoExpand }),
 		o: page.order,
 		ca: page.createdAt,
 		ua: page.updatedAt,
-		cb: page.createdBy
+		cb: page.createdBy,
+		...(page.tags !== undefined && { tg: page.tags })
 	}
 }
 

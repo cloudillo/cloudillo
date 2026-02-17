@@ -16,6 +16,7 @@
 
 import type { BlockNoteEditor, Block } from '@blocknote/core'
 import type { BlockRecord } from './types.js'
+import { cleanProps, cleanContent } from './transform.js'
 
 export function getParentBlockId(editor: BlockNoteEditor, blockId: string): string | undefined {
 	const block = editor.getBlock(blockId)
@@ -42,15 +43,14 @@ export function blockToRecord(
 	userId: string,
 	now: string
 ): BlockRecord {
-	const parentBlockId = undefined // Set by caller based on editor context
+	const props = cleanProps(block.props)
+	const content = cleanContent(block.content as any)
 	return {
 		pageId,
 		type: block.type,
-		...(block.props && Object.keys(block.props).length > 0 && { props: block.props }),
-		...(block.content &&
-			Array.isArray(block.content) &&
-			block.content.length > 0 && { content: block.content as any }),
-		...(parentBlockId !== undefined && { parentBlockId }),
+		...(props !== undefined && { props }),
+		...(content !== undefined && { content }),
+		// parentBlockId set by caller based on editor context
 		order: 0, // Set by caller
 		updatedAt: now,
 		updatedBy: userId

@@ -54,11 +54,14 @@ export interface StoredPageRecord {
 	ti: string // title
 	ic?: string // icon
 	ci?: string // coverImage
-	pp?: string // parentPageId
+	pp?: string // parentPageId ('__root__' = root, pageId = child, absent = orphan)
+	hc?: boolean // hasChildren (true = has child pages)
+	ae?: boolean // autoExpand on load
 	o: number // order
 	ca: string // createdAt
 	ua: string // updatedAt
 	cb: string // createdBy
+	tg?: string[] // tags (sorted, deduplicated)
 }
 
 export interface StoredBlockRecord {
@@ -78,11 +81,14 @@ export interface PageRecord {
 	title: string
 	icon?: string
 	coverImage?: string
-	parentPageId?: string
+	parentPageId?: string // '__root__' = root, pageId = child, absent = orphan
+	hasChildren?: boolean
+	autoExpand?: boolean
 	order: number
 	createdAt: string
 	updatedAt: string
 	createdBy: string
+	tags?: string[]
 }
 
 export interface BlockRecord {

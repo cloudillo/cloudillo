@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import type { RtdbClient } from '@cloudillo/rtdb'
-import type { PageRecord } from './types.js'
+import type { StoredPageRecord, PageRecord } from './types.js'
 import { toStoredPage } from './transform.js'
 import { shortId } from './ids.js'
 
@@ -41,6 +41,11 @@ export async function createPage(
 				createdBy: userId
 			})
 		)
+
+	// Mark parent as having children
+	if (parentPageId && parentPageId !== '__root__') {
+		await client.ref(`p/${parentPageId}`).update({ hc: true })
+	}
 
 	return id
 }
@@ -83,6 +88,9 @@ export async function movePage(
 	const target = pages.get(targetId)
 	if (!target) return
 
+	// Remember old parent before the move
+	const oldParentPageId = pages.get(pageId)?.parentPageId
+
 	let newParentPageId: string | undefined
 	let newOrder: number
 
@@ -103,12 +111,7 @@ export async function movePage(
 
 		// Get siblings sorted by order
 		const siblings = Array.from(pages.values())
-			.filter((p) => {
-				const sameParent = newParentPageId
-					? p.parentPageId === newParentPageId
-					: !p.parentPageId
-				return sameParent && p.id !== pageId
-			})
+			.filter((p) => p.parentPageId === newParentPageId && p.id !== pageId)
 			.sort((a, b) => a.order - b.order)
 
 		const targetIdx = siblings.findIndex((p) => p.id === targetId)
@@ -148,9 +151,30 @@ export async function movePage(
 	}
 
 	await client.ref(`p/${pageId}`).update(stored)
+
+	// Update hc flag on new parent
+	if (newParentPageId && newParentPageId !== '__root__') {
+		await client.ref(`p/${newParentPageId}`).update({ hc: true })
+	}
+
+	// Check if old parent still has children
+	if (oldParentPageId && oldParentPageId !== '__root__' && oldParentPageId !== newParentPageId) {
+		const remaining = await client
+			.collection('p')
+			.where('pp', '==', oldParentPageId)
+			.limit(1)
+			.get()
+		if (remaining.empty) {
+			await client.ref(`p/${oldParentPageId}`).update({ hc: null })
+		}
+	}
 }
 
 export async function deletePage(client: RtdbClient, pageId: string): Promise<void> {
+	// Read parent before deleting
+	const pageSnap = await client.ref(`p/${pageId}`).get()
+	const parentPageId = pageSnap.exists ? (pageSnap.data() as StoredPageRecord).pp : undefined
+
 	const batch = client.batch()
 
 	// Delete all blocks for this page
@@ -161,6 +185,44 @@ export async function deletePage(client: RtdbClient, pageId: string): Promise<vo
 	batch.delete(client.ref(`p/${pageId}`))
 
 	await batch.commit()
+
+	// Check if parent still has children
+	if (parentPageId && parentPageId !== '__root__') {
+		const remaining = await client
+			.collection('p')
+			.where('pp', '==', parentPageId)
+			.limit(1)
+			.get()
+		if (remaining.empty) {
+			await client.ref(`p/${parentPageId}`).update({ hc: null })
+		}
+	}
+}
+
+export async function toggleAutoExpand(
+	client: RtdbClient,
+	pageId: string,
+	autoExpand: boolean
+): Promise<void> {
+	await client.ref(`p/${pageId}`).update({
+		ae: autoExpand || null,
+		ua: new Date().toISOString()
+	})
+}
+
+export async function pinToSidebar(client: RtdbClient, pageId: string): Promise<void> {
+	await client.ref(`p/${pageId}`).update({
+		pp: '__root__',
+		o: Date.now(),
+		ua: new Date().toISOString()
+	})
+}
+
+export async function removeFromSidebar(client: RtdbClient, pageId: string): Promise<void> {
+	await client.ref(`p/${pageId}`).update({
+		pp: null,
+		ua: new Date().toISOString()
+	})
 }
 
 // vim: ts=4

@@ -19,7 +19,7 @@ import { useEffect, useRef } from 'react'
 import type { Block, BlockNoteEditor } from '@blocknote/core'
 import type { RtdbClient, QuerySnapshot, ChangeEvent } from '@cloudillo/rtdb'
 import type { StoredBlockRecord } from '../rtdb/types.js'
-import { toStoredBlock, fromStoredBlock } from '../rtdb/transform.js'
+import { toStoredBlock, fromStoredBlock, cleanProps, cleanContent } from '../rtdb/transform.js'
 import { getBlockOrder } from '../rtdb/block-ops.js'
 
 const DEBOUNCE_MS = 300
@@ -57,8 +57,8 @@ function getBlockState(
 	if (!block) return null
 	return {
 		type: block.type,
-		props: block.props ?? {},
-		content: (block.content as any[]) ?? [],
+		props: cleanProps(block.props) ?? {},
+		content: cleanContent(block.content as any[]) ?? [],
 		parentBlockId: editor.getParentBlock(block)?.id ?? null,
 		order: storedOrder ?? getBlockOrder(editor, blockId)
 	}
@@ -84,11 +84,11 @@ function buildPartialUpdate(
 		hasDiscreteChange = true
 	}
 	if (JSON.stringify(curr.props) !== JSON.stringify(prev.props)) {
-		patch.pr = curr.props
+		patch.pr = cleanProps(curr.props)
 		hasDiscreteChange = true
 	}
 	if (JSON.stringify(curr.content) !== JSON.stringify(prev.content)) {
-		patch.c = curr.content
+		patch.c = cleanContent(curr.content)
 	}
 	if (curr.parentBlockId !== prev.parentBlockId) {
 		patch.pb = curr.parentBlockId
@@ -121,10 +121,8 @@ function buildFullStoredBlock(
 	return toStoredBlock({
 		pageId,
 		type: block.type,
-		...(block.props && Object.keys(block.props).length > 0 && { props: block.props }),
-		...(block.content &&
-			Array.isArray(block.content) &&
-			block.content.length > 0 && { content: block.content as any }),
+		props: block.props,
+		content: block.content as any,
 		parentBlockId,
 		order,
 		updatedAt: now,

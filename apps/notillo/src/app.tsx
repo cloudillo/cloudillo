@@ -25,9 +25,10 @@ import '@symbion/opalui/themes/glass.css'
 import './style.css'
 
 import { useNotillo } from './hooks/useNotillo.js'
-import { usePageTree } from './hooks/usePageTree.js'
+import { useLazyPageTree } from './hooks/useLazyPageTree.js'
 import { usePageBlocks } from './hooks/usePageBlocks.js'
 import { useTags } from './hooks/useTags.js'
+import { useAllPages } from './hooks/useAllPages.js'
 import { NotilloEditor } from './editor/NotilloEditor.js'
 import { PageSidebar } from './pages/PageSidebar.js'
 import { PageHeader } from './pages/PageHeader.js'
@@ -35,19 +36,41 @@ import { PageHeader } from './pages/PageHeader.js'
 export function NotilloApp() {
 	const notillo = useNotillo()
 	const isReadOnly = notillo.access === 'read'
-	const pages = usePageTree(notillo.client)
-	const { tags, tagPages } = useTags(notillo.client)
+	const {
+		pages,
+		pagesWithChildren,
+		expanded,
+		loadingChildren,
+		rootsLoaded,
+		orphanPage,
+		expand,
+		collapse,
+		toggleExpand,
+		navigateToPage
+	} = useLazyPageTree(notillo.client)
+	const { tags, tagCounts } = useTags(notillo.client)
+	const { allPages } = useAllPages(notillo.client)
 	const [activePageId, setActivePageId] = React.useState<string | undefined>()
 	const [showFilter, setShowFilter] = React.useState(false)
 	const [activeTag, setActiveTag] = React.useState<string | null>(null)
+	const [searchQuery, setSearchQuery] = React.useState('')
 
-	// Auto-select first page when pages load and none is selected
+	// Create indexes for queries
 	React.useEffect(() => {
-		if (!activePageId && pages.size > 0) {
-			// Find the first root page by order
+		if (!notillo.client) return
+		notillo.client.createIndex('p', 'pp').catch(console.error)
+		notillo.client.createIndex('p', 'tg').catch(console.error)
+	}, [notillo.client])
+
+	// Auto-select first root page when roots load and none is selected
+	React.useEffect(() => {
+		if (!activePageId && rootsLoaded && pages.size > 0) {
 			let firstPage: { id: string; order: number } | undefined
 			for (const page of pages.values()) {
-				if (!page.parentPageId && (!firstPage || page.order < firstPage.order)) {
+				if (
+					page.parentPageId === '__root__' &&
+					(!firstPage || page.order < firstPage.order)
+				) {
 					firstPage = { id: page.id, order: page.order }
 				}
 			}
@@ -55,17 +78,43 @@ export function NotilloApp() {
 				setActivePageId(firstPage.id)
 			}
 		}
-	}, [pages, activePageId])
+	}, [pages, activePageId, rootsLoaded])
 
-	const handleSelectPage = React.useCallback((pageId: string) => {
-		setActivePageId(pageId)
-		setShowFilter(false)
-	}, [])
+	const handleSelectPage = React.useCallback(
+		async (pageId: string) => {
+			setActivePageId(pageId)
+			setShowFilter(false)
+			await navigateToPage(pageId)
+		},
+		[navigateToPage]
+	)
 
 	const handleTagClick = React.useCallback((tag: string) => {
 		setActiveTag(tag)
 		setShowFilter(true)
 	}, [])
+
+	const isFiltering = !!searchQuery || !!activeTag
+
+	const filteredResults = React.useMemo(() => {
+		if (!searchQuery && !activeTag) return []
+		const query = searchQuery.toLowerCase()
+		const results: Array<{ id: string; title: string; icon?: string; tags?: string[] }> = []
+		for (const page of allPages.values()) {
+			if (activeTag && !page.tags?.includes(activeTag)) continue
+			if (query && !page.title.toLowerCase().includes(query)) continue
+			results.push({ id: page.id, title: page.title, icon: page.icon, tags: page.tags })
+		}
+		return results.sort((a, b) => {
+			if (query) {
+				const aPrefix = a.title.toLowerCase().startsWith(query)
+				const bPrefix = b.title.toLowerCase().startsWith(query)
+				if (aPrefix && !bPrefix) return -1
+				if (!aPrefix && bPrefix) return 1
+			}
+			return a.title.localeCompare(b.title)
+		})
+	}, [searchQuery, activeTag, allPages])
 
 	const activePage = activePageId ? pages.get(activePageId) : undefined
 	const {
@@ -109,15 +158,26 @@ export function NotilloApp() {
 					<PageSidebar
 						client={notillo.client}
 						pages={pages}
+						pagesWithChildren={pagesWithChildren}
+						expanded={expanded}
+						loadingChildren={loadingChildren}
+						orphanPage={orphanPage}
+						onExpand={expand}
+						onCollapse={collapse}
+						onToggleExpand={toggleExpand}
 						activePageId={activePageId}
 						onSelectPage={handleSelectPage}
 						userId={notillo.idTag}
 						readOnly={isReadOnly}
 						tags={tags}
-						tagPages={tagPages}
+						tagCounts={tagCounts}
 						activeTag={activeTag}
 						onSelectTag={handleTagClick}
 						onClearTag={() => setActiveTag(null)}
+						searchQuery={searchQuery}
+						onSearchChange={setSearchQuery}
+						filteredResults={filteredResults}
+						isFiltering={isFiltering}
 					/>
 				</Panel>
 			</Fcd.Filter>
@@ -170,6 +230,7 @@ export function NotilloApp() {
 							onSelectPage={handleSelectPage}
 							onTagClick={handleTagClick}
 							tags={tags}
+							pageTags={activePage.tags}
 						/>
 					)
 				) : (

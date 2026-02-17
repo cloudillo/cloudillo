@@ -36,6 +36,7 @@ import { useDocumentSync, useRtdbToEditor } from '../hooks/useEditorSync.js'
 import { useEditorLocks } from '../hooks/useEditorLocks.js'
 import { useBlockLocks } from '../hooks/useBlockLocks.js'
 import { useLockIndicators } from '../hooks/useLockIndicators.js'
+import { usePageTagSync } from '../hooks/usePageTagSync.js'
 
 interface NotilloEditorProps {
 	client: RtdbClient
@@ -50,6 +51,7 @@ interface NotilloEditorProps {
 	onSelectPage: (pageId: string) => void
 	onTagClick?: (tag: string) => void
 	tags: Set<string>
+	pageTags?: string[]
 }
 
 export const NotilloEditor = React.memo(
@@ -65,7 +67,8 @@ export const NotilloEditor = React.memo(
 		pages,
 		onSelectPage,
 		onTagClick,
-		tags
+		tags,
+		pageTags
 	}: NotilloEditorProps) {
 		const editor = useCreateBlockNote({
 			schema: notilloSchema,
@@ -88,6 +91,9 @@ export const NotilloEditor = React.memo(
 		const { locks, handleLockEvent } = useBlockLocks(pageId)
 		const localLockedBlockRef = useEditorLocks(editor as any, client, userId)
 		useLockIndicators(editor as any, locks)
+
+		// Editor → page tag sync (debounced, self-healing)
+		usePageTagSync(editor as any, client, pageId, pageTags, readOnly)
 
 		// RTDB changes → Editor (lock events forwarded to handleLockEvent)
 		useRtdbToEditor(
@@ -112,7 +118,7 @@ export const NotilloEditor = React.memo(
 				const wikiLink = target.closest('.notillo-wiki-link') as HTMLElement | null
 				if (wikiLink) {
 					const targetPageId = wikiLink.dataset.pageId
-					if (targetPageId && pages.has(targetPageId)) {
+					if (targetPageId) {
 						onSelectPage(targetPageId)
 					}
 					return
@@ -127,7 +133,7 @@ export const NotilloEditor = React.memo(
 
 			el.addEventListener('click', handleClick)
 			return () => el.removeEventListener('click', handleClick)
-		}, [pages, onSelectPage, onTagClick])
+		}, [onSelectPage, onTagClick])
 
 		// Wiki-link suggestion items
 		const getWikiLinkItems = React.useCallback(

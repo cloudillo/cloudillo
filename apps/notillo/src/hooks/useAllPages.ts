@@ -17,40 +17,42 @@
 import { useState, useEffect } from 'react'
 
 import type { RtdbClient } from '@cloudillo/rtdb'
+import type { StoredPageRecord, PageRecord } from '../rtdb/types.js'
+import { fromStoredPage } from '../rtdb/transform.js'
 
-export interface TagData {
-	tags: Set<string>
-	tagCounts: Map<string, number>
+type PageWithId = PageRecord & { id: string }
+
+export interface AllPagesData {
+	allPages: Map<string, PageWithId>
+	ready: boolean
 }
 
-const emptyTagData: TagData = { tags: new Set(), tagCounts: new Map() }
+const emptyData: AllPagesData = { allPages: new Map(), ready: false }
 
-export function useTags(client: RtdbClient | undefined): TagData {
-	const [tagData, setTagData] = useState<TagData>(emptyTagData)
+export function useAllPages(client: RtdbClient | undefined): AllPagesData {
+	const [data, setData] = useState<AllPagesData>(emptyData)
 
 	useEffect(() => {
 		if (!client) return
 
-		const unsubscribe = client
-			.collection('p')
-			.aggregate('tg')
-			.onSnapshot((snapshot) => {
-				const tags = new Set<string>()
-				const tagCounts = new Map<string, number>()
-
-				for (const group of snapshot.groups) {
-					const tag = String(group.group)
-					tags.add(tag)
-					tagCounts.set(tag, group.count)
-				}
-
-				setTagData({ tags, tagCounts })
-			})
+		const unsubscribe = client.collection('p').onSnapshot(
+			(snapshot) => {
+				const allPages = new Map<string, PageWithId>()
+				snapshot.forEach((doc) => {
+					const page = fromStoredPage(doc.data() as StoredPageRecord)
+					allPages.set(doc.id, { id: doc.id, ...page })
+				})
+				setData({ allPages, ready: true })
+			},
+			(err) => {
+				console.error('[useAllPages] Subscription error:', err)
+			}
+		)
 
 		return unsubscribe
 	}, [client])
 
-	return tagData
+	return data
 }
 
 // vim: ts=4

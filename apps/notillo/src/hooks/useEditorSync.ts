@@ -414,7 +414,10 @@ export function useRtdbToEditor(
 							const existing = editor.getBlock(change.doc.id)
 							if (existing) {
 								try {
-									editor.removeBlocks([change.doc.id])
+									editor.transact((tr) => {
+										tr.setMeta('y-sync$', { isChangeOrigin: true })
+										editor.removeBlocks([change.doc.id])
+									})
 								} catch (err) {
 									console.error('[useRtdbToEditor] Failed to remove block:', err)
 								}
@@ -449,57 +452,58 @@ export function useRtdbToEditor(
 								existing.type !== record.type
 							) {
 								try {
-									editor.updateBlock(change.doc.id, {
-										type: record.type as any,
-										props: record.props as any,
-										content: record.content as any
+									editor.transact((tr) => {
+										tr.setMeta('y-sync$', { isChangeOrigin: true })
+										editor.updateBlock(change.doc.id, {
+											type: record.type as any,
+											props: record.props as any,
+											content: record.content as any
+										})
 									})
-									// Update blockStates to prevent echo-back on next onChange.
-									// Use the RTDB record's order to preserve fractional values
-									// (getBlockState without storedOrder would use index+1)
-									const newState = getBlockState(
-										editor,
-										change.doc.id,
-										record.order
-									)
-									if (newState) blockStates.current?.set(change.doc.id, newState)
 								} catch (err) {
 									console.error('[useRtdbToEditor] Failed to update block:', err)
 								}
+								const postState = getBlockState(editor, change.doc.id, record.order)
+								if (postState) blockStates.current?.set(change.doc.id, postState)
 							}
 						} else if (change.type === 'added') {
 							// Remote insert: only apply if block doesn't already exist locally
 							const existing = editor.getBlock(change.doc.id)
 							if (!existing) {
-								try {
-									// Insert at the end of the document for now
-									// A more sophisticated approach would use parentBlockId and order
-									const lastBlock = editor.document[editor.document.length - 1]
-									if (lastBlock) {
-										editor.insertBlocks(
-											[
-												{
-													id: change.doc.id,
-													type: record.type as any,
-													props: record.props as any,
-													content: record.content as any,
-													children: []
-												}
-											],
-											lastBlock,
-											'after'
+								// Insert at the end of the document for now
+								// A more sophisticated approach would use parentBlockId and order
+								const lastBlock = editor.document[editor.document.length - 1]
+								if (lastBlock) {
+									try {
+										editor.transact((tr) => {
+											tr.setMeta('y-sync$', { isChangeOrigin: true })
+											editor.insertBlocks(
+												[
+													{
+														id: change.doc.id,
+														type: record.type as any,
+														props: record.props as any,
+														content: record.content as any,
+														children: []
+													}
+												],
+												lastBlock,
+												'after'
+											)
+										})
+									} catch (err) {
+										console.error(
+											'[useRtdbToEditor] Failed to insert block:',
+											err
 										)
-										// Update blockStates for the newly inserted block
-										const newState = getBlockState(
-											editor,
-											change.doc.id,
-											record.order
-										)
-										if (newState)
-											blockStates.current?.set(change.doc.id, newState)
 									}
-								} catch (err) {
-									console.error('[useRtdbToEditor] Failed to insert block:', err)
+									const postState = getBlockState(
+										editor,
+										change.doc.id,
+										record.order
+									)
+									if (postState)
+										blockStates.current?.set(change.doc.id, postState)
 								}
 							}
 						}

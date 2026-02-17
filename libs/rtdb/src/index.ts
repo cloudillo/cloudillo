@@ -21,10 +21,12 @@ export { createRtdbClient, RtdbClient, WriteBatch } from './client.js'
 export { CollectionReference } from './collection.js'
 export { DocumentReference } from './document.js'
 export { Query } from './query.js'
+export { AggregateQuery } from './aggregate-query.js'
 
 // Types
 export type {
 	RtdbClientOptions,
+	WhereFilterOp,
 	QueryFilter,
 	DocumentSnapshot,
 	QuerySnapshot,
@@ -33,7 +35,12 @@ export type {
 	LockEventData,
 	UnlockEventData,
 	SnapshotOptions,
-	LockResult
+	LockResult,
+	AggregateOp,
+	AggregateOpDef,
+	AggregateOptions,
+	AggregateGroupEntry,
+	AggregateSnapshot
 } from './types.js'
 
 // Errors

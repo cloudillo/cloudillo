@@ -20,9 +20,51 @@ import * as T from '@symbion/runtype'
 // Client Message Types
 // ============================================================================
 
+export type WhereFilterOp =
+	| '=='
+	| '!='
+	| '<'
+	| '>'
+	| 'in'
+	| 'not-in'
+	| 'array-contains'
+	| 'array-contains-any'
+	| 'array-contains-all'
+
 export interface QueryFilter {
 	equals?: Record<string, any>
-	// Future: greater_than, less_than, etc.
+	notEquals?: Record<string, any>
+	greaterThan?: Record<string, any>
+	lessThan?: Record<string, any>
+	inArray?: Record<string, any>
+	notInArray?: Record<string, any>
+	arrayContains?: Record<string, any>
+	arrayContainsAny?: Record<string, any>
+	arrayContainsAll?: Record<string, any>
+}
+
+export type AggregateOp = 'sum' | 'avg' | 'min' | 'max'
+
+export interface AggregateOpDef {
+	op: AggregateOp
+	field: string
+}
+
+export interface AggregateOptions {
+	groupBy: string
+	ops?: AggregateOpDef[]
+}
+
+export interface AggregateGroupEntry {
+	group: string | number | boolean
+	count: number
+	[key: string]: any
+}
+
+export interface AggregateSnapshot {
+	groups: AggregateGroupEntry[]
+	size: number
+	empty: boolean
 }
 
 export interface QueryOptions {
@@ -107,7 +149,15 @@ export interface RtdbClientOptions {
 // ============================================================================
 
 const tQueryFilter = T.struct({
-	equals: T.optional(T.record(T.unknown))
+	equals: T.optional(T.record(T.unknown)),
+	notEquals: T.optional(T.record(T.unknown)),
+	greaterThan: T.optional(T.record(T.unknown)),
+	lessThan: T.optional(T.record(T.unknown)),
+	inArray: T.optional(T.record(T.unknown)),
+	notInArray: T.optional(T.record(T.unknown)),
+	arrayContains: T.optional(T.record(T.unknown)),
+	arrayContainsAny: T.optional(T.record(T.unknown)),
+	arrayContainsAll: T.optional(T.record(T.unknown))
 })
 
 export const tQueryOptions = T.struct({
@@ -217,6 +267,7 @@ export interface QueryMessage extends ClientMessage {
 	sort?: Array<{ field: string; ascending: boolean }>
 	limit?: number
 	offset?: number
+	aggregate?: AggregateOptions
 }
 
 export interface GetMessage extends ClientMessage {
@@ -228,6 +279,7 @@ export interface SubscribeMessage extends ClientMessage {
 	type: 'subscribe'
 	path: string
 	filter?: QueryFilter
+	aggregate?: AggregateOptions
 }
 
 export interface UnsubscribeMessage extends ClientMessage {

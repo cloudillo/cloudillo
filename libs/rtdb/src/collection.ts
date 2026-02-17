@@ -17,7 +17,14 @@
 import { WebSocketManager } from './websocket.js'
 import { DocumentReference } from './document.js'
 import { Query } from './query.js'
-import { QuerySnapshot, SnapshotOptions, TransactionMessage } from './types.js'
+import { AggregateQuery } from './aggregate-query.js'
+import {
+	WhereFilterOp,
+	QuerySnapshot,
+	SnapshotOptions,
+	TransactionMessage,
+	AggregateOptions
+} from './types.js'
 import { normalizePath } from './utils.js'
 
 export class CollectionReference<T = any> {
@@ -59,7 +66,11 @@ export class CollectionReference<T = any> {
 		return new Query<T>(this.ws, this.path)
 	}
 
-	where(field: string, op: string, value: any): Query<T> {
+	aggregate(fieldOrOptions: string | AggregateOptions): AggregateQuery {
+		return this.query().aggregate(fieldOrOptions)
+	}
+
+	where(field: string, op: WhereFilterOp, value: any): Query<T> {
 		return this.query().where(field, op, value)
 	}
 

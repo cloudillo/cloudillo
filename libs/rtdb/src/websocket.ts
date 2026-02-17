@@ -20,6 +20,7 @@ import {
 	ServerMessage,
 	tServerMessage,
 	ChangeEvent,
+	AggregateOptions,
 	RtdbClientOptions
 } from './types.js'
 import { ConnectionError, AuthError, ValidationError, TimeoutError, RtdbError } from './errors.js'
@@ -38,6 +39,7 @@ interface Subscription {
 interface SubscriptionDetails {
 	path: string
 	filter: any
+	aggregate?: AggregateOptions
 	callback: (event: ChangeEvent) => void
 	onError: (error: Error) => void
 }
@@ -227,7 +229,8 @@ export class WebSocketManager {
 		path: string,
 		filter: any,
 		callback: (event: ChangeEvent) => void,
-		onError: (error: Error) => void
+		onError: (error: Error) => void,
+		aggregate?: AggregateOptions
 	): () => void {
 		// Generate a local ID for tracking this subscription
 		const localId = `local_sub_${++this.requestId}`
@@ -235,13 +238,14 @@ export class WebSocketManager {
 		let cancelled = false
 
 		// Store subscription details for reconnection
-		this.subscriptionDetails.set(localId, { path, filter, callback, onError })
+		this.subscriptionDetails.set(localId, { path, filter, aggregate, callback, onError })
 
 		// Send subscription message and wait for subscribeResult
 		this.send({
 			type: 'subscribe',
 			path,
-			filter
+			filter,
+			...(aggregate && { aggregate })
 		})
 			.then((result: any) => {
 				const subId = result.subscriptionId as string
@@ -401,7 +405,8 @@ export class WebSocketManager {
 				this.send({
 					type: 'subscribe',
 					path: details.path,
-					filter: details.filter
+					filter: details.filter,
+					...(details.aggregate && { aggregate: details.aggregate })
 				})
 					.then((result: any) => {
 						const serverSubscriptionId = result.subscriptionId

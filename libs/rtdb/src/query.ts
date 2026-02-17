@@ -15,7 +15,16 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { WebSocketManager } from './websocket.js'
-import { QueryFilter, QuerySnapshot, ChangeEvent, SnapshotOptions, QueryMessage } from './types.js'
+import {
+	WhereFilterOp,
+	QueryFilter,
+	QuerySnapshot,
+	ChangeEvent,
+	SnapshotOptions,
+	QueryMessage,
+	AggregateOptions
+} from './types.js'
+import { AggregateQuery } from './aggregate-query.js'
 import { QuerySnapshotImpl, createDocumentFromEvent, normalizePath } from './utils.js'
 
 export class Query<T = any> {
@@ -29,16 +38,22 @@ export class Query<T = any> {
 		private path: string
 	) {}
 
-	where(field: string, op: string, value: any): Query<T> {
-		if (op !== '==') {
-			throw new Error(`Operator "${op}" not yet supported. Currently only "==" is supported.`)
+	where(field: string, op: WhereFilterOp, value: any): Query<T> {
+		const opMap: Record<WhereFilterOp, keyof QueryFilter> = {
+			'==': 'equals',
+			'!=': 'notEquals',
+			'<': 'lessThan',
+			'>': 'greaterThan',
+			in: 'inArray',
+			'not-in': 'notInArray',
+			'array-contains': 'arrayContains',
+			'array-contains-any': 'arrayContainsAny',
+			'array-contains-all': 'arrayContainsAll'
 		}
 
-		if (!this.filters.equals) {
-			this.filters.equals = {}
-		}
-
-		this.filters.equals[field] = value
+		const filterKey = opMap[op]
+		if (!this.filters[filterKey]) this.filters[filterKey] = {}
+		this.filters[filterKey]![field] = value
 
 		return this
 	}
@@ -59,6 +74,12 @@ export class Query<T = any> {
 	offset(n: number): Query<T> {
 		this.offsetValue = n
 		return this
+	}
+
+	aggregate(fieldOrOptions: string | AggregateOptions): AggregateQuery {
+		const opts =
+			typeof fieldOrOptions === 'string' ? { groupBy: fieldOrOptions } : fieldOrOptions
+		return new AggregateQuery(this.ws, this.path, opts, this.filters)
 	}
 
 	async get(): Promise<QuerySnapshot<T>> {
@@ -109,8 +130,13 @@ export class Query<T = any> {
 			this.filters,
 			(event: ChangeEvent) => {
 				if (event.action === 'ready') {
-					// Initial load complete — fire first callback
+					// Initial load complete — populate from ready event's data payload
 					ready = true
+					const rawDocs = (event.data as Array<any>) || []
+					for (const item of rawDocs) {
+						const id = item.id || ''
+						documentMap.set(id, item)
+					}
 					const documents = Array.from(documentMap.entries()).map(([id, data]) => ({
 						id,
 						data

@@ -35,11 +35,14 @@ export function TimeFormat({ time }: TimeFormatProps) {
 				return dayjs(d).format('YYYY/MM/DD')
 			}
 			const deltaSec = (now.getTime() - d.getTime()) / 1000
+			const absDelta = Math.abs(deltaSec)
+			const isPast = deltaSec > 0
 			if (now.getMonth() !== d.getMonth() || now.getDate() !== d.getDate()) {
 				const todaySec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()
-				if (deltaSec > todaySec + 6 * 24 * 3600) {
+				const dayBoundarySec = isPast ? todaySec : 86400 - todaySec
+				if (absDelta > dayBoundarySec + 6 * 24 * 3600) {
 					return dayjs(d).format('MM/DD')
-				} else if (deltaSec > todaySec + 1 * 24 * 3600) {
+				} else if (absDelta > dayBoundarySec + 1 * 24 * 3600) {
 					switch (d.getDay()) {
 						case 0:
 							return t('sunday')
@@ -57,19 +60,19 @@ export function TimeFormat({ time }: TimeFormatProps) {
 							return t('saturday')
 					}
 				} else {
-					return 'yesterday'
+					return isPast ? t('yesterday') : t('tomorrow')
 				}
 			}
-			if (deltaSec > 2 * 3600) {
-				return t('{{count}} hours', { count: Math.trunc(deltaSec / 3600) })
+			if (absDelta > 2 * 3600) {
+				return t('{{count}} hours', { count: Math.trunc(absDelta / 3600) })
 			}
-			if (deltaSec > 3600) {
+			if (absDelta > 3600) {
 				return t('1 hour')
 			}
-			if (deltaSec > 2 * 60) {
-				return t('{{count}} minutes', { count: Math.trunc(deltaSec / 60) })
+			if (absDelta > 2 * 60) {
+				return t('{{count}} minutes', { count: Math.trunc(absDelta / 60) })
 			}
-			if (deltaSec > 60) {
+			if (absDelta > 60) {
 				return t('1 min')
 			}
 			return t('just now')

@@ -46,6 +46,7 @@ interface NotilloEditorProps {
 	knownBlockOrders: Map<string, number>
 	readOnly: boolean
 	userId: string
+	ownerTag: string
 	darkMode: boolean
 	pages: Map<string, PageRecord & { id: string }>
 	onSelectPage: (pageId: string) => void
@@ -63,6 +64,7 @@ export const NotilloEditor = React.memo(
 		knownBlockOrders,
 		readOnly,
 		userId,
+		ownerTag,
 		darkMode,
 		pages,
 		onSelectPage,
@@ -82,6 +84,7 @@ export const NotilloEditor = React.memo(
 			client,
 			pageId,
 			userId,
+			ownerTag,
 			readOnly,
 			knownBlockIds,
 			knownBlockOrders
@@ -101,6 +104,7 @@ export const NotilloEditor = React.memo(
 			client,
 			pageId,
 			userId,
+			ownerTag,
 			recentLocalUpdates,
 			blockStates,
 			handleLockEvent
@@ -250,6 +254,7 @@ export const NotilloEditor = React.memo(
 			prev.pageId === next.pageId &&
 			prev.readOnly === next.readOnly &&
 			prev.userId === next.userId &&
+			prev.ownerTag === next.ownerTag &&
 			prev.darkMode === next.darkMode &&
 			prev.pages === next.pages &&
 			prev.tags === next.tags

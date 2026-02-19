@@ -33,6 +33,7 @@ export function reconstructBlocks(records: Map<string, BlockRecord & { id: strin
 	}
 
 	// Recursive build
+	// Note: block type and content are already expanded by fromStoredBlock
 	function buildTree(parentId: string | undefined): Block[] {
 		const children = childrenOf.get(parentId) || []
 		return children.map((record) => ({

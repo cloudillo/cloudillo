@@ -123,7 +123,7 @@ export function NotilloApp() {
 		loadedPageId,
 		knownBlockIds,
 		knownBlockOrders
-	} = usePageBlocks(notillo.client, activePageId)
+	} = usePageBlocks(notillo.client, activePageId, notillo.ownerTag)
 
 	// Loading state
 	if (notillo.loading) {
@@ -149,7 +149,7 @@ export function NotilloApp() {
 		)
 	}
 
-	if (!notillo.client || !notillo.idTag) return null
+	if (!notillo.client || !notillo.idTag || !notillo.ownerTag) return null
 
 	return (
 		<Fcd.Container>
@@ -225,6 +225,7 @@ export function NotilloApp() {
 							knownBlockOrders={knownBlockOrders}
 							readOnly={isReadOnly}
 							userId={notillo.idTag}
+							ownerTag={notillo.ownerTag}
 							darkMode={notillo.darkMode}
 							pages={pages}
 							onSelectPage={handleSelectPage}

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// ── BlockNote inline content types (stored as-is) ──
+// ── BlockNote inline content types (verbose, as BlockNote uses them) ──
 
 export interface StyledText {
 	type: 'text'
@@ -48,6 +48,55 @@ export interface TagContent {
 
 export type InlineContent = StyledText | Link | WikiLinkContent | TagContent
 
+// ── Compact inline content types (for RTDB wire/storage) ──
+
+export interface CompactColorStyles {
+	tc?: string // textColor
+	bg?: string // backgroundColor
+}
+
+export interface CompactLink {
+	l: string // href
+	c: CompactInlineContent[] // content
+}
+
+export interface CompactWikiLink {
+	wl: string // pageId
+	wt: string // pageTitle
+}
+
+export interface CompactTag {
+	tg: string // tag
+}
+
+export type CompactInlineContent =
+	| string // unstyled text
+	| [string, string] // [text, styleFlags]
+	| [string, string, CompactColorStyles] // [text, styleFlags, colors]
+	| CompactLink // link
+	| CompactWikiLink // wikiLink
+	| CompactTag // tag
+
+// ── Block type short/long mappings ──
+
+export const BLOCK_TYPE_TO_SHORT: Record<string, string> = {
+	paragraph: 'p',
+	heading: 'h',
+	bulletListItem: 'ul',
+	numberedListItem: 'ol',
+	checkListItem: 'cl',
+	table: 'tb',
+	image: 'img',
+	video: 'vid',
+	audio: 'aud',
+	file: 'f',
+	codeBlock: 'code'
+}
+
+export const BLOCK_TYPE_TO_LONG: Record<string, string> = Object.fromEntries(
+	Object.entries(BLOCK_TYPE_TO_SHORT).map(([k, v]) => [v, k])
+)
+
 // ── Stored types (compact, for RTDB wire/storage) ──
 
 export interface StoredPageRecord {
@@ -66,13 +115,13 @@ export interface StoredPageRecord {
 
 export interface StoredBlockRecord {
 	p: string // pageId
-	t: string // type
+	t: string // type (short code or full name)
 	pr?: Record<string, any> // props
-	c?: InlineContent[] // content
+	c?: CompactInlineContent[] // content (compact format)
 	pb?: string | null // parentBlockId (null = root)
 	o: number // order
 	ua: string // updatedAt
-	ub: string // updatedBy
+	ub?: string // updatedBy (omitted when owner is the updater)
 }
 
 // ── App types (readable, for application code) ──

@@ -16,7 +16,7 @@
 
 import type { Block } from '@blocknote/core'
 import type { BlockRecord } from './types.js'
-import { cleanProps, cleanContent } from './transform.js'
+import { cleanProps, compactContent, compactBlockType } from './transform.js'
 
 interface FlatBlock {
 	id: string
@@ -34,14 +34,14 @@ export function flattenBlocks(
 
 	blocks.forEach((block, index) => {
 		const props = cleanProps(block.props)
-		const content = cleanContent(block.content as any)
+		const content = compactContent(block.content as any)
 		results.push({
 			id: block.id,
 			record: {
 				pageId,
-				type: block.type,
+				type: compactBlockType(block.type),
 				...(props !== undefined && { props }),
-				...(content !== undefined && { content }),
+				...(content !== undefined && { content: content as any }),
 				...(parentBlockId !== undefined && { parentBlockId }),
 				order: index + 1,
 				updatedAt: now,

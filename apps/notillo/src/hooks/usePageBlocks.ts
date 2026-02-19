@@ -22,7 +22,11 @@ import type { StoredBlockRecord, BlockRecord } from '../rtdb/types.js'
 import { fromStoredBlock } from '../rtdb/transform.js'
 import { reconstructBlocks } from '../rtdb/reconstruct.js'
 
-export function usePageBlocks(client: RtdbClient | undefined, pageId: string | undefined) {
+export function usePageBlocks(
+	client: RtdbClient | undefined,
+	pageId: string | undefined,
+	ownerTag?: string
+) {
 	const [blocks, setBlocks] = useState<Block[]>([])
 	const [loading, setLoading] = useState(true)
 	const [loadedPageId, setLoadedPageId] = useState<string | undefined>()
@@ -54,7 +58,7 @@ export function usePageBlocks(client: RtdbClient | undefined, pageId: string | u
 				if (cancelled) return
 
 				for (const doc of snapshot.docs) {
-					const record = fromStoredBlock(doc.data() as StoredBlockRecord)
+					const record = fromStoredBlock(doc.data() as StoredBlockRecord, ownerTag)
 					recordsRef.current.set(doc.id, {
 						id: doc.id,
 						...record
@@ -80,7 +84,7 @@ export function usePageBlocks(client: RtdbClient | undefined, pageId: string | u
 		return () => {
 			cancelled = true
 		}
-	}, [client, pageId])
+	}, [client, pageId, ownerTag])
 
 	return { blocks, loading, loadedPageId, knownBlockIds, knownBlockOrders }
 }

@@ -19,7 +19,13 @@ import { useEffect, useRef } from 'react'
 import type { Block, BlockNoteEditor } from '@blocknote/core'
 import type { RtdbClient, QuerySnapshot, ChangeEvent } from '@cloudillo/rtdb'
 import type { StoredBlockRecord } from '../rtdb/types.js'
-import { toStoredBlock, fromStoredBlock, cleanProps, cleanContent } from '../rtdb/transform.js'
+import {
+	toStoredBlock,
+	fromStoredBlock,
+	cleanProps,
+	compactContent,
+	compactBlockType
+} from '../rtdb/transform.js'
 import { getBlockOrder } from '../rtdb/block-ops.js'
 
 const DEBOUNCE_MS = 300
@@ -56,9 +62,9 @@ function getBlockState(
 	const block = editor.getBlock(blockId)
 	if (!block) return null
 	return {
-		type: block.type,
+		type: compactBlockType(block.type),
 		props: cleanProps(block.props) ?? {},
-		content: cleanContent(block.content as any[]) ?? [],
+		content: compactContent(block.content as any[]) ?? [],
 		parentBlockId: editor.getParentBlock(block)?.id ?? null,
 		order: storedOrder ?? getBlockOrder(editor, blockId)
 	}
@@ -74,7 +80,8 @@ function buildPartialUpdate(
 	curr: BlockState,
 	pageId: string,
 	now: string,
-	userId: string
+	userId: string,
+	ownerTag?: string
 ): PatchResult | null {
 	const patch: Record<string, any> = {}
 	let hasDiscreteChange = false
@@ -88,7 +95,7 @@ function buildPartialUpdate(
 		hasDiscreteChange = true
 	}
 	if (JSON.stringify(curr.content) !== JSON.stringify(prev.content)) {
-		patch.c = cleanContent(curr.content)
+		patch.c = curr.content
 	}
 	if (curr.parentBlockId !== prev.parentBlockId) {
 		patch.pb = curr.parentBlockId
@@ -98,7 +105,7 @@ function buildPartialUpdate(
 	if (Object.keys(patch).length === 0) return null
 	patch.p = pageId
 	patch.ua = now
-	patch.ub = userId
+	if (userId !== ownerTag) patch.ub = userId
 
 	// Debounce only when JUST content changed (typing). If any discrete field
 	// also changed (type, props, position), send everything immediately.
@@ -110,6 +117,7 @@ function buildFullStoredBlock(
 	blockId: string,
 	pageId: string,
 	userId: string,
+	ownerTag: string | undefined,
 	now: string,
 	order: number
 ): StoredBlockRecord | null {
@@ -118,16 +126,19 @@ function buildFullStoredBlock(
 
 	const parentBlockId = editor.getParentBlock(block)?.id ?? null
 
-	return toStoredBlock({
-		pageId,
-		type: block.type,
-		props: block.props,
-		content: block.content as any,
-		parentBlockId,
-		order,
-		updatedAt: now,
-		updatedBy: userId
-	})
+	return toStoredBlock(
+		{
+			pageId,
+			type: block.type,
+			props: block.props,
+			content: block.content as any,
+			parentBlockId,
+			order,
+			updatedAt: now,
+			updatedBy: userId
+		},
+		ownerTag
+	)
 }
 
 // ── Local changes → RTDB (smart per-block sync) ──
@@ -142,6 +153,7 @@ export function useDocumentSync(
 	client: RtdbClient | undefined,
 	pageId: string | undefined,
 	userId: string | undefined,
+	ownerTag: string | undefined,
 	readOnly: boolean,
 	knownBlockIds: Set<string>,
 	knownBlockOrders: Map<string, number>
@@ -171,7 +183,7 @@ export function useDocumentSync(
 			if (knownBlockIds.has(id)) continue
 			const state = blockStates.current.get(id)
 			const order = state?.order ?? getBlockOrder(editor, id)
-			const stored = buildFullStoredBlock(editor, id, pageId, userId, now, order)
+			const stored = buildFullStoredBlock(editor, id, pageId, userId, ownerTag, now, order)
 			if (stored) {
 				markLocal(id)
 				client.collection('b').doc(id).set(stored).catch(console.error)
@@ -196,6 +208,7 @@ export function useDocumentSync(
 				blockId,
 				pageId!,
 				userId!,
+				ownerTag,
 				new Date().toISOString(),
 				order
 			)
@@ -264,7 +277,8 @@ export function useDocumentSync(
 				curr,
 				pageId!,
 				new Date().toISOString(),
-				userId!
+				userId!,
+				ownerTag
 			)
 
 			// Handle order patch when newOrder is explicitly provided
@@ -275,7 +289,7 @@ export function useDocumentSync(
 						o: newOrder,
 						p: pageId,
 						ua: new Date().toISOString(),
-						ub: userId
+						...(userId !== ownerTag && { ub: userId })
 					}
 					clearBlockDebounce(blockId)
 					blockStates.current.set(blockId, curr)
@@ -304,7 +318,8 @@ export function useDocumentSync(
 							latest,
 							pageId!,
 							new Date().toISOString(),
-							userId!
+							userId!,
+							ownerTag
 						)
 						if (latestResult) {
 							blockStates.current.set(blockId, latest)
@@ -382,7 +397,7 @@ export function useDocumentSync(
 			}
 			pendingDebounces.current.clear()
 		}
-	}, [editor, client, pageId, userId, readOnly])
+	}, [editor, client, pageId, userId, ownerTag, readOnly])
 
 	return { recentLocalUpdates, blockStates }
 }
@@ -394,6 +409,7 @@ export function useRtdbToEditor(
 	client: RtdbClient | undefined,
 	pageId: string | undefined,
 	userId: string | undefined,
+	ownerTag: string | undefined,
 	recentLocalUpdates: React.RefObject<Set<string>>,
 	blockStates: React.RefObject<Map<string, BlockState>>,
 	onLock?: (event: ChangeEvent) => void
@@ -426,7 +442,10 @@ export function useRtdbToEditor(
 							continue
 						}
 
-						const record = fromStoredBlock(change.doc.data() as StoredBlockRecord)
+						const record = fromStoredBlock(
+							change.doc.data() as StoredBlockRecord,
+							ownerTag
+						)
 
 						// Echo suppression: skip our own recent changes
 						if (
@@ -516,7 +535,7 @@ export function useRtdbToEditor(
 			)
 
 		return unsub
-	}, [editor, client, pageId, userId, onLock])
+	}, [editor, client, pageId, userId, ownerTag, onLock])
 }
 
 // vim: ts=4

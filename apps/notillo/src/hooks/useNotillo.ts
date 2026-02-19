@@ -29,6 +29,7 @@ export function useNotillo() {
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<Error | undefined>()
 	const [fileId, setFileId] = useState('')
+	const [ownerTag, setOwnerTag] = useState<string | undefined>()
 	const [idTag, setIdTag] = useState<string | undefined>()
 	const [access, setAccess] = useState<'read' | 'write'>('write')
 	const [darkMode, setDarkMode] = useState(false)
@@ -36,7 +37,8 @@ export function useNotillo() {
 	// Parse document ID from URL hash (#tenant:path)
 	useEffect(() => {
 		const resId = location.hash.slice(1)
-		const [, path] = resId.split(':')
+		const [owner, path] = resId.split(':')
+		setOwnerTag(owner || undefined)
 		setFileId(path || '')
 	}, [location.hash])
 
@@ -107,6 +109,7 @@ export function useNotillo() {
 	return {
 		client,
 		fileId,
+		ownerTag,
 		idTag,
 		access,
 		connected,

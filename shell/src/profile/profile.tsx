@@ -34,7 +34,7 @@ import {
 	ProfileCard,
 	mergeClasses
 } from '@cloudillo/react'
-import { NewAction, CommunityRole, ROLE_LEVELS } from '@cloudillo/types'
+import { NewAction, ActionView, CommunityRole, ROLE_LEVELS } from '@cloudillo/types'
 import { getInstanceUrl, getFileUrl } from '@cloudillo/core'
 
 import {
@@ -46,7 +46,8 @@ import {
 	LuHandshake as IcConnect,
 	LuCircleOff as IcBlock,
 	LuMessageCircle as IcMessage,
-	LuUserMinus as IcRemoveMember
+	LuUserMinus as IcRemoveMember,
+	LuCheck as IcCheck
 } from 'react-icons/lu'
 
 import 'quill/dist/quill.core.css'
@@ -56,13 +57,14 @@ import './profile.css'
 
 import { useAuth, useApi, IdentityTag } from '@cloudillo/react'
 
+import { useWsBus } from '../ws-bus.js'
 import { parseQS } from '../utils.js'
 import { ImageUpload } from '../image.js'
 import { ActionEvt, ActionComp, NewPost } from '../apps/feed.js'
 import { Profile } from '@cloudillo/types'
 import { ProfileListCard, PersonListPage, CommunityListPage } from './identities.js'
 import { CreateCommunity } from './community.js'
-import { activeContextAtom, useApiContext } from '../context/index.js'
+import { activeContextAtom, useApiContext, useCommunitiesList } from '../context/index.js'
 
 Quill.register('modules/QuillMarkdown', QuillMarkdown)
 
@@ -84,6 +86,14 @@ function getHighestRole(roles: string[] | undefined): CommunityRole | undefined 
 	return highest
 }
 
+const ROLES: { value: CommunityRole; label: string }[] = [
+	{ value: 'follower', label: 'Follower' },
+	{ value: 'supporter', label: 'Supporter' },
+	{ value: 'contributor', label: 'Contributor' },
+	{ value: 'moderator', label: 'Moderator' },
+	{ value: 'leader', label: 'Leader' }
+]
+
 interface FullProfile {
 	tnId: number
 	idTag: string
@@ -94,6 +104,10 @@ interface FullProfile {
 	x?: {
 		category?: string
 		intro?: string
+	}
+	settings?: {
+		connectionMode?: 'M' | 'A' | 'I'
+		allowFollowers?: boolean
 	}
 }
 
@@ -116,9 +130,11 @@ interface ProfileConnectionCmds {
 
 function ProfileConnection({
 	localProfile,
+	profileType,
 	cmds
 }: {
 	localProfile?: Partial<Profile>
+	profileType?: 'person' | 'community'
 	cmds: ProfileConnectionCmds
 }) {
 	const { t } = useTranslation()
@@ -143,12 +159,14 @@ function ProfileConnection({
 			{localProfile.connected === 'R' ? (
 				<div className="c-link cursor-default">
 					<IcConnect />
-					{t('Connection request sent')}
+					{profileType === 'community'
+						? t('Join request sent')
+						: t('Connection request sent')}
 				</div>
 			) : localProfile.connected ? (
 				<div className="c-link cursor-default">
 					<IcConnect />
-					{t('Connected')}
+					{profileType === 'community' ? t('Joined') : t('Connected')}
 				</div>
 			) : localProfile.following ? (
 				<div className="c-link cursor-default">
@@ -163,7 +181,7 @@ function ProfileConnection({
 			) : !localProfile.connected ? (
 				<Button link onClick={cmds.onConnect}>
 					<IcConnect />
-					{t('Connect')}
+					{profileType === 'community' ? t('Join') : t('Connect')}
 				</Button>
 			) : !localProfile.following ? (
 				<Button link onClick={cmds.onFollow}>
@@ -198,7 +216,7 @@ function ProfileConnection({
 						<li>
 							<Button navItem onClick={cmds.onConnect}>
 								<IcConnect />
-								{t('Connect')}
+								{profileType === 'community' ? t('Join') : t('Connect')}
 							</Button>
 						</li>
 					)}
@@ -534,7 +552,11 @@ export function ProfilePage({
 										{t('Message')}
 									</Link>
 								)}
-								<ProfileConnection localProfile={localProfile} cmds={profileCmds} />
+								<ProfileConnection
+									localProfile={localProfile}
+									profileType={profile.type}
+									cmds={profileCmds}
+								/>
 							</>
 						)}
 					</div>
@@ -810,43 +832,64 @@ function MemberCard({
 		}
 	}
 
+	const roleLabel = ROLES.find((r) => r.value === memberRole)?.label || memberRole
+
 	return (
-		<div className="c-panel p-2 mb-1 c-hbox g-2 ai-center">
+		<div className="c-panel flex-row p-2 mb-1 g-2 ai-center">
 			<ProfileCard className="flex-fill" profile={member} srcTag={srcTag} />
 
-			{showRoleControls && (
-				<div className="c-hbox g-2 ai-center" style={{ flexShrink: 0 }}>
-					{/* Role badge/dropdown */}
-					{canChangeRole ? (
-						<select
-							className="c-select"
-							value={memberRole}
-							onChange={(e) =>
-								onRoleChange?.(member.idTag, e.target.value as CommunityRole)
-							}
-							style={{ minWidth: 110 }}
-						>
-							<option value="follower">{t('Follower')}</option>
-							<option value="supporter">{t('Supporter')}</option>
-							<option value="contributor">{t('Contributor')}</option>
-							<option value="moderator">{t('Moderator')}</option>
-							<option value="leader">{t('Leader')}</option>
-						</select>
-					) : (
-						<span className="c-badge">{t(memberRole)}</span>
-					)}
-
-					{/* Remove button */}
+			{canChangeRole ? (
+				<Popper
+					label={
+						<>
+							<span className="c-badge">{t(roleLabel)}</span>
+							<IcMore />
+						</>
+					}
+				>
+					<ul className="c-nav vertical">
+						{ROLES.map((role) => (
+							<li key={role.value}>
+								<Button
+									navItem
+									onClick={() => onRoleChange?.(member.idTag, role.value)}
+								>
+									{memberRole === role.value && <IcCheck />}
+									{t(role.label)}
+								</Button>
+							</li>
+						))}
+						{onRemove && (
+							<>
+								<li role="separator" className="border-bottom my-1" />
+								<li>
+									<Button navItem onClick={handleRemove}>
+										<IcRemoveMember className="text-error" />
+										<span className="text-error">{t('Remove member')}</span>
+									</Button>
+								</li>
+							</>
+						)}
+					</ul>
+				</Popper>
+			) : showRoleControls ? (
+				<div className="c-hbox g-2 ai-center">
+					<span className="c-badge">{t(roleLabel)}</span>
 					{onRemove && (
-						<button
-							className="c-button icon ghost"
-							onClick={handleRemove}
-							title={t('Remove member')}
-						>
-							<IcRemoveMember className="text-error" />
-						</button>
+						<Popper label={<IcMore />}>
+							<ul className="c-nav vertical">
+								<li>
+									<Button navItem onClick={handleRemove}>
+										<IcRemoveMember className="text-error" />
+										<span className="text-error">{t('Remove member')}</span>
+									</Button>
+								</li>
+							</ul>
+						</Popper>
 					)}
 				</div>
+			) : (
+				memberRole !== 'follower' && <span className="c-badge">{t(roleLabel)}</span>
 			)}
 		</div>
 	)
@@ -860,6 +903,7 @@ export function ProfileConnections({
 	const { t } = useTranslation()
 	const location = useLocation()
 	const { api } = useApi()
+	const { getClientFor } = useApiContext()
 	const [auth] = useAuth()
 	const toast = useToast()
 	const dialog = useDialog()
@@ -884,7 +928,8 @@ export function ProfileConnections({
 				const qs: Record<string, string> = parseQS(location.search)
 				console.log('QS', location.search, qs)
 
-				const profiles = await api!.profiles.list({ type: 'person' })
+				const client = getClientFor(profile.idTag, { auth: 'preferred' })
+				const profiles = await client!.profiles.list({ type: 'person' })
 				setProfiles(profiles as any)
 			})()
 		},
@@ -894,7 +939,9 @@ export function ProfileConnections({
 	// Handle role change
 	async function handleRoleChange(memberIdTag: string, newRole: CommunityRole) {
 		try {
-			await api!.profiles.adminUpdate(memberIdTag, { roles: [newRole] })
+			const client = getClientFor(profile.idTag)
+			if (!client) throw new Error('No API client for community')
+			await client.profiles.adminUpdate(memberIdTag, { roles: [newRole] })
 			// Update local state
 			setProfiles((prev) =>
 				prev.map((p) => (p.idTag === memberIdTag ? { ...p, roles: [newRole] } : p))
@@ -909,8 +956,13 @@ export function ProfileConnections({
 	// Handle member removal
 	async function handleRemoveMember(memberIdTag: string) {
 		try {
-			// Update status to 'S' (Suspended) or remove connection
-			await api!.profiles.adminUpdate(memberIdTag, { status: 'S' })
+			const client = getClientFor(profile.idTag)
+			if (!client) throw new Error('No API client for community')
+			await client.actions.create({
+				type: 'CONN',
+				subType: 'DEL',
+				audienceTag: memberIdTag
+			})
 			// Remove from local state
 			setProfiles((prev) => prev.filter((p) => p.idTag !== memberIdTag))
 			toast.success(t('Member removed'))
@@ -1228,6 +1280,23 @@ function Profile() {
 		[profile, localProfile]
 	)
 
+	// Listen for connection acceptance via WsBus
+	const { loadCommunities } = useCommunitiesList()
+
+	useWsBus({ cmds: ['ACTION'] }, (msg) => {
+		const action = msg.data as ActionView
+		if (action.type === 'CONN' && action.subType === 'ACC') {
+			// Connection accepted — update profile if we're viewing the acceptor
+			if (action.issuer?.idTag === idTag) {
+				setLocalProfile((p) => (p ? { ...p, connected: true } : p))
+				// Refresh communities list if it's a community
+				if (profile?.type === 'community') {
+					loadCommunities()
+				}
+			}
+		}
+	})
+
 	const updateProfile: ProfileTabProps['updateProfile'] =
 		idTag != auth?.idTag
 			? undefined
@@ -1269,21 +1338,38 @@ function Profile() {
 
 	async function onConnect() {
 		if (!profile || localProfile?.connected) return
-		const content = await dialog.askText(
-			t('Connection request'),
-			t('Are you sure you want to send a connection request?'),
-			{ placeholder: t('Personalize the connection request'), multiline: true }
-		)
-		if (content != undefined) {
-			console.log('content', content)
-			const connectAction: NewAction = {
-				type: 'CONN',
-				audienceTag: profile.idTag,
-				content
-			}
-			const res = await api!.actions.create(connectAction)
-			setLocalProfile((p) => (p ? { ...p, connected: 'R' } : p))
+
+		let content: string | undefined
+
+		if (profile.type === 'community' && profile.settings?.connectionMode === 'A') {
+			// Auto-accept community: simple confirm, no message
+			const confirmed = await dialog.confirm(
+				t('Join community'),
+				t('Do you want to join this community?')
+			)
+			if (!confirmed) return
+			content = ''
+		} else {
+			// Person or manual-approve community: text dialog with optional message
+			const title = profile.type === 'community' ? t('Join request') : t('Connection request')
+			const description =
+				profile.type === 'community'
+					? t('Send a join request to this community?')
+					: t('Are you sure you want to send a connection request?')
+			content = await dialog.askText(title, description, {
+				placeholder: t('Personalize the connection request'),
+				multiline: true
+			})
+			if (content == undefined) return
 		}
+
+		const connectAction: NewAction = {
+			type: 'CONN',
+			audienceTag: profile.idTag,
+			content
+		}
+		await api!.actions.create(connectAction)
+		setLocalProfile((p) => (p ? { ...p, connected: 'R' } : p))
 	}
 
 	async function onDisconnect() {

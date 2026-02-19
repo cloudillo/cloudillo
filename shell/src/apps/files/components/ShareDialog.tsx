@@ -30,7 +30,6 @@ import {
 import { Profile, ActionView, NewAction } from '@cloudillo/types'
 import * as Types from '@cloudillo/core'
 import {
-	useApi,
 	useAuth,
 	useToast,
 	Button,
@@ -40,8 +39,11 @@ import {
 	EditProfileList,
 	QRCodeDialog
 } from '@cloudillo/react'
+import { useAtom } from 'jotai'
+import { useContextAwareApi, activeContextAtom } from '../../../context/index.js'
 
 import { getFileIcon, IcUnknown } from '../icons.js'
+import { canManageFile } from '../utils.js'
 import type { File } from '../types.js'
 
 export interface ShareDialogProps {
@@ -53,8 +55,9 @@ export interface ShareDialogProps {
 
 export function ShareDialog({ open, file, onClose, onPermissionsChanged }: ShareDialogProps) {
 	const { t } = useTranslation()
-	const { api } = useApi()
+	const { api } = useContextAwareApi()
 	const [auth] = useAuth()
+	const [activeContext] = useAtom(activeContextAtom)
 	const toast = useToast()
 
 	const dialogRef = React.useRef<HTMLDivElement>(null)
@@ -80,7 +83,7 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 
 	const Icon = getFileIcon(file.contentType, file.fileTp)
 	const isFolder = file.fileTp === 'FLDR'
-	const isOwner = file.owner?.idTag === auth?.idTag
+	const isOwner = canManageFile(file, auth?.idTag, activeContext?.roles ?? [])
 
 	// Derived permission lists
 	const writePerms = React.useMemo(

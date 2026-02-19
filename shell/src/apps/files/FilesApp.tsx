@@ -23,7 +23,6 @@ import { LuFilter as IcFilter, LuCloud as IcAll } from 'react-icons/lu'
 import './files.css'
 
 import {
-	useApi,
 	useAuth,
 	useDialog,
 	useToast,
@@ -35,7 +34,7 @@ import {
 } from '@cloudillo/react'
 
 import { useAppConfig } from '../../utils.js'
-import { useCurrentContextIdTag } from '../../context/index.js'
+import { useContextAwareApi, useCurrentContextIdTag } from '../../context/index.js'
 
 import {
 	Sidebar,
@@ -66,7 +65,7 @@ export function FilesApp() {
 	const location = useLocation()
 	const { t } = useTranslation()
 	const [appConfig] = useAppConfig()
-	const { api } = useApi()
+	const { api } = useContextAwareApi()
 	const [auth] = useAuth()
 	const contextIdTag = useCurrentContextIdTag()
 	const dialog = useDialog()
@@ -266,7 +265,9 @@ export function FilesApp() {
 
 				if (app) {
 					const appName = app.split('/').pop()
-					const basePath = `/app/${contextIdTag || auth?.idTag}/${appName}/${(file.owner?.idTag || auth?.idTag) + ':'}${file.fileId}`
+					// For tenant-owned files (no explicit owner), use contextIdTag as the owner in the path
+					const ownerTag = file.owner?.idTag || contextIdTag || auth?.idTag
+					const basePath = `/app/${contextIdTag || auth?.idTag}/${appName}/${ownerTag + ':'}${file.fileId}`
 					navigate(access === 'read' ? `${basePath}?access=read` : basePath)
 				}
 			},

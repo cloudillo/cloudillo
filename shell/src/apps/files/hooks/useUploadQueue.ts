@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { useApi } from '@cloudillo/react'
+import { useContextAwareApi } from '../../../context/index.js'
 
 export interface UploadItem {
 	id: string
@@ -34,7 +34,7 @@ export interface UseUploadQueueOptions {
 let uploadIdCounter = 0
 
 export function useUploadQueue(options?: UseUploadQueueOptions) {
-	const { api } = useApi()
+	const { api } = useContextAwareApi()
 	const [queue, setQueue] = React.useState<UploadItem[]>([])
 	const [isUploading, setIsUploading] = React.useState(false)
 	const processingRef = React.useRef(false)

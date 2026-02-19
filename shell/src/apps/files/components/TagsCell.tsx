@@ -16,7 +16,8 @@
 
 import * as React from 'react'
 import { FiEdit2 as IcEdit } from 'react-icons/fi'
-import { useApi, Button } from '@cloudillo/react'
+import { Button } from '@cloudillo/react'
+import { useContextAwareApi } from '../../../context/index.js'
 import { Tags, EditTags } from '../../../tags.js'
 
 interface TagsCellProps {
@@ -32,7 +33,7 @@ export const TagsCell = React.memo(function TagsCell({
 	setTags,
 	editable
 }: TagsCellProps) {
-	const { api } = useApi()
+	const { api } = useContextAwareApi()
 	const [isEditing, setIsEditing] = React.useState(false)
 
 	async function listTags(prefix: string) {

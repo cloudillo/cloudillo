@@ -211,12 +211,15 @@ export const ItemCard = React.memo(function ItemCard({
 							</span>
 						)
 					})()}
-					{file.owner && (
-						<>
-							<ProfilePicture profile={file.owner} tiny />
-							<span>{file.owner.name || file.owner.idTag}</span>
-						</>
-					)}
+					{(() => {
+						const attribution = file.creator || file.owner
+						return attribution ? (
+							<>
+								<ProfilePicture profile={attribution} tiny />
+								<span>{attribution.name || attribution.idTag}</span>
+							</>
+						) : null
+					})()}
 				</div>
 
 				{/* Tags (read-only on card) */}

@@ -153,4 +153,23 @@ export const VISIBILITY_DROPDOWN_OPTIONS: VisibilityOption[] = VISIBILITY_OPTION
 	(opt) => opt.value !== 'D'
 )
 
+/**
+ * Check if the current user can manage a file (change visibility, sharing, etc.)
+ *
+ * A user can manage a file if:
+ * - They are the file owner (for shared files with explicit owner_tag)
+ * - They have leader or moderator role in the current context (for tenant-owned files)
+ */
+export function canManageFile(
+	file: File,
+	authIdTag: string | undefined,
+	contextRoles: string[]
+): boolean {
+	// File owner can always manage (for shared files with explicit owner)
+	if (file.owner?.idTag && file.owner.idTag === authIdTag) return true
+	// Leader/moderator roles can manage in community context
+	if (contextRoles.some((r) => r === 'leader' || r === 'moderator')) return true
+	return false
+}
+
 // vim: ts=4

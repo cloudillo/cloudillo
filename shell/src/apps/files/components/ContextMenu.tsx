@@ -42,9 +42,11 @@ import {
 	useAuth
 } from '@cloudillo/react'
 import { getFileUrl } from '@cloudillo/core'
+import { useAtom } from 'jotai'
+import { activeContextAtom } from '../../../context/index.js'
 
 import type { File, FileOps, ViewMode, FileVisibility } from '../types.js'
-import { VISIBILITY_DROPDOWN_OPTIONS, getVisibilityIcon } from '../utils.js'
+import { VISIBILITY_DROPDOWN_OPTIONS, getVisibilityIcon, canManageFile } from '../utils.js'
 
 export interface ContextMenuPosition {
 	x: number
@@ -74,6 +76,7 @@ export function ContextMenu({
 }: ContextMenuProps) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
+	const [activeContext] = useAtom(activeContextAtom)
 
 	// Detect mobile for ActionSheet vs Menu
 	const isMobile = window.innerWidth < 768
@@ -180,26 +183,28 @@ export function ContextMenu({
 			)}
 
 			{/* Visibility - only for single selection and owner */}
-			{isSingleSelect && file.owner?.idTag === auth?.idTag && fileOps.setVisibility && (
-				<>
-					<Divider />
-					{VISIBILITY_DROPDOWN_OPTIONS.map((opt) => {
-						const VisibilityIcon = getVisibilityIcon(opt.value)
-						const isCurrentVisibility = (file.visibility ?? null) === opt.value
-						return (
-							<Item
-								key={opt.value ?? 'null'}
-								icon={<VisibilityIcon />}
-								label={t(opt.labelKey)}
-								onClick={handleAction(() =>
-									fileOps.setVisibility!(file.fileId, opt.value)
-								)}
-								disabled={isCurrentVisibility}
-							/>
-						)
-					})}
-				</>
-			)}
+			{isSingleSelect &&
+				canManageFile(file, auth?.idTag, activeContext?.roles ?? []) &&
+				fileOps.setVisibility && (
+					<>
+						<Divider />
+						{VISIBILITY_DROPDOWN_OPTIONS.map((opt) => {
+							const VisibilityIcon = getVisibilityIcon(opt.value)
+							const isCurrentVisibility = (file.visibility ?? null) === opt.value
+							return (
+								<Item
+									key={opt.value ?? 'null'}
+									icon={<VisibilityIcon />}
+									label={t(opt.labelKey)}
+									onClick={handleAction(() =>
+										fileOps.setVisibility!(file.fileId, opt.value)
+									)}
+									disabled={isCurrentVisibility}
+								/>
+							)
+						})}
+					</>
+				)}
 
 			{/* Star toggle - always available */}
 			<Item

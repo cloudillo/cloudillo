@@ -63,44 +63,57 @@ export function useApiContext() {
 	/**
 	 * Get API client for specific context
 	 * @param idTag - ID tag of the context
-	 * @param token - Optional token to use (bypasses cache lookup)
+	 * @param opts - Options: token (bypasses cache lookup), auth ('required' | 'preferred' | 'none')
+	 *   - 'required' (default): return null if no token available
+	 *   - 'preferred': use token if available, create unauthenticated client if not
+	 *   - 'none': always create an unauthenticated client
 	 */
 	const getClientFor = React.useCallback(
-		(idTag: string, token?: string): ApiClient | null => {
-			// Return cached client if exists
-			if (apiClientsRef.current.has(idTag)) {
-				return apiClientsRef.current.get(idTag)!
-			}
+		(
+			idTag: string,
+			opts?: { token?: string; auth?: 'required' | 'preferred' | 'none' }
+		): ApiClient | null => {
+			const authMode = opts?.auth ?? 'required'
+			const token = opts?.token
 
-			// User's own context uses primary API
-			if (idTag === auth?.idTag) {
-				return primaryApi
+			// For 'required' and 'preferred' (without explicit 'none'), use cached client
+			if (authMode !== 'none') {
+				if (apiClientsRef.current.has(idTag)) {
+					return apiClientsRef.current.get(idTag)!
+				}
+
+				// User's own context uses primary API (skip for 'none'/'preferred' — caller wants unauthenticated)
+				if (authMode === 'required' && idTag === auth?.idTag) {
+					return primaryApi
+				}
 			}
 
 			// Use provided token or get from cache
 			let authToken = token
-			if (!authToken) {
+			if (!authToken && authMode !== 'none') {
 				const tokenData = contextTokens.get(idTag)
-				if (!tokenData) {
+				if (tokenData && tokenData.expiresAt > new Date()) {
+					authToken = tokenData.token
+				}
+			}
+
+			// If no token found, behavior depends on auth mode
+			if (!authToken) {
+				if (authMode === 'required') {
 					console.warn(`No token available for context: ${idTag}`)
 					return null
 				}
-
-				// Check if token is expired
-				if (tokenData.expiresAt <= new Date()) {
-					console.warn(`Token expired for context: ${idTag}`)
-					return null
-				}
-				authToken = tokenData.token
+				// 'preferred' or 'none': create unauthenticated client (don't cache)
+				return createApiClient({ idTag })
 			}
 
-			// Create new client
+			// Create authenticated client
 			const client = createApiClient({
 				idTag,
 				authToken
 			})
 
-			// Cache it
+			// Cache authenticated clients only
 			apiClientsRef.current.set(idTag, client)
 
 			return client
@@ -177,7 +190,7 @@ export function useApiContext() {
 				}
 
 				// Get API client - pass token directly since state update may be async
-				const contextApi = getClientFor(idTag, tokenResult.token)
+				const contextApi = getClientFor(idTag, { token: tokenResult.token })
 				if (!contextApi) {
 					throw new Error(`Failed to create API client for context: ${idTag}`)
 				}

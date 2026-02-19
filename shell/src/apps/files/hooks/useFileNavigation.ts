@@ -16,8 +16,11 @@
 
 import * as React from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useApi } from '@cloudillo/react'
-import { useContextSwitch, useCurrentContextIdTag } from '../../../context/index.js'
+import {
+	useContextAwareApi,
+	useContextSwitch,
+	useCurrentContextIdTag
+} from '../../../context/index.js'
 import type { File, ViewMode } from '../types.js'
 import { TRASH_FOLDER_ID } from '../types.js'
 
@@ -29,7 +32,7 @@ export interface BreadcrumbItem {
 export function useFileNavigation() {
 	const navigate = useNavigate()
 	const [searchParams, setSearchParams] = useSearchParams()
-	const { api } = useApi()
+	const { api } = useContextAwareApi()
 	const { switchTo } = useContextSwitch()
 	const contextIdTag = useCurrentContextIdTag()
 	const [breadcrumbs, setBreadcrumbs] = React.useState<BreadcrumbItem[]>([])
@@ -115,7 +118,8 @@ export function useFileNavigation() {
 	const enterFolder = React.useCallback(
 		function (folder: File) {
 			if (folder.fileTp === 'FLDR') {
-				// Check if folder has a different owner - switch context if needed
+				// Only switch context for folders with an explicit foreign owner (shared files)
+				// Tenant-owned folders (owner = null) stay in current context
 				if (folder.owner?.idTag && folder.owner.idTag !== contextIdTag) {
 					switchTo(folder.owner.idTag, `/files?parentId=${folder.fileId}`)
 				} else {

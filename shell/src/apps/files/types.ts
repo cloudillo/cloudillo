@@ -29,7 +29,12 @@ export interface File {
 	fileName: string
 	owner?: {
 		idTag: string
-		name: string
+		name?: string
+		profilePic?: string
+	}
+	creator?: {
+		idTag: string
+		name?: string
 		profilePic?: string
 	}
 	fileTp?: string

@@ -34,7 +34,6 @@ import { ActionView, NewAction } from '@cloudillo/types'
 import * as Types from '@cloudillo/core'
 import { getFileUrl } from '@cloudillo/core'
 import {
-	useApi,
 	useAuth,
 	useDialog,
 	useToast,
@@ -44,6 +43,8 @@ import {
 	InlineEditForm,
 	QRCodeDialog
 } from '@cloudillo/react'
+import { useAtom } from 'jotai'
+import { useContextAwareApi, activeContextAtom } from '../../../context/index.js'
 
 import { getFileIcon, IcUnknown } from '../icons.js'
 import { TagsCell } from './TagsCell.js'
@@ -51,6 +52,7 @@ import {
 	formatRelativeTime,
 	getVisibilityIcon,
 	getVisibilityLabelKey,
+	canManageFile,
 	VISIBILITY_DROPDOWN_OPTIONS
 } from '../utils.js'
 import type { File, FileOps, FileVisibility } from '../types.js'
@@ -73,8 +75,9 @@ export function DetailsPanel({
 	onShare
 }: DetailsPanelProps) {
 	const { t } = useTranslation()
-	const { api } = useApi()
+	const { api } = useContextAwareApi()
 	const [auth] = useAuth()
+	const [activeContext] = useAtom(activeContextAtom)
 	const dialog = useDialog()
 	const toast = useToast()
 	const [fileActions, setFileActions] = React.useState<ActionView[] | undefined>()
@@ -231,7 +234,8 @@ export function DetailsPanel({
 						const VisibilityIcon = getVisibilityIcon(file.visibility ?? null)
 						return <VisibilityIcon className="text-secondary" />
 					})()}
-					{file.owner?.idTag === auth?.idTag && fileOps.setVisibility ? (
+					{canManageFile(file, auth?.idTag, activeContext?.roles ?? []) &&
+					fileOps.setVisibility ? (
 						<Popper
 							menuClassName="c-button secondary c-hbox g-2 align-items-center"
 							icon={<span>{t(getVisibilityLabelKey(file.visibility ?? null))}</span>}
@@ -335,7 +339,7 @@ export function DetailsPanel({
 				</div>
 			</div>
 
-			{file.owner?.idTag == auth?.idTag && (
+			{canManageFile(file, auth?.idTag, activeContext?.roles ?? []) && (
 				<div className="c-panel mid">
 					<div className="c-panel-header d-flex align-items-center">
 						<h3 className="flex-fill">{t('Sharing')}</h3>

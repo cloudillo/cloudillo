@@ -25,7 +25,8 @@ import {
 	LuX as IcClose
 } from 'react-icons/lu'
 
-import { useApi, Button, mergeClasses } from '@cloudillo/react'
+import { Button, mergeClasses } from '@cloudillo/react'
+import { useContextAwareApi } from '../../../context/index.js'
 
 export interface FolderPickerProps {
 	title: string
@@ -50,7 +51,7 @@ interface FolderNode {
 export function FolderPicker({ title, excludeFileIds, onSelect, onClose }: FolderPickerProps) {
 	const excludeSet = React.useMemo(() => new Set(excludeFileIds || []), [excludeFileIds])
 	const { t } = useTranslation()
-	const { api } = useApi()
+	const { api } = useContextAwareApi()
 	const [selectedId, setSelectedId] = React.useState<string | null>(null)
 	const [rootFolders, setRootFolders] = React.useState<FolderNode[]>([])
 	const [expandedFolders, setExpandedFolders] = React.useState<Map<string | null, FolderNode[]>>(

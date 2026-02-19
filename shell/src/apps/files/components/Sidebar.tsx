@@ -31,8 +31,9 @@ import {
 	LuPin as IcPin
 } from 'react-icons/lu'
 
-import { useApi, useAuth, useDialog, Button, Popper, mergeClasses } from '@cloudillo/react'
+import { useAuth, useDialog, Button, Popper, mergeClasses } from '@cloudillo/react'
 import type { TagInfo } from '@cloudillo/core'
+import { useContextAwareApi } from '../../../context/index.js'
 import { fileIcons, IcUnknown } from '../icons.js'
 import type { ViewMode } from '../types.js'
 
@@ -54,7 +55,7 @@ export const Sidebar = React.memo(function Sidebar({
 	onTagFilter
 }: SidebarProps) {
 	const { t } = useTranslation()
-	const { api } = useApi()
+	const { api } = useContextAwareApi()
 	const [auth] = useAuth()
 	const navigate = useNavigate()
 	const dialog = useDialog()

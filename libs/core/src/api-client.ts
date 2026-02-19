@@ -1054,7 +1054,15 @@ export class ApiClient {
 				'POST',
 				`/admin/proxy-sites/${siteId}/renew-cert`,
 				Types.tRenewProxySiteCertResult
-			)
+			),
+
+		/**
+		 * POST /admin/invite-community - Send community creation invite to a connected user
+		 * @param data - Target user idTag, optional message and expiration
+		 * @returns Invite result with refId and invite URL
+		 */
+		inviteCommunity: (data: Types.InviteCommunityRequest) =>
+			this.request('POST', '/admin/invite-community', Types.tInviteCommunityResult, { data })
 	}
 }
 

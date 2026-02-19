@@ -17,7 +17,7 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { LuX as IcDismiss } from 'react-icons/lu'
+import { LuCheck as IcAccept, LuX as IcDismiss } from 'react-icons/lu'
 
 import { ActionView } from '@cloudillo/types'
 import { Button, ProfilePicture, TimeFormat, mergeClasses } from '@cloudillo/react'
@@ -37,6 +37,8 @@ function getActionText(
 			return t('Shared a file')
 		case 'INVT':
 			return t('Group invitation')
+		case 'PRINVT':
+			return t('Invited you to create a community')
 		case 'FLLW':
 			return t('Started following you')
 		case 'MSG':
@@ -58,10 +60,19 @@ export interface NotificationItemProps {
 	action: ActionView
 	compact?: boolean
 	onClick?: (action: ActionView) => void
+	onAccept?: (action: ActionView) => void
+	onReject?: (action: ActionView) => void
 	onDismiss?: (action: ActionView) => void
 }
 
-export function NotificationItem({ action, compact, onClick, onDismiss }: NotificationItemProps) {
+export function NotificationItem({
+	action,
+	compact,
+	onClick,
+	onAccept,
+	onReject,
+	onDismiss
+}: NotificationItemProps) {
 	const { t } = useTranslation()
 	const name = action.issuer?.name || action.issuer?.idTag || ''
 	const text = getActionText(action.type, action.subType, action.status, t)
@@ -86,17 +97,32 @@ export function NotificationItem({ action, compact, onClick, onDismiss }: Notifi
 				</span>
 				<TimeFormat time={action.createdAt} />
 			</div>
-			{onDismiss && (
-				<Button
-					link
-					onClick={(evt) => {
-						evt.stopPropagation()
-						onDismiss(action)
-					}}
-				>
-					<IcDismiss />
-				</Button>
-			)}
+			{/* stopPropagation on wrapper div to prevent Popper close on button click */}
+			<div className="c-hbox g-1" onClick={(e) => e.stopPropagation()}>
+				{onAccept && (
+					<Button
+						link
+						onClick={() => onAccept(action)}
+						style={{ color: 'var(--col-success)' }}
+					>
+						<IcAccept />
+					</Button>
+				)}
+				{onReject && (
+					<Button
+						link
+						onClick={() => onReject(action)}
+						style={{ color: 'var(--col-error)' }}
+					>
+						<IcDismiss />
+					</Button>
+				)}
+				{onDismiss && (
+					<Button link onClick={() => onDismiss(action)}>
+						<IcDismiss />
+					</Button>
+				)}
+			</div>
 		</div>
 	)
 }

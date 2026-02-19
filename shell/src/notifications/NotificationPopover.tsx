@@ -15,13 +15,14 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import { LuBell as IcNotifications } from 'react-icons/lu'
 
-import { Popper } from '@cloudillo/react'
+import { useAuth, Popper } from '@cloudillo/react'
 
+import { useCurrentContextIdTag } from '../context/index.js'
 import { useNotifications } from './state.js'
 import { NotificationItem } from './NotificationItem.js'
 
@@ -29,7 +30,25 @@ const MAX_POPOVER_ITEMS = 6
 
 export function NotificationPopover() {
 	const { t } = useTranslation()
-	const { notifications, dismissNotification } = useNotifications()
+	const navigate = useNavigate()
+	const [auth] = useAuth()
+	const contextIdTag = useCurrentContextIdTag()
+	const { notifications, dismissNotification, acceptNotification, rejectNotification } =
+		useNotifications()
+
+	const handlePrinvtAccept = React.useCallback(
+		(action: Parameters<typeof acceptNotification>[0]) => {
+			acceptNotification(action)
+			const content = action.content as { refId?: string } | undefined
+			const idTag = contextIdTag || auth?.idTag
+			if (content?.refId) {
+				navigate(`/communities/create/${idTag}?invite=${content.refId}`)
+			} else {
+				navigate(`/communities/create/${idTag}`)
+			}
+		},
+		[acceptNotification, contextIdTag, auth?.idTag, navigate]
+	)
 
 	const sortedNotifications = [...notifications.notifications]
 		.sort((a, b) => {
@@ -71,7 +90,26 @@ export function NotificationPopover() {
 							key={action.actionId}
 							action={action}
 							compact
-							onDismiss={action.status !== 'C' ? dismissNotification : undefined}
+							onClick={() => navigate('/notifications')}
+							onAccept={
+								action.status === 'C'
+									? action.type === 'PRINVT'
+										? handlePrinvtAccept
+										: acceptNotification
+									: undefined
+							}
+							onReject={
+								action.status === 'C' && action.type !== 'PRINVT'
+									? rejectNotification
+									: undefined
+							}
+							onDismiss={
+								action.status !== 'C'
+									? dismissNotification
+									: action.type === 'PRINVT'
+										? acceptNotification
+										: undefined
+							}
 						/>
 					))}
 				</div>

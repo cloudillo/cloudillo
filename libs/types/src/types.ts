@@ -70,7 +70,8 @@ export const tActionType = T.literal(
 	'FLLW',
 	'SHRE',
 	'MSG',
-	'FSHR'
+	'FSHR',
+	'PRINVT'
 )
 export type ActionType = T.TypeOf<typeof tActionType>
 

@@ -56,6 +56,40 @@ export function useNotifications() {
 		[api, setNotifications, loadNotifications]
 	)
 
+	const acceptNotification = React.useCallback(
+		async function (action: ActionView) {
+			if (!api || !action.actionId) return
+			// Optimistically remove from state
+			setNotifications((n) => ({
+				notifications: n.notifications.filter((a) => a.actionId !== action.actionId)
+			}))
+			try {
+				await api.actions.accept(action.actionId)
+			} catch {
+				// Restore on failure
+				loadNotifications()
+			}
+		},
+		[api, setNotifications, loadNotifications]
+	)
+
+	const rejectNotification = React.useCallback(
+		async function (action: ActionView) {
+			if (!api || !action.actionId) return
+			// Optimistically remove from state
+			setNotifications((n) => ({
+				notifications: n.notifications.filter((a) => a.actionId !== action.actionId)
+			}))
+			try {
+				await api.actions.reject(action.actionId)
+			} catch {
+				// Restore on failure
+				loadNotifications()
+			}
+		},
+		[api, setNotifications, loadNotifications]
+	)
+
 	const dismissAllNotifications = React.useCallback(
 		async function () {
 			if (!api) return
@@ -80,6 +114,8 @@ export function useNotifications() {
 		setNotifications,
 		loadNotifications,
 		dismissNotification,
+		acceptNotification,
+		rejectNotification,
 		dismissAllNotifications
 	}
 }

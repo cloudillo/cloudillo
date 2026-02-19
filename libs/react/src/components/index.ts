@@ -208,6 +208,10 @@ export type { DialogProps, UseDialogReturn } from './Dialog/index.js'
 export { EditProfileList } from './EditProfileList/index.js'
 export type { EditProfileListProps } from './EditProfileList/index.js'
 
+// ProfileSelect Component
+export { ProfileSelect } from './ProfileSelect/index.js'
+export type { ProfileSelectProps } from './ProfileSelect/index.js'
+
 // Select Component
 export { Select } from './Select/index.js'
 export type { SelectProps } from './Select/index.js'

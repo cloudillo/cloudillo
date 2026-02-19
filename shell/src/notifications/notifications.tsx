@@ -91,7 +91,7 @@ function FilterBar({
 
 const FILTER_TYPE_MAP: Record<NotificationFilter, string[] | undefined> = {
 	all: undefined,
-	connections: ['CONN'],
+	connections: ['CONN', 'PRINVT'],
 	messages: ['MSG', 'INVT'],
 	social: ['FLLW', 'CMNT', 'REACT', 'MNTN', 'POST'],
 	files: ['FSHR']
@@ -111,6 +111,8 @@ function getNotificationDescription(type: string, t: (key: string) => string): s
 			return t('Mentioned you')
 		case 'POST':
 			return t('Published a new post')
+		case 'PRINVT':
+			return t('Invited you to create a community')
 		default:
 			return t('New notification')
 	}
@@ -357,6 +359,78 @@ function InviteNotification({
 	)
 }
 
+function ProfileInviteNotification({
+	className,
+	action,
+	onActionHandled
+}: {
+	className?: string
+	action: ActionView
+	onActionHandled?: (action: ActionView) => void
+}) {
+	const { t } = useTranslation()
+	const navigate = useNavigate()
+	const { api } = useApi()
+	const [auth] = useAuth()
+	const contextIdTag = useCurrentContextIdTag()
+
+	const content = action.content as
+		| { refId?: string; inviteUrl?: string; nodeName?: string; message?: string }
+		| undefined
+
+	async function onAccept() {
+		if (!api || !action?.actionId) return
+		await api.actions.accept(action.actionId)
+		onActionHandled?.(action)
+
+		// Navigate to community creation with invite pre-selected
+		const idTag = contextIdTag || auth?.idTag
+		if (content?.refId) {
+			navigate(`/communities/create/${idTag}?invite=${content.refId}`)
+		} else {
+			navigate(`/communities/create/${idTag}`)
+		}
+	}
+
+	async function onReject() {
+		if (!api || !action?.actionId) return
+		await api.actions.reject(action.actionId)
+		onActionHandled?.(action)
+	}
+
+	return (
+		<div className={mergeClasses('c-panel g-2', className)}>
+			<div className="c-panel-header c-hbox">
+				<Link to={`/profile/${action.issuer.idTag}`}>
+					<ProfileCard profile={action.issuer} />
+				</Link>
+				<div className="c-hbox ms-auto g-3 align-items-center">
+					<TimeFormat time={action.createdAt} />
+					{action.status === 'C' && (
+						<Button link onClick={onAccept} title={t('Accept')}>
+							<IcAccept />
+						</Button>
+					)}
+					{action.status === 'C' && (
+						<Button link onClick={onReject} title={t('Reject')}>
+							<IcReject />
+						</Button>
+					)}
+				</div>
+			</div>
+			<div className="d-flex flex-column">
+				<h3>{t('Invited you to create a community')}</h3>
+				{content?.nodeName && (
+					<div className="text-muted">
+						{t('Server')}: <span className="text-emph">{content.nodeName}</span>
+					</div>
+				)}
+				{content?.message && <p className="mt-2">{content.message}</p>}
+			</div>
+		</div>
+	)
+}
+
 function Notification({
 	action,
 	onActionHandled,
@@ -379,6 +453,8 @@ function Notification({
 			return <FileShareNotification action={action} onActionHandled={onActionHandled} />
 		case 'INVT':
 			return <InviteNotification action={action} onActionHandled={onActionHandled} />
+		case 'PRINVT':
+			return <ProfileInviteNotification action={action} onActionHandled={onActionHandled} />
 		case 'MSG':
 		case 'FLLW':
 		case 'CMNT':

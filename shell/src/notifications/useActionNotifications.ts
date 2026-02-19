@@ -26,6 +26,7 @@ import { useLocalNotifySettings, LocalNotifySettings } from './useLocalNotifySet
 const ACTION_TYPE_MAP: Record<string, keyof LocalNotifySettings> = {
 	MSG: 'sound.message',
 	CONN: 'sound.connection',
+	PRINVT: 'sound.connection',
 	FSHR: 'sound.file_share',
 	FLLW: 'sound.follow',
 	CMNT: 'sound.comment',
@@ -35,7 +36,7 @@ const ACTION_TYPE_MAP: Record<string, keyof LocalNotifySettings> = {
 }
 
 // Actionable types get a longer toast duration
-const ACTIONABLE_TYPES = new Set(['CONN', 'FSHR', 'INVT'])
+const ACTIONABLE_TYPES = new Set(['CONN', 'FSHR', 'INVT', 'PRINVT'])
 
 function getSettingKey(actionType: string): string | undefined {
 	const key = ACTION_TYPE_MAP[actionType]
@@ -62,6 +63,8 @@ function getNotificationTitle(actionType: string): string {
 			return 'New Post'
 		case 'INVT':
 			return 'Group Invitation'
+		case 'PRINVT':
+			return 'Community Invitation'
 		default:
 			return 'Notification'
 	}
@@ -88,6 +91,8 @@ function getNotificationMessage(action: ActionView): string {
 			return `New post from ${name}`
 		case 'INVT':
 			return `${name} invited you to join a group`
+		case 'PRINVT':
+			return `${name} invited you to create a community`
 		default:
 			return `New notification from ${name}`
 	}

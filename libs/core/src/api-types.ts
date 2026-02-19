@@ -538,6 +538,14 @@ export const tFileView = T.struct({
 			type: T.optional(T.string)
 		})
 	),
+	creator: T.optional(
+		T.struct({
+			idTag: T.string,
+			name: T.optional(T.string),
+			profilePic: T.optional(T.string),
+			type: T.optional(T.string)
+		})
+	),
 	accessLevel: T.optional(T.literal('read', 'write', 'none')),
 	visibility: T.optional(T.union(T.literal('D', 'P', 'V', '2', 'F', 'C'), T.nullValue)) // null/D=Direct, P=Public, V=Verified, 2=2nd degree, F=Followers, C=Connected
 })
@@ -692,7 +700,13 @@ export const tProfileKeys = T.struct({
 	type: T.optional(T.literal('person', 'community')),
 	profilePic: T.optional(T.string),
 	coverPic: T.optional(T.string),
-	keys: T.array(tProfileKey)
+	keys: T.array(tProfileKey),
+	settings: T.optional(
+		T.struct({
+			connectionMode: T.optional(T.literal('M', 'A', 'I')),
+			allowFollowers: T.optional(T.boolean)
+		})
+	)
 })
 export type ProfileKeys = T.TypeOf<typeof tProfileKeys>
 
@@ -833,6 +847,7 @@ export interface CreateCommunityRequest {
 	name?: string
 	appDomain?: string
 	token: string
+	inviteRef?: string
 }
 
 export interface VerifyCommunityRequest {
@@ -846,7 +861,7 @@ export const tCommunityProfileResponse = T.struct({
 	idTag: T.string,
 	name: T.string,
 	type: T.literal('community'),
-	createdAt: T.number
+	createdAt: T.string
 })
 export type CommunityProfileResponse = T.TypeOf<typeof tCommunityProfileResponse>
 
@@ -861,6 +876,21 @@ export const tCommunityVerifyResult = T.struct({
 	)
 })
 export type CommunityVerifyResult = T.TypeOf<typeof tCommunityVerifyResult>
+
+// Community invite types (SADM sends invite to connected user)
+export interface InviteCommunityRequest {
+	targetIdTag: string
+	expiresInDays?: number
+	message?: string
+}
+
+export const tInviteCommunityResult = T.struct({
+	refId: T.string,
+	inviteUrl: T.string,
+	targetIdTag: T.string,
+	expiresAt: T.optional(T.number)
+})
+export type InviteCommunityResult = T.TypeOf<typeof tInviteCommunityResult>
 
 // ============================================================================
 // ADMIN TENANT ENDPOINTS

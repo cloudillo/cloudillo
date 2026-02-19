@@ -311,7 +311,7 @@ export function MicrofrontendContainer({
 						token: currentProvidedToken,
 						refId: currentRefId,
 						access: currentAccess || 'write',
-						idTag: currentContextIdTag,
+						idTag: currentAuth?.idTag,
 						displayName: currentGuestName
 					})
 				}
@@ -373,7 +373,7 @@ export function MicrofrontendContainer({
 
 					// Read latest values from refs for pre-registration
 					const latestAccess = accessRef.current
-					const latestContextIdTag = contextIdTagRef.current
+					const latestAuth = authRef.current
 					const latestProvidedToken = providedTokenRef.current
 					const latestRefId = refIdRef.current
 
@@ -381,7 +381,7 @@ export function MicrofrontendContainer({
 					currentShellBus.preRegisterApp(currentAppWindow, {
 						appName: app,
 						resId,
-						idTag: latestContextIdTag,
+						idTag: latestAuth?.idTag,
 						access: latestAccess || 'write',
 						token: latestProvidedToken,
 						refId: latestRefId
@@ -391,14 +391,13 @@ export function MicrofrontendContainer({
 
 					try {
 						const res = await apiPromise
-						// Read latest auth values for initApp
-						const latestAuth = authRef.current
+						// Re-read latest auth values for initApp (may have been renewed)
 						const latestGuestName = guestNameRef.current
 						const latestScheduleRenewal = scheduleRenewalRef.current
 
 						currentShellBus.initApp(currentAppWindow, {
 							appName: app,
-							idTag: latestContextIdTag,
+							idTag: latestAuth?.idTag,
 							tnId: latestAuth?.tnId,
 							roles: latestAuth?.roles,
 							darkMode: document.body.classList.contains('dark'),

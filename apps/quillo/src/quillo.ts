@@ -372,8 +372,9 @@ function updatePairingBadges(
 	console.log('[quillo] token', state.accessToken)
 	console.log('[quillo] idTag', bus.idTag)
 
-	// Set ownerTag for image URL construction
-	ClImageBlot.ownerTag = bus.idTag
+	// Set ownerTag for image URL construction (extract from URL hash, not bus.idTag which is the user's identity)
+	const [ownerTag] = location.hash.slice(1).split(':')
+	ClImageBlot.ownerTag = ownerTag
 	const yDoc = new Y.Doc()
 	const doc = await openYDoc(yDoc, docId)
 	doc.provider.awareness.setLocalStateField('user', {

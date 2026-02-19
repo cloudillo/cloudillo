@@ -1880,7 +1880,7 @@ export function PrezilloApp() {
 						if (prezillo.doc && views.length > 0) {
 							setIsExportingPDF(true)
 							try {
-								await downloadPDF(prezillo.doc, views, prezillo.cloudillo.idTag)
+								await downloadPDF(prezillo.doc, views, prezillo.cloudillo.ownerTag)
 							} catch (error) {
 								console.error('PDF export failed:', error)
 							} finally {
@@ -2342,7 +2342,7 @@ export function PrezilloApp() {
 									onPointerEnter={() => setHoveredObjectId(object.id as ObjectId)}
 									onPointerLeave={() => setHoveredObjectId(null)}
 									tempBounds={objectTempBounds}
-									ownerTag={prezillo.cloudillo.idTag}
+									ownerTag={prezillo.cloudillo.ownerTag}
 									scale={canvasScale}
 								/>
 							)
@@ -2470,7 +2470,7 @@ export function PrezilloApp() {
 					views={views}
 					initialViewId={prezillo.activeViewId}
 					onExit={handleStopPresenting}
-					ownerTag={prezillo.cloudillo.idTag}
+					ownerTag={prezillo.cloudillo.ownerTag}
 					onViewChange={(viewIndex, viewId) => {
 						prezillo.setActiveViewId(viewId)
 					}}
@@ -2485,7 +2485,7 @@ export function PrezilloApp() {
 					views={views}
 					initialViewId={followedPresenter.viewId}
 					onExit={handleExitFullscreenFollowing}
-					ownerTag={prezillo.cloudillo.idTag}
+					ownerTag={prezillo.cloudillo.ownerTag}
 					isFollowing={true}
 					followingViewIndex={followedPresenter.viewIndex}
 					followingPresenterClientId={followedPresenter.clientId}

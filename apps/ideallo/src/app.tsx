@@ -1254,7 +1254,7 @@ export function IdealloApp() {
 				}
 				onPointerLeave={selectHandler.handlePointerLeave}
 				// Image loading
-				ownerTag={ideallo.cloudillo.idTag}
+				ownerTag={ideallo.cloudillo.ownerTag}
 			/>
 
 			{/* Toolbar */}

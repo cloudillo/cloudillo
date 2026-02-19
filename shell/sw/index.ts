@@ -378,6 +378,7 @@ function onActivate(evt: any) {
 }
 
 let fetchIdTagPromise: Promise<string | undefined> | undefined
+let fetchAuthTokenPromise: Promise<string | null> | undefined
 async function fetchIdTag(): Promise<string | undefined> {
 	try {
 		const res = await fetch('/.well-known/cloudillo/id-tag')
@@ -425,6 +426,18 @@ function onFetch(evt: any) {
 						fetchIdTagPromise = undefined
 					}
 					log && console.log('[SW] idTag:', idTag)
+				}
+
+				// Lazy-load authToken from encrypted storage if SW was restarted
+				if (!authToken) {
+					log && console.log('[SW] authToken missing, loading from storage')
+					if (!fetchAuthTokenPromise) fetchAuthTokenPromise = getSecureItem('authToken')
+					const persistedToken = await fetchAuthTokenPromise
+					if (persistedToken) {
+						authToken = persistedToken
+						log && console.log('[SW] Loaded persisted auth token in fetch handler')
+					}
+					fetchAuthTokenPromise = undefined
 				}
 
 				if (idTag && reqUrl.hostname == 'cl-o.' + idTag) {

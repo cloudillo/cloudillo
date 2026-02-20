@@ -17,6 +17,7 @@
 import * as React from 'react'
 
 import type { Block } from '@blocknote/core'
+import { filterSuggestionItems } from '@blocknote/core/extensions'
 import {
 	useCreateBlockNote,
 	SuggestionMenuController,
@@ -25,6 +26,7 @@ import {
 import { BlockNoteView } from '@blocknote/mantine'
 import '@blocknote/mantine/style.css'
 
+import { getFileUrl, getImageVariantForDisplaySize } from '@cloudillo/core'
 import type { RtdbClient } from '@cloudillo/rtdb'
 import type { PageRecord } from '../rtdb/types.js'
 import { createPage } from '../rtdb/page-ops.js'
@@ -37,6 +39,13 @@ import { useEditorLocks } from '../hooks/useEditorLocks.js'
 import { useBlockLocks } from '../hooks/useBlockLocks.js'
 import { useLockIndicators } from '../hooks/useLockIndicators.js'
 import { usePageTagSync } from '../hooks/usePageTagSync.js'
+import { useMediaHandler } from './useMediaHandler.js'
+
+const menuFloatingUIOptions = {
+	useFloatingOptions: {
+		strategy: 'fixed' as const
+	}
+}
 
 interface NotilloEditorProps {
 	client: RtdbClient
@@ -48,6 +57,7 @@ interface NotilloEditorProps {
 	userId: string
 	ownerTag: string
 	darkMode: boolean
+	fileId?: string
 	pages: Map<string, PageRecord & { id: string }>
 	onSelectPage: (pageId: string) => void
 	onTagClick?: (tag: string) => void
@@ -66,16 +76,50 @@ export const NotilloEditor = React.memo(
 		userId,
 		ownerTag,
 		darkMode,
+		fileId,
 		pages,
 		onSelectPage,
 		onTagClick,
 		tags,
 		pageTags
 	}: NotilloEditorProps) {
+		const containerWidthRef = React.useRef(900)
+
+		const resolveFileUrl = React.useCallback(
+			async (url: string) => {
+				if (!url.startsWith('cl-file:')) return url
+
+				const rest = url.slice(8) // after "cl-file:"
+				const colonIdx = rest.indexOf(':')
+
+				// Typed URL: cl-file:img:FILEID, cl-file:vid:FILEID, cl-file:aud:FILEID
+				if (colonIdx !== -1) {
+					const tag = rest.slice(0, colonIdx)
+					const fileId = rest.slice(colonIdx + 1)
+
+					if (tag === 'img') {
+						const px = containerWidthRef.current * (globalThis.devicePixelRatio || 1)
+						return getFileUrl(ownerTag, fileId, getImageVariantForDisplaySize(px, px))
+					}
+					if (tag === 'vid') {
+						return getFileUrl(ownerTag, fileId, 'vid.hd')
+					}
+					// 'aud' or unknown tag — no variant
+					return getFileUrl(ownerTag, fileId)
+				}
+
+				// Legacy untyped URL: cl-file:FILEID — treat as image for backward compat
+				const px = containerWidthRef.current * (globalThis.devicePixelRatio || 1)
+				return getFileUrl(ownerTag, rest, getImageVariantForDisplaySize(px, px))
+			},
+			[ownerTag]
+		)
+
 		const editor = useCreateBlockNote({
 			schema: notilloSchema,
 			initialContent: initialBlocks.length > 0 ? (initialBlocks as any) : undefined,
-			idFactory: shortId
+			idFactory: shortId,
+			resolveFileUrl
 		})
 
 		// Local changes → RTDB (smart per-block sync with position tracking)
@@ -98,6 +142,14 @@ export const NotilloEditor = React.memo(
 		// Editor → page tag sync (debounced, self-healing)
 		usePageTagSync(editor as any, client, pageId, pageTags, readOnly)
 
+		// MediaPicker integration for image/video/audio insertion
+		const { getSlashMenuItems } = useMediaHandler({
+			editor: editor as any,
+			ownerTag,
+			documentFileId: fileId,
+			readOnly
+		})
+
 		// RTDB changes → Editor (lock events forwarded to handleLockEvent)
 		useRtdbToEditor(
 			editor as any,
@@ -110,8 +162,20 @@ export const NotilloEditor = React.memo(
 			handleLockEvent
 		)
 
-		// Wiki-link click handling via event delegation
+		// Track editor container width for image variant selection
 		const editorRef = React.useRef<HTMLDivElement>(null)
+		React.useEffect(() => {
+			const el = editorRef.current
+			if (!el) return
+
+			const ro = new ResizeObserver(([entry]) => {
+				if (entry) containerWidthRef.current = entry.contentRect.width
+			})
+			ro.observe(el)
+			return () => ro.disconnect()
+		}, [])
+
+		// Wiki-link click handling via event delegation
 		React.useEffect(() => {
 			const el = editorRef.current
 			if (!el) return
@@ -229,14 +293,25 @@ export const NotilloEditor = React.memo(
 						editor={editor}
 						editable={!readOnly}
 						theme={darkMode ? 'dark' : 'light'}
+						slashMenu={false}
+						filePanel={false}
 					>
+						<SuggestionMenuController
+							triggerCharacter="/"
+							getItems={async (query) =>
+								filterSuggestionItems(getSlashMenuItems(editor as any), query)
+							}
+							floatingUIOptions={menuFloatingUIOptions}
+						/>
 						<SuggestionMenuController
 							triggerCharacter="@"
 							getItems={async (query) => getWikiLinkItems(query)}
+							floatingUIOptions={menuFloatingUIOptions}
 						/>
 						<SuggestionMenuController
 							triggerCharacter="#"
 							getItems={async (query) => getTagItems(query)}
+							floatingUIOptions={menuFloatingUIOptions}
 						/>
 					</BlockNoteView>
 				</NotilloEditorProvider>
@@ -256,6 +331,7 @@ export const NotilloEditor = React.memo(
 			prev.userId === next.userId &&
 			prev.ownerTag === next.ownerTag &&
 			prev.darkMode === next.darkMode &&
+			prev.fileId === next.fileId &&
 			prev.pages === next.pages &&
 			prev.tags === next.tags
 		)

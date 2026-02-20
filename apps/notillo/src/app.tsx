@@ -227,6 +227,7 @@ export function NotilloApp() {
 							userId={notillo.idTag}
 							ownerTag={notillo.ownerTag}
 							darkMode={notillo.darkMode}
+							fileId={notillo.fileId}
 							pages={pages}
 							onSelectPage={handleSelectPage}
 							onTagClick={handleTagClick}

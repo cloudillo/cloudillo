@@ -68,7 +68,7 @@ export function useNotillo() {
 				rtdbClient = new RtdbClient({
 					dbId: fileId,
 					auth: {
-						getToken: () => state.accessToken
+						getToken: () => bus.accessToken
 					},
 					serverUrl,
 					options: {

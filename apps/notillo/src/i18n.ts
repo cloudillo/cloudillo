@@ -14,23 +14,22 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import './i18n.js'
-import * as React from 'react'
-import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
+import i18n from 'i18next'
+import { initReactI18next } from 'react-i18next'
 
-import { NotilloApp } from './app.js'
+i18n.use(initReactI18next)
+	.init({
+		resources: { en: { translation: {} } },
+		fallbackLng: 'en',
+		keySeparator: '@',
+		nsSeparator: '$',
+		returnNull: false,
+		interpolation: {
+			escapeValue: false
+		}
+	})
+	.catch()
 
-function App() {
-	return (
-		<BrowserRouter basename="/">
-			<NotilloApp />
-		</BrowserRouter>
-	)
-}
-
-const app = document.getElementById('app')
-const root = createRoot(app!)
-root.render(<App />)
+export default i18n
 
 // vim: ts=4

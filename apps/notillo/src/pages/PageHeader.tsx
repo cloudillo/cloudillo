@@ -16,6 +16,7 @@
 
 import * as React from 'react'
 import { LuPanelLeft as IcSidebar } from 'react-icons/lu'
+import { PiDotsThreeVerticalBold as IcMore } from 'react-icons/pi'
 
 import { Button } from '@cloudillo/react'
 import type { RtdbClient } from '@cloudillo/rtdb'
@@ -27,12 +28,29 @@ interface PageHeaderProps {
 	page: PageRecord & { id: string }
 	readOnly: boolean
 	onToggleSidebar?: () => void
+	onExportMarkdown?: () => void
+	onExportPdf?: () => void
+	onExportDocx?: () => void
+	onExportOdt?: () => void
+	onImportMarkdown?: () => void
 }
 
-export function PageHeader({ client, page, readOnly, onToggleSidebar }: PageHeaderProps) {
+export function PageHeader({
+	client,
+	page,
+	readOnly,
+	onToggleSidebar,
+	onExportMarkdown,
+	onExportPdf,
+	onExportDocx,
+	onExportOdt,
+	onImportMarkdown
+}: PageHeaderProps) {
 	const [editing, setEditing] = React.useState(false)
 	const [title, setTitle] = React.useState(page.title)
 	const inputRef = React.useRef<HTMLInputElement>(null)
+	const [menuOpen, setMenuOpen] = React.useState(false)
+	const menuRef = React.useRef<HTMLDivElement>(null)
 
 	React.useEffect(() => {
 		setTitle(page.title)
@@ -44,6 +62,18 @@ export function PageHeader({ client, page, readOnly, onToggleSidebar }: PageHead
 			inputRef.current.select()
 		}
 	}, [editing])
+
+	// Close menu on click outside
+	React.useEffect(() => {
+		if (!menuOpen) return
+		function handleClickOutside(e: MouseEvent) {
+			if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+				setMenuOpen(false)
+			}
+		}
+		document.addEventListener('click', handleClickOutside, true)
+		return () => document.removeEventListener('click', handleClickOutside, true)
+	}, [menuOpen])
 
 	const handleSave = React.useCallback(async () => {
 		setEditing(false)
@@ -104,6 +134,73 @@ export function PageHeader({ client, page, readOnly, onToggleSidebar }: PageHead
 					{page.title || 'Untitled'}
 				</h1>
 			)}
+			<div ref={menuRef} style={{ position: 'relative' }}>
+				<Button
+					link
+					mode="icon"
+					size="small"
+					onClick={() => setMenuOpen(!menuOpen)}
+					title="More actions"
+				>
+					<IcMore />
+				</Button>
+				{menuOpen && (
+					<div className="c-menu" style={{ position: 'absolute', top: '100%', right: 0 }}>
+						<div className="c-menu-header">Export</div>
+						<button
+							className="c-menu-item"
+							onClick={() => {
+								setMenuOpen(false)
+								onExportMarkdown?.()
+							}}
+						>
+							Markdown (.md)
+						</button>
+						<button
+							className="c-menu-item"
+							onClick={() => {
+								setMenuOpen(false)
+								onExportPdf?.()
+							}}
+						>
+							PDF (.pdf)
+						</button>
+						<button
+							className="c-menu-item"
+							onClick={() => {
+								setMenuOpen(false)
+								onExportDocx?.()
+							}}
+						>
+							Word (.docx)
+						</button>
+						<button
+							className="c-menu-item"
+							onClick={() => {
+								setMenuOpen(false)
+								onExportOdt?.()
+							}}
+						>
+							OpenDocument (.odt)
+						</button>
+						{!readOnly && (
+							<>
+								<div className="c-menu-divider" />
+								<div className="c-menu-header">Import</div>
+								<button
+									className="c-menu-item"
+									onClick={() => {
+										setMenuOpen(false)
+										onImportMarkdown?.()
+									}}
+								>
+									Markdown (.md)
+								</button>
+							</>
+						)}
+					</div>
+				)}
+			</div>
 		</nav>
 	)
 }

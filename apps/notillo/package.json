@@ -17,14 +17,19 @@
 		"@blocknote/core": "^0.46.2",
 		"@blocknote/mantine": "^0.46.2",
 		"@blocknote/react": "^0.46.2",
+		"@blocknote/xl-docx-exporter": "^0.46.2",
+		"@blocknote/xl-odt-exporter": "^0.46.2",
+		"@blocknote/xl-pdf-exporter": "^0.46.2",
 		"@cloudillo/core": "workspace:^",
 		"@cloudillo/react": "workspace:^",
 		"@cloudillo/rtdb": "workspace:^",
+		"@react-pdf/renderer": "^4.3.0",
 		"@mantine/core": "^8.3.11",
 		"@mantine/hooks": "^8.3.11",
 		"@symbion/opalui": "^0.14.5",
 		"@types/react": "^19.2.14",
 		"@types/react-dom": "^19.2.3",
+		"docx": "^9.4.1",
 		"cross-env": "^10.1.0",
 		"esbuild": "^0.27.3",
 		"fractional-indexing": "^3.2.0",
@@ -37,6 +42,7 @@
 		"typescript": "^5.9.3"
 	},
 	"dependencies": {
+		"buffer": "^6.0.3",
 		"i18next": "^25.8.7",
 		"react-i18next": "^16.5.4"
 	}

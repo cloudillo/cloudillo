@@ -16,7 +16,8 @@
 
 import * as React from 'react'
 
-import { Fcd, Panel, Button, DialogContainer } from '@cloudillo/react'
+import { getFileUrl } from '@cloudillo/core'
+import { Fcd, Panel, Button, DialogContainer, useDialog } from '@cloudillo/react'
 
 import { LuPanelLeft as IcSidebar } from 'react-icons/lu'
 
@@ -24,17 +25,20 @@ import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
 import './style.css'
 
+import type { NotilloEditor } from './editor/schema.js'
 import { useNotillo } from './hooks/useNotillo.js'
 import { useLazyPageTree } from './hooks/useLazyPageTree.js'
 import { usePageBlocks } from './hooks/usePageBlocks.js'
 import { useTags } from './hooks/useTags.js'
 import { useAllPages } from './hooks/useAllPages.js'
-import { NotilloEditor } from './editor/NotilloEditor.js'
+import { NotilloEditor as NotilloEditorComponent } from './editor/NotilloEditor.js'
 import { PageSidebar } from './pages/PageSidebar.js'
 import { PageHeader } from './pages/PageHeader.js'
+import { exportMarkdown, importMarkdown, exportPdf, exportDocx, exportOdt } from './export/index.js'
 
 export function NotilloApp() {
 	const notillo = useNotillo()
+	const dialog = useDialog()
 	const isReadOnly = notillo.access === 'read'
 	const {
 		pages,
@@ -54,6 +58,82 @@ export function NotilloApp() {
 	const [showFilter, setShowFilter] = React.useState(false)
 	const [activeTag, setActiveTag] = React.useState<string | null>(null)
 	const [searchQuery, setSearchQuery] = React.useState('')
+
+	const editorRef = React.useRef<NotilloEditor | null>(null)
+	const fileInputRef = React.useRef<HTMLInputElement>(null)
+
+	// Reset editor ref when active page changes
+	React.useEffect(() => {
+		editorRef.current = null
+	}, [activePageId])
+
+	const handleEditorReady = React.useCallback((editor: NotilloEditor) => {
+		editorRef.current = editor
+	}, [])
+
+	const resolveFileUrl = React.useCallback(
+		async (url: string): Promise<string | Blob> => {
+			if (!notillo.ownerTag || !url.startsWith('cl-file:')) return url
+
+			const rest = url.slice(8)
+			const colonIdx = rest.indexOf(':')
+
+			let resolvedUrl: string
+			if (colonIdx !== -1) {
+				const tag = rest.slice(0, colonIdx)
+				const fileId = rest.slice(colonIdx + 1)
+
+				if (tag === 'img') resolvedUrl = getFileUrl(notillo.ownerTag, fileId, 'vis.hd')
+				else if (tag === 'vid') resolvedUrl = getFileUrl(notillo.ownerTag, fileId, 'vid.hd')
+				else resolvedUrl = getFileUrl(notillo.ownerTag, fileId)
+			} else {
+				resolvedUrl = getFileUrl(notillo.ownerTag, rest, 'vis.hd')
+			}
+
+			// Fetch and convert unsupported formats to PNG
+			const resp = await fetch(resolvedUrl)
+			const blob = await resp.blob()
+
+			if (blob.type === 'image/png' || blob.type === 'image/jpeg') return blob
+
+			// Convert SVG/WebP/AVIF → PNG via Canvas
+			const blobUrl = URL.createObjectURL(blob)
+			try {
+				const img = new Image()
+				img.crossOrigin = 'anonymous'
+				await new Promise<void>((resolve, reject) => {
+					img.onload = () => resolve()
+					img.onerror = () => reject(new Error('Failed to load image for conversion'))
+					img.src = blobUrl
+				})
+
+				// SVGs may report tiny default dimensions — scale up for quality
+				const MIN_WIDTH = 1024
+				let w = img.naturalWidth
+				let h = img.naturalHeight
+				if (w < MIN_WIDTH) {
+					const scale = 1920 / w
+					w = 1920
+					h = Math.round(h * scale)
+				}
+
+				const canvas = document.createElement('canvas')
+				canvas.width = w
+				canvas.height = h
+				const ctx = canvas.getContext('2d')!
+				ctx.drawImage(img, 0, 0, w, h)
+				return await new Promise<Blob>((resolve, reject) => {
+					canvas.toBlob(
+						(b) => (b ? resolve(b) : reject(new Error('Canvas toBlob failed'))),
+						'image/png'
+					)
+				})
+			} finally {
+				URL.revokeObjectURL(blobUrl)
+			}
+		},
+		[notillo.ownerTag]
+	)
 
 	// Create indexes for queries
 	React.useEffect(() => {
@@ -125,6 +205,70 @@ export function NotilloApp() {
 		knownBlockOrders
 	} = usePageBlocks(notillo.client, activePageId, notillo.ownerTag)
 
+	// Export/import handlers
+	const handleExportMarkdown = React.useCallback(async () => {
+		if (!editorRef.current || !activePage) return
+		try {
+			await exportMarkdown(editorRef.current, activePage.title || 'Untitled')
+		} catch (err) {
+			await dialog.tell('Export error', `Failed to export Markdown: ${err}`)
+		}
+	}, [activePage, dialog])
+
+	const handleExportPdf = React.useCallback(async () => {
+		if (!editorRef.current || !activePage) return
+		try {
+			await exportPdf(editorRef.current, activePage.title || 'Untitled', resolveFileUrl)
+		} catch (err) {
+			await dialog.tell('Export error', `Failed to export PDF: ${err}`)
+		}
+	}, [activePage, dialog, resolveFileUrl])
+
+	const handleExportDocx = React.useCallback(async () => {
+		if (!editorRef.current || !activePage) return
+		try {
+			await exportDocx(editorRef.current, activePage.title || 'Untitled', resolveFileUrl)
+		} catch (err) {
+			await dialog.tell('Export error', `Failed to export Word: ${err}`)
+		}
+	}, [activePage, dialog, resolveFileUrl])
+
+	const handleExportOdt = React.useCallback(async () => {
+		if (!editorRef.current || !activePage) return
+		try {
+			await exportOdt(editorRef.current, activePage.title || 'Untitled', resolveFileUrl)
+		} catch (err) {
+			await dialog.tell('Export error', `Failed to export OpenDocument: ${err}`)
+		}
+	}, [activePage, dialog, resolveFileUrl])
+
+	const handleImportMarkdown = React.useCallback(() => {
+		fileInputRef.current?.click()
+	}, [])
+
+	const handleFileSelected = React.useCallback(
+		async (e: React.ChangeEvent<HTMLInputElement>) => {
+			const file = e.target.files?.[0]
+			if (!file || !editorRef.current) return
+			// Reset input so the same file can be re-selected
+			e.target.value = ''
+
+			const confirmed = await dialog.confirm(
+				'Import Markdown',
+				'This will replace the current page content. Continue?'
+			)
+			if (!confirmed) return
+
+			try {
+				const markdown = await file.text()
+				await importMarkdown(editorRef.current, markdown)
+			} catch (err) {
+				await dialog.tell('Import error', `Failed to import Markdown: ${err}`)
+			}
+		},
+		[dialog]
+	)
+
 	// Loading state
 	if (notillo.loading) {
 		return (
@@ -152,107 +296,122 @@ export function NotilloApp() {
 	if (!notillo.client || !notillo.idTag || !notillo.ownerTag) return null
 
 	return (
-		<Fcd.Container>
-			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-				<Panel elevation="mid" className="c-vbox fill">
-					<PageSidebar
-						client={notillo.client}
-						pages={pages}
-						pagesWithChildren={pagesWithChildren}
-						expanded={expanded}
-						loadingChildren={loadingChildren}
-						orphanPage={orphanPage}
-						onExpand={expand}
-						onCollapse={collapse}
-						onToggleExpand={toggleExpand}
-						activePageId={activePageId}
-						onSelectPage={handleSelectPage}
-						userId={notillo.idTag}
-						readOnly={isReadOnly}
-						tags={tags}
-						tagCounts={tagCounts}
-						activeTag={activeTag}
-						onSelectTag={handleTagClick}
-						onClearTag={() => setActiveTag(null)}
-						searchQuery={searchQuery}
-						onSearchChange={setSearchQuery}
-						filteredResults={filteredResults}
-						isFiltering={isFiltering}
-					/>
-				</Panel>
-			</Fcd.Filter>
-			<Fcd.Content
-				fluid
-				header={
-					activePage ? (
-						<PageHeader
+		<>
+			<input
+				ref={fileInputRef}
+				type="file"
+				accept=".md,text/markdown"
+				style={{ display: 'none' }}
+				onChange={handleFileSelected}
+			/>
+			<Fcd.Container>
+				<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+					<Panel elevation="mid" className="c-vbox fill">
+						<PageSidebar
 							client={notillo.client}
-							page={activePage}
-							readOnly={isReadOnly}
-							onToggleSidebar={() => setShowFilter(true)}
-						/>
-					) : (
-						<nav
-							className="c-nav px-4 py-2 g-2 md-hide lg-hide"
-							style={{ borderBottom: '1px solid var(--col-outline)' }}
-						>
-							<Button
-								link
-								mode="icon"
-								size="small"
-								onClick={() => setShowFilter(true)}
-								title="Open sidebar"
-							>
-								<IcSidebar />
-							</Button>
-							<span className="font-semibold flex-fill">Notillo</span>
-						</nav>
-					)
-				}
-			>
-				{activePage ? (
-					blocksLoading || loadedPageId !== activePageId ? (
-						<div className="c-vbox fill align-items-center justify-content-center">
-							<div className="c-spinner" />
-						</div>
-					) : (
-						<NotilloEditor
-							key={activePageId}
-							client={notillo.client}
-							pageId={activePage.id}
-							initialBlocks={blocks}
-							knownBlockIds={knownBlockIds}
-							knownBlockOrders={knownBlockOrders}
-							readOnly={isReadOnly}
-							userId={notillo.idTag}
-							ownerTag={notillo.ownerTag}
-							darkMode={notillo.darkMode}
-							fileId={notillo.fileId}
 							pages={pages}
+							pagesWithChildren={pagesWithChildren}
+							expanded={expanded}
+							loadingChildren={loadingChildren}
+							orphanPage={orphanPage}
+							onExpand={expand}
+							onCollapse={collapse}
+							onToggleExpand={toggleExpand}
+							activePageId={activePageId}
 							onSelectPage={handleSelectPage}
-							onTagClick={handleTagClick}
+							userId={notillo.idTag}
+							readOnly={isReadOnly}
 							tags={tags}
-							pageTags={activePage.tags}
+							tagCounts={tagCounts}
+							activeTag={activeTag}
+							onSelectTag={handleTagClick}
+							onClearTag={() => setActiveTag(null)}
+							searchQuery={searchQuery}
+							onSearchChange={setSearchQuery}
+							filteredResults={filteredResults}
+							isFiltering={isFiltering}
 						/>
-					)
-				) : (
-					<div className="c-vbox fill align-items-center justify-content-center text-center p-4">
-						{pages.size === 0 ? (
-							<>
-								<div className="text-3xl opacity-50 mb-3">📝</div>
-								<p>No pages yet.</p>
-								{!isReadOnly && (
-									<p>Create a page from the sidebar to get started.</p>
-								)}
-							</>
+					</Panel>
+				</Fcd.Filter>
+				<Fcd.Content
+					fluid
+					header={
+						activePage ? (
+							<PageHeader
+								client={notillo.client}
+								page={activePage}
+								readOnly={isReadOnly}
+								onToggleSidebar={() => setShowFilter(true)}
+								onExportMarkdown={handleExportMarkdown}
+								onExportPdf={handleExportPdf}
+								onExportDocx={handleExportDocx}
+								onExportOdt={handleExportOdt}
+								onImportMarkdown={handleImportMarkdown}
+							/>
 						) : (
-							<p>Select a page from the sidebar.</p>
-						)}
-					</div>
-				)}
-			</Fcd.Content>
-			<DialogContainer />
-		</Fcd.Container>
+							<nav
+								className="c-nav px-4 py-2 g-2 md-hide lg-hide"
+								style={{ borderBottom: '1px solid var(--col-outline)' }}
+							>
+								<Button
+									link
+									mode="icon"
+									size="small"
+									onClick={() => setShowFilter(true)}
+									title="Open sidebar"
+								>
+									<IcSidebar />
+								</Button>
+								<span className="font-semibold flex-fill">Notillo</span>
+							</nav>
+						)
+					}
+				>
+					{activePage ? (
+						blocksLoading || loadedPageId !== activePageId ? (
+							<div className="c-vbox fill align-items-center justify-content-center">
+								<div className="c-spinner" />
+							</div>
+						) : (
+							<NotilloEditorComponent
+								key={activePageId}
+								client={notillo.client}
+								pageId={activePage.id}
+								initialBlocks={blocks}
+								knownBlockIds={knownBlockIds}
+								knownBlockOrders={knownBlockOrders}
+								readOnly={isReadOnly}
+								userId={notillo.idTag}
+								ownerTag={notillo.ownerTag}
+								darkMode={notillo.darkMode}
+								fileId={notillo.fileId}
+								pages={pages}
+								onSelectPage={handleSelectPage}
+								onTagClick={handleTagClick}
+								onEditorReady={handleEditorReady}
+								tags={tags}
+								pageTags={activePage.tags}
+							/>
+						)
+					) : (
+						<div className="c-vbox fill align-items-center justify-content-center text-center p-4">
+							{pages.size === 0 ? (
+								<>
+									<div className="text-3xl opacity-50 mb-3">📝</div>
+									<p>No pages yet.</p>
+									{!isReadOnly && (
+										<p>Create a page from the sidebar to get started.</p>
+									)}
+								</>
+							) : (
+								<p>Select a page from the sidebar.</p>
+							)}
+						</div>
+					)}
+				</Fcd.Content>
+				<DialogContainer />
+			</Fcd.Container>
+		</>
 	)
 }
 

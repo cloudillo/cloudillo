@@ -31,7 +31,7 @@ import type { RtdbClient } from '@cloudillo/rtdb'
 import type { PageRecord } from '../rtdb/types.js'
 import { createPage } from '../rtdb/page-ops.js'
 import { NotilloEditorProvider } from './NotilloEditorContext.js'
-import { notilloSchema } from './schema.js'
+import { notilloSchema, type NotilloEditor as NotilloEditorType } from './schema.js'
 import { notilloThemeOverrides } from './theme.js'
 import { shortId } from '../rtdb/ids.js'
 import { useDocumentSync, useRtdbToEditor } from '../hooks/useEditorSync.js'
@@ -61,6 +61,7 @@ interface NotilloEditorProps {
 	pages: Map<string, PageRecord & { id: string }>
 	onSelectPage: (pageId: string) => void
 	onTagClick?: (tag: string) => void
+	onEditorReady?: (editor: NotilloEditorType) => void
 	tags: Set<string>
 	pageTags?: string[]
 }
@@ -80,6 +81,7 @@ export const NotilloEditor = React.memo(
 		pages,
 		onSelectPage,
 		onTagClick,
+		onEditorReady,
 		tags,
 		pageTags
 	}: NotilloEditorProps) {
@@ -121,6 +123,10 @@ export const NotilloEditor = React.memo(
 			idFactory: shortId,
 			resolveFileUrl
 		})
+
+		React.useEffect(() => {
+			onEditorReady?.(editor)
+		}, [editor, onEditorReady])
 
 		// Local changes → RTDB (smart per-block sync with position tracking)
 		const { recentLocalUpdates, blockStates } = useDocumentSync(

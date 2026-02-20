@@ -140,7 +140,22 @@ export function MicrofrontendContainer({
 		// Use refs to get latest api/auth after potential renewal
 		const currentApi = apiRef.current
 		const currentAuth = authRef.current
-		if (!currentApi || !currentAuth) return undefined
+		if (!currentApi) return undefined
+
+		// Guest token refresh via refId
+		if (!currentAuth) {
+			const currentRefId = refIdRef.current
+			if (!currentRefId) return undefined
+			try {
+				const res = await currentApi.auth.getAccessTokenByRef(currentRefId, {
+					refresh: true
+				})
+				return res.token
+			} catch (err) {
+				console.error('[Shell] Guest token refresh failed:', err)
+				return undefined
+			}
+		}
 
 		const accessSuffix = access === 'read' ? 'R' : 'W'
 
@@ -311,7 +326,7 @@ export function MicrofrontendContainer({
 						token: currentProvidedToken,
 						refId: currentRefId,
 						access: currentAccess || 'write',
-						idTag: currentAuth?.idTag,
+						idTag: currentAuth?.idTag || currentContextIdTag,
 						displayName: currentGuestName
 					})
 				}
@@ -381,7 +396,7 @@ export function MicrofrontendContainer({
 					currentShellBus.preRegisterApp(currentAppWindow, {
 						appName: app,
 						resId,
-						idTag: latestAuth?.idTag,
+						idTag: latestAuth?.idTag || contextIdTagRef.current,
 						access: latestAccess || 'write',
 						token: latestProvidedToken,
 						refId: latestRefId
@@ -397,7 +412,7 @@ export function MicrofrontendContainer({
 
 						currentShellBus.initApp(currentAppWindow, {
 							appName: app,
-							idTag: latestAuth?.idTag,
+							idTag: latestAuth?.idTag || contextIdTagRef.current,
 							tnId: latestAuth?.tnId,
 							roles: latestAuth?.roles,
 							darkMode: document.body.classList.contains('dark'),

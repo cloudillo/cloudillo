@@ -165,8 +165,10 @@ export function canManageFile(
 	authIdTag: string | undefined,
 	contextRoles: string[]
 ): boolean {
+	// Tenant-owned files (no explicit owner) can be managed by the context user
+	if (!file.owner?.idTag) return true
 	// File owner can always manage (for shared files with explicit owner)
-	if (file.owner?.idTag && file.owner.idTag === authIdTag) return true
+	if (file.owner.idTag === authIdTag) return true
 	// Leader/moderator roles can manage in community context
 	if (contextRoles.some((r) => r === 'leader' || r === 'moderator')) return true
 	return false

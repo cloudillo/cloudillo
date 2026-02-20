@@ -18,7 +18,7 @@ import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 
 import { RtdbClient } from '@cloudillo/rtdb'
-import { getAppBus } from '@cloudillo/core'
+import { getAppBus, getWsUrl } from '@cloudillo/core'
 
 const APP_NAME = 'notillo'
 
@@ -61,8 +61,9 @@ export function useNotillo() {
 
 				if (unmounted) return
 
-				const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-				const serverUrl = `${protocol}//${window.location.host}`
+				const serverUrl = ownerTag
+					? getWsUrl(ownerTag)
+					: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
 
 				rtdbClient = new RtdbClient({
 					dbId: fileId,
@@ -104,7 +105,7 @@ export function useNotillo() {
 				rtdbClient.disconnect().catch(console.error)
 			}
 		}
-	}, [fileId])
+	}, [fileId, ownerTag])
 
 	return {
 		client,

@@ -19,7 +19,7 @@ import { useLocation } from 'react-router-dom'
 import { PiPlusBold as IcPlus, PiTrashBold as IcDelete } from 'react-icons/pi'
 
 import { RtdbClient } from '@cloudillo/rtdb'
-import { getAppBus } from '@cloudillo/core'
+import { getAppBus, getWsUrl } from '@cloudillo/core'
 import { Panel } from '@cloudillo/react'
 
 import '@symbion/opalui'
@@ -51,6 +51,7 @@ function useTaskillo() {
 	const [loading, setLoading] = React.useState(true)
 	const [error, setError] = React.useState<Error | undefined>()
 	const [fileId, setFileId] = React.useState('')
+	const [ownerTag, setOwnerTag] = React.useState<string | undefined>()
 	const [idTag, setIdTag] = React.useState<string | undefined>()
 	const [access, setAccess] = React.useState<'read' | 'write'>('write')
 
@@ -59,7 +60,8 @@ function useTaskillo() {
 	// Example: #alice:tasks/work -> fileId = "tasks/work"
 	React.useEffect(() => {
 		const resId = location.hash.slice(1) // Remove # prefix
-		const [, path] = resId.split(':')
+		const [owner, path] = resId.split(':')
+		setOwnerTag(owner || undefined)
 		setFileId(path || '')
 	}, [location.hash])
 
@@ -87,9 +89,10 @@ function useTaskillo() {
 				if (unmounted) return
 
 				// Step 2: Determine WebSocket server URL
-				// Use wss:// for HTTPS, ws:// for HTTP
-				const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-				const serverUrl = `${protocol}//${window.location.host}`
+				// Use the owner tenant's host for cross-tenant access, fall back to current host
+				const serverUrl = ownerTag
+					? getWsUrl(ownerTag)
+					: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
 
 				// Step 3: Create RTDB client
 				// The client manages the WebSocket connection and provides the database API
@@ -139,7 +142,7 @@ function useTaskillo() {
 				rtdbClient.disconnect().catch(console.error)
 			}
 		}
-	}, [fileId])
+	}, [fileId, ownerTag])
 
 	return {
 		client,

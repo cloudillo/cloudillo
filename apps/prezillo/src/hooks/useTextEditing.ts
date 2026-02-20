@@ -22,17 +22,15 @@
  */
 
 import * as React from 'react'
-import * as Y from 'yjs'
 import type Quill from 'quill'
 
-import type { ObjectId, YPrezilloDocument } from '../crdt'
+import type { ObjectId } from '../crdt'
 import { updateObjectSize, resolveObject, resolveTextStyle, getOrCreateRichText } from '../crdt'
 import { measureTextHeight } from '../utils'
+import type { UsePrezilloDocumentResult } from './usePrezilloDocument'
 
 export interface UseTextEditingOptions {
-	yDoc: Y.Doc
-	doc: YPrezilloDocument
-	selectedIds: Set<ObjectId>
+	prezillo: UsePrezilloDocumentResult
 }
 
 export interface UseTextEditingResult {
@@ -51,11 +49,7 @@ export interface UseTextEditingResult {
 	handleTextEditCancel: () => void
 }
 
-export function useTextEditing({
-	yDoc,
-	doc,
-	selectedIds
-}: UseTextEditingOptions): UseTextEditingResult {
+export function useTextEditing({ prezillo }: UseTextEditingOptions): UseTextEditingResult {
 	// Text editing state - which object is being text-edited
 	const [editingTextId, setEditingTextId] = React.useState<ObjectId | null>(null)
 	// Ref to access Quill instance for inline formatting from properties panel
@@ -63,43 +57,43 @@ export function useTextEditing({
 
 	// Check if selection is a text object
 	const selectedTextObject = React.useMemo(() => {
-		if (selectedIds.size !== 1) return null
-		const id = Array.from(selectedIds)[0]
-		const obj = doc.o.get(id)
+		if (prezillo.selectedIds.size !== 1) return null
+		const id = Array.from(prezillo.selectedIds)[0]
+		const obj = prezillo.doc.o.get(id)
 		if (!obj || obj.t !== 'T') return null
 		return { id, obj }
-	}, [selectedIds, doc.o])
+	}, [prezillo.selectedIds, prezillo.doc.o])
 
 	// Get current text style for selected text object
 	const selectedTextStyle = React.useMemo(() => {
 		if (!selectedTextObject) return null
-		const freshObj = doc.o.get(selectedTextObject.id)
+		const freshObj = prezillo.doc.o.get(selectedTextObject.id)
 		if (!freshObj) return null
-		return resolveTextStyle(doc, freshObj)
-	}, [selectedTextObject, doc.o, doc])
+		return resolveTextStyle(prezillo.doc, freshObj)
+	}, [selectedTextObject, prezillo.doc.o, prezillo.doc])
 
 	// Handle text edit save (close editor, adjust height)
 	// Text content is already saved in Y.Text by Quill via y-quill binding
 	const handleTextEditSave = React.useCallback(() => {
 		if (!editingTextId) return
 
-		const storedObj = doc.o.get(editingTextId)
+		const storedObj = prezillo.doc.o.get(editingTextId)
 		if (!storedObj || storedObj.t !== 'T') {
 			setEditingTextId(null)
 			return
 		}
 
-		const obj = resolveObject(doc, editingTextId)
+		const obj = resolveObject(prezillo.doc, editingTextId)
 		if (!obj) {
 			setEditingTextId(null)
 			return
 		}
 
 		// Get the Y.Text to measure content
-		const yText = doc.rt.get(editingTextId)
+		const yText = prezillo.doc.rt.get(editingTextId)
 		if (yText) {
 			const plainText = yText.toString()
-			const textStyle = resolveTextStyle(doc, storedObj)
+			const textStyle = resolveTextStyle(prezillo.doc, storedObj)
 
 			// Measure the text height with current width and style
 			const measuredHeight = measureTextHeight(plainText, obj.width, textStyle)
@@ -110,12 +104,12 @@ export function useTextEditing({
 
 			// Update height if it changed
 			if (newHeight !== obj.height) {
-				updateObjectSize(yDoc, doc, editingTextId, obj.width, newHeight)
+				updateObjectSize(prezillo.yDoc, prezillo.doc, editingTextId, obj.width, newHeight)
 			}
 		}
 
 		setEditingTextId(null)
-	}, [editingTextId, yDoc, doc])
+	}, [editingTextId, prezillo.yDoc, prezillo.doc])
 
 	// Handle text edit cancel
 	const handleTextEditCancel = React.useCallback(() => {

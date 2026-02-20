@@ -19,7 +19,6 @@
  */
 
 import * as React from 'react'
-import * as Y from 'yjs'
 import {
 	PiCopyBold as IcDuplicate,
 	PiTrashBold as IcDelete,
@@ -28,30 +27,28 @@ import {
 	PiEyeSlashBold as IcHide
 } from 'react-icons/pi'
 
-import type { ObjectId, YPrezilloDocument } from '../crdt'
+import type { ObjectId } from '../crdt'
 import { getObject, isInstance, toggleObjectHidden, detachInstance } from '../crdt'
+import type { UsePrezilloDocumentResult } from '../hooks/usePrezilloDocument'
 
 export interface ContextMenuProps {
+	prezillo: UsePrezilloDocumentResult
 	position: { x: number; y: number }
 	onClose: () => void
 	onDuplicate: () => void
 	onDelete: () => void
-	selectedIds: Set<ObjectId>
-	doc: YPrezilloDocument
-	yDoc: Y.Doc
 	menuRef?: React.RefObject<HTMLDivElement | null>
 }
 
 export function ContextMenu({
+	prezillo,
 	position,
 	onClose,
 	onDuplicate,
 	onDelete,
-	selectedIds,
-	doc,
-	yDoc,
 	menuRef
 }: ContextMenuProps) {
+	const { doc, yDoc, selectedIds } = prezillo
 	// Get the first selected object for single-object operations
 	const singleSelectedId = selectedIds.size === 1 ? [...selectedIds][0] : null
 	const singleSelectedObj = singleSelectedId ? getObject(doc, singleSelectedId) : null

@@ -19,11 +19,9 @@
  */
 
 import * as React from 'react'
-import * as Y from 'yjs'
 import { computeGrabPoint, type SvgCanvasContext } from 'react-svg-canvas'
-import type { Awareness } from 'y-protocols/awareness'
 
-import type { ObjectId, ViewId, TemplateId, YPrezilloDocument, PrezilloObject } from '../crdt'
+import type { ObjectId, ViewId, TemplateId, PrezilloObject } from '../crdt'
 import {
 	updateObjectPosition,
 	updateObjectPageAssociation,
@@ -39,6 +37,7 @@ import {
 } from '../crdt'
 import { setEditingState, clearEditingState } from '../awareness'
 import type { TemplateLayout } from './useTemplateLayout'
+import type { UsePrezilloDocumentResult } from './usePrezilloDocument'
 
 type CanvasObject = PrezilloObject & {
 	_templateId?: TemplateId
@@ -84,17 +83,11 @@ export interface TempObjectState {
 }
 
 export interface UseObjectDragOptions {
-	yDoc: Y.Doc
-	doc: YPrezilloDocument
+	prezillo: UsePrezilloDocumentResult
 	isReadOnly: boolean
-	activeTool: string | null
-	selectedIds: Set<ObjectId>
-	selectObject: (id: ObjectId, addToSelection?: boolean) => void
-	autoSwitchToObjectPage: (id: ObjectId) => void
 	canvasObjects: CanvasObject[]
 	canvasContextRef: React.RefObject<SvgCanvasContext | null>
 	templateLayouts: Map<TemplateId, TemplateLayout>
-	awareness: Awareness | null
 	// Snapping
 	snapDragRef: React.RefObject<(params: any) => any>
 	clearSnaps: () => void
@@ -120,17 +113,11 @@ export interface UseObjectDragResult {
 }
 
 export function useObjectDrag({
-	yDoc,
-	doc,
+	prezillo,
 	isReadOnly,
-	activeTool,
-	selectedIds,
-	selectObject,
-	autoSwitchToObjectPage,
 	canvasObjects,
 	canvasContextRef,
 	templateLayouts,
-	awareness,
 	snapDragRef,
 	clearSnaps,
 	grabPointRef,
@@ -173,19 +160,22 @@ export function useObjectDrag({
 			if (e.button !== 0) return
 
 			// Don't start drag if using a tool
-			if (activeTool) return
+			if (prezillo.activeTool) return
 
 			e.stopPropagation()
 			e.preventDefault()
 
 			// Auto-switch to object's page if clicking on an object from a different page
-			autoSwitchToObjectPage(objectId)
+			prezillo.autoSwitchToObjectPage(objectId)
 
-			const obj = doc.o.get(objectId)
+			const obj = prezillo.doc.o.get(objectId)
 			if (!obj) return
 
 			// Block drag for locked template instance position
-			if (isInstance(doc, objectId) && isPropertyGroupLocked(doc, objectId, 'position')) {
+			if (
+				isInstance(prezillo.doc, objectId) &&
+				isPropertyGroupLocked(prezillo.doc, objectId, 'position')
+			) {
 				return
 			}
 
@@ -213,7 +203,7 @@ export function useObjectDrag({
 
 			// Check if this is a page-relative object (needs offset conversion when saving)
 			if (obj.vi) {
-				const view = doc.v.get(obj.vi)
+				const view = prezillo.doc.v.get(obj.vi)
 				if (view) {
 					pageOffset = { x: view.x, y: view.y }
 				}
@@ -232,14 +222,14 @@ export function useObjectDrag({
 			const svgPoint = { x: svgX, y: svgY }
 
 			// Check if object was already selected BEFORE any selection changes
-			const wasAlreadySelected = selectedIds.has(objectId)
+			const wasAlreadySelected = prezillo.selectedIds.has(objectId)
 
 			// Select the object if not already selected
 			// selectObject automatically handles template/page selection
 			// Skip this check if forceStartDrag is true (e.g., dragging from edit mode)
 			if (!wasAlreadySelected && !forceStartDrag) {
 				const addToSelection = e.shiftKey || e.ctrlKey || e.metaKey
-				selectObject(objectId, addToSelection)
+				prezillo.selectObject(objectId, addToSelection)
 				// Set flag to prevent canvas click from immediately clearing selection
 				justFinishedInteractionRef.current = true
 				// Don't start drag - just selected the object
@@ -249,15 +239,15 @@ export function useObjectDrag({
 			// Calculate stacked objects (unless Alt key is held to bypass)
 			let stackedObjects: StackedObjectInfo[] = []
 			if (!e.altKey) {
-				const stackedIds = getStackedObjects(doc, objectId)
+				const stackedIds = getStackedObjects(prezillo.doc, objectId)
 				for (const id of stackedIds) {
-					const bounds = getAbsoluteBounds(doc, id)
+					const bounds = getAbsoluteBounds(prezillo.doc, id)
 					if (!bounds) continue
-					const stackedObj = doc.o.get(id)
+					const stackedObj = prezillo.doc.o.get(id)
 					// Calculate page offset for stacked object if it's page-relative
 					let stackedPageOffset: { x: number; y: number } | undefined
 					if (stackedObj?.vi) {
-						const view = doc.v.get(stackedObj.vi)
+						const view = prezillo.doc.v.get(stackedObj.vi)
 						if (view) {
 							stackedPageOffset = { x: view.x, y: view.y }
 						}
@@ -386,9 +376,9 @@ export function useObjectDrag({
 				})
 
 				// Broadcast to other clients via awareness
-				if (awareness) {
+				if (prezillo.awareness) {
 					setEditingState(
-						awareness,
+						prezillo.awareness,
 						initialDragState.objectId,
 						'drag',
 						currentX,
@@ -427,9 +417,15 @@ export function useObjectDrag({
 
 					// Update all positions in a single transaction for atomicity
 					// Note: yDoc.clientID origin is required for UndoManager to track this change
-					yDoc.transact(() => {
+					prezillo.yDoc.transact(() => {
 						// Update primary object
-						updateObjectPosition(yDoc, doc, initialDragState.objectId, saveX, saveY)
+						updateObjectPosition(
+							prezillo.yDoc,
+							prezillo.doc,
+							initialDragState.objectId,
+							saveX,
+							saveY
+						)
 
 						// Update all stacked objects
 						if (initialDragState.stackedObjects) {
@@ -444,24 +440,24 @@ export function useObjectDrag({
 								}
 
 								updateObjectPosition(
-									yDoc,
-									doc,
+									prezillo.yDoc,
+									prezillo.doc,
 									stackedObj.id,
 									stackedSaveX,
 									stackedSaveY
 								)
 							}
 						}
-					}, yDoc.clientID)
+					}, prezillo.yDoc.clientID)
 
 					// Check if object should transfer to a template or different page
-					const obj = doc.o.get(initialDragState.objectId)
+					const obj = prezillo.doc.o.get(initialDragState.objectId)
 					if (obj) {
 						const currentPageId = obj.vi as ViewId | undefined
 						// Resolve dimensions from prototype if needed
 						let objWh: [number, number] | undefined = obj.wh
 						if (!objWh && obj.proto) {
-							const proto = doc.o.get(obj.proto)
+							const proto = prezillo.doc.o.get(obj.proto)
 							objWh = proto?.wh
 						}
 						if (objWh) {
@@ -484,8 +480,8 @@ export function useObjectDrag({
 									// If object was a prototype on another template, remove it first
 									if (initialDragState.originalTemplateId) {
 										removeObjectFromTemplate(
-											yDoc,
-											doc,
+											prezillo.yDoc,
+											prezillo.doc,
 											initialDragState.originalTemplateId,
 											initialDragState.objectId,
 											{ deleteObject: false, deleteInstances: true }
@@ -494,7 +490,11 @@ export function useObjectDrag({
 
 									// If object is an instance, detach it first
 									if (obj.proto) {
-										detachInstance(yDoc, doc, initialDragState.objectId)
+										detachInstance(
+											prezillo.yDoc,
+											prezillo.doc,
+											initialDragState.objectId
+										)
 									}
 
 									// Convert to template-relative coordinates
@@ -504,8 +504,8 @@ export function useObjectDrag({
 
 									// Update position to template-relative
 									updateObjectPosition(
-										yDoc,
-										doc,
+										prezillo.yDoc,
+										prezillo.doc,
 										initialDragState.objectId,
 										relX,
 										relY
@@ -513,8 +513,8 @@ export function useObjectDrag({
 
 									// Add to new template (converts to prototype)
 									addObjectToTemplate(
-										yDoc,
-										doc,
+										prezillo.yDoc,
+										prezillo.doc,
 										templateAtDrop,
 										initialDragState.objectId
 									)
@@ -534,8 +534,8 @@ export function useObjectDrag({
 									)
 									// Delete all instances and remove prototype from template
 									removeObjectFromTemplate(
-										yDoc,
-										doc,
+										prezillo.yDoc,
+										prezillo.doc,
 										initialDragState.originalTemplateId,
 										initialDragState.objectId,
 										{ deleteObject: false, deleteInstances: true }
@@ -543,20 +543,20 @@ export function useObjectDrag({
 
 									// 2. Then update prototype position to global coords
 									updateObjectPosition(
-										yDoc,
-										doc,
+										prezillo.yDoc,
+										prezillo.doc,
 										initialDragState.objectId,
 										currentX,
 										currentY
 									)
 									console.log(
 										'[useObjectDrag] After removal, object:',
-										doc.o.get(initialDragState.objectId)
+										prezillo.doc.o.get(initialDragState.objectId)
 									)
 								}
 
 								// Find which page the center is now in
-								const newPageId = findViewAtPoint(doc, centerX, centerY)
+								const newPageId = findViewAtPoint(prezillo.doc, centerX, centerY)
 								console.log(
 									'[useObjectDrag] newPageId:',
 									newPageId,
@@ -568,8 +568,8 @@ export function useObjectDrag({
 								if (newPageId !== currentPageId) {
 									console.log('[useObjectDrag] Updating page association')
 									updateObjectPageAssociation(
-										yDoc,
-										doc,
+										prezillo.yDoc,
+										prezillo.doc,
 										initialDragState.objectId,
 										newPageId,
 										{
@@ -583,8 +583,8 @@ export function useObjectDrag({
 				}
 
 				// Clear awareness
-				if (awareness) {
-					clearEditingState(awareness)
+				if (prezillo.awareness) {
+					clearEditingState(prezillo.awareness)
 				}
 
 				// Clear snapping state
@@ -611,18 +611,18 @@ export function useObjectDrag({
 		},
 		[
 			isReadOnly,
-			activeTool,
-			autoSwitchToObjectPage,
-			doc,
+			prezillo.activeTool,
+			prezillo.autoSwitchToObjectPage,
+			prezillo.doc,
 			canvasObjects,
 			canvasContextRef,
 			templateLayouts,
-			selectedIds,
-			selectObject,
+			prezillo.selectedIds,
+			prezillo.selectObject,
 			grabPointRef,
 			snapDragRef,
-			awareness,
-			yDoc,
+			prezillo.awareness,
+			prezillo.yDoc,
 			findTemplateAtPoint,
 			clearSnaps,
 			justFinishedInteractionRef,

@@ -19,14 +19,13 @@
  */
 
 import * as React from 'react'
-import * as Y from 'yjs'
 
-import type { ObjectId, YPrezilloDocument } from '../crdt'
+import type { ObjectId } from '../crdt'
 import { updateObjectTextStyle, resolveTextStyle } from '../crdt'
+import type { UsePrezilloDocumentResult } from './usePrezilloDocument'
 
 export interface UseTextStylingOptions {
-	yDoc: Y.Doc
-	doc: YPrezilloDocument
+	prezillo: UsePrezilloDocumentResult
 	selectedTextObject: { id: string; obj: any } | null
 	selectedTextStyle: ReturnType<typeof resolveTextStyle> | null
 }
@@ -41,8 +40,7 @@ export interface UseTextStylingResult {
 }
 
 export function useTextStyling({
-	yDoc,
-	doc,
+	prezillo,
 	selectedTextObject,
 	selectedTextStyle
 }: UseTextStylingOptions): UseTextStylingResult {
@@ -51,11 +49,11 @@ export function useTextStyling({
 		(align: 'left' | 'center' | 'right' | 'justify') => {
 			if (!selectedTextObject) return
 			const taMap = { left: 'l', center: 'c', right: 'r', justify: 'j' } as const
-			updateObjectTextStyle(yDoc, doc, selectedTextObject.id as ObjectId, {
+			updateObjectTextStyle(prezillo.yDoc, prezillo.doc, selectedTextObject.id as ObjectId, {
 				ta: taMap[align]
 			})
 		},
-		[yDoc, doc, selectedTextObject]
+		[prezillo.yDoc, prezillo.doc, selectedTextObject]
 	)
 
 	// Handle vertical alignment change
@@ -63,22 +61,22 @@ export function useTextStyling({
 		(align: 'top' | 'middle' | 'bottom') => {
 			if (!selectedTextObject) return
 			const vaMap = { top: 't', middle: 'm', bottom: 'b' } as const
-			updateObjectTextStyle(yDoc, doc, selectedTextObject.id as ObjectId, {
+			updateObjectTextStyle(prezillo.yDoc, prezillo.doc, selectedTextObject.id as ObjectId, {
 				va: vaMap[align]
 			})
 		},
-		[yDoc, doc, selectedTextObject]
+		[prezillo.yDoc, prezillo.doc, selectedTextObject]
 	)
 
 	// Handle font size change
 	const handleFontSizeChange = React.useCallback(
 		(size: number) => {
 			if (!selectedTextObject) return
-			updateObjectTextStyle(yDoc, doc, selectedTextObject.id as ObjectId, {
+			updateObjectTextStyle(prezillo.yDoc, prezillo.doc, selectedTextObject.id as ObjectId, {
 				fs: size
 			})
 		},
-		[yDoc, doc, selectedTextObject]
+		[prezillo.yDoc, prezillo.doc, selectedTextObject]
 	)
 
 	// Handle bold toggle
@@ -86,20 +84,20 @@ export function useTextStyling({
 		if (!selectedTextObject || !selectedTextStyle) return
 		// Toggle bold: if currently bold, remove it (null to reset to default); otherwise set bold
 		const newWeight = selectedTextStyle.fontWeight === 'bold' ? null : 'bold'
-		updateObjectTextStyle(yDoc, doc, selectedTextObject.id as ObjectId, {
+		updateObjectTextStyle(prezillo.yDoc, prezillo.doc, selectedTextObject.id as ObjectId, {
 			fw: newWeight
 		})
-	}, [yDoc, doc, selectedTextObject, selectedTextStyle])
+	}, [prezillo.yDoc, prezillo.doc, selectedTextObject, selectedTextStyle])
 
 	// Handle italic toggle
 	const handleItalicToggle = React.useCallback(() => {
 		if (!selectedTextObject || !selectedTextStyle) return
 		// Toggle italic: if currently italic, remove it (null); otherwise set true
 		const newItalic = selectedTextStyle.fontItalic ? null : true
-		updateObjectTextStyle(yDoc, doc, selectedTextObject.id as ObjectId, {
+		updateObjectTextStyle(prezillo.yDoc, prezillo.doc, selectedTextObject.id as ObjectId, {
 			fi: newItalic
 		})
-	}, [yDoc, doc, selectedTextObject, selectedTextStyle])
+	}, [prezillo.yDoc, prezillo.doc, selectedTextObject, selectedTextStyle])
 
 	// Handle underline toggle
 	const handleUnderlineToggle = React.useCallback(() => {
@@ -107,10 +105,10 @@ export function useTextStyling({
 		const currentDecoration = selectedTextStyle.textDecoration
 		// Toggle underline: if currently underline, remove it (null); otherwise set underline
 		const newDecoration = currentDecoration === 'underline' ? null : 'u'
-		updateObjectTextStyle(yDoc, doc, selectedTextObject.id as ObjectId, {
+		updateObjectTextStyle(prezillo.yDoc, prezillo.doc, selectedTextObject.id as ObjectId, {
 			td: newDecoration
 		})
-	}, [yDoc, doc, selectedTextObject, selectedTextStyle])
+	}, [prezillo.yDoc, prezillo.doc, selectedTextObject, selectedTextStyle])
 
 	return {
 		handleTextAlignChange,

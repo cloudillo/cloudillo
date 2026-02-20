@@ -67,9 +67,46 @@ import {
 } from 'react-icons/pi'
 
 import { FONT_SIZES } from '../utils/text-styles'
+import type { UseSnapSettingsResult } from '../hooks/useSnappingConfig'
 
 // App version injected at build time
 declare const __APP_VERSION__: string
+
+export interface ToolbarTextStyle {
+	hasSelection: boolean
+	align?: 'left' | 'center' | 'right' | 'justify'
+	verticalAlign?: 'top' | 'middle' | 'bottom'
+	fontSize?: number
+	bold?: boolean
+	italic?: boolean
+	underline?: boolean
+}
+
+export interface ToolbarTextCmds {
+	onAlignChange?: (align: 'left' | 'center' | 'right' | 'justify') => void
+	onVerticalAlignChange?: (align: 'top' | 'middle' | 'bottom') => void
+	onFontSizeChange?: (size: number) => void
+	onBoldToggle?: () => void
+	onItalicToggle?: () => void
+	onUnderlineToggle?: () => void
+}
+
+export interface ToolbarZCmds {
+	onBringToFront?: () => void
+	onBringForward?: () => void
+	onSendBackward?: () => void
+	onSendToBack?: () => void
+}
+
+export interface ToolbarCmds {
+	onDelete?: () => void
+	onDuplicate?: () => void
+	onUndo?: () => void
+	onRedo?: () => void
+	onExport?: () => void
+	onExportPDF?: () => void
+	onCheckDocument?: () => void
+}
 
 export interface ToolbarProps {
 	className?: string
@@ -80,51 +117,18 @@ export interface ToolbarProps {
 	tool: string | null
 	setTool: (tool: string | null) => void
 	hasSelection: boolean
-	onDelete?: () => void
-	onDuplicate?: () => void
 	canUndo: boolean
 	canRedo: boolean
-	onUndo?: () => void
-	onRedo?: () => void
-	onExport?: () => void
-	onExportPDF?: () => void
 	isExportingPDF?: boolean
-	// Z-index ordering
-	onBringToFront?: () => void
-	onBringForward?: () => void
-	onSendBackward?: () => void
-	onSendToBack?: () => void
-	// Snap settings
-	snapToGrid: boolean
-	snapToObjects: boolean
-	snapToSizes: boolean
-	snapToDistribution: boolean
-	snapDebug: boolean
-	onToggleSnapToGrid: () => void
-	onToggleSnapToObjects: () => void
-	onToggleSnapToSizes: () => void
-	onToggleSnapToDistribution: () => void
-	onToggleSnapDebug: () => void
-	// Text alignment (only shown when text object selected)
-	hasTextSelection?: boolean
-	selectedTextAlign?: 'left' | 'center' | 'right' | 'justify'
-	selectedVerticalAlign?: 'top' | 'middle' | 'bottom'
-	onTextAlignChange?: (align: 'left' | 'center' | 'right' | 'justify') => void
-	onVerticalAlignChange?: (align: 'top' | 'middle' | 'bottom') => void
-	// Text formatting
-	selectedFontSize?: number
-	selectedBold?: boolean
-	selectedItalic?: boolean
-	selectedUnderline?: boolean
-	onFontSizeChange?: (size: number) => void
-	onBoldToggle?: () => void
-	onItalicToggle?: () => void
-	onUnderlineToggle?: () => void
+	// Grouped props
+	cmds: ToolbarCmds
+	zCmds: ToolbarZCmds
+	snap: UseSnapSettingsResult
+	textStyle: ToolbarTextStyle | null
+	textCmds: ToolbarTextCmds
 	// Properties panel
 	isPanelVisible?: boolean
 	onTogglePanel?: () => void
-	// Menu actions
-	onCheckDocument?: () => void
 	// Symbol picker
 	selectedSymbolId?: string | null
 	onSelectSymbol?: (symbolId: string) => void
@@ -137,45 +141,16 @@ export function Toolbar({
 	tool,
 	setTool,
 	hasSelection,
-	onDelete,
-	onDuplicate,
 	canUndo,
 	canRedo,
-	onUndo,
-	onRedo,
-	onExport,
-	onExportPDF,
 	isExportingPDF,
-	onBringToFront,
-	onBringForward,
-	onSendBackward,
-	onSendToBack,
-	snapToGrid,
-	snapToObjects,
-	snapToSizes,
-	snapToDistribution,
-	snapDebug,
-	onToggleSnapToGrid,
-	onToggleSnapToObjects,
-	onToggleSnapToSizes,
-	onToggleSnapToDistribution,
-	onToggleSnapDebug,
-	hasTextSelection,
-	selectedTextAlign,
-	selectedVerticalAlign,
-	onTextAlignChange,
-	onVerticalAlignChange,
-	selectedFontSize,
-	selectedBold,
-	selectedItalic,
-	selectedUnderline,
-	onFontSizeChange,
-	onBoldToggle,
-	onItalicToggle,
-	onUnderlineToggle,
+	cmds,
+	zCmds,
+	snap,
+	textStyle,
+	textCmds,
 	isPanelVisible,
 	onTogglePanel,
-	onCheckDocument,
 	selectedSymbolId,
 	onSelectSymbol
 }: ToolbarProps) {
@@ -198,10 +173,20 @@ export function Toolbar({
 	return (
 		<div className={mergeClasses('c-nav c-hbox p-1 mb-1', className)}>
 			{/* Undo/Redo */}
-			<button onClick={onUndo} className="c-button icon" disabled={!canUndo} title="Undo">
+			<button
+				onClick={cmds.onUndo}
+				className="c-button icon"
+				disabled={!canUndo}
+				title="Undo"
+			>
 				<IcUndo />
 			</button>
-			<button onClick={onRedo} className="c-button icon" disabled={!canRedo} title="Redo">
+			<button
+				onClick={cmds.onRedo}
+				className="c-button icon"
+				disabled={!canRedo}
+				title="Redo"
+			>
 				<IcRedo />
 			</button>
 
@@ -209,7 +194,7 @@ export function Toolbar({
 
 			{/* PDF Export - keep prominent */}
 			<button
-				onClick={onExportPDF}
+				onClick={cmds.onExportPDF}
 				className="c-button icon"
 				disabled={isExportingPDF}
 				title="Export to PDF"
@@ -326,29 +311,35 @@ export function Toolbar({
 
 			{/* Snap settings */}
 			<button
-				onClick={onToggleSnapToGrid}
-				className={mergeClasses('c-button icon', snapToGrid ? 'active' : '')}
+				onClick={snap.toggleSnapToGrid}
+				className={mergeClasses('c-button icon', snap.settings.snapToGrid ? 'active' : '')}
 				title="Snap to grid"
 			>
 				<IcGrid />
 			</button>
 			<button
-				onClick={onToggleSnapToObjects}
-				className={mergeClasses('c-button icon', snapToObjects ? 'active' : '')}
+				onClick={snap.toggleSnapToObjects}
+				className={mergeClasses(
+					'c-button icon',
+					snap.settings.snapToObjects ? 'active' : ''
+				)}
 				title="Snap to objects"
 			>
 				<IcSnapObjects />
 			</button>
 			<button
-				onClick={onToggleSnapToSizes}
-				className={mergeClasses('c-button icon', snapToSizes ? 'active' : '')}
+				onClick={snap.toggleSnapToSizes}
+				className={mergeClasses('c-button icon', snap.settings.snapToSizes ? 'active' : '')}
 				title="Snap to sizes"
 			>
 				<IcSnapSizes />
 			</button>
 			<button
-				onClick={onToggleSnapToDistribution}
-				className={mergeClasses('c-button icon', snapToDistribution ? 'active' : '')}
+				onClick={snap.toggleSnapToDistribution}
+				className={mergeClasses(
+					'c-button icon',
+					snap.settings.snapToDistribution ? 'active' : ''
+				)}
 				title="Snap to equal spacing"
 			>
 				<IcSnapDistribution />
@@ -363,71 +354,75 @@ export function Toolbar({
 
 					{/* Z-order controls */}
 					<button
-						onClick={onBringToFront}
+						onClick={zCmds.onBringToFront}
 						className="c-button icon"
 						title="Bring to front"
 					>
 						<IcBringToFront />
 					</button>
 					<button
-						onClick={onBringForward}
+						onClick={zCmds.onBringForward}
 						className="c-button icon"
 						title="Bring forward"
 					>
 						<IcBringForward />
 					</button>
 					<button
-						onClick={onSendBackward}
+						onClick={zCmds.onSendBackward}
 						className="c-button icon"
 						title="Send backward"
 					>
 						<IcSendBackward />
 					</button>
-					<button onClick={onSendToBack} className="c-button icon" title="Send to back">
+					<button
+						onClick={zCmds.onSendToBack}
+						className="c-button icon"
+						title="Send to back"
+					>
 						<IcSendToBack />
 					</button>
 
 					{/* Contextual: Text selection */}
-					{hasTextSelection && (
+					{textStyle?.hasSelection && (
 						<>
 							<div className="c-toolbar-divider" />
 
 							{/* Horizontal alignment */}
 							<button
-								onClick={() => onTextAlignChange?.('left')}
+								onClick={() => textCmds.onAlignChange?.('left')}
 								className={mergeClasses(
 									'c-button icon',
-									selectedTextAlign === 'left' ? 'active' : ''
+									textStyle?.align === 'left' ? 'active' : ''
 								)}
 								title="Align left"
 							>
 								<IcAlignLeft />
 							</button>
 							<button
-								onClick={() => onTextAlignChange?.('center')}
+								onClick={() => textCmds.onAlignChange?.('center')}
 								className={mergeClasses(
 									'c-button icon',
-									selectedTextAlign === 'center' ? 'active' : ''
+									textStyle?.align === 'center' ? 'active' : ''
 								)}
 								title="Align center"
 							>
 								<IcAlignCenter />
 							</button>
 							<button
-								onClick={() => onTextAlignChange?.('right')}
+								onClick={() => textCmds.onAlignChange?.('right')}
 								className={mergeClasses(
 									'c-button icon',
-									selectedTextAlign === 'right' ? 'active' : ''
+									textStyle?.align === 'right' ? 'active' : ''
 								)}
 								title="Align right"
 							>
 								<IcAlignRight />
 							</button>
 							<button
-								onClick={() => onTextAlignChange?.('justify')}
+								onClick={() => textCmds.onAlignChange?.('justify')}
 								className={mergeClasses(
 									'c-button icon',
-									selectedTextAlign === 'justify' ? 'active' : ''
+									textStyle?.align === 'justify' ? 'active' : ''
 								)}
 								title="Justify"
 							>
@@ -438,30 +433,30 @@ export function Toolbar({
 
 							{/* Vertical alignment */}
 							<button
-								onClick={() => onVerticalAlignChange?.('top')}
+								onClick={() => textCmds.onVerticalAlignChange?.('top')}
 								className={mergeClasses(
 									'c-button icon',
-									selectedVerticalAlign === 'top' ? 'active' : ''
+									textStyle?.verticalAlign === 'top' ? 'active' : ''
 								)}
 								title="Align top"
 							>
 								<IcAlignTop />
 							</button>
 							<button
-								onClick={() => onVerticalAlignChange?.('middle')}
+								onClick={() => textCmds.onVerticalAlignChange?.('middle')}
 								className={mergeClasses(
 									'c-button icon',
-									selectedVerticalAlign === 'middle' ? 'active' : ''
+									textStyle?.verticalAlign === 'middle' ? 'active' : ''
 								)}
 								title="Align middle"
 							>
 								<IcAlignMiddle />
 							</button>
 							<button
-								onClick={() => onVerticalAlignChange?.('bottom')}
+								onClick={() => textCmds.onVerticalAlignChange?.('bottom')}
 								className={mergeClasses(
 									'c-button icon',
-									selectedVerticalAlign === 'bottom' ? 'active' : ''
+									textStyle?.verticalAlign === 'bottom' ? 'active' : ''
 								)}
 								title="Align bottom"
 							>
@@ -472,8 +467,10 @@ export function Toolbar({
 
 							{/* Font size */}
 							<select
-								value={selectedFontSize || 16}
-								onChange={(e) => onFontSizeChange?.(Number(e.target.value))}
+								value={textStyle?.fontSize || 16}
+								onChange={(e) =>
+									textCmds.onFontSizeChange?.(Number(e.target.value))
+								}
 								className="c-input c-font-size-select"
 								title="Font size"
 							>
@@ -488,30 +485,30 @@ export function Toolbar({
 
 							{/* Text style */}
 							<button
-								onClick={onBoldToggle}
+								onClick={textCmds.onBoldToggle}
 								className={mergeClasses(
 									'c-button icon',
-									selectedBold ? 'active' : ''
+									textStyle?.bold ? 'active' : ''
 								)}
 								title="Bold"
 							>
 								<IcBold />
 							</button>
 							<button
-								onClick={onItalicToggle}
+								onClick={textCmds.onItalicToggle}
 								className={mergeClasses(
 									'c-button icon',
-									selectedItalic ? 'active' : ''
+									textStyle?.italic ? 'active' : ''
 								)}
 								title="Italic"
 							>
 								<IcItalic />
 							</button>
 							<button
-								onClick={onUnderlineToggle}
+								onClick={textCmds.onUnderlineToggle}
 								className={mergeClasses(
 									'c-button icon',
-									selectedUnderline ? 'active' : ''
+									textStyle?.underline ? 'active' : ''
 								)}
 								title="Underline"
 							>
@@ -524,7 +521,7 @@ export function Toolbar({
 
 					{/* Duplicate */}
 					<button
-						onClick={onDuplicate}
+						onClick={cmds.onDuplicate}
 						className="c-button icon"
 						title="Duplicate (Ctrl+D)"
 					>
@@ -532,7 +529,7 @@ export function Toolbar({
 					</button>
 
 					{/* Delete */}
-					<button onClick={onDelete} className="c-button icon" title="Delete">
+					<button onClick={cmds.onDelete} className="c-button icon" title="Delete">
 						<IcDelete />
 					</button>
 				</>
@@ -567,7 +564,7 @@ export function Toolbar({
 					<div className="c-menu" style={{ position: 'absolute', top: '100%', right: 0 }}>
 						<button
 							onClick={() => {
-								onExport?.()
+								cmds.onExport?.()
 								setMenuOpen(false)
 							}}
 							className="c-menu-item"
@@ -580,7 +577,7 @@ export function Toolbar({
 						<div className="c-menu-divider" />
 						<button
 							onClick={() => {
-								onToggleSnapDebug?.()
+								snap.toggleSnapDebug()
 								setMenuOpen(false)
 							}}
 							className="c-menu-item"
@@ -589,12 +586,12 @@ export function Toolbar({
 								<IcDebug />
 							</span>
 							<span className="c-menu-item-label">
-								Snap Debug Mode {snapDebug ? '✓' : ''}
+								Snap Debug Mode {snap.settings.snapDebug ? '✓' : ''}
 							</span>
 						</button>
 						<button
 							onClick={() => {
-								onCheckDocument?.()
+								cmds.onCheckDocument?.()
 								setMenuOpen(false)
 							}}
 							className="c-menu-item"

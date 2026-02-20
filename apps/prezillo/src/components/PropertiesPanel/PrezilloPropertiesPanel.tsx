@@ -15,11 +15,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import * as Y from 'yjs'
 import type Quill from 'quill'
 import { PropertyPanel } from '@cloudillo/react'
 
-import type { YPrezilloDocument, ObjectId, ViewId, ContainerId, TemplateId } from '../../crdt'
+import type { ObjectId, ContainerId } from '../../crdt'
+import type { UsePrezilloDocumentResult } from '../../hooks/usePrezilloDocument'
 import { LayerBrowser } from './LayerBrowser'
 import { PropertyEditor } from './PropertyEditor'
 import { TemplatePanel } from '../'
@@ -31,27 +31,13 @@ export interface PropertyPreview {
 }
 
 export interface PrezilloPropertiesPanelProps {
-	doc: YPrezilloDocument
-	yDoc: Y.Doc
-	selectedIds: Set<ObjectId>
-	onSelectObject: (id: ObjectId, addToSelection?: boolean) => void
-	activeViewId: ViewId | null
-	/** True when view background was explicitly clicked */
-	isViewFocused?: boolean
-	/** True when template background was explicitly clicked */
-	isTemplateFocused?: boolean
+	prezillo: UsePrezilloDocumentResult
 	/** Callback for live preview during scrubbing */
 	onPreview?: (preview: PropertyPreview | null) => void
 	/** Currently selected container (layer) ID */
 	selectedContainerId?: ContainerId | null
 	/** Callback when a container is selected */
 	onSelectContainer?: (id: ContainerId | null) => void
-	/** Currently selected template ID (from canvas templates row) */
-	selectedTemplateId?: TemplateId | null
-	/** Callback to clear template selection */
-	onClearTemplateSelection?: () => void
-	/** Callback to select a template */
-	onSelectTemplate?: (templateId: TemplateId | null) => void
 	/** Quill instance ref for inline formatting */
 	quillRef?: React.MutableRefObject<Quill | null>
 	/** ID of the text object currently being edited */
@@ -59,22 +45,24 @@ export interface PrezilloPropertiesPanelProps {
 }
 
 export function PrezilloPropertiesPanel({
-	doc,
-	yDoc,
-	selectedIds,
-	onSelectObject,
-	activeViewId,
-	isViewFocused,
-	isTemplateFocused,
+	prezillo,
 	onPreview,
 	selectedContainerId,
 	onSelectContainer,
-	selectedTemplateId,
-	onClearTemplateSelection,
-	onSelectTemplate,
 	quillRef,
 	editingTextId
 }: PrezilloPropertiesPanelProps) {
+	const {
+		doc,
+		yDoc,
+		selectedIds,
+		selectObject: onSelectObject,
+		activeViewId,
+		isViewFocused,
+		isTemplateFocused,
+		selectedTemplateId,
+		selectTemplate: onSelectTemplate
+	} = prezillo
 	return (
 		<PropertyPanel width={280} data-properties-panel="true">
 			{/* Layer Browser - top section */}
@@ -101,8 +89,8 @@ export function PrezilloPropertiesPanel({
 						doc={doc}
 						yDoc={yDoc}
 						selectedTemplateId={selectedTemplateId ?? null}
-						onSelectTemplate={onSelectTemplate ?? (() => {})}
-						onEditTemplate={onSelectTemplate ?? (() => {})}
+						onSelectTemplate={onSelectTemplate}
+						onEditTemplate={onSelectTemplate}
 					/>
 				</div>
 			</div>

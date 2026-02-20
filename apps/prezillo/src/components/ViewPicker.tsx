@@ -37,49 +37,43 @@ import {
 } from 'react-icons/pi'
 import { useTranslation } from 'react-i18next'
 
-import type { Awareness } from 'y-protocols/awareness'
 import type { ViewId, ViewNode, TemplateId } from '../crdt'
 import type { PresenterInfo } from '../awareness'
 import { getFollowerCount } from '../awareness'
+import type { UsePrezilloDocumentResult } from '../hooks/usePrezilloDocument'
 import type { TemplateWithUsage } from '../hooks/useTemplates'
 
-export interface ViewPickerProps {
-	views: ViewNode[]
-	activeViewId: ViewId | null
+/** View navigation commands */
+export interface ViewPickerCmds {
 	onViewSelect: (id: ViewId) => void
 	onAddView: () => void
 	onPrevView: () => void
 	onNextView: () => void
-	onPresent: () => void
-	readOnly?: boolean
-	/** Callback to reorder a view to a new index in presentation order */
 	onReorderView?: (viewId: ViewId, newIndex: number) => void
-	/** Whether the local user is currently presenting */
-	isPresenting?: boolean
-	/** Callback to stop presenting */
+	onDuplicateView?: (viewId: ViewId) => void
+	onDeleteView?: (viewId: ViewId) => void
+}
+
+/** Presentation commands */
+export interface ViewPickerPresentCmds {
+	onPresent: () => void
 	onStopPresenting?: () => void
-	/** Active presenters for showing badges */
-	activePresenters?: PresenterInfo[]
+	onFollow?: (clientId: number) => void
+	onUnfollow?: () => void
+}
+
+export interface ViewPickerProps {
+	prezillo: UsePrezilloDocumentResult
+	views: ViewNode[]
+	cmds: ViewPickerCmds
+	presentCmds: ViewPickerPresentCmds
+	readOnly?: boolean
 	/** Whether the device is mobile - shows compact counter instead of tabs */
 	isMobile?: boolean
-	/** Client ID being followed (for presenter indicator) */
-	followingClientId?: number | null
-	/** Callback to follow a presenter */
-	onFollow?: (clientId: number) => void
-	/** Callback to unfollow presenter */
-	onUnfollow?: () => void
 	/** Templates for template tabs */
 	templates?: TemplateWithUsage[]
-	/** Currently selected template ID */
-	selectedTemplateId?: TemplateId | null
 	/** Callback when a template tab is clicked */
 	onTemplateSelect?: (id: TemplateId) => void
-	/** Callback to duplicate a view */
-	onDuplicateView?: (viewId: ViewId) => void
-	/** Callback to delete a view */
-	onDeleteView?: (viewId: ViewId) => void
-	/** Awareness for follower count */
-	awareness?: Awareness | null
 }
 
 /**
@@ -174,29 +168,33 @@ interface ViewDropTarget {
 }
 
 export function ViewPicker({
+	prezillo,
 	views,
-	activeViewId,
-	onViewSelect,
-	onAddView,
-	onPrevView,
-	onNextView,
-	onPresent,
+	cmds,
+	presentCmds,
 	readOnly,
-	onReorderView,
-	isPresenting,
-	onStopPresenting,
-	activePresenters = [],
 	isMobile = false,
-	followingClientId = null,
-	onFollow,
-	onUnfollow,
 	templates = [],
-	selectedTemplateId = null,
-	onTemplateSelect,
-	onDuplicateView,
-	onDeleteView,
-	awareness
+	onTemplateSelect
 }: ViewPickerProps) {
+	const {
+		activeViewId,
+		isPresenting,
+		activePresenters,
+		followingClientId,
+		selectedTemplateId,
+		awareness
+	} = prezillo
+	const {
+		onViewSelect,
+		onAddView,
+		onPrevView,
+		onNextView,
+		onReorderView,
+		onDuplicateView,
+		onDeleteView
+	} = cmds
+	const { onPresent, onStopPresenting, onFollow, onUnfollow } = presentCmds
 	const { t } = useTranslation()
 	const activeIndex = views.findIndex((v) => v.id === activeViewId)
 

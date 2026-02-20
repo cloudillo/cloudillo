@@ -49,4 +49,12 @@ export type { TemplatesRowProps } from './TemplatesRow'
 export { TemplateThumbnail } from './TemplateThumbnail'
 export type { TemplateThumbnailProps } from './TemplateThumbnail'
 
+export {
+	FixedSnapGuides,
+	FixedSelectionBox,
+	FixedRotationHandle,
+	FixedPivotHandle,
+	FixedTextEditHandle
+} from './FixedLayerWrappers'
+
 // vim: ts=4

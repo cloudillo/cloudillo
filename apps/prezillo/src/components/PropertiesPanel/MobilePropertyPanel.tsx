@@ -15,12 +15,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import * as Y from 'yjs'
 import { useY } from 'react-yjs'
 import { BottomSheet, type BottomSheetSnapPoint, Tabs, Tab } from '@cloudillo/react'
 
-import type { YPrezilloDocument, ObjectId, ViewId, PrezilloObject } from '../../crdt'
+import type { PrezilloObject } from '../../crdt'
 import { getObject } from '../../crdt'
+import type { UsePrezilloDocumentResult } from '../../hooks/usePrezilloDocument'
 import { TransformSection } from './TransformSection'
 import { StyleSection } from './StyleSection'
 import { TextStyleSection } from './TextStyleSection'
@@ -31,26 +31,19 @@ import type { PropertyPreview } from './PrezilloPropertiesPanel'
 type PropertyTab = 'transform' | 'style' | 'text'
 
 export interface MobilePropertyPanelProps {
-	doc: YPrezilloDocument
-	yDoc: Y.Doc
-	selectedIds: Set<ObjectId>
-	activeViewId?: ViewId | null
-	isViewFocused?: boolean
+	prezillo: UsePrezilloDocumentResult
 	snapPoint: BottomSheetSnapPoint
 	onSnapChange: (snapPoint: BottomSheetSnapPoint) => void
 	onPreview?: (preview: PropertyPreview | null) => void
 }
 
 export function MobilePropertyPanel({
-	doc,
-	yDoc,
-	selectedIds,
-	activeViewId,
-	isViewFocused,
+	prezillo,
 	snapPoint,
 	onSnapChange,
 	onPreview
 }: MobilePropertyPanelProps) {
+	const { doc, yDoc, selectedIds, activeViewId, isViewFocused } = prezillo
 	// Subscribe to object changes
 	useY(doc.o)
 

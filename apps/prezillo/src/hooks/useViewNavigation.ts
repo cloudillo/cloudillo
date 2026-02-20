@@ -19,9 +19,8 @@
  */
 
 import * as React from 'react'
-import * as Y from 'yjs'
 
-import type { ObjectId, ViewId, YPrezilloDocument } from '../crdt'
+import type { ObjectId, ViewId } from '../crdt'
 import {
 	createView,
 	getPreviousView,
@@ -31,14 +30,10 @@ import {
 	duplicateView,
 	deleteView
 } from '../crdt'
+import type { UsePrezilloDocumentResult } from './usePrezilloDocument'
 
 export interface UseViewNavigationOptions {
-	yDoc: Y.Doc
-	doc: YPrezilloDocument
-	activeViewId: ViewId | null
-	setActiveViewId: (id: ViewId | null) => void
-	selectedIds: Set<ObjectId>
-	selectObjects: (ids: ObjectId[], addToSelection?: boolean) => void
+	prezillo: UsePrezilloDocumentResult
 	viewsLength: number
 	isReadOnly: boolean
 	forceZoomRef: React.MutableRefObject<boolean>
@@ -55,83 +50,92 @@ export interface UseViewNavigationResult {
 }
 
 export function useViewNavigation({
-	yDoc,
-	doc,
-	activeViewId,
-	setActiveViewId,
-	selectedIds,
-	selectObjects,
+	prezillo,
 	viewsLength,
 	isReadOnly,
 	forceZoomRef
 }: UseViewNavigationOptions): UseViewNavigationResult {
 	// Navigate to previous view
 	const handlePrevView = React.useCallback(() => {
-		if (activeViewId) {
-			const prev = getPreviousView(doc, activeViewId)
+		if (prezillo.activeViewId) {
+			const prev = getPreviousView(prezillo.doc, prezillo.activeViewId)
 			if (prev) {
 				forceZoomRef.current = true
-				setActiveViewId(prev)
+				prezillo.setActiveViewId(prev)
 			}
 		}
-	}, [activeViewId, doc, setActiveViewId, forceZoomRef])
+	}, [prezillo.activeViewId, prezillo.doc, prezillo.setActiveViewId, forceZoomRef])
 
 	// Navigate to next view
 	const handleNextView = React.useCallback(() => {
-		if (activeViewId) {
-			const next = getNextView(doc, activeViewId)
+		if (prezillo.activeViewId) {
+			const next = getNextView(prezillo.doc, prezillo.activeViewId)
 			if (next) {
 				forceZoomRef.current = true
-				setActiveViewId(next)
+				prezillo.setActiveViewId(next)
 			}
 		}
-	}, [activeViewId, doc, setActiveViewId, forceZoomRef])
+	}, [prezillo.activeViewId, prezillo.doc, prezillo.setActiveViewId, forceZoomRef])
 
 	// Add new view (copies template from current view)
 	const handleAddView = React.useCallback(() => {
-		const viewId = createView(yDoc, doc, {
-			copyFromViewId: activeViewId || undefined
+		const viewId = createView(prezillo.yDoc, prezillo.doc, {
+			copyFromViewId: prezillo.activeViewId || undefined
 		})
 		forceZoomRef.current = true
-		setActiveViewId(viewId)
-	}, [yDoc, doc, activeViewId, setActiveViewId, forceZoomRef])
+		prezillo.setActiveViewId(viewId)
+	}, [prezillo.yDoc, prezillo.doc, prezillo.activeViewId, prezillo.setActiveViewId, forceZoomRef])
 
 	// Duplicate selected objects
 	const handleDuplicate = React.useCallback(() => {
 		if (isReadOnly) return
-		if (selectedIds.size === 0) return
+		if (prezillo.selectedIds.size === 0) return
 
 		const newIds: ObjectId[] = []
-		selectedIds.forEach((id) => {
+		prezillo.selectedIds.forEach((id) => {
 			// Pass activeViewId so prototype objects (templates) get placed on current page
-			const newId = duplicateObject(yDoc, doc, id, 20, 20, activeViewId ?? undefined)
+			const newId = duplicateObject(
+				prezillo.yDoc,
+				prezillo.doc,
+				id,
+				20,
+				20,
+				prezillo.activeViewId ?? undefined
+			)
 			if (newId) newIds.push(newId)
 		})
 
 		// Select the duplicated objects
 		if (newIds.length > 0) {
-			selectObjects(newIds)
+			prezillo.selectObjects(newIds)
 		}
-	}, [isReadOnly, selectedIds, yDoc, doc, activeViewId, selectObjects])
+	}, [
+		isReadOnly,
+		prezillo.selectedIds,
+		prezillo.yDoc,
+		prezillo.doc,
+		prezillo.activeViewId,
+		prezillo.selectObjects
+	])
 
 	// Reorder view in presentation
 	const handleReorderView = React.useCallback(
 		(viewId: ViewId, newIndex: number) => {
-			moveViewInPresentation(yDoc, doc, viewId, newIndex)
+			moveViewInPresentation(prezillo.yDoc, prezillo.doc, viewId, newIndex)
 		},
-		[yDoc, doc]
+		[prezillo.yDoc, prezillo.doc]
 	)
 
 	// Duplicate a view
 	const handleDuplicateView = React.useCallback(
 		(viewId: ViewId) => {
-			const newViewId = duplicateView(yDoc, doc, viewId)
+			const newViewId = duplicateView(prezillo.yDoc, prezillo.doc, viewId)
 			if (newViewId) {
 				forceZoomRef.current = true
-				setActiveViewId(newViewId)
+				prezillo.setActiveViewId(newViewId)
 			}
 		},
-		[yDoc, doc, setActiveViewId, forceZoomRef]
+		[prezillo.yDoc, prezillo.doc, prezillo.setActiveViewId, forceZoomRef]
 	)
 
 	// Delete a view
@@ -141,19 +145,19 @@ export function useViewNavigation({
 			if (viewsLength <= 1) return
 
 			// If deleting current view, switch to previous or next first
-			if (viewId === activeViewId) {
-				const prev = getPreviousView(doc, viewId)
-				const next = getNextView(doc, viewId)
+			if (viewId === prezillo.activeViewId) {
+				const prev = getPreviousView(prezillo.doc, viewId)
+				const next = getNextView(prezillo.doc, viewId)
 				if (prev) {
-					setActiveViewId(prev)
+					prezillo.setActiveViewId(prev)
 				} else if (next) {
-					setActiveViewId(next)
+					prezillo.setActiveViewId(next)
 				}
 			}
 
-			deleteView(yDoc, doc, viewId)
+			deleteView(prezillo.yDoc, prezillo.doc, viewId)
 		},
-		[viewsLength, activeViewId, doc, yDoc, setActiveViewId]
+		[viewsLength, prezillo.activeViewId, prezillo.doc, prezillo.yDoc, prezillo.setActiveViewId]
 	)
 
 	return {

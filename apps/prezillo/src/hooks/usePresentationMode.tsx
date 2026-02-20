@@ -21,16 +21,10 @@
 import * as React from 'react'
 import type { ToastOptions } from '@cloudillo/react'
 import type { PresenterInfo } from '../awareness'
+import type { UsePrezilloDocumentResult } from './usePrezilloDocument'
 
 export interface UsePresentationModeOptions {
-	// From prezillo document
-	activePresenters: PresenterInfo[]
-	followingClientId: number | null
-	localClientId: number | undefined
-	startPresenting: () => void
-	stopPresenting: () => void
-	followPresenter: (clientId: number) => void
-	unfollowPresenter: () => void
+	prezillo: UsePrezilloDocumentResult
 	// Toast function for notifications
 	toast: (options: ToastOptions) => string
 }
@@ -48,13 +42,7 @@ export interface UsePresentationModeResult {
 }
 
 export function usePresentationMode({
-	activePresenters,
-	followingClientId,
-	localClientId,
-	startPresenting,
-	stopPresenting,
-	followPresenter,
-	unfollowPresenter,
+	prezillo,
 	toast
 }: UsePresentationModeOptions): UsePresentationModeResult {
 	// Presentation mode state (local user is presenting in fullscreen)
@@ -68,11 +56,12 @@ export function usePresentationMode({
 
 	// Show toast when a new presenter starts
 	React.useEffect(() => {
-		const currentIds = new Set(activePresenters.map((p) => p.clientId))
+		const currentIds = new Set(prezillo.activePresenters.map((p) => p.clientId))
 		const prevIds = prevPresentersRef.current
+		const localClientId = prezillo.awareness?.clientID
 
 		// Find new presenters (excluding local client)
-		for (const presenter of activePresenters) {
+		for (const presenter of prezillo.activePresenters) {
 			if (!prevIds.has(presenter.clientId) && presenter.clientId !== localClientId) {
 				toast({
 					variant: 'info',
@@ -81,7 +70,7 @@ export function usePresentationMode({
 					actions: (
 						<button
 							className="c-button primary small"
-							onClick={() => followPresenter(presenter.clientId)}
+							onClick={() => prezillo.followPresenter(presenter.clientId)}
 						>
 							Follow
 						</button>
@@ -91,40 +80,42 @@ export function usePresentationMode({
 		}
 
 		prevPresentersRef.current = currentIds
-	}, [activePresenters, localClientId, followPresenter, toast])
+	}, [prezillo.activePresenters, prezillo.awareness?.clientID, prezillo.followPresenter, toast])
 
 	// Get presenter being followed
 	const followedPresenter = React.useMemo(() => {
-		if (!followingClientId) return null
-		return activePresenters.find((p) => p.clientId === followingClientId) ?? null
-	}, [followingClientId, activePresenters])
+		if (!prezillo.followingClientId) return null
+		return (
+			prezillo.activePresenters.find((p) => p.clientId === prezillo.followingClientId) ?? null
+		)
+	}, [prezillo.followingClientId, prezillo.activePresenters])
 
 	// Auto-enter fullscreen when starting to follow
 	React.useEffect(() => {
-		if (followingClientId && !isFullscreenFollowing) {
+		if (prezillo.followingClientId && !isFullscreenFollowing) {
 			setIsFullscreenFollowing(true)
-		} else if (!followingClientId && isFullscreenFollowing) {
+		} else if (!prezillo.followingClientId && isFullscreenFollowing) {
 			setIsFullscreenFollowing(false)
 		}
-	}, [followingClientId, isFullscreenFollowing])
+	}, [prezillo.followingClientId, isFullscreenFollowing])
 
 	// Handle exiting fullscreen following mode
 	const handleExitFullscreenFollowing = React.useCallback(() => {
 		setIsFullscreenFollowing(false)
-		unfollowPresenter()
-	}, [unfollowPresenter])
+		prezillo.unfollowPresenter()
+	}, [prezillo.unfollowPresenter])
 
 	// Handle starting presentation (with fullscreen)
 	const handleStartPresenting = React.useCallback(() => {
-		startPresenting()
+		prezillo.startPresenting()
 		setIsPresentationMode(true)
-	}, [startPresenting])
+	}, [prezillo.startPresenting])
 
 	// Handle stopping presentation
 	const handleStopPresenting = React.useCallback(() => {
-		stopPresenting()
+		prezillo.stopPresenting()
 		setIsPresentationMode(false)
-	}, [stopPresenting])
+	}, [prezillo.stopPresenting])
 
 	return {
 		isPresentationMode,

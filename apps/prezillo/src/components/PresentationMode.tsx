@@ -20,7 +20,6 @@
 
 import * as React from 'react'
 import { PiXBold as IcClose } from 'react-icons/pi'
-import type { Awareness } from 'y-protocols/awareness'
 
 import type {
 	ViewId,
@@ -35,6 +34,7 @@ import type {
 } from '../crdt'
 import { resolveShapeStyle, resolveTextStyle } from '../crdt'
 import { useViewObjects } from '../hooks/useViewObjects'
+import type { UsePrezilloDocumentResult } from '../hooks/usePrezilloDocument'
 import {
 	calculateRotationTransform,
 	buildStrokeProps,
@@ -63,7 +63,7 @@ import {
 } from '../awareness'
 
 export interface PresentationModeProps {
-	doc: YPrezilloDocument
+	prezillo: UsePrezilloDocumentResult
 	views: ViewNode[]
 	initialViewId: ViewId | null
 	onExit: () => void
@@ -76,8 +76,6 @@ export interface PresentationModeProps {
 	followingPresenterClientId?: number
 	/** Callback when local navigation happens (for presenting) */
 	onViewChange?: (viewIndex: number, viewId: ViewId) => void
-	/** Awareness for poll voting */
-	awareness?: Awareness | null
 }
 
 /**
@@ -459,7 +457,7 @@ const PresentationSlide = React.memo(function PresentationSlide({
 })
 
 export function PresentationMode({
-	doc,
+	prezillo,
 	views,
 	initialViewId,
 	onExit,
@@ -467,9 +465,9 @@ export function PresentationMode({
 	isFollowing,
 	followingViewIndex,
 	followingPresenterClientId,
-	onViewChange,
-	awareness
+	onViewChange
 }: PresentationModeProps) {
+	const { doc, awareness } = prezillo
 	const containerRef = React.useRef<HTMLDivElement>(null)
 	const [currentIndex, setCurrentIndex] = React.useState(() => {
 		const idx = views.findIndex((v) => v.id === initialViewId)

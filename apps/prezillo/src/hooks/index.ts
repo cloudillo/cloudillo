@@ -74,4 +74,24 @@ export type {
 export { useTableGridSnaps, generateTableGridSnapTargets } from './useTableGridSnaps'
 export type { UseTableGridSnapsResult } from './useTableGridSnaps'
 
+export { useCanvasViewport } from './useCanvasViewport'
+export type { UseCanvasViewportOptions, UseCanvasViewportResult } from './useCanvasViewport'
+
+export { useInteractionHooks } from './useInteractionHooks'
+export type {
+	StoredSelection,
+	InteractionStartRef,
+	UseInteractionHooksOptions,
+	UseInteractionHooksResult
+} from './useInteractionHooks'
+
+export { useToolHandlers } from './useToolHandlers'
+export type { UseToolHandlersOptions, UseToolHandlersResult } from './useToolHandlers'
+
+export { useCanvasEventHandlers } from './useCanvasEventHandlers'
+export type {
+	UseCanvasEventHandlersOptions,
+	UseCanvasEventHandlersResult
+} from './useCanvasEventHandlers'
+
 // vim: ts=4

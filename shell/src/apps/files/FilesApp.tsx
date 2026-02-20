@@ -509,6 +509,7 @@ export function FilesApp() {
 					<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 						<Sidebar
 							contextIdTag={contextIdTag}
+							currentFolderId={currentFolderId}
 							viewMode={viewMode}
 							onViewModeChange={handleViewModeChange}
 							selectedTags={selectedTags}

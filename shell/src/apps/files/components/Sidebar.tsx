@@ -40,6 +40,7 @@ import type { ViewMode } from '../types.js'
 interface SidebarProps {
 	className?: string
 	contextIdTag?: string
+	currentFolderId?: string | null
 	viewMode: ViewMode
 	onViewModeChange: (mode: ViewMode) => void
 	selectedTags?: string[]
@@ -49,6 +50,7 @@ interface SidebarProps {
 export const Sidebar = React.memo(function Sidebar({
 	className,
 	contextIdTag,
+	currentFolderId,
 	viewMode,
 	onViewModeChange,
 	selectedTags = [],
@@ -111,7 +113,8 @@ export const Sidebar = React.memo(function Sidebar({
 
 		const res = await api.files.create({
 			fileTp: 'CRDT',
-			contentType
+			contentType,
+			parentId: currentFolderId || undefined
 		})
 		if (res?.fileId) {
 			await api.files.update(res.fileId, {
@@ -156,7 +159,8 @@ export const Sidebar = React.memo(function Sidebar({
 
 		const res = await api.files.create({
 			fileTp: 'RTDB',
-			contentType
+			contentType,
+			parentId: currentFolderId || undefined
 		})
 		if (res?.fileId) {
 			await api.files.update(res.fileId, {

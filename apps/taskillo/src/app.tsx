@@ -100,7 +100,7 @@ function useTaskillo() {
 				rtdbClient = new RtdbClient({
 					dbId: fileId, // Document/database identifier
 					auth: {
-						getToken: () => state.accessToken // Auth token from bus.init()
+						getToken: () => bus.accessToken // Live token from bus (updated on renewal)
 					},
 					serverUrl, // WebSocket server URL
 					options: {

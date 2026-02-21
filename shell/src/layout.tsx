@@ -183,7 +183,7 @@ import {
 	DialogContainer,
 	ToastContainer
 } from '@cloudillo/react'
-import { createApiClient } from '@cloudillo/core'
+import { createApiClient, FetchError } from '@cloudillo/core'
 import { AppConfigState, useAppConfig } from './utils.js'
 import usePWA, {
 	registerServiceWorker,
@@ -532,6 +532,8 @@ function Header({ inert }: { inert?: boolean }) {
 					try {
 						// Ensure SW is registered and controlling (for hard reload scenarios)
 						await registerServiceWorker()
+						// Relay encryption key to SW before accessing secrets (Firefox/Safari)
+						await ensureEncryptionKey()
 
 						// Try to get API key from SW encrypted storage
 						const storedApiKey = await getApiKey()
@@ -574,6 +576,12 @@ function Header({ inert }: { inert?: boolean }) {
 								}
 							} catch (err) {
 								console.error('API key auth failed:', err)
+								if (err instanceof FetchError && err.httpStatus === 401) {
+									console.warn(
+										'[Layout] API key rejected (401), clearing stale key'
+									)
+									await deleteApiKey()
+								}
 								// Fall through to normal login flow
 							}
 						}

@@ -445,7 +445,14 @@ function onFetch(evt: any) {
 					log && console.log('[SW] OWN FETCH', evt.request.method, reqUrl.pathname)
 					try {
 						let request = evt.request
-						if (authToken && !evt.request.headers.get('Authorization')) {
+						// Skip auth header for endpoints that use their own credentials
+						// (e.g., API key exchange) to avoid stale Bearer tokens causing 401
+						const skipAuthPaths = ['/api/auth/access-token']
+						if (
+							authToken &&
+							!evt.request.headers.get('Authorization') &&
+							!skipAuthPaths.includes(reqUrl.pathname)
+						) {
 							log && console.log('[SW] OWN FETCH inserting token')
 							const headers = new Headers(evt.request.headers)
 							headers.set('Authorization', `Bearer ${authToken}`)

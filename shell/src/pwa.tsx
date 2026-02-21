@@ -370,6 +370,14 @@ export async function registerServiceWorker(authToken?: string): Promise<void> {
 			})
 		}
 
+		// Request persistent storage to prevent IndexedDB eviction
+		if (navigator.storage?.persist) {
+			const persisted = await navigator.storage.persist()
+			if (persisted) {
+				console.log('[PWA] Storage marked as persistent')
+			}
+		}
+
 		console.log('[PWA] Service worker ready')
 	} catch (err) {
 		console.error('[PWA] SW registration failed:', err)

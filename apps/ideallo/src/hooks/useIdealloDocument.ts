@@ -168,6 +168,14 @@ export function useIdealloDocument(): UseIdealloDocumentResult {
 		})
 	}, [cloudillo.yDoc, doc])
 
+	// After sync, clientID may change (reused clientId assigned post-sync in openYDoc).
+	// Update UndoManager to also track the new clientID.
+	React.useEffect(() => {
+		if (cloudillo.synced) {
+			undoManager.trackedOrigins.add(cloudillo.yDoc.clientID)
+		}
+	}, [cloudillo.synced, cloudillo.yDoc, undoManager])
+
 	const [canUndo, setCanUndo] = React.useState(false)
 	const [canRedo, setCanRedo] = React.useState(false)
 

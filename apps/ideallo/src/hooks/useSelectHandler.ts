@@ -24,11 +24,17 @@
 import * as React from 'react'
 import * as Y from 'yjs'
 import type { Awareness } from 'y-protocols/awareness'
+import {
+	findStackedObjects,
+	findStackedObjectsForSelection,
+	type StackableObject
+} from '@cloudillo/canvas-tools'
 
-import type { YIdealloDocument, ObjectId, IdealloObject } from '../crdt/index.js'
+import type { YIdealloDocument, ObjectId, IdealloObject, StoredObject } from '../crdt/index.js'
 import { updateObject, getObject, getAllObjects } from '../crdt/index.js'
 import type { Point } from '../utils/geometry.js'
 import { hitTestObject } from '../utils/hit-testing.js'
+import { getObjectBounds } from '../utils/bounds.js'
 
 const HIT_TOLERANCE = 8
 
@@ -40,6 +46,8 @@ export interface UseSelectHandlerOptions {
 	selectObject: (id: ObjectId, addToSelection?: boolean) => void
 	clearSelection: () => void
 	enabled: boolean
+	/** Pass objects state to trigger stacked-highlight recomputation on changes */
+	objects?: Record<string, StoredObject> | null
 }
 
 export interface DragOffset {
@@ -72,10 +80,26 @@ function findObjectAtPoint(doc: YIdealloDocument, point: Point): IdealloObject |
 	return null
 }
 
+/**
+ * Build a StackableObject[] from the document for use with shared stacking utilities.
+ * Pre-filters out locked objects. Array is in z-order (lowest index = backmost).
+ */
+function buildStackableArray(doc: YIdealloDocument): StackableObject[] {
+	const allObjs = getAllObjects(doc)
+	const result: StackableObject[] = []
+	for (const obj of allObjs) {
+		if (obj.locked) continue
+		result.push({ id: obj.id, bounds: getObjectBounds(obj) })
+	}
+	return result
+}
+
 export function useSelectHandler(options: UseSelectHandlerOptions) {
-	const { yDoc, doc, awareness, selectedIds, selectObject, clearSelection, enabled } = options
+	const { yDoc, doc, awareness, selectedIds, selectObject, clearSelection, enabled, objects } =
+		options
 	const [dragState, setDragState] = React.useState<DragState | null>(null)
 	const [hoveredId, setHoveredId] = React.useState<ObjectId | null>(null)
+	const [stackedHighlightIds, setStackedHighlightIds] = React.useState<Set<ObjectId>>(new Set())
 	const dragStateRef = React.useRef<DragState | null>(null)
 
 	React.useEffect(() => {
@@ -91,6 +115,29 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 			objectIds: dragState.objectIds
 		}
 	}, [dragState])
+
+	// Recompute stacked highlight IDs when hover/selection/objects change
+	React.useEffect(() => {
+		if (!enabled || !doc) {
+			setStackedHighlightIds(new Set())
+			return
+		}
+
+		// During drag, don't recompute highlights (they're baked into dragState)
+		if (dragStateRef.current) return
+
+		const stackable = buildStackableArray(doc)
+
+		if (selectedIds.size > 0) {
+			const stacked = findStackedObjectsForSelection(stackable, Array.from(selectedIds))
+			setStackedHighlightIds(new Set(stacked as ObjectId[]))
+		} else if (hoveredId) {
+			const stacked = findStackedObjects(stackable, hoveredId)
+			setStackedHighlightIds(new Set(stacked as ObjectId[]))
+		} else {
+			setStackedHighlightIds(new Set())
+		}
+	}, [enabled, doc, objects, hoveredId, selectedIds])
 
 	// Broadcast editing state via awareness
 	const broadcastEditing = React.useCallback(
@@ -117,17 +164,17 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 	)
 
 	const handlePointerDown = React.useCallback(
-		(x: number, y: number, shiftKey: boolean = false) => {
+		(x: number, y: number, shiftKey: boolean = false, altKey: boolean = false) => {
 			if (!enabled) return
 
 			const point: Point = [x, y]
-			const objects = getAllObjects(doc)
+			const allObjects = getAllObjects(doc)
 
 			// Hit test in reverse order (top objects first)
 			let hitObject: IdealloObject | null = null
-			for (let i = objects.length - 1; i >= 0; i--) {
-				if (hitTestObject(objects[i], point, HIT_TOLERANCE)) {
-					hitObject = objects[i]
+			for (let i = allObjects.length - 1; i >= 0; i--) {
+				if (hitTestObject(allObjects[i], point, HIT_TOLERANCE)) {
+					hitObject = allObjects[i]
 					break
 				}
 			}
@@ -145,10 +192,23 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 					return
 				}
 
-				// Determine which objects to drag
-				const idsToTrack = shiftKey
+				// Determine which objects to drag (base selection)
+				const baseDragIds = shiftKey
 					? new Set([...selectedIds, hitObject.id])
 					: new Set([hitObject.id])
+
+				// Find stacked objects (unless Alt is held to suppress stacking)
+				let idsToTrack: Set<ObjectId>
+				if (altKey) {
+					idsToTrack = baseDragIds
+				} else {
+					const stackable = buildStackableArray(doc)
+					const stackedIds = findStackedObjectsForSelection(
+						stackable,
+						Array.from(baseDragIds)
+					)
+					idsToTrack = new Set([...baseDragIds, ...(stackedIds as ObjectId[])])
+				}
 
 				// Store original object data for committing on release
 				const originalObjects = new Map<ObjectId, IdealloObject>()
@@ -264,6 +324,7 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 			isDragging: dragOffset !== null,
 			dragOffset,
 			hoveredId,
+			stackedHighlightIds,
 			handlePointerDown,
 			handlePointerMove,
 			handlePointerUp,
@@ -272,6 +333,7 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 		[
 			dragOffset,
 			hoveredId,
+			stackedHighlightIds,
 			handlePointerDown,
 			handlePointerMove,
 			handlePointerUp,

@@ -58,47 +58,18 @@ import {
 import type Quill from 'quill'
 import type { ToolType } from './tools/index.js'
 import type { ObjectId, Bounds, IdealloObject } from './crdt/index.js'
-import { getObject, updateObject, deleteObjects, downloadExport } from './crdt/index.js'
-import { getBoundsFromPoints } from './utils/geometry.js'
-import { calculatePathBounds } from './utils/hit-testing.js'
+import {
+	getObject,
+	updateObject,
+	deleteObjects,
+	downloadExport,
+	bringToFront,
+	sendToBack,
+	bringForward,
+	sendBackward
+} from './crdt/index.js'
+import { getObjectBounds } from './utils/bounds.js'
 import type { MorphAnimationState } from './smart-ink/index.js'
-
-// Helper to compute bounds for an object
-function getObjectBounds(obj: IdealloObject): Bounds {
-	switch (obj.type) {
-		case 'freehand': {
-			// Calculate actual bounds from path data at runtime
-			// Path data can have negative coords (control points extend beyond stored bounds)
-			const pathBounds = calculatePathBounds(obj.pathData)
-			if (pathBounds) {
-				return {
-					x: obj.x + pathBounds.x,
-					y: obj.y + pathBounds.y,
-					width: pathBounds.width,
-					height: pathBounds.height
-				}
-			}
-			// Fallback to stored bounds
-			return { x: obj.x, y: obj.y, width: obj.width, height: obj.height }
-		}
-		case 'rect':
-		case 'ellipse':
-		case 'text':
-		case 'sticky':
-		case 'image':
-			return { x: obj.x, y: obj.y, width: obj.width, height: obj.height }
-		case 'polygon':
-			return getBoundsFromPoints(obj.vertices)
-		case 'line':
-		case 'arrow':
-			return {
-				x: Math.min(obj.startX, obj.endX),
-				y: Math.min(obj.startY, obj.endY),
-				width: Math.abs(obj.endX - obj.startX),
-				height: Math.abs(obj.endY - obj.startY)
-			}
-	}
-}
 
 export function IdealloApp() {
 	const ideallo = useIdealloDocument()
@@ -311,7 +282,8 @@ export function IdealloApp() {
 		selectedIds,
 		selectObject,
 		clearSelection,
-		enabled: ideallo.activeTool === 'select'
+		enabled: ideallo.activeTool === 'select',
+		objects: ideallo.objects
 	})
 
 	// Eraser handler for eraser tool
@@ -833,9 +805,16 @@ export function IdealloApp() {
 	// Ref to track pivot dragging state - prevents object movement during pivot drag
 	const isPivotDraggingRef = React.useRef(false)
 
+	// Freeze screen bounds during pivot drag so PropertyBar doesn't drift
+	const handleScreenBoundsChange = React.useCallback((bounds: Bounds | null) => {
+		if (!isPivotDraggingRef.current) {
+			setScreenSelectionBounds(bounds)
+		}
+	}, [])
+
 	// Unified pointer handlers that route to the right tool
 	const handlePointerDown = React.useCallback(
-		(x: number, y: number, shiftKey: boolean = false) => {
+		(x: number, y: number, shiftKey: boolean = false, altKey: boolean = false) => {
 			// Close any active text/sticky editor when clicking on the canvas
 			if (stickyHandler.editingSticky) {
 				const editId = stickyHandler.editingSticky.id
@@ -867,7 +846,7 @@ export function IdealloApp() {
 			}
 
 			if (ideallo.activeTool === 'select' && !isPivotDraggingRef.current) {
-				selectHandler.handlePointerDown(x, y, shiftKey)
+				selectHandler.handlePointerDown(x, y, shiftKey, altKey)
 			} else if (ideallo.activeTool === 'pen') {
 				drawingHandler.handlePointerDown(x, y)
 			} else if (ideallo.activeTool === 'eraser') {
@@ -1061,6 +1040,32 @@ export function IdealloApp() {
 				}
 			}
 
+			// Z-order shortcuts: Ctrl+] / Ctrl+Shift+] / Ctrl+[ / Ctrl+Shift+[
+			if ((evt.ctrlKey || evt.metaKey) && evt.key === ']') {
+				if (selectedIds.size > 0 && ideallo.yDoc && ideallo.doc) {
+					if (evt.shiftKey) {
+						selectedIds.forEach((id) => bringToFront(ideallo.yDoc, ideallo.doc, id))
+					} else {
+						selectedIds.forEach((id) => bringForward(ideallo.yDoc, ideallo.doc, id))
+					}
+					evt.preventDefault()
+				}
+			}
+			if ((evt.ctrlKey || evt.metaKey) && evt.key === '[') {
+				if (selectedIds.size > 0 && ideallo.yDoc && ideallo.doc) {
+					if (evt.shiftKey) {
+						Array.from(selectedIds)
+							.reverse()
+							.forEach((id) => sendToBack(ideallo.yDoc, ideallo.doc, id))
+					} else {
+						Array.from(selectedIds)
+							.reverse()
+							.forEach((id) => sendBackward(ideallo.yDoc, ideallo.doc, id))
+					}
+					evt.preventDefault()
+				}
+			}
+
 			// Delete selected objects
 			if (evt.key === 'Delete' || evt.key === 'Backspace') {
 				if (
@@ -1147,6 +1152,7 @@ export function IdealloApp() {
 				ref={canvasRef}
 				doc={ideallo.doc}
 				objects={ideallo.objects}
+				order={ideallo.order}
 				textContent={ideallo.textContent}
 				activeStroke={drawingHandler.activeStroke}
 				shapePreview={shapeHandler.shapePreview}
@@ -1228,6 +1234,7 @@ export function IdealloApp() {
 				rotationState={rotationState}
 				arcRadius={arcRadius}
 				pivotPosition={pivotPosition}
+				pivotOriginalBounds={storedSelection?.bounds ?? null}
 				onPivotDragStart={handlePivotDragStart}
 				onPivotDrag={handlePivotDrag}
 				onPivotCommit={handlePivotCommit}
@@ -1239,7 +1246,7 @@ export function IdealloApp() {
 					color: ideallo.currentStyle.strokeColor,
 					width: ideallo.currentStyle.strokeWidth
 				}}
-				onScreenBoundsChange={setScreenSelectionBounds}
+				onScreenBoundsChange={handleScreenBoundsChange}
 				// Eraser tool
 				eraserPosition={eraserHandler.eraserPosition}
 				eraserRadius={eraserHandler.canvasRadius}
@@ -1253,6 +1260,8 @@ export function IdealloApp() {
 						: selectHandler.hoveredId
 				}
 				onPointerLeave={selectHandler.handlePointerLeave}
+				// Stacked move highlight
+				stackedHighlightIds={selectHandler.stackedHighlightIds}
 				// Image loading
 				ownerTag={ideallo.cloudillo.ownerTag}
 			/>
@@ -1262,6 +1271,7 @@ export function IdealloApp() {
 				activeTool={ideallo.activeTool as ToolType}
 				canUndo={ideallo.canUndo}
 				canRedo={ideallo.canRedo}
+				hasSelection={selectedIds.size > 0}
 				onToolChange={ideallo.setActiveTool}
 				onUndo={ideallo.undo}
 				onRedo={ideallo.redo}
@@ -1269,6 +1279,26 @@ export function IdealloApp() {
 					if (ideallo.yDoc && ideallo.doc) {
 						downloadExport(ideallo.yDoc, ideallo.doc)
 					}
+				}}
+				onBringToFront={() => {
+					if (!ideallo.yDoc || !ideallo.doc) return
+					selectedIds.forEach((id) => bringToFront(ideallo.yDoc, ideallo.doc, id))
+				}}
+				onBringForward={() => {
+					if (!ideallo.yDoc || !ideallo.doc) return
+					selectedIds.forEach((id) => bringForward(ideallo.yDoc, ideallo.doc, id))
+				}}
+				onSendBackward={() => {
+					if (!ideallo.yDoc || !ideallo.doc) return
+					Array.from(selectedIds)
+						.reverse()
+						.forEach((id) => sendBackward(ideallo.yDoc, ideallo.doc, id))
+				}}
+				onSendToBack={() => {
+					if (!ideallo.yDoc || !ideallo.doc) return
+					Array.from(selectedIds)
+						.reverse()
+						.forEach((id) => sendToBack(ideallo.yDoc, ideallo.doc, id))
 				}}
 			/>
 

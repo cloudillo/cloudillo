@@ -65,6 +65,8 @@ export interface ObjectRendererProps {
 	isHovered?: boolean
 	// Eraser hover effect (object is under eraser cursor)
 	isEraserHovered?: boolean
+	// Stacked move highlight (object will move together with dragged object)
+	isStacked?: boolean
 }
 
 // Calculate rotation center for an object using its pivot point
@@ -201,7 +203,8 @@ export function ObjectRenderer({
 	onHeightChange,
 	isHighlighted = false,
 	isHovered = false,
-	isEraserHovered = false
+	isEraserHovered = false,
+	isStacked = false
 }: ObjectRendererProps) {
 	const content = renderObject(object, {
 		doc,
@@ -226,6 +229,7 @@ export function ObjectRenderer({
 	if (isHighlighted) classNames.push('eraser-highlighted')
 	if (isHovered && !isImage) classNames.push('object-hovered')
 	if (isEraserHovered && !isImage) classNames.push('eraser-hovered')
+	if (isStacked) classNames.push('object-stacked')
 	const className = classNames.length > 0 ? classNames.join(' ') : undefined
 
 	// Handle double-click for entering edit mode (sticky notes)

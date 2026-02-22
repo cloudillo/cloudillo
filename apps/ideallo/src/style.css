@@ -139,6 +139,162 @@ body,
 	background: rgba(0, 0, 0, 0.1);
 }
 
+/* ============================================
+   Tool Group (mobile popover)
+   ============================================ */
+
+.ideallo-tool-group {
+	position: relative;
+}
+
+.ideallo-tool-group-indicator {
+	position: absolute;
+	bottom: 4px;
+	right: 4px;
+	width: 0;
+	height: 0;
+	border-left: 3px solid transparent;
+	border-right: 3px solid transparent;
+	border-top: 3px solid currentColor;
+	opacity: 0.5;
+	pointer-events: none;
+}
+
+.ideallo-tool-popover {
+	position: absolute;
+	bottom: calc(100% + 8px);
+	left: 50%;
+	transform: translateX(-50%);
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px;
+	padding: 6px;
+	max-width: calc(100vw - 32px);
+	background: rgba(255, 255, 255, 0.95);
+	backdrop-filter: blur(10px);
+	-webkit-backdrop-filter: blur(10px);
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: 10px;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+	z-index: 110;
+	animation: ideallo-popover-in 0.15s ease-out;
+}
+
+@keyframes ideallo-popover-in {
+	from {
+		opacity: 0;
+		transform: translateX(-50%) translateY(4px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(-50%) translateY(0);
+	}
+}
+
+/* ============================================
+   Mobile toolbar layout
+   ============================================ */
+
+@media screen and (max-width: 767px) {
+	.ideallo-toolbar {
+		bottom: 8px;
+		padding: 6px;
+		gap: 2px;
+	}
+
+	.ideallo-tool-btn {
+		width: 44px;
+		height: 44px;
+	}
+
+	.ideallo-toolbar-divider {
+		height: 28px;
+	}
+}
+
+/* ============================================
+   Dark mode: toolbar, tool buttons, popover
+   ============================================ */
+
+.dark .ideallo-toolbar {
+	background: rgba(30, 30, 30, 0.9);
+	border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark .ideallo-tool-btn {
+	color: #ddd;
+}
+
+.dark .ideallo-tool-btn:hover {
+	background: rgba(255, 255, 255, 0.08);
+}
+
+.dark .ideallo-tool-btn.active {
+	background: rgba(66, 153, 225, 0.2);
+	color: #63b3ed;
+}
+
+.dark .ideallo-tool-btn:disabled {
+	opacity: 0.35;
+}
+
+.dark .ideallo-toolbar-divider {
+	background: rgba(255, 255, 255, 0.1);
+}
+
+.dark .ideallo-tool-popover {
+	background: rgba(30, 30, 30, 0.95);
+	border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark .ideallo-tool-group-indicator {
+	opacity: 0.4;
+}
+
+.dark .ideallo-zoom-controls {
+	background: rgba(30, 30, 30, 0.9);
+	border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark .ideallo-zoom-btn {
+	color: #ddd;
+}
+
+.dark .ideallo-zoom-btn:hover {
+	background: rgba(255, 255, 255, 0.08);
+}
+
+.dark .ideallo-zoom-btn:active {
+	background: rgba(255, 255, 255, 0.12);
+}
+
+.dark .ideallo-zoom-level {
+	color: #ddd;
+}
+
+.dark .ideallo-zoom-level:hover {
+	background: rgba(255, 255, 255, 0.08);
+}
+
+.dark .ideallo-status {
+	background: rgba(30, 30, 30, 0.9);
+	border-color: rgba(255, 255, 255, 0.1);
+	color: #aaa;
+}
+
+.dark .ideallo-property-bar {
+	background: rgba(30, 30, 30, 0.9);
+	border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark .ideallo-property-label {
+	color: #aaa;
+}
+
+.dark .ideallo-property-divider {
+	background: rgba(255, 255, 255, 0.1);
+}
+
 /* Status indicator in top-right */
 .ideallo-status {
 	position: fixed;
@@ -244,6 +400,12 @@ body,
 
 .ideallo-zoom-level:hover {
 	background: rgba(0, 0, 0, 0.05);
+}
+
+@media screen and (max-width: 767px) {
+	.ideallo-zoom-controls {
+		display: none;
+	}
 }
 
 /* Floating property bar above selection */
@@ -608,6 +770,12 @@ body,
 .object-hovered line,
 .object-hovered polygon {
 	stroke-opacity: 0.8;
+}
+
+/* Object stacked effect (stacking move highlight) */
+.object-stacked {
+	filter: drop-shadow(0 0 4px #0066ff) drop-shadow(0 0 1px #0066ff);
+	opacity: 0.95;
 }
 
 /* Eraser hover effect (red shadow) */

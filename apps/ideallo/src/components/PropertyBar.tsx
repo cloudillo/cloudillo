@@ -284,12 +284,16 @@ export function PropertyBar({
 		// If |rotation| >= 90°, handle is more towards bottom, so position bar above
 		const preferBelow = Math.abs(normalizedRotation) < 90
 
+		// On narrow viewports, reserve space for the mobile toolbar at the bottom
+		const isMobileViewport = window.innerWidth <= 767
+		const bottomReserved = isMobileViewport ? 68 : VIEWPORT_PADDING
+
 		let top: number
 		if (preferBelow) {
 			// Try below first
 			top = screenBounds.y + screenBounds.height + SELECTION_GAP
 			// If not enough room below, position above
-			if (top + BAR_HEIGHT > window.innerHeight - VIEWPORT_PADDING) {
+			if (top + BAR_HEIGHT > window.innerHeight - bottomReserved) {
 				top = screenBounds.y - SELECTION_GAP - BAR_HEIGHT
 			}
 		} else {
@@ -301,9 +305,18 @@ export function PropertyBar({
 			}
 		}
 
+		// Clamp top within viewport
+		top = Math.max(
+			VIEWPORT_PADDING,
+			Math.min(top, window.innerHeight - bottomReserved - BAR_HEIGHT)
+		)
+
 		return {
 			top,
-			left: centerX
+			left: Math.max(
+				VIEWPORT_PADDING,
+				Math.min(centerX, window.innerWidth - VIEWPORT_PADDING)
+			)
 		}
 	}, [screenBounds, rotation])
 

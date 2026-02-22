@@ -48,4 +48,6 @@ export { useEraserHandler } from './useEraserHandler.js'
 export type { UseImageHandlerOptions } from './useImageHandler.js'
 export { useImageHandler } from './useImageHandler.js'
 
+export { useIsMobile } from './useIsMobile.js'
+
 // vim: ts=4

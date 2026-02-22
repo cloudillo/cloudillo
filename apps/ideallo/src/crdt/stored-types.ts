@@ -155,6 +155,7 @@ export interface StoredMeta {
 // Document structure - simpler than prezillo (no containers, views)
 export interface YIdealloDocument {
 	o: Y.Map<StoredObject> // objects (metadata + style only)
+	r: Y.Array<string> // z-order: array of objectId strings (index 0 = backmost)
 	m: Y.Map<unknown> // metadata
 	txt: Y.Map<Y.Text> // text content for Text/Sticky objects
 	geo: Y.Map<Y.Array<number>> // geometry for Polygon objects

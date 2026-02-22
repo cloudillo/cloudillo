@@ -148,6 +148,7 @@ export function addObject(yDoc: Y.Doc, doc: YIdealloDocument, input: NewObjectIn
 
 		const stored = compactObject(objectWithId)
 		doc.o.set(objectId, stored)
+		doc.r.push([objectId])
 	}, yDoc.clientID)
 
 	return objectId
@@ -163,13 +164,15 @@ export function getObject(doc: YIdealloDocument, objectId: ObjectId): IdealloObj
 }
 
 /**
- * Get all objects in the document
+ * Get all objects in the document (in z-order, backmost first)
  */
 export function getAllObjects(doc: YIdealloDocument): IdealloObject[] {
 	const objects: IdealloObject[] = []
-	doc.o.forEach((stored, id) => {
-		objects.push(expandObject(id as ObjectId, stored, doc))
-	})
+	const order = doc.r.toArray()
+	for (const id of order) {
+		const stored = doc.o.get(id)
+		if (stored) objects.push(expandObject(id as ObjectId, stored, doc))
+	}
 	return objects
 }
 
@@ -323,6 +326,8 @@ export function updateObjectPivot(
  */
 export function deleteObject(yDoc: Y.Doc, doc: YIdealloDocument, objectId: ObjectId): void {
 	yDoc.transact(() => {
+		const idx = doc.r.toArray().indexOf(objectId)
+		if (idx >= 0) doc.r.delete(idx, 1)
 		doc.o.delete(objectId)
 	}, yDoc.clientID)
 }
@@ -334,6 +339,16 @@ export function deleteObject(yDoc: Y.Doc, doc: YIdealloDocument, objectId: Objec
  */
 export function deleteObjects(yDoc: Y.Doc, doc: YIdealloDocument, objectIds: ObjectId[]): void {
 	yDoc.transact(() => {
+		const orderArr = doc.r.toArray()
+		const idsToDelete = new Set(objectIds as string[])
+		// Collect indices to delete, then delete in descending order to avoid shifting
+		const indicesToDelete: number[] = []
+		for (let i = 0; i < orderArr.length; i++) {
+			if (idsToDelete.has(orderArr[i])) indicesToDelete.push(i)
+		}
+		for (let i = indicesToDelete.length - 1; i >= 0; i--) {
+			doc.r.delete(indicesToDelete[i], 1)
+		}
 		objectIds.forEach((id) => {
 			doc.o.delete(id)
 		})
@@ -404,6 +419,7 @@ export function duplicateObject(
 		}
 
 		doc.o.set(newId, duplicated)
+		doc.r.push([newId])
 	}, yDoc.clientID)
 
 	return newId
@@ -452,6 +468,7 @@ export function duplicateAsLinkedCopy(
 		}
 
 		doc.o.set(newId, duplicated)
+		doc.r.push([newId])
 	}, yDoc.clientID)
 
 	return newId
@@ -560,6 +577,82 @@ export function replaceGeometryPoints(
 		}
 		yArray.push(flatPoints)
 	}, yDoc.clientID)
+}
+
+// ---- Z-order operations ----
+
+type ZIndexOperation = 'toFront' | 'toBack' | 'forward' | 'backward'
+
+function reorderObject(
+	yDoc: Y.Doc,
+	doc: YIdealloDocument,
+	objectId: ObjectId,
+	operation: ZIndexOperation
+): void {
+	yDoc.transact(() => {
+		const arr = doc.r.toArray()
+		const currentIndex = arr.indexOf(objectId)
+		if (currentIndex < 0) return
+
+		let targetIndex: number
+		let canMove: boolean
+
+		switch (operation) {
+			case 'toFront':
+				targetIndex = arr.length
+				canMove = currentIndex < arr.length - 1
+				break
+			case 'toBack':
+				targetIndex = 0
+				canMove = currentIndex > 0
+				break
+			case 'forward':
+				targetIndex = currentIndex + 1
+				canMove = currentIndex < arr.length - 1
+				break
+			case 'backward':
+				targetIndex = currentIndex - 1
+				canMove = currentIndex > 0
+				break
+		}
+
+		if (canMove) {
+			doc.r.delete(currentIndex, 1)
+			if (operation === 'toFront') {
+				doc.r.push([objectId])
+			} else {
+				doc.r.insert(targetIndex, [objectId])
+			}
+		}
+	}, yDoc.clientID)
+}
+
+/**
+ * Bring object to front (highest z-index)
+ */
+export function bringToFront(yDoc: Y.Doc, doc: YIdealloDocument, objectId: ObjectId): void {
+	reorderObject(yDoc, doc, objectId, 'toFront')
+}
+
+/**
+ * Send object to back (lowest z-index)
+ */
+export function sendToBack(yDoc: Y.Doc, doc: YIdealloDocument, objectId: ObjectId): void {
+	reorderObject(yDoc, doc, objectId, 'toBack')
+}
+
+/**
+ * Bring object forward one level
+ */
+export function bringForward(yDoc: Y.Doc, doc: YIdealloDocument, objectId: ObjectId): void {
+	reorderObject(yDoc, doc, objectId, 'forward')
+}
+
+/**
+ * Send object backward one level
+ */
+export function sendBackward(yDoc: Y.Doc, doc: YIdealloDocument, objectId: ObjectId): void {
+	reorderObject(yDoc, doc, objectId, 'backward')
 }
 
 // vim: ts=4

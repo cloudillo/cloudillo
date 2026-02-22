@@ -33,6 +33,7 @@ export function getOrCreateDocument(
 ): YIdealloDocument {
 	const doc: YIdealloDocument = {
 		o: yDoc.getMap<StoredObject>('o'),
+		r: yDoc.getArray<string>('r'),
 		m: yDoc.getMap<unknown>('m'),
 		txt: yDoc.getMap<Y.Text>('txt'),
 		geo: yDoc.getMap<Y.Array<number>>('geo'),
@@ -44,6 +45,17 @@ export function getOrCreateDocument(
 			doc.m.set('initialized', true)
 			doc.m.set('name', 'Untitled Board')
 			doc.m.set('backgroundColor', '#f8f9fa')
+		})
+	}
+
+	// Migration: populate order array from existing objects (preserves insertion order)
+	if (initializeIfEmpty && doc.r.length === 0 && doc.o.size > 0) {
+		yDoc.transact(() => {
+			const ids: string[] = []
+			doc.o.forEach((_value, key) => {
+				ids.push(key)
+			})
+			doc.r.push(ids)
 		})
 	}
 

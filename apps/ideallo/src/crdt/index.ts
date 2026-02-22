@@ -93,7 +93,11 @@ export {
 	getObjectYText,
 	getObjectYArray,
 	appendGeometryPoints,
-	replaceGeometryPoints
+	replaceGeometryPoints,
+	bringToFront,
+	sendToBack,
+	bringForward,
+	sendBackward
 } from './object-ops.js'
 
 // Transforms and geometry utilities

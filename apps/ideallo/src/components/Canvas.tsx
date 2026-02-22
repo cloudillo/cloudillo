@@ -82,9 +82,10 @@ function FixedRotationHandle(
 function FixedPivotHandle(
 	props: Omit<
 		PivotHandleProps,
-		'scale' | 'bounds' | 'onPivotDragStart' | 'isDragging' | 'snappedPoint'
+		'scale' | 'bounds' | 'originalBounds' | 'onPivotDragStart' | 'isDragging' | 'snappedPoint'
 	> & {
 		canvasBounds: Bounds
+		canvasOriginalBounds?: Bounds | null
 		activeTool: string
 		onPivotDragStart?: () => void
 		onPivotDrag?: (pivot: Point, compensation: Point) => void
@@ -133,10 +134,23 @@ function FixedPivotHandle(
 		height: props.canvasBounds.height * scale
 	}
 
+	// Transform original bounds to screen space (for stable snap points during drag)
+	const screenOriginalBounds = React.useMemo(() => {
+		if (!props.canvasOriginalBounds) return undefined
+		const [ox, oy] = translateFrom(props.canvasOriginalBounds.x, props.canvasOriginalBounds.y)
+		return {
+			x: ox,
+			y: oy,
+			width: props.canvasOriginalBounds.width * scale,
+			height: props.canvasOriginalBounds.height * scale
+		}
+	}, [props.canvasOriginalBounds, translateFrom, scale])
+
 	return (
 		<PivotHandle
 			{...props}
 			bounds={screenBounds}
+			originalBounds={screenOriginalBounds}
 			scale={1}
 			pivotX={pivotDrag.pivotState.pivotX}
 			pivotY={pivotDrag.pivotState.pivotY}
@@ -163,6 +177,7 @@ import { pointsToSmoothPath } from '../utils/index.js'
 export interface CanvasProps {
 	doc: YIdealloDocument
 	objects: Record<string, StoredObject> | null
+	order: string[] | null
 	textContent?: Record<string, unknown> | null // Text content map, used to trigger re-render
 	activeStroke: ActiveStrokeType | null
 	shapePreview: ShapePreviewType | null
@@ -176,7 +191,7 @@ export interface CanvasProps {
 	selectedObjectPivotX: number
 	selectedObjectPivotY: number
 	dragOffset: DragOffset | null
-	onPointerDown: (x: number, y: number, shiftKey?: boolean) => void
+	onPointerDown: (x: number, y: number, shiftKey?: boolean, altKey?: boolean) => void
 	onPointerMove: (x: number, y: number) => void
 	onPointerUp: () => void
 	onCursorMove?: (x: number, y: number) => void
@@ -210,6 +225,7 @@ export interface CanvasProps {
 	arcRadius?: number
 	pivotPosition?: Point
 	// Pivot
+	pivotOriginalBounds?: Bounds | null
 	onPivotDragStart?: () => void
 	onPivotDrag?: (pivot: Point, compensation: Point) => void
 	onPivotCommit?: (finalPivot: Point, compensation: Point) => void
@@ -229,6 +245,8 @@ export interface CanvasProps {
 	// Hover effect
 	hoveredId?: ObjectId | null
 	onPointerLeave?: () => void
+	// Stacked move highlight
+	stackedHighlightIds?: Set<ObjectId>
 	// Image loading
 	ownerTag?: string
 }
@@ -243,6 +261,7 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 	{
 		doc,
 		objects,
+		order,
 		textContent,
 		activeStroke,
 		shapePreview,
@@ -288,6 +307,7 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 		rotationState,
 		arcRadius,
 		pivotPosition,
+		pivotOriginalBounds,
 		onPivotDragStart,
 		onPivotDrag,
 		onPivotCommit,
@@ -306,6 +326,8 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 		// Hover effect
 		hoveredId,
 		onPointerLeave,
+		// Stacked move highlight
+		stackedHighlightIds,
 		// Image loading
 		ownerTag
 	},
@@ -401,7 +423,7 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 
 	const handleToolStart = React.useCallback(
 		(evt: ToolEvent) => {
-			onPointerDown(evt.x, evt.y, evt.shiftKey)
+			onPointerDown(evt.x, evt.y, evt.shiftKey, evt.altKey)
 		},
 		[onPointerDown]
 	)
@@ -458,37 +480,43 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 		}
 	}, [screenSelectionBounds, onScreenBoundsChange])
 
-	// Convert stored objects to runtime format for rendering
+	// Convert stored objects to runtime format for rendering (in z-order)
 	// Apply local drag offset if object is being dragged
 	const objectsToRender = React.useMemo(() => {
 		if (!objects) return []
 
-		return Object.entries(objects).map(([id, stored]) => {
-			const objectId = toObjectId(id)
-			let obj = expandObject(objectId, stored, doc)
+		// Use order array for z-ordering, fall back to Object.keys for unordered docs
+		const ids = order && order.length > 0 ? order : Object.keys(objects)
 
-			// Apply local drag offset if this object is being dragged
-			if (dragOffset && dragOffset.objectIds.has(objectId)) {
-				obj = {
-					...obj,
-					x: obj.x + dragOffset.dx,
-					y: obj.y + dragOffset.dy,
-					// For line/arrow, also offset endpoints
-					...(obj.type === 'line' || obj.type === 'arrow'
-						? {
-								startX: obj.startX + dragOffset.dx,
-								startY: obj.startY + dragOffset.dy,
-								endX: obj.endX + dragOffset.dx,
-								endY: obj.endY + dragOffset.dy
-							}
-						: {})
-					// Note: Freehand pathData uses absolute coords, position update handled above
+		return ids
+			.filter((id) => id in objects)
+			.map((id) => {
+				const objectId = toObjectId(id)
+				const stored = objects[id]
+				let obj = expandObject(objectId, stored, doc)
+
+				// Apply local drag offset if this object is being dragged
+				if (dragOffset && dragOffset.objectIds.has(objectId)) {
+					obj = {
+						...obj,
+						x: obj.x + dragOffset.dx,
+						y: obj.y + dragOffset.dy,
+						// For line/arrow, also offset endpoints
+						...(obj.type === 'line' || obj.type === 'arrow'
+							? {
+									startX: obj.startX + dragOffset.dx,
+									startY: obj.startY + dragOffset.dy,
+									endX: obj.endX + dragOffset.dx,
+									endY: obj.endY + dragOffset.dy
+								}
+							: {})
+						// Note: Freehand pathData uses absolute coords, position update handled above
+					}
 				}
-			}
 
-			return obj
-		})
-	}, [objects, textContent, dragOffset])
+				return obj
+			})
+	}, [objects, order, textContent, dragOffset])
 
 	// Get current scale for RotationHandle and pivot conversion
 	const scale = canvasMatrix[0]
@@ -540,6 +568,7 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 			{activeTool === 'select' && selectionBounds && (
 				<FixedPivotHandle
 					canvasBounds={selectionBounds}
+					canvasOriginalBounds={pivotOriginalBounds}
 					rotation={displayRotation}
 					pivotX={selectedObjectPivotX}
 					pivotY={selectedObjectPivotY}
@@ -613,6 +642,7 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 							onHeightChange={isEditing ? onEditHeightChange : undefined}
 							isHighlighted={eraserHighlightedIds?.has(obj.id) ?? false}
 							isEraserHovered={activeTool === 'eraser' && hoveredId === obj.id}
+							isStacked={stackedHighlightIds?.has(obj.id) ?? false}
 							isHovered={
 								activeTool === 'select' &&
 								!dragOffset &&

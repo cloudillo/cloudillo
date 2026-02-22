@@ -77,6 +77,7 @@ export interface UseIdealloDocumentResult {
 
 	// Reactive data (re-renders on change)
 	objects: Record<string, StoredObject> | null
+	order: string[] | null // z-order array (backmost first)
 	textContent: Record<string, string> | null // Text content (serialized), triggers re-render on changes
 
 	// Selection
@@ -142,6 +143,7 @@ export function useIdealloDocument(): UseIdealloDocumentResult {
 	// Observe reactive CRDT data
 	// useY uses observeDeep, so it should trigger on nested Y.Text changes too
 	const objects = useY(doc.o)
+	const order = useY(doc.r)
 	const textContent = useY(doc.txt)
 
 	// Selection state
@@ -161,9 +163,9 @@ export function useIdealloDocument(): UseIdealloDocumentResult {
 		strokeWidth: 2
 	})
 
-	// Undo manager - tracks objects, text content, geometry, and paths
+	// Undo manager - tracks objects, order, text content, geometry, and paths
 	const undoManager = React.useMemo(() => {
-		return new Y.UndoManager([doc.o, doc.txt, doc.geo, doc.paths], {
+		return new Y.UndoManager([doc.o, doc.r, doc.txt, doc.geo, doc.paths], {
 			trackedOrigins: new Set([cloudillo.yDoc.clientID])
 		})
 	}, [cloudillo.yDoc, doc])
@@ -307,6 +309,7 @@ export function useIdealloDocument(): UseIdealloDocumentResult {
 
 		// Reactive data
 		objects,
+		order,
 		textContent,
 
 		// Selection

@@ -68,6 +68,7 @@ export interface IdealloExportDocument {
 	data: {
 		meta: StoredMeta
 		objects: Record<string, StoredObject>
+		order: string[]
 		texts: Record<string, string>
 		geometry: Record<string, number[]>
 		paths: Record<string, string>
@@ -99,6 +100,9 @@ export function exportDocument(yDoc: Y.Doc, doc: YIdealloDocument): IdealloExpor
 	// 5. Export paths
 	const paths = doc.paths.toJSON() as Record<string, string>
 
+	// 6. Export z-order
+	const order = doc.r.toArray()
+
 	return {
 		contentType: CONTENT_TYPE,
 		appVersion: __APP_VERSION__,
@@ -107,6 +111,7 @@ export function exportDocument(yDoc: Y.Doc, doc: YIdealloDocument): IdealloExpor
 		data: {
 			meta,
 			objects,
+			order,
 			texts,
 			geometry,
 			paths

@@ -149,6 +149,14 @@ export type {
 	RadialGradientDef
 } from './utils/gradient'
 
+// Stacking utilities
+export type { StackableObject, FindStackedOptions } from './utils/stacking'
+export {
+	calculateOverlapPercentage,
+	findStackedObjects,
+	findStackedObjectsForSelection
+} from './utils/stacking'
+
 // Gradient presets
 export {
 	GRADIENT_PRESETS,

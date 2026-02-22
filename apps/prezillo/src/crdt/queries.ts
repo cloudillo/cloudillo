@@ -606,29 +606,50 @@ export function getObjectCount(doc: YPrezilloDocument): number {
 	return doc.o.size
 }
 
-/**
- * Calculate the overlap percentage of boundsB relative to itself.
- * Returns a value from 0 to 1 representing how much of boundsB overlaps with boundsA.
- */
-export function calculateOverlapPercentage(boundsA: Bounds, boundsB: Bounds): number {
-	// Calculate intersection
-	const intersectLeft = Math.max(boundsA.x, boundsB.x)
-	const intersectRight = Math.min(boundsA.x + boundsA.width, boundsB.x + boundsB.width)
-	const intersectTop = Math.max(boundsA.y, boundsB.y)
-	const intersectBottom = Math.min(boundsA.y + boundsA.height, boundsB.y + boundsB.height)
+// Re-export shared overlap calculation from canvas-tools
+export { calculateOverlapPercentage } from '@cloudillo/canvas-tools'
 
-	// No intersection
-	if (intersectLeft >= intersectRight || intersectTop >= intersectBottom) {
-		return 0
+import {
+	calculateOverlapPercentage as _calculateOverlapPercentage,
+	findStackedObjects,
+	findStackedObjectsForSelection,
+	type StackableObject
+} from '@cloudillo/canvas-tools'
+
+/**
+ * Build a StackableObject[] from the prezillo document for use with shared stacking utilities.
+ * Pre-filters out locked, invisible, and prototype objects. Array is in z-order.
+ */
+function buildStackableArray(doc: YPrezilloDocument): StackableObject[] {
+	const prototypeIds = getAllPrototypeIds(doc)
+	const result: StackableObject[] = []
+
+	function traverse(children: ChildRef[]) {
+		children.forEach((ref) => {
+			if (ref[0] === 0) {
+				const obj = doc.o.get(ref[1])
+				if (!obj || obj.v === false) return
+				if (obj.k) return
+				if (prototypeIds.has(ref[1])) return
+
+				const bounds = getAbsoluteBoundsStored(doc, obj)
+				if (!bounds) return
+
+				result.push({ id: ref[1], bounds })
+			} else {
+				const container = doc.c.get(ref[1])
+				if (container && container.v !== false) {
+					const containerChildren = doc.ch.get(ref[1])
+					if (containerChildren) {
+						traverse(containerChildren.toArray())
+					}
+				}
+			}
+		})
 	}
 
-	const intersectionArea = (intersectRight - intersectLeft) * (intersectBottom - intersectTop)
-	const boundsBAREA = boundsB.width * boundsB.height
-
-	// Avoid division by zero for zero-area objects
-	if (boundsBAREA === 0) return 0
-
-	return intersectionArea / boundsBAREA
+	traverse(doc.r.toArray())
+	return result
 }
 
 /**
@@ -645,118 +666,8 @@ export function getStackedObjects(
 	objectId: ObjectId,
 	overlapThreshold: number = 0.5
 ): ObjectId[] {
-	// Get all objects in z-order
-	const allObjectIds = getAllObjectIdsInZOrder(doc)
-	const targetIndex = allObjectIds.indexOf(objectId)
-
-	if (targetIndex === -1) return []
-
-	const targetObj = doc.o.get(objectId)
-	if (!targetObj) return []
-
-	const targetBounds = getAbsoluteBoundsStored(doc, targetObj)
-	if (!targetBounds) return []
-
-	// Get prototype IDs to exclude (prototypes are template objects, not real objects)
-	const prototypeIds = getAllPrototypeIds(doc)
-
-	// Find direct children (objects immediately above with sufficient overlap)
-	const directChildren: ObjectId[] = []
-
-	// Only check objects with higher z-index
-	for (let i = targetIndex + 1; i < allObjectIds.length; i++) {
-		const candidateId = allObjectIds[i]
-		const candidateObj = doc.o.get(candidateId)
-
-		if (!candidateObj) continue
-		// Skip locked objects
-		if (candidateObj.k) continue
-		// Skip invisible objects
-		if (candidateObj.v === false) continue
-		// Skip prototype objects (they're for templates, not direct manipulation)
-		if (prototypeIds.has(candidateId)) continue
-
-		const candidateBounds = getAbsoluteBoundsStored(doc, candidateObj)
-		if (!candidateBounds) continue
-
-		const overlap = calculateOverlapPercentage(targetBounds, candidateBounds)
-		if (overlap >= overlapThreshold) {
-			directChildren.push(candidateId)
-		}
-	}
-
-	// Recursively collect stacked objects (objects stacked on top of our direct children)
-	const allStacked = new Set<ObjectId>(directChildren)
-	const visited = new Set<ObjectId>([objectId])
-
-	function collectRecursive(ids: ObjectId[]) {
-		for (const id of ids) {
-			if (visited.has(id)) continue
-			visited.add(id)
-
-			const childStacked = getStackedObjectsDirect(
-				doc,
-				id,
-				allObjectIds,
-				overlapThreshold,
-				prototypeIds
-			)
-			for (const childId of childStacked) {
-				if (!allStacked.has(childId)) {
-					allStacked.add(childId)
-					collectRecursive([childId])
-				}
-			}
-		}
-	}
-
-	collectRecursive(directChildren)
-
-	return Array.from(allStacked)
-}
-
-/**
- * Internal helper: get directly stacked objects without recursion.
- * Used by getStackedObjects for recursive collection.
- */
-function getStackedObjectsDirect(
-	doc: YPrezilloDocument,
-	objectId: ObjectId,
-	allObjectIds: ObjectId[],
-	overlapThreshold: number,
-	prototypeIds: Set<string>
-): ObjectId[] {
-	const targetIndex = allObjectIds.indexOf(objectId)
-	if (targetIndex === -1) return []
-
-	const targetObj = doc.o.get(objectId)
-	if (!targetObj) return []
-
-	const targetBounds = getAbsoluteBoundsStored(doc, targetObj)
-	if (!targetBounds) return []
-
-	const result: ObjectId[] = []
-
-	for (let i = targetIndex + 1; i < allObjectIds.length; i++) {
-		const candidateId = allObjectIds[i]
-		const candidateObj = doc.o.get(candidateId)
-
-		if (!candidateObj) continue
-		if (candidateObj.k) continue
-		if (candidateObj.v === false) continue
-		// Skip prototype objects (they're for templates, not direct manipulation)
-		if (prototypeIds.has(candidateId)) continue
-
-		const candidateBounds = getAbsoluteBoundsStored(doc, candidateObj)
-		if (!candidateBounds) continue
-
-		const overlap = calculateOverlapPercentage(targetBounds, candidateBounds)
-		if (overlap >= overlapThreshold) {
-			result.push(candidateId)
-		}
-	}
-
-	return result
+	const stackable = buildStackableArray(doc)
+	return findStackedObjects(stackable, objectId, { overlapThreshold }) as ObjectId[]
 }
 
 /**
@@ -768,20 +679,8 @@ export function getStackedObjectsForSelection(
 	objectIds: ObjectId[],
 	overlapThreshold: number = 0.5
 ): ObjectId[] {
-	const inputSet = new Set(objectIds)
-	const allStacked = new Set<ObjectId>()
-
-	for (const id of objectIds) {
-		const stacked = getStackedObjects(doc, id, overlapThreshold)
-		for (const stackedId of stacked) {
-			// Don't include objects that are already in the selection
-			if (!inputSet.has(stackedId)) {
-				allStacked.add(stackedId)
-			}
-		}
-	}
-
-	return Array.from(allStacked)
+	const stackable = buildStackableArray(doc)
+	return findStackedObjectsForSelection(stackable, objectIds, { overlapThreshold }) as ObjectId[]
 }
 
 /**

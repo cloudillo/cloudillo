@@ -33,9 +33,7 @@ export function ql(v: unknown): string {
 			: v === false
 				? 'false'
 				: Array.isArray(v)
-					? v
-							.map((v) => ql(v))
-							.join(', ') //ql('' + v).replace(/^'(.*)'$/, (match, p1) => `'{${p1}}'`)
+					? v.map((v) => ql(v)).join(', ') //ql('' + v).replace(/^'(.*)'$/, (match, p1) => `'{${p1}}'`)
 					: typeof v == 'object'
 						? ql(JSON.stringify(v))
 						: "'" + ('' + v).replace(/'/g, "''") + "'"

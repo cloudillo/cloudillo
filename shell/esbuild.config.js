@@ -56,7 +56,7 @@ const appConfig = createConfig({
 const swConfig = {
 	entryPoints: ['sw/index.ts'],
 	bundle: true,
-	outfile: `dist/sw-${pkg.version}.js`,
+	outfile: 'dist/sw.js',
 	format: 'esm',
 	platform: 'browser',
 	target: ['es2021'],

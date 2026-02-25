@@ -449,6 +449,7 @@ function TaskItem({
 }) {
 	const [loading, setLoading] = React.useState(false)
 	const [deleting, setDeleting] = React.useState(false)
+	const [confirming, setConfirming] = React.useState(false)
 
 	const handleToggle = async () => {
 		try {
@@ -462,7 +463,11 @@ function TaskItem({
 	}
 
 	const handleDelete = async () => {
-		if (!confirm('Are you sure you want to delete this task?')) return
+		if (!confirming) {
+			setConfirming(true)
+			setTimeout(() => setConfirming(false), 3000)
+			return
+		}
 
 		try {
 			setDeleting(true)
@@ -471,6 +476,7 @@ function TaskItem({
 			console.error('Failed to delete task:', err)
 		} finally {
 			setDeleting(false)
+			setConfirming(false)
 		}
 	}
 
@@ -488,16 +494,27 @@ function TaskItem({
 			<span className="task-title">{task.text}</span>
 
 			{!readOnly && (
-				<div className="task-actions">
-					<button
-						onClick={handleDelete}
-						disabled={deleting}
-						className="c-button icon danger small"
-						title="Delete task"
-						aria-label={`Delete "${task.text}"`}
-					>
-						<IcDelete />
-					</button>
+				<div className="task-actions" style={confirming ? { opacity: 1 } : undefined}>
+					{confirming ? (
+						<button
+							onClick={handleDelete}
+							disabled={deleting}
+							className="c-button error small"
+							aria-label={`Confirm delete "${task.text}"`}
+						>
+							<IcDelete /> Delete?
+						</button>
+					) : (
+						<button
+							onClick={handleDelete}
+							disabled={deleting}
+							className="c-button icon small"
+							title="Delete task"
+							aria-label={`Delete "${task.text}"`}
+						>
+							<IcDelete />
+						</button>
+					)}
 				</div>
 			)}
 		</div>

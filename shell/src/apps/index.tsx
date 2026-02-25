@@ -481,7 +481,7 @@ export function MicrofrontendContainer({
 				ref={ref}
 				src={url}
 				sandbox={getSandboxValue(trustLevel)}
-				allow="fullscreen"
+				allow="fullscreen; geolocation; accelerometer; gyroscope; magnetometer"
 				allowFullScreen
 				className={mergeClasses(
 					'pos-absolute top-0 left-0 right-0 bottom-0 z-1',

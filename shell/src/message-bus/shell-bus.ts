@@ -26,7 +26,8 @@ import {
 	MessageBusConfig,
 	CloudilloMessage,
 	PROTOCOL_VERSION,
-	validateMessage
+	validateMessage,
+	ApiClient
 } from '@cloudillo/core'
 
 import {
@@ -40,6 +41,8 @@ import { initStorageHandlers } from './handlers/storage.js'
 import { initMediaHandlers } from './handlers/media.js'
 import { initLifecycleHandlers } from './handlers/lifecycle.js'
 import { initCrdtHandlers } from './handlers/crdt.js'
+import { initSettingsHandlers } from './handlers/settings.js'
+import { initSensorHandlers } from './handlers/sensor.js'
 
 // ============================================
 // TYPES
@@ -81,6 +84,8 @@ export interface ShellMessageBusConfig extends Partial<MessageBusConfig> {
 	getAuthState: () => AuthState | null
 	/** Get current theme state */
 	getThemeState: () => ThemeState
+	/** Get API client for server-proxied requests (settings, etc.) */
+	getApi?: () => ApiClient | null
 }
 
 // ============================================
@@ -120,6 +125,8 @@ export class ShellMessageBus extends MessageBusBase {
 		initMediaHandlers(this)
 		initLifecycleHandlers(this)
 		initCrdtHandlers(this)
+		initSettingsHandlers(this)
+		initSensorHandlers(this)
 
 		this.initialized = true
 		this.log('Initialized')
@@ -148,6 +155,13 @@ export class ShellMessageBus extends MessageBusBase {
 	 */
 	getThemeState(): ThemeState {
 		return this.shellConfig.getThemeState()
+	}
+
+	/**
+	 * Get API client for server-proxied requests
+	 */
+	getApi(): ApiClient | null {
+		return this.shellConfig.getApi?.() ?? null
 	}
 
 	/**

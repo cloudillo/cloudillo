@@ -36,8 +36,10 @@ import {
 	AppReadyStage,
 	StorageOp,
 	StorageOpRes,
+	SettingsGetRes,
 	MediaPickAck,
 	MediaPickResultPush,
+	SensorCompassPush,
 	CropAspect,
 	Visibility
 } from './types.js'
@@ -171,6 +173,34 @@ export interface StorageApi {
 	 * Get quota information for the namespace
 	 */
 	quota(ns: string): Promise<{ limit: number; used: number }>
+}
+
+// ============================================
+// SETTINGS API
+// ============================================
+
+/**
+ * Settings API for sandboxed apps
+ *
+ * Provides access to server-side settings via the message bus.
+ * The shell enforces scope filtering so apps can only access
+ * settings under their own `app.<appName>.*` prefix.
+ */
+export interface SettingsApi {
+	/**
+	 * Get a setting value by key
+	 */
+	get<T = unknown>(key: string): Promise<T | undefined>
+
+	/**
+	 * Set a setting value by key
+	 */
+	set(key: string, value: unknown): Promise<void>
+
+	/**
+	 * List settings with optional prefix filter
+	 */
+	list(prefix?: string): Promise<Array<{ key: string; value: unknown }>>
 }
 
 // ============================================
@@ -673,6 +703,119 @@ export class AppMessageBus extends MessageBusBase {
 		} else {
 			this.log('Media picker cancelled')
 			pending.resolve(undefined)
+		}
+	}
+
+	// ============================================
+	// COMPASS / SENSOR API
+	// ============================================
+
+	private compassCallback: ((heading: number, absolute: boolean) => void) | null = null
+
+	/**
+	 * Subscribe to compass heading updates from the shell
+	 *
+	 * The shell reads the device orientation sensor (which is blocked
+	 * inside sandboxed iframes) and pushes heading data via the message bus.
+	 *
+	 * @param callback - Called with heading (degrees, 0=N clockwise) and absolute flag
+	 */
+	async subscribeCompass(callback: (heading: number, absolute: boolean) => void): Promise<void> {
+		if (!this.initialized) {
+			throw new Error('AppBus not initialized. Call init() first.')
+		}
+
+		this.compassCallback = callback
+
+		// Register the push handler (idempotent — replaces previous)
+		this.on('sensor:compass.push', (msg: SensorCompassPush) => {
+			this.compassCallback?.(msg.payload.heading, msg.payload.absolute)
+		})
+
+		await this.sendRequest((id) => {
+			this.sendToShell(
+				this.createRequestWithPayload('sensor:compass.sub', id, { enabled: true })
+			)
+		})
+
+		this.log('Compass subscribed')
+	}
+
+	/**
+	 * Unsubscribe from compass heading updates
+	 */
+	async unsubscribeCompass(): Promise<void> {
+		if (!this.initialized) {
+			throw new Error('AppBus not initialized. Call init() first.')
+		}
+
+		this.compassCallback = null
+
+		await this.sendRequest((id) => {
+			this.sendToShell(
+				this.createRequestWithPayload('sensor:compass.sub', id, { enabled: false })
+			)
+		})
+
+		this.log('Compass unsubscribed')
+	}
+
+	// ============================================
+	// SETTINGS API
+	// ============================================
+
+	/**
+	 * Settings API for the app
+	 *
+	 * Provides access to server-side settings via the shell.
+	 * The shell enforces scope filtering: apps can only access
+	 * settings under their own `app.<appName>.*` prefix.
+	 */
+	readonly settings: SettingsApi = {
+		get: async <T = unknown>(key: string): Promise<T | undefined> => {
+			if (!this.initialized) {
+				throw new Error('AppBus not initialized. Call init() first.')
+			}
+
+			this.log('Settings get:', key)
+
+			const data = await this.sendRequest<SettingsGetRes['data']>((id) => {
+				this.sendToShell(this.createRequestWithPayload('settings:get.req', id, { key }))
+			})
+
+			return data as T | undefined
+		},
+
+		set: async (key: string, value: unknown): Promise<void> => {
+			if (!this.initialized) {
+				throw new Error('AppBus not initialized. Call init() first.')
+			}
+
+			this.log('Settings set:', key)
+
+			await this.sendRequest((id) => {
+				this.sendToShell(
+					this.createRequestWithPayload('settings:set.req', id, { key, value })
+				)
+			})
+		},
+
+		list: async (prefix?: string): Promise<Array<{ key: string; value: unknown }>> => {
+			if (!this.initialized) {
+				throw new Error('AppBus not initialized. Call init() first.')
+			}
+
+			this.log('Settings list:', prefix)
+
+			const data = await this.sendRequest<Array<{ key: string; value: unknown }>>((id) => {
+				this.sendToShell(
+					this.createRequestWithPayload('settings:list.req', id, {
+						...(prefix !== undefined && { prefix })
+					})
+				)
+			})
+
+			return data ?? []
 		}
 	}
 

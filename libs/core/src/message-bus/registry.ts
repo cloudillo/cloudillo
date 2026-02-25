@@ -46,8 +46,17 @@ import {
 	tSwApiKeyGetRes,
 	tSwApiKeyDel,
 	tMediaFileResolvedPush,
+	tSettingsGetReq,
+	tSettingsGetRes,
+	tSettingsSetReq,
+	tSettingsSetRes,
+	tSettingsListReq,
+	tSettingsListRes,
 	tCrdtClientIdReq,
-	tCrdtClientIdRes
+	tCrdtClientIdRes,
+	tSensorCompassSub,
+	tSensorCompassSubRes,
+	tSensorCompassPush
 } from './types.js'
 
 // ============================================
@@ -142,6 +151,36 @@ export const MESSAGE_REGISTRY: Record<MessageType, MessageAccessRule> = {
 		requiresAuth: false,
 		validator: tMediaFileResolvedPush
 	},
+	'settings:get.req': {
+		directions: ['app>shell'],
+		requiresAuth: true,
+		validator: tSettingsGetReq
+	},
+	'settings:get.res': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tSettingsGetRes
+	},
+	'settings:set.req': {
+		directions: ['app>shell'],
+		requiresAuth: true,
+		validator: tSettingsSetReq
+	},
+	'settings:set.res': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tSettingsSetRes
+	},
+	'settings:list.req': {
+		directions: ['app>shell'],
+		requiresAuth: true,
+		validator: tSettingsListReq
+	},
+	'settings:list.res': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tSettingsListRes
+	},
 	'crdt:clientid.req': {
 		directions: ['app>shell'],
 		requiresAuth: true,
@@ -151,6 +190,21 @@ export const MESSAGE_REGISTRY: Record<MessageType, MessageAccessRule> = {
 		directions: ['shell>app'],
 		requiresAuth: false,
 		validator: tCrdtClientIdRes
+	},
+	'sensor:compass.sub': {
+		directions: ['app>shell'],
+		requiresAuth: false,
+		validator: tSensorCompassSub
+	},
+	'sensor:compass.sub.res': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tSensorCompassSubRes
+	},
+	'sensor:compass.push': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tSensorCompassPush
 	},
 	'sw:token.set': {
 		directions: ['shell>sw'],

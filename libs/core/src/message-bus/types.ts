@@ -51,7 +51,15 @@ export type MessageDirection = 'app>shell' | 'shell>app' | 'shell>sw' | 'sw>shel
 // MESSAGE CATEGORIES
 // ============================================
 
-export type MessageCategory = 'auth' | 'storage' | 'sw' | 'nav' | 'ui' | 'crdt'
+export type MessageCategory =
+	| 'auth'
+	| 'storage'
+	| 'settings'
+	| 'sw'
+	| 'nav'
+	| 'ui'
+	| 'crdt'
+	| 'sensor'
 
 // ============================================
 // AUTH MESSAGES
@@ -512,6 +520,108 @@ export const tMediaPickRes = T.struct({
 export type MediaPickRes = T.TypeOf<typeof tMediaPickRes>
 
 // ============================================
+// SETTINGS MESSAGES
+// ============================================
+
+/**
+ * App requests to get a setting value
+ * Direction: app -> shell
+ */
+export const tSettingsGetReq = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('settings:get.req'),
+	id: T.number,
+	payload: T.struct({
+		key: T.string
+	})
+})
+export type SettingsGetReq = T.TypeOf<typeof tSettingsGetReq>
+
+/**
+ * Shell responds with setting value
+ * Direction: shell -> app
+ */
+export const tSettingsGetRes = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('settings:get.res'),
+	replyTo: T.number,
+	ok: T.boolean,
+	data: T.optional(T.unknown),
+	error: T.optional(T.string)
+})
+export type SettingsGetRes = T.TypeOf<typeof tSettingsGetRes>
+
+/**
+ * App requests to set a setting value
+ * Direction: app -> shell
+ */
+export const tSettingsSetReq = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('settings:set.req'),
+	id: T.number,
+	payload: T.struct({
+		key: T.string,
+		value: T.unknown
+	})
+})
+export type SettingsSetReq = T.TypeOf<typeof tSettingsSetReq>
+
+/**
+ * Shell responds to set operation
+ * Direction: shell -> app
+ */
+export const tSettingsSetRes = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('settings:set.res'),
+	replyTo: T.number,
+	ok: T.boolean,
+	data: T.optional(T.unknown),
+	error: T.optional(T.string)
+})
+export type SettingsSetRes = T.TypeOf<typeof tSettingsSetRes>
+
+/**
+ * App requests to list settings with optional prefix filter
+ * Direction: app -> shell
+ */
+export const tSettingsListReq = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('settings:list.req'),
+	id: T.number,
+	payload: T.struct({
+		prefix: T.optional(T.string)
+	})
+})
+export type SettingsListReq = T.TypeOf<typeof tSettingsListReq>
+
+/**
+ * Shell responds with list of settings
+ * Direction: shell -> app
+ */
+export const tSettingsListRes = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('settings:list.res'),
+	replyTo: T.number,
+	ok: T.boolean,
+	data: T.optional(
+		T.array(
+			T.struct({
+				key: T.string,
+				value: T.unknown
+			})
+		)
+	),
+	error: T.optional(T.string)
+})
+export type SettingsListRes = T.TypeOf<typeof tSettingsListRes>
+
+// ============================================
 // CRDT MESSAGES
 // ============================================
 
@@ -554,6 +664,57 @@ export const tCrdtClientIdRes = T.struct({
 export type CrdtClientIdRes = T.TypeOf<typeof tCrdtClientIdRes>
 
 // ============================================
+// SENSOR MESSAGES
+// ============================================
+
+/**
+ * App requests to subscribe/unsubscribe to compass heading updates
+ * Direction: app -> shell
+ */
+export const tSensorCompassSub = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('sensor:compass.sub'),
+	id: T.number,
+	payload: T.struct({
+		/** true = subscribe, false = unsubscribe */
+		enabled: T.boolean
+	})
+})
+export type SensorCompassSub = T.TypeOf<typeof tSensorCompassSub>
+
+/**
+ * Shell responds to compass subscription request
+ * Direction: shell -> app
+ */
+export const tSensorCompassSubRes = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('sensor:compass.sub.res'),
+	replyTo: T.number,
+	ok: T.boolean,
+	error: T.optional(T.string)
+})
+export type SensorCompassSubRes = T.TypeOf<typeof tSensorCompassSubRes>
+
+/**
+ * Shell pushes compass heading to subscribed app
+ * Direction: shell -> app (notification, no response expected)
+ */
+export const tSensorCompassPush = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('sensor:compass.push'),
+	payload: T.struct({
+		/** Compass heading in degrees (0=N, 90=E, 180=S, 270=W) */
+		heading: T.number,
+		/** Whether the heading is from an absolute sensor */
+		absolute: T.boolean
+	})
+})
+export type SensorCompassPush = T.TypeOf<typeof tSensorCompassPush>
+
+// ============================================
 // UNION OF ALL MESSAGES
 // ============================================
 
@@ -584,9 +745,22 @@ export const tCloudilloMessage = T.taggedUnion('type')({
 	'media:pick.res': tMediaPickRes, // Deprecated
 	'media:file.resolved': tMediaFileResolvedPush,
 
+	// Settings messages
+	'settings:get.req': tSettingsGetReq,
+	'settings:get.res': tSettingsGetRes,
+	'settings:set.req': tSettingsSetReq,
+	'settings:set.res': tSettingsSetRes,
+	'settings:list.req': tSettingsListReq,
+	'settings:list.res': tSettingsListRes,
+
 	// CRDT messages
 	'crdt:clientid.req': tCrdtClientIdReq,
 	'crdt:clientid.res': tCrdtClientIdRes,
+
+	// Sensor messages
+	'sensor:compass.sub': tSensorCompassSub,
+	'sensor:compass.sub.res': tSensorCompassSubRes,
+	'sensor:compass.push': tSensorCompassPush,
 
 	// Service worker messages
 	'sw:token.set': tSwTokenSet,
@@ -636,11 +810,19 @@ export type ResponseFor<T extends RequestType> = T extends 'auth:init.req'
 			? 'storage:op.res'
 			: T extends 'media:pick.req'
 				? 'media:pick.res'
-				: T extends 'crdt:clientid.req'
-					? 'crdt:clientid.res'
-					: T extends 'sw:apikey.get.req'
-						? 'sw:apikey.get.res'
-						: never
+				: T extends 'settings:get.req'
+					? 'settings:get.res'
+					: T extends 'settings:set.req'
+						? 'settings:set.res'
+						: T extends 'settings:list.req'
+							? 'settings:list.res'
+							: T extends 'crdt:clientid.req'
+								? 'crdt:clientid.res'
+								: T extends 'sensor:compass.sub'
+									? 'sensor:compass.sub.res'
+									: T extends 'sw:apikey.get.req'
+										? 'sw:apikey.get.res'
+										: never
 
 /**
  * Extract the data type from a response message

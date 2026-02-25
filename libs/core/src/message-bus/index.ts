@@ -73,9 +73,20 @@ export {
 	type MediaPickResultPush,
 	type MediaPickRes,
 	type MediaFileResolvedPush,
+	// Settings messages
+	type SettingsGetReq,
+	type SettingsGetRes,
+	type SettingsSetReq,
+	type SettingsSetRes,
+	type SettingsListReq,
+	type SettingsListRes,
 	// CRDT messages
 	type CrdtClientIdReq,
 	type CrdtClientIdRes,
+	// Sensor messages
+	type SensorCompassSub,
+	type SensorCompassSubRes,
+	type SensorCompassPush,
 	VISIBILITY_ORDER,
 	// Service worker messages
 	type SwTokenSet,
@@ -115,8 +126,17 @@ export {
 	tMediaPickAck,
 	tMediaPickResultPush,
 	tMediaPickRes,
+	tSettingsGetReq,
+	tSettingsGetRes,
+	tSettingsSetReq,
+	tSettingsSetRes,
+	tSettingsListReq,
+	tSettingsListRes,
 	tCrdtClientIdReq,
 	tCrdtClientIdRes,
+	tSensorCompassSub,
+	tSensorCompassSubRes,
+	tSensorCompassPush,
 	tSwTokenSet,
 	tSwTokenClear,
 	tSwApiKeySet,
@@ -150,6 +170,7 @@ export {
 	// Types
 	type AppState,
 	type StorageApi,
+	type SettingsApi,
 	type MediaPickOptions,
 	type MediaPickResult,
 	// Class

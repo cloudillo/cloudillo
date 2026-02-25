@@ -8,3 +8,4 @@ ln -nfs ../../../apps/ideallo/dist ./dist/apps/ideallo
 ln -nfs ../../../apps/prezillo/dist ./dist/apps/prezillo
 ln -nfs ../../../apps/taskillo/dist ./dist/apps/taskillo
 ln -nfs ../../../apps/notillo/dist ./dist/apps/notillo
+ln -nfs ../../../apps/mapillo/dist ./dist/apps/mapillo

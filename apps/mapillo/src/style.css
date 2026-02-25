@@ -1,0 +1,915 @@
+/* Mapillo App Styles - Using OpalUI --col-* variables */
+
+/* Main layout */
+.mapillo-app {
+	position: relative;
+	width: 100%;
+	height: 100vh;
+	overflow: hidden;
+}
+
+.mapillo-map {
+	width: 100%;
+	height: 100%;
+}
+
+.mapillo-map.dark-mode {
+	filter: invert(1) hue-rotate(180deg);
+}
+
+/* Loading state */
+.mapillo-loading {
+	background: var(--col-container-low);
+	color: var(--col-on-container);
+}
+
+/* ============================================= */
+/* Search bar                                    */
+/* ============================================= */
+
+.mapillo-search {
+	position: absolute;
+	top: 10px;
+	left: 10px;
+	z-index: 10;
+	width: 320px;
+	max-width: calc(100% - 60px);
+}
+
+.mapillo-search-input {
+	display: flex;
+	align-items: center;
+	background: var(--col-container, #fff);
+	border-radius: 8px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+	overflow: hidden;
+}
+
+.mapillo-search-icon {
+	margin-left: 10px;
+	flex-shrink: 0;
+	color: var(--col-on-surface, #666);
+}
+
+.mapillo-search-input input {
+	flex: 1;
+	padding: 10px 8px;
+	border: none;
+	background: transparent;
+	font-size: 14px;
+	color: var(--col-on-container, #333);
+	outline: none;
+	min-width: 0;
+}
+
+.mapillo-search-input input::placeholder {
+	color: var(--col-on-surface, #999);
+}
+
+.mapillo-search-clear {
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 6px;
+	color: var(--col-on-surface, #999);
+	display: flex;
+	align-items: center;
+}
+
+.mapillo-search-clear:hover {
+	color: var(--col-on-container, #333);
+}
+
+.mapillo-search-btn {
+	padding: 10px 14px;
+	background: var(--col-primary, #2196f3);
+	color: var(--col-on-primary, #fff);
+	border: none;
+	cursor: pointer;
+	font-weight: 600;
+	font-size: 13px;
+}
+
+.mapillo-search-btn:hover:not(:disabled) {
+	opacity: 0.9;
+}
+
+.mapillo-search-btn:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+/* Search results dropdown */
+.mapillo-search-results {
+	list-style: none;
+	margin: 4px 0 0;
+	padding: 0;
+	background: var(--col-container, #fff);
+	border-radius: 8px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+	max-height: 300px;
+	overflow-y: auto;
+}
+
+.mapillo-search-results li {
+	padding: 10px 12px;
+	cursor: pointer;
+	border-bottom: 1px solid var(--col-outline, #eee);
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.mapillo-search-results li:last-child {
+	border-bottom: none;
+}
+
+.mapillo-search-results li:hover {
+	background: var(--col-container-high, #f5f5f5);
+}
+
+.mapillo-result-name {
+	font-weight: 500;
+	font-size: 14px;
+	color: var(--col-on-container, #333);
+}
+
+.mapillo-result-detail {
+	font-size: 12px;
+	color: var(--col-on-surface, #888);
+}
+
+.mapillo-search-attribution {
+	font-size: 11px;
+	color: var(--col-on-surface, #aaa);
+	text-align: center;
+	cursor: default !important;
+	padding: 6px 12px !important;
+}
+
+.mapillo-search-attribution:hover {
+	background: transparent !important;
+}
+
+.mapillo-no-results {
+	padding: 12px;
+	text-align: center;
+	color: var(--col-on-surface, #888);
+	font-size: 14px;
+}
+
+/* ============================================= */
+/* Privacy notice                                */
+/* ============================================= */
+
+.mapillo-privacy-notice {
+	margin-top: 4px;
+	padding: 12px;
+	background: var(--col-container, #fff);
+	border-radius: 8px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+	font-size: 13px;
+	color: var(--col-on-container, #333);
+}
+
+.mapillo-privacy-notice p {
+	margin: 0 0 10px;
+}
+
+.mapillo-privacy-actions {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+}
+
+.mapillo-privacy-actions button {
+	padding: 6px 14px;
+	border-radius: 6px;
+	border: 1px solid var(--col-outline, #ddd);
+	background: var(--col-container, #fff);
+	cursor: pointer;
+	font-size: 13px;
+	color: var(--col-on-container, #333);
+}
+
+.mapillo-privacy-actions button:hover {
+	background: var(--col-container-high, #f5f5f5);
+}
+
+.mapillo-btn-primary {
+	background: var(--col-primary, #2196f3) !important;
+	color: var(--col-on-primary, #fff) !important;
+	border-color: var(--col-primary, #2196f3) !important;
+}
+
+.mapillo-btn-primary:hover {
+	opacity: 0.9;
+}
+
+/* ============================================= */
+/* Locate button                                 */
+/* ============================================= */
+
+.mapillo-locate {
+	position: absolute;
+	top: 10px;
+	right: 56px;
+	z-index: 10;
+	width: 40px;
+	height: 40px;
+	border-radius: 8px;
+	border: none;
+	background: var(--col-container, #fff);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--col-on-container, #333);
+	font-size: 18px;
+	transition: background 0.15s ease;
+}
+
+.mapillo-locate:hover:not(:disabled) {
+	background: var(--col-container-high, #f5f5f5);
+}
+
+.mapillo-locate:disabled {
+	cursor: default;
+	opacity: 0.7;
+}
+
+.mapillo-locate.locating {
+	color: var(--col-primary, #2196f3);
+}
+
+/* Location dot marker */
+.mapillo-location-dot {
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	background: var(--col-primary, #2196f3);
+	border: 3px solid #fff;
+	box-shadow:
+		0 0 0 2px var(--col-primary, #2196f3),
+		0 2px 6px rgba(0, 0, 0, 0.3);
+	position: relative;
+}
+
+.mapillo-location-dot::after {
+	content: '';
+	position: absolute;
+	top: -9px;
+	left: -9px;
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	background: var(--col-primary, #2196f3);
+	opacity: 0.2;
+	animation: mapillo-pulse 2s ease-out infinite;
+}
+
+@keyframes mapillo-pulse {
+	0% {
+		transform: scale(0.8);
+		opacity: 0.3;
+	}
+	100% {
+		transform: scale(2);
+		opacity: 0;
+	}
+}
+
+.mapillo-spin {
+	animation: mapillo-rotate 1s linear infinite;
+}
+
+@keyframes mapillo-rotate {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* ============================================= */
+/* Compass / rotation toggle                     */
+/* ============================================= */
+
+.mapillo-compass {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	z-index: 10;
+	width: 40px;
+	height: 40px;
+	border-radius: 8px;
+	border: none;
+	background: var(--col-container, #fff);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--col-on-container, #333);
+	font-size: 18px;
+	transition: background 0.15s ease;
+}
+
+.mapillo-compass:hover {
+	background: var(--col-container-high, #f5f5f5);
+}
+
+.mapillo-compass svg {
+	transition: transform 0.15s ease;
+}
+
+.mapillo-compass-debug {
+	position: absolute;
+	top: 56px;
+	right: 10px;
+	z-index: 10;
+	padding: 8px 10px;
+	background: rgba(0, 0, 0, 0.75);
+	color: #eee;
+	font-family: monospace;
+	font-size: 11px;
+	line-height: 1.5;
+	border-radius: 8px;
+	pointer-events: none;
+	white-space: nowrap;
+}
+
+/* ============================================= */
+/* Layer panel                                   */
+/* ============================================= */
+
+.mapillo-layer-toggle {
+	position: absolute;
+	top: 10px;
+	right: 148px;
+	z-index: 10;
+	width: 40px;
+	height: 40px;
+	border-radius: 8px;
+	border: none;
+	background: var(--col-container, #fff);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--col-on-container, #333);
+	font-size: 18px;
+}
+
+.mapillo-layer-toggle:hover {
+	background: var(--col-container-high, #f5f5f5);
+}
+
+.mapillo-layer-panel {
+	position: absolute;
+	top: 10px;
+	right: 148px;
+	z-index: 11;
+	width: 240px;
+	background: var(--col-container, #fff);
+	border-radius: 8px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+	overflow: hidden;
+}
+
+.mapillo-layer-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 12px;
+	font-weight: 600;
+	font-size: 14px;
+	color: var(--col-on-container, #333);
+	border-bottom: 1px solid var(--col-outline, #eee);
+}
+
+.mapillo-layer-header button {
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: var(--col-on-surface, #888);
+	display: flex;
+	padding: 2px;
+}
+
+.mapillo-layer-header button:hover {
+	color: var(--col-on-container, #333);
+}
+
+.mapillo-layer-list {
+	display: flex;
+	flex-direction: column;
+	max-height: 360px;
+	overflow-y: auto;
+}
+
+.mapillo-layer-card {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 12px;
+	border: none;
+	border-left: 2px solid transparent;
+	background: var(--col-container, #fff);
+	cursor: pointer;
+	text-align: left;
+	transition: all 0.15s ease;
+}
+
+.mapillo-layer-card:hover {
+	background: var(--col-container-high, #f5f5f5);
+}
+
+.mapillo-layer-card.active {
+	border-left-color: var(--col-primary, #2196f3);
+	background: var(--col-container-high, #f5f5f5);
+}
+
+.mapillo-layer-swatch {
+	width: 36px;
+	height: 36px;
+	border-radius: 6px;
+	flex-shrink: 0;
+	box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+.mapillo-layer-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.mapillo-layer-name {
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--col-on-container, #333);
+}
+
+.mapillo-layer-desc {
+	font-size: 11px;
+	color: var(--col-on-surface, #888);
+}
+
+.mapillo-layer-check {
+	flex-shrink: 0;
+	color: var(--col-primary, #2196f3);
+	font-size: 16px;
+}
+
+/* ============================================= */
+/* POI panel                                     */
+/* ============================================= */
+
+.mapillo-poi-toggle {
+	position: absolute;
+	top: 10px;
+	right: 102px;
+	z-index: 10;
+	width: 40px;
+	height: 40px;
+	border-radius: 8px;
+	border: none;
+	background: var(--col-container, #fff);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--col-on-container, #333);
+	font-size: 18px;
+}
+
+.mapillo-poi-toggle:hover {
+	background: var(--col-container-high, #f5f5f5);
+}
+
+.mapillo-poi-panel {
+	position: absolute;
+	top: 10px;
+	right: 102px;
+	z-index: 11;
+	width: 240px;
+	background: var(--col-container, #fff);
+	border-radius: 8px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+
+.mapillo-poi-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 12px;
+	font-weight: 600;
+	font-size: 14px;
+	color: var(--col-on-container, #333);
+	border-bottom: 1px solid var(--col-outline, #eee);
+}
+
+.mapillo-poi-header button {
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: var(--col-on-surface, #888);
+	display: flex;
+	padding: 2px;
+}
+
+.mapillo-poi-header button:hover {
+	color: var(--col-on-container, #333);
+}
+
+.mapillo-poi-body {
+	overflow-y: auto;
+	max-height: calc(100vh - 120px);
+}
+
+.mapillo-poi-group {
+	border-bottom: 1px solid var(--col-outline, #eee);
+}
+
+.mapillo-poi-group:last-child {
+	border-bottom: none;
+}
+
+.mapillo-poi-group-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 6px 12px;
+	cursor: pointer;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--col-on-surface, #666);
+	text-transform: uppercase;
+	letter-spacing: 0.3px;
+	background: none;
+	border: none;
+	width: 100%;
+	text-align: left;
+}
+
+.mapillo-poi-group-header:hover {
+	background: var(--col-container-high, #f5f5f5);
+}
+
+.mapillo-poi-group-header svg {
+	flex-shrink: 0;
+	transition: transform 0.2s ease;
+}
+
+.mapillo-poi-group-header.expanded svg {
+	transform: rotate(90deg);
+}
+
+.mapillo-poi-categories {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	padding: 2px 8px 8px;
+}
+
+.mapillo-poi-cat {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 5px 8px;
+	border-radius: 6px;
+	border: 1px solid var(--col-outline, #ddd);
+	background: var(--col-container, #fff);
+	cursor: pointer;
+	font-size: 12px;
+	color: var(--col-on-container, #333);
+	transition: all 0.15s ease;
+}
+
+.mapillo-poi-cat:hover:not(:disabled) {
+	background: var(--col-container-high, #f5f5f5);
+}
+
+.mapillo-poi-cat.active {
+	background: var(--col-primary, #2196f3);
+	color: var(--col-on-primary, #fff);
+	border-color: var(--col-primary, #2196f3);
+}
+
+.mapillo-poi-cat.active .mapillo-poi-cat-dot {
+	border-color: rgba(255, 255, 255, 0.6);
+}
+
+.mapillo-poi-cat:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.mapillo-poi-cat-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+	border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.mapillo-poi-status {
+	padding: 6px 12px;
+	font-size: 12px;
+	color: var(--col-on-surface, #888);
+	text-align: center;
+}
+
+.mapillo-poi-error {
+	color: var(--col-error, #c62828);
+}
+
+.mapillo-poi-attribution {
+	padding: 4px 12px 8px;
+	font-size: 11px;
+	color: var(--col-on-surface, #aaa);
+	text-align: center;
+}
+
+/* ============================================= */
+/* POI markers                                   */
+/* ============================================= */
+
+.mapillo-poi-marker {
+	cursor: pointer;
+}
+
+.mapillo-poi-dot {
+	width: 14px;
+	height: 14px;
+	border-radius: 50%;
+	background: var(--poi-color, #e8555a);
+	border: 2px solid #fff;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+	position: relative;
+}
+
+.mapillo-poi-dot::after {
+	content: '';
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	border: 2px solid var(--poi-color, #e8555a);
+	opacity: 0;
+	transform: translate(-50%, -50%) scale(1);
+	animation: mapillo-poi-ring 2s ease-out infinite;
+	animation-delay: inherit;
+}
+
+@keyframes mapillo-poi-ring {
+	0% {
+		transform: translate(-50%, -50%) scale(1);
+		opacity: 0.6;
+	}
+	100% {
+		transform: translate(-50%, -50%) scale(2.2);
+		opacity: 0;
+	}
+}
+
+/* ============================================= */
+/* Map popup                                     */
+/* ============================================= */
+
+.mapillo-popup {
+	font-size: 13px;
+	line-height: 1.4;
+	color: #333;
+}
+
+.mapillo-popup b {
+	display: block;
+	margin-bottom: 2px;
+}
+
+.mapillo-popup-type {
+	font-size: 11px;
+	color: #888;
+	text-transform: capitalize;
+	margin-bottom: 6px;
+}
+
+.mapillo-popup-field {
+	font-size: 12px;
+	margin-top: 3px;
+}
+
+.mapillo-popup-label {
+	color: #888;
+}
+
+.mapillo-popup-addr {
+	color: #555;
+}
+
+.mapillo-popup a {
+	color: #2196f3;
+	text-decoration: none;
+}
+
+.mapillo-popup a:hover {
+	text-decoration: underline;
+}
+
+/* ============================================= */
+/* Settings panel                                */
+/* ============================================= */
+
+.mapillo-settings-toggle {
+	position: absolute;
+	top: 10px;
+	right: 194px;
+	z-index: 10;
+	width: 40px;
+	height: 40px;
+	border-radius: 8px;
+	border: none;
+	background: var(--col-container, #fff);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--col-on-container, #333);
+	font-size: 18px;
+}
+
+.mapillo-settings-toggle:hover {
+	background: var(--col-container-high, #f5f5f5);
+}
+
+.mapillo-settings-panel {
+	position: absolute;
+	top: 10px;
+	right: 194px;
+	z-index: 11;
+	width: 240px;
+	background: var(--col-container, #fff);
+	border-radius: 8px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+	overflow: hidden;
+}
+
+.mapillo-settings-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 12px;
+	font-weight: 600;
+	font-size: 14px;
+	color: var(--col-on-container, #333);
+	border-bottom: 1px solid var(--col-outline, #eee);
+}
+
+.mapillo-settings-header button {
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: var(--col-on-surface, #888);
+	display: flex;
+	padding: 2px;
+}
+
+.mapillo-settings-header button:hover {
+	color: var(--col-on-container, #333);
+}
+
+.mapillo-settings-section {
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--col-outline, #eee);
+}
+
+.mapillo-settings-section:last-child {
+	border-bottom: none;
+}
+
+.mapillo-settings-label {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--col-on-surface, #888);
+	margin-bottom: 6px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+.mapillo-settings-radio {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 0;
+	cursor: pointer;
+	font-size: 13px;
+	color: var(--col-on-container, #333);
+}
+
+.mapillo-settings-radio input[type='radio'] {
+	accent-color: var(--col-primary, #2196f3);
+}
+
+/* ============================================= */
+/* Mobile                                        */
+/* ============================================= */
+
+@media (max-width: 480px) {
+	.mapillo-search {
+		width: calc(100% - 60px);
+	}
+
+	.mapillo-layer-panel {
+		width: calc(100% - 20px);
+		right: 10px;
+		top: auto;
+		bottom: 10px;
+		max-height: 50vh;
+		overflow-y: auto;
+	}
+
+	.mapillo-settings-toggle {
+		top: auto;
+		bottom: 148px;
+		right: auto;
+		left: 10px;
+	}
+
+	.mapillo-layer-toggle {
+		top: auto;
+		bottom: 102px;
+		right: auto;
+		left: 10px;
+	}
+
+	.mapillo-layer-panel {
+		width: calc(100% - 20px);
+		right: 10px;
+		top: auto;
+		bottom: 10px;
+		max-height: 50vh;
+		overflow-y: auto;
+	}
+
+	.mapillo-poi-toggle {
+		top: auto;
+		bottom: 56px;
+		right: auto;
+		left: 10px;
+	}
+
+	.mapillo-poi-panel {
+		width: calc(100% - 20px);
+		right: 10px;
+		top: auto;
+		bottom: 10px;
+		max-height: 50vh;
+	}
+
+	.mapillo-poi-body {
+		max-height: calc(50vh - 90px);
+	}
+
+	.mapillo-poi-cat span:not(.mapillo-poi-cat-dot) {
+		display: none;
+	}
+
+	.mapillo-poi-cat {
+		padding: 6px;
+	}
+
+	.mapillo-settings-panel {
+		width: calc(100% - 20px);
+		right: 10px;
+		top: auto;
+		bottom: 10px;
+		max-height: 50vh;
+		overflow-y: auto;
+	}
+
+	.mapillo-locate {
+		top: auto;
+		bottom: 10px;
+		right: auto;
+		left: 10px;
+	}
+
+	.mapillo-compass {
+		top: auto;
+		bottom: 10px;
+		right: auto;
+		left: 56px;
+	}
+}
+
+/* vim: ts=4 */

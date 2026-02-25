@@ -45,6 +45,10 @@ const APP_CONFIG: AppConfigState = {
 		{
 			id: 'notillo',
 			url: '/apps/notillo/index.html'
+		},
+		{
+			id: 'mapillo',
+			url: '/apps/mapillo/index.html'
 		}
 	],
 	mime: {
@@ -100,6 +104,14 @@ const APP_CONFIG: AppConfigState = {
 			label: 'Gallery',
 			trans: { hu: 'Galéria' },
 			path: '/app/gallery',
+			public: true
+		},
+		{
+			id: 'mapillo',
+			icon: IcMap,
+			label: 'Map',
+			trans: { hu: 'Térkép' },
+			path: '/app/mapillo',
 			public: true
 		},
 		{
@@ -166,7 +178,8 @@ import {
 	LuRefreshCw as IcRefresh,
 	LuTrash2 as IcClear,
 	LuQrCode as IcQrCode,
-	LuScanLine as IcScan
+	LuScanLine as IcScan,
+	LuMap as IcMap
 } from 'react-icons/lu'
 import { CloudilloLogo } from './logo.js'
 
@@ -1004,7 +1017,8 @@ export function Layout() {
 				},
 				getThemeState: () => ({
 					darkMode: document.body.classList.contains('dark')
-				})
+				}),
+				getApi: () => apiRef.current ?? null
 			})
 		}
 	}, [])

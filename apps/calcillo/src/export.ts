@@ -19,49 +19,59 @@
  *
  * Exports the CRDT document as a JSON file with .calcillo extension.
  * Uses ID-based export (not index-based) for perfect round-trip import capability.
+ *
+ * v3.0.0: Uses generic exportYDoc() with inline @T type markers.
  */
 
 import * as Y from 'yjs'
-import type { SheetId } from './yjs-types.js'
-import { getOrCreateSheet } from './ydoc-helpers.js'
 import { stripCellDefaults } from './cell-defaults.js'
+import { downloadBlob, sanitizeFilename } from '@cloudillo/core'
+import { exportYDoc, type ExportEnvelope } from '@cloudillo/crdt'
 
 // App version injected at build time
 declare const __APP_VERSION__: string
 
-const EXPORT_FORMAT_VERSION = '1.0.0'
+const EXPORT_FORMAT_VERSION = '3.0.0'
 const CONTENT_TYPE = 'application/vnd.cloudillo.calcillo+json'
 
 /**
- * Recursively round numeric values in an object for cleaner export (3 decimal places)
+ * Strip default cell properties from rows within the serialized sheets data.
+ *
+ * Walks into each sheet's "rows" map and applies stripCellDefaults to each cell.
+ * The serialized structure is: sheets → { "@T": "M", [sheetId]: { "@T": "M", rows: { "@T": "M", [rowId]: { "@T": "M", [colId]: cellObj } } } }
  */
-function roundNumericValues<T>(value: T): T {
-	if (typeof value === 'number') {
-		return (Math.round(value * 1000) / 1000) as T
-	}
-	if (Array.isArray(value)) {
-		return value.map(roundNumericValues) as T
-	}
-	if (value && typeof value === 'object') {
-		const result: Record<string, unknown> = {}
-		for (const [key, val] of Object.entries(value)) {
-			result[key] = roundNumericValues(val)
-		}
-		return result as T
-	}
-	return value
-}
+function transformSheets(_key: string, data: unknown): unknown {
+	if (_key !== 'sheets' || !data || typeof data !== 'object') return data
 
-/**
- * Strip default and transient cell properties from rows data.
- * Cleans existing bloated data in CRDT during export.
- */
-function stripDefaultsFromRows(rows: Record<string, unknown>): Record<string, unknown> {
-	const result: Record<string, unknown> = {}
-	for (const [rowId, rowData] of Object.entries(rows)) {
-		if (rowData && typeof rowData === 'object') {
-			const cleanRow: Record<string, unknown> = {}
-			for (const [colId, cell] of Object.entries(rowData as Record<string, unknown>)) {
+	const sheets = data as Record<string, unknown>
+	const result: Record<string, unknown> = { '@T': sheets['@T'] }
+
+	for (const [sheetId, sheetData] of Object.entries(sheets)) {
+		if (sheetId === '@T') continue
+		if (!sheetData || typeof sheetData !== 'object') {
+			result[sheetId] = sheetData
+			continue
+		}
+
+		const sheet = sheetData as Record<string, unknown>
+		const rows = sheet['rows']
+		if (!rows || typeof rows !== 'object') {
+			result[sheetId] = sheetData
+			continue
+		}
+
+		const rowsMap = rows as Record<string, unknown>
+		const cleanRows: Record<string, unknown> = { '@T': rowsMap['@T'] }
+
+		for (const [rowId, rowData] of Object.entries(rowsMap)) {
+			if (rowId === '@T') continue
+			if (!rowData || typeof rowData !== 'object') continue
+
+			const row = rowData as Record<string, unknown>
+			const cleanRow: Record<string, unknown> = { '@T': row['@T'] }
+
+			for (const [colId, cell] of Object.entries(row)) {
+				if (colId === '@T') continue
 				if (cell && typeof cell === 'object') {
 					const cleaned = stripCellDefaults(cell as any)
 					if (cleaned) {
@@ -69,90 +79,28 @@ function stripDefaultsFromRows(rows: Record<string, unknown>): Record<string, un
 					}
 				}
 			}
-			if (Object.keys(cleanRow).length > 0) {
-				result[rowId] = cleanRow
+
+			if (Object.keys(cleanRow).length > 1) {
+				cleanRows[rowId] = cleanRow
 			}
 		}
+
+		result[sheetId] = { ...sheet, rows: cleanRows }
 	}
+
 	return result
-}
-
-/**
- * Complete export document structure
- */
-export interface CalcilloExportDocument {
-	contentType: typeof CONTENT_TYPE
-	appVersion: string
-	formatVersion: string
-	exportedAt: string
-
-	data: {
-		sheetOrder: string[]
-		sheets: Record<
-			string,
-			{
-				name: string
-				rowOrder: string[]
-				colOrder: string[]
-				rows: Record<string, unknown>
-				merges: Record<string, unknown>
-				borders: Record<string, unknown>
-				hyperlinks: Record<string, unknown>
-				validations: Record<string, unknown>
-				conditionalFormats: unknown[]
-				hiddenRows: Record<string, boolean>
-				hiddenCols: Record<string, boolean>
-				rowHeights: Record<string, number>
-				colWidths: Record<string, number>
-				frozen: Record<string, string | number>
-			}
-		>
-	}
 }
 
 /**
  * Export the document to a serializable JSON structure
  */
-export function exportDocument(yDoc: Y.Doc): CalcilloExportDocument {
-	const sheetOrder = yDoc.getArray<SheetId>('sheetOrder')
-	const sheetIds = sheetOrder.toArray()
-
-	const sheets: CalcilloExportDocument['data']['sheets'] = {}
-
-	for (const sheetId of sheetIds) {
-		const sheet = getOrCreateSheet(yDoc, sheetId)
-
-		const rawRows = sheet.rows.toJSON() as Record<string, unknown>
-		const rows = stripDefaultsFromRows(rawRows)
-
-		sheets[sheetId] = {
-			name: sheet.name.toString(),
-			rowOrder: sheet.rowOrder.toArray() as string[],
-			colOrder: sheet.colOrder.toArray() as string[],
-			rows: roundNumericValues(rows),
-			merges: sheet.merges.toJSON() as Record<string, unknown>,
-			borders: sheet.borders.toJSON() as Record<string, unknown>,
-			hyperlinks: sheet.hyperlinks.toJSON() as Record<string, unknown>,
-			validations: sheet.validations.toJSON() as Record<string, unknown>,
-			conditionalFormats: sheet.conditionalFormats.toArray(),
-			hiddenRows: sheet.hiddenRows.toJSON() as Record<string, boolean>,
-			hiddenCols: sheet.hiddenCols.toJSON() as Record<string, boolean>,
-			rowHeights: roundNumericValues(sheet.rowHeights.toJSON() as Record<string, number>),
-			colWidths: roundNumericValues(sheet.colWidths.toJSON() as Record<string, number>),
-			frozen: sheet.frozen.toJSON() as Record<string, string | number>
-		}
-	}
-
-	return {
+export function exportDocument(yDoc: Y.Doc): ExportEnvelope<Record<string, unknown>> {
+	return exportYDoc(yDoc, {
 		contentType: CONTENT_TYPE,
 		appVersion: __APP_VERSION__,
 		formatVersion: EXPORT_FORMAT_VERSION,
-		exportedAt: new Date().toISOString(),
-		data: {
-			sheetOrder: sheetIds as string[],
-			sheets
-		}
-	}
+		transform: transformSheets
+	})
 }
 
 /**
@@ -162,21 +110,27 @@ export function downloadExport(yDoc: Y.Doc): void {
 	const exportData = exportDocument(yDoc)
 	const json = JSON.stringify(exportData, null, 2)
 	const blob = new Blob([json], { type: 'application/json' })
-	const url = URL.createObjectURL(blob)
 
 	// Generate safe filename from first sheet name
-	const sheetIds = exportData.data.sheetOrder
-	const firstName = sheetIds.length > 0 ? exportData.data.sheets[sheetIds[0]]?.name : ''
-	const docName = firstName || 'spreadsheet'
-	const safeName = docName.replace(/[^a-zA-Z0-9-_]/g, '_')
+	const sheetOrder = exportData.data['sheetOrder']
+	const sheets = exportData.data['sheets'] as Record<string, unknown> | undefined
+	let firstName = ''
+	if (Array.isArray(sheetOrder) && sheetOrder.length > 1 && sheets) {
+		const firstSheet = sheets[sheetOrder[1] as string] as Record<string, unknown> | undefined
+		const nameField = firstSheet?.['name']
+		if (
+			nameField &&
+			typeof nameField === 'object' &&
+			(nameField as Record<string, unknown>)['@T'] === 'T'
+		) {
+			firstName = ((nameField as Record<string, unknown>)['text'] as string) || ''
+		} else if (typeof nameField === 'string') {
+			firstName = nameField
+		}
+	}
+	const safeName = sanitizeFilename(firstName || 'spreadsheet')
 
-	const a = document.createElement('a')
-	a.href = url
-	a.download = `${safeName}.calcillo`
-	document.body.appendChild(a)
-	a.click()
-	document.body.removeChild(a)
-	URL.revokeObjectURL(url)
+	downloadBlob(blob, `${safeName}.calcillo`)
 }
 
 // vim: ts=4

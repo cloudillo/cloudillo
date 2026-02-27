@@ -19,6 +19,7 @@
 	"license": "LGPL-3.0-or-later",
 	"devDependencies": {
 		"@cloudillo/core": "workspace:^",
+		"@cloudillo/crdt": "workspace:^",
 		"@cloudillo/fonts": "workspace:^",
 		"@enzedonline/quill-blot-formatter2": "^3.1.0",
 		"@symbion/opalui": "^0.14.5",

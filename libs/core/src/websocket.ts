@@ -14,76 +14,11 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import * as Y from 'yjs'
-import { WebsocketProvider } from 'y-websocket'
-//import { IndexeddbPersistence } from 'y-indexeddb'
-
-import { getCrdtUrl, getRtdbUrl, getMessageBusUrl } from './urls.js'
+import { getRtdbUrl, getMessageBusUrl } from './urls.js'
 
 export interface WebSocketOpts {
 	idTag: string
 	authToken: string
-}
-
-/**
- * Open a CRDT document for collaborative editing
- *
- * Establishes WebSocket connection to CRDT server and sets up offline
- * persistence via IndexedDB.
- *
- * @param yDoc - Yjs document (can be new or existing)
- * @param docId - Document ID in format "tenant:resource-id"
- * @param opts - Connection options
- * @returns Document and WebSocket provider
- *
- * @example
- * ```typescript
- * const yDoc = new Y.Doc()
- * const { yDoc: doc, provider } = await openCRDT(
- *   yDoc,
- *   'alice:doc-123',
- *   { idTag: 'alice', authToken: 'token' }
- * )
- *
- * // Use the document
- * const yMap = doc.getMap('data')
- * yMap.observe(event => console.log('Changed:', event.changes))
- *
- * // Cleanup
- * provider.destroy()
- * ```
- */
-export async function openCRDT(
-	yDoc: Y.Doc,
-	docId: string,
-	opts: WebSocketOpts
-): Promise<{ yDoc: Y.Doc; provider: WebsocketProvider }> {
-	const [targetTag, resId] = docId.split(':')
-
-	if (!opts.authToken) {
-		throw new Error('No access token for CRDT connection')
-	}
-
-	// Set up offline persistence
-	/*
-  const idbProvider = new IndexeddbPersistence(docId, yDoc)
-  await new Promise<void>((resolve) => {
-    idbProvider.on('synced', () => {
-      console.log(`[CRDT] Loaded from local storage: ${docId}`)
-      resolve()
-    })
-  })
-  */
-
-	// Connect to server
-	const wsUrl = getCrdtUrl(targetTag)
-	console.log(`[CRDT] Connecting to ${wsUrl}`, { resId, token: opts.authToken })
-
-	const wsProvider = new WebsocketProvider(wsUrl, resId, yDoc, {
-		params: { token: opts.authToken }
-	})
-
-	return { yDoc, provider: wsProvider }
 }
 
 /**

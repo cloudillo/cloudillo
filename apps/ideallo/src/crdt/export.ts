@@ -20,131 +20,45 @@
  * Exports the CRDT document as a JSON file with .ideallo extension.
  * Uses a metadata envelope with contentType for format identification.
  *
- * v2.0.0: Exports raw compact CRDT structure directly for simpler round-trips.
+ * v3.0.0: Uses generic exportYDoc() with inline @T type markers.
  */
 
 import * as Y from 'yjs'
-import type { YIdealloDocument, StoredObject, StoredMeta } from './stored-types.js'
+import type { YIdealloDocument } from './stored-types.js'
+import { downloadBlob, sanitizeFilename } from '@cloudillo/core'
+import { exportYDoc, type ExportEnvelope } from '@cloudillo/crdt'
 
 // App version injected at build time
 declare const __APP_VERSION__: string
 
-// Export format version - v2.0.0 uses raw compact CRDT format
-const EXPORT_FORMAT_VERSION = '2.0.0'
+const EXPORT_FORMAT_VERSION = '3.0.0'
 const CONTENT_TYPE = 'application/vnd.cloudillo.ideallo+json'
 
 /**
- * Recursively round numeric values in an object for cleaner export (3 decimal places)
- */
-function roundNumericValues<T>(value: T): T {
-	if (typeof value === 'number') {
-		return (Math.round(value * 1000) / 1000) as T
-	}
-	if (Array.isArray(value)) {
-		return value.map(roundNumericValues) as T
-	}
-	if (value && typeof value === 'object') {
-		const result: Record<string, unknown> = {}
-		for (const [key, val] of Object.entries(value)) {
-			result[key] = roundNumericValues(val)
-		}
-		return result as T
-	}
-	return value
-}
-
-/**
- * Complete export document structure (v2.0.0)
- * Uses raw compact CRDT format for simpler round-trips
- */
-export interface IdealloExportDocument {
-	// Metadata envelope
-	contentType: typeof CONTENT_TYPE
-	appVersion: string // App version that created this export
-	formatVersion: string // Export format version
-	exportedAt: string
-
-	// Document content (raw compact CRDT format)
-	data: {
-		meta: StoredMeta
-		objects: Record<string, StoredObject>
-		order: string[]
-		texts: Record<string, string>
-		geometry: Record<string, number[]>
-		paths: Record<string, string>
-	}
-}
-
-/**
  * Export the document to a serializable JSON structure
- *
- * Uses raw compact CRDT format directly via .toJSON() for simpler round-trips.
- *
- * @param yDoc - The Yjs document
- * @param doc - The Ideallo document structure
- * @returns The export document ready for JSON serialization
  */
-export function exportDocument(yDoc: Y.Doc, doc: YIdealloDocument): IdealloExportDocument {
-	// 1. Collect metadata
-	const meta = doc.m.toJSON() as StoredMeta
-
-	// 2. Export raw CRDT structures with rounded numeric values for cleaner output
-	const objects = roundNumericValues(doc.o.toJSON() as Record<string, StoredObject>)
-
-	// 3. Export text content (Y.Text.toJSON() returns string)
-	const texts = doc.txt.toJSON() as Record<string, string>
-
-	// 4. Export geometry (Y.Array.toJSON() returns flat number array)
-	const geometry = roundNumericValues(doc.geo.toJSON() as Record<string, number[]>)
-
-	// 5. Export paths
-	const paths = doc.paths.toJSON() as Record<string, string>
-
-	// 6. Export z-order
-	const order = doc.r.toArray()
-
-	return {
+export function exportDocument(yDoc: Y.Doc): ExportEnvelope<Record<string, unknown>> {
+	return exportYDoc(yDoc, {
 		contentType: CONTENT_TYPE,
 		appVersion: __APP_VERSION__,
-		formatVersion: EXPORT_FORMAT_VERSION,
-		exportedAt: new Date().toISOString(),
-		data: {
-			meta,
-			objects,
-			order,
-			texts,
-			geometry,
-			paths
-		}
-	}
+		formatVersion: EXPORT_FORMAT_VERSION
+	})
 }
 
 /**
  * Export the document and trigger a file download
- *
- * @param yDoc - The Yjs document
- * @param doc - The Ideallo document structure
- * @param filename - Optional custom filename (without extension)
  */
 export function downloadExport(yDoc: Y.Doc, doc: YIdealloDocument, filename?: string): void {
-	const exportData = exportDocument(yDoc, doc)
+	const exportData = exportDocument(yDoc)
 	const json = JSON.stringify(exportData, null, 2)
 	const blob = new Blob([json], { type: 'application/json' })
-	const url = URL.createObjectURL(blob)
 
 	// Generate safe filename
 	const docName = (doc.m.get('name') as string) || 'untitled'
-	const safeName = docName.replace(/[^a-zA-Z0-9-_]/g, '_')
+	const safeName = sanitizeFilename(docName)
 	const finalFilename = filename ? `${filename}.ideallo` : `${safeName}.ideallo`
 
-	// Create and trigger download
-	const a = document.createElement('a')
-	a.href = url
-	a.download = finalFilename
-	document.body.appendChild(a)
-	a.click()
-	document.body.removeChild(a)
-	URL.revokeObjectURL(url)
+	downloadBlob(blob, finalFilename)
 }
 
 // vim: ts=4

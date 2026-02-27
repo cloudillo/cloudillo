@@ -20,7 +20,8 @@ import { atom, useAtom } from 'jotai'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 
-import { getAppBus, openYDoc, createApiClient, ApiClient } from '@cloudillo/core'
+import { getAppBus, createApiClient, ApiClient } from '@cloudillo/core'
+import { openYDoc } from '@cloudillo/crdt'
 
 // useAuth() //
 ///////////////

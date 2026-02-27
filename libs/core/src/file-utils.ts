@@ -14,15 +14,34 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-export * from './api.js'
-export * from './api-types.js'
-export * from './api-client.js'
-export * from './websocket.js'
-export * from './utils.js'
-export * from './file-utils.js'
-export * from './urls.js'
+/**
+ * Generic file/download utilities for browser-based Cloudillo apps.
+ */
 
-// Message bus (unified communication layer)
-export * from './message-bus/index.js'
+/**
+ * Trigger a file download from a Blob in the browser.
+ *
+ * Creates a temporary anchor element to trigger the download,
+ * then cleans up the object URL.
+ */
+export function downloadBlob(blob: Blob, filename: string) {
+	const url = URL.createObjectURL(blob)
+	const a = document.createElement('a')
+	a.href = url
+	a.download = filename
+	document.body.appendChild(a)
+	a.click()
+	document.body.removeChild(a)
+	URL.revokeObjectURL(url)
+}
+
+/**
+ * Sanitize a string for use as a filename.
+ *
+ * Replaces any character that isn't alphanumeric, hyphen, or underscore with '_'.
+ */
+export function sanitizeFilename(name: string): string {
+	return name.replace(/[^a-zA-Z0-9-_]/g, '_')
+}
 
 // vim: ts=4

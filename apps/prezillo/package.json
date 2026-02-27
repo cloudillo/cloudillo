@@ -24,6 +24,7 @@
 		"@cloudillo/canvas-text": "workspace:^",
 		"@cloudillo/canvas-tools": "workspace:^",
 		"@cloudillo/core": "workspace:^",
+		"@cloudillo/crdt": "workspace:^",
 		"@cloudillo/fonts": "workspace:^",
 		"@cloudillo/react": "workspace:^",
 		"@popperjs/core": "^2.11.8",

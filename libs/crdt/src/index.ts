@@ -14,15 +14,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-export * from './api.js'
-export * from './api-types.js'
-export * from './api-client.js'
-export * from './websocket.js'
-export * from './utils.js'
-export * from './file-utils.js'
-export * from './urls.js'
-
-// Message bus (unified communication layer)
-export * from './message-bus/index.js'
+export * from './crdt.js'
+export * from './legacy.js'
+export * from './export-utils.js'
 
 // vim: ts=4

@@ -14,6 +14,13 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+/**
+ * Delay execution for a specified time
+ */
+export async function delay(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 import { colord, extend } from 'colord'
 import lchPlugin from 'colord/plugins/lch'
 extend([lchPlugin])

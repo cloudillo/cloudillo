@@ -15,23 +15,19 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Cloudillo Base Module
+ * Cloudillo CRDT Module
  *
- * This module provides the core functionality for Cloudillo apps.
- * The main API is the AppMessageBus via getAppBus().
+ * This module provides Yjs document management with WebSocket synchronization
+ * for collaborative editing in Cloudillo apps.
  *
  * @example
  * ```typescript
- * import { getAppBus, openYDoc } from '@cloudillo/core'
+ * import { openYDoc } from '@cloudillo/crdt'
+ * import { getAppBus } from '@cloudillo/core'
+ * import * as Y from 'yjs'
  *
  * const bus = getAppBus()
  * const state = await bus.init('my-app')
- *
- * // Access state
- * console.log(bus.accessToken, bus.idTag, bus.access)
- *
- * // Storage
- * await bus.storage.set('my-app', 'key', value)
  *
  * // Open CRDT document
  * const { yDoc, provider } = await openYDoc(new Y.Doc(), 'idTag:docId')
@@ -41,19 +37,7 @@
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 
-import { getCrdtUrl } from './urls.js'
-import { getAppBus } from './message-bus/index.js'
-
-// ============================================
-// UTILITY FUNCTIONS
-// ============================================
-
-/**
- * Delay execution for a specified time
- */
-export async function delay(ms: number): Promise<void> {
-	return new Promise((resolve) => setTimeout(resolve, ms))
-}
+import { getCrdtUrl, getAppBus } from '@cloudillo/core'
 
 // ============================================
 // CRDT DOCUMENT FUNCTIONS

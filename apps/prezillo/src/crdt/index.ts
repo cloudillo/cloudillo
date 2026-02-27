@@ -430,10 +430,5 @@ export {
 
 // Export functionality
 export { exportDocument, downloadExport } from './export'
-export type {
-	PrezilloExportDocument,
-	PrezilloExportMeta,
-	RichTextExport
-} from './export'
 
 // vim: ts=4

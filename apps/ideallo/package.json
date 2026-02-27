@@ -17,6 +17,7 @@
 		"@cloudillo/canvas-text": "workspace:^",
 		"@cloudillo/canvas-tools": "workspace:^",
 		"@cloudillo/core": "workspace:^",
+		"@cloudillo/crdt": "workspace:^",
 		"@cloudillo/react": "workspace:^",
 		"@symbion/opalui": "^0.14.5",
 		"@symbion/runtype": "^1.2.1",

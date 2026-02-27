@@ -34,7 +34,8 @@ export {
 	useOutsideClick,
 	useMediaQuery,
 	useIsMobile,
-	usePrefersReducedMotion
+	usePrefersReducedMotion,
+	useDebouncedValue
 } from './hooks.js'
 
 // Types

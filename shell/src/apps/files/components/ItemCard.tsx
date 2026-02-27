@@ -147,16 +147,14 @@ export const ItemCard = React.memo(function ItemCard({
 			onDoubleClick={handleDoubleClick}
 			onContextMenu={handleContextMenu}
 		>
-			{/* Pin indicator */}
-			{isPinned && (
-				<span className="c-file-card-pin" title={t('Pinned')}>
-					<IcPin />
-				</span>
-			)}
-
-			{/* File Icon with access badge and live indicator */}
+			{/* File Icon with pin, access badge and live indicator */}
 			<div className="c-file-card-icon">
 				{React.createElement<React.ComponentProps<typeof IcUnknown>>(Icon)}
+				{isPinned && (
+					<span className="c-file-card-pin" title={t('Pinned')}>
+						<IcPin />
+					</span>
+				)}
 				{!isFolder && file.accessLevel && file.accessLevel !== 'write' && (
 					<span className="c-file-card-access-badge">
 						{file.accessLevel === 'read' ? <IcView /> : <IcLock />}

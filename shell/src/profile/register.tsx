@@ -26,7 +26,7 @@ import {
 	LuLightbulb as IcTip
 } from 'react-icons/lu'
 
-import { useAuth, useApi, Button } from '@cloudillo/react'
+import { useAuth, useApi, useDebouncedValue, Button } from '@cloudillo/react'
 import * as Types from '@cloudillo/core'
 import { FetchError } from '@cloudillo/core'
 
@@ -89,11 +89,7 @@ function IdpRegistrationForm({
 	const { t } = useTranslation()
 
 	// Debounced display name for smooth animation (only animate when user pauses typing)
-	const [displayName, setDisplayName] = React.useState(idTagInput)
-	React.useEffect(() => {
-		const timer = setTimeout(() => setDisplayName(idTagInput), 300)
-		return () => clearTimeout(timer)
-	}, [idTagInput])
+	const displayName = useDebouncedValue(idTagInput, 300)
 
 	// When custom provider (contains a dot), user already selected their full provider domain
 	const isCustom = selectedProvider.includes('.')

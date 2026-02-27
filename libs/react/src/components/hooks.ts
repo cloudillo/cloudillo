@@ -193,4 +193,29 @@ export function usePrefersReducedMotion(): boolean {
 	return useMediaQuery('(prefers-reduced-motion: reduce)')
 }
 
+/**
+ * Debounce a value by delaying updates until a specified period of inactivity
+ *
+ * @param value - The value to debounce
+ * @param delay - Delay in milliseconds before the value updates
+ * @returns The debounced value
+ *
+ * @example
+ * const debouncedSearch = useDebouncedValue(searchInput, 300)
+ * // debouncedSearch only updates 300ms after the last searchInput change
+ */
+export function useDebouncedValue<T>(value: T, delay: number): T {
+	const [debouncedValue, setDebouncedValue] = React.useState(value)
+
+	React.useEffect(
+		function debounceValue() {
+			const timer = setTimeout(() => setDebouncedValue(value), delay)
+			return () => clearTimeout(timer)
+		},
+		[value, delay]
+	)
+
+	return debouncedValue
+}
+
 // vim: ts=4

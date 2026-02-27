@@ -64,6 +64,29 @@ export function useKeyboardShortcuts({
 					}, 0)
 				}
 
+				function getPageSize(fileId?: string): number {
+					const DEFAULT_PAGE_SIZE = 10
+					const id = fileId || files[0]?.fileId
+					if (!id) return DEFAULT_PAGE_SIZE
+
+					const el = document.querySelector(
+						`[data-file-id="${id}"]`
+					) as HTMLElement | null
+					if (!el) return DEFAULT_PAGE_SIZE
+
+					// Find the scrollable container
+					const container = el.closest('.c-file-grid-container') as HTMLElement | null
+					if (!container) return DEFAULT_PAGE_SIZE
+
+					const itemHeight = el.offsetHeight
+					const itemWidth = el.offsetWidth
+					if (!itemHeight || !itemWidth) return DEFAULT_PAGE_SIZE
+
+					const visibleRows = Math.max(1, Math.floor(container.clientHeight / itemHeight))
+					const itemsPerRow = Math.max(1, Math.floor(container.clientWidth / itemWidth))
+					return visibleRows * itemsPerRow
+				}
+
 				switch (e.key) {
 					case 'ArrowUp':
 						e.preventDefault()
@@ -88,6 +111,58 @@ export function useKeyboardShortcuts({
 							const file = files[0]
 							onSelectFile(file)
 							scrollToFile(file.fileId)
+						}
+						break
+
+					case 'Home':
+						e.preventDefault()
+						if (files.length > 0) {
+							const file = files[0]
+							onSelectFile(file)
+							scrollToFile(file.fileId)
+						}
+						break
+
+					case 'End':
+						e.preventDefault()
+						if (files.length > 0) {
+							const file = files[files.length - 1]
+							onSelectFile(file)
+							scrollToFile(file.fileId)
+						}
+						break
+
+					case 'PageDown':
+						e.preventDefault()
+						if (files.length > 0) {
+							if (currentIndex === -1) {
+								const file = files[0]
+								onSelectFile(file)
+								scrollToFile(file.fileId)
+							} else {
+								const pageSize = getPageSize(selectedFile?.fileId)
+								const newIndex = Math.min(currentIndex + pageSize, files.length - 1)
+								const file = files[newIndex]
+								onSelectFile(file)
+								scrollToFile(file.fileId)
+							}
+						}
+						break
+
+					case 'PageUp':
+						e.preventDefault()
+						if (files.length > 0) {
+							if (currentIndex === -1) {
+								const file = files[files.length - 1]
+								onSelectFile(file)
+								scrollToFile(file.fileId)
+							} else {
+								const pageSize = getPageSize(selectedFile?.fileId)
+								const newIndex = Math.max(currentIndex - pageSize, 0)
+								const file = files[newIndex]
+								onSelectFile(file)
+								scrollToFile(file.fileId)
+							}
 						}
 						break
 

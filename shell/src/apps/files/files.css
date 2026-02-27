@@ -372,14 +372,25 @@
 	padding-left: calc(var(--space-3) - 3px);
 }
 
-/* Pin indicator icon in file card */
+/* Pin indicator icon in file card (top-left corner badge) */
 .c-file-card-pin {
-	flex-shrink: 0;
+	position: absolute;
+	top: -4px;
+	left: -4px;
+	color: var(--col-primary);
+	background: rgba(var(--col-rgb-surface), 0.7);
+	backdrop-filter: blur(4px);
+	border-radius: 50%;
+	padding: 2px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: var(--col-primary);
-	font-size: 1rem;
+	line-height: 1;
+}
+
+.c-file-card-pin svg {
+	width: 1rem;
+	height: 1rem;
 }
 
 /* Live document indicator - green dot */

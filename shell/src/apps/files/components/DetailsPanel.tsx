@@ -82,7 +82,6 @@ export function DetailsPanel({
 	const toast = useToast()
 	const [fileActions, setFileActions] = React.useState<ActionView[] | undefined>()
 	const [shareRefs, setShareRefs] = React.useState<Types.Ref[] | undefined>()
-	const [debouncedFileId, setDebouncedFileId] = React.useState(file.fileId)
 	const [qrCodeUrl, setQrCodeUrl] = React.useState<string | undefined>()
 
 	const Icon = getFileIcon(file.contentType, file.fileTp)
@@ -107,34 +106,22 @@ export function DetailsPanel({
 		[fileActions]
 	)
 
-	// Debounce file ID changes to avoid excessive API calls during keyboard navigation
-	React.useEffect(
-		function debounceFileId() {
-			const timer = setTimeout(() => {
-				setDebouncedFileId(file.fileId)
-			}, 300)
-
-			return () => clearTimeout(timer)
-		},
-		[file.fileId]
-	)
-
 	React.useEffect(
 		function loadFileDetails() {
 			if (!api) return
 
 			;(async function () {
-				const actions = await api.actions.list({ type: 'FSHR', subject: debouncedFileId })
+				const actions = await api.actions.list({ type: 'FSHR', subject: file.fileId })
 				setFileActions(actions)
 
 				const refs = await api.refs.list({
 					type: 'share.file',
-					resourceId: debouncedFileId
+					resourceId: file.fileId
 				})
 				setShareRefs(refs)
 			})()
 		},
-		[api, debouncedFileId]
+		[api, file.fileId]
 	)
 
 	// Permissions

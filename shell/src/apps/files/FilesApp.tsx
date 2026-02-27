@@ -26,6 +26,7 @@ import {
 	useAuth,
 	useDialog,
 	useToast,
+	useDebouncedValue,
 	Fcd,
 	mergeClasses,
 	LoadingSpinner,
@@ -94,13 +95,35 @@ export function FilesApp() {
 		onUploadComplete: fileListData.refresh
 	})
 
+	// Sort files: pinned first, then folders, then regular files
+	const files = React.useMemo(() => {
+		const data = fileListData.getData()
+		return [...data].sort((a, b) => {
+			// Pinned files first
+			const aPinned = a.userData?.pinned ? 1 : 0
+			const bPinned = b.userData?.pinned ? 1 : 0
+			if (aPinned !== bPinned) return bPinned - aPinned
+
+			// Folders second
+			const aFolder = a.fileTp === 'FLDR' ? 1 : 0
+			const bFolder = b.fileTp === 'FLDR' ? 1 : 0
+			if (aFolder !== bFolder) return bFolder - aFolder
+
+			// Default: keep original order (from API)
+			return 0
+		})
+	}, [fileListData])
+
 	// Multi-select state
 	const multiSelect = useMultiSelect({
-		files: fileListData.getData() || []
+		files: files
 	})
 
 	// Get the first selected file for the details panel
 	const selectedFile = multiSelect.getFirstSelected()
+
+	// Debounce selected file for the details panel to avoid re-rendering during rapid keyboard navigation
+	const detailsFile = useDebouncedValue(selectedFile, 300)
 
 	// Rename state
 	const [renameFileId, setRenameFileId] = React.useState<string | undefined>()
@@ -452,7 +475,7 @@ export function FilesApp() {
 
 	// Keyboard shortcuts
 	useKeyboardShortcuts({
-		files: fileListData.getData() || [],
+		files: files,
 		selectedFile,
 		onSelectFile: (file) =>
 			file
@@ -468,26 +491,6 @@ export function FilesApp() {
 		isRenaming: renameFileId !== undefined,
 		onSelectAll: multiSelect.selectAll
 	})
-
-	// Sort files: pinned first, then folders, then regular files
-	// NOTE: This useMemo MUST be before any early returns to follow React hooks rules
-	const files = React.useMemo(() => {
-		const data = fileListData.getData()
-		return [...data].sort((a, b) => {
-			// Pinned files first
-			const aPinned = a.userData?.pinned ? 1 : 0
-			const bPinned = b.userData?.pinned ? 1 : 0
-			if (aPinned !== bPinned) return bPinned - aPinned
-
-			// Folders second
-			const aFolder = a.fileTp === 'FLDR' ? 1 : 0
-			const bFolder = b.fileTp === 'FLDR' ? 1 : 0
-			if (aFolder !== bFolder) return bFolder - aFolder
-
-			// Default: keep original order (from API)
-			return 0
-		})
-	}, [fileListData])
 
 	const isTrashView = viewMode === 'trash'
 
@@ -675,9 +678,9 @@ export function FilesApp() {
 							multiSelect.clearSelection()
 						}}
 					>
-						{selectedFile && (
+						{detailsFile && (
 							<DetailsPanel
-								file={selectedFile}
+								file={detailsFile}
 								renameFileId={renameFileId}
 								renameFileName={renameFileName}
 								fileOps={fileOps}

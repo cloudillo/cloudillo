@@ -17,16 +17,34 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { useApi } from '@cloudillo/react'
+import { useApi, LoadingSpinner } from '@cloudillo/react'
 
+import { getShellBus } from '../message-bus/index.js'
 import { useSettings } from './settings.js'
+
+// Track current color scheme listener so we can remove it when settings change
+let colorSchemeCleanup: (() => void) | null = null
+
+function applyColorScheme(dark: boolean) {
+	if (dark) {
+		document.body.classList.remove('light')
+		document.body.classList.add('dark')
+	} else {
+		document.body.classList.remove('dark')
+		document.body.classList.add('light')
+	}
+	getShellBus()?.broadcastThemeUpdate(dark)
+}
+
+function applySystemColorScheme() {
+	const dark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
+	applyColorScheme(dark)
+}
 
 export function setTheme(
 	theme: string | number | boolean | undefined,
 	colors: string | number | boolean | undefined
 ) {
-	//console.log('setTheme', theme, colors)
-
 	switch (theme) {
 		case 'glass':
 			document.body.classList.remove('theme-opaque')
@@ -42,22 +60,27 @@ export function setTheme(
 			break
 	}
 
+	// Remove previous system color scheme listener
+	if (colorSchemeCleanup) {
+		colorSchemeCleanup()
+		colorSchemeCleanup = null
+	}
+
 	switch (colors) {
 		case 'dark':
-			document.body.classList.remove('light')
-			document.body.classList.add('dark')
+			applyColorScheme(true)
 			break
 		case 'light':
-			document.body.classList.remove('dark')
-			document.body.classList.add('light')
+			applyColorScheme(false)
 			break
 		default:
-			if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-				document.body.classList.remove('light')
-				document.body.classList.add('dark')
-			} else {
-				document.body.classList.remove('dark')
-				document.body.classList.add('light')
+			// Apply current system preference and listen for changes
+			applySystemColorScheme()
+			if (window.matchMedia) {
+				const mql = window.matchMedia('(prefers-color-scheme: dark)')
+				const handler = () => applySystemColorScheme()
+				mql.addEventListener('change', handler)
+				colorSchemeCleanup = () => mql.removeEventListener('change', handler)
 			}
 			break
 	}
@@ -78,7 +101,7 @@ export function AppearanceSettings() {
 		if (evt.target.name == 'ui.colors') setTheme(settings['ui.theme'], evt.target.value)
 	}
 
-	if (!settings) return null
+	if (!settings) return <LoadingSpinner />
 
 	return (
 		<>

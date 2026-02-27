@@ -306,6 +306,17 @@ export class ShellMessageBus extends MessageBusBase {
 	}
 
 	/**
+	 * Broadcast a theme update to all initialized app iframes
+	 */
+	broadcastThemeUpdate(darkMode: boolean): void {
+		const windows = this.appTracker.getInitializedWindows()
+		for (const appWindow of windows) {
+			this.sendNotify(appWindow, 'theme:update', { darkMode })
+		}
+		this.log('Broadcast theme update to', windows.length, 'apps, darkMode:', darkMode)
+	}
+
+	/**
 	 * Pre-register an app before it loads (to handle early init.req)
 	 *
 	 * Called when iframe is created but before src is set.

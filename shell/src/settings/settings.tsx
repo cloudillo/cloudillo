@@ -15,8 +15,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
-import { useApi } from '@cloudillo/react'
+import { useApi, useToast } from '@cloudillo/react'
 
 // Debounce delays for different input types
 const DEBOUNCE_DELAYS = {
@@ -28,7 +29,9 @@ const DEBOUNCE_DELAYS = {
 }
 
 export function useSettings(prefix: string | string[]) {
+	const { t } = useTranslation()
 	const { api, authenticated } = useApi()
+	const { error: toastError } = useToast()
 	const [settings, setSettings] = React.useState<
 		Record<string, string | number | boolean> | undefined
 	>()
@@ -71,8 +74,9 @@ export function useSettings(prefix: string | string[]) {
 		if (!settings || !api) return
 
 		const { name, type, tagName } = evt.target
-		let value =
+		const value =
 			type === 'checkbox' ? (evt.target as HTMLInputElement).checked : evt.target.value
+		const oldValue = settings[name]
 
 		// Update local state immediately for responsive UI
 		setSettings((settings) => ({ ...settings, [name]: value }))
@@ -90,7 +94,13 @@ export function useSettings(prefix: string | string[]) {
 		// Set new debounced API call
 		if (delay === 0) {
 			// No debounce - call immediately (for checkboxes)
-			await api.settings.update(name, { value })
+			try {
+				await api.settings.update(name, { value })
+			} catch (error) {
+				console.error('Failed to update setting:', name, error)
+				setSettings((settings) => ({ ...settings, [name]: oldValue }))
+				toastError(t('Failed to save setting. Please try again.'))
+			}
 		} else {
 			// Debounce the API call
 			debounceTimers.current[name] = setTimeout(async () => {
@@ -99,8 +109,8 @@ export function useSettings(prefix: string | string[]) {
 					delete debounceTimers.current[name]
 				} catch (error) {
 					console.error('Failed to update setting:', name, error)
-					// Optionally revert the local state on error
-					// setSettings(settings => ({ ...settings, [name]: oldValue }))
+					setSettings((settings) => ({ ...settings, [name]: oldValue }))
+					toastError(t('Failed to save setting. Please try again.'))
 				}
 			}, delay)
 		}

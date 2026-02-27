@@ -11,6 +11,53 @@ body {
 	}
 }
 
+/* Focus indicators for keyboard accessibility (WCAG 2.2 AA) */
+:focus-visible {
+	outline: 2px solid var(--col-primary);
+	outline-offset: 2px;
+}
+
+/* Tighter focus ring for inputs (they already have borders) */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+	outline-offset: 0;
+}
+
+/* Nav items and sidebar items — use inset focus ring */
+.c-nav-link:focus-visible,
+.c-sidebar-item:focus-visible,
+summary:focus-visible {
+	outline-offset: -2px;
+	border-radius: var(--bd-radius, 0.25rem);
+}
+
+/* Navigation label replacing h6 for proper heading hierarchy */
+.c-nav-label {
+	font-size: 0.83rem;
+	font-weight: 500;
+	margin: 0;
+}
+
+/* Skip to main content link for keyboard accessibility */
+.c-skip-link {
+	position: fixed;
+	top: -100%;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 10000;
+	padding: 0.5rem 1rem;
+	background: var(--col-primary);
+	color: #fff;
+	border-radius: var(--bd-radius);
+	text-decoration: none;
+	font-weight: bold;
+}
+
+.c-skip-link:focus {
+	top: 0.5rem;
+}
+
 /* Full-screen overlay for blocking error states */
 .c-overlay {
 	position: fixed;
@@ -20,6 +67,19 @@ body {
 	bottom: 0;
 	background: var(--col-bg);
 	z-index: 9999;
+}
+
+/* Error dialog (native <dialog> for built-in focus trapping) */
+.c-error-dialog {
+	border: none;
+	background: transparent;
+	padding: 0;
+	max-width: none;
+	width: auto;
+}
+
+.c-error-dialog::backdrop {
+	background: var(--col-bg);
 }
 
 p {
@@ -120,6 +180,17 @@ body {
 	}
 }
 
+@media (prefers-reduced-motion: reduce) {
+	.c-logo.slow .circle.main,
+	.c-logo.slow .circle.small,
+	.c-logo.slow .line,
+	.c-logo.fast .circle.main,
+	.c-logo.fast .circle.small,
+	.c-logo.fast .line {
+		animation: none;
+	}
+}
+
 .c-menu-ex {
 	position: relative;
 
@@ -160,8 +231,8 @@ body {
 	right: 0;
 	z-index: var(--z-fixed);
 
-	& > .c-nav-link > h6,
-	& > .c-nav-group > .c-nav-link > h6 {
+	& > .c-nav-link > .c-nav-label,
+	& > .c-nav-group > .c-nav-link > .c-nav-label {
 		font-size: 0.83rem;
 	}
 

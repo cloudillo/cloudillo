@@ -65,10 +65,15 @@ export function NotificationPopover() {
 	return (
 		<Popper
 			className="c-nav-item pos-relative"
+			aria-label={
+				badgeCount
+					? t('Notifications ({{count}} new)', { count: badgeCount })
+					: t('Notifications')
+			}
 			icon={
 				<>
 					<IcNotifications />
-					{!!badgeCount && <span className="c-badge br bg bg-error">{badgeCount}</span>}
+					{!!badgeCount && <span className="c-badge br bg bg-primary">{badgeCount}</span>}
 				</>
 			}
 		>
@@ -81,8 +86,11 @@ export function NotificationPopover() {
 				</div>
 				<div className="c-vbox" style={{ overflowY: 'auto', flex: 1 }}>
 					{!sortedNotifications.length && (
-						<div className="c-vbox align-items-center p-3 text-muted">
+						<div className="c-vbox align-items-center p-3 text-muted g-1">
 							<p>{t('No new notifications')}</p>
+							<p className="small">
+								{t('Follow people or join communities to see activity here.')}
+							</p>
 						</div>
 					)}
 					{sortedNotifications.map((action) => (

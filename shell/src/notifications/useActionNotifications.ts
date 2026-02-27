@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useToast } from '@cloudillo/react'
 import { ActionView } from '@cloudillo/types'
 
@@ -43,58 +44,61 @@ function getSettingKey(actionType: string): string | undefined {
 	return key?.replace('sound.', '')
 }
 
-function getNotificationTitle(actionType: string): string {
+function getNotificationTitle(t: (key: string) => string, actionType: string): string {
 	switch (actionType) {
 		case 'MSG':
-			return 'New Message'
+			return t('New Message')
 		case 'CONN':
-			return 'Connection Request'
+			return t('Connection Request')
 		case 'FSHR':
-			return 'File Shared'
+			return t('File Shared')
 		case 'FLLW':
-			return 'New Follower'
+			return t('New Follower')
 		case 'CMNT':
-			return 'New Comment'
+			return t('New Comment')
 		case 'REACT':
-			return 'New Reaction'
+			return t('New Reaction')
 		case 'MNTN':
-			return 'Mention'
+			return t('Mention')
 		case 'POST':
-			return 'New Post'
+			return t('New Post')
 		case 'INVT':
-			return 'Group Invitation'
+			return t('Group Invitation')
 		case 'PRINVT':
-			return 'Community Invitation'
+			return t('Community Invitation')
 		default:
-			return 'Notification'
+			return t('Notification')
 	}
 }
 
-function getNotificationMessage(action: ActionView): string {
-	const name = action.issuer?.name || action.issuer?.idTag || 'Someone'
+function getNotificationMessage(
+	t: (key: string, options?: Record<string, string>) => string,
+	action: ActionView
+): string {
+	const name = action.issuer?.name || action.issuer?.idTag || t('Someone')
 	switch (action.type) {
 		case 'MSG':
-			return `New message from ${name}`
+			return t('New message from {{name}}', { name })
 		case 'CONN':
-			return `${name} wants to connect`
+			return t('{{name}} wants to connect', { name })
 		case 'FSHR':
-			return `${name} shared a file with you`
+			return t('{{name}} shared a file with you', { name })
 		case 'FLLW':
-			return `${name} started following you`
+			return t('{{name}} started following you', { name })
 		case 'CMNT':
-			return `${name} commented on your post`
+			return t('{{name}} commented on your post', { name })
 		case 'REACT':
-			return `${name} reacted to your post`
+			return t('{{name}} reacted to your post', { name })
 		case 'MNTN':
-			return `${name} mentioned you`
+			return t('{{name}} mentioned you', { name })
 		case 'POST':
-			return `New post from ${name}`
+			return t('New post from {{name}}', { name })
 		case 'INVT':
-			return `${name} invited you to join a group`
+			return t('{{name}} invited you to join a group', { name })
 		case 'PRINVT':
-			return `${name} invited you to create a community`
+			return t('{{name}} invited you to create a community', { name })
 		default:
-			return `New notification from ${name}`
+			return t('New notification from {{name}}', { name })
 	}
 }
 
@@ -103,6 +107,7 @@ function getNotificationMessage(action: ActionView): string {
  * Should be called once in Layout to enable global notification handling.
  */
 export function useActionNotifications() {
+	const { t } = useTranslation()
 	const { settings } = useLocalNotifySettings()
 	const { toast } = useToast()
 	const audioRefs = React.useRef<Record<string, HTMLAudioElement>>({})
@@ -166,13 +171,13 @@ export function useActionNotifications() {
 				currentSettings.toast &&
 				currentSettings[`toast.${settingKey}` as keyof LocalNotifySettings]
 			if (toastEnabled) {
-				const title = getNotificationTitle(action.type)
-				const message = getNotificationMessage(action)
+				const title = getNotificationTitle(t, action.type)
+				const message = getNotificationMessage(t, action)
 				const duration = ACTIONABLE_TYPES.has(action.type) ? 7000 : 5000
 				toast({ variant: 'info', title, message, duration })
 			}
 		},
-		[playSound, toast]
+		[t, playSound, toast]
 	)
 
 	useWsBus({ cmds: ['ACTION'] }, (msg) => {

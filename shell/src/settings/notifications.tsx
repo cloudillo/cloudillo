@@ -17,7 +17,7 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { useApi } from '@cloudillo/react'
+import { useApi, LoadingSpinner } from '@cloudillo/react'
 import { ApiClient } from '@cloudillo/core'
 
 import { UsePWA } from '../pwa.js'
@@ -158,7 +158,7 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 		}
 	}
 
-	if (!settings) return null
+	if (!settings) return <LoadingSpinner />
 
 	return (
 		<>

@@ -47,39 +47,63 @@ export function SearchBar({ className }: { className?: string }) {
 	const [auth] = useAuth()
 	const [search, setSearch] = useSearch()
 	const contextIdTag = useCurrentContextIdTag()
+	const [validationError, setValidationError] = React.useState<string | null>(null)
+
+	const isValidIdTag = (query: string) => /^\S+(\.\S+)+$/.test(query)
 
 	async function onSubmit(evt: React.FormEvent) {
 		evt.preventDefault()
 		evt.stopPropagation()
-		console.log('SEARCH', search)
 		if (!search.query) {
 			return
-		} else if (search.query.match(/^\S+(\.\S+)+$/)) {
+		} else if (isValidIdTag(search.query)) {
 			const idTag = (
 				search.query.startsWith('@') ? search.query.slice(1) : search.query
 			).toLowerCase()
+			setValidationError(null)
 			setSearch({})
 			navigate(`/profile/${contextIdTag || auth?.idTag}/${idTag}`)
+		} else {
+			setValidationError(t('Enter an Identity Tag (e.g. user.example.com)'))
 		}
 	}
 
+	function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+		setSearch({ query: e.target.value })
+		if (validationError) setValidationError(null)
+	}
+
 	return (
-		<form className={mergeClasses('c-input-group', className)} onSubmit={onSubmit}>
-			<input
-				className="c-input"
-				type="text"
-				autoFocus
-				placeholder={t('Type an Identity Tag')}
-				value={search.query || ''}
-				onChange={(e) => setSearch({ query: e.target.value })}
-			/>
-			<Button className="icon" onClick={() => setSearch({})}>
-				<IcCancel />
-			</Button>
-			<Button className="icon primary" onClick={onSubmit}>
-				<SearchIcon />
-			</Button>
-		</form>
+		<div className={mergeClasses('c-vbox', className)}>
+			<form className="c-input-group" onSubmit={onSubmit}>
+				<input
+					className="c-input"
+					type="text"
+					autoFocus
+					aria-label={t('Search for users by Identity Tag')}
+					aria-invalid={!!validationError}
+					aria-describedby={validationError ? 'search-error' : undefined}
+					placeholder={t('Type an Identity Tag (e.g. user.example.com)')}
+					value={search.query || ''}
+					onChange={handleChange}
+				/>
+				<Button
+					className="icon"
+					onClick={() => setSearch({})}
+					aria-label={t('Close search')}
+				>
+					<IcCancel />
+				</Button>
+				<Button className="icon primary" onClick={onSubmit} aria-label={t('Search')}>
+					<IcSearch />
+				</Button>
+			</form>
+			{validationError && (
+				<span id="search-error" className="small text-error mt-1" role="alert">
+					{validationError}
+				</span>
+			)}
+		</div>
 	)
 }
 

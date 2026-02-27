@@ -123,7 +123,7 @@
 }
 
 .c-sidebar-item.active {
-	background: lch(from var(--col-primary) l c h / var(--op-active));
+	background: lch(from var(--col-primary) l c h / 0.15);
 }
 
 .c-sidebar-item.active::before {
@@ -132,8 +132,8 @@
 	left: 0;
 	top: 50%;
 	transform: translateY(-50%);
-	width: 3px;
-	height: 60%;
+	width: 4px;
+	height: 70%;
 	background: var(--col-primary);
 	border-radius: 0 2px 2px 0;
 }

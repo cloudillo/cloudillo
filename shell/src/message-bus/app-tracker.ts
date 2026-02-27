@@ -90,6 +90,8 @@ export interface PendingRegistration {
 export class AppTracker {
 	// Using WeakMap to allow garbage collection when iframe windows are destroyed
 	private connections = new WeakMap<Window, AppConnection>()
+	// Strong Set of active windows to enable iteration for broadcasts
+	private activeWindows = new Set<Window>()
 	// Track count separately since WeakMap doesn't have size
 	private connectionCount = 0
 	private pendingRegistrations = new Map<string, PendingRegistration>()
@@ -130,6 +132,7 @@ export class AppTracker {
 			this.connectionCount++
 		}
 		this.connections.set(options.window, connection)
+		this.activeWindows.add(options.window)
 		this.log('Registered app:', options.appName, options.resId)
 		return connection
 	}
@@ -195,6 +198,7 @@ export class AppTracker {
 		}
 
 		this.connections.delete(window)
+		this.activeWindows.delete(window)
 		this.connectionCount = Math.max(0, this.connectionCount - 1)
 		this.log('Unregistered app:', connection.appName)
 		return true
@@ -268,11 +272,26 @@ export class AppTracker {
 	}
 
 	/**
+	 * Get all initialized app windows for broadcasting messages
+	 */
+	getInitializedWindows(): Window[] {
+		const windows: Window[] = []
+		for (const win of this.activeWindows) {
+			const conn = this.connections.get(win)
+			if (conn?.initialized) {
+				windows.push(win)
+			}
+		}
+		return windows
+	}
+
+	/**
 	 * Clear pending registrations and reset count
 	 * Note: WeakMap connections will be garbage collected automatically
 	 */
 	clear(): void {
 		this.connections = new WeakMap()
+		this.activeWindows.clear()
 		this.connectionCount = 0
 		this.pendingRegistrations.clear()
 		this.log('Cleared all connections and pending registrations')

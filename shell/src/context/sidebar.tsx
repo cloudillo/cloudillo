@@ -10,7 +10,7 @@ import './sidebar.css'
 import * as React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useAuth, mergeClasses, ProfilePicture } from '@cloudillo/react'
+import { useAuth, useToast, mergeClasses, ProfilePicture } from '@cloudillo/react'
 
 import { LuClock3 as IcPending } from 'react-icons/lu'
 
@@ -55,7 +55,21 @@ function CommunityListItem({
 				isDragging && 'dragging',
 				isDragOver && 'drag-over'
 			)}
+			role="button"
+			tabIndex={0}
+			aria-label={
+				community.isPending
+					? t('{{name}} (setting up)', { name: community.name })
+					: community.name
+			}
+			aria-current={isActive ? 'true' : undefined}
 			onClick={() => onSwitch(community.idTag)}
+			onKeyDown={(e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault()
+					onSwitch(community.idTag)
+				}
+			}}
 			title={community.isPending ? t('DNS propagation in progress...') : community.name}
 			draggable={draggable}
 			onDragStart={onDragStart}
@@ -100,6 +114,7 @@ export function Sidebar({ className }: SidebarProps) {
 	const { favorites, reorderFavorites } = useCommunitiesList()
 	const { switchTo, isSwitching } = useContextSwitch()
 	const { isOpen, isPinned, close } = useSidebar()
+	const { error: toastError } = useToast()
 	const location = useLocation()
 	const [isDesktop, setIsDesktop] = React.useState(window.innerWidth >= 1024)
 
@@ -154,9 +169,8 @@ export function Sidebar({ className }: SidebarProps) {
 			const currentAppPath = match ? `/${match[1]}` : '/feed'
 
 			switchTo(idTag, currentAppPath).catch((err) => {
-				console.error('❌ Failed to switch context:', err)
-				// TODO: Show toast notification when toast system is available
-				// For now, error is logged and isSwitching state is reset in finally block
+				console.error('Failed to switch context:', err)
+				toastError(t('Failed to switch context. Please try again.'))
 			})
 		},
 		[switchTo, location.pathname]
@@ -176,6 +190,8 @@ export function Sidebar({ className }: SidebarProps) {
 					isSwitching && 'switching',
 					className
 				)}
+				role="navigation"
+				aria-label={t('Context switcher')}
 			>
 				{/* User's own profile */}
 				<div className="c-sidebar-section">
@@ -185,7 +201,17 @@ export function Sidebar({ className }: SidebarProps) {
 							'c-sidebar-item-me',
 							activeContext?.idTag === auth.idTag && 'active'
 						)}
+						role="button"
+						tabIndex={0}
+						aria-label={t('My profile')}
+						aria-current={activeContext?.idTag === auth.idTag ? 'true' : undefined}
 						onClick={() => handleSwitch(auth.idTag!)}
+						onKeyDown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault()
+								handleSwitch(auth.idTag!)
+							}
+						}}
 					>
 						<div className="c-sidebar-item-avatar">
 							<ProfilePicture

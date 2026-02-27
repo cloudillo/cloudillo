@@ -26,7 +26,7 @@ import {
 	LuTriangleAlert as IcWarning
 } from 'react-icons/lu'
 
-import { useAuth, useApi, useDialog, Button } from '@cloudillo/react'
+import { useAuth, useApi, useDialog, Button, LoadingSpinner } from '@cloudillo/react'
 import type { WebAuthnCredential, ApiKeyListItem } from '@cloudillo/core'
 
 import { useSettings } from './settings.js'
@@ -254,7 +254,7 @@ export function SecuritySettings() {
 		await dialog.tell(t('Password changed'), t('Your password has been changed successfully.'))
 	}
 
-	if (!settings) return null
+	if (!settings) return <LoadingSpinner />
 
 	return (
 		<>

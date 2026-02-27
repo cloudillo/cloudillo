@@ -189,6 +189,7 @@ import {
 	AuthState,
 	useApi,
 	useDialog,
+	useToast,
 	mergeClasses,
 	ProfilePicture,
 	Popper,
@@ -227,6 +228,7 @@ import { SiteAdminRoutes } from './site-admin'
 import { IdpRoutes } from './idp'
 import { AppRoutes } from './apps'
 import { initShellBus, getShellBus } from './message-bus'
+import { ErrorBoundary } from './ErrorBoundary.js'
 import { SharedResourceView } from './apps/shared.js'
 import { ProfileRoutes } from './profile/profile.js'
 import { Notifications } from './notifications/notifications.js'
@@ -325,13 +327,15 @@ function Menu({
 						navLink
 						className={mergeClasses('vertical', sidebar.isOpen && 'active')}
 						onClick={() => sidebar.toggle()}
+						aria-label={t('Toggle sidebar')}
+						aria-expanded={sidebar.isOpen}
 					>
 						<ProfilePicture
 							profile={{ profilePic: auth.profilePic }}
 							srcTag={contextIdTag || auth.idTag}
 							tiny
 						/>
-						<h6>{contextIdTag || auth.idTag}</h6>
+						<span className="c-nav-label">{contextIdTag || auth.idTag}</span>
 					</Button>
 				)}
 				{/* Extra menu: use portal on mobile (when extraMenuPortal is provided), inline otherwise */}
@@ -346,11 +350,12 @@ function Menu({
 								<NavLink
 									key={menuItem.id}
 									className="c-nav-link h-small vertical"
-									aria-current="page"
 									to={getContextPath(menuItem.path)}
 								>
 									{menuItem.icon && React.createElement(menuItem.icon)}
-									<h6>{menuItem.trans?.[i18n.language] || menuItem.label}</h6>
+									<span className="c-nav-label">
+										{menuItem.trans?.[i18n.language] || menuItem.label}
+									</span>
 								</NavLink>
 							))}
 							{auth && (
@@ -360,7 +365,7 @@ function Menu({
 									onClick={() => setQrScannerOpen(true)}
 								>
 									<IcScan />
-									<h6>{t('Scan QR')}</h6>
+									<span className="c-nav-label">{t('Scan QR')}</span>
 								</Button>
 							)}
 						</nav>,
@@ -373,11 +378,12 @@ function Menu({
 								<NavLink
 									key={menuItem.id}
 									className="c-nav-link h-small vertical"
-									aria-current="page"
 									to={getContextPath(menuItem.path)}
 								>
 									{menuItem.icon && React.createElement(menuItem.icon)}
-									<h6>{menuItem.trans?.[i18n.language] || menuItem.label}</h6>
+									<span className="c-nav-label">
+										{menuItem.trans?.[i18n.language] || menuItem.label}
+									</span>
 								</NavLink>
 							))}
 							{auth && (
@@ -387,7 +393,7 @@ function Menu({
 									onClick={() => setQrScannerOpen(true)}
 								>
 									<IcScan />
-									<h6>{t('Scan QR')}</h6>
+									<span className="c-nav-label">{t('Scan QR')}</span>
 								</Button>
 							)}
 						</nav>
@@ -397,11 +403,12 @@ function Menu({
 					<NavLink
 						key={menuItem.id}
 						className={mergeClasses('c-nav-link', vertical && 'vertical')}
-						aria-current="page"
 						to={getContextPath(menuItem.path)}
 					>
 						{menuItem.icon && React.createElement(menuItem.icon)}
-						<h6>{menuItem.trans?.[i18n.language] || menuItem.label}</h6>
+						<span className="c-nav-label">
+							{menuItem.trans?.[i18n.language] || menuItem.label}
+						</span>
 					</NavLink>
 				))}
 				{needsMoreMenu && (
@@ -409,9 +416,11 @@ function Menu({
 						navLink
 						className={mergeClasses(vertical && 'vertical')}
 						onClick={() => setMoreMenuOpen(!moreMenuOpen)}
+						aria-label={t('More menu items')}
+						aria-expanded={moreMenuOpen}
 					>
 						<IcApps />
-						<h6>{t('More')}</h6>
+						<span className="c-nav-label">{t('More')}</span>
 					</Button>
 				)}
 			</>
@@ -489,6 +498,7 @@ function Header({ inert }: { inert?: boolean }) {
 	const navigate = useNavigate()
 	//const [notifications, setNotifications] = React.useState<{ notifications?: number }>({})
 	const { notifications, setNotifications, loadNotifications } = useNotifications()
+	const { warning: toastWarning } = useToast()
 	const [menuOpen, setMenuOpen] = React.useState(false)
 	const [businessCardOpen, setBusinessCardOpen] = React.useState(false)
 	const contextIdTag = useCurrentContextIdTag()
@@ -497,6 +507,18 @@ function Header({ inert }: { inert?: boolean }) {
 	)
 	const [extraMenuPortalDesktop, setExtraMenuPortalDesktop] =
 		React.useState<HTMLDivElement | null>(null)
+
+	// Ctrl+K / Cmd+K keyboard shortcut for search
+	React.useEffect(() => {
+		function handleKeyDown(e: KeyboardEvent) {
+			if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+				e.preventDefault()
+				setSearch((prev) => (prev.query == undefined ? { query: '' } : {}))
+			}
+		}
+		window.addEventListener('keydown', handleKeyDown)
+		return () => window.removeEventListener('keydown', handleKeyDown)
+	}, [setSearch])
 
 	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
 		const action = msg.data as ActionView
@@ -530,15 +552,8 @@ function Header({ inert }: { inert?: boolean }) {
 			const appConfig = APP_CONFIG
 			setAppConfig(appConfig)
 
-			// Set theme
-			document.body.classList.add('theme-glass')
-
-			// Set dark mode
-			if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-				document.body.classList.add('dark')
-			} else {
-				document.body.classList.add('light')
-			}
+			// Set initial theme with system color scheme listener
+			setTheme(undefined, undefined)
 			;(async function () {
 				if (!api?.idTag || !auth) {
 					// Determine idTag or authenticate
@@ -594,6 +609,7 @@ function Header({ inert }: { inert?: boolean }) {
 										'[Layout] API key rejected (401), clearing stale key'
 									)
 									await deleteApiKey()
+									toastWarning(t('Session expired. Please sign in again.'))
 								}
 								// Fall through to normal login flow
 							}
@@ -699,6 +715,7 @@ function Header({ inert }: { inert?: boolean }) {
 			<nav
 				inert={inert}
 				className="c-nav nav-top justify-content-between border-radius-0 mb-2 g-1"
+				aria-label={t('Main navigation')}
 			>
 				<ul
 					className={mergeClasses(
@@ -717,7 +734,13 @@ function Header({ inert }: { inert?: boolean }) {
 					{auth && (
 						<li className="c-nav-item flex-fill">
 							{search.query == undefined ? (
-								<IcSearchUser onClick={() => setSearch({ query: '' })} />
+								<button
+									className="c-button icon"
+									onClick={() => setSearch({ query: '' })}
+									aria-label={t('Search for users')}
+								>
+									<IcSearchUser />
+								</button>
 							) : (
 								<SearchBar />
 							)}
@@ -732,7 +755,11 @@ function Header({ inert }: { inert?: boolean }) {
 				<ul className="c-nav-group c-hbox">
 					{auth && <NotificationPopover />}
 					{auth ? (
-						<Popper className="c-nav-item" icon={<ProfilePicture profile={auth} />}>
+						<Popper
+							className="c-nav-item"
+							aria-label={t('User menu')}
+							icon={<ProfilePicture profile={auth} />}
+						>
 							<ul className="c-nav vertical emph">
 								<li>
 									<Link
@@ -792,7 +819,7 @@ function Header({ inert }: { inert?: boolean }) {
 						</Popper>
 					) : (
 						<>
-							<Popper className="c-nav-item" icon={<IcMenu />}>
+							<Popper className="c-nav-item" aria-label={t('Menu')} icon={<IcMenu />}>
 								<ul className="c-nav vertical emph">
 									{api?.idTag && (
 										<li>
@@ -846,6 +873,7 @@ function Header({ inert }: { inert?: boolean }) {
 					<nav
 						inert={inert}
 						className="c-nav nav-bottom w-100 border-radius-0 justify-content-center flex-order-end lg-hide"
+						aria-label={t('Mobile navigation')}
 					>
 						<Menu vertical inert={inert} extraMenuPortal={extraMenuPortalMobile} />
 					</nav>
@@ -874,15 +902,17 @@ function KeyAccessError({
 }) {
 	const { t } = useTranslation()
 	const [resetting, setResetting] = React.useState(false)
+	const [confirmReset, setConfirmReset] = React.useState(false)
+	const dialogRef = React.useRef<HTMLDialogElement>(null)
+
+	// Use native dialog with showModal() for built-in focus trapping
+	React.useEffect(() => {
+		dialogRef.current?.showModal()
+	}, [])
 
 	async function handleReset() {
-		if (
-			!confirm(
-				t(
-					'This will clear all locally stored data and require you to log in again. Continue?'
-				)
-			)
-		) {
+		if (!confirmReset) {
+			setConfirmReset(true)
 			return
 		}
 		setResetting(true)
@@ -893,11 +923,18 @@ function KeyAccessError({
 	const isMissing = reason === 'key_missing'
 
 	return (
-		<div className="c-overlay c-vbox align-items-center justify-content-center p-4">
+		<dialog
+			ref={dialogRef}
+			className="c-error-dialog"
+			aria-labelledby="key-error-title"
+			onCancel={(e) => e.preventDefault()}
+		>
 			<div className="c-card p-4" style={{ maxWidth: 480 }}>
 				<div className="c-hbox align-items-center g-2 mb-3">
 					<IcWarning size={32} className="text-error" />
-					<h2 className="m-0">{t('Encryption Key Error')}</h2>
+					<h2 id="key-error-title" className="m-0">
+						{t('Encryption Key Error')}
+					</h2>
 				</div>
 				{isMissing ? (
 					<>
@@ -926,10 +963,17 @@ function KeyAccessError({
 						</p>
 					</>
 				)}
+				{confirmReset && (
+					<p className="mb-3 text-error">
+						{t(
+							'This will clear all locally stored data and require you to log in again. Click again to confirm.'
+						)}
+					</p>
+				)}
 				<div className="c-hbox g-2 justify-content-end">
 					<Button onClick={handleReset} disabled={resetting}>
 						<IcClear />
-						{t('Start Fresh')}
+						{confirmReset ? t('Confirm Reset') : t('Start Fresh')}
 					</Button>
 					<Button className="primary" onClick={onRetry}>
 						<IcRefresh />
@@ -937,11 +981,12 @@ function KeyAccessError({
 					</Button>
 				</div>
 			</div>
-		</div>
+		</dialog>
 	)
 }
 
 export function Layout() {
+	const { t } = useTranslation()
 	const pwa = usePWA({ swPath: `/sw-${version}.js` })
 	const [auth] = useAuth()
 	const { api, setIdTag } = useApi()
@@ -1039,26 +1084,35 @@ export function Layout() {
 
 	return (
 		<>
+			<a className="c-skip-link" href="#main-content">
+				{t('Skip to main content')}
+			</a>
 			<WsBusRoot>
 				{auth && <Sidebar />}
 				<Header inert={dialog.isOpen} />
 				<div
 					className={mergeClasses('c-layout', sidebar.isPinned && auth && 'with-sidebar')}
 				>
-					<div inert={dialog.isOpen} className="c-vbox flex-fill h-min-0">
-						<ProfileRoutes />
-						<AuthRoutes />
-						<SettingsRoutes pwa={pwa} />
-						<SiteAdminRoutes />
-						<IdpRoutes />
-						<AppRoutes />
-						<OnboardingRoutes pwa={pwa} />
-						<Routes>
-							<Route path="/s/:refId" element={<SharedResourceView />} />
-							<Route path="/notifications" element={<Notifications />} />
-							<Route path="*" element={null} />
-						</Routes>
-					</div>
+					<ErrorBoundary>
+						<div
+							id="main-content"
+							inert={dialog.isOpen}
+							className="c-vbox flex-fill h-min-0"
+						>
+							<ProfileRoutes />
+							<AuthRoutes />
+							<SettingsRoutes pwa={pwa} />
+							<SiteAdminRoutes />
+							<IdpRoutes />
+							<AppRoutes />
+							<OnboardingRoutes pwa={pwa} />
+							<Routes>
+								<Route path="/s/:refId" element={<SharedResourceView />} />
+								<Route path="/notifications" element={<Notifications />} />
+								<Route path="*" element={null} />
+							</Routes>
+						</div>
+					</ErrorBoundary>
 					<div className="pt-1" />
 				</div>
 				<div id="popper-container" />

@@ -17,7 +17,7 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { useApi } from '@cloudillo/react'
+import { useApi, LoadingSpinner } from '@cloudillo/react'
 
 import { useSettings } from './settings.js'
 
@@ -26,7 +26,7 @@ export function PrivacySettings() {
 	const { api } = useApi()
 	const { settings, onSettingChange } = useSettings('profile')
 
-	if (!settings) return null
+	if (!settings) return <LoadingSpinner />
 
 	return (
 		<>

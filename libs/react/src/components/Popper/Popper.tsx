@@ -27,6 +27,7 @@ export interface PopperProps {
 	elevation?: Elevation
 	icon?: React.ReactNode
 	label?: React.ReactNode
+	'aria-label'?: string
 	children?: React.ReactNode
 }
 
@@ -37,6 +38,7 @@ export function Popper({
 	elevation = 'high',
 	icon,
 	label,
+	'aria-label': ariaLabel,
 	children,
 	...props
 }: PopperProps) {
@@ -75,6 +77,9 @@ export function Popper({
 				ref={setPopperRef}
 				className={menuClassName || 'c-nav-item g-2'}
 				onClick={(evt) => (evt.stopPropagation(), setIsOpen(!isOpen))}
+				aria-label={ariaLabel}
+				aria-expanded={isOpen}
+				aria-haspopup="true"
 			>
 				{icon}
 				{label}

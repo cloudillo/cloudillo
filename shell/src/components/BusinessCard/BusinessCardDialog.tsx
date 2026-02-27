@@ -62,7 +62,12 @@ export function BusinessCardDialog({ open, onClose }: BusinessCardDialogProps) {
 				{/* Header */}
 				<div className="c-hbox g-2 p-3 border-bottom">
 					<h3 className="m-0 flex-fill">{t('My Card')}</h3>
-					<button type="button" className="c-link" aria-label="Close" onClick={onClose}>
+					<button
+						type="button"
+						className="c-link"
+						aria-label={t('Close')}
+						onClick={onClose}
+					>
 						<IcClose />
 					</button>
 				</div>

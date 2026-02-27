@@ -17,6 +17,8 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { LoadingSpinner } from '@cloudillo/react'
+
 import { useSettings } from './settings.js'
 
 const VARIANT_OPTIONS = [
@@ -35,7 +37,7 @@ export function FilesSettings() {
 
 	const { settings, onSettingChange } = useSettings('file')
 
-	if (!settings) return null
+	if (!settings) return <LoadingSpinner />
 
 	return (
 		<>

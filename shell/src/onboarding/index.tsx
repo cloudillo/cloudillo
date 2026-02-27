@@ -26,7 +26,7 @@ import {
 } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 
-import { Button, useApi } from '@cloudillo/react'
+import { Button, useApi, useToast } from '@cloudillo/react'
 import { ApiClient } from '@cloudillo/core'
 
 import { UsePWA } from '../pwa.js'
@@ -46,16 +46,29 @@ function Join() {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
 	const { api, setIdTag } = useApi()
+	const { error: toastError } = useToast()
+	const [joining, setJoining] = React.useState(false)
 
 	async function onJoin() {
 		if (!api) return
-		const action = { type: 'CONN', audienceTag: 'cloudillo.net' }
-		const res = await api.actions.create(action)
-		navigate(next(api, 'join'))
+		setJoining(true)
+		try {
+			const action = { type: 'CONN', audienceTag: 'cloudillo.net' }
+			await api.actions.create(action)
+			navigate(next(api, 'join'))
+		} catch (err) {
+			console.error('Failed to join community:', err)
+			toastError(t('Failed to join community. You can try again later in Settings.'))
+			setJoining(false)
+		}
 	}
 
 	function onSkip() {
 		navigate(next(api, 'join'))
+	}
+
+	function onBack() {
+		navigate(-1)
 	}
 
 	return (
@@ -70,7 +83,7 @@ function Join() {
 					)}
 				</p>
 				<div className="c-group g-2">
-					<Button className="c-button primary" onClick={onJoin}>
+					<Button className="c-button primary" onClick={onJoin} disabled={joining}>
 						{t('Join Community')}
 					</Button>
 					<Button className="c-button" onClick={onSkip}>
@@ -188,12 +201,47 @@ function Install({ pwa }: { pwa: UsePWA }) {
 	return <Navigate to="/onboarding/extras" />
 }
 
+const ONBOARDING_STEPS = ['welcome', 'join', 'extras'] as const
+
+function StepIndicator() {
+	const { t } = useTranslation()
+	const location = useLocation()
+
+	const currentStep = ONBOARDING_STEPS.findIndex((step) =>
+		location.pathname.includes(`/onboarding/${step}`)
+	)
+	if (currentStep < 0) return null
+
+	return (
+		<div className="c-hbox justify-content-center g-2 mb-3 mt-2">
+			{ONBOARDING_STEPS.map((_, i) => (
+				<div
+					key={i}
+					style={{
+						width: '0.625rem',
+						height: '0.625rem',
+						borderRadius: '50%',
+						background: i <= currentStep ? 'var(--col-primary)' : 'var(--col-border)'
+					}}
+				/>
+			))}
+			<span className="text-muted small ms-2">
+				{t('Step {{current}} of {{total}}', {
+					current: currentStep + 1,
+					total: ONBOARDING_STEPS.length
+				})}
+			</span>
+		</div>
+	)
+}
+
 function Page({ children }: { children: React.ReactNode }) {
 	return (
 		<div className="c-container">
 			<div className="row">
 				<div className="col-0 col-md-1 col-lg-2" />
 				<div className="col col-md-10 col-lg-8">
+					<StepIndicator />
 					<div className="flex-fill-x">{children}</div>
 				</div>
 				<div className="col-0 col-md-1 col-lg-2" />

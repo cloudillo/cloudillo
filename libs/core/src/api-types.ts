@@ -466,6 +466,7 @@ export interface CreateFileRequest {
 	contentType?: string
 	fileName?: string // File name (required for FLDR)
 	parentId?: string // Parent folder ID (null = root)
+	rootId?: string // Document tree root file ID
 	createdAt?: number
 	tags?: string
 }
@@ -486,6 +487,7 @@ export interface GetFileVariantSelector {
 export interface ListFilesQuery {
 	fileId?: string
 	parentId?: string // Filter by folder: null=root, "__trash__"=trash, or folder fileId
+	rootId?: string // Filter by document tree root
 	preset?: string
 	tag?: string
 	status?: ('P' | 'A')[]
@@ -515,6 +517,7 @@ export type FileUserData = T.TypeOf<typeof tFileUserData>
 export const tFileView = T.struct({
 	fileId: T.string,
 	parentId: T.optional(T.string), // Parent folder ID (null = root, "__trash__" = in trash)
+	rootId: T.optional(T.string), // Document tree root file ID
 	status: T.literal('P', 'A'),
 	preset: T.optional(T.string),
 	contentType: T.string,
@@ -627,6 +630,35 @@ export const tTagResult = T.struct({
 	tags: T.array(T.string)
 })
 export type TagResult = T.TypeOf<typeof tTagResult>
+
+// ============================================================================
+// SHARE ENTRY ENDPOINTS
+// ============================================================================
+
+// Request types
+export interface CreateShareEntryRequest {
+	subjectType: string // 'U' (user) | 'L' (link) | 'F' (file)
+	subjectId: string
+	permission: string // 'R' (read) | 'W' (write) | 'A' (admin)
+	expiresAt?: string // ISO timestamp
+}
+
+// Response types
+export const tShareEntry = T.struct({
+	id: T.number,
+	resourceType: T.string,
+	resourceId: T.string,
+	subjectType: T.string,
+	subjectId: T.string,
+	permission: T.string,
+	expiresAt: T.optional(T.union(T.string, T.date)),
+	createdBy: T.string,
+	createdAt: T.union(T.string, T.date)
+})
+export type ShareEntry = T.TypeOf<typeof tShareEntry>
+
+export const tListShareEntriesResult = T.array(tShareEntry)
+export type ListShareEntriesResult = T.TypeOf<typeof tListShareEntriesResult>
 
 // ============================================================================
 // TAG ENDPOINTS

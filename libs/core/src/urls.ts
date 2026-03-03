@@ -84,6 +84,18 @@ export function getMessageBusUrl(idTag: string, token: string): string {
 }
 
 /**
+ * Generate a store file ID for an app.
+ * Store files (`s~{appId}`) are auto-created by the server on first
+ * CRDT or RTDB WebSocket connection.
+ *
+ * @param appId - App identifier (e.g., "taskillo", "notillo")
+ * @returns Store file ID like "s~taskillo"
+ */
+export function getStoreFileId(appId: string): string {
+	return `s~${appId}`
+}
+
+/**
  * Image variant quality order from highest to lowest
  */
 const IMAGE_VARIANT_QUALITY_ORDER = ['vis.xd', 'vis.hd', 'vis.md', 'vis.sd', 'vis.tn'] as const

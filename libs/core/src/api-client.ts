@@ -166,6 +166,17 @@ export class ApiClient {
 			}),
 
 		/**
+		 * GET /auth/access-token?via=...&scope=... - Get scoped token via cross-document link
+		 * @param via - Source file ID the caller has access to
+		 * @param scope - Target scope: "file:{targetFileId}:{R|W}"
+		 * @returns Scoped token with resource ID and access level
+		 */
+		getAccessTokenVia: (via: string, scope: string) =>
+			this.request('GET', '/auth/access-token', Types.tRefAccessTokenResult, {
+				query: { via, scope }
+			}),
+
+		/**
 		 * GET /auth/proxy-token - Get proxy token for federation
 		 * @param idTag - Optional target idTag for cross-server federation
 		 * @returns Token and optionally roles (for local context)
@@ -644,7 +655,25 @@ export class ApiClient {
 		 * @returns File tags
 		 */
 		removeTag: (fileId: string, tag: string) =>
-			this.request('DELETE', `/files/${fileId}/tag/${tag}`, Types.tTagResult)
+			this.request('DELETE', `/files/${fileId}/tag/${tag}`, Types.tTagResult),
+
+		/**
+		 * GET /files/:fileId/shares - List share entries for a file
+		 */
+		listShares: (fileId: string) =>
+			this.request('GET', `/files/${fileId}/shares`, Types.tListShareEntriesResult),
+
+		/**
+		 * POST /files/:fileId/shares - Create share entry
+		 */
+		createShare: (fileId: string, data: Types.CreateShareEntryRequest) =>
+			this.request('POST', `/files/${fileId}/shares`, Types.tShareEntry, { data }),
+
+		/**
+		 * DELETE /files/:fileId/shares/:shareId - Delete share entry
+		 */
+		deleteShare: (fileId: string, shareId: number) =>
+			this.request('DELETE', `/files/${fileId}/shares/${shareId}`, T.nullValue)
 	}
 
 	// ========================================================================

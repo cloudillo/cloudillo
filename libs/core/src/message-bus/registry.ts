@@ -46,6 +46,13 @@ import {
 	tSwApiKeyGetRes,
 	tSwApiKeyDel,
 	tMediaFileResolvedPush,
+	tDocPickReq,
+	tDocPickAck,
+	tDocPickResultPush,
+	tEmbedOpenReq,
+	tEmbedOpenRes,
+	tEmbedViewStatePush,
+	tEmbedViewStateSet,
 	tSettingsGetReq,
 	tSettingsGetRes,
 	tSettingsSetReq,
@@ -150,6 +157,41 @@ export const MESSAGE_REGISTRY: Record<MessageType, MessageAccessRule> = {
 		directions: ['shell>app'],
 		requiresAuth: false,
 		validator: tMediaFileResolvedPush
+	},
+	'doc:pick.req': {
+		directions: ['app>shell'],
+		requiresAuth: true,
+		validator: tDocPickReq
+	},
+	'doc:pick.ack': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tDocPickAck
+	},
+	'doc:pick.result': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tDocPickResultPush
+	},
+	'embed:open.req': {
+		directions: ['app>shell'],
+		requiresAuth: true,
+		validator: tEmbedOpenReq
+	},
+	'embed:open.res': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tEmbedOpenRes
+	},
+	'embed:viewstate.push': {
+		directions: ['app>shell'],
+		requiresAuth: false,
+		validator: tEmbedViewStatePush
+	},
+	'embed:viewstate.set': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tEmbedViewStateSet
 	},
 	'settings:get.req': {
 		directions: ['app>shell'],

@@ -39,6 +39,10 @@ import {
 	SettingsGetRes,
 	MediaPickAck,
 	MediaPickResultPush,
+	DocPickAck,
+	DocPickResultPush,
+	EmbedOpenRes,
+	EmbedViewStateSet,
 	SensorCompassPush,
 	CropAspect,
 	Visibility
@@ -72,6 +76,10 @@ export interface AppState {
 	theme: string
 	/** Display name for anonymous guests (used in awareness) */
 	displayName?: string
+	/** Initial navigation state (from parent embed or shell) */
+	navState?: string
+	/** Ancestor file IDs in the embed chain (for cycle/depth detection) */
+	ancestors?: string[]
 }
 
 // ============================================
@@ -131,6 +139,56 @@ export interface MediaPickResult {
 	visibilityAcknowledged?: boolean
 	/** Cropped variant ID if cropping was applied */
 	croppedVariantId?: string
+}
+
+// ============================================
+// DOCUMENT PICKER API
+// ============================================
+
+/**
+ * Options for the document picker
+ */
+export interface DocPickOptions {
+	/** Filter by file type (CRDT, RTDB) */
+	fileTp?: string
+	/** Filter by content type (e.g. 'cloudillo/quillo') */
+	contentType?: string
+	/** Source file ID (for creating share entries) */
+	sourceFileId?: string
+	/** Custom dialog title */
+	title?: string
+}
+
+/**
+ * Result from the document picker
+ */
+export interface DocPickResult {
+	/** Selected file ID */
+	fileId: string
+	/** File name */
+	fileName: string
+	/** MIME content type */
+	contentType: string
+	/** File type (CRDT, RTDB) */
+	fileTp?: string
+	/** App ID resolved from content type */
+	appId?: string
+}
+
+// ============================================
+// EMBED API
+// ============================================
+
+/**
+ * Result from embed open request
+ */
+export interface EmbedOpenResult {
+	/** URL to load in the embedded iframe */
+	embedUrl: string
+	/** Nonce for pending registration lookup */
+	nonce: string
+	/** Real resource ID (ownerTag:fileId) for correct WebSocket routing */
+	resId?: string
 }
 
 // ============================================
@@ -237,6 +295,7 @@ export class AppMessageBus extends MessageBusBase {
 		theme: 'glass'
 	}
 	private appName: string = ''
+	private isEmbed = false
 	private messageListener: ((event: MessageEvent) => void) | null = null
 
 	constructor(config: Partial<MessageBusConfig> = {}) {
@@ -287,6 +346,11 @@ export class AppMessageBus extends MessageBusBase {
 		return this.state.displayName
 	}
 
+	/** Whether this app is running as an embedded document (nested iframe) */
+	get embedded(): boolean {
+		return this.isEmbed
+	}
+
 	/** Get full state (readonly) */
 	getState(): Readonly<AppState> {
 		return { ...this.state }
@@ -310,7 +374,23 @@ export class AppMessageBus extends MessageBusBase {
 
 		this.appName = appName
 		this.config.contextName = `AppBus:${appName}`
-		this.log('Initializing')
+
+		// Detect embed context and extract auth resId from hash
+		const hashContent = window.location.hash.slice(1)
+		const embedIdx = hashContent.indexOf(':_embed:')
+		let resId: string | undefined
+		if (embedIdx !== -1) {
+			// New format: ownerTag:fileId:_embed:nonce
+			this.isEmbed = true
+			resId = hashContent.slice(embedIdx + 1) // "_embed:nonce"
+		} else if (hashContent.startsWith('_embed:')) {
+			// Legacy format: _embed:nonce (no real resId)
+			this.isEmbed = true
+			resId = hashContent
+		} else {
+			resId = hashContent || undefined
+		}
+		this.log('Initializing', this.isEmbed ? '(embed mode)' : '')
 
 		// Set up the single message listener
 		this.messageListener = this.handleMessage.bind(this)
@@ -318,9 +398,6 @@ export class AppMessageBus extends MessageBusBase {
 
 		// Set up internal handlers for pushed messages
 		this.setupInternalHandlers()
-
-		// Get resId from URL hash (format: "ownerTag:resourceId")
-		const resId = window.location.hash.slice(1) || undefined
 
 		// Send init request and wait for response
 		const initData = await this.sendRequest<AuthInitRes['data']>((id) => {
@@ -338,7 +415,9 @@ export class AppMessageBus extends MessageBusBase {
 				darkMode: !!initData.darkMode,
 				tokenLifetime: initData.tokenLifetime,
 				theme: initData.theme,
-				displayName: initData.displayName
+				displayName: initData.displayName,
+				navState: initData.navState,
+				ancestors: initData.ancestors
 			}
 
 			// Apply theme to document
@@ -350,6 +429,11 @@ export class AppMessageBus extends MessageBusBase {
 
 		// Notify shell that auth initialization is complete
 		this.notifyReady('auth')
+
+		// Fire viewStateSet handler if navState was provided during init
+		if (this.state.navState && this.viewStateHandler) {
+			this.viewStateHandler(this.state.navState)
+		}
 
 		return this.getState()
 	}
@@ -391,6 +475,17 @@ export class AppMessageBus extends MessageBusBase {
 		// Handle media picker result push from shell
 		this.on('media:pick.result', (msg: MediaPickResultPush) => {
 			this.handleMediaPickResult(msg)
+		})
+
+		// Handle document picker result push from shell
+		this.on('doc:pick.result', (msg: DocPickResultPush) => {
+			this.handleDocPickResult(msg)
+		})
+
+		// Handle view state set from parent/shell
+		this.on('embed:viewstate.set', (msg: EmbedViewStateSet) => {
+			this.log('Received viewstate.set:', msg.payload.viewState)
+			this.viewStateHandler?.(msg.payload.viewState)
 		})
 	}
 
@@ -444,6 +539,8 @@ export class AppMessageBus extends MessageBusBase {
 	 */
 	private sendToShell(message: CloudilloMessage): void {
 		this.log('Sending to shell:', message.type)
+		// Always send to parent. For top-level apps, parent is the shell.
+		// For nested embeds, parent is the host app which relays to the shell.
 		window.parent?.postMessage(message, '*')
 	}
 
@@ -707,6 +804,194 @@ export class AppMessageBus extends MessageBusBase {
 	}
 
 	// ============================================
+	// DOCUMENT PICKER
+	// ============================================
+
+	// Timeout for ACK (dialog opening confirmation) - 5 seconds
+	private static readonly DOC_PICK_ACK_TIMEOUT = 5000
+
+	// Track pending document picker sessions for result correlation
+	private pendingDocSessions = new Map<
+		string,
+		{
+			resolve: (result: DocPickResult | undefined) => void
+			reject: (error: Error) => void
+		}
+	>()
+
+	/**
+	 * Open the document picker to select a document
+	 *
+	 * Uses the same ACK + push pattern as pickMedia().
+	 *
+	 * @param options - Document picker configuration
+	 * @returns Promise resolving to selected document or undefined if cancelled
+	 */
+	async pickDocument(options?: DocPickOptions): Promise<DocPickResult | undefined> {
+		if (!this.initialized) {
+			throw new Error('AppBus not initialized. Call init() first.')
+		}
+
+		this.log('Opening document picker:', options)
+
+		const sessionId = `dp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+
+		try {
+			const ackData = await this.sendRequest<DocPickAck['data']>((id) => {
+				this.sendToShell(
+					this.createRequestWithPayload('doc:pick.req', id, {
+						sessionId,
+						fileTp: options?.fileTp,
+						contentType: options?.contentType,
+						sourceFileId: options?.sourceFileId,
+						title: options?.title
+					})
+				)
+			}, AppMessageBus.DOC_PICK_ACK_TIMEOUT)
+
+			if (ackData?.sessionId !== sessionId) {
+				this.logWarn(
+					'Document picker ACK sessionId mismatch:',
+					ackData?.sessionId,
+					'vs',
+					sessionId
+				)
+				throw new Error('Session ID mismatch in ACK response')
+			}
+
+			this.log('Document picker ACK received, sessionId:', sessionId)
+
+			return new Promise<DocPickResult | undefined>((resolve, reject) => {
+				this.pendingDocSessions.set(sessionId, { resolve, reject })
+			})
+		} catch (error) {
+			this.pendingDocSessions.delete(sessionId)
+			throw error
+		}
+	}
+
+	/**
+	 * Handle document picker result push from shell
+	 */
+	private handleDocPickResult(msg: DocPickResultPush): void {
+		const sessionId = msg.payload.sessionId
+		const pending = this.pendingDocSessions.get(sessionId)
+
+		if (!pending) {
+			this.logWarn('Received document picker result for unknown session:', sessionId)
+			return
+		}
+
+		this.pendingDocSessions.delete(sessionId)
+
+		if (msg.payload.selected && msg.payload.fileId) {
+			this.log('Document picker result:', msg.payload)
+			pending.resolve({
+				fileId: msg.payload.fileId,
+				fileName: msg.payload.fileName || '',
+				contentType: msg.payload.contentType || '',
+				fileTp: msg.payload.fileTp,
+				appId: msg.payload.appId
+			})
+		} else {
+			this.log('Document picker cancelled')
+			pending.resolve(undefined)
+		}
+	}
+
+	// ============================================
+	// EMBED API
+	// ============================================
+
+	/**
+	 * Request an embed URL for a nested document
+	 *
+	 * The shell will obtain a scoped token via cross-document token exchange,
+	 * generate a nonce, and return an embed URL for loading the target document.
+	 *
+	 * @param options - Embed configuration
+	 * @returns Promise resolving to embed URL and nonce
+	 */
+	async requestEmbed(options: {
+		targetFileId: string
+		targetContentType: string
+		sourceFileId: string
+		access?: 'read' | 'write'
+		navState?: string
+	}): Promise<EmbedOpenResult> {
+		if (!this.initialized) {
+			throw new Error('AppBus not initialized. Call init() first.')
+		}
+
+		this.log('Requesting embed:', options)
+
+		const ancestors = [...(this.state.ancestors || []), options.sourceFileId]
+
+		const data = await this.sendRequest<EmbedOpenRes['data']>((id) => {
+			this.sendToShell(
+				this.createRequestWithPayload('embed:open.req', id, {
+					targetFileId: options.targetFileId,
+					targetContentType: options.targetContentType,
+					sourceFileId: options.sourceFileId,
+					access: options.access,
+					navState: options.navState,
+					ancestors
+				})
+			)
+		})
+
+		if (!data?.embedUrl || !data?.nonce) {
+			throw new Error('Invalid embed response: missing embedUrl or nonce')
+		}
+
+		return {
+			embedUrl: data.embedUrl,
+			nonce: data.nonce,
+			resId: data.resId
+		}
+	}
+
+	// ============================================
+	// VIEW STATE API
+	// ============================================
+
+	private viewStateHandler: ((viewState?: string) => void) | null = null
+
+	/**
+	 * Push the current view state to the parent (or shell)
+	 *
+	 * Call this when the app's view changes (slide navigation, pan/zoom, page change).
+	 * For continuous changes (pan/zoom), debounce before calling.
+	 *
+	 * @param payload - View state data including opaque state string and optional aspect ratio
+	 */
+	pushViewState(payload: {
+		viewState: string
+		aspectRatio?: [number, number]
+		aspectFixed?: boolean
+	}): void {
+		this.log('Pushing view state:', payload.viewState)
+		this.sendToShell({
+			cloudillo: true,
+			v: PROTOCOL_VERSION,
+			type: 'embed:viewstate.push',
+			payload
+		})
+	}
+
+	/**
+	 * Register a handler for incoming view state set requests
+	 *
+	 * Called when the parent (or shell) wants the app to navigate to a specific state.
+	 * The handler receives the opaque view state string to parse and apply.
+	 *
+	 * @param handler - Function called with the view state string
+	 */
+	onViewStateSet(handler: (viewState?: string) => void): void {
+		this.viewStateHandler = handler
+	}
+
+	// ============================================
 	// COMPASS / SENSOR API
 	// ============================================
 
@@ -910,6 +1195,13 @@ export class AppMessageBus extends MessageBusBase {
 			this.log('Cancelled pending media session:', sessionId)
 		}
 		this.pendingMediaSessions.clear()
+
+		// Reject all pending document picker sessions
+		for (const [sessionId, pending] of this.pendingDocSessions) {
+			pending.reject(new Error('AppBus destroyed'))
+			this.log('Cancelled pending document session:', sessionId)
+		}
+		this.pendingDocSessions.clear()
 
 		super.destroy()
 	}

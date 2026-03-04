@@ -101,7 +101,9 @@ export const tAuthInitRes = T.struct({
 			token: T.optional(T.string),
 			access: T.optional(T.literal('read', 'write')),
 			tokenLifetime: T.optional(T.number),
-			displayName: T.optional(T.string)
+			displayName: T.optional(T.string),
+			navState: T.optional(T.string),
+			ancestors: T.optional(T.array(T.string))
 		})
 	),
 	error: T.optional(T.string)
@@ -487,6 +489,149 @@ export const tMediaFileResolvedPush = T.struct({
 })
 export type MediaFileResolvedPush = T.TypeOf<typeof tMediaFileResolvedPush>
 
+// ============================================
+// DOCUMENT PICKER MESSAGES
+// ============================================
+
+/**
+ * App requests document picker from shell
+ * Direction: app -> shell
+ */
+export const tDocPickReq = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('doc:pick.req'),
+	id: T.number,
+	payload: T.struct({
+		sessionId: T.string,
+		fileTp: T.optional(T.string),
+		contentType: T.optional(T.string),
+		sourceFileId: T.optional(T.string),
+		title: T.optional(T.string)
+	})
+})
+export type DocPickReq = T.TypeOf<typeof tDocPickReq>
+
+/**
+ * Shell acknowledges document picker request (dialog is opening)
+ * Direction: shell -> app
+ */
+export const tDocPickAck = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('doc:pick.ack'),
+	replyTo: T.number,
+	ok: T.boolean,
+	data: T.optional(
+		T.struct({
+			sessionId: T.string
+		})
+	),
+	error: T.optional(T.string)
+})
+export type DocPickAck = T.TypeOf<typeof tDocPickAck>
+
+/**
+ * Shell pushes document picker result to app
+ * Direction: shell -> app (notification, no response expected)
+ */
+export const tDocPickResultPush = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('doc:pick.result'),
+	payload: T.struct({
+		sessionId: T.string,
+		selected: T.boolean,
+		fileId: T.optional(T.string),
+		fileName: T.optional(T.string),
+		contentType: T.optional(T.string),
+		fileTp: T.optional(T.string),
+		appId: T.optional(T.string)
+	})
+})
+export type DocPickResultPush = T.TypeOf<typeof tDocPickResultPush>
+
+// ============================================
+// EMBED MESSAGES
+// ============================================
+
+/**
+ * App requests to open an embedded document
+ * Direction: app -> shell
+ */
+export const tEmbedOpenReq = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('embed:open.req'),
+	id: T.number,
+	payload: T.struct({
+		targetFileId: T.string,
+		targetContentType: T.string,
+		sourceFileId: T.string,
+		access: T.optional(T.literal('read', 'write')),
+		navState: T.optional(T.string),
+		ancestors: T.optional(T.array(T.string))
+	})
+})
+export type EmbedOpenReq = T.TypeOf<typeof tEmbedOpenReq>
+
+/**
+ * Embedded app reports its current view state to the parent
+ * Direction: app -> shell (notification, no response expected)
+ *
+ * Carries both navigation state and aspect ratio info.
+ * Sent on navigation changes (debounced for continuous changes)
+ * and once after init with aspect ratio info.
+ */
+export const tEmbedViewStatePush = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('embed:viewstate.push'),
+	payload: T.struct({
+		viewState: T.string,
+		aspectRatio: T.optional(T.tuple(T.number, T.number)),
+		aspectFixed: T.optional(T.boolean)
+	})
+})
+export type EmbedViewStatePush = T.TypeOf<typeof tEmbedViewStatePush>
+
+/**
+ * Parent tells embedded app to navigate to a specific state
+ * Direction: shell -> app (notification, no response expected)
+ *
+ * Sent on initial load and when parent wants to change the view.
+ */
+export const tEmbedViewStateSet = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('embed:viewstate.set'),
+	payload: T.struct({
+		viewState: T.optional(T.string)
+	})
+})
+export type EmbedViewStateSet = T.TypeOf<typeof tEmbedViewStateSet>
+
+/**
+ * Shell responds with embed URL and nonce for token isolation
+ * Direction: shell -> app
+ */
+export const tEmbedOpenRes = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('embed:open.res'),
+	replyTo: T.number,
+	ok: T.boolean,
+	data: T.optional(
+		T.struct({
+			embedUrl: T.string,
+			nonce: T.string,
+			resId: T.optional(T.string)
+		})
+	),
+	error: T.optional(T.string)
+})
+export type EmbedOpenRes = T.TypeOf<typeof tEmbedOpenRes>
+
 /**
  * Shell responds with selected media (DEPRECATED - kept for backwards compatibility)
  * Direction: shell -> app
@@ -745,6 +890,17 @@ export const tCloudilloMessage = T.taggedUnion('type')({
 	'media:pick.res': tMediaPickRes, // Deprecated
 	'media:file.resolved': tMediaFileResolvedPush,
 
+	// Document picker messages
+	'doc:pick.req': tDocPickReq,
+	'doc:pick.ack': tDocPickAck,
+	'doc:pick.result': tDocPickResultPush,
+
+	// Embed messages
+	'embed:open.req': tEmbedOpenReq,
+	'embed:open.res': tEmbedOpenRes,
+	'embed:viewstate.push': tEmbedViewStatePush,
+	'embed:viewstate.set': tEmbedViewStateSet,
+
 	// Settings messages
 	'settings:get.req': tSettingsGetReq,
 	'settings:get.res': tSettingsGetRes,
@@ -810,19 +966,23 @@ export type ResponseFor<T extends RequestType> = T extends 'auth:init.req'
 			? 'storage:op.res'
 			: T extends 'media:pick.req'
 				? 'media:pick.res'
-				: T extends 'settings:get.req'
-					? 'settings:get.res'
-					: T extends 'settings:set.req'
-						? 'settings:set.res'
-						: T extends 'settings:list.req'
-							? 'settings:list.res'
-							: T extends 'crdt:clientid.req'
-								? 'crdt:clientid.res'
-								: T extends 'sensor:compass.sub'
-									? 'sensor:compass.sub.res'
-									: T extends 'sw:apikey.get.req'
-										? 'sw:apikey.get.res'
-										: never
+				: T extends 'doc:pick.req'
+					? 'doc:pick.ack'
+					: T extends 'embed:open.req'
+						? 'embed:open.res'
+						: T extends 'settings:get.req'
+							? 'settings:get.res'
+							: T extends 'settings:set.req'
+								? 'settings:set.res'
+								: T extends 'settings:list.req'
+									? 'settings:list.res'
+									: T extends 'crdt:clientid.req'
+										? 'crdt:clientid.res'
+										: T extends 'sensor:compass.sub'
+											? 'sensor:compass.sub.res'
+											: T extends 'sw:apikey.get.req'
+												? 'sw:apikey.get.res'
+												: never
 
 /**
  * Extract the data type from a response message

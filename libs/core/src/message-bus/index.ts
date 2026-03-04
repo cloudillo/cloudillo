@@ -73,6 +73,15 @@ export {
 	type MediaPickResultPush,
 	type MediaPickRes,
 	type MediaFileResolvedPush,
+	// Document picker messages
+	type DocPickReq,
+	type DocPickAck,
+	type DocPickResultPush,
+	// Embed messages
+	type EmbedOpenReq,
+	type EmbedOpenRes,
+	type EmbedViewStatePush,
+	type EmbedViewStateSet,
 	// Settings messages
 	type SettingsGetReq,
 	type SettingsGetRes,
@@ -126,6 +135,13 @@ export {
 	tMediaPickAck,
 	tMediaPickResultPush,
 	tMediaPickRes,
+	tDocPickReq,
+	tDocPickAck,
+	tDocPickResultPush,
+	tEmbedOpenReq,
+	tEmbedOpenRes,
+	tEmbedViewStatePush,
+	tEmbedViewStateSet,
 	tSettingsGetReq,
 	tSettingsGetRes,
 	tSettingsSetReq,
@@ -165,6 +181,10 @@ export {
 	MessageBusBase
 } from './core.js'
 
+// Embed relay
+export { setupEmbedRelay } from './embed-relay.js'
+export type { EmbedRelayOptions, EmbedRelayHandle } from './embed-relay.js'
+
 // App bus
 export {
 	// Types
@@ -173,6 +193,9 @@ export {
 	type SettingsApi,
 	type MediaPickOptions,
 	type MediaPickResult,
+	type DocPickOptions,
+	type DocPickResult,
+	type EmbedOpenResult,
 	// Class
 	AppMessageBus,
 	// Singleton

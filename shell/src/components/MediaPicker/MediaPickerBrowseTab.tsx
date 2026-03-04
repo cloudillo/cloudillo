@@ -295,10 +295,8 @@ export function MediaPickerBrowseTab({
 
 			try {
 				const fileInfo = await api.files.getDescriptor(documentFileId)
-				// Map accessLevel to visibility (simplified - in real app would need proper mapping)
-				// For now, assume 'read' = 'F' (followers), 'write' = 'F', 'none' = 'P' (public)
-				// This is a placeholder - actual visibility would come from file metadata
-				setResolvedDocVisibility('F')
+				const file = fileInfo.file as Record<string, unknown> | undefined
+				setResolvedDocVisibility((file?.visibility as Visibility) || 'F')
 			} catch {
 				// Silently ignore - visibility check is optional
 				// This can fail for new documents or if the API doesn't support this endpoint
@@ -328,11 +326,9 @@ export function MediaPickerBrowseTab({
 	// Handle breadcrumb navigation
 	const handleBreadcrumbClick = useCallback(
 		(index: number) => {
-			setBreadcrumbs((prev) => prev.slice(0, index + 1))
-			setCurrentFolderId((prev) => {
-				const newBreadcrumbs = breadcrumbs.slice(0, index + 1)
-				return newBreadcrumbs[newBreadcrumbs.length - 1].id
-			})
+			const newBreadcrumbs = breadcrumbs.slice(0, index + 1)
+			setBreadcrumbs(newBreadcrumbs)
+			setCurrentFolderId(newBreadcrumbs[newBreadcrumbs.length - 1].id)
 		},
 		[breadcrumbs]
 	)

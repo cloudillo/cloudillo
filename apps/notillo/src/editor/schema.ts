@@ -14,11 +14,16 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { BlockNoteSchema, defaultInlineContentSpecs } from '@blocknote/core'
+import { BlockNoteSchema, defaultBlockSpecs, defaultInlineContentSpecs } from '@blocknote/core'
 import { WikiLink } from './WikiLink.js'
 import { Tag } from './Tag.js'
+import { DocumentEmbed } from './DocumentEmbed.js'
 
 export const notilloSchema = BlockNoteSchema.create({
+	blockSpecs: {
+		...defaultBlockSpecs,
+		documentEmbed: DocumentEmbed
+	},
 	inlineContentSpecs: {
 		...defaultInlineContentSpecs,
 		wikiLink: WikiLink,

@@ -33,6 +33,7 @@ export function useNotillo() {
 	const [idTag, setIdTag] = useState<string | undefined>()
 	const [access, setAccess] = useState<'read' | 'write'>('write')
 	const [darkMode, setDarkMode] = useState(false)
+	const [token, setToken] = useState<string | undefined>()
 
 	// Parse document ID from URL hash (#tenant:path)
 	useEffect(() => {
@@ -58,6 +59,7 @@ export function useNotillo() {
 				setIdTag(bus.idTag)
 				setAccess(bus.access)
 				setDarkMode(bus.darkMode)
+				setToken(state.accessToken)
 
 				if (unmounted) return
 
@@ -116,7 +118,8 @@ export function useNotillo() {
 		connected,
 		error,
 		loading,
-		darkMode
+		darkMode,
+		token
 	}
 }
 

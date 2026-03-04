@@ -79,15 +79,18 @@ export function NotilloApp() {
 			const colonIdx = rest.indexOf(':')
 
 			let resolvedUrl: string
+			const tokenOpt = notillo.token ? { token: notillo.token } : undefined
 			if (colonIdx !== -1) {
 				const tag = rest.slice(0, colonIdx)
 				const fileId = rest.slice(colonIdx + 1)
 
-				if (tag === 'img') resolvedUrl = getFileUrl(notillo.ownerTag, fileId, 'vis.hd')
-				else if (tag === 'vid') resolvedUrl = getFileUrl(notillo.ownerTag, fileId, 'vid.hd')
-				else resolvedUrl = getFileUrl(notillo.ownerTag, fileId)
+				if (tag === 'img')
+					resolvedUrl = getFileUrl(notillo.ownerTag, fileId, 'vis.hd', tokenOpt)
+				else if (tag === 'vid')
+					resolvedUrl = getFileUrl(notillo.ownerTag, fileId, 'vid.hd', tokenOpt)
+				else resolvedUrl = getFileUrl(notillo.ownerTag, fileId, undefined, tokenOpt)
 			} else {
-				resolvedUrl = getFileUrl(notillo.ownerTag, rest, 'vis.hd')
+				resolvedUrl = getFileUrl(notillo.ownerTag, rest, 'vis.hd', tokenOpt)
 			}
 
 			// Fetch and convert unsupported formats to PNG
@@ -132,7 +135,7 @@ export function NotilloApp() {
 				URL.revokeObjectURL(blobUrl)
 			}
 		},
-		[notillo.ownerTag]
+		[notillo.ownerTag, notillo.token]
 	)
 
 	// Create indexes for queries
@@ -383,6 +386,7 @@ export function NotilloApp() {
 								readOnly={isReadOnly}
 								userId={notillo.idTag}
 								ownerTag={notillo.ownerTag}
+								token={notillo.token}
 								darkMode={notillo.darkMode}
 								fileId={notillo.fileId}
 								pages={pages}

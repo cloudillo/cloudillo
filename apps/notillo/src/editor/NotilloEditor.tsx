@@ -56,6 +56,7 @@ interface NotilloEditorProps {
 	readOnly: boolean
 	userId: string
 	ownerTag: string
+	token?: string
 	darkMode: boolean
 	fileId?: string
 	pages: Map<string, PageRecord & { id: string }>
@@ -76,6 +77,7 @@ export const NotilloEditor = React.memo(
 		readOnly,
 		userId,
 		ownerTag,
+		token,
 		darkMode,
 		fileId,
 		pages,
@@ -101,20 +103,30 @@ export const NotilloEditor = React.memo(
 
 					if (tag === 'img') {
 						const px = containerWidthRef.current * (globalThis.devicePixelRatio || 1)
-						return getFileUrl(ownerTag, fileId, getImageVariantForDisplaySize(px, px))
+						return getFileUrl(
+							ownerTag,
+							fileId,
+							getImageVariantForDisplaySize(px, px),
+							token ? { token } : undefined
+						)
 					}
 					if (tag === 'vid') {
-						return getFileUrl(ownerTag, fileId, 'vid.hd')
+						return getFileUrl(ownerTag, fileId, 'vid.hd', token ? { token } : undefined)
 					}
 					// 'aud' or unknown tag — no variant
-					return getFileUrl(ownerTag, fileId)
+					return getFileUrl(ownerTag, fileId, undefined, token ? { token } : undefined)
 				}
 
 				// Legacy untyped URL: cl-file:FILEID — treat as image for backward compat
 				const px = containerWidthRef.current * (globalThis.devicePixelRatio || 1)
-				return getFileUrl(ownerTag, rest, getImageVariantForDisplaySize(px, px))
+				return getFileUrl(
+					ownerTag,
+					rest,
+					getImageVariantForDisplaySize(px, px),
+					token ? { token } : undefined
+				)
 			},
-			[ownerTag]
+			[ownerTag, token]
 		)
 
 		const editor = useCreateBlockNote({
@@ -294,7 +306,7 @@ export const NotilloEditor = React.memo(
 				className="notillo-editor"
 				style={notilloThemeOverrides as React.CSSProperties}
 			>
-				<NotilloEditorProvider value={{ pages }}>
+				<NotilloEditorProvider value={{ pages, sourceFileId: fileId }}>
 					<BlockNoteView
 						editor={editor}
 						editable={!readOnly}
@@ -336,6 +348,7 @@ export const NotilloEditor = React.memo(
 			prev.readOnly === next.readOnly &&
 			prev.userId === next.userId &&
 			prev.ownerTag === next.ownerTag &&
+			prev.token === next.token &&
 			prev.darkMode === next.darkMode &&
 			prev.fileId === next.fileId &&
 			prev.pages === next.pages &&

@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { RiImage2Fill, RiFilmLine, RiVolumeUpFill } from 'react-icons/ri'
+import { RiImage2Fill, RiFilmLine, RiVolumeUpFill, RiFileLine } from 'react-icons/ri'
 
 import { getAppBus, getFileUrl, type MediaFileResolvedPush } from '@cloudillo/core'
 import { getDefaultReactSlashMenuItems, type DefaultReactSuggestionItem } from '@blocknote/react'
@@ -154,6 +154,40 @@ export function useMediaHandler({
 					'Media'
 				)
 			)
+
+			// Document embed item
+			filtered.push({
+				title: 'Document',
+				icon: React.createElement(RiFileLine, { size: 18 }),
+				aliases: ['embed', 'doc'],
+				group: 'Media',
+				onItemClick: () => {
+					const blockId = ed.getTextCursorPosition().block.id
+
+					void (async () => {
+						try {
+							const bus = getAppBus()
+							const result = await bus.pickDocument({
+								sourceFileId: documentFileId,
+								title: 'Embed Document'
+							})
+
+							if (!result) return
+
+							ed.updateBlock(blockId, {
+								type: 'documentEmbed' as any,
+								props: {
+									fileId: result.fileId,
+									contentType: result.contentType,
+									appId: result.appId || ''
+								} as any
+							})
+						} catch (err) {
+							console.error('[MediaHandler] Failed to embed document:', err)
+						}
+					})()
+				}
+			})
 
 			return filtered
 		},

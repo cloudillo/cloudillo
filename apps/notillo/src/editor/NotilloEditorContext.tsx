@@ -19,6 +19,7 @@ import type { PageRecord } from '../rtdb/types.js'
 
 interface NotilloEditorContextValue {
 	pages: Map<string, PageRecord & { id: string }>
+	sourceFileId?: string
 }
 
 const NotilloEditorContext = React.createContext<NotilloEditorContextValue>({

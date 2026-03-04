@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next'
 import {
 	LuUsers as IcUsers,
 	LuLink as IcLink,
+	LuFiles as IcLinked,
 	LuCopy as IcCopy,
 	LuQrCode as IcQrCode,
 	LuTrash2 as IcTrash,
@@ -63,7 +64,7 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 	const dialogRef = React.useRef<HTMLDivElement>(null)
 
 	// Tab state
-	const [activeTab, setActiveTab] = React.useState<'people' | 'link'>('people')
+	const [activeTab, setActiveTab] = React.useState<'people' | 'link' | 'linked'>('people')
 
 	// People tab state
 	const [fileActions, setFileActions] = React.useState<ActionView[]>([])
@@ -80,6 +81,11 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 	const [creatingLink, setCreatingLink] = React.useState(false)
 	const [confirmingDeleteRef, setConfirmingDeleteRef] = React.useState<string | null>(null)
 	const [qrCodeUrl, setQrCodeUrl] = React.useState<string | undefined>()
+
+	// Embedded in tab state
+	const [shareEntries, setShareEntries] = React.useState<Types.ShareEntry[]>([])
+	const [loadingEntries, setLoadingEntries] = React.useState(false)
+	const [confirmingDeleteEntry, setConfirmingDeleteEntry] = React.useState<number | null>(null)
 
 	const Icon = getFileIcon(file.contentType, file.fileTp)
 	const isFolder = file.fileTp === 'FLDR'
@@ -132,6 +138,17 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 					console.error('Failed to load share links', err)
 				} finally {
 					setLoadingRefs(false)
+				}
+
+				try {
+					setLoadingEntries(true)
+					const allEntries = await api.files.listShares(file.fileId)
+					const fileEntries = allEntries.filter((e) => e.subjectType === 'F')
+					setShareEntries(fileEntries)
+				} catch (err) {
+					console.error('Failed to load share entries', err)
+				} finally {
+					setLoadingEntries(false)
 				}
 			})()
 		},
@@ -277,6 +294,31 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 		toast.success(t('Link copied to clipboard'))
 	}
 
+	// Embedded in tab functions
+	function requestDeleteEntry(entryId: number) {
+		setConfirmingDeleteEntry(entryId)
+	}
+
+	function cancelDeleteEntry() {
+		setConfirmingDeleteEntry(null)
+	}
+
+	async function confirmDeleteEntry(entryId: number) {
+		if (!api) return
+
+		try {
+			await api.files.deleteShare(file.fileId, entryId)
+			setShareEntries((entries) => entries.filter((e) => e.id !== entryId))
+			toast.success(t('Link removed'))
+			onPermissionsChanged?.()
+		} catch (err) {
+			console.error('Failed to delete share entry', err)
+			toast.error(t('Failed to remove link'))
+		} finally {
+			setConfirmingDeleteEntry(null)
+		}
+	}
+
 	function handleClose() {
 		onClose()
 	}
@@ -325,7 +367,7 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 				<div className="px-3 pt-2">
 					<Tabs
 						value={activeTab}
-						onTabChange={(v) => setActiveTab(v as 'people' | 'link')}
+						onTabChange={(v) => setActiveTab(v as 'people' | 'link' | 'linked')}
 					>
 						<Tab value="people">
 							<IcUsers className="me-2" />
@@ -334,6 +376,10 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 						<Tab value="link">
 							<IcLink className="me-2" />
 							{t('Link')}
+						</Tab>
+						<Tab value="linked">
+							<IcLinked className="me-2" />
+							{t('Embedded in')}
 						</Tab>
 					</Tabs>
 				</div>
@@ -551,6 +597,89 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 							{shareRefs.length === 0 && !loadingRefs && (
 								<div className="text-secondary text-center py-3">
 									{t('No share links yet. Create one above.')}
+								</div>
+							)}
+						</div>
+					)}
+
+					{isOwner && activeTab === 'linked' && (
+						<div className="c-vbox g-3">
+							{shareEntries.length > 0 && (
+								<div>
+									<h4 className="mb-2">{t('Embedded in')}</h4>
+									<div className="c-vbox g-2">
+										{shareEntries.map((entry) => {
+											const EntryIcon = entry.subjectContentType
+												? getFileIcon(
+														entry.subjectContentType,
+														entry.subjectFileTp
+													)
+												: IcUnknown
+
+											return confirmingDeleteEntry === entry.id ? (
+												<div
+													key={entry.id}
+													className="c-hbox g-2 align-items-center p-2 bg-secondary-subtle rounded"
+												>
+													<span className="flex-fill text-small">
+														{t('Remove this link?')}
+													</span>
+													<Button
+														size="small"
+														onClick={cancelDeleteEntry}
+													>
+														{t('Cancel')}
+													</Button>
+													<Button
+														size="small"
+														primary
+														onClick={() => confirmDeleteEntry(entry.id)}
+													>
+														{t('Remove')}
+													</Button>
+												</div>
+											) : (
+												<div
+													key={entry.id}
+													className="c-hbox g-2 align-items-center p-2 bg-secondary-subtle rounded"
+												>
+													{React.createElement<
+														React.ComponentProps<typeof IcUnknown>
+													>(EntryIcon, {
+														className: 'flex-shrink-0'
+													})}
+													<div className="flex-fill text-truncate">
+														<div>
+															{entry.subjectFileName ||
+																entry.subjectId}
+														</div>
+														<div className="text-secondary text-small">
+															{entry.permission === 'W'
+																? t('Can edit')
+																: t('Read only')}
+															{entry.expiresAt
+																? ` · ${t('Expires')} ${dayjs(entry.expiresAt).format('YYYY-MM-DD')}`
+																: ''}
+														</div>
+													</div>
+													<button
+														type="button"
+														className="c-link p-1"
+														title={t('Remove link')}
+														onClick={() => requestDeleteEntry(entry.id)}
+													>
+														<IcTrash />
+													</button>
+												</div>
+											)
+										})}
+									</div>
+								</div>
+							)}
+
+							{shareEntries.length === 0 && !loadingEntries && (
+								<div className="text-secondary text-center py-3">
+									{t('Not embedded in any files.')}
 								</div>
 							)}
 						</div>

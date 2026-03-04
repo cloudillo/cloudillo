@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next'
 import { FiEdit2 as IcEdit, FiMoreVertical as IcMore } from 'react-icons/fi'
 import {
 	LuLink as IcLink,
+	LuFiles as IcLinked,
 	LuCopy as IcCopy,
 	LuQrCode as IcQrCode,
 	LuShare2 as IcShare,
@@ -82,6 +83,7 @@ export function DetailsPanel({
 	const toast = useToast()
 	const [fileActions, setFileActions] = React.useState<ActionView[] | undefined>()
 	const [shareRefs, setShareRefs] = React.useState<Types.Ref[] | undefined>()
+	const [shareEntries, setShareEntries] = React.useState<Types.ShareEntry[] | undefined>()
 	const [qrCodeUrl, setQrCodeUrl] = React.useState<string | undefined>()
 
 	const Icon = getFileIcon(file.contentType, file.fileTp)
@@ -119,6 +121,14 @@ export function DetailsPanel({
 					resourceId: file.fileId
 				})
 				setShareRefs(refs)
+
+				try {
+					const allEntries = await api.files.listShares(file.fileId)
+					const fileEntries = allEntries.filter((e) => e.subjectType === 'F')
+					setShareEntries(fileEntries)
+				} catch (err) {
+					console.error('Failed to load share entries', err)
+				}
 			})()
 		},
 		[api, file.fileId]
@@ -170,6 +180,27 @@ export function DetailsPanel({
 		const url = `${window.location.origin}/s/${refId}`
 		navigator.clipboard.writeText(url)
 		toast.success(t('Link copied to clipboard'))
+	}
+
+	// Share entries
+	async function deleteShareEntry(entryId: number) {
+		if (!api) return
+		if (
+			!(await dialog.confirm(
+				t('Confirmation'),
+				t('Are you sure you want to remove this linked file?')
+			))
+		)
+			return
+
+		try {
+			await api.files.deleteShare(file.fileId, entryId)
+			setShareEntries((entries) => entries?.filter((e) => e.id !== entryId))
+			toast.success(t('Link removed'))
+		} catch (err) {
+			console.error('Failed to delete share entry', err)
+			toast.error(t('Failed to remove link'))
+		}
 	}
 
 	return (
@@ -452,10 +483,59 @@ export function DetailsPanel({
 							</div>
 						)}
 
+						{/* Embedded in */}
+						{shareEntries && shareEntries.length > 0 && (
+							<div>
+								<h4 className="text-small text-secondary mb-2">
+									{t('Embedded in')}
+								</h4>
+								<div className="c-vbox g-1">
+									{shareEntries.map((entry) => {
+										const EntryIcon = entry.subjectContentType
+											? getFileIcon(
+													entry.subjectContentType,
+													entry.subjectFileTp
+												)
+											: IcUnknown
+
+										return (
+											<div
+												key={entry.id}
+												className="w-100 p-0 ps-1 c-hbox align-items-center"
+											>
+												<div className="flex-fill c-hbox g-2 align-items-center">
+													{React.createElement<
+														React.ComponentProps<typeof IcUnknown>
+													>(EntryIcon, {})}
+													<div className="text-truncate">
+														{entry.subjectFileName || entry.subjectId}
+													</div>
+													<span className="text-secondary text-small">
+														{entry.permission === 'W'
+															? t('Can edit')
+															: t('Read only')}
+													</span>
+												</div>
+												<button
+													type="button"
+													className="c-link p-1"
+													title={t('Remove link')}
+													onClick={() => deleteShareEntry(entry.id)}
+												>
+													<IcTrash className="text-secondary" />
+												</button>
+											</div>
+										)
+									})}
+								</div>
+							</div>
+						)}
+
 						{/* Empty state */}
 						{(!writePerms || writePerms.length === 0) &&
 							(!readPerms || readPerms.length === 0) &&
-							(!shareRefs || shareRefs.length === 0) && (
+							(!shareRefs || shareRefs.length === 0) &&
+							(!shareEntries || shareEntries.length === 0) && (
 								<div className="text-secondary text-center py-2">
 									{t('Not shared')}
 									{onShare && (

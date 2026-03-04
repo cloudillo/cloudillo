@@ -338,4 +338,14 @@ export type { FontPickerProps } from './FontPicker/index.js'
 export { LoadMoreTrigger } from './InfiniteScroll/index.js'
 export type { LoadMoreTriggerProps } from './InfiniteScroll/index.js'
 
+// DocumentEmbed Components
+export { useDocumentEmbed, DocumentEmbedIframe, SvgDocumentEmbed } from './DocumentEmbed/index.js'
+export type {
+	UseDocumentEmbedOptions,
+	DocumentEmbedState,
+	DocumentEmbedIframeProps,
+	DocumentEmbedIframeRef,
+	SvgDocumentEmbedProps
+} from './DocumentEmbed/index.js'
+
 // vim: ts=4

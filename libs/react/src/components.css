@@ -1121,6 +1121,18 @@
 	font-weight: 500;
 }
 
+/* ==========================================================================
+   Document Embed
+   ========================================================================== */
+
+.cl-document-embed-iframe {
+	width: 100%;
+	height: 100%;
+	border: 1px solid var(--col-outline, #ccc);
+	border-radius: 4px;
+	background: var(--col-surface, #fff);
+}
+
 /*
  vim: ts=4
  */

@@ -21,6 +21,7 @@
  * Extends ImageSpec pattern to properly handle click-to-select behavior.
  */
 
+import Quill from 'quill'
 import {
 	BlotSpec,
 	AlignAction,
@@ -69,7 +70,22 @@ class ClImageSpec extends BlotSpec {
 	}
 
 	onHide = (): void => {
-		// Clear the image reference when hiding
+		// Persist resize width to CRDT via Quill's API.
+		// quill-blot-formatter2 sets width via setAttribute() which only modifies
+		// the DOM. We read the final value and apply it through Quill's
+		// formatText() so y-quill syncs to Yjs.
+		const target = this.img
+		if (target) {
+			const width = target.getAttribute('width')
+			if (width) {
+				const quill = this.formatter.quill
+				const blot = Quill.find(target)
+				if (blot) {
+					const index = quill.getIndex(blot)
+					quill.formatText(index, 1, 'width', width, 'user')
+				}
+			}
+		}
 		this.img = null
 	}
 }

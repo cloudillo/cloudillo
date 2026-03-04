@@ -31,6 +31,8 @@ import 'quill-table-better/dist/quill-table-better.css'
 
 import { ClImageBlot } from './blots/ClImageBlot.js'
 import { ClImageSpec } from './blots/ClImageSpec.js'
+import { ClDocumentBlot } from './blots/ClDocumentBlot.js'
+import { ClDocumentSpec } from './blots/ClDocumentSpec.js'
 import { registerSafeTableBlots } from './blots/SafeTableBlots.js'
 
 import './quillo.css'
@@ -376,6 +378,8 @@ function updatePairingBadges(
 	// Set ownerTag for image URL construction (extract from URL hash, not bus.idTag which is the user's identity)
 	const [ownerTag] = location.hash.slice(1).split(':')
 	ClImageBlot.ownerTag = ownerTag
+	ClImageBlot.token = state.accessToken
+	ClDocumentBlot.sourceFileId = docId
 	const yDoc = new Y.Doc()
 	const doc = await openYDoc(yDoc, docId)
 	doc.provider.awareness.setLocalStateField('user', {
@@ -431,7 +435,7 @@ function updatePairingBadges(
 			cursors: true,
 			toolbar: '#toolbar',
 			blotFormatter2: {
-				specs: [ClImageSpec]
+				specs: [ClImageSpec, ClDocumentSpec]
 			},
 			history: {
 				userOnly: true
@@ -483,6 +487,34 @@ function updatePairingBadges(
 			editor.setSelection(range.index + 1, 0, 'silent')
 		} catch (error) {
 			console.error('[quillo] Failed to insert image:', error)
+		}
+	})
+
+	toolbarModule.addHandler('cl-document', async () => {
+		if (bus.access === 'read') return
+
+		try {
+			const result = await bus.pickDocument({
+				sourceFileId: docId,
+				title: 'Embed Document'
+			})
+
+			if (!result) return // User cancelled
+
+			const range = editor.getSelection(true)
+			editor.insertEmbed(
+				range.index,
+				'cl-document',
+				{
+					fileId: result.fileId,
+					appId: result.appId || 'view',
+					contentType: result.contentType
+				},
+				'user'
+			)
+			editor.setSelection(range.index + 1, 0, 'silent')
+		} catch (error) {
+			console.error('[quillo] Failed to embed document:', error)
 		}
 	})
 

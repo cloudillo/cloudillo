@@ -39,8 +39,9 @@ class ClImageBlot extends BlockEmbed {
 	static tagName = 'IMG'
 	static className = 'ql-cl-image'
 
-	// Static property to hold ownerTag (set during app initialization)
+	// Static properties set during app initialization
 	static ownerTag: string | undefined
+	static token: string | undefined
 
 	static create(value: ClImageValue): HTMLElement {
 		const node = super.create() as HTMLImageElement
@@ -50,14 +51,25 @@ class ClImageBlot extends BlockEmbed {
 		// Construct src URL from fileId
 		const variant = 'vis.sd' // Default variant for rich text display
 		if (ClImageBlot.ownerTag) {
-			node.setAttribute('src', getFileUrl(ClImageBlot.ownerTag, value.fileId, variant))
+			node.setAttribute(
+				'src',
+				getFileUrl(
+					ClImageBlot.ownerTag,
+					value.fileId,
+					variant,
+					ClImageBlot.token ? { token: ClImageBlot.token } : undefined
+				)
+			)
 		} else {
 			node.setAttribute('src', `/api/files/${value.fileId}?variant=${variant}`)
 		}
 
-		// Apply optional width
+		// Apply optional width (data attribute = stable source of truth,
+		// HTML width attribute = visual display; avoid style.width which
+		// has higher specificity and blocks setAttribute('width') resizes)
 		if (value.width) {
-			node.style.width = value.width
+			node.setAttribute('data-width', value.width)
+			node.setAttribute('width', value.width)
 		}
 
 		return node
@@ -67,18 +79,22 @@ class ClImageBlot extends BlockEmbed {
 		return {
 			fileId: node.getAttribute('data-file-id') || '',
 			alt: node.getAttribute('alt') || undefined,
-			width: (node as HTMLElement).style.width || undefined
+			width: node.getAttribute('data-width') || undefined
 		}
 	}
 
 	/**
-	 * Handle alignment via formats (for quill-blot-formatter2)
+	 * Handle alignment and width via formats (for quill-blot-formatter2)
 	 */
 	static formats(node: HTMLElement): Record<string, string | null> {
 		const formats: Record<string, string | null> = {}
 		const align = node.getAttribute('data-blot-align')
 		if (align) {
 			formats['cl-image-align'] = align
+		}
+		const width = node.getAttribute('data-width')
+		if (width) {
+			formats['width'] = width
 		}
 		return formats
 	}
@@ -92,9 +108,11 @@ class ClImageBlot extends BlockEmbed {
 			}
 		} else if (name === 'width') {
 			if (value) {
-				this.domNode.style.width = value
+				this.domNode.setAttribute('data-width', value)
+				this.domNode.setAttribute('width', value)
 			} else {
-				this.domNode.style.width = ''
+				this.domNode.removeAttribute('data-width')
+				this.domNode.removeAttribute('width')
 			}
 		} else {
 			super.format(name, value)

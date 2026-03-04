@@ -283,6 +283,119 @@ body {
 	border: 2px dashed var(--col-outline, #ccc);
 }
 
+/* ============================================
+   Cloudillo Document Embed Blot
+   ============================================ */
+
+.ql-cl-document {
+	display: block;
+	position: relative;
+	width: 100%;
+	min-height: 200px;
+	aspect-ratio: 16 / 10;
+	margin: 0.75rem 0;
+	border: 1px solid var(--col-outline, #ccc);
+	border-radius: var(--border-radius-lg, 8px);
+	overflow: hidden;
+	background: var(--col-surface, #fafafa);
+}
+
+.ql-cl-document.loading,
+.ql-cl-document.error {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.ql-cl-document.error {
+	border-color: var(--col-error, #d32f2f);
+	background: color-mix(in srgb, var(--col-error, #d32f2f) 5%, var(--col-surface, #fafafa));
+}
+
+.ql-cl-document-placeholder {
+	color: var(--col-on-secondary, #666);
+	font-size: 0.875rem;
+	padding: 1rem;
+	text-align: center;
+}
+
+.ql-cl-document.error .ql-cl-document-placeholder {
+	color: var(--col-error, #d32f2f);
+}
+
+.ql-cl-document-iframe {
+	width: 100%;
+	height: 100%;
+	min-height: 200px;
+	border: none;
+	display: block;
+	pointer-events: none;
+}
+
+/* Double-click to activate iframe interaction */
+.ql-cl-document.active .ql-cl-document-iframe {
+	pointer-events: auto;
+}
+
+/* In read-only mode, allow direct interaction with embedded documents */
+.ql-disabled .ql-cl-document-iframe {
+	pointer-events: auto;
+}
+
+.ql-cl-document.active {
+	outline: 2px solid var(--col-primary, #0589f3);
+	outline-offset: -1px;
+}
+
+/* Activation button on formatter overlay */
+.ql-cl-document-activate {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	border: none;
+	background: rgba(0, 0, 0, 0.55);
+	color: #fff;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	z-index: 1;
+	transition: background 0.15s;
+}
+
+.ql-cl-document-activate:hover {
+	background: rgba(0, 0, 0, 0.75);
+}
+
+/* Toolbar button styling for embed */
+.c-panel.ql-toolbar.ql-snow button.ql-cl-document {
+	width: auto;
+	min-height: unset;
+	aspect-ratio: unset;
+	padding: 3px 5px;
+	display: inline-flex;
+	align-items: center;
+	border: none;
+	border-radius: 0;
+	background: transparent;
+	margin: 0;
+	overflow: visible;
+	position: static;
+}
+
+.c-panel.ql-toolbar.ql-snow button.ql-cl-document svg {
+	stroke: var(--col-on);
+}
+
+.c-panel.ql-toolbar.ql-snow button.ql-cl-document:hover svg {
+	stroke: var(--col-em);
+}
+
 /* Table styles */
 .ql-table-wrapper {
 	margin: 1rem 0;

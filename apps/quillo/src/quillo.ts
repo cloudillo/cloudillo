@@ -365,15 +365,10 @@ function updatePairingBadges(
 	// Fix: Override table blots with null-safe versions (fixes crash on Yjs sync)
 	registerSafeTableBlots()
 
-	console.log('location.hash', location.hash)
-	//const docId = location.hash.slice(1).split(':')[1]
 	const docId = location.hash.slice(1)
-	console.log('docId', docId)
 
 	const bus = getAppBus()
 	const state = await bus.init('quillo')
-	console.log('[quillo] token', state.accessToken)
-	console.log('[quillo] idTag', bus.idTag)
 
 	// Set ownerTag for image URL construction (extract from URL hash, not bus.idTag which is the user's identity)
 	const [ownerTag] = location.hash.slice(1).split(':')

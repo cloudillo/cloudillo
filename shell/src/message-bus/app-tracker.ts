@@ -291,10 +291,6 @@ export class AppTracker {
 	}
 
 	/**
-	 * Clear pending registrations and reset count
-	 * Note: WeakMap connections will be garbage collected automatically
-	 */
-	/**
 	 * Store a scoped token for an embedded document's file ID.
 	 * Used so nested embeds can look up the correct via-token.
 	 */
@@ -309,6 +305,10 @@ export class AppTracker {
 		return this.embedTokens.get(fileId)
 	}
 
+	/**
+	 * Clear pending registrations and reset count
+	 * Note: WeakMap connections will be garbage collected automatically
+	 */
 	clear(): void {
 		this.connections = new WeakMap()
 		this.activeWindows.clear()

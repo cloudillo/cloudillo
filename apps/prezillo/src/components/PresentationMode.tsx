@@ -668,9 +668,6 @@ export function PresentationMode({
 		document.addEventListener('fullscreenchange', handleFullscreenChange)
 		return () => {
 			document.removeEventListener('fullscreenchange', handleFullscreenChange)
-			if (document.fullscreenElement) {
-				document.exitFullscreen().catch(() => {})
-			}
 		}
 	}, [fullscreen])
 

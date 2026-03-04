@@ -148,6 +148,7 @@ function arePropsEqual(prev: ObjectShapeProps, next: ObjectShapeProps): boolean 
 		prev.tempBounds === next.tempBounds &&
 		prev.showInstanceIndicator === next.showInstanceIndicator &&
 		prev.activeDocument === next.activeDocument &&
+		prev.onDocumentViewStateChange === next.onDocumentViewStateChange &&
 		shallowEqual(prev.style, next.style) &&
 		shallowEqual(prev.textStyle, next.textStyle)
 	)

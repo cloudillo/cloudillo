@@ -116,13 +116,17 @@ class ClDocumentSpec extends BlotSpec {
 		if (target) {
 			const width = target.getAttribute('width')
 			const height = target.getAttribute('height')
+			const storedWidth = target.getAttribute('data-width')
+			const storedHeight = target.getAttribute('data-height')
 			if (width || height) {
 				const quill = this.formatter.quill
 				const blot = Quill.find(target)
 				if (blot) {
 					const index = quill.getIndex(blot)
-					if (width) quill.formatText(index, 1, 'width', width, 'user')
-					if (height) quill.formatText(index, 1, 'height', height, 'user')
+					if (width && width !== storedWidth)
+						quill.formatText(index, 1, 'width', width, 'user')
+					if (height && height !== storedHeight)
+						quill.formatText(index, 1, 'height', height, 'user')
 				}
 			}
 		}

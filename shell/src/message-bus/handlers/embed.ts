@@ -66,10 +66,11 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 		const { targetFileId, targetContentType, sourceFileId, access, navState, ancestors } =
 			msg.payload
 		const ancestorChain = ancestors || []
+		const nextAncestorChain = [...ancestorChain, sourceFileId]
 		const requestedAccess = access || 'read'
 
 		// Depth check
-		if (ancestorChain.length >= MAX_EMBED_DEPTH) {
+		if (nextAncestorChain.length >= MAX_EMBED_DEPTH) {
 			console.warn('[Embed] Depth limit exceeded:', ancestorChain.length)
 			bus.sendResponse(
 				appWindow,
@@ -127,7 +128,7 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 			bus.getAppTracker().storeEmbedToken(targetFileId, tokenResult.token)
 
 			// Generate nonce for pending registration
-			const nonce = `embed-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+			const nonce = `embed-${Date.now()}-${Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, '0')).join('')}`
 
 			// Resolve app name from content type
 			const appName = resolveAppName(targetContentType)
@@ -145,10 +146,8 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 				access: requestedAccess,
 				idTag,
 				navState,
-				ancestors: ancestorChain
+				ancestors: nextAncestorChain
 			})
-
-			console.log('[Embed] Embed URL generated:', embedUrl, 'nonce:', nonce)
 
 			bus.sendResponse(appWindow, 'embed:open.res', msg.id, true, {
 				embedUrl,

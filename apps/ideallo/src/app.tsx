@@ -993,38 +993,12 @@ export function IdealloApp() {
 	const initialNavAppliedRef = React.useRef(false)
 	const navPushTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
-	// Restore initial navState once when embedded
+	// Register viewstate.set handler once when embedded
 	React.useEffect(() => {
 		const bus = getAppBus()
 		if (!bus.embedded) return
 
-		if (!initialNavAppliedRef.current && ideallo.cloudillo.synced) {
-			const initialNav = bus.getState().navState
-			console.log('[Ideallo] navState restore:', initialNav)
-			if (initialNav) {
-				const params = Object.fromEntries(
-					initialNav.split(';').map((p) => p.split('=') as [string, string])
-				)
-				const center = params.c?.split(',').map(Number)
-				const zoom = params.z ? Number(params.z) : undefined
-				if (
-					center &&
-					center.length === 2 &&
-					!Number.isNaN(center[0]) &&
-					!Number.isNaN(center[1])
-				) {
-					// Delay slightly to ensure canvas is mounted
-					requestAnimationFrame(() => {
-						canvasRef.current?.setViewport(center[0], center[1], zoom ?? 1)
-					})
-				}
-			}
-			initialNavAppliedRef.current = true
-		}
-
-		// Handle subsequent viewstate.set messages from parent
 		bus.onViewStateSet((viewState?: string) => {
-			console.log('[Ideallo] viewstate.set received:', viewState)
 			if (!viewState) return
 			const params = Object.fromEntries(
 				viewState.split(';').map((p) => p.split('=') as [string, string])
@@ -1040,6 +1014,34 @@ export function IdealloApp() {
 				canvasRef.current?.setViewport(center[0], center[1], zoom ?? 1)
 			}
 		})
+	}, [])
+
+	// Restore initial navState once when embedded and synced
+	React.useEffect(() => {
+		const bus = getAppBus()
+		if (!bus.embedded) return
+
+		if (!initialNavAppliedRef.current && ideallo.cloudillo.synced) {
+			const initialNav = bus.getState().navState
+			if (initialNav) {
+				const params = Object.fromEntries(
+					initialNav.split(';').map((p) => p.split('=') as [string, string])
+				)
+				const center = params.c?.split(',').map(Number)
+				const zoom = params.z ? Number(params.z) : undefined
+				if (
+					center &&
+					center.length === 2 &&
+					!Number.isNaN(center[0]) &&
+					!Number.isNaN(center[1])
+				) {
+					requestAnimationFrame(() => {
+						canvasRef.current?.setViewport(center[0], center[1], zoom ?? 1)
+					})
+				}
+			}
+			initialNavAppliedRef.current = true
+		}
 	}, [ideallo.cloudillo.synced])
 
 	// Push viewport changes to parent (debounced)
@@ -1057,7 +1059,6 @@ export function IdealloApp() {
 				const centerX = (rect.width / 2 - matrix[4]) / zoom
 				const centerY = (rect.height / 2 - matrix[5]) / zoom
 				const navState = `c=${centerX.toFixed(0)},${centerY.toFixed(0)};z=${zoom.toFixed(2)}`
-				console.log('[Ideallo] navState push:', navState)
 				bus.pushViewState({ viewState: navState })
 			}, 500)
 		},

@@ -110,6 +110,8 @@ class ClDocumentBlot extends BlockEmbed {
 				navState: value.navState
 			})
 
+			if (!node.isConnected) return
+
 			// Remove loading state and placeholder
 			node.classList.remove('loading')
 			const placeholder = node.querySelector('.ql-cl-document-placeholder')

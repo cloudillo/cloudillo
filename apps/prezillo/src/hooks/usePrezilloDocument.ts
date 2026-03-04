@@ -167,30 +167,31 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 		}
 	}, [viewOrder, activeViewId])
 
-	// Embed support: handle initial navState and incoming viewstate.set from parent
+	// Embed support: register viewstate.set handler once
+	React.useEffect(() => {
+		const bus = getAppBus()
+		if (!bus.embedded) return
+
+		bus.onViewStateSet((viewState?: string) => {
+			if (viewState) {
+				setActiveViewIdInternal(toViewId(viewState))
+			}
+		})
+	}, [])
+
+	// Embed support: apply initial navState once when viewOrder is available
 	const initialNavAppliedRef = React.useRef(false)
 	React.useEffect(() => {
 		const bus = getAppBus()
 		if (!bus.embedded) return
 
-		// Apply initial navState once when viewOrder is available
 		if (!initialNavAppliedRef.current && viewOrder && viewOrder.length > 0) {
 			const initialNav = bus.getState().navState
-			console.log('[Prezillo] navState restore:', initialNav, 'viewOrder:', viewOrder)
 			if (initialNav && viewOrder.includes(initialNav)) {
-				console.log('[Prezillo] Setting activeViewId from navState:', initialNav)
 				setActiveViewIdInternal(toViewId(initialNav))
 			}
 			initialNavAppliedRef.current = true
 		}
-
-		// Handle subsequent viewstate.set messages from parent
-		bus.onViewStateSet((viewState?: string) => {
-			console.log('[Prezillo] viewstate.set received:', viewState)
-			if (viewState) {
-				setActiveViewIdInternal(toViewId(viewState))
-			}
-		})
 	}, [viewOrder])
 
 	// Embed support: push view state to parent when active view changes

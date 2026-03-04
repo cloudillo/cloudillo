@@ -62,7 +62,6 @@ export function useDocumentHandler(options: UseDocumentHandlerOptions) {
 				})
 
 				if (!result) {
-					setIsInserting(false)
 					onInsertComplete?.()
 					return
 				}
@@ -90,6 +89,7 @@ export function useDocumentHandler(options: UseDocumentHandlerOptions) {
 				onInsertComplete?.()
 			} catch (error) {
 				console.error('Failed to embed document:', error)
+				onInsertComplete?.()
 			} finally {
 				setIsInserting(false)
 			}

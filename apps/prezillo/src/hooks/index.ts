@@ -30,6 +30,9 @@ export type { SnapSettings, UseSnapSettingsResult } from './useSnappingConfig'
 export { useImageHandler } from './useImageHandler'
 export type { UseImageHandlerOptions } from './useImageHandler'
 
+export { useDocumentHandler } from './useDocumentHandler'
+export type { UseDocumentHandlerOptions } from './useDocumentHandler'
+
 export { usePalette, usePaletteValue } from './usePalette'
 export type { UsePaletteReturn } from './usePalette'
 

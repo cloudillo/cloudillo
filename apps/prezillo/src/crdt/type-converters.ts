@@ -34,6 +34,7 @@ const OBJECT_TYPE_MAP: Record<Stored.ObjectTypeCode, Runtime.ObjectType> = {
 	T: 'text',
 	I: 'image',
 	M: 'embed',
+	D: 'document',
 	C: 'connector',
 	Q: 'qrcode',
 	F: 'pollframe',
@@ -51,6 +52,7 @@ const OBJECT_TYPE_REVERSE: Record<Runtime.ObjectType, Stored.ObjectTypeCode> = {
 	text: 'T',
 	image: 'I',
 	embed: 'M',
+	document: 'D',
 	connector: 'C',
 	qrcode: 'Q',
 	pollframe: 'F',
@@ -462,6 +464,19 @@ export function expandObject(id: string, stored: Stored.StoredObject): Runtime.P
 				src: (stored as Stored.StoredEmbed).src
 			} as Runtime.EmbedObject
 
+		case 'D': {
+			const docEmbed = stored as Stored.StoredDocEmbed
+			return {
+				...base,
+				type: 'document',
+				fileId: docEmbed.fid,
+				contentType: docEmbed.ct,
+				appId: docEmbed.aid,
+				navState: docEmbed.ns,
+				aspectRatio: docEmbed.ar
+			} as Runtime.DocumentObject
+		}
+
 		case 'C':
 			const conn = stored as Stored.StoredConnector
 			return {
@@ -622,6 +637,19 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 				mt: embed.embedType,
 				src: embed.src
 			} as Stored.StoredEmbed
+
+		case 'document': {
+			const docEmbed2 = runtime as Runtime.DocumentObject
+			return {
+				...base,
+				t: 'D',
+				fid: docEmbed2.fileId,
+				ct: docEmbed2.contentType,
+				...(docEmbed2.appId && { aid: docEmbed2.appId }),
+				...(docEmbed2.navState && { ns: docEmbed2.navState }),
+				...(docEmbed2.aspectRatio && { ar: docEmbed2.aspectRatio })
+			} as Stored.StoredDocEmbed
+		}
 
 		case 'connector':
 			const conn = runtime as Runtime.ConnectorObject

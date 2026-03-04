@@ -19,8 +19,14 @@
  */
 
 import * as React from 'react'
-import { PiXBold as IcClose } from 'react-icons/pi'
+import {
+	PiXBold as IcClose,
+	PiCaretLeftBold as IcPrev,
+	PiCaretRightBold as IcNext,
+	PiArrowsOutBold as IcFullscreen
+} from 'react-icons/pi'
 
+import { SvgDocumentEmbed } from '@cloudillo/react'
 import type {
 	ViewId,
 	ViewNode,
@@ -68,6 +74,9 @@ export interface PresentationModeProps {
 	initialViewId: ViewId | null
 	onExit: () => void
 	ownerTag?: string
+	token?: string
+	/** Whether to use fullscreen mode (default: true for backward compat) */
+	fullscreen?: boolean
 	/** Whether following a presenter (synced mode) */
 	isFollowing?: boolean
 	/** Current view index from presenter (when following) */
@@ -76,6 +85,8 @@ export interface PresentationModeProps {
 	followingPresenterClientId?: number
 	/** Callback when local navigation happens (for presenting) */
 	onViewChange?: (viewIndex: number, viewId: ViewId) => void
+	/** Source file ID for document embeds */
+	sourceFileId?: string
 }
 
 /**
@@ -87,6 +98,8 @@ function PresentationObjectShape({
 	style,
 	textStyle,
 	ownerTag,
+	token,
+	sourceFileId,
 	voteCount = 0,
 	totalVotes = 0,
 	isWinner = false,
@@ -100,6 +113,8 @@ function PresentationObjectShape({
 	style: ReturnType<typeof resolveShapeStyle>
 	textStyle: ReturnType<typeof resolveTextStyle>
 	ownerTag?: string
+	token?: string
+	sourceFileId?: string
 	voteCount?: number
 	totalVotes?: number
 	isWinner?: boolean
@@ -211,7 +226,30 @@ function PresentationObjectShape({
 			}
 			break
 		case 'image':
-			content = <ImageRenderer object={object as ImageObject} ownerTag={ownerTag} scale={1} />
+			content = (
+				<ImageRenderer
+					object={object as ImageObject}
+					ownerTag={ownerTag}
+					token={token}
+					scale={1}
+				/>
+			)
+			break
+		case 'document':
+			content = (
+				<SvgDocumentEmbed
+					x={object.x}
+					y={object.y}
+					width={object.width}
+					height={object.height}
+					fileId={(object as any).fileId}
+					contentType={(object as any).contentType}
+					sourceFileId={sourceFileId || ''}
+					appId={(object as any).appId}
+					access="read"
+					active={true}
+				/>
+			)
 			break
 		case 'qrcode':
 			content = (
@@ -317,6 +355,8 @@ interface PresentationSlideProps {
 	view: ViewNode
 	doc: YPrezilloDocument
 	ownerTag?: string
+	token?: string
+	sourceFileId?: string
 	isVisible: boolean
 	/** Whether to render content (objects). False = empty placeholder for performance */
 	renderContent?: boolean
@@ -335,6 +375,8 @@ const PresentationSlide = React.memo(function PresentationSlide({
 	view,
 	doc,
 	ownerTag,
+	token,
+	sourceFileId,
 	isVisible,
 	renderContent = true,
 	voteCounts,
@@ -442,6 +484,8 @@ const PresentationSlide = React.memo(function PresentationSlide({
 						style={style}
 						textStyle={textStyle}
 						ownerTag={ownerTag}
+						token={token}
+						sourceFileId={sourceFileId}
 						voteCount={voteCount}
 						totalVotes={totalVotes}
 						isWinner={isWinner}
@@ -462,10 +506,13 @@ export function PresentationMode({
 	initialViewId,
 	onExit,
 	ownerTag,
+	token,
+	fullscreen = true,
 	isFollowing,
 	followingViewIndex,
 	followingPresenterClientId,
-	onViewChange
+	onViewChange,
+	sourceFileId
 }: PresentationModeProps) {
 	const { doc, awareness } = prezillo
 	const containerRef = React.useRef<HTMLDivElement>(null)
@@ -578,8 +625,13 @@ export function PresentationMode({
 		[awareness, currentView?.id]
 	)
 
-	// Enter fullscreen on mount
+	// Track whether we're currently in browser fullscreen
+	const [isInFullscreen, setIsInFullscreen] = React.useState(false)
+
+	// Enter fullscreen on mount (only in fullscreen mode)
 	React.useEffect(() => {
+		if (!fullscreen) return
+
 		const container = containerRef.current
 		if (container && container.requestFullscreen) {
 			container.requestFullscreen().catch(() => {
@@ -601,7 +653,38 @@ export function PresentationMode({
 				document.exitFullscreen().catch(() => {})
 			}
 		}
-	}, [onExit])
+	}, [fullscreen, onExit])
+
+	// Track fullscreen state changes for windowed mode's fullscreen toggle
+	React.useEffect(() => {
+		if (fullscreen) return
+
+		const handleFullscreenChange = () => {
+			const inFS = !!document.fullscreenElement
+			setIsInFullscreen(inFS)
+			// If we exited fullscreen while in windowed mode, stay in windowed presentation
+		}
+
+		document.addEventListener('fullscreenchange', handleFullscreenChange)
+		return () => {
+			document.removeEventListener('fullscreenchange', handleFullscreenChange)
+			if (document.fullscreenElement) {
+				document.exitFullscreen().catch(() => {})
+			}
+		}
+	}, [fullscreen])
+
+	// Toggle fullscreen from windowed mode
+	const handleToggleFullscreen = React.useCallback(() => {
+		const container = containerRef.current
+		if (!container) return
+
+		if (document.fullscreenElement) {
+			document.exitFullscreen().catch(() => {})
+		} else if (container.requestFullscreen) {
+			container.requestFullscreen().catch(() => {})
+		}
+	}, [])
 
 	// Keyboard navigation (disabled when following)
 	React.useEffect(() => {
@@ -670,6 +753,14 @@ export function PresentationMode({
 						handlePollClick(pollFrames[focusedPollIndex].id)
 					}
 					break
+				case 'f':
+				case 'F':
+					// Toggle fullscreen from windowed mode
+					if (!fullscreen) {
+						e.preventDefault()
+						handleToggleFullscreen()
+					}
+					break
 			}
 		}
 
@@ -683,11 +774,18 @@ export function PresentationMode({
 		handleIndexChange,
 		pollFrames,
 		focusedPollIndex,
-		handlePollClick
+		handlePollClick,
+		fullscreen,
+		handleToggleFullscreen
 	])
 
-	// Auto-hide controls after inactivity
+	// Auto-hide controls after inactivity (only in fullscreen mode)
 	React.useEffect(() => {
+		if (!fullscreen) {
+			setShowControls(true)
+			return
+		}
+
 		const handleMouseMove = () => {
 			setShowControls(true)
 			if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
@@ -699,7 +797,7 @@ export function PresentationMode({
 			window.removeEventListener('mousemove', handleMouseMove)
 			if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
 		}
-	}, [])
+	}, [fullscreen])
 
 	// Click to advance (disabled when following)
 	const handleClick = (e: React.MouseEvent) => {
@@ -720,12 +818,17 @@ export function PresentationMode({
 
 	if (!currentView) return null
 
+	const containerClass = [
+		'c-presentation-container',
+		!fullscreen && 'windowed',
+		!showControls && 'c-controls-hidden',
+		isFollowing && 'following'
+	]
+		.filter(Boolean)
+		.join(' ')
+
 	return (
-		<div
-			ref={containerRef}
-			onClick={handleClick}
-			className={`c-presentation-container${showControls ? '' : ' c-controls-hidden'}${isFollowing ? ' following' : ''}`}
-		>
+		<div ref={containerRef} onClick={handleClick} className={containerClass}>
 			{/* Render ALL slide containers (stable keys), but only populate nearby ones */}
 			{views.map((view, index) => {
 				const isCurrentSlide = index === currentIndex
@@ -736,6 +839,8 @@ export function PresentationMode({
 						view={view}
 						doc={doc}
 						ownerTag={ownerTag}
+						token={token}
+						sourceFileId={sourceFileId}
 						isVisible={isCurrentSlide}
 						renderContent={isNearby}
 						voteCounts={isCurrentSlide ? voteCounts : undefined}
@@ -749,22 +854,70 @@ export function PresentationMode({
 				)
 			})}
 
-			{/* Slide counter */}
-			<div className="c-presentation-counter">
-				{currentIndex + 1} / {views.length}
-			</div>
+			{/* Windowed mode: persistent control bar */}
+			{!fullscreen && (
+				<div className="c-presentation-controls" onClick={(e) => e.stopPropagation()}>
+					<button
+						className="c-presentation-controls__btn"
+						onClick={() =>
+							!isFollowing && handleIndexChange(Math.max(currentIndex - 1, 0))
+						}
+						disabled={isFollowing || currentIndex <= 0}
+						title="Previous slide"
+					>
+						<IcPrev />
+					</button>
+					<span className="c-presentation-controls__counter">
+						{currentIndex + 1} / {views.length}
+					</span>
+					<button
+						className="c-presentation-controls__btn"
+						onClick={() =>
+							!isFollowing &&
+							handleIndexChange(Math.min(currentIndex + 1, views.length - 1))
+						}
+						disabled={isFollowing || currentIndex >= views.length - 1}
+						title="Next slide"
+					>
+						<IcNext />
+					</button>
+					<div className="c-presentation-controls__spacer" />
+					<button
+						className="c-presentation-controls__btn"
+						onClick={handleToggleFullscreen}
+						title={isInFullscreen ? 'Exit fullscreen' : 'Fullscreen (F)'}
+					>
+						<IcFullscreen />
+					</button>
+					<button
+						className="c-presentation-controls__btn exit"
+						onClick={onExit}
+						title="Exit presentation (Esc)"
+					>
+						<IcClose />
+						<span>Exit</span>
+					</button>
+				</div>
+			)}
 
-			{/* Exit button */}
-			<button
-				onClick={(e) => {
-					e.stopPropagation()
-					onExit()
-				}}
-				className="c-presentation-exit"
-				title="Exit presentation (Esc)"
-			>
-				<IcClose />
-			</button>
+			{/* Fullscreen mode: overlay counter and exit button */}
+			{fullscreen && (
+				<>
+					<div className="c-presentation-counter">
+						{currentIndex + 1} / {views.length}
+					</div>
+					<button
+						onClick={(e) => {
+							e.stopPropagation()
+							onExit()
+						}}
+						className="c-presentation-exit"
+						title="Exit presentation (Esc)"
+					>
+						<IcClose />
+					</button>
+				</>
+			)}
 		</div>
 	)
 }

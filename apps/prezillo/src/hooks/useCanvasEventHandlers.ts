@@ -41,6 +41,7 @@ export interface UseCanvasEventHandlersOptions {
 	dialog: ReturnType<typeof useDialog>
 	handleDuplicate: () => void
 	setEditingTextId: (id: ObjectId | null) => void
+	setActiveDocumentId?: (id: ObjectId | null) => void
 	justFinishedInteractionRef: React.MutableRefObject<boolean>
 	objectMenuRef: React.RefObject<HTMLDivElement | null>
 }
@@ -64,6 +65,7 @@ export function useCanvasEventHandlers({
 	dialog,
 	handleDuplicate,
 	setEditingTextId,
+	setActiveDocumentId,
 	justFinishedInteractionRef,
 	objectMenuRef
 }: UseCanvasEventHandlersOptions): UseCanvasEventHandlersResult {
@@ -122,7 +124,7 @@ export function useCanvasEventHandlers({
 		prezillo.setActiveTool(null)
 	}
 
-	// Handle object double-click (edit text)
+	// Handle object double-click (edit text or activate document)
 	function handleObjectDoubleClick(e: React.MouseEvent, objectId: ObjectId) {
 		if (isReadOnly) return
 		e.stopPropagation()
@@ -130,10 +132,11 @@ export function useCanvasEventHandlers({
 		// Auto-switch to object's page if clicking on an object from a different page
 		prezillo.autoSwitchToObjectPage(objectId)
 
-		// Only text objects are editable
 		const obj = prezillo.doc.o.get(objectId)
 		if (obj?.t === 'T') {
 			setEditingTextId(objectId)
+		} else if (obj?.t === 'D') {
+			setActiveDocumentId?.(objectId)
 		}
 	}
 
@@ -152,6 +155,7 @@ export function useCanvasEventHandlers({
 		}
 		if (!prezillo.activeTool) {
 			prezillo.clearSelection()
+			setActiveDocumentId?.(null)
 			// Also clear template selection when clicking canvas background
 			if (prezillo.selectedTemplateId) {
 				prezillo.clearTemplateSelection()

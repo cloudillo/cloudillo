@@ -51,6 +51,12 @@ export function useCanvasViewport({
 	forceZoomRef,
 	forceZoomTemplateRef
 }: UseCanvasViewportOptions): UseCanvasViewportResult {
+	// Force zoom on the very first activeViewId (e.g. navState restore)
+	const firstViewRef = React.useRef(true)
+
+	// Track canvas readiness so centering effect can re-trigger when canvas becomes available
+	const [canvasReady, setCanvasReady] = React.useState(false)
+
 	// Canvas scale for image variant selection
 	const [canvasScale, setCanvasScale] = React.useState(1)
 
@@ -84,6 +90,7 @@ export function useCanvasViewport({
 			canvasContextRef.current = ctx
 			setCanvasScale(ctx.scale)
 			updateViewportBounds(ctx)
+			setCanvasReady(true)
 		},
 		[canvasContextRef, updateViewportBounds]
 	)
@@ -110,30 +117,32 @@ export function useCanvasViewport({
 
 	// Center on active view when it changes (smart zoom - only if page is off-screen or explicit navigation)
 	const activeView = prezillo.activeViewId ? getView(prezillo.doc, prezillo.activeViewId) : null
+	const hasActiveView = !!activeView
 	React.useEffect(() => {
-		if (activeView && canvasRef.current) {
-			const isInView = canvasRef.current.isRectInView(
+		if (!canvasReady || !activeView || !canvasRef.current) return
+
+		const isInView = canvasRef.current.isRectInView(
+			activeView.x,
+			activeView.y,
+			activeView.width,
+			activeView.height
+		)
+
+		// Zoom if: first view set (e.g. navState restore), explicit navigation, or page off-screen
+		const shouldZoom = firstViewRef.current || forceZoomRef.current || !isInView
+		firstViewRef.current = false
+		forceZoomRef.current = false
+
+		if (shouldZoom) {
+			canvasRef.current.centerOnRectAnimated(
 				activeView.x,
 				activeView.y,
 				activeView.width,
-				activeView.height
+				activeView.height,
+				{ duration: 350, zoomOutFactor: 0.15 }
 			)
-
-			// Zoom if: explicit navigation (ViewPicker click) OR page center is off-screen
-			const shouldZoom = forceZoomRef.current || !isInView
-			forceZoomRef.current = false // Reset flag
-
-			if (shouldZoom) {
-				canvasRef.current.centerOnRectAnimated(
-					activeView.x,
-					activeView.y,
-					activeView.width,
-					activeView.height,
-					{ duration: 350, zoomOutFactor: 0.15 }
-				)
-			}
 		}
-	}, [prezillo.activeViewId])
+	}, [prezillo.activeViewId, canvasReady, hasActiveView])
 
 	// Center on selected template (template frames above views)
 	React.useEffect(() => {

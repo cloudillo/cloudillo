@@ -36,7 +36,8 @@ import type {
 	TextObject,
 	PollFrameObject,
 	TableGridObject,
-	SymbolObject
+	SymbolObject,
+	DocumentObject
 } from '../crdt'
 import {
 	resolveShapeStyle,
@@ -508,6 +509,35 @@ async function renderObjectToSVG(
 			break
 		}
 
+		case 'document': {
+			// Document embeds cannot be captured in PDF - render placeholder
+			const docRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+			docRect.setAttribute('x', String(object.x))
+			docRect.setAttribute('y', String(object.y))
+			docRect.setAttribute('width', String(object.width))
+			docRect.setAttribute('height', String(object.height))
+			docRect.setAttribute('fill', '#f0f0f0')
+			docRect.setAttribute('stroke', '#ccc')
+			docRect.setAttribute('stroke-width', '1')
+			docRect.setAttribute('stroke-dasharray', '4 2')
+
+			const fragment = document.createDocumentFragment()
+			fragment.appendChild(docRect)
+
+			const label = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+			label.setAttribute('x', String(object.x + object.width / 2))
+			label.setAttribute('y', String(object.y + object.height / 2))
+			label.setAttribute('text-anchor', 'middle')
+			label.setAttribute('dominant-baseline', 'middle')
+			label.setAttribute('font-size', '14')
+			label.setAttribute('fill', '#999')
+			label.textContent = 'Embedded document'
+			fragment.appendChild(label)
+
+			content = fragment
+			break
+		}
+
 		default: {
 			// Fallback rectangle
 			const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
@@ -613,7 +643,7 @@ export async function exportToPDF(
 	views: ViewNode[],
 	options: PDFExportOptions = {}
 ): Promise<void> {
-	const { filename, ownerTag, onProgress } = options
+	const { filename, ownerTag, token, onProgress } = options
 
 	if (views.length === 0) {
 		throw new Error('No slides to export')
@@ -635,7 +665,7 @@ export async function exportToPDF(
 
 	// Pre-load images
 	const imageObjects = collectImageObjectsFromArray(allObjects)
-	const imageCache = await preloadImages(imageObjects, ownerTag, (loaded, total) => {
+	const imageCache = await preloadImages(imageObjects, ownerTag, token, (loaded, total) => {
 		// Image loading is 0-30% of progress
 		onProgress?.(Math.round((loaded / total) * 30))
 	})
@@ -723,9 +753,10 @@ export async function downloadPDF(
 	doc: YPrezilloDocument,
 	views: ViewNode[],
 	ownerTag?: string,
+	token?: string,
 	onProgress?: (progress: number) => void
 ): Promise<void> {
-	await exportToPDF(doc, views, { ownerTag, onProgress })
+	await exportToPDF(doc, views, { ownerTag, token, onProgress })
 }
 
 // vim: ts=4

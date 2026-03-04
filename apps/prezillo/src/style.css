@@ -836,6 +836,130 @@ body,
 	background: var(--col-error-high);
 }
 
+/* Windowed presentation mode */
+.c-presentation-container.windowed {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	cursor: default;
+}
+
+/* Windowed mode control bar */
+.c-presentation-controls {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-2) var(--space-3);
+	background: rgba(0, 0, 0, 0.7);
+	backdrop-filter: blur(8px);
+	z-index: 10;
+}
+
+.c-presentation-controls__btn {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	background: none;
+	border: none;
+	color: rgba(255, 255, 255, 0.8);
+	cursor: pointer;
+	padding: var(--space-1) var(--space-2);
+	border-radius: var(--radius-sm);
+	font-size: 14px;
+}
+
+.c-presentation-controls__btn:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.15);
+	color: #fff;
+}
+
+.c-presentation-controls__btn:disabled {
+	opacity: 0.3;
+	cursor: default;
+}
+
+.c-presentation-controls__btn.exit {
+	color: rgba(255, 255, 255, 0.9);
+}
+
+.c-presentation-controls__btn.exit:hover {
+	background: rgba(255, 100, 100, 0.3);
+}
+
+.c-presentation-controls__counter {
+	color: rgba(255, 255, 255, 0.6);
+	font-size: 13px;
+	font-family: system-ui;
+	min-width: 4em;
+	text-align: center;
+}
+
+.c-presentation-controls__spacer {
+	flex: 1;
+}
+
+/* Split present button */
+.c-present-split {
+	display: flex;
+	position: relative;
+	align-items: stretch;
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-sm);
+}
+
+.c-present-split__main {
+	border-top-right-radius: 0 !important;
+	border-bottom-right-radius: 0 !important;
+	border: none !important;
+}
+
+.c-present-split__caret {
+	border-top-left-radius: 0 !important;
+	border-bottom-left-radius: 0 !important;
+	border: none !important;
+	border-left: 1px solid var(--col-outline) !important;
+	padding: 0 4px !important;
+	font-size: 10px;
+	aspect-ratio: unset !important;
+}
+
+.c-present-split__dropdown {
+	position: absolute;
+	bottom: 100%;
+	left: 0;
+	margin-bottom: var(--space-1);
+	background: var(--col-container);
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-sm);
+	box-shadow: var(--shadow-lg, 0 4px 12px rgba(0, 0, 0, 0.15));
+	z-index: 100;
+	min-width: 180px;
+	overflow: hidden;
+}
+
+.c-present-split__option {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	width: 100%;
+	padding: var(--space-2) var(--space-3);
+	background: none;
+	border: none;
+	color: var(--col-on-container);
+	cursor: pointer;
+	font-size: 13px;
+	text-align: left;
+	white-space: nowrap;
+}
+
+.c-present-split__option:hover {
+	background: var(--col-surface-secondary, rgba(0, 0, 0, 0.05));
+}
+
 /* Presentation mode - following indicator */
 .c-presentation-container.following {
 	border: 4px solid var(--col-primary);
@@ -2124,6 +2248,12 @@ body,
 .c-presentation-svg > image,
 .c-presentation-svg > foreignObject {
 	pointer-events: none;
+}
+
+/* Document embeds are interactive in presentation mode */
+.c-presentation-svg > foreignObject.cl-document-embed-fo,
+.c-presentation-svg > g > foreignObject.cl-document-embed-fo {
+	pointer-events: auto;
 }
 
 /* Ensure interactive poll frames capture pointer events */

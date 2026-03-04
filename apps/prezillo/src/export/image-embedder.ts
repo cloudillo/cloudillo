@@ -97,6 +97,7 @@ export function collectImageObjectsFromArray(objects: PrezilloObject[]): ImageOb
 export async function preloadImages(
 	images: ImageObject[],
 	ownerTag?: string,
+	token?: string,
 	onProgress?: (loaded: number, total: number) => void
 ): Promise<Map<string, string>> {
 	const cache = new Map<string, string>()
@@ -115,7 +116,7 @@ export async function preloadImages(
 				console.warn(`Cannot load image ${fileId}: no owner tag`)
 				return
 			}
-			const url = getFileUrl(ownerTag, fileId, IMAGE_VARIANT)
+			const url = getFileUrl(ownerTag, fileId, IMAGE_VARIANT, token ? { token } : undefined)
 			const dataUrl = await fetchImageAsDataURL(url)
 			cache.set(fileId, dataUrl)
 		} catch (error) {

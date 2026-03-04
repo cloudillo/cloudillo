@@ -67,6 +67,7 @@ export type {
 	TextObject,
 	ImageObject,
 	EmbedObject,
+	DocumentObject,
 	ConnectorObject,
 	QrCodeObject,
 	QrErrorCorrection,
@@ -177,7 +178,9 @@ export {
 	// Document consistency/maintenance
 	checkDocumentConsistency,
 	fixDocumentIssues,
-	cleanupOrphanedInstances
+	cleanupOrphanedInstances,
+	// Document embed nav state
+	updateDocumentNavState
 } from './object-ops'
 
 export type {

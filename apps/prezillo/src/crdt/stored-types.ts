@@ -55,6 +55,7 @@ export type ObjectTypeCode =
 	| 'T'
 	| 'I'
 	| 'M'
+	| 'D'
 	| 'C'
 	| 'Q'
 	| 'F'
@@ -62,7 +63,7 @@ export type ObjectTypeCode =
 	| 'S'
 	| 'V'
 // R=rect, E=ellipse, L=line, P=path, G=polygon, T=text
-// I=image, M=embed (media)
+// I=image, M=embed (media), D=document embed
 // C=connector, Q=qrcode, F=pollframe, Tg=tablegrid, S=symbol, V=statevar
 
 // State variable type codes
@@ -231,6 +232,16 @@ export interface StoredEmbed extends StoredObjectBase {
 	src: string
 }
 
+// Document embed (embedded Cloudillo document via auth flow)
+export interface StoredDocEmbed extends StoredObjectBase {
+	t: 'D'
+	fid: string // fileId of the embedded document
+	ct: string // contentType (e.g. 'cloudillo/quillo')
+	aid?: string // appId (resolved from contentType)
+	ns?: string // navigation state (opaque, app-specific)
+	ar?: [number, number] // aspect ratio from embedded doc (e.g. [16, 9])
+}
+
 // Connector
 export interface StoredConnector extends StoredObjectBase {
 	t: 'C'
@@ -292,6 +303,7 @@ export type StoredObject =
 	| StoredText
 	| StoredImage
 	| StoredEmbed
+	| StoredDocEmbed
 	| StoredConnector
 	| StoredQrCode
 	| StoredPollFrame

@@ -32,11 +32,12 @@ export interface UsePresentationModeOptions {
 export interface UsePresentationModeResult {
 	// State
 	isPresentationMode: boolean
+	presentationFullscreen: boolean
 	isFullscreenFollowing: boolean
 	followedPresenter: PresenterInfo | null
 
 	// Handlers
-	handleStartPresenting: () => void
+	handleStartPresenting: (fullscreen?: boolean) => void
 	handleStopPresenting: () => void
 	handleExitFullscreenFollowing: () => void
 }
@@ -45,8 +46,9 @@ export function usePresentationMode({
 	prezillo,
 	toast
 }: UsePresentationModeOptions): UsePresentationModeResult {
-	// Presentation mode state (local user is presenting in fullscreen)
+	// Presentation mode state (local user is presenting)
 	const [isPresentationMode, setIsPresentationMode] = React.useState(false)
+	const [presentationFullscreen, setPresentationFullscreen] = React.useState(false)
 
 	// Fullscreen following mode (when following presenter in fullscreen)
 	const [isFullscreenFollowing, setIsFullscreenFollowing] = React.useState(false)
@@ -105,20 +107,26 @@ export function usePresentationMode({
 		prezillo.unfollowPresenter()
 	}, [prezillo.unfollowPresenter])
 
-	// Handle starting presentation (with fullscreen)
-	const handleStartPresenting = React.useCallback(() => {
-		prezillo.startPresenting()
-		setIsPresentationMode(true)
-	}, [prezillo.startPresenting])
+	// Handle starting presentation (windowed by default, fullscreen optional)
+	const handleStartPresenting = React.useCallback(
+		(fullscreen?: boolean) => {
+			prezillo.startPresenting()
+			setPresentationFullscreen(fullscreen ?? false)
+			setIsPresentationMode(true)
+		},
+		[prezillo.startPresenting]
+	)
 
 	// Handle stopping presentation
 	const handleStopPresenting = React.useCallback(() => {
 		prezillo.stopPresenting()
 		setIsPresentationMode(false)
+		setPresentationFullscreen(false)
 	}, [prezillo.stopPresenting])
 
 	return {
 		isPresentationMode,
+		presentationFullscreen,
 		isFullscreenFollowing,
 		followedPresenter,
 		handleStartPresenting,

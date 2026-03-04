@@ -32,6 +32,8 @@ import type { ImageObject } from '../crdt/index.js'
 export interface ImageRendererProps {
 	object: ImageObject
 	ownerTag?: string
+	/** Access token for authenticated image fetching */
+	token?: string
 	/** Current canvas scale/zoom for optimal variant selection */
 	scale?: number
 	/** Bounds for rendering (x, y, width, height) */
@@ -45,7 +47,7 @@ export interface ImageRendererProps {
 
 type LoadState = 'loading' | 'loaded' | 'error'
 
-export function ImageRenderer({ object, ownerTag, scale = 1, bounds }: ImageRendererProps) {
+export function ImageRenderer({ object, ownerTag, token, scale = 1, bounds }: ImageRendererProps) {
 	// Use bounds if provided, otherwise use object properties
 	const x = bounds?.x ?? object.x
 	const y = bounds?.y ?? object.y
@@ -65,11 +67,11 @@ export function ImageRenderer({ object, ownerTag, scale = 1, bounds }: ImageRend
 	// Construct image URL using proper Cloudillo URL helpers
 	const imageUrl = React.useMemo(() => {
 		if (ownerTag) {
-			return getFileUrl(ownerTag, fileId, variant)
+			return getFileUrl(ownerTag, fileId, variant, token ? { token } : undefined)
 		}
 		// Fallback to relative URL when ownerTag is not available
 		return `/api/files/${fileId}?variant=${variant}`
-	}, [fileId, ownerTag, variant])
+	}, [fileId, ownerTag, variant, token])
 
 	const handleLoad = React.useCallback(() => {
 		setLoadState('loaded')

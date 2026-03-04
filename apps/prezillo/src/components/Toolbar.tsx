@@ -63,7 +63,8 @@ import {
 	PiTextUnderlineBold as IcUnderline,
 	PiSidebarSimpleBold as IcPanel,
 	PiDotsThreeVerticalBold as IcMenu,
-	PiWrenchBold as IcRepair
+	PiWrenchBold as IcRepair,
+	PiFileBold as IcDocument
 } from 'react-icons/pi'
 
 import { FONT_SIZES } from '../utils/text-styles'
@@ -256,6 +257,15 @@ export function Toolbar({
 				title="Image"
 			>
 				<IcImage />
+			</button>
+
+			{/* Document embed tool */}
+			<button
+				onClick={() => setTool('document')}
+				className={mergeClasses('c-button icon', tool === 'document' ? 'active' : '')}
+				title="Embed Document"
+			>
+				<IcDocument />
 			</button>
 
 			{/* QR Code tool */}

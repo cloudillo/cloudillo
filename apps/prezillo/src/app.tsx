@@ -44,6 +44,7 @@ import {
 	useGetParent,
 	useSnapSettings,
 	useImageHandler,
+	useDocumentHandler,
 	useTemplateGuides,
 	useTemplates,
 	useTextEditing,
@@ -90,6 +91,7 @@ import {
 } from '@cloudillo/react'
 
 import type { ObjectId, ViewId, TemplateId, PrezilloObject, TableGridObject } from './crdt'
+import { updateDocumentNavState } from './crdt'
 
 /**
  * Extended type for canvas objects that may include template metadata
@@ -129,6 +131,57 @@ export function PrezilloApp() {
 	// Debug helper - access via window.prezillo in browser console
 	;(window as any).prezillo = prezillo
 	const isReadOnly = prezillo.cloudillo.access === 'read'
+	const [activeDocumentId, setActiveDocumentIdRaw] = React.useState<ObjectId | null>(null)
+
+	// Cache pending navState changes per document embed objectId
+	const pendingNavStateRef = React.useRef<
+		Map<string, { viewState: string; aspectRatio?: [number, number] }>
+	>(new Map())
+
+	// Flush cached navState to CRDT for a given objectId
+	const flushNavState = React.useCallback(
+		(objectId: ObjectId) => {
+			if (isReadOnly) return
+			const pending = pendingNavStateRef.current.get(objectId)
+			if (!pending) return
+			pendingNavStateRef.current.delete(objectId)
+			updateDocumentNavState(
+				prezillo.yDoc,
+				prezillo.doc,
+				objectId,
+				pending.viewState,
+				pending.aspectRatio
+			)
+		},
+		[isReadOnly, prezillo.yDoc, prezillo.doc]
+	)
+
+	// Wrap setActiveDocumentId to flush on deactivate
+	const setActiveDocumentId = React.useCallback(
+		(id: ObjectId | null) => {
+			setActiveDocumentIdRaw((prev) => {
+				if (prev && prev !== id) {
+					flushNavState(prev)
+				}
+				return id
+			})
+		},
+		[flushNavState]
+	)
+
+	// Callback for embedded document view state changes (cache only)
+	const handleDocumentViewStateChange = React.useCallback(
+		(
+			objectId: string,
+			viewState: string,
+			aspectRatio?: [number, number],
+			_aspectFixed?: boolean
+		) => {
+			pendingNavStateRef.current.set(objectId, { viewState, aspectRatio })
+		},
+		[]
+	)
+
 	const views = useViews(prezillo.doc)
 
 	// Active view objects (for snapping - within active page only)
@@ -154,6 +207,7 @@ export function PrezilloApp() {
 	// Presentation mode (extracted hook)
 	const {
 		isPresentationMode,
+		presentationFullscreen,
 		isFullscreenFollowing,
 		followedPresenter,
 		handleStartPresenting,
@@ -406,6 +460,32 @@ export function PrezilloApp() {
 	})
 	imageHandlerRef.current = imageHandler
 
+	// Document handler for embedding documents via DocumentPicker
+	const documentHandler = useDocumentHandler({
+		yDoc: prezillo.yDoc,
+		doc: prezillo.doc,
+		enabled: prezillo.activeTool === 'document',
+		documentFileId: prezillo.cloudillo.fileId,
+		onObjectCreated: (id) => {
+			if (prezillo.selectedTemplateId) {
+				const layout = templateLayouts.get(prezillo.selectedTemplateId)
+				if (layout) {
+					const obj = prezillo.doc.o.get(id)
+					if (obj?.xy) {
+						const relX = obj.xy[0] - layout.x
+						const relY = obj.xy[1] - layout.y
+						updateObjectPosition(prezillo.yDoc, prezillo.doc, id, relX, relY)
+					}
+				}
+				addObjectToTemplate(prezillo.yDoc, prezillo.doc, prezillo.selectedTemplateId, id)
+			}
+			prezillo.selectObject(id)
+		},
+		onInsertComplete: () => {
+			prezillo.setActiveTool(null)
+		}
+	})
+
 	// Get active view
 	const activeView = prezillo.activeViewId ? getView(prezillo.doc, prezillo.activeViewId) : null
 
@@ -435,6 +515,32 @@ export function PrezilloApp() {
 		prezillo.selectedTemplateId,
 		templateLayouts,
 		imageHandler
+	])
+
+	// Trigger document insertion when document tool is activated
+	React.useEffect(() => {
+		if (prezillo.activeTool === 'document' && !documentHandler.isInserting) {
+			if (prezillo.selectedTemplateId) {
+				const layout = templateLayouts.get(prezillo.selectedTemplateId)
+				if (layout) {
+					const centerX = layout.x + layout.width / 2
+					const centerY = layout.y + layout.height / 2
+					documentHandler.insertDocument(centerX, centerY)
+					return
+				}
+			}
+			if (activeView) {
+				const centerX = activeView.x + activeView.width / 2
+				const centerY = activeView.y + activeView.height / 2
+				documentHandler.insertDocument(centerX, centerY)
+			}
+		}
+	}, [
+		prezillo.activeTool,
+		activeView,
+		prezillo.selectedTemplateId,
+		templateLayouts,
+		documentHandler
 	])
 
 	// Auto-expand/collapse mobile panel based on selection
@@ -592,6 +698,7 @@ export function PrezilloApp() {
 		dialog,
 		handleDuplicate,
 		setEditingTextId,
+		setActiveDocumentId: isReadOnly ? undefined : setActiveDocumentId,
 		justFinishedInteractionRef,
 		objectMenuRef
 	})
@@ -691,7 +798,8 @@ export function PrezilloApp() {
 									await downloadPDF(
 										prezillo.doc,
 										views,
-										prezillo.cloudillo.ownerTag
+										prezillo.cloudillo.ownerTag,
+										prezillo.cloudillo.token
 									)
 								} catch (error) {
 									console.error('PDF export failed:', error)
@@ -1142,7 +1250,16 @@ export function PrezilloApp() {
 									onPointerLeave={() => setHoveredObjectId(null)}
 									tempBounds={objectTempBounds}
 									ownerTag={prezillo.cloudillo.ownerTag}
+									token={prezillo.cloudillo.token}
+									sourceFileId={prezillo.cloudillo.fileId}
 									scale={canvasScale}
+									activeDocument={
+										object.type === 'document' &&
+										(isReadOnly || activeDocumentId === object.id)
+									}
+									onDocumentViewStateChange={
+										!isReadOnly ? handleDocumentViewStateChange : undefined
+									}
 								/>
 							)
 						})}
@@ -1255,7 +1372,10 @@ export function PrezilloApp() {
 					views={views}
 					initialViewId={prezillo.activeViewId}
 					onExit={handleStopPresenting}
+					fullscreen={presentationFullscreen}
 					ownerTag={prezillo.cloudillo.ownerTag}
+					token={prezillo.cloudillo.token}
+					sourceFileId={prezillo.cloudillo.fileId}
 					onViewChange={(viewIndex, viewId) => {
 						prezillo.setActiveViewId(viewId)
 					}}
@@ -1270,6 +1390,8 @@ export function PrezilloApp() {
 					initialViewId={followedPresenter.viewId}
 					onExit={handleExitFullscreenFollowing}
 					ownerTag={prezillo.cloudillo.ownerTag}
+					token={prezillo.cloudillo.token}
+					sourceFileId={prezillo.cloudillo.fileId}
 					isFollowing={true}
 					followingViewIndex={followedPresenter.viewIndex}
 					followingPresenterClientId={followedPresenter.clientId}

@@ -27,6 +27,7 @@ import {
 	PiCaretRightBold as IcNext,
 	PiPlayBold as IcPlay,
 	PiStopBold as IcStop,
+	PiArrowsOutBold as IcFullscreen,
 	PiXBold as IcClose,
 	PiCheckBold as IcCheck,
 	PiCaretDownBold as IcCaret,
@@ -56,7 +57,7 @@ export interface ViewPickerCmds {
 
 /** Presentation commands */
 export interface ViewPickerPresentCmds {
-	onPresent: () => void
+	onPresent: (fullscreen?: boolean) => void
 	onStopPresenting?: () => void
 	onFollow?: (clientId: number) => void
 	onUnfollow?: () => void
@@ -375,6 +376,27 @@ export function ViewPicker({
 		clearDragState()
 	}, [clearDragState])
 
+	// Present dropdown state
+	const [showPresentDropdown, setShowPresentDropdown] = React.useState(false)
+	const presentDropdownRef = React.useRef<HTMLDivElement>(null)
+
+	// Close present dropdown on outside click
+	React.useEffect(() => {
+		if (!showPresentDropdown) return
+
+		const handleClickOutside = (e: MouseEvent) => {
+			if (
+				presentDropdownRef.current &&
+				!presentDropdownRef.current.contains(e.target as Node)
+			) {
+				setShowPresentDropdown(false)
+			}
+		}
+
+		document.addEventListener('mousedown', handleClickOutside)
+		return () => document.removeEventListener('mousedown', handleClickOutside)
+	}, [showPresentDropdown])
+
 	// Handle page picker selection
 	const handlePageSelect = React.useCallback(
 		(id: ViewId) => {
@@ -395,14 +417,47 @@ export function ViewPicker({
 					<IcStop />
 				</button>
 			) : (
-				<button
-					onClick={onPresent}
-					className="c-button icon me-2"
-					title="Present (fullscreen)"
-					disabled={views.length === 0}
-				>
-					<IcPlay />
-				</button>
+				<div ref={presentDropdownRef} className="c-present-split me-2">
+					<button
+						onClick={() => onPresent(false)}
+						className="c-button icon c-present-split__main"
+						title="Present in window"
+						disabled={views.length === 0}
+					>
+						<IcPlay />
+					</button>
+					<button
+						onClick={() => setShowPresentDropdown(!showPresentDropdown)}
+						className="c-button icon c-present-split__caret"
+						disabled={views.length === 0}
+					>
+						<IcCaret />
+					</button>
+					{showPresentDropdown && (
+						<div className="c-present-split__dropdown">
+							<button
+								className="c-present-split__option"
+								onClick={() => {
+									onPresent(false)
+									setShowPresentDropdown(false)
+								}}
+							>
+								<IcPlay />
+								<span>{t('prezillo.presentInWindow')}</span>
+							</button>
+							<button
+								className="c-present-split__option"
+								onClick={() => {
+									onPresent(true)
+									setShowPresentDropdown(false)
+								}}
+							>
+								<IcFullscreen />
+								<span>{t('prezillo.presentFullscreen')}</span>
+							</button>
+						</div>
+					)}
+				</div>
 			)}
 
 			<button

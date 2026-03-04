@@ -35,6 +35,7 @@ import type {
 	StoredTableGrid,
 	StoredSymbol,
 	StoredEmbed,
+	StoredDocEmbed,
 	StoredConnector
 } from './stored-types'
 import type { ObjectId, ContainerId, ViewId } from './ids'
@@ -1581,6 +1582,39 @@ export function cleanupOrphanedInstances(
 
 	fixDocumentIssues(yDoc, doc, report)
 	return { deleted: orphanedIds, count: orphanedIds.length }
+}
+
+/**
+ * Update the navigation state (and optional aspect ratio) of a document embed object.
+ * Only writes to CRDT if the stored value actually differs.
+ */
+export function updateDocumentNavState(
+	yDoc: Y.Doc,
+	doc: YPrezilloDocument,
+	objectId: ObjectId,
+	navState: string,
+	aspectRatio?: [number, number]
+): void {
+	const existing = doc.o.get(objectId)
+	if (!existing || existing.t !== 'D') return
+
+	const stored = existing as StoredDocEmbed
+	// Skip if nothing changed
+	if (
+		stored.ns === navState &&
+		stored.ar?.[0] === aspectRatio?.[0] &&
+		stored.ar?.[1] === aspectRatio?.[1]
+	) {
+		return
+	}
+
+	yDoc.transact(() => {
+		const updated: StoredDocEmbed = { ...stored, ns: navState }
+		if (aspectRatio) {
+			updated.ar = aspectRatio
+		}
+		doc.o.set(objectId, updated)
+	}, yDoc.clientID)
 }
 
 // vim: ts=4

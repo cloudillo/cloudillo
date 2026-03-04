@@ -32,6 +32,7 @@ export type ObjectType =
 	| 'text'
 	| 'image'
 	| 'embed'
+	| 'document'
 	| 'connector'
 	| 'qrcode'
 	| 'pollframe'
@@ -237,6 +238,16 @@ export interface EmbedObject extends PrezilloObjectBase {
 	src: string
 }
 
+// Document embed object (embedded Cloudillo document)
+export interface DocumentObject extends PrezilloObjectBase {
+	type: 'document'
+	fileId: string
+	contentType: string
+	appId?: string
+	navState?: string // navigation state (opaque, app-specific)
+	aspectRatio?: [number, number] // aspect ratio from embedded doc
+}
+
 // Connector object
 export interface ConnectorObject extends PrezilloObjectBase {
 	type: 'connector'
@@ -298,6 +309,7 @@ export type PrezilloObject =
 	| TextObject
 	| ImageObject
 	| EmbedObject
+	| DocumentObject
 	| ConnectorObject
 	| QrCodeObject
 	| PollFrameObject

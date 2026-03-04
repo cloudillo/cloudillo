@@ -27,6 +27,7 @@ import type { Gradient } from '@cloudillo/canvas-tools'
 import type * as Y from 'yjs'
 import { RichTextDisplay } from '@cloudillo/canvas-text'
 import type { BaseTextStyle } from '@cloudillo/canvas-text'
+import { SvgDocumentEmbed } from '@cloudillo/react'
 import type { PrezilloObject, ResolvedTextStyle, YPrezilloDocument } from '../crdt'
 import { resolveShapeStyle, resolveTextStyle } from '../crdt'
 import { calculateRotationTransformFromBounds, buildStrokeProps, buildFillProps } from '../utils'
@@ -97,13 +98,25 @@ export interface ObjectShapeProps {
 	}
 	// Image rendering props
 	ownerTag?: string
+	token?: string
 	scale?: number
+	// Source file ID for document embedding
+	sourceFileId?: string
+	// Whether this document embed is active (interactive)
+	activeDocument?: boolean
 	// Show instance indicator
 	showInstanceIndicator?: boolean
 	// State values for statevar objects
 	stateValues?: {
 		userCount: number
 	}
+	// Callback when an embedded document reports view state changes
+	onDocumentViewStateChange?: (
+		objectId: string,
+		viewState: string,
+		aspectRatio?: [number, number],
+		aspectFixed?: boolean
+	) => void
 }
 
 /**
@@ -134,6 +147,7 @@ function arePropsEqual(prev: ObjectShapeProps, next: ObjectShapeProps): boolean 
 		prev.isStackedHighlight === next.isStackedHighlight &&
 		prev.tempBounds === next.tempBounds &&
 		prev.showInstanceIndicator === next.showInstanceIndicator &&
+		prev.activeDocument === next.activeDocument &&
 		shallowEqual(prev.style, next.style) &&
 		shallowEqual(prev.textStyle, next.textStyle)
 	)
@@ -187,9 +201,13 @@ export const ObjectShape = React.memo(function ObjectShape({
 	onPointerLeave,
 	tempBounds,
 	ownerTag,
+	token,
 	scale,
+	sourceFileId,
+	activeDocument,
 	showInstanceIndicator,
-	stateValues
+	stateValues,
+	onDocumentViewStateChange
 }: ObjectShapeProps) {
 	// Use temp bounds if provided, otherwise use object bounds
 	const x = tempBounds?.x ?? object.x
@@ -227,6 +245,21 @@ export const ObjectShape = React.memo(function ObjectShape({
 		onPointerLeave,
 		style: { cursor: 'pointer', pointerEvents: 'all' as const }
 	}
+
+	// Active document overlay (solid blue border when document is interactive)
+	const activeDocumentOverlay = activeDocument ? (
+		<rect
+			x={x - 1}
+			y={y - 1}
+			width={width + 2}
+			height={height + 2}
+			fill="none"
+			stroke="#0066ff"
+			strokeWidth={2}
+			rx={4}
+			pointerEvents="none"
+		/>
+	) : null
 
 	// Hover bounding box overlay (shown when hovered and not selected)
 	const hoverOverlay =
@@ -461,6 +494,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 					<ImageRenderer
 						object={object}
 						ownerTag={ownerTag}
+						token={token}
 						scale={scale}
 						bounds={{ x, y, width, height }}
 					/>
@@ -473,6 +507,51 @@ export const ObjectShape = React.memo(function ObjectShape({
 						fill="transparent"
 						stroke="none"
 					/>
+					{hoverOverlay}
+					{stackedOverlay}
+					{instanceIndicator}
+					{hiddenIndicator}
+				</g>
+			)
+
+		case 'document':
+			return (
+				<g transform={rotationTransform} opacity={objectOpacity} {...commonProps}>
+					<SvgDocumentEmbed
+						x={x}
+						y={y}
+						width={width}
+						height={height}
+						fileId={object.fileId}
+						contentType={object.contentType}
+						sourceFileId={sourceFileId || ''}
+						appId={object.appId}
+						access="read"
+						navState={object.navState}
+						active={activeDocument}
+						onViewStateChange={
+							onDocumentViewStateChange
+								? (viewState, aspectRatio, aspectFixed) =>
+										onDocumentViewStateChange!(
+											object.id,
+											viewState,
+											aspectRatio,
+											aspectFixed
+										)
+								: undefined
+						}
+					/>
+					{/* Invisible rect for click handling */}
+					<rect
+						x={x}
+						y={y}
+						width={width}
+						height={height}
+						fill="transparent"
+						stroke="none"
+						pointerEvents={activeDocument ? 'none' : undefined}
+					/>
+					{activeDocumentOverlay}
 					{hoverOverlay}
 					{stackedOverlay}
 					{instanceIndicator}

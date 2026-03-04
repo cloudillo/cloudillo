@@ -28,6 +28,8 @@ export interface PDFExportOptions {
 	filename?: string
 	/** Owner tag for resolving image URLs */
 	ownerTag?: string
+	/** Access token for authenticated image fetching */
+	token?: string
 	/** Progress callback (0-100) */
 	onProgress?: (progress: number) => void
 }

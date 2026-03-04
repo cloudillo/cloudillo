@@ -488,6 +488,7 @@ function getObjectBounds(obj: IdealloObject): Bounds {
 		case 'text':
 		case 'sticky':
 		case 'image':
+		case 'document':
 			return { x: obj.x, y: obj.y, width: obj.width, height: obj.height }
 		case 'polygon':
 			return getBoundsFromPoints(obj.vertices)

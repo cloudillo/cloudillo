@@ -32,6 +32,7 @@ export type ToolType =
 	| 'text'
 	| 'sticky'
 	| 'image'
+	| 'document'
 
 export interface ToolContext {
 	currentStyle: Partial<Style>

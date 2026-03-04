@@ -215,6 +215,7 @@ export interface CanvasProps {
 	// Quill ref for text formatting
 	quillRef?: React.MutableRefObject<Quill | null>
 	onScaleChange?: (scale: number) => void
+	onMatrixChange?: (matrix: [number, number, number, number, number, number]) => void
 	onContextReady?: (ctx: SvgCanvasContext) => void
 	// Resize/Rotate - hooks receive raw pointer events
 	onResizeStart?: (handle: ResizeHandle, event: React.PointerEvent) => void
@@ -249,12 +250,28 @@ export interface CanvasProps {
 	stackedHighlightIds?: Set<ObjectId>
 	// Image loading
 	ownerTag?: string
+	token?: string
+	// Source file ID for document embedding
+	sourceFileId?: string
+	// Document embed activation
+	activeDocumentId?: ObjectId | null
+	onDocumentActivate?: (id: ObjectId) => void
+	// Callback when an embedded document reports view state changes
+	onDocumentViewStateChange?: (
+		objectId: string,
+		viewState: string,
+		aspectRatio?: [number, number],
+		aspectFixed?: boolean
+	) => void
+	// Read-only mode: all document embeds are always interactive
+	readOnly?: boolean
 }
 
 export interface CanvasHandle {
 	zoomIn: () => void
 	zoomOut: () => void
 	zoomReset: () => void
+	setViewport: (centerX: number, centerY: number, zoom: number) => void
 }
 
 export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canvas(
@@ -299,6 +316,7 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 		// Quill ref
 		quillRef,
 		onScaleChange,
+		onMatrixChange,
 		onContextReady,
 		onResizeStart,
 		onRotateStart,
@@ -329,7 +347,14 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 		// Stacked move highlight
 		stackedHighlightIds,
 		// Image loading
-		ownerTag
+		ownerTag,
+		token,
+		sourceFileId,
+		// Document embed activation
+		activeDocumentId,
+		onDocumentActivate,
+		onDocumentViewStateChange,
+		readOnly
 	},
 	ref
 ) {
@@ -386,6 +411,16 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 				const handle = svgCanvasRef.current
 				if (!handle) return
 				handle.setMatrix([1, 0, 0, 1, 0, 0])
+			},
+			setViewport: (centerX: number, centerY: number, zoom: number) => {
+				const handle = svgCanvasRef.current
+				if (!handle) return
+				const svg = document.querySelector('.ideallo-app svg')
+				if (!svg) return
+				const rect = svg.getBoundingClientRect()
+				const tx = rect.width / 2 - centerX * zoom
+				const ty = rect.height / 2 - centerY * zoom
+				handle.setMatrix([zoom, 0, 0, zoom, tx, ty])
 			}
 		}),
 		[]
@@ -416,9 +451,10 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 				lastMatrixRef.current = newMatrix
 				setCanvasMatrix(newMatrix)
 				onScaleChange?.(context.scale)
+				onMatrixChange?.(newMatrix)
 			}
 		},
-		[onContextReady, onScaleChange]
+		[onContextReady, onScaleChange, onMatrixChange]
 	)
 
 	const handleToolStart = React.useCallback(
@@ -615,7 +651,13 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 							object={obj}
 							doc={doc}
 							ownerTag={ownerTag}
+							token={token}
 							scale={scale}
+							sourceFileId={sourceFileId}
+							activeDocument={
+								obj.type === 'document' && (readOnly || activeDocumentId === obj.id)
+							}
+							onDocumentViewStateChange={onDocumentViewStateChange}
 							isEditing={isEditing}
 							onTextChange={isStickyEditing ? onStickyTextChange : undefined}
 							onSave={isStickyEditing ? onStickySave : undefined}
@@ -636,7 +678,9 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 									? () => onStickyDoubleClick(obj.id)
 									: obj.type === 'text' && onTextDoubleClick
 										? () => onTextDoubleClick(obj.id)
-										: undefined
+										: obj.type === 'document' && onDocumentActivate
+											? () => onDocumentActivate(obj.id)
+											: undefined
 							}
 							quillRef={isEditing ? quillRef : undefined}
 							onHeightChange={isEditing ? onEditHeightChange : undefined}

@@ -31,6 +31,7 @@ export type ObjectType =
 	| 'polygon'
 	| 'sticky'
 	| 'image'
+	| 'document'
 
 export type StrokeStyle = 'solid' | 'dashed' | 'dotted'
 
@@ -129,6 +130,18 @@ export interface ImageObject extends IdealloObjectBase {
 	fileId: string // fileId from MediaPicker
 }
 
+// Embedded document
+export interface DocumentObject extends IdealloObjectBase {
+	type: 'document'
+	width: number
+	height: number
+	fileId: string // fileId of the embedded document
+	contentType: string // e.g. 'cloudillo/quillo'
+	appId?: string // resolved from contentType
+	navState?: string // navigation state (opaque, app-specific)
+	aspectRatio?: [number, number] // aspect ratio from embedded doc
+}
+
 export type IdealloObject =
 	| FreehandObject
 	| RectObject
@@ -139,6 +152,7 @@ export type IdealloObject =
 	| PolygonObject
 	| StickyObject
 	| ImageObject
+	| DocumentObject
 
 // Bounds helper type
 export interface Bounds {

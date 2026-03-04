@@ -36,6 +36,7 @@ import { TextEditOverlay } from './TextEditOverlay.js'
 import { StickyNote } from './StickyNote.js'
 import { StickyEditOverlay } from './StickyEditOverlay.js'
 import { ImageRenderer } from './ImageRenderer.js'
+import { SvgDocumentEmbed } from '@cloudillo/react'
 import { getBoundsFromPoints } from '../utils/geometry.js'
 import type { PolygonObject } from '../crdt/index.js'
 
@@ -45,8 +46,12 @@ export interface ObjectRendererProps {
 	doc?: YIdealloDocument
 	// Owner tag for image URLs
 	ownerTag?: string
+	// Access token for iframe-sandboxed image fetches
+	token?: string
 	// Current canvas scale/zoom for optimal image variant selection
 	scale?: number
+	// Source file ID for document embedding
+	sourceFileId?: string
 	// Sticky/text editing props (passed when this object is being edited)
 	isEditing?: boolean
 	onTextChange?: (text: string) => void
@@ -59,6 +64,8 @@ export interface ObjectRendererProps {
 	quillRef?: React.MutableRefObject<Quill | null>
 	// Callback when editor content height changes (for auto-grow)
 	onHeightChange?: (height: number) => void
+	// Whether this document embed is active (interactive)
+	activeDocument?: boolean
 	// Eraser highlight (object is under eraser brush during drag)
 	isHighlighted?: boolean
 	// Hover effect (object is under cursor in select mode)
@@ -67,6 +74,13 @@ export interface ObjectRendererProps {
 	isEraserHovered?: boolean
 	// Stacked move highlight (object will move together with dragged object)
 	isStacked?: boolean
+	// Callback when an embedded document reports view state changes
+	onDocumentViewStateChange?: (
+		objectId: string,
+		viewState: string,
+		aspectRatio?: [number, number],
+		aspectFixed?: boolean
+	) => void
 }
 
 // Calculate rotation center for an object using its pivot point
@@ -81,6 +95,7 @@ function getRotationCenter(obj: IdealloObject): { cx: number; cy: number } {
 		case 'text':
 		case 'sticky':
 		case 'image':
+		case 'document':
 			return {
 				cx: obj.x + obj.width * pivotX,
 				cy: obj.y + obj.height * pivotY
@@ -113,7 +128,9 @@ function renderObject(
 		ObjectRendererProps,
 		| 'doc'
 		| 'ownerTag'
+		| 'token'
 		| 'scale'
+		| 'sourceFileId'
 		| 'isEditing'
 		| 'onTextChange'
 		| 'onSave'
@@ -121,8 +138,10 @@ function renderObject(
 		| 'onDragStart'
 		| 'quillRef'
 		| 'onHeightChange'
+		| 'activeDocument'
 		| 'isHovered'
 		| 'isEraserHovered'
+		| 'onDocumentViewStateChange'
 	>
 ): React.ReactNode {
 	switch (object.type) {
@@ -178,9 +197,37 @@ function renderObject(
 				<ImageRenderer
 					object={object}
 					ownerTag={props.ownerTag}
+					token={props.token}
 					scale={props.scale}
 					isHovered={props.isHovered}
 					isEraserHovered={props.isEraserHovered}
+				/>
+			)
+		case 'document':
+			return (
+				<SvgDocumentEmbed
+					x={object.x}
+					y={object.y}
+					width={object.width}
+					height={object.height}
+					fileId={object.fileId}
+					contentType={object.contentType}
+					sourceFileId={props.sourceFileId || ''}
+					appId={object.appId}
+					access="read"
+					navState={object.navState}
+					active={props.activeDocument}
+					onViewStateChange={
+						props.onDocumentViewStateChange
+							? (viewState, aspectRatio, aspectFixed) =>
+									props.onDocumentViewStateChange!(
+										object.id,
+										viewState,
+										aspectRatio,
+										aspectFixed
+									)
+							: undefined
+					}
 				/>
 			)
 		default:
@@ -192,7 +239,10 @@ export function ObjectRenderer({
 	object,
 	doc,
 	ownerTag,
+	token,
 	scale,
+	sourceFileId,
+	activeDocument,
 	isEditing,
 	onTextChange,
 	onSave,
@@ -204,12 +254,16 @@ export function ObjectRenderer({
 	isHighlighted = false,
 	isHovered = false,
 	isEraserHovered = false,
-	isStacked = false
+	isStacked = false,
+	onDocumentViewStateChange
 }: ObjectRendererProps) {
 	const content = renderObject(object, {
 		doc,
 		ownerTag,
+		token,
 		scale,
+		sourceFileId,
+		activeDocument,
 		isEditing,
 		onTextChange,
 		onSave,
@@ -218,7 +272,8 @@ export function ObjectRenderer({
 		quillRef,
 		onHeightChange,
 		isHovered,
-		isEraserHovered
+		isEraserHovered,
+		onDocumentViewStateChange
 	})
 	if (!content) return null
 

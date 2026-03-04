@@ -37,7 +37,8 @@ import {
 	useTextLabelHandler,
 	useSelectHandler,
 	useEraserHandler,
-	useImageHandler
+	useImageHandler,
+	useDocumentHandler
 } from './hooks/index.js'
 import {
 	useResizable,
@@ -48,6 +49,7 @@ import {
 } from 'react-svg-canvas'
 import { calculateArcRadius } from '@cloudillo/canvas-tools'
 import { normalizeAngle } from './utils/geometry.js'
+import { getAppBus } from '@cloudillo/core'
 import {
 	Canvas,
 	Toolbar,
@@ -66,7 +68,8 @@ import {
 	bringToFront,
 	sendToBack,
 	bringForward,
-	sendBackward
+	sendBackward,
+	updateDocumentNavState
 } from './crdt/index.js'
 import { getObjectBounds } from './utils/bounds.js'
 import type { MorphAnimationState } from './smart-ink/index.js'
@@ -91,6 +94,59 @@ export function IdealloApp() {
 		Map<ObjectId, { bounds: Bounds; timestamp: number }>
 	>(new Map())
 
+	// Active document embed (interactive iframe)
+	const [activeDocumentId, setActiveDocumentIdRaw] = React.useState<ObjectId | null>(null)
+	const isReadOnly = ideallo.cloudillo.access === 'read'
+
+	// Cache pending navState changes per document embed objectId
+	const pendingNavStateRef = React.useRef<
+		Map<string, { viewState: string; aspectRatio?: [number, number] }>
+	>(new Map())
+
+	// Flush cached navState to CRDT for a given objectId
+	const flushNavState = React.useCallback(
+		(objectId: ObjectId) => {
+			if (isReadOnly) return
+			const pending = pendingNavStateRef.current.get(objectId)
+			if (!pending) return
+			pendingNavStateRef.current.delete(objectId)
+			updateDocumentNavState(
+				ideallo.yDoc,
+				ideallo.doc,
+				objectId,
+				pending.viewState,
+				pending.aspectRatio
+			)
+		},
+		[isReadOnly, ideallo.yDoc, ideallo.doc]
+	)
+
+	// Wrap setActiveDocumentId to flush on deactivate
+	const setActiveDocumentId = React.useCallback(
+		(id: ObjectId | null) => {
+			setActiveDocumentIdRaw((prev) => {
+				if (prev && prev !== id) {
+					flushNavState(prev)
+				}
+				return id
+			})
+		},
+		[flushNavState]
+	)
+
+	// Callback for embedded document view state changes (cache only)
+	const handleDocumentViewStateChange = React.useCallback(
+		(
+			objectId: string,
+			viewState: string,
+			aspectRatio?: [number, number],
+			_aspectFixed?: boolean
+		) => {
+			pendingNavStateRef.current.set(objectId, { viewState, aspectRatio })
+		},
+		[]
+	)
+
 	// Selection state
 	const [selectedIds, setSelectedIds] = React.useState<Set<ObjectId>>(new Set())
 
@@ -111,6 +167,7 @@ export function IdealloApp() {
 
 	const clearSelection = React.useCallback(() => {
 		setSelectedIds(new Set())
+		setActiveDocumentId(null)
 	}, [])
 
 	// Canvas context ref for coordinate transforms
@@ -317,9 +374,28 @@ export function IdealloApp() {
 	const imageHandlerRef = React.useRef(imageHandler)
 	imageHandlerRef.current = imageHandler
 
+	// Document handler for document tool
+	const documentHandler = useDocumentHandler({
+		yDoc: ideallo.yDoc,
+		doc: ideallo.doc,
+		enabled: ideallo.activeTool === 'document',
+		documentFileId: ideallo.cloudillo.fileId,
+		onObjectCreated: (id) => {
+			selectObject(id)
+		},
+		onInsertComplete: () => {
+			ideallo.setActiveTool('select')
+		}
+	})
+
+	const documentHandlerRef = React.useRef(documentHandler)
+	documentHandlerRef.current = documentHandler
+
 	React.useEffect(() => {
 		if (ideallo.activeTool === 'image') {
 			imageHandlerRef.current.insertImage()
+		} else if (ideallo.activeTool === 'document') {
+			documentHandlerRef.current.insertDocument()
 		}
 	}, [ideallo.activeTool])
 
@@ -913,6 +989,81 @@ export function IdealloApp() {
 		canvasRef.current?.zoomReset()
 	}, [])
 
+	// --- Embed navState: restore viewport on load, push on pan/zoom ---
+	const initialNavAppliedRef = React.useRef(false)
+	const navPushTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+	// Restore initial navState once when embedded
+	React.useEffect(() => {
+		const bus = getAppBus()
+		if (!bus.embedded) return
+
+		if (!initialNavAppliedRef.current && ideallo.cloudillo.synced) {
+			const initialNav = bus.getState().navState
+			console.log('[Ideallo] navState restore:', initialNav)
+			if (initialNav) {
+				const params = Object.fromEntries(
+					initialNav.split(';').map((p) => p.split('=') as [string, string])
+				)
+				const center = params.c?.split(',').map(Number)
+				const zoom = params.z ? Number(params.z) : undefined
+				if (
+					center &&
+					center.length === 2 &&
+					!Number.isNaN(center[0]) &&
+					!Number.isNaN(center[1])
+				) {
+					// Delay slightly to ensure canvas is mounted
+					requestAnimationFrame(() => {
+						canvasRef.current?.setViewport(center[0], center[1], zoom ?? 1)
+					})
+				}
+			}
+			initialNavAppliedRef.current = true
+		}
+
+		// Handle subsequent viewstate.set messages from parent
+		bus.onViewStateSet((viewState?: string) => {
+			console.log('[Ideallo] viewstate.set received:', viewState)
+			if (!viewState) return
+			const params = Object.fromEntries(
+				viewState.split(';').map((p) => p.split('=') as [string, string])
+			)
+			const center = params.c?.split(',').map(Number)
+			const zoom = params.z ? Number(params.z) : undefined
+			if (
+				center &&
+				center.length === 2 &&
+				!Number.isNaN(center[0]) &&
+				!Number.isNaN(center[1])
+			) {
+				canvasRef.current?.setViewport(center[0], center[1], zoom ?? 1)
+			}
+		})
+	}, [ideallo.cloudillo.synced])
+
+	// Push viewport changes to parent (debounced)
+	const handleMatrixChange = React.useCallback(
+		(matrix: [number, number, number, number, number, number]) => {
+			const bus = getAppBus()
+			if (!bus.embedded) return
+
+			if (navPushTimerRef.current) clearTimeout(navPushTimerRef.current)
+			navPushTimerRef.current = setTimeout(() => {
+				const svg = document.querySelector('.ideallo-app svg')
+				if (!svg) return
+				const rect = svg.getBoundingClientRect()
+				const zoom = matrix[0]
+				const centerX = (rect.width / 2 - matrix[4]) / zoom
+				const centerY = (rect.height / 2 - matrix[5]) / zoom
+				const navState = `c=${centerX.toFixed(0)},${centerY.toFixed(0)};z=${zoom.toFixed(2)}`
+				console.log('[Ideallo] navState push:', navState)
+				bus.pushViewState({ viewState: navState })
+			}, 500)
+		},
+		[]
+	)
+
 	// Handle pivot drag start
 	const handlePivotDragStart = React.useCallback(() => {
 		isPivotDraggingRef.current = true
@@ -1225,6 +1376,7 @@ export function IdealloApp() {
 				}}
 				quillRef={quillRef}
 				onScaleChange={setScale}
+				onMatrixChange={handleMatrixChange}
 				onContextReady={handleContextReady}
 				// Pass hook handlers for resize/rotate
 				onResizeStart={hookResizeStart}
@@ -1264,6 +1416,14 @@ export function IdealloApp() {
 				stackedHighlightIds={selectHandler.stackedHighlightIds}
 				// Image loading
 				ownerTag={ideallo.cloudillo.ownerTag}
+				token={ideallo.cloudillo.token}
+				sourceFileId={ideallo.cloudillo.fileId}
+				activeDocumentId={activeDocumentId}
+				onDocumentActivate={
+					ideallo.cloudillo.access !== 'read' ? setActiveDocumentId : undefined
+				}
+				onDocumentViewStateChange={!isReadOnly ? handleDocumentViewStateChange : undefined}
+				readOnly={isReadOnly}
 			/>
 
 			{/* Toolbar */}

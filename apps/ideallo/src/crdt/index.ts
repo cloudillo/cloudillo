@@ -35,6 +35,8 @@ export type {
 	StoredPolygon,
 	StoredText,
 	StoredSticky,
+	StoredImage,
+	StoredDocument,
 	StoredObject,
 	StoredMeta,
 	YIdealloDocument
@@ -56,6 +58,7 @@ export type {
 	TextObject,
 	StickyObject,
 	ImageObject,
+	DocumentObject,
 	IdealloObject,
 	Bounds
 } from './runtime-types.js'
@@ -74,7 +77,8 @@ export type {
 	NewPolygonInput,
 	NewTextInput,
 	NewStickyInput,
-	NewImageInput
+	NewImageInput,
+	NewDocumentInput
 } from './object-ops.js'
 export {
 	addObject,
@@ -97,7 +101,8 @@ export {
 	bringToFront,
 	sendToBack,
 	bringForward,
-	sendBackward
+	sendBackward,
+	updateDocumentNavState
 } from './object-ops.js'
 
 // Transforms and geometry utilities

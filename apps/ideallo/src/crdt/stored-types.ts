@@ -46,6 +46,7 @@ export type ObjectTypeCode =
 	| 'P' // Polygon (triangle, pentagon, etc.)
 	| 'S' // Sticky note
 	| 'I' // Image
+	| 'D' // Document (embedded document)
 
 // Stroke style codes
 export type StrokeStyleCode = 'S' | 'D' | 'T' // Solid, Dashed, Dotted
@@ -132,6 +133,17 @@ export interface StoredImage extends StoredObjectBase {
 	fid: string // fileId from MediaPicker
 }
 
+// Embedded document
+export interface StoredDocument extends StoredObjectBase {
+	t: 'D'
+	wh: [number, number] // [width, height]
+	fid: string // fileId of the embedded document
+	ct: string // contentType (e.g. 'cloudillo/quillo')
+	aid?: string // appId (resolved from contentType)
+	ns?: string // navigation state (opaque, app-specific)
+	ar?: [number, number] // aspect ratio from embedded doc (e.g. [16, 9])
+}
+
 // Union of all stored object types
 export type StoredObject =
 	| StoredFreehand
@@ -143,6 +155,7 @@ export type StoredObject =
 	| StoredPolygon
 	| StoredSticky
 	| StoredImage
+	| StoredDocument
 
 // Document metadata
 export interface StoredMeta {

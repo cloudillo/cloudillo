@@ -38,6 +38,7 @@ import {
 	PiTextTBold as IcText,
 	PiNoteBold as IcSticky,
 	PiImageBold as IcImage,
+	PiFileBold as IcDocument,
 	PiArrowArcLeftBold as IcUndo,
 	PiArrowArcRightBold as IcRedo,
 	PiExportBold as IcExport,
@@ -104,7 +105,8 @@ const SHAPE_TOOLS: ToolGroupItem[] = [
 	{ tool: 'arrow', icon: <IcArrow size={22} />, title: 'Arrow', shortcut: 'A' },
 	{ tool: 'text', icon: <IcText size={22} />, title: 'Text', shortcut: 'T' },
 	{ tool: 'sticky', icon: <IcSticky size={22} />, title: 'Sticky Note', shortcut: 'S' },
-	{ tool: 'image', icon: <IcImage size={22} />, title: 'Image', shortcut: 'I' }
+	{ tool: 'image', icon: <IcImage size={22} />, title: 'Image', shortcut: 'I' },
+	{ tool: 'document', icon: <IcDocument size={22} />, title: 'Document', shortcut: 'D' }
 ]
 
 const DRAW_TOOL_SET = new Set<ToolType>(DRAW_TOOLS.map((t) => t.tool))
@@ -356,6 +358,16 @@ export function Toolbar({
 				onToolChange={onToolChange}
 			>
 				<IcImage size={24} />
+			</ToolButton>
+
+			<ToolButton
+				tool="document"
+				activeTool={activeTool}
+				title="Document"
+				shortcut="D"
+				onToolChange={onToolChange}
+			>
+				<IcDocument size={24} />
 			</ToolButton>
 
 			<div className="ideallo-toolbar-divider" />

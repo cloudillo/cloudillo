@@ -31,6 +31,7 @@ import type {
 	StoredPolygon,
 	StoredSticky,
 	StoredImage,
+	StoredDocument,
 	ObjectTypeCode,
 	StrokeStyleCode,
 	YIdealloDocument
@@ -46,6 +47,7 @@ import type {
 	PolygonObject,
 	StickyObject,
 	ImageObject,
+	DocumentObject,
 	ObjectType,
 	StrokeStyle,
 	ArrowheadPosition,
@@ -63,7 +65,8 @@ const TYPE_CODE_TO_TYPE: Record<ObjectTypeCode, ObjectType> = {
 	T: 'text',
 	P: 'polygon',
 	S: 'sticky',
-	I: 'image'
+	I: 'image',
+	D: 'document'
 }
 
 const TYPE_TO_TYPE_CODE: Record<ObjectType, ObjectTypeCode> = {
@@ -75,7 +78,8 @@ const TYPE_TO_TYPE_CODE: Record<ObjectType, ObjectTypeCode> = {
 	text: 'T',
 	polygon: 'P',
 	sticky: 'S',
-	image: 'I'
+	image: 'I',
+	document: 'D'
 }
 
 // NOTE: StoredBezierFreehand removed - we just use StoredFreehand with type 'B' removed
@@ -257,6 +261,20 @@ export function expandObject(
 				fileId: img.fid
 			} as ImageObject
 		}
+		case 'D': {
+			const docEmbed = stored as StoredDocument
+			return {
+				...base,
+				type: 'document',
+				width: docEmbed.wh[0],
+				height: docEmbed.wh[1],
+				fileId: docEmbed.fid,
+				contentType: docEmbed.ct,
+				appId: docEmbed.aid,
+				navState: docEmbed.ns,
+				aspectRatio: docEmbed.ar
+			} as DocumentObject
+		}
 		default:
 			throw new Error(`Unknown object type: ${(stored as any).t}`)
 	}
@@ -421,6 +439,26 @@ export function compactObject(obj: IdealloObject): StoredObject {
 				wh: [img.width, img.height],
 				fid: img.fileId
 			} as StoredImage
+		}
+		case 'document': {
+			const docObj = obj as DocumentObject
+			const stored: StoredDocument = {
+				...(baseStored as any),
+				t: 'D',
+				wh: [docObj.width, docObj.height],
+				fid: docObj.fileId,
+				ct: docObj.contentType
+			}
+			if (docObj.appId) {
+				stored.aid = docObj.appId
+			}
+			if (docObj.navState) {
+				stored.ns = docObj.navState
+			}
+			if (docObj.aspectRatio) {
+				stored.ar = docObj.aspectRatio
+			}
+			return stored
 		}
 		default:
 			throw new Error(`Unknown object type: ${(obj as any).type}`)

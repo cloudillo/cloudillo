@@ -25,7 +25,8 @@ import type {
 	StoredFreehand,
 	StoredPolygon,
 	StoredText,
-	StoredSticky
+	StoredSticky,
+	StoredDocument
 } from './stored-types.js'
 import type { ObjectId } from './ids.js'
 import { generateObjectId, toObjectId } from './ids.js'
@@ -36,6 +37,7 @@ import type {
 	TextObject,
 	StickyObject,
 	ImageObject,
+	DocumentObject,
 	RectObject,
 	EllipseObject,
 	LineObject,
@@ -71,6 +73,11 @@ export type NewStickyInput = Omit<StickyObject, 'id' | 'tid'> & { id?: ObjectId 
 export type NewImageInput = Omit<ImageObject, 'id'> & { id?: ObjectId }
 
 /**
+ * Input type for creating new document embed objects
+ */
+export type NewDocumentInput = Omit<DocumentObject, 'id'> & { id?: ObjectId }
+
+/**
  * Input type for creating new objects
  * Text/geometry fields use expanded names, tid/gid are generated internally
  */
@@ -80,6 +87,7 @@ export type NewObjectInput =
 	| NewTextInput
 	| NewStickyInput
 	| NewImageInput
+	| NewDocumentInput
 	| (Omit<RectObject, 'id'> & { id?: ObjectId })
 	| (Omit<EllipseObject, 'id'> & { id?: ObjectId })
 	| (Omit<LineObject, 'id'> & { id?: ObjectId })
@@ -653,6 +661,39 @@ export function bringForward(yDoc: Y.Doc, doc: YIdealloDocument, objectId: Objec
  */
 export function sendBackward(yDoc: Y.Doc, doc: YIdealloDocument, objectId: ObjectId): void {
 	reorderObject(yDoc, doc, objectId, 'backward')
+}
+
+/**
+ * Update the navigation state (and optional aspect ratio) of a document embed object.
+ * Only writes to CRDT if the stored value actually differs.
+ */
+export function updateDocumentNavState(
+	yDoc: Y.Doc,
+	doc: YIdealloDocument,
+	objectId: ObjectId,
+	navState: string,
+	aspectRatio?: [number, number]
+): void {
+	const existing = doc.o.get(objectId)
+	if (!existing || existing.t !== 'D') return
+
+	const stored = existing as StoredDocument
+	// Skip if nothing changed
+	if (
+		stored.ns === navState &&
+		stored.ar?.[0] === aspectRatio?.[0] &&
+		stored.ar?.[1] === aspectRatio?.[1]
+	) {
+		return
+	}
+
+	yDoc.transact(() => {
+		const updated: StoredDocument = { ...stored, ns: navState }
+		if (aspectRatio) {
+			updated.ar = aspectRatio
+		}
+		doc.o.set(objectId, updated)
+	}, yDoc.clientID)
 }
 
 // vim: ts=4

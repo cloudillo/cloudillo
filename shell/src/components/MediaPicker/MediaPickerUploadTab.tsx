@@ -49,6 +49,7 @@ interface MediaPickerUploadTabProps {
 	enableCrop?: boolean
 	cropAspects?: CropAspect[]
 	isExternalContext?: boolean // True when opened from external app
+	documentFileId?: string // Document file ID for rootId association
 	onUploadComplete: (file: MediaPickerResult) => void
 	onCroppingChange?: (isCropping: boolean) => void // Signal when crop mode is active
 }
@@ -80,6 +81,7 @@ export function MediaPickerUploadTab({
 	enableCrop,
 	cropAspects,
 	isExternalContext,
+	documentFileId,
 	onUploadComplete,
 	onCroppingChange
 }: MediaPickerUploadTabProps) {
@@ -176,7 +178,13 @@ export function MediaPickerUploadTab({
 				const contentType = file.type || 'application/octet-stream'
 
 				// Upload using API
-				const result = await api.files.uploadBlob('media', name, file, contentType)
+				const result = await api.files.uploadBlob(
+					'media',
+					name,
+					file,
+					contentType,
+					documentFileId ? { rootId: documentFileId } : undefined
+				)
 
 				if (result?.fileId) {
 					// Apply visibility setting to the uploaded file
@@ -199,7 +207,7 @@ export function MediaPickerUploadTab({
 				setUploadState('error')
 			}
 		},
-		[api, onUploadComplete, t, visibility]
+		[api, onUploadComplete, t, visibility, documentFileId]
 	)
 
 	// Handle crop complete

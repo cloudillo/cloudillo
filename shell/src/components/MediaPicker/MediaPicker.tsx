@@ -217,6 +217,7 @@ export function MediaPicker() {
 							enableCrop={enableCrop}
 							cropAspects={state.options?.cropAspects}
 							isExternalContext={state.options?.isExternalContext}
+							documentFileId={state.options?.documentFileId}
 							onUploadComplete={handleUploadComplete}
 							onCroppingChange={setIsCropping}
 						/>

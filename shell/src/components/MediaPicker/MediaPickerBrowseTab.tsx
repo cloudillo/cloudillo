@@ -217,6 +217,8 @@ export function MediaPickerBrowseTab({
 		isExternalContext ? 'P' : 'all'
 	)
 	const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false)
+	// Track file IDs that have been granted access via share entries
+	const [accessibleFileIds, setAccessibleFileIds] = useState<Set<string>>(new Set())
 	// Track which file is currently being updated (for loading state)
 	const [updatingFileId, setUpdatingFileId] = useState<string | null>(null)
 	// Track which file is awaiting confirmation and which side is confirm (vertical split)
@@ -235,6 +237,22 @@ export function MediaPickerBrowseTab({
 
 		return () => clearTimeout(timeout)
 	}, [confirmingFile])
+
+	// Load share entries for the document to know which files are already accessible
+	useEffect(() => {
+		async function loadShareEntries() {
+			if (!api || !documentFileId) return
+			try {
+				const entries = await api.shares.listBySubject(documentFileId, 'F')
+				if (entries?.length) {
+					setAccessibleFileIds(new Set(entries.map((e) => e.resourceId)))
+				}
+			} catch {
+				// Silently ignore — share entries are optional enhancement
+			}
+		}
+		loadShareEntries()
+	}, [api, documentFileId])
 
 	// Fetch files when folder changes
 	useEffect(() => {
@@ -329,7 +347,8 @@ export function MediaPickerBrowseTab({
 
 			// Check if file is disabled (non-public in external context)
 			// Disabled files are handled by the lock overlay click, not here
-			const isDisabled = isExternalContext && !isPublicFile(file)
+			const isDisabled =
+				isExternalContext && !isPublicFile(file) && !accessibleFileIds.has(file.fileId)
 			if (isDisabled) {
 				return
 			}
@@ -355,7 +374,7 @@ export function MediaPickerBrowseTab({
 
 			onSelect(result)
 		},
-		[handleFolderClick, onSelect, resolvedDocVisibility, isExternalContext]
+		[handleFolderClick, onSelect, resolvedDocVisibility, isExternalContext, accessibleFileIds]
 	)
 
 	// Handle double click
@@ -367,7 +386,8 @@ export function MediaPickerBrowseTab({
 			}
 
 			// Check if file is disabled (non-public in external context)
-			const isDisabled = isExternalContext && !isPublicFile(file)
+			const isDisabled =
+				isExternalContext && !isPublicFile(file) && !accessibleFileIds.has(file.fileId)
 			if (isDisabled) {
 				// Don't allow selection of disabled files
 				return
@@ -385,7 +405,13 @@ export function MediaPickerBrowseTab({
 
 			onDoubleClick(result)
 		},
-		[handleFolderClick, onDoubleClick, showVisibilityWarning, isExternalContext]
+		[
+			handleFolderClick,
+			onDoubleClick,
+			showVisibilityWarning,
+			isExternalContext,
+			accessibleFileIds
+		]
 	)
 
 	// Acknowledge visibility warning
@@ -427,6 +453,49 @@ export function MediaPickerBrowseTab({
 		}
 	}, [api, currentFolderId, searchQuery])
 
+	// Handle "Grant document access" action for a file (creates share entry)
+	const handleGrantDocumentAccess = useCallback(
+		async (fileId: string, fileName: string, contentType: string) => {
+			if (!api || !documentFileId) return
+
+			setUpdatingFileId(fileId)
+			try {
+				await api.files.createShare(fileId, {
+					subjectType: 'F',
+					subjectId: documentFileId,
+					permission: 'R'
+				})
+
+				// Track that this file is now accessible
+				setAccessibleFileIds((prev) => new Set(prev).add(fileId))
+
+				// Auto-select the file that was just granted access
+				const fileVisibility: Visibility =
+					(files.find((f) => f.fileId === fileId)?.visibility as Visibility) || 'F'
+				if (selectedFile?.fileId === fileId) {
+					setShowVisibilityWarning(false)
+					onSelect({
+						...selectedFile,
+						visibilityAcknowledged: true
+					})
+				} else {
+					onSelect({
+						fileId,
+						fileName,
+						contentType,
+						visibility: fileVisibility,
+						visibilityAcknowledged: true
+					})
+				}
+			} catch (err) {
+				console.error('Failed to grant document access:', err)
+			} finally {
+				setUpdatingFileId(null)
+			}
+		},
+		[api, documentFileId, files, selectedFile, onSelect]
+	)
+
 	// Handle "Make Public" action for a file
 	const handleMakePublic = useCallback(
 		async (fileId: string, fileName: string, contentType: string) => {
@@ -466,6 +535,20 @@ export function MediaPickerBrowseTab({
 		},
 		[api, refetchFiles, selectedFile, onSelect]
 	)
+
+	// Unified handler for file access action (grant document access or make public)
+	const handleFileAccessAction = useCallback(
+		(fileId: string, fileName: string, contentType: string) => {
+			if (documentFileId) {
+				handleGrantDocumentAccess(fileId, fileName, contentType)
+			} else {
+				handleMakePublic(fileId, fileName, contentType)
+			}
+		},
+		[documentFileId, handleGrantDocumentAccess, handleMakePublic]
+	)
+
+	const fileAccessActionLabel = documentFileId ? t('Grant access') : t('Make public')
 
 	const currentFilterOption = getVisibilityFilterOption(visibilityFilter)
 	const FilterIcon = currentFilterOption.icon
@@ -561,7 +644,7 @@ export function MediaPickerBrowseTab({
 								type="button"
 								className="c-button small primary"
 								onClick={() =>
-									handleMakePublic(
+									handleFileAccessAction(
 										selectedFile.fileId,
 										selectedFile.fileName,
 										selectedFile.contentType
@@ -571,7 +654,7 @@ export function MediaPickerBrowseTab({
 							>
 								{updatingFileId === selectedFile.fileId
 									? t('Updating...')
-									: t('Make Public')}
+									: fileAccessActionLabel}
 							</button>
 							<button
 								type="button"
@@ -601,7 +684,10 @@ export function MediaPickerBrowseTab({
 						{filteredFiles.map((file) => {
 							// Check if file is disabled (non-public in external context, not a folder)
 							const isFileDisabled =
-								isExternalContext && !isPublicFile(file) && file.fileTp !== 'FLDR'
+								isExternalContext &&
+								!isPublicFile(file) &&
+								!accessibleFileIds.has(file.fileId) &&
+								file.fileTp !== 'FLDR'
 							const visibilityIcon = getVisibilityIcon(file.visibility ?? null)
 							const isUpdating = updatingFileId === file.fileId
 							const isConfirming = confirmingFile?.id === file.fileId
@@ -645,7 +731,9 @@ export function MediaPickerBrowseTab({
 														confirmSide: isTopClick ? 'bottom' : 'top'
 													})
 												}}
-												title={t('Click to make public')}
+												title={t('Click to {{action}}', {
+													action: fileAccessActionLabel
+												})}
 											>
 												{isUpdating ? (
 													<span className="media-picker-lock-spinner" />
@@ -657,7 +745,7 @@ export function MediaPickerBrowseTab({
 															onClick={(e) => {
 																e.stopPropagation()
 																if (confirmSide === 'top') {
-																	handleMakePublic(
+																	handleFileAccessAction(
 																		file.fileId,
 																		file.fileName,
 																		file.contentType
@@ -683,7 +771,7 @@ export function MediaPickerBrowseTab({
 															onClick={(e) => {
 																e.stopPropagation()
 																if (confirmSide === 'bottom') {
-																	handleMakePublic(
+																	handleFileAccessAction(
 																		file.fileId,
 																		file.fileName,
 																		file.contentType
@@ -708,7 +796,7 @@ export function MediaPickerBrowseTab({
 													<>
 														<IcLock />
 														<span className="media-picker-item-lock-label">
-															{t('Make public')}
+															{fileAccessActionLabel}
 														</span>
 													</>
 												)}

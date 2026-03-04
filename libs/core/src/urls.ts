@@ -30,9 +30,17 @@ export function getInstanceUrl(idTag: string): string {
  * @param variant - Optional variant (e.g., "vis.sd", "vis.tn", "vid.hd")
  * @returns Full file URL
  */
-export function getFileUrl(idTag: string, fileId: string, variant?: string): string {
+export function getFileUrl(
+	idTag: string,
+	fileId: string,
+	variant?: string,
+	opts?: { token?: string }
+): string {
 	const base = `${getInstanceUrl(idTag)}/api/files/${fileId}`
-	return variant ? `${base}?variant=${variant}` : base
+	const params = new URLSearchParams()
+	if (variant) params.append('variant', variant)
+	if (opts?.token) params.append('token', opts.token)
+	return params.size ? `${base}?${params}` : base
 }
 
 /**

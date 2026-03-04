@@ -653,7 +653,10 @@ export const tShareEntry = T.struct({
 	permission: T.string,
 	expiresAt: T.optional(T.union(T.string, T.date)),
 	createdBy: T.string,
-	createdAt: T.union(T.string, T.date)
+	createdAt: T.union(T.string, T.date),
+	subjectFileName: T.optional(T.string),
+	subjectContentType: T.optional(T.string),
+	subjectFileTp: T.optional(T.string)
 })
 export type ShareEntry = T.TypeOf<typeof tShareEntry>
 

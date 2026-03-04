@@ -476,9 +476,13 @@ export class ApiClient {
 			preset: string,
 			fileName: string,
 			fileData: Blob | File | ArrayBuffer,
-			contentType?: string
+			contentType?: string,
+			options?: { rootId?: string }
 		) => {
-			const url = `${getInstanceUrl(this.opts.idTag)}/api/files/${preset}/${fileName}`
+			let url = `${getInstanceUrl(this.opts.idTag)}/api/files/${preset}/${fileName}`
+			if (options?.rootId) {
+				url += '?root_id=' + encodeURIComponent(options.rootId)
+			}
 			const body =
 				fileData instanceof ArrayBuffer ? fileData : await (fileData as Blob).arrayBuffer()
 
@@ -674,6 +678,24 @@ export class ApiClient {
 		 */
 		deleteShare: (fileId: string, shareId: number) =>
 			this.request('DELETE', `/files/${fileId}/shares/${shareId}`, T.nullValue)
+	}
+
+	// ========================================================================
+	// SHARE ENTRY QUERY ENDPOINTS
+	// ========================================================================
+
+	/** Share entry query endpoints */
+	shares = {
+		/**
+		 * GET /shares?subject_id={id}[&subject_type=F] - List share entries by subject
+		 * @param subjectId - Subject ID to look up
+		 * @param subjectType - Optional subject type filter (e.g. 'F' for file)
+		 * @returns List of share entries where the given ID is the subject
+		 */
+		listBySubject: (subjectId: string, subjectType?: string) =>
+			this.request('GET', '/shares', Types.tListShareEntriesResult, {
+				query: { subject_id: subjectId, subject_type: subjectType }
+			})
 	}
 
 	// ========================================================================

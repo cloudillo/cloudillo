@@ -50,6 +50,8 @@ export interface AppConnection {
 	token?: string
 	/** Share link ref ID for token refresh */
 	refId?: string
+	/** Source file ID for cross-document token refresh of embedded apps */
+	via?: string
 }
 
 /**
@@ -78,6 +80,8 @@ export interface PendingRegistration {
 	idTag?: string
 	appName?: string
 	displayName?: string
+	navState?: string
+	ancestors?: string[]
 }
 
 // ============================================
@@ -95,6 +99,7 @@ export class AppTracker {
 	// Track count separately since WeakMap doesn't have size
 	private connectionCount = 0
 	private pendingRegistrations = new Map<string, PendingRegistration>()
+	private embedTokens = new Map<string, string>()
 	private debug: boolean
 
 	constructor(debug = false) {
@@ -289,11 +294,27 @@ export class AppTracker {
 	 * Clear pending registrations and reset count
 	 * Note: WeakMap connections will be garbage collected automatically
 	 */
+	/**
+	 * Store a scoped token for an embedded document's file ID.
+	 * Used so nested embeds can look up the correct via-token.
+	 */
+	storeEmbedToken(fileId: string, token: string): void {
+		this.embedTokens.set(fileId, token)
+	}
+
+	/**
+	 * Get a previously stored embed token by file ID.
+	 */
+	getEmbedToken(fileId: string): string | undefined {
+		return this.embedTokens.get(fileId)
+	}
+
 	clear(): void {
 		this.connections = new WeakMap()
 		this.activeWindows.clear()
 		this.connectionCount = 0
 		this.pendingRegistrations.clear()
+		this.embedTokens.clear()
 		this.log('Cleared all connections and pending registrations')
 	}
 }

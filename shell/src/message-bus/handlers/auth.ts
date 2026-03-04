@@ -40,6 +40,67 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 		let connection = bus.getAppTracker().getApp(appWindow)
 		let displayName: string | undefined
 
+		// Relayed embed init: the parent app is already initialized and the
+		// child's resId starts with "_embed:". Consume the pending registration
+		// and respond with the embed token directly.
+		const isRelayedEmbed = connection?.initialized && msg.payload.resId?.startsWith('_embed:')
+
+		if (isRelayedEmbed) {
+			const pending = bus.getAppTracker().consumePendingRegistration(msg.payload.resId!)
+			if (!pending) {
+				bus.sendResponse(
+					appWindow,
+					'auth:init.res',
+					msg.id,
+					false,
+					undefined,
+					'No pending registration for embed'
+				)
+				return
+			}
+
+			const authState = bus.getAuthState()
+			const themeState = bus.getThemeState()
+
+			// Calculate token lifetime from JWT exp claim
+			let tokenLifetime: number | undefined
+			if (pending.token) {
+				try {
+					const [, payload] = pending.token.split('.')
+					if (payload) {
+						const decoded = JSON.parse(
+							atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
+						)
+						if (decoded.exp) {
+							tokenLifetime = Math.max(
+								0,
+								Math.floor((decoded.exp * 1000 - Date.now()) / 1000)
+							)
+						}
+					}
+				} catch {
+					/* ignore */
+				}
+			}
+
+			bus.sendResponse(appWindow, 'auth:init.res', msg.id, true, {
+				idTag: pending.idTag || authState?.idTag,
+				tnId: authState?.tnId,
+				roles: authState?.roles,
+				theme: 'glass',
+				darkMode: themeState.darkMode,
+				token: pending.token,
+				access: pending.access || 'read',
+				tokenLifetime,
+				displayName: pending.displayName,
+				navState: pending.navState,
+				ancestors: pending.ancestors
+			})
+
+			console.log('[Auth] Relayed embed initialized:', msg.payload.appName, msg.payload.resId)
+			return
+		}
+
 		// If app isn't registered but sent resId, register it now
 		// This handles the race condition where app sends init.req before load event
 		if (!connection && msg.payload.resId) {
@@ -84,7 +145,9 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 				try {
 					const [, payload] = token.split('.')
 					if (payload) {
-						const decoded = JSON.parse(atob(payload))
+						const decoded = JSON.parse(
+							atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
+						)
 						if (decoded.exp) {
 							const remaining = decoded.exp * 1000 - Date.now()
 							tokenLifetime = Math.max(0, Math.floor(remaining / 1000))

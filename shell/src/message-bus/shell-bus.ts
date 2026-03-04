@@ -39,6 +39,8 @@ import {
 import { initAuthHandlers } from './handlers/auth.js'
 import { initStorageHandlers } from './handlers/storage.js'
 import { initMediaHandlers } from './handlers/media.js'
+import { initDocumentHandlers } from './handlers/document.js'
+import { initEmbedHandlers } from './handlers/embed.js'
 import { initLifecycleHandlers } from './handlers/lifecycle.js'
 import { initCrdtHandlers } from './handlers/crdt.js'
 import { initSettingsHandlers } from './handlers/settings.js'
@@ -123,6 +125,8 @@ export class ShellMessageBus extends MessageBusBase {
 		initAuthHandlers(this)
 		initStorageHandlers(this)
 		initMediaHandlers(this)
+		initDocumentHandlers(this)
+		initEmbedHandlers(this)
 		initLifecycleHandlers(this)
 		initCrdtHandlers(this)
 		initSettingsHandlers(this)
@@ -193,6 +197,8 @@ export class ShellMessageBus extends MessageBusBase {
 			access?: 'read' | 'write'
 			idTag?: string
 			displayName?: string
+			navState?: string
+			ancestors?: string[]
 		}
 	): void {
 		this.appTracker.setPendingRegistration(resId, data)

@@ -94,7 +94,9 @@ export function DetailsPanel({
 		function readPerms() {
 			return fileActions
 				?.filter((a) => a.type === 'FSHR' && a.subType === 'READ')
-				.sort((a, b) => a.audience?.idTag.localeCompare(b.audience?.idTag ?? '') || 0)
+				.sort(
+					(a, b) => (a.audience?.idTag ?? '').localeCompare(b.audience?.idTag ?? '') || 0
+				)
 		},
 		[fileActions]
 	)
@@ -103,7 +105,9 @@ export function DetailsPanel({
 		function writePerms() {
 			return fileActions
 				?.filter((a) => a.type === 'FSHR' && a.subType === 'WRITE')
-				.sort((a, b) => a.audience?.idTag.localeCompare(b.audience?.idTag ?? '') || 0)
+				.sort(
+					(a, b) => (a.audience?.idTag ?? '').localeCompare(b.audience?.idTag ?? '') || 0
+				)
 		},
 		[fileActions]
 	)
@@ -112,24 +116,33 @@ export function DetailsPanel({
 		function loadFileDetails() {
 			if (!api) return
 
+			let cancelled = false
+
 			;(async function () {
 				const actions = await api.actions.list({ type: 'FSHR', subject: file.fileId })
+				if (cancelled) return
 				setFileActions(actions)
 
 				const refs = await api.refs.list({
 					type: 'share.file',
 					resourceId: file.fileId
 				})
+				if (cancelled) return
 				setShareRefs(refs)
 
 				try {
 					const allEntries = await api.files.listShares(file.fileId)
+					if (cancelled) return
 					const fileEntries = allEntries.filter((e) => e.subjectType === 'F')
 					setShareEntries(fileEntries)
 				} catch (err) {
 					console.error('Failed to load share entries', err)
 				}
 			})()
+
+			return () => {
+				cancelled = true
+			}
 		},
 		[api, file.fileId]
 	)

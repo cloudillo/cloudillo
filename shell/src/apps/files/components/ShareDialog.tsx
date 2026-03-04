@@ -96,7 +96,9 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 		() =>
 			fileActions
 				.filter((a) => a.type === 'FSHR' && a.subType === 'WRITE')
-				.sort((a, b) => a.audience?.idTag.localeCompare(b.audience?.idTag ?? '') || 0),
+				.sort(
+					(a, b) => (a.audience?.idTag ?? '').localeCompare(b.audience?.idTag ?? '') || 0
+				),
 		[fileActions]
 	)
 
@@ -104,7 +106,9 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 		() =>
 			fileActions
 				.filter((a) => a.type === 'FSHR' && a.subType === 'READ')
-				.sort((a, b) => a.audience?.idTag.localeCompare(b.audience?.idTag ?? '') || 0),
+				.sort(
+					(a, b) => (a.audience?.idTag ?? '').localeCompare(b.audience?.idTag ?? '') || 0
+				),
 		[fileActions]
 	)
 
@@ -113,19 +117,19 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 		function loadShareData() {
 			if (!api || !open) return
 
+			let cancelled = false
+
 			;(async function () {
 				setLoadingActions(true)
 				setLoadingRefs(true)
 
 				try {
-					console.log('Loading actions for file:', file.fileId)
 					const actions = await api.actions.list({ type: 'FSHR', subject: file.fileId })
-					console.log('Loaded actions:', actions)
-					setFileActions(actions)
+					if (!cancelled) setFileActions(actions)
 				} catch (err) {
 					console.error('Failed to load permissions', err)
 				} finally {
-					setLoadingActions(false)
+					if (!cancelled) setLoadingActions(false)
 				}
 
 				try {
@@ -133,24 +137,30 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 						type: 'share.file',
 						resourceId: file.fileId
 					})
-					setShareRefs(refs)
+					if (!cancelled) setShareRefs(refs)
 				} catch (err) {
 					console.error('Failed to load share links', err)
 				} finally {
-					setLoadingRefs(false)
+					if (!cancelled) setLoadingRefs(false)
 				}
 
 				try {
-					setLoadingEntries(true)
+					if (!cancelled) setLoadingEntries(true)
 					const allEntries = await api.files.listShares(file.fileId)
-					const fileEntries = allEntries.filter((e) => e.subjectType === 'F')
-					setShareEntries(fileEntries)
+					if (!cancelled) {
+						const fileEntries = allEntries.filter((e) => e.subjectType === 'F')
+						setShareEntries(fileEntries)
+					}
 				} catch (err) {
 					console.error('Failed to load share entries', err)
 				} finally {
-					setLoadingEntries(false)
+					if (!cancelled) setLoadingEntries(false)
 				}
 			})()
+
+			return () => {
+				cancelled = true
+			}
 		},
 		[api, open, file.fileId]
 	)
@@ -178,23 +188,19 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 
 		try {
 			const res = await api.actions.create(action)
-			console.log('addPerm response:', res)
 			// Ensure the audience profile and subType are set (backend may not return them)
 			const actionWithData = {
 				...res,
 				subType: res.subType ?? perm,
 				audience: res.audience ?? profile
 			}
-			console.log('actionWithData:', actionWithData)
 			let found = false
 			setFileActions((prev) => {
-				console.log('prev fileActions:', prev)
 				const next = prev
 					.map((fa) =>
 						fa.audience?.idTag === profile.idTag ? ((found = true), actionWithData) : fa
 					)
 					.concat(found ? [] : [actionWithData])
-				console.log('next fileActions:', next)
 				return next
 			})
 			toast.success(t('Permission granted'))

@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/crdt",
-	"version": "0.8.9",
+	"version": "0.8.10",
 	"description": "Cloudillo CRDT/Yjs collaborative editing library",
 	"type": "module",
 	"main": "lib/index.js",

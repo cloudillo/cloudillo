@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/canvas-text",
-	"version": "0.8.9",
+	"version": "0.8.10",
 	"description": "Rich text display, editing, and SVG export for Cloudillo canvas apps",
 	"type": "module",
 	"main": "lib/index.js",

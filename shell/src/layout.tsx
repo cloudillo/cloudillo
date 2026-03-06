@@ -198,6 +198,7 @@ import {
 	ToastContainer
 } from '@cloudillo/react'
 import { createApiClient, FetchError } from '@cloudillo/core'
+import { useSetAtom } from 'jotai'
 import { AppConfigState, useAppConfig } from './utils.js'
 import usePWA, {
 	registerServiceWorker,
@@ -209,7 +210,7 @@ import usePWA, {
 	resetEncryptionState,
 	KeyErrorReason
 } from './pwa.js'
-import { AuthRoutes } from './auth/auth.js'
+import { AuthRoutes, loginInitAtom } from './auth/auth.js'
 import { useTokenRenewal } from './auth/useTokenRenewal.js'
 import { useActionNotifications } from './notifications/useActionNotifications.js'
 import {
@@ -547,6 +548,9 @@ function Header({ inert }: { inert?: boolean }) {
 		setMenuOpen(false)
 	}
 
+	const setLoginInitData = useSetAtom(loginInitAtom)
+	const initRef = React.useRef(false)
+
 	React.useEffect(
 		function onLoad() {
 			// Set app config
@@ -557,6 +561,10 @@ function Header({ inert }: { inert?: boolean }) {
 			setTheme(undefined, undefined)
 			;(async function () {
 				if (!api?.idTag || !auth) {
+					// Guard against duplicate effect execution (StrictMode / double fire)
+					if (initRef.current) return
+					initRef.current = true
+
 					// Determine idTag or authenticate
 					try {
 						// Ensure SW is registered and controlling (for hard reload scenarios)
@@ -594,12 +602,11 @@ function Header({ inert }: { inert?: boolean }) {
 										idTag: ownerIdTag,
 										authToken: tokenResult.token
 									})
-									// Get full login info
-									const loginInfo = await authApi.auth.getLoginToken()
-									if (loginInfo?.token) {
-										authState = { ...loginInfo }
-										// Register SW with token
-										await registerServiceWorker(loginInfo.token)
+									// Use loginInit to get full login info (authenticated path)
+									const initResult = await authApi.auth.loginInit()
+									if (initResult.status === 'authenticated') {
+										authState = { ...initResult.login }
+										await registerServiceWorker(initResult.login.token)
 										await ensureEncryptionKey()
 									}
 								}
@@ -616,31 +623,30 @@ function Header({ inert }: { inert?: boolean }) {
 							}
 						}
 
-						// If API key auth failed, try normal login token
+						// If API key auth failed, use loginInit (unauthenticated path)
 						if (!authState) {
 							try {
-								const tokenRes = await tempApi.auth.getLoginToken()
-								console.log('[Layout] getLoginToken result:', {
-									hasToken: !!tokenRes?.token
-								})
-								authState = tokenRes ? { ...tokenRes } : undefined
-								// Register SW with token
-								if (tokenRes?.token) {
-									console.log('[Layout] Calling registerServiceWorker...')
-									await registerServiceWorker(tokenRes.token)
+								const initResult = await tempApi.auth.loginInit()
+								if (initResult.status === 'authenticated') {
+									authState = { ...initResult.login }
+									await registerServiceWorker(initResult.login.token)
 									await ensureEncryptionKey()
 								} else {
-									console.log('[Layout] Missing token, skipping SW registration')
+									// Store QR + WebAuthn data for login page
+									setLoginInitData({
+										qrLogin: initResult.qrLogin,
+										webAuthn: initResult.webAuthn ?? null
+									})
 								}
 							} catch (err) {
-								// Not authenticated - continue as guest
-								console.log('[Layout] getLoginToken failed:', err)
+								// Not authenticated - signal "no data" so login components use fallback
+								console.log('[Layout] loginInit failed:', err)
+								setLoginInitData(null)
 							}
 						}
 
 						if (authState?.idTag) {
 							setAuth(authState)
-							// Token is already stored in SW encrypted storage via registerServiceWorker()
 
 							// Load and apply UI settings
 							try {
@@ -663,7 +669,6 @@ function Header({ inert }: { inert?: boolean }) {
 								}
 							} catch (err) {
 								console.error('Failed to load UI settings:', err)
-								// Navigate to default even if settings fail
 								const navTo =
 									appConfig?.menu
 										?.find((m) => m.id === appConfig.defaultMenu)

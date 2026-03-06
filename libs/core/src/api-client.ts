@@ -81,6 +81,7 @@ export class ApiClient {
 			query?: Record<string, string | number | boolean | undefined>
 			authToken?: string
 			requestId?: string
+			headers?: Record<string, string>
 		}
 	): Promise<Res> {
 		return await apiFetchHelper<Res, unknown>(this.opts.idTag, method, path, {
@@ -88,7 +89,8 @@ export class ApiClient {
 			data: options?.data,
 			query: options?.query,
 			authToken: options?.authToken || this.opts.authToken,
-			requestId: options?.requestId
+			requestId: options?.requestId,
+			headers: options?.headers
 		})
 	}
 
@@ -143,6 +145,13 @@ export class ApiClient {
 		 */
 		getLoginToken: () =>
 			this.request('GET', '/auth/login-token', T.nullable(Types.tLoginResult)),
+
+		/**
+		 * POST /auth/login-init - Combined login initialization
+		 * Returns authenticated (with login data) or unauthenticated (with QR + WebAuthn init data)
+		 */
+		loginInit: () =>
+			this.request('POST', '/auth/login-init', Types.tLoginInitResult, { data: {} }),
 
 		/**
 		 * GET /auth/access-token - Get access token
@@ -295,7 +304,58 @@ export class ApiClient {
 		getAccessTokenByApiKey: (apiKey: string) =>
 			this.request('GET', '/auth/access-token', Types.tLoginResult, {
 				query: { apiKey }
-			})
+			}),
+
+		// ====================================================================
+		// QR LOGIN ENDPOINTS
+		// ====================================================================
+
+		/**
+		 * POST /auth/qr-login/init - Create QR login session
+		 * @returns Login code for QR code
+		 */
+		initQrLogin: () =>
+			this.request('POST', '/auth/qr-login/init', Types.tQrLoginInitResult, { data: {} }),
+
+		/**
+		 * GET /auth/qr-login/{sessionId}/status - Poll QR login status
+		 * @param sessionId - Session ID
+		 * @param secret - Desktop secret for authentication
+		 * @returns Status and login result when approved
+		 */
+		getQrLoginStatus: (sessionId: string, secret: string) =>
+			this.request(
+				'GET',
+				`/auth/qr-login/${encodeURIComponent(sessionId)}/status`,
+				Types.tQrLoginStatusResult,
+				{ headers: { 'X-QR-Secret': secret } }
+			),
+
+		/**
+		 * GET /auth/qr-login/{sessionId}/details - Get desktop browser info for approval
+		 * @param sessionId - Session ID
+		 * @returns Browser user agent and IP address
+		 */
+		getQrLoginDetails: (sessionId: string) =>
+			this.request(
+				'GET',
+				`/auth/qr-login/${encodeURIComponent(sessionId)}/details`,
+				Types.tQrLoginDetailsResult
+			),
+
+		/**
+		 * POST /auth/qr-login/{sessionId}/respond - Approve or deny QR login
+		 * @param sessionId - Session ID
+		 * @param data - Approval decision
+		 * @returns Response status
+		 */
+		respondQrLogin: (sessionId: string, data: Types.QrLoginRespondRequest) =>
+			this.request(
+				'POST',
+				`/auth/qr-login/${encodeURIComponent(sessionId)}/respond`,
+				Types.tQrLoginRespondResult,
+				{ data }
+			)
 	}
 
 	// ========================================================================

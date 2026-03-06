@@ -123,6 +123,8 @@ export interface ApiFetchOpts<R, D> {
 	authToken?: string
 	/** Optional request ID for tracing */
 	requestId?: string
+	/** Optional custom headers */
+	headers?: Record<string, string>
 	/** Return metadata in addition to data */
 	returnMeta?: boolean
 }
@@ -179,7 +181,8 @@ export async function apiFetchHelper<R, D = any>(
 
 	// Build headers
 	const headers: Record<string, string> = {
-		'Content-Type': 'application/json'
+		'Content-Type': 'application/json',
+		...opts.headers
 	}
 	if (opts.authToken) {
 		headers['Authorization'] = `Bearer ${opts.authToken}`

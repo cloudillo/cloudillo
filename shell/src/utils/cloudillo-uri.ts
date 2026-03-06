@@ -14,7 +14,10 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-export type CloudilloUri = { type: 'id'; idTag: string } | { type: 'unknown'; raw: string }
+export type CloudilloUri =
+	| { type: 'id'; idTag: string }
+	| { type: 'qr-login'; loginCode: string }
+	| { type: 'unknown'; raw: string }
 
 export function parseCloudilloUri(uri: string): CloudilloUri | null {
 	if (!uri.startsWith('cloudillo:')) return null
@@ -28,6 +31,10 @@ export function parseCloudilloUri(uri: string): CloudilloUri | null {
 
 	if (uriType === 'id' && payload) {
 		return { type: 'id', idTag: payload }
+	}
+
+	if (uriType === 'qr-login' && payload) {
+		return { type: 'qr-login', loginCode: payload }
 	}
 
 	return { type: 'unknown', raw: uri }

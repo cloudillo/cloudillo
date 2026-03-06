@@ -1048,5 +1048,72 @@ export interface UpdateProxySiteRequest {
 }
 
 // ============================================================================
+// LOGIN INIT (combined endpoint)
+// ============================================================================
+
+export const tLoginInitAuthenticated = T.struct({
+	status: T.literal('authenticated'),
+	login: tLoginResult
+})
+
+export const tLoginInitUnauthenticated = T.struct({
+	status: T.literal('unauthenticated'),
+	qrLogin: T.struct({
+		sessionId: T.string,
+		secret: T.string
+	}),
+	webAuthn: T.nullable(
+		T.struct({
+			options: T.unknown,
+			token: T.string
+		})
+	)
+})
+
+export const tLoginInitResult = T.union(tLoginInitAuthenticated, tLoginInitUnauthenticated)
+export type LoginInitResult = T.TypeOf<typeof tLoginInitResult>
+
+// ============================================================================
+// QR LOGIN ENDPOINTS
+// ============================================================================
+
+export const tQrLoginInitResult = T.struct({
+	sessionId: T.string,
+	secret: T.string
+})
+export type QrLoginInitResult = T.TypeOf<typeof tQrLoginInitResult>
+
+export const tQrLoginStatusResult = T.struct({
+	status: T.literal('pending', 'approved', 'denied', 'expired'),
+	login: T.optional(
+		T.struct({
+			tnId: T.optional(T.number),
+			idTag: T.optional(T.string),
+			roles: T.optional(T.array(T.string)),
+			token: T.optional(T.string),
+			name: T.optional(T.string),
+			profilePic: T.optional(T.string),
+			swEncryptionKey: T.optional(T.string)
+		})
+	)
+})
+export type QrLoginStatusResult = T.TypeOf<typeof tQrLoginStatusResult>
+
+export const tQrLoginDetailsResult = T.struct({
+	userAgent: T.optional(T.string),
+	ipAddress: T.optional(T.string)
+})
+export type QrLoginDetailsResult = T.TypeOf<typeof tQrLoginDetailsResult>
+
+export const tQrLoginRespondResult = T.struct({
+	status: T.string
+})
+export type QrLoginRespondResult = T.TypeOf<typeof tQrLoginRespondResult>
+
+export interface QrLoginRespondRequest {
+	approved: boolean
+}
+
+// ============================================================================
 // WEBSOCKET TYPES
 // vim: ts=2

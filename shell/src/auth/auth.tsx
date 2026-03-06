@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
+import { atom, useAtom } from 'jotai'
 import {
 	Routes,
 	Route,
@@ -50,6 +51,7 @@ import {
 } from 'react-icons/lu'
 
 import { useAuth, AuthState, useApi, useDialog, Button } from '@cloudillo/react'
+import type { LoginInitResult, ApiClient } from '@cloudillo/core'
 
 import { useAppConfig, ServerError, arrayBufferToBase64Url, base64ToArrayBuffer } from '../utils.js'
 import { CloudilloLogo } from '../logo.js'
@@ -58,21 +60,31 @@ import { RegisterForm } from '../profile/register.js'
 import { validIdTag, validPassword } from './utils.js'
 import { ResetPassword } from './reset-password.js'
 import { IdpActivate } from './idp-activate.js'
+import { QrLoginPanel } from './QrLoginPanel.js'
 import { registerServiceWorker, ensureEncryptionKey } from '../pwa.js'
 
-////////////
-// Logout //
-////////////
-export async function logout() {
-	const { api, setIdTag } = useApi()
-	if (!api) throw new Error('Not authenticated')
-	await api.auth.logout()
+// ============================================================================
+// Login Init Context — shares pre-fetched QR + WebAuthn data with login page
+// ============================================================================
+
+export interface LoginInitData {
+	qrLogin: { sessionId: string; secret: string }
+	webAuthn: { options?: unknown; token: string } | null
+}
+
+// undefined = still loading, null = no pre-fetched data, LoginInitData = ready
+export const loginInitAtom = atom<LoginInitData | null | undefined>(undefined)
+
+// undefined = still loading, null = no pre-fetched data, LoginInitData = ready
+const LoginInitContext = React.createContext<LoginInitData | null | undefined>(undefined)
+
+export function useLoginInit() {
+	return React.useContext(LoginInitContext)
 }
 
 //////////////
 // Web auth //
 //////////////
-import type { ApiClient } from '@cloudillo/core'
 
 /**
  * Attempt WebAuthn login
@@ -151,55 +163,46 @@ export function LoginForm() {
 	const [forgotStatus, setForgotStatus] = React.useState<'idle' | 'loading' | 'success'>('idle')
 	const [forgotError, setForgotError] = React.useState<string | undefined>()
 
-	// Auto-attempt WebAuthn login on page load
+	// Use pre-fetched WebAuthn data from login-init context
+	const loginInitData = useLoginInit()
+
+	// Auto-attempt WebAuthn login using pre-fetched challenge from login-init.
+	// loginInitData === undefined means "still loading from layout" — wait.
 	React.useEffect(
 		function attemptWebAuthnLogin() {
 			if (!api || webAuthnAttempted || auth) return
 			if (!browserSupportsWebAuthn()) return
+			// Wait for loginInitData to be resolved (undefined = still loading)
+			if (loginInitData === undefined) return
 
 			setWebAuthnAttempted(true)
 
+			if (!loginInitData?.webAuthn) {
+				setHasPasskeys(false)
+				return
+			}
+			setHasPasskeys(true)
+			const challengeData = loginInitData.webAuthn
 			;(async () => {
 				try {
-					// Get challenge first to check if passkeys are available
-					const challengeData = await api.auth.getWebAuthnLoginChallenge()
-					const options = challengeData.options as {
-						allowCredentials?: { id: string }[]
-					}
-
-					// Check if any passkeys are registered
-					if (!options.allowCredentials || options.allowCredentials.length === 0) {
-						setHasPasskeys(false)
-						return
-					}
-
-					setHasPasskeys(true)
-
-					// Attempt browser authentication
 					const response = await startAuthentication({
 						optionsJSON: challengeData.options as Parameters<
 							typeof startAuthentication
 						>[0]['optionsJSON']
 					})
-
-					// Complete authentication with backend
 					const result = await api.auth.webAuthnLogin({
 						token: challengeData.token,
 						response
 					})
-
-					// Set up SW with token
 					await registerServiceWorker(result.token)
 					await ensureEncryptionKey()
 					setAuth(result)
 				} catch (err) {
-					// Silently fail - user can use password
-					// NotAllowedError means user cancelled - keep button visible
 					console.log('WebAuthn auto-login not available')
 				}
 			})()
 		},
-		[api, webAuthnAttempted, auth]
+		[api, webAuthnAttempted, auth, loginInitData]
 	)
 
 	async function onSubmit(evt: React.FormEvent) {
@@ -216,7 +219,6 @@ export function LoginForm() {
 				password
 			})
 			const authState: AuthState = { ...loginResult }
-			console.log('onLoggedIn', { authState })
 			setAuth(authState)
 			// Token is stored in SW encrypted storage via registerServiceWorker()
 
@@ -240,27 +242,20 @@ export function LoginForm() {
 	}
 
 	async function onForgotSubmit(evt: React.FormEvent) {
-		console.log('onForgotSubmit called', { evt, api, email })
 		evt.preventDefault()
-		if (!api) {
-			console.log('No API available')
-			return
-		}
+		if (!api) return
 
 		// Basic email validation
 		if (!email || !email.includes('@')) {
-			console.log('Invalid email')
 			setForgotError(t('Please enter a valid email address'))
 			return
 		}
 
-		console.log('Calling forgotPassword API...')
 		setForgotStatus('loading')
 		setForgotError(undefined)
 
 		try {
-			const result = await api.auth.forgotPassword({ email })
-			console.log('forgotPassword result:', result)
+			await api.auth.forgotPassword({ email })
 			setForgotStatus('success')
 		} catch (err) {
 			console.error('forgotPassword error:', err)
@@ -594,16 +589,22 @@ export function Password() {
 }
 
 function LoginPage({ children }: { children: React.ReactNode }) {
+	const [loginInitData] = useAtom(loginInitAtom)
 	return (
-		<div className="c-container">
-			<div className="row">
-				<div className="col-0 col-md-1 col-lg-2" />
-				<div className="col col-md-10 col-lg-8">
-					<div className="flex-fill-x">{children}</div>
+		<LoginInitContext.Provider value={loginInitData}>
+			<div className="c-container">
+				<div className="row">
+					<div className="col-0 col-md-1 col-lg-2" />
+					<div className="col col-md-5 col-lg-4">
+						<div className="flex-fill-x">{children}</div>
+					</div>
+					<div className="col col-md-5 col-lg-4 d-none md:d-flex align-items-center justify-content-center">
+						<QrLoginPanel />
+					</div>
+					<div className="col-0 col-md-1 col-lg-2" />
 				</div>
-				<div className="col-0 col-md-1 col-lg-2" />
 			</div>
-		</div>
+		</LoginInitContext.Provider>
 	)
 }
 

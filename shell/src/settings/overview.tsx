@@ -30,13 +30,14 @@ import {
 	LuKeyRound as IcKey,
 	LuMonitor as IcDevice,
 	LuChevronRight as IcArrow,
-	LuServerCog as IcServer
+	LuServerCog as IcServer,
+	LuRefreshCw as IcRefresh
 } from 'react-icons/lu'
 
-import { useAuth, useApi, Button } from '@cloudillo/react'
+import { useAuth, useApi, useDialog, Button } from '@cloudillo/react'
 import type { WebAuthnCredential, ApiKeyListItem } from '@cloudillo/core'
 
-import { UsePWA } from '../pwa.js'
+import { UsePWA, resetAppCache } from '../pwa.js'
 import { subscribeNotifications } from './notifications.js'
 
 interface SettingsOverviewProps {
@@ -47,6 +48,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
 	const params = useParams()
+	const dialog = useDialog()
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const contextIdTag = params.contextIdTag!
@@ -108,6 +110,18 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 	async function handleInstall() {
 		if (pwa.doInstall) {
 			await pwa.doInstall()
+		}
+	}
+
+	async function handleResetCache() {
+		const confirmed = await dialog.confirm(
+			t('Reset App Cache'),
+			t(
+				'This will clear cached files and reload the page. Your data and login will not be affected. Continue?'
+			)
+		)
+		if (confirmed) {
+			await resetAppCache()
 		}
 	}
 
@@ -273,6 +287,28 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 					</button>
 				</div>
 			)}
+
+			{/* Troubleshooting */}
+			<div className="c-panel">
+				<h4 className="pb-2">{t('Troubleshooting')}</h4>
+				<div className="c-hbox py-3">
+					<IcRefresh className="mr-3" size={24} />
+					<div className="flex-fill">
+						<div className="fw-medium">{t('Reset App Cache')}</div>
+						<div className="c-hint small">
+							{t(
+								'Clear cached files and reload. Use if the app behaves unexpectedly.'
+							)}
+						</div>
+					</div>
+					<Button secondary onClick={handleResetCache}>
+						{t('Reset')}
+					</Button>
+				</div>
+				<div className="c-hint small pt-2">
+					{t('Version')}: {process.env.CLOUDILLO_VERSION}
+				</div>
+			</div>
 		</>
 	)
 }

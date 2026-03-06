@@ -477,8 +477,10 @@ function onFetch(evt: any) {
 							if (j.data?.token) {
 								log && console.log('[SW] OWN RES TOKEN')
 								authToken = j.data.token as string
-								// Persist encrypted token
-								await setSecureItem('authToken', authToken)
+								// Only persist if API key exists (= "stay logged in")
+								if (await getItem('apiKey')) {
+									await setSecureItem('authToken', authToken)
+								}
 							}
 							/*
 						const cleanedRes = new Response(JSON.stringify({ ...j, token: undefined }), {
@@ -692,7 +694,10 @@ async function onMessage(evt: MessageEvent) {
 	switch (msg.type) {
 		case 'sw:token.set':
 			authToken = (msg.payload as { token: string }).token
-			await setSecureItem('authToken', authToken)
+			// Only persist to IndexedDB if an API key exists (= "stay logged in")
+			if (await getItem('apiKey')) {
+				await setSecureItem('authToken', authToken)
+			}
 			break
 
 		case 'sw:token.clear':
@@ -703,6 +708,10 @@ async function onMessage(evt: MessageEvent) {
 
 		case 'sw:apikey.set':
 			await setSecureItem('apiKey', (msg.payload as { apiKey: string }).apiKey)
+			// Persist current token now that we have an API key
+			if (authToken) {
+				await setSecureItem('authToken', authToken)
+			}
 			break
 
 		case 'sw:apikey.get.req': {
@@ -722,6 +731,8 @@ async function onMessage(evt: MessageEvent) {
 
 		case 'sw:apikey.del':
 			await deleteSecureItem('apiKey')
+			await deleteSecureItem('authToken') // Remove persisted token
+			// Note: authToken remains in memory for current session
 			break
 
 		case 'sw:key.set':

@@ -206,6 +206,7 @@ import usePWA, {
 	getApiKey,
 	deleteApiKey,
 	clearAuthToken,
+	cleanupEncryptionCookie,
 	onKeyAccessError,
 	resetEncryptionState,
 	KeyErrorReason
@@ -538,6 +539,10 @@ function Header({ inert }: { inert?: boolean }) {
 		setAuth(undefined)
 		await clearAuthToken()
 		await deleteApiKey()
+		// Clean up encryption cookie if this was a temporary session (no API key)
+		if (!apiKey) {
+			cleanupEncryptionCookie()
+		}
 		setMenuOpen(false)
 		navigate('/login')
 	}

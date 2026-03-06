@@ -477,6 +477,14 @@ export async function deleteApiKey(): Promise<void> {
 }
 
 /**
+ * Clean up encryption cookie when no encrypted data remains (temporary session logout)
+ */
+export function cleanupEncryptionCookie(): void {
+	document.cookie = `${KEY_COOKIE_NAME}=; Secure; SameSite=Strict; Path=/; Max-Age=0`
+	localStorage.removeItem(HAD_ENCRYPTED_DATA_KEY)
+}
+
+/**
  * Clear auth token from SW (used on logout)
  */
 export async function clearAuthToken(): Promise<void> {
@@ -489,6 +497,27 @@ export async function clearAuthToken(): Promise<void> {
 		type: 'sw:token.clear'
 	})
 	console.log('[PWA] Auth token cleared')
+}
+
+/**
+ * Reset app cache: unregister all service workers, clear Cache Storage, and reload.
+ * Auth tokens, cookies, localStorage, and IndexedDB are preserved.
+ */
+export async function resetAppCache(): Promise<void> {
+	// Unregister all service workers
+	if ('serviceWorker' in navigator) {
+		const registrations = await navigator.serviceWorker.getRegistrations()
+		await Promise.all(registrations.map((r) => r.unregister()))
+	}
+
+	// Delete all Cache Storage entries
+	if ('caches' in window) {
+		const keys = await caches.keys()
+		await Promise.all(keys.map((k) => caches.delete(k)))
+	}
+
+	// Hard reload
+	location.reload()
 }
 
 export default function usePWA(config: PWAConfig = {}): UsePWA {

@@ -479,9 +479,9 @@ export interface PatchFileRequest {
 
 export interface GetFileVariantSelector {
 	variant?: string // "orig", "hd", "sd", "tn", "ic"
-	min_x?: number
-	min_y?: number
-	min_res?: number // minimum resolution in kpx
+	minX?: number
+	minY?: number
+	minRes?: number // minimum resolution in kpx
 }
 
 export interface ListFilesQuery {

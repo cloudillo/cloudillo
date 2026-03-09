@@ -541,7 +541,7 @@ export class ApiClient {
 		) => {
 			let url = `${getInstanceUrl(this.opts.idTag)}/api/files/${preset}/${fileName}`
 			if (options?.rootId) {
-				url += '?root_id=' + encodeURIComponent(options.rootId)
+				url += '?rootId=' + encodeURIComponent(options.rootId)
 			}
 			const body =
 				fileData instanceof ArrayBuffer ? fileData : await (fileData as Blob).arrayBuffer()
@@ -611,11 +611,15 @@ export class ApiClient {
 						{} as Record<string, string>
 					)
 				: undefined
+			const qs = query ? '?' + new URLSearchParams(query).toString() : ''
 
-			return fetch(`${getInstanceUrl(this.opts.idTag)}/api/files/${fileId}`, {
-				headers: {
-					Authorization: `Bearer ${this.opts.authToken}`
-				}
+			const headers: Record<string, string> = {}
+			if (this.opts.authToken) {
+				headers['Authorization'] = `Bearer ${this.opts.authToken}`
+			}
+
+			return fetch(`${getInstanceUrl(this.opts.idTag)}/api/files/${fileId}${qs}`, {
+				headers
 			})
 		},
 
@@ -754,7 +758,7 @@ export class ApiClient {
 		 */
 		listBySubject: (subjectId: string, subjectType?: string) =>
 			this.request('GET', '/shares', Types.tListShareEntriesResult, {
-				query: { subject_id: subjectId, subject_type: subjectType }
+				query: { subjectId, subjectType }
 			})
 	}
 

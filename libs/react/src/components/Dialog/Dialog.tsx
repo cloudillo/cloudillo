@@ -44,40 +44,20 @@ export function Dialog({
 	onClose,
 	children
 }: DialogProps) {
-	const ref = React.useRef<HTMLDialogElement>(null)
-
-	React.useEffect(
-		function () {
-			if (ref.current) {
-				if (open) {
-					ref.current.showModal()
-				} else {
-					ref.current.close()
-				}
-			}
-		},
-		[open]
-	)
+	if (!open) return null
 
 	return (
-		<dialog
-			ref={ref}
-			className={mergeClasses('c-dialog c-panel emph p-3', elevation, className)}
-		>
-			<div className="c-hbox mb-2">
-				<h2 className="fill">{title}</h2>
-				<button
-					type="button"
-					className="c-link"
-					data-bs-dismiss="modal"
-					aria-label="Close"
-					onClick={onClose}
-				>
-					<IcClose />
-				</button>
+		<div className="c-modal show" tabIndex={-1}>
+			<div className={mergeClasses('c-dialog c-panel emph p-3', elevation, className)}>
+				<div className="c-hbox mb-2">
+					<h2 className="fill">{title}</h2>
+					<button type="button" className="c-link" aria-label="Close" onClick={onClose}>
+						<IcClose />
+					</button>
+				</div>
+				{children}
 			</div>
-			{children}
-		</dialog>
+		</div>
 	)
 }
 
@@ -230,6 +210,8 @@ export function useDialog(): UseDialogReturn {
 
 	function ret() {
 		return new Promise(function (resolve) {
+			// Resolve previous dialog if still pending (prevents hanging promises)
+			if (dialogResolve) dialogResolve(undefined)
 			dialogResolve = resolve
 		})
 	}
@@ -277,7 +259,6 @@ export function useDialog(): UseDialogReturn {
 		} = {}
 	): Promise<string | undefined> {
 		setDialog({ type: 'Text', title, descr, className, placeholder, defaultValue, multiline })
-		console.log('askText', { title, descr, className, placeholder, defaultValue, multiline })
 		return ret() as Promise<string | undefined>
 	}
 

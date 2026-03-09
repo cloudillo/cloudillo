@@ -63,7 +63,14 @@ import {
 	tCrdtClientIdRes,
 	tSensorCompassSub,
 	tSensorCompassSubRes,
-	tSensorCompassPush
+	tSensorCompassPush,
+	tCameraCaptureReq,
+	tCameraCaptureAck,
+	tCameraCaptureResultPush,
+	tCameraPreviewStart,
+	tCameraPreviewStop,
+	tCameraPreviewFrame,
+	tCameraOverlayUpdate
 } from './types.js'
 
 // ============================================
@@ -247,6 +254,41 @@ export const MESSAGE_REGISTRY: Record<MessageType, MessageAccessRule> = {
 		directions: ['shell>app'],
 		requiresAuth: false,
 		validator: tSensorCompassPush
+	},
+	'camera:capture.req': {
+		directions: ['app>shell'],
+		requiresAuth: true,
+		validator: tCameraCaptureReq
+	},
+	'camera:capture.ack': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tCameraCaptureAck
+	},
+	'camera:capture.result': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tCameraCaptureResultPush
+	},
+	'camera:preview.start': {
+		directions: ['app>shell'],
+		requiresAuth: false,
+		validator: tCameraPreviewStart
+	},
+	'camera:preview.stop': {
+		directions: ['app>shell'],
+		requiresAuth: false,
+		validator: tCameraPreviewStop
+	},
+	'camera:preview.frame': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tCameraPreviewFrame
+	},
+	'camera:overlay.update': {
+		directions: ['app>shell'],
+		requiresAuth: false,
+		validator: tCameraOverlayUpdate
 	},
 	'sw:token.set': {
 		directions: ['shell>sw'],

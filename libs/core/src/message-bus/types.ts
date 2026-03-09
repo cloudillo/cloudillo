@@ -860,6 +860,146 @@ export const tSensorCompassPush = T.struct({
 export type SensorCompassPush = T.TypeOf<typeof tSensorCompassPush>
 
 // ============================================
+// CAMERA CAPTURE MESSAGES
+// ============================================
+
+/**
+ * App requests camera capture from shell
+ * Direction: app -> shell
+ */
+export const tCameraCaptureReq = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('camera:capture.req'),
+	id: T.number,
+	payload: T.struct({
+		sessionId: T.string,
+		facing: T.optional(T.literal('user', 'environment')),
+		maxResolution: T.optional(T.number)
+	})
+})
+export type CameraCaptureReq = T.TypeOf<typeof tCameraCaptureReq>
+
+/**
+ * Shell acknowledges camera capture request (camera is opening)
+ * Direction: shell -> app
+ */
+export const tCameraCaptureAck = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('camera:capture.ack'),
+	replyTo: T.number,
+	ok: T.boolean,
+	data: T.optional(
+		T.struct({
+			sessionId: T.string
+		})
+	),
+	error: T.optional(T.string)
+})
+export type CameraCaptureAck = T.TypeOf<typeof tCameraCaptureAck>
+
+/**
+ * Shell pushes camera capture result to app
+ * Direction: shell -> app (notification, no response expected)
+ */
+export const tCameraCaptureResultPush = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('camera:capture.result'),
+	payload: T.struct({
+		sessionId: T.string,
+		captured: T.boolean,
+		imageData: T.optional(T.string),
+		width: T.optional(T.number),
+		height: T.optional(T.number)
+	})
+})
+export type CameraCaptureResultPush = T.TypeOf<typeof tCameraCaptureResultPush>
+
+// ============================================
+// CAMERA PREVIEW MESSAGES
+// ============================================
+
+/**
+ * App requests to start receiving preview frames from the active camera
+ * Direction: app -> shell (notification, no response expected)
+ */
+export const tCameraPreviewStart = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('camera:preview.start'),
+	payload: T.struct({
+		sessionId: T.string,
+		width: T.optional(T.number),
+		height: T.optional(T.number),
+		fps: T.optional(T.number)
+	})
+})
+export type CameraPreviewStart = T.TypeOf<typeof tCameraPreviewStart>
+
+/**
+ * App requests to stop receiving preview frames
+ * Direction: app -> shell (notification, no response expected)
+ */
+export const tCameraPreviewStop = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('camera:preview.stop'),
+	payload: T.struct({
+		sessionId: T.string
+	})
+})
+export type CameraPreviewStop = T.TypeOf<typeof tCameraPreviewStop>
+
+/**
+ * Shell pushes a low-res preview frame to the app
+ * Direction: shell -> app (notification, no response expected)
+ */
+export const tCameraPreviewFrame = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('camera:preview.frame'),
+	payload: T.struct({
+		sessionId: T.string,
+		seq: T.number,
+		imageData: T.string,
+		width: T.number,
+		height: T.number
+	})
+})
+export type CameraPreviewFrame = T.TypeOf<typeof tCameraPreviewFrame>
+
+/**
+ * Overlay shape item for rendering on camera preview
+ */
+export const tOverlayItem = T.struct({
+	type: T.literal('polygon', 'polyline', 'rect', 'circle', 'text'),
+	points: T.optional(T.array(T.tuple(T.number, T.number))),
+	stroke: T.optional(T.string),
+	strokeWidth: T.optional(T.number),
+	fill: T.optional(T.string),
+	confidence: T.optional(T.number)
+})
+export type OverlayItem = T.TypeOf<typeof tOverlayItem>
+
+/**
+ * App sends overlay shapes to render on camera preview
+ * Direction: app -> shell (notification, no response expected)
+ */
+export const tCameraOverlayUpdate = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('camera:overlay.update'),
+	payload: T.struct({
+		sessionId: T.string,
+		frameSeq: T.number,
+		overlays: T.array(tOverlayItem)
+	})
+})
+export type CameraOverlayUpdate = T.TypeOf<typeof tCameraOverlayUpdate>
+
+// ============================================
 // UNION OF ALL MESSAGES
 // ============================================
 
@@ -918,6 +1058,17 @@ export const tCloudilloMessage = T.taggedUnion('type')({
 	'sensor:compass.sub.res': tSensorCompassSubRes,
 	'sensor:compass.push': tSensorCompassPush,
 
+	// Camera capture messages
+	'camera:capture.req': tCameraCaptureReq,
+	'camera:capture.ack': tCameraCaptureAck,
+	'camera:capture.result': tCameraCaptureResultPush,
+
+	// Camera preview messages
+	'camera:preview.start': tCameraPreviewStart,
+	'camera:preview.stop': tCameraPreviewStop,
+	'camera:preview.frame': tCameraPreviewFrame,
+	'camera:overlay.update': tCameraOverlayUpdate,
+
 	// Service worker messages
 	'sw:token.set': tSwTokenSet,
 	'sw:token.clear': tSwTokenClear,
@@ -965,7 +1116,7 @@ export type ResponseFor<T extends RequestType> = T extends 'auth:init.req'
 		: T extends 'storage:op.req'
 			? 'storage:op.res'
 			: T extends 'media:pick.req'
-				? 'media:pick.res'
+				? 'media:pick.ack'
 				: T extends 'doc:pick.req'
 					? 'doc:pick.ack'
 					: T extends 'embed:open.req'
@@ -980,9 +1131,11 @@ export type ResponseFor<T extends RequestType> = T extends 'auth:init.req'
 										? 'crdt:clientid.res'
 										: T extends 'sensor:compass.sub'
 											? 'sensor:compass.sub.res'
-											: T extends 'sw:apikey.get.req'
-												? 'sw:apikey.get.res'
-												: never
+											: T extends 'camera:capture.req'
+												? 'camera:capture.ack'
+												: T extends 'sw:apikey.get.req'
+													? 'sw:apikey.get.res'
+													: never
 
 /**
  * Extract the data type from a response message

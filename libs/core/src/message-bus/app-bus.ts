@@ -45,7 +45,10 @@ import {
 	EmbedViewStateSet,
 	SensorCompassPush,
 	CropAspect,
-	Visibility
+	Visibility,
+	CameraCaptureAck,
+	CameraCaptureResultPush,
+	CameraPreviewFrame
 } from './types.js'
 import { validateMessage } from './registry.js'
 import { MessageBusBase, MessageBusConfig } from './core.js'
@@ -173,6 +176,87 @@ export interface DocPickResult {
 	fileTp?: string
 	/** App ID resolved from content type */
 	appId?: string
+}
+
+// ============================================
+// CAMERA CAPTURE API
+// ============================================
+
+/**
+ * Options for camera capture
+ */
+export interface CameraCaptureOptions {
+	/** Preferred camera facing direction */
+	facing?: 'user' | 'environment'
+	/** Maximum resolution (longest edge in pixels) */
+	maxResolution?: number
+}
+
+/**
+ * Result from camera capture
+ */
+export interface CameraCaptureResult {
+	/** Base64-encoded image data */
+	imageData: string
+	/** Image width in pixels */
+	width: number
+	/** Image height in pixels */
+	height: number
+}
+
+// ============================================
+// CAMERA SESSION & PREVIEW API
+// ============================================
+
+/**
+ * A camera session returned by openCamera()
+ */
+export interface CameraSession {
+	/** Session ID for correlating preview/overlay messages */
+	sessionId: string
+	/** Promise that resolves when user captures or cancels */
+	result: Promise<CameraCaptureResult | undefined>
+}
+
+/**
+ * Options for camera preview streaming
+ */
+export interface CameraPreviewOptions {
+	/** Preview frame width (default: 320) */
+	width?: number
+	/** Preview frame height (default: 240) */
+	height?: number
+	/** Frames per second (default: 5) */
+	fps?: number
+}
+
+/**
+ * Preview frame data received from shell
+ */
+export interface CameraPreviewFrameData {
+	/** Session ID */
+	sessionId: string
+	/** Frame sequence number */
+	seq: number
+	/** Base64-encoded JPEG image */
+	imageData: string
+	/** Frame width */
+	width: number
+	/** Frame height */
+	height: number
+}
+
+/**
+ * Overlay item to render on camera preview
+ */
+export interface OverlayItemData {
+	type: 'polygon' | 'polyline' | 'rect' | 'circle' | 'text'
+	/** Normalized 0-1 coordinates */
+	points?: [number, number][]
+	stroke?: string
+	strokeWidth?: number
+	fill?: string
+	confidence?: number
 }
 
 // ============================================
@@ -480,6 +564,16 @@ export class AppMessageBus extends MessageBusBase {
 		// Handle document picker result push from shell
 		this.on('doc:pick.result', (msg: DocPickResultPush) => {
 			this.handleDocPickResult(msg)
+		})
+
+		// Handle camera capture result push from shell
+		this.on('camera:capture.result', (msg: CameraCaptureResultPush) => {
+			this.handleCameraCaptureResult(msg)
+		})
+
+		// Handle camera preview frame push from shell
+		this.on('camera:preview.frame', (msg: CameraPreviewFrame) => {
+			this.previewFrameCallback?.(msg.payload)
 		})
 
 		// Handle view state set from parent/shell
@@ -992,6 +1086,193 @@ export class AppMessageBus extends MessageBusBase {
 	}
 
 	// ============================================
+	// CAMERA CAPTURE
+	// ============================================
+
+	private static readonly CAMERA_CAPTURE_ACK_TIMEOUT = 5000
+
+	private pendingCameraSessions = new Map<
+		string,
+		{
+			resolve: (result: CameraCaptureResult | undefined) => void
+			reject: (error: Error) => void
+		}
+	>()
+
+	/**
+	 * Open the camera to capture an image
+	 *
+	 * Uses the same ACK + push pattern as pickMedia().
+	 *
+	 * @param options - Camera capture configuration
+	 * @returns Promise resolving to captured image data or undefined if cancelled
+	 */
+	async captureCamera(options?: CameraCaptureOptions): Promise<CameraCaptureResult | undefined> {
+		if (!this.initialized) {
+			throw new Error('AppBus not initialized. Call init() first.')
+		}
+
+		this.log('Opening camera capture:', options)
+
+		const sessionId = `cc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+
+		try {
+			const ackData = await this.sendRequest<CameraCaptureAck['data']>((id) => {
+				this.sendToShell(
+					this.createRequestWithPayload('camera:capture.req', id, {
+						sessionId,
+						facing: options?.facing,
+						maxResolution: options?.maxResolution
+					})
+				)
+			}, AppMessageBus.CAMERA_CAPTURE_ACK_TIMEOUT)
+
+			if (ackData?.sessionId !== sessionId) {
+				this.logWarn(
+					'Camera capture ACK sessionId mismatch:',
+					ackData?.sessionId,
+					'vs',
+					sessionId
+				)
+				throw new Error('Session ID mismatch in ACK response')
+			}
+
+			this.log('Camera capture ACK received, sessionId:', sessionId)
+
+			return new Promise<CameraCaptureResult | undefined>((resolve, reject) => {
+				this.pendingCameraSessions.set(sessionId, { resolve, reject })
+			})
+		} catch (error) {
+			this.pendingCameraSessions.delete(sessionId)
+			throw error
+		}
+	}
+
+	/**
+	 * Open the camera and return a session handle
+	 *
+	 * Unlike captureCamera(), this returns immediately after ACK with a session
+	 * object that allows starting preview streaming before the user captures.
+	 *
+	 * @param options - Camera capture configuration
+	 * @returns Promise resolving to a CameraSession with sessionId and result promise
+	 */
+	async openCamera(options?: CameraCaptureOptions): Promise<CameraSession> {
+		if (!this.initialized) {
+			throw new Error('AppBus not initialized. Call init() first.')
+		}
+
+		this.log('Opening camera:', options)
+
+		const sessionId = `cc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+
+		const ackData = await this.sendRequest<CameraCaptureAck['data']>((id) => {
+			this.sendToShell(
+				this.createRequestWithPayload('camera:capture.req', id, {
+					sessionId,
+					facing: options?.facing,
+					maxResolution: options?.maxResolution
+				})
+			)
+		}, AppMessageBus.CAMERA_CAPTURE_ACK_TIMEOUT)
+
+		if (ackData?.sessionId !== sessionId) {
+			throw new Error('Session ID mismatch in ACK response')
+		}
+
+		this.log('Camera ACK received, sessionId:', sessionId)
+
+		const result = new Promise<CameraCaptureResult | undefined>((resolve, reject) => {
+			this.pendingCameraSessions.set(sessionId, { resolve, reject })
+		})
+
+		return { sessionId, result }
+	}
+
+	// ============================================
+	// CAMERA PREVIEW
+	// ============================================
+
+	private previewFrameCallback: ((frame: CameraPreviewFrameData) => void) | null = null
+
+	/**
+	 * Start receiving preview frames for a camera session
+	 */
+	startCameraPreview(sessionId: string, options?: CameraPreviewOptions): void {
+		this.log('Starting camera preview:', sessionId)
+		this.sendToShell({
+			cloudillo: true,
+			v: PROTOCOL_VERSION,
+			type: 'camera:preview.start',
+			payload: {
+				sessionId,
+				width: options?.width,
+				height: options?.height,
+				fps: options?.fps
+			}
+		})
+	}
+
+	/**
+	 * Stop receiving preview frames for a camera session
+	 */
+	stopCameraPreview(sessionId: string): void {
+		this.log('Stopping camera preview:', sessionId)
+		this.sendToShell({
+			cloudillo: true,
+			v: PROTOCOL_VERSION,
+			type: 'camera:preview.stop',
+			payload: { sessionId }
+		})
+	}
+
+	/**
+	 * Register a callback for incoming preview frames
+	 */
+	onCameraPreviewFrame(callback: ((frame: CameraPreviewFrameData) => void) | null): void {
+		this.previewFrameCallback = callback
+	}
+
+	/**
+	 * Send overlay shapes to render on camera preview
+	 */
+	sendCameraOverlay(sessionId: string, frameSeq: number, overlays: OverlayItemData[]): void {
+		this.sendToShell({
+			cloudillo: true,
+			v: PROTOCOL_VERSION,
+			type: 'camera:overlay.update',
+			payload: { sessionId, frameSeq, overlays }
+		})
+	}
+
+	/**
+	 * Handle camera capture result push from shell
+	 */
+	private handleCameraCaptureResult(msg: CameraCaptureResultPush): void {
+		const sessionId = msg.payload.sessionId
+		const pending = this.pendingCameraSessions.get(sessionId)
+
+		if (!pending) {
+			this.logWarn('Received camera capture result for unknown session:', sessionId)
+			return
+		}
+
+		this.pendingCameraSessions.delete(sessionId)
+
+		if (msg.payload.captured && msg.payload.imageData) {
+			this.log('Camera capture result received')
+			pending.resolve({
+				imageData: msg.payload.imageData,
+				width: msg.payload.width || 0,
+				height: msg.payload.height || 0
+			})
+		} else {
+			this.log('Camera capture cancelled')
+			pending.resolve(undefined)
+		}
+	}
+
+	// ============================================
 	// COMPASS / SENSOR API
 	// ============================================
 
@@ -1195,6 +1476,13 @@ export class AppMessageBus extends MessageBusBase {
 			this.log('Cancelled pending media session:', sessionId)
 		}
 		this.pendingMediaSessions.clear()
+
+		// Reject all pending camera capture sessions
+		for (const [sessionId, pending] of this.pendingCameraSessions) {
+			pending.reject(new Error('AppBus destroyed'))
+			this.log('Cancelled pending camera session:', sessionId)
+		}
+		this.pendingCameraSessions.clear()
 
 		// Reject all pending document picker sessions
 		for (const [sessionId, pending] of this.pendingDocSessions) {

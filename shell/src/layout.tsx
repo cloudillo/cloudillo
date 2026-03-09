@@ -240,6 +240,7 @@ import { MediaPicker } from './components/MediaPicker/index.js'
 import { DocumentPicker } from './components/DocumentPicker/index.js'
 import { BusinessCardDialog } from './components/BusinessCard/BusinessCardDialog.js'
 import { QrScannerDialog, useQrScanner } from './components/QrScanner/index.js'
+import { CameraCaptureDialog } from './components/CameraCapture/index.js'
 
 import '@symbion/opalui'
 //import '@symbion/opalui/src/opalui.css'
@@ -1134,6 +1135,7 @@ export function Layout() {
 				<QrScannerDialog
 					onScan={(idTag) => navigate(`/profile/${contextIdTag || auth?.idTag}/${idTag}`)}
 				/>
+				<CameraCaptureDialog />
 			</WsBusRoot>
 		</>
 	)

@@ -1,0 +1,127 @@
+/* Camera Capture Dialog Styles */
+
+.camera-capture-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 9999;
+	background: #000;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+}
+
+.camera-capture-overlay video {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+
+.camera-capture-header {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 1rem;
+	z-index: 1;
+	background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent);
+}
+
+.camera-capture-header h3 {
+	color: #fff;
+	margin: 0;
+}
+
+.camera-capture-controls {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	gap: 2rem;
+	padding: 2rem;
+	z-index: 1;
+	background: linear-gradient(to top, rgba(0, 0, 0, 0.5), transparent);
+}
+
+.camera-capture-button {
+	width: 72px;
+	height: 72px;
+	border-radius: 50%;
+	border: 4px solid #fff;
+	background: transparent;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: all 0.15s ease;
+}
+
+.camera-capture-button:hover {
+	background: rgba(255, 255, 255, 0.2);
+}
+
+.camera-capture-button:active {
+	transform: scale(0.92);
+}
+
+.camera-capture-button-inner {
+	width: 56px;
+	height: 56px;
+	border-radius: 50%;
+	background: #fff;
+}
+
+.camera-switch-button {
+	width: 44px;
+	height: 44px;
+	border-radius: 50%;
+	border: none;
+	background: rgba(255, 255, 255, 0.2);
+	color: #fff;
+	font-size: 1.25rem;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.camera-flash-button {
+	width: 44px;
+	height: 44px;
+	border-radius: 50%;
+	border: none;
+	background: rgba(255, 255, 255, 0.2);
+	color: #fff;
+	font-size: 1.25rem;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.camera-flash-button.active {
+	background: rgba(255, 255, 255, 0.6);
+}
+
+.camera-overlay-canvas {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	z-index: 1;
+}
+
+.camera-capture-error {
+	color: #fff;
+	text-align: center;
+	padding: 2rem;
+}
+
+/* vim: ts=4 */

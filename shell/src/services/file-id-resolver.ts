@@ -28,8 +28,8 @@
  * 5. This service forwards resolution to the app that requested it
  */
 
-import { getShellBus } from '../message-bus/shell-bus.js'
 import { PROTOCOL_VERSION } from '@cloudillo/core'
+import { getAppTracker } from '../message-bus/app-tracker.js'
 
 /**
  * Information about a pending temp ID
@@ -117,12 +117,49 @@ export function registerPendingTempId(tempId: string, appWindow: Window): void {
  * @param tempId - The temporary file ID (e.g., @123)
  * @param finalId - The final content-addressed file ID (e.g., f1~abc123...)
  */
-export function handleFileIdGenerated(tempId: string, finalId: string): void {
+export function handleFileIdGenerated(tempId: string, finalId: string, rootId?: string): void {
 	const pending = pendingTempIds.get(tempId)
 
 	if (!pending || pending.length === 0) {
-		// No registration yet - queue the resolution for when registration happens
-		// This handles the race condition where FILE_ID_GENERATED arrives before registration
+		// No registration - try rootId-based lookup to find the app window
+		if (rootId) {
+			const tracker = getAppTracker()
+			const message = {
+				cloudillo: true,
+				v: PROTOCOL_VERSION,
+				type: 'media:file.resolved',
+				payload: { tempId, finalId }
+			}
+
+			let forwarded = false
+			for (const win of tracker.getInitializedWindows()) {
+				const conn = tracker.getApp(win)
+				if (conn?.resId?.endsWith(':' + rootId)) {
+					try {
+						win.postMessage(message, '*')
+						console.log(
+							'[FileIdResolver] Forwarded resolution via rootId to app:',
+							conn.appName
+						)
+						forwarded = true
+					} catch (err) {
+						console.warn('[FileIdResolver] Failed to forward via rootId:', err)
+					}
+				}
+			}
+
+			if (forwarded) {
+				console.log(
+					'[FileIdResolver] Resolving temp ID (via rootId):',
+					tempId,
+					'->',
+					finalId
+				)
+				return
+			}
+		}
+
+		// No registration and no rootId match - queue for later
 		console.log('[FileIdResolver] Queuing early resolution for temp ID:', tempId)
 		earlyResolutions.set(tempId, {
 			finalId,

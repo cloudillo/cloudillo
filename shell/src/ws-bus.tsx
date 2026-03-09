@@ -123,7 +123,8 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 				// Re-check if still current before reconnecting
 				if (wsRef.current === newWs) {
 					wsRef.current = undefined
-					// Trigger re-render to reconnect (effect will run again)
+					// Trigger re-render to reconnect
+					setWsBus((prev) => ({ ...prev, connected: false }))
 				}
 			}
 
@@ -137,7 +138,7 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 					case 'FILE_ID_GENERATED':
 						// Handle file ID resolution
 						if (j.data?.tempId && j.data?.fileId) {
-							handleFileIdGenerated(j.data.tempId, j.data.fileId)
+							handleFileIdGenerated(j.data.tempId, j.data.fileId, j.data.rootId)
 						}
 						break
 				}

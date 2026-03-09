@@ -45,6 +45,7 @@ import { initLifecycleHandlers } from './handlers/lifecycle.js'
 import { initCrdtHandlers } from './handlers/crdt.js'
 import { initSettingsHandlers } from './handlers/settings.js'
 import { initSensorHandlers } from './handlers/sensor.js'
+import { initCameraHandlers, cleanupCameraSessions } from './handlers/camera.js'
 
 // ============================================
 // TYPES
@@ -131,6 +132,7 @@ export class ShellMessageBus extends MessageBusBase {
 		initCrdtHandlers(this)
 		initSettingsHandlers(this)
 		initSensorHandlers(this)
+		initCameraHandlers(this)
 
 		this.initialized = true
 		this.log('Initialized')
@@ -298,6 +300,7 @@ export class ShellMessageBus extends MessageBusBase {
 	 * Unregister an app when iframe is removed
 	 */
 	unregisterApp(window: Window): void {
+		cleanupCameraSessions(window)
 		this.appTracker.unregisterApp(window)
 	}
 
@@ -305,6 +308,9 @@ export class ShellMessageBus extends MessageBusBase {
 	 * Send a proactive token update to an app
 	 */
 	sendTokenUpdate(appWindow: Window, token: string, tokenLifetime?: number): void {
+		const conn = this.appTracker.getApp(appWindow)
+		if (conn) conn.token = token
+
 		this.sendNotify(appWindow, 'auth:token.push', {
 			token,
 			tokenLifetime
@@ -395,6 +401,12 @@ export class ShellMessageBus extends MessageBusBase {
 
 		// Mark as initialized
 		this.appTracker.markInitialized(appWindow)
+
+		// Store scoped token in connection
+		if (data.token) {
+			const conn = this.appTracker.getApp(appWindow)
+			if (conn) conn.token = data.token
+		}
 
 		// Send init notification (not response - no request to reply to)
 		this.sendNotify(appWindow, 'auth:init.push', {

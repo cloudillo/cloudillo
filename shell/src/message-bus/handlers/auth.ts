@@ -163,8 +163,9 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 				tokenLifetime = tokenResult?.tokenLifetime
 			}
 
-			// Mark app as initialized
+			// Store scoped token and mark app as initialized
 			if (connection) {
+				if (token) connection.token = token
 				bus.getAppTracker().markInitialized(appWindow)
 			}
 
@@ -241,10 +242,8 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 				return
 			}
 
-			// Update the stored token for future init requests
-			if (connection.refId) {
-				connection.token = tokenResult.token
-			}
+			// Update the stored token
+			connection.token = tokenResult.token
 
 			bus.sendResponse(appWindow, 'auth:token.refresh.res', msg.id, true, {
 				token: tokenResult.token,

@@ -338,6 +338,10 @@ export type { FontPickerProps } from './FontPicker/index.js'
 export { LoadMoreTrigger } from './InfiniteScroll/index.js'
 export type { LoadMoreTriggerProps } from './InfiniteScroll/index.js'
 
+// ZoomableImage Component
+export { ZoomableImage } from './ZoomableImage/index.js'
+export type { ZoomableImageProps } from './ZoomableImage/index.js'
+
 // DocumentEmbed Components
 export { useDocumentEmbed, DocumentEmbedIframe, SvgDocumentEmbed } from './DocumentEmbed/index.js'
 export type {

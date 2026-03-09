@@ -31,7 +31,8 @@ import {
 	LuPresentation as IcPrezillo,
 	LuListTodo as IcFormillo,
 	LuListChecks as IcTaskillo,
-	LuNotebook as IcNotillo
+	LuNotebook as IcNotillo,
+	LuScanLine as IcScanillo
 } from 'react-icons/lu'
 
 export const fileIcons: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
@@ -50,6 +51,7 @@ export const fileIcons: Record<string, React.ComponentType<React.SVGProps<SVGSVG
 	'cloudillo/formillo': (props) => <IcFormillo {...props} style={{ color: 'lch(50 50 300)' }} />,
 	'cloudillo/taskillo': (props) => <IcTaskillo {...props} style={{ color: 'lch(50 50 180)' }} />,
 	'cloudillo/notillo': (props) => <IcNotillo {...props} style={{ color: 'lch(50 50 30)' }} />,
+	'cloudillo/scanillo': (props) => <IcScanillo {...props} style={{ color: 'lch(50 50 210)' }} />,
 	'cloudillo/folder': (props) => <IcFolder {...props} style={{ color: 'lch(55 40 70)' }} />
 }
 
@@ -85,7 +87,8 @@ export {
 	IcPrezillo,
 	IcFormillo,
 	IcTaskillo,
-	IcNotillo
+	IcNotillo,
+	IcScanillo
 }
 
 // vim: ts=4

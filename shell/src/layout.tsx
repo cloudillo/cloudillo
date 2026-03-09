@@ -49,6 +49,10 @@ const APP_CONFIG: AppConfigState = {
 		{
 			id: 'mapillo',
 			url: '/apps/mapillo/index.html'
+		},
+		{
+			id: 'scanillo',
+			url: '/apps/scanillo/index.html'
 		}
 	],
 	mime: {
@@ -65,7 +69,8 @@ const APP_CONFIG: AppConfigState = {
 		'cloudillo/prezillo': '/app/prezillo',
 		'cloudillo/formillo': '/app/formillo',
 		'cloudillo/taskillo': '/app/taskillo',
-		'cloudillo/notillo': '/app/notillo'
+		'cloudillo/notillo': '/app/notillo',
+		'cloudillo/scanillo': '/app/scanillo'
 	},
 	menu: [
 		{

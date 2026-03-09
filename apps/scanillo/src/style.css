@@ -1,0 +1,476 @@
+/* Scanillo App Styles - Using OpalUI --col-* variables */
+
+.scanillo-app {
+	padding: 1rem;
+	background: var(--col-container-low);
+	position: relative;
+}
+
+/* Page Grid */
+.page-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+	gap: 0.75rem;
+	padding-bottom: 5rem;
+}
+
+.page-thumb {
+	aspect-ratio: 3 / 4;
+	border-radius: var(--radius-sm);
+	overflow: hidden;
+	position: relative;
+	background: var(--col-container);
+	border: 1px solid var(--col-outline);
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.page-thumb:hover {
+	box-shadow: var(--shadow-md);
+	border-color: var(--col-primary);
+}
+
+.page-thumb img {
+	object-fit: cover;
+	width: 100%;
+	height: 100%;
+}
+
+.page-number {
+	position: absolute;
+	bottom: 0.25rem;
+	right: 0.25rem;
+	background: rgba(0, 0, 0, 0.6);
+	color: #fff;
+	font-size: 0.75rem;
+	padding: 0.125rem 0.375rem;
+	border-radius: var(--radius-sm);
+}
+
+/* Drag and Drop */
+.page-thumb.dragging {
+	opacity: 0.3;
+}
+
+.page-thumb.drop-before {
+	border-left: 3px solid var(--col-primary);
+}
+
+.page-thumb.drop-after {
+	border-right: 3px solid var(--col-primary);
+}
+
+.drag-clone {
+	position: fixed;
+	z-index: 1000;
+	pointer-events: none;
+	opacity: 0.8;
+	border-radius: var(--radius-sm);
+	overflow: hidden;
+	box-shadow: var(--shadow-lg);
+}
+
+/* FAB Button */
+.fab-container {
+	position: fixed;
+	bottom: 5rem;
+	right: 1.5rem;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 0.5rem;
+	z-index: 10;
+}
+
+.fab-button {
+	width: 56px;
+	height: 56px;
+	border-radius: 50%;
+	border: none;
+	background: var(--col-primary);
+	color: var(--col-on-primary);
+	font-size: 1.5rem;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: var(--shadow-md);
+	transition: all 0.2s ease;
+}
+
+.fab-button:hover {
+	box-shadow: var(--shadow-lg);
+	transform: scale(1.05);
+}
+
+.fab-button.secondary {
+	width: 44px;
+	height: 44px;
+	font-size: 1.25rem;
+	background: var(--col-secondary);
+	color: var(--col-on-secondary);
+}
+
+/* Page Detail */
+.page-detail {
+	position: fixed;
+	inset: 0;
+	background: var(--col-container-low, #111);
+	display: flex;
+	flex-direction: column;
+	z-index: 100;
+}
+
+.page-detail-header {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.5rem 0;
+	margin-bottom: 0.5rem;
+}
+
+.page-detail-header h3 {
+	margin: 0;
+	flex: 1;
+	text-align: center;
+	color: var(--col-on-container);
+}
+
+.page-detail-image {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+	min-height: 0;
+}
+
+.page-detail-image img {
+	max-width: 100%;
+	max-height: 100%;
+	object-fit: contain;
+	border-radius: var(--radius-sm);
+}
+
+.action-bar {
+	display: flex;
+	justify-content: center;
+	gap: 0.5rem;
+	padding: 0.75rem 0;
+}
+
+/* Empty State */
+.empty-state {
+	text-align: center;
+	padding: 3rem 1rem;
+	color: var(--col-on-surface);
+}
+
+.empty-state-icon {
+	font-size: 3rem;
+	opacity: 0.5;
+	margin-bottom: 1rem;
+	color: var(--col-on-surface);
+}
+
+.empty-state-text {
+	font-size: 1.1rem;
+	margin: 0;
+}
+
+/* Crop Editor */
+.crop-editor {
+	position: fixed;
+	inset: 0;
+	background: #111;
+	display: flex;
+	flex-direction: column;
+	z-index: 100;
+}
+
+.crop-editor-canvas {
+	flex: 1;
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+	min-height: 0;
+}
+
+.crop-overlay {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+}
+
+.crop-handle {
+	position: absolute;
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	background: var(--col-primary, #4a9eff);
+	border: 2px solid white;
+	transform: translate(-50%, -50%);
+	cursor: grab;
+	touch-action: none;
+	pointer-events: none;
+	z-index: 2;
+}
+
+@media (pointer: coarse) {
+	.crop-handle {
+		width: 44px;
+		height: 44px;
+		border-width: 3px;
+	}
+}
+
+.crop-handle.active {
+	cursor: grabbing;
+	box-shadow: 0 0 0 4px rgba(74, 158, 255, 0.3);
+}
+
+.crop-magnifier {
+	position: absolute;
+	width: 120px;
+	height: 120px;
+	border-radius: 50%;
+	border: 3px solid white;
+	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+	pointer-events: none;
+	z-index: 10;
+}
+
+.crop-toolbar {
+	display: flex;
+	justify-content: center;
+	gap: 1rem;
+	padding: 0.75rem;
+	background: rgba(0, 0, 0, 0.8);
+}
+
+/* Filter Select */
+.filter-select {
+	position: fixed;
+	inset: 0;
+	background: var(--col-container-low, #111);
+	display: flex;
+	flex-direction: column;
+	z-index: 100;
+}
+
+.filter-preview {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+	min-height: 0;
+	padding: 0.5rem;
+	position: relative;
+}
+
+.filter-preview img {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	border-radius: var(--radius-sm);
+}
+
+.filter-preview-loading {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.5rem;
+	color: var(--col-on-container, #fff);
+}
+
+.filter-preview-spinner {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(0, 0, 0, 0.3);
+}
+
+/* Filter Strength Slider */
+.filter-strength {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0.25rem 1rem;
+}
+
+.filter-strength-track {
+	position: relative;
+	width: 100%;
+	max-width: 400px;
+	display: flex;
+	align-items: center;
+}
+
+.filter-strength-track input[type='range'] {
+	width: 100%;
+	accent-color: var(--col-primary, #4a9eff);
+}
+
+.filter-strength-default {
+	position: absolute;
+	top: -4px;
+	width: 2px;
+	height: 12px;
+	background: var(--col-on-container, #fff);
+	opacity: 0.5;
+	transform: translateX(-50%);
+	pointer-events: none;
+	border-radius: 1px;
+}
+
+.filter-strip {
+	display: flex;
+	gap: 0.5rem;
+	padding: 0.5rem;
+	overflow-x: auto;
+	background: var(--col-container, rgba(0, 0, 0, 0.5));
+	justify-content: center;
+}
+
+.filter-thumb {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.25rem;
+	background: none;
+	border: 2px solid transparent;
+	border-radius: var(--radius-sm);
+	padding: 0.25rem;
+	cursor: pointer;
+	color: var(--col-on-container, #fff);
+	font-size: 0.75rem;
+	min-width: 80px;
+}
+
+.filter-thumb img {
+	width: 80px;
+	border-radius: var(--radius-sm);
+}
+
+.filter-thumb.active {
+	border-color: var(--col-primary, #4a9eff);
+}
+
+.filter-thumb-skeleton {
+	width: 80px;
+	aspect-ratio: 3 / 4;
+	border-radius: var(--radius-sm);
+	background: var(--col-surface, #333);
+	animation: skeleton-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+	0%,
+	100% {
+		opacity: 0.4;
+	}
+	50% {
+		opacity: 0.8;
+	}
+}
+
+.filter-toolbar {
+	display: flex;
+	justify-content: center;
+	gap: 1rem;
+	padding: 0.75rem;
+	background: rgba(0, 0, 0, 0.8);
+}
+
+/* Annotation Options Bar */
+.annotation-options-bar {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.75rem;
+	padding: 0.5rem 0.75rem;
+}
+
+.annotation-colors {
+	display: flex;
+	gap: 0.375rem;
+}
+
+.annotation-color-dot {
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	border: 2px solid transparent;
+	cursor: pointer;
+	padding: 0;
+	transition: border-color 0.15s ease;
+}
+
+.annotation-color-dot.active {
+	border-color: var(--col-on-container, #fff);
+}
+
+.annotation-stroke-slider {
+	width: 80px;
+	accent-color: var(--col-primary, #4a9eff);
+}
+
+/* Export Dialog */
+.export-label {
+	font-weight: 600;
+	font-size: 0.875rem;
+	color: var(--col-on-container);
+}
+
+/* Export Overlay */
+.export-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.7);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 200;
+}
+
+.export-progress {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 2rem;
+	background: var(--col-container);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-lg);
+	color: var(--col-on-container);
+	min-width: 200px;
+}
+
+.export-progress p {
+	margin: 0;
+	font-size: 1rem;
+}
+
+.progress-bar {
+	width: 100%;
+	height: 6px;
+	background: var(--col-surface);
+	border-radius: 3px;
+	overflow: hidden;
+}
+
+.progress-fill {
+	height: 100%;
+	background: var(--col-primary);
+	border-radius: 3px;
+	transition: width 0.2s ease;
+}
+
+/* vim: ts=4 */

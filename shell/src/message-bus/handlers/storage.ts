@@ -278,9 +278,10 @@ export function initStorageHandlers(bus: ShellMessageBus): void {
 			return
 		}
 
-		const { op, ns, key, value, prefix } = msg.payload
+		const { op, key, value, prefix } = msg.payload
 
-		// Namespace isolation - prefix all keys with namespace
+		// Namespace isolation - derive namespace from verified connection, not from app payload
+		const ns = connection.appName || connection.resId?.split(':').pop() || 'unknown'
 		const fullKey = key ? `${ns}:${key}` : undefined
 		const fullPrefix = prefix ? `${ns}:${prefix}` : `${ns}:`
 

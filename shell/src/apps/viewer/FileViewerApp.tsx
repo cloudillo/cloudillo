@@ -65,7 +65,7 @@ export function FileViewerApp() {
 		return [contextIdTag || auth?.idTag, resId]
 	}, [resId, contextIdTag, auth?.idTag])
 
-	const idTag = contextIdTag || auth?.idTag || ''
+	const idTag = ownerIdTag ?? contextIdTag ?? auth?.idTag ?? ''
 
 	// Load file metadata
 	React.useEffect(

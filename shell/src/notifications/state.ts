@@ -93,11 +93,12 @@ export function useNotifications() {
 	const dismissAllNotifications = React.useCallback(
 		async function () {
 			if (!api) return
-			const toDismiss = notifications.notifications.filter((a) => a.status !== 'C')
-			// Keep only 'C' items in state
-			setNotifications((n) => ({
-				notifications: n.notifications.filter((a) => a.status === 'C')
-			}))
+			let toDismiss: typeof notifications.notifications = []
+			// Keep only 'C' items in state, capture fresh toDismiss list
+			setNotifications((n) => {
+				toDismiss = n.notifications.filter((a) => a.status !== 'C')
+				return { notifications: n.notifications.filter((a) => a.status === 'C') }
+			})
 			try {
 				await Promise.all(
 					toDismiss.map((a) => a.actionId && api.actions.dismiss(a.actionId))
@@ -106,7 +107,7 @@ export function useNotifications() {
 				loadNotifications()
 			}
 		},
-		[api, notifications.notifications, setNotifications, loadNotifications]
+		[api, setNotifications, loadNotifications]
 	)
 
 	return {

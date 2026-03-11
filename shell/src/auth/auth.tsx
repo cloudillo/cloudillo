@@ -439,7 +439,7 @@ export function PasswordResetForm() {
 			// Note: This endpoint may not exist in Rust backend yet
 			// await api.auth.changePassword({ idTag: api.idTag, newPassword: password })
 			setError('Password reset not yet implemented in Rust backend')
-			navigate('/register/passwd-set')
+			return
 		} catch (err: any) {
 			console.error('Password reset failed:', err)
 			setError(err.message || 'Password reset failed')

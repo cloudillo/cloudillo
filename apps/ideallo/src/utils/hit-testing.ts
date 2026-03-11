@@ -109,9 +109,9 @@ export function parseSvgPath(pathData: string): ParsedPath {
 	// Use a unified regex to find all path commands
 	// Match C (cubic), Q (quadratic), or L (line) commands
 	const commandRegex = /([CQL])\s*([-\d.\s]+)/gi
-	let match: RegExpExecArray | null
+	let match: RegExpExecArray | null = commandRegex.exec(pathData)
 
-	while ((match = commandRegex.exec(pathData)) !== null) {
+	while (match) {
 		const cmd = match[1].toUpperCase()
 		const coords = match[2]
 			.trim()
@@ -165,6 +165,7 @@ export function parseSvgPath(pathData: string): ParsedPath {
 			currentX = endX
 			currentY = endY
 		}
+		match = commandRegex.exec(pathData)
 	}
 
 	return { segments, closed }

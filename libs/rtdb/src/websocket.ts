@@ -23,7 +23,7 @@ import {
 	type AggregateOptions,
 	type RtdbClientOptions
 } from './types.js'
-import { ConnectionError, AuthError, ValidationError, TimeoutError, RtdbError } from './errors.js'
+import { ConnectionError, AuthError, TimeoutError, RtdbError } from './errors.js'
 
 interface PendingRequest {
 	resolve: (value: any) => void

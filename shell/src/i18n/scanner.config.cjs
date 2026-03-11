@@ -4,7 +4,10 @@ module.exports = {
 	input: ['src/**/*.{ts,tsx}', '../libs/react/src/**/*.{ts,tsx}'],
 	options: {
 		//removeUnusedKeys: true,
-		removeUnusedKeys: (lng, ns, key) => (console.log('UNUSED:', lng, ns, key), false),
+		removeUnusedKeys: (lng, ns, key) => {
+			console.log('UNUSED:', lng, ns, key)
+			return false
+		},
 		lngs: ['hu'],
 		keySeparator: '$',
 		nsSeparator: '#',

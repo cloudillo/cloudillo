@@ -1024,9 +1024,7 @@ export function IdentitiesSettings() {
 		if (debouncedSearch) {
 			const q = debouncedSearch.toLowerCase()
 			filtered = filtered.filter(
-				(id) =>
-					id.idTag.toLowerCase().includes(q) ||
-					(id.email && id.email.toLowerCase().includes(q))
+				(id) => id.idTag.toLowerCase().includes(q) || id.email?.toLowerCase().includes(q)
 			)
 		}
 		return filtered

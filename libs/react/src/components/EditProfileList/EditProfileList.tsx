@@ -17,7 +17,7 @@
 import * as React from 'react'
 import { useLibTranslation } from '../../i18n.js'
 
-import { LuTrash as IcDelete, LuX as IcCancel, LuCheck as IcConfirm } from 'react-icons/lu'
+import { LuTrash as IcDelete } from 'react-icons/lu'
 
 import type { Profile } from '@cloudillo/types'
 

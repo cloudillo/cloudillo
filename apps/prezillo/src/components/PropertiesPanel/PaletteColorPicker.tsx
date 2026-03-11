@@ -21,7 +21,7 @@
 import * as React from 'react'
 import { ColorInput } from '@cloudillo/react'
 
-import type { Palette, PaletteSlotName, PaletteRef, StoredPaletteRef } from '../../crdt'
+import type { Palette, PaletteSlotName, StoredPaletteRef } from '../../crdt'
 import {
 	createPaletteRef,
 	getResolvedColor,

@@ -25,7 +25,7 @@ import * as React from 'react'
 import type Quill from 'quill'
 
 import type { ObjectId } from '../crdt'
-import { updateObjectSize, resolveObject, resolveTextStyle, getOrCreateRichText } from '../crdt'
+import { updateObjectSize, resolveObject, resolveTextStyle } from '../crdt'
 import { measureTextHeight } from '../utils'
 import type { UsePrezilloDocumentResult } from './usePrezilloDocument'
 

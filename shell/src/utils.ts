@@ -17,9 +17,6 @@
 import * as React from 'react'
 import { atom, useAtom } from 'jotai'
 import dayjs from 'dayjs'
-import * as T from '@symbion/runtype'
-
-import { useAuth } from '@cloudillo/react'
 
 // Query string handling
 export function qs(

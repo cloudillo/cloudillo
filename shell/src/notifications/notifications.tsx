@@ -31,20 +31,12 @@ import {
 
 import * as T from '@symbion/runtype'
 
-import {
-	NewAction,
-	type ActionView,
-	tActionView,
-	tConnectAction,
-	tFileShareAction
-} from '@cloudillo/types'
+import { type ActionView, tConnectAction, tFileShareAction } from '@cloudillo/types'
 import {
 	useAuth,
 	useApi,
 	Button,
-	ProfilePicture,
 	ProfileCard,
-	ProfileAudienceCard,
 	Fcd,
 	mergeClasses,
 	generateFragments,
@@ -210,25 +202,22 @@ function ConnectNotification({
 						<h3>
 							{action.status == 'C' ? t('Wants to connect') : t('Connected with you')}
 						</h3>
-						{content &&
-							content.split('\n\n').map((paragraph, i) => (
-								<p key={i}>
-									{paragraph.split('\n').map((line, i) => (
-										<React.Fragment key={i}>
-											{generateFragments(line).map((n, i) => (
-												<React.Fragment key={i}>{n}</React.Fragment>
-											))}
-											<br />
-										</React.Fragment>
-									))}
-								</p>
-							))}
+						{content?.split('\n\n').map((paragraph, i) => (
+							<p key={i}>
+								{paragraph.split('\n').map((line, i) => (
+									<React.Fragment key={i}>
+										{generateFragments(line).map((n, i) => (
+											<React.Fragment key={i}>{n}</React.Fragment>
+										))}
+										<br />
+									</React.Fragment>
+								))}
+							</p>
+						))}
 					</>
 				)}
 				{action.subType == 'DEL' && (
-					<>
-						<h3>{t('User disconnected, or refused to connect')}</h3>
-					</>
+					<h3>{t('User disconnected, or refused to connect')}</h3>
 				)}
 			</div>
 		</div>

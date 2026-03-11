@@ -8,7 +8,6 @@ import {
 	Fieldset,
 	Toggle,
 	Button,
-	HBox,
 	VBox
 } from '@cloudillo/react'
 

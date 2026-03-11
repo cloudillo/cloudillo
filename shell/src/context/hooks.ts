@@ -5,7 +5,7 @@
  */
 
 import * as React from 'react'
-import { useAtom, useSetAtom } from 'jotai'
+import { useAtom } from 'jotai'
 import { useNavigate } from 'react-router-dom'
 import { createApiClient, type ApiClient } from '@cloudillo/core'
 import { useApi, useAuth } from '@cloudillo/react'

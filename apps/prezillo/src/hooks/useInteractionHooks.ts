@@ -34,7 +34,7 @@ import {
 } from 'react-svg-canvas'
 import { calculateArcRadius } from '@cloudillo/canvas-tools'
 
-import type { ObjectId, TemplateId, Bounds, PrezilloObject } from '../crdt'
+import type { ObjectId, TemplateId, PrezilloObject } from '../crdt'
 import {
 	updateObjectBounds,
 	updateObjectRotation,

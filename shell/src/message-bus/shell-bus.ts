@@ -24,7 +24,6 @@
 import {
 	MessageBusBase,
 	type MessageBusConfig,
-	CloudilloMessage,
 	PROTOCOL_VERSION,
 	validateMessage,
 	type ApiClient

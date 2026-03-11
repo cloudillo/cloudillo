@@ -31,7 +31,7 @@ import type {
 	ChildRef
 } from './stored-types'
 import { generateContainerId, generateViewId, generateStyleId } from './ids'
-import type { ContainerId, ViewId, StyleId } from './ids'
+import type { ContainerId } from './ids'
 import { compactPalette } from './type-converters'
 import { DEFAULT_PALETTE } from './palette-ops'
 

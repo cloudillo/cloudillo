@@ -36,8 +36,7 @@ import type {
 	TextObject,
 	PollFrameObject,
 	TableGridObject,
-	SymbolObject,
-	DocumentObject
+	SymbolObject
 } from '../crdt'
 import {
 	resolveShapeStyle,
@@ -51,7 +50,7 @@ import {
 import { calculateRotationTransform, buildStrokeProps, buildFillProps } from '../utils'
 import { getSymbolById } from '../data/symbol-library'
 import { calculateGridPositions } from '../components/TableGridRenderer'
-import type { PDFExportOptions, RenderContext, Bounds } from './types'
+import type { PDFExportOptions, RenderContext } from './types'
 import { createSVGTextElement } from './text-converter'
 import { createRichTextSVGElement } from '@cloudillo/canvas-text'
 import type { DeltaOp, BaseTextStyle } from '@cloudillo/canvas-text'

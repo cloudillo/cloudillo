@@ -28,7 +28,7 @@ import {
 } from 'react-icons/lu'
 
 import type { ActionView } from '@cloudillo/types'
-import { useAuth, useApi, Button, ProfilePicture, ProfileCard, TimeFormat } from '@cloudillo/react'
+import { useAuth, useApi, Button, ProfileCard, TimeFormat } from '@cloudillo/react'
 import type * as Types from '@cloudillo/core'
 
 import { useCommunitiesList, useContextSwitch } from '../context/index.js'

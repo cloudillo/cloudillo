@@ -27,7 +27,6 @@
 
 import {
 	type CloudilloMessage,
-	MessageType,
 	PROTOCOL_VERSION,
 	type AuthInitRes,
 	type AuthInitPush,

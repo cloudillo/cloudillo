@@ -188,35 +188,32 @@ export function PollFrameRenderer({
 			)}
 
 			{/* Focus ring for keyboard navigation */}
-			{isFocused && (
-				<>
-					{shape === 'rect' ? (
-						<rect
-							x={x - 3}
-							y={y - 3}
-							width={width + 6}
-							height={height + 6}
-							rx={10}
-							ry={10}
-							fill="none"
-							stroke="#8b5cf6"
-							strokeWidth={2}
-							strokeDasharray="4 2"
-						/>
-					) : (
-						<ellipse
-							cx={x + width / 2}
-							cy={y + height / 2}
-							rx={width / 2 + 3}
-							ry={height / 2 + 3}
-							fill="none"
-							stroke="#8b5cf6"
-							strokeWidth={2}
-							strokeDasharray="4 2"
-						/>
-					)}
-				</>
-			)}
+			{isFocused &&
+				(shape === 'rect' ? (
+					<rect
+						x={x - 3}
+						y={y - 3}
+						width={width + 6}
+						height={height + 6}
+						rx={10}
+						ry={10}
+						fill="none"
+						stroke="#8b5cf6"
+						strokeWidth={2}
+						strokeDasharray="4 2"
+					/>
+				) : (
+					<ellipse
+						cx={x + width / 2}
+						cy={y + height / 2}
+						rx={width / 2 + 3}
+						ry={height / 2 + 3}
+						fill="none"
+						stroke="#8b5cf6"
+						strokeWidth={2}
+						strokeDasharray="4 2"
+					/>
+				))}
 
 			{/* Vote ripple animation */}
 			{showRipple && (

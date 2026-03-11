@@ -24,11 +24,10 @@
 import {
 	distance,
 	perpendicularDistance,
-	lineAngle,
 	angleBetweenVectors,
 	type Point
 } from '../../utils/geometry.js'
-import { detectLine, type LineCandidate } from './line-detector.js'
+import { detectLine } from './line-detector.js'
 
 export type ArrowheadPosition = 'start' | 'end' | 'both'
 

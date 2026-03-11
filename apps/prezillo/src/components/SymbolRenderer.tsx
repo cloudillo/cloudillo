@@ -14,13 +14,13 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import * as React from 'react'
 /**
  * SymbolRenderer component - Renders a symbol from the symbol library
  *
  * Resolves the symbol from the library and renders it using standard fill/stroke styling.
  */
 
-import * as React from 'react'
 import type { SymbolObject, ResolvedShapeStyle } from '../crdt'
 import { getSymbolById } from '../data/symbol-library'
 

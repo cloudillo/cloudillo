@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { Link, NavLink, Routes, Route, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { NavLink, Routes, Route, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -27,10 +27,10 @@ import {
 	LuMenu as IcMenu
 } from 'react-icons/lu'
 
-import { useAuth, useApi, Fcd, Button, mergeClasses } from '@cloudillo/react'
+import { useAuth, useApi, Fcd } from '@cloudillo/react'
 
 import type { UsePWA } from '../pwa.js'
-import { useAppConfig, parseQS, qs } from '../utils.js'
+import { useAppConfig } from '../utils.js'
 import { SecuritySettings } from './security.js'
 import { NotificationSettings } from './notifications.js'
 import { AppearanceSettings, setTheme } from './appearance.js'

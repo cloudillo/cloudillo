@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useEditable, type Position } from 'use-editable'
 import dayjs from 'dayjs'
 import { useTranslation } from 'react-i18next'
@@ -27,9 +27,6 @@ import {
 	LuImage as IcImage,
 	LuSendHorizontal as IcSend,
 	LuArrowDownToLine as IcScrollBottom,
-	LuMessageCircle as IcComment,
-	LuThumbsUp as IcLike,
-	LuForward as IcShare,
 	LuUsers as IcGroup,
 	LuUser as IcDirect,
 	LuInfo as IcInfo,
@@ -37,12 +34,10 @@ import {
 	LuLogOut as IcLeave,
 	LuSettings as IcSettings,
 	LuX as IcClose,
-	LuCheck as IcCheck,
-	LuChevronDown as IcChevronDown
+	LuCheck as IcCheck
 } from 'react-icons/lu'
 
 import type { Profile, ActionView, NewAction } from '@cloudillo/types'
-import * as Types from '@cloudillo/core'
 import { getFileUrl } from '@cloudillo/core'
 import {
 	useAuth,
@@ -51,7 +46,6 @@ import {
 	Fcd,
 	IdentityTag,
 	ProfileCard,
-	ProfilePicture,
 	mergeClasses,
 	generateFragments,
 	LoadingSpinner,
@@ -68,7 +62,7 @@ import {
 } from '@cloudillo/react'
 import '@cloudillo/react/components.css'
 
-import { useAppConfig, parseQS, qs } from '../utils.js'
+import { useAppConfig } from '../utils.js'
 import { ImageUpload } from '../image.js'
 import { useWsBus } from '../ws-bus.js'
 import { useImageUpload } from '../hooks/useImageUpload.js'
@@ -184,40 +178,38 @@ function Msg({ className, action, local, showSender }: MsgProps) {
 	const displaySender = showSender || !local
 
 	return (
-		<>
-			<div
-				className={mergeClasses(
-					'c-panel c-msg p-2 px-3 mb-1',
-					local ? 'local primary' : 'remote secondary',
-					className
-				)}
-			>
-				{displaySender && (
-					<div className="c-panel-header d-flex mb-1">
-						<Link to={`/profile/${action.issuer.idTag}`}>
-							<ProfileCard profile={action.issuer} className="small" />
-						</Link>
-					</div>
-				)}
-				<div className="d-flex flex-column">
-					{imgSrc && <img src={imgSrc} className="mb-2 mx-auto w-max-100" />}
-					{typeof action.content != 'string'
-						? null
-						: action.content.split('\n\n').map((paragraph, i) => (
-								<p key={i}>
-									{paragraph.split('\n').map((line, i) => (
-										<React.Fragment key={i}>
-											{generateFragments(line).map((n, i) => (
-												<React.Fragment key={i}>{n}</React.Fragment>
-											))}
-											<br />
-										</React.Fragment>
-									))}
-								</p>
-							))}
+		<div
+			className={mergeClasses(
+				'c-panel c-msg p-2 px-3 mb-1',
+				local ? 'local primary' : 'remote secondary',
+				className
+			)}
+		>
+			{displaySender && (
+				<div className="c-panel-header d-flex mb-1">
+					<Link to={`/profile/${action.issuer.idTag}`}>
+						<ProfileCard profile={action.issuer} className="small" />
+					</Link>
 				</div>
+			)}
+			<div className="d-flex flex-column">
+				{imgSrc && <img src={imgSrc} className="mb-2 mx-auto w-max-100" />}
+				{typeof action.content != 'string'
+					? null
+					: action.content.split('\n\n').map((paragraph, i) => (
+							<p key={i}>
+								{paragraph.split('\n').map((line, i) => (
+									<React.Fragment key={i}>
+										{generateFragments(line).map((n, i) => (
+											<React.Fragment key={i}>{n}</React.Fragment>
+										))}
+										<br />
+									</React.Fragment>
+								))}
+							</p>
+						))}
 			</div>
-		</>
+		</div>
 	)
 }
 
@@ -247,9 +239,9 @@ export function NewMsg({
 
 	React.useEffect(() => {
 		setTimeout(function () {
-			console.log('blur+focus', editorRef.current),
-				editorRef.current?.blur(),
-				editorRef.current?.focus()
+			console.log('blur+focus', editorRef.current)
+			editorRef.current?.blur()
+			editorRef.current?.focus()
 		}, 1000)
 	}, [])
 
@@ -302,7 +294,8 @@ export function NewMsg({
 		} as ActionEvt)
 		imageUpload.reset()
 		setTimeout(function () {
-			editorRef.current?.blur(), editorRef.current?.focus()
+			editorRef.current?.blur()
+			editorRef.current?.focus()
 		}, 0)
 	}
 
@@ -739,7 +732,7 @@ function GroupDetailsPanel({
 				<div className="c-hbox align-items-center mt-3">
 					<span className="fw-medium fill">
 						{t('Members')} ({members?.filter((m) => m.status === 'active').length || 0})
-						{members && members.some((m) => m.status === 'invited') && (
+						{members?.some((m) => m.status === 'invited') && (
 							<span className="text-muted ms-1">
 								+{members.filter((m) => m.status === 'invited').length}{' '}
 								{t('invited')}

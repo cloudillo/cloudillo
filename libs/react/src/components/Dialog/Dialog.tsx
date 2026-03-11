@@ -23,7 +23,7 @@ import { Button } from '../Button/Button.js'
 import { mergeClasses } from '../utils.js'
 import type { Elevation } from '../types.js'
 
-import { LuX as IcClose, LuCheck as IcOk, LuX as IcCancel } from 'react-icons/lu'
+import { LuX as IcClose } from 'react-icons/lu'
 
 /* Dialog component for HTML5 dialog */
 /*************************************/
@@ -86,12 +86,12 @@ export function DialogContainer() {
 
 	function onButtonClick(value: unknown) {
 		setDialog(undefined)
-		dialogResolve && dialogResolve(value)
+		dialogResolve?.(value)
 	}
 
 	function onCancel() {
 		setDialog(undefined)
-		dialogResolve && dialogResolve(undefined)
+		dialogResolve?.(undefined)
 	}
 
 	return (

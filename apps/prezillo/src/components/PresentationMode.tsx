@@ -50,7 +50,6 @@ import {
 } from '../utils'
 import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
 import { RichTextDisplay } from '@cloudillo/canvas-text'
-import type { BaseTextStyle } from '@cloudillo/canvas-text'
 import { getBulletIcon, migrateBullet } from '../data/bullet-icons'
 import { ImageRenderer } from './ImageRenderer'
 import { QRCodeRenderer } from './QRCodeRenderer'
@@ -636,7 +635,7 @@ export function PresentationMode({
 		if (!fullscreen) return
 
 		const container = containerRef.current
-		if (container && container.requestFullscreen) {
+		if (container?.requestFullscreen) {
 			container.requestFullscreen().catch(() => {
 				// Fullscreen failed, continue anyway
 			})

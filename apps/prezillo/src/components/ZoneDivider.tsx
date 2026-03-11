@@ -14,12 +14,11 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import * as React from 'react'
 /**
  * ZoneDivider component - Renders a subtle horizontal line
  * separating the template zone from the view zone.
  */
-
-import * as React from 'react'
 
 export interface ZoneDividerProps {
 	y: number

@@ -20,16 +20,9 @@
  */
 
 import * as Y from 'yjs'
-import type {
-	YIdealloDocument,
-	StoredFreehand,
-	StoredPolygon,
-	StoredText,
-	StoredSticky,
-	StoredDocument
-} from './stored-types.js'
+import type { YIdealloDocument, StoredDocument } from './stored-types.js'
 import type { ObjectId } from './ids.js'
-import { generateObjectId, toObjectId } from './ids.js'
+import { generateObjectId } from './ids.js'
 import type {
 	IdealloObject,
 	FreehandObject,
@@ -41,10 +34,8 @@ import type {
 	RectObject,
 	EllipseObject,
 	LineObject,
-	ArrowObject,
-	Style
+	ArrowObject
 } from './runtime-types.js'
-import { DEFAULT_STYLE } from './runtime-types.js'
 import { compactObject, expandObject } from './type-converters.js'
 
 /**

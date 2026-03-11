@@ -16,34 +16,15 @@
 
 import * as React from 'react'
 import { atom, useAtom } from 'jotai'
-import {
-	Routes,
-	Route,
-	Link,
-	Navigate,
-	useParams,
-	useLocation,
-	useNavigate
-} from 'react-router-dom'
-import { useTranslation, Trans } from 'react-i18next'
-import {
-	browserSupportsWebAuthnAutofill,
-	browserSupportsWebAuthn,
-	startRegistration,
-	startAuthentication
-} from '@simplewebauthn/browser'
-import debounce from 'debounce'
-import * as T from '@symbion/runtype'
+import { Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser'
 
 import {
-	LuCloudLightning as IcCloudillo,
-	LuDelete as IcDelete,
 	LuEye as IcEye,
 	LuEyeOff as IcEyeOff,
-	LuAtSign as IcAt,
 	LuRefreshCw as IcLoading,
 	LuCheck as IcOk,
-	LuX as IcError,
 	LuFingerprint as IcWebAuthn,
 	LuLogIn as IcLogin,
 	LuMail as IcMail,
@@ -51,13 +32,11 @@ import {
 } from 'react-icons/lu'
 
 import { useAuth, type AuthState, useApi, useDialog, Button } from '@cloudillo/react'
-import type { LoginInitResult, ApiClient } from '@cloudillo/core'
+import type { ApiClient } from '@cloudillo/core'
 
-import { useAppConfig, ServerError, arrayBufferToBase64Url, base64ToArrayBuffer } from '../utils.js'
-import { CloudilloLogo } from '../logo.js'
-import { Page } from '../ui.js'
+import { useAppConfig } from '../utils.js'
 import { RegisterForm } from '../profile/register.js'
-import { validIdTag, validPassword } from './utils.js'
+import { validPassword } from './utils.js'
 import { ResetPassword } from './reset-password.js'
 import { IdpActivate } from './idp-activate.js'
 import { QrLoginPanel } from './QrLoginPanel.js'
@@ -315,53 +294,47 @@ export function LoginForm() {
 							</button>
 						</div>
 					</>
-				) : (
+				) : forgotStatus !== 'success' ? (
 					<>
-						{forgotStatus !== 'success' ? (
-							<>
-								<p className="text-muted mb-3">
-									{t(
-										"Enter your email address and we'll send you a link to reset your password."
-									)}
-								</p>
-								<div className="c-input-group mb-3">
-									<span className="c-button icon">
-										<IcMail />
-									</span>
-									<input
-										className="c-input"
-										name="email"
-										type="email"
-										value={email}
-										onChange={(evt: React.ChangeEvent<HTMLInputElement>) => {
-											setEmail(evt.target.value)
-											setForgotError(undefined)
-										}}
-										placeholder={t('Email address')}
-										aria-label={t('Email address')}
-										disabled={forgotStatus === 'loading'}
-										autoFocus
-									/>
-								</div>
-								{forgotError && (
-									<div className="c-invalid-feedback mb-2">{forgotError}</div>
-								)}
-							</>
-						) : (
-							<div className="c-panel success p-3 mb-3">
-								<div className="c-hbox align-items-center g-2">
-									<IcOk
-										style={{ fontSize: '1.5rem', color: 'var(--col-success)' }}
-									/>
-									<p className="mb-0">
-										{t(
-											"If an account with this email exists, you'll receive a password reset link shortly."
-										)}
-									</p>
-								</div>
-							</div>
+						<p className="text-muted mb-3">
+							{t(
+								"Enter your email address and we'll send you a link to reset your password."
+							)}
+						</p>
+						<div className="c-input-group mb-3">
+							<span className="c-button icon">
+								<IcMail />
+							</span>
+							<input
+								className="c-input"
+								name="email"
+								type="email"
+								value={email}
+								onChange={(evt: React.ChangeEvent<HTMLInputElement>) => {
+									setEmail(evt.target.value)
+									setForgotError(undefined)
+								}}
+								placeholder={t('Email address')}
+								aria-label={t('Email address')}
+								disabled={forgotStatus === 'loading'}
+								autoFocus
+							/>
+						</div>
+						{forgotError && (
+							<div className="c-invalid-feedback mb-2">{forgotError}</div>
 						)}
 					</>
+				) : (
+					<div className="c-panel success p-3 mb-3">
+						<div className="c-hbox align-items-center g-2">
+							<IcOk style={{ fontSize: '1.5rem', color: 'var(--col-success)' }} />
+							<p className="mb-0">
+								{t(
+									"If an account with this email exists, you'll receive a password reset link shortly."
+								)}
+							</p>
+						</div>
+					</div>
 				)}
 
 				{!forgot && <div className="c-invalid-feedback">{error}</div>}

@@ -8,7 +8,7 @@
 import './sidebar.css'
 
 import * as React from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth, useToast, mergeClasses, ProfilePicture } from '@cloudillo/react'
 

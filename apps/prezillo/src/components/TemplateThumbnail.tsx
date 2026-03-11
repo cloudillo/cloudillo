@@ -22,8 +22,7 @@
 import * as React from 'react'
 import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
 
-import type { Template, TemplateId, PrezilloObject } from '../crdt'
-import type { Gradient } from '@cloudillo/canvas-tools'
+import type { Template, PrezilloObject } from '../crdt'
 
 export interface TemplateThumbnailProps {
 	template: Template

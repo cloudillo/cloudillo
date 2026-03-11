@@ -52,6 +52,7 @@ export function TagStory() {
 			</Variant>
 
 			<Variant name="Removable Tags">
+				{/* biome-ignore lint/complexity/noUselessFragments: Variant requires single child */}
 				<>
 					<TagList>
 						{tags.map((tag) => (

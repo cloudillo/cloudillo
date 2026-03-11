@@ -71,12 +71,18 @@ export function Popper({
 		<details
 			className={className}
 			open={isOpen}
-			onClick={(evt) => (evt.stopPropagation(), setIsOpen(!isOpen))}
+			onClick={(evt) => {
+				evt.stopPropagation()
+				setIsOpen(!isOpen)
+			}}
 		>
 			<summary
 				ref={setPopperRef}
 				className={menuClassName || 'c-nav-item g-2'}
-				onClick={(evt) => (evt.stopPropagation(), setIsOpen(!isOpen))}
+				onClick={(evt) => {
+					evt.stopPropagation()
+					setIsOpen(!isOpen)
+				}}
 				aria-label={ariaLabel}
 				aria-expanded={isOpen}
 				aria-haspopup="true"

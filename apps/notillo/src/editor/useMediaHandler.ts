@@ -17,7 +17,7 @@
 import * as React from 'react'
 import { RiImage2Fill, RiFilmLine, RiVolumeUpFill, RiFileLine } from 'react-icons/ri'
 
-import { getAppBus, getFileUrl, type MediaFileResolvedPush } from '@cloudillo/core'
+import { getAppBus, type MediaFileResolvedPush } from '@cloudillo/core'
 import { getDefaultReactSlashMenuItems, type DefaultReactSuggestionItem } from '@blocknote/react'
 
 import type { NotilloEditor } from './schema.js'

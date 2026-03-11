@@ -104,35 +104,33 @@ export function AppearanceSettings() {
 	if (!settings) return <LoadingSpinner />
 
 	return (
-		<>
-			<div className="c-panel">
-				<label className="c-settings-field">
-					<span>{t('Theme')}</span>
-					<select
-						className="c-select"
-						name="ui.theme"
-						value={settings['ui.theme'] as string}
-						onChange={onThemeChange}
-					>
-						<option value="glass">{t('Glass')}</option>
-						<option value="opaque">{t('Opaque')}</option>
-					</select>
-				</label>
-				<label className="c-settings-field">
-					<span>{t('Colors')}</span>
-					<select
-						className="c-select"
-						name="ui.colors"
-						value={settings['ui.colors'] as string}
-						onChange={onThemeChange}
-					>
-						<option value="default">{t('Use browser settings')}</option>
-						<option value="light">{t('Light')}</option>
-						<option value="dark">{t('Dark')}</option>
-					</select>
-				</label>
-			</div>
-		</>
+		<div className="c-panel">
+			<label className="c-settings-field">
+				<span>{t('Theme')}</span>
+				<select
+					className="c-select"
+					name="ui.theme"
+					value={settings['ui.theme'] as string}
+					onChange={onThemeChange}
+				>
+					<option value="glass">{t('Glass')}</option>
+					<option value="opaque">{t('Opaque')}</option>
+				</select>
+			</label>
+			<label className="c-settings-field">
+				<span>{t('Colors')}</span>
+				<select
+					className="c-select"
+					name="ui.colors"
+					value={settings['ui.colors'] as string}
+					onChange={onThemeChange}
+				>
+					<option value="default">{t('Use browser settings')}</option>
+					<option value="light">{t('Light')}</option>
+					<option value="dark">{t('Dark')}</option>
+				</select>
+			</label>
+		</div>
 	)
 }
 

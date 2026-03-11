@@ -194,14 +194,12 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 				subType: res.subType ?? perm,
 				audience: res.audience ?? profile
 			}
-			let found = false
 			setFileActions((prev) => {
-				const next = prev
-					.map((fa) =>
-						fa.audience?.idTag === profile.idTag ? ((found = true), actionWithData) : fa
-					)
-					.concat(found ? [] : [actionWithData])
-				return next
+				const exists = prev.some((fa) => fa.audience?.idTag === profile.idTag)
+				const next = prev.map((fa) =>
+					fa.audience?.idTag === profile.idTag ? actionWithData : fa
+				)
+				return exists ? next : [...next, actionWithData]
 			})
 			toast.success(t('Permission granted'))
 			onPermissionsChanged?.()

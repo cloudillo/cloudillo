@@ -18,20 +18,13 @@
  * Spatial queries and hierarchy traversal
  */
 
-import type {
-	YPrezilloDocument,
-	StoredObject,
-	StoredContainer,
-	StoredView,
-	ChildRef
-} from './stored-types'
+import type { YPrezilloDocument, StoredObject, ChildRef } from './stored-types'
 import type { ObjectId, ContainerId, ViewId } from './ids'
-import { toObjectId, toContainerId, toViewId } from './ids'
-import type { Point, Bounds, PrezilloObject, ContainerNode, ViewNode } from './runtime-types'
-import { expandObject, expandContainer, expandView } from './type-converters'
+import { toObjectId, toContainerId } from './ids'
+import type { Bounds, PrezilloObject, ContainerNode, ViewNode } from './runtime-types'
+import { expandContainer, expandView } from './type-converters'
 import { resolveObject } from './prototype-ops'
 import {
-	getAbsolutePositionStored,
 	getAbsoluteBoundsStored,
 	objectIntersectsView,
 	boundsIntersect,
@@ -610,7 +603,6 @@ export function getObjectCount(doc: YPrezilloDocument): number {
 export { calculateOverlapPercentage } from '@cloudillo/canvas-tools'
 
 import {
-	calculateOverlapPercentage as _calculateOverlapPercentage,
 	findStackedObjects,
 	findStackedObjectsForSelection,
 	type StackableObject

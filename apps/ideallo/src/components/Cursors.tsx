@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import * as React from 'react'
 /**
  * Renders remote user cursors via awareness
  * Shows cursor pointer with user name label
  */
 
-import * as React from 'react'
 import type { IdealloPresence } from '../hooks/index.js'
 
 export interface CursorsProps {

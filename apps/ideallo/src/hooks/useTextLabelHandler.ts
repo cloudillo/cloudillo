@@ -21,8 +21,7 @@
 import * as React from 'react'
 import type * as Y from 'yjs'
 
-import type { YIdealloDocument, ObjectId, TextObject } from '../crdt/index.js'
-import { getObjectYText } from '../crdt/index.js'
+import type { YIdealloDocument, TextObject } from '../crdt/index.js'
 import type { TextEditState } from '../tools/types.js'
 
 export interface UseTextLabelHandlerOptions {

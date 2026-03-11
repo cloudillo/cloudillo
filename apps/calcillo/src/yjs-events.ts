@@ -223,7 +223,7 @@ export function applySheetYEvent(
 				const colIdx = colOrder.indexOf(colId as any)
 
 				if (rowIdx >= 0 && colIdx >= 0) {
-					if (border && border.style) {
+					if (border?.style) {
 						// Apply border style using setCellFormat
 						// Fortune Sheet uses 'bd' attribute with the border object structure
 						debug.log(

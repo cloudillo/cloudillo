@@ -19,7 +19,7 @@
  */
 
 import * as Y from 'yjs'
-import type { YPrezilloDocument, ChildRef, StoredContainer, StoredObject } from './stored-types'
+import type { YPrezilloDocument, ChildRef, StoredContainer } from './stored-types'
 import type { ObjectId, ContainerId } from './ids'
 import { generateContainerId, toObjectId, toContainerId } from './ids'
 import type { ContainerNode, ContainerType, PrezilloObject } from './runtime-types'

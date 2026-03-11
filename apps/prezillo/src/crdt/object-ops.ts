@@ -50,9 +50,9 @@ import {
 	compactArrowStyle,
 	compactAnchorPoint
 } from './type-converters'
-import { getContainerChildren, getOrCreateRichText } from './document'
+import { getContainerChildren } from './document'
 import { getAbsolutePositionStored } from './transforms'
-import { resolveObject, getInstancesOfPrototype, detachInstance } from './prototype-ops'
+import { resolveObject, getInstancesOfPrototype } from './prototype-ops'
 import { getTemplateIdForPrototype } from './template-ops'
 
 /**

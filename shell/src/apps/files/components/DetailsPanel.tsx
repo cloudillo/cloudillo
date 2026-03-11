@@ -21,7 +21,6 @@ import { useTranslation } from 'react-i18next'
 import { FiEdit2 as IcEdit, FiMoreVertical as IcMore } from 'react-icons/fi'
 import {
 	LuLink as IcLink,
-	LuFiles as IcLinked,
 	LuCopy as IcCopy,
 	LuQrCode as IcQrCode,
 	LuShare2 as IcShare,
@@ -56,7 +55,7 @@ import {
 	canManageFile,
 	VISIBILITY_DROPDOWN_OPTIONS
 } from '../utils.js'
-import type { File, FileOps, FileVisibility } from '../types.js'
+import type { File, FileOps } from '../types.js'
 
 interface DetailsPanelProps {
 	className?: string

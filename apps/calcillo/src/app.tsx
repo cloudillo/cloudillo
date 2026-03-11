@@ -20,7 +20,7 @@ declare const __APP_VERSION__: string
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { type Sheet as FortuneSheet, SheetConfig, type Op } from '@fortune-sheet/core'
+import type { Sheet as FortuneSheet, Op } from '@fortune-sheet/core'
 import { Workbook, type WorkbookInstance } from '@fortune-sheet/react'
 import type * as Y from 'yjs'
 import { PiDotsThreeVerticalBold, PiExportBold } from 'react-icons/pi'
@@ -35,7 +35,6 @@ import { downloadExport } from './export.js'
 
 // Import modules
 import type { SheetId } from './yjs-types'
-import { toSheetId, isValidSheetId } from './yjs-types'
 import { generateSheetId } from './id-generator'
 import { getOrCreateSheet, ensureSheetDimensions, transformSheetToCelldata } from './ydoc-helpers'
 import { transformOp, deleteSheet } from './transform-ops'

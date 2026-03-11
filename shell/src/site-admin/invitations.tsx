@@ -29,7 +29,6 @@ import {
 	Tab,
 	TimeFormat
 } from '@cloudillo/react'
-import * as Types from '@cloudillo/core'
 
 import {
 	LuCheck as IcAvailable,
@@ -156,14 +155,13 @@ function RegistrationInvites() {
 	return (
 		<>
 			<div className="c-vbox">
-				{refs &&
-					refs.map((ref) => (
-						<RegistrationInviteCard
-							key={ref.refId}
-							invite={ref}
-							deleteRef={() => deleteRef(ref.refId)}
-						/>
-					))}
+				{refs?.map((ref) => (
+					<RegistrationInviteCard
+						key={ref.refId}
+						invite={ref}
+						deleteRef={() => deleteRef(ref.refId)}
+					/>
+				))}
 			</div>
 			<button className="c-button primary float mb-5 me-2" onClick={createRef}>
 				<IcAdd />
@@ -374,14 +372,13 @@ function CommunityInvites() {
 			)}
 
 			<div className="c-vbox g-2">
-				{invites &&
-					invites.map((invite) => (
-						<CommunityInviteCard
-							key={invite.refId}
-							invite={invite}
-							onDelete={() => deleteInvite(invite.refId)}
-						/>
-					))}
+				{invites?.map((invite) => (
+					<CommunityInviteCard
+						key={invite.refId}
+						invite={invite}
+						onDelete={() => deleteInvite(invite.refId)}
+					/>
+				))}
 				{invites && invites.length === 0 && !showForm && (
 					<div className="c-panel text-muted text-center p-4">
 						{t('No community invitations yet.')}

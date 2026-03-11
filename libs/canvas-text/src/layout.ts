@@ -30,7 +30,7 @@ import type {
 	PositionedLine,
 	RichTextLayout
 } from './types'
-import { resolveRunStyle, measureRunWidth, type ResolvedRunStyle } from './measure'
+import { resolveRunStyle, measureRunWidth } from './measure'
 
 /** Bullet/list indent width as a factor of base font size */
 const LIST_INDENT_FACTOR = 1.5

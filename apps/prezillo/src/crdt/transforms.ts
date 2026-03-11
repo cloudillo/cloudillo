@@ -18,18 +18,10 @@
  * Coordinate transformations and spatial utilities
  */
 
-import type { YPrezilloDocument, StoredObject, StoredContainer, StoredView } from './stored-types'
+import type { YPrezilloDocument, StoredObject, StoredView } from './stored-types'
 import type { ObjectId, ContainerId, ViewId } from './ids'
 import { toContainerId } from './ids'
-import type {
-	Point,
-	Bounds,
-	Transform,
-	PrezilloObject,
-	ContainerNode,
-	ViewNode
-} from './runtime-types'
-import { expandObject, expandContainer, expandView } from './type-converters'
+import type { Point, Bounds, Transform } from './runtime-types'
 
 // Import utilities used in this file
 import { composeTransforms, unionBounds, boundsIntersectsView } from 'react-svg-canvas'

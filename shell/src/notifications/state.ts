@@ -18,7 +18,7 @@ import * as React from 'react'
 import { atom, useAtom } from 'jotai'
 
 import type { ActionView } from '@cloudillo/types'
-import { useAuth, useApi } from '@cloudillo/react'
+import { useApi } from '@cloudillo/react'
 
 export interface NotificationState {
 	notifications: ActionView[]

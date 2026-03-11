@@ -17,7 +17,7 @@
 import { PDFDocument } from 'pdf-lib'
 import { getFileUrl, createApiClient } from '@cloudillo/core'
 
-import { type ScanPage, type PageFilter, FILTER_DEFAULTS } from '../types.js'
+import { type ScanPage, FILTER_DEFAULTS } from '../types.js'
 import {
 	base64ToCanvas,
 	extractPerspective,

@@ -27,12 +27,6 @@ import {
 	useRotatable,
 	usePivotDrag,
 	useGroupPivot,
-	type RotatableOptions,
-	type PivotDragOptions,
-	type GroupPivotOptions,
-	type RotationState,
-	type PivotState,
-	type GroupPivotState,
 	type RotatedObjectBounds,
 	type TransformedObject
 } from 'react-svg-canvas'

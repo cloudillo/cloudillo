@@ -40,62 +40,60 @@ export function FilesSettings() {
 	if (!settings) return <LoadingSpinner />
 
 	return (
-		<>
-			<div className="c-panel">
-				<h4>{t('File Synchronization')}</h4>
-				<p className="text-muted">
-					{t('Control which file variants are synchronized to your device')}
-				</p>
+		<div className="c-panel">
+			<h4>{t('File Synchronization')}</h4>
+			<p className="text-muted">
+				{t('Control which file variants are synchronized to your device')}
+			</p>
 
-				<label className="c-settings-field">
-					<span>{t('Max image quality')}</span>
-					<select
-						className="c-select"
-						name="file.sync_max_vis"
-						value={(settings['file.sync_max_vis'] as string) || 'md'}
-						onChange={onSettingChange}
-					>
-						{VARIANT_OPTIONS.map((opt) => (
-							<option key={opt.value} value={opt.value}>
-								{t(opt.label)}
-							</option>
-						))}
-					</select>
-				</label>
+			<label className="c-settings-field">
+				<span>{t('Max image quality')}</span>
+				<select
+					className="c-select"
+					name="file.sync_max_vis"
+					value={(settings['file.sync_max_vis'] as string) || 'md'}
+					onChange={onSettingChange}
+				>
+					{VARIANT_OPTIONS.map((opt) => (
+						<option key={opt.value} value={opt.value}>
+							{t(opt.label)}
+						</option>
+					))}
+				</select>
+			</label>
 
-				<label className="c-settings-field">
-					<span>{t('Max video quality')}</span>
-					<select
-						className="c-select"
-						name="file.sync_max_vid"
-						value={(settings['file.sync_max_vid'] as string) || 'sd'}
-						onChange={onSettingChange}
-					>
-						{VARIANT_OPTIONS.map((opt) => (
-							<option key={opt.value} value={opt.value}>
-								{t(opt.label)}
-							</option>
-						))}
-					</select>
-				</label>
+			<label className="c-settings-field">
+				<span>{t('Max video quality')}</span>
+				<select
+					className="c-select"
+					name="file.sync_max_vid"
+					value={(settings['file.sync_max_vid'] as string) || 'sd'}
+					onChange={onSettingChange}
+				>
+					{VARIANT_OPTIONS.map((opt) => (
+						<option key={opt.value} value={opt.value}>
+							{t(opt.label)}
+						</option>
+					))}
+				</select>
+			</label>
 
-				<label className="c-settings-field">
-					<span>{t('Max audio quality')}</span>
-					<select
-						className="c-select"
-						name="file.sync_max_aud"
-						value={(settings['file.sync_max_aud'] as string) || 'md'}
-						onChange={onSettingChange}
-					>
-						{AUDIO_VARIANT_OPTIONS.map((opt) => (
-							<option key={opt.value} value={opt.value}>
-								{t(opt.label)}
-							</option>
-						))}
-					</select>
-				</label>
-			</div>
-		</>
+			<label className="c-settings-field">
+				<span>{t('Max audio quality')}</span>
+				<select
+					className="c-select"
+					name="file.sync_max_aud"
+					value={(settings['file.sync_max_aud'] as string) || 'md'}
+					onChange={onSettingChange}
+				>
+					{AUDIO_VARIANT_OPTIONS.map((opt) => (
+						<option key={opt.value} value={opt.value}>
+							{t(opt.label)}
+						</option>
+					))}
+				</select>
+			</label>
+		</div>
 	)
 }
 

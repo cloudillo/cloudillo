@@ -18,7 +18,7 @@
  * Type definitions for PDF export functionality
  */
 
-import type { ViewNode, PrezilloObject, YPrezilloDocument } from '../crdt'
+import type { YPrezilloDocument } from '../crdt'
 
 /**
  * Options for PDF export

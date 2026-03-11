@@ -45,8 +45,6 @@ import 'quill/dist/quill.core.css'
 import 'quill/dist/quill.snow.css'
 //import 'quill/dist/quill.bubble.css'
 
-import * as T from '@symbion/runtype'
-
 import { createElement, Cloud, CloudOff } from 'lucide'
 
 import { getAppBus, str2color } from '@cloudillo/core'

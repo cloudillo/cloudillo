@@ -22,7 +22,7 @@
  * Shape detection is always attempted - confidence thresholds decide.
  */
 
-import { isClosedPath, getBoundsFromPoints, type Point } from '../utils/geometry.js'
+import { isClosedPath, type Point } from '../utils/geometry.js'
 import { fitBezierPath, type BezierFitResult } from '../utils/bezier-fitting.js'
 import {
 	analyzeStroke,

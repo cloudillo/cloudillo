@@ -1,4 +1,5 @@
 import * as React from 'react'
+
 import { Story, Variant } from './storybook.js'
 import {
 	Sidebar,
@@ -8,7 +9,6 @@ import {
 	SidebarNav,
 	SidebarSection,
 	SidebarBackdrop,
-	SidebarToggle,
 	useSidebar,
 	NavItem,
 	Button,

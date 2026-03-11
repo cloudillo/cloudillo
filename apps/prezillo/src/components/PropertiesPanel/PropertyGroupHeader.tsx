@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import * as React from 'react'
 /**
  * PropertyGroupHeader - Reusable header for property groups with lock button
  */
 
-import * as React from 'react'
 import { PropertyLockButton } from './PropertyLockButton'
 
 export interface PropertyGroupHeaderProps {

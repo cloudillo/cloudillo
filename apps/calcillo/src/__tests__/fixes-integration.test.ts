@@ -12,7 +12,7 @@ import {
 	indexToColId
 } from '../ydoc-helpers'
 import { generateSheetId, generateUniqueRowIds, generateUniqueColIds } from '../id-generator'
-import type { SheetId, RowId, ColId } from '../yjs-types'
+import type { SheetId } from '../yjs-types'
 
 describe('Critical Fixes Integration Tests', () => {
 	let doc: Y.Doc

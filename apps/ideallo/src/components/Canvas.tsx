@@ -532,7 +532,7 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 				let obj = expandObject(objectId, stored, doc)
 
 				// Apply local drag offset if this object is being dragged
-				if (dragOffset && dragOffset.objectIds.has(objectId)) {
+				if (dragOffset?.objectIds.has(objectId)) {
 					obj = {
 						...obj,
 						x: obj.x + dragOffset.dx,

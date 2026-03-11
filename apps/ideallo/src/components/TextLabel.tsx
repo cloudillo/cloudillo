@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import * as React from 'react'
 /**
  * Renders text label objects using RichTextDisplay from canvas-text
  */
 
-import * as React from 'react'
 import type * as Y from 'yjs'
 import type { TextObject } from '../crdt/index.js'
 import { colorToCss } from '../utils/palette.js'

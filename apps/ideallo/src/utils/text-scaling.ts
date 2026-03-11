@@ -150,7 +150,7 @@ export function createFontSizeCalculator(
  * Cleanup the measurement element (call on unmount if needed)
  */
 export function cleanupMeasureElement(): void {
-	if (measureElement && measureElement.parentNode) {
+	if (measureElement?.parentNode) {
 		measureElement.parentNode.removeChild(measureElement)
 		measureElement = null
 	}

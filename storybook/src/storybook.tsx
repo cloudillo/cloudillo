@@ -87,6 +87,7 @@ function stringify(node: React.ReactNode, indentDepth: number = 0): string {
 					? `${indent}<${elementType}${elementType && propList ? ' ' : ''}${propList}>\n${children}${indent}</${elementType}>\n`
 					: `${indent}<${elementType} ${propList}/>\n`
 			}
+			return `${indent}error`
 		}
 		default:
 			return `${indent}error`

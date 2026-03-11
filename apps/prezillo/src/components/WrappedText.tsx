@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import * as React from 'react'
 /**
  * WrappedText component - renders text with word wrapping and alignment in SVG
  * Uses foreignObject with HTML div for native CSS text layout capabilities
  */
 
-import * as React from 'react'
 import type { ResolvedTextStyle } from '../crdt'
 import { TEXT_ALIGN_CSS, VERTICAL_ALIGN_CSS, getTextDecorationCSS } from '../utils/text-styles'
 import { getBulletIcon, migrateBullet } from '../data/bullet-icons'

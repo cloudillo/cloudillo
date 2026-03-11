@@ -59,7 +59,6 @@ import {
 	useMultiSelect
 } from './hooks/index.js'
 import type { File, FileOps, ViewMode } from './types.js'
-import { TRASH_FOLDER_ID } from './types.js'
 
 export function FilesApp() {
 	const navigate = useNavigate()

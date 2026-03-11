@@ -26,7 +26,6 @@ import { PropertySection, PropertyField, ColorInput, NumberInput, Input } from '
 import { GradientPicker } from '@cloudillo/canvas-tools'
 import type { Gradient } from '@cloudillo/canvas-tools'
 import {
-	PiPlusBold as IcAdd,
 	PiTrashBold as IcDelete,
 	PiArrowsHorizontalBold as IcArrowsHorizontal,
 	PiArrowsVerticalBold as IcArrowsVertical

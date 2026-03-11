@@ -21,7 +21,7 @@
 import * as React from 'react'
 import type { SvgCanvasContext, SvgCanvasHandle } from 'react-svg-canvas'
 
-import type { Bounds, ViewId, TemplateId, ViewNode } from '../crdt'
+import type { Bounds, TemplateId } from '../crdt'
 import { getView } from '../crdt'
 import type { UsePrezilloDocumentResult } from './usePrezilloDocument'
 import type { TemplateLayout } from './useTemplateLayout'

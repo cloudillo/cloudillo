@@ -15,16 +15,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import {
-	Routes,
-	Route,
-	Link,
-	Navigate,
-	useParams,
-	useLocation,
-	useNavigate
-} from 'react-router-dom'
-import { useTranslation, Trans } from 'react-i18next'
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 import { Button, useApi, useToast } from '@cloudillo/react'
 import type { ApiClient } from '@cloudillo/core'

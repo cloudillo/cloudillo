@@ -21,7 +21,7 @@
 import * as React from 'react'
 import type * as Y from 'yjs'
 
-import type { YIdealloDocument, ObjectId, TextObject, NewTextInput } from '../crdt/index.js'
+import type { YIdealloDocument, ObjectId, NewTextInput } from '../crdt/index.js'
 import { addObject, DEFAULT_STYLE } from '../crdt/index.js'
 import type { TextInputState } from '../tools/types.js'
 
@@ -51,7 +51,7 @@ export function useTextHandler(options: UseTextHandlerOptions) {
 			if (!enabled) return
 
 			// If we already have an input, commit it first
-			if (textInput && textInput.text.trim()) {
+			if (textInput?.text.trim()) {
 				commitText()
 			}
 

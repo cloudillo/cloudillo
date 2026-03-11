@@ -19,7 +19,6 @@ import { useTranslation } from 'react-i18next'
 
 import {
 	LuChevronRight as IcOpenFolder,
-	LuSquareArrowOutUpRight as IcOpenFile,
 	LuPencil as IcEdit,
 	LuEye as IcView,
 	LuLock as IcLock,
@@ -33,12 +32,7 @@ import { useAuth, InlineEditForm, Tag, ProfilePicture, mergeClasses } from '@clo
 import { getFileIcon, type IcUnknown } from '../icons.js'
 import type { File, FileOps, ViewMode } from '../types.js'
 import { TRASH_FOLDER_ID } from '../types.js'
-import {
-	getSmartTimestamp,
-	formatRelativeTime,
-	getVisibilityIcon,
-	getVisibilityLabelKey
-} from '../utils.js'
+import { getSmartTimestamp, getVisibilityIcon, getVisibilityLabelKey } from '../utils.js'
 
 interface ItemCardProps {
 	className?: string

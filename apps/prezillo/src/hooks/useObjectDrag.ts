@@ -32,7 +32,6 @@ import {
 	isPropertyGroupLocked,
 	getStackedObjects,
 	getAbsoluteBounds,
-	getTemplateIdForPrototype,
 	detachInstance
 } from '../crdt'
 import { setEditingState, clearEditingState } from '../awareness'

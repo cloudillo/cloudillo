@@ -864,8 +864,8 @@ export function IdealloApp() {
 			if (obj) {
 				const bounds = getObjectBounds(obj)
 				// Apply drag offset if this object is being dragged
-				const dx = dragOffset && dragOffset.objectIds.has(id) ? dragOffset.dx : 0
-				const dy = dragOffset && dragOffset.objectIds.has(id) ? dragOffset.dy : 0
+				const dx = dragOffset?.objectIds.has(id) ? dragOffset.dx : 0
+				const dy = dragOffset?.objectIds.has(id) ? dragOffset.dy : 0
 				minX = Math.min(minX, bounds.x + dx)
 				minY = Math.min(minY, bounds.y + dy)
 				maxX = Math.max(maxX, bounds.x + bounds.width + dx)

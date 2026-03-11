@@ -156,7 +156,7 @@ import { version } from '../package.json'
 
 import * as React from 'react'
 import { createPortal } from 'react-dom'
-import { Routes, Route, Navigate, Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -164,7 +164,6 @@ import {
 	LuUser as IcUser,
 	LuUsers as IcUsers,
 	LuGrip as IcApps,
-	LuPanelLeft as IcSidebar,
 	// Menu icons
 	LuLogIn as IcLogin,
 	LuLogOut as IcLogout,
@@ -175,7 +174,6 @@ import {
 	LuFileText as IcFileText,
 	LuImage as IcGallery,
 	LuMessagesSquare as IcMessages,
-	LuBell as IcNotifications,
 	LuSettings as IcSettings,
 	LuServerCog as IcSiteAdmin,
 	LuFingerprint as IcIdp,
@@ -188,7 +186,7 @@ import {
 } from 'react-icons/lu'
 import { CloudilloLogo } from './logo.js'
 
-import { Profile, type ActionView } from '@cloudillo/types'
+import type { ActionView } from '@cloudillo/types'
 import {
 	useAuth,
 	type AuthState,
@@ -229,7 +227,7 @@ import {
 } from './context/index.js'
 import { OnboardingRoutes } from './onboarding'
 import { WsBusRoot, useWsBus } from './ws-bus.js'
-import { SearchIcon, SearchBar, useSearch } from './search.js'
+import { SearchBar, useSearch } from './search.js'
 import { SettingsRoutes, setTheme } from './settings'
 import { SiteAdminRoutes } from './site-admin'
 import { IdpRoutes } from './idp'
@@ -817,9 +815,10 @@ function Header({ inert }: { inert?: boolean }) {
 								<li>
 									<Button
 										navItem
-										onClick={(evt) => (
-											evt.preventDefault(), i18n.changeLanguage('en')
-										)}
+										onClick={(evt) => {
+											evt.preventDefault()
+											i18n.changeLanguage('en')
+										}}
 									>
 										English
 									</Button>
@@ -856,9 +855,10 @@ function Header({ inert }: { inert?: boolean }) {
 									<li>
 										<Button
 											navItem
-											onClick={(evt) => (
-												evt.preventDefault(), i18n.changeLanguage('en')
-											)}
+											onClick={(evt) => {
+												evt.preventDefault()
+												i18n.changeLanguage('en')
+											}}
 										>
 											English
 										</Button>

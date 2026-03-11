@@ -27,7 +27,7 @@ import {
 	LuQrCode as IcQr
 } from 'react-icons/lu'
 
-import { useAuth, AuthState, useApi, Button } from '@cloudillo/react'
+import { useAuth, useApi, Button } from '@cloudillo/react'
 
 import { useLoginInit } from './auth.js'
 import { registerServiceWorker, ensureEncryptionKey } from '../pwa.js'

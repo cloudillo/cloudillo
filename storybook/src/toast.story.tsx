@@ -1,4 +1,5 @@
 import * as React from 'react'
+
 import { Story, Variant } from './storybook.js'
 import {
 	useToast,
@@ -8,7 +9,6 @@ import {
 	ToastContent,
 	ToastTitle,
 	ToastMessage,
-	ToastActions,
 	ToastClose,
 	ToastProgress,
 	Button,

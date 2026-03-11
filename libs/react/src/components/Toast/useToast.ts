@@ -16,7 +16,7 @@
 
 import * as React from 'react'
 import { atom, useAtom } from 'jotai'
-import type { ToastVariant, Position } from '../types.js'
+import type { ToastVariant } from '../types.js'
 
 export interface ToastData {
 	id: string

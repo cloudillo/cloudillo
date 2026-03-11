@@ -15,8 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
-import dayjs from 'dayjs'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -35,8 +34,8 @@ import {
 } from 'react-icons/lu'
 
 import type { Profile } from '@cloudillo/types'
-import { useApi, useAuth, Fcd, Button, ProfileCard, mergeClasses } from '@cloudillo/react'
-import { useAppConfig, parseQS, qs } from '../utils.js'
+import { useApi, useAuth, Fcd, ProfileCard } from '@cloudillo/react'
+import { parseQS } from '../utils.js'
 import { useCommunitiesList } from '../context/index.js'
 import { useQrScanner } from '../components/QrScanner/index.js'
 

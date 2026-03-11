@@ -24,7 +24,7 @@
 import type { DeltaOp, TextBounds, BaseTextStyle } from './types'
 import { deltaToLines } from './delta-parser'
 import { calculateRichTextLayout } from './layout'
-import { resolveRunStyle, buildFontString, type ResolvedRunStyle } from './measure'
+import { resolveRunStyle, type ResolvedRunStyle } from './measure'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 

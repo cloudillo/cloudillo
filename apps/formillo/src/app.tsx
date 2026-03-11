@@ -886,16 +886,14 @@ function FormPage({ ownerTag, fileId, form }: { ownerTag: string; fileId: string
 						<>
 							<h2>{form.title}</h2>
 							{localStorage.getItem(`form.${fileId}`) ? (
-								<>
-									<div
-										style={{ minHeight: '18rem' }}
-										dangerouslySetInnerHTML={{
-											__html:
-												form.thankYou ??
-												t('Thank you for completing the survey!')
-										}}
-									/>
-								</>
+								<div
+									style={{ minHeight: '18rem' }}
+									dangerouslySetInnerHTML={{
+										__html:
+											form.thankYou ??
+											t('Thank you for completing the survey!')
+									}}
+								/>
 							) : (
 								<>
 									<div

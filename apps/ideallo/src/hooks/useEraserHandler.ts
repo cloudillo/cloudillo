@@ -24,7 +24,7 @@ import * as React from 'react'
 import type { Awareness } from 'y-protocols/awareness'
 import type * as Y from 'yjs'
 
-import type { YIdealloDocument, ObjectId, StoredObject, IdealloObject } from '../crdt/index.js'
+import type { YIdealloDocument, ObjectId, StoredObject } from '../crdt/index.js'
 import { deleteObjects, expandObject, toObjectId, getAllObjects } from '../crdt/index.js'
 import { hitTestObject } from '../utils/hit-testing.js'
 

@@ -15,11 +15,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useEditable, type Position } from 'use-editable'
-import dayjs from 'dayjs'
 import { useTranslation } from 'react-i18next'
-import debounce from 'debounce'
 
 import Lightbox from 'yet-another-react-lightbox'
 import 'yet-another-react-lightbox/styles.css'
@@ -29,8 +27,6 @@ import Thumbnails from 'yet-another-react-lightbox/plugins/thumbnails'
 import Zoom from 'yet-another-react-lightbox/plugins/zoom'
 import 'yet-another-react-lightbox/plugins/thumbnails.css'
 import 'react-photo-album/rows.css'
-
-import { FiPlus as IcNew } from 'react-icons/fi'
 
 import {
 	LuCloud as IcAll,
@@ -67,7 +63,6 @@ import {
 	Fcd,
 	mergeClasses,
 	generateFragments,
-	LoadingSpinner,
 	EmptyState,
 	SkeletonCard,
 	TimeFormat,
@@ -75,7 +70,7 @@ import {
 } from '@cloudillo/react'
 import '@cloudillo/react/components.css'
 
-import { useAppConfig, parseQS, qs } from '../utils.js'
+import { useAppConfig } from '../utils.js'
 import { ImageUpload } from '../image.js'
 import { useWsBus } from '../ws-bus.js'
 import { useCurrentContextIdTag } from '../context/index.js'

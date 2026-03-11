@@ -27,7 +27,6 @@ import {
 	PiEyeSlashBold as IcHide
 } from 'react-icons/pi'
 
-import type { ObjectId } from '../crdt'
 import { getObject, isInstance, toggleObjectHidden, detachInstance } from '../crdt'
 import type { UsePrezilloDocumentResult } from '../hooks/usePrezilloDocument'
 

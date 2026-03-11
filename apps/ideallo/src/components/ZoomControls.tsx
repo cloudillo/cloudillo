@@ -14,12 +14,11 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import * as React from 'react'
 /**
  * Zoom controls for the canvas
  * Provides zoom in/out buttons and zoom level display
  */
-
-import * as React from 'react'
 
 export interface ZoomControlsProps {
 	scale: number

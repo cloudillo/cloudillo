@@ -18,9 +18,9 @@ import * as React from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
-import { LuFileWarning as IcError, LuRefreshCw as IcLoading } from 'react-icons/lu'
+import { LuFileWarning as IcError } from 'react-icons/lu'
 
-import { useApi, LoadingSpinner, mergeClasses } from '@cloudillo/react'
+import { useApi, LoadingSpinner } from '@cloudillo/react'
 import {
 	createApiClient,
 	type FileView,

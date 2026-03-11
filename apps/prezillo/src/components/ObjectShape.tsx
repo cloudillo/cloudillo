@@ -24,7 +24,6 @@
 import * as React from 'react'
 import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
 import type { Gradient } from '@cloudillo/canvas-tools'
-import type * as Y from 'yjs'
 import { RichTextDisplay } from '@cloudillo/canvas-text'
 import type { BaseTextStyle } from '@cloudillo/canvas-text'
 import { SvgDocumentEmbed } from '@cloudillo/react'

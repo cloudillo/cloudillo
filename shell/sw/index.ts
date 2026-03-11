@@ -662,7 +662,7 @@ function onPush(evt: any) {
 
 function onNotificationClick(evt: any) {
 	console.log('notification click', evt)
-	if (evt.notification && evt.notification.close) evt.notification.close()
+	if (evt.notification?.close) evt.notification.close()
 	evt.waitUntil(
 		(self as any).clients
 			.matchAll({

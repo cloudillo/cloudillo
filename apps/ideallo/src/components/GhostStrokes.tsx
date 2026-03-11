@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import * as React from 'react'
 /**
  * Renders ghost strokes from remote users via awareness
  * Shown as dashed lines with user label
  */
 
-import * as React from 'react'
 import type { IdealloPresence } from '../hooks/index.js'
 import { pointsToSvgPath } from '../utils/index.js'
 import { colorToCss } from '../utils/palette.js'

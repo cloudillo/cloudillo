@@ -214,7 +214,7 @@ export async function apiFetchHelper<R, D = any>(
 				| ApiFetchResult<R>
 		}
 
-		let j
+		let j: any
 		try {
 			j = JSON.parse(textRes)
 		} catch (err) {
@@ -252,7 +252,7 @@ export async function apiFetchHelper<R, D = any>(
 
 		try {
 			const errorBody = JSON.parse(textRes)
-			if (errorBody.error && errorBody.error.code) {
+			if (errorBody.error?.code) {
 				apiErrorCode = errorBody.error.code
 				errorMessage = errorBody.error.message
 			}

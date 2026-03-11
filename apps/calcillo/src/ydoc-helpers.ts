@@ -12,16 +12,8 @@ import type {
 	ConditionalFormat,
 	FrozenInfo
 } from './yjs-types'
-import {
-	generateRowId,
-	generateColId,
-	generateRowIds,
-	generateColIds,
-	generateUniqueRowIds,
-	generateUniqueColIds
-} from './id-generator'
+import { generateUniqueRowIds, generateUniqueColIds } from './id-generator'
 import { debug } from './debug'
-import { DEFAULT_ROWS, DEFAULT_COLS } from './constants'
 import { stripCellDefaults } from './cell-defaults'
 
 /**

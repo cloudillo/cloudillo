@@ -16,7 +16,6 @@
 
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
 import { WebSocketManager } from '../websocket'
-import { ConnectionError, AuthError } from '../errors'
 
 // Polyfill CloseEvent for Node.js environment
 class CloseEvent extends Event {

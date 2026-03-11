@@ -20,7 +20,6 @@ import { usePopper } from 'react-popper'
 import { PiCaretDownBold as IcCaret } from 'react-icons/pi'
 import {
 	FONTS,
-	getFontsByCategory,
 	getFontsByRole,
 	getSuggestedBodyFonts,
 	getSuggestedHeadingFonts,

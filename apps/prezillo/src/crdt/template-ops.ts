@@ -34,11 +34,10 @@ import type {
 	StoredSnapGuide,
 	StoredObject,
 	StoredView,
-	ChildRef,
 	StoredBackgroundGradient
 } from './stored-types'
-import type { Template, SnapGuide, PrezilloObject, ViewNode } from './runtime-types'
-import type { TemplateId, ViewId, ObjectId, ContainerId } from './ids'
+import type { Template, SnapGuide, PrezilloObject } from './runtime-types'
+import type { TemplateId, ViewId, ObjectId } from './ids'
 import { toTemplateId, generateTemplateId, toObjectId, generateObjectId, toViewId } from './ids'
 import { expandObject } from './type-converters'
 import type { Gradient } from '@cloudillo/canvas-tools'

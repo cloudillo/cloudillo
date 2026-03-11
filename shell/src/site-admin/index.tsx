@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { Link, NavLink, Routes, Route, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { NavLink, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -30,7 +30,7 @@ import {
 	LuMenu as IcMenu
 } from 'react-icons/lu'
 
-import { useAuth, useApi, Fcd, mergeClasses } from '@cloudillo/react'
+import { useAuth, Fcd, mergeClasses } from '@cloudillo/react'
 
 import { Invitations } from './invitations.js'
 import { Tenants } from './tenants.js'

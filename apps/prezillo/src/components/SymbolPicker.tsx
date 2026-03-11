@@ -24,7 +24,6 @@
 import * as React from 'react'
 import { PiStarBold as IcSymbol } from 'react-icons/pi'
 import {
-	SYMBOLS,
 	getCategories,
 	getSymbolsByCategory,
 	CATEGORY_NAMES,

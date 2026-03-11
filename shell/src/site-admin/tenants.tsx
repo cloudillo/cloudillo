@@ -205,14 +205,13 @@ export function Tenants() {
 				<div className="c-panel info">{t('No tenants found')}</div>
 			)}
 
-			{tenants &&
-				tenants.map((tenant) => (
-					<TenantCard
-						key={tenant.idTag}
-						tenant={tenant}
-						onPasswordReset={handlePasswordReset}
-					/>
-				))}
+			{tenants?.map((tenant) => (
+				<TenantCard
+					key={tenant.idTag}
+					tenant={tenant}
+					onPasswordReset={handlePasswordReset}
+				/>
+			))}
 		</div>
 	)
 }

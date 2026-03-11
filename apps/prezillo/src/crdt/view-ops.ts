@@ -19,10 +19,10 @@
  */
 
 import type * as Y from 'yjs'
-import type { YPrezilloDocument, StoredView, StoredBackgroundGradient } from './stored-types'
+import type { YPrezilloDocument, StoredView } from './stored-types'
 import type { ViewId, TemplateId, ObjectId } from './ids'
 import { generateViewId, toViewId, toTemplateId, toObjectId } from './ids'
-import type { ViewNode, ResolvedViewBackground, Template, SnapGuide } from './runtime-types'
+import type { ViewNode, ResolvedViewBackground, SnapGuide } from './runtime-types'
 import {
 	expandView,
 	compactView,

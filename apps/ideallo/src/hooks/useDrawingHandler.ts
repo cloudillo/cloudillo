@@ -26,19 +26,17 @@ import type * as Y from 'yjs'
 import type {
 	YIdealloDocument,
 	ObjectId,
-	FreehandObject,
 	LineObject,
 	EllipseObject,
 	RectObject,
 	ArrowObject,
-	PolygonObject,
 	NewFreehandInput,
 	NewPolygonInput
 } from '../crdt/index.js'
 import { addObject, deleteObject, DEFAULT_STYLE } from '../crdt/index.js'
 import { streamSimplify } from '../utils/index.js'
 import { getBoundsFromPoints } from '../utils/geometry.js'
-import { useDrawingState, type ActiveStroke, type UndoableStroke } from './useDrawingState.js'
+import { useDrawingState, type ActiveStroke } from './useDrawingState.js'
 import {
 	processSmartInk,
 	createLineMorphAnimation,

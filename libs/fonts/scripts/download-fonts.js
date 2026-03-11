@@ -100,9 +100,9 @@ async function fetchWithRetry(url, options = {}, retries = 3, delay = 1000) {
 function parseGoogleFontsCss(css) {
 	const fontMap = new Map()
 	const fontFaceRegex = /@font-face\s*\{([^}]+)\}/g
-	let match
+	let match = fontFaceRegex.exec(css)
 
-	while ((match = fontFaceRegex.exec(css)) !== null) {
+	while (match) {
 		const block = match[1]
 
 		const familyMatch = block.match(/font-family:\s*['"]?([^'";\n]+)['"]?/)
@@ -115,7 +115,7 @@ function parseGoogleFontsCss(css) {
 			const style = styleMatch ? styleMatch[1] : 'normal'
 			const weight = weightMatch ? parseInt(weightMatch[1], 10) : 400
 			const key = `${weight}-${style}`
-			const isLatin = rangeMatch && rangeMatch[1].includes('U+0000')
+			const isLatin = rangeMatch?.[1].includes('U+0000')
 
 			if (!fontMap.has(key) || isLatin) {
 				fontMap.set(key, {
@@ -126,6 +126,7 @@ function parseGoogleFontsCss(css) {
 				})
 			}
 		}
+		match = fontFaceRegex.exec(css)
 	}
 
 	return Array.from(fontMap.values())

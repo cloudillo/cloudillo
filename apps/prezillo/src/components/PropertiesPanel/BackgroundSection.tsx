@@ -21,7 +21,7 @@ import { GradientPicker } from '@cloudillo/canvas-tools'
 import type { Gradient } from '@cloudillo/canvas-tools'
 import { PiArrowCounterClockwiseBold as IcReset } from 'react-icons/pi'
 
-import type { YPrezilloDocument, ViewId, ViewNode } from '../../crdt'
+import type { YPrezilloDocument, ViewNode } from '../../crdt'
 import {
 	updateView,
 	getViewTemplate,

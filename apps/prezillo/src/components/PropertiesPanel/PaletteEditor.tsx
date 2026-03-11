@@ -20,16 +20,11 @@
 
 import * as React from 'react'
 import type * as Y from 'yjs'
-import { ColorInput, PropertySection, PropertyField } from '@cloudillo/react'
+import { ColorInput, PropertySection } from '@cloudillo/react'
 import { GradientPicker } from '@cloudillo/canvas-tools'
 import type { Gradient } from '@cloudillo/canvas-tools'
 
-import type {
-	YPrezilloDocument,
-	Palette,
-	PaletteColorSlotName,
-	PaletteGradientSlotName
-} from '../../crdt'
+import type { YPrezilloDocument, PaletteColorSlotName, PaletteGradientSlotName } from '../../crdt'
 import {
 	getPaletteUsageCounts,
 	updatePaletteColorSlot,

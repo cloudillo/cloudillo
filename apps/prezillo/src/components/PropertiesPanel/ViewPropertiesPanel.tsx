@@ -14,15 +14,15 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import * as React from 'react'
 /**
  * Properties panel for view/slide editing (shown when no objects are selected)
  */
 
-import * as React from 'react'
 import type * as Y from 'yjs'
 import { useY } from 'react-yjs'
 
-import type { YPrezilloDocument, ViewId, ViewNode } from '../../crdt'
+import type { YPrezilloDocument, ViewId } from '../../crdt'
 import { getView } from '../../crdt'
 import { BackgroundSection } from './BackgroundSection'
 import { TemplateSelector } from '../TemplateSelector'

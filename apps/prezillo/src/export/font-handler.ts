@@ -22,7 +22,7 @@
  */
 
 import type { jsPDF } from 'jspdf'
-import type { PrezilloObject, TextObject, YPrezilloDocument, ViewNode } from '../crdt'
+import type { YPrezilloDocument, ViewNode } from '../crdt'
 import { resolveTextStyle } from '../crdt'
 
 /**

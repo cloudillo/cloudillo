@@ -27,7 +27,7 @@ import type {
 	TextStyle,
 	StoredPaletteRef
 } from './stored-types'
-import type { StyleId, ObjectId } from './ids'
+import type { StyleId } from './ids'
 import { generateStyleId, toStyleId } from './ids'
 import type { ResolvedShapeStyle, ResolvedTextStyle, Palette } from './runtime-types'
 import { isPaletteRef, expandPaletteRef } from './type-converters'

@@ -45,7 +45,7 @@ import { getFileUrl } from '@cloudillo/core'
 import { useAtom } from 'jotai'
 import { activeContextAtom } from '../../../context/index.js'
 
-import type { File, FileOps, ViewMode, FileVisibility } from '../types.js'
+import type { File, FileOps, ViewMode } from '../types.js'
 import { VISIBILITY_DROPDOWN_OPTIONS, getVisibilityIcon, canManageFile } from '../utils.js'
 
 export interface ContextMenuPosition {

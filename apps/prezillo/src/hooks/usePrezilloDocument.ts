@@ -27,7 +27,7 @@ import { getAppBus } from '@cloudillo/core'
 import type { Awareness } from 'y-protocols/awareness'
 
 import type { ObjectId, ContainerId, ViewId, TemplateId, YPrezilloDocument } from '../crdt'
-import { getOrCreateDocument, toViewId, toTemplateId, getTemplateIdForPrototype } from '../crdt'
+import { getOrCreateDocument, toViewId, getTemplateIdForPrototype } from '../crdt'
 import type { PrezilloPresence, PresenterInfo } from '../awareness'
 import {
 	getRemotePresenceStates,

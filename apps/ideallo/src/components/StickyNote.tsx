@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import * as React from 'react'
 /**
  * Sticky note component (display-only)
  * Renders a colored note with fixed 18px text, auto-grows height during editing
@@ -22,7 +23,6 @@
  * For editing, use StickyEditOverlay instead.
  */
 
-import * as React from 'react'
 import { useMemo } from 'react'
 import type * as Y from 'yjs'
 import type { StickyObject } from '../crdt/index.js'

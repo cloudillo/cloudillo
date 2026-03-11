@@ -38,7 +38,7 @@ import {
 	LuFiles as IcFiles
 } from 'react-icons/lu'
 
-import { Modal, Button, useEscapeKey, useBodyScrollLock } from '@cloudillo/react'
+import { Button, useEscapeKey, useBodyScrollLock } from '@cloudillo/react'
 
 import {
 	mediaPickerAtom,

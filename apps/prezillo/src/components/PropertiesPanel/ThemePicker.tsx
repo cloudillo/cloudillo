@@ -22,7 +22,7 @@ import * as React from 'react'
 import type * as Y from 'yjs'
 
 import type { YPrezilloDocument, Palette, PalettePreset } from '../../crdt'
-import { PALETTE_PRESETS, getPalette, applyPreset } from '../../crdt'
+import { PALETTE_PRESETS, applyPreset } from '../../crdt'
 import './ThemePicker.css'
 
 export interface ThemePickerProps {

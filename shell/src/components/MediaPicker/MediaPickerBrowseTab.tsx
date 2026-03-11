@@ -44,7 +44,7 @@ import {
 	LuChevronDown as IcChevronDown
 } from 'react-icons/lu'
 
-import { useApi, useAuth, type AuthState } from '@cloudillo/react'
+import { useApi, useAuth } from '@cloudillo/react'
 import { getFileUrl } from '@cloudillo/core'
 import { VISIBILITY_ORDER, type Visibility } from '@cloudillo/core'
 

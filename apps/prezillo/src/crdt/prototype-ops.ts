@@ -29,7 +29,7 @@ import type * as Y from 'yjs'
 import type { YPrezilloDocument, StoredObject } from './stored-types'
 import type { PrezilloObject } from './runtime-types'
 import type { ObjectId, ViewId, ContainerId } from './ids'
-import { toObjectId, toViewId, toContainerId, toStyleId } from './ids'
+import { toObjectId, toStyleId } from './ids'
 import { expandObject, expandShapeStyle, expandTextStyle } from './type-converters'
 
 /**

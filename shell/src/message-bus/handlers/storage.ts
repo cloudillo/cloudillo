@@ -23,7 +23,7 @@
  */
 
 import type { ShellMessageBus } from '../shell-bus.js'
-import type { StorageOpReq, StorageOp } from '@cloudillo/core'
+import type { StorageOpReq } from '@cloudillo/core'
 
 // ============================================
 // INDEXEDDB STORAGE

@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import * as React from 'react'
 /**
  * Renders QR code objects on the canvas
  *
@@ -24,7 +25,6 @@
  * - Warning when QR code is too small to scan reliably
  */
 
-import * as React from 'react'
 import ReactQRCode from 'react-qr-code'
 import type { QrCodeObject, QrErrorCorrection } from '../crdt/index.js'
 

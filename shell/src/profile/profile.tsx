@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import React from 'react'
-import { useTranslation, Trans } from 'react-i18next'
+import { useTranslation } from 'react-i18next'
 import { Link, NavLink, Routes, Route, useParams, useLocation } from 'react-router-dom'
 import Markdown from 'react-markdown'
 import ReactQuill, { Quill } from 'react-quill-new'
@@ -27,7 +27,6 @@ import { useAtom } from 'jotai'
 import {
 	Button,
 	Popper,
-	Container,
 	Fcd,
 	useDialog,
 	useToast,
@@ -1208,7 +1207,7 @@ export function ProfileSettings({
 	)
 }
 
-function Profile() {
+function ProfileView() {
 	const loc = useLocation()
 	const { t } = useTranslation()
 
@@ -1461,7 +1460,7 @@ function Profile() {
 export function ProfileRoutes() {
 	return (
 		<Routes>
-			<Route path="/profile/:contextIdTag/:idTag/*" element={<Profile />} />
+			<Route path="/profile/:contextIdTag/:idTag/*" element={<ProfileView />} />
 			<Route path="/users/:contextIdTag" element={<PersonListPage />} />
 			<Route path="/communities/:contextIdTag" element={<CommunityListPage />} />
 			<Route path="/communities/create/:contextIdTag" element={<CreateCommunity />} />

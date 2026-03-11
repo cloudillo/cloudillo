@@ -14,14 +14,14 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import * as React from 'react'
 /**
  * Renders ghost objects being edited (dragged) by remote users
  * Shows objects with offset applied from awareness editing state
  */
 
-import * as React from 'react'
 import type { IdealloPresence } from '../hooks/index.js'
-import type { IdealloObject, ObjectId, StoredObject, YIdealloDocument } from '../crdt/index.js'
+import type { IdealloObject, StoredObject, YIdealloDocument } from '../crdt/index.js'
 import { expandObject, toObjectId } from '../crdt/index.js'
 import { ObjectRenderer } from './ObjectRenderer.js'
 

@@ -37,7 +37,7 @@ export function ColorPalette({ value, onChange, showTransparent }: ColorPaletteP
 
 	// Update hex input when value changes (if it's a hex color)
 	React.useEffect(() => {
-		if (value && value.startsWith('#')) {
+		if (value?.startsWith('#')) {
 			setHexInput(value.slice(1))
 		} else {
 			setHexInput('')

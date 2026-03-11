@@ -275,7 +275,7 @@ export function ProfilePage({
 	profile,
 	setProfile,
 	localProfile,
-	updateProfile,
+	updateProfile: _updateProfile,
 	profileCmds,
 	children,
 	communityRoles = [],
@@ -288,7 +288,6 @@ export function ProfilePage({
 	// Extract contextIdTag from params if available (context-aware route)
 	const contextIdTag = params.contextIdTag
 	const own = auth?.idTag === profile.idTag
-	const { api } = useApi()
 	const [coverUpload, setCoverUpload] = React.useState<string | undefined>()
 	const [profileUpload, setProfileUpload] = React.useState<string | undefined>()
 	const inputId = React.useId()
@@ -355,7 +354,7 @@ export function ProfilePage({
 			const percent_completed = (e.loaded / e.total) * 100
 			console.log(percent_completed)
 		})
-		request.addEventListener('load', function (e) {
+		request.addEventListener('load', function (_e) {
 			console.log('RES', request.status, request.response)
 			if (request.status === 200) {
 				try {
@@ -407,7 +406,7 @@ export function ProfilePage({
 			const percent_completed = (e.loaded / e.total) * 100
 			console.log(percent_completed)
 		})
-		request.addEventListener('load', function (e) {
+		request.addEventListener('load', function (_e) {
 			console.log('RES', request.status, request.response)
 			if (request.status === 200) {
 				try {
@@ -631,8 +630,7 @@ interface ProfileTabProps {
 
 function ProfileAbout({ profile, updateProfile }: ProfileTabProps) {
 	const { t } = useTranslation()
-	const [auth] = useAuth()
-	const { api } = useApi()
+	const [_auth] = useAuth()
 	const ref = React.useRef<HTMLDivElement>(null)
 	const [intro, setIntro] = React.useState<string | undefined>()
 
@@ -715,11 +713,10 @@ function ProfileAbout({ profile, updateProfile }: ProfileTabProps) {
 }
 
 export function ProfileFeed({ profile }: ProfileTabProps) {
-	const { t } = useTranslation()
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const [feed, setFeed] = React.useState<ActionEvt[] | undefined>()
-	const [text, setText] = React.useState('')
+	const [_text, _setText] = React.useState('')
 	const ref = React.useRef<HTMLDivElement>(null)
 	const [width, setWidth] = React.useState(0)
 
@@ -902,11 +899,10 @@ export function ProfileConnections({
 }: ProfileTabProps) {
 	const { t } = useTranslation()
 	const location = useLocation()
-	const { api } = useApi()
 	const { getClientFor } = useApiContext()
 	const [auth] = useAuth()
 	const toast = useToast()
-	const dialog = useDialog()
+	const _dialog = useDialog()
 	const [activeContext] = useAtom(activeContextAtom)
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
 
@@ -1208,7 +1204,7 @@ export function ProfileSettings({
 }
 
 function ProfileView() {
-	const loc = useLocation()
+	const _loc = useLocation()
 	const { t } = useTranslation()
 
 	const [auth] = useAuth()
@@ -1217,7 +1213,7 @@ function ProfileView() {
 	const dialog = useDialog()
 	const params = useParams()
 	// Extract contextIdTag from params if available (context-aware route)
-	const contextIdTag = params.contextIdTag
+	const _contextIdTag = params.contextIdTag
 	const idTag = params.idTag == 'me' ? auth?.idTag : params.idTag || auth?.idTag
 	const own = idTag == auth?.idTag
 	const [profile, setProfile] = React.useState<FullProfile>()
@@ -1392,13 +1388,13 @@ function ProfileView() {
 
 	async function onBlock() {
 		if (!profile || localProfile?.status == 'B') return
-		const res = await api!.profiles.updateConnection(profile.idTag, { status: 'B' })
+		const _res = await api!.profiles.updateConnection(profile.idTag, { status: 'B' })
 		setLocalProfile((p) => (p ? { ...p, status: 'B' } : p))
 	}
 
 	async function onUnblock() {
 		if (!profile || localProfile?.status != 'B') return
-		const res = await api!.profiles.updateConnection(profile.idTag, { status: 'A' })
+		const _res = await api!.profiles.updateConnection(profile.idTag, { status: 'A' })
 		setLocalProfile((p) => (p ? { ...p, status: 'A' } : p))
 	}
 

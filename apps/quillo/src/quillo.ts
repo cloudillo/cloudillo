@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const APP_NAME = 'quillo'
+const _APP_NAME = 'quillo'
 
 import * as Y from 'yjs'
 //import { IndexeddbPersistence } from 'y-indexeddb'
@@ -277,7 +277,7 @@ function createSettingsDialog(
 
 function createDocFontSelect(
 	type: 'heading' | 'body',
-	getOtherFont: () => string
+	_getOtherFont: () => string
 ): HTMLSelectElement {
 	const select = document.createElement('select')
 	select.className = 'c-select'
@@ -447,7 +447,7 @@ function updatePairingBadges(
 		theme: 'snow' // or 'bubble'
 	})
 
-	const binding = new QuillBinding(ytext, editor, doc.provider.awareness)
+	const _binding = new QuillBinding(ytext, editor, doc.provider.awareness)
 
 	// Set read-only mode based on access level
 	if (bus.access === 'read') {
@@ -520,15 +520,15 @@ function updatePairingBadges(
 	const colorIndicator = document.getElementById('color-indicator')
 	const backgroundIndicator = document.getElementById('background-indicator')
 
-	let currentTextColor = 'var(--palette-n0)'
-	let currentBackgroundColor = 'var(--palette-yellow-p)'
+	let _currentTextColor = 'var(--palette-n0)'
+	let _currentBackgroundColor = 'var(--palette-yellow-p)'
 
 	// Create color pickers
 	const colorPicker = createColorPicker('color', (color) => {
 		editor.format('color', color || false)
 		if (color && colorIndicator) {
 			colorIndicator.style.backgroundColor = color
-			currentTextColor = color
+			_currentTextColor = color
 		}
 	})
 
@@ -536,7 +536,7 @@ function updatePairingBadges(
 		editor.format('background', color || false)
 		if (color && backgroundIndicator) {
 			backgroundIndicator.style.backgroundColor = color
-			currentBackgroundColor = color
+			_currentBackgroundColor = color
 		}
 	})
 

@@ -43,10 +43,10 @@ import { TenantSettings } from './tenant.js'
 import { AdminOverview } from './overview.js'
 
 export function SiteAdmin({ title, children }: { title: string; children?: React.ReactNode }) {
-	const navigate = useNavigate()
+	const _navigate = useNavigate()
 	const location = useLocation()
 	const { t } = useTranslation()
-	const [auth] = useAuth()
+	const [_auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 
 	React.useEffect(

@@ -274,11 +274,6 @@ export interface UsePWA {
 	doNotify?: (title: string, body: string, data: object) => void
 }
 
-interface PWAState {
-	notify?: boolean
-	install?: BeforeInstallPromptEvent
-}
-
 let serviceWorker: ServiceWorkerRegistration
 let swConfig: PWAConfig = {}
 
@@ -522,7 +517,7 @@ export async function resetAppCache(): Promise<void> {
 
 export default function usePWA(config: PWAConfig = {}): UsePWA {
 	swConfig = config
-	const [notify, setNotify] = React.useState(false)
+	const [_notify, setNotify] = React.useState(false)
 	const [installEvt, setInstallEvt] = React.useState<BeforeInstallPromptEvent | undefined>()
 
 	const askNotify = React.useCallback(async function askNotify(

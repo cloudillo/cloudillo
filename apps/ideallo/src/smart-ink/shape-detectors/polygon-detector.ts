@@ -45,7 +45,7 @@ const MAX_VERTICES = 8 // Maximum vertices to detect
 const CORNER_MIN_ANGLE = 45 // Minimum turn angle to detect a corner
 const MIN_SIDE_LENGTH = 15 // Minimum side length in pixels
 const MAX_SIDE_DEVIATION = 0.08 // Max deviation from straight side (8% of length)
-const MIN_CONFIDENCE = 0.5 // Minimum confidence for auto-detection
+const _MIN_CONFIDENCE = 0.5 // Minimum confidence for auto-detection
 const HIGH_CONFIDENCE = 0.65 // High confidence threshold
 
 // Debug flag
@@ -108,7 +108,7 @@ export function detectPolygon(points: Point[]): PolygonCandidate | null {
 
 	// Validate that each side is relatively straight
 	const sideDeviations: number[] = []
-	const prevIdx = 0
+	const _prevIdx = 0
 	for (let i = 0; i < vertexCount; i++) {
 		const startIdx = cornerIndices[i]
 		const endIdx = cornerIndices[(i + 1) % vertexCount]

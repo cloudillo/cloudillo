@@ -1376,7 +1376,7 @@ export function PrezilloApp() {
 					ownerTag={prezillo.cloudillo.ownerTag}
 					token={prezillo.cloudillo.token}
 					sourceFileId={prezillo.cloudillo.fileId}
-					onViewChange={(viewIndex, viewId) => {
+					onViewChange={(_viewIndex, viewId) => {
 						prezillo.setActiveViewId(viewId)
 					}}
 				/>

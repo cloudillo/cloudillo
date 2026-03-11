@@ -65,7 +65,6 @@ export function PageSidebar({
 	loadingChildren,
 	orphanPage,
 	onExpand,
-	onCollapse,
 	onToggleExpand,
 	activePageId,
 	onSelectPage,

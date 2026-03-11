@@ -76,7 +76,7 @@ export function TimeFormat({ time }: TimeFormatProps) {
 				return t('1 min')
 			}
 			return t('just now')
-		} catch (err) {
+		} catch (_err) {
 			return ''
 		}
 	}

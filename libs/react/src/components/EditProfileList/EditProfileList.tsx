@@ -51,7 +51,7 @@ export function EditProfileList({
 	onConfirmRemove,
 	removeConfirmText
 }: EditProfileListProps) {
-	const [add, setAdd] = React.useState(false)
+	const [_add, _setAdd] = React.useState(false)
 	const { t } = useLibTranslation()
 
 	// Use inline confirmation if the confirmation props are provided

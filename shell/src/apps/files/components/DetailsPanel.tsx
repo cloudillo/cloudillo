@@ -67,7 +67,6 @@ interface DetailsPanelProps {
 }
 
 export function DetailsPanel({
-	className,
 	file,
 	renameFileId,
 	renameFileName,

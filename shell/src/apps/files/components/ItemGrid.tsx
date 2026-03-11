@@ -62,7 +62,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 	const { t } = useTranslation()
 
 	const isFolder = file.fileTp === 'FLDR'
-	const isInTrash = viewMode === 'trash' || file.parentId === TRASH_FOLDER_ID
+	const _isInTrash = viewMode === 'trash' || file.parentId === TRASH_FOLDER_ID
 	const Icon = getFileIcon(file.contentType, file.fileTp)
 	const isRenaming = renameFileName !== undefined && file.fileId === renameFileId
 
@@ -74,7 +74,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 		onClick?.(file, evt)
 	}
 
-	function handleDoubleClick(evt: React.MouseEvent) {
+	function handleDoubleClick(_evt: React.MouseEvent) {
 		if (isFolder) {
 			onDoubleClick?.(file)
 		} else {

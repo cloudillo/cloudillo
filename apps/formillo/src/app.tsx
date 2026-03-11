@@ -592,7 +592,6 @@ async function delay(ms: number) {
 }
 
 function TextFieldPage({
-	item,
 	value,
 	setValue,
 	next
@@ -623,7 +622,6 @@ function TextFieldPage({
 }
 
 function MultiLineTextFieldPage({
-	item,
 	value,
 	setValue
 }: {
@@ -734,7 +732,6 @@ function MultiChoiceFieldPage({
 	)
 }
 function EmailFieldPage({
-	item,
 	value,
 	setValue,
 	next
@@ -744,8 +741,6 @@ function EmailFieldPage({
 	setValue: (value: string | number) => void
 	next?: () => void
 }) {
-	const { t } = useTranslation()
-
 	async function onKeyDown(evt: React.KeyboardEvent<HTMLInputElement>) {
 		if (next && evt.key === 'Enter') {
 			next()
@@ -769,7 +764,6 @@ function EmailFieldPage({
 
 function FormPage({ ownerTag, fileId, form }: { ownerTag: string; fileId: string; form: Form }) {
 	const { t } = useTranslation()
-	const { api } = useApi()
 	const [page, setPageSt] = React.useState(0)
 	const [trans, setTrans] = React.useState<'' | 'fade-out'>('')
 	const [data, setData] = React.useState<FormData>({})
@@ -959,8 +953,6 @@ function FormPage({ ownerTag, fileId, form }: { ownerTag: string; fileId: string
 }
 
 function FormData({ form }: { form: Form }) {
-	const { t } = useTranslation()
-
 	return (
 		<div className="m-container g-1">
 			{form.data?.reverse()?.map((row, idx) => (
@@ -996,11 +988,10 @@ function FormData({ form }: { form: Form }) {
 }
 
 export function App() {
-	const { t } = useTranslation()
-	const location = useLocation()
+	const _location = useLocation()
 	const cloudillo = useCloudillo(APP_NAME)
 	const { api } = useApi()
-	const [auth] = useAuth()
+	const [_auth] = useAuth()
 	const [form, setForm] = React.useState<Form | undefined>(undefined)
 
 	React.useEffect(

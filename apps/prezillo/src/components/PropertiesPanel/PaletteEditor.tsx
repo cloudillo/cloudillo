@@ -99,7 +99,7 @@ export function PaletteEditor({
 	const usageCounts = React.useMemo(() => getPaletteUsageCounts(doc), [doc])
 
 	// Track which slot is being edited
-	const [editingSlot, setEditingSlot] = React.useState<string | null>(null)
+	const [_editingSlot, _setEditingSlot] = React.useState<string | null>(null)
 
 	// Handle color slot change
 	const handleColorChange = React.useCallback(
@@ -146,7 +146,7 @@ export function PaletteEditor({
 					{COLOR_SLOT_NAMES.map((slotName) => {
 						const color = palette[slotName]?.color ?? '#cccccc'
 						const count = usageCounts[slotName] ?? 0
-						const contrastColor = getContrastColor(color)
+						const _contrastColor = getContrastColor(color)
 
 						return (
 							<div key={slotName} className="c-palette-editor-slot">

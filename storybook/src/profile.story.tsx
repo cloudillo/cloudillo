@@ -16,7 +16,7 @@ const mockProfile = {
 	profilePic: undefined
 }
 
-const mockProfileWithPic = {
+const _mockProfileWithPic = {
 	idTag: 'bob.example',
 	name: 'Bob Builder',
 	profilePic: 'profile-pic-url'

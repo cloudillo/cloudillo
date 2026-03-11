@@ -36,7 +36,7 @@ export function useSearch() {
 }
 
 export function SearchIcon() {
-	const [search, setSearch] = useSearch()
+	const [_search, setSearch] = useSearch()
 
 	return <IcSearch onClick={() => setSearch({ query: '' })} />
 }

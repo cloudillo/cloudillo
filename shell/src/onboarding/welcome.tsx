@@ -28,7 +28,7 @@ export function Welcome() {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
 	const { api } = useApi()
-	const [auth, setAuth] = useAuth()
+	const [_auth, setAuth] = useAuth()
 	const { refId } = useParams<{ refId: string }>()
 	const [password, setPassword] = React.useState('')
 	const [confirmPassword, setConfirmPassword] = React.useState('')
@@ -56,7 +56,7 @@ export function Welcome() {
 				await api.refs.get(refId)
 				setRefValid(true)
 				setRefValidating(false)
-			} catch (err) {
+			} catch (_err) {
 				setRefValid(false)
 				setRefValidating(false)
 				setError(t('Invalid or expired reference link'))

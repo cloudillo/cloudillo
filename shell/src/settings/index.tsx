@@ -45,13 +45,13 @@ interface SettingsProps {
 }
 
 export function Settings({ title, children }: SettingsProps) {
-	const navigate = useNavigate()
+	const _navigate = useNavigate()
 	const location = useLocation()
 	const params = useParams()
 	const { t } = useTranslation()
-	const [appConfig] = useAppConfig()
-	const { api, setIdTag } = useApi()
-	const [auth] = useAuth()
+	const [_appConfig] = useAppConfig()
+	useApi()
+	const [_auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	const contextIdTag = params.contextIdTag!
 	const basePath = `/settings/${contextIdTag}`

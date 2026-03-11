@@ -30,7 +30,7 @@ const PAGE_SIZE = 15
 export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 	const { audience, enabled = true } = options
 	const { api } = useContextAwareApi()
-	const [auth] = useAuth()
+	const [_auth] = useAuth()
 	const [newPosts, setNewPosts] = React.useState<ActionView[]>([])
 
 	// Fetch page function for infinite scroll
@@ -105,7 +105,7 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 	}, [newPosts, prepend])
 
 	// Function to set/update a single post (for reactions, etc.)
-	const setPost = React.useCallback((actionId: string, updatedPost: ActionView) => {
+	const setPost = React.useCallback((_actionId: string, _updatedPost: ActionView) => {
 		// Note: This won't work well with infinite scroll's internal state
 		// The feed component should handle post updates at its level
 	}, [])

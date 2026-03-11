@@ -37,7 +37,7 @@ function next(api: ApiClient | null, location: string) {
 function Join() {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
-	const { api, setIdTag } = useApi()
+	const { api } = useApi()
 	const { error: toastError } = useToast()
 	const [joining, setJoining] = React.useState(false)
 
@@ -59,7 +59,7 @@ function Join() {
 		navigate(next(api, 'join'))
 	}
 
-	function onBack() {
+	function _onBack() {
 		navigate(-1)
 	}
 
@@ -91,7 +91,7 @@ function Join() {
 function Extras({ pwa }: { pwa: UsePWA }) {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
-	const { api, setIdTag } = useApi()
+	const { api } = useApi()
 	const [enableNotifications, setEnableNotifications] = React.useState(false)
 	const [enableInstall, setEnableInstall] = React.useState(false)
 
@@ -185,11 +185,11 @@ function Extras({ pwa }: { pwa: UsePWA }) {
 }
 
 // Legacy routes for backwards compatibility
-function Notifications({ pwa }: { pwa: UsePWA }) {
+function Notifications({ pwa: _pwa }: { pwa: UsePWA }) {
 	return <Navigate to="/onboarding/extras" />
 }
 
-function Install({ pwa }: { pwa: UsePWA }) {
+function Install({ pwa: _pwa }: { pwa: UsePWA }) {
 	return <Navigate to="/onboarding/extras" />
 }
 

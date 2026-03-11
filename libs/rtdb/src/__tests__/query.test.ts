@@ -245,7 +245,7 @@ describe('Query', () => {
 			const unsubscribeFn = jest.fn()
 
 			mockWs.subscribe = (jest.fn() as any).mockImplementation(
-				(path: any, filter: any, cb: any) => {
+				(_path: any, _filter: any, cb: any) => {
 					// Simulate server sending ready with initial docs
 					setTimeout(() => {
 						cb({
@@ -300,7 +300,7 @@ describe('Query', () => {
 			const onLock = jest.fn()
 
 			mockWs.subscribe = (jest.fn() as any).mockImplementation(
-				(path: any, filter: any, cb: any) => {
+				(_path: any, _filter: any, cb: any) => {
 					setTimeout(() => {
 						// Initial load
 						cb({
@@ -342,7 +342,7 @@ describe('Query', () => {
 			const onLock = jest.fn()
 
 			mockWs.subscribe = (jest.fn() as any).mockImplementation(
-				(path: any, filter: any, cb: any) => {
+				(_path: any, _filter: any, cb: any) => {
 					setTimeout(() => {
 						// Lock event BEFORE ready
 						cb({
@@ -374,7 +374,7 @@ describe('Query', () => {
 			const snapshotCb = jest.fn()
 
 			mockWs.subscribe = (jest.fn() as any).mockImplementation(
-				(path: any, filter: any, cb: any) => {
+				(_path: any, _filter: any, cb: any) => {
 					setTimeout(() => {
 						cb({
 							action: 'ready',
@@ -470,7 +470,7 @@ describe('Query', () => {
 			const callback = jest.fn()
 
 			mockWs.subscribe = (jest.fn() as any).mockImplementation(
-				(path: any, filter: any, cb: any, onError: any, aggregate: any) => {
+				(_path: any, _filter: any, cb: any, _onError: any, _aggregate: any) => {
 					setTimeout(() => {
 						cb({
 							action: 'ready',
@@ -522,7 +522,7 @@ describe('Query', () => {
 			const callback = jest.fn()
 
 			mockWs.subscribe = (jest.fn() as any).mockImplementation(
-				(path: any, filter: any, cb: any, onError: any, aggregate: any) => {
+				(_path: any, _filter: any, cb: any, _onError: any, _aggregate: any) => {
 					setTimeout(() => {
 						cb({
 							action: 'ready',

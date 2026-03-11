@@ -99,14 +99,14 @@ export function MicrofrontendContainer({
 	guestName
 }: MicrofrontendContainerProps) {
 	const ref = React.useRef<HTMLIFrameElement>(null)
-	const { api, setIdTag } = useApi()
+	const { api } = useApi()
 	const [auth] = useAuth()
 	const [url, setUrl] = React.useState<string | undefined>(undefined)
 	const [loadingStage, setLoadingStage] = React.useState<LoadingStage>('connecting')
 	const [errorMessage, setErrorMessage] = React.useState<string | undefined>(undefined)
 	const [errorCode, setErrorCode] = React.useState<number | undefined>(undefined)
 	const [retryCount, setRetryCount] = React.useState(0)
-	const [, , host, path] = (resId || '').match(/^(([a-zA-Z0-9-.]+):)?(.*)$/) || []
+	const [, , host, _path] = (resId || '').match(/^(([a-zA-Z0-9-.]+):)?(.*)$/) || []
 	// Extract context from resId (format: "contextIdTag:resource-path")
 	const contextIdTag = host || auth?.idTag
 	const trustLevel = normalizeTrust(trust)
@@ -303,7 +303,7 @@ export function MicrofrontendContainer({
 			const currentRefId = refIdRef.current
 			const currentGuestName = guestNameRef.current
 			const currentRequestToken = requestTokenRef.current
-			const currentScheduleRenewal = scheduleRenewalRef.current
+			const _currentScheduleRenewal = scheduleRenewalRef.current
 
 			if (currentApi && (currentAuth || currentProvidedToken) && currentRequestToken) {
 				// Mark as initialized to prevent re-running
@@ -362,7 +362,7 @@ export function MicrofrontendContainer({
 					// Use refs to ensure subscription persists across effect re-runs
 					if (!subscribedRef.current) {
 						subscribedRef.current = true
-						onAppReady(currentAppWindow, (_window, stage) => {
+						onAppReady(currentAppWindow, (_window, _stage) => {
 							// Clear timeout when app reports any ready stage
 							if (timeoutRef.current) {
 								clearTimeout(timeoutRef.current)

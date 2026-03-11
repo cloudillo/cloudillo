@@ -22,7 +22,7 @@ function getLocalPackages() {
 				if (pkgJson.name) {
 					localPackages.add(pkgJson.name)
 				}
-			} catch (e) {
+			} catch (_e) {
 				// Ignore invalid package.json
 			}
 		}
@@ -31,7 +31,7 @@ function getLocalPackages() {
 	return localPackages
 }
 
-function readPackage(pkg, context) {
+function readPackage(pkg, _context) {
 	const locals = getLocalPackages()
 
 	// Add ignoreDependencies to root package to prevent pnpm upgrade from corrupting versions

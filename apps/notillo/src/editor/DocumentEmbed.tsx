@@ -34,7 +34,7 @@ export const DocumentEmbed = createReactBlockSpec(
 	},
 	{
 		render: (props) => {
-			const { fileId, contentType, appId, navState, width, height } = props.block.props
+			const { fileId, contentType, navState, width, height } = props.block.props
 			const { sourceFileId } = useNotilloEditor()
 			const [active, setActive] = React.useState(false)
 			const isEditable = props.editor.isEditable
@@ -146,7 +146,7 @@ export const DocumentEmbed = createReactBlockSpec(
 					const startX = e.clientX
 					const parentWidth = getParentWidth()
 					const startPixelWidth = ((width as number) / 100) * parentWidth
-					const startHeight = height as number
+					const _startHeight = height as number
 
 					const onPointerMove = (ev: PointerEvent) => {
 						const newPixelWidth = startPixelWidth + ev.clientX - startX

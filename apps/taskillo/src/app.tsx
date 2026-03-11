@@ -81,7 +81,7 @@ function useTaskillo() {
 				// Apps run in iframes and communicate with the shell via postMessage
 				console.log('[Taskillo] Initializing cloudillo...')
 				const bus = getAppBus()
-				const state = await bus.init(APP_NAME)
+				const _state = await bus.init(APP_NAME)
 				console.log('[Taskillo] Token received')
 				setIdTag(bus.idTag)
 				setAccess(bus.access)
@@ -164,7 +164,7 @@ function useTaskillo() {
  * 2. Receive automatic updates when data changes
  * 3. Perform CRUD operations using the RTDB client
  */
-function useTasks(client: RtdbClient | undefined, fileId: string, idTag: string | undefined) {
+function useTasks(client: RtdbClient | undefined, fileId: string, _idTag: string | undefined) {
 	const [tasks, setTasks] = React.useState<Task[]>([])
 	const [loading, setLoading] = React.useState(true)
 	const [error, setError] = React.useState<Error | undefined>()
@@ -529,7 +529,6 @@ function TaskList({
 	tasks,
 	loading,
 	onToggleTask,
-	onUpdateTask,
 	onDeleteTask,
 	readOnly
 }: {

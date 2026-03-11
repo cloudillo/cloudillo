@@ -55,8 +55,8 @@ export interface BezierFitResult {
 // ============================================================================
 
 // Speed thresholds (from stroke-analyzer)
-const SPEED_EXPRESSIVE = 800
-const SPEED_PRECISE = 200
+const _SPEED_EXPRESSIVE = 800
+const _SPEED_PRECISE = 200
 
 // Corner detection parameters by intent
 const CORNER_CONFIG = {
@@ -266,7 +266,7 @@ export function detectBezierCorners(
 /**
  * Estimate tangent at start of segment
  */
-function estimateStartTangent(points: Point[], speeds: number[], avgSpeed: number): Point {
+function estimateStartTangent(points: Point[], _speeds: number[], _avgSpeed: number): Point {
 	if (points.length < 2) return [1, 0]
 
 	// Use direction from first few points
@@ -287,7 +287,7 @@ function estimateStartTangent(points: Point[], speeds: number[], avgSpeed: numbe
 /**
  * Estimate tangent at end of segment
  */
-function estimateEndTangent(points: Point[], speeds: number[], avgSpeed: number): Point {
+function estimateEndTangent(points: Point[], _speeds: number[], _avgSpeed: number): Point {
 	const n = points.length
 	if (n < 2) return [1, 0]
 
@@ -623,7 +623,7 @@ export function shouldAutoClose(points: Point[], bounds: Bounds): boolean {
 /**
  * Create closing segment from end back to start
  */
-export function createClosingSegment(segments: BezierSegment[], avgSpeed: number): BezierSegment {
+export function createClosingSegment(segments: BezierSegment[], _avgSpeed: number): BezierSegment {
 	if (segments.length === 0) {
 		return { start: [0, 0], control1: [0, 0], control2: [0, 0], end: [0, 0] }
 	}

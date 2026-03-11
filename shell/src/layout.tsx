@@ -269,20 +269,18 @@ function truncateFileName(name: string, maxLen: number = 12): string {
 }
 
 function Menu({
-	className,
 	inert,
 	vertical,
 	extraMenuPortal
 }: {
-	className?: string
 	inert?: boolean
 	vertical?: boolean
 	extraMenuPortal?: HTMLElement | null
 }) {
 	const { t, i18n } = useTranslation()
 	const location = useLocation()
-	const [appConfig, setAppConfig] = useAppConfig()
-	const [auth, setAuth] = useAuth()
+	const [appConfig, _setAppConfig] = useAppConfig()
+	const [auth, _setAuth] = useAuth()
 	const [moreMenuOpen, setMoreMenuOpen] = React.useState(false)
 	const { contextIdTag, getContextPath } = useContextPath()
 	const sidebar = useSidebar()
@@ -443,7 +441,7 @@ const BUILTIN_APPS = ['files', 'feed', 'gallery', 'messages', 'view']
 /**
  * Check if a path is an external app (microfrontend loaded in iframe)
  */
-function isExternalAppPath(pathname: string): boolean {
+function _isExternalAppPath(pathname: string): boolean {
 	// Match /app/:contextIdTag/:appId/* or /app/:appId/*
 	const match = pathname.match(/^\/app\/(?:([^/]+)\/)?([^/]+)/)
 	if (!match) return false
@@ -496,7 +494,7 @@ function getGuestRedirect(pathname: string, ownerIdTag: string): string | undefi
 }
 
 function Header({ inert }: { inert?: boolean }) {
-	const [appConfig, setAppConfig] = useAppConfig()
+	const [_appConfig, setAppConfig] = useAppConfig()
 	const [auth, setAuth] = useAuth()
 	const [search, setSearch] = useSearch()
 	const { api, setIdTag } = useApi()
@@ -504,9 +502,9 @@ function Header({ inert }: { inert?: boolean }) {
 	const location = useLocation()
 	const navigate = useNavigate()
 	//const [notifications, setNotifications] = React.useState<{ notifications?: number }>({})
-	const { notifications, setNotifications, loadNotifications } = useNotifications()
+	const { setNotifications, loadNotifications } = useNotifications()
 	const { warning: toastWarning } = useToast()
-	const [menuOpen, setMenuOpen] = React.useState(false)
+	const [_menuOpen, setMenuOpen] = React.useState(false)
 	const [businessCardOpen, setBusinessCardOpen] = React.useState(false)
 	const contextIdTag = useCurrentContextIdTag()
 	const [extraMenuPortalMobile, setExtraMenuPortalMobile] = React.useState<HTMLDivElement | null>(
@@ -1006,7 +1004,7 @@ export function Layout() {
 	const { t } = useTranslation()
 	const pwa = usePWA({ swPath: `/sw-${version}.js` })
 	const [auth] = useAuth()
-	const { api, setIdTag } = useApi()
+	const { api } = useApi()
 	const dialog = useDialog()
 	const sidebar = useSidebar()
 	const { loadPinnedCommunities, loadCommunities } = useCommunitiesList()
@@ -1045,7 +1043,7 @@ export function Layout() {
 		if (!getShellBus()) {
 			initShellBus({
 				debug: process.env.NODE_ENV !== 'production',
-				getAccessToken: async (resId, access) => {
+				getAccessToken: async (resId, _access) => {
 					const currentApi = apiRef.current
 					if (!currentApi) return undefined
 					try {
@@ -1086,7 +1084,7 @@ export function Layout() {
 	}, [])
 
 	// Check if we're in an app view (for Menu component)
-	const isAppView = location.pathname.startsWith('/app/')
+	const _isAppView = location.pathname.startsWith('/app/')
 
 	// Show key access error overlay if encryption key is inaccessible or incorrect
 	if (keyAccessError) {

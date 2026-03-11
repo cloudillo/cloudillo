@@ -58,7 +58,7 @@ export function EditTags({ tags, listTags, addTag, removeTag }: EditTagsProps) {
 		if (!q) return []
 
 		const list = await listTags(q)
-		const ret = list && (list.find((t) => t.tag === q) ? list : [q, ...list])
+		const _ret = list && (list.find((t) => t.tag === q) ? list : [q, ...list])
 		//console.log('DATA', list, list?.find(t => t.tag === q), ret)
 		return list && (list.find((t) => t.tag === q) ? list : [{ tag: q, new: true }, ...list])
 	}

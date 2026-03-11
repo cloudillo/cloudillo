@@ -401,7 +401,7 @@ export function IdealloApp() {
 
 	// We need selectionBounds before we can initialize resize handler
 	// Compute basic selection bounds first (without offsets)
-	const baseSelectionBounds = React.useMemo<Bounds | null>(() => {
+	const _baseSelectionBounds = React.useMemo<Bounds | null>(() => {
 		if (selectedIds.size === 0 || !ideallo.doc) return null
 
 		let minX = Infinity,
@@ -556,7 +556,7 @@ export function IdealloApp() {
 
 	// Stable resize callbacks using refs
 	const onResizeStart = React.useCallback(
-		({ handle, bounds }: { handle: ResizeHandle; bounds: Bounds }) => {
+		({ bounds }: { handle: ResizeHandle; bounds: Bounds }) => {
 			const current = storedSelectionRef.current
 			const doc = idealloRef.current.doc
 			if (!current || !doc) return
@@ -585,32 +585,28 @@ export function IdealloApp() {
 		[]
 	)
 
-	const onResize = React.useCallback(
-		({ handle, bounds }: { handle: ResizeHandle; bounds: Bounds }) => {
-			const initial = interactionStartRef.current
-			if (!initial) return
-			setTempObjectState({
-				objectId: initial.id,
-				x: bounds.x,
-				y: bounds.y,
-				width: bounds.width,
-				height: bounds.height
-			})
-			broadcastEditingRef.current(
-				initial.id,
-				'resize',
-				bounds.x,
-				bounds.y,
-				bounds.width,
-				bounds.height
-			)
-		},
-		[]
-	)
+	const onResize = React.useCallback(({ bounds }: { handle: ResizeHandle; bounds: Bounds }) => {
+		const initial = interactionStartRef.current
+		if (!initial) return
+		setTempObjectState({
+			objectId: initial.id,
+			x: bounds.x,
+			y: bounds.y,
+			width: bounds.width,
+			height: bounds.height
+		})
+		broadcastEditingRef.current(
+			initial.id,
+			'resize',
+			bounds.x,
+			bounds.y,
+			bounds.width,
+			bounds.height
+		)
+	}, [])
 
 	const onResizeEnd = React.useCallback(
 		({
-			handle,
 			bounds,
 			originalBounds
 		}: {
@@ -707,11 +703,7 @@ export function IdealloApp() {
 
 	// Resize hook - provides rotation-aware resize
 	// Use lockedHookState during active interactions to prevent prop changes from re-triggering
-	const {
-		isResizing,
-		activeHandle,
-		handleResizeStart: hookResizeStart
-	} = useResizable({
+	const { handleResizeStart: hookResizeStart } = useResizable({
 		bounds: lockedHookState?.bounds ?? storedSelection?.bounds ?? emptyBounds,
 		rotation: lockedHookState?.rotation ?? storedSelection?.rotation ?? 0,
 		pivotX: lockedHookState?.pivotX ?? storedSelection?.pivotX ?? 0.5,
@@ -726,7 +718,7 @@ export function IdealloApp() {
 	})
 
 	// Stable rotation callbacks using refs
-	const onRotateStart = React.useCallback((angle: number) => {
+	const onRotateStart = React.useCallback((_angle: number) => {
 		const current = storedSelectionRef.current
 		const doc = idealloRef.current.doc
 		if (!current || !doc) return
@@ -754,7 +746,7 @@ export function IdealloApp() {
 		})
 	}, [])
 
-	const onRotate = React.useCallback((newRotation: number, isSnapped: boolean) => {
+	const onRotate = React.useCallback((newRotation: number, _isSnapped: boolean) => {
 		const initial = interactionStartRef.current
 		if (!initial) return
 		setTempObjectState({
@@ -788,7 +780,7 @@ export function IdealloApp() {
 			normalizedRotation !== initial.rotation
 		) {
 			yDoc.transact(() => {
-				initial.originalObjects.forEach((origObj, objectId) => {
+				initial.originalObjects.forEach((_origObj, objectId) => {
 					updateObject(yDoc, doc, objectId, {
 						rotation: normalizedRotation === 0 ? undefined : normalizedRotation
 					} as any)

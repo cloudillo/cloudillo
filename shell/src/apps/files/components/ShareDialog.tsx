@@ -68,7 +68,7 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 
 	// People tab state
 	const [fileActions, setFileActions] = React.useState<ActionView[]>([])
-	const [loadingActions, setLoadingActions] = React.useState(false)
+	const [_loadingActions, setLoadingActions] = React.useState(false)
 	const [confirmingRemovePerm, setConfirmingRemovePerm] = React.useState<string | null>(null)
 
 	// Link tab state
@@ -88,7 +88,7 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 	const [confirmingDeleteEntry, setConfirmingDeleteEntry] = React.useState<number | null>(null)
 
 	const Icon = getFileIcon(file.contentType, file.fileTp)
-	const isFolder = file.fileTp === 'FLDR'
+	const _isFolder = file.fileTp === 'FLDR'
 	const isOwner = canManageFile(file, auth?.idTag, activeContext?.roles ?? [])
 
 	// Derived permission lists

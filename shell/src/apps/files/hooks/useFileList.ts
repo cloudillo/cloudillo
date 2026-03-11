@@ -69,7 +69,7 @@ function convertFileView(f: Types.FileView): File {
 
 export function useFileList(options?: UseFileListOptions) {
 	const { api } = useContextAwareApi()
-	const [auth] = useAuth()
+	const [_auth] = useAuth()
 	const location = useLocation()
 	const contextIdTag = useCurrentContextIdTag()
 	const [sort, setSort] = React.useState<keyof File | undefined>()
@@ -185,7 +185,7 @@ export function useFileList(options?: UseFileListOptions) {
 				// page is no longer used - infinite scroll handles loading
 			}
 
-			function setFileData(fileId: string, file: File) {
+			function setFileData(_fileId: string, _file: File) {
 				// Note: This won't work well with infinite scroll's internal state
 				// Consider using a separate state or refactoring if needed
 			}

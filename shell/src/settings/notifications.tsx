@@ -124,7 +124,7 @@ function VolumeSlider({
 
 export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 	const { t } = useTranslation()
-	const { api, setIdTag } = useApi()
+	const { api } = useApi()
 	const { settings, onSettingChange } = useSettings('notify')
 	const { settings: localSettings, updateSetting } = useLocalNotifySettings()
 	const [notificationSubscription, setNotificationSubscription] = React.useState<

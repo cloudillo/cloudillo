@@ -72,9 +72,7 @@ interface IdpRegistrationFormProps {
 }
 
 function IdpRegistrationForm({
-	identityProviders,
 	selectedProvider,
-	setSelectedProvider,
 	providerInfo,
 	idTagInput,
 	setIdTagInput,
@@ -83,7 +81,6 @@ function IdpRegistrationForm({
 	verifyState,
 	progress,
 	onVerify,
-	onSubmit,
 	onGoBack
 }: IdpRegistrationFormProps) {
 	const { t } = useTranslation()
@@ -93,7 +90,7 @@ function IdpRegistrationForm({
 
 	// When custom provider (contains a dot), user already selected their full provider domain
 	const isCustom = selectedProvider.includes('.')
-	const providerDomain = isCustom ? selectedProvider : selectedProvider
+	const _providerDomain = isCustom ? selectedProvider : selectedProvider
 
 	return (
 		<>
@@ -215,7 +212,6 @@ function DomainRegistrationForm({
 	verifyState,
 	progress,
 	onVerify,
-	onSubmit,
 	onGoBack
 }: DomainRegistrationFormProps) {
 	const { t } = useTranslation()
@@ -346,7 +342,7 @@ export function RegisterForm() {
 		provider?: string
 	}>()
 	const navigate = useNavigate()
-	const [auth, setAuth] = useAuth()
+	const [_auth, _setAuth] = useAuth()
 
 	const [show, setShow] = React.useState<boolean | undefined>()
 	const [tokenError, setTokenError] = React.useState<'invalid' | 'rate-limit' | undefined>()
@@ -398,7 +394,7 @@ export function RegisterForm() {
 						try {
 							const info = await api.idp.getInfo(provider)
 							infoMap[provider] = info
-						} catch (e) {
+						} catch (_e) {
 							// Provider info not available, use default
 							console.log(`Provider info not available for ${provider}`)
 						}

@@ -281,7 +281,7 @@ function generateBulletSVG(
 	if (!icon) return ''
 
 	const [vbX, vbY, vbW, vbH] = icon.viewBox
-	const scale = size / Math.max(vbW, vbH)
+	const _scale = size / Math.max(vbW, vbH)
 
 	// Create a group with transform for positioning and scaling
 	return `<g transform="translate(${x}, ${y})">

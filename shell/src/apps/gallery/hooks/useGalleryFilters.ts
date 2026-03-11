@@ -27,7 +27,7 @@ import type {
 	GalleryFilterState
 } from '../types.js'
 
-const DEFAULT_FILTERS: GalleryFilterState = {
+const _DEFAULT_FILTERS: GalleryFilterState = {
 	viewMode: 'all',
 	timeFilter: 'all',
 	selectedTags: [],

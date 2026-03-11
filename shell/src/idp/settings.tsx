@@ -17,14 +17,13 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { useApi, useAuth } from '@cloudillo/react'
+import { useAuth } from '@cloudillo/react'
 
 import { useSettings } from '../settings/settings.js'
 
 export function ProviderSettings() {
 	const { t } = useTranslation()
-	const { api } = useApi()
-	const [auth] = useAuth()
+	const [_auth] = useAuth()
 	const { settings, onSettingChange } = useSettings('idp')
 
 	if (!settings) return null

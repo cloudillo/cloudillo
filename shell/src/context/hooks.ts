@@ -278,7 +278,7 @@ export function useCommunitiesList() {
 			if (result?.value && Array.isArray(result.value)) {
 				setFavorites(result.value as string[])
 			}
-		} catch (err) {
+		} catch (_err) {
 			// Setting may not exist yet - that's OK
 			console.log('No pinned communities setting found, using empty list')
 			setFavorites([])
@@ -514,7 +514,7 @@ export function useContextSwitch() {
 	const { setActiveContext } = useApiContext()
 	const [isSwitching, setIsSwitching] = useAtom(contextSwitchingAtom)
 	const [lastSwitch, setLastSwitch] = useAtom(lastContextSwitchAtom)
-	const [recentContexts, setRecentContexts] = useAtom(recentContextsAtom)
+	const [_recentContexts, setRecentContexts] = useAtom(recentContextsAtom)
 	const [activeContext] = useAtom(activeContextAtom)
 	const navigate = useNavigate()
 

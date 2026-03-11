@@ -54,7 +54,7 @@ export function CropEditor({
 		]
 	)
 	const [processing, setProcessing] = React.useState(false)
-	const [imageLoaded, setImageLoaded] = React.useState(false)
+	const [_imageLoaded, setImageLoaded] = React.useState(false)
 	const [activeCorner, setActiveCorner] = React.useState<number | null>(null)
 	const containerRef = React.useRef<HTMLDivElement>(null)
 	const imgRef = React.useRef<HTMLImageElement>(null)

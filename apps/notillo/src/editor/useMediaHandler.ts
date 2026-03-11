@@ -38,12 +38,7 @@ const pendingTempIds = new Map<
 	{ editor: NotilloEditor; blockId: string; mediaTag: MediaTag }
 >()
 
-export function useMediaHandler({
-	editor,
-	ownerTag,
-	documentFileId,
-	readOnly
-}: UseMediaHandlerOptions) {
+export function useMediaHandler({ documentFileId, readOnly }: UseMediaHandlerOptions) {
 	// Listen for file ID resolution messages
 	React.useEffect(() => {
 		const bus = getAppBus()

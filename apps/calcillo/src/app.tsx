@@ -259,7 +259,7 @@ export function CalcilloApp() {
 		if (!loaded || !cloudillo.synced || origCellData) return
 
 		const data: FortuneSheet[] = []
-		const ySheets = cloudillo.yDoc.getMap('sheets')
+		const _ySheets = cloudillo.yDoc.getMap('sheets')
 		const sheetOrder = cloudillo.yDoc.getArray<SheetId>('sheetOrder')
 
 		// Use sheetOrder array for consistent ordering across clients

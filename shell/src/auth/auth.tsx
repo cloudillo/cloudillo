@@ -123,15 +123,15 @@ function AuthPage({ title, children }: AuthPageProps) {
 ///////////////
 export function LoginForm() {
 	const { t } = useTranslation()
-	const { api, setIdTag } = useApi()
-	const [appConfig, setAppConfig] = useAppConfig()
-	const navigate = useNavigate()
+	const { api } = useApi()
+	const [appConfig, _setAppConfig] = useAppConfig()
+	const _navigate = useNavigate()
 	const [auth, setAuth] = useAuth()
-	const dialog = useDialog()
+	const _dialog = useDialog()
 
 	const [password, setPassword] = React.useState('')
 	const [passwordVisible, setPasswordVisible] = React.useState(false)
-	const [remember, setRemember] = React.useState(false)
+	const [_remember, setRemember] = React.useState(false)
 	const [forgot, setForgot] = React.useState(false)
 	const [error, setError] = React.useState<string | undefined>()
 	const [webAuthnAttempted, setWebAuthnAttempted] = React.useState(false)
@@ -176,7 +176,7 @@ export function LoginForm() {
 					await registerServiceWorker(result.token)
 					await ensureEncryptionKey()
 					setAuth(result)
-				} catch (err) {
+				} catch (_err) {
 					console.log('WebAuthn auto-login not available')
 				}
 			})()
@@ -389,11 +389,11 @@ export function LoginForm() {
 ///////////////////////
 export function PasswordResetForm() {
 	const { t } = useTranslation()
-	const { api, setIdTag } = useApi()
-	const navigate = useNavigate()
+	const { api } = useApi()
+	const _navigate = useNavigate()
 	const location = useLocation()
 	const dialog = useDialog()
-	const [_, code] = location.search.match(/code=([^&]+)/) || []
+	const [_, _code] = location.search.match(/code=([^&]+)/) || []
 
 	const [password, setPassword] = React.useState('')
 	const [error, setError] = React.useState<string | undefined>()
@@ -474,10 +474,10 @@ interface WebAuthProps {
 	idTag: string
 }
 
-export function WebAuth({ idTag }: WebAuthProps) {
+export function WebAuth({ idTag: _idTag }: WebAuthProps) {
 	const { t } = useTranslation()
 	const { api } = useApi()
-	const [auth, setAuth] = useAuth()
+	const [_auth, setAuth] = useAuth()
 
 	async function handleWebAuthnLogin() {
 		if (!api) return
@@ -503,7 +503,7 @@ export function WebAuth({ idTag }: WebAuthProps) {
 
 export function Password() {
 	const { t } = useTranslation()
-	const { api, setIdTag } = useApi()
+	const { api } = useApi()
 	const [oldPassword, setOldPassword] = React.useState('')
 	const [password, setPassword] = React.useState('')
 	const [error, setError] = React.useState<string | undefined>()

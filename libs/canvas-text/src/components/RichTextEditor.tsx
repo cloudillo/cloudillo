@@ -79,7 +79,6 @@ export function RichTextEditor({
 	yText,
 	baseStyle,
 	onSave,
-	onCancel,
 	awareness,
 	quillRef,
 	containerStyle,

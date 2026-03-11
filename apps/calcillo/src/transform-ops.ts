@@ -324,7 +324,7 @@ function transformConfigOp(sheet: YSheetStructure, op: Op): void {
 					}
 				} else if (op.path.length === 3 && op.path[1] === 'merge') {
 					// Merge operation: config.merge.{key}
-					const mergeKey = String(op.path[2])
+					const _mergeKey = String(op.path[2])
 					const mergeValue = op.value
 
 					if (mergeValue && typeof mergeValue === 'object') {

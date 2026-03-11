@@ -151,7 +151,7 @@ interface UseCloudillo {
 export function useCloudillo(appNameArg?: string): UseCloudillo {
 	const location = useLocation()
 	const [auth, setAuth] = useAuth()
-	const [appName, setAppName] = React.useState(appNameArg || '')
+	const [appName, _setAppName] = React.useState(appNameArg || '')
 	const [fileId, setFileId] = React.useState<string | undefined>(undefined)
 	const [ownerTag, setOwnerTag] = React.useState<string | undefined>(undefined)
 
@@ -205,7 +205,7 @@ export function useCloudilloEditor(appName: string) {
 	const location = useLocation()
 	const docId = location.hash.slice(1)
 	const cl = useCloudillo(appName)
-	const [yDoc, setYDoc] = React.useState<Y.Doc>(new Y.Doc())
+	const [yDoc, _setYDoc] = React.useState<Y.Doc>(new Y.Doc())
 	const [provider, setProvider] = React.useState<WebsocketProvider | undefined>(undefined)
 	const [synced, setSynced] = React.useState(false)
 	const [error, setError] = React.useState<{ code: number; reason?: string } | null>(null)

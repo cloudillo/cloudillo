@@ -48,7 +48,7 @@ const MIN_ARROWHEAD_ANGLE = 25 // Minimum angle of arrowhead from shaft
 const MAX_ARROWHEAD_ANGLE = 75 // Maximum angle of arrowhead from shaft
 const MIN_RETURN_DISTANCE = 8 // Minimum return stroke distance
 const MAX_SHAFT_DEVIATION = 0.05 // Max deviation for shaft (5% of length)
-const MIN_CONFIDENCE = 0.5 // Minimum confidence for auto-detection
+const _MIN_CONFIDENCE = 0.5 // Minimum confidence for auto-detection
 const HIGH_CONFIDENCE = 0.65 // High confidence threshold
 
 /**
@@ -63,8 +63,8 @@ export function detectArrow(points: Point[]): ArrowCandidate | null {
 	if (points.length < MIN_POINTS) return null
 
 	const n = points.length
-	const start = points[0]
-	const approximateEnd = points[Math.floor(n * 0.7)] // Look at ~70% as potential shaft end
+	const _start = points[0]
+	const _approximateEnd = points[Math.floor(n * 0.7)] // Look at ~70% as potential shaft end
 
 	// Check if main portion is approximately a line
 	const shaftPoints = points.slice(0, Math.floor(n * 0.75))
@@ -184,7 +184,7 @@ function detectArrowhead(
 	points: Point[],
 	shaftStart: Point,
 	shaftEnd: Point,
-	position: 'start' | 'end'
+	_position: 'start' | 'end'
 ): ArrowheadInfo {
 	const n = points.length
 	const arrowheadStart = Math.floor(n * (1 - ARROWHEAD_PERCENT))

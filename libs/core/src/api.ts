@@ -256,7 +256,7 @@ export async function apiFetchHelper<R, D = any>(
 				apiErrorCode = errorBody.error.code
 				errorMessage = errorBody.error.message
 			}
-		} catch (e) {
+		} catch (_e) {
 			// Not JSON or no structured error, use plain text
 		}
 

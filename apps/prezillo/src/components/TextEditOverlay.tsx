@@ -104,7 +104,6 @@ export function TextEditOverlay({
 	object,
 	textStyle,
 	onSave,
-	onCancel,
 	onTextChange,
 	onDragStart,
 	prototypeText,

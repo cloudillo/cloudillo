@@ -128,7 +128,7 @@ describe.skip('WebSocketManager', () => {
 			console.error = jest.fn()
 			try {
 				await ws.disconnect()
-			} catch (e) {
+			} catch (_e) {
 				// Ignore
 			} finally {
 				console.error = originalError
@@ -164,7 +164,7 @@ describe.skip('WebSocketManager', () => {
 				// Clean up
 				try {
 					await wsNoToken.disconnect()
-				} catch (e) {
+				} catch (_e) {
 					// Ignore
 				}
 			}
@@ -208,7 +208,7 @@ describe.skip('WebSocketManager', () => {
 				console.error = jest.fn()
 				try {
 					await wsNoReconnect.disconnect()
-				} catch (e) {
+				} catch (_e) {
 					// Ignore
 				} finally {
 					console.error = originalError

@@ -151,7 +151,7 @@ async function build() {
 			})
 		} else {
 			// Production build: build both in parallel
-			const [appResult, swResult] = await Promise.all([
+			const [appResult, _swResult] = await Promise.all([
 				esbuild.build(appConfig),
 				esbuild.build(swConfig)
 			])

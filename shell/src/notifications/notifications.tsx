@@ -155,7 +155,7 @@ function ConnectNotification({
 	onDismiss?: (action: ActionView) => void
 }) {
 	const { t } = useTranslation()
-	const { api, setIdTag } = useApi()
+	const { api } = useApi()
 	const contentRes = T.decode(tConnectAction.props.content, action.content)
 	const content = T.isOk(contentRes) ? contentRes.ok : undefined
 
@@ -234,7 +234,7 @@ function FileShareNotification({
 	onActionHandled?: (action: ActionView) => void
 }) {
 	const { t } = useTranslation()
-	const { api, setIdTag } = useApi()
+	const { api } = useApi()
 	const contentRes = T.decode(tFileShareAction.props.content, action.content)
 	const content = T.isOk(contentRes) ? contentRes.ok : undefined
 	if (!content) return null
@@ -465,7 +465,7 @@ function sortByCreatedAtDesc(a: ActionView, b: ActionView): number {
 export function Notifications() {
 	const { t } = useTranslation()
 	const location = useLocation()
-	const { api, setIdTag } = useApi()
+	const { api } = useApi()
 	const [auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	const [filter, setFilter] = React.useState<NotificationFilter>('all')

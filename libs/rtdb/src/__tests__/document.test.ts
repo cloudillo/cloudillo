@@ -207,7 +207,7 @@ describe('DocumentReference', () => {
 			const unsubscribeFn = jest.fn()
 
 			mockWs.subscribe = (jest.fn() as any).mockImplementation(
-				(path: any, filter: any, cb: any) => {
+				(_path: any, _filter: any, cb: any) => {
 					setTimeout(() => {
 						cb({
 							action: 'update',
@@ -233,7 +233,7 @@ describe('DocumentReference', () => {
 			const unsubscribeFn = jest.fn()
 
 			mockWs.subscribe = (jest.fn() as any).mockImplementation(
-				(path: any, filter: any, cb: any) => {
+				(_path: any, _filter: any, cb: any) => {
 					setTimeout(() => {
 						cb({
 							action: 'delete',

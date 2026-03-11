@@ -67,7 +67,7 @@ const DEFAULT_WIDTH = 1920
 const DEFAULT_HEIGHT = 1080
 
 // PDF points per pixel (72 DPI)
-const POINTS_PER_PIXEL = 72 / 96
+const _POINTS_PER_PIXEL = 72 / 96
 
 /**
  * Get objects for a specific view/slide using the correct CRDT query

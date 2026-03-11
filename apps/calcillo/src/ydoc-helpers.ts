@@ -464,7 +464,7 @@ export function transformSheetToCelldata(sheet: YSheetStructure): {
 			b: { style?: number; color?: string } | null
 		}
 	}> = []
-	for (const [key, border] of sheet.borders.entries()) {
+	for (const [_key, border] of sheet.borders.entries()) {
 		const rowIndex = rowIdToIndex(sheet, border.rowId)
 		const colIndex = colIdToIndex(sheet, border.colId)
 		if (rowIndex >= 0 && colIndex >= 0) {
@@ -510,7 +510,7 @@ export function transformSheetToCelldata(sheet: YSheetStructure): {
 
 	// Add hyperlinks
 	const linkInfo: Record<string, Omit<HyperlinkInfo, 'rowId' | 'colId'>> = {}
-	for (const [key, link] of sheet.hyperlinks.entries()) {
+	for (const [_key, link] of sheet.hyperlinks.entries()) {
 		const rowIndex = rowIdToIndex(sheet, link.rowId)
 		const colIndex = colIdToIndex(sheet, link.colId)
 		if (rowIndex >= 0 && colIndex >= 0) {

@@ -52,7 +52,7 @@ interface UseWsBusOpts {
 	cmds?: string[]
 }
 export function useWsBus(opts: UseWsBusOpts, cb: (msg: WsBusMsg) => void) {
-	const [wsBus, setWsBus] = useWsBusState()
+	const [wsBus, _setWsBus] = useWsBusState()
 
 	React.useEffect(
 		function wsBusEvent() {
@@ -75,7 +75,7 @@ export function send(msg: unknown): void {
 
 export function WsBusRoot({ children }: { children: React.ReactNode }) {
 	const [auth] = useAuth()
-	const [wsBus, setWsBus] = useWsBusState()
+	const [_wsBus, setWsBus] = useWsBusState()
 	const wsRef = React.useRef<WebSocket | undefined>(undefined)
 
 	React.useEffect(

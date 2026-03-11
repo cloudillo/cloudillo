@@ -23,7 +23,7 @@ import { useSettings } from './settings.js'
 
 export function PrivacySettings() {
 	const { t } = useTranslation()
-	const { api } = useApi()
+	useApi()
 	const { settings, onSettingChange } = useSettings('profile')
 
 	if (!settings) return <LoadingSpinner />

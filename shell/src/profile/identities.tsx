@@ -50,9 +50,8 @@ function ProfileStatusIcon({ profile }: { profile: Profile }) {
 
 function FilterBar({ className }: { className?: string }) {
 	const { t } = useTranslation()
-	const { api } = useApi()
 	const location = useLocation()
-	const navigate = useNavigate()
+	const _navigate = useNavigate()
 	const userStat = { all: 0, connected: 0, followed: 0, following: 0, trusted: 0 }
 
 	const qs = parseQS(location.search)
@@ -100,9 +99,7 @@ function FilterBar({ className }: { className?: string }) {
 	)
 }
 
-function ProfileDetails({ className }: { className?: string }) {
-	const { t } = useTranslation()
-
+function _ProfileDetails({ className }: { className?: string }) {
 	return <div className={'c-panel p-1 ' + (className || '')}></div>
 }
 

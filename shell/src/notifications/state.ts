@@ -27,7 +27,7 @@ export interface NotificationState {
 const notificationAtom = atom<NotificationState>({ notifications: [] })
 
 export function useNotifications() {
-	const { api, setIdTag } = useApi()
+	const { api } = useApi()
 	const [notifications, setNotifications] = useAtom(notificationAtom)
 
 	const loadNotifications = React.useCallback(

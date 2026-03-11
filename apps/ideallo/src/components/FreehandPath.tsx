@@ -31,7 +31,6 @@ export interface FreehandPathProps {
 
 export const FreehandPath = React.memo(function FreehandPath({
 	object,
-	isSelected,
 	onClick,
 	onPointerDown
 }: FreehandPathProps) {

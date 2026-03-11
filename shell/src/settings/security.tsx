@@ -38,7 +38,7 @@ import {
 
 export function SecuritySettings() {
 	const { t } = useTranslation()
-	const [auth] = useAuth()
+	const [_auth] = useAuth()
 	const { api } = useApi()
 	const dialog = useDialog()
 	const { settings } = useSettings('sec')

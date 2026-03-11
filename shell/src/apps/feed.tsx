@@ -332,7 +332,6 @@ interface CommentProps {
 	action: CommentAction
 }
 function Comment({ className, action }: CommentProps) {
-	const { t } = useTranslation()
 	if (typeof action.content != 'string') return null
 
 	return (
@@ -372,8 +371,7 @@ function NewComment({
 	style?: React.CSSProperties
 	onSubmit?: (action: CommentAction) => void
 }) {
-	const { api, setIdTag } = useApi()
-	const { t } = useTranslation()
+	const { api } = useApi()
 	const [auth] = useAuth()
 	const [content, setContent] = React.useState('')
 	const editorRef = React.useRef<HTMLDivElement>(null)
@@ -384,7 +382,7 @@ function NewComment({
 		editorRef.current?.focus()
 	}, [editorRef])
 
-	function onChange(text: string, pos: Position) {
+	function onChange(text: string, _pos: Position) {
 		setContent(text)
 	}
 
@@ -464,7 +462,7 @@ interface CommentsProps {
 	style?: React.CSSProperties
 }
 function Comments({ parentAction, onCommentsRead, ...props }: CommentsProps) {
-	const { api, setIdTag } = useApi()
+	const { api } = useApi()
 	const [comments, setComments] = React.useState<ActionView[]>([])
 
 	React.useEffect(() => {
@@ -516,10 +514,9 @@ interface PostProps {
 	srcTag?: string
 	width: number
 }
-function Post({ className, action, setAction, hideAudience, srcTag, width }: PostProps) {
-	const { t } = useTranslation()
+function Post({ className, action, setAction, hideAudience, srcTag: _srcTag, width }: PostProps) {
 	const [auth] = useAuth()
-	const { api, setIdTag } = useApi()
+	const { api } = useApi()
 	const [tab, setTab] = React.useState<undefined | 'CMNT' | 'LIKE' | 'SHRE'>(undefined)
 	if (typeof action.content != 'string' && action.content !== undefined) return null
 
@@ -781,11 +778,10 @@ interface NewPostProps {
 
 export const NewPost = React.memo(
 	React.forwardRef(function NewPostInside(
-		{ className, style, idTag, onSubmit }: NewPostProps,
+		{ className, style: _style, idTag, onSubmit }: NewPostProps,
 		ref: React.Ref<any>
 	) {
-		const { t } = useTranslation()
-		const { api, setIdTag } = useApi()
+		const { api } = useApi()
 		const [auth] = useAuth()
 		const [type, setType] = React.useState<
 			'TEXT' | 'IMG' | 'VIDEO' | 'POLL' | 'EVENT' | undefined
@@ -812,7 +808,7 @@ export const NewPost = React.memo(
 					if (typeof value === 'string' && ['P', 'C', 'F'].includes(value)) {
 						setVisibility(value as Visibility)
 					}
-				} catch (e) {
+				} catch (_e) {
 					// Use default 'F' if setting not found
 					console.log('Using default visibility: F (Followers)')
 				}
@@ -821,7 +817,7 @@ export const NewPost = React.memo(
 
 		useEditable(editorRef, onChange)
 
-		function onChange(text: string, pos: Position) {
+		function onChange(text: string, _pos: Position) {
 			setContent(text)
 		}
 
@@ -1089,11 +1085,11 @@ const FilterBar = React.memo(function FilterBar() {
 })
 
 export function FeedApp() {
-	const navigate = useNavigate()
+	const _navigate = useNavigate()
 	const location = useLocation()
 	const { t } = useTranslation()
-	const [appConfig] = useAppConfig()
-	const { api, setIdTag } = useApi()
+	const [_appConfig] = useAppConfig()
+	const { api } = useApi()
 	const [auth] = useAuth()
 	const contextIdTag = useCurrentContextIdTag()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)

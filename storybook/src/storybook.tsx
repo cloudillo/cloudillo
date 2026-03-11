@@ -17,10 +17,10 @@ function stringifyProp(value: unknown, indentDepth: number = 0) {
 			? s
 			: JSON.stringify(
 					value,
-					(k, v) => (typeof v == 'function' ? 'function ' + v.name : v),
+					(_k, v) => (typeof v == 'function' ? 'function ' + v.name : v),
 					4
 				).replace(/\n/g, `\n${indent}`)
-	} catch (err) {
+	} catch (_err) {
 		return ''
 	}
 }
@@ -107,7 +107,7 @@ export type RegistryState = Record<
 const registryAtom = atom<RegistryState>({})
 
 export function useRegister() {
-	const [reg, setReg] = useAtom(registryAtom)
+	const [_reg, setReg] = useAtom(registryAtom)
 
 	return function register(path: string, title?: string) {
 		setReg((r) => ({ ...r, [path]: { path, title: title ?? path } }))
@@ -153,7 +153,7 @@ function StoryPropType({
 	type: StoryPropType
 	indentDepth?: number
 }): React.ReactElement {
-	const indent = new Array((indentDepth || 1) - 1).fill(0).map((nll, idx) => <i key={idx} />)
+	const indent = new Array((indentDepth || 1) - 1).fill(0).map((_nll, idx) => <i key={idx} />)
 
 	if (typeof type == 'string') {
 		return (

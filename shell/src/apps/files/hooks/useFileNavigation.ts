@@ -30,7 +30,7 @@ export interface BreadcrumbItem {
 }
 
 export function useFileNavigation() {
-	const navigate = useNavigate()
+	const _navigate = useNavigate()
 	const [searchParams, setSearchParams] = useSearchParams()
 	const { api } = useContextAwareApi()
 	const { switchTo } = useContextSwitch()

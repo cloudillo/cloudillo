@@ -76,7 +76,6 @@ function IdpNameStep({
 	verifyState,
 	progress,
 	onVerify,
-	onSubmit,
 	onGoBack
 }: IdpNameStepProps) {
 	const { t } = useTranslation()
@@ -177,7 +176,6 @@ function DomainSetupStep({
 	verifyState,
 	progress,
 	onVerify,
-	onSubmit,
 	onGoBack
 }: DomainSetupStepProps) {
 	const { t } = useTranslation()
@@ -493,7 +491,6 @@ function InviteChooserStep({ onSelectInvite }: InviteChooserStepProps) {
 // CreateCommunity //
 /////////////////////
 export function CreateCommunity() {
-	const { t } = useTranslation()
 	const { api } = useApi()
 	const {
 		contextIdTag,
@@ -563,7 +560,7 @@ export function CreateCommunity() {
 					try {
 						const info = await api.idp.getInfo(provider)
 						infoMap[provider] = info
-					} catch (e) {
+					} catch (_e) {
 						console.log(`Provider info not available for ${provider}`)
 					}
 				}
@@ -658,7 +655,7 @@ export function CreateCommunity() {
 		try {
 			const res = await fetch(`https://cl-o.${idTag}/api/me`)
 			return res.ok
-		} catch (err) {
+		} catch (_err) {
 			return false
 		}
 	}
@@ -676,7 +673,7 @@ export function CreateCommunity() {
 
 		try {
 			// Create the community
-			const result = await api.communities.create(fullIdTag, {
+			const _result = await api.communities.create(fullIdTag, {
 				type: identityProvider || 'idp',
 				name: displayName || idTagInput,
 				appDomain: identityProvider === 'domain' ? appDomain : undefined,

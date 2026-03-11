@@ -308,7 +308,6 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 		onStickyDoubleClick,
 		// Text label editing
 		editingText,
-		onTextLabelSave,
 		onTextLabelCancel,
 		onTextDoubleClick,
 		// Height change callback
@@ -322,9 +321,6 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 		onRotateStart,
 		isRotating = false,
 		isSnapActive = false,
-		rotationState,
-		arcRadius,
-		pivotPosition,
 		pivotOriginalBounds,
 		onPivotDragStart,
 		onPivotDrag,

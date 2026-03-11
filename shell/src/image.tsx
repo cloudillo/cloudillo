@@ -90,13 +90,13 @@ export function ImageUpload({
 	const imgRef = React.useRef<HTMLImageElement>(null)
 	const [crop, setCrop] = React.useState<Crop>()
 
-	function handleImageLoaded(evt: React.SyntheticEvent<HTMLImageElement>) {
+	function handleImageLoaded(_evt: React.SyntheticEvent<HTMLImageElement>) {
 		console.log('handleImageLoaded', aspects)
 		// Use first aspect if available (check length, not value, since '' is valid for free)
 		if (aspects?.length && aspects[0] !== '') changeAspect(aspects[0])
 	}
 
-	function changeCrop(newCrop: Crop, percCrop: Crop) {
+	function changeCrop(newCrop: Crop, _percCrop: Crop) {
 		//console.log('changeCrop', newCrop, percCrop)
 		setCrop(newCrop)
 	}
@@ -150,7 +150,7 @@ export function ImageUpload({
 				canvas.width,
 				canvas.height
 			)
-		const dataURI = canvas.toBlob(
+		const _dataURI = canvas.toBlob(
 			function (blob) {
 				console.log(blob)
 				if (!blob) return

@@ -154,7 +154,7 @@ export const NotilloEditor = React.memo(
 
 		// Lock management — pure state hook, no subscription
 		const { locks, handleLockEvent } = useBlockLocks(pageId)
-		const localLockedBlockRef = useEditorLocks(editor as any, client, userId)
+		const _localLockedBlockRef = useEditorLocks(editor as any, client, userId)
 		useLockIndicators(editor as any, locks)
 
 		// Editor → page tag sync (debounced, self-healing)

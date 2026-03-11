@@ -84,8 +84,8 @@ export function ContextMenu({
 	const count = selectedFiles.length
 	const isSingleSelect = count === 1
 	const file = isSingleSelect ? selectedFiles[0] : clickedFile
-	const hasFolder = selectedFiles.some((f) => f.fileTp === 'FLDR')
-	const hasFile = selectedFiles.some((f) => f.fileTp !== 'FLDR')
+	const _hasFolder = selectedFiles.some((f) => f.fileTp === 'FLDR')
+	const _hasFile = selectedFiles.some((f) => f.fileTp !== 'FLDR')
 	const isFolder = file.fileTp === 'FLDR'
 	const isTrashView = viewMode === 'trash'
 

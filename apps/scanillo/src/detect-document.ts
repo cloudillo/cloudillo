@@ -130,8 +130,8 @@ function getDecodeCanvas(width: number, height: number): HTMLCanvasElement {
  */
 export async function detectDocument(
 	imageData: string,
-	width: number,
-	height: number
+	_width: number,
+	_height: number
 ): Promise<[number, number][] | null> {
 	await loadOpenCV()
 

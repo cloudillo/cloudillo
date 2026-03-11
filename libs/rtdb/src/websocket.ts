@@ -376,7 +376,7 @@ export class WebSocketManager {
 		this.log('Error:', error)
 
 		// Reject all pending requests
-		for (const [id, pending] of this.pendingRequests.entries()) {
+		for (const [_id, pending] of this.pendingRequests.entries()) {
 			clearTimeout(pending.timeout)
 			pending.reject(error)
 		}
@@ -399,7 +399,7 @@ export class WebSocketManager {
 				`[RTDB] Re-establishing ${this.subscriptionDetails.size} subscriptions after reconnect`
 			)
 
-			for (const [localId, details] of this.subscriptionDetails.entries()) {
+			for (const [_localId, details] of this.subscriptionDetails.entries()) {
 				this.log(`Re-subscribing to ${details.path}`)
 
 				this.send({

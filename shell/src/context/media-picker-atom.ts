@@ -79,7 +79,7 @@ export const mediaPickerAtom = atom<MediaPickerState>({
 export const openMediaPickerAtom = atom(
 	null,
 	(
-		get,
+		_get,
 		set,
 		params: {
 			options?: MediaPickerOptions

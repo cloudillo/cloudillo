@@ -51,7 +51,7 @@ const CORNER_MIN_ANGLE = 50 // Minimum turn angle to detect a corner (lowered fr
 const RIGHT_ANGLE_TOLERANCE = 25 // How close to 90° each corner must be (relaxed from 20)
 const PARALLEL_TOLERANCE = 25 // How parallel opposite sides must be (relaxed from 20)
 const MIN_SIDE_LENGTH = 15 // Minimum side length in pixels
-const MIN_CONFIDENCE = 0.5 // Minimum confidence for auto-detection
+const _MIN_CONFIDENCE = 0.5 // Minimum confidence for auto-detection
 const HIGH_CONFIDENCE = 0.65 // High confidence threshold (lowered from 0.70)
 const ROTATION_SNAP_ANGLE = 45 // Snap to multiples of this angle
 const ROTATION_SNAP_THRESHOLD = 10 // Snap if within this many degrees
@@ -284,7 +284,7 @@ function calculateRectangleBounds(
 function calculateConfidence(
 	avgAngleDeviation: number,
 	sideLengths: number[],
-	corners: [Point, Point, Point, Point]
+	_corners: [Point, Point, Point, Point]
 ): number {
 	// Angle score (closer to 90° = better)
 	const angleScore = 1 - avgAngleDeviation / RIGHT_ANGLE_TOLERANCE
@@ -321,7 +321,7 @@ export function generateRectanglePoints(candidate: RectangleCandidate, numPoints
 	const perimeter = sideLengths.reduce((a, b) => a + b, 0)
 
 	let pointsRemaining = numPoints
-	let currentPoint = 0
+	let _currentPoint = 0
 
 	for (let side = 0; side < 4 && pointsRemaining > 0; side++) {
 		const start = corners[side]
@@ -335,7 +335,7 @@ export function generateRectanglePoints(candidate: RectangleCandidate, numPoints
 		for (let i = 0; i < pointsOnSide; i++) {
 			const t = i / pointsOnSide
 			points.push([start[0] + (end[0] - start[0]) * t, start[1] + (end[1] - start[1]) * t])
-			currentPoint++
+			_currentPoint++
 		}
 
 		pointsRemaining -= pointsOnSide

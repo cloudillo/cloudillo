@@ -26,14 +26,6 @@ import type { YPrezilloDocument, ViewNode } from '../crdt'
 import { resolveTextStyle } from '../crdt'
 
 /**
- * Font variant key for lookup
- */
-interface FontVariant {
-	weight: 'normal' | 'bold'
-	style: 'normal' | 'italic'
-}
-
-/**
  * Font file mapping - maps font family to directory and file naming pattern
  */
 interface FontMapping {

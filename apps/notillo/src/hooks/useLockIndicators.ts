@@ -24,7 +24,7 @@ import type { BlockLock } from './useBlockLocks.js'
  * direct classList manipulation which gets wiped when ProseMirror patches the DOM.
  */
 export function useLockIndicators(
-	editor: BlockNoteEditor | undefined,
+	_editor: BlockNoteEditor | undefined,
 	locks: Map<string, BlockLock>
 ) {
 	const styleRef = useRef<HTMLStyleElement | null>(null)

@@ -20,9 +20,9 @@ import { InlineEditForm } from '@cloudillo/react'
 
 export function InlineEditFormStory() {
 	const [value1, setValue1] = React.useState('Document Title')
-	const [value2, setValue2] = React.useState('Folder Name')
+	const [_value2, _setValue2] = React.useState('Folder Name')
 	const [editing1, setEditing1] = React.useState(false)
-	const [editing2, setEditing2] = React.useState(true)
+	const [_editing2, _setEditing2] = React.useState(true)
 
 	return (
 		<Story

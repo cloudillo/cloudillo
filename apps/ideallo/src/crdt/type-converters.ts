@@ -56,7 +56,7 @@ import type {
 import { DEFAULT_STYLE } from './runtime-types.js'
 
 // Type code mappings
-const TYPE_CODE_TO_TYPE: Record<ObjectTypeCode, ObjectType> = {
+const _TYPE_CODE_TO_TYPE: Record<ObjectTypeCode, ObjectType> = {
 	F: 'freehand',
 	R: 'rect',
 	E: 'ellipse',

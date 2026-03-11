@@ -102,13 +102,12 @@ export function LayerBrowser({
 	yDoc,
 	selectedIds,
 	onSelectObject,
-	activeViewId,
 	selectedContainerId,
 	onSelectContainer
 }: LayerBrowserProps) {
 	// Subscribe to changes in objects and containers
-	const objectsMap = useY(doc.o)
-	const containersMap = useY(doc.c)
+	const _objectsMap = useY(doc.o)
+	const _containersMap = useY(doc.c)
 	const rootChildren = useY(doc.r)
 
 	// Track expanded state locally
@@ -198,7 +197,7 @@ export function LayerBrowser({
 
 	// Drag-drop handlers
 	const handleDragStart = React.useCallback(
-		(e: React.DragEvent, data: TreeItemDragData, parentId: ContainerId | undefined) => {
+		(_e: React.DragEvent, data: TreeItemDragData, parentId: ContainerId | undefined) => {
 			setDraggedItem({ ...data, parentId })
 		},
 		[]
@@ -206,7 +205,7 @@ export function LayerBrowser({
 
 	const handleDragOver = React.useCallback(
 		(
-			e: React.DragEvent,
+			_e: React.DragEvent,
 			targetId: string,
 			targetType: 'object' | 'container',
 			targetParentId: ContainerId | undefined,
@@ -246,9 +245,9 @@ export function LayerBrowser({
 
 	const handleDrop = React.useCallback(
 		(
-			e: React.DragEvent,
+			_e: React.DragEvent,
 			targetId: string,
-			targetType: 'object' | 'container',
+			_targetType: 'object' | 'container',
 			targetParentId: ContainerId | undefined,
 			position: 'before' | 'after' | 'inside'
 		) => {
@@ -327,7 +326,7 @@ export function LayerBrowser({
 		[doc, yDoc, draggedItem]
 	)
 
-	const handleDragEnd = React.useCallback((e: React.DragEvent) => {
+	const handleDragEnd = React.useCallback((_e: React.DragEvent) => {
 		setDraggedItem(null)
 		setDropTarget(null)
 	}, [])

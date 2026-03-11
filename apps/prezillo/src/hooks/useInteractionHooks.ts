@@ -242,7 +242,7 @@ export function useInteractionHooks({
 		transformCoordinates: resizeTransformCoordinates,
 		disabled: isReadOnly || !storedSelection,
 		aspectRatio: selectionAspectRatio,
-		onResizeStart: ({ handle, bounds }) => {
+		onResizeStart: ({ bounds }) => {
 			// Use ref to get latest storedSelection (react-yjs keeps it updated)
 			const current = storedSelectionRef.current
 			if (!current) return
@@ -262,7 +262,7 @@ export function useInteractionHooks({
 				height: bounds.height
 			})
 		},
-		onResize: ({ handle, bounds, originalBounds }) => {
+		onResize: ({ bounds }) => {
 			// Use captured initial state to prevent stale closure issues
 			const initial = interactionStartRef.current
 			if (!initial) return
@@ -286,7 +286,7 @@ export function useInteractionHooks({
 				)
 			}
 		},
-		onResizeEnd: ({ handle, bounds, originalBounds }) => {
+		onResizeEnd: ({ bounds }) => {
 			// Use captured initial state to prevent stale closure issues
 			const initial = interactionStartRef.current
 			if (!initial) return
@@ -329,12 +329,7 @@ export function useInteractionHooks({
 	})
 
 	// Rotation hook - provides rotation with snap zone
-	const {
-		rotationState,
-		handleRotateStart: hookRotateStart,
-		arcRadius,
-		pivotPosition
-	} = useRotatable({
+	const { rotationState, handleRotateStart: hookRotateStart } = useRotatable({
 		bounds: storedSelection?.bounds ?? { x: 0, y: 0, width: 0, height: 0 },
 		rotation: storedSelection?.rotation ?? 0,
 		// Calculate screen-space arc radius to match the visual RotationHandle exactly
@@ -353,7 +348,7 @@ export function useInteractionHooks({
 		translateFrom: translateFromRef,
 		screenSpaceSnapZone: true,
 		disabled: isReadOnly || !storedSelection,
-		onRotateStart: (angle) => {
+		onRotateStart: (_angle) => {
 			// Use ref to get latest storedSelection (react-yjs keeps it updated)
 			const current = storedSelectionRef.current
 			if (!current) return
@@ -374,7 +369,7 @@ export function useInteractionHooks({
 				rotation: current.rotation
 			})
 		},
-		onRotate: (newRotation, isSnapped) => {
+		onRotate: (newRotation, _isSnapped) => {
 			// Use captured initial state to prevent stale closure issues
 			const initial = interactionStartRef.current
 			if (!initial) return
@@ -417,11 +412,7 @@ export function useInteractionHooks({
 	})
 
 	// Pivot drag hook - provides pivot positioning with snap to 9 points
-	const {
-		pivotState,
-		handlePivotDragStart: hookPivotDragStart,
-		getPositionCompensation
-	} = usePivotDrag({
+	const { pivotState, handlePivotDragStart: hookPivotDragStart } = usePivotDrag({
 		bounds: storedSelection?.bounds ?? { x: 0, y: 0, width: 0, height: 0 },
 		rotation: storedSelection?.rotation ?? 0,
 		pivotX: storedSelection?.pivotX ?? 0.5,
@@ -450,7 +441,7 @@ export function useInteractionHooks({
 				pivotY: pivot.y
 			})
 		},
-		onDrag: (pivot, snappedPoint, compensation) => {
+		onDrag: (pivot, _snappedPoint, compensation) => {
 			// Use captured initial state to prevent stale closure issues
 			const initial = interactionStartRef.current
 			if (!initial) return
@@ -467,7 +458,7 @@ export function useInteractionHooks({
 				pivotY: pivot.y
 			})
 		},
-		onDragEnd: (pivot, compensation) => {
+		onDragEnd: (pivot, _compensation) => {
 			// Use captured initial state to prevent stale closure issues
 			const initial = interactionStartRef.current
 			if (!initial) return

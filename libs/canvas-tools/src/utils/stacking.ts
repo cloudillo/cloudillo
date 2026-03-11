@@ -112,7 +112,7 @@ export function findStackedObjects(
 			if (visited.has(id)) continue
 			visited.add(id)
 
-			const sizeBefore = allStacked.size
+			const _sizeBefore = allStacked.size
 			collectAbove(id)
 			// Any newly added IDs form the next frontier
 			for (const sid of allStacked) {

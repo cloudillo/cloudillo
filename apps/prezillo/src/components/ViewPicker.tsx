@@ -345,7 +345,7 @@ export function ViewPicker({
 
 	// Drop handler - execute reorder
 	const handleDrop = React.useCallback(
-		(e: React.DragEvent, targetViewId: ViewId, targetIndex: number) => {
+		(e: React.DragEvent, _targetViewId: ViewId, targetIndex: number) => {
 			e.preventDefault()
 			e.stopPropagation()
 

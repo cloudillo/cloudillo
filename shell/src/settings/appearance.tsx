@@ -88,7 +88,7 @@ export function setTheme(
 
 export function AppearanceSettings() {
 	const { t } = useTranslation()
-	const { api, setIdTag } = useApi()
+	useApi()
 
 	const { settings, onSettingChange } = useSettings('ui')
 

@@ -30,9 +30,7 @@ export interface UseTextLabelHandlerOptions {
 	enabled?: boolean
 }
 
-export function useTextLabelHandler(options: UseTextLabelHandlerOptions) {
-	const { doc } = options
-
+export function useTextLabelHandler(_options: UseTextLabelHandlerOptions) {
 	const [editingText, setEditingText] = React.useState<TextEditState | null>(null)
 
 	const editingTextRef = React.useRef<TextEditState | null>(null)

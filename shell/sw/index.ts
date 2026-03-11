@@ -234,7 +234,7 @@ async function hasEncryptedData(): Promise<boolean> {
 /* Encryption */
 /**************/
 let cryptoKey: CryptoKey | null = null
-let encryptionAvailable = false
+let _encryptionAvailable = false
 let keyErrorState: 'key_missing' | 'key_mismatch' | null = null // Store error state for main thread to query
 
 async function initCryptoKey(): Promise<CryptoKey | null> {
@@ -245,7 +245,7 @@ async function initCryptoKey(): Promise<CryptoKey | null> {
 
 	if (!keyString) {
 		log && console.log('[SW] No encryption key available')
-		encryptionAvailable = false
+		_encryptionAvailable = false
 		return null
 	}
 
@@ -258,11 +258,11 @@ async function initCryptoKey(): Promise<CryptoKey | null> {
 			'encrypt',
 			'decrypt'
 		])
-		encryptionAvailable = true
+		_encryptionAvailable = true
 		return cryptoKey
 	} catch (err) {
 		console.error('[SW] Failed to import encryption key:', err)
-		encryptionAvailable = false
+		_encryptionAvailable = false
 		return null
 	}
 }

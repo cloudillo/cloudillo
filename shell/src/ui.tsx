@@ -26,7 +26,7 @@ interface PageProps {
 	children: React.ReactNode
 }
 
-export function Page({ title, noBackButton, actions, children }: PageProps) {
+export function Page({ title, children }: PageProps) {
 	return (
 		<div>
 			{title && <h2>{title}</h2>}

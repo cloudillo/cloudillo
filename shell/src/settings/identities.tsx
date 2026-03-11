@@ -940,7 +940,7 @@ export function IdentitiesSettings() {
 	const { t } = useTranslation()
 	const params = useParams()
 	const { api } = useApi()
-	const [auth] = useAuth()
+	const [_auth] = useAuth()
 	const dialog = useDialog()
 
 	// State - all identities (unfiltered)

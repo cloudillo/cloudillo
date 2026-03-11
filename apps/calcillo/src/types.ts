@@ -22,7 +22,7 @@ export interface PrelloElementState {
 	bbox: { x: number; y: number; width: number; height: number }
 }
 
-export interface ElementProps<E extends PrelloElement, S = undefined> {
+export interface ElementProps<E extends PrelloElement, _S = undefined> {
 	element: E
 	//state: S
 	//setState: React.Dispatch<React.SetStateAction<S>>

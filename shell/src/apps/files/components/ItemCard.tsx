@@ -59,7 +59,7 @@ export const ItemCard = React.memo(function ItemCard({
 	fileOps,
 	viewMode = 'all'
 }: ItemCardProps) {
-	const [auth] = useAuth()
+	const [_auth] = useAuth()
 	const { t } = useTranslation()
 
 	const isFolder = file.fileTp === 'FLDR'
@@ -71,7 +71,7 @@ export const ItemCard = React.memo(function ItemCard({
 		onClick?.(file, evt)
 	}
 
-	function handleDoubleClick(evt: React.MouseEvent) {
+	function handleDoubleClick(_evt: React.MouseEvent) {
 		if (isFolder) {
 			onDoubleClick?.(file)
 		} else {

@@ -66,9 +66,6 @@
 			"correctness": {
 				// Too noisy: many existing deps arrays need review
 				"useExhaustiveDependencies": "off",
-				// Too noisy: many existing violations
-				"noUnusedVariables": "off",
-				"noUnusedFunctionParameters": "off",
 				// Too noisy: conditional hooks exist in several components
 				"useHookAtTopLevel": "off",
 				// False positive: dynamically accessed private members

@@ -24,7 +24,7 @@ import { IconContext } from 'react-icons'
 import './i18n.js'
 import { Layout } from './layout.js'
 
-function App(props: React.PropsWithChildren<{}>) {
+function App(_props: React.PropsWithChildren<{}>) {
 	return (
 		<DndProvider backend={HTML5Backend}>
 			<IconContext.Provider value={{ size: '1.5rem' }}>

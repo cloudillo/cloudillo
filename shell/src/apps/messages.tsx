@@ -129,13 +129,6 @@ interface ConvContent {
 	joinMode?: 'auto' | 'moderated'
 }
 
-// SUBS action content structure
-interface SubsContent {
-	role?: MemberRole
-	message?: string
-	invitedBy?: string
-}
-
 // Helper to extract role from action's x metadata
 function getActionRole(action: ActionView): MemberRole {
 	const xRole = (action as ActionView & { x?: { role?: string } }).x?.role
@@ -152,8 +145,6 @@ interface MsgProps {
 	showSender?: boolean // For group messages, always show sender
 }
 function Msg({ className, action, local, showSender }: MsgProps) {
-	const { t } = useTranslation()
-	const { api, setIdTag } = useApi()
 	const [auth] = useAuth()
 	const [tab, setTab] = React.useState<undefined | 'CMNT' | 'LIKE' | 'SHRE'>(undefined)
 
@@ -166,7 +157,7 @@ function Msg({ className, action, local, showSender }: MsgProps) {
 		}
 	}
 
-	function onTabClick(clicked: 'CMNT' | 'LIKE' | 'SHRE') {
+	function _onTabClick(clicked: 'CMNT' | 'LIKE' | 'SHRE') {
 		if (clicked == tab) {
 			setTab(undefined)
 		} else {
@@ -225,8 +216,7 @@ export function NewMsg({
 	conversation: Conversation
 	onSubmit?: (action: ActionEvt) => void
 }) {
-	const { t } = useTranslation()
-	const { api, setIdTag } = useApi()
+	const { api } = useApi()
 	const [auth] = useAuth()
 	const [content, setContent] = React.useState('')
 	const editorRef = React.useRef<HTMLDivElement>(null)
@@ -245,7 +235,7 @@ export function NewMsg({
 		}, 1000)
 	}, [])
 
-	function onChange(text: string, pos: Position) {
+	function onChange(text: string, _pos: Position) {
 		setContent(text)
 	}
 
@@ -365,7 +355,7 @@ export function NewMsg({
 // Group avatar component showing stacked profile pictures
 function GroupAvatar({ profiles, max = 3 }: { profiles: Profile[]; max?: number }) {
 	const displayProfiles = profiles.slice(0, max)
-	const remaining = profiles.length - max
+	const _remaining = profiles.length - max
 
 	return (
 		<AvatarGroup max={max} className="c-avatar-group-small">
@@ -463,8 +453,8 @@ function ConversationBar({
 	onRejectInvite
 }: ConversationBarProps) {
 	const { t } = useTranslation()
-	const location = useLocation()
-	const navigate = useNavigate()
+	const _location = useLocation()
+	const _navigate = useNavigate()
 	const [search, setSearch] = React.useState(filter.q || '')
 
 	const setFilterDebounced = React.useCallback(
@@ -658,7 +648,7 @@ function GroupDetailsPanel({
 	currentUserIdTag,
 	onClose,
 	onInvite,
-	onLeave
+	onLeave: _onLeave
 }: GroupDetailsPanelProps) {
 	const { t } = useTranslation()
 	const { api } = useApi()
@@ -817,8 +807,8 @@ export function MessagesApp() {
 	const { convId } = useParams()
 	const navigate = useNavigate()
 	const { t } = useTranslation()
-	const [appConfig] = useAppConfig()
-	const { api, setIdTag } = useApi()
+	const [_appConfig] = useAppConfig()
+	const { api } = useApi()
 	const [auth] = useAuth()
 	const contextIdTag = useCurrentContextIdTag()
 	const [showFilter, setShowFilter] = React.useState(!convId)
@@ -829,7 +819,7 @@ export function MessagesApp() {
 	const [conversation, setConversation] = React.useState<Conversation | undefined>()
 	const [members, setMembers] = React.useState<ConversationMember[] | undefined>()
 	const [msg, setMsg] = React.useState<ActionEvt[] | undefined>()
-	const [text, setText] = React.useState('')
+	const [_text, _setText] = React.useState('')
 	const convRef = React.useRef<HTMLDivElement>(null)
 	const [scrollBottom, setScrollBottom] = React.useState(true)
 

@@ -65,7 +65,7 @@ export const docPickerAtom = atom<DocPickerState>({
 export const openDocPickerAtom = atom(
 	null,
 	(
-		get,
+		_get,
 		set,
 		params: {
 			options?: DocPickerOptions

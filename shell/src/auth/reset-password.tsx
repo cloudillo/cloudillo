@@ -54,7 +54,7 @@ export function ResetPassword() {
 				await api.refs.get(refId)
 				setRefValid(true)
 				setRefValidating(false)
-			} catch (err) {
+			} catch (_err) {
 				setRefValid(false)
 				setRefValidating(false)
 				setError(t('Invalid or expired password reset link'))

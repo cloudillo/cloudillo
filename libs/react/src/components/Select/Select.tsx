@@ -39,7 +39,6 @@ export function Select<T>({
 	getData,
 	onChange,
 	onSelectItem,
-	itemToId,
 	itemToString,
 	renderItem
 }: SelectProps<T>) {
@@ -55,7 +54,7 @@ export function Select<T>({
 		[]
 	)
 
-	let tmpRef: React.MutableRefObject<HTMLUListElement> | undefined
+	let _tmpRef: React.MutableRefObject<HTMLUListElement> | undefined
 	const { styles: popperStyles, attributes } = usePopper(popperRef, popperEl, {
 		placement: 'bottom-start',
 		strategy: 'fixed'

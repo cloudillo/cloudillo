@@ -53,7 +53,7 @@ type SharedState =
 export function SharedResourceView() {
 	const { t } = useTranslation()
 	const { refId } = useParams<{ refId: string }>()
-	const navigate = useNavigate()
+	const _navigate = useNavigate()
 	const { api } = useApi()
 	const [appConfig] = useAppConfig()
 	const [state, setState] = React.useState<SharedState>({ status: 'loading' })
@@ -237,7 +237,7 @@ interface BlobViewerProps {
 /**
  * BlobViewer displays BLOB files (images, videos, PDFs) inline.
  */
-function BlobViewer({ file, token, idTag }: BlobViewerProps) {
+function BlobViewer({ file, token: _token, idTag }: BlobViewerProps) {
 	const { t } = useTranslation()
 	const contentType = file.contentType
 

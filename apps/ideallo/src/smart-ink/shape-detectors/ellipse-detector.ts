@@ -45,7 +45,7 @@ const MIN_POINTS = 8 // Minimum points for ellipse detection
 const MAX_RADIUS_VARIANCE = 0.25 // Max coefficient of variation for circle (25%)
 const MAX_ELLIPSE_DEVIATION = 0.22 // Max average deviation from fitted ellipse (22%)
 const CIRCLE_ASPECT_THRESHOLD = 0.85 // Aspect ratio above which it's a circle
-const MIN_CONFIDENCE = 0.5 // Minimum confidence for auto-detection
+const _MIN_CONFIDENCE = 0.5 // Minimum confidence for auto-detection
 const HIGH_CONFIDENCE = 0.7 // High confidence threshold
 
 // Debug flag

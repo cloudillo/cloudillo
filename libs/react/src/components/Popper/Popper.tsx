@@ -39,8 +39,7 @@ export function Popper({
 	icon,
 	label,
 	'aria-label': ariaLabel,
-	children,
-	...props
+	children
 }: PopperProps) {
 	const [popperRef, setPopperRef] = React.useState<HTMLElement | null>(null)
 	const [popperEl, setPopperEl] = React.useState<HTMLElement | null>(null)
@@ -96,7 +95,7 @@ export function Popper({
 						ref={setPopperEl}
 						className={mergeClasses('c-popper', elevation, contentClassName)}
 						style={popperStyles.popper}
-						onClick={(evt) => setIsOpen(false)}
+						onClick={(_evt) => setIsOpen(false)}
 						{...attributes.popper}
 					>
 						{children}

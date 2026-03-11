@@ -62,17 +62,17 @@ export function createDebouncedThrottle(
 ): { trigger: () => void; cancel: () => void } {
 	let timeoutId: number | null = null
 	let lastExecutionTime = 0
-	let pending = false
+	let _pending = false
 
 	const execute = () => {
 		fn()
 		lastExecutionTime = Date.now()
-		pending = false
+		_pending = false
 		timeoutId = null
 	}
 
 	const trigger = () => {
-		pending = true
+		_pending = true
 		const now = Date.now()
 		const timeSinceLastExecution = now - lastExecutionTime
 
@@ -97,7 +97,7 @@ export function createDebouncedThrottle(
 			clearTimeout(timeoutId)
 			timeoutId = null
 		}
-		pending = false
+		_pending = false
 	}
 
 	return { trigger, cancel }

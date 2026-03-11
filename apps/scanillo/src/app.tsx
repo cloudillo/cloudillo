@@ -105,7 +105,7 @@ function useScanillo() {
 				setError(undefined)
 
 				const bus = getAppBus()
-				const state = await bus.init(APP_NAME)
+				const _state = await bus.init(APP_NAME)
 				setIdTag(bus.idTag)
 				setAccess(bus.access)
 				setToken(bus.accessToken)
@@ -1345,7 +1345,7 @@ export function ScanilloApp() {
 	async function handleReEditPage(page: ScanPage, mode: 'crop' | 'filter') {
 		setLoadingReEdit(true)
 		try {
-			const bus = getAppBus()
+			const _bus = getAppBus()
 			const sourceFileId = page.originalFileId ?? page.fileId
 			if (!scanillo.ownerTag) return
 

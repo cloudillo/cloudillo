@@ -235,14 +235,14 @@ interface BlobViewerProps {
 function BlobViewer({ file, token, idTag }: BlobViewerProps) {
 	const { t } = useTranslation()
 	const contentType = file.contentType
-	const fileUrl = getFileUrl(idTag, file.fileId)
 
 	// Image files
 	if (contentType.startsWith('image/')) {
+		const imageUrl = getFileUrl(idTag, file.fileId, 'vis.hd')
 		return (
 			<div className="c-panel flex-fill d-flex flex-column align-items-center justify-content-center p-2">
 				<img
-					src={fileUrl}
+					src={imageUrl}
 					alt={file.fileName}
 					style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }}
 				/>
@@ -253,15 +253,18 @@ function BlobViewer({ file, token, idTag }: BlobViewerProps) {
 
 	// Video files
 	if (contentType.startsWith('video/')) {
+		const videoUrl = getFileUrl(idTag, file.fileId, 'vid.hd')
 		return (
 			<div className="c-panel flex-fill d-flex flex-column align-items-center justify-content-center p-2">
-				<video src={fileUrl} controls style={{ maxWidth: '100%', maxHeight: '80vh' }}>
+				<video src={videoUrl} controls style={{ maxWidth: '100%', maxHeight: '80vh' }}>
 					{t('Your browser does not support video playback')}
 				</video>
 				<p className="mt-2 text-secondary">{file.fileName}</p>
 			</div>
 		)
 	}
+
+	const fileUrl = getFileUrl(idTag, file.fileId)
 
 	// PDF files
 	if (contentType === 'application/pdf') {

@@ -50,6 +50,7 @@ export class WebSocketManager {
 	private connecting = false
 	private connectPromise: Promise<void> | null = null
 	private connectionId = 0
+	private errorNotified = false
 	private reconnectAttempts = 0
 	private pendingRequests = new Map<number, PendingRequest>()
 	private subscriptions = new Map<string, Subscription>()
@@ -129,10 +130,20 @@ export class WebSocketManager {
 					return
 				}
 
+				// Set up connection timeout before registering event handlers
+				const timeout = setTimeout(() => {
+					if (!this.connected) {
+						reject(new TimeoutError('Connection timeout'))
+						this.ws?.close()
+					}
+				}, 10000)
+
 				this.ws.onopen = () => {
 					if (connId !== this.connectionId) return // Stale handler
+					clearTimeout(timeout)
 					this.log('Connected to server')
 					this.connected = true
+					this.errorNotified = false
 					this.reconnectAttempts = 0
 					this.startPingInterval()
 					this.flushMessageQueue()
@@ -147,6 +158,7 @@ export class WebSocketManager {
 
 				this.ws.onerror = (event) => {
 					if (connId !== this.connectionId) return // Stale handler
+					clearTimeout(timeout)
 					const error = new ConnectionError('WebSocket error', { cause: event })
 					this.handleError(error)
 					reject(error)
@@ -154,21 +166,8 @@ export class WebSocketManager {
 
 				this.ws.onclose = (event: CloseEvent) => {
 					if (connId !== this.connectionId) return // Stale handler
-					this.handleDisconnect(event.code, event.reason)
-				}
-
-				// Timeout for connection
-				const timeout = setTimeout(() => {
-					if (!this.connected) {
-						reject(new TimeoutError('Connection timeout'))
-						this.ws?.close()
-					}
-				}, 10000)
-
-				const originalResolve = resolve
-				resolve = () => {
 					clearTimeout(timeout)
-					originalResolve()
+					this.handleDisconnect(event.code, event.reason)
 				}
 			})
 		} catch (error) {
@@ -384,6 +383,7 @@ export class WebSocketManager {
 		this.pendingRequests.clear()
 
 		// Notify all subscriptions
+		this.errorNotified = true
 		for (const [, sub] of this.subscriptions.entries()) {
 			sub.onError(error)
 		}
@@ -435,8 +435,10 @@ export class WebSocketManager {
 		this.connecting = false
 		this.stopPingInterval()
 
-		// Always clear pending requests on disconnect — they can't succeed on a closed socket
-		this.clearPendingRequests()
+		// Clear pending requests if not already cleared by handleError
+		if (this.pendingRequests.size > 0) {
+			this.clearPendingRequests()
+		}
 
 		// Clear stale buffered subscription events
 		this.pendingSubscriptionEvents.clear()
@@ -445,10 +447,12 @@ export class WebSocketManager {
 		// 4401 = Unauthorized, 4403 = Access denied, 4404 = Not found
 		if (code !== undefined && code >= 4400 && code < 4500) {
 			this.log('Auth/resource error, not reconnecting', { code, reason })
-			// For auth errors, also notify subscription error handlers
-			const authError = new AuthError(`Connection closed: ${reason || 'auth error'}`)
-			for (const [, sub] of this.subscriptions.entries()) {
-				sub.onError(authError)
+			// For auth errors, notify subscription error handlers (skip if already notified by handleError)
+			if (!this.errorNotified) {
+				const authError = new AuthError(`Connection closed: ${reason || 'auth error'}`)
+				for (const [, sub] of this.subscriptions.entries()) {
+					sub.onError(authError)
+				}
 			}
 			return
 		}

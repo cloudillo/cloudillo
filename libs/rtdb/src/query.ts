@@ -163,6 +163,8 @@ export class Query<T = any> {
 					return
 				}
 
+				if (!ready) return // Still buffering initial docs
+
 				if (event.action === 'create' || event.action === 'update') {
 					const id = event.path.split('/').pop() || ''
 					documentMap.set(id, event.data)
@@ -170,8 +172,6 @@ export class Query<T = any> {
 					const id = event.path.split('/').pop() || ''
 					documentMap.delete(id)
 				}
-
-				if (!ready) return // Still buffering initial docs
 
 				// Live update — fire incremental callback
 				const documents = Array.from(documentMap.entries()).map(([id, data]) => ({

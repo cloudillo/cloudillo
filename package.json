@@ -1,12 +1,30 @@
 {
+	"name": "cloudillo",
 	"version": "0.8.10",
+	"description": "Decentralized, self-hosted collaboration platform — privacy-first alternative to Google Workspace",
 	"private": true,
 	"type": "module",
 	"packageManager": "pnpm@9.14.4",
-	"workspaces": [
-		"server",
-		"frontend"
+	"keywords": [
+		"collaboration",
+		"self-hosted",
+		"decentralized",
+		"privacy",
+		"real-time",
+		"crdt",
+		"yjs",
+		"react",
+		"typescript"
 	],
+	"homepage": "https://cloudillo.org",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/cloudillo/cloudillo.git"
+	},
+	"bugs": {
+		"url": "https://github.com/cloudillo/cloudillo/issues"
+	},
+	"license": "LGPL-3.0-or-later",
 	"scripts": {
 		"format": "biome format --write .",
 		"format:check": "biome format .",
@@ -27,6 +45,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.6",
+		"oxfmt": "^0.38.0",
 		"prettier": "^3.8.1"
 	}
 }

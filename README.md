@@ -1,60 +1,85 @@
-Cloudillo - A decentralized collaboration application platform for privacy-focused users
-======================================================================================
+<p align="center">
+  <a href="https://cloudillo.org">
+    <img src="logo/logo-opt-text-horizontal.svg" alt="Cloudillo" width="400">
+  </a>
+</p>
 
-**Your Data, Your Rules**
+<p align="center">
+  <strong>Your Data, Your Rules</strong><br>
+  Open-source, self-hosted collaboration platform with real-time editing, privacy-first design, and no vendor lock-in.
+</p>
 
-> **⚠️ Important Notice:** This repository contains the **frontend, apps, and libraries** for Cloudillo. The TypeScript-based server implementation (`server/` and `adapters/` directories) in this repository is **obsolete and no longer maintained**.
->
-> **For the current server implementation**, please see the **[Rust-based server](https://github.com/cloudillo/cloudillo-rs)**, which offers:
-> - Significantly better performance and memory footprint
-> - More features and active development
-> - Full compatibility with the frontend in this repository
->
-> The TypeScript implementation is not compatible with the current system and misses critical features.
+<p align="center">
+  <a href="https://github.com/cloudillo/cloudillo/actions/workflows/ci.yml"><img src="https://github.com/cloudillo/cloudillo/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/cloudillo/cloudillo/blob/main/COPYING"><img src="https://img.shields.io/github/license/cloudillo/cloudillo?color=blue" alt="License"></a>
+  <a href="https://github.com/cloudillo/cloudillo/stargazers"><img src="https://img.shields.io/github/stars/cloudillo/cloudillo?style=social" alt="GitHub Stars"></a>
+  <a href="https://hub.docker.com/r/cloudillo/cloudillo"><img src="https://img.shields.io/docker/pulls/cloudillo/cloudillo" alt="Docker Pulls"></a>
+  <a href="https://github.com/cloudillo/cloudillo/pulls"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome"></a>
+</p>
 
-What is Cloudillo and Why Does It Exist?
-----------------------------------------
+---
+
+## What is Cloudillo?
 
 Online collaboration platforms typically fall into two categories:
 
 1. **Cloud-based services:** Convenient but may raise concerns about privacy, bias, ads, and censorship.
 2. **Self-hosted applications:** Provide flexibility but challenging to set up and don't integrate well with each other.
 
-Cloudillo aims to bridge this gap by offering a self-hosted platform that connects users with the convenience of cloud services without sacrificing privacy and control over data.
+Cloudillo bridges this gap — a **decentralized, self-hosted alternative to Google Workspace** that connects users with the convenience of cloud services without sacrificing privacy and control over data.
 
 Learn more at [cloudillo.org](https://cloudillo.org).
 
-Repository Structure
--------------------
+## Key Features
 
-This repository contains:
-- **`shell/`** - Main web dashboard and application container
-- **`apps/`** - Plugin applications (Quillo, Prezillo, Calcillo, Taskillo, Formillo)
-- **`libs/`** - Shared libraries for client SDK and React components
-- **`server/`** ⚠️ *Obsolete TypeScript server (deprecated)*
-- **`adapters/`** ⚠️ *Obsolete TypeScript adapters (deprecated)*
-- **`basic-server/`** ⚠️ *Obsolete server entry point (deprecated)*
+- **End-to-end data ownership** — Your data stays on your server, under your control
+- **DNS-based portable identity** — Your identity is tied to your domain, not a platform
+- **Real-time collaboration** — CRDT-powered (Yjs) simultaneous editing with cursor awareness
+- **Passwordless authentication** — WebAuthn/passkey login with no passwords to manage
+- **Microfrontend plugin architecture** — Sandboxed apps communicate via typed message bus
+- **Federation between instances** — Connect and collaborate across independent Cloudillo servers
+- **Self-hosted with Docker** — Easy deployment with official Docker images
 
-For the **current server implementation**, visit **[cloudillo-rs](https://github.com/cloudillo/cloudillo-rs)**.
+## Apps
 
-Installation
-------------
+| App | Description |
+|-----|-------------|
+| **Shell** | Web dashboard, app launcher, identity management, file manager, social feed, gallery, and messaging |
+| **Quillo** | Rich text document editor (Quill + Yjs CRDT) with real-time collaborative editing |
+| **Prezillo** | Presentation editor with SVG canvas, shape/text tools, and real-time collaboration |
+| **Calcillo** | Spreadsheet with formulas, cell formatting, and multi-sheet workbooks (Fortune Sheet) |
+| **Taskillo** | Task list and project management with real-time updates (RTDB) |
+| **Formillo** | Survey and form builder with multiple question types and response aggregation |
+| **Notillo** | Wiki and notes with hierarchical pages, tags, and block-level editing (BlockNote + RTDB) |
+| **Ideallo** | Collaborative whiteboard with freeform drawing, shapes, and diagrams (SVG + Yjs) |
+| **Scanillo** | Document scanner with camera capture, image processing, and PDF export |
+| **Mapillo** | Map viewer with geolocation, geocoding, POI queries, and dark mode (MapLibre GL) |
 
-Cloudillo is a work in progress.
-We are regularly publishing docker images on [Docker Hub](https://hub.docker.com/r/cloudillo/cloudillo), so you can easily check it out.
+## Tech Stack
 
-For complete installation instructions including the server setup, please visit the **[Rust implementation repository](https://github.com/cloudillo/cloudillo-rs)**.
+**Frontend:** TypeScript, React 19, Jotai, i18next · **Real-time:** Yjs 13 (CRDT), custom RTDB · **Auth:** WebAuthn (passkeys) · **Build:** esbuild, pnpm 9 · **Backend:** Rust ([cloudillo-rs](https://github.com/cloudillo/cloudillo-rs)) · **Deploy:** Docker
 
-Building Frontend and Apps
---------------------------
+## Repository Structure
 
-To build the frontend shell and applications from this repository:
+```
+cloudillo/
+├── shell/       # Main web dashboard and application container
+├── apps/        # Plugin apps (Quillo, Prezillo, Calcillo, Taskillo, ...)
+├── libs/        # Shared libraries (core SDK, React components, CRDT, RTDB, ...)
+└── storybook/   # Component storybook
+```
 
-### Prerequisites
+For the **server implementation**, visit **[cloudillo-rs](https://github.com/cloudillo/cloudillo-rs)**.
 
-Ensure you have *pnpm* installed. You can find installation instructions at https://pnpm.io/installation.
+## Getting Started
 
-### Build Instructions
+> Cloudillo is currently in **alpha**. We publish Docker images regularly on [Docker Hub](https://hub.docker.com/r/cloudillo/cloudillo).
+
+For complete installation instructions including the server setup, please visit the **[cloudillo-rs repository](https://github.com/cloudillo/cloudillo-rs)**.
+
+### Building Frontend and Apps
+
+Ensure you have [pnpm](https://pnpm.io/installation) installed.
 
 ```bash
 git clone https://github.com/cloudillo/cloudillo.git
@@ -63,111 +88,18 @@ pnpm install
 pnpm -r build
 ```
 
-This will build:
-- Shell (web dashboard) → `shell/dist/`
-- Apps (Quillo, Prezillo, Calcillo, Taskillo, Formillo) → `apps/*/dist/`
-- Libraries → `libs/*/dist/`
+This builds the shell (`shell/dist/`), apps (`apps/*/dist/`), and libraries (`libs/*/dist/`). The built frontend needs to be served by the Cloudillo Rust server.
 
-### Serving the Frontend
+## Contributing
 
-The built frontend needs to be served by the Cloudillo server. For server setup and deployment instructions, see the **[Rust implementation repository](https://github.com/cloudillo/cloudillo-rs)**.
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code style, and PR guidelines.
 
----
+## Community
 
-## ⚠️ Obsolete Instructions Below
+- **Website:** [cloudillo.org](https://cloudillo.org)
+- **Issues:** [GitHub Issues](https://github.com/cloudillo/cloudillo/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/cloudillo/cloudillo/discussions)
 
-The following sections describe the **deprecated TypeScript server implementation** and are kept for historical reference only. **Do not use these instructions** - they will not work with the current system.
+## License
 
-<details>
-<summary>Click to expand obsolete TypeScript server instructions (deprecated)</summary>
-
-### Running in standalone mode (OBSOLETE)
-
-Standalone mode means that your Cloudillo instance will be accessible on a public IP address on port 80/http and 443/https.
-In this mode you don't need to run a reverse proxy, just open the ports (or forward them on your router) and it handles everything, even automatic certificate management with Let's Encrypt.
-
-You will need to configure DNS records for each Cloudillo Identity (profile). For example if you use **agatha.example.com** as your Cloudillo Identity and your Cloudillo instance is reachable at the 1.2.3.4 IP address, you will need to create the following DNS records:
-
-```
-cl-o.agatha.example.com    A    1.2.3.4
-agatha.example.com         A    1.2.3.4
-```
-
-The first address will be used by applications and other nodes to access the Cloudillo APIs. The second will be used by you to access your node.
-Once the DNS records are configured and propagated, you can start your Cloudillo instance by running the following commands:
-
-```bash
-cd cloudillo/basic-server
-export LOCAL_IPS=1.2.3.4
-export LOCAL_DOMAINS=agatha.example.com
-export ACME_EMAIL=agatha@example.com
-pnpm start-standalone
-```
-
-By default, Cloudillo will create a directory called 'data' in the current directory and stores everything there.
-You can change the location, the listen ports and some other stuff (see basic-server/src/index.ts).
-
-### Running in proxy mode (OBSOLETE)
-
-If you want to run Cloudillo behind a reverse proxy, you will need to configure the proxy accordingly. I provide an example nginx configuration below, you can use it for your starting point.
-
-```
-server {
-	listen   80;
-	server_name  agatha.example.com cl-o.agatha.example.com;
-
-	location /.well-known/ {
-        root    /var/www/certbot;
-        autoindex off;
-    }
-	location / {
-		return 301 https://$host$request_uri;
-	}
-}
-
-server {
-	listen 443 ssl;
-	server_name  agatha.example.com cl-o.agatha.example.com;
-	ssl_certificate /etc/letsencrypt/live/agatha.example.com/fullchain.pem;
-	ssl_certificate_key /etc/letsencrypt/live/agatha.example.com/privkey.pem;
-
-	location /api {
-		rewrite /api/(.*) /api/$1 break;
-		proxy_pass http://localhost:3000/;
-		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-		proxy_set_header X-Forwarded-Proto https;
-		proxy_set_header X-Forwarded-Host $host;
-		client_max_body_size 100M;
-	}
-	location /ws {
-		#rewrite /pc/ws/(.*) /$1 break;
-		proxy_pass http://localhost:3000;
-		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-		proxy_set_header X-Forwarded-Proto https;
-		proxy_set_header X-Forwarded-Host $host;
-		proxy_set_header Upgrade $http_upgrade;
-		proxy_set_header Connection "Upgrade";
-	}
-	location / {
-		root /home/agatha/cloudillo/shell/dist;
-		try_files $uri /index.html;
-		autoindex off;
-		expires 0;
-	}
-}
-```
-
-You can start your Cloudillo instance by running the following commands:
-
-```bash
-cd cloudillo/basic-server
-export LOCAL_IPS=1.2.3.4
-export LOCAL_DOMAINS=agatha.example.com
-export LISTEN=3000
-pnpm start
-```
-
-You have to also configure certbot to automatically renew your SSL certificates.
-With some more configuration Cloudillo can do it for you, but it is out of scope of this document.
-
-</details>
+Cloudillo is licensed under the [GNU Lesser General Public License v3.0 or later](COPYING).

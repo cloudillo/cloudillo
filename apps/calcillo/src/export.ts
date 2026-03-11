@@ -115,8 +115,8 @@ export function downloadExport(yDoc: Y.Doc): void {
 	const sheetOrder = exportData.data['sheetOrder']
 	const sheets = exportData.data['sheets'] as Record<string, unknown> | undefined
 	let firstName = ''
-	if (Array.isArray(sheetOrder) && sheetOrder.length > 1 && sheets) {
-		const firstSheet = sheets[sheetOrder[1] as string] as Record<string, unknown> | undefined
+	if (Array.isArray(sheetOrder) && sheetOrder.length > 0 && sheets) {
+		const firstSheet = sheets[sheetOrder[0] as string] as Record<string, unknown> | undefined
 		const nameField = firstSheet?.['name']
 		if (
 			nameField &&

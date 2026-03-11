@@ -466,7 +466,7 @@ describe('YDoc Helpers', () => {
 			setCell(sheet, 0, 0, { v: 'A1' })
 			setCell(sheet, 2, 3, { v: 'D3' })
 
-			const celldata = transformSheetToCelldata(sheet)
+			const { celldata } = transformSheetToCelldata(sheet)
 
 			expect(celldata).toHaveLength(2)
 			expect(celldata.find((c) => c.r === 0 && c.c === 0)?.v.v).toBe('A1')
@@ -479,7 +479,7 @@ describe('YDoc Helpers', () => {
 
 			setCell(sheet, 1, 1, { v: 'Test', m: 'metadata' } as any)
 
-			const celldata = transformSheetToCelldata(sheet)
+			const { celldata } = transformSheetToCelldata(sheet)
 			const cell = celldata.find((c) => c.r === 1 && c.c === 1)
 
 			expect(cell?.v).not.toHaveProperty('m')
@@ -489,7 +489,7 @@ describe('YDoc Helpers', () => {
 			const sheet = getOrCreateSheet(doc, sheetId)
 			ensureSheetDimensions(sheet, 5, 5)
 
-			const celldata = transformSheetToCelldata(sheet)
+			const { celldata } = transformSheetToCelldata(sheet)
 
 			expect(celldata).toEqual([])
 		})
@@ -501,7 +501,7 @@ describe('YDoc Helpers', () => {
 			setCell(sheet, 0, 0, { v: 'A1' })
 			setCell(sheet, 99, 49, { v: 'Last' })
 
-			const celldata = transformSheetToCelldata(sheet)
+			const { celldata } = transformSheetToCelldata(sheet)
 
 			expect(celldata).toHaveLength(2)
 		})
@@ -545,7 +545,7 @@ describe('YDoc Helpers', () => {
 			deleteColumns(sheet, 2, 2)
 
 			// Transform to celldata
-			const celldata = transformSheetToCelldata(sheet)
+			const { celldata } = transformSheetToCelldata(sheet)
 			expect(celldata.filter((c) => c.r === 2)).toHaveLength(4)
 		})
 	})

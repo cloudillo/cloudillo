@@ -319,11 +319,12 @@ export function initStorageHandlers(bus: ShellMessageBus): void {
 					result = undefined
 					break
 
-				case 'list':
+				case 'list': {
 					const keys = await storageList(fullPrefix)
 					// Remove namespace prefix from returned keys
 					result = keys.map((k) => k.slice(ns.length + 1))
 					break
+				}
 
 				case 'clear':
 					await storageClear(fullPrefix)

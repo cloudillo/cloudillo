@@ -68,8 +68,6 @@ function getDefaultPortForTls(tlsMode: string): number {
 	switch (tlsMode) {
 		case 'tls':
 			return 465
-		case 'none':
-		case 'starttls':
 		default:
 			return 587
 	}
@@ -136,7 +134,7 @@ export function EmailSettings() {
 				validationErrors.smtpHost = t('SMTP Host is required')
 			}
 			const port = parseInt(state.smtpPort, 10)
-			if (state.smtpPort && (isNaN(port) || port < 1 || port > 65535)) {
+			if (state.smtpPort && (Number.isNaN(port) || port < 1 || port > 65535)) {
 				validationErrors.smtpPort = t('Port must be 1-65535')
 			}
 			if (state.fromAddress && !isEmail(state.fromAddress)) {
@@ -151,8 +149,6 @@ export function EmailSettings() {
 		switch (formState?.smtpTlsMode) {
 			case 'tls':
 				return 465
-			case 'none':
-			case 'starttls':
 			default:
 				return 587
 		}
@@ -161,17 +157,17 @@ export function EmailSettings() {
 	// Get effective values with defaults for saving
 	function getEffectivePort(): number {
 		const port = parseInt(formState?.smtpPort || '', 10)
-		return isNaN(port) ? getDefaultPort() : port
+		return Number.isNaN(port) ? getDefaultPort() : port
 	}
 
 	function getEffectiveTimeout(): number {
 		const timeout = parseInt(formState?.smtpTimeoutSeconds || '', 10)
-		return isNaN(timeout) ? 30 : timeout
+		return Number.isNaN(timeout) ? 30 : timeout
 	}
 
 	function getEffectiveRetryAttempts(): number {
 		const retries = parseInt(formState?.retryAttempts || '', 10)
-		return isNaN(retries) ? 3 : retries
+		return Number.isNaN(retries) ? 3 : retries
 	}
 
 	async function handleSave() {

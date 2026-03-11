@@ -18,7 +18,7 @@
  * Style system operations and resolution
  */
 
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 import type {
 	YPrezilloDocument,
 	StoredStyle,

@@ -18,7 +18,7 @@
  * Document initialization and structure access
  */
 
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 import type { YIdealloDocument, StoredObject, StoredMeta } from './stored-types.js'
 
 /**

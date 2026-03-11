@@ -24,7 +24,7 @@
  *   Canny(50, 200) → GaussianBlur(3,3) → threshold(OTSU) → findContours(RETR_CCOMP) → largest contour
  */
 
-// @ts-ignore - jscanify is UMD without type declarations
+// @ts-expect-error - jscanify is UMD without type declarations
 import jscanify from 'jscanify/client'
 
 declare const cv: any

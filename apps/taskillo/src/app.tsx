@@ -26,7 +26,7 @@ import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
 import './style.css'
 
-import { Task, TaskFilter } from './types.js'
+import type { Task, TaskFilter } from './types.js'
 
 const APP_NAME = 'taskillo'
 
@@ -259,7 +259,6 @@ function useTasks(client: RtdbClient | undefined, fileId: string, idTag: string 
 				return tasks.filter((t) => !t.completed)
 			case 'completed':
 				return tasks.filter((t) => t.completed)
-			case 'all':
 			default:
 				return tasks
 		}

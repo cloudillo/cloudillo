@@ -100,7 +100,7 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 
 			newWs.onopen = function open() {
 				console.log('connected')
-				for (let sm of connSendBuf) {
+				for (const sm of connSendBuf) {
 					console.log('WS sending', sm)
 					newWs.send(sm)
 				}

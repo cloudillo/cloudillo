@@ -18,7 +18,7 @@
  * Palette operations for the prezillo presentation app
  */
 
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 import type { Gradient } from '@cloudillo/canvas-tools'
 
 import type {

@@ -21,7 +21,12 @@ import { useTranslation } from 'react-i18next'
 import { LuFileWarning as IcError, LuRefreshCw as IcLoading } from 'react-icons/lu'
 
 import { useApi, LoadingSpinner, mergeClasses } from '@cloudillo/react'
-import { createApiClient, FileView, RefAccessTokenResult, getFileUrl } from '@cloudillo/core'
+import {
+	createApiClient,
+	type FileView,
+	type RefAccessTokenResult,
+	getFileUrl
+} from '@cloudillo/core'
 
 import { useAppConfig } from '../utils.js'
 import { useGuestDocument } from '../context/index.js'

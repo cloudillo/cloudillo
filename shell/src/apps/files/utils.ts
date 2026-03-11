@@ -45,7 +45,7 @@ export function formatRelativeTime(dateInput: string | number): string {
 		}
 
 		// Check for invalid date
-		if (isNaN(d.getTime())) return ''
+		if (Number.isNaN(d.getTime())) return ''
 
 		const now = new Date()
 		const deltaSec = (now.getTime() - d.getTime()) / 1000

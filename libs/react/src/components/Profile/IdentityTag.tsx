@@ -22,13 +22,13 @@ export interface IdentityTagProps {
 }
 
 export function IdentityTag({ className, idTag = '-' }: IdentityTagProps) {
-	const segments = idTag.match(/([a-zA-Z\.]+|[^a-zA-Z\.]+)/g) || []
+	const segments = idTag.match(/([a-zA-Z.]+|[^a-zA-Z.]+)/g) || []
 
 	return (
 		<span className={className}>
 			@
 			{segments.map((segment, i) => (
-				<span key={i} className={/[^a-zA-Z\.]/.test(segment) ? 'text-warning' : undefined}>
+				<span key={i} className={/[^a-zA-Z.]/.test(segment) ? 'text-warning' : undefined}>
 					{segment}
 				</span>
 			))}

@@ -1,5 +1,5 @@
 import * as Y from 'yjs'
-import { WorkbookInstance } from '@fortune-sheet/react'
+import type { WorkbookInstance } from '@fortune-sheet/react'
 import type { YSheetStructure, SheetId, ColId, RowId } from './yjs-types'
 import { debug } from './debug'
 

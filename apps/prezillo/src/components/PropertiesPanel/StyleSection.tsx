@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 import { PropertySection, PropertyField, NumberInput } from '@cloudillo/react'
 
 import type { YPrezilloDocument, PrezilloObject, ObjectId } from '../../crdt'
@@ -30,7 +30,7 @@ import {
 	resetPropertyGroup
 } from '../../crdt'
 import { usePaletteValue } from '../../hooks'
-import { PaletteColorPicker, ColorPickerValue } from './PaletteColorPicker'
+import { PaletteColorPicker, type ColorPickerValue } from './PaletteColorPicker'
 import { PropertyLockButton } from './PropertyLockButton'
 
 export interface StyleSectionProps {

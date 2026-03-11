@@ -19,7 +19,7 @@
  */
 
 import * as React from 'react'
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 
 import type { YIdealloDocument, ObjectId, TextObject } from '../crdt/index.js'
 import { getObjectYText } from '../crdt/index.js'

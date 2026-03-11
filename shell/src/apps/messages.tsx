@@ -16,7 +16,7 @@
 
 import * as React from 'react'
 import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { useEditable, Position } from 'use-editable'
+import { useEditable, type Position } from 'use-editable'
 import dayjs from 'dayjs'
 import { useTranslation } from 'react-i18next'
 import debounce from 'debounce'
@@ -41,7 +41,7 @@ import {
 	LuChevronDown as IcChevronDown
 } from 'react-icons/lu'
 
-import { Profile, ActionView, NewAction } from '@cloudillo/types'
+import type { Profile, ActionView, NewAction } from '@cloudillo/types'
 import * as Types from '@cloudillo/core'
 import { getFileUrl } from '@cloudillo/core'
 import {

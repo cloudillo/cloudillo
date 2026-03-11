@@ -20,7 +20,7 @@
  */
 
 import * as React from 'react'
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 import { PiPaletteBold as IcPalette } from 'react-icons/pi'
 
 import type { YPrezilloDocument } from '../crdt'

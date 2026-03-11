@@ -17,7 +17,7 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { Profile } from '@cloudillo/types'
+import type { Profile } from '@cloudillo/types'
 import {
 	useApi,
 	useAuth,

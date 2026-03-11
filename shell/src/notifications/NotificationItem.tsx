@@ -19,7 +19,7 @@ import { useTranslation } from 'react-i18next'
 
 import { LuCheck as IcAccept, LuX as IcDismiss } from 'react-icons/lu'
 
-import { ActionView } from '@cloudillo/types'
+import type { ActionView } from '@cloudillo/types'
 import { Button, ProfilePicture, TimeFormat, mergeClasses } from '@cloudillo/react'
 
 function getActionText(

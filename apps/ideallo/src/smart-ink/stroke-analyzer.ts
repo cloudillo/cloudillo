@@ -85,9 +85,7 @@ export function analyzeStroke(timedPoints: TimedPoint[]): StrokeMetrics {
 	// Calculate speed variance (standard deviation)
 	const speedVariance =
 		speeds.length > 0
-			? Math.sqrt(
-					speeds.reduce((sum, s) => sum + Math.pow(s - avgSpeed, 2), 0) / speeds.length
-				)
+			? Math.sqrt(speeds.reduce((sum, s) => sum + (s - avgSpeed) ** 2, 0) / speeds.length)
 			: 0
 
 	// Total time

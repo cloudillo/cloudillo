@@ -17,7 +17,7 @@
 import { WebSocketManager } from './websocket.js'
 import { CollectionReference } from './collection.js'
 import { DocumentReference } from './document.js'
-import { RtdbClientOptions, TransactionMessage } from './types.js'
+import type { RtdbClientOptions, TransactionMessage } from './types.js'
 import { normalizePath } from './utils.js'
 
 export interface BatchResult {

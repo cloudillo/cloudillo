@@ -19,7 +19,7 @@
  */
 
 import * as React from 'react'
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 
 import type { YPrezilloDocument, Palette, PalettePreset } from '../../crdt'
 import { PALETTE_PRESETS, getPalette, applyPreset } from '../../crdt'

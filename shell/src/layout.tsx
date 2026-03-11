@@ -188,10 +188,10 @@ import {
 } from 'react-icons/lu'
 import { CloudilloLogo } from './logo.js'
 
-import { Profile, ActionView } from '@cloudillo/types'
+import { Profile, type ActionView } from '@cloudillo/types'
 import {
 	useAuth,
-	AuthState,
+	type AuthState,
 	useApi,
 	useDialog,
 	useToast,
@@ -204,7 +204,7 @@ import {
 } from '@cloudillo/react'
 import { createApiClient, FetchError } from '@cloudillo/core'
 import { useSetAtom } from 'jotai'
-import { AppConfigState, useAppConfig } from './utils.js'
+import { type AppConfigState, useAppConfig } from './utils.js'
 import usePWA, {
 	registerServiceWorker,
 	ensureEncryptionKey,
@@ -214,7 +214,7 @@ import usePWA, {
 	cleanupEncryptionCookie,
 	onKeyAccessError,
 	resetEncryptionState,
-	KeyErrorReason
+	type KeyErrorReason
 } from './pwa.js'
 import { AuthRoutes, loginInitAtom } from './auth/auth.js'
 import { useTokenRenewal } from './auth/useTokenRenewal.js'

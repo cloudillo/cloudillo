@@ -20,7 +20,7 @@
  */
 
 import * as React from 'react'
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 import type Quill from 'quill'
 import { NumberInput } from '@cloudillo/react'
 import {

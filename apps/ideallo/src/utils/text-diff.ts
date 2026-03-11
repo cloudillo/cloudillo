@@ -21,7 +21,7 @@
  * This approach is O(n) and works well for single-cursor textarea editing.
  */
 
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 
 /**
  * Apply minimal delta operations to sync Y.Text with new text content.

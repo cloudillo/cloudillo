@@ -28,8 +28,8 @@ import {
 	LuX as IcClose
 } from 'react-icons/lu'
 
-import { Profile, ActionView, NewAction } from '@cloudillo/types'
-import * as Types from '@cloudillo/core'
+import type { Profile, ActionView, NewAction } from '@cloudillo/types'
+import type * as Types from '@cloudillo/core'
 import {
 	useAuth,
 	useToast,

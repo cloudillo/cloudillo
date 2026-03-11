@@ -121,7 +121,7 @@ export function generateFragments(text: string): React.ReactNode[] {
 			case ':':
 			case ';':
 			case '<':
-			case '8':
+			case '8': {
 				const emoji = emojis[w]
 				if (typeof emoji == 'object') {
 					n = (
@@ -139,6 +139,7 @@ export function generateFragments(text: string): React.ReactNode[] {
 					n = emoji || w
 				}
 				break
+			}
 		}
 		const last = fragments[fragments.length - 1]
 		if (typeof n == 'string' && typeof last == 'string') {

@@ -19,7 +19,7 @@ import { useLibTranslation } from '../../i18n.js'
 
 import { LuX as IcClear } from 'react-icons/lu'
 
-import { Profile } from '@cloudillo/types'
+import type { Profile } from '@cloudillo/types'
 
 import { Select } from '../Select/index.js'
 import { ProfileCard } from '../Profile/index.js'

@@ -33,7 +33,7 @@ import * as T from '@symbion/runtype'
 
 import {
 	NewAction,
-	ActionView,
+	type ActionView,
 	tActionView,
 	tConnectAction,
 	tFileShareAction

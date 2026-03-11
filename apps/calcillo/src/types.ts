@@ -16,7 +16,7 @@
 
 import * as React from 'react'
 
-export interface PrelloElement {}
+export type PrelloElement = {}
 
 export interface PrelloElementState {
 	bbox: { x: number; y: number; width: number; height: number }

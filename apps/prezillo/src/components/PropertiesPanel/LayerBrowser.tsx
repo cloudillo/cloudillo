@@ -15,9 +15,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 import { useY } from 'react-yjs'
-import { TreeView, TreeItem, TreeItemDragData } from '@cloudillo/react'
+import { TreeView, TreeItem, type TreeItemDragData } from '@cloudillo/react'
 import {
 	PiRectangleBold as IcRect,
 	PiCircleBold as IcEllipse,

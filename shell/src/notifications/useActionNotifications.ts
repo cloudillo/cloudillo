@@ -17,11 +17,11 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useToast } from '@cloudillo/react'
-import { ActionView } from '@cloudillo/types'
+import type { ActionView } from '@cloudillo/types'
 
 import { useWsBus } from '../ws-bus.js'
 import { NOTIFICATION_SOUNDS } from './sounds.js'
-import { useLocalNotifySettings, LocalNotifySettings } from './useLocalNotifySettings.js'
+import { useLocalNotifySettings, type LocalNotifySettings } from './useLocalNotifySettings.js'
 
 // Map action types to setting keys
 const ACTION_TYPE_MAP: Record<string, keyof LocalNotifySettings> = {

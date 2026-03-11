@@ -29,7 +29,7 @@ import { RichTextDisplay } from '@cloudillo/canvas-text'
 import type { BaseTextStyle } from '@cloudillo/canvas-text'
 import { SvgDocumentEmbed } from '@cloudillo/react'
 import type { PrezilloObject, ResolvedTextStyle, YPrezilloDocument } from '../crdt'
-import { resolveShapeStyle, resolveTextStyle } from '../crdt'
+import type { resolveShapeStyle, resolveTextStyle } from '../crdt'
 import { calculateRotationTransformFromBounds, buildStrokeProps, buildFillProps } from '../utils'
 import { getBulletIcon, migrateBullet } from '../data/bullet-icons'
 import { ImageRenderer } from './ImageRenderer'
@@ -412,7 +412,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 				</g>
 			)
 
-		case 'line':
+		case 'line': {
 			const points = object.points || [
 				[0, height / 2],
 				[width, height / 2]
@@ -433,8 +433,9 @@ export const ObjectShape = React.memo(function ObjectShape({
 					{hiddenIndicator}
 				</g>
 			)
+		}
 
-		case 'text':
+		case 'text': {
 			const yText = doc.rt.get(object.id)
 			const textContent = object.text || ''
 			const isEmpty = !yText || (yText.length === 0 && textContent.trim() === '')
@@ -488,6 +489,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 					{hiddenIndicator}
 				</g>
 			)
+		}
 
 		case 'image':
 			return (

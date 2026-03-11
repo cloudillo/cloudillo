@@ -204,7 +204,6 @@ export function calculateTextLayout(
 		case 'bottom':
 			yOffset = bounds.height - totalHeight
 			break
-		case 'top':
 		default:
 			yOffset = 0
 	}
@@ -218,7 +217,6 @@ export function calculateTextLayout(
 		case 'right':
 			xBase = bounds.x + bounds.width
 			break
-		case 'left':
 		default:
 			xBase = bounds.x + bulletIndent
 	}

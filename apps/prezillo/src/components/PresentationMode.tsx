@@ -137,7 +137,7 @@ function PresentationObjectShape({
 	let content: React.ReactNode
 
 	switch (object.type) {
-		case 'rect':
+		case 'rect': {
 			const rectObj = object as any
 			content = (
 				<rect
@@ -151,6 +151,7 @@ function PresentationObjectShape({
 				/>
 			)
 			break
+		}
 		case 'ellipse':
 			content = (
 				<ellipse
@@ -163,7 +164,7 @@ function PresentationObjectShape({
 				/>
 			)
 			break
-		case 'line':
+		case 'line': {
 			const lineObj = object as any
 			const [start, end] = lineObj.points || [
 				[0, object.height / 2],
@@ -179,7 +180,8 @@ function PresentationObjectShape({
 				/>
 			)
 			break
-		case 'text':
+		}
+		case 'text': {
 			const yText = doc.rt.get(object.id)
 			const presTextContent = (object as any).text || ''
 			// In presentation mode, don't show empty text objects
@@ -225,6 +227,7 @@ function PresentationObjectShape({
 				return null
 			}
 			break
+		}
 		case 'image':
 			content = (
 				<ImageRenderer

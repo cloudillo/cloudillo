@@ -733,7 +733,7 @@ export function fitBezierPath(
 	const corners = detectBezierCorners(timedPoints, metrics, intent)
 
 	// Fit bezier curves
-	let segments = fitBezierCurves(timedPoints, metrics, intent, corners)
+	const segments = fitBezierCurves(timedPoints, metrics, intent, corners)
 
 	// Check for auto-close
 	const closed = shouldAutoClose(points, bounds)

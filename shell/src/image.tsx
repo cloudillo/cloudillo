@@ -16,7 +16,7 @@
 
 import React from 'react'
 import { useTranslation, Trans } from 'react-i18next'
-import ReactCrop, { Crop } from 'react-image-crop'
+import ReactCrop, { type Crop } from 'react-image-crop'
 
 import { LuSquareDashed as IcBoxSelect, LuCircleDashed as IcCircleSelect } from 'react-icons/lu'
 

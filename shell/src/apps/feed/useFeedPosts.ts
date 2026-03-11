@@ -79,7 +79,7 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 		const action = msg.data as ActionView
 
 		switch (action.type) {
-			case 'POST':
+			case 'POST': {
 				// Check if post already exists in the feed
 				const existsInFeed = posts.some((p) => p.actionId === action.actionId)
 				const existsInNewPosts = newPosts.some((p) => p.actionId === action.actionId)
@@ -89,6 +89,7 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 					setNewPosts((prev) => [action, ...prev])
 				}
 				break
+			}
 			case 'STAT':
 				// Stats updates are handled by setAction in FeedApp
 				break

@@ -26,7 +26,7 @@
  */
 
 import * as React from 'react'
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 import { getAppBus } from '@cloudillo/core'
 
 import type { YPrezilloDocument, ObjectId, DocumentObject } from '../crdt/index.js'

@@ -40,7 +40,7 @@
  * - tpl = templateId (view's template reference)
  */
 
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 
 // Child reference: [type, id] where 0=object, 1=container
 export type ChildRef = [0 | 1, string]

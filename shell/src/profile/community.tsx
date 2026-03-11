@@ -27,9 +27,9 @@ import {
 	LuInfo as IcInfo
 } from 'react-icons/lu'
 
-import { ActionView } from '@cloudillo/types'
+import type { ActionView } from '@cloudillo/types'
 import { useAuth, useApi, Button, ProfilePicture, ProfileCard, TimeFormat } from '@cloudillo/react'
-import * as Types from '@cloudillo/core'
+import type * as Types from '@cloudillo/core'
 
 import { useCommunitiesList, useContextSwitch } from '../context/index.js'
 import { CloudilloLogo } from '../logo.js'
@@ -41,7 +41,7 @@ import {
 	AppDomainInput,
 	AppDomainErrorPanel,
 	DnsInstructions,
-	IdTagError
+	type IdTagError
 } from './shared.js'
 
 // Extended local type that includes 'network' error (not returned by API, but used for local error handling)

@@ -19,7 +19,7 @@
  */
 
 import * as React from 'react'
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 import { PropertySection, PropertyField, NumberInput } from '@cloudillo/react'
 
 import type { YPrezilloDocument, TableGridObject, ObjectId } from '../../crdt'

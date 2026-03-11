@@ -22,7 +22,7 @@ import { LuTrash2 as IcDelete, LuPlus as IcAdd } from 'react-icons/lu'
 import { useApi, useAuth } from '@cloudillo/react'
 
 // Domain validation regex
-const DOMAIN_REGEX = /^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}$/i
+const DOMAIN_REGEX = /^[a-z0-9]+([-.]{1}[a-z0-9]+)*\.[a-z]{2,}$/i
 
 export function SuggestedProvidersSettings() {
 	const { t } = useTranslation()

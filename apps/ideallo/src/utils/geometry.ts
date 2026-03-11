@@ -54,7 +54,7 @@ export function perpendicularDistance(point: Point, lineStart: Point, lineEnd: P
 	const projX = lineStart[0] + t * dx
 	const projY = lineStart[1] + t * dy
 
-	return Math.sqrt(Math.pow(point[0] - projX, 2) + Math.pow(point[1] - projY, 2))
+	return Math.sqrt((point[0] - projX) ** 2 + (point[1] - projY) ** 2)
 }
 
 /**
@@ -214,7 +214,7 @@ export function standardDeviation(values: number[]): number {
 	if (values.length === 0) return 0
 
 	const avg = mean(values)
-	const squaredDiffs = values.map((v) => Math.pow(v - avg, 2))
+	const squaredDiffs = values.map((v) => (v - avg) ** 2)
 	return Math.sqrt(mean(squaredDiffs))
 }
 

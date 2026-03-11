@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as T from '@symbion/runtype'
-import { apiFetchHelper, ApiFetchResult } from './api.js'
+import { apiFetchHelper, type ApiFetchResult } from './api.js'
 import * as Types from './api-types.js'
 import { getInstanceUrl } from './urls.js'
 

@@ -21,7 +21,7 @@
 
 import * as React from 'react'
 import type { Awareness } from 'y-protocols/awareness'
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 
 import type {
 	YIdealloDocument,

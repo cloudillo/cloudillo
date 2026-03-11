@@ -19,7 +19,7 @@
  */
 
 import * as React from 'react'
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 import { PropertySection, PropertyField, Input, ColorInput } from '@cloudillo/react'
 
 import type {

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// @ts-ignore - jscanify is UMD without type declarations
+// @ts-expect-error - jscanify is UMD without type declarations
 import jscanify from 'jscanify/client'
 
 import type { CropPoints, PageFilter } from '../types.js'
@@ -209,7 +209,7 @@ async function applyDocumentFilter(
 		for (let i = 0; i < lData.length; i++) {
 			const v = lData[i]
 			const stretched = Math.max(0, Math.min(1, (v - pLo) / range))
-			let val = Math.round(255 * Math.pow(stretched, gamma))
+			let val = Math.round(255 * stretched ** gamma)
 			if (val >= clipThreshold) val = 255
 			lData[i] = val
 		}

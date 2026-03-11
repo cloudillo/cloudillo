@@ -18,9 +18,9 @@ import * as React from 'react'
 import { useLocation } from 'react-router-dom'
 import { atom, useAtom } from 'jotai'
 import * as Y from 'yjs'
-import { WebsocketProvider } from 'y-websocket'
+import type { WebsocketProvider } from 'y-websocket'
 
-import { getAppBus, createApiClient, ApiClient } from '@cloudillo/core'
+import { getAppBus, createApiClient, type ApiClient } from '@cloudillo/core'
 import { openYDoc } from '@cloudillo/crdt'
 
 // useAuth() //

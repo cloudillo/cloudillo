@@ -90,16 +90,18 @@ export const Menu = createComponent<HTMLDivElement, MenuProps>(
 			const currentIndex = items.findIndex((item) => item === document.activeElement)
 
 			switch (evt.key) {
-				case 'ArrowDown':
+				case 'ArrowDown': {
 					evt.preventDefault()
 					const nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0
 					items[nextIndex]?.focus()
 					break
-				case 'ArrowUp':
+				}
+				case 'ArrowUp': {
 					evt.preventDefault()
 					const prevIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1
 					items[prevIndex]?.focus()
 					break
+				}
 				case 'Home':
 					evt.preventDefault()
 					items[0]?.focus()

@@ -16,7 +16,7 @@
 
 import * as React from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { useEditable, Position } from 'use-editable'
+import { useEditable, type Position } from 'use-editable'
 import dayjs from 'dayjs'
 import { useTranslation } from 'react-i18next'
 import debounce from 'debounce'
@@ -54,7 +54,7 @@ import {
 	LuFileText as IcDocument
 } from 'react-icons/lu'
 
-import { NewAction, ActionView } from '@cloudillo/types'
+import type { NewAction, ActionView } from '@cloudillo/types'
 import { getFileUrl, getOptimalImageVariant, getOptimalVideoVariant } from '@cloudillo/core'
 import {
 	useAuth,
@@ -177,8 +177,7 @@ export function Images({ width, attachments, idTag }: ImagesProps) {
 			)
 			break
 		}
-		default:
-		case 3: {
+		default: {
 			// Adding the reciprocals of the aspect ratios of img2 and img3
 			const aspect23 =
 				1 /
@@ -1168,8 +1167,8 @@ export function FeedApp() {
 					const styles = getComputedStyle(panel)
 					const w =
 						panel.clientWidth -
-						parseInt(styles.paddingLeft || '0') -
-						parseInt(styles.paddingRight || '0')
+						parseInt(styles.paddingLeft || '0', 10) -
+						parseInt(styles.paddingRight || '0', 10)
 					if (w > 0 && width !== w) setWidth(w)
 				} else {
 					// Fallback: use container width

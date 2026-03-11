@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { Profile } from '@cloudillo/types'
+import type { Profile } from '@cloudillo/types'
 import { useAuth } from '../../hooks.js'
 import { mergeClasses } from '../utils.js'
 import { UnknownProfilePicture } from './UnknownProfilePicture.js'

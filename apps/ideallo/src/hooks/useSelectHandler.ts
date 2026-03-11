@@ -22,7 +22,7 @@
  */
 
 import * as React from 'react'
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 import type { Awareness } from 'y-protocols/awareness'
 import {
 	findStackedObjects,

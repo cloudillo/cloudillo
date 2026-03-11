@@ -16,12 +16,12 @@
 
 import * as T from '@symbion/runtype'
 import {
-	ClientMessage,
-	ServerMessage,
+	type ClientMessage,
+	type ServerMessage,
 	tServerMessage,
-	ChangeEvent,
-	AggregateOptions,
-	RtdbClientOptions
+	type ChangeEvent,
+	type AggregateOptions,
+	type RtdbClientOptions
 } from './types.js'
 import { ConnectionError, AuthError, ValidationError, TimeoutError, RtdbError } from './errors.js'
 
@@ -462,7 +462,7 @@ export class WebSocketManager {
 		if (!this.options.reconnect) return
 
 		const delay = Math.min(
-			this.options.reconnectDelay * Math.pow(2, this.reconnectAttempts),
+			this.options.reconnectDelay * 2 ** this.reconnectAttempts,
 			this.options.maxReconnectDelay
 		)
 

@@ -538,7 +538,7 @@ describe('YDoc Helpers', () => {
 			}
 
 			// Get row cells
-			let cells = getRowCells(sheet, 2)
+			const cells = getRowCells(sheet, 2)
 			expect(cells).toHaveLength(5)
 
 			// Delete middle column

@@ -22,7 +22,7 @@
  */
 
 import * as React from 'react'
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 import type Quill from 'quill'
 import type { TextObject } from '../crdt/index.js'
 import { colorToCss } from '../utils/palette.js'

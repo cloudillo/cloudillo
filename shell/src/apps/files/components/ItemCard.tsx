@@ -30,7 +30,7 @@ import {
 
 import { useAuth, InlineEditForm, Tag, ProfilePicture, mergeClasses } from '@cloudillo/react'
 
-import { getFileIcon, IcUnknown } from '../icons.js'
+import { getFileIcon, type IcUnknown } from '../icons.js'
 import type { File, FileOps, ViewMode } from '../types.js'
 import { TRASH_FOLDER_ID } from '../types.js'
 import {

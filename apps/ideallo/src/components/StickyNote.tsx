@@ -24,7 +24,7 @@
 
 import * as React from 'react'
 import { useMemo } from 'react'
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 import type { StickyObject } from '../crdt/index.js'
 import { DEFAULT_PADDING, DEFAULT_LINE_HEIGHT } from '../utils/text-scaling.js'
 import { colorToCss } from '../utils/palette.js'

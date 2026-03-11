@@ -22,9 +22,9 @@ import * as T from '@symbion/runtype'
 
 import {
 	PROTOCOL_VERSION,
-	MessageDirection,
-	MessageType,
-	CloudilloMessage,
+	type MessageDirection,
+	type MessageType,
+	type CloudilloMessage,
 	tAuthInitReq,
 	tAuthInitRes,
 	tAuthInitPush,

@@ -19,7 +19,7 @@
  */
 
 import * as React from 'react'
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 
 import type { YPrezilloDocument, ObjectId, PropertyGroup } from '../crdt'
 import { isInstance, isPropertyGroupLocked, unlockPropertyGroup, resetPropertyGroup } from '../crdt'

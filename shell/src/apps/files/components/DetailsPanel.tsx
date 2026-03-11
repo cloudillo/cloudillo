@@ -31,8 +31,8 @@ import {
 	LuChevronDown as IcChevronDown
 } from 'react-icons/lu'
 
-import { ActionView, NewAction } from '@cloudillo/types'
-import * as Types from '@cloudillo/core'
+import type { ActionView, NewAction } from '@cloudillo/types'
+import type * as Types from '@cloudillo/core'
 import { getFileUrl } from '@cloudillo/core'
 import {
 	useAuth,

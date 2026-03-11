@@ -78,7 +78,7 @@ export const AngleControl = createComponent<HTMLDivElement, AngleControlProps>(
 		const handleInputChange = React.useCallback(
 			(e: React.ChangeEvent<HTMLInputElement>) => {
 				const newValue = parseInt(e.target.value, 10)
-				if (!isNaN(newValue)) {
+				if (!Number.isNaN(newValue)) {
 					// Normalize to 0-360
 					const normalized = ((newValue % 360) + 360) % 360
 					onChange(normalized)

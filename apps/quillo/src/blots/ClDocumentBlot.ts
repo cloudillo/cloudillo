@@ -46,7 +46,7 @@ class ClDocumentBlot extends BlockEmbed {
 	static sourceFileId: string | undefined
 
 	static create(value: ClDocumentValue): HTMLElement {
-		const node = super.create() as HTMLElement
+		const node = BlockEmbed.create() as HTMLElement
 
 		// Bridge setAttribute to inline styles for resize support.
 		// quill-blot-formatter2's ResizeAction calls setAttribute("width", "400px")

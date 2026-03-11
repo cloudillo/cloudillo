@@ -68,7 +68,7 @@ export function RemotePresenceOverlay({
 							/>
 						)
 						break
-					case 'line':
+					case 'line': {
 						const points = obj.points || [
 							[0, height / 2],
 							[width, height / 2]
@@ -85,6 +85,7 @@ export function RemotePresenceOverlay({
 							/>
 						)
 						break
+					}
 					case 'text':
 						ghostShape = (
 							<text

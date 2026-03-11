@@ -175,7 +175,6 @@ export function calculateRichTextLayout(
 		case 'bottom':
 			yOffset = bounds.height - totalHeight
 			break
-		case 'top':
 		default:
 			yOffset = 0
 	}
@@ -216,7 +215,6 @@ export function calculateRichTextLayout(
 			case 'right':
 				xStart = bounds.x + indent + effectiveWidth - lineWidth
 				break
-			case 'left':
 			default:
 				xStart = bounds.x + indent
 		}

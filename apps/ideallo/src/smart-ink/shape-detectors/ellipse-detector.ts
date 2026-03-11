@@ -276,7 +276,7 @@ function getExpectedRadius(
 	const b = ellipse.radiusY
 
 	// r = ab / sqrt((b*cos)^2 + (a*sin)^2)
-	return (a * b) / Math.sqrt(Math.pow(b * cos, 2) + Math.pow(a * sin, 2))
+	return (a * b) / Math.sqrt((b * cos) ** 2 + (a * sin) ** 2)
 }
 
 /**

@@ -19,7 +19,7 @@
  */
 
 import * as React from 'react'
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 import { mergeClasses } from '../utils'
 import type { YPrezilloDocument } from '../crdt'
 import { ThemeDropdown } from './ThemeDropdown'

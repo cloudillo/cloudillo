@@ -30,7 +30,7 @@ const bgLightBase64 = bgLight.toString('base64')
 const bgDarkBase64 = bgDark.toString('base64')
 
 // Replace image URLs with data URLs
-let glassProcessed = glassCSS
+const glassProcessed = glassCSS
 	.replace('url(bg.jpg)', `url(data:image/jpeg;base64,${bgLightBase64})`)
 	.replace('url(bg-dark.jpg)', `url(data:image/jpeg;base64,${bgDarkBase64})`)
 

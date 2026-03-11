@@ -23,7 +23,8 @@
  * - Internal shell components via useMediaPicker hook
  */
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAtom, useSetAtom } from 'jotai'
 import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'

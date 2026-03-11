@@ -99,7 +99,7 @@ export function FontPicker({
 
 	// Get filtered fonts
 	const fonts = React.useMemo(() => {
-		let filtered = role ? getFontsByRole(role) : FONTS
+		const filtered = role ? getFontsByRole(role) : FONTS
 		return filtered
 	}, [role])
 

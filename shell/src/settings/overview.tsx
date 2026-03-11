@@ -37,7 +37,7 @@ import {
 import { useAuth, useApi, useDialog, Button } from '@cloudillo/react'
 import type { WebAuthnCredential, ApiKeyListItem } from '@cloudillo/core'
 
-import { UsePWA, resetAppCache } from '../pwa.js'
+import { type UsePWA, resetAppCache } from '../pwa.js'
 import { subscribeNotifications } from './notifications.js'
 
 interface SettingsOverviewProps {

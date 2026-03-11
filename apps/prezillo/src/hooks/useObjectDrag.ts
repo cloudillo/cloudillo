@@ -237,7 +237,7 @@ export function useObjectDrag({
 			}
 
 			// Calculate stacked objects (unless Alt key is held to bypass)
-			let stackedObjects: StackedObjectInfo[] = []
+			const stackedObjects: StackedObjectInfo[] = []
 			if (!e.altKey) {
 				const stackedIds = getStackedObjects(prezillo.doc, objectId)
 				for (const id of stackedIds) {

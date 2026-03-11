@@ -13,7 +13,7 @@ const isDevelopment = (() => {
 	// In production builds, this will be replaced by bundlers
 	// For esbuild: define: { 'process.env.NODE_ENV': '"production"' }
 	try {
-		// @ts-ignore - process.env is available at build time
+		// @ts-expect-error - process.env is available at build time
 		return typeof process !== 'undefined' && process.env?.NODE_ENV === 'development'
 	} catch {
 		return false

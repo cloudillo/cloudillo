@@ -32,7 +32,7 @@ import {
 
 import { PdfViewer } from './PdfViewer.js'
 
-import { getFileUrl, FileView } from '@cloudillo/core'
+import { getFileUrl, type FileView } from '@cloudillo/core'
 import { useApi, useAuth, LoadingSpinner, Button, mergeClasses } from '@cloudillo/react'
 
 import './viewer.css'

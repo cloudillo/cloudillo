@@ -28,7 +28,7 @@ import {
 import { useAuth, InlineEditForm, mergeClasses } from '@cloudillo/react'
 import { getFileUrl } from '@cloudillo/core'
 
-import { getFileIcon, IcUnknown } from '../icons.js'
+import { getFileIcon, type IcUnknown } from '../icons.js'
 import type { File, FileOps, ViewMode } from '../types.js'
 import { TRASH_FOLDER_ID } from '../types.js'
 import { getSmartTimestamp, getVisibilityIcon, getVisibilityLabelKey } from '../utils.js'

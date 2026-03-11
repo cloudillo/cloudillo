@@ -34,7 +34,7 @@ import {
 	ProfileCard,
 	mergeClasses
 } from '@cloudillo/react'
-import { NewAction, ActionView, CommunityRole, ROLE_LEVELS } from '@cloudillo/types'
+import { type NewAction, type ActionView, type CommunityRole, ROLE_LEVELS } from '@cloudillo/types'
 import { getInstanceUrl, getFileUrl } from '@cloudillo/core'
 
 import {
@@ -60,8 +60,8 @@ import { useAuth, useApi, IdentityTag } from '@cloudillo/react'
 import { useWsBus } from '../ws-bus.js'
 import { parseQS } from '../utils.js'
 import { ImageUpload } from '../image.js'
-import { ActionEvt, ActionComp, NewPost } from '../apps/feed.js'
-import { Profile } from '@cloudillo/types'
+import { type ActionEvt, ActionComp, NewPost } from '../apps/feed.js'
+import type { Profile } from '@cloudillo/types'
 import { ProfileListCard, PersonListPage, CommunityListPage } from './identities.js'
 import { CreateCommunity } from './community.js'
 import { activeContextAtom, useApiContext, useCommunitiesList } from '../context/index.js'
@@ -334,7 +334,7 @@ export function ProfilePage({
 		if (!auth) return
 
 		// For community profiles, use proxy token and community's idTag
-		let targetIdTag = profile.idTag
+		const targetIdTag = profile.idTag
 		let token = auth.token
 
 		if (isCommunity && getTokenFor) {
@@ -386,7 +386,7 @@ export function ProfilePage({
 		if (!auth) return
 
 		// For community profiles, use proxy token and community's idTag
-		let targetIdTag = profile.idTag
+		const targetIdTag = profile.idTag
 		let token = auth.token
 
 		if (isCommunity && getTokenFor) {
@@ -642,11 +642,12 @@ function ProfileAbout({ profile, updateProfile }: ProfileTabProps) {
 		//console.log('update', field, value)
 
 		switch (field) {
-			case 'intro':
+			case 'intro': {
 				const td = new Turndown()
 				const introMD = td.turndown(value)
 				await updateProfile({ x: { intro: introMD } })
 				setIntro(undefined)
+			}
 		}
 	}
 
@@ -743,8 +744,8 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 				const styles = getComputedStyle(ref.current)
 				const w =
 					(ref.current?.clientWidth || 0) -
-					parseInt(styles.paddingLeft || '0') -
-					parseInt(styles.paddingRight || '0')
+					parseInt(styles.paddingLeft || '0', 10) -
+					parseInt(styles.paddingRight || '0', 10)
 				if (width != w) setWidth(w)
 			}
 

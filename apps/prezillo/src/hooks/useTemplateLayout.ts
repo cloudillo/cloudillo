@@ -84,7 +84,7 @@ export function useTemplateLayout(
 		}
 
 		// Default to origin if no views
-		if (!isFinite(topViewY)) {
+		if (!Number.isFinite(topViewY)) {
 			topViewY = 0
 			leftmostViewX = 0
 			rightmostViewX = 1920

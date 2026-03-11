@@ -113,7 +113,7 @@ function parseGoogleFontsCss(css) {
 
 		if (familyMatch && urlMatch) {
 			const style = styleMatch ? styleMatch[1] : 'normal'
-			const weight = weightMatch ? parseInt(weightMatch[1]) : 400
+			const weight = weightMatch ? parseInt(weightMatch[1], 10) : 400
 			const key = `${weight}-${style}`
 			const isLatin = rangeMatch && rangeMatch[1].includes('U+0000')
 

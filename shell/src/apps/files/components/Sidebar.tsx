@@ -34,7 +34,7 @@ import {
 import { useAuth, useDialog, Button, Popper, mergeClasses } from '@cloudillo/react'
 import type { TagInfo } from '@cloudillo/core'
 import { useContextAwareApi } from '../../../context/index.js'
-import { fileIcons, IcUnknown } from '../icons.js'
+import { fileIcons, type IcUnknown } from '../icons.js'
 import type { ViewMode } from '../types.js'
 
 interface SidebarProps {

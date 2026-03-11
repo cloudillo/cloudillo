@@ -477,7 +477,7 @@ export function expandObject(id: string, stored: Stored.StoredObject): Runtime.P
 			} as Runtime.DocumentObject
 		}
 
-		case 'C':
+		case 'C': {
 			const conn = stored as Stored.StoredConnector
 			return {
 				...base,
@@ -491,8 +491,9 @@ export function expandObject(id: string, stored: Stored.StoredObject): Runtime.P
 				startArrow: expandArrowStyle(conn.sar),
 				endArrow: expandArrowStyle(conn.ear)
 			} as Runtime.ConnectorObject
+		}
 
-		case 'Q':
+		case 'Q': {
 			const qr = stored as Stored.StoredQrCode
 			return {
 				...base,
@@ -502,8 +503,9 @@ export function expandObject(id: string, stored: Stored.StoredObject): Runtime.P
 				foreground: qr.fg ?? '#000000',
 				background: qr.bg ?? '#ffffff'
 			} as Runtime.QrCodeObject
+		}
 
-		case 'F':
+		case 'F': {
 			const pf = stored as Stored.StoredPollFrame
 			return {
 				...base,
@@ -511,8 +513,9 @@ export function expandObject(id: string, stored: Stored.StoredObject): Runtime.P
 				shape: pf.sh ? POLL_SHAPE_MAP[pf.sh] : 'rect',
 				label: pf.lb
 			} as Runtime.PollFrameObject
+		}
 
-		case 'Tg':
+		case 'Tg': {
 			const tg = stored as Stored.StoredTableGrid
 			return {
 				...base,
@@ -522,22 +525,25 @@ export function expandObject(id: string, stored: Stored.StoredObject): Runtime.P
 				columnWidths: tg.cw,
 				rowHeights: tg.rh
 			} as Runtime.TableGridObject
+		}
 
-		case 'S':
+		case 'S': {
 			const sym = stored as Stored.StoredSymbol
 			return {
 				...base,
 				type: 'symbol',
 				symbolId: sym.sid
 			} as Runtime.SymbolObject
+		}
 
-		case 'V':
+		case 'V': {
 			const sv = stored as Stored.StoredStateVar
 			return {
 				...base,
 				type: 'statevar',
 				varType: STATE_VAR_MAP[sv.var] || 'users'
 			} as Runtime.StateVarObject
+		}
 
 		default:
 			throw new Error(`Unknown object type: ${(stored as any).t}`)
@@ -571,13 +577,14 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 	if (runtime.textStyle) base.ts = compactTextStyle(runtime.textStyle)
 
 	switch (runtime.type) {
-		case 'rect':
+		case 'rect': {
 			const rect = runtime as Runtime.RectObject
 			return {
 				...base,
 				t: 'R',
 				cr: rect.cornerRadius
 			} as Stored.StoredRect
+		}
 
 		case 'ellipse':
 			return {
@@ -585,7 +592,7 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 				t: 'E'
 			} as Stored.StoredEllipse
 
-		case 'line':
+		case 'line': {
 			const line = runtime as Runtime.LineObject
 			return {
 				...base,
@@ -594,6 +601,7 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 				sa: compactArrowStyle(line.startArrow),
 				ea: compactArrowStyle(line.endArrow)
 			} as Stored.StoredLine
+		}
 
 		case 'path':
 			return {
@@ -602,7 +610,7 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 				d: (runtime as Runtime.PathObject).pathData
 			} as Stored.StoredPath
 
-		case 'polygon':
+		case 'polygon': {
 			const poly = runtime as Runtime.PolygonObject
 			return {
 				...base,
@@ -610,8 +618,9 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 				pts: poly.points,
 				cl: poly.closed
 			} as Stored.StoredPolygon
+		}
 
-		case 'text':
+		case 'text': {
 			const textObj = runtime as Runtime.TextObject
 			return {
 				...base,
@@ -620,16 +629,18 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 				tx: textObj.text || undefined,
 				mh: textObj.minHeight
 			} as Stored.StoredText
+		}
 
-		case 'image':
+		case 'image': {
 			const img = runtime as Runtime.ImageObject
 			return {
 				...base,
 				t: 'I',
 				fid: img.fileId
 			} as Stored.StoredImage
+		}
 
-		case 'embed':
+		case 'embed': {
 			const embed = runtime as Runtime.EmbedObject
 			return {
 				...base,
@@ -637,6 +648,7 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 				mt: embed.embedType,
 				src: embed.src
 			} as Stored.StoredEmbed
+		}
 
 		case 'document': {
 			const docEmbed2 = runtime as Runtime.DocumentObject
@@ -651,7 +663,7 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 			} as Stored.StoredDocEmbed
 		}
 
-		case 'connector':
+		case 'connector': {
 			const conn = runtime as Runtime.ConnectorObject
 			return {
 				...base,
@@ -665,8 +677,9 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 				sar: compactArrowStyle(conn.startArrow),
 				ear: compactArrowStyle(conn.endArrow)
 			} as Stored.StoredConnector
+		}
 
-		case 'qrcode':
+		case 'qrcode': {
 			const qrObj = runtime as Runtime.QrCodeObject
 			return {
 				...base,
@@ -685,8 +698,9 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 						? qrObj.background
 						: undefined
 			} as Stored.StoredQrCode
+		}
 
-		case 'pollframe':
+		case 'pollframe': {
 			const pfObj = runtime as Runtime.PollFrameObject
 			return {
 				...base,
@@ -697,8 +711,9 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 						: undefined,
 				lb: pfObj.label || undefined
 			} as Stored.StoredPollFrame
+		}
 
-		case 'tablegrid':
+		case 'tablegrid': {
 			const tgObj = runtime as Runtime.TableGridObject
 			return {
 				...base,
@@ -708,22 +723,25 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 				cw: tgObj.columnWidths,
 				rh: tgObj.rowHeights
 			} as Stored.StoredTableGrid
+		}
 
-		case 'symbol':
+		case 'symbol': {
 			const symObj = runtime as Runtime.SymbolObject
 			return {
 				...base,
 				t: 'S',
 				sid: symObj.symbolId
 			} as Stored.StoredSymbol
+		}
 
-		case 'statevar':
+		case 'statevar': {
 			const svObj = runtime as Runtime.StateVarObject
 			return {
 				...base,
 				t: 'V',
 				var: STATE_VAR_REVERSE[svObj.varType] || 'u'
 			} as Stored.StoredStateVar
+		}
 
 		default:
 			throw new Error(`Unknown object type: ${(runtime as any).type}`)

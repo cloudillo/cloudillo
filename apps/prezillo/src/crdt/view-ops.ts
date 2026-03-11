@@ -18,7 +18,7 @@
  * View (page/slide) CRUD operations
  */
 
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 import type { YPrezilloDocument, StoredView, StoredBackgroundGradient } from './stored-types'
 import type { ViewId, TemplateId, ObjectId } from './ids'
 import { generateViewId, toViewId, toTemplateId, toObjectId } from './ids'

@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { WebSocketManager } from './websocket.js'
+import type { WebSocketManager } from './websocket.js'
 import { DocumentReference } from './document.js'
 import { Query } from './query.js'
-import { AggregateQuery } from './aggregate-query.js'
-import {
+import type { AggregateQuery } from './aggregate-query.js'
+import type {
 	WhereFilterOp,
 	QuerySnapshot,
 	SnapshotOptions,

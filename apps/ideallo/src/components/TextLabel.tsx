@@ -19,7 +19,7 @@
  */
 
 import * as React from 'react'
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 import type { TextObject } from '../crdt/index.js'
 import { colorToCss } from '../utils/palette.js'
 import { RichTextDisplay } from '@cloudillo/canvas-text'

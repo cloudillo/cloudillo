@@ -27,7 +27,7 @@ import {
 } from 'react-icons/lu'
 
 import { useAuth, useApi, useDebouncedValue, Button } from '@cloudillo/react'
-import * as Types from '@cloudillo/core'
+import type * as Types from '@cloudillo/core'
 import { FetchError } from '@cloudillo/core'
 
 import { CloudilloLogo } from '../logo.js'
@@ -39,7 +39,7 @@ import {
 	AppDomainInput,
 	AppDomainErrorPanel,
 	DnsInstructions,
-	IdTagError
+	type IdTagError
 } from './shared.js'
 
 // Extended local type that includes 'network' error (not returned by API, but used for local error handling)

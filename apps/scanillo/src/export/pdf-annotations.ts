@@ -14,7 +14,14 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { PDFContext, PDFName, PDFNumber, PDFRef, PDFOperator, PDFOperatorNames } from 'pdf-lib'
+import {
+	type PDFContext,
+	PDFName,
+	PDFNumber,
+	type PDFRef,
+	PDFOperator,
+	PDFOperatorNames
+} from 'pdf-lib'
 import type { PDFPage } from 'pdf-lib'
 
 import type { Annotation, FreehandAnnotation, RectAnnotation } from '../types.js'

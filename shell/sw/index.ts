@@ -346,7 +346,7 @@ function onInstall(evt: any) {
 	evt.waitUntil(
 		(async function () {
 			console.log(`[SW] INSTALL v${VERSION}, cache: ${CACHE}`)
-			let cache = await caches.open(CACHE)
+			const cache = await caches.open(CACHE)
 			await cache.addAll(PRECACHE_URLS)
 			;(self as any).skipWaiting()
 		})()
@@ -670,7 +670,7 @@ function onNotificationClick(evt: any) {
 			})
 			.then(function (clientList: any) {
 				for (let i = 0; i < clientList.length; i++) {
-					let client = clientList[i]
+					const client = clientList[i]
 					//if (client.url == '/' && 'focus' in client) {
 					if ('focus' in client) {
 						console.log('CLIENT', client)

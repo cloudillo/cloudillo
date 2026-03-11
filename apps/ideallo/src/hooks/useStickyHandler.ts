@@ -23,7 +23,7 @@
  */
 
 import * as React from 'react'
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 
 import type { YIdealloDocument, ObjectId, StickyObject, NewStickyInput } from '../crdt/index.js'
 import { addObject, getObjectYText, DEFAULT_STYLE } from '../crdt/index.js'

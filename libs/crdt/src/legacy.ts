@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 
 import { getCrdtUrl } from '@cloudillo/core'

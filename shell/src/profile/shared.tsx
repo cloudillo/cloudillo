@@ -27,8 +27,8 @@ import {
 	LuUsers as IcCommunity
 } from 'react-icons/lu'
 
-import { useApi, useDialog, Button } from '@cloudillo/react'
-import * as Types from '@cloudillo/core'
+import { type useApi, useDialog, Button } from '@cloudillo/react'
+import type * as Types from '@cloudillo/core'
 
 import { CloudilloLogo } from '../logo.js'
 

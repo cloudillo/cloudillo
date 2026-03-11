@@ -21,7 +21,8 @@
  * Allows users to upload new files with optional image cropping.
  */
 
-import React, { useState, useRef, useCallback, useEffect } from 'react'
+import React from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {

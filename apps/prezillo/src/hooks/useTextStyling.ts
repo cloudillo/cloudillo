@@ -21,7 +21,7 @@
 import * as React from 'react'
 
 import type { ObjectId } from '../crdt'
-import { updateObjectTextStyle, resolveTextStyle } from '../crdt'
+import { updateObjectTextStyle, type resolveTextStyle } from '../crdt'
 import type { UsePrezilloDocumentResult } from './usePrezilloDocument'
 
 export interface UseTextStylingOptions {

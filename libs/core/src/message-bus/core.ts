@@ -24,7 +24,7 @@
  * - Request-response correlation
  */
 
-import { CloudilloMessage, MessageType, PROTOCOL_VERSION } from './types.js'
+import { type CloudilloMessage, type MessageType, PROTOCOL_VERSION } from './types.js'
 
 // ============================================
 // TYPES

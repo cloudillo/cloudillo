@@ -91,7 +91,7 @@ export const NumberInput = createComponent<HTMLDivElement, NumberInputProps>(
 		const handleChange = React.useCallback(
 			(e: React.ChangeEvent<HTMLInputElement>) => {
 				const newValue = parseFloat(e.target.value)
-				if (!isNaN(newValue)) {
+				if (!Number.isNaN(newValue)) {
 					const clamped = clampValue(newValue)
 					setLocalValue(clamped)
 					onChange?.(clamped)

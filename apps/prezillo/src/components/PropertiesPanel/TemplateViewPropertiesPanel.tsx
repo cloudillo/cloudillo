@@ -20,7 +20,7 @@
  */
 
 import * as React from 'react'
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 import { useY } from 'react-yjs'
 import { PropertySection, PropertyField, ColorInput, NumberInput, Input } from '@cloudillo/react'
 import { GradientPicker } from '@cloudillo/canvas-tools'

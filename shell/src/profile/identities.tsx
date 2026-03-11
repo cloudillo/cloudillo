@@ -34,7 +34,7 @@ import {
 	LuScanLine as IcScan
 } from 'react-icons/lu'
 
-import { Profile } from '@cloudillo/types'
+import type { Profile } from '@cloudillo/types'
 import { useApi, useAuth, Fcd, Button, ProfileCard, mergeClasses } from '@cloudillo/react'
 import { useAppConfig, parseQS, qs } from '../utils.js'
 import { useCommunitiesList } from '../context/index.js'

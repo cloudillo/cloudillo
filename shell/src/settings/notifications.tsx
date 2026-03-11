@@ -18,13 +18,13 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useApi, LoadingSpinner } from '@cloudillo/react'
-import { ApiClient } from '@cloudillo/core'
+import type { ApiClient } from '@cloudillo/core'
 
-import { UsePWA } from '../pwa.js'
+import type { UsePWA } from '../pwa.js'
 import { useSettings } from './settings.js'
 import {
 	useLocalNotifySettings,
-	LocalNotifySettings
+	type LocalNotifySettings
 } from '../notifications/useLocalNotifySettings.js'
 import { NOTIFICATION_SOUNDS, SOUND_LABELS } from '../notifications/sounds.js'
 
@@ -113,7 +113,7 @@ function VolumeSlider({
 					max="100"
 					step="10"
 					value={value}
-					onChange={(e) => updateSetting(settingKey, parseInt(e.target.value))}
+					onChange={(e) => updateSetting(settingKey, parseInt(e.target.value, 10))}
 					style={{ flex: 1 }}
 				/>
 				<span style={{ minWidth: '3em', textAlign: 'right' }}>{value}%</span>

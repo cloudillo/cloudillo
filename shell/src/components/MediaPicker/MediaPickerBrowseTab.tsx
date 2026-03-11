@@ -65,7 +65,6 @@ function getVisibilityIcon(visibility: FileVisibility): React.ReactNode | null {
 			return <IcFollowers size={12} />
 		case 'C':
 			return <IcConnected size={12} />
-		case 'P':
 		default:
 			return null // No badge for public files
 	}

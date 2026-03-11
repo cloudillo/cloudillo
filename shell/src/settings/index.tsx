@@ -29,7 +29,7 @@ import {
 
 import { useAuth, useApi, Fcd, Button, mergeClasses } from '@cloudillo/react'
 
-import { UsePWA } from '../pwa.js'
+import type { UsePWA } from '../pwa.js'
 import { useAppConfig, parseQS, qs } from '../utils.js'
 import { SecuritySettings } from './security.js'
 import { NotificationSettings } from './notifications.js'

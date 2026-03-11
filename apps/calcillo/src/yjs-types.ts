@@ -1,5 +1,5 @@
-import * as Y from 'yjs'
-import { Cell, SheetConfig } from '@fortune-sheet/core'
+import type * as Y from 'yjs'
+import { type Cell, SheetConfig } from '@fortune-sheet/core'
 
 // Branded types for ID safety
 export type RowId = string & { readonly __brand: 'RowId' }

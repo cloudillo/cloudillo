@@ -20,7 +20,7 @@ import { useAuth, useApi, mergeClasses } from '@cloudillo/react'
 
 import { version } from '../../package.json'
 
-import { useAppConfig, TrustLevel } from '../utils.js'
+import { useAppConfig, type TrustLevel } from '../utils.js'
 import { getShellBus } from '../message-bus/shell-bus.js'
 import { onAppReady, onAppError } from '../message-bus/index.js'
 import { releaseClientIdsForWindow } from '../message-bus/handlers/crdt.js'

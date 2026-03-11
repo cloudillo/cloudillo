@@ -20,9 +20,9 @@ declare const __APP_VERSION__: string
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { Sheet as FortuneSheet, SheetConfig, Op } from '@fortune-sheet/core'
-import { Workbook, WorkbookInstance } from '@fortune-sheet/react'
-import * as Y from 'yjs'
+import { type Sheet as FortuneSheet, SheetConfig, type Op } from '@fortune-sheet/core'
+import { Workbook, type WorkbookInstance } from '@fortune-sheet/react'
+import type * as Y from 'yjs'
 import { PiDotsThreeVerticalBold, PiExportBold } from 'react-icons/pi'
 
 import '@symbion/opalui'

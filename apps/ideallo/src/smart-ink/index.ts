@@ -161,7 +161,7 @@ export function processSmartInk(timedPoints: TimedPoint[]): SmartInkResult {
 
 	// Default result (freehand with bezier fitting)
 	const bezierResult = fitBezierPath(timedPoints, metrics, intent)
-	let result: SmartInkResult = {
+	const result: SmartInkResult = {
 		type: 'freehand',
 		originalPoints,
 		metrics,
@@ -293,8 +293,8 @@ export function processSmartInk(timedPoints: TimedPoint[]): SmartInkResult {
 			isConfident: isConfidentLine(lineCandidate),
 			length: lineCandidate
 				? Math.sqrt(
-						Math.pow(lineCandidate.end[0] - lineCandidate.start[0], 2) +
-							Math.pow(lineCandidate.end[1] - lineCandidate.start[1], 2)
+						(lineCandidate.end[0] - lineCandidate.start[0]) ** 2 +
+							(lineCandidate.end[1] - lineCandidate.start[1]) ** 2
 					)
 				: null
 		})

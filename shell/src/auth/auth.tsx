@@ -50,7 +50,7 @@ import {
 	LuArrowLeft as IcBack
 } from 'react-icons/lu'
 
-import { useAuth, AuthState, useApi, useDialog, Button } from '@cloudillo/react'
+import { useAuth, type AuthState, useApi, useDialog, Button } from '@cloudillo/react'
 import type { LoginInitResult, ApiClient } from '@cloudillo/core'
 
 import { useAppConfig, ServerError, arrayBufferToBase64Url, base64ToArrayBuffer } from '../utils.js'
@@ -420,7 +420,7 @@ export function PasswordResetForm() {
 	const navigate = useNavigate()
 	const location = useLocation()
 	const dialog = useDialog()
-	const [_, code] = location.search.match(/code=([^\&]+)/) || []
+	const [_, code] = location.search.match(/code=([^&]+)/) || []
 
 	const [password, setPassword] = React.useState('')
 	const [error, setError] = React.useState<string | undefined>()

@@ -113,7 +113,7 @@ export function interpolatePaths(from: Point[], to: Point[], t: number): Point[]
  * f(t) = 1 - (1 - t)^2
  */
 export function easeOut(t: number): number {
-	return 1 - Math.pow(1 - t, 2)
+	return 1 - (1 - t) ** 2
 }
 
 /**

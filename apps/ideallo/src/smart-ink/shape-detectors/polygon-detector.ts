@@ -108,7 +108,7 @@ export function detectPolygon(points: Point[]): PolygonCandidate | null {
 
 	// Validate that each side is relatively straight
 	const sideDeviations: number[] = []
-	let prevIdx = 0
+	const prevIdx = 0
 	for (let i = 0; i < vertexCount; i++) {
 		const startIdx = cornerIndices[i]
 		const endIdx = cornerIndices[(i + 1) % vertexCount]

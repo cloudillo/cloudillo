@@ -20,7 +20,7 @@
  */
 
 import * as React from 'react'
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 import { IoChevronUp, IoChevronDown, IoAdd } from 'react-icons/io5'
 
 import type { TemplateId, YPrezilloDocument } from '../crdt'

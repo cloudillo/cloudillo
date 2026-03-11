@@ -33,7 +33,7 @@
  * - lk  = locked
  */
 
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 
 // Object type codes
 export type ObjectTypeCode =

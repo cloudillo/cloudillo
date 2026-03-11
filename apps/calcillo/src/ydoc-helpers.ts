@@ -1,5 +1,5 @@
 import * as Y from 'yjs'
-import { Cell, SheetConfig } from '@fortune-sheet/core'
+import type { Cell, SheetConfig } from '@fortune-sheet/core'
 import type {
 	RowId,
 	ColId,

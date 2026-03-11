@@ -84,7 +84,7 @@ export function base64ToArrayBuffer(b64str: string): Uint8Array {
 	const base64 = (b64str + padding).replace(/-/g, '+').replace(/_/g, '/')
 
 	const str = atob(base64)
-	let ret = new Uint8Array(str.length)
+	const ret = new Uint8Array(str.length)
 	for (let i = 0; i < str.length; ++i) {
 		ret[i] = str.charCodeAt(i)
 	}

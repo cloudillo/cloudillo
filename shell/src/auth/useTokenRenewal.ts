@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { useAuth, AuthState, useApi } from '@cloudillo/react'
+import { useAuth, type AuthState, useApi } from '@cloudillo/react'
 import { registerServiceWorker, ensureEncryptionKey } from '../pwa.js'
 
 const RENEWAL_THRESHOLD = 0.8 // Renew at 80% of token lifetime

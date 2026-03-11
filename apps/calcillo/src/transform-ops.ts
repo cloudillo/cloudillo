@@ -1,6 +1,6 @@
-import { Op } from '@fortune-sheet/core'
+import type { Op } from '@fortune-sheet/core'
 import type { YSheetStructure } from './yjs-types'
-import * as Y from 'yjs'
+import type * as Y from 'yjs'
 import {
 	setCell,
 	clearCell,

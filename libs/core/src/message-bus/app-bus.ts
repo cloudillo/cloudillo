@@ -26,32 +26,32 @@
  */
 
 import {
-	CloudilloMessage,
+	type CloudilloMessage,
 	MessageType,
 	PROTOCOL_VERSION,
-	AuthInitRes,
-	AuthInitPush,
-	AuthTokenRefreshRes,
-	AuthTokenPush,
-	AppReadyStage,
-	StorageOp,
-	StorageOpRes,
-	SettingsGetRes,
-	MediaPickAck,
-	MediaPickResultPush,
-	DocPickAck,
-	DocPickResultPush,
-	EmbedOpenRes,
-	EmbedViewStateSet,
-	SensorCompassPush,
-	CropAspect,
-	Visibility,
-	CameraCaptureAck,
-	CameraCaptureResultPush,
-	CameraPreviewFrame
+	type AuthInitRes,
+	type AuthInitPush,
+	type AuthTokenRefreshRes,
+	type AuthTokenPush,
+	type AppReadyStage,
+	type StorageOp,
+	type StorageOpRes,
+	type SettingsGetRes,
+	type MediaPickAck,
+	type MediaPickResultPush,
+	type DocPickAck,
+	type DocPickResultPush,
+	type EmbedOpenRes,
+	type EmbedViewStateSet,
+	type SensorCompassPush,
+	type CropAspect,
+	type Visibility,
+	type CameraCaptureAck,
+	type CameraCaptureResultPush,
+	type CameraPreviewFrame
 } from './types.js'
 import { validateMessage } from './registry.js'
-import { MessageBusBase, MessageBusConfig } from './core.js'
+import { MessageBusBase, type MessageBusConfig } from './core.js'
 
 // ============================================
 // APP STATE

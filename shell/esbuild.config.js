@@ -40,6 +40,33 @@ function copyFonts() {
 	console.log('Fonts copied to dist/fonts/')
 }
 
+/**
+ * Copy PDF.js worker to dist/assets-{version}/ for pdfjs-dist
+ */
+function copyPdfWorker(version) {
+	const workerSource = join(
+		__dirname,
+		'node_modules',
+		'pdfjs-dist',
+		'build',
+		'pdf.worker.min.mjs'
+	)
+	const workerDest = join(__dirname, 'dist', `assets-${version}`, 'pdf.worker.min.mjs')
+
+	if (!existsSync(workerSource)) {
+		console.log('PDF.js worker not found — pdfjs-dist may not be installed')
+		return
+	}
+
+	const destDir = dirname(workerDest)
+	if (!existsSync(destDir)) {
+		mkdirSync(destDir, { recursive: true })
+	}
+
+	cpSync(workerSource, workerDest)
+	console.log('PDF.js worker copied to dist/assets-' + version + '/')
+}
+
 // Main app config
 const appConfig = createConfig({
 	outdir: `dist/assets-${pkg.version}`,
@@ -98,6 +125,9 @@ async function build() {
 
 		// Copy fonts to dist/fonts/
 		copyFonts()
+
+		// Copy PDF.js worker
+		copyPdfWorker(pkg.version)
 
 		if (isWatch) {
 			// Delete stale compressed files

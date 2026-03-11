@@ -30,6 +30,8 @@ import {
 	LuFileWarning as IcError
 } from 'react-icons/lu'
 
+import { PdfViewer } from './PdfViewer.js'
+
 import { getFileUrl, FileView } from '@cloudillo/core'
 import { useApi, useAuth, LoadingSpinner, Button, mergeClasses } from '@cloudillo/react'
 
@@ -131,7 +133,7 @@ export function FileViewerApp() {
 
 	function handleDownload() {
 		if (state.status !== 'ready' || !fileId) return
-		const url = getFileUrl(idTag, fileId)
+		const url = getFileUrl(idTag, fileId, undefined, { token: auth?.token })
 		const a = document.createElement('a')
 		a.href = url
 		a.download = state.file.fileName
@@ -221,8 +223,8 @@ export function FileViewerApp() {
 
 	// Render video viewer
 	if (isVideo && fileId) {
-		const videoUrl = getFileUrl(idTag, fileId, 'vid.hd')
-		const posterUrl = getFileUrl(idTag, fileId, 'vid.sd')
+		const videoUrl = getFileUrl(idTag, fileId, 'vid.hd', { token: auth?.token })
+		const posterUrl = getFileUrl(idTag, fileId, 'vid.sd', { token: auth?.token })
 
 		return (
 			<div className="c-file-viewer">
@@ -259,26 +261,16 @@ export function FileViewerApp() {
 
 	// Render PDF viewer
 	if (isPdf && fileId) {
-		const pdfUrl = getFileUrl(idTag, fileId)
+		const pdfUrl = getFileUrl(idTag, fileId, undefined, { token: auth?.token })
 
 		return (
-			<div className="c-file-viewer">
-				<div className={mergeClasses('c-file-viewer-toolbar', !toolbarVisible && 'hidden')}>
-					<Button icon onClick={handleBack} title={t('Back')}>
-						<IcBack />
-					</Button>
-					<span className="c-file-viewer-toolbar-filename">{file.fileName}</span>
-					<div className="c-file-viewer-toolbar-divider" />
-					<Button icon onClick={handleDownload} title={t('Download')}>
-						<IcDownload />
-					</Button>
-				</div>
-				<div className="c-file-viewer-content">
-					<div className="c-file-viewer-pdf-container">
-						<iframe src={pdfUrl} className="c-file-viewer-pdf" title={file.fileName} />
-					</div>
-				</div>
-			</div>
+			<PdfViewer
+				url={pdfUrl}
+				fileName={file.fileName}
+				onBack={handleBack}
+				onDownload={handleDownload}
+				toolbarVisible={toolbarVisible}
+			/>
 		)
 	}
 

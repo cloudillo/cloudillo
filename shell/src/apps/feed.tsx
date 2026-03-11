@@ -50,7 +50,8 @@ import {
 	LuVideo as IcVideo,
 	LuGlobe as IcGlobe,
 	LuUsers as IcUsers,
-	LuUserCheck as IcUserCheck
+	LuUserCheck as IcUserCheck,
+	LuFileText as IcDocument
 } from 'react-icons/lu'
 
 import { NewAction, ActionView } from '@cloudillo/types'
@@ -276,6 +277,56 @@ function Video({ attachments, idTag }: VideoProps) {
 		>
 			<source src={videoUrl} />
 		</video>
+	)
+}
+
+///////////////////////
+// Document component //
+///////////////////////
+interface DocumentProps {
+	attachments: ActionView['attachments']
+	idTag: string | undefined
+	token?: string
+}
+
+function Document({ attachments, idTag, token }: DocumentProps) {
+	const navigate = useNavigate()
+
+	if (!idTag || !attachments?.length) return null
+
+	const docAtt = attachments[0]
+	const thumbnailUrl = getFileUrl(idTag, docAtt.fileId, 'vis.tn', { token })
+
+	function handleClick() {
+		navigate(`/app/${idTag}/view/${idTag}:${docAtt.fileId}`)
+	}
+
+	return (
+		<div
+			onClick={handleClick}
+			className="pos-relative d-inline-block"
+			style={{ maxWidth: '100%', cursor: 'pointer' }}
+		>
+			<img
+				src={thumbnailUrl}
+				style={{ maxWidth: '100%', maxHeight: '30rem', display: 'block' }}
+			/>
+			<div
+				className="pos-absolute d-flex align-items-center justify-content-center"
+				style={{
+					bottom: '0.5rem',
+					right: '0.5rem',
+					width: '2.5rem',
+					height: '2.5rem',
+					borderRadius: '50%',
+					background: 'rgba(0, 0, 0, 0.6)',
+					color: 'white',
+					fontSize: '1.25rem'
+				}}
+			>
+				<IcDocument />
+			</div>
+		</div>
 	)
 }
 
@@ -561,6 +612,12 @@ function Post({ className, action, setAction, hideAudience, srcTag, width }: Pos
 								attachments={action.attachments}
 								idTag={auth?.idTag || api?.idTag}
 							/>
+						) : action.subType === 'DOC' ? (
+							<Document
+								attachments={action.attachments}
+								idTag={auth?.idTag || api?.idTag}
+								token={auth?.token}
+							/>
 						) : (
 							<Images
 								width={width}
@@ -787,6 +844,9 @@ export const NewPost = React.memo(
 				// SVG files should be uploaded directly (no crop - vector graphics)
 				if (!type) setType('IMG')
 				imageUpload.uploadSvg(file)
+			} else if (file.type === 'application/pdf') {
+				// Direct upload for PDFs (no crop)
+				imageUpload.uploadDocument(file)
 			} else {
 				// Image flow with crop modal
 				if (!type) setType('IMG')
@@ -808,7 +868,9 @@ export const NewPost = React.memo(
 					? 'VIDEO'
 					: imageUpload.attachmentType === 'image'
 						? 'IMG'
-						: 'TEXT'
+						: imageUpload.attachmentType === 'document'
+							? 'DOC'
+							: 'TEXT'
 			const action: NewAction = {
 				type: 'POST',
 				subType,
@@ -910,12 +972,14 @@ export const NewPost = React.memo(
 							<label
 								htmlFor={
 									imageUpload.attachmentType === 'video' ||
+									imageUpload.attachmentType === 'document' ||
 									imageUpload.isUploading
 										? undefined
 										: fileInputId
 								}
 								className={
 									imageUpload.attachmentType === 'video' ||
+									imageUpload.attachmentType === 'document' ||
 									imageUpload.isUploading
 										? 'opacity-50'
 										: 'cursor-pointer'
@@ -935,12 +999,14 @@ export const NewPost = React.memo(
 							<label
 								htmlFor={
 									imageUpload.attachmentType === 'video' ||
+									imageUpload.attachmentType === 'document' ||
 									imageUpload.isUploading
 										? undefined
 										: imgInputId
 								}
 								className={
 									imageUpload.attachmentType === 'video' ||
+									imageUpload.attachmentType === 'document' ||
 									imageUpload.isUploading
 										? 'opacity-50'
 										: 'cursor-pointer'

@@ -97,20 +97,55 @@
 
 /* PDF viewer */
 .c-file-viewer-pdf-container {
-	width: 100%;
-	height: 100%;
-	display: flex;
-	flex-direction: column;
-	max-width: 1000px;
-}
-
-.c-file-viewer-pdf {
 	flex: 1;
 	width: 100%;
-	border: none;
+	overflow: auto;
+	-webkit-overflow-scrolling: touch;
+	display: flex;
+	justify-content: center;
+	padding: 4rem 1rem 5rem;
+}
+
+.c-file-viewer-pdf-canvas {
+	display: block;
 	background: var(--col-surface);
-	border-radius: var(--radius-md);
 	box-shadow: var(--shadow-xl);
+	border-radius: var(--radius-md);
+	align-self: flex-start;
+}
+
+.c-file-viewer-pdf-nav {
+	position: absolute;
+	bottom: var(--space-3);
+	left: 50%;
+	transform: translateX(-50%);
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-2) var(--space-3);
+	background: lch(from var(--col-container) l c h / var(--op-panel, 0.85));
+	backdrop-filter: blur(var(--blur-radius, 12px));
+	border-radius: var(--radius-lg);
+	box-shadow:
+		var(--shadow-lg),
+		inset 0 0 0 1px var(--col-frost);
+	opacity: 1;
+	transition: opacity var(--duration-normal) var(--ease-out);
+	z-index: 10;
+}
+
+.c-file-viewer-pdf-nav.hidden {
+	opacity: 0;
+	pointer-events: none;
+}
+
+.c-file-viewer-pdf-page-info {
+	font-size: var(--text-sm);
+	font-weight: 500;
+	color: var(--col-on-container);
+	white-space: nowrap;
+	min-width: 4rem;
+	text-align: center;
 }
 
 /* Error state */
@@ -144,6 +179,12 @@
 
 	.c-file-viewer-content {
 		padding: var(--space-2);
+	}
+
+	.c-file-viewer-pdf-nav {
+		left: var(--space-2);
+		right: var(--space-2);
+		transform: none;
 	}
 }
 

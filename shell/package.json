@@ -93,5 +93,8 @@
 		"y-websocket": "^3.0.0",
 		"yet-another-react-lightbox": "^3.29.1",
 		"yjs": "^13.6.29"
+	},
+	"dependencies": {
+		"pdfjs-dist": "^5.5.207"
 	}
 }

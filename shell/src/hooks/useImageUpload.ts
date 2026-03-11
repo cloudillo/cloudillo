@@ -22,7 +22,7 @@ export interface UseImageUploadOptions {
 	onUploadComplete?: (fileId: string) => void
 }
 
-export type AttachmentType = 'image' | 'video' | undefined
+export type AttachmentType = 'image' | 'video' | 'document' | undefined
 
 export interface UseImageUploadReturn {
 	attachment: string | undefined
@@ -33,6 +33,7 @@ export interface UseImageUploadReturn {
 	selectFile: (file: File) => void
 	uploadAttachment: (blob: Blob) => Promise<void>
 	uploadSvg: (file: File) => Promise<void>
+	uploadDocument: (file: File) => Promise<void>
 	uploadVideo: (file: File) => Promise<void>
 	removeAttachment: (id: string) => void
 	cancelCrop: () => void
@@ -163,6 +164,62 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 		[auth, options]
 	)
 
+	const uploadDocument = React.useCallback(
+		async (file: File) => {
+			if (!auth?.idTag) return
+
+			// Abort any existing upload
+			if (activeXhrRef.current) {
+				activeXhrRef.current.abort()
+			}
+
+			setIsUploading(true)
+			setUploadProgress(0)
+
+			const request = new XMLHttpRequest()
+			activeXhrRef.current = request
+
+			request.open('POST', `${getInstanceUrl(auth.idTag)}/api/files/default/attachment`)
+			request.setRequestHeader('Authorization', `Bearer ${auth.token}`)
+			request.setRequestHeader('Content-Type', 'application/pdf')
+
+			request.upload.addEventListener('progress', (e) => {
+				if (e.lengthComputable) {
+					setUploadProgress(Math.round((e.loaded / e.total) * 100))
+				}
+			})
+
+			request.addEventListener('load', function () {
+				activeXhrRef.current = null
+				setIsUploading(false)
+				setUploadProgress(undefined)
+				const j = JSON.parse(request.response)
+				const fileId = j?.data?.fileId
+				if (fileId) {
+					setAttachmentIds((ids) => [...ids, fileId])
+					setAttachmentType('document')
+					options?.onUploadComplete?.(fileId)
+				}
+			})
+
+			request.addEventListener('error', function () {
+				activeXhrRef.current = null
+				setIsUploading(false)
+				setUploadProgress(undefined)
+				console.error('Document upload failed')
+			})
+
+			request.addEventListener('abort', function () {
+				activeXhrRef.current = null
+				setIsUploading(false)
+				setUploadProgress(undefined)
+			})
+
+			request.send(file)
+		},
+		[auth, options]
+	)
+
 	const uploadVideo = React.useCallback(
 		async (file: File) => {
 			if (!auth?.idTag) return
@@ -256,6 +313,7 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 		selectFile,
 		uploadAttachment,
 		uploadSvg,
+		uploadDocument,
 		uploadVideo,
 		removeAttachment,
 		cancelCrop,

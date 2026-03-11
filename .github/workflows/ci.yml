@@ -26,6 +26,9 @@ jobs:
       - name: Check formatting
         run: pnpm format:check
 
+      - name: Lint
+        run: pnpm lint
+
       - name: Build all packages
         run: pnpm -r build
 

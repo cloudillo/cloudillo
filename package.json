@@ -26,6 +26,10 @@
 	},
 	"license": "LGPL-3.0-or-later",
 	"scripts": {
+		"lint": "biome lint .",
+		"lint:fix": "biome lint --fix .",
+		"check": "biome check .",
+		"check:fix": "biome check --fix .",
 		"format": "biome format --write .",
 		"format:check": "biome format .",
 		"test": "pnpm -r test",
@@ -44,8 +48,6 @@
 		"docker-all": "pnpm build-docker && pnpm build-docker-slim && pnpm build-docker-alpine && pnpm publish-docker && pnpm publish-docker-slim && pnpm publish-docker-alpine"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.4.6",
-		"oxfmt": "^0.38.0",
-		"prettier": "^3.8.1"
+		"@biomejs/biome": "^2.4.6"
 	}
 }

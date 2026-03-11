@@ -50,7 +50,7 @@ export async function openCRDT(
 
 	// Connect to server
 	const wsUrl = getCrdtUrl(targetTag)
-	console.log(`[CRDT] Connecting to ${wsUrl}`, { resId, token: opts.authToken })
+	console.log(`[CRDT] Connecting to ${wsUrl}`, { resId })
 
 	const wsProvider = new WebsocketProvider(wsUrl, resId, yDoc, {
 		params: { token: opts.authToken }

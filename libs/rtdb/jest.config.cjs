@@ -15,7 +15,7 @@ module.exports = {
 			{
 				useESM: true,
 				tsconfig: {
-					target: 'es2020',
+					target: 'es2022',
 					module: 'esnext',
 					moduleResolution: 'bundler',
 					esModuleInterop: true,
@@ -23,7 +23,7 @@ module.exports = {
 					strict: true,
 					skipLibCheck: true,
 					forceConsistentCasingInFileNames: true,
-					lib: ['es2020']
+					lib: ['es2022']
 				}
 			}
 		]

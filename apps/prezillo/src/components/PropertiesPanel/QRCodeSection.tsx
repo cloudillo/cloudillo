@@ -54,9 +54,6 @@ const ERROR_CORRECTION_OPTIONS: { value: QrErrorCorrection; label: string }[] = 
 export function QRCodeSection({ doc, yDoc, object }: QRCodeSectionProps) {
 	const objectId = object.id as ObjectId
 
-	// Only show for qrcode objects
-	if (object.type !== 'qrcode') return null
-
 	const qrObject = object as QrCodeObject
 
 	// Check if this object is an instance of a template prototype
@@ -172,6 +169,9 @@ export function QRCodeSection({ doc, yDoc, object }: QRCodeSectionProps) {
 		},
 		[yDoc, doc, objectId, colorsDisabled]
 	)
+
+	// Only show for qrcode objects
+	if (object.type !== 'qrcode') return null
 
 	return (
 		<PropertySection title="QR Code" defaultExpanded>

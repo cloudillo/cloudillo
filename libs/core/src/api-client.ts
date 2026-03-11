@@ -552,7 +552,7 @@ export class ApiClient {
 					(fileData instanceof File ? fileData.type : 'application/octet-stream')
 			}
 			if (this.opts.authToken) {
-				headers['Authorization'] = `Bearer ${this.opts.authToken}`
+				headers.Authorization = `Bearer ${this.opts.authToken}`
 			}
 
 			const res = await fetch(url, {
@@ -615,7 +615,7 @@ export class ApiClient {
 
 			const headers: Record<string, string> = {}
 			if (this.opts.authToken) {
-				headers['Authorization'] = `Bearer ${this.opts.authToken}`
+				headers.Authorization = `Bearer ${this.opts.authToken}`
 			}
 
 			return fetch(`${getInstanceUrl(this.opts.idTag)}/api/files/${fileId}${qs}`, {

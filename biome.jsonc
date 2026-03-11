@@ -40,14 +40,6 @@
 				"noExplicitAny": "off",
 				// Intentional: array index keys used where items lack stable IDs
 				"noArrayIndexKey": "off",
-				// Intentional: target is es2021, Object.hasOwn not available
-				"noPrototypeBuiltins": "off",
-				// Intentional: forEach callbacks sometimes return for early-exit style
-				"useIterableCallbackReturn": "off",
-				// Intentional: empty interfaces used for future extension
-				"noEmptyInterface": "off",
-				// Intentional: CSS shorthand overrides exist intentionally
-				"noShorthandPropertyOverrides": "off",
 				// Intentional: document.cookie used for SW encryption key management
 				"noDocumentCookie": "off"
 			},
@@ -65,24 +57,14 @@
 
 			"correctness": {
 				// Too noisy: many existing deps arrays need review
-				"useExhaustiveDependencies": "off",
-				// Too noisy: conditional hooks exist in several components
-				"useHookAtTopLevel": "off",
-				// False positive: dynamically accessed private members
-				"noUnusedPrivateClassMembers": "off"
+				"useExhaustiveDependencies": "off"
 			},
 
 			"complexity": {
 				// Intentional: function expressions preferred in some patterns
 				"useArrowFunction": "off",
 				// Intentional: !important used in component library overrides
-				"noImportantStyles": "off",
-				// Intentional: bracket notation used for dynamic/computed keys
-				"useLiteralKeys": "off",
-				// Intentional: {} type used as generic constraint in app init patterns
-				"noBannedTypes": "off",
-				// Unsafe fix: changes types (Element vs specific element types)
-				"useIndexOf": "off"
+				"noImportantStyles": "off"
 			},
 
 			// a11y — disabled for now
@@ -91,7 +73,7 @@
 			},
 
 			"security": {
-				// Intentional: dangerouslySetInnerHTML used with sanitized content
+				// Intentional: used with sanitized content in formillo
 				"noDangerouslySetInnerHtml": "off"
 			}
 		}

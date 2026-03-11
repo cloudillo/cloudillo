@@ -26,7 +26,8 @@ export interface ToggleProps extends Omit<React.InputHTMLAttributes<HTMLInputEle
 export const Toggle = createComponent<HTMLInputElement, ToggleProps>(
 	'Toggle',
 	({ className, variant, label, id, ...props }, ref) => {
-		const toggleId = id || React.useId()
+		const generatedId = React.useId()
+		const toggleId = id || generatedId
 
 		if (label) {
 			return (

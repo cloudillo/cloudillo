@@ -24,6 +24,7 @@ type TFunction = (key: string, options?: Record<string, unknown>) => string
  */
 export function useLibTranslation(): { t: TFunction } {
 	try {
+		// biome-ignore lint/correctness/useHookAtTopLevel: hook in try/catch for graceful degradation when i18n is not initialized
 		const { t, i18n } = useTranslation()
 		if (i18n.isInitialized) {
 			return { t: t as TFunction }

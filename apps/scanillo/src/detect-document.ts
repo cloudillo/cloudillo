@@ -69,7 +69,7 @@ export function loadOpenCV(): Promise<void> {
 					return
 				}
 				// Wait for WASM initialization
-				cv['onRuntimeInitialized'] = () => {
+				cv.onRuntimeInitialized = () => {
 					cvReady = true
 					resolve()
 				}

@@ -299,7 +299,9 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 		setSelectedIds((prev) => {
 			if (addToSelection) {
 				const next = new Set(prev)
-				ids.forEach((id) => next.add(id))
+				ids.forEach((id) => {
+					next.add(id)
+				})
 				return next
 			}
 			return new Set(ids)

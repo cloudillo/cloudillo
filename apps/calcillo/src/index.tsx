@@ -20,7 +20,7 @@ import { BrowserRouter } from 'react-router-dom'
 
 import { CalcilloApp } from './app.js'
 
-function App(_props: React.PropsWithChildren<{}>) {
+function App(_props: React.PropsWithChildren<object>) {
 	return (
 		<BrowserRouter basename="/">
 			<CalcilloApp />

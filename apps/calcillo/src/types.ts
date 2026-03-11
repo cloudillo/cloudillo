@@ -16,7 +16,7 @@
 
 import * as React from 'react'
 
-export type PrelloElement = {}
+export type PrelloElement = Record<string, never>
 
 export interface PrelloElementState {
 	bbox: { x: number; y: number; width: number; height: number }

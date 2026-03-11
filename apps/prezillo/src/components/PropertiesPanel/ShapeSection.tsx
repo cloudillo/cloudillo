@@ -37,9 +37,6 @@ export interface ShapeSectionProps {
 export function ShapeSection({ doc, yDoc, object }: ShapeSectionProps) {
 	const objectId = object.id as ObjectId
 
-	// Only show for rect objects
-	if (object.type !== 'rect') return null
-
 	// Check if this object is an instance of a template prototype
 	const objectIsInstance = isInstance(doc, objectId)
 
@@ -75,6 +72,9 @@ export function ShapeSection({ doc, yDoc, object }: ShapeSectionProps) {
 		},
 		[yDoc, doc, objectId, isDisabled]
 	)
+
+	// Only show for rect objects
+	if (object.type !== 'rect') return null
 
 	return (
 		<PropertySection title="Shape" defaultExpanded>

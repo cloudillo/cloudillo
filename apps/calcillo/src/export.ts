@@ -54,7 +54,7 @@ function transformSheets(_key: string, data: unknown): unknown {
 		}
 
 		const sheet = sheetData as Record<string, unknown>
-		const rows = sheet['rows']
+		const rows = sheet.rows
 		if (!rows || typeof rows !== 'object') {
 			result[sheetId] = sheetData
 			continue
@@ -112,18 +112,18 @@ export function downloadExport(yDoc: Y.Doc): void {
 	const blob = new Blob([json], { type: 'application/json' })
 
 	// Generate safe filename from first sheet name
-	const sheetOrder = exportData.data['sheetOrder']
-	const sheets = exportData.data['sheets'] as Record<string, unknown> | undefined
+	const sheetOrder = exportData.data.sheetOrder
+	const sheets = exportData.data.sheets as Record<string, unknown> | undefined
 	let firstName = ''
 	if (Array.isArray(sheetOrder) && sheetOrder.length > 0 && sheets) {
 		const firstSheet = sheets[sheetOrder[0] as string] as Record<string, unknown> | undefined
-		const nameField = firstSheet?.['name']
+		const nameField = firstSheet?.name
 		if (
 			nameField &&
 			typeof nameField === 'object' &&
 			(nameField as Record<string, unknown>)['@T'] === 'T'
 		) {
-			firstName = ((nameField as Record<string, unknown>)['text'] as string) || ''
+			firstName = ((nameField as Record<string, unknown>).text as string) || ''
 		} else if (typeof nameField === 'string') {
 			firstName = nameField
 		}

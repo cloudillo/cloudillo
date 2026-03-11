@@ -94,7 +94,7 @@ class ClImageBlot extends BlockEmbed {
 		}
 		const width = node.getAttribute('data-width')
 		if (width) {
-			formats['width'] = width
+			formats.width = width
 		}
 		return formats
 	}

@@ -208,7 +208,9 @@ export function useEraserHandler(options: UseEraserHandlerOptions) {
 				// Only accumulate all objects if actually dragging
 				if (isDraggingRef.current) {
 					const hits = findObjectsAtPosition(x, y)
-					hits.forEach((id) => objectsToDeleteRef.current.add(id))
+					hits.forEach((id) => {
+						objectsToDeleteRef.current.add(id)
+					})
 					setHighlightedIds(new Set(objectsToDeleteRef.current))
 				}
 

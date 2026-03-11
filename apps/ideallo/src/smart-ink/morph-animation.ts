@@ -277,7 +277,9 @@ export class MorphAnimationManager {
 			})
 
 			// Remove completed animations
-			toRemove.forEach((id) => this.animations.delete(id))
+			toRemove.forEach((id) => {
+				this.animations.delete(id)
+			})
 
 			// Notify subscribers (only with in-progress animations)
 			this.onUpdate(states)

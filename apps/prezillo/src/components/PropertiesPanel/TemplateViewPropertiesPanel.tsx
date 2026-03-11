@@ -72,6 +72,25 @@ export function TemplateViewPropertiesPanel({
 		setActiveType(backgroundType)
 	}, [backgroundType])
 
+	const gradientValue: Gradient = React.useMemo(() => {
+		if (activeType === 'solid') {
+			return { type: 'solid', color: template?.backgroundColor ?? '#ffffff' }
+		}
+
+		if (template?.backgroundGradient && template.backgroundGradient.type !== 'solid') {
+			return template.backgroundGradient
+		}
+
+		return {
+			type: 'linear',
+			angle: 180,
+			stops: [
+				{ color: template?.backgroundColor ?? '#ffffff', position: 0 },
+				{ color: '#e0e0e0', position: 1 }
+			]
+		}
+	}, [activeType, template?.backgroundColor, template?.backgroundGradient])
+
 	if (!template) {
 		return <div className="c-empty-message">Template not found</div>
 	}
@@ -137,25 +156,6 @@ export function TemplateViewPropertiesPanel({
 			})
 		}
 	}
-
-	const gradientValue: Gradient = React.useMemo(() => {
-		if (activeType === 'solid') {
-			return { type: 'solid', color: template.backgroundColor ?? '#ffffff' }
-		}
-
-		if (template.backgroundGradient && template.backgroundGradient.type !== 'solid') {
-			return template.backgroundGradient
-		}
-
-		return {
-			type: 'linear',
-			angle: 180,
-			stops: [
-				{ color: template.backgroundColor ?? '#ffffff', position: 0 },
-				{ color: '#e0e0e0', position: 1 }
-			]
-		}
-	}, [activeType, template.backgroundColor, template.backgroundGradient])
 
 	const handleAddGuide = (direction: 'horizontal' | 'vertical') => {
 		addSnapGuide(yDoc, doc, templateId, {

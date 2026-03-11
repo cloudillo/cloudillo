@@ -118,7 +118,9 @@ export function useVisibleViewObjects(
 		// Build set of all prototype IDs (objects that belong to templates)
 		const prototypeIds = new Set<string>()
 		doc.tpo.forEach((protoArray) => {
-			protoArray.toArray().forEach((id) => prototypeIds.add(id))
+			protoArray.toArray().forEach((id) => {
+				prototypeIds.add(id)
+			})
 		})
 
 		const allObjects: PrezilloObject[] = []

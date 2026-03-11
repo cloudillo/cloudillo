@@ -160,7 +160,9 @@ export function CameraCaptureDialog() {
 				})
 
 				if (cancelled) {
-					stream.getTracks().forEach((t) => t.stop())
+					stream.getTracks().forEach((t) => {
+						t.stop()
+					})
 					return
 				}
 
@@ -189,7 +191,9 @@ export function CameraCaptureDialog() {
 		return () => {
 			cancelled = true
 			if (streamRef.current) {
-				streamRef.current.getTracks().forEach((t) => t.stop())
+				streamRef.current.getTracks().forEach((t) => {
+					t.stop()
+				})
 				streamRef.current = null
 			}
 		}
@@ -287,7 +291,9 @@ export function CameraCaptureDialog() {
 			(blob) => {
 				if (!blob) {
 					if (streamRef.current) {
-						streamRef.current.getTracks().forEach((t) => t.stop())
+						streamRef.current.getTracks().forEach((t) => {
+							t.stop()
+						})
 						streamRef.current = null
 					}
 					session.onResult(null)
@@ -312,7 +318,9 @@ export function CameraCaptureDialog() {
 
 					// Clean up stream
 					if (streamRef.current) {
-						streamRef.current.getTracks().forEach((t) => t.stop())
+						streamRef.current.getTracks().forEach((t) => {
+							t.stop()
+						})
 						streamRef.current = null
 					}
 
@@ -340,7 +348,9 @@ export function CameraCaptureDialog() {
 		setHasOverlay(false)
 
 		if (streamRef.current) {
-			streamRef.current.getTracks().forEach((t) => t.stop())
+			streamRef.current.getTracks().forEach((t) => {
+				t.stop()
+			})
 			streamRef.current = null
 		}
 		session?.onResult(null)
@@ -358,7 +368,9 @@ export function CameraCaptureDialog() {
 	function handleSwitchCamera() {
 		// Stop current stream before switching
 		if (streamRef.current) {
-			streamRef.current.getTracks().forEach((t) => t.stop())
+			streamRef.current.getTracks().forEach((t) => {
+				t.stop()
+			})
 			streamRef.current = null
 		}
 		setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'))

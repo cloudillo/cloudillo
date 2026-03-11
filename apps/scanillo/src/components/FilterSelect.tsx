@@ -56,7 +56,7 @@ export function FilterSelect({
 	const [selectedFilter, setSelectedFilter] = React.useState<PageFilter>('document')
 	const [processing, setProcessing] = React.useState(false)
 	const [rotation, setRotation] = React.useState(initialRotation ?? 0)
-	const [strength, setStrength] = React.useState(FILTER_DEFAULTS['document'])
+	const [strength, setStrength] = React.useState(FILTER_DEFAULTS.document)
 	const filteredCanvasRef = React.useRef<HTMLCanvasElement | null>(null)
 	const [thumbnails, setThumbnails] = React.useState<Record<string, string>>({})
 

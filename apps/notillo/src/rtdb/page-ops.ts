@@ -179,7 +179,9 @@ export async function deletePage(client: RtdbClient, pageId: string): Promise<vo
 
 	// Delete all blocks for this page
 	const blocksSnapshot = await client.collection('b').where('p', '==', pageId).get()
-	blocksSnapshot.forEach((doc) => batch.delete(client.ref(`b/${doc.id}`)))
+	blocksSnapshot.forEach((doc) => {
+		batch.delete(client.ref(`b/${doc.id}`))
+	})
 
 	// Delete the page itself
 	batch.delete(client.ref(`p/${pageId}`))

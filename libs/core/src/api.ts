@@ -68,10 +68,10 @@ export interface ApiFetchResult<R> {
 export function qs(
 	obj: Record<string, string | number | boolean | string[] | number[] | undefined>
 ) {
-	var str: string[] = []
-	for (var f in obj) {
+	const str: string[] = []
+	for (const f in obj) {
 		const val = obj[f]
-		if (obj.hasOwnProperty(f) && val !== undefined) {
+		if (Object.hasOwn(obj, f) && val !== undefined) {
 			str.push(
 				encodeURIComponent(f) +
 					'=' +
@@ -185,7 +185,7 @@ export async function apiFetchHelper<R, D = any>(
 		...opts.headers
 	}
 	if (opts.authToken) {
-		headers['Authorization'] = `Bearer ${opts.authToken}`
+		headers.Authorization = `Bearer ${opts.authToken}`
 	}
 	if (opts.requestId) {
 		headers['X-Request-ID'] = opts.requestId

@@ -310,14 +310,18 @@ export function PrezilloApp() {
 		// If hovering (and nothing selected), show stacked for hovered object
 		if (hoveredObjectId && prezillo.selectedIds.size === 0) {
 			const stackedIds = getStackedObjects(prezillo.doc, hoveredObjectId)
-			stackedIds.forEach((id) => allStacked.add(id))
+			stackedIds.forEach((id) => {
+				allStacked.add(id)
+			})
 		}
 
 		// If objects are selected, show stacked for all selected objects
 		if (prezillo.selectedIds.size > 0) {
 			for (const selectedId of prezillo.selectedIds) {
 				const stackedIds = getStackedObjects(prezillo.doc, selectedId)
-				stackedIds.forEach((id) => allStacked.add(id))
+				stackedIds.forEach((id) => {
+					allStacked.add(id)
+				})
 			}
 		}
 
@@ -812,24 +816,28 @@ export function PrezilloApp() {
 					}}
 					zCmds={{
 						onBringToFront: () => {
-							prezillo.selectedIds.forEach((id) =>
+							prezillo.selectedIds.forEach((id) => {
 								bringToFront(prezillo.yDoc, prezillo.doc, id)
-							)
+							})
 						},
 						onBringForward: () => {
-							prezillo.selectedIds.forEach((id) =>
+							prezillo.selectedIds.forEach((id) => {
 								bringForward(prezillo.yDoc, prezillo.doc, id)
-							)
+							})
 						},
 						onSendBackward: () => {
 							Array.from(prezillo.selectedIds)
 								.reverse()
-								.forEach((id) => sendBackward(prezillo.yDoc, prezillo.doc, id))
+								.forEach((id) => {
+									sendBackward(prezillo.yDoc, prezillo.doc, id)
+								})
 						},
 						onSendToBack: () => {
 							Array.from(prezillo.selectedIds)
 								.reverse()
-								.forEach((id) => sendToBack(prezillo.yDoc, prezillo.doc, id))
+								.forEach((id) => {
+									sendToBack(prezillo.yDoc, prezillo.doc, id)
+								})
 						}
 					}}
 					snap={snapSettings}

@@ -38,7 +38,9 @@ import {
 function getAllPrototypeIds(doc: YPrezilloDocument): Set<string> {
 	const protoIds = new Set<string>()
 	doc.tpo.forEach((yArray) => {
-		yArray.toArray().forEach((id) => protoIds.add(id))
+		yArray.toArray().forEach((id) => {
+			protoIds.add(id)
+		})
 	})
 	return protoIds
 }

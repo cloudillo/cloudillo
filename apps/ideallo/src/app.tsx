@@ -1188,9 +1188,13 @@ export function IdealloApp() {
 			if ((evt.ctrlKey || evt.metaKey) && evt.key === ']') {
 				if (selectedIds.size > 0 && ideallo.yDoc && ideallo.doc) {
 					if (evt.shiftKey) {
-						selectedIds.forEach((id) => bringToFront(ideallo.yDoc, ideallo.doc, id))
+						selectedIds.forEach((id) => {
+							bringToFront(ideallo.yDoc, ideallo.doc, id)
+						})
 					} else {
-						selectedIds.forEach((id) => bringForward(ideallo.yDoc, ideallo.doc, id))
+						selectedIds.forEach((id) => {
+							bringForward(ideallo.yDoc, ideallo.doc, id)
+						})
 					}
 					evt.preventDefault()
 				}
@@ -1200,11 +1204,15 @@ export function IdealloApp() {
 					if (evt.shiftKey) {
 						Array.from(selectedIds)
 							.reverse()
-							.forEach((id) => sendToBack(ideallo.yDoc, ideallo.doc, id))
+							.forEach((id) => {
+								sendToBack(ideallo.yDoc, ideallo.doc, id)
+							})
 					} else {
 						Array.from(selectedIds)
 							.reverse()
-							.forEach((id) => sendBackward(ideallo.yDoc, ideallo.doc, id))
+							.forEach((id) => {
+								sendBackward(ideallo.yDoc, ideallo.doc, id)
+							})
 					}
 					evt.preventDefault()
 				}
@@ -1435,23 +1443,31 @@ export function IdealloApp() {
 				}}
 				onBringToFront={() => {
 					if (!ideallo.yDoc || !ideallo.doc) return
-					selectedIds.forEach((id) => bringToFront(ideallo.yDoc, ideallo.doc, id))
+					selectedIds.forEach((id) => {
+						bringToFront(ideallo.yDoc, ideallo.doc, id)
+					})
 				}}
 				onBringForward={() => {
 					if (!ideallo.yDoc || !ideallo.doc) return
-					selectedIds.forEach((id) => bringForward(ideallo.yDoc, ideallo.doc, id))
+					selectedIds.forEach((id) => {
+						bringForward(ideallo.yDoc, ideallo.doc, id)
+					})
 				}}
 				onSendBackward={() => {
 					if (!ideallo.yDoc || !ideallo.doc) return
 					Array.from(selectedIds)
 						.reverse()
-						.forEach((id) => sendBackward(ideallo.yDoc, ideallo.doc, id))
+						.forEach((id) => {
+							sendBackward(ideallo.yDoc, ideallo.doc, id)
+						})
 				}}
 				onSendToBack={() => {
 					if (!ideallo.yDoc || !ideallo.doc) return
 					Array.from(selectedIds)
 						.reverse()
-						.forEach((id) => sendToBack(ideallo.yDoc, ideallo.doc, id))
+						.forEach((id) => {
+							sendToBack(ideallo.yDoc, ideallo.doc, id)
+						})
 				}}
 			/>
 

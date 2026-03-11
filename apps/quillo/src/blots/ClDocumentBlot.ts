@@ -230,8 +230,8 @@ class ClDocumentBlot extends BlockEmbed {
 
 	static formats(node: HTMLElement): Record<string, string | null> {
 		const formats: Record<string, string | null> = {}
-		if (node.getAttribute('data-width')) formats['width'] = node.getAttribute('data-width')
-		if (node.getAttribute('data-height')) formats['height'] = node.getAttribute('data-height')
+		if (node.getAttribute('data-width')) formats.width = node.getAttribute('data-width')
+		if (node.getAttribute('data-height')) formats.height = node.getAttribute('data-height')
 		return formats
 	}
 

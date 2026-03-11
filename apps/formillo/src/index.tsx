@@ -20,7 +20,7 @@ import { BrowserRouter } from 'react-router-dom'
 
 import { App } from './app.js'
 
-function AppContainer(_props: React.PropsWithChildren<{}>) {
+function AppContainer(_props: React.PropsWithChildren<object>) {
 	return (
 		<BrowserRouter basename="/">
 			<App />

@@ -377,7 +377,6 @@ export class AppMessageBus extends MessageBusBase {
 		darkMode: false,
 		theme: 'glass'
 	}
-	private appName: string = ''
 	private isEmbed = false
 	private messageListener: ((event: MessageEvent) => void) | null = null
 
@@ -455,7 +454,6 @@ export class AppMessageBus extends MessageBusBase {
 			return this.getState()
 		}
 
-		this.appName = appName
 		this.config.contextName = `AppBus:${appName}`
 
 		// Detect embed context and extract auth resId from hash

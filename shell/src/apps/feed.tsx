@@ -111,26 +111,28 @@ export function Images({ width, attachments, idTag }: ImagesProps) {
 	const gap = 8
 	const [img1, img2, img3] = attachments || []
 
+	// Lightbox: best available local variant for fullscreen
+	const photos = React.useMemo(
+		() =>
+			idTag
+				? attachments?.map((im) => ({
+						src: getFileUrl(
+							idTag,
+							im.fileId,
+							getOptimalImageVariant('fullscreen', im.localVariants)
+						),
+						width: im.dim?.[0] || 100,
+						height: im.dim?.[1] || 100
+					}))
+				: undefined,
+		[attachments, idTag]
+	)
+
 	if (!idTag || !attachments?.length) return null
 
 	// Inline images: always local, preferred variant for preview
 	const getInlineUrl = (att: NonNullable<typeof attachments>[0]) =>
 		getFileUrl(idTag, att.fileId, getOptimalImageVariant('preview', att.localVariants))
-
-	// Lightbox: best available local variant for fullscreen
-	const photos = React.useMemo(
-		() =>
-			attachments?.map((im) => ({
-				src: getFileUrl(
-					idTag,
-					im.fileId,
-					getOptimalImageVariant('fullscreen', im.localVariants)
-				),
-				width: im.dim?.[0] || 100,
-				height: im.dim?.[1] || 100
-			})),
-		[attachments, idTag]
-	)
 
 	let imgNode: React.ReactNode
 

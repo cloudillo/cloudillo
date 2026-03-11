@@ -87,7 +87,7 @@ export const Menu = createComponent<HTMLDivElement, MenuProps>(
 			const items = Array.from(
 				menuRef.current.querySelectorAll<HTMLButtonElement>('.c-menu-item:not([disabled])')
 			)
-			const currentIndex = items.findIndex((item) => item === document.activeElement)
+			const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement)
 
 			switch (evt.key) {
 				case 'ArrowDown': {

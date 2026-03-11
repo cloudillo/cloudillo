@@ -1067,7 +1067,9 @@ export function ProfileSettings({
 	// Cleanup debounce timers on unmount
 	React.useEffect(() => {
 		return () => {
-			Object.values(debounceTimers.current).forEach((timer) => clearTimeout(timer))
+			Object.values(debounceTimers.current).forEach((timer) => {
+				clearTimeout(timer)
+			})
 		}
 	}, [])
 

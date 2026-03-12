@@ -23,11 +23,14 @@ import {
 	LuPlus as IcAdd,
 	LuTrash as IcDelete,
 	LuKey as IcApiKey,
-	LuTriangleAlert as IcWarning
+	LuTriangleAlert as IcWarning,
+	LuCopy as IcCopy,
+	LuCheck as IcCheck,
+	LuX as IcClose
 } from 'react-icons/lu'
 
-import { useAuth, useApi, useDialog, Button, LoadingSpinner } from '@cloudillo/react'
-import type { WebAuthnCredential, ApiKeyListItem } from '@cloudillo/core'
+import { useAuth, useApi, useDialog, Button, Modal, LoadingSpinner } from '@cloudillo/react'
+import type { WebAuthnCredential, ApiKeyListItem, CreateApiKeyResult } from '@cloudillo/core'
 
 import { useSettings } from './settings.js'
 import {
@@ -35,6 +38,212 @@ import {
 	getApiKey as swGetApiKey,
 	deleteApiKey as swDeleteApiKey
 } from '../pwa.js'
+
+const AVAILABLE_SCOPES = [
+	{
+		value: 'apkg:publish',
+		label: 'App Package Publish',
+		description: 'Allows publishing app packages to the repository.'
+	}
+] as const
+
+function scopeLabel(scope: string): string {
+	return AVAILABLE_SCOPES.find((s) => s.value === scope)?.label ?? scope
+}
+
+// Create API Key Modal
+interface CreateApiKeyModalProps {
+	open: boolean
+	onClose: () => void
+	onCreated: (result: CreateApiKeyResult) => void
+}
+
+function CreateApiKeyModal({ open, onClose, onCreated }: CreateApiKeyModalProps) {
+	const { t } = useTranslation()
+	const { api } = useApi()
+	const [name, setName] = React.useState('')
+	const [selectedScopes, setSelectedScopes] = React.useState<string[]>([])
+	const [isSubmitting, setIsSubmitting] = React.useState(false)
+	const [error, setError] = React.useState<string | undefined>()
+
+	React.useEffect(() => {
+		if (open) {
+			setName('')
+			setSelectedScopes([])
+			setError(undefined)
+		}
+	}, [open])
+
+	function toggleScope(scope: string) {
+		setSelectedScopes((prev) =>
+			prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope]
+		)
+	}
+
+	async function handleCreate() {
+		if (!api) return
+		setIsSubmitting(true)
+		setError(undefined)
+
+		try {
+			const result = await api.auth.createApiKey({
+				name: name || undefined,
+				scopes: selectedScopes.length > 0 ? selectedScopes.join(',') : undefined
+			})
+			onCreated(result)
+			onClose()
+		} catch (err: unknown) {
+			if (err instanceof Error) {
+				setError(err.message)
+			} else {
+				setError(t('Failed to create API key'))
+			}
+		} finally {
+			setIsSubmitting(false)
+		}
+	}
+
+	return (
+		<Modal open={open} onClose={onClose}>
+			<div className="c-dialog c-panel emph p-4" style={{ maxWidth: '500px', width: '100%' }}>
+				<div className="c-hbox mb-3">
+					<h3 className="flex-fill mb-0">{t('Create API Key')}</h3>
+					<button className="c-link" onClick={onClose} aria-label={t('Close')}>
+						<IcClose />
+					</button>
+				</div>
+
+				{error && (
+					<div className="c-panel bg-error-subtle p-2 mb-3">
+						<span className="text-error">{error}</span>
+					</div>
+				)}
+
+				<div className="mb-3">
+					<label className="c-label">{t('Name (optional)')}</label>
+					<input
+						className="c-input"
+						placeholder={t('e.g., CI pipeline')}
+						value={name}
+						onChange={(e) => setName(e.target.value)}
+					/>
+				</div>
+
+				<div className="mb-3">
+					<label className="c-label">{t('Permissions')}</label>
+					<div className="c-hint small mb-2">
+						{t('Leave all unchecked for full access.')}
+					</div>
+					{AVAILABLE_SCOPES.map((scope) => (
+						<label key={scope.value} className="c-hbox ai-start p-2">
+							<input
+								type="checkbox"
+								className="c-toggle primary mr-2 mt-1"
+								checked={selectedScopes.includes(scope.value)}
+								onChange={() => toggleScope(scope.value)}
+							/>
+							<div>
+								<span>{t(scope.label)}</span>
+								<div className="c-hint small">{t(scope.description)}</div>
+							</div>
+						</label>
+					))}
+				</div>
+
+				<div className="c-hbox jc-end g-2">
+					<Button onClick={onClose}>{t('Cancel')}</Button>
+					<Button primary disabled={isSubmitting} onClick={handleCreate}>
+						{isSubmitting ? t('Creating...') : t('Create API Key')}
+					</Button>
+				</div>
+			</div>
+		</Modal>
+	)
+}
+
+// API Key Created Modal (one-time plaintext key display)
+interface ApiKeyCreatedModalProps {
+	open: boolean
+	result: CreateApiKeyResult | null
+	onClose: () => void
+}
+
+function ApiKeyCreatedModal({ open, result, onClose }: ApiKeyCreatedModalProps) {
+	const { t } = useTranslation()
+	const [copied, setCopied] = React.useState(false)
+
+	async function copyToClipboard() {
+		if (!result) return
+		try {
+			await navigator.clipboard.writeText(result.plaintextKey)
+			setCopied(true)
+			setTimeout(() => setCopied(false), 2000)
+		} catch (err) {
+			console.error('Failed to copy:', err)
+		}
+	}
+
+	if (!result) return null
+
+	const scopes = result.scopes?.split(',').filter(Boolean)
+
+	return (
+		<Modal open={open} onClose={onClose} closeOnBackdrop={false}>
+			<div className="c-dialog c-panel emph p-4" style={{ maxWidth: '600px', width: '100%' }}>
+				<div className="c-hbox ai-center mb-3">
+					<IcApiKey className="text-primary mr-2" style={{ fontSize: '1.5rem' }} />
+					<h3 className="flex-fill mb-0">{t('API Key Created')}</h3>
+				</div>
+
+				<div className="c-panel bg-warning-subtle p-2 mb-3">
+					<div className="c-hbox ai-start">
+						<IcWarning className="text-warning mr-2 mt-1 flex-shrink-0" />
+						<div>
+							<strong>{t('Save this key now!')}</strong>
+							<p className="c-hint mb-0">
+								{t('This key will only be shown once. Store it securely.')}
+							</p>
+						</div>
+					</div>
+				</div>
+
+				<div className="mb-3">
+					<label className="c-label">{t('API Key')}</label>
+					<div className="c-hbox g-1">
+						<code
+							className="c-code flex-fill p-2"
+							style={{ wordBreak: 'break-all', userSelect: 'all' }}
+						>
+							{result.plaintextKey}
+						</code>
+						<Button onClick={copyToClipboard} title={t('Copy API key')}>
+							{copied ? <IcCheck /> : <IcCopy />}
+						</Button>
+					</div>
+				</div>
+
+				{scopes && scopes.length > 0 && (
+					<div className="mb-3">
+						<label className="c-label">{t('Scopes')}</label>
+						<div className="c-hbox g-1 flex-wrap">
+							{scopes.map((scope) => (
+								<span key={scope} className="c-badge small">
+									{scopeLabel(scope)}
+								</span>
+							))}
+						</div>
+					</div>
+				)}
+
+				<div className="c-hbox jc-end">
+					<Button primary onClick={onClose}>
+						{t("I've saved the key")}
+					</Button>
+				</div>
+			</div>
+		</Modal>
+	)
+}
 
 export function SecuritySettings() {
 	const { t } = useTranslation()
@@ -57,6 +266,11 @@ export function SecuritySettings() {
 	const [apiKeys, setApiKeys] = React.useState<ApiKeyListItem[]>([])
 	const [stayLoggedIn, setStayLoggedIn] = React.useState(false)
 	const [currentDeviceKeyPrefix, setCurrentDeviceKeyPrefix] = React.useState<string | undefined>()
+
+	// Modal state
+	const [showCreateModal, setShowCreateModal] = React.useState(false)
+	const [showKeyCreatedModal, setShowKeyCreatedModal] = React.useState(false)
+	const [createdKeyResult, setCreatedKeyResult] = React.useState<CreateApiKeyResult | null>(null)
 
 	// Load passkeys and API keys on mount
 	React.useEffect(
@@ -246,6 +460,12 @@ export function SecuritySettings() {
 		}
 	}
 
+	function handleApiKeyCreated(result: CreateApiKeyResult) {
+		setCreatedKeyResult(result)
+		setShowKeyCreatedModal(true)
+		loadApiKeys()
+	}
+
 	async function onChangePassword() {
 		if (!api) throw new Error('Not authenticated')
 		await api.auth.changePassword({ currentPassword, newPassword })
@@ -363,26 +583,48 @@ export function SecuritySettings() {
 			</div>
 
 			{/* API Keys Section */}
-			{apiKeys.length > 0 && (
-				<div className="c-panel">
-					<h4 className="c-hbox pb-2">
+			<div className="c-panel">
+				<div className="c-hbox pb-2">
+					<h4 className="c-hbox flex-fill mb-0">
 						<IcApiKey className="mr-2" />
 						{t('API Keys')}
 					</h4>
-					<p className="c-hint pb-2">
-						{t(
-							'API keys allow devices to stay logged in. Revoking a key will log out that device.'
-						)}
-					</p>
+					<Button primary className="small" onClick={() => setShowCreateModal(true)}>
+						<IcAdd className="mr-1" />
+						{t('Create API key')}
+					</Button>
+				</div>
+				<p className="c-hint pb-2">
+					{t(
+						'API keys allow programmatic access or keeping devices logged in. Revoking a key will revoke its access.'
+					)}
+				</p>
 
+				{apiKeys.length === 0 ? (
+					<p className="c-hint">{t('No API keys yet.')}</p>
+				) : (
 					<div>
 						{apiKeys.map((key) => {
 							const isCurrentDevice = currentDeviceKeyPrefix === key.keyPrefix
+							const scopes = key.scopes?.split(',').filter(Boolean)
 							return (
 								<div key={key.keyId} className="c-hbox py-2 border-bottom">
 									<IcApiKey className="mr-2" />
 									<div className="flex-fill">
-										<div>{key.name || t('Unnamed key')}</div>
+										<div className="c-hbox ai-center g-1 flex-wrap">
+											<span>{key.name || t('Unnamed key')}</span>
+											{scopes && scopes.length > 0 ? (
+												scopes.map((scope) => (
+													<span key={scope} className="c-badge small">
+														{scopeLabel(scope)}
+													</span>
+												))
+											) : (
+												<span className="c-badge small success">
+													{t('Full access')}
+												</span>
+											)}
+										</div>
 										<div className="c-hint small">
 											{key.keyPrefix}...
 											{isCurrentDevice && (
@@ -402,8 +644,24 @@ export function SecuritySettings() {
 							)
 						})}
 					</div>
-				</div>
-			)}
+				)}
+			</div>
+
+			{/* Modals */}
+			<CreateApiKeyModal
+				open={showCreateModal}
+				onClose={() => setShowCreateModal(false)}
+				onCreated={handleApiKeyCreated}
+			/>
+
+			<ApiKeyCreatedModal
+				open={showKeyCreatedModal}
+				result={createdKeyResult}
+				onClose={() => {
+					setShowKeyCreatedModal(false)
+					setCreatedKeyResult(null)
+				}}
+			/>
 		</>
 	)
 }

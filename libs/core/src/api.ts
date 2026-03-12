@@ -102,7 +102,6 @@ export class FetchError extends Error {
 	apiErrorCode?: string
 
 	constructor(code: string, descr: string, httpStatus: number = 400, apiErrorCode?: string) {
-		console.log('FetchError', code, descr, httpStatus, apiErrorCode)
 		super(descr)
 		this.code = code
 		this.descr = descr

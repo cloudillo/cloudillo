@@ -580,12 +580,15 @@ export class ApiClient {
 		 * @param variantId - Variant ID
 		 * @returns Binary file data
 		 */
-		getVariant: (variantId: string) =>
-			fetch(`${getInstanceUrl(this.opts.idTag)}/api/files/variant/${variantId}`, {
-				headers: {
-					Authorization: `Bearer ${this.opts.authToken}`
-				}
-			}),
+		getVariant: (variantId: string) => {
+			const headers: Record<string, string> = {}
+			if (this.opts.authToken) {
+				headers.Authorization = `Bearer ${this.opts.authToken}`
+			}
+			return fetch(`${getInstanceUrl(this.opts.idTag)}/api/files/variant/${variantId}`, {
+				headers
+			})
+		},
 
 		/**
 		 * GET /files/:fileId/descriptor - Get file descriptor and variants

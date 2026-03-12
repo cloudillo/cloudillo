@@ -132,11 +132,20 @@ export abstract class MessageBusBase {
 	 * Unregister a handler for a message type
 	 *
 	 * @param type - Message type to unregister
+	 * @param handler - Optional specific handler to unregister; if provided, only removes if it matches
 	 * @returns this for chaining
 	 */
-	off(type: MessageType): this {
-		this.handlers.delete(type)
-		this.log('Unregistered handler for:', type)
+	// biome-ignore lint/suspicious/noExplicitAny: handler identity comparison only — any function type accepted
+	off(type: MessageType, handler?: (...args: any[]) => any): this {
+		if (handler) {
+			if (this.handlers.get(type) === handler) {
+				this.handlers.delete(type)
+				this.log('Unregistered handler for:', type)
+			}
+		} else {
+			this.handlers.delete(type)
+			this.log('Unregistered handler for:', type)
+		}
 		return this
 	}
 

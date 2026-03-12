@@ -57,7 +57,7 @@ export function useMediaHandler({ documentFileId, readOnly }: UseMediaHandlerOpt
 			const pending = pendingTempIds.get(tempId)
 
 			if (pending) {
-				console.log('[MediaHandler] Resolving temp ID:', tempId, '->', finalId)
+				// Temp ID resolved to final ID
 				updateBlockUnsafe(pending.editor, pending.blockId, {
 					props: { url: `cl-file:${pending.mediaTag}:${finalId}` }
 				})
@@ -68,7 +68,7 @@ export function useMediaHandler({ documentFileId, readOnly }: UseMediaHandlerOpt
 		bus.on('media:file.resolved', handleFileResolved)
 
 		return () => {
-			bus.off('media:file.resolved')
+			bus.off('media:file.resolved', handleFileResolved)
 		}
 	}, [])
 

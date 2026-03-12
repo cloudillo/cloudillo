@@ -413,7 +413,7 @@ function TaskInput({
 					}
 					value={text}
 					onChange={(e) => setText(e.target.value)}
-					onKeyPress={handleKeyPress}
+					onKeyDown={handleKeyPress}
 					disabled={disabled || loading}
 				/>
 

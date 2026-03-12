@@ -33,7 +33,6 @@ i18n.use(initReactI18next)
 		keySeparator: '@',
 		nsSeparator: '$',
 		returnNull: false,
-		debug: true,
 		interpolation: {
 			//escapeValue: false,
 			format: (value, rawFormat, lng) => {

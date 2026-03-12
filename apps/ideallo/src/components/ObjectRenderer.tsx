@@ -159,12 +159,12 @@ function renderObject(
 			return <PolygonRenderer object={object} />
 		case 'text': {
 			const yText = props.doc ? getObjectYText(props.doc, toObjectId(object.id)) : undefined
-			if (props.isEditing && props.onCancel) {
+			if (props.isEditing && props.onSave && props.onCancel) {
 				return (
 					<TextEditOverlay
 						object={object}
 						yText={yText}
-						onSave={props.onCancel}
+						onSave={() => props.onSave?.('')}
 						onCancel={props.onCancel}
 						quillRef={props.quillRef}
 						onHeightChange={props.onHeightChange}

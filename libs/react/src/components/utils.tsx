@@ -102,8 +102,7 @@ const emojis: Record<string, React.ReactNode> = {
 	';P': '😜',
 	':|': <EmMeh size="1em" />,
 	':(': <EmSad size="1em" />,
-	'<3': <EmHeart size="1em" />,
-	'::': <img src="https://w9.hu/w9.png" />
+	'<3': <EmHeart size="1em" />
 }
 
 /**

@@ -164,6 +164,9 @@ export function useApiContext() {
 					return next
 				})
 
+				// Invalidate cached API client so it gets recreated with the new token
+				apiClientsRef.current.delete(idTag)
+
 				return { token: result.token, roles: result.roles || [] }
 			} catch (err) {
 				console.error(`Failed to get proxy token for ${idTag}:`, err)
@@ -700,7 +703,7 @@ export function useContextCache<T>(key: string) {
 					[activeContext.idTag]: {
 						...contextCache,
 						[key]: {
-							data: data as unknown[],
+							data,
 							lastUpdated: new Date()
 						}
 					}

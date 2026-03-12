@@ -97,7 +97,7 @@ export interface ContextToken {
  */
 export interface ContextCacheEntry {
 	/** Cached data */
-	data: unknown[]
+	data: unknown
 
 	/** When this data was last updated */
 	lastUpdated: Date

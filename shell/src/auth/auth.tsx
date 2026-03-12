@@ -16,7 +16,7 @@
 
 import * as React from 'react'
 import { atom, useAtom } from 'jotai'
-import { Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser'
 
@@ -99,23 +99,6 @@ export async function webAuthnLogin(api: ApiClient): Promise<AuthState | undefin
 		console.log('WebAuthn login failed or cancelled:', err)
 		return undefined
 	}
-}
-
-//////////////
-// AuthPage //
-//////////////
-interface AuthPageProps {
-	title?: string
-	children: React.ReactNode
-}
-
-function AuthPage({ title, children }: AuthPageProps) {
-	return (
-		<div className="c-panel p-3">
-			{title && <h2>{title}</h2>}
-			{children}
-		</div>
-	)
 }
 
 ///////////////
@@ -384,92 +367,6 @@ export function LoginForm() {
 	}
 }
 
-///////////////////////
-// PasswordResetForm //
-///////////////////////
-export function PasswordResetForm() {
-	const { t } = useTranslation()
-	const { api } = useApi()
-	const _navigate = useNavigate()
-	const location = useLocation()
-	const dialog = useDialog()
-	const [_, _code] = location.search.match(/code=([^&]+)/) || []
-
-	const [password, setPassword] = React.useState('')
-	const [error, setError] = React.useState<string | undefined>()
-
-	async function onSubmit(evt: React.FormEvent) {
-		evt.preventDefault()
-		if (!validPassword(password)) {
-			await dialog.tell(t('Invalid password!'), t('You must provide a strong password!'))
-			return
-		}
-		try {
-			if (!api) {
-				setError('Not authenticated')
-				return
-			}
-			// Note: This endpoint may not exist in Rust backend yet
-			// await api.auth.changePassword({ idTag: api.idTag, newPassword: password })
-			setError('Password reset not yet implemented in Rust backend')
-			return
-		} catch (err: unknown) {
-			console.error('Password reset failed:', err)
-			setError(err instanceof Error ? err.message : 'Password reset failed')
-		}
-	}
-
-	return (
-		<AuthPage title="Set new password">
-			<form className="c-form" onSubmit={onSubmit}>
-				<label className="c-label">
-					New password
-					<input
-						className="c-input"
-						onChange={(evt: React.ChangeEvent<HTMLInputElement>) =>
-							setPassword(evt.target.value)
-						}
-						value={password}
-						type="password"
-						placeholder={t('New password')}
-						aria-label={t('New password')}
-					/>
-				</label>
-				{error && <div className="c-invalid-feedback">{error}</div>}
-				<div className="c-group">
-					<button className="c-button" type="submit">
-						{t('Change password')}
-					</button>
-				</div>
-			</form>
-		</AuthPage>
-	)
-}
-
-function PasswordResetSent() {
-	const { t } = useTranslation()
-
-	return (
-		<AuthPage title={t('Confirmation email sent')}>
-			<p>{t('PasswordResetSent', 'We have sent you a confirmation link in email.')}</p>
-		</AuthPage>
-	)
-}
-
-function PasswordSet() {
-	const { t } = useTranslation()
-
-	return (
-		<AuthPage title={t('Password set')}>
-			<p>{t('PasswordSet', 'Your password has been set.')}</p>
-			<Link className="c-button" to="/login">
-				{t('You can now log in')}
-			</Link>
-			.
-		</AuthPage>
-	)
-}
-
 interface WebAuthProps {
 	idTag: string
 }
@@ -621,30 +518,6 @@ export function AuthRoutes() {
 				element={
 					<LoginPage>
 						<RegisterForm />
-					</LoginPage>
-				}
-			/>
-			<Route
-				path="/passwd"
-				element={
-					<LoginPage>
-						<PasswordResetForm />
-					</LoginPage>
-				}
-			/>
-			<Route
-				path="/passwd-sent"
-				element={
-					<LoginPage>
-						<PasswordResetSent />
-					</LoginPage>
-				}
-			/>
-			<Route
-				path="/passwd-set"
-				element={
-					<LoginPage>
-						<PasswordSet />
 					</LoginPage>
 				}
 			/>

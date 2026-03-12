@@ -116,7 +116,8 @@ export function QrLoginPanel() {
 							setState('expired')
 							return
 						}
-						// status === 'pending' → loop continues immediately
+						// status === 'pending' → wait before re-polling
+						await new Promise((r) => setTimeout(r, 1000))
 					} catch (err) {
 						console.error('QR login poll failed:', err)
 						if (!cancelled) {

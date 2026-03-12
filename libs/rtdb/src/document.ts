@@ -27,7 +27,7 @@ import type {
 } from './types.js'
 import { DocumentSnapshotImpl, createDocumentFromEvent, normalizePath } from './utils.js'
 
-export class DocumentReference<T = any> {
+export class DocumentReference<T = unknown> {
 	readonly id: string
 
 	constructor(
@@ -36,6 +36,10 @@ export class DocumentReference<T = any> {
 	) {
 		const parts = normalizePath(path).split('/')
 		this.id = parts[parts.length - 1]
+	}
+
+	getPath(): string {
+		return this.path
 	}
 
 	collection(name: string): CollectionReference {
@@ -49,13 +53,13 @@ export class DocumentReference<T = any> {
 			path: normalizePath(this.path)
 		}
 
-		const response = await this.ws.send<any>(message)
+		const response = await this.ws.send<{ data: unknown }>(message)
 
-		if (response.data === null) {
+		if ((response as { data: unknown }).data === null) {
 			return new DocumentSnapshotImpl<T>(this.id, false)
 		}
 
-		return new DocumentSnapshotImpl<T>(this.id, true, response.data as T)
+		return new DocumentSnapshotImpl<T>(this.id, true, (response as { data: unknown }).data as T)
 	}
 
 	async set(data: T): Promise<void> {

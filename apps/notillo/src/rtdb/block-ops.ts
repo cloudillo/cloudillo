@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import type { BlockNoteEditor, Block } from '@blocknote/core'
-import type { BlockRecord } from './types.js'
+import { type BlockRecord, asBlockContent } from './types.js'
 import { cleanProps, compactContent, compactBlockType } from './transform.js'
 
 export function getParentBlockId(editor: BlockNoteEditor, blockId: string): string | undefined {
@@ -44,12 +44,12 @@ export function blockToRecord(
 	now: string
 ): BlockRecord {
 	const props = cleanProps(block.props)
-	const content = compactContent(block.content as any)
+	const content = compactContent(asBlockContent(block.content))
 	return {
 		pageId,
 		type: compactBlockType(block.type),
 		...(props !== undefined && { props }),
-		...(content !== undefined && { content: content as any }),
+		...(content !== undefined && { content: asBlockContent(content) }),
 		// parentBlockId set by caller based on editor context
 		order: 0, // Set by caller
 		updatedAt: now,

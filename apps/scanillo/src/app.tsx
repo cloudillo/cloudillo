@@ -183,7 +183,7 @@ function usePages(client: RtdbClient | undefined) {
 
 		setLoading(true)
 
-		const unsubscribe = client.collection('pages').onSnapshot(
+		const unsubscribe = client.collection<ScanPage>('pages').onSnapshot(
 			(snapshot) => {
 				const pageList = snapshot.docs
 					.map(

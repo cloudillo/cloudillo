@@ -27,11 +27,15 @@ import type {
 } from './types.js'
 import { normalizePath } from './utils.js'
 
-export class CollectionReference<T = any> {
+export class CollectionReference<T = unknown> {
 	constructor(
 		private ws: WebSocketManager,
 		private path: string
 	) {}
+
+	getPath(): string {
+		return this.path
+	}
 
 	doc(id: string): DocumentReference<T> {
 		const docPath = `${this.path}/${id}`
@@ -51,9 +55,9 @@ export class CollectionReference<T = any> {
 			]
 		}
 
-		const response = await this.ws.send<any>(message)
+		const response = await this.ws.send<{ results: Array<{ id?: string }> }>(message)
 
-		const newId = response.results[0]?.id
+		const newId = (response as { results: Array<{ id?: string }> }).results[0]?.id
 
 		if (!newId) {
 			throw new Error('Failed to create document: no ID returned')
@@ -70,7 +74,7 @@ export class CollectionReference<T = any> {
 		return this.query().aggregate(fieldOrOptions)
 	}
 
-	where(field: string, op: WhereFilterOp, value: any): Query<T> {
+	where(field: string, op: WhereFilterOp, value: unknown): Query<T> {
 		return this.query().where(field, op, value)
 	}
 

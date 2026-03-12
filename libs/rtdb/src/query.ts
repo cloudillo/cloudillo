@@ -19,6 +19,8 @@ import type {
 	WhereFilterOp,
 	QueryFilter,
 	QuerySnapshot,
+	DocumentSnapshot,
+	DocumentChange,
 	ChangeEvent,
 	SnapshotOptions,
 	QueryMessage,
@@ -27,7 +29,7 @@ import type {
 import { AggregateQuery } from './aggregate-query.js'
 import { QuerySnapshotImpl, createDocumentFromEvent, normalizePath } from './utils.js'
 
-export class Query<T = any> {
+export class Query<T = unknown> {
 	private filters: QueryFilter = {}
 	private sortFields: Array<{ field: string; ascending: boolean }> = []
 	private limitValue?: number
@@ -38,7 +40,7 @@ export class Query<T = any> {
 		private path: string
 	) {}
 
-	where(field: string, op: WhereFilterOp, value: any): Query<T> {
+	where(field: string, op: WhereFilterOp, value: unknown): Query<T> {
 		const opMap: Record<WhereFilterOp, keyof QueryFilter> = {
 			'==': 'equals',
 			'!=': 'notEquals',
@@ -104,14 +106,16 @@ export class Query<T = any> {
 			message.offset = this.offsetValue
 		}
 
-		const response = await this.ws.send<any>(message)
+		const response = await this.ws.send<{ data: Array<Record<string, unknown>> }>(message)
 
-		const documents = (response.data || []).map((item: any) => ({
-			id: item.id || '',
-			data: item
-		}))
+		const documents = ((response as { data: Array<Record<string, unknown>> }).data || []).map(
+			(item: Record<string, unknown>) => ({
+				id: String(item.id || ''),
+				data: item as unknown
+			})
+		)
 
-		return new QuerySnapshotImpl<T>(documents)
+		return new QuerySnapshotImpl<T>(documents as Array<{ id: string; data: unknown }>)
 	}
 
 	onSnapshot(
@@ -122,7 +126,7 @@ export class Query<T = any> {
 			typeof optionsOrOnError === 'function' ? optionsOrOnError : optionsOrOnError?.onError
 		const onLock = typeof optionsOrOnError === 'object' ? optionsOrOnError?.onLock : undefined
 
-		const documentMap = new Map<string, any>()
+		const documentMap = new Map<string, unknown>()
 		let ready = false
 
 		const unsubscribe = this.ws.subscribe(
@@ -132,9 +136,9 @@ export class Query<T = any> {
 				if (event.action === 'ready') {
 					// Initial load complete — populate from ready event's data payload
 					ready = true
-					const rawDocs = (event.data as Array<any>) || []
+					const rawDocs = (event.data as Array<Record<string, unknown>>) || []
 					for (const item of rawDocs) {
-						const id = item.id || ''
+						const id = String(item.id || '')
 						documentMap.set(id, item)
 					}
 					const documents = Array.from(documentMap.entries()).map(([id, data]) => ({
@@ -152,7 +156,7 @@ export class Query<T = any> {
 						oldIndex: -1,
 						newIndex: index
 					}))
-					snapshot.setChanges(changes)
+					snapshot.setChanges(changes as DocumentChange<T>[])
 					callback(snapshot)
 					return
 				}
@@ -179,7 +183,7 @@ export class Query<T = any> {
 					data
 				}))
 				const snapshot = new QuerySnapshotImpl<T>(documents)
-				const doc = createDocumentFromEvent(event)
+				const doc = createDocumentFromEvent(event) as DocumentSnapshot<T>
 				const index = documents.findIndex((d) => d.id === doc.id)
 				snapshot.setChanges([
 					{

@@ -1,5 +1,6 @@
 import * as React from 'react'
 import type { NotilloEditor } from '../editor/schema.js'
+import type { WikiLinkContent, TagContent } from '../rtdb/types.js'
 import { downloadBlob } from './download.js'
 
 export async function exportPdf(
@@ -18,6 +19,7 @@ export async function exportPdf(
 			...pdfDefaultSchemaMappings,
 			blockMapping: {
 				...pdfDefaultSchemaMappings.blockMapping,
+				// biome-ignore lint/suspicious/noExplicitAny: BlockNote PDF exporter block/transform types are not exported
 				image: async (block: any, t: any) => {
 					return (
 						<View wrap={false} key={'image' + block.id}>
@@ -41,9 +43,12 @@ export async function exportPdf(
 			},
 			inlineContentMapping: {
 				...pdfDefaultSchemaMappings.inlineContentMapping,
-				wikiLink: (ic: any) => <Text key={ic.props.pageId}>{ic.props.pageTitle}</Text>,
-				tag: (ic: any) => <Text key={ic.props.tag}>#{ic.props.tag}</Text>
+				wikiLink: (ic: WikiLinkContent) => (
+					<Text key={ic.props.pageId}>{ic.props.pageTitle}</Text>
+				),
+				tag: (ic: TagContent) => <Text key={ic.props.tag}>#{ic.props.tag}</Text>
 			}
+			// biome-ignore lint/suspicious/noExplicitAny: BlockNote exporter schema mapping type boundary
 		} as any,
 		resolveFileUrl ? { resolveFileUrl } : undefined
 	)

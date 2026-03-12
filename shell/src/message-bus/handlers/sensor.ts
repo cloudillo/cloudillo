@@ -27,6 +27,11 @@
 import type { ShellMessageBus } from '../shell-bus.js'
 import type { SensorCompassSub } from '@cloudillo/core'
 
+/** Extended DeviceOrientationEvent with Safari/iOS webkitCompassHeading */
+interface DeviceOrientationEventWithWebkit extends DeviceOrientationEvent {
+	webkitCompassHeading?: number | null
+}
+
 // Set of subscribed app windows
 const compassSubscribers = new Set<Window>()
 
@@ -75,7 +80,7 @@ function smoothHeading(raw: number): number {
  * Returns true if permission is granted or not required.
  */
 async function requestOrientationPermission(): Promise<boolean> {
-	const DOE = DeviceOrientationEvent as any
+	const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> }
 	if (typeof DOE.requestPermission === 'function') {
 		try {
 			const result = await DOE.requestPermission()
@@ -115,7 +120,8 @@ function startOrientationListener(bus: ShellMessageBus): void {
 		let absolute = false
 
 		// iOS provides webkitCompassHeading directly
-		const webkitHeading: number | null = (evt as any).webkitCompassHeading ?? null
+		const webkitHeading: number | null =
+			(evt as DeviceOrientationEventWithWebkit).webkitCompassHeading ?? null
 		if (webkitHeading != null) {
 			heading = webkitHeading
 			absolute = true

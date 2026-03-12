@@ -276,7 +276,7 @@ export function expandObject(
 			} as DocumentObject
 		}
 		default:
-			throw new Error(`Unknown object type: ${(stored as any).t}`)
+			throw new Error(`Unknown object type: ${(stored as Record<string, unknown>).t}`)
 	}
 }
 
@@ -326,11 +326,11 @@ export function compactObject(obj: IdealloObject): StoredObject {
 	switch (obj.type) {
 		case 'freehand': {
 			const fh = obj as FreehandObject
-			const stored: StoredFreehand = {
-				...(baseStored as any),
-				t: 'F',
-				wh: [fh.width, fh.height]
-			}
+			const stored = {
+				...baseStored,
+				t: 'F' as const,
+				wh: [fh.width, fh.height] as [number, number]
+			} as StoredFreehand
 			// Only store pid if it's a linked copy (explicit pid set)
 			if (fh.pid) {
 				stored.pid = fh.pid
@@ -343,11 +343,11 @@ export function compactObject(obj: IdealloObject): StoredObject {
 		}
 		case 'rect': {
 			const rect = obj as RectObject
-			const stored: StoredRect = {
-				...(baseStored as any),
-				t: 'R',
-				wh: [rect.width, rect.height]
-			}
+			const stored = {
+				...baseStored,
+				t: 'R' as const,
+				wh: [rect.width, rect.height] as [number, number]
+			} as StoredRect
 			if (rect.cornerRadius !== undefined && rect.cornerRadius > 0) {
 				stored.cr = rect.cornerRadius
 			}
@@ -374,14 +374,14 @@ export function compactObject(obj: IdealloObject): StoredObject {
 		}
 		case 'arrow': {
 			const arrow = obj as ArrowObject
-			const stored: StoredArrow = {
-				...(baseStored as any),
-				t: 'A',
+			const stored = {
+				...baseStored,
+				t: 'A' as const,
 				pts: [
 					[arrow.startX, arrow.startY],
 					[arrow.endX, arrow.endY]
-				]
-			}
+				] as [[number, number], [number, number]]
+			} as StoredArrow
 			if (arrow.arrowheadPosition !== 'end') {
 				stored.ah = ARROWHEAD_POSITION_TO_CODE[arrow.arrowheadPosition]
 			}
@@ -389,11 +389,11 @@ export function compactObject(obj: IdealloObject): StoredObject {
 		}
 		case 'text': {
 			const text = obj as TextObject
-			const stored: StoredText = {
-				...(baseStored as any),
-				t: 'T',
-				wh: [text.width, text.height]
-			}
+			const stored = {
+				...baseStored,
+				t: 'T' as const,
+				wh: [text.width, text.height] as [number, number]
+			} as StoredText
 			// Only store tid if it's a linked copy (explicit tid set)
 			if (text.tid) {
 				stored.tid = text.tid
@@ -408,10 +408,10 @@ export function compactObject(obj: IdealloObject): StoredObject {
 		}
 		case 'polygon': {
 			const polygon = obj as PolygonObject
-			const stored: StoredPolygon = {
-				...(baseStored as any),
-				t: 'P'
-			}
+			const stored = {
+				...baseStored,
+				t: 'P' as const
+			} as StoredPolygon
 			// Only store gid if it's a linked copy (explicit gid set)
 			if (polygon.gid) {
 				stored.gid = polygon.gid
@@ -420,11 +420,11 @@ export function compactObject(obj: IdealloObject): StoredObject {
 		}
 		case 'sticky': {
 			const sticky = obj as StickyObject
-			const stored: StoredSticky = {
-				...(baseStored as any),
-				t: 'S',
-				wh: [sticky.width, sticky.height]
-			}
+			const stored = {
+				...baseStored,
+				t: 'S' as const,
+				wh: [sticky.width, sticky.height] as [number, number]
+			} as StoredSticky
 			// Only store tid if it's a linked copy (explicit tid set)
 			if (sticky.tid) {
 				stored.tid = sticky.tid
@@ -442,13 +442,13 @@ export function compactObject(obj: IdealloObject): StoredObject {
 		}
 		case 'document': {
 			const docObj = obj as DocumentObject
-			const stored: StoredDocument = {
-				...(baseStored as any),
-				t: 'D',
-				wh: [docObj.width, docObj.height],
+			const stored = {
+				...baseStored,
+				t: 'D' as const,
+				wh: [docObj.width, docObj.height] as [number, number],
 				fid: docObj.fileId,
 				ct: docObj.contentType
-			}
+			} as StoredDocument
 			if (docObj.appId) {
 				stored.aid = docObj.appId
 			}
@@ -461,7 +461,7 @@ export function compactObject(obj: IdealloObject): StoredObject {
 			return stored
 		}
 		default:
-			throw new Error(`Unknown object type: ${(obj as any).type}`)
+			throw new Error(`Unknown object type: ${(obj as Record<string, unknown>).type}`)
 	}
 }
 

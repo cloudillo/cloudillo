@@ -334,7 +334,9 @@ export function TextEditOverlay({
 							fontWeight: textStyle.fontWeight,
 							fontStyle: textStyle.fontItalic ? 'italic' : 'normal',
 							textDecoration: textDecorationCSS,
-							textAlign: TEXT_ALIGN_CSS[textStyle.textAlign] as any,
+							textAlign: TEXT_ALIGN_CSS[
+								textStyle.textAlign
+							] as React.CSSProperties['textAlign'],
 							lineHeight: textStyle.lineHeight,
 							letterSpacing: `${textStyle.letterSpacing}px`,
 							color: textStyle.fill,

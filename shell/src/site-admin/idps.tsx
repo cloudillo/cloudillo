@@ -38,7 +38,7 @@ export function SuggestedProvidersSettings() {
 			if (!auth || !api) return
 			;(async function () {
 				const res = await api.settings.list({ prefix: 'idp' })
-				const setting = res.find((s: any) => s.key === 'idp.list')
+				const setting = res.find((s) => s.key === 'idp.list')
 				if (setting) {
 					setIdpList(String(setting.value))
 				}

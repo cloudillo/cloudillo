@@ -20,7 +20,7 @@
  */
 
 import * as Y from 'yjs'
-import type { YIdealloDocument, StoredDocument } from './stored-types.js'
+import type { YIdealloDocument, StoredDocument, StoredObject } from './stored-types.js'
 import type { ObjectId } from './ids.js'
 import { generateObjectId } from './ids.js'
 import type {
@@ -37,6 +37,40 @@ import type {
 	ArrowObject
 } from './runtime-types.js'
 import { compactObject, expandObject } from './type-converters.js'
+
+/**
+ * Fields that can be updated across all object variants.
+ * This is the intersection of commonly updated properties from all IdealloObject subtypes.
+ * Avoids needing `as any` at every updateObject() call site.
+ */
+export type ObjectUpdateFields = Partial<{
+	x: number
+	y: number
+	width: number
+	height: number
+	rotation: number
+	pivotX: number
+	pivotY: number
+	opacity: number
+	startX: number
+	startY: number
+	endX: number
+	endY: number
+	style: Partial<IdealloObject['style']>
+}>
+
+/**
+ * Update an object with fields that may come from any variant.
+ * Centralizes the Partial<IdealloObject> cast so callers don't need `as any`.
+ */
+export function updateObjectFields(
+	yDoc: Y.Doc,
+	doc: YIdealloDocument,
+	objectId: ObjectId,
+	updates: ObjectUpdateFields
+): void {
+	updateObject(yDoc, doc, objectId, updates as Partial<IdealloObject>)
+}
 
 /**
  * Input type for creating new freehand objects
@@ -268,8 +302,8 @@ export function updateObjectRotation(
 	yDoc.transact(() => {
 		if (rotation === 0) {
 			// Remove rotation field if 0
-			const { r: _, ...rest } = existing as any
-			doc.o.set(objectId, rest)
+			const { r: _, ...rest } = existing
+			doc.o.set(objectId, rest as StoredObject)
 		} else {
 			doc.o.set(objectId, { ...existing, r: rotation })
 		}
@@ -303,8 +337,8 @@ export function updateObjectPivot(
 
 		if (pivotX === 0.5 && pivotY === 0.5) {
 			// Remove pivot field if center
-			const { pv: _, ...rest } = existing as any
-			doc.o.set(objectId, { ...rest, xy: [newX, newY] })
+			const { pv: _, ...rest } = existing
+			doc.o.set(objectId, { ...rest, xy: [newX, newY] } as StoredObject)
 		} else {
 			doc.o.set(objectId, {
 				...existing,
@@ -380,41 +414,38 @@ export function duplicateObject(
 		// Handle text duplication (Text/Sticky objects)
 		if (existing.t === 'T' || existing.t === 'S') {
 			// Find source text: use tid if set (linked copy), otherwise original objectId
-			const sourceTxtKey = (existing as any).tid ?? objectId
+			const sourceTxtKey = existing.tid ?? objectId
 			const sourceText = doc.txt.get(sourceTxtKey)
 			if (sourceText) {
 				const newText = new Y.Text()
 				newText.insert(0, sourceText.toString())
 				doc.txt.set(newId, newText) // Use new object ID as key
 			}
-			// Remove tid from duplicate (uses own ID)
-			delete (duplicated as any).tid
+			delete (duplicated as Record<string, unknown>).tid
 		}
 
 		// Handle path duplication (Freehand objects)
 		if (existing.t === 'F') {
 			// Find source path: use pid if set (linked copy), otherwise original objectId
-			const sourcePathKey = (existing as any).pid ?? objectId
+			const sourcePathKey = existing.pid ?? objectId
 			const sourcePath = doc.paths.get(sourcePathKey)
 			if (sourcePath) {
 				doc.paths.set(newId, sourcePath) // Use new object ID as key
 			}
-			// Remove pid from duplicate (uses own ID)
-			delete (duplicated as any).pid
+			delete (duplicated as Record<string, unknown>).pid
 		}
 
 		// Handle geometry duplication (Polygon objects)
 		if (existing.t === 'P') {
 			// Find source geo: use gid if set (linked copy), otherwise original objectId
-			const sourceGeoKey = (existing as any).gid ?? objectId
+			const sourceGeoKey = existing.gid ?? objectId
 			const sourceGeo = doc.geo.get(sourceGeoKey)
 			if (sourceGeo) {
 				const newGeo = new Y.Array<number>()
 				newGeo.push(sourceGeo.toArray())
 				doc.geo.set(newId, newGeo) // Use new object ID as key
 			}
-			// Remove gid from duplicate (uses own ID)
-			delete (duplicated as any).gid
+			delete (duplicated as Record<string, unknown>).gid
 		}
 
 		doc.o.set(newId, duplicated)
@@ -443,30 +474,27 @@ export function duplicateAsLinkedCopy(
 
 	yDoc.transact(() => {
 		// Base duplicated object with offset
-		const duplicated: any = {
+		const duplicated: Record<string, unknown> = {
 			...existing,
 			xy: [existing.xy[0] + offsetX, existing.xy[1] + offsetY] as [number, number]
 		}
 
 		// For Text/Sticky: set tid to point to original's source
 		if (existing.t === 'T' || existing.t === 'S') {
-			// Use original's tid if set, otherwise use original objectId
-			duplicated.tid = (existing as any).tid ?? objectId
+			duplicated.tid = existing.tid ?? objectId
 		}
 
 		// For Freehand: set pid to point to original's source
 		if (existing.t === 'F') {
-			// Use original's pid if set, otherwise use original objectId
-			duplicated.pid = (existing as any).pid ?? objectId
+			duplicated.pid = existing.pid ?? objectId
 		}
 
 		// For Polygon: set gid to point to original's source
 		if (existing.t === 'P') {
-			// Use original's gid if set, otherwise use original objectId
-			duplicated.gid = (existing as any).gid ?? objectId
+			duplicated.gid = existing.gid ?? objectId
 		}
 
-		doc.o.set(newId, duplicated)
+		doc.o.set(newId, duplicated as unknown as StoredObject)
 		doc.r.push([newId])
 	}, yDoc.clientID)
 
@@ -482,8 +510,8 @@ export function toggleObjectLock(yDoc: Y.Doc, doc: YIdealloDocument, objectId: O
 
 	yDoc.transact(() => {
 		if (existing.lk) {
-			const { lk: _, ...rest } = existing as any
-			doc.o.set(objectId, rest)
+			const { lk: _, ...rest } = existing
+			doc.o.set(objectId, rest as StoredObject)
 		} else {
 			doc.o.set(objectId, { ...existing, lk: true })
 		}
@@ -500,7 +528,7 @@ export function getObjectYText(doc: YIdealloDocument, objectId: ObjectId): Y.Tex
 	if (!stored) return undefined
 	if (stored.t !== 'T' && stored.t !== 'S') return undefined
 	// Use tid if set (linked copy), otherwise use object ID
-	const txtKey = (stored as any).tid ?? objectId
+	const txtKey = stored.tid ?? objectId
 	return doc.txt.get(txtKey)
 }
 
@@ -517,7 +545,7 @@ export function getObjectYArray(
 	if (!stored) return undefined
 	if (stored.t !== 'P') return undefined
 	// Use gid if set (linked copy), otherwise use object ID
-	const geoKey = (stored as any).gid ?? objectId
+	const geoKey = stored.gid ?? objectId
 	return doc.geo.get(geoKey)
 }
 
@@ -531,7 +559,7 @@ export function getObjectPathData(doc: YIdealloDocument, objectId: ObjectId): st
 	if (!stored) return undefined
 	if (stored.t !== 'F') return undefined
 	// Use pid if set (linked copy), otherwise use object ID
-	const pathKey = (stored as any).pid ?? objectId
+	const pathKey = stored.pid ?? objectId
 	return doc.paths.get(pathKey)
 }
 

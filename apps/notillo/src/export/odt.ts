@@ -1,4 +1,5 @@
 import type { NotilloEditor } from '../editor/schema.js'
+import type { WikiLinkContent, TagContent } from '../rtdb/types.js'
 import { downloadBlob } from './download.js'
 
 export async function exportOdt(
@@ -14,9 +15,10 @@ export async function exportOdt(
 			...odtDefaultSchemaMappings,
 			inlineContentMapping: {
 				...odtDefaultSchemaMappings.inlineContentMapping,
-				wikiLink: (ic: any) => ic.props.pageTitle as string,
-				tag: (ic: any) => `#${ic.props.tag}`
+				wikiLink: (ic: WikiLinkContent) => ic.props.pageTitle as string,
+				tag: (ic: TagContent) => `#${ic.props.tag}`
 			}
+			// biome-ignore lint/suspicious/noExplicitAny: BlockNote exporter schema mapping type boundary
 		} as any,
 		resolveFileUrl ? { resolveFileUrl } : undefined
 	)

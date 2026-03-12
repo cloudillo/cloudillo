@@ -926,7 +926,7 @@ export function ProfileConnections({
 
 				const client = getClientFor(profile.idTag, { auth: 'preferred' })
 				const profiles = await client!.profiles.list({ type: 'person' })
-				setProfiles(profiles as any)
+				setProfiles(profiles as Profile[])
 			})()
 		},
 		[auth, location.search]
@@ -1050,7 +1050,10 @@ export function ProfileSettings({
 						// API response wraps array in 'data' field (ApiResponse<Vec<SettingResponse>>)
 						const settingsArray = data.data || []
 						const settingsMap = Object.fromEntries(
-							settingsArray.map((s: any) => [s.key, s.value])
+							settingsArray.map((s: { key: string; value?: unknown }) => [
+								s.key,
+								s.value
+							])
 						)
 						setSettings(settingsMap)
 					}
@@ -1257,11 +1260,11 @@ function ProfileView() {
 			}
 
 			console.log('load', idTag)
-			if (own) api!.profiles.getOwnFull().then((p) => setProfile(p as any))
+			if (own) api!.profiles.getOwnFull().then((p) => setProfile(p as unknown as FullProfile))
 			else
 				api!.profiles
 					.getRemoteFull(idTag!)
-					.then((p) => setProfile(p as any))
+					.then((p) => setProfile(p as unknown as FullProfile))
 					.catch(() => setProfile(undefined))
 			api!.profiles
 				.get(idTag!)
@@ -1313,7 +1316,7 @@ function ProfileView() {
 					)
 					const res = await api?.profiles.updateOwn(patch)
 					console.log('res', res, patch)
-					setProfile(res?.profile as any)
+					setProfile(res?.profile as unknown as FullProfile)
 				}
 
 	async function onFollow() {

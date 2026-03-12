@@ -26,11 +26,25 @@
  */
 
 import type * as Y from 'yjs'
-import type { YPrezilloDocument, StoredObject } from './stored-types'
-import type { PrezilloObject } from './runtime-types'
+import type { YPrezilloDocument, StoredObject, QrErrorCorrectionLevel } from './stored-types'
+import type {
+	PrezilloObject,
+	RectObject,
+	TextObject,
+	QrCodeObject,
+	QrErrorCorrection
+} from './runtime-types'
 import type { ObjectId, ViewId, ContainerId } from './ids'
 import { toObjectId, toStyleId } from './ids'
 import { expandObject, expandShapeStyle, expandTextStyle } from './type-converters'
+
+/** Map stored QR error correction levels to runtime names */
+const QR_ECL_MAP: Record<QrErrorCorrectionLevel, QrErrorCorrection> = {
+	L: 'low',
+	M: 'medium',
+	Q: 'quartile',
+	H: 'high'
+}
 
 /**
  * Resolve an object with prototype inheritance (single level)
@@ -154,31 +168,31 @@ function mergeTypeSpecificFields(
 	switch (instance.t) {
 		case 'R': // Rect
 			if ('cr' in instance && instance.cr !== undefined) {
-				;(result as any).cornerRadius = instance.cr
+				;(result as RectObject).cornerRadius = instance.cr
 			}
 			break
 
 		case 'T': // Text
 			if ('tx' in instance && instance.tx !== undefined) {
-				;(result as any).text = instance.tx
+				;(result as TextObject).text = instance.tx
 			}
 			if ('mh' in instance && instance.mh !== undefined) {
-				;(result as any).minHeight = instance.mh
+				;(result as TextObject).minHeight = instance.mh
 			}
 			break
 
 		case 'Q': // QR Code
 			if ('url' in instance && instance.url !== undefined) {
-				;(result as any).url = instance.url
+				;(result as QrCodeObject).url = instance.url
 			}
 			if ('ecl' in instance && instance.ecl !== undefined) {
-				;(result as any).errorCorrection = instance.ecl
+				;(result as QrCodeObject).errorCorrection = QR_ECL_MAP[instance.ecl]
 			}
 			if ('fg' in instance && instance.fg !== undefined) {
-				;(result as any).foreground = instance.fg
+				;(result as QrCodeObject).foreground = instance.fg
 			}
 			if ('bg' in instance && instance.bg !== undefined) {
-				;(result as any).background = instance.bg
+				;(result as QrCodeObject).background = instance.bg
 			}
 			break
 
@@ -304,7 +318,9 @@ export function hasOverrides(doc: YPrezilloDocument, objectId: ObjectId): boolea
 		'tid'
 	]
 
-	return overrideableFields.some((field) => (stored as any)[field] !== undefined)
+	return overrideableFields.some(
+		(field) => (stored as unknown as Record<string, unknown>)[field] !== undefined
+	)
 }
 
 /**
@@ -340,7 +356,7 @@ export function getOverriddenProperties(doc: YPrezilloDocument, objectId: Object
 	}
 
 	for (const [storedField, runtimeField] of Object.entries(fieldMap)) {
-		if ((stored as any)[storedField] !== undefined) {
+		if ((stored as unknown as Record<string, unknown>)[storedField] !== undefined) {
 			overridden.push(runtimeField)
 		}
 	}
@@ -445,7 +461,9 @@ export function isPropertyGroupOverridden(
 	if (!stored?.proto) return false // Not an instance
 
 	const fields = propertyGroupFields[group]
-	return fields.some((field) => (stored as any)[field] !== undefined)
+	return fields.some(
+		(field) => (stored as unknown as Record<string, unknown>)[field] !== undefined
+	)
 }
 
 /**
@@ -488,10 +506,10 @@ export function unlockPropertyGroup(
 
 		// Copy each field from prototype to instance (creating override)
 		for (const field of fields) {
-			const protoValue = (protoStored as any)[field]
+			const protoValue = (protoStored as unknown as Record<string, unknown>)[field]
 			if (protoValue !== undefined) {
 				// Deep copy arrays to avoid shared references
-				;(updated as any)[field] = Array.isArray(protoValue)
+				;(updated as unknown as Record<string, unknown>)[field] = Array.isArray(protoValue)
 					? [...protoValue]
 					: typeof protoValue === 'object' && protoValue !== null
 						? { ...protoValue }
@@ -525,7 +543,7 @@ export function resetPropertyGroup(
 
 		// Remove each field (so it inherits from prototype)
 		for (const field of fields) {
-			delete (updated as any)[field]
+			delete (updated as unknown as Record<string, unknown>)[field]
 		}
 
 		doc.o.set(objectId, updated as StoredObject)

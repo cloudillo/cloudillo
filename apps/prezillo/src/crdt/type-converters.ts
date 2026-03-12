@@ -545,7 +545,7 @@ export function expandObject(id: string, stored: Stored.StoredObject): Runtime.P
 		}
 
 		default:
-			throw new Error(`Unknown object type: ${(stored as any).t}`)
+			throw new Error(`Unknown object type: ${(stored as Record<string, unknown>).t}`)
 	}
 }
 
@@ -743,7 +743,7 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 		}
 
 		default:
-			throw new Error(`Unknown object type: ${(runtime as any).type}`)
+			throw new Error(`Unknown object type: ${(runtime as Record<string, unknown>).type}`)
 	}
 }
 

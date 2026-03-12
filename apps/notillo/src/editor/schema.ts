@@ -14,7 +14,12 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { BlockNoteSchema, defaultBlockSpecs, defaultInlineContentSpecs } from '@blocknote/core'
+import {
+	BlockNoteSchema,
+	defaultBlockSpecs,
+	defaultInlineContentSpecs,
+	type BlockNoteEditor
+} from '@blocknote/core'
 import { WikiLink } from './WikiLink.js'
 import { Tag } from './Tag.js'
 import { DocumentEmbed } from './DocumentEmbed.js'
@@ -32,5 +37,10 @@ export const notilloSchema = BlockNoteSchema.create({
 })
 
 export type NotilloEditor = typeof notilloSchema.BlockNoteEditor
+
+export function asBaseEditor(editor: NotilloEditor): BlockNoteEditor {
+	// biome-ignore lint/suspicious/noExplicitAny: BlockNote schema-specific editor → generic base type boundary
+	return editor as any
+}
 
 // vim: ts=4

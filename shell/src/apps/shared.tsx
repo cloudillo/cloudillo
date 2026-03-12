@@ -96,14 +96,15 @@ export function SharedResourceView() {
 						// BLOB files don't need guest name
 						setState({ status: 'ready', tokenResult, file })
 					}
-				} catch (err: any) {
+				} catch (err: unknown) {
 					console.error('[SharedResourceView] Error:', err)
-					const code = err?.code || 'UNKNOWN'
+					const apiErr = err as Record<string, unknown>
+					const code = (apiErr?.code as string) || 'UNKNOWN'
 					let message = t('Failed to load shared resource')
 
-					if (err?.httpStatus === 404 || code === 'E-CORE-NOTFOUND') {
+					if (apiErr?.httpStatus === 404 || code === 'E-CORE-NOTFOUND') {
 						message = t('This link has expired or does not exist')
-					} else if (err?.httpStatus === 403 || code === 'E-AUTH-NOPERM') {
+					} else if (apiErr?.httpStatus === 403 || code === 'E-AUTH-NOPERM') {
 						message = t('This link has reached its usage limit')
 					}
 

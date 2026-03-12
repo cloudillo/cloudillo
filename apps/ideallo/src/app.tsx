@@ -62,7 +62,7 @@ import type { ToolType } from './tools/index.js'
 import type { ObjectId, Bounds, IdealloObject } from './crdt/index.js'
 import {
 	getObject,
-	updateObject,
+	updateObjectFields,
 	deleteObjects,
 	downloadExport,
 	bringToFront,
@@ -643,35 +643,35 @@ export function IdealloApp() {
 						) {
 							const objNewWidth = origObj.width * scaleX
 							const objNewHeight = origObj.height * scaleY
-							updateObject(yDoc, doc, objectId, {
+							updateObjectFields(yDoc, doc, objectId, {
 								x: objNewX,
 								y: objNewY,
 								width: Math.max(10, objNewWidth),
 								height: Math.max(10, objNewHeight)
-							} as any)
+							})
 						} else if (origObj.type === 'line' || origObj.type === 'arrow') {
 							// Scale line endpoints relative to selection origin
 							const relStartX = origObj.startX - originalBounds.x
 							const relStartY = origObj.startY - originalBounds.y
 							const relEndX = origObj.endX - originalBounds.x
 							const relEndY = origObj.endY - originalBounds.y
-							updateObject(yDoc, doc, objectId, {
+							updateObjectFields(yDoc, doc, objectId, {
 								x: objNewX,
 								y: objNewY,
 								startX: originalBounds.x + dx + relStartX * scaleX,
 								startY: originalBounds.y + dy + relStartY * scaleY,
 								endX: originalBounds.x + dx + relEndX * scaleX,
 								endY: originalBounds.y + dy + relEndY * scaleY
-							} as any)
+							})
 						} else if (origObj.type === 'freehand') {
 							// Freehand paths are immutable - just update bounds
 							// Note: Actual path scaling would require SVG transform
-							updateObject(yDoc, doc, objectId, {
+							updateObjectFields(yDoc, doc, objectId, {
 								x: objNewX,
 								y: objNewY,
 								width: origObj.width * scaleX,
 								height: origObj.height * scaleY
-							} as any)
+							})
 						} else if (origObj.type === 'image') {
 							// For single image selection, bounds are already aspect-constrained by hook
 							// For multi-selection, use the dominant scale to maintain aspect ratio
@@ -682,12 +682,12 @@ export function IdealloApp() {
 							const uniformScale = propChangeX >= propChangeY ? scaleX : scaleY
 							const objNewWidth = origObj.width * uniformScale
 							const objNewHeight = objNewWidth / origAspectRatio
-							updateObject(yDoc, doc, objectId, {
+							updateObjectFields(yDoc, doc, objectId, {
 								x: objNewX,
 								y: objNewY,
 								width: Math.max(20, objNewWidth),
 								height: Math.max(20, objNewHeight)
-							} as any)
+							})
 						}
 					})
 				})
@@ -781,9 +781,9 @@ export function IdealloApp() {
 		) {
 			yDoc.transact(() => {
 				initial.originalObjects.forEach((_origObj, objectId) => {
-					updateObject(yDoc, doc, objectId, {
+					updateObjectFields(yDoc, doc, objectId, {
 						rotation: normalizedRotation === 0 ? undefined : normalizedRotation
-					} as any)
+					})
 				})
 			})
 		}
@@ -891,9 +891,9 @@ export function IdealloApp() {
 				if (editId && grownHeight && ideallo.yDoc && ideallo.doc) {
 					const obj = getObject(ideallo.doc, editId)
 					if (obj && 'height' in obj && grownHeight > obj.height) {
-						updateObject(ideallo.yDoc, ideallo.doc, editId, {
+						updateObjectFields(ideallo.yDoc, ideallo.doc, editId, {
 							height: grownHeight
-						} as any)
+						})
 					}
 				}
 				editContentHeightRef.current = null
@@ -905,9 +905,9 @@ export function IdealloApp() {
 				if (editId && grownHeight && ideallo.yDoc && ideallo.doc) {
 					const obj = getObject(ideallo.doc, editId)
 					if (obj && 'height' in obj && grownHeight > obj.height) {
-						updateObject(ideallo.yDoc, ideallo.doc, editId, {
+						updateObjectFields(ideallo.yDoc, ideallo.doc, editId, {
 							height: grownHeight
-						} as any)
+						})
 					}
 				}
 				editContentHeightRef.current = null
@@ -1103,12 +1103,12 @@ export function IdealloApp() {
 				return
 			}
 
-			updateObject(ideallo.yDoc, ideallo.doc, objectId, {
+			updateObjectFields(ideallo.yDoc, ideallo.doc, objectId, {
 				pivotX: finalPivot.x,
 				pivotY: finalPivot.y,
 				x: obj.x + compensation.x,
 				y: obj.y + compensation.y
-			} as any)
+			})
 			isPivotDraggingRef.current = false
 			setTempObjectState(null)
 		},
@@ -1335,9 +1335,9 @@ export function IdealloApp() {
 					if (editId && grownHeight && ideallo.yDoc && ideallo.doc) {
 						const obj = getObject(ideallo.doc, editId)
 						if (obj && 'height' in obj && grownHeight > obj.height) {
-							updateObject(ideallo.yDoc, ideallo.doc, editId, {
+							updateObjectFields(ideallo.yDoc, ideallo.doc, editId, {
 								height: grownHeight
-							} as any)
+							})
 						}
 					}
 					editContentHeightRef.current = null
@@ -1361,9 +1361,9 @@ export function IdealloApp() {
 					if (editId && grownHeight && ideallo.yDoc && ideallo.doc) {
 						const obj = getObject(ideallo.doc, editId)
 						if (obj && 'height' in obj && grownHeight > obj.height) {
-							updateObject(ideallo.yDoc, ideallo.doc, editId, {
+							updateObjectFields(ideallo.yDoc, ideallo.doc, editId, {
 								height: grownHeight
-							} as any)
+							})
 						}
 					}
 					editContentHeightRef.current = null

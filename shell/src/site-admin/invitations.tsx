@@ -116,7 +116,14 @@ function RegistrationInvites() {
 			;(async function () {
 				const res = await api.refs.list({ type: 'register' })
 				if (Array.isArray(res))
-					setRefs(res.map((ref: any) => ({ ...ref, createdAt: new Date(ref.createdAt) })))
+					setRefs(
+						res.map((ref) => ({
+							...ref,
+							createdAt: new Date(ref.createdAt),
+							expiresAt: new Date(ref.expiresAt ?? ''),
+							count: ref.count ?? 0
+						}))
+					)
 			})()
 		},
 		[auth, api]
@@ -132,7 +139,12 @@ function RegistrationInvites() {
 		const res = await api.refs.create({ type: 'register', description: description as string })
 		if (res) {
 			setRefs((refs) => [
-				{ ...res, createdAt: new Date(res.createdAt) } as any,
+				{
+					...res,
+					createdAt: new Date(res.createdAt),
+					expiresAt: new Date(res.expiresAt ?? ''),
+					count: res.count ?? 0
+				},
 				...(refs || [])
 			])
 		}
@@ -245,7 +257,7 @@ function CommunityInvites() {
 					const res = await api.refs.list({ type: 'profile.invite' })
 					if (Array.isArray(res)) {
 						setInvites(
-							res.map((ref: any) => ({
+							res.map((ref) => ({
 								...ref,
 								createdAt: new Date(ref.createdAt),
 								expiresAt: ref.expiresAt ? new Date(ref.expiresAt) : undefined

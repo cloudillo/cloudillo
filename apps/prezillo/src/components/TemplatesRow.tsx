@@ -24,6 +24,7 @@ import type * as Y from 'yjs'
 import { IoChevronUp, IoChevronDown, IoAdd } from 'react-icons/io5'
 
 import type { TemplateId, YPrezilloDocument } from '../crdt'
+import type { PrezilloObject } from '../crdt/runtime-types'
 import { createTemplate } from '../crdt'
 import type { TemplateWithUsage } from '../hooks/useTemplates'
 import { TemplateThumbnail } from './TemplateThumbnail'
@@ -57,7 +58,7 @@ export interface TemplatesRowProps {
 	/** Read-only mode */
 	readOnly?: boolean
 	/** Get template prototype objects */
-	getTemplateObjects: (templateId: TemplateId) => any[]
+	getTemplateObjects: (templateId: TemplateId) => PrezilloObject[]
 }
 
 export function TemplatesRow({

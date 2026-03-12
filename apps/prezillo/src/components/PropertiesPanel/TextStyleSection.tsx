@@ -137,7 +137,7 @@ export function TextStyleSection({
 	const handleBulletChange = React.useCallback(
 		(bulletId: string) => {
 			updateObjectTextStyle(yDoc, doc, objectId, {
-				lb: bulletId || (null as any)
+				lb: bulletId || null
 			})
 			setShowBulletPicker(false)
 		},

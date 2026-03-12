@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { mergeClasses, createComponent } from '../utils.js'
+import { mergeClasses, createComponent, polyRef } from '../utils.js'
 import type { Elevation } from '../types.js'
 
 export interface NavProps extends React.HTMLAttributes<HTMLElement> {
@@ -35,7 +35,7 @@ export const Nav = createComponent<HTMLElement, NavProps>(
 	) => {
 		return (
 			<Component
-				ref={ref as any}
+				ref={polyRef(ref)}
 				className={mergeClasses(
 					'c-nav',
 					vertical && 'vertical',

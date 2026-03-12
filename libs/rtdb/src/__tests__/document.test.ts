@@ -18,6 +18,7 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals'
 import { DocumentReference } from '../document'
 import { CollectionReference } from '../collection'
 import { WebSocketManager } from '../websocket'
+import type { TransactionMessage } from '../types'
 
 jest.mock('../websocket')
 jest.mock('../collection')
@@ -35,6 +36,8 @@ describe('DocumentReference', () => {
 			maxReconnectDelay: 30000,
 			debug: false
 		}) as jest.Mocked<WebSocketManager>
+		mockWs.send = jest.fn() as unknown as jest.Mocked<WebSocketManager>['send']
+		mockWs.subscribe = jest.fn() as unknown as jest.Mocked<WebSocketManager>['subscribe']
 
 		docRef = new DocumentReference(mockWs, 'posts/123')
 	})
@@ -64,7 +67,7 @@ describe('DocumentReference', () => {
 
 	describe('get', () => {
 		it('should fetch existing document', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'getResult',
 				data: { title: 'Test Post', author: 'alice' }
 			})
@@ -77,7 +80,7 @@ describe('DocumentReference', () => {
 		})
 
 		it('should return non-existing snapshot for missing document', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'getResult',
 				data: null
 			})
@@ -89,14 +92,14 @@ describe('DocumentReference', () => {
 		})
 
 		it('should send get message', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'getResult',
 				data: null
 			})
 
 			await docRef.get()
 
-			const message = mockWs.send.mock.calls[0][0]
+			const message = mockWs.send.mock.calls[0][0] as unknown as TransactionMessage
 			expect(message.type).toBe('get')
 			expect(message.path).toBe('posts/123')
 		})
@@ -104,7 +107,7 @@ describe('DocumentReference', () => {
 
 	describe('set', () => {
 		it('should set document data', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'transactionResult',
 				results: [{}]
 			})
@@ -112,7 +115,7 @@ describe('DocumentReference', () => {
 			const data = { title: 'New Post', author: 'bob' }
 			await docRef.set(data)
 
-			const message = mockWs.send.mock.calls[0][0]
+			const message = mockWs.send.mock.calls[0][0] as unknown as TransactionMessage
 			expect(message.type).toBe('transaction')
 			expect(message.operations[0].type).toBe('replace')
 			expect(message.operations[0].data).toEqual(data)
@@ -121,7 +124,7 @@ describe('DocumentReference', () => {
 
 	describe('update', () => {
 		it('should update document with partial data', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'transactionResult',
 				results: [{}]
 			})
@@ -129,14 +132,14 @@ describe('DocumentReference', () => {
 			const updates = { title: 'Updated Title', views: { $op: 'increment', by: 1 } }
 			await docRef.update(updates)
 
-			const message = mockWs.send.mock.calls[0][0]
+			const message = mockWs.send.mock.calls[0][0] as unknown as TransactionMessage
 			expect(message.type).toBe('transaction')
 			expect(message.operations[0].type).toBe('update')
 			expect(message.operations[0].data).toEqual(updates)
 		})
 
 		it('should support field operations', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'transactionResult',
 				results: [{}]
 			})
@@ -146,8 +149,8 @@ describe('DocumentReference', () => {
 				tags: { $op: 'append', values: ['new-tag'] }
 			})
 
-			const message = mockWs.send.mock.calls[0][0]
-			const data = message.operations[0].data
+			const message = mockWs.send.mock.calls[0][0] as unknown as TransactionMessage
+			const data = message.operations[0].data as Record<string, Record<string, unknown>>
 			expect(data.counter.$op).toBe('increment')
 			expect(data.tags.$op).toBe('append')
 		})
@@ -155,14 +158,14 @@ describe('DocumentReference', () => {
 
 	describe('delete', () => {
 		it('should delete document', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'transactionResult',
 				results: [{}]
 			})
 
 			await docRef.delete()
 
-			const message = mockWs.send.mock.calls[0][0]
+			const message = mockWs.send.mock.calls[0][0] as unknown as TransactionMessage
 			expect(message.type).toBe('transaction')
 			expect(message.operations[0].type).toBe('delete')
 		})
@@ -185,7 +188,7 @@ describe('DocumentReference', () => {
 
 	describe('onSnapshot', () => {
 		it('should subscribe to document changes', () => {
-			mockWs.subscribe = (jest.fn() as any).mockReturnValue(() => {})
+			mockWs.subscribe.mockReturnValue(() => {})
 			const callback = jest.fn()
 
 			docRef.onSnapshot(callback)
@@ -195,7 +198,7 @@ describe('DocumentReference', () => {
 
 		it('should return unsubscribe function', () => {
 			const unsubscribeFn = jest.fn()
-			mockWs.subscribe = (jest.fn() as any).mockReturnValue(unsubscribeFn)
+			mockWs.subscribe.mockReturnValue(unsubscribeFn)
 
 			const unsub = docRef.onSnapshot(jest.fn())
 
@@ -206,19 +209,17 @@ describe('DocumentReference', () => {
 			const callback = jest.fn()
 			const unsubscribeFn = jest.fn()
 
-			mockWs.subscribe = (jest.fn() as any).mockImplementation(
-				(_path: any, _filter: any, cb: any) => {
-					setTimeout(() => {
-						cb({
-							action: 'update',
-							path: 'posts/123',
-							data: { title: 'Updated' }
-						})
-						cb({ action: 'ready', path: 'posts/123' })
-					}, 0)
-					return unsubscribeFn
-				}
-			)
+			mockWs.subscribe.mockImplementation((_path, _filter, cb) => {
+				setTimeout(() => {
+					cb({
+						action: 'update',
+						path: 'posts/123',
+						data: { title: 'Updated' }
+					})
+					cb({ action: 'ready', path: 'posts/123' })
+				}, 0)
+				return unsubscribeFn
+			})
 
 			docRef.onSnapshot(callback)
 
@@ -232,18 +233,16 @@ describe('DocumentReference', () => {
 			const callback = jest.fn()
 			const unsubscribeFn = jest.fn()
 
-			mockWs.subscribe = (jest.fn() as any).mockImplementation(
-				(_path: any, _filter: any, cb: any) => {
-					setTimeout(() => {
-						cb({
-							action: 'delete',
-							path: 'posts/123'
-						})
-						cb({ action: 'ready', path: 'posts/123' })
-					}, 0)
-					return unsubscribeFn
-				}
-			)
+			mockWs.subscribe.mockImplementation((_path, _filter, cb) => {
+				setTimeout(() => {
+					cb({
+						action: 'delete',
+						path: 'posts/123'
+					})
+					cb({ action: 'ready', path: 'posts/123' })
+				}, 0)
+				return unsubscribeFn
+			})
 
 			docRef.onSnapshot(callback)
 
@@ -270,25 +269,25 @@ describe('DocumentReference', () => {
 
 	describe('error handling', () => {
 		it('should propagate errors from get', async () => {
-			mockWs.send = (jest.fn() as any).mockRejectedValue(new Error('Network error'))
+			mockWs.send.mockRejectedValue(new Error('Network error'))
 
 			await expect(docRef.get()).rejects.toThrow('Network error')
 		})
 
 		it('should propagate errors from set', async () => {
-			mockWs.send = (jest.fn() as any).mockRejectedValue(new Error('Permission denied'))
+			mockWs.send.mockRejectedValue(new Error('Permission denied'))
 
 			await expect(docRef.set({ data: 'test' })).rejects.toThrow('Permission denied')
 		})
 
 		it('should propagate errors from update', async () => {
-			mockWs.send = (jest.fn() as any).mockRejectedValue(new Error('Validation failed'))
+			mockWs.send.mockRejectedValue(new Error('Validation failed'))
 
 			await expect(docRef.update({ field: 'value' })).rejects.toThrow('Validation failed')
 		})
 
 		it('should propagate errors from delete', async () => {
-			mockWs.send = (jest.fn() as any).mockRejectedValue(new Error('Document not found'))
+			mockWs.send.mockRejectedValue(new Error('Document not found'))
 
 			await expect(docRef.delete()).rejects.toThrow('Document not found')
 		})

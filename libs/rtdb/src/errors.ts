@@ -18,7 +18,7 @@ export class RtdbError extends Error {
 	constructor(
 		message: string,
 		public code: number,
-		public details?: any
+		public details?: unknown
 	) {
 		super(message)
 		this.name = 'RtdbError'
@@ -27,7 +27,7 @@ export class RtdbError extends Error {
 }
 
 export class ConnectionError extends RtdbError {
-	constructor(message: string, details?: any) {
+	constructor(message: string, details?: unknown) {
 		super(message, 503, details)
 		this.name = 'ConnectionError'
 		Object.setPrototypeOf(this, ConnectionError.prototype)
@@ -35,7 +35,7 @@ export class ConnectionError extends RtdbError {
 }
 
 export class AuthError extends RtdbError {
-	constructor(message: string, details?: any) {
+	constructor(message: string, details?: unknown) {
 		super(message, 401, details)
 		this.name = 'AuthError'
 		Object.setPrototypeOf(this, AuthError.prototype)
@@ -43,7 +43,7 @@ export class AuthError extends RtdbError {
 }
 
 export class PermissionError extends RtdbError {
-	constructor(message: string, details?: any) {
+	constructor(message: string, details?: unknown) {
 		super(message, 403, details)
 		this.name = 'PermissionError'
 		Object.setPrototypeOf(this, PermissionError.prototype)
@@ -51,7 +51,7 @@ export class PermissionError extends RtdbError {
 }
 
 export class NotFoundError extends RtdbError {
-	constructor(message: string, details?: any) {
+	constructor(message: string, details?: unknown) {
 		super(message, 404, details)
 		this.name = 'NotFoundError'
 		Object.setPrototypeOf(this, NotFoundError.prototype)
@@ -59,7 +59,7 @@ export class NotFoundError extends RtdbError {
 }
 
 export class ValidationError extends RtdbError {
-	constructor(message: string, details?: any) {
+	constructor(message: string, details?: unknown) {
 		super(message, 400, details)
 		this.name = 'ValidationError'
 		Object.setPrototypeOf(this, ValidationError.prototype)
@@ -67,7 +67,7 @@ export class ValidationError extends RtdbError {
 }
 
 export class TimeoutError extends RtdbError {
-	constructor(message: string, details?: any) {
+	constructor(message: string, details?: unknown) {
 		super(message, 408, details)
 		this.name = 'TimeoutError'
 		Object.setPrototypeOf(this, TimeoutError.prototype)

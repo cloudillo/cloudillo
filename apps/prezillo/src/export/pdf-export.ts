@@ -31,6 +31,7 @@ import type {
 	YPrezilloDocument,
 	ViewNode,
 	PrezilloObject,
+	RectObject,
 	ImageObject,
 	QrCodeObject,
 	TextObject,
@@ -196,13 +197,14 @@ async function renderObjectToSVG(
 
 	switch (object.type) {
 		case 'rect': {
+			const rectObj = object as RectObject
 			const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
 			rect.setAttribute('x', String(object.x))
 			rect.setAttribute('y', String(object.y))
 			rect.setAttribute('width', String(object.width))
 			rect.setAttribute('height', String(object.height))
-			if ((object as any).cornerRadius) {
-				rect.setAttribute('rx', String((object as any).cornerRadius))
+			if (rectObj.cornerRadius) {
+				rect.setAttribute('rx', String(rectObj.cornerRadius))
 			}
 			applyStyleProps(rect, fillProps, strokeProps)
 			content = rect
@@ -221,8 +223,7 @@ async function renderObjectToSVG(
 		}
 
 		case 'line': {
-			const lineObj = object as any
-			const points = lineObj.points || [
+			const points = object.points || [
 				[0, object.height / 2],
 				[object.width, object.height / 2]
 			]
@@ -566,8 +567,8 @@ async function renderObjectToSVG(
  */
 function applyStyleProps(
 	el: SVGElement,
-	fillProps: Record<string, any>,
-	strokeProps: Record<string, any>
+	fillProps: Record<string, unknown>,
+	strokeProps: Record<string, unknown>
 ): void {
 	for (const [key, value] of Object.entries(fillProps)) {
 		if (value !== undefined) {
@@ -696,7 +697,10 @@ export async function exportToPDF(
 	pdf.setDisplayMode('fullwidth', 'single', null)
 
 	// Also set PageLayout directly in the PDF catalog
-	const pdfInternal = pdf.internal as any
+	const pdfInternal = pdf.internal as unknown as {
+		events: { subscribe(event: string, cb: () => void): void }
+		out(str: string): void
+	}
 	if (pdfInternal.events) {
 		pdfInternal.events.subscribe('putCatalog', () => {
 			pdfInternal.out('/PageLayout /SinglePage')

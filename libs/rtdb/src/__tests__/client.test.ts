@@ -31,6 +31,13 @@ describe('RtdbClient', () => {
 		jest.useFakeTimers()
 		jest.clearAllMocks()
 
+		Object.assign(WebSocketManager.prototype, {
+			connect: jest.fn(),
+			disconnect: jest.fn(),
+			isConnected: jest.fn(),
+			send: jest.fn()
+		})
+
 		client = createRtdbClient({
 			dbId: 'test-db',
 			auth: { getToken: () => 'test-token' },
@@ -65,8 +72,8 @@ describe('RtdbClient', () => {
 	describe('connect/disconnect', () => {
 		it('should connect to server', async () => {
 			const mockWs = WebSocketManager as jest.MockedClass<typeof WebSocketManager>
-			mockWs.prototype.connect = (jest.fn() as any).mockResolvedValue(undefined)
-			mockWs.prototype.isConnected = (jest.fn() as any).mockReturnValue(true)
+			jest.mocked(mockWs.prototype.connect).mockResolvedValue(undefined)
+			jest.mocked(mockWs.prototype.isConnected).mockReturnValue(true)
 
 			await client.connect()
 
@@ -75,8 +82,8 @@ describe('RtdbClient', () => {
 
 		it('should disconnect from server', async () => {
 			const mockWs = WebSocketManager as jest.MockedClass<typeof WebSocketManager>
-			mockWs.prototype.disconnect = (jest.fn() as any).mockResolvedValue(undefined)
-			mockWs.prototype.isConnected = (jest.fn() as any).mockReturnValue(false)
+			jest.mocked(mockWs.prototype.disconnect).mockResolvedValue(undefined)
+			jest.mocked(mockWs.prototype.isConnected).mockReturnValue(false)
 
 			await client.disconnect()
 
@@ -85,7 +92,7 @@ describe('RtdbClient', () => {
 
 		it('should not reconnect if already connected', async () => {
 			const mockWs = WebSocketManager as jest.MockedClass<typeof WebSocketManager>
-			mockWs.prototype.connect = (jest.fn() as any).mockResolvedValue(undefined)
+			jest.mocked(mockWs.prototype.connect).mockResolvedValue(undefined)
 
 			await client.connect()
 			await client.connect() // Second call
@@ -110,7 +117,7 @@ describe('RtdbClient', () => {
 
 		it('should auto-connect on collection access', () => {
 			const mockWs = WebSocketManager as jest.MockedClass<typeof WebSocketManager>
-			mockWs.prototype.connect = (jest.fn() as any).mockResolvedValue(undefined)
+			jest.mocked(mockWs.prototype.connect).mockResolvedValue(undefined)
 
 			client.collection('posts')
 
@@ -145,7 +152,7 @@ describe('RtdbClient', () => {
 
 		it('should auto-connect on ref access', () => {
 			const mockWs = WebSocketManager as jest.MockedClass<typeof WebSocketManager>
-			mockWs.prototype.connect = (jest.fn() as any).mockResolvedValue(undefined)
+			jest.mocked(mockWs.prototype.connect).mockResolvedValue(undefined)
 
 			client.ref('posts/123')
 
@@ -205,6 +212,7 @@ describe('WriteBatch', () => {
 			maxReconnectDelay: 30000,
 			debug: false
 		}) as jest.Mocked<WebSocketManager>
+		mockWs.send = jest.fn() as unknown as jest.Mocked<WebSocketManager>['send']
 
 		batch = new WriteBatch(mockWs)
 	})
@@ -261,7 +269,7 @@ describe('WriteBatch', () => {
 
 	describe('commit', () => {
 		it('should send transaction message', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'transactionResult',
 				results: [{ id: 'new-doc' }]
 			})
@@ -277,7 +285,7 @@ describe('WriteBatch', () => {
 		})
 
 		it('should execute multiple operations atomically', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'transactionResult',
 				results: [{ id: 'new-doc' }, {}, {}]
 			})
@@ -296,7 +304,7 @@ describe('WriteBatch', () => {
 		})
 
 		it('should return results with IDs', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'transactionResult',
 				results: [{ id: 'new-doc-1' }, { id: 'new-doc-2' }]
 			})
@@ -313,7 +321,7 @@ describe('WriteBatch', () => {
 		})
 
 		it('should handle empty batch', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'transactionResult',
 				results: []
 			})
@@ -324,7 +332,7 @@ describe('WriteBatch', () => {
 		})
 
 		it('should propagate errors from server', async () => {
-			mockWs.send = (jest.fn() as any).mockRejectedValue(new Error('Transaction failed'))
+			mockWs.send.mockRejectedValue(new Error('Transaction failed'))
 
 			const mockColl = new CollectionReference(mockWs, 'posts')
 			batch.create(mockColl, { title: 'Test' })

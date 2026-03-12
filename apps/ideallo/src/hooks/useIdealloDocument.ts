@@ -283,9 +283,9 @@ export function useIdealloDocument(): UseIdealloDocumentResult {
 			const localClientId = awareness.clientID
 			const newPresence = new Map<number, IdealloPresence>()
 
-			states.forEach((state: any, clientId: number) => {
+			states.forEach((state: Record<string, unknown>, clientId: number) => {
 				if (clientId !== localClientId && state) {
-					newPresence.set(clientId, state as IdealloPresence)
+					newPresence.set(clientId, state as unknown as IdealloPresence)
 				}
 			})
 

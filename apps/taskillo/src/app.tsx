@@ -181,7 +181,7 @@ function useTasks(client: RtdbClient | undefined, fileId: string, _idTag: string
 		setLoading(true)
 		setError(undefined)
 
-		const collectionRef = client.collection('tasks')
+		const collectionRef = client.collection<Task>('tasks')
 
 		// onSnapshot creates a real-time subscription
 		// The callback fires whenever ANY client creates, updates, or deletes a task
@@ -396,7 +396,7 @@ function TaskInput({
 	const handleKeyPress = async (e: React.KeyboardEvent<HTMLInputElement>) => {
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault()
-			await handleSubmit(e as any)
+			await handleSubmit(e as unknown as React.FormEvent)
 		}
 	}
 

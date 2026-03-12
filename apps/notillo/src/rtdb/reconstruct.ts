@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import type { Block } from '@blocknote/core'
-import type { BlockRecord } from './types.js'
+import { type BlockRecord, asBlockType, asBlockContent } from './types.js'
 
 export function reconstructBlocks(records: Map<string, BlockRecord & { id: string }>): Block[] {
 	// Group by parent
@@ -38,9 +38,9 @@ export function reconstructBlocks(records: Map<string, BlockRecord & { id: strin
 		const children = childrenOf.get(parentId) || []
 		return children.map((record) => ({
 			id: record.id,
-			type: record.type as any,
+			type: asBlockType(record.type),
 			props: record.props || {},
-			content: (record.content as any) || [],
+			content: asBlockContent(record.content) || [],
 			children: buildTree(record.id)
 		}))
 	}

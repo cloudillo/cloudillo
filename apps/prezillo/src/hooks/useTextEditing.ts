@@ -24,7 +24,7 @@
 import * as React from 'react'
 import type Quill from 'quill'
 
-import type { ObjectId } from '../crdt'
+import type { ObjectId, TextObject } from '../crdt'
 import { updateObjectSize, resolveObject, resolveTextStyle } from '../crdt'
 import { measureTextHeight } from '../utils'
 import type { UsePrezilloDocumentResult } from './usePrezilloDocument'
@@ -41,7 +41,7 @@ export interface UseTextEditingResult {
 	quillRef: React.MutableRefObject<Quill | null>
 
 	// Computed
-	selectedTextObject: { id: string; obj: any } | null
+	selectedTextObject: { id: string; obj: unknown } | null
 	selectedTextStyle: ReturnType<typeof resolveTextStyle> | null
 
 	// Handlers
@@ -99,7 +99,7 @@ export function useTextEditing({ prezillo }: UseTextEditingOptions): UseTextEdit
 			const measuredHeight = measureTextHeight(plainText, obj.width, textStyle)
 
 			// Use minHeight if set, otherwise use current height as minimum
-			const minHeight = (obj as any).minHeight ?? obj.height
+			const minHeight = (obj as TextObject).minHeight ?? obj.height
 			const newHeight = Math.max(measuredHeight, minHeight)
 
 			// Update height if it changed

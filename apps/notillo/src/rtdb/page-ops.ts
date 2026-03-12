@@ -55,7 +55,7 @@ export async function updatePage(
 	pageId: string,
 	updates: Partial<Pick<PageRecord, 'title' | 'icon' | 'coverImage'>>
 ): Promise<void> {
-	const stored: Record<string, any> = {}
+	const stored: Record<string, unknown> = {}
 	if (updates.title !== undefined) stored.ti = updates.title
 	if (updates.icon !== undefined) stored.ic = updates.icon
 	if (updates.coverImage !== undefined) stored.ci = updates.coverImage
@@ -137,7 +137,7 @@ export async function movePage(
 		}
 	}
 
-	const stored: Record<string, any> = {
+	const stored: Record<string, unknown> = {
 		o: newOrder,
 		ua: new Date().toISOString()
 	}

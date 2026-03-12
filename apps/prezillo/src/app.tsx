@@ -90,7 +90,14 @@ import {
 	type BottomSheetSnapPoint
 } from '@cloudillo/react'
 
-import type { ObjectId, ViewId, TemplateId, PrezilloObject, TableGridObject } from './crdt'
+import type {
+	ObjectId,
+	ViewId,
+	ContainerId,
+	TemplateId,
+	PrezilloObject,
+	TableGridObject
+} from './crdt'
 import { updateDocumentNavState } from './crdt'
 
 /**
@@ -129,7 +136,7 @@ import { downloadPDF } from './export'
 export function PrezilloApp() {
 	const prezillo = usePrezilloDocument()
 	// Debug helper - access via window.prezillo in browser console
-	;(window as any).prezillo = prezillo
+	;(window as unknown as Record<string, unknown>).prezillo = prezillo
 	const isReadOnly = prezillo.cloudillo.access === 'read'
 	const [activeDocumentId, setActiveDocumentIdRaw] = React.useState<ObjectId | null>(null)
 
@@ -332,7 +339,7 @@ export function PrezilloApp() {
 	const [propertyPreview, setPropertyPreview] = React.useState<PropertyPreview | null>(null)
 
 	// Selected container (layer) for creating objects inside
-	const [selectedContainerId, setSelectedContainerId] = React.useState<string | null>(null)
+	const [selectedContainerId, setSelectedContainerId] = React.useState<ContainerId | null>(null)
 
 	// Temporary object state during drag/resize/rotate (local visual only, not persisted)
 	const [tempObjectState, setTempObjectState] = React.useState<TempObjectState | null>(null)
@@ -1315,8 +1322,8 @@ export function PrezilloApp() {
 					<PrezilloPropertiesPanel
 						prezillo={prezillo}
 						onPreview={setPropertyPreview}
-						selectedContainerId={selectedContainerId as any}
-						onSelectContainer={setSelectedContainerId as any}
+						selectedContainerId={selectedContainerId}
+						onSelectContainer={setSelectedContainerId}
 						quillRef={quillRef}
 						editingTextId={editingTextId}
 					/>

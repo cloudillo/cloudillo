@@ -24,6 +24,11 @@
 
 import Quill from 'quill'
 
+/** Minimal interface for Quill blot static methods returned by Quill.import() */
+interface QuillBlotStatic {
+	create(value?: unknown): HTMLElement
+}
+
 // Helper to normalize value to a valid Props object
 function normalizeValue(value: unknown): Record<string, string> {
 	if (value == null || typeof value !== 'object') {
@@ -35,10 +40,10 @@ function normalizeValue(value: unknown): Record<string, string> {
 // Get blots from Quill registry after QuillTableBetter registers them
 // and patch their create() methods with null-safe versions
 export function registerSafeTableBlots() {
-	const TableCell = Quill.import('formats/table-cell') as any
-	const TableTh = Quill.import('formats/table-th') as any
-	const TableTemporary = Quill.import('formats/table-temporary') as any
-	const TableCol = Quill.import('formats/table-col') as any
+	const TableCell = Quill.import('formats/table-cell') as QuillBlotStatic
+	const TableTh = Quill.import('formats/table-th') as QuillBlotStatic
+	const TableTemporary = Quill.import('formats/table-temporary') as QuillBlotStatic
+	const TableCol = Quill.import('formats/table-col') as QuillBlotStatic
 
 	// Store original create methods
 	const originalTableCellCreate = TableCell.create.bind(TableCell)

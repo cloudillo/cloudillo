@@ -26,7 +26,7 @@ const resources = {
 }
 
 i18n.use(initReactI18next)
-	.use(LanguageDetector as any)
+	.use(LanguageDetector as Parameters<typeof i18n.use>[0])
 	.init({
 		resources,
 		fallbackLng: 'en',

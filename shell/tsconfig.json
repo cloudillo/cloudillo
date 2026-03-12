@@ -14,5 +14,6 @@
 		"paths": {
 			"*": ["./src/types/*"]
 		}
-	}
+	},
+	"exclude": ["sw"]
 }

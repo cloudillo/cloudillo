@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { mergeClasses, createComponent } from '../utils.js'
+import { mergeClasses, createComponent, polyRef } from '../utils.js'
 
 export interface NavItemProps extends React.HTMLAttributes<HTMLElement> {
 	as?: 'button' | 'li' | 'div'
@@ -30,7 +30,7 @@ export const NavItem = createComponent<HTMLElement, NavItemProps>(
 	({ as: Component = 'li', className, active, disabled, gap, children, ...props }, ref) => {
 		return (
 			<Component
-				ref={ref as any}
+				ref={polyRef(ref)}
 				className={mergeClasses(
 					'c-nav-item',
 					active && 'active',

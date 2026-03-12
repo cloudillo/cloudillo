@@ -116,12 +116,32 @@ export interface StoredPageRecord {
 export interface StoredBlockRecord {
 	p: string // pageId
 	t: string // type (short code or full name)
-	pr?: Record<string, any> // props
+	pr?: Record<string, unknown> // props
 	c?: CompactInlineContent[] // content (compact format)
 	pb?: string | null // parentBlockId (null = root)
 	o: number // order
 	ua: string // updatedAt
 	ub?: string // updatedBy (omitted when owner is the updater)
+}
+
+// ── BlockNote boundary helpers ──
+// BlockNote's generic schema makes content/type/props incompatible with our
+// serialized types at the boundary. These helpers centralize the single cast
+// so that call sites don't need individual `as any` suppressions.
+
+// biome-ignore lint/suspicious/noExplicitAny: BlockNote boundary - content/type/props cross schema boundary
+export function asBlockContent(content: unknown): any {
+	return content
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: BlockNote boundary - block type is a generic string union
+export function asBlockType(type: string): any {
+	return type
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: BlockNote boundary - block props are schema-dependent
+export function asBlockProps(props: Record<string, unknown> | undefined): any {
+	return props
 }
 
 // ── App types (readable, for application code) ──
@@ -143,7 +163,7 @@ export interface PageRecord {
 export interface BlockRecord {
 	pageId: string
 	type: string
-	props?: Record<string, any>
+	props?: Record<string, unknown>
 	content?: InlineContent[]
 	parentBlockId?: string | null // null = root, undefined = not specified
 	order: number

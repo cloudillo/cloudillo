@@ -131,27 +131,29 @@ export function createObject(
 ): ObjectId {
 	const objectId = generateObjectId()
 
-	const base: Partial<PrezilloObject> = {
+	const base = {
 		id: objectId,
-		type,
 		x,
 		y,
 		width,
 		height,
 		rotation: 0,
+		pivotX: 0.5,
+		pivotY: 0.5,
 		opacity: 1,
 		visible: true,
-		locked: false
+		locked: false,
+		hidden: false
 	}
 
 	let object: PrezilloObject
 
 	switch (type) {
 		case 'rect':
-			object = { ...base, type: 'rect' } as any
+			object = { ...base, type: 'rect' }
 			break
 		case 'ellipse':
-			object = { ...base, type: 'ellipse' } as any
+			object = { ...base, type: 'ellipse' }
 			break
 		case 'line':
 			object = {
@@ -160,33 +162,33 @@ export function createObject(
 				points: [
 					[0, height / 2],
 					[width, height / 2]
-				]
-			} as any
+				] as [[number, number], [number, number]]
+			}
 			break
 		case 'path':
-			object = { ...base, type: 'path', pathData: '' } as any
+			object = { ...base, type: 'path', pathData: '' }
 			break
 		case 'polygon':
-			object = { ...base, type: 'polygon', points: [], closed: true } as any
+			object = { ...base, type: 'polygon', points: [], closed: true }
 			break
 		case 'text':
-			object = { ...base, type: 'text', text: '', minHeight: height } as any
+			object = { ...base, type: 'text', text: '', minHeight: height }
 			break
 		case 'image':
-			object = { ...base, type: 'image', fileId: '' } as any
+			object = { ...base, type: 'image', fileId: '' }
 			break
 		case 'embed':
-			object = { ...base, type: 'embed', embedType: 'iframe', src: '' } as any
+			object = { ...base, type: 'embed', embedType: 'iframe', src: '' }
 			break
 		case 'connector':
-			object = { ...base, type: 'connector' } as any
+			object = { ...base, type: 'connector' }
 			break
 		case 'qrcode':
 			object = {
 				...base,
 				type: 'qrcode',
 				url: ''
-			} as any
+			}
 			break
 		case 'pollframe':
 			object = {
@@ -194,7 +196,7 @@ export function createObject(
 				type: 'pollframe',
 				shape: 'rect',
 				label: ''
-			} as any
+			}
 			break
 		case 'tablegrid':
 			object = {
@@ -203,26 +205,26 @@ export function createObject(
 				cols: 3,
 				rows: 3,
 				// Default style: transparent fill, light gray stroke for grid lines
-				s: {
-					f: 'none',
-					s: '#cccccc',
-					sw: 1
+				style: {
+					fill: 'none',
+					stroke: '#cccccc',
+					strokeWidth: 1
 				}
-			} as any
+			}
 			break
 		case 'symbol':
 			object = {
 				...base,
 				type: 'symbol',
 				symbolId: '' // Will be set by caller via addObject
-			} as any
+			}
 			break
 		case 'statevar':
 			object = {
 				...base,
 				type: 'statevar',
 				varType: 'users'
-			} as any
+			}
 			break
 		default:
 			throw new Error(`Unknown object type: ${type}`)
@@ -250,7 +252,7 @@ export function createTableGrid(
 ): ObjectId {
 	const objectId = generateObjectId()
 
-	const object: PrezilloObject = {
+	const object: Runtime.TableGridObject = {
 		id: objectId,
 		type: 'tablegrid',
 		x,
@@ -272,7 +274,7 @@ export function createTableGrid(
 			stroke: '#cccccc',
 			strokeWidth: 1
 		}
-	} as any
+	}
 
 	return addObject(yDoc, doc, object, parentId, insertIndex, pageId)
 }

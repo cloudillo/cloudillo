@@ -20,13 +20,14 @@ import {
 	type ServerMessage,
 	tServerMessage,
 	type ChangeEvent,
+	type QueryFilter,
 	type AggregateOptions,
 	type RtdbClientOptions
 } from './types.js'
 import { ConnectionError, AuthError, TimeoutError, RtdbError } from './errors.js'
 
 interface PendingRequest {
-	resolve: (value: any) => void
+	resolve: (value: unknown) => void
 	reject: (reason: Error) => void
 	timeout: ReturnType<typeof setTimeout>
 }
@@ -38,7 +39,7 @@ interface Subscription {
 
 interface SubscriptionDetails {
 	path: string
-	filter: any
+	filter: QueryFilter | undefined
 	aggregate?: AggregateOptions
 	callback: (event: ChangeEvent) => void
 	onError: (error: Error) => void
@@ -198,7 +199,7 @@ export class WebSocketManager {
 			}, 30000)
 
 			this.pendingRequests.set(id, {
-				resolve,
+				resolve: resolve as (value: unknown) => void,
 				reject,
 				timeout
 			})
@@ -226,7 +227,7 @@ export class WebSocketManager {
 
 	subscribe(
 		path: string,
-		filter: any,
+		filter: QueryFilter | undefined,
 		callback: (event: ChangeEvent) => void,
 		onError: (error: Error) => void,
 		aggregate?: AggregateOptions
@@ -246,8 +247,8 @@ export class WebSocketManager {
 			filter,
 			...(aggregate && { aggregate })
 		})
-			.then((result: any) => {
-				const subId = result.subscriptionId as string
+			.then((result: unknown) => {
+				const subId = (result as { subscriptionId: string }).subscriptionId
 
 				// If unsubscribe was called before the server responded,
 				// immediately tell the server to unsubscribe
@@ -324,7 +325,7 @@ export class WebSocketManager {
 
 			const message: ServerMessage = result.ok
 
-			if ('id' in message && message.id) {
+			if ('id' in message && typeof message.id === 'number' && message.id) {
 				const pending = this.pendingRequests.get(message.id)
 				if (pending) {
 					clearTimeout(pending.timeout)
@@ -408,8 +409,9 @@ export class WebSocketManager {
 					filter: details.filter,
 					...(details.aggregate && { aggregate: details.aggregate })
 				})
-					.then((result: any) => {
-						const serverSubscriptionId = result.subscriptionId
+					.then((result: unknown) => {
+						const serverSubscriptionId = (result as { subscriptionId: string })
+							.subscriptionId
 						this.subscriptions.set(serverSubscriptionId, {
 							callback: details.callback,
 							onError: details.onError
@@ -537,7 +539,7 @@ export class WebSocketManager {
 		this.pendingRequests.clear()
 	}
 
-	private log(...args: any[]): void {
+	private log(...args: unknown[]): void {
 		if (this.debug) {
 			console.log('[RTDB-WS]', ...args)
 		}

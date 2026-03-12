@@ -22,6 +22,15 @@ import { getDefaultReactSlashMenuItems, type DefaultReactSuggestionItem } from '
 
 import type { NotilloEditor } from './schema.js'
 
+function updateBlockUnsafe(
+	editor: NotilloEditor,
+	blockId: string,
+	update: Record<string, unknown>
+) {
+	// biome-ignore lint/suspicious/noExplicitAny: BlockNote schema boundary — custom block types/props not expressible in generic updateBlock signature
+	editor.updateBlock(blockId, update as any)
+}
+
 interface UseMediaHandlerOptions {
 	editor: NotilloEditor
 	ownerTag: string
@@ -49,8 +58,8 @@ export function useMediaHandler({ documentFileId, readOnly }: UseMediaHandlerOpt
 
 			if (pending) {
 				console.log('[MediaHandler] Resolving temp ID:', tempId, '->', finalId)
-				pending.editor.updateBlock(pending.blockId, {
-					props: { url: `cl-file:${pending.mediaTag}:${finalId}` } as any
+				updateBlockUnsafe(pending.editor, pending.blockId, {
+					props: { url: `cl-file:${pending.mediaTag}:${finalId}` }
 				})
 				pendingTempIds.delete(tempId)
 			}
@@ -105,9 +114,9 @@ export function useMediaHandler({ documentFileId, readOnly }: UseMediaHandlerOpt
 
 							if (!result) return
 
-							ed.updateBlock(blockId, {
-								type: blockType as any,
-								props: { url: `cl-file:${mediaTag}:${result.fileId}` } as any
+							updateBlockUnsafe(ed, blockId, {
+								type: blockType,
+								props: { url: `cl-file:${mediaTag}:${result.fileId}` }
 							})
 
 							if (result.fileId.startsWith('@')) {
@@ -169,13 +178,13 @@ export function useMediaHandler({ documentFileId, readOnly }: UseMediaHandlerOpt
 
 							if (!result) return
 
-							ed.updateBlock(blockId, {
-								type: 'documentEmbed' as any,
+							updateBlockUnsafe(ed, blockId, {
+								type: 'documentEmbed',
 								props: {
 									fileId: result.fileId,
 									contentType: result.contentType,
 									appId: result.appId || ''
-								} as any
+								}
 							})
 						} catch (err) {
 							console.error('[MediaHandler] Failed to embed document:', err)

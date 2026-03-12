@@ -573,12 +573,12 @@ export default function usePWA(config: PWAConfig = {}): UsePWA {
 		// Install Prompt handler
 		window.addEventListener(
 			'beforeinstallprompt' as keyof WindowEventMap,
-			handleBeforeInstallPrompt as any
+			handleBeforeInstallPrompt as unknown as EventListener
 		)
 		return function onUnmount() {
 			window.removeEventListener(
 				'beforeinstallprompt' as keyof WindowEventMap,
-				handleBeforeInstallPrompt as any
+				handleBeforeInstallPrompt as unknown as EventListener
 			)
 		}
 	}, [])

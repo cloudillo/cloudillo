@@ -47,7 +47,7 @@ interface Ref {
 	description?: string
 	createdAt: Date
 	expiresAt?: Date
-	count: number
+	count?: number
 }
 
 export function AdminOverview() {
@@ -79,9 +79,10 @@ export function AdminOverview() {
 					setTenants(tenantsRes || [])
 					setInvitations(
 						Array.isArray(refsRes)
-							? refsRes.map((ref: any) => ({
+							? refsRes.map((ref) => ({
 									...ref,
-									createdAt: new Date(ref.createdAt)
+									createdAt: new Date(ref.createdAt),
+									expiresAt: ref.expiresAt ? new Date(ref.expiresAt) : undefined
 								}))
 							: []
 					)
@@ -100,7 +101,7 @@ export function AdminOverview() {
 	const emailSettingsLoaded = emailSettings !== undefined
 	const emailConfigured = emailSettings?.['email.enabled'] && emailSettings?.['email.smtp.host']
 	const pendingInvitations = invitations.filter(
-		(inv) => inv.count > 0 && (!inv.expiresAt || new Date(inv.expiresAt) > new Date())
+		(inv) => (inv.count ?? 0) > 0 && (!inv.expiresAt || new Date(inv.expiresAt) > new Date())
 	)
 	const personalProfiles = tenants.filter((t) => t.type !== 'community')
 	const communityProfiles = tenants.filter((t) => t.type === 'community')

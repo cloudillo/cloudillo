@@ -34,7 +34,7 @@ export interface ActiveContext {
 	permissions: string[]
 
 	/** Additional metadata */
-	metadata?: Record<string, any>
+	metadata?: Record<string, unknown>
 }
 
 /**
@@ -97,7 +97,7 @@ export interface ContextToken {
  */
 export interface ContextCacheEntry {
 	/** Cached data */
-	data: any[]
+	data: unknown[]
 
 	/** When this data was last updated */
 	lastUpdated: Date
@@ -169,6 +169,6 @@ export interface ContextInfo {
 		memberCount?: number
 		description?: string
 		createdAt?: string
-		[key: string]: any
+		[key: string]: unknown
 	}
 }

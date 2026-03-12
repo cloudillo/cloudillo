@@ -78,8 +78,10 @@ export type {
 	NewTextInput,
 	NewStickyInput,
 	NewImageInput,
-	NewDocumentInput
+	NewDocumentInput,
+	ObjectUpdateFields
 } from './object-ops.js'
+export { updateObjectFields } from './object-ops.js'
 export {
 	addObject,
 	getObject,

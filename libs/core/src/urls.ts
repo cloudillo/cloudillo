@@ -148,7 +148,7 @@ export function getOptimalImageVariant(
 	if (localVariants.includes(defaultVariant)) return defaultVariant
 
 	// Fallback: find closest quality variant
-	const contextIndex = IMAGE_VARIANT_QUALITY_ORDER.indexOf(defaultVariant as any)
+	const contextIndex = (IMAGE_VARIANT_QUALITY_ORDER as readonly string[]).indexOf(defaultVariant)
 	if (contextIndex >= 0) {
 		// Try lower quality first (for thumbnails/preview)
 		for (let i = contextIndex; i < IMAGE_VARIANT_QUALITY_ORDER.length; i++) {

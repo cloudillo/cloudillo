@@ -40,7 +40,7 @@ const FLAG_TO_STYLE: Record<string, string> = Object.fromEntries(
 	Object.entries(STYLE_FLAG_MAP).map(([k, v]) => [v, k])
 )
 
-export function encodeStyleFlags(styles: Record<string, any>): string {
+export function encodeStyleFlags(styles: Record<string, unknown>): string {
 	let flags = ''
 	for (const [style, flag] of Object.entries(STYLE_FLAG_MAP)) {
 		if (styles[style]) flags += flag
@@ -48,8 +48,8 @@ export function encodeStyleFlags(styles: Record<string, any>): string {
 	return flags
 }
 
-export function decodeStyleFlags(flags: string): Record<string, any> {
-	const styles: Record<string, any> = {}
+export function decodeStyleFlags(flags: string): Record<string, unknown> {
+	const styles: Record<string, unknown> = {}
 	for (const ch of flags) {
 		const style = FLAG_TO_STYLE[ch]
 		if (style) styles[style] = true
@@ -108,7 +108,7 @@ export function compactContentItem(item: InlineContent): CompactInlineContent {
 	}
 
 	// Unknown type — pass through
-	return item as any
+	return item as unknown as CompactInlineContent
 }
 
 export function expandContentItem(item: CompactInlineContent): InlineContent {
@@ -120,7 +120,7 @@ export function expandContentItem(item: CompactInlineContent): InlineContent {
 	// Tuple → styled text
 	if (Array.isArray(item)) {
 		const [text, flags, colors] = item as [string, string, CompactColorStyles?]
-		const styles: Record<string, any> = decodeStyleFlags(flags)
+		const styles: Record<string, unknown> = decodeStyleFlags(flags)
 		if (colors?.tc) styles.textColor = colors.tc
 		if (colors?.bg) styles.backgroundColor = colors.bg
 		return { type: 'text', text, styles }
@@ -155,7 +155,7 @@ export function expandContentItem(item: CompactInlineContent): InlineContent {
 	}
 
 	// Fallback — return as-is (shouldn't happen)
-	return item as any
+	return item as unknown as InlineContent
 }
 
 export function compactContent(
@@ -175,10 +175,10 @@ export function expandContent(
 // ── Sanitization helpers ──
 
 export function cleanProps(
-	props: Record<string, any> | undefined
-): Record<string, any> | undefined {
+	props: Record<string, unknown> | undefined
+): Record<string, unknown> | undefined {
 	if (!props) return undefined
-	const cleaned: Record<string, any> = {}
+	const cleaned: Record<string, unknown> = {}
 	for (const [key, value] of Object.entries(props)) {
 		if (value === 'default') continue
 		if (key === 'textAlignment' && value === 'left') continue

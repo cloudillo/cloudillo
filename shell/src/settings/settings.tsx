@@ -49,9 +49,12 @@ export function useSettings(prefix: string | string[]) {
 				try {
 					const res = await api.settings.list({ prefix: prefixStr })
 					// Convert array of SettingResponse to flat object mapping key -> value
-					const settingsMap = Object.fromEntries(
-						res.map((setting: any) => [setting.key, setting.value])
-					)
+					const settingsMap: Record<string, string | number | boolean> = {}
+					for (const setting of res) {
+						if (setting.value != null) {
+							settingsMap[setting.key] = setting.value as string | number | boolean
+						}
+					}
 					setSettings(settingsMap)
 				} catch (err) {
 					console.error('Failed to load settings:', err)

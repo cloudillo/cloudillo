@@ -24,8 +24,8 @@ import { useAuth, ProfilePicture, IdentityTag, Button } from '@cloudillo/react'
 
 import { buildCloudilloUri } from '../../utils/cloudillo-uri.js'
 
-// Handle ESM/CJS interop
-const QRCode = (ReactQRCode as any).default ?? ReactQRCode
+const QRCode = ((ReactQRCode as unknown as Record<string, unknown>).default ??
+	ReactQRCode) as typeof ReactQRCode
 
 export interface BusinessCardDialogProps {
 	open: boolean

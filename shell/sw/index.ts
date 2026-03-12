@@ -1,3 +1,18 @@
+declare const self: ServiceWorkerGlobalScope
+
+// Extended cookie options (secure/sameSite/expires not fully typed in TS lib)
+interface CookieSetExtOptions extends CookieInit {
+	secure?: boolean
+	sameSite?: CookieSameSite
+	expires?: number
+}
+
+// NotificationOptions.image/sound not in TS lib types
+interface ExtendedNotificationOptions extends NotificationOptions {
+	image?: string
+	sound?: string
+}
+
 const VERSION = process.env.CLOUDILLO_VERSION || 'unknown'
 const CACHE = `cache-${VERSION}`
 const log = 1
@@ -84,7 +99,7 @@ function generateKey(): string {
 async function getKeyFromCookie(): Promise<string | null> {
 	if (!('cookieStore' in self)) return null
 	try {
-		const cookie = await (self as any).cookieStore.get(KEY_COOKIE_NAME)
+		const cookie = await self.cookieStore.get(KEY_COOKIE_NAME)
 		return cookie?.value || null
 	} catch {
 		return null
@@ -95,13 +110,13 @@ async function getKeyFromCookie(): Promise<string | null> {
 async function setKeyToCookie(key: string): Promise<boolean> {
 	if (!('cookieStore' in self)) return false
 	try {
-		await (self as any).cookieStore.set({
+		await self.cookieStore.set({
 			name: KEY_COOKIE_NAME,
 			value: key,
 			secure: true,
 			sameSite: 'strict',
 			expires: Date.now() + 2147483647 * 1000 // ~68 years (max)
-		})
+		} as CookieSetExtOptions)
 		return true
 	} catch {
 		return false
@@ -113,7 +128,7 @@ async function notifyKeyAccessError(reason: 'key_missing' | 'key_mismatch'): Pro
 	// Store error state so main thread can query it
 	keyErrorState = reason
 
-	const clients = await (self as any).clients.matchAll({ type: 'window' })
+	const clients = await self.clients.matchAll({ type: 'window' })
 	for (const client of clients) {
 		client.postMessage({
 			cloudillo: true,
@@ -342,18 +357,18 @@ const proxyTokenCache = new LRU<string, string>({ maxSize: 100, maxAge: 1000 * 5
 let idTag: string | undefined
 let authToken: string | undefined
 
-function onInstall(evt: any) {
+function onInstall(evt: ExtendableEvent) {
 	evt.waitUntil(
 		(async function () {
 			console.log(`[SW] INSTALL v${VERSION}, cache: ${CACHE}`)
 			const cache = await caches.open(CACHE)
 			await cache.addAll(PRECACHE_URLS)
-			;(self as any).skipWaiting()
+			self.skipWaiting()
 		})()
 	)
 }
 
-function onActivate(evt: any) {
+function onActivate(evt: ExtendableEvent) {
 	evt.waitUntil(
 		(async function () {
 			console.log(`[SW] ACTIVATE v${VERSION}, cache: ${CACHE}`)
@@ -372,7 +387,7 @@ function onActivate(evt: any) {
 				}
 			}
 
-			await (self as any).clients.claim()
+			await self.clients.claim()
 		})()
 	)
 }
@@ -399,7 +414,7 @@ async function fetchIdTag(): Promise<string | undefined> {
 	}
 }
 
-function onFetch(evt: any) {
+function onFetch(evt: FetchEvent) {
 	const reqUrl = new URL(evt.request.url)
 
 	// IMPORTANT: Allow .well-known/cloudillo/id-tag to bypass SW logic
@@ -565,7 +580,7 @@ function onFetch(evt: any) {
 			log && console.log('[SW] FETCH NO-API', evt.request.method, evt.request.url)
 
 			// Only cache GET requests to our own origin
-			if (evt.request.method !== 'GET' || reqUrl.origin !== (self as any).location.origin) {
+			if (evt.request.method !== 'GET' || reqUrl.origin !== self.location.origin) {
 				return fetch(evt.request)
 			}
 
@@ -621,10 +636,13 @@ function onFetch(evt: any) {
 	)
 }
 
-function onPushSubscriptionChange(evt: any) {
+function onPushSubscriptionChange(
+	this: ServiceWorkerGlobalScope,
+	evt: PushSubscriptionChangeEvent
+) {
 	console.log('Subscription expired')
 	evt.waitUntil(
-		(self as any).registration.pushManager.subscribe({ userVisibleOnly: true }).then(function (
+		self.registration.pushManager.subscribe({ userVisibleOnly: true }).then(function (
 			subs: PushSubscription
 		) {
 			console.log('Subscribed after expiration', JSON.stringify(subs))
@@ -642,12 +660,12 @@ function onPushSubscriptionChange(evt: any) {
 	)
 }
 
-function onPush(evt: any) {
-	const data = evt.data.json()
+function onPush(evt: PushEvent) {
+	const data = evt.data?.json()
 	const title = data.title
 	const body = data.body
 	evt.waitUntil(
-		(self as any).registration.showNotification(title, {
+		self.registration.showNotification(title, {
 			body,
 			icon: 'icon-192.png',
 			image: data.image,
@@ -656,19 +674,19 @@ function onPush(evt: any) {
 			},
 			sound: 'default',
 			vibrate: [200, 100, 100, 100, 200]
-		})
+		} as ExtendedNotificationOptions)
 	)
 }
 
-function onNotificationClick(evt: any) {
+function onNotificationClick(evt: NotificationEvent) {
 	console.log('notification click', evt)
 	if (evt.notification?.close) evt.notification.close()
 	evt.waitUntil(
-		(self as any).clients
+		self.clients
 			.matchAll({
 				type: 'window'
 			})
-			.then(function (clientList: any) {
+			.then(function (clientList: readonly WindowClient[]) {
 				for (let i = 0; i < clientList.length; i++) {
 					const client = clientList[i]
 					//if (client.url == '/' && 'focus' in client) {
@@ -678,8 +696,8 @@ function onNotificationClick(evt: any) {
 						return client.focus()
 					}
 				}
-				if ((self as any).clients.openWindow)
-					return (self as any).clients.openWindow(evt.notification.data.path || '/')
+				if (self.clients.openWindow)
+					return self.clients.openWindow(evt.notification.data.path || '/')
 			})
 	)
 }
@@ -717,7 +735,7 @@ async function onMessage(evt: MessageEvent) {
 		case 'sw:apikey.get.req': {
 			const apiKey = await getSecureItem('apiKey')
 			if (evt.source && 'postMessage' in evt.source) {
-				;(evt.source as any).postMessage({
+				;(evt.source as unknown as Client).postMessage({
 					cloudillo: true,
 					v: PROTOCOL_VERSION,
 					type: 'sw:apikey.get.res',
@@ -752,7 +770,7 @@ async function onMessage(evt: MessageEvent) {
 			log && console.log('[SW] Encrypted data cleared for key reset')
 			// Send acknowledgment back to main thread
 			if (evt.source && 'postMessage' in evt.source) {
-				;(evt.source as any).postMessage({
+				;(evt.source as unknown as Client).postMessage({
 					cloudillo: true,
 					v: PROTOCOL_VERSION,
 					type: 'sw:key.reset.ack'
@@ -763,7 +781,7 @@ async function onMessage(evt: MessageEvent) {
 		case 'sw:key.error.check':
 			// Main thread is asking if there's a key error state
 			if (keyErrorState && evt.source && 'postMessage' in evt.source) {
-				;(evt.source as any).postMessage({
+				;(evt.source as unknown as Client).postMessage({
 					cloudillo: true,
 					v: PROTOCOL_VERSION,
 					type: 'sw:key.error',
@@ -775,7 +793,7 @@ async function onMessage(evt: MessageEvent) {
 
 		case 'sw:claim':
 			// Claim control of the page (used after hard reload)
-			await (self as any).clients.claim()
+			await self.clients.claim()
 			log && console.log('[SW] Claimed clients')
 			break
 	}

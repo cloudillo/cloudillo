@@ -44,7 +44,7 @@ export interface RichTextEditorProps {
 	baseStyle: BaseTextStyle
 	onSave: () => void
 	onCancel: () => void
-	awareness?: any // Yjs Awareness instance for cursor display
+	awareness?: ConstructorParameters<typeof QuillBinding>[2]
 	/** Ref to access the Quill instance for formatting from properties panel */
 	quillRef?: React.MutableRefObject<Quill | null>
 	containerStyle?: ContainerStyle
@@ -100,7 +100,7 @@ export function RichTextEditor({
 		if (!editorRef.current) return
 
 		const quill = new Quill(editorRef.current, {
-			theme: false as any, // No theme — we style it ourselves
+			theme: false as unknown as string, // No theme — we style it ourselves
 			modules: {
 				toolbar: false, // No toolbar — formatting from properties panel
 				history: false // Yjs handles undo/redo
@@ -207,7 +207,7 @@ export function RichTextEditor({
 	}
 
 	// Quill editor container styles
-	const editorCSS: Record<string, any> = {
+	const editorCSS: React.CSSProperties & Record<string, string | number | undefined> = {
 		width: '100%',
 		minWidth: width,
 		fontFamily: baseStyle.fontFamily,
@@ -217,7 +217,7 @@ export function RichTextEditor({
 		color: baseStyle.fill,
 		lineHeight: baseStyle.lineHeight,
 		letterSpacing: `${baseStyle.letterSpacing}px`,
-		textAlign: baseStyle.textAlign as any,
+		textAlign: baseStyle.textAlign as React.CSSProperties['textAlign'],
 		border: 'none',
 		padding: 0,
 		boxSizing: 'border-box' as const,

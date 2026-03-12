@@ -24,6 +24,7 @@
  */
 
 import type * as Y from 'yjs'
+import type { Cell } from '@fortune-sheet/core'
 import { stripCellDefaults } from './cell-defaults.js'
 import { downloadBlob, sanitizeFilename } from '@cloudillo/core'
 import { exportYDoc, type ExportEnvelope } from '@cloudillo/crdt'
@@ -73,7 +74,7 @@ function transformSheets(_key: string, data: unknown): unknown {
 			for (const [colId, cell] of Object.entries(row)) {
 				if (colId === '@T') continue
 				if (cell && typeof cell === 'object') {
-					const cleaned = stripCellDefaults(cell as any)
+					const cleaned = stripCellDefaults(cell as Cell)
 					if (cleaned) {
 						cleanRow[colId] = cleaned
 					}

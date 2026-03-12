@@ -17,7 +17,7 @@
 import { WebSocketManager } from './websocket.js'
 import { CollectionReference } from './collection.js'
 import { DocumentReference } from './document.js'
-import type { RtdbClientOptions, TransactionMessage } from './types.js'
+import type { RtdbClientOptions, TransactionMessage, TransactionOperation } from './types.js'
 import { normalizePath } from './utils.js'
 
 export interface BatchResult {
@@ -26,7 +26,7 @@ export interface BatchResult {
 }
 
 export class WriteBatch {
-	private operations: any[] = []
+	private operations: TransactionOperation[] = []
 
 	constructor(private ws: WebSocketManager) {}
 
@@ -35,8 +35,7 @@ export class WriteBatch {
 		data: T,
 		options?: { ref?: string }
 	): DocumentReference<T> {
-		// Get path - both collection and document refs should have access to path
-		const path = (ref as any).path || (ref as any).constructor.name
+		const path = ref.getPath()
 
 		this.operations.push({
 			type: 'create',
@@ -47,11 +46,11 @@ export class WriteBatch {
 
 		// Return a placeholder document reference
 		// The actual ID will be known after commit
-		return ref instanceof DocumentReference ? ref : (ref as any).doc('$placeholder')
+		return ref instanceof DocumentReference ? ref : ref.doc('$placeholder')
 	}
 
 	update<T>(ref: DocumentReference<T>, data: Partial<T>): void {
-		const path = (ref as any).path
+		const path = ref.getPath()
 
 		this.operations.push({
 			type: 'update',
@@ -61,7 +60,7 @@ export class WriteBatch {
 	}
 
 	delete<T>(ref: DocumentReference<T>): void {
-		const path = (ref as any).path
+		const path = ref.getPath()
 
 		this.operations.push({
 			type: 'delete',
@@ -75,9 +74,9 @@ export class WriteBatch {
 			operations: this.operations
 		}
 
-		const response = await this.ws.send<any>(message)
+		const response = await this.ws.send<{ results: BatchResult[] }>(message)
 
-		return response.results || []
+		return (response as { results: BatchResult[] }).results || []
 	}
 }
 
@@ -121,7 +120,7 @@ export class RtdbClient {
 		this.connected = false
 	}
 
-	collection(path: string): CollectionReference {
+	collection<T = unknown>(path: string): CollectionReference<T> {
 		// Auto-connect on first operation
 		if (!this.connected) {
 			this.connect().catch((error) => {
@@ -129,10 +128,10 @@ export class RtdbClient {
 			})
 		}
 
-		return new CollectionReference(this.ws, path)
+		return new CollectionReference<T>(this.ws, path)
 	}
 
-	ref(path: string): DocumentReference {
+	ref<T = unknown>(path: string): DocumentReference<T> {
 		// Auto-connect on first operation
 		if (!this.connected) {
 			this.connect().catch((error) => {
@@ -140,7 +139,7 @@ export class RtdbClient {
 			})
 		}
 
-		return new DocumentReference(this.ws, path)
+		return new DocumentReference<T>(this.ws, path)
 	}
 
 	batch(): WriteBatch {

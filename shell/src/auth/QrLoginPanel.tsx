@@ -18,7 +18,9 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import ReactQRCode from 'react-qr-code'
 
-const QRCode = (ReactQRCode as any).default ?? ReactQRCode
+import { resolveDefaultExport } from '@cloudillo/react'
+
+const QRCode = resolveDefaultExport(ReactQRCode)
 
 import {
 	LuRefreshCw as IcRefresh,

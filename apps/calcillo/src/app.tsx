@@ -39,6 +39,8 @@ import { generateSheetId } from './id-generator'
 import { getOrCreateSheet, ensureSheetDimensions, transformSheetToCelldata } from './ydoc-helpers'
 import { transformOp, deleteSheet } from './transform-ops'
 import { applySheetYEvent } from './yjs-events'
+import type { FreezeType } from './fortune-sheet-types'
+import { freezeSheet } from './fortune-sheet-types'
 import { setupAwareness } from './awareness'
 import { debug } from './debug'
 import {
@@ -191,7 +193,7 @@ export function CalcilloApp() {
 		ySheets.observe(sheetsObserver)
 
 		// Observe sheet data changes (deep observer for cell/config changes)
-		const sheetsDeepObserver = (evts: Y.YEvent<any>[]) => {
+		const sheetsDeepObserver = (evts: Y.YEvent<Y.AbstractType<unknown>>[]) => {
 			const txn = evts[0]?.transaction
 			if (!workbookRef.current) return
 
@@ -349,7 +351,7 @@ export function CalcilloApp() {
 							})
 							// Set flag to prevent onOp from writing back to Yjs
 							localEchoGuard.withGuard(() => {
-								workbookRef.current!.freeze(frozenType as any, range, {
+								freezeSheet(workbookRef.current!, frozenType as FreezeType, range, {
 									id: sheetId
 								})
 							})

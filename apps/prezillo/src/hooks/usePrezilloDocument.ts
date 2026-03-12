@@ -51,12 +51,12 @@ export interface UsePrezilloDocumentResult {
 
 	// Reactive data (re-renders on change)
 	// Note: useY returns plain objects, not Map instances
-	objects: Record<string, any> | null
-	containers: Record<string, any> | null
-	rootChildren: any[] | null
-	views: Record<string, any> | null
+	objects: Record<string, unknown> | null
+	containers: Record<string, unknown> | null
+	rootChildren: unknown[] | null
+	views: Record<string, unknown> | null
 	viewOrder: string[] | null
-	styles: Record<string, any> | null
+	styles: Record<string, unknown> | null
 
 	// UI state
 	activeViewId: ViewId | null

@@ -17,6 +17,15 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
 import { WebSocketManager } from '../websocket'
 
+// Helpers for patching Node.js globals in tests
+function setGlobal(key: string, value: unknown): void {
+	Object.defineProperty(globalThis, key, { value, writable: true, configurable: true })
+}
+
+function getGlobal(key: string): unknown {
+	return (globalThis as Record<string, unknown>)[key]
+}
+
 // Polyfill CloseEvent for Node.js environment
 class CloseEvent extends Event {
 	code: number
@@ -31,7 +40,7 @@ class CloseEvent extends Event {
 	}
 }
 // Make CloseEvent available globally
-;(global as any).CloseEvent = CloseEvent
+setGlobal('CloseEvent', CloseEvent)
 
 // Mock WebSocket
 class MockWebSocket {
@@ -42,7 +51,7 @@ class MockWebSocket {
 	onerror: ((event: Event) => void) | null = null
 	onmessage: ((event: MessageEvent) => void) | null = null
 
-	sentMessages: any[] = []
+	sentMessages: unknown[] = []
 
 	constructor(url: string) {
 		this.url = url
@@ -66,7 +75,7 @@ class MockWebSocket {
 		}
 	}
 
-	simulateMessage(data: any): void {
+	simulateMessage(data: unknown): void {
 		if (this.onmessage) {
 			this.onmessage(new MessageEvent('message', { data: JSON.stringify(data) }))
 		}
@@ -87,21 +96,24 @@ class MockWebSocket {
 }
 
 // Mock global WebSocket
-const originalWebSocket = global.WebSocket as any
+const originalWebSocket = getGlobal('WebSocket')
 let mockWebSocketInstance: MockWebSocket
 
 beforeEach(() => {
 	jest.useFakeTimers()
-	;(global as any).WebSocket = jest.fn((url: string) => {
-		mockWebSocketInstance = new MockWebSocket(url)
-		return mockWebSocketInstance
-	})
+	setGlobal(
+		'WebSocket',
+		jest.fn((url: string) => {
+			mockWebSocketInstance = new MockWebSocket(url)
+			return mockWebSocketInstance
+		})
+	)
 })
 
 afterEach(() => {
 	jest.clearAllTimers()
 	jest.useRealTimers()
-	;(global as any).WebSocket = originalWebSocket
+	setGlobal('WebSocket', originalWebSocket)
 })
 
 describe.skip('WebSocketManager', () => {
@@ -237,7 +249,7 @@ describe.skip('WebSocketManager', () => {
 
 			const sent = mockWebSocketInstance.sentMessages
 			expect(sent.length).toBeGreaterThan(0)
-			expect(sent[0].type).toBe('ping')
+			expect((sent[0] as Record<string, unknown>).type).toBe('ping')
 		})
 
 		it('should queue message when disconnected', async () => {
@@ -268,7 +280,7 @@ describe.skip('WebSocketManager', () => {
 				data: { title: 'Test' }
 			})
 
-			const response = (await responsePromise) as any
+			const response = (await responsePromise) as { data: Record<string, unknown> }
 
 			expect(response.data).toEqual({ title: 'Test' })
 		})
@@ -490,7 +502,7 @@ describe.skip('WebSocketManager', () => {
 				data: { title: 'Test' }
 			})
 
-			const response = (await responsePromise) as any
+			const response = (await responsePromise) as { data: Record<string, unknown> }
 
 			expect(response.data).toEqual({ title: 'Test' })
 		})

@@ -165,7 +165,9 @@ export function WrappedText({
 						lineHeight: textStyle.lineHeight,
 						letterSpacing: `${textStyle.letterSpacing}px`,
 						textDecoration: textDecorationCSS,
-						textAlign: TEXT_ALIGN_CSS[textStyle.textAlign] as any,
+						textAlign: TEXT_ALIGN_CSS[
+							textStyle.textAlign
+						] as React.CSSProperties['textAlign'],
 						wordWrap: 'break-word',
 						whiteSpace: 'pre-wrap',
 						overflowWrap: 'break-word'

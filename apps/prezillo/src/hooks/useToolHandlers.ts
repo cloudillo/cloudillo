@@ -21,7 +21,7 @@
 import * as React from 'react'
 import type { ToolEvent } from 'react-svg-canvas'
 
-import type { ObjectId, TemplateId, SymbolObject } from '../crdt'
+import type { ObjectId, ContainerId, TemplateId, SymbolObject, PrezilloObject } from '../crdt'
 import {
 	addObject,
 	createObject,
@@ -198,7 +198,7 @@ export function useToolHandlers({
 				objectId = createObject(
 					prezillo.yDoc,
 					prezillo.doc,
-					prezillo.activeTool as any,
+					prezillo.activeTool as PrezilloObject['type'],
 					relX,
 					relY,
 					width,
@@ -270,7 +270,7 @@ export function useToolHandlers({
 				prezillo.yDoc,
 				prezillo.doc,
 				symbolObject,
-				parentId as any,
+				(parentId ?? undefined) as ContainerId | undefined,
 				undefined, // insertIndex
 				targetPageId ?? undefined // pageId - page-relative if on a page
 			)
@@ -279,12 +279,12 @@ export function useToolHandlers({
 			objectId = createObject(
 				prezillo.yDoc,
 				prezillo.doc,
-				prezillo.activeTool as any,
+				prezillo.activeTool as PrezilloObject['type'],
 				createX,
 				createY,
 				width,
 				height,
-				parentId as any,
+				(parentId ?? undefined) as ContainerId | undefined,
 				undefined, // insertIndex
 				targetPageId ?? undefined // pageId - page-relative if on a page
 			)

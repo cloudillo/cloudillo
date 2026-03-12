@@ -700,7 +700,7 @@ export function useContextCache<T>(key: string) {
 					[activeContext.idTag]: {
 						...contextCache,
 						[key]: {
-							data: data as any[],
+							data: data as unknown[],
 							lastUpdated: new Date()
 						}
 					}

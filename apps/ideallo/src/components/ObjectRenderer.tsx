@@ -22,7 +22,7 @@
 import * as React from 'react'
 import type Quill from 'quill'
 import type { IdealloObject, YIdealloDocument } from '../crdt/index.js'
-import { getObjectYText } from '../crdt/index.js'
+import { getObjectYText, toObjectId } from '../crdt/index.js'
 import { FreehandPath } from './FreehandPath.js'
 import {
 	RectRenderer,
@@ -158,7 +158,7 @@ function renderObject(
 		case 'polygon':
 			return <PolygonRenderer object={object} />
 		case 'text': {
-			const yText = props.doc ? getObjectYText(props.doc, object.id as any) : undefined
+			const yText = props.doc ? getObjectYText(props.doc, toObjectId(object.id)) : undefined
 			if (props.isEditing && props.onCancel) {
 				return (
 					<TextEditOverlay
@@ -174,7 +174,7 @@ function renderObject(
 			return <TextLabel object={object} yText={yText} />
 		}
 		case 'sticky': {
-			const yText = props.doc ? getObjectYText(props.doc, object.id as any) : undefined
+			const yText = props.doc ? getObjectYText(props.doc, toObjectId(object.id)) : undefined
 			// When editing, use the overlay instead of the display component
 			if (props.isEditing && props.onSave && props.onCancel) {
 				return (

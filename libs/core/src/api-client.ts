@@ -78,7 +78,7 @@ export class ApiClient {
 		responseType: T.Type<Res>,
 		options?: {
 			data?: unknown
-			query?: Record<string, string | number | boolean | undefined>
+			query?: Record<string, string | number | boolean | string[] | undefined>
 			authToken?: string
 			requestId?: string
 			headers?: Record<string, string>
@@ -103,7 +103,7 @@ export class ApiClient {
 		responseType: T.Type<Res>,
 		options?: {
 			data?: unknown
-			query?: Record<string, string | number | boolean | undefined>
+			query?: Record<string, string | number | boolean | string[] | undefined>
 			authToken?: string
 			requestId?: string
 		}
@@ -394,7 +394,7 @@ export class ApiClient {
 		 */
 		list: (query?: Types.ListActionsQuery) =>
 			this.request('GET', '/actions', Types.tListActionsResult, {
-				query: query as any
+				query: query as Record<string, string | number | boolean | string[] | undefined>
 			}),
 
 		/**
@@ -404,7 +404,7 @@ export class ApiClient {
 		 */
 		listPaginated: async (query?: Types.ListActionsQuery) => {
 			const result = await this.requestWithMeta('GET', '/actions', Types.tListActionsResult, {
-				query: query as any
+				query: query as Record<string, string | number | boolean | string[] | undefined>
 			})
 			return {
 				data: result.data,
@@ -498,7 +498,7 @@ export class ApiClient {
 		 */
 		list: (query?: Types.ListFilesQuery) =>
 			this.request('GET', '/files', Types.tListFilesResult, {
-				query: query as any
+				query: query as Record<string, string | number | boolean | string[] | undefined>
 			}),
 
 		/**
@@ -508,7 +508,7 @@ export class ApiClient {
 		 */
 		listPaginated: async (query?: Types.ListFilesQuery) => {
 			const result = await this.requestWithMeta('GET', '/files', Types.tListFilesResult, {
-				query: query as any
+				query: query as Record<string, string | number | boolean | string[] | undefined>
 			})
 			return {
 				data: result.data,
@@ -796,7 +796,9 @@ export class ApiClient {
 		 * @returns List of tags with optional counts
 		 */
 		list: (query?: Types.ListTagsQuery) =>
-			this.request('GET', '/tags', Types.tListTagsResult, { query: query as any })
+			this.request('GET', '/tags', Types.tListTagsResult, {
+				query: query as Record<string, string | number | boolean | string[] | undefined>
+			})
 	}
 
 	// ========================================================================
@@ -842,7 +844,7 @@ export class ApiClient {
 		 */
 		list: (query?: Types.ListProfilesQuery) =>
 			this.request('GET', '/profiles', Types.tListProfilesResult, {
-				query: query as any
+				query: query as Record<string, string | number | boolean | string[] | undefined>
 			}),
 
 		/**

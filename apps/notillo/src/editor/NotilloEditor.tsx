@@ -31,7 +31,7 @@ import type { RtdbClient } from '@cloudillo/rtdb'
 import type { PageRecord } from '../rtdb/types.js'
 import { createPage } from '../rtdb/page-ops.js'
 import { NotilloEditorProvider } from './NotilloEditorContext.js'
-import { notilloSchema, type NotilloEditor as NotilloEditorType } from './schema.js'
+import { notilloSchema, asBaseEditor, type NotilloEditor as NotilloEditorType } from './schema.js'
 import { notilloThemeOverrides } from './theme.js'
 import { shortId } from '../rtdb/ids.js'
 import { useDocumentSync, useRtdbToEditor } from '../hooks/useEditorSync.js'
@@ -131,6 +131,7 @@ export const NotilloEditor = React.memo(
 
 		const editor = useCreateBlockNote({
 			schema: notilloSchema,
+			// biome-ignore lint/suspicious/noExplicitAny: BlockNote initialContent type boundary with custom schema
 			initialContent: initialBlocks.length > 0 ? (initialBlocks as any) : undefined,
 			idFactory: shortId,
 			resolveFileUrl
@@ -142,7 +143,7 @@ export const NotilloEditor = React.memo(
 
 		// Local changes → RTDB (smart per-block sync with position tracking)
 		const { recentLocalUpdates, blockStates } = useDocumentSync(
-			editor as any,
+			asBaseEditor(editor),
 			client,
 			pageId,
 			userId,
@@ -154,15 +155,15 @@ export const NotilloEditor = React.memo(
 
 		// Lock management — pure state hook, no subscription
 		const { locks, handleLockEvent } = useBlockLocks(pageId)
-		const _localLockedBlockRef = useEditorLocks(editor as any, client, userId)
-		useLockIndicators(editor as any, locks)
+		const _localLockedBlockRef = useEditorLocks(asBaseEditor(editor), client, userId)
+		useLockIndicators(asBaseEditor(editor), locks)
 
 		// Editor → page tag sync (debounced, self-healing)
-		usePageTagSync(editor as any, client, pageId, pageTags, readOnly)
+		usePageTagSync(asBaseEditor(editor), client, pageId, pageTags, readOnly)
 
 		// MediaPicker integration for image/video/audio insertion
 		const { getSlashMenuItems } = useMediaHandler({
-			editor: editor as any,
+			editor: editor as NotilloEditorType,
 			ownerTag,
 			documentFileId: fileId,
 			readOnly
@@ -170,7 +171,7 @@ export const NotilloEditor = React.memo(
 
 		// RTDB changes → Editor (lock events forwarded to handleLockEvent)
 		useRtdbToEditor(
-			editor as any,
+			asBaseEditor(editor),
 			client,
 			pageId,
 			userId,
@@ -317,7 +318,10 @@ export const NotilloEditor = React.memo(
 						<SuggestionMenuController
 							triggerCharacter="/"
 							getItems={async (query) =>
-								filterSuggestionItems(getSlashMenuItems(editor as any), query)
+								filterSuggestionItems(
+									getSlashMenuItems(editor as NotilloEditorType),
+									query
+								)
 							}
 							floatingUIOptions={menuFloatingUIOptions}
 						/>

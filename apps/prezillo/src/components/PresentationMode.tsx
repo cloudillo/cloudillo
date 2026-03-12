@@ -33,6 +33,8 @@ import type {
 	PrezilloObject,
 	YPrezilloDocument,
 	ImageObject,
+	TextObject,
+	DocumentObject,
 	QrCodeObject,
 	PollFrameObject,
 	SymbolObject,
@@ -137,14 +139,13 @@ function PresentationObjectShape({
 
 	switch (object.type) {
 		case 'rect': {
-			const rectObj = object as any
 			content = (
 				<rect
 					x={object.x}
 					y={object.y}
 					width={object.width}
 					height={object.height}
-					rx={typeof rectObj.cornerRadius === 'number' ? rectObj.cornerRadius : undefined}
+					rx={typeof object.cornerRadius === 'number' ? object.cornerRadius : undefined}
 					{...fillProps}
 					{...strokeProps}
 				/>
@@ -164,8 +165,7 @@ function PresentationObjectShape({
 			)
 			break
 		case 'line': {
-			const lineObj = object as any
-			const [start, end] = lineObj.points || [
+			const [start, end] = object.points || [
 				[0, object.height / 2],
 				[object.width, object.height / 2]
 			]
@@ -181,8 +181,9 @@ function PresentationObjectShape({
 			break
 		}
 		case 'text': {
+			const textObj = object as TextObject
 			const yText = doc.rt.get(object.id)
-			const presTextContent = (object as any).text || ''
+			const presTextContent = textObj.text || ''
 			// In presentation mode, don't show empty text objects
 			if (!yText && presTextContent.trim() === '') return null
 			// Build bullet icon URL for custom list markers
@@ -237,22 +238,24 @@ function PresentationObjectShape({
 				/>
 			)
 			break
-		case 'document':
+		case 'document': {
+			const docObj = object as DocumentObject
 			content = (
 				<SvgDocumentEmbed
 					x={object.x}
 					y={object.y}
 					width={object.width}
 					height={object.height}
-					fileId={(object as any).fileId}
-					contentType={(object as any).contentType}
+					fileId={docObj.fileId}
+					contentType={docObj.contentType}
 					sourceFileId={sourceFileId || ''}
-					appId={(object as any).appId}
+					appId={docObj.appId}
 					access="read"
 					active={true}
 				/>
 			)
 			break
+		}
 		case 'qrcode':
 			content = (
 				<QRCodeRenderer

@@ -30,7 +30,9 @@ import {
 	DEFAULT_PIVOT_SNAP_POINTS,
 	DEFAULT_PIVOT_SNAP_THRESHOLD,
 	type SvgCanvasContext,
-	type ResizeHandle
+	type Point,
+	type ResizeHandle,
+	type UseSnappingReturn
 } from 'react-svg-canvas'
 import { calculateArcRadius } from '@cloudillo/canvas-tools'
 
@@ -82,7 +84,7 @@ export interface UseInteractionHooksOptions {
 	canvasScale: number
 	templateLayouts: Map<TemplateId, TemplateLayout>
 	snapSettings: UseSnapSettingsResult
-	snapResizeRef: React.MutableRefObject<any>
+	snapResizeRef: React.MutableRefObject<UseSnappingReturn['snapResize'] | null>
 	clearSnaps: () => void
 	isReadOnly: boolean
 	setTempObjectState: React.Dispatch<React.SetStateAction<TempObjectState | null>>
@@ -96,7 +98,7 @@ export interface UseInteractionHooksResult {
 
 	// Resize
 	isResizing: boolean
-	activeHandle: any
+	activeHandle: ResizeHandle | null
 	handleResizeStart: (handle: ResizeHandle, e: React.PointerEvent) => void
 
 	// Rotation
@@ -104,7 +106,7 @@ export interface UseInteractionHooksResult {
 	hookRotateStart: (e: React.PointerEvent) => void
 
 	// Pivot
-	pivotState: { isDragging: boolean; snappedPoint: any }
+	pivotState: { isDragging: boolean; snappedPoint: Point | null }
 	hookPivotDragStart: (e: React.PointerEvent) => void
 }
 
@@ -238,7 +240,7 @@ export function useInteractionHooks({
 		pivotX: storedSelection?.pivotX ?? 0.5,
 		pivotY: storedSelection?.pivotY ?? 0.5,
 		objectId: storedSelection?.id,
-		snapResize: snapResizeRef.current,
+		snapResize: snapResizeRef.current ?? undefined,
 		transformCoordinates: resizeTransformCoordinates,
 		disabled: isReadOnly || !storedSelection,
 		aspectRatio: selectionAspectRatio,

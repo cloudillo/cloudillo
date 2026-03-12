@@ -1,4 +1,5 @@
 import type { NotilloEditor } from '../editor/schema.js'
+import type { WikiLinkContent, TagContent } from '../rtdb/types.js'
 import { downloadBlob } from './download.js'
 
 export async function exportDocx(
@@ -17,9 +18,10 @@ export async function exportDocx(
 			...docxDefaultSchemaMappings,
 			inlineContentMapping: {
 				...docxDefaultSchemaMappings.inlineContentMapping,
-				wikiLink: (ic: any) => new TextRun(ic.props.pageTitle),
-				tag: (ic: any) => new TextRun(`#${ic.props.tag}`)
+				wikiLink: (ic: WikiLinkContent) => new TextRun(ic.props.pageTitle),
+				tag: (ic: TagContent) => new TextRun(`#${ic.props.tag}`)
 			}
+			// biome-ignore lint/suspicious/noExplicitAny: BlockNote exporter schema mapping type boundary
 		} as any,
 		resolveFileUrl ? { resolveFileUrl } : undefined
 	)

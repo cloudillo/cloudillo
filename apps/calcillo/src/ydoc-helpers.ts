@@ -482,7 +482,7 @@ export function transformSheetToCelldata(sheet: YSheetStructure): {
 		}
 	}
 	if (borderInfo.length > 0) {
-		config.borderInfo = borderInfo as any
+		config.borderInfo = borderInfo
 	}
 
 	// Add frozen panes (FortuneSheet doesn't have this in SheetConfig type but accepts it at runtime)

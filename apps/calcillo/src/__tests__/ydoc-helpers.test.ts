@@ -12,6 +12,7 @@ import {
 	deleteColumns,
 	transformSheetToCelldata
 } from '../ydoc-helpers'
+import type { ExtendedCell } from '../fortune-sheet-types'
 import { generateSheetId } from '../id-generator'
 import type { SheetId } from '../yjs-types'
 
@@ -118,7 +119,7 @@ describe('YDoc Helpers', () => {
 				ht: 1, // default h-align — should be stripped
 				vt: 0, // default v-align — should be stripped
 				undefinedProp: undefined
-			} as any)
+			} as ExtendedCell)
 
 			const cell = getCell(sheet, 2, 3)
 			expect(cell?.v).toBe('Test')
@@ -143,7 +144,7 @@ describe('YDoc Helpers', () => {
 				bl: 1, // bold ON — should be kept
 				fs: 14, // non-default font size — should be kept
 				fc: '#ff0000' // red text — should be kept
-			} as any)
+			} as ExtendedCell)
 
 			const cell = getCell(sheet, 2, 3)
 			expect(cell?.v).toBe('Bold')
@@ -167,7 +168,7 @@ describe('YDoc Helpers', () => {
 				ff: 0,
 				fs: 10,
 				ct: { t: 'g', fa: 'General' }
-			} as any)
+			} as ExtendedCell)
 
 			expect(getCell(sheet, 2, 3)).toBeUndefined()
 		})
@@ -180,7 +181,7 @@ describe('YDoc Helpers', () => {
 			setCell(sheet, 1, 1, {
 				v: 42,
 				ct: { t: 'g', fa: 'General' }
-			} as any)
+			} as ExtendedCell)
 
 			const cell1 = getCell(sheet, 1, 1)
 			expect(cell1?.v).toBe(42)
@@ -190,7 +191,7 @@ describe('YDoc Helpers', () => {
 			setCell(sheet, 1, 2, {
 				v: 'Rich',
 				ct: { t: 'g', fa: 'General', s: [{ v: 'Rich' }] }
-			} as any)
+			} as ExtendedCell)
 
 			const cell2 = getCell(sheet, 1, 2)
 			expect(cell2?.ct).toEqual({ t: 'g', fa: 'General', s: [{ v: 'Rich' }] })
@@ -477,7 +478,7 @@ describe('YDoc Helpers', () => {
 			const sheet = getOrCreateSheet(doc, sheetId)
 			ensureSheetDimensions(sheet, 5, 5)
 
-			setCell(sheet, 1, 1, { v: 'Test', m: 'metadata' } as any)
+			setCell(sheet, 1, 1, { v: 'Test', m: 'metadata' } as ExtendedCell)
 
 			const { celldata } = transformSheetToCelldata(sheet)
 			const cell = celldata.find((c) => c.r === 1 && c.c === 1)

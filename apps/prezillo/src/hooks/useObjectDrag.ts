@@ -19,7 +19,7 @@
  */
 
 import * as React from 'react'
-import { computeGrabPoint, type SvgCanvasContext } from 'react-svg-canvas'
+import { computeGrabPoint, type SvgCanvasContext, type UseSnappingReturn } from 'react-svg-canvas'
 
 import type { ObjectId, ViewId, TemplateId, PrezilloObject } from '../crdt'
 import {
@@ -88,7 +88,7 @@ export interface UseObjectDragOptions {
 	canvasContextRef: React.RefObject<SvgCanvasContext | null>
 	templateLayouts: Map<TemplateId, TemplateLayout>
 	// Snapping
-	snapDragRef: React.RefObject<(params: any) => any>
+	snapDragRef: React.RefObject<UseSnappingReturn['snapDrag'] | null>
 	clearSnaps: () => void
 	grabPointRef: React.MutableRefObject<{ x: number; y: number }>
 	// Interaction tracking

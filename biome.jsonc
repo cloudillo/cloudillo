@@ -36,8 +36,8 @@
 			"suspicious": {
 				// Intentional: == null checks used throughout codebase
 				"noDoubleEquals": "off",
-				// Intentional: any used for generic API boundaries and third-party interop
-				"noExplicitAny": "off",
+				// Enabled: proper types required, biome-ignore used only for untyped third-party APIs
+				"noExplicitAny": "error",
 				// Intentional: array index keys used where items lack stable IDs
 				"noArrayIndexKey": "off",
 				// Intentional: document.cookie used for SW encryption key management

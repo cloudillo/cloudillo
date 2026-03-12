@@ -18,6 +18,8 @@
 export {
 	mergeClasses,
 	createComponent,
+	polyRef,
+	resolveDefaultExport,
 	useId,
 	buttonSizeClass,
 	avatarSizeClass,

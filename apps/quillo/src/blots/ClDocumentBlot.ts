@@ -26,7 +26,14 @@
 import Quill from 'quill'
 import { getAppBus, setupEmbedRelay } from '@cloudillo/core'
 
-const BlockEmbed = Quill.import('blots/block/embed') as any
+/** Typed base class for Quill block embed blots */
+interface QuillBlockEmbedClass {
+	new (): { domNode: HTMLElement; format(name: string, value: string | false | null): void }
+	create(value?: unknown): HTMLElement
+	prototype: { domNode: HTMLElement; format(name: string, value: string | false | null): void }
+}
+
+const BlockEmbed = Quill.import('blots/block/embed') as unknown as QuillBlockEmbedClass
 
 export interface ClDocumentValue {
 	fileId: string
@@ -143,7 +150,8 @@ class ClDocumentBlot extends BlockEmbed {
 							aspectFixed?: boolean
 						}
 						// Cache pending navState (flushed to CRDT on deactivate)
-						;(node as any).__pendingNavState = p.viewState
+						;(node as HTMLElement & Record<string, unknown>).__pendingNavState =
+							p.viewState
 						// Auto-resize height based on aspect ratio (width-preserving)
 						if (p.aspectRatio) {
 							const [arW, arH] = p.aspectRatio
@@ -158,7 +166,7 @@ class ClDocumentBlot extends BlockEmbed {
 				}
 			})
 			// Store relay handle for potential future use
-			;(node as any).__embedRelay = relay
+			;(node as HTMLElement & Record<string, unknown>).__embedRelay = relay
 
 			// Use AbortController to tie listeners to the node's DOM lifetime
 			const ac = new AbortController()
@@ -172,13 +180,14 @@ class ClDocumentBlot extends BlockEmbed {
 						node.style.overscrollBehavior = ''
 						// Flush cached navState to data attribute (Quill picks up the change)
 						// Skip in read-only mode (no CRDT writes)
-						const pendingNS = (node as any).__pendingNavState as string | undefined
+						const pendingNS = (node as HTMLElement & Record<string, unknown>)
+							.__pendingNavState as string | undefined
 						if (pendingNS != null && !node.closest('.ql-disabled')) {
 							const currentNS = node.getAttribute('data-nav-state') || undefined
 							if (pendingNS !== currentNS) {
 								node.setAttribute('data-nav-state', pendingNS)
 							}
-							delete (node as any).__pendingNavState
+							delete (node as HTMLElement & Record<string, unknown>).__pendingNavState
 						}
 					}
 				},
@@ -201,7 +210,7 @@ class ClDocumentBlot extends BlockEmbed {
 			if (node.parentNode) {
 				observer.observe(node.parentNode, { childList: true })
 			}
-			;(node as any).__embedCleanup = () => {
+			;(node as HTMLElement & Record<string, unknown>).__embedCleanup = () => {
 				ac.abort()
 				relay.cleanup()
 				observer.disconnect()
@@ -235,7 +244,7 @@ class ClDocumentBlot extends BlockEmbed {
 		return formats
 	}
 
-	format(name: string, value: any): void {
+	format(name: string, value: string | false | null): void {
 		if (name === 'width') {
 			if (value) {
 				this.domNode.setAttribute('data-width', value)
@@ -259,7 +268,7 @@ class ClDocumentBlot extends BlockEmbed {
 }
 
 // Register the blot with Quill
-Quill.register(ClDocumentBlot, true)
+Quill.register('formats/cl-document', ClDocumentBlot, true)
 
 export { ClDocumentBlot }
 

@@ -22,6 +22,11 @@
 
 import * as Y from 'yjs'
 
+/** Opaque type alias for Yjs shared types used in serialization.
+ * Yjs's generic constraints are deeply recursive; this alias + `unknown` casts
+ * at boundaries avoids `any` while keeping the function signature readable. */
+type YSharedType = Y.AbstractType<Y.YEvent<Y.AbstractType<unknown>>>
+
 /**
  * Base export envelope structure shared by all Cloudillo export formats.
  *
@@ -107,8 +112,7 @@ export interface ExportYDocOpts {
  * - `{ "@T": "XE", n, a, c }` — Y.XmlElement
  * - `{ "@T": "XF", c }` — Y.XmlFragment
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function serializeYValue(value: Y.AbstractType<any>): unknown {
+export function serializeYValue(value: YSharedType): unknown {
 	// XmlText extends Text, so check it first
 	if (value instanceof Y.XmlText) {
 		return { '@T': 'XT', text: value.toString(), delta: value.toDelta() }
@@ -124,14 +128,14 @@ export function serializeYValue(value: Y.AbstractType<any>): unknown {
 			'@T': 'XE',
 			n: value.nodeName,
 			a: value.getAttributes(),
-			c: value.toArray().map((child) => serializeYValue(child as Y.AbstractType<any>))
+			c: value.toArray().map((child) => serializeYValue(child as unknown as YSharedType))
 		}
 	}
 
 	if (value instanceof Y.XmlFragment) {
 		return {
 			'@T': 'XF',
-			c: value.toArray().map((child) => serializeYValue(child as Y.AbstractType<any>))
+			c: value.toArray().map((child) => serializeYValue(child as unknown as YSharedType))
 		}
 	}
 
@@ -143,7 +147,7 @@ export function serializeYValue(value: Y.AbstractType<any>): unknown {
 		const result: Record<string, unknown> = { '@T': 'M' }
 		value.forEach((val: unknown, key: string) => {
 			if (val instanceof Y.AbstractType) {
-				result[key] = serializeYValue(val)
+				result[key] = serializeYValue(val as unknown as YSharedType)
 			} else {
 				result[key] = val
 			}
@@ -152,7 +156,7 @@ export function serializeYValue(value: Y.AbstractType<any>): unknown {
 	}
 
 	// Fallback for unknown types
-	return (value as Y.Map<unknown>).toJSON()
+	return (value as unknown as Y.Map<unknown>).toJSON()
 }
 
 /**
@@ -174,7 +178,7 @@ export function exportYDoc(
 		if (yType instanceof Y.Array && yType.length === 0) continue
 		if (yType instanceof Y.Text && yType.length === 0) continue
 
-		let serialized = serializeYValue(yType)
+		let serialized = serializeYValue(yType as unknown as YSharedType)
 		serialized = roundNumericValues(serialized)
 
 		if (opts.transform) {

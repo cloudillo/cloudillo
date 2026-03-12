@@ -80,8 +80,7 @@ import {
 export interface MessageAccessRule {
 	directions: MessageDirection[]
 	requiresAuth: boolean
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	validator: any
+	validator: unknown
 }
 
 // ============================================
@@ -362,7 +361,7 @@ export function validateMessage(
 	if (!rule) return undefined
 	if (!rule.directions.includes(expectedDirection)) return undefined
 
-	const result = T.decode(rule.validator, data)
+	const result = T.decode(rule.validator as T.Type<CloudilloMessage>, data)
 	if (!T.isOk(result)) return undefined
 
 	return { message: result.ok as CloudilloMessage, rule }

@@ -12,7 +12,7 @@
 	},
 	"scripts": {
 		"l-scan": "i18next-scanner --config src/i18n/scanner.config.cjs",
-		"ts": "tsc --noEmit",
+		"ts": "tsc --noEmit && tsc --noEmit -p sw/tsconfig.json",
 		"ts-watch": "tsc --noEmit --watch",
 		"build": "pnpm run ts && cross-env NODE_ENV=production node esbuild.config.js",
 		"watch": "node esbuild.config.js --watch",

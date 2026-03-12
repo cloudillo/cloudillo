@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import type { Block } from '@blocknote/core'
-import type { BlockRecord } from './types.js'
+import { type BlockRecord, asBlockContent } from './types.js'
 import { cleanProps, compactContent, compactBlockType } from './transform.js'
 
 interface FlatBlock {
@@ -34,14 +34,14 @@ export function flattenBlocks(
 
 	blocks.forEach((block, index) => {
 		const props = cleanProps(block.props)
-		const content = compactContent(block.content as any)
+		const content = compactContent(asBlockContent(block.content))
 		results.push({
 			id: block.id,
 			record: {
 				pageId,
 				type: compactBlockType(block.type),
 				...(props !== undefined && { props }),
-				...(content !== undefined && { content: content as any }),
+				...(content !== undefined && { content: asBlockContent(content) }),
 				...(parentBlockId !== undefined && { parentBlockId }),
 				order: index + 1,
 				updatedAt: now,

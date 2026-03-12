@@ -14,18 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// @ts-expect-error - jscanify is UMD without type declarations
-import jscanify from 'jscanify/client'
-
 import type { CropPoints, PageFilter } from '../types.js'
-
-declare const cv: any
-
-let scanner: any = null
-function getScanner() {
-	if (!scanner) scanner = new jscanify()
-	return scanner
-}
 
 export async function base64ToCanvas(imageData: string): Promise<HTMLCanvasElement> {
 	const blob = await (await fetch(`data:image/jpeg;base64,${imageData}`)).blob()
@@ -49,7 +38,7 @@ export async function extractPerspective(
 	sourceCanvas: HTMLCanvasElement,
 	cropPoints: CropPoints
 ): Promise<HTMLCanvasElement> {
-	const { loadOpenCV } = await import('../detect-document.js')
+	const { loadOpenCV, getScanner } = await import('../detect-document.js')
 	await loadOpenCV()
 
 	const w = sourceCanvas.width
@@ -105,7 +94,7 @@ async function applyDocumentFilter(
 	canvas.width = sourceCanvas.width
 	canvas.height = sourceCanvas.height
 
-	const mats: any[] = []
+	const mats: CvDeletable[] = []
 	try {
 		const src = cv.imread(sourceCanvas)
 		mats.push(src)
@@ -262,7 +251,7 @@ async function applyBwFilter(sourceCanvas: HTMLCanvasElement): Promise<HTMLCanva
 	canvas.width = sourceCanvas.width
 	canvas.height = sourceCanvas.height
 
-	const mats: any[] = []
+	const mats: CvDeletable[] = []
 	try {
 		const src = cv.imread(sourceCanvas)
 		mats.push(src)
@@ -301,7 +290,7 @@ async function applyHighContrastFilter(
 	canvas.width = sourceCanvas.width
 	canvas.height = sourceCanvas.height
 
-	const mats: any[] = []
+	const mats: CvDeletable[] = []
 	try {
 		const src = cv.imread(sourceCanvas)
 		mats.push(src)

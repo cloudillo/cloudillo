@@ -44,9 +44,10 @@ export class AggregateQuery {
 			message.filter = this.filters
 		}
 
-		const response = await this.ws.send<any>(message)
+		const response = await this.ws.send<{ data: AggregateGroupEntry[] }>(message)
 
-		const groups: AggregateGroupEntry[] = response.data || []
+		const groups: AggregateGroupEntry[] =
+			(response as { data: AggregateGroupEntry[] }).data || []
 		return {
 			groups,
 			size: groups.length,

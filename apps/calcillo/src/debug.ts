@@ -3,11 +3,17 @@
  * All logging is conditionally compiled out in production builds.
  */
 
+declare global {
+	interface Window {
+		__SHEELLO_DEBUG__?: boolean
+	}
+}
+
 // Development mode check - works in browser environments
 // Set window.__SHEELLO_DEBUG__ = true in console to enable debug logging
 const isDevelopment = (() => {
 	// Check for global debug flag (can be set in browser console)
-	if (typeof window !== 'undefined' && (window as any).__SHEELLO_DEBUG__) {
+	if (typeof window !== 'undefined' && window.__SHEELLO_DEBUG__) {
 		return true
 	}
 	// In production builds, this will be replaced by bundlers

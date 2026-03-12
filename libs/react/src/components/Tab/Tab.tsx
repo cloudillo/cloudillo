@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { mergeClasses, createComponent } from '../utils.js'
+import { mergeClasses, createComponent, polyRef } from '../utils.js'
 import { TabsContext } from './Tabs.js'
 import type { ColorVariant } from '../types.js'
 
@@ -44,7 +44,7 @@ export const Tab = createComponent<HTMLButtonElement | HTMLAnchorElement, TabPro
 				context.onTabChange(value)
 			}
 			if (onClick) {
-				onClick(evt as any)
+				onClick(evt as React.MouseEvent<HTMLButtonElement & HTMLAnchorElement>)
 			}
 		}
 
@@ -52,7 +52,7 @@ export const Tab = createComponent<HTMLButtonElement | HTMLAnchorElement, TabPro
 
 		return (
 			<Component
-				ref={ref as any}
+				ref={polyRef(ref)}
 				className={mergeClasses('c-tab', variant, isActive && 'active', className)}
 				role="tab"
 				aria-selected={isActive}

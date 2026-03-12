@@ -26,7 +26,7 @@ import type { UsePrezilloDocumentResult } from './usePrezilloDocument'
 
 export interface UseTextStylingOptions {
 	prezillo: UsePrezilloDocumentResult
-	selectedTextObject: { id: string; obj: any } | null
+	selectedTextObject: { id: string; obj: unknown } | null
 	selectedTextStyle: ReturnType<typeof resolveTextStyle> | null
 }
 

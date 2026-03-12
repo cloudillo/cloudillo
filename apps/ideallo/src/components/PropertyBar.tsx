@@ -50,13 +50,7 @@ export interface PropertyBarProps {
 		strokeWidth: number
 	}
 	/** Callback to update the current (default) style */
-	onCurrentStyleChange?: (
-		style: Partial<{
-			strokeColor: string
-			fillColor: string
-			strokeWidth: number
-		}>
-	) => void
+	onCurrentStyleChange?: (style: Partial<Style>) => void
 	/** Quill instance ref for inline formatting (available when editing text) */
 	quillRef?: React.MutableRefObject<Quill | null>
 	/** Whether a text object is currently being edited */
@@ -228,7 +222,7 @@ export function PropertyBar({
 				}
 			})
 			// Also update current style for new objects
-			onCurrentStyleChange?.(updates as any)
+			onCurrentStyleChange?.(updates)
 		},
 		[yDoc, doc, selectedIds, onCurrentStyleChange]
 	)

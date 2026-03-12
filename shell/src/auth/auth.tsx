@@ -413,9 +413,9 @@ export function PasswordResetForm() {
 			// await api.auth.changePassword({ idTag: api.idTag, newPassword: password })
 			setError('Password reset not yet implemented in Rust backend')
 			return
-		} catch (err: any) {
+		} catch (err: unknown) {
 			console.error('Password reset failed:', err)
-			setError(err.message || 'Password reset failed')
+			setError(err instanceof Error ? err.message : 'Password reset failed')
 		}
 	}
 
@@ -523,9 +523,9 @@ export function Password() {
 				newPassword: password
 			})
 			alert(t('Password changed successfully'))
-		} catch (err: any) {
+		} catch (err: unknown) {
 			console.error('Password change failed:', err)
-			setError(err.message || t('Incorrect password!'))
+			setError(err instanceof Error ? err.message : t('Incorrect password!'))
 		}
 	}
 

@@ -16,7 +16,7 @@
 
 import type { DocumentSnapshot, QuerySnapshot, DocumentChange, ChangeEvent } from './types.js'
 
-export class DocumentSnapshotImpl<T = any> implements DocumentSnapshot<T> {
+export class DocumentSnapshotImpl<T = unknown> implements DocumentSnapshot<T> {
 	constructor(
 		readonly id: string,
 		readonly exists: boolean,
@@ -27,21 +27,21 @@ export class DocumentSnapshotImpl<T = any> implements DocumentSnapshot<T> {
 		return this._data
 	}
 
-	get(field: string): any {
+	get(field: string): unknown {
 		if (!this._data || typeof this._data !== 'object') {
 			return undefined
 		}
 
-		return (this._data as any)[field]
+		return (this._data as Record<string, unknown>)[field]
 	}
 }
 
-export class QuerySnapshotImpl<T = any> implements QuerySnapshot<T> {
+export class QuerySnapshotImpl<T = unknown> implements QuerySnapshot<T> {
 	readonly docs: DocumentSnapshot<T>[]
 	private _changes: DocumentChange<T>[] = []
 
-	constructor(documents: Array<{ id: string; data: any }>) {
-		this.docs = documents.map((doc) => new DocumentSnapshotImpl<T>(doc.id, true, doc.data))
+	constructor(documents: Array<{ id: string; data: unknown }>) {
+		this.docs = documents.map((doc) => new DocumentSnapshotImpl<T>(doc.id, true, doc.data as T))
 	}
 
 	get size(): number {
@@ -97,7 +97,7 @@ export function createDocumentFromEvent(event: ChangeEvent): DocumentSnapshot {
 		return new DocumentSnapshotImpl(id, false)
 	}
 
-	return new DocumentSnapshotImpl(id, true, event.data)
+	return new DocumentSnapshotImpl(id, true, event.data as Record<string, unknown>)
 }
 
 export function delay(ms: number): Promise<void> {

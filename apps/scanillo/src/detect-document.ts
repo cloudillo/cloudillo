@@ -27,11 +27,9 @@
 // @ts-expect-error - jscanify is UMD without type declarations
 import jscanify from 'jscanify/client'
 
-declare const cv: any
-
-let scanner: any = null
-function getScanner() {
-	if (!scanner) scanner = new jscanify()
+let scanner: Jscanify | null = null
+export function getScanner(): Jscanify {
+	if (!scanner) scanner = new jscanify() as Jscanify
 	return scanner
 }
 
@@ -75,9 +73,8 @@ export function loadOpenCV(): Promise<void> {
 				}
 			} else if (typeof cv !== 'undefined') {
 				// cv is a promise (newer OpenCV.js builds)
-				const cvObj = cv as any
-				if (typeof cvObj.then === 'function') {
-					cvObj.then(() => {
+				if (typeof cv.then === 'function') {
+					cv.then(() => {
 						cvReady = true
 						resolve()
 					})
@@ -162,7 +159,7 @@ export async function detectDocument(
 
 	// Run detection at scaled resolution
 	const mat = cv.imread(canvas)
-	let contour: any = null
+	let contour: CvMat | null = null
 	try {
 		contour = getScanner().findPaperContour(mat)
 		if (!contour) return null

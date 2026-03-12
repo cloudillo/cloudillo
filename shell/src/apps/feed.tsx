@@ -781,7 +781,7 @@ interface NewPostProps {
 export const NewPost = React.memo(
 	React.forwardRef(function NewPostInside(
 		{ className, style: _style, idTag, onSubmit }: NewPostProps,
-		ref: React.Ref<any>
+		ref: React.Ref<HTMLDivElement>
 	) {
 		const { api } = useApi()
 		const [auth] = useAuth()

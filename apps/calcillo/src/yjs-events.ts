@@ -1,6 +1,9 @@
 import * as Y from 'yjs'
 import type { WorkbookInstance } from '@fortune-sheet/react'
-import type { YSheetStructure, SheetId, ColId, RowId } from './yjs-types'
+import type { YSheetStructure, SheetId, RowId } from './yjs-types'
+import { toRowId, toColId } from './yjs-types'
+import type { ExtendedCell, CellStyleAttr, FreezeType } from './fortune-sheet-types'
+import { freezeSheet, setCellFormatExt } from './fortune-sheet-types'
 import { debug } from './debug'
 
 /**
@@ -71,7 +74,7 @@ export function applySheetYEvent(
 
 				// Update ALL cells in this row (entire row changed)
 				for (const [colId, cell] of rowMap.entries()) {
-					const colIndex = colOrder.indexOf(colId as ColId)
+					const colIndex = colOrder.indexOf(toColId(colId))
 					if (colIndex < 0) continue
 
 					if (cell && (cell.v !== undefined || cell.f !== undefined)) {
@@ -82,11 +85,8 @@ export function applySheetYEvent(
 						})
 
 						// Then apply cell formatting if present
-						// Common cell format properties in Fortune Sheet:
-						// bl: bold, it: italic, ff: font family, fs: font size
-						// fc: font color, bg: background color, ht: horizontal align, vt: vertical align
-						const cellAny = cell as any
-						const formatAttrs = [
+						const extCell = cell as ExtendedCell
+						const formatAttrs: CellStyleAttr[] = [
 							'bl',
 							'it',
 							'ff',
@@ -101,8 +101,8 @@ export function applySheetYEvent(
 							'tb'
 						]
 						for (const attr of formatAttrs) {
-							if (cellAny[attr] !== undefined) {
-								wb.setCellFormat(rowIndex, colIndex, attr as any, cellAny[attr], {
+							if (extCell[attr] !== undefined) {
+								setCellFormatExt(wb, rowIndex, colIndex, attr, extCell[attr], {
 									id: sheetId
 								})
 							}
@@ -164,11 +164,11 @@ export function applySheetYEvent(
 				row: rowFocus ?? 0,
 				column: colFocus ?? 0
 			}
-			wb.freeze(frozenType as any, range, { id: sheetId })
+			freezeSheet(wb, frozenType as FreezeType, range, { id: sheetId })
 		} else {
 			// Unfreeze if map is empty - use type 'cancel' or empty range
 			// Based on the API, we need to pass a range even for cancel
-			wb.freeze('cancel' as any, { row: 0, column: 0 }, { id: sheetId })
+			freezeSheet(wb, 'cancel', { row: 0, column: 0 }, { id: sheetId })
 		}
 	} else if (path[0] === 'rowHeights' && evt instanceof Y.YMapEvent) {
 		// Row height changes - use setRowHeight API
@@ -176,7 +176,7 @@ export function applySheetYEvent(
 		const rowInfo: Record<number, number> = {}
 
 		for (const rowId of evt.keysChanged) {
-			const rowIdx = rowOrder.indexOf(rowId as any)
+			const rowIdx = rowOrder.indexOf(toRowId(rowId))
 			if (rowIdx >= 0) {
 				const height = sheet.rowHeights.get(rowId)
 				if (height !== undefined) {
@@ -194,7 +194,7 @@ export function applySheetYEvent(
 		const colInfo: Record<number, number> = {}
 
 		for (const colId of evt.keysChanged) {
-			const colIdx = colOrder.indexOf(colId as any)
+			const colIdx = colOrder.indexOf(toColId(colId))
 			if (colIdx >= 0) {
 				const width = sheet.colWidths.get(colId)
 				if (width !== undefined) {
@@ -219,8 +219,8 @@ export function applySheetYEvent(
 			const [rowId, colId] = borderKey.split('_')
 
 			if (rowId && colId) {
-				const rowIdx = rowOrder.indexOf(rowId as any)
-				const colIdx = colOrder.indexOf(colId as any)
+				const rowIdx = rowOrder.indexOf(toRowId(rowId))
+				const colIdx = colOrder.indexOf(toColId(colId))
 
 				if (rowIdx >= 0 && colIdx >= 0) {
 					if (border?.style) {
@@ -232,11 +232,11 @@ export function applySheetYEvent(
 							colIdx,
 							border.style
 						)
-						wb.setCellFormat(rowIdx, colIdx, 'bd' as any, border.style, { id: sheetId })
+						setCellFormatExt(wb, rowIdx, colIdx, 'bd', border.style, { id: sheetId })
 					} else {
 						// Border was removed - clear it
 						debug.log('[yjs-events] Clearing border from cell', rowIdx, colIdx)
-						wb.setCellFormat(rowIdx, colIdx, 'bd' as any, null, { id: sheetId })
+						setCellFormatExt(wb, rowIdx, colIdx, 'bd', null, { id: sheetId })
 					}
 				}
 			}

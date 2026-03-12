@@ -32,16 +32,32 @@ export function mergeClasses(...classes: (string | false | undefined | null)[]):
 }
 
 /**
+ * Cast a polymorphic ref to satisfy React's strict ref type checking.
+ * `never` is the bottom type, safely assignable to all ref types.
+ */
+export function polyRef<T>(ref: React.ForwardedRef<T>): React.Ref<never> {
+	return ref as React.Ref<never>
+}
+
+/**
+ * Resolve CJS/ESM interop for default exports.
+ * Some modules wrap their default export in a `.default` property.
+ */
+export function resolveDefaultExport<T>(mod: T): T {
+	const m = mod as T & { default?: T }
+	return m.default ?? mod
+}
+
+/**
  * Create a forwardRef component with displayName
  */
 export function createComponent<T, P>(
 	displayName: string,
 	render: (props: P, ref: React.ForwardedRef<T>) => React.ReactNode
 ): React.ForwardRefExoticComponent<P & React.RefAttributes<T>> {
-	// Cast to any to avoid TypeScript's strict forwardRef signature
-	const Component = React.forwardRef(render as any) as unknown as React.ForwardRefExoticComponent<
-		P & React.RefAttributes<T>
-	>
+	const Component = React.forwardRef(
+		render as (props: Record<string, unknown>, ref: React.Ref<unknown>) => React.ReactNode
+	) as unknown as React.ForwardRefExoticComponent<P & React.RefAttributes<T>>
 	Component.displayName = displayName
 	return Component
 }

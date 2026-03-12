@@ -139,9 +139,9 @@ export function Tenants() {
 				if (Array.isArray(res)) {
 					setTenants(res)
 				}
-			} catch (err: any) {
+			} catch (err: unknown) {
 				console.error('Failed to load tenants:', err)
-				setError(err.message || t('Failed to load tenants'))
+				setError(err instanceof Error ? err.message : t('Failed to load tenants'))
 			} finally {
 				setLoading(false)
 			}
@@ -178,9 +178,12 @@ export function Tenants() {
 		try {
 			const res = await api.admin.sendPasswordReset(idTag)
 			await dialog.tell(t('Password Reset Email Sent'), res.message)
-		} catch (err: any) {
+		} catch (err: unknown) {
 			console.error('Failed to send password reset:', err)
-			await dialog.tell(t('Error'), err.message || t('Failed to send password reset email'))
+			await dialog.tell(
+				t('Error'),
+				err instanceof Error ? err.message : t('Failed to send password reset email')
+			)
 		}
 	}
 

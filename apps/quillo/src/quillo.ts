@@ -169,7 +169,7 @@ function sanitizeFontName(family: string): string {
 // ============================================
 
 function createSettingsDialog(
-	settingsMap: Y.Map<any>,
+	settingsMap: Y.Map<string>,
 	applyDocumentFonts: () => void
 ): HTMLDialogElement {
 	const dialog = document.createElement('dialog')
@@ -338,14 +338,22 @@ function updatePairingBadges(
 
 ;(async function () {
 	// Register modules
-	Quill.register('modules/cursors', QuillCursors as any)
+	Quill.register('modules/cursors', QuillCursors as unknown as typeof Quill)
 	Quill.register('modules/blotFormatter2', BlotFormatter)
 
 	// Register table-better module
 	Quill.register({ 'modules/table-better': QuillTableBetter }, true)
 
 	// Register Font format with whitelist (class-based for .ql-font-xxx styles)
-	const Parchment = Quill.import('parchment') as any
+	interface ParchmentStatic {
+		ClassAttributor: new (
+			name: string,
+			keyName: string,
+			options: { scope: number; whitelist: string[] }
+		) => unknown
+		Scope: { INLINE: number }
+	}
+	const Parchment = Quill.import('parchment') as unknown as ParchmentStatic
 	const fontWhitelist = FONTS.map((f) => sanitizeFontName(f.family))
 	const FontClass = new Parchment.ClassAttributor('font', 'ql-font', {
 		scope: Parchment.Scope.INLINE,
@@ -457,7 +465,10 @@ function updatePairingBadges(
 	}
 
 	// Register image insertion handler
-	const toolbarModule = editor.getModule('toolbar') as any
+	interface QuillToolbarModule {
+		addHandler(name: string, handler: () => void): void
+	}
+	const toolbarModule = editor.getModule('toolbar') as unknown as QuillToolbarModule
 	toolbarModule.addHandler('image', async () => {
 		if (bus.access === 'read') return
 

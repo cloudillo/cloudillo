@@ -32,15 +32,15 @@ export type WhereFilterOp =
 	| 'array-contains-all'
 
 export interface QueryFilter {
-	equals?: Record<string, any>
-	notEquals?: Record<string, any>
-	greaterThan?: Record<string, any>
-	lessThan?: Record<string, any>
-	inArray?: Record<string, any>
-	notInArray?: Record<string, any>
-	arrayContains?: Record<string, any>
-	arrayContainsAny?: Record<string, any>
-	arrayContainsAll?: Record<string, any>
+	equals?: Record<string, unknown>
+	notEquals?: Record<string, unknown>
+	greaterThan?: Record<string, unknown>
+	lessThan?: Record<string, unknown>
+	inArray?: Record<string, unknown>
+	notInArray?: Record<string, unknown>
+	arrayContains?: Record<string, unknown>
+	arrayContainsAny?: Record<string, unknown>
+	arrayContainsAll?: Record<string, unknown>
 }
 
 export type AggregateOp = 'sum' | 'avg' | 'min' | 'max'
@@ -58,7 +58,7 @@ export interface AggregateOptions {
 export interface AggregateGroupEntry {
 	group: string | number | boolean
 	count: number
-	[key: string]: any
+	[key: string]: string | number | boolean
 }
 
 export interface AggregateSnapshot {
@@ -93,7 +93,7 @@ export interface UnlockEventData {
 export interface ChangeEvent {
 	action: 'create' | 'update' | 'delete' | 'lock' | 'unlock' | 'ready'
 	path: string
-	data?: any
+	data?: unknown
 }
 
 export interface SnapshotOptions {
@@ -107,21 +107,21 @@ export interface LockResult {
 	mode?: 'soft' | 'hard'
 }
 
-export interface DocumentSnapshot<T = any> {
+export interface DocumentSnapshot<T = unknown> {
 	id: string
 	exists: boolean
 	data(): T | undefined
-	get(field: string): any
+	get(field: string): unknown
 }
 
-export interface DocumentChange<T = any> {
+export interface DocumentChange<T = unknown> {
 	type: 'added' | 'modified' | 'removed'
 	doc: DocumentSnapshot<T>
 	oldIndex: number
 	newIndex: number
 }
 
-export interface QuerySnapshot<T = any> {
+export interface QuerySnapshot<T = unknown> {
 	docs: DocumentSnapshot<T>[]
 	size: number
 	empty: boolean
@@ -252,12 +252,12 @@ export const tServerMessage = T.taggedUnion('type')({
 })
 
 // Client message types (what we send to server)
-export type ServerMessage = any
+export type ServerMessage = T.TypeOf<typeof tServerMessage>
 
 export interface ClientMessage {
 	id?: number
 	type: string
-	[key: string]: any
+	[key: string]: unknown
 }
 
 export interface QueryMessage extends ClientMessage {
@@ -290,7 +290,7 @@ export interface UnsubscribeMessage extends ClientMessage {
 export interface TransactionOperation {
 	type: 'create' | 'update' | 'replace' | 'delete'
 	path: string
-	data?: any
+	data?: unknown
 	ref?: string
 }
 

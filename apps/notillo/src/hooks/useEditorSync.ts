@@ -18,7 +18,7 @@ import { useEffect, useRef } from 'react'
 
 import type { Block, BlockNoteEditor } from '@blocknote/core'
 import type { RtdbClient, QuerySnapshot, ChangeEvent } from '@cloudillo/rtdb'
-import type { StoredBlockRecord } from '../rtdb/types.js'
+import { type StoredBlockRecord, asBlockType, asBlockProps, asBlockContent } from '../rtdb/types.js'
 import {
 	toStoredBlock,
 	fromStoredBlock,
@@ -35,8 +35,8 @@ const ECHO_SUPPRESS_MS = 2000
 
 interface BlockState {
 	type: string
-	props: Record<string, any>
-	content: any[]
+	props: Record<string, unknown>
+	content: unknown[]
 	parentBlockId: string | null // null = root
 	order: number
 }
@@ -64,14 +64,14 @@ function getBlockState(
 	return {
 		type: compactBlockType(block.type),
 		props: cleanProps(block.props) ?? {},
-		content: compactContent(block.content as any[]) ?? [],
+		content: compactContent(asBlockContent(block.content)) ?? [],
 		parentBlockId: editor.getParentBlock(block)?.id ?? null,
 		order: storedOrder ?? getBlockOrder(editor, blockId)
 	}
 }
 
 interface PatchResult {
-	patch: Record<string, any>
+	patch: Record<string, unknown>
 	debounce: boolean // true = content-only change, should debounce
 }
 
@@ -83,7 +83,7 @@ function buildPartialUpdate(
 	userId: string,
 	ownerTag?: string
 ): PatchResult | null {
-	const patch: Record<string, any> = {}
+	const patch: Record<string, unknown> = {}
 	let hasDiscreteChange = false
 
 	if (curr.type !== prev.type) {
@@ -131,7 +131,7 @@ function buildFullStoredBlock(
 			pageId,
 			type: block.type,
 			props: block.props,
-			content: block.content as any,
+			content: asBlockContent(block.content),
 			parentBlockId,
 			order,
 			updatedAt: now,
@@ -195,7 +195,7 @@ export function useDocumentSync(
 			setTimeout(() => recentLocalUpdates.current.delete(blockId), ECHO_SUPPRESS_MS)
 		}
 
-		function sendUpdate(blockId: string, patch: Record<string, any>) {
+		function sendUpdate(blockId: string, patch: Record<string, unknown>) {
 			markLocal(blockId)
 			client!.collection('b').doc(blockId).update(patch).catch(console.error)
 		}
@@ -285,7 +285,7 @@ export function useDocumentSync(
 			if (newOrder !== undefined) {
 				if (!result) {
 					// Only order changed — create minimal patch
-					const patch: Record<string, any> = {
+					const patch: Record<string, unknown> = {
 						o: newOrder,
 						p: pageId,
 						ua: new Date().toISOString(),
@@ -474,9 +474,9 @@ export function useRtdbToEditor(
 									editor.transact((tr) => {
 										tr.setMeta('y-sync$', { isChangeOrigin: true })
 										editor.updateBlock(change.doc.id, {
-											type: record.type as any,
-											props: record.props as any,
-											content: record.content as any
+											type: asBlockType(record.type),
+											props: asBlockProps(record.props),
+											content: asBlockContent(record.content)
 										})
 									})
 								} catch (err) {
@@ -500,9 +500,9 @@ export function useRtdbToEditor(
 												[
 													{
 														id: change.doc.id,
-														type: record.type as any,
-														props: record.props as any,
-														content: record.content as any,
+														type: asBlockType(record.type),
+														props: asBlockProps(record.props),
+														content: asBlockContent(record.content),
 														children: []
 													}
 												],

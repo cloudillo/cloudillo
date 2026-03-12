@@ -16,6 +16,7 @@
 
 import { jest, describe, it, expect, beforeEach } from '@jest/globals'
 import { CollectionReference } from '../collection'
+import type { TransactionMessage } from '../types'
 import { DocumentReference } from '../document'
 import { Query } from '../query'
 import { WebSocketManager } from '../websocket'
@@ -35,6 +36,10 @@ describe('CollectionReference', () => {
 			maxReconnectDelay: 30000,
 			debug: false
 		}) as jest.Mocked<WebSocketManager>
+		mockWs.send = jest.fn() as unknown as jest.Mocked<WebSocketManager>['send']
+		mockWs.subscribe = jest
+			.fn()
+			.mockReturnValue(() => {}) as unknown as jest.Mocked<WebSocketManager>['subscribe']
 
 		collRef = new CollectionReference(mockWs, 'posts')
 	})
@@ -72,7 +77,7 @@ describe('CollectionReference', () => {
 
 	describe('create', () => {
 		it('should create document with auto-generated ID', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'transactionResult',
 				results: [{ id: 'auto-123' }]
 			})
@@ -85,7 +90,7 @@ describe('CollectionReference', () => {
 		})
 
 		it('should send transaction message', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'transactionResult',
 				results: [{ id: 'auto-123' }]
 			})
@@ -93,7 +98,7 @@ describe('CollectionReference', () => {
 			const data = { title: 'Test' }
 			await collRef.create(data)
 
-			const message = mockWs.send.mock.calls[0][0]
+			const message = mockWs.send.mock.calls[0][0] as unknown as TransactionMessage
 			expect(message.type).toBe('transaction')
 			expect(message.operations[0].type).toBe('create')
 			expect(message.operations[0].data).toEqual(data)
@@ -101,7 +106,7 @@ describe('CollectionReference', () => {
 		})
 
 		it('should throw error when no ID returned', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'transactionResult',
 				results: [{}] // No ID
 			})
@@ -167,7 +172,7 @@ describe('CollectionReference', () => {
 
 	describe('get', () => {
 		it('should fetch all documents in collection', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'queryResult',
 				data: [
 					{ id: 'doc1', title: 'Post 1' },
@@ -182,7 +187,7 @@ describe('CollectionReference', () => {
 		})
 
 		it('should return empty snapshot for empty collection', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'queryResult',
 				data: []
 			})
@@ -225,7 +230,7 @@ describe('CollectionReference', () => {
 		it('should support nested collection paths', async () => {
 			const nestedCollRef = new CollectionReference(mockWs, 'posts/abc/comments')
 
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'queryResult',
 				data: []
 			})
@@ -238,7 +243,7 @@ describe('CollectionReference', () => {
 		it('should create documents in nested collection', async () => {
 			const nestedCollRef = new CollectionReference(mockWs, 'posts/abc/comments')
 
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'transactionResult',
 				results: [{ id: 'comment-123' }]
 			})
@@ -254,13 +259,13 @@ describe('CollectionReference', () => {
 
 	describe('error handling', () => {
 		it('should propagate errors from get', async () => {
-			mockWs.send = (jest.fn() as any).mockRejectedValue(new Error('Network error'))
+			mockWs.send.mockRejectedValue(new Error('Network error'))
 
 			await expect(collRef.get()).rejects.toThrow('Network error')
 		})
 
 		it('should propagate errors from create', async () => {
-			mockWs.send = (jest.fn() as any).mockRejectedValue(new Error('Validation failed'))
+			mockWs.send.mockRejectedValue(new Error('Validation failed'))
 
 			await expect(collRef.create({ title: 'Test' })).rejects.toThrow('Validation failed')
 		})

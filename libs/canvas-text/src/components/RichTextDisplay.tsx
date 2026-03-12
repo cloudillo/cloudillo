@@ -79,7 +79,7 @@ const VERTICAL_ALIGN_CSS: Record<string, string> = {
 	bottom: 'flex-end'
 }
 
-const TEXT_ALIGN_CSS: Record<string, string> = {
+const TEXT_ALIGN_CSS: Record<string, React.CSSProperties['textAlign']> = {
 	left: 'left',
 	center: 'center',
 	right: 'right',
@@ -211,7 +211,7 @@ export function RichTextDisplay({
 		pointerEvents: 'none'
 	}
 
-	const innerCSS: Record<string, any> = {
+	const innerCSS: React.CSSProperties & Record<string, string | number | undefined> = {
 		width: '100%',
 		fontFamily: baseStyle.fontFamily,
 		fontSize: `${baseStyle.fontSize}px`,
@@ -220,7 +220,7 @@ export function RichTextDisplay({
 		color: isPlaceholder ? '#999999' : baseStyle.fill,
 		lineHeight: baseStyle.lineHeight,
 		letterSpacing: `${baseStyle.letterSpacing}px`,
-		textAlign: TEXT_ALIGN_CSS[baseStyle.textAlign] as any,
+		textAlign: TEXT_ALIGN_CSS[baseStyle.textAlign],
 		wordWrap: 'break-word',
 		whiteSpace: 'pre-wrap',
 		overflowWrap: 'break-word'

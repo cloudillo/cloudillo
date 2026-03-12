@@ -22,6 +22,7 @@
 import * as React from 'react'
 import { useY } from 'react-yjs'
 
+import type { Gradient } from '@cloudillo/canvas-tools'
 import type { TemplateId, YPrezilloDocument, PrezilloObject } from '../crdt'
 import { getTemplatePrototypeObjects, getTemplate } from '../crdt'
 
@@ -33,7 +34,7 @@ export interface TemplateEditingContext {
 	templateHeight: number
 	/** Template background */
 	backgroundColor?: string
-	backgroundGradient?: any
+	backgroundGradient?: Gradient
 }
 
 /**

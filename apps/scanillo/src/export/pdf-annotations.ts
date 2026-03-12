@@ -19,12 +19,27 @@ import {
 	PDFName,
 	PDFNumber,
 	type PDFRef,
+	type PDFObject,
 	PDFOperator,
 	PDFOperatorNames
 } from 'pdf-lib'
 import type { PDFPage } from 'pdf-lib'
 
 import type { Annotation, FreehandAnnotation, RectAnnotation } from '../types.js'
+
+// Mirrors pdf-lib's internal LiteralObject (not exported)
+type PdfLiteral =
+	| PdfLiteralObject
+	| PdfLiteral[]
+	| PDFObject[]
+	| string
+	| number
+	| boolean
+	| null
+	| undefined
+interface PdfLiteralObject {
+	[name: string]: PdfLiteral | PDFObject
+}
 
 interface Placement {
 	x: number
@@ -139,7 +154,7 @@ function addInkAnnotation(
 	operators.push(PDFOperator.of(PDFOperatorNames.PopGraphicsState))
 
 	// Create appearance stream
-	const apDict: Record<string, any> = {
+	const apDict: PdfLiteralObject = {
 		BBox: [0, 0, bboxW, bboxH],
 		Matrix: [1, 0, 0, 1, minX, minY]
 	}
@@ -263,7 +278,7 @@ function addSquareAnnotation(
 	operators.push(PDFOperator.of(PDFOperatorNames.PopGraphicsState))
 
 	// Create appearance stream
-	const apDict: Record<string, any> = {
+	const apDict: PdfLiteralObject = {
 		BBox: [0, 0, bboxW, bboxH],
 		Matrix: [1, 0, 0, 1, minX, minY]
 	}
@@ -277,7 +292,7 @@ function addSquareAnnotation(
 	const apStreamRef = context.register(apStream)
 
 	// Build annotation dict
-	const annotDictEntries: Record<string, any> = {
+	const annotDictEntries: PdfLiteralObject = {
 		Type: 'Annot',
 		Subtype: 'Square',
 		Rect: [PDFNumber.of(minX), PDFNumber.of(minY), PDFNumber.of(maxX), PDFNumber.of(maxY)],

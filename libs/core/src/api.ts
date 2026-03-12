@@ -132,18 +132,19 @@ export interface ApiFetchOpts<R, D> {
  * Helper function to unwrap API response envelope
  * Handles both old format (direct data) and new format ({ data, time, reqId, pagination, cursorPagination })
  */
-function unwrapResponseEnvelope(response: any): { data: any; meta: ApiResponseMeta } {
+function unwrapResponseEnvelope(response: unknown): { data: unknown; meta: ApiResponseMeta } {
+	const res = response as Record<string, unknown>
 	// Extract metadata from envelope
 	const meta: ApiResponseMeta = {
-		time: response.time,
-		reqId: response.reqId,
-		pagination: response.pagination,
-		cursorPagination: response.cursorPagination
+		time: res.time as number | undefined,
+		reqId: res.reqId as string | undefined,
+		pagination: res.pagination as ApiResponseMeta['pagination'],
+		cursorPagination: res.cursorPagination as ApiResponseMeta['cursorPagination']
 	}
 
 	// Check for new envelope format - if 'data' field exists, use it
 	// Otherwise, the entire response is the data (old format)
-	const data = response.data !== undefined ? response.data : response
+	const data = res.data !== undefined ? res.data : response
 
 	return { data, meta }
 }
@@ -151,14 +152,14 @@ function unwrapResponseEnvelope(response: any): { data: any; meta: ApiResponseMe
 /**
  * Overload signatures
  */
-export async function apiFetchHelper<R, D = any>(
+export async function apiFetchHelper<R, D = unknown>(
 	idTag: string,
 	method: string,
 	path: string,
 	opts: ApiFetchOpts<R, D> & { returnMeta: true }
 ): Promise<ApiFetchResult<R>>
 
-export async function apiFetchHelper<R, D = any>(
+export async function apiFetchHelper<R, D = unknown>(
 	idTag: string,
 	method: string,
 	path: string,
@@ -168,7 +169,7 @@ export async function apiFetchHelper<R, D = any>(
 /**
  * Main implementation
  */
-export async function apiFetchHelper<R, D = any>(
+export async function apiFetchHelper<R, D = unknown>(
 	idTag: string,
 	method: string,
 	path: string,
@@ -214,7 +215,7 @@ export async function apiFetchHelper<R, D = any>(
 				| ApiFetchResult<R>
 		}
 
-		let j: any
+		let j: unknown
 		try {
 			j = JSON.parse(textRes)
 		} catch (err) {
@@ -231,7 +232,7 @@ export async function apiFetchHelper<R, D = any>(
 
 		// If no type specified, return data as-is
 		if (!opts.type) {
-			return opts.returnMeta ? { data, meta } : data
+			return (opts.returnMeta ? { data, meta } : data) as R | ApiFetchResult<R>
 		}
 
 		// Validate with runtype

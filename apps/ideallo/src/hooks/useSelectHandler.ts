@@ -31,7 +31,7 @@ import {
 } from '@cloudillo/canvas-tools'
 
 import type { YIdealloDocument, ObjectId, IdealloObject, StoredObject } from '../crdt/index.js'
-import { updateObject, getObject, getAllObjects } from '../crdt/index.js'
+import { updateObject, updateObjectFields, getObject, getAllObjects } from '../crdt/index.js'
 import type { Point } from '../utils/geometry.js'
 import { hitTestObject } from '../utils/hit-testing.js'
 import { getObjectBounds } from '../utils/bounds.js'
@@ -279,14 +279,14 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 			yDoc.transact(() => {
 				drag.originalObjects.forEach((origObj, objectId) => {
 					if (origObj.type === 'line' || origObj.type === 'arrow') {
-						updateObject(yDoc, doc, objectId, {
+						updateObjectFields(yDoc, doc, objectId, {
 							x: origObj.x + dx,
 							y: origObj.y + dy,
 							startX: origObj.startX + dx,
 							startY: origObj.startY + dy,
 							endX: origObj.endX + dx,
 							endY: origObj.endY + dy
-						} as any)
+						})
 					} else {
 						// For freehand and shapes, just update position
 						// (freehand pathData uses absolute coords, handled by transform)

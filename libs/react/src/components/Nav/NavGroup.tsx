@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { mergeClasses, createComponent } from '../utils.js'
+import { mergeClasses, createComponent, polyRef } from '../utils.js'
 
 export interface NavGroupProps extends React.HTMLAttributes<HTMLUListElement | HTMLDivElement> {
 	as?: 'ul' | 'div'
@@ -29,7 +29,7 @@ export const NavGroup = createComponent<HTMLUListElement | HTMLDivElement, NavGr
 	({ as: Component = 'ul', className, vertical, gap, children, ...props }, ref) => {
 		return (
 			<Component
-				ref={ref as any}
+				ref={polyRef(ref)}
 				className={mergeClasses(
 					'c-nav-group',
 					vertical && 'vertical',

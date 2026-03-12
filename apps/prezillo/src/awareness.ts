@@ -24,6 +24,9 @@
 import type { Awareness } from 'y-protocols/awareness'
 import type { ViewId } from './crdt/index.js'
 
+/** Awareness state type - y-protocols getStates() returns untyped records */
+type AwarenessState = Record<string, unknown>
+
 export interface PrezilloPresence {
 	user: {
 		name: string
@@ -113,9 +116,9 @@ export function getRemotePresenceStates(awareness: Awareness): Map<number, Prezi
 	const localClientId = awareness.clientID
 	const result = new Map<number, PrezilloPresence>()
 
-	states.forEach((state: { [x: string]: any } | null, clientId: number) => {
+	;(states as Map<number, AwarenessState | null>).forEach((state, clientId) => {
 		if (clientId !== localClientId && state) {
-			result.set(clientId, state as PrezilloPresence)
+			result.set(clientId, state as unknown as PrezilloPresence)
 		}
 	})
 
@@ -188,15 +191,16 @@ export function getActivePresenters(awareness: Awareness): PresenterInfo[] {
 	const states = awareness.getStates()
 	const presenters: PresenterInfo[] = []
 
-	states.forEach((state: any, clientId: number) => {
-		if (state?.presenting && state?.user) {
+	;(states as Map<number, AwarenessState | null>).forEach((state, clientId) => {
+		const s = state as PrezilloPresence | null
+		if (s?.presenting && s?.user) {
 			presenters.push({
 				clientId,
-				user: state.user,
-				viewId: state.presenting.viewId,
-				viewIndex: state.presenting.viewIndex,
-				isOwner: state.presenting.isOwner,
-				startedAt: state.presenting.startedAt
+				user: s.user,
+				viewId: s.presenting.viewId,
+				viewIndex: s.presenting.viewIndex,
+				isOwner: s.presenting.isOwner,
+				startedAt: s.presenting.startedAt
 			})
 		}
 	})
@@ -251,8 +255,9 @@ export function getFollowerCount(awareness: Awareness, presenterClientId: number
 	const states = awareness.getStates()
 	let count = 0
 
-	states.forEach((state: any) => {
-		if (state?.following?.presenterClientId === presenterClientId) {
+	;(states as Map<number, AwarenessState | null>).forEach((state) => {
+		const s = state as PrezilloPresence | null
+		if (s?.following?.presenterClientId === presenterClientId) {
 			count++
 		}
 	})
@@ -312,11 +317,12 @@ export function getVotesForFrame(
 	const states = awareness.getStates()
 	const votes: Array<{ clientId: number; user: { name: string; color: string } }> = []
 
-	states.forEach((state: any, clientId: number) => {
-		if (state?.vote?.frameId === frameId && state?.vote?.viewId === viewId && state?.user) {
+	;(states as Map<number, AwarenessState | null>).forEach((state, clientId) => {
+		const s = state as PrezilloPresence | null
+		if (s?.vote?.frameId === frameId && s?.vote?.viewId === viewId && s?.user) {
 			votes.push({
 				clientId,
-				user: state.user
+				user: s.user
 			})
 		}
 	})
@@ -331,9 +337,10 @@ export function getVoteCounts(awareness: Awareness, viewId: string): Map<string,
 	const states = awareness.getStates()
 	const counts = new Map<string, number>()
 
-	states.forEach((state: any) => {
-		if (state?.vote?.viewId === viewId) {
-			const frameId = state.vote.frameId
+	;(states as Map<number, AwarenessState | null>).forEach((state) => {
+		const s = state as PrezilloPresence | null
+		if (s?.vote?.viewId === viewId) {
+			const frameId = s.vote.frameId
 			counts.set(frameId, (counts.get(frameId) || 0) + 1)
 		}
 	})

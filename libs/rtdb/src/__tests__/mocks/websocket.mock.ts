@@ -22,7 +22,7 @@ export class MockWebSocket {
 	onerror: ((event: Event) => void) | null = null
 	onmessage: ((event: MessageEvent) => void) | null = null
 
-	sentMessages: any[] = []
+	sentMessages: unknown[] = []
 
 	constructor(url: string) {
 		this.url = url
@@ -47,7 +47,7 @@ export class MockWebSocket {
 		}
 	}
 
-	simulateMessage(data: any): void {
+	simulateMessage(data: unknown): void {
 		if (this.onmessage) {
 			this.onmessage(new MessageEvent('message', { data: JSON.stringify(data) }))
 		}
@@ -66,11 +66,11 @@ export class MockWebSocket {
 		}
 	}
 
-	getLastSentMessage(): any {
+	getLastSentMessage(): unknown {
 		return this.sentMessages[this.sentMessages.length - 1]
 	}
 
-	getSentMessages(): any[] {
+	getSentMessages(): unknown[] {
 		return [...this.sentMessages]
 	}
 

@@ -35,9 +35,9 @@ function stringify(node: React.ReactNode, indentDepth: number = 0): string {
 		case 'boolean':
 			return `${indent}${node}\n`
 		case 'object': {
-			if ((node as any)[Symbol.iterator] === 'function') {
+			if ((node as unknown as Record<symbol, unknown>)[Symbol.iterator] === 'function') {
 				return `<>\n</>`
-			} else if ((node as any).props) {
+			} else if ((node as unknown as Record<string, unknown>).props) {
 				const el = node as React.ReactElement
 				const props = el.props as Record<string, unknown>
 				const elementType =

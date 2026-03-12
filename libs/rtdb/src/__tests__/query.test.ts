@@ -35,6 +35,8 @@ describe('Query', () => {
 			maxReconnectDelay: 30000,
 			debug: false
 		}) as jest.Mocked<WebSocketManager>
+		mockWs.send = jest.fn() as unknown as jest.Mocked<WebSocketManager>['send']
+		mockWs.subscribe = jest.fn() as unknown as jest.Mocked<WebSocketManager>['subscribe']
 
 		query = new Query(mockWs, 'posts')
 	})
@@ -145,7 +147,7 @@ describe('Query', () => {
 
 	describe('get', () => {
 		it('should send query message to server', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'queryResult',
 				data: [
 					{ id: 'doc1', title: 'Post 1' },
@@ -161,7 +163,7 @@ describe('Query', () => {
 		})
 
 		it('should return empty snapshot when no results', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'queryResult',
 				data: []
 			})
@@ -173,7 +175,7 @@ describe('Query', () => {
 		})
 
 		it('should include filters in message', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'queryResult',
 				data: []
 			})
@@ -185,7 +187,7 @@ describe('Query', () => {
 		})
 
 		it('should include sort order in message', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'queryResult',
 				data: []
 			})
@@ -197,7 +199,7 @@ describe('Query', () => {
 		})
 
 		it('should include limit in message', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'queryResult',
 				data: []
 			})
@@ -209,7 +211,7 @@ describe('Query', () => {
 		})
 
 		it('should include offset in message', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'queryResult',
 				data: []
 			})
@@ -223,7 +225,7 @@ describe('Query', () => {
 
 	describe('onSnapshot', () => {
 		it('should subscribe to query changes', () => {
-			mockWs.subscribe = (jest.fn() as any).mockReturnValue(() => {})
+			mockWs.subscribe.mockReturnValue(() => {})
 			const callback = jest.fn()
 
 			query.onSnapshot(callback)
@@ -233,7 +235,7 @@ describe('Query', () => {
 
 		it('should return unsubscribe function', () => {
 			const unsubscribeFn = jest.fn()
-			mockWs.subscribe = (jest.fn() as any).mockReturnValue(unsubscribeFn)
+			mockWs.subscribe.mockReturnValue(unsubscribeFn)
 
 			const unsub = query.onSnapshot(jest.fn())
 
@@ -244,19 +246,17 @@ describe('Query', () => {
 			const callback = jest.fn()
 			const unsubscribeFn = jest.fn()
 
-			mockWs.subscribe = (jest.fn() as any).mockImplementation(
-				(_path: any, _filter: any, cb: any) => {
-					// Simulate server sending ready with initial docs
-					setTimeout(() => {
-						cb({
-							action: 'ready',
-							path: 'posts',
-							data: [{ id: 'doc1', title: 'Post 1' }]
-						})
-					}, 0)
-					return unsubscribeFn
-				}
-			)
+			mockWs.subscribe.mockImplementation((_path, _filter, cb) => {
+				// Simulate server sending ready with initial docs
+				setTimeout(() => {
+					cb({
+						action: 'ready',
+						path: 'posts',
+						data: [{ id: 'doc1', title: 'Post 1' }]
+					})
+				}, 0)
+				return unsubscribeFn
+			})
 
 			query.onSnapshot(callback)
 
@@ -299,27 +299,25 @@ describe('Query', () => {
 			const snapshotCb = jest.fn()
 			const onLock = jest.fn()
 
-			mockWs.subscribe = (jest.fn() as any).mockImplementation(
-				(_path: any, _filter: any, cb: any) => {
-					setTimeout(() => {
-						// Initial load
-						cb({
-							action: 'ready',
-							path: 'posts',
-							data: [{ id: 'doc1', title: 'Post 1' }]
-						})
-						// Lock event
-						cb({
-							action: 'lock',
-							path: 'posts/doc1',
-							data: { userId: 'u1', mode: 'soft' }
-						})
-						// Unlock event
-						cb({ action: 'unlock', path: 'posts/doc1', data: {} })
-					}, 0)
-					return jest.fn()
-				}
-			)
+			mockWs.subscribe.mockImplementation((_path, _filter, cb) => {
+				setTimeout(() => {
+					// Initial load
+					cb({
+						action: 'ready',
+						path: 'posts',
+						data: [{ id: 'doc1', title: 'Post 1' }]
+					})
+					// Lock event
+					cb({
+						action: 'lock',
+						path: 'posts/doc1',
+						data: { userId: 'u1', mode: 'soft' }
+					})
+					// Unlock event
+					cb({ action: 'unlock', path: 'posts/doc1', data: {} })
+				}, 0)
+				return jest.fn()
+			})
 
 			query.onSnapshot(snapshotCb, { onLock })
 
@@ -341,25 +339,23 @@ describe('Query', () => {
 			const snapshotCb = jest.fn()
 			const onLock = jest.fn()
 
-			mockWs.subscribe = (jest.fn() as any).mockImplementation(
-				(_path: any, _filter: any, cb: any) => {
-					setTimeout(() => {
-						// Lock event BEFORE ready
-						cb({
-							action: 'lock',
-							path: 'posts/doc1',
-							data: { userId: 'u1', mode: 'hard' }
-						})
-						// Then ready
-						cb({
-							action: 'ready',
-							path: 'posts',
-							data: [{ id: 'doc1', title: 'Post 1' }]
-						})
-					}, 0)
-					return jest.fn()
-				}
-			)
+			mockWs.subscribe.mockImplementation((_path, _filter, cb) => {
+				setTimeout(() => {
+					// Lock event BEFORE ready
+					cb({
+						action: 'lock',
+						path: 'posts/doc1',
+						data: { userId: 'u1', mode: 'hard' }
+					})
+					// Then ready
+					cb({
+						action: 'ready',
+						path: 'posts',
+						data: [{ id: 'doc1', title: 'Post 1' }]
+					})
+				}, 0)
+				return jest.fn()
+			})
 
 			query.onSnapshot(snapshotCb, { onLock })
 
@@ -373,23 +369,21 @@ describe('Query', () => {
 		it('should silently drop lock events when no onLock is provided', async () => {
 			const snapshotCb = jest.fn()
 
-			mockWs.subscribe = (jest.fn() as any).mockImplementation(
-				(_path: any, _filter: any, cb: any) => {
-					setTimeout(() => {
-						cb({
-							action: 'ready',
-							path: 'posts',
-							data: [{ id: 'doc1', title: 'Post 1' }]
-						})
-						cb({
-							action: 'lock',
-							path: 'posts/doc1',
-							data: { userId: 'u1', mode: 'soft' }
-						})
-					}, 0)
-					return jest.fn()
-				}
-			)
+			mockWs.subscribe.mockImplementation((_path, _filter, cb) => {
+				setTimeout(() => {
+					cb({
+						action: 'ready',
+						path: 'posts',
+						data: [{ id: 'doc1', title: 'Post 1' }]
+					})
+					cb({
+						action: 'lock',
+						path: 'posts/doc1',
+						data: { userId: 'u1', mode: 'soft' }
+					})
+				}, 0)
+				return jest.fn()
+			})
 
 			query.onSnapshot(snapshotCb)
 
@@ -417,7 +411,7 @@ describe('Query', () => {
 		})
 
 		it('should carry filters into AggregateQuery', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'queryResult',
 				data: [{ group: 'rust', count: 3 }]
 			})
@@ -434,7 +428,7 @@ describe('Query', () => {
 		})
 
 		it('should send aggregate in get() message', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'queryResult',
 				data: [
 					{ group: 'rust', count: 3 },
@@ -453,7 +447,7 @@ describe('Query', () => {
 		})
 
 		it('should return empty snapshot when no groups', async () => {
-			mockWs.send = (jest.fn() as any).mockResolvedValue({
+			mockWs.send.mockResolvedValue({
 				type: 'queryResult',
 				data: []
 			})
@@ -469,21 +463,19 @@ describe('Query', () => {
 		it('should subscribe with aggregate and fire callback on ready', async () => {
 			const callback = jest.fn()
 
-			mockWs.subscribe = (jest.fn() as any).mockImplementation(
-				(_path: any, _filter: any, cb: any, _onError: any, _aggregate: any) => {
-					setTimeout(() => {
-						cb({
-							action: 'ready',
-							path: 'posts',
-							data: [
-								{ group: 'rust', count: 3 },
-								{ group: 'web', count: 2 }
-							]
-						})
-					}, 0)
-					return jest.fn()
-				}
-			)
+			mockWs.subscribe.mockImplementation((_path, _filter, cb, _onError, _aggregate) => {
+				setTimeout(() => {
+					cb({
+						action: 'ready',
+						path: 'posts',
+						data: [
+							{ group: 'rust', count: 3 },
+							{ group: 'web', count: 2 }
+						]
+					})
+				}, 0)
+				return jest.fn()
+			})
 
 			const aggQuery = query.aggregate('tg')
 			aggQuery.onSnapshot(callback)
@@ -504,7 +496,7 @@ describe('Query', () => {
 		})
 
 		it('should pass aggregate option to ws.subscribe', () => {
-			mockWs.subscribe = (jest.fn() as any).mockReturnValue(() => {})
+			mockWs.subscribe.mockReturnValue(() => {})
 
 			const aggQuery = query.aggregate('tg')
 			aggQuery.onSnapshot(jest.fn())
@@ -521,27 +513,25 @@ describe('Query', () => {
 		it('should fire callback on update events after ready', async () => {
 			const callback = jest.fn()
 
-			mockWs.subscribe = (jest.fn() as any).mockImplementation(
-				(_path: any, _filter: any, cb: any, _onError: any, _aggregate: any) => {
-					setTimeout(() => {
-						cb({
-							action: 'ready',
-							path: 'posts',
-							data: [{ group: 'rust', count: 3 }]
-						})
-						// Live incremental update (delta — changed groups only)
-						cb({
-							action: 'update',
-							path: 'posts',
-							data: [
-								{ group: 'rust', count: 4 },
-								{ group: 'web', count: 1 }
-							]
-						})
-					}, 0)
-					return jest.fn()
-				}
-			)
+			mockWs.subscribe.mockImplementation((_path, _filter, cb, _onError, _aggregate) => {
+				setTimeout(() => {
+					cb({
+						action: 'ready',
+						path: 'posts',
+						data: [{ group: 'rust', count: 3 }]
+					})
+					// Live incremental update (delta — changed groups only)
+					cb({
+						action: 'update',
+						path: 'posts',
+						data: [
+							{ group: 'rust', count: 4 },
+							{ group: 'web', count: 1 }
+						]
+					})
+				}, 0)
+				return jest.fn()
+			})
 
 			const aggQuery = query.aggregate('tg')
 			aggQuery.onSnapshot(callback)

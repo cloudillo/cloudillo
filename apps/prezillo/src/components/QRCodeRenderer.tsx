@@ -29,7 +29,8 @@ import ReactQRCode from 'react-qr-code'
 import type { QrCodeObject, QrErrorCorrection } from '../crdt/index.js'
 
 // Handle ESM/CJS interop - the module might be wrapped
-const QRCode = (ReactQRCode as any).default ?? ReactQRCode
+const QRCode = ((ReactQRCode as unknown as Record<string, unknown>).default ??
+	ReactQRCode) as typeof ReactQRCode
 
 export interface QRCodeRendererProps {
 	object: QrCodeObject

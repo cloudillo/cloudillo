@@ -18,9 +18,9 @@ import * as React from 'react'
 import ReactQRCode from 'react-qr-code'
 
 import { Dialog } from '../Dialog/Dialog.js'
+import { resolveDefaultExport } from '../utils.js'
 
-// Handle ESM/CJS interop - the module might be wrapped
-const QRCode = (ReactQRCode as any).default ?? ReactQRCode
+const QRCode = resolveDefaultExport(ReactQRCode)
 
 export interface QRCodeDialogProps {
 	/** The URL or text to encode as QR code. When undefined, the dialog is closed. */

@@ -26,7 +26,14 @@
 import Quill from 'quill'
 import { getFileUrl } from '@cloudillo/core'
 
-const BlockEmbed = Quill.import('blots/block/embed') as any
+/** Typed base class for Quill block embed blots */
+interface QuillBlockEmbedClass {
+	new (): { domNode: HTMLElement; format(name: string, value: string | false | null): void }
+	create(value?: unknown): HTMLElement
+	prototype: { domNode: HTMLElement; format(name: string, value: string | false | null): void }
+}
+
+const BlockEmbed = Quill.import('blots/block/embed') as unknown as QuillBlockEmbedClass
 
 export interface ClImageValue {
 	fileId: string
@@ -99,7 +106,7 @@ class ClImageBlot extends BlockEmbed {
 		return formats
 	}
 
-	format(name: string, value: any): void {
+	format(name: string, value: string | false | null): void {
 		if (name === 'cl-image-align') {
 			if (value) {
 				this.domNode.setAttribute('data-blot-align', value)
@@ -121,7 +128,7 @@ class ClImageBlot extends BlockEmbed {
 }
 
 // Register the blot with Quill
-Quill.register(ClImageBlot, true)
+Quill.register('formats/cl-image', ClImageBlot, true)
 
 export { ClImageBlot }
 

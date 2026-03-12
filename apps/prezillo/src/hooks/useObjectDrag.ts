@@ -467,17 +467,63 @@ export function useObjectDrag({
 							const centerX = currentX + objWidth / 2
 							const centerY = currentY + objHeight / 2
 
-							// Check if dropped on a template frame (convert to prototype)
-							const templateAtDrop = findTemplateAtPoint(centerX, centerY)
-							if (templateAtDrop) {
-								// Check if this is the same template we started from
-								if (initialDragState.originalTemplateId === templateAtDrop) {
-									// Same template - position already updated, nothing more to do
-								} else {
-									// Moving to a different template (or from non-template to template)
+							prezillo.yDoc.transact(() => {
+								// Check if dropped on a template frame (convert to prototype)
+								const templateAtDrop = findTemplateAtPoint(centerX, centerY)
+								if (templateAtDrop) {
+									// Check if this is the same template we started from
+									if (initialDragState.originalTemplateId === templateAtDrop) {
+										// Same template - position already updated, nothing more to do
+									} else {
+										// Moving to a different template (or from non-template to template)
 
-									// If object was a prototype on another template, remove it first
+										// If object was a prototype on another template, remove it first
+										if (initialDragState.originalTemplateId) {
+											removeObjectFromTemplate(
+												prezillo.yDoc,
+												prezillo.doc,
+												initialDragState.originalTemplateId,
+												initialDragState.objectId,
+												{ deleteObject: false, deleteInstances: true }
+											)
+										}
+
+										// If object is an instance, detach it first
+										if (obj.proto) {
+											detachInstance(
+												prezillo.yDoc,
+												prezillo.doc,
+												initialDragState.objectId
+											)
+										}
+
+										// Convert to template-relative coordinates
+										const layout = templateLayouts.get(templateAtDrop)!
+										const relX = currentX - layout.x
+										const relY = currentY - layout.y
+
+										// Update position to template-relative
+										updateObjectPosition(
+											prezillo.yDoc,
+											prezillo.doc,
+											initialDragState.objectId,
+											relX,
+											relY
+										)
+
+										// Add to new template (converts to prototype)
+										addObjectToTemplate(
+											prezillo.yDoc,
+											prezillo.doc,
+											templateAtDrop,
+											initialDragState.objectId
+										)
+									}
+								} else {
+									// Dropped outside any template frame
+									// If this was a prototype, remove it from its template
 									if (initialDragState.originalTemplateId) {
+										// Delete all instances and remove prototype from template
 										removeObjectFromTemplate(
 											prezillo.yDoc,
 											prezillo.doc,
@@ -485,98 +531,38 @@ export function useObjectDrag({
 											initialDragState.objectId,
 											{ deleteObject: false, deleteInstances: true }
 										)
-									}
 
-									// If object is an instance, detach it first
-									if (obj.proto) {
-										detachInstance(
+										// 2. Then update prototype position to global coords
+										updateObjectPosition(
 											prezillo.yDoc,
 											prezillo.doc,
-											initialDragState.objectId
+											initialDragState.objectId,
+											currentX,
+											currentY
 										)
 									}
 
-									// Convert to template-relative coordinates
-									const layout = templateLayouts.get(templateAtDrop)!
-									const relX = currentX - layout.x
-									const relY = currentY - layout.y
-
-									// Update position to template-relative
-									updateObjectPosition(
-										prezillo.yDoc,
+									// Find which page the center is now in
+									const newPageId = findViewAtPoint(
 										prezillo.doc,
-										initialDragState.objectId,
-										relX,
-										relY
+										centerX,
+										centerY
 									)
 
-									// Add to new template (converts to prototype)
-									addObjectToTemplate(
-										prezillo.yDoc,
-										prezillo.doc,
-										templateAtDrop,
-										initialDragState.objectId
-									)
+									// If page changed, update association
+									if (newPageId !== currentPageId) {
+										updateObjectPageAssociation(
+											prezillo.yDoc,
+											prezillo.doc,
+											initialDragState.objectId,
+											newPageId,
+											{
+												preserveGlobalPosition: true
+											}
+										)
+									}
 								}
-							} else {
-								// Dropped outside any template frame
-								// If this was a prototype, remove it from its template
-								if (initialDragState.originalTemplateId) {
-									console.log(
-										'[useObjectDrag] Removing prototype from template:',
-										{
-											objectId: initialDragState.objectId,
-											templateId: initialDragState.originalTemplateId,
-											currentX,
-											currentY
-										}
-									)
-									// Delete all instances and remove prototype from template
-									removeObjectFromTemplate(
-										prezillo.yDoc,
-										prezillo.doc,
-										initialDragState.originalTemplateId,
-										initialDragState.objectId,
-										{ deleteObject: false, deleteInstances: true }
-									)
-
-									// 2. Then update prototype position to global coords
-									updateObjectPosition(
-										prezillo.yDoc,
-										prezillo.doc,
-										initialDragState.objectId,
-										currentX,
-										currentY
-									)
-									console.log(
-										'[useObjectDrag] After removal, object:',
-										prezillo.doc.o.get(initialDragState.objectId)
-									)
-								}
-
-								// Find which page the center is now in
-								const newPageId = findViewAtPoint(prezillo.doc, centerX, centerY)
-								console.log(
-									'[useObjectDrag] newPageId:',
-									newPageId,
-									'currentPageId:',
-									currentPageId
-								)
-
-								// If page changed, update association
-								if (newPageId !== currentPageId) {
-									console.log('[useObjectDrag] Updating page association')
-									updateObjectPageAssociation(
-										prezillo.yDoc,
-										prezillo.doc,
-										initialDragState.objectId,
-										newPageId,
-										{
-											preserveGlobalPosition: true
-										}
-									)
-								}
-							}
+							}, prezillo.yDoc.clientID)
 						}
 					}
 				}

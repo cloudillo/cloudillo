@@ -551,11 +551,7 @@ async function renderObjectToSVG(
 	}
 
 	if (content) {
-		if (content instanceof DocumentFragment) {
-			g.appendChild(content)
-		} else {
-			g.appendChild(content)
-		}
+		g.appendChild(content)
 		return g
 	}
 

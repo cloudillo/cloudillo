@@ -88,10 +88,6 @@ function IdpRegistrationForm({
 	// Debounced display name for smooth animation (only animate when user pauses typing)
 	const displayName = useDebouncedValue(idTagInput, 300)
 
-	// When custom provider (contains a dot), user already selected their full provider domain
-	const isCustom = selectedProvider.includes('.')
-	const _providerDomain = isCustom ? selectedProvider : selectedProvider
-
 	return (
 		<>
 			<CloudilloLogo
@@ -219,12 +215,12 @@ function DomainRegistrationForm({
 	// Show DNS instructions when there are DNS issues
 	const showDnsInstructions =
 		idTagInput &&
-		verifyState?.idTagError != 'used' &&
-		verifyState?.appDomainError != 'used' &&
-		(verifyState?.idTagError == 'nodns' ||
-			verifyState?.idTagError == 'address' ||
-			verifyState?.appDomainError == 'nodns' ||
-			verifyState?.appDomainError == 'address')
+		verifyState?.idTagError !== 'used' &&
+		verifyState?.appDomainError !== 'used' &&
+		verifyState?.appDomainError !== 'address' &&
+		(verifyState?.idTagError === 'nodns' ||
+			verifyState?.idTagError === 'address' ||
+			verifyState?.appDomainError === 'nodns')
 
 	// Show email field when domain validation passes
 	const showEmailField = verifyState?.idTagError === '' && verifyState?.appDomainError === ''
@@ -259,7 +255,9 @@ function DomainRegistrationForm({
 						<AppDomainInput
 							value={appDomain}
 							onChange={setAppDomain}
-							onVerify={(value) => onVerify('appDomain', idTagInput, value)}
+							onVerify={(value) =>
+								onVerify('appDomain', idTagInput, undefined, value)
+							}
 							idTagInput={idTagInput}
 							progress={progress}
 							error={verifyState?.appDomainError}
@@ -449,7 +447,6 @@ export function RegisterForm() {
 		}
 	}
 
-	console.log('VERIFY STATE', verifyState)
 	// Debounced verification - use useMemo to create stable debounced function
 	const onChangeVerify = React.useMemo(
 		() =>
@@ -635,7 +632,10 @@ export function RegisterForm() {
 					idTagInput={idTagInput}
 					setIdTagInput={setIdTagInput}
 					appDomain={appDomain}
-					setAppDomain={setAppDomain}
+					setAppDomain={(value) => {
+						setAppDomain(value)
+						setVerifyState((vs) => (!vs ? undefined : { ...vs, appDomainError: '' }))
+					}}
 					email={email}
 					setEmail={setEmail}
 					verifyState={verifyState}

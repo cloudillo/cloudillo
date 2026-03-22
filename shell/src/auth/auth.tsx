@@ -458,21 +458,31 @@ export function Password() {
 	)
 }
 
-function LoginPage({ children }: { children: React.ReactNode }) {
+function LoginPage({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
 	const [loginInitData] = useAtom(loginInitAtom)
 	return (
 		<LoginInitContext.Provider value={loginInitData}>
 			<div className="c-container">
-				<div className="row">
-					<div className="col-0 col-md-1 col-lg-2" />
-					<div className="col col-md-5 col-lg-4">
-						<div className="flex-fill-x">{children}</div>
+				{wide ? (
+					<div className="row">
+						<div className="col-0 col-md-1 col-lg-2" />
+						<div className="col col-md-10 col-lg-8">
+							<div className="flex-fill-x">{children}</div>
+						</div>
+						<div className="col-0 col-md-1 col-lg-2" />
 					</div>
-					<div className="col col-md-5 col-lg-4 d-none md:d-flex align-items-center justify-content-center">
-						<QrLoginPanel />
+				) : (
+					<div className="row">
+						<div className="col-0 col-md-1 col-lg-2" />
+						<div className="col col-md-5 col-lg-4">
+							<div className="flex-fill-x">{children}</div>
+						</div>
+						<div className="col col-md-5 col-lg-4 d-none md:d-flex align-items-center justify-content-center">
+							<QrLoginPanel />
+						</div>
+						<div className="col-0 col-md-1 col-lg-2" />
 					</div>
-					<div className="col-0 col-md-1 col-lg-2" />
-				</div>
+				)}
 			</div>
 		</LoginInitContext.Provider>
 	)
@@ -492,7 +502,7 @@ export function AuthRoutes() {
 			<Route
 				path="/register/:token"
 				element={
-					<LoginPage>
+					<LoginPage wide>
 						<RegisterForm />
 					</LoginPage>
 				}
@@ -500,7 +510,7 @@ export function AuthRoutes() {
 			<Route
 				path="/register/:token/:providerType"
 				element={
-					<LoginPage>
+					<LoginPage wide>
 						<RegisterForm />
 					</LoginPage>
 				}
@@ -508,7 +518,7 @@ export function AuthRoutes() {
 			<Route
 				path="/register/:token/idp/:idpStep"
 				element={
-					<LoginPage>
+					<LoginPage wide>
 						<RegisterForm />
 					</LoginPage>
 				}
@@ -516,7 +526,7 @@ export function AuthRoutes() {
 			<Route
 				path="/register/:token/idp/:idpStep/:provider"
 				element={
-					<LoginPage>
+					<LoginPage wide>
 						<RegisterForm />
 					</LoginPage>
 				}

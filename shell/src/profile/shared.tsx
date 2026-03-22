@@ -24,7 +24,8 @@ import {
 	LuCheck as IcOk,
 	LuTriangleAlert as IcError,
 	LuChevronsLeft as IcGoBack,
-	LuUsers as IcCommunity
+	LuUsers as IcCommunity,
+	LuCopy as IcCopy
 } from 'react-icons/lu'
 
 import { type useApi, useDialog, Button } from '@cloudillo/react'
@@ -624,14 +625,19 @@ export function AppDomainErrorPanel({ error, idTagInput, appDomain }: AppDomainE
 		)
 	}
 
-	if (error === 'address' && !appDomain) {
+	if (error === 'address') {
 		return (
 			<div className="c-panel warning mt-2">
 				<p>
-					{t(
-						'Your identity domain appears to have an existing website. Use a subdomain for Cloudillo (e.g., cloudillo.{{idTag}})',
-						{ idTag: idTagInput }
-					)}
+					{!appDomain
+						? t(
+								'Your domain already has a website. Use the App address field above to set a subdomain for Cloudillo (e.g., cloudillo.{{idTag}}).',
+								{ idTag: idTagInput }
+							)
+						: t(
+								'This app address also points to another website. Try a different subdomain in the App address field (e.g., cloudillo.{{idTag}}).',
+								{ idTag: idTagInput }
+							)}
 				</p>
 			</div>
 		)
@@ -659,6 +665,7 @@ export function DnsInstructions({
 	appDomainError
 }: DnsInstructionsProps) {
 	const { t } = useTranslation()
+	const [copied, setCopied] = React.useState(false)
 
 	const recordType = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(address) ? 'A' : 'CNAME'
 	const needsApiDns = idTagError === 'nodns' || idTagError === 'address'
@@ -666,23 +673,42 @@ export function DnsInstructions({
 
 	const records: string[] = []
 	if (needsApiDns) {
-		records.push(`cl-o.${idTagInput.padEnd(20, ' ')} IN ${recordType} ${address}`)
+		records.push(`cl-o.${idTagInput} IN ${recordType} ${address}`)
 	}
 	if (needsAppDns) {
-		records.push(`${(appDomain || idTagInput).padEnd(25, ' ')} IN ${recordType} ${address}`)
+		records.push(`${appDomain || idTagInput} IN ${recordType} ${address}`)
+	}
+
+	function handleCopy() {
+		navigator.clipboard.writeText(records.join('\n'))
+		setCopied(true)
+		setTimeout(() => setCopied(false), 2000)
 	}
 
 	return (
 		<div className="c-panel warning my-3">
 			<h4 className="mb-2">{t('One small step: connect your domain')}</h4>
 			<p className="small">{t('Add these records in your domain settings:')}</p>
-			<pre className="c-panel bg-light p-2 small" style={{ overflowX: 'auto' }}>
-				{records.join('\n')}
-			</pre>
-			<p className="small text-muted mb-0">
+			<div className="c-panel bg-light p-2 small" style={{ position: 'relative' }}>
+				{records.map((record) => (
+					<div key={record}>
+						<code style={{ wordBreak: 'break-all' }}>{record}</code>
+					</div>
+				))}
+				<button
+					type="button"
+					className="c-button icon small"
+					style={{ position: 'absolute', bottom: '0.25rem', right: '0.25rem' }}
+					onClick={handleCopy}
+					title={t('Copy to clipboard')}
+				>
+					{copied ? <IcOk className="text-success" /> : <IcCopy />}
+				</button>
+			</div>
+			<p className="small text-muted mb-0 mt-2">
 				{t("Where to do this: GoDaddy, Namecheap, Cloudflare - 'DNS Settings'")}
 				<br />
-				{t('Changes can take 5-30 minutes to work.')}
+				{t('Changes can take up to an hour to work.')}
 			</p>
 		</div>
 	)

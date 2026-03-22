@@ -361,7 +361,7 @@ export function CropEditor({
 						points={polygonStr}
 						fill="none"
 						stroke="var(--col-primary, #4a9eff)"
-						strokeWidth={Math.max(width, height) * 0.003}
+						strokeWidth={Math.max(width, height) * 0.008}
 					/>
 				</svg>
 				{/* HTML handle divs */}

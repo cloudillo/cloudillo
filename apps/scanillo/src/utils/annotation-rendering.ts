@@ -14,51 +14,6 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import type { Annotation } from '../types.js'
-
-export function renderAnnotationsToCanvas(
-	ctx: CanvasRenderingContext2D,
-	annotations: Annotation[],
-	width: number,
-	height: number
-) {
-	const shortDim = Math.min(width, height)
-
-	for (const ann of annotations) {
-		ctx.save()
-		ctx.globalAlpha = ann.opacity
-		ctx.strokeStyle = ann.color
-		ctx.lineWidth = ann.strokeWidth * shortDim
-		ctx.lineCap = 'round'
-		ctx.lineJoin = 'round'
-
-		if (ann.type === 'freehand') {
-			if (ann.points.length < 2) {
-				ctx.restore()
-				continue
-			}
-			ctx.beginPath()
-			ctx.moveTo(ann.points[0][0] * width, ann.points[0][1] * height)
-			for (let i = 1; i < ann.points.length; i++) {
-				ctx.lineTo(ann.points[i][0] * width, ann.points[i][1] * height)
-			}
-			ctx.stroke()
-		} else if (ann.type === 'rect') {
-			const rx = ann.x * width
-			const ry = ann.y * height
-			const rw = ann.width * width
-			const rh = ann.height * height
-			if (ann.fill) {
-				ctx.fillStyle = ann.fill
-				ctx.fillRect(rx, ry, rw, rh)
-			}
-			ctx.strokeRect(rx, ry, rw, rh)
-		}
-
-		ctx.restore()
-	}
-}
-
 // Douglas-Peucker point simplification
 export function simplifyPoints(points: [number, number][], tolerance: number): [number, number][] {
 	if (points.length <= 2) return points

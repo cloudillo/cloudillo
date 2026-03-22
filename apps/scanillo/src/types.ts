@@ -45,6 +45,7 @@ export type AnnotationTool = 'freehand' | 'rect' | 'eraser'
 
 export type CaptureFlowState =
 	| { step: 'idle' }
+	| { step: 'processing' }
 	| {
 			step: 'crop'
 			imageData: string

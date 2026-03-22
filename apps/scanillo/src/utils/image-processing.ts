@@ -394,11 +394,6 @@ export function blendWithOriginal(
 	return canvas
 }
 
-export function canvasToBase64(canvas: HTMLCanvasElement): string {
-	const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
-	return dataUrl.replace(/^data:image\/jpeg;base64,/, '')
-}
-
 export function canvasToBlob(canvas: HTMLCanvasElement, quality = 0.92): Promise<Blob> {
 	return new Promise((resolve, reject) => {
 		canvas.toBlob(

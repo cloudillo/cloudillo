@@ -7,9 +7,11 @@ interface CvDeletable {
 
 interface CvMat extends CvDeletable {
 	data: Uint8Array
+	data32S: Int32Array
 	rows: number
 	cols: number
 	type(): number
+	clone(): CvMat
 	convertTo(dst: CvMat, type: number): void
 	setTo(scalar: CvScalar): void
 }
@@ -17,11 +19,34 @@ interface CvMat extends CvDeletable {
 interface CvMatVector extends CvDeletable {
 	push_back(mat: CvMat): void
 	get(i: number): CvMat
+	size(): number
 }
 
 type CvScalar = Record<string, never>
 
 type CvSize = Record<string, never>
+
+interface CvRotatedRect {
+	center: { x: number; y: number }
+	size: { width: number; height: number }
+	angle: number
+}
+
+interface CornerPoints {
+	topLeftCorner: { x: number; y: number }
+	topRightCorner: { x: number; y: number }
+	bottomLeftCorner: { x: number; y: number }
+	bottomRightCorner: { x: number; y: number }
+}
+
+interface Jscanify {
+	extractPaper(
+		canvas: HTMLCanvasElement,
+		w: number,
+		h: number,
+		corners: CornerPoints
+	): HTMLCanvasElement
+}
 
 interface OpenCV {
 	// Mat constructors
@@ -40,8 +65,18 @@ interface OpenCV {
 	// Color conversion
 	cvtColor(src: CvMat, dst: CvMat, code: number): void
 
+	// Edge detection
+	Canny(src: CvMat, dst: CvMat, threshold1: number, threshold2: number): void
+
 	// Filtering
-	GaussianBlur(src: CvMat, dst: CvMat, ksize: CvSize, sigmaX: number): void
+	GaussianBlur(
+		src: CvMat,
+		dst: CvMat,
+		ksize: CvSize,
+		sigmaX: number,
+		sigmaY?: number,
+		borderType?: number
+	): void
 	adaptiveThreshold(
 		src: CvMat,
 		dst: CvMat,
@@ -51,6 +86,7 @@ interface OpenCV {
 		blockSize: number,
 		C: number
 	): void
+	threshold(src: CvMat, dst: CvMat, thresh: number, maxval: number, type: number): void
 
 	// Channel operations
 	split(src: CvMat, channels: CvMatVector): void
@@ -70,6 +106,30 @@ interface OpenCV {
 		interpolation: number
 	): void
 
+	// Contours
+	findContours(
+		image: CvMat,
+		contours: CvMatVector,
+		hierarchy: CvMat,
+		mode: number,
+		method: number
+	): void
+	contourArea(contour: CvMat): number
+	minAreaRect(contour: CvMat): CvRotatedRect
+
+	// Perspective transform
+	getPerspectiveTransform(src: CvMat, dst: CvMat): CvMat
+	warpPerspective(
+		src: CvMat,
+		dst: CvMat,
+		M: CvMat,
+		dsize: CvSize,
+		flags?: number,
+		borderMode?: number,
+		borderValue?: CvScalar
+	): void
+	matFromArray(rows: number, cols: number, type: number, data: number[]): CvMat
+
 	// Arithmetic
 	divide(src1: CvMat, src2: CvMat, dst: CvMat): void
 	multiply(src1: CvMat, src2: CvMat, dst: CvMat): void
@@ -84,9 +144,6 @@ interface OpenCV {
 
 	// Histogram
 	equalizeHist(src: CvMat, dst: CvMat): void
-
-	// Contours
-	contourArea(contour: CvMat): number
 
 	// Color conversion constants
 	COLOR_RGBA2RGB: number
@@ -103,6 +160,7 @@ interface OpenCV {
 
 	// Type constants
 	CV_32F: number
+	CV_32FC2: number
 	CV_8U: number
 
 	// Interpolation constants
@@ -112,28 +170,20 @@ interface OpenCV {
 	// Threshold constants
 	ADAPTIVE_THRESH_GAUSSIAN_C: number
 	THRESH_BINARY: number
+	THRESH_OTSU: number
+
+	// Contour constants
+	RETR_CCOMP: number
+	RETR_EXTERNAL: number
+	CHAIN_APPROX_SIMPLE: number
+
+	// Border constants
+	BORDER_DEFAULT: number
+	BORDER_CONSTANT: number
 
 	// Runtime initialization
 	onRuntimeInitialized?: (() => void) | undefined
 	then?: (cb: () => void) => void
-}
-
-interface JscanifyCornerPoints {
-	topLeftCorner: { x: number; y: number }
-	topRightCorner: { x: number; y: number }
-	bottomLeftCorner: { x: number; y: number }
-	bottomRightCorner: { x: number; y: number }
-}
-
-interface Jscanify {
-	findPaperContour(mat: CvMat): CvMat | null
-	getCornerPoints(contour: CvMat): JscanifyCornerPoints
-	extractPaper(
-		canvas: HTMLCanvasElement,
-		w: number,
-		h: number,
-		corners: JscanifyCornerPoints
-	): HTMLCanvasElement
 }
 
 declare const cv: OpenCV

@@ -1018,6 +1018,8 @@ export function ScanilloApp() {
 				documentFileId: scanillo.fileId
 			})
 			if (result && scanillo.ownerTag) {
+				setCaptureFlow({ step: 'processing' })
+
 				// Fetch the picked image and enter crop flow
 				const url = getFileUrl(scanillo.ownerTag, result.fileId, 'orig', {
 					token: scanillo.token
@@ -1051,6 +1053,7 @@ export function ScanilloApp() {
 				})
 			}
 		} catch (err) {
+			setCaptureFlow({ step: 'idle' })
 			console.error('[Scanillo] Pick media error:', err)
 		}
 	}
@@ -1124,6 +1127,7 @@ export function ScanilloApp() {
 			bus.onCameraPreviewFrame(null)
 
 			if (result) {
+				setCaptureFlow({ step: 'processing' })
 				const { detectDocument } = await import('./detect-document.js')
 				const quad = await detectDocument(result.imageData, result.width, result.height)
 				setCaptureFlow({
@@ -1135,6 +1139,7 @@ export function ScanilloApp() {
 				})
 			}
 		} catch (err) {
+			setCaptureFlow({ step: 'idle' })
 			console.error('[Scanillo] Camera capture error:', err)
 		}
 	}
@@ -1466,6 +1471,19 @@ export function ScanilloApp() {
 					<h3>Connection Error</h3>
 					<p>{scanillo.error.message}</p>
 				</Panel>
+			</div>
+		)
+	}
+
+	if (captureFlow.step === 'processing') {
+		return (
+			<div className="scanillo-app c-vbox w-100 h-100">
+				<div className="export-overlay">
+					<div className="export-progress">
+						<div className="c-spinner" />
+						<p>Processing image...</p>
+					</div>
+				</div>
 			</div>
 		)
 	}

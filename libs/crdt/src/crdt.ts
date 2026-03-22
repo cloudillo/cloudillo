@@ -70,10 +70,6 @@ export async function openYDoc(
 	const token = bus.accessToken
 	const accessLevel = bus.access
 
-	if (!token) {
-		throw new Error('No access token. Call init() first.')
-	}
-
 	const [targetTag, resId] = docId.split(':')
 	if (!targetTag || !resId) {
 		throw new Error('Invalid docId format. Expected "targetTag:resourceId"')
@@ -86,9 +82,13 @@ export async function openYDoc(
 	// already under this clientId.
 	const clientId = await bus.requestClientId(docId)
 
-	const wsProvider = new WebsocketProvider(getCrdtUrl(targetTag), resId, yDoc, {
-		params: { token, access: accessLevel || 'write' }
-	})
+	// Build WebSocket params: token is optional (guest/read-only access)
+	const params: Record<string, string> = {
+		access: accessLevel || (token ? 'write' : 'read')
+	}
+	if (token) params.token = token
+
+	const wsProvider = new WebsocketProvider(getCrdtUrl(targetTag), resId, yDoc, { params })
 
 	if (clientId != null) {
 		const applyClientId = () => {

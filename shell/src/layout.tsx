@@ -538,7 +538,7 @@ function Header({ inert }: { inert?: boolean }) {
 		if (!api) throw new Error('Not authenticated')
 		const apiKey = await getApiKey()
 		await api.auth.logout({ apiKey })
-		setAuth(undefined)
+		setAuth(null)
 		await clearAuthToken()
 		await deleteApiKey()
 		// Clean up encryption cookie if this was a temporary session (no API key)
@@ -567,7 +567,7 @@ function Header({ inert }: { inert?: boolean }) {
 			// Set initial theme with system color scheme listener
 			setTheme(undefined, undefined)
 			;(async function () {
-				if (!api?.idTag || !auth) {
+				if (!api?.idTag || auth === undefined) {
 					// Guard against duplicate effect execution (StrictMode / double fire)
 					if (initRef.current) return
 					initRef.current = true
@@ -648,6 +648,7 @@ function Header({ inert }: { inert?: boolean }) {
 							} catch (err) {
 								// Not authenticated - signal "no data" so login components use fallback
 								console.log('[Layout] loginInit failed:', err)
+								setAuth(null)
 								setLoginInitData(null)
 							}
 						}
@@ -688,7 +689,8 @@ function Header({ inert }: { inert?: boolean }) {
 							return
 						}
 
-						// Guest mode: handle redirect
+						// Guest mode: signal auth resolved as unauthenticated
+						setAuth(null)
 						const guestRedirect = getGuestRedirect(location.pathname, ownerIdTag)
 						if (guestRedirect) {
 							navigate(guestRedirect)
@@ -1045,7 +1047,8 @@ export function Layout() {
 				debug: process.env.NODE_ENV !== 'production',
 				getAccessToken: async (resId, _access) => {
 					const currentApi = apiRef.current
-					if (!currentApi) return undefined
+					const currentAuth = authRef.current
+					if (!currentApi || !currentAuth) return undefined
 					try {
 						const [targetTag] = resId.split(':')
 						const res = await currentApi.auth.getProxyToken(targetTag)

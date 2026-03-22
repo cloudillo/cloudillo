@@ -111,12 +111,15 @@ export class WebSocketManager {
 	private async _doConnect(): Promise<void> {
 		try {
 			const token = await this.getToken()
-			if (!token) {
-				throw new AuthError('No auth token available')
-			}
 
 			return new Promise((resolve, reject) => {
-				const wsUrl = `${this.serverUrl}/ws/rtdb/${this.dbId}?token=${encodeURIComponent(token)}`
+				const params = new URLSearchParams()
+				if (token) {
+					params.set('token', token)
+				} else {
+					params.set('access', 'read')
+				}
+				const wsUrl = `${this.serverUrl}/ws/rtdb/${this.dbId}?${params}`
 
 				// Clean up any previous WebSocket before creating a new one
 				this.cleanupWebSocket()

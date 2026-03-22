@@ -26,7 +26,8 @@
  * // Initialize in shell entry point
  * initShellBus({
  *   getAccessToken: async (resId, access) => {
- *     return api.auth.getAccessToken({ scope: `${resId}:${access === 'read' ? 'R' : 'W'}` })
+ *     const fileId = resId.split(':').pop()
+ *     return api.auth.getAccessToken({ scope: `file:${fileId}:${access === 'read' ? 'R' : 'W'}` })
  *   },
  *   getAuthState: () => authState,
  *   getThemeState: () => ({ darkMode: document.body.classList.contains('dark') })

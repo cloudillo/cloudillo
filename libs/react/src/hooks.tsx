@@ -34,7 +34,7 @@ export interface AuthState {
 	token?: string
 }
 
-const authAtom = atom<AuthState | undefined>(undefined)
+const authAtom = atom<AuthState | null | undefined>(undefined)
 
 export function useAuth() {
 	return useAtom(authAtom)
@@ -217,7 +217,7 @@ export function useCloudilloEditor(appName: string) {
 			let currentProvider: WebsocketProvider | undefined
 			let handleSync: ((isSynced: boolean) => void) | undefined
 
-			if (cl.token && docId) {
+			if (cl.idTag && docId) {
 				;(async function initDoc() {
 					const { provider } = await openYDoc(yDoc, docId)
 
@@ -276,7 +276,7 @@ export function useCloudilloEditor(appName: string) {
 				}
 			}
 		},
-		[cl.token, docId]
+		[cl.idTag, docId]
 	)
 
 	return {

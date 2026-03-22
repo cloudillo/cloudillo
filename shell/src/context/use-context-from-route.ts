@@ -8,7 +8,7 @@
 import * as React from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAtom } from 'jotai'
-import { useAuth } from '@cloudillo/react'
+import { useAuth, apiAtom } from '@cloudillo/react'
 
 import { activeContextAtom } from './atoms'
 import { useApiContext } from './hooks'
@@ -30,6 +30,9 @@ export function useContextFromRoute(): string | undefined {
 	const [isInitialized, setIsInitialized] = React.useState(false)
 
 	React.useEffect(() => {
+		// Skip context switching when not authenticated (loading or guest)
+		if (!auth) return
+
 		// If we have a contextIdTag in URL but it doesn't match active context
 		if (contextIdTag && activeContext?.idTag !== contextIdTag) {
 			console.log(
@@ -53,9 +56,9 @@ export function useContextFromRoute(): string | undefined {
 
 	// Initialize active context if none is set and we have auth
 	React.useEffect(() => {
-		if (!isInitialized && auth && !activeContext && !isLoading) {
+		if (!isInitialized && auth?.idTag && !activeContext && !isLoading) {
 			console.log('[Route] Initializing active context to user context')
-			setActiveContext(auth.idTag!)
+			setActiveContext(auth.idTag)
 				.then(() => {
 					setIsInitialized(true)
 				})
@@ -79,6 +82,7 @@ export function useContextFromRoute(): string | undefined {
 export function useCurrentContextIdTag(): string | undefined {
 	const [activeContext] = useAtom(activeContextAtom)
 	const [auth] = useAuth()
+	const [apiState] = useAtom(apiAtom)
 
-	return activeContext?.idTag || auth?.idTag
+	return activeContext?.idTag || auth?.idTag || apiState.idTag
 }

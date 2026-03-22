@@ -171,7 +171,7 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 
 			// Send init response
 			bus.sendResponse(appWindow, 'auth:init.res', msg.id, true, {
-				idTag: connection?.idTag || authState?.idTag,
+				idTag: connection?.idTag || authState?.idTag || resId?.split(':')[0],
 				tnId: authState?.tnId,
 				roles: authState?.roles,
 				theme: 'glass',

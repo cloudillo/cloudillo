@@ -12,7 +12,7 @@
 import * as React from 'react'
 import { useAtom } from 'jotai'
 import { createApiClient, type ApiClient } from '@cloudillo/core'
-import { useAuth, type ApiHook } from '@cloudillo/react'
+import { useAuth, apiAtom, type ApiHook } from '@cloudillo/react'
 
 import { activeContextAtom, contextTokensAtom } from './atoms'
 
@@ -34,6 +34,7 @@ import { activeContextAtom, contextTokensAtom } from './atoms'
  */
 export function useContextAwareApi(): ApiHook {
 	const [auth] = useAuth()
+	const [apiState] = useAtom(apiAtom)
 	const [activeContext] = useAtom(activeContextAtom)
 	const [contextTokens] = useAtom(contextTokensAtom)
 
@@ -61,11 +62,15 @@ export function useContextAwareApi(): ApiHook {
 				}
 				token = tokenData.token
 			}
-		} else {
-			// No active context - use user's own idTag
-			idTag = auth?.idTag
-			token = auth?.token
+		} else if (auth) {
+			// Authenticated, no active context - use user's own idTag
+			idTag = auth.idTag
+			token = auth.token
+		} else if (auth === null) {
+			// Guest mode: auth resolved as unauthenticated - use server owner idTag
+			idTag = apiState.idTag
 		}
+		// else: auth === undefined (still loading) → return null via !idTag check
 
 		if (!idTag) return null
 
@@ -94,7 +99,7 @@ export function useContextAwareApi(): ApiHook {
 		}
 
 		return client
-	}, [activeContext, auth, contextTokens])
+	}, [activeContext, auth, contextTokens, apiState.idTag])
 
 	// Check if we have a valid token for authentication
 	const authenticated = (() => {

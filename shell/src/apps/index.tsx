@@ -106,9 +106,9 @@ export function MicrofrontendContainer({
 	const [errorMessage, setErrorMessage] = React.useState<string | undefined>(undefined)
 	const [errorCode, setErrorCode] = React.useState<number | undefined>(undefined)
 	const [retryCount, setRetryCount] = React.useState(0)
-	const [, , host, _path] = (resId || '').match(/^(([a-zA-Z0-9-.]+):)?(.*)$/) || []
+	const [, , host, fileId] = (resId || '').match(/^(([a-zA-Z0-9-.]+):)?(.*)$/) || []
 	// Extract context from resId (format: "contextIdTag:resource-path")
-	const contextIdTag = host || auth?.idTag
+	const contextIdTag = host || auth?.idTag || api?.idTag
 	const trustLevel = normalizeTrust(trust)
 	const renewalTimerRef = React.useRef<number | undefined>(undefined)
 	const timeoutRef = React.useRef<number | undefined>(undefined)
@@ -133,7 +133,7 @@ export function MicrofrontendContainer({
 
 	// Boolean flag that only transitions once (false → true)
 	// This prevents effect re-runs on token renewal (api/auth object changes)
-	const isReady = !!(api && (auth || providedToken))
+	const isReady = !!(api && (auth !== undefined || providedToken))
 
 	// Function to request a new token
 	const requestToken = React.useCallback(async () => {
@@ -161,7 +161,7 @@ export function MicrofrontendContainer({
 
 		try {
 			const res = await currentApi.auth.getAccessToken({
-				scope: `${resId}:${accessSuffix}`
+				scope: `file:${fileId}:${accessSuffix}`
 			})
 			return res.token
 		} catch (err: unknown) {
@@ -191,7 +191,7 @@ export function MicrofrontendContainer({
 					console.log('[Shell] Retrying access token request...')
 					try {
 						const res = await renewedApi.auth.getAccessToken({
-							scope: `${resId}:${accessSuffix}`
+							scope: `file:${fileId}:${accessSuffix}`
 						})
 						console.log('[Shell] Retry succeeded!')
 						return res.token
@@ -305,7 +305,11 @@ export function MicrofrontendContainer({
 			const currentRequestToken = requestTokenRef.current
 			const _currentScheduleRenewal = scheduleRenewalRef.current
 
-			if (currentApi && (currentAuth || currentProvidedToken) && currentRequestToken) {
+			if (
+				currentApi &&
+				(currentAuth !== undefined || currentProvidedToken) &&
+				currentRequestToken
+			) {
 				// Mark as initialized to prevent re-running
 				initializedRef.current = true
 
@@ -321,7 +325,7 @@ export function MicrofrontendContainer({
 
 				// Set pending registration BEFORE loading iframe
 				// This ensures token/refId is available when auth:init.req arrives
-				if (shellBus && resId && (currentProvidedToken || currentRefId)) {
+				if (shellBus && resId) {
 					shellBus.setPendingRegistration(resId, {
 						token: currentProvidedToken,
 						refId: currentRefId,
@@ -508,7 +512,10 @@ function ExternalApp({ className }: { className?: string }) {
 
 	// Parse access query parameter
 	const searchParams = new URLSearchParams(location.search)
-	const access = searchParams.get('access') === 'read' ? 'read' : 'write'
+	const access =
+		searchParams.get('access') === 'read' || (!auth && searchParams.get('access') !== 'write')
+			? 'read'
+			: 'write'
 
 	// Check if this is a guest document navigation and pass the stored token/name
 	const isGuestAccess = guestDocument && resId === guestDocument.resId

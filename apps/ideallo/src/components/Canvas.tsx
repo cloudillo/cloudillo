@@ -575,44 +575,45 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 	)
 
 	// Fixed layer content (doesn't zoom with canvas)
-	const fixedContent = screenSelectionBounds ? (
-		<g>
-			<SelectionBox
-				bounds={screenSelectionBounds}
-				rotation={displayRotation}
-				pivotX={selectedObjectPivotX}
-				pivotY={selectedObjectPivotY}
-				onResizeStart={handleLibResizeStart}
-			/>
-			{/* Rotation handle - rendered in fixed layer for consistent screen-space sizing */}
-			{activeTool === 'select' && selectionBounds && (
-				<FixedRotationHandle
-					canvasBounds={selectionBounds}
+	const fixedContent =
+		!readOnly && screenSelectionBounds ? (
+			<g>
+				<SelectionBox
+					bounds={screenSelectionBounds}
 					rotation={displayRotation}
 					pivotX={selectedObjectPivotX}
 					pivotY={selectedObjectPivotY}
-					onRotateStart={handleRotateStart}
-					isRotating={isRotating}
-					isSnapActive={isSnapActive}
+					onResizeStart={handleLibResizeStart}
 				/>
-			)}
-			{/* Pivot handle - uses usePivotDrag hook internally for coordinate transforms */}
-			{activeTool === 'select' && selectionBounds && (
-				<FixedPivotHandle
-					canvasBounds={selectionBounds}
-					canvasOriginalBounds={pivotOriginalBounds}
-					rotation={displayRotation}
-					pivotX={selectedObjectPivotX}
-					pivotY={selectedObjectPivotY}
-					activeTool={activeTool}
-					onPivotDragStart={onPivotDragStart}
-					onPivotDrag={onPivotDrag}
-					onPivotCommit={onPivotCommit}
-					snapEnabled={true}
-				/>
-			)}
-		</g>
-	) : null
+				{/* Rotation handle - rendered in fixed layer for consistent screen-space sizing */}
+				{activeTool === 'select' && selectionBounds && (
+					<FixedRotationHandle
+						canvasBounds={selectionBounds}
+						rotation={displayRotation}
+						pivotX={selectedObjectPivotX}
+						pivotY={selectedObjectPivotY}
+						onRotateStart={handleRotateStart}
+						isRotating={isRotating}
+						isSnapActive={isSnapActive}
+					/>
+				)}
+				{/* Pivot handle - uses usePivotDrag hook internally for coordinate transforms */}
+				{activeTool === 'select' && selectionBounds && (
+					<FixedPivotHandle
+						canvasBounds={selectionBounds}
+						canvasOriginalBounds={pivotOriginalBounds}
+						rotation={displayRotation}
+						pivotX={selectedObjectPivotX}
+						pivotY={selectedObjectPivotY}
+						activeTool={activeTool}
+						onPivotDragStart={onPivotDragStart}
+						onPivotDrag={onPivotDrag}
+						onPivotCommit={onPivotCommit}
+						snapEnabled={true}
+					/>
+				)}
+			</g>
+		) : null
 
 	// Handle pointer leaving the canvas
 	const handlePointerLeave = React.useCallback(() => {

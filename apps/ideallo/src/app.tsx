@@ -98,6 +98,11 @@ export function IdealloApp() {
 	const [activeDocumentId, setActiveDocumentIdRaw] = React.useState<ObjectId | null>(null)
 	const isReadOnly = ideallo.cloudillo.access === 'read'
 
+	// Force select tool in read-only mode
+	React.useEffect(() => {
+		if (isReadOnly) ideallo.setActiveTool('select')
+	}, [isReadOnly])
+
 	// Cache pending navState changes per document embed objectId
 	const pendingNavStateRef = React.useRef<
 		Map<string, { viewState: string; aspectRatio?: [number, number] }>
@@ -339,7 +344,7 @@ export function IdealloApp() {
 		selectedIds,
 		selectObject,
 		clearSelection,
-		enabled: ideallo.activeTool === 'select',
+		enabled: ideallo.activeTool === 'select' && !isReadOnly,
 		objects: ideallo.objects
 	})
 
@@ -710,7 +715,7 @@ export function IdealloApp() {
 		pivotY: lockedHookState?.pivotY ?? storedSelection?.pivotY ?? 0.5,
 		objectId: storedSelection?.id,
 		transformCoordinates: resizeTransformCoordinates,
-		disabled: ideallo.activeTool !== 'select' || !storedSelection,
+		disabled: isReadOnly || ideallo.activeTool !== 'select' || !storedSelection,
 		aspectRatio: selectionAspectRatio,
 		onResizeStart,
 		onResize,
@@ -820,7 +825,7 @@ export function IdealloApp() {
 		translateTo: translateToRef,
 		translateFrom: translateFromRef,
 		screenSpaceSnapZone: true,
-		disabled: ideallo.activeTool !== 'select' || !storedSelection,
+		disabled: isReadOnly || ideallo.activeTool !== 'select' || !storedSelection,
 		onRotateStart,
 		onRotate,
 		onRotateEnd
@@ -1121,12 +1126,13 @@ export function IdealloApp() {
 			if (evt.target !== evt.currentTarget) return
 
 			// Cmd/Ctrl+Z for undo
-			if ((evt.ctrlKey || evt.metaKey) && evt.key === 'z' && !evt.shiftKey) {
+			if (!isReadOnly && (evt.ctrlKey || evt.metaKey) && evt.key === 'z' && !evt.shiftKey) {
 				ideallo.undo()
 				evt.preventDefault()
 			}
 			// Cmd/Ctrl+Shift+Z or Cmd/Ctrl+Y for redo
 			if (
+				!isReadOnly &&
 				(evt.ctrlKey || evt.metaKey) &&
 				(evt.key === 'y' || (evt.key === 'z' && evt.shiftKey))
 			) {
@@ -1148,8 +1154,8 @@ export function IdealloApp() {
 				evt.preventDefault()
 			}
 
-			// Tool shortcuts
-			if (!evt.ctrlKey && !evt.metaKey) {
+			// Tool shortcuts (disabled in read-only mode)
+			if (!isReadOnly && !evt.ctrlKey && !evt.metaKey) {
 				switch (evt.key.toLowerCase()) {
 					case 'v':
 						ideallo.setActiveTool('select')
@@ -1185,7 +1191,7 @@ export function IdealloApp() {
 			}
 
 			// Z-order shortcuts: Ctrl+] / Ctrl+Shift+] / Ctrl+[ / Ctrl+Shift+[
-			if ((evt.ctrlKey || evt.metaKey) && evt.key === ']') {
+			if (!isReadOnly && (evt.ctrlKey || evt.metaKey) && evt.key === ']') {
 				if (selectedIds.size > 0 && ideallo.yDoc && ideallo.doc) {
 					if (evt.shiftKey) {
 						selectedIds.forEach((id) => {
@@ -1199,7 +1205,7 @@ export function IdealloApp() {
 					evt.preventDefault()
 				}
 			}
-			if ((evt.ctrlKey || evt.metaKey) && evt.key === '[') {
+			if (!isReadOnly && (evt.ctrlKey || evt.metaKey) && evt.key === '[') {
 				if (selectedIds.size > 0 && ideallo.yDoc && ideallo.doc) {
 					if (evt.shiftKey) {
 						Array.from(selectedIds)
@@ -1219,7 +1225,7 @@ export function IdealloApp() {
 			}
 
 			// Delete selected objects
-			if (evt.key === 'Delete' || evt.key === 'Backspace') {
+			if (!isReadOnly && (evt.key === 'Delete' || evt.key === 'Backspace')) {
 				if (
 					selectedIds.size > 0 &&
 					ideallo.activeTool === 'select' &&
@@ -1238,6 +1244,7 @@ export function IdealloApp() {
 			}
 		},
 		[
+			isReadOnly,
 			ideallo.undo,
 			ideallo.redo,
 			ideallo.setActiveTool,
@@ -1346,12 +1353,16 @@ export function IdealloApp() {
 				onEditHeightChange={(h) => {
 					editContentHeightRef.current = h
 				}}
-				onStickyDoubleClick={(objectId) => {
-					const obj = ideallo.doc && getObject(ideallo.doc, objectId)
-					if (obj && obj.type === 'sticky') {
-						stickyHandler.startEditing(obj)
-					}
-				}}
+				onStickyDoubleClick={
+					!isReadOnly
+						? (objectId) => {
+								const obj = ideallo.doc && getObject(ideallo.doc, objectId)
+								if (obj && obj.type === 'sticky') {
+									stickyHandler.startEditing(obj)
+								}
+							}
+						: undefined
+				}
 				// Text label editing
 				editingText={textLabelHandler.editingText}
 				onTextLabelSave={() => {
@@ -1369,12 +1380,16 @@ export function IdealloApp() {
 					editContentHeightRef.current = null
 				}}
 				onTextLabelCancel={textLabelHandler.cancelText}
-				onTextDoubleClick={(objectId) => {
-					const obj = ideallo.doc && getObject(ideallo.doc, objectId)
-					if (obj && obj.type === 'text') {
-						textLabelHandler.startEditing(obj)
-					}
-				}}
+				onTextDoubleClick={
+					!isReadOnly
+						? (objectId) => {
+								const obj = ideallo.doc && getObject(ideallo.doc, objectId)
+								if (obj && obj.type === 'text') {
+									textLabelHandler.startEditing(obj)
+								}
+							}
+						: undefined
+				}
 				quillRef={quillRef}
 				onScaleChange={setScale}
 				onMatrixChange={handleMatrixChange}
@@ -1388,9 +1403,9 @@ export function IdealloApp() {
 				arcRadius={arcRadius}
 				pivotPosition={pivotPosition}
 				pivotOriginalBounds={storedSelection?.bounds ?? null}
-				onPivotDragStart={handlePivotDragStart}
-				onPivotDrag={handlePivotDrag}
-				onPivotCommit={handlePivotCommit}
+				onPivotDragStart={!isReadOnly ? handlePivotDragStart : undefined}
+				onPivotDrag={!isReadOnly ? handlePivotDrag : undefined}
+				onPivotCommit={!isReadOnly ? handlePivotCommit : undefined}
 				// Smart Ink
 				morphAnimations={morphAnimations}
 				snappedHints={snappedHints}
@@ -1428,51 +1443,53 @@ export function IdealloApp() {
 			/>
 
 			{/* Toolbar */}
-			<Toolbar
-				activeTool={ideallo.activeTool as ToolType}
-				canUndo={ideallo.canUndo}
-				canRedo={ideallo.canRedo}
-				hasSelection={selectedIds.size > 0}
-				onToolChange={ideallo.setActiveTool}
-				onUndo={ideallo.undo}
-				onRedo={ideallo.redo}
-				onExport={() => {
-					if (ideallo.yDoc && ideallo.doc) {
-						downloadExport(ideallo.yDoc, ideallo.doc)
-					}
-				}}
-				onBringToFront={() => {
-					if (!ideallo.yDoc || !ideallo.doc) return
-					selectedIds.forEach((id) => {
-						bringToFront(ideallo.yDoc, ideallo.doc, id)
-					})
-				}}
-				onBringForward={() => {
-					if (!ideallo.yDoc || !ideallo.doc) return
-					selectedIds.forEach((id) => {
-						bringForward(ideallo.yDoc, ideallo.doc, id)
-					})
-				}}
-				onSendBackward={() => {
-					if (!ideallo.yDoc || !ideallo.doc) return
-					Array.from(selectedIds)
-						.reverse()
-						.forEach((id) => {
-							sendBackward(ideallo.yDoc, ideallo.doc, id)
+			{!isReadOnly && (
+				<Toolbar
+					activeTool={ideallo.activeTool as ToolType}
+					canUndo={ideallo.canUndo}
+					canRedo={ideallo.canRedo}
+					hasSelection={selectedIds.size > 0}
+					onToolChange={ideallo.setActiveTool}
+					onUndo={ideallo.undo}
+					onRedo={ideallo.redo}
+					onExport={() => {
+						if (ideallo.yDoc && ideallo.doc) {
+							downloadExport(ideallo.yDoc, ideallo.doc)
+						}
+					}}
+					onBringToFront={() => {
+						if (!ideallo.yDoc || !ideallo.doc) return
+						selectedIds.forEach((id) => {
+							bringToFront(ideallo.yDoc, ideallo.doc, id)
 						})
-				}}
-				onSendToBack={() => {
-					if (!ideallo.yDoc || !ideallo.doc) return
-					Array.from(selectedIds)
-						.reverse()
-						.forEach((id) => {
-							sendToBack(ideallo.yDoc, ideallo.doc, id)
+					}}
+					onBringForward={() => {
+						if (!ideallo.yDoc || !ideallo.doc) return
+						selectedIds.forEach((id) => {
+							bringForward(ideallo.yDoc, ideallo.doc, id)
 						})
-				}}
-			/>
+					}}
+					onSendBackward={() => {
+						if (!ideallo.yDoc || !ideallo.doc) return
+						Array.from(selectedIds)
+							.reverse()
+							.forEach((id) => {
+								sendBackward(ideallo.yDoc, ideallo.doc, id)
+							})
+					}}
+					onSendToBack={() => {
+						if (!ideallo.yDoc || !ideallo.doc) return
+						Array.from(selectedIds)
+							.reverse()
+							.forEach((id) => {
+								sendToBack(ideallo.yDoc, ideallo.doc, id)
+							})
+					}}
+				/>
+			)}
 
 			{/* Property bar for selection styling */}
-			{ideallo.doc && (
+			{!isReadOnly && ideallo.doc && (
 				<PropertyBar
 					yDoc={ideallo.yDoc}
 					doc={ideallo.doc}

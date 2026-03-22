@@ -27,6 +27,11 @@ const PRECACHE_URLS: string[] = [
 
 type CacheStrategy = 'cache-first' | 'network-first' | 'network-only'
 
+function shouldCache(response: Response): boolean {
+	const cc = response.headers.get('Cache-Control') || ''
+	return !cc.includes('no-store') && !cc.includes('no-cache')
+}
+
 function getCacheStrategy(pathname: string): CacheStrategy {
 	// API and WebSocket endpoints: never cache
 	if (pathname.startsWith('/api/') || pathname.startsWith('/ws/')) return 'network-only'
@@ -601,7 +606,7 @@ function onFetch(evt: FetchEvent) {
 				}
 				try {
 					const res = await fetch(new Request(evt.request.url))
-					if (res.ok) {
+					if (res.ok && shouldCache(res)) {
 						await cache.put(evt.request, res.clone())
 						log && console.log('[SW] CACHED', evt.request.url)
 					}
@@ -614,7 +619,7 @@ function onFetch(evt: FetchEvent) {
 			// network-first
 			try {
 				const res = await fetch(new Request(evt.request.url))
-				if (res.ok) {
+				if (res.ok && shouldCache(res)) {
 					await cache.put(evt.request, res.clone())
 					log && console.log('[SW] CACHED (nf)', evt.request.url)
 				}

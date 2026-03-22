@@ -20,7 +20,6 @@ import {
 	LuLock as IcDirect,
 	LuGlobe as IcPublic,
 	LuShieldCheck as IcVerified,
-	LuUsers as Ic2ndDegree,
 	LuUserPlus as IcFollowers,
 	LuUserCheck as IcConnected
 } from 'react-icons/lu'
@@ -119,7 +118,6 @@ export const VISIBILITY_OPTIONS: VisibilityOption[] = [
 	{ value: 'D', labelKey: 'Direct', icon: IcDirect },
 	{ value: 'P', labelKey: 'Public', icon: IcPublic },
 	{ value: 'V', labelKey: 'Verified', icon: IcVerified },
-	{ value: '2', labelKey: '2nd Degree', icon: Ic2ndDegree },
 	{ value: 'F', labelKey: 'Followers', icon: IcFollowers },
 	{ value: 'C', labelKey: 'Connected', icon: IcConnected }
 ]

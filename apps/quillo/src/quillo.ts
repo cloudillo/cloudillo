@@ -522,6 +522,15 @@ function updatePairingBadges(
 		}
 	})
 
+	// Undo/Redo handlers
+	const historyModule = editor.getModule('history') as { undo(): void; redo(): void }
+	document.getElementById('undo-btn')?.addEventListener('click', () => {
+		historyModule.undo()
+	})
+	document.getElementById('redo-btn')?.addEventListener('click', () => {
+		historyModule.redo()
+	})
+
 	// ============================================
 	// Custom Color Picker Setup
 	// ============================================

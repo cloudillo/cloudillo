@@ -920,7 +920,7 @@ body {
    Settings Button
    ============================================ */
 
-.quillo-settings-btn {
+.quillo-toolbar-btn {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -931,13 +931,13 @@ body {
 	border-radius: 4px;
 	color: var(--col-on);
 }
-.quillo-settings-btn:hover {
+.quillo-toolbar-btn:hover {
 	background: rgba(0, 0, 0, 0.1);
 }
-.quillo-settings-btn svg {
+.quillo-toolbar-btn svg {
 	stroke: var(--col-on);
 }
-.dark .quillo-settings-btn:hover {
+.dark .quillo-toolbar-btn:hover {
 	background: rgba(255, 255, 255, 0.1);
 }
 

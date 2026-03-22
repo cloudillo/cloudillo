@@ -609,7 +609,7 @@ async function renderSlideToSVG(
 	const gradient = view.backgroundGradient
 	const hasGradient = gradient && gradient.type !== 'solid' && (gradient.stops?.length ?? 0) >= 2
 
-	if (hasGradient && gradient && gradient.stops) {
+	if (hasGradient && gradient?.stops) {
 		const gradientId = `bg-grad-${view.id}`
 		const gradDef = createGradientDef(gradientId, gradient as Gradient)
 		if (gradDef) {

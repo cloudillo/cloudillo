@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/ideallo-app",
-	"version": "0.8.10",
+	"version": "0.8.11",
 	"description": "Ideallo collaborative whiteboard",
 	"type": "module",
 	"main": "src/index.js",
@@ -19,18 +19,18 @@
 		"@cloudillo/core": "workspace:^",
 		"@cloudillo/crdt": "workspace:^",
 		"@cloudillo/react": "workspace:^",
-		"@symbion/opalui": "^0.14.5",
+		"@symbion/opalui": "^0.14.6",
 		"@symbion/runtype": "^1.2.1",
 		"@types/react": "^19.2.14",
 		"@types/react-dom": "^19.2.3",
 		"cross-env": "^10.1.0",
-		"esbuild": "^0.27.3",
-		"i18next": "^25.8.14",
-		"jotai": "^2.18.0",
+		"esbuild": "^0.27.4",
+		"i18next": "^25.10.4",
+		"jotai": "^2.18.1",
 		"quill": "^2.0.3",
 		"react": "^19.2.4",
 		"react-dom": "^19.2.4",
-		"react-i18next": "^16.5.5",
+		"react-i18next": "^16.6.1",
 		"react-icons": "^5.6.0",
 		"react-router-dom": "^7.13.1",
 		"react-svg-canvas": "^0.1.7",
@@ -42,6 +42,6 @@
 		"y-protocols": "^1.0.7",
 		"y-quill": "^1.0.0",
 		"y-websocket": "^3.0.0",
-		"yjs": "^13.6.29"
+		"yjs": "^13.6.30"
 	}
 }

@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/quillo-app",
-	"version": "0.8.10",
+	"version": "0.8.11",
 	"description": "Quillo text editor app",
 	"type": "module",
 	"main": "src/index.js",
@@ -21,18 +21,18 @@
 		"@cloudillo/core": "workspace:^",
 		"@cloudillo/crdt": "workspace:^",
 		"@cloudillo/fonts": "workspace:^",
-		"@enzedonline/quill-blot-formatter2": "^3.1.0",
-		"@symbion/opalui": "^0.14.5",
+		"@enzedonline/quill-blot-formatter2": "^3.1.1",
+		"@symbion/opalui": "^0.14.6",
 		"@symbion/runtype": "^1.2.1",
 		"cross-env": "^10.1.0",
-		"dayjs": "^1.11.19",
-		"esbuild": "^0.27.3",
-		"i18next": "^25.8.14",
+		"dayjs": "^1.11.20",
+		"esbuild": "^0.27.4",
+		"i18next": "^25.10.4",
 		"i18next-scanner": "^4.6.0",
 		"i18next-scanner-typescript": "^1.2.1",
 		"lucide": "^0.577.0",
 		"quill": "^2.0.3",
-		"quill-cursors": "^4.1.0",
+		"quill-cursors": "^4.2.0",
 		"quill-table-better": "^1.2.3",
 		"rimraf": "^6.1.3",
 		"tslib": "^2.8.1",
@@ -40,6 +40,6 @@
 		"y-indexeddb": "^9.0.12",
 		"y-quill": "^1.0.0",
 		"y-websocket": "^3.0.0",
-		"yjs": "^13.6.29"
+		"yjs": "^13.6.30"
 	}
 }

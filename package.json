@@ -1,6 +1,6 @@
 {
 	"name": "cloudillo",
-	"version": "0.8.10",
+	"version": "0.8.11",
 	"description": "Decentralized, self-hosted collaboration platform — privacy-first alternative to Google Workspace",
 	"private": true,
 	"type": "module",
@@ -48,6 +48,6 @@
 		"docker-all": "pnpm build-docker && pnpm build-docker-slim && pnpm build-docker-alpine && pnpm publish-docker && pnpm publish-docker-slim && pnpm publish-docker-alpine"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.4.6"
+		"@biomejs/biome": "^2.4.8"
 	}
 }

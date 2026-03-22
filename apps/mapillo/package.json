@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/mapillo-app",
-	"version": "0.8.10",
+	"version": "0.8.11",
 	"description": "Mapillo OpenStreetMap map app",
 	"type": "module",
 	"main": "src/index.js",
@@ -16,12 +16,12 @@
 	"devDependencies": {
 		"@cloudillo/core": "workspace:^",
 		"@cloudillo/react": "workspace:^",
-		"@symbion/opalui": "^0.14.5",
+		"@symbion/opalui": "^0.14.6",
 		"@types/react": "^19.2.14",
 		"@types/react-dom": "^19.2.3",
 		"cross-env": "^10.1.0",
-		"esbuild": "^0.27.3",
-		"maplibre-gl": "^5.19.0",
+		"esbuild": "^0.27.4",
+		"maplibre-gl": "^5.21.0",
 		"react": "^19.2.4",
 		"react-dom": "^19.2.4",
 		"react-icons": "^5.6.0",

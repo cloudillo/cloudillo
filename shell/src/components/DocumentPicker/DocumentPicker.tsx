@@ -130,6 +130,7 @@ export function DocumentPicker() {
 					<DocumentPickerBrowseTab
 						fileTp={state.options?.fileTp}
 						contentType={state.options?.contentType}
+						idTag={state.options?.idTag}
 						selectedFile={selectedFile}
 						onSelect={handleFileSelected}
 						onDoubleClick={handleDoubleClick}

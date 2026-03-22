@@ -40,6 +40,7 @@ import {
 import type { Visibility } from '@cloudillo/core'
 
 import { useApi, Button } from '@cloudillo/react'
+import { useApiContext } from '../../context/index.js'
 import type { CropAspect } from '@cloudillo/core'
 
 import { ImageUpload, type Aspect } from '../../image.js'
@@ -50,6 +51,7 @@ interface MediaPickerUploadTabProps {
 	enableCrop?: boolean
 	cropAspects?: CropAspect[]
 	isExternalContext?: boolean // True when opened from external app
+	idTag?: string // Document's context idTag
 	documentFileId?: string // Document file ID for rootId association
 	onUploadComplete: (file: MediaPickerResult) => void
 	onCroppingChange?: (isCropping: boolean) => void // Signal when crop mode is active
@@ -82,12 +84,16 @@ export function MediaPickerUploadTab({
 	enableCrop,
 	cropAspects,
 	isExternalContext,
+	idTag: idTagProp,
 	documentFileId,
 	onUploadComplete,
 	onCroppingChange
 }: MediaPickerUploadTabProps) {
 	const { t } = useTranslation()
-	const { api } = useApi()
+	const { api: defaultApi } = useApi()
+	const { getClientFor } = useApiContext()
+	const api =
+		(idTagProp ? getClientFor(idTagProp, { auth: 'required' }) : defaultApi) || defaultApi
 	const fileInputRef = useRef<HTMLInputElement>(null)
 
 	// State

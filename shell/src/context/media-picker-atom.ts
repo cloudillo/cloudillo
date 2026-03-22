@@ -24,6 +24,8 @@ export interface MediaPickerOptions {
 	title?: string
 	/** True when opened from external app via bus protocol */
 	isExternalContext?: boolean
+	/** Document's context idTag (from app connection) */
+	idTag?: string
 }
 
 /**

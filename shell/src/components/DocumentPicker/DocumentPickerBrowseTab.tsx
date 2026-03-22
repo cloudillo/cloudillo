@@ -32,6 +32,7 @@ import {
 } from 'react-icons/lu'
 
 import { useApi } from '@cloudillo/react'
+import { useApiContext } from '../../context/index.js'
 import { useAppConfig } from '../../utils.js'
 import { getFileIcon } from '../../apps/files/icons.js'
 
@@ -53,6 +54,7 @@ interface BreadcrumbItem {
 interface DocumentPickerBrowseTabProps {
 	fileTp?: string
 	contentType?: string
+	idTag?: string // Document's context idTag
 	selectedFile: DocPickerResult | null
 	onSelect: (file: DocPickerResult) => void
 	onDoubleClick: (file: DocPickerResult) => void
@@ -90,12 +92,16 @@ function resolveAppId(contentType: string, mime: Record<string, string>): string
 export function DocumentPickerBrowseTab({
 	fileTp,
 	contentType,
+	idTag: idTagProp,
 	selectedFile,
 	onSelect,
 	onDoubleClick
 }: DocumentPickerBrowseTabProps) {
 	const { t } = useTranslation()
-	const { api } = useApi()
+	const { api: defaultApi } = useApi()
+	const { getClientFor } = useApiContext()
+	const api =
+		(idTagProp ? getClientFor(idTagProp, { auth: 'required' }) : defaultApi) || defaultApi
 	const [appConfig] = useAppConfig()
 
 	// State

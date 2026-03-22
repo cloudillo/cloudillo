@@ -41,6 +41,7 @@ export interface MediaPickerOpenOptions {
 	cropAspects?: Array<'16:9' | '4:3' | '3:2' | '1:1' | 'circle' | 'free'>
 	title?: string
 	isExternalContext?: boolean // True when opened from external app via bus
+	idTag?: string // Document's context idTag (from app connection)
 }
 
 /**
@@ -137,6 +138,9 @@ export function initMediaHandlers(bus: ShellMessageBus): void {
 		// This allows the app to know the dialog is opening without timing out
 		bus.sendResponse(appWindow, 'media:pick.ack', msg.id, true, { sessionId })
 
+		// Extract context idTag from resId (format: "contextIdTag:fileId")
+		const contextIdTag = connection.resId?.match(/^([a-zA-Z0-9-.]+):/)?.[1] || connection.idTag
+
 		// Open the modal and wait for result
 		// When result arrives, send push notification (no timeout on user interaction)
 		openMediaPickerCallback(
@@ -147,7 +151,8 @@ export function initMediaHandlers(bus: ShellMessageBus): void {
 				enableCrop: msg.payload.enableCrop,
 				cropAspects: msg.payload.cropAspects,
 				title: msg.payload.title,
-				isExternalContext: true // Always true when opened via bus protocol
+				isExternalContext: true, // Always true when opened via bus protocol
+				idTag: contextIdTag // Document's context idTag from resId
 			},
 			(result) => {
 				if (result) {

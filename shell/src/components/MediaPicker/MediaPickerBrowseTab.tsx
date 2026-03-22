@@ -45,6 +45,7 @@ import {
 } from 'react-icons/lu'
 
 import { useApi, useAuth } from '@cloudillo/react'
+import { useApiContext } from '../../context/index.js'
 import { getFileUrl } from '@cloudillo/core'
 import { VISIBILITY_ORDER, type Visibility } from '@cloudillo/core'
 
@@ -114,6 +115,7 @@ interface MediaPickerBrowseTabProps {
 	documentVisibility?: Visibility
 	documentFileId?: string
 	isExternalContext?: boolean // True when opened from external app
+	idTag?: string // Document's context idTag
 	selectedFile: MediaPickerResult | null
 	onSelect: (file: MediaPickerResult) => void
 	onDoubleClick: (file: MediaPickerResult) => void
@@ -190,14 +192,18 @@ export function MediaPickerBrowseTab({
 	documentVisibility,
 	documentFileId,
 	isExternalContext,
+	idTag: idTagProp,
 	selectedFile,
 	onSelect,
 	onDoubleClick
 }: MediaPickerBrowseTabProps) {
 	const { t } = useTranslation()
-	const { api } = useApi()
+	const { api: defaultApi } = useApi()
 	const [auth] = useAuth()
-	const idTag = auth?.idTag || api?.idTag
+	const { getClientFor } = useApiContext()
+	const api =
+		(idTagProp ? getClientFor(idTagProp, { auth: 'required' }) : defaultApi) || defaultApi
+	const idTag = idTagProp || auth?.idTag || defaultApi?.idTag
 
 	// State
 	const [searchQuery, setSearchQuery] = useState('')

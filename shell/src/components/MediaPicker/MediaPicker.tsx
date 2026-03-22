@@ -208,6 +208,7 @@ export function MediaPicker() {
 							documentVisibility={state.options?.documentVisibility}
 							documentFileId={state.options?.documentFileId}
 							isExternalContext={state.options?.isExternalContext}
+							idTag={state.options?.idTag}
 							selectedFile={selectedFile}
 							onSelect={handleFileSelected}
 							onDoubleClick={handleDoubleClick}
@@ -218,6 +219,7 @@ export function MediaPicker() {
 							enableCrop={enableCrop}
 							cropAspects={state.options?.cropAspects}
 							isExternalContext={state.options?.isExternalContext}
+							idTag={state.options?.idTag}
 							documentFileId={state.options?.documentFileId}
 							onUploadComplete={handleUploadComplete}
 							onCroppingChange={setIsCropping}

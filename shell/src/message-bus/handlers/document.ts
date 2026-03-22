@@ -35,6 +35,7 @@ export interface DocPickerOpenOptions {
 	sourceFileId?: string
 	title?: string
 	isExternalContext?: boolean
+	idTag?: string // Document's context idTag (from app connection)
 }
 
 /**
@@ -123,6 +124,9 @@ export function initDocumentHandlers(bus: ShellMessageBus): void {
 		// Send ACK immediately
 		bus.sendResponse(appWindow, 'doc:pick.ack', msg.id, true, { sessionId })
 
+		// Extract context idTag from resId (format: "contextIdTag:fileId")
+		const contextIdTag = connection.resId?.match(/^([a-zA-Z0-9-.]+):/)?.[1] || connection.idTag
+
 		// Open the modal and wait for result
 		openDocPickerCallback(
 			{
@@ -130,7 +134,8 @@ export function initDocumentHandlers(bus: ShellMessageBus): void {
 				contentType: msg.payload.contentType,
 				sourceFileId: msg.payload.sourceFileId,
 				title: msg.payload.title,
-				isExternalContext: true
+				isExternalContext: true,
+				idTag: contextIdTag // Document's context idTag from resId
 			},
 			async (result) => {
 				if (result) {

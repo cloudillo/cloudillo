@@ -44,7 +44,11 @@ import {
 	QRCodeDialog
 } from '@cloudillo/react'
 import { useAtom } from 'jotai'
-import { useContextAwareApi, activeContextAtom } from '../../../context/index.js'
+import {
+	useContextAwareApi,
+	useCurrentContextIdTag,
+	activeContextAtom
+} from '../../../context/index.js'
 
 import { getFileIcon, IcUnknown } from '../icons.js'
 import { TagsCell } from './TagsCell.js'
@@ -76,6 +80,7 @@ export function DetailsPanel({
 	const { t } = useTranslation()
 	const { api } = useContextAwareApi()
 	const [auth] = useAuth()
+	const contextIdTag = useCurrentContextIdTag()
 	const [activeContext] = useAtom(activeContextAtom)
 	const dialog = useDialog()
 	const toast = useToast()
@@ -219,16 +224,16 @@ export function DetailsPanel({
 			{/* File Preview Section */}
 			{!isFolder && (
 				<div className="c-file-preview">
-					{isImage && auth?.idTag ? (
+					{isImage && contextIdTag ? (
 						<img
 							className="c-file-preview-image"
-							src={getFileUrl(auth.idTag, file.fileId, 'vis.sd')}
+							src={getFileUrl(contextIdTag, file.fileId, 'vis.sd')}
 							alt={file.fileName}
 						/>
-					) : file.variantId && auth?.idTag ? (
+					) : file.variantId && contextIdTag ? (
 						<img
 							className="c-file-preview-image"
-							src={getFileUrl(auth.idTag, file.variantId, 'vis.sd')}
+							src={getFileUrl(contextIdTag, file.variantId, 'vis.sd')}
 							alt={file.fileName}
 						/>
 					) : (

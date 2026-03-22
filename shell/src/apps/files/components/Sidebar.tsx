@@ -68,7 +68,7 @@ export const Sidebar = React.memo(function Sidebar({
 	// Load tags with counts
 	React.useEffect(
 		function loadTags() {
-			if (!api) return
+			if (!api || !auth) return
 
 			;(async function () {
 				try {
@@ -79,7 +79,7 @@ export const Sidebar = React.memo(function Sidebar({
 				}
 			})()
 		},
-		[api]
+		[api, auth]
 	)
 
 	const toggleTag = React.useCallback(

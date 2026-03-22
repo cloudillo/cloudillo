@@ -25,9 +25,10 @@ import {
 	LuPin as IcPin
 } from 'react-icons/lu'
 
-import { useAuth, InlineEditForm, mergeClasses } from '@cloudillo/react'
+import { InlineEditForm, mergeClasses } from '@cloudillo/react'
 import { getFileUrl } from '@cloudillo/core'
 
+import { useCurrentContextIdTag } from '../../../context/index.js'
 import { getFileIcon, type IcUnknown } from '../icons.js'
 import type { File, FileOps, ViewMode } from '../types.js'
 import { TRASH_FOLDER_ID } from '../types.js'
@@ -58,7 +59,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 	fileOps,
 	viewMode = 'all'
 }: ItemGridProps) {
-	const [auth] = useAuth()
+	const contextIdTag = useCurrentContextIdTag()
 	const { t } = useTranslation()
 
 	const isFolder = file.fileTp === 'FLDR'
@@ -67,7 +68,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 	const isRenaming = renameFileName !== undefined && file.fileId === renameFileId
 
 	// Check if file has a thumbnail/variant
-	const hasThumbnail = file.variantId && auth?.idTag
+	const hasThumbnail = file.variantId && contextIdTag
 	const isImage = file.contentType?.startsWith('image/')
 
 	function handleClick(evt: React.MouseEvent) {
@@ -113,10 +114,10 @@ export const ItemGrid = React.memo(function ItemGrid({
 		>
 			{/* Thumbnail or Icon with badges */}
 			<div className="c-file-grid-thumb">
-				{(hasThumbnail || isImage) && auth?.idTag ? (
+				{(hasThumbnail || isImage) && contextIdTag ? (
 					<img
 						className="c-file-grid-thumb-img"
-						src={getFileUrl(auth.idTag, file.variantId || file.fileId, 'vis.tn')}
+						src={getFileUrl(contextIdTag, file.variantId || file.fileId, 'vis.tn')}
 						alt={file.fileName}
 						loading="lazy"
 					/>

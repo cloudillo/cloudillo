@@ -105,9 +105,7 @@ export function useFileList(options?: UseFileListOptions) {
 				case 'pinned':
 					return { ...baseParams, pinned: true }
 				case 'live':
-					// Live documents need client-side filtering for now
-					// (API doesn't support multiple fileTp values)
-					return { ...baseParams }
+					return { ...baseParams, fileTp: 'CRDT,RTDB' }
 				case 'static':
 					// Static files need client-side filtering for now
 					return { ...baseParams, fileTp: 'BLOB' }
@@ -135,12 +133,7 @@ export function useFileList(options?: UseFileListOptions) {
 			const queryParams = buildQueryParams(cursor, limit)
 			const result = await api.files.listPaginated(queryParams)
 
-			let files = result.data.map(convertFileView)
-
-			// Client-side filtering for 'live' mode (CRDT and RTDB types)
-			if (viewMode === 'live') {
-				files = files.filter((f) => f.fileTp === 'CRDT' || f.fileTp === 'RTDB')
-			}
+			const files = result.data.map(convertFileView)
 
 			return {
 				items: files,

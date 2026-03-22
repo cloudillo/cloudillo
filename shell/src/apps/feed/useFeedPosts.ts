@@ -15,23 +15,27 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { useAuth, useInfiniteScroll } from '@cloudillo/react'
+import { useInfiniteScroll } from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 import { useContextAwareApi } from '../../context/index.js'
 import { useWsBus } from '../../ws-bus.js'
 
 export interface UseFeedPostsOptions {
 	audience?: string
+	tag?: string
+	search?: string
+	visibility?: string
 	enabled?: boolean
 }
 
 const PAGE_SIZE = 15
 
 export function useFeedPosts(options: UseFeedPostsOptions = {}) {
-	const { audience, enabled = true } = options
+	const { audience, tag, search, visibility, enabled = true } = options
 	const { api } = useContextAwareApi()
-	const [_auth] = useAuth()
 	const [newPosts, setNewPosts] = React.useState<ActionView[]>([])
+	const postsRef = React.useRef<ActionView[]>([])
+	const newPostsRef = React.useRef<ActionView[]>([])
 
 	// Fetch page function for infinite scroll
 	const fetchPage = React.useCallback(
@@ -43,6 +47,9 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 			const result = await api.actions.listPaginated({
 				type: 'POST',
 				audience,
+				tag,
+				search,
+				visibility,
 				cursor: cursor ?? undefined,
 				limit
 			})
@@ -53,7 +60,7 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 				hasMore: result.cursorPagination?.hasMore ?? false
 			}
 		},
-		[api, audience]
+		[api, audience, tag, search, visibility]
 	)
 
 	// Use infinite scroll hook
@@ -70,9 +77,13 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 	} = useInfiniteScroll<ActionView>({
 		fetchPage,
 		pageSize: PAGE_SIZE,
-		deps: [audience],
+		deps: [audience, tag, search, visibility],
 		enabled: !!api && enabled
 	})
+
+	// Keep refs in sync for use in WebSocket callback
+	postsRef.current = posts
+	newPostsRef.current = newPosts
 
 	// Handle WebSocket updates for real-time posts
 	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
@@ -80,9 +91,11 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 
 		switch (action.type) {
 			case 'POST': {
-				// Check if post already exists in the feed
-				const existsInFeed = posts.some((p) => p.actionId === action.actionId)
-				const existsInNewPosts = newPosts.some((p) => p.actionId === action.actionId)
+				// Check if post already exists in the feed (read from refs to avoid stale closure)
+				const existsInFeed = postsRef.current.some((p) => p.actionId === action.actionId)
+				const existsInNewPosts = newPostsRef.current.some(
+					(p) => p.actionId === action.actionId
+				)
 
 				if (!existsInFeed && !existsInNewPosts) {
 					// Buffer new posts for "X new posts" banner
@@ -104,12 +117,6 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 		}
 	}, [newPosts, prepend])
 
-	// Function to set/update a single post (for reactions, etc.)
-	const setPost = React.useCallback((_actionId: string, _updatedPost: ActionView) => {
-		// Note: This won't work well with infinite scroll's internal state
-		// The feed component should handle post updates at its level
-	}, [])
-
 	// Function to add a new post at the top (after user creates a post)
 	const addPost = React.useCallback(
 		(post: ActionView) => {
@@ -130,8 +137,7 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 		// Real-time updates
 		newPostsCount: newPosts.length,
 		showNewPosts,
-		addPost,
-		setPost
+		addPost
 	}
 }
 

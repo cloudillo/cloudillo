@@ -31,36 +31,36 @@ import 'react-photo-album/rows.css'
 import {
 	LuCloud as IcAll,
 	LuFilter as IcFilter,
-	LuLockKeyhole as IcPrivate,
-	LuLockKeyholeOpen as IcPublic,
-	LuUser as IcUser,
+	LuLock as IcDirect,
+	LuGlobe as IcPublic,
+	LuShieldCheck as IcVerified,
+	LuUserPlus as IcFollowers,
+	LuUserCheck as IcConnected,
+	LuSave as IcDraft,
+	LuSearch as IcSearch,
 	LuMessageCircle as IcComment,
-	LuHeart as IcLike,
 	LuSendHorizontal as IcSend,
 	LuRepeat as IcRepost,
-	LuEllipsis as IcMore,
-	LuListChecks as IcPoll,
-	LuCalendarDays as IcEvent,
 	LuImage as IcImage,
 	LuCamera as IcCamera,
 	LuVideo as IcVideo,
-	LuGlobe as IcGlobe,
-	LuUsers as IcUsers,
-	LuUserCheck as IcUserCheck,
-	LuFileText as IcDocument
+	LuFileText as IcDocument,
+	LuTag as IcTag
 } from 'react-icons/lu'
 
+import * as T from '@symbion/runtype'
 import type { NewAction, ActionView } from '@cloudillo/types'
 import { getFileUrl, getOptimalImageVariant, getOptimalVideoVariant } from '@cloudillo/core'
 import {
 	useAuth,
 	useApi,
 	Button,
-	Popper,
 	ProfilePicture,
 	ProfileCard,
 	ProfileAudienceCard,
 	Fcd,
+	Tabs,
+	Tab,
 	mergeClasses,
 	generateFragments,
 	EmptyState,
@@ -70,31 +70,32 @@ import {
 } from '@cloudillo/react'
 import '@cloudillo/react/components.css'
 
-import { useAppConfig } from '../utils.js'
-import { ImageUpload } from '../image.js'
 import { useWsBus } from '../ws-bus.js'
 import { useCurrentContextIdTag } from '../context/index.js'
-import { useImageUpload } from '../hooks/useImageUpload.js'
-import { AttachmentPreview } from '../components/AttachmentPreview.js'
-import { useFeedPosts, NewPostsBanner } from './feed/index.js'
+import {
+	useFeedPosts,
+	NewPostsBanner,
+	ComposePanel,
+	PostMenu,
+	ReactionPicker,
+	parseReactionCounts,
+	updateReactionCounts,
+	DraftsPanel
+} from './feed/index.js'
 
 //////////////////////
 // Action datatypes //
 //////////////////////
-/*
-export type ActionEvt = PostAction | PostImageAction | PostVideoAction | CommentAction | ReactionAction
-*/
 interface PostAction extends ActionView {
 	type: 'POST'
 	stat?: {
 		ownReaction?: string
-		reactions?: number
+		reactions?: string
 		comments?: number
 		commentsRead?: number
 	}
 }
 
-type CommentAction = ActionView
 export type ActionEvt = PostAction | ActionView
 
 //////////////////////
@@ -142,6 +143,7 @@ export function Images({ width, attachments, idTag }: ImagesProps) {
 		case 1:
 			imgNode = (
 				<img
+					alt=""
 					className="cursor-pointer"
 					onClick={() => setLbIndex(0)}
 					src={getInlineUrl(img1)}
@@ -159,12 +161,14 @@ export function Images({ width, attachments, idTag }: ImagesProps) {
 			imgNode = (
 				<div className="c-hbox g-2">
 					<img
+						alt=""
 						className="cursor-pointer"
 						onClick={() => setLbIndex(0)}
 						src={getInlineUrl(img1)}
 						style={{ height, margin: '0 auto' }}
 					/>
 					<img
+						alt=""
 						className="cursor-pointer"
 						onClick={() => setLbIndex(1)}
 						src={getInlineUrl(img2)}
@@ -190,6 +194,7 @@ export function Images({ width, attachments, idTag }: ImagesProps) {
 			imgNode = (
 				<div className="c-hbox g-2">
 					<img
+						alt=""
 						className="cursor-pointer"
 						onClick={() => setLbIndex(0)}
 						src={getInlineUrl(img1)}
@@ -197,6 +202,7 @@ export function Images({ width, attachments, idTag }: ImagesProps) {
 					/>
 					<div className="c-vbox">
 						<img
+							alt=""
 							className="cursor-pointer"
 							onClick={() => setLbIndex(1)}
 							src={getInlineUrl(img2)}
@@ -204,6 +210,7 @@ export function Images({ width, attachments, idTag }: ImagesProps) {
 						/>
 						{attachments.length == 3 ? (
 							<img
+								alt=""
 								className="cursor-pointer"
 								onClick={() => setLbIndex(2)}
 								src={getInlineUrl(img3)}
@@ -214,7 +221,7 @@ export function Images({ width, attachments, idTag }: ImagesProps) {
 								className="pos-relative"
 								style={{ width: width23, margin: '0 auto' }}
 							>
-								<img className="w-100" src={getInlineUrl(img3)} />
+								<img alt="" className="w-100" src={getInlineUrl(img3)} />
 								<div
 									onClick={() => setLbIndex(2)}
 									className="c-image-overlay-counter cursor-pointer"
@@ -304,6 +311,7 @@ function Document({ attachments, idTag, token }: DocumentProps) {
 			style={{ maxWidth: '100%', cursor: 'pointer' }}
 		>
 			<img
+				alt=""
 				src={thumbnailUrl}
 				style={{ maxWidth: '100%', maxHeight: '30rem', display: 'block' }}
 			/>
@@ -331,7 +339,7 @@ function Document({ attachments, idTag, token }: DocumentProps) {
 ////////////////////
 interface CommentProps {
 	className?: string
-	action: CommentAction
+	action: ActionView
 }
 function Comment({ className, action }: CommentProps) {
 	if (typeof action.content != 'string') return null
@@ -371,7 +379,7 @@ function NewComment({
 	parentAction: ActionView
 	className?: string
 	style?: React.CSSProperties
-	onSubmit?: (action: CommentAction) => void
+	onSubmit?: (action: ActionView) => void
 }) {
 	const { api } = useApi()
 	const [auth] = useAuth()
@@ -400,7 +408,6 @@ function NewComment({
 		}
 
 		const actionRes = await api.actions.create(action)
-		console.log('Feed res', actionRes)
 		onSubmit?.(actionRes)
 	}
 
@@ -435,21 +442,16 @@ function NewComment({
 function SubComments({
 	comments,
 	parentId,
-	className,
-	...props
+	className
 }: {
-	comments: CommentAction[]
+	comments: ActionView[]
 	parentId: string
 	className?: string
-	style?: React.CSSProperties
 }) {
 	return (
-		<div className={mergeClasses('ms-3', className)} {...props}>
+		<div className={mergeClasses('ms-3', className)}>
 			{comments
-				.filter<CommentAction>(
-					(action): action is CommentAction =>
-						action.type == 'CMNT' && action.parentId == parentId
-				)
+				.filter((action) => action.type == 'CMNT' && action.parentId == parentId)
 				.map((action) => (
 					<Comment key={action.actionId} className="mb-1" action={action} />
 				))}
@@ -475,7 +477,6 @@ function Comments({ parentAction, onCommentsRead, ...props }: CommentsProps) {
 				parentId: parentAction.actionId,
 				type: 'CMNT'
 			})
-			console.log('Comments res', actions)
 			if (actions.length != parentAction.stat?.commentsRead) {
 				timeout = setTimeout(async function () {
 					await api.actions.updateStat(parentAction.actionId, {
@@ -492,7 +493,7 @@ function Comments({ parentAction, onCommentsRead, ...props }: CommentsProps) {
 		}
 	}, [api, parentAction.actionId])
 
-	function onSubmit(action: CommentAction) {
+	function onSubmit(action: ActionView) {
 		setComments([...comments, action])
 		onCommentsRead?.(comments.length + 1)
 	}
@@ -512,11 +513,20 @@ interface PostProps {
 	className?: string
 	action: PostAction
 	setAction: (action: PostAction) => void
+	onDelete?: () => void
 	hideAudience?: string
 	srcTag?: string
 	width: number
 }
-function Post({ className, action, setAction, hideAudience, srcTag: _srcTag, width }: PostProps) {
+function Post({
+	className,
+	action,
+	setAction,
+	onDelete,
+	hideAudience,
+	srcTag: _srcTag,
+	width
+}: PostProps) {
 	const [auth] = useAuth()
 	const { api } = useApi()
 	const [tab, setTab] = React.useState<undefined | 'CMNT' | 'LIKE' | 'SHRE'>(undefined)
@@ -530,28 +540,41 @@ function Post({ className, action, setAction, hideAudience, srcTag: _srcTag, wid
 		}
 	}
 
-	async function onReactClick(reaction: 'LIKE') {
+	async function onReactClick(reaction: string) {
 		if (!api) return
-		const ra: NewAction & { content?: string } = {
+		const isRemove = reaction === action.stat?.ownReaction
+		const prevReaction = action.stat?.ownReaction
+		const ra: NewAction = {
 			type: 'REACT',
+			subType: isRemove ? 'DEL' : reaction,
 			audienceTag: action.audience?.idTag || action.issuer.idTag,
-			content: reaction !== action.stat?.ownReaction ? reaction : undefined,
 			subject: action.actionId
 		}
-		const actionRes = await api.actions.create(ra)
-		console.log('react res', actionRes)
-		setAction({
-			...action,
-			stat: {
-				reactions: (action.stat?.reactions || 0) + (ra.content ? 1 : -1),
-				comments: action.stat?.comments,
-				ownReaction: ra.content
+		try {
+			await api.actions.create(ra)
+			let updatedReactions = action.stat?.reactions || ''
+			if (isRemove) {
+				updatedReactions = updateReactionCounts(updatedReactions, reaction, -1)
+			} else {
+				if (prevReaction) {
+					updatedReactions = updateReactionCounts(updatedReactions, prevReaction, -1)
+				}
+				updatedReactions = updateReactionCounts(updatedReactions, reaction, 1)
 			}
-		})
+			setAction({
+				...action,
+				stat: {
+					reactions: updatedReactions || undefined,
+					comments: action.stat?.comments,
+					ownReaction: isRemove ? undefined : reaction
+				}
+			})
+		} catch (e) {
+			console.error('Failed to send reaction', e)
+		}
 	}
 
 	function onCommentsRead(read: number) {
-		console.log('onCommentsRead', read, action)
 		setAction({ ...action, stat: { ...action.stat, commentsRead: read } })
 	}
 
@@ -570,16 +593,10 @@ function Post({ className, action, setAction, hideAudience, srcTag: _srcTag, wid
 						)}
 					</Link>
 					<div className="c-hbox ms-auto g-3">
-						<Button
-							link
-							disabled={process.env.NODE_ENV == 'production'}
-							onClick={() => console.log('share')}
-						>
+						<Button link disabled={process.env.NODE_ENV == 'production'}>
 							<IcRepost />
 						</Button>
-						<Button link onClick={() => console.log('more')}>
-							<IcMore />
-						</Button>
+						<PostMenu action={action} onDelete={onDelete} />
 					</div>
 				</div>
 				<div className="d-flex flex-column">
@@ -622,16 +639,10 @@ function Post({ className, action, setAction, hideAudience, srcTag: _srcTag, wid
 				</div>
 				<div className="c-hbox">
 					<div className="c-hbox">
-						<Button
-							link
-							accent
-							className={tab == 'LIKE' ? 'active' : ''}
-							onClick={() => onReactClick('LIKE')}
-						>
-							<IcLike
-								style={action.stat?.ownReaction ? { fill: 'currentColor' } : {}}
-							/>
-						</Button>
+						<ReactionPicker
+							ownReaction={action.stat?.ownReaction}
+							onReact={onReactClick}
+						/>
 					</div>
 					<div className="c-hbox ms-auto g-3">
 						{
@@ -657,22 +668,17 @@ function Post({ className, action, setAction, hideAudience, srcTag: _srcTag, wid
 								)}
 							</Button>
 						}
-						{!!action.stat?.reactions && (
-							<Button
-								link
-								secondary
-								className={mergeClasses(
-									'pos-relative',
-									tab == 'LIKE' ? 'active' : ''
-								)}
-								onClick={() => onTabClick('LIKE')}
-							>
-								<IcLike />
-								<span className="c-badge pos-absolute top-100 left-100">
-									{action.stat?.reactions}
+						{!!action.stat?.reactions &&
+							parseReactionCounts(action.stat.reactions).map((r) => (
+								<span
+									key={r.key}
+									className="c-hbox g-0"
+									style={{ fontSize: '0.9em' }}
+								>
+									{r.emoji}
+									<small>{r.count}</small>
 								</span>
-							</Button>
-						)}
+							))}
 					</div>
 				</div>
 			</div>
@@ -687,6 +693,7 @@ interface ActionCompProps {
 	className?: string
 	action: ActionEvt
 	setAction: (actionId: string, action: ActionEvt) => void
+	onDelete?: (actionId: string) => void
 	hideAudience?: string
 	srcTag?: string
 	width: number
@@ -695,6 +702,7 @@ export const ActionComp = React.memo(function ActionComp({
 	className,
 	action,
 	setAction,
+	onDelete,
 	hideAudience,
 	srcTag,
 	width
@@ -706,6 +714,7 @@ export const ActionComp = React.memo(function ActionComp({
 					className={className}
 					action={action as PostAction}
 					setAction={(act) => setAction(act.actionId, act)}
+					onDelete={onDelete ? () => onDelete(action.actionId) : undefined}
 					hideAudience={hideAudience}
 					srcTag={srcTag}
 					width={width}
@@ -715,387 +724,210 @@ export const ActionComp = React.memo(function ActionComp({
 })
 
 ////////////////////////
-// Visibility Selector //
+// Compose Trigger Bar //
 ////////////////////////
-type Visibility = 'P' | 'C' | 'F'
+interface ComposeTriggerProps {
+	className?: string
+	onOpen: (media?: 'image' | 'camera' | 'video') => void
+}
 
-const visibilityOptions: {
-	value: Visibility
+export function ComposeTrigger({ className, onOpen }: ComposeTriggerProps) {
+	const { t } = useTranslation()
+	const [auth] = useAuth()
+
+	if (!auth?.idTag) return null
+
+	return (
+		<div
+			className={mergeClasses('c-panel c-hbox g-2 cursor-pointer', className)}
+			onClick={() => onOpen()}
+		>
+			<ProfilePicture profile={{ profilePic: auth.profilePic }} small />
+			<div className="flex-fill c-input" style={{ opacity: 0.6, cursor: 'pointer' }}>
+				{t("What's on your mind?")}
+			</div>
+			<div className="c-hbox g-1">
+				<Button
+					link
+					onClick={(e) => {
+						e.stopPropagation()
+						onOpen('image')
+					}}
+				>
+					<IcImage />
+				</Button>
+				<Button
+					link
+					onClick={(e) => {
+						e.stopPropagation()
+						onOpen('camera')
+					}}
+				>
+					<IcCamera />
+				</Button>
+				<Button
+					link
+					onClick={(e) => {
+						e.stopPropagation()
+						onOpen('video')
+					}}
+				>
+					<IcVideo />
+				</Button>
+			</div>
+		</div>
+	)
+}
+
+interface FilterBarProps {
+	viewMode: 'feed' | 'drafts'
+	visibilityFilter: string | undefined
+	onVisibilityChange: (visibility: string | undefined) => void
+	searchQuery: string | undefined
+	onSearchChange: (query: string | undefined) => void
+	tagFilter: string | undefined
+	onTagChange: (tag: string | undefined) => void
+	tags: string[]
+}
+
+const VISIBILITY_FILTERS: {
+	value: string | undefined
 	labelKey: string
-	icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
-	color: string
+	icon: React.ComponentType
 }[] = [
-	{ value: 'F', labelKey: 'Followers', icon: IcUserCheck, color: 'var(--col-primary)' },
-	{ value: 'C', labelKey: 'Connected', icon: IcUsers, color: 'var(--col-warning)' },
-	{ value: 'P', labelKey: 'Public', icon: IcGlobe, color: 'var(--col-success)' }
+	{ value: undefined, labelKey: 'All', icon: IcAll },
+	{ value: 'D', labelKey: 'Direct', icon: IcDirect },
+	{ value: 'F', labelKey: 'Followers', icon: IcFollowers },
+	{ value: 'C', labelKey: 'Connected', icon: IcConnected },
+	{ value: 'V', labelKey: 'Verified', icon: IcVerified },
+	{ value: 'P', labelKey: 'Public', icon: IcPublic }
 ]
 
-interface VisibilitySelectorProps {
-	value: Visibility
-	onChange: (value: Visibility) => void
-}
-
-const VisibilitySelector = React.memo(function VisibilitySelector({
-	value,
-	onChange
-}: VisibilitySelectorProps) {
+const FilterBar = React.memo(function FilterBar({
+	viewMode,
+	visibilityFilter,
+	onVisibilityChange,
+	searchQuery,
+	onSearchChange,
+	tagFilter,
+	onTagChange,
+	tags
+}: FilterBarProps) {
 	const { t } = useTranslation()
-	const selected = visibilityOptions.find((o) => o.value === value) || visibilityOptions[0]
-	const Icon = selected.icon
+	const [searchInput, setSearchInput] = React.useState(searchQuery || '')
+	const debounceRef = React.useRef<ReturnType<typeof setTimeout>>(undefined)
+
+	function handleSearchInput(e: React.ChangeEvent<HTMLInputElement>) {
+		const value = e.target.value
+		setSearchInput(value)
+		if (debounceRef.current) clearTimeout(debounceRef.current)
+		debounceRef.current = setTimeout(() => {
+			onSearchChange(value || undefined)
+		}, 300)
+	}
+
+	React.useEffect(function cleanup() {
+		return () => {
+			if (debounceRef.current) clearTimeout(debounceRef.current)
+		}
+	}, [])
+
+	if (viewMode === 'drafts') return null
 
 	return (
-		<Popper
-			menuClassName="c-btn link secondary sm"
-			icon={<Icon style={{ color: selected.color }} />}
-		>
-			<ul className="c-nav vertical emph">
-				{visibilityOptions.map((opt) => {
-					const OptIcon = opt.icon
-					const isActive = value === opt.value
-					return (
-						<li key={opt.value}>
-							<Button
-								navItem
-								className={mergeClasses(isActive && 'active')}
-								onClick={() => onChange(opt.value)}
-							>
-								<OptIcon style={{ color: opt.color }} />
-								{t(opt.labelKey)}
-							</Button>
-						</li>
-					)
-				})}
+		<div className="c-vbox pt-2">
+			{/* Search */}
+			<div className="c-input-group px-2 py-1">
+				<span className="c-input-group-text">
+					<IcSearch />
+				</span>
+				<input
+					type="text"
+					className="c-input"
+					placeholder={t('Search posts...')}
+					value={searchInput}
+					onChange={handleSearchInput}
+				/>
+			</div>
+
+			<hr className="w-100" />
+
+			{/* Visibility filter */}
+			<ul className="c-nav vertical low">
+				<li className="c-nav-item">
+					<span className="c-nav-link text-muted">{t('Visibility')}</span>
+				</li>
+				{VISIBILITY_FILTERS.map((opt) => (
+					<li key={opt.labelKey}>
+						<a
+							className={mergeClasses(
+								'c-nav-item ps-4',
+								visibilityFilter === opt.value && 'active'
+							)}
+							onClick={(e) => {
+								e.preventDefault()
+								onVisibilityChange(opt.value)
+							}}
+						>
+							<opt.icon />
+							{t(opt.labelKey)}
+						</a>
+					</li>
+				))}
 			</ul>
-		</Popper>
-	)
-})
 
-// New Post
-interface NewPostProps {
-	className?: string
-	style?: React.CSSProperties
-	idTag?: string
-	onSubmit?: (action: ActionEvt) => void
-}
-
-export const NewPost = React.memo(
-	React.forwardRef(function NewPostInside(
-		{ className, style: _style, idTag, onSubmit }: NewPostProps,
-		ref: React.Ref<HTMLDivElement>
-	) {
-		const { api } = useApi()
-		const [auth] = useAuth()
-		const [type, setType] = React.useState<
-			'TEXT' | 'IMG' | 'VIDEO' | 'POLL' | 'EVENT' | undefined
-		>()
-		const [content, setContent] = React.useState('')
-		const [visibility, setVisibility] = React.useState<Visibility>('F')
-		const editorRef = React.useRef(null)
-		const fileInputRef = React.useRef<HTMLInputElement>(null)
-		const imgInputRef = React.useRef<HTMLInputElement>(null)
-		const videoInputRef = React.useRef<HTMLInputElement>(null)
-		const fileInputId = React.useId()
-		const imgInputId = React.useId()
-		const videoInputId = React.useId()
-
-		const imageUpload = useImageUpload()
-
-		// Load default visibility from settings
-		React.useEffect(() => {
-			if (!api) return
-			;(async function loadDefaultVisibility() {
-				try {
-					const setting = await api.settings.get('privacy.default_visibility')
-					const value = setting?.value
-					if (typeof value === 'string' && ['P', 'C', 'F'].includes(value)) {
-						setVisibility(value as Visibility)
-					}
-				} catch (_e) {
-					// Use default 'F' if setting not found
-					console.log('Using default visibility: F (Followers)')
-				}
-			})()
-		}, [api])
-
-		useEditable(editorRef, onChange)
-
-		function onChange(text: string, _pos: Position) {
-			setContent(text)
-		}
-
-		function onFileChange(which: 'file' | 'image' | 'video') {
-			const inputRef =
-				which === 'image' ? imgInputRef : which === 'video' ? videoInputRef : fileInputRef
-			const file = inputRef.current?.files?.[0]
-			if (!file) return
-
-			if (file.type.startsWith('video/')) {
-				// Direct upload for videos (no crop)
-				imageUpload.uploadVideo(file)
-			} else if (file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')) {
-				// SVG files should be uploaded directly (no crop - vector graphics)
-				if (!type) setType('IMG')
-				imageUpload.uploadSvg(file)
-			} else if (file.type === 'application/pdf') {
-				// Direct upload for PDFs (no crop)
-				imageUpload.uploadDocument(file)
-			} else {
-				// Image flow with crop modal
-				if (!type) setType('IMG')
-				imageUpload.selectFile(file)
-			}
-			if (inputRef.current) inputRef.current.value = ''
-		}
-
-		function onCancelCrop() {
-			imageUpload.cancelCrop()
-		}
-
-		async function doSubmit() {
-			if (!api || !auth?.idTag) return
-
-			setContent('')
-			const subType =
-				imageUpload.attachmentType === 'video'
-					? 'VIDEO'
-					: imageUpload.attachmentType === 'image'
-						? 'IMG'
-						: imageUpload.attachmentType === 'document'
-							? 'DOC'
-							: 'TEXT'
-			const action: NewAction = {
-				type: 'POST',
-				subType,
-				content,
-				attachments: imageUpload.attachmentIds.length
-					? imageUpload.attachmentIds
-					: undefined,
-				audienceTag: idTag,
-				visibility
-			}
-
-			const res = await api.actions.create(action)
-			console.log('Feed res', res)
-			onSubmit?.(res)
-			imageUpload.reset()
-		}
-
-		function onKeyDown(e: React.KeyboardEvent) {
-			if (e.ctrlKey && e.key == 'Enter') {
-				e.preventDefault()
-				doSubmit()
-			}
-		}
-
-		if (!auth?.idTag) return
-
-		return (
-			<>
-				<div ref={ref} className={mergeClasses('c-panel g-2', className)}>
-					<div className="c-hbox">
-						<ProfilePicture profile={{ profilePic: auth.profilePic }} small />
-						<div className="c-input-group">
-							<div
-								ref={editorRef}
-								className="c-input"
-								tabIndex={0}
-								onKeyDown={onKeyDown}
-							>
-								{generateFragments(content).map((n, i) => (
-									<React.Fragment key={i}>{n}</React.Fragment>
-								))}
-							</div>
-							<div className="c-hbox g-1 align-self-end m-1">
-								<VisibilitySelector value={visibility} onChange={setVisibility} />
-								<Button link primary onClick={doSubmit}>
-									<IcSend />
-								</Button>
-							</div>
-						</div>
-					</div>
-					<AttachmentPreview
-						attachmentIds={imageUpload.attachmentIds}
-						idTag={auth.idTag}
-						onRemove={imageUpload.removeAttachment}
-					/>
-					{imageUpload.uploadProgress !== undefined && (
-						<div className="c-hbox g-2 align-items-center p-1">
-							<div
-								className="c-progress flex-fill"
-								style={{
-									height: '0.5rem',
-									borderRadius: '0.25rem',
-									background: 'var(--col-container)'
-								}}
-							>
-								<div
-									className="c-progress-bar"
-									style={{
-										width: `${imageUpload.uploadProgress}%`,
-										height: '100%',
-										borderRadius: '0.25rem',
-										background: 'var(--col-primary)',
-										transition: 'width 0.2s ease'
-									}}
-								/>
-							</div>
-							<span className="text-sm">{imageUpload.uploadProgress}%</span>
-						</div>
-					)}
+			{/* Tag cloud */}
+			{tags.length > 0 && (
+				<>
 					<hr className="w-100" />
-					<div className="c-hbox g-3">
-						<Button
-							link
-							disabled={process.env.NODE_ENV == 'production'}
-							onClick={() => setType('POLL')}
-						>
-							<IcPoll />
-							Poll
-						</Button>
-						<Button
-							link
-							disabled={process.env.NODE_ENV == 'production'}
-							onClick={() => setType('EVENT')}
-						>
-							<IcEvent />
-							Event
-						</Button>
-						<div className="c-hbox ms-auto">
-							<label
-								htmlFor={
-									imageUpload.attachmentType === 'video' ||
-									imageUpload.attachmentType === 'document' ||
-									imageUpload.isUploading
-										? undefined
-										: fileInputId
-								}
-								className={
-									imageUpload.attachmentType === 'video' ||
-									imageUpload.attachmentType === 'document' ||
-									imageUpload.isUploading
-										? 'opacity-50'
-										: 'cursor-pointer'
-								}
-							>
-								<IcImage />
-							</label>
-							<input
-								ref={fileInputRef}
-								id={fileInputId}
-								type="file"
-								accept="image/*,video/*,.pdf"
-								style={{ display: 'none' }}
-								onChange={() => onFileChange('file')}
-							/>
-
-							<label
-								htmlFor={
-									imageUpload.attachmentType === 'video' ||
-									imageUpload.attachmentType === 'document' ||
-									imageUpload.isUploading
-										? undefined
-										: imgInputId
-								}
-								className={
-									imageUpload.attachmentType === 'video' ||
-									imageUpload.attachmentType === 'document' ||
-									imageUpload.isUploading
-										? 'opacity-50'
-										: 'cursor-pointer'
-								}
-							>
-								<IcCamera />
-							</label>
-							<input
-								ref={imgInputRef}
-								id={imgInputId}
-								type="file"
-								capture="environment"
-								accept="image/*,.svg"
-								style={{ display: 'none' }}
-								onChange={() => onFileChange('image')}
-							/>
-
-							<label
-								htmlFor={
-									imageUpload.attachmentType || imageUpload.isUploading
-										? undefined
-										: videoInputId
-								}
-								className={
-									imageUpload.attachmentType || imageUpload.isUploading
-										? 'opacity-50'
-										: 'cursor-pointer'
-								}
-							>
-								<IcVideo />
-							</label>
-							<input
-								ref={videoInputRef}
-								id={videoInputId}
-								type="file"
-								capture="environment"
-								accept="video/*"
-								style={{ display: 'none' }}
-								onChange={() => onFileChange('video')}
-							/>
-						</div>
+					<div className="c-nav vertical low">
+						<span className="c-nav-link text-muted">
+							<IcTag /> {t('Tags')}
+							{tagFilter && (
+								<Button
+									className="ms-auto"
+									size="small"
+									onClick={() => onTagChange(undefined)}
+								>
+									{t('Clear')}
+								</Button>
+							)}
+						</span>
 					</div>
-				</div>
-				{imageUpload.attachment && (
-					<ImageUpload
-						src={imageUpload.attachment}
-						aspects={['', '4:1', '3:1', '2:1', '16:9', '3:2', '1:1']}
-						onSubmit={imageUpload.uploadAttachment}
-						onCancel={onCancelCrop}
-					/>
-				)}
-			</>
-		)
-	})
-)
-
-const FilterBar = React.memo(function FilterBar() {
-	return (
-		<ul className="c-nav vertical low">
-			<li>
-				<a className="c-nav-item" href="/app/feed">
-					<IcAll />
-					All
-				</a>
-			</li>
-			<li>
-				<a className="c-nav-item" href="/app/feed?audience=public">
-					<IcPublic />
-					Public
-				</a>
-			</li>
-			<li>
-				<a className="c-nav-item" href="/app/feed?audience=private">
-					<IcPrivate />
-					Private
-				</a>
-			</li>
-			<li>
-				<a className="c-nav-item" href="/app/feed?audience=me">
-					<IcUser />
-					Me
-				</a>
-			</li>
-		</ul>
+					<div className="d-flex flex-wrap g-1 px-2">
+						{tags.map((tag) => (
+							<button
+								key={tag}
+								type="button"
+								className={mergeClasses('c-tag', tagFilter === tag && 'accent')}
+								onClick={() => onTagChange(tagFilter === tag ? undefined : tag)}
+							>
+								#{tag}
+							</button>
+						))}
+					</div>
+				</>
+			)}
+		</div>
 	)
 })
 
 export function FeedApp() {
-	const _navigate = useNavigate()
 	const location = useLocation()
 	const { t } = useTranslation()
-	const [_appConfig] = useAppConfig()
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const contextIdTag = useCurrentContextIdTag()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
-	const ref = React.useRef<HTMLDivElement>(null)
+	const [viewMode, setViewMode] = React.useState<'feed' | 'drafts'>('feed')
+	const [visibilityFilter, setVisibilityFilter] = React.useState<string | undefined>()
+	const [searchQuery, setSearchQuery] = React.useState<string | undefined>()
+	const [tagFilter, setTagFilter] = React.useState<string | undefined>()
+	const [composeOpen, setComposeOpen] = React.useState(false)
+	const [editingDraft, setEditingDraft] = React.useState<ActionView | undefined>()
+	const [composeMedia, setComposeMedia] = React.useState<
+		'image' | 'camera' | 'video' | undefined
+	>()
 	const widthRef = React.useRef<HTMLDivElement>(null)
 	const [width, setWidth] = React.useState(0)
 
@@ -1117,11 +949,40 @@ export function FeedApp() {
 		addPost
 	} = useFeedPosts({
 		audience,
+		tag: tagFilter,
+		search: searchQuery,
+		visibility: visibilityFilter,
 		enabled: !!api?.idTag
 	})
 
+	// Extract hashtags from loaded feed posts for tag cloud
+	const feedTags = React.useMemo(() => {
+		const tagCounts = new Map<string, number>()
+		for (const post of feed) {
+			if (typeof post.content !== 'string') continue
+			const matches = post.content.match(/#[\p{L}\p{N}_]+/gu)
+			if (!matches) continue
+			for (const match of matches) {
+				const tag = match.slice(1)
+				tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
+			}
+		}
+		return [...tagCounts.entries()]
+			.sort((a, b) => b[1] - a[1])
+			.map(([tag]) => tag)
+			.slice(0, 20)
+	}, [feed])
+
 	// Local state for post updates (reactions, comments, etc.)
 	const [feedUpdates, setFeedUpdates] = React.useState<Record<string, Partial<ActionEvt>>>({})
+
+	// Track deleted post IDs for optimistic removal (cleared on feed reset)
+	const [deletedIds, setDeletedIds] = React.useState<Set<string>>(new Set())
+
+	// Clear deleted IDs when feed filters change (feed resets)
+	React.useEffect(() => {
+		setDeletedIds(new Set())
+	}, [audience, tagFilter, searchQuery, visibilityFilter])
 
 	React.useEffect(
 		function onLocationEffect() {
@@ -1135,7 +996,10 @@ export function FeedApp() {
 		const action = msg.data as ActionView
 
 		if (action.type === 'STAT') {
-			const content = action.content as { r?: number; c?: number }
+			const tStatContent = T.struct({ r: T.optional(T.string), c: T.optional(T.number) })
+			const contentRes = T.decode(tStatContent, action.content)
+			if (!T.isOk(contentRes)) return
+			const content = contentRes.ok
 			setFeedUpdates((prev) => ({
 				...prev,
 				[action.parentId!]: {
@@ -1162,11 +1026,11 @@ export function FeedApp() {
 						panel.clientWidth -
 						parseInt(styles.paddingLeft || '0', 10) -
 						parseInt(styles.paddingRight || '0', 10)
-					if (w > 0 && width !== w) setWidth(w)
+					setWidth((prev) => (w > 0 ? w : prev))
 				} else {
 					// Fallback: use container width
 					const w = widthRef.current.clientWidth
-					if (w > 0 && width !== w) setWidth(w)
+					setWidth((prev) => (w > 0 ? w : prev))
 				}
 			}
 
@@ -1181,19 +1045,21 @@ export function FeedApp() {
 				resizeObserver.disconnect()
 			}
 		},
-		[widthRef.current]
+		[composeOpen, viewMode]
 	)
 
-	// Merge feed posts with local updates
+	// Merge feed posts with local updates, filtering out deleted posts
 	const mergedFeed = React.useMemo(() => {
-		return feed.map((post) => {
-			const update = feedUpdates[post.actionId]
-			if (update) {
-				return { ...post, ...update } as ActionEvt
-			}
-			return post as ActionEvt
-		})
-	}, [feed, feedUpdates])
+		return feed
+			.filter((post) => !deletedIds.has(post.actionId))
+			.map((post) => {
+				const update = feedUpdates[post.actionId]
+				if (update) {
+					return { ...post, ...update } as ActionEvt
+				}
+				return post as ActionEvt
+			})
+	}, [feed, feedUpdates, deletedIds])
 
 	const setFeedAction = React.useCallback(function setFeedAction(
 		actionId: string,
@@ -1212,67 +1078,143 @@ export function FeedApp() {
 		[addPost]
 	)
 
-	const style = React.useMemo(() => ({ minHeight: '3rem' }), [])
+	const onDelete = React.useCallback(function onDelete(actionId: string) {
+		setDeletedIds((prev) => new Set(prev).add(actionId))
+	}, [])
+
+	function handleComposeOpen(media?: 'image' | 'camera' | 'video') {
+		setComposeMedia(media)
+		setEditingDraft(undefined)
+		setComposeOpen(true)
+	}
+
+	function handleComposeClose() {
+		setComposeOpen(false)
+		setComposeMedia(undefined)
+		setEditingDraft(undefined)
+	}
+
+	function handleViewModeChange(mode: string) {
+		setViewMode(mode as 'feed' | 'drafts')
+		if (mode === 'drafts') {
+			setComposeOpen(false)
+			setEditingDraft(undefined)
+		}
+	}
+
+	function handleEditDraft(draft: ActionView) {
+		setEditingDraft(draft)
+		setComposeOpen(true)
+		setViewMode('feed')
+	}
+
+	function handleDraftPublished(action: ActionView) {
+		addPost(action)
+		setViewMode('feed')
+	}
 
 	return (
 		<Fcd.Container className="g-1">
 			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-				{!!auth && <FilterBar />}
-			</Fcd.Filter>
-			<Fcd.Content>
-				<div className="c-nav c-hbox md-hide lg-hide">
-					<IcFilter onClick={() => setShowFilter(true)} />
-				</div>
 				{!!auth && (
-					<div>
-						<NewPost
-							ref={ref}
-							className="col"
-							style={style}
-							idTag={contextIdTag !== auth?.idTag ? contextIdTag : undefined}
-							onSubmit={onSubmit}
-						/>
-					</div>
+					<FilterBar
+						viewMode={viewMode}
+						visibilityFilter={visibilityFilter}
+						onVisibilityChange={setVisibilityFilter}
+						searchQuery={searchQuery}
+						onSearchChange={setSearchQuery}
+						tagFilter={tagFilter}
+						onTagChange={setTagFilter}
+						tags={feedTags}
+					/>
 				)}
-				{newPostsCount > 0 && (
+			</Fcd.Filter>
+			<Fcd.Content
+				header={
+					<div className="c-hbox align-items-center g-2 p-2">
+						<Button
+							link
+							className="md-hide lg-hide"
+							onClick={() => setShowFilter(true)}
+						>
+							<IcFilter />
+						</Button>
+						{!!auth && (
+							<Tabs value={viewMode} onTabChange={handleViewModeChange}>
+								<Tab value="feed">
+									<IcAll className="me-1" />
+									{t('Feed')}
+								</Tab>
+								<Tab value="drafts">
+									<IcDraft className="me-1" />
+									{t('Drafts')}
+								</Tab>
+							</Tabs>
+						)}
+					</div>
+				}
+			>
+				{!!auth && !composeOpen && (
+					<ComposeTrigger className="col" onOpen={handleComposeOpen} />
+				)}
+				{!!auth && (
+					<ComposePanel
+						open={composeOpen}
+						onClose={handleComposeClose}
+						onSubmit={onSubmit}
+						idTag={contextIdTag !== auth?.idTag ? contextIdTag : undefined}
+						initialMedia={composeMedia}
+						draft={editingDraft}
+						className="col"
+					/>
+				)}
+				{!composeOpen && viewMode === 'drafts' && (
+					<DraftsPanel onEdit={handleEditDraft} onPublished={handleDraftPublished} />
+				)}
+				{!composeOpen && viewMode === 'feed' && newPostsCount > 0 && (
 					<NewPostsBanner count={newPostsCount} onClick={showNewPosts} className="my-2" />
 				)}
-				<div ref={widthRef} className="c-vbox g-1">
-					{isLoading && feed.length === 0 ? (
-						<div className="c-vbox g-2 p-2">
-							<SkeletonCard showAvatar showImage lines={2} />
-							<SkeletonCard showAvatar lines={3} />
-							<SkeletonCard showAvatar showImage lines={2} />
-						</div>
-					) : mergedFeed.length === 0 ? (
-						<EmptyState
-							icon={<IcAll style={{ fontSize: '2.5rem' }} />}
-							title={t('No posts yet')}
-							description={t('Be the first to share something with your community!')}
-						/>
-					) : (
-						<>
-							{mergedFeed.map((action) => (
-								<ActionComp
-									key={action.actionId}
-									action={action}
-									setAction={setFeedAction}
-									width={width}
-								/>
-							))}
-							<LoadMoreTrigger
-								ref={sentinelRef}
-								isLoading={isLoadingMore}
-								hasMore={hasMore}
-								error={error}
-								onRetry={loadMore}
-								loadingLabel={t('Loading more posts...')}
-								retryLabel={t('Retry')}
-								errorPrefix={t('Failed to load:')}
+				{!composeOpen && viewMode === 'feed' && (
+					<div ref={widthRef} className="c-vbox g-1">
+						{isLoading && feed.length === 0 ? (
+							<div className="c-vbox g-2 p-2">
+								<SkeletonCard showAvatar showImage lines={2} />
+								<SkeletonCard showAvatar lines={3} />
+								<SkeletonCard showAvatar showImage lines={2} />
+							</div>
+						) : mergedFeed.length === 0 ? (
+							<EmptyState
+								icon={<IcAll style={{ fontSize: '2.5rem' }} />}
+								title={t('No posts yet')}
+								description={t(
+									'Be the first to share something with your community!'
+								)}
 							/>
-						</>
-					)}
-				</div>
+						) : (
+							<>
+								{mergedFeed.map((action) => (
+									<ActionComp
+										key={action.actionId}
+										action={action}
+										setAction={setFeedAction}
+										onDelete={onDelete}
+										width={width}
+									/>
+								))}
+								<LoadMoreTrigger
+									ref={sentinelRef}
+									isLoading={isLoadingMore}
+									hasMore={hasMore}
+									error={error}
+									onRetry={loadMore}
+									loadingLabel={t('Loading more posts...')}
+									retryLabel={t('Retry')}
+									errorPrefix={t('Failed to load:')}
+								/>
+							</>
+						)}
+					</div>
+				)}
 			</Fcd.Content>
 			<Fcd.Details></Fcd.Details>
 		</Fcd.Container>

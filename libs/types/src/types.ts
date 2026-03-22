@@ -67,7 +67,6 @@ export const tActionType = T.literal(
 	'REPOST',
 	'REACT',
 	'CMNT',
-	'FLLW',
 	'SHRE',
 	'MSG',
 	'FSHR',
@@ -80,7 +79,9 @@ export const tActionStatus = T.literal(
 	'A', // Active (default when NULL - published/finalized)
 	'D', // Deleted (soft delete)
 	'C', // Created (pending approval - e.g. connection requests)
-	'N' // New (notification - awaiting user acknowledgment)
+	'N', // New (notification - awaiting user acknowledgment)
+	'R', // Draft (saved but not yet published)
+	'S' // Scheduled (draft with confirmed publish time)
 )
 export type ActionStatus = T.TypeOf<typeof tActionStatus>
 
@@ -110,7 +111,9 @@ export const tNewAction = T.struct({
 	attachments: T.optional(T.array(T.string)),
 	subject: T.optional(T.string),
 	expiresAt: T.optional(T.number),
-	visibility: T.optional(T.string) // 'P' = Public, 'C' = Connected, 'F' = Followers
+	visibility: T.optional(T.string), // 'P' = Public, 'C' = Connected, 'F' = Followers
+	draft: T.optional(T.boolean), // true = save as draft (status 'R')
+	publishAt: T.optional(T.number) // Unix timestamp for scheduled publishing
 })
 export type NewAction = T.TypeOf<typeof tNewAction>
 
@@ -148,11 +151,12 @@ export const tActionView = T.struct({
 	stat: T.optional(
 		T.struct({
 			ownReaction: T.optional(T.string),
-			reactions: T.optional(T.number),
+			reactions: T.optional(T.string),
 			comments: T.optional(T.number),
 			commentsRead: T.optional(T.number)
 		})
 	),
+	visibility: T.optional(T.string),
 	x: T.optional(T.unknown) // Extensible metadata (x.role for SUBS, etc.)
 })
 export type ActionView = T.TypeOf<typeof tActionView>
@@ -243,8 +247,8 @@ export type CommentAction = T.TypeOf<typeof tCommentAction>
 
 export const tReactAction = T.struct({
 	type: T.literal('REACT'),
-	subType: T.undefinedValue,
-	content: T.literal('LOVE'),
+	subType: T.literal('LIKE', 'LOVE', 'LAUGH', 'WOW', 'SAD', 'ANGRY', 'DEL'),
+	content: T.undefinedValue,
 	attachments: T.undefinedValue,
 	parentId: T.string,
 	audience: T.undefinedValue,

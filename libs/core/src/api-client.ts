@@ -482,7 +482,30 @@ export class ApiClient {
 		 * @returns Reaction ID
 		 */
 		addReaction: (actionId: string, data: Types.ReactionRequest) =>
-			this.request('POST', `/actions/${actionId}/reaction`, Types.tReactionResponse, { data })
+			this.request('POST', `/actions/${actionId}/reaction`, Types.tReactionResponse, {
+				data
+			}),
+
+		/**
+		 * POST /actions/:actionId/publish - Publish a draft action
+		 * @param actionId - Draft action ID
+		 * @param data - Optional publish options (publishAt for scheduled publishing)
+		 * @returns Published action
+		 */
+		publish: (actionId: string, data?: Types.PublishActionRequest) =>
+			this.request('POST', `/actions/${actionId}/publish`, Types.tActionView, {
+				data: data ?? {}
+			}),
+
+		/**
+		 * POST /actions/:actionId/cancel - Cancel a scheduled action (revert to draft)
+		 * @param actionId - Scheduled action ID
+		 * @returns Updated action with status 'R'
+		 */
+		cancel: (actionId: string) =>
+			this.request('POST', `/actions/${actionId}/cancel`, Types.tActionView, {
+				data: {}
+			})
 	}
 
 	// ========================================================================

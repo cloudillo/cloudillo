@@ -47,6 +47,8 @@
 		"@types/react": "^19.2.14",
 		"@types/react-dom": "^19.2.3",
 		"@types/turndown": "^5.0.6",
+		"@emoji-mart/data": "^1.2.1",
+		"@emoji-mart/react": "^1.1.1",
 		"colord": "^2.9.3",
 		"cross-env": "^10.1.0",
 		"dayjs": "^1.11.19",

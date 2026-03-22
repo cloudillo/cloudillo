@@ -30,6 +30,7 @@ export interface UseImageUploadReturn {
 	attachmentType: AttachmentType
 	isUploading: boolean
 	uploadProgress: number | undefined
+	initAttachments: (ids: string[], type: AttachmentType) => void
 	selectFile: (file: File) => void
 	uploadAttachment: (blob: Blob) => Promise<void>
 	uploadSvg: (file: File) => Promise<void>
@@ -62,6 +63,11 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 		}
 	}, [])
 
+	const initAttachments = React.useCallback((ids: string[], type: AttachmentType) => {
+		setAttachmentIds(ids)
+		setAttachmentType(type)
+	}, [])
+
 	const selectFile = React.useCallback((file: File) => {
 		const reader = new FileReader()
 		reader.onload = function (evt) {
@@ -92,6 +98,10 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 			request.addEventListener('load', function () {
 				activeXhrRef.current = null
 				setIsUploading(false)
+				if (request.status < 200 || request.status >= 300) {
+					console.error('Upload failed with status', request.status)
+					return
+				}
 				const j = JSON.parse(request.response)
 				const fileId = j?.data?.fileId
 				if (fileId) {
@@ -139,6 +149,10 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 			request.addEventListener('load', function () {
 				activeXhrRef.current = null
 				setIsUploading(false)
+				if (request.status < 200 || request.status >= 300) {
+					console.error('SVG upload failed with status', request.status)
+					return
+				}
 				const j = JSON.parse(request.response)
 				const fileId = j?.data?.fileId
 				if (fileId) {
@@ -193,6 +207,10 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 				activeXhrRef.current = null
 				setIsUploading(false)
 				setUploadProgress(undefined)
+				if (request.status < 200 || request.status >= 300) {
+					console.error('Document upload failed with status', request.status)
+					return
+				}
 				const j = JSON.parse(request.response)
 				const fileId = j?.data?.fileId
 				if (fileId) {
@@ -248,6 +266,10 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 				activeXhrRef.current = null
 				setIsUploading(false)
 				setUploadProgress(undefined)
+				if (request.status < 200 || request.status >= 300) {
+					console.error('Video upload failed with status', request.status)
+					return
+				}
 				const j = JSON.parse(request.response)
 				const fileId = j?.data?.fileId
 				if (fileId) {
@@ -310,6 +332,7 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 		attachmentType,
 		isUploading,
 		uploadProgress,
+		initAttachments,
 		selectFile,
 		uploadAttachment,
 		uploadSvg,

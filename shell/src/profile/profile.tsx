@@ -59,7 +59,8 @@ import { useAuth, useApi, IdentityTag } from '@cloudillo/react'
 import { useWsBus } from '../ws-bus.js'
 import { parseQS } from '../utils.js'
 import { ImageUpload } from '../image.js'
-import { type ActionEvt, ActionComp, NewPost } from '../apps/feed.js'
+import { type ActionEvt, ActionComp, ComposeTrigger } from '../apps/feed.js'
+import { ComposePanel } from '../apps/feed/index.js'
 import type { Profile } from '@cloudillo/types'
 import { ProfileListCard, PersonListPage, CommunityListPage } from './identities.js'
 import { CreateCommunity } from './community.js'
@@ -716,7 +717,10 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const [feed, setFeed] = React.useState<ActionEvt[] | undefined>()
-	const [_text, _setText] = React.useState('')
+	const [composeOpen, setComposeOpen] = React.useState(false)
+	const [composeMedia, setComposeMedia] = React.useState<
+		'image' | 'camera' | 'video' | undefined
+	>()
 	const ref = React.useRef<HTMLDivElement>(null)
 	const [width, setWidth] = React.useState(0)
 
@@ -768,13 +772,26 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 
 	return (
 		<>
-			{!!auth && (
-				<NewPost
-					ref={ref}
+			{!!auth && !composeOpen && (
+				<ComposeTrigger
 					className="col"
-					style={{ minHeight: '3rem' }}
+					onOpen={(media) => {
+						setComposeMedia(media)
+						setComposeOpen(true)
+					}}
+				/>
+			)}
+			{!!auth && (
+				<ComposePanel
+					open={composeOpen}
+					onClose={() => {
+						setComposeOpen(false)
+						setComposeMedia(undefined)
+					}}
 					onSubmit={onSubmit}
 					idTag={profile.idTag !== auth.idTag ? profile.idTag : undefined}
+					initialMedia={composeMedia}
+					className="col"
 				/>
 			)}
 			{!!feed &&

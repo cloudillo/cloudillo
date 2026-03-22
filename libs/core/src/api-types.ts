@@ -412,6 +412,10 @@ export interface PaginatedResponse<T> {
 // ============================================================================
 
 // Request types
+export interface PublishActionRequest {
+	publishAt?: number // Unix timestamp for scheduled publish (omit for immediate)
+}
+
 export interface ActionStatUpdate {
 	commentsRead?: number
 }
@@ -431,6 +435,9 @@ export interface ListActionsQuery {
 	rootId?: string
 	subject?: string
 	createdAfter?: string | number
+	tag?: string
+	search?: string
+	visibility?: string
 	cursor?: string // Cursor for pagination
 	limit?: number // Items per page (replaces _limit)
 	_limit?: number // @deprecated Use limit instead

@@ -16,13 +16,6 @@
 
 import * as React from 'react'
 import { Link } from 'react-router-dom'
-import {
-	LuSmile as EmSmile,
-	LuLaugh as EmLaugh,
-	LuFrown as EmSad,
-	LuMeh as EmMeh,
-	LuHeart as EmHeart
-} from 'react-icons/lu'
 
 /**
  * Merge CSS class names, filtering out falsy values
@@ -95,14 +88,19 @@ export function avatarSizeClass(
 /**
  * Emoji mappings for text fragment generation
  */
-const emojis: Record<string, React.ReactNode> = {
-	':)': <EmSmile size="1em" />,
-	':D': <EmLaugh size="1em" />,
+const emojis: Record<string, string> = {
+	':)': '😊',
+	';)': '😉',
+	':D': '😄',
+	XD: '🤣',
 	':P': '😛',
 	';P': '😜',
-	':|': <EmMeh size="1em" />,
-	':(': <EmSad size="1em" />,
-	'<3': <EmHeart size="1em" />
+	':|': '😐',
+	':/': '😕',
+	':(': '😢',
+	":'(": '😭',
+	':O': '😮',
+	'<3': '❤️'
 }
 
 /**
@@ -121,7 +119,7 @@ export function generateFragments(text: string): React.ReactNode[] {
 						n = <Link to={w.replace(`https://${window.location.host}/`, '/')}>{w}</Link>
 					} else {
 						n = (
-							<a href={w} target="_blank">
+							<a href={w} target="_blank" rel="noopener noreferrer">
 								{w}
 							</a>
 						)
@@ -136,23 +134,9 @@ export function generateFragments(text: string): React.ReactNode[] {
 			case ':':
 			case ';':
 			case '<':
-			case '8': {
+			case 'X': {
 				const emoji = emojis[w]
-				if (typeof emoji == 'object') {
-					n = (
-						<span>
-							{emojis[w]}
-							<span
-								className="d-inline-block"
-								style={{ width: 0, overflow: 'hidden' }}
-							>
-								{w}
-							</span>
-						</span>
-					)
-				} else {
-					n = emoji || w
-				}
+				if (emoji) n = emoji
 				break
 			}
 		}

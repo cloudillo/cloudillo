@@ -762,6 +762,52 @@ export class AppMessageBus extends MessageBusBase {
 	}
 
 	// ============================================
+	// CRDT CACHE
+	// ============================================
+
+	/**
+	 * Append a CRDT update to the shell cache and update the clock
+	 */
+	async crdtCacheAppend(
+		docId: string,
+		update: Uint8Array,
+		clientId: number,
+		clock: number
+	): Promise<void> {
+		await this.sendRequest<void>((id) => {
+			this.sendToShell(
+				this.createRequestWithPayload('crdt:cache.append.req', id, {
+					docId,
+					update,
+					clientId,
+					clock
+				})
+			)
+		})
+	}
+
+	/**
+	 * Read cached CRDT state for a document
+	 */
+	async crdtCacheRead(docId: string): Promise<Uint8Array[]> {
+		const data = await this.sendRequest<Uint8Array[]>((id) => {
+			this.sendToShell(this.createRequestWithPayload('crdt:cache.read.req', id, { docId }))
+		})
+		return data ?? []
+	}
+
+	/**
+	 * Compact the CRDT cache for a document
+	 */
+	async crdtCacheCompact(docId: string, state: Uint8Array): Promise<void> {
+		await this.sendRequest<void>((id) => {
+			this.sendToShell(
+				this.createRequestWithPayload('crdt:cache.compact.req', id, { docId, state })
+			)
+		})
+	}
+
+	// ============================================
 	// MEDIA PICKER
 	// ============================================
 

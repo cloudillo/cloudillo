@@ -21,7 +21,7 @@ import * as Y from 'yjs'
 import type { WebsocketProvider } from 'y-websocket'
 
 import { getAppBus, createApiClient, type ApiClient } from '@cloudillo/core'
-import { openYDoc } from '@cloudillo/crdt'
+import { openYDoc, type CrdtPersistence } from '@cloudillo/crdt'
 
 // useAuth() //
 ///////////////
@@ -215,19 +215,22 @@ export function useCloudilloEditor(appName: string) {
 			// Track if cleanup has run to prevent state updates after unmount
 			let isMounted = true
 			let currentProvider: WebsocketProvider | undefined
+			let currentPersistence: CrdtPersistence | undefined
 			let handleSync: ((isSynced: boolean) => void) | undefined
 
 			if (cl.idTag && docId) {
 				;(async function initDoc() {
-					const { provider } = await openYDoc(yDoc, docId)
+					const { provider, persistence } = await openYDoc(yDoc, docId)
 
 					// Check if component unmounted during async operation
 					if (!isMounted) {
+						persistence.destroy()
 						provider.destroy()
 						return
 					}
 
 					currentProvider = provider
+					currentPersistence = persistence
 					setProvider(provider)
 
 					const bus = getAppBus()
@@ -268,6 +271,11 @@ export function useCloudilloEditor(appName: string) {
 				// Remove sync listener if still registered
 				if (currentProvider && handleSync) {
 					currentProvider.off('sync', handleSync)
+				}
+
+				// Compact and stop persisting updates
+				if (currentPersistence) {
+					currentPersistence.destroy()
 				}
 
 				// Destroy the provider (closes WebSocket, removes all listeners)

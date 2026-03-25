@@ -92,6 +92,10 @@ export {
 	// CRDT messages
 	type CrdtClientIdReq,
 	type CrdtClientIdRes,
+	type CrdtCacheAppendReq,
+	type CrdtCacheReadReq,
+	type CrdtCacheCompactReq,
+	type CrdtCacheRes,
 	// Sensor messages
 	type SensorCompassSub,
 	type SensorCompassSubRes,
@@ -160,6 +164,10 @@ export {
 	tSettingsListRes,
 	tCrdtClientIdReq,
 	tCrdtClientIdRes,
+	tCrdtCacheAppendReq,
+	tCrdtCacheReadReq,
+	tCrdtCacheCompactReq,
+	tCrdtCacheRes,
 	tSensorCompassSub,
 	tSensorCompassSubRes,
 	tSensorCompassPush,

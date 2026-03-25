@@ -808,6 +808,70 @@ export const tCrdtClientIdRes = T.struct({
 })
 export type CrdtClientIdRes = T.TypeOf<typeof tCrdtClientIdRes>
 
+/**
+ * App appends a CRDT update to the cache + updates the clock
+ * Direction: app -> shell
+ */
+export const tCrdtCacheAppendReq = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('crdt:cache.append.req'),
+	id: T.number,
+	payload: T.struct({
+		docId: T.string,
+		update: T.unknown, // Uint8Array (structured clone)
+		clientId: T.number,
+		clock: T.number
+	})
+})
+export type CrdtCacheAppendReq = T.TypeOf<typeof tCrdtCacheAppendReq>
+
+/**
+ * App reads the cached state for a document
+ * Direction: app -> shell
+ */
+export const tCrdtCacheReadReq = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('crdt:cache.read.req'),
+	id: T.number,
+	payload: T.struct({
+		docId: T.string
+	})
+})
+export type CrdtCacheReadReq = T.TypeOf<typeof tCrdtCacheReadReq>
+
+/**
+ * App compacts the cache for a document
+ * Direction: app -> shell
+ */
+export const tCrdtCacheCompactReq = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('crdt:cache.compact.req'),
+	id: T.number,
+	payload: T.struct({
+		docId: T.string,
+		state: T.unknown // Uint8Array (structured clone)
+	})
+})
+export type CrdtCacheCompactReq = T.TypeOf<typeof tCrdtCacheCompactReq>
+
+/**
+ * Generic CRDT cache response
+ * Direction: shell -> app
+ */
+export const tCrdtCacheRes = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('crdt:cache.res'),
+	replyTo: T.number,
+	ok: T.boolean,
+	data: T.optional(T.unknown),
+	error: T.optional(T.string)
+})
+export type CrdtCacheRes = T.TypeOf<typeof tCrdtCacheRes>
+
 // ============================================
 // SENSOR MESSAGES
 // ============================================
@@ -1052,6 +1116,10 @@ export const tCloudilloMessage = T.taggedUnion('type')({
 	// CRDT messages
 	'crdt:clientid.req': tCrdtClientIdReq,
 	'crdt:clientid.res': tCrdtClientIdRes,
+	'crdt:cache.append.req': tCrdtCacheAppendReq,
+	'crdt:cache.read.req': tCrdtCacheReadReq,
+	'crdt:cache.compact.req': tCrdtCacheCompactReq,
+	'crdt:cache.res': tCrdtCacheRes,
 
 	// Sensor messages
 	'sensor:compass.sub': tSensorCompassSub,

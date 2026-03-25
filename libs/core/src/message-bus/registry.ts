@@ -61,6 +61,10 @@ import {
 	tSettingsListRes,
 	tCrdtClientIdReq,
 	tCrdtClientIdRes,
+	tCrdtCacheAppendReq,
+	tCrdtCacheReadReq,
+	tCrdtCacheCompactReq,
+	tCrdtCacheRes,
 	tSensorCompassSub,
 	tSensorCompassSubRes,
 	tSensorCompassPush,
@@ -238,6 +242,26 @@ export const MESSAGE_REGISTRY: Record<MessageType, MessageAccessRule> = {
 		directions: ['shell>app'],
 		requiresAuth: false,
 		validator: tCrdtClientIdRes
+	},
+	'crdt:cache.append.req': {
+		directions: ['app>shell'],
+		requiresAuth: true,
+		validator: tCrdtCacheAppendReq
+	},
+	'crdt:cache.read.req': {
+		directions: ['app>shell'],
+		requiresAuth: true,
+		validator: tCrdtCacheReadReq
+	},
+	'crdt:cache.compact.req': {
+		directions: ['app>shell'],
+		requiresAuth: true,
+		validator: tCrdtCacheCompactReq
+	},
+	'crdt:cache.res': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tCrdtCacheRes
 	},
 	'sensor:compass.sub': {
 		directions: ['app>shell'],

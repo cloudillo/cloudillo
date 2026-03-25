@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 export * from './crdt.js'
+export * from './crdt-persistence.js'
 export * from './legacy.js'
 export * from './export-utils.js'
 

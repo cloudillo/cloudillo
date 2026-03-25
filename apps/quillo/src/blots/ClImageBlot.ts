@@ -51,7 +51,8 @@ class ClImageBlot extends BlockEmbed {
 	static token: string | undefined
 
 	static create(value: ClImageValue): HTMLElement {
-		const node = BlockEmbed.create() as HTMLImageElement
+		// biome-ignore lint/complexity/noThisInStatic: Parchment requires polymorphic `this` to read subclass tagName
+		const node = super.create() as HTMLImageElement
 		node.setAttribute('data-file-id', value.fileId)
 		node.setAttribute('alt', value.alt || '')
 

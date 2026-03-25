@@ -53,7 +53,8 @@ class ClDocumentBlot extends BlockEmbed {
 	static sourceFileId: string | undefined
 
 	static create(value: ClDocumentValue): HTMLElement {
-		const node = BlockEmbed.create() as HTMLElement
+		// biome-ignore lint/complexity/noThisInStatic: Parchment requires polymorphic `this` to read subclass tagName
+		const node = super.create() as HTMLElement
 
 		// Bridge setAttribute to inline styles for resize support.
 		// quill-blot-formatter2's ResizeAction calls setAttribute("width", "400px")

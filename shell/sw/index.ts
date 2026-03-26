@@ -618,8 +618,8 @@ function onFetch(evt: FetchEvent) {
 
 			// network-first
 			try {
-				const res = await fetch(new Request(evt.request.url))
-				if (res.ok && shouldCache(res)) {
+				const res = await fetch(new Request(evt.request.url, { cache: 'no-cache' }))
+				if (res.ok) {
 					await cache.put(evt.request, res.clone())
 					log && console.log('[SW] CACHED (nf)', evt.request.url)
 				}

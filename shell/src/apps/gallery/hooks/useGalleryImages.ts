@@ -18,6 +18,8 @@ import * as React from 'react'
 import { useInfiniteScroll } from '@cloudillo/react'
 import type { ListFilesQuery, FileView } from '@cloudillo/core'
 import { useContextAwareApi } from '../../../context/index.js'
+import { useCurrentContextIdTag } from '../../../context/index.js'
+import { createCachedFileFetchPage } from '../../../cache/index.js'
 import type { Photo } from '../types.js'
 
 export interface UseGalleryImagesOptions {
@@ -43,15 +45,16 @@ function convertFileToPhoto(f: FileView): Photo {
 export function useGalleryImages(options: UseGalleryImagesOptions) {
 	const { apiQueryParams, enabled = true } = options
 	const { api } = useContextAwareApi()
+	const contextIdTag = useCurrentContextIdTag()
 
 	// Stringify apiQueryParams for dependency tracking
 	const queryParamsKey = JSON.stringify(apiQueryParams)
 
-	// Fetch page function for infinite scroll
-	const fetchPage = React.useCallback(
+	// Raw network fetch function
+	const rawFetchPage = React.useCallback(
 		async (cursor: string | null, limit: number) => {
 			if (!api) {
-				return { items: [], nextCursor: null, hasMore: false }
+				return { items: [] as FileView[], nextCursor: null, hasMore: false }
 			}
 
 			const result = await api.files.listPaginated({
@@ -61,15 +64,41 @@ export function useGalleryImages(options: UseGalleryImagesOptions) {
 				limit
 			})
 
-			const photos = result.data.map(convertFileToPhoto)
-
 			return {
-				items: photos,
+				items: result.data,
 				nextCursor: result.cursorPagination?.nextCursor ?? null,
 				hasMore: result.cursorPagination?.hasMore ?? false
 			}
 		},
 		[api, queryParamsKey]
+	)
+
+	// Cache query params for offline fallback
+	const cacheQueryParams = React.useMemo(
+		() => ({
+			contentType: 'image/*',
+			starred: apiQueryParams.starred,
+			pinned: apiQueryParams.pinned
+		}),
+		[apiQueryParams.starred, apiQueryParams.pinned]
+	)
+
+	// Fetch page with offline cache fallback (operates on FileView, converts to Photo after)
+	const cachedFetchPage = React.useMemo(
+		() => createCachedFileFetchPage(contextIdTag, rawFetchPage, cacheQueryParams),
+		[contextIdTag, rawFetchPage, cacheQueryParams]
+	)
+
+	// Convert FileView → Photo
+	const fetchPage = React.useCallback(
+		async (cursor: string | null, limit: number) => {
+			const result = await cachedFetchPage(cursor, limit)
+			return {
+				...result,
+				items: result.items.map(convertFileToPhoto)
+			}
+		},
+		[cachedFetchPage]
 	)
 
 	// Use infinite scroll hook

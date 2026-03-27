@@ -18,6 +18,8 @@ import * as React from 'react'
 import { useInfiniteScroll } from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 import { useContextAwareApi } from '../../context/index.js'
+import { useCurrentContextIdTag } from '../../context/index.js'
+import { createCachedActionFetchPage } from '../../cache/index.js'
 import { useWsBus } from '../../ws-bus.js'
 
 export interface UseFeedPostsOptions {
@@ -33,15 +35,16 @@ const PAGE_SIZE = 15
 export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 	const { audience, tag, search, visibility, enabled = true } = options
 	const { api } = useContextAwareApi()
+	const contextIdTag = useCurrentContextIdTag()
 	const [newPosts, setNewPosts] = React.useState<ActionView[]>([])
 	const postsRef = React.useRef<ActionView[]>([])
 	const newPostsRef = React.useRef<ActionView[]>([])
 
-	// Fetch page function for infinite scroll
-	const fetchPage = React.useCallback(
+	// Raw network fetch function
+	const rawFetchPage = React.useCallback(
 		async (cursor: string | null, limit: number) => {
 			if (!api) {
-				return { items: [], nextCursor: null, hasMore: false }
+				return { items: [] as ActionView[], nextCursor: null, hasMore: false }
 			}
 
 			const result = await api.actions.listPaginated({
@@ -61,6 +64,15 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 			}
 		},
 		[api, audience, tag, search, visibility]
+	)
+
+	// Cache query params for offline fallback
+	const cacheQueryParams = React.useMemo(() => ({ type: 'POST' as const, audience }), [audience])
+
+	// Fetch page with offline cache fallback
+	const fetchPage = React.useMemo(
+		() => createCachedActionFetchPage(contextIdTag, rawFetchPage, cacheQueryParams),
+		[contextIdTag, rawFetchPage, cacheQueryParams]
 	)
 
 	// Use infinite scroll hook

@@ -20,6 +20,7 @@ import { useAuth, useInfiniteScroll } from '@cloudillo/react'
 import type * as Types from '@cloudillo/core'
 import { parseQS } from '../../../utils.js'
 import { useCurrentContextIdTag, useContextAwareApi } from '../../../context/index.js'
+import { createCachedFileFetchPage } from '../../../cache/index.js'
 import type { File, ViewMode } from '../types.js'
 import { TRASH_FOLDER_ID } from '../types.js'
 
@@ -123,25 +124,64 @@ export function useFileList(options?: UseFileListOptions) {
 		[viewMode, parentId, tagsParam, filter]
 	)
 
-	// Fetch page function for infinite scroll
-	const fetchPage = React.useCallback(
+	// Build cache query params for offline fallback.
+	// For "all" at root (parentId=null), return all cached files for the context
+	// rather than only root-level files — this maximizes offline usefulness.
+	const cacheQueryParams = React.useMemo(() => {
+		switch (viewMode) {
+			case 'starred':
+				return { starred: true }
+			case 'pinned':
+				return { pinned: true }
+			case 'live':
+				return { fileTp: 'CRDT,RTDB' }
+			case 'static':
+				return { fileTp: 'BLOB' }
+			case 'recent':
+				return {} // All cached files, sorted by date (no folder filter)
+			case 'trash':
+				return { parentId: TRASH_FOLDER_ID }
+			default:
+				// Only apply parentId filter for subfolder navigation, not root
+				return parentId ? { parentId } : {}
+		}
+	}, [viewMode, parentId])
+
+	// Raw network fetch function (returns FileView for caching)
+	const rawFetchPage = React.useCallback(
 		async (cursor: string | null, limit: number) => {
 			if (!api) {
-				return { items: [], nextCursor: null, hasMore: false }
+				return { items: [] as Types.FileView[], nextCursor: null, hasMore: false }
 			}
 
 			const queryParams = buildQueryParams(cursor, limit)
 			const result = await api.files.listPaginated(queryParams)
 
-			const files = result.data.map(convertFileView)
-
 			return {
-				items: files,
+				items: result.data,
 				nextCursor: result.cursorPagination?.nextCursor ?? null,
 				hasMore: result.cursorPagination?.hasMore ?? false
 			}
 		},
 		[api, buildQueryParams, viewMode]
+	)
+
+	// Cached fetch page wrapping network call with offline fallback
+	const cachedFetchPage = React.useMemo(
+		() => createCachedFileFetchPage(contextIdTag, rawFetchPage, cacheQueryParams),
+		[contextIdTag, rawFetchPage, cacheQueryParams]
+	)
+
+	// Convert FileView → File after cache layer
+	const fetchPage = React.useCallback(
+		async (cursor: string | null, limit: number) => {
+			const result = await cachedFetchPage(cursor, limit)
+			return {
+				...result,
+				items: result.items.map(convertFileView)
+			}
+		},
+		[cachedFetchPage]
 	)
 
 	// Use infinite scroll hook

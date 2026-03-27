@@ -15,10 +15,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { useLocation } from 'react-router-dom'
 import { useAuth, useInfiniteScroll } from '@cloudillo/react'
 import type * as Types from '@cloudillo/core'
-import { parseQS } from '../../../utils.js'
 import { useCurrentContextIdTag, useContextAwareApi } from '../../../context/index.js'
 import { createCachedFileFetchPage } from '../../../cache/index.js'
 import type { File, ViewMode } from '../types.js'
@@ -71,23 +69,15 @@ function convertFileView(f: Types.FileView): File {
 export function useFileList(options?: UseFileListOptions) {
 	const { api } = useContextAwareApi()
 	const [_auth] = useAuth()
-	const location = useLocation()
 	const contextIdTag = useCurrentContextIdTag()
 	const [sort, setSort] = React.useState<keyof File | undefined>()
 	const [sortAsc, setSortAsc] = React.useState(false)
 	const [refreshCounter, setRefreshCounter] = React.useState(0)
-	const [filter, setFilter] = React.useState<Record<string, string> | undefined>()
 
 	const { viewMode = 'all', parentId, tags } = options || {}
 
 	// Convert tags array to comma-separated string for API
 	const tagsParam = tags && tags.length > 0 ? tags.join(',') : undefined
-
-	// Parse query string once
-	React.useEffect(() => {
-		const qs = parseQS(location.search)
-		setFilter(qs)
-	}, [location.search])
 
 	// Build the base query params based on viewMode
 	const buildQueryParams = React.useCallback(
@@ -116,12 +106,11 @@ export function useFileList(options?: UseFileListOptions) {
 					// 'all' mode - use parentId if provided
 					return {
 						...baseParams,
-						...(filter || {}),
 						...(parentId !== undefined && { parentId: parentId ?? '__root__' })
 					}
 			}
 		},
-		[viewMode, parentId, tagsParam, filter]
+		[viewMode, parentId, tagsParam]
 	)
 
 	// Build cache query params for offline fallback.
@@ -198,7 +187,7 @@ export function useFileList(options?: UseFileListOptions) {
 	} = useInfiniteScroll<File>({
 		fetchPage,
 		pageSize: PAGE_SIZE,
-		deps: [viewMode, parentId, tagsParam, contextIdTag, refreshCounter, filter],
+		deps: [viewMode, parentId, tagsParam, contextIdTag, refreshCounter],
 		enabled: !!api
 	})
 
@@ -232,7 +221,6 @@ export function useFileList(options?: UseFileListOptions) {
 				getData,
 				files,
 				setFileData,
-				filter,
 				state: { sort, sortAsc },
 				setState,
 				refresh,
@@ -249,7 +237,6 @@ export function useFileList(options?: UseFileListOptions) {
 		},
 		[
 			files,
-			filter,
 			sort,
 			sortAsc,
 			isLoading,

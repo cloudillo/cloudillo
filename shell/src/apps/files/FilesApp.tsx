@@ -17,6 +17,7 @@
 import * as React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useAtom } from 'jotai'
 
 import { LuFilter as IcFilter, LuCloud as IcAll } from 'react-icons/lu'
 
@@ -51,7 +52,7 @@ import {
 	FolderPicker,
 	ShareDialog
 } from './components/index.js'
-import type { DisplayMode, ContextMenuPosition } from './components/index.js'
+import type { ContextMenuPosition } from './components/index.js'
 import {
 	useFileList,
 	useFileNavigation,
@@ -60,6 +61,7 @@ import {
 	useMultiSelect
 } from './hooks/index.js'
 import type { File, FileOps, ViewMode } from './types.js'
+import { selectedTagsAtom, displayModeAtom } from './atoms.js'
 
 export function FilesApp() {
 	const navigate = useNavigate()
@@ -89,8 +91,8 @@ export function FilesApp() {
 		getDirtyDocIds().then(setDirtyDocIds)
 	}, [])
 
-	// Tag filter state
-	const [selectedTags, setSelectedTags] = React.useState<string[]>([])
+	// Tag filter state (persists across route changes via Jotai atom)
+	const [selectedTags, setSelectedTags] = useAtom(selectedTagsAtom)
 
 	// File list (with tag filter)
 	const fileListData = useFileList({ viewMode, parentId: currentFolderId, tags: selectedTags })
@@ -138,8 +140,8 @@ export function FilesApp() {
 	// Filter visibility (mobile)
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 
-	// Display mode (grid/list)
-	const [displayMode, setDisplayMode] = React.useState<DisplayMode>('list')
+	// Display mode (grid/list, persists across sessions via localStorage atom)
+	const [displayMode, setDisplayMode] = useAtom(displayModeAtom)
 
 	// Context menu state
 	const [contextMenuFile, setContextMenuFile] = React.useState<File | undefined>()
@@ -158,12 +160,12 @@ export function FilesApp() {
 	// On mobile (<768px), details panel only shows when explicitly requested via info button
 	const [showMobileDetails, setShowMobileDetails] = React.useState<boolean>(false)
 
-	// Reset filter on location change
+	// Reset filter on path change (not on search param changes like folder navigation)
 	React.useEffect(
 		function onLocationEffect() {
 			setShowFilter(false)
 		},
-		[location]
+		[location.pathname]
 	)
 
 	const onClickFile = React.useCallback(
@@ -233,12 +235,15 @@ export function FilesApp() {
 		[api, moveFileIds, fileListData, multiSelect]
 	)
 
+	const clearSelectionRef = React.useRef(multiSelect.clearSelection)
+	clearSelectionRef.current = multiSelect.clearSelection
+
 	const handleViewModeChange = React.useCallback(
 		function (mode: ViewMode) {
 			navigateToView(mode)
-			multiSelect.clearSelection()
+			clearSelectionRef.current()
 		},
-		[navigateToView, multiSelect]
+		[navigateToView]
 	)
 
 	const handleCreateFolder = React.useCallback(
@@ -464,19 +469,7 @@ export function FilesApp() {
 				}
 			}
 		}),
-		[
-			auth,
-			api,
-			appConfig,
-			contextIdTag,
-			navigate,
-			t,
-			fileListData,
-			dialog,
-			toast,
-			viewMode,
-			multiSelect
-		]
+		[auth, api, appConfig, contextIdTag, navigate, t, fileListData, dialog, toast, multiSelect]
 	)
 
 	// Keyboard shortcuts
@@ -499,14 +492,7 @@ export function FilesApp() {
 	})
 
 	const isTrashView = viewMode === 'trash'
-
-	// Show loading spinner only for initial load
-	if (fileListData.isLoading && files.length === 0)
-		return (
-			<div className="d-flex align-items-center justify-content-center h-100">
-				<LoadingSpinner size="lg" label={t('Loading files...')} />
-			</div>
-		)
+	const isInitialLoading = fileListData.isLoading && files.length === 0
 
 	// Disable drag-drop in trash view
 	const canUpload = viewMode === 'all'
@@ -570,7 +556,11 @@ export function FilesApp() {
 							</div>
 						}
 					>
-						{files.length === 0 ? (
+						{isInitialLoading ? (
+							<div className="d-flex align-items-center justify-content-center flex-fill">
+								<LoadingSpinner size="lg" label={t('Loading files...')} />
+							</div>
+						) : files.length === 0 ? (
 							<EmptyState
 								icon={<IcAll style={{ fontSize: '2.5rem' }} />}
 								title={

@@ -16,6 +16,7 @@
 
 import * as React from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useAtom } from 'jotai'
 import {
 	useContextAwareApi,
 	useContextSwitch,
@@ -23,6 +24,7 @@ import {
 } from '../../../context/index.js'
 import type { File, ViewMode } from '../types.js'
 import { TRASH_FOLDER_ID } from '../types.js'
+import { viewModeAtom } from '../atoms.js'
 
 export interface BreadcrumbItem {
 	id: string | null
@@ -36,7 +38,7 @@ export function useFileNavigation() {
 	const { switchTo } = useContextSwitch()
 	const contextIdTag = useCurrentContextIdTag()
 	const [breadcrumbs, setBreadcrumbs] = React.useState<BreadcrumbItem[]>([])
-	const [viewMode, setViewMode] = React.useState<ViewMode>('all')
+	const [viewMode, setViewMode] = useAtom(viewModeAtom)
 
 	// Get current folder from URL
 	const currentFolderId = searchParams.get('parentId') || null

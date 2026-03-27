@@ -799,10 +799,14 @@ export class AppMessageBus extends MessageBusBase {
 	/**
 	 * Compact the CRDT cache for a document
 	 */
-	async crdtCacheCompact(docId: string, state: Uint8Array): Promise<void> {
+	async crdtCacheCompact(docId: string, state: Uint8Array, clearDirty?: boolean): Promise<void> {
 		await this.sendRequest<void>((id) => {
 			this.sendToShell(
-				this.createRequestWithPayload('crdt:cache.compact.req', id, { docId, state })
+				this.createRequestWithPayload('crdt:cache.compact.req', id, {
+					docId,
+					state,
+					clearDirty
+				})
 			)
 		})
 	}

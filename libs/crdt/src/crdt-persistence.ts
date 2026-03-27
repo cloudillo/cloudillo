@@ -80,16 +80,21 @@ export class CrdtPersistence {
 		}
 	}
 
-	private compact(): void {
+	private compact(clearDirty?: boolean): void {
 		const state = Y.encodeStateAsUpdate(this.yDoc)
 		this.bus
-			.crdtCacheCompact(this.docId, state)
+			.crdtCacheCompact(this.docId, state, clearDirty)
 			.then(() => {
 				this.updateCount = 0
 			})
 			.catch((err) => {
 				console.error('[CRDT] Failed to compact cache:', err)
 			})
+	}
+
+	/** Re-compact after an online sync merges server state with cached offline state */
+	recompact(): void {
+		this.compact(true)
 	}
 
 	destroy(): void {

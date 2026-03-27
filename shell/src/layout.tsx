@@ -1049,6 +1049,7 @@ export function Layout() {
 					const currentApi = apiRef.current
 					const currentAuth = authRef.current
 					if (!currentApi || !currentAuth) return undefined
+					if (!navigator.onLine) return undefined
 					try {
 						const [targetTag] = resId.split(':')
 						const res = await currentApi.auth.getProxyToken(targetTag)

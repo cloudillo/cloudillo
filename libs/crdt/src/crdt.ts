@@ -66,7 +66,12 @@ import { CrdtPersistence } from './crdt-persistence.js'
 export async function openYDoc(
 	yDoc: Y.Doc,
 	docId: string
-): Promise<{ yDoc: Y.Doc; provider: WebsocketProvider; persistence: CrdtPersistence }> {
+): Promise<{
+	yDoc: Y.Doc
+	provider: WebsocketProvider
+	persistence: CrdtPersistence
+	offlineCached: boolean
+}> {
 	const bus = getAppBus()
 	const token = bus.accessToken
 	const accessLevel = bus.access
@@ -109,6 +114,9 @@ export async function openYDoc(
 		access: accessLevel || (token ? 'write' : 'read')
 	}
 	if (token) params.token = token
+
+	// Detect offline-with-cache: no token but we have locally cached data
+	const offlineCached = !token && hadCache
 
 	const wsProvider = new WebsocketProvider(getCrdtUrl(targetTag), resId, yDoc, { params })
 
@@ -194,15 +202,25 @@ export async function openYDoc(
 		}
 	})
 
-	// Start persisting incremental updates after initial sync
-	wsProvider.once('sync', () => {
+	if (offlineCached) {
+		// Offline with cache: start persisting immediately so local edits are saved
 		persistence.startPersisting()
-	})
+		// When we eventually sync (back online), re-compact to merge states
+		wsProvider.once('sync', () => {
+			persistence.recompact()
+		})
+	} else {
+		// Normal online flow: start persisting after initial sync
+		wsProvider.once('sync', () => {
+			persistence.startPersisting()
+		})
+	}
 
 	return {
 		yDoc,
 		provider: wsProvider,
-		persistence
+		persistence,
+		offlineCached
 	}
 }
 

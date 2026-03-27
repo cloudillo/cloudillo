@@ -852,7 +852,8 @@ export const tCrdtCacheCompactReq = T.struct({
 	id: T.number,
 	payload: T.struct({
 		docId: T.string,
-		state: T.unknown // Uint8Array (structured clone)
+		state: T.unknown, // Uint8Array (structured clone)
+		clearDirty: T.optional(T.boolean) // Clear dirty flag after post-sync recompact
 	})
 })
 export type CrdtCacheCompactReq = T.TypeOf<typeof tCrdtCacheCompactReq>

@@ -157,10 +157,22 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 					// Ignore token parsing errors
 				}
 			} else if (resId) {
-				// Fetch token via API for authenticated users
-				const tokenResult = await bus.getAccessToken(resId, connection?.access || 'write')
-				token = tokenResult?.token
-				tokenLifetime = tokenResult?.tokenLifetime
+				// Fast-fail when offline to avoid network timeout delays
+				if (!navigator.onLine) {
+					console.log('[Auth] Offline — skipping token fetch for:', resId)
+					// token remains undefined — app will use cached CRDT data
+				} else
+					try {
+						const tokenResult = await bus.getAccessToken(
+							resId,
+							connection?.access || 'write'
+						)
+						token = tokenResult?.token
+						tokenLifetime = tokenResult?.tokenLifetime
+					} catch (err) {
+						console.warn('[Auth] Token fetch failed (possibly offline):', err)
+						// Continue with undefined token — app will use cached CRDT data
+					}
 			}
 
 			// Store scoped token and mark app as initialized

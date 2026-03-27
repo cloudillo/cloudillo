@@ -34,6 +34,7 @@ import type {
 	CrdtCacheReadReq,
 	CrdtCacheCompactReq
 } from '@cloudillo/core'
+import { encryptBinary, decryptBinary } from '../../cache/crypto.js'
 
 // ============================================
 // CONSTANTS
@@ -118,71 +119,6 @@ function openDB(): Promise<IDBDatabase> {
 		}
 		request.onerror = () => reject(request.error)
 	})
-}
-
-// ============================================
-// AES-GCM ENCRYPTION
-// ============================================
-
-let cryptoKey: CryptoKey | null = null
-
-function getSwKeyFromCookie(): string | null {
-	const match = document.cookie.match(/(?:^|;\s*)swKey=([^;]+)/)
-	return match ? match[1] : null
-}
-
-async function initCryptoKey(): Promise<CryptoKey | null> {
-	if (cryptoKey) return cryptoKey
-
-	const keyString = getSwKeyFromCookie()
-	if (!keyString) return null
-
-	try {
-		const padding = '='.repeat((4 - (keyString.length % 4)) % 4)
-		const base64 = (keyString + padding).replace(/-/g, '+').replace(/_/g, '/')
-		const keyData = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
-		cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'AES-GCM' }, false, [
-			'encrypt',
-			'decrypt'
-		])
-		return cryptoKey
-	} catch (err) {
-		console.error('[CRDT] Failed to import encryption key:', err)
-		return null
-	}
-}
-
-async function encryptBinary(data: Uint8Array): Promise<ArrayBuffer | null> {
-	const key = await initCryptoKey()
-	if (!key) return null
-
-	const iv = crypto.getRandomValues(new Uint8Array(12))
-	const ciphertext = await crypto.subtle.encrypt(
-		{ name: 'AES-GCM', iv },
-		key,
-		data as ArrayBufferView<ArrayBuffer>
-	)
-	const combined = new ArrayBuffer(iv.length + ciphertext.byteLength)
-	const view = new Uint8Array(combined)
-	view.set(iv)
-	view.set(new Uint8Array(ciphertext), iv.length)
-	return combined
-}
-
-async function decryptBinary(encrypted: ArrayBuffer): Promise<Uint8Array | null> {
-	const key = await initCryptoKey()
-	if (!key) return null
-
-	try {
-		const view = new Uint8Array(encrypted)
-		const iv = view.slice(0, 12)
-		const ciphertext = view.slice(12)
-		const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext)
-		return new Uint8Array(decrypted)
-	} catch (err) {
-		console.error('[CRDT] Decryption failed:', err)
-		return null
-	}
 }
 
 // ============================================
@@ -299,6 +235,8 @@ async function cacheAppend(
 
 				tx.objectStore(CACHE_STORE).add(encrypted, key)
 				tx.objectStore(CLIENTIDS_STORE).put(clock, `${docId}:${clientId}`)
+				// Mark document as having unsynced local edits
+				tx.objectStore(CACHE_STORE).put(true, `${docId}:dirty`)
 
 				tx.oncomplete = () => resolve()
 				tx.onerror = () => reject(tx.error)
@@ -356,7 +294,7 @@ async function cacheRead(docId: string): Promise<Uint8Array[]> {
 	return results
 }
 
-async function cacheCompact(docId: string, state: Uint8Array): Promise<void> {
+async function cacheCompact(docId: string, state: Uint8Array, clearDirty?: boolean): Promise<void> {
 	const encrypted = await encryptBinary(state)
 	if (!encrypted) throw new Error('Encryption unavailable')
 
@@ -384,9 +322,45 @@ async function cacheCompact(docId: string, state: Uint8Array): Promise<void> {
 			store.delete(key)
 		}
 
+		// Clear dirty flag after post-sync recompact
+		if (clearDirty) {
+			store.delete(`${docId}:dirty`)
+		}
+
 		tx.oncomplete = () => resolve()
 		tx.onerror = () => reject(tx.error)
 	})
+}
+
+// ============================================
+// DIRTY FLAG QUERIES
+// ============================================
+
+/**
+ * Get document IDs that have unsynced local edits.
+ * Returns docIds (format: "ownerTag:fileId") with dirty flag set.
+ */
+export async function getDirtyDocIds(): Promise<Set<string>> {
+	const dirty = new Set<string>()
+	try {
+		const database = await openDB()
+		const keys = await new Promise<IDBValidKey[]>((resolve, reject) => {
+			const tx = database.transaction(CACHE_STORE, 'readonly')
+			const store = tx.objectStore(CACHE_STORE)
+			const request = store.getAllKeys()
+			request.onsuccess = () => resolve(request.result)
+			request.onerror = () => reject(request.error)
+		})
+		for (const key of keys) {
+			const k = String(key)
+			if (k.endsWith(':dirty')) {
+				dirty.add(k.slice(0, -6)) // Remove ':dirty' suffix
+			}
+		}
+	} catch {
+		// Ignore errors (DB may not be open yet)
+	}
+	return dirty
 }
 
 // ============================================
@@ -490,7 +464,7 @@ export function initCrdtHandlers(bus: ShellMessageBus): void {
 		if (!appWindow) return
 
 		try {
-			const { docId, state } = msg.payload
+			const { docId, state, clearDirty } = msg.payload
 			if (!(state instanceof Uint8Array)) {
 				bus.sendResponse(
 					appWindow,
@@ -502,7 +476,7 @@ export function initCrdtHandlers(bus: ShellMessageBus): void {
 				)
 				return
 			}
-			await cacheCompact(docId, state)
+			await cacheCompact(docId, state, clearDirty)
 			bus.sendResponse(appWindow, 'crdt:cache.res', msg.id, true)
 		} catch (err) {
 			bus.sendResponse(

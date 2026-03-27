@@ -179,6 +179,30 @@ export function useCloudillo(appNameArg?: string): UseCloudillo {
 					// Note: bus.init() automatically calls notifyReady('auth')
 				} catch (e) {
 					console.error('useCloudillo INIT ERROR', e)
+					// Offline fallback: use whatever state the bus has
+					// (may have been set by auth:init.push before timeout)
+					const bus = getAppBus()
+					const partialState = bus.getState()
+					if (partialState.idTag) {
+						setAuth({
+							idTag: partialState.idTag,
+							tnId: partialState.tnId ?? 0,
+							roles: partialState.roles,
+							token: partialState.accessToken
+						})
+					} else {
+						// Neither push nor response arrived — derive idTag from URL hash
+						const [hashOwnerTag] = location.hash.slice(1).split(':')
+						if (hashOwnerTag) {
+							setAuth({
+								idTag: hashOwnerTag,
+								tnId: 0,
+								roles: undefined,
+								token: undefined
+							})
+							bus.notifyReady('auth')
+						}
+					}
 				}
 			})()
 		},
@@ -220,7 +244,7 @@ export function useCloudilloEditor(appName: string) {
 
 			if (cl.idTag && docId) {
 				;(async function initDoc() {
-					const { provider, persistence } = await openYDoc(yDoc, docId)
+					const { provider, persistence, offlineCached } = await openYDoc(yDoc, docId)
 
 					// Check if component unmounted during async operation
 					if (!isMounted) {
@@ -235,16 +259,6 @@ export function useCloudilloEditor(appName: string) {
 
 					const bus = getAppBus()
 
-					// Define handleSync for cleanup access
-					handleSync = (isSynced: boolean) => {
-						if (isSynced && isMounted) {
-							setSynced(true)
-							provider.off('sync', handleSync!)
-							// Notify shell that CRDT sync is complete - app is now fully ready
-							bus.notifyReady('synced')
-						}
-					}
-
 					// Listen for connection-close events (440x errors from CRDT server)
 					const handleConnectionClose = (event: CloseEvent | null) => {
 						if (isMounted && event && event.code >= 4400 && event.code < 4500) {
@@ -253,13 +267,34 @@ export function useCloudilloEditor(appName: string) {
 					}
 					provider.on('connection-close', handleConnectionClose)
 
-					// Check if already synced
-					if (provider.synced) {
+					if (offlineCached) {
+						// Offline with cached data: immediately mark as ready
 						setSynced(true)
-						// Notify shell that CRDT sync is complete - app is now fully ready
 						bus.notifyReady('synced')
-					} else {
+
+						// Still register sync handler for when we come back online
+						handleSync = (isSynced: boolean) => {
+							if (isSynced && isMounted) {
+								provider.off('sync', handleSync!)
+							}
+						}
 						provider.on('sync', handleSync)
+					} else {
+						// Normal online flow
+						handleSync = (isSynced: boolean) => {
+							if (isSynced && isMounted) {
+								setSynced(true)
+								provider.off('sync', handleSync!)
+								bus.notifyReady('synced')
+							}
+						}
+
+						if (provider.synced) {
+							setSynced(true)
+							bus.notifyReady('synced')
+						} else {
+							provider.on('sync', handleSync)
+						}
 					}
 				})()
 			}

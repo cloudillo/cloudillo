@@ -25,6 +25,208 @@ const PRECACHE_URLS: string[] = [
 	'/offline.html'
 ]
 
+/************************/
+/* Blob Cache           */
+/************************/
+const BLOB_CACHE_NAME = 'cloudillo-blobs'
+const BLOB_CACHE_BUDGET = 30 * 1024 * 1024 // 30MB
+const MAX_BLOB_SIZE = 500 * 1024 // 500KB — reject larger blobs
+const CACHEABLE_VARIANTS = new Set(['vis.pf', 'vis.tn', 'vis.sd', 'vis.md'])
+const VARIANT_PRIORITY: Record<string, number> = {
+	'vis.md': 0, // evicted first
+	'vis.sd': 1,
+	'vis.tn': 2,
+	'vis.pf': 3 // evicted last
+}
+const BLOB_META_KEY = 'blobMeta'
+const BLOB_META_PERSIST_INTERVAL = 10_000 // 10s
+
+interface BlobMeta {
+	variant: string
+	size: number
+	cachedAt: number
+	accessedAt: number
+}
+
+// In-memory blob metadata map: url → BlobMeta
+let blobMetaMap = new Map<string, BlobMeta>()
+let blobMetaDirty = false
+let blobMetaPersistTimer: ReturnType<typeof setTimeout> | null = null
+let blobTotalSize = 0
+
+function getBlobCache(): Promise<Cache> {
+	return caches.open(BLOB_CACHE_NAME)
+}
+
+function isCacheableBlobRequest(url: URL): string | null {
+	if (!url.pathname.startsWith('/api/files/')) return null
+	const variant = url.searchParams.get('variant')
+	if (!variant || !CACHEABLE_VARIANTS.has(variant)) return null
+	return variant
+}
+
+function blobCacheKey(url: URL): string {
+	// Normalize: use only origin + pathname + variant (strip token param)
+	const normalized = new URL(url.origin + url.pathname)
+	const variant = url.searchParams.get('variant')
+	if (variant) normalized.searchParams.set('variant', variant)
+	return normalized.toString()
+}
+
+async function cacheBlobResponse(url: URL, response: Response): Promise<void> {
+	const variant = url.searchParams.get('variant')
+	if (!variant) return
+
+	// Clone IMMEDIATELY — the caller returns the original response to the browser,
+	// so its body will be locked after the first await yields control
+	const cloned = response.clone()
+
+	// Determine size: prefer Content-Length, fall back to reading the body
+	const contentLength = cloned.headers.get('Content-Length')
+	let size = contentLength ? parseInt(contentLength, 10) : NaN
+
+	const key = blobCacheKey(url)
+	const cache = await getBlobCache()
+
+	if (!Number.isNaN(size) && size > 0 && size <= MAX_BLOB_SIZE) {
+		// Content-Length is available and within limits — cache directly
+		await cache.put(new Request(key), cloned)
+	} else if (Number.isNaN(size)) {
+		// No Content-Length (chunked encoding) — read body to measure size
+		const body = await cloned.arrayBuffer()
+		size = body.byteLength
+		if (size === 0 || size > MAX_BLOB_SIZE) return
+		await cache.put(
+			new Request(key),
+			new Response(body, {
+				status: cloned.status,
+				statusText: cloned.statusText,
+				headers: cloned.headers
+			})
+		)
+	} else {
+		// Size is 0 or exceeds limit
+		return
+	}
+
+	// Update metadata
+	blobMetaMap.set(key, {
+		variant,
+		size,
+		cachedAt: Date.now(),
+		accessedAt: Date.now()
+	})
+	blobTotalSize += size
+	scheduleBlobMetaPersist()
+
+	// Trigger eviction if over budget
+	if (blobTotalSize > BLOB_CACHE_BUDGET) {
+		evictBlobCache().catch((err) => console.warn('[SW] Blob eviction error:', err))
+	}
+}
+
+async function evictBlobCache(): Promise<void> {
+	if (blobTotalSize <= BLOB_CACHE_BUDGET) return
+
+	const cache = await getBlobCache()
+
+	// Sort entries: lowest priority first, then oldest accessedAt
+	const entries = [...blobMetaMap.entries()].sort(([, a], [, b]) => {
+		const pa = VARIANT_PRIORITY[a.variant] ?? 0
+		const pb = VARIANT_PRIORITY[b.variant] ?? 0
+		if (pa !== pb) return pa - pb // lower priority number = evicted first
+		return a.accessedAt - b.accessedAt // oldest first
+	})
+
+	for (const [key, meta] of entries) {
+		if (blobTotalSize <= BLOB_CACHE_BUDGET) break
+
+		await cache.delete(new Request(key))
+		blobTotalSize -= meta.size
+		blobMetaMap.delete(key)
+	}
+	scheduleBlobMetaPersist()
+	log &&
+		console.log('[SW] Blob eviction complete, total:', Math.round(blobTotalSize / 1024), 'KB')
+}
+
+async function clearBlobCache(): Promise<void> {
+	await caches.delete(BLOB_CACHE_NAME)
+	blobMetaMap.clear()
+	blobTotalSize = 0
+	blobMetaDirty = false
+	try {
+		await deleteItem(BLOB_META_KEY)
+	} catch {
+		/* ignore */
+	}
+	log && console.log('[SW] Blob cache cleared')
+}
+
+function scheduleBlobMetaPersist(): void {
+	blobMetaDirty = true
+	if (blobMetaPersistTimer) return
+	blobMetaPersistTimer = setTimeout(() => {
+		blobMetaPersistTimer = null
+		persistBlobMeta().catch((err) => console.warn('[SW] Blob meta persist error:', err))
+	}, BLOB_META_PERSIST_INTERVAL)
+}
+
+async function persistBlobMeta(): Promise<void> {
+	if (!blobMetaDirty) return
+	const serialized = JSON.stringify([...blobMetaMap.entries()])
+	await setItem(BLOB_META_KEY, serialized)
+	blobMetaDirty = false
+}
+
+async function loadBlobMeta(): Promise<void> {
+	try {
+		const raw = (await getItem(BLOB_META_KEY)) as string | undefined
+		if (!raw) return
+		const entries: [string, BlobMeta][] = JSON.parse(raw)
+		blobMetaMap = new Map(entries)
+		blobTotalSize = 0
+		for (const [, meta] of blobMetaMap) {
+			blobTotalSize += meta.size
+		}
+		log &&
+			console.log(
+				'[SW] Loaded blob meta:',
+				blobMetaMap.size,
+				'entries,',
+				Math.round(blobTotalSize / 1024),
+				'KB'
+			)
+	} catch (err) {
+		console.warn('[SW] Failed to load blob meta:', err)
+		blobMetaMap.clear()
+		blobTotalSize = 0
+	}
+}
+
+async function fetchWithBlobCache(request: Request, url: URL): Promise<Response | null> {
+	const variant = isCacheableBlobRequest(url)
+	if (!variant || request.method !== 'GET') return null
+
+	const key = blobCacheKey(url)
+	const cache = await getBlobCache()
+
+	// Check cache
+	const cached = await cache.match(new Request(key))
+	if (cached) {
+		// Update accessedAt in memory
+		const meta = blobMetaMap.get(key)
+		if (meta) {
+			meta.accessedAt = Date.now()
+			scheduleBlobMetaPersist()
+		}
+		log && console.log('[SW] BLOB CACHE HIT', variant, url.pathname)
+		return cached
+	}
+
+	return null
+}
+
 type CacheStrategy = 'cache-first' | 'network-first' | 'network-only'
 
 function shouldCache(response: Response): boolean {
@@ -377,11 +579,17 @@ function onActivate(evt: ExtendableEvent) {
 	evt.waitUntil(
 		(async function () {
 			console.log(`[SW] ACTIVATE v${VERSION}, cache: ${CACHE}`)
-			const cacheList = (await caches.keys()).filter((name) => name !== CACHE)
+			// Keep blob cache across versions — only delete old versioned caches
+			const keepCaches = new Set([CACHE, BLOB_CACHE_NAME])
+			const cacheList = (await caches.keys()).filter((name) => !keepCaches.has(name))
 			if (cacheList.length > 0) {
 				console.log(`[SW] Deleting old caches:`, cacheList)
 			}
 			await Promise.all(cacheList.map((name) => caches.delete(name)))
+
+			// Load blob metadata and run eviction
+			await loadBlobMeta()
+			evictBlobCache().catch((err) => console.warn('[SW] Blob eviction on activate:', err))
 
 			// Load persisted token on activation
 			if (!authToken) {
@@ -463,6 +671,11 @@ function onFetch(evt: FetchEvent) {
 				if (idTag && reqUrl.hostname == 'cl-o.' + idTag) {
 					// Handle requests to our own idTag
 					log && console.log('[SW] OWN FETCH', evt.request.method, reqUrl.pathname)
+
+					// Check blob cache first for cacheable file requests
+					const cachedBlob = await fetchWithBlobCache(evt.request, reqUrl)
+					if (cachedBlob) return cachedBlob
+
 					try {
 						let request = evt.request
 						// Skip auth header for endpoints that use their own credentials
@@ -511,9 +724,25 @@ function onFetch(evt: FetchEvent) {
 						return cleanedRes
 						*/
 						}
+
+						// Cache cacheable blob responses in the background
+						if (origRes.ok && isCacheableBlobRequest(reqUrl)) {
+							cacheBlobResponse(reqUrl, origRes).catch((err) =>
+								console.warn('[SW] Blob cache write error:', err)
+							)
+						}
+
 						return origRes
 					} catch (err) {
 						log && console.log('[SW] FETCH ERROR', err)
+
+						// Fallback to blob cache on network error
+						const blobFallback = await fetchWithBlobCache(evt.request, reqUrl)
+						if (blobFallback) {
+							log && console.log('[SW] BLOB CACHE FALLBACK', reqUrl.pathname)
+							return blobFallback
+						}
+
 						throw err
 					}
 				} else if (
@@ -523,6 +752,11 @@ function onFetch(evt: FetchEvent) {
 				) {
 					// Handle requests to other idTags (federated requests)
 					log && console.log('[SW] FETCH API', evt.request.method, evt.request.url)
+
+					// Check blob cache first for federated file requests
+					const cachedFedBlob = await fetchWithBlobCache(evt.request, reqUrl)
+					if (cachedFedBlob) return cachedFedBlob
+
 					const targetTag = new URL(evt.request.url).hostname.replace('cl-o.', '')
 
 					log &&
@@ -567,9 +801,25 @@ function onFetch(evt: FetchEvent) {
 							})
 						const res = await fetch(request)
 						log && console.log('[SW] NOCACHE', res)
+
+						// Cache cacheable federated blob responses
+						if (res.ok && isCacheableBlobRequest(reqUrl)) {
+							cacheBlobResponse(reqUrl, res).catch((err) =>
+								console.warn('[SW] Federated blob cache write error:', err)
+							)
+						}
+
 						return res
 					} catch (err) {
 						console.log('[SW] FETCH ERROR', err)
+
+						// Fallback to blob cache on network error
+						const fedBlobFallback = await fetchWithBlobCache(evt.request, reqUrl)
+						if (fedBlobFallback) {
+							log && console.log('[SW] FED BLOB CACHE FALLBACK', reqUrl.pathname)
+							return fedBlobFallback
+						}
+
 						throw err
 					}
 				}
@@ -727,6 +977,7 @@ async function onMessage(evt: MessageEvent) {
 			authToken = undefined
 			proxyTokenCache.clear()
 			await deleteSecureItem('authToken')
+			await clearBlobCache()
 			break
 
 		case 'sw:apikey.set':
@@ -769,6 +1020,7 @@ async function onMessage(evt: MessageEvent) {
 			// Clear encrypted data to allow fresh key generation
 			await deleteItem('authToken')
 			await deleteItem('apiKey')
+			await clearBlobCache()
 			keyErrorState = null // Clear error state
 			cryptoKey = null // Clear cached key
 			cachedKeyString = null // Clear cached key from postMessage

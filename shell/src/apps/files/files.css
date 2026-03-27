@@ -405,6 +405,27 @@
 	box-shadow: 0 0 4px var(--col-success);
 }
 
+/* Unsynced local edits indicator */
+.c-file-card-dirty {
+	position: absolute;
+	top: -4px;
+	left: -4px;
+	color: var(--col-warning);
+	background: rgba(var(--col-rgb-surface), 0.7);
+	backdrop-filter: blur(4px);
+	border-radius: 50%;
+	padding: 2px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	line-height: 1;
+}
+
+.c-file-card-dirty svg {
+	width: 0.9rem;
+	height: 0.9rem;
+}
+
 /* File Preview in Details Panel */
 .c-file-preview {
 	display: flex;
@@ -818,6 +839,27 @@
 	background: var(--col-success);
 	border-radius: 50%;
 	box-shadow: 0 0 4px var(--col-success);
+}
+
+/* Grid view: Unsynced local edits indicator */
+.c-file-grid-dirty {
+	position: absolute;
+	top: var(--space-1);
+	left: var(--space-1);
+	color: var(--col-warning);
+	background: rgba(var(--col-rgb-surface), 0.7);
+	backdrop-filter: blur(4px);
+	border-radius: 50%;
+	padding: 3px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	line-height: 1;
+}
+
+.c-file-grid-dirty svg {
+	width: 1rem;
+	height: 1rem;
 }
 
 /* Grid view: Timestamp */

@@ -24,7 +24,8 @@ import {
 	LuLock as IcLock,
 	LuStar as IcStar,
 	LuInfo as IcInfo,
-	LuPin as IcPin
+	LuPin as IcPin,
+	LuCloudOff as IcUnsyncedEdit
 } from 'react-icons/lu'
 
 import { useAuth, InlineEditForm, Tag, ProfilePicture, mergeClasses } from '@cloudillo/react'
@@ -37,6 +38,7 @@ import { getSmartTimestamp, getVisibilityIcon, getVisibilityLabelKey } from '../
 interface ItemCardProps {
 	className?: string
 	file: File
+	isDirty?: boolean
 	onClick?: (file: File, event: React.MouseEvent) => void
 	onDoubleClick?: (file: File) => void
 	onContextMenu?: (file: File, position: { x: number; y: number }) => void
@@ -50,6 +52,7 @@ interface ItemCardProps {
 export const ItemCard = React.memo(function ItemCard({
 	className,
 	file,
+	isDirty,
 	onClick,
 	onDoubleClick,
 	onContextMenu,
@@ -155,6 +158,11 @@ export const ItemCard = React.memo(function ItemCard({
 					</span>
 				)}
 				{isLive && <span className="c-file-card-live" title={t('Live document')} />}
+				{isDirty && (
+					<span className="c-file-card-dirty" title={t('Has unsynced local edits')}>
+						<IcUnsyncedEdit />
+					</span>
+				)}
 			</div>
 
 			{/* Content: name, meta, tags */}

@@ -36,6 +36,7 @@ import {
 
 import { useAppConfig } from '../../utils.js'
 import { useContextAwareApi, useCurrentContextIdTag } from '../../context/index.js'
+import { getDirtyDocIds } from '../../message-bus/handlers/crdt.js'
 
 import {
 	Sidebar,
@@ -81,6 +82,12 @@ export function FilesApp() {
 		goUp,
 		enterFolder
 	} = useFileNavigation()
+
+	// Dirty (unsynced) CRDT documents
+	const [dirtyDocIds, setDirtyDocIds] = React.useState<Set<string>>(new Set())
+	React.useEffect(() => {
+		getDirtyDocIds().then(setDirtyDocIds)
+	}, [])
 
 	// Tag filter state
 	const [selectedTags, setSelectedTags] = React.useState<string[]>([])
@@ -611,6 +618,9 @@ export function FilesApp() {
 												multiSelect.isSelected(file.fileId) && 'accent'
 											)}
 											file={file}
+											isDirty={dirtyDocIds.has(
+												`${contextIdTag}:${file.fileId}`
+											)}
 											onClick={onClickFile}
 											onDoubleClick={onDoubleClickFile}
 											onContextMenu={onContextMenuFile}
@@ -643,6 +653,7 @@ export function FilesApp() {
 											multiSelect.isSelected(file.fileId) && 'accent'
 										)}
 										file={file}
+										isDirty={dirtyDocIds.has(`${contextIdTag}:${file.fileId}`)}
 										onClick={onClickFile}
 										onDoubleClick={onDoubleClickFile}
 										onContextMenu={onContextMenuFile}

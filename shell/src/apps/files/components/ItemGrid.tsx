@@ -22,7 +22,8 @@ import {
 	LuEye as IcView,
 	LuLock as IcLock,
 	LuInfo as IcInfo,
-	LuPin as IcPin
+	LuPin as IcPin,
+	LuCloudOff as IcUnsyncedEdit
 } from 'react-icons/lu'
 
 import { InlineEditForm, mergeClasses } from '@cloudillo/react'
@@ -37,6 +38,7 @@ import { getSmartTimestamp, getVisibilityIcon, getVisibilityLabelKey } from '../
 interface ItemGridProps {
 	className?: string
 	file: File
+	isDirty?: boolean
 	onClick?: (file: File, event: React.MouseEvent) => void
 	onDoubleClick?: (file: File) => void
 	onContextMenu?: (file: File, position: { x: number; y: number }) => void
@@ -50,6 +52,7 @@ interface ItemGridProps {
 export const ItemGrid = React.memo(function ItemGrid({
 	className,
 	file,
+	isDirty,
 	onClick,
 	onDoubleClick,
 	onContextMenu,
@@ -148,6 +151,13 @@ export const ItemGrid = React.memo(function ItemGrid({
 
 				{/* Live indicator - bottom right */}
 				{isLive && <span className="c-file-grid-live" title={t('Live document')} />}
+
+				{/* Unsynced local edits indicator */}
+				{isDirty && (
+					<span className="c-file-grid-dirty" title={t('Has unsynced local edits')}>
+						<IcUnsyncedEdit />
+					</span>
+				)}
 
 				{/* Access level badge for non-write access */}
 				{!isFolder && file.accessLevel && file.accessLevel !== 'write' && (

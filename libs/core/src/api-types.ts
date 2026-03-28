@@ -59,7 +59,20 @@ import {
 	NewAction,
 	ActionView,
 	ActionType,
-	ActionStatus
+	ActionStatus,
+	// App manifest types
+	tAppKind,
+	tAppCapability,
+	tContentTypeAction,
+	tContentTypeHandler,
+	tLaunchMode,
+	tAppManifest,
+	AppKind,
+	AppCapability,
+	ContentTypeAction,
+	ContentTypeHandler,
+	LaunchMode,
+	AppManifest
 } from '@cloudillo/types'
 
 // Re-export types from @cloudillo/types
@@ -76,7 +89,20 @@ export {
 	NewAction,
 	ActionView,
 	ActionType,
-	ActionStatus
+	ActionStatus,
+	// App manifest types
+	tAppKind,
+	tAppCapability,
+	tContentTypeAction,
+	tContentTypeHandler,
+	tLaunchMode,
+	tAppManifest,
+	AppKind,
+	AppCapability,
+	ContentTypeAction,
+	ContentTypeHandler,
+	LaunchMode,
+	AppManifest
 }
 
 // ============================================================================

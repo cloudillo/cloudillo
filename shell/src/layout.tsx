@@ -14,143 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const APP_CONFIG: AppConfigState = {
-	apps: [
-		{
-			id: 'quillo',
-			url: '/apps/quillo/index.html',
-			trust: true
-		},
-		{
-			id: 'calcillo',
-			url: '/apps/calcillo/index.html'
-		},
-		{
-			id: 'ideallo',
-			url: '/apps/ideallo/index.html'
-		},
-		{
-			id: 'prezillo',
-			url: '/apps/prezillo/index.html',
-			trust: false
-		},
-		{
-			id: 'formillo',
-			url: '/apps/formillo/index.html'
-		},
-		{
-			id: 'taskillo',
-			url: '/apps/taskillo/index.html'
-		},
-		{
-			id: 'notillo',
-			url: '/apps/notillo/index.html'
-		},
-		{
-			id: 'mapillo',
-			url: '/apps/mapillo/index.html'
-		},
-		{
-			id: 'scanillo',
-			url: '/apps/scanillo/index.html'
-		}
-	],
-	mime: {
-		'image/jpeg': '/app/view',
-		'image/png': '/app/view',
-		'image/gif': '/app/view',
-		'image/webp': '/app/view',
-		'video/mp4': '/app/view',
-		'video/webm': '/app/view',
-		'application/pdf': '/app/view',
-		'cloudillo/quillo': '/app/quillo',
-		'cloudillo/calcillo': '/app/calcillo',
-		'cloudillo/ideallo': '/app/ideallo',
-		'cloudillo/prezillo': '/app/prezillo',
-		'cloudillo/formillo': '/app/formillo',
-		'cloudillo/taskillo': '/app/taskillo',
-		'cloudillo/notillo': '/app/notillo',
-		'cloudillo/scanillo': '/app/scanillo'
-	},
-	menu: [
-		{
-			id: 'files',
-			icon: IcFile,
-			label: 'Files',
-			trans: { hu: 'Fájlok' },
-			path: '/app/files?',
-			public: true
-		},
-		{
-			id: 'feed',
-			icon: IcFeed,
-			label: 'Feed',
-			trans: { hu: 'Hírfolyam' },
-			path: '/app/feed',
-			public: true
-		},
-		{
-			id: 'communities',
-			icon: IcUsers,
-			label: 'Communities',
-			trans: { hu: 'Közösségek' },
-			path: '/communities'
-		},
-		{
-			id: 'messages',
-			icon: IcMessages,
-			label: 'Messages',
-			trans: { hu: 'Üzenetek' },
-			path: '/app/messages'
-		},
-		{
-			id: 'gallery',
-			icon: IcGallery,
-			label: 'Gallery',
-			trans: { hu: 'Galéria' },
-			path: '/app/gallery',
-			public: true
-		},
-		{
-			id: 'mapillo',
-			icon: IcMap,
-			label: 'Map',
-			trans: { hu: 'Térkép' },
-			path: '/app/mapillo',
-			public: true
-		},
-		{
-			id: 'users',
-			icon: IcUser,
-			label: 'People',
-			trans: { hu: 'Emberek' },
-			path: '/users'
-		},
-		{
-			id: 'settings',
-			icon: IcSettings,
-			label: 'Settings',
-			trans: { hu: 'Beállítások' },
-			path: '/settings'
-		},
-		{
-			id: 'idp',
-			icon: IcIdp,
-			label: 'IDP',
-			trans: { hu: 'IDP' },
-			path: '/idp'
-		},
-		{
-			id: 'site-admin',
-			icon: IcSiteAdmin,
-			label: 'Server',
-			trans: { hu: 'Szerver' },
-			path: '/site-admin',
-			perm: 'SADM'
-		}
-	],
-	defaultMenu: 'files'
-}
+import { appConfig as APP_CONFIG } from './manifest-registry.js'
 
 import { version } from '../package.json'
 
@@ -162,27 +26,18 @@ import { useTranslation } from 'react-i18next'
 import {
 	LuUserSearch as IcSearchUser,
 	LuUser as IcUser,
-	LuUsers as IcUsers,
 	LuGrip as IcApps,
 	// Menu icons
 	LuLogIn as IcLogin,
 	LuLogOut as IcLogout,
-	// App icons
 	LuMenu as IcMenu,
-	LuList as IcFeed,
-	LuFile as IcFile,
 	LuFileText as IcFileText,
-	LuImage as IcGallery,
-	LuMessagesSquare as IcMessages,
 	LuSettings as IcSettings,
-	LuServerCog as IcSiteAdmin,
-	LuFingerprint as IcIdp,
 	LuCircleAlert as IcWarning,
 	LuRefreshCw as IcRefresh,
 	LuTrash2 as IcClear,
 	LuQrCode as IcQrCode,
-	LuScanLine as IcScan,
-	LuMap as IcMap
+	LuScanLine as IcScan
 } from 'react-icons/lu'
 import { CloudilloLogo } from './logo.js'
 
@@ -202,7 +57,7 @@ import {
 } from '@cloudillo/react'
 import { createApiClient, FetchError } from '@cloudillo/core'
 import { useSetAtom } from 'jotai'
-import { type AppConfigState, useAppConfig } from './utils.js'
+import { useAppConfig } from './utils.js'
 import usePWA, {
 	registerServiceWorker,
 	ensureEncryptionKey,

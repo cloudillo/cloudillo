@@ -314,4 +314,96 @@ export const tBaseAction = T.taggedUnion('type')({
 })
 export type BaseAction = T.TypeOf<typeof tBaseAction>
 
+// ============================================
+// APP MANIFEST
+// ============================================
+
+// App kinds
+export const tAppKind = T.literal('internal', 'bundled', 'installed')
+export type AppKind = T.TypeOf<typeof tAppKind>
+
+// Well-known capabilities
+export const tAppCapability = T.literal(
+	'storage',
+	'settings',
+	'crdt',
+	'rtdb',
+	'camera',
+	'sensor',
+	'media',
+	'document',
+	'embed',
+	'notification'
+)
+export type AppCapability = T.TypeOf<typeof tAppCapability>
+
+// Well-known content type actions
+export const tContentTypeAction = T.literal('view', 'edit', 'create')
+export type ContentTypeAction = T.TypeOf<typeof tContentTypeAction>
+
+// Content type handler
+export const tContentTypeHandler = T.struct({
+	mimeType: T.string,
+	actions: T.optional(T.array(T.string)),
+	priority: T.optional(T.string)
+})
+export type ContentTypeHandler = T.TypeOf<typeof tContentTypeHandler>
+
+// Launch mode — a broad declaration of how the app can be started
+export const tLaunchMode = T.struct({
+	id: T.string,
+	label: T.string,
+	description: T.optional(T.string),
+	accept: T.optional(T.array(T.string)),
+	translations: T.optional(
+		T.record(
+			T.struct({
+				label: T.optional(T.string),
+				description: T.optional(T.string)
+			})
+		)
+	)
+})
+export type LaunchMode = T.TypeOf<typeof tLaunchMode>
+
+// Main app manifest
+export const tAppManifest = T.struct({
+	// Core identity
+	id: T.string,
+	name: T.string,
+	version: T.string,
+	kind: tAppKind,
+
+	// Loading (external/bundled apps)
+	url: T.optional(T.string),
+
+	// Display
+	icon: T.optional(T.string),
+	description: T.optional(T.string),
+	translations: T.optional(
+		T.record(
+			T.struct({
+				name: T.optional(T.string),
+				description: T.optional(T.string)
+			})
+		)
+	),
+
+	// Content type handling
+	contentTypes: T.optional(T.array(tContentTypeHandler)),
+
+	// Launch modes
+	launchModes: T.optional(T.array(tLaunchMode)),
+
+	// Menu hint (default order for initial menu config; undefined = not in menu)
+	defaultOrder: T.optional(T.number),
+
+	// Bus capabilities this app uses
+	capabilities: T.optional(T.array(T.string)),
+
+	// Extensibility
+	meta: T.optional(T.record(T.unknown))
+})
+export type AppManifest = T.TypeOf<typeof tAppManifest>
+
 // vim: ts=4

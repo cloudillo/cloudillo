@@ -16,6 +16,7 @@
 
 import * as React from 'react'
 import { createPortal } from 'react-dom'
+import { usePopper } from 'react-popper'
 import { mergeClasses, createComponent } from '../utils.js'
 import { useMergedRefs, useEscapeKey, useOutsideClick } from '../hooks.js'
 
@@ -182,6 +183,142 @@ export const MenuHeader = createComponent<HTMLDivElement, MenuHeaderProps>(
 			{children}
 		</div>
 	)
+)
+
+// SubMenuItem - a menu item that opens a nested submenu on hover/keyboard
+export interface SubMenuItemProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'children'> {
+	icon?: React.ReactNode
+	label: string
+	/** Optional secondary label shown after the main label (e.g. current value) */
+	detail?: string
+	disabled?: boolean
+	children?: React.ReactNode
+}
+
+export const SubMenuItem = createComponent<HTMLDivElement, SubMenuItemProps>(
+	'SubMenuItem',
+	({ icon, label, detail, disabled, children, className, ...props }, ref) => {
+		const [isOpen, setIsOpen] = React.useState(false)
+		const [triggerEl, setTriggerEl] = React.useState<HTMLDivElement | null>(null)
+		const [popperEl, setPopperEl] = React.useState<HTMLDivElement | null>(null)
+		const closeTimerRef = React.useRef<number | undefined>(undefined)
+		const mergedRef = useMergedRefs(ref, setTriggerEl)
+
+		const { styles: popperStyles, attributes } = usePopper(triggerEl, popperEl, {
+			placement: 'right-start',
+			strategy: 'fixed',
+			modifiers: [
+				{ name: 'flip', options: { fallbackPlacements: ['left-start'] } },
+				{ name: 'preventOverflow', options: { padding: 8 } },
+				{ name: 'offset', options: { offset: [-4, -4] } }
+			]
+		})
+
+		function scheduleClose() {
+			closeTimerRef.current = window.setTimeout(() => setIsOpen(false), 150)
+		}
+
+		function cancelClose() {
+			if (closeTimerRef.current) {
+				clearTimeout(closeTimerRef.current)
+				closeTimerRef.current = undefined
+			}
+		}
+
+		function handleMouseEnter() {
+			if (disabled) return
+			cancelClose()
+			setIsOpen(true)
+		}
+
+		function handleMouseLeave() {
+			scheduleClose()
+		}
+
+		function handleKeyDown(evt: React.KeyboardEvent) {
+			if (disabled) return
+			if (evt.key === 'ArrowRight' || evt.key === 'Enter') {
+				evt.preventDefault()
+				evt.stopPropagation()
+				setIsOpen(true)
+				requestAnimationFrame(() => {
+					const firstItem = popperEl?.querySelector<HTMLButtonElement>(
+						'.c-menu-item:not([disabled])'
+					)
+					firstItem?.focus()
+				})
+			}
+		}
+
+		function handleSubmenuKeyDown(evt: React.KeyboardEvent) {
+			if (evt.key === 'ArrowLeft' || evt.key === 'Escape') {
+				evt.preventDefault()
+				evt.stopPropagation()
+				setIsOpen(false)
+				triggerEl?.querySelector<HTMLButtonElement>('.c-submenu-item')?.focus()
+			}
+		}
+
+		React.useEffect(
+			() => () => {
+				if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
+			},
+			[]
+		)
+
+		return (
+			<div
+				ref={mergedRef}
+				className={mergeClasses('c-submenu-container', className)}
+				onMouseEnter={handleMouseEnter}
+				onMouseLeave={handleMouseLeave}
+				{...props}
+			>
+				<button
+					type="button"
+					role="menuitem"
+					aria-haspopup="menu"
+					aria-expanded={isOpen}
+					className={mergeClasses('c-submenu-item', isOpen && 'active')}
+					disabled={disabled}
+					onKeyDown={handleKeyDown}
+				>
+					{icon && <span className="c-menu-item-icon">{icon}</span>}
+					<span className="c-menu-item-label">
+						{label}
+						{detail && (
+							<span
+								style={{
+									marginLeft: 'var(--space-1)',
+									color: 'var(--col-txt-muted)',
+									fontWeight: 'normal'
+								}}
+							>
+								{detail}
+							</span>
+						)}
+					</span>
+					<span className="c-menu-item-chevron">&#x25B8;</span>
+				</button>
+				{isOpen &&
+					createPortal(
+						<div
+							ref={setPopperEl}
+							className="c-menu"
+							role="menu"
+							style={popperStyles.popper}
+							onMouseEnter={cancelClose}
+							onMouseLeave={scheduleClose}
+							onKeyDown={handleSubmenuKeyDown}
+							{...attributes.popper}
+						>
+							{children}
+						</div>,
+						document.getElementById('popper-container') || document.body
+					)}
+			</div>
+		)
+	}
 )
 
 // vim: ts=4

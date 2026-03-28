@@ -295,21 +295,28 @@ export type {
 } from './Toolbar/index.js'
 
 // Menu Components
-export { Menu, MenuItem, MenuDivider, MenuHeader } from './Menu/index.js'
+export { Menu, MenuItem, MenuDivider, MenuHeader, SubMenuItem } from './Menu/index.js'
 export type {
 	MenuPosition,
 	MenuProps,
 	MenuItemProps,
 	MenuDividerProps,
-	MenuHeaderProps
+	MenuHeaderProps,
+	SubMenuItemProps
 } from './Menu/index.js'
 
 // ActionSheet Components (Mobile Bottom Sheet)
-export { ActionSheet, ActionSheetItem, ActionSheetDivider } from './ActionSheet/index.js'
+export {
+	ActionSheet,
+	ActionSheetItem,
+	ActionSheetDivider,
+	ActionSheetSubItem
+} from './ActionSheet/index.js'
 export type {
 	ActionSheetProps,
 	ActionSheetItemProps,
-	ActionSheetDividerProps
+	ActionSheetDividerProps,
+	ActionSheetSubItemProps
 } from './ActionSheet/index.js'
 
 // TagInput Component

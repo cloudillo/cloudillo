@@ -14,13 +14,14 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-export { Menu, MenuItem, MenuDivider, MenuHeader } from './Menu.js'
+export { Menu, MenuItem, MenuDivider, MenuHeader, SubMenuItem } from './Menu.js'
 export type {
 	MenuPosition,
 	MenuProps,
 	MenuItemProps,
 	MenuDividerProps,
-	MenuHeaderProps
+	MenuHeaderProps,
+	SubMenuItemProps
 } from './Menu.js'
 
 // vim: ts=4

@@ -287,8 +287,16 @@ export function FilesApp() {
 		[api, dialog, t, fileListData]
 	)
 
-	const fileOps: FileOps = React.useMemo(
-		() => ({
+	const fileOps: FileOps = React.useMemo(() => {
+		// Shared navigation helper for opening files in apps
+		function navigateToFile(file: File, appName: string, access?: 'read' | 'write') {
+			// For tenant-owned files (no explicit owner), use contextIdTag as the owner in the path
+			const ownerTag = file.owner?.idTag || contextIdTag || auth?.idTag
+			const basePath = `/app/${contextIdTag || auth?.idTag}/${appName}/${ownerTag + ':'}${file.fileId}`
+			navigate(access === 'read' ? `${basePath}?access=read` : basePath)
+		}
+
+		return {
 			setFile: function setFile(file: File) {
 				fileListData.setFileData(file.fileId, file)
 			},
@@ -296,13 +304,20 @@ export function FilesApp() {
 			openFile: function openFile(fileId?: string, access?: 'read' | 'write') {
 				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
 				const app = file && appConfig?.mime[file?.contentType]
-
 				if (app) {
-					const appName = app.split('/').pop()
-					// For tenant-owned files (no explicit owner), use contextIdTag as the owner in the path
-					const ownerTag = file.owner?.idTag || contextIdTag || auth?.idTag
-					const basePath = `/app/${contextIdTag || auth?.idTag}/${appName}/${ownerTag + ':'}${file.fileId}`
-					navigate(access === 'read' ? `${basePath}?access=read` : basePath)
+					const appName = app.split('/').pop()!
+					navigateToFile(file, appName, access)
+				}
+			},
+
+			openFileWithApp: function openFileWithApp(
+				fileId: string,
+				appId: string,
+				access?: 'read' | 'write'
+			) {
+				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
+				if (file) {
+					navigateToFile(file, appId, access)
 				}
 			},
 
@@ -468,9 +483,8 @@ export function FilesApp() {
 					toast.error(t('Failed to duplicate file'))
 				}
 			}
-		}),
-		[auth, api, appConfig, contextIdTag, navigate, t, fileListData, dialog, toast, multiSelect]
-	)
+		}
+	}, [auth, api, appConfig, contextIdTag, navigate, t, fileListData, dialog, toast, multiSelect])
 
 	// Keyboard shortcuts
 	useKeyboardShortcuts({

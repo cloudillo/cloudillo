@@ -14,11 +14,17 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-export { ActionSheet, ActionSheetItem, ActionSheetDivider } from './ActionSheet.js'
+export {
+	ActionSheet,
+	ActionSheetItem,
+	ActionSheetDivider,
+	ActionSheetSubItem
+} from './ActionSheet.js'
 export type {
 	ActionSheetProps,
 	ActionSheetItemProps,
-	ActionSheetDividerProps
+	ActionSheetDividerProps,
+	ActionSheetSubItemProps
 } from './ActionSheet.js'
 
 // vim: ts=4

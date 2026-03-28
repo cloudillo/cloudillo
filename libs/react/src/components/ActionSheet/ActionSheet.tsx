@@ -166,4 +166,59 @@ export const ActionSheetDivider = createComponent<HTMLDivElement, ActionSheetDiv
 	)
 )
 
+// ActionSheetSubItem - expands/collapses sub-items inline on mobile
+export interface ActionSheetSubItemProps
+	extends Omit<React.HTMLAttributes<HTMLDivElement>, 'children'> {
+	icon?: React.ReactNode
+	label: string
+	/** Optional secondary label (e.g. current value) */
+	detail?: string
+	disabled?: boolean
+	children?: React.ReactNode
+}
+
+export const ActionSheetSubItem = createComponent<HTMLDivElement, ActionSheetSubItemProps>(
+	'ActionSheetSubItem',
+	({ icon, label, detail, disabled, children, className, ...props }, ref) => {
+		const [isOpen, setIsOpen] = React.useState(false)
+
+		return (
+			<div ref={ref} className={className} {...props}>
+				<button
+					type="button"
+					className={mergeClasses('c-action-sheet-item', disabled && 'disabled')}
+					disabled={disabled}
+					onClick={() => setIsOpen(!isOpen)}
+				>
+					{icon && <span className="c-action-sheet-item-icon">{icon}</span>}
+					<span className="c-action-sheet-item-label">
+						{label}
+						{detail && (
+							<span
+								style={{
+									marginLeft: 'var(--space-1)',
+									color: 'var(--col-txt-muted)',
+									fontWeight: 'normal'
+								}}
+							>
+								{detail}
+							</span>
+						)}
+					</span>
+					<span
+						className="c-menu-item-chevron"
+						style={{
+							transition: 'transform 0.2s',
+							transform: isOpen ? 'rotate(90deg)' : 'none'
+						}}
+					>
+						&#x25B8;
+					</span>
+				</button>
+				{isOpen && <div style={{ paddingLeft: 'var(--space-4)' }}>{children}</div>}
+			</div>
+		)
+	}
+)
+
 // vim: ts=4

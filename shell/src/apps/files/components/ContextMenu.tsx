@@ -30,23 +30,33 @@ import {
 	LuFolderInput as IcMove,
 	LuTrash2 as IcTrash,
 	LuRotateCcw as IcRestore,
-	LuTrash as IcPermanentDelete
+	LuTrash as IcPermanentDelete,
+	LuAppWindow as IcOpenWith
 } from 'react-icons/lu'
 import {
 	Menu,
 	MenuItem,
 	MenuDivider,
+	SubMenuItem,
 	ActionSheet,
 	ActionSheetItem,
 	ActionSheetDivider,
+	ActionSheetSubItem,
 	useAuth
 } from '@cloudillo/react'
 import { getFileUrl } from '@cloudillo/core'
 import { useAtom } from 'jotai'
 import { activeContextAtom } from '../../../context/index.js'
+import { getHandlersForContentType } from '../../../manifest-registry.js'
+import { getIcon } from '../../../icon-registry.js'
 
 import type { File, FileOps, ViewMode } from '../types.js'
-import { VISIBILITY_DROPDOWN_OPTIONS, getVisibilityIcon, canManageFile } from '../utils.js'
+import {
+	VISIBILITY_DROPDOWN_OPTIONS,
+	getVisibilityIcon,
+	getVisibilityOption,
+	canManageFile
+} from '../utils.js'
 
 export interface ContextMenuPosition {
 	x: number
@@ -84,8 +94,6 @@ export function ContextMenu({
 	const count = selectedFiles.length
 	const isSingleSelect = count === 1
 	const file = isSingleSelect ? selectedFiles[0] : clickedFile
-	const _hasFolder = selectedFiles.some((f) => f.fileTp === 'FLDR')
-	const _hasFile = selectedFiles.some((f) => f.fileTp !== 'FLDR')
 	const isFolder = file.fileTp === 'FLDR'
 	const isTrashView = viewMode === 'trash'
 
@@ -102,9 +110,26 @@ export function ContextMenu({
 
 	const selectedFileIds = selectedFiles.map((f) => f.fileId)
 
+	// Get handlers for "Open with" submenu
+	const handlers = isSingleSelect && !isFolder ? getHandlersForContentType(file.contentType) : []
+	// Collect all launch modes from all handlers
+	const launchModeEntries = handlers.flatMap((h) =>
+		(h.manifest.launchModes ?? []).map((mode) => ({
+			manifest: h.manifest,
+			mode
+		}))
+	)
+	// Show "Open with" when multiple handlers exist or there are launch modes
+	const showOpenWith = handlers.length > 1 || launchModeEntries.length > 0
+
+	// Visibility info
+	const canManage = isSingleSelect && canManageFile(file, auth?.idTag, activeContext?.roles ?? [])
+	const currentVisibility = getVisibilityOption(file.visibility ?? null)
+
 	// Use different components based on mobile/desktop
 	const Item = isMobile ? ActionSheetItem : MenuItem
 	const Divider = isMobile ? ActionSheetDivider : MenuDivider
+	const Sub = isMobile ? ActionSheetSubItem : SubMenuItem
 
 	const menuContent = isTrashView ? (
 		// Trash view menu
@@ -160,6 +185,47 @@ export function ContextMenu({
 				/>
 			)}
 
+			{/* Open with - when multiple handlers or launch modes exist */}
+			{isSingleSelect && showOpenWith && (
+				<Sub icon={<IcOpenWith />} label={t('Open with...')}>
+					{handlers.map((h) => {
+						const AppIcon = getIcon(h.manifest.icon)
+						return (
+							<Item
+								key={h.manifest.id}
+								icon={AppIcon ? <AppIcon /> : undefined}
+								label={h.manifest.name}
+								onClick={handleAction(() =>
+									fileOps.openFileWithApp?.(
+										file.fileId,
+										h.manifest.id,
+										file.accessLevel === 'none' ? 'read' : file.accessLevel
+									)
+								)}
+							/>
+						)
+					})}
+					{launchModeEntries.length > 0 && <Divider />}
+					{launchModeEntries.map((entry) => {
+						const AppIcon = getIcon(entry.manifest.icon)
+						return (
+							<Item
+								key={`${entry.manifest.id}-${entry.mode.id}`}
+								icon={AppIcon ? <AppIcon /> : undefined}
+								label={`${entry.manifest.name}: ${entry.mode.label}`}
+								onClick={handleAction(() =>
+									fileOps.openFileWithApp?.(
+										file.fileId,
+										entry.manifest.id,
+										file.accessLevel === 'none' ? 'read' : file.accessLevel
+									)
+								)}
+							/>
+						)
+					})}
+				</Sub>
+			)}
+
 			{/* Download - only for single file (not folder) */}
 			{isSingleSelect && !isFolder && auth?.idTag && (
 				<Item
@@ -173,6 +239,9 @@ export function ContextMenu({
 				/>
 			)}
 
+			{/* Share & Visibility section */}
+			{(onShare || (canManage && fileOps.setVisibility)) && <Divider />}
+
 			{/* Share - only for single selection */}
 			{isSingleSelect && onShare && (
 				<Item
@@ -182,31 +251,32 @@ export function ContextMenu({
 				/>
 			)}
 
-			{/* Visibility - only for single selection and owner */}
-			{isSingleSelect &&
-				canManageFile(file, auth?.idTag, activeContext?.roles ?? []) &&
-				fileOps.setVisibility && (
-					<>
-						<Divider />
-						{VISIBILITY_DROPDOWN_OPTIONS.map((opt) => {
-							const VisibilityIcon = getVisibilityIcon(opt.value)
-							const isCurrentVisibility = (file.visibility ?? null) === opt.value
-							return (
-								<Item
-									key={opt.value ?? 'null'}
-									icon={<VisibilityIcon />}
-									label={t(opt.labelKey)}
-									onClick={handleAction(() =>
-										fileOps.setVisibility!(file.fileId, opt.value)
-									)}
-									disabled={isCurrentVisibility}
-								/>
-							)
-						})}
-					</>
-				)}
+			{/* Visibility submenu - only for single selection and owner/manager */}
+			{canManage && fileOps.setVisibility && (
+				<Sub
+					icon={React.createElement(currentVisibility.icon)}
+					label={t('Visibility')}
+					detail={t(currentVisibility.labelKey)}
+				>
+					{VISIBILITY_DROPDOWN_OPTIONS.map((opt) => {
+						const VisibilityIcon = getVisibilityIcon(opt.value)
+						const isCurrentVisibility = (file.visibility ?? null) === opt.value
+						return (
+							<Item
+								key={opt.value ?? 'null'}
+								icon={<VisibilityIcon />}
+								label={t(opt.labelKey)}
+								onClick={handleAction(() =>
+									fileOps.setVisibility!(file.fileId, opt.value)
+								)}
+								disabled={isCurrentVisibility}
+							/>
+						)
+					})}
+				</Sub>
+			)}
 
-			{/* Star toggle - always available */}
+			{/* Star toggle */}
 			<Item
 				icon={isStarred ? <IcStarOff /> : <IcStar />}
 				label={
@@ -225,7 +295,7 @@ export function ContextMenu({
 				)}
 			/>
 
-			{/* Pin toggle - always available */}
+			{/* Pin toggle */}
 			<Item
 				icon={isPinned ? <IcPinOff /> : <IcPin />}
 				label={

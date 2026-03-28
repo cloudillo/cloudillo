@@ -50,13 +50,14 @@ import {
 	UploadProgress,
 	ContextMenu,
 	FolderPicker,
-	ShareDialog
+	ShareDialog,
+	ImportChoiceDialog
 } from './components/index.js'
 import type { ContextMenuPosition } from './components/index.js'
 import {
 	useFileList,
 	useFileNavigation,
-	useUploadQueue,
+	useSmartUpload,
 	useKeyboardShortcuts,
 	useMultiSelect
 } from './hooks/index.js'
@@ -97,8 +98,8 @@ export function FilesApp() {
 	// File list (with tag filter)
 	const fileListData = useFileList({ viewMode, parentId: currentFolderId, tags: selectedTags })
 
-	// Upload queue
-	const uploadQueue = useUploadQueue({
+	// Smart upload (wraps upload queue with import detection)
+	const uploadQueue = useSmartUpload({
 		parentId: currentFolderId,
 		onUploadComplete: fileListData.refresh
 	})
@@ -530,7 +531,7 @@ export function FilesApp() {
 
 	return (
 		<>
-			<DropZone onFilesDropped={uploadQueue.addFiles} disabled={!canUpload}>
+			<DropZone onFilesDropped={uploadQueue.handleFilesForUpload} disabled={!canUpload}>
 				<Fcd.Container className="g-1">
 					<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 						<Sidebar
@@ -570,7 +571,7 @@ export function FilesApp() {
 									<Toolbar
 										displayMode={displayMode}
 										onDisplayModeChange={setDisplayMode}
-										onFilesSelected={uploadQueue.addFiles}
+										onFilesSelected={uploadQueue.handleFilesForUpload}
 										onCreateFolder={
 											viewMode === 'all' ? handleCreateFolder : undefined
 										}
@@ -728,6 +729,13 @@ export function FilesApp() {
 				onRemoveItem={uploadQueue.removeItem}
 				onClearCompleted={uploadQueue.clearCompleted}
 				onClearAll={uploadQueue.clearAll}
+			/>
+
+			<ImportChoiceDialog
+				pendingConversions={uploadQueue.pendingConversions}
+				onUploadAsFile={uploadQueue.uploadAsFile}
+				onConvert={uploadQueue.startConversion}
+				onDismissAll={uploadQueue.dismissAll}
 			/>
 
 			{contextMenuFile && contextMenuPosition && (

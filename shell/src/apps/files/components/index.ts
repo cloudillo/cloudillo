@@ -30,5 +30,7 @@ export { FolderPicker } from './FolderPicker.js'
 export type { FolderPickerProps } from './FolderPicker.js'
 export { ShareDialog } from './ShareDialog.js'
 export type { ShareDialogProps } from './ShareDialog.js'
+export { ImportChoiceDialog } from './ImportChoiceDialog.js'
+export type { ImportChoiceDialogProps } from './ImportChoiceDialog.js'
 
 // vim: ts=4

@@ -22,5 +22,7 @@ export { useKeyboardShortcuts } from './useKeyboardShortcuts.js'
 export type { UseKeyboardShortcutsOptions } from './useKeyboardShortcuts.js'
 export { useMultiSelect } from './useMultiSelect.js'
 export type { UseMultiSelectOptions, UseMultiSelectResult } from './useMultiSelect.js'
+export { useSmartUpload } from './useSmartUpload.js'
+export type { PendingConversion } from './useSmartUpload.js'
 
 // vim: ts=4

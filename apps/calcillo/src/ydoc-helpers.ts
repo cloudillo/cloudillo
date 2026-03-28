@@ -17,6 +17,45 @@ import { debug } from './debug'
 import { stripCellDefaults } from './cell-defaults'
 
 /**
+ * Convert Excel serial number to a Date object (UTC).
+ * Reverses the dateToExcelSerial calculation.
+ */
+function excelSerialToDate(serial: number): Date {
+	const MS_PER_DAY = 86400000
+	const EXCEL_EPOCH = Date.UTC(1900, 0, 1)
+	let days = serial - 1 // Excel serial 1 = Jan 1, 1900
+	if (days >= 60) days -= 1 // Undo phantom Feb 29, 1900
+	return new Date(EXCEL_EPOCH + days * MS_PER_DAY)
+}
+
+/**
+ * Format an Excel serial date number using a Fortune Sheet date format pattern.
+ * Supports: yyyy, MM, dd, HH, hh, mm, ss, M, d
+ */
+function formatDateSerial(serial: number, format: string): string {
+	const date = excelSerialToDate(serial)
+	const pad = (n: number) => String(n).padStart(2, '0')
+	const y = date.getUTCFullYear()
+	const M = date.getUTCMonth() + 1
+	const d = date.getUTCDate()
+	const H = date.getUTCHours()
+	const m = date.getUTCMinutes()
+	const s = date.getUTCSeconds()
+
+	return format
+		.replace('yyyy', String(y))
+		.replace('yy', String(y).slice(-2))
+		.replace('MM', pad(M))
+		.replace('dd', pad(d))
+		.replace('HH', pad(H))
+		.replace('hh', pad(H > 12 ? H - 12 : H || 12))
+		.replace('mm', pad(m))
+		.replace('ss', pad(s))
+		.replace(/\bM\b/, String(M))
+		.replace(/\bd\b/, String(d))
+}
+
+/**
  * Get or create sheet structure
  */
 export function getOrCreateSheet(yDoc: Y.Doc, sheetId: SheetId): YSheetStructure {
@@ -356,7 +395,16 @@ export function transformSheetToCelldata(sheet: YSheetStructure): {
 			// Include cell if it has data OR is part of a merge
 			if (cell || mergeInfo) {
 				const cleanCell: Cell = cell ? { ...cell } : {}
-				delete cleanCell.m
+				// Fortune Sheet doesn't recompute m for date cells on init,
+				// so we must provide it. For other types, delete m (transient).
+				if (cleanCell.ct?.t === 'd' && cleanCell.v != null) {
+					cleanCell.m = formatDateSerial(
+						Number(cleanCell.v),
+						cleanCell.ct.fa || 'yyyy-MM-dd'
+					)
+				} else {
+					delete cleanCell.m
+				}
 
 				// Add merge information
 				if (mergeInfo) {

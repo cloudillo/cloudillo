@@ -31,7 +31,10 @@ import '@fortune-sheet/react/dist/index.css'
 import './style.css'
 
 import { useCloudilloEditor } from '@cloudillo/react'
+import { getAppBus } from '@cloudillo/core'
 import { downloadExport } from './export.js'
+import { downloadXlsxExport } from './export-xlsx.js'
+import { importXlsx } from './import-xlsx.js'
 
 // Import modules
 import type { SheetId } from './yjs-types'
@@ -65,6 +68,7 @@ export function CalcilloApp() {
 	const [loaded, setLoaded] = React.useState(false)
 	const [initialized, setInitialized] = React.useState(false)
 	const [origCellData, setOrigCellData] = React.useState<FortuneSheet[] | undefined>()
+	const [workbookKey, setWorkbookKey] = React.useState(0)
 	const workbookRef = React.useRef<WorkbookInstance>(null)
 	// Track workbook instance via state so effect can react to it
 	const [workbookInstance, setWorkbookInstance] = React.useState<WorkbookInstance | null>(null)
@@ -253,6 +257,54 @@ export function CalcilloApp() {
 			formulaRecalc.cancel()
 		}
 	}, [cloudillo.provider])
+
+	// Handle import data from shell (xlsx → calcillo conversion)
+	// Registered unconditionally — import data may arrive after init already ran,
+	// so we clear any auto-created sheets and re-initialize the workbook.
+	React.useEffect(() => {
+		if (!cloudillo.synced) return
+
+		const bus = getAppBus()
+		const cleanup = bus.onImportData(async (payload) => {
+			debug.log('[Import] Received import data:', payload.sourceMimeType, payload.fileName)
+			try {
+				// Decode base64 to ArrayBuffer
+				const binary = atob(payload.data)
+				const bytes = new Uint8Array(binary.length)
+				for (let i = 0; i < binary.length; i++) {
+					bytes[i] = binary.charCodeAt(i)
+				}
+
+				// Clear any auto-created sheets before importing
+				const sheetOrder = cloudillo.yDoc.getArray<SheetId>('sheetOrder')
+				const sheets = cloudillo.yDoc.getMap('sheets')
+				cloudillo.yDoc.transact(() => {
+					while (sheetOrder.length > 0) {
+						const id = sheetOrder.get(0)
+						sheetOrder.delete(0, 1)
+						sheets.delete(id)
+					}
+				})
+
+				await importXlsx(cloudillo.yDoc, bytes.buffer)
+				bus.notifyImportComplete(true)
+				debug.log('[Import] Import complete')
+
+				// Force re-initialization of the workbook UI
+				setOrigCellData(undefined)
+				setInitialized(false)
+				setWorkbookKey((k) => k + 1)
+			} catch (err) {
+				debug.error('[Import] Import failed:', err)
+				bus.notifyImportComplete(
+					false,
+					err instanceof Error ? err.message : 'Import failed'
+				)
+			}
+		})
+
+		return cleanup
+	}, [cloudillo.synced, cloudillo.yDoc])
 
 	// Load workbook data - MUST wait for sync to complete before checking for sheets
 	// Otherwise race condition: multiple clients see empty sheets and each creates their own
@@ -484,6 +536,7 @@ export function CalcilloApp() {
 		origCellData && (
 			<>
 				<Workbook
+					key={workbookKey}
 					ref={combinedRef}
 					data={origCellData}
 					onOp={isReadOnly ? undefined : onOp}
@@ -513,6 +566,18 @@ export function CalcilloApp() {
 								<PiExportBold />
 							</span>
 							<span className="c-menu-item-label">{t('Export to JSON')}</span>
+						</div>
+						<div
+							className="c-menu-item"
+							onClick={() => {
+								downloadXlsxExport(cloudillo.yDoc)
+								setMenuOpen(false)
+							}}
+						>
+							<span className="c-menu-item-icon">
+								<PiExportBold />
+							</span>
+							<span className="c-menu-item-label">{t('Export to XLSX')}</span>
 						</div>
 						<div className="c-menu-divider" />
 						<div

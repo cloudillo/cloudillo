@@ -26,7 +26,18 @@ export const manifest: AppManifest = {
 	icon: 'table',
 	description: 'Collaborative spreadsheet',
 	contentTypes: [
-		{ mimeType: 'cloudillo/calcillo', actions: ['view', 'edit', 'create'], priority: 'primary' }
+		{
+			mimeType: 'cloudillo/calcillo',
+			actions: ['view', 'edit', 'create'],
+			priority: 'primary',
+			importFrom: [
+				{
+					mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+					label: 'Excel Spreadsheet',
+					extensions: ['.xlsx']
+				}
+			]
+		}
 	],
 	capabilities: ['crdt'],
 	translations: {

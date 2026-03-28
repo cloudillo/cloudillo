@@ -111,6 +111,13 @@ export {
 	type OverlayItem,
 	type CameraOverlayUpdate,
 	VISIBILITY_ORDER,
+	// Share link creation messages
+	type ShareCreateReq,
+	type ShareCreateAck,
+	type ShareCreateResultPush,
+	tShareCreateReq,
+	tShareCreateAck,
+	tShareCreateResultPush,
 	// Service worker messages
 	type SwTokenSet,
 	type SwTokenClear,
@@ -228,6 +235,8 @@ export {
 	type CameraPreviewFrameData,
 	type OverlayItemData,
 	type EmbedOpenResult,
+	type ShareCreateOptions,
+	type ShareCreateResult,
 	// Class
 	AppMessageBus,
 	// Singleton

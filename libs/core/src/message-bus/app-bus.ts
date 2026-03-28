@@ -47,7 +47,9 @@ import {
 	type Visibility,
 	type CameraCaptureAck,
 	type CameraCaptureResultPush,
-	type CameraPreviewFrame
+	type CameraPreviewFrame,
+	type ShareCreateAck,
+	type ShareCreateResultPush
 } from './types.js'
 import { validateMessage } from './registry.js'
 import { MessageBusBase, type MessageBusConfig } from './core.js'
@@ -82,6 +84,8 @@ export interface AppState {
 	navState?: string
 	/** Ancestor file IDs in the embed chain (for cycle/depth detection) */
 	ancestors?: string[]
+	/** Launch params as serialized query string (e.g., "mode=present&follow=some.id.tag") */
+	params?: string
 }
 
 // ============================================
@@ -175,6 +179,38 @@ export interface DocPickResult {
 	fileTp?: string
 	/** App ID resolved from content type */
 	appId?: string
+}
+
+// ============================================
+// SHARE LINK CREATION API
+// ============================================
+
+/**
+ * Options for requesting share link creation
+ */
+export interface ShareCreateOptions {
+	/** Suggested access level (default: 'read') */
+	accessLevel?: 'read' | 'write'
+	/** Description for the share link */
+	description?: string
+	/** Expiration timestamp (Unix ms) */
+	expiresAt?: number
+	/** Max uses (null = unlimited) */
+	count?: number
+	/** Serialized query string for launch params (e.g., "mode=present&follow=some.id.tag") */
+	params?: string
+}
+
+/**
+ * Result from share link creation
+ */
+export interface ShareCreateResult {
+	/** Whether the link was created */
+	created: boolean
+	/** Reference ID */
+	refId?: string
+	/** Full share URL */
+	url?: string
 }
 
 // ============================================
@@ -428,6 +464,16 @@ export class AppMessageBus extends MessageBusBase {
 		return this.state.displayName
 	}
 
+	/** Launch params as serialized query string */
+	get params(): string | undefined {
+		return this.state.params
+	}
+
+	/** Launch params parsed as URLSearchParams for convenient access */
+	get parsedParams(): URLSearchParams {
+		return new URLSearchParams(this.state.params || '')
+	}
+
 	/** Whether this app is running as an embedded document (nested iframe) */
 	get embedded(): boolean {
 		return this.isEmbed
@@ -498,7 +544,8 @@ export class AppMessageBus extends MessageBusBase {
 				theme: initData.theme,
 				displayName: initData.displayName,
 				navState: initData.navState,
-				ancestors: initData.ancestors
+				ancestors: initData.ancestors,
+				params: initData.params
 			}
 
 			// Apply theme to document
@@ -534,11 +581,19 @@ export class AppMessageBus extends MessageBusBase {
 				darkMode: !!msg.payload.darkMode,
 				tokenLifetime: msg.payload.tokenLifetime,
 				theme: msg.payload.theme,
-				displayName: msg.payload.displayName
+				displayName: msg.payload.displayName,
+				navState: msg.payload.navState,
+				ancestors: msg.payload.ancestors,
+				params: msg.payload.params
 			}
 			this.applyTheme()
 			this.initialized = true
 			this.log('Initialized via push')
+
+			// Fire viewStateSet handler if navState was provided
+			if (this.state.navState && this.viewStateHandler) {
+				this.viewStateHandler(this.state.navState)
+			}
 
 			// Notify shell that auth initialization is complete
 			this.notifyReady('auth')
@@ -566,6 +621,11 @@ export class AppMessageBus extends MessageBusBase {
 		// Handle camera capture result push from shell
 		this.on('camera:capture.result', (msg: CameraCaptureResultPush) => {
 			this.handleCameraCaptureResult(msg)
+		})
+
+		// Handle share link creation result push from shell
+		this.on('share:create.result', (msg: ShareCreateResultPush) => {
+			this.handleShareCreateResult(msg)
 		})
 
 		// Handle camera preview frame push from shell
@@ -1507,6 +1567,103 @@ export class AppMessageBus extends MessageBusBase {
 	// ============================================
 	// LIFECYCLE
 	// ============================================
+	// SHARE LINK CREATION
+	// ============================================
+
+	// Timeout for ACK (dialog opening confirmation) - 5 seconds
+	private static readonly SHARE_CREATE_ACK_TIMEOUT = 5000
+
+	// Track pending share link creation sessions for result correlation
+	private pendingShareSessions = new Map<
+		string,
+		{
+			resolve: (result: ShareCreateResult | undefined) => void
+			reject: (error: Error) => void
+		}
+	>()
+
+	/**
+	 * Request the shell to create a share link for the current document
+	 *
+	 * Uses ACK + push pattern:
+	 * 1. Sends request, waits for ACK (5 second timeout)
+	 * 2. Waits indefinitely for result push when user confirms/cancels
+	 *
+	 * @param options - Share link options
+	 * @returns Promise resolving to created share link info or undefined if cancelled
+	 */
+	async requestShareLink(options?: ShareCreateOptions): Promise<ShareCreateResult | undefined> {
+		if (!this.initialized) {
+			throw new Error('AppBus not initialized. Call init() first.')
+		}
+
+		this.log('Requesting share link creation:', options)
+
+		const sessionId = `sc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+
+		try {
+			const ackData = await this.sendRequest<ShareCreateAck['data']>((id) => {
+				this.sendToShell(
+					this.createRequestWithPayload('share:create.req', id, {
+						sessionId,
+						accessLevel: options?.accessLevel,
+						description: options?.description,
+						expiresAt: options?.expiresAt,
+						count: options?.count,
+						params: options?.params
+					})
+				)
+			}, AppMessageBus.SHARE_CREATE_ACK_TIMEOUT)
+
+			if (ackData?.sessionId !== sessionId) {
+				this.logWarn(
+					'Share create ACK sessionId mismatch:',
+					ackData?.sessionId,
+					'vs',
+					sessionId
+				)
+				throw new Error('Session ID mismatch in ACK response')
+			}
+
+			this.log('Share create ACK received, sessionId:', sessionId)
+
+			return new Promise<ShareCreateResult | undefined>((resolve, reject) => {
+				this.pendingShareSessions.set(sessionId, { resolve, reject })
+			})
+		} catch (error) {
+			this.pendingShareSessions.delete(sessionId)
+			throw error
+		}
+	}
+
+	/**
+	 * Handle share link creation result push from shell
+	 */
+	private handleShareCreateResult(msg: ShareCreateResultPush): void {
+		const sessionId = msg.payload.sessionId
+		const pending = this.pendingShareSessions.get(sessionId)
+
+		if (!pending) {
+			this.logWarn('Received share create result for unknown session:', sessionId)
+			return
+		}
+
+		this.pendingShareSessions.delete(sessionId)
+
+		if (msg.payload.created && msg.payload.refId) {
+			this.log('Share link created:', msg.payload)
+			pending.resolve({
+				created: true,
+				refId: msg.payload.refId,
+				url: msg.payload.url
+			})
+		} else {
+			this.log('Share link creation cancelled')
+			pending.resolve(undefined)
+		}
+	}
+
+	// ============================================
 
 	/**
 	 * Destroy the message bus and cleanup
@@ -1537,6 +1694,13 @@ export class AppMessageBus extends MessageBusBase {
 			this.log('Cancelled pending document session:', sessionId)
 		}
 		this.pendingDocSessions.clear()
+
+		// Reject all pending share link creation sessions
+		for (const [sessionId, pending] of this.pendingShareSessions) {
+			pending.reject(new Error('AppBus destroyed'))
+			this.log('Cancelled pending share session:', sessionId)
+		}
+		this.pendingShareSessions.clear()
 
 		super.destroy()
 	}

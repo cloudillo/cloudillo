@@ -856,6 +856,7 @@ export interface CreateRefRequest {
 	accessLevel?: 'read' | 'write'
 	expiresAt?: number // Unix timestamp
 	count?: number | null // max uses (null = unlimited, omit = default to 1)
+	params?: string // Serialized query string for launch params (e.g., "mode=present&follow=some.id.tag")
 }
 
 export interface ListRefsQuery {
@@ -874,7 +875,8 @@ export const tRef = T.struct({
 	createdAt: T.union(T.string, T.date),
 	expiresAt: T.optional(T.union(T.string, T.date)),
 	count: T.optional(T.number),
-	used: T.optional(T.boolean)
+	used: T.optional(T.boolean),
+	params: T.optional(T.string)
 })
 export type Ref = T.TypeOf<typeof tRef>
 
@@ -886,7 +888,8 @@ export const tRefResponse = T.struct({
 	accessLevel: T.optional(T.literal('read', 'write')),
 	createdAt: T.optional(T.number),
 	expiresAt: T.optional(T.number),
-	count: T.optional(T.number)
+	count: T.optional(T.number),
+	params: T.optional(T.string)
 })
 export type RefResponse = T.TypeOf<typeof tRefResponse>
 
@@ -896,7 +899,8 @@ export const tRefAccessTokenResult = T.struct({
 	resourceId: T.string,
 	accessLevel: T.literal('read', 'write'),
 	scope: T.optional(T.string),
-	expiresAt: T.optional(T.number)
+	expiresAt: T.optional(T.number),
+	params: T.optional(T.string)
 })
 export type RefAccessTokenResult = T.TypeOf<typeof tRefAccessTokenResult>
 

@@ -103,7 +103,8 @@ export const tAuthInitRes = T.struct({
 			tokenLifetime: T.optional(T.number),
 			displayName: T.optional(T.string),
 			navState: T.optional(T.string),
-			ancestors: T.optional(T.array(T.string))
+			ancestors: T.optional(T.array(T.string)),
+			params: T.optional(T.string)
 		})
 	),
 	error: T.optional(T.string)
@@ -176,7 +177,10 @@ export const tAuthInitPush = T.struct({
 		token: T.optional(T.string),
 		access: T.optional(T.literal('read', 'write')),
 		tokenLifetime: T.optional(T.number),
-		displayName: T.optional(T.string)
+		displayName: T.optional(T.string),
+		navState: T.optional(T.string),
+		ancestors: T.optional(T.array(T.string)),
+		params: T.optional(T.string)
 	})
 })
 export type AuthInitPush = T.TypeOf<typeof tAuthInitPush>
@@ -1065,6 +1069,71 @@ export const tCameraOverlayUpdate = T.struct({
 export type CameraOverlayUpdate = T.TypeOf<typeof tCameraOverlayUpdate>
 
 // ============================================
+// SHARE LINK CREATION MESSAGES
+// ============================================
+
+/**
+ * App requests to create a share link
+ * Direction: app -> shell
+ *
+ * Uses ACK + push pattern (same as media:pick):
+ * 1. App sends request, shell sends ACK (dialog opening)
+ * 2. User confirms in shell dialog, shell sends result push
+ */
+export const tShareCreateReq = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('share:create.req'),
+	id: T.number,
+	payload: T.struct({
+		sessionId: T.string,
+		accessLevel: T.optional(T.literal('read', 'write')),
+		description: T.optional(T.string),
+		expiresAt: T.optional(T.number),
+		count: T.optional(T.number),
+		params: T.optional(T.string)
+	})
+})
+export type ShareCreateReq = T.TypeOf<typeof tShareCreateReq>
+
+/**
+ * Shell acknowledges share link creation dialog is opening
+ * Direction: shell -> app
+ */
+export const tShareCreateAck = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('share:create.ack'),
+	replyTo: T.number,
+	ok: T.boolean,
+	data: T.optional(
+		T.struct({
+			sessionId: T.string
+		})
+	),
+	error: T.optional(T.string)
+})
+export type ShareCreateAck = T.TypeOf<typeof tShareCreateAck>
+
+/**
+ * Shell pushes share link creation result
+ * Direction: shell -> app (notification, no response expected)
+ */
+export const tShareCreateResultPush = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('share:create.result'),
+	payload: T.struct({
+		sessionId: T.string,
+		created: T.boolean,
+		refId: T.optional(T.string),
+		url: T.optional(T.string),
+		error: T.optional(T.string)
+	})
+})
+export type ShareCreateResultPush = T.TypeOf<typeof tShareCreateResultPush>
+
+// ============================================
 // UNION OF ALL MESSAGES
 // ============================================
 
@@ -1138,6 +1207,11 @@ export const tCloudilloMessage = T.taggedUnion('type')({
 	'camera:preview.frame': tCameraPreviewFrame,
 	'camera:overlay.update': tCameraOverlayUpdate,
 
+	// Share link creation messages
+	'share:create.req': tShareCreateReq,
+	'share:create.ack': tShareCreateAck,
+	'share:create.result': tShareCreateResultPush,
+
 	// Service worker messages
 	'sw:token.set': tSwTokenSet,
 	'sw:token.clear': tSwTokenClear,
@@ -1202,9 +1276,11 @@ export type ResponseFor<T extends RequestType> = T extends 'auth:init.req'
 											? 'sensor:compass.sub.res'
 											: T extends 'camera:capture.req'
 												? 'camera:capture.ack'
-												: T extends 'sw:apikey.get.req'
-													? 'sw:apikey.get.res'
-													: never
+												: T extends 'share:create.req'
+													? 'share:create.ack'
+													: T extends 'sw:apikey.get.req'
+														? 'sw:apikey.get.res'
+														: never
 
 /**
  * Extract the data type from a response message

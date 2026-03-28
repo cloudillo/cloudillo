@@ -74,7 +74,10 @@ import {
 	tCameraPreviewStart,
 	tCameraPreviewStop,
 	tCameraPreviewFrame,
-	tCameraOverlayUpdate
+	tCameraOverlayUpdate,
+	tShareCreateReq,
+	tShareCreateAck,
+	tShareCreateResultPush
 } from './types.js'
 
 // ============================================
@@ -312,6 +315,21 @@ export const MESSAGE_REGISTRY: Record<MessageType, MessageAccessRule> = {
 		directions: ['app>shell'],
 		requiresAuth: false,
 		validator: tCameraOverlayUpdate
+	},
+	'share:create.req': {
+		directions: ['app>shell'],
+		requiresAuth: true,
+		validator: tShareCreateReq
+	},
+	'share:create.ack': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tShareCreateAck
+	},
+	'share:create.result': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tShareCreateResultPush
 	},
 	'sw:token.set': {
 		directions: ['shell>sw'],

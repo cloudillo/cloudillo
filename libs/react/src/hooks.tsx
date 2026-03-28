@@ -146,6 +146,8 @@ interface UseCloudillo {
 	roles?: string[]
 	access?: 'read' | 'write'
 	displayName?: string
+	params?: string
+	parsedParams: URLSearchParams
 }
 
 export function useCloudillo(appNameArg?: string): UseCloudillo {
@@ -218,7 +220,9 @@ export function useCloudillo(appNameArg?: string): UseCloudillo {
 			idTag: bus.idTag,
 			roles: bus.roles,
 			access: bus.access,
-			displayName: bus.displayName
+			displayName: bus.displayName,
+			params: bus.params,
+			parsedParams: bus.parsedParams
 		}
 	}, [auth, ownerTag, fileId])
 

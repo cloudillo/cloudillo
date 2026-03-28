@@ -18,7 +18,7 @@ import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { usePopper } from 'react-popper'
 import { mergeClasses, createComponent } from '../utils.js'
-import { useMergedRefs, useEscapeKey, useOutsideClick } from '../hooks.js'
+import { useMergedRefs, useEscapeKey } from '../hooks.js'
 
 export interface MenuPosition {
 	x: number
@@ -66,8 +66,21 @@ export const Menu = createComponent<HTMLDivElement, MenuProps>(
 			[position]
 		)
 
-		// Close on outside click using shared hook
-		useOutsideClick(menuRef, onClose)
+		// Close on outside click — custom handler to also allow clicks in submenu portals
+		React.useEffect(() => {
+			function handleClick(evt: MouseEvent) {
+				const target = evt.target as Node
+				// Allow clicks inside the menu itself
+				if (menuRef.current?.contains(target)) return
+				// Allow clicks inside submenu portals (rendered as siblings in popper-container)
+				const popper = document.getElementById('popper-container')
+				if (popper?.contains(target)) return
+				onClose()
+			}
+
+			document.addEventListener('mousedown', handleClick)
+			return () => document.removeEventListener('mousedown', handleClick)
+		}, [onClose])
 
 		// Close on Escape using shared hook
 		useEscapeKey(onClose)

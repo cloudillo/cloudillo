@@ -49,7 +49,8 @@ import {
 	type CameraCaptureResultPush,
 	type CameraPreviewFrame,
 	type ShareCreateAck,
-	type ShareCreateResultPush
+	type ShareCreateResultPush,
+	type ImportDataPush
 } from './types.js'
 import { validateMessage } from './registry.js'
 import { MessageBusBase, type MessageBusConfig } from './core.js'
@@ -1661,6 +1662,47 @@ export class AppMessageBus extends MessageBusBase {
 			this.log('Share link creation cancelled')
 			pending.resolve(undefined)
 		}
+	}
+
+	// ============================================
+	// IMPORT DATA
+	// ============================================
+
+	/**
+	 * Register a handler for import data pushed from the shell
+	 *
+	 * When the shell creates a document via file conversion (e.g., xlsx → calcillo),
+	 * it sends the source file data after CRDT sync. The app should parse the data
+	 * and populate the Y.Doc.
+	 *
+	 * @param handler - Function to process the import data
+	 * @returns Cleanup function to unregister the handler
+	 */
+	onImportData(handler: (payload: ImportDataPush['payload']) => void): () => void {
+		this.on('import:data.push', (msg: ImportDataPush) => {
+			this.log('Received import data:', msg.payload.sourceMimeType, msg.payload.fileName)
+			handler(msg.payload)
+		})
+
+		return () => {
+			this.off('import:data.push')
+		}
+	}
+
+	/**
+	 * Notify the shell that import processing is complete
+	 *
+	 * @param success - Whether the import succeeded
+	 * @param error - Error message if import failed
+	 */
+	notifyImportComplete(success: boolean, error?: string): void {
+		this.log('Notifying import complete:', success, error)
+		this.sendToShell({
+			cloudillo: true,
+			v: PROTOCOL_VERSION,
+			type: 'import:complete.notify',
+			payload: { success, error }
+		})
 	}
 
 	// ============================================

@@ -118,6 +118,11 @@ export {
 	tShareCreateReq,
 	tShareCreateAck,
 	tShareCreateResultPush,
+	// Import messages
+	type ImportDataPush,
+	type ImportCompleteNotify,
+	tImportDataPush,
+	tImportCompleteNotify,
 	// Service worker messages
 	type SwTokenSet,
 	type SwTokenClear,

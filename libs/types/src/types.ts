@@ -341,11 +341,20 @@ export type AppCapability = T.TypeOf<typeof tAppCapability>
 export const tContentTypeAction = T.literal('view', 'edit', 'create')
 export type ContentTypeAction = T.TypeOf<typeof tContentTypeAction>
 
+// Import source declaration — external MIME types an app can convert from
+export const tImportSource = T.struct({
+	mimeType: T.string,
+	label: T.string,
+	extensions: T.optional(T.array(T.string))
+})
+export type ImportSource = T.TypeOf<typeof tImportSource>
+
 // Content type handler
 export const tContentTypeHandler = T.struct({
 	mimeType: T.string,
 	actions: T.optional(T.array(T.string)),
-	priority: T.optional(T.string)
+	priority: T.optional(T.string),
+	importFrom: T.optional(T.array(tImportSource))
 })
 export type ContentTypeHandler = T.TypeOf<typeof tContentTypeHandler>
 

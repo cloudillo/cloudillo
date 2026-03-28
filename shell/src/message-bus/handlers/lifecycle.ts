@@ -23,6 +23,7 @@
 
 import type { ShellMessageBus } from '../shell-bus.js'
 import type { AppReadyNotify, AppErrorNotify } from '@cloudillo/core'
+import { deliverPendingImport } from './import.js'
 
 /**
  * Callback for app ready notifications
@@ -123,6 +124,14 @@ export function initLifecycleHandlers(bus: ShellMessageBus): void {
 
 		const stage = msg.payload.stage || 'ready'
 		console.log('[Lifecycle] App ready:', stage)
+
+		// Deliver pending import data when app reaches 'synced' stage
+		if (stage === 'synced') {
+			const conn = bus.getAppTracker().getApp(appWindow)
+			if (conn?.resId) {
+				deliverPendingImport(bus, appWindow, conn.resId)
+			}
+		}
 
 		// Call registered callback if any
 		const callback = readyCallbacks.get(appWindow)

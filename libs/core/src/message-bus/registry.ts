@@ -77,7 +77,9 @@ import {
 	tCameraOverlayUpdate,
 	tShareCreateReq,
 	tShareCreateAck,
-	tShareCreateResultPush
+	tShareCreateResultPush,
+	tImportDataPush,
+	tImportCompleteNotify
 } from './types.js'
 
 // ============================================
@@ -330,6 +332,16 @@ export const MESSAGE_REGISTRY: Record<MessageType, MessageAccessRule> = {
 		directions: ['shell>app'],
 		requiresAuth: false,
 		validator: tShareCreateResultPush
+	},
+	'import:data.push': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tImportDataPush
+	},
+	'import:complete.notify': {
+		directions: ['app>shell'],
+		requiresAuth: true,
+		validator: tImportCompleteNotify
 	},
 	'sw:token.set': {
 		directions: ['shell>sw'],

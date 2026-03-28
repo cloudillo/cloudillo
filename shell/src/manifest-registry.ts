@@ -201,4 +201,36 @@ export function getHandlersForContentType(contentType: string): AppHandler[] {
 	return handlers
 }
 
+// ============================================
+// IMPORT HANDLER LOOKUP
+// ============================================
+
+export interface ImportHandler {
+	manifest: AppManifest
+	targetMimeType: string
+	label: string
+}
+
+/**
+ * Find all apps that can import/convert from a given source MIME type.
+ * Used by the smart upload feature to offer conversion options.
+ */
+export function getImportHandlers(sourceMimeType: string): ImportHandler[] {
+	const handlers: ImportHandler[] = []
+	for (const m of allManifests) {
+		for (const ct of m.contentTypes ?? []) {
+			for (const imp of ct.importFrom ?? []) {
+				if (imp.mimeType === sourceMimeType) {
+					handlers.push({
+						manifest: m,
+						targetMimeType: ct.mimeType,
+						label: imp.label
+					})
+				}
+			}
+		}
+	}
+	return handlers
+}
+
 // vim: ts=4

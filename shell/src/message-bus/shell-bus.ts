@@ -46,6 +46,7 @@ import { initSettingsHandlers } from './handlers/settings.js'
 import { initSensorHandlers } from './handlers/sensor.js'
 import { initCameraHandlers, cleanupCameraSessions } from './handlers/camera.js'
 import { initShareHandlers } from './handlers/share.js'
+import { initImportHandlers } from './handlers/import.js'
 
 // ============================================
 // TYPES
@@ -134,6 +135,7 @@ export class ShellMessageBus extends MessageBusBase {
 		initSensorHandlers(this)
 		initCameraHandlers(this)
 		initShareHandlers(this)
+		initImportHandlers(this)
 
 		this.initialized = true
 		this.log('Initialized')

@@ -1134,6 +1134,46 @@ export const tShareCreateResultPush = T.struct({
 export type ShareCreateResultPush = T.TypeOf<typeof tShareCreateResultPush>
 
 // ============================================
+// IMPORT MESSAGES
+// ============================================
+
+/**
+ * Shell pushes import data to app after CRDT sync
+ * Direction: shell -> app (notification, no response expected)
+ *
+ * Sent when a document was created via file import/conversion.
+ * The app should parse the data and populate the CRDT document.
+ * Data is base64-encoded since postMessage can't transfer
+ * ArrayBuffer to opaque-origin iframes.
+ */
+export const tImportDataPush = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('import:data.push'),
+	payload: T.struct({
+		sourceMimeType: T.string,
+		fileName: T.string,
+		data: T.string
+	})
+})
+export type ImportDataPush = T.TypeOf<typeof tImportDataPush>
+
+/**
+ * App notifies shell that import is complete
+ * Direction: app -> shell (notification, no response expected)
+ */
+export const tImportCompleteNotify = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('import:complete.notify'),
+	payload: T.struct({
+		success: T.boolean,
+		error: T.optional(T.string)
+	})
+})
+export type ImportCompleteNotify = T.TypeOf<typeof tImportCompleteNotify>
+
+// ============================================
 // UNION OF ALL MESSAGES
 // ============================================
 
@@ -1211,6 +1251,10 @@ export const tCloudilloMessage = T.taggedUnion('type')({
 	'share:create.req': tShareCreateReq,
 	'share:create.ack': tShareCreateAck,
 	'share:create.result': tShareCreateResultPush,
+
+	// Import messages
+	'import:data.push': tImportDataPush,
+	'import:complete.notify': tImportCompleteNotify,
 
 	// Service worker messages
 	'sw:token.set': tSwTokenSet,

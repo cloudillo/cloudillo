@@ -89,6 +89,7 @@ import {
 	DialogContainer,
 	type BottomSheetSnapPoint
 } from '@cloudillo/react'
+import { getAppBus } from '@cloudillo/core'
 
 import type {
 	ObjectId,
@@ -221,6 +222,74 @@ export function PrezilloApp() {
 		handleStopPresenting,
 		handleExitFullscreenFollowing
 	} = usePresentationMode({ prezillo, toast })
+
+	// Share link handlers
+	const handleSharePresent = React.useCallback(async () => {
+		try {
+			await getAppBus().requestShareLink({
+				accessLevel: 'read',
+				params: 'mode=present',
+				description: 'Presentation view'
+			})
+		} catch (err) {
+			console.error('[Prezillo] Share for presenting failed:', err)
+		}
+	}, [])
+
+	const handleShareFollow = React.useCallback(async () => {
+		const idTag = prezillo.cloudillo.idTag
+		try {
+			await getAppBus().requestShareLink({
+				accessLevel: 'read',
+				params: idTag ? `mode=follow&follow=${encodeURIComponent(idTag)}` : 'mode=follow',
+				description: 'Follow my presentation'
+			})
+		} catch (err) {
+			console.error('[Prezillo] Share for following failed:', err)
+		}
+	}, [prezillo.cloudillo.idTag])
+
+	// Auto-start based on launch params
+	const autoStartedRef = React.useRef(false)
+	React.useEffect(() => {
+		if (autoStartedRef.current || !prezillo.cloudillo.synced) return
+
+		const mode = prezillo.cloudillo.parsedParams.get('mode')
+		console.log(
+			'[Prezillo] Auto-start check: mode=%s, params=%s, synced=%s',
+			mode,
+			prezillo.cloudillo.params,
+			prezillo.cloudillo.synced
+		)
+
+		if (mode === 'present') {
+			autoStartedRef.current = true
+			console.log('[Prezillo] Auto-starting presentation mode')
+			// Start in windowed mode — fullscreen requires user gesture (browser restriction)
+			handleStartPresenting(false)
+		} else if (mode === 'follow') {
+			autoStartedRef.current = true
+			console.log('[Prezillo] Auto-starting follow mode')
+			handleStartPresenting(false)
+		}
+	}, [prezillo.cloudillo.synced, prezillo.cloudillo.params, handleStartPresenting])
+
+	// Auto-follow the first active presenter when launched with mode=follow
+	const autoFollowedRef = React.useRef(false)
+	React.useEffect(() => {
+		if (autoFollowedRef.current) return
+
+		const parsedParams = new URLSearchParams(prezillo.cloudillo.params || '')
+		if (parsedParams.get('mode') !== 'follow') return
+
+		const presenters = prezillo.activePresenters
+		if (presenters.length > 0) {
+			autoFollowedRef.current = true
+			// Prefer the owner presenter, otherwise follow the first one
+			const owner = presenters.find((p) => p.isOwner)
+			prezillo.followPresenter((owner || presenters[0]).clientId)
+		}
+	}, [prezillo.cloudillo.params, prezillo.activePresenters, prezillo.followPresenter])
 
 	// Mobile detection
 	const isMobile = useIsMobile()
@@ -1367,7 +1436,9 @@ export function PrezilloApp() {
 						onPresent: handleStartPresenting,
 						onStopPresenting: handleStopPresenting,
 						onFollow: prezillo.followPresenter,
-						onUnfollow: prezillo.unfollowPresenter
+						onUnfollow: prezillo.unfollowPresenter,
+						onSharePresent: handleSharePresent,
+						onShareFollow: handleShareFollow
 					}}
 					readOnly={isReadOnly}
 					isMobile={isMobile}

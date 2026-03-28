@@ -34,7 +34,9 @@ import {
 	PiCrownBold as IcOwner,
 	PiLinkBold as IcLink,
 	PiCopyBold as IcDuplicate,
-	PiTrashBold as IcDelete
+	PiTrashBold as IcDelete,
+	PiShareNetworkBold as IcShare,
+	PiUsersBold as IcUsers
 } from 'react-icons/pi'
 import { useTranslation } from 'react-i18next'
 
@@ -61,6 +63,8 @@ export interface ViewPickerPresentCmds {
 	onStopPresenting?: () => void
 	onFollow?: (clientId: number) => void
 	onUnfollow?: () => void
+	onSharePresent?: () => void
+	onShareFollow?: () => void
 }
 
 export interface ViewPickerProps {
@@ -195,7 +199,8 @@ export function ViewPicker({
 		onDuplicateView,
 		onDeleteView
 	} = cmds
-	const { onPresent, onStopPresenting, onFollow, onUnfollow } = presentCmds
+	const { onPresent, onStopPresenting, onFollow, onUnfollow, onSharePresent, onShareFollow } =
+		presentCmds
 	const { t } = useTranslation()
 	const activeIndex = views.findIndex((v) => v.id === activeViewId)
 
@@ -443,7 +448,7 @@ export function ViewPicker({
 								}}
 							>
 								<IcPlay />
-								<span>{t('prezillo.presentInWindow')}</span>
+								<span>{t('Present in window')}</span>
 							</button>
 							<button
 								className="c-present-split__option"
@@ -453,8 +458,37 @@ export function ViewPicker({
 								}}
 							>
 								<IcFullscreen />
-								<span>{t('prezillo.presentFullscreen')}</span>
+								<span>{t('Present fullscreen')}</span>
 							</button>
+							{(onSharePresent || onShareFollow) && (
+								<>
+									<div className="c-present-split__divider" />
+									{onSharePresent && (
+										<button
+											className="c-present-split__option"
+											onClick={() => {
+												onSharePresent()
+												setShowPresentDropdown(false)
+											}}
+										>
+											<IcShare />
+											<span>{t('Share for presenting')}</span>
+										</button>
+									)}
+									{onShareFollow && (
+										<button
+											className="c-present-split__option"
+											onClick={() => {
+												onShareFollow()
+												setShowPresentDropdown(false)
+											}}
+										>
+											<IcUsers />
+											<span>{t('Share for following')}</span>
+										</button>
+									)}
+								</>
+							)}
 						</div>
 					)}
 				</div>
@@ -572,13 +606,13 @@ export function ViewPicker({
 							followingClientId !== null && 'following'
 						)}
 						onClick={() => setShowPresenterDropdown(!showPresenterDropdown)}
-						title={t('prezillo.presentersActive', { count: activePresenters.length })}
+						title={t('{{count}} presenters active', { count: activePresenters.length })}
 					>
 						<span className="c-presenter-indicator-btn__dot">
 							<span className="c-presenter-indicator-btn__pulse" />
 						</span>
 						<span className="c-presenter-indicator-btn__label">
-							{activePresenters.length} {t('prezillo.live')}
+							{activePresenters.length} {t('live')}
 						</span>
 						{followingClientId !== null && (
 							<IcLink className="c-presenter-indicator-btn__link" />
@@ -620,17 +654,17 @@ export function ViewPicker({
 												{presenter.isOwner && (
 													<IcOwner
 														className="c-presenter-indicator__owner-badge"
-														title={t('prezillo.owner')}
+														title={t('Owner')}
 													/>
 												)}
 											</div>
 											<div className="c-presenter-indicator__slide">
-												{t('prezillo.slide')} {slideNum}/{views.length}
+												{t('Slide')} {slideNum}/{views.length}
 												{followerCount > 0 && (
 													<span className="c-presenter-indicator__followers">
 														{' · '}
 														{followerCount}{' '}
-														{t('prezillo.followers', {
+														{t('follower', {
 															count: followerCount
 														})}
 													</span>
@@ -641,9 +675,7 @@ export function ViewPicker({
 											className={`c-button compact${isFollowing ? ' accent' : ' primary'}`}
 											onClick={() => handleFollowClick(presenter.clientId)}
 										>
-											{isFollowing
-												? t('prezillo.following')
-												: t('prezillo.follow')}
+											{isFollowing ? t('Following') : t('Follow')}
 										</button>
 									</div>
 								)

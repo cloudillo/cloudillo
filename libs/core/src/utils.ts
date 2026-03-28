@@ -46,7 +46,6 @@ export async function str2color(
 	// Generate color from hash
 	const color = colord({ l: dark ? 100 - l : l, c, h: parseInt(hash.slice(0, 3), 16) }).toHex()
 
-	console.log('str2color', str, hash, color, parseInt(hash.slice(0, 3), 16))
 	return color
 }
 

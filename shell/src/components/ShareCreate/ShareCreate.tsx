@@ -1,0 +1,120 @@
+// This file is part of the Cloudillo Platform.
+// Copyright (C) 2024  Szilárd Hajba
+//
+// Cloudillo is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * ShareCreate Component
+ *
+ * Confirmation dialog for share link creation requested by apps via message bus.
+ * Creates a ref via API, builds a short URL, copies to clipboard, and returns result.
+ */
+
+import React from 'react'
+import { useTranslation } from 'react-i18next'
+
+import { Dialog, Button, useToast, useApi } from '@cloudillo/react'
+import {
+	setShareCreateCallback,
+	type ShareCreateOpenOptions,
+	type ShareCreateResultData
+} from '../../message-bus/handlers/share.js'
+
+interface PendingRequest {
+	options: ShareCreateOpenOptions
+	onResult: (result: ShareCreateResultData | null) => void
+}
+
+export function ShareCreate() {
+	const { t } = useTranslation()
+	const { api } = useApi()
+	const toast = useToast()
+	const [pending, setPending] = React.useState<PendingRequest | null>(null)
+	const [creating, setCreating] = React.useState(false)
+
+	// Register callback for message bus handler
+	React.useEffect(() => {
+		setShareCreateCallback((options, onResult) => {
+			setPending({ options, onResult })
+		})
+
+		return () => {
+			setShareCreateCallback(null)
+		}
+	}, [])
+
+	const handleCancel = React.useCallback(() => {
+		pending?.onResult(null)
+		setPending(null)
+	}, [pending])
+
+	const handleConfirm = React.useCallback(async () => {
+		if (!pending || !api) return
+
+		setCreating(true)
+		try {
+			const ref = await api.refs.create({
+				type: 'share.file',
+				resourceId: pending.options.resourceId,
+				accessLevel: pending.options.accessLevel || 'read',
+				description: pending.options.description,
+				expiresAt: pending.options.expiresAt,
+				count: pending.options.count ?? null,
+				params: pending.options.params
+			})
+
+			// Build short URL — params are stored in the ref, no need to append to URL
+			const url = `${window.location.origin}/s/${ref.refId}`
+
+			// Copy to clipboard
+			try {
+				await navigator.clipboard.writeText(url)
+				toast.success(t('Link copied to clipboard'))
+			} catch {
+				// Clipboard access may fail in some contexts
+				toast.info(t('Share link created'))
+			}
+
+			pending.onResult({ refId: ref.refId, url })
+		} catch (err) {
+			console.error('[ShareCreate] Failed to create share link:', err)
+			toast.error(t('Failed to create share link'))
+			pending.onResult(null)
+		} finally {
+			setCreating(false)
+			setPending(null)
+		}
+	}, [pending, api, t, toast])
+
+	if (!pending) return null
+
+	const accessLabel = pending.options.accessLevel === 'write' ? t('Can edit') : t('View only')
+
+	return (
+		<Dialog open title={t('Create share link')} onClose={handleCancel}>
+			<p>{pending.options.description || t('Share this document')}</p>
+			<p className="c-text-secondary mt-2">
+				{t('Access')}: {accessLabel}
+			</p>
+			<div className="c-hbox justify-content-end g-2 mt-3">
+				<Button onClick={handleCancel}>{t('Cancel')}</Button>
+				<Button variant="primary" onClick={handleConfirm} disabled={creating}>
+					{creating ? t('Creating...') : t('Create & copy link')}
+				</Button>
+			</div>
+		</Dialog>
+	)
+}
+
+// vim: ts=4

@@ -216,7 +216,7 @@ export const ItemCard = React.memo(function ItemCard({
 						return attribution ? (
 							<>
 								<ProfilePicture profile={attribution} tiny />
-								<span>{attribution.name || attribution.idTag}</span>
+								<span>{attribution.name || `@${attribution.idTag}`}</span>
 							</>
 						) : null
 					})()}

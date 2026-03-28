@@ -46,6 +46,7 @@ interface MicrofrontendContainerProps {
 	token?: string // Optional pre-fetched token (for guest access via share links)
 	refId?: string // Share link ref ID for guest token refresh
 	guestName?: string // Optional guest display name for awareness
+	params?: string // Launch params as serialized query string
 }
 
 /**
@@ -96,7 +97,8 @@ export function MicrofrontendContainer({
 	access,
 	token: providedToken,
 	refId,
-	guestName
+	guestName,
+	params
 }: MicrofrontendContainerProps) {
 	const ref = React.useRef<HTMLIFrameElement>(null)
 	const { api } = useApi()
@@ -127,6 +129,7 @@ export function MicrofrontendContainer({
 	const providedTokenRef = React.useRef(providedToken)
 	const refIdRef = React.useRef(refId)
 	const guestNameRef = React.useRef(guestName)
+	const paramsRef = React.useRef(params)
 	// These refs are for callbacks defined below - initialized to null, updated in effect
 	const requestTokenRef = React.useRef<(() => Promise<string | undefined>) | null>(null)
 	const scheduleRenewalRef = React.useRef<((token: string) => void) | null>(null)
@@ -170,30 +173,18 @@ export function MicrofrontendContainer({
 			const httpStatus = (err as { httpStatus?: number })?.httpStatus
 			const isAuthError = httpStatus === 401 || httpStatus === 403
 
-			console.log('[Shell] Access token request failed:', {
-				httpStatus,
-				isAuthError,
-				errorType: err?.constructor?.name,
-				message: (err as Error)?.message
-			})
-
 			if (isAuthError) {
-				console.log('[Shell] Auth error detected, waiting for token renewal...')
-
 				// Wait for token renewal to complete (typically < 1 second)
 				await new Promise((resolve) => setTimeout(resolve, 3000))
 
 				// Get the potentially updated api client
 				const renewedApi = apiRef.current
-				console.log('[Shell] After wait - api changed:', renewedApi !== currentApi)
 
 				if (renewedApi) {
-					console.log('[Shell] Retrying access token request...')
 					try {
 						const res = await renewedApi.auth.getAccessToken({
 							scope: `file:${fileId}:${accessSuffix}`
 						})
-						console.log('[Shell] Retry succeeded!')
 						return res.token
 					} catch (retryErr) {
 						console.error('[Shell] Retry failed:', retryErr)
@@ -251,6 +242,7 @@ export function MicrofrontendContainer({
 		providedTokenRef.current = providedToken
 		refIdRef.current = refId
 		guestNameRef.current = guestName
+		paramsRef.current = params
 		requestTokenRef.current = requestToken
 		scheduleRenewalRef.current = scheduleRenewal
 	})
@@ -331,7 +323,8 @@ export function MicrofrontendContainer({
 						refId: currentRefId,
 						access: currentAccess || 'write',
 						idTag: currentAuth?.idTag || currentContextIdTag,
-						displayName: currentGuestName
+						displayName: currentGuestName,
+						params: paramsRef.current
 					})
 				}
 
@@ -403,7 +396,8 @@ export function MicrofrontendContainer({
 						idTag: latestAuth?.idTag || contextIdTagRef.current,
 						access: latestAccess || 'write',
 						token: latestProvidedToken,
-						refId: latestRefId
+						refId: latestRefId,
+						params: paramsRef.current
 					})
 
 					await delay(100) // Wait for app JavaScript to initialize
@@ -423,7 +417,8 @@ export function MicrofrontendContainer({
 							token: res.token,
 							access: latestAccess || 'write',
 							resId,
-							displayName: latestGuestName
+							displayName: latestGuestName,
+							params: paramsRef.current
 						})
 						// Schedule proactive token renewal
 						if (res.token && latestScheduleRenewal) {
@@ -517,6 +512,13 @@ function ExternalApp({ className }: { className?: string }) {
 			? 'read'
 			: 'write'
 
+	// Collect non-access search params as launch params
+	const launchParams = new URLSearchParams()
+	for (const [k, v] of searchParams) {
+		if (k !== 'access') launchParams.set(k, v)
+	}
+	const paramsStr = launchParams.toString() || undefined
+
 	// Check if this is a guest document navigation and pass the stored token/name
 	const isGuestAccess = guestDocument && resId === guestDocument.resId
 	const guestToken = isGuestAccess ? guestDocument.token : undefined
@@ -533,6 +535,7 @@ function ExternalApp({ className }: { className?: string }) {
 				access={access}
 				token={guestToken}
 				guestName={guestName}
+				params={paramsStr}
 			/>
 		)
 	)

@@ -52,6 +52,8 @@ export interface AppConnection {
 	refId?: string
 	/** Source file ID for cross-document token refresh of embedded apps */
 	via?: string
+	/** Launch params as serialized query string */
+	params?: string
 }
 
 /**
@@ -67,6 +69,8 @@ export interface RegisterAppOptions {
 	token?: string
 	/** Share link ref ID for token refresh */
 	refId?: string
+	/** Launch params as serialized query string */
+	params?: string
 }
 
 /**
@@ -82,6 +86,8 @@ export interface PendingRegistration {
 	displayName?: string
 	navState?: string
 	ancestors?: string[]
+	/** Launch params as serialized query string */
+	params?: string
 }
 
 // ============================================
@@ -129,7 +135,8 @@ export class AppTracker {
 			registeredAt: now,
 			lastActiveAt: now,
 			token: options.token,
-			refId: options.refId
+			refId: options.refId,
+			params: options.params
 		}
 
 		// Only increment count if this is a new connection

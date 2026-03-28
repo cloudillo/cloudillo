@@ -213,13 +213,14 @@ export function ContextMenu({
 								key={`${entry.manifest.id}-${entry.mode.id}`}
 								icon={AppIcon ? <AppIcon /> : undefined}
 								label={`${entry.manifest.name}: ${entry.mode.label}`}
-								onClick={handleAction(() =>
+								onClick={handleAction(() => {
 									fileOps.openFileWithApp?.(
 										file.fileId,
 										entry.manifest.id,
-										file.accessLevel === 'none' ? 'read' : file.accessLevel
+										file.accessLevel === 'none' ? 'read' : file.accessLevel,
+										'mode=' + entry.mode.id
 									)
-								)}
+								})}
 							/>
 						)
 					})}

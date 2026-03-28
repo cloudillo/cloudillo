@@ -95,6 +95,7 @@ import { Notifications } from './notifications/notifications.js'
 import { useNotifications } from './notifications/state'
 import { NotificationPopover } from './notifications/NotificationPopover.js'
 import { MediaPicker } from './components/MediaPicker/index.js'
+import { ShareCreate } from './components/ShareCreate/index.js'
 import { DocumentPicker } from './components/DocumentPicker/index.js'
 import { BusinessCardDialog } from './components/BusinessCard/BusinessCardDialog.js'
 import { QrScannerDialog, useQrScanner } from './components/QrScanner/index.js'
@@ -993,6 +994,7 @@ export function Layout() {
 				<DialogContainer />
 				<ToastContainer position="bottom-right" />
 				<MediaPicker />
+				<ShareCreate />
 				<DocumentPicker />
 				<QrScannerDialog
 					onScan={(idTag) => navigate(`/profile/${contextIdTag || auth?.idTag}/${idTag}`)}

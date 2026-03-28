@@ -94,7 +94,8 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 				tokenLifetime,
 				displayName: pending.displayName,
 				navState: pending.navState,
-				ancestors: pending.ancestors
+				ancestors: pending.ancestors,
+				params: pending.params
 			})
 
 			console.log('[Auth] Relayed embed initialized:', msg.payload.appName, msg.payload.resId)
@@ -122,10 +123,20 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 				access: pending?.access || 'write',
 				idTag: pending?.idTag,
 				token: pending?.token,
-				refId: pending?.refId
+				refId: pending?.refId,
+				params: pending?.params
 			})
 		} else if (!connection) {
-			console.warn('[Auth] Init request from unregistered app without resId')
+			console.warn('[Auth] Init request from unregistered app without resId — rejecting')
+			bus.sendResponse(
+				appWindow,
+				'auth:init.res',
+				msg.id,
+				false,
+				undefined,
+				'App not registered'
+			)
+			return
 		}
 
 		try {
@@ -191,7 +202,8 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 				token,
 				access: connection?.access || 'write',
 				tokenLifetime,
-				displayName
+				displayName,
+				params: connection?.params
 			})
 
 			console.log('[Auth] App initialized:', msg.payload.appName)

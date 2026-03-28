@@ -45,6 +45,7 @@ import { initCrdtHandlers } from './handlers/crdt.js'
 import { initSettingsHandlers } from './handlers/settings.js'
 import { initSensorHandlers } from './handlers/sensor.js'
 import { initCameraHandlers, cleanupCameraSessions } from './handlers/camera.js'
+import { initShareHandlers } from './handlers/share.js'
 
 // ============================================
 // TYPES
@@ -132,6 +133,7 @@ export class ShellMessageBus extends MessageBusBase {
 		initSettingsHandlers(this)
 		initSensorHandlers(this)
 		initCameraHandlers(this)
+		initShareHandlers(this)
 
 		this.initialized = true
 		this.log('Initialized')
@@ -200,6 +202,7 @@ export class ShellMessageBus extends MessageBusBase {
 			displayName?: string
 			navState?: string
 			ancestors?: string[]
+			params?: string
 		}
 	): void {
 		this.appTracker.setPendingRegistration(resId, data)
@@ -342,6 +345,7 @@ export class ShellMessageBus extends MessageBusBase {
 			access?: 'read' | 'write'
 			token?: string
 			refId?: string
+			params?: string
 		}
 	): void {
 		const existing = this.appTracker.getApp(appWindow)
@@ -352,6 +356,7 @@ export class ShellMessageBus extends MessageBusBase {
 			if (options.appName) existing.appName = options.appName
 			if (options.idTag) existing.idTag = options.idTag
 			if (options.access) existing.access = options.access
+			if (options.params) existing.params = options.params
 			this.log('Updated existing app registration:', options.appName, options.resId)
 		} else {
 			this.appTracker.registerApp({
@@ -361,7 +366,8 @@ export class ShellMessageBus extends MessageBusBase {
 				idTag: options.idTag,
 				access: options.access,
 				token: options.token,
-				refId: options.refId
+				refId: options.refId,
+				params: options.params
 			})
 			this.log('Pre-registered app:', options.appName, options.resId)
 		}
@@ -385,6 +391,9 @@ export class ShellMessageBus extends MessageBusBase {
 			tokenLifetime?: number
 			resId?: string
 			displayName?: string
+			navState?: string
+			ancestors?: string[]
+			params?: string
 		}
 	): void {
 		// Register if not already (with resId for token fetching)
@@ -417,7 +426,10 @@ export class ShellMessageBus extends MessageBusBase {
 			token: data.token,
 			access: data.access || 'write',
 			tokenLifetime: data.tokenLifetime,
-			displayName: data.displayName
+			displayName: data.displayName,
+			navState: data.navState,
+			ancestors: data.ancestors,
+			params: data.params
 		})
 	}
 

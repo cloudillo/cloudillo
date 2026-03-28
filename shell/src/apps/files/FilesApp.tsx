@@ -289,11 +289,25 @@ export function FilesApp() {
 
 	const fileOps: FileOps = React.useMemo(() => {
 		// Shared navigation helper for opening files in apps
-		function navigateToFile(file: File, appName: string, access?: 'read' | 'write') {
+		function navigateToFile(
+			file: File,
+			appName: string,
+			access?: 'read' | 'write',
+			params?: string
+		) {
 			// For tenant-owned files (no explicit owner), use contextIdTag as the owner in the path
 			const ownerTag = file.owner?.idTag || contextIdTag || auth?.idTag
 			const basePath = `/app/${contextIdTag || auth?.idTag}/${appName}/${ownerTag + ':'}${file.fileId}`
-			navigate(access === 'read' ? `${basePath}?access=read` : basePath)
+			const searchParams = new URLSearchParams()
+			if (access === 'read') searchParams.set('access', 'read')
+			if (params) {
+				for (const [k, v] of new URLSearchParams(params)) {
+					searchParams.set(k, v)
+				}
+			}
+			const query = searchParams.toString()
+			const url = query ? `${basePath}?${query}` : basePath
+			navigate(url)
 		}
 
 		return {
@@ -313,11 +327,14 @@ export function FilesApp() {
 			openFileWithApp: function openFileWithApp(
 				fileId: string,
 				appId: string,
-				access?: 'read' | 'write'
+				access?: 'read' | 'write',
+				params?: string
 			) {
 				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
 				if (file) {
-					navigateToFile(file, appId, access)
+					navigateToFile(file, appId, access, params)
+				} else {
+					console.warn('[FilesApp] File not found in data:', fileId)
 				}
 			},
 

@@ -58,7 +58,12 @@ export interface FileView extends File {
 export interface FileOps {
 	setFile?: (file: File) => void
 	openFile: (fileId: string, access?: 'read' | 'write') => void
-	openFileWithApp?: (fileId: string, appId: string, access?: 'read' | 'write') => void
+	openFileWithApp?: (
+		fileId: string,
+		appId: string,
+		access?: 'read' | 'write',
+		params?: string
+	) => void
 	renameFile: (fileId?: string) => void
 	setRenameFileName: (name?: string) => void
 	doRenameFile: (fileId: string, fileName: string) => void

@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import { LuFileWarning as IcError } from 'react-icons/lu'
@@ -53,7 +53,6 @@ type SharedState =
 export function SharedResourceView() {
 	const { t } = useTranslation()
 	const { refId } = useParams<{ refId: string }>()
-	const _navigate = useNavigate()
 	const { api } = useApi()
 	const [appConfig] = useAppConfig()
 	const [state, setState] = React.useState<SharedState>({ status: 'loading' })
@@ -211,6 +210,7 @@ export function SharedResourceView() {
 						token={tokenResult.token}
 						refId={refId}
 						guestName={guestName}
+						params={tokenResult.params}
 					/>
 				)
 			}

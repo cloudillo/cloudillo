@@ -19,13 +19,17 @@ import { useAuth, useInfiniteScroll } from '@cloudillo/react'
 import type * as Types from '@cloudillo/core'
 import { useCurrentContextIdTag, useContextAwareApi } from '../../../context/index.js'
 import { createCachedFileFetchPage } from '../../../cache/index.js'
-import type { File, ViewMode } from '../types.js'
+import type { File, ViewMode, FileTypeFilter, OwnerFilter } from '../types.js'
 import { TRASH_FOLDER_ID } from '../types.js'
 
 export interface UseFileListOptions {
 	viewMode?: ViewMode
 	parentId?: string | null
 	tags?: string[]
+	fileType?: FileTypeFilter
+	owner?: OwnerFilter
+	ownerIdTag?: string // Current user's idTag (needed for 'me'/'others' filter)
+	searchQuery?: string
 }
 
 const PAGE_SIZE = 30
@@ -74,12 +78,21 @@ export function useFileList(options?: UseFileListOptions) {
 	const [sortAsc, setSortAsc] = React.useState(false)
 	const [refreshCounter, setRefreshCounter] = React.useState(0)
 
-	const { viewMode = 'all', parentId, tags } = options || {}
+	const {
+		viewMode = 'browse',
+		parentId,
+		tags,
+		fileType = 'all',
+		owner = 'anyone',
+		ownerIdTag,
+		searchQuery
+	} = options || {}
 
 	// Convert tags array to comma-separated string for API
 	const tagsParam = tags && tags.length > 0 ? tags.join(',') : undefined
+	const trimmedSearch = searchQuery?.trim() || undefined
 
-	// Build the base query params based on viewMode
+	// Build the base query params based on viewMode + independent filters
 	const buildQueryParams = React.useCallback(
 		(cursor: string | null, limit: number): Types.ListFilesQuery => {
 			const baseParams: Types.ListFilesQuery = {
@@ -88,53 +101,71 @@ export function useFileList(options?: UseFileListOptions) {
 				tag: tagsParam
 			}
 
+			// Apply independent file type filter
+			if (fileType === 'live') {
+				baseParams.fileTp = 'CRDT,RTDB'
+			} else if (fileType === 'static') {
+				baseParams.fileTp = 'BLOB'
+			}
+
+			// Apply search query
+			if (trimmedSearch) {
+				baseParams.fileName = trimmedSearch
+			}
+
+			// Apply owner filter
+			if (owner === 'me' && ownerIdTag) {
+				baseParams.ownerIdTag = ownerIdTag
+			} else if (owner === 'others' && ownerIdTag) {
+				baseParams.notOwnerIdTag = ownerIdTag
+			}
+
+			// Apply view mode (content scope)
 			switch (viewMode) {
 				case 'starred':
 					return { ...baseParams, starred: true }
 				case 'recent':
 					return { ...baseParams, sort: 'recent', sortDir: 'desc' }
-				case 'pinned':
-					return { ...baseParams, pinned: true }
-				case 'live':
-					return { ...baseParams, fileTp: 'CRDT,RTDB' }
-				case 'static':
-					// Static files need client-side filtering for now
-					return { ...baseParams, fileTp: 'BLOB' }
 				case 'trash':
 					return { ...baseParams, parentId: TRASH_FOLDER_ID }
 				default:
-					// 'all' mode - use parentId if provided
+					// 'browse' mode - use parentId if provided
 					return {
 						...baseParams,
 						...(parentId !== undefined && { parentId: parentId ?? '__root__' })
 					}
 			}
 		},
-		[viewMode, parentId, tagsParam]
+		[viewMode, parentId, tagsParam, fileType, trimmedSearch, owner, ownerIdTag]
 	)
 
 	// Build cache query params for offline fallback.
-	// For "all" at root (parentId=null), return all cached files for the context
+	// For "browse" at root (parentId=null), return all cached files for the context
 	// rather than only root-level files — this maximizes offline usefulness.
+	// Note: owner and searchQuery filters are not supported by the cache layer,
+	// so offline results may include unfiltered items for those dimensions.
 	const cacheQueryParams = React.useMemo(() => {
+		const params: Record<string, string | boolean> = {}
+
+		// File type filter for cache
+		if (fileType === 'live') {
+			params.fileTp = 'CRDT,RTDB'
+		} else if (fileType === 'static') {
+			params.fileTp = 'BLOB'
+		}
+
 		switch (viewMode) {
 			case 'starred':
-				return { starred: true }
-			case 'pinned':
-				return { pinned: true }
-			case 'live':
-				return { fileTp: 'CRDT,RTDB' }
-			case 'static':
-				return { fileTp: 'BLOB' }
+				return { ...params, starred: true }
 			case 'recent':
-				return {} // All cached files, sorted by date (no folder filter)
+				return params // All cached files, sorted by date (no folder filter)
 			case 'trash':
-				return { parentId: TRASH_FOLDER_ID }
+				return { ...params, parentId: TRASH_FOLDER_ID }
 			default:
 				// Only apply parentId filter for subfolder navigation, not root
-				return parentId ? { parentId } : {}
+				return parentId ? { ...params, parentId } : params
 		}
-	}, [viewMode, parentId])
+	}, [viewMode, parentId, fileType])
 
 	// Raw network fetch function (returns FileView for caching)
 	const rawFetchPage = React.useCallback(
@@ -152,7 +183,7 @@ export function useFileList(options?: UseFileListOptions) {
 				hasMore: result.cursorPagination?.hasMore ?? false
 			}
 		},
-		[api, buildQueryParams, viewMode]
+		[api, buildQueryParams]
 	)
 
 	// Cached fetch page wrapping network call with offline fallback
@@ -187,7 +218,17 @@ export function useFileList(options?: UseFileListOptions) {
 	} = useInfiniteScroll<File>({
 		fetchPage,
 		pageSize: PAGE_SIZE,
-		deps: [viewMode, parentId, tagsParam, contextIdTag, refreshCounter],
+		deps: [
+			viewMode,
+			parentId,
+			tagsParam,
+			fileType,
+			owner,
+			ownerIdTag,
+			trimmedSearch,
+			contextIdTag,
+			refreshCounter
+		],
 		enabled: !!api
 	})
 

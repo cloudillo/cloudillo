@@ -16,6 +16,7 @@
 
 export { TagsCell } from './TagsCell.js'
 export { Sidebar } from './Sidebar.js'
+export { FilterChips } from './FilterChips.js'
 export { Toolbar } from './Toolbar.js'
 export type { DisplayMode } from './Toolbar.js'
 export { Breadcrumbs } from './Breadcrumbs.js'

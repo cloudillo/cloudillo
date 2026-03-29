@@ -16,11 +16,14 @@
 
 import { atom } from 'jotai'
 import { atomWithStorage } from 'jotai/utils'
-import type { ViewMode } from './types.js'
+import type { ViewMode, FileTypeFilter, OwnerFilter } from './types.js'
 import type { DisplayMode } from './components/index.js'
 
-export const viewModeAtom = atom<ViewMode>('all')
+export const viewModeAtom = atom<ViewMode>('browse')
 export const selectedTagsAtom = atom<string[]>([])
+export const fileTypeFilterAtom = atom<FileTypeFilter>('all')
+export const ownerFilterAtom = atom<OwnerFilter>('anyone')
+export const searchQueryAtom = atom<string>('')
 export const displayModeAtom = atomWithStorage<DisplayMode>('cloudillo:files-display-mode', 'list')
 
 // vim: ts=4

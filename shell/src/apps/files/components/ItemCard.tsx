@@ -60,7 +60,7 @@ export const ItemCard = React.memo(function ItemCard({
 	renameFileId,
 	renameFileName,
 	fileOps,
-	viewMode = 'all'
+	viewMode = 'browse'
 }: ItemCardProps) {
 	const [_auth] = useAuth()
 	const { t } = useTranslation()

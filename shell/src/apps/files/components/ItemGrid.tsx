@@ -31,8 +31,7 @@ import { getFileUrl } from '@cloudillo/core'
 
 import { useCurrentContextIdTag } from '../../../context/index.js'
 import { getFileIcon, type IcUnknown } from '../icons.js'
-import type { File, FileOps, ViewMode } from '../types.js'
-import { TRASH_FOLDER_ID } from '../types.js'
+import { TRASH_FOLDER_ID, type File, type FileOps, type ViewMode } from '../types.js'
 import { getSmartTimestamp, getVisibilityIcon, getVisibilityLabelKey } from '../utils.js'
 
 interface ItemGridProps {
@@ -60,13 +59,12 @@ export const ItemGrid = React.memo(function ItemGrid({
 	renameFileId,
 	renameFileName,
 	fileOps,
-	viewMode = 'all'
+	viewMode = 'browse'
 }: ItemGridProps) {
 	const contextIdTag = useCurrentContextIdTag()
 	const { t } = useTranslation()
 
 	const isFolder = file.fileTp === 'FLDR'
-	const _isInTrash = viewMode === 'trash' || file.parentId === TRASH_FOLDER_ID
 	const Icon = getFileIcon(file.contentType, file.fileTp)
 	const isRenaming = renameFileName !== undefined && file.fileId === renameFileId
 
@@ -96,7 +94,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 		onInfoClick?.(file)
 	}
 
-	const isInTrashView = viewMode === 'trash'
+	const isInTrash = viewMode === 'trash' || file.parentId === TRASH_FOLDER_ID
 	const isPinned = file.userData?.pinned ?? false
 	const isStarred = file.userData?.starred ?? false
 	const isLive = file.fileTp === 'CRDT' || file.fileTp === 'RTDB'
@@ -138,7 +136,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 				)}
 
 				{/* Star button - top right (clickable) */}
-				{!isInTrashView && (
+				{!isInTrash && (
 					<button
 						type="button"
 						className={mergeClasses('c-file-grid-star', isStarred && 'active')}
@@ -203,7 +201,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 			</div>
 
 			{/* Info button (visible on mobile only) */}
-			{!isInTrashView && onInfoClick && (
+			{!isInTrash && onInfoClick && (
 				<button
 					type="button"
 					className="c-file-grid-info c-button link icon lg-hide"

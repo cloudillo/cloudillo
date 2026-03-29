@@ -21,21 +21,19 @@ import { useTranslation } from 'react-i18next'
 import { FiSearch as IcSearch } from 'react-icons/fi'
 import {
 	LuFilePlus2 as IcNewFile,
-	LuCloud as IcAll,
-	LuFilePen as IcMutable,
-	LuFile as IcImmutable,
+	LuFolderOpen as IcBrowse,
 	LuStar as IcFavorites,
 	LuClock as IcRecent,
 	LuTrash2 as IcTrash,
 	LuTag as IcTag,
-	LuPin as IcPin
+	LuX as IcClear
 } from 'react-icons/lu'
 
 import { useAuth, useDialog, Button, Popper, mergeClasses } from '@cloudillo/react'
 import type { TagInfo } from '@cloudillo/core'
 import { useContextAwareApi } from '../../../context/index.js'
 import { fileIcons, type IcUnknown } from '../icons.js'
-import type { ViewMode } from '../types.js'
+import type { ViewMode, FileTypeFilter, OwnerFilter } from '../types.js'
 
 interface SidebarProps {
 	className?: string
@@ -43,6 +41,12 @@ interface SidebarProps {
 	currentFolderId?: string | null
 	viewMode: ViewMode
 	onViewModeChange: (mode: ViewMode) => void
+	fileTypeFilter: FileTypeFilter
+	onFileTypeFilterChange: (filter: FileTypeFilter) => void
+	ownerFilter: OwnerFilter
+	onOwnerFilterChange: (filter: OwnerFilter) => void
+	searchQuery: string
+	onSearchQueryChange: (query: string) => void
 	selectedTags?: string[]
 	onTagFilter?: (tags: string[]) => void
 }
@@ -53,6 +57,12 @@ export const Sidebar = React.memo(function Sidebar({
 	currentFolderId,
 	viewMode,
 	onViewModeChange,
+	fileTypeFilter,
+	onFileTypeFilterChange,
+	ownerFilter,
+	onOwnerFilterChange,
+	searchQuery,
+	onSearchQueryChange,
 	selectedTags = [],
 	onTagFilter
 }: SidebarProps) {
@@ -212,11 +222,7 @@ export const Sidebar = React.memo(function Sidebar({
 									</Button>
 								</li>
 								<li>
-									<Button
-										navItem
-										//										disabled={true || process.env.NODE_ENV === 'production'}
-										onClick={() => createFile('cloudillo/ideallo')}
-									>
+									<Button navItem onClick={() => createFile('cloudillo/ideallo')}>
 										{React.createElement<
 											React.ComponentProps<typeof IcUnknown>
 										>(fileIcons['cloudillo/ideallo'], { className: 'me-1' })}
@@ -268,43 +274,16 @@ export const Sidebar = React.memo(function Sidebar({
 			{/* Navigation section */}
 			<li className="c-nav-item">
 				<a
-					className={mergeClasses('c-nav-link', viewMode === 'all' && 'active')}
+					className={mergeClasses('c-nav-link', viewMode === 'browse' && 'active')}
 					href="#"
 					onClick={(e) => {
 						e.preventDefault()
-						onViewModeChange('all')
+						onViewModeChange('browse')
 					}}
 				>
-					<IcAll /> {t('All files')}
+					<IcBrowse /> {t('Browse')}
 				</a>
 			</li>
-			<li className="c-nav-item">
-				<a
-					className={mergeClasses('c-nav-link', viewMode === 'live' && 'active')}
-					href="#"
-					onClick={(e) => {
-						e.preventDefault()
-						onViewModeChange('live')
-					}}
-				>
-					<IcMutable /> {t('Live')}
-				</a>
-			</li>
-			<li className="c-nav-item">
-				<a
-					className={mergeClasses('c-nav-link', viewMode === 'static' && 'active')}
-					href="#"
-					onClick={(e) => {
-						e.preventDefault()
-						onViewModeChange('static')
-					}}
-				>
-					<IcImmutable /> {t('Static')}
-				</a>
-			</li>
-
-			<hr className="w-100" />
-
 			<li className="c-nav-item">
 				<a
 					className={mergeClasses('c-nav-link', viewMode === 'starred' && 'active')}
@@ -331,21 +310,6 @@ export const Sidebar = React.memo(function Sidebar({
 			</li>
 			<li className="c-nav-item">
 				<a
-					className={mergeClasses('c-nav-link', viewMode === 'pinned' && 'active')}
-					href="#"
-					onClick={(e) => {
-						e.preventDefault()
-						onViewModeChange('pinned')
-					}}
-				>
-					<IcPin /> {t('Pinned')}
-				</a>
-			</li>
-
-			<hr className="w-100" />
-
-			<li className="c-nav-item">
-				<a
 					className={mergeClasses('c-nav-link', viewMode === 'trash' && 'active')}
 					href="#"
 					onClick={(e) => {
@@ -361,10 +325,96 @@ export const Sidebar = React.memo(function Sidebar({
 
 			{/* Search */}
 			<div className="c-input-group">
-				<input type="text" className="c-input" placeholder={t('Search')} />
-				<Button secondary>
-					<IcSearch />
-				</Button>
+				<input
+					type="text"
+					className="c-input"
+					placeholder={t('Search files...')}
+					value={searchQuery}
+					onChange={(e) => onSearchQueryChange(e.target.value)}
+				/>
+				{searchQuery ? (
+					<Button secondary onClick={() => onSearchQueryChange('')}>
+						<IcClear />
+					</Button>
+				) : (
+					<Button secondary>
+						<IcSearch />
+					</Button>
+				)}
+			</div>
+
+			{/* File type filter */}
+			<li className="c-nav-item">
+				<span className="c-nav-link text-muted">{t('Type')}</span>
+			</li>
+			<div className="d-flex g-1 px-2">
+				<button
+					type="button"
+					className={mergeClasses(
+						'c-button small flex-fill',
+						fileTypeFilter === 'all' && 'active'
+					)}
+					onClick={() => onFileTypeFilterChange('all')}
+				>
+					{t('All')}
+				</button>
+				<button
+					type="button"
+					className={mergeClasses(
+						'c-button small flex-fill',
+						fileTypeFilter === 'live' && 'active'
+					)}
+					onClick={() => onFileTypeFilterChange('live')}
+				>
+					{t('Live')}
+				</button>
+				<button
+					type="button"
+					className={mergeClasses(
+						'c-button small flex-fill',
+						fileTypeFilter === 'static' && 'active'
+					)}
+					onClick={() => onFileTypeFilterChange('static')}
+				>
+					{t('Static')}
+				</button>
+			</div>
+
+			{/* Owner filter */}
+			<li className="c-nav-item mt-2">
+				<span className="c-nav-link text-muted">{t('Owner')}</span>
+			</li>
+			<div className="d-flex g-1 px-2">
+				<button
+					type="button"
+					className={mergeClasses(
+						'c-button small flex-fill',
+						ownerFilter === 'anyone' && 'active'
+					)}
+					onClick={() => onOwnerFilterChange('anyone')}
+				>
+					{t('Anyone')}
+				</button>
+				<button
+					type="button"
+					className={mergeClasses(
+						'c-button small flex-fill',
+						ownerFilter === 'me' && 'active'
+					)}
+					onClick={() => onOwnerFilterChange('me')}
+				>
+					{t('Me')}
+				</button>
+				<button
+					type="button"
+					className={mergeClasses(
+						'c-button small flex-fill',
+						ownerFilter === 'others' && 'active'
+					)}
+					onClick={() => onOwnerFilterChange('others')}
+				>
+					{t('Others')}
+				</button>
 			</div>
 
 			{/* Tag Cloud */}

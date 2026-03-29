@@ -19,7 +19,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAtom } from 'jotai'
 
-import { LuFilter as IcFilter, LuCloud as IcAll } from 'react-icons/lu'
+import { LuFilter as IcFilter, LuCloud as IcCloud } from 'react-icons/lu'
 
 import './files.css'
 
@@ -51,7 +51,8 @@ import {
 	ContextMenu,
 	FolderPicker,
 	ShareDialog,
-	ImportChoiceDialog
+	ImportChoiceDialog,
+	FilterChips
 } from './components/index.js'
 import type { ContextMenuPosition } from './components/index.js'
 import {
@@ -62,7 +63,13 @@ import {
 	useMultiSelect
 } from './hooks/index.js'
 import type { File, FileOps, ViewMode } from './types.js'
-import { selectedTagsAtom, displayModeAtom } from './atoms.js'
+import {
+	selectedTagsAtom,
+	displayModeAtom,
+	fileTypeFilterAtom,
+	ownerFilterAtom,
+	searchQueryAtom
+} from './atoms.js'
 
 export function FilesApp() {
 	const navigate = useNavigate()
@@ -92,11 +99,25 @@ export function FilesApp() {
 		getDirtyDocIds().then(setDirtyDocIds)
 	}, [])
 
-	// Tag filter state (persists across route changes via Jotai atom)
+	// Filter state (persists across route changes via Jotai atoms)
 	const [selectedTags, setSelectedTags] = useAtom(selectedTagsAtom)
+	const [fileTypeFilter, setFileTypeFilter] = useAtom(fileTypeFilterAtom)
+	const [ownerFilter, setOwnerFilter] = useAtom(ownerFilterAtom)
+	const [searchQuery, setSearchQuery] = useAtom(searchQueryAtom)
 
-	// File list (with tag filter)
-	const fileListData = useFileList({ viewMode, parentId: currentFolderId, tags: selectedTags })
+	// Debounce search query for API calls (300ms)
+	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300)
+
+	// File list (with all filters)
+	const fileListData = useFileList({
+		viewMode,
+		parentId: currentFolderId,
+		tags: selectedTags,
+		fileType: fileTypeFilter,
+		owner: ownerFilter,
+		ownerIdTag: contextIdTag,
+		searchQuery: debouncedSearchQuery
+	})
 
 	// Smart upload (wraps upload queue with import detection)
 	const uploadQueue = useSmartUpload({
@@ -104,14 +125,17 @@ export function FilesApp() {
 		onUploadComplete: fileListData.refresh
 	})
 
-	// Sort files: pinned first, then folders, then regular files
+	// Sort files: pinned first (except in Recent/Trash), then folders, then regular files
 	const files = React.useMemo(() => {
 		const data = fileListData.getData()
+		const skipPinSort = viewMode === 'recent' || viewMode === 'trash'
 		return [...data].sort((a, b) => {
-			// Pinned files first
-			const aPinned = a.userData?.pinned ? 1 : 0
-			const bPinned = b.userData?.pinned ? 1 : 0
-			if (aPinned !== bPinned) return bPinned - aPinned
+			// Pinned files first (not in Recent or Trash views)
+			if (!skipPinSort) {
+				const aPinned = a.userData?.pinned ? 1 : 0
+				const bPinned = b.userData?.pinned ? 1 : 0
+				if (aPinned !== bPinned) return bPinned - aPinned
+			}
 
 			// Folders second
 			const aFolder = a.fileTp === 'FLDR' ? 1 : 0
@@ -121,7 +145,7 @@ export function FilesApp() {
 			// Default: keep original order (from API)
 			return 0
 		})
-	}, [fileListData])
+	}, [fileListData, viewMode])
 
 	// Multi-select state
 	const multiSelect = useMultiSelect({
@@ -225,9 +249,7 @@ export function FilesApp() {
 			if (!api || !moveFileIds || moveFileIds.length === 0) return
 
 			await Promise.all(
-				moveFileIds.map((fileId) =>
-					api.files.update(fileId, { parentId: targetFolderId || undefined })
-				)
+				moveFileIds.map((fileId) => api.files.update(fileId, { parentId: targetFolderId }))
 			)
 			setMoveFileIds(undefined)
 			multiSelect.clearSelection()
@@ -527,7 +549,7 @@ export function FilesApp() {
 	const isInitialLoading = fileListData.isLoading && files.length === 0
 
 	// Disable drag-drop in trash view
-	const canUpload = viewMode === 'all'
+	const canUpload = viewMode === 'browse'
 
 	return (
 		<>
@@ -539,6 +561,12 @@ export function FilesApp() {
 							currentFolderId={currentFolderId}
 							viewMode={viewMode}
 							onViewModeChange={handleViewModeChange}
+							fileTypeFilter={fileTypeFilter}
+							onFileTypeFilterChange={setFileTypeFilter}
+							ownerFilter={ownerFilter}
+							onOwnerFilterChange={setOwnerFilter}
+							searchQuery={searchQuery}
+							onSearchQueryChange={setSearchQuery}
 							selectedTags={selectedTags}
 							onTagFilter={setSelectedTags}
 						/>
@@ -551,40 +579,33 @@ export function FilesApp() {
 										className="md-hide lg-hide"
 										onClick={() => setShowFilter(true)}
 									/>
-									<div className="c-tag-list md-hide lg-hide">
-										{viewMode === 'live' && (
-											<div className="c-tag">{t('live')}</div>
-										)}
-										{viewMode === 'static' && (
-											<div className="c-tag">{t('static')}</div>
-										)}
-										{viewMode === 'starred' && (
-											<div className="c-tag">{t('starred')}</div>
-										)}
-										{viewMode === 'recent' && (
-											<div className="c-tag">{t('recent')}</div>
-										)}
-										{viewMode === 'trash' && (
-											<div className="c-tag">{t('trash')}</div>
-										)}
-									</div>
 									<Toolbar
 										displayMode={displayMode}
 										onDisplayModeChange={setDisplayMode}
 										onFilesSelected={uploadQueue.handleFilesForUpload}
 										onCreateFolder={
-											viewMode === 'all' ? handleCreateFolder : undefined
+											viewMode === 'browse' ? handleCreateFolder : undefined
 										}
 										onEmptyTrash={isTrashView ? handleEmptyTrash : undefined}
 										isTrashView={isTrashView}
 									/>
 								</div>
-								{viewMode === 'all' && breadcrumbs.length > 1 && (
+								{viewMode === 'browse' && breadcrumbs.length > 1 && (
 									<Breadcrumbs
 										items={breadcrumbs}
 										onNavigate={navigateToFolder}
 									/>
 								)}
+								<FilterChips
+									fileTypeFilter={fileTypeFilter}
+									ownerFilter={ownerFilter}
+									searchQuery={debouncedSearchQuery}
+									selectedTags={selectedTags}
+									onFileTypeFilterChange={setFileTypeFilter}
+									onOwnerFilterChange={setOwnerFilter}
+									onSearchQueryChange={setSearchQuery}
+									onTagFilter={setSelectedTags}
+								/>
 							</div>
 						}
 					>
@@ -594,40 +615,28 @@ export function FilesApp() {
 							</div>
 						) : files.length === 0 ? (
 							<EmptyState
-								icon={<IcAll style={{ fontSize: '2.5rem' }} />}
+								icon={<IcCloud style={{ fontSize: '2.5rem' }} />}
 								title={
 									isTrashView
 										? t('Trash is empty')
-										: viewMode === 'live'
-											? t('No live documents')
-											: viewMode === 'static'
-												? t('No static files')
-												: viewMode === 'starred'
-													? t('No starred files yet')
-													: viewMode === 'recent'
-														? t('No recent files')
-														: viewMode === 'pinned'
-															? t('No pinned files yet')
-															: currentFolderId
-																? t('This folder is empty')
-																: t('No files found')
+										: viewMode === 'starred'
+											? t('No starred files yet')
+											: viewMode === 'recent'
+												? t('No recent files')
+												: currentFolderId
+													? t('This folder is empty')
+													: t('No files found')
 								}
 								description={
 									isTrashView
 										? t('Files you delete will appear here')
-										: viewMode === 'live'
-											? t('Create a document to collaborate in real-time')
-											: viewMode === 'static'
-												? t('Upload files or export documents')
-												: viewMode === 'starred'
-													? t('Star files to quickly access them later')
-													: viewMode === 'recent'
-														? t('Files you open will appear here')
-														: viewMode === 'pinned'
-															? t('Pin files to keep them at the top')
-															: t(
-																	'Create a new document or upload files to get started'
-																)
+										: viewMode === 'starred'
+											? t('Star files to quickly access them later')
+											: viewMode === 'recent'
+												? t('Files you open will appear here')
+												: t(
+														'Create a new document or upload files to get started'
+													)
 								}
 							/>
 						) : displayMode === 'grid' ? (

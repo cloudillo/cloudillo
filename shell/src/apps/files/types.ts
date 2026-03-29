@@ -89,7 +89,9 @@ export interface FileFiltState {
 	parentId?: string | null
 }
 
-export type ViewMode = 'all' | 'live' | 'static' | 'recent' | 'trash' | 'starred' | 'pinned'
+export type ViewMode = 'browse' | 'recent' | 'trash' | 'starred'
+export type FileTypeFilter = 'all' | 'live' | 'static'
+export type OwnerFilter = 'anyone' | 'me' | 'others'
 
 export const TRASH_FOLDER_ID = '__trash__'
 

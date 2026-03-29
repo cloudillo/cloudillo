@@ -49,7 +49,7 @@ export function useFileNavigation() {
 			if (!api) return
 
 			;(async function () {
-				const path: BreadcrumbItem[] = [{ id: null, name: 'My Files' }]
+				const path: BreadcrumbItem[] = [{ id: null, name: 'Files' }]
 
 				if (currentFolderId && currentFolderId !== TRASH_FOLDER_ID) {
 					// Traverse parent chain to build full path
@@ -83,7 +83,7 @@ export function useFileNavigation() {
 
 	const navigateToFolder = React.useCallback(
 		function (folderId: string | null) {
-			setViewMode('all')
+			setViewMode('browse')
 			if (folderId === null) {
 				searchParams.delete('parentId')
 			} else {

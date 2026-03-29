@@ -526,6 +526,9 @@ export interface ListFilesQuery {
 	status?: ('P' | 'A')[]
 	fileTp?: string // File type: 'BLOB', 'CRDT', 'RTDB', 'FLDR'
 	contentType?: string
+	fileName?: string // Substring search in file name
+	ownerIdTag?: string // Filter by owner idTag
+	notOwnerIdTag?: string // Exclude files by this owner idTag
 	createdAfter?: string | number
 	createdBefore?: string | number
 	pinned?: boolean // Filter by pinned status (user-specific)

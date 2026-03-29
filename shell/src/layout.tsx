@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { appConfig as APP_CONFIG } from './manifest-registry.js'
+import { appConfig as APP_CONFIG, applyMenuConfig } from './manifest-registry.js'
 
 import { version } from '../package.json'
 
@@ -78,7 +78,8 @@ import {
 	useCommunitiesList,
 	useCurrentContextIdTag,
 	useContextPath,
-	useGuestDocument
+	useGuestDocument,
+	favoritesAtom
 } from './context/index.js'
 import { OnboardingRoutes } from './onboarding'
 import { WsBusRoot, useWsBus } from './ws-bus.js'
@@ -412,6 +413,7 @@ function Header({ inert }: { inert?: boolean }) {
 	}
 
 	const setLoginInitData = useSetAtom(loginInitAtom)
+	const setFavorites = useSetAtom(favoritesAtom)
 	const initRef = React.useRef(false)
 
 	React.useEffect(
@@ -522,10 +524,42 @@ function Header({ inert }: { inert?: boolean }) {
 								)?.value
 								setTheme(theme as string | undefined, colors as string | undefined)
 
+								// Apply custom app menu config if available
+								let appMenuVal: unknown = uiSettings.find(
+									(s) => s.key === 'ui.app_menu'
+								)?.value
+								if (typeof appMenuVal === 'string') {
+									try {
+										appMenuVal = JSON.parse(appMenuVal)
+									} catch {
+										// ignore
+									}
+								}
+								let activeConfig = appConfig
+								if (
+									appMenuVal &&
+									typeof appMenuVal === 'object' &&
+									'main' in (appMenuVal as Record<string, unknown>)
+								) {
+									activeConfig = applyMenuConfig(
+										activeConfig,
+										appMenuVal as { main: string[]; extra?: string[] }
+									)
+									setAppConfig(activeConfig)
+								}
+
+								// Apply pinned communities from pre-fetched settings
+								const pinnedVal = uiSettings.find(
+									(s) => s.key === 'ui.pinned_communities'
+								)?.value
+								if (Array.isArray(pinnedVal)) {
+									setFavorites(pinnedVal as string[])
+								}
+
 								const navTo =
 									(onboarding && `/onboarding/${onboarding}`) ||
-									appConfig?.menu
-										?.find((m) => m.id === appConfig.defaultMenu)
+									activeConfig?.menu
+										?.find((m) => m.id === activeConfig.defaultMenu)
 										?.path?.replace('/app/', `/app/${authState.idTag}/`) ||
 									`/app/${authState.idTag}/feed`
 								if (location.pathname == '/') {
@@ -559,17 +593,8 @@ function Header({ inert }: { inert?: boolean }) {
 						}
 					}
 				} else if (api && auth) {
-					// Load notification count
+					// UI settings already loaded and applied by the first auth path above
 					loadNotifications()
-					// Load and apply UI settings
-					try {
-						const uiSettings = await api.settings.list({ prefix: 'ui' })
-						const theme = uiSettings.find((s) => s.key === 'ui.theme')?.value
-						const colors = uiSettings.find((s) => s.key === 'ui.colors')?.value
-						setTheme(theme as string | undefined, colors as string | undefined)
-					} catch (err) {
-						console.error('Failed to load UI settings:', err)
-					}
 				}
 			})()
 		},
@@ -865,7 +890,7 @@ export function Layout() {
 	const { api } = useApi()
 	const dialog = useDialog()
 	const sidebar = useSidebar()
-	const { loadPinnedCommunities, loadCommunities } = useCommunitiesList()
+	const { loadCommunities } = useCommunitiesList()
 	const location = useLocation()
 	const navigate = useNavigate()
 	const contextIdTag = useCurrentContextIdTag()
@@ -880,13 +905,13 @@ export function Layout() {
 		})
 	}, [])
 
-	// Load pinned communities and communities list from backend when authenticated
+	// Load communities list from backend when authenticated
+	// (pinned communities are loaded from pre-fetched ui settings in Header)
 	React.useEffect(() => {
 		if (auth?.idTag) {
-			loadPinnedCommunities()
 			loadCommunities()
 		}
-	}, [auth?.idTag, loadPinnedCommunities, loadCommunities])
+	}, [auth?.idTag, loadCommunities])
 
 	// Store current api/auth in refs for shell bus callbacks
 	const apiRef = React.useRef(api)

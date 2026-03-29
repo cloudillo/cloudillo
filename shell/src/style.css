@@ -590,7 +590,7 @@ body {
 	padding: 1rem;
 	margin-bottom: 1rem;
 	border-radius: var(--bd-radius);
-	background: var(--col-bg-2);
+	background: var(--col-surface);
 	border: 1px solid var(--col-border);
 }
 
@@ -617,7 +617,7 @@ body {
 	gap: 1rem;
 	padding: 1rem;
 	border-radius: var(--bd-radius);
-	background: var(--col-bg-2);
+	background: var(--col-surface);
 	border: 1px solid var(--col-border);
 }
 
@@ -626,6 +626,60 @@ body {
 	height: 2rem;
 	flex-shrink: 0;
 	color: var(--col-warning, #f59e0b);
+}
+
+/* App Menu Configurator */
+
+.c-app-menu-section {
+	border: 1px solid var(--col-border);
+	border-radius: var(--bd-radius);
+	padding: 0.5rem;
+	min-height: 3rem;
+}
+
+.c-app-menu-section--main {
+	border-color: var(--col-primary);
+}
+
+.c-app-menu-section-header {
+	padding: 0.25rem 0.5rem;
+}
+
+.c-app-menu-section-header h4 {
+	margin: 0;
+}
+
+.c-app-menu-item {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.5rem;
+	border-radius: var(--bd-radius);
+	cursor: grab;
+	transition: background-color 0.15s;
+}
+
+.c-app-menu-item:hover {
+	background: var(--col-surface);
+}
+
+.c-app-menu-item.dragging {
+	opacity: 0.4;
+}
+
+.c-app-menu-item.drag-over {
+	border-top: 2px solid var(--col-primary);
+}
+
+.c-app-menu-grip {
+	color: var(--col-text-muted);
+	flex-shrink: 0;
+}
+
+.c-app-menu-empty {
+	padding: 1rem;
+	text-align: center;
+	font-style: italic;
 }
 
 /* vim: ts=4

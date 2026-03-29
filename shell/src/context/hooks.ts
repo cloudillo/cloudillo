@@ -272,23 +272,6 @@ export function useCommunitiesList() {
 	)
 
 	/**
-	 * Load pinned communities from backend
-	 */
-	const loadPinnedCommunities = React.useCallback(async () => {
-		if (!api) return
-		try {
-			const result = await api.settings.get('ui.pinned_communities')
-			if (result?.value && Array.isArray(result.value)) {
-				setFavorites(result.value as string[])
-			}
-		} catch (_err) {
-			// Setting may not exist yet - that's OK
-			console.log('No pinned communities setting found, using empty list')
-			setFavorites([])
-		}
-	}, [api, setFavorites])
-
-	/**
 	 * Load communities from backend (called on app init)
 	 */
 	const loadCommunities = React.useCallback(async () => {
@@ -449,7 +432,6 @@ export function useCommunitiesList() {
 		error,
 		refresh,
 		loadCommunities,
-		loadPinnedCommunities,
 		toggleFavorite,
 		reorderFavorites,
 		addCommunity,

@@ -168,6 +168,35 @@ export function buildAppConfig(manifests: AppManifest[]): AppConfigState {
 
 export const appConfig = buildAppConfig(allManifests)
 
+/**
+ * Returns all configurable menu items (app manifests + shell items).
+ * Used by the App Menu Configurator in settings.
+ */
+export function getAllMenuItems(): MenuItem[] {
+	const appItems = allManifests.filter((m) => m.defaultOrder != null).map(manifestToMenuItem)
+	return [...appItems, ...SHELL_MENU]
+}
+
+/**
+ * Apply user's custom menu configuration on top of the base app config.
+ * Items not found in the item pool (e.g. uninstalled apps) are silently dropped.
+ */
+export function applyMenuConfig(
+	baseConfig: AppConfigState,
+	menuSetting: { main: string[]; extra?: string[] }
+): AppConfigState {
+	const allItems = getAllMenuItems()
+	const itemMap = new Map(allItems.map((item) => [item.id, item]))
+
+	const resolveItems = (ids: string[] | undefined): MenuItem[] =>
+		(ids ?? []).map((id) => itemMap.get(id)).filter((item): item is MenuItem => item != null)
+
+	const menu = [...resolveItems(menuSetting.main), ...resolveItems(menuSetting.extra)]
+	const defaultMenu = menuSetting.main[0] ?? baseConfig.defaultMenu
+
+	return { ...baseConfig, menu, defaultMenu }
+}
+
 // Content type handler lookup for "Open With" functionality
 export interface AppHandler {
 	manifest: AppManifest

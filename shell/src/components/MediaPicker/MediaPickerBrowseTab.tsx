@@ -1,5 +1,5 @@
 // This file is part of the Cloudillo Platform.
-// Copyright (C) 2024  Szilárd Hajba
+// Copyright (C) 2024-2026  Szilárd Hajba
 //
 // Cloudillo is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -18,14 +18,13 @@
  * MediaPickerBrowseTab Component
  *
  * File browsing tab for the media picker.
- * Allows users to search and navigate through their files.
+ * Allows users to search, filter, and navigate through their files.
  */
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
-	LuSearch as IcSearch,
 	LuFolder as IcFolder,
 	LuChevronRight as IcChevronRight,
 	LuHouse as IcHome,
@@ -38,18 +37,18 @@ import {
 	LuLock as IcLock,
 	LuCheck as IcCheck,
 	LuX as IcX,
-	LuGlobe as IcPublic,
 	LuUserPlus as IcFollowers,
-	LuUserCheck as IcConnected,
-	LuChevronDown as IcChevronDown
+	LuUserCheck as IcConnected
 } from 'react-icons/lu'
 
 import { useApi, useAuth } from '@cloudillo/react'
 import { useApiContext } from '../../context/index.js'
 import { getFileUrl } from '@cloudillo/core'
 import { VISIBILITY_ORDER, type Visibility } from '@cloudillo/core'
+import type { FileView } from '@cloudillo/core'
 
 import type { MediaPickerResult } from '../../context/media-picker-atom.js'
+import { PickerFilterBar, usePickerBrowse } from '../pickers/index.js'
 
 // File visibility type (matches API response)
 type FileVisibility = 'D' | 'P' | 'V' | '2' | 'F' | 'C' | null
@@ -90,71 +89,28 @@ function getVisibilityLabel(visibility: FileVisibility): string {
 	}
 }
 
-// Visibility filter options for the dropdown
-type VisibilityFilter = FileVisibility | 'all'
-
-// Simplified file type for MediaPicker - only the fields we need
-interface MediaFile {
-	fileId: string
-	fileName: string
-	fileTp?: string
-	contentType: string
-	visibility?: FileVisibility
-	x?: {
-		dim?: [number, number]
-	}
-}
-
-interface BreadcrumbItem {
-	id: string | null
-	name: string
-}
-
 interface MediaPickerBrowseTabProps {
 	mediaType?: string
 	documentVisibility?: Visibility
 	documentFileId?: string
-	isExternalContext?: boolean // True when opened from external app
-	idTag?: string // Document's context idTag
+	isExternalContext?: boolean
+	idTag?: string
 	selectedFile: MediaPickerResult | null
 	onSelect: (file: MediaPickerResult) => void
 	onDoubleClick: (file: MediaPickerResult) => void
 }
 
 /**
- * Visibility filter options for the dropdown
- */
-const VISIBILITY_FILTER_OPTIONS: Array<{
-	value: VisibilityFilter
-	labelKey: string
-	icon: React.ComponentType<{ className?: string }>
-}> = [
-	{ value: 'all', labelKey: 'All', icon: IcFile },
-	{ value: 'P', labelKey: 'Public', icon: IcPublic },
-	{ value: 'F', labelKey: 'Followers', icon: IcFollowers },
-	{ value: 'C', labelKey: 'Connected', icon: IcConnected }
-]
-
-/**
- * Get visibility filter option by value
- */
-function getVisibilityFilterOption(value: VisibilityFilter) {
-	return (
-		VISIBILITY_FILTER_OPTIONS.find((opt) => opt.value === value) || VISIBILITY_FILTER_OPTIONS[0]
-	)
-}
-
-/**
  * Check if a file is public (can be used in external context)
  */
-function isPublicFile(file: MediaFile): boolean {
+function isPublicFile(file: FileView): boolean {
 	return file.visibility === 'P'
 }
 
 /**
  * Check if a file matches the media type filter
  */
-function matchesMediaType(file: MediaFile, mediaType?: string): boolean {
+function matchesMediaType(file: FileView, mediaType?: string): boolean {
 	if (!mediaType) return true
 	if (file.fileTp === 'FLDR') return true // Always show folders
 
@@ -169,7 +125,7 @@ function matchesMediaType(file: MediaFile, mediaType?: string): boolean {
 /**
  * Get icon for file type
  */
-function getFileIcon(file: MediaFile): React.ReactNode {
+function getFileIcon(file: FileView): React.ReactNode {
 	if (file.fileTp === 'FLDR') return <IcFolder />
 	const contentType = file.contentType || ''
 	if (contentType.startsWith('image/')) return <IcImage />
@@ -182,7 +138,7 @@ function getFileIcon(file: MediaFile): React.ReactNode {
 /**
  * Check if file is an image (which can have a thumbnail)
  */
-function isImage(file: MediaFile): boolean {
+function isImage(file: FileView): boolean {
 	const contentType = file.contentType || ''
 	return contentType.startsWith('image/')
 }
@@ -205,25 +161,31 @@ export function MediaPickerBrowseTab({
 		(idTagProp ? getClientFor(idTagProp, { auth: 'required' }) : defaultApi) || defaultApi
 	const idTag = idTagProp || auth?.idTag || defaultApi?.idTag
 
-	// State
-	const [searchQuery, setSearchQuery] = useState('')
-	const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
-	const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([
-		{ id: null, name: t('Home') }
-	])
-	const [files, setFiles] = useState<MediaFile[]>([])
-	const [loading, setLoading] = useState(true)
+	const {
+		viewMode,
+		setViewMode,
+		searchQuery,
+		setSearchQuery,
+		selectedTags,
+		setSelectedTags,
+		tags,
+		setCurrentFolderId,
+		breadcrumbs,
+		setBreadcrumbs,
+		files,
+		loading,
+		error,
+		connectedFileIds: accessibleFileIds,
+		setConnectedFileIds: setAccessibleFileIds,
+		refetch: refetchFiles
+	} = usePickerBrowse({ api, contextFileId: documentFileId })
+
+	// Visibility state
 	const [resolvedDocVisibility, setResolvedDocVisibility] = useState<Visibility | undefined>(
 		documentVisibility
 	)
 	const [showVisibilityWarning, setShowVisibilityWarning] = useState(false)
-	// Visibility filter: default to 'P' (Public) for external context, 'all' for internal
-	const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>(
-		isExternalContext ? 'P' : 'all'
-	)
-	const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false)
-	// Track file IDs that have been granted access via share entries
-	const [accessibleFileIds, setAccessibleFileIds] = useState<Set<string>>(new Set())
+
 	// Track which file is currently being updated (for loading state)
 	const [updatingFileId, setUpdatingFileId] = useState<string | null>(null)
 	// Track which file is awaiting confirmation and which side is confirm (vertical split)
@@ -243,90 +205,42 @@ export function MediaPickerBrowseTab({
 		return () => clearTimeout(timeout)
 	}, [confirmingFile])
 
-	// Load share entries for the document to know which files are already accessible
-	useEffect(() => {
-		async function loadShareEntries() {
-			if (!api || !documentFileId) return
-			try {
-				const entries = await api.shares.listBySubject(documentFileId, 'F')
-				if (entries?.length) {
-					setAccessibleFileIds(new Set(entries.map((e) => e.resourceId)))
-				}
-			} catch {
-				// Silently ignore — share entries are optional enhancement
-			}
-		}
-		loadShareEntries()
-	}, [api, documentFileId])
-
-	// Fetch files when folder changes
-	useEffect(() => {
-		async function fetchFiles() {
-			if (!api) return
-
-			setLoading(true)
-			try {
-				const query: Record<string, unknown> = {
-					parentId: currentFolderId || undefined
-				}
-				if (searchQuery) {
-					query.fileName = searchQuery
-				}
-
-				const result = await api.files.list(query as Parameters<typeof api.files.list>[0])
-				setFiles(result || [])
-			} catch (err) {
-				console.error('Failed to fetch files:', err)
-				setFiles([])
-			} finally {
-				setLoading(false)
-			}
-		}
-
-		fetchFiles()
-	}, [api, currentFolderId, searchQuery])
-
 	// Resolve document visibility from fileId if needed
 	useEffect(() => {
-		async function fetchDocumentVisibility() {
-			if (documentVisibility) {
-				setResolvedDocVisibility(documentVisibility)
-				return
-			}
+		if (documentVisibility) {
+			setResolvedDocVisibility(documentVisibility)
+			return
+		}
 
-			// Skip visibility check if no documentFileId provided
-			// This is common for new documents that haven't been saved yet
-			if (!documentFileId || !api) return
+		if (!documentFileId || !api) return
 
+		let cancelled = false
+		;(async function () {
 			try {
 				const fileInfo = await api.files.getDescriptor(documentFileId)
 				const file = fileInfo.file as Record<string, unknown> | undefined
-				setResolvedDocVisibility((file?.visibility as Visibility) || 'F')
+				if (!cancelled) setResolvedDocVisibility((file?.visibility as Visibility) || 'F')
 			} catch {
-				// Silently ignore - visibility check is optional
-				// This can fail for new documents or if the API doesn't support this endpoint
+				// Visibility check is optional
 			}
-		}
+		})()
 
-		fetchDocumentVisibility()
+		return () => {
+			cancelled = true
+		}
 	}, [api, documentFileId, documentVisibility])
 
-	// Filter files by media type and visibility
-	const filteredFiles = files.filter((file) => {
-		// Always check media type
-		if (!matchesMediaType(file, mediaType)) return false
-		// Always show folders regardless of visibility filter
-		if (file.fileTp === 'FLDR') return true
-		// Apply visibility filter
-		if (visibilityFilter === 'all') return true
-		return file.visibility === visibilityFilter
-	})
+	// Filter files by media type
+	const filteredFiles = files.filter((file) => matchesMediaType(file, mediaType))
 
 	// Handle folder navigation
-	const handleFolderClick = useCallback((file: MediaFile) => {
-		setCurrentFolderId(file.fileId)
-		setBreadcrumbs((prev) => [...prev, { id: file.fileId, name: file.fileName }])
-	}, [])
+	const handleFolderClick = useCallback(
+		(file: FileView) => {
+			setCurrentFolderId(file.fileId)
+			setBreadcrumbs((prev) => [...prev, { id: file.fileId, name: file.fileName }])
+		},
+		[setCurrentFolderId, setBreadcrumbs]
+	)
 
 	// Handle breadcrumb navigation
 	const handleBreadcrumbClick = useCallback(
@@ -335,19 +249,18 @@ export function MediaPickerBrowseTab({
 			setBreadcrumbs(newBreadcrumbs)
 			setCurrentFolderId(newBreadcrumbs[newBreadcrumbs.length - 1].id)
 		},
-		[breadcrumbs]
+		[breadcrumbs, setBreadcrumbs, setCurrentFolderId]
 	)
 
 	// Handle file selection
 	const handleFileClick = useCallback(
-		(file: MediaFile) => {
+		(file: FileView) => {
 			if (file.fileTp === 'FLDR') {
 				handleFolderClick(file)
 				return
 			}
 
 			// Check if file is disabled (non-public in external context)
-			// Disabled files are handled by the lock overlay click, not here
 			const isDisabled =
 				isExternalContext && !isPublicFile(file) && !accessibleFileIds.has(file.fileId)
 			if (isDisabled) {
@@ -380,7 +293,7 @@ export function MediaPickerBrowseTab({
 
 	// Handle double click
 	const handleFileDoubleClick = useCallback(
-		(file: MediaFile) => {
+		(file: FileView) => {
 			if (file.fileTp === 'FLDR') {
 				handleFolderClick(file)
 				return
@@ -390,7 +303,6 @@ export function MediaPickerBrowseTab({
 			const isDisabled =
 				isExternalContext && !isPublicFile(file) && !accessibleFileIds.has(file.fileId)
 			if (isDisabled) {
-				// Don't allow selection of disabled files
 				return
 			}
 
@@ -425,34 +337,6 @@ export function MediaPickerBrowseTab({
 		}
 		setShowVisibilityWarning(false)
 	}, [selectedFile, onSelect])
-
-	// Handle visibility filter change
-	const handleVisibilityFilterChange = useCallback((value: VisibilityFilter) => {
-		setVisibilityFilter(value)
-		setShowVisibilityDropdown(false)
-	}, [])
-
-	// Refetch files (used after visibility change)
-	const refetchFiles = useCallback(async () => {
-		if (!api) return
-
-		setLoading(true)
-		try {
-			const query: Record<string, unknown> = {
-				parentId: currentFolderId || undefined
-			}
-			if (searchQuery) {
-				query.fileName = searchQuery
-			}
-
-			const result = await api.files.list(query as Parameters<typeof api.files.list>[0])
-			setFiles(result || [])
-		} catch (err) {
-			console.error('Failed to fetch files:', err)
-		} finally {
-			setLoading(false)
-		}
-	}, [api, currentFolderId, searchQuery])
 
 	// Handle "Grant document access" action for a file (creates share entry)
 	const handleGrantDocumentAccess = useCallback(
@@ -494,7 +378,7 @@ export function MediaPickerBrowseTab({
 				setUpdatingFileId(null)
 			}
 		},
-		[api, documentFileId, files, selectedFile, onSelect]
+		[api, documentFileId, files, selectedFile, onSelect, setAccessibleFileIds]
 	)
 
 	// Handle "Make Public" action for a file
@@ -507,7 +391,7 @@ export function MediaPickerBrowseTab({
 				await api.files.update(fileId, { visibility: 'P' })
 
 				// Refetch files to update the list
-				await refetchFiles()
+				refetchFiles()
 
 				// If this was from the warning banner, dismiss it and update selection
 				if (selectedFile?.fileId === fileId) {
@@ -529,7 +413,6 @@ export function MediaPickerBrowseTab({
 				}
 			} catch (err) {
 				console.error('Failed to update file visibility:', err)
-				// Could add toast notification here
 			} finally {
 				setUpdatingFileId(null)
 			}
@@ -551,69 +434,34 @@ export function MediaPickerBrowseTab({
 
 	const fileAccessActionLabel = documentFileId ? t('Grant access') : t('Make public')
 
-	const currentFilterOption = getVisibilityFilterOption(visibilityFilter)
-	const FilterIcon = currentFilterOption.icon
-
 	return (
 		<div className="media-picker-browse">
-			{/* Search and visibility filter */}
-			<div className="media-picker-search">
-				<div className="c-input-group">
-					<span className="c-input-addon">
-						<IcSearch />
-					</span>
-					<input
-						type="text"
-						className="c-input"
-						placeholder={t('Search files...')}
-						value={searchQuery}
-						onChange={(e) => setSearchQuery(e.target.value)}
-					/>
-				</div>
-				{/* Visibility filter dropdown */}
-				<div className="media-picker-visibility-filter">
-					<button
-						type="button"
-						className="c-button ghost small"
-						onClick={() => setShowVisibilityDropdown(!showVisibilityDropdown)}
-						title={t('Filter by visibility')}
-					>
-						<FilterIcon />
-						<span>{t(currentFilterOption.labelKey)}</span>
-						<IcChevronDown />
-					</button>
-					{showVisibilityDropdown && (
-						<div className="media-picker-visibility-dropdown">
-							{VISIBILITY_FILTER_OPTIONS.map((opt) => {
-								const OptionIcon = opt.icon
-								return (
-									<button
-										key={opt.value ?? 'all'}
-										type="button"
-										className={`media-picker-visibility-option ${visibilityFilter === opt.value ? 'active' : ''}`}
-										onClick={() => handleVisibilityFilterChange(opt.value)}
-									>
-										<OptionIcon />
-										<span>{t(opt.labelKey)}</span>
-									</button>
-								)
-							})}
-						</div>
-					)}
-				</div>
-			</div>
+			{/* Filter bar */}
+			<PickerFilterBar
+				viewMode={viewMode}
+				onViewModeChange={setViewMode}
+				searchQuery={searchQuery}
+				onSearchQueryChange={setSearchQuery}
+				selectedTags={selectedTags}
+				onTagFilter={setSelectedTags}
+				contextFileId={documentFileId}
+				searchPlaceholder={t('Search files...')}
+				tags={tags}
+			/>
 
-			{/* Breadcrumbs */}
-			<div className="media-picker-breadcrumbs">
-				{breadcrumbs.map((crumb, index) => (
-					<React.Fragment key={crumb.id ?? 'home'}>
-						{index > 0 && <IcChevronRight size={14} />}
-						<button type="button" onClick={() => handleBreadcrumbClick(index)}>
-							{index === 0 ? <IcHome size={14} /> : crumb.name}
-						</button>
-					</React.Fragment>
-				))}
-			</div>
+			{/* Breadcrumbs (only in browse mode) */}
+			{viewMode === 'browse' && (
+				<div className="media-picker-breadcrumbs">
+					{breadcrumbs.map((crumb, index) => (
+						<React.Fragment key={crumb.id ?? 'home'}>
+							{index > 0 && <IcChevronRight size={14} />}
+							<button type="button" onClick={() => handleBreadcrumbClick(index)}>
+								{index === 0 ? <IcHome size={14} /> : crumb.name}
+							</button>
+						</React.Fragment>
+					))}
+				</div>
+			)}
 
 			{/* Visibility warning */}
 			{showVisibilityWarning && selectedFile && (
@@ -674,6 +522,11 @@ export function MediaPickerBrowseTab({
 				{loading ? (
 					<div className="media-picker-loading">
 						<span>{t('Loading...')}</span>
+					</div>
+				) : error ? (
+					<div className="media-picker-empty">
+						<IcFile />
+						<span>{error}</span>
 					</div>
 				) : filteredFiles.length === 0 ? (
 					<div className="media-picker-empty">

@@ -1,5 +1,5 @@
 // This file is part of the Cloudillo Platform.
-// Copyright (C) 2024  Szilárd Hajba
+// Copyright (C) 2024-2026  Szilárd Hajba
 //
 // Cloudillo is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -174,7 +174,7 @@ export function MediaPicker() {
 					</div>
 					<button
 						type="button"
-						className="c-button ghost"
+						className="c-link secondary"
 						onClick={handleCancel}
 						aria-label={t('Close')}
 					>

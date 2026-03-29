@@ -117,7 +117,7 @@ export function DocumentPicker() {
 					</div>
 					<button
 						type="button"
-						className="c-button ghost"
+						className="c-link secondary"
 						onClick={handleCancel}
 						aria-label={t('Close')}
 					>
@@ -130,6 +130,7 @@ export function DocumentPicker() {
 					<DocumentPickerBrowseTab
 						fileTp={state.options?.fileTp}
 						contentType={state.options?.contentType}
+						sourceFileId={state.options?.sourceFileId}
 						idTag={state.options?.idTag}
 						selectedFile={selectedFile}
 						onSelect={handleFileSelected}

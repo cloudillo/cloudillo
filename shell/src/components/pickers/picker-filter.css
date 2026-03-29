@@ -1,0 +1,154 @@
+/* Shared Picker Filter Bar Styles */
+
+.picker-filter-bar {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	flex-shrink: 0;
+}
+
+/* Single row: view mode icons | search | tag button */
+.picker-filter-row {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+
+/* View mode icon button group */
+.picker-view-modes {
+	display: flex;
+	gap: 2px;
+	flex-shrink: 0;
+}
+
+.picker-view-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	border: none;
+	border-radius: var(--border-radius);
+	background: transparent;
+	color: var(--col-secondary);
+	cursor: pointer;
+	transition:
+		background-color 0.15s ease,
+		color 0.15s ease;
+}
+
+.picker-view-btn:hover {
+	background: var(--col-container-low);
+	color: var(--col-on-container);
+}
+
+.picker-view-btn.active {
+	background: var(--col-container-primary);
+	color: var(--col-primary);
+}
+
+.picker-view-btn svg {
+	width: 18px;
+	height: 18px;
+}
+
+/* Search input grows to fill available space */
+.picker-filter-row .c-input-group {
+	min-width: 0;
+}
+
+/* Tag filter trigger */
+.picker-tag-filter {
+	position: relative;
+	flex-shrink: 0;
+}
+
+.picker-tag-trigger {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	width: 32px;
+	height: 32px;
+	justify-content: center;
+	border-radius: var(--border-radius);
+	background: transparent;
+	cursor: pointer;
+	white-space: nowrap;
+	list-style: none;
+	color: var(--col-secondary);
+	transition:
+		background-color 0.15s ease,
+		color 0.15s ease;
+}
+
+.picker-tag-trigger:hover {
+	background: var(--col-container-low);
+	color: var(--col-on-container);
+}
+
+.picker-tag-trigger::-webkit-details-marker {
+	display: none;
+}
+
+/* When tags are selected, make trigger show badge */
+.picker-tag-trigger .c-badge {
+	position: absolute;
+	top: -2px;
+	right: -2px;
+}
+
+/* Tag dropdown */
+.picker-tag-dropdown {
+	display: flex;
+	flex-direction: column;
+	min-width: 180px;
+	max-height: 240px;
+	overflow-y: auto;
+	padding: 4px;
+}
+
+.picker-tag-option {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 8px;
+	border: none;
+	border-radius: var(--border-radius);
+	background: transparent;
+	cursor: pointer;
+	text-align: left;
+	font-size: 0.875rem;
+	color: var(--col-on-container);
+}
+
+.picker-tag-option:hover {
+	background: var(--col-container-low);
+}
+
+.picker-tag-option.active {
+	color: var(--col-primary);
+	font-weight: 500;
+}
+
+/* Filter chips */
+.picker-filter-chips {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+}
+
+/* Mobile: stack vertically if needed */
+@media (max-width: 480px) {
+	.picker-view-btn svg {
+		width: 16px;
+		height: 16px;
+	}
+
+	.picker-view-btn {
+		width: 28px;
+		height: 28px;
+	}
+}
+
+/* vim: ts=4 */

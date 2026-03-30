@@ -22,9 +22,13 @@ import type {
 	InlineContent,
 	StyledText,
 	CompactInlineContent,
-	CompactColorStyles
+	CompactColorStyles,
+	TableContent,
+	TableCell,
+	CompactTableContent,
+	CompactTableCell
 } from './types.js'
-import { BLOCK_TYPE_TO_SHORT, BLOCK_TYPE_TO_LONG } from './types.js'
+import { BLOCK_TYPE_TO_SHORT, BLOCK_TYPE_TO_LONG, isTableContent } from './types.js'
 
 // ── Style flag encoding ──
 
@@ -161,15 +165,122 @@ export function expandContentItem(item: CompactInlineContent): InlineContent {
 export function compactContent(
 	content: InlineContent[] | undefined
 ): CompactInlineContent[] | undefined {
-	if (!content || content.length === 0) return undefined
+	if (!content || !Array.isArray(content) || content.length === 0) return undefined
 	return content.map(compactContentItem)
 }
 
 export function expandContent(
 	content: CompactInlineContent[] | undefined
 ): InlineContent[] | undefined {
-	if (!content || content.length === 0) return undefined
+	if (!content || !Array.isArray(content) || content.length === 0) return undefined
 	return content.map(expandContentItem)
+}
+
+// ── Table content compaction/expansion ──
+
+export function isCompactTableContent(content: unknown): content is CompactTableContent {
+	return (
+		typeof content === 'object' &&
+		content !== null &&
+		(content as CompactTableContent).type === 'tableContent'
+	)
+}
+
+// Note: returns false for empty arrays, but both paths produce [] so no data loss
+function isTableCellArray(cells: InlineContent[][] | TableCell[]): cells is TableCell[] {
+	return (
+		cells.length > 0 &&
+		typeof cells[0] === 'object' &&
+		'type' in cells[0] &&
+		cells[0].type === 'tableCell'
+	)
+}
+
+function isCompactTableCellArray(
+	cells: CompactInlineContent[][] | CompactTableCell[]
+): cells is CompactTableCell[] {
+	return (
+		cells.length > 0 &&
+		typeof cells[0] === 'object' &&
+		!Array.isArray(cells[0]) &&
+		'c' in cells[0]
+	)
+}
+
+function compactTableCells(
+	cells: InlineContent[][] | TableCell[]
+): CompactInlineContent[][] | CompactTableCell[] {
+	if (isTableCellArray(cells)) {
+		return cells.map((tc): CompactTableCell => {
+			const pr = cleanProps(tc.props)
+			return {
+				...(pr !== undefined && { pr }),
+				c: tc.content.map(compactContentItem)
+			}
+		})
+	}
+	// InlineContent[][] — each cell is InlineContent[]
+	return cells.map((cell) => cell.map(compactContentItem))
+}
+
+function expandTableCells(
+	cells: CompactInlineContent[][] | CompactTableCell[]
+): InlineContent[][] | TableCell[] {
+	if (isCompactTableCellArray(cells)) {
+		return cells.map(
+			(tc): TableCell => ({
+				type: 'tableCell',
+				props: tc.pr ?? {},
+				content: tc.c.map(expandContentItem)
+			})
+		)
+	}
+	// CompactInlineContent[][] — each cell is CompactInlineContent[]
+	return cells.map((cell) => cell.map(expandContentItem))
+}
+
+export function compactTableContent(content: TableContent): CompactTableContent {
+	return {
+		type: 'tableContent',
+		...(content.columnWidths?.length && { cw: content.columnWidths }),
+		...(content.headerRows && { hr: content.headerRows }),
+		...(content.headerCols && { hc: content.headerCols }),
+		rows: content.rows.map((row) => ({
+			cells: compactTableCells(row.cells)
+		}))
+	}
+}
+
+export function expandTableContent(content: CompactTableContent): TableContent {
+	return {
+		type: 'tableContent',
+		columnWidths: content.cw ?? [],
+		...(content.hr && { headerRows: content.hr }),
+		...(content.hc && { headerCols: content.hc }),
+		rows: content.rows.map((row) => ({
+			cells: expandTableCells(row.cells)
+		}))
+	}
+}
+
+// ── Polymorphic content compaction (handles both inline and table content) ──
+
+export function compactBlockContent(
+	content: InlineContent[] | TableContent | undefined
+): CompactInlineContent[] | CompactTableContent | undefined {
+	if (!content) return undefined
+	if (isTableContent(content)) return compactTableContent(content)
+	if (Array.isArray(content) && content.length > 0) return content.map(compactContentItem)
+	return undefined
+}
+
+export function expandBlockContent(
+	content: CompactInlineContent[] | CompactTableContent | undefined
+): InlineContent[] | TableContent | undefined {
+	if (!content) return undefined
+	if (isCompactTableContent(content)) return expandTableContent(content)
+	if (Array.isArray(content) && content.length > 0) return content.map(expandContentItem)
+	return undefined
 }
 
 // ── Sanitization helpers ──
@@ -194,7 +305,7 @@ export function fromStoredBlock(stored: StoredBlockRecord, ownerTag?: string): B
 		pageId: stored.p,
 		type: expandBlockType(stored.t),
 		...(stored.pr !== undefined && { props: stored.pr }),
-		...(stored.c !== undefined && { content: expandContent(stored.c) }),
+		...(stored.c !== undefined && { content: expandBlockContent(stored.c) }),
 		...(stored.pb !== undefined && { parentBlockId: stored.pb }),
 		order: stored.o,
 		updatedAt: stored.ua,
@@ -204,7 +315,7 @@ export function fromStoredBlock(stored: StoredBlockRecord, ownerTag?: string): B
 
 export function toStoredBlock(block: BlockRecord, ownerTag?: string): StoredBlockRecord {
 	const pr = cleanProps(block.props)
-	const c = compactContent(block.content)
+	const c = compactBlockContent(block.content)
 	return {
 		p: block.pageId,
 		t: compactBlockType(block.type),

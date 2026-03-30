@@ -22,7 +22,7 @@ export function extractTagsFromBlocks(blocks: Block[]): string[] {
 
 	function visitBlock(block: Block) {
 		const content = block.content as InlineContent[] | undefined
-		if (content) {
+		if (Array.isArray(content)) {
 			for (const item of content) {
 				if (item.type === 'tag' && 'props' in item && item.props?.tag) {
 					tags.add(item.props.tag)

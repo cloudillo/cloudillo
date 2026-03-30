@@ -15,7 +15,14 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import type { Block } from '@blocknote/core'
-import { type BlockRecord, asBlockType, asBlockContent } from './types.js'
+import {
+	type BlockRecord,
+	TABLE_TYPES,
+	MEDIA_TYPES,
+	isTableContent,
+	asBlockType,
+	asBlockContent
+} from './types.js'
 
 export function reconstructBlocks(records: Map<string, BlockRecord & { id: string }>): Block[] {
 	// Group by parent
@@ -36,13 +43,25 @@ export function reconstructBlocks(records: Map<string, BlockRecord & { id: strin
 	// Note: block type and content are already expanded by fromStoredBlock
 	function buildTree(parentId: string | undefined): Block[] {
 		const children = childrenOf.get(parentId) || []
-		return children.map((record) => ({
-			id: record.id,
-			type: asBlockType(record.type),
-			props: record.props || {},
-			content: asBlockContent(record.content) || [],
-			children: buildTree(record.id)
-		}))
+		const result: Block[] = []
+		for (const record of children) {
+			const content = record.content ? asBlockContent(record.content) : undefined
+			const hasArrayContent = Array.isArray(content) && content.length > 0
+			// Skip corrupted table blocks that lost their structured content
+			if (TABLE_TYPES.has(record.type) && !isTableContent(content)) continue
+
+			// Media blocks use props (url, name, etc.) — skip only if both props and content are missing
+			if (MEDIA_TYPES.has(record.type) && !record.props && !record.content) continue
+
+			result.push({
+				id: record.id,
+				type: asBlockType(record.type),
+				props: record.props || {},
+				...(hasArrayContent || isTableContent(content) ? { content } : {}),
+				children: buildTree(record.id)
+			} as Block)
+		}
+		return result
 	}
 
 	return buildTree(undefined)

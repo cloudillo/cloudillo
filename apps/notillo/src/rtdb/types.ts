@@ -77,6 +77,37 @@ export type CompactInlineContent =
 	| CompactWikiLink // wikiLink
 	| CompactTag // tag
 
+// ── Compact table content (for RTDB wire/storage) ──
+
+export interface CompactTableCell {
+	pr?: Record<string, unknown> // props (backgroundColor, textColor, textAlignment, colspan, rowspan)
+	c: CompactInlineContent[] // content
+}
+
+export interface CompactTableContent {
+	type: 'tableContent'
+	cw?: (number | undefined)[] // columnWidths
+	hr?: number // headerRows
+	hc?: number // headerCols
+	rows: { cells: CompactInlineContent[][] | CompactTableCell[] }[]
+}
+
+// ── Table block helpers ──
+
+export const TABLE_TYPES = new Set(['table', 'tb'])
+
+// Media block types that store data in props (e.g., props.url), not
+// in an inline content array. These are valid without array content.
+export const MEDIA_TYPES = new Set(['img', 'image', 'vid', 'video', 'aud', 'audio', 'f', 'file'])
+
+export function isTableContent(content: unknown): content is TableContent {
+	return (
+		typeof content === 'object' &&
+		content !== null &&
+		(content as TableContent).type === 'tableContent'
+	)
+}
+
 // ── Block type short/long mappings ──
 
 export const BLOCK_TYPE_TO_SHORT: Record<string, string> = {
@@ -117,7 +148,7 @@ export interface StoredBlockRecord {
 	p: string // pageId
 	t: string // type (short code or full name)
 	pr?: Record<string, unknown> // props
-	c?: CompactInlineContent[] // content (compact format)
+	c?: CompactInlineContent[] | CompactTableContent // content (compact format)
 	pb?: string | null // parentBlockId (null = root)
 	o: number // order
 	ua: string // updatedAt
@@ -160,11 +191,25 @@ export interface PageRecord {
 	tags?: string[]
 }
 
+export interface TableCell {
+	type: 'tableCell'
+	props: Record<string, unknown>
+	content: InlineContent[]
+}
+
+export interface TableContent {
+	type: 'tableContent'
+	columnWidths: (number | undefined)[]
+	headerRows?: number
+	headerCols?: number
+	rows: { cells: InlineContent[][] | TableCell[] }[]
+}
+
 export interface BlockRecord {
 	pageId: string
 	type: string
 	props?: Record<string, unknown>
-	content?: InlineContent[]
+	content?: InlineContent[] | TableContent
 	parentBlockId?: string | null // null = root, undefined = not specified
 	order: number
 	updatedAt: string

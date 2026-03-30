@@ -18,12 +18,21 @@ import { useEffect, useRef } from 'react'
 
 import type { Block, BlockNoteEditor } from '@blocknote/core'
 import type { RtdbClient, QuerySnapshot, ChangeEvent } from '@cloudillo/rtdb'
-import { type StoredBlockRecord, asBlockType, asBlockProps, asBlockContent } from '../rtdb/types.js'
+import {
+	type StoredBlockRecord,
+	type BlockRecord,
+	TABLE_TYPES,
+	MEDIA_TYPES,
+	isTableContent,
+	asBlockType,
+	asBlockProps,
+	asBlockContent
+} from '../rtdb/types.js'
 import {
 	toStoredBlock,
 	fromStoredBlock,
 	cleanProps,
-	compactContent,
+	compactBlockContent,
 	compactBlockType
 } from '../rtdb/transform.js'
 import { getBlockOrder } from '../rtdb/block-ops.js'
@@ -31,12 +40,22 @@ import { getBlockOrder } from '../rtdb/block-ops.js'
 const DEBOUNCE_MS = 300
 const ECHO_SUPPRESS_MS = 2000
 
+function hasValidContent(record: BlockRecord): boolean {
+	if (TABLE_TYPES.has(record.type)) {
+		return isTableContent(record.content)
+	}
+	if (MEDIA_TYPES.has(record.type)) {
+		return !!record.props || !!record.content
+	}
+	return true
+}
+
 // ── Per-block state tracking ──
 
 interface BlockState {
 	type: string
 	props: Record<string, unknown>
-	content: unknown[]
+	content: unknown // compact inline content array or compact table content
 	parentBlockId: string | null // null = root
 	order: number
 }
@@ -64,7 +83,7 @@ function getBlockState(
 	return {
 		type: compactBlockType(block.type),
 		props: cleanProps(block.props) ?? {},
-		content: compactContent(asBlockContent(block.content)) ?? [],
+		content: compactBlockContent(asBlockContent(block.content)) ?? [],
 		parentBlockId: editor.getParentBlock(block)?.id ?? null,
 		order: storedOrder ?? getBlockOrder(editor, blockId)
 	}
@@ -454,6 +473,9 @@ export function useRtdbToEditor(
 						) {
 							continue
 						}
+
+						// Skip corrupted table blocks (stored without content)
+						if (!hasValidContent(record)) continue
 
 						if (change.type === 'modified') {
 							const existing = editor.getBlock(change.doc.id)

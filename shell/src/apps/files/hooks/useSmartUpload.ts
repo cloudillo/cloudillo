@@ -65,7 +65,7 @@ export function useSmartUpload(options?: UseUploadQueueOptions) {
 			const convertible: PendingConversion[] = []
 
 			for (const file of files) {
-				const handlers = getImportHandlers(file.type)
+				const handlers = getImportHandlers(detectMimeType(file))
 				if (handlers.length > 0) {
 					convertible.push({ file, handlers })
 				} else {
@@ -108,9 +108,10 @@ export function useSmartUpload(options?: UseUploadQueueOptions) {
 			setPendingConversions((prev) => prev.filter((pc) => pc.file !== file))
 
 			try {
-				// Create empty CRDT document
+				// Create document (RTDB for apps like notillo, CRDT for others)
+				const fileTp = handler.manifest.capabilities?.includes('rtdb') ? 'RTDB' : 'CRDT'
 				const res = await api.files.create({
-					fileTp: 'CRDT',
+					fileTp,
 					contentType: handler.targetMimeType,
 					parentId: options?.parentId || undefined
 				})
@@ -125,9 +126,18 @@ export function useSmartUpload(options?: UseUploadQueueOptions) {
 					fileName: baseName || t('Untitled document')
 				})
 
-				// Read file as base64 and store as pending import
-				const buffer = await file.arrayBuffer()
-				const base64 = arrayBufferToBase64(buffer)
+				// Read file as base64 — use proper UTF-8 encoding for text files
+				const detectedType = detectMimeType(file)
+				let base64: string
+				if (detectedType.startsWith('text/')) {
+					const text = await file.text()
+					base64 = arrayBufferToBase64(
+						new TextEncoder().encode(text).buffer as ArrayBuffer
+					)
+				} else {
+					const buffer = await file.arrayBuffer()
+					base64 = arrayBufferToBase64(buffer)
+				}
 
 				const ownerTag = contextIdTag || auth?.idTag
 				if (!ownerTag) {
@@ -137,7 +147,7 @@ export function useSmartUpload(options?: UseUploadQueueOptions) {
 				const resId = `${ownerTag}:${res.fileId}`
 
 				setPendingImport(resId, {
-					sourceMimeType: file.type,
+					sourceMimeType: detectedType,
 					fileName: file.name,
 					data: base64
 				})
@@ -181,6 +191,18 @@ export function useSmartUpload(options?: UseUploadQueueOptions) {
 // ============================================
 // HELPERS
 // ============================================
+
+/**
+ * Detect MIME type with extension-based fallback.
+ * Browsers often report .md files as "" or "text/plain" or "text/x-markdown".
+ */
+function detectMimeType(file: globalThis.File): string {
+	if (file.type === 'text/x-markdown') return 'text/markdown'
+	if (file.type && file.type !== 'text/plain') return file.type
+	const ext = file.name.split('.').pop()?.toLowerCase()
+	if (ext === 'md' || ext === 'markdown') return 'text/markdown'
+	return file.type || 'application/octet-stream'
+}
 
 /**
  * Convert ArrayBuffer to base64 string using chunked encoding.

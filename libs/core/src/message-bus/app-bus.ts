@@ -81,11 +81,21 @@ export interface AppState {
 	theme: string
 	/** Display name for anonymous guests (used in awareness) */
 	displayName?: string
-	/** Initial navigation state (from parent embed or shell) */
+	/**
+	 * Interactive view state for embeds. Bidirectionally updatable during the
+	 * session via embed:viewstate.push / embed:viewstate.set. Persisted in
+	 * block props by the parent app. Only meaningful in embed context.
+	 */
 	navState?: string
 	/** Ancestor file IDs in the embed chain (for cycle/depth detection) */
 	ancestors?: string[]
-	/** Launch params as serialized query string (e.g., "mode=present&follow=some.id.tag") */
+	/**
+	 * Launch params as serialized query string (e.g., "mode=present&nav=page:3").
+	 * Controls app behavior/mode and deep linking. Set at launch, immutable during
+	 * session. Available in all contexts: direct navigation, share links, and embeds.
+	 * Convention: use the `nav` key for deep linking to a specific view position.
+	 * Read via `bus.params` (raw) or `bus.parsedParams` (URLSearchParams).
+	 */
 	params?: string
 }
 
@@ -200,6 +210,8 @@ export interface ShareCreateOptions {
 	count?: number
 	/** Serialized query string for launch params (e.g., "mode=present&follow=some.id.tag") */
 	params?: string
+	/** When true, dialog offers reusing existing compatible refs for this document */
+	reuse?: boolean
 }
 
 /**
@@ -1120,6 +1132,7 @@ export class AppMessageBus extends MessageBusBase {
 		sourceFileId: string
 		access?: 'read' | 'write'
 		navState?: string
+		params?: string
 	}): Promise<EmbedOpenResult> {
 		if (!this.initialized) {
 			throw new Error('AppBus not initialized. Call init() first.')
@@ -1137,6 +1150,7 @@ export class AppMessageBus extends MessageBusBase {
 					sourceFileId: options.sourceFileId,
 					access: options.access,
 					navState: options.navState,
+					params: options.params,
 					ancestors
 				})
 			)
@@ -1611,7 +1625,8 @@ export class AppMessageBus extends MessageBusBase {
 						description: options?.description,
 						expiresAt: options?.expiresAt,
 						count: options?.count,
-						params: options?.params
+						params: options?.params,
+						reuse: options?.reuse
 					})
 				)
 			}, AppMessageBus.SHARE_CREATE_ACK_TIMEOUT)

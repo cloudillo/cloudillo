@@ -36,6 +36,7 @@ export interface ShareCreateOpenOptions {
 	expiresAt?: number
 	count?: number
 	params?: string
+	reuse?: boolean
 }
 
 /**
@@ -145,7 +146,8 @@ export function initShareHandlers(bus: ShellMessageBus): void {
 				description: msg.payload.description,
 				expiresAt: msg.payload.expiresAt,
 				count: msg.payload.count,
-				params: msg.payload.params
+				params: msg.payload.params,
+				reuse: msg.payload.reuse
 			},
 			(result) => {
 				if (result) {

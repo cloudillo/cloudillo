@@ -574,6 +574,7 @@ export const tEmbedOpenReq = T.struct({
 		sourceFileId: T.string,
 		access: T.optional(T.literal('read', 'write')),
 		navState: T.optional(T.string),
+		params: T.optional(T.string),
 		ancestors: T.optional(T.array(T.string))
 	})
 })
@@ -1091,7 +1092,8 @@ export const tShareCreateReq = T.struct({
 		description: T.optional(T.string),
 		expiresAt: T.optional(T.number),
 		count: T.optional(T.number),
-		params: T.optional(T.string)
+		params: T.optional(T.string),
+		reuse: T.optional(T.boolean)
 	})
 })
 export type ShareCreateReq = T.TypeOf<typeof tShareCreateReq>

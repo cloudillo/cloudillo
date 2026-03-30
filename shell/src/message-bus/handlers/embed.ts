@@ -63,8 +63,15 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 			return
 		}
 
-		const { targetFileId, targetContentType, sourceFileId, access, navState, ancestors } =
-			msg.payload
+		const {
+			targetFileId,
+			targetContentType,
+			sourceFileId,
+			access,
+			navState,
+			params,
+			ancestors
+		} = msg.payload
 		const ancestorChain = ancestors || []
 		const nextAncestorChain = [...ancestorChain, sourceFileId]
 		const requestedAccess = access || 'read'
@@ -146,6 +153,7 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 				access: requestedAccess,
 				idTag,
 				navState,
+				params,
 				ancestors: nextAncestorChain
 			})
 

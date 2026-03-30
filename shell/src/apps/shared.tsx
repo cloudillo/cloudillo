@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import { LuFileWarning as IcError } from 'react-icons/lu'
@@ -53,6 +53,7 @@ type SharedState =
 export function SharedResourceView() {
 	const { t } = useTranslation()
 	const { refId } = useParams<{ refId: string }>()
+	const location = useLocation()
 	const { api } = useApi()
 	const [appConfig] = useAppConfig()
 	const [state, setState] = React.useState<SharedState>({ status: 'loading' })
@@ -197,6 +198,14 @@ export function SharedResourceView() {
 			const appId = appPath.replace('/app/', '')
 			const app = appConfig?.apps.find((a) => a.id === appId)
 			if (app) {
+				// Merge ref-stored params with URL query params (URL wins)
+				const refParams = new URLSearchParams(tokenResult.params || '')
+				const urlParams = new URLSearchParams(location.search)
+				for (const [key, value] of urlParams) {
+					refParams.set(key, value)
+				}
+				const mergedParams = refParams.toString() || undefined
+
 				// Build resId from owner and fileId
 				const resId = `${api?.idTag}:${file.fileId}`
 				return (
@@ -210,7 +219,7 @@ export function SharedResourceView() {
 						token={tokenResult.token}
 						refId={refId}
 						guestName={guestName}
-						params={tokenResult.params}
+						params={mergedParams}
 					/>
 				)
 			}

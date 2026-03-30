@@ -92,6 +92,9 @@ export function useNotillo() {
 				setClient(rtdbClient)
 				setConnected(true)
 				setLoading(false)
+
+				// Notify shell that we're ready (triggers pending import delivery)
+				bus.notifyReady('synced')
 			} catch (err) {
 				console.error('[Notillo] Initialization error:', err)
 				if (!unmounted) {

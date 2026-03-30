@@ -33,6 +33,7 @@ export interface LazyPageTree {
 	collapse(pageId: string): void
 	toggleExpand(pageId: string): void
 	navigateToPage(pageId: string): Promise<void>
+	resubscribe(parentId: string): void
 }
 
 export function useLazyPageTree(client: RtdbClient | undefined): LazyPageTree {
@@ -214,6 +215,22 @@ export function useLazyPageTree(client: RtdbClient | undefined): LazyPageTree {
 		})
 	}, [])
 
+	// Force-refresh a level's subscription (tear down + recreate)
+	const resubscribe = useCallback(
+		(parentId: string) => {
+			const unsub = childSubsRef.current.get(parentId)
+			if (unsub) {
+				unsub()
+				childSubsRef.current.delete(parentId)
+			}
+			levelReadyRef.current.delete(parentId)
+			levelDataRef.current.delete(parentId)
+			rebuildPages()
+			subscribeChildren(parentId)
+		},
+		[subscribeChildren, rebuildPages]
+	)
+
 	// Navigate to a page — resolves ancestors and expands tree path
 	const navigateToPage = useCallback(
 		async (pageId: string) => {
@@ -291,7 +308,8 @@ export function useLazyPageTree(client: RtdbClient | undefined): LazyPageTree {
 		expand,
 		collapse,
 		toggleExpand,
-		navigateToPage
+		navigateToPage,
+		resubscribe
 	}
 }
 

@@ -1,5 +1,5 @@
 // This file is part of the Cloudillo Platform.
-// Copyright (C) 2024  Szilárd Hajba
+// Copyright (C) 2024-2026  Szilárd Hajba
 //
 // Cloudillo is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -16,7 +16,7 @@
 
 import * as React from 'react'
 
-import { getFileUrl } from '@cloudillo/core'
+import { getAppBus, getFileUrl } from '@cloudillo/core'
 import { Fcd, Panel, Button, DialogContainer, useDialog } from '@cloudillo/react'
 
 import { LuPanelLeft as IcSidebar } from 'react-icons/lu'
@@ -35,6 +35,7 @@ import { NotilloEditor as NotilloEditorComponent } from './editor/NotilloEditor.
 import { PageSidebar } from './pages/PageSidebar.js'
 import { PageHeader } from './pages/PageHeader.js'
 import { exportMarkdown, importMarkdown, exportPdf, exportDocx, exportOdt } from './export/index.js'
+import { createPage } from './rtdb/page-ops.js'
 
 export function NotilloApp() {
 	const notillo = useNotillo()
@@ -50,7 +51,8 @@ export function NotilloApp() {
 		expand,
 		collapse,
 		toggleExpand,
-		navigateToPage
+		navigateToPage,
+		resubscribe
 	} = useLazyPageTree(notillo.client)
 	const { tags, tagCounts } = useTags(notillo.client)
 	const { allPages } = useAllPages(notillo.client)
@@ -61,15 +63,105 @@ export function NotilloApp() {
 
 	const editorRef = React.useRef<NotilloEditor | null>(null)
 	const fileInputRef = React.useRef<HTMLInputElement>(null)
+	const childImportInputRef = React.useRef<HTMLInputElement>(null)
+	const [pendingImport, setPendingImport] = React.useState<
+		{ markdown: string; pageId: string; source: 'shell' | 'local' } | undefined
+	>()
+
+	// Store raw import payload in state so the processing effect re-runs
+	// whenever a new payload arrives (even after client is already ready).
+	const [importPayload, setImportPayload] = React.useState<{
+		markdown: string
+		fileName: string
+	} | null>(null)
+
+	// Register import handler early (no dependency on client)
+	React.useEffect(() => {
+		const bus = getAppBus()
+		return bus.onImportData(async (payload) => {
+			if (payload.sourceMimeType === 'text/markdown') {
+				const bytes = Uint8Array.from(atob(payload.data), (c) => c.charCodeAt(0))
+				const markdown = new TextDecoder().decode(bytes)
+				setImportPayload({ markdown, fileName: payload.fileName })
+			} else {
+				bus.notifyImportComplete(
+					false,
+					`Unsupported import type: ${payload.sourceMimeType}`
+				)
+			}
+		})
+	}, [])
+
+	// Guard against double importMarkdown calls from handleEditorReady re-firing
+	const importRunningRef = React.useRef(false)
+
+	// Process import payload once client is ready
+	React.useEffect(() => {
+		if (!notillo.client || !notillo.idTag || !importPayload) return
+		const payload = importPayload
+		setImportPayload(null)
+
+		let cancelled = false
+		const bus = getAppBus()
+		;(async () => {
+			try {
+				const title = payload.fileName.replace(/\.[^.]+$/, '') || 'Imported'
+				const pageId = await createPage(notillo.client!, notillo.idTag!, title, '__root__')
+				if (cancelled) return
+				setPendingImport({ markdown: payload.markdown, pageId, source: 'shell' })
+				setActivePageId(pageId)
+			} catch (err) {
+				if (cancelled) return
+				console.error('[Notillo] Markdown import failed:', err)
+				bus.notifyImportComplete(
+					false,
+					err instanceof Error ? err.message : 'Import failed'
+				)
+			}
+		})()
+		return () => {
+			cancelled = true
+		}
+	}, [notillo.client, notillo.idTag, importPayload])
 
 	// Reset editor ref when active page changes
 	React.useEffect(() => {
 		editorRef.current = null
+		importRunningRef.current = false
 	}, [activePageId])
 
-	const handleEditorReady = React.useCallback((editor: NotilloEditor) => {
-		editorRef.current = editor
-	}, [])
+	const handleEditorReady = React.useCallback(
+		(editor: NotilloEditor) => {
+			editorRef.current = editor
+			if (
+				pendingImport &&
+				activePageId === pendingImport.pageId &&
+				!importRunningRef.current
+			) {
+				importRunningRef.current = true
+				importMarkdown(editor, pendingImport.markdown, allPages)
+					.then(() => {
+						importRunningRef.current = false
+						if (pendingImport.source === 'shell') {
+							getAppBus().notifyImportComplete(true)
+						}
+						setPendingImport(undefined)
+					})
+					.catch((err) => {
+						importRunningRef.current = false
+						console.error('[Notillo] Deferred import failed:', err)
+						if (pendingImport.source === 'shell') {
+							getAppBus().notifyImportComplete(
+								false,
+								err instanceof Error ? err.message : 'Import failed'
+							)
+						}
+						setPendingImport(undefined)
+					})
+			}
+		},
+		[pendingImport, activePageId, allPages]
+	)
 
 	const resolveFileUrl = React.useCallback(
 		async (url: string): Promise<string | Blob> => {
@@ -264,12 +356,49 @@ export function NotilloApp() {
 
 			try {
 				const markdown = await file.text()
-				await importMarkdown(editorRef.current, markdown)
+				await importMarkdown(editorRef.current, markdown, allPages)
 			} catch (err) {
 				await dialog.tell('Import error', `Failed to import Markdown: ${err}`)
 			}
 		},
-		[dialog]
+		[dialog, allPages]
+	)
+
+	// Import markdown as child/sibling page — parentPageId stored in ref
+	const importParentRef = React.useRef<string>('__root__')
+
+	const handleImportMarkdownAsChild = React.useCallback(() => {
+		if (!activePageId) return
+		importParentRef.current = activePageId
+		childImportInputRef.current?.click()
+	}, [activePageId])
+
+	const handleImportMarkdownInto = React.useCallback((parentPageId: string) => {
+		importParentRef.current = parentPageId
+		childImportInputRef.current?.click()
+	}, [])
+
+	const handleChildImportFileSelected = React.useCallback(
+		async (e: React.ChangeEvent<HTMLInputElement>) => {
+			const file = e.target.files?.[0]
+			if (!file || !notillo.client || !notillo.idTag) return
+			e.target.value = ''
+
+			try {
+				const markdown = await file.text()
+				// Extract title from first heading or filename
+				const headingMatch = markdown.match(/^#\s+(.+)$/m)
+				const title =
+					headingMatch?.[1]?.trim() || file.name.replace(/\.[^.]+$/, '') || 'Imported'
+				const parentId = importParentRef.current
+				const pageId = await createPage(notillo.client, notillo.idTag, title, parentId)
+				setPendingImport({ markdown, pageId, source: 'local' })
+				setActivePageId(pageId)
+			} catch (err) {
+				await dialog.tell('Import error', `Failed to import Markdown: ${err}`)
+			}
+		},
+		[notillo.client, notillo.idTag, dialog]
 	)
 
 	// Loading state
@@ -307,6 +436,13 @@ export function NotilloApp() {
 				style={{ display: 'none' }}
 				onChange={handleFileSelected}
 			/>
+			<input
+				ref={childImportInputRef}
+				type="file"
+				accept=".md,text/markdown"
+				style={{ display: 'none' }}
+				onChange={handleChildImportFileSelected}
+			/>
 			<Fcd.Container>
 				<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 					<Panel elevation="mid" className="c-vbox fill">
@@ -333,6 +469,8 @@ export function NotilloApp() {
 							onSearchChange={setSearchQuery}
 							filteredResults={filteredResults}
 							isFiltering={isFiltering}
+							onResubscribe={resubscribe}
+							onImportMarkdown={isReadOnly ? undefined : handleImportMarkdownInto}
 						/>
 					</Panel>
 				</Fcd.Filter>
@@ -350,6 +488,7 @@ export function NotilloApp() {
 								onExportDocx={handleExportDocx}
 								onExportOdt={handleExportOdt}
 								onImportMarkdown={handleImportMarkdown}
+								onImportMarkdownAsChild={handleImportMarkdownAsChild}
 							/>
 						) : (
 							<nav

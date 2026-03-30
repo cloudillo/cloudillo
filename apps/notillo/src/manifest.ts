@@ -26,7 +26,12 @@ export const manifest: AppManifest = {
 	icon: 'book-open',
 	description: 'Collaborative wiki and notes',
 	contentTypes: [
-		{ mimeType: 'cloudillo/notillo', actions: ['view', 'edit', 'create'], priority: 'primary' }
+		{
+			mimeType: 'cloudillo/notillo',
+			actions: ['view', 'edit', 'create'],
+			priority: 'primary',
+			importFrom: [{ mimeType: 'text/markdown', label: 'Markdown', extensions: ['.md'] }]
+		}
 	],
 	capabilities: ['rtdb', 'crdt'],
 	translations: {

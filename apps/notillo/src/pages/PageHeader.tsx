@@ -33,6 +33,7 @@ interface PageHeaderProps {
 	onExportDocx?: () => void
 	onExportOdt?: () => void
 	onImportMarkdown?: () => void
+	onImportMarkdownAsChild?: () => void
 }
 
 export function PageHeader({
@@ -44,7 +45,8 @@ export function PageHeader({
 	onExportPdf,
 	onExportDocx,
 	onExportOdt,
-	onImportMarkdown
+	onImportMarkdown,
+	onImportMarkdownAsChild
 }: PageHeaderProps) {
 	const [editing, setEditing] = React.useState(false)
 	const [title, setTitle] = React.useState(page.title)
@@ -186,7 +188,7 @@ export function PageHeader({
 						{!readOnly && (
 							<>
 								<div className="c-menu-divider" />
-								<div className="c-menu-header">Import</div>
+								<div className="c-menu-header">Import Markdown</div>
 								<button
 									className="c-menu-item"
 									onClick={() => {
@@ -194,7 +196,16 @@ export function PageHeader({
 										onImportMarkdown?.()
 									}}
 								>
-									Markdown (.md)
+									Overwrite this page
+								</button>
+								<button
+									className="c-menu-item"
+									onClick={() => {
+										setMenuOpen(false)
+										onImportMarkdownAsChild?.()
+									}}
+								>
+									As child page
 								</button>
 							</>
 						)}

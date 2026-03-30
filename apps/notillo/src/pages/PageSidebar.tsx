@@ -26,7 +26,17 @@ import {
 	PiMagnifyingGlassBold as IcSearch
 } from 'react-icons/pi'
 
-import { useDialog, Button, TreeView, TreeItem, type TreeItemDragData } from '@cloudillo/react'
+import {
+	useDialog,
+	Button,
+	TreeView,
+	TreeItem,
+	Menu,
+	MenuItem,
+	ActionSheet,
+	ActionSheetItem,
+	type TreeItemDragData
+} from '@cloudillo/react'
 import type { RtdbClient } from '@cloudillo/rtdb'
 import type { PageRecord } from '../rtdb/types.js'
 import { createPage, deletePage, movePage, isAncestor, pinToSidebar } from '../rtdb/page-ops.js'
@@ -55,6 +65,8 @@ interface PageSidebarProps {
 	onSearchChange: (query: string) => void
 	filteredResults: Array<{ id: string; title: string; icon?: string; tags?: string[] }>
 	isFiltering: boolean
+	onResubscribe: (parentId: string) => void
+	onImportMarkdown?: (parentPageId: string) => void
 }
 
 export function PageSidebar({
@@ -78,11 +90,30 @@ export function PageSidebar({
 	searchQuery,
 	onSearchChange,
 	filteredResults,
-	isFiltering
+	onResubscribe,
+	isFiltering,
+	onImportMarkdown
 }: PageSidebarProps) {
 	const dialog = useDialog()
 	const [menuOpen, setMenuOpen] = React.useState(false)
 	const menuRef = React.useRef<HTMLDivElement>(null)
+
+	// Page context menu state (right-click / long-press)
+	const [ctxMenu, setCtxMenu] = React.useState<{
+		x: number
+		y: number
+		pageId: string
+		pageTitle: string
+	} | null>(null)
+	const longPressTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+	const longPressTriggeredRef = React.useRef(false)
+
+	// Clean up long-press timer on unmount
+	React.useEffect(() => {
+		return () => {
+			if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current)
+		}
+	}, [])
 
 	const [draggedId, setDraggedId] = React.useState<string | null>(null)
 	const [dropTargetId, setDropTargetId] = React.useState<string | null>(null)
@@ -158,6 +189,40 @@ export function PageSidebar({
 		return () => document.removeEventListener('click', handleClickOutside, true)
 	}, [menuOpen])
 
+	const handlePageContextMenu = React.useCallback(
+		(e: React.MouseEvent, pageId: string, pageTitle: string) => {
+			if (readOnly || !onImportMarkdown) return
+			e.preventDefault()
+			e.stopPropagation()
+			setCtxMenu({ x: e.clientX, y: e.clientY, pageId, pageTitle })
+		},
+		[readOnly, onImportMarkdown]
+	)
+
+	// Long-press for mobile context menu
+	const handleTouchStart = React.useCallback(
+		(e: React.TouchEvent, pageId: string, pageTitle: string) => {
+			if (readOnly || !onImportMarkdown) return
+			const touch = e.touches[0]
+			const x = touch?.clientX ?? 0
+			const y = touch?.clientY ?? 0
+			longPressTriggeredRef.current = false
+			longPressTimerRef.current = setTimeout(() => {
+				longPressTriggeredRef.current = true
+				setCtxMenu({ x, y, pageId, pageTitle })
+				longPressTimerRef.current = null
+			}, 500)
+		},
+		[readOnly, onImportMarkdown]
+	)
+
+	const handleTouchEnd = React.useCallback(() => {
+		if (longPressTimerRef.current) {
+			clearTimeout(longPressTimerRef.current)
+			longPressTimerRef.current = null
+		}
+	}, [])
+
 	const handleCheckConsistency = React.useCallback(async () => {
 		setMenuOpen(false)
 		const result = await checkConsistency(client)
@@ -218,7 +283,20 @@ export function PageSidebar({
 			// Prevent dropping into own descendant
 			if (position === 'inside' && isAncestor(targetId, draggedId, pages)) return
 
-			movePage(client, draggedId, targetId, position, pages).catch(console.error)
+			const target = pages.get(targetId)
+			const newParentId = position === 'inside' ? targetId : target?.parentPageId
+			const oldParentId = pages.get(draggedId)?.parentPageId
+
+			movePage(client, draggedId, targetId, position, pages)
+				.then(() => {
+					// Force-refresh subscriptions for affected levels so the UI
+					// updates even if the server doesn't notify the new parent's
+					// subscription about the moved document.
+					if (newParentId && newParentId !== '__root__') onResubscribe(newParentId)
+					if (oldParentId && oldParentId !== newParentId && oldParentId !== '__root__')
+						onResubscribe(oldParentId)
+				})
+				.catch(console.error)
 
 			// Auto-expand the target if dropping inside
 			if (position === 'inside') {
@@ -229,7 +307,7 @@ export function PageSidebar({
 			setDropTargetId(null)
 			setDropPosition(null)
 		},
-		[draggedId, client, pages, onExpand]
+		[draggedId, client, pages, onExpand, onResubscribe]
 	)
 
 	const handleDragEnd = React.useCallback(() => {
@@ -260,8 +338,22 @@ export function PageSidebar({
 				dragging={draggedId === page.id}
 				dropTarget={dropTargetId === page.id}
 				dropPosition={dropTargetId === page.id ? dropPosition : null}
-				onSelect={() => onSelectPage(page.id)}
+				onSelect={() => {
+					if (longPressTriggeredRef.current) {
+						longPressTriggeredRef.current = false
+						return
+					}
+					onSelectPage(page.id)
+				}}
 				onToggle={() => onToggleExpand(page.id)}
+				onContextMenu={(e: React.MouseEvent) =>
+					handlePageContextMenu(e, page.id, page.title || 'Untitled')
+				}
+				onTouchStart={(e: React.TouchEvent) =>
+					handleTouchStart(e, page.id, page.title || 'Untitled')
+				}
+				onTouchEnd={handleTouchEnd}
+				onTouchMove={handleTouchEnd}
 				onItemDragStart={handleDragStart}
 				onItemDragOver={(e, pos) => handleDragOver(page.id, e, pos)}
 				onItemDragLeave={handleDragLeave}
@@ -342,6 +434,17 @@ export function PageSidebar({
 									className="c-menu"
 									style={{ position: 'absolute', top: '100%', right: 0 }}
 								>
+									{onImportMarkdown && (
+										<button
+											className="c-menu-item"
+											onClick={() => {
+												setMenuOpen(false)
+												onImportMarkdown('__root__')
+											}}
+										>
+											Import Markdown
+										</button>
+									)}
 									<button
 										className="c-menu-item"
 										onClick={handleCheckConsistency}
@@ -503,6 +606,35 @@ export function PageSidebar({
 					</div>
 				</div>
 			)}
+			{ctxMenu &&
+				(window.innerWidth < 768 ? (
+					<ActionSheet
+						isOpen={true}
+						onClose={() => setCtxMenu(null)}
+						title={ctxMenu.pageTitle}
+					>
+						<ActionSheetItem
+							label="Import Markdown as child page"
+							onClick={() => {
+								onImportMarkdown?.(ctxMenu.pageId)
+								setCtxMenu(null)
+							}}
+						/>
+					</ActionSheet>
+				) : (
+					<Menu
+						position={{ x: ctxMenu.x, y: ctxMenu.y }}
+						onClose={() => setCtxMenu(null)}
+					>
+						<MenuItem
+							label="Import Markdown as child page"
+							onClick={() => {
+								onImportMarkdown?.(ctxMenu.pageId)
+								setCtxMenu(null)
+							}}
+						/>
+					</Menu>
+				))}
 		</>
 	)
 }

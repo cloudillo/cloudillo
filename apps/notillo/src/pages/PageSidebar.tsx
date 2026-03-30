@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
 	PiPlusBold as IcPlus,
 	PiFilePlusBold as IcAddSubpage,
@@ -50,7 +51,6 @@ interface PageSidebarProps {
 	loadingChildren: Set<string>
 	orphanPage: (PageRecord & { id: string }) | null
 	onExpand: (pageId: string) => void
-	onCollapse: (pageId: string) => void
 	onToggleExpand: (pageId: string) => void
 	activePageId: string | undefined
 	onSelectPage: (pageId: string) => void
@@ -94,6 +94,7 @@ export function PageSidebar({
 	isFiltering,
 	onImportMarkdown
 }: PageSidebarProps) {
+	const { t } = useTranslation()
 	const dialog = useDialog()
 	const [menuOpen, setMenuOpen] = React.useState(false)
 	const menuRef = React.useRef<HTMLDivElement>(null)
@@ -146,28 +147,33 @@ export function PageSidebar({
 	)
 
 	const handleCreatePage = React.useCallback(async () => {
-		const id = await createPage(client, userId, 'New Page', '__root__')
+		const id = await createPage(client, userId, t('New Page'), '__root__')
 		onSelectPage(id)
-	}, [client, userId, onSelectPage])
+	}, [client, userId, onSelectPage, t])
 
 	const handleCreateSubpage = React.useCallback(
 		async (e: React.MouseEvent, parentPageId: string) => {
 			e.stopPropagation()
-			const id = await createPage(client, userId, 'New Page', parentPageId)
+			const id = await createPage(client, userId, t('New Page'), parentPageId)
 			onExpand(parentPageId)
 			onSelectPage(id)
 		},
-		[client, userId, onSelectPage, onExpand]
+		[client, userId, onSelectPage, onExpand, t]
 	)
 
 	const handleDeletePage = React.useCallback(
 		async (e: React.MouseEvent, pageId: string) => {
 			e.stopPropagation()
-			if (!(await dialog.confirm('Delete page', 'Delete this page and all its content?')))
+			if (
+				!(await dialog.confirm(
+					t('Delete page'),
+					t('Delete this page and all its content?')
+				))
+			)
 				return
 			await deletePage(client, pageId)
 		},
-		[client, dialog]
+		[client, dialog, t]
 	)
 
 	const handlePinToSidebar = React.useCallback(
@@ -244,17 +250,17 @@ export function PageSidebar({
 
 		if (result.needsFix) {
 			const shouldFix = await dialog.confirm(
-				'Consistency check',
-				`${message}\n\nFix ${issues} issues?`
+				t('Consistency check'),
+				`${message}\n\n${t('Fix {{count}} issues?', { count: issues })}`
 			)
 			if (shouldFix) {
 				await fixConsistency(client, result)
-				await dialog.tell('Consistency check', 'Issues fixed.')
+				await dialog.tell(t('Consistency check'), t('Issues fixed.'))
 			}
 		} else {
-			await dialog.tell('Consistency check', `${message}\n\nNo issues found.`)
+			await dialog.tell(t('Consistency check'), `${message}\n\n${t('No issues found.')}`)
 		}
-	}, [client, dialog])
+	}, [client, dialog, t])
 
 	// DnD callbacks
 	const handleDragStart = React.useCallback((_e: React.DragEvent, data: TreeItemDragData) => {
@@ -332,7 +338,7 @@ export function PageSidebar({
 				hasChildren={hasChildren}
 				allowDropInside={!readOnly}
 				icon={page.icon ? <span>{page.icon}</span> : <IcPage />}
-				label={page.title || 'Untitled'}
+				label={page.title || t('Untitled')}
 				isDraggable={!readOnly}
 				dragData={{ id: page.id, type: hasChildren ? 'container' : 'object' }}
 				dragging={draggedId === page.id}
@@ -347,10 +353,10 @@ export function PageSidebar({
 				}}
 				onToggle={() => onToggleExpand(page.id)}
 				onContextMenu={(e: React.MouseEvent) =>
-					handlePageContextMenu(e, page.id, page.title || 'Untitled')
+					handlePageContextMenu(e, page.id, page.title || t('Untitled'))
 				}
 				onTouchStart={(e: React.TouchEvent) =>
-					handleTouchStart(e, page.id, page.title || 'Untitled')
+					handleTouchStart(e, page.id, page.title || t('Untitled'))
 				}
 				onTouchEnd={handleTouchEnd}
 				onTouchMove={handleTouchEnd}
@@ -365,14 +371,14 @@ export function PageSidebar({
 							<button
 								className="page-tree-action"
 								onClick={(e) => handleCreateSubpage(e, page.id)}
-								title="Add subpage"
+								title={t('Add subpage')}
 							>
 								<IcAddSubpage />
 							</button>
 							<button
 								className="page-tree-delete"
 								onClick={(e) => handleDeletePage(e, page.id)}
-								title="Delete page"
+								title={t('Delete page')}
 							>
 								<IcDelete />
 							</button>
@@ -388,7 +394,7 @@ export function PageSidebar({
 							depth={depth + 1}
 							hasChildren={false}
 							icon={<div className="c-spinner xs" />}
-							label="Loading..."
+							label={t('Loading...')}
 						/>
 					) : (
 						children.map((child) => renderPage(child, depth + 1))
@@ -409,14 +415,14 @@ export function PageSidebar({
 				className="c-hbox align-items-center g-2 px-3 py-2"
 				style={{ borderBottom: '1px solid var(--col-outline)' }}
 			>
-				<span className="font-semibold text-sm flex-fill">Pages</span>
+				<span className="font-semibold text-sm flex-fill">{t('Pages')}</span>
 				{!readOnly && (
 					<>
 						<Button
 							mode="icon"
 							size="small"
 							onClick={handleCreatePage}
-							title="New page"
+							title={t('New page')}
 						>
 							<IcPlus />
 						</Button>
@@ -425,7 +431,7 @@ export function PageSidebar({
 								mode="icon"
 								size="small"
 								onClick={() => setMenuOpen(!menuOpen)}
-								title="More actions"
+								title={t('More actions')}
 							>
 								<IcMore />
 							</Button>
@@ -442,14 +448,14 @@ export function PageSidebar({
 												onImportMarkdown('__root__')
 											}}
 										>
-											Import Markdown
+											{t('Import Markdown')}
 										</button>
 									)}
 									<button
 										className="c-menu-item"
 										onClick={handleCheckConsistency}
 									>
-										Check consistency
+										{t('Check consistency')}
 									</button>
 								</div>
 							)}
@@ -463,7 +469,7 @@ export function PageSidebar({
 					<input
 						className="c-input"
 						type="text"
-						placeholder="Search pages..."
+						placeholder={t('Search pages...')}
 						value={searchQuery}
 						onChange={(e) => onSearchChange(e.target.value)}
 						onKeyDown={(e) => {
@@ -477,7 +483,7 @@ export function PageSidebar({
 						<button
 							className="c-input-clear"
 							onClick={() => onSearchChange('')}
-							title="Clear search"
+							title={t('Clear search')}
 						>
 							<IcClose />
 						</button>
@@ -494,19 +500,20 @@ export function PageSidebar({
 									<button
 										className="tag-clear-btn"
 										onClick={onClearTag}
-										title="Clear tag filter"
+										title={t('Clear tag filter')}
 									>
 										<IcClose />
 									</button>
 								</>
 							)}
 							<span className="text-muted text-xs flex-fill text-right">
-								{filteredResults.length} result
-								{filteredResults.length !== 1 ? 's' : ''}
+								{filteredResults.length === 1
+									? t('{{count}} result', { count: filteredResults.length })
+									: t('{{count}} results', { count: filteredResults.length })}
 							</span>
 						</div>
 						{filteredResults.length === 0 ? (
-							<div className="text-muted text-sm">No matching pages.</div>
+							<div className="text-muted text-sm">{t('No matching pages.')}</div>
 						) : (
 							filteredResults.map((page) => (
 								<div
@@ -518,7 +525,7 @@ export function PageSidebar({
 										{page.icon ? <span>{page.icon}</span> : <IcPage />}
 									</span>
 									<span className="tag-filtered-page-title">
-										{page.title || 'Untitled'}
+										{page.title || t('Untitled')}
 									</span>
 								</div>
 							))
@@ -531,7 +538,7 @@ export function PageSidebar({
 								className="px-3 pb-2 mb-1"
 								style={{ borderBottom: '1px solid var(--col-outline)' }}
 							>
-								<div className="text-xs text-muted mb-1">Current Page</div>
+								<div className="text-xs text-muted mb-1">{t('Current Page')}</div>
 								<div
 									className={`tag-filtered-page${orphanPage.id === activePageId ? ' active' : ''}`}
 									onClick={() => onSelectPage(orphanPage.id)}
@@ -544,7 +551,7 @@ export function PageSidebar({
 										)}
 									</span>
 									<span className="tag-filtered-page-title flex-fill">
-										{orphanPage.title || 'Untitled'}
+										{orphanPage.title || t('Untitled')}
 									</span>
 									{!readOnly && (
 										<button
@@ -553,7 +560,7 @@ export function PageSidebar({
 												e.stopPropagation()
 												handlePinToSidebar(orphanPage.id)
 											}}
-											title="Pin to sidebar"
+											title={t('Pin to sidebar')}
 										>
 											<IcPin />
 										</button>
@@ -563,7 +570,7 @@ export function PageSidebar({
 						)}
 						{rootPages.length === 0 ? (
 							<div className="p-3 text-center text-muted text-sm">
-								{readOnly ? 'No pages yet.' : 'No pages yet. Create one!'}
+								{readOnly ? t('No pages yet.') : t('No pages yet. Create one!')}
 							</div>
 						) : (
 							<TreeView>{rootPages.map((page) => renderPage(page, 0))}</TreeView>
@@ -577,12 +584,12 @@ export function PageSidebar({
 						className="c-hbox align-items-center px-3 py-2"
 						style={{ borderTop: '1px solid var(--col-outline)' }}
 					>
-						<span className="font-semibold text-sm flex-fill">Tags</span>
+						<span className="font-semibold text-sm flex-fill">{t('Tags')}</span>
 						{activeTag && (
 							<button
 								className="tag-clear-btn"
 								onClick={onClearTag}
-								title="Clear filter"
+								title={t('Clear filter')}
 							>
 								<IcClose />
 							</button>
@@ -614,7 +621,7 @@ export function PageSidebar({
 						title={ctxMenu.pageTitle}
 					>
 						<ActionSheetItem
-							label="Import Markdown as child page"
+							label={t('Import Markdown as child page')}
 							onClick={() => {
 								onImportMarkdown?.(ctxMenu.pageId)
 								setCtxMenu(null)
@@ -627,7 +634,7 @@ export function PageSidebar({
 						onClose={() => setCtxMenu(null)}
 					>
 						<MenuItem
-							label="Import Markdown as child page"
+							label={t('Import Markdown as child page')}
 							onClick={() => {
 								onImportMarkdown?.(ctxMenu.pageId)
 								setCtxMenu(null)

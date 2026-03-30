@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type { Block } from '@blocknote/core'
 import { filterSuggestionItems } from '@blocknote/core/extensions'
@@ -87,6 +88,7 @@ export const NotilloEditor = React.memo(
 		tags,
 		pageTags
 	}: NotilloEditorProps) {
+		const { t } = useTranslation()
 		const containerWidthRef = React.useRef(900)
 
 		const resolveFileUrl = React.useCallback(
@@ -232,13 +234,16 @@ export const NotilloEditor = React.memo(
 					if (page.id === pageId) continue // Don't suggest current page
 					if (search && !page.title.toLowerCase().includes(search)) continue
 					items.push({
-						title: page.title || 'Untitled',
+						title: page.title || t('Untitled'),
 						icon: page.icon ? <span>{page.icon}</span> : undefined,
 						onItemClick: () => {
 							editor.insertInlineContent([
 								{
 									type: 'wikiLink',
-									props: { pageId: page.id, pageTitle: page.title || 'Untitled' }
+									props: {
+										pageId: page.id,
+										pageTitle: page.title || t('Untitled')
+									}
 								},
 								' '
 							])
@@ -249,7 +254,7 @@ export const NotilloEditor = React.memo(
 				// Offer to create a new page if no matches found
 				if (items.length === 0 && search) {
 					items.push({
-						title: `Create page "${search}"`,
+						title: t('Create page "{{search}}"', { search }),
 						onItemClick: () => {
 							void (async () => {
 								const id = await createPage(client, userId, search)
@@ -264,7 +269,7 @@ export const NotilloEditor = React.memo(
 
 				return items
 			},
-			[editor, client, userId, pages, pageId]
+			[editor, client, userId, pages, pageId, t]
 		)
 
 		// Tag suggestion items
@@ -286,7 +291,7 @@ export const NotilloEditor = React.memo(
 				// Offer to create a new tag if the query doesn't match any existing tag
 				if (search && !tags.has(search)) {
 					items.push({
-						title: `Create #${search}`,
+						title: t('Create #{{search}}', { search }),
 						onItemClick: () => {
 							editor.insertInlineContent([
 								{ type: 'tag', props: { tag: search } },
@@ -298,7 +303,7 @@ export const NotilloEditor = React.memo(
 
 				return items
 			},
-			[editor, tags]
+			[editor, tags, t]
 		)
 
 		return (

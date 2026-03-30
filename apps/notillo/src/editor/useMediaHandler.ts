@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { RiImage2Fill, RiFilmLine, RiVolumeUpFill, RiFileLine } from 'react-icons/ri'
 
 import { getAppBus, type MediaFileResolvedPush } from '@cloudillo/core'
@@ -40,28 +41,28 @@ interface UseMediaHandlerOptions {
 
 type MediaTag = 'img' | 'vid' | 'aud'
 
-// Track temp file ID -> block ID mapping for resolution
-// Module-level since it needs to persist across re-renders
-const pendingTempIds = new Map<
-	string,
-	{ editor: NotilloEditor; blockId: string; mediaTag: MediaTag }
->()
-
 export function useMediaHandler({ documentFileId, readOnly }: UseMediaHandlerOptions) {
+	const { t } = useTranslation()
+
+	// Track temp file ID -> block ID mapping for resolution
+	const pendingTempIdsRef = React.useRef(
+		new Map<string, { editor: NotilloEditor; blockId: string; mediaTag: MediaTag }>()
+	)
+
 	// Listen for file ID resolution messages
 	React.useEffect(() => {
 		const bus = getAppBus()
 
 		const handleFileResolved = (msg: MediaFileResolvedPush) => {
 			const { tempId, finalId } = msg.payload
-			const pending = pendingTempIds.get(tempId)
+			const pending = pendingTempIdsRef.current.get(tempId)
 
 			if (pending) {
 				// Temp ID resolved to final ID
 				updateBlockUnsafe(pending.editor, pending.blockId, {
 					props: { url: `cl-file:${pending.mediaTag}:${finalId}` }
 				})
-				pendingTempIds.delete(tempId)
+				pendingTempIdsRef.current.delete(tempId)
 			}
 		}
 
@@ -69,6 +70,7 @@ export function useMediaHandler({ documentFileId, readOnly }: UseMediaHandlerOpt
 
 		return () => {
 			bus.off('media:file.resolved', handleFileResolved)
+			pendingTempIdsRef.current.clear()
 		}
 	}, [])
 
@@ -109,7 +111,7 @@ export function useMediaHandler({ documentFileId, readOnly }: UseMediaHandlerOpt
 							const result = await bus.pickMedia({
 								mediaType,
 								documentFileId,
-								title: `Insert ${title}`
+								title: t('Insert {{title}}', { title })
 							})
 
 							if (!result) return
@@ -120,7 +122,11 @@ export function useMediaHandler({ documentFileId, readOnly }: UseMediaHandlerOpt
 							})
 
 							if (result.fileId.startsWith('@')) {
-								pendingTempIds.set(result.fileId, { editor: ed, blockId, mediaTag })
+								pendingTempIdsRef.current.set(result.fileId, {
+									editor: ed,
+									blockId,
+									mediaTag
+								})
 							}
 						} catch (err) {
 							console.error(`[MediaHandler] Failed to insert ${title}:`, err)
@@ -173,7 +179,7 @@ export function useMediaHandler({ documentFileId, readOnly }: UseMediaHandlerOpt
 							const bus = getAppBus()
 							const result = await bus.pickDocument({
 								sourceFileId: documentFileId,
-								title: 'Embed Document'
+								title: t('Embed Document')
 							})
 
 							if (!result) return
@@ -195,7 +201,7 @@ export function useMediaHandler({ documentFileId, readOnly }: UseMediaHandlerOpt
 
 			return filtered
 		},
-		[readOnly, documentFileId]
+		[readOnly, documentFileId, t]
 	)
 
 	return { getSlashMenuItems }

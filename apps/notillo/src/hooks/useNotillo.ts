@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router-dom'
 
 import { RtdbClient } from '@cloudillo/rtdb'
@@ -23,6 +24,7 @@ import { getAppBus, getWsUrl } from '@cloudillo/core'
 const APP_NAME = 'notillo'
 
 export function useNotillo() {
+	const { i18n } = useTranslation()
 	const location = useLocation()
 	const [client, setClient] = useState<RtdbClient | undefined>()
 	const [connected, setConnected] = useState(false)
@@ -62,6 +64,7 @@ export function useNotillo() {
 				setDarkMode(bus.darkMode)
 				setToken(state.accessToken)
 				setNavParam(bus.parsedParams.get('nav') ?? undefined)
+				if (state.language) i18n.changeLanguage(state.language)
 
 				if (unmounted) return
 

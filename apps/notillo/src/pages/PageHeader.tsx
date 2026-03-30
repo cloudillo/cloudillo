@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { LuPanelLeft as IcSidebar, LuLink as IcLink } from 'react-icons/lu'
 import { PiDotsThreeVerticalBold as IcMore } from 'react-icons/pi'
 
@@ -52,6 +53,7 @@ export function PageHeader({
 	onImportMarkdown,
 	onImportMarkdownAsChild
 }: PageHeaderProps) {
+	const { t } = useTranslation()
 	const [editing, setEditing] = React.useState(false)
 	const [title, setTitle] = React.useState(page.title)
 	const inputRef = React.useRef<HTMLInputElement>(null)
@@ -115,7 +117,7 @@ export function PageHeader({
 					size="small"
 					className="md-hide lg-hide"
 					onClick={onToggleSidebar}
-					title="Toggle sidebar"
+					title={t('Toggle sidebar')}
 				>
 					<IcSidebar />
 				</Button>
@@ -135,9 +137,9 @@ export function PageHeader({
 					className="text-2xl font-semibold flex-fill m-0 cursor-text"
 					style={{ lineHeight: 1.3 }}
 					onClick={() => !readOnly && setEditing(true)}
-					title={readOnly ? undefined : 'Click to edit title'}
+					title={readOnly ? undefined : t('Click to edit title')}
 				>
-					{page.title || 'Untitled'}
+					{page.title || t('Untitled')}
 				</h1>
 			)}
 			<div ref={menuRef} style={{ position: 'relative' }}>
@@ -146,7 +148,7 @@ export function PageHeader({
 					mode="icon"
 					size="small"
 					onClick={() => setMenuOpen(!menuOpen)}
-					title="More actions"
+					title={t('More actions')}
 				>
 					<IcMore />
 				</Button>
@@ -154,7 +156,7 @@ export function PageHeader({
 					<div className="c-menu" style={{ position: 'absolute', top: '100%', right: 0 }}>
 						{!readOnly && (
 							<>
-								<div className="c-menu-header">Share</div>
+								<div className="c-menu-header">{t('Share')}</div>
 								<button
 									className="c-menu-item"
 									onClick={() => {
@@ -162,7 +164,7 @@ export function PageHeader({
 										onSharePage?.()
 									}}
 								>
-									<IcLink /> Share this page
+									<IcLink /> {t('Share this page')}
 								</button>
 								<button
 									className="c-menu-item"
@@ -171,12 +173,12 @@ export function PageHeader({
 										onShareDocument?.()
 									}}
 								>
-									<IcLink /> Share document
+									<IcLink /> {t('Share document')}
 								</button>
 								<div className="c-menu-divider" />
 							</>
 						)}
-						<div className="c-menu-header">Export</div>
+						<div className="c-menu-header">{t('Export')}</div>
 						<button
 							className="c-menu-item"
 							onClick={() => {
@@ -184,7 +186,7 @@ export function PageHeader({
 								onExportMarkdown?.()
 							}}
 						>
-							Markdown (.md)
+							{t('Markdown (.md)')}
 						</button>
 						<button
 							className="c-menu-item"
@@ -193,7 +195,7 @@ export function PageHeader({
 								onExportPdf?.()
 							}}
 						>
-							PDF (.pdf)
+							{t('PDF (.pdf)')}
 						</button>
 						<button
 							className="c-menu-item"
@@ -202,7 +204,7 @@ export function PageHeader({
 								onExportDocx?.()
 							}}
 						>
-							Word (.docx)
+							{t('Word (.docx)')}
 						</button>
 						<button
 							className="c-menu-item"
@@ -211,12 +213,12 @@ export function PageHeader({
 								onExportOdt?.()
 							}}
 						>
-							OpenDocument (.odt)
+							{t('OpenDocument (.odt)')}
 						</button>
 						{!readOnly && (
 							<>
 								<div className="c-menu-divider" />
-								<div className="c-menu-header">Import Markdown</div>
+								<div className="c-menu-header">{t('Import Markdown')}</div>
 								<button
 									className="c-menu-item"
 									onClick={() => {
@@ -224,7 +226,7 @@ export function PageHeader({
 										onImportMarkdown?.()
 									}}
 								>
-									Overwrite this page
+									{t('Overwrite this page')}
 								</button>
 								<button
 									className="c-menu-item"
@@ -233,7 +235,7 @@ export function PageHeader({
 										onImportMarkdownAsChild?.()
 									}}
 								>
-									As child page
+									{t('As child page')}
 								</button>
 							</>
 						)}

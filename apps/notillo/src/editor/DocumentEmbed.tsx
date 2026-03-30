@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { createReactBlockSpec } from '@blocknote/react'
 import { useDocumentEmbed, DocumentEmbedIframe } from '@cloudillo/react'
 import { useNotilloEditor } from './NotilloEditorContext.js'
@@ -34,6 +35,7 @@ export const DocumentEmbed = createReactBlockSpec(
 	},
 	{
 		render: (props) => {
+			const { t } = useTranslation()
 			const { fileId, contentType, navState, width, height } = props.block.props
 			const { sourceFileId } = useNotilloEditor()
 			const [active, setActive] = React.useState(false)
@@ -227,7 +229,7 @@ export const DocumentEmbed = createReactBlockSpec(
 			if (!fileId) {
 				return (
 					<div className="notillo-document-embed notillo-document-embed--empty">
-						No document selected
+						{t('No document selected')}
 					</div>
 				)
 			}
@@ -235,7 +237,7 @@ export const DocumentEmbed = createReactBlockSpec(
 			if (embed.status === 'loading') {
 				return (
 					<div className="notillo-document-embed notillo-document-embed--loading">
-						Loading embedded document...
+						{t('Loading embedded document...')}
 					</div>
 				)
 			}
@@ -243,7 +245,7 @@ export const DocumentEmbed = createReactBlockSpec(
 			if (embed.status === 'error') {
 				return (
 					<div className="notillo-document-embed notillo-document-embed--error">
-						Failed to load document: {embed.error}
+						{t('Failed to load document: {{error}}', { error: embed.error })}
 					</div>
 				)
 			}

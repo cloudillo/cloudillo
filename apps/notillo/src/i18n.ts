@@ -1,5 +1,5 @@
 // This file is part of the Cloudillo Platform.
-// Copyright (C) 2024  Szilárd Hajba
+// Copyright (C) 2024-2026  Szilárd Hajba
 //
 // Cloudillo is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -17,9 +17,16 @@
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 
+import hu from './i18n/hu/translation.json'
+
+const resources = {
+	en: { translation: {} },
+	hu: { translation: hu }
+}
+
 i18n.use(initReactI18next)
 	.init({
-		resources: { en: { translation: {} } },
+		resources,
 		fallbackLng: 'en',
 		keySeparator: '@',
 		nsSeparator: '$',

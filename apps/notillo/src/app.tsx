@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { getAppBus, getFileUrl } from '@cloudillo/core'
 import { Fcd, Panel, Button, DialogContainer, useDialog } from '@cloudillo/react'
@@ -23,6 +24,7 @@ import { LuPanelLeft as IcSidebar } from 'react-icons/lu'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
+import './i18n.js'
 import './style.css'
 
 import type { NotilloEditor } from './editor/schema.js'
@@ -38,6 +40,7 @@ import { exportMarkdown, importMarkdown, exportPdf, exportDocx, exportOdt } from
 import { createPage } from './rtdb/page-ops.js'
 
 export function NotilloApp() {
+	const { t } = useTranslation()
 	const notillo = useNotillo()
 	const dialog = useDialog()
 	const isReadOnly = notillo.access === 'read'
@@ -49,7 +52,6 @@ export function NotilloApp() {
 		rootsLoaded,
 		orphanPage,
 		expand,
-		collapse,
 		toggleExpand,
 		navigateToPage,
 		resubscribe
@@ -206,7 +208,10 @@ export function NotilloApp() {
 				const MIN_WIDTH = 1024
 				let w = img.naturalWidth
 				let h = img.naturalHeight
-				if (w < MIN_WIDTH) {
+				if (w === 0 || h === 0) {
+					w = 1920
+					h = 1080
+				} else if (w < MIN_WIDTH) {
 					const scale = 1920 / w
 					w = 1920
 					h = Math.round(h * scale)
@@ -355,62 +360,74 @@ export function NotilloApp() {
 			await getAppBus().requestShareLink({
 				accessLevel: 'read',
 				params: `nav=${encodeURIComponent(activePageId)}`,
-				description: page?.title || 'Shared page',
+				description: page?.title || t('Shared page'),
 				reuse: true
 			})
 		} catch (err) {
 			console.error('[Notillo] Share page failed:', err)
 		}
-	}, [activePageId, pages])
+	}, [activePageId, pages, t])
 
 	const handleShareDocument = React.useCallback(async () => {
 		try {
 			await getAppBus().requestShareLink({
 				accessLevel: 'read',
-				description: 'Shared document',
+				description: t('Shared document'),
 				reuse: true
 			})
 		} catch (err) {
 			console.error('[Notillo] Share document failed:', err)
 		}
-	}, [])
+	}, [t])
 
 	// Export/import handlers
 	const handleExportMarkdown = React.useCallback(async () => {
 		if (!editorRef.current || !activePage) return
 		try {
-			await exportMarkdown(editorRef.current, activePage.title || 'Untitled')
+			await exportMarkdown(editorRef.current, activePage.title || t('Untitled'))
 		} catch (err) {
-			await dialog.tell('Export error', `Failed to export Markdown: ${err}`)
+			await dialog.tell(
+				t('Export error'),
+				t('Failed to export Markdown: {{error}}', { error: String(err) })
+			)
 		}
-	}, [activePage, dialog])
+	}, [activePage, dialog, t])
 
 	const handleExportPdf = React.useCallback(async () => {
 		if (!editorRef.current || !activePage) return
 		try {
-			await exportPdf(editorRef.current, activePage.title || 'Untitled', resolveFileUrl)
+			await exportPdf(editorRef.current, activePage.title || t('Untitled'), resolveFileUrl)
 		} catch (err) {
-			await dialog.tell('Export error', `Failed to export PDF: ${err}`)
+			await dialog.tell(
+				t('Export error'),
+				t('Failed to export PDF: {{error}}', { error: String(err) })
+			)
 		}
-	}, [activePage, dialog, resolveFileUrl])
+	}, [activePage, dialog, resolveFileUrl, t])
 
 	const handleExportDocx = React.useCallback(async () => {
 		if (!editorRef.current || !activePage) return
 		try {
-			await exportDocx(editorRef.current, activePage.title || 'Untitled', resolveFileUrl)
+			await exportDocx(editorRef.current, activePage.title || t('Untitled'), resolveFileUrl)
 		} catch (err) {
-			await dialog.tell('Export error', `Failed to export Word: ${err}`)
+			await dialog.tell(
+				t('Export error'),
+				t('Failed to export Word: {{error}}', { error: String(err) })
+			)
 		}
-	}, [activePage, dialog, resolveFileUrl])
+	}, [activePage, dialog, resolveFileUrl, t])
 
 	const handleExportOdt = React.useCallback(async () => {
 		if (!editorRef.current || !activePage) return
 		try {
-			await exportOdt(editorRef.current, activePage.title || 'Untitled', resolveFileUrl)
+			await exportOdt(editorRef.current, activePage.title || t('Untitled'), resolveFileUrl)
 		} catch (err) {
-			await dialog.tell('Export error', `Failed to export OpenDocument: ${err}`)
+			await dialog.tell(
+				t('Export error'),
+				t('Failed to export OpenDocument: {{error}}', { error: String(err) })
+			)
 		}
-	}, [activePage, dialog, resolveFileUrl])
+	}, [activePage, dialog, resolveFileUrl, t])
 
 	const handleImportMarkdown = React.useCallback(() => {
 		fileInputRef.current?.click()
@@ -424,8 +441,8 @@ export function NotilloApp() {
 			e.target.value = ''
 
 			const confirmed = await dialog.confirm(
-				'Import Markdown',
-				'This will replace the current page content. Continue?'
+				t('Import Markdown'),
+				t('This will replace the current page content. Continue?')
 			)
 			if (!confirmed) return
 
@@ -433,10 +450,13 @@ export function NotilloApp() {
 				const markdown = await file.text()
 				await importMarkdown(editorRef.current, markdown, allPages)
 			} catch (err) {
-				await dialog.tell('Import error', `Failed to import Markdown: ${err}`)
+				await dialog.tell(
+					t('Import error'),
+					t('Failed to import Markdown: {{error}}', { error: String(err) })
+				)
 			}
 		},
-		[dialog, allPages]
+		[dialog, allPages, t]
 	)
 
 	// Import markdown as child/sibling page — parentPageId stored in ref
@@ -470,10 +490,13 @@ export function NotilloApp() {
 				setPendingImport({ markdown, pageId, source: 'local' })
 				setActivePageId(pageId)
 			} catch (err) {
-				await dialog.tell('Import error', `Failed to import Markdown: ${err}`)
+				await dialog.tell(
+					t('Import error'),
+					t('Failed to import Markdown: {{error}}', { error: String(err) })
+				)
 			}
 		},
-		[notillo.client, notillo.idTag, dialog]
+		[notillo.client, notillo.idTag, dialog, t]
 	)
 
 	// Loading state
@@ -482,7 +505,7 @@ export function NotilloApp() {
 			<div className="c-vbox w-100 h-100 justify-center align-center">
 				<Panel className="c-vbox align-center p-2">
 					<div className="c-spinner large" />
-					<p className="mt-2">Connecting to Notillo...</p>
+					<p className="mt-2">{t('Connecting to Notillo...')}</p>
 				</Panel>
 			</div>
 		)
@@ -493,7 +516,7 @@ export function NotilloApp() {
 		return (
 			<div className="c-vbox w-100 h-100 justify-center align-center">
 				<Panel className="c-alert error">
-					<h3>Connection Error</h3>
+					<h3>{t('Connection Error')}</h3>
 					<p>{notillo.error.message}</p>
 				</Panel>
 			</div>
@@ -529,7 +552,6 @@ export function NotilloApp() {
 							loadingChildren={loadingChildren}
 							orphanPage={orphanPage}
 							onExpand={expand}
-							onCollapse={collapse}
 							onToggleExpand={toggleExpand}
 							activePageId={activePageId}
 							onSelectPage={handleSelectPage}
@@ -577,7 +599,7 @@ export function NotilloApp() {
 									mode="icon"
 									size="small"
 									onClick={() => setShowFilter(true)}
-									title="Open sidebar"
+									title={t('Open sidebar')}
 								>
 									<IcSidebar />
 								</Button>
@@ -618,13 +640,13 @@ export function NotilloApp() {
 							{pages.size === 0 ? (
 								<>
 									<div className="text-3xl opacity-50 mb-3">📝</div>
-									<p>No pages yet.</p>
+									<p>{t('No pages yet.')}</p>
 									{!isReadOnly && (
-										<p>Create a page from the sidebar to get started.</p>
+										<p>{t('Create a page from the sidebar to get started.')}</p>
 									)}
 								</>
 							) : (
-								<p>Select a page from the sidebar.</p>
+								<p>{t('Select a page from the sidebar.')}</p>
 							)}
 						</div>
 					)}

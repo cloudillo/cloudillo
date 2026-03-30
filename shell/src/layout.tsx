@@ -884,7 +884,7 @@ function KeyAccessError({
 }
 
 export function Layout() {
-	const { t } = useTranslation()
+	const { t, i18n } = useTranslation()
 	const pwa = usePWA({ swPath: `/sw-${version}.js` })
 	const [auth] = useAuth()
 	const { api } = useApi()
@@ -963,6 +963,7 @@ export function Layout() {
 				getThemeState: () => ({
 					darkMode: document.body.classList.contains('dark')
 				}),
+				getLanguage: () => i18n.language,
 				getApi: () => apiRef.current ?? null
 			})
 		}

@@ -39,6 +39,8 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 
 		let connection = bus.getAppTracker().getApp(appWindow)
 		let displayName: string | undefined
+		let navState: string | undefined
+		let ancestors: string[] | undefined
 
 		// Relayed embed init: the parent app is already initialized and the
 		// child's resId starts with "_embed:". Consume the pending registration
@@ -89,6 +91,7 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 				roles: authState?.roles,
 				theme: 'glass',
 				darkMode: themeState.darkMode,
+				language: bus.getLanguage(),
 				token: pending.token,
 				access: pending.access || 'read',
 				tokenLifetime,
@@ -108,6 +111,8 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 			// Check for pending registration (set before iframe loaded)
 			const pending = bus.getAppTracker().consumePendingRegistration(msg.payload.resId)
 			displayName = pending?.displayName
+			navState = pending?.navState
+			ancestors = pending?.ancestors
 
 			console.log(
 				'[Auth] Registering app from init.req:',
@@ -199,10 +204,13 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 				roles: authState?.roles,
 				theme: 'glass',
 				darkMode: themeState.darkMode,
+				language: bus.getLanguage(),
 				token,
 				access: connection?.access || 'write',
 				tokenLifetime,
 				displayName,
+				navState,
+				ancestors,
 				params: connection?.params
 			})
 

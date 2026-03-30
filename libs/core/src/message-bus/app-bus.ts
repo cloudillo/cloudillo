@@ -75,6 +75,8 @@ export interface AppState {
 	access: 'read' | 'write'
 	/** Dark mode enabled */
 	darkMode: boolean
+	/** UI language code (e.g. 'en', 'hu') */
+	language?: string
 	/** Token lifetime in seconds */
 	tokenLifetime?: number
 	/** Theme name */
@@ -553,6 +555,7 @@ export class AppMessageBus extends MessageBusBase {
 				accessToken: initData.token,
 				access: initData.access || 'write',
 				darkMode: !!initData.darkMode,
+				language: initData.language,
 				tokenLifetime: initData.tokenLifetime,
 				theme: initData.theme,
 				displayName: initData.displayName,
@@ -592,6 +595,7 @@ export class AppMessageBus extends MessageBusBase {
 				accessToken: msg.payload.token,
 				access: msg.payload.access || 'write',
 				darkMode: !!msg.payload.darkMode,
+				language: msg.payload.language,
 				tokenLifetime: msg.payload.tokenLifetime,
 				theme: msg.payload.theme,
 				displayName: msg.payload.displayName,

@@ -88,6 +88,8 @@ export interface ShellMessageBusConfig extends Partial<MessageBusConfig> {
 	getAuthState: () => AuthState | null
 	/** Get current theme state */
 	getThemeState: () => ThemeState
+	/** Get current UI language code */
+	getLanguage: () => string
 	/** Get API client for server-proxied requests (settings, etc.) */
 	getApi?: () => ApiClient | null
 }
@@ -164,6 +166,13 @@ export class ShellMessageBus extends MessageBusBase {
 	 */
 	getThemeState(): ThemeState {
 		return this.shellConfig.getThemeState()
+	}
+
+	/**
+	 * Get current UI language code
+	 */
+	getLanguage(): string {
+		return this.shellConfig.getLanguage()
 	}
 
 	/**
@@ -425,6 +434,7 @@ export class ShellMessageBus extends MessageBusBase {
 			roles: data.roles,
 			theme: 'glass',
 			darkMode: data.darkMode,
+			language: this.getLanguage(),
 			token: data.token,
 			access: data.access || 'write',
 			tokenLifetime: data.tokenLifetime,

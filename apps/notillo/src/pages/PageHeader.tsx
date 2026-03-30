@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import * as React from 'react'
-import { LuPanelLeft as IcSidebar } from 'react-icons/lu'
+import { LuPanelLeft as IcSidebar, LuLink as IcLink } from 'react-icons/lu'
 import { PiDotsThreeVerticalBold as IcMore } from 'react-icons/pi'
 
 import { Button } from '@cloudillo/react'
@@ -28,6 +28,8 @@ interface PageHeaderProps {
 	page: PageRecord & { id: string }
 	readOnly: boolean
 	onToggleSidebar?: () => void
+	onSharePage?: () => void
+	onShareDocument?: () => void
 	onExportMarkdown?: () => void
 	onExportPdf?: () => void
 	onExportDocx?: () => void
@@ -41,6 +43,8 @@ export function PageHeader({
 	page,
 	readOnly,
 	onToggleSidebar,
+	onSharePage,
+	onShareDocument,
 	onExportMarkdown,
 	onExportPdf,
 	onExportDocx,
@@ -148,6 +152,30 @@ export function PageHeader({
 				</Button>
 				{menuOpen && (
 					<div className="c-menu" style={{ position: 'absolute', top: '100%', right: 0 }}>
+						{!readOnly && (
+							<>
+								<div className="c-menu-header">Share</div>
+								<button
+									className="c-menu-item"
+									onClick={() => {
+										setMenuOpen(false)
+										onSharePage?.()
+									}}
+								>
+									<IcLink /> Share this page
+								</button>
+								<button
+									className="c-menu-item"
+									onClick={() => {
+										setMenuOpen(false)
+										onShareDocument?.()
+									}}
+								>
+									<IcLink /> Share document
+								</button>
+								<div className="c-menu-divider" />
+							</>
+						)}
 						<div className="c-menu-header">Export</div>
 						<button
 							className="c-menu-item"

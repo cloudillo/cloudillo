@@ -237,9 +237,50 @@ export function NotilloApp() {
 		notillo.client.createIndex('p', 'tg').catch(console.error)
 	}, [notillo.client])
 
-	// Auto-select first root page when roots load and none is selected
+	// Auto-select initial page: deep link (nav param) or first root page
+	const resolvingRef = React.useRef(false)
 	React.useEffect(() => {
-		if (!activePageId && rootsLoaded && pages.size > 0) {
+		if (activePageId || !rootsLoaded || pages.size === 0 || !notillo.client) return
+		if (resolvingRef.current) return
+
+		let cancelled = false
+		resolvingRef.current = true
+
+		async function resolveInitialPage() {
+			// Deep link: try nav param first
+			if (notillo.navParam) {
+				try {
+					// 1. Try as page ID — direct document lookup
+					const doc = await notillo.client!.ref('p/' + notillo.navParam).get()
+					if (cancelled) return
+					if (doc.exists) {
+						setActivePageId(notillo.navParam)
+						await navigateToPage(notillo.navParam)
+						if (cancelled) return
+						return
+					}
+					// 2. Try as page title — query by 'ti' field (exact match)
+					const snap = await notillo
+						.client!.collection('p')
+						.where('ti', '==', notillo.navParam)
+						.limit(1)
+						.get()
+					if (cancelled) return
+					if (snap.size > 0) {
+						const pageId = snap.docs[0].id
+						setActivePageId(pageId)
+						await navigateToPage(pageId)
+						if (cancelled) return
+						return
+					}
+				} catch (err) {
+					console.warn('[Notillo] Deep link resolution failed:', err)
+				}
+			}
+
+			if (cancelled) return
+
+			// Fallback: select first root page by order
 			let firstPage: { id: string; order: number } | undefined
 			for (const page of pages.values()) {
 				if (
@@ -253,7 +294,13 @@ export function NotilloApp() {
 				setActivePageId(firstPage.id)
 			}
 		}
-	}, [pages, activePageId, rootsLoaded])
+		resolveInitialPage()
+
+		return () => {
+			cancelled = true
+			resolvingRef.current = false
+		}
+	}, [pages, activePageId, rootsLoaded, notillo.client, notillo.navParam, navigateToPage])
 
 	const handleSelectPage = React.useCallback(
 		async (pageId: string) => {
@@ -299,6 +346,34 @@ export function NotilloApp() {
 		knownBlockIds,
 		knownBlockOrders
 	} = usePageBlocks(notillo.client, activePageId, notillo.ownerTag)
+
+	// Share handlers
+	const handleSharePage = React.useCallback(async () => {
+		if (!activePageId) return
+		const page = pages.get(activePageId)
+		try {
+			await getAppBus().requestShareLink({
+				accessLevel: 'read',
+				params: `nav=${encodeURIComponent(activePageId)}`,
+				description: page?.title || 'Shared page',
+				reuse: true
+			})
+		} catch (err) {
+			console.error('[Notillo] Share page failed:', err)
+		}
+	}, [activePageId, pages])
+
+	const handleShareDocument = React.useCallback(async () => {
+		try {
+			await getAppBus().requestShareLink({
+				accessLevel: 'read',
+				description: 'Shared document',
+				reuse: true
+			})
+		} catch (err) {
+			console.error('[Notillo] Share document failed:', err)
+		}
+	}, [])
 
 	// Export/import handlers
 	const handleExportMarkdown = React.useCallback(async () => {
@@ -483,6 +558,8 @@ export function NotilloApp() {
 								page={activePage}
 								readOnly={isReadOnly}
 								onToggleSidebar={() => setShowFilter(true)}
+								onSharePage={handleSharePage}
+								onShareDocument={handleShareDocument}
 								onExportMarkdown={handleExportMarkdown}
 								onExportPdf={handleExportPdf}
 								onExportDocx={handleExportDocx}

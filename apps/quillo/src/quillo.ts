@@ -21,6 +21,7 @@ import * as Y from 'yjs'
 
 import { QuillBinding } from 'y-quill'
 import Quill from 'quill'
+import Delta from 'quill-delta'
 //import QuillCursors from 'quill-cursors'
 import QuillCursors from 'quill-cursors'
 import BlotFormatter from '@enzedonline/quill-blot-formatter2'
@@ -49,6 +50,7 @@ import { createElement, Cloud, CloudOff } from 'lucide'
 
 import { getAppBus, str2color } from '@cloudillo/core'
 import { openYDoc } from '@cloudillo/crdt'
+import { importMarkdown } from './import-markdown.js'
 import {
 	FONTS,
 	getFontsByCategory,
@@ -455,7 +457,25 @@ function updatePairingBadges(
 		theme: 'snow' // or 'bubble'
 	})
 
-	const _binding = new QuillBinding(ytext, editor, doc.provider.awareness)
+	// Patch setContents during QuillBinding init: setContents drops table cells,
+	// so redirect to delete + updateContents which handles tables correctly.
+	// Assumption: QuillBinding calls setContents synchronously in its constructor
+	// (verified with y-quill 1.x). If y-quill changes this, the patch will not apply.
+	const origSetContents = editor.setContents.bind(editor)
+	// biome-ignore lint/suspicious/noExplicitAny: y-quill passes plain array from type.toDelta()
+	editor.setContents = ((delta: any, source: unknown) => {
+		const ops = Array.isArray(delta) ? delta : (delta?.ops ?? [])
+		const length = editor.getLength()
+		return editor.updateContents(
+			new Delta().delete(length).concat(new Delta(ops)),
+			source as 'api'
+		)
+	}) as typeof editor.setContents
+	try {
+		const _binding = new QuillBinding(ytext, editor, doc.provider.awareness)
+	} finally {
+		editor.setContents = origSetContents
+	}
 
 	// Set read-only mode based on access level
 	if (bus.access === 'read') {
@@ -529,6 +549,48 @@ function updatePairingBadges(
 	})
 	document.getElementById('redo-btn')?.addEventListener('click', () => {
 		historyModule.redo()
+	})
+
+	// ============================================
+	// Markdown Import
+	// ============================================
+
+	// Handle import data from shell (markdown → quillo conversion via smart upload)
+	bus.onImportData(async (payload) => {
+		if (bus.access === 'read') {
+			bus.notifyImportComplete(false, 'Read-only document')
+			return
+		}
+		if (payload.sourceMimeType === 'text/markdown') {
+			try {
+				const bytes = Uint8Array.from(atob(payload.data), (c) => c.charCodeAt(0))
+				const markdown = new TextDecoder().decode(bytes)
+				importMarkdown(editor, markdown)
+				bus.notifyImportComplete(true)
+			} catch (err) {
+				console.error('[quillo] Markdown import failed:', err)
+				bus.notifyImportComplete(
+					false,
+					err instanceof Error ? err.message : 'Import failed'
+				)
+			}
+		} else {
+			bus.notifyImportComplete(false, `Unsupported import type: ${payload.sourceMimeType}`)
+		}
+	})
+
+	// Internal import button + hidden file input
+	const importInput = document.getElementById('import-input') as HTMLInputElement | null
+	document.getElementById('import-btn')?.addEventListener('click', () => {
+		importInput?.click()
+	})
+	importInput?.addEventListener('change', async () => {
+		if (bus.access === 'read') return
+		const file = importInput.files?.[0]
+		if (!file) return
+		const text = await file.text()
+		importMarkdown(editor, text)
+		importInput.value = ''
 	})
 
 	// ============================================

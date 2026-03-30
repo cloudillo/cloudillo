@@ -26,7 +26,12 @@ export const manifest: AppManifest = {
 	icon: 'file-text',
 	description: 'Rich text editor with real-time collaboration',
 	contentTypes: [
-		{ mimeType: 'cloudillo/quillo', actions: ['view', 'edit', 'create'], priority: 'primary' }
+		{
+			mimeType: 'cloudillo/quillo',
+			actions: ['view', 'edit', 'create'],
+			priority: 'primary',
+			importFrom: [{ mimeType: 'text/markdown', label: 'Markdown', extensions: ['.md'] }]
+		}
 	],
 	capabilities: ['crdt', 'storage'],
 	translations: {

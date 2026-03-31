@@ -269,7 +269,7 @@ export const tServerMessage = T.taggedUnion('type')({
 	}),
 	error: T.struct({
 		type: T.literal('error'),
-		id: T.optional(T.number),
+		id: T.optional(T.union(T.number, T.string)),
 		code: T.number,
 		message: T.string,
 		details: T.optional(T.unknown)

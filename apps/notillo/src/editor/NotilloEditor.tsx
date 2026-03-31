@@ -42,12 +42,6 @@ import { useLockIndicators } from '../hooks/useLockIndicators.js'
 import { usePageTagSync } from '../hooks/usePageTagSync.js'
 import { useMediaHandler } from './useMediaHandler.js'
 
-const menuFloatingUIOptions = {
-	useFloatingOptions: {
-		strategy: 'fixed' as const
-	}
-}
-
 interface NotilloEditorProps {
 	client: RtdbClient
 	pageId: string
@@ -328,17 +322,14 @@ export const NotilloEditor = React.memo(
 									query
 								)
 							}
-							floatingUIOptions={menuFloatingUIOptions}
 						/>
 						<SuggestionMenuController
 							triggerCharacter="@"
 							getItems={async (query) => getWikiLinkItems(query)}
-							floatingUIOptions={menuFloatingUIOptions}
 						/>
 						<SuggestionMenuController
 							triggerCharacter="#"
 							getItems={async (query) => getTagItems(query)}
-							floatingUIOptions={menuFloatingUIOptions}
 						/>
 					</BlockNoteView>
 				</NotilloEditorProvider>

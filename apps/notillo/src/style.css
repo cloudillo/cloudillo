@@ -391,7 +391,7 @@
 /* ── Suggestion menus (slash, wiki-link, tag) ── */
 
 .notillo-editor .bn-suggestion-menu {
-	min-height: min(260px, 50vh);
+	overscroll-behavior: contain;
 }
 
 /* ── Editor ── */

@@ -315,14 +315,14 @@ export function FilesApp() {
 		function navigateToFile(
 			file: File,
 			appName: string,
-			access?: 'read' | 'write',
+			access?: 'read' | 'comment' | 'write',
 			params?: string
 		) {
 			// For tenant-owned files (no explicit owner), use contextIdTag as the owner in the path
 			const ownerTag = file.owner?.idTag || contextIdTag || auth?.idTag
 			const basePath = `/app/${contextIdTag || auth?.idTag}/${appName}/${ownerTag + ':'}${file.fileId}`
 			const searchParams = new URLSearchParams()
-			if (access === 'read') searchParams.set('access', 'read')
+			if (access && access !== 'write') searchParams.set('access', access)
 			if (params) {
 				for (const [k, v] of new URLSearchParams(params)) {
 					searchParams.set(k, v)
@@ -338,7 +338,7 @@ export function FilesApp() {
 				fileListData.setFileData(file.fileId, file)
 			},
 
-			openFile: function openFile(fileId?: string, access?: 'read' | 'write') {
+			openFile: function openFile(fileId?: string, access?: 'read' | 'comment' | 'write') {
 				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
 				const app = file && appConfig?.mime[file?.contentType]
 				if (app) {
@@ -350,7 +350,7 @@ export function FilesApp() {
 			openFileWithApp: function openFileWithApp(
 				fileId: string,
 				appId: string,
-				access?: 'read' | 'write',
+				access?: 'read' | 'comment' | 'write',
 				params?: string
 			) {
 				const file = fileListData.getData()?.find((f) => f.fileId === fileId)

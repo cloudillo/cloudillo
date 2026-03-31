@@ -47,7 +47,7 @@ export interface File {
 	tags?: string[]
 	variantId?: string
 	parentId?: string | null
-	accessLevel?: 'read' | 'write' | 'none'
+	accessLevel?: 'read' | 'comment' | 'write' | 'none'
 	visibility?: FileVisibility
 }
 
@@ -57,11 +57,11 @@ export interface FileView extends File {
 
 export interface FileOps {
 	setFile?: (file: File) => void
-	openFile: (fileId: string, access?: 'read' | 'write') => void
+	openFile: (fileId: string, access?: 'read' | 'comment' | 'write') => void
 	openFileWithApp?: (
 		fileId: string,
 		appId: string,
-		access?: 'read' | 'write',
+		access?: 'read' | 'comment' | 'write',
 		params?: string
 	) => void
 	renameFile: (fileId?: string) => void

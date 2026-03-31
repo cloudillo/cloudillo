@@ -31,7 +31,7 @@ import type { ShareCreateReq } from '@cloudillo/core'
  */
 export interface ShareCreateOpenOptions {
 	resourceId: string
-	accessLevel?: 'read' | 'write'
+	accessLevel?: 'read' | 'comment' | 'write'
 	description?: string
 	expiresAt?: number
 	count?: number

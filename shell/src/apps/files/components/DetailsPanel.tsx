@@ -104,6 +104,17 @@ export function DetailsPanel({
 		[fileActions]
 	)
 
+	const commentPerms = React.useMemo(
+		function commentPerms() {
+			return fileActions
+				?.filter((a) => a.type === 'FSHR' && a.subType === 'COMMENT')
+				.sort(
+					(a, b) => (a.audience?.idTag ?? '').localeCompare(b.audience?.idTag ?? '') || 0
+				)
+		},
+		[fileActions]
+	)
+
 	const writePerms = React.useMemo(
 		function writePerms() {
 			return fileActions
@@ -415,6 +426,34 @@ export function DetailsPanel({
 							</div>
 						)}
 
+						{/* Comment permissions */}
+						{commentPerms && commentPerms.length > 0 && (
+							<div>
+								<h4 className="text-small text-secondary mb-2">
+									{t('Can comment')}
+								</h4>
+								<div className="c-vbox g-1">
+									{commentPerms
+										.filter((rp) => rp.audience)
+										.map((rp) => (
+											<button
+												key={rp.audience!.idTag}
+												type="button"
+												className="c-link w-100 p-0 ps-1 c-hbox align-items-center"
+												onClick={() => removePerm(rp.audience!.idTag)}
+												title={t('Remove permission')}
+											>
+												<ProfileCard
+													className="flex-fill"
+													profile={rp.audience!}
+												/>
+												<IcTrash className="text-secondary" />
+											</button>
+										))}
+								</div>
+							</div>
+						)}
+
 						{/* Read permissions */}
 						{readPerms && readPerms.length > 0 && (
 							<div>
@@ -459,7 +498,9 @@ export function DetailsPanel({
 												<div className="text-secondary text-small">
 													{ref.accessLevel === 'write'
 														? t('Can edit')
-														: t('Read only')}
+														: ref.accessLevel === 'comment'
+															? t('Can comment')
+															: t('Read only')}
 													{ref.expiresAt
 														? ` · ${t('Expires')} ${dayjs(ref.expiresAt).format('YYYY-MM-DD')}`
 														: ` · ${t('Never expires')}`}
@@ -529,7 +570,9 @@ export function DetailsPanel({
 													<span className="text-secondary text-small">
 														{entry.permission === 'W'
 															? t('Can edit')
-															: t('Read only')}
+															: entry.permission === 'C'
+																? t('Can comment')
+																: t('Read only')}
 													</span>
 												</div>
 												<button
@@ -549,6 +592,7 @@ export function DetailsPanel({
 
 						{/* Empty state */}
 						{(!writePerms || writePerms.length === 0) &&
+							(!commentPerms || commentPerms.length === 0) &&
 							(!readPerms || readPerms.length === 0) &&
 							(!shareRefs || shareRefs.length === 0) &&
 							(!shareEntries || shareEntries.length === 0) && (

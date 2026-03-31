@@ -81,7 +81,10 @@ export interface TokenResult {
  */
 export interface ShellMessageBusConfig extends Partial<MessageBusConfig> {
 	/** Get access token for a resource */
-	getAccessToken: (resId: string, access: 'read' | 'write') => Promise<TokenResult | undefined>
+	getAccessToken: (
+		resId: string,
+		access: 'read' | 'comment' | 'write'
+	) => Promise<TokenResult | undefined>
 	/** Refresh token using share link refId (for guest access) */
 	refreshTokenByRef?: (refId: string) => Promise<TokenResult | undefined>
 	/** Get current auth state */
@@ -187,7 +190,7 @@ export class ShellMessageBus extends MessageBusBase {
 	 */
 	async getAccessToken(
 		resId: string,
-		access: 'read' | 'write'
+		access: 'read' | 'comment' | 'write'
 	): Promise<TokenResult | undefined> {
 		return this.shellConfig.getAccessToken(resId, access)
 	}
@@ -208,7 +211,7 @@ export class ShellMessageBus extends MessageBusBase {
 		data: {
 			token?: string
 			refId?: string
-			access?: 'read' | 'write'
+			access?: 'read' | 'comment' | 'write'
 			idTag?: string
 			displayName?: string
 			navState?: string
@@ -353,9 +356,10 @@ export class ShellMessageBus extends MessageBusBase {
 			appName?: string
 			resId?: string
 			idTag?: string
-			access?: 'read' | 'write'
+			access?: 'read' | 'comment' | 'write'
 			token?: string
 			refId?: string
+			displayName?: string
 			params?: string
 		}
 	): void {
@@ -367,6 +371,7 @@ export class ShellMessageBus extends MessageBusBase {
 			if (options.appName) existing.appName = options.appName
 			if (options.idTag) existing.idTag = options.idTag
 			if (options.access) existing.access = options.access
+			if (options.displayName) existing.displayName = options.displayName
 			if (options.params) existing.params = options.params
 			this.log('Updated existing app registration:', options.appName, options.resId)
 		} else {
@@ -378,6 +383,7 @@ export class ShellMessageBus extends MessageBusBase {
 				access: options.access,
 				token: options.token,
 				refId: options.refId,
+				displayName: options.displayName,
 				params: options.params
 			})
 			this.log('Pre-registered app:', options.appName, options.resId)
@@ -397,7 +403,7 @@ export class ShellMessageBus extends MessageBusBase {
 			tnId?: number
 			roles?: string[]
 			token?: string
-			access?: 'read' | 'write'
+			access?: 'read' | 'comment' | 'write'
 			darkMode?: boolean
 			tokenLifetime?: number
 			resId?: string

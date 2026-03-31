@@ -53,7 +53,7 @@ function useTaskillo() {
 	const [fileId, setFileId] = React.useState('')
 	const [ownerTag, setOwnerTag] = React.useState<string | undefined>()
 	const [idTag, setIdTag] = React.useState<string | undefined>()
-	const [access, setAccess] = React.useState<'read' | 'write'>('write')
+	const [access, setAccess] = React.useState<'read' | 'comment' | 'write'>('write')
 
 	// Parse document ID from URL hash
 	// Cloudillo apps receive the document ID in the format: #tenant:path
@@ -593,7 +593,7 @@ function TaskList({
 export function TaskilloApp() {
 	// Initialize Cloudillo connection and RTDB client
 	const taskillo = useTaskillo()
-	const isReadOnly = taskillo.access === 'read'
+	const isReadOnly = taskillo.access !== 'write'
 
 	// Subscribe to tasks and get CRUD operations
 	const tasks = useTasks(taskillo.client, taskillo.fileId, taskillo.idTag)

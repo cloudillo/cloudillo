@@ -478,7 +478,7 @@ function updatePairingBadges(
 	}
 
 	// Set read-only mode based on access level
-	if (bus.access === 'read') {
+	if (bus.access !== 'write') {
 		editor.enable(false)
 		const toolbar = document.getElementById('toolbar')
 		if (toolbar) toolbar.style.display = 'none'
@@ -490,7 +490,7 @@ function updatePairingBadges(
 	}
 	const toolbarModule = editor.getModule('toolbar') as unknown as QuillToolbarModule
 	toolbarModule.addHandler('image', async () => {
-		if (bus.access === 'read') return
+		if (bus.access !== 'write') return
 
 		try {
 			const result = await bus.pickMedia({
@@ -515,7 +515,7 @@ function updatePairingBadges(
 	})
 
 	toolbarModule.addHandler('cl-document', async () => {
-		if (bus.access === 'read') return
+		if (bus.access !== 'write') return
 
 		try {
 			const result = await bus.pickDocument({
@@ -557,7 +557,7 @@ function updatePairingBadges(
 
 	// Handle import data from shell (markdown → quillo conversion via smart upload)
 	bus.onImportData(async (payload) => {
-		if (bus.access === 'read') {
+		if (bus.access !== 'write') {
 			bus.notifyImportComplete(false, 'Read-only document')
 			return
 		}
@@ -585,7 +585,7 @@ function updatePairingBadges(
 		importInput?.click()
 	})
 	importInput?.addEventListener('change', async () => {
-		if (bus.access === 'read') return
+		if (bus.access !== 'write') return
 		const file = importInput.files?.[0]
 		if (!file) return
 		const text = await file.text()

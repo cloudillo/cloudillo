@@ -24,6 +24,7 @@
 
 import type { ShellMessageBus } from '../shell-bus.js'
 import { createApiClient, type EmbedOpenReq } from '@cloudillo/core'
+import { getAccessSuffix } from '../app-tracker.js'
 
 const MAX_EMBED_DEPTH = 3
 
@@ -124,7 +125,7 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 			// Get scoped token via cross-document token exchange
 			const tokenResult = await viaApi.auth.getAccessTokenVia(
 				sourceFileId,
-				`file:${targetFileId}:${requestedAccess === 'write' ? 'W' : 'R'}`
+				`file:${targetFileId}:${getAccessSuffix(requestedAccess)}`
 			)
 
 			if (!tokenResult?.token) {
@@ -152,6 +153,7 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 				token: tokenResult.token,
 				access: requestedAccess,
 				idTag,
+				displayName: connection?.displayName,
 				navState,
 				params,
 				ancestors: nextAncestorChain

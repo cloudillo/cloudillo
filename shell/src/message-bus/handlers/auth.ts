@@ -25,6 +25,21 @@
 import type { ShellMessageBus } from '../shell-bus.js'
 import type { AuthInitReq, AuthTokenRefreshReq } from '@cloudillo/core'
 
+/** Extract remaining lifetime in seconds from a JWT's exp claim */
+function getTokenLifetime(token: string): number | undefined {
+	try {
+		const [, payload] = token.split('.')
+		if (payload) {
+			const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')))
+			if (decoded.exp) {
+				return Math.max(0, Math.floor((decoded.exp * 1000 - Date.now()) / 1000))
+			}
+		}
+	} catch {
+		/* ignore */
+	}
+}
+
 /**
  * Initialize auth message handlers on the shell bus
  */
@@ -64,26 +79,7 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 			const authState = bus.getAuthState()
 			const themeState = bus.getThemeState()
 
-			// Calculate token lifetime from JWT exp claim
-			let tokenLifetime: number | undefined
-			if (pending.token) {
-				try {
-					const [, payload] = pending.token.split('.')
-					if (payload) {
-						const decoded = JSON.parse(
-							atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
-						)
-						if (decoded.exp) {
-							tokenLifetime = Math.max(
-								0,
-								Math.floor((decoded.exp * 1000 - Date.now()) / 1000)
-							)
-						}
-					}
-				} catch {
-					/* ignore */
-				}
-			}
+			const tokenLifetime = pending.token ? getTokenLifetime(pending.token) : undefined
 
 			bus.sendResponse(appWindow, 'auth:init.res', msg.id, true, {
 				idTag: pending.idTag || authState?.idTag,
@@ -144,6 +140,11 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 			return
 		}
 
+		// Read displayName from connection if not already set from pending registration
+		if (!displayName && connection) {
+			displayName = connection.displayName
+		}
+
 		try {
 			// Get auth state from shell context
 			const authState = bus.getAuthState()
@@ -157,21 +158,7 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 			// Check if connection has pre-provided token (guest access via share link)
 			if (connection?.token) {
 				token = connection.token
-				// Calculate remaining lifetime from token expiry
-				try {
-					const [, payload] = token.split('.')
-					if (payload) {
-						const decoded = JSON.parse(
-							atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
-						)
-						if (decoded.exp) {
-							const remaining = decoded.exp * 1000 - Date.now()
-							tokenLifetime = Math.max(0, Math.floor(remaining / 1000))
-						}
-					}
-				} catch {
-					// Ignore token parsing errors
-				}
+				tokenLifetime = getTokenLifetime(token)
 			} else if (resId) {
 				// Fast-fail when offline to avoid network timeout delays
 				if (!navigator.onLine) {

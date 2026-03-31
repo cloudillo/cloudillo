@@ -28,7 +28,7 @@ export interface UseDocumentEmbedOptions {
 	targetFileId: string
 	targetContentType: string
 	sourceFileId: string
-	access?: 'read' | 'write'
+	access?: 'read' | 'comment' | 'write'
 	navState?: string
 }
 

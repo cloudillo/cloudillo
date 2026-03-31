@@ -84,7 +84,7 @@ function useScanillo() {
 	const [fileId, setFileId] = React.useState('')
 	const [ownerTag, setOwnerTag] = React.useState<string | undefined>()
 	const [idTag, setIdTag] = React.useState<string | undefined>()
-	const [access, setAccess] = React.useState<'read' | 'write'>('write')
+	const [access, setAccess] = React.useState<'read' | 'comment' | 'write'>('write')
 	const [token, setToken] = React.useState<string | undefined>()
 
 	React.useEffect(() => {
@@ -932,7 +932,7 @@ export function ScanilloApp() {
 	const [exportProgress, setExportProgress] = React.useState(0)
 	const [saving, setSaving] = React.useState(false)
 	const [loadingReEdit, setLoadingReEdit] = React.useState(false)
-	const isReadOnly = scanillo.access === 'read'
+	const isReadOnly = scanillo.access !== 'write'
 
 	// Use ref to avoid re-registering the handler when updatePage changes
 	const updatePageRef = React.useRef(updatePage)

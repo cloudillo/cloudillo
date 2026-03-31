@@ -138,7 +138,7 @@ export function PrezilloApp() {
 	const prezillo = usePrezilloDocument()
 	// Debug helper - access via window.prezillo in browser console
 	;(window as unknown as Record<string, unknown>).prezillo = prezillo
-	const isReadOnly = prezillo.cloudillo.access === 'read'
+	const isReadOnly = prezillo.cloudillo.access !== 'write'
 	const [activeDocumentId, setActiveDocumentIdRaw] = React.useState<ObjectId | null>(null)
 
 	// Cache pending navState changes per document embed objectId

@@ -23,7 +23,7 @@ export interface GuestDocumentInfo {
 	appId: string
 	resId: string // Format: "idTag:fileId"
 	token: string
-	accessLevel: 'read' | 'write'
+	accessLevel: 'read' | 'comment' | 'write'
 	ownerIdTag: string
 	guestName?: string // Guest display name for awareness
 }

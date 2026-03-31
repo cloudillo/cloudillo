@@ -74,7 +74,7 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 	// Link tab state
 	const [shareRefs, setShareRefs] = React.useState<Types.Ref[]>([])
 	const [loadingRefs, setLoadingRefs] = React.useState(false)
-	const [newLinkAccess, setNewLinkAccess] = React.useState<'read' | 'write'>('read')
+	const [newLinkAccess, setNewLinkAccess] = React.useState<'read' | 'comment' | 'write'>('read')
 	const [newLinkLabel, setNewLinkLabel] = React.useState('')
 	const [newLinkExpires, setNewLinkExpires] = React.useState('')
 	const [neverExpires, setNeverExpires] = React.useState(true)
@@ -96,6 +96,16 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 		() =>
 			fileActions
 				.filter((a) => a.type === 'FSHR' && a.subType === 'WRITE')
+				.sort(
+					(a, b) => (a.audience?.idTag ?? '').localeCompare(b.audience?.idTag ?? '') || 0
+				),
+		[fileActions]
+	)
+
+	const commentPerms = React.useMemo(
+		() =>
+			fileActions
+				.filter((a) => a.type === 'FSHR' && a.subType === 'COMMENT')
 				.sort(
 					(a, b) => (a.audience?.idTag ?? '').localeCompare(b.audience?.idTag ?? '') || 0
 				),
@@ -171,7 +181,7 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 		return api.profiles.list({ type: 'person', q })
 	}
 
-	async function addPerm(profile: Profile, perm: 'WRITE' | 'READ') {
+	async function addPerm(profile: Profile, perm: 'WRITE' | 'COMMENT' | 'READ') {
 		if (!file || !api) return
 
 		const action: NewAction = {
@@ -416,6 +426,23 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 								/>
 							</div>
 
+							{/* Can comment section */}
+							<div>
+								<h4 className="mb-2">{t('Can comment')}</h4>
+								<EditProfileList
+									placeholder={t('Add people with comment access...')}
+									profiles={commentPerms.flatMap((rp) =>
+										rp.audience ? [rp.audience] : []
+									)}
+									listProfiles={listProfiles}
+									addProfile={(p) => addPerm(p, 'COMMENT')}
+									confirmingRemove={confirmingRemovePerm}
+									onRequestRemove={requestRemovePerm}
+									onCancelRemove={cancelRemovePerm}
+									onConfirmRemove={confirmRemovePerm}
+								/>
+							</div>
+
 							{/* Read only section */}
 							<div>
 								<h4 className="mb-2">{t('Read only')}</h4>
@@ -451,10 +478,13 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 											className="c-input flex-fill"
 											value={newLinkAccess}
 											onChange={(e) =>
-												setNewLinkAccess(e.target.value as 'read' | 'write')
+												setNewLinkAccess(
+													e.target.value as 'read' | 'comment' | 'write'
+												)
 											}
 										>
 											<option value="read">{t('Read only')}</option>
+											<option value="comment">{t('Can comment')}</option>
 											<option value="write">{t('Can edit')}</option>
 										</select>
 									</div>
@@ -555,7 +585,9 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 														<div className="text-secondary text-small">
 															{ref.accessLevel === 'write'
 																? t('Can edit')
-																: t('Read only')}
+																: ref.accessLevel === 'comment'
+																	? t('Can comment')
+																	: t('Read only')}
 															{ref.expiresAt
 																? ` · ${t('Expires')} ${dayjs(ref.expiresAt).format('YYYY-MM-DD')}`
 																: ` · ${t('Never expires')}`}

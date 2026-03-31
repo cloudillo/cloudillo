@@ -72,7 +72,7 @@ export interface AppState {
 	/** Current access token */
 	accessToken?: string
 	/** Access level (read or write) */
-	access: 'read' | 'write'
+	access: 'read' | 'comment' | 'write'
 	/** Dark mode enabled */
 	darkMode: boolean
 	/** UI language code (e.g. 'en', 'hu') */
@@ -203,7 +203,7 @@ export interface DocPickResult {
  */
 export interface ShareCreateOptions {
 	/** Suggested access level (default: 'read') */
-	accessLevel?: 'read' | 'write'
+	accessLevel?: 'read' | 'comment' | 'write'
 	/** Description for the share link */
 	description?: string
 	/** Expiration timestamp (Unix ms) */
@@ -460,7 +460,7 @@ export class AppMessageBus extends MessageBusBase {
 	}
 
 	/** Access level */
-	get access(): 'read' | 'write' {
+	get access(): 'read' | 'comment' | 'write' {
 		return this.state.access
 	}
 
@@ -1134,7 +1134,7 @@ export class AppMessageBus extends MessageBusBase {
 		targetFileId: string
 		targetContentType: string
 		sourceFileId: string
-		access?: 'read' | 'write'
+		access?: 'read' | 'comment' | 'write'
 		navState?: string
 		params?: string
 	}): Promise<EmbedOpenResult> {

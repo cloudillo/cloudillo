@@ -856,7 +856,7 @@ export interface CreateRefRequest {
 	type: string
 	description?: string
 	resourceId?: string // file ID for share.file
-	accessLevel?: 'read' | 'write'
+	accessLevel?: 'read' | 'comment' | 'write'
 	expiresAt?: number // Unix timestamp
 	count?: number | null // max uses (null = unlimited, omit = default to 1)
 	params?: string // Serialized query string for launch params (e.g., "mode=present&follow=some.id.tag")
@@ -874,7 +874,7 @@ export const tRef = T.struct({
 	type: T.string,
 	description: T.optional(T.string),
 	resourceId: T.optional(T.string),
-	accessLevel: T.optional(T.literal('read', 'write')),
+	accessLevel: T.optional(T.literal('read', 'comment', 'write')),
 	createdAt: T.union(T.string, T.date),
 	expiresAt: T.optional(T.union(T.string, T.date)),
 	count: T.optional(T.number),
@@ -888,7 +888,7 @@ export const tRefResponse = T.struct({
 	type: T.string,
 	description: T.optional(T.string),
 	resourceId: T.optional(T.string),
-	accessLevel: T.optional(T.literal('read', 'write')),
+	accessLevel: T.optional(T.literal('read', 'comment', 'write')),
 	createdAt: T.optional(T.number),
 	expiresAt: T.optional(T.number),
 	count: T.optional(T.number),
@@ -900,7 +900,7 @@ export type RefResponse = T.TypeOf<typeof tRefResponse>
 export const tRefAccessTokenResult = T.struct({
 	token: T.string,
 	resourceId: T.string,
-	accessLevel: T.literal('read', 'write'),
+	accessLevel: T.literal('read', 'comment', 'write'),
 	scope: T.optional(T.string),
 	expiresAt: T.optional(T.number),
 	params: T.optional(T.string)

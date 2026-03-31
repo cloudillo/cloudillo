@@ -96,7 +96,7 @@ export function IdealloApp() {
 
 	// Active document embed (interactive iframe)
 	const [activeDocumentId, setActiveDocumentIdRaw] = React.useState<ObjectId | null>(null)
-	const isReadOnly = ideallo.cloudillo.access === 'read'
+	const isReadOnly = ideallo.cloudillo.access !== 'write'
 
 	// Force select tool in read-only mode
 	React.useEffect(() => {

@@ -49,6 +49,7 @@ export {
 	type RegisterAppOptions,
 	AppTracker,
 	getAppTracker,
+	getAccessSuffix,
 	resetAppTracker
 } from './app-tracker.js'
 

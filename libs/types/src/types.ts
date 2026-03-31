@@ -282,7 +282,7 @@ export type MessageAction = T.TypeOf<typeof tMessageAction>
 // Files
 export const tFileShareAction = T.struct({
 	type: T.literal('FSHR'),
-	subType: T.optional(T.literal('READ', 'WRITE')),
+	subType: T.optional(T.literal('READ', 'COMMENT', 'WRITE')),
 	content: T.struct({ fileName: T.string, contentType: T.string, fileTp: T.optional(T.string) }),
 	attachments: T.undefinedValue,
 	parentId: T.undefinedValue,

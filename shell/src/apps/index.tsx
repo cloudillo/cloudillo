@@ -22,7 +22,7 @@ import { version } from '../../package.json'
 
 import { useAppConfig, type TrustLevel } from '../utils.js'
 import { getShellBus } from '../message-bus/shell-bus.js'
-import { onAppReady, onAppError } from '../message-bus/index.js'
+import { onAppReady, onAppError, getAccessSuffix } from '../message-bus/index.js'
 import { releaseClientIdsForWindow } from '../message-bus/handlers/crdt.js'
 import { useContextFromRoute, useGuestDocument } from '../context/index.js'
 import { FeedApp } from './feed.js'
@@ -42,7 +42,7 @@ interface MicrofrontendContainerProps {
 	resId?: string
 	appUrl: string
 	trust?: TrustLevel | boolean
-	access?: 'read' | 'write'
+	access?: 'read' | 'comment' | 'write'
 	token?: string // Optional pre-fetched token (for guest access via share links)
 	refId?: string // Share link ref ID for guest token refresh
 	guestName?: string // Optional guest display name for awareness
@@ -160,7 +160,7 @@ export function MicrofrontendContainer({
 			}
 		}
 
-		const accessSuffix = access === 'read' ? 'R' : 'W'
+		const accessSuffix = getAccessSuffix(access)
 
 		try {
 			const res = await currentApi.auth.getAccessToken({
@@ -397,6 +397,7 @@ export function MicrofrontendContainer({
 						access: latestAccess || 'write',
 						token: latestProvidedToken,
 						refId: latestRefId,
+						displayName: guestNameRef.current,
 						params: paramsRef.current
 					})
 
@@ -507,10 +508,13 @@ function ExternalApp({ className }: { className?: string }) {
 
 	// Parse access query parameter
 	const searchParams = new URLSearchParams(location.search)
-	const access =
-		searchParams.get('access') === 'read' || (!auth && searchParams.get('access') !== 'write')
-			? 'read'
-			: 'write'
+	const rawAccess = searchParams.get('access')
+	const access: 'read' | 'comment' | 'write' =
+		rawAccess === 'comment' && auth
+			? 'comment'
+			: rawAccess === 'read' || (!auth && rawAccess !== 'write')
+				? 'read'
+				: 'write'
 
 	// Collect non-access search params as launch params
 	const launchParams = new URLSearchParams()

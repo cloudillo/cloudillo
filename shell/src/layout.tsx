@@ -164,7 +164,7 @@ function Menu({
 				icon: IcFileText,
 				label: truncateFileName(guestDocument.fileName),
 				trans: {} as Record<string, string>,
-				path: `/app/${guestDocument.ownerIdTag}/${guestDocument.appId}/${guestDocument.resId}${guestDocument.accessLevel === 'read' ? '?access=read' : ''}`,
+				path: `/app/${guestDocument.ownerIdTag}/${guestDocument.appId}/${guestDocument.resId}${guestDocument.accessLevel !== 'write' ? `?access=${guestDocument.accessLevel}` : ''}`,
 				public: true
 			}
 		: null

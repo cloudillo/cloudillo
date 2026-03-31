@@ -154,7 +154,11 @@ export const ItemCard = React.memo(function ItemCard({
 				)}
 				{!isFolder && file.accessLevel && file.accessLevel !== 'write' && (
 					<span className="c-file-card-access-badge">
-						{file.accessLevel === 'read' ? <IcView /> : <IcLock />}
+						{file.accessLevel === 'read' || file.accessLevel === 'comment' ? (
+							<IcView />
+						) : (
+							<IcLock />
+						)}
 					</span>
 				)}
 				{isLive && <span className="c-file-card-live" title={t('Live document')} />}

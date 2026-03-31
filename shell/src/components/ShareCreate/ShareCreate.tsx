@@ -178,7 +178,12 @@ export function ShareCreate() {
 
 	if (!pending) return null
 
-	const accessLabel = pending.options.accessLevel === 'write' ? t('Can edit') : t('View only')
+	const accessLabel =
+		pending.options.accessLevel === 'write'
+			? t('Can edit')
+			: pending.options.accessLevel === 'comment'
+				? t('Can comment')
+				: t('View only')
 	const showReuse = pending.options.reuse && compatibleRefs.length > 0
 
 	return (
@@ -234,7 +239,11 @@ export function ShareCreate() {
 								<Badge
 									variant={ref.accessLevel === 'write' ? 'accent' : 'secondary'}
 								>
-									{ref.accessLevel === 'write' ? t('Can edit') : t('View only')}
+									{ref.accessLevel === 'write'
+										? t('Can edit')
+										: ref.accessLevel === 'comment'
+											? t('Can comment')
+											: t('View only')}
 								</Badge>
 							</label>
 						)

@@ -144,7 +144,7 @@ interface UseCloudillo {
 	idTag?: string
 	tnId?: number
 	roles?: string[]
-	access?: 'read' | 'write'
+	access?: 'read' | 'comment' | 'write'
 	displayName?: string
 	params?: string
 	parsedParams: URLSearchParams

@@ -38,8 +38,10 @@ export interface AppConnection {
 	resId?: string
 	/** User identity tag for this app context */
 	idTag?: string
+	/** Guest display name (for comment attribution) */
+	displayName?: string
 	/** Access level granted to the app */
-	access: 'read' | 'write'
+	access: 'read' | 'comment' | 'write'
 	/** Whether the app has been initialized */
 	initialized: boolean
 	/** When the app was registered */
@@ -57,6 +59,13 @@ export interface AppConnection {
 }
 
 /**
+ * Encode access level to single-char suffix for token scope strings (e.g. `file:123:W`)
+ */
+export function getAccessSuffix(access?: 'read' | 'comment' | 'write'): 'R' | 'C' | 'W' {
+	return access === 'read' ? 'R' : access === 'comment' ? 'C' : 'W'
+}
+
+/**
  * Options for registering an app
  */
 export interface RegisterAppOptions {
@@ -64,11 +73,13 @@ export interface RegisterAppOptions {
 	appName?: string
 	resId?: string
 	idTag?: string
-	access?: 'read' | 'write'
+	access?: 'read' | 'comment' | 'write'
 	/** Pre-provided token for guest access via share links */
 	token?: string
 	/** Share link ref ID for token refresh */
 	refId?: string
+	/** Guest display name (for comment attribution) */
+	displayName?: string
 	/** Launch params as serialized query string */
 	params?: string
 }
@@ -80,7 +91,7 @@ export interface RegisterAppOptions {
 export interface PendingRegistration {
 	token?: string
 	refId?: string
-	access?: 'read' | 'write'
+	access?: 'read' | 'comment' | 'write'
 	idTag?: string
 	appName?: string
 	displayName?: string
@@ -136,6 +147,7 @@ export class AppTracker {
 			lastActiveAt: now,
 			token: options.token,
 			refId: options.refId,
+			displayName: options.displayName,
 			params: options.params
 		}
 

@@ -30,7 +30,7 @@ export function FcdDetails({ isVisible, className, hide, children }: FcdDetailsP
 	return (
 		<div
 			className={mergeClasses(
-				'c-vbox sm-hide-dyn md-hide-dyn hide-right col-lg-3 h-100 overflow-y-auto',
+				'c-vbox sm-hide-dyn md-hide-dyn hide-right col-lg-3 h-100',
 				className,
 				isVisible && 'show'
 			)}
@@ -40,7 +40,10 @@ export function FcdDetails({ isVisible, className, hide, children }: FcdDetailsP
 			<Button link className="pos-absolute top-0 right-0 m-1 p-2 z-4 lg-hide" onClick={hide}>
 				<IcClose />
 			</Button>
-			<div className="z-1 w-100 h-min-100" onClick={(evt) => evt.stopPropagation()}>
+			<div
+				className="z-1 w-100 fill c-vbox h-min-0 overflow-y-auto"
+				onClick={(evt) => evt.stopPropagation()}
+			>
 				{children}
 			</div>
 		</div>

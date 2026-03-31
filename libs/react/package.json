@@ -20,11 +20,12 @@
 		"watch": "tsc -w",
 		"clean": "rimraf .cache lib*"
 	},
-	"author": "Szilárd Hajba <szilu@cloudillo.org",
+	"author": "Szilárd Hajba <szilu@cloudillo.org>",
 	"license": "LGPL-3.0-or-later",
 	"devDependencies": {
 		"@cloudillo/core": "workspace:^",
 		"@cloudillo/crdt": "workspace:^",
+		"@cloudillo/rtdb": "workspace:^",
 		"@cloudillo/fonts": "workspace:^",
 		"@cloudillo/types": "workspace:^",
 		"@symbion/runtype": "^1.2.1",

@@ -1,5 +1,5 @@
 // This file is part of the Cloudillo Platform.
-// Copyright (C) 2024  Szilárd Hajba
+// Copyright (C) 2026  Szilárd Hajba
 //
 // Cloudillo is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -14,12 +14,23 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// OpalUI Component exports (organized)
-export * from './components/index.js'
+export type {
+	StoredThread,
+	StoredComment,
+	CommentThread,
+	Comment
+} from './types.js'
 
-// Cloudillo-specific utilities and legacy components
-export * from './cloudillo-react.js'
-export * from './hooks.js'
-export * from './comments/index.js'
+export {
+	threadFromStored,
+	commentFromStored
+} from './types.js'
+
+export { useComments } from './useComments.js'
+
+export type {
+	UseCommentsOptions,
+	UseCommentsReturn
+} from './useComments.js'
 
 // vim: ts=4

@@ -104,6 +104,19 @@ export function getStoreFileId(appId: string): string {
 }
 
 /**
+ * Generate a meta database ID for a document.
+ * Meta databases (`{fileId}~meta`) store comments and other metadata
+ * separate from the document content. They are auto-created by the server
+ * on first RTDB WebSocket connection.
+ *
+ * @param fileId - File identifier of the parent document
+ * @returns Meta database ID like "abc123~meta"
+ */
+export function getMetaDbId(fileId: string): string {
+	return `${fileId}~meta`
+}
+
+/**
  * Image variant quality order from highest to lowest
  */
 const IMAGE_VARIANT_QUALITY_ORDER = ['vis.xd', 'vis.hd', 'vis.md', 'vis.sd', 'vis.tn'] as const

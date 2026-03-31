@@ -17,8 +17,9 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { getAppBus, getFileUrl } from '@cloudillo/core'
-import { Fcd, Panel, Button, DialogContainer, useDialog } from '@cloudillo/react'
+import { getAppBus, getFileUrl, getWsUrl } from '@cloudillo/core'
+import { Fcd, Panel, Button, DialogContainer, useDialog, useComments } from '@cloudillo/react'
+import type { CommentThread } from '@cloudillo/react'
 
 import { LuPanelLeft as IcSidebar } from 'react-icons/lu'
 
@@ -38,6 +39,8 @@ import { PageSidebar } from './pages/PageSidebar.js'
 import { PageHeader } from './pages/PageHeader.js'
 import { exportMarkdown, importMarkdown, exportPdf, exportDocx, exportOdt } from './export/index.js'
 import { createPage } from './rtdb/page-ops.js'
+import { CommentPanel, CommentPopup } from './comments/index.js'
+import { useCommentIndicators } from './hooks/useCommentIndicators.js'
 
 export function NotilloApp() {
 	const { t } = useTranslation()
@@ -60,8 +63,55 @@ export function NotilloApp() {
 	const { allPages } = useAllPages(notillo.client)
 	const [activePageId, setActivePageId] = React.useState<string | undefined>()
 	const [showFilter, setShowFilter] = React.useState(false)
+	const [showComments, setShowComments] = React.useState(false)
+	const [threadCount, setThreadCount] = React.useState(0)
+	const [pendingCommentAnchor, setPendingCommentAnchor] = React.useState<string | undefined>()
+	const [pendingCommentOffset, setPendingCommentOffset] = React.useState<number | undefined>()
+	const [popupBlockId, setPopupBlockId] = React.useState<string | null>(null)
+	const [pageThreads, setPageThreads] = React.useState<CommentThread[]>([])
 	const [activeTag, setActiveTag] = React.useState<string | null>(null)
 	const [searchQuery, setSearchQuery] = React.useState('')
+
+	const commentsServerUrl = notillo.ownerTag
+		? getWsUrl(notillo.ownerTag)
+		: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
+
+	const getCommentToken = React.useCallback(() => getAppBus().accessToken, [])
+
+	const comments = useComments({
+		fileId: notillo.fileId || '',
+		serverUrl: commentsServerUrl,
+		getToken: getCommentToken,
+		idTag: notillo.idTag,
+		displayName: getAppBus().displayName,
+		access: notillo.access || 'read'
+	})
+
+	// Subscribe to page threads at app level for badge indicators
+	React.useEffect(() => {
+		if (!activePageId) {
+			setPageThreads([])
+			return
+		}
+		const scope = `p:${activePageId}`
+		const unsubscribe = comments.subscribeThreads(scope, (threads) => {
+			setPageThreads(threads)
+			setThreadCount(threads.filter((t) => t.status === 'open').length)
+		})
+		return unsubscribe
+	}, [comments.subscribeThreads, activePageId])
+
+	// Comment badge indicators on editor blocks
+	const [focusBlockId, setFocusBlockId] = React.useState<string | undefined>()
+	const handleBadgeClick = React.useCallback((blockId: string) => {
+		if (window.innerWidth < 768) {
+			setPopupBlockId(blockId)
+		} else {
+			setFocusBlockId(blockId)
+			setShowComments(true)
+		}
+	}, [])
+	const { blockThreadMap } = useCommentIndicators(pageThreads, handleBadgeClick)
 
 	const editorRef = React.useRef<NotilloEditor | null>(null)
 	const fileInputRef = React.useRef<HTMLInputElement>(null)
@@ -315,6 +365,22 @@ export function NotilloApp() {
 		},
 		[navigateToPage]
 	)
+
+	const handleCommentBlock = React.useCallback((blockId: string) => {
+		// Find the block element and compute its vertical offset from the
+		// content scroll area so the comment form can be aligned with it.
+		const blockEl = document.querySelector(`[data-id="${blockId}"]`)
+		const scrollArea = document.querySelector('.c-fcd-content-scroll')
+		if (blockEl && scrollArea) {
+			const blockRect = blockEl.getBoundingClientRect()
+			const scrollRect = scrollArea.getBoundingClientRect()
+			setPendingCommentOffset(blockRect.top - scrollRect.top + scrollArea.scrollTop)
+		} else {
+			setPendingCommentOffset(undefined)
+		}
+		setPendingCommentAnchor(`b:${blockId}`)
+		setShowComments(true)
+	}, [])
 
 	const handleTagClick = React.useCallback((tag: string) => {
 		setActiveTag(tag)
@@ -572,7 +638,7 @@ export function NotilloApp() {
 					</Panel>
 				</Fcd.Filter>
 				<Fcd.Content
-					fluid
+					fluid={!showComments}
 					header={
 						activePage ? (
 							<PageHeader
@@ -580,6 +646,8 @@ export function NotilloApp() {
 								page={activePage}
 								readOnly={isReadOnly}
 								onToggleSidebar={() => setShowFilter(true)}
+								onToggleComments={() => setShowComments((s) => !s)}
+								commentCount={threadCount}
 								onSharePage={handleSharePage}
 								onShareDocument={handleShareDocument}
 								onExportMarkdown={handleExportMarkdown}
@@ -591,7 +659,7 @@ export function NotilloApp() {
 							/>
 						) : (
 							<nav
-								className="c-nav px-4 py-2 g-2 md-hide lg-hide"
+								className="c-nav px-3 py-2 g-2 md-hide lg-hide"
 								style={{ borderBottom: '1px solid var(--col-outline)' }}
 							>
 								<Button
@@ -631,6 +699,7 @@ export function NotilloApp() {
 								onSelectPage={handleSelectPage}
 								onTagClick={handleTagClick}
 								onEditorReady={handleEditorReady}
+								onCommentBlock={isReadOnly ? undefined : handleCommentBlock}
 								tags={tags}
 								pageTags={activePage.tags}
 							/>
@@ -651,8 +720,41 @@ export function NotilloApp() {
 						</div>
 					)}
 				</Fcd.Content>
+				{showComments && (
+					<Fcd.Details isVisible={showComments} hide={() => setShowComments(false)}>
+						<div className="c-vbox fill">
+							{activePageId && notillo.idTag && (
+								<CommentPanel
+									comments={comments}
+									threads={pageThreads}
+									pageId={activePageId}
+									idTag={notillo.idTag}
+									readOnly={isReadOnly}
+									pendingAnchor={pendingCommentAnchor}
+									pendingOffset={pendingCommentOffset}
+									onPendingAnchorConsumed={() => {
+										setPendingCommentAnchor(undefined)
+										setPendingCommentOffset(undefined)
+									}}
+									focusBlockId={focusBlockId}
+									onFocusBlockConsumed={() => setFocusBlockId(undefined)}
+								/>
+							)}
+						</div>
+					</Fcd.Details>
+				)}
 				<DialogContainer />
 			</Fcd.Container>
+			{popupBlockId && notillo.idTag && blockThreadMap.get(popupBlockId) && (
+				<CommentPopup
+					comments={comments}
+					threads={blockThreadMap.get(popupBlockId)!}
+					blockId={popupBlockId}
+					idTag={notillo.idTag}
+					readOnly={isReadOnly}
+					onClose={() => setPopupBlockId(null)}
+				/>
+			)}
 		</>
 	)
 }

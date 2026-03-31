@@ -409,6 +409,12 @@
 	margin: 0 auto;
 }
 
+@media (max-width: 767px) {
+	.notillo-editor .bn-editor {
+		padding-inline-end: 12px;
+	}
+}
+
 /* Block lock indicators are injected dynamically via <style> in useLockIndicators.ts
    to survive ProseMirror DOM reconstruction. */
 
@@ -432,6 +438,336 @@
 
 .c-alert p {
 	margin: 0;
+}
+
+/* ── Comments Panel ── */
+
+.comment-panel-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-1) var(--space-2);
+	flex-shrink: 0;
+}
+
+.comment-thread-item {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	padding: var(--space-2) var(--space-3);
+	margin: 0 var(--space-2);
+	cursor: pointer;
+	background: var(--col-container);
+	border-radius: var(--radius-md);
+	border: 1px solid color-mix(in srgb, var(--col-outline) 40%, transparent);
+}
+
+.comment-thread-item:hover {
+	background: var(--col-container-high);
+	border-color: var(--col-outline);
+}
+
+.comment-thread-item:focus-visible {
+	outline: 2px solid var(--col-primary);
+	outline-offset: -2px;
+}
+
+.comment-thread-item.resolved {
+	opacity: 0.5;
+}
+
+.comment-thread-item.resolved.expanded {
+	opacity: 1;
+}
+
+.comment-thread-item.expanded {
+	cursor: default;
+}
+
+.comment-thread-expanded {
+	margin-top: var(--space-1);
+}
+
+.comment-thread-collapse {
+	display: flex;
+	justify-content: flex-end;
+	margin-bottom: var(--space-1);
+}
+
+.comment-inline-reply {
+	display: flex;
+	align-items: flex-end;
+	gap: var(--space-1);
+	padding: var(--space-1) 0;
+}
+
+.comment-inline-reply .comment-input {
+	flex: 1;
+	min-height: 32px;
+	padding: var(--space-1);
+	font-size: 0.8rem;
+}
+
+.comment-resolved-icon {
+	color: var(--col-primary);
+	flex-shrink: 0;
+}
+
+.comment-thread-status {
+	display: flex;
+	justify-content: flex-end;
+	padding-top: var(--space-1);
+	border-top: 1px solid color-mix(in srgb, var(--col-outline) 30%, transparent);
+}
+
+.comment-thread-preview {
+	margin: 0;
+	font-size: 0.8rem;
+	line-height: 1.35;
+	color: var(--col-on-surface-variant);
+	overflow: hidden;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+}
+
+.comment-thread-replies {
+	display: flex;
+	align-items: center;
+	gap: 0.25em;
+	font-size: 0.75rem;
+	color: var(--col-on-surface-variant);
+}
+
+/* Block highlight is injected dynamically via <style> tag in ThreadList.tsx
+   because ProseMirror reconstructs DOM nodes, so class-based targeting doesn't work. */
+
+.comment-item {
+	padding: var(--space-2) var(--space-3);
+	border-bottom: 1px solid color-mix(in srgb, var(--col-outline) 30%, transparent);
+}
+
+.comment-item.deleted {
+	opacity: 0.5;
+}
+
+.comment-item.deleted .comment-item-text {
+	font-style: italic;
+}
+
+.comment-item-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	font-size: 0.8rem;
+	position: relative;
+	margin-bottom: 2px;
+}
+
+.comment-item-author {
+	font-weight: 600;
+	color: var(--col-on-container);
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.comment-time {
+	font-size: 0.7rem;
+	color: var(--col-on-surface-variant);
+	white-space: nowrap;
+	flex-shrink: 0;
+	margin-left: auto;
+}
+
+.comment-item-edited {
+	font-size: 0.7rem;
+	font-style: italic;
+	color: var(--col-on-surface-variant);
+	opacity: 0.7;
+	flex-shrink: 0;
+}
+
+.comment-item-actions {
+	position: absolute;
+	right: 0;
+	top: 0;
+	display: flex;
+	gap: 2px;
+	opacity: 0;
+	background: var(--col-container);
+	border-radius: var(--radius-sm);
+	padding: 0 2px;
+}
+
+.comment-item:hover .comment-item-actions,
+.comment-thread-item:hover > .comment-item-header .comment-item-actions {
+	opacity: 1;
+}
+
+.comment-action-btn {
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: var(--col-on-surface-variant);
+	padding: 0.25rem;
+	border-radius: var(--radius-sm);
+	display: flex;
+	align-items: center;
+	min-width: 28px;
+	min-height: 28px;
+	justify-content: center;
+}
+
+.comment-action-btn:hover {
+	color: var(--col-primary);
+	background: var(--col-container-high);
+}
+
+.comment-action-delete:hover {
+	color: var(--col-error);
+}
+
+.comment-item-text {
+	margin: 0;
+	font-size: 0.875rem;
+	line-height: 1.4;
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.comment-input {
+	width: 100%;
+	padding: var(--space-2);
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-sm);
+	background: var(--col-surface);
+	color: var(--col-on-surface);
+	font-family: inherit;
+	font-size: 0.875rem;
+	resize: vertical;
+	min-height: 44px;
+}
+
+.comment-input:focus {
+	outline: 2px solid var(--col-primary);
+	outline-offset: -1px;
+}
+
+.comment-input-actions {
+	display: flex;
+	gap: var(--space-1);
+	padding-top: var(--space-1);
+}
+
+.comment-new-form {
+	padding: var(--space-2) var(--space-3);
+	margin: 0 var(--space-2);
+	background: var(--col-container);
+	border-radius: var(--radius-md);
+	border: 1px solid var(--col-primary);
+	flex-shrink: 0;
+}
+
+.comment-reply-form,
+.comment-edit-form {
+	padding: var(--space-2) var(--space-3);
+	flex-shrink: 0;
+}
+
+.comment-badge {
+	position: absolute;
+	top: -4px;
+	right: -6px;
+	background: var(--col-primary);
+	color: var(--col-on-primary);
+	font-size: 0.6rem;
+	font-weight: 600;
+	min-width: 1rem;
+	height: 1rem;
+	border-radius: 999px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0 0.2em;
+	line-height: 1;
+}
+
+/* ── Comment Popup (inline on mobile) ── */
+
+.comment-popup {
+	position: fixed;
+	z-index: 20;
+	width: min(calc(100vw - 16px), 360px);
+	max-height: 60vh;
+	overflow-y: auto;
+	background: var(--col-surface);
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-md);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.comment-popup-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	padding: var(--space-2) var(--space-3);
+	border-bottom: 1px solid color-mix(in srgb, var(--col-outline) 40%, transparent);
+	position: sticky;
+	top: 0;
+	background: var(--col-surface);
+	z-index: 1;
+}
+
+.comment-popup-thread {
+	border-bottom: 1px solid color-mix(in srgb, var(--col-outline) 30%, transparent);
+}
+
+.comment-popup-thread:last-child {
+	border-bottom: none;
+}
+
+/* ── Mobile: comment bottom sheet ── */
+
+.comment-popup-backdrop {
+	display: none;
+}
+
+@media (max-width: 767px) {
+	.comment-popup-backdrop {
+		display: block;
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.3);
+		z-index: 19;
+	}
+
+	.comment-popup {
+		bottom: 0;
+		left: 0;
+		right: 0;
+		top: auto !important;
+		width: 100%;
+		max-width: 100%;
+		max-height: 70vh;
+		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+		border-bottom: none;
+		box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.2);
+	}
+}
+
+/* ── Mobile touch targets ── */
+
+@media (max-width: 767px) {
+	.comment-action-btn {
+		min-width: 44px;
+		min-height: 44px;
+	}
+
+	.comment-input {
+		font-size: 16px;
+	}
 }
 
 /* vim: ts=4 */

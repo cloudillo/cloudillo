@@ -16,7 +16,11 @@
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuPanelLeft as IcSidebar, LuLink as IcLink } from 'react-icons/lu'
+import {
+	LuPanelLeft as IcSidebar,
+	LuLink as IcLink,
+	LuMessageCircle as IcComment
+} from 'react-icons/lu'
 import { PiDotsThreeVerticalBold as IcMore } from 'react-icons/pi'
 
 import { Button } from '@cloudillo/react'
@@ -29,6 +33,8 @@ interface PageHeaderProps {
 	page: PageRecord & { id: string }
 	readOnly: boolean
 	onToggleSidebar?: () => void
+	onToggleComments?: () => void
+	commentCount?: number
 	onSharePage?: () => void
 	onShareDocument?: () => void
 	onExportMarkdown?: () => void
@@ -44,6 +50,8 @@ export function PageHeader({
 	page,
 	readOnly,
 	onToggleSidebar,
+	onToggleComments,
+	commentCount,
 	onSharePage,
 	onShareDocument,
 	onExportMarkdown,
@@ -107,7 +115,7 @@ export function PageHeader({
 
 	return (
 		<nav
-			className="c-nav px-4 py-2 g-2"
+			className="c-nav px-3 py-2 g-2"
 			style={{ borderBottom: '1px solid var(--col-outline)' }}
 		>
 			{onToggleSidebar && (
@@ -142,6 +150,22 @@ export function PageHeader({
 					{page.title || t('Untitled')}
 				</h1>
 			)}
+			{onToggleComments && (
+				<div style={{ position: 'relative' }}>
+					<Button
+						link
+						mode="icon"
+						size="small"
+						onClick={onToggleComments}
+						title={t('Comments')}
+					>
+						<IcComment size={20} />
+						{(commentCount ?? 0) > 0 && (
+							<span className="comment-badge">{commentCount}</span>
+						)}
+					</Button>
+				</div>
+			)}
 			<div ref={menuRef} style={{ position: 'relative' }}>
 				<Button
 					link
@@ -150,7 +174,7 @@ export function PageHeader({
 					onClick={() => setMenuOpen(!menuOpen)}
 					title={t('More actions')}
 				>
-					<IcMore />
+					<IcMore size={20} />
 				</Button>
 				{menuOpen && (
 					<div className="c-menu" style={{ position: 'absolute', top: '100%', right: 0 }}>

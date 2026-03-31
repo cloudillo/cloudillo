@@ -21,9 +21,17 @@ import type { Block } from '@blocknote/core'
 import { filterSuggestionItems } from '@blocknote/core/extensions'
 import {
 	useCreateBlockNote,
+	useExtensionState,
+	useComponentsContext,
 	SuggestionMenuController,
+	SideMenuController,
+	SideMenu,
+	DragHandleMenu,
+	RemoveBlockItem,
+	BlockColorsItem,
 	type DefaultReactSuggestionItem
 } from '@blocknote/react'
+import { SideMenuExtension } from '@blocknote/core/extensions'
 import { BlockNoteView } from '@blocknote/mantine'
 import '@blocknote/mantine/style.css'
 
@@ -42,6 +50,30 @@ import { useLockIndicators } from '../hooks/useLockIndicators.js'
 import { usePageTagSync } from '../hooks/usePageTagSync.js'
 import { useMediaHandler } from './useMediaHandler.js'
 
+function CommentBlockMenuItem({
+	children,
+	onCommentBlock
+}: {
+	children: React.ReactNode
+	onCommentBlock: (blockId: string) => void
+}) {
+	const components = useComponentsContext()
+	const block = useExtensionState(SideMenuExtension, {
+		selector: (s) => s?.block
+	})
+
+	if (!block || !components) return null
+
+	return (
+		<components.Generic.Menu.Item
+			className="bn-menu-item"
+			onClick={() => onCommentBlock(block.id)}
+		>
+			{children}
+		</components.Generic.Menu.Item>
+	)
+}
+
 interface NotilloEditorProps {
 	client: RtdbClient
 	pageId: string
@@ -58,6 +90,7 @@ interface NotilloEditorProps {
 	onSelectPage: (pageId: string) => void
 	onTagClick?: (tag: string) => void
 	onEditorReady?: (editor: NotilloEditorType) => void
+	onCommentBlock?: (blockId: string) => void
 	tags: Set<string>
 	pageTags?: string[]
 }
@@ -79,6 +112,7 @@ export const NotilloEditor = React.memo(
 		onSelectPage,
 		onTagClick,
 		onEditorReady,
+		onCommentBlock,
 		tags,
 		pageTags
 	}: NotilloEditorProps) {
@@ -133,9 +167,13 @@ export const NotilloEditor = React.memo(
 			resolveFileUrl
 		})
 
+		const onEditorReadyRef = React.useRef(onEditorReady)
 		React.useEffect(() => {
-			onEditorReady?.(editor)
-		}, [editor, onEditorReady])
+			onEditorReadyRef.current = onEditorReady
+		})
+		React.useEffect(() => {
+			onEditorReadyRef.current?.(editor)
+		}, [editor])
 
 		// Local changes → RTDB (smart per-block sync with position tracking)
 		const { recentLocalUpdates, blockStates } = useDocumentSync(
@@ -300,6 +338,29 @@ export const NotilloEditor = React.memo(
 			[editor, tags, t]
 		)
 
+		// Custom DragHandleMenu with "Comment on block" item
+		const customDragHandleMenu = React.useMemo(() => {
+			if (!onCommentBlock) return undefined
+			return function NotilloDragHandleMenu() {
+				return (
+					<DragHandleMenu>
+						<RemoveBlockItem>{t('Delete')}</RemoveBlockItem>
+						<BlockColorsItem>{t('Colors')}</BlockColorsItem>
+						<CommentBlockMenuItem onCommentBlock={onCommentBlock}>
+							{t('Comment')}
+						</CommentBlockMenuItem>
+					</DragHandleMenu>
+				)
+			}
+		}, [onCommentBlock, t])
+
+		const customSideMenu = React.useMemo(() => {
+			if (!customDragHandleMenu) return undefined
+			return function NotilloSideMenu() {
+				return <SideMenu dragHandleMenu={customDragHandleMenu} />
+			}
+		}, [customDragHandleMenu])
+
 		return (
 			<div
 				ref={editorRef}
@@ -313,7 +374,9 @@ export const NotilloEditor = React.memo(
 						theme={darkMode ? 'dark' : 'light'}
 						slashMenu={false}
 						filePanel={false}
+						sideMenu={!customSideMenu}
 					>
+						{customSideMenu && <SideMenuController sideMenu={customSideMenu} />}
 						<SuggestionMenuController
 							triggerCharacter="/"
 							getItems={async (query) =>
@@ -352,7 +415,8 @@ export const NotilloEditor = React.memo(
 			prev.darkMode === next.darkMode &&
 			prev.fileId === next.fileId &&
 			prev.pages === next.pages &&
-			prev.tags === next.tags
+			prev.tags === next.tags &&
+			prev.onCommentBlock === next.onCommentBlock
 		)
 	}
 )

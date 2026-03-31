@@ -126,7 +126,7 @@ function ExpandedThread({
 					isOwn={comment.createdBy === idTag}
 					readOnly={readOnly}
 					onEdit={(id, text) => editComment(id, text)}
-					onDelete={(id) => deleteComment(id)}
+					onDelete={(id) => deleteComment(id, thread.id)}
 				/>
 			))}
 			{!readOnly && (
@@ -432,7 +432,7 @@ export function ThreadList({
 					<>
 						<div className="comment-item-header">
 							<span className="comment-item-author" title={thread.createdBy}>
-								@{thread.createdBy}
+								{thread.createdByName || `@${thread.createdBy}`}
 							</span>
 							<span className="comment-time">
 								{shortTimeFormat(thread.createdAt)}

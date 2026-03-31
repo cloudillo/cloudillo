@@ -184,7 +184,7 @@ function PopupThread({
 					isOwn={comment.createdBy === idTag}
 					readOnly={readOnly}
 					onEdit={(id, text) => editComment(id, text)}
-					onDelete={(id) => deleteComment(id)}
+					onDelete={(id) => deleteComment(id, thread.id)}
 				/>
 			))}
 			{!readOnly && (

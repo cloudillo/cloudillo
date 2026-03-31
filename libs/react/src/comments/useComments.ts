@@ -34,7 +34,7 @@ export interface UseCommentsOptions {
 	getToken: () => string | undefined
 	idTag?: string
 	displayName?: string
-	access: 'read' | 'write'
+	access: 'read' | 'comment' | 'write'
 }
 
 export interface UseCommentsReturn {
@@ -48,7 +48,7 @@ export interface UseCommentsReturn {
 	) => Promise<{ threadId: string; commentId: string }>
 	addComment: (threadId: string, text: string) => Promise<string>
 	editComment: (commentId: string, text: string) => Promise<void>
-	deleteComment: (commentId: string) => Promise<void>
+	deleteComment: (commentId: string, threadId: string) => Promise<void>
 	setThreadStatus: (threadId: string, status: 'open' | 'resolved') => Promise<void>
 }
 
@@ -100,11 +100,16 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
 	// Cleanup on unmount or connection param change
 	useEffect(() => {
 		return () => {
+			const pending = connectingRef.current
 			if (clientRef.current) {
 				clientRef.current.disconnect().catch(console.error)
 				clientRef.current = null
 				connectingRef.current = null
 				setConnected(false)
+			} else if (pending) {
+				// Connection was in-flight — disconnect once it resolves
+				pending.then((c) => c.disconnect().catch(console.error)).catch(() => {})
+				connectingRef.current = null
 			}
 		}
 	}, [fileId, serverUrl])
@@ -175,7 +180,7 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
 
 	const createThread = useCallback(
 		async (scope: string, anchor: string, text: string) => {
-			if (access !== 'write') throw new Error('Write access required')
+			if (access === 'read') throw new Error('Comment access required')
 
 			const client = await ensureClient()
 			const now = new Date().toISOString()
@@ -191,7 +196,8 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
 				tx: text.length > 120 ? text.slice(0, 120) + '...' : text,
 				ca: now,
 				ua: now,
-				cb: idTag || 'anonymous'
+				cb: idTag || 'anonymous',
+				cn: displayName
 			})
 			batch.set(client.ref<StoredComment>(`c/${commentId}`), {
 				t: threadId,
@@ -209,7 +215,7 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
 
 	const addComment = useCallback(
 		async (threadId: string, text: string): Promise<string> => {
-			if (access !== 'write') throw new Error('Write access required')
+			if (access === 'read') throw new Error('Comment access required')
 
 			const client = await ensureClient()
 			const now = new Date().toISOString()
@@ -237,7 +243,7 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
 
 	const editComment = useCallback(
 		async (commentId: string, text: string): Promise<void> => {
-			if (access !== 'write') throw new Error('Write access required')
+			if (access === 'read') throw new Error('Comment access required')
 
 			const client = await ensureClient()
 			const now = new Date().toISOString()
@@ -252,24 +258,30 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
 	)
 
 	const deleteComment = useCallback(
-		async (commentId: string): Promise<void> => {
-			if (access !== 'write') throw new Error('Write access required')
+		async (commentId: string, threadId: string): Promise<void> => {
+			if (access === 'read') throw new Error('Comment access required')
 
 			const client = await ensureClient()
 			const now = new Date().toISOString()
 
-			await client.ref<Partial<StoredComment>>(`c/${commentId}`).update({
+			const batch = client.batch()
+			batch.update(client.ref<Partial<StoredComment>>(`c/${commentId}`), {
 				dl: true,
 				tx: '',
 				ua: now
 			})
+			batch.update(client.ref<StoredThread>(`t/${threadId}`), {
+				ua: now,
+				cc: increment(-1)
+			})
+			await batch.commit()
 		},
 		[access, ensureClient]
 	)
 
 	const setThreadStatus = useCallback(
 		async (threadId: string, status: 'open' | 'resolved'): Promise<void> => {
-			if (access !== 'write') throw new Error('Write access required')
+			if (access === 'read') throw new Error('Comment access required')
 
 			const client = await ensureClient()
 			const now = new Date().toISOString()

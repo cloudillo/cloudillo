@@ -25,6 +25,7 @@ export interface StoredThread {
 	ca: string // createdAt (ISO 8601)
 	ua: string // updatedAt (ISO 8601)
 	cb: string // createdBy (idTag)
+	cn?: string // createdByName (for guests)
 }
 
 export interface StoredComment {
@@ -51,6 +52,7 @@ export interface CommentThread {
 	createdAt: string
 	updatedAt: string
 	createdBy: string
+	createdByName?: string
 }
 
 export interface Comment {
@@ -78,7 +80,8 @@ export function threadFromStored(id: string, stored: StoredThread): CommentThrea
 		textPreview: stored.tx,
 		createdAt: stored.ca,
 		updatedAt: stored.ua,
-		createdBy: stored.cb
+		createdBy: stored.cb,
+		createdByName: stored.cn
 	}
 }
 

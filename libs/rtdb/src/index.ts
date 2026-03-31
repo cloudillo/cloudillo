@@ -17,6 +17,9 @@
 // Main client
 export { createRtdbClient, RtdbClient, WriteBatch } from './client.js'
 
+// Field operators
+export { increment, appendValues } from './types.js'
+
 // References
 export { CollectionReference } from './collection.js'
 export { DocumentReference } from './document.js'
@@ -40,7 +43,11 @@ export type {
 	AggregateOpDef,
 	AggregateOptions,
 	AggregateGroupEntry,
-	AggregateSnapshot
+	AggregateSnapshot,
+	FieldOp,
+	IncrementOp,
+	AppendOp,
+	UpdateData
 } from './types.js'
 
 // Errors

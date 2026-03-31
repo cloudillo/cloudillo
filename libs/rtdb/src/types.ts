@@ -17,6 +17,35 @@
 import * as T from '@symbion/runtype'
 
 // ============================================================================
+// Field Operators (server-side atomic operations)
+// ============================================================================
+
+export interface IncrementOp {
+	$op: 'increment'
+	by: number
+}
+
+export interface AppendOp {
+	$op: 'append'
+	values: unknown[]
+}
+
+export type FieldOp = IncrementOp | AppendOp
+
+/** Makes each field accept either its original type or a FieldOp */
+export type UpdateData<T> = {
+	[K in keyof T]?: T[K] | FieldOp
+}
+
+export function increment(by = 1): IncrementOp {
+	return { $op: 'increment', by }
+}
+
+export function appendValues(values: unknown[]): AppendOp {
+	return { $op: 'append', values }
+}
+
+// ============================================================================
 // Client Message Types
 // ============================================================================
 

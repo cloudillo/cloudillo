@@ -17,12 +17,17 @@
 import { WebSocketManager } from './websocket.js'
 import { CollectionReference } from './collection.js'
 import { DocumentReference } from './document.js'
-import type { RtdbClientOptions, TransactionMessage, TransactionOperation } from './types.js'
+import type {
+	RtdbClientOptions,
+	TransactionMessage,
+	TransactionOperation,
+	UpdateData
+} from './types.js'
 import { normalizePath } from './utils.js'
 
 export interface BatchResult {
-	ref?: string
-	id?: string
+	ref: string | null
+	id: string | null
 }
 
 export class WriteBatch {
@@ -49,7 +54,17 @@ export class WriteBatch {
 		return ref instanceof DocumentReference ? ref : ref.doc('$placeholder')
 	}
 
-	update<T>(ref: DocumentReference<T>, data: Partial<T>): void {
+	set<T>(ref: DocumentReference<T>, data: T): void {
+		const path = ref.getPath()
+
+		this.operations.push({
+			type: 'replace',
+			path: normalizePath(path),
+			data
+		})
+	}
+
+	update<T>(ref: DocumentReference<T>, data: UpdateData<T>): void {
 		const path = ref.getPath()
 
 		this.operations.push({

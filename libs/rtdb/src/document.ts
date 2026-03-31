@@ -23,7 +23,8 @@ import type {
 	TransactionMessage,
 	LockMessage,
 	UnlockMessage,
-	LockResult
+	LockResult,
+	UpdateData
 } from './types.js'
 import { DocumentSnapshotImpl, createDocumentFromEvent, normalizePath } from './utils.js'
 
@@ -77,7 +78,7 @@ export class DocumentReference<T = unknown> {
 		await this.ws.send(message)
 	}
 
-	async update(data: Partial<T>): Promise<void> {
+	async update(data: UpdateData<T>): Promise<void> {
 		const message: TransactionMessage = {
 			type: 'transaction',
 			operations: [

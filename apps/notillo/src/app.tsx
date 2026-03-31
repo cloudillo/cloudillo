@@ -41,12 +41,15 @@ import { exportMarkdown, importMarkdown, exportPdf, exportDocx, exportOdt } from
 import { createPage } from './rtdb/page-ops.js'
 import { CommentPanel, CommentPopup } from './comments/index.js'
 import { useCommentIndicators } from './hooks/useCommentIndicators.js'
+import { useBlockContextMenu } from './hooks/useBlockContextMenu.js'
+import { useCommentBlockButton } from './hooks/useCommentBlockButton.js'
 
 export function NotilloApp() {
 	const { t } = useTranslation()
 	const notillo = useNotillo()
 	const dialog = useDialog()
-	const isReadOnly = notillo.access === 'read'
+	const canWrite = notillo.access === 'write'
+	const canComment = notillo.access !== 'read'
 	const {
 		pages,
 		pagesWithChildren,
@@ -86,11 +89,13 @@ export function NotilloApp() {
 		displayName: getAppBus().displayName,
 		access: notillo.access || 'read'
 	})
+	const { subscribeThreads } = comments
 
 	// Subscribe to page threads at app level for badge indicators
 	React.useEffect(() => {
-		if (!activePageId) {
+		if (!canComment || !activePageId) {
 			setPageThreads([])
+			setThreadCount(0)
 			return
 		}
 		const scope = `p:${activePageId}`
@@ -99,7 +104,7 @@ export function NotilloApp() {
 			setThreadCount(threads.filter((t) => t.status === 'open').length)
 		})
 		return unsubscribe
-	}, [comments.subscribeThreads, activePageId])
+	}, [canComment, subscribeThreads, activePageId])
 
 	// Comment badge indicators on editor blocks
 	const [focusBlockId, setFocusBlockId] = React.useState<string | undefined>()
@@ -285,12 +290,12 @@ export function NotilloApp() {
 		[notillo.ownerTag, notillo.token]
 	)
 
-	// Create indexes for queries
+	// Create indexes for queries (only writers — indexes persist once created)
 	React.useEffect(() => {
-		if (!notillo.client) return
+		if (!notillo.client || !canWrite) return
 		notillo.client.createIndex('p', 'pp').catch(console.error)
 		notillo.client.createIndex('p', 'tg').catch(console.error)
-	}, [notillo.client])
+	}, [notillo.client, canWrite])
 
 	// Auto-select initial page: deep link (nav param) or first root page
 	const resolvingRef = React.useRef(false)
@@ -381,6 +386,15 @@ export function NotilloApp() {
 		setPendingCommentAnchor(`b:${blockId}`)
 		setShowComments(true)
 	}, [])
+
+	// Hover comment button (desktop) and context menu (desktop + mobile)
+	const commentBlockIds = React.useMemo(() => new Set(blockThreadMap.keys()), [blockThreadMap])
+	useCommentBlockButton(canComment, commentBlockIds, handleCommentBlock)
+	useBlockContextMenu({
+		enabled: canComment,
+		isReadOnly: !canWrite,
+		onCommentBlock: handleCommentBlock
+	})
 
 	const handleTagClick = React.useCallback((tag: string) => {
 		setActiveTag(tag)
@@ -607,7 +621,7 @@ export function NotilloApp() {
 				style={{ display: 'none' }}
 				onChange={handleChildImportFileSelected}
 			/>
-			<Fcd.Container>
+			<Fcd.Container className="pt-2 g-2">
 				<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 					<Panel elevation="mid" className="c-vbox fill">
 						<PageSidebar
@@ -622,7 +636,7 @@ export function NotilloApp() {
 							activePageId={activePageId}
 							onSelectPage={handleSelectPage}
 							userId={notillo.idTag}
-							readOnly={isReadOnly}
+							readOnly={!canWrite}
 							tags={tags}
 							tagCounts={tagCounts}
 							activeTag={activeTag}
@@ -633,7 +647,7 @@ export function NotilloApp() {
 							filteredResults={filteredResults}
 							isFiltering={isFiltering}
 							onResubscribe={resubscribe}
-							onImportMarkdown={isReadOnly ? undefined : handleImportMarkdownInto}
+							onImportMarkdown={canWrite ? handleImportMarkdownInto : undefined}
 						/>
 					</Panel>
 				</Fcd.Filter>
@@ -644,9 +658,11 @@ export function NotilloApp() {
 							<PageHeader
 								client={notillo.client}
 								page={activePage}
-								readOnly={isReadOnly}
+								readOnly={!canWrite}
 								onToggleSidebar={() => setShowFilter(true)}
-								onToggleComments={() => setShowComments((s) => !s)}
+								onToggleComments={
+									canComment ? () => setShowComments((s) => !s) : undefined
+								}
 								commentCount={threadCount}
 								onSharePage={handleSharePage}
 								onShareDocument={handleShareDocument}
@@ -689,7 +705,7 @@ export function NotilloApp() {
 								initialBlocks={blocks}
 								knownBlockIds={knownBlockIds}
 								knownBlockOrders={knownBlockOrders}
-								readOnly={isReadOnly}
+								readOnly={!canWrite}
 								userId={notillo.idTag}
 								ownerTag={notillo.ownerTag}
 								token={notillo.token}
@@ -699,7 +715,7 @@ export function NotilloApp() {
 								onSelectPage={handleSelectPage}
 								onTagClick={handleTagClick}
 								onEditorReady={handleEditorReady}
-								onCommentBlock={isReadOnly ? undefined : handleCommentBlock}
+								onCommentBlock={canComment ? handleCommentBlock : undefined}
 								tags={tags}
 								pageTags={activePage.tags}
 							/>
@@ -710,7 +726,7 @@ export function NotilloApp() {
 								<>
 									<div className="text-3xl opacity-50 mb-3">📝</div>
 									<p>{t('No pages yet.')}</p>
-									{!isReadOnly && (
+									{canWrite && (
 										<p>{t('Create a page from the sidebar to get started.')}</p>
 									)}
 								</>
@@ -720,7 +736,7 @@ export function NotilloApp() {
 						</div>
 					)}
 				</Fcd.Content>
-				{showComments && (
+				{canComment && showComments && (
 					<Fcd.Details isVisible={showComments} hide={() => setShowComments(false)}>
 						<div className="c-vbox fill">
 							{activePageId && notillo.idTag && (
@@ -729,7 +745,7 @@ export function NotilloApp() {
 									threads={pageThreads}
 									pageId={activePageId}
 									idTag={notillo.idTag}
-									readOnly={isReadOnly}
+									readOnly={!canComment}
 									pendingAnchor={pendingCommentAnchor}
 									pendingOffset={pendingCommentOffset}
 									onPendingAnchorConsumed={() => {
@@ -745,13 +761,13 @@ export function NotilloApp() {
 				)}
 				<DialogContainer />
 			</Fcd.Container>
-			{popupBlockId && notillo.idTag && blockThreadMap.get(popupBlockId) && (
+			{canComment && popupBlockId && notillo.idTag && blockThreadMap.get(popupBlockId) && (
 				<CommentPopup
 					comments={comments}
 					threads={blockThreadMap.get(popupBlockId)!}
 					blockId={popupBlockId}
 					idTag={notillo.idTag}
-					readOnly={isReadOnly}
+					readOnly={!canComment}
 					onClose={() => setPopupBlockId(null)}
 				/>
 			)}

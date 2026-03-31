@@ -33,7 +33,7 @@ export function useNotillo() {
 	const [fileId, setFileId] = useState('')
 	const [ownerTag, setOwnerTag] = useState<string | undefined>()
 	const [idTag, setIdTag] = useState<string | undefined>()
-	const [access, setAccess] = useState<'read' | 'write'>('write')
+	const [access, setAccess] = useState<'read' | 'comment' | 'write'>('write')
 	const [darkMode, setDarkMode] = useState(false)
 	const [token, setToken] = useState<string | undefined>()
 	const [navParam, setNavParam] = useState<string | undefined>()

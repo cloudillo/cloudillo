@@ -91,7 +91,7 @@ export function useCommentIndicators(
 	font-size: 0.7rem;
 	font-weight: 600;
 	white-space: nowrap;
-	cursor: pointer;
+	pointer-events: none;
 	z-index: 5;
 }`)
 		}

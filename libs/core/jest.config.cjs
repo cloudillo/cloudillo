@@ -23,7 +23,8 @@ module.exports = {
 					strict: true,
 					skipLibCheck: true,
 					forceConsistentCasingInFileNames: true,
-					lib: ['es2022', 'dom', 'dom.iterable']
+					lib: ['es2022', 'dom', 'dom.iterable'],
+					types: ['jest']
 				}
 			}
 		]

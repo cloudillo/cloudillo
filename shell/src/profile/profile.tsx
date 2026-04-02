@@ -1012,7 +1012,7 @@ export function ProfileSettings({
 	const [activeContext] = useAtom(activeContextAtom)
 	const [settings, setSettings] = React.useState<Record<string, string | number | boolean>>({})
 	const [loading, setLoading] = React.useState(true)
-	const debounceTimers = React.useRef<Record<string, NodeJS.Timeout>>({})
+	const debounceTimers = React.useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
 	// Check if user has leader role (can edit settings)
 	// Use communityRoles prop (from proxy token) OR activeContext roles if we're in the viewed community

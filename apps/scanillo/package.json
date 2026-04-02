@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/scanillo-app",
-	"version": "0.8.11",
+	"version": "0.8.12",
 	"description": "Scanillo document scanner app",
 	"type": "module",
 	"main": "src/index.js",
@@ -17,19 +17,19 @@
 		"@cloudillo/core": "workspace:^",
 		"@cloudillo/react": "workspace:^",
 		"@cloudillo/rtdb": "workspace:^",
-		"@symbion/opalui": "^0.14.6",
+		"@symbion/opalui": "^0.14.7",
 		"@types/react": "^19.2.14",
 		"@types/react-dom": "^19.2.3",
 		"cross-env": "^10.1.0",
-		"esbuild": "^0.27.4",
+		"esbuild": "^0.27.5",
 		"jscanify": "^1.4.2",
 		"pdf-lib": "^1.17.1",
 		"react": "^19.2.4",
 		"react-dom": "^19.2.4",
 		"react-icons": "^5.6.0",
-		"react-router-dom": "^7.13.1",
+		"react-router-dom": "^7.13.2",
 		"rimraf": "^6.1.3",
 		"tslib": "^2.8.1",
-		"typescript": "^5.9.3"
+		"typescript": "^6.0.2"
 	}
 }

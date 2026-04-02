@@ -31,26 +31,17 @@ i18n.use(initReactI18next)
 		// debug: true,
 		interpolation: {
 			//escapeValue: false,
-			format: (value, rawFormat, lng) => {
-				if (rawFormat) {
-					const [format, ...additionalValues] = rawFormat.split(',').map((v) => v.trim())
-					switch (format) {
-						case 'uppercase':
-							return value.toUpperCase()
-						case 'number':
-							return typeof value == 'number'
-								? Intl.NumberFormat(lng).format(value)
-								: additionalValues[0] || '-'
-						case 'price':
-							return typeof value == 'number'
-								? Intl.NumberFormat(lng).format(value) + '-'
-								: additionalValues[0] || '-'
-					}
-				}
-			}
 		}
 	})
 	.catch()
+
+i18n.services.formatter?.add('uppercase', (value: string) => value.toUpperCase())
+i18n.services.formatter?.add('number', (value: unknown, lng?: string) =>
+	typeof value == 'number' ? Intl.NumberFormat(lng).format(value) : '-'
+)
+i18n.services.formatter?.add('price', (value: unknown, lng?: string) =>
+	typeof value == 'number' ? Intl.NumberFormat(lng).format(value) + '-' : '-'
+)
 
 export default i18n
 

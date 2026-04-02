@@ -1,12 +1,4 @@
 {
 	"extends": "../tsconfig-app-base.json",
-	"compilerOptions": {
-		"rootDir": "src",
-		"baseUrl": ".",
-		"paths": {
-			"~/*": ["./*"]
-		}
-	},
-	"include": ["src/**/*"],
-	"exclude": ["node_modules", "dist", "lib"]
+	"include": ["src/**/*"]
 }

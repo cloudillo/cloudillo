@@ -26,7 +26,7 @@ export function useSettings(prefix: string | string[]) {
 		() => (Array.isArray(prefix) ? prefix.join(',') : prefix),
 		[prefix]
 	)
-	const debounceTimers = React.useRef<Record<string, NodeJS.Timeout>>({})
+	const debounceTimers = React.useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
 	React.useEffect(
 		function loadSettings() {

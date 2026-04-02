@@ -143,7 +143,6 @@ export function NotilloApp() {
 	React.useEffect(() => {
 		if (!notillo.client || !notillo.idTag || !importPayload) return
 		const payload = importPayload
-		setImportPayload(null)
 
 		let cancelled = false
 		const bus = getAppBus()
@@ -154,6 +153,7 @@ export function NotilloApp() {
 				if (cancelled) return
 				setPendingImport({ markdown: payload.markdown, pageId, source: 'shell' })
 				setActivePageId(pageId)
+				setImportPayload(null)
 			} catch (err) {
 				if (cancelled) return
 				console.error('[Notillo] Markdown import failed:', err)
@@ -161,6 +161,7 @@ export function NotilloApp() {
 					false,
 					err instanceof Error ? err.message : 'Import failed'
 				)
+				setImportPayload(null)
 			}
 		})()
 		return () => {

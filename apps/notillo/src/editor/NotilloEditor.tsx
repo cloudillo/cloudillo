@@ -4,7 +4,7 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import type { Block } from '@blocknote/core'
+import { type Block, UniqueID } from '@blocknote/core'
 import { filterSuggestionItems } from '@blocknote/core/extensions'
 import {
 	useCreateBlockNote,
@@ -36,6 +36,14 @@ import { useBlockLocks } from '../hooks/useBlockLocks.js'
 import { useLockIndicators } from '../hooks/useLockIndicators.js'
 import { usePageTagSync } from '../hooks/usePageTagSync.js'
 import { useMediaHandler } from './useMediaHandler.js'
+
+// Override BlockNote's UUID generator with short base-62 IDs.
+// UniqueID.options is a getter (returns fresh object each access),
+// so we must patch config.addOptions instead of direct assignment.
+const _origAddOptions = UniqueID.config.addOptions!
+UniqueID.config.addOptions = function () {
+	return { ..._origAddOptions.call(this), generateID: shortId }
+}
 
 function CommentBlockMenuItem({
 	children,
@@ -150,7 +158,6 @@ export const NotilloEditor = React.memo(
 			schema: notilloSchema,
 			// biome-ignore lint/suspicious/noExplicitAny: BlockNote initialContent type boundary with custom schema
 			initialContent: initialBlocks.length > 0 ? (initialBlocks as any) : undefined,
-			idFactory: shortId,
 			resolveFileUrl
 		})
 

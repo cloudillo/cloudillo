@@ -60,7 +60,7 @@ function compactSnapGuide(guide: SnapGuide): StoredSnapGuide {
  * Expand stored gradient to runtime format
  */
 function expandGradient(stored?: StoredBackgroundGradient): Gradient | undefined {
-	if (!stored || !stored.gt) return undefined
+	if (!stored?.gt) return undefined
 
 	if (stored.gt === 'l') {
 		return {
@@ -634,7 +634,7 @@ export function removeTemplateFromView(
 	}
 ): void {
 	const view = doc.v.get(viewId)
-	if (!view || !view.tpl) return
+	if (!view?.tpl) return
 
 	const templateId = view.tpl
 	const protoIds = doc.tpo.get(templateId)?.toArray() || []
@@ -719,7 +719,7 @@ export function updateSnapGuide(
 	guide: SnapGuide
 ): void {
 	const stored = doc.tpl.get(templateId)
-	if (!stored || !stored.sg || index < 0 || index >= stored.sg.length) return
+	if (!stored?.sg || index < 0 || index >= stored.sg.length) return
 
 	yDoc.transact(() => {
 		const updated = { ...stored }
@@ -740,7 +740,7 @@ export function removeSnapGuide(
 	index: number
 ): void {
 	const stored = doc.tpl.get(templateId)
-	if (!stored || !stored.sg || index < 0 || index >= stored.sg.length) return
+	if (!stored?.sg || index < 0 || index >= stored.sg.length) return
 
 	yDoc.transact(() => {
 		const updated = { ...stored }

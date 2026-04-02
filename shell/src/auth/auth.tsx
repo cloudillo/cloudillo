@@ -158,7 +158,7 @@ export function LoginForm() {
 		evt.preventDefault()
 
 		try {
-			if (!api || !api.idTag) {
+			if (!api?.idTag) {
 				setError('Identity tag not set')
 				return
 			}
@@ -195,7 +195,7 @@ export function LoginForm() {
 		if (!api) return
 
 		// Basic email validation
-		if (!email || !email.includes('@')) {
+		if (!email?.includes('@')) {
 			setForgotError(t('Please enter a valid email address'))
 			return
 		}
@@ -398,7 +398,7 @@ export function Password() {
 			return
 		}
 		try {
-			if (!api || !api.idTag) {
+			if (!api?.idTag) {
 				setError('Not authenticated')
 				return
 			}

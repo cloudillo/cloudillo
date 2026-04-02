@@ -204,7 +204,7 @@ async function checkQuota(ns: string, fullKey: string, value: unknown): Promise<
  */
 function updateQuotaOnSet(ns: string, fullKey: string, value: unknown): void {
 	const quota = namespaceQuotas.get(ns)
-	if (!quota || !quota.initialized) return
+	if (!quota?.initialized) return
 
 	const newSize = JSON.stringify(value).length
 	const existingSize = quota.keySizes.get(fullKey) || 0
@@ -217,7 +217,7 @@ function updateQuotaOnSet(ns: string, fullKey: string, value: unknown): void {
  */
 function updateQuotaOnDelete(ns: string, fullKey: string): void {
 	const quota = namespaceQuotas.get(ns)
-	if (!quota || !quota.initialized) return
+	if (!quota?.initialized) return
 
 	const existingSize = quota.keySizes.get(fullKey) || 0
 	quota.totalSize -= existingSize

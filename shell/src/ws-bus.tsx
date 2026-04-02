@@ -67,7 +67,7 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 
 	React.useEffect(
 		function init() {
-			if (!auth || !auth.idTag || !auth.token) {
+			if (!auth?.idTag || !auth.token) {
 				// Close existing connection if auth becomes invalid
 				if (wsRef.current) {
 					wsRef.current.close()

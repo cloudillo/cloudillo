@@ -48,7 +48,7 @@ export function TemplateFrame({
 
 	// Generate gradient definition
 	const gradientDef = React.useMemo(() => {
-		if (!hasGradient || !gradient || !gradient.stops) return null
+		if (!hasGradient || !gradient?.stops) return null
 
 		if (gradient.type === 'linear') {
 			return {

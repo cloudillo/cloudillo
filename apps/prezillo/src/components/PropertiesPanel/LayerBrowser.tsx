@@ -225,7 +225,7 @@ export function LayerBrowser({
 	const handleDragLeave = React.useCallback((e: React.DragEvent) => {
 		// Only clear if leaving the tree entirely
 		const relatedTarget = e.relatedTarget as Element | null
-		if (!relatedTarget || !relatedTarget.closest?.('.c-tree-view')) {
+		if (!relatedTarget?.closest?.('.c-tree-view')) {
 			setDropTarget(null)
 		}
 	}, [])

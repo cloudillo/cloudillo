@@ -1004,7 +1004,7 @@ export function App() {
 		[api, cloudillo]
 	)
 
-	if (!cloudillo || !cloudillo.fileId || !form) {
+	if (!cloudillo?.fileId || !form) {
 		return <div>Loading...</div>
 	}
 

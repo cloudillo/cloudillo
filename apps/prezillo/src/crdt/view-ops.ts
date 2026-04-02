@@ -572,7 +572,7 @@ export function resetViewBackgroundToTemplate(
 	property: BackgroundProperty | 'all'
 ): void {
 	const view = doc.v.get(viewId)
-	if (!view || !view.tpl) return
+	if (!view?.tpl) return
 
 	yDoc.transact(() => {
 		const updated = { ...view }

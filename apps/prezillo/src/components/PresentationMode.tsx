@@ -390,7 +390,7 @@ const PresentationSlide = React.memo(function PresentationSlide({
 	const gradientId = `pres-bg-${view.id}`
 
 	const gradientDef = React.useMemo(() => {
-		if (!hasGradient || !gradient || !gradient.stops) return null
+		if (!hasGradient || !gradient?.stops) return null
 
 		if (gradient.type === 'linear') {
 			return {

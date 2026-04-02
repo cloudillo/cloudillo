@@ -58,7 +58,7 @@ export function useTextHandler(options: UseTextHandlerOptions) {
 	}, [])
 
 	const commitText = React.useCallback(() => {
-		if (!textInput || !textInput.text.trim()) {
+		if (!textInput?.text.trim()) {
 			setTextInput(null)
 			return
 		}

@@ -330,7 +330,7 @@ export function ViewPicker({
 	const handleDragLeave = React.useCallback((e: React.DragEvent) => {
 		// Only clear if leaving the tabs container entirely
 		const relatedTarget = e.relatedTarget as Element | null
-		if (!relatedTarget || !relatedTarget.closest?.('.c-view-picker-tabs')) {
+		if (!relatedTarget?.closest?.('.c-view-picker-tabs')) {
 			setDropTarget(null)
 		}
 	}, [])

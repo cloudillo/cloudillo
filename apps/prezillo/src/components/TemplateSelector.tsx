@@ -191,7 +191,7 @@ export function TemplateSelector({ doc, yDoc, viewId, disabled }: TemplateSelect
  * Format gradient for preview swatch
  */
 function formatGradientPreview(gradient: Template['backgroundGradient']): string | undefined {
-	if (!gradient || !gradient.stops || gradient.stops.length < 2) return undefined
+	if (!gradient?.stops || gradient.stops.length < 2) return undefined
 
 	const stops = gradient.stops
 		.map((s) => `${s.color} ${(s.position * 100).toFixed(0)}%`)

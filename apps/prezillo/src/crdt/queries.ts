@@ -449,7 +449,7 @@ export function getContainerAncestry(
  */
 export function getObjectAncestry(doc: YPrezilloDocument, objectId: ObjectId): ContainerNode[] {
 	const object = doc.o.get(objectId)
-	if (!object || !object.p) return []
+	if (!object?.p) return []
 
 	return getContainerAncestry(doc, toContainerId(object.p))
 }

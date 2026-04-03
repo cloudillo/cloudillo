@@ -107,7 +107,7 @@ interface SidebarProps {
 	className?: string
 }
 
-export function Sidebar({ className }: SidebarProps) {
+export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
 	const [activeContext] = useAtom(activeContextAtom)
@@ -260,4 +260,4 @@ export function Sidebar({ className }: SidebarProps) {
 			/>
 		</>
 	)
-}
+})

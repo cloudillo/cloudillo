@@ -409,8 +409,6 @@ function Header({ inert }: { inert?: boolean }) {
 			const appConfig = APP_CONFIG
 			setAppConfig(appConfig)
 
-			// Set initial theme with system color scheme listener
-			setTheme(undefined, undefined)
 			;(async function () {
 				if (!api?.idTag || auth === undefined) {
 					// Guard against duplicate effect execution (StrictMode / double fire)
@@ -499,9 +497,8 @@ function Header({ inert }: { inert?: boolean }) {
 						}
 
 						if (authState?.idTag) {
-							setAuth(authState)
-
-							// Load and apply UI settings
+							// Load UI settings BEFORE setAuth to batch all state
+							// updates into a single React render cycle
 							try {
 								const uiSettings = await tempApi.settings.list({ prefix: 'ui' })
 								const theme = uiSettings.find((s) => s.key === 'ui.theme')?.value
@@ -509,7 +506,6 @@ function Header({ inert }: { inert?: boolean }) {
 								const onboarding = uiSettings.find(
 									(s) => s.key === 'ui.onboarding'
 								)?.value
-								setTheme(theme as string | undefined, colors as string | undefined)
 
 								// Apply custom app menu config if available
 								let appMenuVal: unknown = uiSettings.find(
@@ -543,6 +539,10 @@ function Header({ inert }: { inert?: boolean }) {
 									setFavorites(pinnedVal as string[])
 								}
 
+								// Batch: setAuth + setTheme in same synchronous block
+								setAuth(authState)
+								setTheme(theme as string | undefined, colors as string | undefined)
+
 								const navTo =
 									(onboarding && `/onboarding/${onboarding}`) ||
 									activeConfig?.menu
@@ -554,6 +554,9 @@ function Header({ inert }: { inert?: boolean }) {
 								}
 							} catch (err) {
 								console.error('Failed to load UI settings:', err)
+								// Settings failed — still authenticate with default theme
+								setAuth(authState)
+								setTheme(undefined, undefined)
 								const navTo =
 									appConfig?.menu
 										?.find((m) => m.id === appConfig.defaultMenu)
@@ -567,6 +570,7 @@ function Header({ inert }: { inert?: boolean }) {
 						}
 
 						// Guest mode: signal auth resolved as unauthenticated
+						setTheme(undefined, undefined)
 						setAuth(null)
 						const guestRedirect = getGuestRedirect(location.pathname, ownerIdTag)
 						if (guestRedirect) {

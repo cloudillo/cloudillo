@@ -29,6 +29,10 @@ export class CrdtPersistence {
 		const updates = await this.bus.crdtCacheRead(this.docId)
 		if (!updates || updates.length === 0) return false
 
+		// Yield to the browser event loop so Chrome's 'message' handler
+		// measurement completes before expensive Y.js processing.
+		await new Promise<void>((resolve) => setTimeout(resolve, 0))
+
 		Y.transact(
 			this.yDoc,
 			() => {

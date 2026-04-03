@@ -30,11 +30,9 @@ import {
 	resolveShapeStyle,
 	resolveTextStyle,
 	DEFAULT_SHAPE_STYLE,
-	DEFAULT_TEXT_STYLE,
-	getObjectsInViewInZOrder,
-	toViewId,
-	getAbsolutePositionStored
+	DEFAULT_TEXT_STYLE
 } from '../crdt'
+import { getViewObjects } from './view-objects'
 import { calculateRotationTransform, buildStrokeProps, buildFillProps } from '../utils'
 import { getSymbolById } from '../data/symbol-library'
 import { calculateGridPositions } from '../components/TableGridRenderer'
@@ -56,37 +54,6 @@ const DEFAULT_HEIGHT = 1080
 
 // PDF points per pixel (72 DPI)
 const _POINTS_PER_PIXEL = 72 / 96
-
-/**
- * Get objects for a specific view/slide using the correct CRDT query
- * This properly filters:
- * - Page-relative objects: only included if on THIS page
- * - Floating objects: only included if spatially intersecting with view
- * - Prototype objects: excluded (they're for templates)
- *
- * Transforms object coordinates to view-relative coordinates (0,0 = view origin)
- * so they render correctly in SVG with viewBox starting at 0,0.
- */
-function getViewObjects(doc: YPrezilloDocument, view: ViewNode): PrezilloObject[] {
-	const objects = getObjectsInViewInZOrder(doc, toViewId(view.id))
-
-	// Transform to view-relative coordinates
-	return objects.map((obj) => {
-		const stored = doc.o.get(obj.id)
-		if (!stored) return obj
-
-		// Get global position (handles page-relative + container hierarchy)
-		const globalPos = getAbsolutePositionStored(doc, stored)
-		if (!globalPos) return obj
-
-		// Convert to view-relative coordinates (subtract view origin)
-		return {
-			...obj,
-			x: globalPos.x - view.x,
-			y: globalPos.y - view.y
-		}
-	})
-}
 
 /**
  * Convert percentage string to decimal (e.g., "50%" -> "0.5")
@@ -712,8 +679,11 @@ export async function exportToPDF(
 			pdf.addPage([vPdfWidth, vPdfHeight], vPdfWidth > vPdfHeight ? 'landscape' : 'portrait')
 		}
 
+		// Filter out invisible and presentation-mode-hidden objects
+		const visibleObjects = viewObjects.filter((obj) => obj.visible && !obj.hidden)
+
 		// Render slide to SVG
-		const svg = await renderSlideToSVG(view, viewObjects, context)
+		const svg = await renderSlideToSVG(view, visibleObjects, context)
 
 		// Convert SVG to PDF using THIS view's dimensions
 		await svg2pdf(svg, pdf, {

@@ -38,6 +38,20 @@ const pendingTempIds = new Map<
 	{ yDoc: Y.Doc; doc: YPrezilloDocument; objectId: ObjectId }
 >()
 
+/**
+ * Register a temp file ID for resolution.
+ * Used by PPTX import to share the same resolution listener as MediaPicker.
+ * The existing `media:file.resolved` listener in `useImageHandler` handles the update.
+ */
+export function registerPendingImageTempId(
+	tempId: string,
+	yDoc: Y.Doc,
+	doc: YPrezilloDocument,
+	objectId: ObjectId
+): void {
+	pendingTempIds.set(tempId, { yDoc, doc, objectId })
+}
+
 export function useImageHandler(options: UseImageHandlerOptions) {
 	const { yDoc, doc, enabled, documentFileId, onObjectCreated, onInsertComplete } = options
 
@@ -63,7 +77,7 @@ export function useImageHandler(options: UseImageHandlerOptions) {
 		bus.on('media:file.resolved', handleFileResolved)
 
 		return () => {
-			bus.off('media:file.resolved')
+			bus.off('media:file.resolved', handleFileResolved)
 		}
 	}, [])
 

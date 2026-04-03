@@ -13,7 +13,19 @@ export const manifest: AppManifest = {
 	icon: 'presentation',
 	description: 'Collaborative presentations',
 	contentTypes: [
-		{ mimeType: 'cloudillo/prezillo', actions: ['view', 'edit', 'create'], priority: 'primary' }
+		{
+			mimeType: 'cloudillo/prezillo',
+			actions: ['view', 'edit', 'create'],
+			priority: 'primary',
+			importFrom: [
+				{
+					mimeType:
+						'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+					label: 'PowerPoint Presentation',
+					extensions: ['.pptx']
+				}
+			]
+		}
 	],
 	launchModes: [
 		{

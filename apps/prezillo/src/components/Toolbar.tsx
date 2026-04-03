@@ -29,6 +29,7 @@ import {
 	PiArrowArcRightBold as IcRedo,
 	PiExportBold as IcExport,
 	PiFilePdfBold as IcPDF,
+	PiFilePptBold as IcPPTX,
 	PiGridFourBold as IcGrid,
 	PiMagnetBold as IcSnapObjects,
 	PiArrowsOutSimpleBold as IcSnapSizes,
@@ -93,6 +94,7 @@ export interface ToolbarCmds {
 	onRedo?: () => void
 	onExport?: () => void
 	onExportPDF?: () => void
+	onExportPPTX?: () => void
 	onCheckDocument?: () => void
 }
 
@@ -108,6 +110,7 @@ export interface ToolbarProps {
 	canUndo: boolean
 	canRedo: boolean
 	isExportingPDF?: boolean
+	isExportingPPTX?: boolean
 	// Grouped props
 	cmds: ToolbarCmds
 	zCmds: ToolbarZCmds
@@ -132,6 +135,7 @@ export function Toolbar({
 	canUndo,
 	canRedo,
 	isExportingPDF,
+	isExportingPPTX,
 	cmds,
 	zCmds,
 	snap,
@@ -188,6 +192,16 @@ export function Toolbar({
 				title="Export to PDF"
 			>
 				<IcPDF />
+			</button>
+
+			{/* PPTX Export */}
+			<button
+				onClick={cmds.onExportPPTX}
+				className="c-button icon"
+				disabled={isExportingPPTX}
+				title="Export to PowerPoint"
+			>
+				<IcPPTX />
 			</button>
 
 			<div className="c-toolbar-divider" />
@@ -570,6 +584,19 @@ export function Toolbar({
 								<IcExport />
 							</span>
 							<span className="c-menu-item-label">Export to JSON</span>
+						</button>
+						<button
+							onClick={() => {
+								cmds.onExportPPTX?.()
+								setMenuOpen(false)
+							}}
+							className="c-menu-item"
+							disabled={isExportingPPTX}
+						>
+							<span className="c-menu-item-icon">
+								<IcPPTX />
+							</span>
+							<span className="c-menu-item-label">Export to PowerPoint</span>
 						</button>
 						<div className="c-menu-divider" />
 						<button

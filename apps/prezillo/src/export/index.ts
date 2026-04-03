@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 /**
- * PDF Export module for Prezillo presentations
+ * Export modules for Prezillo presentations
  *
- * Provides browser-based PDF generation using svg2pdf.js + jsPDF.
- * Converts foreignObject elements (text, QR codes) to native SVG
- * for proper PDF conversion.
+ * - PDF: svg2pdf.js + jsPDF (vector PDF)
+ * - PPTX: PptxGenJS (native PowerPoint shapes)
  */
 
 export { exportToPDF, downloadPDF } from './pdf-export.js'
+export { exportToPPTX, downloadPPTX } from './pptx-export.js'
 export type { PDFExportOptions, RenderContext, Bounds } from './types.js'
+export type { PPTXExportOptions } from './pptx-export.js'
 
 // vim: ts=4

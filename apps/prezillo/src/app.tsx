@@ -116,7 +116,7 @@ import {
 	getStackedObjects
 } from './crdt'
 
-import { downloadPDF } from './export'
+import { downloadPDF, downloadPPTX } from './export'
 
 //////////////
 // Main App //
@@ -278,14 +278,83 @@ export function PrezilloApp() {
 		}
 	}, [prezillo.cloudillo.params, prezillo.activePresenters, prezillo.followPresenter])
 
+	// Handle PPTX import via smart upload (shell sends file data via message bus)
+	// Registered unconditionally — import data may arrive at the same time as synced,
+	// so we must have the listener ready before the shell delivers the message.
+	// We store the ref to yDoc/doc so the async handler always uses current values.
+	const importContextRef = React.useRef({
+		yDoc: prezillo.yDoc,
+		doc: prezillo.doc,
+		ownerTag: prezillo.cloudillo.ownerTag,
+		token: prezillo.cloudillo.token,
+		fileId: prezillo.cloudillo.fileId
+	})
+	importContextRef.current = {
+		yDoc: prezillo.yDoc,
+		doc: prezillo.doc,
+		ownerTag: prezillo.cloudillo.ownerTag,
+		token: prezillo.cloudillo.token,
+		fileId: prezillo.cloudillo.fileId
+	}
+
+	React.useEffect(() => {
+		const bus = getAppBus()
+		const cleanup = bus.onImportData(async (payload) => {
+			console.log(
+				'[Prezillo] Received import data:',
+				payload.sourceMimeType,
+				payload.fileName
+			)
+			const ctx = importContextRef.current
+			try {
+				const { importPptx } = await import('./import/import-pptx')
+				// Decode base64 to ArrayBuffer (strip whitespace for encoders that insert line breaks)
+				const binary = atob(payload.data.replace(/\s/g, ''))
+				const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0))
+
+				if (!ctx.ownerTag || !ctx.token || !ctx.fileId) {
+					console.warn(
+						'[Prezillo] Import: credentials not yet available, images will be placeholders'
+					)
+				}
+				const result = await importPptx(
+					ctx.yDoc,
+					ctx.doc,
+					bytes.buffer,
+					ctx.ownerTag && ctx.token && ctx.fileId
+						? {
+								ownerTag: ctx.ownerTag,
+								token: ctx.token,
+								documentFileId: ctx.fileId
+							}
+						: undefined
+				)
+				console.log('[Prezillo] Import complete:', result)
+				if (result.warnings.length > 0) {
+					console.warn('[Prezillo] Import warnings:', result.warnings)
+				}
+				bus.notifyImportComplete(true)
+			} catch (err) {
+				console.error('[Prezillo] Import failed:', err)
+				bus.notifyImportComplete(
+					false,
+					err instanceof Error ? err.message : 'Import failed'
+				)
+			}
+		})
+
+		return cleanup
+	}, [])
+
 	// Mobile detection
 	const isMobile = useIsMobile()
 
 	// Properties panel visibility (desktop)
 	const [isPanelVisible, setIsPanelVisible] = React.useState(true)
 
-	// PDF export state
+	// Export state
 	const [isExportingPDF, setIsExportingPDF] = React.useState(false)
+	const [isExportingPPTX, setIsExportingPPTX] = React.useState(false)
 
 	// Symbol picker state
 	const [selectedSymbolId, setSelectedSymbolId] = React.useState<string | null>(null)
@@ -298,6 +367,9 @@ export function PrezilloApp() {
 	const isDraggingFromHandleRef = React.useRef(false)
 	// Ref to track when properties panel is clicked (prevents blur from closing editor)
 	const isPanelClickRef = React.useRef(false)
+
+	// Track if we just finished an interaction (resize/rotate/pivot) to prevent canvas click from clearing selection
+	const justFinishedInteractionRef = React.useRef(false)
 
 	// Text editing (extracted hook)
 	const {
@@ -410,9 +482,6 @@ export function PrezilloApp() {
 	const canvasContainerRef = React.useRef<HTMLDivElement | null>(null)
 	// Ref for context menu (to check if click is inside)
 	const objectMenuRef = React.useRef<HTMLDivElement | null>(null)
-
-	// Track if we just finished an interaction (resize/rotate/pivot) to prevent canvas click from clearing selection
-	const justFinishedInteractionRef = React.useRef(false)
 
 	// Track if page zoom was triggered from ViewPicker (explicit navigation should always zoom)
 	const forceZoomRef = React.useRef(false)
@@ -848,6 +917,7 @@ export function PrezilloApp() {
 					canUndo={prezillo.canUndo}
 					canRedo={prezillo.canRedo}
 					isExportingPDF={isExportingPDF}
+					isExportingPPTX={isExportingPPTX}
 					cmds={{
 						onDelete: handleDelete,
 						onDuplicate: handleDuplicate,
@@ -872,6 +942,23 @@ export function PrezilloApp() {
 									console.error('PDF export failed:', error)
 								} finally {
 									setIsExportingPDF(false)
+								}
+							}
+						},
+						onExportPPTX: async () => {
+							if (!isExportingPPTX && prezillo.doc && views.length > 0) {
+								setIsExportingPPTX(true)
+								try {
+									await downloadPPTX(
+										prezillo.doc,
+										views,
+										prezillo.cloudillo.ownerTag,
+										prezillo.cloudillo.token
+									)
+								} catch (error) {
+									console.error('PPTX export failed:', error)
+								} finally {
+									setIsExportingPPTX(false)
 								}
 							}
 						},

@@ -97,6 +97,7 @@
 		"yjs": "^13.6.30"
 	},
 	"dependencies": {
+		"marked": "^18.0.0",
 		"pdfjs-dist": "^5.6.205"
 	}
 }

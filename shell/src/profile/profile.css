@@ -69,11 +69,6 @@
 @media screen and (max-width: 768px) {
 	.c-profile-pic {
 		width: 8rem;
-		left: 2rem;
-		bottom: 4rem;
-	}
-	.c-profile-pic {
-		width: 8rem;
 	}
 	/*
 	.c-profile-header { height: 4rem; padding-left: 12rem; }
@@ -85,3 +80,160 @@
 
 /* vim: ts=4
  */
+
+/* ==========================================================================
+   About Section Editor
+   ========================================================================== */
+
+.c-about-toolbar {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	background: var(--col-surface);
+	border-radius: var(--border-radius-lg);
+	border-bottom: 1px solid var(--col-container);
+}
+
+.c-about-add-btn {
+	border: 2px dashed var(--col-container);
+	border-radius: var(--border-radius-lg);
+	justify-content: center;
+	color: var(--col-primary);
+	opacity: 0.7;
+}
+
+.c-about-add-btn:hover {
+	opacity: 1;
+}
+
+.c-about-drag-item {
+	transition:
+		opacity 0.15s ease,
+		border-color 0.1s ease;
+	border-top: 2px solid transparent;
+	border-bottom: 2px solid transparent;
+}
+
+.c-about-drag-item.dragging {
+	opacity: 0.4;
+}
+.c-about-drag-item.drop-above {
+	border-top-color: var(--col-primary);
+}
+.c-about-drag-item.drop-below {
+	border-bottom-color: var(--col-primary);
+}
+
+.c-drag-handle {
+	cursor: grab;
+	opacity: 0.4;
+	touch-action: none;
+	padding: 0.25rem;
+}
+
+.c-drag-handle:hover {
+	opacity: 0.7;
+}
+
+.c-vis-badge {
+	font-size: 0.7rem;
+	padding: 0.15rem 0.5rem;
+	border-radius: var(--border-radius-sm);
+}
+
+.c-vis-badge.vis-public {
+	color: var(--col-success);
+	background: lch(from var(--col-success) l c h / 0.12);
+}
+.c-vis-badge.vis-follower {
+	color: var(--col-primary);
+	background: lch(from var(--col-primary) l c h / 0.12);
+}
+.c-vis-badge.vis-connected {
+	color: var(--col-warning);
+	background: lch(from var(--col-warning) l c h / 0.12);
+}
+.c-vis-badge.vis-role {
+	color: var(--col-secondary);
+	background: lch(from var(--col-secondary) l c h / 0.12);
+}
+
+.c-section-icon {
+	opacity: 0.6;
+}
+
+/* ==========================================================================
+   2-Column Layout View (read-only)
+   ========================================================================== */
+
+.c-cols-view {
+	display: flex;
+	gap: 0.5rem;
+}
+
+.c-cols-view > * {
+	flex: 1;
+	min-width: 0;
+}
+
+@media (max-width: 768px) {
+	.c-cols-view {
+		flex-direction: column;
+	}
+}
+
+/* ==========================================================================
+   2-Column Layout Container (editor)
+   ========================================================================== */
+
+.c-cols-container {
+	border: 1px solid var(--col-container);
+	border-radius: var(--border-radius-lg);
+	background: lch(from var(--col-container) l c h / 0.3);
+}
+
+.c-cols-header {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.5rem;
+	cursor: grab;
+}
+
+.c-cols-body {
+	display: flex;
+	gap: 0.5rem;
+	padding: 0 0.5rem 0.5rem;
+}
+
+.c-cols-body > * {
+	flex: 1;
+	min-width: 0;
+}
+
+.c-cols-empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 4rem;
+	border: 2px dashed var(--col-container);
+	border-radius: var(--border-radius-lg);
+	transition:
+		border-color 0.15s ease,
+		background 0.15s ease;
+}
+
+.c-cols-empty.drop-ready {
+	border-color: lch(from var(--col-primary) l c h / 0.5);
+}
+
+.c-cols-empty.drop-target {
+	border-color: var(--col-primary);
+	background: lch(from var(--col-primary) l c h / 0.08);
+}
+
+@media (max-width: 768px) {
+	.c-cols-body {
+		flex-direction: column;
+	}
+}

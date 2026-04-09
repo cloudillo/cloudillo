@@ -32,6 +32,127 @@ export const ROLE_LEVELS: Record<CommunityRole, number> = {
 	leader: 5
 }
 
+// ============================================================================
+// PROFILE SECTIONS
+// ============================================================================
+
+// Section types available for profile about page
+export const tSectionType = T.literal(
+	'about',
+	'contact',
+	'location',
+	'links',
+	'work',
+	'education',
+	'skills',
+	'rules',
+	'custom'
+)
+export type SectionType = T.TypeOf<typeof tSectionType>
+
+// Section visibility for personal profiles
+export const tPersonalVisibility = T.literal('P', 'F', 'C')
+export type PersonalVisibility = T.TypeOf<typeof tPersonalVisibility>
+
+// Section visibility for community profiles (role-based)
+export const tCommunityVisibility = T.literal(
+	'P',
+	'follower',
+	'supporter',
+	'contributor',
+	'moderator',
+	'leader'
+)
+export type CommunityVisibility = T.TypeOf<typeof tCommunityVisibility>
+
+// Generic link icon options
+export const tLinkIcon = T.literal(
+	'globe',
+	'mail',
+	'phone',
+	'map-pin',
+	'code',
+	'video',
+	'music',
+	'book',
+	'briefcase',
+	'heart',
+	'star',
+	'message',
+	'rss',
+	'file'
+)
+export type LinkIcon = T.TypeOf<typeof tLinkIcon>
+
+// Tab configuration entry
+export const tTabEntry = T.struct({
+	id: T.string,
+	visible: T.boolean,
+	order: T.number,
+	label: T.optional(T.string)
+})
+export type TabEntry = T.TypeOf<typeof tTabEntry>
+
+// Tab configuration
+export const tTabConfig = T.struct({
+	tabs: T.array(tTabEntry),
+	defaultTab: T.optional(T.string)
+})
+export type TabConfig = T.TypeOf<typeof tTabConfig>
+
+// Section content types (structured sections store JSON-encoded content)
+export interface ContactContent {
+	email?: string
+	phone?: string
+	website?: string
+}
+
+export interface LinkEntry {
+	label: string
+	url: string
+	icon?: LinkIcon
+}
+
+export interface LinksContent {
+	links: LinkEntry[]
+}
+
+export interface LocationContent {
+	city?: string
+	country?: string
+	address?: string
+}
+
+export interface WorkEntry {
+	org: string
+	role?: string
+	from?: string
+	to?: string
+}
+
+export interface WorkContent {
+	entries: WorkEntry[]
+}
+
+export interface EducationEntry {
+	school: string
+	degree?: string
+	from?: string
+	to?: string
+}
+
+export interface EducationContent {
+	entries: EducationEntry[]
+}
+
+export interface SkillsContent {
+	tags: string[]
+}
+
+// ============================================================================
+// PROFILE
+// ============================================================================
+
 export const tProfile = T.struct({
 	idTag: T.string,
 	name: T.optional(T.string),
@@ -40,7 +161,8 @@ export const tProfile = T.struct({
 	status: T.optional(tProfileStatus),
 	connected: T.optional(tProfileConnectionStatus),
 	following: T.optional(T.boolean),
-	roles: T.optional(T.array(T.string)) // Community roles (e.g., ['leader'], ['moderator'])
+	roles: T.optional(T.array(T.string)), // Community roles (e.g., ['leader'], ['moderator'])
+	x: T.optional(T.record(T.string))
 })
 export type Profile = T.TypeOf<typeof tProfile>
 

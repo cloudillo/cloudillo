@@ -716,10 +716,7 @@ export type ListTagsResult = T.TypeOf<typeof tListTagsResult>
 // Request types
 export interface ProfilePatch {
 	name?: string
-	x?: {
-		category?: string | null
-		intro?: string | null
-	}
+	x?: Record<string, string | null>
 }
 
 // Admin profile update (for role changes, status updates)
@@ -764,7 +761,8 @@ export const tProfileKeys = T.struct({
 			connectionMode: T.optional(T.literal('M', 'A', 'I')),
 			allowFollowers: T.optional(T.boolean)
 		})
-	)
+	),
+	x: T.optional(T.record(T.string))
 })
 export type ProfileKeys = T.TypeOf<typeof tProfileKeys>
 

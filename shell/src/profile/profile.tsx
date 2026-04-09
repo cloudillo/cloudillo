@@ -4,10 +4,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, NavLink, Routes, Route, useParams, useLocation } from 'react-router-dom'
-import Markdown from 'react-markdown'
-import ReactQuill, { Quill } from 'react-quill-new'
-import QuillMarkdown from 'quilljs-markdown'
-import Turndown from 'turndown'
 
 import { useAtom } from 'jotai'
 
@@ -25,8 +21,6 @@ import { getInstanceUrl, getFileUrl } from '@cloudillo/core'
 
 import {
 	LuPencil as IcEdit,
-	LuSave as IcSave,
-	LuX as IcCancel,
 	LuEllipsisVertical as IcMore,
 	LuUserPlus as IcFollow,
 	LuHandshake as IcConnect,
@@ -51,9 +45,10 @@ import { ComposePanel } from '../apps/feed/index.js'
 import type { Profile } from '@cloudillo/types'
 import { ProfileListCard, PersonListPage, CommunityListPage } from './identities.js'
 import { CreateCommunity } from './community.js'
+import { ProfileAbout } from './about/ProfileAbout.js'
+import { parseTabConfig, getEffectiveTabs, type TabConfig } from './about/types.js'
+import { TabEditor } from './TabEditor.js'
 import { activeContextAtom, useApiContext, useCommunitiesList } from '../context/index.js'
-
-Quill.register('modules/QuillMarkdown', QuillMarkdown)
 
 /**
  * Get the highest role from a list of roles
@@ -88,10 +83,7 @@ interface FullProfile {
 	type: 'community' | 'person'
 	profilePic?: string
 	coverPic?: string
-	x?: {
-		category?: string
-		intro?: string
-	}
+	x?: Record<string, string>
 	settings?: {
 		connectionMode?: 'M' | 'A' | 'I'
 		allowFollowers?: boolean
@@ -100,11 +92,12 @@ interface FullProfile {
 
 interface ProfilePatch {
 	name?: string
-	x?: {
-		category?: string
-		intro?: string
-	}
+	x?: Record<string, string | null>
 }
+
+/* Old x shape for reference:
+	x?: { category, intro, sections, tabConfig }
+*/
 
 interface ProfileConnectionCmds {
 	onFollow: () => void
@@ -246,6 +239,76 @@ function ProfileConnection({
 	)
 }
 
+// ============================================================================
+// Dynamic profile tabs
+// ============================================================================
+
+const TAB_DEFAULT_LABELS: Record<string, string> = {
+	feed: 'Feed',
+	about: 'About',
+	connections: 'Connections',
+	gallery: 'Gallery',
+	files: 'Files'
+}
+
+const TAB_ROUTES: Record<string, string> = {
+	feed: 'feed',
+	about: 'about',
+	connections: 'connections',
+	gallery: 'gallery',
+	files: 'files'
+}
+
+function ProfileTabs({
+	profile,
+	contextIdTag,
+	own,
+	isCommunity,
+	canAccessSettings
+}: {
+	profile: FullProfile
+	contextIdTag?: string
+	own: boolean
+	isCommunity: boolean
+	canAccessSettings: boolean
+}) {
+	const { t } = useTranslation()
+	const tabConfig = parseTabConfig(profile.x)
+	const tabs = getEffectiveTabs(tabConfig)
+	const basePath = `/profile/${contextIdTag}/${own ? 'me' : profile.idTag}`
+
+	return (
+		<div className="c-tabs">
+			{tabs
+				.filter((tab) => tab.visible)
+				.map((tab) => {
+					const route = TAB_ROUTES[tab.id]
+					if (!route) return null
+
+					let label = tab.label
+					if (!label) {
+						if (tab.id === 'connections') {
+							label = isCommunity ? t('Members') : t('Connections')
+						} else {
+							label = t(TAB_DEFAULT_LABELS[tab.id] || tab.id)
+						}
+					}
+
+					return (
+						<NavLink key={tab.id} className="c-tab" to={`${basePath}/${route}`} end>
+							{label}
+						</NavLink>
+					)
+				})}
+			{canAccessSettings && (
+				<NavLink className="c-tab" to={`${basePath}/settings`}>
+					{t('Settings')}
+				</NavLink>
+			)}
+		</div>
+	)
+}
+
 interface ProfilePageProps {
 	profile: FullProfile
 	setProfile: React.Dispatch<React.SetStateAction<FullProfile | undefined>>
@@ -290,33 +353,12 @@ export function ProfilePage({
 		: getHighestRole(communityRoles)
 	const canAccessSettings = own || (isCommunity && userRole === 'leader')
 
-	// Debug: log roles to verify
-	console.log('ProfilePage:', {
-		activeContextIdTag: activeContext?.idTag,
-		profileIdTag: profile.idTag,
-		isInViewedCommunity,
-		communityRoles,
-		userRole,
-		canAccessSettings
-	})
-	console.log(
-		'Settings tab visible?',
-		canAccessSettings,
-		'own:',
-		own,
-		'isCommunity:',
-		isCommunity,
-		'userRole:',
-		userRole
-	)
-
 	function onCancel() {
 		setProfileUpload(undefined)
 		setCoverUpload(undefined)
 	}
 
 	async function uploadCover(img: Blob) {
-		console.log('upload cover', img)
 		if (!auth) return
 
 		// For community profiles, use proxy token and community's idTag
@@ -338,12 +380,7 @@ export function ProfilePage({
 		request.open('PUT', `${getInstanceUrl(targetIdTag)}/api/me/cover`)
 		request.setRequestHeader('Authorization', `Bearer ${token}`)
 
-		request.upload.addEventListener('progress', function (e) {
-			const percent_completed = (e.loaded / e.total) * 100
-			console.log(percent_completed)
-		})
 		request.addEventListener('load', function (_e) {
-			console.log('RES', request.status, request.response)
 			if (request.status === 200) {
 				try {
 					const res = JSON.parse(request.response)
@@ -368,7 +405,6 @@ export function ProfilePage({
 	}
 
 	async function uploadProfile(img: Blob) {
-		console.log('upload profile', img)
 		if (!auth) return
 
 		// For community profiles, use proxy token and community's idTag
@@ -390,12 +426,7 @@ export function ProfilePage({
 		request.open('PUT', `${getInstanceUrl(targetIdTag)}/api/me/image`)
 		request.setRequestHeader('Authorization', `Bearer ${token}`)
 
-		request.upload.addEventListener('progress', function (e) {
-			const percent_completed = (e.loaded / e.total) * 100
-			console.log(percent_completed)
-		})
 		request.addEventListener('load', function (_e) {
-			console.log('RES', request.status, request.response)
 			if (request.status === 200) {
 				try {
 					const res = JSON.parse(request.response)
@@ -423,7 +454,6 @@ export function ProfilePage({
 	}
 
 	function changeCover() {
-		console.log('changeCover')
 		const file = (document.getElementById(inputId) as HTMLInputElement)?.files?.[0]
 		if (!file) return
 		const reader = new FileReader()
@@ -434,7 +464,6 @@ export function ProfilePage({
 	}
 
 	function changeProfile() {
-		console.log('changeProfile')
 		const file = (document.getElementById(profileInputId) as HTMLInputElement)?.files?.[0]
 		if (!file) return
 		const reader = new FileReader()
@@ -546,41 +575,13 @@ export function ProfilePage({
 							</>
 						)}
 					</div>
-					<div className="c-tabs">
-						<NavLink
-							className="c-tab"
-							to={`/profile/${contextIdTag}/${own ? 'me' : profile.idTag}/feed`}
-							end
-						>
-							{t('Feed')}
-						</NavLink>
-						<NavLink
-							className="c-tab"
-							to={`/profile/${contextIdTag}/${own ? 'me' : profile.idTag}/about`}
-							end
-						>
-							{t('About')}
-						</NavLink>
-						<NavLink
-							className="c-tab"
-							to={`/profile/${contextIdTag}/${own ? 'me' : profile.idTag}/connections`}
-							end
-						>
-							{profile.type == 'community' ? t('Members') : t('Connections')}
-						</NavLink>
-						{canAccessSettings && (
-							<NavLink
-								className="c-tab"
-								to={
-									isCommunity
-										? `/profile/${contextIdTag}/${profile.idTag}/settings`
-										: `/settings/${contextIdTag}`
-								}
-							>
-								{t('Settings')}
-							</NavLink>
-						)}
-					</div>
+					<ProfileTabs
+						profile={profile}
+						contextIdTag={contextIdTag}
+						own={own}
+						isCommunity={isCommunity}
+						canAccessSettings={canAccessSettings}
+					/>
 				</div>
 				{children}
 				{coverUpload && (
@@ -616,89 +617,7 @@ interface ProfileTabProps {
 	getTokenFor?: (idTag: string) => Promise<{ token: string; roles?: string[] } | null>
 }
 
-function ProfileAbout({ profile, updateProfile }: ProfileTabProps) {
-	const { t } = useTranslation()
-	const [_auth] = useAuth()
-	const ref = React.useRef<HTMLDivElement>(null)
-	const [intro, setIntro] = React.useState<string | undefined>()
-
-	async function update(field: string, value: string) {
-		if (!updateProfile) return
-		//console.log('update', field, value)
-
-		switch (field) {
-			case 'intro': {
-				const td = new Turndown()
-				const introMD = td.turndown(value)
-				await updateProfile({ x: { intro: introMD } })
-				setIntro(undefined)
-			}
-		}
-	}
-
-	return (
-		<div className="row mt-2">
-			{/*
-		<div className="c-panel col col-md-4">
-			<p>
-			</p>
-		</div>
-		*/}
-			<div className="c-panel col col-md-8 pos-relative">
-				{intro == undefined ? (
-					<>
-						<div ref={ref}>
-							<Markdown>{profile.x?.intro || ''}</Markdown>
-						</div>
-						{updateProfile && (
-							<IcEdit
-								className="c-link pos-absolute bottom-0 right-0 m-2"
-								size="2rem"
-								onClick={() =>
-									setIntro(ref.current?.innerHTML || profile.x?.intro || '')
-								}
-							/>
-						)}
-					</>
-				) : (
-					<>
-						<ReactQuill
-							theme="bubble"
-							placeholder={t('Write something about yourself...')}
-							value={intro}
-							onChange={setIntro}
-							tabIndex={0}
-							modules={{
-								QuillMarkdown: {
-									ignoreTags: ['strikethrough', 'h3', 'h4', 'h5', 'h6']
-								},
-								toolbar: [
-									[{ header: 1 }, { header: 2 }],
-									['bold', 'italic', 'underline', 'blockquote'],
-									[{ list: 'ordered' }, { list: 'bullet' }],
-									['link'],
-									['clean']
-								]
-							}}
-						/>
-						<div className="c-group pos-absolute bottom-0 right-0 m-2">
-							<IcSave
-								size="2rem"
-								className="c-link"
-								onClick={() => update('intro', intro || '')}
-							/>
-							<IcCancel
-								size="2rem"
-								className="c-link"
-								onClick={() => setIntro(undefined)}
-							/>
-						</div>
-					</>
-				)}
-			</div>
-		</div>
-	)
-}
+// ProfileAbout is now in ./about/ProfileAbout.tsx
 
 export function ProfileFeed({ profile }: ProfileTabProps) {
 	const { api } = useApi()
@@ -781,17 +700,20 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 					className="col"
 				/>
 			)}
-			{!!feed &&
-				feed.map((action) => (
-					<ActionComp
-						key={action.actionId}
-						action={action}
-						setAction={setFeedAction}
-						hideAudience={profile.idTag}
-						srcTag={profile.idTag}
-						width={width}
-					/>
-				))}
+			{!composeOpen && !!feed && (
+				<div ref={ref} className="c-vbox g-1">
+					{feed.map((action) => (
+						<ActionComp
+							key={action.actionId}
+							action={action}
+							setAction={setFeedAction}
+							hideAudience={profile.idTag}
+							srcTag={profile.idTag}
+							width={width}
+						/>
+					))}
+				</div>
+			)}
 		</>
 	)
 }
@@ -1004,6 +926,7 @@ export function ProfileConnections({
 // ProfileSettings component for community settings
 export function ProfileSettings({
 	profile,
+	updateProfile,
 	communityRoles,
 	isCommunity = false,
 	getTokenFor
@@ -1128,13 +1051,32 @@ export function ProfileSettings({
 		}
 	}
 
-	// Only show for communities
-	if (!isCommunity) {
-		return null
+	// Community: only leaders can access community-specific settings
+	const showCommunitySettings = isCommunity && canEditSettings && !loading
+
+	// Tab config (available for both personal and community profiles)
+	const tabConfig = parseTabConfig(profile.x)
+
+	const tabSaveTimerRef = React.useRef<ReturnType<typeof setTimeout>>(undefined)
+
+	React.useEffect(() => {
+		return () => {
+			if (tabSaveTimerRef.current) clearTimeout(tabSaveTimerRef.current)
+		}
+	}, [])
+
+	function onTabConfigChange(newConfig: TabConfig) {
+		if (!updateProfile) return
+		// Debounced save
+		if (tabSaveTimerRef.current) clearTimeout(tabSaveTimerRef.current)
+		tabSaveTimerRef.current = setTimeout(async () => {
+			await updateProfile({ x: { tabConfig: JSON.stringify(newConfig) } })
+		}, 500)
 	}
 
-	// Only leaders can access settings
-	if (!canEditSettings) {
+	// Community leaders see both tab editor and community settings
+	// Personal profile owners see only tab editor
+	if (isCommunity && !canEditSettings) {
 		return (
 			<div className="c-panel p-3">
 				<p className="text-muted">
@@ -1144,70 +1086,81 @@ export function ProfileSettings({
 		)
 	}
 
-	if (loading) {
-		return (
-			<div className="c-panel p-3">
-				<p className="text-muted">{t('Loading settings...')}</p>
-			</div>
-		)
-	}
-
 	return (
 		<>
-			{/* Connection & Privacy Settings */}
-			<div className="c-panel mb-2 p-3">
-				<h4 className="pb-2 border-bottom mb-3">{t('Connections')}</h4>
-				<label className="c-settings-field">
-					<span>{t('Connection Mode')}</span>
-					<select
-						className="c-select"
-						name="profile.connection_mode"
-						value={(settings['profile.connection_mode'] as string) ?? 'M'}
-						onChange={onSettingChange}
-					>
-						<option value="M">{t('Manual approval')}</option>
-						<option value="A">{t('Auto-accept')}</option>
-						<option value="I">{t('Ignore requests')}</option>
-					</select>
-				</label>
-				<p className="c-hint mt-1">
-					{t('Controls how connection requests to this community are handled.')}
-				</p>
+			{/* Tab Configuration (both personal and community) */}
+			{updateProfile && (
+				<TabEditor
+					tabConfig={tabConfig}
+					onChange={onTabConfigChange}
+					isCommunity={isCommunity}
+				/>
+			)}
 
-				<label className="c-settings-field mt-3">
-					<span>{t('Allow followers')}</span>
-					<input
-						className="c-toggle primary"
-						type="checkbox"
-						name="profile.allow_followers"
-						checked={settings['profile.allow_followers'] !== false}
-						onChange={onSettingChange}
-					/>
-				</label>
-				<p className="c-hint mt-1">
-					{t('Allow users to follow this community without becoming members.')}
-				</p>
-			</div>
+			{/* Community-only: Connection & Privacy Settings */}
+			{showCommunitySettings && (
+				<>
+					<div className="c-panel mb-2 p-3">
+						<h4 className="pb-2 border-bottom mb-3">{t('Connections')}</h4>
+						<label className="c-settings-field">
+							<span>{t('Connection Mode')}</span>
+							<select
+								className="c-select"
+								name="profile.connection_mode"
+								value={(settings['profile.connection_mode'] as string) ?? 'M'}
+								onChange={onSettingChange}
+							>
+								<option value="M">{t('Manual approval')}</option>
+								<option value="A">{t('Auto-accept')}</option>
+								<option value="I">{t('Ignore requests')}</option>
+							</select>
+						</label>
+						<p className="c-hint mt-1">
+							{t('Controls how connection requests to this community are handled.')}
+						</p>
 
-			{/* Federation Settings */}
-			<div className="c-panel mb-2 p-3">
-				<h4 className="pb-2 border-bottom mb-3">{t('Federation')}</h4>
-				<label className="c-settings-field">
-					<span>{t('Auto-approve incoming actions')}</span>
-					<input
-						className="c-toggle primary"
-						type="checkbox"
-						name="profile.auto_approve_actions"
-						checked={settings['profile.auto_approve_actions'] === true}
-						onChange={onSettingChange}
-					/>
-				</label>
-				<p className="c-hint mt-1">
-					{t(
-						'When enabled, posts and messages from trusted sources are automatically approved.'
-					)}
-				</p>
-			</div>
+						<label className="c-settings-field mt-3">
+							<span>{t('Allow followers')}</span>
+							<input
+								className="c-toggle primary"
+								type="checkbox"
+								name="profile.allow_followers"
+								checked={settings['profile.allow_followers'] !== false}
+								onChange={onSettingChange}
+							/>
+						</label>
+						<p className="c-hint mt-1">
+							{t('Allow users to follow this community without becoming members.')}
+						</p>
+					</div>
+
+					{/* Federation Settings */}
+					<div className="c-panel mb-2 p-3">
+						<h4 className="pb-2 border-bottom mb-3">{t('Federation')}</h4>
+						<label className="c-settings-field">
+							<span>{t('Auto-approve incoming actions')}</span>
+							<input
+								className="c-toggle primary"
+								type="checkbox"
+								name="profile.auto_approve_actions"
+								checked={settings['profile.auto_approve_actions'] === true}
+								onChange={onSettingChange}
+							/>
+						</label>
+						<p className="c-hint mt-1">
+							{t(
+								'When enabled, posts and messages from trusted sources are automatically approved.'
+							)}
+						</p>
+					</div>
+				</>
+			)}
+
+			{isCommunity && loading && (
+				<div className="c-panel p-3">
+					<p className="text-muted">{t('Loading settings...')}</p>
+				</div>
+			)}
 		</>
 	)
 }
@@ -1263,7 +1216,6 @@ function ProfileView() {
 				setLocalProfile(undefined)
 			}
 
-			console.log('load', idTag)
 			if (own) api!.profiles.getOwnFull().then((p) => setProfile(p as unknown as FullProfile))
 			else
 				api!.profiles
@@ -1302,26 +1254,42 @@ function ProfileView() {
 		}
 	})
 
-	const updateProfile: ProfileTabProps['updateProfile'] =
-		idTag != auth?.idTag
-			? undefined
-			: async function updateProfile(patch: ProfilePatch) {
-					//console.log('updateProfile', patch)
-					setProfile(
-						profile
-							? {
-									...profile,
-									x: {
-										...profile?.x,
-										...patch.x
-									}
-								}
-							: undefined
-					)
-					const res = await api?.profiles.updateOwn(patch)
-					console.log('res', res, patch)
-					setProfile(res?.profile as unknown as FullProfile)
+	// Determine if user can edit this profile (own profile OR community leader)
+	const userRole = getHighestRole(communityRoles)
+	const canEdit = own || (profile?.type === 'community' && userRole === 'leader')
+
+	const updateProfile: ProfileTabProps['updateProfile'] = !canEdit
+		? undefined
+		: async function updateProfile(patch: ProfilePatch) {
+				//console.log('updateProfile', patch)
+				let res: { profile: unknown } | undefined
+				if (own) {
+					// Own profile: direct API call
+					res = await api?.profiles.updateOwn(patch)
+				} else {
+					// Community profile: use proxy token
+					const proxyResult = await getTokenFor(profile!.idTag)
+					if (!proxyResult?.token) throw new Error('Failed to get proxy token')
+					const response = await fetch(`${getInstanceUrl(profile!.idTag)}/api/me`, {
+						method: 'PATCH',
+						headers: {
+							Authorization: `Bearer ${proxyResult.token}`,
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify(patch)
+					})
+					if (!response.ok) throw new Error(`Profile update failed: ${response.status}`)
+					const data = await response.json()
+					res = data.data ?? data
 				}
+				// Use response x if available, otherwise optimistic merge
+				const responseX = (res?.profile as unknown as FullProfile)?.x
+				setProfile((prev) => ({
+					...(prev as FullProfile),
+					...(res?.profile as unknown as FullProfile),
+					x: responseX ?? prev?.x
+				}))
+			}
 
 	async function onFollow() {
 		if (!profile || localProfile?.following) return
@@ -1415,7 +1383,7 @@ function ProfileView() {
 			profile={profile}
 			setProfile={setProfile}
 			localProfile={localProfile}
-			updateProfile={idTag == auth?.idTag ? updateProfile : undefined}
+			updateProfile={updateProfile}
 			profileCmds={{ onFollow, onUnfollow, onConnect, onDisconnect, onBlock, onUnblock }}
 			communityRoles={communityRoles}
 			getTokenFor={getTokenFor}

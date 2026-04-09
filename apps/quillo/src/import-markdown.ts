@@ -1,14 +1,14 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import MarkdownIt from 'markdown-it'
+import { marked } from 'marked'
 import Delta from 'quill-delta'
 import type Quill from 'quill'
 
-const md = new MarkdownIt({ html: false, linkify: true })
+marked.use({ async: false })
 
 export function importMarkdown(quill: Quill, markdown: string): void {
-	const html = md.render(markdown)
+	const html = marked.parse(markdown) as string
 	const delta = quill.clipboard.convert({ html })
 	// Trim the trailing newline that clipboard.convert always appends,
 	// otherwise each import adds an extra blank line at the end.

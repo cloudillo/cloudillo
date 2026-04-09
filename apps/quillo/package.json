@@ -24,7 +24,6 @@
 		"@enzedonline/quill-blot-formatter2": "^3.1.1",
 		"@symbion/opalui": "^0.14.7",
 		"@symbion/runtype": "^1.2.1",
-		"@types/markdown-it": "^14.1.2",
 		"cross-env": "^10.1.0",
 		"dayjs": "^1.11.20",
 		"esbuild": "^0.27.5",
@@ -32,7 +31,6 @@
 		"i18next-scanner": "^4.6.0",
 		"i18next-scanner-typescript": "^1.2.1",
 		"lucide": "^1.7.0",
-		"markdown-it": "^14.1.1",
 		"quill": "^2.0.3",
 		"quill-cursors": "^4.2.0",
 		"quill-delta": "^5.1.0",
@@ -44,5 +42,8 @@
 		"y-quill": "^1.0.0",
 		"y-websocket": "^3.0.0",
 		"yjs": "^13.6.30"
+	},
+	"dependencies": {
+		"marked": "^18.0.0"
 	}
 }

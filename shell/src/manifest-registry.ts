@@ -10,6 +10,7 @@ import { manifest as filesManifest } from './apps/files/manifest.js'
 import { manifest as feedManifest } from './apps/feed/manifest.js'
 import { manifest as galleryManifest } from './apps/gallery/manifest.js'
 import { manifest as messagesManifest } from './apps/messages/manifest.js'
+import { manifest as contactsManifest } from './apps/contacts/manifest.js'
 import { manifest as viewerManifest } from './apps/viewer/manifest.js'
 
 // Bundled app manifests
@@ -30,6 +31,7 @@ export const allManifests: AppManifest[] = [
 	feedManifest,
 	galleryManifest,
 	messagesManifest,
+	contactsManifest,
 	viewerManifest,
 	// Bundled
 	quilloManifest,

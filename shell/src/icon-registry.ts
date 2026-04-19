@@ -5,6 +5,7 @@ import type * as React from 'react'
 import {
 	LuBookOpen,
 	LuClipboardList,
+	LuContact,
 	LuEye,
 	LuFile,
 	LuFileText,
@@ -27,6 +28,7 @@ import {
 const iconRegistry: Record<string, React.ComponentType> = {
 	'book-open': LuBookOpen,
 	'clipboard-list': LuClipboardList,
+	contact: LuContact,
 	eye: LuEye,
 	file: LuFile,
 	'file-text': LuFileText,

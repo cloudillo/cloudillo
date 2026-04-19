@@ -10,6 +10,7 @@ import {
 	LuBell as IcNotifications,
 	LuPalette as IcAppearance,
 	LuShield as IcPrivacy,
+	LuShieldCheck as IcTrust,
 	LuHardDrive as IcFiles,
 	LuLayoutGrid as IcApps,
 	LuMenu as IcMenu
@@ -24,6 +25,7 @@ import { NotificationSettings } from './notifications.js'
 import { AppearanceSettings, setTheme } from './appearance.js'
 export { setTheme }
 import { PrivacySettings } from './privacy.js'
+import { TrustSettings } from './trust.js'
 import { FilesSettings } from './files.js'
 import { AppMenuSettings } from './apps.js'
 import { SettingsOverview } from './overview.js'
@@ -64,6 +66,11 @@ export function Settings({ title, children }: SettingsProps) {
 					<li>
 						<NavLink className="c-nav-item" to={`${basePath}/privacy`}>
 							<IcPrivacy /> {t('Privacy')}
+						</NavLink>
+					</li>
+					<li>
+						<NavLink className="c-nav-item" to={`${basePath}/trust`}>
+							<IcTrust /> {t('Trusted profiles')}
 						</NavLink>
 					</li>
 					<li>
@@ -131,6 +138,14 @@ export function SettingsRoutes({ pwa }: { pwa: UsePWA }) {
 				element={
 					<Settings title={t('Privacy')}>
 						<PrivacySettings />
+					</Settings>
+				}
+			/>
+			<Route
+				path="/settings/:contextIdTag/trust"
+				element={
+					<Settings title={t('Trusted profiles')}>
+						<TrustSettings />
 					</Settings>
 				}
 			/>

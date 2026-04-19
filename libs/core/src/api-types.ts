@@ -36,12 +36,14 @@ export type ErrorCode =
 import {
 	tProfile,
 	tOptionalProfile,
+	tProfileTrust,
 	tAction,
 	tNewAction,
 	tActionView,
 	tActionType,
 	tActionStatus,
 	Profile,
+	ProfileTrust,
 	Action,
 	NewAction,
 	ActionView,
@@ -66,12 +68,14 @@ import {
 export {
 	tProfile,
 	tOptionalProfile,
+	tProfileTrust,
 	tAction,
 	tNewAction,
 	tActionView,
 	tActionType,
 	tActionStatus,
 	Profile,
+	ProfileTrust,
 	Action,
 	NewAction,
 	ActionView,
@@ -731,6 +735,7 @@ export interface PatchProfileConnection {
 	status?: 'A' | 'B' | 'T' | null
 	following?: boolean | null
 	connected?: true | 'R' | null
+	trust?: ProfileTrust | null
 }
 
 export interface ListProfilesQuery {
@@ -740,6 +745,8 @@ export interface ListProfilesQuery {
 	connected?: boolean | 'R'
 	following?: boolean
 	q?: string
+	/** When true, returns only profiles with a non-null trust preference; when false, only profiles with no trust set. */
+	trustSet?: boolean
 }
 
 // Response types
@@ -874,8 +881,8 @@ export const tRefResponse = T.struct({
 	description: T.optional(T.string),
 	resourceId: T.optional(T.string),
 	accessLevel: T.optional(T.literal('read', 'comment', 'write')),
-	createdAt: T.optional(T.number),
-	expiresAt: T.optional(T.number),
+	createdAt: T.optional(T.string),
+	expiresAt: T.optional(T.string),
 	count: T.optional(T.number),
 	params: T.optional(T.string)
 })

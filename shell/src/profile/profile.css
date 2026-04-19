@@ -237,3 +237,8 @@
 		flex-direction: column;
 	}
 }
+
+.c-trust-chip {
+	cursor: pointer;
+	border: none;
+}

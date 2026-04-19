@@ -16,6 +16,7 @@ export type {
 	ContextSwitchEvent,
 	ContextInfo
 } from './types'
+export { CONTEXT_TOKEN_LIFETIME_MS } from './types'
 
 // Atoms
 export {
@@ -30,7 +31,9 @@ export {
 	contextSwitchingAtom,
 	favoriteCommunitiesAtom,
 	recentCommunitiesAtom,
-	totalUnreadCountAtom
+	totalUnreadCountAtom,
+	sessionTrustAtom,
+	storedTrustAtom
 } from './atoms'
 
 // Hooks
@@ -42,6 +45,13 @@ export {
 	useContextCache,
 	useContextPath
 } from './hooks'
+
+// Trust
+export { useProfileTrust, useProfileTrustBootstrap } from './trust'
+export type { EffectiveTrust, UseProfileTrust } from './trust'
+
+// Proactive proxy-token renewal
+export { useContextTokenRenewal } from './useContextTokenRenewal'
 
 // Context-aware API
 export { useContextAwareApi } from './context-aware-api'

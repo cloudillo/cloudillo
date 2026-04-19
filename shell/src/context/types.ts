@@ -73,6 +73,12 @@ export interface CommunityRef {
 }
 
 /**
+ * Proxy tokens are issued with a 24h server-side lifetime; we cache for 23h
+ * so we refresh before the backend starts rejecting.
+ */
+export const CONTEXT_TOKEN_LIFETIME_MS = 23 * 60 * 60 * 1000
+
+/**
  * Token data for a context
  */
 export interface ContextToken {

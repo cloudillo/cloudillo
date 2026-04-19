@@ -756,5 +756,20 @@
 	"Send a join request to this community?": "Csatlakozási kérelmet küldeni a közösségnek?",
 	"Join request sent": "Csatlakozási kérelem elküldve",
 	"Join": "Csatlakozás",
-	"Joined": "Csatlakozva"
+	"Joined": "Csatlakozva",
+	"Authenticate to {{idTag}}?": "Azonosítás: {{idTag}}?",
+	"You are browsing anonymously. Authenticating lets them see you viewed them and unlocks content restricted to known viewers.": "Névtelenül böngészel. Ha azonosítod magad, láthatják, hogy megnézted a profiljukat, és elérhetővé válik az ismerős nézőknek szánt tartalom is.",
+	"This session": "Ebben a munkamenetben",
+	"Always": "Mindig",
+	"Continue anonymously": "Maradok névtelen",
+	"Anonymous": "Névtelen",
+	"Anonymous (session)": "Névtelen (munkamenet)",
+	"Session auth": "Munkamenet",
+	"Failed to update trust preference": "A bizalmi beállítás frissítése sikertelen",
+	"Failed to load trusted profiles": "A megbízott profilok betöltése sikertelen",
+	"Trusted": "Megbízott",
+	"Trusted profiles": "Megbízott profilok",
+	"No trusted profiles": "Nincs megbízott profil",
+	"You have not marked any profiles as Always or Never. Open a profile page to set a preference.": "Nem jelöltél még meg profilt Mindig vagy Soha értékkel. Nyiss meg egy profilt a beállításhoz.",
+	"Clear trust": "Beállítás törlése"
 }

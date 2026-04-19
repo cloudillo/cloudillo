@@ -876,6 +876,21 @@ export class ApiClient {
 			this.request('PATCH', `/profiles/${idTag}`, T.struct({}), { data }),
 
 		/**
+		 * PATCH /profiles/:idTag - Set per-profile trust preference for proxy-token use.
+		 * `'always'` = always authenticate on passive reads, `'never'` = never, `null` = clear (ask).
+		 */
+		setTrust: (idTag: string, trust: Types.ProfileTrust | null) =>
+			this.request('PATCH', `/profiles/${idTag}`, T.struct({}), { data: { trust } }),
+
+		/**
+		 * GET /profiles?trustSet=true - List profiles that have a non-null trust preference set.
+		 */
+		listTrust: () =>
+			this.request('GET', '/profiles', Types.tListProfilesResult, {
+				query: { trustSet: true }
+			}),
+
+		/**
 		 * PATCH /admin/profiles/:idTag - Admin update profile (roles, status)
 		 * @param idTag - Identity tag
 		 * @param data - Admin profile patch data (roles, status, ban_reason)

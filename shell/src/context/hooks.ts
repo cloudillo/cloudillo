@@ -22,10 +22,18 @@ import {
 	contextSwitchingAtom,
 	favoriteCommunitiesAtom,
 	recentCommunitiesAtom,
-	totalUnreadCountAtom
+	totalUnreadCountAtom,
+	sessionTrustAtom,
+	storedTrustAtom
 } from './atoms'
 
-import type { ActiveContext, CommunityRef, ContextToken, ContextSwitchEvent } from './types'
+import {
+	CONTEXT_TOKEN_LIFETIME_MS,
+	type ActiveContext,
+	type CommunityRef,
+	type ContextToken,
+	type ContextSwitchEvent
+} from './types'
 
 /**
  * Hook for managing API context and multi-context operations
@@ -52,6 +60,8 @@ import type { ActiveContext, CommunityRef, ContextToken, ContextSwitchEvent } fr
 export function useApiContext() {
 	const [activeContext, setActiveContextState] = useAtom(activeContextAtom)
 	const [contextTokens, setContextTokens] = useAtom(contextTokensAtom)
+	const [sessionTrust] = useAtom(sessionTrustAtom)
+	const [storedTrust] = useAtom(storedTrustAtom)
 	const { api: primaryApi } = useApi()
 	const [auth] = useAuth()
 	const [isLoading, setIsLoading] = React.useState(false)
@@ -59,6 +69,34 @@ export function useApiContext() {
 
 	// Cache API clients per idTag
 	const apiClientsRef = React.useRef<Map<string, ApiClient>>(new Map())
+
+	// Refs mirror the trust/token/auth/api state so getTokenFor can stay
+	// referentially stable across trust mutations, auth-object rebuilds, and
+	// primary-API refreshes (useApi() rebuilds its client on every auth-token
+	// renewal). Consumers that put getTokenFor in a useEffect dep array should
+	// not re-run every time a Map identity flips, auth's outer object is
+	// rebuilt without idTag/token changing, or the primary client is swapped
+	// for a freshly-authenticated one.
+	const contextTokensRef = React.useRef(contextTokens)
+	const sessionTrustRef = React.useRef(sessionTrust)
+	const storedTrustRef = React.useRef(storedTrust)
+	const authRef = React.useRef(auth)
+	const primaryApiRef = React.useRef(primaryApi)
+	React.useEffect(() => {
+		contextTokensRef.current = contextTokens
+	}, [contextTokens])
+	React.useEffect(() => {
+		sessionTrustRef.current = sessionTrust
+	}, [sessionTrust])
+	React.useEffect(() => {
+		storedTrustRef.current = storedTrust
+	}, [storedTrust])
+	React.useEffect(() => {
+		authRef.current = auth
+	}, [auth])
+	React.useEffect(() => {
+		primaryApiRef.current = primaryApi
+	}, [primaryApi])
 
 	/**
 	 * Get API client for specific context
@@ -79,7 +117,15 @@ export function useApiContext() {
 			// For 'required' and 'preferred' (without explicit 'none'), use cached client
 			if (authMode !== 'none') {
 				if (apiClientsRef.current.has(idTag)) {
-					return apiClientsRef.current.get(idTag)!
+					// Verify the cached client's backing token still exists. If
+					// trust was revoked or the token was evicted, drop the stale
+					// cached client and fall through to the normal build path.
+					const own = idTag === auth?.idTag
+					const tokenData = own ? undefined : contextTokens.get(idTag)
+					if (own || (tokenData && tokenData.expiresAt > new Date())) {
+						return apiClientsRef.current.get(idTag)!
+					}
+					apiClientsRef.current.delete(idTag)
 				}
 
 				// User's own context uses primary API (skip for 'none'/'preferred' — caller wants unauthenticated)
@@ -122,35 +168,65 @@ export function useApiContext() {
 	)
 
 	/**
-	 * Get proxy token for specific context
-	 * Fetches from backend if not cached or expired
-	 * @returns Object with token and roles (roles may be empty for federated tokens)
+	 * Get proxy token for specific context.
+	 *
+	 * By default this is a *passive* read and runs through the profile-trust gate:
+	 *   - `'always'` / session `'S'` → fetch (or return cached) proxy token.
+	 *   - anything else ('never', 'X', or no decision) → return null; the caller
+	 *     falls back to anonymous and the profile page's `TrustBanner` derives
+	 *     its visibility from effective trust being `null`, so no extra
+	 *     signalling is required here.
+	 *
+	 * The gate runs uniformly on both cache hit and cache miss — a cached token
+	 * from an earlier explicit action must not leak identity on later passive
+	 * reads once the user's effective trust is no longer a positive consent.
+	 *
+	 * Pass `{ explicit: true }` for user-initiated actions (follow, comment, message,
+	 * etc.). Explicit calls bypass the gate entirely — the action is the user's
+	 * consent — and unconditionally fetch/return the proxy token.
+	 *
+	 * @returns Object with token and roles, or `null` if anonymous was chosen.
 	 */
 	const getTokenFor = React.useCallback(
-		async (idTag: string): Promise<{ token: string; roles: string[] } | null> => {
+		async (
+			idTag: string,
+			opts?: { explicit?: boolean }
+		): Promise<{ token: string; roles: string[] } | null> => {
+			const explicit = opts?.explicit === true
+
 			// User's own context uses primary token
-			if (idTag === auth?.idTag) {
-				return auth?.token ? { token: auth.token, roles: [] } : null
+			if (idTag === authRef.current?.idTag) {
+				const tok = authRef.current?.token
+				return tok ? { token: tok, roles: [] } : null
 			}
 
 			// Check if we have primary API
-			if (!primaryApi) {
+			const api = primaryApiRef.current
+			if (!api) {
 				throw new Error('Not authenticated')
 			}
 
+			// Trust gate: passive reads require positive consent ('S' or stored
+			// 'always'). Anything else (including "ask") stays anonymous.
+			if (!explicit) {
+				const session = sessionTrustRef.current.get(idTag)
+				const consented =
+					session === 'S' ||
+					(session !== 'X' && storedTrustRef.current.get(idTag) === 'always')
+				if (!consented) return null
+			}
+
 			// Check cache (roles are now cached alongside token)
-			const cached = contextTokens.get(idTag)
+			const cached = contextTokensRef.current.get(idTag)
 			if (cached && cached.expiresAt > new Date()) {
-				// Return cached token with cached roles
 				return { token: cached.token, roles: cached.roles || [] }
 			}
 
 			try {
 				// Fetch new proxy token for the target idTag
-				const result = await primaryApi.auth.getProxyToken(idTag)
+				const result = await api.auth.getProxyToken(idTag)
 
-				// Cache it (proxy tokens expire after 24h, cache for 23h)
-				const expiresAt = new Date(Date.now() + 23 * 60 * 60 * 1000)
+				const expiresAt = new Date(Date.now() + CONTEXT_TOKEN_LIFETIME_MS)
 				const tokenData: ContextToken = {
 					token: result.token,
 					tnId: 0, // TODO: Get tnId from result if available
@@ -173,7 +249,7 @@ export function useApiContext() {
 				throw err
 			}
 		},
-		[contextTokens, auth, primaryApi, setContextTokens]
+		[setContextTokens]
 	)
 
 	/**
@@ -186,8 +262,9 @@ export function useApiContext() {
 			setError(undefined)
 
 			try {
-				// Get token and roles (will fetch if needed)
-				const tokenResult = await getTokenFor(idTag)
+				// Context switches are explicit user actions — bypass the trust gate
+				// so a joined community always authenticates without prompting.
+				const tokenResult = await getTokenFor(idTag, { explicit: true })
 				if (!tokenResult) {
 					throw new Error(`Failed to get token for context: ${idTag}`)
 				}

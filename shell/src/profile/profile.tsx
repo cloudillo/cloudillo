@@ -48,7 +48,14 @@ import { CreateCommunity } from './community.js'
 import { ProfileAbout } from './about/ProfileAbout.js'
 import { parseTabConfig, getEffectiveTabs, type TabConfig } from './about/types.js'
 import { TabEditor } from './TabEditor.js'
-import { activeContextAtom, useApiContext, useCommunitiesList } from '../context/index.js'
+import {
+	activeContextAtom,
+	useApiContext,
+	useCommunitiesList,
+	useProfileTrust
+} from '../context/index.js'
+import { TrustBanner } from './TrustBanner.js'
+import { TrustChip } from './TrustChip.js'
 
 /**
  * Get the highest role from a list of roles
@@ -320,7 +327,16 @@ interface ProfilePageProps {
 	/** User's roles in the viewed community (for non-context-switched viewing) */
 	communityRoles?: string[]
 	/** Function to get proxy token for a target idTag */
-	getTokenFor?: (idTag: string) => Promise<{ token: string; roles?: string[] } | null>
+	getTokenFor?: (
+		idTag: string,
+		opts?: { explicit?: boolean }
+	) => Promise<{ token: string; roles?: string[] } | null>
+	/**
+	 * Reload the remote profile after a trust decision (e.g. user just elevated
+	 * from anonymous to session auth). Called by the TrustBanner/TrustChip so
+	 * cached proxy-token-gated data can refresh.
+	 */
+	onTrustDecision?: () => void
 }
 export function ProfilePage({
 	profile,
@@ -330,7 +346,8 @@ export function ProfilePage({
 	profileCmds,
 	children,
 	communityRoles = [],
-	getTokenFor
+	getTokenFor,
+	onTrustDecision
 }: ProfilePageProps) {
 	const { t } = useTranslation()
 	const [auth, setAuth] = useAuth()
@@ -366,7 +383,8 @@ export function ProfilePage({
 		let token = auth.token
 
 		if (isCommunity && getTokenFor) {
-			const proxyResult = await getTokenFor(profile.idTag)
+			// Explicit user upload — bypass the profile-trust gate.
+			const proxyResult = await getTokenFor(profile.idTag, { explicit: true })
 			if (proxyResult?.token) {
 				token = proxyResult.token
 			} else {
@@ -412,7 +430,8 @@ export function ProfilePage({
 		let token = auth.token
 
 		if (isCommunity && getTokenFor) {
-			const proxyResult = await getTokenFor(profile.idTag)
+			// Explicit user upload — bypass the profile-trust gate.
+			const proxyResult = await getTokenFor(profile.idTag, { explicit: true })
 			if (proxyResult?.token) {
 				token = proxyResult.token
 			} else {
@@ -477,6 +496,7 @@ export function ProfilePage({
 		<Fcd.Container className="g-1">
 			<Fcd.Filter></Fcd.Filter>
 			<Fcd.Content>
+				{!own && <TrustBanner idTag={profile.idTag} onDecision={onTrustDecision} />}
 				<div className="c-panel p-0 pos-relative d-flex flex-column">
 					<div
 						className="c-profile-header pos-relative w-100"
@@ -554,6 +574,11 @@ export function ProfilePage({
 							<h4>
 								<IdentityTag idTag={profile.idTag} />
 							</h4>
+							{!own && (
+								<div className="mt-1">
+									<TrustChip idTag={profile.idTag} onChanged={onTrustDecision} />
+								</div>
+							)}
 						</div>
 						<div className="flex-fill" />
 						{auth?.idTag && !own && (
@@ -614,7 +639,10 @@ interface ProfileTabProps {
 	/** Whether this is a community profile (resolved from profile.type or localProfile.type) */
 	isCommunity?: boolean
 	/** Function to get proxy token for a target idTag */
-	getTokenFor?: (idTag: string) => Promise<{ token: string; roles?: string[] } | null>
+	getTokenFor?: (
+		idTag: string,
+		opts?: { explicit?: boolean }
+	) => Promise<{ token: string; roles?: string[] } | null>
 }
 
 // ProfileAbout is now in ./about/ProfileAbout.tsx
@@ -955,7 +983,9 @@ export function ProfileSettings({
 
 			;(async function () {
 				try {
-					const proxyResult = await getTokenFor(profile.idTag)
+					// Community settings panel — only shown to leaders who are actively
+					// administering the community. Explicit intent.
+					const proxyResult = await getTokenFor(profile.idTag, { explicit: true })
 					if (!proxyResult?.token) {
 						console.error('Failed to get proxy token for settings')
 						setLoading(false)
@@ -1025,7 +1055,8 @@ export function ProfileSettings({
 
 		const saveToServer = async () => {
 			try {
-				const proxyResult = await getTokenFor(profile.idTag)
+				// Explicit user action: writing a community setting.
+				const proxyResult = await getTokenFor(profile.idTag, { explicit: true })
 				if (!proxyResult?.token) return
 
 				await fetch(
@@ -1172,6 +1203,7 @@ function ProfileView() {
 	const [auth] = useAuth()
 	const { api } = useApi()
 	const { getTokenFor } = useApiContext()
+	const { rememberStoredTrust } = useProfileTrust()
 	const dialog = useDialog()
 	const params = useParams()
 	// Extract contextIdTag from params if available (context-aware route)
@@ -1180,6 +1212,9 @@ function ProfileView() {
 	const own = idTag == auth?.idTag
 	const [profile, setProfile] = React.useState<FullProfile>()
 	const [localProfile, setLocalProfile] = React.useState<Partial<Profile>>()
+	// Tick to force profile refetch after a trust decision so cached proxy-token-gated
+	// content reloads with the new auth state.
+	const [trustTick, setTrustTick] = React.useState(0)
 	// User's roles in the viewed community (fetched via proxy token)
 	const [communityRoles, setCommunityRoles] = React.useState<string[]>([])
 	//console.log('Profile', idTag, profile, 'contextIdTag', contextIdTag)
@@ -1224,10 +1259,17 @@ function ProfileView() {
 					.catch(() => setProfile(undefined))
 			api!.profiles
 				.get(idTag!)
-				.then((p) => setLocalProfile(p ?? {}))
+				.then((p) => {
+					setLocalProfile(p ?? {})
+					// Populate the stored-trust cache from the local profile row so
+					// the fetch gate can answer "always / never / ask" synchronously.
+					if (!own && idTag) {
+						rememberStoredTrust(idTag, p?.trust ?? null)
+					}
+				})
 				.catch(() => setLocalProfile({}))
 		},
-		[idTag, profile?.idTag, auth?.idTag]
+		[idTag, profile?.idTag, auth?.idTag, trustTick, own, rememberStoredTrust]
 	)
 
 	React.useEffect(
@@ -1267,8 +1309,9 @@ function ProfileView() {
 					// Own profile: direct API call
 					res = await api?.profiles.updateOwn(patch)
 				} else {
-					// Community profile: use proxy token
-					const proxyResult = await getTokenFor(profile!.idTag)
+					// Community profile: explicit user edit — bypass the profile-trust
+					// gate and always fetch the proxy token.
+					const proxyResult = await getTokenFor(profile!.idTag, { explicit: true })
 					if (!proxyResult?.token) throw new Error('Failed to get proxy token')
 					const response = await fetch(`${getInstanceUrl(profile!.idTag)}/api/me`, {
 						method: 'PATCH',
@@ -1387,6 +1430,7 @@ function ProfileView() {
 			profileCmds={{ onFollow, onUnfollow, onConnect, onDisconnect, onBlock, onUnblock }}
 			communityRoles={communityRoles}
 			getTokenFor={getTokenFor}
+			onTrustDecision={() => setTrustTick((n) => n + 1)}
 		>
 			<Routes>
 				<Route

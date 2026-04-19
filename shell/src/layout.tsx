@@ -58,6 +58,7 @@ import usePWA, {
 } from './pwa.js'
 import { AuthRoutes, loginInitAtom } from './auth/auth.js'
 import { useTokenRenewal } from './auth/useTokenRenewal.js'
+import { useContextTokenRenewal, useProfileTrustBootstrap } from './context/index.js'
 import { useActionNotifications } from './notifications/useActionNotifications.js'
 import {
 	Sidebar,
@@ -886,7 +887,9 @@ export function Layout() {
 	const navigate = useNavigate()
 	const contextIdTag = useCurrentContextIdTag()
 	const [keyAccessError, setKeyAccessError] = React.useState<KeyErrorReason | null>(null)
-	useTokenRenewal() // Automatic token renewal
+	useTokenRenewal() // Automatic auth token renewal
+	useContextTokenRenewal() // Proactive proxy-token renewal for trusted foreign profiles
+	useProfileTrustBootstrap() // Seed persisted per-profile trust from the backend
 	useActionNotifications() // Sound and toast notifications for incoming actions
 
 	// Listen for key access errors from service worker

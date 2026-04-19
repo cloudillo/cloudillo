@@ -54,13 +54,20 @@ export function useContextAwareApi(): ApiHook {
 				// Active context is user's own - use auth token
 				token = auth.token
 			} else {
-				// Active context is a community - use proxy token
+				// Active context is a foreign profile or community. Attach the
+				// cached proxy token when one exists; otherwise stay anonymous.
+				//
+				// For idTags where the user has established trust ('always' stored
+				// or 'S' session), `useContextTokenRenewal` refreshes the entry
+				// before it expires, so `expiresAt > now` normally holds and
+				// authenticated reads keep working across long sessions. For
+				// untrusted foreign profiles the cache is simply absent and we
+				// correctly go anonymous — explicit actions must route through
+				// `getTokenFor(idTag, { explicit: true })`.
 				const tokenData = contextTokens.get(idTag)
-				if (!tokenData || tokenData.expiresAt <= new Date()) {
-					console.warn(`No valid token for active context: ${idTag}`)
-					return null
+				if (tokenData && tokenData.expiresAt > new Date()) {
+					token = tokenData.token
 				}
-				token = tokenData.token
 			}
 		} else if (auth) {
 			// Authenticated, no active context - use user's own idTag

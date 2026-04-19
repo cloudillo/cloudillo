@@ -11,6 +11,11 @@ export type ProfileConnectionStatus = T.TypeOf<typeof tProfileConnectionStatus>
 export const tProfileStatus = T.literal('A', 'T', 'B', 'M', 'S')
 export type ProfileStatus = T.TypeOf<typeof tProfileStatus>
 
+// Per-profile trust preference for proxy-token authentication on passive reads.
+// 'always' = always authenticate, 'never' = never authenticate, undefined/null = ask (default).
+export const tProfileTrust = T.literal('always', 'never')
+export type ProfileTrust = T.TypeOf<typeof tProfileTrust>
+
 // Community role hierarchy (matches backend core/roles.rs)
 export const tCommunityRole = T.literal(
 	'public',
@@ -161,6 +166,7 @@ export const tProfile = T.struct({
 	status: T.optional(tProfileStatus),
 	connected: T.optional(tProfileConnectionStatus),
 	following: T.optional(T.boolean),
+	trust: T.optional(tProfileTrust),
 	roles: T.optional(T.array(T.string)), // Community roles (e.g., ['leader'], ['moderator'])
 	x: T.optional(T.record(T.string))
 })

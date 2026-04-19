@@ -6,6 +6,7 @@
 
 import { atom } from 'jotai'
 import { atomWithStorage } from 'jotai/utils'
+import type { ProfileTrust } from '@cloudillo/types'
 import type {
 	ActiveContext,
 	CommunityRef,
@@ -87,6 +88,29 @@ export const lastContextSwitchAtom = atom<ContextSwitchEvent | null>(null)
  * True while switching contexts
  */
 export const contextSwitchingAtom = atom<boolean>(false)
+
+/**
+ * Session-scoped trust decisions for foreign profiles.
+ *
+ * Values:
+ *   'S' — "this session": proxy token may be attached to passive reads for this tab
+ *   'X' — "continue anonymous": proxy token must NOT be attached, even if persisted trust is 'always'
+ *
+ * A map entry for a given idTag takes precedence over the persisted `profiles.trust` field
+ * for the lifetime of the tab. Cleared on reload.
+ */
+export const sessionTrustAtom = atom<Map<string, 'S' | 'X'>>(new Map())
+
+/**
+ * Known-value cache of the persisted `profiles.trust` column, keyed by foreign idTag.
+ *
+ * A key is present only when the server has told us `'always'` or `'never'` for that profile.
+ * Missing keys mean "unknown or unset" — both are treated as "ask" by the fetch gate.
+ *
+ * Populated from profile responses (list, get, settings page) via
+ * `useProfileTrust().rememberStoredTrust`, and kept in sync with setTrust mutations.
+ */
+export const storedTrustAtom = atom<Map<string, ProfileTrust>>(new Map())
 
 /**
  * Derived atom: Pinned communities

@@ -682,5 +682,17 @@ body {
 	font-style: italic;
 }
 
+/* Inline code rendering for tokens/URLs (API keys, DAV credentials, etc.). */
+.c-mono {
+	font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+	background: var(--col-container);
+	border: 1px solid lch(from var(--col-on) l c h / 0.15);
+	border-radius: var(--radius-control);
+	padding: 0.5rem 0.625rem;
+	word-break: break-all;
+	user-select: all;
+	font-size: 0.875rem;
+}
+
 /* vim: ts=4
 */

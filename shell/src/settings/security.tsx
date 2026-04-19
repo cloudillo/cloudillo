@@ -17,7 +17,12 @@ import {
 } from 'react-icons/lu'
 
 import { useAuth, useApi, useDialog, Button, Modal, LoadingSpinner } from '@cloudillo/react'
-import type { WebAuthnCredential, ApiKeyListItem, CreateApiKeyResult } from '@cloudillo/core'
+import {
+	getInstanceUrl,
+	type WebAuthnCredential,
+	type ApiKeyListItem,
+	type CreateApiKeyResult
+} from '@cloudillo/core'
 
 import { useSettings } from './settings.js'
 import {
@@ -31,6 +36,26 @@ const AVAILABLE_SCOPES = [
 		value: 'apkg:publish',
 		label: 'App Package Publish',
 		description: 'Allows publishing app packages to the repository.'
+	},
+	{
+		value: 'carddav:read',
+		label: 'CardDAV (read)',
+		description: 'Read contacts via CardDAV (Apple Contacts, Thunderbird, DAVx⁵).'
+	},
+	{
+		value: 'carddav:write',
+		label: 'CardDAV (read/write)',
+		description: 'Read and modify contacts via CardDAV. Implies CardDAV (read).'
+	},
+	{
+		value: 'caldav:read',
+		label: 'CalDAV (read)',
+		description: 'Read calendars via CalDAV (Apple Calendar, Thunderbird, DAVx⁵).'
+	},
+	{
+		value: 'caldav:write',
+		label: 'CalDAV (read/write)',
+		description: 'Read and modify calendars via CalDAV. Implies CalDAV (read).'
 	}
 ] as const
 
@@ -72,10 +97,16 @@ function CreateApiKeyModal({ open, onClose, onCreated }: CreateApiKeyModalProps)
 		setIsSubmitting(true)
 		setError(undefined)
 
+		// Server-side, write access requires read in the same protocol family.
+		// Auto-add the matching read scope so users don't have to think about it.
+		const finalScopes = new Set(selectedScopes)
+		if (finalScopes.has('carddav:write')) finalScopes.add('carddav:read')
+		if (finalScopes.has('caldav:write')) finalScopes.add('caldav:read')
+
 		try {
 			const result = await api.auth.createApiKey({
 				name: name || undefined,
-				scopes: selectedScopes.length > 0 ? selectedScopes.join(',') : undefined
+				scopes: finalScopes.size > 0 ? Array.from(finalScopes).join(',') : undefined
 			})
 			onCreated(result)
 			onClose()
@@ -148,6 +179,81 @@ function CreateApiKeyModal({ open, onClose, onCreated }: CreateApiKeyModalProps)
 	)
 }
 
+// One row in the DAV setup helper (CardDAV or CalDAV).
+interface DavSetupRowProps {
+	label: string
+	idTag: string
+	plaintextKey: string
+	hint: string
+	comingSoon?: boolean
+}
+
+function CopyButton({ text, label }: { text: string; label: string }) {
+	const { t } = useTranslation()
+	const [copied, setCopied] = React.useState(false)
+
+	async function doCopy() {
+		try {
+			await navigator.clipboard.writeText(text)
+			setCopied(true)
+			setTimeout(() => setCopied(false), 2000)
+		} catch (err) {
+			console.error('Failed to copy:', err)
+		}
+	}
+
+	return (
+		<Button onClick={doCopy} title={t('Copy {{label}}', { label })} className="small">
+			{copied ? <IcCheck /> : <IcCopy />}
+		</Button>
+	)
+}
+
+function DavSetupRow({ label, idTag, plaintextKey, hint, comingSoon }: DavSetupRowProps) {
+	const { t } = useTranslation()
+	const serverUrl = `${getInstanceUrl(idTag)}/dav/principal/`
+
+	return (
+		<div className="c-panel p-3 mb-2">
+			<div className="c-hbox ai-center mb-2">
+				<strong className="flex-fill">{label}</strong>
+				{comingSoon && (
+					<span className="c-badge small" title={t('Server support not yet available')}>
+						{t('Coming soon')}
+					</span>
+				)}
+			</div>
+			<div className="c-vbox g-2">
+				<div>
+					<label className="c-label small">{t('Server URL')}</label>
+					<div className="c-hbox g-1">
+						<code className="c-mono flex-fill">{serverUrl}</code>
+						<CopyButton text={serverUrl} label={t('server URL')} />
+					</div>
+				</div>
+				<div>
+					<label className="c-label small">{t('Username')}</label>
+					<div className="c-hbox g-1">
+						<code className="c-mono flex-fill">cloudillo</code>
+						<CopyButton text="cloudillo" label={t('username')} />
+					</div>
+					<div className="c-hint small mt-1">
+						{t('Any value works — the server ignores the username.')}
+					</div>
+				</div>
+				<div>
+					<label className="c-label small">{t('Password')}</label>
+					<div className="c-hbox g-1">
+						<code className="c-mono flex-fill">{plaintextKey}</code>
+						<CopyButton text={plaintextKey} label={t('password')} />
+					</div>
+				</div>
+				<div className="c-hint small">{hint}</div>
+			</div>
+		</div>
+	)
+}
+
 // API Key Created Modal (one-time plaintext key display)
 interface ApiKeyCreatedModalProps {
 	open: boolean
@@ -157,22 +263,14 @@ interface ApiKeyCreatedModalProps {
 
 function ApiKeyCreatedModal({ open, result, onClose }: ApiKeyCreatedModalProps) {
 	const { t } = useTranslation()
-	const [copied, setCopied] = React.useState(false)
-
-	async function copyToClipboard() {
-		if (!result) return
-		try {
-			await navigator.clipboard.writeText(result.plaintextKey)
-			setCopied(true)
-			setTimeout(() => setCopied(false), 2000)
-		} catch (err) {
-			console.error('Failed to copy:', err)
-		}
-	}
+	const [auth] = useAuth()
 
 	if (!result) return null
 
 	const scopes = result.scopes?.split(',').filter(Boolean)
+	const hasCardDav = scopes?.some((s) => s.startsWith('carddav:'))
+	const hasCalDav = scopes?.some((s) => s.startsWith('caldav:'))
+	const idTag = auth?.idTag
 
 	return (
 		<Modal open={open} onClose={onClose} closeOnBackdrop={false}>
@@ -197,15 +295,8 @@ function ApiKeyCreatedModal({ open, result, onClose }: ApiKeyCreatedModalProps) 
 				<div className="mb-3">
 					<label className="c-label">{t('API Key')}</label>
 					<div className="c-hbox g-1">
-						<code
-							className="c-code flex-fill p-2"
-							style={{ wordBreak: 'break-all', userSelect: 'all' }}
-						>
-							{result.plaintextKey}
-						</code>
-						<Button onClick={copyToClipboard} title={t('Copy API key')}>
-							{copied ? <IcCheck /> : <IcCopy />}
-						</Button>
+						<code className="c-mono flex-fill">{result.plaintextKey}</code>
+						<CopyButton text={result.plaintextKey} label={t('API key')} />
 					</div>
 				</div>
 
@@ -219,6 +310,33 @@ function ApiKeyCreatedModal({ open, result, onClose }: ApiKeyCreatedModalProps) 
 								</span>
 							))}
 						</div>
+					</div>
+				)}
+
+				{(hasCardDav || hasCalDav) && idTag && (
+					<div className="mb-3">
+						<label className="c-label">{t('Connect a DAV client')}</label>
+						{hasCardDav && (
+							<DavSetupRow
+								label={t('CardDAV (contacts)')}
+								idTag={idTag}
+								plaintextKey={result.plaintextKey}
+								hint={t(
+									'Apple Contacts → Internet Accounts → Other / Thunderbird → Address Book → New CardDAV / DAVx⁵ → Add account.'
+								)}
+							/>
+						)}
+						{hasCalDav && (
+							<DavSetupRow
+								label={t('CalDAV (calendars)')}
+								idTag={idTag}
+								plaintextKey={result.plaintextKey}
+								hint={t(
+									'Apple Calendar → Add Account → Other / Thunderbird → New Calendar → On the Network / DAVx⁵ → Add account.'
+								)}
+								comingSoon
+							/>
+						)}
 					</div>
 				)}
 

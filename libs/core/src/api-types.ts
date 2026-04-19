@@ -1147,5 +1147,168 @@ export interface QrLoginRespondRequest {
 }
 
 // ============================================================================
+// CONTACT / ADDRESS BOOK ENDPOINTS
+// ============================================================================
+
+// Structured sub-types
+export const tContactName = T.struct({
+	given: T.optional(T.string),
+	family: T.optional(T.string),
+	additional: T.optional(T.string),
+	prefix: T.optional(T.string),
+	suffix: T.optional(T.string)
+})
+export type ContactName = T.TypeOf<typeof tContactName>
+
+/** vCard EMAIL/TEL/URL with TYPE/PREF parameters. */
+export const tTypedValue = T.struct({
+	value: T.string,
+	type: T.optional(T.array(T.string)),
+	pref: T.optional(T.number)
+})
+export type TypedValue = T.TypeOf<typeof tTypedValue>
+
+/** Live profile data merged onto contacts that link to a Cloudillo profile. */
+export const tProfileOverlay = T.struct({
+	idTag: T.string,
+	name: T.optional(T.string),
+	type: T.optional(T.string),
+	profilePic: T.optional(T.string),
+	connected: T.optional(T.boolean),
+	following: T.optional(T.boolean)
+})
+export type ProfileOverlay = T.TypeOf<typeof tProfileOverlay>
+
+// Contact response types
+export const tContactOutput = T.struct({
+	cId: T.number,
+	abId: T.number,
+	uid: T.string,
+	etag: T.string,
+	fn: T.optional(T.string),
+	n: T.optional(tContactName),
+	emails: T.optional(T.array(tTypedValue)),
+	phones: T.optional(T.array(tTypedValue)),
+	org: T.optional(T.string),
+	title: T.optional(T.string),
+	note: T.optional(T.string),
+	photo: T.optional(T.string),
+	profileIdTag: T.optional(T.string),
+	profile: T.optional(tProfileOverlay),
+	/** Set when the stored vCard blob could not be parsed. Clients should render
+	 * "record unreadable" rather than treating an empty projection as authoritative. */
+	parseError: T.optional(T.string),
+	createdAt: T.string,
+	updatedAt: T.string
+})
+export type ContactOutput = T.TypeOf<typeof tContactOutput>
+
+export const tContactListItem = T.struct({
+	cId: T.number,
+	abId: T.number,
+	uid: T.string,
+	etag: T.string,
+	fn: T.optional(T.string),
+	email: T.optional(T.string),
+	tel: T.optional(T.string),
+	org: T.optional(T.string),
+	photo: T.optional(T.string),
+	profileIdTag: T.optional(T.string),
+	profile: T.optional(tProfileOverlay),
+	updatedAt: T.string
+})
+export type ContactListItem = T.TypeOf<typeof tContactListItem>
+
+export const tContactList = T.array(tContactListItem)
+export type ContactList = T.TypeOf<typeof tContactList>
+
+// Contact request types
+/**
+ * Body for POST (create) and PUT (replace).
+ * Field absence means "leave empty" — no merge semantics on full replace.
+ */
+export interface ContactInput {
+	uid?: string
+	fn?: string
+	n?: ContactName
+	emails?: TypedValue[]
+	phones?: TypedValue[]
+	org?: string
+	title?: string
+	note?: string
+	photo?: string
+	profileIdTag?: string
+}
+
+/**
+ * Body for PATCH. Each field uses three-state semantics:
+ * - omitted (field uses `?:`): leave alone
+ * - `null`: clear the value
+ * - value: replace the value
+ */
+export type Patch<T> = T | null
+
+export interface ContactPatch {
+	fn?: Patch<string>
+	n?: Patch<ContactName>
+	emails?: Patch<TypedValue[]>
+	phones?: Patch<TypedValue[]>
+	org?: Patch<string>
+	title?: Patch<string>
+	note?: Patch<string>
+	photo?: Patch<string>
+	profileIdTag?: Patch<string>
+}
+
+export interface ListContactsQuery {
+	q?: string
+	cursor?: string
+	limit?: number
+}
+
+// Address book types
+export const tAddressBookOutput = T.struct({
+	abId: T.number,
+	name: T.string,
+	description: T.optional(T.string),
+	ctag: T.string,
+	createdAt: T.string,
+	updatedAt: T.string
+})
+export type AddressBookOutput = T.TypeOf<typeof tAddressBookOutput>
+
+export const tAddressBookList = T.array(tAddressBookOutput)
+export type AddressBookList = T.TypeOf<typeof tAddressBookList>
+
+export interface AddressBookCreate {
+	name: string
+	description?: string
+}
+
+export interface AddressBookPatch {
+	name?: Patch<string>
+	description?: Patch<string>
+}
+
+// Import
+export type ImportConflictMode = 'skip' | 'replace' | 'add'
+
+export const tImportContactsError = T.struct({
+	index: T.number,
+	uid: T.optional(T.string),
+	message: T.string
+})
+export type ImportContactsError = T.TypeOf<typeof tImportContactsError>
+
+export const tImportContactsResult = T.struct({
+	total: T.number,
+	imported: T.number,
+	updated: T.number,
+	skipped: T.number,
+	errors: T.array(tImportContactsError)
+})
+export type ImportContactsResult = T.TypeOf<typeof tImportContactsResult>
+
+// ============================================================================
 // WEBSOCKET TYPES
 // vim: ts=2

@@ -901,6 +901,96 @@ export class ApiClient {
 	}
 
 	// ========================================================================
+	// CONTACT / ADDRESS BOOK ENDPOINTS
+	// ========================================================================
+
+	/** Address books and contacts (also reachable over CardDAV at /dav/...) */
+	contacts = {
+		/** GET /address-books - List address books for the current tenant. */
+		listAddressBooks: () => this.request('GET', '/address-books', Types.tAddressBookList),
+
+		/** POST /address-books - Create an address book. */
+		createAddressBook: (data: Types.AddressBookCreate) =>
+			this.request('POST', '/address-books', Types.tAddressBookOutput, { data }),
+
+		/** PATCH /address-books/:abId - Update an address book (name/description). */
+		updateAddressBook: (abId: number, data: Types.AddressBookPatch) =>
+			this.request('PATCH', `/address-books/${abId}`, Types.tAddressBookOutput, { data }),
+
+		/** DELETE /address-books/:abId - Delete an address book and all its contacts. */
+		deleteAddressBook: (abId: number) =>
+			this.request('DELETE', `/address-books/${abId}`, T.nullValue),
+
+		/** GET /address-books/:abId/contacts - List contacts (cursor-paginated, optional search). */
+		listContacts: (abId: number, query?: Types.ListContactsQuery) =>
+			this.requestWithMeta('GET', `/address-books/${abId}/contacts`, Types.tContactList, {
+				query: query as Record<string, string | number | boolean | string[] | undefined>
+			}),
+
+		/** GET /address-books/:abId/contacts/:uid - Get a single contact. */
+		getContact: (abId: number, uid: string) =>
+			this.request(
+				'GET',
+				`/address-books/${abId}/contacts/${encodeURIComponent(uid)}`,
+				Types.tContactOutput
+			),
+
+		/** POST /address-books/:abId/contacts - Create a contact. */
+		createContact: (abId: number, data: Types.ContactInput) =>
+			this.request('POST', `/address-books/${abId}/contacts`, Types.tContactOutput, { data }),
+
+		/** PUT /address-books/:abId/contacts/:uid - Replace a contact (full overwrite). */
+		replaceContact: (abId: number, uid: string, data: Types.ContactInput) =>
+			this.request(
+				'PUT',
+				`/address-books/${abId}/contacts/${encodeURIComponent(uid)}`,
+				Types.tContactOutput,
+				{ data }
+			),
+
+		/** PATCH /address-books/:abId/contacts/:uid - Patch a contact (three-state per field). */
+		patchContact: (abId: number, uid: string, data: Types.ContactPatch) =>
+			this.request(
+				'PATCH',
+				`/address-books/${abId}/contacts/${encodeURIComponent(uid)}`,
+				Types.tContactOutput,
+				{ data }
+			),
+
+		/** DELETE /address-books/:abId/contacts/:uid - Delete a contact. */
+		deleteContact: (abId: number, uid: string) =>
+			this.request(
+				'DELETE',
+				`/address-books/${abId}/contacts/${encodeURIComponent(uid)}`,
+				T.nullValue
+			),
+
+		/**
+		 * POST /address-books/:abId/import - Import a multi-card vCard file.
+		 * Body is the raw .vcf text (text/vcard). Conflicts (matched by UID) are
+		 * resolved per the `conflict` mode: skip / replace / add. Returns counts
+		 * + per-card errors.
+		 */
+		importContacts: (
+			abId: number,
+			vcard: string,
+			conflict: Types.ImportConflictMode = 'skip'
+		) =>
+			apiFetchHelper<Types.ImportContactsResult>(
+				this.opts.idTag,
+				'POST',
+				`/address-books/${abId}/import`,
+				{
+					type: Types.tImportContactsResult,
+					rawBody: vcard,
+					query: { conflict },
+					authToken: this.opts.authToken,
+					headers: { 'Content-Type': 'text/vcard; charset=utf-8' }
+				}
+			)
+	}
+
+	// ========================================================================
 	// SETTINGS ENDPOINTS
 	// ========================================================================
 

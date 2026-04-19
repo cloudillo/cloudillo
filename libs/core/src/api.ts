@@ -113,6 +113,9 @@ export interface ApiFetchOpts<R, D> {
 	headers?: Record<string, string>
 	/** Return metadata in addition to data */
 	returnMeta?: boolean
+	/** Send the body verbatim instead of JSON-encoding `data`. When set, `data` is ignored.
+	 *  Set Content-Type via `headers`. */
+	rawBody?: string
 }
 /**
  * Helper function to unwrap API response envelope
@@ -178,11 +181,18 @@ export async function apiFetchHelper<R, D = unknown>(
 		headers['X-Request-ID'] = opts.requestId
 	}
 
+	const body =
+		method === 'GET'
+			? undefined
+			: opts.rawBody !== undefined
+				? opts.rawBody
+				: JSON.stringify(opts.data)
+
 	const res = await fetch(url + (opts.query ? '?' + qs(opts.query) : ''), {
 		method,
 		headers,
 		credentials: 'include',
-		body: method != 'GET' ? JSON.stringify(opts.data) : undefined,
+		body,
 		signal: abortCtrl.signal
 	})
 

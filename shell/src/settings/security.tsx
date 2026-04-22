@@ -1,35 +1,33 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import {
+	type ApiKeyListItem,
+	type CreateApiKeyResult,
+	getInstanceUrl,
+	type WebAuthnCredential
+} from '@cloudillo/core'
+import { Button, LoadingSpinner, Modal, useApi, useAuth, useDialog } from '@cloudillo/react'
+import { browserSupportsWebAuthn, startRegistration } from '@simplewebauthn/browser'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { browserSupportsWebAuthn, startRegistration } from '@simplewebauthn/browser'
-
 import {
-	LuFingerprint as IcPasskey,
 	LuPlus as IcAdd,
-	LuTrash as IcDelete,
 	LuKey as IcApiKey,
-	LuTriangleAlert as IcWarning,
-	LuCopy as IcCopy,
 	LuCheck as IcCheck,
-	LuX as IcClose
+	LuX as IcClose,
+	LuCopy as IcCopy,
+	LuTrash as IcDelete,
+	LuPencil as IcEdit,
+	LuFingerprint as IcPasskey,
+	LuTriangleAlert as IcWarning
 } from 'react-icons/lu'
-
-import { useAuth, useApi, useDialog, Button, Modal, LoadingSpinner } from '@cloudillo/react'
 import {
-	getInstanceUrl,
-	type WebAuthnCredential,
-	type ApiKeyListItem,
-	type CreateApiKeyResult
-} from '@cloudillo/core'
-
-import { useSettings } from './settings.js'
-import {
-	setApiKey as swSetApiKey,
+	deleteApiKey as swDeleteApiKey,
 	getApiKey as swGetApiKey,
-	deleteApiKey as swDeleteApiKey
+	setApiKey as swSetApiKey
 } from '../pwa.js'
+import { useSettings } from './settings.js'
 
 const AVAILABLE_SCOPES = [
 	{
@@ -172,6 +170,172 @@ function CreateApiKeyModal({ open, onClose, onCreated }: CreateApiKeyModalProps)
 					<Button onClick={onClose}>{t('Cancel')}</Button>
 					<Button primary disabled={isSubmitting} onClick={handleCreate}>
 						{isSubmitting ? t('Creating...') : t('Create API Key')}
+					</Button>
+				</div>
+			</div>
+		</Modal>
+	)
+}
+
+// Edit API Key Modal
+interface EditApiKeyModalProps {
+	open: boolean
+	apiKey: ApiKeyListItem | undefined
+	onClose: () => void
+	onSaved: () => void
+}
+
+// Convert Unix seconds → "YYYY-MM-DD" in the user's local timezone for <input type="date">.
+function expiresAtToDateInput(expiresAt: number | undefined): string {
+	if (!expiresAt) return ''
+	const d = new Date(expiresAt * 1000)
+	const y = d.getFullYear()
+	const m = String(d.getMonth() + 1).padStart(2, '0')
+	const day = String(d.getDate()).padStart(2, '0')
+	return `${y}-${m}-${day}`
+}
+
+// Convert "YYYY-MM-DD" → Unix seconds at end-of-day in the user's *local*
+// timezone. This matches the UX of "valid through this date where I am";
+// near the international date line the resulting instant can land on a
+// different UTC calendar day, which is acceptable as long as the server
+// compares against the timestamp (not a UTC calendar date).
+function dateInputToExpiresAt(value: string): number | null {
+	if (!value) return null
+	const endOfDay = new Date(`${value}T23:59:59`)
+	return Math.floor(endOfDay.getTime() / 1000)
+}
+
+function EditApiKeyModal({ open, apiKey, onClose, onSaved }: EditApiKeyModalProps) {
+	const { t } = useTranslation()
+	const { api } = useApi()
+	const [name, setName] = React.useState('')
+	const [selectedScopes, setSelectedScopes] = React.useState<string[]>([])
+	const [expiresAtInput, setExpiresAtInput] = React.useState('')
+	const [isSubmitting, setIsSubmitting] = React.useState(false)
+	const [error, setError] = React.useState<string | undefined>()
+
+	React.useEffect(() => {
+		if (open && apiKey) {
+			setName(apiKey.name ?? '')
+			setSelectedScopes(apiKey.scopes?.split(',').filter(Boolean) ?? [])
+			setExpiresAtInput(expiresAtToDateInput(apiKey.expiresAt))
+			setError(undefined)
+		}
+	}, [open, apiKey])
+
+	function toggleScope(scope: string) {
+		setSelectedScopes((prev) =>
+			prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope]
+		)
+	}
+
+	async function handleSave() {
+		if (!api || !apiKey) return
+		setIsSubmitting(true)
+		setError(undefined)
+
+		// Server-side, write access requires read in the same protocol family.
+		// Auto-add the matching read scope so users don't have to think about it.
+		const finalScopes = new Set(selectedScopes)
+		if (finalScopes.has('carddav:write')) finalScopes.add('carddav:read')
+		if (finalScopes.has('caldav:write')) finalScopes.add('caldav:read')
+
+		// Only send expiresAt if the date part changed — avoids overwriting the
+		// original second-precision timestamp when the user didn't touch the field.
+		const originalInput = expiresAtToDateInput(apiKey.expiresAt)
+		const expiresAtChanged = expiresAtInput !== originalInput
+
+		try {
+			await api.auth.updateApiKey(apiKey.keyId, {
+				name: name || null,
+				scopes: finalScopes.size > 0 ? Array.from(finalScopes).join(',') : null,
+				...(expiresAtChanged && { expiresAt: dateInputToExpiresAt(expiresAtInput) })
+			})
+			onSaved()
+		} catch (err: unknown) {
+			if (err instanceof Error) {
+				setError(err.message)
+			} else {
+				setError(t('Failed to update API key'))
+			}
+		} finally {
+			setIsSubmitting(false)
+		}
+	}
+
+	return (
+		<Modal open={open} onClose={onClose}>
+			<div className="c-dialog c-panel emph p-4" style={{ maxWidth: '500px', width: '100%' }}>
+				<div className="c-hbox mb-3">
+					<h3 className="flex-fill mb-0">{t('Edit API key')}</h3>
+					<button className="c-link" onClick={onClose} aria-label={t('Close')}>
+						<IcClose />
+					</button>
+				</div>
+
+				{error && (
+					<div className="c-panel bg-error-subtle p-2 mb-3">
+						<span className="text-error">{error}</span>
+					</div>
+				)}
+
+				<div className="mb-3">
+					<label className="c-label">{t('Name (optional)')}</label>
+					<input
+						className="c-input"
+						placeholder={t('e.g., CI pipeline')}
+						value={name}
+						onChange={(e) => setName(e.target.value)}
+					/>
+				</div>
+
+				<div className="mb-3">
+					<label className="c-label">{t('Expires (optional)')}</label>
+					<div className="c-hbox g-2 ai-center">
+						<input
+							type="date"
+							className="c-input flex-fill"
+							value={expiresAtInput}
+							min={expiresAtToDateInput(Math.floor(Date.now() / 1000))}
+							onChange={(e) => setExpiresAtInput(e.target.value)}
+						/>
+						{expiresAtInput && (
+							<Button onClick={() => setExpiresAtInput('')}>{t('Clear')}</Button>
+						)}
+					</div>
+					<div className="c-hint small mt-1">
+						{expiresAtInput
+							? t('Key is valid until the end of this day.')
+							: t('No expiration — the key is valid until revoked.')}
+					</div>
+				</div>
+
+				<div className="mb-3">
+					<label className="c-label">{t('Permissions')}</label>
+					<div className="c-hint small mb-2">
+						{t('Leave all unchecked for full access.')}
+					</div>
+					{AVAILABLE_SCOPES.map((scope) => (
+						<label key={scope.value} className="c-hbox ai-start p-2">
+							<input
+								type="checkbox"
+								className="c-toggle primary mr-2 mt-1"
+								checked={selectedScopes.includes(scope.value)}
+								onChange={() => toggleScope(scope.value)}
+							/>
+							<div>
+								<span>{t(scope.label)}</span>
+								<div className="c-hint small">{t(scope.description)}</div>
+							</div>
+						</label>
+					))}
+				</div>
+
+				<div className="c-hbox jc-end g-2">
+					<Button onClick={onClose}>{t('Cancel')}</Button>
+					<Button primary disabled={isSubmitting} onClick={handleSave}>
+						{isSubmitting ? t('Saving...') : t('Save changes')}
 					</Button>
 				</div>
 			</div>
@@ -334,7 +498,6 @@ function ApiKeyCreatedModal({ open, result, onClose }: ApiKeyCreatedModalProps) 
 								hint={t(
 									'Apple Calendar → Add Account → Other / Thunderbird → New Calendar → On the Network / DAVx⁵ → Add account.'
 								)}
-								comingSoon
 							/>
 						)}
 					</div>
@@ -376,6 +539,7 @@ export function SecuritySettings() {
 	const [showCreateModal, setShowCreateModal] = React.useState(false)
 	const [showKeyCreatedModal, setShowKeyCreatedModal] = React.useState(false)
 	const [createdKeyResult, setCreatedKeyResult] = React.useState<CreateApiKeyResult | null>(null)
+	const [editingKey, setEditingKey] = React.useState<ApiKeyListItem | undefined>()
 
 	// Load passkeys and API keys on mount
 	React.useEffect(
@@ -545,16 +709,22 @@ export function SecuritySettings() {
 				}
 			}
 		} else {
-			// Find and delete the API key for this device
+			// Find and delete the API key for this device. Fetch a fresh list
+			// from the server — the `apiKeys` state can be stale if another
+			// session rotated keys, and a stale find() would silently leak an
+			// active server-side key while we delete only the local SW copy.
 			if (currentDeviceKeyPrefix) {
-				const matchingKey = apiKeys.find((k) => k.keyPrefix === currentDeviceKeyPrefix)
-
-				if (matchingKey) {
-					try {
+				try {
+					const freshKeys = await api.auth.listApiKeys()
+					setApiKeys(freshKeys)
+					const matchingKey = freshKeys.find(
+						(k) => k.keyPrefix === currentDeviceKeyPrefix
+					)
+					if (matchingKey) {
 						await api.auth.deleteApiKey(matchingKey.keyId)
-					} catch (err) {
-						console.error('Failed to delete API key:', err)
 					}
+				} catch (err) {
+					console.error('Failed to delete API key:', err)
 				}
 			}
 
@@ -737,10 +907,36 @@ export function SecuritySettings() {
 													({t('this device')})
 												</span>
 											)}
+											{key.expiresAt &&
+												(key.expiresAt * 1000 < Date.now() ? (
+													<span className="ml-2 text-error">
+														{t('Expired {{date}}', {
+															date: new Date(
+																key.expiresAt * 1000
+															).toLocaleDateString()
+														})}
+													</span>
+												) : (
+													<span className="ml-2">
+														{t('Expires {{date}}', {
+															date: new Date(
+																key.expiresAt * 1000
+															).toLocaleDateString()
+														})}
+													</span>
+												))}
 										</div>
 									</div>
 									<button
+										className="c-link"
+										aria-label={t('Edit API key')}
+										onClick={() => setEditingKey(key)}
+									>
+										<IcEdit />
+									</button>
+									<button
 										className="c-link text-error"
+										aria-label={t('Delete API key')}
 										onClick={() => deleteApiKey(key.keyId, key.keyPrefix)}
 									>
 										<IcDelete />
@@ -765,6 +961,16 @@ export function SecuritySettings() {
 				onClose={() => {
 					setShowKeyCreatedModal(false)
 					setCreatedKeyResult(null)
+				}}
+			/>
+
+			<EditApiKeyModal
+				open={!!editingKey}
+				apiKey={editingKey}
+				onClose={() => setEditingKey(undefined)}
+				onSaved={() => {
+					setEditingKey(undefined)
+					loadApiKeys()
 				}}
 			/>
 		</>

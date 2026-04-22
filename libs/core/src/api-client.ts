@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as T from '@symbion/runtype'
-import { apiFetchHelper, type ApiFetchResult } from './api.js'
+import { type ApiFetchResult, apiFetchHelper } from './api.js'
 import * as Types from './api-types.js'
 import { getInstanceUrl } from './urls.js'
 
@@ -275,6 +275,15 @@ export class ApiClient {
 		 */
 		createApiKey: (data: Types.CreateApiKeyRequest) =>
 			this.request('POST', '/auth/api-keys', Types.tCreateApiKeyResult, { data }),
+
+		/**
+		 * PATCH /auth/api-keys/{keyId} - Update API key (name, scopes)
+		 * @param keyId - Key ID to update
+		 * @param data - Fields to update; omitted fields unchanged, null clears the field
+		 * @returns Updated API key (no plaintext)
+		 */
+		updateApiKey: (keyId: number, data: Types.UpdateApiKeyRequest) =>
+			this.request('PATCH', `/auth/api-keys/${keyId}`, Types.tApiKeyListItem, { data }),
 
 		/**
 		 * DELETE /auth/api-keys/{keyId} - Delete API key
@@ -987,6 +996,143 @@ export class ApiClient {
 					authToken: this.opts.authToken,
 					headers: { 'Content-Type': 'text/vcard; charset=utf-8' }
 				}
+			)
+	}
+
+	// ========================================================================
+	// CALENDAR / CALDAV ENDPOINTS
+	// ========================================================================
+
+	/** Calendars and calendar objects (also reachable over CalDAV at /dav/...). */
+	calendars = {
+		/** GET /calendars - List calendars for the current tenant. */
+		listCalendars: () => this.request('GET', '/calendars', Types.tCalendarList),
+
+		/** POST /calendars - Create a calendar. */
+		createCalendar: (data: Types.CalendarCreate) =>
+			this.request('POST', '/calendars', Types.tCalendarOutput, { data }),
+
+		/** GET /calendars/:calId - Get a single calendar. */
+		getCalendar: (calId: number) =>
+			this.request('GET', `/calendars/${calId}`, Types.tCalendarOutput),
+
+		/** PATCH /calendars/:calId - Update calendar metadata. */
+		updateCalendar: (calId: number, data: Types.CalendarPatch) =>
+			this.request('PATCH', `/calendars/${calId}`, Types.tCalendarOutput, { data }),
+
+		/** DELETE /calendars/:calId - Delete a calendar and all its objects. */
+		deleteCalendar: (calId: number) =>
+			this.request('DELETE', `/calendars/${calId}`, T.nullValue),
+
+		/** GET /calendars/:calId/objects - List events / tasks with filtering, date range, pagination. */
+		listObjects: (calId: number, query?: Types.ListCalendarObjectsQuery) =>
+			this.requestWithMeta('GET', `/calendars/${calId}/objects`, Types.tCalendarObjectList, {
+				query: query as Record<string, string | number | boolean | string[] | undefined>
+			}),
+
+		/** GET /calendars/:calId/objects/:uid - Get a single event / task. */
+		getObject: (calId: number, uid: string) =>
+			this.request(
+				'GET',
+				`/calendars/${calId}/objects/${encodeURIComponent(uid)}`,
+				Types.tCalendarObjectOutput
+			),
+
+		/** POST /calendars/:calId/objects - Create an event or task. */
+		createObject: (calId: number, data: Types.CalendarObjectInput) =>
+			this.request('POST', `/calendars/${calId}/objects`, Types.tCalendarObjectOutput, {
+				data
+			}),
+
+		/** PUT /calendars/:calId/objects/:uid - Replace an event / task (full overwrite). */
+		replaceObject: (calId: number, uid: string, data: Types.CalendarObjectInput) =>
+			this.request(
+				'PUT',
+				`/calendars/${calId}/objects/${encodeURIComponent(uid)}`,
+				Types.tCalendarObjectOutput,
+				{ data }
+			),
+
+		/** PATCH /calendars/:calId/objects/:uid - Update a subset of fields on
+		 *  an event / task. Used by drag-and-resize where we only change
+		 *  dtstart/dtend/allDay and don't want a full-body round-trip. */
+		patchObject: (calId: number, uid: string, data: Types.CalendarObjectInput) =>
+			this.request(
+				'PATCH',
+				`/calendars/${calId}/objects/${encodeURIComponent(uid)}`,
+				Types.tCalendarObjectOutput,
+				{ data }
+			),
+
+		/** DELETE /calendars/:calId/objects/:uid - Delete an event / task. */
+		deleteObject: (calId: number, uid: string) =>
+			this.request(
+				'DELETE',
+				`/calendars/${calId}/objects/${encodeURIComponent(uid)}`,
+				T.nullValue
+			),
+
+		/** POST /calendars/:calId/objects/:uid/split - Atomically fork a recurring series.
+		 *  Replaces the 3-step client dance (PATCH master, DELETE post-split overrides,
+		 *  POST tail) with a single transactional call — no more half-split states. */
+		splitSeries: (calId: number, uid: string, data: Types.SplitSeriesRequest) =>
+			this.request(
+				'POST',
+				`/calendars/${calId}/objects/${encodeURIComponent(uid)}/split`,
+				Types.tSplitSeriesResponse,
+				{ data }
+			),
+
+		/** GET /calendars/:calId/objects/:uid/exceptions - List recurrence overrides for a series. */
+		listExceptions: (calId: number, uid: string) =>
+			this.request(
+				'GET',
+				`/calendars/${calId}/objects/${encodeURIComponent(uid)}/exceptions`,
+				Types.tCalendarObjectOutputList
+			),
+
+		/** GET /calendars/:calId/objects/:uid/exceptions/:recurrenceId - Fetch a single override. */
+		getException: (calId: number, uid: string, recurrenceId: string) =>
+			this.request(
+				'GET',
+				`/calendars/${calId}/objects/${encodeURIComponent(uid)}/exceptions/${encodeURIComponent(recurrenceId)}`,
+				Types.tCalendarObjectOutput
+			),
+
+		/** PUT /calendars/:calId/objects/:uid/exceptions/:recurrenceId - Create or replace an override. */
+		createException: (
+			calId: number,
+			uid: string,
+			recurrenceId: string,
+			data: Types.CalendarObjectInput
+		) =>
+			this.request(
+				'PUT',
+				`/calendars/${calId}/objects/${encodeURIComponent(uid)}/exceptions/${encodeURIComponent(recurrenceId)}`,
+				Types.tCalendarObjectOutput,
+				{ data }
+			),
+
+		/** PATCH /calendars/:calId/objects/:uid/exceptions/:recurrenceId - Partial update of an override. */
+		patchException: (
+			calId: number,
+			uid: string,
+			recurrenceId: string,
+			data: Types.CalendarObjectInput
+		) =>
+			this.request(
+				'PATCH',
+				`/calendars/${calId}/objects/${encodeURIComponent(uid)}/exceptions/${encodeURIComponent(recurrenceId)}`,
+				Types.tCalendarObjectOutput,
+				{ data }
+			),
+
+		/** DELETE /calendars/:calId/objects/:uid/exceptions/:recurrenceId - Remove an override. */
+		deleteException: (calId: number, uid: string, recurrenceId: string) =>
+			this.request(
+				'DELETE',
+				`/calendars/${calId}/objects/${encodeURIComponent(uid)}/exceptions/${encodeURIComponent(recurrenceId)}`,
+				T.nullValue
 			)
 	}
 

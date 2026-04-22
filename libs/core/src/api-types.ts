@@ -34,66 +34,66 @@ export type ErrorCode =
 
 // Import types from @cloudillo/types
 import {
-	tProfile,
-	tOptionalProfile,
-	tProfileTrust,
-	tAction,
-	tNewAction,
-	tActionView,
-	tActionType,
-	tActionStatus,
-	Profile,
-	ProfileTrust,
 	Action,
-	NewAction,
-	ActionView,
-	ActionType,
 	ActionStatus,
-	// App manifest types
-	tAppKind,
-	tAppCapability,
-	tContentTypeAction,
-	tContentTypeHandler,
-	tLaunchMode,
-	tAppManifest,
-	AppKind,
+	ActionType,
+	ActionView,
 	AppCapability,
+	AppKind,
+	AppManifest,
 	ContentTypeAction,
 	ContentTypeHandler,
 	LaunchMode,
-	AppManifest
+	NewAction,
+	Profile,
+	ProfileTrust,
+	tAction,
+	tActionStatus,
+	tActionType,
+	tActionView,
+	tAppCapability,
+	// App manifest types
+	tAppKind,
+	tAppManifest,
+	tContentTypeAction,
+	tContentTypeHandler,
+	tLaunchMode,
+	tNewAction,
+	tOptionalProfile,
+	tProfile,
+	tProfileTrust
 } from '@cloudillo/types'
 
 // Re-export types from @cloudillo/types
 export {
-	tProfile,
-	tOptionalProfile,
-	tProfileTrust,
-	tAction,
-	tNewAction,
-	tActionView,
-	tActionType,
-	tActionStatus,
-	Profile,
-	ProfileTrust,
 	Action,
-	NewAction,
-	ActionView,
-	ActionType,
 	ActionStatus,
-	// App manifest types
-	tAppKind,
-	tAppCapability,
-	tContentTypeAction,
-	tContentTypeHandler,
-	tLaunchMode,
-	tAppManifest,
-	AppKind,
+	ActionType,
+	ActionView,
 	AppCapability,
+	AppKind,
+	AppManifest,
 	ContentTypeAction,
 	ContentTypeHandler,
 	LaunchMode,
-	AppManifest
+	NewAction,
+	Profile,
+	ProfileTrust,
+	tAction,
+	tActionStatus,
+	tActionType,
+	tActionView,
+	tAppCapability,
+	// App manifest types
+	tAppKind,
+	tAppManifest,
+	tContentTypeAction,
+	tContentTypeHandler,
+	tLaunchMode,
+	tNewAction,
+	tOptionalProfile,
+	tProfile,
+	tProfileTrust
 }
 
 // ============================================================================
@@ -389,6 +389,13 @@ export interface CreateApiKeyRequest {
 	name?: string
 	scopes?: string
 	expiresAt?: number
+}
+
+// Update API key request (all fields optional; omitted = unchanged, null = clear)
+export interface UpdateApiKeyRequest {
+	name?: string | null
+	scopes?: string | null
+	expiresAt?: number | null
 }
 
 // Create API key result (includes plaintext key shown only once)
@@ -1308,6 +1315,206 @@ export const tImportContactsResult = T.struct({
 	errors: T.array(tImportContactsError)
 })
 export type ImportContactsResult = T.TypeOf<typeof tImportContactsResult>
+
+// ============================================================================
+// CALENDAR / CALDAV ENDPOINTS
+// ============================================================================
+
+/** iCalendar ATTENDEE / ORGANIZER reference (CAL-ADDRESS URI like mailto:…). */
+export const tAttendee = T.struct({
+	address: T.string,
+	cn: T.optional(T.string),
+	/** PARTSTAT — RFC 5545 standard values: `ACCEPTED`, `DECLINED`, `TENTATIVE`,
+	 *  `NEEDS-ACTION`, `DELEGATED`. Kept as string because RFC 5545 permits
+	 *  iana-token / x-name extensions from imported calendars. */
+	partstat: T.optional(T.string),
+	/** ROLE — RFC 5545 standard values: `CHAIR`, `REQ-PARTICIPANT`,
+	 *  `OPT-PARTICIPANT`, `NON-PARTICIPANT`. Extensions allowed (see above). */
+	role: T.optional(T.string),
+	rsvp: T.optional(T.boolean)
+})
+export type Attendee = T.TypeOf<typeof tAttendee>
+
+/** VALARM reminder. Trigger is raw RFC 5545 value (`-PT15M`, absolute DATE-TIME, …). */
+export const tAlarm = T.struct({
+	/** ACTION: AUDIO / DISPLAY / EMAIL. */
+	action: T.optional(T.string),
+	trigger: T.optional(T.string),
+	description: T.optional(T.string)
+})
+export type Alarm = T.TypeOf<typeof tAlarm>
+
+// Calendar collection
+export const tCalendarOutput = T.struct({
+	calId: T.number,
+	name: T.string,
+	description: T.optional(T.string),
+	color: T.optional(T.string),
+	/** IANA timezone identifier (e.g. `Europe/Budapest`). Not a TZ abbreviation. */
+	timezone: T.optional(T.string),
+	/** CSV of supported components, e.g. `"VEVENT,VTODO"`. */
+	components: T.string,
+	ctag: T.string,
+	createdAt: T.string,
+	updatedAt: T.string
+})
+export type CalendarOutput = T.TypeOf<typeof tCalendarOutput>
+
+export const tCalendarList = T.array(tCalendarOutput)
+export type CalendarList = T.TypeOf<typeof tCalendarList>
+
+export interface CalendarCreate {
+	name: string
+	description?: string
+	color?: string
+	timezone?: string
+	/** Defaults to both `VEVENT` + `VTODO` if omitted. */
+	components?: string[]
+}
+
+export interface CalendarPatch {
+	name?: Patch<string>
+	description?: Patch<string>
+	color?: Patch<string>
+	timezone?: Patch<string>
+	components?: Patch<string[]>
+}
+
+// Calendar object — write (one of `event` / `todo` populated)
+export interface EventInput {
+	summary?: string
+	description?: string
+	location?: string
+	/** ISO-8601. `allDay=true` uses `VALUE=DATE` semantics. */
+	dtstart?: string
+	dtend?: string
+	allDay?: boolean
+	rrule?: string
+	/** EXDATE exclusions on the master (ISO-8601); occurrences matching these are skipped. */
+	exdate?: string[]
+	status?: string
+	organizer?: string
+	attendees?: Attendee[]
+	categories?: string[]
+	alarms?: Alarm[]
+}
+
+export interface TodoInput {
+	summary?: string
+	description?: string
+	dtstart?: string
+	due?: string
+	completed?: string
+	/** 0–9 (0=undefined, 1=high, 9=low). */
+	priority?: number
+	status?: string
+	rrule?: string
+	categories?: string[]
+	alarms?: Alarm[]
+}
+
+export interface CalendarObjectInput {
+	uid?: string
+	/** RECURRENCE-ID (ISO-8601) when writing a recurrence-override row; omitted for the master. */
+	recurrenceId?: string
+	event?: EventInput
+	todo?: TodoInput
+}
+
+// Calendar object — read (unified VEVENT + VTODO shape)
+export const tCalendarObjectOutput = T.struct({
+	coId: T.number,
+	calId: T.number,
+	uid: T.string,
+	etag: T.string,
+	/** `VEVENT` or `VTODO`. */
+	component: T.string,
+	summary: T.optional(T.string),
+	description: T.optional(T.string),
+	location: T.optional(T.string),
+	dtstart: T.optional(T.string),
+	dtend: T.optional(T.string),
+	allDay: T.optional(T.boolean),
+	status: T.optional(T.string),
+	priority: T.optional(T.number),
+	organizer: T.optional(T.string),
+	rrule: T.optional(T.string),
+	/** RECURRENCE-ID (ISO-8601) for override rows; absent on masters. */
+	recurrenceId: T.optional(T.string),
+	/** EXDATE list (ISO-8601) on masters; absent on overrides. */
+	exdate: T.optional(T.array(T.string)),
+	attendees: T.optional(T.array(tAttendee)),
+	categories: T.optional(T.array(T.string)),
+	alarms: T.optional(T.array(tAlarm)),
+	/** Set when the stored iCalendar blob could not be parsed. */
+	parseError: T.optional(T.string),
+	createdAt: T.string,
+	updatedAt: T.string
+})
+export type CalendarObjectOutput = T.TypeOf<typeof tCalendarObjectOutput>
+
+export const tCalendarObjectListItem = T.struct({
+	coId: T.number,
+	calId: T.number,
+	uid: T.string,
+	etag: T.string,
+	component: T.string,
+	summary: T.optional(T.string),
+	location: T.optional(T.string),
+	dtstart: T.optional(T.string),
+	dtend: T.optional(T.string),
+	allDay: T.optional(T.boolean),
+	status: T.optional(T.string),
+	priority: T.optional(T.number),
+	rrule: T.optional(T.string),
+	recurrenceId: T.optional(T.string),
+	exdate: T.optional(T.array(T.string)),
+	categories: T.optional(T.array(T.string)),
+	updatedAt: T.string
+})
+export type CalendarObjectListItem = T.TypeOf<typeof tCalendarObjectListItem>
+
+export const tCalendarObjectList = T.array(tCalendarObjectListItem)
+export type CalendarObjectList = T.TypeOf<typeof tCalendarObjectList>
+
+export const tCalendarObjectOutputList = T.array(tCalendarObjectOutput)
+export type CalendarObjectOutputList = T.TypeOf<typeof tCalendarObjectOutputList>
+
+/**
+ * Body for POST /calendars/:calId/objects/:uid/split. Atomically forks a recurring
+ * series at `splitAt`: applies `masterPatch` to the existing master, soft-deletes
+ * every override with `recurrenceId >= splitAt`, then creates a new master from
+ * `tail` (its `uid` is server-minted). All three steps commit in one transaction.
+ */
+export interface SplitSeriesRequest {
+	/** RECURRENCE-ID of the first occurrence belonging to the new tail series (ISO-8601). */
+	splitAt: string
+	/** Patch applied to the existing master. Typically sets `event.rrule` to a
+	 *  client-computed UNTIL-bounded rule. Optional — omit for no master change. */
+	masterPatch?: CalendarObjectInput
+	/** Full input for the new tail master. `uid` is ignored; server mints a fresh one. */
+	tail: CalendarObjectInput
+}
+
+export const tSplitSeriesResponse = T.struct({
+	master: tCalendarObjectOutput,
+	tail: tCalendarObjectOutput
+})
+export type SplitSeriesResponse = T.TypeOf<typeof tSplitSeriesResponse>
+
+export interface ListCalendarObjectsQuery {
+	/** Restrict to `VEVENT` or `VTODO`. */
+	component?: 'VEVENT' | 'VTODO'
+	q?: string
+	/** Time-range start as ISO-8601. */
+	start?: string
+	/** Time-range end as ISO-8601. */
+	end?: string
+	cursor?: string
+	limit?: number
+	/** Include recurrence-override rows (each with a `recurrenceId`) alongside masters. */
+	includeExceptions?: boolean
+}
 
 // ============================================================================
 // WEBSOCKET TYPES

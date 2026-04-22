@@ -9,6 +9,7 @@ import {
 	LuKeyRound as IcSecurity,
 	LuBell as IcNotifications,
 	LuPalette as IcAppearance,
+	LuCalendar as IcCalendar,
 	LuShield as IcPrivacy,
 	LuShieldCheck as IcTrust,
 	LuHardDrive as IcFiles,
@@ -24,6 +25,7 @@ import { SecuritySettings } from './security.js'
 import { NotificationSettings } from './notifications.js'
 import { AppearanceSettings, setTheme } from './appearance.js'
 export { setTheme }
+import { CalendarSettings } from './calendar.js'
 import { PrivacySettings } from './privacy.js'
 import { TrustSettings } from './trust.js'
 import { FilesSettings } from './files.js'
@@ -81,6 +83,11 @@ export function Settings({ title, children }: SettingsProps) {
 					<li>
 						<NavLink className="c-nav-item" to={`${basePath}/appearance`}>
 							<IcAppearance /> {t('Appearance')}
+						</NavLink>
+					</li>
+					<li>
+						<NavLink className="c-nav-item" to={`${basePath}/calendar`}>
+							<IcCalendar /> {t('Calendar')}
 						</NavLink>
 					</li>
 					<li>
@@ -162,6 +169,14 @@ export function SettingsRoutes({ pwa }: { pwa: UsePWA }) {
 				element={
 					<Settings title={t('Appearance')}>
 						<AppearanceSettings />
+					</Settings>
+				}
+			/>
+			<Route
+				path="/settings/:contextIdTag/calendar"
+				element={
+					<Settings title={t('Calendar')}>
+						<CalendarSettings />
 					</Settings>
 				}
 			/>

@@ -13,6 +13,7 @@ import {
 	LuShield as IcSecurity,
 	LuEye as IcPrivacy,
 	LuPalette as IcAppearance,
+	LuCalendar as IcCalendar,
 	LuHardDrive as IcFiles,
 	LuKeyRound as IcKey,
 	LuMonitor as IcDevice,
@@ -246,6 +247,11 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 						icon={<IcAppearance size={28} />}
 						label={t('Appearance')}
 						onClick={() => navigate(`${basePath}/appearance`)}
+					/>
+					<QuickActionCard
+						icon={<IcCalendar size={28} />}
+						label={t('Calendar')}
+						onClick={() => navigate(`${basePath}/calendar`)}
 					/>
 					<QuickActionCard
 						icon={<IcFiles size={28} />}

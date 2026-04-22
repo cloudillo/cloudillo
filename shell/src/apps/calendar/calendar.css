@@ -1,0 +1,646 @@
+/* Panel surfaces for the sidebar + grid + details panes. */
+.c-cal-sidebar,
+.c-cal-grid,
+.c-cal-details,
+.c-cal-agenda,
+.c-cal-tasks {
+	background-color: lch(from var(--col-container-low) l c h / var(--op-panel));
+	color: var(--col-on-container-low);
+	border-radius: var(--border-radius-lg);
+	backdrop-filter: blur(var(--blur-radius));
+}
+
+/* Calendar list sidebar */
+.c-cal-sidebar {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.c-cal-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0.1rem;
+	padding: 0.25rem;
+	overflow-y: auto;
+}
+
+.c-cal-item {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	padding: 0.4rem 0.6rem;
+	border-radius: var(--radius-control);
+	background: transparent;
+	border: 1px solid transparent;
+	color: inherit;
+	cursor: pointer;
+	text-align: left;
+	width: 100%;
+	min-height: 40px;
+	transition:
+		background-color 120ms ease,
+		border-color 120ms ease;
+}
+
+.c-cal-item:hover {
+	background: lch(from var(--col-on) l c h / 0.06);
+}
+
+.c-cal-item:focus-visible {
+	outline: 2px solid var(--col-focus, var(--col-primary));
+	outline-offset: -2px;
+}
+
+.c-cal-item__swatch {
+	width: 1rem;
+	height: 1rem;
+	border-radius: 50%;
+	flex-shrink: 0;
+	border: 2px solid lch(from var(--col-on) l c h / 0.25);
+	box-sizing: border-box;
+}
+
+.c-cal-item__name {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* When a calendar is hidden, keep its name visible at full opacity so users
+   can still read the label, but drain colour from the swatch and meta to
+   signal the filtered-out state. */
+.c-cal-item.dimmed .c-cal-item__name {
+	opacity: 0.6;
+}
+
+.c-cal-item__more {
+	opacity: 0.55;
+	transition: opacity 120ms ease;
+}
+
+.c-cal-item:hover .c-cal-item__more,
+.c-cal-item:focus-within .c-cal-item__more {
+	opacity: 1;
+}
+
+/* Sidebar section header — distinguishes the calendar list from the
+   MiniNavigator above it. */
+.c-cal-sidebar__section-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0.75rem 0.6rem 0.25rem;
+}
+
+.c-cal-sidebar__section-title {
+	font-size: 0.72rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: lch(from var(--col-on) l c h / 0.65);
+}
+
+/* Mini navigator (month thumbnail) */
+.c-cal-mini {
+	padding: 0.5rem;
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: 1px;
+	font-size: 0.75rem;
+}
+
+.c-cal-mini__cell {
+	aspect-ratio: 1 / 1;
+	min-width: 1.75rem;
+	min-height: 1.75rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+	cursor: pointer;
+	border: 1px solid transparent;
+	background: transparent;
+	color: inherit;
+	padding: 0;
+}
+
+.c-cal-mini__cell:hover {
+	background: lch(from var(--col-on) l c h / 0.08);
+}
+
+.c-cal-mini__cell:focus-visible {
+	outline: 2px solid var(--col-focus, var(--col-primary));
+	outline-offset: 1px;
+}
+
+.c-cal-mini__cell.other-month {
+	opacity: 0.35;
+}
+
+.c-cal-mini__cell.today {
+	border-color: var(--col-primary);
+	font-weight: 600;
+}
+
+.c-cal-mini__cell.selected {
+	background: var(--col-primary);
+	color: var(--col-on-primary);
+}
+
+.c-cal-mini__header {
+	font-size: 0.7rem;
+	text-align: center;
+	opacity: 0.6;
+}
+
+/* Details pane */
+.c-cal-details {
+	display: flex;
+	flex-direction: column;
+}
+
+.c-cal-detail-field {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+	padding: 0.6rem 0;
+}
+
+.c-cal-detail-label {
+	font-size: 0.75rem;
+	color: lch(from var(--col-on) l c h / 0.6);
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	display: inline-flex;
+	align-items: center;
+}
+
+.c-cal-detail-value {
+	font-size: 0.95rem;
+	line-height: 1.35;
+}
+
+/* Status / state pill shown under the title in the details pane. */
+.c-cal-detail-pill {
+	display: inline-flex;
+	align-items: center;
+	padding: 0.15rem 0.6rem;
+	border-radius: 999px;
+	font-size: 0.8rem;
+	font-weight: 500;
+	color: var(--col-on-container);
+}
+
+/* Task list row */
+.c-cal-task-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.6rem;
+	padding: 0.5rem 0.75rem;
+	border-radius: var(--radius-control);
+	border: 1px solid transparent;
+	cursor: pointer;
+}
+
+.c-cal-task-row:hover {
+	background: lch(from var(--col-on) l c h / 0.06);
+}
+
+.c-cal-task-row.active {
+	background: lch(from var(--col-primary) l c h / 0.14);
+	border-color: lch(from var(--col-primary) l c h / 0.35);
+}
+
+.c-cal-task-row.completed .c-cal-task-row__title {
+	text-decoration: line-through;
+	opacity: 0.55;
+}
+
+.c-cal-task-row__title {
+	font-weight: 500;
+}
+
+.c-cal-task-row__meta {
+	font-size: 0.8rem;
+	color: lch(from var(--col-on) l c h / 0.65);
+	display: flex;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+}
+
+.c-cal-task-row__priority {
+	display: inline-block;
+	width: 0.5rem;
+	height: 0.5rem;
+	border-radius: 50%;
+	flex-shrink: 0;
+	margin-top: 0.55rem;
+}
+
+/* Toolbar: two deliberate rows so the header never grows past two lines.
+   Row 1 = date nav + primary action; row 2 = view switcher + search. Items
+   within a row can still wrap at very narrow widths, but the two rows are
+   always stacked. */
+.c-cal-toolbar {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+	padding: 0.5rem 0.75rem;
+	min-width: 0;
+	background-color: lch(from var(--col-container-low) l c h / var(--op-panel));
+	color: var(--col-on-container-low);
+	backdrop-filter: blur(var(--blur-radius));
+	border-bottom: 1px solid var(--col-outline);
+}
+
+.c-cal-toolbar__row {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+	min-width: 0;
+}
+
+.c-cal-toolbar__label {
+	padding: 0 0.25rem;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.c-cal-toolbar__search {
+	max-width: 240px;
+	flex: 1 1 180px;
+	min-width: 140px;
+}
+
+/* Segmented view switcher in the toolbar.
+   Two groups (grid views + list views) with a gap so the split is visible. */
+.c-cal-view-switcher {
+	display: inline-flex;
+	align-items: stretch;
+	gap: 0.35rem;
+	flex-wrap: wrap;
+}
+
+.c-cal-view-group {
+	display: inline-flex;
+	border: 1px solid lch(from var(--col-on) l c h / 0.18);
+	border-radius: var(--radius-control, 8px);
+	overflow: hidden;
+	background: lch(from var(--col-container) l c h / 0.6);
+}
+
+.c-cal-view-tab {
+	appearance: none;
+	background: transparent;
+	border: none;
+	color: inherit;
+	padding: 0.3rem 0.75rem;
+	min-width: 5rem;
+	text-align: center;
+	justify-content: center;
+	font-size: 0.85rem;
+	cursor: pointer;
+	border-right: 1px solid lch(from var(--col-on) l c h / 0.12);
+	min-height: var(--min-touch-target, 36px);
+	display: inline-flex;
+	align-items: center;
+	transition: background-color 120ms ease;
+}
+
+.c-cal-view-group .c-cal-view-tab:last-child {
+	border-right: none;
+}
+
+.c-cal-view-tab:hover {
+	background: lch(from var(--col-on) l c h / 0.06);
+}
+
+.c-cal-view-tab[aria-selected='true'] {
+	background: var(--col-primary);
+	color: var(--col-on-primary);
+}
+
+.c-cal-view-tab:focus-visible {
+	outline: 2px solid var(--col-focus, var(--col-primary));
+	outline-offset: -2px;
+}
+
+/* Editor dialogs — sticky header/footer with scrollable body so long forms
+   never push Cancel/Save off-screen on small viewports. */
+.c-cal-editor {
+	display: flex;
+	flex-direction: column;
+	max-height: min(86vh, 760px);
+}
+
+.c-cal-editor__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 1rem 1rem 0.5rem;
+	flex-shrink: 0;
+}
+
+.c-cal-editor__body {
+	padding: 0 1rem;
+	overflow-y: auto;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.c-cal-editor__footer {
+	display: flex;
+	justify-content: flex-end;
+	gap: 0.5rem;
+	padding: 0.75rem 1rem 1rem;
+	border-top: 1px solid lch(from var(--col-on) l c h / 0.1);
+	flex-shrink: 0;
+}
+
+/* Quick-create popover */
+.c-cal-quick {
+	background: var(--col-container);
+	color: var(--col-on-container);
+	border-radius: var(--border-radius-lg);
+	padding: 0.75rem;
+	box-shadow: var(--sh-3, 0 6px 24px rgb(0 0 0 / 0.18));
+	min-width: 280px;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+/* Chip input (attendees / categories) */
+.c-cal-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	padding: 0.3rem;
+	min-height: 2.25rem;
+	border: 1px solid var(--col-outline, lch(from var(--col-on) l c h / 0.2));
+	border-radius: var(--radius-control);
+	background: var(--col-container);
+}
+
+.c-cal-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+	padding: 0.2rem 0.5rem;
+	border-radius: 999px;
+	background: lch(from var(--col-primary) l c h / 0.14);
+	color: var(--col-on-container);
+	font-size: 0.85rem;
+}
+
+.c-cal-chip__remove {
+	background: none;
+	border: none;
+	color: inherit;
+	opacity: 0.65;
+	cursor: pointer;
+	padding: 0;
+	line-height: 1;
+}
+
+.c-cal-chip__remove:hover {
+	opacity: 1;
+}
+
+/* Grid container — gives @cloudillo/calendar-ui its flex context. */
+.c-cal-grid {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: hidden;
+}
+
+/* --- App layout ----------------------------------------------------------
+ * Flex layout that replaces the previous Fcd three-column grid. The main
+ * area is edge-to-edge so Schedule-X gets the full viewport minus the
+ * (optional) sidebar; the details pane is an absolute overlay so it
+ * doesn't steal width from the grid.
+ */
+.c-cal-app {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	width: 100%;
+	min-height: 0;
+}
+
+.c-cal-app__body {
+	position: relative;
+	display: flex;
+	flex: 1 1 auto;
+	min-height: 0;
+	gap: 0.25rem;
+}
+
+.c-cal-app__sidebar {
+	flex: 0 0 auto;
+	width: 16rem;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	background-color: lch(from var(--col-container-low) l c h / var(--op-panel));
+	color: var(--col-on-container-low);
+	backdrop-filter: blur(var(--blur-radius));
+	border-right: 1px solid var(--col-outline);
+	transition:
+		width 200ms ease,
+		transform 200ms ease;
+}
+
+.c-cal-app__sidebar:not(.open) {
+	width: 0;
+}
+
+.c-cal-app__main {
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+/* Mobile: sidebar becomes an overlay drawer rather than a flex child so it
+   can't eat into the calendar's width when toggled. */
+@media (max-width: 767px) {
+	.c-cal-app__sidebar {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		width: min(20rem, 80vw);
+		z-index: 20;
+		transform: translateX(-100%);
+		box-shadow: 0 0 24px rgb(0 0 0 / 0.25);
+	}
+
+	.c-cal-app__sidebar.open {
+		transform: translateX(0);
+	}
+
+	.c-cal-app__sidebar:not(.open) {
+		width: min(20rem, 80vw);
+	}
+}
+
+.c-cal-app__backdrop {
+	position: absolute;
+	inset: 0;
+	background: lch(from var(--col-on) l c h / 0.35);
+	backdrop-filter: blur(2px);
+	border: 0;
+	padding: 0;
+	cursor: pointer;
+	z-index: 15;
+}
+
+/* Details pane is an overlay — always absolute, slides in from the right.
+   Keeps the grid width stable whether an event is selected or not. */
+.c-cal-app__details {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	width: min(22rem, 100%);
+	display: flex;
+	flex-direction: column;
+	background: lch(from var(--col-container) l c h / var(--op-panel));
+	backdrop-filter: blur(var(--blur-radius));
+	color: var(--col-on-container);
+	border-left: 1px solid var(--col-outline);
+	box-shadow: -8px 0 24px rgb(0 0 0 / 0.15);
+	transform: translateX(100%);
+	transition: transform 200ms ease;
+	z-index: 20;
+	overflow: hidden;
+}
+
+.c-cal-app__details.open {
+	transform: translateX(0);
+}
+
+.c-cal-app__details-backdrop {
+	display: none;
+	position: absolute;
+	inset: 0;
+	background: lch(from var(--col-on) l c h / 0.35);
+	border: 0;
+	padding: 0;
+	cursor: pointer;
+	z-index: 15;
+}
+
+@media (max-width: 767px) {
+	.c-cal-app__details {
+		width: 100%;
+	}
+
+	.c-cal-app__details-backdrop {
+		display: block;
+	}
+}
+
+/* Flatten the pane surfaces when they're inside a drawer — the drawer
+   itself carries the backdrop blur and border, so the inner pane would
+   only pile on a second layer. */
+.c-cal-app__sidebar .c-cal-sidebar,
+.c-cal-app__details .c-cal-details {
+	border-radius: 0;
+	background: transparent;
+	backdrop-filter: none;
+	height: 100%;
+	min-height: 0;
+	overflow: auto;
+	flex: 1 1 auto;
+}
+
+/* Event editor — sectioned layout + recurrence builder. */
+.c-cal-editor__title {
+	font-size: 1.25rem;
+	font-weight: 600;
+	width: 100%;
+}
+
+.c-cal-section {
+	margin-top: 1rem;
+	padding-top: 0.75rem;
+	border-top: 1px solid color-mix(in lch, var(--col-outline) 35%, transparent);
+}
+
+.c-cal-section:first-of-type {
+	margin-top: 0;
+	padding-top: 0;
+	border-top: none;
+}
+
+.c-cal-section__label {
+	font-size: 0.72rem;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: color-mix(in lch, var(--col-on-container) 60%, transparent);
+	margin-bottom: 0.5rem;
+	display: block;
+}
+
+.c-cal-daychips {
+	display: inline-flex;
+	gap: 0.25rem;
+}
+
+.c-cal-daychips__chip {
+	width: 2rem;
+	height: 2rem;
+	border-radius: 999px;
+	border: 1px solid var(--col-outline);
+	background: transparent;
+	color: var(--col-on-container);
+	font-size: 0.8rem;
+	cursor: pointer;
+	padding: 0;
+	line-height: 1;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.c-cal-daychips__chip[aria-pressed='true'] {
+	background: var(--col-primary);
+	color: var(--col-on-primary);
+	border-color: var(--col-primary);
+}
+
+.c-cal-daychips__chip:focus-visible {
+	outline: 2px solid var(--col-primary);
+	outline-offset: 2px;
+}
+
+.c-cal-rrule-builder {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.c-cal-rrule-builder__row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	align-items: center;
+}
+
+.c-cal-rrule-summary {
+	font-size: 0.8rem;
+	color: var(--col-on-container);
+	opacity: 0.75;
+}
+
+/* vim: ts=4 */

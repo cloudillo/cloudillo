@@ -1,0 +1,656 @@
+/* SPDX-FileCopyrightText: Szilárd Hajba
+   SPDX-License-Identifier: LGPL-3.0-or-later */
+
+/* ==========================================================================
+ * Calendar UI library styles
+ * Uses OpalUI colour tokens (--col-*, --radius-*). Height is determined by
+ * the parent — the view fills what it's given.
+ * ========================================================================== */
+
+.c-cal-view {
+	--cal-hour-height: 3rem;
+	--cal-slot-height: calc(var(--cal-hour-height) / 4);
+	--cal-gutter-width: 4rem;
+	--cal-allday-row-height: 1.5rem;
+	--cal-weekno-width: 2.5rem;
+
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+	width: 100%;
+	color: var(--col-on-container);
+	font-size: 0.875rem;
+}
+
+/* --- Shared head row (day + week views) ------------------------------- */
+
+.c-cal-view__head,
+.c-cal-view__allday {
+	display: grid;
+	grid-template-columns: var(--cal-gutter-width) repeat(var(--cols, 1), 1fr);
+	flex: 0 0 auto;
+	border-bottom: 1px solid var(--col-outline);
+}
+
+.c-cal-view__gutter-head,
+.c-cal-view__allday-gutter {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0.25rem;
+	color: lch(from var(--col-on) l c h / 0.6);
+}
+
+.c-cal-view__day-head {
+	background: transparent;
+	border: 0;
+	padding: 0.35rem 0.25rem;
+	font-weight: 500;
+	color: inherit;
+	cursor: pointer;
+	text-align: center;
+	border-left: 1px solid var(--col-outline);
+}
+
+.c-cal-view__day-head:hover {
+	background: lch(from var(--col-on) l c h / 0.05);
+}
+
+/* --- All-day band ----------------------------------------------------- */
+
+.c-cal-view__allday-grid {
+	position: relative;
+	display: grid;
+	grid-template-columns: repeat(var(--cols, 1), 1fr);
+	grid-template-rows: repeat(var(--allday-rows, 1), var(--cal-allday-row-height));
+	grid-column: 2 / -1;
+	min-height: var(--cal-allday-row-height);
+}
+
+.c-cal-view__allday-cell {
+	grid-row: 1 / -1;
+	background: transparent;
+	border: 0;
+	border-left: 1px solid var(--col-outline);
+	cursor: pointer;
+	min-height: var(--cal-allday-row-height);
+}
+
+.c-cal-view__allday-cell:hover {
+	background: lch(from var(--col-on) l c h / 0.03);
+}
+
+/* --- Scrollable time grid --------------------------------------------- */
+
+.c-cal-view__scroll {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	overflow-y: auto;
+	overflow-x: hidden;
+	min-height: 0;
+}
+
+/* Header + all-day band are stacked inside the scroll container so they
+   share the grid's inner width (matching the day columns exactly, even
+   with a scrollbar present) and stay pinned when the user scrolls the
+   time grid. Opaque background prevents events from bleeding through. */
+.c-cal-view__sticky-head {
+	position: sticky;
+	top: 0;
+	z-index: 3;
+	background: lch(from var(--col-container) l c h / var(--op-panel, 0.95));
+	backdrop-filter: blur(var(--blur-radius, 8px));
+}
+
+.c-cal-view__timegrid {
+	display: grid;
+	grid-template-columns: var(--cal-gutter-width) repeat(var(--cols, 1), 1fr);
+	grid-template-rows: repeat(var(--hours, 24), var(--cal-hour-height));
+	position: relative;
+}
+
+.c-cal-view__gutter {
+	grid-column: 1;
+	grid-row: 1 / -1;
+	display: grid;
+	grid-template-rows: repeat(var(--hours, 24), var(--cal-hour-height));
+}
+
+.c-cal-view__hour-label {
+	padding: 0.15rem 0.35rem 0;
+	font-size: 0.75rem;
+	color: lch(from var(--col-on) l c h / 0.6);
+	text-align: right;
+	align-self: start;
+}
+
+.c-cal-view__day-col {
+	position: relative;
+	display: grid;
+	grid-template-rows: repeat(var(--hours, 24), var(--cal-hour-height));
+	grid-row: 1 / -1;
+	border-left: 1px solid var(--col-outline);
+}
+
+.c-cal-view__day-col.is-today {
+	background: lch(from var(--col-primary) l c h / 0.12);
+	box-shadow: inset 2px 0 0 0 lch(from var(--col-primary) l c h / 0.5);
+}
+
+/* Non-working day column (e.g., Sat/Sun under the default Mon-Fri policy).
+   Subtle tint derived from the foreground colour so it tracks both light
+   and dark themes without a hard-coded background. */
+.c-cal-view__day-col.is-non-working {
+	background: lch(from var(--col-on) l c h / 0.08);
+}
+
+/* Off-hours bands inside working days. Rendered as two overlays (top + bottom)
+   clipped to the visible dayStart..dayEnd range. Sits above the slot grid
+   but below events and the current-time indicator. */
+.c-cal-view__off-hours {
+	position: absolute;
+	left: 0;
+	right: 0;
+	background: lch(from var(--col-on) l c h / 0.08);
+	pointer-events: none;
+	z-index: 0;
+}
+
+.c-cal-view__hour-row {
+	display: flex;
+	flex-direction: column;
+	border-top: 1px solid lch(from var(--col-on) l c h / 0.1);
+}
+
+.c-cal-view__hour-row:first-child {
+	border-top: none;
+}
+
+.c-cal-view__slot {
+	flex: 1 1 0;
+	background: transparent;
+	border: 0;
+	border-top: 1px dashed lch(from var(--col-on) l c h / 0.05);
+	padding: 0;
+	cursor: pointer;
+}
+
+.c-cal-view__slot:first-child {
+	border-top: none;
+}
+
+.c-cal-view__slot:hover {
+	background: lch(from var(--col-primary) l c h / 0.08);
+}
+
+/* --- Event chip ------------------------------------------------------- */
+
+.c-cal-event {
+	position: absolute;
+	background: var(--col-primary);
+	color: var(--col-on-primary);
+	border: none;
+	border-radius: var(--radius-control, 6px);
+	padding: 0.2rem 0.35rem;
+	overflow: hidden;
+	text-align: left;
+	cursor: pointer;
+	box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
+	touch-action: none;
+	display: flex;
+	flex-direction: column;
+	gap: 0.1rem;
+	z-index: 1;
+	transition: box-shadow 120ms ease;
+}
+
+.c-cal-event:hover {
+	box-shadow: 0 2px 6px rgb(0 0 0 / 0.25);
+}
+
+.c-cal-event.is-selected {
+	outline: 2px solid var(--col-focus, var(--col-primary));
+	outline-offset: -2px;
+}
+
+.c-cal-event.is-dragging {
+	opacity: 0.85;
+	box-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
+	z-index: 3;
+}
+
+.c-cal-event__title {
+	font-size: 0.8rem;
+	font-weight: 500;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.c-cal-event__time {
+	font-size: 0.7rem;
+	opacity: 0.85;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.c-cal-event.is-recurring::before {
+	content: '↻';
+	position: absolute;
+	top: 0.1rem;
+	right: 0.3rem;
+	font-size: 0.7rem;
+	opacity: 0.75;
+}
+
+/* "Modified" badge for per-occurrence overrides of a recurring series.
+   Rendered as a small pen in the top-left so it doesn't collide with the
+   recurrence glyph at top-right. */
+.c-cal-event.has-override::after {
+	content: '✎';
+	position: absolute;
+	top: 0.1rem;
+	left: 0.3rem;
+	font-size: 0.7rem;
+	opacity: 0.85;
+}
+
+/* Ghost marker: dashed outline + low opacity for the original slot of a moved
+   occurrence. Non-interactive — clicks/drags are disabled by the component. */
+.c-cal-event.is-ghost {
+	opacity: 0.45;
+	background: transparent;
+	color: var(--col-on-container);
+	border: 1.5px dashed color-mix(in lch, var(--col-on-container) 60%, transparent);
+	box-shadow: none;
+	cursor: default;
+	pointer-events: none;
+}
+
+.c-cal-event.is-ghost::before,
+.c-cal-event.is-ghost::after {
+	opacity: 0.6;
+}
+
+/* Live duration readout during drag/resize — pinned inside the chip so the
+   feedback stays in the user's foveal attention zone. */
+.c-cal-event__duration {
+	position: absolute;
+	right: 0.3rem;
+	bottom: 0.15rem;
+	font-size: 0.7rem;
+	font-weight: 600;
+	padding: 0.05rem 0.3rem;
+	border-radius: 999px;
+	background: lch(from var(--col-on) l c h / 0.22);
+	color: inherit;
+	pointer-events: none;
+}
+
+.c-cal-event__resize-handle {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 0.4rem;
+	cursor: ns-resize;
+	touch-action: none;
+}
+
+/* --- Hover indicator --------------------------------------------------
+ * Compact start-time label that floats at the pointer over empty slots,
+ * giving the user a quick confirmation of "click here → event starts
+ * when". Suppressed during drags via a guard in the React state. */
+.c-cal-hover-indicator {
+	position: absolute;
+	left: 0.2rem;
+	pointer-events: none;
+	z-index: 0;
+	font-size: 0.7rem;
+	font-weight: 600;
+	line-height: 1;
+	font-variant-numeric: tabular-nums;
+	color: var(--col-on-container);
+	background: lch(from var(--col-container-high, var(--col-container)) l c h / 0.9);
+	border: 1px solid lch(from var(--col-primary) l c h / 0.4);
+	border-radius: 999px;
+	padding: 0.15rem 0.45rem;
+	transform: translateY(-50%);
+	box-shadow: 0 1px 3px rgb(0 0 0 / 0.18);
+}
+
+/* --- Drag-to-create ghost ---------------------------------------------
+ * Filled primary-tinted rectangle tracking from press start to current
+ * pointer position, labelled with start / duration / end so the user can
+ * confirm the range before release. */
+.c-cal-create-draft {
+	position: absolute;
+	left: 2px;
+	right: 2px;
+	background: lch(from var(--col-primary) l c h / 0.2);
+	border: 1px solid var(--col-primary);
+	border-radius: var(--radius-control, 6px);
+	pointer-events: none;
+	z-index: 2;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	padding: 0.1rem 0.4rem;
+	color: var(--col-on-container);
+	font-variant-numeric: tabular-nums;
+	font-size: 0.7rem;
+	font-weight: 600;
+	overflow: hidden;
+}
+
+.c-cal-create-draft__start {
+	align-self: flex-start;
+	color: var(--col-primary);
+}
+
+.c-cal-create-draft__end {
+	align-self: flex-end;
+	color: var(--col-primary);
+}
+
+.c-cal-create-draft__duration {
+	align-self: center;
+	padding: 0.05rem 0.4rem;
+	border-radius: 999px;
+	background: lch(from var(--col-primary) l c h / 0.3);
+	color: var(--col-on-container);
+	line-height: 1.1;
+}
+
+/* --- All-day event chip ---------------------------------------------- */
+
+.c-cal-event--allday {
+	position: relative;
+	top: auto;
+	left: auto;
+	width: auto;
+	height: auto;
+	margin: 0.1rem 0.15rem;
+	padding: 0.1rem 0.4rem;
+	font-size: 0.75rem;
+	border-radius: 999px;
+	box-shadow: none;
+	z-index: 1;
+}
+
+/* --- Current-time indicator ------------------------------------------ */
+
+.c-cal-now-indicator {
+	position: absolute;
+	left: 0;
+	right: 0;
+	height: 2px;
+	background: var(--col-error);
+	pointer-events: none;
+	z-index: 2;
+}
+
+.c-cal-now-indicator::before {
+	content: '';
+	position: absolute;
+	left: -4px;
+	top: -3px;
+	width: 8px;
+	height: 8px;
+	background: var(--col-error);
+	border-radius: 50%;
+}
+
+/* --- Week number badge ------------------------------------------------ */
+
+.c-cal-weekno {
+	font-size: 0.75em;
+	color: lch(from var(--col-on) l c h / 0.6);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-weight: 500;
+}
+
+/* --- Month view ------------------------------------------------------- */
+
+.c-cal-view--month {
+	--month-weekno-cols: 0;
+}
+
+.c-cal-view--month.with-weekno {
+	--month-weekno-cols: 1;
+}
+
+.c-cal-view__month-head {
+	display: grid;
+	grid-template-columns: repeat(var(--month-weekno-cols), var(--cal-weekno-width)) repeat(
+			7,
+			minmax(0, 1fr)
+		);
+	flex: 0 0 auto;
+	border-bottom: 1px solid var(--col-outline);
+}
+
+.c-cal-view__month-body {
+	display: grid;
+	grid-template-rows: repeat(6, minmax(7rem, 1fr));
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.c-cal-view__month-row {
+	display: grid;
+	grid-template-columns: repeat(var(--month-weekno-cols), var(--cal-weekno-width)) 1fr;
+	border-bottom: 1px solid var(--col-outline);
+	min-height: 0;
+	overflow: hidden;
+}
+
+.c-cal-view__month-row:last-child {
+	border-bottom: none;
+}
+
+.c-cal-weekno--col {
+	border-right: 1px solid var(--col-outline);
+}
+
+.c-cal-view__month-week {
+	position: relative;
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	grid-template-rows: 1.5rem repeat(4, minmax(0, 1fr));
+	min-height: 0;
+	overflow: hidden;
+}
+
+.c-cal-month-cell {
+	position: relative;
+	grid-row: 1 / -1;
+	grid-column: span 1;
+	border-left: 1px solid var(--col-outline);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	min-width: 0;
+}
+
+.c-cal-month-cell:first-child {
+	border-left: none;
+}
+
+.c-cal-month-cell.out-of-month {
+	background: lch(from var(--col-on) l c h / 0.02);
+	color: lch(from var(--col-on) l c h / 0.5);
+}
+
+.c-cal-month-cell.is-today {
+	background: lch(from var(--col-primary) l c h / 0.12);
+}
+
+.c-cal-month-cell.is-non-working {
+	background: lch(from var(--col-on) l c h / 0.08);
+}
+
+.c-cal-month-cell.is-non-working.is-today {
+	background: lch(from var(--col-primary) l c h / 0.12);
+}
+
+.c-cal-month-cell__hit {
+	position: absolute;
+	inset: 0;
+	background: transparent;
+	border: 0;
+	cursor: pointer;
+	z-index: 0;
+}
+
+.c-cal-month-cell__hit:hover {
+	background: lch(from var(--col-primary) l c h / 0.06);
+}
+
+.c-cal-month-cell__num {
+	position: relative;
+	z-index: 3;
+	align-self: flex-end;
+	background: transparent;
+	border: 0;
+	padding: 0.15rem 0.4rem;
+	font-size: 0.8rem;
+	line-height: 1.2;
+	color: inherit;
+	cursor: pointer;
+	border-radius: var(--radius-control, 4px);
+}
+
+.c-cal-month-cell__num:hover {
+	background: lch(from var(--col-primary) l c h / 0.2);
+}
+
+.c-cal-month-cell.is-today .c-cal-month-cell__num {
+	background: var(--col-primary);
+	color: var(--col-on-primary);
+	font-weight: 600;
+}
+
+.c-cal-month-event {
+	position: relative;
+	z-index: 1;
+	background: var(--col-primary);
+	color: var(--col-on-primary);
+	border: none;
+	border-radius: var(--radius-control, 4px);
+	padding: 0 0.4rem;
+	margin: 0 0.1rem 0.1rem;
+	font-size: 0.75rem;
+	line-height: 1.2;
+	text-align: left;
+	display: flex;
+	gap: 0.3rem;
+	align-items: center;
+	overflow: hidden;
+	cursor: pointer;
+	touch-action: none;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	min-width: 0;
+	min-height: 0;
+}
+
+.c-cal-month-event.continues-left {
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
+	margin-left: 0;
+}
+
+.c-cal-month-event.continues-right {
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+	margin-right: 0;
+}
+
+.c-cal-month-event.is-selected {
+	outline: 2px solid var(--col-focus, var(--col-primary));
+	outline-offset: -2px;
+}
+
+.c-cal-month-event.is-recurring::before {
+	content: '↻ ';
+	font-size: 0.7em;
+	opacity: 0.75;
+}
+
+.c-cal-month-event.has-override::after {
+	content: ' ✎';
+	font-size: 0.7em;
+	opacity: 0.85;
+	margin-left: auto;
+}
+
+.c-cal-month-event.is-ghost {
+	opacity: 0.45;
+	background: transparent;
+	color: var(--col-on-container);
+	border: 1.5px dashed color-mix(in lch, var(--col-on-container) 60%, transparent);
+	pointer-events: none;
+	cursor: default;
+}
+
+.c-cal-month-event__time {
+	font-size: 0.7em;
+	opacity: 0.85;
+	flex: 0 0 auto;
+}
+
+.c-cal-month-event__title {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.c-cal-month-more {
+	position: absolute;
+	bottom: 0.1rem;
+	left: 0.2rem;
+	right: 0.2rem;
+	z-index: 2;
+	background: transparent;
+	border: 0;
+	padding: 0;
+	font-size: 0.7rem;
+	color: lch(from var(--col-on) l c h / 0.7);
+	cursor: pointer;
+	text-align: left;
+}
+
+.c-cal-month-more:hover {
+	color: var(--col-primary);
+}
+
+/* --- Responsive tweaks ------------------------------------------------ */
+
+@media (max-width: 600px) {
+	.c-cal-view {
+		--cal-hour-height: 2.5rem;
+		--cal-gutter-width: 3rem;
+	}
+
+	.c-cal-view__day-head {
+		font-size: 0.75rem;
+		padding: 0.25rem 0;
+	}
+
+	.c-cal-event__time {
+		display: none;
+	}
+
+	.c-cal-view__month-week {
+		grid-template-rows: 1.25rem repeat(3, minmax(1rem, 1fr));
+	}
+}
+
+/* vim: ts=4 */

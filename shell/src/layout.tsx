@@ -281,7 +281,7 @@ function Menu({
 /**
  * Built-in app IDs that are rendered directly as React components (not microfrontends)
  */
-const BUILTIN_APPS = ['files', 'feed', 'gallery', 'messages', 'contacts', 'view']
+const BUILTIN_APPS = ['files', 'feed', 'gallery', 'messages', 'contacts', 'calendar', 'view']
 
 /**
  * Check if a path is an external app (microfrontend loaded in iframe)

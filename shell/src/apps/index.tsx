@@ -17,6 +17,7 @@ import { FilesApp } from './files.js'
 import { GalleryApp } from './gallery.js'
 import { MessagesApp } from './messages.js'
 import { ContactsApp } from './contacts/index.js'
+import { CalendarApp } from './calendar/index.js'
 import { FileViewerApp } from './viewer/index.js'
 import { AppLoadingIndicator, type LoadingStage } from './AppLoadingIndicator.js'
 
@@ -550,6 +551,7 @@ export function AppRoutes() {
 			<Route path="/app/:contextIdTag/gallery" element={<GalleryApp />} />
 			<Route path="/app/:contextIdTag/messages/:convId?" element={<MessagesApp />} />
 			<Route path="/app/:contextIdTag/contacts" element={<ContactsApp />} />
+			<Route path="/app/:contextIdTag/calendar" element={<CalendarApp />} />
 			<Route path="/app/:contextIdTag/view/:resId" element={<FileViewerApp />} />
 			<Route
 				path="/app/:contextIdTag/:appId/*"
@@ -561,6 +563,7 @@ export function AppRoutes() {
 			<Route path="/app/gallery" element={<GalleryApp />} />
 			<Route path="/app/messages/:convId?" element={<MessagesApp />} />
 			<Route path="/app/contacts" element={<ContactsApp />} />
+			<Route path="/app/calendar" element={<CalendarApp />} />
 			<Route path="/app/view/:resId" element={<FileViewerApp />} />
 			<Route path="/app/:appId/*" element={<ExternalApp className="w-100 h-100" />} />
 			<Route path="/*" element={null} />

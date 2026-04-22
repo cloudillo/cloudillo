@@ -154,6 +154,35 @@
 	z-index: var(--z-popover, 700);
 }
 
+/* TimePicker dropdown */
+.c-time-picker-menu {
+	max-height: 16rem;
+	overflow-y: auto;
+	min-width: 8rem;
+	background: var(--col-container);
+	color: var(--col-on-container);
+	border: 1px solid lch(from var(--col-on) l c h / 0.18);
+	border-radius: var(--radius-control, 8px);
+	box-shadow: var(--sh-3, 0 6px 24px rgb(0 0 0 / 0.18));
+	padding: 0.25rem;
+	margin: 0;
+	list-style: none;
+}
+
+.c-time-picker-menu .c-nav-item {
+	padding: 0.35rem 0.75rem;
+	border-radius: var(--radius-control, 6px);
+	cursor: pointer;
+}
+
+.c-time-picker-menu .c-nav-item.selected {
+	background: lch(from var(--col-primary) l c h / 0.18);
+}
+
+.c-time-picker-menu .c-nav-item.active {
+	font-weight: 600;
+}
+
 /* Loading Spinner */
 .c-loading-spinner {
 	display: inline-flex;

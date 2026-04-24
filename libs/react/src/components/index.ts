@@ -168,6 +168,7 @@ export type { ContainerProps } from './Container/index.js'
 export { Fcd, FcdContainer, FcdFilter, FcdContent, FcdDetails } from './Fcd/index.js'
 export type {
 	FcdContainerProps,
+	FcdDetailsMode,
 	FcdFilterProps,
 	FcdContentProps,
 	FcdDetailsProps

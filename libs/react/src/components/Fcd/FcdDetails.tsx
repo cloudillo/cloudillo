@@ -10,28 +10,44 @@ export interface FcdDetailsProps {
 	className?: string
 	isVisible?: boolean
 	hide?: () => void
+	/**
+	 * Optional header row rendered at the top of the panel. Use this to put
+	 * a title and action buttons (e.g. "+") that would otherwise collide with
+	 * the absolute-positioned close button. The close button is rendered
+	 * on top of this row at the right; the row reserves the right padding
+	 * for it automatically.
+	 */
+	header?: React.ReactNode
 	children?: React.ReactNode
 }
 
-export function FcdDetails({ isVisible, className, hide, children }: FcdDetailsProps) {
+export function FcdDetails({ isVisible, className, hide, header, children }: FcdDetailsProps) {
 	return (
 		<div
 			className={mergeClasses(
-				'c-vbox sm-hide-dyn md-hide-dyn hide-right col-lg-3 h-100',
+				'c-fcd-details c-vbox sm-hide-dyn md-hide-dyn hide-right col-lg-3 h-100',
 				className,
 				isVisible && 'show'
 			)}
 			onClick={hide}
 		>
-			<div className="pos-absolute top-0 right-0 bottom-0 left-0 bg-shadow lg-hide" />
-			<Button link className="pos-absolute top-0 right-0 m-1 p-2 z-4 lg-hide" onClick={hide}>
+			<Button
+				link
+				className="c-fcd-details-close pos-absolute top-0 right-0 m-1 p-2 z-4 lg-hide"
+				onClick={hide}
+			>
 				<IcClose />
 			</Button>
 			<div
-				className="z-1 w-100 fill c-vbox h-min-0 overflow-y-auto"
+				className="c-fcd-details-body w-100 fill c-vbox h-min-0"
 				onClick={(evt) => evt.stopPropagation()}
 			>
-				{children}
+				{header && (
+					<div className="c-fcd-details-header c-hbox align-items-center g-2">
+						{header}
+					</div>
+				)}
+				<div className="c-fcd-details-scroll c-vbox fill overflow-y-auto">{children}</div>
 			</div>
 		</div>
 	)

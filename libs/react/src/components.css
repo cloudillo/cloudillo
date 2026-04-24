@@ -917,6 +917,189 @@
 }
 
 /* ==========================================================================
+   FCD Details modes (overlay / adaptive)
+
+   Default mode ('inline', no container class) keeps the pre-existing
+   behavior: FcdDetails is a col-lg-3 flex column at lg+, overlay at sm/md
+   via sm-hide-dyn / md-hide-dyn.
+
+   .c-container.details-overlay  — details is an absolute-positioned slide-in
+     overlay at every breakpoint; content never reflows.
+   .c-container.details-adaptive — identical to overlay below xl; at xl+
+     (100em / 1600px) the details panel docks in the viewport's right
+     gutter, outside the 1200px container, so content position stays fixed.
+     Dock width adapts to gutter up to 1840px, then caps at 20rem.
+     Falls back to overlay when the container is also .fluid (no gutter).
+
+   No :has() needed — all rules are descendant-scoped from .c-container.
+   ========================================================================== */
+
+/* FcdDetails header row: optional title + action buttons slot at the top
+   of the panel. Reserves right-padding so apps' right-aligned icons don't
+   flow under the absolute close button. Padding collapses to the default
+   whenever the close button is hidden (inline mode at lg+; adaptive-docked
+   at xl). */
+.c-fcd-details-header {
+	flex-shrink: 0;
+	min-height: 2.5rem;
+	padding: 0.5rem 2.5rem 0.5rem 0.5rem; /* right padding reserves the absolute close button */
+	border-bottom: 1px solid lch(from var(--col-outline) l c h / 0.5);
+}
+
+/* Mobile-only dim+blur backdrop for the details panel (sm/md).
+   Implemented as a pseudo-element at z-index -1 inside the panel's own
+   stacking context so the in-flow header, body, and close button paint
+   above it without stacking-context fights. */
+@media (max-width: 1199px) {
+	.c-fcd-details::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background-color: #00000080;
+		backdrop-filter: blur(var(--blur-radius));
+		pointer-events: none;
+		z-index: -1;
+	}
+
+	/* Give the header its own surface — otherwise dark text sits directly
+	   on the dim overlay and is unreadable. Matches the panel-surface
+	   look used on desktop overlay/adaptive mode. */
+	.c-container > .row > .c-fcd-details > .c-fcd-details-body > .c-fcd-details-header {
+		background-color: lch(from var(--col-container-low) l c h / var(--op-panel));
+		color: var(--col-on-container-low);
+	}
+}
+
+/* Inline mode at lg+: close is hidden, no reservation needed. */
+@media (min-width: 1200px) {
+	.c-container:not(.details-overlay):not(.details-adaptive) .c-fcd-details-header {
+		padding: 0.5rem;
+	}
+}
+
+/* xl adaptive docked: close is also hidden. */
+@media (min-width: 100em) {
+	.c-container.details-adaptive:not(.fluid) .c-fcd-details-header {
+		padding: 0.5rem;
+	}
+}
+
+/* Details overlay behavior at lg+ (sm/md already overlay via *-hide-dyn).
+   These rules apply to both 'overlay' and 'adaptive' modes. */
+@media (min-width: 1200px) {
+	.c-container.details-overlay > .row > .c-fcd-details,
+	.c-container.details-adaptive > .row > .c-fcd-details {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		right: 0;
+		left: auto;
+		width: var(--fcd-details-width, 20rem);
+		max-width: 100%;
+		flex: none;
+		z-index: 10;
+		transform: translateX(100%);
+		transition: transform 0.2s ease-in-out;
+		/* Panel slides over content (or sits in the viewport gutter in
+		   adaptive-dock mode) — give it its own surface so the editor
+		   underneath isn't visible through it. */
+		background-color: lch(from var(--col-container-low) l c h / var(--op-panel));
+		color: var(--col-on-container-low);
+		backdrop-filter: blur(var(--blur-radius));
+		border-left: 1px solid var(--col-outline);
+	}
+
+	.c-container.details-overlay > .row > .c-fcd-details.show,
+	.c-container.details-adaptive > .row > .c-fcd-details.show {
+		transform: translateX(0);
+	}
+
+	/* Content takes the full span (like fluid) — details doesn't steal width.
+	   Matches `.col-lg-6` specifically so this rule outranks layout.css's
+	   `.c-container > .row > .col-lg-6` (same specificity otherwise → cascade
+	   order would decide, and .col-lg-6 would win unpredictably).
+	   `.col-lg-9` is already 75%, so no override needed there. */
+	.c-container.details-overlay > .row > .c-fcd-content.col-lg-6,
+	.c-container.details-adaptive > .row > .c-fcd-content.col-lg-6 {
+		flex: 0 0 calc(900% / 12 - var(--gap));
+		max-width: calc(900% / 12 - var(--gap));
+	}
+
+	/* In overlay/adaptive at lg+, the panel slides over content — users
+	   need a way to dismiss it (the app's own toggle button may be
+	   covered by the panel itself). Re-enable the built-in close.
+	   The backdrop stays hidden: it would only darken the narrow panel
+	   instead of dimming content, which would be misleading. */
+	.c-container.details-overlay .c-fcd-details-close,
+	.c-container.details-adaptive .c-fcd-details-close {
+		display: flex !important;
+	}
+}
+
+/* xl: in adaptive (non-fluid) mode the details panel docks in the right
+   viewport gutter — outside the 1200px container. Content and filter stay
+   put; only the details panel appears/disappears in the gutter.
+
+   xl breakpoint is 100em (1600px). Dock is a fixed 20rem (320px) wide.
+
+   Between 100em and 115em (1600–1840px viewport) the gutter beside a
+   centered 1200px container is narrower than 20rem, so if we kept the
+   container at 1200px the dock would overflow the viewport. We use a
+   :has() rule to expand the container's max-width only *when the details
+   panel is actually visible*. At 115em+ the gutter naturally fits, so no
+   expansion is needed and the container stays 1200px regardless of
+   visibility. */
+@media (min-width: 100em) {
+	.c-container.details-adaptive:not(.fluid) {
+		/* Let the docked panel protrude past the container's right edge */
+		overflow: visible;
+	}
+
+	/* Cap the row at 1200px so filter+content stay at their col-lg-*
+	   widths even when the container grows (the expansion is strictly
+	   extra space on the right for the dock, not a widening of the
+	   normal row layout). */
+	.c-container.details-adaptive:not(.fluid) > .row {
+		max-width: 1200px;
+	}
+
+	.c-container.details-adaptive:not(.fluid) > .row > .c-fcd-details {
+		left: 100%;
+		right: auto;
+		/* No slide — the dock is a real panel. Fade in/out on toggle. */
+		transform: none;
+		box-shadow: none;
+		transition: opacity 0.2s ease-in-out;
+	}
+
+	.c-container.details-adaptive:not(.fluid) > .row > .c-fcd-details:not(.show) {
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.c-container.details-adaptive:not(.fluid) > .row > .c-fcd-details.show {
+		opacity: 1;
+	}
+
+	/* Docked details is a real sidebar, not a modal — the app's own
+	   toggle button closes it (and the dock doesn't cover the toggle
+	   the way an overlay does). */
+	.c-container.details-adaptive:not(.fluid) .c-fcd-details-close {
+		display: none !important;
+	}
+}
+
+/* Narrow xl range (1600–1840px): expand the container only when the dock
+   is open, so it fits on-screen. Uses :has() — well-supported in modern
+   browsers (Safari 15.4+, Chrome 105+, Firefox 121+). */
+@media (min-width: 100em) and (max-width: 114.99em) {
+	.c-container.details-adaptive:not(.fluid):has(> .row > .c-fcd-details.show) {
+		max-width: calc(1200px + var(--fcd-details-width, 20rem));
+		transition: max-width 0.2s ease-in-out;
+	}
+}
+
+/* ==========================================================================
    BottomSheet Component (Draggable Mobile Panel)
    ========================================================================== */
 

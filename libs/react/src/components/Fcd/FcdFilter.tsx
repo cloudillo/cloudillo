@@ -17,7 +17,7 @@ export function FcdFilter({ className, isVisible, hide, children }: FcdFilterPro
 	return (
 		<div
 			className={mergeClasses(
-				'c-vbox sm-hide-dyn hide-left col-md-4 col-lg-3 h-100 overflow-y-auto',
+				'c-fcd-filter c-vbox sm-hide-dyn hide-left col-md-4 col-lg-3 h-100 overflow-y-auto',
 				className,
 				isVisible && 'show'
 			)}
@@ -31,7 +31,7 @@ export function FcdFilter({ className, isVisible, hide, children }: FcdFilterPro
 			>
 				<IcClose />
 			</Button>
-			<div className="w-100" onClick={(evt) => evt.stopPropagation()}>
+			<div className="w-100 fill c-vbox h-min-0" onClick={(evt) => evt.stopPropagation()}>
 				{children}
 			</div>
 		</div>

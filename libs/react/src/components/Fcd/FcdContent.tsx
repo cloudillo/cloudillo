@@ -18,7 +18,7 @@ export const FcdContent = React.forwardRef<HTMLDivElement, FcdContentProps>(
 		return (
 			<div
 				className={mergeClasses(
-					'c-vbox col h-100',
+					'c-fcd-content c-vbox col h-100',
 					fluid ? 'col-md-8 col-lg-9' : 'col-md-8 col-lg-6',
 					className
 				)}

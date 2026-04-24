@@ -11,7 +11,7 @@ export { FcdFilter } from './FcdFilter.js'
 export { FcdContent } from './FcdContent.js'
 export { FcdDetails } from './FcdDetails.js'
 
-export type { FcdContainerProps } from './FcdContainer.js'
+export type { FcdContainerProps, FcdDetailsMode } from './FcdContainer.js'
 export type { FcdFilterProps } from './FcdFilter.js'
 export type { FcdContentProps } from './FcdContent.js'
 export type { FcdDetailsProps } from './FcdDetails.js'

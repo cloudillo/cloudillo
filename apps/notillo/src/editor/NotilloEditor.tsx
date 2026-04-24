@@ -6,6 +6,8 @@ import { useTranslation } from 'react-i18next'
 
 import { type Block, UniqueID } from '@blocknote/core'
 import { filterSuggestionItems } from '@blocknote/core/extensions'
+import { Extension as TiptapExtension } from '@tiptap/core'
+import { Plugin as ProseMirrorPlugin } from '@tiptap/pm/state'
 import {
 	useCreateBlockNote,
 	useExtensionState,
@@ -158,7 +160,50 @@ export const NotilloEditor = React.memo(
 			schema: notilloSchema,
 			// biome-ignore lint/suspicious/noExplicitAny: BlockNote initialContent type boundary with custom schema
 			initialContent: initialBlocks.length > 0 ? (initialBlocks as any) : undefined,
-			resolveFileUrl
+			resolveFileUrl,
+			// Suppress Tiptap Link's built-in click-to-open behavior. Tiptap
+			// Link registers a ProseMirror plugin whose `handleClick` calls
+			// `window.open` on any click inside an `<a>`. ProseMirror runs
+			// that plugin from its own `mouseup` listener, which fires
+			// before any DOM `click` listener we can attach — so DOM-level
+			// preventDefault/stopPropagation is too late.
+			//
+			// Instead we add a higher-priority extension whose own
+			// handleClick plugin returns `true` whenever the click lands on
+			// an anchor. ProseMirror's `handleSingleClick` is short-
+			// circuited on the first plugin that returns truthy (see
+			// prosemirror-view source), so Tiptap Link's handleClick never
+			// runs. Link's priority is 1000; priority 1100 puts ours first.
+			_tiptapOptions: {
+				extensions: [
+					TiptapExtension.create({
+						name: 'notilloLinkClickGuard',
+						priority: 1100,
+						addProseMirrorPlugins() {
+							return [
+								new ProseMirrorPlugin({
+									props: {
+										handleClick(_view, _pos, event) {
+											const target = event.target as HTMLElement | null
+											if (target?.closest?.('a[href]')) {
+												// Swallow the click at the
+												// ProseMirror level. The DOM
+												// capture listener on window
+												// (below) still decides what
+												// to do with the click (open
+												// on Cmd/Ctrl/middle-click or
+												// in read-only mode).
+												return true
+											}
+											return false
+										}
+									}
+								})
+							]
+						}
+					})
+				]
+			}
 		})
 
 		const onEditorReadyRef = React.useRef(onEditorReady)
@@ -230,6 +275,31 @@ export const NotilloEditor = React.memo(
 			function handleClick(e: MouseEvent) {
 				const target = e.target as HTMLElement
 
+				// Regular hyperlinks rendered by BlockNote's default link
+				// mark. BlockNote/Tiptap's Link extension opens links on
+				// click by default, which on touch / plain-click in edit
+				// mode prevents the caret from landing inside the text.
+				// We intercept in capture phase and stop propagation so
+				// BlockNote never sees the event. In edit mode + plain
+				// click the cursor placement is handled by ProseMirror's
+				// mousedown (which already fired); the click is swallowed
+				// so no navigation happens. Cmd/Ctrl/middle-click, and
+				// any click in read-only mode, open the link in a new
+				// tab (the app is in a sandboxed iframe, so same-tab
+				// navigation would replace the whole app).
+				const anchor = target.closest('a[href]') as HTMLAnchorElement | null
+				if (anchor && el?.contains(anchor)) {
+					// Middle-click dispatches `auxclick`, not `click`, so
+					// only metaKey/ctrlKey are reachable here.
+					const modifier = e.metaKey || e.ctrlKey
+					e.preventDefault()
+					e.stopPropagation()
+					if (readOnly || modifier) {
+						window.open(anchor.href, '_blank', 'noopener,noreferrer')
+					}
+					return
+				}
+
 				const wikiLink = target.closest('.notillo-wiki-link') as HTMLElement | null
 				if (wikiLink) {
 					const targetPageId = wikiLink.dataset.pageId
@@ -246,9 +316,27 @@ export const NotilloEditor = React.memo(
 				}
 			}
 
-			el.addEventListener('click', handleClick)
-			return () => el.removeEventListener('click', handleClick)
-		}, [onSelectPage, onTagClick])
+			function handleAuxClick(e: MouseEvent) {
+				if (e.button !== 1) return
+				const target = e.target as HTMLElement
+				const anchor = target.closest('a[href]') as HTMLAnchorElement | null
+				if (anchor && el?.contains(anchor)) {
+					e.preventDefault()
+					e.stopPropagation()
+					window.open(anchor.href, '_blank', 'noopener,noreferrer')
+				}
+			}
+
+			// Attach on `window` in capture phase so we run before any
+			// listener inside the editor (ProseMirror/Tiptap). `el.contains`
+			// scopes the handler to events originating inside this editor.
+			window.addEventListener('click', handleClick, true)
+			window.addEventListener('auxclick', handleAuxClick, true)
+			return () => {
+				window.removeEventListener('click', handleClick, true)
+				window.removeEventListener('auxclick', handleAuxClick, true)
+			}
+		}, [onSelectPage, onTagClick, readOnly])
 
 		// Wiki-link suggestion items
 		const getWikiLinkItems = React.useCallback(

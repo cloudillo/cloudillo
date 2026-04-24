@@ -25,6 +25,8 @@
 		"@cloudillo/rtdb": "workspace:^",
 		"@mantine/core": "^9.0.0",
 		"@mantine/hooks": "^9.0.0",
+		"@tiptap/core": "^3.13.0",
+		"@tiptap/pm": "^3.13.0",
 		"@react-pdf/renderer": "^4.3.2",
 		"@symbion/opalui": "^0.14.7",
 		"@types/react": "^19.2.14",

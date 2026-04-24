@@ -111,7 +111,7 @@ export const DocumentEmbedIframe = React.memo(
 				ref={setIframeRef}
 				src={src}
 				className={className}
-				sandbox="allow-scripts allow-forms allow-downloads"
+				sandbox="allow-scripts allow-forms allow-downloads allow-popups allow-popups-to-escape-sandbox"
 				loading="lazy"
 				style={{ pointerEvents: active ? 'auto' : 'none' }}
 				onDoubleClick={(e) => {

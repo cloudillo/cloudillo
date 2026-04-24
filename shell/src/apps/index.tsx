@@ -52,12 +52,17 @@ function normalizeTrust(trust: TrustLevel | boolean | undefined): TrustLevel {
 
 /**
  * Get iframe sandbox attribute value
- * All trust levels use 'allow-scripts allow-forms allow-downloads' without 'allow-same-origin'
+ * All trust levels use the same base permissions without 'allow-same-origin'.
  * This gives apps an opaque origin, preventing access to shell's serviceWorker API
- * and protecting the SW encryption key from being read via scriptURL
+ * and protecting the SW encryption key from being read via scriptURL.
+ *
+ * `allow-popups` lets apps open external links with `window.open` / `<a target>`;
+ * `allow-popups-to-escape-sandbox` ensures those popups open as normal windows
+ * (not inheriting the app's sandbox), which is what users expect when clicking
+ * a link to an external site.
  */
 function getSandboxValue(_trust: TrustLevel): string {
-	return 'allow-scripts allow-forms allow-downloads'
+	return 'allow-scripts allow-forms allow-downloads allow-popups allow-popups-to-escape-sandbox'
 }
 
 /**

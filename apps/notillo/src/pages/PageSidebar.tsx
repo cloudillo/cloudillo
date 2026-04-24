@@ -95,6 +95,11 @@ export function PageSidebar({
 	} | null>(null)
 	const longPressTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 	const longPressTriggeredRef = React.useRef(false)
+	// Timestamp of the last touchstart anywhere on a page row. Used to
+	// suppress the browser's native touch-initiated `contextmenu` event,
+	// which on some mobile browsers (Chrome Android on draggable rows in
+	// particular) fires on presses that still feel like a quick tap.
+	const lastTouchStartRef = React.useRef(0)
 
 	// Clean up long-press timer on unmount
 	React.useEffect(() => {
@@ -187,15 +192,39 @@ export function PageSidebar({
 			if (readOnly || !onImportMarkdown) return
 			e.preventDefault()
 			e.stopPropagation()
+			// Only open from a real mouse right-click. Mobile browsers
+			// (Chrome Android especially, and more eagerly on draggable
+			// elements) fire `contextmenu` from touch long-press, which
+			// races with our own timer and fires on presses that feel
+			// like a quick tap. Right-click sets button=2; touch-
+			// initiated contextmenu sets button=0. As a second line of
+			// defense, suppress any contextmenu fired within 1.5s of
+			// the last touchstart on a row — some browsers deliver the
+			// touch contextmenu with button=2. Touch long-press is
+			// handled by `handleTouchStart`'s timer instead.
+			if (e.button !== 2) return
+			if (Date.now() - lastTouchStartRef.current < 1500) return
 			setCtxMenu({ x: e.clientX, y: e.clientY, pageId, pageTitle })
 		},
 		[readOnly, onImportMarkdown]
 	)
 
-	// Long-press for mobile context menu
+	// Long-press for mobile context menu. Threshold intentionally over
+	// half a second so users' "quick taps" don't register as long-press.
+	const LONG_PRESS_MS = 700
+
 	const handleTouchStart = React.useCallback(
 		(e: React.TouchEvent, pageId: string, pageTitle: string) => {
 			if (readOnly || !onImportMarkdown) return
+			// Defensively clear any timer left over from a previous touch
+			// whose touchend/touchmove/touchcancel didn't fire (e.g., the
+			// browser hijacked the gesture for a drag). Otherwise the old
+			// timer would fire and open the menu for the wrong page.
+			if (longPressTimerRef.current) {
+				clearTimeout(longPressTimerRef.current)
+				longPressTimerRef.current = null
+			}
+			lastTouchStartRef.current = Date.now()
 			const touch = e.touches[0]
 			const x = touch?.clientX ?? 0
 			const y = touch?.clientY ?? 0
@@ -204,7 +233,7 @@ export function PageSidebar({
 				longPressTriggeredRef.current = true
 				setCtxMenu({ x, y, pageId, pageTitle })
 				longPressTimerRef.current = null
-			}, 500)
+			}, LONG_PRESS_MS)
 		},
 		[readOnly, onImportMarkdown]
 	)
@@ -347,6 +376,7 @@ export function PageSidebar({
 				}
 				onTouchEnd={handleTouchEnd}
 				onTouchMove={handleTouchEnd}
+				onTouchCancel={handleTouchEnd}
 				onItemDragStart={handleDragStart}
 				onItemDragOver={(e, pos) => handleDragOver(page.id, e, pos)}
 				onItemDragLeave={handleDragLeave}

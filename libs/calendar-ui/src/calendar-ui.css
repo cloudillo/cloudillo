@@ -134,9 +134,13 @@
 	border-left: 1px solid var(--col-outline);
 }
 
+/* Today's column — a subtle primary-tinted wash so the column is
+   recognisable as "today" at a glance. Keep the opacity low enough that
+   events still dominate visually; the left accent bar reinforces the
+   brand tie. */
 .c-cal-view__day-col.is-today {
 	background: lch(from var(--col-primary) l c h / 0.12);
-	box-shadow: inset 2px 0 0 0 lch(from var(--col-primary) l c h / 0.5);
+	box-shadow: inset 2px 0 0 0 var(--col-primary);
 }
 
 /* Non-working day column (e.g., Sat/Sun under the default Mon-Fri policy).
@@ -181,8 +185,10 @@
 	border-top: none;
 }
 
+/* Slot hover — neutral feedback, not brand blue. Keeps the primary colour
+   reserved for semantic selection/focus rather than pointer state. */
 .c-cal-view__slot:hover {
-	background: lch(from var(--col-primary) l c h / 0.08);
+	background: lch(from var(--col-on) l c h / 0.06);
 }
 
 /* --- Event chip ------------------------------------------------------- */

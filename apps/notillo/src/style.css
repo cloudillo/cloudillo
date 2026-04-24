@@ -1,5 +1,17 @@
 /* Notillo App Styles - Using OpalUI --col-* variables */
 
+/* Anchor the layout chain to the iframe/viewport so `h-100` on
+   `.c-container` and `.row` resolves to the actual viewport height
+   rather than the editor's content height. Without this, the sidebar
+   (position:absolute inset:0 inside `.row.h-100` on mobile) shrinks to
+   the current editor content, which is why opening it on a short page
+   shows only one row. */
+html,
+body,
+#app {
+	height: 100%;
+}
+
 /* ── Sidebar ── */
 
 .c-tree-item {
@@ -441,6 +453,16 @@
 }
 
 /* ── Comments Panel ── */
+
+/* Lighter, un-blurred mobile overlay for the details panel — lets the
+   editor content under the comments panel stay readable. Overrides the
+   dim+blur default in @cloudillo/react's components.css. */
+@media (max-width: 1199px) {
+	.c-fcd-details::before {
+		background-color: rgba(0, 0, 0, 0.3);
+		backdrop-filter: none;
+	}
+}
 
 .comment-panel-header {
 	display: flex;

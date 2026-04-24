@@ -4,7 +4,7 @@
 import * as React from 'react'
 
 import type { UseCommentsReturn, CommentThread } from '@cloudillo/react'
-import { ThreadList } from './ThreadList.js'
+import { ThreadList, type ThreadListHandle } from './ThreadList.js'
 
 interface CommentPanelProps {
 	comments: UseCommentsReturn
@@ -17,40 +17,49 @@ interface CommentPanelProps {
 	onPendingAnchorConsumed?: () => void
 	focusBlockId?: string
 	onFocusBlockConsumed?: () => void
+	hideHeader?: boolean
 }
 
-export function CommentPanel({
-	comments,
-	threads,
-	pageId,
-	idTag,
-	readOnly,
-	pendingAnchor,
-	pendingOffset,
-	onPendingAnchorConsumed,
-	focusBlockId,
-	onFocusBlockConsumed
-}: CommentPanelProps) {
-	const { createThread } = comments
+export const CommentPanel = React.forwardRef<ThreadListHandle, CommentPanelProps>(
+	function CommentPanel(
+		{
+			comments,
+			threads,
+			pageId,
+			idTag,
+			readOnly,
+			pendingAnchor,
+			pendingOffset,
+			onPendingAnchorConsumed,
+			focusBlockId,
+			onFocusBlockConsumed,
+			hideHeader
+		},
+		ref
+	) {
+		const { createThread } = comments
 
-	async function handleCreateThread(text: string, anchor?: string) {
-		await createThread(`p:${pageId}`, anchor || 'b:', text)
+		async function handleCreateThread(text: string, anchor?: string) {
+			await createThread(`p:${pageId}`, anchor || 'b:', text)
+		}
+
+		return (
+			<ThreadList
+				ref={ref}
+				comments={comments}
+				threads={threads}
+				idTag={idTag}
+				readOnly={readOnly}
+				onCreateThread={handleCreateThread}
+				pendingAnchor={pendingAnchor}
+				pendingOffset={pendingOffset}
+				onPendingAnchorConsumed={onPendingAnchorConsumed}
+				focusBlockId={focusBlockId}
+				onFocusBlockConsumed={onFocusBlockConsumed}
+				hideHeader={hideHeader}
+			/>
+		)
 	}
-
-	return (
-		<ThreadList
-			comments={comments}
-			threads={threads}
-			idTag={idTag}
-			readOnly={readOnly}
-			onCreateThread={handleCreateThread}
-			pendingAnchor={pendingAnchor}
-			pendingOffset={pendingOffset}
-			onPendingAnchorConsumed={onPendingAnchorConsumed}
-			focusBlockId={focusBlockId}
-			onFocusBlockConsumed={onFocusBlockConsumed}
-		/>
-	)
-}
+)
 
 // vim: ts=4

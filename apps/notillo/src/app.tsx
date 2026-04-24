@@ -12,6 +12,7 @@ import { LuPanelLeft as IcSidebar } from 'react-icons/lu'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
+import '@cloudillo/react/components.css'
 import './i18n.js'
 import './style.css'
 
@@ -26,7 +27,12 @@ import { PageSidebar } from './pages/PageSidebar.js'
 import { PageHeader } from './pages/PageHeader.js'
 import { exportMarkdown, importMarkdown, exportPdf, exportDocx, exportOdt } from './export/index.js'
 import { createPage } from './rtdb/page-ops.js'
-import { CommentPanel, CommentPopup } from './comments/index.js'
+import {
+	CommentPanel,
+	CommentPopup,
+	ThreadListHeader,
+	type ThreadListHandle
+} from './comments/index.js'
 import { useCommentIndicators } from './hooks/useCommentIndicators.js'
 import { useBlockContextMenu } from './hooks/useBlockContextMenu.js'
 import { useCommentBlockButton } from './hooks/useCommentBlockButton.js'
@@ -108,6 +114,7 @@ export function NotilloApp() {
 	const editorRef = React.useRef<NotilloEditor | null>(null)
 	const fileInputRef = React.useRef<HTMLInputElement>(null)
 	const childImportInputRef = React.useRef<HTMLInputElement>(null)
+	const commentPanelRef = React.useRef<ThreadListHandle | null>(null)
 	const [pendingImport, setPendingImport] = React.useState<
 		{ markdown: string; pageId: string; source: 'shell' | 'local' } | undefined
 	>()
@@ -609,7 +616,7 @@ export function NotilloApp() {
 				style={{ display: 'none' }}
 				onChange={handleChildImportFileSelected}
 			/>
-			<Fcd.Container className="pt-2 g-2">
+			<Fcd.Container className="pt-2 g-2" detailsMode="adaptive">
 				<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 					<Panel elevation="mid" className="c-vbox fill">
 						<PageSidebar
@@ -640,7 +647,6 @@ export function NotilloApp() {
 					</Panel>
 				</Fcd.Filter>
 				<Fcd.Content
-					fluid={!showComments}
 					header={
 						activePage ? (
 							<PageHeader
@@ -725,10 +731,20 @@ export function NotilloApp() {
 					)}
 				</Fcd.Content>
 				{canComment && showComments && (
-					<Fcd.Details isVisible={showComments} hide={() => setShowComments(false)}>
+					<Fcd.Details
+						isVisible={showComments}
+						hide={() => setShowComments(false)}
+						header={
+							<ThreadListHeader
+								readOnly={!canComment}
+								onNewComment={() => commentPanelRef.current?.openNewComment()}
+							/>
+						}
+					>
 						<div className="c-vbox fill">
 							{activePageId && notillo.idTag && (
 								<CommentPanel
+									ref={commentPanelRef}
 									comments={comments}
 									threads={pageThreads}
 									pageId={activePageId}
@@ -742,6 +758,7 @@ export function NotilloApp() {
 									}}
 									focusBlockId={focusBlockId}
 									onFocusBlockConsumed={() => setFocusBlockId(undefined)}
+									hideHeader
 								/>
 							)}
 						</div>

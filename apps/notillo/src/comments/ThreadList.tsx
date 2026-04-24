@@ -28,6 +28,44 @@ interface ThreadListProps {
 	onPendingAnchorConsumed?: () => void
 	focusBlockId?: string
 	onFocusBlockConsumed?: () => void
+	/** Skip rendering the built-in `.comment-panel-header`. Use when the
+	 * parent provides the header externally (e.g. via `FcdDetails`'s
+	 * `header` slot) and needs to trigger new-comment via the imperative
+	 * handle. */
+	hideHeader?: boolean
+}
+
+export interface ThreadListHandle {
+	openNewComment: () => void
+}
+
+export interface ThreadListHeaderProps {
+	readOnly: boolean
+	onNewComment?: () => void
+}
+
+/** Header row (title + "+"-button) of the comments panel. Rendered
+ * internally by `ThreadList` by default; or externally by callers who pass
+ * `hideHeader` to `ThreadList` and wire the "+" button to
+ * `ThreadListHandle.openNewComment()`. */
+export function ThreadListHeader({ readOnly, onNewComment }: ThreadListHeaderProps) {
+	const { t } = useTranslation()
+	return (
+		<>
+			<span className="font-semibold flex-fill">{t('Comments')}</span>
+			{!readOnly && onNewComment && (
+				<Button
+					link
+					mode="icon"
+					size="small"
+					onClick={onNewComment}
+					title={t('New comment')}
+				>
+					<IcPlus />
+				</Button>
+			)}
+		</>
+	)
 }
 
 /** Compute a block element's Y offset relative to the content scroll area top */
@@ -158,18 +196,22 @@ function ExpandedThread({
 
 // ── Thread list ──
 
-export function ThreadList({
-	comments,
-	threads,
-	idTag,
-	readOnly,
-	onCreateThread,
-	pendingAnchor,
-	pendingOffset,
-	onPendingAnchorConsumed,
-	focusBlockId,
-	onFocusBlockConsumed
-}: ThreadListProps) {
+export const ThreadList = React.forwardRef<ThreadListHandle, ThreadListProps>(function ThreadList(
+	{
+		comments,
+		threads,
+		idTag,
+		readOnly,
+		onCreateThread,
+		pendingAnchor,
+		pendingOffset,
+		onPendingAnchorConsumed,
+		focusBlockId,
+		onFocusBlockConsumed,
+		hideHeader
+	},
+	ref
+) {
 	const { t } = useTranslation()
 	const [expandedId, setExpandedId] = React.useState<string | null>(null)
 	const [showForm, setShowForm] = React.useState(false)
@@ -299,6 +341,8 @@ export function ThreadList({
 		setAnchor(undefined)
 		setShowForm(true)
 	}
+
+	React.useImperativeHandle(ref, () => ({ openNewComment: handleNewComment }), [handleNewComment])
 
 	function handleFormKeyDown(e: React.KeyboardEvent) {
 		if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -561,20 +605,11 @@ export function ThreadList({
 
 	return (
 		<div className="c-vbox fill">
-			<div className="comment-panel-header">
-				<span className="font-semibold flex-fill">{t('Comments')}</span>
-				{!readOnly && (
-					<Button
-						link
-						mode="icon"
-						size="small"
-						onClick={handleNewComment}
-						title={t('New comment')}
-					>
-						<IcPlus />
-					</Button>
-				)}
-			</div>
+			{!hideHeader && (
+				<div className="comment-panel-header">
+					<ThreadListHeader readOnly={readOnly} onNewComment={handleNewComment} />
+				</div>
+			)}
 
 			{formInHeader && renderForm()}
 
@@ -589,6 +624,6 @@ export function ThreadList({
 			</div>
 		</div>
 	)
-}
+})
 
 // vim: ts=4

@@ -1,11 +1,22 @@
-/* Panel surfaces for the sidebar + grid + details panes. */
+/* Panel surfaces. Visual hierarchy: the central grid is the app's focal
+   content, so it uses the brighter `--col-container` surface — side panels
+   (sidebar, details, agenda/tasks when they replace the grid) recede onto
+   the darker `--col-container-low`. A thin outline on the grid gives it a
+   framed-window feel against the surrounding panels. */
 .c-cal-sidebar,
-.c-cal-grid,
 .c-cal-details,
 .c-cal-agenda,
 .c-cal-tasks {
 	background-color: lch(from var(--col-container-low) l c h / var(--op-panel));
 	color: var(--col-on-container-low);
+	border-radius: var(--border-radius-lg);
+	backdrop-filter: blur(var(--blur-radius));
+}
+
+.c-cal-grid {
+	background-color: lch(from var(--col-container) l c h / var(--op-panel));
+	color: var(--col-on-container);
+	border: 1px solid lch(from var(--col-outline) l c h / 0.5);
 	border-radius: var(--border-radius-lg);
 	backdrop-filter: blur(var(--blur-radius));
 }
@@ -22,7 +33,6 @@
 	flex-direction: column;
 	gap: 0.1rem;
 	padding: 0.25rem;
-	overflow-y: auto;
 }
 
 .c-cal-item {
@@ -423,141 +433,54 @@
 }
 
 /* --- App layout ----------------------------------------------------------
- * Flex layout that replaces the previous Fcd three-column grid. The main
- * area is edge-to-edge so Schedule-X gets the full viewport minus the
- * (optional) sidebar; the details pane is an absolute overlay so it
- * doesn't steal width from the grid.
+ * Built on Fcd.Container (fluid + overlay details). The calendar-specific
+ * bits below are just: (a) a desktop-collapsible filter column (FCD doesn't
+ * collapse the filter at lg+ on its own — we hide it to width 0 via the
+ * `.collapsed` modifier when the user toggles it off); (b) a wider details
+ * overlay than the default 20rem so event info fits; (c) flattening the
+ * inner pane surfaces since the overlay already carries the backdrop.
  */
 .c-cal-app {
-	display: flex;
-	flex-direction: column;
-	height: 100%;
-	width: 100%;
-	min-height: 0;
+	--fcd-details-width: 22rem;
 }
 
-.c-cal-app__body {
-	position: relative;
-	display: flex;
-	flex: 1 1 auto;
-	min-height: 0;
-	gap: 0.25rem;
+/* CalendarGrid (and Schedule-X under it) handles its own scrolling, so
+   the mobile scroll-padding FcdContent adds is just dead space for us. */
+.c-cal-app .c-fcd-content-scroll {
+	padding-bottom: 0;
 }
 
-.c-cal-app__sidebar {
-	flex: 0 0 auto;
-	width: 16rem;
-	display: flex;
-	flex-direction: column;
-	overflow: hidden;
-	background-color: lch(from var(--col-container-low) l c h / var(--op-panel));
-	color: var(--col-on-container-low);
-	backdrop-filter: blur(var(--blur-radius));
-	border-right: 1px solid var(--col-outline);
-	transition:
-		width 200ms ease,
-		transform 200ms ease;
-}
-
-.c-cal-app__sidebar:not(.open) {
-	width: 0;
-}
-
-.c-cal-app__main {
-	flex: 1 1 auto;
-	min-width: 0;
-	display: flex;
-	flex-direction: column;
-}
-
-/* Mobile: sidebar becomes an overlay drawer rather than a flex child so it
-   can't eat into the calendar's width when toggled. */
-@media (max-width: 767px) {
-	.c-cal-app__sidebar {
-		position: absolute;
-		top: 0;
-		bottom: 0;
-		left: 0;
-		width: min(20rem, 80vw);
-		z-index: 20;
-		transform: translateX(-100%);
-		box-shadow: 0 0 24px rgb(0 0 0 / 0.25);
+/* Desktop-collapsible filter: at md+ FCD renders filter as a flex column.
+   Users can hide it to reclaim space for the calendar grid. Mobile overlay
+   is driven by FcdFilter's `isVisible` prop — this rule doesn't touch sm. */
+@media (min-width: 768px) {
+	.c-cal-app__filter {
+		transition:
+			flex-basis 200ms ease,
+			max-width 200ms ease;
 	}
 
-	.c-cal-app__sidebar.open {
-		transform: translateX(0);
+	.c-cal-app__filter.collapsed {
+		flex: 0 0 0;
+		max-width: 0;
+		overflow: hidden;
 	}
 
-	.c-cal-app__sidebar:not(.open) {
-		width: min(20rem, 80vw);
+	/* When the filter is collapsed, let content reclaim the freed space
+	   instead of leaving an empty gap at its default col-md-8/col-lg-9. */
+	.c-cal-app__filter.collapsed ~ .c-fcd-content {
+		flex: 1 1 auto;
+		max-width: none;
 	}
 }
 
-.c-cal-app__backdrop {
-	position: absolute;
-	inset: 0;
-	background: lch(from var(--col-on) l c h / 0.35);
-	backdrop-filter: blur(2px);
-	border: 0;
-	padding: 0;
-	cursor: pointer;
-	z-index: 15;
-}
-
-/* Details pane is an overlay — always absolute, slides in from the right.
-   Keeps the grid width stable whether an event is selected or not. */
-.c-cal-app__details {
-	position: absolute;
-	top: 0;
-	right: 0;
-	bottom: 0;
-	width: min(22rem, 100%);
-	display: flex;
-	flex-direction: column;
-	background: lch(from var(--col-container) l c h / var(--op-panel));
-	backdrop-filter: blur(var(--blur-radius));
-	color: var(--col-on-container);
-	border-left: 1px solid var(--col-outline);
-	box-shadow: -8px 0 24px rgb(0 0 0 / 0.15);
-	transform: translateX(100%);
-	transition: transform 200ms ease;
-	z-index: 20;
-	overflow: hidden;
-}
-
-.c-cal-app__details.open {
-	transform: translateX(0);
-}
-
-.c-cal-app__details-backdrop {
-	display: none;
-	position: absolute;
-	inset: 0;
-	background: lch(from var(--col-on) l c h / 0.35);
-	border: 0;
-	padding: 0;
-	cursor: pointer;
-	z-index: 15;
-}
-
-@media (max-width: 767px) {
-	.c-cal-app__details {
-		width: 100%;
-	}
-
-	.c-cal-app__details-backdrop {
-		display: block;
-	}
-}
-
-/* Flatten the pane surfaces when they're inside a drawer — the drawer
-   itself carries the backdrop blur and border, so the inner pane would
-   only pile on a second layer. */
-.c-cal-app__sidebar .c-cal-sidebar,
-.c-cal-app__details .c-cal-details {
-	border-radius: 0;
-	background: transparent;
-	backdrop-filter: none;
+/* Let the inner `.c-cal-sidebar` / `.c-cal-details` render their full
+   surfaces (background, blur, rounded corners) — FCD wrappers are layout
+   only and don't add their own backdrop for us to avoid double-layering.
+   We still need the pane to fill its FCD slot so the content area isn't
+   cropped. */
+.c-cal-app__filter .c-cal-sidebar,
+.c-cal-app .c-fcd-details .c-cal-details {
 	height: 100%;
 	min-height: 0;
 	overflow: auto;

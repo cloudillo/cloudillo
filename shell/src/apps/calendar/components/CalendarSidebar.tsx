@@ -81,7 +81,7 @@ export function CalendarSidebar({
 				</button>
 			</div>
 
-			<div className="c-cal-list flex-fill">
+			<div className="c-cal-list">
 				{calendars.map((cal) => {
 					const isVisible = visible === null || visible.has(cal.calId)
 					return (

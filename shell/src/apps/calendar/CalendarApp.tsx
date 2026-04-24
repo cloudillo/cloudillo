@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, Menu, MenuDivider, MenuItem, useIsMobile, useToast } from '@cloudillo/react'
+import { Button, Fcd, Menu, MenuDivider, MenuItem, useIsMobile, useToast } from '@cloudillo/react'
 import dayjs from 'dayjs'
 import { useAtom } from 'jotai'
 import * as React from 'react'
@@ -40,6 +40,7 @@ import {
 	CalendarToolbar,
 	EventEditor,
 	ObjectDetails,
+	ObjectDetailsHeader,
 	RecurringEditScopeDialog,
 	TaskEditor,
 	TaskList
@@ -502,152 +503,141 @@ export function CalendarApp() {
 
 	return (
 		<>
-			<div className="c-cal-app">
-				<CalendarToolbar
-					currentDate={currentDate}
-					view={view}
-					searchQuery={searchQuery}
-					onDateChange={setCurrentDate}
-					onViewChange={handleViewChange}
-					onSearchChange={setSearchQuery}
-					lead={
-						<button
-							type="button"
-							className="c-link"
-							onClick={() => setSidebarOpen((v) => !v)}
-							aria-label={t('Toggle calendars')}
-							aria-pressed={sidebarOpen}
-							title={t('Toggle calendars')}
-						>
-							<IcSidebar />
-						</button>
-					}
-					trail={
-						<div className="d-flex align-items-center g-1">
-							<Button
-								primary
-								size="small"
-								disabled={noCalendars}
-								onClick={view === 'tasks' ? openCreateTask : openCreateEvent}
-								icon={<IcAdd />}
-							>
-								{view === 'tasks' ? t('New task') : t('New event')}
-							</Button>
-							<button
-								type="button"
-								className="c-link"
-								onClick={openToolbarMenu}
-								aria-label={t('More actions')}
-								aria-haspopup="menu"
-								aria-expanded={!!toolbarMenu}
-								title={t('More actions')}
-							>
-								<IcMore />
-							</button>
-						</div>
-					}
-				/>
+			<Fcd.Container fluid detailsMode="overlay" className="c-cal-app">
+				<Fcd.Filter
+					className={`c-cal-app__filter${sidebarOpen ? '' : ' collapsed'}`}
+					isVisible={sidebarOpen}
+					hide={() => setSidebarOpen(false)}
+				>
+					<CalendarSidebar
+						calendars={calendars}
+						visible={visibleCalendars}
+						currentDate={currentDate}
+						onToggle={handleToggleCalendar}
+						onEdit={openEditCalendar}
+						onDelete={handleDeleteCalendar}
+						onCreate={openCreateCalendar}
+						onPickDate={setCurrentDate}
+					/>
+				</Fcd.Filter>
 
-				<div className="c-cal-app__body">
-					<aside
-						className={`c-cal-app__sidebar${sidebarOpen ? ' open' : ''}`}
-						inert={!sidebarOpen}
-					>
-						<CalendarSidebar
-							calendars={calendars}
-							visible={visibleCalendars}
+				<Fcd.Content
+					className="c-cal-app__content"
+					header={
+						<CalendarToolbar
 							currentDate={currentDate}
-							onToggle={handleToggleCalendar}
-							onEdit={openEditCalendar}
-							onDelete={handleDeleteCalendar}
-							onCreate={openCreateCalendar}
-							onPickDate={setCurrentDate}
+							view={view}
+							searchQuery={searchQuery}
+							onDateChange={setCurrentDate}
+							onViewChange={handleViewChange}
+							onSearchChange={setSearchQuery}
+							lead={
+								<button
+									type="button"
+									className="c-link"
+									onClick={() => setSidebarOpen((v) => !v)}
+									aria-label={t('Toggle calendars')}
+									aria-pressed={sidebarOpen}
+									title={t('Toggle calendars')}
+								>
+									<IcSidebar />
+								</button>
+							}
+							trail={
+								<div className="d-flex align-items-center g-1">
+									<Button
+										primary
+										size="small"
+										disabled={noCalendars}
+										onClick={
+											view === 'tasks' ? openCreateTask : openCreateEvent
+										}
+										icon={<IcAdd />}
+									>
+										{view === 'tasks' ? t('New task') : t('New event')}
+									</Button>
+									<button
+										type="button"
+										className="c-link"
+										onClick={openToolbarMenu}
+										aria-label={t('More actions')}
+										aria-haspopup="menu"
+										aria-expanded={!!toolbarMenu}
+										title={t('More actions')}
+									>
+										<IcMore />
+									</button>
+								</div>
+							}
 						/>
-					</aside>
-					{sidebarOpen && isMobile && (
-						<button
-							type="button"
-							className="c-cal-app__backdrop"
-							onClick={() => setSidebarOpen(false)}
-							aria-label={t('Close')}
-						/>
-					)}
-
-					<main className="c-cal-app__main">
-						{noCalendars ? (
-							<div className="c-vbox align-items-center justify-content-center p-4 g-3 text-center flex-fill">
-								<h3 className="m-0">{t('No calendars yet')}</h3>
-								<p className="c-hint">
-									{t('Create a calendar to start adding events and tasks.')}
-								</p>
-								<Button primary onClick={openCreateCalendar}>
-									<IcNewCal className="me-1" />
-									{t('New calendar')}
-								</Button>
-							</div>
-						) : view === 'tasks' ? (
-							<TaskList
-								tasks={tasks.objects}
-								calendars={calendars}
-								isLoading={tasks.isLoading}
-								hasMore={tasks.hasMore}
-								error={tasks.error}
-								loadMore={tasks.loadMore}
-								sentinelRef={tasks.sentinelRef}
-								onToggleComplete={handleToggleTaskComplete}
-							/>
-						) : view === 'agenda' ? (
-							<AgendaView
-								occurrences={events.occurrences}
-								calendars={calendars}
-								isLoading={events.isLoading}
-							/>
-						) : (
-							<CalendarGrid
-								view={view}
-								currentDate={currentDate}
-								occurrences={events.occurrences}
-								calendars={calendars}
-								firstDayOfWeek={firstDayOfWeek}
-								workingHours={workingHours}
-								workingDays={workingDays}
-								onDateChange={setCurrentDate}
-								onCreateAt={(start, end, allDay) => {
-									setEditingEvent(undefined)
-									setEventEditorOpen(true)
-									setEventDraft({ start, end, allDay })
-								}}
-								onEventUpdate={handleEventUpdate}
-								onViewChange={handleViewChange}
-							/>
-						)}
-					</main>
-
-					<aside
-						className={`c-cal-app__details${selectedRef ? ' open' : ''}`}
-						inert={!selectedRef}
-					>
-						<ObjectDetails
-							object={detailObject}
+					}
+				>
+					{noCalendars ? (
+						<div className="c-vbox align-items-center justify-content-center p-4 g-3 text-center flex-fill">
+							<h3 className="m-0">{t('No calendars yet')}</h3>
+							<p className="c-hint">
+								{t('Create a calendar to start adding events and tasks.')}
+							</p>
+							<Button primary onClick={openCreateCalendar}>
+								<IcNewCal className="me-1" />
+								{t('New calendar')}
+							</Button>
+						</div>
+					) : view === 'tasks' ? (
+						<TaskList
+							tasks={tasks.objects}
 							calendars={calendars}
-							loading={detailLoading}
-							onEdit={openEditEvent}
-							onDelete={handleDeleteObject}
-							hasOverride={detailHasOverride}
-							onReset={handleResetOverride}
-							onClose={() => setSelectedRef(null)}
+							isLoading={tasks.isLoading}
+							hasMore={tasks.hasMore}
+							error={tasks.error}
+							loadMore={tasks.loadMore}
+							sentinelRef={tasks.sentinelRef}
+							onToggleComplete={handleToggleTaskComplete}
 						/>
-					</aside>
-					{selectedRef && (
-						<button
-							type="button"
-							className="c-cal-app__details-backdrop"
-							onClick={() => setSelectedRef(null)}
-							aria-label={t('Close')}
+					) : view === 'agenda' ? (
+						<AgendaView
+							occurrences={events.occurrences}
+							calendars={calendars}
+							isLoading={events.isLoading}
+						/>
+					) : (
+						<CalendarGrid
+							view={view}
+							currentDate={currentDate}
+							occurrences={events.occurrences}
+							calendars={calendars}
+							firstDayOfWeek={firstDayOfWeek}
+							workingHours={workingHours}
+							workingDays={workingDays}
+							onDateChange={setCurrentDate}
+							onCreateAt={(start, end, allDay) => {
+								setEditingEvent(undefined)
+								setEventEditorOpen(true)
+								setEventDraft({ start, end, allDay })
+							}}
+							onEventUpdate={handleEventUpdate}
+							onViewChange={handleViewChange}
 						/>
 					)}
-				</div>
-			</div>
+				</Fcd.Content>
+
+				<Fcd.Details
+					isVisible={!!selectedRef}
+					hide={() => setSelectedRef(null)}
+					header={<ObjectDetailsHeader object={detailObject} calendars={calendars} />}
+				>
+					<ObjectDetails
+						object={detailObject}
+						calendars={calendars}
+						loading={detailLoading}
+						onEdit={openEditEvent}
+						onDelete={handleDeleteObject}
+						hasOverride={detailHasOverride}
+						onReset={handleResetOverride}
+						hideHeader
+					/>
+				</Fcd.Details>
+			</Fcd.Container>
 
 			<CalendarEditor
 				open={calEditorOpen}

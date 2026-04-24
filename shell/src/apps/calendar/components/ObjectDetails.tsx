@@ -11,8 +11,7 @@ import {
 	LuRepeat as IcRecur,
 	LuUsers as IcAttendees,
 	LuBell as IcAlarm,
-	LuRotateCcw as IcReset,
-	LuX as IcClose
+	LuRotateCcw as IcReset
 } from 'react-icons/lu'
 
 import { Button, LoadingSpinner, useDialog } from '@cloudillo/react'
@@ -69,10 +68,43 @@ export interface ObjectDetailsProps {
 	 *  per-instance override. Shows the "Reset to series default" action. */
 	hasOverride?: boolean
 	onReset?: () => Promise<void> | void
-	/** Render a close button in the header when provided. The overlay drawer in
-	 *  the calendar app passes this; when embedded inline (future callers) the
-	 *  prop can be omitted and the button is hidden. */
-	onClose?: () => void
+	/** Skip rendering the built-in title row (swatch + title + recurring icon).
+	 *  Use when the parent provides the header externally (e.g. via
+	 *  `FcdDetails`'s `header` slot). */
+	hideHeader?: boolean
+}
+
+export interface ObjectDetailsHeaderProps {
+	object: CalendarObjectOutput | undefined
+	calendars: CalendarOutput[]
+}
+
+/** Title row of the object details pane — swatch + summary + recurring icon.
+ *  Rendered internally by `ObjectDetails` by default; or externally by callers
+ *  who pass `hideHeader` and need to drop it into `FcdDetails.header`. */
+export function ObjectDetailsHeader({ object, calendars }: ObjectDetailsHeaderProps) {
+	const { t } = useTranslation()
+	if (!object) {
+		return <span className="flex-fill c-hint">{t('Details')}</span>
+	}
+	const cal = calendars.find((c) => c.calId === object.calId)
+	return (
+		<>
+			{cal && (
+				<span
+					className="c-cal-item__swatch"
+					style={{ background: cal.color || 'var(--col-primary)' }}
+					aria-hidden="true"
+				/>
+			)}
+			<h3 className="flex-fill m-0">{object.summary || t('(untitled)')}</h3>
+			{object.rrule && (
+				<span title={t('Recurring')} aria-label={t('Recurring')}>
+					<IcRecur />
+				</span>
+			)}
+		</>
+	)
 }
 
 export function ObjectDetails({
@@ -83,27 +115,14 @@ export function ObjectDetails({
 	onDelete,
 	hasOverride,
 	onReset,
-	onClose
+	hideHeader
 }: ObjectDetailsProps) {
 	const { t, i18n } = useTranslation()
 	const dialog = useDialog()
 
-	const closeButton = onClose ? (
-		<button
-			type="button"
-			className="c-link"
-			onClick={onClose}
-			aria-label={t('Close')}
-			title={t('Close')}
-		>
-			<IcClose />
-		</button>
-	) : null
-
 	if (loading) {
 		return (
 			<div className="c-cal-details d-flex flex-column">
-				{closeButton && <div className="d-flex justify-content-end p-2">{closeButton}</div>}
 				<div className="flex-fill d-flex align-items-center justify-content-center p-4">
 					<LoadingSpinner />
 				</div>
@@ -114,7 +133,6 @@ export function ObjectDetails({
 	if (!object) {
 		return (
 			<div className="c-cal-details d-flex flex-column">
-				{closeButton && <div className="d-flex justify-content-end p-2">{closeButton}</div>}
 				<div className="flex-fill p-4 c-hint text-center">
 					{t('Select an event or task to see details.')}
 				</div>
@@ -122,7 +140,6 @@ export function ObjectDetails({
 		)
 	}
 
-	const cal = calendars.find((c) => c.calId === object.calId)
 	const isTask = object.component === 'VTODO'
 
 	async function handleDelete() {
@@ -162,22 +179,11 @@ export function ObjectDetails({
 
 	return (
 		<div className="c-cal-details p-3">
-			<div className="d-flex align-items-center g-2 mb-2">
-				{cal && (
-					<span
-						className="c-cal-item__swatch"
-						style={{ background: cal.color || 'var(--col-primary)' }}
-						aria-hidden="true"
-					/>
-				)}
-				<h3 className="flex-fill m-0">{object.summary || t('(untitled)')}</h3>
-				{object.rrule && (
-					<span title={t('Recurring')} aria-label={t('Recurring')}>
-						<IcRecur />
-					</span>
-				)}
-				{closeButton}
-			</div>
+			{!hideHeader && (
+				<div className="d-flex align-items-center g-2 mb-2">
+					<ObjectDetailsHeader object={object} calendars={calendars} />
+				</div>
+			)}
 
 			{pill && (
 				<div className="mb-2">

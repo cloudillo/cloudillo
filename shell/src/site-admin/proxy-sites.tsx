@@ -126,11 +126,11 @@ function ProxySiteCard({ site, onEdit, onDelete }: ProxySiteCardProps) {
 					<CertInfo certExpiresAt={site.certExpiresAt} />
 				</div>
 				<div className="c-hbox g-1">
-					<Button link onClick={() => onEdit(site)} title={t('Edit')}>
+					<Button kind="link" onClick={() => onEdit(site)} title={t('Edit')}>
 						<IcEdit />
 					</Button>
 					<Button
-						link
+						kind="link"
 						className="text-error"
 						onClick={() => onDelete(site)}
 						title={t('Delete')}
@@ -365,7 +365,11 @@ function CreateProxySiteModal({ open, onClose, onCreated }: CreateProxySiteModal
 
 				<div className="c-hbox jc-end g-2">
 					<Button onClick={onClose}>{t('Cancel')}</Button>
-					<Button primary disabled={!isValid || isSubmitting} onClick={handleCreate}>
+					<Button
+						variant="primary"
+						disabled={!isValid || isSubmitting}
+						onClick={handleCreate}
+					>
 						{isSubmitting ? t('Creating...') : t('Create')}
 					</Button>
 				</div>
@@ -643,7 +647,7 @@ function EditProxySiteModal({
 					<div className="c-hbox g-2">
 						<Button onClick={onClose}>{t('Cancel')}</Button>
 						<Button
-							primary
+							variant="primary"
 							disabled={!isDirty || !!backendUrlError || isSubmitting}
 							onClick={handleSave}
 						>
@@ -814,7 +818,7 @@ export function ProxySites() {
 							</button>
 						)}
 					</div>
-					<Button primary onClick={() => setShowCreateModal(true)}>
+					<Button variant="primary" onClick={() => setShowCreateModal(true)}>
 						<IcPlus className="mr-1" />
 						{t('Create')}
 					</Button>
@@ -853,7 +857,7 @@ export function ProxySites() {
 										})}
 							</p>
 							<Button
-								link
+								kind="link"
 								onClick={() => {
 									setSearch('')
 									setStatusFilter(undefined)
@@ -869,7 +873,7 @@ export function ProxySites() {
 							<p className="c-hint mb-3">
 								{t('Create your first proxy site to start reverse proxying.')}
 							</p>
-							<Button primary onClick={() => setShowCreateModal(true)}>
+							<Button variant="primary" onClick={() => setShowCreateModal(true)}>
 								<IcPlus className="mr-1" />
 								{t('Create Proxy Site')}
 							</Button>

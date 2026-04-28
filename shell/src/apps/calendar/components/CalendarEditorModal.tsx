@@ -72,7 +72,7 @@ export function CalendarEditorModal({
 					<Button type="button" onClick={onClose}>
 						{t('Cancel')}
 					</Button>
-					<Button type="submit" primary disabled={submitting}>
+					<Button type="submit" variant="primary" disabled={submitting}>
 						{submitting ? t('Saving...') : edit ? t('Save') : t('Create')}
 					</Button>
 				</div>

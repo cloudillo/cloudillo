@@ -140,14 +140,14 @@ export function SectionEditor({
 				<Popper menuClassName="c-btn link secondary sm" icon={<IcMore />}>
 					<ul className="c-nav vertical">
 						<li>
-							<Button navItem onClick={handleRename}>
+							<Button kind="nav-item" onClick={handleRename}>
 								<IcRename />
 								{t('Rename section')}
 							</Button>
 						</li>
 						<li role="separator" className="border-bottom my-1" />
 						<li>
-							<Button navItem onClick={handleDelete}>
+							<Button kind="nav-item" onClick={handleDelete}>
 								<IcDelete className="text-error" />
 								<span className="text-error">{t('Delete section')}</span>
 							</Button>

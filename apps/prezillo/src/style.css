@@ -6,9 +6,24 @@ body,
 	height: 100%;
 }
 
-/* Properties Panel Components */
+/* Properties Panel — canvas-app density overrides
+ * (generic styles live in @cloudillo/react components.css) */
 .c-property-panel {
 	font-size: 12px;
+}
+
+.c-property-section-header {
+	font-size: 11px;
+}
+
+.c-property-field {
+	font-size: 11px;
+}
+
+.c-property-field-control .c-input,
+.c-property-field-control .c-select {
+	padding: var(--space-1);
+	font-size: 11px;
 }
 
 /* Page header shown when editing view/page properties */
@@ -19,62 +34,6 @@ body,
 	font-weight: 600;
 	font-size: var(--text-sm);
 	color: var(--col-text-secondary);
-}
-
-.c-property-section {
-	border-bottom: 1px solid var(--col-outline);
-	padding-bottom: var(--space-2);
-	margin-bottom: var(--space-2);
-}
-
-.c-property-section:last-child {
-	border-bottom: none;
-	margin-bottom: 0;
-}
-
-.c-property-section-header {
-	display: flex;
-	align-items: center;
-	gap: var(--space-1);
-	padding: var(--space-1) 0;
-	background: none;
-	border: none;
-	cursor: pointer;
-	width: 100%;
-	text-align: left;
-	font-size: 11px;
-	font-weight: 600;
-	color: var(--col-on-container);
-	opacity: 0.8;
-}
-
-.c-property-section-header:hover {
-	opacity: 1;
-}
-
-.c-property-section-content {
-	padding-top: var(--space-1);
-}
-
-.c-property-field {
-	align-items: center;
-	font-size: 11px;
-}
-
-.c-property-field-label {
-	color: var(--col-on-container);
-	opacity: 0.7;
-	flex-shrink: 0;
-}
-
-.c-property-field-control {
-	min-width: 0;
-}
-
-.c-property-field-control .c-input,
-.c-property-field-control .c-select {
-	padding: var(--space-1);
-	font-size: 11px;
 }
 
 /* Number Input */

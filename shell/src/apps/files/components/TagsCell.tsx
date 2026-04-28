@@ -48,7 +48,7 @@ export const TagsCell = React.memo(function TagsCell({
 			<div className="c-tag-list g-1">
 				<Tags tags={tags} />
 				{!!editable && (
-					<Button link onClick={() => setIsEditing(true)}>
+					<Button kind="link" onClick={() => setIsEditing(true)}>
 						<IcEdit />
 					</Button>
 				)}

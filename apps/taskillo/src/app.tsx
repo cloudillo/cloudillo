@@ -7,7 +7,7 @@ import { PiPlusBold as IcPlus, PiTrashBold as IcDelete } from 'react-icons/pi'
 
 import { RtdbClient } from '@cloudillo/rtdb'
 import { getAppBus, getWsUrl } from '@cloudillo/core'
-import { Panel } from '@cloudillo/react'
+import { Panel, LoadingSpinner, EmptyState } from '@cloudillo/react'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
@@ -527,21 +527,16 @@ function TaskList({
 	readOnly?: boolean
 }) {
 	if (loading && tasks.length === 0) {
-		return (
-			<div className="empty-state">
-				<div className="c-spinner" />
-				<p className="empty-state-text">Loading tasks...</p>
-			</div>
-		)
+		return <LoadingSpinner label="Loading tasks…" />
 	}
 
 	if (tasks.length === 0) {
 		return (
-			<div className="empty-state">
-				<div className="empty-state-icon">📭</div>
-				<p className="empty-state-text">No tasks here!</p>
-				<small>Add a task above to get started.</small>
-			</div>
+			<EmptyState
+				icon={<span style={{ fontSize: '2.5rem' }}>📭</span>}
+				title="No tasks here!"
+				description="Add a task above to get started."
+			/>
 		)
 	}
 
@@ -590,8 +585,7 @@ export function TaskilloApp() {
 		return (
 			<div className="c-vbox w-100 h-100 justify-center align-center">
 				<Panel className="c-vbox align-center p-2">
-					<div className="c-spinner large" />
-					<p className="mt-2">Connecting to Taskillo...</p>
+					<LoadingSpinner size="lg" label="Connecting to Taskillo…" />
 				</Panel>
 			</div>
 		)

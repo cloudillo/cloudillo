@@ -90,7 +90,7 @@ function TenantCard({
 			<footer className="c-hbox g-2 mt-3 pt-3 border-top">
 				{tenant.email ? (
 					<Button
-						link
+						kind="link"
 						onClick={() => onPasswordReset(tenant.idTag)}
 						title={t('Send password reset email')}
 					>

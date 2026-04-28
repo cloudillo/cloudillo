@@ -22,7 +22,7 @@ export function SettingsPanel({ settings, onSettingsChange, open, onToggle }: Se
 	if (!open) {
 		return (
 			<button
-				className="mapillo-settings-toggle"
+				className="mapillo-ctrl mapillo-settings-toggle"
 				onClick={() => onToggle(true)}
 				title="Settings"
 			>

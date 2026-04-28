@@ -128,7 +128,7 @@ export function DocumentPicker() {
 				{/* Footer */}
 				<div className="doc-picker-footer">
 					<Button onClick={handleCancel}>{t('Cancel')}</Button>
-					<Button primary disabled={!selectedFile} onClick={handleSelect}>
+					<Button variant="primary" disabled={!selectedFile} onClick={handleSelect}>
 						{t('Select')}
 					</Button>
 				</div>

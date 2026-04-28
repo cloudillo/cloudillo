@@ -88,7 +88,7 @@ export function NotificationItem({
 			<div className="c-hbox g-1" onClick={(e) => e.stopPropagation()}>
 				{onAccept && (
 					<Button
-						link
+						kind="link"
 						onClick={() => onAccept(action)}
 						style={{ color: 'var(--col-success)' }}
 					>
@@ -97,7 +97,7 @@ export function NotificationItem({
 				)}
 				{onReject && (
 					<Button
-						link
+						kind="link"
 						onClick={() => onReject(action)}
 						style={{ color: 'var(--col-error)' }}
 					>
@@ -105,7 +105,7 @@ export function NotificationItem({
 					</Button>
 				)}
 				{onDismiss && (
-					<Button link onClick={() => onDismiss(action)}>
+					<Button kind="link" onClick={() => onDismiss(action)}>
 						<IcDismiss />
 					</Button>
 				)}

@@ -117,7 +117,7 @@ function GenericNotification({
 				<div className="c-hbox ms-auto g-3 align-items-center">
 					<TimeFormat time={action.createdAt} />
 					{onDismiss && (
-						<Button link onClick={() => onDismiss(action)}>
+						<Button kind="link" onClick={() => onDismiss(action)}>
 							<IcReject />
 						</Button>
 					)}
@@ -167,17 +167,17 @@ function ConnectNotification({
 				<div className="c-hbox ms-auto g-3 align-items-center">
 					<TimeFormat time={action.createdAt} />
 					{action.status == 'C' && (
-						<Button link onClick={onAccept}>
+						<Button kind="link" onClick={onAccept}>
 							<IcAccept />
 						</Button>
 					)}
 					{action.status == 'C' && (
-						<Button link onClick={onReject}>
+						<Button kind="link" onClick={onReject}>
 							<IcReject />
 						</Button>
 					)}
 					{action.status != 'C' && onDismiss && (
-						<Button link onClick={() => onDismiss(action)}>
+						<Button kind="link" onClick={() => onDismiss(action)}>
 							<IcReject />
 						</Button>
 					)}
@@ -246,10 +246,10 @@ function FileShareNotification({
 				</Link>
 				<div className="c-hbox ms-auto g-3 align-items-center">
 					<TimeFormat time={action.createdAt} />
-					<Button link onClick={onAccept}>
+					<Button kind="link" onClick={onAccept}>
 						<IcAccept />
 					</Button>
-					<Button link onClick={onReject}>
+					<Button kind="link" onClick={onReject}>
 						<IcReject />
 					</Button>
 				</div>
@@ -314,10 +314,10 @@ function InviteNotification({
 				</Link>
 				<div className="c-hbox ms-auto g-3 align-items-center">
 					<TimeFormat time={action.createdAt} />
-					<Button link onClick={onAccept} title={t('Accept')}>
+					<Button kind="link" onClick={onAccept} title={t('Accept')}>
 						<IcAccept />
 					</Button>
-					<Button link onClick={onReject} title={t('Reject')}>
+					<Button kind="link" onClick={onReject} title={t('Reject')}>
 						<IcReject />
 					</Button>
 				</div>
@@ -383,12 +383,12 @@ function ProfileInviteNotification({
 				<div className="c-hbox ms-auto g-3 align-items-center">
 					<TimeFormat time={action.createdAt} />
 					{action.status === 'C' && (
-						<Button link onClick={onAccept} title={t('Accept')}>
+						<Button kind="link" onClick={onAccept} title={t('Accept')}>
 							<IcAccept />
 						</Button>
 					)}
 					{action.status === 'C' && (
-						<Button link onClick={onReject} title={t('Reject')}>
+						<Button kind="link" onClick={onReject} title={t('Reject')}>
 							<IcReject />
 						</Button>
 					)}
@@ -505,7 +505,11 @@ export function Notifications() {
 								<h3>{t('Notifications')}</h3>
 							</div>
 							{!!notifications.notifications.length && (
-								<Button link className="ms-auto" onClick={dismissAllNotifications}>
+								<Button
+									kind="link"
+									className="ms-auto"
+									onClick={dismissAllNotifications}
+								>
 									{t('Clear all')}
 								</Button>
 							)}

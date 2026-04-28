@@ -173,7 +173,7 @@ export function DraftCard({
 					<IcEdit />
 					{t('Edit')}
 				</Button>
-				<Button size="small" primary onClick={handlePublishNow}>
+				<Button size="small" variant="primary" onClick={handlePublishNow}>
 					<IcPublish />
 					{t('Publish now')}
 				</Button>
@@ -181,14 +181,14 @@ export function DraftCard({
 					<ul className="c-nav vertical emph">
 						{isScheduled && (
 							<li>
-								<Button navItem onClick={handleUnschedule}>
+								<Button kind="nav-item" onClick={handleUnschedule}>
 									<IcUnschedule />
 									{t('Unschedule')}
 								</Button>
 							</li>
 						)}
 						<li>
-							<Button navItem onClick={handleDelete}>
+							<Button kind="nav-item" onClick={handleDelete}>
 								<IcDelete style={{ color: 'var(--col-error)' }} />
 								{isScheduled ? t('Delete scheduled post') : t('Delete draft')}
 							</Button>

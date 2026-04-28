@@ -207,13 +207,11 @@
 }
 
 /* ============================================= */
-/* Locate button                                 */
+/* Floating map control buttons (shared)         */
 /* ============================================= */
 
-.mapillo-locate {
+.mapillo-ctrl {
 	position: absolute;
-	top: 10px;
-	right: 56px;
 	z-index: 10;
 	width: 40px;
 	height: 40px;
@@ -230,13 +228,26 @@
 	transition: background 0.15s ease;
 }
 
-.mapillo-locate:hover:not(:disabled) {
+.mapillo-ctrl:hover:not(:disabled) {
 	background: var(--col-container-high, #f5f5f5);
 }
 
-.mapillo-locate:disabled {
+.mapillo-ctrl:disabled {
 	cursor: default;
 	opacity: 0.7;
+}
+
+.mapillo-ctrl.active {
+	color: var(--col-primary, #2196f3);
+}
+
+/* ============================================= */
+/* Locate button                                 */
+/* ============================================= */
+
+.mapillo-locate {
+	top: 10px;
+	right: 56px;
 }
 
 .mapillo-locate.locating {
@@ -298,27 +309,8 @@
 /* ============================================= */
 
 .mapillo-compass {
-	position: absolute;
 	top: 10px;
 	right: 10px;
-	z-index: 10;
-	width: 40px;
-	height: 40px;
-	border-radius: 8px;
-	border: none;
-	background: var(--col-container, #fff);
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-	cursor: pointer;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	color: var(--col-on-container, #333);
-	font-size: 18px;
-	transition: background 0.15s ease;
-}
-
-.mapillo-compass:hover {
-	background: var(--col-container-high, #f5f5f5);
 }
 
 .mapillo-compass svg {
@@ -346,26 +338,8 @@
 /* ============================================= */
 
 .mapillo-layer-toggle {
-	position: absolute;
 	top: 10px;
 	right: 148px;
-	z-index: 10;
-	width: 40px;
-	height: 40px;
-	border-radius: 8px;
-	border: none;
-	background: var(--col-container, #fff);
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-	cursor: pointer;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	color: var(--col-on-container, #333);
-	font-size: 18px;
-}
-
-.mapillo-layer-toggle:hover {
-	background: var(--col-container-high, #f5f5f5);
 }
 
 .mapillo-layer-panel {
@@ -468,26 +442,8 @@
 /* ============================================= */
 
 .mapillo-poi-toggle {
-	position: absolute;
 	top: 10px;
 	right: 102px;
-	z-index: 10;
-	width: 40px;
-	height: 40px;
-	border-radius: 8px;
-	border: none;
-	background: var(--col-container, #fff);
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-	cursor: pointer;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	color: var(--col-on-container, #333);
-	font-size: 18px;
-}
-
-.mapillo-poi-toggle:hover {
-	background: var(--col-container-high, #f5f5f5);
 }
 
 .mapillo-poi-panel {
@@ -730,26 +686,8 @@
 /* ============================================= */
 
 .mapillo-settings-toggle {
-	position: absolute;
 	top: 10px;
 	right: 194px;
-	z-index: 10;
-	width: 40px;
-	height: 40px;
-	border-radius: 8px;
-	border: none;
-	background: var(--col-container, #fff);
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-	cursor: pointer;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	color: var(--col-on-container, #333);
-	font-size: 18px;
-}
-
-.mapillo-settings-toggle:hover {
-	background: var(--col-container-high, #f5f5f5);
 }
 
 .mapillo-settings-panel {

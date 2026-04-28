@@ -11,7 +11,7 @@ import {
 	LuCircleAlert as IcError,
 	LuFile as IcFile
 } from 'react-icons/lu'
-import { mergeClasses } from '@cloudillo/react'
+import { mergeClasses, LoadingSpinner } from '@cloudillo/react'
 
 import type { UploadItem } from '../hooks/useUploadQueue.js'
 
@@ -41,7 +41,7 @@ function UploadItemRow({ item, onRemove }: { item: UploadItem; onRemove?: (id: s
 			<div className="c-upload-item-icon">
 				{item.status === 'complete' && <IcCheck />}
 				{item.status === 'error' && <IcError />}
-				{item.status === 'uploading' && <span className="c-spinner xs" />}
+				{item.status === 'uploading' && <LoadingSpinner size="xs" />}
 				{item.status === 'queued' && <IcFile />}
 			</div>
 			<div className="c-upload-item-content">
@@ -104,7 +104,7 @@ export function UploadProgress({
 				<div className="c-upload-panel-title">
 					{!isComplete ? (
 						<>
-							<span className="c-spinner xs" />
+							<LoadingSpinner size="xs" />
 							{t('Uploading {{completed}} of {{total}}', {
 								completed: stats.completed,
 								total: stats.total

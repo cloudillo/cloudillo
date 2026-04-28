@@ -332,7 +332,7 @@ export function MapView({ darkMode, settings, onSettingsChange, bus }: MapViewPr
 				onToggle={(v) => setActivePanel(v ? 'settings' : null)}
 			/>
 			<button
-				className="mapillo-compass"
+				className="mapillo-ctrl mapillo-compass"
 				onClick={handleRotationToggle}
 				title={freeRotation ? 'Lock north' : 'Free rotation'}
 			>
@@ -343,7 +343,7 @@ export function MapView({ darkMode, settings, onSettingsChange, bus }: MapViewPr
 				)}
 			</button>
 			<button
-				className={`mapillo-locate ${locating ? 'locating' : ''}`}
+				className={`mapillo-ctrl mapillo-locate${locating ? ' locating' : ''}`}
 				onClick={handleLocate}
 				disabled={locating}
 				title="Jump to my location"

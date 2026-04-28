@@ -84,13 +84,13 @@ body,
 	align-items: center;
 	gap: 4px;
 	padding: 8px;
-	background: rgba(255, 255, 255, 0.9);
+	background: lch(from var(--col-container) l c h / 0.9);
 	backdrop-filter: blur(10px);
 	-webkit-backdrop-filter: blur(10px);
-	border: 1px solid rgba(0, 0, 0, 0.1);
+	border: 1px solid var(--col-outline);
 	border-radius: 12px;
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-	z-index: 100;
+	box-shadow: var(--shadow-md);
+	z-index: var(--z-fixed, 300);
 }
 
 .ideallo-tool-btn {
@@ -99,11 +99,13 @@ body,
 	justify-content: center;
 	width: 40px;
 	height: 40px;
+	min-width: var(--min-touch-target, 44px);
+	min-height: var(--min-touch-target, 44px);
 	padding: 0;
 	border: none;
 	border-radius: 8px;
 	background: transparent;
-	color: #333;
+	color: var(--col-on-container);
 	cursor: pointer;
 	transition:
 		background-color 0.15s,
@@ -111,7 +113,7 @@ body,
 }
 
 .ideallo-tool-btn:hover {
-	background: rgba(0, 0, 0, 0.05);
+	background: var(--col-container-high);
 }
 
 .ideallo-tool-btn:active {
@@ -119,12 +121,12 @@ body,
 }
 
 .ideallo-tool-btn.active {
-	background: rgba(25, 113, 194, 0.15);
-	color: #1971c2;
+	background: var(--col-container-primary);
+	color: var(--col-primary);
 }
 
 .ideallo-tool-btn:disabled {
-	opacity: 0.4;
+	opacity: var(--op-disabled, 0.4);
 	cursor: not-allowed;
 }
 
@@ -132,11 +134,16 @@ body,
 	background: transparent;
 }
 
+.ideallo-tool-btn:focus-visible {
+	outline: var(--focus-ring-width, 3px) solid var(--col-focus);
+	outline-offset: var(--focus-ring-offset, 2px);
+}
+
 .ideallo-toolbar-divider {
 	width: 1px;
 	height: 24px;
 	margin: 0 4px;
-	background: rgba(0, 0, 0, 0.1);
+	background: var(--col-outline);
 }
 
 /* ============================================
@@ -170,13 +177,13 @@ body,
 	gap: 2px;
 	padding: 6px;
 	max-width: calc(100vw - 32px);
-	background: rgba(255, 255, 255, 0.95);
+	background: lch(from var(--col-container) l c h / 0.95);
 	backdrop-filter: blur(10px);
 	-webkit-backdrop-filter: blur(10px);
-	border: 1px solid rgba(0, 0, 0, 0.1);
+	border: 1px solid var(--col-outline);
 	border-radius: 10px;
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-	z-index: 110;
+	box-shadow: var(--shadow-lg);
+	z-index: var(--z-popover, 700);
 	animation: ideallo-popover-in 0.15s ease-out;
 }
 
@@ -212,44 +219,9 @@ body,
 	}
 }
 
-/* ============================================
-   Dark mode: toolbar, tool buttons, popover
-   ============================================ */
-
-.dark .ideallo-toolbar {
-	background: rgba(30, 30, 30, 0.9);
-	border-color: rgba(255, 255, 255, 0.1);
-}
-
-.dark .ideallo-tool-btn {
-	color: #ddd;
-}
-
-.dark .ideallo-tool-btn:hover {
-	background: rgba(255, 255, 255, 0.08);
-}
-
-.dark .ideallo-tool-btn.active {
-	background: rgba(66, 153, 225, 0.2);
-	color: #63b3ed;
-}
-
-.dark .ideallo-tool-btn:disabled {
-	opacity: 0.35;
-}
-
-.dark .ideallo-toolbar-divider {
-	background: rgba(255, 255, 255, 0.1);
-}
-
-.dark .ideallo-tool-popover {
-	background: rgba(30, 30, 30, 0.95);
-	border-color: rgba(255, 255, 255, 0.1);
-}
-
-.dark .ideallo-tool-group-indicator {
-	opacity: 0.4;
-}
+/* Dark-mode overrides for ideallo-toolbar* removed — now handled by OpalUI tokens
+ * (lch(from --col-container ...) / --col-outline / --col-on-container / --col-container-high /
+ *  --col-container-primary / --col-primary). */
 
 .dark .ideallo-zoom-controls {
 	background: rgba(30, 30, 30, 0.9);

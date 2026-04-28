@@ -105,7 +105,7 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
 					>
 						{formatRelativeTime(value, t)} ({timezone})
 					</span>
-					<Button link onClick={handleClear} aria-label={t('Clear schedule')}>
+					<Button kind="link" onClick={handleClear} aria-label={t('Clear schedule')}>
 						<IcClose />
 					</Button>
 				</>

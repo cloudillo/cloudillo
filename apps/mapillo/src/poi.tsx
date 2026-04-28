@@ -162,7 +162,7 @@ export function PoiPanel({
 	if (!open) {
 		return (
 			<button
-				className="mapillo-poi-toggle"
+				className="mapillo-ctrl mapillo-poi-toggle"
 				onClick={() => onToggle(true)}
 				title="Explore nearby places"
 			>

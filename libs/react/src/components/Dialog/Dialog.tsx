@@ -111,14 +111,22 @@ export function DialogContainer() {
 
 							{dialog.type == 'Tell' && (
 								<div className="c-group g-2 mt-4">
-									<Button primary autoFocus onClick={() => onButtonClick(true)}>
+									<Button
+										variant="primary"
+										autoFocus
+										onClick={() => onButtonClick(true)}
+									>
 										{t('OK')}
 									</Button>
 								</div>
 							)}
 							{dialog.type == 'OkCancel' && (
 								<div className="c-group g-2 mt-4">
-									<Button primary autoFocus onClick={() => onButtonClick(true)}>
+									<Button
+										variant="primary"
+										autoFocus
+										onClick={() => onButtonClick(true)}
+									>
 										{t('OK')}
 									</Button>
 									<Button onClick={onCancel}>{t('Cancel')}</Button>
@@ -126,7 +134,7 @@ export function DialogContainer() {
 							)}
 							{dialog.type == 'YesNo' && (
 								<div className="c-group g-2 mt-4">
-									<Button primary onClick={() => onButtonClick(true)}>
+									<Button variant="primary" onClick={() => onButtonClick(true)}>
 										{t('Yes')}
 									</Button>
 									<Button onClick={() => onButtonClick(false)}>{t('No')}</Button>
@@ -160,7 +168,10 @@ export function DialogContainer() {
 										)}
 									</form>
 									<div className="c-group g-2 mt-4">
-										<Button primary onClick={() => onButtonClick(value)}>
+										<Button
+											variant="primary"
+											onClick={() => onButtonClick(value)}
+										>
 											{t('OK')}
 										</Button>
 										<Button onClick={onCancel}>{t('Cancel')}</Button>

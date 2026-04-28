@@ -9,7 +9,7 @@ import {
 	PiArrowClockwiseBold as IcRotateRight
 } from 'react-icons/pi'
 
-import { ZoomableImage } from '@cloudillo/react'
+import { ZoomableImage, LoadingSpinner } from '@cloudillo/react'
 
 import { type PageFilter, FILTER_DEFAULTS } from '../types.js'
 import { applyFilter, rotateCanvas, blendWithOriginal } from '../utils/image-processing.js'
@@ -161,14 +161,13 @@ export function FilterSelect({
 						<ZoomableImage src={previewUrl} alt="Preview" resetOnSrcChange={false} />
 						{applyingFilter && (
 							<div className="filter-preview-spinner">
-								<div className="c-spinner" />
+								<LoadingSpinner />
 							</div>
 						)}
 					</>
 				) : (
 					<div className="filter-preview-loading">
-						<div className="c-spinner" />
-						<small>Applying filter...</small>
+						<LoadingSpinner label="Applying filter…" />
 					</div>
 				)}
 			</div>
@@ -221,7 +220,7 @@ export function FilterSelect({
 					disabled={processing}
 					title="Apply filter"
 				>
-					{processing ? <div className="c-spinner small" /> : <IcCheck />}
+					{processing ? <LoadingSpinner size="sm" /> : <IcCheck />}
 				</button>
 			</div>
 		</div>

@@ -48,8 +48,8 @@ export { HBox, VBox, Group } from './Box/index.js'
 export type { HBoxProps, VBoxProps, GroupProps } from './Box/index.js'
 
 // Button Components
-export { Button, LinkButton } from './Button/index.js'
-export type { ButtonProps, LinkButtonProps } from './Button/index.js'
+export { Button } from './Button/index.js'
+export type { ButtonProps, ButtonKind } from './Button/index.js'
 
 // Dropdown Component
 export { Dropdown } from './Dropdown/index.js'
@@ -356,5 +356,9 @@ export type {
 	DocumentEmbedIframeRef,
 	SvgDocumentEmbedProps
 } from './DocumentEmbed/index.js'
+
+// DropZone Component
+export { DropZone } from './DropZone/index.js'
+export type { DropZoneProps } from './DropZone/index.js'
 
 // vim: ts=4

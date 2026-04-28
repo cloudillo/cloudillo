@@ -408,7 +408,7 @@ export function ContactEditor({
 					<Button type="button" onClick={onClose}>
 						{t('Cancel')}
 					</Button>
-					<Button type="submit" primary disabled={submitting}>
+					<Button type="submit" variant="primary" disabled={submitting}>
 						{submitting ? t('Saving...') : isEdit ? t('Save') : t('Create')}
 					</Button>
 				</div>

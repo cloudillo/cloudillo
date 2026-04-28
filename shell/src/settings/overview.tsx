@@ -146,7 +146,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 									{t('Get faster access with the app on your device')}
 								</div>
 							</div>
-							<Button primary onClick={handleInstall}>
+							<Button variant="primary" onClick={handleInstall}>
 								{t('Install')}
 							</Button>
 						</div>
@@ -161,7 +161,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 									{t('Stay updated when someone messages you')}
 								</div>
 							</div>
-							<Button primary onClick={handleEnableNotifications}>
+							<Button variant="primary" onClick={handleEnableNotifications}>
 								{t('Enable')}
 							</Button>
 						</div>
@@ -176,7 +176,10 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 									{t('Login faster with fingerprint or face ID')}
 								</div>
 							</div>
-							<Button primary onClick={() => navigate(`${basePath}/security`)}>
+							<Button
+								variant="primary"
+								onClick={() => navigate(`${basePath}/security`)}
+							>
 								{t('Add')}
 							</Button>
 						</div>
@@ -294,7 +297,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 							)}
 						</div>
 					</div>
-					<Button secondary onClick={handleResetCache}>
+					<Button variant="secondary" onClick={handleResetCache}>
 						{t('Reset')}
 					</Button>
 				</div>

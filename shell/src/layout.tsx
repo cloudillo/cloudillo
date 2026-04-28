@@ -174,7 +174,7 @@ function Menu({
 				{/* Sidebar toggle button on mobile (first item) - shows current context */}
 				{vertical && auth && (
 					<Button
-						navLink
+						kind="nav-link"
 						className={mergeClasses('vertical', sidebar.isOpen && 'active')}
 						onClick={() => sidebar.toggle()}
 						aria-label={t('Toggle sidebar')}
@@ -210,7 +210,7 @@ function Menu({
 							))}
 							{auth && (
 								<Button
-									navLink
+									kind="nav-link"
 									className="h-small vertical"
 									onClick={() => setQrScannerOpen(true)}
 								>
@@ -238,7 +238,7 @@ function Menu({
 							))}
 							{auth && (
 								<Button
-									navLink
+									kind="nav-link"
 									className="h-small vertical"
 									onClick={() => setQrScannerOpen(true)}
 								>
@@ -263,7 +263,7 @@ function Menu({
 				))}
 				{needsMoreMenu && (
 					<Button
-						navLink
+						kind="nav-link"
 						className={mergeClasses(vertical && 'vertical')}
 						onClick={() => setMoreMenuOpen(!moreMenuOpen)}
 						aria-label={t('More menu items')}
@@ -659,7 +659,10 @@ function Header({ inert }: { inert?: boolean }) {
 									</Link>
 								</li>
 								<li>
-									<Button navItem onClick={() => setBusinessCardOpen(true)}>
+									<Button
+										kind="nav-item"
+										onClick={() => setBusinessCardOpen(true)}
+									>
 										<IcQrCode />
 										{t('My Card')}
 									</Button>
@@ -677,7 +680,7 @@ function Header({ inert }: { inert?: boolean }) {
 									<hr className="w-100" />
 								</li>
 								<li>
-									<Button navItem onClick={doLogout}>
+									<Button kind="nav-item" onClick={doLogout}>
 										<IcLogout />
 										{t('Logout')}
 									</Button>
@@ -687,7 +690,7 @@ function Header({ inert }: { inert?: boolean }) {
 								</li>
 								<li>
 									<Button
-										navItem
+										kind="nav-item"
 										onClick={(evt) => {
 											evt.preventDefault()
 											i18n.changeLanguage('en')
@@ -697,7 +700,7 @@ function Header({ inert }: { inert?: boolean }) {
 									</Button>
 								</li>
 								<li>
-									<Button navItem onClick={(evt) => setLang(evt, 'hu')}>
+									<Button kind="nav-item" onClick={(evt) => setLang(evt, 'hu')}>
 										Magyar
 									</Button>
 								</li>
@@ -727,7 +730,7 @@ function Header({ inert }: { inert?: boolean }) {
 									</li>
 									<li>
 										<Button
-											navItem
+											kind="nav-item"
 											onClick={(evt) => {
 												evt.preventDefault()
 												i18n.changeLanguage('en')
@@ -737,7 +740,10 @@ function Header({ inert }: { inert?: boolean }) {
 										</Button>
 									</li>
 									<li>
-										<Button navItem onClick={(evt) => setLang(evt, 'hu')}>
+										<Button
+											kind="nav-item"
+											onClick={(evt) => setLang(evt, 'hu')}
+										>
 											Magyar
 										</Button>
 									</li>

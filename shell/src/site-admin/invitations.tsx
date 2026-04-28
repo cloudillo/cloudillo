@@ -57,13 +57,13 @@ function RegistrationInviteCard({ invite, deleteRef }: { invite: Ref; deleteRef:
 			<div className="c-hbox">
 				<h2 className="fill">{invite.description || ''}</h2>
 				<div className="c-hbox g-3">
-					<Button link onClick={() => copyUrlToClipboard()}>
+					<Button kind="link" onClick={() => copyUrlToClipboard()}>
 						<IcCopy />
 					</Button>
-					<Button link onClick={() => showQrCode()}>
+					<Button kind="link" onClick={() => showQrCode()}>
 						<IcQrCode />
 					</Button>
-					<Button link onClick={() => deleteRef()}>
+					<Button kind="link" onClick={() => deleteRef()}>
 						<IcDelete />
 					</Button>
 				</div>
@@ -204,7 +204,7 @@ function CommunityInviteCard({
 				<span className={`c-badge ${isAvailable ? 'success' : 'warning'}`}>
 					{isAvailable ? t('Active') : t('Used')}
 				</span>
-				<Button link onClick={onDelete}>
+				<Button kind="link" onClick={onDelete}>
 					<IcDelete />
 				</Button>
 			</div>

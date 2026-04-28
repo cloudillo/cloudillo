@@ -417,7 +417,12 @@ function NewComment({
 							<React.Fragment key={i}>{n}</React.Fragment>
 						))}
 					</div>
-					<Button link primary className="align-self-end m-1" onClick={doSubmit}>
+					<Button
+						kind="link"
+						variant="primary"
+						className="align-self-end m-1"
+						onClick={doSubmit}
+					>
 						<IcSend />
 					</Button>
 				</div>
@@ -580,7 +585,7 @@ function Post({
 						)}
 					</Link>
 					<div className="c-hbox ms-auto g-3">
-						<Button link disabled={process.env.NODE_ENV == 'production'}>
+						<Button kind="link" disabled={process.env.NODE_ENV == 'production'}>
 							<IcRepost />
 						</Button>
 						<PostMenu action={action} onDelete={onDelete} />
@@ -634,8 +639,8 @@ function Post({
 					<div className="c-hbox ms-auto g-3">
 						{
 							<Button
-								link
-								secondary
+								kind="link"
+								variant="secondary"
 								className={mergeClasses(
 									'pos-relative',
 									tab == 'CMNT' ? 'active' : ''
@@ -735,7 +740,7 @@ export function ComposeTrigger({ className, onOpen }: ComposeTriggerProps) {
 			</div>
 			<div className="c-hbox g-1">
 				<Button
-					link
+					kind="link"
 					onClick={(e) => {
 						e.stopPropagation()
 						onOpen('image')
@@ -744,7 +749,7 @@ export function ComposeTrigger({ className, onOpen }: ComposeTriggerProps) {
 					<IcImage />
 				</Button>
 				<Button
-					link
+					kind="link"
 					onClick={(e) => {
 						e.stopPropagation()
 						onOpen('camera')
@@ -753,7 +758,7 @@ export function ComposeTrigger({ className, onOpen }: ComposeTriggerProps) {
 					<IcCamera />
 				</Button>
 				<Button
-					link
+					kind="link"
 					onClick={(e) => {
 						e.stopPropagation()
 						onOpen('video')
@@ -1120,7 +1125,7 @@ export function FeedApp() {
 				header={
 					<div className="c-hbox align-items-center g-2 p-2">
 						<Button
-							link
+							kind="link"
 							className="md-hide lg-hide"
 							onClick={() => setShowFilter(true)}
 						>

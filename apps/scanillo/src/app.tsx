@@ -26,7 +26,8 @@ import {
 	createApiClient,
 	type MediaFileResolvedPush
 } from '@cloudillo/core'
-import { Panel, Dialog, ZoomableImage } from '@cloudillo/react'
+import { Panel, Dialog, ZoomableImage, LoadingSpinner } from '@cloudillo/react'
+import { FAB } from './components/FAB.js'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
@@ -447,12 +448,7 @@ function PageGrid({
 	}
 
 	if (loading && pages.length === 0) {
-		return (
-			<div className="empty-state">
-				<div className="c-spinner" />
-				<p className="empty-state-text">Loading pages...</p>
-			</div>
-		)
+		return <LoadingSpinner label="Loading pages…" />
 	}
 
 	if (pages.length === 0) {
@@ -714,7 +710,7 @@ function PageDetail({
 									pointerEvents: 'none'
 								}}
 							>
-								<div className="c-spinner" />
+								<LoadingSpinner />
 							</div>
 						)}
 					</ZoomableImage>
@@ -1444,8 +1440,7 @@ export function ScanilloApp() {
 		return (
 			<div className="c-vbox w-100 h-100 justify-center align-center">
 				<Panel className="c-vbox align-center p-2">
-					<div className="c-spinner large" />
-					<p className="mt-2">Connecting to Scanillo...</p>
+					<LoadingSpinner size="lg" label="Connecting to Scanillo…" />
 				</Panel>
 			</div>
 		)
@@ -1467,8 +1462,7 @@ export function ScanilloApp() {
 			<div className="scanillo-app c-vbox w-100 h-100">
 				<div className="export-overlay">
 					<div className="export-progress">
-						<div className="c-spinner" />
-						<p>Processing image...</p>
+						<LoadingSpinner label="Processing image…" />
 					</div>
 				</div>
 			</div>
@@ -1490,8 +1484,7 @@ export function ScanilloApp() {
 				{saving && (
 					<div className="export-overlay">
 						<div className="export-progress">
-							<div className="c-spinner" />
-							<p>Saving...</p>
+							<LoadingSpinner label="Saving…" />
 						</div>
 					</div>
 				)}
@@ -1511,8 +1504,7 @@ export function ScanilloApp() {
 				{saving && (
 					<div className="export-overlay">
 						<div className="export-progress">
-							<div className="c-spinner" />
-							<p>Saving...</p>
+							<LoadingSpinner label="Saving…" />
 						</div>
 					</div>
 				)}
@@ -1539,8 +1531,7 @@ export function ScanilloApp() {
 				{loadingReEdit && (
 					<div className="export-overlay">
 						<div className="export-progress">
-							<div className="c-spinner" />
-							<p>Loading...</p>
+							<LoadingSpinner label="Loading…" />
 						</div>
 					</div>
 				)}
@@ -1560,31 +1551,31 @@ export function ScanilloApp() {
 			/>
 			<div className="fab-container">
 				{pages.length > 0 && (
-					<button
-						className="fab-button secondary"
+					<FAB
+						size="small"
 						onClick={() => setShowExportDialog(true)}
 						disabled={exporting}
 						title="Export as PDF"
-					>
-						<IcPdf />
-					</button>
+						label="Export as PDF"
+						icon={<IcPdf />}
+					/>
 				)}
 				{!isReadOnly && (
 					<>
-						<button
-							className="fab-button secondary"
+						<FAB
+							size="small"
 							onClick={handlePickMedia}
 							title="Import image"
-						>
-							<IcImage />
-						</button>
-						<button
-							className="fab-button"
+							label="Import image"
+							icon={<IcImage />}
+						/>
+						<FAB
+							variant="primary"
 							onClick={handleCaptureCamera}
 							title="Capture with camera"
-						>
-							<IcCamera />
-						</button>
+							label="Capture with camera"
+							icon={<IcCamera />}
+						/>
 					</>
 				)}
 			</div>
@@ -1596,8 +1587,7 @@ export function ScanilloApp() {
 			{exporting && (
 				<div className="export-overlay">
 					<div className="export-progress">
-						<div className="c-spinner" />
-						<p>Exporting PDF...</p>
+						<LoadingSpinner size="lg" label="Exporting PDF…" />
 						<div className="progress-bar">
 							<div
 								className="progress-fill"

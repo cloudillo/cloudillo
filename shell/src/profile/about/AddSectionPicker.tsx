@@ -100,7 +100,7 @@ export function AddSectionPicker({
 		<div className="c-vbox g-1">
 			<Button
 				ref={setBtnEl}
-				link
+				kind="link"
 				className="c-about-add-btn w-100 p-2"
 				onClick={() => setOpen(!open)}
 			>
@@ -121,7 +121,7 @@ export function AddSectionPicker({
 								return (
 									<Button
 										key={def.type}
-										link
+										kind="link"
 										disabled={isUsed}
 										className={mergeClasses(
 											'c-hbox g-2 align-items-center p-2 border-radius-sm justify-content-start text-left',
@@ -143,7 +143,7 @@ export function AddSectionPicker({
 								<>
 									<hr className="border-bottom my-1" />
 									<Button
-										link
+										kind="link"
 										className="c-hbox g-2 align-items-center p-2 border-radius-sm justify-content-start text-left"
 										onClick={handleAddCols}
 									>

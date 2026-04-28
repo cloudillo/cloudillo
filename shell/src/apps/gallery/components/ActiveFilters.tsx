@@ -110,7 +110,7 @@ export function ActiveFilters({
 
 			{/* Clear all button */}
 			{multipleFilters && (
-				<Button size="small" link onClick={onClearAll}>
+				<Button size="small" kind="link" onClick={onClearAll}>
 					{t('Clear all')}
 				</Button>
 			)}

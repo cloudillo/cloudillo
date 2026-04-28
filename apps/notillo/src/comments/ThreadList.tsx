@@ -55,7 +55,7 @@ export function ThreadListHeader({ readOnly, onNewComment }: ThreadListHeaderPro
 			<span className="font-semibold flex-fill">{t('Comments')}</span>
 			{!readOnly && onNewComment && (
 				<Button
-					link
+					kind="link"
 					mode="icon"
 					size="small"
 					onClick={onNewComment}
@@ -140,7 +140,13 @@ function ExpandedThread({
 			onKeyDown={(e) => e.stopPropagation()}
 		>
 			<div className="comment-thread-collapse">
-				<Button link mode="icon" size="small" onClick={onCollapse} title={t('Collapse')}>
+				<Button
+					kind="link"
+					mode="icon"
+					size="small"
+					onClick={onCollapse}
+					title={t('Collapse')}
+				>
 					<IcCollapse size={14} />
 				</Button>
 			</div>
@@ -177,7 +183,7 @@ function ExpandedThread({
 			)}
 			{!readOnly && (
 				<div className="comment-thread-status">
-					<Button link size="small" onClick={onToggleStatus}>
+					<Button kind="link" size="small" onClick={onToggleStatus}>
 						{thread.status === 'open' ? (
 							<>
 								<IcResolved size={12} /> {t('Resolve')}
@@ -519,7 +525,7 @@ export const ThreadList = React.forwardRef<ThreadListHandle, ThreadListProps>(fu
 					>
 						<IcSend size={14} /> {t('Send')}
 					</Button>
-					<Button link size="small" onClick={handleCancel}>
+					<Button kind="link" size="small" onClick={handleCancel}>
 						{t('Cancel')}
 					</Button>
 				</div>

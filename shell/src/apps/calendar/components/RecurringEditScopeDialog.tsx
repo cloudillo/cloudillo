@@ -138,7 +138,7 @@ export function RecurringEditScopeDialog({
 					<Button type="button" onClick={onCancel}>
 						{t('Cancel')}
 					</Button>
-					<Button type="submit" primary>
+					<Button type="submit" variant="primary">
 						{primaryLabel}
 					</Button>
 				</div>

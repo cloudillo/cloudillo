@@ -104,7 +104,7 @@ export function AddressBookEditor({ open, book, onClose, onSave }: AddressBookEd
 					<Button type="button" onClick={onClose}>
 						{t('Cancel')}
 					</Button>
-					<Button type="submit" primary disabled={submitting}>
+					<Button type="submit" variant="primary" disabled={submitting}>
 						{submitting ? t('Saving...') : book ? t('Save') : t('Create')}
 					</Button>
 				</div>

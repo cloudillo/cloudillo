@@ -99,7 +99,7 @@ export function CommentPopup({
 					<span className="font-semibold flex-fill" style={{ fontSize: '0.85rem' }}>
 						{t('Comments')}
 					</span>
-					<Button link mode="icon" size="small" onClick={onClose}>
+					<Button kind="link" mode="icon" size="small" onClick={onClose}>
 						<IcClose size={16} />
 					</Button>
 				</div>
@@ -197,7 +197,7 @@ function PopupThread({
 			)}
 			{!readOnly && (
 				<div className="comment-thread-status">
-					<Button link size="small" onClick={handleToggleStatus}>
+					<Button kind="link" size="small" onClick={handleToggleStatus}>
 						{thread.status === 'open' ? (
 							<>
 								<IcResolved size={12} /> {t('Resolve')}

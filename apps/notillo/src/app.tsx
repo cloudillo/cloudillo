@@ -5,7 +5,15 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { getAppBus, getFileUrl, getWsUrl } from '@cloudillo/core'
-import { Fcd, Panel, Button, DialogContainer, useDialog, useComments } from '@cloudillo/react'
+import {
+	Fcd,
+	Panel,
+	Button,
+	DialogContainer,
+	useDialog,
+	useComments,
+	LoadingSpinner
+} from '@cloudillo/react'
 import type { CommentThread } from '@cloudillo/react'
 
 import { LuPanelLeft as IcSidebar } from 'react-icons/lu'
@@ -579,8 +587,7 @@ export function NotilloApp() {
 		return (
 			<div className="c-vbox w-100 h-100 justify-center align-center">
 				<Panel className="c-vbox align-center p-2">
-					<div className="c-spinner large" />
-					<p className="mt-2">{t('Connecting to Notillo...')}</p>
+					<LoadingSpinner size="lg" label={t('Connecting to Notillo…')} />
 				</Panel>
 			</div>
 		)
@@ -673,7 +680,7 @@ export function NotilloApp() {
 								style={{ borderBottom: '1px solid var(--col-outline)' }}
 							>
 								<Button
-									link
+									kind="link"
 									mode="icon"
 									size="small"
 									onClick={() => setShowFilter(true)}
@@ -689,7 +696,7 @@ export function NotilloApp() {
 					{activePage ? (
 						blocksLoading || loadedPageId !== activePageId ? (
 							<div className="c-vbox fill align-items-center justify-content-center">
-								<div className="c-spinner" />
+								<LoadingSpinner />
 							</div>
 						) : (
 							<NotilloEditorComponent

@@ -146,7 +146,11 @@ function AboutViewMode({
 			<div className="c-panel pos-relative">
 				<p className="text-muted text-center p-3">{t('No information available')}</p>
 				{isOwner && (
-					<Button link className="pos-absolute bottom-0 right-0 m-2" onClick={onEdit}>
+					<Button
+						kind="link"
+						className="pos-absolute bottom-0 right-0 m-2"
+						onClick={onEdit}
+					>
 						<IcEdit size="1.5rem" />
 					</Button>
 				)}
@@ -178,7 +182,7 @@ function AboutViewMode({
 			})}
 			{isOwner && (
 				<div className="c-hbox justify-content-end mt-1">
-					<Button link onClick={onEdit}>
+					<Button kind="link" onClick={onEdit}>
 						<IcEdit /> {t('Edit')}
 					</Button>
 				</div>
@@ -450,10 +454,10 @@ function AboutEditMode({
 			{/* Toolbar */}
 			<div className="c-about-toolbar c-hbox align-items-center g-2 p-2">
 				<h4 className="m-0 flex-fill">{t('Editing About Page')}</h4>
-				<Button secondary size="small" onClick={handleCancel}>
+				<Button variant="secondary" size="small" onClick={handleCancel}>
 					<IcCancel /> {t('Cancel')}
 				</Button>
-				<Button primary size="small" onClick={handleSave}>
+				<Button variant="primary" size="small" onClick={handleSave}>
 					<IcDone /> {t('Done')}
 				</Button>
 			</div>

@@ -84,7 +84,7 @@ export function GalleryToolbar({
 				{(Object.keys(SORT_LABELS) as SortOption[]).map((sortOption) => (
 					<Button
 						key={sortOption}
-						navItem
+						kind="nav-item"
 						active={sort === sortOption}
 						onClick={() => onSortChange(sortOption)}
 					>

@@ -75,7 +75,7 @@ export function SkillsSectionEdit({ section, onChange }: SkillsSectionEditProps)
 				{data.tags.map((tag) => (
 					<span key={tag} className="c-tag c-hbox g-1 align-items-center">
 						{tag}
-						<Button link className="p-0" onClick={() => removeTag(tag)}>
+						<Button kind="link" className="p-0" onClick={() => removeTag(tag)}>
 							<IcRemove size="0.8rem" />
 						</Button>
 					</span>
@@ -89,7 +89,7 @@ export function SkillsSectionEdit({ section, onChange }: SkillsSectionEditProps)
 					onChange={(e) => setInput(e.target.value)}
 					onKeyDown={onKeyDown}
 				/>
-				<Button link onClick={addTag} disabled={!input.trim()}>
+				<Button kind="link" onClick={addTag} disabled={!input.trim()}>
 					{t('Add')}
 				</Button>
 			</div>

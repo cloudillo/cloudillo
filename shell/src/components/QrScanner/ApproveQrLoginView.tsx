@@ -106,7 +106,7 @@ export function ApproveQrLoginView({ loginCode, onDone }: ApproveQrLoginViewProp
 							{t('Deny')}
 						</Button>
 						<Button
-							primary
+							variant="primary"
 							onClick={() => handleRespond(true)}
 							style={{ minWidth: '100px', minHeight: '48px' }}
 						>

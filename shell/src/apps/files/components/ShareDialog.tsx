@@ -521,7 +521,7 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 									{/* Create button */}
 									<div className="mt-2">
 										<Button
-											primary
+											variant="primary"
 											onClick={createShareLink}
 											disabled={creatingLink}
 										>
@@ -553,7 +553,7 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 													</Button>
 													<Button
 														size="small"
-														primary
+														variant="primary"
 														onClick={() =>
 															confirmDeleteShareLink(ref.refId)
 														}
@@ -655,7 +655,7 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 													</Button>
 													<Button
 														size="small"
-														primary
+														variant="primary"
 														onClick={() => confirmDeleteEntry(entry.id)}
 													>
 														{t('Remove')}

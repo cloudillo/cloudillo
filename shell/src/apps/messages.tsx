@@ -498,7 +498,7 @@ function ConversationBar({
 					</Tabs>
 					<Button
 						icon
-						primary
+						variant="primary"
 						className="flex-shrink-0"
 						title={t('Create Group')}
 						onClick={onCreateGroup}
@@ -544,15 +544,15 @@ function ConversationBar({
 										</span>
 									</div>
 									<Button
-										link
-										primary
+										kind="link"
+										variant="primary"
 										title={t('Accept')}
 										onClick={() => onAcceptInvite?.(invite)}
 									>
 										<IcCheck size={16} />
 									</Button>
 									<Button
-										link
+										kind="link"
 										title={t('Reject')}
 										onClick={() => onRejectInvite?.(invite)}
 									>
@@ -596,7 +596,7 @@ function ConversationBar({
 						}
 						action={
 							filter.tab === 'groups' ? (
-								<Button primary onClick={onCreateGroup}>
+								<Button variant="primary" onClick={onCreateGroup}>
 									<IcNew className="me-1" />
 									{t('Create Group')}
 								</Button>
@@ -699,7 +699,7 @@ function GroupDetailsPanel({
 						<IcGroup size={24} />
 						<h3 className="m-0 text-truncate">{conversation.name}</h3>
 					</div>
-					<Button link className="lg-hide" onClick={onClose}>
+					<Button kind="link" className="lg-hide" onClick={onClose}>
 						<IcClose />
 					</Button>
 				</div>
@@ -717,7 +717,7 @@ function GroupDetailsPanel({
 						)}
 					</span>
 					{isModerator && (
-						<Button link title={t('Invite member')} onClick={onInvite}>
+						<Button kind="link" title={t('Invite member')} onClick={onInvite}>
 							<IcInvite size={18} />
 						</Button>
 					)}
@@ -776,7 +776,7 @@ function GroupDetailsPanel({
 			{/* Actions panel */}
 			<div className="c-panel c-vbox g-2 p-3">
 				{isAdmin && (
-					<Button secondary className="w-100">
+					<Button variant="secondary" className="w-100">
 						<IcSettings className="me-2" />
 						{t('Group Settings')}
 					</Button>
@@ -1290,7 +1290,7 @@ export function MessagesApp() {
 							header={
 								<div className="c-panel c-hbox align-items-center flex-nowrap g-2 p-2 w-100">
 									<Button
-										link
+										kind="link"
 										className="md-hide lg-hide p-1 flex-shrink-0"
 										onClick={() => setShowFilter(true)}
 									>
@@ -1311,7 +1311,7 @@ export function MessagesApp() {
 														})}
 													</Badge>
 													<Button
-														link
+														kind="link"
 														className="lg-hide p-1 flex-shrink-0 ms-auto"
 														title={t('Group details')}
 														onClick={() => setShowDetails(true)}
@@ -1404,7 +1404,7 @@ export function MessagesApp() {
 				>
 					<div className="c-hbox align-items-center mb-3">
 						<h2 className="fill m-0">{t('Create Group')}</h2>
-						<Button link onClick={() => setShowCreateGroup(false)}>
+						<Button kind="link" onClick={() => setShowCreateGroup(false)}>
 							<IcClose />
 						</Button>
 					</div>
@@ -1515,7 +1515,7 @@ export function MessagesApp() {
 					<div className="c-hbox justify-content-end g-2 mt-4">
 						<Button onClick={() => setShowCreateGroup(false)}>{t('Cancel')}</Button>
 						<Button
-							primary
+							variant="primary"
 							disabled={!groupName.trim() || isCreatingGroup}
 							onClick={handleCreateGroup}
 						>
@@ -1544,7 +1544,7 @@ export function MessagesApp() {
 				>
 					<div className="c-hbox align-items-center mb-3">
 						<h2 className="fill m-0">{t('Invite Members')}</h2>
-						<Button link onClick={() => setShowInviteMember(false)}>
+						<Button kind="link" onClick={() => setShowInviteMember(false)}>
 							<IcClose />
 						</Button>
 					</div>
@@ -1612,7 +1612,7 @@ export function MessagesApp() {
 					<div className="c-hbox justify-content-end g-2 mt-4">
 						<Button onClick={() => setShowInviteMember(false)}>{t('Cancel')}</Button>
 						<Button
-							primary
+							variant="primary"
 							disabled={selectedInvites.length === 0 || isInviting}
 							onClick={handleInviteMembers}
 						>

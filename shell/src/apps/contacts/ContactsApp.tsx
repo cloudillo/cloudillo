@@ -240,7 +240,7 @@ export function ContactsApp() {
 								<IcFilter />
 							</button>
 							<Button
-								primary
+								variant="primary"
 								className="small"
 								disabled={noBooks}
 								onClick={openCreateContact}
@@ -268,7 +268,7 @@ export function ContactsApp() {
 							<p className="c-hint">
 								{t('Create an address book to start adding contacts.')}
 							</p>
-							<Button primary onClick={openCreateBook}>
+							<Button variant="primary" onClick={openCreateBook}>
 								<IcAdd className="me-1" />
 								{t('New address book')}
 							</Button>

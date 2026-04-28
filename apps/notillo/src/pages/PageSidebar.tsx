@@ -23,6 +23,7 @@ import {
 	MenuItem,
 	ActionSheet,
 	ActionSheetItem,
+	LoadingSpinner,
 	type TreeItemDragData
 } from '@cloudillo/react'
 import type { RtdbClient } from '@cloudillo/rtdb'
@@ -410,7 +411,7 @@ export function PageSidebar({
 							id="__loading__"
 							depth={depth + 1}
 							hasChildren={false}
-							icon={<div className="c-spinner xs" />}
+							icon={<LoadingSpinner size="xs" />}
 							label={t('Loading...')}
 						/>
 					) : (

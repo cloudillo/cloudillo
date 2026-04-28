@@ -70,7 +70,7 @@
 	box-shadow: var(--shadow-lg);
 }
 
-/* FAB Button */
+/* FAB stack — overrides c-fab's fixed position so multiple FABs align in a column */
 .fab-container {
 	position: fixed;
 	bottom: 5rem;
@@ -79,36 +79,17 @@
 	flex-direction: column;
 	align-items: flex-end;
 	gap: 0.5rem;
-	z-index: 10;
+	z-index: var(--z-fixed, 300);
 }
 
-.fab-button {
-	width: 56px;
-	height: 56px;
-	border-radius: 50%;
-	border: none;
-	background: var(--col-primary);
-	color: var(--col-on-primary);
-	font-size: 1.5rem;
-	cursor: pointer;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	box-shadow: var(--shadow-md);
-	transition: all 0.2s ease;
+.fab-container > .c-fab {
+	position: static;
 }
 
-.fab-button:hover {
-	box-shadow: var(--shadow-lg);
-	transform: scale(1.05);
-}
-
-.fab-button.secondary {
-	width: 44px;
-	height: 44px;
-	font-size: 1.25rem;
-	background: var(--col-secondary);
-	color: var(--col-on-secondary);
+@media (min-width: 1024px) {
+	.fab-container {
+		bottom: 2rem;
+	}
 }
 
 /* Page Detail */

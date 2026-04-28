@@ -476,7 +476,7 @@ export function ComposePanel({
 								)}
 								{isScheduled ? (
 									<Button
-										primary
+										variant="primary"
 										size="small"
 										onClick={doSubmit}
 										title={
@@ -489,7 +489,7 @@ export function ComposePanel({
 										{isEditingScheduled ? t('Update schedule') : t('Schedule')}
 									</Button>
 								) : (
-									<Button link primary onClick={doSubmit}>
+									<Button kind="link" variant="primary" onClick={doSubmit}>
 										<IcSend />
 									</Button>
 								)}
@@ -533,16 +533,16 @@ export function ComposePanel({
 					)}
 					<hr className="w-100" />
 					<div className="c-hbox g-3">
-						<Button link disabled={process.env.NODE_ENV === 'production'}>
+						<Button kind="link" disabled={process.env.NODE_ENV === 'production'}>
 							<IcPoll />
 							{t('Poll')}
 						</Button>
-						<Button link disabled={process.env.NODE_ENV === 'production'}>
+						<Button kind="link" disabled={process.env.NODE_ENV === 'production'}>
 							<IcEvent />
 							{t('Event')}
 						</Button>
 						<Button
-							link
+							kind="link"
 							className={mergeClasses(
 								'pos-relative',
 								showSchedule ? 'active' : undefined
@@ -557,7 +557,10 @@ export function ComposePanel({
 						</Button>
 						<div className="c-hbox ms-auto">
 							<div ref={setEmojiRefEl}>
-								<Button link onClick={() => setEmojiPickerOpen(!emojiPickerOpen)}>
+								<Button
+									kind="link"
+									onClick={() => setEmojiPickerOpen(!emojiPickerOpen)}
+								>
 									<IcSmile />
 								</Button>
 							</div>

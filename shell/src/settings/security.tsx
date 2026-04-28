@@ -168,7 +168,7 @@ function CreateApiKeyModal({ open, onClose, onCreated }: CreateApiKeyModalProps)
 
 				<div className="c-hbox jc-end g-2">
 					<Button onClick={onClose}>{t('Cancel')}</Button>
-					<Button primary disabled={isSubmitting} onClick={handleCreate}>
+					<Button variant="primary" disabled={isSubmitting} onClick={handleCreate}>
 						{isSubmitting ? t('Creating...') : t('Create API Key')}
 					</Button>
 				</div>
@@ -334,7 +334,7 @@ function EditApiKeyModal({ open, apiKey, onClose, onSaved }: EditApiKeyModalProp
 
 				<div className="c-hbox jc-end g-2">
 					<Button onClick={onClose}>{t('Cancel')}</Button>
-					<Button primary disabled={isSubmitting} onClick={handleSave}>
+					<Button variant="primary" disabled={isSubmitting} onClick={handleSave}>
 						{isSubmitting ? t('Saving...') : t('Save changes')}
 					</Button>
 				</div>
@@ -504,7 +504,7 @@ function ApiKeyCreatedModal({ open, result, onClose }: ApiKeyCreatedModalProps) 
 				)}
 
 				<div className="c-hbox jc-end">
-					<Button primary onClick={onClose}>
+					<Button variant="primary" onClick={onClose}>
 						{t("I've saved the key")}
 					</Button>
 				</div>
@@ -778,7 +778,7 @@ export function SecuritySettings() {
 				</label>
 				<div className="c-group">
 					<Button
-						primary
+						variant="primary"
 						disabled={!currentPassword || !newPassword}
 						onClick={onChangePassword}
 					>
@@ -824,7 +824,7 @@ export function SecuritySettings() {
 							value={passkeyDescription}
 							onChange={(e) => setPasskeyDescription(e.target.value)}
 						/>
-						<Button primary disabled={isAddingPasskey} onClick={addPasskey}>
+						<Button variant="primary" disabled={isAddingPasskey} onClick={addPasskey}>
 							<IcAdd className="mr-1" />
 							{t('Add passkey')}
 						</Button>
@@ -864,7 +864,11 @@ export function SecuritySettings() {
 						<IcApiKey className="mr-2" />
 						{t('API Keys')}
 					</h4>
-					<Button primary className="small" onClick={() => setShowCreateModal(true)}>
+					<Button
+						variant="primary"
+						className="small"
+						onClick={() => setShowCreateModal(true)}
+					>
 						<IcAdd className="mr-1" />
 						{t('Create API key')}
 					</Button>

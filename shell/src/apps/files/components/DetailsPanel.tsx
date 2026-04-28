@@ -343,7 +343,7 @@ export function DetailsPanel({
 					<div className="c-hbox justify-content-end g-2 me-4">
 						{!isFolder && (
 							<Button
-								link
+								kind="link"
 								className="p-1"
 								onClick={() =>
 									fileOps.openFile(
@@ -377,7 +377,7 @@ export function DetailsPanel({
 						<h3 className="flex-fill">{t('Sharing')}</h3>
 						{onShare && (
 							<Button
-								link
+								kind="link"
 								className="p-1"
 								onClick={() => onShare(file)}
 								title={t('Share...')}

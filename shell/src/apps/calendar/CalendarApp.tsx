@@ -546,7 +546,7 @@ export function CalendarApp() {
 							trail={
 								<div className="d-flex align-items-center g-1">
 									<Button
-										primary
+										variant="primary"
 										size="small"
 										disabled={noCalendars}
 										onClick={
@@ -578,7 +578,7 @@ export function CalendarApp() {
 							<p className="c-hint">
 								{t('Create a calendar to start adding events and tasks.')}
 							</p>
-							<Button primary onClick={openCreateCalendar}>
+							<Button variant="primary" onClick={openCreateCalendar}>
 								<IcNewCal className="me-1" />
 								{t('New calendar')}
 							</Button>

@@ -119,8 +119,8 @@ export function ReactionPicker({ ownReaction, onReact }: ReactionPickerProps) {
 	return (
 		<div ref={setRefEl} onPointerEnter={handlePointerEnter} onPointerLeave={handlePointerLeave}>
 			<Button
-				link
-				accent
+				kind="link"
+				variant="accent"
 				onClick={handleClick}
 				onTouchStart={handleTouchStart}
 				onTouchEnd={handleTouchEnd}

@@ -88,7 +88,7 @@ export function GuestNameDialog({ open, onConfirm }: GuestNameDialogProps) {
 
 				{/* Footer */}
 				<div className="c-hbox g-2 p-3 border-top justify-content-end">
-					<Button primary onClick={handleConfirm}>
+					<Button variant="primary" onClick={handleConfirm}>
 						{t('Join')}
 					</Button>
 				</div>

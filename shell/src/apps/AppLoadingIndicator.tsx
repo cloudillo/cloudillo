@@ -14,8 +14,8 @@
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuRefreshCw as IcLoading, LuCircleAlert as IcError } from 'react-icons/lu'
-import { mergeClasses, Button } from '@cloudillo/react'
+import { LuCircleAlert as IcError } from 'react-icons/lu'
+import { mergeClasses, Button, LoadingSpinner } from '@cloudillo/react'
 
 export type LoadingStage = 'connecting' | 'syncing' | 'ready' | 'error'
 
@@ -133,10 +133,7 @@ export function AppLoadingIndicator({
 				</>
 			) : (
 				<>
-					<IcLoading
-						size="3rem"
-						className="c-app-loading__icon c-app-loading__icon--spinner mb-3"
-					/>
+					<LoadingSpinner size="xl" className="mb-3" />
 					{stageText && <p className="c-app-loading__text">{stageText}</p>}
 				</>
 			)}

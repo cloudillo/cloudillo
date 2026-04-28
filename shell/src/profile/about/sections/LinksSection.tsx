@@ -110,7 +110,7 @@ function IconPicker({ value, onChange }: IconPickerProps) {
 					return (
 						<Button
 							key={item.value}
-							link
+							kind="link"
 							className={mergeClasses('p-1', item.value === value && 'active')}
 							onClick={() => onChange(item.value)}
 						>
@@ -175,12 +175,12 @@ export function LinksSectionEdit({ section, onChange }: LinksSectionEditProps) {
 						value={link.url}
 						onChange={(e) => updateLink(i, { url: e.target.value })}
 					/>
-					<Button link onClick={() => removeLink(i)}>
+					<Button kind="link" onClick={() => removeLink(i)}>
 						<IcRemove />
 					</Button>
 				</div>
 			))}
-			<Button link onClick={addLink}>
+			<Button kind="link" onClick={addLink}>
 				<IcPlus /> {t('Add link')}
 			</Button>
 		</div>

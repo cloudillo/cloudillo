@@ -6,7 +6,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAtom } from 'jotai'
 
-import { LuFilter as IcFilter, LuCloud as IcCloud } from 'react-icons/lu'
+import { LuFilter as IcFilter, LuCloud as IcCloud, LuUpload as IcUpload } from 'react-icons/lu'
 
 import './files.css'
 
@@ -26,6 +26,7 @@ import { useAppConfig } from '../../utils.js'
 import { useContextAwareApi, useCurrentContextIdTag } from '../../context/index.js'
 import { getDirtyDocIds } from '../../message-bus/handlers/crdt.js'
 
+import { DropZone } from '@cloudillo/react'
 import {
 	Sidebar,
 	Toolbar,
@@ -33,7 +34,6 @@ import {
 	ItemCard,
 	ItemGrid,
 	DetailsPanel,
-	DropZone,
 	UploadProgress,
 	ContextMenu,
 	FolderPicker,
@@ -540,7 +540,17 @@ export function FilesApp() {
 
 	return (
 		<>
-			<DropZone onFilesDropped={uploadQueue.handleFilesForUpload} disabled={!canUpload}>
+			<DropZone
+				overlay
+				onFilesDropped={uploadQueue.handleFilesForUpload}
+				disabled={!canUpload}
+				hover={
+					<div className="c-vbox align-items-center g-2">
+						<IcUpload style={{ fontSize: '3rem' }} />
+						<div>{t('Drop files here to upload')}</div>
+					</div>
+				}
+			>
 				<Fcd.Container className="g-1">
 					<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 						<Sidebar

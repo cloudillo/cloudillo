@@ -198,7 +198,7 @@ export function ImageUpload({
 			</div>
 			<div className="crop-toolbar-actions">
 				<Button onClick={onCancel}>{t('Cancel')}</Button>
-				<Button primary onClick={handleSubmit}>
+				<Button variant="primary" onClick={handleSubmit}>
 					{t('Upload')}
 				</Button>
 			</div>

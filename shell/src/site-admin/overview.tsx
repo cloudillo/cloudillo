@@ -109,7 +109,7 @@ export function AdminOverview() {
 								{t('Password resets and email notifications will not work')}
 							</div>
 						</div>
-						<Button primary onClick={() => navigate('/site-admin/email')}>
+						<Button variant="primary" onClick={() => navigate('/site-admin/email')}>
 							{t('Configure')}
 						</Button>
 					</div>

@@ -274,7 +274,7 @@ export function FileViewerApp() {
 				<div className="c-file-viewer-error">
 					<h2>{file.fileName}</h2>
 					<p className="text-secondary">{contentType}</p>
-					<Button primary onClick={handleDownload}>
+					<Button variant="primary" onClick={handleDownload}>
 						<IcDownload />
 						{t('Download')}
 					</Button>

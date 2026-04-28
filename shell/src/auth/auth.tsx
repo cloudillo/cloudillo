@@ -326,7 +326,7 @@ export function LoginForm() {
 							{forgotStatus !== 'success' && (
 								<Button
 									type="button"
-									primary
+									variant="primary"
 									disabled={forgotStatus === 'loading' || !email}
 									onClick={onForgotSubmit}
 								>
@@ -339,7 +339,7 @@ export function LoginForm() {
 						</>
 					) : (
 						<>
-							<Button type="submit" primary disabled={!api?.idTag}>
+							<Button type="submit" variant="primary" disabled={!api?.idTag}>
 								<IcLogin />
 								{t('Login')}
 							</Button>

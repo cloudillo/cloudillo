@@ -161,17 +161,17 @@ function ProfileConnection({
 					{t('Followed')}
 				</div>
 			) : localProfile.status == 'B' ? (
-				<Button link onClick={cmds.onBlock}>
+				<Button kind="link" onClick={cmds.onBlock}>
 					<IcBlock />
 					{t('Unblock')}
 				</Button>
 			) : !localProfile.connected ? (
-				<Button link onClick={cmds.onConnect}>
+				<Button kind="link" onClick={cmds.onConnect}>
 					<IcConnect />
 					{profileType === 'community' ? t('Join') : t('Connect')}
 				</Button>
 			) : !localProfile.following ? (
-				<Button link onClick={cmds.onFollow}>
+				<Button kind="link" onClick={cmds.onFollow}>
 					<IcFollow />
 					{t('Follow')}
 				</Button>
@@ -184,7 +184,7 @@ function ProfileConnection({
 				<ul className="c-nav vertical">
 					{!localProfile.following && (
 						<li>
-							<Button navItem onClick={cmds.onFollow}>
+							<Button kind="nav-item" onClick={cmds.onFollow}>
 								<IcFollow />
 								{t('Follow')}
 							</Button>
@@ -192,7 +192,7 @@ function ProfileConnection({
 					)}
 					{localProfile.following && (
 						<li>
-							<Button navItem onClick={onUnfollow}>
+							<Button kind="nav-item" onClick={onUnfollow}>
 								<IcFollow />
 								{t('Unfollow')}
 							</Button>
@@ -201,7 +201,7 @@ function ProfileConnection({
 
 					{!localProfile.connected && (
 						<li>
-							<Button navItem onClick={cmds.onConnect}>
+							<Button kind="nav-item" onClick={cmds.onConnect}>
 								<IcConnect />
 								{profileType === 'community' ? t('Join') : t('Connect')}
 							</Button>
@@ -209,7 +209,7 @@ function ProfileConnection({
 					)}
 					{localProfile.connected == 'R' && (
 						<li className="c-nav-item">
-							<Button navItem onClick={cmds.onDisconnect}>
+							<Button kind="nav-item" onClick={cmds.onDisconnect}>
 								<IcConnect />
 								{t('Cancel request')}
 							</Button>
@@ -217,7 +217,7 @@ function ProfileConnection({
 					)}
 					{localProfile.connected == true && (
 						<li>
-							<Button navItem onClick={cmds.onDisconnect}>
+							<Button kind="nav-item" onClick={cmds.onDisconnect}>
 								<IcConnect />
 								{t('Disconnect')}
 							</Button>
@@ -226,7 +226,7 @@ function ProfileConnection({
 
 					{localProfile.status != 'B' && (
 						<li>
-							<Button navItem onClick={cmds.onBlock}>
+							<Button kind="nav-item" onClick={cmds.onBlock}>
 								<IcBlock />
 								{t('Block')}
 							</Button>
@@ -234,7 +234,7 @@ function ProfileConnection({
 					)}
 					{localProfile.status == 'B' && (
 						<li>
-							<Button navItem onClick={cmds.onUnblock}>
+							<Button kind="nav-item" onClick={cmds.onUnblock}>
 								<IcBlock />
 								{t('Unblock')}
 							</Button>
@@ -802,7 +802,7 @@ function MemberCard({
 						{ROLES.map((role) => (
 							<li key={role.value}>
 								<Button
-									navItem
+									kind="nav-item"
 									onClick={() => onRoleChange?.(member.idTag, role.value)}
 								>
 									{memberRole === role.value && <IcCheck />}
@@ -814,7 +814,7 @@ function MemberCard({
 							<>
 								<li role="separator" className="border-bottom my-1" />
 								<li>
-									<Button navItem onClick={handleRemove}>
+									<Button kind="nav-item" onClick={handleRemove}>
 										<IcRemoveMember className="text-error" />
 										<span className="text-error">{t('Remove member')}</span>
 									</Button>
@@ -830,7 +830,7 @@ function MemberCard({
 						<Popper label={<IcMore />}>
 							<ul className="c-nav vertical">
 								<li>
-									<Button navItem onClick={handleRemove}>
+									<Button kind="nav-item" onClick={handleRemove}>
 										<IcRemoveMember className="text-error" />
 										<span className="text-error">{t('Remove member')}</span>
 									</Button>

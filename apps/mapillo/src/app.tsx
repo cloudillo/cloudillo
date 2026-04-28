@@ -4,6 +4,7 @@
 import * as React from 'react'
 
 import { getAppBus, type AppMessageBus } from '@cloudillo/core'
+import { LoadingSpinner } from '@cloudillo/react'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
@@ -105,8 +106,7 @@ export function MapilloApp() {
 	if (!ready) {
 		return (
 			<div className="mapillo-loading c-vbox w-100 h-100 align-center justify-center">
-				<div className="c-spinner large" />
-				<p className="mt-2">Loading Mapillo...</p>
+				<LoadingSpinner size="lg" label="Loading Mapillo…" />
 			</div>
 		)
 	}

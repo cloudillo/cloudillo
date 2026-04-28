@@ -232,43 +232,11 @@
 	box-shadow: 0 0 0 2px var(--col-container-primary);
 }
 
-/* Empty State */
-.empty-state {
-	text-align: center;
-	padding: 3rem 1rem;
-	color: var(--col-on-surface);
-}
-
-.empty-state-icon {
-	font-size: 3rem;
-	opacity: 0.5;
-	margin-bottom: 1rem;
-}
-
-.empty-state-text {
-	font-size: 1.1rem;
-	margin: 0;
-}
-
-/* Loading State */
+/* Task list container */
 .task-list-container {
 	flex: 1;
 	overflow-y: auto;
 	overflow-x: hidden;
-}
-
-.c-spinner {
-	display: inline-block;
-	animation: rotate 1s linear infinite;
-}
-
-@keyframes rotate {
-	from {
-		transform: rotate(0deg);
-	}
-	to {
-		transform: rotate(360deg);
-	}
 }
 
 /* Error Alert */

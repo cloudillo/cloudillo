@@ -46,7 +46,7 @@ export const VisibilitySelector = React.memo(function VisibilitySelector({
 					return (
 						<li key={opt.value}>
 							<Button
-								navItem
+								kind="nav-item"
 								className={mergeClasses(isActive && 'active')}
 								onClick={() => onChange(opt.value)}
 							>

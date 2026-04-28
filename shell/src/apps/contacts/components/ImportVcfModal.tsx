@@ -311,7 +311,7 @@ export function ImportVcfModal({
 							<Button type="button" onClick={onClose}>
 								{t('Cancel')}
 							</Button>
-							<Button type="submit" primary disabled={!ready}>
+							<Button type="submit" variant="primary" disabled={!ready}>
 								<IcUpload className="me-1" />
 								{submitting ? t('Importing...') : t('Import')}
 							</Button>
@@ -414,7 +414,7 @@ function ImportResultView({
 			)}
 
 			<div className="d-flex justify-content-end">
-				<Button primary onClick={onClose}>
+				<Button variant="primary" onClick={onClose}>
 					{t('Done')}
 				</Button>
 			</div>

@@ -46,7 +46,7 @@ export function PostMenu({ action, onDelete }: PostMenuProps) {
 		<Popper menuClassName="c-btn link" icon={<IcMore />}>
 			<ul className="c-nav vertical emph">
 				<li>
-					<Button navItem onClick={handleDelete}>
+					<Button kind="nav-item" onClick={handleDelete}>
 						<IcDelete style={{ color: 'var(--col-error)' }} />
 						{t('Delete post')}
 					</Button>

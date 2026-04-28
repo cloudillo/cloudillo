@@ -190,7 +190,10 @@ export const Sidebar = React.memo(function Sidebar({
 						<Popper icon={<IcNewFile />} label={t('Create document')}>
 							<ul className="c-nav vertical emph">
 								<li>
-									<Button navItem onClick={() => createFile('cloudillo/quillo')}>
+									<Button
+										kind="nav-item"
+										onClick={() => createFile('cloudillo/quillo')}
+									>
 										{React.createElement<
 											React.ComponentProps<typeof IcUnknown>
 										>(fileIcons['cloudillo/quillo'], { className: 'me-1' })}
@@ -199,7 +202,7 @@ export const Sidebar = React.memo(function Sidebar({
 								</li>
 								<li>
 									<Button
-										navItem
+										kind="nav-item"
 										onClick={() => createFile('cloudillo/calcillo')}
 									>
 										{React.createElement<
@@ -209,7 +212,10 @@ export const Sidebar = React.memo(function Sidebar({
 									</Button>
 								</li>
 								<li>
-									<Button navItem onClick={() => createFile('cloudillo/ideallo')}>
+									<Button
+										kind="nav-item"
+										onClick={() => createFile('cloudillo/ideallo')}
+									>
 										{React.createElement<
 											React.ComponentProps<typeof IcUnknown>
 										>(fileIcons['cloudillo/ideallo'], { className: 'me-1' })}
@@ -218,7 +224,7 @@ export const Sidebar = React.memo(function Sidebar({
 								</li>
 								<li>
 									<Button
-										navItem
+										kind="nav-item"
 										onClick={() => createFile('cloudillo/prezillo')}
 									>
 										{React.createElement<
@@ -228,7 +234,10 @@ export const Sidebar = React.memo(function Sidebar({
 									</Button>
 								</li>
 								<li>
-									<Button navItem onClick={() => createDb('cloudillo/taskillo')}>
+									<Button
+										kind="nav-item"
+										onClick={() => createDb('cloudillo/taskillo')}
+									>
 										{React.createElement<
 											React.ComponentProps<typeof IcUnknown>
 										>(fileIcons['cloudillo/taskillo'], { className: 'me-1' })}
@@ -236,7 +245,10 @@ export const Sidebar = React.memo(function Sidebar({
 									</Button>
 								</li>
 								<li>
-									<Button navItem onClick={() => createDb('cloudillo/notillo')}>
+									<Button
+										kind="nav-item"
+										onClick={() => createDb('cloudillo/notillo')}
+									>
 										{React.createElement<
 											React.ComponentProps<typeof IcUnknown>
 										>(fileIcons['cloudillo/notillo'], { className: 'me-1' })}
@@ -244,7 +256,10 @@ export const Sidebar = React.memo(function Sidebar({
 									</Button>
 								</li>
 								<li>
-									<Button navItem onClick={() => createDb('cloudillo/scanillo')}>
+									<Button
+										kind="nav-item"
+										onClick={() => createDb('cloudillo/scanillo')}
+									>
 										{React.createElement<
 											React.ComponentProps<typeof IcUnknown>
 										>(fileIcons['cloudillo/scanillo'], { className: 'me-1' })}
@@ -320,11 +335,11 @@ export const Sidebar = React.memo(function Sidebar({
 					onChange={(e) => onSearchQueryChange(e.target.value)}
 				/>
 				{searchQuery ? (
-					<Button secondary onClick={() => onSearchQueryChange('')}>
+					<Button variant="secondary" onClick={() => onSearchQueryChange('')}>
 						<IcClear />
 					</Button>
 				) : (
-					<Button secondary>
+					<Button variant="secondary">
 						<IcSearch />
 					</Button>
 				)}

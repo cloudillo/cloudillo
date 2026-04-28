@@ -107,7 +107,7 @@ export function PageHeader({
 		>
 			{onToggleSidebar && (
 				<Button
-					link
+					kind="link"
 					mode="icon"
 					size="small"
 					className="md-hide lg-hide"
@@ -140,7 +140,7 @@ export function PageHeader({
 			{onToggleComments && (
 				<div style={{ position: 'relative' }}>
 					<Button
-						link
+						kind="link"
 						mode="icon"
 						size="small"
 						onClick={onToggleComments}
@@ -155,7 +155,7 @@ export function PageHeader({
 			)}
 			<div ref={menuRef} style={{ position: 'relative' }}>
 				<Button
-					link
+					kind="link"
 					mode="icon"
 					size="small"
 					onClick={() => setMenuOpen(!menuOpen)}

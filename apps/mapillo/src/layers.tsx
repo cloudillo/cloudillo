@@ -18,7 +18,7 @@ export function LayerPanel({ activeTileId, onSelect, open, onToggle }: LayerPane
 	if (!open) {
 		return (
 			<button
-				className="mapillo-layer-toggle"
+				className="mapillo-ctrl mapillo-layer-toggle"
 				onClick={() => onToggle(true)}
 				title="Change map style"
 			>

@@ -128,7 +128,7 @@ export function CommentItem({ comment, isOwn, readOnly, onEdit, onDelete }: Comm
 						<Button size="small" onClick={handleSave}>
 							<IcCheck size={14} /> {t('Save')}
 						</Button>
-						<Button link size="small" onClick={handleCancel}>
+						<Button kind="link" size="small" onClick={handleCancel}>
 							{t('Cancel')}
 						</Button>
 					</div>

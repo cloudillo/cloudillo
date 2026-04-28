@@ -32,7 +32,7 @@ export function FcdDetails({ isVisible, className, hide, header, children }: Fcd
 			onClick={hide}
 		>
 			<Button
-				link
+				kind="link"
 				className="c-fcd-details-close pos-absolute top-0 right-0 m-1 p-2 z-4 lg-hide"
 				onClick={hide}
 			>

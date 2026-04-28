@@ -99,11 +99,15 @@ function IdentityCard({ identity, onViewDetails, onDelete }: IdentityCardProps) 
 					</div>
 				</div>
 				<div className="c-hbox g-1">
-					<Button link onClick={() => onViewDetails(identity)} title={t('View details')}>
+					<Button
+						kind="link"
+						onClick={() => onViewDetails(identity)}
+						title={t('View details')}
+					>
 						<IcDetails />
 					</Button>
 					<Button
-						link
+						kind="link"
 						className="text-error"
 						onClick={() => onDelete(identity)}
 						title={t('Delete identity')}
@@ -341,7 +345,11 @@ function CreateIdentityModal({ open, idpDomain, onClose, onCreated }: CreateIden
 				{/* Actions */}
 				<div className="c-hbox jc-end g-2">
 					<Button onClick={onClose}>{t('Cancel')}</Button>
-					<Button primary disabled={!isValid || isSubmitting} onClick={handleCreate}>
+					<Button
+						variant="primary"
+						disabled={!isValid || isSubmitting}
+						onClick={handleCreate}
+					>
 						{isSubmitting ? t('Creating...') : t('Create Identity')}
 					</Button>
 				</div>
@@ -444,7 +452,7 @@ function ApiKeyCreatedModal({
 					<div className="c-hbox jc-between ai-center mb-1">
 						<label className="c-label mb-0">{t('Example: Update IP Address')}</label>
 						<Button
-							link
+							kind="link"
 							className="small"
 							onClick={() => copyToClipboard(curlCommand, 'curl')}
 						>
@@ -474,7 +482,7 @@ function ApiKeyCreatedModal({
 
 				{/* Close button */}
 				<div className="c-hbox jc-end">
-					<Button primary onClick={onClose}>
+					<Button variant="primary" onClick={onClose}>
 						{t("I've saved the key")}
 					</Button>
 				</div>
@@ -707,7 +715,7 @@ function IdentityDetailsModal({
 									{t('Cancel')}
 								</Button>
 								<Button
-									primary
+									variant="primary"
 									className="small"
 									disabled={creatingKey}
 									onClick={handleCreateApiKey}
@@ -748,7 +756,7 @@ function IdentityDetailsModal({
 													{t('Cancel')}
 												</Button>
 												<Button
-													primary
+													variant="primary"
 													className="small bg-error"
 													onClick={() => handleConfirmRevoke(key)}
 													disabled={revokingKey}
@@ -774,7 +782,7 @@ function IdentityDetailsModal({
 												</div>
 											</div>
 											<Button
-												link
+												kind="link"
 												className="text-error"
 												onClick={() => setConfirmRevokeKeyId(key.id)}
 												title={t('Revoke key')}
@@ -883,7 +891,7 @@ function StandaloneApiKeyModal({
 					<div className="c-hbox jc-between ai-center mb-1">
 						<label className="c-label mb-0">{t('Example: Update IP Address')}</label>
 						<Button
-							link
+							kind="link"
 							className="small"
 							onClick={() => copyToClipboard(curlCommand, 'curl')}
 						>
@@ -913,7 +921,7 @@ function StandaloneApiKeyModal({
 
 				{/* Close button */}
 				<div className="c-hbox jc-end">
-					<Button primary onClick={onClose}>
+					<Button variant="primary" onClick={onClose}>
 						{t("I've saved the key")}
 					</Button>
 				</div>
@@ -1127,7 +1135,7 @@ export function IdentitiesSettings() {
 							</button>
 						)}
 					</div>
-					<Button primary onClick={() => setShowCreateModal(true)}>
+					<Button variant="primary" onClick={() => setShowCreateModal(true)}>
 						<IcPlus className="mr-1" />
 						{t('Create')}
 					</Button>
@@ -1175,7 +1183,7 @@ export function IdentitiesSettings() {
 									: t('No {{status}} identities', { status: statusFilter })}
 							</p>
 							<Button
-								link
+								kind="link"
 								onClick={() => {
 									setSearch('')
 									setStatusFilter(undefined)
@@ -1191,7 +1199,7 @@ export function IdentitiesSettings() {
 							<p className="c-hint mb-3">
 								{t('Create your first identity to get started.')}
 							</p>
-							<Button primary onClick={() => setShowCreateModal(true)}>
+							<Button variant="primary" onClick={() => setShowCreateModal(true)}>
 								<IcPlus className="mr-1" />
 								{t('Create Identity')}
 							</Button>

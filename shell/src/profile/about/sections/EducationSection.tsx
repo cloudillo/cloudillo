@@ -78,7 +78,7 @@ export function EducationSectionEdit({ section, onChange }: EducationSectionEdit
 			{data.entries.map((entry, i) => (
 				<div key={i} className="c-panel p-2 c-vbox g-1 pos-relative">
 					<Button
-						link
+						kind="link"
 						className="pos-absolute top-0 right-0 m-1"
 						onClick={() => removeEntry(i)}
 					>
@@ -112,7 +112,7 @@ export function EducationSectionEdit({ section, onChange }: EducationSectionEdit
 					</div>
 				</div>
 			))}
-			<Button link onClick={addEntry}>
+			<Button kind="link" onClick={addEntry}>
 				<IcPlus /> {t('Add entry')}
 			</Button>
 		</div>

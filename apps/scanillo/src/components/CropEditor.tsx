@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+import { LoadingSpinner } from '@cloudillo/react'
 import {
 	PiCheckBold as IcCheck,
 	PiXBold as IcCancel,
@@ -389,7 +390,7 @@ export function CropEditor({
 					disabled={processing}
 					title="Confirm crop"
 				>
-					{processing ? <div className="c-spinner small" /> : <IcCheck />}
+					{processing ? <LoadingSpinner size="sm" /> : <IcCheck />}
 				</button>
 			</div>
 		</div>

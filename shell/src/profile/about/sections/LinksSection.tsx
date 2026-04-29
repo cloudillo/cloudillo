@@ -27,7 +27,7 @@ import { Button, Popper, mergeClasses } from '@cloudillo/react'
 import type { LinkIcon, LinkEntry } from '@cloudillo/types'
 
 import type { SectionWithContent, LinksContent } from '../types.js'
-import { parseContent, stringifyContent } from '../types.js'
+import { parseContent, stringifyContent, ensureUrlProtocol } from '../types.js'
 
 const EMPTY: LinksContent = { links: [] }
 
@@ -76,7 +76,11 @@ export function LinksSectionView({ section }: LinksSectionViewProps) {
 				return (
 					<div key={i} className="c-hbox g-2 align-items-center">
 						<Icon className="c-section-icon" />
-						<a href={link.url} target="_blank" rel="noopener noreferrer">
+						<a
+							href={ensureUrlProtocol(link.url)}
+							target="_blank"
+							rel="noopener noreferrer"
+						>
 							{link.label || link.url.replace(/^https?:\/\//, '')}
 						</a>
 					</div>

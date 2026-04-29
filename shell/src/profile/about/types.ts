@@ -168,6 +168,23 @@ export function stringifyContent<T>(data: T): string {
 	return JSON.stringify(data)
 }
 
+// Normalize a user-entered URL by adding `https://` when no scheme is present,
+// so a value like "cloudillo.org" produces a working absolute href instead of
+// a relative link. Whitelisted schemes pass through; anything else (including
+// `javascript:` and `data:`) is rejected to '' so the rendered <a href> is inert.
+const ALLOWED_URL_SCHEMES = new Set(['http', 'https', 'mailto', 'tel', 'sms', 'matrix', 'xmpp'])
+
+export function ensureUrlProtocol(url: string): string {
+	const trimmed = url.trim()
+	if (!trimmed) return ''
+	const schemeMatch = trimmed.match(/^([a-z][a-z0-9+.-]*):/i)
+	if (schemeMatch) {
+		return ALLOWED_URL_SCHEMES.has(schemeMatch[1].toLowerCase()) ? trimmed : ''
+	}
+	if (trimmed.startsWith('//')) return `https:${trimmed}`
+	return `https://${trimmed}`
+}
+
 // ============================================================================
 // Default empty content for each section type
 // ============================================================================

@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { LuMail as IcMail, LuPhone as IcPhone, LuGlobe as IcGlobe } from 'react-icons/lu'
 
 import type { SectionWithContent, ContactContent } from '../types.js'
-import { parseContent, stringifyContent } from '../types.js'
+import { parseContent, stringifyContent, ensureUrlProtocol } from '../types.js'
 
 const EMPTY: ContactContent = { email: '', phone: '', website: '' }
 
@@ -38,7 +38,11 @@ export function ContactSectionView({ section }: ContactSectionViewProps) {
 			{data.website && (
 				<div className="c-hbox g-2 align-items-center">
 					<IcGlobe className="c-section-icon" />
-					<a href={data.website} target="_blank" rel="noopener noreferrer">
+					<a
+						href={ensureUrlProtocol(data.website)}
+						target="_blank"
+						rel="noopener noreferrer"
+					>
 						{data.website.replace(/^https?:\/\//, '')}
 					</a>
 				</div>

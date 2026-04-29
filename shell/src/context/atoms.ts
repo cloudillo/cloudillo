@@ -25,6 +25,17 @@ import type {
 export const activeContextAtom = atom<ActiveContext | null>(null)
 
 /**
+ * Per-context `ui.onboarding` value, keyed by idTag.
+ *
+ * Populated from the per-context settings API right after a context switch
+ * completes (or when its proxy token refreshes), and consumed by the activation
+ * banner. A value of `'verify-idp'` means the community context's IDP identity
+ * has not yet been activated — content-creation CTAs in that context should be
+ * disabled. `null` (or absent) means no gating.
+ */
+export const contextOnboardingAtom = atom<Record<string, string | null>>({})
+
+/**
  * Context tokens cache
  * Maps idTag -> token data
  *

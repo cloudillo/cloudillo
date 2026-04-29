@@ -1232,6 +1232,8 @@ function ProfileView() {
 					if (result?.roles) {
 						console.log('Profile: loaded communityRoles for', idTag, result.roles)
 						setCommunityRoles(result.roles)
+					} else {
+						setCommunityRoles([])
 					}
 				})
 				.catch((err) => {
@@ -1239,7 +1241,7 @@ function ProfileView() {
 					setCommunityRoles([])
 				})
 		},
-		[idTag, own, getTokenFor]
+		[idTag, own, getTokenFor, trustTick]
 	)
 
 	React.useEffect(
@@ -1251,15 +1253,32 @@ function ProfileView() {
 				setLocalProfile(undefined)
 			}
 
-			if (own) api!.profiles.getOwnFull().then((p) => setProfile(p as unknown as FullProfile))
-			else
-				api!.profiles
-					.getRemoteFull(idTag!)
-					.then((p) => setProfile(p as unknown as FullProfile))
-					.catch(() => setProfile(undefined))
+			let cancelled = false
+
+			if (own) {
+				api!.profiles.getOwnFull().then((p) => {
+					if (!cancelled) setProfile(p as unknown as FullProfile)
+				})
+			} else {
+				// Trust-gated: ask getTokenFor for a proxy token. The gate returns
+				// null for 'never' / 'X' / no decision and a fresh token for
+				// 'always' / 'S'. Without this the remote /me/full call is always
+				// anonymous and a trust change has no visible effect on the page
+				// content until a manual reload.
+				getTokenFor(idTag!)
+					.then((result) => api!.profiles.getRemoteFull(idTag!, result?.token))
+					.then((p) => {
+						if (!cancelled) setProfile(p as unknown as FullProfile)
+					})
+					.catch(() => {
+						if (!cancelled) setProfile(undefined)
+					})
+			}
+
 			api!.profiles
 				.get(idTag!)
 				.then((p) => {
+					if (cancelled) return
 					setLocalProfile(p ?? {})
 					// Populate the stored-trust cache from the local profile row so
 					// the fetch gate can answer "always / never / ask" synchronously.
@@ -1267,9 +1286,15 @@ function ProfileView() {
 						rememberStoredTrust(idTag, p?.trust ?? null)
 					}
 				})
-				.catch(() => setLocalProfile({}))
+				.catch(() => {
+					if (!cancelled) setLocalProfile({})
+				})
+
+			return () => {
+				cancelled = true
+			}
 		},
-		[idTag, profile?.idTag, auth?.idTag, trustTick, own, rememberStoredTrust]
+		[idTag, profile?.idTag, auth?.idTag, trustTick, own, rememberStoredTrust, getTokenFor]
 	)
 
 	React.useEffect(

@@ -65,8 +65,16 @@ export interface CommunityRef {
 	/** Description (optional) */
 	description?: string
 
-	/** Whether the community is pending (DNS propagation in progress) */
+	/** Whether the community is pending (not yet usable) */
 	isPending?: boolean
+
+	/**
+	 * Why the community is pending — 'dns' means DNS propagation hasn't
+	 * resolved the new domain yet, 'verify-idp' means the community's IDP
+	 * identity is still in Pending state and will be auto-deleted at the IDP
+	 * deadline if the activation email isn't clicked.
+	 */
+	pendingReason?: 'dns' | 'verify-idp'
 
 	/** When the community was created (for pending communities) */
 	pendingSince?: Date

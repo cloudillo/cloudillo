@@ -21,6 +21,7 @@ export { CONTEXT_TOKEN_LIFETIME_MS } from './types'
 // Atoms
 export {
 	activeContextAtom,
+	contextOnboardingAtom,
 	contextTokensAtom,
 	communitiesAtom,
 	favoritesAtom,
@@ -61,6 +62,9 @@ export { useContextFromRoute, useCurrentContextIdTag } from './use-context-from-
 
 // Components
 export { Sidebar } from './sidebar'
+
+// Community verify-idp gate
+export { CommunityVerifyIdpBanner, useCommunityContentGate } from './verify-idp-banner'
 
 // Guest document state (for guest ref link navigation)
 export { guestDocumentAtom, useGuestDocument } from './guest-document'

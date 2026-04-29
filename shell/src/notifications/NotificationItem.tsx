@@ -19,7 +19,7 @@ function getActionText(
 		case 'CONN':
 			if (subType === 'DEL') return t('Disconnected')
 			if (status === 'C') return t('Wants to connect')
-			return t('Connected with you')
+			return t('is now a connection')
 		case 'FSHR':
 			return t('Shared a file')
 		case 'INVT':

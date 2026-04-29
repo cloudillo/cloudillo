@@ -244,6 +244,37 @@ export const tIdpActivateResult = T.struct({
 })
 export type IdpActivateResult = T.TypeOf<typeof tIdpActivateResult>
 
+// Live IDP identity status pulled by the tenant home for the active tenant
+// Returned by GET /api/profiles/me/idp-status
+export const tIdpStatus = T.literal('pending', 'active', 'suspended')
+export type IdpStatus = T.TypeOf<typeof tIdpStatus>
+
+export const tIdpStatusResponse = T.struct({
+	status: tIdpStatus,
+	// Deletion deadline. Always present for status=pending; may be omitted by
+	// the backend once the identity has activated and the value is no longer
+	// load-bearing.
+	expiresAt: T.optional(T.string),
+	// Display name of the IDP, surfaced for the verify-idp UI. Carried on the
+	// authenticated idp-status response (not /me) so the recovery email does
+	// not leak to federation clients fetching the public profile.
+	providerName: T.optional(T.string),
+	// Recovery email captured at registration. Optional — communities don't
+	// have a recovery email at all.
+	email: T.optional(T.string),
+	// When the tenant home advanced ui.onboarding to the next step in this same
+	// request, the new value is echoed back so the client can release the gate
+	// without an extra round-trip to /api/settings.
+	onboarding: T.optional(T.nullable(T.string))
+})
+export type IdpStatusResponse = T.TypeOf<typeof tIdpStatusResponse>
+
+// Returned by POST /api/profiles/me/resend-activation
+export const tResendActivationResponse = T.struct({
+	expiresAt: T.string
+})
+export type ResendActivationResponse = T.TypeOf<typeof tResendActivationResponse>
+
 // ============================================================================
 // IDP MANAGEMENT TYPES (for identity provider administrators)
 // ============================================================================
@@ -935,7 +966,12 @@ export const tCommunityProfileResponse = T.struct({
 	idTag: T.string,
 	name: T.string,
 	type: T.literal('community'),
-	createdAt: T.string
+	createdAt: T.string,
+	// Mirrors the community tenant's initial ui.onboarding value. For an IDP-
+	// typed community this is 'verify-idp' until the IDP activation email is
+	// clicked; the frontend uses this to show the activation banner and gate
+	// content-creation CTAs in the community context.
+	onboarding: T.optional(T.nullable(T.string))
 })
 export type CommunityProfileResponse = T.TypeOf<typeof tCommunityProfileResponse>
 

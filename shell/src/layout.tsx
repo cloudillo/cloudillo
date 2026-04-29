@@ -69,6 +69,7 @@ import {
 	useGuestDocument,
 	favoritesAtom
 } from './context/index.js'
+import { CommunityVerifyIdpBanner } from './context/verify-idp-banner.js'
 import { OnboardingRoutes } from './onboarding'
 import { WsBusRoot, useWsBus } from './ws-bus.js'
 import { SearchBar, useSearch } from './search.js'
@@ -1000,6 +1001,7 @@ export function Layout() {
 							inert={dialog.isOpen}
 							className="c-vbox flex-fill h-min-0"
 						>
+							<CommunityVerifyIdpBanner />
 							<ProfileRoutes />
 							<AuthRoutes />
 							<SettingsRoutes pwa={pwa} />

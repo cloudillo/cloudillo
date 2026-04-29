@@ -374,7 +374,33 @@ export class ApiClient {
 		 * @returns Empty object (user must verify email and set password before logging in)
 		 */
 		register: (data: Types.RegisterRequest) =>
-			this.request('POST', '/profiles/register', Types.tRegisterResult, { data })
+			this.request('POST', '/profiles/register', Types.tRegisterResult, { data }),
+
+		/**
+		 * GET /profiles/me/idp-status - Live IDP identity status for the active tenant.
+		 *
+		 * Used by the verify-idp gate (personal onboarding) and the community
+		 * activation banner. Backend pulls fresh status from the IDP via the
+		 * standard DNS-discovered federation path, with a short server-side cache
+		 * to absorb polling. When the IDP reports `active`, the same handler also
+		 * advances the tenant's `ui.onboarding` and echoes the new value back as
+		 * `onboarding`.
+		 *
+		 * Errors with `400` if the active tenant is not IDP-typed (e.g. domain
+		 * registration), so callers should only invoke when ui.onboarding is
+		 * 'verify-idp'.
+		 */
+		idpStatus: () => this.request('GET', '/profiles/me/idp-status', Types.tIdpStatusResponse),
+
+		/**
+		 * POST /profiles/me/resend-activation - Re-send the IDP activation email.
+		 *
+		 * Returns the **unchanged** original deletion deadline. The IDP is
+		 * required not to bump `Identity.expires_at` on resend — the 24h window
+		 * is fixed at registration time. Past expiry the IDP returns `410 Gone`.
+		 */
+		resendActivation: () =>
+			this.request('POST', '/profiles/me/resend-activation', Types.tResendActivationResponse)
 	}
 
 	// ========================================================================
@@ -846,9 +872,10 @@ export class ApiClient {
 		 * @param idTag - Identity tag of the remote profile
 		 * @returns Full profile from the remote node
 		 */
-		getRemoteFull: (idTag: string) =>
+		getRemoteFull: (idTag: string, authToken?: string) =>
 			apiFetchHelper<Types.ProfileKeys, unknown>(idTag, 'GET', '/me/full', {
-				type: Types.tProfileKeys
+				type: Types.tProfileKeys,
+				authToken
 			}),
 
 		/**

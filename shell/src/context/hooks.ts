@@ -12,6 +12,7 @@ import { useApi, useAuth } from '@cloudillo/react'
 
 import {
 	activeContextAtom,
+	contextOnboardingAtom,
 	contextTokensAtom,
 	communitiesAtom,
 	favoritesAtom,
@@ -60,6 +61,7 @@ import {
 export function useApiContext() {
 	const [activeContext, setActiveContextState] = useAtom(activeContextAtom)
 	const [contextTokens, setContextTokens] = useAtom(contextTokensAtom)
+	const [, setContextOnboarding] = useAtom(contextOnboardingAtom)
 	const [sessionTrust] = useAtom(sessionTrustAtom)
 	const [storedTrust] = useAtom(storedTrustAtom)
 	const { api: primaryApi } = useApi()
@@ -287,6 +289,24 @@ export function useApiContext() {
 
 				// Update active context
 				setActiveContextState(newContext)
+
+				// Surface the per-context ui.onboarding for the activation
+				// banner. Done after setActiveContext so the banner doesn't
+				// flash a stale value during the switch. Failure here is
+				// non-fatal — the banner just won't render.
+				try {
+					const settings = await contextApi.settings.list({
+						prefix: 'ui.onboarding'
+					})
+					const value = settings.find((s) => s.key === 'ui.onboarding')?.value
+					setContextOnboarding((prev) => ({
+						...prev,
+						[idTag]: typeof value === 'string' ? value : null
+					}))
+				} catch (settingsErr) {
+					console.warn('Failed to read ui.onboarding for context:', settingsErr)
+					setContextOnboarding((prev) => ({ ...prev, [idTag]: null }))
+				}
 			} catch (err) {
 				setError(err as Error)
 				console.error('Failed to switch context:', err)
@@ -295,7 +315,7 @@ export function useApiContext() {
 				setIsLoading(false)
 			}
 		},
-		[getTokenFor, getClientFor, setActiveContextState, auth?.idTag]
+		[getTokenFor, getClientFor, setActiveContextState, setContextOnboarding, auth?.idTag]
 	)
 
 	return {
@@ -471,7 +491,8 @@ export function useCommunitiesList() {
 				isFavorite: false,
 				unreadCount: 0,
 				lastActivityAt: new Date(),
-				pendingSince: community.isPending ? new Date() : undefined
+				pendingSince: community.isPending ? new Date() : undefined,
+				pendingReason: community.pendingReason
 			}
 
 			setCommunities((prev) => {

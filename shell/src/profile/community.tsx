@@ -660,7 +660,7 @@ export function CreateCommunity() {
 
 		try {
 			// Create the community
-			const _result = await api.communities.create(fullIdTag, {
+			const result = await api.communities.create(fullIdTag, {
 				type: identityProvider || 'idp',
 				name: displayName || idTagInput,
 				appDomain: identityProvider === 'domain' ? appDomain : undefined,
@@ -668,12 +668,25 @@ export function CreateCommunity() {
 				inviteRef: inviteRef || undefined
 			})
 
+			// Identity not yet activated by the IDP — backend reports this via
+			// the response's `onboarding` field. The community is held in
+			// pending state until the user clicks the IDP activation email.
+			const verifyIdpPending = result.onboarding === 'verify-idp'
+
 			setProgress('checking')
 
 			// Check if accessible
 			const accessible = await checkDomainAccessible(fullIdTag)
 
-			if (accessible) {
+			if (verifyIdpPending) {
+				setProgress('done')
+				addPendingCommunity({
+					idTag: fullIdTag,
+					name: displayName || idTagInput,
+					isPending: true,
+					pendingReason: 'verify-idp'
+				})
+			} else if (accessible) {
 				setProgress('done')
 				addPendingCommunity({
 					idTag: fullIdTag,
@@ -685,7 +698,8 @@ export function CreateCommunity() {
 				addPendingCommunity({
 					idTag: fullIdTag,
 					name: displayName || idTagInput,
-					isPending: true
+					isPending: true,
+					pendingReason: 'dns'
 				})
 			}
 		} catch (err) {

@@ -184,27 +184,29 @@ function ConnectNotification({
 				</div>
 			</div>
 			<div className="d-flex flex-column">
-				{!action.subType && (
+				{action.subType == 'DEL' ? (
+					<h3>{t('User disconnected, or refused to connect')}</h3>
+				) : (
 					<>
 						<h3>
-							{action.status == 'C' ? t('Wants to connect') : t('Connected with you')}
+							{action.status == 'C'
+								? t('Wants to connect')
+								: t('is now a connection')}
 						</h3>
-						{content?.split('\n\n').map((paragraph, i) => (
-							<p key={i}>
-								{paragraph.split('\n').map((line, i) => (
-									<React.Fragment key={i}>
-										{generateFragments(line).map((n, i) => (
-											<React.Fragment key={i}>{n}</React.Fragment>
-										))}
-										<br />
-									</React.Fragment>
-								))}
-							</p>
-						))}
+						{!action.subType &&
+							content?.split('\n\n').map((paragraph, i) => (
+								<p key={i}>
+									{paragraph.split('\n').map((line, i) => (
+										<React.Fragment key={i}>
+											{generateFragments(line).map((n, i) => (
+												<React.Fragment key={i}>{n}</React.Fragment>
+											))}
+											<br />
+										</React.Fragment>
+									))}
+								</p>
+							))}
 					</>
-				)}
-				{action.subType == 'DEL' && (
-					<h3>{t('User disconnected, or refused to connect')}</h3>
 				)}
 			</div>
 		</div>

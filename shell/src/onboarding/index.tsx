@@ -11,6 +11,7 @@ import type { ApiClient } from '@cloudillo/core'
 import type { UsePWA } from '../pwa.js'
 import { subscribeNotifications } from '../settings/notifications.js'
 import { Welcome } from './welcome.js'
+import { VerifyIdp } from './verify-idp.js'
 
 function next(api: ApiClient | null, location: string) {
 	const nextPage = location == 'join' ? 'extras' : null
@@ -44,10 +45,6 @@ function Join() {
 
 	function onSkip() {
 		navigate(next(api, 'join'))
-	}
-
-	function _onBack() {
-		navigate(-1)
 	}
 
 	return (
@@ -180,6 +177,10 @@ function Install({ pwa: _pwa }: { pwa: UsePWA }) {
 	return <Navigate to="/onboarding/extras" />
 }
 
+// Note: 'verify-idp' is intentionally excluded from the step indicator. It only
+// appears for IDP-typed registrations, runs before the user has set a password,
+// and we don't want it to inflate the visible "step X of Y" count for the
+// welcome → join → extras journey shown to every user.
 const ONBOARDING_STEPS = ['welcome', 'join', 'extras'] as const
 
 function StepIndicator() {
@@ -233,6 +234,7 @@ export function OnboardingRoutes({ pwa }: { pwa: UsePWA }) {
 	return (
 		<Page>
 			<Routes>
+				<Route path="/onboarding/verify-idp" element={<VerifyIdp />} />
 				<Route path="/onboarding/welcome/:refId" element={<Welcome />} />
 				<Route path="/onboarding/join" element={<Join />} />
 				<Route path="/onboarding/extras" element={<Extras pwa={pwa} />} />

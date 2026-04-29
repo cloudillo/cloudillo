@@ -529,7 +529,7 @@ export function AuthRoutes() {
 			<Route
 				path="/idp/activate/:refId"
 				element={
-					<LoginPage>
+					<LoginPage wide>
 						<IdpActivate />
 					</LoginPage>
 				}

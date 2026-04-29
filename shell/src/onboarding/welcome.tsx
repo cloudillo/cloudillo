@@ -87,9 +87,26 @@ export function Welcome() {
 
 			setProgress('success')
 			setAuth({ ...res })
-			// Navigate to the onboarding process
+			// IDP-typed registrations sit in 'verify-idp' until the IDP
+			// activation email is clicked. Skipping ahead to /onboarding/join
+			// would leave the user accumulating content under an identity that
+			// gets auto-deleted at the IDP's 24h deadline. Read the live setting
+			// and route accordingly.
+			let nextPath = '/onboarding/join'
+			try {
+				const settings = await api.settings.list({ prefix: 'ui.onboarding' })
+				const onboarding = settings.find((s) => s.key === 'ui.onboarding')?.value
+				if (onboarding === 'verify-idp') {
+					nextPath = '/onboarding/verify-idp'
+				}
+			} catch (settingsErr) {
+				console.warn(
+					'Failed to read ui.onboarding after setPassword, defaulting to join:',
+					settingsErr
+				)
+			}
 			setTimeout(() => {
-				navigate('/onboarding/join')
+				navigate(nextPath)
 			}, 500)
 		} catch (err) {
 			setProgress('idle')

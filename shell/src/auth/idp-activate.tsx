@@ -107,11 +107,18 @@ export function IdpActivate() {
 
 					<div className="c-panel info mt-3">
 						<h3 className="mb-2">{t("What's next?")}</h3>
-						<p>
-							{t(
-								'You should also receive an onboarding email from your Cloudillo instance. Please check your inbox and complete that activation too to finish setting up your account.'
-							)}
-						</p>
+						<ul className="mb-0">
+							<li>
+								{t(
+									'If you registered a personal identity, check your inbox for a welcome email to finish setting up your profile.'
+								)}
+							</li>
+							<li>
+								{t(
+									'If you activated a community identity, it is now ready to use in Cloudillo.'
+								)}
+							</li>
+						</ul>
 					</div>
 				</>
 			)}

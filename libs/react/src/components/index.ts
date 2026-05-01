@@ -128,6 +128,7 @@ export type { TagProps, TagListProps } from './Tag/index.js'
 // Toast Components
 export {
 	useToast,
+	useToasts,
 	ToastContext,
 	useToastContext,
 	ToastContainer,

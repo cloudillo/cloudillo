@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-export { useToast } from './useToast.js'
+export { useToast, useToasts } from './useToast.js'
 export type { ToastData, ToastOptions, UseToastReturn } from './useToast.js'
 
 export { ToastContext, useToastContext } from './ToastContext.js'

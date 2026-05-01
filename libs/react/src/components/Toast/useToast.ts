@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { atom, useAtom } from 'jotai'
+import { atom, useAtomValue, useSetAtom } from 'jotai'
 import type { ToastVariant } from '../types.js'
 
 export interface ToastData {
@@ -26,7 +26,6 @@ export interface ToastOptions {
 }
 
 export interface UseToastReturn {
-	toasts: ToastData[]
 	toast: (options: ToastOptions) => string
 	dismiss: (id: string) => void
 	dismissAll: () => void
@@ -45,8 +44,26 @@ function generateToastId(): string {
 // Global toast state
 const toastsAtom = atom<ToastData[]>([])
 
+// Active auto-dismiss timers, keyed by toast id. Module-level because the
+// toasts atom is also module-level — any consumer that calls dismiss() must be
+// able to clear a timer started by any other consumer.
+const toastTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+function clearToastTimer(id: string) {
+	const timer = toastTimers.get(id)
+	if (timer !== undefined) {
+		clearTimeout(timer)
+		toastTimers.delete(id)
+	}
+}
+
+/**
+ * Action-only toast hook. Returns a stable object identity across renders, so
+ * it is safe to list in `useEffect` / `useCallback` dep arrays. Does NOT
+ * subscribe to the toasts list — use `useToasts()` to render the list.
+ */
 export function useToast(): UseToastReturn {
-	const [toasts, setToasts] = useAtom(toastsAtom)
+	const setToasts = useSetAtom(toastsAtom)
 
 	const toast = React.useCallback(
 		(options: ToastOptions): string => {
@@ -66,9 +83,11 @@ export function useToast(): UseToastReturn {
 
 			// Auto-dismiss if duration is set
 			if (toastData.duration && toastData.duration > 0) {
-				setTimeout(() => {
+				const timer = setTimeout(() => {
+					toastTimers.delete(id)
 					setToasts((prev) => prev.filter((t) => t.id !== id))
 				}, toastData.duration)
+				toastTimers.set(id, timer)
 			}
 
 			return id
@@ -78,12 +97,15 @@ export function useToast(): UseToastReturn {
 
 	const dismiss = React.useCallback(
 		(id: string) => {
+			clearToastTimer(id)
 			setToasts((prev) => prev.filter((t) => t.id !== id))
 		},
 		[setToasts]
 	)
 
 	const dismissAll = React.useCallback(() => {
+		for (const timer of toastTimers.values()) clearTimeout(timer)
+		toastTimers.clear()
 		setToasts([])
 	}, [setToasts])
 
@@ -115,16 +137,27 @@ export function useToast(): UseToastReturn {
 		[toast]
 	)
 
-	return {
-		toasts,
-		toast,
-		dismiss,
-		dismissAll,
-		success,
-		error,
-		warning,
-		info
-	}
+	return React.useMemo(
+		() => ({
+			toast,
+			dismiss,
+			dismissAll,
+			success,
+			error,
+			warning,
+			info
+		}),
+		[toast, dismiss, dismissAll, success, error, warning, info]
+	)
+}
+
+/**
+ * Subscribe to the live toasts array. Use this in `ToastContainer`-style
+ * components that render the list. Do NOT use it for action-only consumers —
+ * use `useToast()` instead so re-renders don't cascade through the app.
+ */
+export function useToasts(): ToastData[] {
+	return useAtomValue(toastsAtom)
 }
 
 // vim: ts=4

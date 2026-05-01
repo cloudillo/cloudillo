@@ -10,6 +10,8 @@
 		"prebuild": "pnpm run ts && node bundle-themes.mjs",
 		"build": "node esbuild.config.js",
 		"watch": "node esbuild.config.js --watch",
+		"serve": "http-server dist -p 8000 -c-1",
+		"dev": "concurrently -k -n build,serve -c blue,green \"pnpm watch\" \"pnpm serve\"",
 		"clean": "rimraf .cache dist/assets-*"
 	},
 	"author": "Szilárd Hajba <szilu@cloudillo.org>",
@@ -23,7 +25,9 @@
 		"@types/debounce": "^1.2.4",
 		"@types/react": "^19.2.14",
 		"@types/react-dom": "^19.2.3",
+		"concurrently": "^9.1.0",
 		"debounce": "^3.0.0",
+		"http-server": "^14.1.1",
 		"downshift": "^9.3.2",
 		"esbuild": "^0.27.5",
 		"i18next": "^26.0.3",

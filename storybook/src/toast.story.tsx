@@ -3,6 +3,7 @@ import * as React from 'react'
 import { Story, Variant } from './storybook.js'
 import {
 	useToast,
+	useToasts,
 	ToastContainer,
 	Toast,
 	ToastIcon,
@@ -24,6 +25,7 @@ import {
 
 function ToastDemo() {
 	const toast = useToast()
+	const toasts = useToasts()
 
 	return (
 		<VBox gap={2}>
@@ -61,7 +63,7 @@ function ToastDemo() {
 				<Button onClick={() => toast.dismissAll()}>Dismiss All</Button>
 			</HBox>
 			<ToastContainer position="top-right">
-				{toast.toasts.map((t) => (
+				{toasts.map((t) => (
 					<Toast
 						key={t.id}
 						toast={t}
@@ -135,7 +137,9 @@ toast.toast({
 // Management:
 toast.dismiss(id)
 toast.dismissAll()
-toast.toasts // Array of current toasts`}</pre>
+
+// Subscribe to the toasts list (separate hook):
+const toasts = useToasts() // Array of current toasts`}</pre>
 				</div>
 			</Variant>
 

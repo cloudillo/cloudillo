@@ -25,14 +25,14 @@ export function DialogStory() {
 		>
 			<Variant name="Basic Dialog">
 				<div>
-					<Button primary onClick={() => setIsOpen(true)}>
+					<Button variant="primary" onClick={() => setIsOpen(true)}>
 						Open Dialog
 					</Button>
 					<Dialog open={isOpen} title="Example Dialog" onClose={() => setIsOpen(false)}>
 						<p>This is the dialog content.</p>
 						<p>You can put any React components here.</p>
 						<div className="c-group g-2 mt-3">
-							<Button primary onClick={() => setIsOpen(false)}>
+							<Button variant="primary" onClick={() => setIsOpen(false)}>
 								OK
 							</Button>
 							<Button onClick={() => setIsOpen(false)}>Cancel</Button>
@@ -111,31 +111,31 @@ export function UseDialogStory() {
 				]}
 			>
 				<Variant name="Tell Dialog (Info)">
-					<Button primary onClick={handleTell}>
+					<Button variant="primary" onClick={handleTell}>
 						Show Info
 					</Button>
 				</Variant>
 
 				<Variant name="Confirm Dialog (OK/Cancel)">
-					<Button primary onClick={handleConfirm}>
+					<Button variant="primary" onClick={handleConfirm}>
 						Show Confirm
 					</Button>
 				</Variant>
 
 				<Variant name="Ask Dialog (Yes/No)">
-					<Button primary onClick={handleAsk}>
+					<Button variant="primary" onClick={handleAsk}>
 						Show Yes/No
 					</Button>
 				</Variant>
 
 				<Variant name="Ask Text Dialog">
-					<Button primary onClick={handleAskText}>
+					<Button variant="primary" onClick={handleAskText}>
 						Ask for Text
 					</Button>
 				</Variant>
 
 				<Variant name="Ask Text Dialog (Multiline)">
-					<Button primary onClick={handleAskTextMultiline}>
+					<Button variant="primary" onClick={handleAskTextMultiline}>
 						Ask for Multiline Text
 					</Button>
 				</Variant>

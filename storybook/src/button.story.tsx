@@ -27,43 +27,43 @@ export function ButtonStory() {
 			]}
 		>
 			<Variant name="Primary Button">
-				<Button primary onClick={() => alert('Clicked!')}>
+				<Button variant="primary" onClick={() => alert('Clicked!')}>
 					Primary Button
 				</Button>
 			</Variant>
 
 			<Variant name="Primary Button with Icon">
-				<Button primary icon={<IcHeart />} onClick={() => alert('Liked!')}>
+				<Button variant="primary" icon={<IcHeart />} onClick={() => alert('Liked!')}>
 					Like
 				</Button>
 			</Variant>
 
 			<Variant name="Secondary Button">
-				<Button secondary>Secondary Button</Button>
+				<Button variant="secondary">Secondary Button</Button>
 			</Variant>
 
 			<Variant name="Secondary Button with Icon">
-				<Button secondary icon={<IcShare />}>
+				<Button variant="secondary" icon={<IcShare />}>
 					Share
 				</Button>
 			</Variant>
 
 			<Variant name="Accent Button">
-				<Button accent>Accent Button</Button>
+				<Button variant="accent">Accent Button</Button>
 			</Variant>
 
 			<Variant name="Link Button">
-				<Button link>Link Style</Button>
+				<Button kind="link">Link Style</Button>
 			</Variant>
 
 			<Variant name="Link Button with Icon">
-				<Button link icon={<IcMore />}>
+				<Button kind="link" icon={<IcMore />}>
 					More Options
 				</Button>
 			</Variant>
 
 			<Variant name="Disabled Button">
-				<Button primary disabled>
+				<Button variant="primary" disabled>
 					Disabled
 				</Button>
 			</Variant>

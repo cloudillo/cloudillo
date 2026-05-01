@@ -204,7 +204,7 @@ export function FcdStory() {
 								header={
 									<>
 										<span className="fill font-semibold">Comments</span>
-										<Button link size="small">
+										<Button kind="link" size="small">
 											+
 										</Button>
 									</>

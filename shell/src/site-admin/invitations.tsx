@@ -36,7 +36,7 @@ interface Ref {
 	type: string
 	description?: string
 	createdAt: Date
-	expiresAt: Date
+	expiresAt?: Date
 	count: number
 }
 
@@ -107,7 +107,7 @@ function RegistrationInvites() {
 						res.map((ref) => ({
 							...ref,
 							createdAt: new Date(ref.createdAt),
-							expiresAt: new Date(ref.expiresAt ?? ''),
+							expiresAt: ref.expiresAt ? new Date(ref.expiresAt) : undefined,
 							count: ref.count ?? 0
 						}))
 					)
@@ -122,14 +122,15 @@ function RegistrationInvites() {
 			t('Create invitation'),
 			t('You can write a short description to help you distinguish the invitations later.')
 		)
+		if (description === undefined) return
 
-		const res = await api.refs.create({ type: 'register', description: description as string })
+		const res = await api.refs.create({ type: 'register', description })
 		if (res) {
 			setRefs((refs) => [
 				{
 					...res,
 					createdAt: new Date(res.createdAt),
-					expiresAt: new Date(res.expiresAt ?? ''),
+					expiresAt: res.expiresAt ? new Date(res.expiresAt) : undefined,
 					count: res.count ?? 0
 				},
 				...(refs || [])
@@ -294,7 +295,11 @@ function CommunityInvites() {
 			setMessage('')
 			setShowForm(false)
 		} catch (err) {
-			console.log('Error sending community invite:', err)
+			console.error('Error sending community invite:', err)
+			await dialog.tell(
+				t('Failed to send invitation'),
+				err instanceof Error ? err.message : String(err)
+			)
 		} finally {
 			setSending(false)
 		}
@@ -314,7 +319,11 @@ function CommunityInvites() {
 			await api.refs.delete(refId)
 			setInvites((prev) => prev?.filter((inv) => inv.refId !== refId))
 		} catch (err) {
-			console.log('Error deleting community invite:', err)
+			console.error('Error deleting community invite:', err)
+			await dialog.tell(
+				t('Failed to delete invitation'),
+				err instanceof Error ? err.message : String(err)
+			)
 		}
 	}
 

@@ -510,17 +510,13 @@ interface PostProps {
 	srcTag?: string
 	width: number
 }
-function Post({
-	className,
-	action,
-	setAction,
-	onDelete,
-	hideAudience,
-	srcTag: _srcTag,
-	width
-}: PostProps) {
+function Post({ className, action, setAction, onDelete, hideAudience, srcTag, width }: PostProps) {
 	const [auth] = useAuth()
 	const { api } = useApi()
+	const contextIdTag = useCurrentContextIdTag()
+	// Profile pages pass srcTag (the profile being viewed); attachments must
+	// load from that tenant, overriding the navigation context.
+	const fileIdTag = srcTag || contextIdTag
 	const [tab, setTab] = React.useState<undefined | 'CMNT' | 'LIKE' | 'SHRE'>(undefined)
 	if (typeof action.content != 'string' && action.content !== undefined) return null
 
@@ -610,21 +606,18 @@ function Post({
 						))}
 					{!!action.attachments?.length &&
 						(action.subType === 'VIDEO' ? (
-							<Video
-								attachments={action.attachments}
-								idTag={auth?.idTag || api?.idTag}
-							/>
+							<Video attachments={action.attachments} idTag={fileIdTag} />
 						) : action.subType === 'DOC' ? (
 							<Document
 								attachments={action.attachments}
-								idTag={auth?.idTag || api?.idTag}
+								idTag={fileIdTag}
 								token={auth?.token}
 							/>
 						) : (
 							<Images
 								width={width}
 								attachments={action.attachments}
-								idTag={auth?.idTag || api?.idTag}
+								idTag={fileIdTag}
 							/>
 						))}
 					{/* generateFragments(action.content) */}

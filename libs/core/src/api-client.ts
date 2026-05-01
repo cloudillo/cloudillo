@@ -1229,6 +1229,32 @@ export class ApiClient {
 		get: (refId: string) => this.request('GET', `/refs/${refId}`, Types.tRefResponse),
 
 		/**
+		 * GET /refs/:refId/idp-status - Unauthenticated IDP status lookup
+		 * scoped to a welcome/password ref. Used by the welcome page to gate
+		 * the password-setup form on IDP activation. Returns a synthetic
+		 * `status: 'active'` response for non-IDP-gated tenants so the caller
+		 * can branch unconditionally on `status`.
+		 * @param refId - Reference ID
+		 * @returns IDP status for the tenant that owns the ref
+		 */
+		idpStatus: (refId: string) =>
+			this.request('GET', `/refs/${refId}/idp-status`, Types.tIdpStatusResponse),
+
+		/**
+		 * POST /refs/:refId/resend-activation - Unauthenticated resend
+		 * scoped to a welcome/password ref. The IDP returns 410 Gone past
+		 * `Identity.expires_at`; that status bubbles up unchanged.
+		 * @param refId - Reference ID
+		 * @returns New activation deadline (unchanged from initial registration)
+		 */
+		resendActivation: (refId: string) =>
+			this.request(
+				'POST',
+				`/refs/${refId}/resend-activation`,
+				Types.tResendActivationResponse
+			),
+
+		/**
 		 * POST /ref - Create reference
 		 * @param data - Reference creation request
 		 * @returns Created reference
@@ -1400,8 +1426,24 @@ export class ApiClient {
 		sendPasswordReset: (idTag: string) =>
 			this.request(
 				'POST',
-				`/admin/tenants/${idTag}/password-reset`,
+				`/admin/tenants/${encodeURIComponent(idTag)}/password-reset`,
 				Types.tPasswordResetResponse
+			),
+
+		/**
+		 * POST /admin/tenants/:idTag/purge - Permanently delete a tenant and all its data.
+		 * @param idTag - Identity tag of the tenant
+		 * @param data - Confirmation body; `confirmIdTag` must equal `idTag`
+		 * @returns Purge result with blob count
+		 */
+		purgeTenant: (idTag: string, data: { confirmIdTag: string }) =>
+			this.request(
+				'POST',
+				`/admin/tenants/${encodeURIComponent(idTag)}/purge`,
+				Types.tPurgeTenantResponse,
+				{
+					data
+				}
 			),
 
 		/**

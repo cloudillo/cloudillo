@@ -937,9 +937,7 @@ export const tRefAccessTokenResult = T.struct({
 })
 export type RefAccessTokenResult = T.TypeOf<typeof tRefAccessTokenResult>
 
-export const tDeleteRefResult = T.struct({
-	refId: T.string
-})
+export const tDeleteRefResult = T.union(T.struct({ refId: T.string }), T.nullValue)
 export type DeleteRefResult = T.TypeOf<typeof tDeleteRefResult>
 
 // ============================================================================
@@ -1035,6 +1033,13 @@ export const tPasswordResetResponse = T.struct({
 	message: T.string
 })
 export type PasswordResetResponse = T.TypeOf<typeof tPasswordResetResponse>
+
+export const tPurgeTenantResponse = T.struct({
+	tnId: T.number,
+	idTag: T.string,
+	blobsRemoved: T.number
+})
+export type PurgeTenantResponse = T.TypeOf<typeof tPurgeTenantResponse>
 
 // ============================================================================
 // ADMIN PROXY SITE ENDPOINTS

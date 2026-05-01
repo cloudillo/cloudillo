@@ -4,6 +4,7 @@
 import * as React from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useAtom } from 'jotai'
 import debounce from 'debounce'
 
 import {
@@ -18,7 +19,7 @@ import type { ActionView } from '@cloudillo/types'
 import { useAuth, useApi, Button, ProfileCard, TimeFormat } from '@cloudillo/react'
 import type * as Types from '@cloudillo/core'
 
-import { useCommunitiesList, useContextSwitch } from '../context/index.js'
+import { contextOnboardingAtom, useCommunitiesList, useContextSwitch } from '../context/index.js'
 import { CloudilloLogo } from '../logo.js'
 import {
 	ProviderSelectionStep,
@@ -495,6 +496,7 @@ export function CreateCommunity() {
 	const [auth] = useAuth()
 	const { addPendingCommunity } = useCommunitiesList()
 	const { switchTo } = useContextSwitch()
+	const [, setContextOnboarding] = useAtom(contextOnboardingAtom)
 
 	// Invite gating
 	const isSadm = auth?.roles?.includes('SADM')
@@ -672,6 +674,10 @@ export function CreateCommunity() {
 			// the response's `onboarding` field. The community is held in
 			// pending state until the user clicks the IDP activation email.
 			const verifyIdpPending = result.onboarding === 'verify-idp'
+
+			if (verifyIdpPending) {
+				setContextOnboarding((prev) => ({ ...prev, [fullIdTag]: 'verify-idp' }))
+			}
 
 			setProgress('checking')
 

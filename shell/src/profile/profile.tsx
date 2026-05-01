@@ -38,7 +38,6 @@ import './profile.css'
 import { useAuth, useApi, IdentityTag } from '@cloudillo/react'
 
 import { useWsBus } from '../ws-bus.js'
-import { parseQS } from '../utils.js'
 import { ImageUpload } from '../image.js'
 import { type ActionEvt, ActionComp, ComposeTrigger } from '../apps/feed.js'
 import { ComposePanel } from '../apps/feed/index.js'
@@ -56,6 +55,9 @@ import {
 } from '../context/index.js'
 import { TrustBanner } from './TrustBanner.js'
 import { TrustChip } from './TrustChip.js'
+import { PendingRequestsList } from './community-requests.js'
+import { InvitationsList } from './community-invitations.js'
+import { InviteMembersDialog } from './invite-members-dialog.js'
 
 /**
  * Get the highest role from a list of roles
@@ -859,6 +861,11 @@ export function ProfileConnections({
 	const _dialog = useDialog()
 	const [activeContext] = useAtom(activeContextAtom)
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
+	const [subTab, setSubTab] = React.useState<'active' | 'requests' | 'invitations'>('active')
+	const [requestCount, setRequestCount] = React.useState(0)
+	const [invitationCount, setInvitationCount] = React.useState(0)
+	const [inviteOpen, setInviteOpen] = React.useState(false)
+	const [refreshTick, setRefreshTick] = React.useState(0)
 
 	// Check user's role in community context
 	// Use communityRoles prop (from proxy token) OR activeContext roles if we're in the viewed community
@@ -870,20 +877,50 @@ export function ProfileConnections({
 	const canManageMembers = isCommunity && userRoleLevel >= ROLE_LEVELS.moderator
 	const canChangeRoles = isCommunity && userRoleLevel >= ROLE_LEVELS.leader
 
+	const triggerRefresh = React.useCallback(() => setRefreshTick((n) => n + 1), [])
+
 	React.useEffect(
 		function loadConnections() {
 			if (!auth) return
-			console.log('loadConnections', auth)
+			const client = getClientFor(profile.idTag, { auth: 'preferred' })
+			if (!client) return
 			;(async function () {
-				const qs: Record<string, string> = parseQS(location.search)
-				console.log('QS', location.search, qs)
-
-				const client = getClientFor(profile.idTag, { auth: 'preferred' })
-				const profiles = await client!.profiles.list({ type: 'person' })
+				const profiles = await client.profiles.list({ type: 'person' })
 				setProfiles(profiles as Profile[])
 			})()
 		},
-		[auth, location.search]
+		[auth, location.search, refreshTick, profile.idTag, getClientFor]
+	)
+
+	React.useEffect(
+		function loadCounts() {
+			if (!isCommunity || !canManageMembers) return
+			const client = getClientFor(profile.idTag)
+			if (!client) return
+			let cancelled = false
+			client.actions
+				.list({ type: 'CONN', audience: profile.idTag, status: ['C', 'P'] })
+				.then((rs) => {
+					if (!cancelled) setRequestCount((rs as ActionView[]).length)
+				})
+				.catch((err) => {
+					console.error('Failed to load CONN counts', err)
+					if (!cancelled) setRequestCount(0)
+				})
+			client.actions
+				.list({ type: 'INVT', subject: '@' + profile.idTag, status: ['C', 'P'] })
+				.then((rs) => {
+					if (!cancelled) setInvitationCount((rs as ActionView[]).length)
+				})
+				.catch((err) => {
+					console.error('Failed to load INVT counts', err)
+					if (!cancelled) setInvitationCount(0)
+				})
+			return () => {
+				cancelled = true
+			}
+		},
+		[profile.idTag, canManageMembers, isCommunity, refreshTick, getClientFor]
 	)
 
 	// Handle role change
@@ -922,23 +959,96 @@ export function ProfileConnections({
 		}
 	}
 
-	// For communities, use MemberCard with role management
-	if (isCommunity) {
+	const activeMembersList = (
+		<>
+			{profiles.map((p) => (
+				<MemberCard
+					key={p.idTag}
+					member={p}
+					srcTag={profile.idTag}
+					showRoleControls={canManageMembers}
+					canChangeRole={canChangeRoles}
+					onRoleChange={canChangeRoles ? handleRoleChange : undefined}
+					onRemove={canManageMembers ? handleRemoveMember : undefined}
+				/>
+			))}
+		</>
+	)
+
+	// For communities with moderator+ access, show sub-tabs (Active / Requests / Invitations)
+	if (isCommunity && canManageMembers) {
 		return (
 			<>
-				{profiles.map((p) => (
-					<MemberCard
-						key={p.idTag}
-						member={p}
-						srcTag={profile.idTag}
-						showRoleControls={canManageMembers}
-						canChangeRole={canChangeRoles}
-						onRoleChange={canChangeRoles ? handleRoleChange : undefined}
-						onRemove={canManageMembers ? handleRemoveMember : undefined}
+				<div className="c-hbox g-2 ai-center mb-2">
+					<div className="c-tabs sub flex-fill" role="tablist">
+						<button
+							type="button"
+							role="tab"
+							aria-selected={subTab === 'active'}
+							className={mergeClasses('c-tab', subTab === 'active' && 'active')}
+							onClick={() => setSubTab('active')}
+						>
+							{t('Active')}
+						</button>
+						<button
+							type="button"
+							role="tab"
+							aria-selected={subTab === 'requests'}
+							className={mergeClasses('c-tab', subTab === 'requests' && 'active')}
+							onClick={() => setSubTab('requests')}
+						>
+							{t('Requests')}
+							{requestCount > 0 && (
+								<span className="c-badge ms-1">{requestCount}</span>
+							)}
+						</button>
+						<button
+							type="button"
+							role="tab"
+							aria-selected={subTab === 'invitations'}
+							className={mergeClasses('c-tab', subTab === 'invitations' && 'active')}
+							onClick={() => setSubTab('invitations')}
+						>
+							{t('Invitations')}
+							{invitationCount > 0 && (
+								<span className="c-badge ms-1">{invitationCount}</span>
+							)}
+						</button>
+					</div>
+					<Button variant="primary" onClick={() => setInviteOpen(true)}>
+						{t('+ Invite members')}
+					</Button>
+				</div>
+
+				{subTab === 'active' && activeMembersList}
+				{subTab === 'requests' && (
+					<PendingRequestsList
+						communityIdTag={profile.idTag}
+						getClientFor={getClientFor}
+						onChange={triggerRefresh}
 					/>
-				))}
+				)}
+				{subTab === 'invitations' && (
+					<InvitationsList
+						communityIdTag={profile.idTag}
+						getClientFor={getClientFor}
+						onChange={triggerRefresh}
+					/>
+				)}
+
+				<InviteMembersDialog
+					open={inviteOpen}
+					onClose={() => setInviteOpen(false)}
+					communityIdTag={profile.idTag}
+					onSent={triggerRefresh}
+				/>
 			</>
 		)
+	}
+
+	// For communities (non-moderators), use MemberCard with no role controls
+	if (isCommunity) {
+		return activeMembersList
 	}
 
 	// For personal profiles, use original ProfileListCard
@@ -1143,11 +1253,20 @@ export function ProfileSettings({
 							>
 								<option value="M">{t('Manual approval')}</option>
 								<option value="A">{t('Auto-accept')}</option>
-								<option value="I">{t('Ignore requests')}</option>
+								<option value="I">{t('Invite only')}</option>
 							</select>
 						</label>
 						<p className="c-hint mt-1">
-							{t('Controls how connection requests to this community are handled.')}
+							{t('Controls how connection requests to this community are handled.')}{' '}
+							{settings['profile.connection_mode'] === 'A'
+								? t('Anyone can join immediately.')
+								: settings['profile.connection_mode'] === 'I'
+									? t(
+											'Connection requests are auto-rejected. Members can only join via an invitation from a leader or moderator.'
+										)
+									: t(
+											'A leader or moderator must approve each connection request.'
+										)}
 						</p>
 
 						<label className="c-settings-field mt-3">

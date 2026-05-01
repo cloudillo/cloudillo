@@ -14,8 +14,7 @@ import {
 	LuHandshake as IcUserConnected,
 	LuCircleOff as IcUserBlocked,
 	LuUsers as IcUserAll,
-	LuPin as IcPin,
-	LuPinOff as IcPinOff,
+	LuExternalLink as IcExternalLink,
 	LuPlus as IcPlus,
 	LuScanLine as IcScan
 } from 'react-icons/lu'
@@ -23,7 +22,7 @@ import {
 import type { Profile } from '@cloudillo/types'
 import { useApi, useAuth, Fcd, ProfileCard } from '@cloudillo/react'
 import { parseQS } from '../utils.js'
-import { useCommunitiesList } from '../context/index.js'
+import { useContextSwitch } from '../context/index.js'
 import { useQrScanner } from '../components/QrScanner/index.js'
 
 function ProfileStatusIcon({ profile }: { profile: Profile }) {
@@ -93,18 +92,11 @@ function _ProfileDetails({ className }: { className?: string }) {
 interface ProfileListCardProps {
 	profile: Profile
 	srcTag?: string
-	showPinButton?: boolean
 }
 
-export function ProfileListCard({ profile, srcTag, showPinButton }: ProfileListCardProps) {
-	const { t } = useTranslation()
+export function ProfileListCard({ profile, srcTag }: ProfileListCardProps) {
 	const params = useParams()
 	const contextIdTag = params.contextIdTag!
-	const { pinnedIdTags, toggleFavorite } = useCommunitiesList()
-
-	const isPinned = pinnedIdTags.includes(profile.idTag)
-	// Only show pin for connected communities when showPinButton is true
-	const canShowPin = showPinButton && profile.connected === true
 
 	return (
 		<Link
@@ -112,22 +104,68 @@ export function ProfileListCard({ profile, srcTag, showPinButton }: ProfileListC
 			to={`/profile/${contextIdTag}/${profile.idTag}`}
 		>
 			<ProfileCard className="flex-fill" profile={profile} srcTag={srcTag} />
-			{canShowPin && (
-				<button
-					className="c-button icon ghost"
-					onClick={(e) => {
-						e.preventDefault()
-						e.stopPropagation()
-						toggleFavorite(profile.idTag)
-					}}
-					title={isPinned ? t('Unpin from sidebar') : t('Pin to sidebar')}
-					aria-pressed={isPinned}
-				>
-					{isPinned ? <IcPinOff /> : <IcPin />}
-				</button>
-			)}
 			<ProfileStatusIcon profile={profile} />
 		</Link>
+	)
+}
+
+interface CommunityListCardProps {
+	profile: Profile
+	srcTag?: string
+}
+
+export function CommunityListCard({ profile, srcTag }: CommunityListCardProps) {
+	const { t } = useTranslation()
+	const params = useParams()
+	const navigate = useNavigate()
+	const contextIdTag = params.contextIdTag!
+	const { switchTo } = useContextSwitch()
+
+	const isMember = profile.connected === true
+	const profilePath = `/profile/${contextIdTag}/${profile.idTag}`
+
+	const handleRowClick = () => {
+		if (isMember) {
+			switchTo(profile.idTag, '/feed').catch((err) => {
+				console.error('Failed to switch context:', err)
+			})
+		} else {
+			navigate(profilePath)
+		}
+	}
+
+	const handleViewProfile = (e: React.MouseEvent) => {
+		e.preventDefault()
+		e.stopPropagation()
+		navigate(profilePath)
+	}
+
+	return (
+		<div
+			className="c-panel p-1 mb-1 flex-row ai-center"
+			role="button"
+			tabIndex={0}
+			onClick={handleRowClick}
+			onKeyDown={(e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault()
+					handleRowClick()
+				}
+			}}
+			style={{ cursor: 'pointer' }}
+		>
+			<ProfileCard className="flex-fill" profile={profile} srcTag={srcTag} />
+			<button
+				type="button"
+				className="c-button icon ghost"
+				onClick={handleViewProfile}
+				title={t('View profile')}
+				aria-label={t('View profile')}
+			>
+				<IcExternalLink />
+			</button>
+			<ProfileStatusIcon profile={profile} />
+		</div>
 	)
 }
 
@@ -242,7 +280,7 @@ export function CommunityListPage() {
 					</div>
 					{!!profiles &&
 						profiles.map((profile) => (
-							<ProfileListCard key={profile.idTag} profile={profile} showPinButton />
+							<CommunityListCard key={profile.idTag} profile={profile} />
 						))}
 				</Fcd.Content>
 			</Fcd.Container>

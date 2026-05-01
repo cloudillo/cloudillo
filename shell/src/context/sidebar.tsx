@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /**
  * Context Switcher Sidebar
  *
@@ -12,9 +15,15 @@ import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth, useToast, mergeClasses, ProfilePicture } from '@cloudillo/react'
 
-import { LuClock3 as IcPending } from 'react-icons/lu'
+import { LuClock3 as IcPending, LuPin as IcPin, LuPinOff as IcPinOff } from 'react-icons/lu'
 
-import { useCommunitiesList, useContextSwitch, useSidebar, activeContextAtom } from './index'
+import {
+	useCommunitiesList,
+	useContextSwitch,
+	useSidebar,
+	activeContextAtom,
+	previewCommunityAtom
+} from './index'
 import { useAtom } from 'jotai'
 import type { CommunityRef } from './types'
 
@@ -22,6 +31,8 @@ interface CommunityListItemProps {
 	community: CommunityRef
 	isActive: boolean
 	onSwitch: (idTag: string) => void
+	onTogglePin: (idTag: string) => void
+	mode: 'pinned' | 'preview'
 	// Drag-and-drop props (optional, only for pinned items)
 	draggable?: boolean
 	isDragging?: boolean
@@ -36,6 +47,8 @@ function CommunityListItem({
 	community,
 	isActive,
 	onSwitch,
+	onTogglePin,
+	mode,
 	draggable,
 	isDragging,
 	isDragOver,
@@ -45,23 +58,32 @@ function CommunityListItem({
 	onDragEnd
 }: CommunityListItemProps) {
 	const { t } = useTranslation()
+	const isPreview = mode === 'preview'
+
+	const baseAriaLabel = community.isPending
+		? t('{{name}} (setting up)', { name: community.name })
+		: community.name
+	const ariaLabel = isPreview
+		? t('Currently viewing {{name}} (not pinned)', { name: community.name })
+		: baseAriaLabel
+
+	const pinAriaLabel = isPreview
+		? t('Pin {{name}} to context bar', { name: community.name })
+		: t('Unpin {{name}}', { name: community.name })
 
 	return (
 		<div
 			className={mergeClasses(
 				'c-sidebar-item',
 				isActive && 'active',
+				isPreview && 'preview',
 				community.isPending && 'pending',
 				isDragging && 'dragging',
 				isDragOver && 'drag-over'
 			)}
 			role="button"
 			tabIndex={0}
-			aria-label={
-				community.isPending
-					? t('{{name}} (setting up)', { name: community.name })
-					: community.name
-			}
+			aria-label={ariaLabel}
 			aria-current={isActive ? 'true' : undefined}
 			onClick={() => onSwitch(community.idTag)}
 			onKeyDown={(e) => {
@@ -88,6 +110,25 @@ function CommunityListItem({
 					</span>
 				)}
 			</div>
+			<button
+				type="button"
+				className="c-sidebar-item-pin-overlay"
+				aria-label={pinAriaLabel}
+				title={pinAriaLabel}
+				onClick={(e) => {
+					e.preventDefault()
+					e.stopPropagation()
+					onTogglePin(community.idTag)
+				}}
+				onKeyDown={(e) => {
+					// Prevent the parent row's Enter/Space handler from also firing
+					if (e.key === 'Enter' || e.key === ' ') {
+						e.stopPropagation()
+					}
+				}}
+			>
+				{isPreview ? <IcPin size={12} /> : <IcPinOff size={12} />}
+			</button>
 			<div className="c-sidebar-item-info">
 				<div className="c-sidebar-item-name">{community.name}</div>
 				{community.isPending && (
@@ -111,7 +152,8 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 	const { t } = useTranslation()
 	const [auth] = useAuth()
 	const [activeContext] = useAtom(activeContextAtom)
-	const { favorites, reorderFavorites } = useCommunitiesList()
+	const [previewCommunity] = useAtom(previewCommunityAtom)
+	const { favorites, reorderFavorites, toggleFavorite } = useCommunitiesList()
 	const { switchTo, isSwitching } = useContextSwitch()
 	const { isOpen, isPinned, close } = useSidebar()
 	const { error: toastError } = useToast()
@@ -173,7 +215,7 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 				toastError(t('Failed to switch context. Please try again.'))
 			})
 		},
-		[switchTo, location.pathname]
+		[switchTo, location.pathname, toastError, t]
 	)
 
 	if (!auth) return null
@@ -231,6 +273,8 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 								community={community}
 								isActive={activeContext?.idTag === community.idTag}
 								onSwitch={handleSwitch}
+								onTogglePin={toggleFavorite}
+								mode="pinned"
 								draggable
 								isDragging={draggedIndex === index}
 								isDragOver={dragOverIndex === index}
@@ -248,6 +292,20 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 							)}
 							onDragOver={(e) => handleDragOver(e, favorites.length)}
 							onDrop={(e) => handleDrop(e, favorites.length)}
+						/>
+					</div>
+				)}
+
+				{/* Preview slot for active unpinned community */}
+				{previewCommunity && (
+					<div className="c-sidebar-section c-sidebar-section-preview">
+						<CommunityListItem
+							key={previewCommunity.idTag}
+							community={previewCommunity}
+							isActive
+							onSwitch={handleSwitch}
+							onTogglePin={toggleFavorite}
+							mode="preview"
 						/>
 					</div>
 				)}

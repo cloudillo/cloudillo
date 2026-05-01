@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /**
  * Multi-Context UI - Jotai Atoms
  *
@@ -134,6 +137,34 @@ export const favoriteCommunitiesAtom = atom((get) => {
 	return favorites
 		.map((idTag) => communities.find((c) => c.idTag === idTag))
 		.filter((c): c is CommunityRef => c !== undefined)
+})
+
+/**
+ * Derived atom: Preview community
+ *
+ * Returns a CommunityRef when the active context is a community NOT in
+ * favorites, otherwise null. Avoids duplicating the logic in the sidebar
+ * component.
+ */
+export const previewCommunityAtom = atom((get) => {
+	const active = get(activeContextAtom)
+	if (!active || active.type !== 'community') return null
+	const favorites = get(favoritesAtom)
+	if (favorites.includes(active.idTag)) return null
+	const communities = get(communitiesAtom)
+	const found = communities.find((c) => c.idTag === active.idTag)
+	if (found) return found
+	// Fallback: synthesize a minimal CommunityRef from ActiveContext so the
+	// slot still renders even before communitiesAtom is populated on a cold
+	// load.
+	return {
+		idTag: active.idTag,
+		name: active.name,
+		profilePic: active.profilePic,
+		isFavorite: false,
+		unreadCount: 0,
+		lastActivityAt: null
+	} satisfies CommunityRef
 })
 
 /**

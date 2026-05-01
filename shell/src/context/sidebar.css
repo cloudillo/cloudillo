@@ -190,6 +190,56 @@
 	max-width: 100%;
 }
 
+/* Preview-slot variant for the active unpinned community */
+.c-sidebar-section-preview {
+	border-top: 1px solid var(--col-outline);
+}
+
+.c-sidebar-item.preview .c-sidebar-item-avatar {
+	border: 2px dashed var(--col-on-container);
+	border-radius: 35%;
+}
+
+/* Pin/unpin overlay button — visible always on preview, on hover/focus elsewhere */
+.c-sidebar-item-pin-overlay {
+	position: absolute;
+	top: 0.25rem;
+	right: 0.25rem;
+	width: 22px;
+	height: 22px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	background: var(--col-container);
+	color: var(--col-on-container);
+	border: 1px solid var(--col-outline);
+	border-radius: 50%;
+	cursor: pointer;
+	opacity: 0;
+	transition:
+		opacity 0.2s,
+		background 0.2s;
+	z-index: 1;
+}
+
+.c-sidebar-item:hover .c-sidebar-item-pin-overlay,
+.c-sidebar-item:focus-within .c-sidebar-item-pin-overlay,
+.c-sidebar-item-pin-overlay:focus,
+.c-sidebar-item.preview .c-sidebar-item-pin-overlay {
+	opacity: 1;
+}
+
+.c-sidebar-item-pin-overlay:hover {
+	background: lch(from var(--col-container) l c h / var(--op-hover));
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.c-sidebar-item-pin-overlay {
+		transition: none;
+	}
+}
+
 /* Favorite button */
 .c-sidebar-item-favorite {
 	position: absolute;

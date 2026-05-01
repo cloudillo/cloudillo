@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /**
  * Multi-Context UI - Public API
  *
@@ -31,6 +34,7 @@ export {
 	lastContextSwitchAtom,
 	contextSwitchingAtom,
 	favoriteCommunitiesAtom,
+	previewCommunityAtom,
 	recentCommunitiesAtom,
 	totalUnreadCountAtom,
 	sessionTrustAtom,

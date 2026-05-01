@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /**
  * Multi-Context UI - React Hooks
  *
@@ -115,6 +118,8 @@ export function useApiContext() {
 		): ApiClient | null => {
 			const authMode = opts?.auth ?? 'required'
 			const token = opts?.token
+			const ownIdTag = authRef.current?.idTag
+			const tokens = contextTokensRef.current
 
 			// For 'required' and 'preferred' (without explicit 'none'), use cached client
 			if (authMode !== 'none') {
@@ -122,8 +127,8 @@ export function useApiContext() {
 					// Verify the cached client's backing token still exists. If
 					// trust was revoked or the token was evicted, drop the stale
 					// cached client and fall through to the normal build path.
-					const own = idTag === auth?.idTag
-					const tokenData = own ? undefined : contextTokens.get(idTag)
+					const own = idTag === ownIdTag
+					const tokenData = own ? undefined : tokens.get(idTag)
 					if (own || (tokenData && tokenData.expiresAt > new Date())) {
 						return apiClientsRef.current.get(idTag)!
 					}
@@ -131,15 +136,15 @@ export function useApiContext() {
 				}
 
 				// User's own context uses primary API (skip for 'none'/'preferred' — caller wants unauthenticated)
-				if (authMode === 'required' && idTag === auth?.idTag) {
-					return primaryApi
+				if (authMode === 'required' && idTag === ownIdTag) {
+					return primaryApiRef.current
 				}
 			}
 
 			// Use provided token or get from cache
 			let authToken = token
 			if (!authToken && authMode !== 'none') {
-				const tokenData = contextTokens.get(idTag)
+				const tokenData = tokens.get(idTag)
 				if (tokenData && tokenData.expiresAt > new Date()) {
 					authToken = tokenData.token
 				}
@@ -166,7 +171,7 @@ export function useApiContext() {
 
 			return client
 		},
-		[contextTokens, auth?.idTag, primaryApi]
+		[]
 	)
 
 	/**
@@ -280,7 +285,7 @@ export function useApiContext() {
 				// Create context with roles from proxy token response
 				const newContext: ActiveContext = {
 					idTag,
-					type: idTag === auth?.idTag ? 'me' : 'community',
+					type: idTag === authRef.current?.idTag ? 'me' : 'community',
 					name: idTag,
 					roles: tokenResult.roles,
 					permissions: [],
@@ -299,13 +304,13 @@ export function useApiContext() {
 						prefix: 'ui.onboarding'
 					})
 					const value = settings.find((s) => s.key === 'ui.onboarding')?.value
-					setContextOnboarding((prev) => ({
-						...prev,
-						[idTag]: typeof value === 'string' ? value : null
-					}))
+					if (typeof value === 'string') {
+						setContextOnboarding((prev) => ({ ...prev, [idTag]: value }))
+					} else {
+						setContextOnboarding((prev) => ({ ...prev, [idTag]: null }))
+					}
 				} catch (settingsErr) {
 					console.warn('Failed to read ui.onboarding for context:', settingsErr)
-					setContextOnboarding((prev) => ({ ...prev, [idTag]: null }))
 				}
 			} catch (err) {
 				setError(err as Error)
@@ -315,7 +320,7 @@ export function useApiContext() {
 				setIsLoading(false)
 			}
 		},
-		[getTokenFor, getClientFor, setActiveContextState, setContextOnboarding, auth?.idTag]
+		[getTokenFor, getClientFor, setActiveContextState, setContextOnboarding]
 	)
 
 	return {
@@ -620,11 +625,13 @@ export function useContextSwitch() {
 			try {
 				const fromContext = activeContext?.idTag || 'none'
 
-				// Optimistic navigation - navigate first for faster perceived performance
-				navigate(`/app/${idTag}${path}`)
-
-				// Switch context (fetches token if needed)
+				// Switch context first (fetches token + ui.onboarding) so the
+				// destination route renders against fresh atom state. If this
+				// throws, the user stays on the source page and the existing
+				// error UI surfaces it.
 				await setActiveContext(idTag)
+
+				navigate(`/app/${idTag}${path}`)
 
 				// Update recent contexts (LRU)
 				setRecentContexts((prev) => {
@@ -640,12 +647,8 @@ export function useContextSwitch() {
 					timestamp: new Date()
 				}
 				setLastSwitch(switchEvent)
-
-				console.log('✅ Context switched:', switchEvent)
 			} catch (err) {
-				console.error('❌ Context switch failed:', err)
-				// Navigation already happened optimistically, user can still interact
-				// API calls in the view components will use the primary API as fallback
+				console.error('Context switch failed:', err)
 				throw err
 			} finally {
 				setIsSwitching(false)

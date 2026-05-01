@@ -8,8 +8,14 @@ import { useTranslation } from 'react-i18next'
 import { LuLock as IcLock, LuRefreshCw as IcLoading } from 'react-icons/lu'
 
 import { useApi, useAuth, Button } from '@cloudillo/react'
+import { FetchError } from '@cloudillo/core'
+import type { IdpStatusResponse } from '@cloudillo/core'
 import { registerServiceWorker, ensureEncryptionKey } from '../pwa.js'
 import { CloudilloLogo } from '../logo.js'
+import { VerifyIdpContent, type ResendState } from './verify-idp-content.js'
+
+const POLL_INTERVAL_MS = 10_000
+const RESEND_COOLDOWN_MS = 60_000
 
 export function Welcome() {
 	const { t } = useTranslation()
@@ -23,35 +29,115 @@ export function Welcome() {
 	const [progress, setProgress] = React.useState<'idle' | 'loading' | 'success'>('idle')
 	const [refValidating, setRefValidating] = React.useState(true)
 	const [refValid, setRefValid] = React.useState(false)
+	const [idp, setIdp] = React.useState<IdpStatusResponse | undefined>()
+	const [idpLoadError, setIdpLoadError] = React.useState<string | undefined>()
+	const [resendState, setResendState] = React.useState<ResendState>('idle')
+	const [resendError, setResendError] = React.useState<string | undefined>()
+	const cooldownTimerRef = React.useRef<number | undefined>(undefined)
 
-	// Validate ref on mount
+	// Validate ref + fetch IDP status on mount. Both calls are unauthenticated
+	// — the refId is the credential. The IDP-status endpoint short-circuits to
+	// `status: 'active'` for tenants that aren't gated, so we can call it
+	// unconditionally (no need to branch on registration type here).
 	React.useEffect(() => {
-		async function validateRef() {
+		async function init() {
 			if (!refId) {
 				setRefValidating(false)
 				setRefValid(false)
 				setError(t('Invalid or missing reference ID'))
 				return
 			}
-
-			// Wait for API to be ready
-			if (!api) {
-				return
-			}
+			if (!api) return
 
 			try {
 				await api.refs.get(refId)
 				setRefValid(true)
-				setRefValidating(false)
 			} catch (_err) {
 				setRefValid(false)
 				setRefValidating(false)
 				setError(t('Invalid or expired reference link'))
+				return
+			}
+
+			try {
+				const res = await api.refs.idpStatus(refId)
+				setIdp(res)
+				if (
+					res.status !== 'active' &&
+					res.expiresAt &&
+					new Date(res.expiresAt).getTime() <= Date.now()
+				) {
+					setResendState('expired')
+				}
+			} catch (err) {
+				console.warn('refs.idpStatus failed on welcome page:', err)
+				setIdpLoadError(t('Failed to load identity status. Try refreshing the page.'))
+			}
+			setRefValidating(false)
+		}
+		init()
+	}, [api, refId, t])
+
+	// Poll IDP status while the gate is engaged. Stops as soon as we see
+	// `status === 'active'` (which switches the page to the password form).
+	const shouldPoll = !!idp && idp.status !== 'active'
+	React.useEffect(() => {
+		if (!api || !refId || !shouldPoll) return
+
+		let cancelled = false
+		const id = window.setInterval(async () => {
+			try {
+				const res = await api.refs.idpStatus(refId)
+				if (cancelled) return
+				setIdp(res)
+				if (
+					res.status !== 'active' &&
+					res.expiresAt &&
+					new Date(res.expiresAt).getTime() <= Date.now()
+				) {
+					setResendState('expired')
+				}
+			} catch (err) {
+				console.warn('refs.idpStatus poll failed:', err)
+			}
+		}, POLL_INTERVAL_MS)
+		return () => {
+			cancelled = true
+			window.clearInterval(id)
+		}
+	}, [api, refId, shouldPoll])
+
+	React.useEffect(() => {
+		return () => {
+			if (cooldownTimerRef.current !== undefined) {
+				window.clearTimeout(cooldownTimerRef.current)
 			}
 		}
+	}, [])
 
-		validateRef()
-	}, [api, refId, t])
+	async function onResend() {
+		if (!api || !refId || resendState !== 'idle') return
+		setResendError(undefined)
+		setResendState('sending')
+		try {
+			await api.refs.resendActivation(refId)
+			setResendState('cooldown')
+			if (cooldownTimerRef.current !== undefined) {
+				window.clearTimeout(cooldownTimerRef.current)
+			}
+			cooldownTimerRef.current = window.setTimeout(() => {
+				cooldownTimerRef.current = undefined
+				setResendState((s) => (s === 'cooldown' ? 'idle' : s))
+			}, RESEND_COOLDOWN_MS)
+		} catch (err: unknown) {
+			if (err instanceof FetchError && err.httpStatus === 410) {
+				setResendState('expired')
+			} else {
+				setResendState('idle')
+				setResendError(t('Failed to resend activation email. Please try again.'))
+			}
+		}
+	}
 
 	async function handleSubmit(evt: React.FormEvent) {
 		evt.preventDefault()
@@ -87,11 +173,11 @@ export function Welcome() {
 
 			setProgress('success')
 			setAuth({ ...res })
-			// IDP-typed registrations sit in 'verify-idp' until the IDP
-			// activation email is clicked. Skipping ahead to /onboarding/join
-			// would leave the user accumulating content under an identity that
-			// gets auto-deleted at the IDP's 24h deadline. Read the live setting
-			// and route accordingly.
+			// IDP-typed registrations should already have cleared
+			// `ui.onboarding` via the refId-scoped IDP-status call above. The
+			// post-auth `/onboarding/verify-idp` redirect remains as a
+			// defensive fallback for race conditions where the clear hasn't
+			// propagated yet.
 			let nextPath = '/onboarding/join'
 			try {
 				const settings = await api.settings.list({ prefix: 'ui.onboarding' })
@@ -114,7 +200,7 @@ export function Welcome() {
 		}
 	}
 
-	// Show loading state while validating ref
+	// Show loading state while validating ref / loading IDP status
 	if (refValidating) {
 		return (
 			<div className="c-panel p-4">
@@ -144,6 +230,32 @@ export function Welcome() {
 					<p>{error || t('Invalid or expired reference link')}</p>
 				</div>
 			</div>
+		)
+	}
+
+	// Gate the password form on IDP activation. Domain-typed tenants and
+	// already-active IDP tenants get `status: 'active'` from the backend
+	// short-circuit and fall straight through.
+	if (idp && idp.status !== 'active') {
+		return (
+			<VerifyIdpContent
+				idp={idp}
+				loadError={idpLoadError}
+				resendError={resendError}
+				resendState={resendState}
+				onResend={onResend}
+			/>
+		)
+	}
+	if (!idp && idpLoadError) {
+		return (
+			<VerifyIdpContent
+				idp={undefined}
+				loadError={idpLoadError}
+				resendError={resendError}
+				resendState={resendState}
+				onResend={onResend}
+			/>
 		)
 	}
 

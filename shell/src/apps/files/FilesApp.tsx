@@ -6,7 +6,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAtom } from 'jotai'
 
-import { LuFilter as IcFilter, LuCloud as IcCloud, LuUpload as IcUpload } from 'react-icons/lu'
+import { LuCloud as IcCloud, LuUpload as IcUpload } from 'react-icons/lu'
 
 import './files.css'
 
@@ -72,10 +72,15 @@ export function FilesApp() {
 	// Navigation state
 	const {
 		currentFolderId,
+		isRemoteBrowsing,
+		remoteAccessLevel,
+		remoteApi,
 		breadcrumbs,
 		viewMode,
+		canGoBack,
 		navigateToFolder,
 		navigateToView,
+		goBack,
 		goUp,
 		enterFolder
 	} = useFileNavigation()
@@ -103,13 +108,15 @@ export function FilesApp() {
 		fileType: fileTypeFilter,
 		owner: ownerFilter,
 		ownerIdTag: contextIdTag,
-		searchQuery: debouncedSearchQuery
+		searchQuery: debouncedSearchQuery,
+		remoteApi
 	})
 
 	// Smart upload (wraps upload queue with import detection)
 	const uploadQueue = useSmartUpload({
 		parentId: currentFolderId,
-		onUploadComplete: fileListData.refresh
+		onUploadComplete: fileListData.refresh,
+		apiOverride: isRemoteBrowsing ? remoteApi : undefined
 	})
 
 	// Sort files: pinned first (except in Recent/Trash), then folders, then regular files
@@ -535,20 +542,21 @@ export function FilesApp() {
 	const isTrashView = viewMode === 'trash'
 	const isInitialLoading = fileListData.isLoading && files.length === 0
 
-	// Disable drag-drop in trash view
-	const canUpload = viewMode === 'browse'
+	// Disable drag-drop in trash view and read-only remote browsing
+	const canUpload = viewMode === 'browse' && (!isRemoteBrowsing || remoteAccessLevel === 'write')
 
 	return (
 		<>
 			<DropZone
 				overlay
-				onFilesDropped={uploadQueue.handleFilesForUpload}
-				disabled={!canUpload}
+				onFilesDropped={canUpload ? uploadQueue.handleFilesForUpload : () => {}}
 				hover={
-					<div className="c-vbox align-items-center g-2">
-						<IcUpload style={{ fontSize: '3rem' }} />
-						<div>{t('Drop files here to upload')}</div>
-					</div>
+					canUpload ? (
+						<div className="c-vbox align-items-center g-2">
+							<IcUpload style={{ fontSize: '3rem' }} />
+							<div>{t('Drop files here to upload')}</div>
+						</div>
+					) : undefined
 				}
 			>
 				<Fcd.Container className="g-1">
@@ -571,28 +579,34 @@ export function FilesApp() {
 					<Fcd.Content
 						header={
 							<div className="c-vbox g-2">
-								<div className="c-nav c-hbox g-2">
-									<IcFilter
-										className="md-hide lg-hide"
-										onClick={() => setShowFilter(true)}
-									/>
-									<Toolbar
-										displayMode={displayMode}
-										onDisplayModeChange={setDisplayMode}
-										onFilesSelected={uploadQueue.handleFilesForUpload}
-										onCreateFolder={
-											viewMode === 'browse' ? handleCreateFolder : undefined
-										}
-										onEmptyTrash={isTrashView ? handleEmptyTrash : undefined}
-										isTrashView={isTrashView}
-									/>
-								</div>
-								{viewMode === 'browse' && breadcrumbs.length > 1 && (
-									<Breadcrumbs
-										items={breadcrumbs}
-										onNavigate={navigateToFolder}
-									/>
-								)}
+								<Toolbar
+									canGoBack={canGoBack}
+									onGoBack={goBack}
+									canGoUp={!!(currentFolderId || isRemoteBrowsing)}
+									onGoUp={goUp}
+									onShowFilter={() => setShowFilter(true)}
+									displayMode={displayMode}
+									onDisplayModeChange={setDisplayMode}
+									onFilesSelected={
+										canUpload ? uploadQueue.handleFilesForUpload : undefined
+									}
+									onCreateFolder={
+										viewMode === 'browse' && !isRemoteBrowsing
+											? handleCreateFolder
+											: undefined
+									}
+									onEmptyTrash={isTrashView ? handleEmptyTrash : undefined}
+									isTrashView={isTrashView}
+								/>
+								{viewMode === 'browse' &&
+									(breadcrumbs.length > 1 || isRemoteBrowsing) && (
+										<Breadcrumbs
+											items={breadcrumbs}
+											onNavigate={navigateToFolder}
+											isRemoteBrowsing={isRemoteBrowsing}
+											accessLevel={remoteAccessLevel}
+										/>
+									)}
 								<FilterChips
 									fileTypeFilter={fileTypeFilter}
 									ownerFilter={ownerFilter}
@@ -752,10 +766,15 @@ export function FilesApp() {
 					viewMode={viewMode}
 					fileOps={fileOps}
 					onClose={closeContextMenu}
-					onMoveFiles={setMoveFileIds}
-					onShare={(file) => {
-						setShareDialogFile(file)
-					}}
+					onMoveFiles={isRemoteBrowsing ? undefined : setMoveFileIds}
+					onShare={
+						isRemoteBrowsing
+							? undefined
+							: (file) => {
+									setShareDialogFile(file)
+								}
+					}
+					isRemoteBrowsing={isRemoteBrowsing}
 				/>
 			)}
 

@@ -4,6 +4,7 @@
 import * as React from 'react'
 import { useAuth, useInfiniteScroll } from '@cloudillo/react'
 import type * as Types from '@cloudillo/core'
+import type { ApiClient } from '@cloudillo/core'
 import { useCurrentContextIdTag, useContextAwareApi } from '../../../context/index.js'
 import { createCachedFileFetchPage } from '../../../cache/index.js'
 import type { File, ViewMode, FileTypeFilter, OwnerFilter } from '../types.js'
@@ -17,6 +18,7 @@ export interface UseFileListOptions {
 	owner?: OwnerFilter
 	ownerIdTag?: string // Current user's idTag (needed for 'me'/'others' filter)
 	searchQuery?: string
+	remoteApi?: ApiClient | null
 }
 
 const PAGE_SIZE = 30
@@ -72,7 +74,8 @@ export function useFileList(options?: UseFileListOptions) {
 		fileType = 'all',
 		owner = 'anyone',
 		ownerIdTag,
-		searchQuery
+		searchQuery,
+		remoteApi
 	} = options || {}
 
 	// Convert tags array to comma-separated string for API
@@ -157,12 +160,13 @@ export function useFileList(options?: UseFileListOptions) {
 	// Raw network fetch function (returns FileView for caching)
 	const rawFetchPage = React.useCallback(
 		async (cursor: string | null, limit: number) => {
-			if (!api) {
+			const effectiveApi = remoteApi || api
+			if (!effectiveApi) {
 				return { items: [] as Types.FileView[], nextCursor: null, hasMore: false }
 			}
 
 			const queryParams = buildQueryParams(cursor, limit)
-			const result = await api.files.listPaginated(queryParams)
+			const result = await effectiveApi.files.listPaginated(queryParams)
 
 			return {
 				items: result.data,
@@ -170,25 +174,31 @@ export function useFileList(options?: UseFileListOptions) {
 				hasMore: result.cursorPagination?.hasMore ?? false
 			}
 		},
-		[api, buildQueryParams]
+		[api, remoteApi, buildQueryParams]
 	)
 
 	// Cached fetch page wrapping network call with offline fallback
+	// Skip cache layer for remote browsing — remote content shouldn't pollute local cache
 	const cachedFetchPage = React.useMemo(
-		() => createCachedFileFetchPage(contextIdTag, rawFetchPage, cacheQueryParams),
-		[contextIdTag, rawFetchPage, cacheQueryParams]
+		() =>
+			remoteApi
+				? null
+				: createCachedFileFetchPage(contextIdTag, rawFetchPage, cacheQueryParams),
+		[contextIdTag, rawFetchPage, cacheQueryParams, remoteApi]
 	)
 
 	// Convert FileView → File after cache layer
 	const fetchPage = React.useCallback(
 		async (cursor: string | null, limit: number) => {
-			const result = await cachedFetchPage(cursor, limit)
+			const result = cachedFetchPage
+				? await cachedFetchPage(cursor, limit)
+				: await rawFetchPage(cursor, limit)
 			return {
 				...result,
 				items: result.items.map(convertFileView)
 			}
 		},
-		[cachedFetchPage]
+		[cachedFetchPage, rawFetchPage]
 	)
 
 	// Use infinite scroll hook
@@ -214,6 +224,7 @@ export function useFileList(options?: UseFileListOptions) {
 			ownerIdTag,
 			trimmedSearch,
 			contextIdTag,
+			remoteApi,
 			refreshCounter
 		],
 		enabled: !!api

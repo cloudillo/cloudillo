@@ -48,6 +48,12 @@ export function useSmartUpload(options?: UseUploadQueueOptions) {
 	 */
 	const handleFilesForUpload = React.useCallback(
 		function handleFilesForUpload(files: globalThis.File[]) {
+			// Skip import detection for remote uploads — just upload as files
+			if (options?.apiOverride) {
+				uploadQueue.addFiles(files)
+				return
+			}
+
 			const plainFiles: globalThis.File[] = []
 			const convertible: PendingConversion[] = []
 
@@ -70,7 +76,7 @@ export function useSmartUpload(options?: UseUploadQueueOptions) {
 				setPendingConversions((prev) => [...prev, ...convertible])
 			}
 		},
-		[uploadQueue.addFiles]
+		[uploadQueue.addFiles, options?.apiOverride]
 	)
 
 	/**

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+import type { ApiClient } from '@cloudillo/core'
 import { useContextAwareApi } from '../../../context/index.js'
 
 export interface UploadItem {
@@ -16,6 +17,7 @@ export interface UploadItem {
 export interface UseUploadQueueOptions {
 	parentId?: string | null
 	onUploadComplete?: () => void
+	apiOverride?: ApiClient | null
 }
 
 let uploadIdCounter = 0
@@ -26,7 +28,7 @@ export function useUploadQueue(options?: UseUploadQueueOptions) {
 	const [isUploading, setIsUploading] = React.useState(false)
 	const processingRef = React.useRef(false)
 
-	const { parentId, onUploadComplete } = options || {}
+	const { parentId, onUploadComplete, apiOverride } = options || {}
 
 	// Add files to the upload queue
 	const addFiles = React.useCallback(function addFiles(files: globalThis.File[]) {
@@ -58,7 +60,8 @@ export function useUploadQueue(options?: UseUploadQueueOptions) {
 	// Process the queue
 	React.useEffect(
 		function processQueue() {
-			if (!api || processingRef.current) return
+			const effectiveApi = apiOverride ?? api
+			if (!effectiveApi || processingRef.current) return
 
 			const nextItem = queue.find((item) => item.status === 'queued')
 			if (!nextItem) {
@@ -81,7 +84,7 @@ export function useUploadQueue(options?: UseUploadQueueOptions) {
 			;(async function uploadFile() {
 				try {
 					// Upload the file
-					const result = await api.files.uploadBlob(
+					const result = await effectiveApi.files.uploadBlob(
 						'file', // preset
 						nextItem.file.name,
 						nextItem.file,
@@ -90,7 +93,7 @@ export function useUploadQueue(options?: UseUploadQueueOptions) {
 
 					// If we have a parentId, move the file to that folder
 					if (parentId) {
-						await api.files.update(result.fileId, { parentId })
+						await effectiveApi.files.update(result.fileId, { parentId })
 					}
 
 					// Mark as complete
@@ -127,7 +130,7 @@ export function useUploadQueue(options?: UseUploadQueueOptions) {
 				}
 			})()
 		},
-		[api, queue, parentId, onUploadComplete, isUploading]
+		[api, apiOverride, queue, parentId, onUploadComplete, isUploading]
 	)
 
 	const stats = React.useMemo(

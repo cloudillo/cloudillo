@@ -8,7 +8,10 @@ import {
 	LuFolderPlus as IcNewFolder,
 	LuLayoutGrid as IcGrid,
 	LuList as IcList,
-	LuTrash2 as IcEmptyTrash
+	LuTrash2 as IcEmptyTrash,
+	LuArrowLeft as IcArrowLeft,
+	LuArrowUp as IcArrowUp,
+	LuFilter as IcFilter
 } from 'react-icons/lu'
 import {
 	mergeClasses,
@@ -21,9 +24,14 @@ import {
 export type DisplayMode = 'grid' | 'list'
 
 export interface ToolbarProps {
+	canGoBack?: boolean
+	onGoBack?: () => void
+	canGoUp?: boolean
+	onGoUp?: () => void
+	onShowFilter?: () => void
 	displayMode: DisplayMode
 	onDisplayModeChange: (mode: DisplayMode) => void
-	onFilesSelected: (files: globalThis.File[]) => void
+	onFilesSelected?: (files: globalThis.File[]) => void
 	onCreateFolder?: () => void
 	onEmptyTrash?: () => void
 	isTrashView?: boolean
@@ -31,6 +39,11 @@ export interface ToolbarProps {
 }
 
 export function Toolbar({
+	canGoBack,
+	onGoBack,
+	canGoUp,
+	onGoUp,
+	onShowFilter,
 	displayMode,
 	onDisplayModeChange,
 	onFilesSelected,
@@ -50,7 +63,7 @@ export function Toolbar({
 		function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
 			const fileList = e.target.files
 			if (fileList && fileList.length > 0) {
-				onFilesSelected(Array.from(fileList))
+				onFilesSelected?.(Array.from(fileList))
 			}
 			// Reset input so the same file can be selected again
 			e.target.value = ''
@@ -60,23 +73,60 @@ export function Toolbar({
 
 	return (
 		<ToolbarContainer className={className}>
+			{onShowFilter && (
+				<button
+					type="button"
+					className="c-button icon md-hide lg-hide"
+					onClick={onShowFilter}
+					title={t('Filter')}
+				>
+					<IcFilter />
+				</button>
+			)}
+			{onGoBack && (
+				<button
+					type="button"
+					className="c-button icon"
+					disabled={!canGoBack}
+					onClick={onGoBack}
+					title={t('Go back')}
+				>
+					<IcArrowLeft />
+				</button>
+			)}
+			{onGoUp && (
+				<button
+					type="button"
+					className="c-button icon"
+					disabled={!canGoUp}
+					onClick={onGoUp}
+					title={t('Go to parent folder')}
+				>
+					<IcArrowUp />
+				</button>
+			)}
+			{(onGoBack || onGoUp) && <ToolbarDivider />}
 			{!isTrashView && (
 				<>
-					<button
-						type="button"
-						className="c-button icon primary"
-						onClick={handleUploadClick}
-						title={t('Upload files')}
-					>
-						<IcUpload />
-					</button>
-					<input
-						ref={fileInputRef}
-						type="file"
-						multiple
-						style={{ display: 'none' }}
-						onChange={handleFileChange}
-					/>
+					{onFilesSelected && (
+						<>
+							<button
+								type="button"
+								className="c-button icon primary"
+								onClick={handleUploadClick}
+								title={t('Upload files')}
+							>
+								<IcUpload />
+							</button>
+							<input
+								ref={fileInputRef}
+								type="file"
+								multiple
+								style={{ display: 'none' }}
+								onChange={handleFileChange}
+							/>
+						</>
+					)}
 
 					{onCreateFolder && (
 						<button

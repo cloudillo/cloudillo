@@ -59,6 +59,7 @@ export interface ContextMenuProps {
 	onClose: () => void
 	onMoveFiles?: (fileIds: string[]) => void
 	onShare?: (file: File) => void
+	isRemoteBrowsing?: boolean
 }
 
 export function ContextMenu({
@@ -69,7 +70,8 @@ export function ContextMenu({
 	fileOps,
 	onClose,
 	onMoveFiles,
-	onShare
+	onShare,
+	isRemoteBrowsing
 }: ContextMenuProps) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
@@ -227,11 +229,11 @@ export function ContextMenu({
 				/>
 			)}
 
-			{/* Share & Visibility section */}
-			{(onShare || (canManage && fileOps.setVisibility)) && <Divider />}
+			{/* Share & Visibility section — hidden in remote browsing */}
+			{!isRemoteBrowsing && (onShare || (canManage && fileOps.setVisibility)) && <Divider />}
 
 			{/* Share - only for single selection */}
-			{isSingleSelect && onShare && (
+			{!isRemoteBrowsing && isSingleSelect && onShare && (
 				<Item
 					icon={<IcShare />}
 					label={t('Share...')}
@@ -240,7 +242,7 @@ export function ContextMenu({
 			)}
 
 			{/* Visibility submenu - only for single selection and owner/manager */}
-			{canManage && fileOps.setVisibility && (
+			{!isRemoteBrowsing && canManage && fileOps.setVisibility && (
 				<Sub
 					icon={React.createElement(currentVisibility.icon)}
 					label={t('Visibility')}
@@ -264,48 +266,52 @@ export function ContextMenu({
 				</Sub>
 			)}
 
-			{/* Star toggle */}
-			<Item
-				icon={isStarred ? <IcStarOff /> : <IcStar />}
-				label={
-					isSingleSelect
-						? isStarred
-							? t('Remove star')
-							: t('Add star')
-						: isStarred
-							? t('Remove star from {{count}} items', { count })
-							: t('Add star to {{count}} items', { count })
-				}
-				onClick={handleAction(() =>
-					isSingleSelect
-						? fileOps.toggleStarred?.(file.fileId)
-						: fileOps.toggleStarredBatch?.(selectedFileIds, !isStarred)
-				)}
-			/>
+			{/* Star toggle — hidden in remote browsing */}
+			{!isRemoteBrowsing && (
+				<Item
+					icon={isStarred ? <IcStarOff /> : <IcStar />}
+					label={
+						isSingleSelect
+							? isStarred
+								? t('Remove star')
+								: t('Add star')
+							: isStarred
+								? t('Remove star from {{count}} items', { count })
+								: t('Add star to {{count}} items', { count })
+					}
+					onClick={handleAction(() =>
+						isSingleSelect
+							? fileOps.toggleStarred?.(file.fileId)
+							: fileOps.toggleStarredBatch?.(selectedFileIds, !isStarred)
+					)}
+				/>
+			)}
 
-			{/* Pin toggle */}
-			<Item
-				icon={isPinned ? <IcPinOff /> : <IcPin />}
-				label={
-					isSingleSelect
-						? isPinned
-							? t('Unpin')
-							: t('Pin to top')
-						: isPinned
-							? t('Unpin {{count}} items', { count })
-							: t('Pin {{count}} items to top', { count })
-				}
-				onClick={handleAction(() =>
-					isSingleSelect
-						? fileOps.togglePinned?.(file.fileId)
-						: fileOps.togglePinnedBatch?.(selectedFileIds, !isPinned)
-				)}
-			/>
+			{/* Pin toggle — hidden in remote browsing */}
+			{!isRemoteBrowsing && (
+				<Item
+					icon={isPinned ? <IcPinOff /> : <IcPin />}
+					label={
+						isSingleSelect
+							? isPinned
+								? t('Unpin')
+								: t('Pin to top')
+							: isPinned
+								? t('Unpin {{count}} items', { count })
+								: t('Pin {{count}} items to top', { count })
+					}
+					onClick={handleAction(() =>
+						isSingleSelect
+							? fileOps.togglePinned?.(file.fileId)
+							: fileOps.togglePinnedBatch?.(selectedFileIds, !isPinned)
+					)}
+				/>
+			)}
 
-			<Divider />
+			{!isRemoteBrowsing && <Divider />}
 
 			{/* Rename - only for single selection */}
-			{isSingleSelect && (
+			{!isRemoteBrowsing && isSingleSelect && (
 				<Item
 					icon={<IcRename />}
 					label={t('Rename')}
@@ -314,16 +320,18 @@ export function ContextMenu({
 			)}
 
 			{/* Duplicate - only for single CRDT/RTDB files */}
-			{isSingleSelect && (file.fileTp === 'CRDT' || file.fileTp === 'RTDB') && (
-				<Item
-					icon={<IcDuplicate />}
-					label={t('Duplicate')}
-					onClick={handleAction(() => fileOps.doDuplicateFile?.(file.fileId))}
-				/>
-			)}
+			{!isRemoteBrowsing &&
+				isSingleSelect &&
+				(file.fileTp === 'CRDT' || file.fileTp === 'RTDB') && (
+					<Item
+						icon={<IcDuplicate />}
+						label={t('Duplicate')}
+						onClick={handleAction(() => fileOps.doDuplicateFile?.(file.fileId))}
+					/>
+				)}
 
 			{/* Move - always available */}
-			{onMoveFiles && (
+			{!isRemoteBrowsing && onMoveFiles && (
 				<Item
 					icon={<IcMove />}
 					label={
@@ -333,23 +341,25 @@ export function ContextMenu({
 				/>
 			)}
 
-			<Divider />
+			{!isRemoteBrowsing && <Divider />}
 
-			{/* Delete - always available */}
-			<Item
-				icon={<IcTrash />}
-				label={
-					isSingleSelect
-						? t('Move to trash')
-						: t('Move {{count}} items to trash', { count })
-				}
-				onClick={handleAction(() =>
-					isSingleSelect
-						? fileOps.doDeleteFile(file.fileId)
-						: fileOps.doDeleteFiles?.(selectedFileIds)
-				)}
-				danger
-			/>
+			{/* Delete — hidden in remote browsing */}
+			{!isRemoteBrowsing && (
+				<Item
+					icon={<IcTrash />}
+					label={
+						isSingleSelect
+							? t('Move to trash')
+							: t('Move {{count}} items to trash', { count })
+					}
+					onClick={handleAction(() =>
+						isSingleSelect
+							? fileOps.doDeleteFile(file.fileId)
+							: fileOps.doDeleteFiles?.(selectedFileIds)
+					)}
+					danger
+				/>
+			)}
 		</>
 	)
 

@@ -20,7 +20,7 @@ export const PropertyPanel = createComponent<HTMLDivElement, PropertyPanelProps>
 					width,
 					minWidth: width,
 					maxWidth: width,
-					borderLeft: '1px solid var(--c-border)',
+					borderLeft: '1px solid var(--col-outline)',
 					overflow: 'hidden',
 					...style
 				}}

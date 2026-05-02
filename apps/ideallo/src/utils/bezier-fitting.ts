@@ -702,6 +702,29 @@ export function segmentsToSvgPath(
 // Main Entry Point
 // ============================================================================
 
+function calculateSegmentsBounds(segments: BezierSegment[]): Bounds {
+	if (segments.length === 0) return { x: 0, y: 0, width: 0, height: 0 }
+
+	let minX = Infinity,
+		minY = Infinity
+	let maxX = -Infinity,
+		maxY = -Infinity
+
+	const samples = 10
+	for (const seg of segments) {
+		for (let i = 0; i <= samples; i++) {
+			const t = i / samples
+			const [x, y] = pointOnBezier(t, seg)
+			minX = Math.min(minX, x)
+			minY = Math.min(minY, y)
+			maxX = Math.max(maxX, x)
+			maxY = Math.max(maxY, y)
+		}
+	}
+
+	return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+}
+
 /**
  * Convert timed points to an optimized bezier path
  */
@@ -711,30 +734,27 @@ export function fitBezierPath(
 	intent: DrawingIntent
 ): BezierFitResult {
 	const points: Point[] = timedPoints.map((p) => [p.x, p.y])
-	const bounds = getBoundsFromPoints(points)
+	const inputBounds = getBoundsFromPoints(points)
 
-	// Calculate precision
-	const precision = calculatePrecision(bounds, intent)
+	const precision = calculatePrecision(inputBounds, intent)
 
-	// Detect corners
 	const corners = detectBezierCorners(timedPoints, metrics, intent)
 
-	// Fit bezier curves
 	const segments = fitBezierCurves(timedPoints, metrics, intent, corners)
 
-	// Check for auto-close
-	const closed = shouldAutoClose(points, bounds)
+	const closed = shouldAutoClose(points, inputBounds)
 	if (closed && segments.length > 0) {
 		const closingSeg = createClosingSegment(segments, metrics.avgSpeed)
 		segments.push(closingSeg)
 	}
 
-	// Generate SVG path with coordinates relative to bounds origin
-	const pathData = segmentsToSvgPath(segments, precision, closed, bounds.x, bounds.y)
+	const curveBounds = calculateSegmentsBounds(segments)
+
+	const pathData = segmentsToSvgPath(segments, precision, closed, curveBounds.x, curveBounds.y)
 
 	return {
 		pathData,
-		bounds,
+		bounds: curveBounds,
 		closed
 	}
 }

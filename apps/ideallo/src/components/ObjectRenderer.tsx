@@ -25,6 +25,7 @@ import { StickyEditOverlay } from './StickyEditOverlay.js'
 import { ImageRenderer } from './ImageRenderer.js'
 import { SvgDocumentEmbed } from '@cloudillo/react'
 import { getBoundsFromPoints } from '../utils/geometry.js'
+import { calculatePathBounds } from '../utils/hit-testing.js'
 import type { PolygonObject } from '../crdt/index.js'
 
 export interface ObjectRendererProps {
@@ -76,7 +77,19 @@ function getRotationCenter(obj: IdealloObject): { cx: number; cy: number } {
 	const pivotY = obj.pivotY ?? 0.5
 
 	switch (obj.type) {
-		case 'freehand':
+		case 'freehand': {
+			const pathBounds = calculatePathBounds(obj.pathData)
+			if (pathBounds) {
+				return {
+					cx: obj.x + pathBounds.x + pathBounds.width * pivotX,
+					cy: obj.y + pathBounds.y + pathBounds.height * pivotY
+				}
+			}
+			return {
+				cx: obj.x + obj.width * pivotX,
+				cy: obj.y + obj.height * pivotY
+			}
+		}
 		case 'rect':
 		case 'ellipse':
 		case 'text':

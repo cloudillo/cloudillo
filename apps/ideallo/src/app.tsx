@@ -59,6 +59,7 @@ import {
 	updateDocumentNavState
 } from './crdt/index.js'
 import { getObjectBounds } from './utils/bounds.js'
+import { scalePathData } from './utils/path-scaling.js'
 import type { MorphAnimationState } from './smart-ink/index.js'
 
 export function IdealloApp() {
@@ -468,6 +469,16 @@ export function IdealloApp() {
 		return obj.width / obj.height
 	}, [selectedIds, ideallo.doc, ideallo.objects])
 
+	// Compute corner aspect lock for drawn shapes (not images which have explicit ratio)
+	const cornerAspectLock = React.useMemo(() => {
+		if (selectedIds.size !== 1 || !ideallo.doc) return false
+		const id = Array.from(selectedIds)[0]
+		const obj = getObject(ideallo.doc, id)
+		if (!obj) return false
+		const drawnTypes = new Set(['rect', 'ellipse', 'freehand', 'polygon'])
+		return drawnTypes.has(obj.type)
+	}, [selectedIds, ideallo.doc, ideallo.objects])
+
 	// Coordinate transform callbacks for library hooks
 	// Note: SvgCanvasContext.translateTo returns [number, number], but hooks expect Point { x, y }
 	const resizeTransformCoordinates = React.useCallback(
@@ -656,14 +667,18 @@ export function IdealloApp() {
 								endY: originalBounds.y + dy + relEndY * scaleY
 							})
 						} else if (origObj.type === 'freehand') {
-							// Freehand paths are immutable - just update bounds
-							// Note: Actual path scaling would require SVG transform
+							const scaledPathData = scalePathData(origObj.pathData, scaleX, scaleY)
 							updateObjectFields(yDoc, doc, objectId, {
 								x: objNewX,
 								y: objNewY,
 								width: origObj.width * scaleX,
 								height: origObj.height * scaleY
 							})
+							const stored = doc.o.get(objectId)
+							if (stored && stored.t === 'F') {
+								const pathKey = stored.pid ?? objectId
+								doc.paths.set(pathKey, scaledPathData)
+							}
 						} else if (origObj.type === 'image') {
 							// For single image selection, bounds are already aspect-constrained by hook
 							// For multi-selection, use the dominant scale to maintain aspect ratio
@@ -704,6 +719,7 @@ export function IdealloApp() {
 		transformCoordinates: resizeTransformCoordinates,
 		disabled: isReadOnly || ideallo.activeTool !== 'select' || !storedSelection,
 		aspectRatio: selectionAspectRatio,
+		cornerAspectLock,
 		onResizeStart,
 		onResize,
 		onResizeEnd

@@ -501,8 +501,17 @@ function getRotationCenter(obj: IdealloObject, pivotX: number, pivotY: number): 
 	} else if (obj.type === 'polygon') {
 		const bounds = getBoundsFromPoints(obj.vertices)
 		return [bounds.x + bounds.width * pivotX, bounds.y + bounds.height * pivotY]
+	} else if (obj.type === 'freehand') {
+		const pathBounds = calculatePathBounds(obj.pathData)
+		if (pathBounds) {
+			return [
+				obj.x + pathBounds.x + pathBounds.width * pivotX,
+				obj.y + pathBounds.y + pathBounds.height * pivotY
+			]
+		}
+		return [obj.x + obj.width * pivotX, obj.y + obj.height * pivotY]
 	} else {
-		// Rect, ellipse, text, sticky, image, freehand
+		// Rect, ellipse, text, sticky, image
 		return [obj.x + obj.width * pivotX, obj.y + obj.height * pivotY]
 	}
 }

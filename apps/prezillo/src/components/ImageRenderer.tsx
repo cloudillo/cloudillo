@@ -68,10 +68,9 @@ export function ImageRenderer({ object, ownerTag, token, scale = 1, bounds }: Im
 		setLoadState('error')
 	}, [])
 
-	// Reset load state when fileId changes
 	React.useEffect(() => {
 		setLoadState('loading')
-	}, [fileId])
+	}, [imageUrl])
 
 	// Check if image is already cached/loaded on mount
 	// This fixes images appearing as white rectangles after scrolling back into view

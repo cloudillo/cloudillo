@@ -480,6 +480,8 @@ export const ObjectShape = React.memo(function ObjectShape({
 		case 'image':
 			return (
 				<g transform={rotationTransform} opacity={objectOpacity} {...commonProps}>
+					{gradientDef}
+					<rect x={x} y={y} width={width} height={height} {...fillProps} stroke="none" />
 					<ImageRenderer
 						object={object}
 						ownerTag={ownerTag}
@@ -487,15 +489,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 						scale={scale}
 						bounds={{ x, y, width, height }}
 					/>
-					{/* Invisible rect for click handling */}
-					<rect
-						x={x}
-						y={y}
-						width={width}
-						height={height}
-						fill="transparent"
-						stroke="none"
-					/>
+					<rect x={x} y={y} width={width} height={height} fill="none" {...strokeProps} />
 					{hoverOverlay}
 					{stackedOverlay}
 					{instanceIndicator}

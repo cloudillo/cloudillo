@@ -110,6 +110,7 @@ export function useToolHandlers({
 		const isTextTool = prezillo.activeTool === 'text'
 		const isSymbolTool = prezillo.activeTool === 'symbol'
 		const isQRCodeTool = prezillo.activeTool === 'qrcode'
+		const isLineTool = prezillo.activeTool === 'line'
 
 		// Enforce 1:1 aspect ratio for symbol and qrcode tools during drag
 		if (isSymbolTool || isQRCodeTool) {
@@ -118,7 +119,32 @@ export function useToolHandlers({
 			height = maxDim
 		}
 
-		if (width < 5 || height < 5) {
+		let linePoints: [[number, number], [number, number]] | undefined
+		if (isLineTool) {
+			const dragGoesRight = toolEvent.x >= toolEvent.startX
+			const dragGoesDown = toolEvent.y >= toolEvent.startY
+			if (dragGoesRight === dragGoesDown) {
+				linePoints = [
+					[0, 0],
+					[width, height]
+				]
+			} else {
+				linePoints = [
+					[0, height],
+					[width, 0]
+				]
+			}
+		}
+
+		if (isLineTool) {
+			const lineLength = Math.sqrt(width * width + height * height)
+			if (lineLength < 5) {
+				setToolEvent(undefined)
+				return
+			}
+			if (width < 1) width = 1
+			if (height < 1) height = 1
+		} else if (width < 5 || height < 5) {
 			if (isTextTool) {
 				// Click-to-create: use default size at click point
 				x = toolEvent.startX
@@ -192,7 +218,8 @@ export function useToolHandlers({
 					height,
 					undefined, // No parent (template prototypes go to root)
 					undefined,
-					undefined // No pageId - prototype is not bound to any page
+					undefined, // No pageId - prototype is not bound to any page
+					linePoints
 				)
 			}
 
@@ -273,7 +300,8 @@ export function useToolHandlers({
 				height,
 				(parentId ?? undefined) as ContainerId | undefined,
 				undefined, // insertIndex
-				targetPageId ?? undefined // pageId - page-relative if on a page
+				targetPageId ?? undefined, // pageId - page-relative if on a page
+				linePoints
 			)
 		}
 

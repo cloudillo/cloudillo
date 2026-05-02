@@ -30,13 +30,8 @@ import type {
 import { resolveShapeStyle, resolveTextStyle } from '../crdt'
 import { useViewObjects } from '../hooks/useViewObjects'
 import type { UsePrezilloDocumentResult } from '../hooks/usePrezilloDocument'
-import {
-	calculateRotationTransform,
-	buildStrokeProps,
-	buildFillProps,
-	DEFAULT_SHAPE_STYLE,
-	DEFAULT_TEXT_STYLE
-} from '../utils'
+import { calculateRotationTransform, buildStrokeProps, buildFillProps } from '../utils'
+import { DEFAULT_SHAPE_STYLE, DEFAULT_TEXT_STYLE } from '../crdt'
 import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
 import { RichTextDisplay } from '@cloudillo/canvas-text'
 import { getBulletIcon, migrateBullet } from '../data/bullet-icons'
@@ -217,12 +212,30 @@ function PresentationObjectShape({
 		}
 		case 'image':
 			content = (
-				<ImageRenderer
-					object={object as ImageObject}
-					ownerTag={ownerTag}
-					token={token}
-					scale={1}
-				/>
+				<>
+					<rect
+						x={object.x}
+						y={object.y}
+						width={object.width}
+						height={object.height}
+						{...fillProps}
+						stroke="none"
+					/>
+					<ImageRenderer
+						object={object as ImageObject}
+						ownerTag={ownerTag}
+						token={token}
+						scale={1}
+					/>
+					<rect
+						x={object.x}
+						y={object.y}
+						width={object.width}
+						height={object.height}
+						fill="none"
+						{...strokeProps}
+					/>
+				</>
 			)
 			break
 		case 'document': {

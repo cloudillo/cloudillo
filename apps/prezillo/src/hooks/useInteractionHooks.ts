@@ -185,6 +185,16 @@ export function useInteractionHooks({
 		return undefined
 	}, [prezillo.selectedIds, prezillo.objects])
 
+	// Compute corner aspect lock for drawn shapes (not images/qr/symbols which have explicit ratio)
+	const cornerAspectLock = React.useMemo(() => {
+		if (prezillo.selectedIds.size !== 1) return false
+		const id = Array.from(prezillo.selectedIds)[0]
+		const stored = prezillo.doc.o.get(id)
+		if (!stored) return false
+		const drawnTypes = new Set(['R', 'E', 'G', 'P', 'D'])
+		return drawnTypes.has(stored.t)
+	}, [prezillo.selectedIds, prezillo.objects])
+
 	// Transform functions that use canvasContextRef (since hooks are outside SvgCanvas context)
 	const translateToRef = React.useCallback(
 		(x: number, y: number): [number, number] => {
@@ -231,6 +241,7 @@ export function useInteractionHooks({
 		transformCoordinates: resizeTransformCoordinates,
 		disabled: isReadOnly || !storedSelection,
 		aspectRatio: selectionAspectRatio,
+		cornerAspectLock,
 		onResizeStart: ({ bounds }) => {
 			// Use ref to get latest storedSelection (react-yjs keeps it updated)
 			const current = storedSelectionRef.current

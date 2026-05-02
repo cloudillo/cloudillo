@@ -3,7 +3,7 @@
 
 import * as React from 'react'
 import type Quill from 'quill'
-import { PropertyPanel } from '@cloudillo/react'
+import { PropertyPanel, Tabs, Tab } from '@cloudillo/react'
 
 import type { ObjectId, ContainerId } from '../../crdt'
 import type { UsePrezilloDocumentResult } from '../../hooks/usePrezilloDocument'
@@ -50,42 +50,22 @@ export function PrezilloPropertiesPanel({
 		selectedTemplateId,
 		selectTemplate: onSelectTemplate
 	} = prezillo
+	const [activeTab, setActiveTab] = React.useState<'properties' | 'layers' | 'templates'>(
+		'properties'
+	)
+
 	return (
 		<PropertyPanel width={280} data-properties-panel="true">
-			{/* Layer Browser - top section */}
-			<div className="c-panel-section c-panel-section--layers">
-				<h4 className="c-panel-heading m-0">Layers</h4>
-				<div className="p-2 pt-0">
-					<LayerBrowser
-						doc={doc}
-						yDoc={yDoc}
-						selectedIds={selectedIds}
-						onSelectObject={onSelectObject}
-						activeViewId={activeViewId}
-						selectedContainerId={selectedContainerId}
-						onSelectContainer={onSelectContainer}
-					/>
-				</div>
+			<div className="c-panel-tabs">
+				<Tabs value={activeTab} onTabChange={setActiveTab as (v: string) => void}>
+					<Tab value="properties">Properties</Tab>
+					<Tab value="layers">Layers</Tab>
+					<Tab value="templates">Templates</Tab>
+				</Tabs>
 			</div>
 
-			{/* Templates Section */}
-			<div className="c-panel-section c-panel-section--templates">
-				<h4 className="c-panel-heading m-0">Templates</h4>
-				<div className="p-2 pt-0">
-					<TemplatePanel
-						doc={doc}
-						yDoc={yDoc}
-						selectedTemplateId={selectedTemplateId ?? null}
-						onSelectTemplate={onSelectTemplate}
-						onEditTemplate={onSelectTemplate}
-					/>
-				</div>
-			</div>
-
-			{/* Property Editor - bottom section */}
-			<div className="c-panel-section flex-fill">
-				<h4 className="c-panel-heading m-0">Properties</h4>
-				<div className="p-2 pt-0">
+			<div className="c-panel-tab-content">
+				{activeTab === 'properties' && (
 					<PropertyEditor
 						doc={doc}
 						yDoc={yDoc}
@@ -98,7 +78,27 @@ export function PrezilloPropertiesPanel({
 						quillRef={quillRef}
 						editingTextId={editingTextId}
 					/>
-				</div>
+				)}
+				{activeTab === 'layers' && (
+					<LayerBrowser
+						doc={doc}
+						yDoc={yDoc}
+						selectedIds={selectedIds}
+						onSelectObject={onSelectObject}
+						activeViewId={activeViewId}
+						selectedContainerId={selectedContainerId}
+						onSelectContainer={onSelectContainer}
+					/>
+				)}
+				{activeTab === 'templates' && (
+					<TemplatePanel
+						doc={doc}
+						yDoc={yDoc}
+						selectedTemplateId={selectedTemplateId ?? null}
+						onSelectTemplate={onSelectTemplate}
+						onEditTemplate={onSelectTemplate}
+					/>
+				)}
 			</div>
 		</PropertyPanel>
 	)

@@ -7,7 +7,7 @@
 
 import * as React from 'react'
 import type * as Y from 'yjs'
-import { PropertySection, PropertyField, Input, ColorInput } from '@cloudillo/react'
+import { PropertySection, PropertyField, Input, ColorInput, NativeSelect } from '@cloudillo/react'
 
 import type {
 	YPrezilloDocument,
@@ -23,7 +23,7 @@ import {
 	unlockPropertyGroup,
 	resetPropertyGroup
 } from '../../crdt'
-import { PropertyLockButton } from './PropertyLockButton'
+import { PropertyGroupHeader } from './PropertyGroupHeader'
 
 export interface QRCodeSectionProps {
 	doc: YPrezilloDocument
@@ -163,15 +163,13 @@ export function QRCodeSection({ doc, yDoc, object }: QRCodeSectionProps) {
 	return (
 		<PropertySection title="QR Code" defaultExpanded>
 			{/* URL with lock */}
-			<div className="c-hbox ai-center mb-1">
-				<span className="c-property-group-label flex-1">URL</span>
-				<PropertyLockButton
-					isInstance={objectIsInstance}
-					isLocked={urlLocked}
-					onUnlock={handleUnlockUrl}
-					onReset={handleResetUrl}
-				/>
-			</div>
+			<PropertyGroupHeader
+				label="URL"
+				isInstance={objectIsInstance}
+				isLocked={urlLocked}
+				onUnlock={handleUnlockUrl}
+				onReset={handleResetUrl}
+			/>
 			<div className={urlDisabled ? 'c-property-field--locked mb-2' : 'mb-2'}>
 				<Input
 					value={localUrl}
@@ -184,20 +182,18 @@ export function QRCodeSection({ doc, yDoc, object }: QRCodeSectionProps) {
 			</div>
 
 			{/* Error correction level with lock */}
-			<div className="c-hbox ai-center mb-1">
-				<span className="c-property-group-label flex-1">Level</span>
-				<PropertyLockButton
-					isInstance={objectIsInstance}
-					isLocked={errorCorrectionLocked}
-					onUnlock={handleUnlockErrorCorrection}
-					onReset={handleResetErrorCorrection}
-				/>
-			</div>
+			<PropertyGroupHeader
+				label="Level"
+				isInstance={objectIsInstance}
+				isLocked={errorCorrectionLocked}
+				onUnlock={handleUnlockErrorCorrection}
+				onReset={handleResetErrorCorrection}
+			/>
 			<div className={errorCorrectionDisabled ? 'c-property-field--locked mb-2' : 'mb-2'}>
-				<select
+				<NativeSelect
 					value={qrObject.errorCorrection || 'medium'}
 					onChange={handleErrorCorrectionChange}
-					className="c-input c-input--full"
+					className="c-input--full"
 					disabled={errorCorrectionDisabled}
 				>
 					{ERROR_CORRECTION_OPTIONS.map((opt) => (
@@ -205,19 +201,17 @@ export function QRCodeSection({ doc, yDoc, object }: QRCodeSectionProps) {
 							{opt.label}
 						</option>
 					))}
-				</select>
+				</NativeSelect>
 			</div>
 
 			{/* Colors with lock */}
-			<div className="c-hbox ai-center mb-1">
-				<span className="c-property-group-label flex-1">Colors</span>
-				<PropertyLockButton
-					isInstance={objectIsInstance}
-					isLocked={colorsLocked}
-					onUnlock={handleUnlockColors}
-					onReset={handleResetColors}
-				/>
-			</div>
+			<PropertyGroupHeader
+				label="Colors"
+				isInstance={objectIsInstance}
+				isLocked={colorsLocked}
+				onUnlock={handleUnlockColors}
+				onReset={handleResetColors}
+			/>
 			<div className={colorsDisabled ? 'c-property-field--locked' : ''}>
 				<PropertyField label="FG" labelWidth={30}>
 					<ColorInput

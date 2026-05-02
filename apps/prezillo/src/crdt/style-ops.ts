@@ -33,6 +33,17 @@ export const DEFAULT_SHAPE_STYLE: ResolvedShapeStyle = {
 	strokeLinejoin: 'miter'
 }
 
+const DEFAULT_IMAGE_STYLE: ResolvedShapeStyle = {
+	fill: 'none',
+	fillOpacity: 1,
+	stroke: 'none',
+	strokeWidth: 0,
+	strokeOpacity: 1,
+	strokeDasharray: '',
+	strokeLinecap: 'butt',
+	strokeLinejoin: 'miter'
+}
+
 export const DEFAULT_TEXT_STYLE: ResolvedTextStyle = {
 	fontFamily: 'system-ui, sans-serif',
 	fontSize: 64,
@@ -221,7 +232,7 @@ export function resolveShapeStyle(
 	object: StoredObject
 ): ResolvedShapeStyle {
 	const palette = getPalette(doc)
-	let result = { ...DEFAULT_SHAPE_STYLE }
+	let result = { ...(object.t === 'I' ? DEFAULT_IMAGE_STYLE : DEFAULT_SHAPE_STYLE) }
 
 	if (object.proto) {
 		// Instance: start with prototype's fully resolved style

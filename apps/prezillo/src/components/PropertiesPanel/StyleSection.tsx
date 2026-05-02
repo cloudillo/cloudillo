@@ -9,7 +9,6 @@ import type { YPrezilloDocument, PrezilloObject, ObjectId } from '../../crdt'
 import {
 	resolveShapeStyle,
 	resolveTextStyle,
-	updateObject,
 	updateObjectTextStyle,
 	isInstance,
 	isPropertyGroupLocked,
@@ -118,28 +117,23 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 	const handleStrokeWidthChange = React.useCallback(
 		(width: number) => {
 			if (styleDisabled) return
-			const style = object.style || {}
-			updateObject(yDoc, doc, objectId, {
-				style: { ...style, strokeWidth: Math.max(0, width) }
-			})
+			yDoc.transact(() => {
+				const storedObj = doc.o.get(object.id)
+				if (storedObj) {
+					const newObj = { ...storedObj }
+					if (!newObj.s) newObj.s = {}
+					newObj.s = { ...newObj.s, sw: Math.max(0, width) }
+					doc.o.set(object.id, newObj)
+				}
+			}, yDoc.clientID)
 		},
-		[yDoc, doc, objectId, object.style, styleDisabled]
+		[yDoc, doc, object.id, styleDisabled]
 	)
 
 	if (!resolvedShapeStyle && !resolvedTextStyle) return null
 
 	return (
 		<PropertySection title="Style" defaultExpanded>
-			{/* Lock button for entire style section */}
-			<div className="c-hbox ai-center jc-end mb-1">
-				<PropertyLockButton
-					isInstance={objectIsInstance}
-					isLocked={styleLocked}
-					onUnlock={handleUnlockStyle}
-					onReset={handleResetStyle}
-				/>
-			</div>
-
 			<div className={styleDisabled ? 'c-property-field--locked' : ''}>
 				{/* Fill (text color for text objects) */}
 				<PropertyField label={isTextObject ? 'Color' : 'Fill'} labelWidth={40}>
@@ -150,6 +144,12 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 						showGradients={!isTextObject}
 						showTransparent={!isTextObject}
 						disabled={styleDisabled}
+					/>
+					<PropertyLockButton
+						isInstance={objectIsInstance}
+						isLocked={styleLocked}
+						onUnlock={handleUnlockStyle}
+						onReset={handleResetStyle}
 					/>
 				</PropertyField>
 

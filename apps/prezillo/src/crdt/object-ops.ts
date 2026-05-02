@@ -114,7 +114,8 @@ export function createObject(
 	height: number,
 	parentId?: ContainerId,
 	insertIndex?: number,
-	pageId?: ViewId
+	pageId?: ViewId,
+	linePoints?: [[number, number], [number, number]]
 ): ObjectId {
 	const objectId = generateObjectId()
 
@@ -146,10 +147,12 @@ export function createObject(
 			object = {
 				...base,
 				type: 'line',
-				points: [
-					[0, height / 2],
-					[width, height / 2]
-				] as [[number, number], [number, number]]
+				points:
+					linePoints ??
+					([
+						[0, height / 2],
+						[width, height / 2]
+					] as [[number, number], [number, number]])
 			}
 			break
 		case 'path':

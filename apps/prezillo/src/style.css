@@ -184,24 +184,21 @@ body,
 	min-width: auto !important;
 }
 
-/* Panel Headings - section titles like "Layers", "Properties" */
-.c-panel-heading {
-	font-size: 11px;
-	font-weight: 600;
-	text-transform: uppercase;
-	color: var(--col-txt-secondary);
-	padding: var(--space-2);
-}
-
-/* Panel section with border */
-.c-panel-section {
-	flex: 0 0 auto;
-	overflow: auto;
+/* Panel tabs - desktop properties panel */
+.c-panel-tabs {
 	border-bottom: 1px solid var(--col-outline);
+	flex-shrink: 0;
 }
 
-.c-panel-section--layers {
-	max-height: 40%;
+.c-panel-tabs .c-tab {
+	font-size: 11px;
+	padding: var(--space-1) var(--space-2);
+}
+
+.c-panel-tab-content {
+	flex: 1;
+	overflow: auto;
+	padding: var(--space-2);
 }
 
 /* Empty state / placeholder messages */
@@ -1883,11 +1880,6 @@ body,
 	justify-content: center;
 	background: rgba(0, 0, 0, 0.5);
 	z-index: 1000;
-}
-
-/* Template Panel Section - height limit */
-.c-panel-section--templates {
-	max-height: 200px;
 }
 
 /* Background inherited badge */

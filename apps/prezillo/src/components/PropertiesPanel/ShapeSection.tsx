@@ -65,26 +65,24 @@ export function ShapeSection({ doc, yDoc, object }: ShapeSectionProps) {
 
 	return (
 		<PropertySection title="Shape" defaultExpanded>
-			{/* Lock button for corner radius */}
-			<div className="c-hbox ai-center jc-end mb-1">
-				<PropertyLockButton
-					isInstance={objectIsInstance}
-					isLocked={cornerRadiusLocked}
-					onUnlock={handleUnlockCornerRadius}
-					onReset={handleResetCornerRadius}
-				/>
-			</div>
-
 			<div className={isDisabled ? 'c-property-field--locked' : ''}>
 				<PropertyField label="Radius" labelWidth={45}>
-					<NumberInput
-						value={cornerRadius}
-						onChange={handleCornerRadiusChange}
-						min={0}
-						step={1}
-						className="c-input--full"
-						disabled={isDisabled}
-					/>
+					<div className="c-hbox ai-center g-1 f-1">
+						<NumberInput
+							value={cornerRadius}
+							onChange={handleCornerRadiusChange}
+							min={0}
+							step={1}
+							className="c-input--full"
+							disabled={isDisabled}
+						/>
+						<PropertyLockButton
+							isInstance={objectIsInstance}
+							isLocked={cornerRadiusLocked}
+							onUnlock={handleUnlockCornerRadius}
+							onReset={handleResetCornerRadius}
+						/>
+					</div>
 				</PropertyField>
 			</div>
 		</PropertySection>

@@ -285,8 +285,6 @@ export function ContactsApp() {
 							selected={selectedRef}
 							onSelect={handleSelectContact}
 							showBookName={selection === 'all'}
-							truncated={list.truncated}
-							truncationLimit={list.truncationLimit}
 						/>
 					)}
 				</Fcd.Content>

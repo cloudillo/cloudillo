@@ -97,8 +97,6 @@ export interface ContactListProps {
 	selected: SelectedContactRef | null
 	onSelect: (ref: SelectedContactRef) => void
 	showBookName: boolean
-	truncated?: boolean
-	truncationLimit?: number
 }
 
 export function ContactList({
@@ -111,9 +109,7 @@ export function ContactList({
 	sentinelRef,
 	selected,
 	onSelect,
-	showBookName,
-	truncated,
-	truncationLimit
+	showBookName
 }: ContactListProps) {
 	const { t } = useTranslation()
 
@@ -136,16 +132,6 @@ export function ContactList({
 
 	return (
 		<div className="c-contact-list c-vbox g-1 p-2" role="list" aria-label={t('Contacts')}>
-			{truncated && (
-				<div className="c-panel bg-container-warning p-2" role="status" aria-live="polite">
-					<span className="text-sm">
-						{t(
-							'Showing first {{limit}} contacts. Select a specific address book to see the rest.',
-							{ limit: truncationLimit ?? contacts.length }
-						)}
-					</span>
-				</div>
-			)}
 			{contacts.map((contact) => {
 				const isSelected = selected?.abId === contact.abId && selected?.uid === contact.uid
 				return (

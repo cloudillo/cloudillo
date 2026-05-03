@@ -957,6 +957,12 @@ export class ApiClient {
 		deleteAddressBook: (abId: number) =>
 			this.request('DELETE', `/address-books/${abId}`, T.nullValue),
 
+		/** GET /contacts - List contacts across all address books (cursor-paginated, name-sorted). */
+		listAllContacts: (query?: Types.ListContactsQuery) =>
+			this.requestWithMeta('GET', '/contacts', Types.tContactList, {
+				query: query as Record<string, string | number | boolean | string[] | undefined>
+			}),
+
 		/** GET /address-books/:abId/contacts - List contacts (cursor-paginated, optional search). */
 		listContacts: (abId: number, query?: Types.ListContactsQuery) =>
 			this.requestWithMeta('GET', `/address-books/${abId}/contacts`, Types.tContactList, {

@@ -108,6 +108,8 @@ function buildMimeMap(manifests: AppManifest[]): Record<string, string> {
 	return mimeMap
 }
 
+const AUTH_ONLY_APPS = new Set(['calendar', 'mapillo', 'messages', 'contacts'])
+
 function manifestToMenuItem(m: AppManifest): MenuItem {
 	return {
 		id: m.id,
@@ -119,7 +121,7 @@ function manifestToMenuItem(m: AppManifest): MenuItem {
 				.map(([lang, t]) => [lang, t.name!])
 		),
 		path: `/app/${m.id}`,
-		public: true
+		public: !AUTH_ONLY_APPS.has(m.id)
 	}
 }
 

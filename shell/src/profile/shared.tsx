@@ -343,6 +343,7 @@ export function ProviderSelectorStep({
 									<input
 										className="c-input"
 										type="text"
+										autoFocus
 										value={customProvider}
 										onChange={(e) => handleCustomChange(e.target.value)}
 										onKeyDown={(e) => {

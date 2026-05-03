@@ -1284,6 +1284,29 @@ export function ProfileSettings({
 						</p>
 					</div>
 
+					{/* Post Visibility Settings */}
+					<div className="c-panel mb-2 p-3">
+						<h4 className="pb-2 border-bottom mb-3">{t('Post visibility')}</h4>
+						<label className="c-settings-field">
+							<span>{t('Visibility cap')}</span>
+							<select
+								className="c-select"
+								name="profile.visibility_cap"
+								value={(settings['profile.visibility_cap'] as string) ?? 'P'}
+								onChange={onSettingChange}
+							>
+								<option value="P">{t('Public (no limit)')}</option>
+								<option value="F">{t('Followers')}</option>
+								<option value="C">{t('Connected')}</option>
+							</select>
+						</label>
+						<p className="c-hint mt-1">
+							{t(
+								'Limits the maximum visibility of posts in this community. Members cannot publish posts more public than this setting.'
+							)}
+						</p>
+					</div>
+
 					{/* Federation Settings */}
 					<div className="c-panel mb-2 p-3">
 						<h4 className="pb-2 border-bottom mb-3">{t('Federation')}</h4>
@@ -1349,7 +1372,6 @@ function ProfileView() {
 			getTokenFor(idTag)
 				.then((result) => {
 					if (result?.roles) {
-						console.log('Profile: loaded communityRoles for', idTag, result.roles)
 						setCommunityRoles(result.roles)
 					} else {
 						setCommunityRoles([])
@@ -1414,13 +1436,6 @@ function ProfileView() {
 			}
 		},
 		[idTag, profile?.idTag, auth?.idTag, trustTick, own, rememberStoredTrust, getTokenFor]
-	)
-
-	React.useEffect(
-		function debug() {
-			console.log('profile', profile, localProfile)
-		},
-		[profile, localProfile]
 	)
 
 	// Listen for connection acceptance via WsBus

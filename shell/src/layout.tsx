@@ -61,10 +61,11 @@ import { useTokenRenewal } from './auth/useTokenRenewal.js'
 import { useContextTokenRenewal, useProfileTrustBootstrap } from './context/index.js'
 import { useActionNotifications } from './notifications/useActionNotifications.js'
 import {
+	HOME_CONTEXT,
 	Sidebar,
 	useSidebar,
 	useCommunitiesList,
-	useCurrentContextIdTag,
+	useUrlContextIdTag,
 	useContextPath,
 	useGuestDocument,
 	favoritesAtom
@@ -327,10 +328,9 @@ function isGuestPath(pathname: string): boolean {
  * Handle guest/auth redirect based on current path
  * Returns the path to navigate to, or undefined if no redirect needed
  */
-function getGuestRedirect(pathname: string, ownerIdTag: string): string | undefined {
+function getGuestRedirect(pathname: string): string | undefined {
 	if (pathname === '/') {
-		// Redirect root to public feed
-		return `/app/${ownerIdTag}/feed`
+		return `/app/${HOME_CONTEXT}/feed`
 	}
 	if (!isGuestPath(pathname)) {
 		// Non-guest path requires login
@@ -352,7 +352,7 @@ function Header({ inert }: { inert?: boolean }) {
 	const { warning: toastWarning } = useToast()
 	const [_menuOpen, setMenuOpen] = React.useState(false)
 	const [businessCardOpen, setBusinessCardOpen] = React.useState(false)
-	const contextIdTag = useCurrentContextIdTag()
+	const urlContext = useUrlContextIdTag()
 	const [extraMenuPortalMobile, setExtraMenuPortalMobile] = React.useState<HTMLDivElement | null>(
 		null
 	)
@@ -575,7 +575,7 @@ function Header({ inert }: { inert?: boolean }) {
 						// Guest mode: signal auth resolved as unauthenticated
 						setTheme(undefined, undefined)
 						setAuth(null)
-						const guestRedirect = getGuestRedirect(location.pathname, ownerIdTag)
+						const guestRedirect = getGuestRedirect(location.pathname)
 						if (guestRedirect) {
 							navigate(guestRedirect)
 						}
@@ -654,7 +654,7 @@ function Header({ inert }: { inert?: boolean }) {
 								<li>
 									<Link
 										className="c-nav-item"
-										to={`/profile/${contextIdTag || auth.idTag}/me`}
+										to={`/profile/${urlContext || HOME_CONTEXT}/me`}
 									>
 										<IcUser />
 										{t('Profile')}
@@ -672,7 +672,7 @@ function Header({ inert }: { inert?: boolean }) {
 								<li>
 									<Link
 										className="c-nav-item"
-										to={`/settings/${contextIdTag || auth.idTag}`}
+										to={`/settings/${urlContext || HOME_CONTEXT}`}
 									>
 										<IcSettings />
 										{t('Settings')}
@@ -719,7 +719,7 @@ function Header({ inert }: { inert?: boolean }) {
 										<li>
 											<Link
 												className="c-nav-item"
-												to={`/profile/${api.idTag}/${api.idTag}`}
+												to={`/profile/${HOME_CONTEXT}/me`}
 												onClick={() => setMenuOpen(false)}
 											>
 												<IcUser />
@@ -893,7 +893,7 @@ export function Layout() {
 	const { loadCommunities } = useCommunitiesList()
 	const location = useLocation()
 	const navigate = useNavigate()
-	const contextIdTag = useCurrentContextIdTag()
+	const urlContext = useUrlContextIdTag()
 	const [keyAccessError, setKeyAccessError] = React.useState<KeyErrorReason | null>(null)
 	useTokenRenewal() // Automatic auth token renewal
 	useContextTokenRenewal() // Proactive proxy-token renewal for trusted foreign profiles
@@ -1026,7 +1026,7 @@ export function Layout() {
 				<ShareCreate />
 				<DocumentPicker />
 				<QrScannerDialog
-					onScan={(idTag) => navigate(`/profile/${contextIdTag || auth?.idTag}/${idTag}`)}
+					onScan={(idTag) => navigate(`/profile/${urlContext || HOME_CONTEXT}/${idTag}`)}
 				/>
 				<CameraCaptureDialog />
 			</WsBusRoot>

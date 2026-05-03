@@ -1,9 +1,5 @@
-/**
- * Context Route Synchronization Hook
- *
- * Syncs the URL contextIdTag parameter with the active context state.
- * This ensures the active context always matches the URL.
- */
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
@@ -12,22 +8,19 @@ import { useAuth, apiAtom } from '@cloudillo/react'
 
 import { activeContextAtom } from './atoms'
 import { useApiContext } from './hooks'
+import { HOME_CONTEXT } from './constants.js'
 
-/**
- * Hook to extract and sync context from route
- *
- * Reads :contextIdTag from URL params and ensures active context is set.
- * If context doesn't match, switches to the context from URL.
- *
- * @returns contextIdTag from URL or undefined if not in a context route
- */
 export function useContextFromRoute(): string | undefined {
-	const { contextIdTag } = useParams<{ contextIdTag?: string }>()
+	const { contextIdTag: rawContextIdTag } = useParams<{ contextIdTag?: string }>()
 	const [activeContext] = useAtom(activeContextAtom)
 	const { setActiveContext, isLoading } = useApiContext()
 	const [auth] = useAuth()
+	const [apiState] = useAtom(apiAtom)
 	const navigate = useNavigate()
 	const [isInitialized, setIsInitialized] = React.useState(false)
+
+	// Resolve ~ to instance owner
+	const contextIdTag = rawContextIdTag === HOME_CONTEXT ? apiState.idTag : rawContextIdTag
 
 	React.useEffect(() => {
 		// Skip context switching when not authenticated (loading or guest)
@@ -46,7 +39,7 @@ export function useContextFromRoute(): string | undefined {
 				// If we can't switch, redirect to user's own context
 				if (auth?.idTag) {
 					console.warn(`[Route] Redirecting to user context: ${auth.idTag}`)
-					navigate(`/app/${auth.idTag}/feed`, { replace: true })
+					navigate(`/app/${HOME_CONTEXT}/feed`, { replace: true })
 				} else {
 					navigate('/login', { replace: true })
 				}
@@ -72,12 +65,7 @@ export function useContextFromRoute(): string | undefined {
 }
 
 /**
- * Hook to get the current context ID for navigation
- *
- * Returns the active context's idTag, or user's idTag as fallback.
- * Use this when building navigation links.
- *
- * @returns contextIdTag for use in navigation
+ * Returns the real idTag for the current context (for API calls and cache keys).
  */
 export function useCurrentContextIdTag(): string | undefined {
 	const [activeContext] = useAtom(activeContextAtom)
@@ -85,4 +73,16 @@ export function useCurrentContextIdTag(): string | undefined {
 	const [apiState] = useAtom(apiAtom)
 
 	return activeContext?.idTag || auth?.idTag || apiState.idTag
+}
+
+/**
+ * Returns ~ when the current context is the home instance, otherwise the real idTag.
+ * Use this for building URLs — never for API calls.
+ */
+export function useUrlContextIdTag(): string | undefined {
+	const contextIdTag = useCurrentContextIdTag()
+	const [apiState] = useAtom(apiAtom)
+
+	if (!contextIdTag) return undefined
+	return contextIdTag === apiState.idTag ? HOME_CONTEXT : contextIdTag
 }

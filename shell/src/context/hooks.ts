@@ -11,8 +11,9 @@ import * as React from 'react'
 import { useAtom } from 'jotai'
 import { useNavigate } from 'react-router-dom'
 import { createApiClient, type ApiClient } from '@cloudillo/core'
-import { useApi, useAuth } from '@cloudillo/react'
+import { useApi, useAuth, apiAtom } from '@cloudillo/react'
 
+import { HOME_CONTEXT } from './constants.js'
 import {
 	activeContextAtom,
 	contextOnboardingAtom,
@@ -209,9 +210,7 @@ export function useApiContext() {
 
 			// Check if we have primary API
 			const api = primaryApiRef.current
-			if (!api) {
-				throw new Error('Not authenticated')
-			}
+			if (!api) return null
 
 			// Trust gate: passive reads require positive consent ('S' or stored
 			// 'always'). Anything else (including "ask") stays anonymous.
@@ -604,19 +603,15 @@ export function useContextSwitch() {
 	const [lastSwitch, setLastSwitch] = useAtom(lastContextSwitchAtom)
 	const [_recentContexts, setRecentContexts] = useAtom(recentContextsAtom)
 	const [activeContext] = useAtom(activeContextAtom)
+	const [apiState] = useAtom(apiAtom)
 	const navigate = useNavigate()
 
-	/**
-	 * Switch to a different context and optionally navigate
-	 *
-	 * @param idTag - ID tag of the context to switch to
-	 * @param path - Optional path to navigate to (default: '/feed')
-	 */
 	const switchTo = React.useCallback(
 		async (idTag: string, path: string = '/feed') => {
+			const urlSegment = idTag === apiState.idTag ? HOME_CONTEXT : idTag
+
 			if (activeContext?.idTag === idTag) {
-				// Already in this context, just navigate
-				navigate(`/app/${idTag}${path}`)
+				navigate(`/app/${urlSegment}${path}`)
 				return
 			}
 
@@ -625,22 +620,17 @@ export function useContextSwitch() {
 			try {
 				const fromContext = activeContext?.idTag || 'none'
 
-				// Switch context first (fetches token + ui.onboarding) so the
-				// destination route renders against fresh atom state. If this
-				// throws, the user stays on the source page and the existing
-				// error UI surfaces it.
 				await setActiveContext(idTag)
 
-				navigate(`/app/${idTag}${path}`)
+				navigate(`/app/${urlSegment}${path}`)
 
 				// Update recent contexts (LRU)
 				setRecentContexts((prev) => {
 					const filtered = prev.filter((id) => id !== idTag)
-					const updated = [idTag, ...filtered].slice(0, 10) // Keep max 10
+					const updated = [idTag, ...filtered].slice(0, 10)
 					return updated
 				})
 
-				// Record switch event
 				const switchEvent: ContextSwitchEvent = {
 					from: fromContext,
 					to: idTag,
@@ -656,6 +646,7 @@ export function useContextSwitch() {
 		},
 		[
 			activeContext,
+			apiState.idTag,
 			setActiveContext,
 			setRecentContexts,
 			setLastSwitch,
@@ -708,36 +699,39 @@ export function useContextSwitch() {
 export function useContextPath() {
 	const [activeContext] = useAtom(activeContextAtom)
 	const [auth] = useAuth()
+	const [apiState] = useAtom(apiAtom)
 
 	const contextIdTag = activeContext?.idTag || auth?.idTag
+	const urlContextIdTag =
+		contextIdTag && contextIdTag === apiState.idTag ? HOME_CONTEXT : contextIdTag
 
 	const getContextPath = React.useCallback(
 		(path: string): string => {
-			if (!contextIdTag) return path
+			if (!urlContextIdTag) return path
 
 			// If path starts with /app/, insert contextIdTag
 			if (path.startsWith('/app/')) {
-				return path.replace('/app/', `/app/${contextIdTag}/`)
+				return path.replace('/app/', `/app/${urlContextIdTag}/`)
 			}
 
 			// Handle other context-aware routes
-			if (path === '/users') return `/users/${contextIdTag}`
-			if (path === '/communities') return `/communities/${contextIdTag}`
-			if (path === '/settings') return `/settings/${contextIdTag}`
-			if (path === '/idp') return `/idp/${contextIdTag}`
+			if (path === '/users') return `/users/${urlContextIdTag}`
+			if (path === '/communities') return `/communities/${urlContextIdTag}`
+			if (path === '/settings') return `/settings/${urlContextIdTag}`
+			if (path === '/idp') return `/idp/${urlContextIdTag}`
 
 			// Profile routes
 			if (path.startsWith('/profile/')) {
 				// Transform /profile/:idTag to /profile/:contextIdTag/:idTag
 				const parts = path.split('/')
 				if (parts.length >= 3) {
-					return `/profile/${contextIdTag}/${parts.slice(2).join('/')}`
+					return `/profile/${urlContextIdTag}/${parts.slice(2).join('/')}`
 				}
 			}
 
 			return path
 		},
-		[contextIdTag]
+		[urlContextIdTag]
 	)
 
 	return {

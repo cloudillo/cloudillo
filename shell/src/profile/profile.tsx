@@ -498,7 +498,7 @@ export function ProfilePage({
 		<Fcd.Container className="g-1">
 			<Fcd.Filter></Fcd.Filter>
 			<Fcd.Content>
-				{!own && <TrustBanner idTag={profile.idTag} onDecision={onTrustDecision} />}
+				{!own && auth && <TrustBanner idTag={profile.idTag} onDecision={onTrustDecision} />}
 				<div className="c-panel p-0 pos-relative d-flex flex-column">
 					<div
 						className="c-profile-header pos-relative w-100"
@@ -576,7 +576,7 @@ export function ProfilePage({
 							<h4>
 								<IdentityTag idTag={profile.idTag} />
 							</h4>
-							{!own && (
+							{!own && auth && (
 								<div className="mt-1">
 									<TrustChip idTag={profile.idTag} onChanged={onTrustDecision} />
 								</div>
@@ -1350,7 +1350,7 @@ function ProfileView() {
 	const params = useParams()
 	// Extract contextIdTag from params if available (context-aware route)
 	const _contextIdTag = params.contextIdTag
-	const idTag = params.idTag == 'me' ? auth?.idTag : params.idTag || auth?.idTag
+	const idTag = params.idTag == 'me' ? (auth?.idTag ?? api?.idTag) : params.idTag || auth?.idTag
 	const own = idTag == auth?.idTag
 	const [profile, setProfile] = React.useState<FullProfile>()
 	const [localProfile, setLocalProfile] = React.useState<Partial<Profile>>()
@@ -1387,7 +1387,8 @@ function ProfileView() {
 
 	React.useEffect(
 		function load() {
-			if (!idTag || !auth?.idTag) return
+			if (!idTag) return
+			if (!api) return
 
 			if (idTag != profile?.idTag) {
 				setProfile(undefined)
@@ -1416,26 +1417,30 @@ function ProfileView() {
 					})
 			}
 
-			api!.profiles
-				.get(idTag!)
-				.then((p) => {
-					if (cancelled) return
-					setLocalProfile(p ?? {})
-					// Populate the stored-trust cache from the local profile row so
-					// the fetch gate can answer "always / never / ask" synchronously.
-					if (!own && idTag) {
-						rememberStoredTrust(idTag, p?.trust ?? null)
-					}
-				})
-				.catch(() => {
-					if (!cancelled) setLocalProfile({})
-				})
+			if (auth) {
+				api!.profiles
+					.get(idTag!)
+					.then((p) => {
+						if (cancelled) return
+						setLocalProfile(p ?? {})
+						// Populate the stored-trust cache from the local profile row so
+						// the fetch gate can answer "always / never / ask" synchronously.
+						if (!own && idTag) {
+							rememberStoredTrust(idTag, p?.trust ?? null)
+						}
+					})
+					.catch(() => {
+						if (!cancelled) setLocalProfile({})
+					})
+			} else {
+				setLocalProfile({})
+			}
 
 			return () => {
 				cancelled = true
 			}
 		},
-		[idTag, profile?.idTag, auth?.idTag, trustTick, own, rememberStoredTrust, getTokenFor]
+		[api, idTag, profile?.idTag, auth?.idTag, trustTick, own, rememberStoredTrust, getTokenFor]
 	)
 
 	// Listen for connection acceptance via WsBus

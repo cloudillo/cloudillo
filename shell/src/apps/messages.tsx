@@ -54,7 +54,7 @@ import { ImageUpload } from '../image.js'
 import { useWsBus } from '../ws-bus.js'
 import { useImageUpload } from '../hooks/useImageUpload.js'
 import { AttachmentPreview } from '../components/AttachmentPreview.js'
-import { useCurrentContextIdTag } from '../context/index.js'
+import { HOME_CONTEXT, useUrlContextIdTag } from '../context/index.js'
 
 //////////////////////
 // Action datatypes //
@@ -369,8 +369,7 @@ export function ConversationCard({
 	conversation: Conversation
 }) {
 	const { t } = useTranslation()
-	const [auth] = useAuth()
-	const contextIdTag = useCurrentContextIdTag()
+	const urlContext = useUrlContextIdTag()
 
 	const isGroup = conversation.type === 'group'
 	const profile = conversation.profiles[0] || {}
@@ -378,7 +377,7 @@ export function ConversationCard({
 	return (
 		<Link
 			className={mergeClasses('c-nav-item c-hbox g-2 align-items-center', className)}
-			to={`/app/${contextIdTag || auth?.idTag}/messages/${conversation.id}`}
+			to={`/app/${urlContext || HOME_CONTEXT}/messages/${conversation.id}`}
 		>
 			{isGroup ? (
 				<>
@@ -641,7 +640,7 @@ function GroupDetailsPanel({
 	const { api } = useApi()
 	const dialog = useDialog()
 	const navigate = useNavigate()
-	const contextIdTag = useCurrentContextIdTag()
+	const urlContext = useUrlContextIdTag()
 
 	// Get current user's role
 	const currentUserMember = members?.find((m) => m.profile.idTag === currentUserIdTag)
@@ -683,7 +682,7 @@ function GroupDetailsPanel({
 					audienceTag: currentUserIdTag
 				})
 				// Navigate away from the group
-				navigate(`/app/${contextIdTag || currentUserIdTag}/messages`)
+				navigate(`/app/${urlContext || HOME_CONTEXT}/messages`)
 			} catch (err) {
 				console.error('Failed to leave group', err)
 			}
@@ -797,7 +796,7 @@ export function MessagesApp() {
 	const [_appConfig] = useAppConfig()
 	const { api } = useApi()
 	const [auth] = useAuth()
-	const contextIdTag = useCurrentContextIdTag()
+	const urlContext = useUrlContextIdTag()
 	const [showFilter, setShowFilter] = React.useState(!convId)
 	const [showDetails, setShowDetails] = React.useState(false)
 	const [showCreateGroup, setShowCreateGroup] = React.useState(false)
@@ -1143,7 +1142,7 @@ export function MessagesApp() {
 			setSelectedMembers([])
 
 			// Navigate to new group
-			navigate(`/app/${contextIdTag || auth.idTag}/messages/${convAction.actionId}`)
+			navigate(`/app/${urlContext || HOME_CONTEXT}/messages/${convAction.actionId}`)
 
 			// Refresh conversation list
 			setFilter((f) => ({ ...f }))
@@ -1207,7 +1206,7 @@ export function MessagesApp() {
 			setPendingInvites((prev) => prev?.filter((i) => i.actionId !== invite.actionId))
 			// Navigate to the group
 			if (invite.subject) {
-				navigate(`/app/${contextIdTag || auth.idTag}/messages/${invite.subject}`)
+				navigate(`/app/${urlContext || HOME_CONTEXT}/messages/${invite.subject}`)
 			}
 			// Refresh conversations to show new group
 			setFilter((f) => ({ ...f }))

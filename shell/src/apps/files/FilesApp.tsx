@@ -23,7 +23,11 @@ import {
 } from '@cloudillo/react'
 
 import { useAppConfig } from '../../utils.js'
-import { useContextAwareApi, useCurrentContextIdTag } from '../../context/index.js'
+import {
+	useContextAwareApi,
+	useCurrentContextIdTag,
+	useUrlContextIdTag
+} from '../../context/index.js'
 import { getDirtyDocIds } from '../../message-bus/handlers/crdt.js'
 
 import { DropZone } from '@cloudillo/react'
@@ -66,6 +70,7 @@ export function FilesApp() {
 	const { api } = useContextAwareApi()
 	const [auth] = useAuth()
 	const contextIdTag = useCurrentContextIdTag()
+	const urlContextIdTag = useUrlContextIdTag()
 	const dialog = useDialog()
 	const toast = useToast()
 
@@ -314,7 +319,7 @@ export function FilesApp() {
 		) {
 			// For tenant-owned files (no explicit owner), use contextIdTag as the owner in the path
 			const ownerTag = file.owner?.idTag || contextIdTag || auth?.idTag
-			const basePath = `/app/${contextIdTag || auth?.idTag}/${appName}/${ownerTag + ':'}${file.fileId}`
+			const basePath = `/app/${urlContextIdTag || auth?.idTag}/${appName}/${ownerTag + ':'}${file.fileId}`
 			const searchParams = new URLSearchParams()
 			if (access && access !== 'write') searchParams.set('access', access)
 			if (params) {
@@ -518,7 +523,19 @@ export function FilesApp() {
 				}
 			}
 		}
-	}, [auth, api, appConfig, contextIdTag, navigate, t, fileListData, dialog, toast, multiSelect])
+	}, [
+		auth,
+		api,
+		appConfig,
+		contextIdTag,
+		urlContextIdTag,
+		navigate,
+		t,
+		fileListData,
+		dialog,
+		toast,
+		multiSelect
+	])
 
 	// Keyboard shortcuts
 	useKeyboardShortcuts({
@@ -666,7 +683,7 @@ export function FilesApp() {
 											onClick={onClickFile}
 											onDoubleClick={onDoubleClickFile}
 											onContextMenu={onContextMenuFile}
-											onInfoClick={onInfoClick}
+											onInfoClick={auth ? onInfoClick : undefined}
 											renameFileId={renameFileId}
 											renameFileName={renameFileName}
 											fileOps={fileOps}
@@ -699,7 +716,7 @@ export function FilesApp() {
 										onClick={onClickFile}
 										onDoubleClick={onDoubleClickFile}
 										onContextMenu={onContextMenuFile}
-										onInfoClick={onInfoClick}
+										onInfoClick={auth ? onInfoClick : undefined}
 										renameFileId={renameFileId}
 										renameFileName={renameFileName}
 										fileOps={fileOps}
@@ -723,14 +740,16 @@ export function FilesApp() {
 						isVisible={
 							// On desktop: show when file is selected
 							// On mobile: only show when explicitly requested via info button
-							!!selectedFile && (window.innerWidth >= 768 || showMobileDetails)
+							!!auth &&
+							!!selectedFile &&
+							(window.innerWidth >= 768 || showMobileDetails)
 						}
 						hide={() => {
 							setShowMobileDetails(false)
 							multiSelect.clearSelection()
 						}}
 					>
-						{detailsFile && (
+						{auth && detailsFile && (
 							<DetailsPanel
 								file={detailsFile}
 								renameFileId={renameFileId}

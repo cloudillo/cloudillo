@@ -31,7 +31,7 @@ import {
 } from '@cloudillo/react'
 
 import { useNotifications } from './state'
-import { useCurrentContextIdTag } from '../context/index.js'
+import { HOME_CONTEXT, useUrlContextIdTag } from '../context/index.js'
 
 type NotificationFilter = 'all' | 'connections' | 'messages' | 'social' | 'files'
 
@@ -281,8 +281,7 @@ function InviteNotification({
 	const { t } = useTranslation()
 	const navigate = useNavigate()
 	const { api } = useApi()
-	const [auth] = useAuth()
-	const contextIdTag = useCurrentContextIdTag()
+	const urlContext = useUrlContextIdTag()
 
 	// Parse invitation content (may contain role, message, groupName)
 	const content = action.content as
@@ -298,7 +297,7 @@ function InviteNotification({
 
 		// Navigate to the group conversation
 		if (action.subject) {
-			navigate(`/app/${contextIdTag || auth?.idTag}/messages/${action.subject}`)
+			navigate(`/app/${urlContext || HOME_CONTEXT}/messages/${action.subject}`)
 		}
 	}
 
@@ -349,8 +348,7 @@ function ProfileInviteNotification({
 	const { t } = useTranslation()
 	const navigate = useNavigate()
 	const { api } = useApi()
-	const [auth] = useAuth()
-	const contextIdTag = useCurrentContextIdTag()
+	const urlContext = useUrlContextIdTag()
 
 	const content = action.content as
 		| { refId?: string; inviteUrl?: string; nodeName?: string; message?: string }
@@ -362,7 +360,7 @@ function ProfileInviteNotification({
 		onActionHandled?.(action)
 
 		// Navigate to community creation with invite pre-selected
-		const idTag = contextIdTag || auth?.idTag
+		const idTag = urlContext || HOME_CONTEXT
 		if (content?.refId) {
 			navigate(`/communities/create/${idTag}?invite=${content.refId}`)
 		} else {

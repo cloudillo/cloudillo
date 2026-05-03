@@ -6,9 +6,9 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { atom, useAtom } from 'jotai'
 
-import { Button, mergeClasses, useAuth } from '@cloudillo/react'
+import { Button, mergeClasses } from '@cloudillo/react'
 
-import { useCurrentContextIdTag } from './context/index.js'
+import { HOME_CONTEXT, useUrlContextIdTag } from './context/index.js'
 
 import { LuSearch as IcSearch, LuX as IcCancel } from 'react-icons/lu'
 
@@ -31,9 +31,8 @@ export function SearchIcon() {
 export function SearchBar({ className }: { className?: string }) {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
-	const [auth] = useAuth()
 	const [search, setSearch] = useSearch()
-	const contextIdTag = useCurrentContextIdTag()
+	const urlContext = useUrlContextIdTag()
 	const [validationError, setValidationError] = React.useState<string | null>(null)
 
 	const isValidIdTag = (query: string) => /^\S+(\.\S+)+$/.test(query)
@@ -49,7 +48,7 @@ export function SearchBar({ className }: { className?: string }) {
 			).toLowerCase()
 			setValidationError(null)
 			setSearch({})
-			navigate(`/profile/${contextIdTag || auth?.idTag}/${idTag}`)
+			navigate(`/profile/${urlContext || HOME_CONTEXT}/${idTag}`)
 		} else {
 			setValidationError(t('Enter an Identity Tag (e.g. user.example.com)'))
 		}

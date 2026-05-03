@@ -7,6 +7,9 @@
  * Exports all types, atoms, and hooks for multi-context functionality.
  */
 
+// Constants
+export { HOME_CONTEXT } from './constants'
+
 // Types
 export type {
 	ContextType,
@@ -62,7 +65,11 @@ export { useContextTokenRenewal } from './useContextTokenRenewal'
 export { useContextAwareApi } from './context-aware-api'
 
 // Route synchronization
-export { useContextFromRoute, useCurrentContextIdTag } from './use-context-from-route'
+export {
+	useContextFromRoute,
+	useCurrentContextIdTag,
+	useUrlContextIdTag
+} from './use-context-from-route'
 
 // Components
 export { Sidebar } from './sidebar'

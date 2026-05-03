@@ -7,9 +7,9 @@ import { useTranslation } from 'react-i18next'
 
 import { LuBell as IcNotifications } from 'react-icons/lu'
 
-import { useAuth, Popper } from '@cloudillo/react'
+import { Popper } from '@cloudillo/react'
 
-import { useCurrentContextIdTag } from '../context/index.js'
+import { HOME_CONTEXT, useUrlContextIdTag } from '../context/index.js'
 import { useNotifications } from './state.js'
 import { NotificationItem } from './NotificationItem.js'
 
@@ -18,8 +18,7 @@ const MAX_POPOVER_ITEMS = 6
 export function NotificationPopover() {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
-	const [auth] = useAuth()
-	const contextIdTag = useCurrentContextIdTag()
+	const urlContext = useUrlContextIdTag()
 	const { notifications, dismissNotification, acceptNotification, rejectNotification } =
 		useNotifications()
 
@@ -27,14 +26,14 @@ export function NotificationPopover() {
 		(action: Parameters<typeof acceptNotification>[0]) => {
 			acceptNotification(action)
 			const content = action.content as { refId?: string } | undefined
-			const idTag = contextIdTag || auth?.idTag
+			const idTag = urlContext || HOME_CONTEXT
 			if (content?.refId) {
 				navigate(`/communities/create/${idTag}?invite=${content.refId}`)
 			} else {
 				navigate(`/communities/create/${idTag}`)
 			}
 		},
-		[acceptNotification, contextIdTag, auth?.idTag, navigate]
+		[acceptNotification, urlContext, navigate]
 	)
 
 	const sortedNotifications = [...notifications.notifications]

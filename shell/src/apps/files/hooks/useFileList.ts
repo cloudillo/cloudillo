@@ -93,9 +93,9 @@ export function useFileList(options?: UseFileListOptions) {
 
 			// Apply independent file type filter
 			if (fileType === 'live') {
-				baseParams.fileTp = 'CRDT,RTDB'
+				baseParams.fileTp = 'CRDT,RTDB,FLDR'
 			} else if (fileType === 'static') {
-				baseParams.fileTp = 'BLOB'
+				baseParams.fileTp = 'BLOB,FLDR'
 			}
 
 			// Apply search query
@@ -139,9 +139,9 @@ export function useFileList(options?: UseFileListOptions) {
 
 		// File type filter for cache
 		if (fileType === 'live') {
-			params.fileTp = 'CRDT,RTDB'
+			params.fileTp = 'CRDT,RTDB,FLDR'
 		} else if (fileType === 'static') {
-			params.fileTp = 'BLOB'
+			params.fileTp = 'BLOB,FLDR'
 		}
 
 		switch (viewMode) {

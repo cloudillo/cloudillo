@@ -20,7 +20,8 @@ import {
 import { PdfViewer } from './PdfViewer.js'
 
 import { getFileUrl, type FileView } from '@cloudillo/core'
-import { useApi, useAuth, LoadingSpinner, Button, mergeClasses } from '@cloudillo/react'
+import { useAuth, LoadingSpinner, Button, mergeClasses } from '@cloudillo/react'
+import { useApiContext } from '../../context/index.js'
 
 import './viewer.css'
 
@@ -32,11 +33,12 @@ type ViewerState =
 export function FileViewerApp() {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
-	const { api } = useApi()
+	const { getClientFor, getTokenFor } = useApiContext()
 	const [auth] = useAuth()
 	const { contextIdTag, resId } = useParams<{ contextIdTag?: string; resId: string }>()
 
 	const [state, setState] = React.useState<ViewerState>({ status: 'loading' })
+	const [token, setToken] = React.useState<string | undefined>()
 	const [toolbarVisible, setToolbarVisible] = React.useState(true)
 	const hideTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 	const videoRef = React.useRef<HTMLVideoElement>(null)
@@ -57,15 +59,22 @@ export function FileViewerApp() {
 	// Load file metadata
 	React.useEffect(
 		function loadFile() {
-			if (!api || !fileId) return
+			if (!fileId) return
 
 			;(async function () {
 				try {
-					const files = await api.files.list({ fileId })
+					const ownerApi = getClientFor(idTag)
+					if (!ownerApi) {
+						setState({ status: 'error', message: t('File not found') })
+						return
+					}
+					const files = await ownerApi.files.list({ fileId })
 					if (files.length === 0) {
 						setState({ status: 'error', message: t('File not found') })
 						return
 					}
+					const tokenResult = await getTokenFor(idTag)
+					setToken(tokenResult?.token)
 					setState({ status: 'ready', file: files[0] })
 				} catch (err) {
 					console.error('[FileViewer] Error loading file:', err)
@@ -73,7 +82,7 @@ export function FileViewerApp() {
 				}
 			})()
 		},
-		[api, fileId, t]
+		[getClientFor, getTokenFor, idTag, fileId, t]
 	)
 
 	// Auto-hide toolbar after inactivity
@@ -120,7 +129,7 @@ export function FileViewerApp() {
 
 	function handleDownload() {
 		if (state.status !== 'ready' || !fileId) return
-		const url = getFileUrl(idTag, fileId, undefined, { token: auth?.token })
+		const url = getFileUrl(idTag, fileId, undefined, { token })
 		const a = document.createElement('a')
 		a.href = url
 		a.download = state.file.fileName
@@ -210,8 +219,8 @@ export function FileViewerApp() {
 
 	// Render video viewer
 	if (isVideo && fileId) {
-		const videoUrl = getFileUrl(idTag, fileId, 'vid.hd', { token: auth?.token })
-		const posterUrl = getFileUrl(idTag, fileId, 'vid.sd', { token: auth?.token })
+		const videoUrl = getFileUrl(idTag, fileId, 'vid.hd', { token })
+		const posterUrl = getFileUrl(idTag, fileId, 'vis.sd', { token })
 
 		return (
 			<div className="c-file-viewer">
@@ -248,7 +257,7 @@ export function FileViewerApp() {
 
 	// Render PDF viewer
 	if (isPdf && fileId) {
-		const pdfUrl = getFileUrl(idTag, fileId, undefined, { token: auth?.token })
+		const pdfUrl = getFileUrl(idTag, fileId, undefined, { token })
 
 		return (
 			<PdfViewer

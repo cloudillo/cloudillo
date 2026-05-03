@@ -178,7 +178,7 @@ export function getOptimalVideoVariant(
 	context: 'preview' | 'fullscreen',
 	localVariants?: string[]
 ): string {
-	const defaultVariant = context === 'preview' ? 'vid.sd' : 'vid.hd'
+	const defaultVariant = context === 'preview' ? 'vis.sd' : 'vid.hd'
 
 	if (!localVariants?.length) return defaultVariant
 

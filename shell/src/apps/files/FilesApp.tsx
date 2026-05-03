@@ -752,8 +752,6 @@ export function FilesApp() {
 						{auth && detailsFile && (
 							<DetailsPanel
 								file={detailsFile}
-								renameFileId={renameFileId}
-								renameFileName={renameFileName}
 								fileOps={fileOps}
 								onShare={setShareDialogFile}
 							/>

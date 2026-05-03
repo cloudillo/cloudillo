@@ -100,13 +100,14 @@ export interface VisibilityOption {
 	icon: IconType
 }
 
+// Ordered from most private to most public.
 export const VISIBILITY_OPTIONS: VisibilityOption[] = [
 	{ value: null, labelKey: 'Direct', icon: IcDirect },
 	{ value: 'D', labelKey: 'Direct', icon: IcDirect },
-	{ value: 'P', labelKey: 'Public', icon: IcPublic },
-	{ value: 'V', labelKey: 'Verified', icon: IcVerified },
+	{ value: 'C', labelKey: 'Connected', icon: IcConnected },
 	{ value: 'F', labelKey: 'Followers', icon: IcFollowers },
-	{ value: 'C', labelKey: 'Connected', icon: IcConnected }
+	{ value: 'V', labelKey: 'Verified', icon: IcVerified },
+	{ value: 'P', labelKey: 'Public', icon: IcPublic }
 ]
 
 /**

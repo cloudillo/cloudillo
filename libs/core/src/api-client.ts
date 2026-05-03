@@ -298,7 +298,7 @@ export class ApiClient {
 		 * @returns Access token
 		 */
 		getAccessTokenByApiKey: (apiKey: string) =>
-			this.request('GET', '/auth/access-token', Types.tLoginResult, {
+			this.request('GET', '/auth/access-token', Types.tAccessTokenResult, {
 				query: { apiKey }
 			}),
 

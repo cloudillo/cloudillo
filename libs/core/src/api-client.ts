@@ -193,7 +193,7 @@ export class ApiClient {
 		 * @param data - Password change request
 		 */
 		changePassword: (data: Types.PasswordChangeRequest) =>
-			this.request('POST', '/auth/password', T.struct({}), { data }),
+			this.request('POST', '/auth/password', T.nullValue, { data }),
 
 		/**
 		 * POST /auth/set-password - Set password using a reference token
@@ -464,7 +464,7 @@ export class ApiClient {
 		 * DELETE /actions/:actionId - Delete action
 		 * @param actionId - Action ID
 		 */
-		delete: (actionId: string) => this.request('DELETE', `/actions/${actionId}`, T.struct({})),
+		delete: (actionId: string) => this.request('DELETE', `/actions/${actionId}`, T.nullValue),
 
 		/**
 		 * POST /actions/:actionId/accept - Accept action
@@ -1489,7 +1489,6 @@ export class ApiClient {
 		/**
 		 * DELETE /admin/proxy-sites/:siteId - Delete a proxy site
 		 * @param siteId - Proxy site ID
-		 * @returns Deleted site ID
 		 */
 		deleteProxySite: (siteId: number) =>
 			this.request('DELETE', `/admin/proxy-sites/${siteId}`, Types.tDeleteProxySiteResult),

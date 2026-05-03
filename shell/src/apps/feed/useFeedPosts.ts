@@ -96,7 +96,11 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 					(p) => p.actionId === action.actionId
 				)
 
-				if (!existsInFeed && !existsInNewPosts) {
+				if (
+					!existsInFeed &&
+					!existsInNewPosts &&
+					(!action.status || action.status === 'A')
+				) {
 					// Buffer new posts for "X new posts" banner
 					setNewPosts((prev) => [action, ...prev])
 				}

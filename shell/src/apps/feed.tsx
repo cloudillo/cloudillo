@@ -731,7 +731,7 @@ export function ComposeTrigger({ className, onOpen }: ComposeTriggerProps) {
 			<div className="flex-fill c-input" style={{ opacity: 0.6, cursor: 'pointer' }}>
 				{t("What's on your mind?")}
 			</div>
-			<div className="c-hbox g-1">
+			<div className="c-hbox g-2">
 				<Button
 					kind="link"
 					onClick={(e) => {

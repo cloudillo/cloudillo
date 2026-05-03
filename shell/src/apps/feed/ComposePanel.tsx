@@ -18,13 +18,15 @@ import {
 	LuCalendarDays as IcEvent,
 	LuSmile as IcSmile,
 	LuSave as IcSave,
-	LuCalendarClock as IcSchedule
+	LuCalendarClock as IcSchedule,
+	LuX as IcClose
 } from 'react-icons/lu'
 
 import type { NewAction, ActionView } from '@cloudillo/types'
 import {
 	useAuth,
 	useApi,
+	useDialog,
 	Button,
 	ProfilePicture,
 	mergeClasses,
@@ -74,6 +76,7 @@ export function ComposePanel({
 	const { t, i18n } = useTranslation()
 	const { api } = useApi()
 	const [auth] = useAuth()
+	const dialog = useDialog()
 	const [content, setContent] = React.useState('')
 	const [visibility, setVisibility] = React.useState<Visibility>('F')
 	const [scheduleDate, setScheduleDate] = React.useState<Date | undefined>()
@@ -153,7 +156,7 @@ export function ComposePanel({
 		if (!api || draft) return
 		;(async function loadDefaultVisibility() {
 			try {
-				const setting = await api.settings.get('privacy.default_visibility')
+				const setting = await api.settings.get('profile.default_visibility')
 				const value = setting?.value
 				if (typeof value === 'string' && ['P', 'C', 'F'].includes(value)) {
 					setVisibility(value as Visibility)
@@ -307,6 +310,30 @@ export function ComposePanel({
 					: 'TEXT'
 	}
 
+	async function handleCancel() {
+		if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+		submittingRef.current = true
+
+		const hasContent = content.trim().length > 0 || imageUpload.attachmentIds.length > 0
+
+		if (!draft && draftIdRef.current && hasContent) {
+			const keepDraft = await dialog.ask(t('Keep as draft?'), t('You have unsaved content.'))
+			if (keepDraft === undefined) {
+				submittingRef.current = false
+				return
+			}
+			if (!keepDraft) {
+				api?.actions.delete(draftIdRef.current).catch(() => {})
+			}
+		} else if (!draft && draftIdRef.current && !hasContent) {
+			api?.actions.delete(draftIdRef.current).catch(() => {})
+		}
+
+		resetForm()
+		onClose()
+		submittingRef.current = false
+	}
+
 	async function doSubmit() {
 		if (!api || !auth?.idTag) return
 
@@ -422,8 +449,14 @@ export function ComposePanel({
 
 	return (
 		<>
-			<div className={mergeClasses('c-vbox flex-fill overflow-hidden', className)}>
-				<div className="c-panel g-2 c-vbox flex-fill overflow-hidden">
+			<div className={mergeClasses('c-vbox', className)}>
+				<div className="c-panel g-2 c-vbox">
+					<div className="c-hbox">
+						<span className="flex-fill" />
+						<Button kind="link" onClick={handleCancel} aria-label={t('Cancel')}>
+							<IcClose />
+						</Button>
+					</div>
 					{draft && (
 						<div
 							className="c-hbox g-1 align-items-center"
@@ -442,7 +475,7 @@ export function ComposePanel({
 							</span>
 						</div>
 					)}
-					<div className="c-hbox flex-fill align-items-start overflow-y-auto">
+					<div className="c-hbox align-items-start">
 						<ProfilePicture profile={{ profilePic: auth.profilePic }} small />
 						<div className="c-input-group flex-fill">
 							<div
@@ -555,7 +588,7 @@ export function ComposePanel({
 								<span className="c-badge pos-absolute top-0 left-100 bg bg-primary" />
 							)}
 						</Button>
-						<div className="c-hbox ms-auto">
+						<div className="c-hbox g-2 ms-auto">
 							<div ref={setEmojiRefEl}>
 								<Button
 									kind="link"
@@ -581,12 +614,13 @@ export function ComposePanel({
 									</div>,
 									document.getElementById('popper-container') ?? document.body
 								)}
-							<label
-								htmlFor={isDisabled ? undefined : fileInputId}
-								className={isDisabled ? 'opacity-50' : 'cursor-pointer'}
+							<Button
+								kind="link"
+								disabled={isDisabled}
+								onClick={() => fileInputRef.current?.click()}
 							>
 								<IcImage />
-							</label>
+							</Button>
 							<input
 								ref={fileInputRef}
 								id={fileInputId}
@@ -596,12 +630,13 @@ export function ComposePanel({
 								onChange={() => onFileChange('file')}
 							/>
 
-							<label
-								htmlFor={isDisabled ? undefined : imgInputId}
-								className={isDisabled ? 'opacity-50' : 'cursor-pointer'}
+							<Button
+								kind="link"
+								disabled={isDisabled}
+								onClick={() => imgInputRef.current?.click()}
 							>
 								<IcCamera />
-							</label>
+							</Button>
 							<input
 								ref={imgInputRef}
 								id={imgInputId}
@@ -612,20 +647,16 @@ export function ComposePanel({
 								onChange={() => onFileChange('image')}
 							/>
 
-							<label
-								htmlFor={
-									imageUpload.attachmentType || imageUpload.isUploading
-										? undefined
-										: videoInputId
+							<Button
+								kind="link"
+								disabled={
+									imageUpload.attachmentType !== undefined ||
+									imageUpload.isUploading
 								}
-								className={
-									imageUpload.attachmentType || imageUpload.isUploading
-										? 'opacity-50'
-										: 'cursor-pointer'
-								}
+								onClick={() => videoInputRef.current?.click()}
 							>
 								<IcVideo />
-							</label>
+							</Button>
 							<input
 								ref={videoInputRef}
 								id={videoInputId}

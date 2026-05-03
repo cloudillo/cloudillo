@@ -189,8 +189,8 @@ export function DialogContainer() {
 export interface UseDialogReturn {
 	isOpen: boolean
 	tell: (title: string, descr: string, className?: string) => Promise<void>
-	confirm: (title: string, descr: string, className?: string) => Promise<boolean>
-	ask: (title: string, descr: string, className?: string) => Promise<boolean>
+	confirm: (title: string, descr: string, className?: string) => Promise<boolean | undefined>
+	ask: (title: string, descr: string, className?: string) => Promise<boolean | undefined>
 	askText: (
 		title: string,
 		descr: string,
@@ -227,18 +227,18 @@ export function useDialog(): UseDialogReturn {
 		title: string,
 		descr: string,
 		className: string | undefined = undefined
-	): Promise<boolean> {
+	): Promise<boolean | undefined> {
 		setDialog({ type: 'OkCancel', title, descr, className })
-		return ret() as Promise<boolean>
+		return ret() as Promise<boolean | undefined>
 	}
 
 	function ask(
 		title: string,
 		descr: string,
 		className: string | undefined = undefined
-	): Promise<boolean> {
+	): Promise<boolean | undefined> {
 		setDialog({ type: 'YesNo', title, descr, className })
-		return ret() as Promise<boolean>
+		return ret() as Promise<boolean | undefined>
 	}
 
 	function askText(

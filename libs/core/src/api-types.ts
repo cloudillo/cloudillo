@@ -1084,9 +1084,7 @@ export const tListProxySitesResult = T.array(tProxySiteData)
 export type ListProxySitesResult = T.TypeOf<typeof tListProxySitesResult>
 
 // Delete proxy site result
-export const tDeleteProxySiteResult = T.struct({
-	siteId: T.number
-})
+export const tDeleteProxySiteResult = T.nullValue
 export type DeleteProxySiteResult = T.TypeOf<typeof tDeleteProxySiteResult>
 
 // Renew cert result
@@ -1147,7 +1145,8 @@ export const tLoginInitUnauthenticated = T.struct({
 			options: T.unknown,
 			token: T.string
 		})
-	)
+	),
+	maskedEmail: T.optional(T.string)
 })
 
 export const tLoginInitResult = T.union(tLoginInitAuthenticated, tLoginInitUnauthenticated)

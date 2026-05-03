@@ -8,8 +8,6 @@ import { useTranslation } from 'react-i18next'
 import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser'
 
 import {
-	LuEye as IcEye,
-	LuEyeOff as IcEyeOff,
 	LuRefreshCw as IcLoading,
 	LuCheck as IcOk,
 	LuFingerprint as IcWebAuthn,
@@ -21,13 +19,18 @@ import {
 import { useAuth, type AuthState, useApi, useDialog, Button } from '@cloudillo/react'
 import type { ApiClient } from '@cloudillo/core'
 
+interface NavigatorUA {
+	userAgentData?: { platform: string }
+}
+
 import { useAppConfig } from '../utils.js'
+import { PasswordInput } from '../components/PasswordInput.js'
 import { RegisterForm } from '../profile/register.js'
 import { validPassword } from './utils.js'
 import { ResetPassword } from './reset-password.js'
 import { IdpActivate } from './idp-activate.js'
 import { QrLoginPanel } from './QrLoginPanel.js'
-import { registerServiceWorker, ensureEncryptionKey } from '../pwa.js'
+import { registerServiceWorker, ensureEncryptionKey, setApiKey } from '../pwa.js'
 
 // ============================================================================
 // Login Init Context — shares pre-fetched QR + WebAuthn data with login page
@@ -36,6 +39,7 @@ import { registerServiceWorker, ensureEncryptionKey } from '../pwa.js'
 export interface LoginInitData {
 	qrLogin: { sessionId: string; secret: string }
 	webAuthn: { options?: unknown; token: string } | null
+	maskedEmail?: string
 }
 
 // undefined = still loading, null = no pre-fetched data, LoginInitData = ready
@@ -88,6 +92,16 @@ export async function webAuthnLogin(api: ApiClient): Promise<AuthState | undefin
 	}
 }
 
+async function createRememberMeKey(api: ApiClient) {
+	try {
+		const deviceName = `${(navigator as NavigatorUA).userAgentData?.platform || navigator.platform || 'Device'} - ${new Date().toLocaleDateString()}`
+		const apiKeyResult = await api.auth.createApiKey({ name: deviceName })
+		await setApiKey(apiKeyResult.plaintextKey)
+	} catch (err) {
+		console.warn('Failed to create remember-me API key:', err)
+	}
+}
+
 ///////////////
 // LoginForm //
 ///////////////
@@ -100,8 +114,7 @@ export function LoginForm() {
 	const _dialog = useDialog()
 
 	const [password, setPassword] = React.useState('')
-	const [passwordVisible, setPasswordVisible] = React.useState(false)
-	const [_remember, setRemember] = React.useState(false)
+	const [remember, setRemember] = React.useState(false)
 	const [forgot, setForgot] = React.useState(false)
 	const [error, setError] = React.useState<string | undefined>()
 	const [webAuthnAttempted, setWebAuthnAttempted] = React.useState(false)
@@ -146,6 +159,8 @@ export function LoginForm() {
 					await registerServiceWorker(result.token)
 					await ensureEncryptionKey()
 					setAuth(result)
+
+					if (remember) await createRememberMeKey(api)
 				} catch (_err) {
 					console.log('WebAuthn auto-login not available')
 				}
@@ -174,6 +189,8 @@ export function LoginForm() {
 			// Set up SW with token
 			await registerServiceWorker(loginResult.token)
 			await ensureEncryptionKey()
+
+			if (remember) await createRememberMeKey(api)
 		} catch (err: unknown) {
 			console.error('Login failed:', err)
 			setError(err instanceof Error ? err.message : 'Login failed')
@@ -227,37 +244,24 @@ export function LoginForm() {
 
 				{!forgot ? (
 					<>
-						<div className="c-input-group mb-3">
+						<PasswordInput
+							groupClassName="mb-3"
+							name="password"
+							onChange={(evt) => setPassword(evt.target.value)}
+							value={password}
+							placeholder={t('Password')}
+							aria-label={t('Password')}
+						/>
+						<label className="c-hbox g-2 mb-3">
 							<input
-								className="c-input"
-								name="password"
-								onChange={(evt: React.ChangeEvent<HTMLInputElement>) =>
-									setPassword(evt.target.value)
-								}
-								value={password}
-								type={passwordVisible ? 'text' : 'password'}
-								placeholder={t('Password')}
-								aria-label={t('Password')}
-							/>
-							<button
-								type="button"
-								className="c-link px-1"
-								onClick={() => setPasswordVisible(!passwordVisible)}
-							>
-								{passwordVisible ? <IcEye /> : <IcEyeOff />}
-							</button>
-						</div>
-						<div className="form-check mb-3">
-							<input
-								className="form-check-input"
+								className="c-toggle primary"
 								name="remember"
 								type="checkbox"
-								onChange={(value) => setRemember(!!value)}
+								checked={remember}
+								onChange={(e) => setRemember(e.target.checked)}
 							/>
-							<label className="form-check-label">
-								{t('Remember me on this device')}
-							</label>
-						</div>
+							<span>{t('Remember me on this device')}</span>
+						</label>
 						<div className="mb-3">
 							<button type="button" className="c-link small" onClick={onForgot}>
 								{t('Forgot password?')}
@@ -266,6 +270,13 @@ export function LoginForm() {
 					</>
 				) : forgotStatus !== 'success' ? (
 					<>
+						{loginInitData?.maskedEmail && (
+							<p className="small text-muted mb-2">
+								{t('Your registered email: {{email}}', {
+									email: loginInitData.maskedEmail
+								})}
+							</p>
+						)}
 						<p className="text-muted mb-3">
 							{t(
 								"Enter your email address and we'll send you a link to reset your password."

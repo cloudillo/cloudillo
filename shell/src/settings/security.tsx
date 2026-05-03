@@ -10,6 +10,10 @@ import {
 import { Button, LoadingSpinner, Modal, useApi, useAuth, useDialog } from '@cloudillo/react'
 import { browserSupportsWebAuthn, startRegistration } from '@simplewebauthn/browser'
 import * as React from 'react'
+
+interface NavigatorUA {
+	userAgentData?: { platform: string }
+}
 import { useTranslation } from 'react-i18next'
 import {
 	LuPlus as IcAdd,
@@ -27,6 +31,7 @@ import {
 	getApiKey as swGetApiKey,
 	setApiKey as swSetApiKey
 } from '../pwa.js'
+import { PasswordInput, PasswordStrengthBar } from '../components/PasswordInput.js'
 import { useSettings } from './settings.js'
 
 const AVAILABLE_SCOPES = [
@@ -523,6 +528,8 @@ export function SecuritySettings() {
 	// Password change state
 	const [currentPassword, setCurrentPassword] = React.useState('')
 	const [newPassword, setNewPassword] = React.useState('')
+	const [confirmNewPassword, setConfirmNewPassword] = React.useState('')
+	const [passwordError, setPasswordError] = React.useState<string | undefined>()
 
 	// WebAuthn state
 	const [passkeys, setPasskeys] = React.useState<WebAuthnCredential[]>([])
@@ -693,7 +700,7 @@ export function SecuritySettings() {
 
 			try {
 				// Create API key with device info as name
-				const deviceName = `${navigator.platform || 'Device'} - ${new Date().toLocaleDateString()}`
+				const deviceName = `${(navigator as NavigatorUA).userAgentData?.platform || navigator.platform || 'Device'} - ${new Date().toLocaleDateString()}`
 				const result = await api.auth.createApiKey({
 					name: deviceName
 				})
@@ -742,11 +749,20 @@ export function SecuritySettings() {
 	}
 
 	async function onChangePassword() {
-		if (!api) throw new Error('Not authenticated')
-		await api.auth.changePassword({ currentPassword, newPassword })
-		setCurrentPassword('')
-		setNewPassword('')
-		await dialog.tell(t('Password changed'), t('Your password has been changed successfully.'))
+		if (!api) return
+		setPasswordError(undefined)
+		try {
+			await api.auth.changePassword({ currentPassword, newPassword })
+			setCurrentPassword('')
+			setNewPassword('')
+			setConfirmNewPassword('')
+			await dialog.tell(
+				t('Password changed'),
+				t('Your password has been changed successfully.')
+			)
+		} catch (err) {
+			setPasswordError(err instanceof Error ? err.message : t('Failed to change password'))
+		}
 	}
 
 	if (!settings) return <LoadingSpinner />
@@ -758,28 +774,64 @@ export function SecuritySettings() {
 				<h4 className="pb-2">{t('Change password')}</h4>
 				<label className="c-hbox pb-2">
 					<span className="flex-fill">{t('Current password')}</span>
-					<input
-						className="c-input w-md"
+					<PasswordInput
+						groupClassName="w-md"
 						name="sec.current_password"
-						type="password"
+						autoComplete="current-password"
 						value={currentPassword}
-						onChange={(evt) => setCurrentPassword(evt.target.value)}
+						onChange={(evt) => {
+							setCurrentPassword(evt.target.value)
+							setPasswordError(undefined)
+						}}
 					/>
 				</label>
 				<label className="c-hbox pb-2">
 					<span className="flex-fill">{t('New password')}</span>
-					<input
-						className="c-input w-md"
+					<PasswordInput
+						groupClassName="w-md"
 						name="sec.new_password"
-						type="password"
+						autoComplete="new-password"
 						value={newPassword}
-						onChange={(evt) => setNewPassword(evt.target.value)}
+						onChange={(evt) => {
+							setNewPassword(evt.target.value)
+							setPasswordError(undefined)
+						}}
 					/>
 				</label>
+				<PasswordStrengthBar password={newPassword} style={{ textAlign: 'right' }} />
+				<label className="c-hbox pb-2">
+					<span className="flex-fill">{t('Confirm new password')}</span>
+					<PasswordInput
+						groupClassName="w-md"
+						name="sec.confirm_new_password"
+						autoComplete="new-password"
+						value={confirmNewPassword}
+						onChange={(evt) => {
+							setConfirmNewPassword(evt.target.value)
+							setPasswordError(undefined)
+						}}
+					/>
+				</label>
+				{confirmNewPassword && newPassword !== confirmNewPassword && (
+					<div className="small text-error mt-1" style={{ textAlign: 'right' }}>
+						{t('Passwords do not match')}
+					</div>
+				)}
+				{passwordError && (
+					<div className="c-panel error mt-2">
+						<p>{passwordError}</p>
+					</div>
+				)}
 				<div className="c-group">
 					<Button
 						variant="primary"
-						disabled={!currentPassword || !newPassword}
+						disabled={
+							!currentPassword ||
+							!newPassword ||
+							!confirmNewPassword ||
+							newPassword !== confirmNewPassword ||
+							newPassword.length < 8
+						}
 						onClick={onChangePassword}
 					>
 						{t('Change password')}

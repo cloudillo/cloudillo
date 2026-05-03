@@ -3,14 +3,10 @@
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuEye as IcEye,
-	LuEyeOff as IcEyeOff,
-	LuCircleCheck as IcSuccess,
-	LuCircleAlert as IcError
-} from 'react-icons/lu'
+import { LuCircleCheck as IcSuccess, LuCircleAlert as IcError } from 'react-icons/lu'
 
 import { useApi, useAuth } from '@cloudillo/react'
+import { PasswordInput } from '../components/PasswordInput.js'
 
 // Store numeric fields as strings to allow proper editing (empty field, typing new value)
 interface EmailFormState {
@@ -47,7 +43,7 @@ function settingsToFormState(settings: Record<string, string | number | boolean>
 }
 
 function isEmail(value: string): boolean {
-	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+	return /^[^\s@]+@[^\s@.][^\s@]*\.[^\s@]+$/.test(value)
 }
 
 // Get default port based on TLS mode (static helper)
@@ -64,7 +60,6 @@ export function EmailSettings() {
 	const { t } = useTranslation()
 	const { api, authenticated } = useApi()
 	const [auth] = useAuth()
-	const [showPassword, setShowPassword] = React.useState(false)
 	const [formState, setFormState] = React.useState<EmailFormState | null>(null)
 	const [savedState, setSavedState] = React.useState<EmailFormState | null>(null)
 	const [isSaving, setIsSaving] = React.useState(false)
@@ -403,24 +398,14 @@ export function EmailSettings() {
 
 						<label className="c-hbox pb-2">
 							<span className="flex-fill">{t('Password')}</span>
-							<div className="c-input-group">
-								<input
-									className="c-input flex-fill"
-									type={showPassword ? 'text' : 'password'}
-									value={formState.smtpPassword}
-									onChange={(e) => updateField('smtpPassword', e.target.value)}
-									autoComplete="new-password"
-									data-lpignore="true"
-									data-1p-ignore="true"
-								/>
-								<button
-									type="button"
-									className="c-link px-1"
-									onClick={() => setShowPassword(!showPassword)}
-								>
-									{showPassword ? <IcEye /> : <IcEyeOff />}
-								</button>
-							</div>
+							<PasswordInput
+								className="flex-fill"
+								value={formState.smtpPassword}
+								onChange={(e) => updateField('smtpPassword', e.target.value)}
+								autoComplete="new-password"
+								data-lpignore="true"
+								data-1p-ignore="true"
+							/>
 						</label>
 						<p className="c-hint mb-4">
 							{t('SMTP authentication password (optional)')}

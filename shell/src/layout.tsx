@@ -487,12 +487,13 @@ function Header({ inert }: { inert?: boolean }) {
 									// Store QR + WebAuthn data for login page
 									setLoginInitData({
 										qrLogin: initResult.qrLogin,
-										webAuthn: initResult.webAuthn ?? null
+										webAuthn: initResult.webAuthn ?? null,
+										maskedEmail: initResult.maskedEmail
 									})
 								}
 							} catch (err) {
 								// Not authenticated - signal "no data" so login components use fallback
-								console.log('[Layout] loginInit failed:', err)
+								console.warn('[Layout] loginInit failed:', err)
 								setAuth(null)
 								setLoginInitData(null)
 							}

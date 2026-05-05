@@ -34,6 +34,17 @@ function hadEncryptedData(): boolean {
 	return localStorage.getItem(HAD_ENCRYPTED_DATA_KEY) === '1'
 }
 
+// Read the raw cookie value, preserving any `=` characters in the body.
+// `.split('=')[1]` would truncate at the first `=`, which currently happens
+// not to occur because `generateKey` strips trailing padding — but a key
+// from a different generator (or migrated from elsewhere) could legitimately
+// contain `=`, and silently truncating it would break decryption.
+function readKeyCookie(): string | undefined {
+	const prefix = `${KEY_COOKIE_NAME}=`
+	const row = document.cookie.split('; ').find((r) => r.startsWith(prefix))
+	return row?.slice(prefix.length)
+}
+
 // Generate a random 256-bit key, return as base64url
 function generateKey(): string {
 	const keyBytes = crypto.getRandomValues(new Uint8Array(32))
@@ -46,10 +57,7 @@ function generateKey(): string {
 // Get or create key from cookie (for fallback browsers without Cookie Store API)
 function getOrCreateKeyFromCookie(): string | null {
 	// Try to read existing
-	const existing = document.cookie
-		.split('; ')
-		.find((row) => row.startsWith(`${KEY_COOKIE_NAME}=`))
-		?.split('=')[1]
+	const existing = readKeyCookie()
 
 	if (existing) return existing
 
@@ -77,6 +85,15 @@ function getOrCreateKeyFromCookie(): string | null {
  */
 export async function ensureEncryptionKey(): Promise<boolean> {
 	if (!('serviceWorker' in navigator)) return true
+
+	// Brave caps cookie Max-Age to 6 months. Re-write on every call to keep
+	// the cookie alive across long-running use. Runs on all browsers — even
+	// Chrome/Edge/Brave where the SW reads the cookie directly via Cookie
+	// Store API, since only the main thread runs reliably on every page load.
+	const existing = readKeyCookie()
+	if (existing) {
+		document.cookie = `${KEY_COOKIE_NAME}=${existing}; Secure; SameSite=Strict; Path=/; Max-Age=2147483647`
+	}
 
 	// Chrome/Edge: SW handles everything via Cookie Store API
 	if ('cookieStore' in window) return true
@@ -555,7 +572,9 @@ export default function usePWA(config: PWAConfig = {}): UsePWA {
 
 	React.useEffect(function onMount() {
 		// Register SW early and ensure encryption key is available
-		registerServiceWorker().then(() => ensureEncryptionKey())
+		registerServiceWorker()
+			.then(() => ensureEncryptionKey())
+			.catch((err) => console.error('[PWA] startup failed:', err))
 
 		// Install Prompt handler
 		window.addEventListener(

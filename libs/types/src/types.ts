@@ -260,6 +260,7 @@ export const tActionView = T.struct({
 		)
 	),
 	subject: T.optional(T.string),
+	subjectProfile: T.optional(tProfileInfo),
 	createdAt: T.union(T.string, T.number),
 	expiresAt: T.optional(T.union(T.string, T.number)),
 	status: T.optional(tActionStatus),

@@ -485,6 +485,7 @@ export interface ListActionsQuery {
 	status?: string | string[]
 	issuer?: string
 	audience?: string
+	audienceType?: 'personal' | 'community'
 	involved?: string
 	parentId?: string
 	rootId?: string
@@ -492,7 +493,7 @@ export interface ListActionsQuery {
 	createdAfter?: string | number
 	tag?: string
 	search?: string
-	visibility?: string
+	visibility?: string | string[]
 	cursor?: string // Cursor for pagination
 	limit?: number // Items per page (replaces _limit)
 	_limit?: number // @deprecated Use limit instead

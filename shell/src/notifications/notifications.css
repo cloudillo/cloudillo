@@ -1,0 +1,45 @@
+/* SPDX-FileCopyrightText: Szilárd Hajba */
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+
+/* Notification panel — bespoke spacing values that don't map to the
+   standard utility scale (gap 0.75rem, padding 1rem 1.25rem). Layout
+   inside (eyebrow, body, actions) uses OpalUI utilities. */
+.c-notification {
+	gap: 0.75rem;
+	padding: 1rem 1.25rem;
+}
+
+.c-notification-title {
+	font-size: 1rem;
+	font-weight: 600;
+	margin: 0;
+}
+
+.c-notification-message {
+	margin: 0;
+	color: var(--col-on-container);
+}
+
+.c-notification.actionable {
+	border-left: 3px solid var(--col-primary);
+	background: var(--col-container);
+}
+
+.c-notification-group-heading {
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--col-on-container-muted, var(--col-on-container));
+	margin: 1rem 0 0.25rem;
+	font-weight: 600;
+}
+
+.c-notification-group-heading:first-of-type {
+	margin-top: 0;
+}
+
+.c-notification-item-actionable {
+	border-left: 3px solid var(--col-primary);
+}
+
+/* vim: ts=4 */

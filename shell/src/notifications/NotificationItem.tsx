@@ -2,12 +2,17 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import { LuCheck as IcAccept, LuX as IcDismiss } from 'react-icons/lu'
 
 import type { ActionView } from '@cloudillo/types'
 import { Button, ProfilePicture, TimeFormat, mergeClasses } from '@cloudillo/react'
+
+import { HOME_CONTEXT, useUrlContextIdTag } from '../context/index.js'
+
+import './notifications.css'
 
 function getActionText(
 	type: string,
@@ -61,12 +66,18 @@ export function NotificationItem({
 	onDismiss
 }: NotificationItemProps) {
 	const { t } = useTranslation()
+	const urlContext = useUrlContextIdTag()
 	const name = action.issuer?.name || action.issuer?.idTag || ''
 	const text = getActionText(action.type, action.subType, action.status, t)
+	const isActionable = compact && action.status === 'C'
 
 	return (
 		<div
-			className={mergeClasses('c-hbox g-2 align-items-center', compact ? 'p-2' : 'p-3')}
+			className={mergeClasses(
+				'c-hbox g-2 align-items-center',
+				compact ? 'p-2' : 'p-3',
+				isActionable && 'c-notification-item-actionable'
+			)}
 			style={
 				compact
 					? {
@@ -80,9 +91,39 @@ export function NotificationItem({
 			<ProfilePicture profile={action.issuer} srcTag={action.issuer?.idTag} tiny />
 			<div className="c-vbox flex-fill" style={{ minWidth: 0 }}>
 				<span className={compact ? 'text-sm' : ''}>
-					<strong>{name}</strong> <span className="text-muted">{text}</span>
+					<strong>{name}</strong>{' '}
+					{action.type === 'INVT' && action.subjectProfile ? (
+						<>
+							<span className="text-muted">{t('invited you to')}</span>{' '}
+							<Link
+								to={`/profile/${urlContext || HOME_CONTEXT}/${action.subjectProfile.idTag}`}
+								onClick={(e) => e.stopPropagation()}
+							>
+								<strong className="text-emph">
+									{action.subjectProfile.name || action.subjectProfile.idTag}
+								</strong>
+							</Link>
+						</>
+					) : (
+						<span className="text-muted">{text}</span>
+					)}{' '}
+					<small className="text-muted">
+						<TimeFormat time={action.createdAt} />
+					</small>
 				</span>
-				<TimeFormat time={action.createdAt} />
+				{(action.type === 'INVT' || action.type === 'PRINVT') &&
+					(() => {
+						const c = action.content
+						const msg =
+							typeof c === 'string'
+								? c
+								: (c as { message?: string } | undefined)?.message
+						return msg ? (
+							<span className="text-muted text-truncate" style={{ maxWidth: '100%' }}>
+								{msg}
+							</span>
+						) : null
+					})()}
 			</div>
 			{/* stopPropagation on wrapper div to prevent Popper close on button click */}
 			<div className="c-hbox g-1" onClick={(e) => e.stopPropagation()}>

@@ -58,15 +58,6 @@ export {
 export { useProfileTrust, useProfileTrustBootstrap } from './trust'
 export type { EffectiveTrust, UseProfileTrust } from './trust'
 
-// Trust gate (for community context activation)
-export {
-	ContextTrustGateBusyError,
-	ContextTrustGateRejectedError,
-	TrustGateDialog,
-	isTrustGateRejection,
-	trustGateAtom
-} from './trust-gate'
-
 // Proactive proxy-token renewal
 export { useContextTokenRenewal } from './useContextTokenRenewal'
 

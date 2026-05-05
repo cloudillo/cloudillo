@@ -127,15 +127,6 @@ export const sessionTrustAtom = atom<Map<string, 'S' | 'X'>>(new Map())
 export const storedTrustAtom = atom<Map<string, ProfileTrust>>(new Map())
 
 /**
- * Trust-cache seed status. Keyed by idTag so an effect race during a user
- * switch cannot read user B's trust against user A's `ready=true` flag.
- */
-export const trustBootstrapAtom = atom<{ idTag: string | null; ready: boolean }>({
-	idTag: null,
-	ready: false
-})
-
-/**
  * Derived atom: Pinned communities
  * Returns communities that are pinned, preserving user's custom order
  */

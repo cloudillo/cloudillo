@@ -63,7 +63,6 @@ import { useActionNotifications } from './notifications/useActionNotifications.j
 import {
 	HOME_CONTEXT,
 	Sidebar,
-	TrustGateDialog,
 	useSidebar,
 	useCommunitiesList,
 	useUrlContextIdTag,
@@ -991,7 +990,6 @@ export function Layout() {
 				</div>
 				<div id="popper-container" />
 				<DialogContainer />
-				<TrustGateDialog />
 				<ToastContainer position="bottom-right" />
 				<MediaPicker />
 				<ShareCreate />

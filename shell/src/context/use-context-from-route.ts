@@ -8,7 +8,6 @@ import { useAuth, apiAtom } from '@cloudillo/react'
 
 import { activeContextAtom } from './atoms'
 import { useApiContext } from './hooks'
-import { ContextTrustGateBusyError, ContextTrustGateRejectedError } from './trust-gate'
 import { HOME_CONTEXT } from './constants.js'
 
 export function useContextFromRoute(): string | undefined {
@@ -39,17 +38,6 @@ export function useContextFromRoute(): string | undefined {
 		if (contextIdTag && activeContext?.idTag !== contextIdTag) {
 			// Switch to the context from URL
 			setActiveContext(contextIdTag).catch((err) => {
-				// Another gate is already on screen for an earlier click —
-				// the user hasn't decided anything yet, so don't navigate
-				// away from under them. Doing nothing leaves the existing
-				// dialog and route in place.
-				if (err instanceof ContextTrustGateBusyError) return
-				// User declined the trust gate — silently fall back to their
-				// home context, same destination as the failure path.
-				if (err instanceof ContextTrustGateRejectedError) {
-					navigate(`/app/${HOME_CONTEXT}/feed`, { replace: true })
-					return
-				}
 				console.error(`[Route] Failed to switch to context ${contextIdTag}:`, err)
 
 				// If we can't switch, redirect to user's own context

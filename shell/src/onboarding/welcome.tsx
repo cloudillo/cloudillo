@@ -179,16 +179,18 @@ export function Welcome() {
 			// propagated yet.
 			let nextPath = '/onboarding/join'
 			try {
-				const settings = await api.settings.list({ prefix: 'ui.onboarding' })
-				const onboarding = settings.find((s) => s.key === 'ui.onboarding')?.value
-				if (onboarding === 'verify-idp') {
+				const setting = await api.settings.get('ui.onboarding')
+				if (setting.value === 'verify-idp') {
 					nextPath = '/onboarding/verify-idp'
 				}
 			} catch (settingsErr) {
-				console.warn(
-					'Failed to read ui.onboarding after setPassword, defaulting to join:',
-					settingsErr
-				)
+				// 404 = no onboarding gate engaged → /onboarding/join is correct.
+				if (!(settingsErr instanceof FetchError && settingsErr.httpStatus === 404)) {
+					console.warn(
+						'Failed to read ui.onboarding after setPassword, defaulting to join:',
+						settingsErr
+					)
+				}
 			}
 			setTimeout(() => {
 				navigate(nextPath)

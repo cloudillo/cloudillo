@@ -23,7 +23,6 @@ import type { Profile } from '@cloudillo/types'
 import { useApi, useAuth, Fcd, ProfileCard } from '@cloudillo/react'
 import { parseQS } from '../utils.js'
 import { useContextSwitch } from '../context/index.js'
-import { isTrustGateRejection } from '../context/trust-gate.js'
 import { useQrScanner } from '../components/QrScanner/index.js'
 
 function ProfileStatusIcon({ profile }: { profile: Profile }) {
@@ -127,7 +126,6 @@ export function CommunityListCard({ profile, srcTag }: CommunityListCardProps) {
 	const handleRowClick = () => {
 		if (isMember) {
 			switchTo(profile.idTag, '/feed').catch((err) => {
-				if (isTrustGateRejection(err)) return
 				console.error('Failed to switch context:', err)
 			})
 		} else {

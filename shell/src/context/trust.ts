@@ -23,7 +23,7 @@ import { useAtom, useSetAtom } from 'jotai'
 import { useApi, useAuth } from '@cloudillo/react'
 import type { ProfileTrust } from '@cloudillo/types'
 
-import { contextTokensAtom, sessionTrustAtom, storedTrustAtom, trustBootstrapAtom } from './atoms'
+import { contextTokensAtom, sessionTrustAtom, storedTrustAtom } from './atoms'
 
 /**
  * Effective trust level for a foreign profile, merged from session + stored state.
@@ -177,9 +177,10 @@ export function useProfileTrust(): UseProfileTrust {
 }
 
 /**
- * Seed `storedTrustAtom` once per session from the backend so passive reads
- * can answer "always / never / ask" synchronously on cold load — without
- * having to visit each profile page first.
+ * Seed `storedTrustAtom` from `api.profiles.listTrust()` on auth-idTag
+ * transitions so the passive-read gate in `getTokenFor` can answer
+ * "always / never / ask" synchronously on cold load — without having to
+ * visit each profile page first.
  *
  * Call once, high in the tree, alongside `useTokenRenewal` /
  * `useContextTokenRenewal`. Re-runs only when the authenticated idTag
@@ -189,7 +190,6 @@ export function useProfileTrustBootstrap() {
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const { rememberStoredTrust } = useProfileTrust()
-	const setBootstrap = useSetAtom(trustBootstrapAtom)
 	const setStored = useSetAtom(storedTrustAtom)
 	const setSession = useSetAtom(sessionTrustAtom)
 	const setContextTokens = useSetAtom(contextTokensAtom)
@@ -208,16 +208,8 @@ export function useProfileTrustBootstrap() {
 			setSession(new Map())
 			setContextTokens(new Map())
 		}
-		setBootstrap({ idTag, ready: false })
 
-		if (!api || !auth?.idTag) {
-			// No auth → nothing to seed. Mark ready so callers blocking on
-			// `awaitTrustBootstrap()` see a definite (empty) cache instead
-			// of hanging. "Ready" means the cache is in a known state, not
-			// that the cache has data.
-			setBootstrap({ idTag, ready: true })
-			return
-		}
+		if (!api || !auth?.idTag) return
 		let cancelled = false
 		;(async () => {
 			try {
@@ -226,27 +218,14 @@ export function useProfileTrustBootstrap() {
 				for (const p of list) {
 					rememberStoredTrust(p.idTag, p.trust ?? null)
 				}
-				setBootstrap({ idTag, ready: true })
 			} catch (err) {
 				console.error('[useProfileTrustBootstrap] failed to seed trust cache:', err)
-				// Mark ready even on failure so the trust gate doesn't wait
-				// forever; missing entries fall back to the "ask" path which
-				// is the safe default.
-				if (!cancelled) setBootstrap({ idTag, ready: true })
 			}
 		})()
 		return () => {
 			cancelled = true
 		}
-	}, [
-		api,
-		auth?.idTag,
-		rememberStoredTrust,
-		setBootstrap,
-		setStored,
-		setSession,
-		setContextTokens
-	])
+	}, [api, auth?.idTag, rememberStoredTrust, setStored, setSession, setContextTokens])
 }
 
 // vim: ts=4

@@ -19,13 +19,7 @@ import type { ActionView } from '@cloudillo/types'
 import { useAuth, useApi, Button, ProfileCard, TimeFormat } from '@cloudillo/react'
 import type * as Types from '@cloudillo/core'
 
-import {
-	contextOnboardingAtom,
-	useCommunitiesList,
-	useContextSwitch,
-	useProfileTrust
-} from '../context/index.js'
-import { isTrustGateRejection } from '../context/trust-gate.js'
+import { contextOnboardingAtom, useCommunitiesList, useContextSwitch } from '../context/index.js'
 import { CloudilloLogo } from '../logo.js'
 import {
 	ProviderSelectionStep,
@@ -502,7 +496,6 @@ export function CreateCommunity() {
 	const [auth] = useAuth()
 	const { addPendingCommunity } = useCommunitiesList()
 	const { switchTo } = useContextSwitch()
-	const { setStoredTrust, setSessionTrust } = useProfileTrust()
 	const [, setContextOnboarding] = useAtom(contextOnboardingAtom)
 
 	// Invite gating
@@ -726,28 +719,10 @@ export function CreateCommunity() {
 	async function handleOpenCommunity() {
 		const fullIdTag =
 			identityProvider === 'domain' ? idTagInput : idTagInput + '.' + selectedProvider
-
-		// Creating a community is itself an explicit, identified action —
-		// equivalent consent to clicking 'Always trust' on the profile-page
-		// banner. Seed session trust ('S') so the switch skips the gate
-		// dialog without persisting yet; if the switch fails (community
-		// provisioning lag, transient 5xx), we don't want a stored 'always'
-		// on a community the user isn't actually a member of. Persist only
-		// after switchTo resolves successfully.
-		setSessionTrust(fullIdTag, 'S')
-
 		try {
 			await switchTo(fullIdTag, '/feed')
 		} catch (err) {
-			if (isTrustGateRejection(err)) return
 			console.error('Failed to switch to community:', err)
-			return
-		}
-
-		try {
-			await setStoredTrust(fullIdTag, 'always')
-		} catch (err) {
-			console.error('Failed to persist trust on self-created community:', err)
 		}
 	}
 

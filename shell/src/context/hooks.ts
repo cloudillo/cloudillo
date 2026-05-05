@@ -10,9 +10,8 @@
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai'
 import { useNavigate } from 'react-router-dom'
-import { createApiClient, type ApiClient } from '@cloudillo/core'
-import { useApi, useAuth, apiAtom, authAtom, useToast } from '@cloudillo/react'
-import { useTranslation } from 'react-i18next'
+import { createApiClient, FetchError, type ApiClient } from '@cloudillo/core'
+import { useApi, useAuth, apiAtom, authAtom } from '@cloudillo/react'
 
 import { HOME_CONTEXT } from './constants.js'
 import {
@@ -30,17 +29,8 @@ import {
 	recentCommunitiesAtom,
 	totalUnreadCountAtom,
 	sessionTrustAtom,
-	storedTrustAtom,
-	trustBootstrapAtom
+	storedTrustAtom
 } from './atoms'
-import {
-	ContextAuthChangedError,
-	ContextTrustGateRejectedError,
-	isTrustGateRejection,
-	requestTrustGate,
-	trustGateAtom
-} from './trust-gate'
-import { useProfileTrust } from './trust'
 
 import {
 	CONTEXT_TOKEN_LIFETIME_MS,
@@ -74,15 +64,10 @@ import {
  */
 export function useApiContext() {
 	const store = useStore()
-	const { t } = useTranslation()
-	const { warning: toastWarning } = useToast()
 	const activeContext = useAtomValue(activeContextAtom)
-	const trustBootstrap = useAtomValue(trustBootstrapAtom)
 	const setActiveContextState = useSetAtom(activeContextAtom)
 	const setContextOnboarding = useSetAtom(contextOnboardingAtom)
 	const setContextTokens = useSetAtom(contextTokensAtom)
-	const setTrustGate = useSetAtom(trustGateAtom)
-	const { setStoredTrust, setSessionTrust } = useProfileTrust()
 	const [isLoading, setIsLoading] = React.useState(false)
 	const [error, setError] = React.useState<Error | undefined>()
 
@@ -96,50 +81,6 @@ export function useApiContext() {
 
 	// Per-idTag cache for foreign contexts (primary lives in primaryApiRef).
 	const apiClientsRef = React.useRef<Map<string, ApiClient>>(new Map())
-	const trustBootstrapWaitersRef = React.useRef<
-		Array<{ idTag: string | null; resolve: () => void }>
-	>([])
-	const isUnmountedRef = React.useRef(false)
-
-	// Drain waiters whose captured idTag matches the bootstrap that just
-	// became ready. Mismatched waiters stay pending until their own idTag
-	// lands (or are released by the unmount cleanup).
-	React.useEffect(() => {
-		if (!trustBootstrap.ready) return
-		const remaining: Array<{ idTag: string | null; resolve: () => void }> = []
-		for (const w of trustBootstrapWaitersRef.current) {
-			if (w.idTag === trustBootstrap.idTag) {
-				w.resolve()
-			} else {
-				remaining.push(w)
-			}
-		}
-		trustBootstrapWaitersRef.current = remaining
-	}, [trustBootstrap.ready, trustBootstrap.idTag])
-
-	// Release leftover bootstrap waiters on unmount so an in-flight
-	// `setActiveContext` doesn't hold its closure scope forever.
-	React.useEffect(
-		() => () => {
-			isUnmountedRef.current = true
-			const waiters = trustBootstrapWaitersRef.current
-			trustBootstrapWaitersRef.current = []
-			for (const w of waiters) w.resolve()
-		},
-		[]
-	)
-
-	// Wait for the stored-trust cache to be seeded for the *current* auth
-	// idTag — keyed so a cross-user race can't resolve against a stale "ready".
-	const awaitTrustBootstrap = React.useCallback((): Promise<void> => {
-		const auth = store.get(authAtom)
-		const expectedIdTag = auth?.idTag ?? null
-		const bs = store.get(trustBootstrapAtom)
-		if (bs.ready && bs.idTag === expectedIdTag) return Promise.resolve()
-		return new Promise<void>((resolve) => {
-			trustBootstrapWaitersRef.current.push({ idTag: expectedIdTag, resolve })
-		})
-	}, [store])
 
 	/**
 	 * Get API client for specific context
@@ -314,45 +255,6 @@ export function useApiContext() {
 			setError(undefined)
 
 			try {
-				// Gate foreign-context switches behind 'always' trust (or a
-				// session 'S'). Own context skips — no foreign auth involved.
-				if (idTag !== ownIdTag) {
-					await awaitTrustBootstrap()
-					if (isUnmountedRef.current) {
-						throw new ContextAuthChangedError()
-					}
-					// Auth may have flipped during the await — abort silently
-					// rather than persisting trust against the wrong identity.
-					const currentAuth = store.get(authAtom)
-					if (currentAuth?.idTag !== ownIdTag) {
-						throw new ContextAuthChangedError()
-					}
-					const stored = store.get(storedTrustAtom).get(idTag)
-					const session = store.get(sessionTrustAtom).get(idTag)
-					if (stored !== 'always' && session !== 'S') {
-						const accepted = await requestTrustGate(setTrustGate, idTag)
-						if (!accepted) {
-							throw new ContextTrustGateRejectedError()
-						}
-						// On persist failure, fall back to session trust so the
-						// switch still proceeds — user consented, server didn't.
-						try {
-							await setStoredTrust(idTag, 'always')
-						} catch (persistErr) {
-							console.warn(
-								'[setActiveContext] failed to persist trust, falling back to session-only:',
-								persistErr
-							)
-							setSessionTrust(idTag, 'S')
-							toastWarning(
-								t(
-									'Trust decision saved for this session only. Retry once you are online.'
-								)
-							)
-						}
-					}
-				}
-
 				// Explicit user action: bypass the passive-read gate.
 				const tokenResult = await getTokenFor(idTag, { explicit: true })
 				if (!tokenResult) {
@@ -380,24 +282,31 @@ export function useApiContext() {
 
 				// Load per-context ui.onboarding after the switch so the
 				// banner doesn't flash a stale value. Non-fatal on failure.
+				// Use settings.get (not settings.list with a prefix) — the
+				// /settings?prefix= endpoint always appends a "." to the
+				// supplied prefix and so never matches an exact key.
 				try {
-					const settings = await contextApi.settings.list({
-						prefix: 'ui.onboarding'
-					})
-					const value = settings.find((s) => s.key === 'ui.onboarding')?.value
+					const setting = await contextApi.settings.get('ui.onboarding')
+					const value = setting.value
 					if (typeof value === 'string') {
-						setContextOnboarding((prev) => ({ ...prev, [idTag]: value }))
-					} else {
-						setContextOnboarding((prev) => ({ ...prev, [idTag]: null }))
+						setContextOnboarding((prev) => ({
+							...prev,
+							[idTag]: value
+						}))
 					}
+					// No else branch: leave any existing value (e.g. the
+					// 'verify-idp' written optimistically right after community
+					// creation) untouched. Clearing happens via verify-idp-banner
+					// polling, which sets contextOnboarding[idTag] = null when
+					// idpStatus.status === 'active'.
 				} catch (settingsErr) {
-					console.warn('Failed to read ui.onboarding for context:', settingsErr)
+					// 404 = setting unset (the common case). Anything else is
+					// transient; leave the optimistic value alone either way.
+					if (!(settingsErr instanceof FetchError && settingsErr.httpStatus === 404)) {
+						console.warn('Failed to read ui.onboarding for context:', settingsErr)
+					}
 				}
 			} catch (err) {
-				// Gate flow exceptions are expected UI states — re-throw silently.
-				if (isTrustGateRejection(err)) {
-					throw err
-				}
 				setError(err as Error)
 				console.error('Failed to switch context:', err)
 				throw err
@@ -405,19 +314,7 @@ export function useApiContext() {
 				setIsLoading(false)
 			}
 		},
-		[
-			store,
-			t,
-			toastWarning,
-			getTokenFor,
-			getClientFor,
-			setActiveContextState,
-			setContextOnboarding,
-			setStoredTrust,
-			setSessionTrust,
-			awaitTrustBootstrap,
-			setTrustGate
-		]
+		[store, getTokenFor, getClientFor, setActiveContextState, setContextOnboarding]
 	)
 
 	return {
@@ -736,9 +633,7 @@ export function useContextSwitch() {
 				}
 				setLastSwitch(switchEvent)
 			} catch (err) {
-				if (!isTrustGateRejection(err)) {
-					console.error('Context switch failed:', err)
-				}
+				console.error('Context switch failed:', err)
 				throw err
 			} finally {
 				setIsSwitching(false)

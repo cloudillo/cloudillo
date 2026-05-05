@@ -13,6 +13,7 @@ interface InviteMembersDialogProps {
 	open: boolean
 	onClose: () => void
 	communityIdTag: string
+	communityName?: string
 	onSent: () => void
 }
 
@@ -20,6 +21,7 @@ export function InviteMembersDialog({
 	open,
 	onClose,
 	communityIdTag,
+	communityName,
 	onSent
 }: InviteMembersDialogProps) {
 	const { t } = useTranslation()
@@ -41,8 +43,29 @@ export function InviteMembersDialog({
 			setLoading(true)
 			;(async function () {
 				try {
-					const list = (await api.profiles.list({ type: 'person' })) as Profile[]
-					if (!cancelled) setContacts(list)
+					// Drain the cursor-paginated address-book list so accounts
+					// with > 1 page of contacts still see everyone.
+					const accumulated: Profile[] = []
+					let cursor: string | undefined
+					do {
+						const result = await api.contacts.listAllContacts({
+							cursor,
+							limit: 200
+						})
+						if (cancelled) return
+						for (const c of result.data) {
+							if (!c.profileIdTag) continue
+							accumulated.push({
+								idTag: c.profileIdTag,
+								name: c.fn || c.profileIdTag,
+								profilePic: c.photo
+							} as Profile)
+						}
+						cursor = result.meta.cursorPagination?.hasMore
+							? (result.meta.cursorPagination?.nextCursor ?? undefined)
+							: undefined
+					} while (cursor)
+					if (!cancelled) setContacts(accumulated)
 				} catch (err) {
 					console.error('Failed to load contacts', err)
 					if (!cancelled) setContacts([])
@@ -97,7 +120,11 @@ export function InviteMembersDialog({
 					type: 'INVT',
 					audienceTag: invitee.idTag,
 					subject: '@' + communityIdTag,
-					...(message.trim() ? { content: message.trim() } : {})
+					content: {
+						role: 'member',
+						groupName: communityName || communityIdTag,
+						...(message.trim() ? { message: message.trim() } : {})
+					}
 				})
 				successfulTags.add(invitee.idTag)
 			} catch (err) {

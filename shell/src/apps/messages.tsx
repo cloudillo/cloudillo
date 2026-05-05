@@ -133,6 +133,7 @@ interface MsgProps {
 }
 function Msg({ className, action, local, showSender }: MsgProps) {
 	const [auth] = useAuth()
+	const urlContext = useUrlContextIdTag()
 	const [tab, setTab] = React.useState<undefined | 'CMNT' | 'LIKE' | 'SHRE'>(undefined)
 
 	let imgSrc: string | undefined
@@ -165,7 +166,7 @@ function Msg({ className, action, local, showSender }: MsgProps) {
 		>
 			{displaySender && (
 				<div className="c-panel-header d-flex mb-1">
-					<Link to={`/profile/${action.issuer.idTag}`}>
+					<Link to={`/profile/${urlContext || HOME_CONTEXT}/${action.issuer.idTag}`}>
 						<ProfileCard profile={action.issuer} className="small" />
 					</Link>
 				</div>
@@ -216,7 +217,6 @@ export function NewMsg({
 
 	React.useEffect(() => {
 		setTimeout(function () {
-			console.log('blur+focus', editorRef.current)
 			editorRef.current?.blur()
 			editorRef.current?.focus()
 		}, 1000)
@@ -263,7 +263,6 @@ export function NewMsg({
 		}
 
 		const res = await api.actions.create(action)
-		console.log('MSG res', res)
 		onSubmit?.({
 			...res,
 			issuer: { name: auth.name ?? '', idTag: auth.idTag, profilePic: auth.profilePic },
@@ -441,6 +440,7 @@ function ConversationBar({
 	const { t } = useTranslation()
 	const _location = useLocation()
 	const _navigate = useNavigate()
+	const urlContext = useUrlContextIdTag()
 	const [search, setSearch] = React.useState(filter.q || '')
 
 	const setFilterDebounced = React.useCallback(
@@ -526,8 +526,17 @@ function ConversationBar({
 					<div className="c-nav vertical low">
 						{pendingInvites.map((invite) => {
 							const inviteContent = invite.content as
-								| { groupName?: string }
+								| { groupName?: string; message?: string }
+								| string
 								| undefined
+							const inviteMessage =
+								typeof inviteContent === 'string'
+									? inviteContent
+									: inviteContent?.message
+							const inviteGroupName =
+								typeof inviteContent === 'string'
+									? undefined
+									: inviteContent?.groupName
 							return (
 								<div
 									key={invite.actionId}
@@ -535,12 +544,31 @@ function ConversationBar({
 								>
 									<IcGroup className="text-muted flex-shrink-0" />
 									<div className="c-vbox fill overflow-hidden">
-										<span className="fw-medium text-truncate">
-											{inviteContent?.groupName || t('Group invitation')}
-										</span>
+										{invite.subjectProfile ? (
+											<Link
+												to={`/profile/${urlContext || HOME_CONTEXT}/${invite.subjectProfile.idTag}`}
+											>
+												<ProfileCard
+													profile={invite.subjectProfile}
+													className="small"
+												/>
+											</Link>
+										) : (
+											<span className="fw-medium text-truncate">
+												{inviteGroupName || t('Group invitation')}
+											</span>
+										)}
 										<span className="text-muted text-small text-truncate">
 											{t('From')} {invite.issuer.name || invite.issuer.idTag}
 										</span>
+										{inviteMessage && (
+											<span
+												className="text-small text-truncate"
+												title={inviteMessage}
+											>
+												{inviteMessage}
+											</span>
+										)}
 									</div>
 									<Button
 										kind="link"
@@ -1113,8 +1141,7 @@ export function MessagesApp() {
 				content: {
 					name: groupName.trim(),
 					description: groupDescription.trim() || undefined
-				} as unknown as string // API expects string but we send object
-				// flags: groupIsOpen ? 'RCO' : 'RCo'  // TODO: Add flags support
+				}
 			})
 
 			// Invite selected members
@@ -1127,7 +1154,7 @@ export function MessagesApp() {
 						content: {
 							role: 'member',
 							groupName: groupName.trim()
-						} as unknown as string
+						}
 					})
 				} catch (err) {
 					console.error('Failed to invite', member.idTag, err)
@@ -1183,7 +1210,7 @@ export function MessagesApp() {
 					content: {
 						role: 'member',
 						groupName: conversation.name
-					} as unknown as string
+					}
 				})
 			}
 			setShowInviteMember(false)

@@ -1040,6 +1040,7 @@ export function ProfileConnections({
 					open={inviteOpen}
 					onClose={() => setInviteOpen(false)}
 					communityIdTag={profile.idTag}
+					communityName={profile.name}
 					onSent={triggerRefresh}
 				/>
 			</>

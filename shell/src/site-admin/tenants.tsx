@@ -256,23 +256,23 @@ export function Tenants() {
 
 	async function confirmPurge() {
 		if (!api || !purgeTarget) return
+		const target = purgeTarget
 		setPurgeBusy(true)
 		try {
-			const res = await api.admin.purgeTenant(purgeTarget, { confirmIdTag: purgeTarget })
+			const res = await api.admin.purgeTenant(target, { confirmIdTag: target })
+			setPurgeBusy(false)
 			setPurgeTarget(undefined)
 			setPurgeInput('')
 			await dialog.tell(
 				t('Tenant deleted'),
-				t('{{idTag}} has been removed ({{blobs}} blob(s) deleted).', {
-					idTag: res.idTag,
-					blobs: res.blobsRemoved
-				})
+				t('{{idTag}} has been removed.', { idTag: res.idTag })
 			)
 			loadTenants(search || undefined)
-		} catch (err: unknown) {
-			await dialog.tell(t('Delete failed'), err instanceof Error ? err.message : String(err))
-		} finally {
+		} catch (err) {
 			setPurgeBusy(false)
+			setPurgeTarget(undefined)
+			setPurgeInput('')
+			await dialog.tell(t('Delete failed'), err instanceof Error ? err.message : String(err))
 		}
 	}
 

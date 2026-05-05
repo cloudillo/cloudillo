@@ -1037,8 +1037,7 @@ export type PasswordResetResponse = T.TypeOf<typeof tPasswordResetResponse>
 
 export const tPurgeTenantResponse = T.struct({
 	tnId: T.number,
-	idTag: T.string,
-	blobsRemoved: T.number
+	idTag: T.string
 })
 export type PurgeTenantResponse = T.TypeOf<typeof tPurgeTenantResponse>
 

@@ -995,6 +995,16 @@
 .c-fcd-content-scroll {
 	/* Add padding at bottom to ensure all content can scroll into view */
 	padding-bottom: 1rem;
+	/* Per CSS spec, setting overflow-y: auto computes overflow-x: visible
+	   to auto, which produces a spurious horizontal scrollbar from
+	   sub-pixel column-width rounding (see OpalUI grid in
+	   local/opalui/src/layout.css). Clip the x axis explicitly. */
+	overflow-x: clip;
+}
+
+.c-fcd-filter {
+	/* Same spec quirk as .c-fcd-content-scroll above. */
+	overflow-x: clip;
 }
 
 @media (max-width: 1199px) {

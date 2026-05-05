@@ -782,11 +782,11 @@ function onFetch(evt: FetchEvent) {
 									}
 								)
 								token = (await proxyTokenRes.json())?.data?.token
-								log && console.log('PROXY TOKEN miss', idTag, targetTag, token)
+								log && console.log('[SW] PROXY TOKEN miss', idTag, targetTag)
 								// FIXME: expiration
 								if (token) proxyTokenCache.set(targetTag, token)
 							} else {
-								log && console.log('PROXY TOKEN cached', idTag, targetTag, token)
+								log && console.log('[SW] PROXY TOKEN cached', idTag, targetTag)
 							}
 
 							if (token) headers.set('Authorization', `Bearer ${token}`)
@@ -794,11 +794,6 @@ function onFetch(evt: FetchEvent) {
 						}
 
 						const request = new Request(evt.request, { headers, mode: 'cors' })
-						log &&
-							console.log('[SW] request', request, {
-								origin: headers.get('Origin'),
-								authorization: headers.get('Authorization')
-							})
 						const res = await fetch(request)
 						log && console.log('[SW] NOCACHE', res)
 
@@ -811,7 +806,7 @@ function onFetch(evt: FetchEvent) {
 
 						return res
 					} catch (err) {
-						console.log('[SW] FETCH ERROR', err)
+						console.warn('[SW] FETCH ERROR', err)
 
 						// Fallback to blob cache on network error
 						const fedBlobFallback = await fetchWithBlobCache(evt.request, reqUrl)

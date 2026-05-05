@@ -34,15 +34,10 @@ export function useTokenRenewal() {
 		if (!api) return
 
 		try {
-			console.log('[TokenRenewal] Renewing token...')
 			const result = await api.auth.getLoginToken()
-			if (!result) {
-				console.log('[TokenRenewal] No session, skipping renewal')
-				return
-			}
+			if (!result) return
 			const newAuth: AuthState = { ...result }
 			setAuth(newAuth)
-			console.log('[TokenRenewal] Token renewed successfully')
 
 			// Update SW with token
 			// Token is stored in SW encrypted storage via registerServiceWorker()
@@ -81,9 +76,6 @@ export function useTokenRenewal() {
 			}
 
 			renewalTimerRef.current = window.setTimeout(renewToken, renewAt)
-			console.log(
-				`[TokenRenewal] Scheduled renewal in ${Math.round(renewAt / 1000 / 60)} minutes`
-			)
 		},
 		[getTokenExpiry, renewToken]
 	)

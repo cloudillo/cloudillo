@@ -86,16 +86,14 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 			wsRef.current = newWs
 
 			newWs.onopen = function open() {
-				console.log('connected')
 				for (const sm of connSendBuf) {
-					console.log('WS sending', sm)
 					newWs.send(sm)
 				}
 				connSendBuf.length = 0
 			}
 
 			newWs.onclose = async function close(event) {
-				console.log('disconnected', event.code, event.reason)
+				console.warn('[WsBus] disconnected', event.code, event.reason)
 				// Only reconnect if this is still the current WebSocket
 				if (wsRef.current !== newWs) return
 
@@ -103,7 +101,7 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 				// WebSocket close codes: 1008 = Policy Violation (auth failure)
 				// 4000-4999 = Application-specific codes (often used for auth errors)
 				if (event.code === 1008 || (event.code >= 4000 && event.code < 5000)) {
-					console.log('WS closed due to auth error, not reconnecting')
+					console.warn('[WsBus] closed due to auth error, not reconnecting')
 					return
 				}
 				await delay(10_000)
@@ -117,10 +115,9 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 
 			newWs.onmessage = function incoming(msg) {
 				const j = JSON.parse(msg.data)
-				console.log('WS BUS MSG', j)
 				switch (j.cmd) {
 					case 'debug':
-						console.log('WS DEBUG', j)
+						console.log('[WsBus] debug', j)
 						break
 					case 'FILE_ID_GENERATED':
 						// Handle file ID resolution

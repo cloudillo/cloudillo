@@ -899,7 +899,7 @@ export function Layout() {
 	React.useEffect(() => {
 		if (!getShellBus()) {
 			initShellBus({
-				debug: process.env.NODE_ENV !== 'production',
+				debug: false,
 				getAccessToken: async (resId, _access) => {
 					const currentApi = apiRef.current
 					const currentAuth = authRef.current

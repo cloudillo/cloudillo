@@ -13,7 +13,7 @@ import { FetchError } from '@cloudillo/core'
 import { activeContextAtom, contextOnboardingAtom } from './atoms'
 import { useApiContext } from './hooks'
 
-const POLL_INTERVAL_MS = 15_000
+const POLL_INTERVAL_MS = 60_000
 const RESEND_COOLDOWN_MS = 60_000
 
 function formatRemaining(t: TFunction, expiresAt: string): string {
@@ -50,8 +50,9 @@ export function CommunityVerifyIdpBanner() {
 	const cooldownTimerRef = React.useRef<number | undefined>(undefined)
 
 	const idTag = activeContext?.type === 'community' ? activeContext.idTag : undefined
+	const isLeader = activeContext?.roles?.includes('leader') ?? false
 	const onboarding = idTag ? contextOnboarding[idTag] : undefined
-	const visible = onboarding === 'verify-idp'
+	const visible = isLeader && onboarding === 'verify-idp'
 
 	// 1s ticker for the countdown.
 	React.useEffect(() => {

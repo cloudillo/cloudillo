@@ -45,11 +45,17 @@
 	align-items: center;
 	justify-content: center;
 	background: var(--col-feed-overlay, rgba(0, 0, 0, 0.6));
-	color: var(--col-on-primary, #fff);
-	font-size: 2rem;
+	color: #fff;
+	font-size: 2.75rem;
 	transition:
 		transform 200ms ease,
 		background-color 200ms ease;
+}
+
+.c-feed-video-facade__play svg {
+	width: 2.75rem;
+	height: 2.75rem;
+	fill: currentColor;
 }
 
 .c-feed-video-facade:hover .c-feed-video-facade__play,

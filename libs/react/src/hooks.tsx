@@ -21,7 +21,13 @@ export interface AuthState {
 	token?: string
 }
 
-const authAtom = atom<AuthState | null | undefined>(undefined)
+/**
+ * Underlying auth state atom. Exposed for `store.get(authAtom)` reads from
+ * imperative call sites (e.g. inside `useCallback`s that should not
+ * re-subscribe on every token rotation). For component-level subscriptions,
+ * use `useAuth()` — that remains the supported reactive path.
+ */
+export const authAtom = atom<AuthState | null | undefined>(undefined)
 
 export function useAuth() {
 	return useAtom(authAtom)
@@ -75,41 +81,31 @@ export function useApi(): ApiHook {
 	const [auth] = useAuth()
 	const [apiState, setApiState] = useAtom(apiAtom)
 
-	// Cache API clients per idTag + token combination
+	// One ApiClient per idTag; token rotations are pushed in via setAuthToken
+	// (effect below) so the client identity stays stable across rotations.
 	const apiClientsRef = React.useRef<Map<string, ApiClient>>(new Map())
 
 	const api = React.useMemo(() => {
 		const idTag = apiState.idTag || auth?.idTag
-		const token = auth?.token
-
 		if (!idTag) return null
 
-		// Create cache key
-		const cacheKey = `${idTag}:${token || 'no-token'}`
-
-		// Return cached client if exists
-		if (apiClientsRef.current.has(cacheKey)) {
-			return apiClientsRef.current.get(cacheKey)!
+		let client = apiClientsRef.current.get(idTag)
+		if (!client) {
+			client = createApiClient({ idTag, authToken: auth?.token })
+			apiClientsRef.current.set(idTag, client)
+			if (apiClientsRef.current.size > 10) {
+				const oldestKey = apiClientsRef.current.keys().next().value
+				if (oldestKey !== undefined) apiClientsRef.current.delete(oldestKey)
+			}
 		}
-
-		// Create new client
-		const client = createApiClient({
-			idTag,
-			authToken: token
-		})
-
-		// Cache it
-		apiClientsRef.current.set(cacheKey, client)
-
-		// Clean up old clients (keep last 10)
-		if (apiClientsRef.current.size > 10) {
-			const keys = Array.from(apiClientsRef.current.keys())
-			const oldKey = keys[0]
-			apiClientsRef.current.delete(oldKey)
-		}
-
 		return client
-	}, [apiState.idTag, auth?.idTag, auth?.token])
+	}, [apiState.idTag, auth?.idTag])
+
+	// Mutate the cached client's token in an effect rather than during render
+	// so the useMemo factory stays pure.
+	React.useEffect(() => {
+		if (api) api.setAuthToken(auth?.token)
+	}, [api, auth?.token])
 
 	const setIdTag = React.useCallback((idTag: string) => setApiState({ idTag }), [setApiState])
 	const authenticated = !!auth?.token

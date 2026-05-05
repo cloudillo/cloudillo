@@ -57,6 +57,19 @@ export class ApiClient {
 	}
 
 	/**
+	 * Update the auth token used by subsequent requests.
+	 *
+	 * Token reads happen lazily inside `request()` / `requestWithMeta()`, so
+	 * mutating it here is safe — in-flight requests keep the value they captured;
+	 * future requests pick up the new one. Lets `useApi` keep one client across
+	 * JWT rotations (the client's identity stays referentially stable, which
+	 * matters for any `useEffect`/`useMemo` that depends on the api object).
+	 */
+	setAuthToken(token: string | undefined): void {
+		this.opts.authToken = token
+	}
+
+	/**
 	 * Make a request with automatic response validation
 	 */
 	async request<Res>(

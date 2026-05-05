@@ -405,15 +405,27 @@ export function useInfiniteScroll<T>(
 	const isMountedRef = React.useRef(true)
 	const fetchingRef = React.useRef(false)
 
-	// Reset when deps change
-	React.useEffect(() => {
-		isMountedRef.current = true
+	// Reset synchronously during render when deps change, so no in-between
+	// render commits with the new deps + stale items. See
+	// https://react.dev/reference/react/useState#storing-information-from-previous-renders
+	const [prevDeps, setPrevDeps] = React.useState<React.DependencyList>(deps)
+	const depsChanged =
+		deps.length !== prevDeps.length || deps.some((d, i) => !Object.is(d, prevDeps[i]))
+
+	if (depsChanged) {
+		setPrevDeps(deps)
 		setItems([])
 		setCursor(null)
 		setHasMore(true)
 		setError(null)
 		fetchingRef.current = false
+	}
 
+	// Lifecycle: keep the mount/unmount toggle so in-flight fetches that
+	// resolve after a deps change are discarded by the isMountedRef check
+	// in fetchItems().
+	React.useEffect(() => {
+		isMountedRef.current = true
 		return () => {
 			isMountedRef.current = false
 		}

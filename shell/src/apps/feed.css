@@ -1,0 +1,73 @@
+/* SPDX-FileCopyrightText: Szilárd Hajba */
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+
+.c-panel--in-flight {
+	border-left: 3px solid color-mix(in srgb, var(--col-primary) 40%, transparent);
+}
+
+.c-feed-video,
+.c-feed-video-facade {
+	display: block;
+	width: 100%;
+	max-height: 30rem;
+	border-radius: 0.5rem;
+	background-color: #000;
+}
+
+.c-feed-video-facade {
+	position: relative;
+	border: 0;
+	padding: 0;
+	cursor: pointer;
+	background-size: cover;
+	background-position: center;
+	background-repeat: no-repeat;
+	overflow: hidden;
+}
+
+.c-feed-video-facade::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(180deg, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.25) 100%);
+	pointer-events: none;
+}
+
+.c-feed-video-facade__play {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: 4.5rem;
+	height: 4.5rem;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--col-feed-overlay, rgba(0, 0, 0, 0.6));
+	color: var(--col-on-primary, #fff);
+	font-size: 2rem;
+	transition:
+		transform 200ms ease,
+		background-color 200ms ease;
+}
+
+.c-feed-video-facade:hover .c-feed-video-facade__play,
+.c-feed-video-facade:focus-visible .c-feed-video-facade__play {
+	background: var(--col-feed-overlay-hover, rgba(0, 0, 0, 0.78));
+	transform: translate(-50%, -50%) scale(1.06);
+}
+
+.c-feed-video-facade:focus-visible {
+	outline: 2px solid var(--col-primary);
+	outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.c-feed-video-facade__play,
+	.c-feed-video-facade:hover .c-feed-video-facade__play,
+	.c-feed-video-facade:focus-visible .c-feed-video-facade__play {
+		transition: none;
+		transform: translate(-50%, -50%);
+	}
+}

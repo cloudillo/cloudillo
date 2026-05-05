@@ -226,6 +226,7 @@ export function ComposePanel({
 
 		return () => {
 			if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+			if (savedFadeRef.current) clearTimeout(savedFadeRef.current)
 		}
 	}, [
 		api,
@@ -339,6 +340,10 @@ export function ComposePanel({
 
 		const hasContent = content.trim().length > 0 || imageUpload.attachmentIds.length > 0
 		if (!hasContent) return
+
+		// Block submit while an attachment upload is in flight, otherwise the
+		// post would be created with subType TEXT and no attachments.
+		if (imageUpload.isUploading) return
 
 		// Cancel any pending auto-save
 		if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
@@ -512,17 +517,35 @@ export function ComposePanel({
 										variant="primary"
 										size="small"
 										onClick={doSubmit}
+										disabled={imageUpload.isUploading}
 										title={
-											isEditingScheduled
-												? t('Update schedule')
-												: t('Schedule post')
+											imageUpload.isUploading
+												? t('Wait for upload to finish')
+												: isEditingScheduled
+													? t('Update schedule')
+													: t('Schedule post')
 										}
 									>
 										<IcSchedule />
 										{isEditingScheduled ? t('Update schedule') : t('Schedule')}
 									</Button>
 								) : (
-									<Button kind="link" variant="primary" onClick={doSubmit}>
+									<Button
+										kind="link"
+										variant="primary"
+										onClick={doSubmit}
+										disabled={imageUpload.isUploading}
+										title={
+											imageUpload.isUploading
+												? t('Wait for upload to finish')
+												: undefined
+										}
+										aria-label={
+											imageUpload.isUploading
+												? t('Wait for upload to finish')
+												: undefined
+										}
+									>
 										<IcSend />
 									</Button>
 								)}

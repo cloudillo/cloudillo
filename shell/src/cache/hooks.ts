@@ -80,6 +80,9 @@ export function createCachedActionFetchPage(
 	queryParams: {
 		type?: string
 		audience?: string
+		audienceType?: 'personal' | 'community'
+		visibility?: string | string[]
+		issuer?: string
 	}
 ): (cursor: string | null, limit: number) => Promise<CachedFetchResult<ActionView>> {
 	return async (cursor: string | null, limit: number) => {

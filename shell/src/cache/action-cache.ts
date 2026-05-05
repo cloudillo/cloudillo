@@ -76,18 +76,37 @@ export function buildActionOfflineQuery(
 }
 
 /**
- * Query cached actions with the given parameters.
+ * Query cached actions with the given parameters. `audienceType`,
+ * `visibility`, and `issuer` are not in the IDB index so they're applied as
+ * post-filters; the index narrows by context+type+audience first.
  */
 export async function queryCachedActions(
 	contextIdTag: string,
 	params: {
 		type?: string
 		audience?: string
+		audienceType?: 'personal' | 'community'
+		visibility?: string | string[]
+		issuer?: string
 	},
 	limit?: number
 ): Promise<ActionView[]> {
 	const query = buildActionOfflineQuery(contextIdTag, params)
-	return queryRecords<ActionView>(STORE, query, limit)
+	const rows = await queryRecords<ActionView>(STORE, query, limit)
+	const visibilityList = params.visibility
+		? Array.isArray(params.visibility)
+			? params.visibility
+			: [params.visibility]
+		: undefined
+	if (!params.audienceType && !visibilityList && !params.issuer) return rows
+	return rows.filter((a) => {
+		if (params.audienceType && a.audience?.type !== params.audienceType) return false
+		if (visibilityList && (!a.visibility || !visibilityList.includes(a.visibility))) {
+			return false
+		}
+		if (params.issuer && a.issuer.idTag !== params.issuer) return false
+		return true
+	})
 }
 
 // vim: ts=4

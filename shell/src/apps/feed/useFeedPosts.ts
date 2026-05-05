@@ -11,21 +11,25 @@ import { useWsBus } from '../../ws-bus.js'
 
 export interface UseFeedPostsOptions {
 	audience?: string
+	audienceType?: 'personal' | 'community'
 	tag?: string
 	search?: string
-	visibility?: string
+	visibility?: string | string[]
+	issuer?: string
 	enabled?: boolean
 }
 
 const PAGE_SIZE = 15
 
 export function useFeedPosts(options: UseFeedPostsOptions = {}) {
-	const { audience, tag, search, visibility, enabled = true } = options
+	const { audience, audienceType, tag, search, visibility, issuer, enabled = true } = options
 	const { api } = useContextAwareApi()
 	const contextIdTag = useCurrentContextIdTag()
 	const [newPosts, setNewPosts] = React.useState<ActionView[]>([])
 	const postsRef = React.useRef<ActionView[]>([])
 	const newPostsRef = React.useRef<ActionView[]>([])
+
+	const visibilityKey = Array.isArray(visibility) ? visibility.join(',') : visibility
 
 	// Raw network fetch function
 	const rawFetchPage = React.useCallback(
@@ -37,9 +41,11 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 			const result = await api.actions.listPaginated({
 				type: 'POST',
 				audience,
+				audienceType,
 				tag,
 				search,
 				visibility,
+				issuer,
 				cursor: cursor ?? undefined,
 				limit
 			})
@@ -50,11 +56,23 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 				hasMore: result.cursorPagination?.hasMore ?? false
 			}
 		},
-		[api, audience, tag, search, visibility]
+		// visibility may be an array; key on the joined string for stable identity
+		[api, audience, audienceType, tag, search, visibilityKey, issuer]
 	)
 
-	// Cache query params for offline fallback
-	const cacheQueryParams = React.useMemo(() => ({ type: 'POST' as const, audience }), [audience])
+	// Cache query params for offline fallback. Including the filter fields
+	// here keys the offline lookup on the active Source tab so switching tabs
+	// offline doesn't show a cached set from a different filter.
+	const cacheQueryParams = React.useMemo(
+		() => ({
+			type: 'POST' as const,
+			audience,
+			audienceType,
+			visibility: visibilityKey,
+			issuer
+		}),
+		[audience, audienceType, visibilityKey, issuer]
+	)
 
 	// Fetch page with offline cache fallback
 	const fetchPage = React.useMemo(
@@ -76,7 +94,7 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 	} = useInfiniteScroll<ActionView>({
 		fetchPage,
 		pageSize: PAGE_SIZE,
-		deps: [audience, tag, search, visibility],
+		deps: [audience, audienceType, tag, search, visibilityKey, issuer],
 		enabled: !!api && enabled
 	})
 

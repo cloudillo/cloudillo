@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useEditable, type Position } from 'use-editable'
 import { useTranslation } from 'react-i18next'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { type Position, useEditable } from 'use-editable'
 
 import Lightbox from 'yet-another-react-lightbox'
 import 'yet-another-react-lightbox/styles.css'
@@ -15,59 +15,68 @@ import Zoom from 'yet-another-react-lightbox/plugins/zoom'
 import 'yet-another-react-lightbox/plugins/thumbnails.css'
 import 'react-photo-album/rows.css'
 
-import {
-	LuCloud as IcAll,
-	LuFilter as IcFilter,
-	LuLock as IcDirect,
-	LuGlobe as IcPublic,
-	LuShieldCheck as IcVerified,
-	LuUserPlus as IcFollowers,
-	LuUserCheck as IcConnected,
-	LuSave as IcDraft,
-	LuSearch as IcSearch,
-	LuMessageCircle as IcComment,
-	LuSendHorizontal as IcSend,
-	LuRepeat as IcRepost,
-	LuImage as IcImage,
-	LuCamera as IcCamera,
-	LuVideo as IcVideo,
-	LuFileText as IcDocument,
-	LuTag as IcTag
-} from 'react-icons/lu'
-
-import * as T from '@symbion/runtype'
-import type { NewAction, ActionView } from '@cloudillo/types'
 import { getFileUrl, getOptimalImageVariant, getOptimalVideoVariant } from '@cloudillo/core'
 import {
-	useAuth,
-	useApi,
+	Badge,
 	Button,
-	ProfilePicture,
-	ProfileCard,
-	ProfileAudienceCard,
-	Fcd,
-	Tabs,
-	Tab,
-	mergeClasses,
-	generateFragments,
 	EmptyState,
+	Fcd,
+	generateFragments,
+	LoadingSpinner,
+	LoadMoreTrigger,
+	mergeClasses,
+	ProfileAudienceCard,
+	ProfileCard,
+	ProfilePicture,
 	SkeletonCard,
+	Tab,
+	Tabs,
 	TimeFormat,
-	LoadMoreTrigger
+	useApi,
+	useAuth
 } from '@cloudillo/react'
-import '@cloudillo/react/components.css'
-
-import { useWsBus } from '../ws-bus.js'
-import { useCurrentContextIdTag } from '../context/index.js'
+import type { ActionView, NewAction } from '@cloudillo/types'
+import * as T from '@symbion/runtype'
 import {
-	useFeedPosts,
-	NewPostsBanner,
+	LuCloud as IcAll,
+	LuCamera as IcCamera,
+	LuMessageCircle as IcComment,
+	LuUsersRound as IcCommunities,
+	LuLock as IcDirect,
+	LuFileText as IcDocument,
+	LuSave as IcDraft,
+	LuFilter as IcFilter,
+	LuImage as IcImage,
+	LuUser as IcMine,
+	LuUsers as IcPeople,
+	LuPlay as IcPlay,
+	LuGlobe as IcPublic,
+	LuRepeat as IcRepost,
+	LuSearch as IcSearch,
+	LuSendHorizontal as IcSend,
+	LuTag as IcTag,
+	LuVideo as IcVideo
+} from 'react-icons/lu'
+import '@cloudillo/react/components.css'
+import './feed.css'
+
+import type { CommunityRef } from '../context/index.js'
+import {
+	useCommunitiesList,
+	useCurrentContextIdTag,
+	useUrlContextIdTag,
+	HOME_CONTEXT
+} from '../context/index.js'
+import { useWsBus } from '../ws-bus.js'
+import {
 	ComposePanel,
+	DraftsPanel,
+	NewPostsBanner,
 	PostMenu,
-	ReactionPicker,
 	parseReactionCounts,
+	ReactionPicker,
 	updateReactionCounts,
-	DraftsPanel
+	useFeedPosts
 } from './feed/index.js'
 
 //////////////////////
@@ -142,7 +151,6 @@ export function Images({ width, attachments, idTag }: ImagesProps) {
 			const aspect12 =
 				(img1.dim?.[0] ?? 100) / (img1.dim?.[1] ?? 100) +
 				(img2.dim?.[0] ?? 100) / (img2.dim?.[1] ?? 100)
-			//console.log('ASPECT', aspect12)
 			const height = (width - gap) / aspect12
 
 			imgNode = (
@@ -173,10 +181,8 @@ export function Images({ width, attachments, idTag }: ImagesProps) {
 					(img3.dim?.[1] ?? 100) / (img3.dim?.[0] ?? 100))
 			// Adding the aspect ratios of img1 and the right column (img2 and img3)
 			const aspect123 = (img1.dim?.[0] ?? 100) / (img1.dim?.[1] ?? 100) + aspect23
-			//console.log('ASPECT', aspect23, aspect123)
 			const height = (width - gap) / aspect123
 			const width23 = (height - gap) * aspect23
-			//console.log('DIMS', { width, height, width23, attachmentsLength: attachments.length })
 
 			imgNode = (
 				<div className="c-hbox g-2">
@@ -240,33 +246,139 @@ export function Images({ width, attachments, idTag }: ImagesProps) {
 /////////////////////
 // Video component //
 /////////////////////
+const PLAYABLE_VARIANTS = ['vid.xd', 'vid.hd', 'vid.md', 'vid.sd']
+const POSTER_VARIANTS = ['vis.md', 'vis.sd', 'vis.tn']
+
+function hasPlayableVariant(variants: readonly string[] | undefined): boolean {
+	if (!variants) return false
+	return PLAYABLE_VARIANTS.some((v) => variants.includes(v))
+}
+
+function hasPosterVariant(variants: readonly string[] | undefined): boolean {
+	if (!variants) return false
+	return POSTER_VARIANTS.some((v) => variants.includes(v))
+}
+
 interface VideoProps {
 	attachments: ActionView['attachments']
 	idTag: string | undefined
 }
 
 function Video({ attachments, idTag }: VideoProps) {
-	if (!idTag || !attachments?.length) return null
+	const { t } = useTranslation()
+	const videoAtt = attachments?.[0]
+	const variants = videoAtt?.localVariants
+	const playable = hasPlayableVariant(variants)
+	const hasPoster = hasPosterVariant(variants)
 
-	const videoAtt = attachments[0]
+	const posterUrl =
+		idTag && videoAtt && hasPoster
+			? getFileUrl(idTag, videoAtt.fileId, getOptimalVideoVariant('preview', variants))
+			: undefined
+
+	const [activePoster, setActivePoster] = React.useState<string | undefined>(undefined)
+	const [activated, setActivated] = React.useState(false)
+
+	React.useEffect(() => {
+		if (!posterUrl) {
+			setActivePoster(undefined)
+			return
+		}
+		const url = posterUrl
+		let cancelled = false
+		let attempt = 0
+		let timer: ReturnType<typeof setTimeout> | undefined
+		function tryLoad() {
+			const img = new Image()
+			img.onload = () => {
+				if (!cancelled) setActivePoster(url)
+			}
+			img.onerror = () => {
+				if (cancelled || attempt >= 5) return
+				attempt++
+				timer = setTimeout(tryLoad, 1000 * 1.5 ** attempt)
+			}
+			// Cachebuster on retry: a 404 with normal cache headers would
+			// otherwise be served from cache and defeat the backoff.
+			img.src = attempt === 0 ? url : `${url}${url.includes('?') ? '&' : '?'}_=${Date.now()}`
+		}
+		tryLoad()
+		return () => {
+			cancelled = true
+			if (timer) clearTimeout(timer)
+		}
+	}, [posterUrl])
+
+	if (!idTag || !videoAtt) return null
+
+	if (!playable) {
+		return (
+			<div
+				className="c-skeleton c-skeleton--rect c-skeleton--rounded c-skeleton--animate pos-relative"
+				style={{
+					aspectRatio: '16 / 9',
+					maxHeight: '30rem',
+					backgroundImage: activePoster ? `url(${activePoster})` : undefined,
+					backgroundSize: 'cover',
+					backgroundPosition: 'center'
+				}}
+				role="status"
+				aria-live="polite"
+				aria-label={t('Processing video')}
+			>
+				<div
+					className="c-vbox g-2 align-items-center justify-content-center pos-absolute"
+					style={{
+						inset: 0,
+						background: 'rgba(0, 0, 0, 0.25)',
+						color: 'var(--col-on-container)'
+					}}
+				>
+					<LoadingSpinner size="sm" />
+					<span>{t('Processing video…')}</span>
+				</div>
+			</div>
+		)
+	}
+
 	const videoUrl = getFileUrl(
 		idTag,
 		videoAtt.fileId,
-		getOptimalVideoVariant('fullscreen', videoAtt.localVariants)
+		getOptimalVideoVariant('fullscreen', variants)
 	)
 
+	const aspectRatio = videoAtt.dim ? `${videoAtt.dim[0]} / ${videoAtt.dim[1]}` : '16 / 9'
+
+	if (activated) {
+		return (
+			<video
+				controls
+				autoPlay
+				preload="auto"
+				poster={activePoster}
+				className="c-feed-video"
+				style={{ aspectRatio }}
+			>
+				<source src={videoUrl} />
+			</video>
+		)
+	}
+
 	return (
-		<video
-			controls
-			style={{ maxWidth: '100%', maxHeight: '30rem' }}
-			poster={getFileUrl(
-				idTag,
-				videoAtt.fileId,
-				getOptimalVideoVariant('preview', videoAtt.localVariants)
-			)}
+		<button
+			type="button"
+			className="c-feed-video-facade"
+			style={{
+				aspectRatio,
+				backgroundImage: activePoster ? `url(${activePoster})` : undefined
+			}}
+			onClick={() => setActivated(true)}
+			aria-label={t('Play video')}
 		>
-			<source src={videoUrl} />
-		</video>
+			<span className="c-feed-video-facade__play" aria-hidden="true">
+				<IcPlay />
+			</span>
+		</button>
 	)
 }
 
@@ -310,8 +422,8 @@ function Document({ attachments, idTag, token }: DocumentProps) {
 					width: '2.5rem',
 					height: '2.5rem',
 					borderRadius: '50%',
-					background: 'rgba(0, 0, 0, 0.6)',
-					color: 'white',
+					background: 'var(--col-feed-overlay, rgba(0, 0, 0, 0.6))',
+					color: 'var(--col-on-primary, white)',
 					fontSize: '1.25rem'
 				}}
 			>
@@ -329,12 +441,13 @@ interface CommentProps {
 	action: ActionView
 }
 function Comment({ className, action }: CommentProps) {
+	const urlContext = useUrlContextIdTag()
 	if (typeof action.content != 'string') return null
 
 	return (
 		<div className={'c-panel ' + (className || '')}>
 			<div className="c-panel-header d-flex">
-				<Link to={`/profile/${action.issuer.idTag}`}>
+				<Link to={`/profile/${urlContext || HOME_CONTEXT}/${action.issuer.idTag}`}>
 					<ProfileCard profile={action.issuer} />
 				</Link>
 			</div>
@@ -511,14 +624,22 @@ interface PostProps {
 	width: number
 }
 function Post({ className, action, setAction, onDelete, hideAudience, srcTag, width }: PostProps) {
+	const { t } = useTranslation()
 	const [auth] = useAuth()
 	const { api } = useApi()
 	const contextIdTag = useCurrentContextIdTag()
-	// Profile pages pass srcTag (the profile being viewed); attachments must
-	// load from that tenant, overriding the navigation context.
-	const fileIdTag = srcTag || contextIdTag
+	const urlContext = useUrlContextIdTag()
+	// While the post is pending, the file still lives on the issuer's
+	// server — it hasn't been replicated to the audience or any other
+	// tenant yet. Override every other idTag source for that case.
+	const fileIdTag = action.status === 'P' ? action.issuer.idTag : (srcTag ?? contextIdTag)
 	const [tab, setTab] = React.useState<undefined | 'CMNT' | 'LIKE' | 'SHRE'>(undefined)
 	if (typeof action.content != 'string' && action.content !== undefined) return null
+
+	const isProcessingMedia =
+		action.subType === 'VIDEO' &&
+		!!action.attachments?.some((att) => !hasPlayableVariant(att.localVariants))
+	const isInFlight = action.status === 'P' || action.status === 'S' || isProcessingMedia
 
 	function onTabClick(clicked: 'CMNT' | 'LIKE' | 'SHRE') {
 		if (clicked == tab) {
@@ -568,9 +689,15 @@ function Post({ className, action, setAction, onDelete, hideAudience, srcTag, wi
 
 	return (
 		<>
-			<div className={mergeClasses('c-panel g-2', className)}>
-				<div className="c-panel-header c-hbox">
-					<Link to={`/profile/${action.issuer.idTag}`}>
+			<div
+				className={mergeClasses(
+					'c-panel g-2',
+					isInFlight && 'c-panel--in-flight',
+					className
+				)}
+			>
+				<div className="c-panel-header c-hbox align-items-center g-2">
+					<Link to={`/profile/${urlContext || HOME_CONTEXT}/${action.issuer.idTag}`}>
 						{action.audience && action.audience.idTag != hideAudience ? (
 							<ProfileAudienceCard
 								profile={action.issuer}
@@ -580,6 +707,15 @@ function Post({ className, action, setAction, onDelete, hideAudience, srcTag, wi
 							<ProfileCard profile={action.issuer} />
 						)}
 					</Link>
+					{isInFlight && (
+						<Badge variant="primary" rounded>
+							{action.status === 'S'
+								? t('Scheduled')
+								: isProcessingMedia
+									? t('Processing')
+									: t('Pending')}
+						</Badge>
+					)}
 					<div className="c-hbox ms-auto g-3">
 						<Button kind="link" disabled={process.env.NODE_ENV == 'production'}>
 							<IcRepost />
@@ -764,10 +900,40 @@ export function ComposeTrigger({ className, onOpen }: ComposeTriggerProps) {
 	)
 }
 
+export type SourceFilter = 'all' | 'mine' | 'direct' | 'people' | 'communities' | 'public'
+
+interface SourceOption {
+	value: SourceFilter
+	labelKey: string
+	icon: React.ComponentType
+}
+
+const SOURCE_FILTERS_PERSONAL: SourceOption[] = [
+	{ value: 'all', labelKey: 'All', icon: IcAll },
+	{ value: 'mine', labelKey: 'Mine', icon: IcMine },
+	{ value: 'direct', labelKey: 'Direct', icon: IcDirect },
+	{ value: 'people', labelKey: 'People', icon: IcPeople },
+	{ value: 'communities', labelKey: 'Communities', icon: IcCommunities },
+	{ value: 'public', labelKey: 'Public', icon: IcPublic }
+]
+
+const SOURCE_FILTERS_COMMUNITY: SourceOption[] = [
+	{ value: 'all', labelKey: 'All', icon: IcAll },
+	{ value: 'mine', labelKey: 'Mine', icon: IcMine }
+]
+
+function getSourceFilters(isOwnContext: boolean): SourceOption[] {
+	return isOwnContext ? SOURCE_FILTERS_PERSONAL : SOURCE_FILTERS_COMMUNITY
+}
+
 interface FilterBarProps {
 	viewMode: 'feed' | 'drafts'
-	visibilityFilter: string | undefined
-	onVisibilityChange: (visibility: string | undefined) => void
+	isOwnContext: boolean
+	sourceFilter: SourceFilter
+	onSourceChange: (source: SourceFilter) => void
+	narrowToCommunity: string | undefined
+	onNarrowToCommunityChange: (idTag: string | undefined) => void
+	communities: CommunityRef[]
 	searchQuery: string | undefined
 	onSearchChange: (query: string | undefined) => void
 	tagFilter: string | undefined
@@ -775,23 +941,14 @@ interface FilterBarProps {
 	tags: string[]
 }
 
-const VISIBILITY_FILTERS: {
-	value: string | undefined
-	labelKey: string
-	icon: React.ComponentType
-}[] = [
-	{ value: undefined, labelKey: 'All', icon: IcAll },
-	{ value: 'D', labelKey: 'Direct', icon: IcDirect },
-	{ value: 'F', labelKey: 'Followers', icon: IcFollowers },
-	{ value: 'C', labelKey: 'Connected', icon: IcConnected },
-	{ value: 'V', labelKey: 'Verified', icon: IcVerified },
-	{ value: 'P', labelKey: 'Public', icon: IcPublic }
-]
-
 const FilterBar = React.memo(function FilterBar({
 	viewMode,
-	visibilityFilter,
-	onVisibilityChange,
+	isOwnContext,
+	sourceFilter,
+	onSourceChange,
+	narrowToCommunity,
+	onNarrowToCommunityChange,
+	communities,
 	searchQuery,
 	onSearchChange,
 	tagFilter,
@@ -819,6 +976,8 @@ const FilterBar = React.memo(function FilterBar({
 
 	if (viewMode === 'drafts') return null
 
+	const sourceOptions = getSourceFilters(isOwnContext)
+
 	return (
 		<div className="c-vbox pt-2">
 			{/* Search */}
@@ -837,27 +996,54 @@ const FilterBar = React.memo(function FilterBar({
 
 			<hr className="w-100" />
 
-			{/* Visibility filter */}
+			{/* Source filter */}
 			<ul className="c-nav vertical low">
 				<li className="c-nav-item">
-					<span className="c-nav-link text-muted">{t('Visibility')}</span>
+					<span className="c-nav-link text-muted">{t('Source')}</span>
 				</li>
-				{VISIBILITY_FILTERS.map((opt) => (
-					<li key={opt.labelKey}>
-						<a
-							className={mergeClasses(
-								'c-nav-item ps-4',
-								visibilityFilter === opt.value && 'active'
-							)}
-							onClick={(e) => {
-								e.preventDefault()
-								onVisibilityChange(opt.value)
-							}}
-						>
-							<opt.icon />
-							{t(opt.labelKey)}
-						</a>
-					</li>
+				{sourceOptions.map((opt) => (
+					<React.Fragment key={opt.value}>
+						<li>
+							<a
+								className={mergeClasses(
+									'c-nav-item ps-4',
+									sourceFilter === opt.value &&
+										!(opt.value === 'communities' && narrowToCommunity) &&
+										'active'
+								)}
+								onClick={(e) => {
+									e.preventDefault()
+									onSourceChange(opt.value)
+								}}
+							>
+								<opt.icon />
+								{t(opt.labelKey)}
+							</a>
+						</li>
+						{opt.value === 'communities' &&
+							sourceFilter === 'communities' &&
+							communities.map((c) => (
+								<li key={c.idTag}>
+									<a
+										className={mergeClasses(
+											'c-nav-item ps-5',
+											narrowToCommunity === c.idTag && 'active'
+										)}
+										onClick={(e) => {
+											e.preventDefault()
+											onNarrowToCommunityChange(c.idTag)
+										}}
+									>
+										<ProfilePicture
+											profile={{ profilePic: c.profilePic }}
+											srcTag={c.idTag}
+											small
+										/>
+										{c.name}
+									</a>
+								</li>
+							))}
+					</React.Fragment>
 				))}
 			</ul>
 
@@ -897,6 +1083,37 @@ const FilterBar = React.memo(function FilterBar({
 	)
 })
 
+interface SourceQueryParams {
+	audienceType?: 'personal' | 'community'
+	visibility?: string | string[]
+	audience?: string
+	issuer?: string
+}
+
+function sourceToQuery(
+	source: SourceFilter,
+	myIdTag: string | undefined,
+	narrowToCommunity: string | undefined
+): SourceQueryParams {
+	switch (source) {
+		case 'all':
+			return {}
+		case 'mine':
+			// No audienceType filter — show issuer's posts across all audiences (personal + community).
+			return myIdTag ? { issuer: myIdTag } : {}
+		case 'direct':
+			return { audienceType: 'personal', visibility: 'D' }
+		case 'people':
+			// Broadcasts from individuals — Followers + Connected.
+			// Backend must accept multi-value visibility (see api-types.ts).
+			return { audienceType: 'personal', visibility: ['F', 'C'] }
+		case 'communities':
+			return { audienceType: 'community', audience: narrowToCommunity }
+		case 'public':
+			return { visibility: 'P' }
+	}
+}
+
 export function FeedApp() {
 	const location = useLocation()
 	const { t } = useTranslation()
@@ -905,9 +1122,11 @@ export function FeedApp() {
 	const contextIdTag = useCurrentContextIdTag()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	const [viewMode, setViewMode] = React.useState<'feed' | 'drafts'>('feed')
-	const [visibilityFilter, setVisibilityFilter] = React.useState<string | undefined>()
+	const [sourceFilter, setSourceFilter] = React.useState<SourceFilter>('all')
+	const [narrowToCommunity, setNarrowToCommunity] = React.useState<string | undefined>()
 	const [searchQuery, setSearchQuery] = React.useState<string | undefined>()
 	const [tagFilter, setTagFilter] = React.useState<string | undefined>()
+	const { communities } = useCommunitiesList()
 	const [composeOpen, setComposeOpen] = React.useState(false)
 	const [editingDraft, setEditingDraft] = React.useState<ActionView | undefined>()
 	const [composeMedia, setComposeMedia] = React.useState<
@@ -919,6 +1138,24 @@ export function FeedApp() {
 	// Determine audience for feed (undefined for own context, contextIdTag for community)
 	const isOwnContext = !contextIdTag || contextIdTag === auth?.idTag
 	const audience = isOwnContext ? undefined : contextIdTag
+
+	// Reset source filter when switching context (e.g. don't carry 'communities'
+	// into a community context where it's invalid).
+	React.useEffect(() => {
+		setSourceFilter('all')
+		setNarrowToCommunity(undefined)
+	}, [contextIdTag])
+
+	// Map the source filter into backend query parameters.
+	const sourceQuery = React.useMemo(
+		() => sourceToQuery(sourceFilter, auth?.idTag, narrowToCommunity),
+		[sourceFilter, auth?.idTag, narrowToCommunity]
+	)
+
+	// Merge: `audience` from context wins for community context, but a
+	// per-community narrow from sourceQuery (only set when source=communities
+	// in personal context) is still applied.
+	const effectiveAudience = audience ?? sourceQuery.audience
 
 	// Use infinite scroll hook for feed
 	const {
@@ -933,10 +1170,12 @@ export function FeedApp() {
 		showNewPosts,
 		addPost
 	} = useFeedPosts({
-		audience,
+		audience: effectiveAudience,
+		audienceType: sourceQuery.audienceType,
 		tag: tagFilter,
 		search: searchQuery,
-		visibility: visibilityFilter,
+		visibility: sourceQuery.visibility,
+		issuer: sourceQuery.issuer,
 		enabled: !!api?.idTag
 	})
 
@@ -961,13 +1200,21 @@ export function FeedApp() {
 	// Local state for post updates (reactions, comments, etc.)
 	const [feedUpdates, setFeedUpdates] = React.useState<Record<string, Partial<ActionEvt>>>({})
 
+	// Ref mirror of the feed so the WS callback can read current ids without
+	// being trapped by a stale closure.
+	const feedRef = React.useRef<ActionView[]>(feed)
+	feedRef.current = feed
+
 	// Track deleted post IDs for optimistic removal (cleared on feed reset)
 	const [deletedIds, setDeletedIds] = React.useState<Set<string>>(new Set())
 
-	// Clear deleted IDs when feed filters change (feed resets)
+	// Clear deleted IDs when feed filters change (feed resets).
+	// `narrowToCommunity` is covered by `effectiveAudience` (which derives
+	// from sourceQuery, which keys on narrowToCommunity), so listing both
+	// would double-count.
 	React.useEffect(() => {
 		setDeletedIds(new Set())
-	}, [audience, tagFilter, searchQuery, visibilityFilter])
+	}, [effectiveAudience, tagFilter, searchQuery, sourceFilter])
 
 	React.useEffect(
 		function onLocationEffect() {
@@ -976,7 +1223,7 @@ export function FeedApp() {
 		[location]
 	)
 
-	// Handle STAT updates from WebSocket
+	// Handle STAT and POST updates from WebSocket
 	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
 		const action = msg.data as ActionView
 
@@ -992,6 +1239,25 @@ export function FeedApp() {
 						reactions: content.r,
 						comments: content.c
 					}
+				}
+			}))
+			return
+		}
+
+		if (action.type === 'POST') {
+			const inFeed = feedRef.current.some((p) => p.actionId === action.actionId)
+			if (!inFeed) return
+			setFeedUpdates((prev) => ({
+				...prev,
+				[action.actionId]: {
+					...(prev[action.actionId] ?? {}),
+					attachments: action.attachments,
+					subType: action.subType
+					// intentionally NOT merging status — the issuer flips
+					// to 'A' before federation completes; flipping locally
+					// would prematurely route URLs to the audience tenant
+					// that hasn't replicated the file yet. Stays 'P' until
+					// the feed refetches from the audience.
 				}
 			}))
 		}
@@ -1104,8 +1370,15 @@ export function FeedApp() {
 				{!!auth && (
 					<FilterBar
 						viewMode={viewMode}
-						visibilityFilter={visibilityFilter}
-						onVisibilityChange={setVisibilityFilter}
+						isOwnContext={isOwnContext}
+						sourceFilter={sourceFilter}
+						onSourceChange={(s) => {
+							setSourceFilter(s)
+							setNarrowToCommunity(undefined)
+						}}
+						narrowToCommunity={narrowToCommunity}
+						onNarrowToCommunityChange={setNarrowToCommunity}
+						communities={communities}
 						searchQuery={searchQuery}
 						onSearchChange={setSearchQuery}
 						tagFilter={tagFilter}
@@ -1171,9 +1444,23 @@ export function FeedApp() {
 							<EmptyState
 								icon={<IcAll style={{ fontSize: '2.5rem' }} />}
 								title={t('No posts yet')}
-								description={t(
-									'Be the first to share something with your community!'
-								)}
+								description={
+									sourceFilter === 'mine'
+										? t("You haven't posted anything yet.")
+										: sourceFilter === 'direct'
+											? t('No direct messages yet.')
+											: sourceFilter === 'people'
+												? t(
+														'No posts from people you follow yet — try following someone or switch to All.'
+													)
+												: sourceFilter === 'communities'
+													? t('No posts in your communities yet.')
+													: sourceFilter === 'public'
+														? t('No public posts to show.')
+														: t(
+																'Be the first to share something with your community!'
+															)
+								}
 							/>
 						) : (
 							<>
@@ -1183,6 +1470,9 @@ export function FeedApp() {
 										action={action}
 										setAction={setFeedAction}
 										onDelete={onDelete}
+										hideAudience={
+											!isOwnContext ? contextIdTag : narrowToCommunity
+										}
 										width={width}
 									/>
 								))}

@@ -24,6 +24,7 @@ import {
 	activeContextAtom,
 	previewCommunityAtom
 } from './index'
+import { isTrustGateRejection } from './trust-gate'
 import { useAtom } from 'jotai'
 import type { CommunityRef } from './types'
 
@@ -211,6 +212,7 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 			const currentAppPath = match ? `/${match[1]}` : '/feed'
 
 			switchTo(idTag, currentAppPath).catch((err) => {
+				if (isTrustGateRejection(err)) return
 				console.error('Failed to switch context:', err)
 				toastError(t('Failed to switch context. Please try again.'))
 			})

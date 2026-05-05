@@ -58,7 +58,6 @@ export function useContextTokenRenewal() {
 				const expiresAt = new Date(Date.now() + CONTEXT_TOKEN_LIFETIME_MS)
 				const tokenData: ContextToken = {
 					token: result.token,
-					tnId: 0,
 					roles: result.roles || [],
 					expiresAt
 				}

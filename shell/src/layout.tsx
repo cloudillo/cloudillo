@@ -63,6 +63,7 @@ import { useActionNotifications } from './notifications/useActionNotifications.j
 import {
 	HOME_CONTEXT,
 	Sidebar,
+	TrustGateDialog,
 	useSidebar,
 	useCommunitiesList,
 	useUrlContextIdTag,
@@ -278,33 +279,6 @@ function Menu({
 			</>
 		)
 	)
-}
-
-/**
- * Built-in app IDs that are rendered directly as React components (not microfrontends)
- */
-const BUILTIN_APPS = ['files', 'feed', 'gallery', 'messages', 'contacts', 'calendar', 'view']
-
-/**
- * Check if a path is an external app (microfrontend loaded in iframe)
- */
-function _isExternalAppPath(pathname: string): boolean {
-	// Match /app/:contextIdTag/:appId/* or /app/:appId/*
-	const match = pathname.match(/^\/app\/(?:([^/]+)\/)?([^/]+)/)
-	if (!match) return false
-
-	// Check if it's a context-aware route or legacy route
-	const [, contextIdTag, segment] = match
-
-	// If we have a contextIdTag-like segment followed by an appId
-	if (contextIdTag && segment) {
-		// segment is the appId
-		return !BUILTIN_APPS.includes(segment)
-	}
-
-	// Legacy route: /app/:appId/*
-	// contextIdTag is actually the appId here
-	return !BUILTIN_APPS.includes(contextIdTag)
 }
 
 /**
@@ -891,7 +865,6 @@ export function Layout() {
 	const dialog = useDialog()
 	const sidebar = useSidebar()
 	const { loadCommunities } = useCommunitiesList()
-	const location = useLocation()
 	const navigate = useNavigate()
 	const urlContext = useUrlContextIdTag()
 	const [keyAccessError, setKeyAccessError] = React.useState<KeyErrorReason | null>(null)
@@ -971,9 +944,6 @@ export function Layout() {
 		}
 	}, [])
 
-	// Check if we're in an app view (for Menu component)
-	const _isAppView = location.pathname.startsWith('/app/')
-
 	// Show key access error overlay if encryption key is inaccessible or incorrect
 	if (keyAccessError) {
 		return (
@@ -1021,6 +991,7 @@ export function Layout() {
 				</div>
 				<div id="popper-container" />
 				<DialogContainer />
+				<TrustGateDialog />
 				<ToastContainer position="bottom-right" />
 				<MediaPicker />
 				<ShareCreate />

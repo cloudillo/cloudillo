@@ -23,6 +23,7 @@ import type { Profile } from '@cloudillo/types'
 import { useApi, useAuth, Fcd, ProfileCard } from '@cloudillo/react'
 import { parseQS } from '../utils.js'
 import { useContextSwitch } from '../context/index.js'
+import { isTrustGateRejection } from '../context/trust-gate.js'
 import { useQrScanner } from '../components/QrScanner/index.js'
 
 function ProfileStatusIcon({ profile }: { profile: Profile }) {
@@ -41,7 +42,6 @@ function FilterBar({ className }: { className?: string }) {
 	const userStat = { all: 0, connected: 0, followed: 0, following: 0, trusted: 0 }
 
 	const qs = parseQS(location.search)
-	console.log('qs', qs)
 
 	return (
 		<ul className={'c-nav vertical low' + (className || '')}>
@@ -127,6 +127,7 @@ export function CommunityListCard({ profile, srcTag }: CommunityListCardProps) {
 	const handleRowClick = () => {
 		if (isMember) {
 			switchTo(profile.idTag, '/feed').catch((err) => {
+				if (isTrustGateRejection(err)) return
 				console.error('Failed to switch context:', err)
 			})
 		} else {
@@ -191,11 +192,7 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 	React.useEffect(
 		function loadPersonList() {
 			if (!auth) return
-			console.log('loadProfiles', auth, 'contextIdTag', contextIdTag)
 			;(async function () {
-				const qs: Record<string, string> = parseQS(location.search)
-				console.log('QS', location.search, qs)
-
 				const profiles = await api!.profiles.list({ type: 'person' })
 				setProfiles(profiles)
 			})()
@@ -255,13 +252,8 @@ export function CommunityListPage() {
 	React.useEffect(
 		function loadCommunities() {
 			if (!auth) return
-			console.log('loadCommunities', auth, 'contextIdTag', contextIdTag)
 			;(async function () {
-				const qs: Record<string, string> = parseQS(location.search)
-				console.log('QS', location.search, qs)
-
 				const profiles = await api!.profiles.list({ type: 'community' })
-				console.log('profiles', profiles)
 				setProfiles(profiles)
 			})()
 		},

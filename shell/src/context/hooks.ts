@@ -8,10 +8,11 @@
  */
 
 import * as React from 'react'
-import { useAtom } from 'jotai'
+import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai'
 import { useNavigate } from 'react-router-dom'
 import { createApiClient, type ApiClient } from '@cloudillo/core'
-import { useApi, useAuth, apiAtom } from '@cloudillo/react'
+import { useApi, useAuth, apiAtom, authAtom, useToast } from '@cloudillo/react'
+import { useTranslation } from 'react-i18next'
 
 import { HOME_CONTEXT } from './constants.js'
 import {
@@ -29,8 +30,17 @@ import {
 	recentCommunitiesAtom,
 	totalUnreadCountAtom,
 	sessionTrustAtom,
-	storedTrustAtom
+	storedTrustAtom,
+	trustBootstrapAtom
 } from './atoms'
+import {
+	ContextAuthChangedError,
+	ContextTrustGateRejectedError,
+	isTrustGateRejection,
+	requestTrustGate,
+	trustGateAtom
+} from './trust-gate'
+import { useProfileTrust } from './trust'
 
 import {
 	CONTEXT_TOKEN_LIFETIME_MS,
@@ -63,46 +73,73 @@ import {
  * ```
  */
 export function useApiContext() {
-	const [activeContext, setActiveContextState] = useAtom(activeContextAtom)
-	const [contextTokens, setContextTokens] = useAtom(contextTokensAtom)
-	const [, setContextOnboarding] = useAtom(contextOnboardingAtom)
-	const [sessionTrust] = useAtom(sessionTrustAtom)
-	const [storedTrust] = useAtom(storedTrustAtom)
-	const { api: primaryApi } = useApi()
-	const [auth] = useAuth()
+	const store = useStore()
+	const { t } = useTranslation()
+	const { warning: toastWarning } = useToast()
+	const activeContext = useAtomValue(activeContextAtom)
+	const trustBootstrap = useAtomValue(trustBootstrapAtom)
+	const setActiveContextState = useSetAtom(activeContextAtom)
+	const setContextOnboarding = useSetAtom(contextOnboardingAtom)
+	const setContextTokens = useSetAtom(contextTokensAtom)
+	const setTrustGate = useSetAtom(trustGateAtom)
+	const { setStoredTrust, setSessionTrust } = useProfileTrust()
 	const [isLoading, setIsLoading] = React.useState(false)
 	const [error, setError] = React.useState<Error | undefined>()
 
-	// Cache API clients per idTag
-	const apiClientsRef = React.useRef<Map<string, ApiClient>>(new Map())
-
-	// Refs mirror the trust/token/auth/api state so getTokenFor can stay
-	// referentially stable across trust mutations, auth-object rebuilds, and
-	// primary-API refreshes (useApi() rebuilds its client on every auth-token
-	// renewal). Consumers that put getTokenFor in a useEffect dep array should
-	// not re-run every time a Map identity flips, auth's outer object is
-	// rebuilt without idTag/token changing, or the primary client is swapped
-	// for a freshly-authenticated one.
-	const contextTokensRef = React.useRef(contextTokens)
-	const sessionTrustRef = React.useRef(sessionTrust)
-	const storedTrustRef = React.useRef(storedTrust)
-	const authRef = React.useRef(auth)
+	// Stable mirror of the primary API so callers via `getClientFor(ownIdTag)`
+	// don't churn on token rotations.
+	const { api: primaryApi } = useApi()
 	const primaryApiRef = React.useRef(primaryApi)
-	React.useEffect(() => {
-		contextTokensRef.current = contextTokens
-	}, [contextTokens])
-	React.useEffect(() => {
-		sessionTrustRef.current = sessionTrust
-	}, [sessionTrust])
-	React.useEffect(() => {
-		storedTrustRef.current = storedTrust
-	}, [storedTrust])
-	React.useEffect(() => {
-		authRef.current = auth
-	}, [auth])
 	React.useEffect(() => {
 		primaryApiRef.current = primaryApi
 	}, [primaryApi])
+
+	// Per-idTag cache for foreign contexts (primary lives in primaryApiRef).
+	const apiClientsRef = React.useRef<Map<string, ApiClient>>(new Map())
+	const trustBootstrapWaitersRef = React.useRef<
+		Array<{ idTag: string | null; resolve: () => void }>
+	>([])
+	const isUnmountedRef = React.useRef(false)
+
+	// Drain waiters whose captured idTag matches the bootstrap that just
+	// became ready. Mismatched waiters stay pending until their own idTag
+	// lands (or are released by the unmount cleanup).
+	React.useEffect(() => {
+		if (!trustBootstrap.ready) return
+		const remaining: Array<{ idTag: string | null; resolve: () => void }> = []
+		for (const w of trustBootstrapWaitersRef.current) {
+			if (w.idTag === trustBootstrap.idTag) {
+				w.resolve()
+			} else {
+				remaining.push(w)
+			}
+		}
+		trustBootstrapWaitersRef.current = remaining
+	}, [trustBootstrap.ready, trustBootstrap.idTag])
+
+	// Release leftover bootstrap waiters on unmount so an in-flight
+	// `setActiveContext` doesn't hold its closure scope forever.
+	React.useEffect(
+		() => () => {
+			isUnmountedRef.current = true
+			const waiters = trustBootstrapWaitersRef.current
+			trustBootstrapWaitersRef.current = []
+			for (const w of waiters) w.resolve()
+		},
+		[]
+	)
+
+	// Wait for the stored-trust cache to be seeded for the *current* auth
+	// idTag — keyed so a cross-user race can't resolve against a stale "ready".
+	const awaitTrustBootstrap = React.useCallback((): Promise<void> => {
+		const auth = store.get(authAtom)
+		const expectedIdTag = auth?.idTag ?? null
+		const bs = store.get(trustBootstrapAtom)
+		if (bs.ready && bs.idTag === expectedIdTag) return Promise.resolve()
+		return new Promise<void>((resolve) => {
+			trustBootstrapWaitersRef.current.push({ idTag: expectedIdTag, resolve })
+		})
+	}, [store])
 
 	/**
 	 * Get API client for specific context
@@ -119,8 +156,9 @@ export function useApiContext() {
 		): ApiClient | null => {
 			const authMode = opts?.auth ?? 'required'
 			const token = opts?.token
-			const ownIdTag = authRef.current?.idTag
-			const tokens = contextTokensRef.current
+			const auth = store.get(authAtom)
+			const ownIdTag = auth?.idTag
+			const tokens = store.get(contextTokensAtom)
 
 			// For 'required' and 'preferred' (without explicit 'none'), use cached client
 			if (authMode !== 'none') {
@@ -136,8 +174,8 @@ export function useApiContext() {
 					apiClientsRef.current.delete(idTag)
 				}
 
-				// User's own context uses primary API (skip for 'none'/'preferred' — caller wants unauthenticated)
-				if (authMode === 'required' && idTag === ownIdTag) {
+				// User's own context uses primary API (skip for 'none' — caller wants unauthenticated)
+				if ((authMode === 'required' || authMode === 'preferred') && idTag === ownIdTag) {
 					return primaryApiRef.current
 				}
 			}
@@ -172,7 +210,7 @@ export function useApiContext() {
 
 			return client
 		},
-		[]
+		[store]
 	)
 
 	/**
@@ -201,29 +239,32 @@ export function useApiContext() {
 			opts?: { explicit?: boolean }
 		): Promise<{ token: string; roles: string[] } | null> => {
 			const explicit = opts?.explicit === true
+			const auth = store.get(authAtom)
 
 			// User's own context uses primary token
-			if (idTag === authRef.current?.idTag) {
-				const tok = authRef.current?.token
+			if (idTag === auth?.idTag) {
+				const tok = auth?.token
 				return tok ? { token: tok, roles: [] } : null
 			}
 
-			// Check if we have primary API
+			// Reuse the mirrored primary API so the LRU cache in `useApi()`
+			// keeps backing this client. Constructing inline would create a
+			// fresh `ApiClient` on every call and bypass that cache.
 			const api = primaryApiRef.current
 			if (!api) return null
 
 			// Trust gate: passive reads require positive consent ('S' or stored
 			// 'always'). Anything else (including "ask") stays anonymous.
 			if (!explicit) {
-				const session = sessionTrustRef.current.get(idTag)
+				const session = store.get(sessionTrustAtom).get(idTag)
 				const consented =
 					session === 'S' ||
-					(session !== 'X' && storedTrustRef.current.get(idTag) === 'always')
+					(session !== 'X' && store.get(storedTrustAtom).get(idTag) === 'always')
 				if (!consented) return null
 			}
 
 			// Check cache (roles are now cached alongside token)
-			const cached = contextTokensRef.current.get(idTag)
+			const cached = store.get(contextTokensAtom).get(idTag)
 			if (cached && cached.expiresAt > new Date()) {
 				return { token: cached.token, roles: cached.roles || [] }
 			}
@@ -235,7 +276,6 @@ export function useApiContext() {
 				const expiresAt = new Date(Date.now() + CONTEXT_TOKEN_LIFETIME_MS)
 				const tokenData: ContextToken = {
 					token: result.token,
-					tnId: 0, // TODO: Get tnId from result if available
 					roles: result.roles || [],
 					expiresAt
 				}
@@ -255,7 +295,7 @@ export function useApiContext() {
 				throw err
 			}
 		},
-		[setContextTokens]
+		[store, setContextTokens]
 	)
 
 	/**
@@ -264,12 +304,56 @@ export function useApiContext() {
 	 */
 	const setActiveContext = React.useCallback(
 		async (idTag: string) => {
+			const auth = store.get(authAtom)
+			if (!auth?.idTag) {
+				throw new Error('Cannot switch context without auth')
+			}
+			const ownIdTag = auth.idTag
+
 			setIsLoading(true)
 			setError(undefined)
 
 			try {
-				// Context switches are explicit user actions — bypass the trust gate
-				// so a joined community always authenticates without prompting.
+				// Gate foreign-context switches behind 'always' trust (or a
+				// session 'S'). Own context skips — no foreign auth involved.
+				if (idTag !== ownIdTag) {
+					await awaitTrustBootstrap()
+					if (isUnmountedRef.current) {
+						throw new ContextAuthChangedError()
+					}
+					// Auth may have flipped during the await — abort silently
+					// rather than persisting trust against the wrong identity.
+					const currentAuth = store.get(authAtom)
+					if (currentAuth?.idTag !== ownIdTag) {
+						throw new ContextAuthChangedError()
+					}
+					const stored = store.get(storedTrustAtom).get(idTag)
+					const session = store.get(sessionTrustAtom).get(idTag)
+					if (stored !== 'always' && session !== 'S') {
+						const accepted = await requestTrustGate(setTrustGate, idTag)
+						if (!accepted) {
+							throw new ContextTrustGateRejectedError()
+						}
+						// On persist failure, fall back to session trust so the
+						// switch still proceeds — user consented, server didn't.
+						try {
+							await setStoredTrust(idTag, 'always')
+						} catch (persistErr) {
+							console.warn(
+								'[setActiveContext] failed to persist trust, falling back to session-only:',
+								persistErr
+							)
+							setSessionTrust(idTag, 'S')
+							toastWarning(
+								t(
+									'Trust decision saved for this session only. Retry once you are online.'
+								)
+							)
+						}
+					}
+				}
+
+				// Explicit user action: bypass the passive-read gate.
 				const tokenResult = await getTokenFor(idTag, { explicit: true })
 				if (!tokenResult) {
 					throw new Error(`Failed to get token for context: ${idTag}`)
@@ -284,7 +368,7 @@ export function useApiContext() {
 				// Create context with roles from proxy token response
 				const newContext: ActiveContext = {
 					idTag,
-					type: idTag === authRef.current?.idTag ? 'me' : 'community',
+					type: idTag === ownIdTag ? 'me' : 'community',
 					name: idTag,
 					roles: tokenResult.roles,
 					permissions: [],
@@ -294,10 +378,8 @@ export function useApiContext() {
 				// Update active context
 				setActiveContextState(newContext)
 
-				// Surface the per-context ui.onboarding for the activation
-				// banner. Done after setActiveContext so the banner doesn't
-				// flash a stale value during the switch. Failure here is
-				// non-fatal — the banner just won't render.
+				// Load per-context ui.onboarding after the switch so the
+				// banner doesn't flash a stale value. Non-fatal on failure.
 				try {
 					const settings = await contextApi.settings.list({
 						prefix: 'ui.onboarding'
@@ -312,6 +394,10 @@ export function useApiContext() {
 					console.warn('Failed to read ui.onboarding for context:', settingsErr)
 				}
 			} catch (err) {
+				// Gate flow exceptions are expected UI states — re-throw silently.
+				if (isTrustGateRejection(err)) {
+					throw err
+				}
 				setError(err as Error)
 				console.error('Failed to switch context:', err)
 				throw err
@@ -319,7 +405,19 @@ export function useApiContext() {
 				setIsLoading(false)
 			}
 		},
-		[getTokenFor, getClientFor, setActiveContextState, setContextOnboarding]
+		[
+			store,
+			t,
+			toastWarning,
+			getTokenFor,
+			getClientFor,
+			setActiveContextState,
+			setContextOnboarding,
+			setStoredTrust,
+			setSessionTrust,
+			awaitTrustBootstrap,
+			setTrustGate
+		]
 	)
 
 	return {
@@ -638,7 +736,9 @@ export function useContextSwitch() {
 				}
 				setLastSwitch(switchEvent)
 			} catch (err) {
-				console.error('Context switch failed:', err)
+				if (!isTrustGateRejection(err)) {
+					console.error('Context switch failed:', err)
+				}
 				throw err
 			} finally {
 				setIsSwitching(false)

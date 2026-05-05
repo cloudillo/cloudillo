@@ -19,11 +19,11 @@
  */
 
 import * as React from 'react'
-import { useAtom } from 'jotai'
+import { useAtom, useSetAtom } from 'jotai'
 import { useApi, useAuth } from '@cloudillo/react'
 import type { ProfileTrust } from '@cloudillo/types'
 
-import { contextTokensAtom, sessionTrustAtom, storedTrustAtom } from './atoms'
+import { contextTokensAtom, sessionTrustAtom, storedTrustAtom, trustBootstrapAtom } from './atoms'
 
 /**
  * Effective trust level for a foreign profile, merged from session + stored state.
@@ -189,9 +189,35 @@ export function useProfileTrustBootstrap() {
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const { rememberStoredTrust } = useProfileTrust()
+	const setBootstrap = useSetAtom(trustBootstrapAtom)
+	const setStored = useSetAtom(storedTrustAtom)
+	const setSession = useSetAtom(sessionTrustAtom)
+	const setContextTokens = useSetAtom(contextTokensAtom)
+
+	const prevIdTagRef = React.useRef<string | null | undefined>(undefined)
 
 	React.useEffect(() => {
-		if (!api || !auth?.idTag) return
+		const idTag = auth?.idTag ?? null
+		const prev = prevIdTagRef.current
+		prevIdTagRef.current = idTag
+		// Only clear on real auth-idTag transitions (login → logout → re-login
+		// as a different user). Without the gate, a non-auth-related effect
+		// re-run could silently discard the user's in-session decisions.
+		if (prev !== undefined && prev !== idTag) {
+			setStored(new Map())
+			setSession(new Map())
+			setContextTokens(new Map())
+		}
+		setBootstrap({ idTag, ready: false })
+
+		if (!api || !auth?.idTag) {
+			// No auth → nothing to seed. Mark ready so callers blocking on
+			// `awaitTrustBootstrap()` see a definite (empty) cache instead
+			// of hanging. "Ready" means the cache is in a known state, not
+			// that the cache has data.
+			setBootstrap({ idTag, ready: true })
+			return
+		}
 		let cancelled = false
 		;(async () => {
 			try {
@@ -200,14 +226,27 @@ export function useProfileTrustBootstrap() {
 				for (const p of list) {
 					rememberStoredTrust(p.idTag, p.trust ?? null)
 				}
+				setBootstrap({ idTag, ready: true })
 			} catch (err) {
 				console.error('[useProfileTrustBootstrap] failed to seed trust cache:', err)
+				// Mark ready even on failure so the trust gate doesn't wait
+				// forever; missing entries fall back to the "ask" path which
+				// is the safe default.
+				if (!cancelled) setBootstrap({ idTag, ready: true })
 			}
 		})()
 		return () => {
 			cancelled = true
 		}
-	}, [api, auth?.idTag, rememberStoredTrust])
+	}, [
+		api,
+		auth?.idTag,
+		rememberStoredTrust,
+		setBootstrap,
+		setStored,
+		setSession,
+		setContextTokens
+	])
 }
 
 // vim: ts=4

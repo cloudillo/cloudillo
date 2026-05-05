@@ -93,9 +93,6 @@ export interface ContextToken {
 	/** JWT token for this context */
 	token: string
 
-	/** Tenant ID */
-	tnId: number
-
 	/** Token expiration time */
 	expiresAt: Date
 

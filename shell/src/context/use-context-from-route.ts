@@ -2,16 +2,25 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useMatch, useNavigate } from 'react-router-dom'
 import { useAtom } from 'jotai'
 import { useAuth, apiAtom } from '@cloudillo/react'
 
 import { activeContextAtom } from './atoms'
 import { useApiContext } from './hooks'
+import { ContextTrustGateBusyError, ContextTrustGateRejectedError } from './trust-gate'
 import { HOME_CONTEXT } from './constants.js'
 
 export function useContextFromRoute(): string | undefined {
-	const { contextIdTag: rawContextIdTag } = useParams<{ contextIdTag?: string }>()
+	// `useContextFromRoute` is called from `AppRoutes` outside any matched
+	// `<Route>`, so `useParams` would return `{}`. Use `useMatch` to parse the
+	// URL directly, independent of route nesting. Only treat the segment as a
+	// contextIdTag when it looks like one (`~` or a dotted domain) — otherwise
+	// `/app/feed` or `/app/quillo/...` would be misread as a context.
+	const match = useMatch('/app/:contextIdTag/*')
+	const matched = match?.params.contextIdTag
+	const rawContextIdTag =
+		matched && (matched === HOME_CONTEXT || matched.includes('.')) ? matched : undefined
 	const [activeContext] = useAtom(activeContextAtom)
 	const { setActiveContext, isLoading } = useApiContext()
 	const [auth] = useAuth()
@@ -28,12 +37,19 @@ export function useContextFromRoute(): string | undefined {
 
 		// If we have a contextIdTag in URL but it doesn't match active context
 		if (contextIdTag && activeContext?.idTag !== contextIdTag) {
-			console.log(
-				`[Route] Context mismatch: URL=${contextIdTag}, Active=${activeContext?.idTag}`
-			)
-
 			// Switch to the context from URL
 			setActiveContext(contextIdTag).catch((err) => {
+				// Another gate is already on screen for an earlier click —
+				// the user hasn't decided anything yet, so don't navigate
+				// away from under them. Doing nothing leaves the existing
+				// dialog and route in place.
+				if (err instanceof ContextTrustGateBusyError) return
+				// User declined the trust gate — silently fall back to their
+				// home context, same destination as the failure path.
+				if (err instanceof ContextTrustGateRejectedError) {
+					navigate(`/app/${HOME_CONTEXT}/feed`, { replace: true })
+					return
+				}
 				console.error(`[Route] Failed to switch to context ${contextIdTag}:`, err)
 
 				// If we can't switch, redirect to user's own context
@@ -47,10 +63,9 @@ export function useContextFromRoute(): string | undefined {
 		}
 	}, [contextIdTag, activeContext?.idTag, setActiveContext, auth, navigate])
 
-	// Initialize active context if none is set and we have auth
+	// Initialize active context if none is set, we have auth, and the URL has no context segment
 	React.useEffect(() => {
-		if (!isInitialized && auth?.idTag && !activeContext && !isLoading) {
-			console.log('[Route] Initializing active context to user context')
+		if (!isInitialized && auth?.idTag && !activeContext && !isLoading && !contextIdTag) {
 			setActiveContext(auth.idTag)
 				.then(() => {
 					setIsInitialized(true)
@@ -59,7 +74,7 @@ export function useContextFromRoute(): string | undefined {
 					console.error('[Route] Failed to initialize active context:', err)
 				})
 		}
-	}, [auth, activeContext, isLoading, isInitialized, setActiveContext])
+	}, [auth, activeContext, isLoading, isInitialized, setActiveContext, contextIdTag])
 
 	return contextIdTag
 }

@@ -8,7 +8,9 @@ import { useSettings } from '../settings/settings.js'
 
 export function TenantSettings() {
 	const { t } = useTranslation()
-	const { settings, onSettingChange } = useSettings(['auth', 'federation', 'limits'])
+	const { settings, onSettingChange } = useSettings(['auth', 'federation'], {
+		level: 'global'
+	})
 
 	if (!settings) return null
 
@@ -53,24 +55,6 @@ export function TenantSettings() {
 				<p className="c-hint mb-4">
 					{t('Automatically accept follow requests from other instances')}
 				</p>
-			</div>
-
-			<div className="c-panel">
-				<h4>{t('Storage')}</h4>
-
-				<label className="c-hbox pb-2">
-					<span className="flex-fill">{t('Maximum Storage Quota (GB)')}</span>
-					<input
-						className="c-input w-xs"
-						name="limits.max_storage_gb"
-						type="number"
-						min="1"
-						max="100000"
-						value={String(settings['limits.max_storage_gb'] || 100)}
-						onChange={onSettingChange}
-					/>
-				</label>
-				<p className="c-hint mb-4">{t('Total storage quota for this tenant')}</p>
 			</div>
 		</>
 	)

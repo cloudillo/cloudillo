@@ -8,7 +8,7 @@ import { useSettings } from '../settings/settings.js'
 
 export function StorageSettings() {
 	const { t } = useTranslation()
-	const { settings, onSettingChange } = useSettings(['file', 'limits'])
+	const { settings, onSettingChange } = useSettings(['file', 'limits'], { level: 'global' })
 
 	if (!settings) return null
 
@@ -45,6 +45,22 @@ export function StorageSettings() {
 					/>
 				</label>
 				<p className="c-hint mb-4">{t('Maximum size for individual file uploads')}</p>
+
+				<label className="c-hbox pb-2">
+					<span className="flex-fill">{t('Maximum streaming file size (MB)')}</span>
+					<input
+						className="c-input w-xs"
+						name="file.max_streaming_file_size_mb"
+						type="number"
+						min="1"
+						max="10000"
+						value={String(settings['file.max_streaming_file_size_mb'] || 100)}
+						onChange={onSettingChange}
+					/>
+				</label>
+				<p className="c-hint mb-4">
+					{t('Maximum size for streaming uploads (video/audio)')}
+				</p>
 
 				<label className="c-hbox pb-2">
 					<span className="flex-fill">{t('Maximum size variant to generate')}</span>
@@ -126,10 +142,15 @@ export function StorageSettings() {
 			</div>
 
 			<div className="c-panel">
-				<h4>{t('Per-Tenant Limits')}</h4>
+				<h4>{t('Default Tenant Limits')}</h4>
+				<p className="c-hint mb-4">
+					{t(
+						'Defaults applied to every tenant unless overridden on Site admin → Tenants → (select a tenant).'
+					)}
+				</p>
 
 				<label className="c-hbox pb-2">
-					<span className="flex-fill">{t('Maximum storage quota (GB)')}</span>
+					<span className="flex-fill">{t('Default storage quota (GB)')}</span>
 					<input
 						className="c-input w-xs"
 						name="limits.max_storage_gb"
@@ -140,7 +161,25 @@ export function StorageSettings() {
 						onChange={onSettingChange}
 					/>
 				</label>
-				<p className="c-hint mb-4">{t('Total storage quota for each tenant')}</p>
+				<p className="c-hint mb-4">{t('Default storage quota for every tenant.')}</p>
+
+				<label className="c-hbox pb-2">
+					<span className="flex-fill">{t('Variant sync timeout (seconds)')}</span>
+					<input
+						className="c-input w-xs"
+						name="file.sync_variant_timeout_secs"
+						type="number"
+						min="10"
+						max="86400"
+						value={String(settings['file.sync_variant_timeout_secs'] || 300)}
+						onChange={onSettingChange}
+					/>
+				</label>
+				<p className="c-hint mb-4">
+					{t(
+						'Per-attachment variant sync timeout (seconds; default applied to all tenants unless overridden).'
+					)}
+				</p>
 			</div>
 		</>
 	)

@@ -2,11 +2,18 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+import * as T from '@symbion/runtype'
 import { useTranslation } from 'react-i18next'
 import { LuCircleCheck as IcSuccess, LuCircleAlert as IcError } from 'react-icons/lu'
 
 import { useApi, useAuth } from '@cloudillo/react'
+import { FetchError, type SmtpDiagnostic, tSmtpDiagnostic } from '@cloudillo/core'
 import { PasswordInput } from '../components/PasswordInput.js'
+
+interface TestEmailError {
+	message: string
+	diagnostic?: SmtpDiagnostic
+}
 
 // Store numeric fields as strings to allow proper editing (empty field, typing new value)
 interface EmailFormState {
@@ -71,7 +78,7 @@ export function EmailSettings() {
 	const [testEmailStatus, setTestEmailStatus] = React.useState<
 		'idle' | 'sending' | 'success' | 'error'
 	>('idle')
-	const [testEmailError, setTestEmailError] = React.useState<string | undefined>()
+	const [testEmailError, setTestEmailError] = React.useState<TestEmailError | undefined>()
 
 	// Load settings and user email on mount
 	React.useEffect(
@@ -257,7 +264,8 @@ export function EmailSettings() {
 		// Use entered address or fall back to user's email if available
 		const emailToUse = testEmailAddress || userEmail
 		if (!api || !emailToUse || !isEmail(emailToUse)) {
-			setTestEmailError(t('Please enter a valid email address'))
+			setTestEmailError({ message: t('Please enter a valid email address') })
+			setTestEmailStatus('error')
 			return
 		}
 
@@ -269,7 +277,41 @@ export function EmailSettings() {
 			setTestEmailStatus('success')
 		} catch (err) {
 			setTestEmailStatus('error')
-			setTestEmailError(err instanceof Error ? err.message : t('Failed to send test email'))
+			const message = err instanceof Error ? err.message : t('Failed to send test email')
+			let diagnostic: SmtpDiagnostic | undefined
+			if (err instanceof FetchError && err.details !== undefined) {
+				const decoded = T.decode(tSmtpDiagnostic, err.details)
+				if (T.isOk(decoded)) {
+					diagnostic = decoded.ok
+				} else {
+					console.warn('Unrecognised SMTP diagnostic shape', err.details, decoded)
+				}
+			}
+			setTestEmailError({ message, diagnostic })
+		}
+	}
+
+	function diagnosticHint(category: SmtpDiagnostic['category']): string {
+		switch (category) {
+			case 'auth':
+				return t('Authentication failed: re-enter SMTP username and password.')
+			case 'connection':
+				return t('Cannot reach SMTP server: verify host, port, and firewall rules.')
+			case 'tls':
+				return t(
+					"TLS handshake failed: check the TLS mode and port (try 'starttls' on 587 or 'tls' on 465)."
+				)
+			case 'transient':
+				return t(
+					'Transient SMTP failure: the server returned a temporary error — retrying may succeed.'
+				)
+			case 'permanent':
+				return t(
+					'Permanent SMTP failure: the server rejected the message; check from-address, sending policy, and recipient.'
+				)
+			default:
+				// Covers the documented 'other' category and any future categories.
+				return t('SMTP request failed. See raw error below for details.')
 		}
 	}
 
@@ -535,7 +577,42 @@ export function EmailSettings() {
 								<div className="c-alert-title">
 									{t('Failed to send test email')}
 								</div>
-								<div className="c-alert-message">{testEmailError}</div>
+								<div className="c-alert-message">{testEmailError.message}</div>
+								{testEmailError.diagnostic && (
+									<div className="mt-2">
+										<p className="mb-2">
+											{diagnosticHint(testEmailError.diagnostic.category)}
+										</p>
+										{(testEmailError.diagnostic.smtpCode !== undefined ||
+											testEmailError.diagnostic.smtpResponse) && (
+											<dl className="mb-2">
+												{testEmailError.diagnostic.smtpCode !==
+													undefined && (
+													<>
+														<dt>{t('SMTP code')}</dt>
+														<dd>
+															{testEmailError.diagnostic.smtpCode}
+														</dd>
+													</>
+												)}
+												{testEmailError.diagnostic.smtpResponse && (
+													<>
+														<dt>{t('Server response')}</dt>
+														<dd>
+															{testEmailError.diagnostic.smtpResponse}
+														</dd>
+													</>
+												)}
+											</dl>
+										)}
+										<details>
+											<summary>{t('Raw error')}</summary>
+											<pre className="text-pre-wrap">
+												{testEmailError.diagnostic.raw}
+											</pre>
+										</details>
+									</div>
+								)}
 							</div>
 						</div>
 					)}

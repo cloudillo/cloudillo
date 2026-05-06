@@ -14,7 +14,11 @@
 import * as React from 'react'
 import { useAtomValue } from 'jotai'
 import { useTranslation } from 'react-i18next'
-import { LuShieldCheck as IcShieldCheck, LuShieldOff as IcShieldOff } from 'react-icons/lu'
+import {
+	LuShield as IcShield,
+	LuShieldCheck as IcShieldCheck,
+	LuShieldOff as IcShieldOff
+} from 'react-icons/lu'
 
 import { useApi, LoadingSpinner, useToast } from '@cloudillo/react'
 import type { Profile, ProfileTrust } from '@cloudillo/types'
@@ -69,13 +73,17 @@ export function TrustSettings(): React.ReactElement {
 		try {
 			await setStoredTrust(idTag, level)
 			// Optimistic UI: setStoredTrust already updated the in-memory cache
-			// and the server — avoid a full listTrust() refetch (which would
-			// flash the list empty via the LoadingSpinner fallback). 'null'
-			// clears the entry, so drop the row; otherwise update in place.
+			// and the server, so avoid a full listTrust() refetch (which would
+			// flash the list empty via the LoadingSpinner fallback). For 'null'
+			// (Ask) keep the row visible with the new state reflected —
+			// listTrust() only returns non-null rows, so it will disappear on
+			// next reload, but staying for now lets the user undo without
+			// re-opening the profile page.
 			setProfiles((prev) => {
 				if (!prev) return prev
-				if (level === null) return prev.filter((p) => p.idTag !== idTag)
-				return prev.map((p) => (p.idTag === idTag ? { ...p, trust: level } : p))
+				return prev.map((p) =>
+					p.idTag === idTag ? { ...p, trust: level ?? undefined } : p
+				)
 			})
 		} catch (err) {
 			console.error('Failed to update trust:', err)
@@ -84,6 +92,16 @@ export function TrustSettings(): React.ReactElement {
 			setBusyIdTag(undefined)
 		}
 	}
+
+	const trustSegments: Array<{
+		value: ProfileTrust | null
+		label: string
+		activeClass: string
+	}> = [
+		{ value: 'always', label: t('Always'), activeClass: 'success' },
+		{ value: null, label: t('Ask'), activeClass: 'primary' },
+		{ value: 'never', label: t('Never'), activeClass: 'warning' }
+	]
 
 	if (rows === undefined) return <LoadingSpinner />
 
@@ -105,46 +123,56 @@ export function TrustSettings(): React.ReactElement {
 			<h4 className="p-3 pb-2">{t('Trusted profiles')}</h4>
 			<ul className="c-vbox g-1 p-2" style={{ listStyle: 'none', margin: 0 }}>
 				{rows.map((profile) => {
-					const trust = profile.trust
-					const Icon = trust === 'always' ? IcShieldCheck : IcShieldOff
+					const trust = profile.trust ?? null
+					const Icon =
+						trust === 'always'
+							? IcShieldCheck
+							: trust === 'never'
+								? IcShieldOff
+								: IcShield
+					const iconClass =
+						trust === 'always'
+							? 'flex-shrink-0 text-success'
+							: trust === 'never'
+								? 'flex-shrink-0 text-warning'
+								: 'flex-shrink-0 text-muted'
+					const busy = busyIdTag === profile.idTag
 					return (
 						<li key={profile.idTag} className="c-hbox g-2 p-2 align-items-center">
-							<Icon size="1.5rem" className="flex-shrink-0" />
+							<Icon size="1.5rem" className={iconClass} />
 							<div className="c-vbox flex-fill">
 								<div className="font-weight-bold">
 									{profile.name || profile.idTag}
 								</div>
 								<div className="text-muted">{`@${profile.idTag}`}</div>
 							</div>
-							<div className="c-hbox g-1">
-								{trust !== 'always' && (
-									<button
-										type="button"
-										className="c-button"
-										onClick={() => apply(profile.idTag, 'always')}
-										disabled={busyIdTag === profile.idTag}
-									>
-										{t('Always')}
-									</button>
-								)}
-								{trust !== 'never' && (
-									<button
-										type="button"
-										className="c-button warning"
-										onClick={() => apply(profile.idTag, 'never')}
-										disabled={busyIdTag === profile.idTag}
-									>
-										{t('Never')}
-									</button>
-								)}
-								<button
-									type="button"
-									className="c-button link"
-									onClick={() => apply(profile.idTag, null)}
-									disabled={busyIdTag === profile.idTag}
-								>
-									{t('Clear trust')}
-								</button>
+							<div
+								className="c-input-group w-auto"
+								role="group"
+								aria-label={t('Trust preference')}
+							>
+								{trustSegments.map((seg) => {
+									const active = seg.value === trust
+									return (
+										<button
+											key={seg.value ?? 'ask'}
+											type="button"
+											className={
+												active
+													? `c-button ${seg.activeClass}`
+													: 'c-button secondary'
+											}
+											aria-pressed={active}
+											onClick={() => {
+												if (active) return
+												void apply(profile.idTag, seg.value)
+											}}
+											disabled={busy}
+										>
+											{seg.label}
+										</button>
+									)
+								})}
 							</div>
 						</li>
 					)

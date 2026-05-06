@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import debounce from 'debounce'
 
@@ -22,6 +23,7 @@ import {
 	LuKey as IcKey,
 	LuSearch as IcSearch,
 	LuRefreshCw as IcLoading,
+	LuSettings as IcSettings,
 	LuTrash2 as IcTrash,
 	LuUser as IcPerson,
 	LuUsers as IcCommunity,
@@ -41,6 +43,7 @@ function TenantRow({
 	onDelete: (idTag: string) => void
 }) {
 	const { t } = useTranslation()
+	const navigate = useNavigate()
 	const [menuPos, setMenuPos] = React.useState<{ x: number; y: number } | null>(null)
 
 	const isAdmin = tenant.roles?.includes('admin')
@@ -69,7 +72,8 @@ function TenantRow({
 			</div>
 
 			<div className="flex-fill c-hbox align-items-center g-2" style={{ minWidth: 0 }}>
-				<div
+				<Link
+					to={`/site-admin/tenants/${encodeURIComponent(tenant.idTag)}`}
 					style={{
 						minWidth: 0,
 						overflow: 'hidden',
@@ -79,7 +83,7 @@ function TenantRow({
 				>
 					<strong>{tenant.name}</strong>{' '}
 					<span className="text-muted small">@{tenant.idTag}</span>
-				</div>
+				</Link>
 				<span
 					className="text-muted"
 					title={tenant.type === 'community' ? t('Community') : t('Person')}
@@ -145,6 +149,14 @@ function TenantRow({
 
 			{menuPos && (
 				<Menu position={menuPos} onClose={() => setMenuPos(null)}>
+					<MenuItem
+						icon={<IcSettings />}
+						label={t('Settings')}
+						onClick={() => {
+							setMenuPos(null)
+							navigate(`/site-admin/tenants/${encodeURIComponent(tenant.idTag)}`)
+						}}
+					/>
 					<MenuItem
 						icon={<IcKey />}
 						label={t('Reset Password')}

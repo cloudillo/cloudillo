@@ -21,6 +21,7 @@ import { useAuth, Fcd, mergeClasses } from '@cloudillo/react'
 
 import { Invitations } from './invitations.js'
 import { Tenants } from './tenants.js'
+import { TenantDetail } from './tenant-detail.js'
 import { SuggestedProvidersSettings } from './idps.js'
 import { ServerSettings } from './server.js'
 import { StorageSettings } from './storage.js'
@@ -171,6 +172,14 @@ export function SiteAdminRoutes() {
 				element={
 					<SiteAdmin title={t('Users & Communities')}>
 						<Tenants />
+					</SiteAdmin>
+				}
+			/>
+			<Route
+				path="/site-admin/tenants/:idTag"
+				element={
+					<SiteAdmin title={t('Tenant Settings')}>
+						<TenantDetail />
 					</SiteAdmin>
 				}
 			/>

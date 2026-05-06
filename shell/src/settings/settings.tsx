@@ -15,7 +15,11 @@ const DEBOUNCE_DELAYS = {
 	default: 500 // Default fallback
 }
 
-export function useSettings(prefix: string | string[]) {
+// `level` selects between the caller's own scope (tenant or global) — for cross-
+// tenant admin writes (site admin editing tenant X), call api.settings.* directly
+// with { level: 'tenant', tenant: idTag }; this hook only handles self-settings.
+export function useSettings(prefix: string | string[], opts?: { level?: 'global' | 'tenant' }) {
+	const level = opts?.level
 	const { t } = useTranslation()
 	const { api, authenticated } = useApi()
 	const { error: toastError } = useToast()
@@ -34,7 +38,10 @@ export function useSettings(prefix: string | string[]) {
 			if (!api || !authenticated) return
 			;(async function () {
 				try {
-					const res = await api.settings.list({ prefix: prefixStr })
+					const res = await api.settings.list({
+						prefix: prefixStr,
+						...(level ? { level } : {})
+					})
 					// Convert array of SettingResponse to flat object mapping key -> value
 					const settingsMap: Record<string, string | number | boolean> = {}
 					for (const setting of res) {
@@ -48,7 +55,7 @@ export function useSettings(prefix: string | string[]) {
 				}
 			})()
 		},
-		[api, authenticated, prefixStr]
+		[api, authenticated, prefixStr, level]
 	)
 
 	// Cleanup debounce timers on unmount
@@ -87,7 +94,7 @@ export function useSettings(prefix: string | string[]) {
 		if (delay === 0) {
 			// No debounce - call immediately (for checkboxes)
 			try {
-				await api.settings.update(name, { value })
+				await api.settings.update(name, { value }, level ? { level } : undefined)
 			} catch (error) {
 				console.error('Failed to update setting:', name, error)
 				setSettings((settings) => ({ ...settings, [name]: oldValue }))
@@ -97,7 +104,7 @@ export function useSettings(prefix: string | string[]) {
 			// Debounce the API call
 			debounceTimers.current[name] = setTimeout(async () => {
 				try {
-					await api.settings.update(name, { value })
+					await api.settings.update(name, { value }, level ? { level } : undefined)
 					delete debounceTimers.current[name]
 				} catch (error) {
 					console.error('Failed to update setting:', name, error)

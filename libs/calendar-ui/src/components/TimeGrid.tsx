@@ -354,7 +354,7 @@ export function TimeGrid({
 	function minutesFromPointer(e: PointerEvent | React.PointerEvent, rect: DOMRect): number {
 		const relY = Math.max(0, Math.min(rect.height, e.clientY - rect.top))
 		const abs = (relY / rect.height) * dayLen + dayStartMin
-		return Math.round(abs / snapMinutes) * snapMinutes
+		return Math.floor(abs / snapMinutes) * snapMinutes
 	}
 
 	const createDrag = usePointerDrag<CreateCtx>({
@@ -370,8 +370,9 @@ export function TimeGrid({
 			if (!day) return null
 			const rect = dayColEl.getBoundingClientRect()
 			if (rect.height <= 0) return null
-			// Use Math.round — matches `minutesFromPointer` above — so the click
-			// point snaps to the nearest boundary rather than the one below it.
+			// `minutesFromPointer` snaps down (Math.floor) so the click resolves to
+			// the slot the cursor is visually inside — matching the hover indicator
+			// (onPointerMove on the day column) and the touch-tap path.
 			const startMin = minutesFromPointer(e, rect)
 			setCreateDraft({ day, startMin, endMin: startMin + snapMinutes })
 			e.preventDefault()

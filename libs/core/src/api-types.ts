@@ -97,6 +97,18 @@ export {
 }
 
 // ============================================================================
+// SHARED ENUMS
+// ============================================================================
+
+// Visibility levels for actions and files on the wire. Mirrors the server
+// enum (D=Direct, P=Public, V=Verified, 2=2nd-degree, F=Followers,
+// C=Connected). Distinct from the smaller `tVisibility` in
+// `message-bus/types.ts`, which is the app-to-shell handshake subset.
+// Keep in sync with the server-side visibility enum.
+export const tActionVisibility = T.literal('D', 'P', 'V', '2', 'F', 'C')
+export type ActionVisibility = T.TypeOf<typeof tActionVisibility>
+
+// ============================================================================
 // AUTH ENDPOINTS
 // ============================================================================
 
@@ -178,6 +190,30 @@ export const tGetVapidResult = T.struct({
 	vapidPublicKey: T.string
 })
 export type GetVapidResult = T.TypeOf<typeof tGetVapidResult>
+
+// Admin email test response. Backend (crates/cloudillo-admin/src/email.rs:126-159)
+// only returns this on HTTP 200 with success: true; all failures return non-2xx
+// ErrorResponse and flow through the standard error path. The `error` field on
+// the Rust side is `#[skip_serializing_none]` and never set on success, so it
+// is intentionally absent here.
+export const tTestEmailResult = T.struct({
+	success: T.literal(true),
+	message: T.string
+})
+export type TestEmailResult = T.TypeOf<typeof tTestEmailResult>
+
+// Structured SMTP failure diagnostic. Set on the ErrorResponse.details field
+// for POST /admin/email/test failures (HTTP 503 SMTP_SEND_FAILED). Mirrors
+// SmtpDiagnostic in cloudillo-rs/crates/cloudillo-email/src/sender.rs — only
+// server-derived data (no host/port/tls_mode echo).
+export const tSmtpDiagnostic = T.struct({
+	category: T.literal('auth', 'connection', 'tls', 'transient', 'permanent', 'other'),
+	message: T.string,
+	smtpCode: T.optional(T.number),
+	smtpResponse: T.optional(T.string),
+	raw: T.string
+})
+export type SmtpDiagnostic = T.TypeOf<typeof tSmtpDiagnostic>
 
 export const tSetPasswordResult = tLoginResult
 export type SetPasswordResult = T.TypeOf<typeof tSetPasswordResult>
@@ -336,8 +372,10 @@ export type IdpCreateIdentityResult = IdpIdentity
 // Request types for IDP management
 export interface CreateIdpIdentityRequest {
 	idTag: string
-	email: string
+	email?: string
 	ownerIdTag?: string
+	address?: string
+	dyndns?: boolean
 	sendActivationEmail?: boolean
 	createApiKey?: boolean
 	apiKeyName?: string
@@ -346,6 +384,7 @@ export interface CreateIdpIdentityRequest {
 export interface CreateIdpApiKeyRequest {
 	idTag: string
 	name?: string
+	expiresAt?: number
 }
 
 export interface ListIdpIdentitiesQuery {
@@ -471,6 +510,22 @@ export interface PublishActionRequest {
 	publishAt?: number // Unix timestamp for scheduled publish (omit for immediate)
 }
 
+// PATCH /actions/:actionId body — drafts (status R) and scheduled (status S).
+// Mirrors backend PatchActionRequest in crates/cloudillo-action/src/handler.rs.
+// Schedule edits on existing drafts/scheduled actions can pass `publishAt`
+// here (it updates the stored publish time without changing state). Use
+// POST /actions/:actionId/publish to transition state (draft → scheduled
+// or → published).
+export interface PatchActionRequest {
+	subType?: string
+	content?: unknown // serde_json::Value on the wire
+	attachments?: string[]
+	visibility?: ActionVisibility
+	flags?: string
+	x?: unknown
+	publishAt?: number // Unix timestamp; updates scheduled publish time
+}
+
 export interface ActionStatUpdate {
 	commentsRead?: number
 }
@@ -537,7 +592,7 @@ export interface CreateFileRequest {
 export interface PatchFileRequest {
 	fileName?: string
 	parentId?: string | null // Move file to folder (null = root)
-	visibility?: 'D' | 'P' | 'V' | '2' | 'F' | 'C' | null // File visibility level
+	visibility?: ActionVisibility | null // File visibility level
 }
 
 export interface GetFileVariantSelector {
@@ -616,7 +671,7 @@ export const tFileView = T.struct({
 		})
 	),
 	accessLevel: T.optional(T.literal('read', 'write', 'none')),
-	visibility: T.optional(T.union(T.literal('D', 'P', 'V', '2', 'F', 'C'), T.nullValue)) // null/D=Direct, P=Public, V=Verified, 2=2nd degree, F=Followers, C=Connected
+	visibility: T.optional(T.union(tActionVisibility, T.nullValue)) // null/D=Direct, P=Public, V=Verified, 2=2nd degree, F=Followers, C=Connected
 })
 export type FileView = T.TypeOf<typeof tFileView>
 
@@ -767,13 +822,13 @@ export interface AdminProfilePatch {
 	name?: string
 	roles?: string[]
 	status?: 'A' | 'T' | 'B' | 'S' | null // Active, Trusted, Blocked, Suspended
-	ban_reason?: string | null
 }
 
+// PATCH /profiles/:idTag body. Only block/trust-style fields belong here:
+// `following` flows through FOLLOW actions and `connected` through CONN actions,
+// not over this endpoint.
 export interface PatchProfileConnection {
 	status?: 'A' | 'B' | 'T' | null
-	following?: boolean | null
-	connected?: true | 'R' | null
 	trust?: ProfileTrust | null
 }
 
@@ -846,17 +901,22 @@ export interface ListSettingsQuery {
 }
 
 export interface PutSettingRequest {
-	value: string | number | boolean | null
+	value: SettingValue
 }
 
 // Response types
 
-// SettingValue can be boolean, integer, string, or JSON
+// SettingValue can be boolean, integer, string, JSON array, JSON object, or
+// null (unset). Order matters: runtype's union dispatches left-to-right, so
+// primitives win before the JSON array/record fallback. Null is preserved as
+// a distinct branch so consumers can narrow on "no override at this level".
 export const tSettingValue = T.union(
 	T.boolean,
 	T.number,
 	T.string,
-	T.unknown // JSON object support
+	T.nullValue,
+	T.array(T.unknown),
+	T.record(T.unknown)
 )
 export type SettingValue = T.TypeOf<typeof tSettingValue>
 

@@ -87,13 +87,22 @@ export class FetchError extends Error {
 	httpStatus: number
 	/** Structured error code from API (e.g., "E-AUTH-UNAUTH") */
 	apiErrorCode?: string
+	/** Optional structured payload from `ErrorResponse.error.details` (camelCase, untyped). */
+	details?: unknown
 
-	constructor(code: string, descr: string, httpStatus: number = 400, apiErrorCode?: string) {
+	constructor(
+		code: string,
+		descr: string,
+		httpStatus: number = 400,
+		apiErrorCode?: string,
+		details?: unknown
+	) {
 		super(descr)
 		this.code = code
 		this.descr = descr
 		this.httpStatus = httpStatus
 		this.apiErrorCode = apiErrorCode
+		this.details = details
 	}
 
 	/** Check if this is a specific API error code */
@@ -246,12 +255,18 @@ export async function apiFetchHelper<R, D = unknown>(
 		// Parse structured error response
 		let apiErrorCode: string | undefined
 		let errorMessage = textRes
+		let errorDetails: unknown
 
 		try {
+			// Expected envelope: `{ error: { code?, message?, details? } }`.
+			// Any truthy `error` field triggers the structured-extract; legacy or
+			// non-object shapes leave the inner fields as undefined and fall back
+			// to the plain-text response.
 			const errorBody = JSON.parse(textRes)
-			if (errorBody.error?.code) {
+			if (errorBody && typeof errorBody === 'object' && errorBody.error) {
 				apiErrorCode = errorBody.error.code
-				errorMessage = errorBody.error.message
+				if (errorBody.error.message) errorMessage = errorBody.error.message
+				errorDetails = errorBody.error.details
 			}
 		} catch (_e) {
 			// Not JSON or no structured error, use plain text
@@ -261,7 +276,8 @@ export async function apiFetchHelper<R, D = unknown>(
 			apiErrorCode || `API-HTTP-${res.status}`,
 			errorMessage,
 			res.status,
-			apiErrorCode
+			apiErrorCode,
+			errorDetails
 		)
 	}
 }

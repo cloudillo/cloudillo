@@ -468,7 +468,7 @@ export class ApiClient {
 		 * @param patch - Patch data
 		 * @returns Updated action
 		 */
-		update: (actionId: string, patch: unknown) =>
+		update: (actionId: string, patch: Types.PatchActionRequest) =>
 			this.request('PATCH', `/actions/${actionId}`, Types.tActionView, {
 				data: patch
 			}),
@@ -928,8 +928,10 @@ export class ApiClient {
 		 * PATCH /profiles/:idTag - Set per-profile trust preference for proxy-token use.
 		 * `'always'` = always authenticate on passive reads, `'never'` = never, `null` = clear (ask).
 		 */
-		setTrust: (idTag: string, trust: Types.ProfileTrust | null) =>
-			this.request('PATCH', `/profiles/${idTag}`, T.struct({}), { data: { trust } }),
+		setTrust: (idTag: string, trust: Types.ProfileTrust | null) => {
+			const body: Types.PatchProfileConnection = { trust }
+			return this.request('PATCH', `/profiles/${idTag}`, T.struct({}), { data: body })
+		},
 
 		/**
 		 * GET /profiles?trustSet=true - List profiles that have a non-null trust preference set.
@@ -942,7 +944,7 @@ export class ApiClient {
 		/**
 		 * PATCH /admin/profiles/:idTag - Admin update profile (roles, status)
 		 * @param idTag - Identity tag
-		 * @param data - Admin profile patch data (roles, status, ban_reason)
+		 * @param data - Admin profile patch data (name, roles, status)
 		 * @returns Updated profile
 		 */
 		adminUpdate: (idTag: string, data: Types.AdminProfilePatch) =>
@@ -1190,26 +1192,74 @@ export class ApiClient {
 	settings = {
 		/**
 		 * GET /settings - List settings
-		 * @param query - Optional prefix filter
+		 * @param query - Optional prefix filter and resolution level.
+		 *   `level` mirrors `get()`: omitted = full resolution chain;
+		 *   `'global'` / `'tenant'` = raw rows at that level only.
 		 * @returns Settings
 		 */
-		list: (query?: { prefix?: string }) =>
+		list: (query?: { prefix?: string; level?: 'global' | 'tenant'; tenant?: string }) =>
 			this.request('GET', '/settings', Types.tListSettingsResult, { query }),
 
 		/**
-		 * GET /settings/:name - Get single setting
+		 * GET /settings/:name - Get a single setting.
 		 * @param name - Setting name
+		 * @param opts.level - Optional resolution level.
+		 *   - omitted: full resolution chain (tenant → global → schema default).
+		 *     Always returns 200 for a known key with a default.
+		 *   - `'tenant'`: raw per-tenant row only. **No fallback.** 404 if no override.
+		 *   - `'global'`: raw global row only. **No fallback.** 404 if no global value.
+		 *   The raw modes let callers distinguish "no override at this level"
+		 *   from "explicit override that happens to equal the next level".
 		 * @returns Setting value
 		 */
-		get: (name: string) => this.request('GET', `/settings/${name}`, Types.tGetSettingResult),
+		get: (name: string, opts?: { level?: 'global' | 'tenant'; tenant?: string }) =>
+			this.request('GET', `/settings/${name}`, Types.tGetSettingResult, {
+				query: {
+					level: opts?.level,
+					tenant: opts?.tenant
+				}
+			}),
 
 		/**
 		 * PUT /settings/:name - Update setting
 		 * @param name - Setting name
 		 * @param data - Setting value object
+		 * @param opts.level - Optional resolution level. When omitted the server
+		 *   infers the scope from the caller's role (site admin → global,
+		 *   tenant → tenant). Pass `'global'` or `'tenant'` to make the scope
+		 *   explicit, mirroring `get()` and `delete()`.
+		 * @param opts.tenant - Optional target tenant idTag. Site-admin only.
+		 *   When set, the write targets the named tenant's row instead of the
+		 *   caller's own. Used by the per-tenant settings detail page.
 		 */
-		update: (name: string, data: { value: unknown }) =>
-			this.request('PUT', `/settings/${name}`, T.struct({}), { data })
+		update: (
+			name: string,
+			data: { value: unknown },
+			opts?: { level?: 'global' | 'tenant'; tenant?: string }
+		) =>
+			this.request('PUT', `/settings/${name}`, T.struct({}), {
+				data,
+				query: {
+					level: opts?.level,
+					tenant: opts?.tenant
+				}
+			}),
+
+		/**
+		 * DELETE /settings/:name - Clear a setting at a given level.
+		 * Used by the UI's "Reset to default" affordance for tenant overrides.
+		 * @param name - Setting name
+		 * @param opts.level - Required level: `'tenant'` or `'global'`.
+		 * @param opts.tenant - Optional target tenant idTag (site-admin only;
+		 *   ignored for `level: 'global'` since the global row is shared).
+		 */
+		delete: (name: string, opts: { level: 'global' | 'tenant'; tenant?: string }) =>
+			this.request('DELETE', `/settings/${name}`, T.nullValue, {
+				query: {
+					level: opts.level,
+					tenant: opts.tenant
+				}
+			})
 	}
 
 	// ========================================================================
@@ -1379,10 +1429,10 @@ export class ApiClient {
 
 		/**
 		 * POST /idp/api-keys - Create API key for a specified identity
-		 * @param data - API key creation request (idTag, name?)
+		 * @param data - API key creation request (idTag, name?, expiresAt?)
 		 * @returns Created API key with plaintext key (shown only once)
 		 */
-		createApiKey: (data: { idTag: string; name?: string }) =>
+		createApiKey: (data: Types.CreateIdpApiKeyRequest) =>
 			this.request('POST', '/idp/api-keys', Types.tIdpCreateApiKeyResult, { data }),
 
 		/**
@@ -1468,10 +1518,12 @@ export class ApiClient {
 		/**
 		 * POST /admin/email/test - Send a test email to verify SMTP configuration
 		 * @param to - Recipient email address
-		 * @returns Empty response on success
+		 * @returns success flag plus a human-readable status message; non-2xx
+		 *   responses (SMTP not configured, send failed, etc.) flow through the
+		 *   standard error path with structured ErrorResponse codes.
 		 */
 		sendTestEmail: (to: string) =>
-			this.request('POST', '/admin/email/test', T.struct({}), { data: { to } }),
+			this.request('POST', '/admin/email/test', Types.tTestEmailResult, { data: { to } }),
 
 		/**
 		 * GET /admin/proxy-sites - List all proxy sites

@@ -55,6 +55,50 @@ export function PrivacySettings() {
 					)}
 				</p>
 			</div>
+
+			<div className="c-panel">
+				<h4 className="pb-2">{t('Connections')}</h4>
+				<label className="c-settings-field">
+					<span>{t('Connection mode')}</span>
+					<select
+						className="c-select"
+						name="profile.connection_mode"
+						value={(settings['profile.connection_mode'] as string) ?? 'M'}
+						onChange={onSettingChange}
+					>
+						<option value="M">{t('Manual approval')}</option>
+						<option value="A">{t('Auto-accept')}</option>
+						<option value="I">{t('Ignore (reject all)')}</option>
+					</select>
+				</label>
+				<p className="c-hint">
+					{t('Controls how connection requests to your profile are handled.')}{' '}
+					{settings['profile.connection_mode'] === 'A'
+						? t('Anyone can connect with you immediately.')
+						: settings['profile.connection_mode'] === 'I'
+							? t('Connection requests are automatically rejected.')
+							: t('You will be asked to approve each connection request.')}
+				</p>
+			</div>
+
+			<div className="c-panel">
+				<h4 className="pb-2">{t('Federation')}</h4>
+				<label className="c-settings-field">
+					<span>{t('Auto-approve incoming actions')}</span>
+					<input
+						className="c-toggle primary"
+						name="profile.auto_approve_actions"
+						type="checkbox"
+						checked={!!settings['profile.auto_approve_actions']}
+						onChange={onSettingChange}
+					/>
+				</label>
+				<p className="c-hint">
+					{t(
+						'When enabled, posts and messages from trusted sources are automatically approved without manual review.'
+					)}
+				</p>
+			</div>
 		</>
 	)
 }

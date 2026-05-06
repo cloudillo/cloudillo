@@ -49,5 +49,11 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.14"
+	},
+	"pnpm": {
+		"overrides": {
+			"react": "19.2.6",
+			"react-dom": "19.2.6"
+		}
 	}
 }

@@ -358,6 +358,7 @@ function Header({ inert }: { inert?: boolean }) {
 		const apiKey = await getApiKey()
 		await api.auth.logout({ apiKey })
 		setAuth(null)
+		settingsAppliedForRef.current = null
 		await clearAuthToken()
 		await deleteApiKey()
 		// Clean up encryption cookie if this was a temporary session (no API key)
@@ -377,12 +378,76 @@ function Header({ inert }: { inert?: boolean }) {
 	const setLoginInitData = useSetAtom(loginInitAtom)
 	const setFavorites = useSetAtom(favoritesAtom)
 	const initRef = React.useRef(false)
+	const settingsAppliedForRef = React.useRef<string | null>(null)
 
 	React.useEffect(
 		function onLoad() {
 			// Set app config
 			const appConfig = APP_CONFIG
 			setAppConfig(appConfig)
+
+			const applyUiSettings = async (
+				apiClient: ReturnType<typeof createApiClient>,
+				authState: AuthState
+			) => {
+				let activeConfig = appConfig
+				try {
+					const uiSettings = await apiClient.settings.list({ prefix: 'ui' })
+					const theme = uiSettings.find((s) => s.key === 'ui.theme')?.value
+					const colors = uiSettings.find((s) => s.key === 'ui.colors')?.value
+					const onboarding = uiSettings.find((s) => s.key === 'ui.onboarding')?.value
+
+					let appMenuVal: unknown = uiSettings.find((s) => s.key === 'ui.app_menu')?.value
+					if (typeof appMenuVal === 'string') {
+						try {
+							appMenuVal = JSON.parse(appMenuVal)
+						} catch {
+							// ignore
+						}
+					}
+					if (
+						appMenuVal &&
+						typeof appMenuVal === 'object' &&
+						'main' in (appMenuVal as Record<string, unknown>)
+					) {
+						activeConfig = applyMenuConfig(
+							activeConfig,
+							appMenuVal as { main: string[]; extra?: string[] }
+						)
+						setAppConfig(activeConfig)
+					}
+
+					const pinnedVal = uiSettings.find(
+						(s) => s.key === 'ui.pinned_communities'
+					)?.value
+					if (Array.isArray(pinnedVal)) {
+						setFavorites(pinnedVal as string[])
+					}
+
+					setTheme(theme as string | undefined, colors as string | undefined)
+
+					const navTo =
+						(onboarding && `/onboarding/${onboarding}`) ||
+						activeConfig?.menu
+							?.find((m) => m.id === activeConfig.defaultMenu)
+							?.path?.replace('/app/', `/app/${authState.idTag}/`) ||
+						`/app/${authState.idTag}/feed`
+					if (location.pathname == '/') {
+						navigate(navTo)
+					}
+				} catch (err) {
+					console.error('Failed to load UI settings:', err)
+					setTheme(undefined, undefined)
+					const navTo =
+						activeConfig?.menu
+							?.find((m) => m.id === activeConfig.defaultMenu)
+							?.path?.replace('/app/', `/app/${authState.idTag}/`) ||
+						`/app/${authState.idTag}/feed`
+					if (location.pathname == '/') {
+						navigate(navTo)
+					}
+				}
+			}
 
 			;(async function () {
 				if (!api?.idTag || auth === undefined) {
@@ -468,86 +533,29 @@ function Header({ inert }: { inert?: boolean }) {
 								// Not authenticated - signal "no data" so login components use fallback
 								console.warn('[Layout] loginInit failed:', err)
 								setAuth(null)
+								settingsAppliedForRef.current = null
 								setLoginInitData(null)
 							}
 						}
 
 						if (authState?.idTag) {
-							// Load UI settings BEFORE setAuth to batch all state
-							// updates into a single React render cycle
-							try {
-								const uiSettings = await tempApi.settings.list({ prefix: 'ui' })
-								const theme = uiSettings.find((s) => s.key === 'ui.theme')?.value
-								const colors = uiSettings.find((s) => s.key === 'ui.colors')?.value
-								const onboarding = uiSettings.find(
-									(s) => s.key === 'ui.onboarding'
-								)?.value
-
-								// Apply custom app menu config if available
-								let appMenuVal: unknown = uiSettings.find(
-									(s) => s.key === 'ui.app_menu'
-								)?.value
-								if (typeof appMenuVal === 'string') {
-									try {
-										appMenuVal = JSON.parse(appMenuVal)
-									} catch {
-										// ignore
-									}
-								}
-								let activeConfig = appConfig
-								if (
-									appMenuVal &&
-									typeof appMenuVal === 'object' &&
-									'main' in (appMenuVal as Record<string, unknown>)
-								) {
-									activeConfig = applyMenuConfig(
-										activeConfig,
-										appMenuVal as { main: string[]; extra?: string[] }
-									)
-									setAppConfig(activeConfig)
-								}
-
-								// Apply pinned communities from pre-fetched settings
-								const pinnedVal = uiSettings.find(
-									(s) => s.key === 'ui.pinned_communities'
-								)?.value
-								if (Array.isArray(pinnedVal)) {
-									setFavorites(pinnedVal as string[])
-								}
-
-								// Batch: setAuth + setTheme in same synchronous block
-								setAuth(authState)
-								setTheme(theme as string | undefined, colors as string | undefined)
-
-								const navTo =
-									(onboarding && `/onboarding/${onboarding}`) ||
-									activeConfig?.menu
-										?.find((m) => m.id === activeConfig.defaultMenu)
-										?.path?.replace('/app/', `/app/${authState.idTag}/`) ||
-									`/app/${authState.idTag}/feed`
-								if (location.pathname == '/') {
-									navigate(navTo)
-								}
-							} catch (err) {
-								console.error('Failed to load UI settings:', err)
-								// Settings failed — still authenticate with default theme
-								setAuth(authState)
-								setTheme(undefined, undefined)
-								const navTo =
-									appConfig?.menu
-										?.find((m) => m.id === appConfig.defaultMenu)
-										?.path?.replace('/app/', `/app/${authState.idTag}/`) ||
-									`/app/${authState.idTag}/feed`
-								if (location.pathname == '/') {
-									navigate(navTo)
-								}
-							}
+							// Mark settings as applied for this idTag *before* awaiting so
+							// the `else if (api && auth)` branch on the next effect run does
+							// not redundantly re-apply them. setAuth is intentionally called
+							// before applyUiSettings: theme is a document.body side-effect
+							// (no extra render), and the menu/favorites atoms set inside
+							// applyUiSettings already cross an `await` boundary, so the
+							// order here only adds at most one inter-render gap.
+							setAuth(authState)
+							settingsAppliedForRef.current = authState.idTag
+							await applyUiSettings(tempApi, authState)
 							return
 						}
 
 						// Guest mode: signal auth resolved as unauthenticated
 						setTheme(undefined, undefined)
 						setAuth(null)
+						settingsAppliedForRef.current = null
 						const guestRedirect = getGuestRedirect(location.pathname)
 						if (guestRedirect) {
 							navigate(guestRedirect)
@@ -560,7 +568,10 @@ function Header({ inert }: { inert?: boolean }) {
 						}
 					}
 				} else if (api && auth) {
-					// UI settings already loaded and applied by the first auth path above
+					if (auth.idTag && settingsAppliedForRef.current !== auth.idTag) {
+						settingsAppliedForRef.current = auth.idTag
+						await applyUiSettings(api, auth)
+					}
 					loadNotifications()
 				}
 			})()

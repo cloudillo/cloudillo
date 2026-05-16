@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+import { createPortal } from 'react-dom'
 import { useLibTranslation } from '../../i18n.js'
 import { atom, useAtom } from 'jotai'
 import Markdown from 'react-markdown'
@@ -33,7 +34,7 @@ export function Dialog({
 }: DialogProps) {
 	if (!open) return null
 
-	return (
+	const content = (
 		<div className="c-modal show" tabIndex={-1}>
 			<div className={mergeClasses('c-dialog c-panel emph p-3', elevation, className)}>
 				<div className="c-hbox mb-2">
@@ -46,6 +47,11 @@ export function Dialog({
 			</div>
 		</div>
 	)
+
+	if (typeof document !== 'undefined') {
+		return createPortal(content, document.body)
+	}
+	return content
 }
 
 /* useDialog() hook */
@@ -81,109 +87,93 @@ export function DialogContainer() {
 		dialogResolve?.(undefined)
 	}
 
-	return (
-		<>
-			{dialog && (
-				<div
-					className={mergeClasses('c-modal', dialog.className, dialog && 'show')}
-					tabIndex={-1}
-				>
-					{dialog && (
-						<div className="c-dialog c-panel h-max-100 emph p-4">
-							<div className="c-hbox">
-								<h2 className="fill mb-3">{dialog.title}</h2>
-								<button
-									type="button"
-									className="c-link pos-absolute top-0 right-0 m-3"
-									data-bs-dismiss="modal"
-									aria-label="Close"
-									onClick={onCancel}
-								>
-									<IcClose />
-								</button>
-							</div>
-							<div className="c-markdown overflow-y-auto">
-								<Markdown>{dialog.descr}</Markdown>
-							</div>
-							{
-								// dialog.descr.split(/\n\n\s*/).map((p, i) => <p key={i} className="mb-2">{p}</p>)
-							}
+	if (!dialog) return null
 
-							{dialog.type == 'Tell' && (
-								<div className="c-group g-2 mt-4">
-									<Button
-										variant="primary"
-										autoFocus
-										onClick={() => onButtonClick(true)}
-									>
-										{t('OK')}
-									</Button>
-								</div>
-							)}
-							{dialog.type == 'OkCancel' && (
-								<div className="c-group g-2 mt-4">
-									<Button
-										variant="primary"
-										autoFocus
-										onClick={() => onButtonClick(true)}
-									>
-										{t('OK')}
-									</Button>
-									<Button onClick={onCancel}>{t('Cancel')}</Button>
-								</div>
-							)}
-							{dialog.type == 'YesNo' && (
-								<div className="c-group g-2 mt-4">
-									<Button variant="primary" onClick={() => onButtonClick(true)}>
-										{t('Yes')}
-									</Button>
-									<Button onClick={() => onButtonClick(false)}>{t('No')}</Button>
-								</div>
-							)}
-							{dialog.type == 'Text' && (
-								<>
-									<form
-										onSubmit={(e) => {
-											e.preventDefault()
-											onButtonClick(value)
-										}}
-									>
-										{!dialog.multiline ? (
-											<input
-												className="c-input mt-3"
-												type="text"
-												placeholder={dialog.placeholder}
-												defaultValue={dialog.defaultValue}
-												autoFocus
-												onChange={(e) => setValue(e.target.value)}
-											/>
-										) : (
-											<textarea
-												className="c-input mt-3"
-												placeholder={dialog.placeholder}
-												defaultValue={dialog.defaultValue}
-												autoFocus
-												onChange={(e) => setValue(e.target.value)}
-											/>
-										)}
-									</form>
-									<div className="c-group g-2 mt-4">
-										<Button
-											variant="primary"
-											onClick={() => onButtonClick(value)}
-										>
-											{t('OK')}
-										</Button>
-										<Button onClick={onCancel}>{t('Cancel')}</Button>
-									</div>
-								</>
-							)}
-						</div>
-					)}
+	const content = (
+		<div className={mergeClasses('c-modal', dialog.className, 'show')} tabIndex={-1}>
+			<div className="c-dialog c-panel h-max-100 emph p-4">
+				<div className="c-hbox">
+					<h2 className="fill mb-3">{dialog.title}</h2>
+					<button
+						type="button"
+						className="c-link pos-absolute top-0 right-0 m-3"
+						data-bs-dismiss="modal"
+						aria-label="Close"
+						onClick={onCancel}
+					>
+						<IcClose />
+					</button>
 				</div>
-			)}
-		</>
+				<div className="c-markdown overflow-y-auto">
+					<Markdown>{dialog.descr}</Markdown>
+				</div>
+
+				{dialog.type == 'Tell' && (
+					<div className="c-group g-2 mt-4">
+						<Button variant="primary" autoFocus onClick={() => onButtonClick(true)}>
+							{t('OK')}
+						</Button>
+					</div>
+				)}
+				{dialog.type == 'OkCancel' && (
+					<div className="c-group g-2 mt-4">
+						<Button variant="primary" autoFocus onClick={() => onButtonClick(true)}>
+							{t('OK')}
+						</Button>
+						<Button onClick={onCancel}>{t('Cancel')}</Button>
+					</div>
+				)}
+				{dialog.type == 'YesNo' && (
+					<div className="c-group g-2 mt-4">
+						<Button variant="primary" onClick={() => onButtonClick(true)}>
+							{t('Yes')}
+						</Button>
+						<Button onClick={() => onButtonClick(false)}>{t('No')}</Button>
+					</div>
+				)}
+				{dialog.type == 'Text' && (
+					<>
+						<form
+							onSubmit={(e) => {
+								e.preventDefault()
+								onButtonClick(value)
+							}}
+						>
+							{!dialog.multiline ? (
+								<input
+									className="c-input mt-3"
+									type="text"
+									placeholder={dialog.placeholder}
+									defaultValue={dialog.defaultValue}
+									autoFocus
+									onChange={(e) => setValue(e.target.value)}
+								/>
+							) : (
+								<textarea
+									className="c-input mt-3"
+									placeholder={dialog.placeholder}
+									defaultValue={dialog.defaultValue}
+									autoFocus
+									onChange={(e) => setValue(e.target.value)}
+								/>
+							)}
+						</form>
+						<div className="c-group g-2 mt-4">
+							<Button variant="primary" onClick={() => onButtonClick(value)}>
+								{t('OK')}
+							</Button>
+							<Button onClick={onCancel}>{t('Cancel')}</Button>
+						</div>
+					</>
+				)}
+			</div>
+		</div>
 	)
+
+	if (typeof document !== 'undefined') {
+		return createPortal(content, document.body)
+	}
+	return content
 }
 
 export interface UseDialogReturn {

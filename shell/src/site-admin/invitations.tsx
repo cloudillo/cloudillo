@@ -41,6 +41,7 @@ interface Ref {
 }
 
 function RegistrationInviteCard({ invite, deleteRef }: { invite: Ref; deleteRef: () => void }) {
+	const { t } = useTranslation()
 	const [qrCode, setQrCode] = React.useState<string | undefined>()
 	const url = `https://${location.host}/register/${invite.refId}`
 
@@ -85,7 +86,11 @@ function RegistrationInviteCard({ invite, deleteRef }: { invite: Ref; deleteRef:
 				</div>
 			</div>
 
-			<QRCodeDialog value={qrCode} onClose={() => setQrCode(undefined)} />
+			<QRCodeDialog
+				value={qrCode}
+				onClose={() => setQrCode(undefined)}
+				title={t('Invitation link')}
+			/>
 		</div>
 	)
 }

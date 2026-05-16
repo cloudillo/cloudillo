@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
@@ -904,26 +905,25 @@ export type SourceFilter = 'all' | 'mine' | 'direct' | 'people' | 'communities' 
 
 interface SourceOption {
 	value: SourceFilter
-	labelKey: string
+	label: string
 	icon: React.ComponentType
 }
 
-const SOURCE_FILTERS_PERSONAL: SourceOption[] = [
-	{ value: 'all', labelKey: 'All', icon: IcAll },
-	{ value: 'mine', labelKey: 'Mine', icon: IcMine },
-	{ value: 'direct', labelKey: 'Direct', icon: IcDirect },
-	{ value: 'people', labelKey: 'People', icon: IcPeople },
-	{ value: 'communities', labelKey: 'Communities', icon: IcCommunities },
-	{ value: 'public', labelKey: 'Public', icon: IcPublic }
-]
-
-const SOURCE_FILTERS_COMMUNITY: SourceOption[] = [
-	{ value: 'all', labelKey: 'All', icon: IcAll },
-	{ value: 'mine', labelKey: 'Mine', icon: IcMine }
-]
-
-function getSourceFilters(isOwnContext: boolean): SourceOption[] {
-	return isOwnContext ? SOURCE_FILTERS_PERSONAL : SOURCE_FILTERS_COMMUNITY
+function getSourceFilters(t: TFunction, isOwnContext: boolean): SourceOption[] {
+	if (isOwnContext) {
+		return [
+			{ value: 'all', label: t('All'), icon: IcAll },
+			{ value: 'mine', label: t('Mine'), icon: IcMine },
+			{ value: 'direct', label: t('Direct'), icon: IcDirect },
+			{ value: 'people', label: t('People'), icon: IcPeople },
+			{ value: 'communities', label: t('Communities'), icon: IcCommunities },
+			{ value: 'public', label: t('Public'), icon: IcPublic }
+		]
+	}
+	return [
+		{ value: 'all', label: t('All'), icon: IcAll },
+		{ value: 'mine', label: t('Mine'), icon: IcMine }
+	]
 }
 
 interface FilterBarProps {
@@ -976,7 +976,7 @@ const FilterBar = React.memo(function FilterBar({
 
 	if (viewMode === 'drafts') return null
 
-	const sourceOptions = getSourceFilters(isOwnContext)
+	const sourceOptions = getSourceFilters(t, isOwnContext)
 
 	return (
 		<div className="c-vbox pt-2">
@@ -1017,7 +1017,7 @@ const FilterBar = React.memo(function FilterBar({
 								}}
 							>
 								<opt.icon />
-								{t(opt.labelKey)}
+								{opt.label}
 							</a>
 						</li>
 						{opt.value === 'communities' &&

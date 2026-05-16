@@ -9,6 +9,7 @@ import {
 } from '@cloudillo/core'
 import { Button, LoadingSpinner, Modal, useApi, useAuth, useDialog } from '@cloudillo/react'
 import { browserSupportsWebAuthn, startRegistration } from '@simplewebauthn/browser'
+import type { TFunction } from 'i18next'
 import * as React from 'react'
 
 interface NavigatorUA {
@@ -34,36 +35,42 @@ import {
 import { PasswordInput, PasswordStrengthBar } from '../components/PasswordInput.js'
 import { useSettings } from './settings.js'
 
-const AVAILABLE_SCOPES = [
+interface ScopeDef {
+	value: string
+	label: string
+	description: string
+}
+
+const getAvailableScopes = (t: TFunction): ScopeDef[] => [
 	{
 		value: 'apkg:publish',
-		label: 'App Package Publish',
-		description: 'Allows publishing app packages to the repository.'
+		label: t('App Package Publish'),
+		description: t('Allows publishing app packages to the repository.')
 	},
 	{
 		value: 'carddav:read',
-		label: 'CardDAV (read)',
-		description: 'Read contacts via CardDAV (Apple Contacts, Thunderbird, DAVx⁵).'
+		label: t('CardDAV (read)'),
+		description: t('Read contacts via CardDAV (Apple Contacts, Thunderbird, DAVx⁵).')
 	},
 	{
 		value: 'carddav:write',
-		label: 'CardDAV (read/write)',
-		description: 'Read and modify contacts via CardDAV. Implies CardDAV (read).'
+		label: t('CardDAV (read/write)'),
+		description: t('Read and modify contacts via CardDAV. Implies CardDAV (read).')
 	},
 	{
 		value: 'caldav:read',
-		label: 'CalDAV (read)',
-		description: 'Read calendars via CalDAV (Apple Calendar, Thunderbird, DAVx⁵).'
+		label: t('CalDAV (read)'),
+		description: t('Read calendars via CalDAV (Apple Calendar, Thunderbird, DAVx⁵).')
 	},
 	{
 		value: 'caldav:write',
-		label: 'CalDAV (read/write)',
-		description: 'Read and modify calendars via CalDAV. Implies CalDAV (read).'
+		label: t('CalDAV (read/write)'),
+		description: t('Read and modify calendars via CalDAV. Implies CalDAV (read).')
 	}
-] as const
+]
 
-function scopeLabel(scope: string): string {
-	return AVAILABLE_SCOPES.find((s) => s.value === scope)?.label ?? scope
+function scopeLabel(t: TFunction, scope: string): string {
+	return getAvailableScopes(t).find((s) => s.value === scope)?.label ?? scope
 }
 
 // Create API Key Modal
@@ -76,6 +83,7 @@ interface CreateApiKeyModalProps {
 function CreateApiKeyModal({ open, onClose, onCreated }: CreateApiKeyModalProps) {
 	const { t } = useTranslation()
 	const { api } = useApi()
+	const availableScopes = React.useMemo(() => getAvailableScopes(t), [t])
 	const [name, setName] = React.useState('')
 	const [selectedScopes, setSelectedScopes] = React.useState<string[]>([])
 	const [isSubmitting, setIsSubmitting] = React.useState(false)
@@ -155,7 +163,7 @@ function CreateApiKeyModal({ open, onClose, onCreated }: CreateApiKeyModalProps)
 					<div className="c-hint small mb-2">
 						{t('Leave all unchecked for full access.')}
 					</div>
-					{AVAILABLE_SCOPES.map((scope) => (
+					{availableScopes.map((scope) => (
 						<label key={scope.value} className="c-hbox ai-start p-2">
 							<input
 								type="checkbox"
@@ -164,8 +172,8 @@ function CreateApiKeyModal({ open, onClose, onCreated }: CreateApiKeyModalProps)
 								onChange={() => toggleScope(scope.value)}
 							/>
 							<div>
-								<span>{t(scope.label)}</span>
-								<div className="c-hint small">{t(scope.description)}</div>
+								<span>{scope.label}</span>
+								<div className="c-hint small">{scope.description}</div>
 							</div>
 						</label>
 					))}
@@ -214,6 +222,7 @@ function dateInputToExpiresAt(value: string): number | null {
 function EditApiKeyModal({ open, apiKey, onClose, onSaved }: EditApiKeyModalProps) {
 	const { t } = useTranslation()
 	const { api } = useApi()
+	const availableScopes = React.useMemo(() => getAvailableScopes(t), [t])
 	const [name, setName] = React.useState('')
 	const [selectedScopes, setSelectedScopes] = React.useState<string[]>([])
 	const [expiresAtInput, setExpiresAtInput] = React.useState('')
@@ -321,7 +330,7 @@ function EditApiKeyModal({ open, apiKey, onClose, onSaved }: EditApiKeyModalProp
 					<div className="c-hint small mb-2">
 						{t('Leave all unchecked for full access.')}
 					</div>
-					{AVAILABLE_SCOPES.map((scope) => (
+					{availableScopes.map((scope) => (
 						<label key={scope.value} className="c-hbox ai-start p-2">
 							<input
 								type="checkbox"
@@ -330,8 +339,8 @@ function EditApiKeyModal({ open, apiKey, onClose, onSaved }: EditApiKeyModalProp
 								onChange={() => toggleScope(scope.value)}
 							/>
 							<div>
-								<span>{t(scope.label)}</span>
-								<div className="c-hint small">{t(scope.description)}</div>
+								<span>{scope.label}</span>
+								<div className="c-hint small">{scope.description}</div>
 							</div>
 						</label>
 					))}
@@ -475,7 +484,7 @@ function ApiKeyCreatedModal({ open, result, onClose }: ApiKeyCreatedModalProps) 
 						<div className="c-hbox g-1 flex-wrap">
 							{scopes.map((scope) => (
 								<span key={scope} className="c-badge small">
-									{scopeLabel(scope)}
+									{scopeLabel(t, scope)}
 								</span>
 							))}
 						</div>
@@ -947,7 +956,7 @@ export function SecuritySettings() {
 											{scopes && scopes.length > 0 ? (
 												scopes.map((scope) => (
 													<span key={scope} className="c-badge small">
-														{scopeLabel(scope)}
+														{scopeLabel(t, scope)}
 													</span>
 												))
 											) : (

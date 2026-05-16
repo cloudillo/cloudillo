@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -10,15 +11,17 @@ import { Button, Popper, mergeClasses } from '@cloudillo/react'
 
 export type Visibility = 'P' | 'C' | 'F'
 
-const visibilityOptions: {
+interface VisibilityOption {
 	value: Visibility
-	labelKey: string
+	label: string
 	icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
 	color: string
-}[] = [
-	{ value: 'F', labelKey: 'Followers', icon: IcUserCheck, color: 'var(--col-primary)' },
-	{ value: 'C', labelKey: 'Connected', icon: IcUsers, color: 'var(--col-warning)' },
-	{ value: 'P', labelKey: 'Public', icon: IcGlobe, color: 'var(--col-success)' }
+}
+
+const getVisibilityOptions = (t: TFunction): VisibilityOption[] => [
+	{ value: 'F', label: t('Followers'), icon: IcUserCheck, color: 'var(--col-primary)' },
+	{ value: 'C', label: t('Connected'), icon: IcUsers, color: 'var(--col-warning)' },
+	{ value: 'P', label: t('Public'), icon: IcGlobe, color: 'var(--col-success)' }
 ]
 
 interface VisibilitySelectorProps {
@@ -31,6 +34,7 @@ export const VisibilitySelector = React.memo(function VisibilitySelector({
 	onChange
 }: VisibilitySelectorProps) {
 	const { t } = useTranslation()
+	const visibilityOptions = React.useMemo(() => getVisibilityOptions(t), [t])
 	const selected = visibilityOptions.find((o) => o.value === value) || visibilityOptions[0]
 	const Icon = selected.icon
 
@@ -51,7 +55,7 @@ export const VisibilitySelector = React.memo(function VisibilitySelector({
 								onClick={() => onChange(opt.value)}
 							>
 								<OptIcon style={{ color: opt.color }} />
-								{t(opt.labelKey)}
+								{opt.label}
 							</Button>
 						</li>
 					)

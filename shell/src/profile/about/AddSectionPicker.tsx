@@ -23,7 +23,7 @@ import {
 import { Button, mergeClasses } from '@cloudillo/react'
 import type { SectionType } from '@cloudillo/types'
 
-import { type SectionWithContent, SECTION_TYPES } from './types.js'
+import { type SectionWithContent, getSectionTypes } from './types.js'
 
 const SECTION_ICONS: Record<SectionType, React.ComponentType> = {
 	about: IcText,
@@ -52,12 +52,16 @@ export function AddSectionPicker({
 }: AddSectionPickerProps) {
 	const { t } = useTranslation()
 
-	const availableTypes = SECTION_TYPES.filter((def) => {
-		// Filter by profile type
-		if (isCommunity && !def.community) return false
-		if (!isCommunity && !def.personal) return false
-		return true
-	})
+	const availableTypes = React.useMemo(
+		() =>
+			getSectionTypes(t).filter((def) => {
+				// Filter by profile type
+				if (isCommunity && !def.community) return false
+				if (!isCommunity && !def.personal) return false
+				return true
+			}),
+		[t, isCommunity]
+	)
 
 	const usedTypes = new Set(sections.map((s) => s.type))
 
@@ -131,10 +135,8 @@ export function AddSectionPicker({
 									>
 										<Icon />
 										<span className="c-vbox g-0">
-											<span>{t(def.defaultTitle)}</span>
-											<small className="text-muted">
-												{t(def.description)}
-											</small>
+											<span>{def.defaultTitle}</span>
+											<small className="text-muted">{def.description}</small>
 										</span>
 									</Button>
 								)

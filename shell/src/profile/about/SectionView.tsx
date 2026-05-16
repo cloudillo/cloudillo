@@ -103,7 +103,8 @@ interface SectionViewProps {
 }
 
 export function SectionView({ section, isOwner, className }: SectionViewProps) {
-	const title = getSectionTitle(section)
+	const { t } = useTranslation()
+	const title = getSectionTitle(t, section)
 
 	return (
 		<div className={mergeClasses('c-panel', className)}>

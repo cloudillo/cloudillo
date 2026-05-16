@@ -49,7 +49,7 @@ export function PasswordStrengthBar({
 
 	if (!password) return null
 
-	const strength = passwordStrength(password)
+	const strength = passwordStrength(password, t)
 	const strengthVariant = (['error', 'error', 'warning', 'success', 'success'] as const)[
 		strength.score
 	]
@@ -58,7 +58,7 @@ export function PasswordStrengthBar({
 			<div className={`c-progress xs ${strengthVariant}`}>
 				<div className="bar" style={{ width: `${strength.percent}%` }} />
 			</div>
-			<span className={`small text-${strengthVariant}`}>{t(strength.label)}</span>
+			<span className={`small text-${strengthVariant}`}>{strength.label}</span>
 		</div>
 	)
 }

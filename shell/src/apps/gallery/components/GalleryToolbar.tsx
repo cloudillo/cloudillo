@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -34,10 +35,10 @@ interface GalleryToolbarProps {
 	showFilterButton?: boolean
 }
 
-const SORT_LABELS: Record<SortOption, string> = {
-	created: 'Date taken',
-	name: 'Name'
-}
+const getSortLabels = (t: TFunction): Record<SortOption, string> => ({
+	created: t('Date taken'),
+	name: t('Name')
+})
 
 export function GalleryToolbar({
 	className,
@@ -50,6 +51,7 @@ export function GalleryToolbar({
 	showFilterButton = true
 }: GalleryToolbarProps) {
 	const { t } = useTranslation()
+	const sortLabels = React.useMemo(() => getSortLabels(t), [t])
 
 	const toggleSortDir = () => {
 		onSortChange(sort, sortDir === 'asc' ? 'desc' : 'asc')
@@ -76,19 +78,19 @@ export function GalleryToolbar({
 				menuClassName="c-button g-2"
 				label={
 					<>
-						{t(SORT_LABELS[sort])} <IcChevron />
+						{sortLabels[sort]} <IcChevron />
 					</>
 				}
 				contentClassName="c-nav vertical emph"
 			>
-				{(Object.keys(SORT_LABELS) as SortOption[]).map((sortOption) => (
+				{(Object.keys(sortLabels) as SortOption[]).map((sortOption) => (
 					<Button
 						key={sortOption}
 						kind="nav-item"
 						active={sort === sortOption}
 						onClick={() => onSortChange(sortOption)}
 					>
-						{t(SORT_LABELS[sortOption])}
+						{sortLabels[sortOption]}
 					</Button>
 				))}
 			</Popper>
@@ -97,7 +99,7 @@ export function GalleryToolbar({
 			<Button
 				mode="icon"
 				onClick={toggleSortDir}
-				title={t(sortDir === 'asc' ? 'Sort ascending' : 'Sort descending')}
+				title={sortDir === 'asc' ? t('Sort ascending') : t('Sort descending')}
 			>
 				{sortDir === 'asc' ? <IcAsc /> : <IcDesc />}
 			</Button>

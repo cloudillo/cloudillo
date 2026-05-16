@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -15,29 +16,29 @@ import { Button, Popper, mergeClasses } from '@cloudillo/react'
 
 interface VisibilityOption {
 	value: string
-	labelKey: string
+	label: string
 	icon: React.ComponentType<{ className?: string }>
 	colorClass: string
 }
 
-const PERSONAL_OPTIONS: VisibilityOption[] = [
-	{ value: 'P', labelKey: 'Public', icon: IcGlobe, colorClass: 'text-success' },
-	{ value: 'F', labelKey: 'Followers', icon: IcUserCheck, colorClass: 'text-primary' },
-	{ value: 'C', labelKey: 'Connected', icon: IcUsers, colorClass: 'text-warning' }
+const getPersonalOptions = (t: TFunction): VisibilityOption[] => [
+	{ value: 'P', label: t('Public'), icon: IcGlobe, colorClass: 'text-success' },
+	{ value: 'F', label: t('Followers'), icon: IcUserCheck, colorClass: 'text-primary' },
+	{ value: 'C', label: t('Connected'), icon: IcUsers, colorClass: 'text-warning' }
 ]
 
-const COMMUNITY_OPTIONS: VisibilityOption[] = [
-	{ value: 'P', labelKey: 'Public', icon: IcGlobe, colorClass: 'text-success' },
-	{ value: 'follower', labelKey: 'Follower+', icon: IcUserCheck, colorClass: 'text-primary' },
-	{ value: 'supporter', labelKey: 'Supporter+', icon: IcRole, colorClass: 'text-secondary' },
+const getCommunityOptions = (t: TFunction): VisibilityOption[] => [
+	{ value: 'P', label: t('Public'), icon: IcGlobe, colorClass: 'text-success' },
+	{ value: 'follower', label: t('Follower+'), icon: IcUserCheck, colorClass: 'text-primary' },
+	{ value: 'supporter', label: t('Supporter+'), icon: IcRole, colorClass: 'text-secondary' },
 	{
 		value: 'contributor',
-		labelKey: 'Contributor+',
+		label: t('Contributor+'),
 		icon: IcRole,
 		colorClass: 'text-secondary'
 	},
-	{ value: 'moderator', labelKey: 'Moderator+', icon: IcRole, colorClass: 'text-warning' },
-	{ value: 'leader', labelKey: 'Leader only', icon: IcRole, colorClass: 'text-error' }
+	{ value: 'moderator', label: t('Moderator+'), icon: IcRole, colorClass: 'text-warning' },
+	{ value: 'leader', label: t('Leader only'), icon: IcRole, colorClass: 'text-error' }
 ]
 
 interface SectionVisibilitySelectorProps {
@@ -52,7 +53,10 @@ export function SectionVisibilitySelector({
 	isCommunity
 }: SectionVisibilitySelectorProps) {
 	const { t } = useTranslation()
-	const options = isCommunity ? COMMUNITY_OPTIONS : PERSONAL_OPTIONS
+	const options = React.useMemo(
+		() => (isCommunity ? getCommunityOptions(t) : getPersonalOptions(t)),
+		[isCommunity, t]
+	)
 	const selected = options.find((o) => o.value === value) || options[0]
 	const Icon = selected.icon
 
@@ -73,7 +77,7 @@ export function SectionVisibilitySelector({
 								onClick={() => onChange(opt.value)}
 							>
 								<OptIcon className={opt.colorClass} />
-								{t(opt.labelKey)}
+								{opt.label}
 							</Button>
 						</li>
 					)

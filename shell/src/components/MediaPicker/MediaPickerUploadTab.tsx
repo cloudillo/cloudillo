@@ -8,6 +8,7 @@
  * Allows users to upload new files with optional image cropping.
  */
 
+import type { TFunction } from 'i18next'
 import React from 'react'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -49,21 +50,24 @@ type UploadState = 'idle' | 'uploading' | 'cropping' | 'complete' | 'error'
 /**
  * Visibility options for the dropdown
  */
-const VISIBILITY_OPTIONS: Array<{
+interface MediaPickerVisibilityOption {
 	value: Visibility
-	labelKey: string
+	label: string
 	icon: React.ComponentType<{ className?: string }>
-}> = [
-	{ value: 'P', labelKey: 'Public', icon: IcPublic },
-	{ value: 'F', labelKey: 'Followers', icon: IcFollowers },
-	{ value: 'C', labelKey: 'Connected', icon: IcConnected }
+}
+
+const getVisibilityOptions = (t: TFunction): MediaPickerVisibilityOption[] => [
+	{ value: 'P', label: t('Public'), icon: IcPublic },
+	{ value: 'F', label: t('Followers'), icon: IcFollowers },
+	{ value: 'C', label: t('Connected'), icon: IcConnected }
 ]
 
 /**
  * Get visibility option by value
  */
-function getVisibilityOption(value: Visibility) {
-	return VISIBILITY_OPTIONS.find((opt) => opt.value === value) || VISIBILITY_OPTIONS[0]
+function getVisibilityOption(t: TFunction, value: Visibility): MediaPickerVisibilityOption {
+	const opts = getVisibilityOptions(t)
+	return opts.find((opt) => opt.value === value) || opts[0]
 }
 
 export function MediaPickerUploadTab({
@@ -278,6 +282,8 @@ export function MediaPickerUploadTab({
 		setShowVisibilityDropdown(false)
 	}, [])
 
+	const visibilityOptions = React.useMemo(() => getVisibilityOptions(t), [t])
+
 	// Show cropping dialog
 	if (uploadState === 'cropping' && cropImageSrc) {
 		return (
@@ -291,7 +297,7 @@ export function MediaPickerUploadTab({
 		)
 	}
 
-	const currentVisibilityOption = getVisibilityOption(visibility)
+	const currentVisibilityOption = getVisibilityOption(t, visibility)
 	const VisibilityIcon = currentVisibilityOption.icon
 
 	// Check if non-public visibility is selected in external context
@@ -340,12 +346,12 @@ export function MediaPickerUploadTab({
 							onClick={() => setShowVisibilityDropdown(!showVisibilityDropdown)}
 						>
 							<VisibilityIcon />
-							<span>{t(currentVisibilityOption.labelKey)}</span>
+							<span>{currentVisibilityOption.label}</span>
 							<IcChevronDown />
 						</button>
 						{showVisibilityDropdown && (
 							<div className="media-picker-visibility-dropdown">
-								{VISIBILITY_OPTIONS.map((opt) => {
+								{visibilityOptions.map((opt) => {
 									const OptionIcon = opt.icon
 									return (
 										<button
@@ -355,7 +361,7 @@ export function MediaPickerUploadTab({
 											onClick={() => handleVisibilityChange(opt.value)}
 										>
 											<OptionIcon />
-											<span>{t(opt.labelKey)}</span>
+											<span>{opt.label}</span>
 										</button>
 									)
 								})}

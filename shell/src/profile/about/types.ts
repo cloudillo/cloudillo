@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as T from '@symbion/runtype'
+import type { TFunction } from 'i18next'
 import type {
 	SectionType,
 	TabConfig,
@@ -58,98 +59,118 @@ export interface SectionWithContent {
 
 export interface SectionTypeDef {
 	type: SectionType
-	defaultTitle: string // i18n key (which IS the English string)
-	description: string // i18n key for section picker
+	defaultTitle: string // already-translated section title
+	description: string // already-translated section picker description
 	personal: boolean
 	community: boolean
 	multiple: boolean // can add more than one?
 }
 
-export const SECTION_TYPES: SectionTypeDef[] = [
+// Structural metadata (no translatable strings) — safe at module scope.
+interface SectionTypeMeta {
+	type: SectionType
+	personal: boolean
+	community: boolean
+	multiple: boolean
+}
+
+const SECTION_TYPES_META: SectionTypeMeta[] = [
+	{ type: 'about', personal: true, community: true, multiple: false },
+	{ type: 'contact', personal: true, community: true, multiple: false },
+	{ type: 'location', personal: true, community: true, multiple: false },
+	{ type: 'links', personal: true, community: true, multiple: false },
+	{ type: 'work', personal: true, community: false, multiple: false },
+	{ type: 'education', personal: true, community: false, multiple: false },
+	{ type: 'skills', personal: true, community: false, multiple: false },
+	{ type: 'rules', personal: false, community: true, multiple: false },
+	{ type: 'custom', personal: true, community: true, multiple: true }
+]
+
+export const getSectionTypes = (t: TFunction): SectionTypeDef[] => [
 	{
 		type: 'about',
-		defaultTitle: 'About',
-		description: 'Rich text description',
+		defaultTitle: t('About'),
+		description: t('Rich text description'),
 		personal: true,
 		community: true,
 		multiple: false
 	},
 	{
 		type: 'contact',
-		defaultTitle: 'Contact',
-		description: 'Email, phone, website',
+		defaultTitle: t('Contact'),
+		description: t('Email, phone, website'),
 		personal: true,
 		community: true,
 		multiple: false
 	},
 	{
 		type: 'location',
-		defaultTitle: 'Location',
-		description: 'City, country, address',
+		defaultTitle: t('Location'),
+		description: t('City, country, address'),
 		personal: true,
 		community: true,
 		multiple: false
 	},
 	{
 		type: 'links',
-		defaultTitle: 'Links',
-		description: 'External links with icons',
+		defaultTitle: t('Links'),
+		description: t('External links with icons'),
 		personal: true,
 		community: true,
 		multiple: false
 	},
 	{
 		type: 'work',
-		defaultTitle: 'Experience',
-		description: 'Work experience',
+		defaultTitle: t('Experience'),
+		description: t('Work experience'),
 		personal: true,
 		community: false,
 		multiple: false
 	},
 	{
 		type: 'education',
-		defaultTitle: 'Education',
-		description: 'Schools and degrees',
+		defaultTitle: t('Education'),
+		description: t('Schools and degrees'),
 		personal: true,
 		community: false,
 		multiple: false
 	},
 	{
 		type: 'skills',
-		defaultTitle: 'Skills & Interests',
-		description: 'Tags and keywords',
+		defaultTitle: t('Skills & Interests'),
+		description: t('Tags and keywords'),
 		personal: true,
 		community: false,
 		multiple: false
 	},
 	{
 		type: 'rules',
-		defaultTitle: 'Community Rules',
-		description: 'Guidelines and rules',
+		defaultTitle: t('Community Rules'),
+		description: t('Guidelines and rules'),
 		personal: false,
 		community: true,
 		multiple: false
 	},
 	{
 		type: 'custom',
-		defaultTitle: 'Custom Section',
-		description: 'Free-form rich text block',
+		defaultTitle: t('Custom Section'),
+		description: t('Free-form rich text block'),
 		personal: true,
 		community: true,
 		multiple: true
 	}
 ]
 
-export function getSectionTypeDef(type: SectionType): SectionTypeDef | undefined {
-	return SECTION_TYPES.find((s) => s.type === type)
+export function getSectionTypeDef(t: TFunction, type: SectionType): SectionTypeDef | undefined {
+	return getSectionTypes(t).find((s) => s.type === type)
 }
 
-export function getDefaultTitle(type: SectionType): string {
-	return getSectionTypeDef(type)?.defaultTitle ?? 'Section'
+export function getDefaultTitle(t: TFunction, type: SectionType): string {
+	return getSectionTypeDef(t, type)?.defaultTitle ?? t('Section')
 }
 
-export function getSectionTitle(section: SectionWithContent): string {
-	return section.title || getDefaultTitle(section.type)
+export function getSectionTitle(t: TFunction, section: SectionWithContent): string {
+	return section.title || getDefaultTitle(t, section.type)
 }
 
 // ============================================================================
@@ -363,7 +384,7 @@ export function getEffectiveTabs(tabConfig?: TabConfig): TabEntry[] {
 // ============================================================================
 
 const SINGLETON_TYPES: Set<string> = new Set(
-	SECTION_TYPES.filter((s) => !s.multiple).map((s) => s.type)
+	SECTION_TYPES_META.filter((s) => !s.multiple).map((s) => s.type)
 )
 
 function generateCustomSectionId(existingIds: Set<string>): string {

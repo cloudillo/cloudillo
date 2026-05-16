@@ -80,7 +80,7 @@ export function SectionEditor({
 	const dialog = useDialog()
 	const [renaming, setRenaming] = React.useState(false)
 	const [titleInput, setTitleInput] = React.useState(section.title || '')
-	const title = getSectionTitle(section)
+	const title = getSectionTitle(t, section)
 
 	async function handleDelete() {
 		const confirmed = await dialog.confirm(

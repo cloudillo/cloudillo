@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { TFunction } from 'i18next'
+
 export function validPassword(password: string) {
 	return password.length >= 8
 }
@@ -11,8 +13,8 @@ export type PasswordStrength = {
 	percent: number
 }
 
-export function passwordStrength(password: string): PasswordStrength {
-	if (!password || password.length < 8) return { score: 0, label: 'Too short', percent: 0 }
+export function passwordStrength(password: string, t: TFunction): PasswordStrength {
+	if (!password || password.length < 8) return { score: 0, label: t('Too short'), percent: 0 }
 
 	let score = 1
 	if (password.length >= 12) score++
@@ -21,7 +23,7 @@ export function passwordStrength(password: string): PasswordStrength {
 	if (/[^a-zA-Z0-9]/.test(password)) score++
 
 	score = Math.min(4, score)
-	const labels = ['Too short', 'Weak', 'Fair', 'Good', 'Strong']
+	const labels = [t('Too short'), t('Weak'), t('Fair'), t('Good'), t('Strong')]
 	return { score, label: labels[score], percent: score * 25 }
 }
 

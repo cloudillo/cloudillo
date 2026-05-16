@@ -41,9 +41,9 @@ import { TagsCell } from './TagsCell.js'
 import {
 	formatRelativeTime,
 	getVisibilityIcon,
-	getVisibilityLabelKey,
+	getVisibilityLabel,
 	canManageFile,
-	VISIBILITY_DROPDOWN_OPTIONS
+	getVisibilityDropdownOptions
 } from '../utils.js'
 import type { File, FileOps } from '../types.js'
 
@@ -324,13 +324,13 @@ export function DetailsPanel({ file, fileOps, onShare }: DetailsPanelProps) {
 								icon={
 									<>
 										<VisibilityIcon className="me-2" />
-										{t(getVisibilityLabelKey(file.visibility ?? null))}
+										{getVisibilityLabel(t, file.visibility ?? null)}
 									</>
 								}
 								label={<IcChevronDown />}
 							>
 								<ul className="c-nav vertical">
-									{VISIBILITY_DROPDOWN_OPTIONS.map((opt) => {
+									{getVisibilityDropdownOptions(t).map((opt) => {
 										const OptionIcon = opt.icon
 										const isCurrentVisibility =
 											(file.visibility ?? null) === opt.value
@@ -346,7 +346,7 @@ export function DetailsPanel({ file, fileOps, onShare }: DetailsPanelProps) {
 													}
 												>
 													<OptionIcon className="me-2" />
-													{t(opt.labelKey)}
+													{opt.label}
 												</a>
 											</li>
 										)
@@ -356,7 +356,7 @@ export function DetailsPanel({ file, fileOps, onShare }: DetailsPanelProps) {
 						) : (
 							<span className="c-hbox g-2 align-items-center">
 								<VisibilityIcon />
-								{t(getVisibilityLabelKey(file.visibility ?? null))}
+								{getVisibilityLabel(t, file.visibility ?? null)}
 							</span>
 						)}
 					</dd>

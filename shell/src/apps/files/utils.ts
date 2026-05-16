@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import dayjs from 'dayjs'
+import type { TFunction } from 'i18next'
 import type { IconType } from 'react-icons'
 import {
 	LuLock as IcDirect,
@@ -92,52 +93,63 @@ export function getSmartTimestamp(file: File): SmartTimestamp {
 }
 
 /**
- * Visibility options configuration
+ * Visibility options configuration (label is already translated)
  */
 export interface VisibilityOption {
 	value: FileVisibility
-	labelKey: string // Translation key
+	label: string
 	icon: IconType
 }
 
 // Ordered from most private to most public.
-export const VISIBILITY_OPTIONS: VisibilityOption[] = [
-	{ value: null, labelKey: 'Direct', icon: IcDirect },
-	{ value: 'D', labelKey: 'Direct', icon: IcDirect },
-	{ value: 'C', labelKey: 'Connected', icon: IcConnected },
-	{ value: 'F', labelKey: 'Followers', icon: IcFollowers },
-	{ value: 'V', labelKey: 'Verified', icon: IcVerified },
-	{ value: 'P', labelKey: 'Public', icon: IcPublic }
+export const getVisibilityOptions = (t: TFunction): VisibilityOption[] => [
+	{ value: null, label: t('Direct'), icon: IcDirect },
+	{ value: 'D', label: t('Direct'), icon: IcDirect },
+	{ value: 'C', label: t('Connected'), icon: IcConnected },
+	{ value: 'F', label: t('Followers'), icon: IcFollowers },
+	{ value: 'V', label: t('Verified'), icon: IcVerified },
+	{ value: 'P', label: t('Public'), icon: IcPublic }
 ]
 
 /**
  * Get visibility option by value (normalized: null and 'D' both mean Direct)
  */
-export function getVisibilityOption(visibility: FileVisibility): VisibilityOption {
+export function getVisibilityOption(t: TFunction, visibility: FileVisibility): VisibilityOption {
 	const normalizedValue = visibility === 'D' ? null : visibility
-	return VISIBILITY_OPTIONS.find((opt) => opt.value === normalizedValue) || VISIBILITY_OPTIONS[0]
+	const opts = getVisibilityOptions(t)
+	return opts.find((opt) => opt.value === normalizedValue) || opts[0]
 }
 
 /**
- * Get the label key for a visibility value (for translation)
+ * Get the translated label for a visibility value
  */
-export function getVisibilityLabelKey(visibility: FileVisibility): string {
-	return getVisibilityOption(visibility).labelKey
+export function getVisibilityLabel(t: TFunction, visibility: FileVisibility): string {
+	return getVisibilityOption(t, visibility).label
+}
+
+// Icon mapping by visibility value (does not need translation).
+const VISIBILITY_ICONS: Record<string, IconType> = {
+	null: IcDirect,
+	D: IcDirect,
+	C: IcConnected,
+	F: IcFollowers,
+	V: IcVerified,
+	P: IcPublic
 }
 
 /**
  * Get the icon component for a visibility value
  */
 export function getVisibilityIcon(visibility: FileVisibility): IconType {
-	return getVisibilityOption(visibility).icon
+	const key = visibility === null ? 'null' : visibility
+	return VISIBILITY_ICONS[key] || IcDirect
 }
 
 /**
  * Visibility options for dropdown (excludes duplicate 'D' since null is the same)
  */
-export const VISIBILITY_DROPDOWN_OPTIONS: VisibilityOption[] = VISIBILITY_OPTIONS.filter(
-	(opt) => opt.value !== 'D'
-)
+export const getVisibilityDropdownOptions = (t: TFunction): VisibilityOption[] =>
+	getVisibilityOptions(t).filter((opt) => opt.value !== 'D')
 
 /**
  * Check if the current user can manage a file (change visibility, sharing, etc.)

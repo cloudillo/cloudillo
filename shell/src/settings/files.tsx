@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -8,19 +9,22 @@ import { LoadingSpinner } from '@cloudillo/react'
 
 import { useSettings } from './settings.js'
 
-const VARIANT_OPTIONS = [
-	{ value: 'tn', label: 'Thumbnail (tn)' },
-	{ value: 'sd', label: 'Standard (sd)' },
-	{ value: 'md', label: 'Medium (md)' },
-	{ value: 'hd', label: 'High (hd)' },
-	{ value: 'xd', label: 'Extra (xd)' }
+const getVariantOptions = (t: TFunction) => [
+	{ value: 'tn', label: t('Thumbnail (tn)') },
+	{ value: 'sd', label: t('Standard (sd)') },
+	{ value: 'md', label: t('Medium (md)') },
+	{ value: 'hd', label: t('High (hd)') },
+	{ value: 'xd', label: t('Extra (xd)') }
 ]
-
-// Audio doesn't have thumbnail variant
-const AUDIO_VARIANT_OPTIONS = VARIANT_OPTIONS.filter((o) => o.value !== 'tn')
 
 export function FilesSettings() {
 	const { t } = useTranslation()
+	const variantOptions = React.useMemo(() => getVariantOptions(t), [t])
+	// Audio doesn't have thumbnail variant
+	const audioVariantOptions = React.useMemo(
+		() => variantOptions.filter((o) => o.value !== 'tn'),
+		[variantOptions]
+	)
 
 	const { settings, onSettingChange } = useSettings('file')
 
@@ -41,9 +45,9 @@ export function FilesSettings() {
 					value={(settings['file.sync_max_vis'] as string) || 'md'}
 					onChange={onSettingChange}
 				>
-					{VARIANT_OPTIONS.map((opt) => (
+					{variantOptions.map((opt) => (
 						<option key={opt.value} value={opt.value}>
-							{t(opt.label)}
+							{opt.label}
 						</option>
 					))}
 				</select>
@@ -57,9 +61,9 @@ export function FilesSettings() {
 					value={(settings['file.sync_max_vid'] as string) || 'sd'}
 					onChange={onSettingChange}
 				>
-					{VARIANT_OPTIONS.map((opt) => (
+					{variantOptions.map((opt) => (
 						<option key={opt.value} value={opt.value}>
-							{t(opt.label)}
+							{opt.label}
 						</option>
 					))}
 				</select>
@@ -73,9 +77,9 @@ export function FilesSettings() {
 					value={(settings['file.sync_max_aud'] as string) || 'md'}
 					onChange={onSettingChange}
 				>
-					{AUDIO_VARIANT_OPTIONS.map((opt) => (
+					{audioVariantOptions.map((opt) => (
 						<option key={opt.value} value={opt.value}>
-							{t(opt.label)}
+							{opt.label}
 						</option>
 					))}
 				</select>

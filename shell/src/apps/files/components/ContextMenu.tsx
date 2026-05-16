@@ -39,7 +39,7 @@ import { getIcon } from '../../../icon-registry.js'
 
 import type { File, FileOps, ViewMode } from '../types.js'
 import {
-	VISIBILITY_DROPDOWN_OPTIONS,
+	getVisibilityDropdownOptions,
 	getVisibilityIcon,
 	getVisibilityOption,
 	canManageFile
@@ -113,7 +113,8 @@ export function ContextMenu({
 
 	// Visibility info
 	const canManage = isSingleSelect && canManageFile(file, auth?.idTag, activeContext?.roles ?? [])
-	const currentVisibility = getVisibilityOption(file.visibility ?? null)
+	const currentVisibility = getVisibilityOption(t, file.visibility ?? null)
+	const visibilityDropdownOptions = getVisibilityDropdownOptions(t)
 
 	// Use different components based on mobile/desktop
 	const Item = isMobile ? ActionSheetItem : MenuItem
@@ -246,16 +247,16 @@ export function ContextMenu({
 				<Sub
 					icon={React.createElement(currentVisibility.icon)}
 					label={t('Visibility')}
-					detail={t(currentVisibility.labelKey)}
+					detail={currentVisibility.label}
 				>
-					{VISIBILITY_DROPDOWN_OPTIONS.map((opt) => {
+					{visibilityDropdownOptions.map((opt) => {
 						const VisibilityIcon = getVisibilityIcon(opt.value)
 						const isCurrentVisibility = (file.visibility ?? null) === opt.value
 						return (
 							<Item
 								key={opt.value ?? 'null'}
 								icon={<VisibilityIcon />}
-								label={t(opt.labelKey)}
+								label={opt.label}
 								onClick={handleAction(() =>
 									fileOps.setVisibility!(file.fileId, opt.value)
 								)}

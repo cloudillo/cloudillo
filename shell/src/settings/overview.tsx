@@ -198,13 +198,13 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 					<div className="c-hbox">
 						<IcPasskey className="mr-2 text-muted" />
 						<span>
-							{passkeys.length} {t(passkeys.length === 1 ? 'Passkey' : 'Passkeys')}
+							{passkeys.length} {passkeys.length === 1 ? t('Passkey') : t('Passkeys')}
 						</span>
 					</div>
 					<div className="c-hbox">
 						<IcDevice className="mr-2 text-muted" />
 						<span>
-							{apiKeys.length} {t(apiKeys.length === 1 ? 'Device' : 'Devices')}
+							{apiKeys.length} {apiKeys.length === 1 ? t('Device') : t('Devices')}
 						</span>
 					</div>
 				</div>

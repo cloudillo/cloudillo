@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { TFunction } from 'i18next'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, NavLink, Routes, Route, useParams, useLocation } from 'react-router-dom'
@@ -77,12 +78,12 @@ function getHighestRole(roles: string[] | undefined): CommunityRole | undefined 
 	return highest
 }
 
-const ROLES: { value: CommunityRole; label: string }[] = [
-	{ value: 'follower', label: 'Follower' },
-	{ value: 'supporter', label: 'Supporter' },
-	{ value: 'contributor', label: 'Contributor' },
-	{ value: 'moderator', label: 'Moderator' },
-	{ value: 'leader', label: 'Leader' }
+const getRoles = (t: TFunction): { value: CommunityRole; label: string }[] => [
+	{ value: 'follower', label: t('Follower') },
+	{ value: 'supporter', label: t('Supporter') },
+	{ value: 'contributor', label: t('Contributor') },
+	{ value: 'moderator', label: t('Moderator') },
+	{ value: 'leader', label: t('Leader') }
 ]
 
 interface FullProfile {
@@ -252,13 +253,13 @@ function ProfileConnection({
 // Dynamic profile tabs
 // ============================================================================
 
-const TAB_DEFAULT_LABELS: Record<string, string> = {
-	feed: 'Feed',
-	about: 'About',
-	connections: 'Connections',
-	gallery: 'Gallery',
-	files: 'Files'
-}
+const getTabLabels = (t: TFunction): Record<string, string> => ({
+	feed: t('Feed'),
+	about: t('About'),
+	connections: t('Connections'),
+	gallery: t('Gallery'),
+	files: t('Files')
+})
 
 const TAB_ROUTES: Record<string, string> = {
 	feed: 'feed',
@@ -282,6 +283,7 @@ function ProfileTabs({
 	canAccessSettings: boolean
 }) {
 	const { t } = useTranslation()
+	const tabLabels = React.useMemo(() => getTabLabels(t), [t])
 	const tabConfig = parseTabConfig(profile.x)
 	const tabs = getEffectiveTabs(tabConfig)
 	const basePath = `/profile/${contextIdTag}/${own ? 'me' : profile.idTag}`
@@ -299,7 +301,7 @@ function ProfileTabs({
 						if (tab.id === 'connections') {
 							label = isCommunity ? t('Members') : t('Connections')
 						} else {
-							label = t(TAB_DEFAULT_LABELS[tab.id] || tab.id)
+							label = tabLabels[tab.id] || t(tab.id)
 						}
 					}
 
@@ -768,6 +770,7 @@ function MemberCard({
 }: MemberCardProps) {
 	const { t } = useTranslation()
 	const dialog = useDialog()
+	const roles = React.useMemo(() => getRoles(t), [t])
 
 	// Get the member's highest role
 	const memberRole = getHighestRole(member.roles) || 'follower'
@@ -785,7 +788,7 @@ function MemberCard({
 		}
 	}
 
-	const roleLabel = ROLES.find((r) => r.value === memberRole)?.label || memberRole
+	const roleLabel = roles.find((r) => r.value === memberRole)?.label || memberRole
 
 	return (
 		<div className="c-panel flex-row p-2 mb-1 g-2 ai-center">
@@ -795,20 +798,20 @@ function MemberCard({
 				<Popper
 					label={
 						<>
-							<span className="c-badge">{t(roleLabel)}</span>
+							<span className="c-badge">{roleLabel}</span>
 							<IcMore />
 						</>
 					}
 				>
 					<ul className="c-nav vertical">
-						{ROLES.map((role) => (
+						{roles.map((role) => (
 							<li key={role.value}>
 								<Button
 									kind="nav-item"
 									onClick={() => onRoleChange?.(member.idTag, role.value)}
 								>
 									{memberRole === role.value && <IcCheck />}
-									{t(role.label)}
+									{role.label}
 								</Button>
 							</li>
 						))}
@@ -827,7 +830,7 @@ function MemberCard({
 				</Popper>
 			) : showRoleControls ? (
 				<div className="c-hbox g-2 ai-center">
-					<span className="c-badge">{t(roleLabel)}</span>
+					<span className="c-badge">{roleLabel}</span>
 					{onRemove && (
 						<Popper label={<IcMore />}>
 							<ul className="c-nav vertical">
@@ -842,7 +845,7 @@ function MemberCard({
 					)}
 				</div>
 			) : (
-				memberRole !== 'follower' && <span className="c-badge">{t(roleLabel)}</span>
+				memberRole !== 'follower' && <span className="c-badge">{roleLabel}</span>
 			)}
 		</div>
 	)

@@ -20,7 +20,7 @@ import { useAuth, InlineEditForm, Tag, ProfilePicture, mergeClasses } from '@clo
 import { getFileIcon, type IcUnknown } from '../icons.js'
 import type { File, FileOps, ViewMode } from '../types.js'
 import { TRASH_FOLDER_ID } from '../types.js'
-import { getSmartTimestamp, getVisibilityIcon, getVisibilityLabelKey } from '../utils.js'
+import { getSmartTimestamp, getVisibilityIcon, getVisibilityLabel } from '../utils.js'
 
 interface ItemCardProps {
 	className?: string
@@ -196,7 +196,7 @@ export const ItemCard = React.memo(function ItemCard({
 						return (
 							<span
 								className="c-file-card-visibility"
-								title={t(getVisibilityLabelKey(file.visibility ?? null))}
+								title={getVisibilityLabel(t, file.visibility ?? null)}
 							>
 								<VisibilityIcon />
 							</span>

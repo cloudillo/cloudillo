@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import dayjs from 'dayjs'
+import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -27,15 +28,15 @@ export interface CalendarToolbarProps {
 	trail?: React.ReactNode
 }
 
-const GRID_VIEWS: { value: CalendarView; labelKey: string }[] = [
-	{ value: 'month', labelKey: 'Month' },
-	{ value: 'week', labelKey: 'Week' },
-	{ value: 'day', labelKey: 'Day' }
+const getGridViews = (t: TFunction): { value: CalendarView; label: string }[] => [
+	{ value: 'month', label: t('Month') },
+	{ value: 'week', label: t('Week') },
+	{ value: 'day', label: t('Day') }
 ]
 
-const LIST_VIEWS: { value: CalendarView; labelKey: string }[] = [
-	{ value: 'agenda', labelKey: 'Agenda' },
-	{ value: 'tasks', labelKey: 'Tasks' }
+const getListViews = (t: TFunction): { value: CalendarView; label: string }[] => [
+	{ value: 'agenda', label: t('Agenda') },
+	{ value: 'tasks', label: t('Tasks') }
 ]
 
 export function CalendarToolbar({
@@ -51,6 +52,8 @@ export function CalendarToolbar({
 	const { t, i18n } = useTranslation()
 	const [input, setInput] = React.useState(searchQuery)
 	const debounced = useDebouncedValue(input, 250)
+	const gridViews = React.useMemo(() => getGridViews(t), [t])
+	const listViews = React.useMemo(() => getListViews(t), [t])
 
 	React.useEffect(
 		function commitSearch() {
@@ -129,7 +132,7 @@ export function CalendarToolbar({
 			<div className="c-cal-toolbar__row">
 				<div role="tablist" aria-label={t('Calendar view')} className="c-cal-view-switcher">
 					<div className="c-cal-view-group">
-						{GRID_VIEWS.map((v) => (
+						{gridViews.map((v) => (
 							<button
 								key={v.value}
 								type="button"
@@ -138,12 +141,12 @@ export function CalendarToolbar({
 								className="c-cal-view-tab"
 								onClick={() => onViewChange(v.value)}
 							>
-								{t(v.labelKey)}
+								{v.label}
 							</button>
 						))}
 					</div>
 					<div className="c-cal-view-group">
-						{LIST_VIEWS.map((v) => (
+						{listViews.map((v) => (
 							<button
 								key={v.value}
 								type="button"
@@ -152,7 +155,7 @@ export function CalendarToolbar({
 								className="c-cal-view-tab"
 								onClick={() => onViewChange(v.value)}
 							>
-								{t(v.labelKey)}
+								{v.label}
 							</button>
 						))}
 					</div>

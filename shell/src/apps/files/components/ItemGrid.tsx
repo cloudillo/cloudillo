@@ -19,7 +19,7 @@ import { getFileUrl } from '@cloudillo/core'
 import { useCurrentContextIdTag } from '../../../context/index.js'
 import { getFileIcon, type IcUnknown } from '../icons.js'
 import { TRASH_FOLDER_ID, type File, type FileOps, type ViewMode } from '../types.js'
-import { getSmartTimestamp, getVisibilityIcon, getVisibilityLabelKey } from '../utils.js'
+import { getSmartTimestamp, getVisibilityIcon, getVisibilityLabel } from '../utils.js'
 
 interface ItemGridProps {
 	className?: string
@@ -157,7 +157,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 					return (
 						<span
 							className="c-file-grid-visibility"
-							title={t(getVisibilityLabelKey(file.visibility ?? null))}
+							title={getVisibilityLabel(t, file.visibility ?? null)}
 						>
 							<VisibilityIcon />
 						</span>

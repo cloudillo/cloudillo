@@ -1,7 +1,26 @@
 {
 	"name": "@cloudillo/core",
 	"version": "0.8.13",
-	"description": "Cloudillo core library",
+	"description": "Client SDK, API client, and app message bus for Cloudillo — building blocks for apps on the decentralized collaboration platform",
+	"keywords": [
+		"cloudillo",
+		"sdk",
+		"api-client",
+		"message-bus",
+		"jotai",
+		"decentralized",
+		"collaboration",
+		"self-hosted"
+	],
+	"homepage": "https://cloudillo.org",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/cloudillo/cloudillo.git",
+		"directory": "libs/core"
+	},
+	"bugs": {
+		"url": "https://github.com/cloudillo/cloudillo/issues"
+	},
 	"type": "module",
 	"main": "lib/index.js",
 	"exports": {
@@ -14,6 +33,10 @@
 			"types": "./lib/types.d.ts"
 		}
 	},
+	"files": [
+		"lib",
+		"README.md"
+	],
 	"scripts": {
 		"ts": "tsc --noEmit",
 		"build": "tsc",
@@ -23,8 +46,11 @@
 		"test:coverage": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --coverage",
 		"clean": "rimraf .cache lib*"
 	},
-	"author": "Szilárd Hajba <szilu@cloudillo.org",
+	"author": "Szilárd Hajba <szilu@cloudillo.org>",
 	"license": "LGPL-3.0-or-later",
+	"publishConfig": {
+		"access": "public"
+	},
 	"dependencies": {
 		"@cloudillo/types": "workspace:^"
 	},

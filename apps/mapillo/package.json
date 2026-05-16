@@ -1,6 +1,7 @@
 {
 	"name": "@cloudillo/mapillo-app",
 	"version": "0.8.13",
+	"private": true,
 	"description": "Mapillo OpenStreetMap map app",
 	"type": "module",
 	"main": "src/index.js",

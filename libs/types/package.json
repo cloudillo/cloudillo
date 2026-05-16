@@ -1,7 +1,25 @@
 {
 	"name": "@cloudillo/types",
 	"version": "0.8.13",
-	"description": "Cloudillo types",
+	"description": "Shared TypeScript types and runtype validators for Cloudillo — the open-source decentralized collaboration platform",
+	"keywords": [
+		"cloudillo",
+		"types",
+		"typescript",
+		"runtype",
+		"validation",
+		"decentralized",
+		"collaboration"
+	],
+	"homepage": "https://cloudillo.org",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/cloudillo/cloudillo.git",
+		"directory": "libs/types"
+	},
+	"bugs": {
+		"url": "https://github.com/cloudillo/cloudillo/issues"
+	},
 	"type": "module",
 	"main": "lib/types.js",
 	"types": "lib/types.d.ts",
@@ -11,14 +29,21 @@
 			"types": "./lib/types.d.ts"
 		}
 	},
+	"files": [
+		"lib",
+		"README.md"
+	],
 	"scripts": {
 		"ts": "tsc --noEmit",
 		"build": "tsc",
 		"watch": "tsc -w",
 		"clean": "rimraf .cache lib*"
 	},
-	"author": "Szilárd Hajba <szilu@cloudillo.org",
+	"author": "Szilárd Hajba <szilu@cloudillo.org>",
 	"license": "LGPL-3.0-or-later",
+	"publishConfig": {
+		"access": "public"
+	},
 	"devDependencies": {
 		"@symbion/runtype": "^1.2.1",
 		"rimraf": "^6.1.3",

@@ -1,8 +1,30 @@
 {
 	"name": "@cloudillo/fonts",
 	"version": "0.8.13",
-	"description": "Curated font collection for Cloudillo applications",
+	"private": true,
+	"description": "Curated open-source font collection for web apps — variable fonts with auto-download script",
+	"keywords": [
+		"cloudillo",
+		"fonts",
+		"web-fonts",
+		"variable-fonts",
+		"google-fonts",
+		"woff2"
+	],
+	"homepage": "https://cloudillo.org",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/cloudillo/cloudillo.git",
+		"directory": "libs/fonts"
+	},
+	"bugs": {
+		"url": "https://github.com/cloudillo/cloudillo/issues"
+	},
+	"author": "Szilárd Hajba <szilu@cloudillo.org>",
 	"license": "LGPL-3.0-or-later",
+	"publishConfig": {
+		"access": "public"
+	},
 	"type": "module",
 	"main": "./src/index.ts",
 	"exports": {
@@ -11,7 +33,9 @@
 	},
 	"files": [
 		"src",
-		"fonts"
+		"fonts",
+		"scripts",
+		"README.md"
 	],
 	"scripts": {
 		"postinstall": "node scripts/download-fonts.js",

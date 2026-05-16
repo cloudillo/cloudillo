@@ -1,6 +1,7 @@
 {
 	"name": "@cloudillo/quillo-app",
 	"version": "0.8.13",
+	"private": true,
 	"description": "Quillo text editor app",
 	"type": "module",
 	"main": "src/index.js",

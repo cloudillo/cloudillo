@@ -1,21 +1,47 @@
 {
 	"name": "@cloudillo/calendar-ui",
 	"version": "0.8.13",
-	"description": "Cloudillo calendar UI — day/week/month views with drag, resize, touch support",
+	"description": "React calendar component — day, week, and month views with drag, resize, and touch support",
+	"keywords": [
+		"cloudillo",
+		"react",
+		"calendar",
+		"scheduler",
+		"day-view",
+		"week-view",
+		"month-view",
+		"drag-and-drop"
+	],
+	"homepage": "https://cloudillo.org",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/cloudillo/cloudillo.git",
+		"directory": "libs/calendar-ui"
+	},
+	"bugs": {
+		"url": "https://github.com/cloudillo/cloudillo/issues"
+	},
 	"type": "module",
 	"main": "lib/index.js",
 	"exports": {
 		".": "./lib/index.js",
-		"./calendar-ui.css": "./src/calendar-ui.css"
+		"./calendar-ui.css": "./lib/calendar-ui.css"
 	},
+	"files": [
+		"lib",
+		"README.md"
+	],
 	"scripts": {
 		"ts": "tsc --noEmit",
-		"build": "tsc",
+		"build": "tsc && cp src/calendar-ui.css lib/",
 		"watch": "tsc -w",
 		"clean": "rimraf .cache lib*"
 	},
 	"author": "Szilárd Hajba <szilu@cloudillo.org>",
 	"license": "LGPL-3.0-or-later",
+	"publishConfig": {
+		"access": "public"
+	},
 	"devDependencies": {
 		"@types/react": "^19.2.14",
 		"rimraf": "^6.1.3",

@@ -1,6 +1,7 @@
 {
 	"name": "@cloudillo/prezillo-app",
 	"version": "0.8.13",
+	"private": true,
 	"description": "Prezillo presentations",
 	"type": "module",
 	"main": "src/index.js",

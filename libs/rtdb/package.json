@@ -1,7 +1,26 @@
 {
 	"name": "@cloudillo/rtdb",
 	"version": "0.8.13",
-	"description": "Cloudillo Real-Time Database client library",
+	"description": "Real-time, queryable database client for Cloudillo — Firestore-style API with subscriptions, batches, and document locking",
+	"keywords": [
+		"cloudillo",
+		"real-time",
+		"database",
+		"rtdb",
+		"firestore",
+		"websocket",
+		"subscriptions",
+		"decentralized"
+	],
+	"homepage": "https://cloudillo.org",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/cloudillo/cloudillo.git",
+		"directory": "libs/rtdb"
+	},
+	"bugs": {
+		"url": "https://github.com/cloudillo/cloudillo/issues"
+	},
 	"type": "module",
 	"main": "lib/index.js",
 	"exports": {
@@ -10,6 +29,10 @@
 			"types": "./lib/index.d.ts"
 		}
 	},
+	"files": [
+		"lib",
+		"README.md"
+	],
 	"scripts": {
 		"ts": "tsc --noEmit",
 		"build": "tsc",
@@ -19,8 +42,11 @@
 		"test:watch": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --watch",
 		"test:coverage": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --coverage"
 	},
-	"author": "Szilárd Hajba <szilu@cloudillo.org",
+	"author": "Szilárd Hajba <szilu@cloudillo.org>",
 	"license": "LGPL-3.0-or-later",
+	"publishConfig": {
+		"access": "public"
+	},
 	"devDependencies": {
 		"@cloudillo/core": "workspace:^",
 		"@cloudillo/types": "workspace:^",

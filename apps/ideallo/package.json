@@ -1,6 +1,7 @@
 {
 	"name": "@cloudillo/ideallo-app",
 	"version": "0.8.13",
+	"private": true,
 	"description": "Ideallo collaborative whiteboard",
 	"type": "module",
 	"main": "src/index.js",

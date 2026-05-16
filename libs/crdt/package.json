@@ -1,7 +1,26 @@
 {
 	"name": "@cloudillo/crdt",
 	"version": "0.8.13",
-	"description": "Cloudillo CRDT/Yjs collaborative editing library",
+	"description": "Yjs CRDT collaborative editing client for Cloudillo — IndexedDB persistence, awareness, and WebSocket sync",
+	"keywords": [
+		"cloudillo",
+		"yjs",
+		"crdt",
+		"real-time",
+		"collaborative-editing",
+		"websocket",
+		"y-indexeddb",
+		"decentralized"
+	],
+	"homepage": "https://cloudillo.org",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/cloudillo/cloudillo.git",
+		"directory": "libs/crdt"
+	},
+	"bugs": {
+		"url": "https://github.com/cloudillo/cloudillo/issues"
+	},
 	"type": "module",
 	"main": "lib/index.js",
 	"exports": {
@@ -10,14 +29,21 @@
 			"types": "./lib/index.d.ts"
 		}
 	},
+	"files": [
+		"lib",
+		"README.md"
+	],
 	"scripts": {
 		"ts": "tsc --noEmit",
 		"build": "tsc",
 		"watch": "tsc -w",
 		"clean": "rimraf .cache lib*"
 	},
-	"author": "Szilárd Hajba <szilu@cloudillo.org",
+	"author": "Szilárd Hajba <szilu@cloudillo.org>",
 	"license": "LGPL-3.0-or-later",
+	"publishConfig": {
+		"access": "public"
+	},
 	"dependencies": {
 		"@cloudillo/core": "workspace:^"
 	},

@@ -1,6 +1,7 @@
 {
 	"name": "@cloudillo/scanillo-app",
 	"version": "0.8.13",
+	"private": true,
 	"description": "Scanillo document scanner app",
 	"type": "module",
 	"main": "src/index.js",

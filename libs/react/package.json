@@ -1,13 +1,37 @@
 {
 	"name": "@cloudillo/react",
 	"version": "0.8.13",
-	"description": "Cloudillo React library",
+	"description": "React hooks and component library for Cloudillo apps — auth, real-time data, i18n, and OpalUI integration",
+	"keywords": [
+		"cloudillo",
+		"react",
+		"hooks",
+		"components",
+		"ui",
+		"i18n",
+		"jotai",
+		"decentralized",
+		"collaboration"
+	],
+	"homepage": "https://cloudillo.org",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/cloudillo/cloudillo.git",
+		"directory": "libs/react"
+	},
+	"bugs": {
+		"url": "https://github.com/cloudillo/cloudillo/issues"
+	},
 	"type": "module",
 	"main": "lib/index.js",
 	"exports": {
 		".": "./lib/index.js",
-		"./components.css": "./src/components.css"
+		"./components.css": "./lib/components.css"
 	},
+	"files": [
+		"lib",
+		"README.md"
+	],
 	"jest": {
 		"preset": "ts-jest",
 		"moduleNameMapper": {
@@ -16,12 +40,15 @@
 	},
 	"scripts": {
 		"ts": "tsc --noEmit",
-		"build": "tsc",
+		"build": "tsc && cp src/components.css lib/",
 		"watch": "tsc -w",
 		"clean": "rimraf .cache lib*"
 	},
 	"author": "Szilárd Hajba <szilu@cloudillo.org>",
 	"license": "LGPL-3.0-or-later",
+	"publishConfig": {
+		"access": "public"
+	},
 	"devDependencies": {
 		"@cloudillo/core": "workspace:^",
 		"@cloudillo/crdt": "workspace:^",

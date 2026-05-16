@@ -19,8 +19,13 @@ export function useLibTranslation(): { t: TFunction } {
 	} catch {
 		// i18n not available
 	}
-	// Fallback: return identity function (key is English text)
-	return { t: (key: string) => key }
+	// Fallback: return identity function (key is English text) with basic {{name}} interpolation.
+	return {
+		t: (key: string, options?: Record<string, unknown>) =>
+			options
+				? key.replace(/\{\{(\w+)\}\}/g, (_, name) => String(options[name] ?? `{{${name}}}`))
+				: key
+	}
 }
 
 // vim: ts=4

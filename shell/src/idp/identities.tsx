@@ -33,6 +33,8 @@ import type {
 } from '@cloudillo/core'
 import { useAuth, useApi, useDialog, Button, Modal, mergeClasses } from '@cloudillo/react'
 
+import { HOME_CONTEXT } from '../context'
+
 // Status badge configuration
 const STATUS_CONFIG = {
 	active: { class: 'c-badge success', icon: IcCircleDot, label: 'Active' },
@@ -935,7 +937,7 @@ export function IdentitiesSettings() {
 	const { t } = useTranslation()
 	const params = useParams()
 	const { api } = useApi()
-	const [_auth] = useAuth()
+	const [auth] = useAuth()
 	const dialog = useDialog()
 
 	// State - all identities (unfiltered)
@@ -955,13 +957,22 @@ export function IdentitiesSettings() {
 	const [selectedIdentity, setSelectedIdentity] = React.useState<IdpIdentity | null>(null)
 	const [createdApiKey, setCreatedApiKey] = React.useState<IdpCreateApiKeyResult | null>(null)
 
-	// The IDP domain comes from the route parameter (e.g., "home.w9.hu")
-	// Identities managed by this IDP have id_tags like "alice.home.w9.hu"
-	const idpDomain = params.contextIdTag!
+	// The IDP domain comes from the route parameter (e.g., "home.w9.hu").
+	// On the home route the segment is the literal '~' placeholder; resolve
+	// it to the authenticated user's own idTag so downstream uses (proxy
+	// token request, owner check, curl examples) get a real domain.
+	// Identities managed by this IDP have id_tags like "alice.home.w9.hu".
+	const rawContextIdTag = params.contextIdTag!
+	const idpDomain =
+		rawContextIdTag === HOME_CONTEXT ? (auth?.idTag ?? rawContextIdTag) : rawContextIdTag
 
 	// Check roles
 	React.useEffect(() => {
 		if (!api) return
+		// On the home route the placeholder '~' is rewritten to `auth.idTag`.
+		// While auth is still loading, idpDomain is the literal '~' — skip
+		// the fetch instead of sending a bad path to the server.
+		if (rawContextIdTag === HOME_CONTEXT && !auth?.idTag) return
 		setRolesLoading(true)
 		api.auth
 			.getProxyToken(idpDomain)
@@ -975,9 +986,14 @@ export function IdentitiesSettings() {
 			.finally(() => {
 				setRolesLoading(false)
 			})
-	}, [api, idpDomain])
+	}, [api, idpDomain, rawContextIdTag, auth?.idTag])
 
-	const isLeader = roles.includes('leader')
+	// Profile owner: the authenticated user IS the IDP. The 'leader' role
+	// is a community-only concept; an IDP owner has implicit full access
+	// to identities they themselves issue. For foreign IDP pages, fall
+	// back to the explicit 'leader' role from the proxy token.
+	const isOwner = !!auth?.idTag && auth.idTag === idpDomain
+	const isLeader = isOwner || roles.includes('leader')
 
 	// Load all identities once
 	const loadIdentities = React.useCallback(async () => {

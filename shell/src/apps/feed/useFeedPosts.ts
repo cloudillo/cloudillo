@@ -40,6 +40,8 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 
 			const result = await api.actions.listPaginated({
 				type: 'POST',
+				// Active only — exclude soft-deleted/draft
+				status: ['A'],
 				audience,
 				audienceType,
 				tag,

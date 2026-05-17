@@ -12,6 +12,7 @@ export interface UploadItem {
 	status: 'queued' | 'uploading' | 'complete' | 'error'
 	error?: string
 	fileId?: string
+	existed?: boolean
 }
 
 export interface UseUploadQueueOptions {
@@ -104,7 +105,8 @@ export function useUploadQueue(options?: UseUploadQueueOptions) {
 										...item,
 										status: 'complete' as const,
 										progress: 100,
-										fileId: result.fileId
+										fileId: result.fileId,
+										existed: result.existed
 									}
 								: item
 						)

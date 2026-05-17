@@ -9,7 +9,8 @@ import {
 	LuChevronDown as IcCollapse,
 	LuChevronUp as IcExpand,
 	LuCircleAlert as IcError,
-	LuFile as IcFile
+	LuFile as IcFile,
+	LuLink2 as IcLink
 } from 'react-icons/lu'
 import { mergeClasses, LoadingSpinner } from '@cloudillo/react'
 
@@ -36,6 +37,7 @@ function formatFileSize(bytes: number): string {
 }
 
 function UploadItemRow({ item, onRemove }: { item: UploadItem; onRemove?: (id: string) => void }) {
+	const { t } = useTranslation()
 	return (
 		<div className={mergeClasses('c-upload-item', item.status)}>
 			<div className="c-upload-item-icon">
@@ -48,6 +50,15 @@ function UploadItemRow({ item, onRemove }: { item: UploadItem; onRemove?: (id: s
 				<div className="c-upload-item-name">{item.file.name}</div>
 				<div className="c-upload-item-meta">
 					{formatFileSize(item.file.size)}
+					{item.status === 'complete' && item.existed && (
+						<span
+							className="c-badge info compact"
+							title={t('Already on server — reused existing file')}
+						>
+							<IcLink />
+							{t('reused')}
+						</span>
+					)}
 					{item.error && <span className="c-upload-item-error">{item.error}</span>}
 				</div>
 			</div>

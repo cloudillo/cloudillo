@@ -644,7 +644,8 @@ export class ApiClient {
 				xhr.open('POST', url)
 				const type =
 					contentType ||
-					(fileData instanceof File ? fileData.type : 'application/octet-stream')
+					(fileData instanceof Blob && fileData.type) ||
+					'application/octet-stream'
 				xhr.setRequestHeader('Content-Type', type)
 				if (this.opts.authToken) {
 					xhr.setRequestHeader('Authorization', `Bearer ${this.opts.authToken}`)

@@ -15,12 +15,10 @@ export interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
 export const Progress = createComponent<HTMLDivElement, ProgressProps>(
 	'Progress',
 	({ className, value = 0, variant, indeterminate, style, children, ...props }, ref) => {
-		const progressStyle = indeterminate
-			? style
-			: ({
-					...style,
-					'--progress': `${Math.min(100, Math.max(0, value))}%`
-				} as React.CSSProperties)
+		const clamped = Math.min(100, Math.max(0, value))
+		const barStyle: React.CSSProperties | undefined = indeterminate
+			? undefined
+			: { width: `${clamped}%` }
 
 		return (
 			<div
@@ -31,14 +29,16 @@ export const Progress = createComponent<HTMLDivElement, ProgressProps>(
 					indeterminate && 'indeterminate',
 					className
 				)}
-				style={progressStyle}
+				style={style}
 				role="progressbar"
-				aria-valuenow={indeterminate ? undefined : value}
+				aria-valuenow={indeterminate ? undefined : clamped}
 				aria-valuemin={0}
 				aria-valuemax={100}
 				{...props}
 			>
-				{children}
+				<div className="bar" style={barStyle}>
+					{children}
+				</div>
 			</div>
 		)
 	}

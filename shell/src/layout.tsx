@@ -43,7 +43,7 @@ import {
 	ToastContainer
 } from '@cloudillo/react'
 import { createApiClient, FetchError } from '@cloudillo/core'
-import { useSetAtom } from 'jotai'
+import { useAtomValue, useSetAtom } from 'jotai'
 import { useAppConfig } from './utils.js'
 import usePWA, {
 	registerServiceWorker,
@@ -68,7 +68,10 @@ import {
 	useUrlContextIdTag,
 	useContextPath,
 	useGuestDocument,
-	favoritesAtom
+	favoritesAtom,
+	activeContextAtom,
+	contextIdpEnabledAtom,
+	loadIdpEnabled
 } from './context/index.js'
 import { CommunityVerifyIdpBanner } from './context/verify-idp-banner.js'
 import { OnboardingRoutes } from './onboarding'
@@ -133,6 +136,8 @@ function Menu({
 	const sidebar = useSidebar()
 	const [guestDocument] = useGuestDocument()
 	const [, setQrScannerOpen] = useQrScanner()
+	const activeContext = useAtomValue(activeContextAtom)
+	const contextIdpEnabled = useAtomValue(contextIdpEnabledAtom)
 
 	React.useEffect(
 		function onLocationChange() {
@@ -141,11 +146,14 @@ function Menu({
 		[location]
 	)
 
+	const idpEnabledHere = !!activeContext && contextIdpEnabled[activeContext.idTag] === true
+
 	// Filter visible menu items based on auth state
 	const staticItems =
-		appConfig?.menu.filter(
-			(item) => (!!auth && (!item.perm || auth.roles?.includes(item.perm))) || item.public
-		) || []
+		appConfig?.menu.filter((item) => {
+			if (item.id === 'idp' && !idpEnabledHere) return false
+			return (!!auth && (!item.perm || auth.roles?.includes(item.perm))) || item.public
+		}) || []
 
 	// Build guest document menu item if available
 	const guestDocMenuItem = guestDocument
@@ -377,6 +385,7 @@ function Header({ inert }: { inert?: boolean }) {
 
 	const setLoginInitData = useSetAtom(loginInitAtom)
 	const setFavorites = useSetAtom(favoritesAtom)
+	const setContextIdpEnabled = useSetAtom(contextIdpEnabledAtom)
 	const initRef = React.useRef(false)
 	const settingsAppliedForRef = React.useRef<string | null>(null)
 
@@ -425,6 +434,13 @@ function Header({ inert }: { inert?: boolean }) {
 					}
 
 					setTheme(theme as string | undefined, colors as string | undefined)
+
+					// Load idp.enabled for the home tenant so the shell menu
+					// can hide the IDP item when this tenant isn't a provider.
+					// Fire-and-forget so initial render is not blocked.
+					if (authState.idTag) {
+						void loadIdpEnabled(apiClient, authState.idTag, setContextIdpEnabled)
+					}
 
 					const navTo =
 						(onboarding && `/onboarding/${onboarding}`) ||

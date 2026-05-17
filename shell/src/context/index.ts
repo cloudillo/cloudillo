@@ -28,6 +28,7 @@ export { CONTEXT_TOKEN_LIFETIME_MS } from './types'
 export {
 	activeContextAtom,
 	contextOnboardingAtom,
+	contextIdpEnabledAtom,
 	contextTokensAtom,
 	communitiesAtom,
 	favoritesAtom,
@@ -51,7 +52,8 @@ export {
 	useSidebar,
 	useContextSwitch,
 	useContextCache,
-	useContextPath
+	useContextPath,
+	loadIdpEnabled
 } from './hooks'
 
 // Trust

@@ -17,6 +17,7 @@ import { HOME_CONTEXT } from './constants.js'
 import {
 	activeContextAtom,
 	contextOnboardingAtom,
+	contextIdpEnabledAtom,
 	contextTokensAtom,
 	communitiesAtom,
 	favoritesAtom,
@@ -39,6 +40,32 @@ import {
 	type ContextToken,
 	type ContextSwitchEvent
 } from './types'
+
+/**
+ * Fetch `idp.enabled` for a given context and write it into
+ * `contextIdpEnabledAtom`. 404 is normal (the setting is just unset) — fall
+ * back to `false`. Shared by `switchContext` (per-context API) and the shell
+ * `applyUiSettings` path (home-tenant API).
+ */
+export async function loadIdpEnabled(
+	client: ApiClient,
+	idTag: string,
+	setContextIdpEnabled: (
+		updater: (prev: Record<string, boolean>) => Record<string, boolean>
+	) => void
+): Promise<void> {
+	try {
+		const setting = await client.settings.get('idp.enabled')
+		setContextIdpEnabled((prev) => ({ ...prev, [idTag]: setting.value === true }))
+	} catch (err) {
+		const expected =
+			err instanceof FetchError && (err.httpStatus === 404 || err.httpStatus === 403)
+		if (!expected) {
+			console.warn('Failed to read idp.enabled for context:', err)
+		}
+		setContextIdpEnabled((prev) => ({ ...prev, [idTag]: false }))
+	}
+}
 
 /**
  * Hook for managing API context and multi-context operations
@@ -67,6 +94,7 @@ export function useApiContext() {
 	const activeContext = useAtomValue(activeContextAtom)
 	const setActiveContextState = useSetAtom(activeContextAtom)
 	const setContextOnboarding = useSetAtom(contextOnboardingAtom)
+	const setContextIdpEnabled = useSetAtom(contextIdpEnabledAtom)
 	const setContextTokens = useSetAtom(contextTokensAtom)
 	const [isLoading, setIsLoading] = React.useState(false)
 	const [error, setError] = React.useState<Error | undefined>()
@@ -280,14 +308,18 @@ export function useApiContext() {
 				// Update active context
 				setActiveContextState(newContext)
 
-				// Load per-context ui.onboarding after the switch so the
-				// banner doesn't flash a stale value. Non-fatal on failure.
-				// Use settings.get (not settings.list with a prefix) — the
-				// /settings?prefix= endpoint always appends a "." to the
-				// supplied prefix and so never matches an exact key.
+				// Load per-context ui.onboarding (so the banner doesn't flash
+				// a stale value) and idp.enabled (so the shell menu can hide
+				// the IDP item on tenants that aren't providers) after the
+				// switch. They're independent, so kick both off in parallel
+				// and await idp at the end. Use settings.get (not
+				// settings.list with a prefix) — the /settings?prefix=
+				// endpoint always appends a "." to the supplied prefix and
+				// so never matches an exact key.
+				const idpPromise = loadIdpEnabled(contextApi, idTag, setContextIdpEnabled)
 				try {
-					const setting = await contextApi.settings.get('ui.onboarding')
-					const value = setting.value
+					const onboarding = await contextApi.settings.get('ui.onboarding')
+					const value = onboarding.value
 					if (typeof value === 'string') {
 						setContextOnboarding((prev) => ({
 							...prev,
@@ -306,6 +338,8 @@ export function useApiContext() {
 						console.warn('Failed to read ui.onboarding for context:', settingsErr)
 					}
 				}
+				// loadIdpEnabled swallows its own errors.
+				await idpPromise
 			} catch (err) {
 				setError(err as Error)
 				console.error('Failed to switch context:', err)
@@ -314,7 +348,14 @@ export function useApiContext() {
 				setIsLoading(false)
 			}
 		},
-		[store, getTokenFor, getClientFor, setActiveContextState, setContextOnboarding]
+		[
+			store,
+			getTokenFor,
+			getClientFor,
+			setActiveContextState,
+			setContextOnboarding,
+			setContextIdpEnabled
+		]
 	)
 
 	return {

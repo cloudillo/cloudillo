@@ -39,6 +39,16 @@ export const activeContextAtom = atom<ActiveContext | null>(null)
 export const contextOnboardingAtom = atom<Record<string, string | null>>({})
 
 /**
+ * Per-context `idp.enabled` value, keyed by idTag.
+ *
+ * Populated alongside `ui.onboarding` after a context switch (or when the
+ * home tenant's UI settings are loaded). Consumed by the shell menu filter
+ * to hide the IDP management entry on tenants that are not configured as
+ * identity providers.
+ */
+export const contextIdpEnabledAtom = atom<Record<string, boolean>>({})
+
+/**
  * Context tokens cache
  * Maps idTag -> token data
  *

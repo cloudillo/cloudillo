@@ -32,31 +32,29 @@ export function useSettings(prefix: string | string[], opts?: { level?: 'global'
 	)
 	const debounceTimers = React.useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
-	React.useEffect(
-		function loadSettings() {
-			// Only fetch settings if we have both api and auth token
-			if (!api || !authenticated) return
-			;(async function () {
-				try {
-					const res = await api.settings.list({
-						prefix: prefixStr,
-						...(level ? { level } : {})
-					})
-					// Convert array of SettingResponse to flat object mapping key -> value
-					const settingsMap: Record<string, string | number | boolean> = {}
-					for (const setting of res) {
-						if (setting.value != null) {
-							settingsMap[setting.key] = setting.value as string | number | boolean
-						}
-					}
-					setSettings(settingsMap)
-				} catch (err) {
-					console.error('Failed to load settings:', err)
+	const refresh = React.useCallback(async () => {
+		if (!api || !authenticated) return
+		try {
+			const res = await api.settings.list({
+				prefix: prefixStr,
+				...(level ? { level } : {})
+			})
+			// Convert array of SettingResponse to flat object mapping key -> value
+			const settingsMap: Record<string, string | number | boolean> = {}
+			for (const setting of res) {
+				if (setting.value != null) {
+					settingsMap[setting.key] = setting.value as string | number | boolean
 				}
-			})()
-		},
-		[api, authenticated, prefixStr, level]
-	)
+			}
+			setSettings(settingsMap)
+		} catch (err) {
+			console.error('Failed to load settings:', err)
+		}
+	}, [api, authenticated, prefixStr, level])
+
+	React.useEffect(() => {
+		refresh()
+	}, [refresh])
 
 	// Cleanup debounce timers on unmount
 	React.useEffect(() => {
@@ -115,7 +113,7 @@ export function useSettings(prefix: string | string[], opts?: { level?: 'global'
 		}
 	}
 
-	return { settings, setSettings, onSettingChange }
+	return { settings, setSettings, onSettingChange, refresh }
 }
 
 // vim: ts=4

@@ -55,6 +55,56 @@ export function TenantSettings() {
 				<p className="c-hint mb-4">
 					{t('Automatically accept follow requests from other instances')}
 				</p>
+
+				<label className="c-hbox pb-2">
+					<span className="flex-fill">{t('History sync window (days)')}</span>
+					<input
+						className="c-input w-xs"
+						name="federation.history_sync.since_days"
+						type="number"
+						min="1"
+						max="3650"
+						value={String(settings['federation.history_sync.since_days'] ?? 30)}
+						onChange={onSettingChange}
+					/>
+				</label>
+				<p className="c-hint mb-4">
+					{t('Default age window in days for history sync on new connection.')}
+				</p>
+
+				<label className="c-hbox pb-2">
+					<span className="flex-fill">{t('History sync limit')}</span>
+					<input
+						className="c-input w-xs"
+						name="federation.history_sync.limit"
+						type="number"
+						min="1"
+						max="10000"
+						value={String(settings['federation.history_sync.limit'] ?? 10)}
+						onChange={onSettingChange}
+					/>
+				</label>
+				<p className="c-hint mb-4">
+					{t('Default maximum number of actions to fetch per history sync.')}
+				</p>
+
+				<label className="c-hbox pb-2">
+					<span className="flex-fill">{t('Key failure cache size')}</span>
+					<input
+						className="c-input w-xs"
+						name="federation.key_failure_cache_size"
+						type="number"
+						min="1"
+						max="100000"
+						value={String(settings['federation.key_failure_cache_size'] ?? 100)}
+						onChange={onSettingChange}
+					/>
+				</label>
+				<p className="c-hint mb-4">
+					{t(
+						'Maximum entries in the key fetch failure cache (in-memory LRU). Note: takes effect on next process restart.'
+					)}
+				</p>
 			</div>
 		</>
 	)

@@ -181,6 +181,64 @@ export function StorageSettings() {
 					)}
 				</p>
 			</div>
+
+			<div className="c-panel">
+				<h4>{t('Federated attachments')}</h4>
+
+				<label className="c-hbox pb-2">
+					<span className="flex-fill">
+						{t('Use shared blob store for public attachments')}
+					</span>
+					<input
+						className="c-toggle primary"
+						name="file.shared_blob_store_enabled"
+						type="checkbox"
+						checked={!!settings['file.shared_blob_store_enabled']}
+						onChange={onSettingChange}
+					/>
+				</label>
+				<p className="c-hint mb-4">
+					{t(
+						'Use the shared TnId(0) blob store for Public/Verified federated attachments (deduplicates across tenants).'
+					)}
+				</p>
+
+				<h4>{t('Garbage collection')}</h4>
+
+				<label className="c-hbox pb-2">
+					<span className="flex-fill">{t('GC schedule (cron)')}</span>
+					<input
+						className="c-input w-sm"
+						name="file.gc_cron"
+						type="text"
+						value={String(settings['file.gc_cron'] ?? '0 4 * * *')}
+						onChange={onSettingChange}
+					/>
+				</label>
+				<p className="c-hint mb-4">
+					{t(
+						"Cron expression for the GC schedule (5-field: 'minute hour day month weekday')."
+					)}
+				</p>
+
+				<label className="c-hbox pb-2">
+					<span className="flex-fill">{t('Safety window (seconds)')}</span>
+					<input
+						className="c-input w-xs"
+						name="file.gc_safety_window_secs"
+						type="number"
+						min="0"
+						max="2592000"
+						value={String(settings['file.gc_safety_window_secs'] ?? 3600)}
+						onChange={onSettingChange}
+					/>
+				</label>
+				<p className="c-hint mb-4">
+					{t(
+						'Minimum age (seconds) before an unreferenced managed file row or orphan blob becomes eligible for GC — protects against sync-in-progress and wiring-up races.'
+					)}
+				</p>
+			</div>
 		</>
 	)
 }

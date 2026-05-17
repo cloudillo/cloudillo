@@ -61,6 +61,7 @@ import {
 import '@cloudillo/react/components.css'
 import './feed.css'
 
+import { ImageWithRetry, useRetriedImageUrl } from '../components/ImageWithRetry.js'
 import type { CommunityRef } from '../context/index.js'
 import {
 	useCommunitiesList,
@@ -98,6 +99,16 @@ export type ActionEvt = PostAction | ActionView
 //////////////////////
 // Image formatting //
 //////////////////////
+
+function thumbSkeletonStyle(
+	att: { dim?: readonly [number, number] | number[] | null },
+	base: React.CSSProperties
+): React.CSSProperties {
+	const dim = att.dim && att.dim.length >= 2 ? att.dim : [100, 100]
+	const [w, h] = dim
+	// Caller-supplied aspectRatio (if any) wins over the dim-derived default.
+	return { aspectRatio: `${w} / ${h}`, ...base }
+}
 
 interface ImagesProps {
 	width: number
@@ -139,12 +150,18 @@ export function Images({ width, attachments, idTag }: ImagesProps) {
 			return null
 		case 1:
 			imgNode = (
-				<img
+				<ImageWithRetry
 					alt=""
 					className="cursor-pointer"
 					onClick={() => setLbIndex(0)}
 					src={getInlineUrl(img1)}
 					style={{ maxWidth: '100%', maxHeight: '30rem', margin: '0 auto' }}
+					skeletonStyle={thumbSkeletonStyle(img1, {
+						maxWidth: '100%',
+						maxHeight: '30rem',
+						margin: '0 auto',
+						width: '100%'
+					})}
 				/>
 			)
 			break
@@ -156,19 +173,21 @@ export function Images({ width, attachments, idTag }: ImagesProps) {
 
 			imgNode = (
 				<div className="c-hbox g-2">
-					<img
+					<ImageWithRetry
 						alt=""
 						className="cursor-pointer"
 						onClick={() => setLbIndex(0)}
 						src={getInlineUrl(img1)}
 						style={{ height, margin: '0 auto' }}
+						skeletonStyle={thumbSkeletonStyle(img1, { height, margin: '0 auto' })}
 					/>
-					<img
+					<ImageWithRetry
 						alt=""
 						className="cursor-pointer"
 						onClick={() => setLbIndex(1)}
 						src={getInlineUrl(img2)}
 						style={{ height, margin: '0 auto' }}
+						skeletonStyle={thumbSkeletonStyle(img2, { height, margin: '0 auto' })}
 					/>
 				</div>
 			)
@@ -187,35 +206,49 @@ export function Images({ width, attachments, idTag }: ImagesProps) {
 
 			imgNode = (
 				<div className="c-hbox g-2">
-					<img
+					<ImageWithRetry
 						alt=""
 						className="cursor-pointer"
 						onClick={() => setLbIndex(0)}
 						src={getInlineUrl(img1)}
 						style={{ height, margin: '0 auto' }}
+						skeletonStyle={thumbSkeletonStyle(img1, { height, margin: '0 auto' })}
 					/>
 					<div className="c-vbox">
-						<img
+						<ImageWithRetry
 							alt=""
 							className="cursor-pointer"
 							onClick={() => setLbIndex(1)}
 							src={getInlineUrl(img2)}
 							style={{ width: width23, margin: '0 auto' }}
+							skeletonStyle={thumbSkeletonStyle(img2, {
+								width: width23,
+								margin: '0 auto'
+							})}
 						/>
 						{attachments.length == 3 ? (
-							<img
+							<ImageWithRetry
 								alt=""
 								className="cursor-pointer"
 								onClick={() => setLbIndex(2)}
 								src={getInlineUrl(img3)}
 								style={{ width: width23, margin: '0 auto' }}
+								skeletonStyle={thumbSkeletonStyle(img3, {
+									width: width23,
+									margin: '0 auto'
+								})}
 							/>
 						) : (
 							<div
 								className="pos-relative"
 								style={{ width: width23, margin: '0 auto' }}
 							>
-								<img alt="" className="w-100" src={getInlineUrl(img3)} />
+								<ImageWithRetry
+									alt=""
+									className="w-100"
+									src={getInlineUrl(img3)}
+									skeletonStyle={thumbSkeletonStyle(img3, { width: '100%' })}
+								/>
 								<div
 									onClick={() => setLbIndex(2)}
 									className="c-image-overlay-counter cursor-pointer"
@@ -277,38 +310,8 @@ function Video({ attachments, idTag }: VideoProps) {
 			? getFileUrl(idTag, videoAtt.fileId, getOptimalVideoVariant('preview', variants))
 			: undefined
 
-	const [activePoster, setActivePoster] = React.useState<string | undefined>(undefined)
+	const { activeSrc: activePoster } = useRetriedImageUrl(posterUrl)
 	const [activated, setActivated] = React.useState(false)
-
-	React.useEffect(() => {
-		if (!posterUrl) {
-			setActivePoster(undefined)
-			return
-		}
-		const url = posterUrl
-		let cancelled = false
-		let attempt = 0
-		let timer: ReturnType<typeof setTimeout> | undefined
-		function tryLoad() {
-			const img = new Image()
-			img.onload = () => {
-				if (!cancelled) setActivePoster(url)
-			}
-			img.onerror = () => {
-				if (cancelled || attempt >= 5) return
-				attempt++
-				timer = setTimeout(tryLoad, 1000 * 1.5 ** attempt)
-			}
-			// Cachebuster on retry: a 404 with normal cache headers would
-			// otherwise be served from cache and defeat the backoff.
-			img.src = attempt === 0 ? url : `${url}${url.includes('?') ? '&' : '?'}_=${Date.now()}`
-		}
-		tryLoad()
-		return () => {
-			cancelled = true
-			if (timer) clearTimeout(timer)
-		}
-	}, [posterUrl])
 
 	if (!idTag || !videoAtt) return null
 
@@ -410,10 +413,17 @@ function Document({ attachments, idTag, token }: DocumentProps) {
 			className="pos-relative d-inline-block"
 			style={{ maxWidth: '100%', cursor: 'pointer' }}
 		>
-			<img
+			<ImageWithRetry
 				alt=""
 				src={thumbnailUrl}
 				style={{ maxWidth: '100%', maxHeight: '30rem', display: 'block' }}
+				skeletonStyle={{
+					maxWidth: '100%',
+					maxHeight: '30rem',
+					display: 'block',
+					aspectRatio: '3 / 4',
+					width: '12rem'
+				}}
 			/>
 			<div
 				className="pos-absolute d-flex align-items-center justify-content-center"

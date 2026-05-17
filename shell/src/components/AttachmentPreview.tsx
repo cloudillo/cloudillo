@@ -5,6 +5,8 @@ import * as React from 'react'
 import { LuX as IcClose } from 'react-icons/lu'
 import { getFileUrl } from '@cloudillo/core'
 
+import { ImageWithRetry } from './ImageWithRetry.js'
+
 export interface AttachmentPreviewProps {
 	attachmentIds: string[]
 	idTag: string
@@ -24,8 +26,9 @@ export function AttachmentPreview({
 		<div className={`c-hbox wrap ${compact ? 'g-1' : 'mu-2'}`}>
 			{attachmentIds.map((id) => (
 				<div key={id} className="pos-relative d-inline-block">
-					<img
+					<ImageWithRetry
 						className={compact ? 'c-thumbnail small' : 'c-thumbnail'}
+						skeletonClassName={compact ? 'c-thumbnail small' : 'c-thumbnail'}
 						src={getFileUrl(idTag, id, 'vis.tn')}
 						alt=""
 					/>

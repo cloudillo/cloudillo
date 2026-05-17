@@ -45,6 +45,7 @@ import {
 	Tab,
 	Avatar,
 	AvatarGroup,
+	Progress,
 	Toggle
 } from '@cloudillo/react'
 import '@cloudillo/react/components.css'
@@ -204,6 +205,7 @@ export function NewMsg({
 	conversation: Conversation
 	onSubmit?: (action: ActionEvt) => void
 }) {
+	const { t } = useTranslation()
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const [content, setContent] = React.useState('')
@@ -241,6 +243,7 @@ export function NewMsg({
 
 	function onCancelCrop() {
 		imageUpload.cancelCrop()
+		imageUpload.clearUploadError()
 		if (imgInputRef.current) imgInputRef.current.value = ''
 	}
 
@@ -322,12 +325,24 @@ export function NewMsg({
 					)}
 				</div>
 			</div>
+			{imageUpload.isPreparing && !imageUpload.attachment && (
+				<div className="c-hbox g-2 align-items-center p-2">
+					<Progress indeterminate className="flex-fill" />
+					<span className="text-sm">{t('Preparing image...')}</span>
+				</div>
+			)}
 			{imageUpload.attachment && (
 				<ImageUpload
 					src={imageUpload.attachment}
 					aspects={['', '4:1', '3:1', '2:1', '16:9', '3:2', '1:1']}
 					onSubmit={imageUpload.uploadAttachment}
 					onCancel={onCancelCrop}
+					onAbort={imageUpload.abortUpload}
+					onRetry={imageUpload.retryUpload}
+					isUploading={imageUpload.isUploading}
+					uploadProgress={imageUpload.uploadProgress}
+					uploadError={imageUpload.uploadError}
+					allowXd
 				/>
 			)}
 		</>

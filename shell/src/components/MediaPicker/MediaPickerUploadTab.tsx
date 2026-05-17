@@ -27,7 +27,8 @@ import {
 
 import type { Visibility } from '@cloudillo/core'
 
-import { useApi, Button } from '@cloudillo/react'
+import { useApi, Button, Progress } from '@cloudillo/react'
+import { getUploadErrorMessage } from '../../upload-errors.js'
 import { useApiContext } from '../../context/index.js'
 import type { CropAspect } from '@cloudillo/core'
 
@@ -45,7 +46,7 @@ interface MediaPickerUploadTabProps {
 	onCroppingChange?: (isCropping: boolean) => void // Signal when crop mode is active
 }
 
-type UploadState = 'idle' | 'uploading' | 'cropping' | 'complete' | 'error'
+type UploadState = 'idle' | 'preparing' | 'cropping' | 'uploading' | 'complete' | 'error'
 
 /**
  * Visibility options for the dropdown
@@ -86,10 +87,14 @@ export function MediaPickerUploadTab({
 	const api =
 		(idTagProp ? getClientFor(idTagProp, { auth: 'required' }) : defaultApi) || defaultApi
 	const fileInputRef = useRef<HTMLInputElement>(null)
+	const abortControllerRef = useRef<AbortController | null>(null)
+	const lastUploadedBlobRef = useRef<{ blob: globalThis.File | Blob; fileName?: string } | null>(
+		null
+	)
 
 	// State
 	const [uploadState, setUploadState] = useState<UploadState>('idle')
-	const [progress, setProgress] = useState(0)
+	const [progress, setProgress] = useState<number | undefined>(undefined)
 	const [error, setError] = useState<string | null>(null)
 	const [dragOver, setDragOver] = useState(false)
 
@@ -138,6 +143,7 @@ export function MediaPickerUploadTab({
 
 			if (isImage && enableCrop && !isSvg) {
 				// Read file as data URL for cropping (only for raster images)
+				setUploadState('preparing')
 				const reader = new FileReader()
 				reader.onload = (e) => {
 					setCropImageSrc(e.target?.result as string)
@@ -168,7 +174,12 @@ export function MediaPickerUploadTab({
 			}
 
 			setUploadState('uploading')
-			setProgress(0)
+			setProgress(undefined)
+			lastUploadedBlobRef.current = { blob: file, fileName }
+
+			abortControllerRef.current?.abort()
+			const abortController = new AbortController()
+			abortControllerRef.current = abortController
 
 			try {
 				const name =
@@ -176,13 +187,11 @@ export function MediaPickerUploadTab({
 				const contentType = file.type || 'application/octet-stream'
 
 				// Upload using API
-				const result = await api.files.uploadBlob(
-					'media',
-					name,
-					file,
-					contentType,
-					documentFileId ? { rootId: documentFileId } : undefined
-				)
+				const result = await api.files.uploadBlob('media', name, file, contentType, {
+					...(documentFileId ? { rootId: documentFileId } : {}),
+					onProgress: setProgress,
+					signal: abortController.signal
+				})
 
 				if (result?.fileId) {
 					// Apply visibility setting to the uploaded file
@@ -200,13 +209,38 @@ export function MediaPickerUploadTab({
 					throw new Error('No file ID returned')
 				}
 			} catch (err) {
+				if (err instanceof DOMException && err.name === 'AbortError') {
+					if (abortControllerRef.current === abortController) {
+						setUploadState('idle')
+						setProgress(undefined)
+						abortControllerRef.current = null
+					}
+					return
+				}
 				console.error('Upload failed:', err)
-				setError(t('Upload failed'))
-				setUploadState('error')
+				if (abortControllerRef.current === abortController) {
+					setError(getUploadErrorMessage(t, err))
+					setUploadState('error')
+				}
+			} finally {
+				if (abortControllerRef.current === abortController) {
+					abortControllerRef.current = null
+				}
 			}
 		},
 		[api, onUploadComplete, t, visibility, documentFileId]
 	)
+
+	const handleCancelUpload = useCallback(() => {
+		abortControllerRef.current?.abort()
+	}, [])
+
+	const handleRetryUpload = useCallback(() => {
+		const last = lastUploadedBlobRef.current
+		if (!last) return
+		setError(null)
+		uploadFile(last.blob, last.fileName)
+	}, [uploadFile])
 
 	// Handle crop complete
 	const handleCropComplete = useCallback(
@@ -269,8 +303,11 @@ export function MediaPickerUploadTab({
 
 	// Reset state
 	const handleReset = useCallback(() => {
+		abortControllerRef.current?.abort()
+		abortControllerRef.current = null
+		lastUploadedBlobRef.current = null
 		setUploadState('idle')
-		setProgress(0)
+		setProgress(undefined)
 		setError(null)
 		setCropImageSrc(null)
 		setOriginalFile(null)
@@ -285,14 +322,20 @@ export function MediaPickerUploadTab({
 	const visibilityOptions = React.useMemo(() => getVisibilityOptions(t), [t])
 
 	// Show cropping dialog
-	if (uploadState === 'cropping' && cropImageSrc) {
+	if ((uploadState === 'cropping' || uploadState === 'uploading') && cropImageSrc) {
 		return (
 			<ImageUpload
 				src={cropImageSrc}
 				aspects={getAspects()}
 				onSubmit={handleCropComplete}
 				onCancel={handleCropCancel}
+				onRetry={handleRetryUpload}
 				embedded
+				allowXd
+				isUploading={uploadState === 'uploading'}
+				uploadProgress={progress}
+				uploadError={error ?? undefined}
+				onAbort={handleCancelUpload}
 			/>
 		)
 	}
@@ -387,15 +430,25 @@ export function MediaPickerUploadTab({
 				</div>
 			)}
 
-			{uploadState === 'uploading' && (
+			{uploadState === 'preparing' && (
 				<div className="media-picker-upload-progress">
-					<span>{t('Uploading...')}</span>
-					<div className="media-picker-upload-progress-bar">
-						<div
-							className="media-picker-upload-progress-fill"
-							style={{ width: `${progress}%` }}
-						/>
-					</div>
+					<span>{t('Preparing image...')}</span>
+					<Progress indeterminate />
+				</div>
+			)}
+
+			{uploadState === 'uploading' && !cropImageSrc && (
+				<div className="media-picker-upload-progress">
+					<span>
+						{t('Uploading...')}
+						{progress !== undefined ? ` ${progress}%` : ''}
+					</span>
+					{progress === undefined ? (
+						<Progress indeterminate />
+					) : (
+						<Progress value={progress} />
+					)}
+					<Button onClick={handleCancelUpload}>{t('Cancel')}</Button>
 				</div>
 			)}
 
@@ -416,7 +469,12 @@ export function MediaPickerUploadTab({
 					<div className="media-picker-dropzone-text">
 						<strong>{error || t('Upload failed')}</strong>
 					</div>
-					<Button onClick={handleReset}>{t('Try again')}</Button>
+					<div className="c-hbox g-2">
+						<Button variant="primary" onClick={handleRetryUpload}>
+							{t('Retry')}
+						</Button>
+						<Button onClick={handleReset}>{t('Try again')}</Button>
+					</div>
 				</div>
 			)}
 		</div>

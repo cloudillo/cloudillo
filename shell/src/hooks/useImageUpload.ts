@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { useApi } from '@cloudillo/react'
 import * as React from 'react'
-import { useAuth } from '@cloudillo/react'
-import { getInstanceUrl } from '@cloudillo/core'
+import { useTranslation } from 'react-i18next'
+import { getUploadErrorMessage } from '../upload-errors.js'
 
 export interface UseImageUploadOptions {
 	onUploadComplete?: (fileId: string) => void
@@ -15,38 +16,55 @@ export interface UseImageUploadReturn {
 	attachment: string | undefined
 	attachmentIds: string[]
 	attachmentType: AttachmentType
+	isPreparing: boolean
 	isUploading: boolean
 	uploadProgress: number | undefined
+	uploadError: string | undefined
 	initAttachments: (ids: string[], type: AttachmentType) => void
 	selectFile: (file: File) => void
 	uploadAttachment: (blob: Blob) => Promise<void>
 	uploadSvg: (file: File) => Promise<void>
 	uploadDocument: (file: File) => Promise<void>
 	uploadVideo: (file: File) => Promise<void>
+	retryUpload: () => Promise<void>
 	removeAttachment: (id: string) => void
 	cancelCrop: () => void
 	reset: () => void
 	abortUpload: () => void
+	clearUploadError: () => void
+}
+
+interface LastUpload {
+	preset: string
+	data: Blob | File
+	contentType?: string
+	type: Exclude<AttachmentType, undefined>
+	clearPreview: boolean
 }
 
 export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadReturn {
-	const [auth] = useAuth()
+	const { t } = useTranslation()
+	const { api } = useApi()
 	const [attachment, setAttachment] = React.useState<string | undefined>()
 	const [attachmentIds, setAttachmentIds] = React.useState<string[]>([])
 	const [attachmentType, setAttachmentType] = React.useState<AttachmentType>(undefined)
+	const [isPreparing, setIsPreparing] = React.useState(false)
 	const [isUploading, setIsUploading] = React.useState(false)
 	const [uploadProgress, setUploadProgress] = React.useState<number | undefined>()
+	const [uploadError, setUploadError] = React.useState<string | undefined>()
 
-	// Track active XHR for cleanup
-	const activeXhrRef = React.useRef<XMLHttpRequest | null>(null)
+	const abortControllerRef = React.useRef<AbortController | null>(null)
+	const lastUploadRef = React.useRef<LastUpload | null>(null)
+	const optionsRef = React.useRef(options)
+	React.useEffect(() => {
+		optionsRef.current = options
+	}, [options])
 
 	// Cleanup on unmount - abort any active upload
 	React.useEffect(() => {
 		return () => {
-			if (activeXhrRef.current) {
-				activeXhrRef.current.abort()
-				activeXhrRef.current = null
-			}
+			abortControllerRef.current?.abort()
+			abortControllerRef.current = null
 		}
 	}, [])
 
@@ -55,234 +73,126 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 		setAttachmentType(type)
 	}, [])
 
-	const selectFile = React.useCallback((file: File) => {
-		const reader = new FileReader()
-		reader.onload = function (evt) {
-			if (typeof evt?.target?.result === 'string') {
-				setAttachment(evt.target.result)
+	const selectFile = React.useCallback(
+		(file: File) => {
+			lastUploadRef.current = null
+			setUploadError(undefined)
+			setIsPreparing(true)
+			const reader = new FileReader()
+			reader.onload = function (evt) {
+				if (typeof evt?.target?.result === 'string') {
+					setAttachment(evt.target.result)
+				}
+				setIsPreparing(false)
 			}
-		}
-		reader.readAsDataURL(file)
-	}, [])
-
-	const uploadAttachment = React.useCallback(
-		async (blob: Blob) => {
-			if (!auth?.idTag) return
-
-			// Abort any existing upload
-			if (activeXhrRef.current) {
-				activeXhrRef.current.abort()
+			reader.onerror = function () {
+				setIsPreparing(false)
+				setUploadError(t('Failed to read file'))
 			}
+			reader.readAsDataURL(file)
+		},
+		[t]
+	)
+
+	const runUpload = React.useCallback(
+		async (job: LastUpload) => {
+			if (!api) return
+			lastUploadRef.current = job
+
+			abortControllerRef.current?.abort()
+			const abortController = new AbortController()
+			abortControllerRef.current = abortController
 
 			setIsUploading(true)
+			setUploadProgress(undefined)
+			setUploadError(undefined)
 
-			const request = new XMLHttpRequest()
-			activeXhrRef.current = request
-
-			request.open('POST', `${getInstanceUrl(auth.idTag)}/api/files/image/attachment`)
-			request.setRequestHeader('Authorization', `Bearer ${auth.token}`)
-
-			request.addEventListener('load', function () {
-				activeXhrRef.current = null
-				setIsUploading(false)
-				if (request.status < 200 || request.status >= 300) {
-					console.error('Upload failed with status', request.status)
-					return
-				}
-				const j = JSON.parse(request.response)
-				const fileId = j?.data?.fileId
-				if (fileId) {
+			try {
+				const result = await api.files.uploadBlob(
+					job.preset,
+					'attachment',
+					job.data,
+					job.contentType,
+					{
+						as: 'managed',
+						onProgress: setUploadProgress,
+						signal: abortController.signal
+					}
+				)
+				if (result?.fileId) {
+					const fileId = result.fileId
 					setAttachmentIds((ids) => [...ids, fileId])
-					setAttachmentType('image')
-					options?.onUploadComplete?.(fileId)
+					setAttachmentType(job.type)
+					optionsRef.current?.onUploadComplete?.(fileId)
+					if (job.clearPreview) setAttachment(undefined)
 				}
-				setAttachment(undefined)
-			})
-
-			request.addEventListener('error', function () {
-				activeXhrRef.current = null
-				setIsUploading(false)
-				console.error('Upload failed')
-			})
-
-			request.addEventListener('abort', function () {
-				activeXhrRef.current = null
-				setIsUploading(false)
-			})
-
-			request.send(blob)
+			} catch (err) {
+				if (err instanceof DOMException && err.name === 'AbortError') return
+				if (abortControllerRef.current === abortController) {
+					setUploadError(getUploadErrorMessage(t, err))
+				}
+			} finally {
+				if (abortControllerRef.current === abortController) {
+					setIsUploading(false)
+					setUploadProgress(undefined)
+					abortControllerRef.current = null
+				}
+			}
 		},
-		[auth, options]
+		[api, t]
+	)
+
+	const uploadAttachment = React.useCallback(
+		(blob: Blob) =>
+			runUpload({
+				preset: 'image',
+				data: blob,
+				type: 'image',
+				clearPreview: true
+			}),
+		[runUpload]
 	)
 
 	const uploadSvg = React.useCallback(
-		async (file: File) => {
-			if (!auth?.idTag) return
-
-			// Abort any existing upload
-			if (activeXhrRef.current) {
-				activeXhrRef.current.abort()
-			}
-
-			setIsUploading(true)
-
-			const request = new XMLHttpRequest()
-			activeXhrRef.current = request
-
-			request.open('POST', `${getInstanceUrl(auth.idTag)}/api/files/image/attachment`)
-			request.setRequestHeader('Authorization', `Bearer ${auth.token}`)
-			request.setRequestHeader('Content-Type', 'image/svg+xml')
-
-			request.addEventListener('load', function () {
-				activeXhrRef.current = null
-				setIsUploading(false)
-				if (request.status < 200 || request.status >= 300) {
-					console.error('SVG upload failed with status', request.status)
-					return
-				}
-				const j = JSON.parse(request.response)
-				const fileId = j?.data?.fileId
-				if (fileId) {
-					setAttachmentIds((ids) => [...ids, fileId])
-					setAttachmentType('image')
-					options?.onUploadComplete?.(fileId)
-				}
-			})
-
-			request.addEventListener('error', function () {
-				activeXhrRef.current = null
-				setIsUploading(false)
-				console.error('SVG upload failed')
-			})
-
-			request.addEventListener('abort', function () {
-				activeXhrRef.current = null
-				setIsUploading(false)
-			})
-
-			request.send(file)
-		},
-		[auth, options]
+		(file: File) =>
+			runUpload({
+				preset: 'image',
+				data: file,
+				contentType: 'image/svg+xml',
+				type: 'image',
+				clearPreview: false
+			}),
+		[runUpload]
 	)
 
 	const uploadDocument = React.useCallback(
-		async (file: File) => {
-			if (!auth?.idTag) return
-
-			// Abort any existing upload
-			if (activeXhrRef.current) {
-				activeXhrRef.current.abort()
-			}
-
-			setIsUploading(true)
-			setUploadProgress(0)
-
-			const request = new XMLHttpRequest()
-			activeXhrRef.current = request
-
-			request.open('POST', `${getInstanceUrl(auth.idTag)}/api/files/default/attachment`)
-			request.setRequestHeader('Authorization', `Bearer ${auth.token}`)
-			request.setRequestHeader('Content-Type', 'application/pdf')
-
-			request.upload.addEventListener('progress', (e) => {
-				if (e.lengthComputable) {
-					setUploadProgress(Math.round((e.loaded / e.total) * 100))
-				}
-			})
-
-			request.addEventListener('load', function () {
-				activeXhrRef.current = null
-				setIsUploading(false)
-				setUploadProgress(undefined)
-				if (request.status < 200 || request.status >= 300) {
-					console.error('Document upload failed with status', request.status)
-					return
-				}
-				const j = JSON.parse(request.response)
-				const fileId = j?.data?.fileId
-				if (fileId) {
-					setAttachmentIds((ids) => [...ids, fileId])
-					setAttachmentType('document')
-					options?.onUploadComplete?.(fileId)
-				}
-			})
-
-			request.addEventListener('error', function () {
-				activeXhrRef.current = null
-				setIsUploading(false)
-				setUploadProgress(undefined)
-				console.error('Document upload failed')
-			})
-
-			request.addEventListener('abort', function () {
-				activeXhrRef.current = null
-				setIsUploading(false)
-				setUploadProgress(undefined)
-			})
-
-			request.send(file)
-		},
-		[auth, options]
+		(file: File) =>
+			runUpload({
+				preset: 'default',
+				data: file,
+				contentType: 'application/pdf',
+				type: 'document',
+				clearPreview: false
+			}),
+		[runUpload]
 	)
 
 	const uploadVideo = React.useCallback(
-		async (file: File) => {
-			if (!auth?.idTag) return
-
-			// Abort any existing upload
-			if (activeXhrRef.current) {
-				activeXhrRef.current.abort()
-			}
-
-			setIsUploading(true)
-			setUploadProgress(0)
-
-			const request = new XMLHttpRequest()
-			activeXhrRef.current = request
-
-			request.open('POST', `${getInstanceUrl(auth.idTag)}/api/files/video/attachment`)
-			request.setRequestHeader('Authorization', `Bearer ${auth.token}`)
-
-			request.upload.addEventListener('progress', (e) => {
-				if (e.lengthComputable) {
-					setUploadProgress(Math.round((e.loaded / e.total) * 100))
-				}
-			})
-
-			request.addEventListener('load', function () {
-				activeXhrRef.current = null
-				setIsUploading(false)
-				setUploadProgress(undefined)
-				if (request.status < 200 || request.status >= 300) {
-					console.error('Video upload failed with status', request.status)
-					return
-				}
-				const j = JSON.parse(request.response)
-				const fileId = j?.data?.fileId
-				if (fileId) {
-					setAttachmentIds((ids) => [...ids, fileId])
-					setAttachmentType('video')
-					options?.onUploadComplete?.(fileId)
-				}
-			})
-
-			request.addEventListener('error', function () {
-				activeXhrRef.current = null
-				setIsUploading(false)
-				setUploadProgress(undefined)
-				console.error('Video upload failed')
-			})
-
-			request.addEventListener('abort', function () {
-				activeXhrRef.current = null
-				setIsUploading(false)
-				setUploadProgress(undefined)
-			})
-
-			request.send(file)
-		},
-		[auth, options]
+		(file: File) =>
+			runUpload({
+				preset: 'video',
+				data: file,
+				type: 'video',
+				clearPreview: false
+			}),
+		[runUpload]
 	)
+
+	const retryUpload = React.useCallback(async () => {
+		const last = lastUploadRef.current
+		if (!last) return
+		await runUpload(last)
+	}, [runUpload])
 
 	const removeAttachment = React.useCallback((id: string) => {
 		setAttachmentIds((ids) => {
@@ -302,33 +212,42 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 		setAttachment(undefined)
 		setAttachmentIds([])
 		setAttachmentType(undefined)
+		setIsPreparing(false)
 		setIsUploading(false)
 		setUploadProgress(undefined)
+		setUploadError(undefined)
+		lastUploadRef.current = null
 	}, [])
 
 	const abortUpload = React.useCallback(() => {
-		if (activeXhrRef.current) {
-			activeXhrRef.current.abort()
-			activeXhrRef.current = null
-		}
+		abortControllerRef.current?.abort()
+		abortControllerRef.current = null
+	}, [])
+
+	const clearUploadError = React.useCallback(() => {
+		setUploadError(undefined)
 	}, [])
 
 	return {
 		attachment,
 		attachmentIds,
 		attachmentType,
+		isPreparing,
 		isUploading,
 		uploadProgress,
+		uploadError,
 		initAttachments,
 		selectFile,
 		uploadAttachment,
 		uploadSvg,
 		uploadDocument,
 		uploadVideo,
+		retryUpload,
 		removeAttachment,
 		cancelCrop,
 		reset,
-		abortUpload
+		abortUpload,
+		clearUploadError
 	}
 }
 

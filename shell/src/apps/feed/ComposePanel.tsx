@@ -29,6 +29,7 @@ import {
 	useDialog,
 	Button,
 	ProfilePicture,
+	Progress,
 	mergeClasses,
 	generateFragments
 } from '@cloudillo/react'
@@ -557,28 +558,21 @@ export function ComposePanel({
 						idTag={auth.idTag}
 						onRemove={imageUpload.removeAttachment}
 					/>
-					{imageUpload.uploadProgress !== undefined && (
+					{imageUpload.isUploading && !imageUpload.attachment && (
 						<div className="c-hbox g-2 align-items-center p-1">
-							<div
-								className="c-progress flex-fill"
-								style={{
-									height: '0.5rem',
-									borderRadius: '0.25rem',
-									background: 'var(--col-container)'
-								}}
-							>
-								<div
-									className="c-progress-bar"
-									style={{
-										width: `${imageUpload.uploadProgress}%`,
-										height: '100%',
-										borderRadius: '0.25rem',
-										background: 'var(--col-primary)',
-										transition: 'width 0.2s ease'
-									}}
+							{imageUpload.uploadProgress === undefined ? (
+								<Progress indeterminate className="flex-fill" />
+							) : (
+								<Progress
+									value={imageUpload.uploadProgress}
+									className="flex-fill"
 								/>
-							</div>
-							<span className="text-sm">{imageUpload.uploadProgress}%</span>
+							)}
+							<span className="text-sm">
+								{imageUpload.uploadProgress !== undefined
+									? `${imageUpload.uploadProgress}%`
+									: t('Uploading...')}
+							</span>
 						</div>
 					)}
 					{showSchedule && (
@@ -693,12 +687,27 @@ export function ComposePanel({
 					</div>
 				</div>
 			</div>
+			{imageUpload.isPreparing && !imageUpload.attachment && (
+				<div className="c-hbox g-2 align-items-center p-2">
+					<Progress indeterminate className="flex-fill" />
+					<span className="text-sm">{t('Preparing image...')}</span>
+				</div>
+			)}
 			{imageUpload.attachment && (
 				<ImageUpload
 					src={imageUpload.attachment}
 					aspects={['', '4:1', '3:1', '2:1', '16:9', '3:2', '1:1']}
 					onSubmit={imageUpload.uploadAttachment}
-					onCancel={imageUpload.cancelCrop}
+					onCancel={() => {
+						imageUpload.cancelCrop()
+						imageUpload.clearUploadError()
+					}}
+					onAbort={imageUpload.abortUpload}
+					onRetry={imageUpload.retryUpload}
+					isUploading={imageUpload.isUploading}
+					uploadProgress={imageUpload.uploadProgress}
+					uploadError={imageUpload.uploadError}
+					allowXd
 				/>
 			)}
 		</>

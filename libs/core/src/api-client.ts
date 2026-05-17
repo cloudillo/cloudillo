@@ -6,6 +6,36 @@ import { type ApiFetchResult, apiFetchHelper } from './api.js'
 import * as Types from './api-types.js'
 import { getInstanceUrl } from './urls.js'
 
+// Aborts are signaled via DOMException('AbortError'), not UploadError.
+export type UploadErrorKind =
+	| 'auth'
+	| 'forbidden'
+	| 'too_large'
+	| 'server'
+	| 'network'
+	| 'invalid_response'
+
+export class UploadError extends Error {
+	readonly status?: number
+	readonly statusText?: string
+	readonly kind: UploadErrorKind
+	constructor(kind: UploadErrorKind, message: string, status?: number, statusText?: string) {
+		super(message)
+		this.name = 'UploadError'
+		this.kind = kind
+		this.status = status
+		this.statusText = statusText
+	}
+
+	static kindFromHttpStatus(status: number): UploadErrorKind {
+		if (status === 401) return 'auth'
+		if (status === 403) return 'forbidden'
+		if (status === 413) return 'too_large'
+		if (status >= 500) return 'server'
+		return 'invalid_response'
+	}
+}
+
 /**
  * Options for creating an API client
  */
@@ -590,47 +620,104 @@ export class ApiClient {
 		 * @param contentType - Content type of the file
 		 * @returns Upload result with file ID and optional thumbnail variant ID
 		 */
-		uploadBlob: async (
+		uploadBlob: (
 			preset: string,
 			fileName: string,
 			fileData: Blob | File | ArrayBuffer,
 			contentType?: string,
-			options?: { rootId?: string }
-		) => {
-			let url = `${getInstanceUrl(this.opts.idTag)}/api/files/${preset}/${fileName}`
-			if (options?.rootId) {
-				url += '?rootId=' + encodeURIComponent(options.rootId)
+			options?: {
+				rootId?: string
+				as?: 'managed'
+				onProgress?: (pct: number) => void
+				signal?: AbortSignal
 			}
-			const body =
-				fileData instanceof ArrayBuffer ? fileData : await (fileData as Blob).arrayBuffer()
+		) => {
+			return new Promise<T.TypeOf<typeof Types.tUploadFileResult>>((resolve, reject) => {
+				let url = `${getInstanceUrl(this.opts.idTag)}/api/files/${preset}/${fileName}`
+				const qp = new URLSearchParams()
+				if (options?.rootId) qp.set('rootId', options.rootId)
+				if (options?.as) qp.set('as', options.as)
+				const qs = qp.toString()
+				if (qs) url += '?' + qs
 
-			const headers: Record<string, string> = {
-				'Content-Type':
+				const xhr = new XMLHttpRequest()
+				xhr.open('POST', url)
+				const type =
 					contentType ||
 					(fileData instanceof File ? fileData.type : 'application/octet-stream')
-			}
-			if (this.opts.authToken) {
-				headers.Authorization = `Bearer ${this.opts.authToken}`
-			}
+				xhr.setRequestHeader('Content-Type', type)
+				if (this.opts.authToken) {
+					xhr.setRequestHeader('Authorization', `Bearer ${this.opts.authToken}`)
+				}
+				xhr.withCredentials = true
 
-			const res = await fetch(url, {
-				method: 'POST',
-				headers,
-				credentials: 'include',
-				body
+				let abortListener: (() => void) | undefined
+				let progressListener: ((e: ProgressEvent) => void) | undefined
+				const cleanup = () => {
+					if (abortListener && options?.signal) {
+						options.signal.removeEventListener('abort', abortListener)
+						abortListener = undefined
+					}
+					if (progressListener) {
+						xhr.upload.removeEventListener('progress', progressListener)
+						progressListener = undefined
+					}
+				}
+
+				if (options?.onProgress) {
+					progressListener = (e) => {
+						if (e.lengthComputable) {
+							options.onProgress!(Math.round((e.loaded / e.total) * 100))
+						}
+					}
+					xhr.upload.addEventListener('progress', progressListener)
+				}
+
+				xhr.addEventListener('load', () => {
+					cleanup()
+					if (xhr.status < 200 || xhr.status >= 300) {
+						const msg = `Upload failed: ${xhr.status} ${xhr.statusText}`
+						const kind = UploadError.kindFromHttpStatus(xhr.status)
+						return reject(new UploadError(kind, msg, xhr.status, xhr.statusText))
+					}
+					try {
+						const result = JSON.parse(xhr.response)
+						const decoded = T.decode(Types.tUploadFileResult, result.data, {
+							unknownFields: 'drop'
+						})
+						if (T.isErr(decoded)) {
+							return reject(
+								new UploadError(
+									'invalid_response',
+									`Invalid response: ${decoded.err.map((e) => e.error).join(', ')}`
+								)
+							)
+						}
+						resolve(decoded.ok)
+					} catch (err) {
+						reject(new UploadError('invalid_response', (err as Error).message))
+					}
+				})
+				xhr.addEventListener('error', () => {
+					cleanup()
+					reject(new UploadError('network', 'Network error'))
+				})
+				xhr.addEventListener('abort', () => {
+					cleanup()
+					reject(new DOMException('Aborted', 'AbortError'))
+				})
+
+				if (options?.signal) {
+					if (options.signal.aborted) {
+						xhr.abort()
+						return reject(new DOMException('Aborted', 'AbortError'))
+					}
+					abortListener = () => xhr.abort()
+					options.signal.addEventListener('abort', abortListener, { once: true })
+				}
+
+				xhr.send(fileData as Blob | ArrayBuffer)
 			})
-
-			if (!res.ok) {
-				throw new Error(`Upload failed: ${res.status} ${res.statusText}`)
-			}
-
-			const result = await res.json()
-			// Backend wraps response in ApiResponse envelope with data, time, req_id fields
-			const decoded = T.decode(Types.tUploadFileResult, result.data)
-			if (T.isErr(decoded)) {
-				throw new Error(`Invalid response: ${decoded.err.map((e) => e.error).join(', ')}`)
-			}
-			return decoded.ok
 		},
 
 		/**

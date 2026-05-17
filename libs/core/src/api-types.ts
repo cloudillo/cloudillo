@@ -688,10 +688,25 @@ export const tCreateFileResult = T.struct({
 })
 export type CreateFileResult = T.TypeOf<typeof tCreateFileResult>
 
+/**
+ * Result of a file upload.
+ *
+ * - `fileId`: identifier of the stored file (may reference an existing blob if `existed` is true).
+ * - `thumbnailVariantId`: variant id for the generated thumbnail, when one was produced.
+ * - `dim`: intrinsic [width, height] of image/video uploads, when known.
+ * - `existed`: true when the upload was deduplicated against an existing blob
+ *   (content-addressed dedup hit). In that case the returned `fileId` references the prior copy
+ *   and no new bytes were stored.
+ * - `fileName`: canonical filename assigned by the server after normalization.
+ * - `contentType`: canonical MIME type the server resolved for the stored content.
+ */
 export const tUploadFileResult = T.struct({
 	fileId: T.string,
 	thumbnailVariantId: T.optional(T.string),
-	dim: T.optional(T.tuple(T.number, T.number))
+	dim: T.optional(T.tuple(T.number, T.number)),
+	existed: T.optional(T.boolean),
+	fileName: T.optional(T.string),
+	contentType: T.optional(T.string)
 })
 export type UploadFileResult = T.TypeOf<typeof tUploadFileResult>
 

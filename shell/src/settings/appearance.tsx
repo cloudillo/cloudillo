@@ -28,7 +28,10 @@ function applySystemColorScheme() {
 	applyColorScheme(dark)
 }
 
-export function setTheme(
+// Apply theme + color scheme to the document body. Pure DOM side-effect — does
+// not touch localStorage. Use this on paths where the persisted user preference
+// should be preserved (guest-mode fallback, error fallback).
+export function applyTheme(
 	theme: string | number | boolean | undefined,
 	colors: string | number | boolean | undefined
 ) {
@@ -71,6 +74,41 @@ export function setTheme(
 			}
 			break
 	}
+}
+
+// Persist the user's theme/colors choice to localStorage so the pre-paint
+// bootstrap script in index.html can replay the right body classes on next
+// load (no theme/colors FOUC). Only known values are written; anything else
+// removes the key so the bootstrap script re-runs its system-detection logic.
+export function persistTheme(
+	theme: string | number | boolean | undefined,
+	colors: string | number | boolean | undefined
+) {
+	try {
+		if (theme === 'opaque' || theme === 'glass') {
+			localStorage.setItem('cloudillo.theme', theme)
+		} else {
+			localStorage.removeItem('cloudillo.theme')
+		}
+		if (colors === 'dark' || colors === 'light') {
+			localStorage.setItem('cloudillo.colors', colors)
+		} else {
+			localStorage.removeItem('cloudillo.colors')
+		}
+	} catch {
+		// localStorage may be unavailable (sandboxed contexts, etc.)
+	}
+}
+
+// Ergonomic shortcut for the common "apply + persist" case (e.g. settings
+// form changes). Paths that should NOT overwrite the user's stored preference
+// (guest-mode, error fallback) should call `applyTheme` directly.
+export function setTheme(
+	theme: string | number | boolean | undefined,
+	colors: string | number | boolean | undefined
+) {
+	applyTheme(theme, colors)
+	persistTheme(theme, colors)
 }
 
 export function AppearanceSettings() {

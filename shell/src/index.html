@@ -19,10 +19,94 @@
 			body.theme-opaque.dark {
 				background: var(--col-surface);
 			}
+
+			/* Initial boot splash — visible before the JS bundle parses. */
+			#initial-splash {
+				position: fixed;
+				inset: 0;
+				z-index: 10000;
+				display: grid;
+				place-items: center;
+				background: var(--col-surface, #fafafa);
+				transition: opacity 220ms ease;
+			}
+			body.dark #initial-splash {
+				background: var(--col-surface, #14171a);
+			}
+			#initial-splash.fading {
+				opacity: 0;
+				pointer-events: none;
+			}
+			#initial-splash svg {
+				width: clamp(64px, 12vw, 128px);
+				height: auto;
+				animation: cloudillo-breathe 1.6s ease-in-out infinite;
+				transform-origin: center;
+			}
+			@keyframes cloudillo-breathe {
+				0%,
+				100% {
+					transform: scale(1);
+					opacity: 0.92;
+				}
+				50% {
+					transform: scale(1.06);
+					opacity: 1;
+				}
+			}
+			@media (prefers-reduced-motion: reduce) {
+				#initial-splash svg {
+					animation: cloudillo-breathe-soft 2.4s ease-in-out infinite;
+				}
+				@keyframes cloudillo-breathe-soft {
+					0%,
+					100% {
+						opacity: 0.85;
+					}
+					50% {
+						opacity: 1;
+					}
+				}
+			}
 		</style>
 	</head>
 
 	<body>
+		<script>
+			(function () {
+				try {
+					window.__cloudilloBootStart = performance.now()
+					let theme = null
+					let colors = null
+					try {
+						theme = localStorage.getItem('cloudillo.theme')
+						colors = localStorage.getItem('cloudillo.colors')
+					} catch (_e) {
+						/* localStorage may be unavailable */
+					}
+					const cl = document.body.classList
+					if (theme === 'opaque') {
+						cl.add('theme-opaque')
+					} else {
+						cl.add('theme-glass')
+					}
+					let dark
+					if (colors === 'dark') {
+						dark = true
+					} else if (colors === 'light') {
+						dark = false
+					} else {
+						dark = !!window.matchMedia?.('(prefers-color-scheme: dark)')?.matches
+					}
+					cl.add(dark ? 'dark' : 'light')
+				} catch (_e) {
+					/* never block first paint */
+				}
+			})()
+		</script>
+		<div id="initial-splash" role="status" aria-live="polite" aria-label="Loading Cloudillo">
+			<svg xmlns="http://www.w3.org/2000/svg" width="72" height="44" viewBox="0 0 19.05 11.642"><g><circle cx="3.44" cy="7.408" r="3.44" style="fill:#008cb6"/><circle cx="7.144" cy="3.704" r="3.704" style="fill:#008cb6"/><circle cx="16.14" cy="7.938" r="2.91" style="fill:#008cb6"/><circle cx="12.965" cy="4.762" r="2.91" style="fill:#008cb6"/><path d="M3.44 5.292h12.7v5.556H3.44z" style="fill:#008cb6"/><path d="m7.144 2.91 2.381 6.35M13.23 4.233 9.524 9.26M16.669 7.938 9.525 9.26" style="fill:none;stroke:#fff;stroke-width:1;stroke-linejoin:bevel"/><path d="m7.144 2.91 2.381 6.35M13.23 4.233 9.524 9.26M16.669 7.938 9.525 9.26" style="fill:none;stroke:#e98a54;stroke-width:.5;stroke-linejoin:bevel"/><path d="m3.175 7.408 6.35 1.852" style="fill:none;stroke:#fff;stroke-width:1;stroke-linejoin:bevel"/><path d="m3.175 7.408 6.35 1.852" style="fill:none;stroke:#e98a54;stroke-width:.5;stroke-linejoin:bevel"/><circle cx="3.175" cy="7.408" r="1.852" style="fill:#fff"/><circle cx="3.175" cy="7.408" r="1.587" style="fill:#e98a54"/><g transform="translate(.265)"><circle cx="6.879" cy="2.91" r="1.587" style="fill:#fff"/><circle cx="6.879" cy="2.91" r="1.323" style="fill:#e98a54"/></g><circle cx="13.229" cy="4.233" r="1.323" style="fill:#fff"/><circle cx="13.229" cy="4.233" r="1.058" style="fill:#e98a54"/><circle cx="16.669" cy="7.938" r="1.323" style="fill:#fff"/><circle cx="16.669" cy="7.938" r="1.058" style="fill:#e98a54"/><g transform="translate(-.794 -.794)"><circle cx="10.319" cy="10.054" r="2.381" style="fill:#fff"/><circle cx="10.319" cy="10.054" r="2.117" style="fill:#e98a54"/></g></g></svg>
+		</div>
 		<div id="app" class="c-vbox"></div>
 		<script type="module" src="/assets-@VERSION@/index.js"></script>
 	</body>

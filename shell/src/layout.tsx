@@ -81,7 +81,7 @@ import { CommunityVerifyIdpBanner } from './context/verify-idp-banner.js'
 import { OnboardingRoutes } from './onboarding'
 import { WsBusRoot, useWsBus } from './ws-bus.js'
 import { SearchBar, useSearch } from './search.js'
-import { SettingsRoutes, setTheme } from './settings'
+import { SettingsRoutes, setTheme, applyTheme } from './settings'
 import { SiteAdminRoutes } from './site-admin'
 import { IdpRoutes } from './idp'
 import { AppRoutes } from './apps'
@@ -105,6 +105,12 @@ import '@symbion/opalui'
 import './themes/opaque.css'
 import './themes/glass.css'
 import './style.css'
+
+declare global {
+	interface Window {
+		__cloudilloBootStart?: number
+	}
+}
 
 // Truncate filename while preserving extension
 function truncateFileName(name: string, maxLen: number = 12): string {
@@ -477,7 +483,9 @@ function Header({ inert }: { inert?: boolean }) {
 					}
 				} catch (err) {
 					console.error('Failed to load UI settings:', err)
-					setTheme(undefined, undefined)
+					// Apply default theme without overwriting the user's persisted
+					// preference — the next successful settings fetch will refresh it.
+					applyTheme(undefined, undefined)
 					const navTo =
 						activeConfig?.menu
 							?.find((m) => m.id === activeConfig.defaultMenu)
@@ -594,21 +602,24 @@ function Header({ inert }: { inert?: boolean }) {
 						}
 
 						if (authState?.idTag) {
-							// Mark settings as applied for this idTag *before* awaiting so
-							// the `else if (api && auth)` branch on the next effect run does
-							// not redundantly re-apply them. setAuth is intentionally called
-							// before applyUiSettings: theme is a document.body side-effect
-							// (no extra render), and the menu/favorites atoms set inside
-							// applyUiSettings already cross an `await` boundary, so the
-							// order here only adds at most one inter-render gap.
-							setAuth(authState)
-							settingsAppliedForRef.current = authState.idTag
+							// Apply UI settings (theme, menu, favorites, IDP enabled, initial
+							// route) before flipping the auth gate open. The boot splash stays
+							// up until `setAuth` runs, so the user sees a single fade-in of a
+							// fully populated shell instead of a cascade of partial UIs.
+							// Mark settingsAppliedForRef *before* setAuth so the `else if (api
+							// && auth)` branch on the next effect run does not redundantly
+							// re-apply them.
 							await applyUiSettings(tempApi, authState)
+							settingsAppliedForRef.current = authState.idTag
+							setAuth(authState)
 							return
 						}
 
-						// Guest mode: signal auth resolved as unauthenticated
-						setTheme(undefined, undefined)
+						// Guest mode: signal auth resolved as unauthenticated.
+						// Apply only — preserve the previously authenticated user's
+						// persisted theme so a bounce through guest mode doesn't
+						// wipe their last preference from localStorage.
+						applyTheme(undefined, undefined)
 						setAuth(null)
 						settingsAppliedForRef.current = null
 						const guestRedirect = getGuestRedirect(location.pathname)
@@ -617,6 +628,11 @@ function Header({ inert }: { inert?: boolean }) {
 						}
 					} catch (err) {
 						console.error('Failed to fetch idTag:', err)
+						// Resolve the auth gate so the boot splash tears down and the
+						// user lands on the login screen (or the guest fallback) instead
+						// of staring at a white screen.
+						setAuth(null)
+						settingsAppliedForRef.current = null
 						// On error fetching idTag, redirect non-guest paths to login
 						if (!isGuestPath(location.pathname)) {
 							navigate('/login')
@@ -959,6 +975,28 @@ export function Layout() {
 		})
 	}, [])
 
+	// Tear down the inline boot splash (#initial-splash in index.html) once
+	// auth has resolved (success or guest) or the key-access error UI is taking
+	// over. A 250 ms minimum visible duration prevents a render-then-instant-teardown
+	// flash on warm cache hits.
+	React.useEffect(() => {
+		if (auth === undefined && !keyAccessError) return
+		const el = document.getElementById('initial-splash')
+		if (!el) return
+		const bootStart = window.__cloudilloBootStart ?? 0
+		const elapsed = performance.now() - bootStart
+		const delay = Math.max(0, 250 - elapsed)
+		let removeTimer: ReturnType<typeof setTimeout> | undefined
+		const fadeTimer = setTimeout(() => {
+			el.classList.add('fading')
+			removeTimer = setTimeout(() => el.remove(), 260)
+		}, delay)
+		return () => {
+			clearTimeout(fadeTimer)
+			if (removeTimer) clearTimeout(removeTimer)
+		}
+	}, [auth, keyAccessError])
+
 	// Load communities list from backend when authenticated
 	// (pinned communities are loaded from pre-fetched ui settings in Header)
 	React.useEffect(() => {
@@ -1033,6 +1071,12 @@ export function Layout() {
 			/>
 		)
 	}
+
+	// Note: while `auth === undefined`, the inline #initial-splash element in
+	// index.html (position: fixed; z-index: 10000) visually covers everything
+	// underneath. We intentionally do NOT return null here — Header owns the
+	// boot waterfall effect that calls setAuth, so it must mount on first
+	// render or the splash would stay up forever.
 
 	return (
 		<>

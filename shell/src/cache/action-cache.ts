@@ -31,10 +31,9 @@ export async function cacheActions(contextIdTag: string, actions: ActionView[]):
 	await putRecords(
 		STORE,
 		actions.map((a) => ({
-			indexFields: extractActionIndexFields(a),
+			indexFields: { ...extractActionIndexFields(a), contextIdTag },
 			payload: a,
-			cacheKey: `${contextIdTag}:${a.actionId}`,
-			contextIdTag
+			cacheKey: `${contextIdTag}:${a.actionId}`
 		}))
 	)
 }

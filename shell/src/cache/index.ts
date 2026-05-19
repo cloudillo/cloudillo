@@ -12,7 +12,7 @@ export type { CachedFetchResult } from './types.js'
 export { createCachedFileFetchPage, createCachedActionFetchPage } from './hooks.js'
 
 // Direct cache access
-export { cacheFiles, queryCachedFiles } from './file-cache.js'
+export { cacheFiles, queryCachedFiles, getCachedFile } from './file-cache.js'
 export { cacheActions, queryCachedActions } from './action-cache.js'
 export {
 	cacheProfile,

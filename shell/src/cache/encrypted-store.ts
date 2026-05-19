@@ -9,11 +9,14 @@
  * encrypted; index fields are stored in the clear for offline queries.
  */
 
-import { encryptJSON, decryptJSON } from './crypto.js'
+import { encryptJSON, decryptJSON, getSwKeyFromCookie } from './crypto.js'
 import type { CachedRecordBase, SyncMeta, StoreConfig, OfflineQuerySpec } from './types.js'
 
 const DB_NAME = 'cloudillo-data-cache'
-const DB_VERSION = 1
+// Bumped to 2 when the `files` store moved from viewer-context keying to
+// owner keying. The upgrade path drops and recreates the `files` store; cached
+// metadata is regenerated on first list call.
+const DB_VERSION = 2
 const MAX_CACHE_SIZE = 50 * 1024 * 1024 // 50MB approximate budget
 
 // Store configurations with their indexes
@@ -22,13 +25,13 @@ const STORE_CONFIGS: StoreConfig[] = [
 		name: 'files',
 		keyPath: '_cacheKey',
 		indexes: [
-			{ name: 'by-context', keyPath: 'contextIdTag' },
-			{ name: 'by-context-parent', keyPath: ['contextIdTag', 'parentId'] },
-			{ name: 'by-context-type', keyPath: ['contextIdTag', 'fileTp'] },
-			{ name: 'by-context-content-type', keyPath: ['contextIdTag', 'contentType'] },
-			{ name: 'by-context-starred', keyPath: ['contextIdTag', 'starred'] },
-			{ name: 'by-context-pinned', keyPath: ['contextIdTag', 'pinned'] },
-			{ name: 'by-context-created', keyPath: ['contextIdTag', 'createdAt'] },
+			{ name: 'by-owner', keyPath: 'ownerIdTag' },
+			{ name: 'by-owner-parent', keyPath: ['ownerIdTag', 'parentId'] },
+			{ name: 'by-owner-type', keyPath: ['ownerIdTag', 'fileTp'] },
+			{ name: 'by-owner-content-type', keyPath: ['ownerIdTag', 'contentType'] },
+			{ name: 'by-owner-starred', keyPath: ['ownerIdTag', 'starred'] },
+			{ name: 'by-owner-pinned', keyPath: ['ownerIdTag', 'pinned'] },
+			{ name: 'by-owner-created', keyPath: ['ownerIdTag', 'createdAt'] },
 			{ name: 'by-cachedAt', keyPath: 'cachedAt' }
 		]
 	},
@@ -63,11 +66,26 @@ let dbPromise: Promise<IDBDatabase> | null = null
 function openDB(): Promise<IDBDatabase> {
 	if (dbPromise) return dbPromise
 
+	// Refuse to create the database before the encryption key is available.
+	// Without this guard, pre-auth code paths would materialise an empty
+	// `cloudillo-data-cache` that the SW probe must then clean up.
+	if (!getSwKeyFromCookie()) {
+		return Promise.reject(new Error('Encrypted store unavailable: no encryption key'))
+	}
+
 	dbPromise = new Promise((resolve, reject) => {
 		const request = indexedDB.open(DB_NAME, DB_VERSION)
 
-		request.onupgradeneeded = () => {
+		request.onupgradeneeded = (event) => {
 			const db = request.result
+			const oldVersion = (event as IDBVersionChangeEvent).oldVersion
+
+			// v1 → v2: rekey the `files` store from viewer-context to owner.
+			// Index keypaths and the cache-key prefix changed, so drop and
+			// recreate. The cache repopulates on the next list call.
+			if (oldVersion < 2 && db.objectStoreNames.contains('files')) {
+				db.deleteObjectStore('files')
+			}
 
 			for (const config of STORE_CONFIGS) {
 				if (!db.objectStoreNames.contains(config.name)) {
@@ -95,14 +113,15 @@ function openDB(): Promise<IDBDatabase> {
 
 /**
  * Put a record into a store. The payload field of `data` is encrypted
- * before writing; index fields are written in the clear.
+ * before writing; index fields are written in the clear. The caller is
+ * responsible for including any scoping field (`contextIdTag` for
+ * action/profile stores, `ownerIdTag` for the file store) in indexFields.
  */
 export async function putRecord<T>(
 	storeName: string,
 	indexFields: Record<string, unknown>,
 	payload: T,
-	cacheKey: string,
-	contextIdTag: string
+	cacheKey: string
 ): Promise<void> {
 	const encPayload = await encryptJSON(payload)
 	if (!encPayload) return // Encryption unavailable — don't store unencrypted
@@ -110,7 +129,6 @@ export async function putRecord<T>(
 	const record = {
 		...indexFields,
 		_cacheKey: cacheKey,
-		contextIdTag,
 		_encPayload: encPayload,
 		cachedAt: Date.now()
 	}
@@ -133,18 +151,16 @@ export async function putRecords<T>(
 		indexFields: Record<string, unknown>
 		payload: T
 		cacheKey: string
-		contextIdTag: string
 	}>
 ): Promise<void> {
 	const records = await Promise.all(
-		items.map(async ({ indexFields, payload, cacheKey, contextIdTag }) => {
+		items.map(async ({ indexFields, payload, cacheKey }) => {
 			const encPayload = await encryptJSON(payload)
 			if (!encPayload) return null
 
 			return {
 				...indexFields,
 				_cacheKey: cacheKey,
-				contextIdTag,
 				_encPayload: encPayload,
 				cachedAt: Date.now()
 			}
@@ -170,7 +186,12 @@ export async function putRecords<T>(
  * Get a single record by cache key and decrypt its payload.
  */
 export async function getRecord<T>(storeName: string, cacheKey: string): Promise<T | null> {
-	const db = await openDB()
+	let db: IDBDatabase
+	try {
+		db = await openDB()
+	} catch {
+		return null
+	}
 	return new Promise((resolve, reject) => {
 		const tx = db.transaction(storeName, 'readonly')
 		const request = tx.objectStore(storeName).get(cacheKey)
@@ -195,7 +216,12 @@ export async function queryRecords<T>(
 	query: OfflineQuerySpec,
 	limit?: number
 ): Promise<T[]> {
-	const db = await openDB()
+	let db: IDBDatabase
+	try {
+		db = await openDB()
+	} catch {
+		return []
+	}
 
 	return new Promise((resolve, reject) => {
 		const tx = db.transaction(storeName, 'readonly')
@@ -320,10 +346,17 @@ export async function evictIfNeeded(protectedContext?: string): Promise<void> {
 					return
 				}
 
-				const record = cursor.value as CachedRecordBase & { fileTp?: string }
+				const record = cursor.value as CachedRecordBase & {
+					fileTp?: string
+					ownerIdTag?: string
+				}
 
-				// Skip active context
-				if (protectedContext && record.contextIdTag === protectedContext) {
+				// Skip active context. Files are owner-keyed (protect when
+				// the active context equals the file's owner — covers personal
+				// files in personal context and community files in their
+				// community context); other stores remain viewer-scoped.
+				const scopeId = storeName === 'files' ? record.ownerIdTag : record.contextIdTag
+				if (protectedContext && scopeId === protectedContext) {
 					cursor.continue()
 					return
 				}
@@ -359,8 +392,8 @@ export async function evictIfNeeded(protectedContext?: string): Promise<void> {
 				return
 			}
 
-			const record = cursor.value as CachedRecordBase
-			if (protectedContext && record.contextIdTag === protectedContext) {
+			const record = cursor.value as CachedRecordBase & { ownerIdTag?: string }
+			if (protectedContext && record.ownerIdTag === protectedContext) {
 				cursor.continue()
 				return
 			}

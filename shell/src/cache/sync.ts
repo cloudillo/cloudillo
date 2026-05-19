@@ -32,10 +32,15 @@ function enqueueWrite(fn: () => Promise<void>): void {
 
 /**
  * Cache files in the background (non-blocking).
+ *
+ * Files are keyed in the cache by the owner's idTag (see file-cache.ts).
+ * The `fallbackOwnerIdTag` parameter is used only when an API response
+ * comes back without an `owner` field — pass the active viewing context
+ * as the fallback for backwards compatibility.
  */
-export function cacheFilesAsync(contextIdTag: string, files: FileView[]): void {
+export function cacheFilesAsync(fallbackOwnerIdTag: string, files: FileView[]): void {
 	if (files.length === 0) return
-	enqueueWrite(() => cacheFiles(contextIdTag, files))
+	enqueueWrite(() => cacheFiles(fallbackOwnerIdTag, files))
 }
 
 /**

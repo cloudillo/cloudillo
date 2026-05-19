@@ -26,10 +26,9 @@ export function prefetchProfilePic(idTag: string, profilePicFileId: string): voi
 export async function cacheProfile(contextIdTag: string, profile: ProfileInfo): Promise<void> {
 	await putRecord(
 		STORE,
-		{ idTag: profile.idTag },
+		{ idTag: profile.idTag, contextIdTag },
 		profile,
-		`${contextIdTag}:${profile.idTag}`,
-		contextIdTag
+		`${contextIdTag}:${profile.idTag}`
 	)
 
 	// Proactively cache profile picture for offline use

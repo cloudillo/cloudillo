@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 declare const self: ServiceWorkerGlobalScope
 
 // Extended cookie options (secure/sameSite/expires not fully typed in TS lib)
@@ -325,7 +328,8 @@ async function setKeyToCookie(key: string): Promise<boolean> {
 			expires: Date.now() + 2147483647 * 1000 // ~68 years (max)
 		} as CookieSetExtOptions)
 		return true
-	} catch {
+	} catch (err) {
+		console.error('[SW] setKeyToCookie failed:', err)
 		return false
 	}
 }
@@ -441,15 +445,44 @@ async function deleteItem(key: string) {
 	})
 }
 
-// Check if encrypted data exists in storage (used to prevent key regeneration)
+// Check if encrypted data exists in storage (used to prevent key regeneration).
+// Inspects the SW's own secrets store plus the two main-thread encrypted
+// IndexedDB databases (`cloudillo-crdt`, `cloudillo-data-cache`) via the
+// side-effect-free `indexedDB.databases()` enumeration — no open, no
+// phantom-DB creation, so concurrent calls are inherently safe.
 async function hasEncryptedData(): Promise<boolean> {
 	try {
 		const authToken = (await getItem('authToken')) as string | undefined
 		const apiKey = (await getItem('apiKey')) as string | undefined
-		return (authToken?.startsWith('enc:') || apiKey?.startsWith('enc:')) ?? false
+		if (authToken?.startsWith('enc:') || apiKey?.startsWith('enc:')) return true
+
+		if (typeof indexedDB.databases !== 'function') {
+			// Old browser without the enumeration API. Be safe: if we got
+			// here, SW secrets were empty, but we can't cheaply confirm the
+			// main-thread DBs are also empty. Assume yes so we don't mint a
+			// key that would shadow real data. The user can recover via the
+			// wipe flow.
+			return true
+		}
+
+		const dbs = await indexedDB.databases()
+		const names = new Set(dbs.map((d) => d.name))
+		if (names.has('cloudillo-crdt') || names.has('cloudillo-data-cache')) return true
+
+		return false
 	} catch {
 		return false
 	}
+}
+
+// Best-effort IndexedDB deletion; resolves regardless of outcome.
+function deleteDatabase(name: string): Promise<void> {
+	return new Promise((resolve) => {
+		const req = indexedDB.deleteDatabase(name)
+		req.onsuccess = () => resolve()
+		req.onerror = () => resolve()
+		req.onblocked = () => resolve()
+	})
 }
 
 /**************/
@@ -564,6 +597,63 @@ const proxyTokenCache = new LRU<string, string>({ maxSize: 100, maxAge: 1000 * 5
 let idTag: string | undefined
 let authToken: string | undefined
 
+// Wait-for-token: when onFetch finds no authToken and broadcasts a
+// `sw:token.request`, requests can await this promise (bounded) to
+// see if a fresh `sw:token.set` arrives from a window client before
+// they have to give up and proceed unauthenticated.
+let tokenWaiters: Array<() => void> = []
+
+function notifyTokenReceived(): void {
+	if (tokenWaiters.length === 0) return
+	const waiters = tokenWaiters
+	tokenWaiters = []
+	for (const resolve of waiters) resolve()
+}
+
+async function waitForToken(timeoutMs: number): Promise<boolean> {
+	// Single-threaded JS: the early-return and tokenWaiters.push() below cannot
+	// race with a sw:token.set handler — the handler can only run at the next
+	// await boundary, by which point we've either returned or registered.
+	if (authToken) return true
+	return await new Promise<boolean>((resolve) => {
+		const onResolve = () => {
+			clearTimeout(t)
+			resolve(true)
+		}
+		const t = setTimeout(() => {
+			tokenWaiters = tokenWaiters.filter((r) => r !== onResolve)
+			resolve(false)
+		}, timeoutMs)
+		tokenWaiters.push(onResolve)
+	})
+}
+
+async function requestTokenFromClients(): Promise<void> {
+	const clients = await self.clients.matchAll({ type: 'window' })
+	if (clients.length === 0) return
+	for (const client of clients) {
+		client.postMessage({
+			cloudillo: true,
+			v: PROTOCOL_VERSION,
+			type: 'sw:token.request'
+		})
+	}
+	log && console.log('[SW] sw:token.request broadcast to', clients.length, 'clients')
+}
+
+// Coalesce concurrent token requests behind a single in-flight broadcast so
+// N parallel cl-o.* fetches after an SW restart don't trigger N postMessages
+// to each window client.
+let tokenRequestInFlight: Promise<void> | undefined
+function requestTokenOnce(): Promise<void> {
+	if (!tokenRequestInFlight) {
+		tokenRequestInFlight = requestTokenFromClients().finally(() => {
+			tokenRequestInFlight = undefined
+		})
+	}
+	return tokenRequestInFlight
+}
+
 function onInstall(evt: ExtendableEvent) {
 	evt.waitUntil(
 		(async function () {
@@ -598,6 +688,11 @@ function onActivate(evt: ExtendableEvent) {
 					authToken = persistedToken
 					log && console.log('[SW] Loaded persisted auth token')
 				}
+				// No persisted token (no-remember-me session): the onFetch path
+				// triggers requestTokenOnce() when an authed request actually
+				// needs the token. Broadcasting during activate is unreliable —
+				// clients.matchAll typically returns [] before clients.claim()
+				// resolves, so the message would be dropped.
 			}
 
 			await self.clients.claim()
@@ -661,11 +756,29 @@ function onFetch(evt: FetchEvent) {
 					log && console.log('[SW] authToken missing, loading from storage')
 					if (!fetchAuthTokenPromise) fetchAuthTokenPromise = getSecureItem('authToken')
 					const persistedToken = await fetchAuthTokenPromise
-					if (persistedToken) {
+					fetchAuthTokenPromise = undefined
+					// Only adopt the persisted token if no fresher in-memory
+					// token arrived (via sw:token.set) while we awaited IDB —
+					// otherwise we'd clobber the newer token with a stale one
+					// and the next request would carry an expired credential.
+					if (persistedToken && !authToken) {
 						authToken = persistedToken
 						log && console.log('[SW] Loaded persisted auth token in fetch handler')
 					}
-					fetchAuthTokenPromise = undefined
+				}
+
+				// If still no token (no-remember-me + SW restart), ask the page
+				// for it. Bounded wait so we don't hang requests when the page
+				// genuinely is unauthenticated.
+				if (!authToken) {
+					void requestTokenOnce()
+					const got = await waitForToken(1500)
+					if (got) {
+						log && console.log('[SW] Token recovered from page after restart')
+					} else {
+						log &&
+							console.log('[SW] Token request to page timed out; proceeding unauth')
+					}
 				}
 
 				if (idTag && reqUrl.hostname == 'cl-o.' + idTag) {
@@ -710,6 +823,7 @@ function onFetch(evt: FetchEvent) {
 							if (j.data?.token) {
 								log && console.log('[SW] OWN RES TOKEN')
 								authToken = j.data.token as string
+								notifyTokenReceived()
 								// Only persist if API key exists (= "stay logged in")
 								if (await getItem('apiKey')) {
 									await setSecureItem('authToken', authToken)
@@ -956,12 +1070,17 @@ function onNotificationClick(evt: NotificationEvent) {
 async function onMessage(evt: MessageEvent) {
 	const msg = evt.data
 	if (!isValidSwMessage(msg)) return
+	// Defense-in-depth: today iframe apps can't reach the SW (sandbox blocks
+	// it without allow-same-origin), but a future page or extension code-path
+	// could. Reject anything that isn't from our own origin.
+	if (evt.origin && evt.origin !== self.origin) return
 
 	log && console.log('[SW] Received:', msg.type)
 
 	switch (msg.type) {
 		case 'sw:token.set':
 			authToken = (msg.payload as { token: string }).token
+			notifyTokenReceived()
 			// Only persist to IndexedDB if an API key exists (= "stay logged in")
 			if (await getItem('apiKey')) {
 				await setSecureItem('authToken', authToken)
@@ -1016,9 +1135,16 @@ async function onMessage(evt: MessageEvent) {
 			await deleteItem('authToken')
 			await deleteItem('apiKey')
 			await clearBlobCache()
+			await deleteDatabase('cloudillo-crdt')
+			await deleteDatabase('cloudillo-data-cache')
 			keyErrorState = null // Clear error state
 			cryptoKey = null // Clear cached key
 			cachedKeyString = null // Clear cached key from postMessage
+			// Drop in-memory auth state too — otherwise the SW would keep
+			// authorising fetches with the just-wiped session's token.
+			authToken = undefined
+			idTag = undefined
+			proxyTokenCache.clear()
 			log && console.log('[SW] Encrypted data cleared for key reset')
 			// Send acknowledgment back to main thread
 			if (evt.source && 'postMessage' in evt.source) {

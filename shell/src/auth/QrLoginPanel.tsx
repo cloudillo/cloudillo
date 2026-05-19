@@ -19,7 +19,7 @@ import {
 import { useAuth, useApi, Button } from '@cloudillo/react'
 
 import { useLoginInit } from './auth.js'
-import { registerServiceWorker, ensureEncryptionKey } from '../pwa.js'
+import { installToken } from '../pwa.js'
 
 type PanelState = 'loading' | 'showing' | 'approved' | 'denied' | 'expired' | 'error'
 
@@ -85,8 +85,7 @@ export function QrLoginPanel() {
 							setState('approved')
 
 							// Complete login
-							await registerServiceWorker(result.login.token)
-							await ensureEncryptionKey()
+							await installToken(result.login.token)
 							setAuth({
 								tnId: result.login.tnId,
 								idTag: result.login.idTag,

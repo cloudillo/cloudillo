@@ -83,6 +83,22 @@ summary:focus-visible {
 	background: var(--col-bg);
 }
 
+.c-logout-dialog__card {
+	max-width: 520px;
+}
+
+.c-logout-dialog__list {
+	max-height: 30vh;
+	overflow-y: auto;
+	border: 1px solid var(--col-container);
+	border-radius: 4px;
+	list-style: none;
+}
+
+.c-logout-dialog__placeholder-name {
+	font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
+
 p {
 	margin: 0;
 	padding: 0;

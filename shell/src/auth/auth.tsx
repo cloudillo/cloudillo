@@ -30,7 +30,7 @@ import { validPassword } from './utils.js'
 import { ResetPassword } from './reset-password.js'
 import { IdpActivate } from './idp-activate.js'
 import { QrLoginPanel } from './QrLoginPanel.js'
-import { registerServiceWorker, ensureEncryptionKey, setApiKey } from '../pwa.js'
+import { installToken, setApiKey } from '../pwa.js'
 
 // ============================================================================
 // Login Init Context — shares pre-fetched QR + WebAuthn data with login page
@@ -80,8 +80,7 @@ export async function webAuthnLogin(api: ApiClient): Promise<AuthState | undefin
 		})
 
 		// Set up SW with token
-		await registerServiceWorker(result.token)
-		await ensureEncryptionKey()
+		await installToken(result.token)
 
 		return result
 	} catch (err) {
@@ -156,11 +155,19 @@ export function LoginForm() {
 						token: challengeData.token,
 						response
 					})
-					await registerServiceWorker(result.token)
-					await ensureEncryptionKey()
 					setAuth(result)
+					// Push the fresh token into the cached ApiClient *now* —
+					// the auth-effect that mirrors auth state into the client
+					// hasn't run yet at this point in the same microtask.
+					api.setAuthToken(result.token)
 
+					// Mint the encryption-key cookie BEFORE handing the token
+					// to the SW: on Firefox/Safari the SW relies on the cookie
+					// to encrypt the stored token, and on a fresh login no
+					// cookie exists yet.
 					if (remember) await createRememberMeKey(api)
+
+					await installToken(result.token)
 				} catch (_err) {
 					console.log('WebAuthn auto-login not available')
 				}
@@ -184,13 +191,21 @@ export function LoginForm() {
 			})
 			const authState: AuthState = { ...loginResult }
 			setAuth(authState)
-			// Token is stored in SW encrypted storage via registerServiceWorker()
+			// Push the fresh token into the cached ApiClient *now* — the
+			// auth-effect that mirrors auth state into the client hasn't run
+			// yet at this point in the same microtask, so createRememberMeKey
+			// below would otherwise hit the API with a stale (null) token.
+			api.setAuthToken(loginResult.token)
 
-			// Set up SW with token
-			await registerServiceWorker(loginResult.token)
-			await ensureEncryptionKey()
-
+			// Mint the encryption-key cookie BEFORE handing the token to the
+			// SW. On Firefox/Safari (no Cookie Store API) the SW reads the
+			// swKey cookie to encrypt the token before persisting it; on a
+			// fresh login that cookie is minted only inside setApiKey, which
+			// runs as part of createRememberMeKey.
 			if (remember) await createRememberMeKey(api)
+
+			// Token is stored in SW encrypted storage via installToken()
+			await installToken(loginResult.token)
 		} catch (err: unknown) {
 			console.error('Login failed:', err)
 			setError(err instanceof Error ? err.message : 'Login failed')
@@ -380,7 +395,7 @@ export function WebAuth({ idTag: _idTag }: WebAuthProps) {
 		const result = await webAuthnLogin(api)
 		if (result) {
 			setAuth(result)
-			// Token is stored in SW encrypted storage via registerServiceWorker()
+			// Token is stored in SW encrypted storage via installToken()
 		}
 	}
 

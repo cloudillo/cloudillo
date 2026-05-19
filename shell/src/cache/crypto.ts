@@ -9,7 +9,34 @@
  * encrypt/decrypt helpers.
  */
 
+import { hadEncryptedData, markHadEncryptedData, signalKeyError } from '../pwa.js'
+
 let cryptoKey: CryptoKey | null = null
+let keyMissingSignaled = false
+
+// Fire the global key-access error signal at most once per page load.
+// Suppressed when we have no record of prior encrypted writes — otherwise
+// boot/login windows where the cookie hasn't been minted yet would trigger
+// a spurious dialog (and loop, since the dialog's reset path goes through
+// the same code on reload). The guard keeps the hot encrypt/decrypt
+// paths cheap.
+function maybeSignalKeyMissing(): void {
+	if (keyMissingSignaled) return
+	if (!hadEncryptedData()) return
+	keyMissingSignaled = true
+	signalKeyError('key_missing')
+}
+
+/**
+ * Reset the page-lifetime latches that suppress the KeyAccessError dialog.
+ * Called after a successful logout/wipe so a later sign-in that loses its
+ * swKey cookie can still surface the dialog (without this, the dialog only
+ * fires on the very first lost-key event per page load).
+ */
+export function resetKeyErrorState(): void {
+	keyMissingSignaled = false
+	cryptoKey = null
+}
 
 export function getSwKeyFromCookie(): string | null {
 	const match = document.cookie.match(/(?:^|;\s*)swKey=([^;]+)/)
@@ -20,7 +47,10 @@ export async function initCryptoKey(): Promise<CryptoKey | null> {
 	if (cryptoKey) return cryptoKey
 
 	const keyString = getSwKeyFromCookie()
-	if (!keyString) return null
+	if (!keyString) {
+		maybeSignalKeyMissing()
+		return null
+	}
 
 	try {
 		const padding = '='.repeat((4 - (keyString.length % 4)) % 4)
@@ -51,6 +81,9 @@ export async function encryptBinary(data: Uint8Array): Promise<ArrayBuffer | nul
 	const view = new Uint8Array(combined)
 	view.set(iv)
 	view.set(new Uint8Array(ciphertext), iv.length)
+	// Track that real encrypted data exists, so a future missing-cookie
+	// episode is recognized as a true error rather than fresh-state noise.
+	markHadEncryptedData()
 	return combined
 }
 
@@ -66,6 +99,15 @@ export async function decryptBinary(encrypted: ArrayBuffer): Promise<Uint8Array 
 		return new Uint8Array(decrypted)
 	} catch (err) {
 		console.error('[Cache] Decryption failed:', err)
+		// Only treat as a key error if the ciphertext is well-formed; malformed
+		// bytes (truncation, old-format records) shouldn't latch the global
+		// dialog and disable encrypted I/O for the rest of the page lifetime.
+		// AES-GCM requires at least the 12-byte IV plus a 16-byte auth tag.
+		const wellFormed = encrypted.byteLength >= 28
+		if (wellFormed && !keyMissingSignaled) {
+			keyMissingSignaled = true
+			signalKeyError('key_mismatch')
+		}
 		return null
 	}
 }

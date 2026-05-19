@@ -11,7 +11,7 @@ import { useApi, useAuth, Button } from '@cloudillo/react'
 import { FetchError } from '@cloudillo/core'
 import { PasswordInput, PasswordStrengthBar } from '../components/PasswordInput.js'
 import type { IdpStatusResponse } from '@cloudillo/core'
-import { registerServiceWorker, ensureEncryptionKey } from '../pwa.js'
+import { installToken } from '../pwa.js'
 import { CloudilloLogo } from '../logo.js'
 import { VerifyIdpContent, type ResendState } from './verify-idp-content.js'
 
@@ -166,8 +166,7 @@ export function Welcome() {
 			})
 			// Register SW with token (like login does)
 			if (res.token) {
-				await registerServiceWorker(res.token)
-				await ensureEncryptionKey()
+				await installToken(res.token)
 			}
 
 			setProgress('success')

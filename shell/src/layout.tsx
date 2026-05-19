@@ -47,16 +47,20 @@ import { useAtomValue, useSetAtom } from 'jotai'
 import { useAppConfig } from './utils.js'
 import usePWA, {
 	registerServiceWorker,
-	ensureEncryptionKey,
+	refreshEncryptionKey,
+	installToken,
 	getApiKey,
 	deleteApiKey,
 	clearAuthToken,
-	cleanupEncryptionCookie,
 	onKeyAccessError,
+	getLastKeyError,
+	setCurrentAuthToken,
 	resetEncryptionState,
 	type KeyErrorReason
 } from './pwa.js'
 import { AuthRoutes, loginInitAtom } from './auth/auth.js'
+import { LogoutDialog } from './auth/LogoutDialog.js'
+import { listDirtyDocs, wipeLocalData, type DirtyDocSummary } from './auth/wipe-local-data.js'
 import { useTokenRenewal } from './auth/useTokenRenewal.js'
 import { useContextTokenRenewal, useProfileTrustBootstrap } from './context/index.js'
 import { useActionNotifications } from './notifications/useActionNotifications.js'
@@ -361,19 +365,39 @@ function Header({ inert }: { inert?: boolean }) {
 			})
 	})
 
-	async function doLogout() {
-		if (!api) throw new Error('Not authenticated')
-		const apiKey = await getApiKey()
-		await api.auth.logout({ apiKey })
+	const [logoutDialogOpen, setLogoutDialogOpen] = React.useState(false)
+	const [logoutDirtyDocs, setLogoutDirtyDocs] = React.useState<DirtyDocSummary[]>([])
+
+	async function requestLogout() {
+		setMenuOpen(false)
+		const dirty = await listDirtyDocs().catch((err) => {
+			console.error('[Logout] failed to list dirty docs:', err)
+			return [] as DirtyDocSummary[]
+		})
+		setLogoutDirtyDocs(dirty)
+		setLogoutDialogOpen(true)
+	}
+
+	async function performLogout() {
+		setLogoutDialogOpen(false)
+		try {
+			if (api) {
+				const apiKey = await getApiKey()
+				await api.auth
+					.logout({ apiKey })
+					.catch((err) => console.error('[Logout] server logout failed:', err))
+			}
+		} catch (err) {
+			console.error('[Logout] server logout failed:', err)
+		}
+		// Wipe local state regardless of server-side outcome — the user has
+		// asked to sign out, and a network failure shouldn't trap their data
+		// on-device.
 		setAuth(null)
 		settingsAppliedForRef.current = null
-		await clearAuthToken()
-		await deleteApiKey()
-		// Clean up encryption cookie if this was a temporary session (no API key)
-		if (!apiKey) {
-			cleanupEncryptionCookie()
-		}
-		setMenuOpen(false)
+		await clearAuthToken().catch(() => {})
+		await deleteApiKey().catch(() => {})
+		await wipeLocalData()
 		navigate('/login')
 	}
 
@@ -476,10 +500,27 @@ function Header({ inert }: { inert?: boolean }) {
 						// Ensure SW is registered and controlling (for hard reload scenarios)
 						await registerServiceWorker()
 						// Relay encryption key to SW before accessing secrets (Firefox/Safari)
-						await ensureEncryptionKey()
+						await refreshEncryptionKey()
 
 						// Try to get API key from SW encrypted storage
 						const storedApiKey = await getApiKey()
+
+						// If the SW already signalled that the swKey cookie is
+						// missing (or mismatched) but encrypted data exists,
+						// `getApiKey()` returns undefined. Falling through to
+						// the unauthenticated path here would render the login
+						// screen for a split second before the KeyAccessError
+						// dialog mounts, looking exactly like an unexplained
+						// logout. Stop early — the onKeyAccessError effect
+						// renders the dialog and the user can recover from there.
+						if (storedApiKey === undefined && getLastKeyError()) {
+							console.warn(
+								'[Layout] Halting auth flow — SW reported key error:',
+								getLastKeyError()
+							)
+							return
+						}
+
 						const res = await fetch(
 							`https://${window.location.host}/.well-known/cloudillo/id-tag`
 						)
@@ -512,8 +553,7 @@ function Header({ inert }: { inert?: boolean }) {
 									const initResult = await authApi.auth.loginInit()
 									if (initResult.status === 'authenticated') {
 										authState = { ...initResult.login }
-										await registerServiceWorker(initResult.login.token)
-										await ensureEncryptionKey()
+										await installToken(initResult.login.token)
 									}
 								}
 							} catch (err) {
@@ -535,8 +575,7 @@ function Header({ inert }: { inert?: boolean }) {
 								const initResult = await tempApi.auth.loginInit()
 								if (initResult.status === 'authenticated') {
 									authState = { ...initResult.login }
-									await registerServiceWorker(initResult.login.token)
-									await ensureEncryptionKey()
+									await installToken(initResult.login.token)
 								} else {
 									// Store QR + WebAuthn data for login page
 									setLoginInitData({
@@ -682,7 +721,7 @@ function Header({ inert }: { inert?: boolean }) {
 									<hr className="w-100" />
 								</li>
 								<li>
-									<Button kind="nav-item" onClick={doLogout}>
+									<Button kind="nav-item" onClick={requestLogout}>
 										<IcLogout />
 										{t('Logout')}
 									</Button>
@@ -780,6 +819,13 @@ function Header({ inert }: { inert?: boolean }) {
 			<BusinessCardDialog
 				open={businessCardOpen}
 				onClose={() => setBusinessCardOpen(false)}
+			/>
+			<LogoutDialog
+				open={logoutDialogOpen}
+				idTag={auth?.idTag}
+				dirtyDocs={logoutDirtyDocs}
+				onCancel={() => setLogoutDialogOpen(false)}
+				onConfirm={performLogout}
 			/>
 		</>
 	)
@@ -898,6 +944,13 @@ export function Layout() {
 	useContextTokenRenewal() // Proactive proxy-token renewal for trusted foreign profiles
 	useProfileTrustBootstrap() // Seed persisted per-profile trust from the backend
 	useActionNotifications() // Sound and toast notifications for incoming actions
+
+	React.useEffect(
+		function syncAuthTokenToSw() {
+			setCurrentAuthToken(auth?.token)
+		},
+		[auth?.token]
+	)
 
 	// Listen for key access errors from service worker
 	React.useEffect(() => {

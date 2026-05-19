@@ -12,11 +12,13 @@ import {
 	LuStar as IcStar,
 	LuInfo as IcInfo,
 	LuPin as IcPin,
-	LuCloudOff as IcUnsyncedEdit
+	LuCloudOff as IcUnsyncedEdit,
+	LuFolder as IcFolder
 } from 'react-icons/lu'
 
 import { useAuth, InlineEditForm, Tag, ProfilePicture, mergeClasses } from '@cloudillo/react'
 
+import { useCurrentContextIdTag } from '../../../context/index.js'
 import { getFileIcon, type IcUnknown } from '../icons.js'
 import type { File, FileOps, ViewMode } from '../types.js'
 import { TRASH_FOLDER_ID } from '../types.js'
@@ -34,6 +36,7 @@ interface ItemCardProps {
 	renameFileName?: string
 	fileOps: FileOps
 	viewMode?: ViewMode
+	showParentChip?: boolean
 }
 
 export const ItemCard = React.memo(function ItemCard({
@@ -47,10 +50,12 @@ export const ItemCard = React.memo(function ItemCard({
 	renameFileId,
 	renameFileName,
 	fileOps,
-	viewMode = 'browse'
+	viewMode = 'browse',
+	showParentChip = false
 }: ItemCardProps) {
 	const [_auth] = useAuth()
 	const { t } = useTranslation()
+	const contextIdTag = useCurrentContextIdTag()
 
 	const isFolder = file.fileTp === 'FLDR'
 	const isInTrash = viewMode === 'trash' || file.parentId === TRASH_FOLDER_ID
@@ -182,35 +187,54 @@ export const ItemCard = React.memo(function ItemCard({
 					)}
 				</div>
 
-				{/* Meta line: smart timestamp, visibility, and owner */}
+				{/* Meta line: smart timestamp, parent chip, owner, visibility */}
 				<div className="c-file-card-meta">
 					<span className="c-file-card-meta-date">
 						{smartTimestamp.label && (
-							<span className="text-muted">{t(smartTimestamp.label)} </span>
+							<span className="c-file-card-meta-label">
+								{t(smartTimestamp.label)}{' '}
+							</span>
 						)}
 						{smartTimestamp.time}
 					</span>
-					{/* Visibility badge */}
-					{(() => {
-						const VisibilityIcon = getVisibilityIcon(file.visibility ?? null)
-						return (
-							<span
-								className="c-file-card-visibility"
-								title={getVisibilityLabel(t, file.visibility ?? null)}
-							>
-								<VisibilityIcon />
-							</span>
-						)
-					})()}
-					{(() => {
-						const attribution = file.creator || file.owner
-						return attribution ? (
-							<>
-								<ProfilePicture profile={attribution} tiny />
-								<span>{attribution.name || `@${attribution.idTag}`}</span>
-							</>
-						) : null
-					})()}
+					{showParentChip && file.parentName && (
+						<span className="c-file-card-meta-parent" title={file.parentName}>
+							<IcFolder /> <span className="text-truncate">{file.parentName}</span>
+						</span>
+					)}
+					<span className="c-file-card-meta-right">
+						{(() => {
+							// Suppress owner/creator chip when it matches the active
+							// context — the user already knows it's theirs, and the
+							// repeated chip on every row adds noise to own-files lists.
+							const attribution = file.creator || file.owner
+							if (!attribution) return null
+							if (attribution.idTag === contextIdTag) return null
+							return (
+								<span className="c-file-card-meta-owner">
+									<ProfilePicture profile={attribution} tiny />
+									<span className="text-truncate">
+										{attribution.name || `@${attribution.idTag}`}
+									</span>
+								</span>
+							)
+						})()}
+						{(() => {
+							const VisibilityIcon = getVisibilityIcon(file.visibility ?? null)
+							const isDirect = !file.visibility || file.visibility === 'D'
+							return (
+								<span
+									className={mergeClasses(
+										'c-file-card-visibility',
+										isDirect && 'muted'
+									)}
+									title={getVisibilityLabel(t, file.visibility ?? null)}
+								>
+									<VisibilityIcon />
+								</span>
+							)
+						})()}
+					</span>
 				</div>
 
 				{/* Tags (read-only on card) */}

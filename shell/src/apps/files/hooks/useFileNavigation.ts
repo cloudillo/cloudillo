@@ -8,8 +8,8 @@ import type { ApiClient } from '@cloudillo/core'
 import { useCurrentContextIdTag } from '../../../context/index.js'
 import { useApiContext, useContextAwareApi } from '../../../context/index.js'
 import type { File, ViewMode } from '../types.js'
-import { TRASH_FOLDER_ID } from '../types.js'
-import { viewModeAtom, fileNavStackAtom } from '../atoms.js'
+import { TRASH_FOLDER_ID, VIEW_MODES } from '../types.js'
+import { fileNavStackAtom } from '../atoms.js'
 
 export interface BreadcrumbItem {
 	id: string | null
@@ -26,7 +26,6 @@ export function useFileNavigation() {
 	const { getTokenFor, getClientFor } = useApiContext()
 	const contextIdTag = useCurrentContextIdTag()
 	const [breadcrumbs, setBreadcrumbs] = React.useState<BreadcrumbItem[]>([])
-	const [viewMode, setViewMode] = useAtom(viewModeAtom)
 	const [navStack, setNavStack] = useAtom(fileNavStackAtom)
 	const [remoteApi, setRemoteApi] = React.useState<ApiClient | null>(null)
 	const [remoteAccessLevel, setRemoteAccessLevel] = React.useState<'read' | 'write' | undefined>()
@@ -36,6 +35,11 @@ export function useFileNavigation() {
 	const remoteOwner = searchParams.get('remoteOwner') || null
 	const shareRoot = searchParams.get('shareRoot') || null
 	const isRemoteBrowsing = !!remoteOwner
+	const viewParam = searchParams.get('view')
+	const viewMode: ViewMode =
+		viewParam && (VIEW_MODES as readonly string[]).includes(viewParam)
+			? (viewParam as ViewMode)
+			: 'browse'
 
 	const canGoBack = navStack.length > 0
 
@@ -75,7 +79,12 @@ export function useFileNavigation() {
 		function syncNavStackOnPop() {
 			if (navigationType !== 'POP') return
 
-			const currentState = { parentId: currentFolderId, remoteOwner, shareRoot }
+			const currentState = {
+				parentId: currentFolderId,
+				remoteOwner,
+				shareRoot,
+				view: viewMode
+			}
 			setNavStack((prev) => {
 				// Find the last matching entry (iterate from end)
 				let idx = -1
@@ -84,7 +93,8 @@ export function useFileNavigation() {
 					if (
 						entry.parentId === currentState.parentId &&
 						entry.remoteOwner === currentState.remoteOwner &&
-						entry.shareRoot === currentState.shareRoot
+						entry.shareRoot === currentState.shareRoot &&
+						(entry.view ?? 'browse') === currentState.view
 					) {
 						idx = i
 						break
@@ -96,7 +106,7 @@ export function useFileNavigation() {
 				return []
 			})
 		},
-		[navigationType, currentFolderId, remoteOwner, shareRoot]
+		[navigationType, currentFolderId, remoteOwner, shareRoot, viewMode]
 	)
 
 	// Build breadcrumb path when folder changes
@@ -176,7 +186,6 @@ export function useFileNavigation() {
 
 	const navigateToFolder = React.useCallback(
 		function (folderId: string | null) {
-			setViewMode('browse')
 			const params = new URLSearchParams()
 			if (folderId) {
 				params.set('parentId', folderId)
@@ -192,14 +201,28 @@ export function useFileNavigation() {
 
 	const navigateToView = React.useCallback(
 		function (mode: ViewMode) {
-			setViewMode(mode)
+			// Same-view re-click (e.g. Recent → Recent from the side nav) is
+			// a no-op; pushing the current location would bloat the back
+			// stack with duplicates.
+			if (mode === viewMode) return
+			// Push current location onto the nav stack so the in-app back
+			// arrow returns to the originating folder/share — without this,
+			// switching from a deep folder to Recent/Starred/Trash and pressing
+			// back would silently drop the user at root.
+			setNavStack((prev) => [
+				...prev,
+				{
+					parentId: currentFolderId,
+					remoteOwner,
+					shareRoot,
+					view: viewMode
+				}
+			])
 			const params = new URLSearchParams()
-			if (mode === 'trash') {
-				params.set('parentId', TRASH_FOLDER_ID)
-			}
+			if (mode !== 'browse') params.set('view', mode)
 			_navigate({ search: params.toString() })
 		},
-		[_navigate]
+		[_navigate, setNavStack, currentFolderId, remoteOwner, shareRoot, viewMode]
 	)
 
 	const goBack = React.useCallback(
@@ -209,6 +232,7 @@ export function useFileNavigation() {
 			setNavStack((prev) => prev.slice(0, -1))
 
 			const params = new URLSearchParams()
+			if (entry.view && entry.view !== 'browse') params.set('view', entry.view)
 			if (entry.parentId) params.set('parentId', entry.parentId)
 			if (entry.remoteOwner) {
 				params.set('remoteOwner', entry.remoteOwner)
@@ -255,7 +279,8 @@ export function useFileNavigation() {
 				{
 					parentId: currentFolderId,
 					remoteOwner,
-					shareRoot
+					shareRoot,
+					view: viewMode
 				}
 			])
 
@@ -264,7 +289,7 @@ export function useFileNavigation() {
 				folder.owner.idTag !== contextIdTag &&
 				folder.owner.idTag !== remoteOwner
 			) {
-				// Entering a shared folder (new remote context or from own files)
+				// Entering a shared folder (new remote context or from own files) — browse mode.
 				const params = new URLSearchParams()
 				params.set('parentId', folder.fileId)
 				params.set('remoteOwner', folder.owner.idTag)
@@ -278,6 +303,7 @@ export function useFileNavigation() {
 			currentFolderId,
 			remoteOwner,
 			shareRoot,
+			viewMode,
 			contextIdTag,
 			setNavStack,
 			navigateToFolder,

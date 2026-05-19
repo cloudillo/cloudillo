@@ -36,6 +36,8 @@ export interface File {
 	parentId?: string | null
 	accessLevel?: 'read' | 'comment' | 'write' | 'none'
 	visibility?: FileVisibility
+	parentName?: string
+	path?: { id: string; name: string }[]
 }
 
 export interface FileView extends File {
@@ -76,7 +78,8 @@ export interface FileFiltState {
 	parentId?: string | null
 }
 
-export type ViewMode = 'browse' | 'recent' | 'trash' | 'starred'
+export const VIEW_MODES = ['browse', 'recent', 'trash', 'starred'] as const
+export type ViewMode = (typeof VIEW_MODES)[number]
 export type FileTypeFilter = 'all' | 'live' | 'static'
 export type OwnerFilter = 'anyone' | 'me' | 'others'
 

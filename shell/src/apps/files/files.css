@@ -188,6 +188,11 @@
 }
 
 /* File Card */
+:root {
+	--file-card-icon-size: 2.5rem;
+	--file-card-min-height: calc(var(--file-card-icon-size) + 2 * var(--space-3));
+}
+
 .c-file-card {
 	display: flex;
 	align-items: center;
@@ -196,7 +201,10 @@
 	border-radius: var(--radius-control);
 	background: var(--col-container-low);
 	cursor: pointer;
+	user-select: none;
 	transition: background var(--duration-fast) var(--ease-default);
+	/* Keep cards uniform when the parent chip is absent. */
+	min-height: var(--file-card-min-height);
 }
 
 .c-file-card:hover {
@@ -278,10 +286,70 @@
 	gap: var(--space-2);
 	font-size: var(--text-xs);
 	color: var(--col-txt-muted);
+	min-width: 0;
 }
 
 .c-file-card-meta-date {
 	min-width: 5rem;
+}
+
+.c-file-card-meta-label {
+	color: var(--col-txt-muted);
+	opacity: 0.7;
+}
+
+.c-file-card-meta-parent {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	min-width: 0;
+	max-width: 16rem;
+	color: var(--col-txt-muted);
+}
+
+.c-file-card-meta-parent > .text-truncate {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.c-file-card-meta-parent svg {
+	flex-shrink: 0;
+	font-size: 0.95em;
+	opacity: 0.7;
+}
+
+.c-file-card-meta-right {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	margin-left: auto;
+	flex-shrink: 0;
+}
+
+.c-file-card-meta-owner {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	min-width: 0;
+	max-width: 10rem;
+}
+
+.c-file-card-meta-owner > .text-truncate {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.c-file-card-visibility {
+	display: inline-flex;
+	align-items: center;
+	color: var(--col-secondary);
+}
+
+.c-file-card-visibility.muted {
+	color: var(--col-txt-muted);
+	opacity: 0.6;
 }
 
 .c-file-card-tags {
@@ -358,6 +426,12 @@
 .c-file-card-star.active {
 	opacity: 1;
 	color: var(--col-warning);
+}
+
+@media (hover: none) {
+	.c-file-card-star {
+		opacity: 0.4;
+	}
 }
 
 /* Pinned state - left accent border */
@@ -713,6 +787,7 @@
 	border-radius: var(--radius-control);
 	background: var(--col-container-low);
 	cursor: pointer;
+	user-select: none;
 	transition:
 		background var(--duration-fast) var(--ease-default),
 		transform var(--duration-fast) var(--ease-default);
@@ -906,6 +981,33 @@
 }
 
 .c-file-grid-dirty svg {
+	width: 1rem;
+	height: 1rem;
+}
+
+/* Grid view: Visibility badge */
+.c-file-grid-visibility {
+	position: absolute;
+	bottom: 2px;
+	left: 2px;
+	color: var(--col-secondary);
+	background: rgba(var(--col-rgb-surface), 0.7);
+	backdrop-filter: blur(4px);
+	border-radius: 50%;
+	padding: 3px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	line-height: 1;
+	opacity: 0.8;
+}
+
+.c-file-grid-visibility.muted {
+	color: var(--col-txt-muted);
+	opacity: 0.6;
+}
+
+.c-file-grid-visibility svg {
 	width: 1rem;
 	height: 1rem;
 }

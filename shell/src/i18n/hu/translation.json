@@ -1644,5 +1644,10 @@
 	"Copy": "Másolás",
 	"Share…": "Megosztás…",
 	"Failed to encode image. Try a smaller source.": "A kép kódolása sikertelen. Próbálj kisebb forrást.",
-	"Invitation link": "Meghívó link"
+	"Invitation link": "Meghívó link",
+	"More matches exist outside this folder.": "További találatok vannak ezen a mappán kívül.",
+	"Search all files": "Keresés mindenhol",
+	"Searching all files": "Keresés az összes fájlban…",
+	"Back to this folder": "Vissza ehhez a mappához",
+	"In folder:": "Mappában:"
 }

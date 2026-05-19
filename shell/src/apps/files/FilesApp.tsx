@@ -10,6 +10,7 @@ import { LuCloud as IcCloud, LuUpload as IcUpload } from 'react-icons/lu'
 
 import './files.css'
 
+import type * as Types from '@cloudillo/core'
 import {
 	useAuth,
 	useDialog,
@@ -51,7 +52,8 @@ import {
 	useFileNavigation,
 	useSmartUpload,
 	useKeyboardShortcuts,
-	useMultiSelect
+	useMultiSelect,
+	buildFileFilterParams
 } from './hooks/index.js'
 import type { File, FileOps, ViewMode } from './types.js'
 import {
@@ -105,10 +107,35 @@ export function FilesApp() {
 	// Debounce search query for API calls (300ms)
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300)
 
+	// Search scope — by default Browse-mode searches stay confined to the
+	// current folder. The "outside matches?" probe (below) can offer the user
+	// to broaden it; resetting scope on context changes prevents accidental
+	// global search after navigation.
+	const [searchScope, setSearchScope] = React.useState<'folder' | 'all'>('folder')
+	const searchActive = !!debouncedSearchQuery
+	// Parent-folder chip only adds info when rows can escape the current folder:
+	// hierarchy-agnostic views (recent/starred/trash) always, or a browse search
+	// that has been broadened to scope=all. In browse + folder-scope every row
+	// shares the breadcrumb's parent, so the chip would be noise on every line.
+	const showParentChip = viewMode !== 'browse' || (searchActive && searchScope === 'all')
+	React.useEffect(() => {
+		setSearchScope('folder')
+	}, [viewMode, currentFolderId, contextIdTag])
+	// Separately: a fresh-empty search query resets scope, so re-opening
+	// search after broadening starts in folder-scope again. Crucially this
+	// does NOT include non-empty changes — typing another character must
+	// not snap the user back to folder-scope mid-query.
+	React.useEffect(() => {
+		if (!debouncedSearchQuery) setSearchScope('folder')
+	}, [debouncedSearchQuery])
+
+	const listParentId =
+		viewMode === 'browse' && searchActive && searchScope === 'all' ? undefined : currentFolderId
+
 	// File list (with all filters)
 	const fileListData = useFileList({
 		viewMode,
-		parentId: currentFolderId,
+		parentId: listParentId,
 		tags: selectedTags,
 		fileType: fileTypeFilter,
 		owner: ownerFilter,
@@ -116,6 +143,70 @@ export function FilesApp() {
 		searchQuery: debouncedSearchQuery,
 		remoteApi
 	})
+
+	// Probe whether matches exist outside the current folder so we can prompt
+	// the user to broaden their search. Cheap: limit=1 with notParentId so the
+	// server only returns rows the user would see when scope=all. The probe
+	// mirrors the active filters (tags, fileType, owner) so the banner only
+	// appears when broadening would actually yield results.
+	const [outsideMatchExists, setOutsideMatchExists] = React.useState(false)
+	React.useEffect(() => {
+		// Clear on early-return (probe not applicable). Avoid an unconditional
+		// false→true reset on every dep tick: writing the result once at the
+		// end of the request prevents the banner from blinking off while the
+		// user is mid-typing or toggling tags.
+		// Probe must mirror the list's API source (remote when browsing a
+		// remote share) so the banner reflects what the user would actually
+		// see when broadening — local-API matches inside a remote folder
+		// would be spurious.
+		const probeApi = remoteApi || api
+		if (
+			!probeApi ||
+			viewMode !== 'browse' ||
+			searchScope !== 'folder' ||
+			!debouncedSearchQuery ||
+			!currentFolderId
+		) {
+			setOutsideMatchExists(false)
+			return
+		}
+		let cancelled = false
+		;(async function () {
+			try {
+				const probeParams: Types.ListFilesQuery = {
+					...buildFileFilterParams({
+						tags: selectedTags,
+						fileType: fileTypeFilter,
+						owner: ownerFilter,
+						ownerIdTag: contextIdTag
+					}),
+					fileName: debouncedSearchQuery,
+					notParentId: currentFolderId,
+					limit: 1
+				}
+				const result = await probeApi.files.listPaginated(probeParams)
+				if (cancelled) return
+				setOutsideMatchExists(result.data.length > 0)
+			} catch (err) {
+				console.error('outside-match probe failed', err)
+				if (!cancelled) setOutsideMatchExists(false)
+			}
+		})()
+		return () => {
+			cancelled = true
+		}
+	}, [
+		api,
+		remoteApi,
+		viewMode,
+		searchScope,
+		debouncedSearchQuery,
+		currentFolderId,
+		selectedTags,
+		fileTypeFilter,
+		ownerFilter,
+		contextIdTag
+	])
 
 	// Smart upload (wraps upload queue with import detection)
 	const uploadQueue = useSmartUpload({
@@ -634,6 +725,58 @@ export function FilesApp() {
 									onSearchQueryChange={setSearchQuery}
 									onTagFilter={setSelectedTags}
 								/>
+								{searchActive &&
+									viewMode === 'browse' &&
+									(() => {
+										const folderPath =
+											breadcrumbs
+												.map((b) => b.name)
+												.filter(Boolean)
+												.join(' / ') || t('Files')
+										return (
+											<>
+												{searchScope === 'folder' && outsideMatchExists && (
+													<div className="c-hbox g-2 align-items-center p-2 bg-container-secondary rounded">
+														<span className="flex-fill text-small">
+															{t(
+																'More matches exist outside this folder.'
+															)}
+															<span className="text-muted ms-2">
+																{`${t('In folder:')} ${folderPath}`}
+															</span>
+														</span>
+														<button
+															type="button"
+															className="c-button small"
+															onClick={() => setSearchScope('all')}
+														>
+															{t('Search all files')}
+														</button>
+													</div>
+												)}
+												{searchScope === 'folder' &&
+													!outsideMatchExists && (
+														<div className="p-2 text-small text-muted">
+															{`${t('In folder:')} ${folderPath}`}
+														</div>
+													)}
+												{searchScope === 'all' && (
+													<div className="c-hbox g-2 align-items-center p-2 bg-container-secondary rounded">
+														<span className="flex-fill text-small text-muted">
+															{t('Searching all files')}
+														</span>
+														<button
+															type="button"
+															className="c-button small"
+															onClick={() => setSearchScope('folder')}
+														>
+															{t('Back to this folder')}
+														</button>
+													</div>
+												)}
+											</>
+										)
+									})()}
 							</div>
 						}
 					>
@@ -688,6 +831,7 @@ export function FilesApp() {
 											renameFileName={renameFileName}
 											fileOps={fileOps}
 											viewMode={viewMode}
+											showParentChip={showParentChip}
 										/>
 									))}
 								</div>
@@ -721,6 +865,7 @@ export function FilesApp() {
 										renameFileName={renameFileName}
 										fileOps={fileOps}
 										viewMode={viewMode}
+										showParentChip={showParentChip}
 									/>
 								))}
 								<LoadMoreTrigger
@@ -754,6 +899,8 @@ export function FilesApp() {
 								file={detailsFile}
 								fileOps={fileOps}
 								onShare={setShareDialogFile}
+								onNavigateToFolder={navigateToFolder}
+								apiOverride={isRemoteBrowsing && remoteApi ? remoteApi : undefined}
 							/>
 						)}
 					</Fcd.Details>

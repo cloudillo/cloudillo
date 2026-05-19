@@ -10,7 +10,8 @@ import {
 	LuLock as IcLock,
 	LuInfo as IcInfo,
 	LuPin as IcPin,
-	LuCloudOff as IcUnsyncedEdit
+	LuCloudOff as IcUnsyncedEdit,
+	LuFolder as IcFolder
 } from 'react-icons/lu'
 
 import { InlineEditForm, mergeClasses } from '@cloudillo/react'
@@ -33,6 +34,7 @@ interface ItemGridProps {
 	renameFileName?: string
 	fileOps: FileOps
 	viewMode?: ViewMode
+	showParentChip?: boolean
 }
 
 export const ItemGrid = React.memo(function ItemGrid({
@@ -46,7 +48,8 @@ export const ItemGrid = React.memo(function ItemGrid({
 	renameFileId,
 	renameFileName,
 	fileOps,
-	viewMode = 'browse'
+	viewMode = 'browse',
+	showParentChip = false
 }: ItemGridProps) {
 	const contextIdTag = useCurrentContextIdTag()
 	const { t } = useTranslation()
@@ -154,9 +157,10 @@ export const ItemGrid = React.memo(function ItemGrid({
 				{/* Visibility badge - bottom left */}
 				{(() => {
 					const VisibilityIcon = getVisibilityIcon(file.visibility ?? null)
+					const isDirect = !file.visibility || file.visibility === 'D'
 					return (
 						<span
-							className="c-file-grid-visibility"
+							className={mergeClasses('c-file-grid-visibility', isDirect && 'muted')}
 							title={getVisibilityLabel(t, file.visibility ?? null)}
 						>
 							<VisibilityIcon />
@@ -178,6 +182,14 @@ export const ItemGrid = React.memo(function ItemGrid({
 					<span className="c-file-grid-name-text">{file.fileName}</span>
 				)}
 			</div>
+
+			{/* Parent folder context — shown only in hierarchy-agnostic views
+			    or during cross-folder search. */}
+			{showParentChip && file.parentName && (
+				<div className="c-file-grid-parent text-muted small d-inline-flex align-items-center g-1">
+					<IcFolder /> <span className="text-truncate">{file.parentName}</span>
+				</div>
+			)}
 
 			{/* Smart timestamp */}
 			<div className="c-file-grid-timestamp">

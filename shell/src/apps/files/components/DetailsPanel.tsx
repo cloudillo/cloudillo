@@ -19,6 +19,7 @@ import {
 
 import type { ActionView, NewAction } from '@cloudillo/types'
 import type * as Types from '@cloudillo/core'
+import type { ApiClient } from '@cloudillo/core'
 import { getFileUrl } from '@cloudillo/core'
 import {
 	useAuth,
@@ -47,16 +48,97 @@ import {
 } from '../utils.js'
 import type { File, FileOps } from '../types.js'
 
+const ELLIPSIS_MARKER = { id: '__ellipsis__', name: '…' } as const
+const MAX_INLINE_SEGMENTS = 4
+
+interface PathBreadcrumbProps {
+	path: { id: string; name: string }[] | undefined
+	parentId: string | null | undefined
+	onNavigate?: (folderId: string | null) => void
+}
+
+function PathBreadcrumb({ path, parentId, onNavigate }: PathBreadcrumbProps) {
+	const { t } = useTranslation()
+
+	// Loading: path lookup still in flight for a non-root file.
+	if (path === undefined && parentId != null) {
+		return <span className="text-muted">{t('Loading…')}</span>
+	}
+
+	// Empty path on a non-root file means the lookup failed
+	// (e.g. parent deleted) — distinguish from the genuine
+	// root case where parentId is explicitly null.
+	if (path && path.length === 0 && parentId != null) {
+		return <span className="text-muted">{t('Unknown')}</span>
+	}
+
+	const segs = path ?? []
+	// Abbreviate deeply nested paths so they stay on one line.
+	const display: ReadonlyArray<{ id: string; name: string }> =
+		segs.length > MAX_INLINE_SEGMENTS
+			? [segs[0], ELLIPSIS_MARKER, segs[segs.length - 2], segs[segs.length - 1]]
+			: segs
+
+	const goRoot = onNavigate ? () => onNavigate(null) : undefined
+	const goSegment = (id: string) => (onNavigate ? () => onNavigate(id) : undefined)
+
+	return (
+		<span className="c-hbox g-1 align-items-center flex-wrap">
+			{goRoot ? (
+				<button type="button" className="c-link p-0" onClick={goRoot}>
+					{t('Files')}
+				</button>
+			) : (
+				<span>{t('Files')}</span>
+			)}
+			{display.map((seg, idx) => (
+				<React.Fragment key={`${idx}-${seg.id}`}>
+					<span className="text-muted">/</span>
+					{seg === ELLIPSIS_MARKER ? (
+						<span className="text-muted">{seg.name}</span>
+					) : goSegment(seg.id) ? (
+						<button
+							type="button"
+							className="c-link p-0 text-truncate"
+							onClick={goSegment(seg.id)}
+							title={seg.name}
+						>
+							{seg.name}
+						</button>
+					) : (
+						<span className="text-truncate" title={seg.name}>
+							{seg.name}
+						</span>
+					)}
+				</React.Fragment>
+			))}
+		</span>
+	)
+}
+
 interface DetailsPanelProps {
 	className?: string
 	file: File
 	fileOps: FileOps
 	onShare?: (file: File) => void
+	onNavigateToFolder?: (folderId: string | null) => void
+	// When the panel describes a file from a remote share, the list-source
+	// API (the share owner's server) is the only one that can resolve the
+	// file's path. Local API would return empty → "Unknown". Falls back to
+	// the context-aware API when not supplied.
+	apiOverride?: ApiClient | null
 }
 
-export function DetailsPanel({ file, fileOps, onShare }: DetailsPanelProps) {
+export function DetailsPanel({
+	file,
+	fileOps,
+	onShare,
+	onNavigateToFolder,
+	apiOverride
+}: DetailsPanelProps) {
 	const { t } = useTranslation()
-	const { api } = useContextAwareApi()
+	const { api: contextApi } = useContextAwareApi()
+	const api = apiOverride !== undefined ? apiOverride : contextApi
 	const [auth] = useAuth()
 	const contextIdTag = useCurrentContextIdTag()
 	const [activeContext] = useAtom(activeContextAtom)
@@ -66,6 +148,12 @@ export function DetailsPanel({ file, fileOps, onShare }: DetailsPanelProps) {
 	const [shareRefs, setShareRefs] = React.useState<Types.Ref[] | undefined>()
 	const [shareEntries, setShareEntries] = React.useState<Types.ShareEntry[] | undefined>()
 	const [qrCodeUrl, setQrCodeUrl] = React.useState<string | undefined>()
+	const [filePath, setFilePath] = React.useState<{ id: string; name: string }[] | undefined>(
+		file.path
+	)
+	// Intentionally per-panel: cache dies with the details overlay (panel
+	// unmounts on navigate/close), so unbounded growth isn't a concern.
+	const pathCacheRef = React.useRef<Map<string, { id: string; name: string }[]>>(new Map())
 
 	const Icon = getFileIcon(file.contentType, file.fileTp)
 	const isImage = file.contentType?.startsWith('image/')
@@ -139,6 +227,51 @@ export function DetailsPanel({ file, fileOps, onShare }: DetailsPanelProps) {
 		[api, file.fileId]
 	)
 
+	React.useEffect(
+		function loadFilePath() {
+			if (!api) return
+
+			// Key by api source so switching between local/remote with the
+			// same fileId doesn't return a path from the wrong context.
+			const cacheKey = `${apiOverride ? 'remote' : 'local'}:${file.fileId}`
+
+			// Use path already on the file if present (from a withPath listing).
+			if (file.path) {
+				pathCacheRef.current.set(cacheKey, file.path)
+				setFilePath(file.path)
+				return
+			}
+
+			// Hit the per-selection cache before issuing a request.
+			const cached = pathCacheRef.current.get(cacheKey)
+			if (cached) {
+				setFilePath(cached)
+				return
+			}
+
+			setFilePath(undefined)
+			let cancelled = false
+
+			;(async function () {
+				try {
+					const results = await api.files.list({ fileId: file.fileId, withPath: true })
+					if (cancelled) return
+					const fetched = results[0]?.path ?? []
+					pathCacheRef.current.set(cacheKey, fetched)
+					setFilePath(fetched)
+				} catch (err) {
+					console.error('Failed to load file path', err)
+					if (!cancelled) setFilePath([])
+				}
+			})()
+
+			return () => {
+				cancelled = true
+			}
+		},
+		[api, apiOverride, file.fileId, file.path]
+	)
+
 	// Permissions
 	async function removePerm(idTag: string) {
 		if (!file || !api) return
@@ -157,7 +290,7 @@ export function DetailsPanel({ file, fileOps, onShare }: DetailsPanelProps) {
 		}
 
 		await api.actions.create(action)
-		setFileActions((fa) => fa?.filter((fa) => fa.audience?.idTag !== idTag))
+		setFileActions((prev) => prev?.filter((action) => action.audience?.idTag !== idTag))
 	}
 
 	// Public Links
@@ -367,6 +500,15 @@ export function DetailsPanel({ file, fileOps, onShare }: DetailsPanelProps) {
 							<dd>{file.owner.name}</dd>
 						</>
 					)}
+
+					<dt>{t('Location')}</dt>
+					<dd>
+						<PathBreadcrumb
+							path={filePath}
+							parentId={file.parentId}
+							onNavigate={onNavigateToFolder}
+						/>
+					</dd>
 
 					{file.contentType && (
 						<>

@@ -23,6 +23,37 @@ export interface UseFileListOptions {
 
 const PAGE_SIZE = 30
 
+export interface FileFilterParamsInput {
+	tags?: string[]
+	fileType?: FileTypeFilter
+	owner?: OwnerFilter
+	ownerIdTag?: string
+}
+
+// Map the independent UI filters (tags, file-type, owner) to API params.
+// Kept as a pure helper so the FilesApp probe and useFileList stay in sync
+// when filter semantics change.
+export function buildFileFilterParams(input: FileFilterParamsInput): Types.ListFilesQuery {
+	const params: Types.ListFilesQuery = {}
+
+	const tagsParam = input.tags && input.tags.length > 0 ? input.tags.join(',') : undefined
+	if (tagsParam) params.tag = tagsParam
+
+	if (input.fileType === 'live') {
+		params.fileTp = 'CRDT,RTDB,FLDR'
+	} else if (input.fileType === 'static') {
+		params.fileTp = 'BLOB,FLDR'
+	}
+
+	if (input.owner === 'me' && input.ownerIdTag) {
+		params.ownerIdTag = input.ownerIdTag
+	} else if (input.owner === 'others' && input.ownerIdTag) {
+		params.notOwnerIdTag = input.ownerIdTag
+	}
+
+	return params
+}
+
 function convertFileView(f: Types.FileView): File {
 	return {
 		...f,
@@ -78,36 +109,37 @@ export function useFileList(options?: UseFileListOptions) {
 		remoteApi
 	} = options || {}
 
-	// Convert tags array to comma-separated string for API
-	const tagsParam = tags && tags.length > 0 ? tags.join(',') : undefined
 	const trimmedSearch = searchQuery?.trim() || undefined
+	// Stable key for tags so the callback's dep array doesn't re-run on
+	// array-identity churn. The original `tags` array is passed straight
+	// through to buildFileFilterParams (no join/split round-trip).
+	const tagsKey = tags && tags.length > 0 ? tags.join(',') : ''
 
-	// Build the base query params based on viewMode + independent filters
+	// Build the base query params based on viewMode + independent filters.
 	const buildQueryParams = React.useCallback(
 		(cursor: string | null, limit: number): Types.ListFilesQuery => {
 			const baseParams: Types.ListFilesQuery = {
 				cursor: cursor ?? undefined,
 				limit,
-				tag: tagsParam
+				...buildFileFilterParams({
+					tags,
+					fileType,
+					owner,
+					ownerIdTag
+				})
 			}
 
-			// Apply independent file type filter
-			if (fileType === 'live') {
-				baseParams.fileTp = 'CRDT,RTDB,FLDR'
-			} else if (fileType === 'static') {
-				baseParams.fileTp = 'BLOB,FLDR'
+			// Hierarchy-agnostic views (Recent/Starred/Trash) and any search
+			// surface files outside the current folder context, so ask the
+			// backend for each item's immediate parent folder name. Browse
+			// without search stays as cheap as before.
+			if (viewMode !== 'browse' || trimmedSearch) {
+				baseParams.withParent = true
 			}
 
 			// Apply search query
 			if (trimmedSearch) {
 				baseParams.fileName = trimmedSearch
-			}
-
-			// Apply owner filter
-			if (owner === 'me' && ownerIdTag) {
-				baseParams.ownerIdTag = ownerIdTag
-			} else if (owner === 'others' && ownerIdTag) {
-				baseParams.notOwnerIdTag = ownerIdTag
 			}
 
 			// Apply view mode (content scope)
@@ -126,7 +158,7 @@ export function useFileList(options?: UseFileListOptions) {
 					}
 			}
 		},
-		[viewMode, parentId, tagsParam, fileType, trimmedSearch, owner, ownerIdTag]
+		[viewMode, parentId, tagsKey, fileType, trimmedSearch, owner, ownerIdTag]
 	)
 
 	// Build cache query params for offline fallback.
@@ -218,7 +250,7 @@ export function useFileList(options?: UseFileListOptions) {
 		deps: [
 			viewMode,
 			parentId,
-			tagsParam,
+			tagsKey,
 			fileType,
 			owner,
 			ownerIdTag,

@@ -10,11 +10,11 @@ export interface NavigationEntry {
 	parentId: string | null
 	remoteOwner: string | null
 	shareRoot: string | null
+	view?: ViewMode
 }
 
 export const fileNavStackAtom = atom<NavigationEntry[]>([])
 
-export const viewModeAtom = atom<ViewMode>('browse')
 export const selectedTagsAtom = atom<string[]>([])
 export const fileTypeFilterAtom = atom<FileTypeFilter>('all')
 export const ownerFilterAtom = atom<OwnerFilter>('anyone')

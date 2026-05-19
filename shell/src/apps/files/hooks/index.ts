@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-export { useFileList } from './useFileList.js'
+export { useFileList, buildFileFilterParams } from './useFileList.js'
 export { useFileNavigation } from './useFileNavigation.js'
 export { useUploadQueue } from './useUploadQueue.js'
 export type { UploadItem, UseUploadQueueOptions } from './useUploadQueue.js'

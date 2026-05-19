@@ -605,6 +605,7 @@ export interface GetFileVariantSelector {
 export interface ListFilesQuery {
 	fileId?: string
 	parentId?: string // Filter by folder: null=root, "__trash__"=trash, or folder fileId
+	notParentId?: string // Exclude files inside this folder. Use with fileName/global search to find matches outside the current folder.
 	rootId?: string // Filter by document tree root
 	preset?: string
 	tag?: string
@@ -623,6 +624,8 @@ export interface ListFilesQuery {
 	cursor?: string // Cursor for pagination
 	limit?: number // Items per page (replaces _limit)
 	_limit?: number // @deprecated Use limit instead
+	withParent?: boolean // Populate parentName on each item (one level)
+	withPath?: boolean // Populate path[] (root→parent). Use with fileId for single-file fetch.
 }
 
 // User-specific file data (pinned, starred, per-user timestamps)
@@ -671,7 +674,9 @@ export const tFileView = T.struct({
 		})
 	),
 	accessLevel: T.optional(T.literal('read', 'write', 'none')),
-	visibility: T.optional(T.union(tActionVisibility, T.nullValue)) // null/D=Direct, P=Public, V=Verified, 2=2nd degree, F=Followers, C=Connected
+	visibility: T.optional(T.union(tActionVisibility, T.nullValue)), // null/D=Direct, P=Public, V=Verified, 2=2nd degree, F=Followers, C=Connected
+	parentName: T.optional(T.string), // Immediate parent folder name (when withParent=true)
+	path: T.optional(T.array(T.struct({ id: T.string, name: T.string }))) // root→parent chain (when withPath=true)
 })
 export type FileView = T.TypeOf<typeof tFileView>
 
@@ -1633,4 +1638,4 @@ export interface ListCalendarObjectsQuery {
 
 // ============================================================================
 // WEBSOCKET TYPES
-// vim: ts=2
+// vim: ts=4

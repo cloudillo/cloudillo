@@ -146,7 +146,7 @@
 		margin: 0.5rem 0;
 	}
 	strong {
-		color: var(--col-em);
+		color: var(--col-em-secondary);
 	}
 }
 
@@ -310,7 +310,7 @@
 
 .c-loading-spinner-label {
 	font-size: 0.875rem;
-	color: var(--col-txt-secondary, currentColor);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 }
 
 @keyframes c-loading-spinner-hub-pulse {
@@ -359,7 +359,7 @@
 
 /* Skeleton */
 .c-skeleton {
-	background: var(--col-bg-emph, rgba(128, 128, 128, 0.15));
+	background: var(--col-em-container);
 	border-radius: var(--radius-sm);
 }
 
@@ -482,7 +482,7 @@
 .c-filter-bar-divider {
 	margin: 0.5rem 0;
 	border: none;
-	border-top: 1px solid var(--col-border, rgba(128, 128, 128, 0.2));
+	border-top: 1px solid var(--col-outline);
 }
 
 .c-filter-bar-section {
@@ -496,7 +496,7 @@
 	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
-	color: var(--col-txt-secondary, rgba(128, 128, 128, 0.8));
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	padding: 0.5rem 0.75rem 0.25rem;
 }
 
@@ -529,7 +529,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: var(--col-txt-secondary, rgba(128, 128, 128, 0.6));
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 }
 
 .c-empty-state--sm .c-empty-state-icon {
@@ -548,7 +548,7 @@
 	margin: 0;
 	font-size: 1.125rem;
 	font-weight: 600;
-	color: var(--col-txt, currentColor);
+	color: var(--col-on-container);
 }
 
 .c-empty-state--sm .c-empty-state-title {
@@ -562,7 +562,7 @@
 .c-empty-state-description {
 	margin: 0;
 	font-size: 0.875rem;
-	color: var(--col-txt-secondary, rgba(128, 128, 128, 0.8));
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	max-width: 24rem;
 }
 
@@ -672,7 +672,7 @@
 }
 
 .c-menu-item.danger:hover {
-	background: rgba(var(--col-rgb-error, 239 68 68), 0.1);
+	background: color-mix(in srgb, var(--col-error) 10%, transparent);
 }
 
 .c-menu-item-icon {
@@ -758,7 +758,7 @@
 .c-action-sheet-title {
 	font-size: var(--text-sm);
 	font-weight: 500;
-	color: var(--col-txt-muted, var(--col-on-container));
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	display: block;
 	white-space: nowrap;
 	overflow: hidden;
@@ -846,7 +846,7 @@
 
 .c-tag-input-field:focus-within {
 	border-color: var(--col-primary);
-	box-shadow: 0 0 0 2px rgba(var(--col-rgb-primary, 99 102 241), 0.2);
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--col-primary) 20%, transparent);
 }
 
 .c-tag-input-field input {

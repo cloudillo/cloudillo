@@ -25,7 +25,7 @@
 }
 
 .c-theme-picker-scroll::-webkit-scrollbar-thumb {
-	background: var(--col-outline-low, #e0e0e0);
+	background: var(--col-outline);
 	border-radius: 2px;
 }
 

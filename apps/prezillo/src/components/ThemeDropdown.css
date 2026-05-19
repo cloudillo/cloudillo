@@ -38,7 +38,7 @@
 .c-theme-dropdown-subtitle {
 	display: block;
 	font-size: var(--text-sm);
-	color: var(--col-text-secondary);
+	color: var(--col-on-container);
 	margin-top: var(--space-1);
 }
 

@@ -290,7 +290,7 @@ export const SubMenuItem = createComponent<HTMLDivElement, SubMenuItemProps>(
 							<span
 								style={{
 									marginLeft: 'var(--space-1)',
-									color: 'var(--col-txt-muted)',
+									color: 'color-mix(in lch, var(--col-on-container), transparent 35%)',
 									fontWeight: 'normal'
 								}}
 							>

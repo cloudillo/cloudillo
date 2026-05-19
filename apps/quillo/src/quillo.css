@@ -88,10 +88,10 @@ body {
 	fill: var(--col-on);
 }
 .c-panel.ql-toolbar.ql-snow button:hover .ql-stroke {
-	stroke: var(--col-em);
+	stroke: var(--col-em-surface);
 }
 .c-panel.ql-toolbar.ql-snow button:hover .ql-fill {
-	fill: var(--col-em);
+	fill: var(--col-em-surface);
 }
 .c-panel.ql-toolbar.ql-snow .ql-active .ql-stroke {
 	stroke: var(--col-primary);
@@ -119,13 +119,13 @@ body {
 .c-panel.ql-snow .ql-toolbar .ql-picker-label.ql-active,
 .c-panel.ql-snow.ql-toolbar .ql-picker-item.ql-selected,
 .c-panel.ql-snow .ql-toolbar .ql-picker-item.ql-selected {
-	color: var(--col-em);
+	color: var(--col-em-surface);
 }
 
 .c-panel.ql-toolbar.ql-snow .ql-picker-options {
 	color: var(--col-on);
-	background: var(--col-bg);
-	box-shadow: inset 0px 0px 1rem var(--col-bg);
+	background: var(--col-surface);
+	box-shadow: inset 0px 0px 1rem var(--col-surface);
 	backdrop-filter: blur(var(--blur-radius));
 	border-radius: var(--border-radius-lg);
 	border: 0;
@@ -165,7 +165,7 @@ body {
 .ql-editor blockquote {
 	border-left: 4px solid var(--col-primary, #0589f3);
 	margin: 0.75rem 0;
-	background: color-mix(in srgb, var(--col-surface-dim, #f5f5f5) 50%, transparent);
+	background: color-mix(in srgb, var(--col-container-low) 50%, transparent);
 	border-radius: 0 var(--border-radius-sm, 4px) var(--border-radius-sm, 4px) 0;
 	padding: 0.5rem 0.5rem 0.5rem 1rem;
 	font-style: italic;
@@ -185,7 +185,7 @@ body {
 
 /* Link tooltip styling */
 .ql-snow .ql-tooltip {
-	background: var(--col-bg, #fff);
+	background: var(--col-surface);
 	border: 1px solid var(--col-outline, #ccc);
 	border-radius: var(--border-radius-lg, 8px);
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -278,7 +278,7 @@ body {
 .ql-cl-image[src=''] {
 	min-width: 200px;
 	min-height: 150px;
-	background: var(--col-surface-dim, #f5f5f5);
+	background: var(--col-container-low);
 	border: 2px dashed var(--col-outline, #ccc);
 }
 
@@ -392,7 +392,7 @@ body {
 }
 
 .c-panel.ql-toolbar.ql-snow button.ql-cl-document:hover svg {
-	stroke: var(--col-em);
+	stroke: var(--col-em-surface);
 }
 
 /* Table styles */
@@ -412,7 +412,7 @@ body {
 }
 
 .ql-table-wrapper th {
-	background: var(--col-surface-dim, #f5f5f5);
+	background: var(--col-container-low);
 	font-weight: 600;
 }
 
@@ -424,8 +424,8 @@ body {
 
 /* Table context menu styling */
 .ql-table-menu {
-	background: var(--col-bg);
-	box-shadow: inset 0px 0px 1rem var(--col-bg);
+	background: var(--col-surface);
+	box-shadow: inset 0px 0px 1rem var(--col-surface);
 	backdrop-filter: blur(var(--blur-radius));
 	border-radius: var(--border-radius-lg);
 	border: 0;
@@ -588,11 +588,11 @@ body {
 	top: 0;
 	left: 0;
 	z-index: 10000;
-	background: var(--col-bg, #fff);
+	background: var(--col-surface);
 	border-radius: var(--border-radius-lg, 8px);
 	box-shadow:
 		0 4px 12px rgba(0, 0, 0, 0.25),
-		inset 0 0 0.5rem var(--col-bg, #fff);
+		inset 0 0 0.5rem var(--col-surface);
 	backdrop-filter: blur(var(--blur-radius, 10px));
 	padding: 8px;
 	display: flex;
@@ -664,7 +664,7 @@ body {
 .dark .quillo-color-picker {
 	box-shadow:
 		0 4px 12px rgba(0, 0, 0, 0.4),
-		inset 0 0 0.5rem var(--col-bg, #1a1a1a);
+		inset 0 0 0.5rem var(--col-surface);
 }
 
 /* ============================================

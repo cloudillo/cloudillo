@@ -93,7 +93,7 @@ export function ImageRenderer({ object, ownerTag, token, scale = 1, bounds }: Im
 					y={y}
 					width={width}
 					height={height}
-					fill="var(--col-surface-dim, #f0f0f0)"
+					fill="var(--col-container-low)"
 					stroke="var(--col-outline, #ccc)"
 					strokeWidth={1}
 					strokeDasharray="8,4"
@@ -108,7 +108,7 @@ export function ImageRenderer({ object, ownerTag, token, scale = 1, bounds }: Im
 						y={y}
 						width={width}
 						height={height}
-						fill="var(--col-error-container, #fee)"
+						fill="var(--col-container-error)"
 						stroke="var(--col-error, #c00)"
 						strokeWidth={2}
 					/>

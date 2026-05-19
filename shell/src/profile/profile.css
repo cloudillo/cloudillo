@@ -11,7 +11,7 @@
 	/*
 	border: 0.5rem solid var(--col-surface);
 	*/
-	border: 0.5rem solid var(--col-bg);
+	border: 0.5rem solid var(--col-surface);
 }
 
 .c-profile-header {
@@ -61,7 +61,7 @@
 	h1 { font-size: 1.5rem !important; }
 	h2 { font-size: 1.17rem !important; }
 	.ql-blank::before {
-		color: var(--col-txt);
+		color: var(--col-on-container);
 	}
 }
 */

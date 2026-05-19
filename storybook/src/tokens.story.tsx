@@ -548,7 +548,7 @@ export function ColorsStory() {
 								style={{
 									width: '3rem',
 									height: '1.5rem',
-									border: '2px solid var(--col-outline-low)',
+									border: '2px solid var(--col-outline)',
 									borderRadius: 'var(--radius-sm)'
 								}}
 							/>

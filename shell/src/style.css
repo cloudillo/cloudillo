@@ -66,7 +66,7 @@ summary:focus-visible {
 	left: 0;
 	right: 0;
 	bottom: 0;
-	background: var(--col-bg);
+	background: var(--col-surface);
 	z-index: 9999;
 }
 
@@ -80,7 +80,7 @@ summary:focus-visible {
 }
 
 .c-error-dialog::backdrop {
-	background: var(--col-bg);
+	background: var(--col-surface);
 }
 
 .c-logout-dialog__card {
@@ -107,7 +107,7 @@ p {
 
 .ql-editor:focus-visible {
 	box-shadow:
-		inset 0px 0px 1rem var(--col-bg-emph),
+		inset 0px 0px 1rem var(--col-em-container),
 		0px 0px var(--sh-focus) var(--col-focus);
 }
 
@@ -325,7 +325,7 @@ body {
 		background: var(--col-container);
 		backdrop-filter: blur(10px);
 		-webkit-backdrop-filter: blur(10px);
-		border-top: 1px solid var(--col-border);
+		border-top: 1px solid var(--col-outline);
 		z-index: var(--z-fixed);
 		/* Account for safe area on devices with home indicator */
 		padding-bottom: env(safe-area-inset-bottom, 0);
@@ -446,7 +446,7 @@ body {
 
 /* App Loading Indicator */
 .c-app-loading {
-	background: var(--col-bg, #fff);
+	background: var(--col-surface);
 	opacity: 1;
 	transition: opacity 200ms ease-out;
 }
@@ -457,7 +457,7 @@ body {
 }
 
 .c-app-loading__icon {
-	color: var(--col-txt-muted, #6b7280);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 }
 
 .c-app-loading__icon--spinner {
@@ -465,17 +465,17 @@ body {
 }
 
 .c-app-loading__icon--error {
-	color: var(--col-danger, #dc3545);
+	color: var(--col-error);
 }
 
 .c-app-loading__text {
 	font-size: 1rem;
-	color: var(--col-txt-muted, #6b7280);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	margin: 0;
 }
 
 .c-app-loading__text--error {
-	color: var(--col-danger, #dc3545);
+	color: var(--col-error);
 }
 
 .c-app-loading__retry {
@@ -535,7 +535,7 @@ body {
 }
 
 .c-profile-card .tag .warn {
-	color: var(--col-txt-danger);
+	color: var(--col-error);
 }
 
 /* Layout with sidebar */
@@ -607,7 +607,7 @@ body {
 	margin-bottom: 1rem;
 	border-radius: var(--bd-radius);
 	background: var(--col-surface);
-	border: 1px solid var(--col-border);
+	border: 1px solid var(--col-outline);
 }
 
 .c-step-number {
@@ -634,7 +634,7 @@ body {
 	padding: 1rem;
 	border-radius: var(--bd-radius);
 	background: var(--col-surface);
-	border: 1px solid var(--col-border);
+	border: 1px solid var(--col-outline);
 }
 
 .c-info-tip-icon {
@@ -647,7 +647,7 @@ body {
 /* App Menu Configurator */
 
 .c-app-menu-section {
-	border: 1px solid var(--col-border);
+	border: 1px solid var(--col-outline);
 	border-radius: var(--bd-radius);
 	padding: 0.5rem;
 	min-height: 3rem;
@@ -688,7 +688,7 @@ body {
 }
 
 .c-app-menu-grip {
-	color: var(--col-text-muted);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	flex-shrink: 0;
 }
 

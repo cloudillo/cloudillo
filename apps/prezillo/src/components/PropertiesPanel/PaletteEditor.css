@@ -106,7 +106,7 @@
 	display: flex;
 	gap: 0.5rem;
 	padding-top: 0.5rem;
-	border-top: 1px solid var(--col-outline-low, #f0f0f0);
+	border-top: 1px solid var(--col-outline);
 }
 
 .c-palette-editor-reset {
@@ -124,7 +124,7 @@
 
 .c-palette-editor-reset:hover {
 	background: var(--col-container, #f5f5f5);
-	border-color: var(--col-outline-variant, #ccc);
+	border-color: var(--col-outline);
 }
 
 /* Modal mode */

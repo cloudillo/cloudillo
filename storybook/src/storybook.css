@@ -93,7 +93,7 @@
 
 .sb--m-story > table.prop-list td {
 	padding: 0.5rem;
-	border-bottom: var(--border-w-sm, 1px) solid var(--col-outline-low, #eee);
+	border-bottom: var(--border-w-sm, 1px) solid var(--col-outline);
 }
 
 .sb--m-story > table.prop-list td.name {
@@ -121,7 +121,7 @@
 }
 
 .sb--m-variant:not(:last-child) {
-	border-bottom: var(--border-w-sm, 1px) solid var(--col-outline-low, #ddf);
+	border-bottom: var(--border-w-sm, 1px) solid var(--col-outline);
 }
 
 .sb--m-variant > h3 {

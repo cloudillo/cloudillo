@@ -30,10 +30,10 @@ body,
 .c-property-editor-header {
 	padding: var(--space-2) var(--space-3);
 	border-bottom: 1px solid var(--col-outline);
-	background: var(--col-surface-secondary);
+	background: var(--col-container-secondary);
 	font-weight: 600;
 	font-size: var(--text-sm);
-	color: var(--col-text-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 }
 
 /* Number Input */
@@ -73,7 +73,7 @@ body,
 
 .c-number-input-suffix {
 	margin-left: var(--space-1);
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	font-size: 10px;
 }
 
@@ -204,7 +204,7 @@ body,
 /* Empty state / placeholder messages */
 .c-empty-message {
 	font-size: 12px;
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	text-align: center;
 	padding: var(--space-3) 0;
 }
@@ -393,7 +393,7 @@ body,
 .c-mobile-property-label {
 	font-size: 12px;
 	font-weight: 500;
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 }
 
 .c-mobile-property-content {
@@ -443,7 +443,7 @@ body,
 	justify-content: center;
 	height: 100%;
 	padding: var(--space-4);
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	font-size: 13px;
 	text-align: center;
 }
@@ -538,7 +538,7 @@ body,
 }
 
 .c-presenter-indicator__badge:hover {
-	background: var(--col-container-primary-high);
+	background: var(--col-em-container-primary);
 }
 
 /* Live indicator colors - broadcast red for universal recognition */
@@ -672,7 +672,7 @@ body,
 
 .c-presenter-indicator__slide {
 	font-size: 11px;
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 }
 
 /* Follow Banner - shown when following a presenter */
@@ -722,7 +722,7 @@ body,
 }
 
 .c-follow-banner__slide {
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 }
 
 .c-follow-banner__actions {
@@ -745,7 +745,7 @@ body,
 
 .c-follow-banner__btn--fullscreen {
 	background: var(--col-container-low);
-	color: var(--col-txt);
+	color: var(--col-on-container);
 }
 
 .c-follow-banner__btn--fullscreen:hover {
@@ -789,7 +789,7 @@ body,
 }
 
 .c-nav .c-button.presenting:hover {
-	background: var(--col-error-high);
+	background: var(--col-em-container-error);
 }
 
 /* Windowed presentation mode */
@@ -913,7 +913,7 @@ body,
 }
 
 .c-present-split__option:hover {
-	background: var(--col-surface-secondary, rgba(0, 0, 0, 0.05));
+	background: var(--col-container-secondary);
 }
 
 /* Presentation mode - following indicator */
@@ -1154,7 +1154,7 @@ body,
 }
 
 .c-presenter-indicator-btn:hover {
-	background: var(--col-container-primary-high);
+	background: var(--col-em-container-primary);
 }
 
 .c-presenter-indicator-btn.following {
@@ -1163,7 +1163,7 @@ body,
 }
 
 .c-presenter-indicator-btn.following:hover {
-	background: var(--col-primary-high);
+	background: var(--col-em-primary);
 }
 
 .c-presenter-indicator-btn__dot {
@@ -1258,7 +1258,7 @@ body,
 	align-items: center;
 	gap: var(--space-2);
 	padding: var(--space-2);
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	font-size: 12px;
 }
 
@@ -1301,7 +1301,7 @@ body,
 	padding: var(--space-2);
 	background: none;
 	border: none;
-	color: var(--col-txt);
+	color: var(--col-on-container);
 	cursor: pointer;
 	min-width: 0;
 }
@@ -1327,7 +1327,7 @@ body,
 	background: none;
 	border: none;
 	cursor: pointer;
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	border-radius: var(--radius-sm);
 	transition:
 		background 0.15s,
@@ -1365,7 +1365,7 @@ body,
 	padding: var(--space-2);
 	font-size: 11px;
 	font-weight: 600;
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	border-bottom: 1px solid var(--col-outline);
 }
 
@@ -1382,7 +1382,7 @@ body,
 	padding: var(--space-2);
 	background: none;
 	border: none;
-	color: var(--col-txt);
+	color: var(--col-on-container);
 	cursor: pointer;
 	transition: background 0.15s;
 }
@@ -1460,13 +1460,13 @@ body,
 	font-size: 11px;
 	font-weight: 600;
 	text-transform: uppercase;
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 }
 
 .c-template-panel__empty {
 	text-align: center;
 	padding: var(--space-3);
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	font-size: 12px;
 }
 
@@ -1542,7 +1542,7 @@ body,
 
 .c-template-panel__item-usage {
 	font-size: 10px;
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 }
 
 .c-template-panel__item-menu {
@@ -1550,7 +1550,7 @@ body,
 	background: none;
 	border: none;
 	cursor: pointer;
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	border-radius: var(--radius-sm);
 	opacity: 0;
 	transition:
@@ -1564,7 +1564,7 @@ body,
 
 .c-template-panel__item-menu:hover {
 	background: var(--col-container-high);
-	color: var(--col-txt);
+	color: var(--col-on-container);
 }
 
 /* Context Menu (reusable) */
@@ -1675,7 +1675,7 @@ body,
 .c-template-panel__confirm p {
 	margin: 0 0 var(--space-3) 0;
 	font-size: 13px;
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 }
 
 .c-template-panel__confirm-options {
@@ -1706,7 +1706,7 @@ body,
 .c-template-editing-banner__hint {
 	flex: 1;
 	font-size: 11px;
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 }
 
 /* Template editing canvas background */
@@ -1749,7 +1749,7 @@ body,
 .c-template-editor__edit-hint {
 	margin: var(--space-2) 0 0 0;
 	font-size: 11px;
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 }
 
 .c-template-editor__content {
@@ -1766,7 +1766,7 @@ body,
 
 .c-template-editor__guides-empty {
 	font-size: 11px;
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	margin: 0;
 }
 
@@ -1796,7 +1796,7 @@ body,
 	border: none;
 	border-radius: var(--radius-sm);
 	cursor: pointer;
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	transition:
 		background 0.15s,
 		color 0.15s;
@@ -1808,7 +1808,7 @@ body,
 }
 
 .c-snap-guide-editor__direction.horizontal {
-	color: var(--col-info);
+	color: var(--col-primary);
 }
 
 .c-snap-guide-editor__direction.vertical {
@@ -1834,7 +1834,7 @@ body,
 	font-size: 10px;
 	font-weight: 600;
 	cursor: pointer;
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	transition:
 		background 0.15s,
 		color 0.15s;
@@ -1859,7 +1859,7 @@ body,
 	background: none;
 	border: none;
 	cursor: pointer;
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	border-radius: var(--radius-sm);
 	transition:
 		background 0.15s,
@@ -1906,7 +1906,7 @@ body,
 .c-property-lock__label {
 	font-size: 10px;
 	font-weight: 500;
-	color: var(--col-text-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 }
 
 .c-property-lock__btn {
@@ -1919,14 +1919,14 @@ body,
 	border: none;
 	border-radius: var(--radius-sm);
 	background: transparent;
-	color: var(--col-text-tertiary);
+	color: color-mix(in lch, var(--col-on-container), transparent 55%);
 	cursor: pointer;
 	transition: all 0.15s ease;
 }
 
 .c-property-lock__btn:hover:not(:disabled) {
-	background: var(--col-surface-secondary);
-	color: var(--col-text-secondary);
+	background: var(--col-container-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 }
 
 .c-property-lock__btn:disabled {
@@ -1944,7 +1944,7 @@ body,
 }
 
 .c-property-lock__btn--unlocked {
-	color: var(--col-text-tertiary);
+	color: color-mix(in lch, var(--col-on-container), transparent 55%);
 }
 
 .c-property-lock__btn--reset {
@@ -1960,7 +1960,7 @@ body,
 .c-property-group-label {
 	font-size: 10px;
 	font-weight: 500;
-	color: var(--col-text-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	text-transform: uppercase;
 	letter-spacing: 0.5px;
 }
@@ -1975,7 +1975,7 @@ body,
 .c-property-field--locked .c-select,
 .c-property-field--locked select,
 .c-property-field--locked button:not(.c-property-lock__btn) {
-	background: var(--col-surface-disabled, var(--col-surface-secondary));
+	background: var(--col-container-low);
 	cursor: not-allowed;
 }
 
@@ -2015,13 +2015,13 @@ body,
 	justify-content: space-between;
 	padding: var(--space-2) var(--space-3);
 	border-bottom: 1px solid var(--col-outline);
-	background: var(--col-surface-secondary);
+	background: var(--col-container-secondary);
 }
 
 .c-template-properties__title {
 	font-size: 13px;
 	font-weight: 600;
-	color: var(--col-txt);
+	color: var(--col-on-container);
 }
 
 .c-template-properties__edit-content {
@@ -2031,7 +2031,7 @@ body,
 .c-template-properties__edit-hint {
 	margin: var(--space-2) 0 0 0;
 	font-size: 11px;
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 }
 
 .c-template-properties__content {
@@ -2048,7 +2048,7 @@ body,
 
 .c-template-properties__guides-empty {
 	font-size: 11px;
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	margin: 0;
 }
 
@@ -2063,7 +2063,7 @@ body,
 }
 
 .c-template-properties__usage-empty {
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	font-size: 11px;
 	margin: 0;
 }
@@ -2077,7 +2077,7 @@ body,
 .c-template-properties__usage-list li {
 	padding: var(--space-1) 0;
 	font-size: 11px;
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	border-bottom: 1px solid var(--col-outline);
 }
 
@@ -2360,12 +2360,12 @@ body,
 	border-bottom: 2px solid transparent;
 	cursor: pointer;
 	font-size: var(--text-sm);
-	color: var(--col-txt-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	transition: all 0.15s ease;
 }
 
 .c-symbol-tab:hover {
-	color: var(--col-txt);
+	color: var(--col-on-container);
 	background: var(--col-container-high);
 }
 

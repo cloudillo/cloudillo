@@ -77,8 +77,8 @@ body,
 .notillo-tag {
 	display: inline-flex;
 	align-items: center;
-	background: color-mix(in srgb, var(--col-tertiary, var(--col-secondary)) 15%, transparent);
-	color: var(--col-tertiary, var(--col-secondary));
+	background: color-mix(in srgb, var(--col-secondary) 15%, transparent);
+	color: var(--col-secondary);
 	padding: 0.05em 0.4em;
 	border-radius: var(--radius-sm);
 	font-size: 0.875em;
@@ -87,7 +87,7 @@ body,
 }
 
 .notillo-tag:hover {
-	background: color-mix(in srgb, var(--col-tertiary, var(--col-secondary)) 25%, transparent);
+	background: color-mix(in srgb, var(--col-secondary) 25%, transparent);
 }
 
 /* ── Tag Cloud ── */
@@ -147,7 +147,7 @@ body,
 	align-items: center;
 	justify-content: center;
 	min-height: 100px;
-	color: var(--col-on-surface-variant);
+	color: color-mix(in lch, var(--col-on-surface), transparent 35%);
 	font-size: 0.875rem;
 }
 
@@ -469,7 +469,7 @@ body,
 	margin: 0;
 	font-size: 0.8rem;
 	line-height: 1.35;
-	color: var(--col-on-surface-variant);
+	color: color-mix(in lch, var(--col-on-surface), transparent 35%);
 	overflow: hidden;
 	display: -webkit-box;
 	-webkit-line-clamp: 2;
@@ -481,7 +481,7 @@ body,
 	align-items: center;
 	gap: 0.25em;
 	font-size: 0.75rem;
-	color: var(--col-on-surface-variant);
+	color: color-mix(in lch, var(--col-on-surface), transparent 35%);
 }
 
 /* Block highlight is injected dynamically via <style> tag in ThreadList.tsx
@@ -520,7 +520,7 @@ body,
 
 .comment-time {
 	font-size: 0.7rem;
-	color: var(--col-on-surface-variant);
+	color: color-mix(in lch, var(--col-on-surface), transparent 35%);
 	white-space: nowrap;
 	flex-shrink: 0;
 	margin-left: auto;
@@ -529,7 +529,7 @@ body,
 .comment-item-edited {
 	font-size: 0.7rem;
 	font-style: italic;
-	color: var(--col-on-surface-variant);
+	color: color-mix(in lch, var(--col-on-surface), transparent 35%);
 	opacity: 0.7;
 	flex-shrink: 0;
 }
@@ -555,7 +555,7 @@ body,
 	background: none;
 	border: none;
 	cursor: pointer;
-	color: var(--col-on-surface-variant);
+	color: color-mix(in lch, var(--col-on-surface), transparent 35%);
 	padding: 0.25rem;
 	border-radius: var(--radius-sm);
 	display: flex;

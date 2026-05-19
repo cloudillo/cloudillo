@@ -30,7 +30,7 @@ function SidebarDemo() {
 	return (
 		<div
 			className="pos-relative"
-			style={{ height: '400px', border: '1px solid var(--col-border)' }}
+			style={{ height: '400px', border: '1px solid var(--col-outline)' }}
 		>
 			<SidebarBackdrop show={sidebar.isOpen && !sidebar.isPinned} onClick={sidebar.close} />
 			<Sidebar sidebar={sidebar} side="left">

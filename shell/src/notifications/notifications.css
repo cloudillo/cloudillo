@@ -29,7 +29,7 @@
 	font-size: 0.75rem;
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
-	color: var(--col-on-container-muted, var(--col-on-container));
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	margin: 1rem 0 0.25rem;
 	font-weight: 600;
 }

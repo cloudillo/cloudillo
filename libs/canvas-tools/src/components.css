@@ -306,7 +306,7 @@
 .c-gradient-position-display {
 	font-family: var(--font-mono, monospace);
 	font-size: var(--text-sm);
-	color: var(--col-text-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 }
 
 /* Angle control */
@@ -340,7 +340,7 @@
 }
 
 .c-angle-unit {
-	color: var(--col-text-secondary);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	font-size: var(--text-sm);
 }
 

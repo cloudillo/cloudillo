@@ -184,7 +184,7 @@ export const ActionSheetSubItem = createComponent<HTMLDivElement, ActionSheetSub
 							<span
 								style={{
 									marginLeft: 'var(--space-1)',
-									color: 'var(--col-txt-muted)',
+									color: 'color-mix(in lch, var(--col-on-container), transparent 35%)',
 									fontWeight: 'normal'
 								}}
 							>

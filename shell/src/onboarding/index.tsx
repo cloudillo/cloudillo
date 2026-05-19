@@ -201,7 +201,7 @@ function StepIndicator() {
 						width: '0.625rem',
 						height: '0.625rem',
 						borderRadius: '50%',
-						background: i <= currentStep ? 'var(--col-primary)' : 'var(--col-border)'
+						background: i <= currentStep ? 'var(--col-primary)' : 'var(--col-outline)'
 					}}
 				/>
 			))}

@@ -21,7 +21,7 @@ import type {
 	CrdtCacheReadReq,
 	CrdtCacheCompactReq
 } from '@cloudillo/core'
-import { encryptBinary, decryptBinary } from '../../cache/crypto.js'
+import { encryptBinary, decryptBinary, getSwKeyFromCookie } from '../../cache/crypto.js'
 
 // ============================================
 // CONSTANTS
@@ -71,6 +71,12 @@ let db: IDBDatabase | null = null
 
 function openDB(): Promise<IDBDatabase> {
 	if (db) return Promise.resolve(db)
+
+	// Refuse to create the database before the encryption key is available
+	// — keeps the phantom-DB problem from re-appearing on the main thread.
+	if (!getSwKeyFromCookie()) {
+		return Promise.reject(new Error('CRDT store unavailable: no encryption key'))
+	}
 
 	return new Promise((resolve, reject) => {
 		const request = indexedDB.open(DB_NAME, DB_VERSION)
@@ -206,7 +212,8 @@ async function cacheAppend(
 	docId: string,
 	update: Uint8Array,
 	clientId: number,
-	clock: number
+	clock: number,
+	offline: boolean
 ): Promise<void> {
 	const encrypted = await encryptBinary(update)
 	if (!encrypted) throw new Error('Encryption unavailable')
@@ -222,8 +229,17 @@ async function cacheAppend(
 
 				tx.objectStore(CACHE_STORE).add(encrypted, key)
 				tx.objectStore(CLIENTIDS_STORE).put(clock, `${docId}:${clientId}`)
-				// Mark document as having unsynced local edits
-				tx.objectStore(CACHE_STORE).put(true, `${docId}:dirty`)
+				// Only flag dirty when the update was produced while the WS
+				// was not synced; online updates are already on the server.
+				// Edge case: a brief network blip that drops an update before
+				// ACK but within a single frame (no 'status' → 'disconnected'
+				// event) escapes this flag. y-websocket's sync handshake
+				// resends on reconnect, so the dirty marker isn't strictly
+				// comprehensive — it's a logout-safety net, not the wire-level
+				// guarantee.
+				if (offline) {
+					tx.objectStore(CACHE_STORE).put(true, `${docId}:dirty`)
+				}
 
 				tx.oncomplete = () => resolve()
 				tx.onerror = () => reject(tx.error)
@@ -399,7 +415,7 @@ export function initCrdtHandlers(bus: ShellMessageBus): void {
 		if (!appWindow) return
 
 		try {
-			const { docId, update, clientId, clock } = msg.payload
+			const { docId, update, clientId, clock, offline } = msg.payload
 			if (!(update instanceof Uint8Array)) {
 				bus.sendResponse(
 					appWindow,
@@ -411,7 +427,9 @@ export function initCrdtHandlers(bus: ShellMessageBus): void {
 				)
 				return
 			}
-			await cacheAppend(docId, update, clientId, clock)
+			// Older apps that predate the offline flag default to false so
+			// their edits don't permanently flag docs as dirty.
+			await cacheAppend(docId, update, clientId, clock, offline ?? false)
 			bus.sendResponse(appWindow, 'crdt:cache.res', msg.id, true)
 		} catch (err) {
 			bus.sendResponse(

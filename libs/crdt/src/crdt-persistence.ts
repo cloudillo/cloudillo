@@ -17,12 +17,32 @@ const COMPACT_THRESHOLD = 300
 export class CrdtPersistence {
 	private updateCount = 0
 	private listening = false
+	private wsSynced = false
 
 	constructor(
 		private bus: AppMessageBus,
 		private docId: string,
 		private yDoc: Y.Doc
 	) {}
+
+	/**
+	 * Signal that the websocket has reached a synced state. Cached updates
+	 * are now on the server, so we can clear the dirty flag. Called from
+	 * crdt.ts on the WS 'sync' event (both initial sync and reconnect-sync).
+	 */
+	markSynced(): void {
+		const wasOffline = !this.wsSynced
+		this.wsSynced = true
+		// Piggy-back the dirty-clear onto compact(true) — it needs the most
+		// recent state anyway. Only fires on the offline→online transition;
+		// subsequent 'sync' events after a brief flicker are no-ops.
+		if (wasOffline) void this.compact(true)
+	}
+
+	/** Signal that the websocket has disconnected — subsequent updates count as offline. */
+	markDisconnected(): void {
+		this.wsSynced = false
+	}
 
 	/** Load cached state from shell storage. Returns true if cache existed. */
 	async loadCached(): Promise<boolean> {
@@ -51,7 +71,10 @@ export class CrdtPersistence {
 	startPersisting(): void {
 		if (this.listening) return
 		this.listening = true
-		this.compact() // Snapshot the post-sync state (includes server data)
+		// Snapshot the post-sync state and clear any stale :dirty flag from
+		// previous sessions. Skip when markSynced() has already compacted on
+		// the offline→online edge — its compact(true) covers the same work.
+		if (!this.wsSynced) void this.compact(true)
 		this.yDoc.on('update', this.handleUpdate)
 	}
 
@@ -63,36 +86,37 @@ export class CrdtPersistence {
 		const decoded = Y.decodeStateVector(sv)
 		const clock = decoded.get(this.yDoc.clientID) ?? 0
 
-		this.bus.crdtCacheAppend(this.docId, update, this.yDoc.clientID, clock).catch((err) => {
-			console.error('[CRDT] Failed to persist update:', err)
-		})
+		this.bus
+			.crdtCacheAppend(this.docId, update, this.yDoc.clientID, clock, !this.wsSynced)
+			.catch((err) => {
+				console.error('[CRDT] Failed to persist update:', err)
+			})
 		if (++this.updateCount >= COMPACT_THRESHOLD) {
-			this.compact()
+			void this.compact()
 		}
 	}
 
-	private compact(clearDirty?: boolean): void {
+	private async compact(clearDirty?: boolean): Promise<void> {
 		const state = Y.encodeStateAsUpdate(this.yDoc)
-		this.bus
-			.crdtCacheCompact(this.docId, state, clearDirty)
-			.then(() => {
-				this.updateCount = 0
-			})
-			.catch((err) => {
-				console.error('[CRDT] Failed to compact cache:', err)
-			})
+		try {
+			await this.bus.crdtCacheCompact(this.docId, state, clearDirty)
+			this.updateCount = 0
+		} catch (err) {
+			console.error('[CRDT] Failed to compact cache:', err)
+		}
 	}
 
-	/** Re-compact after an online sync merges server state with cached offline state */
-	recompact(): void {
-		this.compact(true)
-	}
-
-	destroy(): void {
+	/**
+	 * Stop persisting and flush a final compact. Returns a Promise so callers
+	 * that want flush-on-leave semantics (visibilitychange / beforeunload)
+	 * can await the IPC round-trip; React effect cleanups can fire-and-
+	 * forget via `void persistence.destroy()`.
+	 */
+	async destroy(): Promise<void> {
 		if (this.listening) {
 			this.yDoc.off('update', this.handleUpdate)
-			this.compact()
 			this.listening = false
+			await this.compact()
 		}
 	}
 }

@@ -174,32 +174,52 @@ export async function openYDoc(
 		}
 	}
 
-	// Setup handler when WebSocket connects (and on each reconnection)
-	wsProvider.on('status', ({ status }: { status: string }) => {
+	// Setup handler when WebSocket connects (and on each reconnection).
+	// Extracted as a named function so callers can de-register via
+	// wsProvider.off('status', onStatusChange) without tearing down the
+	// whole provider (e.g., when swapping persistence under a stable
+	// provider).
+	const onStatusChange = ({ status }: { status: string }) => {
 		if (status === 'connected') {
 			setupCloseHandler()
-		} else if (status === 'disconnected' && !tokenRefreshInProgress) {
-			// Refresh token from bus before y-websocket schedules reconnection.
-			// Token renewal via shell push updates bus.accessToken, but the
-			// params object captured at openYDoc() time still holds the old value.
-			const currentToken = bus.accessToken
-			if (currentToken) {
-				params.token = currentToken
-			} else {
-				delete params.token
+		} else if (status === 'disconnected') {
+			// Mark persistence as offline so updates produced while
+			// reconnecting are flagged dirty.
+			persistence.markDisconnected()
+			if (!tokenRefreshInProgress) {
+				// Refresh token from bus before y-websocket schedules reconnection.
+				// Token renewal via shell push updates bus.accessToken, but the
+				// params object captured at openYDoc() time still holds the old value.
+				// Safe because y-websocket re-serialises the params dictionary
+				// into the WS URL on each connect() (see WebsocketProvider's
+				// `setupWS` in y-websocket): mutating the captured object before
+				// the next reconnect picks up the fresh token.
+				const currentToken = bus.accessToken
+				if (currentToken) {
+					params.token = currentToken
+				} else {
+					delete params.token
+				}
 			}
 		}
+	}
+	wsProvider.on('status', onStatusChange)
+
+	// Persistent 'sync' listener: any (re-)sync transitions us back to
+	// online and clears the dirty flag on the offline→online edge.
+	wsProvider.on('sync', (isSynced: boolean) => {
+		if (isSynced) persistence.markSynced()
 	})
 
 	if (offlineCached) {
-		// Offline with cache: start persisting immediately so local edits are saved
+		// Offline with cache: start persisting immediately so local edits are
+		// saved. The persistent 'sync' listener above handles dirty-clear when
+		// we eventually reconnect.
 		persistence.startPersisting()
-		// When we eventually sync (back online), re-compact to merge states
-		wsProvider.once('sync', () => {
-			persistence.recompact()
-		})
 	} else {
-		// Normal online flow: start persisting after initial sync
+		// Normal online flow: start persisting after initial sync. markSynced()
+		// has already fired via the persistent listener by this point, so
+		// startPersisting() sees wsSynced=true.
 		wsProvider.once('sync', () => {
 			persistence.startPersisting()
 		})

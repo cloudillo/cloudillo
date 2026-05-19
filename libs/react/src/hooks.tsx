@@ -235,7 +235,7 @@ export function useCloudilloEditor(appName: string) {
 
 					// Check if component unmounted during async operation
 					if (!isMounted) {
-						persistence.destroy()
+						void persistence.destroy()
 						provider.destroy()
 						return
 					}
@@ -295,9 +295,13 @@ export function useCloudilloEditor(appName: string) {
 					currentProvider.off('sync', handleSync)
 				}
 
-				// Compact and stop persisting updates
+				// Compact and stop persisting updates. Fire-and-forget: React
+				// cleanup is synchronous, so we can't await the final compact
+				// here. The Promise still chains errors into the console; for
+				// guaranteed flush-on-leave, callers should also wire up a
+				// visibilitychange / beforeunload handler that awaits this.
 				if (currentPersistence) {
-					currentPersistence.destroy()
+					void currentPersistence.destroy()
 				}
 
 				// Destroy the provider (closes WebSocket, removes all listeners)

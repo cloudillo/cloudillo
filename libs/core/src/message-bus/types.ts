@@ -815,7 +815,8 @@ export const tCrdtCacheAppendReq = T.struct({
 		docId: T.string,
 		update: T.unknown, // Uint8Array (structured clone)
 		clientId: T.number,
-		clock: T.number
+		clock: T.number,
+		offline: T.optional(T.boolean)
 	})
 })
 export type CrdtCacheAppendReq = T.TypeOf<typeof tCrdtCacheAppendReq>

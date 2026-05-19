@@ -836,7 +836,8 @@ export class AppMessageBus extends MessageBusBase {
 		docId: string,
 		update: Uint8Array,
 		clientId: number,
-		clock: number
+		clock: number,
+		offline: boolean
 	): Promise<void> {
 		await this.sendRequest<void>((id) => {
 			this.sendToShell(
@@ -844,7 +845,8 @@ export class AppMessageBus extends MessageBusBase {
 					docId,
 					update,
 					clientId,
-					clock
+					clock,
+					offline
 				})
 			)
 		})

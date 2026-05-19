@@ -40,6 +40,7 @@
 		"version-bump:minor": "pnpm version minor --no-git-tag-version && pnpm version-sync",
 		"version-bump:major": "pnpm version major --no-git-tag-version && pnpm version-sync",
 		"publish-libs:build": "pnpm -r --filter './libs/*' build",
+		"publish-libs:build-ts": "pnpm -r --filter './libs/*' build-ts",
 		"publish-libs:dry": "pnpm -r --filter './libs/*' publish --access public --no-git-checks --dry-run",
 		"publish-libs": "bash scripts/publish-libs.sh",
 		"build-docker": "docker --context default build --pull -t cloudillo/cloudillo:$npm_package_version -t cloudillo/cloudillo:latest -f Dockerfile.debian .",
@@ -51,7 +52,8 @@
 		"docker-all": "pnpm build-docker && pnpm build-docker-slim && pnpm build-docker-alpine && pnpm publish-docker && pnpm publish-docker-slim && pnpm publish-docker-alpine"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.4.14"
+		"@biomejs/biome": "^2.4.14",
+		"@typescript/native-preview": "^7.0.0-dev.20260501"
 	},
 	"pnpm": {
 		"overrides": {

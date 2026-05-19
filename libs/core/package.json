@@ -38,9 +38,10 @@
 		"README.md"
 	],
 	"scripts": {
-		"ts": "tsc --noEmit",
-		"build": "tsc",
-		"watch": "tsc -w",
+		"ts": "tsgo --noEmit",
+		"build": "tsgo",
+		"build-ts": "tsc",
+		"watch": "tsgo -w",
 		"test": "NODE_OPTIONS=\"--experimental-vm-modules\" jest",
 		"test:watch": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --watch",
 		"test:coverage": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --coverage",

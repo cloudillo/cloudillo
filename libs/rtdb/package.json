@@ -34,9 +34,10 @@
 		"README.md"
 	],
 	"scripts": {
-		"ts": "tsc --noEmit",
-		"build": "tsc",
-		"watch": "tsc -w",
+		"ts": "tsgo --noEmit",
+		"build": "tsgo",
+		"build-ts": "tsc",
+		"watch": "tsgo -w",
 		"clean": "rimraf .cache lib*",
 		"test": "NODE_OPTIONS=\"--experimental-vm-modules\" jest",
 		"test:watch": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --watch",

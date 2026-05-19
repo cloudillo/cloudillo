@@ -32,9 +32,10 @@
 		"README.md"
 	],
 	"scripts": {
-		"ts": "tsc --noEmit",
-		"build": "tsc && cp src/calendar-ui.css lib/",
-		"watch": "tsc -w",
+		"ts": "tsgo --noEmit",
+		"build": "tsgo && cp src/calendar-ui.css lib/",
+		"build-ts": "tsc && cp src/calendar-ui.css lib/",
+		"watch": "tsgo -w",
 		"clean": "rimraf .cache lib*"
 	},
 	"author": "Szilárd Hajba <szilu@cloudillo.org>",

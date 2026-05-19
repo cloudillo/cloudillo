@@ -34,9 +34,10 @@
 		"README.md"
 	],
 	"scripts": {
-		"ts": "tsc --noEmit",
-		"build": "tsc",
-		"watch": "tsc -w",
+		"ts": "tsgo --noEmit",
+		"build": "tsgo",
+		"build-ts": "tsc",
+		"watch": "tsgo -w",
 		"clean": "rimraf .cache lib*"
 	},
 	"author": "Szilárd Hajba <szilu@cloudillo.org>",

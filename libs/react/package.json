@@ -39,9 +39,10 @@
 		}
 	},
 	"scripts": {
-		"ts": "tsc --noEmit",
-		"build": "tsc && cp src/components.css lib/",
-		"watch": "tsc -w",
+		"ts": "tsgo --noEmit",
+		"build": "tsgo && cp src/components.css lib/",
+		"build-ts": "tsc && cp src/components.css lib/",
+		"watch": "tsgo -w",
 		"clean": "rimraf .cache lib*"
 	},
 	"author": "Szilárd Hajba <szilu@cloudillo.org>",

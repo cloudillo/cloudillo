@@ -32,6 +32,7 @@ import {
 } from '@cloudillo/react'
 import { useAtom } from 'jotai'
 import {
+	useApiContext,
 	useContextAwareApi,
 	useCurrentContextIdTag,
 	activeContextAtom
@@ -138,10 +139,52 @@ export function DetailsPanel({
 }: DetailsPanelProps) {
 	const { t } = useTranslation()
 	const { api: contextApi } = useContextAwareApi()
-	const api = apiOverride !== undefined ? apiOverride : contextApi
-	const [auth] = useAuth()
+	const { getTokenFor, getClientFor } = useApiContext()
 	const contextIdTag = useCurrentContextIdTag()
+	const [auth] = useAuth()
 	const [activeContext] = useAtom(activeContextAtom)
+
+	const fileOwnerIdTag = file.owner?.idTag
+	const isCrossOwner =
+		apiOverride === undefined &&
+		!!fileOwnerIdTag &&
+		!!contextIdTag &&
+		fileOwnerIdTag !== contextIdTag
+
+	const [ownerApi, setOwnerApi] = React.useState<ApiClient | null>(null)
+	const [ownerApiLoading, setOwnerApiLoading] = React.useState(false)
+
+	React.useEffect(
+		function acquireOwnerApi() {
+			if (!isCrossOwner || !fileOwnerIdTag) {
+				setOwnerApi(null)
+				setOwnerApiLoading(false)
+				return
+			}
+			let cancelled = false
+			setOwnerApiLoading(true)
+			;(async function () {
+				try {
+					const tokenResult = await getTokenFor(fileOwnerIdTag, { explicit: true })
+					if (cancelled) return
+					const client = tokenResult
+						? getClientFor(fileOwnerIdTag, { token: tokenResult.token })
+						: null
+					if (!cancelled) setOwnerApi(client)
+				} catch {
+					if (!cancelled) setOwnerApi(null)
+				} finally {
+					if (!cancelled) setOwnerApiLoading(false)
+				}
+			})()
+			return () => {
+				cancelled = true
+			}
+		},
+		[isCrossOwner, fileOwnerIdTag, getTokenFor, getClientFor]
+	)
+
+	const api = apiOverride !== undefined ? apiOverride : isCrossOwner ? ownerApi : contextApi
 	const dialog = useDialog()
 	const toast = useToast()
 	const [fileActions, setFileActions] = React.useState<ActionView[] | undefined>()
@@ -233,7 +276,7 @@ export function DetailsPanel({
 
 			// Key by api source so switching between local/remote with the
 			// same fileId doesn't return a path from the wrong context.
-			const cacheKey = `${apiOverride ? 'remote' : 'local'}:${file.fileId}`
+			const cacheKey = `${apiOverride ? 'remote' : isCrossOwner ? `owner:${fileOwnerIdTag}` : 'local'}:${file.fileId}`
 
 			// Use path already on the file if present (from a withPath listing).
 			if (file.path) {
@@ -269,7 +312,7 @@ export function DetailsPanel({
 				cancelled = true
 			}
 		},
-		[api, apiOverride, file.fileId, file.path]
+		[api, apiOverride, isCrossOwner, fileOwnerIdTag, file.fileId, file.path]
 	)
 
 	// Permissions
@@ -371,14 +414,22 @@ export function DetailsPanel({
 			<div className="c-panel mid c-details-subject">
 				<div className="c-details-header">
 					<div className="c-details-thumb">
-						{isImage && contextIdTag ? (
+						{isImage && (fileOwnerIdTag || contextIdTag) ? (
 							<img
-								src={getFileUrl(contextIdTag, file.fileId, 'vis.sd')}
+								src={getFileUrl(
+									fileOwnerIdTag || contextIdTag!,
+									file.fileId,
+									'vis.sd'
+								)}
 								alt={file.fileName}
 							/>
-						) : file.variantId && contextIdTag ? (
+						) : file.variantId && (fileOwnerIdTag || contextIdTag) ? (
 							<img
-								src={getFileUrl(contextIdTag, file.variantId, 'vis.sd')}
+								src={getFileUrl(
+									fileOwnerIdTag || contextIdTag!,
+									file.variantId,
+									'vis.sd'
+								)}
 								alt={file.fileName}
 							/>
 						) : (
@@ -554,6 +605,12 @@ export function DetailsPanel({
 						</h3>
 					</div>
 					<div className="c-vbox g-3">
+						{/* Cross-owner panel: the remote API is still warming
+						up — keep the sections from rendering as "empty". */}
+						{ownerApiLoading && fileActions === undefined && (
+							<span className="text-secondary">{t('Loading…')}</span>
+						)}
+
 						{/* Write permissions */}
 						{writePerms && writePerms.length > 0 && (
 							<div>
@@ -745,7 +802,8 @@ export function DetailsPanel({
 						)}
 
 						{/* Empty state */}
-						{(!writePerms || writePerms.length === 0) &&
+						{!ownerApiLoading &&
+							(!writePerms || writePerms.length === 0) &&
 							(!commentPerms || commentPerms.length === 0) &&
 							(!readPerms || readPerms.length === 0) &&
 							(!shareRefs || shareRefs.length === 0) &&

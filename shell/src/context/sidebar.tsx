@@ -22,9 +22,11 @@ import {
 	useContextSwitch,
 	useSidebar,
 	activeContextAtom,
+	contextIdpEnabledAtom,
 	previewCommunityAtom
 } from './index'
-import { useAtom } from 'jotai'
+import { HOME_CONTEXT, CONTEXT_ROUTE_REGEX } from './constants'
+import { useAtom, useAtomValue } from 'jotai'
 import type { CommunityRef } from './types'
 
 interface CommunityListItemProps {
@@ -153,6 +155,7 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 	const [auth] = useAuth()
 	const [activeContext] = useAtom(activeContextAtom)
 	const [previewCommunity] = useAtom(previewCommunityAtom)
+	const contextIdpEnabled = useAtomValue(contextIdpEnabledAtom)
 	const { favorites, reorderFavorites, toggleFavorite } = useCommunitiesList()
 	const { switchTo, isSwitching } = useContextSwitch()
 	const { isOpen, isPinned, close } = useSidebar()
@@ -202,20 +205,39 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 		setDragOverIndex(null)
 	}, [])
 
-	// Handle context switch - preserve current app path
+	// Handle context switch - preserve current top-level route across contexts.
+	// Recognizes `/app/...` plus the context-aware sibling routes
+	// (`/idp/...`, `/settings/...`, `/users/...`, `/communities/...`,
+	// `/profile/...`). Falls back to the default feed when the current URL
+	// isn't one of these, or when switching into a context whose IDP is
+	// disabled (or unknown — we have no token to ask the foreign server yet).
 	const handleSwitch = React.useCallback(
 		(idTag: string) => {
-			// Extract current app path from URL: /app/{contextIdTag}/{appPath}
-			// We want to keep the appPath when switching contexts
-			const match = location.pathname.match(/^\/app\/[^/]+\/(.+)$/)
-			const currentAppPath = match ? `/${match[1]}` : '/feed'
+			const urlSegment = idTag === auth?.idTag ? HOME_CONTEXT : idTag
+			const defaultDestination = `/app/${urlSegment}/feed`
 
-			switchTo(idTag, currentAppPath).catch((err) => {
+			const contextRouteMatch = location.pathname.match(CONTEXT_ROUTE_REGEX)
+
+			let destination = defaultDestination
+			if (contextRouteMatch) {
+				const prefix = contextRouteMatch[1]
+				const tail = contextRouteMatch[3] ?? ''
+				// IDP is per-tenant; fall back to feed when the target context's
+				// IDP is disabled (or unknown — missing entry means we haven't
+				// loaded the setting yet for that context).
+				if (prefix === 'idp' && contextIdpEnabled[idTag] !== true) {
+					destination = defaultDestination
+				} else {
+					destination = `/${prefix}/${urlSegment}${tail}`
+				}
+			}
+
+			switchTo(idTag, destination).catch((err) => {
 				console.error('Failed to switch context:', err)
 				toastError(t('Failed to switch context. Please try again.'))
 			})
 		},
-		[switchTo, location.pathname, toastError, t]
+		[switchTo, location.pathname, toastError, t, auth?.idTag, contextIdpEnabled]
 	)
 
 	if (!auth) return null

@@ -38,6 +38,8 @@ export interface File {
 	visibility?: FileVisibility
 	parentName?: string
 	path?: { id: string; name: string }[]
+	brokenAt?: string
+	brokenReason?: 'revoked' | 'deleted' | 'unreachable'
 }
 
 export interface FileView extends File {
@@ -69,6 +71,7 @@ export interface FileOps {
 	togglePinnedBatch?: (fileIds: string[], pinned: boolean) => void
 	setVisibility?: (fileId: string, visibility: FileVisibility) => void
 	doDuplicateFile?: (fileId: string) => void
+	doRefreshFile?: (fileId: string) => void
 }
 
 export interface FileFiltState {
@@ -78,11 +81,12 @@ export interface FileFiltState {
 	parentId?: string | null
 }
 
-export const VIEW_MODES = ['browse', 'recent', 'trash', 'starred'] as const
+export const VIEW_MODES = ['browse', 'recent', 'trash', 'starred', 'managed'] as const
 export type ViewMode = (typeof VIEW_MODES)[number]
 export type FileTypeFilter = 'all' | 'live' | 'static'
 export type OwnerFilter = 'anyone' | 'me' | 'others'
 
 export const TRASH_FOLDER_ID = '__trash__'
+export const MANAGED_FOLDER_ID = '__managed__'
 
 // vim: ts=4

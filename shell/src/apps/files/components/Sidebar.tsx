@@ -12,6 +12,7 @@ import {
 	LuStar as IcFavorites,
 	LuClock as IcRecent,
 	LuTrash2 as IcTrash,
+	LuShieldCheck as IcManaged,
 	LuTag as IcTag,
 	LuX as IcClear
 } from 'react-icons/lu'
@@ -320,6 +321,18 @@ export const Sidebar = React.memo(function Sidebar({
 					}}
 				>
 					<IcTrash /> {t('Trash')}
+				</a>
+			</li>
+			<li className="c-nav-item">
+				<a
+					className={mergeClasses('c-nav-link', viewMode === 'managed' && 'active')}
+					href="#"
+					onClick={(e) => {
+						e.preventDefault()
+						onViewModeChange('managed')
+					}}
+				>
+					<IcManaged /> {t('Managed')}
 				</a>
 			</li>
 

@@ -60,6 +60,17 @@
 	animation: spin 1s linear infinite;
 }
 
+/* Small inline spinner shown beside a sidebar item that is awaiting a
+   pending network operation. */
+.c-sidebar-pending-indicator {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--col-primary);
+	opacity: 0.7;
+	font-size: 0.75rem;
+}
+
 @keyframes spin {
 	from {
 		transform: rotate(0deg);

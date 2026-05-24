@@ -19,7 +19,13 @@ import { getFileUrl } from '@cloudillo/core'
 
 import { useCurrentContextIdTag } from '../../../context/index.js'
 import { getFileIcon, type IcUnknown } from '../icons.js'
-import { TRASH_FOLDER_ID, type File, type FileOps, type ViewMode } from '../types.js'
+import {
+	TRASH_FOLDER_ID,
+	MANAGED_FOLDER_ID,
+	type File,
+	type FileOps,
+	type ViewMode
+} from '../types.js'
 import { getSmartTimestamp, getVisibilityIcon, getVisibilityLabel } from '../utils.js'
 
 interface ItemGridProps {
@@ -85,6 +91,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 	}
 
 	const isInTrash = viewMode === 'trash' || file.parentId === TRASH_FOLDER_ID
+	const isManagedView = viewMode === 'managed' || file.parentId === MANAGED_FOLDER_ID
 	const isPinned = file.userData?.pinned ?? false
 	const isStarred = file.userData?.starred ?? false
 	const isLive = file.fileTp === 'CRDT' || file.fileTp === 'RTDB'
@@ -99,6 +106,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 		<div
 			className={mergeClasses('c-file-grid-item', isPinned && 'pinned', className)}
 			data-file-id={file.fileId}
+			data-source-context={contextIdTag ?? undefined}
 			onClick={handleClick}
 			onDoubleClick={handleDoubleClick}
 			onContextMenu={handleContextMenu}
@@ -126,7 +134,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 				)}
 
 				{/* Star button - top right (clickable) */}
-				{!isInTrash && (
+				{!isInTrash && !isManagedView && (
 					<button
 						type="button"
 						className={mergeClasses('c-file-grid-star', isStarred && 'active')}
@@ -186,7 +194,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 			{/* Parent folder context — shown only in hierarchy-agnostic views
 			    or during cross-folder search. */}
 			{showParentChip && file.parentName && (
-				<div className="c-file-grid-parent text-muted small d-inline-flex align-items-center g-1">
+				<div className="text-muted small d-inline-flex align-items-center g-1">
 					<IcFolder /> <span className="text-truncate">{file.parentName}</span>
 				</div>
 			)}

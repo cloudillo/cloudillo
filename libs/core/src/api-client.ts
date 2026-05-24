@@ -606,6 +606,27 @@ export class ApiClient {
 
 		/**
 		 * POST /files - Create file (metadata-only: CRDT, RTDB, etc.)
+		 *
+		 * Also supports Hand cross-context creation (Pin / Place verbs) when
+		 * `sourceFileId` + `sourceIdTag` are provided. In that case the new
+		 * row in the destination tenant references content owned by the
+		 * source tenant; the destination row's `owner` is the source idTag.
+		 *
+		 * Two-step cross-tenant flow: the source-side share grant is a
+		 * separate call — POST `/files/{sourceFileId}/shares` on the source
+		 * tenant (see `files.createShare`) before this POST. The destination
+		 * request must NOT include any access-level field.
+		 *
+		 * Typed error codes (returned in the error response body's code field):
+		 *   - source_not_found (404)
+		 *   - source_forbidden (403)
+		 *   - source_unreachable (503)
+		 *   - destination_forbidden (403)
+		 *   - cycle_rejected (400)
+		 *   - already_placed (409) — destination already has a row for this file;
+		 *       body.details.existing_parent_id identifies the current parent
+		 *   - access_level_forbidden (400) — request body included accessLevel; remove it
+		 *
 		 * @param data - File creation request
 		 * @returns Created file ID
 		 */
@@ -873,6 +894,21 @@ export class ApiClient {
 		 */
 		removeTag: (fileId: string, tag: string) =>
 			this.request('DELETE', `/files/${fileId}/tag/${tag}`, Types.tTagResult),
+
+		/**
+		 * POST /files/:fileId/refresh - Reconcile a cross-context file row with its source.
+		 *
+		 * Call this after the frontend detects an access-level conflict (e.g. 403 from
+		 * `auth.getAccessToken` for a file scope). The server contacts the source and
+		 * mutates the destination row in place. Returns the updated FileView; check
+		 * `brokenAt`/`brokenReason` and `accessLevel` to decide UX.
+		 *
+		 * @throws FetchError with httpStatus 400 if the file is not cross-context
+		 *         (local-owned files cannot be refreshed). Callers should treat this
+		 *         as "unsupported, fall through to normal error handling".
+		 */
+		refresh: (fileId: string) =>
+			this.request('POST', `/files/${encodeURIComponent(fileId)}/refresh`, Types.tFileView),
 
 		/**
 		 * GET /files/:fileId/shares - List share entries for a file

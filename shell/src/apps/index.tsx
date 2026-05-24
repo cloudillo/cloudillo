@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { Routes, Route, useLocation, useParams } from 'react-router-dom'
-import { useAuth, useApi, mergeClasses } from '@cloudillo/react'
+import { Routes, Route, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useSetAtom } from 'jotai'
+import { useTranslation } from 'react-i18next'
+import { useAuth, useApi, useDialog, useToast, mergeClasses } from '@cloudillo/react'
+import type { ApiClient, FileView } from '@cloudillo/core'
 
 import { version } from '../../package.json'
 
@@ -11,7 +14,7 @@ import { useAppConfig, type TrustLevel } from '../utils.js'
 import { getShellBus } from '../message-bus/shell-bus.js'
 import { onAppReady, onAppError, getAccessSuffix } from '../message-bus/index.js'
 import { releaseClientIdsForWindow } from '../message-bus/handlers/crdt.js'
-import { useContextFromRoute, useGuestDocument } from '../context/index.js'
+import { useContextFromRoute, useGuestDocument, fileViewUpdateAtom } from '../context/index.js'
 import { FeedApp } from './feed.js'
 import { FilesApp } from './files.js'
 import { GalleryApp } from './gallery.js'
@@ -25,6 +28,79 @@ async function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(() => resolve(), ms))
 }
 
+/**
+ * Result of attempting to reconcile an access conflict on a cross-context
+ * file via files.refresh. Drives the user-facing handler in ExternalApp.
+ */
+export type AccessConflict =
+	/** Source tombstoned the file (revoked/deleted/unreachable). Show a
+	 * reason-specific toast and navigate back to the files list. */
+	| { kind: 'broken'; file: FileView }
+	/** Refresh returned a lower access level than the user requested.
+	 * Prompt to open in read-only; on confirm, re-mount at `granted`. */
+	| {
+			kind: 'downgraded'
+			file: FileView
+			requested: 'write' | 'comment'
+			granted: 'read' | 'comment'
+	  }
+	/** files.refresh returned 400 — the file is local-owned, so cross-context
+	 * reconciliation doesn't apply. Treat as a plain auth failure. */
+	| { kind: 'unsupported' }
+	/** Refresh succeeded but reported the same-or-higher access the user
+	 * already requested — the original 401/403 is a real auth failure
+	 * (token-endpoint issue), not a permissions change. */
+	| { kind: 'unchanged' }
+	/** Refresh itself threw (network error, etc). */
+	| { kind: 'error'; err: unknown }
+
+// In-flight refresh promises keyed by fileId — de-dups concurrent triggers
+// (rapid double-click, simultaneous initial-fetch + first-renewal failure).
+const inFlightRefreshes = new Map<string, Promise<FileView>>()
+
+function refreshFileDeduped(api: ApiClient, fileId: string): Promise<FileView> {
+	const existing = inFlightRefreshes.get(fileId)
+	if (existing) return existing
+	const p = api.files.refresh(fileId).finally(() => {
+		inFlightRefreshes.delete(fileId)
+	})
+	inFlightRefreshes.set(fileId, p)
+	return p
+}
+
+function suffixToAccess(suffix: 'R' | 'C' | 'W'): 'read' | 'comment' | 'write' {
+	return suffix === 'R' ? 'read' : suffix === 'C' ? 'comment' : 'write'
+}
+
+function classifyOutcome(file: FileView, requestedSuffix: 'R' | 'C' | 'W'): AccessConflict {
+	// Tombstoned by the source server — broken, regardless of accessLevel.
+	if (file.brokenAt) return { kind: 'broken', file }
+	const requested = suffixToAccess(requestedSuffix)
+	// Backend's refresh sometimes omits accessLevel even when the user retains
+	// some access (the row would have been tombstoned otherwise). Fall back to
+	// 'read' so we surface as a downgrade rather than a phantom "broken".
+	const granted: 'read' | 'comment' | 'write' =
+		file.accessLevel === 'read' ||
+		file.accessLevel === 'comment' ||
+		file.accessLevel === 'write'
+			? file.accessLevel
+			: 'read'
+	const rank = { read: 1, comment: 2, write: 3 } as const
+	if (rank[granted] < rank[requested]) {
+		// rank[granted] < rank[requested] implies requested ≠ 'read' (nothing
+		// outranks 1) and granted ≠ 'write' (nothing is outranked by 3). The
+		// casts make those facts explicit for TS.
+		return {
+			kind: 'downgraded',
+			file,
+			requested: requested as 'write' | 'comment',
+			granted: granted as 'read' | 'comment'
+		}
+	}
+	// Same or higher access — real auth failure (token endpoint should have succeeded).
+	return { kind: 'unchanged' }
+}
+
 interface MicrofrontendContainerProps {
 	className?: string
 	app: string
@@ -36,6 +112,7 @@ interface MicrofrontendContainerProps {
 	refId?: string // Share link ref ID for guest token refresh
 	guestName?: string // Optional guest display name for awareness
 	params?: string // Launch params as serialized query string
+	onAccessConflict?: (outcome: AccessConflict) => void | Promise<void>
 }
 
 /**
@@ -92,7 +169,8 @@ export function MicrofrontendContainer({
 	token: providedToken,
 	refId,
 	guestName,
-	params
+	params,
+	onAccessConflict
 }: MicrofrontendContainerProps) {
 	const ref = React.useRef<HTMLIFrameElement>(null)
 	const { api } = useApi()
@@ -124,6 +202,10 @@ export function MicrofrontendContainer({
 	const refIdRef = React.useRef(refId)
 	const guestNameRef = React.useRef(guestName)
 	const paramsRef = React.useRef(params)
+	const onAccessConflictRef = React.useRef(onAccessConflict)
+	// Tracks whether we've already dispatched an access-conflict for this mount
+	// so a slow refresh + a fast app:error don't both fire dialogs/navigations.
+	const conflictDispatchedRef = React.useRef(false)
 	// These refs are for callbacks defined below - initialized to null, updated in effect
 	const requestTokenRef = React.useRef<(() => Promise<string | undefined>) | null>(null)
 	const scheduleRenewalRef = React.useRef<((token: string) => void) | null>(null)
@@ -131,6 +213,41 @@ export function MicrofrontendContainer({
 	// Boolean flag that only transitions once (false → true)
 	// This prevents effect re-runs on token renewal (api/auth object changes)
 	const isReady = !!(api && (auth !== undefined || providedToken))
+
+	// Shared access-conflict reconciliation: calls files.refresh, classifies
+	// the result, and dispatches to onAccessConflict. Used from both the
+	// token-fetch retry path (when access-token returns 401/403) and the
+	// app:error path (when the app reports 4401/4403 — the token mints fine
+	// but the backend WebSocket/handler enforces the actual access level).
+	const triggerAccessRefresh = React.useCallback(async () => {
+		if (conflictDispatchedRef.current) return
+		const currentApi = apiRef.current
+		if (!currentApi || !fileId) return
+		conflictDispatchedRef.current = true
+		const accessSuffix = getAccessSuffix(accessRef.current)
+		try {
+			const updated = await refreshFileDeduped(currentApi, fileId)
+			const outcome = classifyOutcome(updated, accessSuffix)
+			if (onAccessConflictRef.current) {
+				await onAccessConflictRef.current(outcome)
+			}
+			// `unchanged` means the refresh succeeded but the user's access
+			// hasn't actually changed — i.e. a transient/genuine auth failure
+			// that may resolve later. Allow the next access blip to retry.
+			if (outcome.kind === 'unchanged') {
+				conflictDispatchedRef.current = false
+			}
+		} catch (refreshErr) {
+			const status = (refreshErr as { httpStatus?: number })?.httpStatus
+			if (status === 400) {
+				onAccessConflictRef.current?.({ kind: 'unsupported' })
+			} else {
+				onAccessConflictRef.current?.({ kind: 'error', err: refreshErr })
+				// Refresh itself failed — allow the next blip to retry.
+				conflictDispatchedRef.current = false
+			}
+		}
+	}, [fileId])
 
 	// Function to request a new token
 	const requestToken = React.useCallback(async () => {
@@ -181,6 +298,12 @@ export function MicrofrontendContainer({
 						})
 						return res.token
 					} catch (retryErr) {
+						const retryStatus = (retryErr as { httpStatus?: number })?.httpStatus
+						if ((retryStatus === 401 || retryStatus === 403) && fileId) {
+							// Genuine access conflict — reconcile via refresh.
+							await triggerAccessRefresh()
+							return undefined
+						}
 						console.error('[Shell] Retry failed:', retryErr)
 					}
 				}
@@ -237,6 +360,7 @@ export function MicrofrontendContainer({
 		refIdRef.current = refId
 		guestNameRef.current = guestName
 		paramsRef.current = params
+		onAccessConflictRef.current = onAccessConflict
 		requestTokenRef.current = requestToken
 		scheduleRenewalRef.current = scheduleRenewal
 	})
@@ -371,6 +495,18 @@ export function MicrofrontendContainer({
 								clearTimeout(timeoutRef.current)
 								timeoutRef.current = undefined
 							}
+							// 4401/4403 = app-level auth/forbidden (e.g. CRDT WS
+							// rejected the token's scope). The access-token
+							// endpoint can succeed while the resource handler
+							// later rejects, so this is the second chokepoint
+							// where we must reconcile via files.refresh.
+							const isAuthError =
+								code === 4401 || code === 4403 || code === 401 || code === 403
+							if (isAuthError && fileId) {
+								// Fire-and-forget — handler will show toast/dialog/navigate.
+								void triggerAccessRefresh()
+								return
+							}
 							setErrorCode(code)
 							setErrorMessage(message)
 							setLoadingStage('error')
@@ -492,8 +628,16 @@ function ExternalApp({ className }: { className?: string }) {
 	const [appConfig] = useAppConfig()
 	const [auth] = useAuth()
 	const location = useLocation()
+	const navigate = useNavigate()
+	const { t } = useTranslation()
+	const toast = useToast()
+	const dialog = useDialog()
+	const setFileViewUpdate = useSetAtom(fileViewUpdateAtom)
 	const { contextIdTag, appId, '*': rest } = useParams()
 	const [guestDocument] = useGuestDocument()
+	const [forcedAccess, setForcedAccess] = React.useState<
+		'read' | 'comment' | 'write' | undefined
+	>()
 	// Use contextIdTag from URL, fallback to auth idTag
 	const idTag = contextIdTag || auth?.idTag || window.location.hostname
 
@@ -522,18 +666,77 @@ function ExternalApp({ className }: { className?: string }) {
 	const guestToken = isGuestAccess ? guestDocument.token : undefined
 	const guestName = isGuestAccess ? guestDocument.guestName : undefined
 
+	const filesListPath = `/app/${contextIdTag || auth?.idTag}/files`
+
+	const handleAccessConflict = React.useCallback(
+		async (outcome: AccessConflict) => {
+			if (outcome.kind === 'broken') {
+				setFileViewUpdate((prev) => ({
+					version: (prev?.version ?? 0) + 1,
+					file: outcome.file
+				}))
+				const reason = outcome.file.brokenReason
+				const msg =
+					reason === 'revoked'
+						? t('This file is no longer shared with you.')
+						: reason === 'deleted'
+							? t('The owner deleted this file.')
+							: reason === 'unreachable'
+								? t("The owner's server couldn't be reached.")
+								: t('This file is no longer available.')
+				toast.error(msg)
+				navigate(filesListPath)
+				return
+			}
+			if (outcome.kind === 'downgraded') {
+				setFileViewUpdate((prev) => ({
+					version: (prev?.version ?? 0) + 1,
+					file: outcome.file
+				}))
+				const confirmed = await dialog.confirm(
+					t('Open in read-only mode?'),
+					t(
+						'Your access to this file changed from {{requested}} to {{granted}}. Open in read-only mode?',
+						{
+							requested: t(outcome.requested),
+							granted: t(outcome.granted)
+						}
+					)
+				)
+				if (!confirmed) {
+					navigate(filesListPath)
+					return
+				}
+				// Re-mount the container with the lower access via state.
+				setForcedAccess(outcome.granted)
+				return
+			}
+			if (outcome.kind === 'unsupported' || outcome.kind === 'unchanged') {
+				toast.error(t('Access denied.'))
+				return
+			}
+			// outcome.kind === 'error'
+			toast.error(t('Unable to verify file access. Please try again.'))
+		},
+		[navigate, t, toast, dialog, setFileViewUpdate, filesListPath]
+	)
+
+	const effectiveAccess = forcedAccess ?? access
+
 	return (
 		!!app && (
 			<MicrofrontendContainer
+				key={forcedAccess ? `${resId}:${forcedAccess}` : resId}
 				className={className}
 				app={app.id}
 				resId={resId}
 				appUrl={`${app.url}`}
 				trust={app.trust}
-				access={access}
+				access={effectiveAccess}
 				token={guestToken}
 				guestName={guestName}
 				params={paramsStr}
+				onAccessConflict={handleAccessConflict}
 			/>
 		)
 	)

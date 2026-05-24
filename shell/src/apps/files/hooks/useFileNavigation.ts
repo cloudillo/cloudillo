@@ -8,7 +8,7 @@ import type { ApiClient } from '@cloudillo/core'
 import { useCurrentContextIdTag } from '../../../context/index.js'
 import { useApiContext, useContextAwareApi } from '../../../context/index.js'
 import type { File, ViewMode } from '../types.js'
-import { TRASH_FOLDER_ID, VIEW_MODES } from '../types.js'
+import { TRASH_FOLDER_ID, MANAGED_FOLDER_ID, VIEW_MODES } from '../types.js'
 import { fileNavStackAtom } from '../atoms.js'
 
 export interface BreadcrumbItem {
@@ -155,7 +155,11 @@ export function useFileNavigation() {
 					// Local mode: original breadcrumb logic
 					const path: BreadcrumbItem[] = [{ id: null, name: 'Files' }]
 
-					if (currentFolderId && currentFolderId !== TRASH_FOLDER_ID) {
+					if (
+						currentFolderId &&
+						currentFolderId !== TRASH_FOLDER_ID &&
+						currentFolderId !== MANAGED_FOLDER_ID
+					) {
 						let folderId: string | null = currentFolderId
 						const folderPath: BreadcrumbItem[] = []
 

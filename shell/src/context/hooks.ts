@@ -16,8 +16,8 @@ import { useApi, useAuth, apiAtom, authAtom } from '@cloudillo/react'
 import { HOME_CONTEXT } from './constants.js'
 import {
 	activeContextAtom,
-	contextOnboardingAtom,
 	contextIdpEnabledAtom,
+	contextIdpEnabledCacheAtom,
 	contextTokensAtom,
 	communitiesAtom,
 	favoritesAtom,
@@ -53,10 +53,12 @@ export async function loadIdpEnabled(
 	setContextIdpEnabled: (
 		updater: (prev: Record<string, boolean>) => Record<string, boolean>
 	) => void
-): Promise<void> {
+): Promise<boolean | undefined> {
 	try {
 		const setting = await client.settings.get('idp.enabled')
-		setContextIdpEnabled((prev) => ({ ...prev, [idTag]: setting.value === true }))
+		const value = setting.value === true
+		setContextIdpEnabled((prev) => ({ ...prev, [idTag]: value }))
+		return value
 	} catch (err) {
 		const expected =
 			err instanceof FetchError && (err.httpStatus === 404 || err.httpStatus === 403)
@@ -64,6 +66,10 @@ export async function loadIdpEnabled(
 			console.warn('Failed to read idp.enabled for context:', err)
 		}
 		setContextIdpEnabled((prev) => ({ ...prev, [idTag]: false }))
+		// On 404/403 (the setting is genuinely unset / unavailable), `false` is
+		// authoritative and worth caching. On a transient network error, return
+		// undefined so the caller skips the cache write and re-tries next time.
+		return expected ? false : undefined
 	}
 }
 
@@ -93,8 +99,8 @@ export function useApiContext() {
 	const store = useStore()
 	const activeContext = useAtomValue(activeContextAtom)
 	const setActiveContextState = useSetAtom(activeContextAtom)
-	const setContextOnboarding = useSetAtom(contextOnboardingAtom)
 	const setContextIdpEnabled = useSetAtom(contextIdpEnabledAtom)
+	const setContextIdpEnabledCache = useSetAtom(contextIdpEnabledCacheAtom)
 	const setContextTokens = useSetAtom(contextTokensAtom)
 	const [isLoading, setIsLoading] = React.useState(false)
 	const [error, setError] = React.useState<Error | undefined>()
@@ -269,15 +275,25 @@ export function useApiContext() {
 
 	/**
 	 * Switch to different context
-	 * Fetches token if needed and updates active context
+	 * Fetches token if needed and updates active context.
+	 *
+	 * `ui.*` settings are per-user and are loaded once at boot from the home
+	 * tenant — they must not be re-fetched on context switch. `idp.enabled` is
+	 * a per-tenant capability and is fetched per context, but cached for a
+	 * short staleness window so re-entering a known context skips the call.
+	 *
+	 * Idempotent: a same-target call (or a same-target call already in flight)
+	 * with the URL-as-source-of-truth model returns early.
 	 */
 	const setActiveContext = React.useCallback(
-		async (idTag: string) => {
+		async (idTag: string, opts: { forceRefresh?: boolean } = {}) => {
 			const auth = store.get(authAtom)
 			if (!auth?.idTag) {
 				throw new Error('Cannot switch context without auth')
 			}
 			const ownIdTag = auth.idTag
+
+			if (store.get(activeContextAtom)?.idTag === idTag && !opts.forceRefresh) return
 
 			setIsLoading(true)
 			setError(undefined)
@@ -308,38 +324,27 @@ export function useApiContext() {
 				// Update active context
 				setActiveContextState(newContext)
 
-				// Load per-context ui.onboarding (so the banner doesn't flash
-				// a stale value) and idp.enabled (so the shell menu can hide
-				// the IDP item on tenants that aren't providers) after the
-				// switch. They're independent, so kick both off in parallel
-				// and await idp at the end. Use settings.get (not
-				// settings.list with a prefix) — the /settings?prefix=
-				// endpoint always appends a "." to the supplied prefix and
-				// so never matches an exact key.
-				const idpPromise = loadIdpEnabled(contextApi, idTag, setContextIdpEnabled)
-				try {
-					const onboarding = await contextApi.settings.get('ui.onboarding')
-					const value = onboarding.value
-					if (typeof value === 'string') {
-						setContextOnboarding((prev) => ({
-							...prev,
-							[idTag]: value
-						}))
-					}
-					// No else branch: leave any existing value (e.g. the
-					// 'verify-idp' written optimistically right after community
-					// creation) untouched. Clearing happens via verify-idp-banner
-					// polling, which sets contextOnboarding[idTag] = null when
-					// idpStatus.status === 'active'.
-				} catch (settingsErr) {
-					// 404 = setting unset (the common case). Anything else is
-					// transient; leave the optimistic value alone either way.
-					if (!(settingsErr instanceof FetchError && settingsErr.httpStatus === 404)) {
-						console.warn('Failed to read ui.onboarding for context:', settingsErr)
+				// idp.enabled is a tenant capability — load per context, but
+				// cached. On cache hit within the staleness window, seed
+				// contextIdpEnabledAtom from cache and skip the network call.
+				const STALE_MS = 5 * 60 * 1000
+				const cached = store.get(contextIdpEnabledCacheAtom).get(idTag)
+				if (cached && Date.now() - cached.fetchedAt < STALE_MS && !opts.forceRefresh) {
+					setContextIdpEnabled((prev) => ({ ...prev, [idTag]: cached.value }))
+				} else {
+					const value = await loadIdpEnabled(contextApi, idTag, setContextIdpEnabled)
+					// Mirror the freshly-written value into the cache so
+					// re-entry skips the network call. Skip the cache write
+					// on a transient failure (value === undefined) so we
+					// don't lock the stale `false` for the next 5 minutes.
+					if (value !== undefined) {
+						setContextIdpEnabledCache((prev) => {
+							const next = new Map(prev)
+							next.set(idTag, { value, fetchedAt: Date.now() })
+							return next
+						})
 					}
 				}
-				// loadIdpEnabled swallows its own errors.
-				await idpPromise
 			} catch (err) {
 				setError(err as Error)
 				console.error('Failed to switch context:', err)
@@ -353,8 +358,8 @@ export function useApiContext() {
 			getTokenFor,
 			getClientFor,
 			setActiveContextState,
-			setContextOnboarding,
-			setContextIdpEnabled
+			setContextIdpEnabled,
+			setContextIdpEnabledCache
 		]
 	)
 
@@ -634,7 +639,6 @@ export function useSidebar() {
  * ```
  */
 export function useContextSwitch() {
-	const { setActiveContext } = useApiContext()
 	const [isSwitching, setIsSwitching] = useAtom(contextSwitchingAtom)
 	const [lastSwitch, setLastSwitch] = useAtom(lastContextSwitchAtom)
 	const [_recentContexts, setRecentContexts] = useAtom(recentContextsAtom)
@@ -642,53 +646,47 @@ export function useContextSwitch() {
 	const [apiState] = useAtom(apiAtom)
 	const navigate = useNavigate()
 
+	// URL is the only source of truth for the active context. switchTo
+	// navigates and updates the LRU bookkeeping; the route effect in
+	// use-context-from-route.ts observes the new URL and drives the actual
+	// setActiveContext call (and clears contextSwitchingAtom when it resolves).
 	const switchTo = React.useCallback(
 		async (idTag: string, path: string = '/feed') => {
 			const urlSegment = idTag === apiState.idTag ? HOME_CONTEXT : idTag
 
+			// `path` may be either an app-relative tail (e.g. `/feed`, joined
+			// under `/app/<ctx>`) or an already-absolute context-aware route
+			// (e.g. `/idp/<ctx>/settings`) that encodes the destination itself.
+			const isAbsoluteContextRoute = /^\/(app|idp|settings|users|communities|profile)\//.test(
+				path
+			)
+			const destination = isAbsoluteContextRoute ? path : `/app/${urlSegment}${path}`
+
 			if (activeContext?.idTag === idTag) {
-				navigate(`/app/${urlSegment}${path}`)
+				navigate(destination)
 				return
 			}
 
 			setIsSwitching(true)
+			const fromContext = activeContext?.idTag || 'none'
 
-			try {
-				const fromContext = activeContext?.idTag || 'none'
+			navigate(destination)
 
-				await setActiveContext(idTag)
+			// Update recent contexts (LRU)
+			setRecentContexts((prev) => {
+				const filtered = prev.filter((id) => id !== idTag)
+				const updated = [idTag, ...filtered].slice(0, 10)
+				return updated
+			})
 
-				navigate(`/app/${urlSegment}${path}`)
-
-				// Update recent contexts (LRU)
-				setRecentContexts((prev) => {
-					const filtered = prev.filter((id) => id !== idTag)
-					const updated = [idTag, ...filtered].slice(0, 10)
-					return updated
-				})
-
-				const switchEvent: ContextSwitchEvent = {
-					from: fromContext,
-					to: idTag,
-					timestamp: new Date()
-				}
-				setLastSwitch(switchEvent)
-			} catch (err) {
-				console.error('Context switch failed:', err)
-				throw err
-			} finally {
-				setIsSwitching(false)
+			const switchEvent: ContextSwitchEvent = {
+				from: fromContext,
+				to: idTag,
+				timestamp: new Date()
 			}
+			setLastSwitch(switchEvent)
 		},
-		[
-			activeContext,
-			apiState.idTag,
-			setActiveContext,
-			setRecentContexts,
-			setLastSwitch,
-			setIsSwitching,
-			navigate
-		]
+		[activeContext, apiState.idTag, setRecentContexts, setLastSwitch, setIsSwitching, navigate]
 	)
 
 	return {

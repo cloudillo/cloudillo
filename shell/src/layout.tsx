@@ -24,7 +24,11 @@ import {
 	LuRefreshCw as IcRefresh,
 	LuTrash2 as IcClear,
 	LuQrCode as IcQrCode,
-	LuScanLine as IcScan
+	LuScanLine as IcScan,
+	LuCircleCheck as IcToastSuccess,
+	LuCircleX as IcToastError,
+	LuTriangleAlert as IcToastWarning,
+	LuInfo as IcToastInfo
 } from 'react-icons/lu'
 import { CloudilloLogo } from './logo.js'
 
@@ -35,12 +39,20 @@ import {
 	useApi,
 	useDialog,
 	useToast,
+	useToasts,
 	mergeClasses,
 	ProfilePicture,
 	Popper,
 	Button,
 	DialogContainer,
-	ToastContainer
+	ToastContainer,
+	Toast,
+	ToastIcon,
+	ToastContent,
+	ToastTitle,
+	ToastMessage,
+	ToastClose,
+	ToastProgress
 } from '@cloudillo/react'
 import { createApiClient, FetchError } from '@cloudillo/core'
 import { useAtomValue, useSetAtom } from 'jotai'
@@ -92,6 +104,7 @@ import { ProfileRoutes } from './profile/profile.js'
 import { Notifications } from './notifications/notifications.js'
 import { useNotifications } from './notifications/state'
 import { NotificationPopover } from './notifications/NotificationPopover.js'
+import { HandChip } from './components/HandChip.js'
 import { MediaPicker } from './components/MediaPicker/index.js'
 import { ShareCreate } from './components/ShareCreate/index.js'
 import { DocumentPicker } from './components/DocumentPicker/index.js'
@@ -698,6 +711,7 @@ function Header({ inert }: { inert?: boolean }) {
 					</ul>
 				)}
 				<ul className="c-nav-group c-hbox">
+					{auth && <HandChip />}
 					{auth && <NotificationPopover />}
 					{auth ? (
 						<Popper
@@ -945,6 +959,37 @@ function KeyAccessError({
 	)
 }
 
+function Toasts() {
+	const toasts = useToasts()
+	const { dismiss } = useToast()
+	return (
+		<ToastContainer position="bottom-right">
+			{toasts.map((t) => (
+				<Toast
+					key={t.id}
+					toast={t}
+					variant={t.variant}
+					onDismiss={() => dismiss(t.id)}
+					withProgress
+				>
+					<ToastIcon>
+						{t.variant === 'success' && <IcToastSuccess />}
+						{t.variant === 'error' && <IcToastError />}
+						{t.variant === 'warning' && <IcToastWarning />}
+						{(!t.variant || t.variant === 'info') && <IcToastInfo />}
+					</ToastIcon>
+					<ToastContent>
+						{t.title && <ToastTitle>{t.title}</ToastTitle>}
+						{t.message && <ToastMessage>{t.message}</ToastMessage>}
+					</ToastContent>
+					<ToastClose />
+					<ToastProgress duration={t.duration} />
+				</Toast>
+			))}
+		</ToastContainer>
+	)
+}
+
 export function Layout() {
 	const { t, i18n } = useTranslation()
 	const pwa = usePWA({ swPath: `/sw-${version}.js` })
@@ -1114,7 +1159,7 @@ export function Layout() {
 				</div>
 				<div id="popper-container" />
 				<DialogContainer />
-				<ToastContainer position="bottom-right" />
+				<Toasts />
 				<MediaPicker />
 				<ShareCreate />
 				<DocumentPicker />

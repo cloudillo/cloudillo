@@ -41,10 +41,10 @@ import {
 	DetailsPanel,
 	UploadProgress,
 	ContextMenu,
-	FolderPicker,
 	ShareDialog,
 	ImportChoiceDialog,
-	FilterChips
+	FilterChips,
+	HandActionBar
 } from './components/index.js'
 import type { ContextMenuPosition } from './components/index.js'
 import {
@@ -218,7 +218,7 @@ export function FilesApp() {
 	// Sort files: pinned first (except in Recent/Trash), then folders, then regular files
 	const files = React.useMemo(() => {
 		const data = fileListData.getData()
-		const skipPinSort = viewMode === 'recent' || viewMode === 'trash'
+		const skipPinSort = viewMode === 'recent' || viewMode === 'trash' || viewMode === 'managed'
 		return [...data].sort((a, b) => {
 			// Pinned files first (not in Recent or Trash views)
 			if (!skipPinSort) {
@@ -263,9 +263,6 @@ export function FilesApp() {
 	const [contextMenuPosition, setContextMenuPosition] = React.useState<
 		ContextMenuPosition | undefined
 	>()
-
-	// Move file state (supports multi-select)
-	const [moveFileIds, setMoveFileIds] = React.useState<string[] | undefined>()
 
 	// Share dialog state
 	const [shareDialogFile, setShareDialogFile] = React.useState<File | undefined>()
@@ -332,20 +329,6 @@ export function FilesApp() {
 			setShowMobileDetails(true)
 		},
 		[multiSelect]
-	)
-
-	const handleMoveFiles = React.useCallback(
-		async function handleMoveFiles(targetFolderId: string | null) {
-			if (!api || !moveFileIds || moveFileIds.length === 0) return
-
-			await Promise.all(
-				moveFileIds.map((fileId) => api.files.update(fileId, { parentId: targetFolderId }))
-			)
-			setMoveFileIds(undefined)
-			multiSelect.clearSelection()
-			fileListData.refresh()
-		},
-		[api, moveFileIds, fileListData, multiSelect]
 	)
 
 	const clearSelectionRef = React.useRef(multiSelect.clearSelection)
@@ -472,11 +455,41 @@ export function FilesApp() {
 				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
 				const isFolder = file?.fileTp === 'FLDR'
 
+				// Owner-only: probe share entries to warn about active embeds / share links.
+				// Per PRD non-goal, user/community grants ('U') are excluded — revocation cascades naturally.
+				let warning: string | null = null
+				if (file && file.owner?.idTag === auth?.idTag) {
+					try {
+						const shares = await api.files.listShares(fileId)
+						const list = Array.isArray(shares) ? shares : []
+						const embeds = list.filter((e) => e.subjectType === 'F').length
+						const links = list.filter(
+							(e) => e.subjectType !== 'F' && e.subjectType !== 'U'
+						).length
+						if (embeds > 0 || links > 0) {
+							warning = t(
+								'This file is currently used by:\n- {{links}} share link(s)\n- {{embeds}} embed(s)\n\nTrashing it will break those references.',
+								{ links, embeds }
+							)
+						}
+					} catch {
+						// best-effort; skip warning on probe failure
+					}
+				}
+
 				const res = await dialog.confirm(
-					isFolder ? t('Move folder to trash') : t('Move to trash'),
-					isFolder
-						? t('Are you sure you want to move this folder and its contents to trash?')
-						: t('Are you sure you want to move this file to trash?')
+					warning
+						? t('Move "{{name}}" to trash?', { name: file?.fileName ?? '' })
+						: isFolder
+							? t('Move folder to trash')
+							: t('Move to trash'),
+					warning
+						? warning
+						: isFolder
+							? t(
+									'Are you sure you want to move this folder and its contents to trash?'
+								)
+							: t('Are you sure you want to move this file to trash?')
 				)
 				if (!res) return
 
@@ -612,6 +625,18 @@ export function FilesApp() {
 					console.error('Failed to duplicate file', err)
 					toast.error(t('Failed to duplicate file'))
 				}
+			},
+
+			doRefreshFile: async function doRefreshFile(fileId: string) {
+				if (!api) return
+				try {
+					await api.files.refresh(fileId)
+					toast.success(t('File metadata refreshed'))
+					fileListData.refresh()
+				} catch (err) {
+					console.error('Failed to refresh file metadata', err)
+					toast.error(t('Failed to refresh file metadata'))
+				}
 			}
 		}
 	}, [
@@ -705,6 +730,17 @@ export function FilesApp() {
 									}
 									onEmptyTrash={isTrashView ? handleEmptyTrash : undefined}
 									isTrashView={isTrashView}
+								/>
+								<HandActionBar
+									api={api}
+									currentFolderId={currentFolderId}
+									currentFolderName={
+										breadcrumbs.length > 0
+											? breadcrumbs[breadcrumbs.length - 1].name
+											: undefined
+									}
+									viewMode={viewMode}
+									onRefresh={fileListData.refresh}
 								/>
 								{viewMode === 'browse' &&
 									(breadcrumbs.length > 1 || isRemoteBrowsing) && (
@@ -930,7 +966,6 @@ export function FilesApp() {
 					viewMode={viewMode}
 					fileOps={fileOps}
 					onClose={closeContextMenu}
-					onMoveFiles={isRemoteBrowsing ? undefined : setMoveFileIds}
 					onShare={
 						isRemoteBrowsing
 							? undefined
@@ -939,19 +974,6 @@ export function FilesApp() {
 								}
 					}
 					isRemoteBrowsing={isRemoteBrowsing}
-				/>
-			)}
-
-			{moveFileIds && moveFileIds.length > 0 && (
-				<FolderPicker
-					title={
-						moveFileIds.length === 1
-							? t('Move to folder')
-							: t('Move {{count}} items to folder', { count: moveFileIds.length })
-					}
-					excludeFileIds={moveFileIds}
-					onSelect={handleMoveFiles}
-					onClose={() => setMoveFileIds(undefined)}
 				/>
 			)}
 

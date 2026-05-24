@@ -31,9 +31,9 @@ import type {
 	IdpCreateApiKeyResult,
 	IdpCreateIdentityResult
 } from '@cloudillo/core'
-import { useAuth, useApi, useDialog, Button, Modal, mergeClasses } from '@cloudillo/react'
+import { useAuth, useDialog, Button, Modal, mergeClasses } from '@cloudillo/react'
 
-import { HOME_CONTEXT } from '../context'
+import { HOME_CONTEXT, useApiContext } from '../context'
 
 // Status badge configuration
 const STATUS_CONFIG = {
@@ -150,7 +150,8 @@ interface CreateIdentityModalProps {
 
 function CreateIdentityModal({ open, idpDomain, onClose, onCreated }: CreateIdentityModalProps) {
 	const { t } = useTranslation()
-	const { api } = useApi()
+	const { getClientFor } = useApiContext()
+	const api = React.useMemo(() => getClientFor(idpDomain), [getClientFor, idpDomain])
 	const [idTagPrefix, setIdTagPrefix] = React.useState('')
 	const [email, setEmail] = React.useState('')
 	const [createApiKey, setCreateApiKey] = React.useState(false)
@@ -252,7 +253,7 @@ function CreateIdentityModal({ open, idpDomain, onClose, onCreated }: CreateIden
 
 				{/* Identity name field */}
 				<div className="mb-3">
-					<label className="c-label">
+					<label>
 						{t('Identity Name')} <span className="text-error">*</span>
 					</label>
 					<div className="c-hbox">
@@ -277,7 +278,7 @@ function CreateIdentityModal({ open, idpDomain, onClose, onCreated }: CreateIden
 
 				{/* Email field */}
 				<div className="mb-3">
-					<label className="c-label">
+					<label>
 						{t('Owner Email')} <span className="text-error">*</span>
 					</label>
 					<input
@@ -333,7 +334,7 @@ function CreateIdentityModal({ open, idpDomain, onClose, onCreated }: CreateIden
 
 					{createApiKey && (
 						<div className="mt-2">
-							<label className="c-label">{t('Key Name (optional)')}</label>
+							<label>{t('Key Name (optional)')}</label>
 							<input
 								className="c-input"
 								placeholder={t('e.g., Home server DynDNS')}
@@ -432,10 +433,10 @@ function ApiKeyCreatedModal({
 
 				{/* API Key */}
 				<div className="mb-3">
-					<label className="c-label">{t('API Key')}</label>
+					<label>{t('API Key')}</label>
 					<div className="c-hbox g-1">
 						<code
-							className="c-code flex-fill p-2"
+							className="c-mono flex-fill p-2"
 							style={{ wordBreak: 'break-all', userSelect: 'all' }}
 						>
 							{apiKey.plaintextKey}
@@ -452,7 +453,7 @@ function ApiKeyCreatedModal({
 				{/* Curl command */}
 				<div className="mb-3">
 					<div className="c-hbox jc-between ai-center mb-1">
-						<label className="c-label mb-0">{t('Example: Update IP Address')}</label>
+						<label className="mb-0">{t('Example: Update IP Address')}</label>
 						<Button
 							kind="link"
 							className="small"
@@ -472,7 +473,7 @@ function ApiKeyCreatedModal({
 						</Button>
 					</div>
 					<pre
-						className="c-code p-2 overflow-x-auto mb-1"
+						className="c-mono p-2 overflow-x-auto mb-1"
 						style={{ whiteSpace: 'pre-wrap', fontSize: '0.85em' }}
 					>
 						{curlCommand}
@@ -497,6 +498,7 @@ function ApiKeyCreatedModal({
 interface IdentityDetailsModalProps {
 	open: boolean
 	identity: IdpIdentity | null
+	idpDomain: string
 	onClose: () => void
 	onDelete: (identity: IdpIdentity) => void
 	onApiKeyCreated: (apiKey: IdpCreateApiKeyResult) => void
@@ -505,12 +507,14 @@ interface IdentityDetailsModalProps {
 function IdentityDetailsModal({
 	open,
 	identity,
+	idpDomain,
 	onClose,
 	onDelete,
 	onApiKeyCreated
 }: IdentityDetailsModalProps) {
 	const { t } = useTranslation()
-	const { api } = useApi()
+	const { getClientFor } = useApiContext()
+	const api = React.useMemo(() => getClientFor(idpDomain), [getClientFor, idpDomain])
 	const [apiKeys, setApiKeys] = React.useState<IdpApiKey[]>([])
 	const [loading, setLoading] = React.useState(false)
 	const [showCreateKeyForm, setShowCreateKeyForm] = React.useState(false)
@@ -702,7 +706,7 @@ function IdentityDetailsModal({
 
 					{showCreateKeyForm && (
 						<div className="c-panel bg-muted p-2 mb-2">
-							<label className="c-label">{t('Key Name (optional)')}</label>
+							<label>{t('Key Name (optional)')}</label>
 							<input
 								className="c-input mb-2"
 								placeholder={t('e.g., Home server')}
@@ -871,10 +875,10 @@ function StandaloneApiKeyModal({
 
 				{/* API Key */}
 				<div className="mb-3">
-					<label className="c-label">{t('API Key')}</label>
+					<label>{t('API Key')}</label>
 					<div className="c-hbox g-1">
 						<code
-							className="c-code flex-fill p-2"
+							className="c-mono flex-fill p-2"
 							style={{ wordBreak: 'break-all', userSelect: 'all' }}
 						>
 							{apiKey.plaintextKey}
@@ -891,7 +895,7 @@ function StandaloneApiKeyModal({
 				{/* Curl command */}
 				<div className="mb-3">
 					<div className="c-hbox jc-between ai-center mb-1">
-						<label className="c-label mb-0">{t('Example: Update IP Address')}</label>
+						<label className="mb-0">{t('Example: Update IP Address')}</label>
 						<Button
 							kind="link"
 							className="small"
@@ -911,7 +915,7 @@ function StandaloneApiKeyModal({
 						</Button>
 					</div>
 					<pre
-						className="c-code p-2 overflow-x-auto mb-1"
+						className="c-mono p-2 overflow-x-auto mb-1"
 						style={{ whiteSpace: 'pre-wrap', fontSize: '0.85em' }}
 					>
 						{curlCommand}
@@ -936,9 +940,9 @@ function StandaloneApiKeyModal({
 export function IdentitiesSettings() {
 	const { t } = useTranslation()
 	const params = useParams()
-	const { api } = useApi()
 	const [auth] = useAuth()
 	const dialog = useDialog()
+	const { getClientFor } = useApiContext()
 
 	// State - all identities (unfiltered)
 	const [allIdentities, setAllIdentities] = React.useState<IdpIdentity[]>([])
@@ -965,6 +969,10 @@ export function IdentitiesSettings() {
 	const rawContextIdTag = params.contextIdTag!
 	const idpDomain =
 		rawContextIdTag === HOME_CONTEXT ? (auth?.idTag ?? rawContextIdTag) : rawContextIdTag
+
+	// Use the context-bound API client so calls hit the correct tenant's
+	// server (with the per-context proxy token), not always the user's own.
+	const api = React.useMemo(() => getClientFor(idpDomain), [getClientFor, idpDomain])
 
 	// Check roles
 	React.useEffect(() => {
@@ -1256,6 +1264,7 @@ export function IdentitiesSettings() {
 			<IdentityDetailsModal
 				open={showDetailsModal}
 				identity={selectedIdentity}
+				idpDomain={idpDomain}
 				onClose={() => {
 					setShowDetailsModal(false)
 					setSelectedIdentity(null)

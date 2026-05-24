@@ -29,6 +29,7 @@ export {
 	activeContextAtom,
 	contextOnboardingAtom,
 	contextIdpEnabledAtom,
+	contextIdpEnabledCacheAtom,
 	contextTokensAtom,
 	communitiesAtom,
 	favoritesAtom,
@@ -42,7 +43,8 @@ export {
 	recentCommunitiesAtom,
 	totalUnreadCountAtom,
 	sessionTrustAtom,
-	storedTrustAtom
+	storedTrustAtom,
+	fileViewUpdateAtom
 } from './atoms'
 
 // Hooks

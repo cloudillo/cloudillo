@@ -587,6 +587,13 @@ export interface CreateFileRequest {
 	rootId?: string // Document tree root file ID
 	createdAt?: number
 	tags?: string
+	// Cross-context creation (Hand verbs: pin / place).
+	// Two-step flow: callers must first POST to /files/{sourceFileId}/shares on
+	// the source tenant to grant the destination idTag the desired permission
+	// (R/C/W/A), then POST here on the destination. The server rejects requests
+	// that include any access-level field.
+	sourceFileId?: string // fileId from the source context to reference
+	sourceIdTag?: string // owner idTag of the source content
 }
 
 export interface PatchFileRequest {
@@ -633,7 +640,8 @@ export const tFileUserData = T.struct({
 	accessedAt: T.optional(T.union(T.string, T.date)),
 	modifiedAt: T.optional(T.union(T.string, T.date)),
 	pinned: T.optional(T.boolean),
-	starred: T.optional(T.boolean)
+	starred: T.optional(T.boolean),
+	accessLevel: T.optional(T.literal('read', 'comment', 'write', 'none'))
 })
 export type FileUserData = T.TypeOf<typeof tFileUserData>
 
@@ -673,10 +681,12 @@ export const tFileView = T.struct({
 			type: T.optional(T.string)
 		})
 	),
-	accessLevel: T.optional(T.literal('read', 'write', 'none')),
+	accessLevel: T.optional(T.literal('read', 'comment', 'write', 'none')),
 	visibility: T.optional(T.union(tActionVisibility, T.nullValue)), // null/D=Direct, P=Public, V=Verified, 2=2nd degree, F=Followers, C=Connected
 	parentName: T.optional(T.string), // Immediate parent folder name (when withParent=true)
-	path: T.optional(T.array(T.struct({ id: T.string, name: T.string }))) // root→parent chain (when withPath=true)
+	path: T.optional(T.array(T.struct({ id: T.string, name: T.string }))), // root→parent chain (when withPath=true)
+	brokenAt: T.optional(T.union(T.string, T.date)),
+	brokenReason: T.optional(T.literal('revoked', 'deleted', 'unreachable'))
 })
 export type FileView = T.TypeOf<typeof tFileView>
 
@@ -780,7 +790,7 @@ export type TagResult = T.TypeOf<typeof tTagResult>
 export interface CreateShareEntryRequest {
 	subjectType: string // 'U' (user) | 'L' (link) | 'F' (file)
 	subjectId: string
-	permission: string // 'R' (read) | 'W' (write) | 'A' (admin)
+	permission: string // 'R' (read) | 'C' (comment) | 'W' (write) | 'A' (admin)
 	expiresAt?: string // ISO timestamp
 }
 

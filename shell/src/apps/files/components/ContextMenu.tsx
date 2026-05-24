@@ -14,11 +14,12 @@ import {
 	LuPinOff as IcPinOff,
 	LuCopyPlus as IcDuplicate,
 	LuPencil as IcRename,
-	LuFolderInput as IcMove,
+	LuRefreshCw as IcRefresh,
 	LuTrash2 as IcTrash,
 	LuRotateCcw as IcRestore,
 	LuTrash as IcPermanentDelete,
-	LuAppWindow as IcOpenWith
+	LuAppWindow as IcOpenWith,
+	LuHand as IcHand
 } from 'react-icons/lu'
 import {
 	Menu,
@@ -29,11 +30,14 @@ import {
 	ActionSheetItem,
 	ActionSheetDivider,
 	ActionSheetSubItem,
-	useAuth
+	useAuth,
+	useToast
 } from '@cloudillo/react'
 import { getFileUrl } from '@cloudillo/core'
-import { useAtom } from 'jotai'
+import { useAtom, useStore } from 'jotai'
 import { activeContextAtom } from '../../../context/index.js'
+import { pickUp, HandTypeConflictError, type FileHandItem } from '../../../state/hand.js'
+import { handTargetElAtom, flyToHand, prefersReducedMotion } from '../../../state/hand-fly.js'
 import { getHandlersForContentType } from '../../../manifest-registry.js'
 import { getIcon } from '../../../icon-registry.js'
 
@@ -50,6 +54,78 @@ export interface ContextMenuPosition {
 	y: number
 }
 
+interface PickUpOpts {
+	activeContextIdTag: string
+	selectedFiles: File[]
+	inTrash: boolean
+	store: ReturnType<typeof useStore>
+	toast: ReturnType<typeof useToast>
+	t: ReturnType<typeof useTranslation>['t']
+}
+
+// On the very first pickup, HandChip is still mounting and handTargetElAtom
+// is still being populated. Poll across a handful of animation frames.
+const PICKUP_TARGET_POLL_FRAMES = 6
+
+function doPickUp(opts: PickUpOpts) {
+	const ctxIdTag = opts.activeContextIdTag
+	const items: FileHandItem[] = opts.selectedFiles.map((f) => ({
+		type: 'file' as const,
+		id: f.fileId,
+		idTag: f.owner?.idTag ?? ctxIdTag,
+		sourceContext: ctxIdTag,
+		sourceParentId: !f.parentId || f.parentId === '__root__' ? null : f.parentId,
+		label: f.fileName,
+		fileTp: f.fileTp,
+		contentType: f.contentType,
+		brokenAt: f.brokenAt,
+		inTrash: opts.inTrash
+	}))
+
+	const reduced = prefersReducedMotion()
+
+	// Briefly lift each source row to telegraph the pickup. Safe to add to
+	// elements that have already been removed (no-op on null).
+	if (!reduced) {
+		for (const it of items) {
+			const sel = `[data-file-id="${CSS.escape(it.id)}"][data-source-context="${CSS.escape(it.sourceContext)}"]`
+			const el =
+				document.querySelector(sel) ??
+				document.querySelector(`[data-file-id="${CSS.escape(it.id)}"]`)
+			if (el instanceof HTMLElement) {
+				el.classList.add('cl-pickup-lift')
+				window.setTimeout(() => el.classList.remove('cl-pickup-lift'), 260)
+			}
+		}
+	}
+
+	try {
+		pickUp(opts.store.get, opts.store.set, items)
+		opts.toast.success(opts.t('Picked up {{count}} files', { count: items.length }))
+		if (!reduced) {
+			// On the very first pickup the HandChip is mounting *now* — its ref
+			// callback hasn't populated handTargetElAtom yet. Poll across a few
+			// animation frames so the parcel flight starts as soon as the icon
+			// node is available.
+			const tryFly = (tries: number) => {
+				const target = opts.store.get(handTargetElAtom)
+				if (target) {
+					void flyToHand({ items, target, reducedMotion: false })
+				} else if (tries > 0) {
+					requestAnimationFrame(() => tryFly(tries - 1))
+				}
+			}
+			tryFly(PICKUP_TARGET_POLL_FRAMES)
+		}
+	} catch (err) {
+		if (err instanceof HandTypeConflictError) {
+			opts.toast.warning(opts.t('Hand contains a different item type. Empty the hand first.'))
+		} else {
+			throw err
+		}
+	}
+}
+
 export interface ContextMenuProps {
 	selectedFiles: File[]
 	clickedFile: File
@@ -57,7 +133,6 @@ export interface ContextMenuProps {
 	viewMode: ViewMode
 	fileOps: FileOps
 	onClose: () => void
-	onMoveFiles?: (fileIds: string[]) => void
 	onShare?: (file: File) => void
 	isRemoteBrowsing?: boolean
 }
@@ -69,13 +144,14 @@ export function ContextMenu({
 	viewMode,
 	fileOps,
 	onClose,
-	onMoveFiles,
 	onShare,
 	isRemoteBrowsing
 }: ContextMenuProps) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
 	const [activeContext] = useAtom(activeContextAtom)
+	const store = useStore()
+	const toast = useToast()
 
 	// Detect mobile for ActionSheet vs Menu
 	const isMobile = window.innerWidth < 768
@@ -85,6 +161,7 @@ export function ContextMenu({
 	const file = isSingleSelect ? selectedFiles[0] : clickedFile
 	const isFolder = file.fileTp === 'FLDR'
 	const isTrashView = viewMode === 'trash'
+	const isManagedView = viewMode === 'managed'
 
 	// Starred/Pinned state for single/multi selection
 	const allStarred = selectedFiles.every((f) => f.userData?.starred)
@@ -121,6 +198,24 @@ export function ContextMenu({
 	const Divider = isMobile ? ActionSheetDivider : MenuDivider
 	const Sub = isMobile ? ActionSheetSubItem : SubMenuItem
 
+	const renderPickUpItem = (inTrash: boolean) =>
+		activeContext && (
+			<Item
+				icon={<IcHand />}
+				label={count > 1 ? t('Pick up {{count}} files', { count }) : t('Pick up')}
+				onClick={handleAction(() =>
+					doPickUp({
+						activeContextIdTag: activeContext.idTag,
+						selectedFiles,
+						inTrash,
+						store,
+						toast,
+						t
+					})
+				)}
+			/>
+		)
+
 	const menuContent = isTrashView ? (
 		// Trash view menu
 		<>
@@ -133,6 +228,7 @@ export function ContextMenu({
 						: fileOps.doRestoreFiles?.(selectedFileIds)
 				)}
 			/>
+			{renderPickUpItem(true)}
 			<Divider />
 			<Item
 				icon={<IcPermanentDelete />}
@@ -230,11 +326,16 @@ export function ContextMenu({
 				/>
 			)}
 
+			{/* Pick up — Hand pick-up; works in normal and trash views */}
+			{!isTrashView && !isManagedView && renderPickUpItem(false)}
+
 			{/* Share & Visibility section — hidden in remote browsing */}
-			{!isRemoteBrowsing && (onShare || (canManage && fileOps.setVisibility)) && <Divider />}
+			{!isRemoteBrowsing &&
+				!isManagedView &&
+				(onShare || (canManage && fileOps.setVisibility)) && <Divider />}
 
 			{/* Share - only for single selection */}
-			{!isRemoteBrowsing && isSingleSelect && onShare && (
+			{!isRemoteBrowsing && !isManagedView && isSingleSelect && onShare && (
 				<Item
 					icon={<IcShare />}
 					label={t('Share...')}
@@ -243,7 +344,7 @@ export function ContextMenu({
 			)}
 
 			{/* Visibility submenu - only for single selection and owner/manager */}
-			{!isRemoteBrowsing && canManage && fileOps.setVisibility && (
+			{!isRemoteBrowsing && !isManagedView && canManage && fileOps.setVisibility && (
 				<Sub
 					icon={React.createElement(currentVisibility.icon)}
 					label={t('Visibility')}
@@ -268,7 +369,7 @@ export function ContextMenu({
 			)}
 
 			{/* Star toggle — hidden in remote browsing */}
-			{!isRemoteBrowsing && (
+			{!isRemoteBrowsing && !isManagedView && (
 				<Item
 					icon={isStarred ? <IcStarOff /> : <IcStar />}
 					label={
@@ -289,7 +390,7 @@ export function ContextMenu({
 			)}
 
 			{/* Pin toggle — hidden in remote browsing */}
-			{!isRemoteBrowsing && (
+			{!isRemoteBrowsing && !isManagedView && (
 				<Item
 					icon={isPinned ? <IcPinOff /> : <IcPin />}
 					label={
@@ -309,10 +410,23 @@ export function ContextMenu({
 				/>
 			)}
 
-			{!isRemoteBrowsing && <Divider />}
+			{/* Refresh metadata - only for cross-context (remote) file rows */}
+			{!isRemoteBrowsing &&
+				!isManagedView &&
+				isSingleSelect &&
+				file.owner?.idTag &&
+				file.owner.idTag !== activeContext?.idTag && (
+					<Item
+						icon={<IcRefresh />}
+						label={t('Refresh metadata')}
+						onClick={handleAction(() => fileOps.doRefreshFile?.(file.fileId))}
+					/>
+				)}
+
+			{!isRemoteBrowsing && !isManagedView && <Divider />}
 
 			{/* Rename - only for single selection */}
-			{!isRemoteBrowsing && isSingleSelect && (
+			{!isRemoteBrowsing && !isManagedView && isSingleSelect && (
 				<Item
 					icon={<IcRename />}
 					label={t('Rename')}
@@ -322,6 +436,7 @@ export function ContextMenu({
 
 			{/* Duplicate - only for single CRDT/RTDB files */}
 			{!isRemoteBrowsing &&
+				!isManagedView &&
 				isSingleSelect &&
 				(file.fileTp === 'CRDT' || file.fileTp === 'RTDB') && (
 					<Item
@@ -331,21 +446,10 @@ export function ContextMenu({
 					/>
 				)}
 
-			{/* Move - always available */}
-			{!isRemoteBrowsing && onMoveFiles && (
-				<Item
-					icon={<IcMove />}
-					label={
-						isSingleSelect ? t('Move to...') : t('Move {{count}} items...', { count })
-					}
-					onClick={handleAction(() => onMoveFiles(selectedFileIds))}
-				/>
-			)}
-
-			{!isRemoteBrowsing && <Divider />}
+			{!isRemoteBrowsing && !isManagedView && <Divider />}
 
 			{/* Delete — hidden in remote browsing */}
-			{!isRemoteBrowsing && (
+			{!isRemoteBrowsing && !isManagedView && (
 				<Item
 					icon={<IcTrash />}
 					label={

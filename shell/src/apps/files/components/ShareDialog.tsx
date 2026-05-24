@@ -66,6 +66,7 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 	const [newLinkExpires, setNewLinkExpires] = React.useState('')
 	const [neverExpires, setNeverExpires] = React.useState(true)
 	const [creatingLink, setCreatingLink] = React.useState(false)
+	const [createError, setCreateError] = React.useState<string | null>(null)
 	const [confirmingDeleteRef, setConfirmingDeleteRef] = React.useState<string | null>(null)
 	const [qrCodeUrl, setQrCodeUrl] = React.useState<string | undefined>()
 
@@ -77,6 +78,8 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 	const Icon = getFileIcon(file.contentType, file.fileTp)
 	const _isFolder = file.fileTp === 'FLDR'
 	const isOwner = canManageFile(file, auth?.idTag, activeContext?.roles ?? [])
+	// Backend convention: missing fileTp defaults to BLOB (immutable)
+	const isImmutable = file.fileTp === 'BLOB' || file.fileTp == null
 
 	// Derived permission lists
 	const writePerms = React.useMemo(
@@ -241,6 +244,7 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 		if (!file || !api) return
 
 		setCreatingLink(true)
+		setCreateError(null)
 		try {
 			const ref = await api.refs.create({
 				type: 'share.file',
@@ -259,7 +263,15 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 			onPermissionsChanged?.()
 		} catch (err) {
 			console.error('Failed to create share link', err)
-			toast.error(t('Failed to create share link'))
+			const code =
+				(err as { apiErrorCode?: string; code?: string })?.apiErrorCode ??
+				(err as { code?: string })?.code
+			const message =
+				code === 'E-FILE-ACCESS_LEVEL_FORBIDDEN'
+					? t('This access level is not allowed for this file type')
+					: t('Failed to create share link')
+			setCreateError(message)
+			toast.error(message)
 		} finally {
 			setCreatingLink(false)
 		}
@@ -396,22 +408,24 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 						</div>
 					) : activeTab === 'people' ? (
 						<div className="c-vbox g-3">
-							{/* Can edit section */}
-							<div>
-								<h4 className="mb-2">{t('Can edit')}</h4>
-								<EditProfileList
-									placeholder={t('Add people with edit access...')}
-									profiles={writePerms.flatMap((rp) =>
-										rp.audience ? [rp.audience] : []
-									)}
-									listProfiles={listProfiles}
-									addProfile={(p) => addPerm(p, 'WRITE')}
-									confirmingRemove={confirmingRemovePerm}
-									onRequestRemove={requestRemovePerm}
-									onCancelRemove={cancelRemovePerm}
-									onConfirmRemove={confirmRemovePerm}
-								/>
-							</div>
+							{/* Can edit section — hidden for immutable (BLOB) files */}
+							{!isImmutable && (
+								<div>
+									<h4 className="mb-2">{t('Can edit')}</h4>
+									<EditProfileList
+										placeholder={t('Add people with edit access...')}
+										profiles={writePerms.flatMap((rp) =>
+											rp.audience ? [rp.audience] : []
+										)}
+										listProfiles={listProfiles}
+										addProfile={(p) => addPerm(p, 'WRITE')}
+										confirmingRemove={confirmingRemovePerm}
+										onRequestRemove={requestRemovePerm}
+										onCancelRemove={cancelRemovePerm}
+										onConfirmRemove={confirmRemovePerm}
+									/>
+								</div>
+							)}
 
 							{/* Can comment section */}
 							<div>
@@ -472,7 +486,9 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 										>
 											<option value="read">{t('Read only')}</option>
 											<option value="comment">{t('Can comment')}</option>
-											<option value="write">{t('Can edit')}</option>
+											{!isImmutable && (
+												<option value="write">{t('Can edit')}</option>
+											)}
 										</select>
 									</div>
 
@@ -517,6 +533,13 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 											/>
 										</div>
 									</div>
+
+									{/* Inline error */}
+									{createError && (
+										<div className="text-danger mt-1" role="alert">
+											{createError}
+										</div>
+									)}
 
 									{/* Create button */}
 									<div className="mt-2">

@@ -69,9 +69,42 @@ export function CommunityVerifyIdpBanner() {
 		}
 	}, [])
 
-	// Poll idp-status while the banner is up. When status flips to 'active',
-	// the backend has already cleared this community's ui.onboarding — reflect
-	// that locally so the banner unmounts on next render.
+	// Stage A: discover on entry to a community context as a leader.
+	// `ui.onboarding` is no longer fetched on context switch (it's per-user,
+	// not per-context), so we discover the community's onboarding state via
+	// idpStatus(). Runs once per (idTag, leader) combination — if the
+	// onboarding value is already known (e.g. from the optimistic write right
+	// after community creation), this is a no-op.
+	React.useEffect(() => {
+		if (!idTag || !isLeader) return
+		if (onboarding !== undefined) return
+		const contextApi = getClientFor(idTag, { auth: 'required' })
+		if (!contextApi) return
+		let cancelled = false
+		contextApi.profile
+			.idpStatus()
+			.then((res) => {
+				if (cancelled) return
+				if (res.expiresAt) setExpiresAt(res.expiresAt)
+				setContextOnboarding((prev) => ({
+					...prev,
+					[idTag]: res.onboarding ?? null
+				}))
+			})
+			.catch((err) => {
+				console.warn('community idp-status discovery failed:', err)
+			})
+		return () => {
+			cancelled = true
+		}
+	}, [idTag, isLeader, onboarding, getClientFor, setContextOnboarding])
+
+	// Stage B: ongoing poll while the banner is up. When status flips to
+	// 'active', the backend has already cleared this community's
+	// ui.onboarding — reflect that locally so the banner unmounts on next
+	// render. Fires an immediate tick on mount so a banner shown from an
+	// optimistic onboarding write (community creation) gets a fresh
+	// expiresAt without a 60s wait.
 	React.useEffect(() => {
 		if (!visible || !idTag) return
 		const contextApi = getClientFor(idTag, { auth: 'required' })

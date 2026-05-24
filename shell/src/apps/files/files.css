@@ -768,6 +768,24 @@
 	border-top: 1px solid var(--col-outline);
 }
 
+/* Wrapper for the recursively rendered children of an expanded folder
+   row. Indented to give the tree its visual depth. */
+.c-folder-picker-children {
+	display: flex;
+	flex-direction: column;
+	margin-left: 1rem;
+}
+
+/* Files-app breadcrumb container. Renders inline so segments and
+   separators sit on one wrapping row. */
+.c-breadcrumbs {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.25rem;
+	min-width: 0;
+}
+
 /* ==========================================================================
    File Grid View
    ========================================================================== */
@@ -1019,6 +1037,176 @@
 	font-size: var(--text-xs);
 	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 	margin-top: 2px;
+}
+
+/* Broken file row — desaturated icon + crossed-out filename, used when
+   file.brokenAt is set (source revoked / deleted / unreachable). */
+.c-file-card.broken .c-file-card-icon {
+	filter: grayscale(1) opacity(0.6);
+}
+
+.c-file-card-broken-badge {
+	position: absolute;
+	bottom: 0;
+	right: 0;
+	color: var(--col-warning);
+}
+
+.c-file-card.broken .c-file-card-name-text {
+	text-decoration: line-through;
+}
+
+/* ==========================================================================
+   Hand Action Bar — virtual-view hint
+   ========================================================================== */
+
+.cl-hand-hint {
+	font-size: var(--text-sm);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
+}
+
+/* ==========================================================================
+   Hand "Place" dialog
+   ========================================================================== */
+
+.cl-hand-place-dialog {
+	max-width: 32rem;
+	width: 100%;
+}
+
+.cl-perm-options {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	border: none;
+	padding: 0;
+	margin: 0;
+}
+
+.cl-perm-option {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-2);
+	padding: var(--space-2) var(--space-3);
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-control);
+	cursor: pointer;
+	min-height: 56px;
+	background: var(--col-container-low);
+	transition:
+		background var(--duration-fast) var(--ease-default),
+		border-color var(--duration-fast) var(--ease-default);
+}
+
+.cl-perm-option:hover {
+	background: var(--col-container-secondary);
+}
+
+.cl-perm-option:focus-within {
+	outline: 2px solid var(--col-primary);
+	outline-offset: 2px;
+}
+
+.cl-perm-option.selected {
+	border-color: var(--col-primary);
+	background: var(--col-container-primary);
+}
+
+.cl-perm-option input[type='radio'] {
+	margin-top: 0.25rem;
+	flex-shrink: 0;
+}
+
+.cl-perm-option__icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	margin-top: 0.1rem;
+}
+
+.cl-perm-option__icon svg {
+	width: 1.25rem;
+	height: 1.25rem;
+}
+
+.cl-perm-option__body {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-width: 0;
+}
+
+.cl-perm-option__title {
+	font-weight: 500;
+}
+
+.cl-perm-option__badge {
+	margin-left: var(--space-2);
+	font-size: var(--text-xs);
+	font-weight: 400;
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
+	text-transform: lowercase;
+}
+
+.cl-perm-option__desc {
+	font-size: var(--text-sm);
+	color: color-mix(in lch, var(--col-on-container), transparent 30%);
+	margin-top: 2px;
+}
+
+.cl-hand-place-preview {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+	margin-top: var(--space-3);
+}
+
+.cl-hand-chip {
+	display: inline-block;
+	max-width: 12rem;
+	padding: 0.125rem 0.5rem;
+	background: var(--col-container-low);
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-control);
+	font-size: var(--text-xs);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.cl-hand-chip--more {
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
+}
+
+.cl-hand-place-kbd-hint {
+	margin-top: var(--space-2);
+	text-align: right;
+	font-size: var(--text-xs);
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
+}
+
+@media (pointer: coarse) {
+	.cl-hand-place-kbd-hint {
+		display: none;
+	}
+}
+
+.cl-hand-action-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 1.5em;
+	height: 1.5em;
+	margin-inline-start: 0.4em;
+	padding: 0 0.4em;
+	border-radius: 999px;
+	background: var(--col-container);
+	color: var(--col-on-container);
+	font-size: 0.85em;
+	font-weight: 600;
+	line-height: 1;
 }
 
 /* vim: ts=4

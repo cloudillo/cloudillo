@@ -360,6 +360,8 @@ export interface UseInfiniteScrollReturn<T> {
 	reset: () => void
 	/** Function to prepend items (for real-time updates) */
 	prepend: (newItems: T[]) => void
+	/** Function to patch in-place: replaces the first item matching `match` with `next` */
+	updateItem: (match: (item: T) => boolean, next: T) => void
 	/** Ref to attach to scroll sentinel element */
 	sentinelRef: React.RefObject<HTMLDivElement | null>
 }
@@ -408,6 +410,7 @@ export function useInfiniteScroll<T>(
 	const sentinelRef = React.useRef<HTMLDivElement | null>(null)
 	const isMountedRef = React.useRef(true)
 	const fetchingRef = React.useRef(false)
+	const epochRef = React.useRef(0)
 
 	// Reset synchronously during render when deps change, so no in-between
 	// render commits with the new deps + stale items. See
@@ -422,24 +425,28 @@ export function useInfiniteScroll<T>(
 		setCursor(null)
 		setHasMore(true)
 		setError(null)
+		setIsLoading(false)
+		setIsLoadingMore(false)
 		fetchingRef.current = false
+		epochRef.current += 1
 	}
 
-	// Lifecycle: keep the mount/unmount toggle so in-flight fetches that
-	// resolve after a deps change are discarded by the isMountedRef check
-	// in fetchItems().
+	// `isMountedRef` only tracks mount/unmount; deps-change cancellation
+	// goes through `epochRef` (bumped in the synchronous reset above,
+	// checked in `fetchItems`), which is why this effect has empty deps.
 	React.useEffect(() => {
 		isMountedRef.current = true
 		return () => {
 			isMountedRef.current = false
 		}
-	}, deps)
+	}, [])
 
 	// Fetch function
 	const fetchItems = React.useCallback(
 		async (currentCursor: string | null) => {
 			if (!enabled || fetchingRef.current) return
 
+			const myEpoch = epochRef.current
 			fetchingRef.current = true
 			const isInitialLoad = currentCursor === null
 
@@ -453,16 +460,16 @@ export function useInfiniteScroll<T>(
 
 				const result = await fetchPage(currentCursor, pageSize)
 
-				if (!isMountedRef.current) return
+				if (!isMountedRef.current || epochRef.current !== myEpoch) return
 
 				setItems((prev) => (isInitialLoad ? result.items : [...prev, ...result.items]))
 				setCursor(result.nextCursor)
 				setHasMore(result.hasMore)
 			} catch (err) {
-				if (!isMountedRef.current) return
+				if (!isMountedRef.current || epochRef.current !== myEpoch) return
 				setError(err instanceof Error ? err : new Error('Failed to fetch'))
 			} finally {
-				if (isMountedRef.current) {
+				if (isMountedRef.current && epochRef.current === myEpoch) {
 					setIsLoading(false)
 					setIsLoadingMore(false)
 					fetchingRef.current = false
@@ -502,6 +509,17 @@ export function useInfiniteScroll<T>(
 		setItems((prev) => [...newItems, ...prev])
 	}, [])
 
+	// Replace the first item matching `match` with `next` (no-op if not present)
+	const updateItem = React.useCallback((match: (item: T) => boolean, next: T) => {
+		setItems((prev) => {
+			const idx = prev.findIndex(match)
+			if (idx < 0) return prev
+			const copy = prev.slice()
+			copy[idx] = next
+			return copy
+		})
+	}, [])
+
 	// IntersectionObserver for scroll detection
 	React.useEffect(() => {
 		const sentinel = sentinelRef.current
@@ -537,6 +555,7 @@ export function useInfiniteScroll<T>(
 		loadMore,
 		reset,
 		prepend,
+		updateItem,
 		sentinelRef
 	}
 }

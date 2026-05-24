@@ -13,7 +13,8 @@ import {
 	LuInfo as IcInfo,
 	LuPin as IcPin,
 	LuCloudOff as IcUnsyncedEdit,
-	LuFolder as IcFolder
+	LuFolder as IcFolder,
+	LuTriangleAlert as IcBroken
 } from 'react-icons/lu'
 
 import { useAuth, InlineEditForm, Tag, ProfilePicture, mergeClasses } from '@cloudillo/react'
@@ -21,7 +22,7 @@ import { useAuth, InlineEditForm, Tag, ProfilePicture, mergeClasses } from '@clo
 import { useCurrentContextIdTag } from '../../../context/index.js'
 import { getFileIcon, type IcUnknown } from '../icons.js'
 import type { File, FileOps, ViewMode } from '../types.js'
-import { TRASH_FOLDER_ID } from '../types.js'
+import { TRASH_FOLDER_ID, MANAGED_FOLDER_ID } from '../types.js'
 import { getSmartTimestamp, getVisibilityIcon, getVisibilityLabel } from '../utils.js'
 
 interface ItemCardProps {
@@ -59,6 +60,7 @@ export const ItemCard = React.memo(function ItemCard({
 
 	const isFolder = file.fileTp === 'FLDR'
 	const isInTrash = viewMode === 'trash' || file.parentId === TRASH_FOLDER_ID
+	const isManagedView = viewMode === 'managed' || file.parentId === MANAGED_FOLDER_ID
 	const Icon = getFileIcon(file.contentType, file.fileTp)
 	const isRenaming = renameFileName !== undefined && file.fileId === renameFileId
 
@@ -89,7 +91,10 @@ export const ItemCard = React.memo(function ItemCard({
 	const longPressTriggered = React.useRef(false)
 
 	function handleOpenTouchStart() {
-		if (isFolder || file.accessLevel !== 'write') return
+		// Long-press enables read-only fallback for files that open in write mode
+		// by default — that's anything with explicit write access plus the
+		// unknown-access case (we'll try write and let the backend downgrade).
+		if (isFolder || (file.accessLevel && file.accessLevel !== 'write')) return
 		longPressTriggered.current = false
 		longPressTimer.current = window.setTimeout(() => {
 			longPressTriggered.current = true
@@ -122,6 +127,16 @@ export const ItemCard = React.memo(function ItemCard({
 	const isStarred = file.userData?.starred ?? false
 	const isLive = file.fileTp === 'CRDT' || file.fileTp === 'RTDB'
 	const smartTimestamp = getSmartTimestamp(file)
+	const isBroken = !!file.brokenAt
+	const brokenSubtitle = !isBroken
+		? null
+		: file.brokenReason === 'revoked'
+			? t('No longer shared with you by {{idTag}}.', { idTag: file.owner?.idTag ?? '' })
+			: file.brokenReason === 'deleted'
+				? t('The owner deleted this file.')
+				: t("{{host}} couldn't be reached. We'll keep trying.", {
+						host: file.owner?.idTag ?? ''
+					})
 
 	function handleStarClick(evt: React.MouseEvent) {
 		evt.stopPropagation()
@@ -130,15 +145,26 @@ export const ItemCard = React.memo(function ItemCard({
 
 	return (
 		<div
-			className={mergeClasses('c-file-card', isPinned && 'pinned', className)}
+			className={mergeClasses(
+				'c-file-card',
+				isPinned && 'pinned',
+				isBroken && 'broken',
+				className
+			)}
 			data-file-id={file.fileId}
+			data-source-context={contextIdTag ?? undefined}
 			onClick={handleClick}
 			onDoubleClick={handleDoubleClick}
 			onContextMenu={handleContextMenu}
 		>
 			{/* File Icon with pin, access badge and live indicator */}
-			<div className="c-file-card-icon">
+			<div className="c-file-card-icon pos-relative">
 				{React.createElement<React.ComponentProps<typeof IcUnknown>>(Icon)}
+				{isBroken && (
+					<span className="c-file-card-broken-badge" title={brokenSubtitle ?? ''}>
+						<IcBroken />
+					</span>
+				)}
 				{isPinned && (
 					<span className="c-file-card-pin" title={t('Pinned')}>
 						<IcPin />
@@ -173,9 +199,9 @@ export const ItemCard = React.memo(function ItemCard({
 							size="small"
 						/>
 					) : (
-						<span className="text-truncate">{file.fileName}</span>
+						<span className="c-file-card-name-text text-truncate">{file.fileName}</span>
 					)}
-					{!isInTrash && (
+					{!isInTrash && !isManagedView && (
 						<button
 							type="button"
 							className={mergeClasses('c-file-card-star', isStarred && 'active')}
@@ -204,10 +230,14 @@ export const ItemCard = React.memo(function ItemCard({
 					)}
 					<span className="c-file-card-meta-right">
 						{(() => {
-							// Suppress owner/creator chip when it matches the active
-							// context — the user already knows it's theirs, and the
-							// repeated chip on every row adds noise to own-files lists.
-							const attribution = file.creator || file.owner
+							// Prefer owner when it differs from the current context — for
+							// cross-context (pinned/placed) rows the owner is the meaningful
+							// "from where" signal; the creator may be the local user.
+							// Fall back to creator for normal rows.
+							const attribution =
+								file.owner && file.owner.idTag !== contextIdTag
+									? file.owner
+									: file.creator || file.owner
 							if (!attribution) return null
 							if (attribution.idTag === contextIdTag) return null
 							return (
@@ -236,6 +266,13 @@ export const ItemCard = React.memo(function ItemCard({
 						})()}
 					</span>
 				</div>
+
+				{/* Tombstone subtitle */}
+				{isBroken && brokenSubtitle && (
+					<div className="c-file-card-meta">
+						<span className="small text-muted">{brokenSubtitle}</span>
+					</div>
+				)}
 
 				{/* Tags (read-only on card) */}
 				{!isFolder && file.tags && file.tags.length > 0 && (
@@ -278,21 +315,21 @@ export const ItemCard = React.memo(function ItemCard({
 					title={
 						isFolder
 							? t('Open folder')
-							: isLive && file.accessLevel === 'write'
-								? t('Edit (hold for view mode)')
-								: file.accessLevel !== 'none'
-									? t('View')
-									: t('No access')
+							: file.accessLevel === 'none'
+								? t('No access')
+								: isLive && (file.accessLevel === 'write' || !file.accessLevel)
+									? t('Edit (hold for view mode)')
+									: t('View')
 					}
 				>
 					{isFolder ? (
 						<IcOpenFolder />
-					) : isLive && file.accessLevel === 'write' ? (
-						<IcEdit />
-					) : file.accessLevel !== 'none' ? (
-						<IcView />
-					) : (
+					) : file.accessLevel === 'none' ? (
 						<IcLock />
+					) : isLive && (file.accessLevel === 'write' || !file.accessLevel) ? (
+						<IcEdit />
+					) : (
+						<IcView />
 					)}
 				</button>
 			)}

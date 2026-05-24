@@ -2,26 +2,30 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { useMatch, useNavigate } from 'react-router-dom'
-import { useAtom } from 'jotai'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useAtom, useSetAtom } from 'jotai'
 import { useAuth, apiAtom } from '@cloudillo/react'
 
-import { activeContextAtom } from './atoms'
+import { activeContextAtom, contextSwitchingAtom } from './atoms'
 import { useApiContext } from './hooks'
-import { HOME_CONTEXT } from './constants.js'
+import { HOME_CONTEXT, CONTEXT_ROUTE_REGEX } from './constants.js'
 
 export function useContextFromRoute(): string | undefined {
 	// `useContextFromRoute` is called from `AppRoutes` outside any matched
-	// `<Route>`, so `useParams` would return `{}`. Use `useMatch` to parse the
-	// URL directly, independent of route nesting. Only treat the segment as a
-	// contextIdTag when it looks like one (`~` or a dotted domain) — otherwise
-	// `/app/feed` or `/app/quillo/...` would be misread as a context.
-	const match = useMatch('/app/:contextIdTag/*')
-	const matched = match?.params.contextIdTag
+	// `<Route>`, so `useParams` would return `{}`. Match the URL directly
+	// against the shared CONTEXT_ROUTE_REGEX so we also pick up sibling
+	// prefixes (`/idp/...`, `/settings/...`, …) that the sidebar emits.
+	// Only treat the segment as a contextIdTag when it looks like one (`~`
+	// or a dotted domain) — otherwise `/app/feed` or `/settings/security`
+	// would be misread as a context.
+	const location = useLocation()
+	const match = location.pathname.match(CONTEXT_ROUTE_REGEX)
+	const matched = match?.[2]
 	const rawContextIdTag =
 		matched && (matched === HOME_CONTEXT || matched.includes('.')) ? matched : undefined
 	const [activeContext] = useAtom(activeContextAtom)
 	const { setActiveContext, isLoading } = useApiContext()
+	const setIsSwitching = useSetAtom(contextSwitchingAtom)
 	const [auth] = useAuth()
 	const [apiState] = useAtom(apiAtom)
 	const navigate = useNavigate()
@@ -36,20 +40,27 @@ export function useContextFromRoute(): string | undefined {
 
 		// If we have a contextIdTag in URL but it doesn't match active context
 		if (contextIdTag && activeContext?.idTag !== contextIdTag) {
-			// Switch to the context from URL
-			setActiveContext(contextIdTag).catch((err) => {
-				console.error(`[Route] Failed to switch to context ${contextIdTag}:`, err)
+			// Switch to the context from URL. This is the sole writer to
+			// activeContextAtom for user-initiated switches — switchTo only
+			// navigates, so the URL is the single source of truth.
+			setActiveContext(contextIdTag)
+				.catch((err) => {
+					console.error(`[Route] Failed to switch to context ${contextIdTag}:`, err)
 
-				// If we can't switch, redirect to user's own context
-				if (auth?.idTag) {
-					console.warn(`[Route] Redirecting to user context: ${auth.idTag}`)
-					navigate(`/app/${HOME_CONTEXT}/feed`, { replace: true })
-				} else {
-					navigate('/login', { replace: true })
-				}
-			})
+					// If we can't switch, redirect to user's own context
+					if (auth?.idTag) {
+						console.warn(`[Route] Redirecting to user context: ${auth.idTag}`)
+						navigate(`/app/${HOME_CONTEXT}/feed`, { replace: true })
+					} else {
+						navigate('/login', { replace: true })
+					}
+				})
+				.finally(() => setIsSwitching(false))
+		} else if (contextIdTag && activeContext?.idTag === contextIdTag) {
+			// URL already matches active context — switchTo only navigated; clear the spinner.
+			setIsSwitching(false)
 		}
-	}, [contextIdTag, activeContext?.idTag, setActiveContext, auth, navigate])
+	}, [contextIdTag, activeContext?.idTag, setActiveContext, auth, navigate, setIsSwitching])
 
 	// Initialize active context if none is set, we have auth, and the URL has no context segment
 	React.useEffect(() => {

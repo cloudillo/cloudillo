@@ -10,6 +10,7 @@
 import { atom } from 'jotai'
 import { atomWithStorage } from 'jotai/utils'
 import type { ProfileTrust } from '@cloudillo/types'
+import type { FileView } from '@cloudillo/core'
 import type {
 	ActiveContext,
 	CommunityRef,
@@ -47,6 +48,16 @@ export const contextOnboardingAtom = atom<Record<string, string | null>>({})
  * identity providers.
  */
 export const contextIdpEnabledAtom = atom<Record<string, boolean>>({})
+
+/**
+ * Per-context cache for `idp.enabled` with a fetchedAt timestamp.
+ *
+ * Consulted by `setActiveContext` before issuing the settings GET so that
+ * re-entering a context within the staleness window skips the network call.
+ * Entries are written through after a successful fetch.
+ */
+export type ContextIdpEnabledCacheEntry = { value: boolean; fetchedAt: number }
+export const contextIdpEnabledCacheAtom = atom<Map<string, ContextIdpEnabledCacheEntry>>(new Map())
 
 /**
  * Context tokens cache
@@ -135,6 +146,23 @@ export const sessionTrustAtom = atom<Map<string, 'S' | 'X'>>(new Map())
  * `useProfileTrust().rememberStoredTrust`, and kept in sync with setTrust mutations.
  */
 export const storedTrustAtom = atom<Map<string, ProfileTrust>>(new Map())
+
+/**
+ * Broadcast channel for a single refreshed FileView. Written by the
+ * MicrofrontendContainer access-conflict handler after a successful
+ * `api.files.refresh()` call; read by `useFileList` (and any other file
+ * list consumer) to patch the row in place without a full re-fetch.
+ *
+ * Writers bump `version` monotonically (using a functional setter) and
+ * supply the new `file`. Consumers track the last version they've seen
+ * and apply any version newer than that — so multiple list consumers
+ * each receive every broadcast, instead of racing to consume a one-shot.
+ */
+export interface FileViewUpdate {
+	version: number
+	file: FileView
+}
+export const fileViewUpdateAtom = atom<FileViewUpdate | null>(null)
 
 /**
  * Derived atom: Pinned communities

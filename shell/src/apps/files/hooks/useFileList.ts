@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+import { useAtomValue } from 'jotai'
 import { useAuth, useInfiniteScroll } from '@cloudillo/react'
 import type * as Types from '@cloudillo/core'
 import type { ApiClient } from '@cloudillo/core'
 import { useCurrentContextIdTag, useContextAwareApi } from '../../../context/index.js'
+import { fileViewUpdateAtom } from '../../../context/index.js'
 import { createCachedFileFetchPage } from '../../../cache/index.js'
 import type { File, ViewMode, FileTypeFilter, OwnerFilter } from '../types.js'
-import { TRASH_FOLDER_ID } from '../types.js'
+import { TRASH_FOLDER_ID, MANAGED_FOLDER_ID } from '../types.js'
 
 export interface UseFileListOptions {
 	viewMode?: ViewMode
@@ -69,6 +71,12 @@ function convertFileView(f: Types.FileView): File {
 				? f.modifiedAt
 				: f.modifiedAt.toISOString()
 			: undefined,
+		brokenAt: f.brokenAt
+			? typeof f.brokenAt === 'string'
+				? f.brokenAt
+				: f.brokenAt.toISOString()
+			: undefined,
+		tags: f.tags?.filter((t) => t && t.length > 0),
 		userData: f.userData
 			? {
 					accessedAt: f.userData.accessedAt
@@ -150,6 +158,8 @@ export function useFileList(options?: UseFileListOptions) {
 					return { ...baseParams, sort: 'recent', sortDir: 'desc' }
 				case 'trash':
 					return { ...baseParams, parentId: TRASH_FOLDER_ID }
+				case 'managed':
+					return { ...baseParams, parentId: MANAGED_FOLDER_ID }
 				default:
 					// 'browse' mode - use parentId if provided
 					return {
@@ -183,6 +193,8 @@ export function useFileList(options?: UseFileListOptions) {
 				return params // All cached files, sorted by date (no folder filter)
 			case 'trash':
 				return { ...params, parentId: TRASH_FOLDER_ID }
+			case 'managed':
+				return { ...params, parentId: MANAGED_FOLDER_ID }
 			default:
 				// Only apply parentId filter for subfolder navigation, not root
 				return parentId ? { ...params, parentId } : params
@@ -243,6 +255,7 @@ export function useFileList(options?: UseFileListOptions) {
 		loadMore,
 		reset,
 		prepend,
+		updateItem,
 		sentinelRef
 	} = useInfiniteScroll<File>({
 		fetchPage,
@@ -262,6 +275,22 @@ export function useFileList(options?: UseFileListOptions) {
 		enabled: !!api
 	})
 
+	// Cross-route file-row updates broadcast by MicrofrontendContainer's
+	// access-conflict handler. Patch the row in place if it's in our dataset.
+	// Each consumer remembers the last version it applied so multiple list
+	// instances can all observe a broadcast without racing.
+	const fileViewUpdate = useAtomValue(fileViewUpdateAtom)
+	const lastSeenVersionRef = React.useRef(0)
+	React.useEffect(() => {
+		if (!fileViewUpdate) return
+		if (fileViewUpdate.version <= lastSeenVersionRef.current) return
+		lastSeenVersionRef.current = fileViewUpdate.version
+		updateItem(
+			(f) => f.fileId === fileViewUpdate.file.fileId,
+			convertFileView(fileViewUpdate.file)
+		)
+	}, [fileViewUpdate, updateItem])
+
 	return React.useMemo(
 		function () {
 			function getData() {
@@ -278,9 +307,8 @@ export function useFileList(options?: UseFileListOptions) {
 				// page is no longer used - infinite scroll handles loading
 			}
 
-			function setFileData(_fileId: string, _file: File) {
-				// Note: This won't work well with infinite scroll's internal state
-				// Consider using a separate state or refactoring if needed
+			function setFileData(fileId: string, file: File) {
+				updateItem((f) => f.fileId === fileId, file)
 			}
 
 			function refresh() {

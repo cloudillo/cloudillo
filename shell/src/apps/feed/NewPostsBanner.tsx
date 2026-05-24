@@ -26,13 +26,7 @@ export function NewPostsBanner({ count, onClick, className }: NewPostsBannerProp
 				className
 			)}
 		>
-			<Button
-				variant="primary"
-				size="small"
-				onClick={onClick}
-				icon={<IcUp />}
-				className="c-new-posts-banner-button"
-			>
+			<Button variant="primary" size="small" onClick={onClick} icon={<IcUp />}>
 				{t('{{count}} new posts', { count })}
 			</Button>
 		</div>

@@ -250,7 +250,7 @@ function CreateIdentityModal({ open, idpDomain, onClose, onCreated }: CreateIden
 
 				{/* Identity name field */}
 				<div className="mb-3">
-					<label className="c-label">
+					<label>
 						{t('Identity Name')} <span className="text-error">*</span>
 					</label>
 					<div className="c-hbox">
@@ -275,7 +275,7 @@ function CreateIdentityModal({ open, idpDomain, onClose, onCreated }: CreateIden
 
 				{/* Email field */}
 				<div className="mb-3">
-					<label className="c-label">
+					<label>
 						{t('Owner Email')} <span className="text-error">*</span>
 					</label>
 					<input
@@ -331,7 +331,7 @@ function CreateIdentityModal({ open, idpDomain, onClose, onCreated }: CreateIden
 
 					{createApiKey && (
 						<div className="mt-2">
-							<label className="c-label">{t('Key Name (optional)')}</label>
+							<label>{t('Key Name (optional)')}</label>
 							<input
 								className="c-input"
 								placeholder={t('e.g., Home server DynDNS')}
@@ -430,10 +430,10 @@ function ApiKeyCreatedModal({
 
 				{/* API Key */}
 				<div className="mb-3">
-					<label className="c-label">{t('API Key')}</label>
+					<label>{t('API Key')}</label>
 					<div className="c-hbox g-1">
 						<code
-							className="c-code flex-fill p-2"
+							className="c-mono flex-fill p-2"
 							style={{ wordBreak: 'break-all', userSelect: 'all' }}
 						>
 							{apiKey.plaintextKey}
@@ -450,7 +450,7 @@ function ApiKeyCreatedModal({
 				{/* Curl command */}
 				<div className="mb-3">
 					<div className="c-hbox jc-between ai-center mb-1">
-						<label className="c-label mb-0">{t('Example: Update IP Address')}</label>
+						<label className="mb-0">{t('Example: Update IP Address')}</label>
 						<Button
 							kind="link"
 							className="small"
@@ -470,7 +470,7 @@ function ApiKeyCreatedModal({
 						</Button>
 					</div>
 					<pre
-						className="c-code p-2 overflow-x-auto mb-1"
+						className="c-mono p-2 overflow-x-auto mb-1"
 						style={{ whiteSpace: 'pre-wrap', fontSize: '0.85em' }}
 					>
 						{curlCommand}
@@ -700,7 +700,7 @@ function IdentityDetailsModal({
 
 					{showCreateKeyForm && (
 						<div className="c-panel bg-muted p-2 mb-2">
-							<label className="c-label">{t('Key Name (optional)')}</label>
+							<label>{t('Key Name (optional)')}</label>
 							<input
 								className="c-input mb-2"
 								placeholder={t('e.g., Home server')}
@@ -869,10 +869,10 @@ function StandaloneApiKeyModal({
 
 				{/* API Key */}
 				<div className="mb-3">
-					<label className="c-label">{t('API Key')}</label>
+					<label>{t('API Key')}</label>
 					<div className="c-hbox g-1">
 						<code
-							className="c-code flex-fill p-2"
+							className="c-mono flex-fill p-2"
 							style={{ wordBreak: 'break-all', userSelect: 'all' }}
 						>
 							{apiKey.plaintextKey}
@@ -889,7 +889,7 @@ function StandaloneApiKeyModal({
 				{/* Curl command */}
 				<div className="mb-3">
 					<div className="c-hbox jc-between ai-center mb-1">
-						<label className="c-label mb-0">{t('Example: Update IP Address')}</label>
+						<label className="mb-0">{t('Example: Update IP Address')}</label>
 						<Button
 							kind="link"
 							className="small"
@@ -909,7 +909,7 @@ function StandaloneApiKeyModal({
 						</Button>
 					</div>
 					<pre
-						className="c-code p-2 overflow-x-auto mb-1"
+						className="c-mono p-2 overflow-x-auto mb-1"
 						style={{ whiteSpace: 'pre-wrap', fontSize: '0.85em' }}
 					>
 						{curlCommand}

@@ -40,7 +40,7 @@ export const VisibilitySelector = React.memo(function VisibilitySelector({
 
 	return (
 		<Popper
-			menuClassName="c-btn link secondary sm"
+			menuClassName="c-button link secondary sm"
 			icon={<Icon style={{ color: selected.color }} />}
 		>
 			<ul className="c-nav vertical emph">

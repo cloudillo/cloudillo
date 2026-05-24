@@ -69,7 +69,7 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 							<IcTenants /> {t('Users & Communities')}
 						</NavLink>
 					</li>
-					<li className="c-divider" />
+					<li className="c-menu-divider" />
 					<li className="c-nav-header">{t('Registration')}</li>
 					<li>
 						<NavLink
@@ -81,7 +81,7 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 							<IcIdps /> {t('Suggested Providers')}
 						</NavLink>
 					</li>
-					<li className="c-divider" />
+					<li className="c-menu-divider" />
 					<li className="c-nav-header">{t('System')}</li>
 					<li>
 						<NavLink

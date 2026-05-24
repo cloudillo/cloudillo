@@ -62,7 +62,7 @@ export function SectionVisibilitySelector({
 
 	return (
 		<Popper
-			menuClassName="c-btn link secondary sm"
+			menuClassName="c-button link secondary sm"
 			icon={<Icon className={selected.colorClass} />}
 		>
 			<ul className="c-nav vertical emph">

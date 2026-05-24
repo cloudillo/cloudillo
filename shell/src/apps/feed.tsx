@@ -992,7 +992,7 @@ const FilterBar = React.memo(function FilterBar({
 		<div className="c-vbox pt-2">
 			{/* Search */}
 			<div className="c-input-group px-2 py-1">
-				<span className="c-input-group-text">
+				<span className="c-input-suffix">
 					<IcSearch />
 				</span>
 				<input

@@ -450,6 +450,15 @@
 	padding-bottom: 0;
 }
 
+/* Fcd.Content slot for the calendar app — column flex so the grid fills
+   the remaining height between toolbar and the scrolling pane. */
+.c-cal-app__content {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
 /* Desktop-collapsible filter: at md+ FCD renders filter as a flex column.
    Users can hide it to reclaim space for the calendar grid. Mobile overlay
    is driven by FcdFilter's `isVisible` prop — this rule doesn't touch sm. */

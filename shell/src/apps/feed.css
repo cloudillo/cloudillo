@@ -5,6 +5,21 @@
 	border-left: 3px solid color-mix(in srgb, var(--col-primary) 40%, transparent);
 }
 
+/* Sticky pill banner that appears above the feed when new posts arrive. */
+.c-new-posts-banner {
+	position: sticky;
+	top: 0.5rem;
+	z-index: var(--z-sticky, 1);
+	display: flex;
+	justify-content: center;
+	padding: 0.25rem 0;
+	pointer-events: none;
+}
+
+.c-new-posts-banner > * {
+	pointer-events: auto;
+}
+
 .c-feed-video,
 .c-feed-video-facade {
 	display: block;

@@ -105,7 +105,7 @@ function IconPicker({ value, onChange }: IconPickerProps) {
 
 	return (
 		<Popper
-			menuClassName="c-btn link secondary sm"
+			menuClassName="c-button link secondary sm"
 			icon={<CurrentIcon className="c-section-icon" />}
 		>
 			<div className="c-hbox wrap g-1 p-1 w-md">

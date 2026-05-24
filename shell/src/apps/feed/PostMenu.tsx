@@ -43,7 +43,7 @@ export function PostMenu({ action, onDelete }: PostMenuProps) {
 	if (!isOwn) return null
 
 	return (
-		<Popper menuClassName="c-btn link" icon={<IcMore />}>
+		<Popper menuClassName="c-button link" icon={<IcMore />}>
 			<ul className="c-nav vertical emph">
 				<li>
 					<Button kind="nav-item" onClick={handleDelete}>

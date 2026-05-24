@@ -249,7 +249,7 @@ function CreateProxySiteModal({ open, onClose, onCreated }: CreateProxySiteModal
 				)}
 
 				<div className="mb-3">
-					<label className="c-label">
+					<label>
 						{t('Domain')} <span className="text-error">*</span>
 					</label>
 					<input
@@ -261,7 +261,7 @@ function CreateProxySiteModal({ open, onClose, onCreated }: CreateProxySiteModal
 				</div>
 
 				<div className="mb-3">
-					<label className="c-label">
+					<label>
 						{t('Backend URL')} <span className="text-error">*</span>
 					</label>
 					<input
@@ -277,7 +277,7 @@ function CreateProxySiteModal({ open, onClose, onCreated }: CreateProxySiteModal
 				</div>
 
 				<div className="mb-3">
-					<label className="c-label">{t('Type')}</label>
+					<label>{t('Type')}</label>
 					<select
 						className="c-select"
 						value={type}
@@ -292,7 +292,7 @@ function CreateProxySiteModal({ open, onClose, onCreated }: CreateProxySiteModal
 					<div className="c-panel bg-muted p-2 mb-3">
 						<h4 className="pb-2">{t('Configuration')}</h4>
 						<div className="mb-2">
-							<label className="c-label">{t('Connect Timeout (seconds)')}</label>
+							<label>{t('Connect Timeout (seconds)')}</label>
 							<input
 								className="c-input"
 								type="number"
@@ -302,7 +302,7 @@ function CreateProxySiteModal({ open, onClose, onCreated }: CreateProxySiteModal
 							/>
 						</div>
 						<div className="mb-2">
-							<label className="c-label">{t('Read Timeout (seconds)')}</label>
+							<label>{t('Read Timeout (seconds)')}</label>
 							<input
 								className="c-input"
 								type="number"
@@ -348,7 +348,7 @@ function CreateProxySiteModal({ open, onClose, onCreated }: CreateProxySiteModal
 							{t('Proxy Protocol')}
 						</label>
 						<div className="mb-2">
-							<label className="c-label">{t('Custom Headers')}</label>
+							<label>{t('Custom Headers')}</label>
 							<textarea
 								className="c-input"
 								rows={3}
@@ -523,7 +523,7 @@ function EditProxySiteModal({
 				</label>
 
 				<div className="mb-3">
-					<label className="c-label">{t('Backend URL')}</label>
+					<label>{t('Backend URL')}</label>
 					<input
 						className={mergeClasses('c-input', backendUrlError && 'error')}
 						placeholder="http://localhost:8080"
@@ -537,7 +537,7 @@ function EditProxySiteModal({
 				</div>
 
 				<div className="mb-3">
-					<label className="c-label">{t('Type')}</label>
+					<label>{t('Type')}</label>
 					<select
 						className="c-select"
 						value={type}
@@ -553,7 +553,7 @@ function EditProxySiteModal({
 					<div className="c-panel bg-muted p-2 mb-3">
 						<h4 className="pb-2">{t('Configuration')}</h4>
 						<div className="mb-2">
-							<label className="c-label">{t('Connect Timeout (seconds)')}</label>
+							<label>{t('Connect Timeout (seconds)')}</label>
 							<input
 								className="c-input"
 								type="number"
@@ -563,7 +563,7 @@ function EditProxySiteModal({
 							/>
 						</div>
 						<div className="mb-2">
-							<label className="c-label">{t('Read Timeout (seconds)')}</label>
+							<label>{t('Read Timeout (seconds)')}</label>
 							<input
 								className="c-input"
 								type="number"
@@ -609,7 +609,7 @@ function EditProxySiteModal({
 							{t('Proxy Protocol')}
 						</label>
 						<div className="mb-2">
-							<label className="c-label">{t('Custom Headers')}</label>
+							<label>{t('Custom Headers')}</label>
 							<textarea
 								className="c-input"
 								rows={3}

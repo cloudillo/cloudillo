@@ -359,7 +359,7 @@ function GroupAvatar({ profiles, max = 3 }: { profiles: Profile[]; max?: number 
 	const _remaining = profiles.length - max
 
 	return (
-		<AvatarGroup max={max} className="c-avatar-group-small">
+		<AvatarGroup max={max}>
 			{displayProfiles.map((profile) => (
 				<Avatar key={profile.idTag} size="sm">
 					{profile.profilePic ? (
@@ -395,7 +395,7 @@ export function ConversationCard({
 		>
 			{isGroup ? (
 				<>
-					<div className="c-avatar-container pos-relative">
+					<div className="pos-relative">
 						{conversation.profiles.length > 1 ? (
 							<GroupAvatar profiles={conversation.profiles} max={3} />
 						) : (

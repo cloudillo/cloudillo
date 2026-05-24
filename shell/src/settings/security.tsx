@@ -149,7 +149,7 @@ function CreateApiKeyModal({ open, onClose, onCreated }: CreateApiKeyModalProps)
 				)}
 
 				<div className="mb-3">
-					<label className="c-label">{t('Name (optional)')}</label>
+					<label>{t('Name (optional)')}</label>
 					<input
 						className="c-input"
 						placeholder={t('e.g., CI pipeline')}
@@ -159,7 +159,7 @@ function CreateApiKeyModal({ open, onClose, onCreated }: CreateApiKeyModalProps)
 				</div>
 
 				<div className="mb-3">
-					<label className="c-label">{t('Permissions')}</label>
+					<label>{t('Permissions')}</label>
 					<div className="c-hint small mb-2">
 						{t('Leave all unchecked for full access.')}
 					</div>
@@ -295,7 +295,7 @@ function EditApiKeyModal({ open, apiKey, onClose, onSaved }: EditApiKeyModalProp
 				)}
 
 				<div className="mb-3">
-					<label className="c-label">{t('Name (optional)')}</label>
+					<label>{t('Name (optional)')}</label>
 					<input
 						className="c-input"
 						placeholder={t('e.g., CI pipeline')}
@@ -305,7 +305,7 @@ function EditApiKeyModal({ open, apiKey, onClose, onSaved }: EditApiKeyModalProp
 				</div>
 
 				<div className="mb-3">
-					<label className="c-label">{t('Expires (optional)')}</label>
+					<label>{t('Expires (optional)')}</label>
 					<div className="c-hbox g-2 ai-center">
 						<input
 							type="date"
@@ -326,7 +326,7 @@ function EditApiKeyModal({ open, apiKey, onClose, onSaved }: EditApiKeyModalProp
 				</div>
 
 				<div className="mb-3">
-					<label className="c-label">{t('Permissions')}</label>
+					<label>{t('Permissions')}</label>
 					<div className="c-hint small mb-2">
 						{t('Leave all unchecked for full access.')}
 					</div>
@@ -403,14 +403,14 @@ function DavSetupRow({ label, idTag, plaintextKey, hint, comingSoon }: DavSetupR
 			</div>
 			<div className="c-vbox g-2">
 				<div>
-					<label className="c-label small">{t('Server URL')}</label>
+					<label className="small">{t('Server URL')}</label>
 					<div className="c-hbox g-1">
 						<code className="c-mono flex-fill">{serverUrl}</code>
 						<CopyButton text={serverUrl} label={t('server URL')} />
 					</div>
 				</div>
 				<div>
-					<label className="c-label small">{t('Username')}</label>
+					<label className="small">{t('Username')}</label>
 					<div className="c-hbox g-1">
 						<code className="c-mono flex-fill">cloudillo</code>
 						<CopyButton text="cloudillo" label={t('username')} />
@@ -420,7 +420,7 @@ function DavSetupRow({ label, idTag, plaintextKey, hint, comingSoon }: DavSetupR
 					</div>
 				</div>
 				<div>
-					<label className="c-label small">{t('Password')}</label>
+					<label className="small">{t('Password')}</label>
 					<div className="c-hbox g-1">
 						<code className="c-mono flex-fill">{plaintextKey}</code>
 						<CopyButton text={plaintextKey} label={t('password')} />
@@ -471,7 +471,7 @@ function ApiKeyCreatedModal({ open, result, onClose }: ApiKeyCreatedModalProps) 
 				</div>
 
 				<div className="mb-3">
-					<label className="c-label">{t('API Key')}</label>
+					<label>{t('API Key')}</label>
 					<div className="c-hbox g-1">
 						<code className="c-mono flex-fill">{result.plaintextKey}</code>
 						<CopyButton text={result.plaintextKey} label={t('API key')} />
@@ -480,7 +480,7 @@ function ApiKeyCreatedModal({ open, result, onClose }: ApiKeyCreatedModalProps) 
 
 				{scopes && scopes.length > 0 && (
 					<div className="mb-3">
-						<label className="c-label">{t('Scopes')}</label>
+						<label>{t('Scopes')}</label>
 						<div className="c-hbox g-1 flex-wrap">
 							{scopes.map((scope) => (
 								<span key={scope} className="c-badge small">
@@ -493,7 +493,7 @@ function ApiKeyCreatedModal({ open, result, onClose }: ApiKeyCreatedModalProps) 
 
 				{(hasCardDav || hasCalDav) && idTag && (
 					<div className="mb-3">
-						<label className="c-label">{t('Connect a DAV client')}</label>
+						<label>{t('Connect a DAV client')}</label>
 						{hasCardDav && (
 							<DavSetupRow
 								label={t('CardDAV (contacts)')}

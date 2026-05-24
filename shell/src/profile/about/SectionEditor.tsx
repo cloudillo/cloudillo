@@ -137,7 +137,7 @@ export function SectionEditor({
 					isCommunity={isCommunity}
 				/>
 
-				<Popper menuClassName="c-btn link secondary sm" icon={<IcMore />}>
+				<Popper menuClassName="c-button link secondary sm" icon={<IcMore />}>
 					<ul className="c-nav vertical">
 						<li>
 							<Button kind="nav-item" onClick={handleRename}>

@@ -1,13 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, Modal, ProfileCard, ProfileSelect, useApi, useToast } from '@cloudillo/react'
+import type { Profile } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
-import { LuX as IcClose, LuCheck as IcCheck } from 'react-icons/lu'
-
-import { Modal, Button, ProfileCard, useApi, useToast, mergeClasses } from '@cloudillo/react'
-import type { Profile } from '@cloudillo/types'
+import { LuX as IcClose } from 'react-icons/lu'
 
 interface InviteMembersDialogProps {
 	open: boolean
@@ -28,63 +26,15 @@ export function InviteMembersDialog({
 	const { api } = useApi()
 	const toast = useToast()
 
-	const [contacts, setContacts] = React.useState<Profile[]>([])
-	const [loading, setLoading] = React.useState(false)
-	const [search, setSearch] = React.useState('')
 	const [selected, setSelected] = React.useState<Profile[]>([])
 	const [message, setMessage] = React.useState('')
 	const [submitting, setSubmitting] = React.useState(false)
 	const cancelledRef = React.useRef(false)
 
-	React.useEffect(
-		function loadContacts() {
-			if (!open || !api) return
-			let cancelled = false
-			setLoading(true)
-			;(async function () {
-				try {
-					// Drain the cursor-paginated address-book list so accounts
-					// with > 1 page of contacts still see everyone.
-					const accumulated: Profile[] = []
-					let cursor: string | undefined
-					do {
-						const result = await api.contacts.listAllContacts({
-							cursor,
-							limit: 200
-						})
-						if (cancelled) return
-						for (const c of result.data) {
-							if (!c.profileIdTag) continue
-							accumulated.push({
-								idTag: c.profileIdTag,
-								name: c.fn || c.profileIdTag,
-								profilePic: c.photo
-							} as Profile)
-						}
-						cursor = result.meta.cursorPagination?.hasMore
-							? (result.meta.cursorPagination?.nextCursor ?? undefined)
-							: undefined
-					} while (cursor)
-					if (!cancelled) setContacts(accumulated)
-				} catch (err) {
-					console.error('Failed to load contacts', err)
-					if (!cancelled) setContacts([])
-				} finally {
-					if (!cancelled) setLoading(false)
-				}
-			})()
-			return () => {
-				cancelled = true
-			}
-		},
-		[open, api]
-	)
-
 	// Reset state when dialog closes
 	React.useEffect(() => {
 		if (!open) {
 			cancelledRef.current = true
-			setSearch('')
 			setSelected([])
 			setMessage('')
 			setSubmitting(false)
@@ -93,20 +43,20 @@ export function InviteMembersDialog({
 		}
 	}, [open])
 
-	const filtered = React.useMemo(() => {
-		const q = search.trim().toLowerCase()
-		if (!q) return contacts
-		return contacts.filter(
-			(p) => p.idTag.toLowerCase().includes(q) || p.name?.toLowerCase().includes(q)
-		)
-	}, [contacts, search])
+	async function listProfiles(q: string): Promise<Profile[] | undefined> {
+		if (!api || !q) return []
+		return api.profiles.list({ q, connected: true, type: 'person' })
+	}
 
-	function toggle(profile: Profile) {
+	function addToSelected(profile: Profile | undefined) {
+		if (!profile) return
 		setSelected((prev) =>
-			prev.some((p) => p.idTag === profile.idTag)
-				? prev.filter((p) => p.idTag !== profile.idTag)
-				: [...prev, profile]
+			prev.some((p) => p.idTag === profile.idTag) ? prev : [...prev, profile]
 		)
+	}
+
+	function removeFromSelected(idTag: string) {
+		setSelected((prev) => prev.filter((p) => p.idTag !== idTag))
 	}
 
 	async function handleSubmit() {
@@ -165,60 +115,25 @@ export function InviteMembersDialog({
 				</div>
 
 				<div className="c-vbox g-3">
-					<div className="c-vbox g-1">
-						<input
-							type="search"
-							className="c-input"
-							placeholder={t('Search your connections')}
-							value={search}
-							onChange={(e) => setSearch(e.target.value)}
-						/>
-					</div>
+					<ProfileSelect listProfiles={listProfiles} onChange={addToSelected} />
 
-					<div
-						className="c-panel secondary p-2 overflow-y-auto"
-						style={{ maxHeight: '280px' }}
-					>
-						{loading ? (
-							<span className="text-muted p-2">{t('Loading...')}</span>
-						) : filtered.length === 0 ? (
-							<span className="text-muted p-2">{t('No contacts available')}</span>
-						) : (
-							filtered.map((profile) => {
-								const isSelected = selected.some((p) => p.idTag === profile.idTag)
-								return (
-									<div
-										key={profile.idTag}
-										className={mergeClasses(
-											'c-hbox ai-center g-2 p-2 rounded',
-											isSelected && 'bg bg-container-primary'
-										)}
-										onClick={() => toggle(profile)}
-										role="checkbox"
-										aria-checked={isSelected}
-										tabIndex={0}
-										onKeyDown={(e) => {
-											if (e.key === 'Enter' || e.key === ' ') {
-												e.preventDefault()
-												toggle(profile)
-											}
-										}}
-										style={{ cursor: 'pointer' }}
+					{selected.length === 0 ? (
+						<span className="text-muted">{t('Search for connections to invite')}</span>
+					) : (
+						<div className="c-hbox flex-wrap g-1 ai-center">
+							{selected.map((profile) => (
+								<div key={profile.idTag} className="c-hbox ai-center g-1">
+									<ProfileCard profile={profile} />
+									<Button
+										kind="link"
+										onClick={() => removeFromSelected(profile.idTag)}
 									>
-										<div
-											className={mergeClasses(
-												'c-checkbox',
-												isSelected && 'checked'
-											)}
-										>
-											{isSelected && <IcCheck size={14} />}
-										</div>
-										<ProfileCard profile={profile} />
-									</div>
-								)
-							})
-						)}
-					</div>
+										<IcClose />
+									</Button>
+								</div>
+							))}
+						</div>
+					)}
 
 					<div className="c-vbox g-1">
 						<label className="fw-medium">{t('Optional message')}</label>

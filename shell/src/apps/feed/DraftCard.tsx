@@ -177,7 +177,7 @@ export function DraftCard({
 					<IcPublish />
 					{t('Publish now')}
 				</Button>
-				<Popper menuClassName="c-btn" icon={<IcMore />}>
+				<Popper menuClassName="c-button" icon={<IcMore />}>
 					<ul className="c-nav vertical emph">
 						{isScheduled && (
 							<li>

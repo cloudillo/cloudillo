@@ -23,7 +23,6 @@
 
 	/* Text colors */
 	--c-text-primary: var(--col-on-container);
-	--c-text-secondary: var(--col-on-surface);
 
 	/* Border and outline */
 	--c-border: var(--col-outline);

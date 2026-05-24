@@ -115,7 +115,7 @@ export function ImageWithRetry({
 				/>
 				<button
 					type="button"
-					className="c-btn link sm"
+					className="c-button link sm"
 					onClick={retry}
 					aria-label={retryLabel}
 					title={retryLabel}

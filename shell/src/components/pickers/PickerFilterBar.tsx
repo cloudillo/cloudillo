@@ -113,7 +113,7 @@ export function PickerFilterBar({
 
 				{/* Search input */}
 				<div className="c-input-group flex-fill">
-					<span className="c-input-addon">
+					<span className="c-input-suffix">
 						<IcSearch />
 					</span>
 					<input

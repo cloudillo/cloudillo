@@ -69,7 +69,7 @@ export function ActiveFilters({
 					{t(VIEW_MODE_LABELS[viewMode])}
 					<button
 						type="button"
-						className="c-tag-close ms-1"
+						className="c-tag-remove ms-1"
 						onClick={onClearViewMode}
 						aria-label={t('Remove filter')}
 					>
@@ -84,7 +84,7 @@ export function ActiveFilters({
 					{t(TIME_FILTER_LABELS[timeFilter])}
 					<button
 						type="button"
-						className="c-tag-close ms-1"
+						className="c-tag-remove ms-1"
 						onClick={onClearTimeFilter}
 						aria-label={t('Remove filter')}
 					>
@@ -99,7 +99,7 @@ export function ActiveFilters({
 					#{tag}
 					<button
 						type="button"
-						className="c-tag-close ms-1"
+						className="c-tag-remove ms-1"
 						onClick={() => onRemoveTag(tag)}
 						aria-label={t('Remove tag')}
 					>

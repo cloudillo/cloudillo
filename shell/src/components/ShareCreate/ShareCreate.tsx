@@ -196,7 +196,7 @@ export function ShareCreate() {
 						</Badge>
 					</label>
 					<hr style={{ margin: 0, opacity: 0.2 }} />
-					<div className="c-text-secondary" style={{ fontSize: '0.85em' }}>
+					<div className="text-secondary" style={{ fontSize: '0.85em' }}>
 						{t('Use existing link')}
 					</div>
 					{compatibleRefs.map((ref) => {
@@ -216,10 +216,7 @@ export function ShareCreate() {
 									{ref.description || t('Shared link')}
 								</span>
 								{expiry && (
-									<span
-										className="c-text-secondary"
-										style={{ fontSize: '0.85em' }}
-									>
+									<span className="text-secondary" style={{ fontSize: '0.85em' }}>
 										{expiry}
 									</span>
 								)}
@@ -237,7 +234,7 @@ export function ShareCreate() {
 					})}
 				</div>
 			) : (
-				<p className="c-text-secondary mt-2">
+				<p className="text-secondary mt-2">
 					{t('Access')}: {accessLabel}
 				</p>
 			)}

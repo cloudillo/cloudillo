@@ -12,6 +12,7 @@
  */
 
 import React from 'react'
+import dayjs from 'dayjs'
 import { useTranslation } from 'react-i18next'
 
 import { Dialog, Button, Badge, useToast, useApi } from '@cloudillo/react'
@@ -138,7 +139,10 @@ export function ShareCreate() {
 				resourceId: pending.options.resourceId,
 				accessLevel: pending.options.accessLevel || 'read',
 				description: pending.options.description,
-				expiresAt: pending.options.expiresAt,
+				expiresAt:
+					pending.options.expiresAt != null
+						? dayjs(pending.options.expiresAt).endOf('day').toISOString()
+						: undefined,
 				count: pending.options.count ?? null,
 				params: pending.options.params
 			})

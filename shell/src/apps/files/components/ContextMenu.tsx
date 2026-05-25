@@ -434,11 +434,14 @@ export function ContextMenu({
 				/>
 			)}
 
-			{/* Duplicate - only for single CRDT/RTDB files */}
+			{/* Duplicate - only for single CRDT/RTDB files owned by this context.
+			    Remote-owned files would create an empty record because content
+			    (CRDT/RTDB data) lives on the owner's node and is not transferred. */}
 			{!isRemoteBrowsing &&
 				!isManagedView &&
 				isSingleSelect &&
-				(file.fileTp === 'CRDT' || file.fileTp === 'RTDB') && (
+				(file.fileTp === 'CRDT' || file.fileTp === 'RTDB') &&
+				(!file.owner?.idTag || file.owner.idTag === activeContext?.idTag) && (
 					<Item
 						icon={<IcDuplicate />}
 						label={t('Duplicate')}

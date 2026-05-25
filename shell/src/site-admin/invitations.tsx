@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+import dayjs from 'dayjs'
 import { useTranslation } from 'react-i18next'
 
 import type { Profile } from '@cloudillo/types'
+import type * as Types from '@cloudillo/core'
 import {
 	useApi,
 	useAuth,
@@ -14,7 +16,8 @@ import {
 	ProfileSelect,
 	Tabs,
 	Tab,
-	TimeFormat
+	TimeFormat,
+	Toggle
 } from '@cloudillo/react'
 
 import {
@@ -24,8 +27,11 @@ import {
 	LuCopy as IcCopy,
 	LuTrash as IcDelete,
 	LuQrCode as IcQrCode,
-	LuSend as IcSend
+	LuSend as IcSend,
+	LuPencil as IcEdit
 } from 'react-icons/lu'
+
+import { parseRefDate, formatRefDate, dateInputToExpiryIso } from '../utils/parseRefDate.js'
 
 // ============================================================================
 // REGISTRATION INVITES (existing functionality)
@@ -40,7 +46,35 @@ interface Ref {
 	count: number
 }
 
-function RegistrationInviteCard({ invite, deleteRef }: { invite: Ref; deleteRef: () => void }) {
+interface EditDraft {
+	description: string
+	expiresAt: string
+	neverExpires: boolean
+	count: string
+	unlimitedCount: boolean
+}
+
+interface RegistrationInviteCardProps {
+	invite: Ref
+	isEditing: boolean
+	editDraft: EditDraft
+	onEditDraftChange: React.Dispatch<React.SetStateAction<EditDraft>>
+	onBeginEdit: () => void
+	onCancelEdit: () => void
+	onSaveEdit: () => void
+	deleteRef: () => void
+}
+
+function RegistrationInviteCard({
+	invite,
+	isEditing,
+	editDraft,
+	onEditDraftChange,
+	onBeginEdit,
+	onCancelEdit,
+	onSaveEdit,
+	deleteRef
+}: RegistrationInviteCardProps) {
 	const { t } = useTranslation()
 	const [qrCode, setQrCode] = React.useState<string | undefined>()
 	const url = `https://${location.host}/register/${invite.refId}`
@@ -58,6 +92,17 @@ function RegistrationInviteCard({ invite, deleteRef }: { invite: Ref; deleteRef:
 			<div className="c-hbox">
 				<h2 className="fill">{invite.description || ''}</h2>
 				<div className="c-hbox g-3">
+					<Button
+						kind="link"
+						className={isEditing ? 'active' : undefined}
+						aria-label={
+							isEditing ? t('Cancel editing invitation') : t('Edit invitation')
+						}
+						aria-pressed={isEditing}
+						onClick={() => (isEditing ? onCancelEdit() : onBeginEdit())}
+					>
+						<IcEdit />
+					</Button>
 					<Button kind="link" onClick={() => copyUrlToClipboard()}>
 						<IcCopy />
 					</Button>
@@ -70,9 +115,17 @@ function RegistrationInviteCard({ invite, deleteRef }: { invite: Ref; deleteRef:
 				</div>
 			</div>
 			<div className="c-hbox">
-				<div className="c-hbox fill g-2">
-					<TimeFormat time={invite.createdAt} />
-					{invite.expiresAt && <TimeFormat time={invite.expiresAt} />}
+				<div className="c-hbox fill g-3 align-items-center">
+					<span className="c-hbox g-1 align-items-center">
+						<span className="text-secondary">{t('Created')}:</span>
+						<TimeFormat time={invite.createdAt} />
+					</span>
+					{invite.expiresAt && (
+						<span className="c-hbox g-1 align-items-center">
+							<span className="text-secondary">{t('Expires')}:</span>
+							<TimeFormat time={invite.expiresAt} />
+						</span>
+					)}
 				</div>
 				<div>
 					{invite.count && (!invite.expiresAt || invite.expiresAt > new Date()) ? (
@@ -85,6 +138,125 @@ function RegistrationInviteCard({ invite, deleteRef }: { invite: Ref; deleteRef:
 					)}
 				</div>
 			</div>
+
+			{isEditing && (
+				<div
+					className="c-panel mid p-3 mb-2"
+					onKeyDown={(e) => {
+						if (e.key === 'Escape') {
+							e.stopPropagation()
+							e.preventDefault()
+							onCancelEdit()
+						}
+					}}
+				>
+					<div className="c-vbox g-2">
+						<div className="c-hbox g-2 align-items-center">
+							<label
+								htmlFor={`invite-desc-${invite.refId}`}
+								className="text-nowrap"
+								style={{ minWidth: '80px' }}
+							>
+								{t('Label')}
+							</label>
+							<input
+								id={`invite-desc-${invite.refId}`}
+								type="text"
+								className="c-input flex-fill"
+								value={editDraft.description}
+								onChange={(e) =>
+									onEditDraftChange((d) => ({
+										...d,
+										description: e.target.value
+									}))
+								}
+							/>
+						</div>
+						<div className="c-hbox g-2 align-items-center">
+							<label
+								htmlFor={`invite-expires-${invite.refId}`}
+								className="text-nowrap"
+								style={{ minWidth: '80px' }}
+							>
+								{t('Expires')}
+							</label>
+							<div className="c-hbox g-2 flex-fill align-items-center">
+								<input
+									id={`invite-expires-${invite.refId}`}
+									type="date"
+									className="c-input flex-fill"
+									value={editDraft.expiresAt}
+									onChange={(e) =>
+										onEditDraftChange((d) => ({
+											...d,
+											expiresAt: e.target.value,
+											neverExpires: e.target.value ? false : d.neverExpires
+										}))
+									}
+									disabled={editDraft.neverExpires}
+									min={dayjs().format('YYYY-MM-DD')}
+								/>
+								<Toggle
+									label={t('Never')}
+									checked={editDraft.neverExpires}
+									onChange={(e) =>
+										onEditDraftChange((d) => ({
+											...d,
+											neverExpires: e.target.checked,
+											expiresAt: e.target.checked ? '' : d.expiresAt
+										}))
+									}
+								/>
+							</div>
+						</div>
+						<div className="c-hbox g-2 align-items-center">
+							<label
+								htmlFor={`invite-count-${invite.refId}`}
+								className="text-nowrap"
+								style={{ minWidth: '80px' }}
+							>
+								{t('Max uses')}
+							</label>
+							<div className="c-hbox g-2 flex-fill align-items-center">
+								<input
+									id={`invite-count-${invite.refId}`}
+									type="number"
+									min={1}
+									className="c-input flex-fill"
+									value={editDraft.count}
+									onChange={(e) =>
+										onEditDraftChange((d) => ({
+											...d,
+											count: e.target.value,
+											unlimitedCount: e.target.value
+												? false
+												: d.unlimitedCount
+										}))
+									}
+									disabled={editDraft.unlimitedCount}
+								/>
+								<Toggle
+									label={t('Unlimited')}
+									checked={editDraft.unlimitedCount}
+									onChange={(e) =>
+										onEditDraftChange((d) => ({
+											...d,
+											unlimitedCount: e.target.checked,
+											count: e.target.checked ? '' : d.count
+										}))
+									}
+								/>
+							</div>
+						</div>
+						<div className="c-hbox g-2 justify-content-end mt-2">
+							<Button onClick={onCancelEdit}>{t('Cancel')}</Button>
+							<Button variant="primary" onClick={onSaveEdit}>
+								{t('Save')}
+							</Button>
+						</div>
+					</div>
+				</div>
+			)}
 
 			<QRCodeDialog
 				value={qrCode}
@@ -101,6 +273,14 @@ function RegistrationInvites() {
 	const [auth] = useAuth()
 	const dialog = useDialog()
 	const [refs, setRefs] = React.useState<Ref[] | undefined>()
+	const [editingRefId, setEditingRefId] = React.useState<string | null>(null)
+	const [editDraft, setEditDraft] = React.useState<EditDraft>({
+		description: '',
+		expiresAt: '',
+		neverExpires: true,
+		count: '1',
+		unlimitedCount: false
+	})
 
 	React.useEffect(
 		function loadRefs() {
@@ -112,7 +292,7 @@ function RegistrationInvites() {
 						res.map((ref) => ({
 							...ref,
 							createdAt: new Date(ref.createdAt),
-							expiresAt: ref.expiresAt ? new Date(ref.expiresAt) : undefined,
+							expiresAt: parseRefDate(ref.expiresAt),
 							count: ref.count ?? 0
 						}))
 					)
@@ -128,18 +308,120 @@ function RegistrationInvites() {
 			t('You can write a short description to help you distinguish the invitations later.')
 		)
 		if (description === undefined) return
+		try {
+			const res = await api.refs.create({
+				type: 'register',
+				description: description || undefined,
+				count: 1
+			})
+			if (res) {
+				setRefs((refs) => [
+					{
+						...res,
+						createdAt: new Date(res.createdAt),
+						expiresAt: parseRefDate(res.expiresAt),
+						count: res.count ?? 0
+					},
+					...(refs || [])
+				])
+			}
+		} catch (err) {
+			await dialog.tell(
+				t('Failed to create invitation'),
+				err instanceof Error ? err.message : String(err)
+			)
+		}
+	}
 
-		const res = await api.refs.create({ type: 'register', description })
-		if (res) {
-			setRefs((refs) => [
-				{
-					...res,
-					createdAt: new Date(res.createdAt),
-					expiresAt: res.expiresAt ? new Date(res.expiresAt) : undefined,
-					count: res.count ?? 0
-				},
-				...(refs || [])
-			])
+	function beginEdit(ref: Ref) {
+		setEditDraft({
+			description: ref.description ?? '',
+			expiresAt: formatRefDate(ref.expiresAt) ?? '',
+			neverExpires: !ref.expiresAt,
+			count: ref.count ? String(ref.count) : '',
+			unlimitedCount: !ref.count
+		})
+		setEditingRefId(ref.refId)
+	}
+
+	function cancelEdit() {
+		setEditingRefId(null)
+		setEditDraft({
+			description: '',
+			expiresAt: '',
+			neverExpires: true,
+			count: '1',
+			unlimitedCount: false
+		})
+	}
+
+	async function saveEdit(ref: Ref) {
+		if (!api) return
+		const patch: Types.UpdateRefRequest = {}
+
+		if (editDraft.description !== (ref.description ?? '')) {
+			patch.description = editDraft.description
+		}
+
+		if (!editDraft.neverExpires && editDraft.expiresAt === '') {
+			await dialog.tell(t('Invalid expiry'), t('Pick an expiry date, or check Never'))
+			return
+		}
+		const draftExpires: string | null = editDraft.neverExpires
+			? null
+			: (dateInputToExpiryIso(editDraft.expiresAt) ?? null)
+		const currentExp = ref.expiresAt ? ref.expiresAt.toISOString() : null
+		if (draftExpires !== currentExp) patch.expiresAt = draftExpires
+
+		if (!editDraft.unlimitedCount && editDraft.count.trim() === '') {
+			await dialog.tell(
+				t('Invalid max uses'),
+				t('Enter a max-uses value, or check Unlimited')
+			)
+			return
+		}
+		const draftCount: number | null = editDraft.unlimitedCount
+			? null
+			: Number.parseInt(editDraft.count, 10)
+		if (draftCount !== null && (Number.isNaN(draftCount) || draftCount < 1)) {
+			await dialog.tell(t('Invalid max uses'), t('Max uses must be at least 1'))
+			return
+		}
+		const currentCount = ref.count > 0 ? ref.count : null
+		if (draftCount !== currentCount) patch.count = draftCount
+
+		if (Object.keys(patch).length === 0) {
+			setEditingRefId(null)
+			return
+		}
+
+		try {
+			const updated = await api.refs.update(ref.refId, patch)
+			setRefs((refs) =>
+				refs?.map((r) =>
+					r.refId === ref.refId
+						? {
+								...updated,
+								createdAt: new Date(updated.createdAt),
+								expiresAt: parseRefDate(updated.expiresAt),
+								count: updated.count ?? 0
+							}
+						: r
+				)
+			)
+			setEditingRefId(null)
+			setEditDraft({
+				description: '',
+				expiresAt: '',
+				neverExpires: true,
+				count: '1',
+				unlimitedCount: false
+			})
+		} catch (err) {
+			await dialog.tell(
+				t('Failed to update invitation'),
+				err instanceof Error ? err.message : String(err)
+			)
 		}
 	}
 
@@ -155,6 +437,7 @@ function RegistrationInvites() {
 
 		await api.refs.delete(refId)
 		setRefs((refs) => refs?.filter((ref) => ref.refId !== refId))
+		if (editingRefId === refId) cancelEdit()
 	}
 
 	return (
@@ -164,6 +447,12 @@ function RegistrationInvites() {
 					<RegistrationInviteCard
 						key={ref.refId}
 						invite={ref}
+						isEditing={editingRefId === ref.refId}
+						editDraft={editDraft}
+						onEditDraftChange={setEditDraft}
+						onBeginEdit={() => beginEdit(ref)}
+						onCancelEdit={cancelEdit}
+						onSaveEdit={() => saveEdit(ref)}
 						deleteRef={() => deleteRef(ref.refId)}
 					/>
 				))}
@@ -253,7 +542,7 @@ function CommunityInvites() {
 							res.map((ref) => ({
 								...ref,
 								createdAt: new Date(ref.createdAt),
-								expiresAt: ref.expiresAt ? new Date(ref.expiresAt) : undefined
+								expiresAt: parseRefDate(ref.expiresAt)
 							}))
 						)
 					}

@@ -1209,5 +1209,24 @@
 	line-height: 1;
 }
 
+.c-share-dialog {
+	min-width: 420px;
+	max-width: 560px;
+}
+
+.c-share-dialog__filename {
+	max-width: 380px;
+}
+
+@media (max-width: 480px) {
+	.c-share-dialog {
+		min-width: 0;
+		max-width: calc(100vw - 2rem);
+	}
+	.c-share-dialog__filename {
+		max-width: calc(100vw - 8rem);
+	}
+}
+
 /* vim: ts=4
 */

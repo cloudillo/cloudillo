@@ -6,25 +6,27 @@ import dayjs from 'dayjs'
 import { useTranslation } from 'react-i18next'
 
 import {
-	LuUsers as IcUsers,
 	LuLink as IcLink,
-	LuFiles as IcLinked,
 	LuCopy as IcCopy,
 	LuQrCode as IcQrCode,
 	LuTrash2 as IcTrash,
-	LuX as IcClose
+	LuX as IcClose,
+	LuPlus as IcPlus,
+	LuPencil as IcPencil,
+	LuEllipsisVertical as IcMore,
+	LuChevronRight as IcDisclosure
 } from 'react-icons/lu'
 
-import type { Profile, ActionView, NewAction } from '@cloudillo/types'
+import type { Profile } from '@cloudillo/types'
 import type * as Types from '@cloudillo/core'
 import {
 	useAuth,
 	useToast,
 	Button,
-	Tabs,
-	Tab,
+	Popper,
 	Toggle,
-	EditProfileList,
+	Select,
+	ProfileCard,
 	QRCodeDialog
 } from '@cloudillo/react'
 import { useAtom } from 'jotai'
@@ -33,6 +35,24 @@ import { useContextAwareApi, activeContextAtom } from '../../../context/index.js
 import { getFileIcon, IcUnknown } from '../icons.js'
 import { canManageFile } from '../utils.js'
 import type { File } from '../types.js'
+import { parseRefDate, formatRefDate, dateInputToExpiryIso } from '../../../utils/parseRefDate.js'
+import { getCachedProfiles, getCachedProfile } from '../../../utils/profileCache.js'
+import { AccessLevelMenu } from './AccessLevelMenu.js'
+
+type PermLevel = 'READ' | 'COMMENT' | 'WRITE'
+type LinkLevel = 'read' | 'comment' | 'write'
+
+const PERM_CHAR: Record<PermLevel, string> = {
+	READ: 'R',
+	COMMENT: 'C',
+	WRITE: 'W'
+}
+
+function permCharToLevel(perm: string): PermLevel {
+	if (perm === 'W' || perm === 'A') return 'WRITE'
+	if (perm === 'C') return 'COMMENT'
+	return 'READ'
+}
 
 export interface ShareDialogProps {
 	open: boolean
@@ -50,18 +70,18 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 
 	const dialogRef = React.useRef<HTMLDivElement>(null)
 
-	// Tab state
-	const [activeTab, setActiveTab] = React.useState<'people' | 'link' | 'linked'>('people')
-
-	// People tab state
-	const [fileActions, setFileActions] = React.useState<ActionView[]>([])
-	const [_loadingActions, setLoadingActions] = React.useState(false)
+	// People state
 	const [confirmingRemovePerm, setConfirmingRemovePerm] = React.useState<string | null>(null)
+	const [defaultAddLevel, setDefaultAddLevel] = React.useState<PermLevel>('READ')
+	// Profile lookup for share-entry subjectIds. Populated lazily after share
+	// entries load; missing entries render with a minimal {idTag} fallback.
+	const [peopleProfiles, setPeopleProfiles] = React.useState<Record<string, Profile>>({})
+	const [ownerProfile, setOwnerProfile] = React.useState<Profile | null>(null)
 
-	// Link tab state
+	// Link state
 	const [shareRefs, setShareRefs] = React.useState<Types.Ref[]>([])
 	const [loadingRefs, setLoadingRefs] = React.useState(false)
-	const [newLinkAccess, setNewLinkAccess] = React.useState<'read' | 'comment' | 'write'>('read')
+	const [newLinkAccess, setNewLinkAccess] = React.useState<LinkLevel>('read')
 	const [newLinkLabel, setNewLinkLabel] = React.useState('')
 	const [newLinkExpires, setNewLinkExpires] = React.useState('')
 	const [neverExpires, setNeverExpires] = React.useState(true)
@@ -69,48 +89,36 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 	const [createError, setCreateError] = React.useState<string | null>(null)
 	const [confirmingDeleteRef, setConfirmingDeleteRef] = React.useState<string | null>(null)
 	const [qrCodeUrl, setQrCodeUrl] = React.useState<string | undefined>()
+	const [createLinkOpen, setCreateLinkOpen] = React.useState(false)
+	const [editingRefId, setEditingRefId] = React.useState<string | null>(null)
+	const [editDraft, setEditDraft] = React.useState<{
+		description: string
+		expiresAt: string
+		neverExpires: boolean
+	}>({ description: '', expiresAt: '', neverExpires: true })
 
-	// Embedded in tab state
-	const [shareEntries, setShareEntries] = React.useState<Types.ShareEntry[]>([])
+	// User-share entries (subjectType='U'): source of truth for per-person permission.
+	const [userShareEntries, setUserShareEntries] = React.useState<Types.ShareEntry[]>([])
+	// File-share entries (subjectType='F'): "Used in N documents" footer.
+	const [fileShareEntries, setFileShareEntries] = React.useState<Types.ShareEntry[]>([])
 	const [loadingEntries, setLoadingEntries] = React.useState(false)
 	const [confirmingDeleteEntry, setConfirmingDeleteEntry] = React.useState<number | null>(null)
 
 	const Icon = getFileIcon(file.contentType, file.fileTp)
-	const _isFolder = file.fileTp === 'FLDR'
 	const isOwner = canManageFile(file, auth?.idTag, activeContext?.roles ?? [])
 	// Backend convention: missing fileTp defaults to BLOB (immutable)
 	const isImmutable = file.fileTp === 'BLOB' || file.fileTp == null
+	const disabledLevels: PermLevel[] = isImmutable ? ['WRITE'] : []
 
-	// Derived permission lists
-	const writePerms = React.useMemo(
-		() =>
-			fileActions
-				.filter((a) => a.type === 'FSHR' && a.subType === 'WRITE')
-				.sort(
-					(a, b) => (a.audience?.idTag ?? '').localeCompare(b.audience?.idTag ?? '') || 0
-				),
-		[fileActions]
-	)
-
-	const commentPerms = React.useMemo(
-		() =>
-			fileActions
-				.filter((a) => a.type === 'FSHR' && a.subType === 'COMMENT')
-				.sort(
-					(a, b) => (a.audience?.idTag ?? '').localeCompare(b.audience?.idTag ?? '') || 0
-				),
-		[fileActions]
-	)
-
-	const readPerms = React.useMemo(
-		() =>
-			fileActions
-				.filter((a) => a.type === 'FSHR' && a.subType === 'READ')
-				.sort(
-					(a, b) => (a.audience?.idTag ?? '').localeCompare(b.audience?.idTag ?? '') || 0
-				),
-		[fileActions]
-	)
+	// Unified people list, alphabetized by resolved profile name (falls back to
+	// idTag while the profile is still loading). Re-sorts once names arrive.
+	const allPeople = React.useMemo(() => {
+		function key(e: Types.ShareEntry) {
+			const idTag = e.subjectId.toString()
+			return (peopleProfiles[idTag]?.name ?? idTag).toLowerCase()
+		}
+		return [...userShareEntries].sort((a, b) => key(a).localeCompare(key(b)))
+	}, [userShareEntries, peopleProfiles])
 
 	// Load data when dialog opens
 	React.useEffect(
@@ -120,17 +128,7 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 			let cancelled = false
 
 			;(async function () {
-				setLoadingActions(true)
 				setLoadingRefs(true)
-
-				try {
-					const actions = await api.actions.list({ type: 'FSHR', subject: file.fileId })
-					if (!cancelled) setFileActions(actions)
-				} catch (err) {
-					console.error('Failed to load permissions', err)
-				} finally {
-					if (!cancelled) setLoadingActions(false)
-				}
 
 				try {
 					const refs = await api.refs.list({
@@ -144,17 +142,29 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 					if (!cancelled) setLoadingRefs(false)
 				}
 
+				let userEntries: Types.ShareEntry[] = []
 				try {
 					if (!cancelled) setLoadingEntries(true)
 					const allEntries = await api.files.listShares(file.fileId)
 					if (!cancelled) {
-						const fileEntries = allEntries.filter((e) => e.subjectType === 'F')
-						setShareEntries(fileEntries)
+						userEntries = allEntries.filter((e) => e.subjectType === 'U')
+						setUserShareEntries(userEntries)
+						setFileShareEntries(allEntries.filter((e) => e.subjectType === 'F'))
 					}
 				} catch (err) {
 					console.error('Failed to load share entries', err)
 				} finally {
 					if (!cancelled) setLoadingEntries(false)
+				}
+
+				// Enrich the people list with profile data (name, profile pic).
+				// Missing or unreachable profiles fall back to {idTag} at render.
+				if (!cancelled && userEntries.length > 0) {
+					const idTags = Array.from(
+						new Set(userEntries.map((e) => e.subjectId.toString()))
+					)
+					const profiles = await getCachedProfiles(api, idTags)
+					if (!cancelled) setPeopleProfiles(profiles)
 				}
 			})()
 
@@ -165,47 +175,55 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 		[api, open, file.fileId]
 	)
 
-	// People tab functions
 	async function listProfiles(q: string) {
 		if (!api || !q) return []
 		return api.profiles.list({ type: 'person', q })
 	}
 
-	async function addPerm(profile: Profile, perm: 'WRITE' | 'COMMENT' | 'READ') {
+	async function addPerm(profile: Profile, perm: PermLevel) {
 		if (!file || !api) return
 
-		const action: NewAction = {
-			type: 'FSHR',
-			subType: perm,
-			subject: file.fileId,
-			content: {
-				fileTp: file.fileTp,
-				fileName: file.fileName,
-				contentType: file.contentType
-			},
-			audienceTag: profile.idTag
-		}
-
 		try {
-			const res = await api.actions.create(action)
-			// Ensure the audience profile and subType are set (backend may not return them)
-			const actionWithData = {
-				...res,
-				subType: res.subType ?? perm,
-				audience: res.audience ?? profile
-			}
-			setFileActions((prev) => {
-				const exists = prev.some((fa) => fa.audience?.idTag === profile.idTag)
-				const next = prev.map((fa) =>
-					fa.audience?.idTag === profile.idTag ? actionWithData : fa
-				)
-				return exists ? next : [...next, actionWithData]
+			// createShare creates the share_entry AND emits an FSHR notification
+			// for federation (handled server-side). One round-trip, one source of
+			// truth.
+			const entry = await api.files.createShare(file.fileId, {
+				subjectType: 'U',
+				subjectId: profile.idTag,
+				permission: PERM_CHAR[perm]
 			})
+			setUserShareEntries((prev) => [
+				...prev.filter((e) => e.subjectId.toString() !== profile.idTag),
+				entry
+			])
+			setPeopleProfiles((prev) => ({ ...prev, [profile.idTag]: profile }))
 			toast.success(t('Permission granted'))
 			onPermissionsChanged?.()
 		} catch (err) {
 			console.error('Failed to add permission', err)
 			toast.error(t('Failed to grant permission'))
+		}
+	}
+
+	async function changePerm(idTag: string, newLevel: PermLevel) {
+		if (!api) return
+		const entry = userShareEntries.find(
+			(e) => e.subjectType === 'U' && e.subjectId.toString() === idTag
+		)
+		if (!entry) return
+		const newPerm = PERM_CHAR[newLevel]
+		if (entry.permission === newPerm) return
+
+		try {
+			const updated = await api.files.updateShare(file.fileId, entry.id, {
+				permission: newPerm
+			})
+			setUserShareEntries((prev) => prev.map((e) => (e.id === entry.id ? updated : e)))
+			toast.success(t('Permission updated'))
+			onPermissionsChanged?.()
+		} catch (err) {
+			console.error('Failed to update permission', err)
+			toast.error(t('Failed to update permission'))
 		}
 	}
 
@@ -220,15 +238,18 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 	async function confirmRemovePerm(idTag: string) {
 		if (!file || !api) return
 
-		const action: NewAction = {
-			type: 'FSHR',
-			subject: file.fileId,
-			audienceTag: idTag
+		const entry = userShareEntries.find(
+			(e) => e.subjectType === 'U' && e.subjectId.toString() === idTag
+		)
+		if (!entry) {
+			setConfirmingRemovePerm(null)
+			return
 		}
 
 		try {
-			await api.actions.create(action)
-			setFileActions((fa) => fa.filter((fa) => fa.audience?.idTag !== idTag))
+			// deleteShare removes the share_entry AND emits the FSHR DEL notification.
+			await api.files.deleteShare(file.fileId, entry.id)
+			setUserShareEntries((prev) => prev.filter((e) => e.id !== entry.id))
 			toast.success(t('Permission revoked'))
 			onPermissionsChanged?.()
 		} catch (err) {
@@ -239,7 +260,6 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 		}
 	}
 
-	// Link tab functions
 	async function createShareLink() {
 		if (!file || !api) return
 
@@ -251,15 +271,15 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 				resourceId: file.fileId,
 				accessLevel: newLinkAccess,
 				description: newLinkLabel || file.fileName,
-				expiresAt: neverExpires ? undefined : new Date(newLinkExpires).getTime(),
+				expiresAt: neverExpires ? undefined : dateInputToExpiryIso(newLinkExpires),
 				count: null
 			})
 			setShareRefs((refs) => [...refs, ref])
 			toast.success(t('Share link created'))
-			// Reset form
 			setNewLinkLabel('')
 			setNewLinkExpires('')
 			setNeverExpires(true)
+			setCreateLinkOpen(false)
 			onPermissionsChanged?.()
 		} catch (err) {
 			console.error('Failed to create share link', err)
@@ -291,6 +311,7 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 		try {
 			await api.refs.delete(refId)
 			setShareRefs((refs) => refs.filter((r) => r.refId !== refId))
+			if (editingRefId === refId) cancelEditLink()
 			toast.success(t('Share link deleted'))
 			onPermissionsChanged?.()
 		} catch (err) {
@@ -307,7 +328,75 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 		toast.success(t('Link copied to clipboard'))
 	}
 
-	// Embedded in tab functions
+	async function changeLinkAccess(ref: Types.Ref, newLevel: LinkLevel) {
+		if (!api) return
+		if (ref.accessLevel === newLevel) return
+		try {
+			const updated = await api.refs.update(ref.refId, { accessLevel: newLevel })
+			setShareRefs((refs) => refs.map((r) => (r.refId === ref.refId ? updated : r)))
+			onPermissionsChanged?.()
+		} catch (err) {
+			console.error('Failed to update link access', err)
+			toast.error(t('Failed to update link access'))
+		}
+	}
+
+	function refExpiresAtIso(ref: Types.Ref): string | null {
+		const d = parseRefDate(ref.expiresAt)
+		return d ? d.toISOString() : null
+	}
+
+	function beginEditLink(ref: Types.Ref) {
+		const exp = refExpiresAtIso(ref)
+		setEditDraft({
+			description: ref.description ?? '',
+			expiresAt: formatRefDate(ref.expiresAt) ?? '',
+			neverExpires: exp == null
+		})
+		setEditingRefId(ref.refId)
+	}
+
+	function cancelEditLink() {
+		setEditingRefId(null)
+		setEditDraft({ description: '', expiresAt: '', neverExpires: true })
+	}
+
+	async function saveLinkEdits(ref: Types.Ref) {
+		if (!api) return
+		const patch: Types.UpdateRefRequest = {}
+
+		const draftDescription = editDraft.description
+		if (draftDescription !== (ref.description ?? '')) patch.description = draftDescription
+
+		if (!editDraft.neverExpires && editDraft.expiresAt === '') {
+			toast.error(t('Pick an expiry date, or check Never'))
+			return
+		}
+		const draftExpires: string | null = editDraft.neverExpires
+			? null
+			: (dateInputToExpiryIso(editDraft.expiresAt) ?? null)
+		const currentExp = refExpiresAtIso(ref)
+		if (draftExpires !== currentExp) patch.expiresAt = draftExpires
+
+		if (Object.keys(patch).length === 0) {
+			setEditingRefId(null)
+			setEditDraft({ description: '', expiresAt: '', neverExpires: true })
+			return
+		}
+
+		try {
+			const updated = await api.refs.update(ref.refId, patch)
+			setShareRefs((refs) => refs.map((r) => (r.refId === ref.refId ? updated : r)))
+			toast.success(t('Link updated'))
+			setEditingRefId(null)
+			setEditDraft({ description: '', expiresAt: '', neverExpires: true })
+			onPermissionsChanged?.()
+		} catch (err) {
+			console.error('Failed to update link', err)
+			toast.error(t('Failed to update link'))
+		}
+	}
+
 	function requestDeleteEntry(entryId: number) {
 		setConfirmingDeleteEntry(entryId)
 	}
@@ -321,7 +410,7 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 
 		try {
 			await api.files.deleteShare(file.fileId, entryId)
-			setShareEntries((entries) => entries.filter((e) => e.id !== entryId))
+			setFileShareEntries((entries) => entries.filter((e) => e.id !== entryId))
 			toast.success(t('Link removed'))
 			onPermissionsChanged?.()
 		} catch (err) {
@@ -342,14 +431,57 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 		}
 	}
 
+	React.useEffect(
+		function closeOnEscape() {
+			if (!open) return
+			function onKey(e: KeyboardEvent) {
+				if (e.key === 'Escape') onClose()
+			}
+			document.addEventListener('keydown', onKey)
+			return () => document.removeEventListener('keydown', onKey)
+		},
+		[open, onClose]
+	)
+
+	const ownerIdTag = file.owner?.idTag ?? auth?.idTag
+
+	React.useEffect(
+		function loadOwnerProfile() {
+			if (!open || !ownerIdTag) return
+			// file.owner is a structural subset of Profile (idTag, name?, profilePic?).
+			if (file.owner) {
+				setOwnerProfile({
+					idTag: file.owner.idTag,
+					name: file.owner.name,
+					profilePic: file.owner.profilePic
+				})
+				return
+			}
+			if (ownerIdTag === auth?.idTag) {
+				setOwnerProfile({
+					idTag: auth.idTag,
+					name: auth.name,
+					profilePic: auth.profilePic
+				})
+				return
+			}
+			if (!api) return
+			let cancelled = false
+			getCachedProfile(api, ownerIdTag).then((p) => {
+				if (!cancelled) setOwnerProfile(p)
+			})
+			return () => {
+				cancelled = true
+			}
+		},
+		[open, ownerIdTag, file.owner, auth, api]
+	)
+
 	if (!open) return null
 
 	return (
 		<div ref={dialogRef} className="c-modal show" tabIndex={-1} onClick={handleBackdropClick}>
-			<div
-				className="c-dialog c-panel emph p-0"
-				style={{ minWidth: '400px', maxWidth: '500px' }}
-			>
+			<div className="c-dialog c-panel emph p-0 c-share-dialog">
 				{/* Header */}
 				<div className="c-hbox g-2 p-3 border-bottom">
 					<div className="c-hbox g-2 flex-fill align-items-center">
@@ -358,10 +490,7 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 						})}
 						<div>
 							<h3 className="m-0">{t('Share')}</h3>
-							<div
-								className="text-secondary text-small text-truncate"
-								style={{ maxWidth: '300px' }}
-							>
+							<div className="text-secondary text-small text-truncate c-share-dialog__filename">
 								{file.fileName}
 							</div>
 						</div>
@@ -376,285 +505,477 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 					</button>
 				</div>
 
-				{/* Tabs */}
-				<div className="px-3 pt-2">
-					<Tabs
-						value={activeTab}
-						onTabChange={(v) => setActiveTab(v as 'people' | 'link' | 'linked')}
-					>
-						<Tab value="people">
-							<IcUsers className="me-2" />
-							{t('People')}
-						</Tab>
-						<Tab value="link">
-							<IcLink className="me-2" />
-							{t('Link')}
-						</Tab>
-						<Tab value="linked">
-							<IcLinked className="me-2" />
-							{t('Embedded in')}
-						</Tab>
-					</Tabs>
-				</div>
-
-				{/* Tab content */}
+				{/* Body */}
 				<div
 					className="p-3"
-					style={{ minHeight: '300px', maxHeight: '60vh', overflowY: 'auto' }}
+					style={{ minHeight: '300px', maxHeight: '70vh', overflowY: 'auto' }}
 				>
 					{!isOwner ? (
 						<div className="text-secondary text-center py-4">
 							{t('Only the owner can share this file.')}
 						</div>
-					) : activeTab === 'people' ? (
-						<div className="c-vbox g-3">
-							{/* Can edit section — hidden for immutable (BLOB) files */}
-							{!isImmutable && (
-								<div>
-									<h4 className="mb-2">{t('Can edit')}</h4>
-									<EditProfileList
-										placeholder={t('Add people with edit access...')}
-										profiles={writePerms.flatMap((rp) =>
-											rp.audience ? [rp.audience] : []
-										)}
-										listProfiles={listProfiles}
-										addProfile={(p) => addPerm(p, 'WRITE')}
-										confirmingRemove={confirmingRemovePerm}
-										onRequestRemove={requestRemovePerm}
-										onCancelRemove={cancelRemovePerm}
-										onConfirmRemove={confirmRemovePerm}
+					) : (
+						<div className="c-vbox g-4">
+							{/* Add people row */}
+							<div className="c-hbox g-2 align-items-center">
+								<div className="flex-fill">
+									<Select<Profile>
+										placeholder={t('Add people…')}
+										getData={async (q) => (q ? await listProfiles(q) : [])}
+										itemToId={(p) => p.idTag}
+										itemToString={(p) => p?.idTag || ''}
+										renderItem={(p) => <ProfileCard profile={p} />}
+										onSelectItem={(p) => p && addPerm(p, defaultAddLevel)}
 									/>
 								</div>
-							)}
-
-							{/* Can comment section */}
-							<div>
-								<h4 className="mb-2">{t('Can comment')}</h4>
-								<EditProfileList
-									placeholder={t('Add people with comment access...')}
-									profiles={commentPerms.flatMap((rp) =>
-										rp.audience ? [rp.audience] : []
-									)}
-									listProfiles={listProfiles}
-									addProfile={(p) => addPerm(p, 'COMMENT')}
-									confirmingRemove={confirmingRemovePerm}
-									onRequestRemove={requestRemovePerm}
-									onCancelRemove={cancelRemovePerm}
-									onConfirmRemove={confirmRemovePerm}
+								<AccessLevelMenu<PermLevel>
+									value={defaultAddLevel}
+									onChange={setDefaultAddLevel}
+									disabledLevels={disabledLevels}
+									ariaLabel={t('Default access for new people')}
 								/>
 							</div>
 
-							{/* Read only section */}
-							<div>
-								<h4 className="mb-2">{t('Read only')}</h4>
-								<EditProfileList
-									placeholder={t('Add people with view access...')}
-									profiles={readPerms.flatMap((rp) =>
-										rp.audience ? [rp.audience] : []
-									)}
-									listProfiles={listProfiles}
-									addProfile={(p) => addPerm(p, 'READ')}
-									confirmingRemove={confirmingRemovePerm}
-									onRequestRemove={requestRemovePerm}
-									onCancelRemove={cancelRemovePerm}
-									onConfirmRemove={confirmRemovePerm}
-								/>
-							</div>
-						</div>
-					) : null}
+							{/* People with access */}
+							<div className="c-vbox g-1">
+								<h4 className="mb-2 text-secondary text-uppercase text-small">
+									{t('People with access')}
+								</h4>
 
-					{isOwner && activeTab === 'link' && (
-						<div className="c-vbox g-3">
-							{/* Create new link form */}
-							<div className="c-panel mid p-3">
-								<h4 className="mb-3">{t('Create a new link')}</h4>
-
-								<div className="c-vbox g-2">
-									{/* Access level */}
-									<div className="c-hbox g-2 align-items-center">
-										<label className="text-nowrap" style={{ minWidth: '80px' }}>
-											{t('Access')}
-										</label>
-										<select
-											className="c-input flex-fill"
-											value={newLinkAccess}
-											onChange={(e) =>
-												setNewLinkAccess(
-													e.target.value as 'read' | 'comment' | 'write'
-												)
-											}
-										>
-											<option value="read">{t('Read only')}</option>
-											<option value="comment">{t('Can comment')}</option>
-											{!isImmutable && (
-												<option value="write">{t('Can edit')}</option>
+								{/* Owner row */}
+								{ownerIdTag && (
+									<div className="c-hbox g-2 align-items-center p-2">
+										<div className="c-hbox g-2 flex-fill align-items-center text-truncate">
+											<ProfileCard
+												profile={
+													ownerProfile ?? {
+														idTag: ownerIdTag,
+														name: ownerIdTag
+													}
+												}
+											/>
+											{ownerIdTag === auth?.idTag && (
+												<span className="text-secondary">({t('you')})</span>
 											)}
-										</select>
-									</div>
-
-									{/* Label */}
-									<div className="c-hbox g-2 align-items-center">
-										<label className="text-nowrap" style={{ minWidth: '80px' }}>
-											{t('Label')}
-										</label>
-										<input
-											type="text"
-											className="c-input flex-fill"
-											placeholder={t('e.g. For review, Public access...')}
-											value={newLinkLabel}
-											onChange={(e) => setNewLinkLabel(e.target.value)}
-										/>
-									</div>
-
-									{/* Expiration */}
-									<div className="c-hbox g-2 align-items-center">
-										<label className="text-nowrap" style={{ minWidth: '80px' }}>
-											{t('Expires')}
-										</label>
-										<div className="c-hbox g-2 flex-fill align-items-center">
-											<input
-												type="date"
-												className="c-input flex-fill"
-												value={newLinkExpires}
-												onChange={(e) => {
-													setNewLinkExpires(e.target.value)
-													if (e.target.value) setNeverExpires(false)
-												}}
-												disabled={neverExpires}
-												min={dayjs().format('YYYY-MM-DD')}
-											/>
-											<Toggle
-												label={t('Never')}
-												checked={neverExpires}
-												onChange={(e) => {
-													setNeverExpires(e.target.checked)
-													if (e.target.checked) setNewLinkExpires('')
-												}}
-											/>
 										</div>
+										<span className="c-badge">{t('Owner')}</span>
 									</div>
+								)}
 
-									{/* Inline error */}
-									{createError && (
-										<div className="text-danger mt-1" role="alert">
-											{createError}
-										</div>
-									)}
+								{/* Members */}
+								{allPeople.map((entry) => {
+									const idTag = entry.subjectId.toString()
+									const profile: Profile = peopleProfiles[idTag] ?? {
+										idTag,
+										name: idTag
+									}
+									const level = permCharToLevel(entry.permission.toString())
 
-									{/* Create button */}
-									<div className="mt-2">
-										<Button
-											variant="primary"
-											onClick={createShareLink}
-											disabled={creatingLink}
+									if (confirmingRemovePerm === idTag) {
+										return (
+											<div
+												key={idTag}
+												className="c-hbox g-2 align-items-center p-2"
+											>
+												<span className="flex-fill text-small">
+													{t('Remove access for {{name}}?', {
+														name: profile.name || idTag
+													})}
+												</span>
+												<Button size="small" onClick={cancelRemovePerm}>
+													{t('Cancel')}
+												</Button>
+												<Button
+													size="small"
+													variant="primary"
+													onClick={() => confirmRemovePerm(idTag)}
+												>
+													{t('Remove')}
+												</Button>
+											</div>
+										)
+									}
+
+									return (
+										<div
+											key={idTag}
+											className="c-hbox g-2 align-items-center p-2"
 										>
-											{creatingLink ? t('Creating...') : t('Create Link')}
-										</Button>
+											<div className="flex-fill text-truncate">
+												<ProfileCard profile={profile} />
+											</div>
+											<AccessLevelMenu<PermLevel>
+												value={level}
+												onChange={(lvl) => changePerm(idTag, lvl)}
+												onRemove={() => requestRemovePerm(idTag)}
+												disabledLevels={disabledLevels}
+												ariaLabel={t('Change access for {{name}}', {
+													name: profile.name || idTag
+												})}
+											/>
+										</div>
+									)
+								})}
+
+								{allPeople.length === 0 && (
+									<div className="text-secondary text-small px-2">
+										{t('No one else has access yet')}
 									</div>
-								</div>
+								)}
 							</div>
 
-							{/* Existing links */}
-							{shareRefs.length > 0 && (
-								<div>
-									<h4 className="mb-2">{t('Active links')}</h4>
-									<div className="c-vbox g-2">
-										{shareRefs.map((ref) =>
-											confirmingDeleteRef === ref.refId ? (
-												<div
-													key={ref.refId}
-													className="c-hbox g-2 align-items-center p-2 bg-secondary-subtle rounded"
+							{/* Anyone with the link */}
+							<div className="c-vbox g-1">
+								<h4 className="mb-2 text-secondary text-uppercase text-small">
+									{t('Anyone with the link')}
+								</h4>
+
+								{shareRefs.map((ref) => {
+									if (confirmingDeleteRef === ref.refId) {
+										return (
+											<div
+												key={ref.refId}
+												className="c-hbox g-2 align-items-center p-2"
+											>
+												<span className="flex-fill text-small">
+													{t('Delete this link?')}
+												</span>
+												<Button
+													size="small"
+													onClick={cancelDeleteShareLink}
 												>
-													<span className="flex-fill text-small">
-														{t('Delete this link?')}
-													</span>
-													<Button
-														size="small"
-														onClick={cancelDeleteShareLink}
-													>
-														{t('Cancel')}
-													</Button>
-													<Button
-														size="small"
-														variant="primary"
-														onClick={() =>
-															confirmDeleteShareLink(ref.refId)
-														}
-													>
-														{t('Delete')}
-													</Button>
+													{t('Cancel')}
+												</Button>
+												<Button
+													size="small"
+													variant="primary"
+													onClick={() =>
+														confirmDeleteShareLink(ref.refId)
+													}
+												>
+													{t('Delete')}
+												</Button>
+											</div>
+										)
+									}
+									const isEditing = editingRefId === ref.refId
+									const formattedExpiry = formatRefDate(ref.expiresAt)
+									const expiryText = formattedExpiry
+										? `${t('Expires')} ${formattedExpiry}`
+										: t('Never expires')
+									return (
+										<div key={ref.refId} className="c-vbox g-1">
+											<div className="c-hbox g-2 align-items-center p-2">
+												<IcLink className="flex-shrink-0" />
+												<div className="flex-fill text-truncate">
+													<div>{ref.description || ref.refId}</div>
+													<div className="text-secondary text-small">
+														{expiryText}
+													</div>
 												</div>
-											) : (
-												<div
-													key={ref.refId}
-													className="c-hbox g-2 align-items-center p-2 bg-secondary-subtle rounded"
+												<AccessLevelMenu<LinkLevel>
+													value={ref.accessLevel ?? 'read'}
+													onChange={(lvl) => changeLinkAccess(ref, lvl)}
+													disabledLevels={disabledLevels}
+													ariaLabel={t('Change access for link')}
+												/>
+												<button
+													type="button"
+													className="c-link p-1"
+													title={t('Copy link')}
+													onClick={() => copyShareLink(ref.refId)}
 												>
-													<IcLink className="flex-shrink-0" />
-													<div className="flex-fill text-truncate">
-														<div>{ref.description || ref.refId}</div>
-														<div className="text-secondary text-small">
-															{ref.accessLevel === 'write'
-																? t('Can edit')
-																: ref.accessLevel === 'comment'
-																	? t('Can comment')
-																	: t('Read only')}
-															{ref.expiresAt
-																? ` · ${t('Expires')} ${dayjs(ref.expiresAt).format('YYYY-MM-DD')}`
-																: ` · ${t('Never expires')}`}
+													<IcCopy />
+												</button>
+												<button
+													type="button"
+													className="c-link p-1"
+													title={t('Show QR code')}
+													onClick={() =>
+														setQrCodeUrl(
+															`${window.location.origin}/s/${ref.refId}`
+														)
+													}
+												>
+													<IcQrCode />
+												</button>
+												<Popper
+													menuClassName="c-button link p-1"
+													icon={<IcMore />}
+													aria-label={t('More actions')}
+												>
+													<ul className="c-nav vertical emph">
+														<li>
+															<Button
+																kind="nav-item"
+																onClick={() =>
+																	isEditing
+																		? cancelEditLink()
+																		: beginEditLink(ref)
+																}
+															>
+																<IcPencil />
+																{t('Edit link details')}
+															</Button>
+														</li>
+														<li>
+															<Button
+																kind="nav-item"
+																onClick={() =>
+																	requestDeleteShareLink(
+																		ref.refId
+																	)
+																}
+															>
+																<IcTrash
+																	style={{
+																		color: 'var(--col-error)'
+																	}}
+																/>
+																{t('Delete link')}
+															</Button>
+														</li>
+													</ul>
+												</Popper>
+											</div>
+											{isEditing && (
+												<div
+													className="c-panel mid p-3 mb-2"
+													onKeyDown={(e) => {
+														if (e.key === 'Escape') {
+															e.stopPropagation()
+															e.preventDefault()
+															cancelEditLink()
+														}
+													}}
+												>
+													<div className="c-vbox g-2">
+														<div className="c-hbox g-2 align-items-center">
+															<label
+																htmlFor={`link-desc-${ref.refId}`}
+																className="text-nowrap"
+																style={{ minWidth: '80px' }}
+															>
+																{t('Label')}
+															</label>
+															<input
+																id={`link-desc-${ref.refId}`}
+																type="text"
+																className="c-input flex-fill"
+																value={editDraft.description}
+																onChange={(e) =>
+																	setEditDraft((d) => ({
+																		...d,
+																		description: e.target.value
+																	}))
+																}
+															/>
+														</div>
+														<div className="c-hbox g-2 align-items-center">
+															<label
+																htmlFor={`link-expires-${ref.refId}`}
+																className="text-nowrap"
+																style={{ minWidth: '80px' }}
+															>
+																{t('Expires')}
+															</label>
+															<div className="c-hbox g-2 flex-fill align-items-center">
+																<input
+																	id={`link-expires-${ref.refId}`}
+																	type="date"
+																	className="c-input flex-fill"
+																	value={editDraft.expiresAt}
+																	onChange={(e) =>
+																		setEditDraft((d) => ({
+																			...d,
+																			expiresAt:
+																				e.target.value,
+																			neverExpires: e.target
+																				.value
+																				? false
+																				: d.neverExpires
+																		}))
+																	}
+																	disabled={
+																		editDraft.neverExpires
+																	}
+																	min={dayjs().format(
+																		'YYYY-MM-DD'
+																	)}
+																/>
+																<Toggle
+																	label={t('Never')}
+																	checked={editDraft.neverExpires}
+																	onChange={(e) =>
+																		setEditDraft((d) => ({
+																			...d,
+																			neverExpires:
+																				e.target.checked,
+																			expiresAt: e.target
+																				.checked
+																				? ''
+																				: d.expiresAt
+																		}))
+																	}
+																/>
+															</div>
+														</div>
+														<div className="c-hbox g-2 justify-content-end mt-2">
+															<Button onClick={cancelEditLink}>
+																{t('Cancel')}
+															</Button>
+															<Button
+																variant="primary"
+																onClick={() => saveLinkEdits(ref)}
+															>
+																{t('Save')}
+															</Button>
 														</div>
 													</div>
-													<button
-														type="button"
-														className="c-link p-1"
-														title={t('Copy link')}
-														onClick={() => copyShareLink(ref.refId)}
-													>
-														<IcCopy />
-													</button>
-													<button
-														type="button"
-														className="c-link p-1"
-														title={t('Show QR code')}
-														onClick={() =>
-															setQrCodeUrl(
-																`${window.location.origin}/s/${ref.refId}`
-															)
-														}
-													>
-														<IcQrCode />
-													</button>
-													<button
-														type="button"
-														className="c-link p-1"
-														title={t('Delete link')}
-														onClick={() =>
-															requestDeleteShareLink(ref.refId)
-														}
-													>
-														<IcTrash />
-													</button>
 												</div>
-											)
-										)}
+											)}
+										</div>
+									)
+								})}
+
+								{shareRefs.length === 0 && !loadingRefs && (
+									<div className="text-secondary text-small px-2">
+										{t('No share links yet')}
 									</div>
-								</div>
-							)}
+								)}
 
-							{shareRefs.length === 0 && !loadingRefs && (
-								<div className="text-secondary text-center py-3">
-									{t('No share links yet. Create one above.')}
-								</div>
-							)}
-						</div>
-					)}
+								{/* Create link disclosure */}
+								<details
+									className="mt-2"
+									open={createLinkOpen}
+									onToggle={(e) =>
+										setCreateLinkOpen(
+											(e.currentTarget as HTMLDetailsElement).open
+										)
+									}
+								>
+									<summary className="c-link p-2 c-hbox g-2 align-items-center">
+										<IcPlus />
+										<span>{t('Create share link')}</span>
+									</summary>
+									<div className="c-panel mid p-3 mt-2">
+										<div className="c-vbox g-2">
+											{/* Access level */}
+											<div className="c-hbox g-2 align-items-center">
+												<label
+													className="text-nowrap"
+													style={{ minWidth: '80px' }}
+												>
+													{t('Access')}
+												</label>
+												<select
+													className="c-input flex-fill"
+													value={newLinkAccess}
+													onChange={(e) =>
+														setNewLinkAccess(
+															e.target.value as LinkLevel
+														)
+													}
+												>
+													<option value="read">{t('Viewer')}</option>
+													<option value="comment">
+														{t('Commenter')}
+													</option>
+													{!isImmutable && (
+														<option value="write">{t('Editor')}</option>
+													)}
+												</select>
+											</div>
 
-					{isOwner && activeTab === 'linked' && (
-						<div className="c-vbox g-3">
-							{shareEntries.length > 0 && (
-								<div>
-									<h4 className="mb-2">{t('Embedded in')}</h4>
-									<div className="c-vbox g-2">
-										{shareEntries.map((entry) => {
+											{/* Label */}
+											<div className="c-hbox g-2 align-items-center">
+												<label
+													className="text-nowrap"
+													style={{ minWidth: '80px' }}
+												>
+													{t('Label')}
+												</label>
+												<input
+													type="text"
+													className="c-input flex-fill"
+													placeholder={t(
+														'e.g. For review, Public access...'
+													)}
+													value={newLinkLabel}
+													onChange={(e) =>
+														setNewLinkLabel(e.target.value)
+													}
+												/>
+											</div>
+
+											{/* Expiration */}
+											<div className="c-hbox g-2 align-items-center">
+												<label
+													className="text-nowrap"
+													style={{ minWidth: '80px' }}
+												>
+													{t('Expires')}
+												</label>
+												<div className="c-hbox g-2 flex-fill align-items-center">
+													<input
+														type="date"
+														className="c-input flex-fill"
+														value={newLinkExpires}
+														onChange={(e) => {
+															setNewLinkExpires(e.target.value)
+															if (e.target.value)
+																setNeverExpires(false)
+														}}
+														disabled={neverExpires}
+														min={dayjs().format('YYYY-MM-DD')}
+													/>
+													<Toggle
+														label={t('Never')}
+														checked={neverExpires}
+														onChange={(e) => {
+															setNeverExpires(e.target.checked)
+															if (e.target.checked)
+																setNewLinkExpires('')
+														}}
+													/>
+												</div>
+											</div>
+
+											{createError && (
+												<div className="text-danger mt-1" role="alert">
+													{createError}
+												</div>
+											)}
+
+											<div className="mt-2">
+												<Button
+													variant="primary"
+													onClick={createShareLink}
+													disabled={creatingLink}
+												>
+													{creatingLink
+														? t('Creating...')
+														: t('Create Link')}
+												</Button>
+											</div>
+										</div>
+									</div>
+								</details>
+							</div>
+
+							{/* Embedded in (collapsible footer) */}
+							{fileShareEntries.length > 0 && (
+								<details className="mt-2">
+									<summary className="c-link p-2 c-hbox g-2 align-items-center text-secondary">
+										<IcDisclosure />
+										<span>
+											{t('Used in {{count}} documents', {
+												count: fileShareEntries.length
+											})}
+										</span>
+									</summary>
+									<div className="c-vbox g-2 mt-2">
+										{fileShareEntries.map((entry) => {
 											const EntryIcon = entry.subjectContentType
 												? getFileIcon(
 														entry.subjectContentType,
@@ -662,32 +983,37 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 													)
 												: IcUnknown
 
-											return confirmingDeleteEntry === entry.id ? (
+											if (confirmingDeleteEntry === entry.id) {
+												return (
+													<div
+														key={entry.id}
+														className="c-hbox g-2 align-items-center p-2"
+													>
+														<span className="flex-fill text-small">
+															{t('Remove this link?')}
+														</span>
+														<Button
+															size="small"
+															onClick={cancelDeleteEntry}
+														>
+															{t('Cancel')}
+														</Button>
+														<Button
+															size="small"
+															variant="primary"
+															onClick={() =>
+																confirmDeleteEntry(entry.id)
+															}
+														>
+															{t('Remove')}
+														</Button>
+													</div>
+												)
+											}
+											return (
 												<div
 													key={entry.id}
-													className="c-hbox g-2 align-items-center p-2 bg-secondary-subtle rounded"
-												>
-													<span className="flex-fill text-small">
-														{t('Remove this link?')}
-													</span>
-													<Button
-														size="small"
-														onClick={cancelDeleteEntry}
-													>
-														{t('Cancel')}
-													</Button>
-													<Button
-														size="small"
-														variant="primary"
-														onClick={() => confirmDeleteEntry(entry.id)}
-													>
-														{t('Remove')}
-													</Button>
-												</div>
-											) : (
-												<div
-													key={entry.id}
-													className="c-hbox g-2 align-items-center p-2 bg-secondary-subtle rounded"
+													className="c-hbox g-2 align-items-center p-2"
 												>
 													{React.createElement<
 														React.ComponentProps<typeof IcUnknown>
@@ -701,11 +1027,16 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 														</div>
 														<div className="text-secondary text-small">
 															{entry.permission === 'W'
-																? t('Can edit')
-																: t('Read only')}
-															{entry.expiresAt
-																? ` · ${t('Expires')} ${dayjs(entry.expiresAt).format('YYYY-MM-DD')}`
-																: ''}
+																? t('Editor')
+																: t('Viewer')}
+															{(() => {
+																const f = formatRefDate(
+																	entry.expiresAt
+																)
+																return f
+																	? ` · ${t('Expires')} ${f}`
+																	: ''
+															})()}
 														</div>
 													</div>
 													<button
@@ -719,19 +1050,19 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 												</div>
 											)
 										})}
+										{loadingEntries && (
+											<div className="text-secondary text-small px-2">
+												{t('Loading...')}
+											</div>
+										)}
 									</div>
-								</div>
-							)}
-
-							{shareEntries.length === 0 && !loadingEntries && (
-								<div className="text-secondary text-center py-3">
-									{t('Not embedded in any files.')}
-								</div>
+								</details>
 							)}
 						</div>
 					)}
 				</div>
 			</div>
+
 			<QRCodeDialog value={qrCodeUrl} onClose={() => setQrCodeUrl(undefined)} />
 		</div>
 	)

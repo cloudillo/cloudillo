@@ -708,16 +708,17 @@ function Post({ className, action, setAction, onDelete, hideAudience, srcTag, wi
 				)}
 			>
 				<div className="c-panel-header c-hbox align-items-center g-2">
-					<Link to={`/profile/${urlContext || HOME_CONTEXT}/${action.issuer.idTag}`}>
-						{action.audience && action.audience.idTag != hideAudience ? (
-							<ProfileAudienceCard
-								profile={action.issuer}
-								audience={action.audience}
-							/>
-						) : (
+					{action.audience && action.audience.idTag != hideAudience ? (
+						<ProfileAudienceCard
+							profile={action.issuer}
+							audience={action.audience}
+							profileBasePath={`/profile/${urlContext || HOME_CONTEXT}`}
+						/>
+					) : (
+						<Link to={`/profile/${urlContext || HOME_CONTEXT}/${action.issuer.idTag}`}>
 							<ProfileCard profile={action.issuer} />
-						)}
-					</Link>
+						</Link>
+					)}
 					{isInFlight && (
 						<Badge variant="primary" rounded>
 							{action.status === 'S'
@@ -769,44 +770,41 @@ function Post({ className, action, setAction, onDelete, hideAudience, srcTag, wi
 						))}
 					{/* generateFragments(action.content) */}
 				</div>
-				<div className="c-hbox">
-					<div className="c-hbox">
-						<ReactionPicker
-							ownReaction={action.stat?.ownReaction}
-							onReact={onReactClick}
-						/>
-					</div>
-					<div className="c-hbox ms-auto g-3">
-						{
-							<Button
-								kind="link"
-								variant="secondary"
-								className={mergeClasses(
-									'pos-relative',
-									tab == 'CMNT' ? 'active' : ''
-								)}
-								onClick={() => onTabClick('CMNT')}
-							>
-								<IcComment />
-								<span className="c-badge pos-absolute top-100 left-100">
-									{action.stat?.comments}
-								</span>
-								{(action.stat?.comments || 0) - (action.stat?.commentsRead || 0) >
-									0 && (
-									<span className="c-badge pos-absolute top-0 left-100 bg bg-error">
-										{(action.stat?.comments || 0) -
-											(action.stat?.commentsRead || 0)}
-									</span>
-								)}
-							</Button>
-						}
+				<div className="c-hbox align-items-center g-2">
+					<ReactionPicker
+						className="c-reaction-chip"
+						ownReaction={action.stat?.ownReaction}
+						onReact={onReactClick}
+					/>
+					<div className="c-hbox ms-auto g-2 align-items-center">
+						{(() => {
+							const total = action.stat?.comments ?? 0
+							const unread = total - (action.stat?.commentsRead ?? 0)
+							const totalLabel = t('{{count}} comments', { count: total })
+							const unreadLabel =
+								unread > 0 ? t('{{count}} unread', { count: unread }) : null
+							const label = unreadLabel ? `${totalLabel}, ${unreadLabel}` : totalLabel
+							return (
+								<Button
+									kind="link"
+									variant="secondary"
+									className={mergeClasses(
+										'c-reaction-chip',
+										tab == 'CMNT' ? 'active' : ''
+									)}
+									onClick={() => onTabClick('CMNT')}
+									aria-label={label}
+									title={label}
+								>
+									<IcComment />
+									{total > 0 && <small>{total}</small>}
+									{unread > 0 && <small className="unread">+{unread}</small>}
+								</Button>
+							)
+						})()}
 						{!!action.stat?.reactions &&
 							parseReactionCounts(action.stat.reactions).map((r) => (
-								<span
-									key={r.key}
-									className="c-hbox g-0"
-									style={{ fontSize: '0.9em' }}
-								>
+								<span key={r.key} className="c-reaction-chip">
 									{r.emoji}
 									<small>{r.count}</small>
 								</span>

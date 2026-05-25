@@ -7,9 +7,10 @@ import { usePopper } from 'react-popper'
 import { mergeClasses, createComponent } from '../utils.js'
 import type { Elevation } from '../types.js'
 
-export interface DropdownProps extends React.HTMLAttributes<HTMLDetailsElement> {
+export interface DropdownProps extends Omit<React.HTMLAttributes<HTMLDetailsElement>, 'children'> {
 	trigger?: React.ReactNode
 	triggerClassName?: string
+	triggerProps?: React.HTMLAttributes<HTMLElement>
 	menuClassName?: string
 	elevation?: Elevation
 	emph?: boolean
@@ -24,8 +25,9 @@ export const Dropdown = createComponent<HTMLDetailsElement, DropdownProps>(
 			className,
 			trigger,
 			triggerClassName,
+			triggerProps,
 			menuClassName,
-			elevation,
+			elevation = 'high',
 			emph,
 			placement = 'bottom-start',
 			children,
@@ -41,10 +43,8 @@ export const Dropdown = createComponent<HTMLDetailsElement, DropdownProps>(
 			strategy: 'fixed'
 		})
 
-		// Close on click outside
 		React.useEffect(() => {
 			if (!popperEl) return
-
 			function handleClickOutside(evt: MouseEvent) {
 				if (!(evt.target instanceof Node) || !popperEl?.contains(evt.target)) {
 					evt.stopPropagation()
@@ -52,10 +52,17 @@ export const Dropdown = createComponent<HTMLDetailsElement, DropdownProps>(
 					setIsOpen(false)
 				}
 			}
-
+			function handleKeyDown(evt: KeyboardEvent) {
+				if (evt.key !== 'Escape') return
+				evt.stopImmediatePropagation()
+				evt.preventDefault()
+				setIsOpen(false)
+			}
 			document.addEventListener('click', handleClickOutside, true)
+			document.addEventListener('keydown', handleKeyDown, true)
 			return () => {
 				document.removeEventListener('click', handleClickOutside, true)
+				document.removeEventListener('keydown', handleKeyDown, true)
 			}
 		}, [popperEl])
 
@@ -65,7 +72,7 @@ export const Dropdown = createComponent<HTMLDetailsElement, DropdownProps>(
 		return (
 			<details
 				ref={ref}
-				className={mergeClasses('c-dropdown', className)}
+				className={mergeClasses('c-dropdown-host', className)}
 				open={isOpen}
 				onClick={(evt) => {
 					evt.stopPropagation()
@@ -75,11 +82,10 @@ export const Dropdown = createComponent<HTMLDetailsElement, DropdownProps>(
 			>
 				<summary
 					ref={setPopperRef}
-					className={triggerClassName}
-					onClick={(evt) => {
-						evt.stopPropagation()
-						setIsOpen(!isOpen)
-					}}
+					className={mergeClasses('c-dropdown-host__trigger', triggerClassName)}
+					{...triggerProps}
+					aria-haspopup={triggerProps?.['aria-haspopup'] ?? true}
+					aria-expanded={isOpen}
 				>
 					{trigger}
 				</summary>
@@ -89,7 +95,7 @@ export const Dropdown = createComponent<HTMLDetailsElement, DropdownProps>(
 						<div
 							ref={setPopperEl}
 							className={mergeClasses(
-								'c-nav vertical',
+								'c-popper',
 								elevation,
 								emph && 'emph',
 								menuClassName

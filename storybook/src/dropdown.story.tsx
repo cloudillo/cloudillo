@@ -1,7 +1,10 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 import * as React from 'react'
 
 import { Story, Variant } from './storybook.js'
-import { Dropdown, NavItem } from '@cloudillo/react'
+import { Button, Dropdown } from '@cloudillo/react'
 import {
 	LuEllipsisVertical as IcMore,
 	LuChevronDown as IcChevron,
@@ -15,95 +18,161 @@ export function DropdownStory() {
 	return (
 		<Story
 			name="Dropdown"
-			description="Dropdown menu component using Popper.js for positioning with click-outside handling."
+			description="Popper-based dropdown menu (uses `c-popper` for the floating menu). Triggers are bare — style them with `triggerClassName` or by passing a styled element as `trigger`."
 			props={[
 				{ name: 'trigger', type: 'React.ReactNode', descr: 'Trigger element content' },
 				{
 					name: 'triggerClassName',
 					type: 'string',
-					descr: 'CSS classes for trigger element'
+					descr: 'CSS classes applied to the <summary> trigger'
 				},
-				{ name: 'menuClassName', type: 'string', descr: 'CSS classes for menu container' },
+				{
+					name: 'menuClassName',
+					type: 'string',
+					descr: 'Extra CSS classes for the popper menu'
+				},
 				{
 					name: 'elevation',
 					type: '"low" | "mid" | "high"',
-					descr: 'Menu elevation level'
+					descr: 'Menu elevation (defaults to "high")'
 				},
-				{ name: 'emph', type: 'boolean', descr: 'Emphasized menu style' },
 				{
 					name: 'placement',
 					type: '"bottom-start" | "bottom-end" | "top-start" | "top-end"',
-					descr: 'Menu placement'
+					descr: 'Popper placement'
 				}
 			]}
 		>
 			<Variant name="Basic Dropdown">
 				<Dropdown
+					triggerClassName="c-button"
 					trigger={
-						<span className="c-nav-item g-2">
+						<>
 							Options <IcChevron />
-						</span>
+						</>
 					}
-					emph
 				>
-					<NavItem gap={2}>
-						<IcEdit /> Edit
-					</NavItem>
-					<NavItem gap={2}>
-						<IcCopy /> Duplicate
-					</NavItem>
-					<NavItem gap={2}>
-						<IcShare /> Share
-					</NavItem>
-					<NavItem gap={2}>
-						<IcDelete /> Delete
-					</NavItem>
+					<ul className="c-nav vertical emph">
+						<li>
+							<Button kind="nav-item">
+								<IcEdit /> Edit
+							</Button>
+						</li>
+						<li>
+							<Button kind="nav-item">
+								<IcCopy /> Duplicate
+							</Button>
+						</li>
+						<li>
+							<Button kind="nav-item">
+								<IcShare /> Share
+							</Button>
+						</li>
+						<li>
+							<hr className="my-1" />
+						</li>
+						<li>
+							<Button kind="nav-item">
+								<IcDelete style={{ color: 'var(--col-error)' }} /> Delete
+							</Button>
+						</li>
+					</ul>
 				</Dropdown>
 			</Variant>
 
-			<Variant name="Icon Only Trigger">
-				<Dropdown
-					trigger={
-						<span className="c-nav-item">
-							<IcMore />
-						</span>
-					}
-					emph
-				>
-					<NavItem>Option 1</NavItem>
-					<NavItem>Option 2</NavItem>
-					<NavItem>Option 3</NavItem>
+			<Variant name="Icon-only Trigger">
+				<Dropdown triggerClassName="c-button icon" trigger={<IcMore />}>
+					<ul className="c-nav vertical emph">
+						<li>
+							<Button kind="nav-item">Option 1</Button>
+						</li>
+						<li>
+							<Button kind="nav-item">Option 2</Button>
+						</li>
+						<li>
+							<Button kind="nav-item">Option 3</Button>
+						</li>
+					</ul>
 				</Dropdown>
 			</Variant>
 
-			<Variant name="Different Placements">
+			<Variant name="Placements">
 				<div className="c-hbox g-3">
 					<Dropdown
-						trigger={<span className="c-button">Bottom Start</span>}
+						triggerClassName="c-button"
 						placement="bottom-start"
-						emph
+						trigger={<>bottom-start</>}
 					>
-						<NavItem>Item 1</NavItem>
-						<NavItem>Item 2</NavItem>
+						<ul className="c-nav vertical emph">
+							<li>
+								<Button kind="nav-item">Item 1</Button>
+							</li>
+							<li>
+								<Button kind="nav-item">Item 2</Button>
+							</li>
+						</ul>
 					</Dropdown>
 					<Dropdown
-						trigger={<span className="c-button">Bottom End</span>}
+						triggerClassName="c-button secondary"
 						placement="bottom-end"
-						emph
+						trigger={<>bottom-end</>}
 					>
-						<NavItem>Item 1</NavItem>
-						<NavItem>Item 2</NavItem>
+						<ul className="c-nav vertical emph">
+							<li>
+								<Button kind="nav-item">Item 1</Button>
+							</li>
+							<li>
+								<Button kind="nav-item">Item 2</Button>
+							</li>
+						</ul>
+					</Dropdown>
+					<Dropdown
+						triggerClassName="c-button"
+						placement="top-start"
+						trigger={<>top-start</>}
+					>
+						<ul className="c-nav vertical emph">
+							<li>
+								<Button kind="nav-item">Item 1</Button>
+							</li>
+						</ul>
+					</Dropdown>
+					<Dropdown
+						triggerClassName="c-button"
+						placement="top-end"
+						trigger={<>top-end</>}
+					>
+						<ul className="c-nav vertical emph">
+							<li>
+								<Button kind="nav-item">Item 1</Button>
+							</li>
+						</ul>
 					</Dropdown>
 				</div>
 			</Variant>
 
-			<Variant name="With Elevation">
+			<Variant name="Elevation">
 				<div className="c-hbox g-3">
-					<Dropdown trigger={<span className="c-button">Low</span>} elevation="low">
-						<NavItem>Low elevation menu</NavItem>
+					<Dropdown triggerClassName="c-button" elevation="low" trigger={<>Low</>}>
+						<ul className="c-nav vertical emph">
+							<li>
+								<Button kind="nav-item">Low elevation</Button>
+							</li>
+						</ul>
 					</Dropdown>
-					<Dropdown trigger={<span className="c-button">High</span>} elevation="high">
-						<NavItem>High elevation menu</NavItem>
+					<Dropdown triggerClassName="c-button" elevation="mid" trigger={<>Mid</>}>
+						<ul className="c-nav vertical emph">
+							<li>
+								<Button kind="nav-item">Mid elevation</Button>
+							</li>
+						</ul>
+					</Dropdown>
+					<Dropdown triggerClassName="c-button" elevation="high" trigger={<>High</>}>
+						<ul className="c-nav vertical emph">
+							<li>
+								<Button kind="nav-item">High elevation</Button>
+							</li>
+						</ul>
 					</Dropdown>
 				</div>
 			</Variant>

@@ -4,17 +4,20 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { usePopper } from 'react-popper'
+import { useTranslation } from 'react-i18next'
 
 import { Button } from '@cloudillo/react'
 
 import { reactionTypes, getReactionEmoji } from './reactions.js'
 
 export interface ReactionPickerProps {
+	className?: string
 	ownReaction?: string
 	onReact: (key: string) => void
 }
 
-export function ReactionPicker({ ownReaction, onReact }: ReactionPickerProps) {
+export function ReactionPicker({ className, ownReaction, onReact }: ReactionPickerProps) {
+	const { t } = useTranslation()
 	const [isOpen, setIsOpen] = React.useState(false)
 	const [refEl, setRefEl] = React.useState<HTMLElement | null>(null)
 	const [popperEl, setPopperEl] = React.useState<HTMLElement | null>(null)
@@ -117,10 +120,16 @@ export function ReactionPicker({ ownReaction, onReact }: ReactionPickerProps) {
 	}
 
 	return (
-		<div ref={setRefEl} onPointerEnter={handlePointerEnter} onPointerLeave={handlePointerLeave}>
+		<div
+			ref={setRefEl}
+			className={className}
+			onPointerEnter={handlePointerEnter}
+			onPointerLeave={handlePointerLeave}
+		>
 			<Button
 				kind="link"
 				variant="accent"
+				aria-label={ownReaction ? t('Change reaction') : t('Like')}
 				onClick={handleClick}
 				onTouchStart={handleTouchStart}
 				onTouchEnd={handleTouchEnd}
@@ -144,7 +153,8 @@ export function ReactionPicker({ ownReaction, onReact }: ReactionPickerProps) {
 								<button
 									key={r.key}
 									type="button"
-									title={r.label}
+									title={t(r.label)}
+									aria-label={t(r.label)}
 									onClick={() => handleSelect(r.key)}
 									style={{
 										fontSize: '1.4rem',

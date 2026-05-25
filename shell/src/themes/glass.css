@@ -76,6 +76,14 @@ body.theme-glass .c-nav {
 	border: var(--glass-border);
 }
 
+/* Glass dropdown/popper menu enhancement */
+body.theme-glass .c-popper {
+	box-shadow:
+		var(--glass-glow),
+		var(--glass-shadow),
+		inset 0px 0px 1rem var(--col-shadow);
+}
+
 /* Glass modal enhancement */
 body.theme-glass .c-modal > .c-dialog {
 	box-shadow:
@@ -88,14 +96,6 @@ body.theme-glass .c-toast {
 	box-shadow:
 		var(--glass-glow),
 		0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-/* Glass dropdown enhancement */
-body.theme-glass details.c-dropdown[open] > :last-child {
-	box-shadow:
-		var(--glass-glow),
-		var(--glass-shadow),
-		inset 0px 0px 1rem var(--col-shadow);
 }
 
 /* Light mode - Glass theme */

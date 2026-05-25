@@ -363,14 +363,11 @@ function InviteNotification({
 		>
 			<div className="c-hbox align-items-center g-3">
 				{action.subjectProfile ? (
-					<Link
-						to={`/profile/${urlContext || HOME_CONTEXT}/${action.subjectProfile.idTag}`}
-					>
-						<ProfileAudienceCard
-							audience={action.subjectProfile}
-							profile={action.issuer}
-						/>
-					</Link>
+					<ProfileAudienceCard
+						audience={action.subjectProfile}
+						profile={action.issuer}
+						profileBasePath={`/profile/${urlContext || HOME_CONTEXT}`}
+					/>
 				) : (
 					<Link to={`/profile/${urlContext || HOME_CONTEXT}/${action.issuer.idTag}`}>
 						<ProfileCard profile={action.issuer} />

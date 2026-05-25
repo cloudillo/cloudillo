@@ -39,7 +39,7 @@ export function Popper({
 	React.useEffect(() => {
 		if (!popperEl) return
 
-		async function handleClickOutside(evt: MouseEvent) {
+		function handleClickOutside(evt: MouseEvent) {
 			if (!(evt.target instanceof Node) || !popperEl?.contains(evt.target)) {
 				evt.stopPropagation()
 				evt.preventDefault()

@@ -923,6 +923,14 @@ export class ApiClient {
 			this.request('POST', `/files/${fileId}/shares`, Types.tShareEntry, { data }),
 
 		/**
+		 * PATCH /files/:fileId/shares/:shareId - Update share entry
+		 */
+		updateShare: (fileId: string, shareId: number, data: Types.UpdateShareEntryRequest) =>
+			this.request('PATCH', `/files/${fileId}/shares/${shareId}`, Types.tShareEntry, {
+				data
+			}),
+
+		/**
 		 * DELETE /files/:fileId/shares/:shareId - Delete share entry
 		 */
 		deleteShare: (fileId: string, shareId: number) =>
@@ -1454,6 +1462,10 @@ export class ApiClient {
 		 */
 		create: (data: Types.CreateRefRequest) =>
 			this.request('POST', '/refs', Types.tRef, { data }),
+
+		/** PATCH /refs/:refId — patch a ref (omit = unchanged, null = clear). */
+		update: (refId: string, data: Types.UpdateRefRequest) =>
+			this.request('PATCH', `/refs/${refId}`, Types.tRef, { data }),
 
 		/**
 		 * DELETE /ref/:refId - Delete reference

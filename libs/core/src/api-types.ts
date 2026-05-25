@@ -794,6 +794,11 @@ export interface CreateShareEntryRequest {
 	expiresAt?: string // ISO timestamp
 }
 
+export interface UpdateShareEntryRequest {
+	permission?: string // 'R' | 'C' | 'W' | 'A'; omit = leave alone
+	expiresAt?: string | null // ISO timestamp; null = clear
+}
+
 // Response types
 export const tShareEntry = T.struct({
 	id: T.number,
@@ -978,9 +983,18 @@ export interface CreateRefRequest {
 	description?: string
 	resourceId?: string // file ID for share.file
 	accessLevel?: 'read' | 'comment' | 'write'
-	expiresAt?: number // Unix timestamp
+	expiresAt?: string // ISO 8601 timestamp (Date.toISOString())
 	count?: number | null // max uses (null = unlimited, omit = default to 1)
 	params?: string // Serialized query string for launch params (e.g., "mode=present&follow=some.id.tag")
+}
+
+// Patch payload for an existing ref. Omitted = leave unchanged, null = clear,
+// value = set. Mirrors the Patch<T> deserializer on the backend.
+export interface UpdateRefRequest {
+	description?: string | null
+	expiresAt?: string | null // ISO 8601 timestamp (Date.toISOString())
+	count?: number | null
+	accessLevel?: 'read' | 'comment' | 'write' | null
 }
 
 export interface ListRefsQuery {

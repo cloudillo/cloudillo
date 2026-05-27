@@ -183,6 +183,31 @@ export async function putRecords<T>(
 }
 
 /**
+ * Drop records whose payloads no longer decrypt with the current key.
+ * Fire-and-forget self-heal so a stale entry (e.g. from a previous swKey)
+ * doesn't keep failing on every query. The next online fetch will
+ * repopulate fresh ciphertext.
+ */
+async function purgeUndecryptable(storeName: string, cacheKeys: string[]): Promise<void> {
+	if (cacheKeys.length === 0) return
+	try {
+		const db = await openDB()
+		await new Promise<void>((resolve) => {
+			const tx = db.transaction(storeName, 'readwrite')
+			const store = tx.objectStore(storeName)
+			for (const key of cacheKeys) store.delete(key)
+			tx.oncomplete = () => resolve()
+			tx.onerror = () => resolve()
+		})
+		console.warn(
+			`[Cache] Purged ${cacheKeys.length} undecryptable record(s) from "${storeName}"`
+		)
+	} catch (err) {
+		console.warn('[Cache] Failed to purge undecryptable records:', err)
+	}
+}
+
+/**
  * Get a single record by cache key and decrypt its payload.
  */
 export async function getRecord<T>(storeName: string, cacheKey: string): Promise<T | null> {
@@ -202,6 +227,9 @@ export async function getRecord<T>(storeName: string, cacheKey: string): Promise
 				return
 			}
 			const payload = await decryptJSON<T>(record._encPayload)
+			if (payload === null) {
+				void purgeUndecryptable(storeName, [cacheKey])
+			}
 			resolve(payload)
 		}
 		request.onerror = () => reject(request.error)
@@ -237,9 +265,21 @@ export async function queryRecords<T>(
 				records.push(cursor.value as CachedRecordBase)
 				cursor.continue()
 			} else {
-				// Decrypt all payloads in parallel
+				// Decrypt all payloads in parallel; drop and purge any that fail
+				// (stale ciphertext from a previous swKey — the next fetch
+				// repopulates them).
 				Promise.all(records.map((r) => decryptJSON<T>(r._encPayload)))
-					.then((payloads) => resolve(payloads.filter((p) => p !== null)))
+					.then((payloads) => {
+						const result: T[] = []
+						const badKeys: string[] = []
+						for (let i = 0; i < payloads.length; i++) {
+							const p = payloads[i]
+							if (p === null) badKeys.push(records[i]._cacheKey)
+							else result.push(p)
+						}
+						if (badKeys.length > 0) void purgeUndecryptable(storeName, badKeys)
+						resolve(result)
+					})
 					.catch(reject)
 			}
 		}

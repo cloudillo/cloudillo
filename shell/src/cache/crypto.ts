@@ -98,16 +98,17 @@ export async function decryptBinary(encrypted: ArrayBuffer): Promise<Uint8Array 
 		const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext)
 		return new Uint8Array(decrypted)
 	} catch (err) {
-		console.error('[Cache] Decryption failed:', err)
-		// Only treat as a key error if the ciphertext is well-formed; malformed
-		// bytes (truncation, old-format records) shouldn't latch the global
-		// dialog and disable encrypted I/O for the rest of the page lifetime.
-		// AES-GCM requires at least the 12-byte IV plus a 16-byte auth tag.
-		const wellFormed = encrypted.byteLength >= 28
-		if (wellFormed && !keyMissingSignaled) {
-			keyMissingSignaled = true
-			signalKeyError('key_mismatch')
-		}
+		// A failure here means an individual cache record can't be decrypted —
+		// most likely a stale record left over from a previous swKey (e.g. an
+		// older login session) that the cache-first/SWR path normally
+		// overwrites before anyone reads it. While offline those stale records
+		// surface because no fresh response replaces them. The cache is a
+		// recoverable optimization layer (the server is the source of truth),
+		// so we return null and let the caller self-heal by dropping the
+		// record. We deliberately do NOT escalate to signalKeyError() — a bad
+		// cache record must never surface the destructive "Encryption Key
+		// Error" dialog, which can wipe the CRDT database and unflushed work.
+		console.warn('[Cache] Decryption failed (stale record will be purged):', err)
 		return null
 	}
 }

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import dayjs from 'dayjs'
 import { useTranslation } from 'react-i18next'
 
 import { FiEdit2 as IcEdit, FiMoreVertical as IcMore } from 'react-icons/fi'
@@ -11,20 +10,20 @@ import {
 	LuCopy as IcCopy,
 	LuQrCode as IcQrCode,
 	LuShare2 as IcShare,
-	LuTrash2 as IcTrash,
 	LuStar as IcStar,
 	LuPin as IcPin,
-	LuChevronDown as IcChevronDown
+	LuChevronDown as IcChevronDown,
+	LuChevronRight as IcDisclosure
 } from 'react-icons/lu'
 
-import type { ActionView, NewAction } from '@cloudillo/types'
+import type { Profile } from '@cloudillo/types'
 import type * as Types from '@cloudillo/core'
 import type { ApiClient } from '@cloudillo/core'
 import { getFileUrl } from '@cloudillo/core'
 import {
 	useAuth,
-	useDialog,
 	useToast,
+	Badge,
 	Button,
 	Popper,
 	ProfileCard,
@@ -47,7 +46,31 @@ import {
 	canManageFile,
 	getVisibilityDropdownOptions
 } from '../utils.js'
+import { formatRefDate } from '../../../utils/parseRefDate.js'
+import { getCachedProfiles, getCachedProfile } from '../../../utils/profileCache.js'
 import type { File, FileOps } from '../types.js'
+
+type PermLevel = 'READ' | 'COMMENT' | 'WRITE'
+
+function permCharToLevel(perm: string): PermLevel {
+	if (perm === 'W' || perm === 'A') return 'WRITE'
+	if (perm === 'C') return 'COMMENT'
+	return 'READ'
+}
+
+function linkAccessToLevel(access: 'read' | 'comment' | 'write' | undefined): PermLevel {
+	if (access === 'write') return 'WRITE'
+	if (access === 'comment') return 'COMMENT'
+	return 'READ'
+}
+
+function AccessChip({ level }: { level: PermLevel }) {
+	const { t } = useTranslation()
+	const label =
+		level === 'WRITE' ? t('Editor') : level === 'COMMENT' ? t('Commenter') : t('Viewer')
+	const variant = level === 'WRITE' ? 'accent' : level === 'COMMENT' ? 'primary' : 'secondary'
+	return <Badge variant={variant}>{label}</Badge>
+}
 
 const ELLIPSIS_MARKER = { id: '__ellipsis__', name: '…' } as const
 const MAX_INLINE_SEGMENTS = 4
@@ -62,14 +85,14 @@ function PathBreadcrumb({ path, parentId, onNavigate }: PathBreadcrumbProps) {
 	const { t } = useTranslation()
 
 	// Loading: path lookup still in flight for a non-root file.
-	if (path === undefined && parentId != null) {
+	if (path === undefined && parentId) {
 		return <span className="text-muted">{t('Loading…')}</span>
 	}
 
 	// Empty path on a non-root file means the lookup failed
 	// (e.g. parent deleted) — distinguish from the genuine
 	// root case where parentId is explicitly null.
-	if (path && path.length === 0 && parentId != null) {
+	if (path && path.length === 0 && parentId) {
 		return <span className="text-muted">{t('Unknown')}</span>
 	}
 
@@ -152,17 +175,14 @@ export function DetailsPanel({
 		fileOwnerIdTag !== contextIdTag
 
 	const [ownerApi, setOwnerApi] = React.useState<ApiClient | null>(null)
-	const [ownerApiLoading, setOwnerApiLoading] = React.useState(false)
 
 	React.useEffect(
 		function acquireOwnerApi() {
 			if (!isCrossOwner || !fileOwnerIdTag) {
 				setOwnerApi(null)
-				setOwnerApiLoading(false)
 				return
 			}
 			let cancelled = false
-			setOwnerApiLoading(true)
 			;(async function () {
 				try {
 					const tokenResult = await getTokenFor(fileOwnerIdTag, { explicit: true })
@@ -173,8 +193,6 @@ export function DetailsPanel({
 					if (!cancelled) setOwnerApi(client)
 				} catch {
 					if (!cancelled) setOwnerApi(null)
-				} finally {
-					if (!cancelled) setOwnerApiLoading(false)
 				}
 			})()
 			return () => {
@@ -185,12 +203,14 @@ export function DetailsPanel({
 	)
 
 	const api = apiOverride !== undefined ? apiOverride : isCrossOwner ? ownerApi : contextApi
-	const dialog = useDialog()
 	const toast = useToast()
-	const [fileActions, setFileActions] = React.useState<ActionView[] | undefined>()
 	const [shareRefs, setShareRefs] = React.useState<Types.Ref[] | undefined>()
-	const [shareEntries, setShareEntries] = React.useState<Types.ShareEntry[] | undefined>()
+	const [userShareEntries, setUserShareEntries] = React.useState<Types.ShareEntry[] | undefined>()
+	const [fileShareEntries, setFileShareEntries] = React.useState<Types.ShareEntry[] | undefined>()
+	const [peopleProfiles, setPeopleProfiles] = React.useState<Record<string, Profile>>({})
+	const [ownerProfile, setOwnerProfile] = React.useState<Profile | null>(null)
 	const [qrCodeUrl, setQrCodeUrl] = React.useState<string | undefined>()
+	const [usedInOpen, setUsedInOpen] = React.useState(false)
 	const [filePath, setFilePath] = React.useState<{ id: string; name: string }[] | undefined>(
 		file.path
 	)
@@ -202,37 +222,17 @@ export function DetailsPanel({
 	const isImage = file.contentType?.startsWith('image/')
 	const isFolder = file.fileTp === 'FLDR'
 
-	const readPerms = React.useMemo(
-		function readPerms() {
-			return fileActions
-				?.filter((a) => a.type === 'FSHR' && a.subType === 'READ')
-				.sort(
-					(a, b) => (a.audience?.idTag ?? '').localeCompare(b.audience?.idTag ?? '') || 0
-				)
+	const allPeople = React.useMemo(
+		function allPeople() {
+			function key(e: Types.ShareEntry) {
+				const idTag = e.subjectId.toString()
+				return (peopleProfiles[idTag]?.name ?? idTag).toLowerCase()
+			}
+			return userShareEntries
+				? [...userShareEntries].sort((a, b) => key(a).localeCompare(key(b)))
+				: undefined
 		},
-		[fileActions]
-	)
-
-	const commentPerms = React.useMemo(
-		function commentPerms() {
-			return fileActions
-				?.filter((a) => a.type === 'FSHR' && a.subType === 'COMMENT')
-				.sort(
-					(a, b) => (a.audience?.idTag ?? '').localeCompare(b.audience?.idTag ?? '') || 0
-				)
-		},
-		[fileActions]
-	)
-
-	const writePerms = React.useMemo(
-		function writePerms() {
-			return fileActions
-				?.filter((a) => a.type === 'FSHR' && a.subType === 'WRITE')
-				.sort(
-					(a, b) => (a.audience?.idTag ?? '').localeCompare(b.audience?.idTag ?? '') || 0
-				)
-		},
-		[fileActions]
+		[userShareEntries, peopleProfiles]
 	)
 
 	React.useEffect(
@@ -242,24 +242,33 @@ export function DetailsPanel({
 			let cancelled = false
 
 			;(async function () {
-				const actions = await api.actions.list({ type: 'FSHR', subject: file.fileId })
-				if (cancelled) return
-				setFileActions(actions)
+				try {
+					const refs = await api.refs.list({
+						type: 'share.file',
+						resourceId: file.fileId
+					})
+					if (!cancelled) setShareRefs(refs)
+				} catch (err) {
+					console.error('Failed to load share links', err)
+				}
 
-				const refs = await api.refs.list({
-					type: 'share.file',
-					resourceId: file.fileId
-				})
-				if (cancelled) return
-				setShareRefs(refs)
-
+				let userEntries: Types.ShareEntry[] = []
 				try {
 					const allEntries = await api.files.listShares(file.fileId)
 					if (cancelled) return
-					const fileEntries = allEntries.filter((e) => e.subjectType === 'F')
-					setShareEntries(fileEntries)
+					userEntries = allEntries.filter((e) => e.subjectType === 'U')
+					setUserShareEntries(userEntries)
+					setFileShareEntries(allEntries.filter((e) => e.subjectType === 'F'))
 				} catch (err) {
 					console.error('Failed to load share entries', err)
+				}
+
+				if (!cancelled && userEntries.length > 0) {
+					const idTags = Array.from(
+						new Set(userEntries.map((e) => e.subjectId.toString()))
+					)
+					const profiles = await getCachedProfiles(api, idTags)
+					if (!cancelled) setPeopleProfiles(profiles)
 				}
 			})()
 
@@ -268,6 +277,31 @@ export function DetailsPanel({
 			}
 		},
 		[api, file.fileId]
+	)
+
+	const ownerIdTag = file.owner?.idTag ?? contextIdTag
+
+	React.useEffect(
+		function loadOwnerProfile() {
+			if (!ownerIdTag) return
+			if (file.owner) {
+				setOwnerProfile({
+					idTag: file.owner.idTag,
+					name: file.owner.name,
+					profilePic: file.owner.profilePic
+				})
+				return
+			}
+			if (!api) return
+			let cancelled = false
+			getCachedProfile(api, ownerIdTag).then((p) => {
+				if (!cancelled) setOwnerProfile(p)
+			})
+			return () => {
+				cancelled = true
+			}
+		},
+		[ownerIdTag, file.owner, contextIdTag, api]
 	)
 
 	React.useEffect(
@@ -315,81 +349,18 @@ export function DetailsPanel({
 		[api, apiOverride, isCrossOwner, fileOwnerIdTag, file.fileId, file.path]
 	)
 
-	// Permissions
-	async function removePerm(idTag: string) {
-		if (!file || !api) return
-		if (
-			!(await dialog.confirm(
-				t('Confirmation'),
-				t("Are you sure you want to remove this user's permission?")
-			))
-		)
-			return
-
-		const action: NewAction = {
-			type: 'FSHR',
-			subject: file.fileId,
-			audienceTag: idTag
-		}
-
-		await api.actions.create(action)
-		setFileActions((prev) => prev?.filter((action) => action.audience?.idTag !== idTag))
-	}
-
-	// Public Links
-	async function deleteShareLink(refId: string) {
-		if (!api) return
-		if (
-			!(await dialog.confirm(
-				t('Confirmation'),
-				t('Are you sure you want to delete this link?')
-			))
-		)
-			return
-
-		try {
-			await api.refs.delete(refId)
-			setShareRefs((refs) => refs?.filter((r) => r.refId !== refId))
-			toast.success(t('Share link deleted'))
-		} catch (err) {
-			console.error('Failed to delete share link', err)
-			toast.error(t('Failed to delete share link'))
-		}
-	}
-
 	function copyShareLink(refId: string) {
 		const url = `${window.location.origin}/s/${refId}`
 		navigator.clipboard.writeText(url)
 		toast.success(t('Link copied to clipboard'))
 	}
 
-	// Share entries
-	async function deleteShareEntry(entryId: number) {
-		if (!api) return
-		if (
-			!(await dialog.confirm(
-				t('Confirmation'),
-				t('Are you sure you want to remove this linked file?')
-			))
-		)
-			return
-
-		try {
-			await api.files.deleteShare(file.fileId, entryId)
-			setShareEntries((entries) => entries?.filter((e) => e.id !== entryId))
-			toast.success(t('Link removed'))
-		} catch (err) {
-			console.error('Failed to delete share entry', err)
-			toast.error(t('Failed to remove link'))
-		}
-	}
-
 	const VisibilityIcon = getVisibilityIcon(file.visibility ?? null)
 	const canManage = canManageFile(file, auth?.idTag, activeContext?.roles ?? [])
 
-	const sharedPeopleCount =
-		(readPerms?.length ?? 0) + (commentPerms?.length ?? 0) + (writePerms?.length ?? 0)
+	const sharedPeopleCount = allPeople?.length ?? 0
 	const sharedLinkCount = shareRefs?.length ?? 0
+	const isSharingLoading = userShareEntries === undefined || shareRefs === undefined
 	const sharingSummary =
 		sharedPeopleCount > 0 || sharedLinkCount > 0
 			? [
@@ -594,8 +565,8 @@ export function DetailsPanel({
 
 			{canManage && (
 				<div className="c-panel mid">
-					<div className="c-panel-header">
-						<h3>
+					<div className="c-panel-header c-hbox g-2 align-items-center">
+						<h3 className="flex-fill">
 							{t('Sharing')}
 							{sharingSummary && (
 								<span className="text-secondary text-small ms-2">
@@ -603,222 +574,221 @@ export function DetailsPanel({
 								</span>
 							)}
 						</h3>
+						{onShare && (
+							<Button
+								size="small"
+								title={t('Manage sharing')}
+								aria-label={t('Manage sharing')}
+								onClick={() => onShare(file)}
+							>
+								<IcShare />
+							</Button>
+						)}
 					</div>
 					<div className="c-vbox g-3">
-						{/* Cross-owner panel: the remote API is still warming
-						up — keep the sections from rendering as "empty". */}
-						{ownerApiLoading && fileActions === undefined && (
-							<span className="text-secondary">{t('Loading…')}</span>
-						)}
+						{/* People with access — Owner row always visible */}
+						<div className="c-vbox g-1">
+							<h4 className="mb-2 text-secondary text-uppercase text-small">
+								{t('People with access')}
+							</h4>
 
-						{/* Write permissions */}
-						{writePerms && writePerms.length > 0 && (
-							<div>
-								<h4 className="text-small text-secondary mb-2">{t('Can edit')}</h4>
-								<div className="c-vbox g-1">
-									{writePerms
-										.filter((rp) => rp.audience)
-										.map((rp) => (
-											<button
-												key={rp.audience!.idTag}
-												type="button"
-												className="c-link w-100 p-0 ps-1 c-hbox align-items-center"
-												onClick={() => removePerm(rp.audience!.idTag)}
-												title={t('Remove permission')}
-											>
-												<ProfileCard
-													className="flex-fill"
-													profile={rp.audience!}
-												/>
-												<IcTrash className="text-secondary" />
-											</button>
-										))}
-								</div>
-							</div>
-						)}
-
-						{/* Comment permissions */}
-						{commentPerms && commentPerms.length > 0 && (
-							<div>
-								<h4 className="text-small text-secondary mb-2">
-									{t('Can comment')}
-								</h4>
-								<div className="c-vbox g-1">
-									{commentPerms
-										.filter((rp) => rp.audience)
-										.map((rp) => (
-											<button
-												key={rp.audience!.idTag}
-												type="button"
-												className="c-link w-100 p-0 ps-1 c-hbox align-items-center"
-												onClick={() => removePerm(rp.audience!.idTag)}
-												title={t('Remove permission')}
-											>
-												<ProfileCard
-													className="flex-fill"
-													profile={rp.audience!}
-												/>
-												<IcTrash className="text-secondary" />
-											</button>
-										))}
-								</div>
-							</div>
-						)}
-
-						{/* Read permissions */}
-						{readPerms && readPerms.length > 0 && (
-							<div>
-								<h4 className="text-small text-secondary mb-2">{t('Read only')}</h4>
-								<div className="c-vbox g-1">
-									{readPerms
-										.filter((rp) => rp.audience)
-										.map((rp) => (
-											<button
-												key={rp.audience!.idTag}
-												type="button"
-												className="c-link w-100 p-0 ps-1 c-hbox align-items-center"
-												onClick={() => removePerm(rp.audience!.idTag)}
-												title={t('Remove permission')}
-											>
-												<ProfileCard
-													className="flex-fill"
-													profile={rp.audience!}
-												/>
-												<IcTrash className="text-secondary" />
-											</button>
-										))}
-								</div>
-							</div>
-						)}
-
-						{/* Public links */}
-						{shareRefs && shareRefs.length > 0 && (
-							<div>
-								<h4 className="text-small text-secondary mb-2">
-									{t('Public links')}
-								</h4>
-								<div className="c-vbox g-2">
-									{shareRefs.map((ref) => (
-										<div
-											key={ref.refId}
-											className="c-hbox g-2 align-items-center p-2 bg-secondary-subtle rounded"
-										>
-											<IcLink className="flex-shrink-0" />
-											<div className="flex-fill text-truncate">
-												<div>{ref.description || ref.refId}</div>
-												<div className="text-secondary text-small">
-													{ref.accessLevel === 'write'
-														? t('Can edit')
-														: ref.accessLevel === 'comment'
-															? t('Can comment')
-															: t('Read only')}
-													{ref.expiresAt
-														? ` · ${t('Expires')} ${dayjs(ref.expiresAt).format('YYYY-MM-DD')}`
-														: ` · ${t('Never expires')}`}
-												</div>
-											</div>
-											<button
-												type="button"
-												className="c-link p-1"
-												title={t('Copy link')}
-												onClick={() => copyShareLink(ref.refId)}
-											>
-												<IcCopy />
-											</button>
-											<button
-												type="button"
-												className="c-link p-1"
-												title={t('Show QR code')}
-												onClick={() =>
-													setQrCodeUrl(
-														`${window.location.origin}/s/${ref.refId}`
-													)
+							{ownerIdTag && (
+								<div className="c-hbox g-2 align-items-center p-2">
+									<div className="c-hbox g-2 flex-fill align-items-center text-truncate">
+										<ProfileCard
+											profile={
+												ownerProfile ?? {
+													idTag: ownerIdTag,
+													name: ownerIdTag
 												}
-											>
-												<IcQrCode />
-											</button>
-											<button
-												type="button"
-												className="c-link p-1"
-												title={t('Delete link')}
-												onClick={() => deleteShareLink(ref.refId)}
-											>
-												<IcTrash />
-											</button>
-										</div>
-									))}
+											}
+										/>
+										{ownerIdTag === auth?.idTag && file.owner && (
+											<span className="text-secondary">({t('you')})</span>
+										)}
+									</div>
+									<span className="c-badge">{t('Owner')}</span>
 								</div>
-							</div>
-						)}
+							)}
+						</div>
 
-						{/* Embedded in */}
-						{shareEntries && shareEntries.length > 0 && (
-							<div>
-								<h4 className="text-small text-secondary mb-2">
-									{t('Embedded in')}
-								</h4>
+						{isSharingLoading ? (
+							<span className="text-secondary">{t('Loading…')}</span>
+						) : (
+							<>
+								{/* People with access (other than owner) */}
 								<div className="c-vbox g-1">
-									{shareEntries.map((entry) => {
-										const EntryIcon = entry.subjectContentType
-											? getFileIcon(
-													entry.subjectContentType,
-													entry.subjectFileTp
-												)
-											: IcUnknown
-
+									{allPeople?.map((entry) => {
+										const idTag = entry.subjectId.toString()
+										const profile: Profile = peopleProfiles[idTag] ?? {
+											idTag,
+											name: idTag
+										}
+										const level = permCharToLevel(entry.permission.toString())
 										return (
 											<div
-												key={entry.id}
-												className="w-100 p-0 ps-1 c-hbox g-2 align-items-center"
+												key={idTag}
+												className="c-hbox g-2 align-items-center p-2"
 											>
-												{React.createElement<
-													React.ComponentProps<typeof IcUnknown>
-												>(EntryIcon, { className: 'flex-shrink-0' })}
-												<div className="flex-fill" style={{ minWidth: 0 }}>
-													<div className="text-truncate">
-														{entry.subjectFileName || entry.subjectId}
-													</div>
+												<div className="flex-fill text-truncate">
+													<ProfileCard profile={profile} />
+												</div>
+												<AccessChip level={level} />
+											</div>
+										)
+									})}
+
+									{allPeople?.length === 0 && (
+										<div className="text-secondary text-small px-2">
+											{t('No one else has access yet')}
+										</div>
+									)}
+								</div>
+
+								{/* Anyone with the link */}
+								<div className="c-vbox g-1">
+									<h4 className="mb-2 text-secondary text-uppercase text-small">
+										{t('Anyone with the link')}
+									</h4>
+
+									{shareRefs?.map((ref) => {
+										const formattedExpiry = formatRefDate(ref.expiresAt)
+										const expiryText = formattedExpiry
+											? `${t('Expires')} ${formattedExpiry}`
+											: t('Never expires')
+										return (
+											<div
+												key={ref.refId}
+												className="c-hbox g-2 align-items-center p-2"
+											>
+												<IcLink className="flex-shrink-0" />
+												<div className="flex-fill text-truncate">
+													<div>{ref.description || ref.refId}</div>
 													<div className="text-secondary text-small">
-														{entry.permission === 'W'
-															? t('Can edit')
-															: entry.permission === 'C'
-																? t('Can comment')
-																: t('Read only')}
+														{expiryText}
 													</div>
 												</div>
+												<AccessChip
+													level={linkAccessToLevel(ref.accessLevel)}
+												/>
 												<button
 													type="button"
 													className="c-link p-1"
-													title={t('Remove link')}
-													onClick={() => deleteShareEntry(entry.id)}
+													title={t('Copy link')}
+													onClick={() => copyShareLink(ref.refId)}
 												>
-													<IcTrash className="text-secondary" />
+													<IcCopy />
+												</button>
+												<button
+													type="button"
+													className="c-link p-1"
+													title={t('Show QR code')}
+													onClick={() =>
+														setQrCodeUrl(
+															`${window.location.origin}/s/${ref.refId}`
+														)
+													}
+												>
+													<IcQrCode />
 												</button>
 											</div>
 										)
 									})}
-								</div>
-							</div>
-						)}
 
-						{/* Empty state */}
-						{!ownerApiLoading &&
-							(!writePerms || writePerms.length === 0) &&
-							(!commentPerms || commentPerms.length === 0) &&
-							(!readPerms || readPerms.length === 0) &&
-							(!shareRefs || shareRefs.length === 0) &&
-							(!shareEntries || shareEntries.length === 0) && (
-								<div className="c-vbox g-2 align-items-center text-center py-2">
-									<div className="text-secondary">
-										{t('This file is private')}
-									</div>
-									{onShare && (
-										<Button onClick={() => onShare(file)}>
-											<IcShare /> {t('Share file')}
-										</Button>
+									{shareRefs?.length === 0 && (
+										<div className="text-secondary text-small px-2">
+											{t('No share links yet')}
+										</div>
 									)}
 								</div>
-							)}
+
+								{/* Used in N documents (collapsible footer) */}
+								{fileShareEntries && fileShareEntries.length > 0 && (
+									<div className="mt-2">
+										<button
+											type="button"
+											className="c-link p-2 c-hbox g-2 align-items-center text-secondary"
+											onClick={() => setUsedInOpen((v) => !v)}
+										>
+											<IcDisclosure
+												style={{
+													transform: usedInOpen
+														? 'rotate(90deg)'
+														: undefined,
+													transition: 'transform 0.15s'
+												}}
+											/>
+											<span>
+												{t('Used in {{count}} documents', {
+													count: fileShareEntries.length
+												})}
+											</span>
+										</button>
+										{usedInOpen && (
+											<div className="c-vbox g-2 mt-2">
+												{fileShareEntries.map((entry) => {
+													const EntryIcon = entry.subjectContentType
+														? getFileIcon(
+																entry.subjectContentType,
+																entry.subjectFileTp
+															)
+														: IcUnknown
+													return (
+														<div
+															key={entry.id}
+															className="c-hbox g-2 align-items-center p-2"
+														>
+															{React.createElement<
+																React.ComponentProps<
+																	typeof IcUnknown
+																>
+															>(EntryIcon, {
+																className: 'flex-shrink-0'
+															})}
+															<div className="flex-fill text-truncate">
+																<div>
+																	{entry.subjectFileName ||
+																		entry.subjectId}
+																</div>
+																<div className="text-secondary text-small">
+																	{entry.permission === 'W'
+																		? t('Editor')
+																		: t('Viewer')}
+																	{(() => {
+																		const f = formatRefDate(
+																			entry.expiresAt
+																		)
+																		return f
+																			? ` · ${t('Expires')} ${f}`
+																			: ''
+																	})()}
+																</div>
+															</div>
+														</div>
+													)
+												})}
+											</div>
+										)}
+									</div>
+								)}
+
+								{/* Empty state */}
+								{(allPeople?.length ?? 0) === 0 &&
+									(shareRefs?.length ?? 0) === 0 &&
+									(fileShareEntries?.length ?? 0) === 0 && (
+										<div className="c-vbox g-2 align-items-center text-center py-2">
+											<div className="text-secondary">
+												{t('This file is private')}
+											</div>
+											{onShare && (
+												<Button onClick={() => onShare(file)}>
+													<IcShare /> {t('Share file')}
+												</Button>
+											)}
+										</div>
+									)}
+							</>
+						)}
 					</div>
 				</div>
 			)}

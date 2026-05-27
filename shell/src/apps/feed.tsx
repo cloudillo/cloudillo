@@ -16,6 +16,7 @@ import Zoom from 'yet-another-react-lightbox/plugins/zoom'
 import 'yet-another-react-lightbox/plugins/thumbnails.css'
 import 'react-photo-album/rows.css'
 
+import type { ApiClient } from '@cloudillo/core'
 import { getFileUrl, getOptimalImageVariant, getOptimalVideoVariant } from '@cloudillo/core'
 import {
 	Badge,
@@ -41,7 +42,6 @@ import * as T from '@symbion/runtype'
 import {
 	LuCloud as IcAll,
 	LuCamera as IcCamera,
-	LuMessageCircle as IcComment,
 	LuUsersRound as IcCommunities,
 	LuLock as IcDirect,
 	LuFileText as IcDocument,
@@ -64,19 +64,24 @@ import './feed.css'
 import { ImageWithRetry, useRetriedImageUrl } from '../components/ImageWithRetry.js'
 import type { CommunityRef } from '../context/index.js'
 import {
+	HOME_CONTEXT,
+	useApiContext,
 	useCommunitiesList,
+	useContextAwareApi,
 	useCurrentContextIdTag,
-	useUrlContextIdTag,
-	HOME_CONTEXT
+	useProfileTrust,
+	useUrlContextIdTag
 } from '../context/index.js'
 import { useWsBus } from '../ws-bus.js'
 import {
+	CommentBadge,
 	ComposePanel,
 	DraftsPanel,
 	NewPostsBanner,
 	PostMenu,
 	parseReactionCounts,
 	ReactionPicker,
+	totalReactions,
 	updateReactionCounts,
 	useFeedPosts
 } from './feed/index.js'
@@ -581,33 +586,197 @@ interface CommentsProps {
 	className?: string
 	style?: React.CSSProperties
 }
+type CommentsTokenStatus = 'pending' | 'authenticated' | 'unauthenticated'
+
+function CommentsTrustPrompt({
+	audienceIdTag,
+	onResolved
+}: {
+	audienceIdTag: string
+	onResolved: () => void
+}) {
+	const { t } = useTranslation()
+	const { setStoredTrust } = useProfileTrust()
+	const { getTokenFor } = useApiContext()
+	const [busy, setBusy] = React.useState(false)
+	const [hidden, setHidden] = React.useState(false)
+
+	if (hidden) return null
+
+	async function handleAlways() {
+		setBusy(true)
+		try {
+			await setStoredTrust(audienceIdTag, 'always')
+			onResolved()
+		} catch (err) {
+			console.error('[CommentsTrustPrompt] failed to set always trust:', err)
+		} finally {
+			setBusy(false)
+		}
+	}
+
+	async function handleJustNow() {
+		setBusy(true)
+		try {
+			const result = await getTokenFor(audienceIdTag, { explicit: true })
+			if (result) onResolved()
+		} catch (err) {
+			console.error('[CommentsTrustPrompt] failed to fetch one-shot token:', err)
+		} finally {
+			setBusy(false)
+		}
+	}
+
+	async function handleNever() {
+		setBusy(true)
+		try {
+			await setStoredTrust(audienceIdTag, 'never')
+			setHidden(true)
+		} catch (err) {
+			console.error('[CommentsTrustPrompt] failed to set never trust:', err)
+		} finally {
+			setBusy(false)
+		}
+	}
+
+	return (
+		<div className="c-panel p-2 mb-2 c-vbox g-1">
+			<small>
+				{t('Comments are on {{idTag}}. Authenticate to read them?', {
+					idTag: audienceIdTag
+				})}
+			</small>
+			<div className="c-hbox g-1">
+				<Button
+					kind="link"
+					variant="primary"
+					size="small"
+					onClick={handleJustNow}
+					disabled={busy}
+				>
+					{t('Just now')}
+				</Button>
+				<Button
+					kind="link"
+					variant="primary"
+					size="small"
+					onClick={handleAlways}
+					disabled={busy}
+				>
+					{t('Always trust')}
+				</Button>
+				<Button
+					kind="link"
+					variant="warning"
+					size="small"
+					onClick={handleNever}
+					disabled={busy}
+				>
+					{t('Never')}
+				</Button>
+			</div>
+		</div>
+	)
+}
+
 function Comments({ parentAction, onCommentsRead, ...props }: CommentsProps) {
-	const { api } = useApi()
+	const { api: contextApi } = useContextAwareApi()
+	const { getTokenFor, getClientFor } = useApiContext()
+	const contextIdTag = useCurrentContextIdTag()
+
+	const audienceIdTag = parentAction.audience?.idTag || parentAction.issuer.idTag
+	const isCrossNode = !!audienceIdTag && audienceIdTag !== contextIdTag
+	const isGated = parentAction.visibility !== undefined && parentAction.visibility !== 'P'
+
+	const [audienceApi, setAudienceApi] = React.useState<ApiClient | null>(null)
+	const [tokenStatus, setTokenStatus] = React.useState<CommentsTokenStatus>('pending')
+	const [tokenRefreshTick, setTokenRefreshTick] = React.useState(0)
+
+	React.useEffect(
+		function acquireAudienceApi() {
+			if (!isCrossNode || !audienceIdTag) {
+				setAudienceApi(null)
+				setTokenStatus('authenticated')
+				return
+			}
+			let cancelled = false
+			setTokenStatus('pending')
+			;(async function () {
+				try {
+					const tokenResult = await getTokenFor(audienceIdTag)
+					if (cancelled) return
+					if (tokenResult) {
+						const client = getClientFor(audienceIdTag, {
+							token: tokenResult.token
+						})
+						setAudienceApi(client)
+						setTokenStatus('authenticated')
+					} else {
+						const client = getClientFor(audienceIdTag, { auth: 'preferred' })
+						setAudienceApi(client)
+						setTokenStatus('unauthenticated')
+					}
+				} catch {
+					if (!cancelled) {
+						setAudienceApi(null)
+						setTokenStatus('unauthenticated')
+					}
+				}
+			})()
+			return () => {
+				cancelled = true
+			}
+		},
+		[isCrossNode, audienceIdTag, getTokenFor, getClientFor, tokenRefreshTick]
+	)
+
+	const readApi = isCrossNode ? audienceApi : contextApi
 	const [comments, setComments] = React.useState<ActionView[]>([])
+
+	const showTrustPrompt =
+		isCrossNode && !!audienceIdTag && isGated && tokenStatus === 'unauthenticated'
+
+	const commentsReadCount = parentAction.stat?.commentsRead
+
+	const onCommentsReadRef = React.useRef(onCommentsRead)
+	const commentsReadCountRef = React.useRef(commentsReadCount)
+	React.useEffect(() => {
+		onCommentsReadRef.current = onCommentsRead
+	}, [onCommentsRead])
+	React.useEffect(() => {
+		commentsReadCountRef.current = commentsReadCount
+	}, [commentsReadCount])
 
 	React.useEffect(() => {
 		let timeout: ReturnType<typeof setTimeout> | undefined
-		if (!api) return
+		if (!readApi) return
+		if (showTrustPrompt) return
 		;(async function getComments() {
-			const actions = await api.actions.list({
-				parentId: parentAction.actionId,
-				type: 'CMNT'
-			})
-			if (actions.length != parentAction.stat?.commentsRead) {
-				timeout = setTimeout(async function () {
-					await api.actions.updateStat(parentAction.actionId, {
-						commentsRead: actions.length
-					})
-					onCommentsRead?.(actions.length)
-					timeout = undefined
-				}, 3000)
+			try {
+				const actions = await readApi.actions.list({
+					parentId: parentAction.actionId,
+					type: 'CMNT'
+				})
+				if (actions.length != commentsReadCountRef.current) {
+					timeout = setTimeout(async function () {
+						if (contextApi) {
+							await contextApi.actions.updateStat(parentAction.actionId, {
+								commentsRead: actions.length
+							})
+							onCommentsReadRef.current?.(actions.length)
+						}
+						timeout = undefined
+					}, 3000)
+				}
+				setComments(actions || [])
+			} catch (err) {
+				console.warn('[Comments] failed to load comments:', err)
 			}
-			setComments(actions || [])
 		})()
 		return function cleanup() {
 			if (timeout) clearTimeout(timeout)
 		}
-	}, [api, parentAction.actionId])
+	}, [readApi, contextApi, parentAction.actionId, showTrustPrompt])
 
 	function onSubmit(action: ActionView) {
 		setComments([...comments, action])
@@ -616,8 +785,14 @@ function Comments({ parentAction, onCommentsRead, ...props }: CommentsProps) {
 
 	return (
 		<div {...props}>
+			{showTrustPrompt && audienceIdTag && (
+				<CommentsTrustPrompt
+					audienceIdTag={audienceIdTag}
+					onResolved={() => setTokenRefreshTick((n) => n + 1)}
+				/>
+			)}
 			<SubComments comments={comments} parentId={parentAction.actionId} />
-			<NewComment parentAction={parentAction} onSubmit={onSubmit} />
+			{!showTrustPrompt && <NewComment parentAction={parentAction} onSubmit={onSubmit} />}
 		</div>
 	)
 }
@@ -684,8 +859,8 @@ function Post({ className, action, setAction, onDelete, hideAudience, srcTag, wi
 			setAction({
 				...action,
 				stat: {
+					...action.stat,
 					reactions: updatedReactions || undefined,
-					comments: action.stat?.comments,
 					ownReaction: isRemove ? undefined : reaction
 				}
 			})
@@ -780,35 +955,51 @@ function Post({ className, action, setAction, onDelete, hideAudience, srcTag, wi
 						{(() => {
 							const total = action.stat?.comments ?? 0
 							const unread = total - (action.stat?.commentsRead ?? 0)
-							const totalLabel = t('{{count}} comments', { count: total })
-							const unreadLabel =
-								unread > 0 ? t('{{count}} unread', { count: unread }) : null
-							const label = unreadLabel ? `${totalLabel}, ${unreadLabel}` : totalLabel
+							const label =
+								unread > 0
+									? t('Comments ({{total}}, {{unread}} unread)', {
+											total,
+											unread
+										})
+									: t('Comments ({{total}})', { total })
 							return (
 								<Button
 									kind="link"
 									variant="secondary"
 									className={mergeClasses(
-										'c-reaction-chip',
+										'c-comment-badge-btn',
 										tab == 'CMNT' ? 'active' : ''
 									)}
 									onClick={() => onTabClick('CMNT')}
 									aria-label={label}
 									title={label}
 								>
-									<IcComment />
-									{total > 0 && <small>{total}</small>}
-									{unread > 0 && <small className="unread">+{unread}</small>}
+									<CommentBadge total={total} unread={unread} />
 								</Button>
 							)
 						})()}
 						{!!action.stat?.reactions &&
-							parseReactionCounts(action.stat.reactions).map((r) => (
-								<span key={r.key} className="c-reaction-chip">
-									{r.emoji}
-									<small>{r.count}</small>
-								</span>
-							))}
+							(() => {
+								const parsed = parseReactionCounts(action.stat.reactions)
+								const shownSum = parsed.reduce((s, r) => s + r.count, 0)
+								const total = totalReactions(action.stat.reactions)
+								const overflow = Math.max(0, total - shownSum)
+								return (
+									<>
+										{parsed.map((r) => (
+											<span key={r.key} className="c-reaction-chip">
+												{r.emoji}
+												<small>{r.count}</small>
+											</span>
+										))}
+										{overflow > 0 && (
+											<span className="c-reaction-chip c-reaction-chip-more">
+												<small>+{overflow}</small>
+											</span>
+										)}
+									</>
+								)
+							})()}
 					</div>
 				</div>
 			</div>
@@ -1236,19 +1427,30 @@ export function FeedApp() {
 		const action = msg.data as ActionView
 
 		if (action.type === 'STAT') {
-			const tStatContent = T.struct({ r: T.optional(T.string), c: T.optional(T.number) })
+			const tStatContent = T.struct({
+				r: T.optional(T.string),
+				c: T.optional(T.number)
+			})
 			const contentRes = T.decode(tStatContent, action.content)
 			if (!T.isOk(contentRes)) return
 			const content = contentRes.ok
-			setFeedUpdates((prev) => ({
-				...prev,
-				[action.parentId!]: {
-					stat: {
-						reactions: content.r,
-						comments: content.c
+			setFeedUpdates((prev) => {
+				const parentId = action.parentId!
+				const prevUpdate = prev[parentId] ?? {}
+				const post = feedRef.current.find((p) => p.actionId === parentId)
+				const baseStat = prevUpdate.stat ?? post?.stat ?? {}
+				return {
+					...prev,
+					[parentId]: {
+						...prevUpdate,
+						stat: {
+							...baseStat,
+							reactions: content.r,
+							comments: content.c
+						}
 					}
 				}
-			}))
+			})
 			return
 		}
 
@@ -1307,16 +1509,22 @@ export function FeedApp() {
 		[composeOpen, viewMode]
 	)
 
-	// Merge feed posts with local updates, filtering out deleted posts
+	// Merge feed posts with local updates, filtering out deleted posts.
+	// `stat` is deep-merged so a partial overlay (e.g. a STAT event that
+	// arrived before the post was in `feed`) cannot wipe out fields the
+	// server-rendered list provides — notably `ownReaction` and
+	// `commentsRead`, which STAT payloads don't carry.
 	const mergedFeed = React.useMemo(() => {
 		return feed
 			.filter((post) => !deletedIds.has(post.actionId))
 			.map((post) => {
 				const update = feedUpdates[post.actionId]
-				if (update) {
-					return { ...post, ...update } as ActionEvt
-				}
-				return post as ActionEvt
+				if (!update) return post as ActionEvt
+				return {
+					...post,
+					...update,
+					stat: update.stat ? { ...post.stat, ...update.stat } : post.stat
+				} as ActionEvt
 			})
 	}, [feed, feedUpdates, deletedIds])
 

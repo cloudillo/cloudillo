@@ -856,21 +856,21 @@ export interface ProfilePatch {
 export interface AdminProfilePatch {
 	name?: string
 	roles?: string[]
-	status?: 'A' | 'T' | 'B' | 'S' | null // Active, Trusted, Blocked, Suspended
+	status?: 'A' | 'B' | 'S' | null // Active, Blocked, Suspended
 }
 
 // PATCH /profiles/:idTag body. Only block/trust-style fields belong here:
 // `following` flows through FOLLOW actions and `connected` through CONN actions,
 // not over this endpoint.
 export interface PatchProfileConnection {
-	status?: 'A' | 'B' | 'T' | null
+	status?: 'A' | 'B' | 'M' | 'S' | null
 	trust?: ProfileTrust | null
 }
 
 export interface ListProfilesQuery {
 	idTag?: string
 	type?: 'person' | 'community'
-	status?: ('A' | 'B' | 'T')[]
+	status?: ('A' | 'B' | 'M' | 'S')[]
 	connected?: boolean | 'R'
 	following?: boolean
 	q?: string

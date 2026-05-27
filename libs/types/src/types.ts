@@ -7,8 +7,8 @@ import * as T from '@symbion/runtype'
 export const tProfileConnectionStatus = T.union(T.boolean, T.literal('R'))
 export type ProfileConnectionStatus = T.TypeOf<typeof tProfileConnectionStatus>
 
-// Profile status: A = Active, T = Trusted, B = Blocked, M = Muted, S = Suspended
-export const tProfileStatus = T.literal('A', 'T', 'B', 'M', 'S')
+// Profile status: A = Active, B = Blocked, M = Muted, S = Suspended
+export const tProfileStatus = T.literal('A', 'B', 'M', 'S')
 export type ProfileStatus = T.TypeOf<typeof tProfileStatus>
 
 // Per-profile trust preference for proxy-token authentication on passive reads.
@@ -372,16 +372,21 @@ export const tReactAction = T.struct({
 })
 export type ReactAction = T.TypeOf<typeof tReactAction>
 
-export const tReactionStatAction = T.struct({
-	type: T.literal('RSTAT'),
+// Federated statistics for a post (parentId).
+// Emitted by the backend; never created by clients directly.
+export const tStatAction = T.struct({
+	type: T.literal('STAT'),
 	subType: T.undefinedValue,
-	content: T.struct({ comment: T.number, reactions: T.array(T.number) }),
+	content: T.struct({
+		r: T.optional(T.string), // compact total+per-type, e.g. "54,L52,V2"
+		c: T.optional(T.number) // total comments
+	}),
 	attachments: T.undefinedValue,
 	parentId: T.string,
 	audience: T.undefinedValue,
 	subject: T.undefinedValue
 })
-export type ReactionStatAction = T.TypeOf<typeof tReactionStatAction>
+export type StatAction = T.TypeOf<typeof tStatAction>
 
 // Messages
 export const tMessageAction = T.struct({
@@ -420,7 +425,7 @@ export const tBaseAction = T.taggedUnion('type')({
 	// Content reactions
 	CMNT: tCommentAction,
 	REACT: tReactAction,
-	RSTAT: tReactionStatAction,
+	STAT: tStatAction,
 
 	// Messages
 	MSG: tMessageAction,

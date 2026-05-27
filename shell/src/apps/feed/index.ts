@@ -13,9 +13,11 @@ export { VisibilitySelector } from './VisibilitySelector.js'
 export type { Visibility } from './VisibilitySelector.js'
 export { ReactionPicker } from './ReactionPicker.js'
 export type { ReactionPickerProps } from './ReactionPicker.js'
+export { CommentBadge } from './CommentBadge.js'
 export {
 	reactionTypes,
 	getReactionEmoji,
+	getReactionPastLabel,
 	parseReactionCounts,
 	updateReactionCounts,
 	totalReactions

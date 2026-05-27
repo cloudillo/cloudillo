@@ -52,6 +52,39 @@ export interface ComposePanelProps {
 
 type SaveStatus = undefined | 'saving' | 'saved'
 
+export interface SaveStatusHandle {
+	setStatus: (s: SaveStatus) => void
+}
+
+interface SaveStatusIndicatorProps {
+	isEditingScheduled: boolean
+}
+
+const SaveStatusIndicator = React.forwardRef<SaveStatusHandle, SaveStatusIndicatorProps>(
+	function SaveStatusIndicator({ isEditingScheduled }, ref) {
+		const { t } = useTranslation()
+		const [status, setStatus] = React.useState<SaveStatus>(undefined)
+		React.useImperativeHandle(ref, () => ({ setStatus }), [])
+		if (!status) return null
+		return (
+			<span
+				style={{
+					fontSize: '0.75rem',
+					color: 'var(--col-on-container)',
+					opacity: 0.6,
+					alignSelf: 'center'
+				}}
+			>
+				{status === 'saving'
+					? t('Saving...')
+					: isEditingScheduled
+						? t('Scheduled post updated')
+						: t('Draft saved')}
+			</span>
+		)
+	}
+)
+
 function inferAttachmentType(subType?: string): AttachmentType {
 	switch (subType) {
 		case 'VIDEO':
@@ -82,8 +115,8 @@ export function ComposePanel({
 	const [visibility, setVisibility] = React.useState<Visibility>('F')
 	const [scheduleDate, setScheduleDate] = React.useState<Date | undefined>()
 	const [showSchedule, setShowSchedule] = React.useState(false)
-	const [saveStatus, setSaveStatus] = React.useState<SaveStatus>(undefined)
 	const editorRef = React.useRef<HTMLDivElement>(null)
+	const saveStatusRef = React.useRef<SaveStatusHandle>(null)
 	const fileInputRef = React.useRef<HTMLInputElement>(null)
 	const imgInputRef = React.useRef<HTMLInputElement>(null)
 	const videoInputRef = React.useRef<HTMLInputElement>(null)
@@ -104,16 +137,15 @@ export function ComposePanel({
 	const [emojiPickerOpen, setEmojiPickerOpen] = React.useState(false)
 	const [emojiRefEl, setEmojiRefEl] = React.useState<HTMLElement | null>(null)
 	const [emojiPopperEl, setEmojiPopperEl] = React.useState<HTMLElement | null>(null)
-	const savedPosRef = React.useRef(0)
+	const savedRangeRef = React.useRef<Range | null>(null)
 	const { styles: emojiPopperStyles, attributes: emojiAttributes } = usePopper(
 		emojiRefEl,
 		emojiPopperEl,
 		{ placement: 'top-end', strategy: 'fixed' }
 	)
 
-	function onChange(text: string, pos: Position) {
+	function onChange(text: string, _pos: Position) {
 		setContent(text)
-		savedPosRef.current = pos.position
 	}
 
 	const edit = useEditable(editorRef, onChange, { disabled: !open })
@@ -122,7 +154,7 @@ export function ComposePanel({
 	React.useEffect(() => {
 		// Clear pending auto-save to prevent stale content overwriting the new draft
 		if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-		setSaveStatus(undefined)
+		saveStatusRef.current?.setStatus(undefined)
 
 		if (draft) {
 			draftIdRef.current = draft.actionId
@@ -186,7 +218,7 @@ export function ComposePanel({
 				? Math.floor(scheduleDate.getTime() / 1000)
 				: undefined
 
-			setSaveStatus('saving')
+			saveStatusRef.current?.setStatus('saving')
 			try {
 				if (draftIdRef.current) {
 					await api.actions.update(draftIdRef.current, {
@@ -216,12 +248,15 @@ export function ComposePanel({
 						draftIdRef.current = res.actionId
 					}
 				}
-				setSaveStatus('saved')
+				saveStatusRef.current?.setStatus('saved')
 				if (savedFadeRef.current) clearTimeout(savedFadeRef.current)
-				savedFadeRef.current = setTimeout(() => setSaveStatus(undefined), 2000)
+				savedFadeRef.current = setTimeout(
+					() => saveStatusRef.current?.setStatus(undefined),
+					2000
+				)
 			} catch (e) {
 				console.error('Auto-save failed', e)
-				setSaveStatus(undefined)
+				saveStatusRef.current?.setStatus(undefined)
 			}
 		}, 1000)
 
@@ -408,7 +443,7 @@ export function ComposePanel({
 		setContent('')
 		setScheduleDate(undefined)
 		setShowSchedule(false)
-		setSaveStatus(undefined)
+		saveStatusRef.current?.setStatus(undefined)
 		draftIdRef.current = undefined
 		imageUpload.reset()
 	}
@@ -435,12 +470,32 @@ export function ComposePanel({
 		}
 	}, [emojiPickerOpen, emojiPopperEl, emojiRefEl])
 
+	function captureEditorSelection() {
+		const sel = window.getSelection()
+		if (sel && sel.rangeCount > 0 && editorRef.current?.contains(sel.anchorNode)) {
+			savedRangeRef.current = sel.getRangeAt(0).cloneRange()
+		} else {
+			savedRangeRef.current = null
+		}
+	}
+
 	function handleEmojiSelect(emoji: { native: string }) {
-		const pos = savedPosRef.current
-		const newContent = content.slice(0, pos) + emoji.native + content.slice(pos)
-		editorRef.current?.focus()
-		edit.update(newContent)
-		edit.move(pos + emoji.native.length)
+		const editor = editorRef.current
+		if (!editor) return
+
+		editor.focus()
+
+		const range = savedRangeRef.current
+		if (range) {
+			const sel = window.getSelection()
+			if (sel) {
+				sel.removeAllRanges()
+				sel.addRange(range)
+			}
+		}
+
+		edit.insert(emoji.native)
+		savedRangeRef.current = null
 		setEmojiPickerOpen(false)
 	}
 
@@ -497,22 +552,10 @@ export function ComposePanel({
 							</div>
 							<div className="c-hbox g-1 align-self-end m-1">
 								<VisibilitySelector value={visibility} onChange={setVisibility} />
-								{saveStatus && (
-									<span
-										style={{
-											fontSize: '0.75rem',
-											color: 'var(--col-on-container)',
-											opacity: 0.6,
-											alignSelf: 'center'
-										}}
-									>
-										{saveStatus === 'saving'
-											? t('Saving...')
-											: isEditingScheduled
-												? t('Scheduled post updated')
-												: t('Draft saved')}
-									</span>
-								)}
+								<SaveStatusIndicator
+									ref={saveStatusRef}
+									isEditingScheduled={isEditingScheduled}
+								/>
 								{isScheduled ? (
 									<Button
 										variant="primary"
@@ -606,7 +649,7 @@ export function ComposePanel({
 							)}
 						</Button>
 						<div className="c-hbox g-2 ms-auto">
-							<div ref={setEmojiRefEl}>
+							<div ref={setEmojiRefEl} onPointerDown={captureEditorSelection}>
 								<Button
 									kind="link"
 									onClick={() => setEmojiPickerOpen(!emojiPickerOpen)}
@@ -620,7 +663,6 @@ export function ComposePanel({
 										ref={setEmojiPopperEl}
 										className="c-popper high"
 										style={{ ...emojiPopperStyles.popper, zIndex: 1000 }}
-										onMouseDown={(e) => e.preventDefault()}
 										{...emojiAttributes.popper}
 									>
 										<Picker

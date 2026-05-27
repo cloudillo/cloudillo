@@ -13,6 +13,8 @@ import {
 	LuUserPlus as IcUserFollowed,
 	LuHandshake as IcUserConnected,
 	LuCircleOff as IcUserBlocked,
+	LuBellOff as IcUserMuted,
+	LuOctagonPause as IcUserSuspended,
 	LuUsers as IcUserAll,
 	LuExternalLink as IcExternalLink,
 	LuPlus as IcPlus,
@@ -20,67 +22,163 @@ import {
 } from 'react-icons/lu'
 
 import type { Profile } from '@cloudillo/types'
-import { useApi, useAuth, Fcd, ProfileCard } from '@cloudillo/react'
+import { useApi, useAuth, Fcd, ProfileCard, Badge } from '@cloudillo/react'
 import { parseQS } from '../utils.js'
 import { useContextSwitch } from '../context/index.js'
+import { ProfileContextMenu, useProfileContextMenu } from '../context/profile-context-menu.js'
 import { useQrScanner } from '../components/QrScanner/index.js'
 
-function ProfileStatusIcon({ profile }: { profile: Profile }) {
+type ProfileStatusCode = 'A' | 'B' | 'M' | 'S'
+const VALID_STATUS_CODES = new Set<ProfileStatusCode>(['A', 'B', 'M', 'S'])
+
+// Defensive parser for the `?status=` query param. Drops malformed/unknown
+// values (e.g. stale `?status=all` URLs from the previous Tabs UI) so the
+// backend never receives a 400. An empty result means "send no status param"
+// — the backend then applies its safe-set default.
+function parseStatusList(raw: unknown): ProfileStatusCode[] {
+	if (typeof raw !== 'string') return []
+	return raw
+		.split(',')
+		.map((s) => s.trim())
+		.filter((s): s is ProfileStatusCode => VALID_STATUS_CODES.has(s as ProfileStatusCode))
+}
+
+function ProfileConnectionIcon({ profile }: { profile: Profile }) {
 	// Check for exactly true (connected) vs 'R' (pending request)
 	if (profile.connected === true) return <IcUserConnected className="text-success" />
 	if (profile.connected === 'R') return <IcUserConnected className="text-warning" />
 	if (profile.following) return <IcUserFollowing className="text-success" />
-	if (profile.status === 'B') return <IcUserBlocked className="text-error" />
 	return <IcUser />
 }
+
+export function ProfileStatusBadge({ profile }: { profile: Profile }) {
+	const { t } = useTranslation()
+	if (profile.status === 'B')
+		return (
+			<Badge className="xs align-self-center" variant="error">
+				{t('Blocked')}
+			</Badge>
+		)
+	if (profile.status === 'S')
+		return (
+			<Badge className="xs align-self-center" variant="warning">
+				{t('Suspended')}
+			</Badge>
+		)
+	if (profile.status === 'M')
+		return (
+			<Badge className="xs align-self-center" variant="secondary">
+				{t('Muted')}
+			</Badge>
+		)
+	return null
+}
+
+const STATUS_FILTERS = [
+	{ value: 'A', label: 'Active', icon: IcUser },
+	{ value: 'M', label: 'Muted', icon: IcUserMuted },
+	{ value: 'S', label: 'Suspended', icon: IcUserSuspended },
+	{ value: 'B', label: 'Blocked', icon: IcUserBlocked },
+	{ value: 'all', label: 'All statuses', icon: IcUserAll }
+] as const
 
 function FilterBar({ className }: { className?: string }) {
 	const { t } = useTranslation()
 	const location = useLocation()
-	const _navigate = useNavigate()
+	const qs = parseQS(location.search)
 	const userStat = { all: 0, connected: 0, followed: 0, following: 0, trusted: 0 }
 
-	const qs = parseQS(location.search)
+	const relFilter: 'connected' | 'followed' | 'all' =
+		qs.connected === '1' ? 'connected' : qs.filter === 'followed' ? 'followed' : 'all'
+	const statusList = parseStatusList(qs.status)
+	const statusFilter: string =
+		statusList.length === 0
+			? 'A'
+			: statusList.length === 4 &&
+					(['A', 'B', 'M', 'S'] as const).every((s) => statusList.includes(s))
+				? 'all'
+				: statusList.length === 1
+					? statusList[0]
+					: ''
+
+	function relHref(v: 'connected' | 'followed' | 'all'): string {
+		const sp = new URLSearchParams(location.search)
+		sp.delete('connected')
+		sp.delete('filter')
+		if (v === 'connected') sp.set('connected', '1')
+		else if (v === 'followed') sp.set('filter', 'followed')
+		const s = sp.toString()
+		return s ? `?${s}` : location.pathname
+	}
+	function statusHref(v: string): string {
+		const sp = new URLSearchParams(location.search)
+		if (v === 'A') sp.delete('status')
+		else if (v === 'all') sp.set('status', 'A,B,M,S')
+		else sp.set('status', v)
+		const s = sp.toString()
+		return s ? `?${s}` : location.pathname
+	}
 
 	return (
-		<ul className={'c-nav vertical low' + (className || '')}>
-			<li className="c-nav-item">
-				<Link
-					className={'c-nav-link ' + (qs.filter === 'connected' ? 'active' : '')}
-					to="?connected=1"
-				>
-					<IcUserConnected /> {t('Connected')}
-					{!!userStat.connected && (
-						<span className="c-badge bg bg-error">{userStat.connected}</span>
-					)}
-				</Link>
-			</li>
-			<li className="c-nav-item">
-				<Link
-					className={'c-nav-link ' + (qs.filter === 'followed' ? 'active' : '')}
-					to="?filter=followed"
-				>
-					<IcUserFollowed /> {t('Followed')}
-					{!!userStat.followed && (
-						<span className="c-badge bg bg-error">{userStat.followed}</span>
-					)}
-				</Link>
-			</li>
-			<li className="c-nav-item">
-				<Link className={'c-nav-link ' + (!qs.filter ? 'active' : '')} to="">
-					<IcUserAll /> {t('All')}
-					{!!userStat.all && <span className="c-badge bg bg-error">{userStat.all}</span>}
-				</Link>
-			</li>
-			<hr className="w-100" />
-
+		<div className={'c-vbox g-2 ' + (className || '')}>
 			<div className="c-input-group">
-				<input type="text" className="c-input" placeholder="Search" />
+				<input type="text" className="c-input" placeholder={t('Search')} />
 				<button className="c-button secondary" type="button">
 					<IcSearch />
 				</button>
 			</div>
-		</ul>
+
+			<h6 className="m-0">{t('Relationship')}</h6>
+			<ul className="c-nav vertical low">
+				<li className="c-nav-item">
+					<Link
+						className={'c-nav-link ' + (relFilter === 'connected' ? 'active' : '')}
+						to={relHref('connected')}
+					>
+						<IcUserConnected /> {t('Connected')}
+						{!!userStat.connected && (
+							<span className="c-badge bg bg-error">{userStat.connected}</span>
+						)}
+					</Link>
+				</li>
+				<li className="c-nav-item">
+					<Link
+						className={'c-nav-link ' + (relFilter === 'followed' ? 'active' : '')}
+						to={relHref('followed')}
+					>
+						<IcUserFollowed /> {t('Followed')}
+						{!!userStat.followed && (
+							<span className="c-badge bg bg-error">{userStat.followed}</span>
+						)}
+					</Link>
+				</li>
+				<li className="c-nav-item">
+					<Link
+						className={'c-nav-link ' + (relFilter === 'all' ? 'active' : '')}
+						to={relHref('all')}
+					>
+						<IcUserAll /> {t('All')}
+						{!!userStat.all && (
+							<span className="c-badge bg bg-error">{userStat.all}</span>
+						)}
+					</Link>
+				</li>
+			</ul>
+
+			<h6 className="m-0">{t('Status')}</h6>
+			<ul className="c-nav vertical low">
+				{STATUS_FILTERS.map(({ value, label, icon: Icon }) => (
+					<li key={value} className="c-nav-item">
+						<Link
+							className={'c-nav-link ' + (statusFilter === value ? 'active' : '')}
+							to={statusHref(value)}
+						>
+							<Icon /> {t(label)}
+						</Link>
+					</li>
+				))}
+			</ul>
+		</div>
 	)
 }
 
@@ -91,9 +189,21 @@ function _ProfileDetails({ className }: { className?: string }) {
 interface ProfileListCardProps {
 	profile: Profile
 	srcTag?: string
+	wrapClick?: (handler: (e: React.MouseEvent) => void) => (e: React.MouseEvent) => void
+	triggerProps?: {
+		onContextMenu: (e: React.MouseEvent) => void
+		onTouchStart: (e: React.TouchEvent) => void
+		onTouchEnd: () => void
+		onTouchMove: () => void
+	}
 }
 
-export function ProfileListCard({ profile, srcTag }: ProfileListCardProps) {
+export function ProfileListCard({
+	profile,
+	srcTag,
+	wrapClick,
+	triggerProps
+}: ProfileListCardProps) {
 	const params = useParams()
 	const contextIdTag = params.contextIdTag!
 
@@ -101,9 +211,12 @@ export function ProfileListCard({ profile, srcTag }: ProfileListCardProps) {
 		<Link
 			className="c-panel p-1 mb-1 flex-row ai-center"
 			to={`/profile/${contextIdTag}/${profile.idTag}`}
+			onClick={wrapClick?.(() => {})}
+			{...triggerProps}
 		>
 			<ProfileCard className="flex-fill" profile={profile} srcTag={srcTag} />
-			<ProfileStatusIcon profile={profile} />
+			<ProfileStatusBadge profile={profile} />
+			<ProfileConnectionIcon profile={profile} />
 		</Link>
 	)
 }
@@ -111,9 +224,21 @@ export function ProfileListCard({ profile, srcTag }: ProfileListCardProps) {
 interface CommunityListCardProps {
 	profile: Profile
 	srcTag?: string
+	wrapClick?: (handler: (e: React.MouseEvent) => void) => (e: React.MouseEvent) => void
+	triggerProps?: {
+		onContextMenu: (e: React.MouseEvent) => void
+		onTouchStart: (e: React.TouchEvent) => void
+		onTouchEnd: () => void
+		onTouchMove: () => void
+	}
 }
 
-export function CommunityListCard({ profile, srcTag }: CommunityListCardProps) {
+export function CommunityListCard({
+	profile,
+	srcTag,
+	wrapClick,
+	triggerProps
+}: CommunityListCardProps) {
 	const { t } = useTranslation()
 	const params = useParams()
 	const navigate = useNavigate()
@@ -144,7 +269,7 @@ export function CommunityListCard({ profile, srcTag }: CommunityListCardProps) {
 			className="c-panel p-1 mb-1 flex-row ai-center"
 			role="button"
 			tabIndex={0}
-			onClick={handleRowClick}
+			onClick={wrapClick ? wrapClick(handleRowClick) : handleRowClick}
 			onKeyDown={(e) => {
 				if (e.key === 'Enter' || e.key === ' ') {
 					e.preventDefault()
@@ -152,6 +277,7 @@ export function CommunityListCard({ profile, srcTag }: CommunityListCardProps) {
 				}
 			}}
 			style={{ cursor: 'pointer' }}
+			{...triggerProps}
 		>
 			<ProfileCard className="flex-fill" profile={profile} srcTag={srcTag} />
 			<button
@@ -163,7 +289,8 @@ export function CommunityListCard({ profile, srcTag }: CommunityListCardProps) {
 			>
 				<IcExternalLink />
 			</button>
-			<ProfileStatusIcon profile={profile} />
+			<ProfileStatusBadge profile={profile} />
+			<ProfileConnectionIcon profile={profile} />
 		</div>
 	)
 }
@@ -176,7 +303,9 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 	const [auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
+	const [refreshTick, setRefreshTick] = React.useState(0)
 	const [, setQrScannerOpen] = useQrScanner()
+	const { menuState, closeMenu, getTriggerProps, wrapClick } = useProfileContextMenu()
 	// Extract contextIdTag from params if available (context-aware route)
 	const contextIdTag = params.contextIdTag || idTag
 
@@ -191,11 +320,20 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 		function loadPersonList() {
 			if (!auth) return
 			;(async function () {
-				const profiles = await api!.profiles.list({ type: 'person' })
+				const qs = parseQS(location.search)
+				const statusList = parseStatusList(qs.status)
+				const connected = qs.connected === '1' ? true : undefined
+				const following = qs.filter === 'followed' ? true : undefined
+				const profiles = await api!.profiles.list({
+					type: 'person',
+					...(statusList.length ? { status: statusList } : {}),
+					...(connected !== undefined ? { connected } : {}),
+					...(following !== undefined ? { following } : {})
+				})
 				setProfiles(profiles)
 			})()
 		},
-		[auth, location.search, contextIdTag]
+		[auth, location.search, contextIdTag, refreshTick]
 	)
 
 	return (
@@ -210,7 +348,17 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 					</div>
 					{!!profiles &&
 						profiles.map((profile) => (
-							<ProfileListCard key={profile.idTag} profile={profile} />
+							<ProfileListCard
+								key={profile.idTag}
+								profile={profile}
+								wrapClick={wrapClick}
+								triggerProps={getTriggerProps({
+									idTag: profile.idTag,
+									name: profile.name || profile.idTag,
+									type: 'person',
+									status: profile.status
+								})}
+							/>
 						))}
 				</Fcd.Content>
 			</Fcd.Container>
@@ -223,6 +371,18 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 				>
 					<IcScan />
 				</button>
+			)}
+
+			{menuState && (
+				<ProfileContextMenu
+					target={menuState.target}
+					position={menuState.position}
+					onClose={closeMenu}
+					onRestored={() => {
+						closeMenu()
+						setRefreshTick((n) => n + 1)
+					}}
+				/>
 			)}
 		</>
 	)
@@ -237,6 +397,8 @@ export function CommunityListPage() {
 	const [auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
+	const [refreshTick, setRefreshTick] = React.useState(0)
+	const { menuState, closeMenu, getTriggerProps, wrapClick } = useProfileContextMenu()
 	// Extract contextIdTag from params if available (context-aware route)
 	const contextIdTag = params.contextIdTag
 
@@ -251,11 +413,20 @@ export function CommunityListPage() {
 		function loadCommunities() {
 			if (!auth) return
 			;(async function () {
-				const profiles = await api!.profiles.list({ type: 'community' })
+				const qs = parseQS(location.search)
+				const statusList = parseStatusList(qs.status)
+				const connected = qs.connected === '1' ? true : undefined
+				const following = qs.filter === 'followed' ? true : undefined
+				const profiles = await api!.profiles.list({
+					type: 'community',
+					...(statusList.length ? { status: statusList } : {}),
+					...(connected !== undefined ? { connected } : {}),
+					...(following !== undefined ? { following } : {})
+				})
 				setProfiles(profiles)
 			})()
 		},
-		[auth, location.search, contextIdTag]
+		[auth, location.search, contextIdTag, refreshTick]
 	)
 
 	return (
@@ -270,7 +441,17 @@ export function CommunityListPage() {
 					</div>
 					{!!profiles &&
 						profiles.map((profile) => (
-							<CommunityListCard key={profile.idTag} profile={profile} />
+							<CommunityListCard
+								key={profile.idTag}
+								profile={profile}
+								wrapClick={wrapClick}
+								triggerProps={getTriggerProps({
+									idTag: profile.idTag,
+									name: profile.name || profile.idTag,
+									type: 'community',
+									status: profile.status
+								})}
+							/>
 						))}
 				</Fcd.Content>
 			</Fcd.Container>
@@ -283,6 +464,18 @@ export function CommunityListPage() {
 			>
 				<IcPlus />
 			</button>
+
+			{menuState && (
+				<ProfileContextMenu
+					target={menuState.target}
+					position={menuState.position}
+					onClose={closeMenu}
+					onRestored={() => {
+						closeMenu()
+						setRefreshTick((n) => n + 1)
+					}}
+				/>
+			)}
 		</>
 	)
 }

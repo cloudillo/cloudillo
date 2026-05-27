@@ -15,7 +15,7 @@ import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth, useToast, mergeClasses, ProfilePicture } from '@cloudillo/react'
 
-import { LuClock3 as IcPending, LuPin as IcPin, LuPinOff as IcPinOff } from 'react-icons/lu'
+import { LuClock3 as IcPending, LuPin as IcPin } from 'react-icons/lu'
 
 import {
 	useCommunitiesList,
@@ -28,6 +28,7 @@ import {
 import { HOME_CONTEXT, CONTEXT_ROUTE_REGEX } from './constants'
 import { useAtom, useAtomValue } from 'jotai'
 import type { CommunityRef } from './types'
+import { ProfileContextMenu, useProfileContextMenu } from './profile-context-menu'
 
 interface CommunityListItemProps {
 	community: CommunityRef
@@ -35,6 +36,13 @@ interface CommunityListItemProps {
 	onSwitch: (idTag: string) => void
 	onTogglePin: (idTag: string) => void
 	mode: 'pinned' | 'preview'
+	wrapClick?: (handler: (e: React.MouseEvent) => void) => (e: React.MouseEvent) => void
+	triggerProps?: {
+		onContextMenu: (e: React.MouseEvent) => void
+		onTouchStart: (e: React.TouchEvent) => void
+		onTouchEnd: () => void
+		onTouchMove: () => void
+	}
 	// Drag-and-drop props (optional, only for pinned items)
 	draggable?: boolean
 	isDragging?: boolean
@@ -51,6 +59,8 @@ function CommunityListItem({
 	onSwitch,
 	onTogglePin,
 	mode,
+	wrapClick,
+	triggerProps,
 	draggable,
 	isDragging,
 	isDragOver,
@@ -69,9 +79,7 @@ function CommunityListItem({
 		? t('Currently viewing {{name}} (not pinned)', { name: community.name })
 		: baseAriaLabel
 
-	const pinAriaLabel = isPreview
-		? t('Pin {{name}} to context bar', { name: community.name })
-		: t('Unpin {{name}}', { name: community.name })
+	const pinAriaLabel = t('Pin {{name}} to context bar', { name: community.name })
 
 	return (
 		<div
@@ -87,7 +95,11 @@ function CommunityListItem({
 			tabIndex={0}
 			aria-label={ariaLabel}
 			aria-current={isActive ? 'true' : undefined}
-			onClick={() => onSwitch(community.idTag)}
+			onClick={
+				wrapClick
+					? wrapClick(() => onSwitch(community.idTag))
+					: () => onSwitch(community.idTag)
+			}
 			onKeyDown={(e) => {
 				if (e.key === 'Enter' || e.key === ' ') {
 					e.preventDefault()
@@ -100,6 +112,7 @@ function CommunityListItem({
 			onDragOver={onDragOver}
 			onDrop={onDrop}
 			onDragEnd={onDragEnd}
+			{...triggerProps}
 		>
 			<div className="c-sidebar-item-avatar">
 				<ProfilePicture
@@ -112,25 +125,27 @@ function CommunityListItem({
 					</span>
 				)}
 			</div>
-			<button
-				type="button"
-				className="c-sidebar-item-pin-overlay"
-				aria-label={pinAriaLabel}
-				title={pinAriaLabel}
-				onClick={(e) => {
-					e.preventDefault()
-					e.stopPropagation()
-					onTogglePin(community.idTag)
-				}}
-				onKeyDown={(e) => {
-					// Prevent the parent row's Enter/Space handler from also firing
-					if (e.key === 'Enter' || e.key === ' ') {
+			{isPreview && (
+				<button
+					type="button"
+					className="c-sidebar-item-pin-overlay"
+					aria-label={pinAriaLabel}
+					title={pinAriaLabel}
+					onClick={(e) => {
+						e.preventDefault()
 						e.stopPropagation()
-					}
-				}}
-			>
-				{isPreview ? <IcPin size={12} /> : <IcPinOff size={12} />}
-			</button>
+						onTogglePin(community.idTag)
+					}}
+					onKeyDown={(e) => {
+						// Prevent the parent row's Enter/Space handler from also firing
+						if (e.key === 'Enter' || e.key === ' ') {
+							e.stopPropagation()
+						}
+					}}
+				>
+					<IcPin size={12} />
+				</button>
+			)}
 			<div className="c-sidebar-item-info">
 				<div className="c-sidebar-item-name">{community.name}</div>
 				{community.isPending && (
@@ -162,6 +177,7 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 	const { error: toastError } = useToast()
 	const location = useLocation()
 	const [isDesktop, setIsDesktop] = React.useState(window.innerWidth >= 1024)
+	const { menuState, closeMenu, getTriggerProps, wrapClick } = useProfileContextMenu()
 
 	// Drag-and-drop state for reordering pinned communities
 	const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null)
@@ -269,13 +285,18 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 						tabIndex={0}
 						aria-label={t('My profile')}
 						aria-current={activeContext?.idTag === auth.idTag ? 'true' : undefined}
-						onClick={() => handleSwitch(auth.idTag!)}
+						onClick={wrapClick(() => handleSwitch(auth.idTag!))}
 						onKeyDown={(e) => {
 							if (e.key === 'Enter' || e.key === ' ') {
 								e.preventDefault()
 								handleSwitch(auth.idTag!)
 							}
 						}}
+						{...getTriggerProps({
+							idTag: auth.idTag!,
+							name: auth.name ?? auth.idTag!,
+							type: 'me'
+						})}
 					>
 						<div className="c-sidebar-item-avatar">
 							<ProfilePicture
@@ -297,6 +318,12 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 								onSwitch={handleSwitch}
 								onTogglePin={toggleFavorite}
 								mode="pinned"
+								wrapClick={wrapClick}
+								triggerProps={getTriggerProps({
+									idTag: community.idTag,
+									name: community.name,
+									type: 'community'
+								})}
 								draggable
 								isDragging={draggedIndex === index}
 								isDragOver={dragOverIndex === index}
@@ -328,6 +355,12 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 							onSwitch={handleSwitch}
 							onTogglePin={toggleFavorite}
 							mode="preview"
+							wrapClick={wrapClick}
+							triggerProps={getTriggerProps({
+								idTag: previewCommunity.idTag,
+								name: previewCommunity.name,
+								type: 'community'
+							})}
 						/>
 					</div>
 				)}
@@ -338,6 +371,14 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 				className={mergeClasses('c-sidebar-backdrop', isOpen && !isDesktop && 'show')}
 				onClick={close}
 			/>
+
+			{menuState && (
+				<ProfileContextMenu
+					target={menuState.target}
+					position={menuState.position}
+					onClose={closeMenu}
+				/>
+			)}
 		</>
 	)
 })

@@ -12,6 +12,7 @@ import {
 	Button,
 	Popper,
 	Fcd,
+	LoadingSpinner,
 	useDialog,
 	useToast,
 	ProfileCard,
@@ -43,7 +44,12 @@ import { ImageUpload } from '../image.js'
 import { type ActionEvt, ActionComp, ComposeTrigger } from '../apps/feed.js'
 import { ComposePanel } from '../apps/feed/index.js'
 import type { Profile } from '@cloudillo/types'
-import { ProfileListCard, PersonListPage, CommunityListPage } from './identities.js'
+import {
+	ProfileListCard,
+	PersonListPage,
+	CommunityListPage,
+	ProfileStatusBadge
+} from './identities.js'
 import { CreateCommunity } from './community.js'
 import { ProfileAbout } from './about/ProfileAbout.js'
 import { parseTabConfig, getEffectiveTabs, type TabConfig } from './about/types.js'
@@ -793,6 +799,7 @@ function MemberCard({
 	return (
 		<div className="c-panel flex-row p-2 mb-1 g-2 ai-center">
 			<ProfileCard className="flex-fill" profile={member} srcTag={srcTag} />
+			<ProfileStatusBadge profile={member} />
 
 			{canChangeRole ? (
 				<Popper
@@ -1589,7 +1596,15 @@ function ProfileView() {
 	// Determine if this is a community profile
 	const isCommunity = profile?.type === 'community'
 
-	return !profile ? null : (
+	if (!profile) {
+		return (
+			<div className="d-flex align-items-center justify-content-center w-100 h-100">
+				<LoadingSpinner size="lg" label={t('Loading profile...')} />
+			</div>
+		)
+	}
+
+	return (
 		<ProfilePage
 			profile={profile}
 			setProfile={setProfile}

@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/fonts",
-	"version": "0.8.13",
+	"version": "0.8.14",
 	"private": true,
 	"description": "Curated open-source font collection for web apps — variable fonts with auto-download script",
 	"keywords": [

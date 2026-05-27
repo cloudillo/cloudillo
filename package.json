@@ -1,10 +1,9 @@
 {
 	"name": "cloudillo",
-	"version": "0.8.13",
+	"version": "0.8.14",
 	"description": "Decentralized, self-hosted collaboration platform — privacy-first alternative to Google Workspace",
 	"private": true,
 	"type": "module",
-	"packageManager": "pnpm@9.14.4",
 	"keywords": [
 		"collaboration",
 		"self-hosted",
@@ -36,9 +35,9 @@
 		"test:watch": "pnpm -r test:watch",
 		"test:coverage": "pnpm -r test:coverage",
 		"version-sync": "pnpm -r --filter '!./local/**' exec npm pkg set version=$npm_package_version",
-		"version-bump": "pnpm version patch --no-git-tag-version && pnpm version-sync",
-		"version-bump:minor": "pnpm version minor --no-git-tag-version && pnpm version-sync",
-		"version-bump:major": "pnpm version major --no-git-tag-version && pnpm version-sync",
+		"version-bump": "pnpm version patch --no-git-tag-version --git-checks=false && pnpm version-sync",
+		"version-bump:minor": "pnpm version minor --no-git-tag-version --git-checks=false && pnpm version-sync",
+		"version-bump:major": "pnpm version major --no-git-tag-version --git-checks=false && pnpm version-sync",
 		"publish-libs:build": "pnpm -r --filter './libs/*' build",
 		"publish-libs:build-ts": "pnpm -r --filter './libs/*' build-ts",
 		"publish-libs:dry": "pnpm -r --filter './libs/*' publish --access public --no-git-checks --dry-run",
@@ -52,13 +51,7 @@
 		"docker-all": "pnpm build-docker && pnpm build-docker-slim && pnpm build-docker-alpine && pnpm publish-docker && pnpm publish-docker-slim && pnpm publish-docker-alpine"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.4.14",
-		"@typescript/native-preview": "^7.0.0-dev.20260501"
-	},
-	"pnpm": {
-		"overrides": {
-			"react": "19.2.6",
-			"react-dom": "19.2.6"
-		}
+		"@biomejs/biome": "^2.4.16",
+		"@typescript/native-preview": "7.0.0-dev.20260527.1"
 	}
 }

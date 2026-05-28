@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/crdt",
-	"version": "0.8.14",
+	"version": "0.8.15",
 	"description": "Yjs CRDT collaborative editing client for Cloudillo — IndexedDB persistence, awareness, and WebSocket sync",
 	"keywords": [
 		"cloudillo",

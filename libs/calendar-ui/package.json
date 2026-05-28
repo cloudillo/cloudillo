@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/calendar-ui",
-	"version": "0.8.14",
+	"version": "0.8.15",
 	"description": "React calendar component — day, week, and month views with drag, resize, and touch support",
 	"keywords": [
 		"cloudillo",

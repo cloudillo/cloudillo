@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/canvas-text",
-	"version": "0.8.14",
+	"version": "0.8.15",
 	"description": "Rich text rendering, editing, and SVG export for canvas-based React apps — built on Quill and Yjs",
 	"keywords": [
 		"cloudillo",

@@ -1,6 +1,6 @@
 {
 	"name": "cloudillo",
-	"version": "0.8.14",
+	"version": "0.8.15",
 	"description": "Decentralized, self-hosted collaboration platform — privacy-first alternative to Google Workspace",
 	"private": true,
 	"type": "module",
@@ -24,6 +24,7 @@
 		"url": "https://github.com/cloudillo/cloudillo/issues"
 	},
 	"license": "LGPL-3.0-or-later",
+	"packageManager": "pnpm@11.4.0",
 	"scripts": {
 		"lint": "biome lint --error-on-warnings .",
 		"lint:fix": "biome lint --fix .",

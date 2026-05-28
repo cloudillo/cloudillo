@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/rtdb",
-	"version": "0.8.14",
+	"version": "0.8.15",
 	"description": "Real-time, queryable database client for Cloudillo — Firestore-style API with subscriptions, batches, and document locking",
 	"keywords": [
 		"cloudillo",

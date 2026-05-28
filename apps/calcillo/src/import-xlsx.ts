@@ -365,7 +365,7 @@ function applyFont(cell: Cell, font: Partial<ExcelJS.Font> | undefined): void {
 }
 
 function applyFill(cell: Cell, fill: ExcelJS.Fill | undefined): void {
-	if (!fill || fill.type !== 'pattern') return
+	if (fill?.type !== 'pattern') return
 
 	const patternFill = fill as ExcelJS.FillPattern
 	const bgColor = resolveColor(patternFill.fgColor)

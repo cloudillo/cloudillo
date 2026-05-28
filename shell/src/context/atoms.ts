@@ -186,7 +186,7 @@ export const favoriteCommunitiesAtom = atom((get) => {
  */
 export const previewCommunityAtom = atom((get) => {
 	const active = get(activeContextAtom)
-	if (!active || active.type !== 'community') return null
+	if (active?.type !== 'community') return null
 	const favorites = get(favoritesAtom)
 	if (favorites.includes(active.idTag)) return null
 	const communities = get(communitiesAtom)

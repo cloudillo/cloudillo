@@ -1128,8 +1128,7 @@ export function PrezilloApp() {
 										const editingObject = canvasObjects.find(
 											(o) => o.id === editingTextId
 										)
-										if (!editingObject || editingObject.type !== 'text')
-											return null
+										if (editingObject?.type !== 'text') return null
 										// Use temp bounds during drag for visual feedback
 										const editTempBounds =
 											tempObjectState?.objectId === editingTextId

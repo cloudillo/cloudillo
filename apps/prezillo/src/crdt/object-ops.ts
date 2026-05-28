@@ -1588,7 +1588,7 @@ export function updateDocumentNavState(
 	aspectRatio?: [number, number]
 ): void {
 	const existing = doc.o.get(objectId)
-	if (!existing || existing.t !== 'D') return
+	if (existing?.t !== 'D') return
 
 	const stored = existing as StoredDocEmbed
 	// Skip if nothing changed

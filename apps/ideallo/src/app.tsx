@@ -465,7 +465,7 @@ export function IdealloApp() {
 		if (selectedIds.size !== 1 || !ideallo.doc) return undefined
 		const id = Array.from(selectedIds)[0]
 		const obj = getObject(ideallo.doc, id)
-		if (!obj || obj.type !== 'image') return undefined
+		if (obj?.type !== 'image') return undefined
 		return obj.width / obj.height
 	}, [selectedIds, ideallo.doc, ideallo.objects])
 

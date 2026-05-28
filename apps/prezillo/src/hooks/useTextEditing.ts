@@ -47,7 +47,7 @@ export function useTextEditing({ prezillo }: UseTextEditingOptions): UseTextEdit
 		if (prezillo.selectedIds.size !== 1) return null
 		const id = Array.from(prezillo.selectedIds)[0]
 		const obj = prezillo.doc.o.get(id)
-		if (!obj || obj.t !== 'T') return null
+		if (obj?.t !== 'T') return null
 		return { id, obj }
 	}, [prezillo.selectedIds, prezillo.doc.o])
 
@@ -65,7 +65,7 @@ export function useTextEditing({ prezillo }: UseTextEditingOptions): UseTextEdit
 		if (!editingTextId) return
 
 		const storedObj = prezillo.doc.o.get(editingTextId)
-		if (!storedObj || storedObj.t !== 'T') {
+		if (storedObj?.t !== 'T') {
 			setEditingTextId(null)
 			return
 		}

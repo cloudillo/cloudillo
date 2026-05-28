@@ -80,7 +80,7 @@ export function HandActionBar({
 	const [lastUsed, setLastUsed] = React.useState<AccessLevel>(initialAccess)
 	const [placeAccess, setPlaceAccess] = React.useState<AccessLevel>(initialAccess)
 
-	if (!hand || hand.status !== 'active' || !auth || !activeContext || !api) return null
+	if (hand?.status !== 'active' || !auth || !activeContext || !api) return null
 
 	const items = hand.items
 	const ctxIdTag = activeContext.idTag

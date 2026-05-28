@@ -154,7 +154,7 @@ export function PropertyBar({
 		if (selectedIds.size === 0) return false
 		for (const id of selectedIds) {
 			const obj = getObject(doc, id)
-			if (!obj || obj.type !== 'image') return false
+			if (obj?.type !== 'image') return false
 		}
 		return true
 	}, [doc, selectedIds])

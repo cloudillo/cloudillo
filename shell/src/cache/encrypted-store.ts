@@ -9,7 +9,7 @@
  * encrypted; index fields are stored in the clear for offline queries.
  */
 
-import { encryptJSON, decryptJSON, getSwKeyFromCookie } from './crypto.js'
+import { encryptJSON, decryptJSON, getSwKeyFromCookie, maybeSignalKeyMissing } from './crypto.js'
 import type { CachedRecordBase, SyncMeta, StoreConfig, OfflineQuerySpec } from './types.js'
 
 const DB_NAME = 'cloudillo-data-cache'
@@ -70,6 +70,7 @@ function openDB(): Promise<IDBDatabase> {
 	// Without this guard, pre-auth code paths would materialise an empty
 	// `cloudillo-data-cache` that the SW probe must then clean up.
 	if (!getSwKeyFromCookie()) {
+		maybeSignalKeyMissing()
 		return Promise.reject(new Error('Encrypted store unavailable: no encryption key'))
 	}
 

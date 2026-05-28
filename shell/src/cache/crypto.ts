@@ -20,7 +20,7 @@ let keyMissingSignaled = false
 // a spurious dialog (and loop, since the dialog's reset path goes through
 // the same code on reload). The guard keeps the hot encrypt/decrypt
 // paths cheap.
-function maybeSignalKeyMissing(): void {
+export function maybeSignalKeyMissing(): void {
 	if (keyMissingSignaled) return
 	if (!hadEncryptedData()) return
 	keyMissingSignaled = true

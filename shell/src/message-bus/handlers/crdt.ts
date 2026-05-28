@@ -21,7 +21,13 @@ import type {
 	CrdtCacheReadReq,
 	CrdtCacheCompactReq
 } from '@cloudillo/core'
-import { encryptBinary, decryptBinary, getSwKeyFromCookie } from '../../cache/crypto.js'
+import {
+	encryptBinary,
+	decryptBinary,
+	getSwKeyFromCookie,
+	maybeSignalKeyMissing
+} from '../../cache/crypto.js'
+import { hadEncryptedData } from '../../pwa.js'
 
 // ============================================
 // CONSTANTS
@@ -69,16 +75,35 @@ function tryAcquireLock(name: string): Promise<AcquiredLock | null> {
 
 let db: IDBDatabase | null = null
 
-function openDB(): Promise<IDBDatabase> {
-	if (db) return Promise.resolve(db)
+async function crdtDbExists(): Promise<boolean> {
+	if (typeof indexedDB.databases !== 'function') return false
+	try {
+		const dbs = await indexedDB.databases()
+		return dbs.some((d) => d.name === DB_NAME)
+	} catch {
+		return false
+	}
+}
 
-	// Refuse to create the database before the encryption key is available
-	// — keeps the phantom-DB problem from re-appearing on the main thread.
+async function openDB(): Promise<IDBDatabase | null> {
+	if (db) return db
+
+	// Local persistence is optional — it only enables offline support.
+	// Without an encryption key, return null so callers can degrade:
+	// allocate a random clientId, skip cache reads/writes, etc. The
+	// app continues to work via the WebSocket. We still avoid creating
+	// the IDB when no key exists (phantom-DB guard: SW boot probe at
+	// shell/sw/index.ts:hasEncryptedData uses `indexedDB.databases()`
+	// to detect prior encrypted state).
 	if (!getSwKeyFromCookie()) {
-		return Promise.reject(new Error('CRDT store unavailable: no encryption key'))
+		const dbExists = (await crdtDbExists()) || hadEncryptedData()
+		if (!dbExists) return null
+		// Cookie lost but DB exists on disk — surface recovery dialog
+		// and try to open. Encrypt/decrypt will fail individually.
+		maybeSignalKeyMissing()
 	}
 
-	return new Promise((resolve, reject) => {
+	return new Promise<IDBDatabase | null>((resolve, reject) => {
 		const request = indexedDB.open(DB_NAME, DB_VERSION)
 		request.onupgradeneeded = (event) => {
 			const database = request.result
@@ -154,6 +179,8 @@ export function releaseClientIdsForWindow(appWindow: Window): void {
 
 async function allocateClientId(appWindow: Window, docId: string): Promise<number> {
 	const database = await openDB()
+	// No local persistence — return a random clientId, no reuse, no lock.
+	if (!database) return randomClientId()
 
 	// Query all clientId records for this docId
 	const keys = await new Promise<string[]>((resolve, reject) => {
@@ -215,10 +242,12 @@ async function cacheAppend(
 	clock: number,
 	offline: boolean
 ): Promise<void> {
+	const database = await openDB()
+	// No local persistence — silently no-op (WebSocket sync handles delivery).
+	if (!database) return
+
 	const encrypted = await encryptBinary(update)
 	if (!encrypted) throw new Error('Encryption unavailable')
-
-	const database = await openDB()
 
 	// Retry with a new random key on collision (add() throws ConstraintError on duplicate)
 	for (let attempt = 0; attempt < 3; attempt++) {
@@ -257,6 +286,8 @@ async function cacheAppend(
 async function cacheRead(docId: string): Promise<Uint8Array[]> {
 	const database = await openDB()
 	const results: Uint8Array[] = []
+	// No local persistence — nothing cached to read.
+	if (!database) return results
 
 	// Read compacted state + all log entries in one transaction
 	const { state, logEntries } = await new Promise<{
@@ -298,10 +329,12 @@ async function cacheRead(docId: string): Promise<Uint8Array[]> {
 }
 
 async function cacheCompact(docId: string, state: Uint8Array, clearDirty?: boolean): Promise<void> {
+	const database = await openDB()
+	// No local persistence — nothing to compact.
+	if (!database) return
+
 	const encrypted = await encryptBinary(state)
 	if (!encrypted) throw new Error('Encryption unavailable')
-
-	const database = await openDB()
 
 	// Get all log keys to delete
 	const logKeys = await new Promise<IDBValidKey[]>((resolve, reject) => {
@@ -347,6 +380,7 @@ export async function getDirtyDocIds(): Promise<Set<string>> {
 	const dirty = new Set<string>()
 	try {
 		const database = await openDB()
+		if (!database) return dirty
 		const keys = await new Promise<IDBValidKey[]>((resolve, reject) => {
 			const tx = database.transaction(CACHE_STORE, 'readonly')
 			const store = tx.objectStore(CACHE_STORE)

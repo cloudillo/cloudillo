@@ -889,17 +889,39 @@ export function ProfileConnections({
 
 	const triggerRefresh = React.useCallback(() => setRefreshTick((n) => n + 1), [])
 
+	// `connected === true` is the membership signal; 'R' (request pending) and
+	// undefined/false are NOT members. The /profiles list also includes
+	// invited-but-unaccepted people, so the Active tab and the Invitations
+	// "accepted" derivation must filter on this.
+	const memberProfiles = React.useMemo(
+		() => profiles.filter((p) => p.connected === true),
+		[profiles]
+	)
+	const connectedMemberTags = React.useMemo(
+		() => new Set(memberProfiles.map((p) => p.idTag)),
+		[memberProfiles]
+	)
+
 	React.useEffect(
 		function loadConnections() {
 			if (!auth) return
 			const client = getClientFor(profile.idTag, { auth: 'preferred' })
 			if (!client) return
+			let cancelled = false
 			;(async function () {
-				const profiles = await client.profiles.list({ type: 'person' })
-				setProfiles(profiles as Profile[])
+				try {
+					const profiles = await client.profiles.list({ type: 'person' })
+					if (!cancelled) setProfiles(profiles as Profile[])
+				} catch (err) {
+					console.error('Failed to load member profiles', err)
+					if (!cancelled) toast.error(t('Failed to load members'))
+				}
 			})()
+			return () => {
+				cancelled = true
+			}
 		},
-		[auth, location.search, refreshTick, profile.idTag, getClientFor]
+		[auth, location.search, refreshTick, profile.idTag, getClientFor, toast, t]
 	)
 
 	React.useEffect(
@@ -917,10 +939,21 @@ export function ProfileConnections({
 					console.error('Failed to load CONN counts', err)
 					if (!cancelled) setRequestCount(0)
 				})
+			// Home-side INVT copies rest at 'A' (the community keeps them on
+			// record for the SUBS/CONN invitation lookup) and INVT acceptance
+			// never changes that status, so a status:['C','P'] filter under-counts.
+			// Instead, list INVTs for this community (status:['C','P','A']
+			// excludes revoked/declined 'D'/'R' server-side) and count as
+			// pending those whose invitee is not yet a connected member. This
+			// mirrors the Invitations list.
 			client.actions
-				.list({ type: 'INVT', subject: '@' + profile.idTag, status: ['C', 'P'] })
+				.list({ type: 'INVT', subject: '@' + profile.idTag, status: ['C', 'P', 'A'] })
 				.then((rs) => {
-					if (!cancelled) setInvitationCount((rs as ActionView[]).length)
+					if (cancelled) return
+					const pending = (rs as ActionView[]).filter(
+						(a) => !(a.audience?.idTag && connectedMemberTags.has(a.audience.idTag))
+					)
+					setInvitationCount(pending.length)
 				})
 				.catch((err) => {
 					console.error('Failed to load INVT counts', err)
@@ -930,7 +963,14 @@ export function ProfileConnections({
 				cancelled = true
 			}
 		},
-		[profile.idTag, canManageMembers, isCommunity, refreshTick, getClientFor]
+		[
+			profile.idTag,
+			canManageMembers,
+			isCommunity,
+			refreshTick,
+			getClientFor,
+			connectedMemberTags
+		]
 	)
 
 	// Handle role change
@@ -971,7 +1011,7 @@ export function ProfileConnections({
 
 	const activeMembersList = (
 		<>
-			{profiles.map((p) => (
+			{memberProfiles.map((p) => (
 				<MemberCard
 					key={p.idTag}
 					member={p}
@@ -1042,6 +1082,7 @@ export function ProfileConnections({
 					<InvitationsList
 						communityIdTag={profile.idTag}
 						getClientFor={getClientFor}
+						connectedMemberTags={connectedMemberTags}
 						onChange={triggerRefresh}
 					/>
 				)}

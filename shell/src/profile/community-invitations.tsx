@@ -21,22 +21,17 @@ interface InvitationsListProps {
 		idTag: string,
 		opts?: { auth?: 'required' | 'preferred' | 'none' }
 	) => ApiClient | null
+	/** Id tags of invitees who have already accepted (connected members). */
+	connectedMemberTags: Set<string>
 	onChange: () => void
 }
 
-function statusLabel(status: string | undefined, t: (k: string) => string): string {
-	switch (status) {
-		case 'A':
-			return t('Accepted')
-		case 'R':
-		case 'D':
-			return t('Declined')
-		default:
-			return t('Pending')
-	}
-}
-
-export function InvitationsList({ communityIdTag, getClientFor, onChange }: InvitationsListProps) {
+export function InvitationsList({
+	communityIdTag,
+	getClientFor,
+	connectedMemberTags,
+	onChange
+}: InvitationsListProps) {
 	const { t } = useTranslation()
 	const dialog = useDialog()
 	const toast = useToast()
@@ -50,18 +45,27 @@ export function InvitationsList({ communityIdTag, getClientFor, onChange }: Invi
 			return
 		}
 		try {
+			// The community-home INVT copy rests at 'A' and never changes on
+			// acceptance (INVT has requires_acceptance:false), so status is not a
+			// usable "accepted" signal here. Acceptance is signalled by the
+			// invitee becoming a connected member. The status filter excludes
+			// revoked/declined ('D'/'R') rows server-side; the remaining
+			// client-side filter drops invitees who are already members.
 			const rs = (await client.actions.list({
 				type: 'INVT',
 				subject: '@' + communityIdTag,
 				status: ['C', 'P', 'A']
 			})) as ActionView[]
-			setInvitations(rs)
+			const pending = rs.filter(
+				(a) => !(a.audience?.idTag && connectedMemberTags.has(a.audience.idTag))
+			)
+			setInvitations(pending)
 		} catch (err) {
 			console.error('Failed to load invitations', err)
 			toast.error(t('Failed to load invitations'))
 			setInvitations([])
 		}
-	}, [communityIdTag, getClientFor, toast, t])
+	}, [communityIdTag, getClientFor, connectedMemberTags, toast, t])
 
 	React.useEffect(() => {
 		reload()
@@ -103,7 +107,6 @@ export function InvitationsList({ communityIdTag, getClientFor, onChange }: Invi
 		<>
 			{invitations.map((action) => {
 				const busy = busyId === action.actionId
-				const isPending = action.status === 'C' || action.status === 'P'
 				const invitee = action.audience
 				return (
 					<div
@@ -116,7 +119,7 @@ export function InvitationsList({ communityIdTag, getClientFor, onChange }: Invi
 							) : (
 								<div className="flex-fill text-muted">{t('(unknown)')}</div>
 							)}
-							<span className="c-badge">{statusLabel(action.status, t)}</span>
+							<span className="c-badge">{t('Pending')}</span>
 							<TimeFormat time={action.createdAt} />
 						</div>
 						{action.issuer && (
@@ -126,13 +129,11 @@ export function InvitationsList({ communityIdTag, getClientFor, onChange }: Invi
 								})}
 							</p>
 						)}
-						{isPending && (
-							<div className="c-hbox g-2 jc-end">
-								<Button disabled={busy} onClick={() => handleRevoke(action)}>
-									{t('Revoke invitation')}
-								</Button>
-							</div>
-						)}
+						<div className="c-hbox g-2 jc-end">
+							<Button disabled={busy} onClick={() => handleRevoke(action)}>
+								{t('Revoke invitation')}
+							</Button>
+						</div>
 					</div>
 				)
 			})}

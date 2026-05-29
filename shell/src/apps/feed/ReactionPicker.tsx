@@ -9,7 +9,12 @@ import { LuThumbsUp as IcThumbsUp, LuX as IcRemove } from 'react-icons/lu'
 
 import { Button, mergeClasses } from '@cloudillo/react'
 
-import { reactionTypes, getReactionEmoji, getReactionPastLabel } from './reactions.js'
+import {
+	reactionTypes,
+	getReactionEmoji,
+	getReactionLabel,
+	getReactionPastLabel
+} from './reactions.js'
 
 export interface ReactionPickerProps {
 	className?: string
@@ -158,7 +163,7 @@ export function ReactionPicker({ className, ownReaction, onReact }: ReactionPick
 		handleSelect(ownReaction)
 	}
 
-	const activeLabel = ownReaction ? t(getReactionPastLabel(ownReaction)) : null
+	const activeLabel = ownReaction ? getReactionPastLabel(t, ownReaction) : null
 
 	return (
 		<div
@@ -206,8 +211,8 @@ export function ReactionPicker({ className, ownReaction, onReact }: ReactionPick
 								<button
 									key={r.key}
 									type="button"
-									title={t(r.label)}
-									aria-label={t(r.label)}
+									title={getReactionLabel(t, r.key)}
+									aria-label={getReactionLabel(t, r.key)}
 									onClick={() => handleSelect(r.key)}
 									style={{
 										fontSize: '1.4rem',

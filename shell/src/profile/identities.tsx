@@ -4,6 +4,7 @@
 import * as React from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 
 import {
 	LuSearch as IcSearch,
@@ -74,16 +75,18 @@ export function ProfileStatusBadge({ profile }: { profile: Profile }) {
 	return null
 }
 
-const STATUS_FILTERS = [
-	{ value: 'A', label: 'Active', icon: IcUser },
-	{ value: 'M', label: 'Muted', icon: IcUserMuted },
-	{ value: 'S', label: 'Suspended', icon: IcUserSuspended },
-	{ value: 'B', label: 'Blocked', icon: IcUserBlocked },
-	{ value: 'all', label: 'All statuses', icon: IcUserAll }
-] as const
+const getStatusFilters = (t: TFunction) =>
+	[
+		{ value: 'A', label: t('Active'), icon: IcUser },
+		{ value: 'M', label: t('Muted'), icon: IcUserMuted },
+		{ value: 'S', label: t('Suspended'), icon: IcUserSuspended },
+		{ value: 'B', label: t('Blocked'), icon: IcUserBlocked },
+		{ value: 'all', label: t('All statuses'), icon: IcUserAll }
+	] as const
 
 function FilterBar({ className }: { className?: string }) {
 	const { t } = useTranslation()
+	const statusFilters = getStatusFilters(t)
 	const location = useLocation()
 	const qs = parseQS(location.search)
 	const userStat = { all: 0, connected: 0, followed: 0, following: 0, trusted: 0 }
@@ -167,13 +170,13 @@ function FilterBar({ className }: { className?: string }) {
 
 			<h6 className="m-0">{t('Status')}</h6>
 			<ul className="c-nav vertical low">
-				{STATUS_FILTERS.map(({ value, label, icon: Icon }) => (
+				{statusFilters.map(({ value, label, icon: Icon }) => (
 					<li key={value} className="c-nav-item">
 						<Link
 							className={'c-nav-link ' + (statusFilter === value ? 'active' : '')}
 							to={statusHref(value)}
 						>
-							<Icon /> {t(label)}
+							<Icon /> {label}
 						</Link>
 					</li>
 				))}

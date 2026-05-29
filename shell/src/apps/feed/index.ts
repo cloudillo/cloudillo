@@ -17,6 +17,7 @@ export { CommentBadge } from './CommentBadge.js'
 export {
 	reactionTypes,
 	getReactionEmoji,
+	getReactionLabel,
 	getReactionPastLabel,
 	parseReactionCounts,
 	updateReactionCounts,

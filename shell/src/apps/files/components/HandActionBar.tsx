@@ -121,7 +121,7 @@ export function HandActionBar({
 	async function run(
 		applicable: (it: FileHandItem) => boolean,
 		fn: (it: FileHandItem) => Promise<void>,
-		successKey: string
+		success: (count: number) => string
 	): Promise<{ ok: number; failed: number }> {
 		const targets = items.filter(applicable)
 		if (targets.length === 0) return { ok: 0, failed: 0 }
@@ -160,7 +160,7 @@ export function HandActionBar({
 			}
 		}
 		if (failed === 0) {
-			toast.success(t(successKey, { count: ok }))
+			toast.success(success(ok))
 		} else {
 			const firstReason = results.find((r) => r.status === 'rejected') as
 				| PromiseRejectedResult
@@ -214,7 +214,7 @@ export function HandActionBar({
 					parentId: currentFolderId ?? undefined
 				})
 			},
-			'Pinned {{count}} files'
+			(count) => t('Pinned {{count}} files', { count })
 		)
 
 	const doPlace = (level: AccessLevel) => {
@@ -244,21 +244,25 @@ export function HandActionBar({
 					parentId: currentFolderId ?? undefined
 				})
 			},
-			'Placed {{count}} files'
+			(count) => t('Placed {{count}} files', { count })
 		)
 	}
 
-	const reparent = (applicable: (it: FileHandItem) => boolean, successKey: string) =>
+	const reparent = (
+		applicable: (it: FileHandItem) => boolean,
+		success: (count: number) => string
+	) =>
 		run(
 			applicable,
 			async (it) => {
 				await api.files.update(it.id, { parentId: currentFolderId ?? null })
 			},
-			successKey
+			success
 		)
 
-	const doMove = () => reparent(applies.move, 'Moved {{count}} files')
-	const doRestore = () => reparent(applies.restore, 'Restored {{count}} files')
+	const doMove = () => reparent(applies.move, (count) => t('Moved {{count}} files', { count }))
+	const doRestore = () =>
+		reparent(applies.restore, (count) => t('Restored {{count}} files', { count }))
 
 	const counts = {
 		place: items.filter(applies.place).length,

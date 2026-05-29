@@ -4,6 +4,7 @@
 import * as React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 
 import {
 	LuExternalLink as IcVisitProfile,
@@ -56,16 +57,16 @@ export interface ProfileContextMenuProps {
 
 type StatusChange = 'A' | 'B' | 'M'
 
-function restoreLabel(s: ProfileStatus): string {
+function restoreLabel(t: TFunction, s: ProfileStatus): string {
 	switch (s) {
 		case 'B':
-			return 'Unblock'
+			return t('Unblock')
 		case 'S':
-			return 'Unsuspend'
+			return t('Unsuspend')
 		case 'M':
-			return 'Unmute'
+			return t('Unmute')
 		default:
-			return 'Restore to Active'
+			return t('Restore to Active')
 	}
 }
 
@@ -123,17 +124,18 @@ export function ProfileContextMenu({
 		if (!api) return
 		try {
 			await api.profiles.updateConnection(target.idTag, { status: next })
-			toast.success(t(successMsg))
+			toast.success(successMsg)
 			onRestored?.(target.idTag)
 		} catch (err) {
 			console.error('Failed to update profile status', err)
-			toast.error(t(failureMsg))
+			toast.error(failureMsg)
 		}
 	}
 
-	const handleRestore = () => applyStatus('A', 'Profile restored', 'Failed to restore profile')
-	const handleBlock = () => applyStatus('B', 'Profile blocked', 'Failed to block profile')
-	const handleMute = () => applyStatus('M', 'Profile muted', 'Failed to mute profile')
+	const handleRestore = () =>
+		applyStatus('A', t('Profile restored'), t('Failed to restore profile'))
+	const handleBlock = () => applyStatus('B', t('Profile blocked'), t('Failed to block profile'))
+	const handleMute = () => applyStatus('M', t('Profile muted'), t('Failed to mute profile'))
 
 	const currentStatus = target.status ?? 'A'
 	const showRestore = currentStatus !== 'A'
@@ -174,7 +176,7 @@ export function ProfileContextMenu({
 			{showRestore && target.status && (
 				<Item
 					icon={<IcRestore />}
-					label={t(restoreLabel(target.status))}
+					label={restoreLabel(t, target.status)}
 					onClick={handleAction(handleRestore)}
 				/>
 			)}

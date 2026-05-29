@@ -1,13 +1,15 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { TFunction } from 'i18next'
+
 export const reactionTypes = [
-	{ key: 'LIKE', emoji: '👍', label: 'Like', pastLabel: 'Liked' },
-	{ key: 'LOVE', emoji: '❤️', label: 'Love', pastLabel: 'Loved' },
-	{ key: 'LAUGH', emoji: '😂', label: 'Haha', pastLabel: 'Haha' },
-	{ key: 'WOW', emoji: '😮', label: 'Wow', pastLabel: 'Wow' },
-	{ key: 'SAD', emoji: '😢', label: 'Sad', pastLabel: 'Sad' },
-	{ key: 'ANGRY', emoji: '😠', label: 'Angry', pastLabel: 'Angry' }
+	{ key: 'LIKE', emoji: '👍' },
+	{ key: 'LOVE', emoji: '❤️' },
+	{ key: 'LAUGH', emoji: '😂' },
+	{ key: 'WOW', emoji: '😮' },
+	{ key: 'SAD', emoji: '😢' },
+	{ key: 'ANGRY', emoji: '😠' }
 ] as const
 
 export type ReactionKey = (typeof reactionTypes)[number]['key']
@@ -17,9 +19,38 @@ export function getReactionEmoji(key: string): string {
 	return found ? found.emoji : '👍'
 }
 
-export function getReactionPastLabel(key: string): string {
-	const found = reactionTypes.find((r) => r.key === key)
-	return found ? found.pastLabel : 'Liked'
+export function getReactionLabel(t: TFunction, key: string): string {
+	switch (key) {
+		case 'LOVE':
+			return t('Love')
+		case 'LAUGH':
+			return t('Haha')
+		case 'WOW':
+			return t('Wow')
+		case 'SAD':
+			return t('Sad')
+		case 'ANGRY':
+			return t('Angry')
+		default:
+			return t('Like')
+	}
+}
+
+export function getReactionPastLabel(t: TFunction, key: string): string {
+	switch (key) {
+		case 'LOVE':
+			return t('Loved')
+		case 'LAUGH':
+			return t('Haha')
+		case 'WOW':
+			return t('Wow')
+		case 'SAD':
+			return t('Sad')
+		case 'ANGRY':
+			return t('Angry')
+		default:
+			return t('Liked')
+	}
 }
 
 // Short keys for compact encoding (canonical format: "<total>,L52,V2,...")

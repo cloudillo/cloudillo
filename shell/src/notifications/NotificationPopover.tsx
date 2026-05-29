@@ -9,7 +9,7 @@ import { LuBell as IcNotifications } from 'react-icons/lu'
 
 import { Popper } from '@cloudillo/react'
 
-import { HOME_CONTEXT, useUrlContextIdTag } from '../context/index.js'
+import { HOME_CONTEXT, useContextSwitch, useUrlContextIdTag } from '../context/index.js'
 import { useNotifications } from './state.js'
 import { NotificationItem } from './NotificationItem.js'
 
@@ -19,8 +19,25 @@ export function NotificationPopover() {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
 	const urlContext = useUrlContextIdTag()
+	const { switchTo } = useContextSwitch()
 	const { notifications, dismissNotification, acceptNotification, rejectNotification } =
 		useNotifications()
+
+	const handleInvtAccept = React.useCallback(
+		async (action: Parameters<typeof acceptNotification>[0]) => {
+			const ok = await acceptNotification(action)
+			if (ok && action.subject?.startsWith('@')) {
+				// Community invite: switch into the community context (lands on feed)
+				try {
+					await switchTo(action.subject.slice(1), '/feed')
+				} catch (err) {
+					console.error('Failed to switch context:', err)
+				}
+			}
+			// message-group invites: keep existing no-navigation popover behaviour
+		},
+		[acceptNotification, switchTo]
+	)
 
 	const handlePrinvtAccept = React.useCallback(
 		(action: Parameters<typeof acceptNotification>[0]) => {
@@ -89,7 +106,7 @@ export function NotificationPopover() {
 								action.status === 'C'
 									? action.type === 'PRINVT'
 										? handlePrinvtAccept
-										: acceptNotification
+										: handleInvtAccept
 									: undefined
 							}
 							onReject={

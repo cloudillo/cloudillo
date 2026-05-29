@@ -18,7 +18,8 @@ function getActionText(
 	type: string,
 	subType: string | undefined,
 	status: string | undefined,
-	t: (key: string) => string
+	t: (key: string) => string,
+	subject?: string
 ): string {
 	switch (type) {
 		case 'CONN':
@@ -28,7 +29,7 @@ function getActionText(
 		case 'FSHR':
 			return t('Shared a file')
 		case 'INVT':
-			return t('Group invitation')
+			return subject?.startsWith('@') ? t('Community invitation') : t('Group invitation')
 		case 'PRINVT':
 			return t('Invited you to create a community')
 		case 'FLLW':
@@ -68,7 +69,7 @@ export function NotificationItem({
 	const { t } = useTranslation()
 	const urlContext = useUrlContextIdTag()
 	const name = action.issuer?.name || action.issuer?.idTag || ''
-	const text = getActionText(action.type, action.subType, action.status, t)
+	const text = getActionText(action.type, action.subType, action.status, t, action.subject)
 	const isActionable = compact && action.status === 'C'
 
 	return (

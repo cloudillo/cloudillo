@@ -32,7 +32,7 @@ import {
 } from '@cloudillo/react'
 
 import { useNotifications } from './state'
-import { HOME_CONTEXT, useUrlContextIdTag } from '../context/index.js'
+import { HOME_CONTEXT, useContextSwitch, useUrlContextIdTag } from '../context/index.js'
 import './notifications.css'
 
 type NotificationFilter = 'all' | 'connections' | 'messages' | 'social' | 'files'
@@ -324,6 +324,12 @@ function InviteNotification({
 	const navigate = useNavigate()
 	const { api } = useApi()
 	const urlContext = useUrlContextIdTag()
+	const { switchTo } = useContextSwitch()
+
+	// Community invites use an '@'-prefixed tenant id tag as subject; message-group
+	// invites use a bare action id. The '@' prefix is the discriminator.
+	const isCommunityInvite = action.subject?.startsWith('@') ?? false
+	const communityIdTag = isCommunityInvite ? action.subject!.slice(1) : undefined
 
 	// Parse invitation content (may contain role, message, groupName)
 	const rawContent = action.content
@@ -339,8 +345,16 @@ function InviteNotification({
 		await api.actions.accept(action.actionId)
 		onActionHandled?.(action)
 
-		// Navigate to the group conversation
-		if (action.subject) {
+		if (communityIdTag) {
+			// Community invite: switch into the community context (lands on feed).
+			// A failure here is non-fatal — the invite is already accepted.
+			try {
+				await switchTo(communityIdTag, '/feed')
+			} catch (err) {
+				console.error('Failed to switch context:', err)
+			}
+		} else if (action.subject) {
+			// Message-group invite: open the group conversation
 			navigate(`/app/${urlContext || HOME_CONTEXT}/messages/${action.subject}`)
 		}
 	}
@@ -378,10 +392,15 @@ function InviteNotification({
 				</small>
 			</div>
 			<div className="c-vbox g-1">
-				<h3 className="c-notification-title">{t('Invited you to join this group')}</h3>
+				<h3 className="c-notification-title">
+					{isCommunityInvite
+						? t('Invited you to join this community')
+						: t('Invited you to join this group')}
+				</h3>
 				{!action.subjectProfile && content?.groupName && (
 					<div className="text-muted">
-						{t('Group')}: <span className="text-emph">{content.groupName}</span>
+						{isCommunityInvite ? t('Community') : t('Group')}:{' '}
+						<span className="text-emph">{content.groupName}</span>
 					</div>
 				)}
 				{content?.message && <p className="c-notification-message">{content.message}</p>}

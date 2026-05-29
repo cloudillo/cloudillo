@@ -45,16 +45,18 @@ export function useNotifications() {
 
 	const acceptNotification = React.useCallback(
 		async function (action: ActionView) {
-			if (!api || !action.actionId) return
+			if (!api || !action.actionId) return false
 			// Optimistically remove from state
 			setNotifications((n) => ({
 				notifications: n.notifications.filter((a) => a.actionId !== action.actionId)
 			}))
 			try {
 				await api.actions.accept(action.actionId)
+				return true
 			} catch {
 				// Restore on failure
 				loadNotifications()
+				return false
 			}
 		},
 		[api, setNotifications, loadNotifications]

@@ -926,6 +926,19 @@ export const tUpdateProfileResult = T.struct({
 })
 export type UpdateProfileResult = T.TypeOf<typeof tUpdateProfileResult>
 
+/**
+ * Result of POST /profiles/:idTag/refresh — the backend returns a `ProfileInfo`
+ * (camelCase). Lenient: only the fields the frontend reconciles after a forced
+ * mirror re-sync are required; `profilePic` carries the recovered picture.
+ */
+export const tProfileRefreshResult = T.struct({
+	idTag: T.string,
+	name: T.optional(T.string),
+	type: T.optional(T.literal('person', 'community')),
+	profilePic: T.optional(T.string)
+})
+export type ProfileRefreshResult = T.TypeOf<typeof tProfileRefreshResult>
+
 // ============================================================================
 // SETTINGS ENDPOINTS
 // ============================================================================

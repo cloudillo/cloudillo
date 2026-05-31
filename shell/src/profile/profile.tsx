@@ -6,7 +6,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, NavLink, Routes, Route, useParams, useLocation } from 'react-router-dom'
 
-import { useAtom } from 'jotai'
+import { useAtom, useSetAtom } from 'jotai'
 
 import {
 	Button,
@@ -56,6 +56,7 @@ import { parseTabConfig, getEffectiveTabs, type TabConfig } from './about/types.
 import { TabEditor } from './TabEditor.js'
 import {
 	activeContextAtom,
+	communitiesAtom,
 	useApiContext,
 	useCommunitiesList,
 	useProfileTrust
@@ -65,6 +66,10 @@ import { TrustChip } from './TrustChip.js'
 import { PendingRequestsList } from './community-requests.js'
 import { InvitationsList } from './community-invitations.js'
 import { InviteMembersDialog } from './invite-members-dialog.js'
+
+const REFRESH_ATTEMPTS = 10
+const MAX_BACKOFF_MS = 8000
+const refreshBackoff = (attempt: number) => Math.min(800 * 2 ** attempt, MAX_BACKOFF_MS)
 
 /**
  * Get the highest role from a list of roles
@@ -362,7 +367,17 @@ export function ProfilePage({
 	const { t } = useTranslation()
 	const [auth, setAuth] = useAuth()
 	const params = useParams()
-	const [activeContext] = useAtom(activeContextAtom)
+	const [activeContext, setActiveContext] = useAtom(activeContextAtom)
+	const { getClientFor } = useApiContext()
+	const setCommunities = useSetAtom(communitiesAtom)
+	const setCommunityProfilePic = React.useCallback(
+		(idTag: string, profilePic?: string) => {
+			setCommunities((prev) =>
+				prev.map((c) => (c.idTag === idTag ? { ...c, profilePic } : c))
+			)
+		},
+		[setCommunities]
+	)
 	// Extract contextIdTag from params if available (context-aware route)
 	const contextIdTag = params.contextIdTag
 	const own = auth?.idTag === profile.idTag
@@ -432,6 +447,48 @@ export function ProfilePage({
 		// / Upload
 	}
 
+	/**
+	 * After a community picture upload, force the caller's HOME-server mirror of
+	 * `idTag` to re-sync, and reconcile the recovered picture into the sidebar/list
+	 * atom — but accept it ONLY once it differs from `baseline` (the mirror's
+	 * profilePic captured BEFORE the upload).
+	 *
+	 * `put_profile_image` returns a temporary `@<f_id>` and commits the final
+	 * `f1~…` into `tenants.profile_pic` asynchronously (variant generation +
+	 * FileIdGeneratorTask + TenantImageUpdaterTask). A forced refresh is a safe
+	 * no-op returning the OLD id until that commit lands, so polling until the
+	 * value CHANGES is exactly "wait until the upload is activated, then sync".
+	 *
+	 * MUST target the caller's home server (`getClientFor(auth.idTag)` → primary
+	 * client), which holds the federated mirror the sidebar reads — not the active
+	 * community context. Fire-and-forget; the optimistic value already shows the
+	 * new picture, so giving up just defers durability to the next loadCommunities().
+	 */
+	const reconcileCommunityPicture = React.useCallback(
+		async (idTag: string, baseline?: string) => {
+			const homeApi = auth?.idTag ? getClientFor(auth.idTag) : null
+			if (!homeApi) return
+			for (let attempt = 0; attempt < REFRESH_ATTEMPTS; attempt++) {
+				try {
+					const p = await homeApi.profiles.refresh(idTag)
+					if (p?.profilePic && p.profilePic !== baseline) {
+						setCommunityProfilePic(idTag, p.profilePic)
+						setActiveContext((ctx) =>
+							ctx && ctx.idTag === idTag ? { ...ctx, profilePic: p.profilePic } : ctx
+						)
+						return
+					}
+				} catch (err) {
+					console.warn('community mirror refresh failed', err)
+				}
+				if (attempt < REFRESH_ATTEMPTS - 1) {
+					await new Promise((r) => setTimeout(r, refreshBackoff(attempt)))
+				}
+			}
+		},
+		[auth?.idTag, getClientFor, setCommunityProfilePic, setActiveContext]
+	)
+
 	async function uploadProfile(img: Blob) {
 		if (!auth) return
 
@@ -450,6 +507,18 @@ export function ProfilePage({
 			}
 		}
 
+		// Authoritative pre-upload mirror picture, so the post-upload refresh accepts
+		// only a CHANGED value (never re-writes the stale one). Read from the home
+		// server's local mirror row, independent of any optimistic atom state.
+		let mirrorBaseline: string | undefined
+		if (isCommunity) {
+			const homeApi = auth?.idTag ? getClientFor(auth.idTag) : null
+			const mirror = homeApi
+				? await homeApi.profiles.get(profile.idTag).catch(() => null)
+				: null
+			mirrorBaseline = mirror?.profilePic
+		}
+
 		// Upload
 		const request = new XMLHttpRequest()
 		request.open('PUT', `${getInstanceUrl(targetIdTag)}/api/me/image`)
@@ -464,6 +533,20 @@ export function ProfilePage({
 					// Only update auth state if this is user's own profile
 					if (!isCommunity && auth?.tnId == profile.tnId)
 						setAuth((a) => (a ? { ...a, profilePic } : a))
+					if (isCommunity) {
+						// Instant: patch the sidebar/list (and active context) avatar
+						// optimistically so it updates immediately.
+						setCommunityProfilePic(profile.idTag, profilePic)
+						setActiveContext((ctx) =>
+							ctx && ctx.idTag === profile.idTag ? { ...ctx, profilePic } : ctx
+						)
+						// Durable: force the home-server mirror to re-sync so the
+						// value survives the next `loadCommunities()` overwrite. The
+						// optimistic `profilePic` above is the community's own file id
+						// (`@{f_id}`); the mirror refresh reconciles it to the synced
+						// local value. Fire-and-forget with internal retry.
+						void reconcileCommunityPicture(profile.idTag, mirrorBaseline)
+					}
 					setProfileUpload(undefined)
 				} catch (err) {
 					console.error('Failed to parse response:', err)

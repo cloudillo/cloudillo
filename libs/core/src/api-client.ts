@@ -1049,6 +1049,22 @@ export class ApiClient {
 		get: (idTag: string) => this.request('GET', `/profiles/${idTag}`, Types.tOptionalProfile),
 
 		/**
+		 * POST /profiles/:idTag/refresh - Force an immediate re-sync of the caller's
+		 * local mirror of `idTag` from its home server, bypassing the scheduled
+		 * staleness/abandonment window. Recovers a federated mirror the periodic
+		 * batch has given up on (e.g. a community whose profile picture was uploaded
+		 * after creation) and pulls newly-changed pictures on demand.
+		 *
+		 * MUST be called on the caller's HOME-server api client (the tenant that
+		 * holds the mirror), not an active community-context client.
+		 *
+		 * @param idTag - Identity tag of the profile to refresh
+		 * @returns The refreshed profile (camelCase ProfileInfo)
+		 */
+		refresh: (idTag: string) =>
+			this.request('POST', `/profiles/${idTag}/refresh`, Types.tProfileRefreshResult),
+
+		/**
 		 * PATCH /profiles/:idTag - Update profile connection/relationship
 		 * @param idTag - Identity tag
 		 * @param data - Patch data

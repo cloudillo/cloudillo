@@ -388,8 +388,19 @@ export function useApiContext() {
  * } = useCommunitiesList()
  * ```
  */
+/**
+ * Communities whose mirror we've already fired a best-effort refresh-on-view for
+ * this session. Module-level so the dedup survives across the multiple
+ * `useCommunitiesList()` instances mounted at once (sidebar, profile pages, …)
+ * and across `loadCommunities()` re-runs.
+ */
+const refreshAttemptedIdTags = new Set<string>()
+/** Identity that owns the current `refreshAttemptedIdTags` contents. */
+let refreshAttemptedOwner: string | undefined
+
 export function useCommunitiesList() {
 	const { api } = useApi()
+	const [auth] = useAuth()
 	const [communities, setCommunities] = useAtom(communitiesAtom)
 	const [favorites, setFavorites] = useAtom(favoritesAtom)
 	const [favoriteCommunities] = useAtom(favoriteCommunitiesAtom)
@@ -397,6 +408,18 @@ export function useCommunitiesList() {
 	const [totalUnread] = useAtom(totalUnreadCountAtom)
 	const [isLoading, setIsLoading] = React.useState(false)
 	const [error, setError] = React.useState<Error | undefined>()
+
+	// Reset the once-per-session refresh-on-view dedup only when the owning
+	// identity actually changes (logout + login as a different account). Guarded
+	// by `refreshAttemptedOwner` so the several `useCommunitiesList()` instances
+	// mounted at once don't wipe the dedup on every mount.
+	React.useEffect(() => {
+		const owner = auth?.idTag
+		if (owner && owner !== refreshAttemptedOwner) {
+			refreshAttemptedOwner = owner
+			refreshAttemptedIdTags.clear()
+		}
+	}, [auth?.idTag])
 
 	/**
 	 * Save pinned communities to backend
@@ -452,6 +475,33 @@ export function useCommunitiesList() {
 
 				return updated
 			})
+
+			// Self-heal abandoned community mirrors: a community whose picture was
+			// uploaded after creation can keep a frozen, empty mirror row that the
+			// periodic refresh batch has given up on (see backend
+			// `list_stale_profiles` abandonment cutoff). For connected community
+			// rows still missing a `profilePic`, fire a best-effort forced refresh
+			// on the home-server (this `api`) — once per session per row — and
+			// patch the recovered picture into the atom.
+			for (const profile of profiles) {
+				if (profile.connected !== true || profile.profilePic) continue
+				if (refreshAttemptedIdTags.has(profile.idTag)) continue
+				refreshAttemptedIdTags.add(profile.idTag)
+				api.profiles
+					.refresh(profile.idTag)
+					.then((p) => {
+						if (p?.profilePic) {
+							setCommunities((prev) =>
+								prev.map((c) =>
+									c.idTag === profile.idTag
+										? { ...c, profilePic: p.profilePic }
+										: c
+								)
+							)
+						}
+					})
+					.catch((err) => console.warn('community mirror refresh-on-view failed', err))
+			}
 		} catch (err) {
 			setError(err as Error)
 			console.error('Failed to load communities:', err)

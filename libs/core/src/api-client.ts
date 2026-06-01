@@ -648,6 +648,7 @@ export class ApiClient {
 			contentType?: string,
 			options?: {
 				rootId?: string
+				parentId?: string
 				as?: 'managed'
 				onProgress?: (pct: number) => void
 				signal?: AbortSignal
@@ -657,6 +658,7 @@ export class ApiClient {
 				let url = `${getInstanceUrl(this.opts.idTag)}/api/files/${preset}/${fileName}`
 				const qp = new URLSearchParams()
 				if (options?.rootId) qp.set('rootId', options.rootId)
+				if (options?.parentId) qp.set('parentId', options.parentId)
 				if (options?.as) qp.set('as', options.as)
 				const qs = qp.toString()
 				if (qs) url += '?' + qs

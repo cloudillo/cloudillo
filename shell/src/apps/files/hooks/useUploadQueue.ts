@@ -89,13 +89,9 @@ export function useUploadQueue(options?: UseUploadQueueOptions) {
 						'file', // preset
 						nextItem.file.name,
 						nextItem.file,
-						nextItem.file.type
+						nextItem.file.type,
+						parentId ? { parentId } : undefined
 					)
-
-					// If we have a parentId, move the file to that folder
-					if (parentId) {
-						await effectiveApi.files.update(result.fileId, { parentId })
-					}
 
 					// Mark as complete
 					setQueue((prev) =>

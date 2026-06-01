@@ -19,6 +19,18 @@ interface BreadcrumbsProps {
 	accessLevel?: 'read' | 'write'
 }
 
+function CrumbLabel({ item, className }: { item: BreadcrumbItem; className?: string }) {
+	return (
+		<span className={mergeClasses('c-hbox align-items-center', className)}>
+			{item.isShareRoot && <IcShare className="me-1" size="1em" />}
+			{item.isShareRoot && item.ownerName && (
+				<span className="text-secondary me-1">{item.ownerName}:</span>
+			)}
+			{item.name}
+		</span>
+	)
+}
+
 export const Breadcrumbs = React.memo(function Breadcrumbs({
 	className,
 	items,
@@ -42,15 +54,7 @@ export const Breadcrumbs = React.memo(function Breadcrumbs({
 						<li key={item.id ?? 'root'} className="c-hbox align-items-center">
 							{index > 0 && <IcChevron className="mx-1 text-secondary" />}
 							{isLast ? (
-								<span className="c-hbox align-items-center text-primary fw-medium">
-									{item.isShareRoot && <IcShare className="me-1" size="1em" />}
-									{item.isShareRoot && item.ownerName && (
-										<span className="text-secondary me-1">
-											{item.ownerName}:
-										</span>
-									)}
-									{item.name}
-								</span>
+								<CrumbLabel item={item} className="text-primary fw-medium" />
 							) : (
 								<a
 									href="#"
@@ -66,17 +70,7 @@ export const Breadcrumbs = React.memo(function Breadcrumbs({
 											<span>{item.name}</span>
 										</span>
 									) : (
-										<span className="c-hbox align-items-center">
-											{item.isShareRoot && (
-												<IcShare className="me-1" size="1em" />
-											)}
-											{item.isShareRoot && item.ownerName && (
-												<span className="text-secondary me-1">
-													{item.ownerName}:
-												</span>
-											)}
-											{item.name}
-										</span>
+										<CrumbLabel item={item} />
 									)}
 								</a>
 							)}
@@ -84,9 +78,8 @@ export const Breadcrumbs = React.memo(function Breadcrumbs({
 					)
 				})}
 				{isRemoteBrowsing && accessLevel && (
-					<li className="c-hbox align-items-center">
-						<span className="mx-1 text-secondary">{'·'}</span>
-						<span className="text-secondary">
+					<li className="c-hbox align-items-center ms-2">
+						<span className="c-badge">
 							{accessLevel === 'write' ? t('Can edit') : t('Read only')}
 						</span>
 					</li>

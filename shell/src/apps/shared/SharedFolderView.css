@@ -1,0 +1,67 @@
+/* SPDX-FileCopyrightText: Szilárd Hajba */
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+
+/* Card actions (download / delete) stay hidden until the card is hovered or
+ * focused, so the destructive delete is not a bare always-on one-tap target.
+ * On touch devices (no hover) they remain visible since there is no hover. */
+.c-shared-folder-item .c-shared-folder-actions {
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.15s ease;
+}
+
+.c-shared-folder-item:hover .c-shared-folder-actions,
+.c-shared-folder-item:focus-within .c-shared-folder-actions {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+@media (hover: none) {
+	.c-shared-folder-item .c-shared-folder-actions {
+		opacity: 1;
+		pointer-events: auto;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.c-shared-folder-item .c-shared-folder-actions {
+		transition: none;
+	}
+}
+
+/* Adequate touch targets (>= 44px) with spacing between the two icons. */
+.c-shared-folder-actions .c-button {
+	min-width: 44px;
+	min-height: 44px;
+}
+
+/* Responsive card grid for the folder listing. */
+.c-shared-folder-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+}
+
+/* Card open-target button reset (keeps c-vbox utility layout). */
+.c-shared-folder-item__open {
+	cursor: pointer;
+	border: none;
+	background: transparent;
+}
+
+/* Thumbnail image inside the fixed-height preview box. */
+.c-shared-folder-thumb {
+	max-width: 100%;
+	max-height: 100%;
+	object-fit: cover;
+}
+
+/* Single-line, ellipsised filename. */
+.c-shared-folder-name {
+	font-size: 0.85rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 100%;
+}
+
+/* vim: ts=4 */

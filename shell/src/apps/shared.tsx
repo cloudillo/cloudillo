@@ -2,27 +2,23 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { useParams, useLocation } from 'react-router-dom'
+import { useParams, useLocation, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import { LuFileWarning as IcError } from 'react-icons/lu'
 
-import { useApi, LoadingSpinner } from '@cloudillo/react'
-import {
-	createApiClient,
-	type FileView,
-	type RefAccessTokenResult,
-	getFileUrl
-} from '@cloudillo/core'
+import { useApi, LoadingSpinner, EmptyState, Button } from '@cloudillo/react'
+import { createApiClient, type FileView, type RefAccessTokenResult } from '@cloudillo/core'
 
 import { useAppConfig } from '../utils.js'
-import { useGuestDocument } from '../context/index.js'
-import { MicrofrontendContainer } from './index.js'
+import { useGuestDocument, type GuestFileType } from '../context/index.js'
 import { GuestNameDialog } from '../components/GuestNameDialog.js'
+import { SharedFolderView } from './shared/SharedFolderView.js'
+import { renderSharedApp, BlobViewer } from './shared/shared-app.js'
 
 type SharedState =
 	| { status: 'loading' }
-	| { status: 'error'; code: string; message: string }
+	| { status: 'error'; code: string; message: string; recoverable: boolean }
 	| { status: 'awaiting-name'; tokenResult: RefAccessTokenResult; file: FileView }
 	| { status: 'ready'; tokenResult: RefAccessTokenResult; file: FileView }
 
@@ -34,8 +30,9 @@ type SharedState =
  * 2. Exchange refId for scoped access token
  * 3. Load file metadata using scoped token
  * 4. Display file based on type:
- *    - BLOB (image, video, PDF): Display inline
- *    - CRDT/RTDB: Redirect to microfrontend app
+ *    - BLOB (image, video, PDF): Display inline (viewer)
+ *    - FLDR (directory): Browsable folder listing
+ *    - CRDT/RTDB: Open in microfrontend app
  */
 export function SharedResourceView() {
 	const { t } = useTranslation()
@@ -45,7 +42,15 @@ export function SharedResourceView() {
 	const [appConfig] = useAppConfig()
 	const [state, setState] = React.useState<SharedState>({ status: 'loading' })
 	const [guestName, setGuestName] = React.useState<string | undefined>(undefined)
-	const [, setGuestDocument] = useGuestDocument()
+	const [reloadKey, setReloadKey] = React.useState(0)
+	const [guestDocument, setGuestDocument] = useGuestDocument()
+
+	// Track the current guest document without retriggering the load effect.
+	// (Adding `guestDocument` to the load deps would loop with updateGuestDocument.)
+	const guestDocumentRef = React.useRef(guestDocument)
+	React.useEffect(() => {
+		guestDocumentRef.current = guestDocument
+	}, [guestDocument])
 
 	React.useEffect(
 		function loadSharedResource() {
@@ -53,8 +58,14 @@ export function SharedResourceView() {
 
 			;(async function () {
 				try {
-					// Exchange refId for scoped access token (includes resourceId and accessLevel)
-					const tokenResult = await api.auth.getAccessTokenByRef(refId)
+					// Exchange refId for scoped access token (includes resourceId and accessLevel).
+					// A return visit (the atom still holds this refId from the first open) uses a
+					// non-consuming refresh so revisits never burn a count-limited share.
+					const isReturn = guestDocumentRef.current?.refId === refId
+					const tokenResult = await api.auth.getAccessTokenByRef(
+						refId,
+						isReturn ? { refresh: true } : undefined
+					)
 
 					// Create a temporary API client with the scoped token
 					const scopedApi = createApiClient({
@@ -68,7 +79,8 @@ export function SharedResourceView() {
 						setState({
 							status: 'error',
 							code: 'FILE_NOT_FOUND',
-							message: t('File not found')
+							message: t('File not found'),
+							recoverable: false
 						})
 						return
 					}
@@ -80,7 +92,7 @@ export function SharedResourceView() {
 					if (fileTp === 'CRDT' || fileTp === 'RTDB') {
 						setState({ status: 'awaiting-name', tokenResult, file })
 					} else {
-						// BLOB files don't need guest name
+						// BLOB / FLDR files don't need guest name
 						setState({ status: 'ready', tokenResult, file })
 					}
 				} catch (err: unknown) {
@@ -88,51 +100,64 @@ export function SharedResourceView() {
 					const apiErr = err as Record<string, unknown>
 					const code = (apiErr?.code as string) || 'UNKNOWN'
 					let message = t('Failed to load shared resource')
+					// Expired / usage-limited links won't recover on retry — steer
+					// the guest to sign in instead. Transient/unknown errors offer
+					// a Retry.
+					let recoverable = true
 
 					if (apiErr?.httpStatus === 404 || code === 'E-CORE-NOTFOUND') {
 						message = t('This link has expired or does not exist')
+						recoverable = false
 					} else if (apiErr?.httpStatus === 403 || code === 'E-AUTH-NOPERM') {
 						message = t('This link has reached its usage limit')
+						recoverable = false
 					}
 
-					setState({ status: 'error', code, message })
+					setState({ status: 'error', code, message, recoverable })
 				}
 			})()
 		},
-		[refId, api, t]
+		[refId, api, t, reloadKey]
 	)
 
 	// Set guest document info for menu navigation when CRDT/RTDB file is ready
 	// Note: We don't clear on unmount so the menu item persists for navigation back
 	React.useEffect(
 		function updateGuestDocument() {
-			if (state.status !== 'ready' || !appConfig || !api?.idTag) return
+			if (state.status !== 'ready' || !api?.idTag) return
 
 			const { tokenResult, file } = state
 			const fileTp = file.fileTp || 'BLOB'
+			const resId = `${api.idTag}:${file.fileId}`
 
-			// Only set for CRDT/RTDB files (documents that open in microfrontend apps)
+			// Only CRDT/RTDB files open in a microfrontend app, so only they
+			// resolve an appId. BLOB/FLDR shares render inside this view and must
+			// keep appId='' so the menu item routes to /s/{refId} (layout.tsx).
+			const isAppDoc = fileTp === 'CRDT' || fileTp === 'RTDB'
+			const appPath = isAppDoc ? appConfig?.mime[file.contentType] : undefined
+			const appId = appPath ? appPath.replace('/app/', '') : ''
+
+			// CRDT/RTDB documents open in microfrontend apps — require a registered app.
+			// BLOB/FLDR shares render inside this view, so they need no app mapping.
 			if (fileTp === 'CRDT' || fileTp === 'RTDB') {
-				const appPath = appConfig.mime[file.contentType]
-				if (appPath) {
-					const appId = appPath.replace('/app/', '')
-					const resId = `${api.idTag}:${file.fileId}`
-
-					setGuestDocument({
-						fileName: file.fileName,
-						contentType: file.contentType,
-						fileId: file.fileId,
-						appId,
-						resId,
-						token: tokenResult.token,
-						accessLevel: tokenResult.accessLevel,
-						ownerIdTag: api.idTag,
-						guestName
-					})
-				}
+				if (!appConfig || !appId) return
 			}
+
+			setGuestDocument({
+				fileName: file.fileName,
+				contentType: file.contentType,
+				fileId: file.fileId,
+				appId,
+				resId,
+				token: tokenResult.token,
+				accessLevel: tokenResult.accessLevel,
+				ownerIdTag: api.idTag,
+				guestName,
+				refId,
+				fileTp: fileTp as GuestFileType
+			})
 		},
-		[state, appConfig, api?.idTag, setGuestDocument, guestName]
+		[state, appConfig, api?.idTag, setGuestDocument, guestName, refId]
 	)
 
 	// Handle guest name confirmation
@@ -157,10 +182,30 @@ export function SharedResourceView() {
 
 	if (state.status === 'error') {
 		return (
-			<div className="c-panel flex-fill d-flex flex-column align-items-center justify-content-center g-2">
-				<IcError size="4rem" className="text-error" />
-				<h2>{t('Link Error')}</h2>
-				<p className="text-secondary">{state.message}</p>
+			<div className="c-panel flex-fill d-flex align-items-center justify-content-center">
+				<EmptyState
+					icon={<IcError size="4rem" className="text-error" />}
+					title={t('Link Error')}
+					description={state.message}
+					action={
+						<div className="c-hbox g-2 align-items-center justify-content-center">
+							{state.recoverable && (
+								<Button
+									variant="primary"
+									onClick={() => setReloadKey((k) => k + 1)}
+								>
+									{t('Retry')}
+								</Button>
+							)}
+							<Link
+								to="/login"
+								className={state.recoverable ? 'c-button' : 'c-button accent'}
+							>
+								{t('Go to Cloudillo')}
+							</Link>
+						</div>
+					}
+				/>
 			</div>
 		)
 	}
@@ -172,45 +217,36 @@ export function SharedResourceView() {
 
 	const { tokenResult, file } = state
 	const access = tokenResult.accessLevel
+	const idTag = api?.idTag || ''
 
 	// Determine display mode based on file type
 	const fileTp = file.fileTp || 'BLOB'
 	const contentType = file.contentType
 
-	// CRDT/RTDB files: redirect to microfrontend app
+	// CRDT/RTDB files: open in microfrontend app
 	if (fileTp === 'CRDT' || fileTp === 'RTDB') {
-		// Find the appropriate app for this content type
-		const appPath = appConfig?.mime[contentType]
-		if (appPath) {
-			const appId = appPath.replace('/app/', '')
-			const app = appConfig?.apps.find((a) => a.id === appId)
-			if (app) {
-				// Merge ref-stored params with URL query params (URL wins)
-				const refParams = new URLSearchParams(tokenResult.params || '')
-				const urlParams = new URLSearchParams(location.search)
-				for (const [key, value] of urlParams) {
-					refParams.set(key, value)
-				}
-				const mergedParams = refParams.toString() || undefined
-
-				// Build resId from owner and fileId
-				const resId = `${api?.idTag}:${file.fileId}`
-				return (
-					<MicrofrontendContainer
-						className="w-100 h-100"
-						app={app.id}
-						resId={resId}
-						appUrl={app.url}
-						trust={app.trust}
-						access={access}
-						token={tokenResult.token}
-						refId={refId}
-						guestName={guestName}
-						params={mergedParams}
-					/>
-				)
-			}
+		// Merge ref-stored params with URL query params (URL wins)
+		const refParams = new URLSearchParams(tokenResult.params || '')
+		const urlParams = new URLSearchParams(location.search)
+		for (const [key, value] of urlParams) {
+			// Folder-browser nav params (SharedFolderView) must not leak into a
+			// root doc share's microfrontend params.
+			if (key === 'parentId' || key === 'file') continue
+			refParams.set(key, value)
 		}
+		const mergedParams = refParams.toString() || undefined
+
+		const appEl = renderSharedApp(file, {
+			token: tokenResult.token,
+			idTag,
+			access,
+			refId,
+			appConfig,
+			guestName,
+			params: mergedParams
+		})
+		if (appEl) return <>{appEl}</>
+
 		// Fallback: show error if no app found
 		return (
 			<div className="c-panel flex-fill d-flex flex-column align-items-center justify-content-center g-2">
@@ -221,77 +257,23 @@ export function SharedResourceView() {
 		)
 	}
 
-	// BLOB files: display inline
-	return <BlobViewer file={file} token={tokenResult.token} idTag={api?.idTag || ''} />
-}
-
-interface BlobViewerProps {
-	file: FileView
-	token: string
-	idTag: string
-}
-
-/**
- * BlobViewer displays BLOB files (images, videos, PDFs) inline.
- */
-function BlobViewer({ file, token: _token, idTag }: BlobViewerProps) {
-	const { t } = useTranslation()
-	const contentType = file.contentType
-
-	// Image files
-	if (contentType.startsWith('image/')) {
-		const imageUrl = getFileUrl(idTag, file.fileId, 'vis.hd')
+	// Directory: browsable folder listing
+	if (fileTp === 'FLDR') {
 		return (
-			<div className="c-panel flex-fill d-flex flex-column align-items-center justify-content-center p-2">
-				<img
-					src={imageUrl}
-					alt={file.fileName}
-					style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }}
-				/>
-				<p className="mt-2 text-secondary">{file.fileName}</p>
-			</div>
+			<SharedFolderView
+				rootFile={file}
+				token={tokenResult.token}
+				idTag={idTag}
+				accessLevel={access}
+				refId={refId}
+				appConfig={appConfig}
+				guestName={guestName}
+			/>
 		)
 	}
 
-	// Video files
-	if (contentType.startsWith('video/')) {
-		const videoUrl = getFileUrl(idTag, file.fileId, 'vid.hd')
-		return (
-			<div className="c-panel flex-fill d-flex flex-column align-items-center justify-content-center p-2">
-				<video src={videoUrl} controls style={{ maxWidth: '100%', maxHeight: '80vh' }}>
-					{t('Your browser does not support video playback')}
-				</video>
-				<p className="mt-2 text-secondary">{file.fileName}</p>
-			</div>
-		)
-	}
-
-	const fileUrl = getFileUrl(idTag, file.fileId)
-
-	// PDF files
-	if (contentType === 'application/pdf') {
-		return (
-			<div className="c-panel flex-fill d-flex flex-column h-100">
-				<iframe
-					src={fileUrl}
-					className="flex-fill w-100"
-					style={{ border: 'none', minHeight: '80vh' }}
-					title={file.fileName}
-				/>
-			</div>
-		)
-	}
-
-	// Other files: show download link
-	return (
-		<div className="c-panel flex-fill d-flex flex-column align-items-center justify-content-center g-2">
-			<h2>{file.fileName}</h2>
-			<p className="text-secondary">{contentType}</p>
-			<a href={fileUrl} download={file.fileName} className="c-button primary">
-				{t('Download')}
-			</a>
-		</div>
-	)
+	// BLOB files: display inline (viewer)
+	return <BlobViewer file={file} token={tokenResult.token} idTag={idTag} />
 }
 
 // vim: ts=4

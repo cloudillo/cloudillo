@@ -9,7 +9,10 @@ import hu from './i18n/hu/translation.json'
 
 const resources = {
 	en: {
-		translation: {}
+		translation: {
+			'Uploaded {{count}} file_one': 'Uploaded {{count}} file',
+			'Uploaded {{count}} file_other': 'Uploaded {{count}} files'
+		}
 	},
 	hu: {
 		translation: hu

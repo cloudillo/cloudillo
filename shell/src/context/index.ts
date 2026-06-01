@@ -83,4 +83,4 @@ export { CommunityVerifyIdpBanner, useCommunityContentGate } from './verify-idp-
 
 // Guest document state (for guest ref link navigation)
 export { guestDocumentAtom, useGuestDocument } from './guest-document'
-export type { GuestDocumentInfo } from './guest-document'
+export type { GuestDocumentInfo, GuestFileType } from './guest-document'

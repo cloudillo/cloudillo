@@ -3,6 +3,8 @@
 
 import { atom, useAtom } from 'jotai'
 
+export type GuestFileType = 'BLOB' | 'CRDT' | 'RTDB' | 'FLDR'
+
 export interface GuestDocumentInfo {
 	fileName: string
 	contentType: string
@@ -13,6 +15,8 @@ export interface GuestDocumentInfo {
 	accessLevel: 'read' | 'comment' | 'write'
 	ownerIdTag: string
 	guestName?: string // Guest display name for awareness
+	refId?: string // Original share ref, for returning to /s/:refId (static shares)
+	fileTp?: GuestFileType // 'BLOB' | 'CRDT' | 'RTDB' | 'FLDR' — drives icon + return-path choice
 }
 
 export const guestDocumentAtom = atom<GuestDocumentInfo | null>(null)

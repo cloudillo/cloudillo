@@ -27,6 +27,13 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 	size?: ButtonSize
 	mode?: 'icon' | 'float'
 	active?: boolean
+	/**
+	 * Fire `onClick` synchronously on click instead of after the ~200ms press
+	 * animation. Required when the handler must run inside the browser's user-
+	 * activation window — e.g. opening a native file dialog or clipboard writes.
+	 * The press animation still plays; only the callback timing changes.
+	 */
+	immediate?: boolean
 	icon?: React.ReactNode
 	children?: React.ReactNode
 }
@@ -43,6 +50,7 @@ export const Button = createComponent<HTMLButtonElement, ButtonProps>(
 			size,
 			mode,
 			active,
+			immediate,
 			icon,
 			children,
 			...props
@@ -55,6 +63,11 @@ export const Button = createComponent<HTMLButtonElement, ButtonProps>(
 			evt.preventDefault()
 			const form = (evt.currentTarget as HTMLButtonElement).form
 
+			// Synchronous path: keep the call inside the user-activation window.
+			if (immediate && type !== 'submit' && onClick) {
+				onClick(evt)
+			}
+
 			// Animation
 			setClicked(true)
 			await delay(200)
@@ -62,7 +75,7 @@ export const Button = createComponent<HTMLButtonElement, ButtonProps>(
 
 			if (type === 'submit') {
 				form?.requestSubmit()
-			} else if (onClick) {
+			} else if (onClick && !immediate) {
 				// Original event is stale after await — synthesize a minimal event object.
 				const syntheticEvent = {
 					preventDefault: () => {},

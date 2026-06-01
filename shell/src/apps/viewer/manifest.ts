@@ -15,6 +15,7 @@ export const manifest: AppManifest = {
 		{ mimeType: 'image/png', actions: ['view'], priority: 'primary' },
 		{ mimeType: 'image/gif', actions: ['view'], priority: 'primary' },
 		{ mimeType: 'image/webp', actions: ['view'], priority: 'primary' },
+		{ mimeType: 'image/svg+xml', actions: ['view'], priority: 'primary' },
 		{ mimeType: 'video/mp4', actions: ['view'], priority: 'primary' },
 		{ mimeType: 'video/webm', actions: ['view'], priority: 'primary' },
 		{ mimeType: 'application/pdf', actions: ['view'], priority: 'primary' }

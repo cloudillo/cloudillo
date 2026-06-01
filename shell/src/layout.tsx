@@ -18,7 +18,6 @@ import {
 	LuLogIn as IcLogin,
 	LuLogOut as IcLogout,
 	LuMenu as IcMenu,
-	LuFileText as IcFileText,
 	LuSettings as IcSettings,
 	LuCircleAlert as IcWarning,
 	LuRefreshCw as IcRefresh,
@@ -31,6 +30,7 @@ import {
 	LuInfo as IcToastInfo
 } from 'react-icons/lu'
 import { CloudilloLogo } from './logo.js'
+import { getFileIcon } from './apps/files/icons.js'
 
 import type { ActionView } from '@cloudillo/types'
 import {
@@ -105,6 +105,7 @@ import { Notifications } from './notifications/notifications.js'
 import { useNotifications } from './notifications/state'
 import { NotificationPopover } from './notifications/NotificationPopover.js'
 import { HandChip } from './components/HandChip.js'
+import { GuestOwnerChip } from './components/GuestOwnerChip.js'
 import { MediaPicker } from './components/MediaPicker/index.js'
 import { ShareCreate } from './components/ShareCreate/index.js'
 import { DocumentPicker } from './components/DocumentPicker/index.js'
@@ -179,13 +180,16 @@ function Menu({
 		}) || []
 
 	// Build guest document menu item if available
+	const isAppDoc = !!guestDocument?.appId // CRDT/RTDB set appId; BLOB/FLDR set ''
 	const guestDocMenuItem = guestDocument
 		? {
 				id: 'guest-doc',
-				icon: IcFileText,
+				icon: getFileIcon(guestDocument.contentType, guestDocument.fileTp),
 				label: truncateFileName(guestDocument.fileName),
 				trans: {} as Record<string, string>,
-				path: `/app/${guestDocument.ownerIdTag}/${guestDocument.appId}/${guestDocument.resId}${guestDocument.accessLevel !== 'write' ? `?access=${guestDocument.accessLevel}` : ''}`,
+				path: isAppDoc
+					? `/app/${guestDocument.ownerIdTag}/${guestDocument.appId}/${guestDocument.resId}${guestDocument.accessLevel !== 'write' ? `?access=${guestDocument.accessLevel}` : ''}`
+					: `/s/${guestDocument.refId}`,
 				public: true
 			}
 		: null
@@ -689,6 +693,11 @@ function Header({ inert }: { inert?: boolean }) {
 					>
 						<CloudilloLogo style={{ height: 32 }} />
 					</li>
+					{!auth && api?.idTag && (
+						<li className="c-nav-item">
+							<GuestOwnerChip idTag={api.idTag} />
+						</li>
+					)}
 					{auth && (
 						<li className="c-nav-item flex-fill">
 							{search.query == undefined ? (
@@ -784,12 +793,19 @@ function Header({ inert }: { inert?: boolean }) {
 						<>
 							<Popper className="c-nav-item" aria-label={t('Menu')} icon={<IcMenu />}>
 								<ul className="c-nav vertical emph">
+									{location.pathname.startsWith('/s/') && (
+										<li>
+											<Link className="c-nav-item" to="/login">
+												<IcLogin />
+												{t('Sign in')}
+											</Link>
+										</li>
+									)}
 									{api?.idTag && (
 										<li>
 											<Link
 												className="c-nav-item"
 												to={`/profile/${HOME_CONTEXT}/me`}
-												onClick={() => setMenuOpen(false)}
 											>
 												<IcUser />
 												{t('Owner profile')}
@@ -823,12 +839,14 @@ function Header({ inert }: { inert?: boolean }) {
 									</li>
 								</ul>
 							</Popper>
-							<li className="c-nav-item">
-								<Link to="/login" className="c-button accent pill small">
-									<IcLogin />
-									{t('Sign in')}
-								</Link>
-							</li>
+							{!location.pathname.startsWith('/s/') && (
+								<li className="c-nav-item">
+									<Link to="/login" className="c-button accent pill small">
+										<IcLogin />
+										{t('Sign in')}
+									</Link>
+								</li>
+							)}
 						</>
 					)}
 				</ul>

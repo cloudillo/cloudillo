@@ -539,6 +539,40 @@ function updatePairingBadges(
 	})
 
 	// ============================================
+	// Multi-range (discontinuous) selection guard
+	// ============================================
+	// Firefox lets users build a discontinuous selection (ctrl+double-click on
+	// non-adjacent words). Quill 2.x only reads getRangeAt(0), so formatting
+	// would silently apply to the first range only and then drop the selection.
+	// Until multi-selection is supported, collapse to the newest range so the
+	// limitation is obvious as soon as the user adds a second range.
+	if (bus.access === 'write') {
+		const selectionGuard = new AbortController()
+		const collapseMultiRangeSelection = () => {
+			const sel = document.getSelection()
+			if (!sel || sel.rangeCount <= 1) return
+			// Only act when the selection actually involves the editor.
+			const root = editor.root
+			let lastInEditor: Range | null = null
+			for (let i = 0; i < sel.rangeCount; i++) {
+				const r = sel.getRangeAt(i)
+				if (root.contains(r.commonAncestorContainer)) lastInEditor = r
+			}
+			if (!lastInEditor) return
+			// Keep only the last range (selection/document order); this visibly
+			// removes the earlier selection(s), signalling multi-select isn't supported.
+			sel.removeAllRanges()
+			sel.addRange(lastInEditor)
+		}
+		document.addEventListener('selectionchange', collapseMultiRangeSelection, {
+			signal: selectionGuard.signal
+		})
+		// Tear down when the app frame goes away (single explicit cleanup point;
+		// the listener would otherwise live for the whole page lifetime).
+		window.addEventListener('pagehide', () => selectionGuard.abort(), { once: true })
+	}
+
+	// ============================================
 	// Markdown Import
 	// ============================================
 

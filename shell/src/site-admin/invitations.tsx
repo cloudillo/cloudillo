@@ -1,37 +1,41 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import dayjs from 'dayjs'
-import { useTranslation } from 'react-i18next'
-
-import type { Profile } from '@cloudillo/types'
 import type * as Types from '@cloudillo/core'
 import {
+	Button,
+	IdentityTag,
+	mergeClasses,
+	ProfilePicture,
+	ProfileSelect,
+	QRCodeDialog,
+	Tab,
+	Tabs,
+	TimeFormat,
+	Toggle,
 	useApi,
 	useAuth,
-	useDialog,
-	Button,
-	QRCodeDialog,
-	ProfileSelect,
-	Tabs,
-	Tab,
-	TimeFormat,
-	Toggle
+	useDialog
 } from '@cloudillo/react'
+import type { Profile } from '@cloudillo/types'
+import dayjs from 'dayjs'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import {
-	LuCheck as IcAvailable,
-	LuX as IcUnavailable,
 	LuPlus as IcAdd,
+	LuCheck as IcAvailable,
 	LuCopy as IcCopy,
 	LuTrash as IcDelete,
+	LuPencil as IcEdit,
 	LuQrCode as IcQrCode,
 	LuSend as IcSend,
-	LuPencil as IcEdit
+	LuX as IcUnavailable
 } from 'react-icons/lu'
 
-import { parseRefDate, formatRefDate, dateInputToExpiryIso } from '../utils/parseRefDate.js'
+import { useCommunitiesList } from '../context/hooks.js'
+import type { CommunityRef } from '../context/types.js'
+import { dateInputToExpiryIso, formatRefDate, parseRefDate } from '../utils/parseRefDate.js'
 
 // ============================================================================
 // REGISTRATION INVITES (existing functionality)
@@ -267,11 +271,58 @@ function RegistrationInviteCard({
 	)
 }
 
+function CommunityTile({
+	community,
+	selected,
+	onToggle
+}: {
+	community: CommunityRef
+	selected: boolean
+	onToggle: (idTag: string) => void
+}) {
+	return (
+		<button
+			type="button"
+			className={mergeClasses(
+				'c-card interactive flex-row align-items-center g-2 p-2 border-0',
+				selected && 'primary'
+			)}
+			aria-pressed={selected}
+			onClick={() => onToggle(community.idTag)}
+			title={community.name}
+		>
+			<ProfilePicture
+				className="flex-shrink-0"
+				profile={{ profilePic: community.profilePic }}
+				srcTag={community.idTag}
+			/>
+			<span className="c-vbox align-items-start" style={{ maxWidth: '12rem' }}>
+				<span className="text-truncate w-100">{community.name}</span>
+				<IdentityTag
+					className="text-truncate w-100 small text-muted"
+					idTag={community.idTag}
+				/>
+			</span>
+			{selected && (
+				<span className="c-badge accent positioned tr xs" aria-hidden>
+					<IcAvailable size={12} />
+				</span>
+			)}
+		</button>
+	)
+}
+
 function RegistrationInvites() {
 	const { t } = useTranslation()
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const dialog = useDialog()
+	const {
+		communities: memberCommunities,
+		favorites: pinned,
+		pinnedIdTags,
+		loadCommunities
+	} = useCommunitiesList()
 	const [refs, setRefs] = React.useState<Ref[] | undefined>()
 	const [editingRefId, setEditingRefId] = React.useState<string | null>(null)
 	const [editDraft, setEditDraft] = React.useState<EditDraft>({
@@ -281,6 +332,22 @@ function RegistrationInvites() {
 		count: '1',
 		unlimitedCount: false
 	})
+	// Create-invite form state
+	const [showForm, setShowForm] = React.useState(false)
+	const [newDescription, setNewDescription] = React.useState('')
+	const [autoConnect, setAutoConnect] = React.useState(true)
+	const [selectedCommunities, setSelectedCommunities] = React.useState<Set<string>>(new Set())
+	const [creating, setCreating] = React.useState(false)
+
+	React.useEffect(() => {
+		if (memberCommunities.length === 0) loadCommunities()
+		// load only on first mount; deps intentionally omitted
+	}, [])
+
+	const more = React.useMemo(
+		() => memberCommunities.filter((c) => !pinnedIdTags.includes(c.idTag)),
+		[pinnedIdTags, memberCommunities]
+	)
 
 	React.useEffect(
 		function loadRefs() {
@@ -301,18 +368,39 @@ function RegistrationInvites() {
 		[auth, api]
 	)
 
+	function toggleCommunity(idTag: string) {
+		setSelectedCommunities((prev) => {
+			const next = new Set(prev)
+			if (next.has(idTag)) {
+				next.delete(idTag)
+			} else {
+				next.add(idTag)
+			}
+			return next
+		})
+	}
+
+	function resetForm() {
+		setShowForm(false)
+		setNewDescription('')
+		setAutoConnect(true)
+		setSelectedCommunities(new Set())
+	}
+
 	async function createRef() {
 		if (!api) return
-		const description = await dialog.askText(
-			t('Create invitation'),
-			t('You can write a short description to help you distinguish the invitations later.')
-		)
-		if (description === undefined) return
+		setCreating(true)
 		try {
+			const params = new URLSearchParams()
+			params.set('connect', autoConnect ? '1' : '0')
+			if (selectedCommunities.size) {
+				params.set('communities', Array.from(selectedCommunities).join(','))
+			}
 			const res = await api.refs.create({
 				type: 'register',
-				description: description || undefined,
-				count: 1
+				description: newDescription.trim() || undefined,
+				count: 1,
+				params: params.toString() || undefined
 			})
 			if (res) {
 				setRefs((refs) => [
@@ -325,11 +413,14 @@ function RegistrationInvites() {
 					...(refs || [])
 				])
 			}
+			resetForm()
 		} catch (err) {
 			await dialog.tell(
 				t('Failed to create invitation'),
 				err instanceof Error ? err.message : String(err)
 			)
+		} finally {
+			setCreating(false)
 		}
 	}
 
@@ -442,6 +533,89 @@ function RegistrationInvites() {
 
 	return (
 		<>
+			{showForm && (
+				<div className="c-panel p-3 mb-3">
+					<h3 className="mb-3">{t('Create invitation')}</h3>
+					<div className="c-vbox g-3">
+						<label className="c-vbox g-1">
+							<span>{t('Label')}</span>
+							<input
+								type="text"
+								className="c-input"
+								value={newDescription}
+								onChange={(e) => setNewDescription(e.target.value)}
+								placeholder={t('Optional note to identify this invitation')}
+							/>
+						</label>
+
+						<Toggle
+							label={t('Auto-connect on signup')}
+							checked={autoConnect}
+							onChange={(e) => setAutoConnect(e.target.checked)}
+						/>
+
+						<div className="c-vbox g-2">
+							<span>{t('Add to communities')}</span>
+
+							{memberCommunities.length === 0 && (
+								<span className="text-muted small">
+									{t("You're not a member of any community yet.")}
+								</span>
+							)}
+
+							{pinned.length > 0 && (
+								<>
+									<span className="text-muted small">{t('Pinned')}</span>
+									<div className="c-hbox flex-wrap g-2">
+										{pinned.map((c) => (
+											<CommunityTile
+												key={c.idTag}
+												community={c}
+												selected={selectedCommunities.has(c.idTag)}
+												onToggle={toggleCommunity}
+											/>
+										))}
+									</div>
+								</>
+							)}
+
+							{more.length > 0 && (
+								<>
+									{pinned.length > 0 && (
+										<span className="text-muted small">
+											{t('More communities')}
+										</span>
+									)}
+									<div className="c-hbox flex-wrap g-2">
+										{more.map((c) => (
+											<CommunityTile
+												key={c.idTag}
+												community={c}
+												selected={selectedCommunities.has(c.idTag)}
+												onToggle={toggleCommunity}
+											/>
+										))}
+									</div>
+								</>
+							)}
+
+							<span className="text-muted small">
+								{t(
+									'You can only invite to communities where you are a moderator; others are skipped.'
+								)}
+							</span>
+						</div>
+
+						<div className="c-hbox g-2 justify-content-end mt-2">
+							<Button onClick={resetForm}>{t('Cancel')}</Button>
+							<Button variant="primary" onClick={createRef} disabled={creating}>
+								{t('Create')}
+							</Button>
+						</div>
+					</div>
+				</div>
+			)}
+
 			<div className="c-vbox">
 				{refs?.map((ref) => (
 					<RegistrationInviteCard
@@ -457,9 +631,14 @@ function RegistrationInvites() {
 					/>
 				))}
 			</div>
-			<button className="c-button primary float mb-5 me-2" onClick={createRef}>
-				<IcAdd />
-			</button>
+			{!showForm && (
+				<button
+					className="c-button primary float mb-5 me-2"
+					onClick={() => setShowForm(true)}
+				>
+					<IcAdd />
+				</button>
+			)}
 		</>
 	)
 }

@@ -16,7 +16,8 @@ module.exports = {
 		},
 		resource: {
 			loadPath: 'src/i18n/{{lng}}/{{ns}}.json',
-			savePath: 'src/i18n/{{lng}}/{{ns}}.json'
+			savePath: 'src/i18n/{{lng}}/{{ns}}.json',
+			jsonIndent: '\t'
 		},
 		trans: {
 			supportBasicHtmlNodes: true,

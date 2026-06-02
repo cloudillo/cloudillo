@@ -241,7 +241,51 @@ export const tProfileInfo = T.struct({
 })
 export type ProfileInfo = T.TypeOf<typeof tProfileInfo>
 
-export const tActionView = T.struct({
+// Explicit interface so `subjectAction` can recursively reference ActionView.
+// (A plain `T.TypeOf<typeof tActionView>` cannot type a self-referential
+// runtype — TS would infer `any`.)
+export interface ActionView {
+	actionId: string
+	type: string
+	subType?: string
+	parentId?: string
+	rootId?: string
+	issuer: ProfileInfo
+	audience?: ProfileInfo
+	content?: unknown
+	attachments?: Array<{
+		fileId: string
+		dim?: [number, number] | null
+		localVariants?: string[]
+	}>
+	subject?: string
+	subjectProfile?: ProfileInfo
+	// Hydrated original action referenced by `subject` (e.g. the post a REPOST
+	// shares). Populated by the backend listing path so the client can render
+	// the embedded original card without a second fetch.
+	subjectAction?: ActionView
+	createdAt: string | number
+	expiresAt?: string | number
+	status?: ActionStatus
+	// Raw signed JWS for this action. Absent on normal feed/list payloads;
+	// populated only when the list query requests it (includeTokens), so a
+	// viewer can verify the action signature client-side.
+	token?: string
+	stat?: {
+		ownReaction?: string
+		reactions?: string
+		comments?: number
+		commentsRead?: number
+		reposts?: number // Total active reposts of this action
+		// Map keyed by audienceTag → repostActionId, listing every active REPOST
+		// by the requesting tenant that targets this action. Enables multi-target
+		// ✓-badges and the per-target "undo repost" affordance.
+		ownRepostIds?: Record<string, string>
+	}
+	visibility?: string
+	x?: unknown // Extensible metadata (x.role for SUBS, etc.)
+}
+export const tActionView: T.Type<ActionView> = T.struct({
 	actionId: T.string,
 	type: T.string,
 	subType: T.optional(T.string),
@@ -261,6 +305,7 @@ export const tActionView = T.struct({
 	),
 	subject: T.optional(T.string),
 	subjectProfile: T.optional(tProfileInfo),
+	subjectAction: T.optional(T.lazy((): T.Type<ActionView> => tActionView)),
 	createdAt: T.union(T.string, T.number),
 	expiresAt: T.optional(T.union(T.string, T.number)),
 	status: T.optional(tActionStatus),
@@ -269,13 +314,15 @@ export const tActionView = T.struct({
 			ownReaction: T.optional(T.string),
 			reactions: T.optional(T.string),
 			comments: T.optional(T.number),
-			commentsRead: T.optional(T.number)
+			commentsRead: T.optional(T.number),
+			reposts: T.optional(T.number),
+			ownRepostIds: T.optional(T.record(T.string))
 		})
 	),
 	visibility: T.optional(T.string),
-	x: T.optional(T.unknown) // Extensible metadata (x.role for SUBS, etc.)
+	x: T.optional(T.unknown),
+	token: T.optional(T.string)
 })
-export type ActionView = T.TypeOf<typeof tActionView>
 
 // Action types //
 //////////////////
@@ -331,10 +378,10 @@ export const tRepostAction = T.struct({
 	type: T.literal('REPOST'),
 	subType: T.undefinedValue,
 	content: T.optional(T.string),
-	attachments: T.optional(T.array(T.string)),
-	parentId: T.string,
+	attachments: T.undefinedValue,
+	parentId: T.undefinedValue,
 	audience: T.optional(T.string),
-	subject: T.undefinedValue
+	subject: T.string // The action being shared (non-hierarchical reference, like REACT/APRV)
 })
 export type RepostAction = T.TypeOf<typeof tRepostAction>
 
@@ -379,7 +426,8 @@ export const tStatAction = T.struct({
 	subType: T.undefinedValue,
 	content: T.struct({
 		r: T.optional(T.string), // compact total+per-type, e.g. "54,L52,V2"
-		c: T.optional(T.number) // total comments
+		c: T.optional(T.number), // total comments
+		rp: T.optional(T.number) // total reposts
 	}),
 	attachments: T.undefinedValue,
 	parentId: T.string,

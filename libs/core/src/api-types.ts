@@ -556,6 +556,10 @@ export interface ListActionsQuery {
 	cursor?: string // Cursor for pagination
 	limit?: number // Items per page (replaces _limit)
 	_limit?: number // @deprecated Use limit instead
+	// When true, the server populates each action's raw signed JWS in
+	// `ActionView.token` (opt-in; used by the engagement signature-verification
+	// path). Forwarded verbatim as the `includeTokens` query param.
+	includeTokens?: boolean
 }
 
 // Response types

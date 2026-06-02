@@ -455,8 +455,9 @@ function Document({ attachments, idTag, token }: DocumentProps) {
 interface CommentProps {
 	className?: string
 	action: ActionView
+	srcTag: string
 }
-function Comment({ className, action }: CommentProps) {
+function Comment({ className, action, srcTag }: CommentProps) {
 	const urlContext = useUrlContextIdTag()
 	if (typeof action.content != 'string') return null
 
@@ -464,7 +465,7 @@ function Comment({ className, action }: CommentProps) {
 		<div className={'c-panel ' + (className || '')}>
 			<div className="c-panel-header d-flex">
 				<Link to={`/profile/${urlContext || HOME_CONTEXT}/${action.issuer.idTag}`}>
-					<ProfileCard profile={action.issuer} />
+					<ProfileCard profile={action.issuer} srcTag={srcTag} />
 				</Link>
 			</div>
 			<div>
@@ -563,10 +564,12 @@ function NewComment({
 function SubComments({
 	comments,
 	parentId,
+	srcTag,
 	className
 }: {
 	comments: ActionView[]
 	parentId: string
+	srcTag: string
 	className?: string
 }) {
 	return (
@@ -574,7 +577,12 @@ function SubComments({
 			{comments
 				.filter((action) => action.type == 'CMNT' && action.parentId == parentId)
 				.map((action) => (
-					<Comment key={action.actionId} className="mb-1" action={action} />
+					<Comment
+						key={action.actionId}
+						className="mb-1"
+						action={action}
+						srcTag={srcTag}
+					/>
 				))}
 		</div>
 	)
@@ -596,8 +604,7 @@ function CommentsTrustPrompt({
 	onResolved: () => void
 }) {
 	const { t } = useTranslation()
-	const { setStoredTrust } = useProfileTrust()
-	const { getTokenFor } = useApiContext()
+	const { setStoredTrust, setSessionTrust } = useProfileTrust()
 	const [busy, setBusy] = React.useState(false)
 	const [hidden, setHidden] = React.useState(false)
 
@@ -615,16 +622,9 @@ function CommentsTrustPrompt({
 		}
 	}
 
-	async function handleJustNow() {
-		setBusy(true)
-		try {
-			const result = await getTokenFor(audienceIdTag, { explicit: true })
-			if (result) onResolved()
-		} catch (err) {
-			console.error('[CommentsTrustPrompt] failed to fetch one-shot token:', err)
-		} finally {
-			setBusy(false)
-		}
+	function handleJustNow() {
+		setSessionTrust(audienceIdTag, 'S')
+		onResolved()
 	}
 
 	async function handleNever() {
@@ -646,32 +646,14 @@ function CommentsTrustPrompt({
 					idTag: audienceIdTag
 				})}
 			</small>
-			<div className="c-hbox g-1">
-				<Button
-					kind="link"
-					variant="primary"
-					size="small"
-					onClick={handleJustNow}
-					disabled={busy}
-				>
+			<div className="c-hbox g-2">
+				<Button variant="primary" size="small" onClick={handleJustNow}>
 					{t('Just now')}
 				</Button>
-				<Button
-					kind="link"
-					variant="primary"
-					size="small"
-					onClick={handleAlways}
-					disabled={busy}
-				>
+				<Button variant="secondary" size="small" onClick={handleAlways} disabled={busy}>
 					{t('Always trust')}
 				</Button>
-				<Button
-					kind="link"
-					variant="warning"
-					size="small"
-					onClick={handleNever}
-					disabled={busy}
-				>
+				<Button variant="warning" size="small" onClick={handleNever} disabled={busy}>
 					{t('Never')}
 				</Button>
 			</div>
@@ -791,7 +773,11 @@ function Comments({ parentAction, onCommentsRead, ...props }: CommentsProps) {
 					onResolved={() => setTokenRefreshTick((n) => n + 1)}
 				/>
 			)}
-			<SubComments comments={comments} parentId={parentAction.actionId} />
+			<SubComments
+				comments={comments}
+				parentId={parentAction.actionId}
+				srcTag={audienceIdTag}
+			/>
 			{!showTrustPrompt && <NewComment parentAction={parentAction} onSubmit={onSubmit} />}
 		</div>
 	)

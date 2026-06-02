@@ -18,6 +18,7 @@ import type { ShareCreateReq } from '@cloudillo/core'
  */
 export interface ShareCreateOpenOptions {
 	resourceId: string
+	ownerIdTag?: string
 	accessLevel?: 'read' | 'comment' | 'write'
 	description?: string
 	expiresAt?: number
@@ -102,6 +103,7 @@ export function initShareHandlers(bus: ShellMessageBus): void {
 
 		// Derive resourceId from connection's resId (format: "ownerTag:fileId")
 		const fileId = connection.resId?.split(':').slice(1).join(':')
+		const ownerIdTag = connection.resId?.split(':')[0]
 		if (!fileId) {
 			console.error('[Share] Cannot determine resource ID from connection')
 			bus.sendResponse(
@@ -129,6 +131,7 @@ export function initShareHandlers(bus: ShellMessageBus): void {
 		openShareCreateCallback(
 			{
 				resourceId: fileId,
+				ownerIdTag,
 				accessLevel: msg.payload.accessLevel,
 				description: msg.payload.description,
 				expiresAt: msg.payload.expiresAt,

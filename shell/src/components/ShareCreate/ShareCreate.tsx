@@ -15,13 +15,15 @@ import React from 'react'
 import dayjs from 'dayjs'
 import { useTranslation } from 'react-i18next'
 
-import { Dialog, Button, Badge, useToast, useApi } from '@cloudillo/react'
+import { Dialog, Button, Badge, useToast } from '@cloudillo/react'
 import type { Ref } from '@cloudillo/core'
 import {
 	setShareCreateCallback,
 	type ShareCreateOpenOptions,
 	type ShareCreateResultData
 } from '../../message-bus/handlers/share.js'
+import { useApiContext } from '../../context/index.js'
+import { useShareOrigin } from '../../utils/appOrigin.js'
 
 interface PendingRequest {
 	options: ShareCreateOpenOptions
@@ -48,9 +50,16 @@ function formatExpiry(ref: Ref, t: (key: string) => string): string | null {
 
 export function ShareCreate() {
 	const { t } = useTranslation()
-	const { api } = useApi()
+	const { getClientFor } = useApiContext()
 	const toast = useToast()
 	const [pending, setPending] = React.useState<PendingRequest | null>(null)
+	const ownerIdTag = pending?.options.ownerIdTag
+	// Client targeting the document owner's tenant (where the ref must live).
+	const api = React.useMemo(
+		() => (ownerIdTag ? getClientFor(ownerIdTag, { auth: 'required' }) : null),
+		[ownerIdTag, getClientFor]
+	)
+	const shareOrigin = useShareOrigin(api, ownerIdTag) ?? window.location.origin
 	const [creating, setCreating] = React.useState(false)
 	const [compatibleRefs, setCompatibleRefs] = React.useState<Ref[]>([])
 	const [loadingRefs, setLoadingRefs] = React.useState(false)
@@ -116,7 +125,7 @@ export function ShareCreate() {
 
 		if (mode === 'reuse' && selectedRefId) {
 			// Reuse existing ref — construct URL with appended params
-			const baseUrl = `${window.location.origin}/s/${selectedRefId}`
+			const baseUrl = `${shareOrigin}/s/${selectedRefId}`
 			const url = pending.options.params ? `${baseUrl}?${pending.options.params}` : baseUrl
 
 			try {
@@ -147,7 +156,7 @@ export function ShareCreate() {
 				params: pending.options.params
 			})
 
-			const url = `${window.location.origin}/s/${ref.refId}`
+			const url = `${shareOrigin}/s/${ref.refId}`
 
 			try {
 				await navigator.clipboard.writeText(url)
@@ -165,7 +174,7 @@ export function ShareCreate() {
 			setCreating(false)
 			setPending(null)
 		}
-	}, [pending, api, mode, selectedRefId, t, toast])
+	}, [pending, api, mode, selectedRefId, shareOrigin, t, toast])
 
 	if (!pending) return null
 

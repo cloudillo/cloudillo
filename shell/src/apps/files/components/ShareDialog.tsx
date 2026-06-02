@@ -30,13 +30,18 @@ import {
 	QRCodeDialog
 } from '@cloudillo/react'
 import { useAtom } from 'jotai'
-import { useContextAwareApi, activeContextAtom } from '../../../context/index.js'
+import {
+	useContextAwareApi,
+	activeContextAtom,
+	useCurrentContextIdTag
+} from '../../../context/index.js'
 
 import { getFileIcon, IcUnknown } from '../icons.js'
 import { canManageFile } from '../utils.js'
 import type { File } from '../types.js'
 import { parseRefDate, formatRefDate, dateInputToExpiryIso } from '../../../utils/parseRefDate.js'
 import { getCachedProfiles, getCachedProfile } from '../../../utils/profileCache.js'
+import { useShareOrigin } from '../../../utils/appOrigin.js'
 import { AccessLevelMenu } from './AccessLevelMenu.js'
 
 type PermLevel = 'READ' | 'COMMENT' | 'WRITE'
@@ -66,7 +71,13 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 	const { api } = useContextAwareApi()
 	const [auth] = useAuth()
 	const [activeContext] = useAtom(activeContextAtom)
+	const contextIdTag = useCurrentContextIdTag()
 	const toast = useToast()
+
+	// Share URLs must point at the tenant that holds the ref (file owner, or
+	// the active context) — its app/web domain, not the API host.
+	const shareHostIdTag = file.owner?.idTag ?? contextIdTag
+	const shareOrigin = useShareOrigin(api, shareHostIdTag) ?? window.location.origin
 
 	const dialogRef = React.useRef<HTMLDivElement>(null)
 
@@ -323,7 +334,7 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 	}
 
 	function copyShareLink(refId: string) {
-		const url = `${window.location.origin}/s/${refId}`
+		const url = `${shareOrigin}/s/${refId}`
 		navigator.clipboard.writeText(url)
 		toast.success(t('Link copied to clipboard'))
 	}
@@ -693,7 +704,7 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 													title={t('Show QR code')}
 													onClick={() =>
 														setQrCodeUrl(
-															`${window.location.origin}/s/${ref.refId}`
+															`${shareOrigin}/s/${ref.refId}`
 														)
 													}
 												>

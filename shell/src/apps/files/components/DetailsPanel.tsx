@@ -48,6 +48,7 @@ import {
 } from '../utils.js'
 import { formatRefDate } from '../../../utils/parseRefDate.js'
 import { getCachedProfiles, getCachedProfile } from '../../../utils/profileCache.js'
+import { useShareOrigin } from '../../../utils/appOrigin.js'
 import type { File, FileOps } from '../types.js'
 
 type PermLevel = 'READ' | 'COMMENT' | 'WRITE'
@@ -204,6 +205,10 @@ export function DetailsPanel({
 
 	const api = apiOverride !== undefined ? apiOverride : isCrossOwner ? ownerApi : contextApi
 	const toast = useToast()
+	// Share URLs must point at the tenant that holds the ref (file owner, or the
+	// active context) — its app/web domain, not the API host.
+	const shareOrigin =
+		useShareOrigin(api, file.owner?.idTag ?? contextIdTag) ?? window.location.origin
 	const [shareRefs, setShareRefs] = React.useState<Types.Ref[] | undefined>()
 	const [userShareEntries, setUserShareEntries] = React.useState<Types.ShareEntry[] | undefined>()
 	const [fileShareEntries, setFileShareEntries] = React.useState<Types.ShareEntry[] | undefined>()
@@ -350,7 +355,7 @@ export function DetailsPanel({
 	)
 
 	function copyShareLink(refId: string) {
-		const url = `${window.location.origin}/s/${refId}`
+		const url = `${shareOrigin}/s/${refId}`
 		navigator.clipboard.writeText(url)
 		toast.success(t('Link copied to clipboard'))
 	}
@@ -685,7 +690,7 @@ export function DetailsPanel({
 													title={t('Show QR code')}
 													onClick={() =>
 														setQrCodeUrl(
-															`${window.location.origin}/s/${ref.refId}`
+															`${shareOrigin}/s/${ref.refId}`
 														)
 													}
 												>

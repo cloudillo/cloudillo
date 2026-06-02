@@ -468,8 +468,11 @@ export function useCommunitiesList() {
 						isFavorite: existing?.isFavorite || false,
 						unreadCount: existing?.unreadCount || 0,
 						lastActivityAt: existing?.lastActivityAt || null,
-						isPending: existing?.isPending || false,
-						pendingSince: existing?.pendingSince
+						// Backend reports connected === true here, so the community is no longer
+						// pending — clear any stale pending flag carried over from creation.
+						isPending: false,
+						pendingSince: undefined,
+						pendingReason: undefined
 					}
 				})
 
@@ -601,20 +604,6 @@ export function useCommunitiesList() {
 		[setCommunities]
 	)
 
-	/**
-	 * Mark a pending community as active (DNS resolved)
-	 */
-	const activatePendingCommunity = React.useCallback(
-		(idTag: string) => {
-			setCommunities((prev) =>
-				prev.map((c) =>
-					c.idTag === idTag ? { ...c, isPending: false, pendingSince: undefined } : c
-				)
-			)
-		},
-		[setCommunities]
-	)
-
 	return {
 		communities,
 		favorites: favoriteCommunities,
@@ -629,8 +618,7 @@ export function useCommunitiesList() {
 		reorderFavorites,
 		addCommunity,
 		removeCommunity,
-		addPendingCommunity,
-		activatePendingCommunity
+		addPendingCommunity
 	}
 }
 

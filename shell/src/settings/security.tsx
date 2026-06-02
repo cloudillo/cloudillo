@@ -8,7 +8,7 @@ import {
 	type WebAuthnCredential
 } from '@cloudillo/core'
 import { Button, LoadingSpinner, Modal, useApi, useAuth, useDialog } from '@cloudillo/react'
-import { browserSupportsWebAuthn, startRegistration } from '@simplewebauthn/browser'
+import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
 import type { TFunction } from 'i18next'
 import * as React from 'react'
 
@@ -33,6 +33,7 @@ import {
 	setApiKey as swSetApiKey
 } from '../pwa.js'
 import { PasswordInput, PasswordStrengthBar } from '../components/PasswordInput.js'
+import { registerPasskey } from './passkey.js'
 import { useSettings } from './settings.js'
 
 interface ScopeDef {
@@ -603,23 +604,7 @@ export function SecuritySettings() {
 		setIsAddingPasskey(true)
 
 		try {
-			// Get registration challenge
-			const challengeData = await api.auth.getWebAuthnRegChallenge()
-
-			// Start browser registration
-			// Note: options come from webauthn-rs which may have slightly different types
-			const response = await startRegistration({
-				optionsJSON: challengeData.options as Parameters<
-					typeof startRegistration
-				>[0]['optionsJSON']
-			})
-
-			// Complete registration with backend
-			await api.auth.registerWebAuthnCredential({
-				token: challengeData.token,
-				response,
-				description: passkeyDescription || undefined
-			})
+			await registerPasskey(api, passkeyDescription || undefined)
 
 			setPasskeyDescription('')
 			await loadPasskeys()

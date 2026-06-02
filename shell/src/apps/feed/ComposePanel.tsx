@@ -32,6 +32,7 @@ import {
 } from 'react-icons/lu'
 import { usePopper } from 'react-popper'
 import { type Position, useEditable } from 'use-editable'
+import { handleEditablePaste } from '../../utils/editablePaste.js'
 import { AttachmentPreview } from '../../components/AttachmentPreview.js'
 import { type AttachmentType, useImageUpload } from '../../hooks/useImageUpload.js'
 import { ImageUpload } from '../../image.js'
@@ -660,6 +661,7 @@ export function ComposePanel({
 								className="c-input"
 								tabIndex={0}
 								onKeyDown={onKeyDown}
+								onPasteCapture={(e) => handleEditablePaste(e, edit, content)}
 								style={{ minHeight: '6rem' }}
 							>
 								{generateFragments(content).map((n, i) => (

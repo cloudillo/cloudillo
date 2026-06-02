@@ -51,6 +51,7 @@ import {
 import '@cloudillo/react/components.css'
 
 import { useAppConfig } from '../utils.js'
+import { handleEditablePaste } from '../utils/editablePaste.js'
 import { ImageUpload } from '../image.js'
 import { useWsBus } from '../ws-bus.js'
 import { useImageUpload } from '../hooks/useImageUpload.js'
@@ -215,7 +216,7 @@ export function NewMsg({
 
 	const imageUpload = useImageUpload()
 
-	useEditable(editorRef, onChange)
+	const edit = useEditable(editorRef, onChange)
 
 	React.useEffect(() => {
 		setTimeout(function () {
@@ -306,6 +307,7 @@ export function NewMsg({
 							className="c-input flex-fill"
 							tabIndex={0}
 							onKeyDown={onKeyDown}
+							onPasteCapture={(e) => handleEditablePaste(e, edit, content)}
 						>
 							{generateFragments(content).map((n, i) => (
 								<React.Fragment key={i}>{n}</React.Fragment>

@@ -60,6 +60,7 @@ import {
 	useUrlContextIdTag
 } from '../context/index.js'
 import { useWsBus } from '../ws-bus.js'
+import { handleEditablePaste } from '../utils/editablePaste.js'
 import {
 	CommentBadge,
 	ComposePanel,
@@ -148,7 +149,7 @@ function NewComment({
 	const [content, setContent] = React.useState('')
 	const editorRef = React.useRef<HTMLDivElement>(null)
 
-	useEditable(editorRef, onChange)
+	const edit = useEditable(editorRef, onChange)
 
 	React.useEffect(() => {
 		editorRef.current?.focus()
@@ -187,7 +188,13 @@ function NewComment({
 			<ProfilePicture profile={{ profilePic: auth.profilePic }} small />
 			<div className="c-panel p-1 flex-row flex-fill">
 				<div className="c-input-group">
-					<div ref={editorRef} className="c-input" tabIndex={0} onKeyDown={onKeyDown}>
+					<div
+						ref={editorRef}
+						className="c-input"
+						tabIndex={0}
+						onKeyDown={onKeyDown}
+						onPasteCapture={(e) => handleEditablePaste(e, edit, content)}
+					>
 						{generateFragments(content).map((n, i) => (
 							<React.Fragment key={i}>{n}</React.Fragment>
 						))}

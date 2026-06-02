@@ -1,19 +1,17 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
-
-import { LuLock as IcLock, LuRefreshCw as IcLoading } from 'react-icons/lu'
-
-import { useApi, useAuth, Button } from '@cloudillo/react'
-import { FetchError } from '@cloudillo/core'
-import { PasswordInput, PasswordStrengthBar } from '../components/PasswordInput.js'
 import type { IdpStatusResponse } from '@cloudillo/core'
-import { installToken } from '../pwa.js'
+import { FetchError } from '@cloudillo/core'
+import { Button, useApi, useAuth } from '@cloudillo/react'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import { LuRefreshCw as IcLoading, LuLock as IcLock } from 'react-icons/lu'
+import { useNavigate, useParams } from 'react-router-dom'
+import { PasswordInput, PasswordStrengthBar } from '../components/PasswordInput.js'
 import { CloudilloLogo } from '../logo.js'
-import { VerifyIdpContent, type ResendState } from './verify-idp-content.js'
+import { installToken } from '../pwa.js'
+import { type ResendState, VerifyIdpContent } from './verify-idp-content.js'
 
 const POLL_INTERVAL_MS = 10_000
 const RESEND_COOLDOWN_MS = 60_000
@@ -22,7 +20,7 @@ export function Welcome() {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
 	const { api } = useApi()
-	const [_auth, setAuth] = useAuth()
+	const [auth, setAuth] = useAuth()
 	const { refId } = useParams<{ refId: string }>()
 	const [password, setPassword] = React.useState('')
 	const [confirmPassword, setConfirmPassword] = React.useState('')
@@ -78,6 +76,32 @@ export function Welcome() {
 		}
 		init()
 	}, [api, refId, t])
+
+	// Resume-on-reopen: the backend no longer consumes the welcome ref at
+	// set-password, so returning to this link mid-flow must resume rather than
+	// dead-end. If the user is already authenticated and an onboarding gate is
+	// still set, jump straight to the saved step (carrying the refId in the URL
+	// so it survives reload), skipping the password form.
+	React.useEffect(() => {
+		if (!api || !refId || !auth || progress !== 'idle') return
+		let cancelled = false
+		;(async function resume() {
+			try {
+				const setting = await api.settings.get('ui.onboarding')
+				if (cancelled) return
+				const step = setting.value
+				if (typeof step === 'string' && step) {
+					navigate('/onboarding/' + refId + '/' + step, { replace: true })
+				}
+			} catch (_err) {
+				// No gate (404) → already-authenticated user reopened a stale
+				// link; fall through to the (idempotent) password form.
+			}
+		})()
+		return () => {
+			cancelled = true
+		}
+	}, [api, refId, auth, navigate, progress])
 
 	// Poll IDP status while the gate is engaged. Stops as soon as we see
 	// `status === 'active'` (which switches the page to the password form).
@@ -171,19 +195,25 @@ export function Welcome() {
 
 			setProgress('success')
 			setAuth({ ...res })
+			// The welcome refId rides in the URL (/onboarding/:refId/…) so the
+			// wizard's Finish step can consume it (via api.onboarding.complete)
+			// even after a reload. The backend left the ref intact, so the flow
+			// stays reversible until then.
 			// IDP-typed registrations should already have cleared
 			// `ui.onboarding` via the refId-scoped IDP-status call above. The
 			// post-auth `/onboarding/verify-idp` redirect remains as a
 			// defensive fallback for race conditions where the clear hasn't
 			// propagated yet.
-			let nextPath = '/onboarding/join'
+			// Default to the invites step, which fetches any pending CONN/INVT
+			// invitations and silently advances to `join` when there are none.
+			let nextPath = '/onboarding/' + refId + '/invites'
 			try {
 				const setting = await api.settings.get('ui.onboarding')
 				if (setting.value === 'verify-idp') {
-					nextPath = '/onboarding/verify-idp'
+					nextPath = '/onboarding/' + refId + '/verify-idp'
 				}
 			} catch (settingsErr) {
-				// 404 = no onboarding gate engaged → /onboarding/join is correct.
+				// 404 = no onboarding gate engaged → /onboarding/invites is correct.
 				if (!(settingsErr instanceof FetchError && settingsErr.httpStatus === 404)) {
 					console.warn(
 						'Failed to read ui.onboarding after setPassword, defaulting to join:',

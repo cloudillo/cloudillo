@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import { useApi } from '@cloudillo/react'
@@ -18,6 +18,7 @@ export function VerifyIdp() {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
 	const { api } = useApi()
+	const { refId } = useParams<{ refId?: string }>()
 
 	const [idp, setIdp] = React.useState<IdpStatusResponse | undefined>()
 	const [loadError, setLoadError] = React.useState<string | undefined>()
@@ -49,8 +50,13 @@ export function VerifyIdp() {
 					setResendState('expired')
 				}
 				if (res.status === 'active') {
-					const next = res.onboarding ? `/onboarding/${res.onboarding}` : '/'
-					navigate(next)
+					const step = res.onboarding
+					const nextPath = step
+						? refId
+							? `/onboarding/${refId}/${step}`
+							: `/onboarding/${step}`
+						: '/'
+					navigate(nextPath)
 				}
 			} catch (err) {
 				console.warn('idp-status poll failed:', err)
@@ -69,7 +75,7 @@ export function VerifyIdp() {
 		// every status response and trigger a tight loop. The closure reads the
 		// latest idp via setIdp's setter (above) which is enough.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [api, navigate, t])
+	}, [api, navigate, t, refId])
 
 	async function onResend() {
 		if (!api || resendState !== 'idle') return

@@ -3,6 +3,9 @@
 
 export const HOME_CONTEXT = '~'
 
+// The platform's default community offered during onboarding.
+export const DEFAULT_COMMUNITY_ID_TAG = 'cloudillo.net'
+
 // Top-level URL prefixes that carry a context idTag as their first path
 // segment. Both `useContextFromRoute` and the sidebar's switcher use this
 // list to decide which URLs are context-scoped — keep them in sync.

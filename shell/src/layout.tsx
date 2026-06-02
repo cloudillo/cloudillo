@@ -380,6 +380,11 @@ function Header({ inert }: { inert?: boolean }) {
 	}, [setSearch])
 
 	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
+		// During onboarding the user handles incoming invites/connections inline
+		// in the wizard; mirroring them into the notification bell is confusing
+		// and can divert the flow. Skip ingestion until onboarding finishes — the
+		// bell is reloaded fresh on completion (see Extras.finish).
+		if (location.pathname.startsWith('/onboarding/')) return
 		const action = msg.data as ActionView
 		if (action.status == 'N' || action.status == 'C')
 			setNotifications((n) => {
@@ -721,7 +726,9 @@ function Header({ inert }: { inert?: boolean }) {
 				)}
 				<ul className="c-nav-group c-hbox">
 					{auth && <HandChip />}
-					{auth && <NotificationPopover />}
+					{auth && !location.pathname.startsWith('/onboarding/') && (
+						<NotificationPopover />
+					)}
 					{auth ? (
 						<Popper
 							className="c-nav-item"

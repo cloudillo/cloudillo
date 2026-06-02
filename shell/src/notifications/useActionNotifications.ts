@@ -3,6 +3,7 @@
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { useLocation } from 'react-router-dom'
 import { useToast } from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 
@@ -95,6 +96,7 @@ function getNotificationMessage(
  */
 export function useActionNotifications() {
 	const { t } = useTranslation()
+	const location = useLocation()
 	const { settings } = useLocalNotifySettings()
 	const { toast } = useToast()
 	const audioRefs = React.useRef<Record<string, HTMLAudioElement>>({})
@@ -168,6 +170,9 @@ export function useActionNotifications() {
 	)
 
 	useWsBus({ cmds: ['ACTION'] }, (msg) => {
+		// Stay silent during onboarding: invites/connections are handled inline
+		// in the wizard, so a toast or sound here only distracts the new user.
+		if (location.pathname.startsWith('/onboarding/')) return
 		const action = msg.data as ActionView
 		// Play sounds for active notifications (not drafts or deleted)
 		if (!action.status || ['N', 'C', 'A'].includes(action.status)) {

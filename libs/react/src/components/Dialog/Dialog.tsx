@@ -21,6 +21,9 @@ export interface DialogProps {
 	title?: string
 	elevation?: Elevation
 	onClose?: () => void
+	/** When true, the dialog also closes on Escape and on a backdrop click.
+	 * Default false: existing consumers keep close-button-only behavior. */
+	dismissable?: boolean
 	children: React.ReactNode
 }
 
@@ -30,13 +33,30 @@ export function Dialog({
 	title,
 	elevation = 'high',
 	onClose,
+	dismissable = false,
 	children
 }: DialogProps) {
+	// Close on Escape while open. Declared before the early return so the hook
+	// order stays stable across open/closed renders.
+	React.useEffect(() => {
+		if (!open || !onClose || !dismissable) return
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') onClose()
+		}
+		window.addEventListener('keydown', onKey)
+		return () => window.removeEventListener('keydown', onKey)
+	}, [open, onClose, dismissable])
+
 	if (!open) return null
 
 	const content = (
-		<div className="c-modal show" tabIndex={-1}>
-			<div className={mergeClasses('c-dialog c-panel emph p-3', elevation, className)}>
+		// When dismissable, a backdrop click closes the dialog; clicks inside the
+		// panel are stopped so they don't bubble up to the backdrop handler.
+		<div className="c-modal show" tabIndex={-1} onClick={dismissable ? onClose : undefined}>
+			<div
+				className={mergeClasses('c-dialog c-panel emph p-3', elevation, className)}
+				onClick={(e) => e.stopPropagation()}
+			>
 				<div className="c-hbox mb-2">
 					<h2 className="fill">{title}</h2>
 					<button type="button" className="c-link" aria-label="Close" onClick={onClose}>

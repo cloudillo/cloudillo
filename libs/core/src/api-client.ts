@@ -1008,6 +1008,9 @@ export class ApiClient {
 		 */
 		getOwn: () => this.request('GET', '/me', Types.tProfileKeys),
 
+		/** GET /me/app-domain — tenant's public app/web domain (for building share links) */
+		getAppDomain: () => this.request('GET', '/me/app-domain', Types.tAppDomainResult),
+
 		/**
 		 * GET /me/full - Get full own profile
 		 * @returns Full own profile
@@ -1491,6 +1494,23 @@ export class ApiClient {
 		 * @returns Deleted reference ID
 		 */
 		delete: (refId: string) => this.request('DELETE', `/refs/${refId}`, Types.tDeleteRefResult)
+	}
+
+	// ========================================================================
+	// ONBOARDING ENDPOINTS
+	// ========================================================================
+
+	/** Onboarding wizard endpoints */
+	onboarding = {
+		/**
+		 * POST /onboarding/complete - Finish the reversible onboarding wizard.
+		 * Consumes the welcome ref (left intact by set-password) so the link is
+		 * retired. Authenticated; the backend verifies the ref belongs to the
+		 * caller. Idempotent — an already-consumed ref still resolves success.
+		 * @param data - The captured welcome refId
+		 */
+		complete: (data: Types.OnboardingCompleteRequest) =>
+			this.request('POST', '/onboarding/complete', T.nullValue, { data })
 	}
 
 	// ========================================================================

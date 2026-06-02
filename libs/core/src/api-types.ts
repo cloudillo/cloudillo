@@ -158,6 +158,10 @@ export interface ForgotPasswordRequest {
 	email: string
 }
 
+export interface OnboardingCompleteRequest {
+	refId: string
+}
+
 // Response types (with runtype validators - runtime validation)
 export const tLoginResult = T.struct({
 	tnId: T.number,
@@ -1017,6 +1021,9 @@ export interface ListRefsQuery {
 }
 
 // Response types
+export const tAppDomainResult = T.struct({ appDomain: T.string })
+export type AppDomainResult = T.TypeOf<typeof tAppDomainResult>
+
 export const tRef = T.struct({
 	refId: T.string,
 	type: T.string,

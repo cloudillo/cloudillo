@@ -44,7 +44,7 @@ export async function cacheActions(contextIdTag: string, actions: ActionView[]):
 export function buildActionOfflineQuery(
 	contextIdTag: string,
 	params: {
-		type?: string
+		type?: string | string[]
 		audience?: string
 	}
 ): OfflineQuerySpec {
@@ -55,12 +55,21 @@ export function buildActionOfflineQuery(
 		}
 	}
 
-	if (params.type) {
+	const typeList = params.type
+		? Array.isArray(params.type)
+			? params.type
+			: [params.type]
+		: undefined
+
+	// The narrow by-context-type-created index keys on a single type; use it only
+	// for single-type queries. For multiple types fall through to by-context \u2014 the
+	// typeList post-filter in queryCachedActions restricts the result set.
+	if (typeList && typeList.length === 1) {
 		return {
 			indexName: 'by-context-type-created',
 			range: IDBKeyRange.bound(
-				[contextIdTag, params.type],
-				[contextIdTag, params.type, '\uffff']
+				[contextIdTag, typeList[0]],
+				[contextIdTag, typeList[0], '\uffff']
 			),
 			direction: 'prev'
 		}
@@ -82,7 +91,7 @@ export function buildActionOfflineQuery(
 export async function queryCachedActions(
 	contextIdTag: string,
 	params: {
-		type?: string
+		type?: string | string[]
 		audience?: string
 		audienceType?: 'personal' | 'community'
 		visibility?: string | string[]
@@ -97,8 +106,23 @@ export async function queryCachedActions(
 			? params.visibility
 			: [params.visibility]
 		: undefined
-	if (!params.audienceType && !visibilityList && !params.issuer) return rows
+	const typeList = params.type
+		? Array.isArray(params.type)
+			? params.type
+			: [params.type]
+		: undefined
+	// A multi-type query uses the broad by-context index, so it must post-filter
+	// by type here (single-type queries are already narrowed by the index).
+	if (
+		!params.audienceType &&
+		!visibilityList &&
+		!params.issuer &&
+		!(typeList && typeList.length > 1)
+	) {
+		return rows
+	}
 	return rows.filter((a) => {
+		if (typeList && !typeList.includes(a.type)) return false
 		if (params.audienceType && a.audience?.type !== params.audienceType) return false
 		if (visibilityList && (!a.visibility || !visibilityList.includes(a.visibility))) {
 			return false

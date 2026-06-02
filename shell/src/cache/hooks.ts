@@ -78,7 +78,7 @@ export function createCachedActionFetchPage(
 	contextIdTag: string | undefined,
 	fetchPage: (cursor: string | null, limit: number) => Promise<CachedFetchResult<ActionView>>,
 	queryParams: {
-		type?: string
+		type?: string | string[]
 		audience?: string
 		audienceType?: 'personal' | 'community'
 		visibility?: string | string[]

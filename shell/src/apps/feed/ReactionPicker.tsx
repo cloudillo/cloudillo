@@ -1,19 +1,18 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, mergeClasses } from '@cloudillo/react'
 import * as React from 'react'
 import { createPortal } from 'react-dom'
-import { usePopper } from 'react-popper'
 import { useTranslation } from 'react-i18next'
-import { LuThumbsUp as IcThumbsUp, LuX as IcRemove } from 'react-icons/lu'
-
-import { Button, mergeClasses } from '@cloudillo/react'
+import { LuX as IcRemove, LuThumbsUp as IcThumbsUp } from 'react-icons/lu'
+import { usePopper } from 'react-popper'
 
 import {
-	reactionTypes,
 	getReactionEmoji,
 	getReactionLabel,
-	getReactionPastLabel
+	getReactionPastLabel,
+	reactionTypes
 } from './reactions.js'
 
 export interface ReactionPickerProps {

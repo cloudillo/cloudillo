@@ -1,13 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { EmptyState, SkeletonCard, useApi } from '@cloudillo/react'
+import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
 import { LuSave as IcDraft } from 'react-icons/lu'
-
-import type { ActionView } from '@cloudillo/types'
-import { useApi, EmptyState, SkeletonCard } from '@cloudillo/react'
 
 import { DraftCard } from './DraftCard.js'
 

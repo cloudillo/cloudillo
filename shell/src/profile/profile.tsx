@@ -41,8 +41,9 @@ import { useAuth, useApi, IdentityTag } from '@cloudillo/react'
 
 import { useWsBus } from '../ws-bus.js'
 import { ImageUpload } from '../image.js'
-import { type ActionEvt, ActionComp, ComposeTrigger } from '../apps/feed.js'
+import { type ActionEvt, type ActionStat, ActionComp, ComposeTrigger } from '../apps/feed.js'
 import { ComposePanel } from '../apps/feed/index.js'
+import { pendingQuoteAtom } from '../apps/feed/quote-intent.js'
 import type { Profile } from '@cloudillo/types'
 import {
 	ProfileListCard,
@@ -59,6 +60,8 @@ import {
 	communitiesAtom,
 	useApiContext,
 	useCommunitiesList,
+	useContextSwitch,
+	useCurrentContextIdTag,
 	useProfileTrust
 } from '../context/index.js'
 import { TrustBanner } from './TrustBanner.js'
@@ -743,6 +746,9 @@ interface ProfileTabProps {
 export function ProfileFeed({ profile }: ProfileTabProps) {
 	const { api } = useApi()
 	const [auth] = useAuth()
+	const setPendingQuote = useSetAtom(pendingQuoteAtom)
+	const { switchTo } = useContextSwitch()
+	const contextIdTag = useCurrentContextIdTag()
 	const [feed, setFeed] = React.useState<ActionEvt[] | undefined>()
 	const [composeOpen, setComposeOpen] = React.useState(false)
 	const [composeMedia, setComposeMedia] = React.useState<
@@ -786,11 +792,32 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 		[auth, api, ref]
 	)
 
-	const setFeedAction = React.useCallback(function setFeedAction(
+	// Patch a stat by engaged action id, applied to every occurrence of that id
+	// in the tree — top-level entry AND a repost's subjectAction — merging count
+	// fields while preserving per-user fields the patch doesn't carry.
+	const patchStat = React.useCallback(function patchStat(
 		actionId: string,
-		action: ActionEvt
+		stat: Partial<ActionStat>
 	) {
-		setFeed((feed) => (!feed ? feed : feed.map((f) => (f.actionId === actionId ? action : f))))
+		setFeed((feed) => {
+			if (!feed) return feed
+			return feed.map((f) => {
+				let next = f
+				if (f.actionId === actionId) {
+					next = { ...next, stat: { ...next.stat, ...stat } }
+				}
+				if (next.subjectAction?.actionId === actionId) {
+					next = {
+						...next,
+						subjectAction: {
+							...next.subjectAction,
+							stat: { ...next.subjectAction.stat, ...stat }
+						}
+					}
+				}
+				return next
+			})
+		})
 	}, [])
 
 	function onSubmit(action: ActionEvt) {
@@ -827,10 +854,14 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 						<ActionComp
 							key={action.actionId}
 							action={action}
-							setAction={setFeedAction}
+							onPatchStat={patchStat}
 							hideAudience={profile.idTag}
 							srcTag={profile.idTag}
 							width={width}
+							onQuote={(original, target) => {
+								setPendingQuote({ original, target })
+								switchTo(contextIdTag ?? auth?.idTag ?? '', '/feed')
+							}}
 						/>
 					))}
 				</div>

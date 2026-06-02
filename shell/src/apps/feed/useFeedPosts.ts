@@ -1,12 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
 import { useInfiniteScroll } from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
-import { useContextAwareApi } from '../../context/index.js'
-import { useCurrentContextIdTag } from '../../context/index.js'
+import * as React from 'react'
 import { createCachedActionFetchPage } from '../../cache/index.js'
+import { useContextAwareApi, useCurrentContextIdTag } from '../../context/index.js'
 import { useWsBus } from '../../ws-bus.js'
 
 export interface UseFeedPostsOptions {
@@ -39,7 +38,7 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 			}
 
 			const result = await api.actions.listPaginated({
-				type: 'POST',
+				type: ['POST', 'REPOST'],
 				// Active only — exclude soft-deleted/draft
 				status: ['A'],
 				audience,
@@ -67,7 +66,7 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 	// offline doesn't show a cached set from a different filter.
 	const cacheQueryParams = React.useMemo(
 		() => ({
-			type: 'POST' as const,
+			type: ['POST', 'REPOST'],
 			audience,
 			audienceType,
 			visibility: visibilityKey,
@@ -124,6 +123,41 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 					// Buffer new posts for "X new posts" banner
 					setNewPosts((prev) => [action, ...prev])
 				}
+				break
+			}
+			case 'REPOST': {
+				const existsInFeed = postsRef.current.some((p) => p.actionId === action.actionId)
+				const existsInNewPosts = newPostsRef.current.some(
+					(p) => p.actionId === action.actionId
+				)
+				if (existsInFeed || existsInNewPosts) break
+				if (action.status && action.status !== 'A') break
+				// The WS push omits the embedded original (subjectAction is hydrated
+				// only in the list path), so fetch it before buffering — otherwise the
+				// banner reveal would render a hollow repost wrapper.
+				if (action.subjectAction) {
+					setNewPosts((prev) => [action, ...prev])
+					break
+				}
+				const subjectId = action.subject
+				// '@'-prefixed subjects are remote refs the local store can't resolve;
+				// skip them — they'll surface (hydrated) on the next refetch.
+				if (!api || !subjectId || subjectId.startsWith('@')) break
+				api.actions
+					.get(subjectId)
+					.then((subject) => {
+						// Re-check dedup after the await; a refetch or echo may have landed.
+						if (postsRef.current.some((p) => p.actionId === action.actionId)) {
+							return
+						}
+						if (newPostsRef.current.some((p) => p.actionId === action.actionId)) {
+							return
+						}
+						setNewPosts((prev) => [{ ...action, subjectAction: subject }, ...prev])
+					})
+					.catch(() => {
+						/* leave for the next refetch */
+					})
 				break
 			}
 			case 'STAT':

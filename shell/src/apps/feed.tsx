@@ -2,29 +2,19 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { TFunction } from 'i18next'
+import { useAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { type Position, useEditable } from 'use-editable'
 
-import Lightbox from 'yet-another-react-lightbox'
-import 'yet-another-react-lightbox/styles.css'
-import Fullscreen from 'yet-another-react-lightbox/plugins/fullscreen'
-import Slideshow from 'yet-another-react-lightbox/plugins/slideshow'
-import Thumbnails from 'yet-another-react-lightbox/plugins/thumbnails'
-import Zoom from 'yet-another-react-lightbox/plugins/zoom'
-import 'yet-another-react-lightbox/plugins/thumbnails.css'
-import 'react-photo-album/rows.css'
-
 import type { ApiClient } from '@cloudillo/core'
-import { getFileUrl, getOptimalImageVariant, getOptimalVideoVariant } from '@cloudillo/core'
 import {
 	Badge,
 	Button,
 	EmptyState,
 	Fcd,
 	generateFragments,
-	LoadingSpinner,
 	LoadMoreTrigger,
 	mergeClasses,
 	ProfileAudienceCard,
@@ -44,15 +34,13 @@ import {
 	LuCamera as IcCamera,
 	LuUsersRound as IcCommunities,
 	LuLock as IcDirect,
-	LuFileText as IcDocument,
 	LuSave as IcDraft,
 	LuFilter as IcFilter,
 	LuImage as IcImage,
 	LuUser as IcMine,
 	LuUsers as IcPeople,
-	LuPlay as IcPlay,
 	LuGlobe as IcPublic,
-	LuRepeat as IcRepost,
+	LuRepeat2 as IcRepost,
 	LuSearch as IcSearch,
 	LuSendHorizontal as IcSend,
 	LuTag as IcTag,
@@ -61,7 +49,6 @@ import {
 import '@cloudillo/react/components.css'
 import './feed.css'
 
-import { ImageWithRetry, useRetriedImageUrl } from '../components/ImageWithRetry.js'
 import type { CommunityRef } from '../context/index.js'
 import {
 	HOME_CONTEXT,
@@ -77,14 +64,20 @@ import {
 	CommentBadge,
 	ComposePanel,
 	DraftsPanel,
+	EmbeddedPostCard,
+	EngagementDialog,
 	NewPostsBanner,
 	PostMenu,
 	parseReactionCounts,
 	ReactionPicker,
+	type AudienceTarget,
 	totalReactions,
 	updateReactionCounts,
 	useFeedPosts
 } from './feed/index.js'
+import { Document, hasPlayableVariant, Images, renderPostContent, Video } from './feed/PostMedia.js'
+import { getVisibilityMeta } from './feed/VisibilitySelector.js'
+import { pendingQuoteAtom } from './feed/quote-intent.js'
 
 //////////////////////
 // Action datatypes //
@@ -100,354 +93,6 @@ interface PostAction extends ActionView {
 }
 
 export type ActionEvt = PostAction | ActionView
-
-//////////////////////
-// Image formatting //
-//////////////////////
-
-function thumbSkeletonStyle(
-	att: { dim?: readonly [number, number] | number[] | null },
-	base: React.CSSProperties
-): React.CSSProperties {
-	const dim = att.dim && att.dim.length >= 2 ? att.dim : [100, 100]
-	const [w, h] = dim
-	// Caller-supplied aspectRatio (if any) wins over the dim-derived default.
-	return { aspectRatio: `${w} / ${h}`, ...base }
-}
-
-interface ImagesProps {
-	width: number
-	attachments: ActionView['attachments']
-	idTag: string | undefined
-}
-export function Images({ width, attachments, idTag }: ImagesProps) {
-	const [lbIndex, setLbIndex] = React.useState<number | undefined>()
-	const gap = 8
-	const [img1, img2, img3] = attachments || []
-
-	// Lightbox: best available local variant for fullscreen
-	const photos = React.useMemo(
-		() =>
-			idTag
-				? attachments?.map((im) => ({
-						src: getFileUrl(
-							idTag,
-							im.fileId,
-							getOptimalImageVariant('fullscreen', im.localVariants)
-						),
-						width: im.dim?.[0] || 100,
-						height: im.dim?.[1] || 100
-					}))
-				: undefined,
-		[attachments, idTag]
-	)
-
-	if (!idTag || !attachments?.length) return null
-
-	// Inline images: always local, preferred variant for preview
-	const getInlineUrl = (att: NonNullable<typeof attachments>[0]) =>
-		getFileUrl(idTag, att.fileId, getOptimalImageVariant('preview', att.localVariants))
-
-	let imgNode: React.ReactNode
-
-	switch (attachments?.length) {
-		case 0:
-			return null
-		case 1:
-			imgNode = (
-				<ImageWithRetry
-					alt=""
-					className="cursor-pointer"
-					onClick={() => setLbIndex(0)}
-					src={getInlineUrl(img1)}
-					style={{ maxWidth: '100%', maxHeight: '30rem', margin: '0 auto' }}
-					skeletonStyle={thumbSkeletonStyle(img1, {
-						maxWidth: '100%',
-						maxHeight: '30rem',
-						margin: '0 auto',
-						width: '100%'
-					})}
-				/>
-			)
-			break
-		case 2: {
-			const aspect12 =
-				(img1.dim?.[0] ?? 100) / (img1.dim?.[1] ?? 100) +
-				(img2.dim?.[0] ?? 100) / (img2.dim?.[1] ?? 100)
-			const height = (width - gap) / aspect12
-
-			imgNode = (
-				<div className="c-hbox g-2">
-					<ImageWithRetry
-						alt=""
-						className="cursor-pointer"
-						onClick={() => setLbIndex(0)}
-						src={getInlineUrl(img1)}
-						style={{ height, margin: '0 auto' }}
-						skeletonStyle={thumbSkeletonStyle(img1, { height, margin: '0 auto' })}
-					/>
-					<ImageWithRetry
-						alt=""
-						className="cursor-pointer"
-						onClick={() => setLbIndex(1)}
-						src={getInlineUrl(img2)}
-						style={{ height, margin: '0 auto' }}
-						skeletonStyle={thumbSkeletonStyle(img2, { height, margin: '0 auto' })}
-					/>
-				</div>
-			)
-			break
-		}
-		default: {
-			// Adding the reciprocals of the aspect ratios of img2 and img3
-			const aspect23 =
-				1 /
-				((img2.dim?.[1] ?? 100) / (img2.dim?.[0] ?? 100) +
-					(img3.dim?.[1] ?? 100) / (img3.dim?.[0] ?? 100))
-			// Adding the aspect ratios of img1 and the right column (img2 and img3)
-			const aspect123 = (img1.dim?.[0] ?? 100) / (img1.dim?.[1] ?? 100) + aspect23
-			const height = (width - gap) / aspect123
-			const width23 = (height - gap) * aspect23
-
-			imgNode = (
-				<div className="c-hbox g-2">
-					<ImageWithRetry
-						alt=""
-						className="cursor-pointer"
-						onClick={() => setLbIndex(0)}
-						src={getInlineUrl(img1)}
-						style={{ height, margin: '0 auto' }}
-						skeletonStyle={thumbSkeletonStyle(img1, { height, margin: '0 auto' })}
-					/>
-					<div className="c-vbox">
-						<ImageWithRetry
-							alt=""
-							className="cursor-pointer"
-							onClick={() => setLbIndex(1)}
-							src={getInlineUrl(img2)}
-							style={{ width: width23, margin: '0 auto' }}
-							skeletonStyle={thumbSkeletonStyle(img2, {
-								width: width23,
-								margin: '0 auto'
-							})}
-						/>
-						{attachments.length == 3 ? (
-							<ImageWithRetry
-								alt=""
-								className="cursor-pointer"
-								onClick={() => setLbIndex(2)}
-								src={getInlineUrl(img3)}
-								style={{ width: width23, margin: '0 auto' }}
-								skeletonStyle={thumbSkeletonStyle(img3, {
-									width: width23,
-									margin: '0 auto'
-								})}
-							/>
-						) : (
-							<div
-								className="pos-relative"
-								style={{ width: width23, margin: '0 auto' }}
-							>
-								<ImageWithRetry
-									alt=""
-									className="w-100"
-									src={getInlineUrl(img3)}
-									skeletonStyle={thumbSkeletonStyle(img3, { width: '100%' })}
-								/>
-								<div
-									onClick={() => setLbIndex(2)}
-									className="c-image-overlay-counter cursor-pointer"
-								>
-									+{attachments.length - 3}
-								</div>
-							</div>
-						)}
-					</div>
-				</div>
-			)
-		}
-	}
-
-	return (
-		<>
-			{imgNode}
-			<Lightbox
-				slides={photos}
-				open={lbIndex !== undefined}
-				index={lbIndex}
-				close={() => setLbIndex(undefined)}
-				plugins={[Fullscreen, Slideshow, Thumbnails, Zoom]}
-			/>
-		</>
-	)
-}
-
-/////////////////////
-// Video component //
-/////////////////////
-const PLAYABLE_VARIANTS = ['vid.xd', 'vid.hd', 'vid.md', 'vid.sd']
-const POSTER_VARIANTS = ['vis.md', 'vis.sd', 'vis.tn']
-
-function hasPlayableVariant(variants: readonly string[] | undefined): boolean {
-	if (!variants) return false
-	return PLAYABLE_VARIANTS.some((v) => variants.includes(v))
-}
-
-function hasPosterVariant(variants: readonly string[] | undefined): boolean {
-	if (!variants) return false
-	return POSTER_VARIANTS.some((v) => variants.includes(v))
-}
-
-interface VideoProps {
-	attachments: ActionView['attachments']
-	idTag: string | undefined
-}
-
-function Video({ attachments, idTag }: VideoProps) {
-	const { t } = useTranslation()
-	const videoAtt = attachments?.[0]
-	const variants = videoAtt?.localVariants
-	const playable = hasPlayableVariant(variants)
-	const hasPoster = hasPosterVariant(variants)
-
-	const posterUrl =
-		idTag && videoAtt && hasPoster
-			? getFileUrl(idTag, videoAtt.fileId, getOptimalVideoVariant('preview', variants))
-			: undefined
-
-	const { activeSrc: activePoster } = useRetriedImageUrl(posterUrl)
-	const [activated, setActivated] = React.useState(false)
-
-	if (!idTag || !videoAtt) return null
-
-	if (!playable) {
-		return (
-			<div
-				className="c-skeleton c-skeleton--rect c-skeleton--rounded c-skeleton--animate pos-relative"
-				style={{
-					aspectRatio: '16 / 9',
-					maxHeight: '30rem',
-					backgroundImage: activePoster ? `url(${activePoster})` : undefined,
-					backgroundSize: 'cover',
-					backgroundPosition: 'center'
-				}}
-				role="status"
-				aria-live="polite"
-				aria-label={t('Processing video')}
-			>
-				<div
-					className="c-vbox g-2 align-items-center justify-content-center pos-absolute"
-					style={{
-						inset: 0,
-						background: 'rgba(0, 0, 0, 0.25)',
-						color: 'var(--col-on-container)'
-					}}
-				>
-					<LoadingSpinner size="sm" />
-					<span>{t('Processing video…')}</span>
-				</div>
-			</div>
-		)
-	}
-
-	const videoUrl = getFileUrl(
-		idTag,
-		videoAtt.fileId,
-		getOptimalVideoVariant('fullscreen', variants)
-	)
-
-	const aspectRatio = videoAtt.dim ? `${videoAtt.dim[0]} / ${videoAtt.dim[1]}` : '16 / 9'
-
-	if (activated) {
-		return (
-			<video
-				controls
-				autoPlay
-				preload="auto"
-				poster={activePoster}
-				className="c-feed-video"
-				style={{ aspectRatio }}
-			>
-				<source src={videoUrl} />
-			</video>
-		)
-	}
-
-	return (
-		<button
-			type="button"
-			className="c-feed-video-facade"
-			style={{
-				aspectRatio,
-				backgroundImage: activePoster ? `url(${activePoster})` : undefined
-			}}
-			onClick={() => setActivated(true)}
-			aria-label={t('Play video')}
-		>
-			<span className="c-feed-video-facade__play" aria-hidden="true">
-				<IcPlay />
-			</span>
-		</button>
-	)
-}
-
-///////////////////////
-// Document component //
-///////////////////////
-interface DocumentProps {
-	attachments: ActionView['attachments']
-	idTag: string | undefined
-	token?: string
-}
-
-function Document({ attachments, idTag, token }: DocumentProps) {
-	const navigate = useNavigate()
-
-	if (!idTag || !attachments?.length) return null
-
-	const docAtt = attachments[0]
-	const thumbnailUrl = getFileUrl(idTag, docAtt.fileId, 'vis.tn', { token })
-
-	function handleClick() {
-		navigate(`/app/${idTag}/view/${idTag}:${docAtt.fileId}`)
-	}
-
-	return (
-		<div
-			onClick={handleClick}
-			className="pos-relative d-inline-block"
-			style={{ maxWidth: '100%', cursor: 'pointer' }}
-		>
-			<ImageWithRetry
-				alt=""
-				src={thumbnailUrl}
-				style={{ maxWidth: '100%', maxHeight: '30rem', display: 'block' }}
-				skeletonStyle={{
-					maxWidth: '100%',
-					maxHeight: '30rem',
-					display: 'block',
-					aspectRatio: '3 / 4',
-					width: '12rem'
-				}}
-			/>
-			<div
-				className="pos-absolute d-flex align-items-center justify-content-center"
-				style={{
-					bottom: '0.5rem',
-					right: '0.5rem',
-					width: '2.5rem',
-					height: '2.5rem',
-					borderRadius: '50%',
-					background: 'var(--col-feed-overlay, rgba(0, 0, 0, 0.6))',
-					color: 'var(--col-on-primary, white)',
-					fontSize: '1.25rem'
-				}}
-			>
-				<IcDocument />
-			</div>
-		</div>
-	)
-}
 
 ////////////////////
 // Comment Action //
@@ -786,16 +431,88 @@ function Comments({ parentAction, onCommentsRead, ...props }: CommentsProps) {
 /////////////////
 // Post Action //
 /////////////////
+export type ActionStat = NonNullable<ActionView['stat']>
+
+interface RepostControlProps {
+	// The action to repost (the unwrapped original — never a REPOST itself).
+	original: ActionView
+	// Open the compose panel in repost mode for this original + target.
+	onQuote: (original: ActionView, target: AudienceTarget) => void
+}
+
+// Repost affordance for a post's action row. Gated to public, non-own posts;
+// opens the unified compose panel in repost mode (empty commentary = boost,
+// with text = quote). Undo is handled via the repost's own delete menu.
+function RepostControl({ original, onQuote }: RepostControlProps) {
+	const { t } = useTranslation()
+	const [auth] = useAuth()
+	const contextIdTag = useCurrentContextIdTag()
+	const { communities } = useCommunitiesList()
+
+	const selfTag = contextIdTag || auth?.idTag
+	const ownRepostIds = original.stat?.ownRepostIds
+	const hasAnyOwnRepost = !!ownRepostIds && Object.keys(ownRepostIds).length > 0
+
+	// Public-only gate + hide for own posts + require sign-in. The original is
+	// always a non-REPOST (callers pass the unwrapped subject), so this single
+	// visibility check is sufficient.
+	if (!auth?.token || original.visibility !== 'P' || original.issuer.idTag === selfTag) {
+		return null
+	}
+
+	// Default the compose target to the active context: the current community
+	// when acting inside one, otherwise the user's own wall. The
+	// AudienceSelector lets the user change it before posting.
+	const inCommunity = !!contextIdTag && contextIdTag !== auth?.idTag
+	const community = inCommunity ? communities.find((c) => c.idTag === contextIdTag) : undefined
+	const defaultTarget: AudienceTarget = inCommunity
+		? {
+				idTag: contextIdTag as string,
+				name: community?.name,
+				profilePic: community?.profilePic,
+				kind: 'community'
+			}
+		: {
+				idTag: auth?.idTag ?? '',
+				name: auth?.name,
+				profilePic: auth?.profilePic,
+				kind: 'me'
+			}
+
+	return (
+		<Button
+			kind="link"
+			variant={hasAnyOwnRepost ? 'primary' : 'secondary'}
+			size="small"
+			aria-label={t('Repost')}
+			aria-pressed={hasAnyOwnRepost}
+			onClick={() => onQuote(original, defaultTarget)}
+		>
+			<IcRepost />
+		</Button>
+	)
+}
+
 interface PostProps {
 	className?: string
-	action: PostAction
-	setAction: (action: PostAction) => void
+	action: ActionView
+	onPatchStat: (actionId: string, stat: Partial<ActionStat>) => void
 	onDelete?: () => void
 	hideAudience?: string
 	srcTag?: string
 	width: number
+	onQuote?: (original: ActionView, target: AudienceTarget) => void
 }
-function Post({ className, action, setAction, onDelete, hideAudience, srcTag, width }: PostProps) {
+function Post({
+	className,
+	action,
+	onPatchStat,
+	onDelete,
+	hideAudience,
+	srcTag,
+	width,
+	onQuote
+}: PostProps) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
 	const { api } = useApi()
@@ -806,7 +523,23 @@ function Post({ className, action, setAction, onDelete, hideAudience, srcTag, wi
 	// tenant yet. Override every other idTag source for that case.
 	const fileIdTag = action.status === 'P' ? action.issuer.idTag : (srcTag ?? contextIdTag)
 	const [tab, setTab] = React.useState<undefined | 'CMNT' | 'LIKE' | 'SHRE'>(undefined)
+	// Engagement info dialog (who reacted / reposted). `undefined` = closed.
+	const [engagementTab, setEngagementTab] = React.useState<string | undefined>(undefined)
 	if (typeof action.content != 'string' && action.content !== undefined) return null
+
+	// Repost routing. A REPOST wraps an original (`subjectAction`). A pure boost
+	// (no commentary) is a transparent attribution wrapper: engagement targets
+	// the original. A quote (has commentary) is first-class content: engagement
+	// targets the repost itself.
+	const isRepost = action.type === 'REPOST'
+	const subjectAction = isRepost ? action.subjectAction : undefined
+	const isQuote = isRepost && !!action.content
+	const engageIsSubject = isRepost && !isQuote && !!subjectAction
+	const engageAction: ActionView = engageIsSubject && subjectAction ? subjectAction : action
+	// The action to repost when clicking repost here — always the unwrapped
+	// original, so reposts never nest.
+	const repostIsSubject = isRepost && !!subjectAction
+	const repostOriginal: ActionView = repostIsSubject && subjectAction ? subjectAction : action
 
 	const isProcessingMedia =
 		action.subType === 'VIDEO' &&
@@ -821,19 +554,27 @@ function Post({ className, action, setAction, onDelete, hideAudience, srcTag, wi
 		}
 	}
 
+	// Patch the engagement target's stat (the repost itself, or its subject) by
+	// engaged action id. The overlay applies the patch to every occurrence of
+	// that id in the tree, so standalone and embedded copies stay in sync.
+	function patchEngageStat(stat: Partial<ActionStat>) {
+		onPatchStat(engageAction.actionId, stat)
+	}
+
 	async function onReactClick(reaction: string) {
 		if (!api) return
-		const isRemove = reaction === action.stat?.ownReaction
-		const prevReaction = action.stat?.ownReaction
+		const stat = engageAction.stat
+		const isRemove = reaction === stat?.ownReaction
+		const prevReaction = stat?.ownReaction
 		const ra: NewAction = {
 			type: 'REACT',
 			subType: isRemove ? 'DEL' : reaction,
-			audienceTag: action.audience?.idTag || action.issuer.idTag,
-			subject: action.actionId
+			audienceTag: engageAction.audience?.idTag || engageAction.issuer.idTag,
+			subject: engageAction.actionId
 		}
 		try {
 			await api.actions.create(ra)
-			let updatedReactions = action.stat?.reactions || ''
+			let updatedReactions = stat?.reactions || ''
 			if (isRemove) {
 				updatedReactions = updateReactionCounts(updatedReactions, reaction, -1)
 			} else {
@@ -842,13 +583,10 @@ function Post({ className, action, setAction, onDelete, hideAudience, srcTag, wi
 				}
 				updatedReactions = updateReactionCounts(updatedReactions, reaction, 1)
 			}
-			setAction({
-				...action,
-				stat: {
-					...action.stat,
-					reactions: updatedReactions || undefined,
-					ownReaction: isRemove ? undefined : reaction
-				}
+			patchEngageStat({
+				...stat,
+				reactions: updatedReactions || undefined,
+				ownReaction: isRemove ? undefined : reaction
 			})
 		} catch (e) {
 			console.error('Failed to send reaction', e)
@@ -856,11 +594,35 @@ function Post({ className, action, setAction, onDelete, hideAudience, srcTag, wi
 	}
 
 	function onCommentsRead(read: number) {
-		setAction({ ...action, stat: { ...action.stat, commentsRead: read } })
+		patchEngageStat({ ...engageAction.stat, commentsRead: read })
 	}
+
+	const commentTotal = engageAction.stat?.comments ?? 0
+	const commentUnread = commentTotal - (engageAction.stat?.commentsRead ?? 0)
+	const commentLabel =
+		commentUnread > 0
+			? t('Comments ({{total}}, {{unread}} unread)', {
+					total: commentTotal,
+					unread: commentUnread
+				})
+			: t('Comments ({{total}})', { total: commentTotal })
+	const repostCount = engageAction.stat?.reposts ?? 0
 
 	return (
 		<>
+			{isRepost && (
+				<div
+					className="c-hbox g-1 align-items-center px-2"
+					style={{ fontSize: '0.85rem', opacity: 0.7 }}
+				>
+					<IcRepost />
+					<span>
+						{t('Reposted by {{name}}', {
+							name: action.issuer.name || action.issuer.idTag
+						})}
+					</span>
+				</div>
+			)}
 			<div
 				className={mergeClasses(
 					'c-panel g-2',
@@ -869,7 +631,9 @@ function Post({ className, action, setAction, onDelete, hideAudience, srcTag, wi
 				)}
 			>
 				<div className="c-panel-header c-hbox align-items-center g-2">
-					{action.audience && action.audience.idTag != hideAudience ? (
+					{action.audience &&
+					action.audience.idTag !== action.issuer.idTag &&
+					action.audience.idTag !== hideAudience ? (
 						<ProfileAudienceCard
 							profile={action.issuer}
 							audience={action.audience}
@@ -890,30 +654,30 @@ function Post({ className, action, setAction, onDelete, hideAudience, srcTag, wi
 						</Badge>
 					)}
 					<div className="c-hbox ms-auto g-3">
-						<Button kind="link" disabled={process.env.NODE_ENV == 'production'}>
-							<IcRepost />
-						</Button>
 						<PostMenu action={action} onDelete={onDelete} />
 					</div>
 				</div>
-				<div className="d-flex flex-column">
+				<div className="c-hbox align-items-center g-1 c-post-meta">
+					{(() => {
+						const vis = getVisibilityMeta(t, action.visibility)
+						if (!vis) return null
+						const VisIcon = vis.icon
+						return (
+							<>
+								<span className="c-post-visibility" title={vis.label}>
+									<VisIcon style={{ color: vis.color }} />
+									<span>{vis.label}</span>
+								</span>
+								<span aria-hidden="true">·</span>
+							</>
+						)
+					})()}
 					<TimeFormat time={action.createdAt} />
 				</div>
-				<div className="d-flex flex-column">
-					{!!action.content &&
-						action.content.split('\n\n').map((paragraph, i) => (
-							<p key={i}>
-								{paragraph.split('\n').map((line, i) => (
-									<React.Fragment key={i}>
-										{generateFragments(line).map((n, i) => (
-											<React.Fragment key={i}>{n}</React.Fragment>
-										))}
-										<br />
-									</React.Fragment>
-								))}
-							</p>
-						))}
-					{!!action.attachments?.length &&
+				<div className="d-flex flex-column g-2">
+					{!!action.content && renderPostContent(action.content)}
+					{!isRepost &&
+						!!action.attachments?.length &&
 						(action.subType === 'VIDEO' ? (
 							<Video attachments={action.attachments} idTag={fileIdTag} />
 						) : action.subType === 'DOC' ? (
@@ -929,49 +693,49 @@ function Post({ className, action, setAction, onDelete, hideAudience, srcTag, wi
 								idTag={fileIdTag}
 							/>
 						))}
-					{/* generateFragments(action.content) */}
+					{isRepost && subjectAction && (
+						<EmbeddedPostCard subjectAction={subjectAction} width={width} />
+					)}
 				</div>
 				<div className="c-hbox align-items-center g-2">
 					<ReactionPicker
 						className="c-reaction-chip"
-						ownReaction={action.stat?.ownReaction}
+						ownReaction={engageAction.stat?.ownReaction}
 						onReact={onReactClick}
 					/>
+					<RepostControl
+						original={repostOriginal}
+						onQuote={(original, target) => onQuote?.(original, target)}
+					/>
 					<div className="c-hbox ms-auto g-2 align-items-center">
-						{(() => {
-							const total = action.stat?.comments ?? 0
-							const unread = total - (action.stat?.commentsRead ?? 0)
-							const label =
-								unread > 0
-									? t('Comments ({{total}}, {{unread}} unread)', {
-											total,
-											unread
-										})
-									: t('Comments ({{total}})', { total })
-							return (
-								<Button
-									kind="link"
-									variant="secondary"
-									className={mergeClasses(
-										'c-comment-badge-btn',
-										tab == 'CMNT' ? 'active' : ''
-									)}
-									onClick={() => onTabClick('CMNT')}
-									aria-label={label}
-									title={label}
-								>
-									<CommentBadge total={total} unread={unread} />
-								</Button>
-							)
-						})()}
-						{!!action.stat?.reactions &&
+						<Button
+							kind="link"
+							variant="secondary"
+							className={mergeClasses(
+								'c-comment-badge-btn',
+								tab == 'CMNT' ? 'active' : ''
+							)}
+							onClick={() => onTabClick('CMNT')}
+							aria-label={commentLabel}
+							title={commentLabel}
+						>
+							<CommentBadge total={commentTotal} unread={commentUnread} />
+						</Button>
+						{!!engageAction.stat?.reactions &&
 							(() => {
-								const parsed = parseReactionCounts(action.stat.reactions)
+								const parsed = parseReactionCounts(engageAction.stat.reactions)
 								const shownSum = parsed.reduce((s, r) => s + r.count, 0)
-								const total = totalReactions(action.stat.reactions)
+								const total = totalReactions(engageAction.stat.reactions)
 								const overflow = Math.max(0, total - shownSum)
+								const label = t('View {{count}} reactions', { count: total })
 								return (
-									<>
+									<button
+										type="button"
+										className="c-reaction-chip-group"
+										onClick={() => setEngagementTab('all')}
+										aria-label={label}
+										title={label}
+									>
 										{parsed.map((r) => (
 											<span key={r.key} className="c-reaction-chip">
 												{r.emoji}
@@ -983,14 +747,39 @@ function Post({ className, action, setAction, onDelete, hideAudience, srcTag, wi
 												<small>+{overflow}</small>
 											</span>
 										)}
-									</>
+									</button>
 								)
 							})()}
+						{repostCount > 0 && (
+							<button
+								type="button"
+								className="c-reaction-chip c-reaction-chip-btn"
+								onClick={() => setEngagementTab('reposts')}
+								aria-label={t('View {{count}} reposts', { count: repostCount })}
+								title={t('{{count}} reposts', { count: repostCount })}
+							>
+								<IcRepost />
+								<small>{repostCount}</small>
+							</button>
+						)}
 					</div>
 				</div>
+				{engagementTab !== undefined && (
+					<EngagementDialog
+						subjectActionId={engageAction.actionId}
+						audienceTag={engageAction.audience?.idTag ?? engageAction.issuer.idTag}
+						initialTab={engagementTab}
+						open={engagementTab !== undefined}
+						onClose={() => setEngagementTab(undefined)}
+					/>
+				)}
 			</div>
 			{tab == 'CMNT' && (
-				<Comments parentAction={action} onCommentsRead={onCommentsRead} className="mt-1" />
+				<Comments
+					parentAction={engageAction}
+					onCommentsRead={onCommentsRead}
+					className="mt-1"
+				/>
 			)}
 		</>
 	)
@@ -999,32 +788,36 @@ function Post({ className, action, setAction, onDelete, hideAudience, srcTag, wi
 interface ActionCompProps {
 	className?: string
 	action: ActionEvt
-	setAction: (actionId: string, action: ActionEvt) => void
+	onPatchStat: (actionId: string, stat: Partial<ActionStat>) => void
 	onDelete?: (actionId: string) => void
 	hideAudience?: string
 	srcTag?: string
 	width: number
+	onQuote?: (original: ActionView, target: AudienceTarget) => void
 }
 export const ActionComp = React.memo(function ActionComp({
 	className,
 	action,
-	setAction,
+	onPatchStat,
 	onDelete,
 	hideAudience,
 	srcTag,
-	width
+	width,
+	onQuote
 }: ActionCompProps) {
 	switch (action.type) {
 		case 'POST':
+		case 'REPOST':
 			return (
 				<Post
 					className={className}
-					action={action as PostAction}
-					setAction={(act) => setAction(act.actionId, act)}
+					action={action}
+					onPatchStat={onPatchStat}
 					onDelete={onDelete ? () => onDelete(action.actionId) : undefined}
 					hideAudience={hideAudience}
 					srcTag={srcTag}
 					width={width}
+					onQuote={onQuote}
 				/>
 			)
 	}
@@ -1314,9 +1107,12 @@ export function FeedApp() {
 	const { communities } = useCommunitiesList()
 	const [composeOpen, setComposeOpen] = React.useState(false)
 	const [editingDraft, setEditingDraft] = React.useState<ActionView | undefined>()
+	const [quoteAction, setQuoteAction] = React.useState<ActionView | undefined>()
+	const [quoteTarget, setQuoteTarget] = React.useState<AudienceTarget | undefined>()
 	const [composeMedia, setComposeMedia] = React.useState<
 		'image' | 'camera' | 'video' | undefined
 	>()
+	const [pendingQuote, setPendingQuote] = useAtom(pendingQuoteAtom)
 	const widthRef = React.useRef<HTMLDivElement>(null)
 	const [width, setWidth] = React.useState(0)
 
@@ -1385,6 +1181,19 @@ export function FeedApp() {
 	// Local state for post updates (reactions, comments, etc.)
 	const [feedUpdates, setFeedUpdates] = React.useState<Record<string, Partial<ActionEvt>>>({})
 
+	// Stat overlay keyed by ENGAGED action id (= WS STAT parentId / optimistic
+	// target). Applied to every occurrence of that id in the tree — top-level
+	// post OR a repost's subjectAction — so one update refreshes all copies.
+	// WS STAT writes only count fields; optimistic writers add per-user fields.
+	const [statOverlay, setStatOverlay] = React.useState<Record<string, Partial<ActionStat>>>({})
+
+	const patchStat = React.useCallback((actionId: string, stat: Partial<ActionStat>) => {
+		setStatOverlay((prev) => ({
+			...prev,
+			[actionId]: { ...(prev[actionId] ?? {}), ...stat }
+		}))
+	}, [])
+
 	// Ref mirror of the feed so the WS callback can read current ids without
 	// being trapped by a stale closure.
 	const feedRef = React.useRef<ActionView[]>(feed)
@@ -1415,25 +1224,26 @@ export function FeedApp() {
 		if (action.type === 'STAT') {
 			const tStatContent = T.struct({
 				r: T.optional(T.string),
-				c: T.optional(T.number)
+				c: T.optional(T.number),
+				rp: T.optional(T.number)
 			})
 			const contentRes = T.decode(tStatContent, action.content)
 			if (!T.isOk(contentRes)) return
 			const content = contentRes.ok
-			setFeedUpdates((prev) => {
+			// Write only count fields to the engaged-id overlay, keyed directly
+			// by parentId (no feed lookup — the engaged action may only exist
+			// nested as a repost's subjectAction, never as a top-level entry).
+			// Never touch ownReaction/commentsRead/ownRepostIds, so optimistic
+			// per-user fields under the same key survive an incoming STAT.
+			setStatOverlay((prev) => {
 				const parentId = action.parentId!
-				const prevUpdate = prev[parentId] ?? {}
-				const post = feedRef.current.find((p) => p.actionId === parentId)
-				const baseStat = prevUpdate.stat ?? post?.stat ?? {}
 				return {
 					...prev,
 					[parentId]: {
-						...prevUpdate,
-						stat: {
-							...baseStat,
-							reactions: content.r,
-							comments: content.c
-						}
+						...(prev[parentId] ?? {}),
+						reactions: content.r,
+						comments: content.c,
+						reposts: content.rp
 					}
 				}
 			})
@@ -1496,39 +1306,56 @@ export function FeedApp() {
 	)
 
 	// Merge feed posts with local updates, filtering out deleted posts.
-	// `stat` is deep-merged so a partial overlay (e.g. a STAT event that
-	// arrived before the post was in `feed`) cannot wipe out fields the
-	// server-rendered list provides — notably `ownReaction` and
-	// `commentsRead`, which STAT payloads don't carry.
+	// The engaged-id stat overlay is layered onto every occurrence of an id in
+	// the tree (top-level post AND a repost's subjectAction), merging count
+	// fields while preserving per-user fields (ownReaction/commentsRead/
+	// ownRepostIds) that a pure STAT count update doesn't carry. The POST
+	// branch of `feedUpdates` carries only attachment/subType overlays.
 	const mergedFeed = React.useMemo(() => {
+		// Layer the engaged-id stat overlay onto one action.
+		function applyStatOverlay(a: ActionView): ActionView {
+			const o = statOverlay[a.actionId]
+			if (!o) return a
+			return { ...a, stat: { ...a.stat, ...o } }
+		}
+
 		return feed
 			.filter((post) => !deletedIds.has(post.actionId))
 			.map((post) => {
+				// POST overlay (attachments/subType), top-level only.
 				const update = feedUpdates[post.actionId]
-				if (!update) return post as ActionEvt
-				return {
-					...post,
-					...update,
-					stat: update.stat ? { ...post.stat, ...update.stat } : post.stat
-				} as ActionEvt
+				const base = update ? ({ ...post, ...update } as ActionView) : post
+				// Stat overlay applied to the top-level action AND its subjectAction.
+				const withSelf = applyStatOverlay(base)
+				if (withSelf.subjectAction) {
+					const subj = applyStatOverlay(withSelf.subjectAction)
+					if (subj !== withSelf.subjectAction) {
+						return { ...withSelf, subjectAction: subj } as ActionEvt
+					}
+				}
+				return withSelf as ActionEvt
 			})
-	}, [feed, feedUpdates, deletedIds])
-
-	const setFeedAction = React.useCallback(function setFeedAction(
-		actionId: string,
-		action: ActionEvt
-	) {
-		setFeedUpdates((prev) => ({
-			...prev,
-			[actionId]: action
-		}))
-	}, [])
+	}, [feed, feedUpdates, statOverlay, deletedIds])
 
 	const onSubmit = React.useCallback(
 		function onSubmit(action: ActionEvt) {
 			addPost(action)
+			// A boost no longer patches the original's stat inline, so overlay the
+			// subject's reposts count + ownRepostIds here. `subjectAction` (the
+			// pre-repost original) carries the prior stat; `patchStat` propagates
+			// the overlay to both the top-level original and any embedding.
+			if (action.type === 'REPOST' && action.subject) {
+				const prevReposts = action.subjectAction?.stat?.reposts ?? 0
+				patchStat(action.subject, {
+					reposts: prevReposts + 1,
+					ownRepostIds: {
+						...action.subjectAction?.stat?.ownRepostIds,
+						[action.audience?.idTag ?? auth?.idTag ?? '']: action.actionId
+					}
+				})
+			}
 		},
-		[addPost]
+		[addPost, patchStat, auth?.idTag]
 	)
 
 	const onDelete = React.useCallback(function onDelete(actionId: string) {
@@ -1538,13 +1365,38 @@ export function FeedApp() {
 	function handleComposeOpen(media?: 'image' | 'camera' | 'video') {
 		setComposeMedia(media)
 		setEditingDraft(undefined)
+		setQuoteAction(undefined)
+		setQuoteTarget(undefined)
 		setComposeOpen(true)
 	}
+
+	const handleQuote = React.useCallback(function handleQuote(
+		original: ActionView,
+		target: AudienceTarget
+	) {
+		setComposeMedia(undefined)
+		setEditingDraft(undefined)
+		setQuoteAction(original)
+		setQuoteTarget(target)
+		setViewMode('feed')
+		setComposeOpen(true)
+	}, [])
+
+	// Consume a cross-page quote intent (e.g. set by a profile page repost) so
+	// the feed composer opens in quote mode. One-shot: cleared after handling so
+	// navigating back doesn't re-trigger it.
+	React.useEffect(() => {
+		if (!pendingQuote) return
+		handleQuote(pendingQuote.original, pendingQuote.target)
+		setPendingQuote(undefined)
+	}, [pendingQuote, handleQuote, setPendingQuote])
 
 	function handleComposeClose() {
 		setComposeOpen(false)
 		setComposeMedia(undefined)
 		setEditingDraft(undefined)
+		setQuoteAction(undefined)
+		setQuoteTarget(undefined)
 	}
 
 	function handleViewModeChange(mode: string) {
@@ -1625,6 +1477,10 @@ export function FeedApp() {
 						idTag={contextIdTag !== auth?.idTag ? contextIdTag : undefined}
 						initialMedia={composeMedia}
 						draft={editingDraft}
+						quotedAction={quoteAction}
+						target={quoteTarget}
+						ownRepostIds={quoteAction?.stat?.ownRepostIds}
+						audiencePicker
 						className="col"
 					/>
 				)}
@@ -1670,12 +1526,13 @@ export function FeedApp() {
 									<ActionComp
 										key={action.actionId}
 										action={action}
-										setAction={setFeedAction}
+										onPatchStat={patchStat}
 										onDelete={onDelete}
 										hideAudience={
 											!isOwnContext ? contextIdTag : narrowToCommunity
 										}
 										width={width}
+										onQuote={handleQuote}
 									/>
 								))}
 								<LoadMoreTrigger

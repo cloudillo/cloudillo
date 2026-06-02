@@ -1,44 +1,44 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { createPortal } from 'react-dom'
-import { useEditable, type Position } from 'use-editable'
-import { useTranslation } from 'react-i18next'
-import { usePopper } from 'react-popper'
+import {
+	Button,
+	generateFragments,
+	mergeClasses,
+	Progress,
+	useApi,
+	useAuth,
+	useDialog
+} from '@cloudillo/react'
+import type { ActionView, NewAction } from '@cloudillo/types'
 import data from '@emoji-mart/data'
 import Picker from '@emoji-mart/react'
+import * as React from 'react'
+import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 
 import {
-	LuSendHorizontal as IcSend,
-	LuImage as IcImage,
 	LuCamera as IcCamera,
-	LuVideo as IcVideo,
-	LuListChecks as IcPoll,
+	LuX as IcClose,
 	LuCalendarDays as IcEvent,
-	LuSmile as IcSmile,
+	LuImage as IcImage,
+	LuListChecks as IcPoll,
+	LuRepeat2 as IcRepost,
 	LuSave as IcSave,
 	LuCalendarClock as IcSchedule,
-	LuX as IcClose
+	LuSendHorizontal as IcSend,
+	LuSmile as IcSmile,
+	LuVideo as IcVideo
 } from 'react-icons/lu'
-
-import type { NewAction, ActionView } from '@cloudillo/types'
-import {
-	useAuth,
-	useApi,
-	useDialog,
-	Button,
-	ProfilePicture,
-	Progress,
-	mergeClasses,
-	generateFragments
-} from '@cloudillo/react'
-
-import { ImageUpload } from '../../image.js'
-import { useImageUpload, type AttachmentType } from '../../hooks/useImageUpload.js'
+import { usePopper } from 'react-popper'
+import { type Position, useEditable } from 'use-editable'
 import { AttachmentPreview } from '../../components/AttachmentPreview.js'
-import { VisibilitySelector, type Visibility } from './VisibilitySelector.js'
+import { type AttachmentType, useImageUpload } from '../../hooks/useImageUpload.js'
+import { ImageUpload } from '../../image.js'
+import { AudienceSelector, type AudienceTarget } from './AudienceSelector.js'
+import { EmbeddedPostCard } from './EmbeddedPostCard.js'
 import { SchedulePicker } from './SchedulePicker.js'
+import { type Visibility, VisibilitySelector } from './VisibilitySelector.js'
 
 export interface ComposePanelProps {
 	open: boolean
@@ -47,6 +47,17 @@ export interface ComposePanelProps {
 	idTag?: string
 	initialMedia?: 'image' | 'camera' | 'video'
 	draft?: ActionView
+	// When set, the panel composes a repost (REPOST) wrapping `quotedAction`,
+	// delivered to `target` (defaults to the user's own wall). Empty commentary
+	// produces a boost; commentary produces a quote.
+	quotedAction?: ActionView
+	target?: AudienceTarget
+	// The quoted action's `stat.ownRepostIds` — drives the informational ✓ badge
+	// in the target picker, guarding against accidental duplicate reposts.
+	ownRepostIds?: Record<string, string>
+	/** Show the audience selector in the context bar (feed composer only). When false,
+	 * the post is still addressed to `idTag` but the picker is hidden. */
+	audiencePicker?: boolean
 	className?: string
 }
 
@@ -105,14 +116,44 @@ export function ComposePanel({
 	idTag,
 	initialMedia,
 	draft,
+	quotedAction,
+	target,
+	ownRepostIds,
+	audiencePicker,
 	className
 }: ComposePanelProps) {
 	const { t, i18n } = useTranslation()
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const dialog = useDialog()
+	const isQuote = !!quotedAction
 	const [content, setContent] = React.useState('')
 	const [visibility, setVisibility] = React.useState<Visibility>('F')
+
+	const ownWallTarget = React.useMemo<AudienceTarget>(
+		() => ({
+			idTag: auth?.idTag ?? '',
+			name: auth?.name,
+			profilePic: auth?.profilePic,
+			kind: 'me'
+		}),
+		[auth?.idTag, auth?.name, auth?.profilePic]
+	)
+
+	// Explicit quote `target` wins; else the context wall from `idTag`
+	// (community / profile page); else own wall. The AudienceSelector enriches a
+	// bare context idTag's name/pic from useCommunitiesList() and renders it as the
+	// active "current" row even when it isn't a known community.
+	const initialAudience = React.useMemo<AudienceTarget>(() => {
+		if (target) return target
+		if (idTag && idTag !== auth?.idTag) return { idTag, kind: 'community' }
+		return ownWallTarget
+	}, [target, idTag, auth?.idTag, ownWallTarget])
+
+	const [audienceTarget, setAudienceTarget] = React.useState<AudienceTarget>(initialAudience)
+	React.useEffect(() => {
+		setAudienceTarget(initialAudience)
+	}, [initialAudience])
 	const [scheduleDate, setScheduleDate] = React.useState<Date | undefined>()
 	const [showSchedule, setShowSchedule] = React.useState(false)
 	const editorRef = React.useRef<HTMLDivElement>(null)
@@ -205,7 +246,8 @@ export function ComposePanel({
 		if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
 		if (savedFadeRef.current) clearTimeout(savedFadeRef.current)
 
-		if (!api || !auth?.idTag || !open) return
+		// Quotes are not auto-saved as POST drafts — they publish a REPOST.
+		if (!api || !auth?.idTag || !open || isQuote) return
 
 		const hasContent = content.trim().length > 0 || imageUpload.attachmentIds.length > 0
 		if (!hasContent) return
@@ -238,7 +280,10 @@ export function ComposePanel({
 						attachments: imageUpload.attachmentIds.length
 							? imageUpload.attachmentIds
 							: undefined,
-						audienceTag: idTag,
+						audienceTag:
+							audienceTarget.idTag && audienceTarget.idTag !== auth?.idTag
+								? audienceTarget.idTag
+								: undefined,
 						visibility,
 						draft: true,
 						publishAt: publishAtUnix
@@ -268,6 +313,7 @@ export function ComposePanel({
 		api,
 		auth?.idTag,
 		idTag,
+		audienceTarget.idTag,
 		content,
 		visibility,
 		scheduleDate,
@@ -374,6 +420,69 @@ export function ComposePanel({
 	async function doSubmit() {
 		if (!api || !auth?.idTag) return
 
+		// Unified audience for both branches: own wall → omit the tag.
+		const audienceTag =
+			audienceTarget.idTag && audienceTarget.idTag !== auth.idTag
+				? audienceTarget.idTag
+				: undefined
+
+		// Quote mode: publish a REPOST referencing the quoted action. No draft
+		// flow, no attachments; commentary is optional.
+		if (isQuote && quotedAction) {
+			// Block a second identical REPOST to the same target. `ownRepostIds`
+			// is keyed by audience tag for communities and by the user's own
+			// idTag for the own wall (audienceTag is undefined there).
+			const repostKey = audienceTag ?? auth.idTag
+			// REPOST must carry an explicit audience; the backend rejects one without.
+			// For the own wall fall back to the user's own idTag (same value as the
+			// duplicate-guard key). Since audience idTag === issuer idTag there, the
+			// feed card suppresses the audience header (feed.tsx ProfileAudienceCard).
+			const repostAudienceTag = repostKey
+			if (ownRepostIds?.[repostKey]) {
+				await dialog.tell(
+					t('Already reposted'),
+					t('You have already reposted this to {{name}}.', {
+						name: audienceTarget.name || audienceTarget.idTag
+					})
+				)
+				return
+			}
+			submittingRef.current = true
+			try {
+				const repost: NewAction = {
+					type: 'REPOST',
+					subject: quotedAction.actionId,
+					// Always set an explicit audience (own idTag for the own wall);
+					// the audience-header card is suppressed when it equals the issuer.
+					audienceTag: repostAudienceTag,
+					content: content.trim() || undefined,
+					visibility
+				}
+				const res = await api.actions.create(repost)
+				// The create response is a single-action shape with no
+				// subjectAction; attach the original (already in scope) so the
+				// optimistically-prepended repost shows its embedded original card.
+				// For non-own-wall targets, also attach the chosen audience so the
+				// feed-level optimistic overlay keys `ownRepostIds` by the right tag.
+				onSubmit?.({
+					...res,
+					subjectAction: quotedAction,
+					audience: {
+						idTag: repostAudienceTag,
+						name: audienceTarget.name,
+						profilePic: audienceTarget.profilePic
+					}
+				})
+				resetForm()
+				onClose()
+			} catch (e) {
+				console.error('Failed to post quote', e)
+			} finally {
+				submittingRef.current = false
+			}
+			return
+		}
+
 		const hasContent = content.trim().length > 0 || imageUpload.attachmentIds.length > 0
 		if (!hasContent) return
 
@@ -416,7 +525,7 @@ export function ComposePanel({
 					attachments: imageUpload.attachmentIds.length
 						? imageUpload.attachmentIds
 						: undefined,
-					audienceTag: idTag,
+					audienceTag,
 					visibility,
 					publishAt: publishAtUnix
 				}
@@ -512,7 +621,15 @@ export function ComposePanel({
 		<>
 			<div className={mergeClasses('c-vbox', className)}>
 				<div className="c-panel g-2 c-vbox">
-					<div className="c-hbox">
+					<div className="c-hbox g-2 align-items-center">
+						{audiencePicker && (
+							<AudienceSelector
+								target={audienceTarget}
+								ownRepostIds={ownRepostIds}
+								onChange={setAudienceTarget}
+							/>
+						)}
+						<VisibilitySelector value={visibility} onChange={setVisibility} />
 						<span className="flex-fill" />
 						<Button kind="link" onClick={handleCancel} aria-label={t('Cancel')}>
 							<IcClose />
@@ -537,7 +654,6 @@ export function ComposePanel({
 						</div>
 					)}
 					<div className="c-hbox align-items-start">
-						<ProfilePicture profile={{ profilePic: auth.profilePic }} small />
 						<div className="c-input-group flex-fill">
 							<div
 								ref={editorRef}
@@ -551,7 +667,6 @@ export function ComposePanel({
 								))}
 							</div>
 							<div className="c-hbox g-1 align-self-end m-1">
-								<VisibilitySelector value={visibility} onChange={setVisibility} />
 								<SaveStatusIndicator
 									ref={saveStatusRef}
 									isEditingScheduled={isEditingScheduled}
@@ -572,6 +687,11 @@ export function ComposePanel({
 									>
 										<IcSchedule />
 										{isEditingScheduled ? t('Update schedule') : t('Schedule')}
+									</Button>
+								) : isQuote ? (
+									<Button variant="primary" size="small" onClick={doSubmit}>
+										<IcRepost />
+										{content.trim() ? t('Post quote') : t('Repost')}
 									</Button>
 								) : (
 									<Button
@@ -596,6 +716,13 @@ export function ComposePanel({
 							</div>
 						</div>
 					</div>
+					{isQuote && quotedAction && (
+						<EmbeddedPostCard
+							subjectAction={quotedAction}
+							width={480}
+							className="m-1"
+						/>
+					)}
 					<AttachmentPreview
 						attachmentIds={imageUpload.attachmentIds}
 						idTag={auth.idTag}
@@ -625,17 +752,29 @@ export function ComposePanel({
 						</>
 					)}
 					<hr className="w-100" />
+					{isQuote && (
+						<small style={{ opacity: 0.6 }}>
+							{t("Attachments aren't supported on reposts")}
+						</small>
+					)}
 					<div className="c-hbox g-3">
-						<Button kind="link" disabled={process.env.NODE_ENV === 'production'}>
+						<Button
+							kind="link"
+							disabled={process.env.NODE_ENV === 'production' || isQuote}
+						>
 							<IcPoll />
 							{t('Poll')}
 						</Button>
-						<Button kind="link" disabled={process.env.NODE_ENV === 'production'}>
+						<Button
+							kind="link"
+							disabled={process.env.NODE_ENV === 'production' || isQuote}
+						>
 							<IcEvent />
 							{t('Event')}
 						</Button>
 						<Button
 							kind="link"
+							disabled={isQuote}
 							className={mergeClasses(
 								'pos-relative',
 								showSchedule ? 'active' : undefined
@@ -675,7 +814,7 @@ export function ComposePanel({
 								)}
 							<Button
 								kind="link"
-								disabled={isDisabled}
+								disabled={isDisabled || isQuote}
 								onClick={() => fileInputRef.current?.click()}
 							>
 								<IcImage />
@@ -691,7 +830,7 @@ export function ComposePanel({
 
 							<Button
 								kind="link"
-								disabled={isDisabled}
+								disabled={isDisabled || isQuote}
 								onClick={() => imgInputRef.current?.click()}
 							>
 								<IcCamera />
@@ -710,7 +849,8 @@ export function ComposePanel({
 								kind="link"
 								disabled={
 									imageUpload.attachmentType !== undefined ||
-									imageUpload.isUploading
+									imageUpload.isUploading ||
+									isQuote
 								}
 								onClick={() => videoInputRef.current?.click()}
 							>

@@ -1,13 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, mergeClasses, Popper } from '@cloudillo/react'
 import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
-import { LuGlobe as IcGlobe, LuUsers as IcUsers, LuUserCheck as IcUserCheck } from 'react-icons/lu'
-
-import { Button, Popper, mergeClasses } from '@cloudillo/react'
+import { LuGlobe as IcGlobe, LuUserCheck as IcUserCheck, LuUsers as IcUsers } from 'react-icons/lu'
 
 export type Visibility = 'P' | 'C' | 'F'
 
@@ -18,11 +16,19 @@ interface VisibilityOption {
 	color: string
 }
 
-const getVisibilityOptions = (t: TFunction): VisibilityOption[] => [
+export const getVisibilityOptions = (t: TFunction): VisibilityOption[] => [
 	{ value: 'F', label: t('Followers'), icon: IcUserCheck, color: 'var(--col-primary)' },
 	{ value: 'C', label: t('Connected'), icon: IcUsers, color: 'var(--col-warning)' },
 	{ value: 'P', label: t('Public'), icon: IcGlobe, color: 'var(--col-success)' }
 ]
+
+export function getVisibilityMeta(
+	t: TFunction,
+	visibility: string | undefined
+): VisibilityOption | undefined {
+	if (!visibility) return undefined
+	return getVisibilityOptions(t).find((o) => o.value === visibility)
+}
 
 interface VisibilitySelectorProps {
 	value: Visibility
@@ -40,8 +46,10 @@ export const VisibilitySelector = React.memo(function VisibilitySelector({
 
 	return (
 		<Popper
-			menuClassName="c-button link secondary sm"
+			menuClassName="c-button link secondary sm c-hbox g-1 align-items-center"
 			icon={<Icon style={{ color: selected.color }} />}
+			label={selected.label}
+			aria-label={t('Visibility')}
 		>
 			<ul className="c-nav vertical emph">
 				{visibilityOptions.map((opt) => {

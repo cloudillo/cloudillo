@@ -1,13 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, Popper, useApi, useAuth, useDialog } from '@cloudillo/react'
+import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
-import { LuEllipsis as IcMore, LuTrash2 as IcDelete } from 'react-icons/lu'
-
-import type { ActionView } from '@cloudillo/types'
-import { useAuth, useApi, Button, Popper, useDialog } from '@cloudillo/react'
+import { LuTrash2 as IcDelete, LuEllipsis as IcMore } from 'react-icons/lu'
 
 export interface PostMenuProps {
 	action: ActionView

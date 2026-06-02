@@ -92,3 +92,130 @@
 		transform: translate(-50%, -50%);
 	}
 }
+
+.c-post-visibility {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	color: var(--col-secondary);
+	font-size: 0.85rem;
+}
+
+/* Engagement counters — clickable reaction/repost chips
+   ========================================================================== */
+
+.c-reaction-chip-group {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	border: none;
+	background: none;
+	padding: 0.25rem;
+	margin: -0.25rem;
+	cursor: pointer;
+	border-radius: 999px;
+	min-height: 44px;
+}
+
+.c-reaction-chip-btn {
+	border: none;
+	cursor: pointer;
+	min-height: 44px;
+}
+
+.c-reaction-chip-group:focus-visible,
+.c-reaction-chip-btn:focus-visible {
+	outline: 2px solid var(--col-primary);
+	outline-offset: 2px;
+}
+
+/* Engagement info dialog
+   ========================================================================== */
+
+/* Higher specificity than opalui's `.c-modal > .c-dialog { width: auto }`, so
+   the dialog keeps a fixed size and does not resize/flicker when the loading
+   skeletons are swapped for the actual rows/tabs. */
+.c-modal > .c-dialog.c-engagement-dialog {
+	width: min(32rem, 92vw);
+	height: min(80vh, 36rem);
+	display: flex;
+	flex-direction: column;
+}
+
+.c-engagement-tabs {
+	flex-wrap: wrap;
+}
+
+/* Fixed flex height keeps the dialog the same size while loading and after
+   data arrives, so swapping skeletons for rows does not resize/flicker it. */
+.c-engagement-list {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.c-engagement-row {
+	padding: 0.5rem 0.25rem;
+	border-radius: var(--radius, 0.5rem);
+}
+
+.c-engagement-row:hover,
+.c-engagement-row:focus-within {
+	background: var(--col-container-low);
+}
+
+.c-engagement-avatar {
+	width: 40px;
+	height: 40px;
+	border-radius: 999px;
+	object-fit: cover;
+	flex: 0 0 auto;
+}
+
+.c-engagement-avatar--empty {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--col-container-high);
+	color: var(--col-on-container-high);
+	font-weight: 600;
+}
+
+.c-engagement-name {
+	font-weight: 600;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.c-engagement-tag {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.c-engagement-emoji {
+	font-size: 1.1rem;
+	flex: 0 0 auto;
+}
+
+.c-engagement-status {
+	display: inline-flex;
+	align-items: center;
+	min-width: 44px;
+	min-height: 44px;
+	justify-content: center;
+	flex: 0 0 auto;
+}
+
+.c-engagement-status--invalid {
+	font-weight: 600;
+}
+
+.c-engagement-verify-btn {
+	min-width: 44px;
+	min-height: 44px;
+	flex: 0 0 auto;
+}

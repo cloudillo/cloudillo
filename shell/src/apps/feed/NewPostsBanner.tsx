@@ -1,11 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, mergeClasses } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuChevronUp as IcUp } from 'react-icons/lu'
-
-import { Button, mergeClasses } from '@cloudillo/react'
 
 export interface NewPostsBannerProps {
 	count: number

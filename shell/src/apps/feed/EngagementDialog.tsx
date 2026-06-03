@@ -112,10 +112,18 @@ export function EngagementDialog({
 					return 'error'
 				}
 			}
+			// REACT tokens carry the subject post's audience (the `audienceTag` prop).
+			// REPOST tokens carry the repost's OWN explicitly-set audience (boost →
+			// reposter, wall-repost → community), so verify each repost against its
+			// own audience.
+			const expectedAudienceTag =
+				action.type === 'REPOST'
+					? (action.audience?.idTag ?? action.issuer.idTag)
+					: audienceTag
 			const result = await verifyActionToken(token, keys, {
 				issuerIdTag,
 				subjectActionId,
-				audienceTag
+				audienceTag: expectedAudienceTag
 			})
 			return result.status
 		},

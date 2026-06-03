@@ -55,6 +55,7 @@ import { ViewFrame } from './components/ViewFrame'
 import { RichTextEditor } from '@cloudillo/canvas-text'
 import { getBulletIcon, migrateBullet } from './data/bullet-icons'
 import { ObjectShape } from './components/ObjectShape'
+import { ToolPreview } from './components/ToolPreview'
 import { PresentationMode } from './components/PresentationMode'
 import { TemplateGuideRenderer } from './components/TemplateGuideRenderer'
 import { TemplateFrame } from './components/TemplateFrame'
@@ -1428,34 +1429,13 @@ export function PrezilloApp() {
 						/>
 
 						{/* Tool preview */}
-						{toolEvent &&
-							prezillo.activeTool &&
-							(() => {
-								let previewWidth = Math.abs(toolEvent.x - toolEvent.startX)
-								let previewHeight = Math.abs(toolEvent.y - toolEvent.startY)
-								// Enforce square for symbol and qrcode tools
-								if (
-									prezillo.activeTool === 'symbol' ||
-									prezillo.activeTool === 'qrcode'
-								) {
-									const maxDim = Math.max(previewWidth, previewHeight)
-									previewWidth = maxDim
-									previewHeight = maxDim
-								}
-								return (
-									<rect
-										x={Math.min(toolEvent.startX, toolEvent.x)}
-										y={Math.min(toolEvent.startY, toolEvent.y)}
-										width={previewWidth}
-										height={previewHeight}
-										stroke="#0066ff"
-										strokeWidth={2}
-										strokeDasharray="4,4"
-										fill="rgba(0, 102, 255, 0.1)"
-										pointerEvents="none"
-									/>
-								)
-							})()}
+						{toolEvent && prezillo.activeTool && (
+							<ToolPreview
+								tool={prezillo.activeTool}
+								toolEvent={toolEvent}
+								selectedSymbolId={selectedSymbolId}
+							/>
+						)}
 					</SvgCanvas>
 				</div>
 

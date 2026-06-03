@@ -39,6 +39,7 @@ export function PdfViewer({ url, fileName, onBack, onDownload, toolbarVisible }:
 	const canvasRef = React.useRef<HTMLCanvasElement>(null)
 	const containerRef = React.useRef<HTMLDivElement>(null)
 	const pdfDocRef = React.useRef<pdfjsLib.PDFDocumentProxy | null>(null)
+	const loadingTaskRef = React.useRef<pdfjsLib.PDFDocumentLoadingTask | null>(null)
 	const renderTaskRef = React.useRef<pdfjsLib.RenderTask | null>(null)
 
 	const [numPages, setNumPages] = React.useState(0)
@@ -64,9 +65,11 @@ export function PdfViewer({ url, fileName, onBack, onDownload, toolbarVisible }:
 					const data = await response.arrayBuffer()
 					if (cancelled) return
 
-					const doc = await pdfjsLib.getDocument({ data }).promise
+					const loadingTask = pdfjsLib.getDocument({ data })
+					loadingTaskRef.current = loadingTask
+					const doc = await loadingTask.promise
 					if (cancelled) {
-						doc.destroy()
+						loadingTask.destroy()
 						return
 					}
 					pdfDocRef.current = doc
@@ -83,10 +86,11 @@ export function PdfViewer({ url, fileName, onBack, onDownload, toolbarVisible }:
 
 			return () => {
 				cancelled = true
-				if (pdfDocRef.current) {
-					pdfDocRef.current.destroy()
-					pdfDocRef.current = null
+				if (loadingTaskRef.current) {
+					loadingTaskRef.current.destroy()
+					loadingTaskRef.current = null
 				}
+				pdfDocRef.current = null
 			}
 		},
 		[url, t]

@@ -23,7 +23,7 @@
 		"@cloudillo/crdt": "workspace:^",
 		"@cloudillo/fonts": "workspace:^",
 		"@enzedonline/quill-blot-formatter2": "^3.2.0",
-		"@symbion/opalui": "^0.14.8",
+		"@symbion/opalui": "^0.14.9",
 		"@symbion/runtype": "^1.2.1",
 		"cross-env": "^10.1.0",
 		"dayjs": "^1.11.21",
@@ -31,7 +31,7 @@
 		"i18next": "^26.3.0",
 		"i18next-scanner": "^4.6.0",
 		"i18next-scanner-typescript": "^1.2.1",
-		"lucide": "^1.16.0",
+		"lucide": "^1.17.0",
 		"quill": "^2.0.3",
 		"quill-cursors": "^4.3.0",
 		"quill-delta": "^5.1.0",
@@ -42,7 +42,7 @@
 		"y-indexeddb": "^9.0.12",
 		"y-quill": "^1.0.0",
 		"y-websocket": "^3.0.0",
-		"yjs": "^13.6.30"
+		"yjs": "^13.6.31"
 	},
 	"dependencies": {
 		"marked": "^18.0.4"

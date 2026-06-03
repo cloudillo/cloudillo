@@ -53,6 +53,6 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.16",
-		"@typescript/native-preview": "7.0.0-dev.20260527.1"
+		"@typescript/native-preview": "7.0.0-dev.20260602.1"
 	}
 }

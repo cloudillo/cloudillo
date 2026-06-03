@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
 import type { ApiClient } from '@cloudillo/core'
+import * as React from 'react'
+
 import { useContextAwareApi } from '../../../context/index.js'
 
 export interface UploadItem {

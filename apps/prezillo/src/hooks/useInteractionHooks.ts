@@ -9,33 +9,33 @@
  * and canvas coordinate transforms.
  */
 
+import { calculateArcRadius } from '@cloudillo/canvas-tools'
 import * as React from 'react'
 import {
-	useResizable,
-	useRotatable,
-	usePivotDrag,
 	DEFAULT_PIVOT_SNAP_POINTS,
 	DEFAULT_PIVOT_SNAP_THRESHOLD,
-	type SvgCanvasContext,
 	type Point,
 	type ResizeHandle,
-	type UseSnappingReturn
+	type SvgCanvasContext,
+	type UseSnappingReturn,
+	usePivotDrag,
+	useResizable,
+	useRotatable
 } from 'react-svg-canvas'
-import { calculateArcRadius } from '@cloudillo/canvas-tools'
 
-import type { ObjectId, TemplateId, PrezilloObject } from '../crdt'
+import { clearEditingState, setEditingState } from '../awareness'
+import type { ObjectId, PrezilloObject, TemplateId } from '../crdt'
 import {
-	updateObjectBounds,
-	updateObjectRotation,
-	updateObjectPivot,
+	getResolvedWh,
 	isInstance,
 	isPropertyGroupLocked,
-	getResolvedWh
+	updateObjectBounds,
+	updateObjectPivot,
+	updateObjectRotation
 } from '../crdt'
-import { setEditingState, clearEditingState } from '../awareness'
+import type { TempObjectState } from './useObjectDrag'
 import type { UsePrezilloDocumentResult } from './usePrezilloDocument'
 import type { UseSnapSettingsResult } from './useSnappingConfig'
-import type { TempObjectState } from './useObjectDrag'
 import type { TemplateLayout } from './useTemplateLayout'
 
 /**

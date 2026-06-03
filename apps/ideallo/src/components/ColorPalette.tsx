@@ -11,7 +11,8 @@
  */
 
 import * as React from 'react'
-import { PALETTE_KEYS, colorToCss } from '../utils/palette.js'
+
+import { colorToCss, PALETTE_KEYS } from '../utils/palette.js'
 
 export interface ColorPaletteProps {
 	value: string

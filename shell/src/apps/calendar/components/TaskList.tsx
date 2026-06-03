@@ -1,13 +1,12 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import dayjs from 'dayjs'
-import * as React from 'react'
-import { useAtom } from 'jotai'
-import { useTranslation } from 'react-i18next'
-
+import type { CalendarObjectOutput, CalendarOutput } from '@cloudillo/core'
 import { LoadingSpinner, mergeClasses } from '@cloudillo/react'
-import type { CalendarOutput, CalendarObjectOutput } from '@cloudillo/core'
+import dayjs from 'dayjs'
+import { useAtom } from 'jotai'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { selectedObjectAtom } from '../atoms.js'
 import type { ListedTask } from '../hooks/useTaskList.js'

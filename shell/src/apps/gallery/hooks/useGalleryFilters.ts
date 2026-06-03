@@ -1,17 +1,17 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import dayjs from 'dayjs'
 import * as React from 'react'
 import { useSearchParams } from 'react-router-dom'
-import dayjs from 'dayjs'
 
 import type {
-	GalleryViewMode,
+	GalleryFilterState,
 	GalleryLayout,
-	TimeFilter,
-	SortOption,
+	GalleryViewMode,
 	SortDir,
-	GalleryFilterState
+	SortOption,
+	TimeFilter
 } from '../types.js'
 
 const _DEFAULT_FILTERS: GalleryFilterState = {

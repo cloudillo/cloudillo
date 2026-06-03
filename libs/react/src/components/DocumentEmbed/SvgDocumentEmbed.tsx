@@ -7,8 +7,9 @@
  */
 
 import * as React from 'react'
-import { useDocumentEmbed } from './useDocumentEmbed.js'
+
 import { DocumentEmbedIframe, type DocumentEmbedIframeRef } from './DocumentEmbedIframe.js'
+import { useDocumentEmbed } from './useDocumentEmbed.js'
 
 export interface SvgDocumentEmbedProps {
 	x: number

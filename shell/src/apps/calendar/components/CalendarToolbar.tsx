@@ -1,17 +1,16 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, useDebouncedValue } from '@cloudillo/react'
 import dayjs from 'dayjs'
 import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-	LuChevronLeft as IcPrev,
 	LuChevronRight as IcNext,
+	LuChevronLeft as IcPrev,
 	LuSearch as IcSearch
 } from 'react-icons/lu'
-
-import { Button, useDebouncedValue } from '@cloudillo/react'
 
 import type { CalendarView } from '../types.js'
 

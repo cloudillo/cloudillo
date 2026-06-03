@@ -9,8 +9,8 @@
  * encrypted; index fields are stored in the clear for offline queries.
  */
 
-import { encryptJSON, decryptJSON, getSwKeyFromCookie, maybeSignalKeyMissing } from './crypto.js'
-import type { CachedRecordBase, SyncMeta, StoreConfig, OfflineQuerySpec } from './types.js'
+import { decryptJSON, encryptJSON, getSwKeyFromCookie, maybeSignalKeyMissing } from './crypto.js'
+import type { CachedRecordBase, OfflineQuerySpec, StoreConfig, SyncMeta } from './types.js'
 
 const DB_NAME = 'cloudillo-data-cache'
 // Bumped to 2 when the `files` store moved from viewer-context keying to

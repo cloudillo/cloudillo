@@ -5,10 +5,11 @@
  * Conversion functions between stored (compact) and runtime (expanded) types
  */
 
-import { toObjectId, toContainerId, toViewId, toStyleId } from './ids'
-import type * as Stored from './stored-types'
-import type * as Runtime from './runtime-types'
 import type { Gradient } from '@cloudillo/canvas-tools'
+
+import { toContainerId, toObjectId, toStyleId, toViewId } from './ids'
+import type * as Runtime from './runtime-types'
+import type * as Stored from './stored-types'
 
 // Type code mappings
 const OBJECT_TYPE_MAP: Record<Stored.ObjectTypeCode, Runtime.ObjectType> = {

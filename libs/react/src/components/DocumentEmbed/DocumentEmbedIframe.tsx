@@ -5,8 +5,8 @@
  * Renders a sandboxed iframe for an embedded document and manages the embed relay.
  */
 
+import { type EmbedRelayHandle, setupEmbedRelay } from '@cloudillo/core'
 import * as React from 'react'
-import { setupEmbedRelay, type EmbedRelayHandle } from '@cloudillo/core'
 
 export interface DocumentEmbedIframeProps {
 	src: string

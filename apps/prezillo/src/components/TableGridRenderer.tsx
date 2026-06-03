@@ -12,7 +12,7 @@ import * as React from 'react'
  * - Border styling via ShapeStyle
  */
 
-import type { TableGridObject, ResolvedShapeStyle } from '../crdt/index.js'
+import type { ResolvedShapeStyle, TableGridObject } from '../crdt/index.js'
 
 export interface TableGridRendererProps {
 	object: TableGridObject

@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, EmptyState } from '@cloudillo/react'
 import * as React from 'react'
+import { LuFileQuestion, LuFolder, LuImage, LuInbox, LuSearch } from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
-import { EmptyState, Button } from '@cloudillo/react'
-import { LuFolder, LuInbox, LuSearch, LuFileQuestion, LuImage } from 'react-icons/lu'
 
 export function EmptyStateStory() {
 	return (

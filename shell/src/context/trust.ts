@@ -18,10 +18,10 @@
  * via `getTokenFor(idTag, { explicit: true })` and do not modify the stored trust.
  */
 
-import * as React from 'react'
-import { useAtom, useSetAtom } from 'jotai'
 import { useApi, useAuth } from '@cloudillo/react'
 import type { ProfileTrust } from '@cloudillo/types'
+import { useAtom, useSetAtom } from 'jotai'
+import * as React from 'react'
 
 import { contextTokensAtom, sessionTrustAtom, storedTrustAtom } from './atoms'
 

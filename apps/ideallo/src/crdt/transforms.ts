@@ -10,30 +10,30 @@
 export {
 	// Basic geometry
 	boundsIntersect,
-	pointInBounds,
-	expandBounds,
-	unionBounds,
-	getBoundsCenter,
-	rotatePoint,
-	scalePoint,
-	distance,
-	snapToGrid,
-	snapPointToGrid,
-	// RotationMatrix utilities
-	type RotationMatrix,
-	createRotationMatrix,
-	rotatePointWithMatrix,
-	unrotatePointWithMatrix,
-	rotateDeltaWithMatrix,
-	unrotateDeltaWithMatrix,
-	// Resize utilities
-	type ResizeState,
-	getAnchorForHandle,
-	getRotatedAnchorPosition,
+	calculateResizeBounds,
 	calculateResizedDimensions,
 	calculateResizedPosition,
+	createRotationMatrix,
+	distance,
+	expandBounds,
+	getAnchorForHandle,
+	getBoundsCenter,
+	getRotatedAnchorPosition,
 	initResizeState,
-	calculateResizeBounds
+	pointInBounds,
+	// Resize utilities
+	type ResizeState,
+	// RotationMatrix utilities
+	type RotationMatrix,
+	rotateDeltaWithMatrix,
+	rotatePoint,
+	rotatePointWithMatrix,
+	scalePoint,
+	snapPointToGrid,
+	snapToGrid,
+	unionBounds,
+	unrotateDeltaWithMatrix,
+	unrotatePointWithMatrix
 } from 'react-svg-canvas'
 
 // vim: ts=4

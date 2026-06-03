@@ -12,8 +12,8 @@
 import * as React from 'react'
 import type * as Y from 'yjs'
 
-import type { YIdealloDocument, ObjectId, StickyObject, NewStickyInput } from '../crdt/index.js'
-import { addObject, getObjectYText, DEFAULT_STYLE } from '../crdt/index.js'
+import type { NewStickyInput, ObjectId, StickyObject, YIdealloDocument } from '../crdt/index.js'
+import { addObject, DEFAULT_STYLE, getObjectYText } from '../crdt/index.js'
 import type { StickyInputState } from '../tools/types.js'
 import { applyTextDiff } from '../utils/text-diff.js'
 

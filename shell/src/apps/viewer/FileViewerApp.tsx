@@ -1,18 +1,16 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
-import { useSetAtom } from 'jotai'
-
-import { LuArrowLeft as IcBack, LuFileWarning as IcError } from 'react-icons/lu'
-
 import type { FileView } from '@cloudillo/core'
-import { useAuth, LoadingSpinner, Button, mergeClasses } from '@cloudillo/react'
+import { Button, LoadingSpinner, mergeClasses, useAuth } from '@cloudillo/react'
+import { useSetAtom } from 'jotai'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import { LuArrowLeft as IcBack, LuFileWarning as IcError } from 'react-icons/lu'
+import { useNavigate, useParams } from 'react-router-dom'
+
 import { useApiContext } from '../../context/index.js'
 import { documentTitleAtom } from '../../title.js'
-
 import { MediaViewer } from './MediaViewer.js'
 
 import './viewer.css'

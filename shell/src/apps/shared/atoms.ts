@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { atom } from 'jotai'
 import type { FileView } from '@cloudillo/core'
+import { atom } from 'jotai'
+
 import type { BreadcrumbItem } from '../files/hooks/useFileNavigation.js'
 
 export interface SharedFolderCacheEntry {

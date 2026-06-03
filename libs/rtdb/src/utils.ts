@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { DocumentSnapshot, QuerySnapshot, DocumentChange, ChangeEvent } from './types.js'
+import type { ChangeEvent, DocumentChange, DocumentSnapshot, QuerySnapshot } from './types.js'
 
 export class DocumentSnapshotImpl<T = unknown> implements DocumentSnapshot<T> {
 	constructor(

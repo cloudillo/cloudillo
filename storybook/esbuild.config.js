@@ -2,9 +2,10 @@
 
 import esbuild from 'esbuild'
 import { readFileSync } from 'fs'
-import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
-import { createConfig, buildApp, buildHTML } from '../scripts/esbuild-common.js'
+import { fileURLToPath } from 'url'
+
+import { buildApp, buildHTML, createConfig } from '../scripts/esbuild-common.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8'))

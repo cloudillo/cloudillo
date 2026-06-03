@@ -5,43 +5,43 @@
  * Maps Prezillo objects to PptxGenJS slide operations
  */
 
-import type PptxGenJS from 'pptxgenjs'
 import type { DeltaOp } from '@cloudillo/canvas-text'
+import type PptxGenJS from 'pptxgenjs'
 
+import { calculateGridPositions } from '../components/TableGridRenderer'
 import type {
-	YPrezilloDocument,
-	PrezilloObject,
-	RectObject,
+	ConnectorObject,
+	ImageObject,
 	LineObject,
 	PathObject,
-	PolygonObject,
-	TextObject,
-	ImageObject,
-	ConnectorObject,
-	QrCodeObject,
 	PollFrameObject,
-	TableGridObject,
-	SymbolObject,
-	StoredObject,
+	PolygonObject,
+	PrezilloObject,
+	QrCodeObject,
+	RectObject,
 	ResolvedShapeStyle,
-	ResolvedTextStyle
+	ResolvedTextStyle,
+	StoredObject,
+	SymbolObject,
+	TableGridObject,
+	TextObject,
+	YPrezilloDocument
 } from '../crdt'
 import {
-	resolveShapeStyle,
-	resolveTextStyle,
 	DEFAULT_SHAPE_STYLE,
-	DEFAULT_TEXT_STYLE
+	DEFAULT_TEXT_STYLE,
+	resolveShapeStyle,
+	resolveTextStyle
 } from '../crdt'
-import { calculateGridPositions } from '../components/TableGridRenderer'
 import { getSymbolById } from '../data/symbol-library'
 import {
-	pxToInches,
+	hexToColor,
+	mapArrowType,
 	mapFill,
 	mapLine,
 	mapShadow,
-	mapArrowType,
-	hexToColor,
-	mapTextOptions
+	mapTextOptions,
+	pxToInches
 } from './pptx-style-mapper'
 import { deltaToTextProps } from './pptx-text-mapper'
 

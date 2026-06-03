@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-
-import { getAppBus, type AppMessageBus } from '@cloudillo/core'
+import { type AppMessageBus, getAppBus } from '@cloudillo/core'
 import { LoadingSpinner } from '@cloudillo/react'
+import * as React from 'react'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'

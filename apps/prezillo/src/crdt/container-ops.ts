@@ -6,12 +6,13 @@
  */
 
 import * as Y from 'yjs'
-import type { YPrezilloDocument, ChildRef, StoredContainer } from './stored-types'
-import type { ObjectId, ContainerId } from './ids'
-import { generateContainerId, toObjectId, toContainerId } from './ids'
-import type { ContainerNode, ContainerType, PrezilloObject } from './runtime-types'
-import { expandContainer, compactContainer, expandObject } from './type-converters'
+
 import { getContainerChildren } from './document'
+import type { ContainerId, ObjectId } from './ids'
+import { generateContainerId, toContainerId, toObjectId } from './ids'
+import type { ContainerNode, ContainerType, PrezilloObject } from './runtime-types'
+import type { ChildRef, StoredContainer, YPrezilloDocument } from './stored-types'
+import { compactContainer, expandContainer, expandObject } from './type-converters'
 
 /**
  * Create a new container (layer or group)

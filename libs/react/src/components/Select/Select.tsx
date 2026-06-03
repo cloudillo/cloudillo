@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import debounce from 'debounce'
+import { useCombobox } from 'downshift'
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { usePopper } from 'react-popper'
-import { useCombobox } from 'downshift'
-import debounce from 'debounce'
 
 export interface SelectProps<T> {
 	className?: string

@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type {
-	StoredBlockRecord,
 	BlockRecord,
-	StoredPageRecord,
-	PageRecord,
-	InlineContent,
-	StyledText,
-	CompactInlineContent,
 	CompactColorStyles,
-	TableContent,
-	TableCell,
+	CompactInlineContent,
+	CompactTableCell,
 	CompactTableContent,
-	CompactTableCell
+	InlineContent,
+	PageRecord,
+	StoredBlockRecord,
+	StoredPageRecord,
+	StyledText,
+	TableCell,
+	TableContent
 } from './types.js'
-import { BLOCK_TYPE_TO_SHORT, BLOCK_TYPE_TO_LONG, isTableContent } from './types.js'
+import { BLOCK_TYPE_TO_LONG, BLOCK_TYPE_TO_SHORT, isTableContent } from './types.js'
 
 // ── Style flag encoding ──
 

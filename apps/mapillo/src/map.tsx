@@ -1,31 +1,31 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
 import maplibregl from 'maplibre-gl'
+import * as React from 'react'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import type { AppMessageBus } from '@cloudillo/core'
 import {
 	LuCompass as IcCompass,
-	LuLocate as IcLocate,
 	LuLoader as IcLoading,
+	LuLocate as IcLocate,
 	LuNavigation as IcNorth
 } from 'react-icons/lu'
-import type { AppMessageBus } from '@cloudillo/core'
 
-import { getMapStyle, getTileLayer } from './styles.js'
-import { SearchBar } from './search.js'
-import { PoiPanel } from './poi.js'
 import { LayerPanel } from './layers.js'
-import { SettingsPanel } from './settings.js'
 import { queryOverpassPois } from './overpass.js'
-import { OVERPASS_SERVERS, POI_CATEGORIES } from './types.js'
+import { PoiPanel } from './poi.js'
+import { SearchBar } from './search.js'
+import { SettingsPanel } from './settings.js'
+import { getMapStyle, getTileLayer } from './styles.js'
 import type {
+	MapilloSettings,
 	NominatimResult,
-	PoiFeature,
 	PoiCategory,
-	TileLayerId,
-	MapilloSettings
+	PoiFeature,
+	TileLayerId
 } from './types.js'
+import { OVERPASS_SERVERS, POI_CATEGORIES } from './types.js'
 
 interface MapViewProps {
 	darkMode: boolean

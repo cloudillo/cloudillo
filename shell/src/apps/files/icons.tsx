@@ -2,24 +2,22 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-
 import {
-	FiImage as IcImage,
-	FiFilm as IcVideo,
 	FiFileText as IcDocument,
+	FiFolder as IcFolder,
+	FiImage as IcImage,
 	FiFile as IcUnknown,
-	FiFolder as IcFolder
+	FiFilm as IcVideo
 } from 'react-icons/fi'
-
 import {
-	LuBookOpen as IcQuillo,
 	LuSheet as IcCalcillo,
-	LuShapes as IcIdeallo,
-	LuPresentation as IcPrezillo,
 	LuListTodo as IcFormillo,
-	LuListChecks as IcTaskillo,
+	LuShapes as IcIdeallo,
 	LuNotebook as IcNotillo,
-	LuScanLine as IcScanillo
+	LuPresentation as IcPrezillo,
+	LuBookOpen as IcQuillo,
+	LuScanLine as IcScanillo,
+	LuListChecks as IcTaskillo
 } from 'react-icons/lu'
 
 export const fileIcons: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
@@ -63,19 +61,19 @@ export function getFileIcon(
 }
 
 export {
-	IcImage,
-	IcVideo,
-	IcDocument,
-	IcUnknown,
-	IcFolder,
-	IcQuillo,
 	IcCalcillo,
-	IcIdeallo,
-	IcPrezillo,
+	IcDocument,
+	IcFolder,
 	IcFormillo,
-	IcTaskillo,
+	IcIdeallo,
+	IcImage,
 	IcNotillo,
-	IcScanillo
+	IcPrezillo,
+	IcQuillo,
+	IcScanillo,
+	IcTaskillo,
+	IcUnknown,
+	IcVideo
 }
 
 // vim: ts=4

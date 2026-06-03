@@ -1,17 +1,16 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import {
+	type ApiClient,
+	type CalendarObjectInput,
+	type CalendarObjectOutput,
+	FetchError
+} from '@cloudillo/core'
+import { useToast } from '@cloudillo/react'
 import dayjs from 'dayjs'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
-import {
-	type ApiClient,
-	FetchError,
-	type CalendarObjectInput,
-	type CalendarObjectOutput
-} from '@cloudillo/core'
-import { useToast } from '@cloudillo/react'
 
 import type { RecurringScope } from '../components/RecurringEditScopeDialog.js'
 import type { EventOccurrence, SelectedObjectRef } from '../types.js'

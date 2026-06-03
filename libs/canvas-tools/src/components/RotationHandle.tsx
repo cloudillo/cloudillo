@@ -12,6 +12,7 @@
 import * as React from 'react'
 import type { Bounds } from 'react-svg-canvas'
 import { DEFAULT_SNAP_ANGLES, DEFAULT_SNAP_ZONE_RATIO, normalizeAngle } from 'react-svg-canvas'
+
 import { calculateArcRadius } from '../utils/rotation'
 
 export interface RotationHandleProps {

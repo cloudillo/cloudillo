@@ -10,6 +10,7 @@ export async function delay(ms: number): Promise<void> {
 
 import { colord, extend } from 'colord'
 import lchPlugin from 'colord/plugins/lch'
+
 extend([lchPlugin])
 
 export async function calcSha1Hex(str: string) {

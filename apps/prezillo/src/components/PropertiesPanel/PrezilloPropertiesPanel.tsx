@@ -1,15 +1,15 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
+import { PropertyPanel, Tab, Tabs } from '@cloudillo/react'
 import type Quill from 'quill'
-import { PropertyPanel, Tabs, Tab } from '@cloudillo/react'
+import * as React from 'react'
 
-import type { ObjectId, ContainerId } from '../../crdt'
+import type { ContainerId, ObjectId } from '../../crdt'
 import type { UsePrezilloDocumentResult } from '../../hooks/usePrezilloDocument'
+import { TemplatePanel } from '../'
 import { LayerBrowser } from './LayerBrowser'
 import { PropertyEditor } from './PropertyEditor'
-import { TemplatePanel } from '../'
 
 export interface PropertyPreview {
 	objectId: ObjectId

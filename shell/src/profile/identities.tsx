@@ -1,33 +1,32 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
-import type { TFunction } from 'i18next'
-
-import {
-	LuSearch as IcSearch,
-	LuFilter as IcFilter,
-	LuUser as IcUser,
-	LuUserPlus as IcUserFollowing,
-	LuUserPlus as IcUserFollowed,
-	LuHandshake as IcUserConnected,
-	LuCircleOff as IcUserBlocked,
-	LuBellOff as IcUserMuted,
-	LuOctagonPause as IcUserSuspended,
-	LuUsers as IcUserAll,
-	LuExternalLink as IcExternalLink,
-	LuPlus as IcPlus,
-	LuScanLine as IcScan
-} from 'react-icons/lu'
-
+import { Badge, Fcd, ProfileCard, ProfilePicture, useApi, useAuth } from '@cloudillo/react'
 import type { Profile } from '@cloudillo/types'
-import { useApi, useAuth, Fcd, ProfileCard, ProfilePicture, Badge } from '@cloudillo/react'
-import { parseQS } from '../utils.js'
+import type { TFunction } from 'i18next'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import {
+	LuExternalLink as IcExternalLink,
+	LuFilter as IcFilter,
+	LuPlus as IcPlus,
+	LuScanLine as IcScan,
+	LuSearch as IcSearch,
+	LuUser as IcUser,
+	LuUsers as IcUserAll,
+	LuCircleOff as IcUserBlocked,
+	LuHandshake as IcUserConnected,
+	LuUserPlus as IcUserFollowed,
+	LuUserPlus as IcUserFollowing,
+	LuBellOff as IcUserMuted,
+	LuOctagonPause as IcUserSuspended
+} from 'react-icons/lu'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+
+import { useQrScanner } from '../components/QrScanner/index.js'
 import { useContextSwitch } from '../context/index.js'
 import { ProfileContextMenu, useProfileContextMenu } from '../context/profile-context-menu.js'
-import { useQrScanner } from '../components/QrScanner/index.js'
+import { parseQS } from '../utils.js'
 
 type ProfileStatusCode = 'A' | 'B' | 'M' | 'S'
 const VALID_STATUS_CODES = new Set<ProfileStatusCode>(['A', 'B', 'M', 'S'])

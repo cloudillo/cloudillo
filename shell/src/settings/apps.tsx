@@ -1,20 +1,18 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { mergeClasses, useApi, useToast } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
 import { LuGripVertical as IcGrip, LuRotateCcw as IcReset } from 'react-icons/lu'
 
-import { useApi, useToast, mergeClasses } from '@cloudillo/react'
-
+import {
+	applyMenuConfig,
+	appConfig as defaultAppConfig,
+	getAllMenuItems
+} from '../manifest-registry.js'
 import type { MenuItem } from '../utils.js'
 import { useAppConfig } from '../utils.js'
-import {
-	appConfig as defaultAppConfig,
-	getAllMenuItems,
-	applyMenuConfig
-} from '../manifest-registry.js'
 
 const MAX_MAIN_ITEMS = 4
 

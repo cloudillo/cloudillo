@@ -1,13 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, Progress, useApi, useToast } from '@cloudillo/react'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import ReactCrop, { type Crop } from 'react-image-crop'
-
 import { LuSquareDashed as IcBoxSelect, LuCircleDashed as IcCircleSelect } from 'react-icons/lu'
-
-import { Button, Progress, useApi, useToast } from '@cloudillo/react'
+import ReactCrop, { type Crop } from 'react-image-crop'
 
 export type Aspect = '4:1' | '3:1' | '2:1' | '16:9' | '3:2' | '4:3' | '1:1' | 'circle' | ''
 const aspectMap = {

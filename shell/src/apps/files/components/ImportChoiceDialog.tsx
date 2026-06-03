@@ -12,13 +12,13 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-	LuUpload as IcUpload,
+	LuX as IcClose,
 	LuFileSpreadsheet as IcConvert,
-	LuX as IcClose
+	LuUpload as IcUpload
 } from 'react-icons/lu'
 
-import type { PendingConversion } from '../hooks/useSmartUpload.js'
 import type { ImportHandler } from '../../../manifest-registry.js'
+import type { PendingConversion } from '../hooks/useSmartUpload.js'
 
 export interface ImportChoiceDialogProps {
 	pendingConversions: PendingConversion[]

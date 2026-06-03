@@ -14,9 +14,9 @@
 import * as React from 'react'
 import type * as Y from 'yjs'
 
-import type { BaseTextStyle, ContainerStyle, DeltaOp, TextLine, TextRun } from '../types'
 import { deltaToLines } from '../delta-parser'
-import { resolveRunStyle, type ResolvedRunStyle } from '../measure'
+import { type ResolvedRunStyle, resolveRunStyle } from '../measure'
+import type { BaseTextStyle, ContainerStyle, DeltaOp, TextLine, TextRun } from '../types'
 
 export interface RichTextDisplayProps {
 	x: number

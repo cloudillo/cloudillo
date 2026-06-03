@@ -1,10 +1,10 @@
 // Cloudillo Storybook Utility Components
 // Based on patron storybook structure
 
+import { atom, useAtom } from 'jotai'
 import * as React from 'react'
 import { useLocation } from 'react-router'
 import { Link } from 'react-router-dom'
-import { atom, useAtom } from 'jotai'
 
 /* Utils */
 /*********/

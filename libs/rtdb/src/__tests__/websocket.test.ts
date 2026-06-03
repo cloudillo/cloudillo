@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals'
+
 import { WebSocketManager } from '../websocket'
 
 // Helpers for patching Node.js globals in tests

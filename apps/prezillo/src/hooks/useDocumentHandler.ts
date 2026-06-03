@@ -12,11 +12,11 @@
  * - Switch to select tool automatically
  */
 
+import { getAppBus } from '@cloudillo/core'
 import * as React from 'react'
 import type * as Y from 'yjs'
-import { getAppBus } from '@cloudillo/core'
 
-import type { YPrezilloDocument, ObjectId, DocumentObject } from '../crdt/index.js'
+import type { DocumentObject, ObjectId, YPrezilloDocument } from '../crdt/index.js'
 import { addObject } from '../crdt/index.js'
 
 export interface UseDocumentHandlerOptions {

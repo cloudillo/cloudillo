@@ -7,45 +7,41 @@
  * Re-exports all shape detection functions.
  */
 
-// Line detection
+// Arrow detection
 export {
-	detectLine,
-	isConfidentLine,
-	generateLinePoints,
-	type LineCandidate
-} from './line-detector.js'
-
+	type ArrowCandidate,
+	type ArrowheadPosition,
+	detectArrow,
+	generateArrowPoints,
+	isConfidentArrow
+} from './arrow-detector.js'
 // Ellipse/Circle detection
 export {
 	detectEllipse,
-	isConfidentEllipse,
+	type EllipseCandidate,
 	generateEllipsePoints,
-	type EllipseCandidate
+	isConfidentEllipse
 } from './ellipse-detector.js'
-
-// Rectangle/Diamond detection
+// Line detection
 export {
-	detectRectangle,
-	isConfidentRectangle,
-	generateRectanglePoints,
-	type RectangleCandidate
-} from './rectangle-detector.js'
-
+	detectLine,
+	generateLinePoints,
+	isConfidentLine,
+	type LineCandidate
+} from './line-detector.js'
 // Polygon detection (triangles, pentagons, etc.)
 export {
 	detectPolygon,
-	isConfidentPolygon,
 	generatePolygonPoints,
+	isConfidentPolygon,
 	type PolygonCandidate
 } from './polygon-detector.js'
-
-// Arrow detection
+// Rectangle/Diamond detection
 export {
-	detectArrow,
-	isConfidentArrow,
-	generateArrowPoints,
-	type ArrowCandidate,
-	type ArrowheadPosition
-} from './arrow-detector.js'
+	detectRectangle,
+	generateRectanglePoints,
+	isConfidentRectangle,
+	type RectangleCandidate
+} from './rectangle-detector.js'
 
 // vim: ts=4

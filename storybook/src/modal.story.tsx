@@ -1,6 +1,7 @@
+import { Button, HBox, Input, Modal, Panel, VBox } from '@cloudillo/react'
 import * as React from 'react'
+
 import { Story, Variant } from './storybook.js'
-import { Modal, Panel, Button, VBox, HBox, Input } from '@cloudillo/react'
 
 export function ModalStory() {
 	const [isOpen, setIsOpen] = React.useState(false)

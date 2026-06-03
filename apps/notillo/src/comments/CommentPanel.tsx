@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { CommentThread, UseCommentsReturn } from '@cloudillo/react'
 import * as React from 'react'
 
-import type { UseCommentsReturn, CommentThread } from '@cloudillo/react'
 import { ThreadList, type ThreadListHandle } from './ThreadList.js'
 
 interface CommentPanelProps {

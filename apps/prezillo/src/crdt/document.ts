@@ -6,21 +6,22 @@
  */
 
 import * as Y from 'yjs'
+
+import type { ContainerId } from './ids'
+import { generateContainerId, generateStyleId, generateViewId } from './ids'
+import { DEFAULT_PALETTE } from './palette-ops'
 import type {
-	YPrezilloDocument,
-	StoredObject,
+	ChildRef,
 	StoredContainer,
-	StoredView,
-	StoredStyle,
+	StoredObject,
 	StoredPalette,
+	StoredStyle,
 	StoredTemplate,
 	StoredText,
-	ChildRef
+	StoredView,
+	YPrezilloDocument
 } from './stored-types'
-import { generateContainerId, generateViewId, generateStyleId } from './ids'
-import type { ContainerId } from './ids'
 import { compactPalette } from './type-converters'
-import { DEFAULT_PALETTE } from './palette-ops'
 
 /**
  * Get or create the Prezillo document structure from a Y.Doc

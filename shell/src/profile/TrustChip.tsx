@@ -9,18 +9,17 @@
  * The chip is not rendered for the user's own profile.
  */
 
+import { useToast } from '@cloudillo/react'
+import type { ProfileTrust } from '@cloudillo/types'
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
+	LuEyeOff as IcAnonymous,
 	LuShield as IcShield,
 	LuShieldCheck as IcShieldCheck,
-	LuShieldOff as IcShieldOff,
-	LuEyeOff as IcAnonymous
+	LuShieldOff as IcShieldOff
 } from 'react-icons/lu'
-
-import { useToast } from '@cloudillo/react'
-import type { ProfileTrust } from '@cloudillo/types'
 
 import { useProfileTrust } from '../context/index.js'
 

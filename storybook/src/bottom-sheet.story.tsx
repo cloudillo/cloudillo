@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { BottomSheetSnapPoint } from '@cloudillo/react'
+import { BottomSheet, Button } from '@cloudillo/react'
 import * as React from 'react'
 
 import { Story, Variant } from './storybook.js'
-import { BottomSheet, Button } from '@cloudillo/react'
-import type { BottomSheetSnapPoint } from '@cloudillo/react'
 
 export function BottomSheetStory() {
 	const [snap, setSnap] = React.useState<BottomSheetSnapPoint>('closed')

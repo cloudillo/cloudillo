@@ -8,13 +8,14 @@
  * Similar to StickyEditOverlay but without container background/padding.
  */
 
+import type { BaseTextStyle } from '@cloudillo/canvas-text'
+import { RichTextEditor } from '@cloudillo/canvas-text'
+import type Quill from 'quill'
 import * as React from 'react'
 import type * as Y from 'yjs'
-import type Quill from 'quill'
+
 import type { TextObject } from '../crdt/index.js'
 import { colorToCss } from '../utils/palette.js'
-import { RichTextEditor } from '@cloudillo/canvas-text'
-import type { BaseTextStyle } from '@cloudillo/canvas-text'
 
 export interface TextEditOverlayProps {
 	object: TextObject

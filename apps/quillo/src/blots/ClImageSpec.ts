@@ -8,14 +8,14 @@
  * Extends ImageSpec pattern to properly handle click-to-select behavior.
  */
 
-import Quill from 'quill'
 import {
-	BlotSpec,
+	type Action,
 	AlignAction,
-	ResizeAction,
+	BlotSpec,
 	DeleteAction,
-	type Action
+	ResizeAction
 } from '@enzedonline/quill-blot-formatter2'
+import Quill from 'quill'
 
 class ClImageSpec extends BlotSpec {
 	private img: HTMLElement | null = null

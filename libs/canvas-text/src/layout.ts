@@ -8,16 +8,16 @@
  * and lines for rendering. Supports horizontal/vertical alignment and list indentation.
  */
 
+import { measureRunWidth, resolveRunStyle } from './measure'
 import type {
-	TextLine,
-	TextRun,
-	TextBounds,
 	BaseTextStyle,
-	PositionedRun,
 	PositionedLine,
-	RichTextLayout
+	PositionedRun,
+	RichTextLayout,
+	TextBounds,
+	TextLine,
+	TextRun
 } from './types'
-import { resolveRunStyle, measureRunWidth } from './measure'
 
 /** Bullet/list indent width as a factor of base font size */
 const LIST_INDENT_FACTOR = 1.5

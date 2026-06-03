@@ -9,6 +9,7 @@
  */
 
 import * as React from 'react'
+
 import type { SnapGuide, ViewNode } from '../crdt'
 
 export interface TemplateGuideRendererProps {

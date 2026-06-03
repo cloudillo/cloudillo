@@ -1,28 +1,28 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { Block, BlockNoteEditor } from '@blocknote/core'
+import type { ChangeEvent, QuerySnapshot, RtdbClient } from '@cloudillo/rtdb'
 import { useEffect, useRef } from 'react'
 
-import type { Block, BlockNoteEditor } from '@blocknote/core'
-import type { RtdbClient, QuerySnapshot, ChangeEvent } from '@cloudillo/rtdb'
+import { getBlockOrder } from '../rtdb/block-ops.js'
 import {
-	type StoredBlockRecord,
-	type BlockRecord,
-	TABLE_TYPES,
-	MEDIA_TYPES,
-	isTableContent,
-	asBlockType,
-	asBlockProps,
-	asBlockContent
-} from '../rtdb/types.js'
-import {
-	toStoredBlock,
-	fromStoredBlock,
 	cleanProps,
 	compactBlockContent,
-	compactBlockType
+	compactBlockType,
+	fromStoredBlock,
+	toStoredBlock
 } from '../rtdb/transform.js'
-import { getBlockOrder } from '../rtdb/block-ops.js'
+import {
+	asBlockContent,
+	asBlockProps,
+	asBlockType,
+	type BlockRecord,
+	isTableContent,
+	MEDIA_TYPES,
+	type StoredBlockRecord,
+	TABLE_TYPES
+} from '../rtdb/types.js'
 
 const DEBOUNCE_MS = 300
 const ECHO_SUPPRESS_MS = 2000

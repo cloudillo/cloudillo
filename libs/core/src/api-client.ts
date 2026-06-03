@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as T from '@symbion/runtype'
+
 import { type ApiFetchResult, apiFetchHelper } from './api.js'
 import * as Types from './api-types.js'
 import { getInstanceUrl } from './urls.js'

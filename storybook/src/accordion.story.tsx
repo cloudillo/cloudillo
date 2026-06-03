@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Accordion, AccordionItem } from '@cloudillo/react'
 import * as React from 'react'
+import { LuBell, LuLock, LuSettings, LuUser } from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
-import { Accordion, AccordionItem } from '@cloudillo/react'
-import { LuSettings, LuLock, LuBell, LuUser } from 'react-icons/lu'
 
 export function AccordionStory() {
 	return (

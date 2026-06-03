@@ -7,18 +7,19 @@
  * State management atoms for multi-context architecture.
  */
 
-import { atom } from 'jotai'
-import { atomWithStorage } from 'jotai/utils'
+import type { FileView } from '@cloudillo/core'
 import { authAtom } from '@cloudillo/react'
 import type { ProfileTrust } from '@cloudillo/types'
-import type { FileView } from '@cloudillo/core'
+import { atom } from 'jotai'
+import { atomWithStorage } from 'jotai/utils'
+
 import type {
 	ActiveContext,
 	CommunityRef,
-	ContextToken,
 	ContextDataCache,
-	SidebarState,
-	ContextSwitchEvent
+	ContextSwitchEvent,
+	ContextToken,
+	SidebarState
 } from './types'
 
 /**

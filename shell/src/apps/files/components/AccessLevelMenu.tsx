@@ -1,11 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, Dropdown, mergeClasses } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuChevronDown as IcChevron, LuTrash2 as IcTrash } from 'react-icons/lu'
-
-import { Button, Dropdown, mergeClasses } from '@cloudillo/react'
 
 export type AccessLevelUpper = 'READ' | 'COMMENT' | 'WRITE'
 export type AccessLevelLower = 'read' | 'comment' | 'write'

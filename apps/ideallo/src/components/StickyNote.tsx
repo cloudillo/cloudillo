@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+
 /**
  * Sticky note component (display-only)
  * Renders a colored note with fixed 18px text, auto-grows height during editing
@@ -10,13 +11,14 @@ import * as React from 'react'
  * For editing, use StickyEditOverlay instead.
  */
 
+import type { BaseTextStyle } from '@cloudillo/canvas-text'
+import { RichTextDisplay } from '@cloudillo/canvas-text'
 import { useMemo } from 'react'
 import type * as Y from 'yjs'
+
 import type { StickyObject } from '../crdt/index.js'
-import { DEFAULT_PADDING, DEFAULT_LINE_HEIGHT } from '../utils/text-scaling.js'
 import { colorToCss } from '../utils/palette.js'
-import { RichTextDisplay } from '@cloudillo/canvas-text'
-import type { BaseTextStyle } from '@cloudillo/canvas-text'
+import { DEFAULT_LINE_HEIGHT, DEFAULT_PADDING } from '../utils/text-scaling.js'
 
 const STICKY_FONT_SIZE = 18
 

@@ -8,22 +8,28 @@
  * Memoized to prevent unnecessary re-renders when unrelated state changes.
  */
 
-import * as React from 'react'
-import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
-import type { Gradient } from '@cloudillo/canvas-tools'
-import { RichTextDisplay } from '@cloudillo/canvas-text'
 import type { BaseTextStyle } from '@cloudillo/canvas-text'
+import { RichTextDisplay } from '@cloudillo/canvas-text'
+import type { Gradient } from '@cloudillo/canvas-tools'
+import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
 import { SvgDocumentEmbed } from '@cloudillo/react'
-import type { PrezilloObject, ResolvedTextStyle, YPrezilloDocument } from '../crdt'
-import type { resolveShapeStyle, resolveTextStyle } from '../crdt'
-import { calculateRotationTransformFromBounds, buildStrokeProps, buildFillProps } from '../utils'
+import * as React from 'react'
+
+import type {
+	PrezilloObject,
+	ResolvedTextStyle,
+	resolveShapeStyle,
+	resolveTextStyle,
+	YPrezilloDocument
+} from '../crdt'
 import { getBulletIcon, migrateBullet } from '../data/bullet-icons'
+import { buildFillProps, buildStrokeProps, calculateRotationTransformFromBounds } from '../utils'
 import { ImageRenderer } from './ImageRenderer'
-import { QRCodeRenderer } from './QRCodeRenderer'
 import { PollFrameRenderer } from './PollFrameRenderer'
-import { TableGridRenderer } from './TableGridRenderer'
-import { SymbolRenderer } from './SymbolRenderer'
+import { QRCodeRenderer } from './QRCodeRenderer'
 import { StateVarRenderer } from './StateVarRenderer'
+import { SymbolRenderer } from './SymbolRenderer'
+import { TableGridRenderer } from './TableGridRenderer'
 
 /**
  * Render SVG gradient definition using library functions

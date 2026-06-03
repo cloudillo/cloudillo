@@ -1,27 +1,25 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { mergeClasses } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
 import {
 	LuGlobe as IcGlobe,
-	LuUsers as IcUsers,
+	LuShield as IcRole,
 	LuUserCheck as IcUserCheck,
-	LuShield as IcRole
+	LuUsers as IcUsers
 } from 'react-icons/lu'
 
-import { mergeClasses } from '@cloudillo/react'
-
-import type { SectionWithContent } from './types.js'
-import { getSectionTitle } from './types.js'
 import { AboutSectionView } from './sections/AboutSection.js'
 import { ContactSectionView } from './sections/ContactSection.js'
-import { LocationSectionView } from './sections/LocationSection.js'
-import { LinksSectionView } from './sections/LinksSection.js'
-import { WorkSectionView } from './sections/WorkSection.js'
 import { EducationSectionView } from './sections/EducationSection.js'
+import { LinksSectionView } from './sections/LinksSection.js'
+import { LocationSectionView } from './sections/LocationSection.js'
 import { SkillsSectionView } from './sections/SkillsSection.js'
+import { WorkSectionView } from './sections/WorkSection.js'
+import type { SectionWithContent } from './types.js'
+import { getSectionTitle } from './types.js'
 
 // ============================================================================
 // Section content renderer

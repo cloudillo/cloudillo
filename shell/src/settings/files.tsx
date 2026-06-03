@@ -1,11 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { LoadingSpinner } from '@cloudillo/react'
 import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
-import { LoadingSpinner } from '@cloudillo/react'
 
 import { useSettings } from './settings.js'
 

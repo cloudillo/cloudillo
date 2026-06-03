@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { WebSocketManager } from './websocket.js'
 import { CollectionReference } from './collection.js'
 import { DocumentReference } from './document.js'
 import type {
@@ -11,6 +10,7 @@ import type {
 	UpdateData
 } from './types.js'
 import { normalizePath } from './utils.js'
+import { WebSocketManager } from './websocket.js'
 
 export interface BatchResult {
 	ref: string | null

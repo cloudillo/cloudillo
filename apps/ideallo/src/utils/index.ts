@@ -6,54 +6,50 @@
  */
 
 export {
-	streamSimplify,
-	rdpSimplify,
-	pointsToSvgPath,
-	pointsToSmoothPath,
-	flatToPoints,
-	pointsToFlat
-} from './path-simplification.js'
-
-export type { Point } from './geometry.js'
-export {
-	distance,
-	perpendicularDistance,
-	getBoundsFromPoints,
-	pointInBounds,
-	boundsOverlap,
-	boundsContains,
-	expandBounds,
-	getBoundsCenter,
-	normalizeAngle,
-	degToRad,
-	radToDeg,
-	rotatePoint,
-	clamp
-} from './geometry.js'
-
-export {
+	getContrastColor,
 	PALETTE,
 	PALETTE_COLORS,
-	UI,
 	STROKE_WIDTHS,
 	str2color,
-	getContrastColor
+	UI
 } from './colors.js'
-
+export type { Point } from './geometry.js'
 export {
-	PALETTE_KEYS,
-	colorToCss
+	boundsContains,
+	boundsOverlap,
+	clamp,
+	degToRad,
+	distance,
+	expandBounds,
+	getBoundsCenter,
+	getBoundsFromPoints,
+	normalizeAngle,
+	perpendicularDistance,
+	pointInBounds,
+	radToDeg,
+	rotatePoint
+} from './geometry.js'
+export {
+	colorToCss,
+	PALETTE_KEYS
 } from './palette.js'
-
 export {
-	MIN_FONT_SIZE,
-	MAX_FONT_SIZE,
+	flatToPoints,
+	pointsToFlat,
+	pointsToSmoothPath,
+	pointsToSvgPath,
+	rdpSimplify,
+	streamSimplify
+} from './path-simplification.js'
+export {
+	calculateOptimalFontSize,
+	cleanupMeasureElement,
+	createFontSizeCalculator,
 	DEFAULT_FONT_SIZE,
 	DEFAULT_LINE_HEIGHT,
 	DEFAULT_PADDING,
-	calculateOptimalFontSize,
-	createFontSizeCalculator,
-	cleanupMeasureElement
+	MAX_FONT_SIZE,
+	MIN_FONT_SIZE
 } from './text-scaling.js'
 
 // vim: ts=4

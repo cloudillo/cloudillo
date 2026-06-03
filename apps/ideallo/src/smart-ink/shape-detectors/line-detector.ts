@@ -8,7 +8,7 @@
  * using perpendicular distance analysis.
  */
 
-import { distance, perpendicularDistance, type Point } from '../../utils/geometry.js'
+import { distance, type Point, perpendicularDistance } from '../../utils/geometry.js'
 
 export interface LineCandidate {
 	type: 'line'

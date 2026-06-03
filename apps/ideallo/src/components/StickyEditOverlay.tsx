@@ -8,16 +8,19 @@
  * Includes 8px border drag zone for moving while editing.
  */
 
+import type Quill from 'quill'
 import * as React from 'react'
 import type * as Y from 'yjs'
-import type Quill from 'quill'
+
 import type { StickyObject } from '../crdt/index.js'
-import { DEFAULT_PADDING, DEFAULT_LINE_HEIGHT } from '../utils/text-scaling.js'
+import { DEFAULT_LINE_HEIGHT, DEFAULT_PADDING } from '../utils/text-scaling.js'
 
 const STICKY_FONT_SIZE = 18
-import { colorToCss } from '../utils/palette.js'
-import { RichTextEditor } from '@cloudillo/canvas-text'
+
 import type { BaseTextStyle } from '@cloudillo/canvas-text'
+import { RichTextEditor } from '@cloudillo/canvas-text'
+
+import { colorToCss } from '../utils/palette.js'
 
 // Sticky note text uses theme variable for proper theming support (same as StickyNote)
 const STICKY_TEXT_COLOR = 'var(--palette-n0, #1e1e1e)'

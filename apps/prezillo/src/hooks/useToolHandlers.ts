@@ -8,17 +8,17 @@
 import * as React from 'react'
 import type { ToolEvent } from 'react-svg-canvas'
 
-import type { ObjectId, ContainerId, TemplateId, SymbolObject, PrezilloObject } from '../crdt'
+import type { ContainerId, ObjectId, PrezilloObject, SymbolObject, TemplateId } from '../crdt'
 import {
 	addObject,
-	createObject,
-	getView,
-	findViewAtPoint,
 	addObjectToTemplate,
-	generateObjectId
+	createObject,
+	findViewAtPoint,
+	generateObjectId,
+	getView
 } from '../crdt'
-import type { UsePrezilloDocumentResult } from './usePrezilloDocument'
 import type { DragState } from './useObjectDrag'
+import type { UsePrezilloDocumentResult } from './usePrezilloDocument'
 import type { TemplateLayout } from './useTemplateLayout'
 
 export interface UseToolHandlersOptions {

@@ -10,8 +10,8 @@
  * Delta format: { insert: { 'cl-document': { fileId, appId, contentType, width?, height? } } }
  */
 
-import Quill from 'quill'
 import { getAppBus, setupEmbedRelay } from '@cloudillo/core'
+import Quill from 'quill'
 
 /** Typed base class for Quill block embed blots */
 interface QuillBlockEmbedClass {

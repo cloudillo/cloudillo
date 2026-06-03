@@ -1,13 +1,14 @@
+import { str2color } from '@cloudillo/core'
 import type { WorkbookInstance } from '@fortune-sheet/react'
 // @ts-expect-error - y-protocols types may not be available
 import type { Awareness } from 'y-protocols/awareness'
-import { str2color } from '@cloudillo/core'
-import type { SheetId } from './yjs-types'
+
 import {
-	CURSOR_POLL_INTERVAL_MS,
 	CURSOR_DEBOUNCE_DELAY_MS,
+	CURSOR_POLL_INTERVAL_MS,
 	CURSOR_THROTTLE_DELAY_MS
 } from './constants'
+import type { SheetId } from './yjs-types'
 
 export interface UserPresence {
 	user: {

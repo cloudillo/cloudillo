@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { jest, describe, it, expect, beforeEach } from '@jest/globals'
+import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+
 import { CollectionReference } from '../collection'
-import type { TransactionMessage } from '../types'
 import { DocumentReference } from '../document'
 import { Query } from '../query'
+import type { TransactionMessage } from '../types'
 import { WebSocketManager } from '../websocket'
 
 jest.mock('../websocket')

@@ -1,14 +1,12 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useParams } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
-
-import { useApi, useToast, ProfilePicture } from '@cloudillo/react'
 import { FetchError, type TenantView } from '@cloudillo/core'
-
-import { LuUser as IcPerson, LuUsers as IcCommunity, LuShield as IcAdmin } from 'react-icons/lu'
+import { ProfilePicture, useApi, useToast } from '@cloudillo/react'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import { LuShield as IcAdmin, LuUsers as IcCommunity, LuUser as IcPerson } from 'react-icons/lu'
+import { useParams } from 'react-router-dom'
 
 const STORAGE_KEY = 'limits.max_storage_gb'
 

@@ -1,17 +1,17 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { NumberInput, PropertyField, PropertySection } from '@cloudillo/react'
 import * as React from 'react'
 import type * as Y from 'yjs'
-import { PropertySection, PropertyField, NumberInput } from '@cloudillo/react'
 
-import type { YPrezilloDocument, PrezilloObject, ObjectId, RectObject } from '../../crdt'
+import type { ObjectId, PrezilloObject, RectObject, YPrezilloDocument } from '../../crdt'
 import {
-	updateObject,
 	isInstance,
 	isPropertyGroupLocked,
+	resetPropertyGroup,
 	unlockPropertyGroup,
-	resetPropertyGroup
+	updateObject
 } from '../../crdt'
 import { PropertyLockButton } from './PropertyLockButton'
 

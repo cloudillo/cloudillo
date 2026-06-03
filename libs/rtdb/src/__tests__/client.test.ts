@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { jest, describe, it, expect, beforeEach } from '@jest/globals'
-import { RtdbClient, WriteBatch, createRtdbClient } from '../client'
+import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+
+import { createRtdbClient, RtdbClient, WriteBatch } from '../client'
 import { CollectionReference } from '../collection'
 import { DocumentReference } from '../document'
 import { WebSocketManager } from '../websocket'

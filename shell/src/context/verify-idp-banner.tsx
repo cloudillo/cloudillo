@@ -1,14 +1,13 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useAtom } from 'jotai'
-import { useTranslation } from 'react-i18next'
-
-import { LuCircleAlert as IcWarning, LuRefreshCw as IcLoading } from 'react-icons/lu'
-import type { TFunction } from 'i18next'
-import { Button } from '@cloudillo/react'
 import { FetchError } from '@cloudillo/core'
+import { Button } from '@cloudillo/react'
+import type { TFunction } from 'i18next'
+import { useAtom } from 'jotai'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import { LuRefreshCw as IcLoading, LuCircleAlert as IcWarning } from 'react-icons/lu'
 
 import { activeContextAtom, contextOnboardingAtom } from './atoms'
 import { useApiContext } from './hooks'

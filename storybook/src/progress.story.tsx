@@ -1,6 +1,7 @@
-import * as React from 'react'
-import { Story, Variant } from './storybook.js'
 import { Progress } from '@cloudillo/react'
+import * as React from 'react'
+
+import { Story, Variant } from './storybook.js'
 
 export function ProgressStory() {
 	const [value, setValue] = React.useState(50)

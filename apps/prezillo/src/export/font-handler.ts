@@ -9,7 +9,8 @@
  */
 
 import type { jsPDF } from 'jspdf'
-import type { YPrezilloDocument, ViewNode } from '../crdt'
+
+import type { ViewNode, YPrezilloDocument } from '../crdt'
 import { resolveTextStyle } from '../crdt'
 
 /**

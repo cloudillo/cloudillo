@@ -1,19 +1,18 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { AddressBookOutput } from '@cloudillo/core'
+import { Menu, MenuItem, mergeClasses, useDebouncedValue, useDialog } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-	LuPencil as IcEdit,
-	LuTrash as IcDelete,
-	LuBookOpen as IcBook,
 	LuUsers as IcAll,
-	LuSearch as IcSearch,
-	LuEllipsisVertical as IcMore
+	LuBookOpen as IcBook,
+	LuTrash as IcDelete,
+	LuPencil as IcEdit,
+	LuEllipsisVertical as IcMore,
+	LuSearch as IcSearch
 } from 'react-icons/lu'
-
-import { Menu, MenuItem, useDebouncedValue, useDialog, mergeClasses } from '@cloudillo/react'
-import type { AddressBookOutput } from '@cloudillo/core'
 
 import type { AddressBookSelection } from '../types.js'
 

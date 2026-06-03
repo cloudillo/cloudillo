@@ -1,19 +1,18 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { ApiClient } from '@cloudillo/core'
+import { LoadingSpinner, useApi } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { useApi, LoadingSpinner } from '@cloudillo/react'
-import type { ApiClient } from '@cloudillo/core'
-
+import { NOTIFICATION_SOUNDS, SOUND_LABELS } from '../notifications/sounds.js'
+import {
+	type LocalNotifySettings,
+	useLocalNotifySettings
+} from '../notifications/useLocalNotifySettings.js'
 import type { UsePWA } from '../pwa.js'
 import { useSettings } from './settings.js'
-import {
-	useLocalNotifySettings,
-	type LocalNotifySettings
-} from '../notifications/useLocalNotifySettings.js'
-import { NOTIFICATION_SOUNDS, SOUND_LABELS } from '../notifications/sounds.js'
 
 export async function subscribeNotifications(api: ApiClient | null, pwa: UsePWA) {
 	if (!api) throw new Error('Not authenticated')

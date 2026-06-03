@@ -1,38 +1,35 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import {
+	Button,
+	Fcd,
+	generateFragments,
+	mergeClasses,
+	ProfileAudienceCard,
+	ProfileCard,
+	TimeFormat,
+	useApi,
+	useAuth
+} from '@cloudillo/react'
+import { type ActionView, tConnectAction, tFileShareAction } from '@cloudillo/types'
+import * as T from '@symbion/runtype'
 import * as React from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-
 import {
 	LuCheck as IcAccept,
-	LuX as IcReject,
-	LuBell as IcNotifications,
 	LuUsers as IcConnections,
-	LuMessageSquare as IcMessages,
-	LuHeart as IcSocial,
 	LuFile as IcFiles,
-	LuMenu as IcMenu
+	LuMenu as IcMenu,
+	LuMessageSquare as IcMessages,
+	LuBell as IcNotifications,
+	LuX as IcReject,
+	LuHeart as IcSocial
 } from 'react-icons/lu'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 
-import * as T from '@symbion/runtype'
-
-import { type ActionView, tConnectAction, tFileShareAction } from '@cloudillo/types'
-import {
-	useAuth,
-	useApi,
-	Button,
-	ProfileCard,
-	ProfileAudienceCard,
-	Fcd,
-	mergeClasses,
-	generateFragments,
-	TimeFormat
-} from '@cloudillo/react'
-
-import { useNotifications } from './state'
 import { HOME_CONTEXT, useContextSwitch, useUrlContextIdTag } from '../context/index.js'
+import { useNotifications } from './state'
 import './notifications.css'
 
 type NotificationFilter = 'all' | 'connections' | 'messages' | 'social' | 'files'

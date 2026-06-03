@@ -1,17 +1,18 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { ColorInput, createComponent, mergeClasses } from '@cloudillo/react'
 import * as React from 'react'
-import { mergeClasses, createComponent, ColorInput } from '@cloudillo/react'
+
 import type { Gradient, GradientStop } from '../../types/gradient.js'
 import {
 	DEFAULT_LINEAR_GRADIENT,
 	DEFAULT_RADIAL_GRADIENT,
 	updateStop
 } from '../../utils/gradient.js'
-import { GradientPreview } from './GradientPreview.js'
 import { GradientBar } from './GradientBar.js'
 import { GradientPresetGrid } from './GradientPresetGrid.js'
+import { GradientPreview } from './GradientPreview.js'
 
 export interface GradientPickerProps
 	extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onChange'> {

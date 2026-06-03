@@ -63,7 +63,6 @@ export {
 	type PendingRequest
 } from './core.js'
 export type { EmbedRelayHandle, EmbedRelayOptions } from './embed-relay.js'
-
 // Embed relay
 export { setupEmbedRelay } from './embed-relay.js'
 // Registry

@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { useState, useEffect } from 'react'
-
 import type { RtdbClient } from '@cloudillo/rtdb'
+import { useEffect, useState } from 'react'
 
 export interface TagData {
 	tags: Set<string>

@@ -9,31 +9,31 @@
  */
 
 import {
+	type ApiClient,
 	MessageBusBase,
 	type MessageBusConfig,
 	PROTOCOL_VERSION,
-	validateMessage,
-	type ApiClient
+	validateMessage
 } from '@cloudillo/core'
 
 import {
+	type AppConnection,
 	type AppTracker,
 	getAppTracker,
-	type AppConnection,
 	type RegisterAppOptions
 } from './app-tracker.js'
 import { initAuthHandlers } from './handlers/auth.js'
-import { initStorageHandlers } from './handlers/storage.js'
-import { initMediaHandlers } from './handlers/media.js'
+import { cleanupCameraSessions, initCameraHandlers } from './handlers/camera.js'
+import { initCrdtHandlers } from './handlers/crdt.js'
 import { initDocumentHandlers } from './handlers/document.js'
 import { initEmbedHandlers } from './handlers/embed.js'
-import { initLifecycleHandlers } from './handlers/lifecycle.js'
-import { initCrdtHandlers } from './handlers/crdt.js'
-import { initSettingsHandlers } from './handlers/settings.js'
-import { initSensorHandlers } from './handlers/sensor.js'
-import { initCameraHandlers, cleanupCameraSessions } from './handlers/camera.js'
-import { initShareHandlers } from './handlers/share.js'
 import { initImportHandlers } from './handlers/import.js'
+import { initLifecycleHandlers } from './handlers/lifecycle.js'
+import { initMediaHandlers } from './handlers/media.js'
+import { initSensorHandlers } from './handlers/sensor.js'
+import { initSettingsHandlers } from './handlers/settings.js'
+import { initShareHandlers } from './handlers/share.js'
+import { initStorageHandlers } from './handlers/storage.js'
 
 // ============================================
 // TYPES

@@ -1,17 +1,15 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Select } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
 import {
-	LuPlus as IcPlus,
-	LuMinus as IcMinus,
+	LuX as IcDelete,
 	LuHash as IcHash,
-	LuX as IcDelete
+	LuMinus as IcMinus,
+	LuPlus as IcPlus
 } from 'react-icons/lu'
-
-import { Select } from '@cloudillo/react'
 
 export function Tags({ tags }: { tags?: string[] }) {
 	return (

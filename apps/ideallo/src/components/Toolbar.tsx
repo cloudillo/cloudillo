@@ -7,34 +7,34 @@
  * On mobile (<=767px) renders a compact dock with grouped tool popovers.
  */
 
+import { ActionSheet, ActionSheetDivider, ActionSheetItem } from '@cloudillo/react'
 import * as React from 'react'
-import { ActionSheet, ActionSheetItem, ActionSheetDivider } from '@cloudillo/react'
-import type { ToolType } from '../tools/index.js'
-import { useIsMobile } from '../hooks/useIsMobile.js'
-import { ToolGroup } from './ToolGroup.js'
-import type { ToolGroupItem } from './ToolGroup.js'
-
 import {
-	PiCursorBold as IcSelect,
-	PiPencilSimpleBold as IcPen,
-	PiEraserBold as IcEraser,
-	PiRectangleBold as IcRect,
-	PiCircleBold as IcEllipse,
-	PiLineSegmentBold as IcLine,
 	PiArrowUpRightBold as IcArrow,
-	PiTextTBold as IcText,
-	PiNoteBold as IcSticky,
-	PiImageBold as IcImage,
-	PiFileBold as IcDocument,
-	PiArrowArcLeftBold as IcUndo,
-	PiArrowArcRightBold as IcRedo,
-	PiExportBold as IcExport,
-	PiArrowLineUpBold as IcBringToFront,
 	PiArrowUpBold as IcBringForward,
+	PiArrowLineUpBold as IcBringToFront,
+	PiFileBold as IcDocument,
+	PiCircleBold as IcEllipse,
+	PiEraserBold as IcEraser,
+	PiExportBold as IcExport,
+	PiImageBold as IcImage,
+	PiLineSegmentBold as IcLine,
+	PiDotsThreeBold as IcMore,
+	PiPencilSimpleBold as IcPen,
+	PiRectangleBold as IcRect,
+	PiArrowArcRightBold as IcRedo,
+	PiCursorBold as IcSelect,
 	PiArrowDownBold as IcSendBackward,
 	PiArrowLineDownBold as IcSendToBack,
-	PiDotsThreeBold as IcMore
+	PiNoteBold as IcSticky,
+	PiTextTBold as IcText,
+	PiArrowArcLeftBold as IcUndo
 } from 'react-icons/pi'
+
+import { useIsMobile } from '../hooks/useIsMobile.js'
+import type { ToolType } from '../tools/index.js'
+import type { ToolGroupItem } from './ToolGroup.js'
+import { ToolGroup } from './ToolGroup.js'
 
 export interface ToolbarProps {
 	activeTool: ToolType

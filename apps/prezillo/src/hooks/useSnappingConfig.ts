@@ -6,8 +6,9 @@
  */
 
 import * as React from 'react'
-import type { YPrezilloDocument } from '../crdt'
 import type { SnapConfiguration } from 'react-svg-canvas'
+
+import type { YPrezilloDocument } from '../crdt'
 
 const DEFAULT_SNAP_WEIGHTS = {
 	distance: 10,

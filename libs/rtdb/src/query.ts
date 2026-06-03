@@ -1,20 +1,20 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { WebSocketManager } from './websocket.js'
-import type {
-	WhereFilterOp,
-	QueryFilter,
-	QuerySnapshot,
-	DocumentSnapshot,
-	DocumentChange,
-	ChangeEvent,
-	SnapshotOptions,
-	QueryMessage,
-	AggregateOptions
-} from './types.js'
 import { AggregateQuery } from './aggregate-query.js'
-import { QuerySnapshotImpl, createDocumentFromEvent, normalizePath } from './utils.js'
+import type {
+	AggregateOptions,
+	ChangeEvent,
+	DocumentChange,
+	DocumentSnapshot,
+	QueryFilter,
+	QueryMessage,
+	QuerySnapshot,
+	SnapshotOptions,
+	WhereFilterOp
+} from './types.js'
+import { createDocumentFromEvent, normalizePath, QuerySnapshotImpl } from './utils.js'
+import type { WebSocketManager } from './websocket.js'
 
 export class Query<T = unknown> {
 	private filters: QueryFilter = {}

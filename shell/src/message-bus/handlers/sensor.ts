@@ -11,8 +11,9 @@
  * - sensor:compass.push - Shell pushes heading updates to subscribed apps
  */
 
-import type { ShellMessageBus } from '../shell-bus.js'
 import type { SensorCompassSub } from '@cloudillo/core'
+
+import type { ShellMessageBus } from '../shell-bus.js'
 
 /** Extended DeviceOrientationEvent with Safari/iOS webkitCompassHeading */
 interface DeviceOrientationEventWithWebkit extends DeviceOrientationEvent {

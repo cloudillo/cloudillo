@@ -1,16 +1,16 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { WebSocketManager } from './websocket.js'
 import type {
-	QueryFilter,
-	QueryMessage,
-	AggregateOptions,
 	AggregateGroupEntry,
+	AggregateOptions,
 	AggregateSnapshot,
-	ChangeEvent
+	ChangeEvent,
+	QueryFilter,
+	QueryMessage
 } from './types.js'
 import { normalizePath } from './utils.js'
+import type { WebSocketManager } from './websocket.js'
 
 export class AggregateQuery {
 	constructor(

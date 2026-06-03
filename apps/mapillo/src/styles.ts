@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { StyleSpecification } from 'maplibre-gl'
-import type { TileLayerId, TileLayerConfig } from './types.js'
+
+import type { TileLayerConfig, TileLayerId } from './types.js'
 
 export const TILE_LAYERS: TileLayerConfig[] = [
 	{

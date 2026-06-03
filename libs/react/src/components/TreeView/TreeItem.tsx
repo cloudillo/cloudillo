@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { mergeClasses, createComponent } from '../utils.js'
 import { LuChevronDown, LuChevronRight } from 'react-icons/lu'
+
+import { createComponent, mergeClasses } from '../utils.js'
 
 export interface TreeItemDragData {
 	id: string

@@ -9,8 +9,9 @@
  * - auth:token.refresh.req - App requests token refresh
  */
 
-import type { ShellMessageBus } from '../shell-bus.js'
 import type { AuthInitReq, AuthTokenRefreshReq } from '@cloudillo/core'
+
+import type { ShellMessageBus } from '../shell-bus.js'
 
 /** Extract remaining lifetime in seconds from a JWT's exp claim */
 function getTokenLifetime(token: string): number | undefined {

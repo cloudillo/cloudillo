@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { AppManifest } from '@cloudillo/core'
+
 import pkg from '../package.json'
 
 export const manifest: AppManifest = {

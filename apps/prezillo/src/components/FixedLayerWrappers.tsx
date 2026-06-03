@@ -8,20 +8,20 @@
  * and render in the SvgCanvas fixed layer (constant screen size regardless of zoom).
  */
 
+import {
+	PivotHandle,
+	type PivotHandleProps,
+	RotationHandle,
+	type RotationHandleProps
+} from '@cloudillo/canvas-tools'
 import * as React from 'react'
 import {
-	useSvgCanvas,
 	SelectionBox,
-	SnapGuides,
 	type SelectionBoxProps,
-	type SnapGuidesProps
+	SnapGuides,
+	type SnapGuidesProps,
+	useSvgCanvas
 } from 'react-svg-canvas'
-import {
-	RotationHandle,
-	PivotHandle,
-	type RotationHandleProps,
-	type PivotHandleProps
-} from '@cloudillo/canvas-tools'
 
 import type { Bounds } from '../crdt'
 

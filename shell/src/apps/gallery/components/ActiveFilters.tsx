@@ -1,13 +1,12 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, mergeClasses } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuX as IcClose } from 'react-icons/lu'
 
-import { Button, mergeClasses } from '@cloudillo/react'
-
-import type { TimeFilter, GalleryViewMode } from '../types.js'
+import type { GalleryViewMode, TimeFilter } from '../types.js'
 
 interface ActiveFiltersProps {
 	className?: string

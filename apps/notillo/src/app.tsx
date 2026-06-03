@@ -1,21 +1,19 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useTranslation } from 'react-i18next'
-
 import { getAppBus, getFileUrl, getWsUrl } from '@cloudillo/core'
+import type { CommentThread } from '@cloudillo/react'
 import {
-	Fcd,
-	Panel,
 	Button,
 	DialogContainer,
-	useDialog,
+	Fcd,
+	LoadingSpinner,
+	Panel,
 	useComments,
-	LoadingSpinner
+	useDialog
 } from '@cloudillo/react'
-import type { CommentThread } from '@cloudillo/react'
-
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { LuPanelLeft as IcSidebar } from 'react-icons/lu'
 
 import '@symbion/opalui'
@@ -24,26 +22,26 @@ import '@cloudillo/react/components.css'
 import './i18n.js'
 import './style.css'
 
-import type { NotilloEditor } from './editor/schema.js'
-import { useNotillo } from './hooks/useNotillo.js'
-import { useLazyPageTree } from './hooks/useLazyPageTree.js'
-import { usePageBlocks } from './hooks/usePageBlocks.js'
-import { useTags } from './hooks/useTags.js'
-import { useAllPages } from './hooks/useAllPages.js'
-import { NotilloEditor as NotilloEditorComponent } from './editor/NotilloEditor.js'
-import { PageSidebar } from './pages/PageSidebar.js'
-import { PageHeader } from './pages/PageHeader.js'
-import { exportMarkdown, importMarkdown, exportPdf, exportDocx, exportOdt } from './export/index.js'
-import { createPage } from './rtdb/page-ops.js'
 import {
 	CommentPanel,
 	CommentPopup,
-	ThreadListHeader,
-	type ThreadListHandle
+	type ThreadListHandle,
+	ThreadListHeader
 } from './comments/index.js'
-import { useCommentIndicators } from './hooks/useCommentIndicators.js'
+import { NotilloEditor as NotilloEditorComponent } from './editor/NotilloEditor.js'
+import type { NotilloEditor } from './editor/schema.js'
+import { exportDocx, exportMarkdown, exportOdt, exportPdf, importMarkdown } from './export/index.js'
+import { useAllPages } from './hooks/useAllPages.js'
 import { useBlockContextMenu } from './hooks/useBlockContextMenu.js'
 import { useCommentBlockButton } from './hooks/useCommentBlockButton.js'
+import { useCommentIndicators } from './hooks/useCommentIndicators.js'
+import { useLazyPageTree } from './hooks/useLazyPageTree.js'
+import { useNotillo } from './hooks/useNotillo.js'
+import { usePageBlocks } from './hooks/usePageBlocks.js'
+import { useTags } from './hooks/useTags.js'
+import { PageHeader } from './pages/PageHeader.js'
+import { PageSidebar } from './pages/PageSidebar.js'
+import { createPage } from './rtdb/page-ops.js'
 
 export function NotilloApp() {
 	const { t } = useTranslation()

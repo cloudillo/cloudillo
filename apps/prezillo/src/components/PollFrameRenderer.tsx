@@ -13,8 +13,8 @@
  */
 
 import * as React from 'react'
-import type { PollFrameObject } from '../crdt/index.js'
-import type { ResolvedShapeStyle, ResolvedTextStyle } from '../crdt/index.js'
+
+import type { PollFrameObject, ResolvedShapeStyle, ResolvedTextStyle } from '../crdt/index.js'
 
 export interface PollFrameRendererProps {
 	object: PollFrameObject

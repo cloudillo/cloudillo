@@ -6,12 +6,12 @@
  * Returns objects with computed positions for rendering on a virtual template canvas.
  */
 
+import type { Gradient } from '@cloudillo/canvas-tools'
 import * as React from 'react'
 import { useY } from 'react-yjs'
 
-import type { Gradient } from '@cloudillo/canvas-tools'
-import type { TemplateId, YPrezilloDocument, PrezilloObject } from '../crdt'
-import { getTemplatePrototypeObjects, getTemplate } from '../crdt'
+import type { PrezilloObject, TemplateId, YPrezilloDocument } from '../crdt'
+import { getTemplate, getTemplatePrototypeObjects } from '../crdt'
 
 export interface TemplateEditingContext {
 	/** Objects to render (prototype objects) */

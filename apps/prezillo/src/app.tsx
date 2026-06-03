@@ -3,18 +3,18 @@
 
 import * as React from 'react'
 import {
-	SvgCanvas,
-	useSnapping,
 	type SnapSpatialObject,
+	SvgCanvas,
 	type SvgCanvasContext,
-	type SvgCanvasHandle
+	type SvgCanvasHandle,
+	useSnapping
 } from 'react-svg-canvas'
 
 import {
-	FixedSnapGuides,
-	FixedSelectionBox,
-	FixedRotationHandle,
 	FixedPivotHandle,
+	FixedRotationHandle,
+	FixedSelectionBox,
+	FixedSnapGuides,
 	FixedTextEditHandle
 } from './components/FixedLayerWrappers'
 
@@ -25,69 +25,69 @@ import '@cloudillo/react/components.css'
 import '@cloudillo/canvas-tools/components.css'
 import './style.css'
 
+import { RichTextEditor } from '@cloudillo/canvas-text'
+import { getAppBus } from '@cloudillo/core'
 import {
+	type BottomSheetSnapPoint,
+	DialogContainer,
+	ToastContainer,
+	useDialog,
+	useIsMobile,
+	useToast
+} from '@cloudillo/react'
+
+import { ContextMenu } from './components/ContextMenu'
+import { ObjectShape } from './components/ObjectShape'
+import { PresentationMode } from './components/PresentationMode'
+import {
+	MobilePropertyPanel,
+	PrezilloPropertiesPanel,
+	type PropertyPreview
+} from './components/PropertiesPanel'
+import { RemotePresenceOverlay } from './components/RemotePresenceOverlay'
+import { TemplateFrame } from './components/TemplateFrame'
+import { TemplateGuideRenderer } from './components/TemplateGuideRenderer'
+import { TemplateZoneEmptyState } from './components/TemplateZoneEmptyState'
+import { Toolbar } from './components/Toolbar'
+import { ToolPreview } from './components/ToolPreview'
+import { ViewFrame } from './components/ViewFrame'
+import { ViewPicker } from './components/ViewPicker'
+import { ZoneDivider } from './components/ZoneDivider'
+import type {
+	ContainerId,
+	ObjectId,
+	PrezilloObject,
+	TableGridObject,
+	TemplateId,
+	ViewId
+} from './crdt'
+import { updateDocumentNavState } from './crdt'
+import { getBulletIcon, migrateBullet } from './data/bullet-icons'
+import {
+	type TempObjectState,
+	useDocumentHandler,
+	useGetParent,
+	useImageHandler,
+	useObjectDrag,
+	usePresentationMode,
 	usePrezilloDocument,
 	useSnappingConfig,
-	useGetParent,
 	useSnapSettings,
-	useImageHandler,
-	useDocumentHandler,
+	useTableGridSnaps,
 	useTemplateGuides,
 	useTemplates,
 	useTextEditing,
 	useTextStyling,
-	usePresentationMode,
-	useViewNavigation,
-	useObjectDrag,
-	useTableGridSnaps,
-	type TempObjectState
+	useViewNavigation
 } from './hooks'
+import { useCanvasEventHandlers } from './hooks/useCanvasEventHandlers'
 import { useCanvasViewport } from './hooks/useCanvasViewport'
 import { useInteractionHooks } from './hooks/useInteractionHooks'
-import { useToolHandlers } from './hooks/useToolHandlers'
-import { useCanvasEventHandlers } from './hooks/useCanvasEventHandlers'
-import { useViewObjects, useVisibleViewObjects } from './hooks/useViewObjects'
-import { useVisibleViews } from './hooks/useVisibleViews'
-import { useViews } from './hooks/useViews'
-import { Toolbar } from './components/Toolbar'
-import { ViewPicker } from './components/ViewPicker'
-import { ViewFrame } from './components/ViewFrame'
-import { RichTextEditor } from '@cloudillo/canvas-text'
-import { getBulletIcon, migrateBullet } from './data/bullet-icons'
-import { ObjectShape } from './components/ObjectShape'
-import { ToolPreview } from './components/ToolPreview'
-import { PresentationMode } from './components/PresentationMode'
-import { TemplateGuideRenderer } from './components/TemplateGuideRenderer'
-import { TemplateFrame } from './components/TemplateFrame'
-import { ContextMenu } from './components/ContextMenu'
-import { RemotePresenceOverlay } from './components/RemotePresenceOverlay'
-import { ZoneDivider } from './components/ZoneDivider'
-import { TemplateZoneEmptyState } from './components/TemplateZoneEmptyState'
 import { useTemplateLayout } from './hooks/useTemplateLayout'
-import {
-	PrezilloPropertiesPanel,
-	MobilePropertyPanel,
-	type PropertyPreview
-} from './components/PropertiesPanel'
-import {
-	useIsMobile,
-	useToast,
-	ToastContainer,
-	useDialog,
-	DialogContainer,
-	type BottomSheetSnapPoint
-} from '@cloudillo/react'
-import { getAppBus } from '@cloudillo/core'
-
-import type {
-	ObjectId,
-	ViewId,
-	ContainerId,
-	TemplateId,
-	PrezilloObject,
-	TableGridObject
-} from './crdt'
-import { updateDocumentNavState } from './crdt'
+import { useToolHandlers } from './hooks/useToolHandlers'
+import { useViewObjects, useVisibleViewObjects } from './hooks/useViewObjects'
+import { useViews } from './hooks/useViews'
+import { useVisibleViews } from './hooks/useVisibleViews'
 
 /**
  * Extended type for canvas objects that may include template metadata
@@ -99,24 +99,24 @@ type CanvasObject = PrezilloObject & {
 	/** True if this is a prototype object (not a regular view object) */
 	_isPrototype?: boolean
 }
+
 import {
-	updateObjectPosition,
-	updateObjectRotation,
-	getView,
+	addObjectToTemplate,
+	bringForward,
+	bringToFront,
+	createTemplate,
+	downloadExport,
 	getAbsoluteBounds,
+	getStackedObjects,
+	getView,
+	getViewsUsingTemplate,
 	resolveShapeStyle,
 	resolveTextStyle,
-	bringToFront,
-	bringForward,
 	sendBackward,
 	sendToBack,
-	downloadExport,
-	addObjectToTemplate,
-	getViewsUsingTemplate,
-	createTemplate,
-	getStackedObjects
+	updateObjectPosition,
+	updateObjectRotation
 } from './crdt'
-
 import { downloadPDF, downloadPPTX } from './export'
 
 //////////////

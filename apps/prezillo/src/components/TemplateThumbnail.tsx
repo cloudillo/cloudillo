@@ -6,10 +6,10 @@
  * Renders a scaled-down preview of a template with selection state.
  */
 
-import * as React from 'react'
 import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
+import * as React from 'react'
 
-import type { Template, PrezilloObject } from '../crdt'
+import type { PrezilloObject, Template } from '../crdt'
 
 export interface TemplateThumbnailProps {
 	template: Template

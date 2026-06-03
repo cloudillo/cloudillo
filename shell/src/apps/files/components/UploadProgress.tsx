@@ -1,18 +1,18 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { LoadingSpinner, mergeClasses } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuCheck as IcCheck,
 	LuX as IcClose,
 	LuChevronDown as IcCollapse,
-	LuChevronUp as IcExpand,
 	LuCircleAlert as IcError,
+	LuChevronUp as IcExpand,
 	LuFile as IcFile,
 	LuLink2 as IcLink
 } from 'react-icons/lu'
-import { mergeClasses, LoadingSpinner } from '@cloudillo/react'
 
 import type { UploadItem } from '../hooks/useUploadQueue.js'
 

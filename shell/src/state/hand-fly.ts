@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { atom } from 'jotai'
+
 import type { FileHandItem } from './hand.js'
 
 export const handTargetElAtom = atom<HTMLElement | null>(null)

@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Input, NumberInput, PropertyField, PropertyPanel, PropertySection } from '@cloudillo/react'
 import * as React from 'react'
 
 import { Story, Variant } from './storybook.js'
-import { PropertyPanel, PropertySection, PropertyField, Input, NumberInput } from '@cloudillo/react'
 
 export function PropertyPanelStory() {
 	const [name, setName] = React.useState('Untitled')

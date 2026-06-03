@@ -5,12 +5,13 @@ import dayjs from 'dayjs'
 import type { TFunction } from 'i18next'
 import type { IconType } from 'react-icons'
 import {
+	LuUserCheck as IcConnected,
 	LuLock as IcDirect,
-	LuGlobe as IcPublic,
-	LuShieldCheck as IcVerified,
 	LuUserPlus as IcFollowers,
-	LuUserCheck as IcConnected
+	LuGlobe as IcPublic,
+	LuShieldCheck as IcVerified
 } from 'react-icons/lu'
+
 import type { File, FileVisibility } from './types.js'
 
 /**

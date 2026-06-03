@@ -1,20 +1,18 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useParams, useLocation, Link } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
-
-import { LuFileWarning as IcError } from 'react-icons/lu'
-
-import { useApi, LoadingSpinner, EmptyState, Button } from '@cloudillo/react'
 import { createApiClient, type FileView, type RefAccessTokenResult } from '@cloudillo/core'
+import { Button, EmptyState, LoadingSpinner, useApi } from '@cloudillo/react'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import { LuFileWarning as IcError } from 'react-icons/lu'
+import { Link, useLocation, useParams } from 'react-router-dom'
 
-import { useAppConfig } from '../utils.js'
-import { useGuestDocument, type GuestFileType } from '../context/index.js'
 import { GuestNameDialog } from '../components/GuestNameDialog.js'
+import { type GuestFileType, useGuestDocument } from '../context/index.js'
+import { useAppConfig } from '../utils.js'
 import { SharedFolderView } from './shared/SharedFolderView.js'
-import { renderSharedApp, BlobViewer } from './shared/shared-app.js'
+import { BlobViewer, renderSharedApp } from './shared/shared-app.js'
 
 type SharedState =
 	| { status: 'loading' }

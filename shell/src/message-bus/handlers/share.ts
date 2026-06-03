@@ -10,8 +10,9 @@
  * - share:create.result - Shell pushes result when user confirms/cancels
  */
 
-import type { ShellMessageBus } from '../shell-bus.js'
 import type { ShareCreateReq } from '@cloudillo/core'
+
+import type { ShellMessageBus } from '../shell-bus.js'
 
 /**
  * Share link creation options passed to the component

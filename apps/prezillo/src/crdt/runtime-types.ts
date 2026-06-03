@@ -6,8 +6,9 @@
  * These are the types used in application logic and UI
  */
 
-import type { ObjectId, ContainerId, ViewId, StyleId, TemplateId } from './ids'
 import type { Gradient } from '@cloudillo/canvas-tools'
+
+import type { ContainerId, ObjectId, StyleId, TemplateId, ViewId } from './ids'
 
 // Object types (expanded)
 export type ObjectType =
@@ -485,6 +486,6 @@ export interface ResolvedColorValue {
 }
 
 // Re-export generic types from react-svg-canvas
-export type { Point, Bounds, Transform } from 'react-svg-canvas'
+export type { Bounds, Point, Transform } from 'react-svg-canvas'
 
 // vim: ts=4

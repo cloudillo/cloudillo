@@ -1,15 +1,19 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useNavigate, useSearchParams, useNavigationType } from 'react-router-dom'
-import { useAtom } from 'jotai'
 import type { ApiClient } from '@cloudillo/core'
-import { useCurrentContextIdTag } from '../../../context/index.js'
-import { useApiContext, useContextAwareApi } from '../../../context/index.js'
-import type { File, ViewMode } from '../types.js'
-import { TRASH_FOLDER_ID, MANAGED_FOLDER_ID, VIEW_MODES } from '../types.js'
+import { useAtom } from 'jotai'
+import * as React from 'react'
+import { useNavigate, useNavigationType, useSearchParams } from 'react-router-dom'
+
+import {
+	useApiContext,
+	useContextAwareApi,
+	useCurrentContextIdTag
+} from '../../../context/index.js'
 import { fileNavStackAtom } from '../atoms.js'
+import type { File, ViewMode } from '../types.js'
+import { MANAGED_FOLDER_ID, TRASH_FOLDER_ID, VIEW_MODES } from '../types.js'
 
 export interface BreadcrumbItem {
 	id: string | null

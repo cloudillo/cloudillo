@@ -3,8 +3,9 @@
 
 import { atom } from 'jotai'
 import { atomWithStorage } from 'jotai/utils'
-import type { ViewMode, FileTypeFilter, OwnerFilter } from './types.js'
+
 import type { DisplayMode } from './components/index.js'
+import type { FileTypeFilter, OwnerFilter, ViewMode } from './types.js'
 
 export interface NavigationEntry {
 	parentId: string | null

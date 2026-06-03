@@ -1,7 +1,7 @@
+import { Button, Dialog, DialogContainer, useDialog } from '@cloudillo/react'
 import * as React from 'react'
+
 import { Story, Variant } from './storybook.js'
-import { Dialog, useDialog, DialogContainer } from '@cloudillo/react'
-import { Button } from '@cloudillo/react'
 
 export function DialogStory() {
 	const [isOpen, setIsOpen] = React.useState(false)

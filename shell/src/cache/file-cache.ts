@@ -12,8 +12,9 @@
  */
 
 import type { FileView } from '@cloudillo/core'
-import type { OfflineQuerySpec } from './types.js'
+
 import { getRecord, putRecords, queryRecords } from './encrypted-store.js'
+import type { OfflineQuerySpec } from './types.js'
 
 const STORE = 'files'
 

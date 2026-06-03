@@ -8,7 +8,7 @@
 import * as React from 'react'
 import type * as Y from 'yjs'
 
-import type { YIdealloDocument, ObjectId, NewTextInput } from '../crdt/index.js'
+import type { NewTextInput, ObjectId, YIdealloDocument } from '../crdt/index.js'
 import { addObject, DEFAULT_STYLE } from '../crdt/index.js'
 import type { TextInputState } from '../tools/types.js'
 

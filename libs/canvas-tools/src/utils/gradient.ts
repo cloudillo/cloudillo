@@ -6,7 +6,7 @@
  * Includes type conversion, CSS/SVG generation, and stop manipulation.
  */
 
-import type { Gradient, GradientStop, CompactGradient } from '../types/gradient'
+import type { CompactGradient, Gradient, GradientStop } from '../types/gradient'
 
 // ============================================================================
 // Default Gradients

@@ -9,16 +9,15 @@
  * the user with a choice to upload as-is or convert to a native document.
  */
 
-import * as React from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
-
 import { useAuth } from '@cloudillo/react'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 
 import { useContextAwareApi, useCurrentContextIdTag } from '../../../context/index.js'
 import { getImportHandlers, type ImportHandler } from '../../../manifest-registry.js'
 import { setPendingImport } from '../../../message-bus/handlers/import.js'
-import { useUploadQueue, type UseUploadQueueOptions } from './useUploadQueue.js'
+import { type UseUploadQueueOptions, useUploadQueue } from './useUploadQueue.js'
 
 // ============================================
 // TYPES

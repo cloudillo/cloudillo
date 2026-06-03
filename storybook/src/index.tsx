@@ -1,8 +1,8 @@
+import i18next from 'i18next'
 import * as React from 'react'
 import { createRoot } from 'react-dom/client'
-import { HashRouter } from 'react-router-dom'
-import i18next from 'i18next'
 import { initReactI18next } from 'react-i18next'
+import { HashRouter } from 'react-router-dom'
 
 // CSS imports
 import '@symbion/opalui/dist/opalui.css'
@@ -32,54 +32,51 @@ i18next.use(initReactI18next).init({
 	}
 })
 
-// Import all story components
-import { ButtonStory, PopperStory, ContainerStory } from './button.story.js'
-import {
-	ProfilePictureStory,
-	IdentityTagStory,
-	ProfileCardStory,
-	ProfileAudienceCardStory
-} from './profile.story.js'
-import { DialogStory, UseDialogStory } from './dialog.story.js'
-import { SelectStory } from './select.story.js'
-import { FcdStory } from './layout.story.js'
-
+import { AccordionStory } from './accordion.story.js'
+import { ActionSheetStory } from './action-sheet.story.js'
 // New OpalUI component stories
 import { AvatarStory } from './avatar.story.js'
-import { BoxStory } from './box.story.js'
-import { PanelStory } from './panel.story.js'
 import { BadgeStory } from './badge.story.js'
-import { ProgressStory } from './progress.story.js'
-import { TagStory } from './tag.story.js'
-import { FormStory } from './form.story.js'
-import { NavStory } from './nav.story.js'
-import { TabStory } from './tab.story.js'
+import { BottomSheetStory } from './bottom-sheet.story.js'
+import { BoxStory } from './box.story.js'
+// Import all story components
+import { ButtonStory, ContainerStory, PopperStory } from './button.story.js'
+import { DialogStory, UseDialogStory } from './dialog.story.js'
 import { DropdownStory } from './dropdown.story.js'
-import { ModalStory } from './modal.story.js'
-import { SidebarStory } from './sidebar.story.js'
-import { ToastStory } from './toast.story.js'
-
+import { EmptyStateStory } from './empty-state.story.js'
+import { FilterBarStory } from './filter-bar.story.js'
+import { FormStory } from './form.story.js'
+import { InlineEditFormStory } from './inline-edit.story.js'
+import { FcdStory } from './layout.story.js'
 // New component stories
 import {
 	LoadingSpinnerStory,
-	SkeletonStory,
-	SkeletonTextStory,
 	SkeletonCardStory,
-	SkeletonListStory
+	SkeletonListStory,
+	SkeletonStory,
+	SkeletonTextStory
 } from './loading.story.js'
-import { InlineEditFormStory } from './inline-edit.story.js'
-import { FilterBarStory } from './filter-bar.story.js'
-import { EmptyStateStory } from './empty-state.story.js'
-import { ToolbarStory } from './toolbar.story.js'
-import { PropertyPanelStory } from './property-panel.story.js'
 import { MenuStory } from './menu.story.js'
-import { TreeViewStory } from './tree-view.story.js'
-import { AccordionStory } from './accordion.story.js'
-import { ActionSheetStory } from './action-sheet.story.js'
-import { BottomSheetStory } from './bottom-sheet.story.js'
-
+import { ModalStory } from './modal.story.js'
+import { NavStory } from './nav.story.js'
+import { PanelStory } from './panel.story.js'
+import {
+	IdentityTagStory,
+	ProfileAudienceCardStory,
+	ProfileCardStory,
+	ProfilePictureStory
+} from './profile.story.js'
+import { ProgressStory } from './progress.story.js'
+import { PropertyPanelStory } from './property-panel.story.js'
+import { SelectStory } from './select.story.js'
+import { SidebarStory } from './sidebar.story.js'
+import { TabStory } from './tab.story.js'
+import { TagStory } from './tag.story.js'
+import { ToastStory } from './toast.story.js'
 // Design system documentation
-import { TokensStory, ColorsStory } from './tokens.story.js'
+import { ColorsStory, TokensStory } from './tokens.story.js'
+import { ToolbarStory } from './toolbar.story.js'
+import { TreeViewStory } from './tree-view.story.js'
 
 ///////////////
 // StoryBook //

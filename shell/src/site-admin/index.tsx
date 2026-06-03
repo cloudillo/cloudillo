@@ -1,34 +1,32 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Fcd, mergeClasses, useAuth } from '@cloudillo/react'
 import * as React from 'react'
-import { NavLink, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-
 import {
+	LuShieldCheck as IcIdps,
 	LuAtSign as IcInvitations,
+	LuMail as IcMail,
+	LuMenu as IcMenu,
+	LuNetwork as IcProxy,
 	LuServer as IcServer,
 	LuHardDrive as IcStorage,
-	LuMail as IcMail,
-	LuNetwork as IcProxy,
 	LuUser as IcTenant,
-	LuUsers as IcTenants,
-	LuShieldCheck as IcIdps,
-	LuMenu as IcMenu
+	LuUsers as IcTenants
 } from 'react-icons/lu'
+import { NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 
-import { useAuth, Fcd, mergeClasses } from '@cloudillo/react'
-
-import { Invitations } from './invitations.js'
-import { Tenants } from './tenants.js'
-import { TenantDetail } from './tenant-detail.js'
+import { EmailSettings } from './email.js'
 import { SuggestedProvidersSettings } from './idps.js'
+import { Invitations } from './invitations.js'
+import { AdminOverview } from './overview.js'
+import { ProxySites } from './proxy-sites.js'
 import { ServerSettings } from './server.js'
 import { StorageSettings } from './storage.js'
-import { EmailSettings } from './email.js'
-import { ProxySites } from './proxy-sites.js'
 import { TenantSettings } from './tenant.js'
-import { AdminOverview } from './overview.js'
+import { TenantDetail } from './tenant-detail.js'
+import { Tenants } from './tenants.js'
 
 export function SiteAdmin({ title, children }: { title: string; children?: React.ReactNode }) {
 	const _navigate = useNavigate()

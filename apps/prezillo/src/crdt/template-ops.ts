@@ -14,20 +14,21 @@
  * - Instance objects are created for each prototype (via proto reference)
  */
 
-import * as Y from 'yjs'
-import type {
-	YPrezilloDocument,
-	StoredTemplate,
-	StoredSnapGuide,
-	StoredObject,
-	StoredView,
-	StoredBackgroundGradient
-} from './stored-types'
-import type { Template, SnapGuide, PrezilloObject } from './runtime-types'
-import type { TemplateId, ViewId, ObjectId } from './ids'
-import { toTemplateId, generateTemplateId, toObjectId, generateObjectId, toViewId } from './ids'
-import { expandObject } from './type-converters'
 import type { Gradient } from '@cloudillo/canvas-tools'
+import * as Y from 'yjs'
+
+import type { ObjectId, TemplateId, ViewId } from './ids'
+import { generateObjectId, generateTemplateId, toObjectId, toTemplateId, toViewId } from './ids'
+import type { PrezilloObject, SnapGuide, Template } from './runtime-types'
+import type {
+	StoredBackgroundGradient,
+	StoredObject,
+	StoredSnapGuide,
+	StoredTemplate,
+	StoredView,
+	YPrezilloDocument
+} from './stored-types'
+import { expandObject } from './type-converters'
 
 // ============================================================================
 // Type Converters (Template-specific)

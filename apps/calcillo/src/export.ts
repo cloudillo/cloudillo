@@ -10,11 +10,12 @@
  * v3.0.0: Uses generic exportYDoc() with inline @T type markers.
  */
 
-import type * as Y from 'yjs'
-import type { Cell } from '@fortune-sheet/core'
-import { stripCellDefaults } from './cell-defaults.js'
 import { downloadBlob, sanitizeFilename } from '@cloudillo/core'
-import { exportYDoc, type ExportEnvelope } from '@cloudillo/crdt'
+import { type ExportEnvelope, exportYDoc } from '@cloudillo/crdt'
+import type { Cell } from '@fortune-sheet/core'
+import type * as Y from 'yjs'
+
+import { stripCellDefaults } from './cell-defaults.js'
 
 // App version injected at build time
 declare const __APP_VERSION__: string

@@ -1,13 +1,13 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import * as T from '@symbion/runtype'
-import { useTranslation } from 'react-i18next'
-import { LuCircleCheck as IcSuccess, LuCircleAlert as IcError } from 'react-icons/lu'
-
-import { useApi, useAuth } from '@cloudillo/react'
 import { FetchError, type SmtpDiagnostic, tSmtpDiagnostic } from '@cloudillo/core'
+import { useApi, useAuth } from '@cloudillo/react'
+import * as T from '@symbion/runtype'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import { LuCircleAlert as IcError, LuCircleCheck as IcSuccess } from 'react-icons/lu'
+
 import { PasswordInput } from '../components/PasswordInput.js'
 
 interface TestEmailError {

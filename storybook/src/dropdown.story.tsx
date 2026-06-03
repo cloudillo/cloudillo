@@ -1,18 +1,18 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, Dropdown } from '@cloudillo/react'
 import * as React from 'react'
+import {
+	LuChevronDown as IcChevron,
+	LuCopy as IcCopy,
+	LuTrash2 as IcDelete,
+	LuPencil as IcEdit,
+	LuEllipsisVertical as IcMore,
+	LuShare2 as IcShare
+} from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
-import { Button, Dropdown } from '@cloudillo/react'
-import {
-	LuEllipsisVertical as IcMore,
-	LuChevronDown as IcChevron,
-	LuPencil as IcEdit,
-	LuTrash2 as IcDelete,
-	LuShare2 as IcShare,
-	LuCopy as IcCopy
-} from 'react-icons/lu'
 
 export function DropdownStory() {
 	return (

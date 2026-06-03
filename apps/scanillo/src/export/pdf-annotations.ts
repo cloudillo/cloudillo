@@ -1,16 +1,16 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { PDFPage } from 'pdf-lib'
 import {
 	type PDFContext,
 	PDFName,
 	PDFNumber,
-	type PDFRef,
 	type PDFObject,
 	PDFOperator,
-	PDFOperatorNames
+	PDFOperatorNames,
+	type PDFRef
 } from 'pdf-lib'
-import type { PDFPage } from 'pdf-lib'
 
 import type { Annotation, FreehandAnnotation, RectAnnotation } from '../types.js'
 

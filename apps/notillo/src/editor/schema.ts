@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import {
+	type BlockNoteEditor,
 	BlockNoteSchema,
 	defaultBlockSpecs,
-	defaultInlineContentSpecs,
-	type BlockNoteEditor
+	defaultInlineContentSpecs
 } from '@blocknote/core'
-import { WikiLink } from './WikiLink.js'
-import { Tag } from './Tag.js'
+
 import { DocumentEmbed } from './DocumentEmbed.js'
+import { Tag } from './Tag.js'
+import { WikiLink } from './WikiLink.js'
 
 export const notilloSchema = BlockNoteSchema.create({
 	blockSpecs: {

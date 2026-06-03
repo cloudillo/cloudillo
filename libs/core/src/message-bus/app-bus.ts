@@ -12,35 +12,35 @@
  * - Event handling for pushed messages
  */
 
+import { MessageBusBase, type MessageBusConfig } from './core.js'
+import { validateMessage } from './registry.js'
 import {
-	type CloudilloMessage,
-	PROTOCOL_VERSION,
-	type AuthInitRes,
-	type AuthInitPush,
-	type AuthTokenRefreshRes,
-	type AuthTokenPush,
 	type AppReadyStage,
-	type StorageOp,
-	type StorageOpRes,
-	type SettingsGetRes,
-	type MediaPickAck,
-	type MediaPickResultPush,
+	type AuthInitPush,
+	type AuthInitRes,
+	type AuthTokenPush,
+	type AuthTokenRefreshRes,
+	type CameraCaptureAck,
+	type CameraCaptureResultPush,
+	type CameraPreviewFrame,
+	type CloudilloMessage,
+	type CropAspect,
 	type DocPickAck,
 	type DocPickResultPush,
 	type EmbedOpenRes,
 	type EmbedViewStateSet,
+	type ImportDataPush,
+	type MediaPickAck,
+	type MediaPickResultPush,
+	PROTOCOL_VERSION,
 	type SensorCompassPush,
-	type CropAspect,
-	type Visibility,
-	type CameraCaptureAck,
-	type CameraCaptureResultPush,
-	type CameraPreviewFrame,
+	type SettingsGetRes,
 	type ShareCreateAck,
 	type ShareCreateResultPush,
-	type ImportDataPush
+	type StorageOp,
+	type StorageOpRes,
+	type Visibility
 } from './types.js'
-import { validateMessage } from './registry.js'
-import { MessageBusBase, type MessageBusConfig } from './core.js'
 
 // ============================================
 // APP STATE

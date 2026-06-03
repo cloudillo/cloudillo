@@ -5,24 +5,24 @@
  * PaletteEditor - Component for editing the presentation's color palette
  */
 
+import type { Gradient } from '@cloudillo/canvas-tools'
+import { GradientPicker } from '@cloudillo/canvas-tools'
+import { ColorInput, PropertySection } from '@cloudillo/react'
 import * as React from 'react'
 import type * as Y from 'yjs'
-import { ColorInput, PropertySection } from '@cloudillo/react'
-import { GradientPicker } from '@cloudillo/canvas-tools'
-import type { Gradient } from '@cloudillo/canvas-tools'
 
-import type { YPrezilloDocument, PaletteColorSlotName, PaletteGradientSlotName } from '../../crdt'
+import type { PaletteColorSlotName, PaletteGradientSlotName, YPrezilloDocument } from '../../crdt'
 import {
-	getPaletteUsageCounts,
-	updatePaletteColorSlot,
-	updatePaletteGradientSlot,
-	getSlotDisplayName,
 	COLOR_SLOT_NAMES,
+	DEFAULT_PALETTE,
 	GRADIENT_SLOT_NAMES,
-	DEFAULT_PALETTE
+	getPaletteUsageCounts,
+	getSlotDisplayName,
+	updatePaletteColorSlot,
+	updatePaletteGradientSlot
 } from '../../crdt'
-import { usePaletteValue } from '../../hooks'
 import { getContrastColor } from '../../crdt/color-utils'
+import { usePaletteValue } from '../../hooks'
 
 /**
  * Get a valid gradient for a slot, falling back to default if undefined or solid

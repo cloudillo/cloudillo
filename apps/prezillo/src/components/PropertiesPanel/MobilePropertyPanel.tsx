@@ -1,19 +1,19 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { BottomSheet, type BottomSheetSnapPoint, Tab, Tabs } from '@cloudillo/react'
 import * as React from 'react'
 import { useY } from 'react-yjs'
-import { BottomSheet, type BottomSheetSnapPoint, Tabs, Tab } from '@cloudillo/react'
 
 import type { PrezilloObject } from '../../crdt'
 import { getObject } from '../../crdt'
 import type { UsePrezilloDocumentResult } from '../../hooks/usePrezilloDocument'
-import { TransformSection } from './TransformSection'
+import type { PropertyPreview } from './PrezilloPropertiesPanel'
+import { ShapeSection } from './ShapeSection'
 import { StyleSection } from './StyleSection'
 import { TextStyleSection } from './TextStyleSection'
-import { ShapeSection } from './ShapeSection'
+import { TransformSection } from './TransformSection'
 import { ViewPropertiesPanel } from './ViewPropertiesPanel'
-import type { PropertyPreview } from './PrezilloPropertiesPanel'
 
 type PropertyTab = 'transform' | 'style' | 'text'
 

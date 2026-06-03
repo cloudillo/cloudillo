@@ -3,7 +3,7 @@
 
 export * from './crdt.js'
 export * from './crdt-persistence.js'
-export * from './legacy.js'
 export * from './export-utils.js'
+export * from './legacy.js'
 
 // vim: ts=4

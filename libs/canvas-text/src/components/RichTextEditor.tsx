@@ -12,10 +12,10 @@
  * quill.format() from outside.
  */
 
-import * as React from 'react'
-import type * as Y from 'yjs'
 import Quill from 'quill'
+import * as React from 'react'
 import { QuillBinding } from 'y-quill'
+import type * as Y from 'yjs'
 
 import type { BaseTextStyle, ContainerStyle } from '../types'
 

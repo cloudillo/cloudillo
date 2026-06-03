@@ -11,9 +11,9 @@
  * - G1 continuity at segment boundaries
  */
 
-import type { TimedPoint, StrokeMetrics, DrawingIntent } from '../smart-ink/stroke-analyzer.js'
-import { distance, getBoundsFromPoints, type Point } from './geometry.js'
 import type { Bounds } from '../crdt/index.js'
+import type { DrawingIntent, StrokeMetrics, TimedPoint } from '../smart-ink/stroke-analyzer.js'
+import { distance, getBoundsFromPoints, type Point } from './geometry.js'
 
 // ============================================================================
 // Types

@@ -1,14 +1,12 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { IdpStatusResponse } from '@cloudillo/core'
+import { Button } from '@cloudillo/react'
+import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
-import { LuMail as IcMail, LuRefreshCw as IcLoading } from 'react-icons/lu'
-import type { TFunction } from 'i18next'
-
-import { Button } from '@cloudillo/react'
-import type { IdpStatusResponse } from '@cloudillo/core'
+import { LuRefreshCw as IcLoading, LuMail as IcMail } from 'react-icons/lu'
 
 import { CloudilloLogo } from '../logo.js'
 

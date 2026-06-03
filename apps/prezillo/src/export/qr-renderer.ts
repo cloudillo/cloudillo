@@ -9,6 +9,7 @@
  */
 
 import QRCode from 'qrcode'
+
 import type { QrCodeObject, QrErrorCorrection } from '../crdt'
 import type { Bounds } from './types'
 

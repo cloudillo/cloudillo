@@ -6,6 +6,7 @@
  */
 
 import * as React from 'react'
+
 import type { FreehandObject } from '../crdt/index.js'
 import { colorToCss } from '../utils/palette.js'
 

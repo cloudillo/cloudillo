@@ -1,12 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { useApi, useAuth } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
-import { LuTrash2 as IcDelete, LuPlus as IcAdd } from 'react-icons/lu'
-
-import { useApi, useAuth } from '@cloudillo/react'
+import { LuPlus as IcAdd, LuTrash2 as IcDelete } from 'react-icons/lu'
 
 // Domain validation regex
 const DOMAIN_REGEX = /^[a-z0-9]+([-.]{1}[a-z0-9]+)*\.[a-z]{2,}$/i

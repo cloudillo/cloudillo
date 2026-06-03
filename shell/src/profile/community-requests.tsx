@@ -1,19 +1,18 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useTranslation } from 'react-i18next'
-
+import type { ApiClient } from '@cloudillo/core'
 import {
 	Button,
+	mergeClasses,
 	ProfileCard,
-	useDialog,
-	useToast,
 	TimeFormat,
-	mergeClasses
+	useDialog,
+	useToast
 } from '@cloudillo/react'
-import type { ApiClient } from '@cloudillo/core'
 import type { ActionView } from '@cloudillo/types'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface PendingRequestsListProps {
 	communityIdTag: string

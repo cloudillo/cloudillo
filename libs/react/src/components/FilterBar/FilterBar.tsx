@@ -3,8 +3,9 @@
 
 import * as React from 'react'
 import { Link } from 'react-router-dom'
-import { mergeClasses, createComponent } from '../utils.js'
+
 import { Badge } from '../Badge/index.js'
+import { createComponent, mergeClasses } from '../utils.js'
 
 export interface FilterBarProps extends React.HTMLAttributes<HTMLUListElement> {
 	variant?: 'vertical' | 'horizontal'

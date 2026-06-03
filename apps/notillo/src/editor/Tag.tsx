@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
 import { createReactInlineContentSpec } from '@blocknote/react'
+import * as React from 'react'
 
 export const Tag = createReactInlineContentSpec(
 	{

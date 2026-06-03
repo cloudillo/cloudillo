@@ -1,13 +1,13 @@
+import {
+	IdentityTag,
+	ProfileAudienceCard,
+	ProfileCard,
+	ProfilePicture,
+	UnknownProfilePicture
+} from '@cloudillo/react'
 import * as React from 'react'
 
 import { Story, Variant } from './storybook.js'
-import {
-	ProfilePicture,
-	ProfileCard,
-	ProfileAudienceCard,
-	IdentityTag,
-	UnknownProfilePicture
-} from '@cloudillo/react'
 
 // Mock profile data for examples
 const mockProfile = {

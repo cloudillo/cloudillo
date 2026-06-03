@@ -8,37 +8,32 @@
  * rich text with collaborative editing via Yjs.
  */
 
-// Types
-export type {
-	RichTextRunStyle,
-	TextRun,
-	TextLine,
-	PositionedRun,
-	PositionedLine,
-	RichTextLayout,
-	BaseTextStyle,
-	TextBounds,
-	ContainerStyle,
-	DeltaOp
-} from './types'
-
-// Delta parsing
-export { deltaToLines, yTextToDelta, plainTextToDelta, deltaToPlainText } from './delta-parser'
-
-// Measurement
-export { resolveRunStyle, measureRunWidth, measureTextWidth, buildFontString } from './measure'
-export type { ResolvedRunStyle } from './measure'
-
-// Layout
-export { calculateRichTextLayout } from './layout'
-
-// SVG export
-export { richTextToSVG, createRichTextSVGElement } from './svg-export'
-
+export type { RichTextDisplayProps } from './components/RichTextDisplay'
 // Components
 export { RichTextDisplay } from './components/RichTextDisplay'
-export type { RichTextDisplayProps } from './components/RichTextDisplay'
-export { RichTextEditor } from './components/RichTextEditor'
 export type { RichTextEditorProps } from './components/RichTextEditor'
+export { RichTextEditor } from './components/RichTextEditor'
+// Delta parsing
+export { deltaToLines, deltaToPlainText, plainTextToDelta, yTextToDelta } from './delta-parser'
+// Layout
+export { calculateRichTextLayout } from './layout'
+export type { ResolvedRunStyle } from './measure'
+// Measurement
+export { buildFontString, measureRunWidth, measureTextWidth, resolveRunStyle } from './measure'
+// SVG export
+export { createRichTextSVGElement, richTextToSVG } from './svg-export'
+// Types
+export type {
+	BaseTextStyle,
+	ContainerStyle,
+	DeltaOp,
+	PositionedLine,
+	PositionedRun,
+	RichTextLayout,
+	RichTextRunStyle,
+	TextBounds,
+	TextLine,
+	TextRun
+} from './types'
 
 // vim: ts=4

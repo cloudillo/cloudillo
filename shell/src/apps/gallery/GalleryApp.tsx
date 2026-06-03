@@ -1,20 +1,19 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { getFileUrl } from '@cloudillo/core'
+import { EmptyState, Fcd, LoadingSpinner, LoadMoreTrigger, useAuth } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuImage as IcImage } from 'react-icons/lu'
 
-import { useAuth, LoadingSpinner, EmptyState, Fcd, LoadMoreTrigger } from '@cloudillo/react'
-import { getFileUrl } from '@cloudillo/core'
-
 import { useCurrentContextIdTag } from '../../context/index.js'
+import { ActiveFilters } from './components/ActiveFilters.js'
+import { GalleryGrid } from './components/GalleryGrid.js'
+import { GallerySidebar } from './components/GallerySidebar.js'
+import { GalleryToolbar } from './components/GalleryToolbar.js'
 import { useGalleryFilters } from './hooks/useGalleryFilters.js'
 import { useGalleryImages } from './hooks/useGalleryImages.js'
-import { GallerySidebar } from './components/GallerySidebar.js'
-import { ActiveFilters } from './components/ActiveFilters.js'
-import { GalleryToolbar } from './components/GalleryToolbar.js'
-import { GalleryGrid } from './components/GalleryGrid.js'
 
 export function GalleryApp() {
 	const { t } = useTranslation()

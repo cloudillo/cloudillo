@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
+import type { FileView, ListFilesQuery } from '@cloudillo/core'
 import { useInfiniteScroll } from '@cloudillo/react'
-import type { ListFilesQuery, FileView } from '@cloudillo/core'
-import { useContextAwareApi } from '../../../context/index.js'
-import { useCurrentContextIdTag } from '../../../context/index.js'
+import * as React from 'react'
+
 import { createCachedFileFetchPage } from '../../../cache/index.js'
+import { useContextAwareApi, useCurrentContextIdTag } from '../../../context/index.js'
 import type { Photo } from '../types.js'
 
 export interface UseGalleryImagesOptions {

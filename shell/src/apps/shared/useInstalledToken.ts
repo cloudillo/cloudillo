@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+
 import { installToken, setCurrentAuthToken } from '../../pwa.js'
 
 // Module-level memo of the token most recently installed into the SW, so opening a

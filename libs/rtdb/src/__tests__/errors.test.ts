@@ -1,15 +1,16 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { describe, it, expect } from '@jest/globals'
+import { describe, expect, it } from '@jest/globals'
+
 import {
-	RtdbError,
-	ConnectionError,
 	AuthError,
-	PermissionError,
+	ConnectionError,
 	NotFoundError,
-	ValidationError,
-	TimeoutError
+	PermissionError,
+	RtdbError,
+	TimeoutError,
+	ValidationError
 } from '../errors'
 
 describe('Error Classes', () => {

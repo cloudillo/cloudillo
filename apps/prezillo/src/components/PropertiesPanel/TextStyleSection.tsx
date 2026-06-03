@@ -1,47 +1,47 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import type * as Y from 'yjs'
-import type Quill from 'quill'
 import {
-	PropertySection,
-	PropertyField,
-	NativeSelect,
 	FontPicker,
-	NumberInput
+	NativeSelect,
+	NumberInput,
+	PropertyField,
+	PropertySection
 } from '@cloudillo/react'
-import { mergeClasses } from '../../utils'
+import type Quill from 'quill'
+import * as React from 'react'
 import {
-	PiTextAlignLeftBold as IcAlignLeft,
-	PiTextAlignCenterBold as IcAlignCenter,
-	PiTextAlignRightBold as IcAlignRight,
-	PiTextAlignJustifyBold as IcAlignJustify,
-	PiAlignTopBold as IcAlignTop,
-	PiAlignCenterVerticalBold as IcAlignMiddle,
 	PiAlignBottomBold as IcAlignBottom,
+	PiTextAlignCenterBold as IcAlignCenter,
+	PiTextAlignJustifyBold as IcAlignJustify,
+	PiTextAlignLeftBold as IcAlignLeft,
+	PiAlignCenterVerticalBold as IcAlignMiddle,
+	PiTextAlignRightBold as IcAlignRight,
+	PiAlignTopBold as IcAlignTop,
+	PiTextBBold as IcBold,
+	PiTextItalicBold as IcItalic,
 	PiListBulletsBold as IcListBullets,
 	PiListNumbersBold as IcListNumbers,
 	PiProhibitBold as IcNone,
-	PiTextBBold as IcBold,
-	PiTextItalicBold as IcItalic,
-	PiTextUnderlineBold as IcUnderline,
-	PiTextStrikethroughBold as IcStrikethrough
+	PiTextStrikethroughBold as IcStrikethrough,
+	PiTextUnderlineBold as IcUnderline
 } from 'react-icons/pi'
+import type * as Y from 'yjs'
 
-import type { YPrezilloDocument, PrezilloObject, ObjectId, TextStyleField } from '../../crdt'
+import type { ObjectId, PrezilloObject, TextStyleField, YPrezilloDocument } from '../../crdt'
 import {
-	resolveTextStyle,
-	updateObjectTextStyle,
 	isInstance,
 	isTextStyleFieldOverridden,
+	resetTextStyleField,
+	resolveTextStyle,
 	unlockTextStyleField,
-	resetTextStyleField
+	updateObjectTextStyle
 } from '../../crdt'
-import { FONT_SIZES } from '../../utils/text-styles'
-import { PropertyLockButton } from './PropertyLockButton'
-import type { PropertyPreview } from './PrezilloPropertiesPanel'
 import { BULLET_ICONS, getBulletIcon, migrateBullet } from '../../data/bullet-icons'
+import { mergeClasses } from '../../utils'
+import { FONT_SIZES } from '../../utils/text-styles'
+import type { PropertyPreview } from './PrezilloPropertiesPanel'
+import { PropertyLockButton } from './PropertyLockButton'
 
 export interface TextStyleSectionProps {
 	doc: YPrezilloDocument

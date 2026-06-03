@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { createComponent, mergeClasses } from '@cloudillo/react'
 import * as React from 'react'
-import { mergeClasses, createComponent } from '@cloudillo/react'
+
 import type { Gradient } from '../../types/gradient.js'
 import { gradientToCSS } from '../../utils/gradient.js'
 

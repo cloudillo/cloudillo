@@ -1,37 +1,36 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useParams } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import { useParams } from 'react-router-dom'
 
 dayjs.extend(relativeTime)
 
-import {
-	LuSearch as IcSearch,
-	LuPlus as IcPlus,
-	LuTrash as IcDelete,
-	LuKey as IcKey,
-	LuCopy as IcCopy,
-	LuCheck as IcCheck,
-	LuX as IcClose,
-	LuTriangleAlert as IcWarning,
-	LuEye as IcDetails,
-	LuUsers as IcUsers,
-	LuCircle as IcCircle,
-	LuCircleDot as IcCircleDot,
-	LuBan as IcBan
-} from 'react-icons/lu'
-
 import type {
-	IdpIdentity,
 	IdpApiKey,
 	IdpCreateApiKeyResult,
-	IdpCreateIdentityResult
+	IdpCreateIdentityResult,
+	IdpIdentity
 } from '@cloudillo/core'
-import { useAuth, useApi, useDialog, Button, Modal, mergeClasses } from '@cloudillo/react'
+import { Button, Modal, mergeClasses, useApi, useAuth, useDialog } from '@cloudillo/react'
+import {
+	LuBan as IcBan,
+	LuCheck as IcCheck,
+	LuCircle as IcCircle,
+	LuCircleDot as IcCircleDot,
+	LuX as IcClose,
+	LuCopy as IcCopy,
+	LuTrash as IcDelete,
+	LuEye as IcDetails,
+	LuKey as IcKey,
+	LuPlus as IcPlus,
+	LuSearch as IcSearch,
+	LuUsers as IcUsers,
+	LuTriangleAlert as IcWarning
+} from 'react-icons/lu'
 
 // Status badge configuration
 const STATUS_CONFIG = {

@@ -1,17 +1,18 @@
 import * as Y from 'yjs'
+
+import { generateSheetId, generateUniqueColIds, generateUniqueRowIds } from '../id-generator'
 import {
-	getOrCreateSheet,
-	ensureSheetDimensions,
-	setCell,
-	deleteRows,
 	deleteColumns,
-	setMerge,
-	insertRows,
-	insertColumns,
+	deleteRows,
+	ensureSheetDimensions,
+	getOrCreateSheet,
+	indexToColId,
 	indexToRowId,
-	indexToColId
+	insertColumns,
+	insertRows,
+	setCell,
+	setMerge
 } from '../ydoc-helpers'
-import { generateSheetId, generateUniqueRowIds, generateUniqueColIds } from '../id-generator'
 import type { SheetId } from '../yjs-types'
 
 describe('Critical Fixes Integration Tests', () => {

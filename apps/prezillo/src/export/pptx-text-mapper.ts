@@ -5,8 +5,9 @@
  * Converts Quill delta (from Y.Text) to PptxGenJS text runs
  */
 
-import type PptxGenJS from 'pptxgenjs'
 import type { DeltaOp } from '@cloudillo/canvas-text'
+import type PptxGenJS from 'pptxgenjs'
+
 import { hexToColor } from './pptx-style-mapper'
 
 /**

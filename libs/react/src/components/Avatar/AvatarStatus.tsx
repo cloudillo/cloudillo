@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { mergeClasses, createComponent } from '../utils.js'
+
 import type { AvatarStatus as AvatarStatusType } from '../types.js'
+import { createComponent, mergeClasses } from '../utils.js'
 
 export interface AvatarStatusProps extends React.HTMLAttributes<HTMLSpanElement> {
 	status?: AvatarStatusType

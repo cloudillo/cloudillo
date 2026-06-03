@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { atom, useAtom } from 'jotai'
 import dayjs from 'dayjs'
+import { atom, useAtom } from 'jotai'
+import * as React from 'react'
 
 // Query string handling
 export function qs(

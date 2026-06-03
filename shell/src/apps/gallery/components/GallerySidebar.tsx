@@ -1,19 +1,17 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { TagInfo } from '@cloudillo/core'
+import { Button, mergeClasses, useApi } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
 import {
 	LuImage as IcAll,
-	LuStar as IcStarred,
 	LuClock as IcRecent,
-	LuCalendar as IcTime,
-	LuTag as IcTag
+	LuStar as IcStarred,
+	LuTag as IcTag,
+	LuCalendar as IcTime
 } from 'react-icons/lu'
-
-import { useApi, Button, mergeClasses } from '@cloudillo/react'
-import type { TagInfo } from '@cloudillo/core'
 
 import type { GalleryViewMode, TimeFilter } from '../types.js'
 

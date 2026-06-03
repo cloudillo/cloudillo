@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { RtdbClient } from '@cloudillo/rtdb'
+
 import type { StoredPageRecord } from './types.js'
 
 export interface ConsistencyResult {

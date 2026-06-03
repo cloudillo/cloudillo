@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+import { LuCheck as IcCheck, LuCopy as IcCopy, LuShare2 as IcShare } from 'react-icons/lu'
 import ReactQRCode from 'react-qr-code'
-import { LuCopy as IcCopy, LuCheck as IcCheck, LuShare2 as IcShare } from 'react-icons/lu'
 
-import { Dialog } from '../Dialog/Dialog.js'
-import { Button } from '../Button/Button.js'
-import { resolveDefaultExport } from '../utils.js'
 import { useLibTranslation } from '../../i18n.js'
+import { Button } from '../Button/Button.js'
+import { Dialog } from '../Dialog/Dialog.js'
+import { resolveDefaultExport } from '../utils.js'
 
 const QRCode = resolveDefaultExport(ReactQRCode)
 

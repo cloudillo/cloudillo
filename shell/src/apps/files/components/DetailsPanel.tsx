@@ -1,55 +1,53 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useTranslation } from 'react-i18next'
-
-import { FiEdit2 as IcEdit, FiMoreVertical as IcMore } from 'react-icons/fi'
-import {
-	LuLink as IcLink,
-	LuCopy as IcCopy,
-	LuQrCode as IcQrCode,
-	LuShare2 as IcShare,
-	LuStar as IcStar,
-	LuPin as IcPin,
-	LuChevronDown as IcChevronDown,
-	LuChevronRight as IcDisclosure
-} from 'react-icons/lu'
-
-import type { Profile } from '@cloudillo/types'
 import type * as Types from '@cloudillo/core'
 import type { ApiClient } from '@cloudillo/core'
 import { getFileUrl } from '@cloudillo/core'
 import {
-	useAuth,
-	useToast,
 	Badge,
 	Button,
 	Popper,
 	ProfileCard,
-	QRCodeDialog
+	QRCodeDialog,
+	useAuth,
+	useToast
 } from '@cloudillo/react'
+import type { Profile } from '@cloudillo/types'
 import { useAtom } from 'jotai'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import { FiEdit2 as IcEdit, FiMoreVertical as IcMore } from 'react-icons/fi'
 import {
+	LuChevronDown as IcChevronDown,
+	LuCopy as IcCopy,
+	LuChevronRight as IcDisclosure,
+	LuLink as IcLink,
+	LuPin as IcPin,
+	LuQrCode as IcQrCode,
+	LuShare2 as IcShare,
+	LuStar as IcStar
+} from 'react-icons/lu'
+
+import {
+	activeContextAtom,
 	useApiContext,
 	useContextAwareApi,
-	useCurrentContextIdTag,
-	activeContextAtom
+	useCurrentContextIdTag
 } from '../../../context/index.js'
-
-import { getFileIcon, IcUnknown } from '../icons.js'
-import { TagsCell } from './TagsCell.js'
-import {
-	formatRelativeTime,
-	getVisibilityIcon,
-	getVisibilityLabel,
-	canManageFile,
-	getVisibilityDropdownOptions
-} from '../utils.js'
-import { formatRefDate } from '../../../utils/parseRefDate.js'
-import { getCachedProfiles, getCachedProfile } from '../../../utils/profileCache.js'
 import { useShareOrigin } from '../../../utils/appOrigin.js'
+import { formatRefDate } from '../../../utils/parseRefDate.js'
+import { getCachedProfile, getCachedProfiles } from '../../../utils/profileCache.js'
+import { getFileIcon, IcUnknown } from '../icons.js'
 import type { File, FileOps } from '../types.js'
+import {
+	canManageFile,
+	formatRelativeTime,
+	getVisibilityDropdownOptions,
+	getVisibilityIcon,
+	getVisibilityLabel
+} from '../utils.js'
+import { TagsCell } from './TagsCell.js'
 
 type PermLevel = 'READ' | 'COMMENT' | 'WRITE'
 

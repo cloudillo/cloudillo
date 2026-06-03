@@ -6,41 +6,42 @@
  */
 
 import * as Y from 'yjs'
+
+import { getContainerChildren } from './document'
+import type { ContainerId, ObjectId, ViewId } from './ids'
+import { generateObjectId } from './ids'
+import { getInstancesOfPrototype, resolveObject } from './prototype-ops'
+import type * as Runtime from './runtime-types'
+import type { PrezilloObject } from './runtime-types'
 import type {
-	YPrezilloDocument,
 	ChildRef,
+	StoredConnector,
+	StoredDocEmbed,
+	StoredEmbed,
+	StoredImage,
+	StoredLine,
 	StoredObject,
 	StoredPaletteRef,
-	StoredText,
-	StoredRect,
-	StoredImage,
 	StoredPath,
-	StoredLine,
+	StoredPollFrame,
 	StoredPolygon,
 	StoredQrCode,
-	StoredPollFrame,
-	StoredTableGrid,
+	StoredRect,
 	StoredSymbol,
-	StoredEmbed,
-	StoredDocEmbed,
-	StoredConnector
+	StoredTableGrid,
+	StoredText,
+	YPrezilloDocument
 } from './stored-types'
-import type { ObjectId, ContainerId, ViewId } from './ids'
-import { generateObjectId } from './ids'
-import type { PrezilloObject } from './runtime-types'
-import type * as Runtime from './runtime-types'
+import { getTemplateIdForPrototype } from './template-ops'
+import { getAbsolutePositionStored } from './transforms'
 import {
+	compactAnchorPoint,
+	compactArrowStyle,
 	compactObject,
-	expandObject,
 	compactShapeStyle,
 	compactTextStyle,
-	compactArrowStyle,
-	compactAnchorPoint
+	expandObject
 } from './type-converters'
-import { getContainerChildren } from './document'
-import { getAbsolutePositionStored } from './transforms'
-import { resolveObject, getInstancesOfPrototype } from './prototype-ops'
-import { getTemplateIdForPrototype } from './template-ops'
 
 /**
  * Add a new object to the document.

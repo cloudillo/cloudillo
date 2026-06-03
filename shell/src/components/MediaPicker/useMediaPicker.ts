@@ -23,14 +23,14 @@
  * ```
  */
 
-import { useCallback } from 'react'
 import { useAtom, useSetAtom } from 'jotai'
+import { useCallback } from 'react'
 
 import {
-	mediaPickerAtom,
-	openMediaPickerAtom,
 	type MediaPickerOptions,
-	type MediaPickerResult
+	type MediaPickerResult,
+	mediaPickerAtom,
+	openMediaPickerAtom
 } from '../../context/media-picker-atom.js'
 
 export interface UseMediaPickerReturn {

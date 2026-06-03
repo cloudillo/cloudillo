@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { useEffect, useRef } from 'react'
 import type { BlockNoteEditor } from '@blocknote/core'
+import { useEffect, useRef } from 'react'
+
 import type { BlockLock } from './useBlockLocks.js'
 
 /**

@@ -1,26 +1,23 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { OverlayItem } from '@cloudillo/core'
+import { PROTOCOL_VERSION } from '@cloudillo/core'
+import { Button } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
 import {
 	LuX as IcClose,
-	LuSwitchCamera as IcSwitch,
 	LuZap as IcFlash,
-	LuZapOff as IcFlashOff
+	LuZapOff as IcFlashOff,
+	LuSwitchCamera as IcSwitch
 } from 'react-icons/lu'
 
-import { Button } from '@cloudillo/react'
-
-import { PROTOCOL_VERSION } from '@cloudillo/core'
-import type { OverlayItem } from '@cloudillo/core'
-
 import {
-	setCameraCaptureCallback,
-	setCameraPreviewCallbacks,
 	type CameraCaptureOpenOptions,
-	type CameraCaptureResultData
+	type CameraCaptureResultData,
+	setCameraCaptureCallback,
+	setCameraPreviewCallbacks
 } from '../../message-bus/handlers/camera.js'
 
 import './camera-capture.css'

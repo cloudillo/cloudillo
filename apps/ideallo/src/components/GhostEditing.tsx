@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+
 /**
  * Renders ghost objects being edited (dragged) by remote users
  * Shows objects with offset applied from awareness editing state
  */
 
-import type { IdealloPresence } from '../hooks/index.js'
 import type { IdealloObject, StoredObject, YIdealloDocument } from '../crdt/index.js'
 import { expandObject, toObjectId } from '../crdt/index.js'
+import type { IdealloPresence } from '../hooks/index.js'
 import { ObjectRenderer } from './ObjectRenderer.js'
 
 const GHOST_OPACITY = 0.5

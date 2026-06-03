@@ -1,28 +1,26 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, mergeClasses, Popper, useDialog } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
 import {
+	LuTrash2 as IcDelete,
 	LuGripVertical as IcDrag,
 	LuEllipsisVertical as IcMore,
-	LuTrash2 as IcDelete,
 	LuPencil as IcRename
 } from 'react-icons/lu'
 
-import { Button, Popper, useDialog, mergeClasses } from '@cloudillo/react'
-
-import type { SectionWithContent } from './types.js'
-import { getSectionTitle } from './types.js'
 import { SectionVisibilitySelector } from './SectionVisibilitySelector.js'
 import { AboutSectionEdit } from './sections/AboutSection.js'
 import { ContactSectionEdit } from './sections/ContactSection.js'
-import { LocationSectionEdit } from './sections/LocationSection.js'
-import { LinksSectionEdit } from './sections/LinksSection.js'
-import { WorkSectionEdit } from './sections/WorkSection.js'
 import { EducationSectionEdit } from './sections/EducationSection.js'
+import { LinksSectionEdit } from './sections/LinksSection.js'
+import { LocationSectionEdit } from './sections/LocationSection.js'
 import { SkillsSectionEdit } from './sections/SkillsSection.js'
+import { WorkSectionEdit } from './sections/WorkSection.js'
+import type { SectionWithContent } from './types.js'
+import { getSectionTitle } from './types.js'
 
 // ============================================================================
 // Section content editor dispatcher

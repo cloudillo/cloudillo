@@ -8,7 +8,7 @@
  * supporting per-run fonts and letter-spacing.
  */
 
-import type { RichTextRunStyle, BaseTextStyle } from './types'
+import type { BaseTextStyle, RichTextRunStyle } from './types'
 
 /** Resolved style for a single run — all values filled in */
 export interface ResolvedRunStyle {

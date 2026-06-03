@@ -1,11 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useTranslation } from 'react-i18next'
-
 import { localeFirstDay } from '@cloudillo/calendar-ui'
 import { LoadingSpinner, useApi, useToast } from '@cloudillo/react'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { useSettings } from './settings.js'
 

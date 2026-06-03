@@ -9,12 +9,12 @@
  */
 
 import {
-	distance,
 	detectCorners,
-	perpendicularDistance,
+	distance,
 	isClosedPath,
 	mean,
-	type Point
+	type Point,
+	perpendicularDistance
 } from '../../utils/geometry.js'
 
 export interface PolygonCandidate {

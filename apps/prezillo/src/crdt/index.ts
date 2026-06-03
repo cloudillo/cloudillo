@@ -5,420 +5,401 @@
  * CRDT module - main exports
  */
 
-// IDs and generators
-export * from './ids'
-
-// Type definitions
-export type {
-	// Stored types
-	YPrezilloDocument,
-	StoredObject,
-	StoredContainer,
-	StoredView,
-	StoredStyle,
-	StoredMeta,
-	StoredSymbol,
-	StoredStateVar,
-	StateVarTypeCode,
-	ChildRef,
-	ShapeStyle,
-	TextStyle,
-	ObjectTypeCode,
-	ContainerTypeCode,
-	BlendModeCode,
-	ArrowDef,
-	AnchorPoint as StoredAnchorPoint,
-	RoutingCode,
-	// Palette types (stored)
-	StoredPalette,
-	StoredPaletteRef,
-	StoredPaletteColor,
-	PaletteSlot,
-	PaletteColorSlot,
-	PaletteGradientSlot,
-	ColorValue,
-	// Template types (stored)
-	StoredTemplate,
-	StoredSnapGuide
-} from './stored-types'
-
-export type {
-	// Runtime types
-	PrezilloObject,
-	PrezilloObjectBase,
-	RectObject,
-	EllipseObject,
-	LineObject,
-	PathObject,
-	PolygonObject,
-	TextObject,
-	ImageObject,
-	EmbedObject,
-	DocumentObject,
-	ConnectorObject,
-	QrCodeObject,
-	QrErrorCorrection,
-	PollFrameObject,
-	TableGridObject,
-	SymbolObject,
-	StateVarObject,
-	StateVarType,
-	ContainerNode,
-	ViewNode,
-	DocumentMeta,
-	StyleDefinition,
-	ObjectType,
-	ContainerType,
-	BlendMode,
-	ArrowType,
-	ArrowStyle,
-	AnchorPoint,
-	AnchorPointType,
-	Routing,
-	ShapeStyle as RuntimeShapeStyle,
-	TextStyle as RuntimeTextStyle,
-	ResolvedShapeStyle,
-	ResolvedTextStyle,
-	Point,
-	Bounds,
-	Transform,
-	ChildRef as RuntimeChildRef,
-	// Palette types (runtime)
-	Palette,
-	PaletteRef,
-	PaletteColor,
-	PaletteSlotName,
-	PaletteColorSlotName,
-	PaletteGradientSlotName,
-	ResolvedColorValue,
-	// Template types (runtime)
-	Template,
-	SnapGuide,
-	ResolvedViewBackground
-} from './runtime-types'
-
-// Document operations
+// Color utilities
 export {
-	getOrCreateDocument,
-	getContainerChildren,
-	getOrCreateRichText,
-	getDocumentMeta,
-	updateDocumentMeta
-} from './document'
-
-// Type converters
-export {
-	expandObject,
-	compactObject,
-	expandContainer,
-	compactContainer,
-	expandView,
-	compactView,
-	expandChildRef,
-	compactChildRef,
-	expandShapeStyle,
-	compactShapeStyle,
-	expandTextStyle,
-	compactTextStyle,
-	expandArrowStyle,
-	compactArrowStyle,
-	expandAnchorPoint,
-	compactAnchorPoint,
-	// Palette converters
-	isPaletteRef,
-	expandPaletteRef,
-	compactPaletteRef,
-	expandColorValue,
-	compactColorValue,
-	expandPalette,
-	compactPalette
-} from './type-converters'
-
-// Object operations
-export {
-	addObject,
-	createObject,
-	createTableGrid,
-	getObject,
-	updateObject,
-	updateObjectPosition,
-	updateObjectSize,
-	updateObjectBounds,
-	updateObjectRotation,
-	updateObjectOpacity,
-	updateObjectPivot,
-	updateObjectTextStyle,
-	updateObjectPageAssociation,
-	deleteObject,
-	deleteObjects,
-	deletePrototypeWithInstances,
-	moveObject,
-	reorderObject,
-	bringToFront,
-	sendToBack,
-	bringForward,
-	sendBackward,
-	toggleObjectVisibility,
-	toggleObjectLock,
-	toggleObjectHidden,
-	duplicateObject,
-	// Document consistency/maintenance
-	checkDocumentConsistency,
-	fixDocumentIssues,
-	cleanupOrphanedInstances,
-	// Document embed nav state
-	updateDocumentNavState
-} from './object-ops'
-
-export type {
-	DocumentIssueType,
-	DocumentIssue,
-	DocumentConsistencyReport
-} from './object-ops'
-
+	applyOpacity,
+	applyTint,
+	applyTintToGradient,
+	getContrastColor,
+	hexToRgb,
+	interpolateColor,
+	isLightColor,
+	rgbToHex
+} from './color-utils'
 // Container operations
 export {
 	createContainer,
-	getContainer,
-	updateContainer,
 	deleteContainer,
+	getContainer,
+	getContainerChildrenData,
+	getLayers,
 	groupObjects,
-	ungroupContainer,
 	moveContainer,
 	reorderContainer,
-	toggleContainerVisibility,
-	toggleContainerLock,
 	toggleContainerExpanded,
-	getLayers,
-	getContainerChildrenData
+	toggleContainerLock,
+	toggleContainerVisibility,
+	ungroupContainer,
+	updateContainer
 } from './container-ops'
-
-// View operations
+// Document operations
 export {
-	createView,
-	getView,
-	getAllViews,
-	getViewCount,
-	updateView,
-	updateViewPosition,
-	updateViewSize,
-	updateViewBounds,
-	deleteView,
-	reorderView,
-	moveViewInPresentation,
-	rearrangeViewsOnCanvas,
-	duplicateView,
-	getViewAtPosition,
-	getNextView,
-	getPreviousView,
-	getFirstView,
-	getLastView,
-	getViewIndex,
-	toggleViewHidden,
-	// Template integration
-	getViewTemplate,
-	resolveViewBackground,
-	setViewBackgroundOverride,
-	resetViewBackgroundToTemplate,
-	getViewSnapGuides,
-	getViewInstanceObjects,
-	isTemplateInstance
-} from './view-ops'
-
-// Prototype operations (single-level inheritance)
-export {
-	resolveObject,
-	isInstance,
-	getPrototypeId,
-	hasOverrides,
-	getOverriddenProperties,
-	getInstancesOfPrototype,
-	isPrototype,
-	detachInstance,
-	// Property group operations for lock/unlock UI
-	isPropertyGroupOverridden,
-	isPropertyGroupLocked,
-	unlockPropertyGroup,
-	resetPropertyGroup,
-	// Prototype resolution helpers (for stored objects)
-	getResolvedXy,
-	getResolvedWh,
-	getResolvedBounds,
-	// Per-field text style operations
-	isTextStyleFieldOverridden,
-	unlockTextStyleField,
-	resetTextStyleField
-} from './prototype-ops'
-
-export type { PropertyGroup, TextStyleField } from './prototype-ops'
-
-// Template operations
-export {
-	// Template CRUD
-	createTemplate,
-	getTemplate,
-	getAllTemplates,
-	updateTemplate,
-	deleteTemplate,
-	duplicateTemplate,
-	// Template object management
-	addObjectToTemplate,
-	removeObjectFromTemplate,
-	getTemplatePrototypeObjects,
-	getTemplatePrototypeIds,
-	getTemplateIdForPrototype,
-	// Apply template to view
-	applyTemplateToView,
-	removeTemplateFromView,
-	getViewsUsingTemplate,
-	// Snap guide management
-	addSnapGuide,
-	updateSnapGuide,
-	removeSnapGuide,
-	setSnapGuides,
-	// Hidden prototype objects
-	hidePrototypeOnView,
-	showPrototypeOnView,
-	isPrototypeHiddenOnView
-} from './template-ops'
-
+	getContainerChildren,
+	getDocumentMeta,
+	getOrCreateDocument,
+	getOrCreateRichText,
+	updateDocumentMeta
+} from './document'
+// Export functionality
+export { downloadExport, exportDocument } from './export'
+// IDs and generators
+export * from './ids'
 export type {
-	CreateTemplateOptions,
-	UpdateTemplateOptions,
-	DeleteTemplateOptions
-} from './template-ops'
-
-// Style operations
+	DocumentConsistencyReport,
+	DocumentIssue,
+	DocumentIssueType
+} from './object-ops'
+// Object operations
 export {
-	DEFAULT_SHAPE_STYLE,
-	DEFAULT_TEXT_STYLE,
-	createStyle,
-	getStyle,
-	getAllStyles,
-	updateStyle,
-	deleteStyle,
-	getStyleChain,
-	resolveShapeStyle,
-	resolveTextStyle
-} from './style-ops'
-
+	addObject,
+	bringForward,
+	bringToFront,
+	// Document consistency/maintenance
+	checkDocumentConsistency,
+	cleanupOrphanedInstances,
+	createObject,
+	createTableGrid,
+	deleteObject,
+	deleteObjects,
+	deletePrototypeWithInstances,
+	duplicateObject,
+	fixDocumentIssues,
+	getObject,
+	moveObject,
+	reorderObject,
+	sendBackward,
+	sendToBack,
+	toggleObjectHidden,
+	toggleObjectLock,
+	toggleObjectVisibility,
+	// Document embed nav state
+	updateDocumentNavState,
+	updateObject,
+	updateObjectBounds,
+	updateObjectOpacity,
+	updateObjectPageAssociation,
+	updateObjectPivot,
+	updateObjectPosition,
+	updateObjectRotation,
+	updateObjectSize,
+	updateObjectTextStyle
+} from './object-ops'
 // Palette operations
 export {
+	ALL_SLOT_NAMES,
+	applyPreset,
+	COLOR_SLOT_NAMES,
+	createPaletteRef,
 	DEFAULT_PALETTE,
+	GRADIENT_SLOT_NAMES,
+	getAllSlotNames,
+	getColorSlotNames,
+	getGradientSlotNames,
+	getObjectsUsingPaletteSlot,
 	getPalette,
+	getPaletteSlotDisplayName,
+	getPaletteSlotValue,
+	getPaletteUsageCounts,
+	getResolvedColor,
+	getSlotDisplayName,
+	isGradientSlot,
+	resetPaletteToDefault,
+	resolveColorValue,
+	resolvePaletteRef,
 	setPalette,
 	updatePaletteColorSlot,
 	updatePaletteGradientSlot,
-	updatePaletteName,
-	applyPreset,
-	resetPaletteToDefault,
-	isGradientSlot,
-	getPaletteSlotValue,
-	resolvePaletteRef,
-	resolveColorValue,
-	getResolvedColor,
-	getObjectsUsingPaletteSlot,
-	getPaletteUsageCounts,
-	createPaletteRef,
-	getPaletteSlotDisplayName,
-	getSlotDisplayName,
-	getColorSlotNames,
-	getGradientSlotNames,
-	getAllSlotNames,
-	COLOR_SLOT_NAMES,
-	GRADIENT_SLOT_NAMES,
-	ALL_SLOT_NAMES
+	updatePaletteName
 } from './palette-ops'
-
 // Palette presets
 export type { PalettePreset } from './palette-presets'
 export {
-	PALETTE_PRESETS,
+	getCategoryDisplayName,
 	getPresetById,
 	getPresetsByCategory,
-	getCategoryDisplayName,
+	PALETTE_PRESETS,
 	PRESET_CATEGORIES
 } from './palette-presets'
-
-// Color utilities
+export type { PropertyGroup, TextStyleField } from './prototype-ops'
+// Prototype operations (single-level inheritance)
 export {
-	hexToRgb,
-	rgbToHex,
-	applyTint,
-	applyTintToGradient,
-	applyOpacity,
-	interpolateColor,
-	isLightColor,
-	getContrastColor
-} from './color-utils'
-
+	detachInstance,
+	getInstancesOfPrototype,
+	getOverriddenProperties,
+	getPrototypeId,
+	getResolvedBounds,
+	getResolvedWh,
+	// Prototype resolution helpers (for stored objects)
+	getResolvedXy,
+	hasOverrides,
+	isInstance,
+	isPropertyGroupLocked,
+	// Property group operations for lock/unlock UI
+	isPropertyGroupOverridden,
+	isPrototype,
+	// Per-field text style operations
+	isTextStyleFieldOverridden,
+	resetPropertyGroup,
+	resetTextStyleField,
+	resolveObject,
+	unlockPropertyGroup,
+	unlockTextStyleField
+} from './prototype-ops'
+// Query helpers
+export {
+	// Stacked object queries (for sticky movement)
+	calculateOverlapPercentage,
+	getAllObjectIdsInZOrder,
+	getAllObjectsInZOrder,
+	getContainerAncestry,
+	getContainerCount,
+	getContainerDescendants,
+	getLayerIds,
+	getLayers as getLayersQuery,
+	getObjectAncestry,
+	getObjectCount,
+	getObjectIdsAtPoint,
+	getObjectIdsInRect,
+	getObjectIdsInView,
+	getObjectSiblings,
+	getObjectsAtPoint,
+	getObjectsContainedInRect,
+	getObjectsInRect,
+	getObjectsInView,
+	getObjectsInViewInZOrder,
+	getObjectsWithStyle,
+	getObjectZIndex,
+	getPageObjects,
+	getStackedObjects,
+	getStackedObjectsForSelection,
+	getTopmostObjectAtPoint,
+	getTopmostObjectIdAtPoint,
+	getViewAtPoint,
+	isAncestorOf,
+	searchObjectsByName
+} from './queries'
+export type {
+	AnchorPoint,
+	AnchorPointType,
+	ArrowStyle,
+	ArrowType,
+	BlendMode,
+	Bounds,
+	ChildRef as RuntimeChildRef,
+	ConnectorObject,
+	ContainerNode,
+	ContainerType,
+	DocumentMeta,
+	DocumentObject,
+	EllipseObject,
+	EmbedObject,
+	ImageObject,
+	LineObject,
+	ObjectType,
+	// Palette types (runtime)
+	Palette,
+	PaletteColor,
+	PaletteColorSlotName,
+	PaletteGradientSlotName,
+	PaletteRef,
+	PaletteSlotName,
+	PathObject,
+	Point,
+	PollFrameObject,
+	PolygonObject,
+	// Runtime types
+	PrezilloObject,
+	PrezilloObjectBase,
+	QrCodeObject,
+	QrErrorCorrection,
+	RectObject,
+	ResolvedColorValue,
+	ResolvedShapeStyle,
+	ResolvedTextStyle,
+	ResolvedViewBackground,
+	Routing,
+	ShapeStyle as RuntimeShapeStyle,
+	SnapGuide,
+	StateVarObject,
+	StateVarType,
+	StyleDefinition,
+	SymbolObject,
+	TableGridObject,
+	// Template types (runtime)
+	Template,
+	TextObject,
+	TextStyle as RuntimeTextStyle,
+	Transform,
+	ViewNode
+} from './runtime-types'
+// Type definitions
+export type {
+	AnchorPoint as StoredAnchorPoint,
+	ArrowDef,
+	BlendModeCode,
+	ChildRef,
+	ColorValue,
+	ContainerTypeCode,
+	ObjectTypeCode,
+	PaletteColorSlot,
+	PaletteGradientSlot,
+	PaletteSlot,
+	RoutingCode,
+	ShapeStyle,
+	StateVarTypeCode,
+	StoredContainer,
+	StoredMeta,
+	StoredObject,
+	// Palette types (stored)
+	StoredPalette,
+	StoredPaletteColor,
+	StoredPaletteRef,
+	StoredSnapGuide,
+	StoredStateVar,
+	StoredStyle,
+	StoredSymbol,
+	// Template types (stored)
+	StoredTemplate,
+	StoredView,
+	TextStyle,
+	// Stored types
+	YPrezilloDocument
+} from './stored-types'
+// Style operations
+export {
+	createStyle,
+	DEFAULT_SHAPE_STYLE,
+	DEFAULT_TEXT_STYLE,
+	deleteStyle,
+	getAllStyles,
+	getStyle,
+	getStyleChain,
+	resolveShapeStyle,
+	resolveTextStyle,
+	updateStyle
+} from './style-ops'
+export type {
+	CreateTemplateOptions,
+	DeleteTemplateOptions,
+	UpdateTemplateOptions
+} from './template-ops'
+// Template operations
+export {
+	// Template object management
+	addObjectToTemplate,
+	// Snap guide management
+	addSnapGuide,
+	// Apply template to view
+	applyTemplateToView,
+	// Template CRUD
+	createTemplate,
+	deleteTemplate,
+	duplicateTemplate,
+	getAllTemplates,
+	getTemplate,
+	getTemplateIdForPrototype,
+	getTemplatePrototypeIds,
+	getTemplatePrototypeObjects,
+	getViewsUsingTemplate,
+	// Hidden prototype objects
+	hidePrototypeOnView,
+	isPrototypeHiddenOnView,
+	removeObjectFromTemplate,
+	removeSnapGuide,
+	removeTemplateFromView,
+	setSnapGuides,
+	showPrototypeOnView,
+	updateSnapGuide,
+	updateTemplate
+} from './template-ops'
 // Transform utilities
 export {
+	boundsIntersect,
+	boundsIntersectsView,
+	// Page-relative coordinate helpers
+	canvasToPageCoords,
+	canvasToView,
+	composeTransforms,
+	distance,
+	expandBounds,
+	findViewAtPoint,
+	getAbsoluteBounds,
+	getAbsoluteBoundsStored,
 	getAbsolutePosition,
 	getAbsolutePositionStored,
 	getAbsoluteTransform,
-	composeTransforms,
-	getAbsoluteBounds,
-	getAbsoluteBoundsStored,
+	getBoundsCenter,
 	getContainerBounds,
-	canvasToView,
-	viewToCanvas,
-	isPointInView,
-	boundsIntersectsView,
-	objectIntersectsView,
-	boundsIntersect,
-	pointInBounds,
-	expandBounds,
-	unionBounds,
 	getSelectionBounds,
+	isPointInView,
+	isPointInViewBounds,
+	objectIntersectsView,
+	pageToCanvasCoords,
+	pointInBounds,
 	rotatePoint,
 	scalePoint,
-	getBoundsCenter,
-	distance,
-	snapToGrid,
 	snapPointToGrid,
-	// Page-relative coordinate helpers
-	canvasToPageCoords,
-	pageToCanvasCoords,
-	isPointInViewBounds,
-	findViewAtPoint
+	snapToGrid,
+	unionBounds,
+	viewToCanvas
 } from './transforms'
-
-// Query helpers
+// Type converters
 export {
-	getObjectsInView,
-	getPageObjects,
-	getObjectIdsInView,
-	getAllObjectsInZOrder,
-	getAllObjectIdsInZOrder,
-	getObjectsInViewInZOrder,
-	getObjectsAtPoint,
-	getObjectIdsAtPoint,
-	getTopmostObjectAtPoint,
-	getTopmostObjectIdAtPoint,
-	getObjectsInRect,
-	getObjectIdsInRect,
-	getObjectsContainedInRect,
-	getViewAtPoint,
-	getLayers as getLayersQuery,
-	getLayerIds,
-	getContainerAncestry,
-	getObjectAncestry,
-	getContainerDescendants,
-	isAncestorOf,
-	getObjectSiblings,
-	getObjectZIndex,
-	getObjectsWithStyle,
-	searchObjectsByName,
-	getObjectCount,
-	getContainerCount,
-	// Stacked object queries (for sticky movement)
-	calculateOverlapPercentage,
-	getStackedObjects,
-	getStackedObjectsForSelection
-} from './queries'
-
-// Export functionality
-export { exportDocument, downloadExport } from './export'
+	compactAnchorPoint,
+	compactArrowStyle,
+	compactChildRef,
+	compactColorValue,
+	compactContainer,
+	compactObject,
+	compactPalette,
+	compactPaletteRef,
+	compactShapeStyle,
+	compactTextStyle,
+	compactView,
+	expandAnchorPoint,
+	expandArrowStyle,
+	expandChildRef,
+	expandColorValue,
+	expandContainer,
+	expandObject,
+	expandPalette,
+	expandPaletteRef,
+	expandShapeStyle,
+	expandTextStyle,
+	expandView,
+	// Palette converters
+	isPaletteRef
+} from './type-converters'
+// View operations
+export {
+	createView,
+	deleteView,
+	duplicateView,
+	getAllViews,
+	getFirstView,
+	getLastView,
+	getNextView,
+	getPreviousView,
+	getView,
+	getViewAtPosition,
+	getViewCount,
+	getViewIndex,
+	getViewInstanceObjects,
+	getViewSnapGuides,
+	// Template integration
+	getViewTemplate,
+	isTemplateInstance,
+	moveViewInPresentation,
+	rearrangeViewsOnCanvas,
+	reorderView,
+	resetViewBackgroundToTemplate,
+	resolveViewBackground,
+	setViewBackgroundOverride,
+	toggleViewHidden,
+	updateView,
+	updateViewBounds,
+	updateViewPosition,
+	updateViewSize
+} from './view-ops'
 
 // vim: ts=4

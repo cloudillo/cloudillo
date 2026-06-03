@@ -1,28 +1,28 @@
-import * as React from 'react'
-
-import { Story, Variant } from './storybook.js'
 import {
+	Button,
+	HBox,
+	NavItem,
 	Sidebar,
+	SidebarBackdrop,
 	SidebarContent,
-	SidebarHeader,
 	SidebarFooter,
+	SidebarHeader,
 	SidebarNav,
 	SidebarSection,
-	SidebarBackdrop,
-	useSidebar,
-	NavItem,
-	Button,
-	HBox
+	useSidebar
 } from '@cloudillo/react'
+import * as React from 'react'
 import {
-	LuMenu as IcMenu,
-	LuHouse as IcHome,
-	LuUser as IcUser,
-	LuSettings as IcSettings,
 	LuFolder as IcFolder,
+	LuHouse as IcHome,
+	LuMenu as IcMenu,
 	LuPin as IcPin,
-	LuPinOff as IcPinOff
+	LuPinOff as IcPinOff,
+	LuSettings as IcSettings,
+	LuUser as IcUser
 } from 'react-icons/lu'
+
+import { Story, Variant } from './storybook.js'
 
 function SidebarDemo() {
 	const sidebar = useSidebar({ id: 'demo', defaultWidth: 240 })

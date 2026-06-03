@@ -9,44 +9,44 @@
  * to native SVG elements before PDF conversion.
  */
 
+import type { BaseTextStyle, DeltaOp } from '@cloudillo/canvas-text'
+import { createRichTextSVGElement } from '@cloudillo/canvas-text'
+import type { Gradient } from '@cloudillo/canvas-tools'
+import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
 import { jsPDF } from 'jspdf'
 import { svg2pdf } from 'svg2pdf.js'
-import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
-import type { Gradient } from '@cloudillo/canvas-tools'
 
-import type {
-	YPrezilloDocument,
-	ViewNode,
-	PrezilloObject,
-	RectObject,
-	ImageObject,
-	QrCodeObject,
-	TextObject,
-	PollFrameObject,
-	TableGridObject,
-	SymbolObject
-} from '../crdt'
-import {
-	resolveShapeStyle,
-	resolveTextStyle,
-	DEFAULT_SHAPE_STYLE,
-	DEFAULT_TEXT_STYLE
-} from '../crdt'
-import { getViewObjects } from './view-objects'
-import { calculateRotationTransform, buildStrokeProps, buildFillProps } from '../utils'
-import { getSymbolById } from '../data/symbol-library'
 import { calculateGridPositions } from '../components/TableGridRenderer'
-import type { PDFExportOptions, RenderContext } from './types'
-import { createSVGTextElement } from './text-converter'
-import { createRichTextSVGElement } from '@cloudillo/canvas-text'
-import type { DeltaOp, BaseTextStyle } from '@cloudillo/canvas-text'
-import { createQRCodeSVGElements } from './qr-renderer'
+import type {
+	ImageObject,
+	PollFrameObject,
+	PrezilloObject,
+	QrCodeObject,
+	RectObject,
+	SymbolObject,
+	TableGridObject,
+	TextObject,
+	ViewNode,
+	YPrezilloDocument
+} from '../crdt'
 import {
-	preloadImages,
+	DEFAULT_SHAPE_STYLE,
+	DEFAULT_TEXT_STYLE,
+	resolveShapeStyle,
+	resolveTextStyle
+} from '../crdt'
+import { getSymbolById } from '../data/symbol-library'
+import { buildFillProps, buildStrokeProps, calculateRotationTransform } from '../utils'
+import { getPDFFontFamily, registerUsedFonts } from './font-handler'
+import {
 	collectImageObjectsFromArray,
-	createImageSVGElement
+	createImageSVGElement,
+	preloadImages
 } from './image-embedder'
-import { registerUsedFonts, getPDFFontFamily } from './font-handler'
+import { createQRCodeSVGElements } from './qr-renderer'
+import { createSVGTextElement } from './text-converter'
+import type { PDFExportOptions, RenderContext } from './types'
+import { getViewObjects } from './view-objects'
 
 // Default slide dimensions (1920x1080 for 16:9)
 const DEFAULT_WIDTH = 1920

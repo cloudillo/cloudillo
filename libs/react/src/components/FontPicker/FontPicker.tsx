@@ -1,21 +1,22 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { createPortal } from 'react-dom'
-import { usePopper } from 'react-popper'
-import { PiCaretDownBold as IcCaret } from 'react-icons/pi'
 import {
 	FONTS,
+	type FontCategory,
+	type FontMetadata,
+	type FontRole,
 	getFontsByRole,
 	getSuggestedBodyFonts,
-	getSuggestedHeadingFonts,
-	type FontRole,
-	type FontCategory,
-	type FontMetadata
+	getSuggestedHeadingFonts
 } from '@cloudillo/fonts'
+import * as React from 'react'
+import { createPortal } from 'react-dom'
+import { PiCaretDownBold as IcCaret } from 'react-icons/pi'
+import { usePopper } from 'react-popper'
+
+import { useEscapeKey, useOutsideClick } from '../hooks.js'
 import { mergeClasses } from '../utils.js'
-import { useOutsideClick, useEscapeKey } from '../hooks.js'
 
 export interface FontPickerProps {
 	/** Current font family value */

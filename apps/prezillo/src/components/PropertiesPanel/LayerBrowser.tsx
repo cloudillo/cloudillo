@@ -1,37 +1,37 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { TreeItem, type TreeItemDragData, TreeView } from '@cloudillo/react'
 import * as React from 'react'
-import type * as Y from 'yjs'
-import { useY } from 'react-yjs'
-import { TreeView, TreeItem, type TreeItemDragData } from '@cloudillo/react'
+import { LuShapes as IcDefault } from 'react-icons/lu'
 import {
-	PiRectangleBold as IcRect,
 	PiCircleBold as IcEllipse,
-	PiMinusBold as IcLine,
-	PiTextTBold as IcText,
-	PiImageBold as IcImage,
 	PiFolderBold as IcFolder,
 	PiFolderOpenBold as IcFolderOpen,
-	PiFolderPlusBold as IcNewFolder,
-	PiEyeBold as IcVisible,
 	PiEyeSlashBold as IcHidden,
+	PiImageBold as IcImage,
+	PiMinusBold as IcLine,
 	PiLockBold as IcLocked,
-	PiLockOpenBold as IcUnlocked
+	PiFolderPlusBold as IcNewFolder,
+	PiRectangleBold as IcRect,
+	PiTextTBold as IcText,
+	PiLockOpenBold as IcUnlocked,
+	PiEyeBold as IcVisible
 } from 'react-icons/pi'
-import { LuShapes as IcDefault } from 'react-icons/lu'
+import { useY } from 'react-yjs'
+import type * as Y from 'yjs'
 
-import type { YPrezilloDocument, ObjectId, ContainerId, ViewId, ChildRef } from '../../crdt'
+import type { ChildRef, ContainerId, ObjectId, ViewId, YPrezilloDocument } from '../../crdt'
 import {
-	resolveObject,
+	createContainer,
 	expandContainer,
-	moveObject,
-	reorderObject,
 	moveContainer,
+	moveObject,
 	reorderContainer,
-	toggleObjectVisibility,
+	reorderObject,
+	resolveObject,
 	toggleObjectLock,
-	createContainer
+	toggleObjectVisibility
 } from '../../crdt'
 
 // Extended drag data with parent info

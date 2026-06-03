@@ -1,17 +1,15 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
-
-import { LuBell as IcNotifications } from 'react-icons/lu'
-
 import { Popper } from '@cloudillo/react'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import { LuBell as IcNotifications } from 'react-icons/lu'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { HOME_CONTEXT, useContextSwitch, useUrlContextIdTag } from '../context/index.js'
-import { useNotifications } from './state.js'
 import { NotificationItem } from './NotificationItem.js'
+import { useNotifications } from './state.js'
 
 const MAX_POPOVER_ITEMS = 6
 

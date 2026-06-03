@@ -4,6 +4,7 @@
 import dayjs from 'dayjs'
 import { atom } from 'jotai'
 import { atomWithStorage } from 'jotai/utils'
+
 import type { CalendarView, SelectedObjectRef } from './types.js'
 
 export const currentDateAtom = atom<string>(dayjs().format('YYYY-MM-DD'))

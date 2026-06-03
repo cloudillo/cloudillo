@@ -1,17 +1,17 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { createApiClient, getFileUrl } from '@cloudillo/core'
 import { PDFDocument } from 'pdf-lib'
-import { getFileUrl, createApiClient } from '@cloudillo/core'
 
-import { type ScanPage, FILTER_DEFAULTS } from '../types.js'
+import { FILTER_DEFAULTS, type ScanPage } from '../types.js'
 import {
-	base64ToCanvas,
-	extractPerspective,
 	applyFilter,
+	base64ToCanvas,
 	blendWithOriginal,
-	rotateCanvas,
-	canvasToBlob
+	canvasToBlob,
+	extractPerspective,
+	rotateCanvas
 } from '../utils/image-processing.js'
 import { addPdfAnnotations } from './pdf-annotations.js'
 

@@ -8,32 +8,29 @@
  * Allows users to search, filter, and navigate through their files.
  */
 
-import React, { useState, useEffect, useCallback } from 'react'
+import type { FileView } from '@cloudillo/core'
+import { getFileUrl, VISIBILITY_ORDER, type Visibility } from '@cloudillo/core'
+import { useApi, useAuth } from '@cloudillo/react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-
 import {
-	LuFolder as IcFolder,
-	LuChevronRight as IcChevronRight,
-	LuHouse as IcHome,
-	LuImage as IcImage,
-	LuVideo as IcVideo,
 	LuMusic as IcAudio,
+	LuCheck as IcCheck,
+	LuChevronRight as IcChevronRight,
+	LuUserCheck as IcConnected,
 	LuFileText as IcDocument,
 	LuFile as IcFile,
-	LuTriangleAlert as IcWarning,
-	LuLock as IcLock,
-	LuCheck as IcCheck,
-	LuX as IcX,
+	LuFolder as IcFolder,
 	LuUserPlus as IcFollowers,
-	LuUserCheck as IcConnected
+	LuHouse as IcHome,
+	LuImage as IcImage,
+	LuLock as IcLock,
+	LuVideo as IcVideo,
+	LuTriangleAlert as IcWarning,
+	LuX as IcX
 } from 'react-icons/lu'
 
-import { useApi, useAuth } from '@cloudillo/react'
 import { useApiContext } from '../../context/index.js'
-import { getFileUrl } from '@cloudillo/core'
-import { VISIBILITY_ORDER, type Visibility } from '@cloudillo/core'
-import type { FileView } from '@cloudillo/core'
-
 import type { MediaPickerResult } from '../../context/media-picker-atom.js'
 import { PickerFilterBar, usePickerBrowse } from '../pickers/index.js'
 

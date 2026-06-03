@@ -1,30 +1,28 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
-
-import {
-	LuTriangleAlert as IcWarning,
-	LuMail as IcMail,
-	LuShieldCheck as IcIdps,
-	LuUsers as IcUsers,
-	LuUser as IcUser,
-	LuUsersRound as IcCommunity,
-	LuAtSign as IcInvitations,
-	LuServer as IcServer,
-	LuHardDrive as IcStorage,
-	LuNetwork as IcProxy,
-	LuUser as IcTenant,
-	LuCheck as IcCheck,
-	LuX as IcError,
-	LuChevronRight as IcArrow,
-	LuSettings as IcSettings
-} from 'react-icons/lu'
-
-import { useAuth, useApi, Button, Card } from '@cloudillo/react'
 import type { TenantView } from '@cloudillo/core'
+import { Button, Card, useApi, useAuth } from '@cloudillo/react'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import {
+	LuChevronRight as IcArrow,
+	LuCheck as IcCheck,
+	LuUsersRound as IcCommunity,
+	LuX as IcError,
+	LuShieldCheck as IcIdps,
+	LuAtSign as IcInvitations,
+	LuMail as IcMail,
+	LuNetwork as IcProxy,
+	LuServer as IcServer,
+	LuSettings as IcSettings,
+	LuHardDrive as IcStorage,
+	LuUser as IcTenant,
+	LuUser as IcUser,
+	LuUsers as IcUsers,
+	LuTriangleAlert as IcWarning
+} from 'react-icons/lu'
+import { useNavigate } from 'react-router-dom'
 
 import { useSettings } from '../settings/settings.js'
 

@@ -1,7 +1,7 @@
+import { Badge } from '@cloudillo/react'
 import * as React from 'react'
 
 import { Story, Variant } from './storybook.js'
-import { Badge } from '@cloudillo/react'
 
 export function BadgeStory() {
 	return (

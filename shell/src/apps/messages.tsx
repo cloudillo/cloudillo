@@ -1,62 +1,60 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { useEditable, type Position } from 'use-editable'
-import dayjs from 'dayjs'
-import { useTranslation } from 'react-i18next'
-import debounce from 'debounce'
-
+import { getFileUrl } from '@cloudillo/core'
 import {
-	LuPlus as IcNew,
+	Avatar,
+	AvatarGroup,
+	Badge,
+	Button,
+	EmptyState,
+	Fcd,
+	generateFragments,
+	IdentityTag,
+	LoadingSpinner,
+	Modal,
+	mergeClasses,
+	ProfileCard,
+	Progress,
+	SkeletonList,
+	Tab,
+	Tabs,
+	Toggle,
+	useApi,
+	useAuth,
+	useDialog
+} from '@cloudillo/react'
+import type { ActionView, NewAction, Profile } from '@cloudillo/types'
+import dayjs from 'dayjs'
+import debounce from 'debounce'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import {
+	LuCheck as IcCheck,
+	LuX as IcClose,
 	LuMessagesSquare as IcConvList,
-	LuImage as IcImage,
-	LuSendHorizontal as IcSend,
-	LuArrowDownToLine as IcScrollBottom,
-	LuUsers as IcGroup,
 	LuUser as IcDirect,
+	LuUsers as IcGroup,
+	LuImage as IcImage,
 	LuInfo as IcInfo,
 	LuUserPlus as IcInvite,
 	LuLogOut as IcLeave,
-	LuSettings as IcSettings,
-	LuX as IcClose,
-	LuCheck as IcCheck
+	LuPlus as IcNew,
+	LuArrowDownToLine as IcScrollBottom,
+	LuSendHorizontal as IcSend,
+	LuSettings as IcSettings
 } from 'react-icons/lu'
-
-import type { Profile, ActionView, NewAction } from '@cloudillo/types'
-import { getFileUrl } from '@cloudillo/core'
-import {
-	useAuth,
-	useApi,
-	Button,
-	Fcd,
-	IdentityTag,
-	ProfileCard,
-	mergeClasses,
-	generateFragments,
-	LoadingSpinner,
-	EmptyState,
-	SkeletonList,
-	Modal,
-	useDialog,
-	Badge,
-	Tabs,
-	Tab,
-	Avatar,
-	AvatarGroup,
-	Progress,
-	Toggle
-} from '@cloudillo/react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { type Position, useEditable } from 'use-editable'
 import '@cloudillo/react/components.css'
 
-import { useAppConfig } from '../utils.js'
-import { handleEditablePaste } from '../utils/editablePaste.js'
-import { ImageUpload } from '../image.js'
-import { useWsBus } from '../ws-bus.js'
-import { useImageUpload } from '../hooks/useImageUpload.js'
 import { AttachmentPreview } from '../components/AttachmentPreview.js'
 import { HOME_CONTEXT, useUrlContextIdTag } from '../context/index.js'
+import { useImageUpload } from '../hooks/useImageUpload.js'
+import { ImageUpload } from '../image.js'
+import { handleEditablePaste } from '../utils/editablePaste.js'
+import { useAppConfig } from '../utils.js'
+import { useWsBus } from '../ws-bus.js'
 
 //////////////////////
 // Action datatypes //

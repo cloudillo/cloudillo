@@ -9,42 +9,43 @@
  * Shape detection is always attempted - confidence thresholds decide.
  */
 
+import { type BezierFitResult, fitBezierPath } from '../utils/bezier-fitting.js'
 import { isClosedPath, type Point } from '../utils/geometry.js'
-import { fitBezierPath, type BezierFitResult } from '../utils/bezier-fitting.js'
+import {
+	type ArrowCandidate,
+	// Arrow
+	detectArrow,
+	// Ellipse
+	detectEllipse,
+	// Line
+	detectLine,
+	// Polygon
+	detectPolygon,
+	// Rectangle
+	detectRectangle,
+	type EllipseCandidate,
+	isConfidentArrow,
+	isConfidentEllipse,
+	isConfidentLine,
+	isConfidentPolygon,
+	isConfidentRectangle,
+	type LineCandidate,
+	type PolygonCandidate,
+	type RectangleCandidate
+} from './shape-detectors/index.js'
 import {
 	analyzeStroke,
 	classifyIntent,
-	type TimedPoint,
+	type DrawingIntent,
 	type StrokeMetrics,
-	type DrawingIntent
+	type TimedPoint
 } from './stroke-analyzer.js'
-import {
-	// Line
-	detectLine,
-	isConfidentLine,
-	type LineCandidate,
-	// Ellipse
-	detectEllipse,
-	isConfidentEllipse,
-	type EllipseCandidate,
-	// Rectangle
-	detectRectangle,
-	isConfidentRectangle,
-	type RectangleCandidate,
-	// Polygon
-	detectPolygon,
-	isConfidentPolygon,
-	type PolygonCandidate,
-	// Arrow
-	detectArrow,
-	isConfidentArrow,
-	type ArrowCandidate
-} from './shape-detectors/index.js'
+
+export * from './morph-animation.js'
+export * from './path-processing/index.js'
+export * from './shape-detectors/index.js'
 // Re-export types and utilities
 export * from './stroke-analyzer.js'
-export * from './shape-detectors/index.js'
-export * from './path-processing/index.js'
-export * from './morph-animation.js'
 
 // Debug configuration - set to true to enable console logging
 const DEBUG_SMART_INK = true

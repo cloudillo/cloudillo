@@ -12,11 +12,11 @@
  * - Switch to select tool automatically
  */
 
+import { getAppBus, type MediaFileResolvedPush } from '@cloudillo/core'
 import * as React from 'react'
 import type * as Y from 'yjs'
-import { getAppBus, type MediaFileResolvedPush } from '@cloudillo/core'
 
-import type { YPrezilloDocument, ObjectId, ImageObject } from '../crdt/index.js'
+import type { ImageObject, ObjectId, YPrezilloDocument } from '../crdt/index.js'
 import { addObject, updateObject } from '../crdt/index.js'
 
 export interface UseImageHandlerOptions {

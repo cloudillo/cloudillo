@@ -4,8 +4,9 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { usePopper } from 'react-popper'
-import { mergeClasses, createComponent } from '../utils.js'
-import { useMergedRefs, useEscapeKey } from '../hooks.js'
+
+import { useEscapeKey, useMergedRefs } from '../hooks.js'
+import { createComponent, mergeClasses } from '../utils.js'
 
 export interface MenuPosition {
 	x: number

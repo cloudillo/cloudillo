@@ -6,14 +6,13 @@
  * Simpler than prezillo - no views/containers, just a flat object list
  */
 
-import * as React from 'react'
-import * as Y from 'yjs'
-import { useY } from 'react-yjs'
 import { useCloudilloEditor } from '@cloudillo/react'
-
+import * as React from 'react'
+import { useY } from 'react-yjs'
 import type { Awareness } from 'y-protocols/awareness'
+import * as Y from 'yjs'
 
-import type { ObjectId, YIdealloDocument, StoredObject } from '../crdt/index.js'
+import type { ObjectId, StoredObject, YIdealloDocument } from '../crdt/index.js'
 import { getOrCreateDocument } from '../crdt/index.js'
 import { str2color } from '../utils/index.js'
 

@@ -1,13 +1,6 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { TFunction } from 'i18next'
-import { useAtom } from 'jotai'
-import * as React from 'react'
-import { useTranslation } from 'react-i18next'
-import { Link, useLocation } from 'react-router-dom'
-import { type Position, useEditable } from 'use-editable'
-
 import type { ApiClient } from '@cloudillo/core'
 import {
 	Badge,
@@ -29,6 +22,10 @@ import {
 } from '@cloudillo/react'
 import type { ActionView, NewAction } from '@cloudillo/types'
 import * as T from '@symbion/runtype'
+import type { TFunction } from 'i18next'
+import { useAtom } from 'jotai'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
 	LuCloud as IcAll,
 	LuCamera as IcCamera,
@@ -46,6 +43,8 @@ import {
 	LuTag as IcTag,
 	LuVideo as IcVideo
 } from 'react-icons/lu'
+import { Link, useLocation } from 'react-router-dom'
+import { type Position, useEditable } from 'use-editable'
 import '@cloudillo/react/components.css'
 import './feed.css'
 
@@ -59,9 +58,10 @@ import {
 	useProfileTrust,
 	useUrlContextIdTag
 } from '../context/index.js'
-import { useWsBus } from '../ws-bus.js'
 import { handleEditablePaste } from '../utils/editablePaste.js'
+import { useWsBus } from '../ws-bus.js'
 import {
+	type AudienceTarget,
 	CommentBadge,
 	ComposePanel,
 	DraftsPanel,
@@ -71,14 +71,13 @@ import {
 	PostMenu,
 	parseReactionCounts,
 	ReactionPicker,
-	type AudienceTarget,
 	totalReactions,
 	updateReactionCounts,
 	useFeedPosts
 } from './feed/index.js'
 import { Document, hasPlayableVariant, Images, renderPostContent, Video } from './feed/PostMedia.js'
-import { getVisibilityMeta } from './feed/VisibilitySelector.js'
 import { pendingQuoteAtom } from './feed/quote-intent.js'
+import { getVisibilityMeta } from './feed/VisibilitySelector.js'
 
 //////////////////////
 // Action datatypes //

@@ -6,42 +6,41 @@
  * Handles pan/zoom and pointer events
  */
 
-import * as React from 'react'
 import {
-	SvgCanvas,
-	useSvgCanvas,
-	SelectionBox,
-	usePivotDrag,
-	type ToolEvent,
-	type SvgCanvasHandle,
-	type SvgCanvasContext,
+	PivotHandle,
+	type PivotHandleProps,
+	RotationHandle,
+	type RotationHandleProps
+} from '@cloudillo/canvas-tools'
+import type Quill from 'quill'
+import * as React from 'react'
+import type { RotationState } from 'react-svg-canvas'
+import {
+	type Point,
 	type ResizeHandle,
-	type Point
+	SelectionBox,
+	SvgCanvas,
+	type SvgCanvasContext,
+	type SvgCanvasHandle,
+	type ToolEvent,
+	usePivotDrag,
+	useSvgCanvas
 } from 'react-svg-canvas'
 
-import type { StoredObject, Bounds, ObjectId, YIdealloDocument } from '../crdt/index.js'
+import type { Bounds, ObjectId, StoredObject, YIdealloDocument } from '../crdt/index.js'
 import { expandObject, toObjectId } from '../crdt/index.js'
 import type {
-	IdealloPresence,
 	ActiveStroke as ActiveStrokeType,
-	DragOffset
+	DragOffset,
+	IdealloPresence
 } from '../hooks/index.js'
 import type {
 	ShapePreview as ShapePreviewType,
-	TextInputState,
 	StickyInputState,
 	TextEditState,
+	TextInputState,
 	ToolType
 } from '../tools/index.js'
-
-import type Quill from 'quill'
-import {
-	RotationHandle,
-	PivotHandle,
-	type RotationHandleProps,
-	type PivotHandleProps
-} from '@cloudillo/canvas-tools'
-import type { RotationState } from 'react-svg-canvas'
 
 /**
  * Wrapper component for RotationHandle that uses the fixed layer transform
@@ -149,17 +148,17 @@ function FixedPivotHandle(
 	)
 }
 
-import { ObjectRenderer } from './ObjectRenderer.js'
+import type { MorphAnimationState } from '../smart-ink/index.js'
+import { pointsToSmoothPath } from '../utils/index.js'
 import { ActiveStroke } from './ActiveStroke.js'
-import { GhostStrokes } from './GhostStrokes.js'
-import { GhostShapes } from './GhostShapes.js'
-import { GhostEditing } from './GhostEditing.js'
 import { Cursors } from './Cursors.js'
+import { GhostEditing } from './GhostEditing.js'
+import { GhostShapes } from './GhostShapes.js'
+import { GhostStrokes } from './GhostStrokes.js'
+import { ObjectRenderer } from './ObjectRenderer.js'
 import { ShapePreview } from './ShapePreview.js'
 import { TextInput } from './TextInput.js'
 import { UndoHint } from './UndoHint.js'
-import type { MorphAnimationState } from '../smart-ink/index.js'
-import { pointsToSmoothPath } from '../utils/index.js'
 
 export interface CanvasProps {
 	doc: YIdealloDocument

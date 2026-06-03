@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { Block } from '@blocknote/core'
+
 import {
-	type BlockRecord,
-	TABLE_TYPES,
-	MEDIA_TYPES,
-	isTableContent,
+	asBlockContent,
 	asBlockType,
-	asBlockContent
+	type BlockRecord,
+	isTableContent,
+	MEDIA_TYPES,
+	TABLE_TYPES
 } from './types.js'
 
 export function reconstructBlocks(records: Map<string, BlockRecord & { id: string }>): Block[] {

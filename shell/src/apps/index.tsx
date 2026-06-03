@@ -1,40 +1,39 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { Routes, Route, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { useSetAtom } from 'jotai'
-import { useTranslation } from 'react-i18next'
-import { useAuth, useApi, useDialog, useToast, mergeClasses } from '@cloudillo/react'
 import type { ApiClient, FileView } from '@cloudillo/core'
+import { mergeClasses, useApi, useAuth, useDialog, useToast } from '@cloudillo/react'
+import { useSetAtom } from 'jotai'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import { Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { version } from '../../package.json'
-
-import { useAppConfig, type TrustLevel } from '../utils.js'
-import { getShellBus } from '../message-bus/shell-bus.js'
 import {
-	onAppReady,
-	onAppError,
-	onAppTitle,
-	offAppTitle,
-	getAccessSuffix
-} from '../message-bus/index.js'
-import { releaseClientIdsForWindow } from '../message-bus/handlers/crdt.js'
-import {
+	fileViewUpdateAtom,
 	useApiContext,
 	useContextFromRoute,
-	useGuestDocument,
-	fileViewUpdateAtom
+	useGuestDocument
 } from '../context/index.js'
+import { releaseClientIdsForWindow } from '../message-bus/handlers/crdt.js'
+import {
+	getAccessSuffix,
+	offAppTitle,
+	onAppError,
+	onAppReady,
+	onAppTitle
+} from '../message-bus/index.js'
+import { getShellBus } from '../message-bus/shell-bus.js'
 import { documentTitleAtom } from '../title.js'
+import { type TrustLevel, useAppConfig } from '../utils.js'
+import { AppLoadingIndicator, type LoadingStage } from './AppLoadingIndicator.js'
+import { CalendarApp } from './calendar/index.js'
+import { ContactsApp } from './contacts/index.js'
 import { FeedApp } from './feed.js'
 import { FilesApp } from './files.js'
 import { GalleryApp } from './gallery.js'
 import { MessagesApp } from './messages.js'
-import { ContactsApp } from './contacts/index.js'
-import { CalendarApp } from './calendar/index.js'
 import { FileViewerApp } from './viewer/index.js'
-import { AppLoadingIndicator, type LoadingStage } from './AppLoadingIndicator.js'
 
 async function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(() => resolve(), ms))

@@ -9,11 +9,11 @@
 import * as React from 'react'
 import { useY } from 'react-yjs'
 
-import type { ViewId, YPrezilloDocument, PrezilloObject, ObjectId, StoredObject } from '../crdt'
+import type { ObjectId, PrezilloObject, StoredObject, ViewId, YPrezilloDocument } from '../crdt'
 import {
-	getObjectsInViewInZOrder,
-	getObjectIdsInView,
 	getAbsolutePositionStored,
+	getObjectIdsInView,
+	getObjectsInViewInZOrder,
 	resolveObject
 } from '../crdt'
 

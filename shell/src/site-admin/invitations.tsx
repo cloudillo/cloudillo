@@ -21,7 +21,6 @@ import type { Profile } from '@cloudillo/types'
 import dayjs from 'dayjs'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
 import {
 	LuPlus as IcAdd,
 	LuCheck as IcAvailable,

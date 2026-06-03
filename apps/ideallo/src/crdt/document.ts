@@ -6,7 +6,8 @@
  */
 
 import type * as Y from 'yjs'
-import type { YIdealloDocument, StoredObject, StoredMeta } from './stored-types.js'
+
+import type { StoredMeta, StoredObject, YIdealloDocument } from './stored-types.js'
 
 /**
  * Get or create the document structure from a Y.Doc

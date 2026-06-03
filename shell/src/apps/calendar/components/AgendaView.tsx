@@ -1,14 +1,13 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { CalendarOutput } from '@cloudillo/core'
+import { LoadingSpinner, mergeClasses } from '@cloudillo/react'
 import dayjs from 'dayjs'
-import * as React from 'react'
 import { useAtom } from 'jotai'
+import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuMapPin as IcPin, LuRepeat as IcRecur } from 'react-icons/lu'
-
-import { LoadingSpinner, mergeClasses } from '@cloudillo/react'
-import type { CalendarOutput } from '@cloudillo/core'
 
 import { selectedObjectAtom } from '../atoms.js'
 import type { EventOccurrence } from '../types.js'

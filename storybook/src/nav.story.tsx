@@ -1,12 +1,13 @@
-import * as React from 'react'
-import { Story, Variant } from './storybook.js'
 import { Nav, NavGroup, NavItem, NavLink } from '@cloudillo/react'
+import * as React from 'react'
 import {
+	LuFolder as IcFolder,
 	LuHouse as IcHome,
 	LuSettings as IcSettings,
-	LuUser as IcUser,
-	LuFolder as IcFolder
+	LuUser as IcUser
 } from 'react-icons/lu'
+
+import { Story, Variant } from './storybook.js'
 
 export function NavStory() {
 	const [activeItem, setActiveItem] = React.useState('home')

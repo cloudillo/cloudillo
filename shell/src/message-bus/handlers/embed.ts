@@ -9,9 +9,10 @@
  * returns embed URLs with nonces for token isolation.
  */
 
-import type { ShellMessageBus } from '../shell-bus.js'
 import { createApiClient, type EmbedOpenReq } from '@cloudillo/core'
+
 import { getAccessSuffix } from '../app-tracker.js'
+import type { ShellMessageBus } from '../shell-bus.js'
 
 const MAX_EMBED_DEPTH = 3
 

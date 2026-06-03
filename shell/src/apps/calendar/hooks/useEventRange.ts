@@ -7,6 +7,7 @@ import dayjs from 'dayjs'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { type RRule, rrulestr } from 'rrule'
+
 import { useContextAwareApi } from '../../../context/index.js'
 import type { CalendarView, EventOccurrence } from '../types.js'
 import { pickContrastText, toRfc5545Utc } from '../utils.js'

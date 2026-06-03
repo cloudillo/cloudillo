@@ -9,8 +9,8 @@
  * persisted immediately as a separate log entry, with periodic compaction.
  */
 
-import * as Y from 'yjs'
 import type { AppMessageBus } from '@cloudillo/core'
+import * as Y from 'yjs'
 
 const COMPACT_THRESHOLD = 300
 

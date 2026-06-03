@@ -5,28 +5,27 @@
  * Main hook for Prezillo document state
  */
 
-import * as React from 'react'
-import * as Y from 'yjs'
-import { useY } from 'react-yjs'
-import { useCloudilloEditor } from '@cloudillo/react'
 import { getAppBus } from '@cloudillo/core'
-
+import { useCloudilloEditor } from '@cloudillo/react'
+import * as React from 'react'
+import { useY } from 'react-yjs'
 import type { Awareness } from 'y-protocols/awareness'
+import * as Y from 'yjs'
 
-import type { ObjectId, ContainerId, ViewId, TemplateId, YPrezilloDocument } from '../crdt'
-import { getOrCreateDocument, toViewId, getTemplateIdForPrototype } from '../crdt'
-import type { PrezilloPresence, PresenterInfo } from '../awareness'
+import type { PresenterInfo, PrezilloPresence } from '../awareness'
 import {
-	getRemotePresenceStates,
-	str2color,
-	setPresenting,
+	clearFollowing,
 	clearPresenting,
-	updatePresentingView,
 	getActivePresenters,
+	getRemotePresenceStates,
 	isLocalPresenting,
 	setFollowing,
-	clearFollowing
+	setPresenting,
+	str2color,
+	updatePresentingView
 } from '../awareness'
+import type { ContainerId, ObjectId, TemplateId, ViewId, YPrezilloDocument } from '../crdt'
+import { getOrCreateDocument, getTemplateIdForPrototype, toViewId } from '../crdt'
 
 export interface UsePrezilloDocumentResult {
 	// Cloudillo context

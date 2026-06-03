@@ -1,16 +1,17 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { Link } from 'react-router-dom'
-import { LuUser as IcPerson, LuUsers as IcCommunity } from 'react-icons/lu'
-import type { Profile } from '@cloudillo/types'
 import { getFileUrl } from '@cloudillo/core'
+import type { Profile } from '@cloudillo/types'
+import * as React from 'react'
+import { LuUsers as IcCommunity, LuUser as IcPerson } from 'react-icons/lu'
+import { Link } from 'react-router-dom'
+
 import { useAuth } from '../../hooks.js'
 import { useLibTranslation } from '../../i18n.js'
 import { mergeClasses } from '../utils.js'
-import { UnknownProfilePicture } from './UnknownProfilePicture.js'
 import { IdentityTag } from './IdentityTag.js'
+import { UnknownProfilePicture } from './UnknownProfilePicture.js'
 
 export interface ProfileAudienceCardProps {
 	className?: string

@@ -5,8 +5,8 @@
  * Shared view object query for export (used by PDF and PPTX export)
  */
 
-import type { YPrezilloDocument, ViewNode, PrezilloObject } from '../crdt'
-import { getObjectsInViewInZOrder, toViewId, getAbsolutePositionStored } from '../crdt'
+import type { PrezilloObject, ViewNode, YPrezilloDocument } from '../crdt'
+import { getAbsolutePositionStored, getObjectsInViewInZOrder, toViewId } from '../crdt'
 
 /**
  * Get objects for a specific view/slide using the correct CRDT query

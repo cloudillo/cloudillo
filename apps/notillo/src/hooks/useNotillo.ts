@@ -1,12 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { useState, useEffect } from 'react'
+import { getAppBus, getWsUrl } from '@cloudillo/core'
+import { RtdbClient } from '@cloudillo/rtdb'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router-dom'
-
-import { RtdbClient } from '@cloudillo/rtdb'
-import { getAppBus, getWsUrl } from '@cloudillo/core'
 
 const APP_NAME = 'notillo'
 

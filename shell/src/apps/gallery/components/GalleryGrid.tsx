@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-
-import { RowsPhotoAlbum, MasonryPhotoAlbum } from 'react-photo-album'
+import { MasonryPhotoAlbum, RowsPhotoAlbum } from 'react-photo-album'
 import 'react-photo-album/rows.css'
 import 'react-photo-album/masonry.css'
 

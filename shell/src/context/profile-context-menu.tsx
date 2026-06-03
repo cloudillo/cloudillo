@@ -1,38 +1,36 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
-import type { TFunction } from 'i18next'
-
 import {
-	LuExternalLink as IcVisitProfile,
-	LuAtSign as IcCopyTag,
-	LuPin as IcPin,
-	LuPinOff as IcPinOff,
-	LuRotateCcw as IcRestore,
-	LuCircleOff as IcBlock,
-	LuBellOff as IcMute
-} from 'react-icons/lu'
-
-import type { ProfileStatus } from '@cloudillo/types'
-import {
-	Menu,
-	MenuItem,
-	MenuDivider,
 	ActionSheet,
-	ActionSheetItem,
 	ActionSheetDivider,
+	ActionSheetItem,
+	Menu,
+	MenuDivider,
+	MenuItem,
 	useApi,
 	useAuth,
 	useIsMobile,
 	useToast
 } from '@cloudillo/react'
+import type { ProfileStatus } from '@cloudillo/types'
+import type { TFunction } from 'i18next'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import {
+	LuCircleOff as IcBlock,
+	LuAtSign as IcCopyTag,
+	LuBellOff as IcMute,
+	LuPin as IcPin,
+	LuPinOff as IcPinOff,
+	LuRotateCcw as IcRestore,
+	LuExternalLink as IcVisitProfile
+} from 'react-icons/lu'
+import { useNavigate } from 'react-router-dom'
 
+import { HOME_CONTEXT } from './constants'
 import { useCommunitiesList } from './hooks'
 import { useUrlContextIdTag } from './use-context-from-route'
-import { HOME_CONTEXT } from './constants'
 
 export interface ProfileMenuTarget {
 	idTag: string

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+
 import type { File, FileOps } from '../types.js'
 
 export interface UseKeyboardShortcutsOptions {

@@ -5,11 +5,11 @@
  * TableGridSection - Properties panel section for table grid configuration
  */
 
+import { NumberInput, PropertyField, PropertySection } from '@cloudillo/react'
 import * as React from 'react'
 import type * as Y from 'yjs'
-import { PropertySection, PropertyField, NumberInput } from '@cloudillo/react'
 
-import type { YPrezilloDocument, TableGridObject, ObjectId } from '../../crdt'
+import type { ObjectId, TableGridObject, YPrezilloDocument } from '../../crdt'
 import { updateObject } from '../../crdt'
 
 export interface TableGridSectionProps {

@@ -9,8 +9,9 @@
  * their own `app.<appName>.*` prefix.
  */
 
+import type { SettingsGetReq, SettingsListReq, SettingsSetReq } from '@cloudillo/core'
+
 import type { ShellMessageBus } from '../shell-bus.js'
-import type { SettingsGetReq, SettingsSetReq, SettingsListReq } from '@cloudillo/core'
 
 /**
  * Validate and scope a key for the given app.

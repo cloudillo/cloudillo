@@ -1,20 +1,19 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { CalendarOutput } from '@cloudillo/core'
+import { Menu, MenuItem, mergeClasses, useDialog } from '@cloudillo/react'
 import dayjs, { type Dayjs } from 'dayjs'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-	LuPencil as IcEdit,
-	LuTrash as IcDelete,
 	LuPlus as IcAdd,
+	LuTrash as IcDelete,
+	LuPencil as IcEdit,
 	LuEllipsisVertical as IcMore,
-	LuChevronLeft as IcPrev,
-	LuChevronRight as IcNext
+	LuChevronRight as IcNext,
+	LuChevronLeft as IcPrev
 } from 'react-icons/lu'
-
-import { Menu, MenuItem, useDialog, mergeClasses } from '@cloudillo/react'
-import type { CalendarOutput } from '@cloudillo/core'
 
 export interface CalendarSidebarProps {
 	calendars: CalendarOutput[]

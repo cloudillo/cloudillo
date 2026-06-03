@@ -6,6 +6,7 @@
  */
 
 import * as React from 'react'
+
 import type { TextInputState } from '../tools/index.js'
 
 export interface TextInputProps {

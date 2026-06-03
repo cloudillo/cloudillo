@@ -9,25 +9,25 @@
  */
 
 import * as React from 'react'
-import type * as Y from 'yjs'
-import { useY } from 'react-yjs'
 import {
 	PiPlusBold as IcAdd,
-	PiPencilBold as IcEdit,
-	PiCopyBold as IcDuplicate,
 	PiTrashBold as IcDelete,
-	PiFileBold as IcTemplate,
-	PiDotsThreeVerticalBold as IcMenu
+	PiCopyBold as IcDuplicate,
+	PiPencilBold as IcEdit,
+	PiDotsThreeVerticalBold as IcMenu,
+	PiFileBold as IcTemplate
 } from 'react-icons/pi'
+import { useY } from 'react-yjs'
+import type * as Y from 'yjs'
 
-import type { YPrezilloDocument, TemplateId, Template } from '../crdt'
+import type { Template, TemplateId, YPrezilloDocument } from '../crdt'
 import {
-	getAllTemplates,
 	createTemplate,
 	deleteTemplate,
 	duplicateTemplate,
-	getViewsUsingTemplate,
-	getTemplatePrototypeObjects
+	getAllTemplates,
+	getTemplatePrototypeObjects,
+	getViewsUsingTemplate
 } from '../crdt'
 import { mergeClasses } from '../utils'
 

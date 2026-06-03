@@ -14,20 +14,21 @@
  * - Apps communicate via the message bus (they run in opaque-origin iframes)
  */
 
-import type { ShellMessageBus } from '../shell-bus.js'
 import type {
-	CrdtClientIdReq,
 	CrdtCacheAppendReq,
+	CrdtCacheCompactReq,
 	CrdtCacheReadReq,
-	CrdtCacheCompactReq
+	CrdtClientIdReq
 } from '@cloudillo/core'
+
 import {
-	encryptBinary,
 	decryptBinary,
+	encryptBinary,
 	getSwKeyFromCookie,
 	maybeSignalKeyMissing
 } from '../../cache/crypto.js'
 import { hadEncryptedData } from '../../pwa.js'
+import type { ShellMessageBus } from '../shell-bus.js'
 
 // ============================================
 // CONSTANTS

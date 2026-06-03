@@ -10,31 +10,27 @@
  * - Internal shell components via useMediaPicker hook
  */
 
-import React from 'react'
-import { useState, useEffect, useCallback } from 'react'
+import { Button, useBodyScrollLock, useEscapeKey } from '@cloudillo/react'
 import { useAtom, useSetAtom } from 'jotai'
-import { useTranslation } from 'react-i18next'
+import React, { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-
+import { useTranslation } from 'react-i18next'
 import {
-	LuX as IcClose,
-	LuImage as IcImage,
-	LuVideo as IcVideo,
 	LuMusic as IcAudio,
+	LuX as IcClose,
 	LuFileText as IcDocument,
-	LuFiles as IcFiles
+	LuFiles as IcFiles,
+	LuImage as IcImage,
+	LuVideo as IcVideo
 } from 'react-icons/lu'
 
-import { Button, useEscapeKey, useBodyScrollLock } from '@cloudillo/react'
-
 import {
-	mediaPickerAtom,
-	openMediaPickerAtom,
 	closeMediaPickerAtom,
-	type MediaPickerResult
+	type MediaPickerResult,
+	mediaPickerAtom,
+	openMediaPickerAtom
 } from '../../context/media-picker-atom.js'
 import { setMediaPickerCallback } from '../../message-bus/handlers/media.js'
-
 import { MediaPickerBrowseTab } from './MediaPickerBrowseTab.js'
 import { MediaPickerUploadTab } from './MediaPickerUploadTab.js'
 

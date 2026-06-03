@@ -10,7 +10,8 @@
 
 import * as React from 'react'
 import { useY } from 'react-yjs'
-import type { YPrezilloDocument, ViewId, SnapGuide } from '../crdt'
+
+import type { SnapGuide, ViewId, YPrezilloDocument } from '../crdt'
 import { getViewSnapGuides, getViewTemplate } from '../crdt'
 
 export interface UseTemplateGuidesResult {

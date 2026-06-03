@@ -6,21 +6,21 @@
  * Appears above selection with stroke/fill color and width controls
  */
 
-import * as React from 'react'
-import type * as Y from 'yjs'
-import type Quill from 'quill'
 import { NumberInput } from '@cloudillo/react'
+import type Quill from 'quill'
+import * as React from 'react'
 import {
 	PiTextBBold as IcBold,
 	PiTextItalicBold as IcItalic,
 	PiListBulletsBold as IcListBullets,
 	PiListNumbersBold as IcListNumbers
 } from 'react-icons/pi'
+import type * as Y from 'yjs'
 
-import type { ObjectId, YIdealloDocument, Bounds, Style, IdealloObject } from '../crdt/index.js'
+import type { Bounds, IdealloObject, ObjectId, Style, YIdealloDocument } from '../crdt/index.js'
 import { getObject, updateObject } from '../crdt/index.js'
-import { ColorPalette } from './ColorPalette.js'
 import { colorToCss } from '../utils/palette.js'
+import { ColorPalette } from './ColorPalette.js'
 
 export interface PropertyBarProps {
 	yDoc: Y.Doc

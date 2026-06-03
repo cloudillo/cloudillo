@@ -1,27 +1,26 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { TagInfo } from '@cloudillo/core'
+import { Button, mergeClasses, Popper, useAuth, useDialog } from '@cloudillo/react'
 import * as React from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-
 import { FiSearch as IcSearch } from 'react-icons/fi'
 import {
-	LuFilePlus2 as IcNewFile,
 	LuFolderOpen as IcBrowse,
+	LuX as IcClear,
 	LuStar as IcFavorites,
-	LuClock as IcRecent,
-	LuTrash2 as IcTrash,
 	LuShieldCheck as IcManaged,
+	LuFilePlus2 as IcNewFile,
+	LuClock as IcRecent,
 	LuTag as IcTag,
-	LuX as IcClear
+	LuTrash2 as IcTrash
 } from 'react-icons/lu'
+import { useNavigate } from 'react-router-dom'
 
-import { useAuth, useDialog, Button, Popper, mergeClasses } from '@cloudillo/react'
-import type { TagInfo } from '@cloudillo/core'
 import { useContextAwareApi } from '../../../context/index.js'
 import { fileIcons, type IcUnknown } from '../icons.js'
-import type { ViewMode, FileTypeFilter, OwnerFilter } from '../types.js'
+import type { FileTypeFilter, OwnerFilter, ViewMode } from '../types.js'
 
 interface SidebarProps {
 	className?: string

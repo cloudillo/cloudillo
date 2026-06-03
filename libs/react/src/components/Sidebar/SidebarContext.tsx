@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+
 import type { UseSidebarReturn } from './useSidebar.js'
 
 export interface SidebarContextValue extends Partial<UseSidebarReturn> {

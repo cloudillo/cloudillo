@@ -1,35 +1,35 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import {
+	ActionSheet,
+	ActionSheetItem,
+	Button,
+	LoadingSpinner,
+	Menu,
+	MenuItem,
+	TreeItem,
+	type TreeItemDragData,
+	TreeView,
+	useDialog
+} from '@cloudillo/react'
+import type { RtdbClient } from '@cloudillo/rtdb'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-	PiPlusBold as IcPlus,
 	PiFilePlusBold as IcAddSubpage,
-	PiTrashBold as IcDelete,
-	PiFileBold as IcPage,
 	PiXBold as IcClose,
-	PiPushPinBold as IcPin,
+	PiTrashBold as IcDelete,
 	PiDotsThreeVerticalBold as IcMore,
+	PiFileBold as IcPage,
+	PiPushPinBold as IcPin,
+	PiPlusBold as IcPlus,
 	PiMagnifyingGlassBold as IcSearch
 } from 'react-icons/pi'
 
-import {
-	useDialog,
-	Button,
-	TreeView,
-	TreeItem,
-	Menu,
-	MenuItem,
-	ActionSheet,
-	ActionSheetItem,
-	LoadingSpinner,
-	type TreeItemDragData
-} from '@cloudillo/react'
-import type { RtdbClient } from '@cloudillo/rtdb'
-import type { PageRecord } from '../rtdb/types.js'
-import { createPage, deletePage, movePage, isAncestor, pinToSidebar } from '../rtdb/page-ops.js'
 import { checkConsistency, fixConsistency } from '../rtdb/consistency.js'
+import { createPage, deletePage, isAncestor, movePage, pinToSidebar } from '../rtdb/page-ops.js'
+import type { PageRecord } from '../rtdb/types.js'
 
 interface PageSidebarProps {
 	client: RtdbClient

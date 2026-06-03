@@ -1,27 +1,27 @@
-import * as React from 'react'
-
-import { Story, Variant } from './storybook.js'
 import {
-	useToast,
-	useToasts,
-	ToastContainer,
-	Toast,
-	ToastIcon,
-	ToastContent,
-	ToastTitle,
-	ToastMessage,
-	ToastClose,
-	ToastProgress,
 	Button,
 	HBox,
+	Toast,
+	ToastClose,
+	ToastContainer,
+	ToastContent,
+	ToastIcon,
+	ToastMessage,
+	ToastProgress,
+	ToastTitle,
+	useToast,
+	useToasts,
 	VBox
 } from '@cloudillo/react'
+import * as React from 'react'
 import {
-	LuCircleCheck as IcSuccess,
 	LuCircleX as IcError,
-	LuTriangleAlert as IcWarning,
-	LuInfo as IcInfo
+	LuInfo as IcInfo,
+	LuCircleCheck as IcSuccess,
+	LuTriangleAlert as IcWarning
 } from 'react-icons/lu'
+
+import { Story, Variant } from './storybook.js'
 
 function ToastDemo() {
 	const toast = useToast()

@@ -10,8 +10,9 @@
  * - doc:pick.result - Shell pushes result when user completes/cancels
  */
 
-import type { ShellMessageBus } from '../shell-bus.js'
 import type { DocPickReq } from '@cloudillo/core'
+
+import type { ShellMessageBus } from '../shell-bus.js'
 
 /**
  * Document picker options passed to the component

@@ -7,22 +7,23 @@
  */
 
 import * as Y from 'yjs'
-import type { YIdealloDocument, StoredDocument, StoredObject } from './stored-types.js'
+
 import type { ObjectId } from './ids.js'
 import { generateObjectId } from './ids.js'
 import type {
-	IdealloObject,
-	FreehandObject,
-	PolygonObject,
-	TextObject,
-	StickyObject,
-	ImageObject,
+	ArrowObject,
 	DocumentObject,
-	RectObject,
 	EllipseObject,
+	FreehandObject,
+	IdealloObject,
+	ImageObject,
 	LineObject,
-	ArrowObject
+	PolygonObject,
+	RectObject,
+	StickyObject,
+	TextObject
 } from './runtime-types.js'
+import type { StoredDocument, StoredObject, YIdealloDocument } from './stored-types.js'
 import { compactObject, expandObject } from './type-converters.js'
 
 /**

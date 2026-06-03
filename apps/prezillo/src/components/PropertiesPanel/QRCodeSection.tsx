@@ -5,23 +5,23 @@
  * QR Code property editor section
  */
 
+import { ColorInput, Input, NativeSelect, PropertyField, PropertySection } from '@cloudillo/react'
 import * as React from 'react'
 import type * as Y from 'yjs'
-import { PropertySection, PropertyField, Input, ColorInput, NativeSelect } from '@cloudillo/react'
 
 import type {
-	YPrezilloDocument,
-	PrezilloObject,
 	ObjectId,
+	PrezilloObject,
 	QrCodeObject,
-	QrErrorCorrection
+	QrErrorCorrection,
+	YPrezilloDocument
 } from '../../crdt'
 import {
-	updateObject,
 	isInstance,
 	isPropertyGroupLocked,
+	resetPropertyGroup,
 	unlockPropertyGroup,
-	resetPropertyGroup
+	updateObject
 } from '../../crdt'
 import { PropertyGroupHeader } from './PropertyGroupHeader'
 

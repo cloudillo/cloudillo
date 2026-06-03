@@ -1,35 +1,33 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
-import { useAtom } from 'jotai'
+import type * as Types from '@cloudillo/core'
+import { Button, ProfileCard, TimeFormat, useApi, useAuth } from '@cloudillo/react'
+import type { ActionView } from '@cloudillo/types'
 import debounce from 'debounce'
-
+import { useAtom } from 'jotai'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
+	LuUsers as IcCommunity,
 	LuPlus as IcCreate,
 	LuChevronsLeft as IcGoBack,
-	LuUsers as IcCommunity,
-	LuArrowRight as IcUseInvite,
-	LuInfo as IcInfo
+	LuInfo as IcInfo,
+	LuArrowRight as IcUseInvite
 } from 'react-icons/lu'
-
-import type { ActionView } from '@cloudillo/types'
-import { useAuth, useApi, Button, ProfileCard, TimeFormat } from '@cloudillo/react'
-import type * as Types from '@cloudillo/core'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { contextOnboardingAtom, useCommunitiesList, useContextSwitch } from '../context/index.js'
 import { CloudilloLogo } from '../logo.js'
 import {
-	ProviderSelectionStep,
-	ProviderSelectorStep,
-	IdTagInput,
-	IdTagErrorPanel,
-	AppDomainInput,
 	AppDomainErrorPanel,
+	AppDomainInput,
 	DnsInstructions,
-	type IdTagError
+	type IdTagError,
+	IdTagErrorPanel,
+	IdTagInput,
+	ProviderSelectionStep,
+	ProviderSelectorStep
 } from './shared.js'
 
 // Extended local type that includes 'network' error (not returned by API, but used for local error handling)

@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { mergeClasses, createComponent } from '../utils.js'
-import { LoadingSpinner } from '../Loading/index.js'
+
 import { Button } from '../Button/index.js'
+import { LoadingSpinner } from '../Loading/index.js'
+import { createComponent, mergeClasses } from '../utils.js'
 
 export interface LoadMoreTriggerProps extends React.HTMLAttributes<HTMLDivElement> {
 	/** Whether more items are being loaded */

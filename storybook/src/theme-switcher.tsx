@@ -1,5 +1,5 @@
-import * as React from 'react'
 import { Button } from '@cloudillo/react'
+import * as React from 'react'
 
 export function ThemeSwitcher() {
 	const [theme, setTheme] = React.useState(

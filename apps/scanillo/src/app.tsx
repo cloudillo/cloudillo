@@ -1,58 +1,58 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useLocation } from 'react-router-dom'
 import {
-	PiCameraBold as IcCamera,
-	PiImageBold as IcImage,
-	PiTrashBold as IcDelete,
-	PiArrowLeftBold as IcBack,
-	PiScanBold as IcScan,
-	PiCropBold as IcCrop,
-	PiFunnelBold as IcFilter,
-	PiPencilSimpleBold as IcPen,
-	PiRectangleBold as IcRect,
-	PiArrowCounterClockwiseBold as IcUndo,
-	PiEraserBold as IcEraser,
-	PiFilePdfBold as IcPdf
-} from 'react-icons/pi'
-
-import { RtdbClient } from '@cloudillo/rtdb'
-import {
+	createApiClient,
 	getAppBus,
 	getFileUrl,
 	getWsUrl,
-	createApiClient,
 	type MediaFileResolvedPush
 } from '@cloudillo/core'
-import { Panel, Dialog, ZoomableImage, LoadingSpinner } from '@cloudillo/react'
+import { Dialog, LoadingSpinner, Panel, ZoomableImage } from '@cloudillo/react'
+import { RtdbClient } from '@cloudillo/rtdb'
+import * as React from 'react'
+import {
+	PiArrowLeftBold as IcBack,
+	PiCameraBold as IcCamera,
+	PiCropBold as IcCrop,
+	PiTrashBold as IcDelete,
+	PiEraserBold as IcEraser,
+	PiFunnelBold as IcFilter,
+	PiImageBold as IcImage,
+	PiFilePdfBold as IcPdf,
+	PiPencilSimpleBold as IcPen,
+	PiRectangleBold as IcRect,
+	PiScanBold as IcScan,
+	PiArrowCounterClockwiseBold as IcUndo
+} from 'react-icons/pi'
+import { useLocation } from 'react-router-dom'
+
 import { FAB } from './components/FAB.js'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
 import './style.css'
 
+import { AnnotationOverlay } from './components/AnnotationOverlay.js'
+import { CropEditor } from './components/CropEditor.js'
+import { FilterSelect } from './components/FilterSelect.js'
 import type { MarginOption } from './export/pdf-export.js'
 import type {
-	ScanPage,
+	Annotation,
+	AnnotationTool,
 	CaptureFlowState,
 	CropPoints,
 	PageFilter,
-	Annotation,
-	AnnotationTool
+	ScanPage
 } from './types.js'
 import { FILTER_DEFAULTS } from './types.js'
-import { CropEditor } from './components/CropEditor.js'
-import { FilterSelect } from './components/FilterSelect.js'
-import { AnnotationOverlay } from './components/AnnotationOverlay.js'
 import {
-	canvasToBlob,
-	base64ToBlob,
 	applyFilter,
-	rotateCanvas,
+	base64ToBlob,
 	blendWithOriginal,
-	extractPerspective
+	canvasToBlob,
+	extractPerspective,
+	rotateCanvas
 } from './utils/image-processing.js'
 
 const APP_NAME = 'scanillo'

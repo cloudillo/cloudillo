@@ -1,13 +1,13 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Popper } from '@cloudillo/react'
+import { useAtomValue, useSetAtom, useStore } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAtomValue, useSetAtom, useStore } from 'jotai'
 import { LuHand as IcHand, LuX as IcX } from 'react-icons/lu'
-import { Popper } from '@cloudillo/react'
 
-import { handAtom, drop, empty, forget, pickUpAgain } from '../state/hand.js'
+import { drop, empty, forget, handAtom, pickUpAgain } from '../state/hand.js'
 import { handTargetElAtom } from '../state/hand-fly.js'
 
 export function HandChip() {

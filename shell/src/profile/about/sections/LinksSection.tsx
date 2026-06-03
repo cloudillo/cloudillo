@@ -1,33 +1,31 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, mergeClasses, Popper } from '@cloudillo/react'
+import type { LinkEntry, LinkIcon } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
 import {
-	LuGlobe as IcGlobe,
-	LuMail as IcMail,
-	LuPhone as IcPhone,
-	LuMapPin as IcMapPin,
-	LuCode as IcCode,
-	LuVideo as IcVideo,
-	LuMusic as IcMusic,
 	LuBookOpen as IcBook,
 	LuBriefcase as IcBriefcase,
-	LuHeart as IcHeart,
-	LuStar as IcStar,
-	LuMessageCircle as IcMessage,
-	LuRss as IcRss,
+	LuCode as IcCode,
 	LuFile as IcFile,
+	LuGlobe as IcGlobe,
+	LuHeart as IcHeart,
+	LuMail as IcMail,
+	LuMapPin as IcMapPin,
+	LuMessageCircle as IcMessage,
+	LuMusic as IcMusic,
+	LuPhone as IcPhone,
 	LuPlus as IcPlus,
-	LuX as IcRemove
+	LuX as IcRemove,
+	LuRss as IcRss,
+	LuStar as IcStar,
+	LuVideo as IcVideo
 } from 'react-icons/lu'
 
-import { Button, Popper, mergeClasses } from '@cloudillo/react'
-import type { LinkIcon, LinkEntry } from '@cloudillo/types'
-
-import type { SectionWithContent, LinksContent } from '../types.js'
-import { parseContent, stringifyContent, ensureUrlProtocol } from '../types.js'
+import type { LinksContent, SectionWithContent } from '../types.js'
+import { ensureUrlProtocol, parseContent, stringifyContent } from '../types.js'
 
 const EMPTY: LinksContent = { links: [] }
 

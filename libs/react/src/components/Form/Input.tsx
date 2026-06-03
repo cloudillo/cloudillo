@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { mergeClasses, createComponent } from '../utils.js'
+
+import { createComponent, mergeClasses } from '../utils.js'
 
 // Input component for single-line text input
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}

@@ -1,17 +1,16 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useParams } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
-
-import {
-	LuRefreshCw as IcLoading,
-	LuCheck as IcCheck,
-	LuTriangleAlert as IcAlert
-} from 'react-icons/lu'
-
 import { useApi } from '@cloudillo/react'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import {
+	LuTriangleAlert as IcAlert,
+	LuCheck as IcCheck,
+	LuRefreshCw as IcLoading
+} from 'react-icons/lu'
+import { useParams } from 'react-router-dom'
+
 import { CloudilloLogo } from '../logo.js'
 
 type ActivationState = 'loading' | 'success' | 'error'

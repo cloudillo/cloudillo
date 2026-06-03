@@ -5,16 +5,16 @@
  * PaletteColorPicker - Tabbed color picker with Theme and Custom tabs
  */
 
-import * as React from 'react'
 import { ColorInput } from '@cloudillo/react'
+import * as React from 'react'
 
 import type { Palette, PaletteSlotName, StoredPaletteRef } from '../../crdt'
 import {
 	createPaletteRef,
-	getResolvedColor,
-	isPaletteRef,
 	expandPaletteRef,
-	isGradientSlot
+	getResolvedColor,
+	isGradientSlot,
+	isPaletteRef
 } from '../../crdt'
 import { PaletteSwatchGrid } from './PaletteSwatchGrid'
 

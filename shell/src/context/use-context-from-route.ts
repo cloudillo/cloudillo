@@ -1,14 +1,14 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { apiAtom, useAuth } from '@cloudillo/react'
+import { useAtom, useSetAtom } from 'jotai'
 import * as React from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useAtom, useSetAtom } from 'jotai'
-import { useAuth, apiAtom } from '@cloudillo/react'
 
 import { activeContextAtom, contextSwitchingAtom } from './atoms'
+import { CONTEXT_ROUTE_REGEX, HOME_CONTEXT } from './constants.js'
 import { useApiContext } from './hooks'
-import { HOME_CONTEXT, CONTEXT_ROUTE_REGEX } from './constants.js'
 
 export function useContextFromRoute(): string | undefined {
 	// `useContextFromRoute` is called from `AppRoutes` outside any matched

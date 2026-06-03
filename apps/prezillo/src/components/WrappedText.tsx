@@ -2,14 +2,20 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+
+/**
+ * WrappedText component - renders text with word wrapping and alignment in SVG
+ * Uses foreignObject with HTML div for native CSS text layout capabilities
+ */
+
 /**
  * WrappedText component - renders text with word wrapping and alignment in SVG
  * Uses foreignObject with HTML div for native CSS text layout capabilities
  */
 
 import type { ResolvedTextStyle } from '../crdt'
-import { TEXT_ALIGN_CSS, VERTICAL_ALIGN_CSS, getTextDecorationCSS } from '../utils/text-styles'
 import { getBulletIcon, migrateBullet } from '../data/bullet-icons'
+import { getTextDecorationCSS, TEXT_ALIGN_CSS, VERTICAL_ALIGN_CSS } from '../utils/text-styles'
 
 interface WrappedTextProps {
 	x: number

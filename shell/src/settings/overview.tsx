@@ -1,31 +1,29 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
+import type { ApiKeyListItem, WebAuthnCredential } from '@cloudillo/core'
+import { Button, useApi, useAuth, useDialog } from '@cloudillo/react'
 import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
-
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
+	LuPalette as IcAppearance,
+	LuChevronRight as IcArrow,
+	LuCalendar as IcCalendar,
+	LuMonitor as IcDevice,
+	LuHardDrive as IcFiles,
 	LuDownload as IcInstall,
+	LuKeyRound as IcKey,
 	LuBell as IcNotifications,
 	LuFingerprint as IcPasskey,
-	LuShield as IcSecurity,
 	LuEye as IcPrivacy,
-	LuPalette as IcAppearance,
-	LuCalendar as IcCalendar,
-	LuHardDrive as IcFiles,
-	LuKeyRound as IcKey,
-	LuMonitor as IcDevice,
-	LuChevronRight as IcArrow,
-	LuServerCog as IcServer,
-	LuRefreshCw as IcRefresh
+	LuRefreshCw as IcRefresh,
+	LuShield as IcSecurity,
+	LuServerCog as IcServer
 } from 'react-icons/lu'
+import { useNavigate, useParams } from 'react-router-dom'
 
-import { useAuth, useApi, useDialog, Button } from '@cloudillo/react'
-import type { WebAuthnCredential, ApiKeyListItem } from '@cloudillo/core'
-
-import { type UsePWA, resetAppCache } from '../pwa.js'
+import { resetAppCache, type UsePWA } from '../pwa.js'
 import { subscribeNotifications } from './notifications.js'
 
 interface SettingsOverviewProps {

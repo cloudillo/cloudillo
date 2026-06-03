@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-
-import { useApi, UnknownProfilePicture, IdentityTag, mergeClasses } from '@cloudillo/react'
 import { getFileUrl } from '@cloudillo/core'
+import { IdentityTag, mergeClasses, UnknownProfilePicture, useApi } from '@cloudillo/react'
+import * as React from 'react'
 
 export interface GuestOwnerChipProps {
 	/** Identity tag of the domain owner (the tenant). */

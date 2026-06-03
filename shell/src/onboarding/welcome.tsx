@@ -8,6 +8,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuRefreshCw as IcLoading, LuLock as IcLock } from 'react-icons/lu'
 import { useNavigate, useParams } from 'react-router-dom'
+
 import { PasswordInput, PasswordStrengthBar } from '../components/PasswordInput.js'
 import { CloudilloLogo } from '../logo.js'
 import { installToken } from '../pwa.js'

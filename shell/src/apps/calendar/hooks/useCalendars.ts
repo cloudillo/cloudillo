@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { CalendarCreate, CalendarOutput, CalendarPatch } from '@cloudillo/core'
 import * as React from 'react'
-import type { CalendarOutput, CalendarCreate, CalendarPatch } from '@cloudillo/core'
+
 import { useContextAwareApi } from '../../../context/index.js'
 
 export interface UseCalendarsResult {

@@ -9,12 +9,13 @@
  * existing ydoc-helpers for populating the CRDT document.
  */
 
-import type * as Y from 'yjs'
-import ExcelJS from 'exceljs'
 import type { Cell } from '@fortune-sheet/core'
-import type { SheetId, MergeInfo } from './yjs-types'
+import ExcelJS from 'exceljs'
+import type * as Y from 'yjs'
+
 import { generateSheetId } from './id-generator'
-import { getOrCreateSheet, ensureSheetDimensions, setCell } from './ydoc-helpers'
+import { ensureSheetDimensions, getOrCreateSheet, setCell } from './ydoc-helpers'
+import type { MergeInfo, SheetId } from './yjs-types'
 
 const DEFAULT_MIN_ROWS = 100
 const DEFAULT_MIN_COLS = 26

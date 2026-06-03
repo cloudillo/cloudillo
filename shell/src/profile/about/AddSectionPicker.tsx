@@ -1,29 +1,27 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, mergeClasses } from '@cloudillo/react'
+import type { SectionType } from '@cloudillo/types'
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
+import {
+	LuColumns2 as IcColumns,
+	LuMail as IcContact,
+	LuFileText as IcCustom,
+	LuGraduationCap as IcEducation,
+	LuLink as IcLinks,
+	LuMapPin as IcLocation,
+	LuPlus as IcPlus,
+	LuScrollText as IcRules,
+	LuTags as IcSkills,
+	LuType as IcText,
+	LuBriefcase as IcWork
+} from 'react-icons/lu'
 import { usePopper } from 'react-popper'
 
-import {
-	LuPlus as IcPlus,
-	LuType as IcText,
-	LuMail as IcContact,
-	LuMapPin as IcLocation,
-	LuLink as IcLinks,
-	LuBriefcase as IcWork,
-	LuGraduationCap as IcEducation,
-	LuTags as IcSkills,
-	LuScrollText as IcRules,
-	LuFileText as IcCustom,
-	LuColumns2 as IcColumns
-} from 'react-icons/lu'
-
-import { Button, mergeClasses } from '@cloudillo/react'
-import type { SectionType } from '@cloudillo/types'
-
-import { type SectionWithContent, getSectionTypes } from './types.js'
+import { getSectionTypes, type SectionWithContent } from './types.js'
 
 const SECTION_ICONS: Record<SectionType, React.ComponentType> = {
 	about: IcText,

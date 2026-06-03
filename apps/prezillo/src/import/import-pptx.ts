@@ -9,32 +9,31 @@
  * then creates views/objects via existing CRDT operations.
  */
 
-import type * as Y from 'yjs'
-import JSZip from 'jszip'
-import { XMLParser } from 'fast-xml-parser'
-
-import type { YPrezilloDocument, ShapeStyle, TextStyle, ObjectId } from '../crdt'
-import { generateObjectId, generateViewId, toViewId, getOrCreateRichText } from '../crdt'
-import type {
-	StoredRect,
-	StoredEllipse,
-	StoredLine,
-	StoredText,
-	StoredImage
-} from '../crdt/stored-types'
 import { getInstanceUrl } from '@cloudillo/core'
-import { registerPendingImageTempId } from '../hooks/useImageHandler'
+import { XMLParser } from 'fast-xml-parser'
+import JSZip from 'jszip'
+import type * as Y from 'yjs'
 
+import type { ObjectId, ShapeStyle, TextStyle, YPrezilloDocument } from '../crdt'
+import { generateObjectId, generateViewId, getOrCreateRichText, toViewId } from '../crdt'
 import type {
-	ParsedTheme,
+	StoredEllipse,
+	StoredImage,
+	StoredLine,
+	StoredRect,
+	StoredText
+} from '../crdt/stored-types'
+import { registerPendingImageTempId } from '../hooks/useImageHandler'
+import type {
+	ImportResult,
+	ParsedColor,
+	ParsedFill,
+	ParsedParagraph,
 	ParsedShape,
 	ParsedSlide,
-	ParsedFill,
-	ParsedColor,
-	ParsedParagraph,
 	ParsedTextRun,
-	ParsedTransform,
-	ImportResult
+	ParsedTheme,
+	ParsedTransform
 } from './types'
 import { emuToPx } from './types'
 

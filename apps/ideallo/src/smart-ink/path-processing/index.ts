@@ -7,12 +7,12 @@
  * Re-exports smoothing and interpolation functions.
  */
 
-export { chaikinSmooth, adaptiveSmooth } from './smooth.js'
 export {
-	resamplePath,
-	interpolatePaths,
+	easeInOut,
 	easeOut,
-	easeInOut
+	interpolatePaths,
+	resamplePath
 } from './interpolate.js'
+export { adaptiveSmooth, chaikinSmooth } from './smooth.js'
 
 // vim: ts=4

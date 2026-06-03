@@ -10,25 +10,24 @@
 
 import './sidebar.css'
 
+import { mergeClasses, ProfilePicture, useAuth, useToast } from '@cloudillo/react'
+import { useAtom, useAtomValue } from 'jotai'
 import * as React from 'react'
-import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useAuth, useToast, mergeClasses, ProfilePicture } from '@cloudillo/react'
-
 import { LuClock3 as IcPending, LuPin as IcPin } from 'react-icons/lu'
+import { useLocation } from 'react-router-dom'
 
+import { CONTEXT_ROUTE_REGEX, HOME_CONTEXT } from './constants'
 import {
-	useCommunitiesList,
-	useContextSwitch,
-	useSidebar,
 	activeContextAtom,
 	contextIdpEnabledAtom,
-	previewCommunityAtom
+	previewCommunityAtom,
+	useCommunitiesList,
+	useContextSwitch,
+	useSidebar
 } from './index'
-import { HOME_CONTEXT, CONTEXT_ROUTE_REGEX } from './constants'
-import { useAtom, useAtomValue } from 'jotai'
-import type { CommunityRef } from './types'
 import { ProfileContextMenu, useProfileContextMenu } from './profile-context-menu'
+import type { CommunityRef } from './types'
 
 interface CommunityListItemProps {
 	community: CommunityRef

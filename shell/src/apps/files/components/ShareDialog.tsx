@@ -1,47 +1,45 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import dayjs from 'dayjs'
-import { useTranslation } from 'react-i18next'
-
-import {
-	LuLink as IcLink,
-	LuCopy as IcCopy,
-	LuQrCode as IcQrCode,
-	LuTrash2 as IcTrash,
-	LuX as IcClose,
-	LuPlus as IcPlus,
-	LuPencil as IcPencil,
-	LuEllipsisVertical as IcMore,
-	LuChevronRight as IcDisclosure
-} from 'react-icons/lu'
-
-import type { Profile } from '@cloudillo/types'
 import type * as Types from '@cloudillo/core'
 import {
-	useAuth,
-	useToast,
 	Button,
 	Popper,
-	Toggle,
-	Select,
 	ProfileCard,
-	QRCodeDialog
+	QRCodeDialog,
+	Select,
+	Toggle,
+	useAuth,
+	useToast
 } from '@cloudillo/react'
+import type { Profile } from '@cloudillo/types'
+import dayjs from 'dayjs'
 import { useAtom } from 'jotai'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
-	useContextAwareApi,
+	LuX as IcClose,
+	LuCopy as IcCopy,
+	LuChevronRight as IcDisclosure,
+	LuLink as IcLink,
+	LuEllipsisVertical as IcMore,
+	LuPencil as IcPencil,
+	LuPlus as IcPlus,
+	LuQrCode as IcQrCode,
+	LuTrash2 as IcTrash
+} from 'react-icons/lu'
+
+import {
 	activeContextAtom,
+	useContextAwareApi,
 	useCurrentContextIdTag
 } from '../../../context/index.js'
-
-import { getFileIcon, IcUnknown } from '../icons.js'
-import { canManageFile } from '../utils.js'
-import type { File } from '../types.js'
-import { parseRefDate, formatRefDate, dateInputToExpiryIso } from '../../../utils/parseRefDate.js'
-import { getCachedProfiles, getCachedProfile } from '../../../utils/profileCache.js'
 import { useShareOrigin } from '../../../utils/appOrigin.js'
+import { dateInputToExpiryIso, formatRefDate, parseRefDate } from '../../../utils/parseRefDate.js'
+import { getCachedProfile, getCachedProfiles } from '../../../utils/profileCache.js'
+import { getFileIcon, IcUnknown } from '../icons.js'
+import type { File } from '../types.js'
+import { canManageFile } from '../utils.js'
 import { AccessLevelMenu } from './AccessLevelMenu.js'
 
 type PermLevel = 'READ' | 'COMMENT' | 'WRITE'

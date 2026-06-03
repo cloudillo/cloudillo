@@ -9,18 +9,18 @@
  * Diamonds are detected as rectangles with ~45° rotation.
  */
 
+import type { Bounds } from '../../crdt/index.js'
 import {
-	distance,
-	detectCorners,
-	directionChange,
 	angleAtVertex,
 	areParallel,
+	detectCorners,
+	directionChange,
+	distance,
+	getBoundsFromPoints,
 	isClosedPath,
 	lineAngle,
-	getBoundsFromPoints,
 	type Point
 } from '../../utils/geometry.js'
-import type { Bounds } from '../../crdt/index.js'
 
 export interface RectangleCandidate {
 	type: 'rectangle'

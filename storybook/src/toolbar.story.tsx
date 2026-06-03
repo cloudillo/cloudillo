@@ -1,25 +1,25 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, Toolbar, ToolbarDivider, ToolbarGroup, ToolbarSpacer } from '@cloudillo/react'
 import * as React from 'react'
-
-import { Story, Variant } from './storybook.js'
-import { Toolbar, ToolbarDivider, ToolbarSpacer, ToolbarGroup, Button } from '@cloudillo/react'
 import {
-	LuBold,
-	LuItalic,
-	LuUnderline,
-	LuAlignLeft,
 	LuAlignCenter,
+	LuAlignLeft,
 	LuAlignRight,
-	LuUndo,
+	LuBold,
+	LuDownload,
+	LuItalic,
+	LuPlus,
 	LuRedo,
 	LuSave,
-	LuDownload,
+	LuSearch,
 	LuTrash2,
-	LuPlus,
-	LuSearch
+	LuUnderline,
+	LuUndo
 } from 'react-icons/lu'
+
+import { Story, Variant } from './storybook.js'
 
 export function ToolbarStory() {
 	return (

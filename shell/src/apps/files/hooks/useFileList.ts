@@ -1,16 +1,20 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useAtomValue } from 'jotai'
-import { useAuth, useInfiniteScroll } from '@cloudillo/react'
 import type * as Types from '@cloudillo/core'
 import type { ApiClient } from '@cloudillo/core'
-import { useCurrentContextIdTag, useContextAwareApi } from '../../../context/index.js'
-import { fileViewUpdateAtom } from '../../../context/index.js'
+import { useAuth, useInfiniteScroll } from '@cloudillo/react'
+import { useAtomValue } from 'jotai'
+import * as React from 'react'
+
 import { createCachedFileFetchPage } from '../../../cache/index.js'
-import type { File, ViewMode, FileTypeFilter, OwnerFilter } from '../types.js'
-import { TRASH_FOLDER_ID, MANAGED_FOLDER_ID } from '../types.js'
+import {
+	fileViewUpdateAtom,
+	useContextAwareApi,
+	useCurrentContextIdTag
+} from '../../../context/index.js'
+import type { File, FileTypeFilter, OwnerFilter, ViewMode } from '../types.js'
+import { MANAGED_FOLDER_ID, TRASH_FOLDER_ID } from '../types.js'
 
 export interface UseFileListOptions {
 	viewMode?: ViewMode

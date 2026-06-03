@@ -10,10 +10,11 @@
  * v3.0.0: Uses generic exportYDoc() with inline @T type markers.
  */
 
-import type * as Y from 'yjs'
-import type { YPrezilloDocument } from './stored-types.js'
 import { downloadBlob, sanitizeFilename } from '@cloudillo/core'
-import { exportYDoc, type ExportEnvelope } from '@cloudillo/crdt'
+import { type ExportEnvelope, exportYDoc } from '@cloudillo/crdt'
+import type * as Y from 'yjs'
+
+import type { YPrezilloDocument } from './stored-types.js'
 
 // App version injected at build time
 declare const __APP_VERSION__: string

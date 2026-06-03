@@ -1,13 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useTranslation } from 'react-i18next'
-
-import { LuBriefcase as IcWork, LuPlus as IcPlus, LuX as IcRemove } from 'react-icons/lu'
-
 import { Button } from '@cloudillo/react'
 import type { WorkEntry } from '@cloudillo/types'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import { LuPlus as IcPlus, LuX as IcRemove, LuBriefcase as IcWork } from 'react-icons/lu'
 
 import type { SectionWithContent, WorkContent } from '../types.js'
 import { parseContent, stringifyContent } from '../types.js'

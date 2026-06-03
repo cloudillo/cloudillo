@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { mergeClasses } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -8,7 +9,7 @@ import {
 	LuFolder as IcHome,
 	LuShare2 as IcShare
 } from 'react-icons/lu'
-import { mergeClasses } from '@cloudillo/react'
+
 import type { BreadcrumbItem } from '../hooks/useFileNavigation.js'
 
 interface BreadcrumbsProps {

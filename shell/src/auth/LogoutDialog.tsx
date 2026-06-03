@@ -1,11 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuLogOut as IcLogout, LuCircleAlert as IcWarning } from 'react-icons/lu'
-
-import { Button } from '@cloudillo/react'
 
 import type { DirtyDocSummary } from './wipe-local-data.js'
 

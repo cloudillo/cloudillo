@@ -11,8 +11,9 @@
 
 import * as React from 'react'
 import type { SnapTarget } from 'react-svg-canvas'
-import type { TableGridObject, Bounds } from '../crdt'
+
 import { calculateGridPositions } from '../components/TableGridRenderer'
+import type { Bounds, TableGridObject } from '../crdt'
 
 /**
  * Generate snap targets for a single table grid

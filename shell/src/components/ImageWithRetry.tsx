@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Skeleton } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuImageOff as IcBroken, LuRotateCw as IcRetry } from 'react-icons/lu'
-import { Skeleton } from '@cloudillo/react'
 
 /**
  * Preload `src` via `new Image()` and retry transient failures with exponential

@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { createReactBlockSpec } from '@blocknote/react'
+import { DocumentEmbedIframe, useDocumentEmbed } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { createReactBlockSpec } from '@blocknote/react'
-import { useDocumentEmbed, DocumentEmbedIframe } from '@cloudillo/react'
+
 import { useNotilloEditor } from './NotilloEditorContext.js'
 
 export const DocumentEmbed = createReactBlockSpec(

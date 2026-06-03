@@ -6,27 +6,27 @@
  * Applies rotation transform around object's pivot point
  */
 
-import * as React from 'react'
-import type Quill from 'quill'
-import type { IdealloObject, YIdealloDocument } from '../crdt/index.js'
-import { getObjectYText, toObjectId } from '../crdt/index.js'
-import { FreehandPath } from './FreehandPath.js'
-import {
-	RectRenderer,
-	EllipseRenderer,
-	LineRenderer,
-	ArrowRenderer,
-	PolygonRenderer
-} from './ShapeRenderer.js'
-import { TextLabel } from './TextLabel.js'
-import { TextEditOverlay } from './TextEditOverlay.js'
-import { StickyNote } from './StickyNote.js'
-import { StickyEditOverlay } from './StickyEditOverlay.js'
-import { ImageRenderer } from './ImageRenderer.js'
 import { SvgDocumentEmbed } from '@cloudillo/react'
+import type Quill from 'quill'
+import * as React from 'react'
+
+import type { IdealloObject, PolygonObject, YIdealloDocument } from '../crdt/index.js'
+import { getObjectYText, toObjectId } from '../crdt/index.js'
 import { getBoundsFromPoints } from '../utils/geometry.js'
 import { calculatePathBounds } from '../utils/hit-testing.js'
-import type { PolygonObject } from '../crdt/index.js'
+import { FreehandPath } from './FreehandPath.js'
+import { ImageRenderer } from './ImageRenderer.js'
+import {
+	ArrowRenderer,
+	EllipseRenderer,
+	LineRenderer,
+	PolygonRenderer,
+	RectRenderer
+} from './ShapeRenderer.js'
+import { StickyEditOverlay } from './StickyEditOverlay.js'
+import { StickyNote } from './StickyNote.js'
+import { TextEditOverlay } from './TextEditOverlay.js'
+import { TextLabel } from './TextLabel.js'
 
 export interface ObjectRendererProps {
 	object: IdealloObject

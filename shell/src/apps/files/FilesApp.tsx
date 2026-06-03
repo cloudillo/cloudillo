@@ -1,68 +1,66 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
 import { useAtom } from 'jotai'
-
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { LuCloud as IcCloud, LuUpload as IcUpload } from 'react-icons/lu'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 import './files.css'
 
 import type * as Types from '@cloudillo/core'
 import {
-	useAuth,
-	useDialog,
-	useToast,
-	useDebouncedValue,
-	Fcd,
-	mergeClasses,
-	LoadingSpinner,
+	DropZone,
 	EmptyState,
-	LoadMoreTrigger
+	Fcd,
+	LoadingSpinner,
+	LoadMoreTrigger,
+	mergeClasses,
+	useAuth,
+	useDebouncedValue,
+	useDialog,
+	useToast
 } from '@cloudillo/react'
 
-import { useAppConfig } from '../../utils.js'
 import {
 	useContextAwareApi,
 	useCurrentContextIdTag,
 	useUrlContextIdTag
 } from '../../context/index.js'
 import { getDirtyDocIds } from '../../message-bus/handlers/crdt.js'
-
-import { DropZone } from '@cloudillo/react'
+import { useAppConfig } from '../../utils.js'
 import {
-	Sidebar,
-	Toolbar,
-	Breadcrumbs,
-	ItemCard,
-	ItemGrid,
-	DetailsPanel,
-	UploadProgress,
-	ContextMenu,
-	ShareDialog,
-	ImportChoiceDialog,
-	FilterChips,
-	HandActionBar
-} from './components/index.js'
-import type { ContextMenuPosition } from './components/index.js'
-import {
-	useFileList,
-	useFileNavigation,
-	useSmartUpload,
-	useKeyboardShortcuts,
-	useMultiSelect,
-	buildFileFilterParams
-} from './hooks/index.js'
-import type { File, FileOps, ViewMode } from './types.js'
-import {
-	selectedTagsAtom,
 	displayModeAtom,
 	fileTypeFilterAtom,
 	ownerFilterAtom,
-	searchQueryAtom
+	searchQueryAtom,
+	selectedTagsAtom
 } from './atoms.js'
+import type { ContextMenuPosition } from './components/index.js'
+import {
+	Breadcrumbs,
+	ContextMenu,
+	DetailsPanel,
+	FilterChips,
+	HandActionBar,
+	ImportChoiceDialog,
+	ItemCard,
+	ItemGrid,
+	ShareDialog,
+	Sidebar,
+	Toolbar,
+	UploadProgress
+} from './components/index.js'
+import {
+	buildFileFilterParams,
+	useFileList,
+	useFileNavigation,
+	useKeyboardShortcuts,
+	useMultiSelect,
+	useSmartUpload
+} from './hooks/index.js'
+import type { File, FileOps, ViewMode } from './types.js'
 
 export function FilesApp() {
 	const navigate = useNavigate()

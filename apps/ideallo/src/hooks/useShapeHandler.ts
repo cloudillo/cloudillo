@@ -7,16 +7,16 @@
  */
 
 import * as React from 'react'
-import type * as Y from 'yjs'
 import type { Awareness } from 'y-protocols/awareness'
+import type * as Y from 'yjs'
 
 import type {
-	YIdealloDocument,
-	ObjectId,
-	RectObject,
+	ArrowObject,
 	EllipseObject,
 	LineObject,
-	ArrowObject
+	ObjectId,
+	RectObject,
+	YIdealloDocument
 } from '../crdt/index.js'
 import { addObject, DEFAULT_STYLE } from '../crdt/index.js'
 import type { ShapePreview, ToolType } from '../tools/types.js'

@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { createComponent, mergeClasses } from '@cloudillo/react'
 import * as React from 'react'
-import { mergeClasses, createComponent } from '@cloudillo/react'
+
 import type { GradientStop } from '../../types/gradient.js'
-import { addStop, sortStops, getColorAtPosition } from '../../utils/gradient.js'
+import { addStop, getColorAtPosition, sortStops } from '../../utils/gradient.js'
 
 export interface GradientBarProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onChange'> {
 	/** Current color stops */

@@ -8,8 +8,8 @@
  * then constructs the full iframe src with the appropriate hash.
  */
 
-import * as React from 'react'
 import { getAppBus } from '@cloudillo/core'
+import * as React from 'react'
 
 export interface UseDocumentEmbedOptions {
 	targetFileId: string

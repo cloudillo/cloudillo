@@ -1,23 +1,22 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useTranslation } from 'react-i18next'
-import {
-	LuX as IcClose,
-	LuPlus as IcAdd,
-	LuTrash as IcDelete,
-	LuLink as IcLinked
-} from 'react-icons/lu'
-
-import { Button, Modal } from '@cloudillo/react'
 import type {
+	AddressBookOutput,
 	ContactInput,
 	ContactName,
 	ContactOutput,
-	TypedValue,
-	AddressBookOutput
+	TypedValue
 } from '@cloudillo/core'
+import { Button, Modal } from '@cloudillo/react'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import {
+	LuPlus as IcAdd,
+	LuX as IcClose,
+	LuTrash as IcDelete,
+	LuLink as IcLinked
+} from 'react-icons/lu'
 
 export interface ContactEditorProps {
 	open: boolean

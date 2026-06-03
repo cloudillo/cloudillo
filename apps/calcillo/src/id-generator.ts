@@ -1,6 +1,6 @@
-import type { RowId, ColId, SheetId } from './yjs-types'
-import { toRowId, toColId, toSheetId } from './yjs-types'
 import { debug } from './debug'
+import type { ColId, RowId, SheetId } from './yjs-types'
+import { toColId, toRowId, toSheetId } from './yjs-types'
 
 /**
  * Generate cryptographically secure base64url ID

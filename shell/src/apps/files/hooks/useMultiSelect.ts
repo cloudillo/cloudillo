@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+
 import type { File } from '../types.js'
 
 export interface UseMultiSelectOptions {

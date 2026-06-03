@@ -13,15 +13,15 @@
  * point-in-shape testing for filled objects.
  */
 
-import type { Point } from './geometry.js'
 import type { Bounds, IdealloObject } from '../crdt/index.js'
+import type { Point } from './geometry.js'
 import {
 	distance,
-	perpendicularDistance,
-	rotatePoint,
-	getBoundsFromPoints,
 	expandBounds,
-	pointInBounds
+	getBoundsFromPoints,
+	perpendicularDistance,
+	pointInBounds,
+	rotatePoint
 } from './geometry.js'
 
 // ============================================================================

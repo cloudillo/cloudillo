@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+
+import type { QrCodeObject, SymbolObject } from '../crdt'
 import { DEFAULT_SHAPE_STYLE } from '../crdt'
-import type { SymbolObject, QrCodeObject } from '../crdt'
 import { buildFillProps, buildStrokeProps } from '../utils'
-import { SymbolRenderer } from './SymbolRenderer'
 import { QRCodeRenderer } from './QRCodeRenderer'
+import { SymbolRenderer } from './SymbolRenderer'
 
 interface ToolPreviewProps {
 	tool: string

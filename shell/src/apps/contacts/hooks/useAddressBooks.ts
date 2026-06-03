@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { AddressBookCreate, AddressBookOutput, AddressBookPatch } from '@cloudillo/core'
 import * as React from 'react'
-import type { AddressBookOutput, AddressBookCreate, AddressBookPatch } from '@cloudillo/core'
+
 import { useContextAwareApi } from '../../../context/index.js'
 
 export interface UseAddressBooksResult {

@@ -1,18 +1,17 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { LoadingSpinner, ZoomableImage } from '@cloudillo/react'
 import * as React from 'react'
 import {
-	PiCheckBold as IcCheck,
 	PiArrowLeftBold as IcBack,
+	PiCheckBold as IcCheck,
 	PiArrowCounterClockwiseBold as IcRotateLeft,
 	PiArrowClockwiseBold as IcRotateRight
 } from 'react-icons/pi'
 
-import { ZoomableImage, LoadingSpinner } from '@cloudillo/react'
-
-import { type PageFilter, FILTER_DEFAULTS } from '../types.js'
-import { applyFilter, rotateCanvas, blendWithOriginal } from '../utils/image-processing.js'
+import { FILTER_DEFAULTS, type PageFilter } from '../types.js'
+import { applyFilter, blendWithOriginal, rotateCanvas } from '../utils/image-processing.js'
 
 interface FilterSelectProps {
 	sourceCanvas: HTMLCanvasElement

@@ -1,15 +1,13 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useTranslation } from 'react-i18next'
-
-import { LuGraduationCap as IcEducation, LuPlus as IcPlus, LuX as IcRemove } from 'react-icons/lu'
-
 import { Button } from '@cloudillo/react'
 import type { EducationEntry } from '@cloudillo/types'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import { LuGraduationCap as IcEducation, LuPlus as IcPlus, LuX as IcRemove } from 'react-icons/lu'
 
-import type { SectionWithContent, EducationContent } from '../types.js'
+import type { EducationContent, SectionWithContent } from '../types.js'
 import { parseContent, stringifyContent } from '../types.js'
 
 const EMPTY: EducationContent = { entries: [] }

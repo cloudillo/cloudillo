@@ -1,20 +1,18 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, LoadingSpinner, mergeClasses } from '@cloudillo/react'
+import * as pdfjsLib from 'pdfjs-dist'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import * as pdfjsLib from 'pdfjs-dist'
-
 import {
 	LuArrowLeft as IcBack,
 	LuDownload as IcDownload,
-	LuChevronLeft as IcPrev,
 	LuChevronRight as IcNext,
-	LuZoomOut as IcZoomOut,
-	LuZoomIn as IcZoomIn
+	LuChevronLeft as IcPrev,
+	LuZoomIn as IcZoomIn,
+	LuZoomOut as IcZoomOut
 } from 'react-icons/lu'
-
-import { Button, LoadingSpinner, mergeClasses } from '@cloudillo/react'
 
 import './viewer.css'
 

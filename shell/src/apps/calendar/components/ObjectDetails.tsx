@@ -1,22 +1,21 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { CalendarObjectOutput, CalendarOutput } from '@cloudillo/core'
+import { Button, LoadingSpinner, useDialog } from '@cloudillo/react'
+import dayjs from 'dayjs'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-	LuPencil as IcEdit,
-	LuTrash as IcDelete,
-	LuMapPin as IcPin,
-	LuClock as IcClock,
-	LuRepeat as IcRecur,
-	LuUsers as IcAttendees,
 	LuBell as IcAlarm,
+	LuUsers as IcAttendees,
+	LuClock as IcClock,
+	LuTrash as IcDelete,
+	LuPencil as IcEdit,
+	LuMapPin as IcPin,
+	LuRepeat as IcRecur,
 	LuRotateCcw as IcReset
 } from 'react-icons/lu'
-
-import { Button, LoadingSpinner, useDialog } from '@cloudillo/react'
-import type { CalendarOutput, CalendarObjectOutput } from '@cloudillo/core'
-import dayjs from 'dayjs'
 
 import { rruleToHuman } from '../utils.js'
 

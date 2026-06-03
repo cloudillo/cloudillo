@@ -11,6 +11,7 @@
  */
 
 import { getFileUrl } from '@cloudillo/core'
+
 import type { ImageObject, PrezilloObject, YPrezilloDocument } from '../crdt'
 
 // Use HD variant for PDF quality

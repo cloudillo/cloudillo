@@ -1,15 +1,16 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { describe, it, expect } from '@jest/globals'
+import { describe, expect, it } from '@jest/globals'
+
 import {
-	DocumentSnapshotImpl,
-	QuerySnapshotImpl,
-	normalizePath,
-	getIdFromPath,
-	getCollectionFromPath,
 	createDocumentFromEvent,
-	delay
+	DocumentSnapshotImpl,
+	delay,
+	getCollectionFromPath,
+	getIdFromPath,
+	normalizePath,
+	QuerySnapshotImpl
 } from '../utils'
 
 describe('DocumentSnapshotImpl', () => {

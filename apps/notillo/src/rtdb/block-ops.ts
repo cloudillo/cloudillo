@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { BlockNoteEditor, Block } from '@blocknote/core'
-import { type BlockRecord, asBlockContent } from './types.js'
-import { cleanProps, compactContent, compactBlockType } from './transform.js'
+import type { Block, BlockNoteEditor } from '@blocknote/core'
+
+import { cleanProps, compactBlockType, compactContent } from './transform.js'
+import { asBlockContent, type BlockRecord } from './types.js'
 
 export function getParentBlockId(editor: BlockNoteEditor, blockId: string): string | undefined {
 	const block = editor.getBlock(blockId)

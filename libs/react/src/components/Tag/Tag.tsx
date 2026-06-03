@@ -3,8 +3,9 @@
 
 import * as React from 'react'
 import { LuX as IcClose } from 'react-icons/lu'
-import { mergeClasses, createComponent } from '../utils.js'
+
 import type { ColorVariant } from '../types.js'
+import { createComponent, mergeClasses } from '../utils.js'
 
 export interface TagProps extends React.HTMLAttributes<HTMLSpanElement> {
 	variant?: ColorVariant

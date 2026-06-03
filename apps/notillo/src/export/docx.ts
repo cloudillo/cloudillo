@@ -1,5 +1,5 @@
 import type { NotilloEditor } from '../editor/schema.js'
-import type { WikiLinkContent, TagContent } from '../rtdb/types.js'
+import type { TagContent, WikiLinkContent } from '../rtdb/types.js'
 import { downloadBlob } from './download.js'
 
 export async function exportDocx(

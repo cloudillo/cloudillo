@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
+import type { AddressBookOutput, ContactListItem } from '@cloudillo/core'
 import { useInfiniteScroll } from '@cloudillo/react'
-import type { ContactListItem, AddressBookOutput } from '@cloudillo/core'
+import * as React from 'react'
+
 import { useContextAwareApi } from '../../../context/index.js'
 import type { AddressBookSelection } from '../types.js'
 

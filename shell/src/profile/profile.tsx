@@ -1,78 +1,75 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { TFunction } from 'i18next'
-import React from 'react'
-import { useTranslation } from 'react-i18next'
-import { Link, NavLink, Routes, Route, useParams, useLocation } from 'react-router-dom'
-
-import { useAtom, useSetAtom } from 'jotai'
-
+import { getFileUrl, getInstanceUrl } from '@cloudillo/core'
 import {
 	Button,
-	Popper,
 	Fcd,
 	LoadingSpinner,
-	useDialog,
-	useToast,
+	mergeClasses,
+	Popper,
 	ProfileCard,
-	mergeClasses
+	useDialog,
+	useToast
 } from '@cloudillo/react'
-import { type NewAction, type ActionView, type CommunityRole, ROLE_LEVELS } from '@cloudillo/types'
-import { getInstanceUrl, getFileUrl } from '@cloudillo/core'
-
+import { type ActionView, type CommunityRole, type NewAction, ROLE_LEVELS } from '@cloudillo/types'
+import type { TFunction } from 'i18next'
+import { useAtom, useSetAtom } from 'jotai'
+import React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
-	LuPencil as IcEdit,
-	LuEllipsisVertical as IcMore,
-	LuUserPlus as IcFollow,
-	LuHandshake as IcConnect,
 	LuCircleOff as IcBlock,
-	LuMessageCircle as IcMessage,
-	LuUserMinus as IcRemoveMember,
 	LuCheck as IcCheck,
+	LuChevronDown as IcChevronDown,
+	LuHandshake as IcConnect,
+	LuPencil as IcEdit,
 	LuFilter as IcFilter,
-	LuChevronDown as IcChevronDown
+	LuUserPlus as IcFollow,
+	LuMessageCircle as IcMessage,
+	LuEllipsisVertical as IcMore,
+	LuUserMinus as IcRemoveMember
 } from 'react-icons/lu'
+import { Link, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
 
 import 'quill/dist/quill.core.css'
 import 'quill/dist/quill.bubble.css'
 import 'react-image-crop/dist/ReactCrop.css'
 import './profile.css'
 
-import { useAuth, useApi, IdentityTag } from '@cloudillo/react'
+import { IdentityTag, useApi, useAuth } from '@cloudillo/react'
+import type { Profile } from '@cloudillo/types'
 
-import { useWsBus } from '../ws-bus.js'
-import { ImageUpload } from '../image.js'
-import { type ActionEvt, type ActionStat, ActionComp, ComposeTrigger } from '../apps/feed.js'
 import { ComposePanel } from '../apps/feed/index.js'
 import { pendingQuoteAtom } from '../apps/feed/quote-intent.js'
-import type { Profile } from '@cloudillo/types'
+import { ActionComp, type ActionEvt, type ActionStat, ComposeTrigger } from '../apps/feed.js'
 import {
-	ProfileListCard,
-	PersonListPage,
-	CommunityListPage,
-	ProfileStatusBadge,
-	PeopleHeader
-} from './identities.js'
-import { CreateCommunity } from './community.js'
-import { ProfileAbout } from './about/ProfileAbout.js'
-import { parseTabConfig, getEffectiveTabs, type TabConfig } from './about/types.js'
-import { TabEditor } from './TabEditor.js'
-import {
-	HOME_CONTEXT,
 	activeContextAtom,
 	communitiesAtom,
+	HOME_CONTEXT,
 	useApiContext,
 	useCommunitiesList,
 	useContextSwitch,
 	useCurrentContextIdTag,
 	useProfileTrust
 } from '../context/index.js'
+import { ImageUpload } from '../image.js'
+import { useWsBus } from '../ws-bus.js'
+import { ProfileAbout } from './about/ProfileAbout.js'
+import { getEffectiveTabs, parseTabConfig, type TabConfig } from './about/types.js'
+import { CreateCommunity } from './community.js'
+import { InvitationsList } from './community-invitations.js'
+import { PendingRequestsList } from './community-requests.js'
+import {
+	CommunityListPage,
+	PeopleHeader,
+	PersonListPage,
+	ProfileListCard,
+	ProfileStatusBadge
+} from './identities.js'
+import { InviteMembersDialog } from './invite-members-dialog.js'
+import { TabEditor } from './TabEditor.js'
 import { TrustBanner } from './TrustBanner.js'
 import { TrustChip } from './TrustChip.js'
-import { PendingRequestsList } from './community-requests.js'
-import { InvitationsList } from './community-invitations.js'
-import { InviteMembersDialog } from './invite-members-dialog.js'
 
 const REFRESH_ATTEMPTS = 10
 const MAX_BACKOFF_MS = 8000

@@ -8,167 +8,150 @@
  * for interactive object manipulation in SVG canvas applications.
  */
 
-// Components
-export { RotationHandle } from './components/RotationHandle'
-export type { RotationHandleProps } from './components/RotationHandle'
-
-export { PivotHandle } from './components/PivotHandle'
-export type { PivotHandleProps } from './components/PivotHandle'
-
-export { TransformGizmo } from './components/TransformGizmo'
-export type { TransformGizmoProps } from './components/TransformGizmo'
-
-// Hooks
-export { useTransformGizmo } from './hooks/useTransformGizmo'
-export type {
-	TransformGizmoOptions,
-	TransformGizmoState,
-	TransformGizmoHandlers,
-	UseTransformGizmoReturn
-} from './hooks/useTransformGizmo'
-
 // Re-export commonly used types from react-svg-canvas for convenience
 export type {
 	Bounds,
+	GroupPivotState,
+	PivotState,
 	Point,
 	ResizeHandle,
-	RotationState,
-	PivotState,
-	GroupPivotState,
 	RotatedObjectBounds,
+	RotationState,
 	TransformedObject
 } from 'react-svg-canvas'
-
 // Re-export rotation utilities from react-svg-canvas
 export {
-	DEFAULT_SNAP_ANGLES,
-	DEFAULT_SNAP_ZONE_RATIO,
+	calculatePivotCompensation,
 	DEFAULT_PIVOT_SNAP_POINTS,
 	DEFAULT_PIVOT_SNAP_THRESHOLD,
-	normalizeAngle,
+	DEFAULT_SNAP_ANGLES,
+	DEFAULT_SNAP_ZONE_RATIO,
 	getAngleFromCenter,
-	snapAngle,
-	calculatePivotCompensation,
-	getPivotPosition,
-	rotatePointAroundCenter,
-	rotateObjectAroundPivot,
 	getMaxDistanceFromPivot,
-	isInSnapZone
+	getPivotPosition,
+	isInSnapZone,
+	normalizeAngle,
+	rotateObjectAroundPivot,
+	rotatePointAroundCenter,
+	snapAngle
 } from 'react-svg-canvas'
 
+export type { PivotHandleProps } from './components/PivotHandle'
+export { PivotHandle } from './components/PivotHandle'
+export type { RotationHandleProps } from './components/RotationHandle'
+// Components
+export { RotationHandle } from './components/RotationHandle'
+export type { TransformGizmoProps } from './components/TransformGizmo'
+export { TransformGizmo } from './components/TransformGizmo'
+export type {
+	TransformGizmoHandlers,
+	TransformGizmoOptions,
+	TransformGizmoState,
+	UseTransformGizmoReturn
+} from './hooks/useTransformGizmo'
+// Hooks
+export { useTransformGizmo } from './hooks/useTransformGizmo'
 // Coordinate utilities
 export {
 	getCanvasCoordinates,
 	getCanvasCoordinatesWithElement,
 	getSvgElement
 } from './utils/coordinates'
-
+export type { CalculateArcRadiusOptions } from './utils/rotation'
 // Rotation handle sizing
 export {
-	ARC_RADIUS_MIN_VIEWPORT_RATIO,
 	ARC_RADIUS_MAX_VIEWPORT_RATIO,
-	DEFAULT_ARC_PADDING,
-	calculateArcRadius
+	ARC_RADIUS_MIN_VIEWPORT_RATIO,
+	calculateArcRadius,
+	DEFAULT_ARC_PADDING
 } from './utils/rotation'
-export type { CalculateArcRadiusOptions } from './utils/rotation'
 
 // Re-export new geometry utilities from react-svg-canvas
 
 // RotationMatrix - pre-calculated trigonometry for performance
-export type { RotationMatrix } from 'react-svg-canvas'
-export {
-	createRotationMatrix,
-	rotatePointWithMatrix,
-	unrotatePointWithMatrix,
-	rotateDeltaWithMatrix,
-	unrotateDeltaWithMatrix
-} from 'react-svg-canvas'
-
+// Rotation-aware resize utilities
+export type { ResizeState, RotationMatrix } from 'react-svg-canvas'
 // View coordinate utilities
 export {
-	canvasToView,
-	viewToCanvas,
-	isPointInView,
-	boundsIntersectsView
-} from 'react-svg-canvas'
-
-// Rotation-aware resize utilities
-export type { ResizeState } from 'react-svg-canvas'
-export {
-	getAnchorForHandle,
-	getRotatedAnchorPosition,
+	boundsIntersectsView,
+	calculateResizeBounds,
 	calculateResizedDimensions,
 	calculateResizedPosition,
+	canvasToView,
+	createRotationMatrix,
+	getAnchorForHandle,
+	getRotatedAnchorPosition,
 	initResizeState,
-	calculateResizeBounds
+	isPointInView,
+	rotateDeltaWithMatrix,
+	rotatePointWithMatrix,
+	unrotateDeltaWithMatrix,
+	unrotatePointWithMatrix,
+	viewToCanvas
 } from 'react-svg-canvas'
 
+export type {
+	AngleControlProps,
+	GradientBarProps,
+	GradientPickerProps,
+	GradientPresetGridProps,
+	GradientPreviewProps,
+	PositionControlProps
+} from './components/GradientPicker'
+// GradientPicker components
+export {
+	AngleControl,
+	DEFAULT_ANGLE_PRESETS,
+	GradientBar,
+	GradientPicker,
+	GradientPresetGrid,
+	GradientPreview,
+	PositionControl
+} from './components/GradientPicker'
+// Gradient presets
+export {
+	GRADIENT_PRESETS,
+	getCategories,
+	getPresetById,
+	getPresetsByCategory
+} from './presets/gradients'
 // Gradient types
 export type {
-	GradientType,
-	GradientStop,
-	Gradient,
 	CompactGradient,
+	Gradient,
+	GradientPreset,
 	GradientPresetCategory,
-	GradientPreset
+	GradientStop,
+	GradientType
 } from './types/gradient'
-
+export type {
+	LinearGradientDef,
+	RadialGradientDef,
+	SVGGradientStop
+} from './utils/gradient'
 // Gradient utilities
 export {
+	addStop,
+	compactGradient,
+	createLinearGradientDef,
+	createRadialGradientDef,
 	DEFAULT_LINEAR_GRADIENT,
 	DEFAULT_RADIAL_GRADIENT,
 	expandGradient,
-	compactGradient,
-	gradientToCSS,
-	createLinearGradientDef,
-	createRadialGradientDef,
-	addStop,
-	removeStop,
-	updateStop,
-	sortStops,
-	interpolateColor,
 	getColorAtPosition,
-	reverseStops
+	gradientToCSS,
+	interpolateColor,
+	removeStop,
+	reverseStops,
+	sortStops,
+	updateStop
 } from './utils/gradient'
-export type {
-	SVGGradientStop,
-	LinearGradientDef,
-	RadialGradientDef
-} from './utils/gradient'
-
 // Stacking utilities
-export type { StackableObject, FindStackedOptions } from './utils/stacking'
+export type { FindStackedOptions, StackableObject } from './utils/stacking'
 export {
 	calculateOverlapPercentage,
 	findStackedObjects,
 	findStackedObjectsForSelection
 } from './utils/stacking'
-
-// Gradient presets
-export {
-	GRADIENT_PRESETS,
-	getPresetsByCategory,
-	getPresetById,
-	getCategories
-} from './presets/gradients'
-
-// GradientPicker components
-export {
-	GradientPicker,
-	GradientBar,
-	GradientPreview,
-	GradientPresetGrid,
-	AngleControl,
-	DEFAULT_ANGLE_PRESETS,
-	PositionControl
-} from './components/GradientPicker'
-export type {
-	GradientPickerProps,
-	GradientBarProps,
-	GradientPreviewProps,
-	GradientPresetGridProps,
-	AngleControlProps,
-	PositionControlProps
-} from './components/GradientPicker'
 
 // vim: ts=4

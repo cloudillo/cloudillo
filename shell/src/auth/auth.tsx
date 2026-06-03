@@ -1,36 +1,34 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { atom, useAtom } from 'jotai'
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
+import type { ApiClient } from '@cloudillo/core'
+import { type AuthState, Button, useApi, useAuth, useDialog } from '@cloudillo/react'
 import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser'
-
+import { atom, useAtom } from 'jotai'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
+	LuArrowLeft as IcBack,
 	LuRefreshCw as IcLoading,
-	LuCheck as IcOk,
-	LuFingerprint as IcWebAuthn,
 	LuLogIn as IcLogin,
 	LuMail as IcMail,
-	LuArrowLeft as IcBack
+	LuCheck as IcOk,
+	LuFingerprint as IcWebAuthn
 } from 'react-icons/lu'
-
-import { useAuth, type AuthState, useApi, useDialog, Button } from '@cloudillo/react'
-import type { ApiClient } from '@cloudillo/core'
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 
 interface NavigatorUA {
 	userAgentData?: { platform: string }
 }
 
-import { useAppConfig } from '../utils.js'
 import { PasswordInput } from '../components/PasswordInput.js'
 import { RegisterForm } from '../profile/register.js'
-import { validPassword } from './utils.js'
-import { ResetPassword } from './reset-password.js'
+import { installToken, setApiKey } from '../pwa.js'
+import { useAppConfig } from '../utils.js'
 import { IdpActivate } from './idp-activate.js'
 import { QrLoginPanel } from './QrLoginPanel.js'
-import { installToken, setApiKey } from '../pwa.js'
+import { ResetPassword } from './reset-password.js'
+import { validPassword } from './utils.js'
 
 // ============================================================================
 // Login Init Context — shares pre-fetched QR + WebAuthn data with login page

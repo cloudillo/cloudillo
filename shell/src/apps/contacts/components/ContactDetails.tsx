@@ -1,25 +1,24 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { ContactOutput } from '@cloudillo/core'
+import { Button, LoadingSpinner, useDialog } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-	LuPencil as IcEdit,
-	LuTrash as IcDelete,
-	LuLink as IcLinked,
-	LuUser as IcUser,
-	LuMail as IcMail,
-	LuPhone as IcPhone,
-	LuNotebookPen as IcNote,
-	LuHouse as IcHome,
-	LuBriefcase as IcWork,
 	LuSmartphone as IcCell,
+	LuTrash as IcDelete,
+	LuPencil as IcEdit,
 	LuPrinter as IcFax,
-	LuTag as IcOther
+	LuHouse as IcHome,
+	LuLink as IcLinked,
+	LuMail as IcMail,
+	LuNotebookPen as IcNote,
+	LuTag as IcOther,
+	LuPhone as IcPhone,
+	LuUser as IcUser,
+	LuBriefcase as IcWork
 } from 'react-icons/lu'
-
-import { Button, LoadingSpinner, useDialog } from '@cloudillo/react'
-import type { ContactOutput } from '@cloudillo/core'
 
 import { isAbsoluteUrl, withVariant } from '../utils.js'
 

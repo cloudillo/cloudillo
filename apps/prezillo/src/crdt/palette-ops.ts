@@ -5,27 +5,27 @@
  * Palette operations for the prezillo presentation app
  */
 
-import type * as Y from 'yjs'
 import type { Gradient } from '@cloudillo/canvas-tools'
+import type * as Y from 'yjs'
 
-import type {
-	YPrezilloDocument,
-	StoredPalette,
-	StoredPaletteRef,
-	PaletteSlot
-} from './stored-types'
-import type {
-	Palette,
-	PaletteRef,
-	PaletteSlotName,
-	PaletteColorSlotName,
-	PaletteGradientSlotName,
-	PaletteColor,
-	ResolvedColorValue
-} from './runtime-types'
-import { expandPalette, compactPalette, expandPaletteRef, isPaletteRef } from './type-converters'
 import { applyTint, applyTintToGradient } from './color-utils'
 import type { PalettePreset } from './palette-presets'
+import type {
+	Palette,
+	PaletteColor,
+	PaletteColorSlotName,
+	PaletteGradientSlotName,
+	PaletteRef,
+	PaletteSlotName,
+	ResolvedColorValue
+} from './runtime-types'
+import type {
+	PaletteSlot,
+	StoredPalette,
+	StoredPaletteRef,
+	YPrezilloDocument
+} from './stored-types'
+import { compactPalette, expandPalette, expandPaletteRef, isPaletteRef } from './type-converters'
 
 // Palette slot reverse mapping for finding objects
 const PALETTE_SLOT_REVERSE: Record<PaletteSlotName, PaletteSlot> = {

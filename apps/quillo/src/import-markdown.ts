@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { marked } from 'marked'
-import Delta from 'quill-delta'
 import type Quill from 'quill'
+import Delta from 'quill-delta'
 
 marked.use({ async: false })
 

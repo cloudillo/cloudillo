@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
+import type { CalendarObjectListItem, CalendarOutput } from '@cloudillo/core'
 import { useInfiniteScroll } from '@cloudillo/react'
-import type { CalendarOutput, CalendarObjectListItem } from '@cloudillo/core'
+import * as React from 'react'
+
 import { useContextAwareApi } from '../../../context/index.js'
 import { calendarSupports } from '../utils.js'
 

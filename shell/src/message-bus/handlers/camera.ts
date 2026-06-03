@@ -10,14 +10,15 @@
  * - camera:capture.result - Shell pushes result when user captures/cancels
  */
 
-import type { ShellMessageBus } from '../shell-bus.js'
 import type {
 	CameraCaptureReq,
+	CameraOverlayUpdate,
 	CameraPreviewStart,
 	CameraPreviewStop,
-	CameraOverlayUpdate,
 	OverlayItem
 } from '@cloudillo/core'
+
+import type { ShellMessageBus } from '../shell-bus.js'
 
 /**
  * Camera capture options passed to the component

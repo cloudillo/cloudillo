@@ -9,6 +9,7 @@
  */
 
 import * as React from 'react'
+
 import type { Bounds } from '../crdt/index.js'
 
 export interface UndoHintProps {

@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { TFunction } from 'i18next'
 import { UploadError, type UploadErrorKind } from '@cloudillo/core'
+import type { TFunction } from 'i18next'
 
 export const getUploadErrorMessages = (t: TFunction): Record<UploadErrorKind, string> => ({
 	auth: t('Session expired — please reload and try again.'),

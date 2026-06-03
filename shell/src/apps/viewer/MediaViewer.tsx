@@ -3,22 +3,19 @@
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
 import Lightbox from 'yet-another-react-lightbox'
 import 'yet-another-react-lightbox/styles.css'
-import Fullscreen from 'yet-another-react-lightbox/plugins/fullscreen'
-import Zoom from 'yet-another-react-lightbox/plugins/zoom'
-
+import { type FileView, getFileUrl } from '@cloudillo/core'
+import { Button, mergeClasses } from '@cloudillo/react'
 import {
 	LuArrowLeft as IcBack,
 	LuDownload as IcDownload,
 	LuMaximize as IcFullscreen
 } from 'react-icons/lu'
+import Fullscreen from 'yet-another-react-lightbox/plugins/fullscreen'
+import Zoom from 'yet-another-react-lightbox/plugins/zoom'
 
 import { PdfViewer } from './PdfViewer.js'
-
-import { getFileUrl, type FileView } from '@cloudillo/core'
-import { Button, mergeClasses } from '@cloudillo/react'
 
 import './viewer.css'
 

@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+
 /**
  * Properties panel for view/slide editing (shown when no objects are selected)
  */
 
-import type * as Y from 'yjs'
 import { useY } from 'react-yjs'
+import type * as Y from 'yjs'
 
-import type { YPrezilloDocument, ViewId } from '../../crdt'
+import type { ViewId, YPrezilloDocument } from '../../crdt'
 import { getView } from '../../crdt'
-import { BackgroundSection } from './BackgroundSection'
 import { TemplateSelector } from '../TemplateSelector'
+import { BackgroundSection } from './BackgroundSection'
 
 export interface ViewPropertiesPanelProps {
 	doc: YPrezilloDocument

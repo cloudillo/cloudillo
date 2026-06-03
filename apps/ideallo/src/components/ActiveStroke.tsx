@@ -7,6 +7,7 @@
  */
 
 import * as React from 'react'
+
 import type { ActiveStroke as ActiveStrokeType } from '../hooks/index.js'
 import { pointsToSvgPath } from '../utils/index.js'
 import { colorToCss } from '../utils/palette.js'

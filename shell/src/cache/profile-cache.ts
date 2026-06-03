@@ -5,9 +5,10 @@
  * Profile-specific cache operations.
  */
 
-import type { ProfileInfo } from '@cloudillo/types'
 import { getFileUrl } from '@cloudillo/core'
-import { putRecord, getRecord, queryRecords } from './encrypted-store.js'
+import type { ProfileInfo } from '@cloudillo/types'
+
+import { getRecord, putRecord, queryRecords } from './encrypted-store.js'
 
 const STORE = 'profiles'
 

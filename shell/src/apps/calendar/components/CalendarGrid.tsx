@@ -1,10 +1,6 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useAtom } from 'jotai'
-import { useTranslation } from 'react-i18next'
-
 import {
 	type CalendarEvent,
 	DayView,
@@ -12,9 +8,13 @@ import {
 	MonthView,
 	WeekView
 } from '@cloudillo/calendar-ui'
+import { useAtom } from 'jotai'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import '@cloudillo/calendar-ui/calendar-ui.css'
 
 import type { CalendarOutput } from '@cloudillo/core'
+
 import { selectedObjectAtom } from '../atoms.js'
 import type { CalendarView, EventOccurrence } from '../types.js'
 import { normalizeHexColor, pickContrastText } from '../utils.js'

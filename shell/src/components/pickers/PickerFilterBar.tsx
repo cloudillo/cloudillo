@@ -1,24 +1,22 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { TagInfo } from '@cloudillo/core'
+import { mergeClasses, Popper } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
 import {
-	LuSearch as IcSearch,
 	LuFolderOpen as IcBrowse,
+	LuCheck as IcCheck,
 	LuLink as IcConnected,
 	LuClock as IcRecent,
+	LuSearch as IcSearch,
 	LuStar as IcStarred,
-	LuTag as IcTag,
-	LuCheck as IcCheck
+	LuTag as IcTag
 } from 'react-icons/lu'
 
-import { mergeClasses, Popper } from '@cloudillo/react'
-import type { TagInfo } from '@cloudillo/core'
-
-import type { PickerViewMode } from './types.js'
 import { PickerFilterChips } from './PickerFilterChips.js'
+import type { PickerViewMode } from './types.js'
 
 import './picker-filter.css'
 

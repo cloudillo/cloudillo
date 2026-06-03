@@ -1,15 +1,16 @@
-import * as React from 'react'
-import { Story, Variant } from './storybook.js'
 import {
-	Input,
-	TextArea,
-	NativeSelect,
-	InputGroup,
-	Fieldset,
-	Toggle,
 	Button,
+	Fieldset,
+	Input,
+	InputGroup,
+	NativeSelect,
+	TextArea,
+	Toggle,
 	VBox
 } from '@cloudillo/react'
+import * as React from 'react'
+
+import { Story, Variant } from './storybook.js'
 
 export function FormStory() {
 	const [toggleValue, setToggleValue] = React.useState(false)

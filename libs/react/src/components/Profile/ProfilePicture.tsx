@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useAuth } from '../../hooks.js'
-import { UnknownProfilePicture } from './UnknownProfilePicture.js'
 import { getFileUrl } from '@cloudillo/core'
+import * as React from 'react'
+
+import { useAuth } from '../../hooks.js'
 import { mergeClasses } from '../utils.js'
+import { UnknownProfilePicture } from './UnknownProfilePicture.js'
 
 export interface ProfilePictureProps {
 	className?: string

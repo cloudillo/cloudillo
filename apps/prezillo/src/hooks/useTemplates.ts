@@ -8,8 +8,8 @@
 import * as React from 'react'
 import { useY } from 'react-yjs'
 
-import type { TemplateId, YPrezilloDocument, Template, PrezilloObject } from '../crdt'
-import { getAllTemplates, getViewsUsingTemplate, getTemplatePrototypeObjects } from '../crdt'
+import type { PrezilloObject, Template, TemplateId, YPrezilloDocument } from '../crdt'
+import { getAllTemplates, getTemplatePrototypeObjects, getViewsUsingTemplate } from '../crdt'
 
 export interface TemplateWithUsage extends Template {
 	/** Number of views using this template */

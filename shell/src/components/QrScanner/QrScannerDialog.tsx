@@ -1,17 +1,15 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button } from '@cloudillo/react'
+import QrScanner from 'qr-scanner'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import QrScanner from 'qr-scanner'
-
 import { LuX as IcClose } from 'react-icons/lu'
 
-import { Button } from '@cloudillo/react'
-
 import { parseCloudilloUri } from '../../utils/cloudillo-uri.js'
-import { useQrScanner } from './state.js'
 import { ApproveQrLoginView } from './ApproveQrLoginView.js'
+import { useQrScanner } from './state.js'
 
 import './qr-scanner.css'
 

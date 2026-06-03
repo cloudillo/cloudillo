@@ -13,11 +13,10 @@
  * `useProfileTrust()`, which causes this banner to hide on the next render.
  */
 
+import { useToast } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuShield as IcShield } from 'react-icons/lu'
-
-import { useToast } from '@cloudillo/react'
 
 import { useProfileTrust } from '../context/index.js'
 

@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { mergeClasses, createComponent, buttonSizeClass } from '../utils.js'
-import type { ColorVariant, ContainerColorVariant, ButtonSize } from '../types.js'
 import { delay } from '@cloudillo/core'
+import * as React from 'react'
+
+import type { ButtonSize, ColorVariant, ContainerColorVariant } from '../types.js'
+import { buttonSizeClass, createComponent, mergeClasses } from '../utils.js'
 
 export type ButtonKind = 'button' | 'link' | 'nav-item' | 'nav-link'
 

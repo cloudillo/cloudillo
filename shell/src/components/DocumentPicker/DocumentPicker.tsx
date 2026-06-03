@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+
 /**
  * DocumentPicker Component
  *
@@ -11,23 +12,20 @@ import * as React from 'react'
  * - Internal shell components via useDocumentPicker hook
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { Button, useBodyScrollLock, useEscapeKey } from '@cloudillo/react'
 import { useAtom, useSetAtom } from 'jotai'
-import { useTranslation } from 'react-i18next'
+import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-
+import { useTranslation } from 'react-i18next'
 import { LuX as IcClose, LuFileText as IcDocument } from 'react-icons/lu'
 
-import { Button, useEscapeKey, useBodyScrollLock } from '@cloudillo/react'
-
 import {
-	docPickerAtom,
-	openDocPickerAtom,
 	closeDocPickerAtom,
-	type DocPickerResult
+	type DocPickerResult,
+	docPickerAtom,
+	openDocPickerAtom
 } from '../../context/doc-picker-atom.js'
 import { setDocPickerCallback } from '../../message-bus/handlers/document.js'
-
 import { DocumentPickerBrowseTab } from './DocumentPickerBrowseTab.js'
 
 import './document-picker.css'

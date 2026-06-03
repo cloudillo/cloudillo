@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { mergeClasses, createComponent } from '../utils.js'
+
 import { Tag } from '../Tag/index.js'
+import { createComponent, mergeClasses } from '../utils.js'
 
 export interface TagSuggestion {
 	tag: string

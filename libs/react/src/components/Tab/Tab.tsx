@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { mergeClasses, createComponent, polyRef } from '../utils.js'
-import { TabsContext } from './Tabs.js'
+
 import type { ColorVariant } from '../types.js'
+import { createComponent, mergeClasses, polyRef } from '../utils.js'
+import { TabsContext } from './Tabs.js'
 
 export interface TabProps extends React.HTMLAttributes<HTMLButtonElement | HTMLAnchorElement> {
 	value?: string

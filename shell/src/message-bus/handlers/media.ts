@@ -13,9 +13,10 @@
  * the request timing out.
  */
 
-import type { ShellMessageBus } from '../shell-bus.js'
 import type { MediaPickReq } from '@cloudillo/core'
+
 import { registerPendingTempId } from '../../services/file-id-resolver.js'
+import type { ShellMessageBus } from '../shell-bus.js'
 
 /**
  * Media picker options passed to the component

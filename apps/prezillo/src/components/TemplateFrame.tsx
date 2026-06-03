@@ -6,11 +6,11 @@
  * Similar to ViewFrame but with purple color scheme for template distinction.
  */
 
-import * as React from 'react'
 import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
+import * as React from 'react'
 
-import type { TemplateWithUsage } from '../hooks/useTemplates'
 import type { TemplateLayout } from '../hooks/useTemplateLayout'
+import type { TemplateWithUsage } from '../hooks/useTemplates'
 
 // Purple color scheme for templates
 const TEMPLATE_COLOR = '#9b59b6'

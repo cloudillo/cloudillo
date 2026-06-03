@@ -3,10 +3,9 @@
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
 import { LuMapPin as IcMapPin } from 'react-icons/lu'
 
-import type { SectionWithContent, LocationContent } from '../types.js'
+import type { LocationContent, SectionWithContent } from '../types.js'
 import { parseContent, stringifyContent } from '../types.js'
 
 const EMPTY: LocationContent = { city: '', country: '', address: '' }

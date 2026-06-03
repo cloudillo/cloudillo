@@ -1,32 +1,30 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, mergeClasses, useDialog } from '@cloudillo/react'
+import type { SectionType } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
 import {
-	LuPencil as IcEdit,
-	LuCheck as IcDone,
 	LuX as IcCancel,
-	LuGripVertical as IcDrag
+	LuCheck as IcDone,
+	LuGripVertical as IcDrag,
+	LuPencil as IcEdit
 } from 'react-icons/lu'
 
-import { Button, useDialog, mergeClasses } from '@cloudillo/react'
-import type { SectionType } from '@cloudillo/types'
-
 import { htmlToMd } from '../../lib/markdown.js'
+import { AddSectionPicker } from './AddSectionPicker.js'
+import { SectionEditor } from './SectionEditor.js'
+import { SectionView } from './SectionView.js'
 import {
-	type LayoutItem,
-	type SectionWithContent,
-	isColsLayout,
-	parseSections,
 	buildSavePatch,
 	getDefaultContent,
-	getSectionId
+	getSectionId,
+	isColsLayout,
+	type LayoutItem,
+	parseSections,
+	type SectionWithContent
 } from './types.js'
-import { SectionView } from './SectionView.js'
-import { SectionEditor } from './SectionEditor.js'
-import { AddSectionPicker } from './AddSectionPicker.js'
 
 // ============================================================================
 // Types

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuLayers as IcLayers, LuX as IcClose, LuCheck as IcCheck } from 'react-icons/lu'
+import { LuCheck as IcCheck, LuX as IcClose, LuLayers as IcLayers } from 'react-icons/lu'
 
-import type { TileLayerId } from './types.js'
 import { TILE_LAYERS } from './styles.js'
+import type { TileLayerId } from './types.js'
 
 interface LayerPanelProps {
 	activeTileId: TileLayerId

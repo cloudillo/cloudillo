@@ -1,17 +1,16 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { atom, useAtom } from 'jotai'
 import * as React from 'react'
 import { createPortal } from 'react-dom'
-import { useLibTranslation } from '../../i18n.js'
-import { atom, useAtom } from 'jotai'
+import { LuX as IcClose } from 'react-icons/lu'
 import Markdown from 'react-markdown'
 
+import { useLibTranslation } from '../../i18n.js'
 import { Button } from '../Button/Button.js'
-import { mergeClasses } from '../utils.js'
 import type { Elevation } from '../types.js'
-
-import { LuX as IcClose } from 'react-icons/lu'
+import { mergeClasses } from '../utils.js'
 
 /* Dialog component for HTML5 dialog */
 /*************************************/

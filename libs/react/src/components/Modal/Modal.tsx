@@ -3,9 +3,10 @@
 
 import * as React from 'react'
 import { createPortal } from 'react-dom'
-import { mergeClasses, createComponent } from '../utils.js'
+
 import { useBodyScrollLock, useEscapeKey } from '../hooks.js'
 import type { Elevation } from '../types.js'
+import { createComponent, mergeClasses } from '../utils.js'
 
 export interface ModalProps extends React.HTMLAttributes<HTMLDivElement> {
 	open?: boolean

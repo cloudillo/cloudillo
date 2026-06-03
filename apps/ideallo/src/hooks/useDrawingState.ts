@@ -6,6 +6,7 @@
  */
 
 import * as React from 'react'
+
 import type { ObjectId } from '../crdt/index.js'
 
 export interface TimedPoint {

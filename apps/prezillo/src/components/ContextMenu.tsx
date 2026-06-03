@@ -7,14 +7,14 @@
 
 import * as React from 'react'
 import {
-	PiCopyBold as IcDuplicate,
 	PiTrashBold as IcDelete,
 	PiLinkBreakBold as IcDetach,
-	PiEyeBold as IcShow,
-	PiEyeSlashBold as IcHide
+	PiCopyBold as IcDuplicate,
+	PiEyeSlashBold as IcHide,
+	PiEyeBold as IcShow
 } from 'react-icons/pi'
 
-import { getObject, isInstance, toggleObjectHidden, detachInstance } from '../crdt'
+import { detachInstance, getObject, isInstance, toggleObjectHidden } from '../crdt'
 import type { UsePrezilloDocumentResult } from '../hooks/usePrezilloDocument'
 
 export interface ContextMenuProps {

@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { atom } from 'jotai'
 import type { ActionView } from '@cloudillo/types'
+import { atom } from 'jotai'
+
 import type { AudienceTarget } from './AudienceSelector.js'
 
 export interface QuoteIntent {

@@ -6,57 +6,56 @@
  */
 
 import * as React from 'react'
-import type * as Y from 'yjs'
-import { mergeClasses } from '../utils'
-import type { YPrezilloDocument } from '../crdt'
-import { ThemeDropdown } from './ThemeDropdown'
-import { SymbolPicker } from './SymbolPicker'
-
 import {
-	PiSelection as IcSelect,
-	PiTextTBold as IcLabel,
-	PiRectangleBold as IcRect,
-	PiCircleBold as IcEllipse,
-	PiMinusBold as IcLine,
-	PiImageBold as IcImage,
-	PiQrCodeBold as IcQrCode,
-	PiChartBarBold as IcPollFrame,
-	PiTableBold as IcTable,
-	PiUsersBold as IcStateVar,
-	PiTrashBold as IcDelete,
-	PiCopyBold as IcDuplicate,
-	PiArrowArcLeftBold as IcUndo,
-	PiArrowArcRightBold as IcRedo,
-	PiExportBold as IcExport,
-	PiFilePdfBold as IcPDF,
-	PiFilePptBold as IcPPTX,
-	PiGridFourBold as IcGrid,
-	PiMagnetBold as IcSnapObjects,
-	PiArrowsOutSimpleBold as IcSnapSizes,
-	PiEqualsBold as IcSnapDistribution,
-	PiBugBold as IcDebug,
-	PiArrowLineUpBold as IcBringToFront,
+	PiAlignBottomBold as IcAlignBottom,
+	PiTextAlignCenterBold as IcAlignCenter,
+	PiTextAlignJustifyBold as IcAlignJustify,
+	PiTextAlignLeftBold as IcAlignLeft,
+	PiAlignCenterVerticalBold as IcAlignMiddle,
+	PiTextAlignRightBold as IcAlignRight,
+	PiAlignTopBold as IcAlignTop,
+	PiTextBBold as IcBold,
 	PiArrowUpBold as IcBringForward,
+	PiArrowLineUpBold as IcBringToFront,
+	PiBugBold as IcDebug,
+	PiTrashBold as IcDelete,
+	PiFileBold as IcDocument,
+	PiCopyBold as IcDuplicate,
+	PiCircleBold as IcEllipse,
+	PiExportBold as IcExport,
+	PiGridFourBold as IcGrid,
+	PiImageBold as IcImage,
+	PiTextItalicBold as IcItalic,
+	PiTextTBold as IcLabel,
+	PiMinusBold as IcLine,
+	PiDotsThreeVerticalBold as IcMenu,
+	PiSidebarSimpleBold as IcPanel,
+	PiFilePdfBold as IcPDF,
+	PiChartBarBold as IcPollFrame,
+	PiFilePptBold as IcPPTX,
+	PiQrCodeBold as IcQrCode,
+	PiRectangleBold as IcRect,
+	PiArrowArcRightBold as IcRedo,
+	PiWrenchBold as IcRepair,
+	PiSelection as IcSelect,
 	PiArrowDownBold as IcSendBackward,
 	PiArrowLineDownBold as IcSendToBack,
-	PiTextAlignLeftBold as IcAlignLeft,
-	PiTextAlignCenterBold as IcAlignCenter,
-	PiTextAlignRightBold as IcAlignRight,
-	PiTextAlignJustifyBold as IcAlignJustify,
-	PiAlignTopBold as IcAlignTop,
-	PiAlignCenterVerticalBold as IcAlignMiddle,
-	PiAlignBottomBold as IcAlignBottom,
-	PiTextBBold as IcBold,
-	PiTextItalicBold as IcItalic,
+	PiEqualsBold as IcSnapDistribution,
+	PiMagnetBold as IcSnapObjects,
+	PiArrowsOutSimpleBold as IcSnapSizes,
+	PiUsersBold as IcStateVar,
+	PiTableBold as IcTable,
 	PiTextUnderlineBold as IcUnderline,
-	PiSidebarSimpleBold as IcPanel,
-	PiDotsThreeVerticalBold as IcMenu,
-	PiWrenchBold as IcRepair,
-	PiFileBold as IcDocument
+	PiArrowArcLeftBold as IcUndo
 } from 'react-icons/pi'
+import type * as Y from 'yjs'
 
-import { FONT_SIZES } from '../utils/text-styles'
+import type { YPrezilloDocument } from '../crdt'
 import type { UseSnapSettingsResult } from '../hooks/useSnappingConfig'
+import { mergeClasses } from '../utils'
+import { FONT_SIZES } from '../utils/text-styles'
+import { SymbolPicker } from './SymbolPicker'
+import { ThemeDropdown } from './ThemeDropdown'
 
 // App version injected at build time
 declare const __APP_VERSION__: string

@@ -3,11 +3,10 @@
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { LuGlobe as IcGlobe, LuMail as IcMail, LuPhone as IcPhone } from 'react-icons/lu'
 
-import { LuMail as IcMail, LuPhone as IcPhone, LuGlobe as IcGlobe } from 'react-icons/lu'
-
-import type { SectionWithContent, ContactContent } from '../types.js'
-import { parseContent, stringifyContent, ensureUrlProtocol } from '../types.js'
+import type { ContactContent, SectionWithContent } from '../types.js'
+import { ensureUrlProtocol, parseContent, stringifyContent } from '../types.js'
 
 const EMPTY: ContactContent = { email: '', phone: '', website: '' }
 

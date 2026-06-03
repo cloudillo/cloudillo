@@ -5,9 +5,10 @@
  * ViewFrame component - Renders a view/slide frame on the canvas
  */
 
-import * as React from 'react'
-import type { ViewNode } from '../crdt'
 import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
+import * as React from 'react'
+
+import type { ViewNode } from '../crdt'
 
 // Template highlight color (matches TemplateFrame)
 const TEMPLATE_HIGHLIGHT_COLOR = '#9b59b6'

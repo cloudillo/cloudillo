@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
 import esbuild from 'esbuild'
-import { createRequire } from 'module'
 import { readFileSync } from 'fs'
-import { fileURLToPath } from 'url'
+import { createRequire } from 'module'
 import { dirname, join } from 'path'
-import { createConfig, buildApp, buildHTML } from '../../scripts/esbuild-common.js'
+import { fileURLToPath } from 'url'
+
+import { buildApp, buildHTML, createConfig } from '../../scripts/esbuild-common.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)

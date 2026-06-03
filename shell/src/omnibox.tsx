@@ -20,7 +20,6 @@ import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-
 import {
 	LuX as IcClose,
 	LuCopy as IcCopy,
@@ -30,6 +29,7 @@ import {
 } from 'react-icons/lu'
 import { usePopper } from 'react-popper'
 import { useLocation, useNavigate } from 'react-router-dom'
+
 import {
 	activeContextAtom,
 	communitiesAtom,

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuSettings as IcSettings, LuX as IcClose } from 'react-icons/lu'
+import { LuX as IcClose, LuSettings as IcSettings } from 'react-icons/lu'
 
 import type { MapilloSettings, OverpassServer } from './types.js'
 import { OVERPASS_SERVERS } from './types.js'

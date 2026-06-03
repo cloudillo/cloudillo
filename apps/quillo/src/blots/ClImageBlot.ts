@@ -10,8 +10,8 @@
  * Delta format: { insert: { 'cl-image': { fileId, alt?, width? } } }
  */
 
-import Quill from 'quill'
 import { getFileUrl } from '@cloudillo/core'
+import Quill from 'quill'
 
 /** Typed base class for Quill block embed blots */
 interface QuillBlockEmbedClass {

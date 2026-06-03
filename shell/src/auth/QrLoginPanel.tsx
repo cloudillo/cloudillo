@@ -1,25 +1,23 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { resolveDefaultExport } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import ReactQRCode from 'react-qr-code'
 
-import { resolveDefaultExport } from '@cloudillo/react'
-
 const QRCode = resolveDefaultExport(ReactQRCode)
 
+import { Button, useApi, useAuth } from '@cloudillo/react'
 import {
-	LuRefreshCw as IcRefresh,
-	LuCheck as IcOk,
 	LuX as IcError,
-	LuQrCode as IcQr
+	LuCheck as IcOk,
+	LuQrCode as IcQr,
+	LuRefreshCw as IcRefresh
 } from 'react-icons/lu'
 
-import { useAuth, useApi, Button } from '@cloudillo/react'
-
-import { useLoginInit } from './auth.js'
 import { installToken } from '../pwa.js'
+import { useLoginInit } from './auth.js'
 
 type PanelState = 'loading' | 'showing' | 'approved' | 'denied' | 'expired' | 'error'
 

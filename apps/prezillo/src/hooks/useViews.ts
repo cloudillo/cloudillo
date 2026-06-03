@@ -8,7 +8,7 @@
 import * as React from 'react'
 import { useY } from 'react-yjs'
 
-import type { YPrezilloDocument, ViewNode } from '../crdt'
+import type { ViewNode, YPrezilloDocument } from '../crdt'
 import { getAllViews, resolveViewBackground } from '../crdt'
 
 /**

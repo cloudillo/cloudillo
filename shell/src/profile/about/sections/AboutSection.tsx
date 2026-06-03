@@ -1,14 +1,14 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import QuillMarkdown from 'quilljs-markdown'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import Markdown from 'react-markdown'
 import ReactQuill, { Quill } from 'react-quill-new'
-import QuillMarkdown from 'quilljs-markdown'
 
-import type { SectionWithContent } from '../types.js'
 import { mdToHtml } from '../../../lib/markdown.js'
+import type { SectionWithContent } from '../types.js'
 
 Quill.register('modules/QuillMarkdown', QuillMarkdown, true)
 

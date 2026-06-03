@@ -8,10 +8,10 @@
  * This produces SVG that can be converted to PDF via svg2pdf.js.
  */
 
-import type { DeltaOp, TextBounds, BaseTextStyle } from './types'
 import { deltaToLines } from './delta-parser'
 import { calculateRichTextLayout } from './layout'
-import { resolveRunStyle, type ResolvedRunStyle } from './measure'
+import { type ResolvedRunStyle, resolveRunStyle } from './measure'
+import type { BaseTextStyle, DeltaOp, TextBounds } from './types'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 

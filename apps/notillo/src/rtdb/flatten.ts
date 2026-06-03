@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { Block } from '@blocknote/core'
-import { type BlockRecord, asBlockContent } from './types.js'
-import { cleanProps, compactContent, compactBlockType } from './transform.js'
+
+import { cleanProps, compactBlockType, compactContent } from './transform.js'
+import { asBlockContent, type BlockRecord } from './types.js'
 
 interface FlatBlock {
 	id: string

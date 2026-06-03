@@ -8,22 +8,22 @@
 import * as React from 'react'
 import { computeGrabPoint, type SvgCanvasContext, type UseSnappingReturn } from 'react-svg-canvas'
 
-import type { ObjectId, ViewId, TemplateId, PrezilloObject } from '../crdt'
+import { clearEditingState, setEditingState } from '../awareness'
+import type { ObjectId, PrezilloObject, TemplateId, ViewId } from '../crdt'
 import {
-	updateObjectPosition,
-	updateObjectPageAssociation,
 	addObjectToTemplate,
-	removeObjectFromTemplate,
+	detachInstance,
 	findViewAtPoint,
+	getAbsoluteBounds,
+	getStackedObjects,
 	isInstance,
 	isPropertyGroupLocked,
-	getStackedObjects,
-	getAbsoluteBounds,
-	detachInstance
+	removeObjectFromTemplate,
+	updateObjectPageAssociation,
+	updateObjectPosition
 } from '../crdt'
-import { setEditingState, clearEditingState } from '../awareness'
-import type { TemplateLayout } from './useTemplateLayout'
 import type { UsePrezilloDocumentResult } from './usePrezilloDocument'
+import type { TemplateLayout } from './useTemplateLayout'
 
 type CanvasObject = PrezilloObject & {
 	_templateId?: TemplateId

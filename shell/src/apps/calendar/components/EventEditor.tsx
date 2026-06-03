@@ -13,7 +13,6 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { toLocalInput } from '../utils.js'
-
 import { CalendarEditorModal } from './CalendarEditorModal.js'
 import { RecurrenceBuilder } from './RecurrenceBuilder.js'
 

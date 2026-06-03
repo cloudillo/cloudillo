@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { CalendarOutput, CalendarObjectOutput, CalendarObjectListItem } from '@cloudillo/core'
+import type { CalendarObjectListItem, CalendarObjectOutput, CalendarOutput } from '@cloudillo/core'
 
 export type CalendarView = 'month' | 'week' | 'day' | 'agenda' | 'tasks'
 
@@ -59,6 +59,6 @@ export interface EventOccurrence {
 	recurrenceParseFailed?: boolean
 }
 
-export type { CalendarOutput, CalendarObjectOutput, CalendarObjectListItem }
+export type { CalendarObjectListItem, CalendarObjectOutput, CalendarOutput }
 
 // vim: ts=4

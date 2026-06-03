@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
+import { createRoot } from 'react-dom/client'
 import { IconContext } from 'react-icons'
+import { BrowserRouter } from 'react-router-dom'
 
 import './i18n.js'
 import { Layout } from './layout.js'

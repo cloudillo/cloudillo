@@ -5,26 +5,26 @@
  * Hook for accessing the document's palette
  */
 
+import type { Gradient } from '@cloudillo/canvas-tools'
 import * as React from 'react'
-import type * as Y from 'yjs'
 import { useY } from 'react-yjs'
+import type * as Y from 'yjs'
 
 import type {
-	YPrezilloDocument,
 	Palette,
-	PaletteSlotName,
 	PaletteColorSlotName,
-	PaletteGradientSlotName
+	PaletteGradientSlotName,
+	PaletteSlotName,
+	YPrezilloDocument
 } from '../crdt'
 import {
 	getPalette,
+	getPaletteUsageCounts,
 	setPalette,
 	updatePaletteColorSlot,
 	updatePaletteGradientSlot,
-	updatePaletteName,
-	getPaletteUsageCounts
+	updatePaletteName
 } from '../crdt'
-import type { Gradient } from '@cloudillo/canvas-tools'
 
 export interface UsePaletteReturn {
 	/** The current palette */

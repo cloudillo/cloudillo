@@ -15,6 +15,7 @@ import * as React from 'react'
 interface NavigatorUA {
 	userAgentData?: { platform: string }
 }
+
 import { useTranslation } from 'react-i18next'
 import {
 	LuPlus as IcAdd,
@@ -27,12 +28,13 @@ import {
 	LuFingerprint as IcPasskey,
 	LuTriangleAlert as IcWarning
 } from 'react-icons/lu'
+
+import { PasswordInput, PasswordStrengthBar } from '../components/PasswordInput.js'
 import {
 	deleteApiKey as swDeleteApiKey,
 	getApiKey as swGetApiKey,
 	setApiKey as swSetApiKey
 } from '../pwa.js'
-import { PasswordInput, PasswordStrengthBar } from '../components/PasswordInput.js'
 import { registerPasskey } from './passkey.js'
 import { useSettings } from './settings.js'
 

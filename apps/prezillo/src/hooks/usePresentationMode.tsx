@@ -5,8 +5,9 @@
  * Hook for managing presentation mode state
  */
 
-import * as React from 'react'
 import type { ToastOptions } from '@cloudillo/react'
+import * as React from 'react'
+
 import type { PresenterInfo } from '../awareness'
 import type { UsePrezilloDocumentResult } from './usePrezilloDocument'
 

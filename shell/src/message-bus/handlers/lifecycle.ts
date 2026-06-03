@@ -9,6 +9,7 @@
  */
 
 import type { AppErrorNotify, AppReadyNotify, AppTitlePush } from '@cloudillo/core'
+
 import type { ShellMessageBus } from '../shell-bus.js'
 import { deliverPendingImport } from './import.js'
 

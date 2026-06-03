@@ -3,7 +3,8 @@
 
 import * as React from 'react'
 import { LuChevronRight as IcChevron } from 'react-icons/lu'
-import { mergeClasses, createComponent } from '../utils.js'
+
+import { createComponent, mergeClasses } from '../utils.js'
 
 // Accordion Context
 interface AccordionContextValue {

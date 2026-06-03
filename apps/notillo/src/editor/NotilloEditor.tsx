@@ -1,42 +1,41 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useTranslation } from 'react-i18next'
-
 import { type Block, UniqueID } from '@blocknote/core'
-import { filterSuggestionItems } from '@blocknote/core/extensions'
-import { Extension as TiptapExtension } from '@tiptap/core'
-import { Plugin as ProseMirrorPlugin } from '@tiptap/pm/state'
+import { filterSuggestionItems, SideMenuExtension } from '@blocknote/core/extensions'
+import { BlockNoteView } from '@blocknote/mantine'
 import {
-	useCreateBlockNote,
-	useExtensionState,
-	useComponentsContext,
-	SuggestionMenuController,
-	SideMenuController,
-	SideMenu,
+	BlockColorsItem,
+	type DefaultReactSuggestionItem,
 	DragHandleMenu,
 	RemoveBlockItem,
-	BlockColorsItem,
-	type DefaultReactSuggestionItem
+	SideMenu,
+	SideMenuController,
+	SuggestionMenuController,
+	useComponentsContext,
+	useCreateBlockNote,
+	useExtensionState
 } from '@blocknote/react'
-import { SideMenuExtension } from '@blocknote/core/extensions'
-import { BlockNoteView } from '@blocknote/mantine'
+import { Extension as TiptapExtension } from '@tiptap/core'
+import { Plugin as ProseMirrorPlugin } from '@tiptap/pm/state'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import '@blocknote/mantine/style.css'
 
 import { getFileUrl, getImageVariantForDisplaySize } from '@cloudillo/core'
 import type { RtdbClient } from '@cloudillo/rtdb'
-import type { PageRecord } from '../rtdb/types.js'
-import { createPage } from '../rtdb/page-ops.js'
-import { NotilloEditorProvider } from './NotilloEditorContext.js'
-import { notilloSchema, asBaseEditor, type NotilloEditor as NotilloEditorType } from './schema.js'
-import { notilloThemeOverrides } from './theme.js'
-import { shortId } from '../rtdb/ids.js'
-import { useDocumentSync, useRtdbToEditor } from '../hooks/useEditorSync.js'
-import { useEditorLocks } from '../hooks/useEditorLocks.js'
+
 import { useBlockLocks } from '../hooks/useBlockLocks.js'
+import { useEditorLocks } from '../hooks/useEditorLocks.js'
+import { useDocumentSync, useRtdbToEditor } from '../hooks/useEditorSync.js'
 import { useLockIndicators } from '../hooks/useLockIndicators.js'
 import { usePageTagSync } from '../hooks/usePageTagSync.js'
+import { shortId } from '../rtdb/ids.js'
+import { createPage } from '../rtdb/page-ops.js'
+import type { PageRecord } from '../rtdb/types.js'
+import { NotilloEditorProvider } from './NotilloEditorContext.js'
+import { asBaseEditor, type NotilloEditor as NotilloEditorType, notilloSchema } from './schema.js'
+import { notilloThemeOverrides } from './theme.js'
 import { useMediaHandler } from './useMediaHandler.js'
 
 // Override BlockNote's UUID generator with short base-62 IDs.

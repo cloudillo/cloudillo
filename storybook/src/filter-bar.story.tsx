@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { Story, Variant } from './storybook.js'
 import { FilterBar } from '@cloudillo/react'
-import { LuFolder, LuFile, LuStar, LuTrash2, LuSearch } from 'react-icons/lu'
+import * as React from 'react'
+import { LuFile, LuFolder, LuSearch, LuStar, LuTrash2 } from 'react-icons/lu'
+
+import { Story, Variant } from './storybook.js'
 
 export function FilterBarStory() {
 	const [activeItem, setActiveItem] = React.useState<string>('all')

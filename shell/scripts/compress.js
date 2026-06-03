@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 
-import { readFileSync, writeFileSync, readdirSync, statSync } from 'fs'
-import { join, extname } from 'path'
-import { gzipSync, brotliCompressSync, constants } from 'zlib'
+import { readdirSync, readFileSync, statSync, writeFileSync } from 'fs'
+import { dirname, extname, join } from 'path'
 import { fileURLToPath } from 'url'
-import { dirname } from 'path'
+import { brotliCompressSync, constants, gzipSync } from 'zlib'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const rootDir = join(__dirname, '..')

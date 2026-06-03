@@ -1,17 +1,15 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, useApi } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
 import {
-	LuCheck as IcOk,
 	LuX as IcDeny,
+	LuMonitor as IcDesktop,
 	LuRefreshCw as IcLoading,
-	LuMonitor as IcDesktop
+	LuCheck as IcOk
 } from 'react-icons/lu'
-
-import { useApi, Button } from '@cloudillo/react'
 
 interface ApproveQrLoginViewProps {
 	loginCode: string

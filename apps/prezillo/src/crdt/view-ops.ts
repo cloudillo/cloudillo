@@ -5,19 +5,20 @@
  * View (page/slide) CRUD operations
  */
 
+import type { Gradient } from '@cloudillo/canvas-tools'
 import type * as Y from 'yjs'
-import type { YPrezilloDocument, StoredView } from './stored-types'
-import type { ViewId, TemplateId, ObjectId } from './ids'
-import { generateViewId, toViewId, toTemplateId, toObjectId } from './ids'
-import type { ViewNode, ResolvedViewBackground, SnapGuide } from './runtime-types'
+
+import { getDocumentMeta } from './document'
+import type { ObjectId, TemplateId, ViewId } from './ids'
+import { generateViewId, toObjectId, toTemplateId, toViewId } from './ids'
+import type { ResolvedViewBackground, SnapGuide, ViewNode } from './runtime-types'
+import type { StoredView, YPrezilloDocument } from './stored-types'
 import {
-	expandView,
+	compactBackgroundGradient,
 	compactView,
 	expandBackgroundGradient,
-	compactBackgroundGradient
+	expandView
 } from './type-converters'
-import { getDocumentMeta } from './document'
-import type { Gradient } from '@cloudillo/canvas-tools'
 
 /**
  * Create a new view (page/slide)

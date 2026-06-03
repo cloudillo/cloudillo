@@ -15,52 +15,53 @@ import '@symbion/opalui/themes/glass.css'
 import '@cloudillo/react/components.css'
 import './style.css'
 
-import {
-	useIdealloDocument,
-	useDrawingHandler,
-	useShapeHandler,
-	useTextHandler,
-	useStickyHandler,
-	useTextLabelHandler,
-	useSelectHandler,
-	useEraserHandler,
-	useImageHandler,
-	useDocumentHandler
-} from './hooks/index.js'
-import {
-	useResizable,
-	useRotatable,
-	type SvgCanvasContext,
-	type ResizeHandle,
-	type Point as SvgPoint
-} from 'react-svg-canvas'
 import { calculateArcRadius } from '@cloudillo/canvas-tools'
-import { normalizeAngle } from './utils/geometry.js'
 import { getAppBus } from '@cloudillo/core'
+import type Quill from 'quill'
+import {
+	type ResizeHandle,
+	type SvgCanvasContext,
+	type Point as SvgPoint,
+	useResizable,
+	useRotatable
+} from 'react-svg-canvas'
+
 import {
 	Canvas,
-	Toolbar,
-	ZoomControls,
+	type CanvasHandle,
 	PropertyBar,
-	type CanvasHandle
+	Toolbar,
+	ZoomControls
 } from './components/index.js'
-import type Quill from 'quill'
-import type { ToolType } from './tools/index.js'
-import type { ObjectId, Bounds, IdealloObject } from './crdt/index.js'
+import type { Bounds, IdealloObject, ObjectId } from './crdt/index.js'
 import {
-	getObject,
-	updateObjectFields,
+	bringForward,
+	bringToFront,
 	deleteObjects,
 	downloadExport,
-	bringToFront,
-	sendToBack,
-	bringForward,
+	getObject,
 	sendBackward,
-	updateDocumentNavState
+	sendToBack,
+	updateDocumentNavState,
+	updateObjectFields
 } from './crdt/index.js'
-import { getObjectBounds } from './utils/bounds.js'
-import { scalePathData } from './utils/path-scaling.js'
+import {
+	useDocumentHandler,
+	useDrawingHandler,
+	useEraserHandler,
+	useIdealloDocument,
+	useImageHandler,
+	useSelectHandler,
+	useShapeHandler,
+	useStickyHandler,
+	useTextHandler,
+	useTextLabelHandler
+} from './hooks/index.js'
 import type { MorphAnimationState } from './smart-ink/index.js'
+import type { ToolType } from './tools/index.js'
+import { getObjectBounds } from './utils/bounds.js'
+import { normalizeAngle } from './utils/geometry.js'
+import { scalePathData } from './utils/path-scaling.js'
 
 export function IdealloApp() {
 	const ideallo = useIdealloDocument()

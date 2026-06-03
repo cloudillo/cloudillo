@@ -16,7 +16,6 @@ import Picker from '@emoji-mart/react'
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-
 import {
 	LuCamera as IcCamera,
 	LuX as IcClose,
@@ -32,10 +31,11 @@ import {
 } from 'react-icons/lu'
 import { usePopper } from 'react-popper'
 import { type Position, useEditable } from 'use-editable'
-import { handleEditablePaste } from '../../utils/editablePaste.js'
+
 import { AttachmentPreview } from '../../components/AttachmentPreview.js'
 import { type AttachmentType, useImageUpload } from '../../hooks/useImageUpload.js'
 import { ImageUpload } from '../../image.js'
+import { handleEditablePaste } from '../../utils/editablePaste.js'
 import { AudienceSelector, type AudienceTarget } from './AudienceSelector.js'
 import { EmbeddedPostCard } from './EmbeddedPostCard.js'
 import { SchedulePicker } from './SchedulePicker.js'

@@ -5,21 +5,22 @@
  * Style system operations and resolution
  */
 
+import type { Gradient } from '@cloudillo/canvas-tools'
 import type * as Y from 'yjs'
-import type {
-	YPrezilloDocument,
-	StoredStyle,
-	StoredObject,
-	ShapeStyle,
-	TextStyle,
-	StoredPaletteRef
-} from './stored-types'
+
 import type { StyleId } from './ids'
 import { generateStyleId, toStyleId } from './ids'
-import type { ResolvedShapeStyle, ResolvedTextStyle, Palette } from './runtime-types'
-import { isPaletteRef, expandPaletteRef } from './type-converters'
 import { getPalette, getResolvedColor, resolvePaletteRef } from './palette-ops'
-import type { Gradient } from '@cloudillo/canvas-tools'
+import type { Palette, ResolvedShapeStyle, ResolvedTextStyle } from './runtime-types'
+import type {
+	ShapeStyle,
+	StoredObject,
+	StoredPaletteRef,
+	StoredStyle,
+	TextStyle,
+	YPrezilloDocument
+} from './stored-types'
+import { expandPaletteRef, isPaletteRef } from './type-converters'
 
 // Default styles
 export const DEFAULT_SHAPE_STYLE: ResolvedShapeStyle = {

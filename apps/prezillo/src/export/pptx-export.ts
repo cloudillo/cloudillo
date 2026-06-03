@@ -8,11 +8,11 @@
  * ensuring maximum editability when opened in PowerPoint/LibreOffice.
  */
 
-import type { YPrezilloDocument, ViewNode, PrezilloObject, QrCodeObject } from '../crdt'
-import { getViewObjects } from './view-objects'
+import type { PrezilloObject, QrCodeObject, ViewNode, YPrezilloDocument } from '../crdt'
 import { collectImageObjectsFromArray, preloadImages } from './image-embedder'
-import { pxToInches, hexToColor } from './pptx-style-mapper'
 import { addObjectToSlide } from './pptx-shape-mapper'
+import { hexToColor, pxToInches } from './pptx-style-mapper'
+import { getViewObjects } from './view-objects'
 
 // Default slide dimensions (1920x1080 for 16:9)
 const DEFAULT_WIDTH = 1920

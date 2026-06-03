@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as T from '@symbion/runtype'
+
+import { AuthError, ConnectionError, RtdbError, TimeoutError } from './errors.js'
 import {
-	type ClientMessage,
-	type ServerMessage,
-	tServerMessage,
-	type ChangeEvent,
-	type QueryFilter,
 	type AggregateOptions,
-	type RtdbClientOptions
+	type ChangeEvent,
+	type ClientMessage,
+	type QueryFilter,
+	type RtdbClientOptions,
+	type ServerMessage,
+	tServerMessage
 } from './types.js'
-import { ConnectionError, AuthError, TimeoutError, RtdbError } from './errors.js'
 
 interface PendingRequest {
 	resolve: (value: unknown) => void

@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { useApi, useToast } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
-import { useApi, useToast } from '@cloudillo/react'
 
 // Debounce delays for different input types
 const DEBOUNCE_DELAYS = {

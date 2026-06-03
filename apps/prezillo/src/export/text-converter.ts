@@ -10,8 +10,8 @@
  */
 
 import type { ResolvedTextStyle } from '../crdt'
-import type { Bounds, TextLayout, TextLineMetrics } from './types'
 import { getBulletIcon, migrateBullet } from '../data/bullet-icons'
+import type { Bounds, TextLayout, TextLineMetrics } from './types'
 
 /**
  * Map text alignment to SVG text-anchor attribute

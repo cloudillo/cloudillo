@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { jest, describe, it, expect, beforeEach } from '@jest/globals'
-import { Query } from '../query'
+import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+
 import { AggregateQuery } from '../aggregate-query'
+import { Query } from '../query'
 import { WebSocketManager } from '../websocket'
 
 // Mock WebSocketManager

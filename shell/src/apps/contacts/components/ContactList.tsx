@@ -1,17 +1,16 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { EmptyState, LoadingSpinner, LoadMoreTrigger, mergeClasses } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-	LuMail as IcMail,
-	LuPhone as IcPhone,
-	LuBuilding as IcOrg,
 	LuLink as IcLinked,
+	LuMail as IcMail,
+	LuBuilding as IcOrg,
+	LuPhone as IcPhone,
 	LuUser as IcUser
 } from 'react-icons/lu'
-
-import { EmptyState, LoadMoreTrigger, LoadingSpinner, mergeClasses } from '@cloudillo/react'
 
 import type { ListedContact } from '../hooks/useContactList.js'
 import type { SelectedContactRef } from '../types.js'

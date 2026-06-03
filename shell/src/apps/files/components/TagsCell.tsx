@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button } from '@cloudillo/react'
 import * as React from 'react'
 import { FiEdit2 as IcEdit } from 'react-icons/fi'
-import { Button } from '@cloudillo/react'
+
 import { useContextAwareApi } from '../../../context/index.js'
-import { Tags, EditTags } from '../../../tags.js'
+import { EditTags, Tags } from '../../../tags.js'
 
 interface TagsCellProps {
 	fileId: string

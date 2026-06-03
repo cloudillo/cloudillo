@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+
 import { mergeClasses } from '../utils.js'
 
 export type FcdDetailsMode = 'inline' | 'overlay' | 'adaptive'

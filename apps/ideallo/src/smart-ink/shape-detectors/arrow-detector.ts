@@ -9,10 +9,10 @@
  */
 
 import {
-	distance,
-	perpendicularDistance,
 	angleBetweenVectors,
-	type Point
+	distance,
+	type Point,
+	perpendicularDistance
 } from '../../utils/geometry.js'
 import { detectLine } from './line-detector.js'
 

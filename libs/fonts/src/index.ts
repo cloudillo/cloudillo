@@ -1,11 +1,4 @@
 // Types
-export type {
-	FontCategory,
-	FontRole,
-	FontWeight,
-	FontMetadata,
-	FontPairing
-} from './types.js'
 
 // Font metadata
 export {
@@ -14,7 +7,6 @@ export {
 	getFontsByCategory,
 	getFontsByRole
 } from './metadata.js'
-
 // Font pairings
 export {
 	FONT_PAIRINGS,
@@ -23,3 +15,10 @@ export {
 	getSuggestedBodyFonts,
 	getSuggestedHeadingFonts
 } from './pairings.js'
+export type {
+	FontCategory,
+	FontMetadata,
+	FontPairing,
+	FontRole,
+	FontWeight
+} from './types.js'

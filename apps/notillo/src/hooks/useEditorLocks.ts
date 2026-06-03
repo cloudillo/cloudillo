@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { useEffect, useRef, type RefObject } from 'react'
-
 import type { BlockNoteEditor } from '@blocknote/core'
 import type { RtdbClient } from '@cloudillo/rtdb'
+import { type RefObject, useEffect, useRef } from 'react'
 
 export function useEditorLocks(
 	editor: BlockNoteEditor | undefined,

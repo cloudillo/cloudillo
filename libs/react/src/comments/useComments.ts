@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { useState, useRef, useCallback, useEffect } from 'react'
-import { RtdbClient, increment } from '@cloudillo/rtdb'
 import { getMetaDbId } from '@cloudillo/core'
+import { increment, RtdbClient } from '@cloudillo/rtdb'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
-import type { StoredThread, StoredComment, CommentThread, Comment } from './types.js'
-import { threadFromStored, commentFromStored } from './types.js'
+import type { Comment, CommentThread, StoredComment, StoredThread } from './types.js'
+import { commentFromStored, threadFromStored } from './types.js'
 
 const ID_CHARS = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 

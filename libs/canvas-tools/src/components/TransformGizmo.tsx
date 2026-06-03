@@ -11,8 +11,9 @@
 import * as React from 'react'
 import type { Bounds, Point, ResizeHandle } from 'react-svg-canvas'
 import { SelectionBox } from 'react-svg-canvas'
-import { RotationHandle } from './RotationHandle'
+
 import { PivotHandle } from './PivotHandle'
+import { RotationHandle } from './RotationHandle'
 
 export interface TransformGizmoProps {
 	/** Bounding box of the selection (screen coordinates) */

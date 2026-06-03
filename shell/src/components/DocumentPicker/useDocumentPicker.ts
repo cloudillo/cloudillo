@@ -7,14 +7,14 @@
  * Internal API for shell components to open the document picker.
  */
 
-import { useCallback } from 'react'
 import { useAtom, useSetAtom } from 'jotai'
+import { useCallback } from 'react'
 
 import {
-	docPickerAtom,
-	openDocPickerAtom,
 	type DocPickerOptions,
-	type DocPickerResult
+	type DocPickerResult,
+	docPickerAtom,
+	openDocPickerAtom
 } from '../../context/doc-picker-atom.js'
 
 export interface UseDocumentPickerReturn {

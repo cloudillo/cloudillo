@@ -1,19 +1,19 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, Menu, MenuDivider, MenuHeader, MenuItem, SubMenuItem } from '@cloudillo/react'
 import * as React from 'react'
+import {
+	LuClipboard,
+	LuCopy,
+	LuDownload,
+	LuPencil,
+	LuScissors,
+	LuShare2,
+	LuTrash2
+} from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
-import { Menu, MenuItem, MenuDivider, MenuHeader, SubMenuItem, Button } from '@cloudillo/react'
-import {
-	LuCopy,
-	LuClipboard,
-	LuScissors,
-	LuTrash2,
-	LuPencil,
-	LuShare2,
-	LuDownload
-} from 'react-icons/lu'
 
 export function MenuStory() {
 	const [basicPos, setBasicPos] = React.useState<{ x: number; y: number } | null>(null)

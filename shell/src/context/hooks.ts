@@ -7,38 +7,37 @@
  * Custom hooks for managing multi-context state and operations.
  */
 
-import * as React from 'react'
+import { type ApiClient, createApiClient, FetchError } from '@cloudillo/core'
+import { apiAtom, authAtom, useApi, useAuth } from '@cloudillo/react'
 import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai'
+import * as React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { createApiClient, FetchError, type ApiClient } from '@cloudillo/core'
-import { useApi, useAuth, apiAtom, authAtom } from '@cloudillo/react'
 
-import { HOME_CONTEXT } from './constants.js'
 import {
 	activeContextAtom,
+	communitiesAtom,
+	contextDataCacheAtom,
 	contextIdpEnabledAtom,
 	contextIdpEnabledCacheAtom,
-	contextTokensAtom,
-	communitiesAtom,
-	favoritesAtom,
-	recentContextsAtom,
-	sidebarAtom,
-	contextDataCacheAtom,
-	lastContextSwitchAtom,
 	contextSwitchingAtom,
+	contextTokensAtom,
 	favoriteCommunitiesAtom,
+	favoritesAtom,
+	lastContextSwitchAtom,
 	recentCommunitiesAtom,
-	totalUnreadCountAtom,
+	recentContextsAtom,
 	sessionTrustAtom,
-	storedTrustAtom
+	sidebarAtom,
+	storedTrustAtom,
+	totalUnreadCountAtom
 } from './atoms'
-
+import { HOME_CONTEXT } from './constants.js'
 import {
-	CONTEXT_TOKEN_LIFETIME_MS,
 	type ActiveContext,
+	CONTEXT_TOKEN_LIFETIME_MS,
 	type CommunityRef,
-	type ContextToken,
-	type ContextSwitchEvent
+	type ContextSwitchEvent,
+	type ContextToken
 } from './types'
 
 /**

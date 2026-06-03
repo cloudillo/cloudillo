@@ -1,13 +1,12 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, useApi } from '@cloudillo/react'
 import * as React from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { LuRefreshCw as IcLoading, LuLock as IcLock } from 'react-icons/lu'
+import { useNavigate, useParams } from 'react-router-dom'
 
-import { LuLock as IcLock, LuRefreshCw as IcLoading } from 'react-icons/lu'
-
-import { useApi, Button } from '@cloudillo/react'
 import { PasswordInput, PasswordStrengthBar } from '../components/PasswordInput.js'
 import { CloudilloLogo } from '../logo.js'
 

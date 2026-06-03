@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type * as Y from 'yjs'
-import { WebsocketProvider } from 'y-websocket'
-
 import { getCrdtUrl } from '@cloudillo/core'
+import { WebsocketProvider } from 'y-websocket'
+import type * as Y from 'yjs'
 
 export interface CrdtWebSocketOpts {
 	idTag: string

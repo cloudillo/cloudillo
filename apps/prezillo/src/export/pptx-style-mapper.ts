@@ -6,6 +6,7 @@
  */
 
 import type PptxGenJS from 'pptxgenjs'
+
 import type { ResolvedShapeStyle, ResolvedTextStyle } from '../crdt'
 
 /** Convert '#RRGGBB' hex to 'RRGGBB' (PptxGenJS format, no leading #) */

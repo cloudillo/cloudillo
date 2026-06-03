@@ -8,11 +8,11 @@
  * Save/cancel just close the editor; text content is already persisted in CRDT.
  */
 
-import * as React from 'react'
 import type Quill from 'quill'
+import * as React from 'react'
 
 import type { ObjectId, TextObject } from '../crdt'
-import { updateObjectSize, resolveObject, resolveTextStyle } from '../crdt'
+import { resolveObject, resolveTextStyle, updateObjectSize } from '../crdt'
 import { measureTextHeight } from '../utils'
 import type { UsePrezilloDocumentResult } from './usePrezilloDocument'
 

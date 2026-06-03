@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { mergeClasses, createComponent } from '../utils.js'
-import { ToastContext } from './ToastContext.js'
+
 import type { ToastVariant } from '../types.js'
+import { createComponent, mergeClasses } from '../utils.js'
+import { ToastContext } from './ToastContext.js'
 import type { ToastData } from './useToast.js'
 
 export interface ToastProps extends React.HTMLAttributes<HTMLDivElement> {

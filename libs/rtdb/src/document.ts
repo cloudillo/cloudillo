@@ -1,19 +1,19 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { WebSocketManager } from './websocket.js'
 import { CollectionReference } from './collection.js'
 import type {
-	DocumentSnapshot,
 	ChangeEvent,
+	DocumentSnapshot,
 	GetMessage,
-	TransactionMessage,
 	LockMessage,
-	UnlockMessage,
 	LockResult,
+	TransactionMessage,
+	UnlockMessage,
 	UpdateData
 } from './types.js'
-import { DocumentSnapshotImpl, createDocumentFromEvent, normalizePath } from './utils.js'
+import { createDocumentFromEvent, DocumentSnapshotImpl, normalizePath } from './utils.js'
+import type { WebSocketManager } from './websocket.js'
 
 export class DocumentReference<T = unknown> {
 	readonly id: string

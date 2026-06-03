@@ -6,6 +6,7 @@
  */
 
 import * as React from 'react'
+
 import type { PrezilloPresence } from '../awareness'
 import type { PrezilloObject } from '../crdt'
 

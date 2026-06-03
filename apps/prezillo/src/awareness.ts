@@ -9,6 +9,7 @@
  */
 
 import type { Awareness } from 'y-protocols/awareness'
+
 import type { ViewId } from './crdt/index.js'
 
 /** Awareness state type - y-protocols getStates() returns untyped records */

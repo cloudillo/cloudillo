@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, TreeItem, TreeView } from '@cloudillo/react'
 import * as React from 'react'
+import { LuEllipsisVertical, LuFile, LuFolder, LuPlus } from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
-import { TreeView, TreeItem, Button } from '@cloudillo/react'
-import { LuFolder, LuFile, LuPlus, LuEllipsisVertical } from 'react-icons/lu'
 
 type Node = {
 	id: string

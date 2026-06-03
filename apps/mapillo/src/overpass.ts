@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { PoiFeature, PoiCategory } from './types.js'
-import { POI_CATEGORIES, OVERPASS_SERVERS } from './types.js'
+import type { PoiCategory, PoiFeature } from './types.js'
+import { OVERPASS_SERVERS, POI_CATEGORIES } from './types.js'
 
 const DEFAULT_OVERPASS_URL = OVERPASS_SERVERS['overpass-de'].url
 

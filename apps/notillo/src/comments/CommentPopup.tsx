@@ -1,17 +1,17 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { Comment, CommentThread, UseCommentsReturn } from '@cloudillo/react'
+import { Button } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuX as IcClose,
-	LuSend as IcSend,
+	LuCircle as IcReopen,
 	LuCircleCheck as IcResolved,
-	LuCircle as IcReopen
+	LuSend as IcSend
 } from 'react-icons/lu'
 
-import { Button } from '@cloudillo/react'
-import type { UseCommentsReturn, CommentThread, Comment } from '@cloudillo/react'
 import { CommentItem } from './CommentItem.js'
 
 interface CommentPopupProps {

@@ -1,12 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { type DefaultReactSuggestionItem, getDefaultReactSlashMenuItems } from '@blocknote/react'
+import { getAppBus, type MediaFileResolvedPush } from '@cloudillo/core'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { RiImage2Fill, RiFilmLine, RiVolumeUpFill, RiFileLine } from 'react-icons/ri'
-
-import { getAppBus, type MediaFileResolvedPush } from '@cloudillo/core'
-import { getDefaultReactSlashMenuItems, type DefaultReactSuggestionItem } from '@blocknote/react'
+import { RiFileLine, RiFilmLine, RiImage2Fill, RiVolumeUpFill } from 'react-icons/ri'
 
 import type { NotilloEditor } from './schema.js'
 

@@ -7,81 +7,71 @@
  * Exports all types, atoms, and hooks for multi-context functionality.
  */
 
-// Constants
-export { HOME_CONTEXT } from './constants'
-
-// Types
-export type {
-	ContextType,
-	ActiveContext,
-	CommunityRef,
-	ContextToken,
-	ContextCacheEntry,
-	ContextDataCache,
-	SidebarState,
-	ContextSwitchEvent,
-	ContextInfo
-} from './types'
-export { CONTEXT_TOKEN_LIFETIME_MS } from './types'
-
 // Atoms
 export {
 	activeContextAtom,
-	contextOnboardingAtom,
+	activeContextDisplayAtom,
+	communitiesAtom,
+	contextDataCacheAtom,
 	contextIdpEnabledAtom,
 	contextIdpEnabledCacheAtom,
-	contextTokensAtom,
-	communitiesAtom,
-	favoritesAtom,
-	recentContextsAtom,
-	sidebarAtom,
-	contextDataCacheAtom,
-	lastContextSwitchAtom,
+	contextOnboardingAtom,
 	contextSwitchingAtom,
+	contextTokensAtom,
 	favoriteCommunitiesAtom,
+	favoritesAtom,
+	fileViewUpdateAtom,
+	lastContextSwitchAtom,
 	previewCommunityAtom,
-	activeContextDisplayAtom,
 	recentCommunitiesAtom,
-	totalUnreadCountAtom,
+	recentContextsAtom,
 	sessionTrustAtom,
+	sidebarAtom,
 	storedTrustAtom,
-	fileViewUpdateAtom
+	totalUnreadCountAtom
 } from './atoms'
-
-// Hooks
-export {
-	useApiContext,
-	useCommunitiesList,
-	useSidebar,
-	useContextSwitch,
-	useContextCache,
-	useContextPath,
-	loadIdpEnabled
-} from './hooks'
-
-// Trust
-export { useProfileTrust, useProfileTrustBootstrap } from './trust'
-export type { EffectiveTrust, UseProfileTrust } from './trust'
-
-// Proactive proxy-token renewal
-export { useContextTokenRenewal } from './useContextTokenRenewal'
-
+// Constants
+export { HOME_CONTEXT } from './constants'
 // Context-aware API
 export { useContextAwareApi } from './context-aware-api'
-
+export type { GuestDocumentInfo, GuestFileType } from './guest-document'
+// Guest document state (for guest ref link navigation)
+export { guestDocumentAtom, useGuestDocument } from './guest-document'
+// Hooks
+export {
+	loadIdpEnabled,
+	useApiContext,
+	useCommunitiesList,
+	useContextCache,
+	useContextPath,
+	useContextSwitch,
+	useSidebar
+} from './hooks'
+// Components
+export { Sidebar } from './sidebar'
+export type { EffectiveTrust, UseProfileTrust } from './trust'
+// Trust
+export { useProfileTrust, useProfileTrustBootstrap } from './trust'
+// Types
+export type {
+	ActiveContext,
+	CommunityRef,
+	ContextCacheEntry,
+	ContextDataCache,
+	ContextInfo,
+	ContextSwitchEvent,
+	ContextToken,
+	ContextType,
+	SidebarState
+} from './types'
+export { CONTEXT_TOKEN_LIFETIME_MS } from './types'
 // Route synchronization
 export {
 	useContextFromRoute,
 	useCurrentContextIdTag,
 	useUrlContextIdTag
 } from './use-context-from-route'
-
-// Components
-export { Sidebar } from './sidebar'
-
+// Proactive proxy-token renewal
+export { useContextTokenRenewal } from './useContextTokenRenewal'
 // Community verify-idp gate
 export { CommunityVerifyIdpBanner, useCommunityContentGate } from './verify-idp-banner'
-
-// Guest document state (for guest ref link navigation)
-export { guestDocumentAtom, useGuestDocument } from './guest-document'
-export type { GuestDocumentInfo, GuestFileType } from './guest-document'

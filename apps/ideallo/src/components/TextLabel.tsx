@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+
 /**
  * Renders text label objects using RichTextDisplay from canvas-text
  */
 
+import type { BaseTextStyle } from '@cloudillo/canvas-text'
+import { RichTextDisplay } from '@cloudillo/canvas-text'
 import type * as Y from 'yjs'
+
 import type { TextObject } from '../crdt/index.js'
 import { colorToCss } from '../utils/palette.js'
-import { RichTextDisplay } from '@cloudillo/canvas-text'
-import type { BaseTextStyle } from '@cloudillo/canvas-text'
 
 export interface TextLabelProps {
 	object: TextObject

@@ -1,35 +1,33 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
-import debounce from 'debounce'
-
+import type { TenantView } from '@cloudillo/core'
 import {
-	useApi,
-	useAuth,
-	useDialog,
 	Button,
 	Menu,
 	MenuDivider,
 	MenuItem,
 	Modal,
-	ProfilePicture
+	ProfilePicture,
+	useApi,
+	useAuth,
+	useDialog
 } from '@cloudillo/react'
-import type { TenantView } from '@cloudillo/core'
-
+import debounce from 'debounce'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
-	LuKey as IcKey,
-	LuSearch as IcSearch,
-	LuRefreshCw as IcLoading,
-	LuSettings as IcSettings,
-	LuTrash2 as IcTrash,
-	LuUser as IcPerson,
-	LuUsers as IcCommunity,
 	LuShield as IcAdmin,
-	LuEllipsisVertical as IcMore
+	LuUsers as IcCommunity,
+	LuKey as IcKey,
+	LuRefreshCw as IcLoading,
+	LuEllipsisVertical as IcMore,
+	LuUser as IcPerson,
+	LuSearch as IcSearch,
+	LuSettings as IcSettings,
+	LuTrash2 as IcTrash
 } from 'react-icons/lu'
+import { Link, useNavigate } from 'react-router-dom'
 
 function TenantRow({
 	tenant,

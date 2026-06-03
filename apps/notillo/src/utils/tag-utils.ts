@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { Block } from '@blocknote/core'
+
 import type { InlineContent } from '../rtdb/types.js'
 
 export function extractTagsFromBlocks(blocks: Block[]): string[] {

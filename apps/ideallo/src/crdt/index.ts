@@ -5,99 +5,92 @@
  * CRDT layer barrel export
  */
 
+// Document
+export { getDocumentMeta, getOrCreateDocument, updateDocumentMeta } from './document.js'
+// Export functionality
+export { downloadExport, exportDocument } from './export.js'
 // IDs
-export { ObjectId, toObjectId, generateObjectId } from './ids.js'
-
+export { generateObjectId, ObjectId, toObjectId } from './ids.js'
+// Object operations
+export type {
+	NewDocumentInput,
+	NewFreehandInput,
+	NewImageInput,
+	NewObjectInput,
+	NewPolygonInput,
+	NewStickyInput,
+	NewTextInput,
+	ObjectUpdateFields
+} from './object-ops.js'
+export {
+	addObject,
+	appendGeometryPoints,
+	bringForward,
+	bringToFront,
+	deleteObject,
+	deleteObjects,
+	duplicateAsLinkedCopy,
+	duplicateObject,
+	getAllObjects,
+	getObject,
+	getObjectYArray,
+	getObjectYText,
+	replaceGeometryPoints,
+	sendBackward,
+	sendToBack,
+	toggleObjectLock,
+	updateDocumentNavState,
+	updateObject,
+	updateObjectBounds,
+	updateObjectFields,
+	updateObjectPivot,
+	updateObjectPosition,
+	updateObjectRotation
+} from './object-ops.js'
+// Runtime types
+export type {
+	ArrowheadPosition,
+	ArrowObject,
+	Bounds,
+	DocumentObject,
+	EllipseObject,
+	FreehandObject,
+	IdealloObject,
+	IdealloObjectBase,
+	ImageObject,
+	LineObject,
+	ObjectType,
+	PolygonObject,
+	RectObject,
+	StickyObject,
+	StrokeStyle,
+	Style,
+	TextObject
+} from './runtime-types.js'
+export { DEFAULT_STYLE } from './runtime-types.js'
 // Stored types
 export type {
 	ObjectTypeCode,
-	StrokeStyleCode,
-	StoredStyle,
-	StoredObjectBase,
-	StoredFreehand,
-	StoredRect,
-	StoredEllipse,
-	StoredLine,
 	StoredArrow,
-	StoredPolygon,
-	StoredText,
-	StoredSticky,
-	StoredImage,
 	StoredDocument,
-	StoredObject,
+	StoredEllipse,
+	StoredFreehand,
+	StoredImage,
+	StoredLine,
 	StoredMeta,
+	StoredObject,
+	StoredObjectBase,
+	StoredPolygon,
+	StoredRect,
+	StoredSticky,
+	StoredStyle,
+	StoredText,
+	StrokeStyleCode,
 	YIdealloDocument
 } from './stored-types.js'
-
-// Runtime types
-export type {
-	ObjectType,
-	StrokeStyle,
-	ArrowheadPosition,
-	Style,
-	IdealloObjectBase,
-	FreehandObject,
-	RectObject,
-	EllipseObject,
-	LineObject,
-	ArrowObject,
-	PolygonObject,
-	TextObject,
-	StickyObject,
-	ImageObject,
-	DocumentObject,
-	IdealloObject,
-	Bounds
-} from './runtime-types.js'
-export { DEFAULT_STYLE } from './runtime-types.js'
-
-// Type converters
-export { expandObject, compactObject } from './type-converters.js'
-
-// Document
-export { getOrCreateDocument, getDocumentMeta, updateDocumentMeta } from './document.js'
-
-// Object operations
-export type {
-	NewObjectInput,
-	NewFreehandInput,
-	NewPolygonInput,
-	NewTextInput,
-	NewStickyInput,
-	NewImageInput,
-	NewDocumentInput,
-	ObjectUpdateFields
-} from './object-ops.js'
-export { updateObjectFields } from './object-ops.js'
-export {
-	addObject,
-	getObject,
-	getAllObjects,
-	updateObject,
-	updateObjectPosition,
-	updateObjectBounds,
-	updateObjectRotation,
-	updateObjectPivot,
-	deleteObject,
-	deleteObjects,
-	duplicateObject,
-	duplicateAsLinkedCopy,
-	toggleObjectLock,
-	getObjectYText,
-	getObjectYArray,
-	appendGeometryPoints,
-	replaceGeometryPoints,
-	bringToFront,
-	sendToBack,
-	bringForward,
-	sendBackward,
-	updateDocumentNavState
-} from './object-ops.js'
-
 // Transforms and geometry utilities
 export * from './transforms.js'
-
-// Export functionality
-export { exportDocument, downloadExport } from './export.js'
+// Type converters
+export { compactObject, expandObject } from './type-converters.js'
 
 // vim: ts=4

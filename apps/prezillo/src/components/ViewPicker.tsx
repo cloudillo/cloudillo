@@ -6,32 +6,31 @@
  */
 
 import * as React from 'react'
-import { mergeClasses } from '../utils'
-
+import { useTranslation } from 'react-i18next'
 import {
 	PiPlusBold as IcAdd,
-	PiCaretLeftBold as IcPrev,
-	PiCaretRightBold as IcNext,
-	PiPlayBold as IcPlay,
-	PiStopBold as IcStop,
-	PiArrowsOutBold as IcFullscreen,
-	PiXBold as IcClose,
-	PiCheckBold as IcCheck,
 	PiCaretDownBold as IcCaret,
-	PiCrownBold as IcOwner,
-	PiLinkBold as IcLink,
-	PiCopyBold as IcDuplicate,
+	PiCheckBold as IcCheck,
+	PiXBold as IcClose,
 	PiTrashBold as IcDelete,
+	PiCopyBold as IcDuplicate,
+	PiArrowsOutBold as IcFullscreen,
+	PiLinkBold as IcLink,
+	PiCaretRightBold as IcNext,
+	PiCrownBold as IcOwner,
+	PiPlayBold as IcPlay,
+	PiCaretLeftBold as IcPrev,
 	PiShareNetworkBold as IcShare,
+	PiStopBold as IcStop,
 	PiUsersBold as IcUsers
 } from 'react-icons/pi'
-import { useTranslation } from 'react-i18next'
 
-import type { ViewId, ViewNode, TemplateId } from '../crdt'
 import type { PresenterInfo } from '../awareness'
 import { getFollowerCount } from '../awareness'
+import type { TemplateId, ViewId, ViewNode } from '../crdt'
 import type { UsePrezilloDocumentResult } from '../hooks/usePrezilloDocument'
 import type { TemplateWithUsage } from '../hooks/useTemplates'
+import { mergeClasses } from '../utils'
 
 /** View navigation commands */
 export interface ViewPickerCmds {

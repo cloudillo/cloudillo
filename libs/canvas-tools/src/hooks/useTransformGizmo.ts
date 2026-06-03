@@ -11,11 +11,11 @@
 import * as React from 'react'
 import type { Bounds, Point } from 'react-svg-canvas'
 import {
-	useRotatable,
-	usePivotDrag,
-	useGroupPivot,
 	type RotatedObjectBounds,
-	type TransformedObject
+	type TransformedObject,
+	useGroupPivot,
+	usePivotDrag,
+	useRotatable
 } from 'react-svg-canvas'
 
 export interface TransformGizmoOptions {

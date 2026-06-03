@@ -1,29 +1,27 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { getFileUrl } from '@cloudillo/core'
+import { InlineEditForm, mergeClasses } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
 import {
-	LuStar as IcStar,
-	LuEye as IcView,
-	LuLock as IcLock,
+	LuFolder as IcFolder,
 	LuInfo as IcInfo,
+	LuLock as IcLock,
 	LuPin as IcPin,
+	LuStar as IcStar,
 	LuCloudOff as IcUnsyncedEdit,
-	LuFolder as IcFolder
+	LuEye as IcView
 } from 'react-icons/lu'
-
-import { InlineEditForm, mergeClasses } from '@cloudillo/react'
-import { getFileUrl } from '@cloudillo/core'
 
 import { useCurrentContextIdTag } from '../../../context/index.js'
 import { getFileIcon, type IcUnknown } from '../icons.js'
 import {
-	TRASH_FOLDER_ID,
-	MANAGED_FOLDER_ID,
 	type File,
 	type FileOps,
+	MANAGED_FOLDER_ID,
+	TRASH_FOLDER_ID,
 	type ViewMode
 } from '../types.js'
 import { getSmartTimestamp, getVisibilityIcon, getVisibilityLabel } from '../utils.js'

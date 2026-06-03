@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuCheck as IcSave, LuX as IcCancel } from 'react-icons/lu'
-import { mergeClasses, createComponent } from '../utils.js'
+import { LuX as IcCancel, LuCheck as IcSave } from 'react-icons/lu'
+
+import { createComponent, mergeClasses } from '../utils.js'
 
 export interface InlineEditFormProps
 	extends Omit<React.HTMLAttributes<HTMLFormElement>, 'onSubmit'> {

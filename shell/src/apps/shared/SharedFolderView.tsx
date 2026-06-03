@@ -1,41 +1,39 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useTranslation } from 'react-i18next'
-import { useSearchParams } from 'react-router-dom'
-import { useAtom } from 'jotai'
-
-import {
-	LuArrowLeft as IcBack,
-	LuUpload as IcUpload,
-	LuDownload as IcDownload,
-	LuTrash2 as IcTrash,
-	LuFolder as IcFolder,
-	LuFileWarning as IcError
-} from 'react-icons/lu'
-
+import { createApiClient, type FileView, getFileUrl } from '@cloudillo/core'
 import {
 	Button,
-	LoadingSpinner,
 	DropZone,
 	EmptyState,
+	LoadingSpinner,
 	Progress,
 	useDialog,
 	useToast
 } from '@cloudillo/react'
-import { createApiClient, type FileView, getFileUrl } from '@cloudillo/core'
+import { useAtom } from 'jotai'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import {
+	LuArrowLeft as IcBack,
+	LuDownload as IcDownload,
+	LuFileWarning as IcError,
+	LuFolder as IcFolder,
+	LuTrash2 as IcTrash,
+	LuUpload as IcUpload
+} from 'react-icons/lu'
+import { useSearchParams } from 'react-router-dom'
 
-import type { AppConfigState } from '../../utils.js'
-import { getFileIcon } from '../files/icons.js'
-import { Breadcrumbs } from '../files/components/Breadcrumbs.js'
-import type { BreadcrumbItem } from '../files/hooks/useFileNavigation.js'
-import { BlobViewer, renderSharedApp } from './shared-app.js'
-import { triggerDownload } from '../viewer/MediaViewer.js'
 import { GuestNameDialog } from '../../components/GuestNameDialog.js'
 import { getStoredGuestName } from '../../utils/random-name.js'
+import type { AppConfigState } from '../../utils.js'
+import { Breadcrumbs } from '../files/components/Breadcrumbs.js'
+import type { BreadcrumbItem } from '../files/hooks/useFileNavigation.js'
+import { getFileIcon } from '../files/icons.js'
+import { triggerDownload } from '../viewer/MediaViewer.js'
+import { folderGuestNameAtom, sharedCacheRefIdAtom, sharedFolderCacheAtom } from './atoms.js'
+import { BlobViewer, renderSharedApp } from './shared-app.js'
 import { useInstalledToken } from './useInstalledToken.js'
-import { sharedFolderCacheAtom, sharedCacheRefIdAtom, folderGuestNameAtom } from './atoms.js'
 
 import './SharedFolderView.css'
 

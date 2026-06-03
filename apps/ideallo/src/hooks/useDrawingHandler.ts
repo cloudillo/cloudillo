@@ -11,30 +11,30 @@ import type { Awareness } from 'y-protocols/awareness'
 import type * as Y from 'yjs'
 
 import type {
-	YIdealloDocument,
-	ObjectId,
-	LineObject,
-	EllipseObject,
-	RectObject,
 	ArrowObject,
+	EllipseObject,
+	LineObject,
 	NewFreehandInput,
-	NewPolygonInput
+	NewPolygonInput,
+	ObjectId,
+	RectObject,
+	YIdealloDocument
 } from '../crdt/index.js'
-import { addObject, deleteObject, DEFAULT_STYLE } from '../crdt/index.js'
-import { streamSimplify } from '../utils/index.js'
-import { getBoundsFromPoints } from '../utils/geometry.js'
-import { useDrawingState, type ActiveStroke } from './useDrawingState.js'
+import { addObject, DEFAULT_STYLE, deleteObject } from '../crdt/index.js'
 import {
-	processSmartInk,
-	createLineMorphAnimation,
-	createEllipseMorphAnimation,
-	createRectangleMorphAnimation,
-	createPolygonMorphAnimation,
 	createArrowMorphAnimation,
+	createEllipseMorphAnimation,
+	createLineMorphAnimation,
+	createPolygonMorphAnimation,
+	createRectangleMorphAnimation,
 	MorphAnimationManager,
 	type MorphAnimationState,
+	processSmartInk,
 	type SmartInkResult
 } from '../smart-ink/index.js'
+import { getBoundsFromPoints } from '../utils/geometry.js'
+import { streamSimplify } from '../utils/index.js'
+import { type ActiveStroke, useDrawingState } from './useDrawingState.js'
 
 // Constants
 const BROADCAST_THROTTLE_MS = 50

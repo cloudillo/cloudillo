@@ -23,14 +23,14 @@ import {
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
 import {
-	LuShieldCheck as IcVerified,
-	LuShieldOff as IcUnavailable,
-	LuShieldQuestion as IcNoKey,
+	LuUsers as IcEmpty,
 	LuShieldX as IcInvalid,
-	LuUsers as IcEmpty
+	LuShieldQuestion as IcNoKey,
+	LuShieldOff as IcUnavailable,
+	LuShieldCheck as IcVerified
 } from 'react-icons/lu'
+import { Link } from 'react-router-dom'
 
 import { HOME_CONTEXT, useApiContext, useUrlContextIdTag } from '../../context/index.js'
 import { getReactionEmoji, getReactionLabel } from './reactions.js'
@@ -39,8 +39,8 @@ import {
 	cacheProfileKeys,
 	getCachedProfileKeys,
 	tokenMatchesAction,
-	verifyActionToken,
-	type VerifyStatus
+	type VerifyStatus,
+	verifyActionToken
 } from './verifyAction.js'
 
 // 'unavailable' — no token on the action (backend flag off / older data).

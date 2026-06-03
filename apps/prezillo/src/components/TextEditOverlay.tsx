@@ -6,14 +6,15 @@
  */
 
 import * as React from 'react'
+
 import type { PrezilloObject, ResolvedTextStyle } from '../crdt'
-import {
-	TEXT_ALIGN_CSS,
-	VERTICAL_ALIGN_CSS,
-	getTextDecorationCSS,
-	calculateRotationTransform
-} from '../utils'
 import { getBulletIcon, migrateBullet } from '../data/bullet-icons'
+import {
+	calculateRotationTransform,
+	getTextDecorationCSS,
+	TEXT_ALIGN_CSS,
+	VERTICAL_ALIGN_CSS
+} from '../utils'
 
 // Border width for the drag zone around the textarea
 const BORDER_WIDTH = 8

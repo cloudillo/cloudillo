@@ -6,8 +6,9 @@
  */
 
 import type { ActionView } from '@cloudillo/types'
-import type { OfflineQuerySpec } from './types.js'
+
 import { putRecords, queryRecords } from './encrypted-store.js'
+import type { OfflineQuerySpec } from './types.js'
 
 const STORE = 'actions'
 

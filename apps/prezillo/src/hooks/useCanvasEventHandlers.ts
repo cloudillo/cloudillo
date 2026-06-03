@@ -5,19 +5,19 @@
  * Hook for canvas event handlers: click, double-click, keyboard, context menu, delete, document check
  */
 
+import type { useDialog } from '@cloudillo/react'
 import * as React from 'react'
 
 import type { ObjectId, PrezilloObject } from '../crdt'
 import {
+	checkDocumentConsistency,
 	deleteObject,
 	deletePrototypeWithInstances,
+	fixDocumentIssues,
 	getInstancesOfPrototype,
-	getTemplateIdForPrototype,
-	checkDocumentConsistency,
-	fixDocumentIssues
+	getTemplateIdForPrototype
 } from '../crdt'
 import type { UsePrezilloDocumentResult } from './usePrezilloDocument'
-import type { useDialog } from '@cloudillo/react'
 
 type CanvasObject = PrezilloObject & { _templateId?: string; _isPrototype?: boolean }
 

@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
 import { LoadingSpinner } from '@cloudillo/react'
+import * as React from 'react'
 import {
-	PiCheckBold as IcCheck,
 	PiXBold as IcCancel,
+	PiCheckBold as IcCheck,
 	PiArrowCounterClockwiseBold as IcRetake
 } from 'react-icons/pi'
 

@@ -2,16 +2,16 @@
 // Usage: import { createConfig, buildApp } from '../../scripts/esbuild-common.js'
 
 import {
-	readFileSync,
-	writeFileSync,
+	existsSync,
+	mkdirSync,
 	readdirSync,
+	readFileSync,
 	statSync,
 	unlinkSync,
-	existsSync,
-	mkdirSync
+	writeFileSync
 } from 'fs'
-import { join, extname, dirname } from 'path'
-import { gzipSync, brotliCompressSync, constants } from 'zlib'
+import { dirname, extname, join } from 'path'
+import { brotliCompressSync, constants, gzipSync } from 'zlib'
 
 // Environment
 export const isProd = process.env.NODE_ENV === 'production'

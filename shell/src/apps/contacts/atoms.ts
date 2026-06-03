@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { atom } from 'jotai'
+
 import type { AddressBookSelection, SelectedContactRef } from './types.js'
 
 export const selectedAddressBookAtom = atom<AddressBookSelection>('all')

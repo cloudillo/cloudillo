@@ -10,10 +10,11 @@
 
 import * as React from 'react'
 import { PiStarBold as IcSymbol } from 'react-icons/pi'
+
 import {
+	CATEGORY_NAMES,
 	getCategories,
 	getSymbolsByCategory,
-	CATEGORY_NAMES,
 	type SymbolCategory,
 	type SymbolDefinition
 } from '../data/symbol-library'

@@ -6,12 +6,12 @@
  */
 
 export type {
-	ToolType,
 	ShapePreview,
-	TextInputState,
 	StickyInputState,
 	TextEditState,
-	ToolContext
+	TextInputState,
+	ToolContext,
+	ToolType
 } from './types.js'
 
 // vim: ts=4

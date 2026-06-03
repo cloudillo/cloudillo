@@ -8,8 +8,8 @@
 import * as React from 'react'
 import type * as Y from 'yjs'
 
-import type { YPrezilloDocument, ObjectId, PropertyGroup } from '../crdt'
-import { isInstance, isPropertyGroupLocked, unlockPropertyGroup, resetPropertyGroup } from '../crdt'
+import type { ObjectId, PropertyGroup, YPrezilloDocument } from '../crdt'
+import { isInstance, isPropertyGroupLocked, resetPropertyGroup, unlockPropertyGroup } from '../crdt'
 
 export interface UseLockablePropertyResult {
 	/** Whether the object is a template instance */

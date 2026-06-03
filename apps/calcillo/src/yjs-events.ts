@@ -1,10 +1,11 @@
-import * as Y from 'yjs'
 import type { WorkbookInstance } from '@fortune-sheet/react'
-import type { YSheetStructure, SheetId, RowId } from './yjs-types'
-import { toRowId, toColId } from './yjs-types'
-import type { ExtendedCell, CellStyleAttr, FreezeType } from './fortune-sheet-types'
-import { freezeSheet, setCellFormatExt } from './fortune-sheet-types'
+import * as Y from 'yjs'
+
 import { debug } from './debug'
+import type { CellStyleAttr, ExtendedCell, FreezeType } from './fortune-sheet-types'
+import { freezeSheet, setCellFormatExt } from './fortune-sheet-types'
+import type { RowId, SheetId, YSheetStructure } from './yjs-types'
+import { toColId, toRowId } from './yjs-types'
 
 /**
  * Apply sheet data changes from remote users

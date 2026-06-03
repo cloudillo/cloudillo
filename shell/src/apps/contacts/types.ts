@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { ContactListItem, ContactOutput, AddressBookOutput } from '@cloudillo/core'
+import type { AddressBookOutput, ContactListItem, ContactOutput } from '@cloudillo/core'
 
 export type AddressBookSelection = number | 'all'
 
@@ -10,6 +10,6 @@ export interface SelectedContactRef {
 	uid: string
 }
 
-export type { ContactListItem, ContactOutput, AddressBookOutput }
+export type { AddressBookOutput, ContactListItem, ContactOutput }
 
 // vim: ts=4

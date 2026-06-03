@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { useEffect, useRef } from 'react'
-
 import type { BlockNoteEditor } from '@blocknote/core'
 import type { RtdbClient } from '@cloudillo/rtdb'
+import { useEffect, useRef } from 'react'
+
 import { extractTagsFromBlocks } from '../utils/tag-utils.js'
 
 const TAG_SYNC_DEBOUNCE_MS = 1000

@@ -1,25 +1,25 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useTranslation } from 'react-i18next'
-import {
-	LuUpload as IcUpload,
-	LuFolderPlus as IcNewFolder,
-	LuLayoutGrid as IcGrid,
-	LuList as IcList,
-	LuTrash2 as IcEmptyTrash,
-	LuArrowLeft as IcArrowLeft,
-	LuArrowUp as IcArrowUp,
-	LuFilter as IcFilter
-} from 'react-icons/lu'
 import {
 	mergeClasses,
 	Toolbar as ToolbarContainer,
-	ToolbarSpacer,
+	ToolbarDivider,
 	ToolbarGroup,
-	ToolbarDivider
+	ToolbarSpacer
 } from '@cloudillo/react'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import {
+	LuArrowLeft as IcArrowLeft,
+	LuArrowUp as IcArrowUp,
+	LuTrash2 as IcEmptyTrash,
+	LuFilter as IcFilter,
+	LuLayoutGrid as IcGrid,
+	LuList as IcList,
+	LuFolderPlus as IcNewFolder,
+	LuUpload as IcUpload
+} from 'react-icons/lu'
 
 export type DisplayMode = 'grid' | 'list'
 

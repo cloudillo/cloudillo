@@ -1,31 +1,30 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useTranslation } from 'react-i18next'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 dayjs.extend(relativeTime)
 
-import {
-	LuSearch as IcSearch,
-	LuPlus as IcPlus,
-	LuTrash as IcDelete,
-	LuPencil as IcEdit,
-	LuX as IcClose,
-	LuShieldCheck as IcCert,
-	LuRefreshCw as IcRenew,
-	LuNetwork as IcProxy
-} from 'react-icons/lu'
-
 import type {
+	CreateProxySiteRequest,
 	ProxySiteData,
 	ProxySiteStatus,
-	CreateProxySiteRequest,
 	UpdateProxySiteRequest
 } from '@cloudillo/core'
-import { useAuth, useApi, useDialog, Button, Modal, mergeClasses } from '@cloudillo/react'
+import { Button, Modal, mergeClasses, useApi, useAuth, useDialog } from '@cloudillo/react'
+import {
+	LuShieldCheck as IcCert,
+	LuX as IcClose,
+	LuTrash as IcDelete,
+	LuPencil as IcEdit,
+	LuPlus as IcPlus,
+	LuNetwork as IcProxy,
+	LuRefreshCw as IcRenew,
+	LuSearch as IcSearch
+} from 'react-icons/lu'
 
 // Backend URL validator
 function validateBackendUrlValue(url: string, t: (key: string) => string): string | undefined {

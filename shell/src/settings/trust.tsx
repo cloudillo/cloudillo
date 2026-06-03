@@ -11,17 +11,16 @@
  * Data source: `api.profiles.listTrust()` → `GET /api/profiles?trustSet=true`.
  */
 
-import * as React from 'react'
+import { LoadingSpinner, useApi, useToast } from '@cloudillo/react'
+import type { Profile, ProfileTrust } from '@cloudillo/types'
 import { useAtomValue } from 'jotai'
+import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuShield as IcShield,
 	LuShieldCheck as IcShieldCheck,
 	LuShieldOff as IcShieldOff
 } from 'react-icons/lu'
-
-import { useApi, LoadingSpinner, useToast } from '@cloudillo/react'
-import type { Profile, ProfileTrust } from '@cloudillo/types'
 
 import { storedTrustAtom, useProfileTrust } from '../context/index.js'
 

@@ -8,7 +8,7 @@ import * as React from 'react'
  * Resolves the symbol from the library and renders it using standard fill/stroke styling.
  */
 
-import type { SymbolObject, ResolvedShapeStyle } from '../crdt'
+import type { ResolvedShapeStyle, SymbolObject } from '../crdt'
 import { getSymbolById } from '../data/symbol-library'
 
 export interface SymbolRendererProps {

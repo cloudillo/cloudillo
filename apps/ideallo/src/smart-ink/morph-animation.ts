@@ -9,18 +9,18 @@
  */
 
 import type { Point } from '../utils/geometry.js'
-import { interpolatePaths, easeOut } from './path-processing/index.js'
+import { easeOut, interpolatePaths } from './path-processing/index.js'
 import {
-	generateLinePoints,
-	generateEllipsePoints,
-	generateRectanglePoints,
-	generatePolygonPoints,
-	generateArrowPoints,
-	type LineCandidate,
+	type ArrowCandidate,
 	type EllipseCandidate,
-	type RectangleCandidate,
+	generateArrowPoints,
+	generateEllipsePoints,
+	generateLinePoints,
+	generatePolygonPoints,
+	generateRectanglePoints,
+	type LineCandidate,
 	type PolygonCandidate,
-	type ArrowCandidate
+	type RectangleCandidate
 } from './shape-detectors/index.js'
 
 // Animation configuration

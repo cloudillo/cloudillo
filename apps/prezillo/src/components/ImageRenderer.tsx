@@ -12,8 +12,9 @@
  * - Automatic variant selection based on display size
  */
 
-import * as React from 'react'
 import { getFileUrl, getImageVariantForDisplaySize } from '@cloudillo/core'
+import * as React from 'react'
+
 import type { ImageObject } from '../crdt/index.js'
 
 export interface ImageRendererProps {

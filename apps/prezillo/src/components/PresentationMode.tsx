@@ -5,51 +5,55 @@
  * PresentationMode component - Fullscreen presentation view
  */
 
+import { RichTextDisplay } from '@cloudillo/canvas-text'
+import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
+import { SvgDocumentEmbed } from '@cloudillo/react'
 import * as React from 'react'
 import {
 	PiXBold as IcClose,
-	PiCaretLeftBold as IcPrev,
+	PiArrowsOutBold as IcFullscreen,
 	PiCaretRightBold as IcNext,
-	PiArrowsOutBold as IcFullscreen
+	PiCaretLeftBold as IcPrev
 } from 'react-icons/pi'
 
-import { SvgDocumentEmbed } from '@cloudillo/react'
-import type {
-	ViewId,
-	ViewNode,
-	PrezilloObject,
-	YPrezilloDocument,
-	ImageObject,
-	TextObject,
-	DocumentObject,
-	QrCodeObject,
-	PollFrameObject,
-	SymbolObject,
-	StateVarObject
-} from '../crdt'
-import { resolveShapeStyle, resolveTextStyle } from '../crdt'
-import { useViewObjects } from '../hooks/useViewObjects'
-import type { UsePrezilloDocumentResult } from '../hooks/usePrezilloDocument'
-import { calculateRotationTransform, buildStrokeProps, buildFillProps } from '../utils'
-import { DEFAULT_SHAPE_STYLE, DEFAULT_TEXT_STYLE } from '../crdt'
-import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
-import { RichTextDisplay } from '@cloudillo/canvas-text'
-import { getBulletIcon, migrateBullet } from '../data/bullet-icons'
-import { ImageRenderer } from './ImageRenderer'
-import { QRCodeRenderer } from './QRCodeRenderer'
-import { PollFrameRenderer } from './PollFrameRenderer'
-import { SymbolRenderer } from './SymbolRenderer'
-import { StateVarRenderer } from './StateVarRenderer'
 import {
-	setVote,
 	clearVote,
-	getVoteCounts,
-	getWinningFrames,
+	getFollowerCount,
+	getLocalPresenterFollowerCount,
 	getLocalVote,
 	getTotalVotes,
-	getLocalPresenterFollowerCount,
-	getFollowerCount
+	getVoteCounts,
+	getWinningFrames,
+	setVote
 } from '../awareness'
+import type {
+	DocumentObject,
+	ImageObject,
+	PollFrameObject,
+	PrezilloObject,
+	QrCodeObject,
+	StateVarObject,
+	SymbolObject,
+	TextObject,
+	ViewId,
+	ViewNode,
+	YPrezilloDocument
+} from '../crdt'
+import {
+	DEFAULT_SHAPE_STYLE,
+	DEFAULT_TEXT_STYLE,
+	resolveShapeStyle,
+	resolveTextStyle
+} from '../crdt'
+import { getBulletIcon, migrateBullet } from '../data/bullet-icons'
+import type { UsePrezilloDocumentResult } from '../hooks/usePrezilloDocument'
+import { useViewObjects } from '../hooks/useViewObjects'
+import { buildFillProps, buildStrokeProps, calculateRotationTransform } from '../utils'
+import { ImageRenderer } from './ImageRenderer'
+import { PollFrameRenderer } from './PollFrameRenderer'
+import { QRCodeRenderer } from './QRCodeRenderer'
+import { StateVarRenderer } from './StateVarRenderer'
+import { SymbolRenderer } from './SymbolRenderer'
 
 export interface PresentationModeProps {
 	prezillo: UsePrezilloDocumentResult

@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import QuickLRU from 'quick-lru'
-import type { Profile } from '@cloudillo/types'
 import type { ApiClient } from '@cloudillo/core'
+import type { Profile } from '@cloudillo/types'
+import QuickLRU from 'quick-lru'
 
 const cache = new QuickLRU<string, Promise<Profile | null>>({
 	maxSize: 256,

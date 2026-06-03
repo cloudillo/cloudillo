@@ -5,48 +5,48 @@
  * Coordinate transformations and spatial utilities
  */
 
-import type { YPrezilloDocument, StoredObject, StoredView } from './stored-types'
-import type { ObjectId, ContainerId, ViewId } from './ids'
-import { toContainerId } from './ids'
-import type { Point, Bounds, Transform } from './runtime-types'
-
 // Import utilities used in this file
-import { composeTransforms, unionBounds, boundsIntersectsView } from 'react-svg-canvas'
-import { getResolvedXy, getResolvedWh } from './prototype-ops'
+import { boundsIntersectsView, composeTransforms, unionBounds } from 'react-svg-canvas'
+
+import type { ContainerId, ObjectId, ViewId } from './ids'
+import { toContainerId } from './ids'
+import { getResolvedWh, getResolvedXy } from './prototype-ops'
+import type { Bounds, Point, Transform } from './runtime-types'
+import type { StoredObject, StoredView, YPrezilloDocument } from './stored-types'
 
 // Re-export generic geometry utilities from react-svg-canvas
 export {
-	composeTransforms,
 	boundsIntersect,
-	pointInBounds,
-	expandBounds,
-	unionBounds,
-	getBoundsCenter,
-	rotatePoint,
-	scalePoint,
-	distance,
-	snapToGrid,
-	snapPointToGrid,
-	// View coordinate utilities
-	canvasToView,
-	viewToCanvas,
-	isPointInView,
 	boundsIntersectsView,
-	// RotationMatrix utilities
-	type RotationMatrix,
-	createRotationMatrix,
-	rotatePointWithMatrix,
-	unrotatePointWithMatrix,
-	rotateDeltaWithMatrix,
-	unrotateDeltaWithMatrix,
-	// Resize utilities
-	type ResizeState,
-	getAnchorForHandle,
-	getRotatedAnchorPosition,
+	calculateResizeBounds,
 	calculateResizedDimensions,
 	calculateResizedPosition,
+	// View coordinate utilities
+	canvasToView,
+	composeTransforms,
+	createRotationMatrix,
+	distance,
+	expandBounds,
+	getAnchorForHandle,
+	getBoundsCenter,
+	getRotatedAnchorPosition,
 	initResizeState,
-	calculateResizeBounds
+	isPointInView,
+	pointInBounds,
+	// Resize utilities
+	type ResizeState,
+	// RotationMatrix utilities
+	type RotationMatrix,
+	rotateDeltaWithMatrix,
+	rotatePoint,
+	rotatePointWithMatrix,
+	scalePoint,
+	snapPointToGrid,
+	snapToGrid,
+	unionBounds,
+	unrotateDeltaWithMatrix,
+	unrotatePointWithMatrix,
+	viewToCanvas
 } from 'react-svg-canvas'
 
 /**

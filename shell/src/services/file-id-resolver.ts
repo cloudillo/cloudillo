@@ -16,6 +16,7 @@
  */
 
 import { PROTOCOL_VERSION } from '@cloudillo/core'
+
 import { getAppTracker } from '../message-bus/app-tracker.js'
 
 /**

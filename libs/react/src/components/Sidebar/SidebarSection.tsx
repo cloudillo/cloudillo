@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { mergeClasses, createComponent } from '../utils.js'
+
+import { createComponent, mergeClasses } from '../utils.js'
 
 export interface SidebarSectionProps extends React.HTMLAttributes<HTMLDivElement> {
 	title?: string

@@ -3,51 +3,51 @@
 
 import * as React from 'react'
 import {
-	LuMapPin as IcPoi,
-	LuX as IcClose,
-	LuLoader as IcLoading,
-	LuChevronRight as IcChevron,
-	// Food & Drink
-	LuUtensilsCrossed as IcRestaurant,
-	LuHam as IcFastFood,
-	LuCoffee as IcCafe,
-	LuBeer as IcBar,
-	// Shopping
-	LuShoppingCart as IcSupermarket,
-	LuStore as IcConvenience,
-	LuCakeSlice as IcBakery,
-	LuShirt as IcClothes,
-	LuShoppingBag as IcMarketplace,
-	// Health
-	LuCross as IcPharmacy,
-	LuHospital as IcHospital,
-	LuStethoscope as IcDoctor,
-	LuSmile as IcDentist,
-	// Tourism & Leisure
-	LuHotel as IcHotel,
-	LuLandmark as IcMuseum,
-	LuStar as IcAttraction,
-	LuMountain as IcViewpoint,
-	LuTrees as IcPark,
-	LuToyBrick as IcPlayground,
-	// Transport
-	LuFuel as IcFuel,
-	LuCircleParking as IcParking,
-	LuPlugZap as IcEvCharging,
-	LuBus as IcBusStation,
-	LuTrainFront as IcTrainStation,
 	// Finance
 	LuBanknote as IcAtm,
+	LuStar as IcAttraction,
+	LuCakeSlice as IcBakery,
 	LuBuilding as IcBank,
+	LuBeer as IcBar,
+	LuBus as IcBusStation,
+	LuCoffee as IcCafe,
+	LuChevronRight as IcChevron,
+	LuX as IcClose,
+	LuShirt as IcClothes,
+	LuStore as IcConvenience,
+	LuSmile as IcDentist,
+	LuStethoscope as IcDoctor,
+	LuDroplets as IcDrinkingWater,
+	LuPlugZap as IcEvCharging,
+	LuHam as IcFastFood,
+	// Transport
+	LuFuel as IcFuel,
+	LuHospital as IcHospital,
+	// Tourism & Leisure
+	LuHotel as IcHotel,
+	LuBookOpen as IcLibrary,
+	LuLoader as IcLoading,
+	LuShoppingBag as IcMarketplace,
+	LuLandmark as IcMuseum,
+	LuTrees as IcPark,
+	LuCircleParking as IcParking,
+	// Health
+	LuCross as IcPharmacy,
+	LuToyBrick as IcPlayground,
+	LuMapPin as IcPoi,
+	LuShield as IcPolice,
 	// Services
 	LuMail as IcPostOffice,
-	LuShield as IcPolice,
+	// Food & Drink
+	LuUtensilsCrossed as IcRestaurant,
+	// Shopping
+	LuShoppingCart as IcSupermarket,
 	LuDoorOpen as IcToilets,
-	LuDroplets as IcDrinkingWater,
-	LuBookOpen as IcLibrary
+	LuTrainFront as IcTrainStation,
+	LuMountain as IcViewpoint
 } from 'react-icons/lu'
 
-import type { PoiFeature, PoiCategory, PoiGroupId } from './types.js'
+import type { PoiCategory, PoiFeature, PoiGroupId } from './types.js'
 import { POI_CATEGORIES, POI_GROUPS } from './types.js'
 
 const CATEGORY_ICONS: Record<PoiCategory, React.ComponentType> = {

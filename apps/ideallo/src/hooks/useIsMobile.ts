@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 const MOBILE_QUERY = '(max-width: 767px)'
 

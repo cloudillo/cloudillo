@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { type AuthState, useApi, useAuth } from '@cloudillo/react'
 import * as React from 'react'
-import { useAuth, type AuthState, useApi } from '@cloudillo/react'
+
 import { installToken } from '../pwa.js'
 
 const RENEWAL_THRESHOLD = 0.8 // Renew at 80% of token lifetime

@@ -5,18 +5,18 @@
  * Spatial queries and hierarchy traversal
  */
 
-import type { YPrezilloDocument, StoredObject, ChildRef } from './stored-types'
-import type { ObjectId, ContainerId, ViewId } from './ids'
-import { toObjectId, toContainerId } from './ids'
-import type { Bounds, PrezilloObject, ContainerNode, ViewNode } from './runtime-types'
-import { expandContainer, expandView } from './type-converters'
+import type { ContainerId, ObjectId, ViewId } from './ids'
+import { toContainerId, toObjectId } from './ids'
 import { resolveObject } from './prototype-ops'
+import type { Bounds, ContainerNode, PrezilloObject, ViewNode } from './runtime-types'
+import type { ChildRef, StoredObject, YPrezilloDocument } from './stored-types'
 import {
+	boundsIntersect,
 	getAbsoluteBoundsStored,
 	objectIntersectsView,
-	boundsIntersect,
 	pointInBounds
 } from './transforms'
+import { expandContainer, expandView } from './type-converters'
 
 /**
  * Get all prototype object IDs (objects that are templates for instances).

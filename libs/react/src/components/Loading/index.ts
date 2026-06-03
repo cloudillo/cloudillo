@@ -1,16 +1,15 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-export { LoadingSpinner } from './LoadingSpinner.js'
 export type { LoadingSpinnerProps } from './LoadingSpinner.js'
-
-export { Skeleton, SkeletonText, SkeletonCard, SkeletonList } from './Skeleton.js'
+export { LoadingSpinner } from './LoadingSpinner.js'
 export type {
-	SkeletonVariant,
+	SkeletonCardProps,
+	SkeletonListProps,
 	SkeletonProps,
 	SkeletonTextProps,
-	SkeletonCardProps,
-	SkeletonListProps
+	SkeletonVariant
 } from './Skeleton.js'
+export { Skeleton, SkeletonCard, SkeletonList, SkeletonText } from './Skeleton.js'
 
 // vim: ts=4

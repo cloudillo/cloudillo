@@ -19,9 +19,9 @@
  * primary auth token.
  */
 
-import * as React from 'react'
-import { useAtom } from 'jotai'
 import { useApi, useAuth } from '@cloudillo/react'
+import { useAtom } from 'jotai'
+import * as React from 'react'
 
 import { activeContextAtom, contextTokensAtom, sessionTrustAtom, storedTrustAtom } from './atoms'
 import { CONTEXT_TOKEN_LIFETIME_MS, type ContextToken } from './types'

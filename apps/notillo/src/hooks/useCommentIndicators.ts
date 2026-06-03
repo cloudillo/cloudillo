@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { useEffect, useRef, useMemo } from 'react'
 import type { CommentThread } from '@cloudillo/react'
+import { useEffect, useMemo, useRef } from 'react'
 
 import { anchorBlockId } from '../comments/utils.js'
 

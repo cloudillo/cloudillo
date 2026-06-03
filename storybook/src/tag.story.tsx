@@ -1,6 +1,7 @@
-import * as React from 'react'
-import { Story, Variant } from './storybook.js'
 import { Tag, TagList } from '@cloudillo/react'
+import * as React from 'react'
+
+import { Story, Variant } from './storybook.js'
 
 export function TagStory() {
 	const [tags, setTags] = React.useState(['React', 'TypeScript', 'CSS'])

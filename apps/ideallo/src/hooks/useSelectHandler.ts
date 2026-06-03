@@ -8,20 +8,20 @@
  * During drag, we use local state + awareness for real-time preview.
  */
 
-import * as React from 'react'
-import type * as Y from 'yjs'
-import type { Awareness } from 'y-protocols/awareness'
 import {
 	findStackedObjects,
 	findStackedObjectsForSelection,
 	type StackableObject
 } from '@cloudillo/canvas-tools'
+import * as React from 'react'
+import type { Awareness } from 'y-protocols/awareness'
+import type * as Y from 'yjs'
 
-import type { YIdealloDocument, ObjectId, IdealloObject, StoredObject } from '../crdt/index.js'
-import { updateObject, updateObjectFields, getObject, getAllObjects } from '../crdt/index.js'
+import type { IdealloObject, ObjectId, StoredObject, YIdealloDocument } from '../crdt/index.js'
+import { getAllObjects, getObject, updateObject, updateObjectFields } from '../crdt/index.js'
+import { getObjectBounds } from '../utils/bounds.js'
 import type { Point } from '../utils/geometry.js'
 import { hitTestObject } from '../utils/hit-testing.js'
-import { getObjectBounds } from '../utils/bounds.js'
 
 const HIT_TOLERANCE = 8
 

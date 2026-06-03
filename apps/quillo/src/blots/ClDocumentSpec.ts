@@ -8,13 +8,13 @@
  * Embeds are full-width blocks, so no alignment actions.
  */
 
-import Quill from 'quill'
 import {
+	type Action,
 	BlotSpec,
-	ResizeAction,
 	DeleteAction,
-	type Action
+	ResizeAction
 } from '@enzedonline/quill-blot-formatter2'
+import Quill from 'quill'
 
 class ClDocumentSpec extends BlotSpec {
 	private target: HTMLElement | null = null

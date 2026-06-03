@@ -10,12 +10,12 @@ import * as React from 'react'
 import type { ObjectId, ViewId } from '../crdt'
 import {
 	createView,
-	getPreviousView,
-	getNextView,
-	moveViewInPresentation,
+	deleteView,
 	duplicateObject,
 	duplicateView,
-	deleteView
+	getNextView,
+	getPreviousView,
+	moveViewInPresentation
 } from '../crdt'
 import type { UsePrezilloDocumentResult } from './usePrezilloDocument'
 

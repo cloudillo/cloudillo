@@ -7,11 +7,11 @@ import * as React from 'react'
  */
 
 import type {
-	RectObject,
+	ArrowObject,
 	EllipseObject,
 	LineObject,
-	ArrowObject,
-	PolygonObject
+	PolygonObject,
+	RectObject
 } from '../crdt/index.js'
 import { colorToCss } from '../utils/palette.js'
 

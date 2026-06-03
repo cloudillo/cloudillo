@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useLibTranslation } from '../../i18n.js'
 import dayjs from 'dayjs'
-
+import * as React from 'react'
 import { LuClock as IcClock } from 'react-icons/lu'
+
+import { useLibTranslation } from '../../i18n.js'
 
 export interface TimeFormatProps {
 	time: number | string | Date

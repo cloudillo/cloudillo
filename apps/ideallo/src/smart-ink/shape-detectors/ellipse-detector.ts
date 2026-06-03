@@ -9,12 +9,12 @@
  */
 
 import {
-	distance,
 	calculateCentroid,
-	mean,
-	standardDeviation,
+	distance,
 	isClosedPath,
-	type Point
+	mean,
+	type Point,
+	standardDeviation
 } from '../../utils/geometry.js'
 
 export interface EllipseCandidate {

@@ -1,28 +1,27 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { TFunction } from 'i18next'
-import * as React from 'react'
-import { useTranslation } from 'react-i18next'
-import {
-	LuLayoutGrid as IcRows,
-	LuLayoutList as IcMasonry,
-	LuFilter as IcFilter,
-	LuArrowUp as IcAsc,
-	LuArrowDown as IcDesc,
-	LuChevronDown as IcChevron
-} from 'react-icons/lu'
-
 import {
 	Button,
 	Popper,
 	Toolbar as ToolbarContainer,
-	ToolbarSpacer,
+	ToolbarDivider,
 	ToolbarGroup,
-	ToolbarDivider
+	ToolbarSpacer
 } from '@cloudillo/react'
+import type { TFunction } from 'i18next'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import {
+	LuArrowUp as IcAsc,
+	LuChevronDown as IcChevron,
+	LuArrowDown as IcDesc,
+	LuFilter as IcFilter,
+	LuLayoutList as IcMasonry,
+	LuLayoutGrid as IcRows
+} from 'react-icons/lu'
 
-import type { GalleryLayout, SortOption, SortDir } from '../types.js'
+import type { GalleryLayout, SortDir, SortOption } from '../types.js'
 
 interface GalleryToolbarProps {
 	className?: string

@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { parseSvgPath } from './hit-testing.js'
-import type { BezierSegment } from './hit-testing.js'
 import type { Point } from './geometry.js'
+import type { BezierSegment } from './hit-testing.js'
+import { parseSvgPath } from './hit-testing.js'
 
 export function scalePathData(pathData: string, scaleX: number, scaleY: number): string {
 	if (scaleX === 1 && scaleY === 1) return pathData

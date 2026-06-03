@@ -9,22 +9,20 @@
  * Supports Browse, Connected, Recent, and Starred view modes.
  */
 
+import type { FileView } from '@cloudillo/core'
+import { useApi } from '@cloudillo/react'
 import React, { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-
 import {
 	LuChevronRight as IcChevronRight,
-	LuHouse as IcHome,
-	LuFileText as IcDocument
+	LuFileText as IcDocument,
+	LuHouse as IcHome
 } from 'react-icons/lu'
 
-import { useApi } from '@cloudillo/react'
+import { getFileIcon } from '../../apps/files/icons.js'
+import type { DocPickerResult } from '../../context/doc-picker-atom.js'
 import { useApiContext } from '../../context/index.js'
 import { useAppConfig } from '../../utils.js'
-import { getFileIcon } from '../../apps/files/icons.js'
-import type { FileView } from '@cloudillo/core'
-
-import type { DocPickerResult } from '../../context/doc-picker-atom.js'
 import { PickerFilterBar, usePickerBrowse } from '../pickers/index.js'
 
 interface DocumentPickerBrowseTabProps {

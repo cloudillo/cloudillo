@@ -5,21 +5,21 @@
  * PaletteSwatchGrid - Grid of clickable palette color/gradient swatches
  */
 
-import * as React from 'react'
 import { gradientToCSS } from '@cloudillo/canvas-tools'
+import * as React from 'react'
 
 import type {
 	Palette,
-	PaletteSlotName,
 	PaletteColorSlotName,
-	PaletteGradientSlotName
+	PaletteGradientSlotName,
+	PaletteSlotName
 } from '../../crdt'
 import {
 	getColorSlotNames,
+	getContrastColor,
 	getGradientSlotNames,
 	getPaletteSlotDisplayName,
-	isGradientSlot,
-	getContrastColor
+	isGradientSlot
 } from '../../crdt'
 
 import './PaletteSwatchGrid.css'

@@ -1,36 +1,36 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Fcd, useApi, useAuth } from '@cloudillo/react'
 import * as React from 'react'
-import { NavLink, Routes, Route, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-
 import {
-	LuKeyRound as IcSecurity,
-	LuBell as IcNotifications,
 	LuPalette as IcAppearance,
-	LuCalendar as IcCalendar,
-	LuShield as IcPrivacy,
-	LuShieldCheck as IcTrust,
-	LuHardDrive as IcFiles,
 	LuLayoutGrid as IcApps,
-	LuMenu as IcMenu
+	LuCalendar as IcCalendar,
+	LuHardDrive as IcFiles,
+	LuMenu as IcMenu,
+	LuBell as IcNotifications,
+	LuShield as IcPrivacy,
+	LuKeyRound as IcSecurity,
+	LuShieldCheck as IcTrust
 } from 'react-icons/lu'
-
-import { useAuth, useApi, Fcd } from '@cloudillo/react'
+import { NavLink, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import type { UsePWA } from '../pwa.js'
 import { useAppConfig } from '../utils.js'
-import { SecuritySettings } from './security.js'
-import { NotificationSettings } from './notifications.js'
 import { AppearanceSettings } from './appearance.js'
-export { setTheme, applyTheme } from './appearance.js'
+import { NotificationSettings } from './notifications.js'
+import { SecuritySettings } from './security.js'
+
+export { applyTheme, setTheme } from './appearance.js'
+
+import { AppMenuSettings } from './apps.js'
 import { CalendarSettings } from './calendar.js'
+import { FilesSettings } from './files.js'
+import { SettingsOverview } from './overview.js'
 import { PrivacySettings } from './privacy.js'
 import { TrustSettings } from './trust.js'
-import { FilesSettings } from './files.js'
-import { AppMenuSettings } from './apps.js'
-import { SettingsOverview } from './overview.js'
 
 interface SettingsProps {
 	title: string

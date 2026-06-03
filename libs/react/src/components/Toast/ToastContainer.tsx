@@ -3,8 +3,9 @@
 
 import * as React from 'react'
 import { createPortal } from 'react-dom'
-import { mergeClasses, createComponent } from '../utils.js'
+
 import type { Position } from '../types.js'
+import { createComponent, mergeClasses } from '../utils.js'
 
 export interface ToastContainerProps extends React.HTMLAttributes<HTMLDivElement> {
 	position?: Position

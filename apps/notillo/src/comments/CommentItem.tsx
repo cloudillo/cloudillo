@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { Comment } from '@cloudillo/react'
+import { Button } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuPencil as IcEdit, LuTrash2 as IcDelete, LuCheck as IcCheck } from 'react-icons/lu'
+import { LuCheck as IcCheck, LuTrash2 as IcDelete, LuPencil as IcEdit } from 'react-icons/lu'
 
-import { Button } from '@cloudillo/react'
-import type { Comment } from '@cloudillo/react'
 import { shortTimeFormat } from './utils.js'
 
 interface CommentItemProps {

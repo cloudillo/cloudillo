@@ -1,13 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { NavLink, Routes, Route, useLocation, useParams } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
-
-import { LuFingerprint as IcIdp, LuSettings as IcSettings, LuMenu as IcMenu } from 'react-icons/lu'
-
 import { Fcd, mergeClasses } from '@cloudillo/react'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import { LuFingerprint as IcIdp, LuMenu as IcMenu, LuSettings as IcSettings } from 'react-icons/lu'
+import { NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
 
 import { IdentitiesSettings } from './identities.js'
 import { ProviderSettings } from './settings.js'

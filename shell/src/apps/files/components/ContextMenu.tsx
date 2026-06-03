@@ -1,52 +1,52 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useTranslation } from 'react-i18next'
+import { getFileUrl } from '@cloudillo/core'
 import {
-	LuFolderOpen as IcOpen,
-	LuEye as IcView,
-	LuDownload as IcDownload,
-	LuShare2 as IcShare,
-	LuStar as IcStar,
-	LuStarOff as IcStarOff,
-	LuPin as IcPin,
-	LuPinOff as IcPinOff,
-	LuCopyPlus as IcDuplicate,
-	LuPencil as IcRename,
-	LuRefreshCw as IcRefresh,
-	LuTrash2 as IcTrash,
-	LuRotateCcw as IcRestore,
-	LuTrash as IcPermanentDelete,
-	LuAppWindow as IcOpenWith,
-	LuHand as IcHand
-} from 'react-icons/lu'
-import {
-	Menu,
-	MenuItem,
-	MenuDivider,
-	SubMenuItem,
 	ActionSheet,
-	ActionSheetItem,
 	ActionSheetDivider,
+	ActionSheetItem,
 	ActionSheetSubItem,
+	Menu,
+	MenuDivider,
+	MenuItem,
+	SubMenuItem,
 	useAuth,
 	useToast
 } from '@cloudillo/react'
-import { getFileUrl } from '@cloudillo/core'
 import { useAtom, useStore } from 'jotai'
-import { activeContextAtom } from '../../../context/index.js'
-import { pickUp, HandTypeConflictError, type FileHandItem } from '../../../state/hand.js'
-import { handTargetElAtom, flyToHand, prefersReducedMotion } from '../../../state/hand-fly.js'
-import { getHandlersForContentType } from '../../../manifest-registry.js'
-import { getIcon } from '../../../icon-registry.js'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import {
+	LuDownload as IcDownload,
+	LuCopyPlus as IcDuplicate,
+	LuHand as IcHand,
+	LuFolderOpen as IcOpen,
+	LuAppWindow as IcOpenWith,
+	LuTrash as IcPermanentDelete,
+	LuPin as IcPin,
+	LuPinOff as IcPinOff,
+	LuRefreshCw as IcRefresh,
+	LuPencil as IcRename,
+	LuRotateCcw as IcRestore,
+	LuShare2 as IcShare,
+	LuStar as IcStar,
+	LuStarOff as IcStarOff,
+	LuTrash2 as IcTrash,
+	LuEye as IcView
+} from 'react-icons/lu'
 
+import { activeContextAtom } from '../../../context/index.js'
+import { getIcon } from '../../../icon-registry.js'
+import { getHandlersForContentType } from '../../../manifest-registry.js'
+import { type FileHandItem, HandTypeConflictError, pickUp } from '../../../state/hand.js'
+import { flyToHand, handTargetElAtom, prefersReducedMotion } from '../../../state/hand-fly.js'
 import type { File, FileOps, ViewMode } from '../types.js'
 import {
+	canManageFile,
 	getVisibilityDropdownOptions,
 	getVisibilityIcon,
-	getVisibilityOption,
-	canManageFile
+	getVisibilityOption
 } from '../utils.js'
 
 export interface ContextMenuPosition {

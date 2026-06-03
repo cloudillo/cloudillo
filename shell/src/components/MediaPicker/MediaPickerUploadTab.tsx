@@ -8,32 +8,27 @@
  * Allows users to upload new files with optional image cropping.
  */
 
+import type { CropAspect, Visibility } from '@cloudillo/core'
+import { Button, Progress, useApi } from '@cloudillo/react'
 import type { TFunction } from 'i18next'
-import React from 'react'
-import { useState, useRef, useCallback, useEffect } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-
 import {
-	LuUpload as IcUpload,
-	LuX as IcClose,
 	LuCheck as IcCheck,
-	LuInfo as IcInfo,
-	LuTriangleAlert as IcWarning,
-	LuGlobe as IcPublic,
-	LuUserPlus as IcFollowers,
+	LuChevronDown as IcChevronDown,
+	LuX as IcClose,
 	LuUserCheck as IcConnected,
-	LuChevronDown as IcChevronDown
+	LuUserPlus as IcFollowers,
+	LuInfo as IcInfo,
+	LuGlobe as IcPublic,
+	LuUpload as IcUpload,
+	LuTriangleAlert as IcWarning
 } from 'react-icons/lu'
 
-import type { Visibility } from '@cloudillo/core'
-
-import { useApi, Button, Progress } from '@cloudillo/react'
-import { getUploadErrorMessage } from '../../upload-errors.js'
 import { useApiContext } from '../../context/index.js'
-import type { CropAspect } from '@cloudillo/core'
-
-import { ImageUpload, type Aspect } from '../../image.js'
 import type { MediaPickerResult } from '../../context/media-picker-atom.js'
+import { type Aspect, ImageUpload } from '../../image.js'
+import { getUploadErrorMessage } from '../../upload-errors.js'
 
 interface MediaPickerUploadTabProps {
 	mediaType?: string

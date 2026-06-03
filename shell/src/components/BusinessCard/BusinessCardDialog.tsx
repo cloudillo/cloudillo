@@ -1,13 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, IdentityTag, ProfilePicture, useAuth } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { LuCheck as IcCheck, LuX as IcClose, LuCopy as IcCopy } from 'react-icons/lu'
 import ReactQRCode from 'react-qr-code'
-
-import { LuX as IcClose, LuCopy as IcCopy, LuCheck as IcCheck } from 'react-icons/lu'
-
-import { useAuth, ProfilePicture, IdentityTag, Button } from '@cloudillo/react'
 
 import { buildCloudilloUri } from '../../utils/cloudillo-uri.js'
 

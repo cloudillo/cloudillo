@@ -1,20 +1,20 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import type * as Y from 'yjs'
-import { PropertySection, PropertyField, ColorInput } from '@cloudillo/react'
-import { GradientPicker } from '@cloudillo/canvas-tools'
 import type { Gradient } from '@cloudillo/canvas-tools'
+import { GradientPicker } from '@cloudillo/canvas-tools'
+import { ColorInput, PropertyField, PropertySection } from '@cloudillo/react'
+import * as React from 'react'
 import { PiArrowCounterClockwiseBold as IcReset } from 'react-icons/pi'
+import type * as Y from 'yjs'
 
-import type { YPrezilloDocument, ViewNode } from '../../crdt'
+import type { ViewNode, YPrezilloDocument } from '../../crdt'
 import {
-	updateView,
 	getViewTemplate,
+	resetViewBackgroundToTemplate,
 	resolveViewBackground,
 	setViewBackgroundOverride,
-	resetViewBackgroundToTemplate
+	updateView
 } from '../../crdt'
 
 type BackgroundType = 'solid' | 'gradient'

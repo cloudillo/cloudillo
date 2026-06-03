@@ -3,8 +3,9 @@
 
 import * as React from 'react'
 import { createPortal } from 'react-dom'
-import { mergeClasses, createComponent } from '../utils.js'
-import { useMergedRefs, useBodyScrollLock, useEscapeKey } from '../hooks.js'
+
+import { useBodyScrollLock, useEscapeKey, useMergedRefs } from '../hooks.js'
+import { createComponent, mergeClasses } from '../utils.js'
 
 export interface ActionSheetProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'children'> {
 	isOpen: boolean

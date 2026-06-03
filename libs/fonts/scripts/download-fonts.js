@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 /**
  * Font Download Script
  * Downloads Google Fonts and converts variable fonts to static fonts:
@@ -10,10 +11,10 @@
  *   node download-fonts.js --force  # Re-download all fonts
  */
 
-import { existsSync, mkdirSync, writeFileSync, readdirSync, unlinkSync, rmdirSync } from 'fs'
+import { execFileSync } from 'child_process'
+import { existsSync, mkdirSync, readdirSync, rmdirSync, unlinkSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
-import { execFileSync } from 'child_process'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const FONTS_DIR = join(__dirname, '..', 'fonts')

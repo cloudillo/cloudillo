@@ -1,51 +1,47 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+export { AggregateQuery } from './aggregate-query.js'
 // Main client
 export { createRtdbClient, RtdbClient, WriteBatch } from './client.js'
-
-// Field operators
-export { increment, appendValues } from './types.js'
-
 // References
 export { CollectionReference } from './collection.js'
 export { DocumentReference } from './document.js'
+// Errors
+export {
+	AuthError,
+	ConnectionError,
+	NotFoundError,
+	PermissionError,
+	RtdbError,
+	TimeoutError,
+	ValidationError
+} from './errors.js'
 export { Query } from './query.js'
-export { AggregateQuery } from './aggregate-query.js'
-
 // Types
 export type {
-	RtdbClientOptions,
-	WhereFilterOp,
-	QueryFilter,
-	DocumentSnapshot,
-	QuerySnapshot,
-	DocumentChange,
-	ChangeEvent,
-	LockEventData,
-	UnlockEventData,
-	SnapshotOptions,
-	LockResult,
+	AggregateGroupEntry,
 	AggregateOp,
 	AggregateOpDef,
 	AggregateOptions,
-	AggregateGroupEntry,
 	AggregateSnapshot,
+	AppendOp,
+	ChangeEvent,
+	DocumentChange,
+	DocumentSnapshot,
 	FieldOp,
 	IncrementOp,
-	AppendOp,
-	UpdateData
+	LockEventData,
+	LockResult,
+	QueryFilter,
+	QuerySnapshot,
+	RtdbClientOptions,
+	SnapshotOptions,
+	UnlockEventData,
+	UpdateData,
+	WhereFilterOp
 } from './types.js'
-
-// Errors
-export {
-	RtdbError,
-	ConnectionError,
-	AuthError,
-	PermissionError,
-	NotFoundError,
-	ValidationError,
-	TimeoutError
-} from './errors.js'
+// Field operators
+export { appendValues, increment } from './types.js'
 
 // vim: ts=4

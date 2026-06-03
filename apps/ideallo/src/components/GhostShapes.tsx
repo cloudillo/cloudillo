@@ -7,6 +7,7 @@
  */
 
 import * as React from 'react'
+
 import type { IdealloPresence } from '../hooks/index.js'
 import { colorToCss } from '../utils/palette.js'
 

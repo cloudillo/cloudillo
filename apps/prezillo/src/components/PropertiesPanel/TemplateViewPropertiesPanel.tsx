@@ -6,25 +6,25 @@
  * (not the full sidebar takeover). Mirrors ViewPropertiesPanel pattern.
  */
 
-import * as React from 'react'
-import type * as Y from 'yjs'
-import { useY } from 'react-yjs'
-import { PropertySection, PropertyField, ColorInput, NumberInput, Input } from '@cloudillo/react'
-import { GradientPicker } from '@cloudillo/canvas-tools'
 import type { Gradient } from '@cloudillo/canvas-tools'
+import { GradientPicker } from '@cloudillo/canvas-tools'
+import { ColorInput, Input, NumberInput, PropertyField, PropertySection } from '@cloudillo/react'
+import * as React from 'react'
 import {
-	PiTrashBold as IcDelete,
 	PiArrowsHorizontalBold as IcArrowsHorizontal,
-	PiArrowsVerticalBold as IcArrowsVertical
+	PiArrowsVerticalBold as IcArrowsVertical,
+	PiTrashBold as IcDelete
 } from 'react-icons/pi'
+import { useY } from 'react-yjs'
+import type * as Y from 'yjs'
 
-import type { YPrezilloDocument, TemplateId, SnapGuide } from '../../crdt'
+import type { SnapGuide, TemplateId, YPrezilloDocument } from '../../crdt'
 import {
-	getTemplate,
-	updateTemplate,
 	addSnapGuide,
+	getTemplate,
+	removeSnapGuide,
 	updateSnapGuide,
-	removeSnapGuide
+	updateTemplate
 } from '../../crdt'
 import { mergeClasses } from '../../utils'
 

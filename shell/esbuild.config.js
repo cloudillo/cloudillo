@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 
 import esbuild from 'esbuild'
-import { readFileSync, existsSync, mkdirSync, cpSync } from 'fs'
-import { fileURLToPath } from 'url'
+import { cpSync, existsSync, mkdirSync, readFileSync } from 'fs'
 import { dirname, join } from 'path'
+import { fileURLToPath } from 'url'
+
 import {
-	createConfig,
 	buildHTML,
 	compressAll,
+	createConfig,
 	deleteCompressedFiles,
 	isProd,
 	isWatch,

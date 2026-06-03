@@ -4,8 +4,9 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { usePopper } from 'react-popper'
-import { mergeClasses } from '../utils.js'
+
 import type { Elevation } from '../types.js'
+import { mergeClasses } from '../utils.js'
 
 export interface PopperProps {
 	className?: string

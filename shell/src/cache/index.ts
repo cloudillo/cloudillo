@@ -5,26 +5,22 @@
  * Encrypted offline data cache — public API.
  */
 
-// Types
-export type { CachedFetchResult } from './types.js'
-
-// Hook integration
-export { createCachedFileFetchPage, createCachedActionFetchPage } from './hooks.js'
-
-// Direct cache access
-export { cacheFiles, queryCachedFiles, getCachedFile } from './file-cache.js'
 export { cacheActions, queryCachedActions } from './action-cache.js'
+// Store management
+export { clearAll as clearCache } from './encrypted-store.js'
+// Direct cache access
+export { cacheFiles, getCachedFile, queryCachedFiles } from './file-cache.js'
+// Hook integration
+export { createCachedActionFetchPage, createCachedFileFetchPage } from './hooks.js'
 export {
 	cacheProfile,
 	getCachedProfile,
 	getCachedProfiles,
 	prefetchProfilePic
 } from './profile-cache.js'
-
 // Sync utilities
-export { cacheFilesAsync, cacheActionsAsync, evictAsync } from './sync.js'
-
-// Store management
-export { clearAll as clearCache } from './encrypted-store.js'
+export { cacheActionsAsync, cacheFilesAsync, evictAsync } from './sync.js'
+// Types
+export type { CachedFetchResult } from './types.js'
 
 // vim: ts=4

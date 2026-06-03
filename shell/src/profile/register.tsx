@@ -1,32 +1,30 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
+import type * as Types from '@cloudillo/core'
+import { FetchError } from '@cloudillo/core'
+import { Button, useApi, useAuth, useDebouncedValue } from '@cloudillo/react'
 import debounce from 'debounce'
-
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
-	LuDoorOpen as IcSignUp,
 	LuChevronsLeft as IcGoBack,
+	LuDoorOpen as IcSignUp,
 	LuCircleCheck as IcSuccess,
 	LuLightbulb as IcTip
 } from 'react-icons/lu'
-
-import { useAuth, useApi, useDebouncedValue, Button } from '@cloudillo/react'
-import type * as Types from '@cloudillo/core'
-import { FetchError } from '@cloudillo/core'
+import { useNavigate, useParams } from 'react-router-dom'
 
 import { CloudilloLogo } from '../logo.js'
 import {
-	ProviderSelectionStep,
-	ProviderSelectorStep,
-	IdTagInput,
-	IdTagErrorPanel,
-	AppDomainInput,
 	AppDomainErrorPanel,
+	AppDomainInput,
 	DnsInstructions,
-	type IdTagError
+	type IdTagError,
+	IdTagErrorPanel,
+	IdTagInput,
+	ProviderSelectionStep,
+	ProviderSelectorStep
 } from './shared.js'
 
 // Extended local type that includes 'network' error (not returned by API, but used for local error handling)

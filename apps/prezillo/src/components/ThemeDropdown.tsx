@@ -7,13 +7,13 @@
  */
 
 import * as React from 'react'
-import type * as Y from 'yjs'
 import { PiPaletteBold as IcPalette } from 'react-icons/pi'
+import type * as Y from 'yjs'
 
 import type { YPrezilloDocument } from '../crdt'
 import { usePaletteValue } from '../hooks'
-import { ThemePicker } from './PropertiesPanel/ThemePicker'
 import { PaletteEditor } from './PropertiesPanel/PaletteEditor'
+import { ThemePicker } from './PropertiesPanel/ThemePicker'
 
 import './ThemeDropdown.css'
 

@@ -13,6 +13,7 @@ import * as React from 'react'
  */
 
 import ReactQRCode from 'react-qr-code'
+
 import type { QrCodeObject, QrErrorCorrection } from '../crdt/index.js'
 
 // Handle ESM/CJS interop - the module might be wrapped

@@ -5,7 +5,7 @@
  * Bounds computation for Ideallo objects
  */
 
-import type { IdealloObject, Bounds } from '../crdt/index.js'
+import type { Bounds, IdealloObject } from '../crdt/index.js'
 import { getBoundsFromPoints } from './geometry.js'
 import { calculatePathBounds } from './hit-testing.js'
 

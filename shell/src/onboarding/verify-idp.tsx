@@ -1,15 +1,14 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
-
-import { useApi } from '@cloudillo/react'
-import { FetchError } from '@cloudillo/core'
 import type { IdpStatusResponse } from '@cloudillo/core'
+import { FetchError } from '@cloudillo/core'
+import { useApi } from '@cloudillo/react'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import { useNavigate, useParams } from 'react-router-dom'
 
-import { VerifyIdpContent, type ResendState } from './verify-idp-content.js'
+import { type ResendState, VerifyIdpContent } from './verify-idp-content.js'
 
 const POLL_INTERVAL_MS = 10_000
 const RESEND_COOLDOWN_MS = 60_000

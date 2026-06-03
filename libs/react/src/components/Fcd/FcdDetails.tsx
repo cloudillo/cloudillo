@@ -3,8 +3,9 @@
 
 import * as React from 'react'
 import { LuX as IcClose } from 'react-icons/lu'
-import { mergeClasses } from '../utils.js'
+
 import { Button } from '../Button/Button.js'
+import { mergeClasses } from '../utils.js'
 
 export interface FcdDetailsProps {
 	className?: string

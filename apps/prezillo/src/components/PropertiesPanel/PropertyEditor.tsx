@@ -1,29 +1,29 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import type * as Y from 'yjs'
 import type Quill from 'quill'
+import * as React from 'react'
 import { useY } from 'react-yjs'
+import type * as Y from 'yjs'
 
 import type {
-	YPrezilloDocument,
 	ObjectId,
-	ViewId,
-	TemplateId,
 	PrezilloObject,
-	TableGridObject
+	TableGridObject,
+	TemplateId,
+	ViewId,
+	YPrezilloDocument
 } from '../../crdt'
 import { getObject } from '../../crdt'
-import { TransformSection } from './TransformSection'
-import { StyleSection } from './StyleSection'
-import { TextStyleSection } from './TextStyleSection'
-import { ShapeSection } from './ShapeSection'
-import { QRCodeSection } from './QRCodeSection'
-import { TableGridSection } from './TableGridSection'
-import { ViewPropertiesPanel } from './ViewPropertiesPanel'
-import { TemplateViewPropertiesPanel } from './TemplateViewPropertiesPanel'
 import type { PropertyPreview } from './PrezilloPropertiesPanel'
+import { QRCodeSection } from './QRCodeSection'
+import { ShapeSection } from './ShapeSection'
+import { StyleSection } from './StyleSection'
+import { TableGridSection } from './TableGridSection'
+import { TemplateViewPropertiesPanel } from './TemplateViewPropertiesPanel'
+import { TextStyleSection } from './TextStyleSection'
+import { TransformSection } from './TransformSection'
+import { ViewPropertiesPanel } from './ViewPropertiesPanel'
 
 export interface PropertyEditorProps {
 	doc: YPrezilloDocument

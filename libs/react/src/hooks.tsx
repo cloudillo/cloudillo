@@ -1,14 +1,13 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { type ApiClient, createApiClient, getAppBus } from '@cloudillo/core'
+import { type CrdtPersistence, openYDoc } from '@cloudillo/crdt'
+import { atom, useAtom } from 'jotai'
 import * as React from 'react'
 import { useLocation } from 'react-router-dom'
-import { atom, useAtom } from 'jotai'
-import * as Y from 'yjs'
 import type { WebsocketProvider } from 'y-websocket'
-
-import { getAppBus, createApiClient, type ApiClient } from '@cloudillo/core'
-import { openYDoc, type CrdtPersistence } from '@cloudillo/crdt'
+import * as Y from 'yjs'
 
 // useAuth() //
 ///////////////

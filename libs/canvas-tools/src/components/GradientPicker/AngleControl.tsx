@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { createComponent, mergeClasses } from '@cloudillo/react'
 import * as React from 'react'
-import { mergeClasses, createComponent } from '@cloudillo/react'
 
 /** Default preset angles for quick selection */
 export const DEFAULT_ANGLE_PRESETS = [0, 45, 90, 135, 180, 225, 270, 315]

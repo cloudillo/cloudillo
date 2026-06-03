@@ -1,14 +1,12 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { TabEntry } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-
 import { LuGripVertical as IcDrag } from 'react-icons/lu'
 
-import type { TabEntry } from '@cloudillo/types'
-
-import { LOCKED_TABS, getEffectiveTabs, type TabConfig } from './about/types.js'
+import { getEffectiveTabs, LOCKED_TABS, type TabConfig } from './about/types.js'
 
 // ============================================================================
 // Default tab labels (i18n keys = English strings)

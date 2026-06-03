@@ -4,23 +4,24 @@
 const _APP_NAME = 'quillo'
 
 import * as Y from 'yjs'
+
 //import { IndexeddbPersistence } from 'y-indexeddb'
 
-import { QuillBinding } from 'y-quill'
+import BlotFormatter from '@enzedonline/quill-blot-formatter2'
 import Quill from 'quill'
-import Delta from 'quill-delta'
 //import QuillCursors from 'quill-cursors'
 import QuillCursors from 'quill-cursors'
-import BlotFormatter from '@enzedonline/quill-blot-formatter2'
+import Delta from 'quill-delta'
+import { QuillBinding } from 'y-quill'
 import '@enzedonline/quill-blot-formatter2/dist/css/quill-blot-formatter2.css'
 
 import QuillTableBetter from 'quill-table-better'
 import 'quill-table-better/dist/quill-table-better.css'
 
-import { ClImageBlot } from './blots/ClImageBlot.js'
-import { ClImageSpec } from './blots/ClImageSpec.js'
 import { ClDocumentBlot } from './blots/ClDocumentBlot.js'
 import { ClDocumentSpec } from './blots/ClDocumentSpec.js'
+import { ClImageBlot } from './blots/ClImageBlot.js'
+import { ClImageSpec } from './blots/ClImageSpec.js'
 import { registerSafeTableBlots } from './blots/SafeTableBlots.js'
 
 import './quillo.css'
@@ -31,20 +32,21 @@ import '@symbion/opalui/themes/glass.css'
 
 import 'quill/dist/quill.core.css'
 import 'quill/dist/quill.snow.css'
-//import 'quill/dist/quill.bubble.css'
 
-import { createElement, Cloud, CloudOff } from 'lucide'
+//import 'quill/dist/quill.bubble.css'
 
 import { getAppBus, str2color } from '@cloudillo/core'
 import { openYDoc } from '@cloudillo/crdt'
-import { importMarkdown } from './import-markdown.js'
 import {
 	FONTS,
+	type FontCategory,
 	getFontsByCategory,
 	getSuggestedBodyFonts,
-	getSuggestedHeadingFonts,
-	type FontCategory
+	getSuggestedHeadingFonts
 } from '@cloudillo/fonts'
+import { Cloud, CloudOff, createElement } from 'lucide'
+
+import { importMarkdown } from './import-markdown.js'
 import '@cloudillo/fonts/fonts.css'
 
 // ============================================

@@ -1,118 +1,116 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { appConfig as APP_CONFIG, applyMenuConfig } from './manifest-registry.js'
-
-import { version } from '../package.json'
-
+import { createApiClient, FetchError } from '@cloudillo/core'
+import {
+	type AuthState,
+	Button,
+	DialogContainer,
+	mergeClasses,
+	Popper,
+	ProfilePicture,
+	Toast,
+	ToastClose,
+	ToastContainer,
+	ToastContent,
+	ToastIcon,
+	ToastMessage,
+	ToastProgress,
+	ToastTitle,
+	useApi,
+	useAuth,
+	useDialog,
+	useToast,
+	useToasts
+} from '@cloudillo/react'
+import type { ActionView } from '@cloudillo/types'
+import { useAtomValue, useSetAtom } from 'jotai'
 import * as React from 'react'
 import { createPortal } from 'react-dom'
-import { Routes, Route, Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-
 import {
-	LuUser as IcUser,
 	LuGrip as IcApps,
+	LuTrash2 as IcClear,
 	// Menu icons
 	LuLogIn as IcLogin,
 	LuLogOut as IcLogout,
 	LuMenu as IcMenu,
-	LuSettings as IcSettings,
-	LuCircleAlert as IcWarning,
-	LuRefreshCw as IcRefresh,
-	LuTrash2 as IcClear,
 	LuQrCode as IcQrCode,
+	LuRefreshCw as IcRefresh,
 	LuScanLine as IcScan,
-	LuCircleCheck as IcToastSuccess,
+	LuSettings as IcSettings,
 	LuCircleX as IcToastError,
+	LuInfo as IcToastInfo,
+	LuCircleCheck as IcToastSuccess,
 	LuTriangleAlert as IcToastWarning,
-	LuInfo as IcToastInfo
+	LuUser as IcUser,
+	LuCircleAlert as IcWarning
 } from 'react-icons/lu'
-import { CloudilloLogo } from './logo.js'
-import { getFileIcon } from './apps/files/icons.js'
+import { Link, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 
-import type { ActionView } from '@cloudillo/types'
-import {
-	useAuth,
-	type AuthState,
-	useApi,
-	useDialog,
-	useToast,
-	useToasts,
-	mergeClasses,
-	ProfilePicture,
-	Popper,
-	Button,
-	DialogContainer,
-	ToastContainer,
-	Toast,
-	ToastIcon,
-	ToastContent,
-	ToastTitle,
-	ToastMessage,
-	ToastClose,
-	ToastProgress
-} from '@cloudillo/react'
-import { createApiClient, FetchError } from '@cloudillo/core'
-import { useAtomValue, useSetAtom } from 'jotai'
-import { useAppConfig } from './utils.js'
-import usePWA, {
-	registerServiceWorker,
-	refreshEncryptionKey,
-	installToken,
-	getApiKey,
-	deleteApiKey,
-	clearAuthToken,
-	onKeyAccessError,
-	getLastKeyError,
-	setCurrentAuthToken,
-	resetEncryptionState,
-	type KeyErrorReason
-} from './pwa.js'
+import { version } from '../package.json'
+import { AppRoutes } from './apps'
+import { getFileIcon } from './apps/files/icons.js'
+import { SharedResourceView } from './apps/shared.js'
 import { AuthRoutes, loginInitAtom } from './auth/auth.js'
 import { LogoutDialog } from './auth/LogoutDialog.js'
-import { listDirtyDocs, wipeLocalData, type DirtyDocSummary } from './auth/wipe-local-data.js'
 import { useTokenRenewal } from './auth/useTokenRenewal.js'
-import { useContextTokenRenewal, useProfileTrustBootstrap } from './context/index.js'
-import { useActionNotifications } from './notifications/useActionNotifications.js'
+import { type DirtyDocSummary, listDirtyDocs, wipeLocalData } from './auth/wipe-local-data.js'
+import { BusinessCardDialog } from './components/BusinessCard/BusinessCardDialog.js'
+import { CameraCaptureDialog } from './components/CameraCapture/index.js'
+import { DocumentPicker } from './components/DocumentPicker/index.js'
+import { GuestOwnerChip } from './components/GuestOwnerChip.js'
+import { HandChip } from './components/HandChip.js'
+import { MediaPicker } from './components/MediaPicker/index.js'
+import { QrScannerDialog, useQrScanner } from './components/QrScanner/index.js'
+import { ShareCreate } from './components/ShareCreate/index.js'
 import {
-	HOME_CONTEXT,
-	Sidebar,
-	useSidebar,
-	useCommunitiesList,
-	useUrlContextIdTag,
-	useContextPath,
-	useGuestDocument,
-	favoritesAtom,
 	activeContextAtom,
 	activeContextDisplayAtom,
 	contextIdpEnabledAtom,
-	loadIdpEnabled
+	favoritesAtom,
+	HOME_CONTEXT,
+	loadIdpEnabled,
+	Sidebar,
+	useCommunitiesList,
+	useContextPath,
+	useContextTokenRenewal,
+	useGuestDocument,
+	useProfileTrustBootstrap,
+	useSidebar,
+	useUrlContextIdTag
 } from './context/index.js'
 import { CommunityVerifyIdpBanner } from './context/verify-idp-banner.js'
-import { OnboardingRoutes } from './onboarding'
-import { WsBusRoot, useWsBus } from './ws-bus.js'
-import { useSearch } from './search.js'
-import { Breadcrumb, DocumentTitleSync, Omnibox } from './omnibox.js'
-import { SettingsRoutes, setTheme, applyTheme } from './settings'
-import { SiteAdminRoutes } from './site-admin'
-import { IdpRoutes } from './idp'
-import { AppRoutes } from './apps'
-import { initShellBus, getShellBus } from './message-bus'
 import { ErrorBoundary } from './ErrorBoundary.js'
-import { SharedResourceView } from './apps/shared.js'
-import { ProfileRoutes } from './profile/profile.js'
+import { IdpRoutes } from './idp'
+import { CloudilloLogo } from './logo.js'
+import { appConfig as APP_CONFIG, applyMenuConfig } from './manifest-registry.js'
+import { getShellBus, initShellBus } from './message-bus'
+import { NotificationPopover } from './notifications/NotificationPopover.js'
 import { Notifications } from './notifications/notifications.js'
 import { useNotifications } from './notifications/state'
-import { NotificationPopover } from './notifications/NotificationPopover.js'
-import { HandChip } from './components/HandChip.js'
-import { GuestOwnerChip } from './components/GuestOwnerChip.js'
-import { MediaPicker } from './components/MediaPicker/index.js'
-import { ShareCreate } from './components/ShareCreate/index.js'
-import { DocumentPicker } from './components/DocumentPicker/index.js'
-import { BusinessCardDialog } from './components/BusinessCard/BusinessCardDialog.js'
-import { QrScannerDialog, useQrScanner } from './components/QrScanner/index.js'
-import { CameraCaptureDialog } from './components/CameraCapture/index.js'
+import { useActionNotifications } from './notifications/useActionNotifications.js'
+import { Breadcrumb, DocumentTitleSync, Omnibox } from './omnibox.js'
+import { OnboardingRoutes } from './onboarding'
+import { ProfileRoutes } from './profile/profile.js'
+import usePWA, {
+	clearAuthToken,
+	deleteApiKey,
+	getApiKey,
+	getLastKeyError,
+	installToken,
+	type KeyErrorReason,
+	onKeyAccessError,
+	refreshEncryptionKey,
+	registerServiceWorker,
+	resetEncryptionState,
+	setCurrentAuthToken
+} from './pwa.js'
+import { useSearch } from './search.js'
+import { applyTheme, SettingsRoutes, setTheme } from './settings'
+import { SiteAdminRoutes } from './site-admin'
+import { useAppConfig } from './utils.js'
+import { useWsBus, WsBusRoot } from './ws-bus.js'
 
 import '@symbion/opalui'
 //import '@symbion/opalui/src/opalui.css'

@@ -1,32 +1,32 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { useTranslation } from 'react-i18next'
-import { useAtom, useAtomValue, useStore } from 'jotai'
-import {
-	LuHand as IcHand,
-	LuPin as IcPin,
-	LuFolderInput as IcMove,
-	LuRotateCcw as IcRestore,
-	LuShare2 as IcPlace,
-	LuEye as IcRead,
-	LuMessageSquare as IcComment,
-	LuPencil as IcWrite,
-	LuChevronRight as IcChevron
-} from 'react-icons/lu'
-import { useAuth, useToast, Dialog, Button } from '@cloudillo/react'
 import type { ApiClient } from '@cloudillo/core'
 import { FetchError } from '@cloudillo/core'
-
-import { handAtom, aggregateVerbStates, setDown, type FileHandItem } from '../../../state/hand.js'
+import { Button, Dialog, useAuth, useToast } from '@cloudillo/react'
+import { useAtom, useAtomValue, useStore } from 'jotai'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
-	handTargetElAtom,
-	waveHand,
-	flyFromHand,
-	prefersReducedMotion
-} from '../../../state/hand-fly.js'
+	LuChevronRight as IcChevron,
+	LuMessageSquare as IcComment,
+	LuHand as IcHand,
+	LuFolderInput as IcMove,
+	LuPin as IcPin,
+	LuShare2 as IcPlace,
+	LuEye as IcRead,
+	LuRotateCcw as IcRestore,
+	LuPencil as IcWrite
+} from 'react-icons/lu'
+
 import { activeContextAtom, useApiContext } from '../../../context/index.js'
+import { aggregateVerbStates, type FileHandItem, handAtom, setDown } from '../../../state/hand.js'
+import {
+	flyFromHand,
+	handTargetElAtom,
+	prefersReducedMotion,
+	waveHand
+} from '../../../state/hand-fly.js'
 import type { ViewMode } from '../types.js'
 
 export interface HandActionBarProps {

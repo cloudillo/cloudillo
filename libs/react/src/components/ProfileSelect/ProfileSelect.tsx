@@ -1,15 +1,13 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { Profile } from '@cloudillo/types'
 import * as React from 'react'
-import { useLibTranslation } from '../../i18n.js'
-
 import { LuX as IcClear } from 'react-icons/lu'
 
-import type { Profile } from '@cloudillo/types'
-
-import { Select } from '../Select/index.js'
+import { useLibTranslation } from '../../i18n.js'
 import { ProfileCard } from '../Profile/index.js'
+import { Select } from '../Select/index.js'
 
 export interface ProfileSelectProps {
 	className?: string

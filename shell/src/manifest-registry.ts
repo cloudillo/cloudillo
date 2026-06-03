@@ -2,28 +2,27 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { AppManifest } from '@cloudillo/types'
-import type { AppConfigState, MenuItem } from './utils.js'
-import { getIcon } from './icon-registry.js'
 
-// Internal app manifests
-import { manifest as filesManifest } from './apps/files/manifest.js'
-import { manifest as feedManifest } from './apps/feed/manifest.js'
-import { manifest as galleryManifest } from './apps/gallery/manifest.js'
-import { manifest as messagesManifest } from './apps/messages/manifest.js'
-import { manifest as contactsManifest } from './apps/contacts/manifest.js'
-import { manifest as calendarManifest } from './apps/calendar/manifest.js'
-import { manifest as viewerManifest } from './apps/viewer/manifest.js'
-
+import { manifest as calcilloManifest } from '../../apps/calcillo/src/manifest.js'
+import { manifest as formilloManifest } from '../../apps/formillo/src/manifest.js'
+import { manifest as idealloManifest } from '../../apps/ideallo/src/manifest.js'
+import { manifest as mapilloManifest } from '../../apps/mapillo/src/manifest.js'
+import { manifest as notilloManifest } from '../../apps/notillo/src/manifest.js'
+import { manifest as prezilloManifest } from '../../apps/prezillo/src/manifest.js'
 // Bundled app manifests
 import { manifest as quilloManifest } from '../../apps/quillo/src/manifest.js'
-import { manifest as calcilloManifest } from '../../apps/calcillo/src/manifest.js'
-import { manifest as idealloManifest } from '../../apps/ideallo/src/manifest.js'
-import { manifest as prezilloManifest } from '../../apps/prezillo/src/manifest.js'
-import { manifest as formilloManifest } from '../../apps/formillo/src/manifest.js'
-import { manifest as taskilloManifest } from '../../apps/taskillo/src/manifest.js'
-import { manifest as notilloManifest } from '../../apps/notillo/src/manifest.js'
-import { manifest as mapilloManifest } from '../../apps/mapillo/src/manifest.js'
 import { manifest as scanilloManifest } from '../../apps/scanillo/src/manifest.js'
+import { manifest as taskilloManifest } from '../../apps/taskillo/src/manifest.js'
+import { manifest as calendarManifest } from './apps/calendar/manifest.js'
+import { manifest as contactsManifest } from './apps/contacts/manifest.js'
+import { manifest as feedManifest } from './apps/feed/manifest.js'
+// Internal app manifests
+import { manifest as filesManifest } from './apps/files/manifest.js'
+import { manifest as galleryManifest } from './apps/gallery/manifest.js'
+import { manifest as messagesManifest } from './apps/messages/manifest.js'
+import { manifest as viewerManifest } from './apps/viewer/manifest.js'
+import { getIcon } from './icon-registry.js'
+import type { AppConfigState, MenuItem } from './utils.js'
 
 // All registered manifests
 export const allManifests: AppManifest[] = [

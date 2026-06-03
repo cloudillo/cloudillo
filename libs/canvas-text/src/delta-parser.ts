@@ -9,7 +9,7 @@
  * This module parses Delta ops into structured TextLine arrays for layout and rendering.
  */
 
-import type { DeltaOp, TextLine, TextRun, RichTextRunStyle } from './types'
+import type { DeltaOp, RichTextRunStyle, TextLine, TextRun } from './types'
 
 /**
  * Extract RichTextRunStyle from Delta attributes

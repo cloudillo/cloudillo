@@ -3,7 +3,8 @@
 
 import * as React from 'react'
 import { LuX as IcClose } from 'react-icons/lu'
-import { mergeClasses, createComponent } from '../utils.js'
+
+import { createComponent, mergeClasses } from '../utils.js'
 import { useToastContext } from './ToastContext.js'
 
 export interface ToastCloseProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {

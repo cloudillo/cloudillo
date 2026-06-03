@@ -21,10 +21,10 @@
  * ```
  */
 
-import type * as Y from 'yjs'
+import { getAppBus, getCrdtUrl } from '@cloudillo/core'
 import { WebsocketProvider } from 'y-websocket'
+import type * as Y from 'yjs'
 
-import { getCrdtUrl, getAppBus } from '@cloudillo/core'
 import { CrdtPersistence } from './crdt-persistence.js'
 
 // ============================================

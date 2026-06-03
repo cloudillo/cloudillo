@@ -8,39 +8,39 @@
 import type { ObjectId } from './ids.js'
 import { toObjectId } from './ids.js'
 import type {
-	StoredObject,
-	StoredFreehand,
-	StoredRect,
-	StoredEllipse,
-	StoredLine,
-	StoredArrow,
-	StoredText,
-	StoredPolygon,
-	StoredSticky,
-	StoredImage,
-	StoredDocument,
+	ArrowheadPosition,
+	ArrowObject,
+	DocumentObject,
+	EllipseObject,
+	FreehandObject,
+	IdealloObject,
+	ImageObject,
+	LineObject,
+	ObjectType,
+	PolygonObject,
+	RectObject,
+	StickyObject,
+	StrokeStyle,
+	Style,
+	TextObject
+} from './runtime-types.js'
+import { DEFAULT_STYLE } from './runtime-types.js'
+import type {
 	ObjectTypeCode,
+	StoredArrow,
+	StoredDocument,
+	StoredEllipse,
+	StoredFreehand,
+	StoredImage,
+	StoredLine,
+	StoredObject,
+	StoredPolygon,
+	StoredRect,
+	StoredSticky,
+	StoredText,
 	StrokeStyleCode,
 	YIdealloDocument
 } from './stored-types.js'
-import type {
-	IdealloObject,
-	FreehandObject,
-	RectObject,
-	EllipseObject,
-	LineObject,
-	ArrowObject,
-	TextObject,
-	PolygonObject,
-	StickyObject,
-	ImageObject,
-	DocumentObject,
-	ObjectType,
-	StrokeStyle,
-	ArrowheadPosition,
-	Style
-} from './runtime-types.js'
-import { DEFAULT_STYLE } from './runtime-types.js'
 
 // Type code mappings
 const _TYPE_CODE_TO_TYPE: Record<ObjectTypeCode, ObjectType> = {

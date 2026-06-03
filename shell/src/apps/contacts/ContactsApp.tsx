@@ -1,36 +1,33 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, Fcd, Menu, MenuDivider, MenuItem, useToast } from '@cloudillo/react'
+import { useAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAtom } from 'jotai'
-
 import {
 	LuPlus as IcAdd,
 	LuUsers as IcAddNetwork,
-	LuFileUp as IcImport,
-	LuBookOpen as IcNewBook,
 	LuFilter as IcFilter,
-	LuEllipsisVertical as IcMore
+	LuFileUp as IcImport,
+	LuEllipsisVertical as IcMore,
+	LuBookOpen as IcNewBook
 } from 'react-icons/lu'
-
-import { Button, Fcd, Menu, MenuItem, MenuDivider, useToast } from '@cloudillo/react'
 import '@cloudillo/react/components.css'
 import type { ContactInput, ContactOutput } from '@cloudillo/core'
 
 import { useContextAwareApi } from '../../context/index.js'
-
+import { searchQueryAtom, selectedAddressBookAtom, selectedContactRefAtom } from './atoms.js'
 import {
-	AddressBookSidebar,
+	AddFromNetworkModal,
 	AddressBookEditor,
-	ContactList,
+	AddressBookSidebar,
 	ContactDetails,
 	ContactEditor,
-	AddFromNetworkModal,
+	ContactList,
 	ImportVcfModal
 } from './components/index.js'
 import { useAddressBooks, useContactList } from './hooks/index.js'
-import { selectedAddressBookAtom, searchQueryAtom, selectedContactRefAtom } from './atoms.js'
 import type { AddressBookOutput, SelectedContactRef } from './types.js'
 
 import './contacts.css'

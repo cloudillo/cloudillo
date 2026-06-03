@@ -1,22 +1,20 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type * as Types from '@cloudillo/core'
+import { Button, type useApi, useDialog } from '@cloudillo/react'
+import debounce from 'debounce'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import debounce from 'debounce'
-
 import {
 	LuAtSign as IcAt,
-	LuRefreshCw as IcLoading,
-	LuCheck as IcOk,
+	LuUsers as IcCommunity,
+	LuCopy as IcCopy,
 	LuTriangleAlert as IcError,
 	LuChevronsLeft as IcGoBack,
-	LuUsers as IcCommunity,
-	LuCopy as IcCopy
+	LuRefreshCw as IcLoading,
+	LuCheck as IcOk
 } from 'react-icons/lu'
-
-import { type useApi, useDialog, Button } from '@cloudillo/react'
-import type * as Types from '@cloudillo/core'
 
 import { CloudilloLogo } from '../logo.js'
 

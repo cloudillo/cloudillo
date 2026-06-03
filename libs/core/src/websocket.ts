@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { getRtdbUrl, getMessageBusUrl } from './urls.js'
+import { getMessageBusUrl, getRtdbUrl } from './urls.js'
 
 export interface WebSocketOpts {
 	idTag: string

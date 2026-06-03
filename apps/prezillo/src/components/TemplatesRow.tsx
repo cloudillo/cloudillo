@@ -7,12 +7,12 @@
  */
 
 import * as React from 'react'
+import { IoAdd, IoChevronDown, IoChevronUp } from 'react-icons/io5'
 import type * as Y from 'yjs'
-import { IoChevronUp, IoChevronDown, IoAdd } from 'react-icons/io5'
 
 import type { TemplateId, YPrezilloDocument } from '../crdt'
-import type { PrezilloObject } from '../crdt/runtime-types'
 import { createTemplate } from '../crdt'
+import type { PrezilloObject } from '../crdt/runtime-types'
 import type { TemplateWithUsage } from '../hooks/useTemplates'
 import { TemplateThumbnail } from './TemplateThumbnail'
 

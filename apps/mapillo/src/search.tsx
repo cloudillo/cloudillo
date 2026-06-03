@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuSearch as IcSearch, LuX as IcClose } from 'react-icons/lu'
+import { LuX as IcClose, LuSearch as IcSearch } from 'react-icons/lu'
 
 import type { NominatimResult } from './types.js'
 

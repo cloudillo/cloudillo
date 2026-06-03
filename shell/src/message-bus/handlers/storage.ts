@@ -9,8 +9,9 @@
  * so we proxy their requests through the shell.
  */
 
-import type { ShellMessageBus } from '../shell-bus.js'
 import type { StorageOpReq } from '@cloudillo/core'
+
+import type { ShellMessageBus } from '../shell-bus.js'
 
 // ============================================
 // INDEXEDDB STORAGE

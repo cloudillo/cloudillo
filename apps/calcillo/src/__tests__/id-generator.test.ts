@@ -1,11 +1,11 @@
 import {
-	generateRowId,
 	generateColId,
-	generateSheetId,
+	generateColIds,
+	generateRowId,
 	generateRowIds,
-	generateColIds
+	generateSheetId
 } from '../id-generator'
-import { isValidRowId, isValidColId, isValidSheetId } from '../yjs-types'
+import { isValidColId, isValidRowId, isValidSheetId } from '../yjs-types'
 
 describe('ID Generator', () => {
 	describe('generateRowId', () => {

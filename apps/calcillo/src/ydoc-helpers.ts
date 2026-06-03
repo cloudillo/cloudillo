@@ -1,20 +1,21 @@
-import * as Y from 'yjs'
 import type { Cell, SheetConfig } from '@fortune-sheet/core'
-import type {
-	RowId,
-	ColId,
-	SheetId,
-	YSheetStructure,
-	MergeInfo,
-	BorderInfo,
-	HyperlinkInfo,
-	ValidationRule,
-	ConditionalFormat,
-	FrozenInfo
-} from './yjs-types'
-import { generateUniqueRowIds, generateUniqueColIds } from './id-generator'
-import { debug } from './debug'
+import * as Y from 'yjs'
+
 import { stripCellDefaults } from './cell-defaults'
+import { debug } from './debug'
+import { generateUniqueColIds, generateUniqueRowIds } from './id-generator'
+import type {
+	BorderInfo,
+	ColId,
+	ConditionalFormat,
+	FrozenInfo,
+	HyperlinkInfo,
+	MergeInfo,
+	RowId,
+	SheetId,
+	ValidationRule,
+	YSheetStructure
+} from './yjs-types'
 
 /**
  * Convert Excel serial number to a Date object (UTC).

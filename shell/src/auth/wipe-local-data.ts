@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { resetEncryptionState, cleanupEncryptionCookie } from '../pwa.js'
 import { clearCache, getCachedFile } from '../cache/index.js'
 import { getDirtyDocIds } from '../message-bus/handlers/crdt.js'
+import { cleanupEncryptionCookie, resetEncryptionState } from '../pwa.js'
 
 function deleteDb(name: string): Promise<void> {
 	return new Promise((resolve) => {

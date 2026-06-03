@@ -9,8 +9,8 @@
 import * as React from 'react'
 import { useY } from 'react-yjs'
 
-import type { YPrezilloDocument, ViewNode, Bounds } from '../crdt'
-import { getAllViews, boundsIntersect } from '../crdt'
+import type { Bounds, ViewNode, YPrezilloDocument } from '../crdt'
+import { boundsIntersect, getAllViews } from '../crdt'
 
 /**
  * Get all views that intersect with the given viewport bounds.

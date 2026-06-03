@@ -10,7 +10,8 @@
  */
 
 import * as React from 'react'
-import type { StateVarObject, ResolvedTextStyle } from '../crdt'
+
+import type { ResolvedTextStyle, StateVarObject } from '../crdt'
 import { TEXT_ALIGN_CSS, VERTICAL_ALIGN_CSS } from '../utils/text-styles'
 
 export interface StateVarRendererProps {

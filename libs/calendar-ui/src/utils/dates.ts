@@ -10,8 +10,8 @@ dayjs.extend(isoWeek)
 dayjs.extend(localeData)
 dayjs.extend(weekOfYear)
 
-export { dayjs }
 export type { Dayjs }
+export { dayjs }
 
 export type WeekStart = 0 | 1
 

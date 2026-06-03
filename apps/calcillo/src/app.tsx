@@ -5,47 +5,47 @@ const APP_NAME = 'Calcillo'
 
 declare const __APP_VERSION__: string
 
-import * as React from 'react'
-import { useTranslation } from 'react-i18next'
 import type { Sheet as FortuneSheet, Op } from '@fortune-sheet/core'
 import { Workbook, type WorkbookInstance } from '@fortune-sheet/react'
-import type * as Y from 'yjs'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { PiDotsThreeVerticalBold, PiExportBold } from 'react-icons/pi'
+import type * as Y from 'yjs'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
 import '@fortune-sheet/react/dist/index.css'
 import './style.css'
 
-import { useCloudilloEditor } from '@cloudillo/react'
 import { getAppBus } from '@cloudillo/core'
-import { downloadExport } from './export.js'
-import { downloadXlsxExport } from './export-xlsx.js'
-import { importXlsx } from './import-xlsx.js'
+import { useCloudilloEditor } from '@cloudillo/react'
 
-// Import modules
-import type { SheetId } from './yjs-types'
-import { generateSheetId } from './id-generator'
-import { getOrCreateSheet, ensureSheetDimensions, transformSheetToCelldata } from './ydoc-helpers'
-import { transformOp, deleteSheet } from './transform-ops'
-import { applySheetYEvent } from './yjs-events'
-import type { FreezeType } from './fortune-sheet-types'
-import { freezeSheet } from './fortune-sheet-types'
 import { setupAwareness } from './awareness'
-import { debug } from './debug'
 import {
-	DEFAULT_ROWS,
 	DEFAULT_COLS,
+	DEFAULT_ROWS,
 	FORMULA_RECALC_DEBOUNCE_MS,
 	FORMULA_RECALC_MAX_DELAY_MS,
 	FROZEN_PANE_APPLY_DELAY_MS
 } from './constants'
+import { debug } from './debug'
+import { downloadExport } from './export.js'
+import { downloadXlsxExport } from './export-xlsx.js'
+import type { FreezeType } from './fortune-sheet-types'
+import { freezeSheet } from './fortune-sheet-types'
+import { generateSheetId } from './id-generator'
+import { importXlsx } from './import-xlsx.js'
+import { deleteSheet, transformOp } from './transform-ops'
 import {
+	createDebouncedThrottle,
 	createLocalEchoGuard,
 	isValidSheetIdValue,
-	createDebouncedThrottle,
 	showUserError
 } from './utils'
+import { ensureSheetDimensions, getOrCreateSheet, transformSheetToCelldata } from './ydoc-helpers'
+import { applySheetYEvent } from './yjs-events'
+// Import modules
+import type { SheetId } from './yjs-types'
 
 export function CalcilloApp() {
 	const { t } = useTranslation()

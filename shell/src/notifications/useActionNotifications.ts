@@ -1,15 +1,15 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { useToast } from '@cloudillo/react'
+import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router-dom'
-import { useToast } from '@cloudillo/react'
-import type { ActionView } from '@cloudillo/types'
 
 import { useWsBus } from '../ws-bus.js'
 import { NOTIFICATION_SOUNDS } from './sounds.js'
-import { useLocalNotifySettings, type LocalNotifySettings } from './useLocalNotifySettings.js'
+import { type LocalNotifySettings, useLocalNotifySettings } from './useLocalNotifySettings.js'
 
 // Map action types to setting keys
 const ACTION_TYPE_MAP: Record<string, keyof LocalNotifySettings> = {

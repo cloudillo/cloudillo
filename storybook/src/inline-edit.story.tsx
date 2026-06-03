@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-import { Story, Variant } from './storybook.js'
 import { InlineEditForm } from '@cloudillo/react'
+import * as React from 'react'
+
+import { Story, Variant } from './storybook.js'
 
 export function InlineEditFormStory() {
 	const [value1, setValue1] = React.useState('Document Title')

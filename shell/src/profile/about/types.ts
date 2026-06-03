@@ -1,32 +1,32 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as T from '@symbion/runtype'
-import type { TFunction } from 'i18next'
 import type {
-	SectionType,
-	TabConfig,
-	TabEntry,
 	ContactContent,
+	EducationContent,
 	LinksContent,
 	LocationContent,
-	WorkContent,
-	EducationContent,
-	SkillsContent
+	SectionType,
+	SkillsContent,
+	TabConfig,
+	TabEntry,
+	WorkContent
 } from '@cloudillo/types'
 import { tTabConfig } from '@cloudillo/types'
+import * as T from '@symbion/runtype'
+import type { TFunction } from 'i18next'
 
 // Re-export for convenience
 export type {
-	SectionType,
-	TabConfig,
-	TabEntry,
 	ContactContent,
+	EducationContent,
 	LinksContent,
 	LocationContent,
-	WorkContent,
-	EducationContent,
-	SkillsContent
+	SectionType,
+	SkillsContent,
+	TabConfig,
+	TabEntry,
+	WorkContent
 }
 
 // ============================================================================

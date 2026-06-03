@@ -13,16 +13,17 @@
  */
 
 import type * as Y from 'yjs'
-import type { YPrezilloDocument, StoredObject, QrErrorCorrectionLevel } from './stored-types'
+
+import type { ContainerId, ObjectId, ViewId } from './ids'
+import { toObjectId, toStyleId } from './ids'
 import type {
 	PrezilloObject,
-	RectObject,
-	TextObject,
 	QrCodeObject,
-	QrErrorCorrection
+	QrErrorCorrection,
+	RectObject,
+	TextObject
 } from './runtime-types'
-import type { ObjectId, ViewId, ContainerId } from './ids'
-import { toObjectId, toStyleId } from './ids'
+import type { QrErrorCorrectionLevel, StoredObject, YPrezilloDocument } from './stored-types'
 import { expandObject, expandShapeStyle, expandTextStyle } from './type-converters'
 
 /** Map stored QR error correction levels to runtime names */

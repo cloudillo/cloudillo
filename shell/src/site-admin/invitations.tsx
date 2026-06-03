@@ -392,7 +392,9 @@ function RegistrationInvites() {
 		setCreating(true)
 		try {
 			const params = new URLSearchParams()
-			params.set('connect', autoConnect ? '1' : '0')
+			// Opt-out: only persist the flag when auto-connect is disabled. Absence of
+			// `connect` means auto-connect, so pre-existing refs (no flag) auto-connect.
+			if (!autoConnect) params.set('connect', '0')
 			if (selectedCommunities.size) {
 				params.set('communities', Array.from(selectedCommunities).join(','))
 			}

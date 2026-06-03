@@ -40,6 +40,98 @@ summary:focus-visible {
 	font-family: 'Oswald', sans-serif;
 }
 
+/* Header omnibox breadcrumb (the context-dependent title) */
+.c-omnibox-breadcrumb {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	max-width: min(45vw, 34rem);
+	min-width: 0;
+	min-height: 2.5rem;
+	padding: 0.2rem 0.4rem;
+	background: none;
+	border: none;
+	border-radius: var(--bd-radius, 0.25rem);
+	color: inherit;
+	cursor: pointer;
+	font-family: 'Oswald', sans-serif;
+	font-weight: 600;
+	font-size: 1.1rem;
+	line-height: 1.2;
+}
+.c-omnibox-breadcrumb:hover {
+	background: rgb(127 127 127 / 0.12);
+}
+.c-omnibox-lead {
+	flex-shrink: 0;
+	opacity: 0.55;
+}
+.c-omnibox-seg {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.c-omnibox-sep {
+	flex-shrink: 0;
+	opacity: 0.45;
+}
+.c-omnibox-placeholder {
+	font-family: 'Roboto', sans-serif;
+	font-weight: 400;
+	font-size: 0.9rem;
+	opacity: 0.6;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Copy-reference button: a quiet affordance next to the title, no fill. */
+.c-omnibox-copy {
+	background: none;
+	border: none;
+	color: inherit;
+	opacity: 0.55;
+}
+.c-omnibox-copy:hover {
+	background: rgb(127 127 127 / 0.12);
+	opacity: 1;
+}
+
+/* Focused smart-input field: magnifier sits inside the input's left padding. */
+.c-omnibox-field {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+.c-omnibox-field-icon {
+	position: absolute;
+	left: 0.6rem;
+	top: 50%;
+	transform: translateY(-50%);
+	display: flex;
+	opacity: 0.55;
+	pointer-events: none;
+}
+.c-omnibox-field > input.c-input {
+	flex: 1 1 auto;
+	min-width: 0;
+	padding-left: 2rem;
+}
+
+/* Focused-input dropdown: give rows a hit area and a visible keyboard highlight
+   (OpalUI has no .c-nav-item.selected rule of its own). */
+.c-omnibox-menu .c-nav-item {
+	padding: 0.4rem 0.6rem;
+	border-radius: var(--bd-radius, 0.25rem);
+}
+.c-omnibox-menu .c-nav-item.selected {
+	background: lch(from var(--col-primary) l c h / 0.18);
+	color: var(--col-em);
+}
+
 /* Skip to main content link for keyboard accessibility */
 .c-skip-link {
 	position: fixed;

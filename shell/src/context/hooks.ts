@@ -311,11 +311,19 @@ export function useApiContext() {
 					throw new Error(`Failed to create API client for context: ${idTag}`)
 				}
 
-				// Create context with roles from proxy token response
+				// Create context with roles from proxy token response.
+				// Resolve display data the way the sidebar does so the object
+				// carries a real name/avatar for consumers.
+				const isMe = idTag === ownIdTag
+				const community = isMe
+					? undefined
+					: store.get(communitiesAtom).find((c) => c.idTag === idTag)
+
 				const newContext: ActiveContext = {
 					idTag,
-					type: idTag === ownIdTag ? 'me' : 'community',
-					name: idTag,
+					type: isMe ? 'me' : 'community',
+					name: isMe ? (auth.name ?? idTag) : (community?.name ?? idTag),
+					profilePic: isMe ? auth.profilePic : community?.profilePic,
 					roles: tokenResult.roles,
 					permissions: [],
 					metadata: {}

@@ -1,4 +1,11 @@
 {
+	"Type / for apps, @ to find people, or paste a link…": "Írj /-t alkalmazásokhoz, @-ot emberek kereséséhez, vagy illessz be egy hivatkozást…",
+	"Reference copied": "Hivatkozás másolva",
+	"Failed to copy reference": "A hivatkozás másolása nem sikerült",
+	"That doesn't look like a Cloudillo link": "Ez nem tűnik Cloudillo hivatkozásnak",
+	"Copy reference": "Hivatkozás másolása",
+	"Open search": "Keresés megnyitása",
+	"Open reference": "Hivatkozás megnyitása",
 	"Repost": "Megosztás",
 	"Quote": "Idézet",
 	"Undo repost": "Megosztás visszavonása",
@@ -122,6 +129,9 @@
 	"Disconnect": "Kapcsolat bontása",
 	"Block": "Blokkolás",
 	"Members": "Tagok",
+	"Search members": "Tagok keresése",
+	"Role": "Szerep",
+	"Member actions": "Tag műveletek",
 	"Connections": "Kapcsolatok",
 	"Connection request": "Kapcsolatfelvételi kérelem",
 	"Are you sure you want to send a connection request?": "Biztos vagy benne, hogy elküldöd a kapcsolatfelvételi kérelmet?",
@@ -1854,5 +1864,6 @@
 	"Already reposted": "",
 	"You have already reposted this to {{name}}.": "",
 	"Image {{n}}": "",
-	"Document preview": ""
+	"Document preview": "",
+	"Your connections": "Kapcsolataid"
 }

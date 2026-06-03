@@ -12,9 +12,21 @@ import { version } from '../../package.json'
 
 import { useAppConfig, type TrustLevel } from '../utils.js'
 import { getShellBus } from '../message-bus/shell-bus.js'
-import { onAppReady, onAppError, getAccessSuffix } from '../message-bus/index.js'
+import {
+	onAppReady,
+	onAppError,
+	onAppTitle,
+	offAppTitle,
+	getAccessSuffix
+} from '../message-bus/index.js'
 import { releaseClientIdsForWindow } from '../message-bus/handlers/crdt.js'
-import { useContextFromRoute, useGuestDocument, fileViewUpdateAtom } from '../context/index.js'
+import {
+	useApiContext,
+	useContextFromRoute,
+	useGuestDocument,
+	fileViewUpdateAtom
+} from '../context/index.js'
+import { documentTitleAtom } from '../title.js'
 import { FeedApp } from './feed.js'
 import { FilesApp } from './files.js'
 import { GalleryApp } from './gallery.js'
@@ -175,6 +187,7 @@ export function MicrofrontendContainer({
 	const ref = React.useRef<HTMLIFrameElement>(null)
 	const { api } = useApi()
 	const [auth] = useAuth()
+	const setDocumentTitle = useSetAtom(documentTitleAtom)
 	const [url, setUrl] = React.useState<string | undefined>(undefined)
 	const [loadingStage, setLoadingStage] = React.useState<LoadingStage>('connecting')
 	const [errorMessage, setErrorMessage] = React.useState<string | undefined>(undefined)
@@ -511,6 +524,21 @@ export function MicrofrontendContainer({
 							setErrorMessage(message)
 							setLoadingStage('error')
 						})
+						// App title push: the app takes over title management. An
+						// explicit `title` replaces the file name; when omitted the
+						// current title is kept and only the dirty flag updates.
+						onAppTitle(currentAppWindow, (_window, title, dirty) => {
+							if (!resId) return
+							setDocumentTitle((prev) => {
+								const sameRes = prev.resId === resId
+								return {
+									resId,
+									title: title ?? (sameRes ? prev.title : undefined),
+									dirty,
+									appManaged: true
+								}
+							})
+						})
 					}
 
 					// Read latest values from refs for pre-registration
@@ -578,6 +606,7 @@ export function MicrofrontendContainer({
 					const appWindow = appWindowRef.current
 					if (appWindow) {
 						releaseClientIdsForWindow(appWindow)
+						offAppTitle(appWindow)
 					}
 
 					// Clean up subscription and initialization state when effect truly re-runs
@@ -627,12 +656,15 @@ export function MicrofrontendContainer({
 function ExternalApp({ className }: { className?: string }) {
 	const [appConfig] = useAppConfig()
 	const [auth] = useAuth()
+	const { api } = useApi()
+	const { getClientFor } = useApiContext()
 	const location = useLocation()
 	const navigate = useNavigate()
 	const { t } = useTranslation()
 	const toast = useToast()
 	const dialog = useDialog()
 	const setFileViewUpdate = useSetAtom(fileViewUpdateAtom)
+	const setDocumentTitle = useSetAtom(documentTitleAtom)
 	const { contextIdTag, appId, '*': rest } = useParams()
 	const [guestDocument] = useGuestDocument()
 	const [forcedAccess, setForcedAccess] = React.useState<
@@ -667,6 +699,43 @@ function ExternalApp({ className }: { className?: string }) {
 	const guestName = isGuestAccess ? guestDocument.guestName : undefined
 
 	const filesListPath = `/app/${contextIdTag || auth?.idTag}/files`
+
+	// Prefetch the file name for an instant breadcrumb title (apps may refine it
+	// live via `app:title.push`). Clear on resId change / unmount so list pages
+	// show no document segment.
+	React.useEffect(() => {
+		if (!resId) return
+		const colon = resId.indexOf(':')
+		const owner = colon >= 0 ? resId.slice(0, colon) : undefined
+		const fileId = colon >= 0 ? resId.slice(colon + 1) : resId
+		let cancelled = false
+		// Owned docs resolve on the current context client; federated docs
+		// (explicit owner in the resId) must be fetched from the owner's node.
+		const client = owner ? getClientFor(owner, { auth: 'preferred' }) : api
+		if (client && fileId) {
+			client.files
+				.list({ fileId })
+				.then((files) => {
+					if (cancelled) return
+					const file = files[0]
+					if (file?.fileName) {
+						setDocumentTitle((prev) => {
+							// If an app already took over the title for this
+							// document, leave it alone.
+							if (prev.resId === resId && prev.appManaged) return prev
+							return { resId, title: file.fileName }
+						})
+					}
+				})
+				.catch((err) => {
+					console.error('[ExternalApp] Title prefetch failed:', err)
+				})
+		}
+		return () => {
+			cancelled = true
+			setDocumentTitle({})
+		}
+	}, [api, getClientFor, resId, setDocumentTitle])
 
 	const handleAccessConflict = React.useCallback(
 		async (outcome: AccessConflict) => {

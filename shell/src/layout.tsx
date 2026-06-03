@@ -11,7 +11,6 @@ import { Routes, Route, Link, NavLink, useNavigate, useLocation } from 'react-ro
 import { useTranslation } from 'react-i18next'
 
 import {
-	LuUserSearch as IcSearchUser,
 	LuUser as IcUser,
 	LuGrip as IcApps,
 	// Menu icons
@@ -86,13 +85,15 @@ import {
 	useGuestDocument,
 	favoritesAtom,
 	activeContextAtom,
+	activeContextDisplayAtom,
 	contextIdpEnabledAtom,
 	loadIdpEnabled
 } from './context/index.js'
 import { CommunityVerifyIdpBanner } from './context/verify-idp-banner.js'
 import { OnboardingRoutes } from './onboarding'
 import { WsBusRoot, useWsBus } from './ws-bus.js'
-import { SearchBar, useSearch } from './search.js'
+import { useSearch } from './search.js'
+import { Breadcrumb, DocumentTitleSync, Omnibox } from './omnibox.js'
 import { SettingsRoutes, setTheme, applyTheme } from './settings'
 import { SiteAdminRoutes } from './site-admin'
 import { IdpRoutes } from './idp'
@@ -156,11 +157,12 @@ function Menu({
 	const [appConfig, _setAppConfig] = useAppConfig()
 	const [auth, _setAuth] = useAuth()
 	const [moreMenuOpen, setMoreMenuOpen] = React.useState(false)
-	const { contextIdTag, getContextPath } = useContextPath()
+	const { getContextPath } = useContextPath()
 	const sidebar = useSidebar()
 	const [guestDocument] = useGuestDocument()
 	const [, setQrScannerOpen] = useQrScanner()
 	const activeContext = useAtomValue(activeContextAtom)
+	const contextDisplay = useAtomValue(activeContextDisplayAtom)
 	const contextIdpEnabled = useAtomValue(contextIdpEnabledAtom)
 
 	React.useEffect(
@@ -218,11 +220,13 @@ function Menu({
 						aria-expanded={sidebar.isOpen}
 					>
 						<ProfilePicture
-							profile={{ profilePic: auth.profilePic }}
-							srcTag={contextIdTag || auth.idTag}
+							profile={{ profilePic: contextDisplay?.profilePic ?? auth.profilePic }}
+							srcTag={contextDisplay?.idTag ?? auth.idTag}
 							tiny
 						/>
-						<span className="c-nav-label">{contextIdTag || auth.idTag}</span>
+						<span className="c-nav-label">
+							{contextDisplay?.name ?? auth.name ?? auth.idTag}
+						</span>
 					</Button>
 				)}
 				{/* Extra menu: use portal on mobile (when extraMenuPortal is provided), inline otherwise */}
@@ -367,17 +371,42 @@ function Header({ inert }: { inert?: boolean }) {
 	const [extraMenuPortalDesktop, setExtraMenuPortalDesktop] =
 		React.useState<HTMLDivElement | null>(null)
 
-	// Ctrl+K / Cmd+K keyboard shortcut for search
+	// Ctrl+K / Cmd+K toggles the omnibox; a bare `/` or `@` (GitHub-style) opens
+	// it pre-filled in command / profile-search mode.
 	React.useEffect(() => {
+		function isEditableTarget(el: Element | null): boolean {
+			if (!el) return false
+			const tag = el.tagName
+			return (
+				tag === 'INPUT' ||
+				tag === 'TEXTAREA' ||
+				tag === 'SELECT' ||
+				(el as HTMLElement).isContentEditable
+			)
+		}
 		function handleKeyDown(e: KeyboardEvent) {
 			if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
 				e.preventDefault()
 				setSearch((prev) => (prev.query == undefined ? { query: '' } : {}))
+				return
+			}
+			if ((e.key === '/' || e.key === '@') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+				// Don't swallow a `/` or `@` the user is typing in a field, and only
+				// open for authenticated users (the omnibox replaces the old search).
+				if (
+					isEditableTarget(document.activeElement) ||
+					isEditableTarget(e.target as Element)
+				) {
+					return
+				}
+				if (!auth) return
+				e.preventDefault()
+				setSearch({ query: e.key })
 			}
 		}
 		window.addEventListener('keydown', handleKeyDown)
 		return () => window.removeEventListener('keydown', handleKeyDown)
-	}, [setSearch])
+	}, [setSearch, auth])
 
 	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
 		// During onboarding the user handles incoming invites/connections inline
@@ -687,6 +716,9 @@ function Header({ inert }: { inert?: boolean }) {
 				<ul
 					className={mergeClasses(
 						'c-nav-group g-1',
+						// Only the focused omnibox grows to fill the row; the idle
+						// breadcrumb stays content-sized so the menu keeps clear of
+						// the right-hand icons.
 						search.query != undefined && 'flex-fill'
 					)}
 				>
@@ -703,19 +735,16 @@ function Header({ inert }: { inert?: boolean }) {
 							<GuestOwnerChip idTag={api.idTag} />
 						</li>
 					)}
+					<DocumentTitleSync />
 					{auth && (
-						<li className="c-nav-item flex-fill">
-							{search.query == undefined ? (
-								<button
-									className="c-button icon"
-									onClick={() => setSearch({ query: '' })}
-									aria-label={t('Search for users')}
-								>
-									<IcSearchUser />
-								</button>
-							) : (
-								<SearchBar />
+						<li
+							className={mergeClasses(
+								'c-nav-item',
+								search.query != undefined && 'flex-fill'
 							)}
+							style={{ minWidth: 0 }}
+						>
+							{search.query == undefined ? <Breadcrumb /> : <Omnibox />}
 						</li>
 					)}
 				</ul>

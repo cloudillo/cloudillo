@@ -40,6 +40,7 @@ export {
 	contextSwitchingAtom,
 	favoriteCommunitiesAtom,
 	previewCommunityAtom,
+	activeContextDisplayAtom,
 	recentCommunitiesAtom,
 	totalUnreadCountAtom,
 	sessionTrustAtom,

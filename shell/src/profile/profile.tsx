@@ -29,7 +29,9 @@ import {
 	LuCircleOff as IcBlock,
 	LuMessageCircle as IcMessage,
 	LuUserMinus as IcRemoveMember,
-	LuCheck as IcCheck
+	LuCheck as IcCheck,
+	LuFilter as IcFilter,
+	LuChevronDown as IcChevronDown
 } from 'react-icons/lu'
 
 import 'quill/dist/quill.core.css'
@@ -49,13 +51,15 @@ import {
 	ProfileListCard,
 	PersonListPage,
 	CommunityListPage,
-	ProfileStatusBadge
+	ProfileStatusBadge,
+	PeopleHeader
 } from './identities.js'
 import { CreateCommunity } from './community.js'
 import { ProfileAbout } from './about/ProfileAbout.js'
 import { parseTabConfig, getEffectiveTabs, type TabConfig } from './about/types.js'
 import { TabEditor } from './TabEditor.js'
 import {
+	HOME_CONTEXT,
 	activeContextAtom,
 	communitiesAtom,
 	useApiContext,
@@ -739,6 +743,8 @@ interface ProfileTabProps {
 		idTag: string,
 		opts?: { explicit?: boolean }
 	) => Promise<{ token: string; roles?: string[] } | null>
+	/** When set, render a PeopleHeader above the community member list (People page) */
+	showPageHeader?: boolean
 }
 
 // ProfileAbout is now in ./about/ProfileAbout.tsx
@@ -878,6 +884,7 @@ interface MemberCardProps {
 	canChangeRole?: boolean
 	onRoleChange?: (idTag: string, role: CommunityRole) => void
 	onRemove?: (idTag: string) => void
+	actorRoleLevel: number
 }
 
 function MemberCard({
@@ -886,11 +893,24 @@ function MemberCard({
 	showRoleControls,
 	canChangeRole,
 	onRoleChange,
-	onRemove
+	onRemove,
+	actorRoleLevel
 }: MemberCardProps) {
 	const { t } = useTranslation()
 	const dialog = useDialog()
+	const params = useParams()
+	const contextIdTag = params.contextIdTag ?? srcTag
 	const roles = React.useMemo(() => getRoles(t), [t])
+	// A leader may assign any role (including leader). Anyone else may only assign
+	// roles strictly below their own level — e.g. a moderator cannot create another
+	// moderator.
+	const assignableRoles = React.useMemo(
+		() =>
+			actorRoleLevel >= ROLE_LEVELS.leader
+				? roles
+				: roles.filter((r) => ROLE_LEVELS[r.value] < actorRoleLevel),
+		[roles, actorRoleLevel]
+	)
 
 	// Get the member's highest role
 	const memberRole = getHighestRole(member.roles) || 'follower'
@@ -910,63 +930,74 @@ function MemberCard({
 
 	const roleLabel = roles.find((r) => r.value === memberRole)?.label || memberRole
 
-	return (
-		<div className="c-panel flex-row p-2 mb-1 g-2 ai-center">
-			<ProfileCard className="flex-fill" profile={member} srcTag={srcTag} />
-			<ProfileStatusBadge profile={member} />
+	const showBadge = showRoleControls || memberRole !== 'follower'
 
-			{canChangeRole ? (
+	let menu: React.ReactNode = null
+	if (canChangeRole) {
+		menu = (
+			<ul className="c-nav vertical">
+				{assignableRoles.map((role) => (
+					<li key={role.value}>
+						<Button
+							kind="nav-item"
+							onClick={() => onRoleChange?.(member.idTag, role.value)}
+						>
+							{memberRole === role.value && <IcCheck />}
+							{role.label}
+						</Button>
+					</li>
+				))}
+				{onRemove && (
+					<>
+						<li role="separator" className="border-bottom my-1" />
+						<li>
+							<Button kind="nav-item" onClick={handleRemove}>
+								<IcRemoveMember className="text-error" />
+								<span className="text-error">{t('Remove member')}</span>
+							</Button>
+						</li>
+					</>
+				)}
+			</ul>
+		)
+	} else if (showRoleControls && onRemove) {
+		menu = (
+			<ul className="c-nav vertical">
+				<li>
+					<Button kind="nav-item" onClick={handleRemove}>
+						<IcRemoveMember className="text-error" />
+						<span className="text-error">{t('Remove member')}</span>
+					</Button>
+				</li>
+			</ul>
+		)
+	}
+
+	return (
+		<div className="c-panel flex-row p-2 mb-1 g-2 align-items-center">
+			<Link
+				className="c-hbox flex-fill g-2 align-items-center"
+				to={`/profile/${contextIdTag}/${member.idTag}`}
+			>
+				<ProfileCard className="flex-fill" profile={member} srcTag={srcTag} />
+				<ProfileStatusBadge profile={member} />
+			</Link>
+			{menu ? (
 				<Popper
+					className="cursor-pointer"
+					aria-label={t('Member actions')}
+					menuClassName="c-hbox align-items-center"
 					label={
-						<>
-							<span className="c-badge">{roleLabel}</span>
-							<IcMore />
-						</>
+						<span className="c-badge with-icon">
+							{roleLabel}
+							<IcChevronDown />
+						</span>
 					}
 				>
-					<ul className="c-nav vertical">
-						{roles.map((role) => (
-							<li key={role.value}>
-								<Button
-									kind="nav-item"
-									onClick={() => onRoleChange?.(member.idTag, role.value)}
-								>
-									{memberRole === role.value && <IcCheck />}
-									{role.label}
-								</Button>
-							</li>
-						))}
-						{onRemove && (
-							<>
-								<li role="separator" className="border-bottom my-1" />
-								<li>
-									<Button kind="nav-item" onClick={handleRemove}>
-										<IcRemoveMember className="text-error" />
-										<span className="text-error">{t('Remove member')}</span>
-									</Button>
-								</li>
-							</>
-						)}
-					</ul>
+					{menu}
 				</Popper>
-			) : showRoleControls ? (
-				<div className="c-hbox g-2 ai-center">
-					<span className="c-badge">{roleLabel}</span>
-					{onRemove && (
-						<Popper label={<IcMore />}>
-							<ul className="c-nav vertical">
-								<li>
-									<Button kind="nav-item" onClick={handleRemove}>
-										<IcRemoveMember className="text-error" />
-										<span className="text-error">{t('Remove member')}</span>
-									</Button>
-								</li>
-							</ul>
-						</Popper>
-					)}
-				</div>
 			) : (
-				memberRole !== 'follower' && <span className="c-badge">{roleLabel}</span>
+				showBadge && <span className="c-badge outline secondary">{roleLabel}</span>
 			)}
 		</div>
 	)
@@ -975,7 +1006,8 @@ function MemberCard({
 export function ProfileConnections({
 	profile,
 	communityRoles,
-	isCommunity = false
+	isCommunity = false,
+	showPageHeader = false
 }: ProfileTabProps) {
 	const { t } = useTranslation()
 	const location = useLocation()
@@ -990,6 +1022,10 @@ export function ProfileConnections({
 	const [invitationCount, setInvitationCount] = React.useState(0)
 	const [inviteOpen, setInviteOpen] = React.useState(false)
 	const [refreshTick, setRefreshTick] = React.useState(0)
+	const [showFilter, setShowFilter] = React.useState(false)
+	const [search, setSearch] = React.useState('')
+	const [roleFilter, setRoleFilter] = React.useState<CommunityRole | 'all'>('all')
+	const roles = React.useMemo(() => getRoles(t), [t])
 
 	// Check user's role in community context
 	// Use communityRoles prop (from proxy token) OR activeContext roles if we're in the viewed community
@@ -999,7 +1035,7 @@ export function ProfileConnections({
 		: getHighestRole(communityRoles)
 	const userRoleLevel = userRole ? ROLE_LEVELS[userRole] : 0
 	const canManageMembers = isCommunity && userRoleLevel >= ROLE_LEVELS.moderator
-	const canChangeRoles = isCommunity && userRoleLevel >= ROLE_LEVELS.leader
+	const canChangeRoles = isCommunity && userRoleLevel >= ROLE_LEVELS.moderator
 
 	const triggerRefresh = React.useCallback(() => setRefreshTick((n) => n + 1), [])
 
@@ -1015,6 +1051,30 @@ export function ProfileConnections({
 		() => new Set(memberProfiles.map((p) => p.idTag)),
 		[memberProfiles]
 	)
+
+	const roleCounts = React.useMemo(() => {
+		const counts: Record<string, number> = {}
+		for (const p of memberProfiles) {
+			const r = getHighestRole(p.roles) || 'follower'
+			counts[r] = (counts[r] || 0) + 1
+		}
+		return counts
+	}, [memberProfiles])
+
+	const filteredMembers = React.useMemo(() => {
+		const q = search.trim().toLowerCase()
+		return memberProfiles.filter((p) => {
+			if (roleFilter !== 'all' && (getHighestRole(p.roles) || 'follower') !== roleFilter)
+				return false
+			if (
+				q &&
+				!(p.name || '').toLowerCase().includes(q) &&
+				!p.idTag.toLowerCase().includes(q)
+			)
+				return false
+			return true
+		})
+	}, [memberProfiles, search, roleFilter])
 
 	React.useEffect(
 		function loadConnections() {
@@ -1125,25 +1185,89 @@ export function ProfileConnections({
 
 	const activeMembersList = (
 		<>
-			{memberProfiles.map((p) => (
-				<MemberCard
-					key={p.idTag}
-					member={p}
-					srcTag={profile.idTag}
-					showRoleControls={canManageMembers}
-					canChangeRole={canChangeRoles}
-					onRoleChange={canChangeRoles ? handleRoleChange : undefined}
-					onRemove={canManageMembers ? handleRemoveMember : undefined}
-				/>
-			))}
+			{filteredMembers.map((p) => {
+				const targetLevel = ROLE_LEVELS[getHighestRole(p.roles) || 'follower']
+				const isSelf = p.idTag === auth?.idTag
+				const canManageThisMember =
+					!isSelf && (userRoleLevel > targetLevel || userRoleLevel === ROLE_LEVELS.leader)
+				return (
+					<MemberCard
+						key={p.idTag}
+						member={p}
+						srcTag={profile.idTag}
+						showRoleControls={canManageMembers && canManageThisMember}
+						canChangeRole={canChangeRoles && canManageThisMember}
+						onRoleChange={
+							canChangeRoles && canManageThisMember ? handleRoleChange : undefined
+						}
+						onRemove={
+							canManageMembers && canManageThisMember ? handleRemoveMember : undefined
+						}
+						actorRoleLevel={userRoleLevel}
+					/>
+				)
+			})}
 		</>
+	)
+
+	const filterSidebar = (
+		<div className="c-vbox g-2">
+			<div className="c-input-group">
+				<input
+					type="text"
+					className="c-input"
+					placeholder={t('Search members')}
+					value={search}
+					onChange={(e) => setSearch(e.target.value)}
+				/>
+			</div>
+			<h6 className="m-0">{t('Role')}</h6>
+			<ul className="c-nav vertical low">
+				<li className="c-nav-item">
+					<Button
+						kind="nav-item"
+						className={mergeClasses('c-nav-link', roleFilter === 'all' && 'active')}
+						onClick={() => setRoleFilter('all')}
+					>
+						{t('All')}
+						<span className="c-badge ms-auto">{memberProfiles.length}</span>
+					</Button>
+				</li>
+				{roles
+					.filter((r) => roleCounts[r.value] > 0)
+					.map((r) => (
+						<li key={r.value} className="c-nav-item">
+							<Button
+								kind="nav-item"
+								className={mergeClasses(
+									'c-nav-link',
+									roleFilter === r.value && 'active'
+								)}
+								onClick={() => setRoleFilter(r.value)}
+							>
+								{r.label}
+								<span className="c-badge ms-auto">{roleCounts[r.value]}</span>
+							</Button>
+						</li>
+					))}
+			</ul>
+		</div>
 	)
 
 	// For communities with moderator+ access, show sub-tabs (Active / Requests / Invitations)
 	if (isCommunity && canManageMembers) {
-		return (
+		const communityContent = (
 			<>
-				<div className="c-hbox g-2 ai-center mb-2">
+				{showPageHeader && (
+					<PeopleHeader
+						variant="community"
+						title={profile.name}
+						subtitle={`${t('Members')} · ${memberProfiles.length}`}
+						profilePic={profile.profilePic}
+						srcTag={profile.idTag}
+					/>
+				)}
+				<div className="c-hbox g-2 align-items-center mb-2">
 					<div className="c-tabs sub flex-fill" role="tablist">
 						<button
 							type="button"
@@ -1210,11 +1334,56 @@ export function ProfileConnections({
 				/>
 			</>
 		)
+
+		if (!showPageHeader) return communityContent
+
+		return (
+			<Fcd.Container className="g-1">
+				<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+					{subTab === 'active' ? filterSidebar : null}
+				</Fcd.Filter>
+				<Fcd.Content>
+					<div className="c-nav c-hbox md-hide lg-hide">
+						<IcFilter onClick={() => setShowFilter(true)} />
+					</div>
+					{communityContent}
+				</Fcd.Content>
+			</Fcd.Container>
+		)
 	}
 
 	// For communities (non-moderators), use MemberCard with no role controls
 	if (isCommunity) {
-		return activeMembersList
+		const communityContent = (
+			<>
+				{showPageHeader && (
+					<PeopleHeader
+						variant="community"
+						title={profile.name}
+						subtitle={`${t('Members')} · ${memberProfiles.length}`}
+						profilePic={profile.profilePic}
+						srcTag={profile.idTag}
+					/>
+				)}
+				{activeMembersList}
+			</>
+		)
+
+		if (!showPageHeader) return communityContent
+
+		return (
+			<Fcd.Container className="g-1">
+				<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+					{filterSidebar}
+				</Fcd.Filter>
+				<Fcd.Content>
+					<div className="c-nav c-hbox md-hide lg-hide">
+						<IcFilter onClick={() => setShowFilter(true)} />
+					</div>
+					{communityContent}
+				</Fcd.Content>
+			</Fcd.Container>
+		)
 	}
 
 	// For personal profiles, use original ProfileListCard
@@ -1812,11 +1981,64 @@ function ProfileView() {
 	)
 }
 
+export function PeoplePage() {
+	const { t } = useTranslation()
+	const params = useParams()
+	const [auth] = useAuth()
+	const { api } = useApi()
+	const [activeContext] = useAtom(activeContextAtom)
+
+	// The URL is the source of truth for which context this page shows. The home
+	// context is written as `~` in URLs (see useContextPath in context/hooks.ts);
+	// a real id_tag that equals our own/home id_tag is also the personal page.
+	const urlContextIdTag = params.contextIdTag
+	const isHomeContext =
+		!urlContextIdTag ||
+		urlContextIdTag === HOME_CONTEXT ||
+		urlContextIdTag === api?.idTag ||
+		urlContextIdTag === auth?.idTag
+
+	// Personal People page: the user's own connections. This is correct immediately,
+	// so render it without waiting for the active context to resolve.
+	if (isHomeContext) {
+		return <PersonListPage />
+	}
+
+	// Community People page. On a hard reload, activeContextAtom starts null and is
+	// set asynchronously by useContextFromRoute -> setActiveContext. Until the active
+	// context has switched to match THIS community URL, show a spinner. Falling
+	// through to PersonListPage here is what caused personal connections to flash
+	// before the community members loaded.
+	if (activeContext?.type === 'community' && activeContext.idTag === urlContextIdTag) {
+		const communityProfile = {
+			tnId: 0,
+			idTag: activeContext.idTag,
+			name: activeContext.name,
+			type: 'community' as const,
+			profilePic: activeContext.profilePic
+		}
+		return (
+			<ProfileConnections
+				profile={communityProfile}
+				isCommunity
+				communityRoles={activeContext.roles}
+				showPageHeader
+			/>
+		)
+	}
+
+	return (
+		<div className="d-flex align-items-center justify-content-center w-100 h-100">
+			<LoadingSpinner size="lg" label={t('Loading...')} />
+		</div>
+	)
+}
+
 export function ProfileRoutes() {
 	return (
 		<Routes>
 			<Route path="/profile/:contextIdTag/:idTag/*" element={<ProfileView />} />
-			<Route path="/users/:contextIdTag" element={<PersonListPage />} />
+			<Route path="/users/:contextIdTag" element={<PeoplePage />} />
 			<Route path="/communities/:contextIdTag" element={<CommunityListPage />} />
 			<Route path="/communities/create/:contextIdTag" element={<CreateCommunity />} />
 			<Route

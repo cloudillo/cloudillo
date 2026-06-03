@@ -16,5 +16,5 @@
 			"*": ["./src/types/*"]
 		}
 	},
-	"exclude": ["sw"]
+	"exclude": ["sw", "src/**/__tests__/**"]
 }

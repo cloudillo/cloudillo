@@ -4,12 +4,14 @@
 import * as React from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useSetAtom } from 'jotai'
 
 import { LuArrowLeft as IcBack, LuFileWarning as IcError } from 'react-icons/lu'
 
 import type { FileView } from '@cloudillo/core'
 import { useAuth, LoadingSpinner, Button, mergeClasses } from '@cloudillo/react'
 import { useApiContext } from '../../context/index.js'
+import { documentTitleAtom } from '../../title.js'
 
 import { MediaViewer } from './MediaViewer.js'
 
@@ -25,6 +27,7 @@ export function FileViewerApp() {
 	const navigate = useNavigate()
 	const { getClientFor, getTokenFor } = useApiContext()
 	const [auth] = useAuth()
+	const setDocumentTitle = useSetAtom(documentTitleAtom)
 	const { contextIdTag, resId } = useParams<{ contextIdTag?: string; resId: string }>()
 
 	const [state, setState] = React.useState<ViewerState>({ status: 'loading' })
@@ -61,13 +64,34 @@ export function FileViewerApp() {
 					const tokenResult = await getTokenFor(idTag)
 					setToken(tokenResult?.token)
 					setState({ status: 'ready', file: files[0] })
+					// Feed the breadcrumb title. Key by the same resId the
+					// breadcrumb derives from the route (`<ctx>:<fileId>` when the
+					// URL omits an owner).
+					if (resId && files[0]?.fileName) {
+						const titleResId = resId.includes(':')
+							? resId
+							: `${contextIdTag ?? auth?.idTag ?? ''}:${resId}`
+						setDocumentTitle({ resId: titleResId, title: files[0].fileName })
+					}
 				} catch (err) {
 					console.error('[FileViewer] Error loading file:', err)
 					setState({ status: 'error', message: t('Failed to load file') })
 				}
 			})()
+
+			return () => setDocumentTitle({})
 		},
-		[getClientFor, getTokenFor, idTag, fileId, t]
+		[
+			getClientFor,
+			getTokenFor,
+			idTag,
+			fileId,
+			resId,
+			contextIdTag,
+			auth?.idTag,
+			t,
+			setDocumentTitle
+		]
 	)
 
 	function handleBack() {

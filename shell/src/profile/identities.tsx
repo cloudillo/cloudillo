@@ -23,7 +23,7 @@ import {
 } from 'react-icons/lu'
 
 import type { Profile } from '@cloudillo/types'
-import { useApi, useAuth, Fcd, ProfileCard, Badge } from '@cloudillo/react'
+import { useApi, useAuth, Fcd, ProfileCard, ProfilePicture, Badge } from '@cloudillo/react'
 import { parseQS } from '../utils.js'
 import { useContextSwitch } from '../context/index.js'
 import { ProfileContextMenu, useProfileContextMenu } from '../context/profile-context-menu.js'
@@ -298,6 +298,34 @@ export function CommunityListCard({
 	)
 }
 
+interface PeopleHeaderProps {
+	variant: 'person' | 'community'
+	title: string
+	subtitle: string
+	profilePic?: string
+	srcTag?: string
+}
+
+export function PeopleHeader({ variant, title, subtitle, profilePic, srcTag }: PeopleHeaderProps) {
+	return (
+		<div className="c-hbox g-2 align-items-center p-2 mb-2">
+			{variant === 'community' ? (
+				<ProfilePicture profile={{ profilePic }} srcTag={srcTag} small />
+			) : (
+				<div className="c-profile-card">
+					<div className="picture small c-hbox align-items-center justify-content-center">
+						<IcUserAll />
+					</div>
+				</div>
+			)}
+			<div className="c-vbox">
+				<h2 className="m-0">{title}</h2>
+				<div className="text-secondary small">{subtitle}</div>
+			</div>
+		</div>
+	)
+}
+
 export function PersonListPage({ idTag }: { idTag?: string }) {
 	const { t } = useTranslation()
 	const location = useLocation()
@@ -346,6 +374,11 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 					<FilterBar />
 				</Fcd.Filter>
 				<Fcd.Content>
+					<PeopleHeader
+						variant="person"
+						title={t('People')}
+						subtitle={`${t('Your connections')} · ${profiles.length}`}
+					/>
 					<div className="c-nav c-hbox md-hide lg-hide">
 						<IcFilter onClick={() => setShowFilter(true)} />
 					</div>

@@ -9,6 +9,7 @@
 
 import { atom } from 'jotai'
 import { atomWithStorage } from 'jotai/utils'
+import { authAtom } from '@cloudillo/react'
 import type { ProfileTrust } from '@cloudillo/types'
 import type { FileView } from '@cloudillo/core'
 import type {
@@ -203,6 +204,36 @@ export const previewCommunityAtom = atom((get) => {
 		unreadCount: 0,
 		lastActivityAt: null
 	} satisfies CommunityRef
+})
+
+/**
+ * Derived atom: display info (name, avatar, idTag) for the active context.
+ *
+ * Resolves reactively from the live communities list + auth so the mobile
+ * menubar updates as soon as `communitiesAtom` loads, even if the context was
+ * set before the list arrived. Falls back to the captured ActiveContext, then
+ * to the idTag.
+ */
+export const activeContextDisplayAtom = atom((get) => {
+	const active = get(activeContextAtom)
+	const auth = get(authAtom)
+	if (!active) {
+		if (!auth?.idTag) return null
+		return { idTag: auth.idTag, name: auth.name ?? auth.idTag, profilePic: auth.profilePic }
+	}
+	if (active.type === 'me') {
+		return {
+			idTag: active.idTag,
+			name: auth?.name ?? active.name ?? active.idTag,
+			profilePic: auth?.profilePic ?? active.profilePic
+		}
+	}
+	const community = get(communitiesAtom).find((c) => c.idTag === active.idTag)
+	return {
+		idTag: active.idTag,
+		name: community?.name ?? active.name ?? active.idTag,
+		profilePic: community?.profilePic ?? active.profilePic
+	}
 })
 
 /**

@@ -792,6 +792,31 @@ export class AppMessageBus extends MessageBusBase {
 		})
 	}
 
+	/**
+	 * Push document title / dirty state to the shell header breadcrumb.
+	 *
+	 * The shell already shows the file name it pre-fetched. Pass `title` only to
+	 * override that (e.g. an in-document heading); pass `undefined` to keep the
+	 * file name and just update the dirty flag. `dirty: true` shows a leading
+	 * `*` while there are unsaved changes.
+	 *
+	 * @param title - Override title, or `undefined` to keep the file name
+	 * @param opts.dirty - Whether the document has unsaved changes
+	 *
+	 * @example
+	 * bus.setTitle(undefined, { dirty: true })  // keep file name, mark unsaved
+	 * bus.setTitle('My heading')                // override the displayed title
+	 */
+	setTitle(title?: string, opts?: { dirty?: boolean }): void {
+		this.log('Setting title:', title, opts)
+		this.sendToShell({
+			cloudillo: true,
+			v: PROTOCOL_VERSION,
+			type: 'app:title.push',
+			payload: { ...(title !== undefined ? { title } : {}), dirty: opts?.dirty }
+		})
+	}
+
 	// ============================================
 	// CRDT CLIENT ID
 	// ============================================

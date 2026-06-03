@@ -28,212 +28,211 @@
  * ```
  */
 
+// App bus
+export {
+	// Class
+	AppMessageBus,
+	// Types
+	type AppState,
+	type CameraCaptureOptions,
+	type CameraCaptureResult,
+	type CameraPreviewFrameData,
+	type CameraPreviewOptions,
+	type CameraSession,
+	type DocPickOptions,
+	type DocPickResult,
+	type EmbedOpenResult,
+	// Singleton
+	getAppBus,
+	type MediaPickOptions,
+	type MediaPickResult,
+	type OverlayItemData,
+	resetAppBus,
+	type SettingsApi,
+	type ShareCreateOptions,
+	type ShareCreateResult,
+	type StorageApi
+} from './app-bus.js'
+// Core
+export {
+	// Base class (for shell/sw implementations)
+	MessageBusBase,
+	type MessageBusConfig,
+	type MessageHandler,
+	// Types
+	type PendingRequest
+} from './core.js'
+export type { EmbedRelayHandle, EmbedRelayOptions } from './embed-relay.js'
+
+// Embed relay
+export { setupEmbedRelay } from './embed-relay.js'
+// Registry
+export {
+	isCloudilloMessage,
+	MESSAGE_REGISTRY,
+	type MessageAccessRule,
+	type ValidatedMessage,
+	validateMessage
+} from './registry.js'
 // Types
 export {
-	// Protocol
-	PROTOCOL_VERSION,
-	// Message envelope
-	type MessageEnvelope,
-	// Directions and categories
-	type MessageDirection,
-	type MessageCategory,
+	type AppErrorNotify,
+	type AppReadyNotify,
+	// App lifecycle messages
+	type AppReadyStage,
+	type AppTitlePush,
+	type AuthInitPush,
 	// Auth messages
 	type AuthInitReq,
 	type AuthInitRes,
-	type AuthInitPush,
+	type AuthTokenPush,
 	type AuthTokenRefreshReq,
 	type AuthTokenRefreshRes,
-	type AuthTokenPush,
-	// App lifecycle messages
-	type AppReadyStage,
-	type AppReadyNotify,
-	type AppErrorNotify,
-	// Storage messages
-	type StorageOp,
-	type StorageOpReq,
-	type StorageOpRes,
-	// Media picker messages
-	type Visibility,
+	type CameraCaptureAck,
+	// Camera capture messages
+	type CameraCaptureReq,
+	type CameraCaptureResultPush,
+	type CameraOverlayUpdate,
+	type CameraPreviewFrame,
+	// Camera preview messages
+	type CameraPreviewStart,
+	type CameraPreviewStop,
+	// Union types
+	type CloudilloMessage,
+	type CrdtCacheAppendReq,
+	type CrdtCacheCompactReq,
+	type CrdtCacheReadReq,
+	type CrdtCacheRes,
+	// CRDT messages
+	type CrdtClientIdReq,
+	type CrdtClientIdRes,
 	type CropAspect,
-	type MediaPickReq,
-	type MediaPickAck,
-	type MediaPickResultPush,
-	type MediaPickRes,
-	type MediaFileResolvedPush,
+	type DocPickAck,
 	// Document picker messages
 	type DocPickReq,
-	type DocPickAck,
 	type DocPickResultPush,
 	// Embed messages
 	type EmbedOpenReq,
 	type EmbedOpenRes,
 	type EmbedViewStatePush,
 	type EmbedViewStateSet,
-	// Settings messages
-	type SettingsGetReq,
-	type SettingsGetRes,
-	type SettingsSetReq,
-	type SettingsSetRes,
-	type SettingsListReq,
-	type SettingsListRes,
-	// CRDT messages
-	type CrdtClientIdReq,
-	type CrdtClientIdRes,
-	type CrdtCacheAppendReq,
-	type CrdtCacheReadReq,
-	type CrdtCacheCompactReq,
-	type CrdtCacheRes,
+	type ImportCompleteNotify,
+	// Import messages
+	type ImportDataPush,
+	type MediaFileResolvedPush,
+	type MediaPickAck,
+	type MediaPickReq,
+	type MediaPickRes,
+	type MediaPickResultPush,
+	type MessageCategory,
+	// Directions and categories
+	type MessageDirection,
+	// Message envelope
+	type MessageEnvelope,
+	type MessageType,
+	type NotifyMessage,
+	type NotifyType,
+	type OverlayItem,
+	// Protocol
+	PROTOCOL_VERSION,
+	type RequestMessage,
+	type RequestType,
+	type ResponseData,
+	type ResponseFor,
+	type ResponseMessage,
+	type ResponseType,
+	type SensorCompassPush,
 	// Sensor messages
 	type SensorCompassSub,
 	type SensorCompassSubRes,
-	type SensorCompassPush,
-	// Camera capture messages
-	type CameraCaptureReq,
-	type CameraCaptureAck,
-	type CameraCaptureResultPush,
-	// Camera preview messages
-	type CameraPreviewStart,
-	type CameraPreviewStop,
-	type CameraPreviewFrame,
-	type OverlayItem,
-	type CameraOverlayUpdate,
-	VISIBILITY_ORDER,
+	// Settings messages
+	type SettingsGetReq,
+	type SettingsGetRes,
+	type SettingsListReq,
+	type SettingsListRes,
+	type SettingsSetReq,
+	type SettingsSetRes,
+	type ShareCreateAck,
 	// Share link creation messages
 	type ShareCreateReq,
-	type ShareCreateAck,
 	type ShareCreateResultPush,
-	tShareCreateReq,
-	tShareCreateAck,
-	tShareCreateResultPush,
-	// Import messages
-	type ImportDataPush,
-	type ImportCompleteNotify,
-	tImportDataPush,
-	tImportCompleteNotify,
-	// Service worker messages
-	type SwTokenSet,
-	type SwTokenClear,
-	type SwApiKeySet,
+	// Storage messages
+	type StorageOp,
+	type StorageOpReq,
+	type StorageOpRes,
+	type SwApiKeyDel,
 	type SwApiKeyGetReq,
 	type SwApiKeyGetRes,
-	type SwApiKeyDel,
-	// Union types
-	type CloudilloMessage,
-	type MessageType,
-	type RequestMessage,
-	type RequestType,
-	type ResponseMessage,
-	type ResponseType,
-	type NotifyMessage,
-	type NotifyType,
-	type ResponseFor,
-	type ResponseData,
-	// Runtype validators (for shell/sw use)
-	tMessageEnvelope,
+	type SwApiKeySet,
+	type SwTokenClear,
+	// Service worker messages
+	type SwTokenSet,
+	tAppErrorNotify,
+	tAppReadyNotify,
+	tAppReadyStage,
+	tAppTitlePush,
+	tAuthInitPush,
 	tAuthInitReq,
 	tAuthInitRes,
-	tAuthInitPush,
+	tAuthTokenPush,
 	tAuthTokenRefreshReq,
 	tAuthTokenRefreshRes,
-	tAuthTokenPush,
-	tAppReadyStage,
-	tAppReadyNotify,
-	tAppErrorNotify,
-	tStorageOp,
-	tStorageOpReq,
-	tStorageOpRes,
-	tVisibility,
+	tCameraCaptureAck,
+	tCameraCaptureReq,
+	tCameraCaptureResultPush,
+	tCameraOverlayUpdate,
+	tCameraPreviewFrame,
+	tCameraPreviewStart,
+	tCameraPreviewStop,
+	tCloudilloMessage,
+	tCrdtCacheAppendReq,
+	tCrdtCacheCompactReq,
+	tCrdtCacheReadReq,
+	tCrdtCacheRes,
+	tCrdtClientIdReq,
+	tCrdtClientIdRes,
 	tCropAspect,
-	tMediaPickReq,
-	tMediaPickAck,
-	tMediaPickResultPush,
-	tMediaPickRes,
-	tDocPickReq,
 	tDocPickAck,
+	tDocPickReq,
 	tDocPickResultPush,
 	tEmbedOpenReq,
 	tEmbedOpenRes,
 	tEmbedViewStatePush,
 	tEmbedViewStateSet,
-	tSettingsGetReq,
-	tSettingsGetRes,
-	tSettingsSetReq,
-	tSettingsSetRes,
-	tSettingsListReq,
-	tSettingsListRes,
-	tCrdtClientIdReq,
-	tCrdtClientIdRes,
-	tCrdtCacheAppendReq,
-	tCrdtCacheReadReq,
-	tCrdtCacheCompactReq,
-	tCrdtCacheRes,
+	tImportCompleteNotify,
+	tImportDataPush,
+	tMediaPickAck,
+	tMediaPickReq,
+	tMediaPickRes,
+	tMediaPickResultPush,
+	// Runtype validators (for shell/sw use)
+	tMessageEnvelope,
+	tOverlayItem,
+	tSensorCompassPush,
 	tSensorCompassSub,
 	tSensorCompassSubRes,
-	tSensorCompassPush,
-	tCameraCaptureReq,
-	tCameraCaptureAck,
-	tCameraCaptureResultPush,
-	tCameraPreviewStart,
-	tCameraPreviewStop,
-	tCameraPreviewFrame,
-	tOverlayItem,
-	tCameraOverlayUpdate,
-	tSwTokenSet,
-	tSwTokenClear,
-	tSwApiKeySet,
+	tSettingsGetReq,
+	tSettingsGetRes,
+	tSettingsListReq,
+	tSettingsListRes,
+	tSettingsSetReq,
+	tSettingsSetRes,
+	tShareCreateAck,
+	tShareCreateReq,
+	tShareCreateResultPush,
+	tStorageOp,
+	tStorageOpReq,
+	tStorageOpRes,
+	tSwApiKeyDel,
 	tSwApiKeyGetReq,
 	tSwApiKeyGetRes,
-	tSwApiKeyDel,
-	tCloudilloMessage
+	tSwApiKeySet,
+	tSwTokenClear,
+	tSwTokenSet,
+	tVisibility,
+	VISIBILITY_ORDER,
+	// Media picker messages
+	type Visibility
 } from './types.js'
-
-// Registry
-export {
-	type MessageAccessRule,
-	type ValidatedMessage,
-	MESSAGE_REGISTRY,
-	isCloudilloMessage,
-	validateMessage
-} from './registry.js'
-
-// Core
-export {
-	// Types
-	type PendingRequest,
-	type MessageHandler,
-	type MessageBusConfig,
-	// Base class (for shell/sw implementations)
-	MessageBusBase
-} from './core.js'
-
-// Embed relay
-export { setupEmbedRelay } from './embed-relay.js'
-export type { EmbedRelayOptions, EmbedRelayHandle } from './embed-relay.js'
-
-// App bus
-export {
-	// Types
-	type AppState,
-	type StorageApi,
-	type SettingsApi,
-	type MediaPickOptions,
-	type MediaPickResult,
-	type DocPickOptions,
-	type DocPickResult,
-	type CameraCaptureOptions,
-	type CameraCaptureResult,
-	type CameraSession,
-	type CameraPreviewOptions,
-	type CameraPreviewFrameData,
-	type OverlayItemData,
-	type EmbedOpenResult,
-	type ShareCreateOptions,
-	type ShareCreateResult,
-	// Class
-	AppMessageBus,
-	// Singleton
-	getAppBus,
-	resetAppBus
-} from './app-bus.js'
 
 // vim: ts=4

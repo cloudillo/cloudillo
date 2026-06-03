@@ -33,33 +33,34 @@
 // App tracker
 export {
 	type AppConnection,
-	type RegisterAppOptions,
 	AppTracker,
-	getAppTracker,
 	getAccessSuffix,
+	getAppTracker,
+	type RegisterAppOptions,
 	resetAppTracker
 } from './app-tracker.js'
-
+// Lifecycle handlers
+export {
+	type AppErrorCallback,
+	type AppReadyCallback,
+	type AppTitleCallback,
+	offAppError,
+	offAppReady,
+	offAppTitle,
+	onAppError,
+	onAppReady,
+	onAppTitle
+} from './handlers/lifecycle.js'
 // Shell bus
 export {
 	type AuthState,
-	type ThemeState,
-	type TokenResult,
-	type ShellMessageBusConfig,
-	ShellMessageBus,
-	initShellBus,
 	getShellBus,
-	resetShellBus
+	initShellBus,
+	resetShellBus,
+	ShellMessageBus,
+	type ShellMessageBusConfig,
+	type ThemeState,
+	type TokenResult
 } from './shell-bus.js'
-
-// Lifecycle handlers
-export {
-	type AppReadyCallback,
-	type AppErrorCallback,
-	onAppReady,
-	offAppReady,
-	onAppError,
-	offAppError
-} from './handlers/lifecycle.js'
 
 // vim: ts=4

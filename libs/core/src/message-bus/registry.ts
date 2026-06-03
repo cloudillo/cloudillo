@@ -20,6 +20,7 @@ import {
 	tAuthTokenPush,
 	tAppReadyNotify,
 	tAppErrorNotify,
+	tAppTitlePush,
 	tStorageOpReq,
 	tStorageOpRes,
 	tMediaPickReq,
@@ -123,6 +124,11 @@ export const MESSAGE_REGISTRY: Record<MessageType, MessageAccessRule> = {
 		directions: ['app>shell'],
 		requiresAuth: false,
 		validator: tAppErrorNotify
+	},
+	'app:title.push': {
+		directions: ['app>shell'],
+		requiresAuth: false,
+		validator: tAppTitlePush
 	},
 	'storage:op.req': {
 		directions: ['app>shell'],

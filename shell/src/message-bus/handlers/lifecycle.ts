@@ -8,8 +8,8 @@
  * - app:ready.notify - App notifies it has reached a loading stage
  */
 
+import type { AppErrorNotify, AppReadyNotify, AppTitlePush } from '@cloudillo/core'
 import type { ShellMessageBus } from '../shell-bus.js'
-import type { AppReadyNotify, AppErrorNotify } from '@cloudillo/core'
 import { deliverPendingImport } from './import.js'
 
 /**
@@ -22,12 +22,20 @@ export type AppReadyCallback = (appWindow: Window, stage: 'auth' | 'synced' | 'r
  */
 export type AppErrorCallback = (appWindow: Window, code: number, message: string) => void
 
+/**
+ * Callback for app title notifications
+ */
+export type AppTitleCallback = (appWindow: Window, title?: string, dirty?: boolean) => void
+
 // Registry of ready callbacks per window
 // Using WeakMap to allow garbage collection when iframe windows are destroyed
 const readyCallbacks = new WeakMap<Window, AppReadyCallback>()
 
 // Registry of error callbacks per window
 const errorCallbacks = new WeakMap<Window, AppErrorCallback>()
+
+// Registry of title callbacks per window
+const titleCallbacks = new WeakMap<Window, AppTitleCallback>()
 
 // Store pending notifications that arrived before subscription
 // Using WeakMap to allow garbage collection when iframe windows are destroyed
@@ -98,6 +106,23 @@ export function offAppError(appWindow: Window): void {
 }
 
 /**
+ * Register a callback for when an app pushes a title update
+ *
+ * @param appWindow - The app window to listen for
+ * @param callback - Function to call when a title notification is received
+ */
+export function onAppTitle(appWindow: Window, callback: AppTitleCallback): void {
+	titleCallbacks.set(appWindow, callback)
+}
+
+/**
+ * Unregister a title callback for an app window
+ */
+export function offAppTitle(appWindow: Window): void {
+	titleCallbacks.delete(appWindow)
+}
+
+/**
  * Initialize app lifecycle message handlers on the shell bus
  */
 export function initLifecycleHandlers(bus: ShellMessageBus): void {
@@ -164,6 +189,17 @@ export function initLifecycleHandlers(bus: ShellMessageBus): void {
 		if (callback) {
 			callback(appWindow, msg.payload.code, msg.payload.message)
 		}
+	})
+
+	// Handle title notification from apps
+	bus.on('app:title.push', (msg: AppTitlePush, source) => {
+		const appWindow = source as Window
+		if (!appWindow) {
+			console.error('[Lifecycle] Title notification with no source window')
+			return
+		}
+
+		titleCallbacks.get(appWindow)?.(appWindow, msg.payload.title, msg.payload.dirty)
 	})
 }
 

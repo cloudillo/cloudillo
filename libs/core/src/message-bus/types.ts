@@ -224,6 +224,27 @@ export const tAppErrorNotify = T.struct({
 })
 export type AppErrorNotify = T.TypeOf<typeof tAppErrorNotify>
 
+/**
+ * App pushes its current document title (and dirty flag) to the shell
+ * Direction: app -> shell (notification, no response expected)
+ *
+ * Lets an app refine the breadcrumb title shown in the shell header beyond
+ * the file name the shell pre-fetches. `dirty` marks unsaved changes so the
+ * shell can show a leading `*` on the document segment.
+ */
+export const tAppTitlePush = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('app:title.push'),
+	payload: T.struct({
+		// Omit `title` to keep the shell's prefetched file name and only update
+		// the dirty flag; provide it to override the displayed title.
+		title: T.optional(T.string),
+		dirty: T.optional(T.boolean)
+	})
+})
+export type AppTitlePush = T.TypeOf<typeof tAppTitlePush>
+
 // ============================================
 // STORAGE MESSAGES
 // ============================================
@@ -1184,6 +1205,7 @@ export const tCloudilloMessage = T.taggedUnion('type')({
 	// App lifecycle messages
 	'app:ready.notify': tAppReadyNotify,
 	'app:error.notify': tAppErrorNotify,
+	'app:title.push': tAppTitlePush,
 
 	// Storage messages
 	'storage:op.req': tStorageOpReq,

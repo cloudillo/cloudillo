@@ -63,6 +63,8 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 	const [auth] = useAuth()
 	const [_wsBus, setWsBus] = useWsBusState()
 	const wsRef = React.useRef<WebSocket | undefined>(undefined)
+	const [reconnectNonce, setReconnectNonce] = React.useState(0)
+	const attemptRef = React.useRef(0)
 
 	React.useEffect(
 		function init() {
@@ -71,7 +73,9 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 				if (wsRef.current) {
 					wsRef.current.close()
 					wsRef.current = undefined
+					ws = undefined
 				}
+				setWsBus((prev) => ({ ...prev, connected: false }))
 				return
 			}
 
@@ -79,16 +83,20 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 			if (wsRef.current) {
 				wsRef.current.close()
 				wsRef.current = undefined
+				ws = undefined
 			}
 
 			const newWs = new WebSocket(`wss://cl-o.${auth.idTag}/ws/bus?token=${auth.token}`)
 			wsRef.current = newWs
+			ws = newWs
 
 			newWs.onopen = function open() {
+				attemptRef.current = 0
 				for (const sm of connSendBuf) {
 					newWs.send(sm)
 				}
 				connSendBuf.length = 0
+				setWsBus((prev) => ({ ...prev, connected: true }))
 			}
 
 			newWs.onclose = async function close(event) {
@@ -101,14 +109,18 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 				// 4000-4999 = Application-specific codes (often used for auth errors)
 				if (event.code === 1008 || (event.code >= 4000 && event.code < 5000)) {
 					console.warn('[WsBus] closed due to auth error, not reconnecting')
+					setWsBus((prev) => ({ ...prev, connected: false }))
 					return
 				}
-				await delay(10_000)
+				setWsBus((prev) => ({ ...prev, connected: false }))
+				const backoff = Math.min(30_000, 1_000 * 2 ** attemptRef.current)
+				attemptRef.current += 1
+				await delay(backoff)
 				// Re-check if still current before reconnecting
 				if (wsRef.current === newWs) {
 					wsRef.current = undefined
-					// Trigger re-render to reconnect
-					setWsBus((prev) => ({ ...prev, connected: false }))
+					ws = undefined
+					setReconnectNonce((n) => n + 1)
 				}
 			}
 
@@ -133,10 +145,11 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 				if (wsRef.current === newWs) {
 					newWs.close()
 					wsRef.current = undefined
+					ws = undefined
 				}
 			}
 		},
-		[auth]
+		[auth, reconnectNonce]
 	)
 
 	return <>{children}</>

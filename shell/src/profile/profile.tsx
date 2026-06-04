@@ -1,14 +1,17 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { getFileUrl, getInstanceUrl } from '@cloudillo/core'
+import { getFileUrl, getInstanceUrl, type ProfilePatch } from '@cloudillo/core'
 import {
 	Button,
 	Fcd,
+	Input,
 	LoadingSpinner,
 	mergeClasses,
 	Popper,
 	ProfileCard,
+	Skeleton,
+	SkeletonText,
 	useDialog,
 	useToast
 } from '@cloudillo/react'
@@ -19,15 +22,18 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuCircleOff as IcBlock,
+	LuCamera as IcCamera,
 	LuCheck as IcCheck,
 	LuChevronDown as IcChevronDown,
 	LuHandshake as IcConnect,
+	LuCopy as IcCopy,
 	LuPencil as IcEdit,
 	LuFilter as IcFilter,
 	LuUserPlus as IcFollow,
 	LuMessageCircle as IcMessage,
 	LuEllipsisVertical as IcMore,
-	LuUserMinus as IcRemoveMember
+	LuUserMinus as IcRemoveMember,
+	LuX as IcClose
 } from 'react-icons/lu'
 import { Link, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
 
@@ -113,11 +119,6 @@ interface FullProfile {
 		connectionMode?: 'M' | 'A' | 'I'
 		allowFollowers?: boolean
 	}
-}
-
-interface ProfilePatch {
-	name?: string
-	x?: Record<string, string | null>
 }
 
 /* Old x shape for reference:
@@ -340,7 +341,7 @@ interface ProfilePageProps {
 	setProfile: React.Dispatch<React.SetStateAction<FullProfile | undefined>>
 	localProfile?: Partial<Profile>
 	setProfileStatus?: React.Dispatch<React.SetStateAction<string | undefined>>
-	updateProfile?: (profile: FullProfile) => void
+	updateProfile?: (patch: ProfilePatch) => Promise<void>
 	profileCmds: ProfileConnectionCmds
 	children: React.ReactNode
 	/** User's roles in the viewed community (for non-context-switched viewing) */
@@ -357,11 +358,48 @@ interface ProfilePageProps {
 	 */
 	onTrustDecision?: () => void
 }
+
+/**
+ * Loading placeholder shaped like the real profile header so the layout does not
+ * jump when the profile data + images arrive. Reuses the same CSS classes as
+ * {@link ProfilePage} for matching dimensions.
+ */
+function ProfileSkeleton() {
+	return (
+		<Fcd.Container className="g-1">
+			<Fcd.Filter></Fcd.Filter>
+			<Fcd.Content>
+				<div className="c-panel p-0 pos-relative d-flex flex-column">
+					<div className="c-profile-header pos-relative w-100">
+						<Skeleton variant="rect" width="100%" height={160} />
+						<div className="c-profile-pic-container">
+							<Skeleton variant="circle" width="10rem" height="10rem" />
+						</div>
+					</div>
+					<div className="c-profile-title">
+						<Skeleton variant="text" width="40%" height="2rem" className="mt-2" />
+						<Skeleton variant="text" width="25%" />
+					</div>
+					<div className="c-hbox g-2 p-2">
+						<Skeleton variant="rounded" width={80} height={32} />
+						<Skeleton variant="rounded" width={80} height={32} />
+						<Skeleton variant="rounded" width={80} height={32} />
+					</div>
+				</div>
+				<div className="c-panel p-2 mt-2">
+					<SkeletonText lines={4} />
+				</div>
+			</Fcd.Content>
+			<Fcd.Details></Fcd.Details>
+		</Fcd.Container>
+	)
+}
+
 export function ProfilePage({
 	profile,
 	setProfile,
 	localProfile,
-	updateProfile: _updateProfile,
+	updateProfile,
 	profileCmds,
 	children,
 	communityRoles = [],
@@ -370,6 +408,7 @@ export function ProfilePage({
 }: ProfilePageProps) {
 	const { t } = useTranslation()
 	const [auth, setAuth] = useAuth()
+	const toast = useToast()
 	const params = useParams()
 	const [activeContext, setActiveContext] = useAtom(activeContextAtom)
 	const { getClientFor } = useApiContext()
@@ -387,8 +426,16 @@ export function ProfilePage({
 	const own = auth?.idTag === profile.idTag
 	const [coverUpload, setCoverUpload] = React.useState<string | undefined>()
 	const [profileUpload, setProfileUpload] = React.useState<string | undefined>()
+	const [editMode, setEditMode] = React.useState(false)
+	const [nameDraft, setNameDraft] = React.useState(profile.name)
 	const inputId = React.useId()
 	const profileInputId = React.useId()
+
+	// Keep the name draft in sync when the profile name changes externally,
+	// but never overwrite an in-progress edit.
+	React.useEffect(() => {
+		if (!editMode) setNameDraft(profile.name)
+	}, [profile.name, editMode])
 
 	// Check if user has leader role for community settings access
 	// Use communityRoles (from prop, fetched by parent) OR activeContext roles if we're in the viewed community
@@ -589,6 +636,40 @@ export function ProfilePage({
 		reader.readAsDataURL(file)
 	}
 
+	async function exitEditMode() {
+		const next = nameDraft.trim()
+		if (next && next !== profile.name) {
+			if (!updateProfile) {
+				toast.error(t('Failed to save profile'))
+				return // cannot save — keep edit mode open
+			}
+			try {
+				await updateProfile({ name: next })
+			} catch (_err) {
+				toast.error(t('Failed to save profile'))
+				return // keep edit mode open so the user can retry
+			}
+		} else {
+			// Nothing to save (empty or unchanged) — discard the draft edits.
+			setNameDraft(profile.name)
+		}
+		setEditMode(false)
+	}
+
+	function cancelEditMode() {
+		setNameDraft(profile.name)
+		setEditMode(false)
+	}
+
+	async function copyIdTag() {
+		try {
+			await navigator.clipboard.writeText(profile.idTag)
+			toast.success(t('Identity tag copied'))
+		} catch (_err) {
+			toast.error(t('Failed to copy'))
+		}
+	}
+
 	return (
 		<Fcd.Container className="g-1">
 			<Fcd.Filter></Fcd.Filter>
@@ -605,13 +686,14 @@ export function ProfilePage({
 								src={getFileUrl(profile.idTag, profile.coverPic, 'vis.hd')}
 							/>
 						)}
-						{canAccessSettings && (
+						{canAccessSettings && editMode && (
 							<>
 								<label
 									htmlFor={inputId}
 									className="c-overlay-icon pos-absolute top-0 right-0 m-2"
+									aria-label={t('Change cover photo')}
 								>
-									<IcEdit size="2rem" />
+									<IcCamera size="1.5rem" />
 								</label>
 								<input
 									id={inputId}
@@ -645,14 +727,15 @@ export function ProfilePage({
 									/>
 								</svg>
 							)}
-							{canAccessSettings && (
+							{canAccessSettings && editMode && (
 								<>
 									<label
 										htmlFor={profileInputId}
 										className="c-overlay-icon pos-absolute"
 										style={{ bottom: '1.5rem', right: '2.5rem' }}
+										aria-label={t('Change profile picture')}
 									>
-										<IcEdit size="2rem" />
+										<IcCamera size="1.5rem" />
 									</label>
 									<input
 										id={profileInputId}
@@ -667,9 +750,34 @@ export function ProfilePage({
 					</div>
 					<div className="c-hbox">
 						<div className="c-profile-title">
-							<h2 className="mt-2">{profile.name}</h2>
-							<h4>
+							{editMode ? (
+								<Input
+									className="mt-2 c-profile-name-input"
+									value={nameDraft}
+									autoFocus
+									onChange={(e) => setNameDraft(e.target.value)}
+									onKeyDown={(e) => {
+										if (e.key === 'Enter') {
+											e.preventDefault()
+											exitEditMode()
+										} else if (e.key === 'Escape') {
+											e.preventDefault()
+											cancelEditMode()
+										}
+									}}
+									aria-label={t('Display name')}
+								/>
+							) : (
+								<h2 className="mt-2">{profile.name}</h2>
+							)}
+							<h4 className="c-hbox align-items-center g-1">
 								<IdentityTag idTag={profile.idTag} />
+								<Button
+									kind="link"
+									icon={<IcCopy />}
+									aria-label={t('Copy identity tag')}
+									onClick={copyIdTag}
+								/>
 							</h4>
 							{!own && auth && (
 								<div className="mt-1">
@@ -678,24 +786,54 @@ export function ProfilePage({
 							)}
 						</div>
 						<div className="flex-fill" />
-						{auth?.idTag && !own && (
-							<>
-								{profile.type == 'person' && localProfile?.connected == true && (
-									<Link
-										className="c-button"
-										to={`/app/messages/${profile.idTag}`}
+						<div className="c-hbox g-2 align-items-start mt-2 me-2">
+							{canAccessSettings &&
+								(editMode ? (
+									<>
+										<Button
+											kind="link"
+											icon={<IcClose />}
+											onClick={cancelEditMode}
+										>
+											{t('Cancel')}
+										</Button>
+										<Button
+											variant="primary"
+											icon={<IcCheck />}
+											onClick={exitEditMode}
+										>
+											{t('Done')}
+										</Button>
+									</>
+								) : (
+									<Button
+										kind="link"
+										icon={<IcEdit />}
+										onClick={() => setEditMode(true)}
 									>
-										<IcMessage />
-										{t('Message')}
-									</Link>
-								)}
-								<ProfileConnection
-									localProfile={localProfile}
-									profileType={profile.type}
-									cmds={profileCmds}
-								/>
-							</>
-						)}
+										{t('Edit profile')}
+									</Button>
+								))}
+							{auth?.idTag && !own && (
+								<>
+									{profile.type == 'person' &&
+										localProfile?.connected == true && (
+											<Link
+												className="c-button"
+												to={`/app/messages/${profile.idTag}`}
+											>
+												<IcMessage />
+												{t('Message')}
+											</Link>
+										)}
+									<ProfileConnection
+										localProfile={localProfile}
+										profileType={profile.type}
+										cmds={profileCmds}
+									/>
+								</>
+							)}
+						</div>
 					</div>
 					<ProfileTabs
 						profile={profile}
@@ -1675,6 +1813,7 @@ function ProfileView() {
 	const { t } = useTranslation()
 
 	const [auth] = useAuth()
+	const [activeContext] = useAtom(activeContextAtom)
 	const { api } = useApi()
 	const { getTokenFor } = useApiContext()
 	const { rememberStoredTrust } = useProfileTrust()
@@ -1793,7 +1932,10 @@ function ProfileView() {
 	})
 
 	// Determine if user can edit this profile (own profile OR community leader)
-	const userRole = getHighestRole(communityRoles)
+	const isInViewedCommunity = activeContext?.idTag === profile?.idTag
+	const userRole = isInViewedCommunity
+		? getHighestRole(activeContext?.roles)
+		: getHighestRole(communityRoles)
 	const canEdit = own || (profile?.type === 'community' && userRole === 'leader')
 
 	const updateProfile: ProfileTabProps['updateProfile'] = !canEdit
@@ -1918,11 +2060,7 @@ function ProfileView() {
 	const isCommunity = profile?.type === 'community'
 
 	if (!profile) {
-		return (
-			<div className="d-flex align-items-center justify-content-center w-100 h-100">
-				<LoadingSpinner size="lg" label={t('Loading profile...')} />
-			</div>
-		)
+		return <ProfileSkeleton />
 	}
 
 	return (

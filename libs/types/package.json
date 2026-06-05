@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/types",
-	"version": "0.8.15",
+	"version": "0.8.16",
 	"description": "Shared TypeScript types and runtype validators for Cloudillo — the open-source decentralized collaboration platform",
 	"keywords": [
 		"cloudillo",

@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/taskillo-app",
-	"version": "0.8.15",
+	"version": "0.8.16",
 	"private": true,
 	"description": "Taskillo collaborative task list app",
 	"type": "module",

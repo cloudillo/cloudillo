@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/core",
-	"version": "0.8.15",
+	"version": "0.8.16",
 	"description": "Client SDK, API client, and app message bus for Cloudillo — building blocks for apps on the decentralized collaboration platform",
 	"keywords": [
 		"cloudillo",

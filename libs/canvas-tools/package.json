@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/canvas-tools",
-	"version": "0.8.15",
+	"version": "0.8.16",
 	"description": "SVG transform gizmos for React — rotation, pivot, and resize handles for building canvas editors",
 	"keywords": [
 		"cloudillo",

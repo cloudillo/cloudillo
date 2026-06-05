@@ -25,15 +25,17 @@ import {
 	LuCamera as IcCamera,
 	LuCheck as IcCheck,
 	LuChevronDown as IcChevronDown,
+	LuX as IcClose,
 	LuHandshake as IcConnect,
 	LuCopy as IcCopy,
 	LuPencil as IcEdit,
 	LuFilter as IcFilter,
 	LuUserPlus as IcFollow,
+	LuUserCheck as IcFollowsYou,
 	LuMessageCircle as IcMessage,
 	LuEllipsisVertical as IcMore,
-	LuUserMinus as IcRemoveMember,
-	LuX as IcClose
+	LuUsers as IcMutual,
+	LuUserMinus as IcRemoveMember
 } from 'react-icons/lu'
 import { Link, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
 
@@ -73,6 +75,7 @@ import {
 	ProfileStatusBadge
 } from './identities.js'
 import { InviteMembersDialog } from './invite-members-dialog.js'
+import { describeRelationship } from './relationship.js'
 import { TabEditor } from './TabEditor.js'
 import { TrustBanner } from './TrustBanner.js'
 import { TrustChip } from './TrustChip.js'
@@ -134,7 +137,10 @@ interface ProfileConnectionCmds {
 	onUnblock: () => void
 }
 
-function ProfileConnection({
+// Existing relations rendered as actionable chips in the name cluster. Each chip
+// opens a Popper menu with the action that changes/breaks that relation. Styled
+// as c-tag chips (like TrustChip) with a caret to signal interactivity.
+function RelationshipChips({
 	localProfile,
 	profileType,
 	cmds
@@ -153,112 +159,184 @@ function ProfileConnection({
 
 	if (!localProfile) return null
 
+	const isCommunity = profileType === 'community'
+	const rel = describeRelationship({ ...localProfile, type: profileType })
+	const pending = localProfile.connected === 'R'
+
+	// Blocked overrides every other relation: a single actionable chip.
+	if (rel.primary === 'blocked')
+		return (
+			<Popper
+				menuClassName="c-tag error g-1 cursor-pointer"
+				label={
+					<>
+						<IcBlock size="0.9rem" />
+						<span>{t('Blocked')}</span>
+						<IcChevronDown size="0.9rem" />
+					</>
+				}
+			>
+				<ul className="c-nav vertical">
+					<li>
+						<Button kind="nav-item" onClick={cmds.onUnblock}>
+							<IcBlock />
+							{t('Unblock')}
+						</Button>
+					</li>
+				</ul>
+			</Popper>
+		)
+
+	const hasConnection = rel.connected || pending
+	const hasFollow = rel.following || rel.followsYou
+	// Block lives on the connection chip when present. In the follow-only case the
+	// CTA button (ProfileActionButton) is visible and carries Block in its menu.
+	const blockOnConnection = hasConnection
+
 	return (
-		<div
-			className={mergeClasses(
-				'c-button cursor-default me-3',
-				!localProfile.connected && !localProfile.following && localProfile.status != 'B'
-					? 'accent'
-					: ''
+		<>
+			{hasConnection && (
+				<Popper
+					menuClassName="c-tag secondary g-1 cursor-pointer"
+					label={
+						<>
+							<IcConnect size="0.9rem" />
+							<span>
+								{pending
+									? t('Request sent')
+									: isCommunity
+										? t('Member')
+										: t('Connected')}
+							</span>
+							<IcChevronDown size="0.9rem" />
+						</>
+					}
+				>
+					<ul className="c-nav vertical">
+						<li>
+							<Button kind="nav-item" onClick={cmds.onDisconnect}>
+								<IcConnect />
+								{pending
+									? t('Cancel request')
+									: isCommunity
+										? t('Leave')
+										: t('Disconnect')}
+							</Button>
+						</li>
+						{blockOnConnection && (
+							<li>
+								<Button kind="nav-item" onClick={cmds.onBlock}>
+									<IcBlock />
+									{t('Block')}
+								</Button>
+							</li>
+						)}
+					</ul>
+				</Popper>
 			)}
-		>
-			{localProfile.connected === 'R' ? (
-				<div className="c-link cursor-default">
-					<IcConnect />
-					{profileType === 'community'
-						? t('Join request sent')
-						: t('Connection request sent')}
-				</div>
-			) : localProfile.connected ? (
-				<div className="c-link cursor-default">
-					<IcConnect />
-					{profileType === 'community' ? t('Joined') : t('Connected')}
-				</div>
-			) : localProfile.following ? (
-				<div className="c-link cursor-default">
-					<IcFollow />
-					{t('Followed')}
-				</div>
-			) : localProfile.status == 'B' ? (
-				<Button kind="link" onClick={cmds.onBlock}>
-					<IcBlock />
-					{t('Unblock')}
-				</Button>
-			) : !localProfile.connected ? (
-				<Button kind="link" onClick={cmds.onConnect}>
-					<IcConnect />
-					{profileType === 'community' ? t('Join') : t('Connect')}
-				</Button>
-			) : !localProfile.following ? (
-				<Button kind="link" onClick={cmds.onFollow}>
-					<IcFollow />
-					{t('Follow')}
-				</Button>
-			) : null}
+
+			{hasFollow && (
+				<Popper
+					menuClassName="c-tag secondary g-1 cursor-pointer"
+					label={
+						<>
+							{rel.mutual ? (
+								<IcMutual size="0.9rem" />
+							) : rel.followsYou ? (
+								<IcFollowsYou size="0.9rem" />
+							) : (
+								<IcFollow size="0.9rem" />
+							)}
+							<span>
+								{rel.mutual
+									? t('Mutual')
+									: rel.followsYou
+										? t('Follows you')
+										: t('Following')}
+							</span>
+							<IcChevronDown size="0.9rem" />
+						</>
+					}
+				>
+					<ul className="c-nav vertical">
+						<li>
+							{rel.followsYou && !rel.following ? (
+								<Button kind="nav-item" onClick={cmds.onFollow}>
+									<IcFollow />
+									{t('Follow back')}
+								</Button>
+							) : (
+								<Button kind="nav-item" onClick={onUnfollow}>
+									<IcFollow />
+									{t('Unfollow')}
+								</Button>
+							)}
+						</li>
+					</ul>
+				</Popper>
+			)}
+		</>
+	)
+}
+
+// The "establish a relationship" CTA. Shown whenever the profile is not blocked
+// and has no active or pending connection — including while you already follow
+// them, so a follow can still be upgraded to a connection/membership. Split
+// button: primary Connect/Join, with Follow (only when not already following)
+// and Block in the dropdown.
+function ProfileActionButton({
+	localProfile,
+	profileType,
+	cmds
+}: {
+	localProfile?: Partial<Profile>
+	profileType?: 'person' | 'community'
+	cmds: ProfileConnectionCmds
+}) {
+	const { t } = useTranslation()
+	if (!localProfile) return null
+
+	const isCommunity = profileType === 'community'
+	const rel = describeRelationship({ ...localProfile, type: profileType })
+	const pending = localProfile.connected === 'R'
+	const show = rel.primary !== 'blocked' && !rel.connected && !pending
+	if (!show) return null
+
+	return (
+		<div className="c-button accent cursor-default me-3">
+			<Button
+				kind="link"
+				onClick={cmds.onConnect}
+				title={
+					isCommunity
+						? t('Become a member and post here')
+						: t('Connect to share privately')
+				}
+			>
+				<IcConnect />
+				{isCommunity ? t('Join') : t('Connect')}
+			</Button>
 			<div className="separator" />
-			{/*
-		<div className="align-self-stretch border-end-1 border-dashed border-on my-1 mx-2"/>
-		*/}
 			<Popper className="cursor-pointer" label={<IcMore />}>
 				<ul className="c-nav vertical">
-					{!localProfile.following && (
+					{!rel.following && (
 						<li>
-							<Button kind="nav-item" onClick={cmds.onFollow}>
+							<Button
+								kind="nav-item"
+								onClick={cmds.onFollow}
+								title={t('See their posts in your feed')}
+							>
 								<IcFollow />
 								{t('Follow')}
 							</Button>
 						</li>
 					)}
-					{localProfile.following && (
-						<li>
-							<Button kind="nav-item" onClick={onUnfollow}>
-								<IcFollow />
-								{t('Unfollow')}
-							</Button>
-						</li>
-					)}
-
-					{!localProfile.connected && (
-						<li>
-							<Button kind="nav-item" onClick={cmds.onConnect}>
-								<IcConnect />
-								{profileType === 'community' ? t('Join') : t('Connect')}
-							</Button>
-						</li>
-					)}
-					{localProfile.connected == 'R' && (
-						<li className="c-nav-item">
-							<Button kind="nav-item" onClick={cmds.onDisconnect}>
-								<IcConnect />
-								{t('Cancel request')}
-							</Button>
-						</li>
-					)}
-					{localProfile.connected == true && (
-						<li>
-							<Button kind="nav-item" onClick={cmds.onDisconnect}>
-								<IcConnect />
-								{t('Disconnect')}
-							</Button>
-						</li>
-					)}
-
-					{localProfile.status != 'B' && (
-						<li>
-							<Button kind="nav-item" onClick={cmds.onBlock}>
-								<IcBlock />
-								{t('Block')}
-							</Button>
-						</li>
-					)}
-					{localProfile.status == 'B' && (
-						<li>
-							<Button kind="nav-item" onClick={cmds.onUnblock}>
-								<IcBlock />
-								{t('Unblock')}
-							</Button>
-						</li>
-					)}
+					<li>
+						<Button kind="nav-item" onClick={cmds.onBlock}>
+							<IcBlock />
+							{t('Block')}
+						</Button>
+					</li>
 				</ul>
 			</Popper>
 		</div>
@@ -780,8 +858,13 @@ export function ProfilePage({
 								/>
 							</h4>
 							{!own && auth && (
-								<div className="mt-1">
+								<div className="c-hbox align-items-center flex-wrap g-1 mt-1">
 									<TrustChip idTag={profile.idTag} onChanged={onTrustDecision} />
+									<RelationshipChips
+										localProfile={localProfile}
+										profileType={profile.type}
+										cmds={profileCmds}
+									/>
 								</div>
 							)}
 						</div>
@@ -826,7 +909,7 @@ export function ProfilePage({
 												{t('Message')}
 											</Link>
 										)}
-									<ProfileConnection
+									<ProfileActionButton
 										localProfile={localProfile}
 										profileType={profile.type}
 										cmds={profileCmds}

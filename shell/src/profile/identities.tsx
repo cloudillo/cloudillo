@@ -9,6 +9,8 @@ import { useTranslation } from 'react-i18next'
 import {
 	LuExternalLink as IcExternalLink,
 	LuFilter as IcFilter,
+	LuUserCheck as IcFollowsYou,
+	LuUsers as IcMutual,
 	LuPlus as IcPlus,
 	LuScanLine as IcScan,
 	LuSearch as IcSearch,
@@ -27,6 +29,7 @@ import { useQrScanner } from '../components/QrScanner/index.js'
 import { useContextSwitch } from '../context/index.js'
 import { ProfileContextMenu, useProfileContextMenu } from '../context/profile-context-menu.js'
 import { parseQS } from '../utils.js'
+import { describeRelationship } from './relationship.js'
 
 type ProfileStatusCode = 'A' | 'B' | 'M' | 'S'
 const VALID_STATUS_CODES = new Set<ProfileStatusCode>(['A', 'B', 'M', 'S'])
@@ -44,10 +47,14 @@ function parseStatusList(raw: unknown): ProfileStatusCode[] {
 }
 
 function ProfileConnectionIcon({ profile }: { profile: Profile }) {
+	const { t } = useTranslation()
+	const rel = describeRelationship(profile)
 	// Check for exactly true (connected) vs 'R' (pending request)
 	if (profile.connected === true) return <IcUserConnected className="text-success" />
 	if (profile.connected === 'R') return <IcUserConnected className="text-warning" />
-	if (profile.following) return <IcUserFollowing className="text-success" />
+	if (rel.mutual) return <IcMutual className="text-success" title={t('Mutual')} />
+	if (rel.following) return <IcUserFollowing className="text-success" />
+	if (rel.followsYou) return <IcFollowsYou className="text-secondary" title={t('Follows you')} />
 	return <IcUser />
 }
 
@@ -90,8 +97,14 @@ function FilterBar({ className }: { className?: string }) {
 	const qs = parseQS(location.search)
 	const userStat = { all: 0, connected: 0, followed: 0, following: 0, trusted: 0 }
 
-	const relFilter: 'connected' | 'followed' | 'all' =
-		qs.connected === '1' ? 'connected' : qs.filter === 'followed' ? 'followed' : 'all'
+	const relFilter: 'connected' | 'followed' | 'followers' | 'all' =
+		qs.connected === '1'
+			? 'connected'
+			: qs.filter === 'followed'
+				? 'followed'
+				: qs.filter === 'followers'
+					? 'followers'
+					: 'all'
 	const statusList = parseStatusList(qs.status)
 	const statusFilter: string =
 		statusList.length === 0
@@ -103,12 +116,13 @@ function FilterBar({ className }: { className?: string }) {
 					? statusList[0]
 					: ''
 
-	function relHref(v: 'connected' | 'followed' | 'all'): string {
+	function relHref(v: 'connected' | 'followed' | 'followers' | 'all'): string {
 		const sp = new URLSearchParams(location.search)
 		sp.delete('connected')
 		sp.delete('filter')
 		if (v === 'connected') sp.set('connected', '1')
 		else if (v === 'followed') sp.set('filter', 'followed')
+		else if (v === 'followers') sp.set('filter', 'followers')
 		const s = sp.toString()
 		return s ? `?${s}` : location.pathname
 	}
@@ -148,10 +162,18 @@ function FilterBar({ className }: { className?: string }) {
 						className={'c-nav-link ' + (relFilter === 'followed' ? 'active' : '')}
 						to={relHref('followed')}
 					>
-						<IcUserFollowed /> {t('Followed')}
+						<IcUserFollowed /> {t('Following')}
 						{!!userStat.followed && (
 							<span className="c-badge bg bg-error">{userStat.followed}</span>
 						)}
+					</Link>
+				</li>
+				<li className="c-nav-item">
+					<Link
+						className={'c-nav-link ' + (relFilter === 'followers' ? 'active' : '')}
+						to={relHref('followers')}
+					>
+						<IcFollowsYou /> {t('Followers')}
 					</Link>
 				</li>
 				<li className="c-nav-item">
@@ -206,17 +228,24 @@ export function ProfileListCard({
 	wrapClick,
 	triggerProps
 }: ProfileListCardProps) {
+	const { t } = useTranslation()
 	const params = useParams()
 	const contextIdTag = params.contextIdTag!
+	const rel = describeRelationship(profile)
 
 	return (
 		<Link
-			className="c-panel p-1 mb-1 flex-row ai-center"
+			className="c-panel p-1 mb-1 flex-row align-items-center"
 			to={`/profile/${contextIdTag}/${profile.idTag}`}
 			onClick={wrapClick?.(() => {})}
 			{...triggerProps}
 		>
 			<ProfileCard className="flex-fill" profile={profile} srcTag={srcTag} />
+			{rel.followsYou && !rel.mutual && (
+				<span className="c-badge outline secondary align-self-center">
+					{t('Follows you')}
+				</span>
+			)}
 			<ProfileStatusBadge profile={profile} />
 			<ProfileConnectionIcon profile={profile} />
 		</Link>
@@ -268,7 +297,7 @@ export function CommunityListCard({
 
 	return (
 		<div
-			className="c-panel p-1 mb-1 flex-row ai-center"
+			className="c-panel p-1 mb-1 flex-row align-items-center"
 			role="button"
 			tabIndex={0}
 			onClick={wrapClick ? wrapClick(handleRowClick) : handleRowClick}
@@ -354,11 +383,13 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 				const statusList = parseStatusList(qs.status)
 				const connected = qs.connected === '1' ? true : undefined
 				const following = qs.filter === 'followed' ? true : undefined
+				const follower = qs.filter === 'followers' ? true : undefined
 				const profiles = await api!.profiles.list({
 					type: 'person',
 					...(statusList.length ? { status: statusList } : {}),
 					...(connected !== undefined ? { connected } : {}),
-					...(following !== undefined ? { following } : {})
+					...(following !== undefined ? { following } : {}),
+					...(follower !== undefined ? { follower } : {})
 				})
 				setProfiles(profiles)
 			})()

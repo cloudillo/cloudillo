@@ -16,6 +16,7 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
 	LuEyeOff as IcAnonymous,
+	LuChevronDown as IcCaret,
 	LuShield as IcShield,
 	LuShieldCheck as IcShieldCheck,
 	LuShieldOff as IcShieldOff
@@ -221,6 +222,7 @@ export function TrustChip({ idTag, onChanged }: TrustChipProps): React.ReactElem
 			>
 				<Icon size="0.9rem" />
 				<span>{label}</span>
+				<IcCaret size="0.9rem" />
 			</button>
 			{menu && createPortal(menu, document.body)}
 		</div>

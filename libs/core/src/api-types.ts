@@ -881,6 +881,7 @@ export interface ListProfilesQuery {
 	status?: ('A' | 'B' | 'M' | 'S')[]
 	connected?: boolean | 'R'
 	following?: boolean
+	follower?: boolean
 	q?: string
 	/** When true, returns only profiles with a non-null trust preference; when false, only profiles with no trust set. */
 	trustSet?: boolean

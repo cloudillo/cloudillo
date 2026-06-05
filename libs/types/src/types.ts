@@ -166,6 +166,7 @@ export const tProfile = T.struct({
 	status: T.optional(tProfileStatus),
 	connected: T.optional(tProfileConnectionStatus),
 	following: T.optional(T.boolean),
+	follower: T.optional(T.boolean),
 	trust: T.optional(tProfileTrust),
 	roles: T.optional(T.array(T.string)), // Community roles (e.g., ['leader'], ['moderator'])
 	x: T.optional(T.record(T.string))

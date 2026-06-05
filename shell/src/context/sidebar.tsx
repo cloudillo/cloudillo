@@ -251,8 +251,24 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 				console.error('Failed to switch context:', err)
 				toastError(t('Failed to switch context. Please try again.'))
 			})
+
+			// On mobile the sidebar is a slide-in drawer; close it after the user
+			// picks a context so it doesn't cover the destination view. On desktop
+			// the sidebar is persistent, so leave it open.
+			if (!isDesktop) {
+				close()
+			}
 		},
-		[switchTo, location.pathname, toastError, t, auth?.idTag, contextIdpEnabled]
+		[
+			switchTo,
+			location.pathname,
+			toastError,
+			t,
+			auth?.idTag,
+			contextIdpEnabled,
+			isDesktop,
+			close
+		]
 	)
 
 	if (!auth) return null

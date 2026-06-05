@@ -23,7 +23,7 @@
 		"@cloudillo/crdt": "workspace:^",
 		"@cloudillo/fonts": "workspace:^",
 		"@enzedonline/quill-blot-formatter2": "^3.2.0",
-		"@symbion/opalui": "^0.14.9",
+		"@symbion/opalui": "^0.14.10",
 		"@symbion/runtype": "^1.2.1",
 		"cross-env": "^10.1.0",
 		"dayjs": "^1.11.21",

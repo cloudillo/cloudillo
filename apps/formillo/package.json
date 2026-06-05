@@ -22,7 +22,7 @@
 		"@cloudillo/core": "workspace:^",
 		"@cloudillo/react": "workspace:^",
 		"@popperjs/core": "^2.11.8",
-		"@symbion/opalui": "^0.14.9",
+		"@symbion/opalui": "^0.14.10",
 		"@symbion/runtype": "^1.2.1",
 		"@types/react": "^19.2.16",
 		"@types/react-dom": "^19.2.3",

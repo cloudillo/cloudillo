@@ -27,7 +27,7 @@
 		"@mantine/core": "^9.3.0",
 		"@mantine/hooks": "^9.3.0",
 		"@react-pdf/renderer": "^4.5.1",
-		"@symbion/opalui": "^0.14.9",
+		"@symbion/opalui": "^0.14.10",
 		"@tiptap/core": "^3.25.0",
 		"@tiptap/pm": "^3.25.0",
 		"@types/react": "^19.2.16",

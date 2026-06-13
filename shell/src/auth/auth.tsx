@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { ApiClient } from '@cloudillo/core'
+import { type ApiClient, isSessionExpiredError } from '@cloudillo/core'
 import { type AuthState, Button, useApi, useAuth, useDialog } from '@cloudillo/react'
 import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser'
 import { atom, useAtom } from 'jotai'
@@ -28,7 +28,7 @@ import { useAppConfig } from '../utils.js'
 import { IdpActivate } from './idp-activate.js'
 import { QrLoginPanel } from './QrLoginPanel.js'
 import { ResetPassword } from './reset-password.js'
-import { validPassword } from './utils.js'
+import { rateLimitMessage, validPassword } from './utils.js'
 
 // ============================================================================
 // Login Init Context — shares pre-fetched QR + WebAuthn data with login page
@@ -205,8 +205,11 @@ export function LoginForm() {
 			// Token is stored in SW encrypted storage via installToken()
 			await installToken(loginResult.token)
 		} catch (err: unknown) {
+			if (isSessionExpiredError(err)) return // global toast + /login redirect already shown
 			console.error('Login failed:', err)
-			setError(err instanceof Error ? err.message : 'Login failed')
+			setError(
+				rateLimitMessage(err, t) ?? (err instanceof Error ? err.message : 'Login failed')
+			)
 		}
 	}
 
@@ -237,9 +240,17 @@ export function LoginForm() {
 			await api.auth.forgotPassword({ email })
 			setForgotStatus('success')
 		} catch (err) {
+			if (isSessionExpiredError(err)) return // global toast + /login redirect already shown
 			console.error('forgotPassword error:', err)
-			// Always show success for security (no email enumeration)
-			setForgotStatus('success')
+			const banMsg = rateLimitMessage(err, t)
+			if (banMsg) {
+				// A rate-limit ban isn't an enumeration signal — surface it.
+				setForgotStatus('idle')
+				setForgotError(banMsg)
+			} else {
+				// Always show success for security (no email enumeration)
+				setForgotStatus('success')
+			}
 		}
 	}
 

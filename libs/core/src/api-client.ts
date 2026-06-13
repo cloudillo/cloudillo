@@ -3,7 +3,7 @@
 
 import * as T from '@symbion/runtype'
 
-import { type ApiFetchResult, apiFetchHelper } from './api.js'
+import { type ApiFetchResult, FetchError, apiFetchHelper } from './api.js'
 import * as Types from './api-types.js'
 import { getInstanceUrl } from './urls.js'
 
@@ -35,6 +35,31 @@ export class UploadError extends Error {
 		if (status >= 500) return 'server'
 		return 'invalid_response'
 	}
+}
+
+export interface AuthErrorInfo {
+	idTag: string
+	httpStatus: number
+	apiErrorCode?: string
+}
+/** Result a handler may return so the failed request can be retried. */
+export interface AuthRecovery {
+	/** Fresh token to retry the failed request with, when recovery succeeded. */
+	token?: string
+	/** True when the handler terminally handled a dead session (toast + redirect
+	 *  already shown); the failing request should reject quietly. */
+	handled?: boolean
+}
+export type AuthErrorHandler = (
+	info: AuthErrorInfo
+) => undefined | Promise<AuthRecovery | undefined>
+
+let authErrorHandler: AuthErrorHandler | undefined
+
+/** Register a process-wide handler invoked when an authenticated request fails
+ *  with HTTP 401 using the client's own (non-scoped) token. Pass undefined to clear. */
+export function setAuthErrorHandler(handler: AuthErrorHandler | undefined): void {
+	authErrorHandler = handler
 }
 
 /**
@@ -100,6 +125,27 @@ export class ApiClient {
 		this.opts.authToken = token
 	}
 
+	private async handleAuthError(
+		err: unknown,
+		perRequestToken: string | undefined
+	): Promise<AuthRecovery | undefined> {
+		if (
+			authErrorHandler &&
+			err instanceof FetchError &&
+			err.httpStatus === 401 && // 401 only — never 403 (permission denials stay errors)
+			!perRequestToken && // used the client's own token, not a scoped per-request token
+			this.opts.authToken // authenticated client only — excludes guest/anonymous clients
+		) {
+			const recovery = await authErrorHandler({
+				idTag: this.opts.idTag,
+				httpStatus: err.httpStatus,
+				apiErrorCode: err.apiErrorCode
+			})
+			return recovery ?? undefined
+		}
+		return undefined
+	}
+
 	/**
 	 * Make a request with automatic response validation
 	 */
@@ -113,16 +159,32 @@ export class ApiClient {
 			authToken?: string
 			requestId?: string
 			headers?: Record<string, string>
+			skipAuthRecovery?: boolean
 		}
 	): Promise<Res> {
-		return await apiFetchHelper<Res, unknown>(this.opts.idTag, method, path, {
-			type: responseType,
-			data: options?.data,
-			query: options?.query,
-			authToken: options?.authToken || this.opts.authToken,
-			requestId: options?.requestId,
-			headers: options?.headers
-		})
+		const send = (authToken: string | undefined) =>
+			apiFetchHelper<Res, unknown>(this.opts.idTag, method, path, {
+				type: responseType,
+				data: options?.data,
+				query: options?.query,
+				authToken,
+				requestId: options?.requestId,
+				headers: options?.headers
+			})
+		try {
+			return await send(options?.authToken || this.opts.authToken)
+		} catch (err) {
+			if (options?.skipAuthRecovery) throw err
+			const recovery = await this.handleAuthError(err, options?.authToken)
+			if (recovery?.token) {
+				this.setAuthToken(recovery.token)
+				return await send(recovery.token) // single retry with the refreshed token
+			}
+			if (recovery?.handled && err instanceof FetchError) {
+				err.sessionExpired = true // recovery already redirected — caller should reject quietly
+			}
+			throw err // preserve existing behaviour — callers still see the FetchError
+		}
 	}
 
 	/**
@@ -137,16 +199,32 @@ export class ApiClient {
 			query?: Record<string, string | number | boolean | string[] | undefined>
 			authToken?: string
 			requestId?: string
+			skipAuthRecovery?: boolean
 		}
 	): Promise<ApiFetchResult<Res>> {
-		return await apiFetchHelper<Res, unknown>(this.opts.idTag, method, path, {
-			type: responseType,
-			data: options?.data,
-			query: options?.query,
-			authToken: options?.authToken || this.opts.authToken,
-			requestId: options?.requestId,
-			returnMeta: true
-		})
+		const send = (authToken: string | undefined) =>
+			apiFetchHelper<Res, unknown>(this.opts.idTag, method, path, {
+				type: responseType,
+				data: options?.data,
+				query: options?.query,
+				authToken,
+				requestId: options?.requestId,
+				returnMeta: true
+			})
+		try {
+			return await send(options?.authToken || this.opts.authToken)
+		} catch (err) {
+			if (options?.skipAuthRecovery) throw err
+			const recovery = await this.handleAuthError(err, options?.authToken)
+			if (recovery?.token) {
+				this.setAuthToken(recovery.token)
+				return await send(recovery.token) // single retry with the refreshed token
+			}
+			if (recovery?.handled && err instanceof FetchError) {
+				err.sessionExpired = true // recovery already redirected — caller should reject quietly
+			}
+			throw err // preserve existing behaviour — callers still see the FetchError
+		}
 	}
 
 	// ========================================================================
@@ -175,7 +253,9 @@ export class ApiClient {
 		 * @returns Login result with token
 		 */
 		getLoginToken: () =>
-			this.request('GET', '/auth/login-token', T.nullable(Types.tLoginResult)),
+			this.request('GET', '/auth/login-token', T.nullable(Types.tLoginResult), {
+				skipAuthRecovery: true
+			}),
 
 		/**
 		 * POST /auth/login-init - Combined login initialization

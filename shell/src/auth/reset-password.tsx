@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { isSessionExpiredError } from '@cloudillo/core'
 import { Button, useApi } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -9,6 +10,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 
 import { PasswordInput, PasswordStrengthBar } from '../components/PasswordInput.js'
 import { CloudilloLogo } from '../logo.js'
+import { rateLimitMessage } from './utils.js'
 
 export function ResetPassword() {
 	const { t } = useTranslation()
@@ -41,10 +43,13 @@ export function ResetPassword() {
 				await api.refs.get(refId)
 				setRefValid(true)
 				setRefValidating(false)
-			} catch (_err) {
+			} catch (err) {
+				if (isSessionExpiredError(err)) return // global toast + /login redirect already shown
 				setRefValid(false)
 				setRefValidating(false)
-				setError(t('Invalid or expired password reset link'))
+				// A failed-login ban blocks recovery API calls too — show the
+				// blocked message instead of a misleading "invalid link" error.
+				setError(rateLimitMessage(err, t) ?? t('Invalid or expired password reset link'))
 			}
 		}
 
@@ -78,11 +83,15 @@ export function ResetPassword() {
 			setProgress('success')
 			// Navigate to the login page
 			setTimeout(() => {
-				navigate('/auth/login')
+				navigate('/login')
 			}, 1500)
 		} catch (err) {
+			if (isSessionExpiredError(err)) return // global toast + /login redirect already shown
 			setProgress('idle')
-			setError(err instanceof Error ? err.message : t('Failed to reset password'))
+			setError(
+				rateLimitMessage(err, t) ??
+					(err instanceof Error ? err.message : t('Failed to reset password'))
+			)
 		}
 	}
 

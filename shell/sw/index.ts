@@ -751,6 +751,14 @@ function onFetch(evt: FetchEvent) {
 					log && console.log('[SW] idTag:', idTag)
 				}
 
+				// Endpoints that authenticate with their own credentials (API-key
+				// exchange, QR-login secret) and must NOT trigger the Bearer-token
+				// handshake.
+				const isPreAuthPath =
+					reqUrl.pathname === '/api/auth/access-token' ||
+					(reqUrl.pathname.startsWith('/api/auth/qr-login/') &&
+						reqUrl.pathname.endsWith('/status'))
+
 				// Lazy-load authToken from encrypted storage if SW was restarted
 				if (!authToken) {
 					log && console.log('[SW] authToken missing, loading from storage')
@@ -770,7 +778,7 @@ function onFetch(evt: FetchEvent) {
 				// If still no token (no-remember-me + SW restart), ask the page
 				// for it. Bounded wait so we don't hang requests when the page
 				// genuinely is unauthenticated.
-				if (!authToken) {
+				if (!authToken && !isPreAuthPath) {
 					void requestTokenOnce()
 					const got = await waitForToken(1500)
 					if (got) {
@@ -792,12 +800,12 @@ function onFetch(evt: FetchEvent) {
 					try {
 						let request = evt.request
 						// Skip auth header for endpoints that use their own credentials
-						// (e.g., API key exchange) to avoid stale Bearer tokens causing 401
-						const skipAuthPaths = ['/api/auth/access-token']
+						// (e.g., API key exchange, QR-login secret) to avoid stale
+						// Bearer tokens causing 401
 						if (
 							authToken &&
 							!evt.request.headers.get('Authorization') &&
-							!skipAuthPaths.includes(reqUrl.pathname)
+							!isPreAuthPath
 						) {
 							log && console.log('[SW] OWN FETCH inserting token')
 							const headers = new Headers(evt.request.headers)

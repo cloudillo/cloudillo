@@ -1237,6 +1237,8 @@
 	"QR code expired": "QR-kód lejárt",
 	"Click to refresh": "Kattints a frissítéshez",
 	"Failed to generate QR code": "QR-kód generálása sikertelen",
+	"Access temporarily blocked. Please wait a moment before trying again.": "A hozzáférés átmenetileg letiltva. Kérlek várj egy kicsit, mielőtt újra próbálkozol.",
+	"Connection lost. Please try again.": "A kapcsolat megszakadt. Kérlek, próbáld újra.",
 	"Capture Photo": "Fénykép készítése",
 	"Select document": "Dokumentum kiválasztása",
 	"Select": "Kiválasztás",
@@ -1874,5 +1876,9 @@
 	"You have already reposted this to {{name}}.": "",
 	"Image {{n}}": "",
 	"Document preview": "",
-	"Your connections": "Kapcsolataid"
+	"Your connections": "Kapcsolataid",
+	"Too many attempts. Please try again in about {{count}} minute_one": "Túl sok próbálkozás. Kérlek, próbáld újra körülbelül {{count}} perc múlva.",
+	"Too many attempts. Please try again in about {{count}} minute_other": "Túl sok próbálkozás. Kérlek, próbáld újra körülbelül {{count}} perc múlva.",
+	"Too many attempts. Please try again later.": "Túl sok próbálkozás. Kérlek, próbáld újra később.",
+	"Too many requests. Please slow down and try again shortly.": "Túl sok kérés. Kérlek, lassíts, és próbáld újra hamarosan."
 }

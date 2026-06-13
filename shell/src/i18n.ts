@@ -11,7 +11,11 @@ const resources = {
 	en: {
 		translation: {
 			'Uploaded {{count}} file_one': 'Uploaded {{count}} file',
-			'Uploaded {{count}} file_other': 'Uploaded {{count}} files'
+			'Uploaded {{count}} file_other': 'Uploaded {{count}} files',
+			'Too many attempts. Please try again in about {{count}} minute_one':
+				'Too many attempts. Please try again in about {{count}} minute',
+			'Too many attempts. Please try again in about {{count}} minute_other':
+				'Too many attempts. Please try again in about {{count}} minutes'
 		}
 	},
 	hu: {

@@ -89,6 +89,9 @@ export class FetchError extends Error {
 	apiErrorCode?: string
 	/** Optional structured payload from `ErrorResponse.error.details` (camelCase, untyped). */
 	details?: unknown
+	/** True when the auth-recovery path judged this a dead home session
+	 *  (a "Session expired" toast + redirect to /login has already fired). */
+	sessionExpired = false
 
 	constructor(
 		code: string,
@@ -109,6 +112,19 @@ export class FetchError extends Error {
 	is(errorCode: string): boolean {
 		return this.apiErrorCode === errorCode
 	}
+}
+
+/** True when this error represents a home session that recovery judged dead
+ *  (a "Session expired" toast + redirect to /login has already been shown). */
+export function isSessionExpiredError(err: unknown): boolean {
+	return err instanceof FetchError && err.sessionExpired
+}
+
+/** Shape of `FetchError.details` for rate-limit errors (E-RATE-BANNED).
+ *  Mirrors the camelCase payload emitted by the cloudillo-rs backend; keep in
+ *  sync with that repo's rate-limit error response. */
+export interface RateLimitErrorDetails {
+	remainingSecs?: number
 }
 
 export interface ApiFetchOpts<R, D> {

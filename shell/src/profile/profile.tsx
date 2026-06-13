@@ -529,23 +529,27 @@ export function ProfilePage({
 		setCoverUpload(undefined)
 	}
 
+	// Resolve the token strictly from the TARGET host so the home/personal token is
+	// never sent to a foreign host. Home target → home token; any foreign target
+	// (community or other tenant) → a proxy token scoped to that target.
+	async function resolveUploadToken(targetIdTag: string): Promise<string | undefined> {
+		if (!auth) return undefined
+		if (targetIdTag === auth.idTag) return auth.token
+		// Explicit user upload — bypass the profile-trust gate.
+		const proxyResult = await getTokenFor?.(targetIdTag, { explicit: true })
+		if (!proxyResult?.token) {
+			console.error('Failed to get proxy token for upload to', targetIdTag)
+			return undefined
+		}
+		return proxyResult.token
+	}
+
 	async function uploadCover(img: Blob) {
 		if (!auth) return
 
-		// For community profiles, use proxy token and community's idTag
 		const targetIdTag = profile.idTag
-		let token = auth.token
-
-		if (isCommunity && getTokenFor) {
-			// Explicit user upload — bypass the profile-trust gate.
-			const proxyResult = await getTokenFor(profile.idTag, { explicit: true })
-			if (proxyResult?.token) {
-				token = proxyResult.token
-			} else {
-				console.error('Failed to get proxy token for community upload')
-				return
-			}
-		}
+		const token = await resolveUploadToken(targetIdTag)
+		if (!token) return
 
 		// Upload
 		const request = new XMLHttpRequest()
@@ -621,20 +625,9 @@ export function ProfilePage({
 	async function uploadProfile(img: Blob) {
 		if (!auth) return
 
-		// For community profiles, use proxy token and community's idTag
 		const targetIdTag = profile.idTag
-		let token = auth.token
-
-		if (isCommunity && getTokenFor) {
-			// Explicit user upload — bypass the profile-trust gate.
-			const proxyResult = await getTokenFor(profile.idTag, { explicit: true })
-			if (proxyResult?.token) {
-				token = proxyResult.token
-			} else {
-				console.error('Failed to get proxy token for community upload')
-				return
-			}
-		}
+		const token = await resolveUploadToken(targetIdTag)
+		if (!token) return
 
 		// Authoritative pre-upload mirror picture, so the post-upload refresh accepts
 		// only a CHANGED value (never re-writes the stale one). Read from the home

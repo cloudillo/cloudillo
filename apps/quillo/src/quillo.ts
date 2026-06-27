@@ -47,6 +47,7 @@ import {
 import { Cloud, CloudOff, createElement } from 'lucide'
 
 import { importMarkdown } from './import-markdown.js'
+import { registerTablePasteNormalizer } from './normalize-table-paste.js'
 import '@cloudillo/fonts/fonts.css'
 
 // ============================================
@@ -445,6 +446,12 @@ function updatePairingBadges(
 		placeholder: 'Start collaborating...',
 		theme: 'snow' // or 'bubble'
 	})
+
+	// Normalize pasted tables (e.g. from spreadsheets) to the canonical
+	// uniform-column shape so they round-trip correctly through the stored
+	// Delta on reopen. Registered after `new Quill` so this matcher runs after
+	// quill-table-better's own table matchers and rewrites their output.
+	registerTablePasteNormalizer(editor)
 
 	// Patch setContents during QuillBinding init: setContents drops table cells,
 	// so redirect to delete + updateContents which handles tables correctly.

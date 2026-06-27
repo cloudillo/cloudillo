@@ -104,6 +104,27 @@ export class ServerError extends Error {
 	}
 }
 
+/**
+ * Coerce an HTML input's value for the typed-settings backend.
+ * - checkbox -> boolean
+ * - number input, or a setting whose current value is a number -> JS number
+ * - empty / non-finite numeric input -> undefined (caller should skip the write)
+ * - everything else -> string
+ */
+export function coerceSettingValue(
+	target: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
+	oldValue: unknown
+): boolean | number | string | undefined {
+	const { type } = target
+	if (type === 'checkbox') return (target as HTMLInputElement).checked
+	if (type === 'number' || typeof oldValue === 'number') {
+		if (target.value === '') return undefined
+		const n = Number(target.value)
+		return Number.isFinite(n) ? n : undefined
+	}
+	return target.value
+}
+
 // useAppConfig() //
 ////////////////////
 

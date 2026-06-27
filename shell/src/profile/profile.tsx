@@ -61,6 +61,7 @@ import {
 	useProfileTrust
 } from '../context/index.js'
 import { ImageUpload } from '../image.js'
+import { coerceSettingValue } from '../utils.js'
 import { useWsBus } from '../ws-bus.js'
 import { ProfileAbout } from './about/ProfileAbout.js'
 import { getEffectiveTabs, parseTabConfig, type TabConfig } from './about/types.js'
@@ -1695,8 +1696,16 @@ export function ProfileSettings({
 		if (!getTokenFor) return
 
 		const { name, type } = evt.target
-		const value =
-			type === 'checkbox' ? (evt.target as HTMLInputElement).checked : evt.target.value
+		const oldValue = settings[name]
+
+		const value = coerceSettingValue(evt.target, oldValue)
+		if (value === undefined) {
+			// Empty/partial numeric input (e.g. '' or '-'): keep what the user typed
+			// locally so the controlled input isn't reverted, but don't persist a bad
+			// value to the typed-settings backend. (See M1.)
+			setSettings((prev) => ({ ...prev, [name]: evt.target.value }))
+			return
+		}
 
 		// Update local state immediately
 		setSettings((prev) => ({ ...prev, [name]: value }))

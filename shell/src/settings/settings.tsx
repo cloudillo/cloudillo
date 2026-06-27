@@ -5,6 +5,8 @@ import { useApi, useToast } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { coerceSettingValue } from '../utils.js'
+
 // Debounce delays for different input types
 const DEBOUNCE_DELAYS = {
 	text: 800, // Text inputs - wait for user to stop typing
@@ -70,9 +72,16 @@ export function useSettings(prefix: string | string[], opts?: { level?: 'global'
 		if (!settings || !api) return
 
 		const { name, type, tagName } = evt.target
-		const value =
-			type === 'checkbox' ? (evt.target as HTMLInputElement).checked : evt.target.value
 		const oldValue = settings[name]
+
+		const value = coerceSettingValue(evt.target, oldValue)
+		if (value === undefined) {
+			// Empty/partial numeric input (e.g. '' or '-'): keep what the user typed
+			// locally so the controlled input isn't reverted, but don't persist a bad
+			// value to the typed-settings backend. (See M1.)
+			setSettings((settings) => ({ ...settings, [name]: evt.target.value }))
+			return
+		}
 
 		// Update local state immediately for responsive UI
 		setSettings((settings) => ({ ...settings, [name]: value }))

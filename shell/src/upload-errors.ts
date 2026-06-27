@@ -15,7 +15,10 @@ export const getUploadErrorMessages = (t: TFunction): Record<UploadErrorKind, st
 
 export function getUploadErrorMessage(t: TFunction, err: unknown): string {
 	const messages = getUploadErrorMessages(t)
-	if (err instanceof UploadError) return messages[err.kind]
+	if (err instanceof UploadError) {
+		if (err.kind === 'invalid_response' && err.detail) return err.detail
+		return messages[err.kind]
+	}
 	return messages.invalid_response
 }
 

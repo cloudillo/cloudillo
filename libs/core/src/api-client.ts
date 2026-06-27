@@ -20,12 +20,25 @@ export class UploadError extends Error {
 	readonly status?: number
 	readonly statusText?: string
 	readonly kind: UploadErrorKind
-	constructor(kind: UploadErrorKind, message: string, status?: number, statusText?: string) {
+	/** Backend error code from the `{ error: { code } }` envelope, when present. */
+	readonly apiErrorCode?: string
+	/** Backend human message from `{ error: { message } }`, when present. */
+	readonly detail?: string
+	constructor(
+		kind: UploadErrorKind,
+		message: string,
+		status?: number,
+		statusText?: string,
+		apiErrorCode?: string,
+		detail?: string
+	) {
 		super(message)
 		this.name = 'UploadError'
 		this.kind = kind
 		this.status = status
 		this.statusText = statusText
+		this.apiErrorCode = apiErrorCode
+		this.detail = detail
 	}
 
 	static kindFromHttpStatus(status: number): UploadErrorKind {
@@ -796,9 +809,29 @@ export class ApiClient {
 				xhr.addEventListener('load', () => {
 					cleanup()
 					if (xhr.status < 200 || xhr.status >= 300) {
-						const msg = `Upload failed: ${xhr.status} ${xhr.statusText}`
+						let apiErrorCode: string | undefined
+						let detail: string | undefined
+						try {
+							const body = JSON.parse(xhr.responseText)
+							if (body && typeof body === 'object' && body.error) {
+								apiErrorCode = body.error.code
+								if (body.error.message) detail = body.error.message
+							}
+						} catch (_e) {
+							// non-JSON / no structured error — fall back to status text
+						}
+						const msg = detail || `Upload failed: ${xhr.status} ${xhr.statusText}`
 						const kind = UploadError.kindFromHttpStatus(xhr.status)
-						return reject(new UploadError(kind, msg, xhr.status, xhr.statusText))
+						return reject(
+							new UploadError(
+								kind,
+								msg,
+								xhr.status,
+								xhr.statusText,
+								apiErrorCode,
+								detail
+							)
+						)
 					}
 					try {
 						const result = JSON.parse(xhr.response)

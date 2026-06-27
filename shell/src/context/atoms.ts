@@ -202,6 +202,7 @@ export const previewCommunityAtom = atom((get) => {
 		name: active.name,
 		profilePic: active.profilePic,
 		isFavorite: false,
+		showInHome: true,
 		unreadCount: 0,
 		lastActivityAt: null
 	} satisfies CommunityRef

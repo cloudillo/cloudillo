@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next'
 import { LuClock3 as IcPending, LuPin as IcPin } from 'react-icons/lu'
 import { useLocation } from 'react-router-dom'
 
+import { unreadCountAtom } from '../read-position.js'
 import { CONTEXT_ROUTE_REGEX, HOME_CONTEXT } from './constants'
 import {
 	activeContextAtom,
@@ -70,6 +71,8 @@ function CommunityListItem({
 }: CommunityListItemProps) {
 	const { t } = useTranslation()
 	const isPreview = mode === 'preview'
+	const unreadCounts = useAtomValue(unreadCountAtom)
+	const hasUnreadContent = !community.isPending && !!unreadCounts[community.idTag]
 
 	const baseAriaLabel = community.isPending
 		? t('{{name}} (setting up)', { name: community.name })
@@ -113,15 +116,24 @@ function CommunityListItem({
 			onDragEnd={onDragEnd}
 			{...triggerProps}
 		>
-			<div className="c-sidebar-item-avatar">
-				<ProfilePicture
-					profile={{ profilePic: community.profilePic }}
-					srcTag={community.idTag}
-				/>
-				{community.isPending && (
-					<span className="c-sidebar-pending-indicator" title={t('Setting up...')}>
-						<IcPending size={12} />
-					</span>
+			<div className="c-sidebar-item-avatar-wrap">
+				<div className="c-sidebar-item-avatar">
+					<ProfilePicture
+						profile={{ profilePic: community.profilePic }}
+						srcTag={community.idTag}
+					/>
+					{community.isPending && (
+						<span className="c-sidebar-pending-indicator" title={t('Setting up...')}>
+							<IcPending size={12} />
+						</span>
+					)}
+				</div>
+				{hasUnreadContent && (
+					<span
+						className="c-badge dot accent positioned tr"
+						role="status"
+						aria-label={t('New content')}
+					/>
 				)}
 			</div>
 			{isPreview && (
@@ -170,6 +182,7 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 	const [activeContext] = useAtom(activeContextAtom)
 	const [previewCommunity] = useAtom(previewCommunityAtom)
 	const contextIdpEnabled = useAtomValue(contextIdpEnabledAtom)
+	const unreadCounts = useAtomValue(unreadCountAtom)
 	const { favorites, reorderFavorites, toggleFavorite } = useCommunitiesList()
 	const { switchTo, isSwitching } = useContextSwitch()
 	const { isOpen, isPinned, close } = useSidebar()
@@ -313,11 +326,20 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 							type: 'me'
 						})}
 					>
-						<div className="c-sidebar-item-avatar">
-							<ProfilePicture
-								profile={{ profilePic: auth.profilePic }}
-								srcTag={auth.idTag}
-							/>
+						<div className="c-sidebar-item-avatar-wrap">
+							<div className="c-sidebar-item-avatar">
+								<ProfilePicture
+									profile={{ profilePic: auth.profilePic }}
+									srcTag={auth.idTag}
+								/>
+							</div>
+							{!!unreadCounts[auth.idTag ?? ''] && (
+								<span
+									className="c-badge dot accent positioned tr"
+									role="status"
+									aria-label={t('New content')}
+								/>
+							)}
 						</div>
 					</div>
 				</div>

@@ -19,7 +19,9 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuCircleOff as IcBlock,
+	LuCheck as IcCheck,
 	LuAtSign as IcCopyTag,
+	LuHouse as IcHome,
 	LuBellOff as IcMute,
 	LuPin as IcPin,
 	LuPinOff as IcPinOff,
@@ -80,7 +82,7 @@ export function ProfileContextMenu({
 	const [auth] = useAuth()
 	const toast = useToast()
 	const urlContextIdTag = useUrlContextIdTag()
-	const { communities, favorites, toggleFavorite } = useCommunitiesList()
+	const { communities, favorites, toggleFavorite, setShowInHome } = useCommunitiesList()
 
 	const isMobile = useIsMobile()
 	const Item = isMobile ? ActionSheetItem : MenuItem
@@ -95,6 +97,10 @@ export function ProfileContextMenu({
 	const isMember = isCommunity && communities.some((c) => c.idTag === target.idTag)
 	const isPinned = isCommunity && favorites.some((c) => c.idTag === target.idTag)
 	const showPinEntry = isCommunity && !isOwnProfile && (isPinned || isMember)
+	// Composition: members can opt a community in/out of the merged home feed.
+	const memberCommunity = isMember ? communities.find((c) => c.idTag === target.idTag) : undefined
+	const showHomeEntry = isCommunity && !isOwnProfile && isMember
+	const shownInHome = memberCommunity?.showInHome !== false
 
 	const handleAction = (action: () => void) => () => {
 		action()
@@ -168,6 +174,16 @@ export function ProfileContextMenu({
 							onClick={handleAction(handleTogglePin)}
 						/>
 					)}
+				</>
+			)}
+			{showHomeEntry && (
+				<>
+					<Divider />
+					<Item
+						icon={shownInHome ? <IcCheck /> : <IcHome />}
+						label={t('Show in Home feed')}
+						onClick={handleAction(() => setShowInHome(target.idTag, !shownInHome))}
+					/>
 				</>
 			)}
 			{(showRestore || showMute || showBlock) && <Divider />}

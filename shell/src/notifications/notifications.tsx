@@ -20,6 +20,7 @@ import {
 	LuCheck as IcAccept,
 	LuUsers as IcConnections,
 	LuFile as IcFiles,
+	LuMailOpen as IcUnread,
 	LuMenu as IcMenu,
 	LuMessageSquare as IcMessages,
 	LuBell as IcNotifications,
@@ -32,7 +33,7 @@ import { HOME_CONTEXT, useContextSwitch, useUrlContextIdTag } from '../context/i
 import { useNotifications } from './state'
 import './notifications.css'
 
-type NotificationFilter = 'all' | 'connections' | 'messages' | 'social' | 'files'
+type NotificationFilter = 'all' | 'unread' | 'connections' | 'messages' | 'social' | 'files'
 
 function FilterBar({
 	filter,
@@ -44,11 +45,12 @@ function FilterBar({
 	const { t } = useTranslation()
 
 	const filters: { key: NotificationFilter; label: string; icon: React.ReactNode }[] = [
-		{ key: 'all', label: t('All'), icon: <IcNotifications /> },
+		{ key: 'unread', label: t('Unread'), icon: <IcUnread /> },
 		{ key: 'connections', label: t('Connections'), icon: <IcConnections /> },
 		{ key: 'messages', label: t('Messages'), icon: <IcMessages /> },
 		{ key: 'social', label: t('Social'), icon: <IcSocial /> },
-		{ key: 'files', label: t('Files'), icon: <IcFiles /> }
+		{ key: 'files', label: t('Files'), icon: <IcFiles /> },
+		{ key: 'all', label: t('All'), icon: <IcNotifications /> }
 	]
 
 	return (
@@ -69,6 +71,7 @@ function FilterBar({
 
 const FILTER_TYPE_MAP: Record<NotificationFilter, string[] | undefined> = {
 	all: undefined,
+	unread: undefined,
 	connections: ['CONN', 'PRINVT'],
 	messages: ['MSG', 'INVT'],
 	social: ['FLLW', 'CMNT', 'REACT', 'MNTN', 'POST'],
@@ -77,6 +80,7 @@ const FILTER_TYPE_MAP: Record<NotificationFilter, string[] | undefined> = {
 
 const FILTER_LABEL_MAP: Record<NotificationFilter, (t: (k: string) => string) => string> = {
 	all: (t) => t('All'),
+	unread: (t) => t('Unread'),
 	connections: (t) => t('Connections'),
 	messages: (t) => t('Messages'),
 	social: (t) => t('Social'),
@@ -562,14 +566,17 @@ export function Notifications() {
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
-	const [filter, setFilter] = React.useState<NotificationFilter>('all')
+	const [filter, setFilter] = React.useState<NotificationFilter>('unread')
+	// "All" refetches with 'A' (Active/historical) included; every other filter
+	// (incl. Unread and the type filters) loads the actionable/unread set ['C','N'].
+	const loadStatus = filter === 'all' ? ['A', 'C', 'N'] : ['C', 'N']
 	const {
 		notifications,
 		setNotifications,
 		loadNotifications,
 		dismissNotification,
 		dismissAllNotifications
-	} = useNotifications()
+	} = useNotifications(loadStatus)
 
 	React.useEffect(
 		function onLocationEffect() {
@@ -581,9 +588,12 @@ export function Notifications() {
 	React.useEffect(
 		function onLoadNotifications() {
 			if (!api || !auth?.idTag) return
+			// `loadNotifications` identity tracks the status set (statusKey), so
+			// switching to/from "All" refetches; type filters that share ['C','N']
+			// reuse the already-loaded set without a refetch.
 			loadNotifications()
 		},
-		[auth, api]
+		[auth, api, loadNotifications]
 	)
 
 	// Called after accept/reject — backend already updated, just remove from local state
@@ -651,13 +661,13 @@ export function Notifications() {
 								<IcMenu onClick={() => setShowFilter(true)} />
 								<h3>{t('Notifications')}</h3>
 							</div>
-							{!!notifications.notifications.length && (
+							{notifications.notifications.some((a) => a.status === 'N') && (
 								<Button
 									kind="link"
 									className="ms-auto"
 									onClick={dismissAllNotifications}
 								>
-									{t('Clear all')}
+									{t('Mark all as read')}
 								</Button>
 							)}
 						</div>

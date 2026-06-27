@@ -16,13 +16,33 @@ export interface UseFeedPostsOptions {
 	search?: string
 	visibility?: string | string[]
 	issuer?: string
+	subscribed?: boolean
+	// 'received' orders by ingestion time (home feed, arrival order); undefined
+	// keeps the default author-time ordering.
+	sort?: 'created' | 'received'
+	// Home feed only: idTags of communities the reader opted out of home
+	// ("Show in Home" = off). Live WS arrivals addressed to these communities are
+	// ignored here (paginated fetches are already filtered server-side via
+	// `exclude_audiences`). Undefined/empty on community & profile feeds.
+	hiddenAudiences?: Set<string>
 	enabled?: boolean
 }
 
 const PAGE_SIZE = 15
 
 export function useFeedPosts(options: UseFeedPostsOptions = {}) {
-	const { audience, audienceType, tag, search, visibility, issuer, enabled = true } = options
+	const {
+		audience,
+		audienceType,
+		tag,
+		search,
+		visibility,
+		issuer,
+		subscribed,
+		sort,
+		hiddenAudiences,
+		enabled = true
+	} = options
 	const { api } = useContextAwareApi()
 	const contextIdTag = useCurrentContextIdTag()
 	const [newPosts, setNewPosts] = React.useState<ActionView[]>([])
@@ -48,6 +68,8 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 				search,
 				visibility,
 				issuer,
+				subscribed,
+				sort,
 				cursor: cursor ?? undefined,
 				limit
 			})
@@ -59,7 +81,7 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 			}
 		},
 		// visibility may be an array; key on the joined string for stable identity
-		[api, audience, audienceType, tag, search, visibilityKey, issuer]
+		[api, audience, audienceType, tag, search, visibilityKey, issuer, subscribed, sort]
 	)
 
 	// Cache query params for offline fallback. Including the filter fields
@@ -71,9 +93,12 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 			audience,
 			audienceType,
 			visibility: visibilityKey,
-			issuer
+			issuer,
+			// Key the offline cache on the ordering so an arrival-ordered home feed
+			// and an author-ordered feed never share a cached set.
+			sort
 		}),
-		[audience, audienceType, visibilityKey, issuer]
+		[audience, audienceType, visibilityKey, issuer, sort]
 	)
 
 	// Fetch page with offline cache fallback
@@ -96,17 +121,26 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 	} = useInfiniteScroll<ActionView>({
 		fetchPage,
 		pageSize: PAGE_SIZE,
-		deps: [audience, audienceType, tag, search, visibilityKey, issuer],
+		deps: [audience, audienceType, tag, search, visibilityKey, issuer, subscribed, sort],
 		enabled: !!api && enabled
 	})
 
 	// Keep refs in sync for use in WebSocket callback
 	postsRef.current = posts
 	newPostsRef.current = newPosts
+	const hiddenAudiencesRef = React.useRef<Set<string> | undefined>(hiddenAudiences)
+	hiddenAudiencesRef.current = hiddenAudiences
 
 	// Handle WebSocket updates for real-time posts
 	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
 		const action = msg.data as ActionView
+
+		// Home feed: drop live arrivals addressed to a community the reader opted
+		// out of home (matches the server-side `exclude_audiences` paginated filter).
+		const aud = action.audience
+		if (aud?.type === 'community' && aud.idTag && hiddenAudiencesRef.current?.has(aud.idTag)) {
+			return
+		}
 
 		switch (action.type) {
 			case 'POST': {

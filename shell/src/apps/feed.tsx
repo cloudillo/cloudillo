@@ -14,8 +14,6 @@ import {
 	ProfileCard,
 	ProfilePicture,
 	SkeletonCard,
-	Tab,
-	Tabs,
 	TimeFormat,
 	useApi,
 	useAuth
@@ -23,17 +21,19 @@ import {
 import type { ActionView, NewAction } from '@cloudillo/types'
 import * as T from '@symbion/runtype'
 import type { TFunction } from 'i18next'
-import { useAtom } from 'jotai'
+import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuCloud as IcAll,
 	LuCamera as IcCamera,
 	LuUsersRound as IcCommunities,
+	LuBookmark as IcFollowing,
 	LuLock as IcDirect,
 	LuSave as IcDraft,
 	LuFilter as IcFilter,
 	LuImage as IcImage,
+	LuInbox as IcUnread,
 	LuUser as IcMine,
 	LuUsers as IcPeople,
 	LuGlobe as IcPublic,
@@ -71,10 +71,23 @@ import {
 	PostMenu,
 	parseReactionCounts,
 	ReactionPicker,
+	ReadDivider,
 	totalReactions,
 	updateReactionCounts,
-	useFeedPosts
+	useFeedPosts,
+	useUnreadPosts
 } from './feed/index.js'
+import {
+	createdAtToSeconds,
+	feedReadTs,
+	feedSeedLoadedAtom,
+	INITIAL_UNREAD_WINDOW_SEC,
+	nowSeconds,
+	unreadCountAtom,
+	useReadMarker,
+	useReadPositionTracker,
+	useScrollEngaged
+} from '../read-position.js'
 import { Document, hasPlayableVariant, Images, renderPostContent, Video } from './feed/PostMedia.js'
 import { pendingQuoteAtom } from './feed/quote-intent.js'
 import { getVisibilityMeta } from './feed/VisibilitySelector.js'
@@ -87,8 +100,9 @@ interface PostAction extends ActionView {
 	stat?: {
 		ownReaction?: string
 		reactions?: string
-		comments?: number
-		commentsRead?: number
+		lastCommentAt?: string | number
+		commentsReadAt?: string | number
+		commentCount?: number
 	}
 }
 
@@ -216,24 +230,30 @@ function SubComments({
 	comments,
 	parentId,
 	srcTag,
-	className
+	className,
+	register
 }: {
 	comments: ActionView[]
 	parentId: string
 	srcTag: string
 	className?: string
+	// Read-tracker registrar — each comment node reports its createdAt (via
+	// `data-read-ts`) so the thread watermark (comments_read_at) advances as
+	// comments scroll into view.
+	register?: (node: Element | null) => (() => void) | undefined
 }) {
 	return (
 		<div className={mergeClasses('ms-3', className)}>
 			{comments
 				.filter((action) => action.type == 'CMNT' && action.parentId == parentId)
 				.map((action) => (
-					<Comment
+					<div
 						key={action.actionId}
-						className="mb-1"
-						action={action}
-						srcTag={srcTag}
-					/>
+						ref={register}
+						data-read-ts={createdAtToSeconds(action.createdAt)}
+					>
+						<Comment className="mb-1" action={action} srcTag={srcTag} />
+					</div>
 				))}
 		</div>
 	)
@@ -242,6 +262,7 @@ function SubComments({
 interface CommentsProps {
 	parentAction: ActionView
 	onCommentsRead?: (read: number) => void
+	onCommentAdded?: () => void
 	className?: string
 	style?: React.CSSProperties
 }
@@ -312,7 +333,7 @@ function CommentsTrustPrompt({
 	)
 }
 
-function Comments({ parentAction, onCommentsRead, ...props }: CommentsProps) {
+function Comments({ parentAction, onCommentsRead, onCommentAdded, ...props }: CommentsProps) {
 	const { api: contextApi } = useContextAwareApi()
 	const { getTokenFor, getClientFor } = useApiContext()
 	const contextIdTag = useCurrentContextIdTag()
@@ -369,52 +390,63 @@ function Comments({ parentAction, onCommentsRead, ...props }: CommentsProps) {
 	const showTrustPrompt =
 		isCrossNode && !!audienceIdTag && isGated && tokenStatus === 'unauthenticated'
 
-	const commentsReadCount = parentAction.stat?.commentsRead
+	// Thread comment read-watermark (actions.comments_read_at), seeded from the
+	// server value and advanced forward-only via PUT /read-marker { scope:'thread' }.
+	const seedReadAt = createdAtToSeconds(parentAction.stat?.commentsReadAt)
+	const { readPosition, advanceTo } = useReadMarker(`thread:${parentAction.actionId}`, seedReadAt)
 
+	// Optimistically clear the dot upstream as the watermark advances (forward-only;
+	// readPosition only moves forward). Patches stat.commentsReadAt without a refetch.
 	const onCommentsReadRef = React.useRef(onCommentsRead)
-	const commentsReadCountRef = React.useRef(commentsReadCount)
 	React.useEffect(() => {
 		onCommentsReadRef.current = onCommentsRead
 	}, [onCommentsRead])
 	React.useEffect(() => {
-		commentsReadCountRef.current = commentsReadCount
-	}, [commentsReadCount])
+		if (readPosition > 0) onCommentsReadRef.current?.(readPosition)
+	}, [readPosition])
 
 	React.useEffect(() => {
-		let timeout: ReturnType<typeof setTimeout> | undefined
 		if (!readApi) return
 		if (showTrustPrompt) return
+		let cancelled = false
 		;(async function getComments() {
 			try {
 				const actions = await readApi.actions.list({
 					parentId: parentAction.actionId,
 					type: 'CMNT'
 				})
-				if (actions.length != commentsReadCountRef.current) {
-					timeout = setTimeout(async function () {
-						if (contextApi) {
-							await contextApi.actions.updateStat(parentAction.actionId, {
-								commentsRead: actions.length
-							})
-							onCommentsReadRef.current?.(actions.length)
-						}
-						timeout = undefined
-					}, 3000)
-				}
+				if (cancelled) return
 				setComments(actions || [])
+				// "Opened but didn't scroll" floor: mark the thread read up to the
+				// newest loaded comment so the dot clears on open.
+				const newest = (actions || []).reduce(
+					(max, c) => Math.max(max, createdAtToSeconds(c.createdAt)),
+					0
+				)
+				if (newest > 0) advanceTo(newest)
 			} catch (err) {
 				console.warn('[Comments] failed to load comments:', err)
 			}
 		})()
 		return function cleanup() {
-			if (timeout) clearTimeout(timeout)
+			cancelled = true
 		}
-	}, [readApi, contextApi, parentAction.actionId, showTrustPrompt])
+	}, [readApi, parentAction.actionId, showTrustPrompt, advanceTo])
 
 	function onSubmit(action: ActionView) {
 		setComments([...comments, action])
-		onCommentsRead?.(comments.length + 1)
+		// The user has read their own comment — advance the watermark to it.
+		advanceTo(createdAtToSeconds(action.createdAt))
+		// Optimistically bump the total count; the authoritative WS STAT reconciles.
+		onCommentAdded?.()
 	}
+
+	// Advance the thread watermark as comments scroll into view (Pillar B);
+	// useReadMarker handles forward-only + throttle + flush-on-leave.
+	const { register: registerComment } = useReadPositionTracker({
+		enabled: !showTrustPrompt,
+		onReach: advanceTo
+	})
 
 	return (
 		<div {...props}>
@@ -428,6 +460,7 @@ function Comments({ parentAction, onCommentsRead, ...props }: CommentsProps) {
 				comments={comments}
 				parentId={parentAction.actionId}
 				srcTag={audienceIdTag}
+				register={registerComment}
 			/>
 			{!showTrustPrompt && <NewComment parentAction={parentAction} onSubmit={onSubmit} />}
 		</div>
@@ -599,19 +632,35 @@ function Post({
 		}
 	}
 
-	function onCommentsRead(read: number) {
-		patchEngageStat({ ...engageAction.stat, commentsRead: read })
+	// `readAt` is the thread read-watermark (epoch seconds); optimistically clear
+	// the unread dot by advancing stat.commentsReadAt without a refetch.
+	function onCommentsRead(readAt: number) {
+		patchEngageStat({ commentsReadAt: readAt })
 	}
 
-	const commentTotal = engageAction.stat?.comments ?? 0
-	const commentUnread = commentTotal - (engageAction.stat?.commentsRead ?? 0)
+	// Optimistically bump the total comment count when the reader posts their own
+	// comment, so the badge ticks up immediately; the authoritative WS STAT (`c`)
+	// reconciles shortly after.
+	function onCommentAdded() {
+		patchEngageStat({ commentCount: (engageAction.stat?.commentCount ?? 0) + 1 })
+	}
+
+	// Unread comment dot: newest comment is newer than the reader's watermark.
+	// Pure timestamp comparison, identical on authoritative and mirror nodes.
+	// 1s tolerance: lastCommentAt (federated STAT `ct`, whole seconds) and the
+	// locally advanced commentsReadAt can differ by rounding; don't let that pin
+	// the dot lit.
+	const commentUnread =
+		createdAtToSeconds(engageAction.stat?.lastCommentAt) >
+		createdAtToSeconds(engageAction.stat?.commentsReadAt) + 1
+	// Federated total comment count (STAT `c`); the unread state stays a boolean dot.
+	const commentCount = engageAction.stat?.commentCount ?? 0
 	const commentLabel =
-		commentUnread > 0
-			? t('Comments ({{total}}, {{unread}} unread)', {
-					total: commentTotal,
-					unread: commentUnread
-				})
-			: t('Comments ({{total}})', { total: commentTotal })
+		commentCount > 0
+			? commentUnread
+				? t('Comments ({{count}}, unread)', { count: commentCount })
+				: t('Comments ({{count}})', { count: commentCount })
+			: t('Comments')
 	const repostCount = engageAction.stat?.reposts ?? 0
 
 	return (
@@ -725,7 +774,7 @@ function Post({
 							aria-label={commentLabel}
 							title={commentLabel}
 						>
-							<CommentBadge total={commentTotal} unread={commentUnread} />
+							<CommentBadge count={commentCount} unread={commentUnread} />
 						</Button>
 						{!!engageAction.stat?.reactions &&
 							(() => {
@@ -784,6 +833,7 @@ function Post({
 				<Comments
 					parentAction={engageAction}
 					onCommentsRead={onCommentsRead}
+					onCommentAdded={onCommentAdded}
 					className="mt-1"
 				/>
 			)}
@@ -885,7 +935,14 @@ export function ComposeTrigger({ className, onOpen }: ComposeTriggerProps) {
 	)
 }
 
-export type SourceFilter = 'all' | 'mine' | 'direct' | 'people' | 'communities' | 'public'
+export type SourceFilter =
+	| 'all'
+	| 'mine'
+	| 'direct'
+	| 'people'
+	| 'communities'
+	| 'public'
+	| 'following'
 
 interface SourceOption {
 	value: SourceFilter
@@ -901,17 +958,21 @@ function getSourceFilters(t: TFunction, isOwnContext: boolean): SourceOption[] {
 			{ value: 'direct', label: t('Direct'), icon: IcDirect },
 			{ value: 'people', label: t('People'), icon: IcPeople },
 			{ value: 'communities', label: t('Communities'), icon: IcCommunities },
-			{ value: 'public', label: t('Public'), icon: IcPublic }
+			{ value: 'public', label: t('Public'), icon: IcPublic },
+			{ value: 'following', label: t('Following'), icon: IcFollowing }
 		]
 	}
 	return [
 		{ value: 'all', label: t('All'), icon: IcAll },
-		{ value: 'mine', label: t('Mine'), icon: IcMine }
+		{ value: 'mine', label: t('Mine'), icon: IcMine },
+		{ value: 'following', label: t('Following'), icon: IcFollowing }
 	]
 }
 
 interface FilterBarProps {
-	viewMode: 'feed' | 'drafts'
+	viewMode: 'unread' | 'feed' | 'drafts'
+	onViewSelect: (v: 'unread' | 'drafts') => void
+	ctxUnread: number
 	isOwnContext: boolean
 	sourceFilter: SourceFilter
 	onSourceChange: (source: SourceFilter) => void
@@ -927,6 +988,8 @@ interface FilterBarProps {
 
 const FilterBar = React.memo(function FilterBar({
 	viewMode,
+	onViewSelect,
+	ctxUnread,
 	isOwnContext,
 	sourceFilter,
 	onSourceChange,
@@ -958,8 +1021,6 @@ const FilterBar = React.memo(function FilterBar({
 		}
 	}, [])
 
-	if (viewMode === 'drafts') return null
-
 	const sourceOptions = getSourceFilters(t, isOwnContext)
 
 	return (
@@ -980,10 +1041,33 @@ const FilterBar = React.memo(function FilterBar({
 
 			<hr className="w-100" />
 
-			{/* Source filter */}
+			{/* Source filter — read-state view (Unread) + content sources */}
 			<ul className="c-nav vertical low">
 				<li className="c-nav-item">
 					<span className="c-nav-link text-muted">{t('Source')}</span>
+				</li>
+				{/* Unread is an all-source, read-state view. */}
+				<li>
+					<a
+						className={mergeClasses(
+							'c-nav-item ps-4',
+							viewMode === 'unread' && 'active'
+						)}
+						onClick={(e) => {
+							e.preventDefault()
+							onViewSelect('unread')
+						}}
+					>
+						<IcUnread />
+						{t('Unread')}
+						{ctxUnread > 0 && (
+							<span
+								className="c-badge dot accent ms-1"
+								role="status"
+								aria-label={t('New content')}
+							/>
+						)}
+					</a>
 				</li>
 				{sourceOptions.map((opt) => (
 					<React.Fragment key={opt.value}>
@@ -991,7 +1075,8 @@ const FilterBar = React.memo(function FilterBar({
 							<a
 								className={mergeClasses(
 									'c-nav-item ps-4',
-									sourceFilter === opt.value &&
+									viewMode === 'feed' &&
+										sourceFilter === opt.value &&
 										!(opt.value === 'communities' && narrowToCommunity) &&
 										'active'
 								)}
@@ -1001,10 +1086,11 @@ const FilterBar = React.memo(function FilterBar({
 								}}
 							>
 								<opt.icon />
-								{opt.label}
+								{opt.value === 'all' ? t('Feed') : opt.label}
 							</a>
 						</li>
 						{opt.value === 'communities' &&
+							viewMode === 'feed' &&
 							sourceFilter === 'communities' &&
 							communities.map((c) => (
 								<li key={c.idTag}>
@@ -1029,6 +1115,25 @@ const FilterBar = React.memo(function FilterBar({
 							))}
 					</React.Fragment>
 				))}
+				<li>
+					<hr className="w-100" />
+				</li>
+				{/* Drafts — separate composing view below the source list. */}
+				<li>
+					<a
+						className={mergeClasses(
+							'c-nav-item ps-4',
+							viewMode === 'drafts' && 'active'
+						)}
+						onClick={(e) => {
+							e.preventDefault()
+							onViewSelect('drafts')
+						}}
+					>
+						<IcDraft />
+						{t('Drafts')}
+					</a>
+				</li>
 			</ul>
 
 			{/* Tag cloud */}
@@ -1072,6 +1177,7 @@ interface SourceQueryParams {
 	visibility?: string | string[]
 	audience?: string
 	issuer?: string
+	subscribed?: boolean
 }
 
 function sourceToQuery(
@@ -1095,6 +1201,8 @@ function sourceToQuery(
 			return { audienceType: 'community', audience: narrowToCommunity }
 		case 'public':
 			return { visibility: 'P' }
+		case 'following':
+			return { subscribed: true }
 	}
 }
 
@@ -1105,7 +1213,7 @@ export function FeedApp() {
 	const [auth] = useAuth()
 	const contextIdTag = useCurrentContextIdTag()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
-	const [viewMode, setViewMode] = React.useState<'feed' | 'drafts'>('feed')
+	const [viewMode, setViewMode] = React.useState<'unread' | 'feed' | 'drafts'>('feed')
 	const [sourceFilter, setSourceFilter] = React.useState<SourceFilter>('all')
 	const [narrowToCommunity, setNarrowToCommunity] = React.useState<string | undefined>()
 	const [searchQuery, setSearchQuery] = React.useState<string | undefined>()
@@ -1121,10 +1229,30 @@ export function FeedApp() {
 	const [pendingQuote, setPendingQuote] = useAtom(pendingQuoteAtom)
 	const widthRef = React.useRef<HTMLDivElement>(null)
 	const [width, setWidth] = React.useState(0)
+	// The real scroll container (Fcd.Content's inner .c-fcd-content-scroll div),
+	// captured via callback ref so the read-marker primitives watch it instead of
+	// window (the Fcd tree is h-100, so window never scrolls).
+	const [scrollEl, setScrollEl] = React.useState<HTMLDivElement | null>(null)
 
 	// Determine audience for feed (undefined for own context, contextIdTag for community)
 	const isOwnContext = !contextIdTag || contextIdTag === auth?.idTag
 	const audience = isOwnContext ? undefined : contextIdTag
+	// All feeds — home, community, profile — order and track reads by ingestion
+	// time (received_at) so a late-federated post (old author time, recent
+	// arrival) surfaces at the top and is correctly unread everywhere, not just
+	// on the home feed. The backend wires `sort=received` end-to-end (list,
+	// keyset cursor, created_after range, unread-count).
+
+	// Home feed only: idTags of communities the reader opted out of home ("Show
+	// in Home" off). Used to drop their live WS arrivals (paginated fetches are
+	// already filtered server-side by `exclude_audiences`). Undefined elsewhere.
+	const hiddenHomeAudiences = React.useMemo(
+		() =>
+			isOwnContext
+				? new Set(communities.filter((c) => c.showInHome === false).map((c) => c.idTag))
+				: undefined,
+		[isOwnContext, communities]
+	)
 
 	// Reset source filter when switching context (e.g. don't carry 'communities'
 	// into a community context where it's invalid).
@@ -1132,6 +1260,84 @@ export function FeedApp() {
 		setSourceFilter('all')
 		setNarrowToCommunity(undefined)
 	}, [contextIdTag])
+
+	// Feed read-position watermark for this context (Pillar A). The watermark is
+	// seeded from the context profile's feedReadAt by the global probe (which
+	// already fetches every context's profile at the layout level), so FeedApp no
+	// longer re-fetches it here — it just reads readPositionAtom via useReadMarker.
+	// Each surface has ONE fully-independent watermark: home/personal feeds key off
+	// the own idTag; community/profile contexts key off their contextIdTag. Reading
+	// in home never advances a community marker and vice versa. `contextIdTag`
+	// already resolves to the own idTag for home, but fall back explicitly.
+	const ownIdTag = auth?.idTag ?? ''
+	const feedScopeKey = `feed:${contextIdTag || ownIdTag || ''}`
+	const { readPosition, advanceTo, markReadNow } = useReadMarker(feedScopeKey)
+	const unreadCounts = useAtomValue(unreadCountAtom)
+	const setUnreadCounts = useSetAtom(unreadCountAtom)
+	const ctxKey = contextIdTag ?? ''
+	const ctxUnread = unreadCounts[ctxKey] ?? 0
+	// The probe marks an entity ready once its profile has been fetched and the
+	// watermark seeded; bootstrap waits on this so it can distinguish "server
+	// confirmed no watermark" from "still loading".
+	const seedReady = useAtomValue(feedSeedLoadedAtom)[ctxKey] ?? false
+
+	// First-run bootstrap: nothing ever seeds the very first watermark, so a fresh
+	// context would have feedReadAt = null → since = 0 → no unread is ever counted
+	// and the Unread tab can never be scrolled to advance it (chicken-and-egg).
+	// Once the probe confirms no watermark (seedReady && readPosition === 0), seed
+	// it to a week ago so recent posts surface as unread and a real marker gets
+	// persisted.
+	const bootstrapRef = React.useRef<string | null>(null)
+	React.useEffect(() => {
+		const ctx = contextIdTag ?? ''
+		if (!ctx) return
+		if (!seedReady) return // probe result still loading
+		if (bootstrapRef.current === ctx) return // already handled this context
+		bootstrapRef.current = ctx
+		if (readPosition > 0) return // already has a watermark
+		advanceTo(nowSeconds() - INITIAL_UNREAD_WINDOW_SEC)
+	}, [contextIdTag, seedReady, readPosition, advanceTo])
+
+	// One-shot auto-select of the Unread tab per context. It waits until the
+	// watermark and a probe result are both in hand (both load asynchronously),
+	// then switches feed→unread exactly once; never yanks the user afterwards.
+	const viewModeSetRef = React.useRef<string | null>(null)
+	// Set once the user manually changes the view (tab/source); suppresses the
+	// one-shot auto-switch so a manual click during the async load isn't yanked.
+	const userTouchedViewRef = React.useRef(false)
+	React.useEffect(() => {
+		viewModeSetRef.current = null
+		userTouchedViewRef.current = false
+	}, [contextIdTag])
+	React.useEffect(() => {
+		if (userTouchedViewRef.current) return
+		if (viewModeSetRef.current === ctxKey) return
+		if (readPosition > 0 && ctxUnread > 0) {
+			viewModeSetRef.current = ctxKey
+			setViewMode((m) => (m === 'feed' ? 'unread' : m))
+		}
+	}, [ctxKey, readPosition, ctxUnread])
+
+	// Snapshot the watermark when the Unread tab opens. The list is fetched from
+	// this fixed boundary, while reading advances the live `readPosition` (which
+	// drives the dot) — so the list doesn't refetch and reshuffle under the user
+	// as they read. Re-snapshots on re-entry (showing only newly-unread) and on
+	// context switch.
+	const [unreadSince, setUnreadSince] = React.useState(0)
+	React.useEffect(() => {
+		setUnreadSince(0)
+	}, [contextIdTag])
+	React.useEffect(() => {
+		if (viewMode !== 'unread') {
+			if (unreadSince !== 0) setUnreadSince(0)
+			return
+		}
+		if (unreadSince === 0 && readPosition > 0) {
+			// Freeze the boundary at entry so reads done WHILE scrolling this tab
+			// don't reshuffle the pinned list (the list is fetched from `since`).
+			setUnreadSince(readPosition)
+		}
+	}, [viewMode, readPosition, unreadSince])
 
 	// Map the source filter into backend query parameters.
 	const sourceQuery = React.useMemo(
@@ -1163,7 +1369,79 @@ export function FeedApp() {
 		search: searchQuery,
 		visibility: sourceQuery.visibility,
 		issuer: sourceQuery.issuer,
+		subscribed: sourceQuery.subscribed,
+		sort: 'received',
+		hiddenAudiences: hiddenHomeAudiences,
 		enabled: !!api?.idTag
+	})
+
+	// Unread (chronological, oldest-first) feed for the Unread tab.
+	const {
+		posts: unreadPosts,
+		isLoading: isUnreadLoading,
+		isLoadingMore: isUnreadLoadingMore,
+		error: unreadError,
+		hasMore: unreadHasMore,
+		loadMore: loadMoreUnread,
+		sentinelRef: unreadSentinelRef
+	} = useUnreadPosts({
+		since: unreadSince,
+		audience: effectiveAudience,
+		audienceType: sourceQuery.audienceType,
+		tag: tagFilter,
+		search: searchQuery,
+		visibility: sourceQuery.visibility,
+		issuer: sourceQuery.issuer,
+		sort: 'received',
+		hiddenAudiences: hiddenHomeAudiences,
+		enabled: !!api?.idTag && viewMode === 'unread' && unreadSince > 0
+	})
+
+	// Scroll-engagement gates: the watermark only advances after the user has
+	// actively scrolled down once (never from passively landing on the view).
+	const { engagedRef: unreadEngagedRef, reset: resetUnreadEngaged } = useScrollEngaged(
+		viewMode === 'unread',
+		scrollEl
+	)
+	// Re-arm the gate on context switch (the view may stay mounted across it).
+	React.useEffect(() => {
+		resetUnreadEngaged()
+	}, [contextIdTag, resetUnreadEngaged])
+
+	// A post is read iff its received-time is at/below this context's single
+	// watermark. Each surface (home + each community) has one fully-independent
+	// marker — `readPosition` IS the home watermark on home, the community marker in
+	// a community context — so no cross-scope reconciliation is needed.
+	const isRead = React.useCallback(
+		(post: ActionView) => {
+			// The reader's own posts are always "read" — never surface your own
+			// content as unread (dot / divider / "Caught up").
+			if (ownIdTag && post.issuer?.idTag === ownIdTag) return true
+			return feedReadTs(post) <= readPosition
+		},
+		[ownIdTag, readPosition]
+	)
+
+	// Unread list (oldest→newest): advance the watermark as posts scroll off the
+	// TOP of the viewport, gated by the engagement flag so merely landing on a
+	// view never advances it.
+	const { register: registerReadTracker } = useReadPositionTracker({
+		enabled: viewMode === 'unread',
+		onReach: advanceTo,
+		mode: 'above',
+		engagedRef: unreadEngagedRef,
+		root: scrollEl
+	})
+	// Feed list (newest→oldest): advance the watermark one post at a time as the
+	// user scrolls UP and each new post scrolls fully out the BOTTOM edge. Scrolling
+	// down to the divider pushes posts off the top (not counted), so the marker
+	// never jumps to newest on a small nudge. No engagement gate needed — only an
+	// upward scroll can move a previously-seen post out the bottom.
+	const { register: registerFeedTracker } = useReadPositionTracker({
+		enabled: viewMode === 'feed',
+		onReach: advanceTo,
+		mode: 'below',
+		root: scrollEl
 	})
 
 	// Extract hashtags from loaded feed posts for tag cloud
@@ -1231,16 +1509,19 @@ export function FeedApp() {
 			const tStatContent = T.struct({
 				r: T.optional(T.string),
 				c: T.optional(T.number),
+				ct: T.optional(T.number),
 				rp: T.optional(T.number)
 			})
 			const contentRes = T.decode(tStatContent, action.content)
 			if (!T.isOk(contentRes)) return
 			const content = contentRes.ok
-			// Write only count fields to the engaged-id overlay, keyed directly
+			// Write only federated fields to the engaged-id overlay, keyed directly
 			// by parentId (no feed lookup — the engaged action may only exist
 			// nested as a repost's subjectAction, never as a top-level entry).
-			// Never touch ownReaction/commentsRead/ownRepostIds, so optimistic
-			// per-user fields under the same key survive an incoming STAT.
+			// `c` is the comment count; `ct` is the last-comment timestamp (overlaid
+			// as lastCommentAt so the dot updates live). Never touch
+			// ownReaction/commentsReadAt/ownRepostIds, so optimistic per-user fields
+			// under the same key survive an incoming STAT.
 			setStatOverlay((prev) => {
 				const parentId = action.parentId!
 				return {
@@ -1248,7 +1529,8 @@ export function FeedApp() {
 					[parentId]: {
 						...(prev[parentId] ?? {}),
 						reactions: content.r,
-						comments: content.c,
+						commentCount: content.c,
+						lastCommentAt: content.ct,
 						reposts: content.rp
 					}
 				}
@@ -1313,9 +1595,9 @@ export function FeedApp() {
 
 	// Merge feed posts with local updates, filtering out deleted posts.
 	// The engaged-id stat overlay is layered onto every occurrence of an id in
-	// the tree (top-level post AND a repost's subjectAction), merging count
-	// fields while preserving per-user fields (ownReaction/commentsRead/
-	// ownRepostIds) that a pure STAT count update doesn't carry. The POST
+	// the tree (top-level post AND a repost's subjectAction), merging federated
+	// fields while preserving per-user fields (ownReaction/commentsReadAt/
+	// ownRepostIds) that a pure STAT update doesn't carry. The POST
 	// branch of `feedUpdates` carries only attachment/subType overlays.
 	const mergedFeed = React.useMemo(() => {
 		// Layer the engaged-id stat overlay onto one action.
@@ -1342,6 +1624,66 @@ export function FeedApp() {
 				return withSelf as ActionEvt
 			})
 	}, [feed, feedUpdates, statOverlay, deletedIds])
+
+	// Divider position: the top of the contiguous fully-read TAIL. The reader's own
+	// posts are force-read (issuer === ownIdTag short-circuit) and can sit read
+	// interleaved among unread posts, so a naive "first read post from the top"
+	// boundary mis-positions. Walk newest→oldest and find where the all-read suffix
+	// begins: everything below the divider is guaranteed read; everything above
+	// contains all the unread (plus possibly a few force-read own posts interleaved).
+	const dividerIndex = React.useMemo(() => {
+		let divider = mergedFeed.length
+		for (let i = mergedFeed.length - 1; i >= 0; i--) {
+			if (isRead(mergedFeed[i])) divider = i
+			else break
+		}
+		// 0 = everything read (nothing unread above) or length = no read tail:
+		// neither is a real mid-list boundary.
+		return divider === 0 || divider === mergedFeed.length ? -1 : divider
+	}, [mergedFeed, isRead])
+
+	// True when any currently-loaded feed post is still unread by this context's
+	// watermark — keeps the "Caught up" pill in sync with the divider.
+	const hasUnreadLoaded = React.useMemo(
+		() => mergedFeed.some((p) => !isRead(p)),
+		[mergedFeed, isRead]
+	)
+
+	// Newest post timestamp currently loaded in the active feed view.
+	const newestLoadedTs = React.useMemo(() => {
+		const list = viewMode === 'unread' ? unreadPosts : mergedFeed
+		let newest = 0
+		for (const p of list) {
+			const ts = feedReadTs(p)
+			if (ts > newest) newest = ts
+		}
+		return newest
+	}, [viewMode, unreadPosts, mergedFeed])
+
+	// Explicit "mark everything loaded as read" — wired to the bottom-of-Unread
+	// button and the top-of-Feed "Caught up" pill. Advances only THIS context's
+	// watermark (home advances home; a community advances that community — fully
+	// independent) and optimistically clears its unread dot (the global probe's
+	// `since` lags until the marker persists).
+	const markAllRead = React.useCallback(() => {
+		if (newestLoadedTs <= 0) return
+		// Explicit user action: persist the watermark immediately (forced write,
+		// not subject to the throttle or the forward-only write-skip) and clear
+		// the dot. Re-snapshot the Unread boundary so the now-read posts clear to
+		// the "all caught up" empty state instead of lingering on the pinned list.
+		markReadNow(newestLoadedTs)
+		setUnreadCounts((prev) => (prev[ctxKey] ? { ...prev, [ctxKey]: 0 } : prev))
+		if (viewMode === 'unread') setUnreadSince(newestLoadedTs)
+	}, [newestLoadedTs, markReadNow, setUnreadCounts, ctxKey, viewMode])
+
+	// Optimistic dot clear: as scroll-driven reading advances the watermark to (or
+	// past) the newest loaded post, drop the context's unread count to 0 so the
+	// nav/sidebar dot disappears immediately instead of waiting for the next probe.
+	React.useEffect(() => {
+		if (newestLoadedTs > 0 && readPosition >= newestLoadedTs) {
+			setUnreadCounts((prev) => (prev[ctxKey] ? { ...prev, [ctxKey]: 0 } : prev))
+		}
+	}, [readPosition, newestLoadedTs, ctxKey, setUnreadCounts])
 
 	const onSubmit = React.useCallback(
 		function onSubmit(action: ActionEvt) {
@@ -1405,9 +1747,15 @@ export function FeedApp() {
 		setQuoteTarget(undefined)
 	}
 
-	function handleViewModeChange(mode: string) {
-		setViewMode(mode as 'feed' | 'drafts')
-		if (mode === 'drafts') {
+	function handleViewSelect(v: 'unread' | 'drafts') {
+		userTouchedViewRef.current = true
+		if (v === 'unread') {
+			// Unread is an all-source, read-state view.
+			setViewMode('unread')
+			setSourceFilter('all')
+			setNarrowToCommunity(undefined)
+		} else {
+			setViewMode('drafts')
 			setComposeOpen(false)
 			setEditingDraft(undefined)
 		}
@@ -1430,9 +1778,13 @@ export function FeedApp() {
 				{!!auth && (
 					<FilterBar
 						viewMode={viewMode}
+						onViewSelect={handleViewSelect}
+						ctxUnread={ctxUnread}
 						isOwnContext={isOwnContext}
 						sourceFilter={sourceFilter}
 						onSourceChange={(s) => {
+							userTouchedViewRef.current = true
+							setViewMode('feed')
 							setSourceFilter(s)
 							setNarrowToCommunity(undefined)
 						}}
@@ -1448,6 +1800,7 @@ export function FeedApp() {
 				)}
 			</Fcd.Filter>
 			<Fcd.Content
+				ref={setScrollEl}
 				header={
 					<div className="c-hbox align-items-center g-2 p-2">
 						<Button
@@ -1457,18 +1810,6 @@ export function FeedApp() {
 						>
 							<IcFilter />
 						</Button>
-						{!!auth && (
-							<Tabs value={viewMode} onTabChange={handleViewModeChange}>
-								<Tab value="feed">
-									<IcAll className="me-1" />
-									{t('Feed')}
-								</Tab>
-								<Tab value="drafts">
-									<IcDraft className="me-1" />
-									{t('Drafts')}
-								</Tab>
-							</Tabs>
-						)}
 					</div>
 				}
 			>
@@ -1489,6 +1830,60 @@ export function FeedApp() {
 						audiencePicker
 						className="col"
 					/>
+				)}
+				{!composeOpen && viewMode === 'unread' && (
+					<div ref={widthRef} className="c-vbox g-1">
+						{isUnreadLoading && unreadPosts.length === 0 ? (
+							<div className="c-vbox g-2 p-2">
+								<SkeletonCard showAvatar lines={3} />
+								<SkeletonCard showAvatar showImage lines={2} />
+							</div>
+						) : unreadPosts.length === 0 && !unreadHasMore ? (
+							<EmptyState
+								icon={<IcAll style={{ fontSize: '2.5rem' }} />}
+								title={t("You're all caught up.")}
+								description={t('No new posts since your last visit.')}
+							/>
+						) : (
+							<>
+								{unreadPosts.map((post) => (
+									<div
+										key={post.actionId}
+										ref={registerReadTracker}
+										data-read-ts={feedReadTs(post)}
+									>
+										<ActionComp
+											action={post}
+											onPatchStat={patchStat}
+											onDelete={onDelete}
+											hideAudience={
+												!isOwnContext ? contextIdTag : narrowToCommunity
+											}
+											width={width}
+											onQuote={handleQuote}
+										/>
+									</div>
+								))}
+								<LoadMoreTrigger
+									ref={unreadSentinelRef}
+									isLoading={isUnreadLoadingMore}
+									hasMore={unreadHasMore}
+									error={unreadError}
+									onRetry={loadMoreUnread}
+									loadingLabel={t('Loading more posts...')}
+									retryLabel={t('Retry')}
+									errorPrefix={t('Failed to load:')}
+								/>
+								{!unreadHasMore && (
+									<div className="c-hbox justify-content-center p-2">
+										<Button variant="primary" onClick={markAllRead}>
+											{t('Mark all as read')}
+										</Button>
+									</div>
+								)}
+							</>
+						)}
+					</div>
 				)}
 				{!composeOpen && viewMode === 'drafts' && (
 					<DraftsPanel onEdit={handleEditDraft} onPublished={handleDraftPublished} />
@@ -1528,18 +1923,35 @@ export function FeedApp() {
 							/>
 						) : (
 							<>
-								{mergedFeed.map((action) => (
-									<ActionComp
-										key={action.actionId}
-										action={action}
-										onPatchStat={patchStat}
-										onDelete={onDelete}
-										hideAudience={
-											!isOwnContext ? contextIdTag : narrowToCommunity
-										}
-										width={width}
-										onQuote={handleQuote}
-									/>
+								{(dividerIndex > 0 || hasUnreadLoaded) && (
+									<div className="c-hbox justify-content-center pb-1">
+										<Button kind="link" variant="primary" onClick={markAllRead}>
+											{t('Caught up')} ✓
+										</Button>
+									</div>
+								)}
+								{mergedFeed.map((action, i) => (
+									<React.Fragment key={action.actionId}>
+										{/* Suppress the divider at index 0 (nothing unread above
+										    it) and at -1 (no in-list boundary: all read or all
+										    unread); only render it as a real mid-list boundary. */}
+										{i === dividerIndex && i > 0 && <ReadDivider />}
+										<div
+											ref={registerFeedTracker}
+											data-read-ts={feedReadTs(action)}
+										>
+											<ActionComp
+												action={action}
+												onPatchStat={patchStat}
+												onDelete={onDelete}
+												hideAudience={
+													!isOwnContext ? contextIdTag : narrowToCommunity
+												}
+												width={width}
+												onQuote={handleQuote}
+											/>
+										</div>
+									</React.Fragment>
 								))}
 								<LoadMoreTrigger
 									ref={sentinelRef}

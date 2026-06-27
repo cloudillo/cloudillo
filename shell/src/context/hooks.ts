@@ -39,6 +39,7 @@ import {
 	type ContextSwitchEvent,
 	type ContextToken
 } from './types'
+import { seedCommunityFromHome } from '../read-position.js'
 
 /**
  * Fetch `idp.enabled` for a given context and write it into
@@ -413,6 +414,7 @@ export function useCommunitiesList() {
 	const [favoriteCommunities] = useAtom(favoriteCommunitiesAtom)
 	const [recentCommunities] = useAtom(recentCommunitiesAtom)
 	const [totalUnread] = useAtom(totalUnreadCountAtom)
+	const store = useStore()
 	const [isLoading, setIsLoading] = React.useState(false)
 	const [error, setError] = React.useState<Error | undefined>()
 
@@ -473,6 +475,9 @@ export function useCommunitiesList() {
 						profilePic: profile.profilePic,
 						// Preserve existing metadata if available
 						isFavorite: existing?.isFavorite || false,
+						// Composition: default true (shown). `hidden_in_home` is
+						// NULL/absent for shown communities, true only when opted out.
+						showInHome: profile.hiddenInHome !== true,
 						unreadCount: existing?.unreadCount || 0,
 						lastActivityAt: existing?.lastActivityAt || null,
 						// Backend reports connected === true here, so the community is no longer
@@ -524,6 +529,32 @@ export function useCommunitiesList() {
 	 * Refresh communities list from backend (alias for loadCommunities)
 	 */
 	const refresh = loadCommunities
+
+	/**
+	 * Toggle whether a community's posts appear in the merged home feed.
+	 * Optimistically updates the atom, then persists via the profile PATCH
+	 * endpoint (rolling back on failure).
+	 */
+	const setShowInHome = React.useCallback(
+		(idTag: string, value: boolean) => {
+			setCommunities((prev) =>
+				prev.map((c) => (c.idTag === idTag ? { ...c, showInHome: value } : c))
+			)
+			// shown→hidden: the community gets its own sidebar dot now. Seed its local
+			// watermark forward-only from the Home watermark so the dot only flags
+			// posts newer than what Home already surfaced (persisted, survives reload).
+			if (value === false && auth?.idTag) {
+				seedCommunityFromHome(store, api, idTag, auth.idTag)
+			}
+			api?.profiles.setShowInHome(idTag, value).catch((err) => {
+				console.error('Failed to update Show in Home', err)
+				setCommunities((prev) =>
+					prev.map((c) => (c.idTag === idTag ? { ...c, showInHome: !value } : c))
+				)
+			})
+		},
+		[api, setCommunities, store, auth?.idTag]
+	)
 
 	/**
 	 * Toggle pinned status of a community (with backend sync)
@@ -590,10 +621,16 @@ export function useCommunitiesList() {
 	 * Add a newly created community (potentially pending DNS propagation)
 	 */
 	const addPendingCommunity = React.useCallback(
-		(community: Omit<CommunityRef, 'unreadCount' | 'lastActivityAt' | 'isFavorite'>) => {
+		(
+			community: Omit<
+				CommunityRef,
+				'unreadCount' | 'lastActivityAt' | 'isFavorite' | 'showInHome'
+			>
+		) => {
 			const newCommunity: CommunityRef = {
 				...community,
 				isFavorite: false,
+				showInHome: true,
 				unreadCount: 0,
 				lastActivityAt: new Date(),
 				pendingSince: community.isPending ? new Date() : undefined,
@@ -623,6 +660,7 @@ export function useCommunitiesList() {
 		loadCommunities,
 		toggleFavorite,
 		reorderFavorites,
+		setShowInHome,
 		addCommunity,
 		removeCommunity,
 		addPendingCommunity

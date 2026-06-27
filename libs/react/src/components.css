@@ -277,10 +277,16 @@
 }
 
 /* ==========================================================================
-   Comment badge — icon with total count inside + unread red-dot badge
+   Comment badge — message icon + total count + unread dot
    ========================================================================== */
 
 .c-comment-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+}
+
+.c-comment-badge-icon {
 	position: relative;
 	display: inline-flex;
 	align-items: center;
@@ -288,6 +294,13 @@
 	width: 1.75rem;
 	height: 1.75rem;
 	line-height: 1;
+}
+
+.c-comment-badge-unread {
+	position: absolute;
+	top: -0.2rem;
+	right: -0.25rem;
+	box-shadow: 0 0 0 2px var(--col-surface);
 }
 
 .c-comment-badge-count {
@@ -301,24 +314,8 @@
 	pointer-events: none;
 }
 
-.c-comment-badge-unread {
-	position: absolute;
-	top: -0.45rem;
-	right: -0.55rem;
-	min-width: 1rem;
-	height: 1rem;
-	padding: 0 0.25rem;
-	border-radius: 999px;
-	background: var(--col-primary);
-	color: var(--col-on-primary, #fff);
-	font-size: 0.65rem;
-	font-weight: 700;
-	line-height: 1rem;
-	text-align: center;
-	box-shadow: 0 0 0 2px var(--col-surface);
-}
-
-.c-comment-badge-btn.active .c-comment-badge svg {
+.c-comment-badge-btn.active .c-comment-badge svg,
+.c-comment-badge-btn.active .c-comment-badge-count {
 	color: var(--col-accent);
 }
 

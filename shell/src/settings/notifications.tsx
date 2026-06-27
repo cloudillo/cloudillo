@@ -233,16 +233,6 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 						/>
 					</label>
 					<label className="c-settings-field ms-2">
-						<span>{t('Notify when you are mentioned')}</span>
-						<input
-							className="c-toggle"
-							name="notify.push.mention"
-							type="checkbox"
-							checked={!!settings['notify.push.mention']}
-							onChange={onSettingChange}
-						/>
-					</label>
-					<label className="c-settings-field ms-2">
 						<span>{t('Notify on new posts from people you follow')}</span>
 						<input
 							className="c-toggle"
@@ -268,6 +258,13 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 
 			{!!settings['notify.email'] && (
 				<>
+					<p className="text-muted ms-2">
+						{t(
+							'While you’re away, we email you about the first item in each group, then pause for a day so your inbox stays calm.'
+						)}
+					</p>
+
+					<h5 className="ms-2 mt-2">{t('Direct')}</h5>
 					<label className="c-settings-field ms-2">
 						<span>{t('Notify on direct messages')}</span>
 						<input
@@ -298,16 +295,8 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 							onChange={onSettingChange}
 						/>
 					</label>
-					<label className="c-settings-field ms-2">
-						<span>{t('Notify when someone follows you')}</span>
-						<input
-							className="c-toggle"
-							name="notify.email.follow"
-							type="checkbox"
-							checked={!!settings['notify.email.follow']}
-							onChange={onSettingChange}
-						/>
-					</label>
+
+					<h5 className="ms-2 mt-2">{t('Engagement')}</h5>
 					<label className="c-settings-field ms-2">
 						<span>{t('Notify on comments to your posts')}</span>
 						<input
@@ -328,13 +317,15 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 							onChange={onSettingChange}
 						/>
 					</label>
+
+					<h5 className="ms-2 mt-2">{t('Social')}</h5>
 					<label className="c-settings-field ms-2">
-						<span>{t('Notify when you are mentioned')}</span>
+						<span>{t('Notify when someone follows you')}</span>
 						<input
 							className="c-toggle"
-							name="notify.email.mention"
+							name="notify.email.follow"
 							type="checkbox"
-							checked={!!settings['notify.email.mention']}
+							checked={!!settings['notify.email.follow']}
 							onChange={onSettingChange}
 						/>
 					</label>
@@ -507,15 +498,6 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 							type="checkbox"
 							checked={!!localSettings['toast.reaction']}
 							onChange={(e) => updateSetting('toast.reaction', e.target.checked)}
-						/>
-					</label>
-					<label className="c-settings-field ms-2">
-						<span>{t('Mentions')}</span>
-						<input
-							className="c-toggle"
-							type="checkbox"
-							checked={!!localSettings['toast.mention']}
-							onChange={(e) => updateSetting('toast.mention', e.target.checked)}
 						/>
 					</label>
 					<label className="c-settings-field ms-2">

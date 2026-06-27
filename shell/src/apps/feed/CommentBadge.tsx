@@ -5,18 +5,19 @@ import * as React from 'react'
 import { LuMessageSquare } from 'react-icons/lu'
 
 interface CommentBadgeProps {
-	total: number
-	unread: number
+	count: number
+	unread: boolean
 }
 
-export function CommentBadge({ total, unread }: CommentBadgeProps) {
-	const totalLabel = total > 99 ? '99+' : String(total)
-	const unreadLabel = unread > 9 ? '9+' : String(unread)
+export function CommentBadge({ count, unread }: CommentBadgeProps) {
+	const countLabel = count > 99 ? '99+' : String(count)
 	return (
 		<span className="c-comment-badge" aria-hidden>
-			<LuMessageSquare size={28} />
-			{total > 0 && <span className="c-comment-badge-count">{totalLabel}</span>}
-			{unread > 0 && <span className="c-comment-badge-unread">{unreadLabel}</span>}
+			<span className="c-comment-badge-icon">
+				<LuMessageSquare size={28} />
+				{count > 0 && <span className="c-comment-badge-count">{countLabel}</span>}
+				{unread && <span className="c-badge dot accent c-comment-badge-unread" />}
+			</span>
 		</span>
 	)
 }

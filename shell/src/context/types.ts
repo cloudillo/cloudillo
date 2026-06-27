@@ -53,6 +53,13 @@ export interface CommunityRef {
 	/** Whether this community is favorited/pinned */
 	isFavorite: boolean
 
+	/**
+	 * Whether this community's posts appear in the merged home feed.
+	 * Defaults to true; false opts the community out of home (shown only in its
+	 * own feed). Backed by `profiles.hidden_in_home` (NULL = shown, 1 = hidden).
+	 */
+	showInHome: boolean
+
 	/** Number of unread notifications in this community */
 	unreadCount: number
 

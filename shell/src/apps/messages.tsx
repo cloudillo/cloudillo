@@ -50,6 +50,7 @@ import '@cloudillo/react/components.css'
 
 import { AttachmentPreview } from '../components/AttachmentPreview.js'
 import { HOME_CONTEXT, useUrlContextIdTag } from '../context/index.js'
+import { createdAtToSeconds, useReadMarker } from '../read-position.js'
 import { useImageUpload } from '../hooks/useImageUpload.js'
 import { ImageUpload } from '../image.js'
 import { handleEditablePaste } from '../utils/editablePaste.js'
@@ -848,6 +849,11 @@ export function MessagesApp() {
 	const [conversation, setConversation] = React.useState<Conversation | undefined>()
 	const [members, setMembers] = React.useState<ConversationMember[] | undefined>()
 	const [msg, setMsg] = React.useState<ActionEvt[] | undefined>()
+	// DM read watermark (Pillar G): key = peer idTag → profiles.msg_read_at.
+	// Seeded from the loaded peer profile's msgReadAt; advanced (forward-only,
+	// persisted via PUT /read-marker) once the conversation's messages load.
+	const [msgReadSeed, setMsgReadSeed] = React.useState<number | undefined>()
+	const { advanceTo: advanceMsgTo } = useReadMarker(`msg:${convId ?? ''}`, msgReadSeed)
 	const [_text, _setText] = React.useState('')
 	const convRef = React.useRef<HTMLDivElement>(null)
 	const [scrollBottom, setScrollBottom] = React.useState(true)
@@ -1006,6 +1012,7 @@ export function MessagesApp() {
 		function loadMessages() {
 			setShowFilter(!convId)
 			setMsg(undefined)
+			setMsgReadSeed(undefined)
 			setConversation(undefined)
 			setMembers(undefined)
 			if (!auth || !convId || !api) return
@@ -1083,16 +1090,21 @@ export function MessagesApp() {
 								type: 'MSG',
 								parentId: convId
 							})
-							setMsg(
-								(actions as ActionEvt[]).sort(
-									(a, b) => dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix()
-								)
+							const sorted = (actions as ActionEvt[]).sort(
+								(a, b) => dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix()
 							)
+							setMsg(sorted)
+							// Groups don't use profiles.msg_read_at; seed at 0.
+							// No read-marker write here: PUT /read-marker keys on a
+							// per-peer column, so a group id has no consumer.
+							setMsgReadSeed(0)
 						}
 					} else {
 						// Load direct conversation
 						const profile = await api.profiles.get(convId)
 						const profiles = profile ? [profile] : []
+						// Seed the DM watermark from the peer's profiles.msg_read_at.
+						setMsgReadSeed(createdAtToSeconds(profile?.msgReadAt))
 
 						setConversation({
 							id: convId,
@@ -1105,11 +1117,12 @@ export function MessagesApp() {
 							involved: convId,
 							type: 'MSG'
 						})
-						setMsg(
-							(actions as ActionEvt[]).sort(
-								(a, b) => dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix()
-							)
+						const sorted = (actions as ActionEvt[]).sort(
+							(a, b) => dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix()
 						)
+						setMsg(sorted)
+						const lastDm = sorted[sorted.length - 1]
+						if (lastDm) advanceMsgTo(createdAtToSeconds(lastDm.createdAt))
 					}
 				} catch (err) {
 					console.error('Failed to load messages', err)
@@ -1117,7 +1130,7 @@ export function MessagesApp() {
 				}
 			})()
 		},
-		[auth, convId, api]
+		[auth, convId, api, advanceMsgTo]
 	)
 
 	// Load available profiles for group creation or invite (excluding self and existing members)

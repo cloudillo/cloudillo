@@ -12,17 +12,20 @@ export interface NotificationState {
 
 const notificationAtom = atom<NotificationState>({ notifications: [] })
 
-export function useNotifications() {
+export function useNotifications(status: string[] = ['C', 'N']) {
 	const { api } = useApi()
 	const [notifications, setNotifications] = useAtom(notificationAtom)
+	// Key the loader on the joined status so the default array's fresh identity
+	// each render doesn't churn the callback / trigger refetch loops.
+	const statusKey = status.join(',')
 
 	const loadNotifications = React.useCallback(
 		async function () {
 			if (!api) return
-			const actions = await api.actions.list({ status: ['C', 'N'] })
+			const actions = await api.actions.list({ status: statusKey.split(',') })
 			setNotifications({ notifications: actions })
 		},
-		[api, setNotifications]
+		[api, setNotifications, statusKey]
 	)
 
 	const dismissNotification = React.useCallback(
@@ -82,10 +85,11 @@ export function useNotifications() {
 		async function () {
 			if (!api) return
 			let toDismiss: typeof notifications.notifications = []
-			// Keep only 'C' items in state, capture fresh toDismiss list
+			// Dismiss only 'N' (unread/awaiting-ack) items; keep actionable ('C')
+			// and historical ('A') items in state. Capture fresh toDismiss list.
 			setNotifications((n) => {
-				toDismiss = n.notifications.filter((a) => a.status !== 'C')
-				return { notifications: n.notifications.filter((a) => a.status === 'C') }
+				toDismiss = n.notifications.filter((a) => a.status === 'N')
+				return { notifications: n.notifications.filter((a) => a.status !== 'N') }
 			})
 			try {
 				await Promise.all(

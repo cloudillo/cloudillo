@@ -50,6 +50,7 @@ import { Link, NavLink, Route, Routes, useLocation, useNavigate } from 'react-ro
 
 import { version } from '../package.json'
 import { AppRoutes } from './apps'
+import { unreadCountAtom, useGlobalUnreadProbe } from './read-position.js'
 import { getFileIcon } from './apps/files/icons.js'
 import { SharedResourceView } from './apps/shared.js'
 import { AuthRoutes, loginInitAtom } from './auth/auth.js'
@@ -75,6 +76,7 @@ import {
 	useCommunitiesList,
 	useContextPath,
 	useContextTokenRenewal,
+	useCurrentContextIdTag,
 	useGuestDocument,
 	useProfileTrustBootstrap,
 	useSidebar,
@@ -141,6 +143,38 @@ function truncateFileName(name: string, maxLen: number = 12): string {
 	return name.substring(0, maxLen - 1) + '…'
 }
 
+interface MenuLinkItem {
+	id: string
+	icon?: React.ComponentType
+	label: string
+	trans?: Record<string, string>
+	path: string
+}
+
+// A nav link with a generic badge slot (content dot for the feed, numeric
+// unread for messages). Factored from the three duplicated NavLink render sites.
+function MenuLink({
+	menuItem,
+	className,
+	badge
+}: {
+	menuItem: MenuLinkItem
+	className?: string
+	badge?: React.ReactNode
+}) {
+	const { i18n } = useTranslation()
+	const { getContextPath } = useContextPath()
+	return (
+		<NavLink className={className} to={getContextPath(menuItem.path)}>
+			<span style={{ position: 'relative', display: 'inline-flex' }}>
+				{menuItem.icon && React.createElement(menuItem.icon)}
+				{badge}
+			</span>
+			<span className="c-nav-label">{menuItem.trans?.[i18n.language] || menuItem.label}</span>
+		</NavLink>
+	)
+}
+
 function Menu({
 	inert,
 	vertical,
@@ -150,15 +184,33 @@ function Menu({
 	vertical?: boolean
 	extraMenuPortal?: HTMLElement | null
 }) {
-	const { t, i18n } = useTranslation()
+	const { t } = useTranslation()
 	const location = useLocation()
 	const [appConfig, _setAppConfig] = useAppConfig()
 	const [auth, _setAuth] = useAuth()
 	const [moreMenuOpen, setMoreMenuOpen] = React.useState(false)
-	const { getContextPath } = useContextPath()
 	const sidebar = useSidebar()
 	const [guestDocument] = useGuestDocument()
 	const [, setQrScannerOpen] = useQrScanner()
+	// Real idTag (own idTag for the personal context) — matches the key the feed
+	// unread probe writes; useUrlContextIdTag would yield '~' for home and miss.
+	const menuContextIdTag = useCurrentContextIdTag()
+	const unreadCounts = useAtomValue(unreadCountAtom)
+
+	// Content-availability badge for a menu item: a dot for the feed when the
+	// active context has unread content (numeric message badges arrive in G).
+	function badgeFor(menuItem: MenuLinkItem): React.ReactNode {
+		if (menuItem.id === 'feed' && unreadCounts[menuContextIdTag ?? '']) {
+			return (
+				<span
+					className="c-badge dot accent positioned tr"
+					role="status"
+					aria-label={t('New content')}
+				/>
+			)
+		}
+		return undefined
+	}
 	const activeContext = useAtomValue(activeContextAtom)
 	const contextDisplay = useAtomValue(activeContextDisplayAtom)
 	const contextIdpEnabled = useAtomValue(contextIdpEnabledAtom)
@@ -236,16 +288,12 @@ function Menu({
 							className={mergeClasses('c-nav c-extra-menu', moreMenuOpen && 'open')}
 						>
 							{moreItems.map((menuItem) => (
-								<NavLink
+								<MenuLink
 									key={menuItem.id}
+									menuItem={menuItem}
 									className="c-nav-link h-small vertical"
-									to={getContextPath(menuItem.path)}
-								>
-									{menuItem.icon && React.createElement(menuItem.icon)}
-									<span className="c-nav-label">
-										{menuItem.trans?.[i18n.language] || menuItem.label}
-									</span>
-								</NavLink>
+									badge={badgeFor(menuItem)}
+								/>
 							))}
 							{auth && (
 								<Button
@@ -264,16 +312,12 @@ function Menu({
 					<div inert={inert} className="c-menu-ex flex-order-end">
 						<nav className={mergeClasses('c-nav', moreMenuOpen && 'open')}>
 							{moreItems.map((menuItem) => (
-								<NavLink
+								<MenuLink
 									key={menuItem.id}
+									menuItem={menuItem}
 									className="c-nav-link h-small vertical"
-									to={getContextPath(menuItem.path)}
-								>
-									{menuItem.icon && React.createElement(menuItem.icon)}
-									<span className="c-nav-label">
-										{menuItem.trans?.[i18n.language] || menuItem.label}
-									</span>
-								</NavLink>
+									badge={badgeFor(menuItem)}
+								/>
 							))}
 							{auth && (
 								<Button
@@ -289,16 +333,12 @@ function Menu({
 					</div>
 				)}
 				{inlineItems.map((menuItem) => (
-					<NavLink
+					<MenuLink
 						key={menuItem.id}
+						menuItem={menuItem}
 						className={mergeClasses('c-nav-link', vertical && 'vertical')}
-						to={getContextPath(menuItem.path)}
-					>
-						{menuItem.icon && React.createElement(menuItem.icon)}
-						<span className="c-nav-label">
-							{menuItem.trans?.[i18n.language] || menuItem.label}
-						</span>
-					</NavLink>
+						badge={badgeFor(menuItem)}
+					/>
 				))}
 				{needsMoreMenu && (
 					<Button
@@ -1057,6 +1097,7 @@ export function Layout() {
 	useContextTokenRenewal() // Proactive proxy-token renewal for trusted foreign profiles
 	useProfileTrustBootstrap() // Seed persisted per-profile trust from the backend
 	useActionNotifications() // Sound and toast notifications for incoming actions
+	useGlobalUnreadProbe() // App-wide feed-unread counts for nav/sidebar dots
 
 	React.useEffect(
 		function syncAuthTokenToSw() {

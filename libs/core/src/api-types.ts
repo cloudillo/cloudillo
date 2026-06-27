@@ -530,10 +530,6 @@ export interface PatchActionRequest {
 	publishAt?: number // Unix timestamp; updates scheduled publish time
 }
 
-export interface ActionStatUpdate {
-	commentsRead?: number
-}
-
 export interface ReactionRequest {
 	type: string
 	content?: string
@@ -550,6 +546,13 @@ export interface ListActionsQuery {
 	rootId?: string
 	subject?: string
 	createdAfter?: string | number
+	sortDir?: 'asc' | 'desc' // sort order (default 'desc'); 'asc' for the Unread tab
+	// Ordering column: 'created' (default, author time) or 'received' (local
+	// ingestion time). The home feed passes 'received' so late-federated posts
+	// order by arrival; also selects the column for cursor + createdAfter/Before.
+	sort?: 'created' | 'received'
+	subscribed?: boolean // filter: only threads the user has subscribed to
+	excludeOwnIssuer?: boolean // drop the requester's own posts (unread probe)
 	tag?: string
 	search?: string
 	visibility?: string | string[]
@@ -873,6 +876,9 @@ export interface AdminProfilePatch {
 export interface PatchProfileConnection {
 	status?: 'A' | 'B' | 'M' | 'S' | null
 	trust?: ProfileTrust | null
+	// Composition: hide/show a community in the merged home feed. `true` hides it,
+	// `false` shows it (the backend normalizes `false` back to the NULL = shown default).
+	hiddenInHome?: boolean
 }
 
 export interface ListProfilesQuery {

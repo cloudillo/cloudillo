@@ -3,7 +3,7 @@
 
 import * as T from '@symbion/runtype'
 
-import { type ApiFetchResult, FetchError, apiFetchHelper } from './api.js'
+import { type ApiFetchResult, apiFetchHelper, FetchError } from './api.js'
 import * as Types from './api-types.js'
 import { getInstanceUrl } from './urls.js'
 
@@ -612,16 +612,6 @@ export class ApiClient {
 			this.request('POST', `/actions/${actionId}/dismiss`, T.nullValue),
 
 		/**
-		 * POST /actions/:actionId/stat - Update action statistics
-		 * @param actionId - Action ID
-		 * @param data - Statistics update
-		 */
-		updateStat: (actionId: string, data: Types.ActionStatUpdate) =>
-			this.request('POST', `/actions/${actionId}/stat`, T.struct({}), {
-				data
-			}),
-
-		/**
 		 * POST /actions/:actionId/reaction - Add reaction to action
 		 * @param actionId - Action ID
 		 * @param data - Reaction data
@@ -651,6 +641,31 @@ export class ApiClient {
 		cancel: (actionId: string) =>
 			this.request('POST', `/actions/${actionId}/cancel`, Types.tActionView, {
 				data: {}
+			}),
+
+		/**
+		 * PUT /actions/:actionId/subscribe - Set the reader's thread-subscription
+		 * level (actions.sub_level) on the cached root; null clears it.
+		 */
+		subscribe: (actionId: string, level: 'W' | 'T' | 'M' | null) =>
+			this.request('PUT', `/actions/${actionId}/subscribe`, T.struct({}), {
+				data: { level }
+			}),
+
+		/**
+		 * PUT /read-marker - Forward-only read watermark on the reader's own node.
+		 * `feed`/`msg` write profiles.feed_read_at / msg_read_at (key = context /
+		 * peer idTag); `thread` writes actions.comments_read_at (key = actionId).
+		 * `position` is supplied as epoch seconds and sent as an ISO 8601 string,
+		 * matching the timestamp convention used across the API.
+		 */
+		setReadMarker: (m: { scope: 'feed' | 'msg' | 'thread'; key: string; position: number }) =>
+			this.request('PUT', '/read-marker', T.struct({}), {
+				data: {
+					scope: m.scope,
+					key: m.key,
+					position: new Date(m.position * 1000).toISOString()
+				}
 			})
 	}
 
@@ -1166,6 +1181,16 @@ export class ApiClient {
 			const body: Types.PatchProfileConnection = { trust }
 			return this.request('PATCH', `/profiles/${idTag}`, T.struct({}), { data: body })
 		},
+
+		/**
+		 * PATCH /profiles/:idTag - Per-community "Show in Home" composition toggle.
+		 * `show = true` keeps the community's posts in the merged home feed
+		 * (clears `hidden_in_home`); `show = false` opts it out (sets the flag).
+		 */
+		setShowInHome: (idTag: string, show: boolean) =>
+			this.request('PATCH', `/profiles/${idTag}`, T.struct({}), {
+				data: { hiddenInHome: !show } satisfies Types.PatchProfileConnection
+			}),
 
 		/**
 		 * GET /profiles?trustSet=true - List profiles that have a non-null trust preference set.

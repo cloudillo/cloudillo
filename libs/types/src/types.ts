@@ -169,6 +169,14 @@ export const tProfile = T.struct({
 	follower: T.optional(T.boolean),
 	trust: T.optional(tProfileTrust),
 	roles: T.optional(T.array(T.string)), // Community roles (e.g., ['leader'], ['moderator'])
+	// profiles.feed_read_at / msg_read_at — read watermarks. Served as ISO 8601
+	// strings (like createdAt); older payloads / direct writes may be numeric
+	// epoch seconds, so accept both and normalize on the client (createdAtToSeconds).
+	feedReadAt: T.optional(T.union(T.string, T.number)),
+	msgReadAt: T.optional(T.union(T.string, T.number)),
+	// Composition control for the home feed (community profiles): true = hidden
+	// from the merged home feed; absent/false = shown (the default).
+	hiddenInHome: T.optional(T.boolean),
 	x: T.optional(T.record(T.string))
 })
 export type Profile = T.TypeOf<typeof tProfile>
@@ -186,7 +194,8 @@ export const tActionType = T.literal(
 	'SHRE',
 	'MSG',
 	'FSHR',
-	'PRINVT'
+	'PRINVT',
+	'SUBS'
 )
 export type ActionType = T.TypeOf<typeof tActionType>
 
@@ -266,6 +275,12 @@ export interface ActionView {
 	// the embedded original card without a second fetch.
 	subjectAction?: ActionView
 	createdAt: string | number
+	// Local ingestion time on the serving node (when this action arrived/was
+	// inserted), as ISO 8601 or epoch seconds. The home feed orders and tracks
+	// reads by this so late-federated posts (old createdAt, recent arrival)
+	// surface correctly; single-context feeds fall back to createdAt. Absent on
+	// relationship/system rows the backend doesn't stamp.
+	receivedAt?: string | number
 	expiresAt?: string | number
 	status?: ActionStatus
 	// Raw signed JWS for this action. Absent on normal feed/list payloads;
@@ -275,8 +290,13 @@ export interface ActionView {
 	stat?: {
 		ownReaction?: string
 		reactions?: string
-		comments?: number
-		commentsRead?: number
+		// Last-comment timestamp and reader's comment-read watermark. Served as
+		// ISO 8601 strings (like createdAt); accept numeric epoch seconds too and
+		// normalize on the client (createdAtToSeconds). The unread comment dot is
+		// `lastCommentAt > commentsReadAt`.
+		lastCommentAt?: string | number
+		commentsReadAt?: string | number
+		commentCount?: number // Total comment count, federated as STAT `c`
 		reposts?: number // Total active reposts of this action
 		// Map keyed by audienceTag → repostActionId, listing every active REPOST
 		// by the requesting tenant that targets this action. Enables multi-target
@@ -284,6 +304,9 @@ export interface ActionView {
 		ownRepostIds?: Record<string, string>
 	}
 	visibility?: string
+	// Reader's own thread-subscription level on this thread root, backed by
+	// actions.sub_level (private, never federated). Absent = not subscribed.
+	subLevel?: 'W' | 'T' | 'M'
 	x?: unknown // Extensible metadata (x.role for SUBS, etc.)
 }
 export const tActionView: T.Type<ActionView> = T.struct({
@@ -308,19 +331,22 @@ export const tActionView: T.Type<ActionView> = T.struct({
 	subjectProfile: T.optional(tProfileInfo),
 	subjectAction: T.optional(T.lazy((): T.Type<ActionView> => tActionView)),
 	createdAt: T.union(T.string, T.number),
+	receivedAt: T.optional(T.union(T.string, T.number)),
 	expiresAt: T.optional(T.union(T.string, T.number)),
 	status: T.optional(tActionStatus),
 	stat: T.optional(
 		T.struct({
 			ownReaction: T.optional(T.string),
 			reactions: T.optional(T.string),
-			comments: T.optional(T.number),
-			commentsRead: T.optional(T.number),
+			lastCommentAt: T.optional(T.union(T.string, T.number)),
+			commentsReadAt: T.optional(T.union(T.string, T.number)),
+			commentCount: T.optional(T.number),
 			reposts: T.optional(T.number),
 			ownRepostIds: T.optional(T.record(T.string))
 		})
 	),
 	visibility: T.optional(T.string),
+	subLevel: T.optional(T.literal('W', 'T', 'M')),
 	x: T.optional(T.unknown),
 	token: T.optional(T.string)
 })

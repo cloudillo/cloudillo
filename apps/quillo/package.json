@@ -80,12 +80,12 @@
 		"@types/jest": "^30.0.0",
 		"cross-env": "^10.1.0",
 		"dayjs": "^1.11.21",
-		"esbuild": "^0.28.0",
-		"i18next": "^26.3.1",
+		"esbuild": "^0.28.1",
+		"i18next": "^26.3.3",
 		"i18next-scanner": "^4.6.0",
 		"i18next-scanner-typescript": "^1.2.1",
 		"jest": "^30.4.2",
-		"lucide": "^1.17.0",
+		"lucide": "^1.21.0",
 		"quill": "^2.0.3",
 		"quill-cursors": "^4.3.0",
 		"quill-delta": "^5.1.0",
@@ -100,6 +100,6 @@
 		"yjs": "^13.6.31"
 	},
 	"dependencies": {
-		"marked": "^18.0.4"
+		"marked": "^18.0.5"
 	}
 }

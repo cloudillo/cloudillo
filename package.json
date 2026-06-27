@@ -52,7 +52,7 @@
 		"docker-all": "pnpm build-docker && pnpm build-docker-slim && pnpm build-docker-alpine && pnpm publish-docker && pnpm publish-docker-slim && pnpm publish-docker-alpine"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.4.16",
-		"@typescript/native-preview": "7.0.0-dev.20260604.1"
+		"@biomejs/biome": "^2.5.1",
+		"@typescript/native-preview": "7.0.0-dev.20260626.1"
 	}
 }

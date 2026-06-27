@@ -29,7 +29,7 @@
 			"!local/**"
 		],
 		"rules": {
-			"recommended": true,
+			"preset": "recommended",
 
 			"suspicious": {
 				// Intentional: == null checks used throughout codebase
@@ -67,7 +67,7 @@
 
 			// a11y — disabled for now
 			"a11y": {
-				"recommended": false
+				"preset": "none"
 			},
 
 			"security": {

@@ -30,13 +30,62 @@ export function triggerDownload(url: string, fileName: string) {
 	document.body.removeChild(a)
 }
 
+/**
+ * Stream-download a Cloudillo file via the service worker's `/cl-download`
+ * route (see `shell/sw/index.ts`).
+ *
+ * We must NOT use an `<a download>` link: Chromium routes downloads initiated
+ * via the `download` attribute through the browser's download manager, which
+ * bypasses the controlling service worker entirely (the request goes straight
+ * to the origin — observed as `/cl-download` returning the SPA `index.html`,
+ * with no SW fetch handler ever running). Instead we navigate a hidden,
+ * same-origin iframe to the token-less `/cl-download` URL. That navigation IS
+ * intercepted by the SW, which injects the auth token, fetches the real
+ * `cl-o.*` file and streams the body straight back with a
+ * `Content-Disposition: attachment` header — so the browser saves it (filename
+ * from the header) without buffering in page memory and without a token ever
+ * appearing in a URL. Same technique as StreamSaver.js.
+ */
+export function triggerFileDownload(
+	idTag: string,
+	fileId: string,
+	fileName: string,
+	onError?: () => void
+) {
+	const params = new URLSearchParams({ idTag, fileId, name: fileName })
+	const iframe = document.createElement('iframe')
+	iframe.hidden = true
+	iframe.addEventListener('load', () => {
+		// A real attachment download never navigates the frame, so a `load`
+		// event means the SW did NOT stream the file (no controller, or a stale
+		// SW returned the SPA shell). Surface it instead of failing silently.
+		console.warn('[files] /cl-download was not streamed by the service worker')
+		onError?.()
+	})
+	iframe.src = `/cl-download?${params}`
+	document.body.appendChild(iframe)
+	// Remove well after the download has been handed off to the download manager
+	// (long enough not to cancel an in-flight large download).
+	setTimeout(() => iframe.remove(), 60_000)
+}
+
+/** Content types the MediaViewer renders inline (everything else is a pure download). */
+export function isViewerSupported(contentType?: string): boolean {
+	if (!contentType) return false
+	return (
+		contentType.startsWith('image/') ||
+		contentType.startsWith('video/') ||
+		contentType === 'application/pdf'
+	)
+}
+
 export interface MediaViewerProps {
 	file: FileView
 	idTag: string
 	/** Omit for logged-in (cookie); pass scoped token for guests. */
 	token?: string
 	onBack: () => void
-	/** Optional override; default triggers a token-bearing download. */
+	/** Optional override; default streams the file via the service worker. */
 	onDownload?: () => void
 	// Future extension point (NOT implemented now): siblings?: FileView[]; index?: number
 	// to drive Lightbox next/prev gallery navigation across a folder.
@@ -116,10 +165,9 @@ export function MediaViewer({ file, idTag, token, onBack, onDownload }: MediaVie
 				onDownload()
 				return
 			}
-			const url = getFileUrl(idTag, fileId, undefined, { token })
-			triggerDownload(url, file.fileName)
+			triggerFileDownload(idTag, fileId, file.fileName)
 		},
-		[onDownload, idTag, fileId, token, file.fileName]
+		[onDownload, idTag, fileId, file.fileName]
 	)
 
 	function handleVideoFullscreen() {

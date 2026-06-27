@@ -18,6 +18,7 @@ interface ExtendedNotificationOptions extends NotificationOptions {
 
 const VERSION = process.env.CLOUDILLO_VERSION || 'unknown'
 const CACHE = `cache-${VERSION}`
+const DOWNLOAD_PATH = '/cl-download'
 const log = 1
 
 const PRECACHE_URLS: string[] = [
@@ -722,6 +723,76 @@ async function fetchIdTag(): Promise<string | undefined> {
 	}
 }
 
+function contentDisposition(name: string): string {
+	// ASCII-sanitized fallback for legacy parsers + RFC 5987 UTF-8 for the rest.
+	const ascii = name.replace(/[^\x20-\x7e]/g, '_').replace(/"/g, "'")
+	return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`
+}
+
+async function handleDownload(reqUrl: URL): Promise<Response> {
+	const fileId = reqUrl.searchParams.get('fileId')
+	const targetTag = reqUrl.searchParams.get('idTag')
+	const name = reqUrl.searchParams.get('name') || 'download'
+	if (!fileId || !targetTag) return new Response('Bad download request', { status: 400 })
+
+	// Resolve our own idTag (own-vs-federated discriminator).
+	if (!idTag) {
+		if (!fetchIdTagPromise) fetchIdTagPromise = fetchIdTag()
+		const fetched = await fetchIdTagPromise
+		if (fetched) idTag = fetched
+		else fetchIdTagPromise = undefined
+	}
+
+	// Ensure an auth token (lazy-load after SW restart; ask the page if needed).
+	if (!authToken) {
+		if (!fetchAuthTokenPromise) fetchAuthTokenPromise = getSecureItem('authToken')
+		const persisted = await fetchAuthTokenPromise
+		fetchAuthTokenPromise = undefined
+		if (persisted && !authToken) authToken = persisted
+	}
+	if (!authToken) {
+		void requestTokenOnce()
+		await waitForToken(1500)
+	}
+
+	// Pick the credential: own tenant → primary token; federated → proxy token
+	// (same cache/fetch machinery as the API federated branch).
+	let token = authToken ?? undefined
+	if (idTag && targetTag !== idTag && authToken) {
+		token = proxyTokenCache.get(targetTag)
+		if (!token) {
+			try {
+				const res = await fetch(
+					'https://cl-o.' + idTag + `/api/auth/proxy-token?idTag=${targetTag}`,
+					{ credentials: 'include', headers: { Authorization: `Bearer ${authToken}` } }
+				)
+				token = (await res.json())?.data?.token
+				if (token) proxyTokenCache.set(targetTag, token)
+			} catch (err) {
+				console.warn('[SW] download proxy-token failed', err)
+			}
+		}
+	}
+
+	const realUrl = 'https://cl-o.' + targetTag + '/api/files/' + fileId
+	const headers = new Headers()
+	if (token) headers.set('Authorization', `Bearer ${token}`)
+	const upstream = await fetch(realUrl, { headers, mode: 'cors' })
+
+	// Surface backend errors verbatim (no attachment header → browser won't save
+	// an error body as a file).
+	if (!upstream.ok) return upstream
+
+	const out = new Headers()
+	const ct = upstream.headers.get('Content-Type')
+	if (ct) out.set('Content-Type', ct)
+	const len = upstream.headers.get('Content-Length')
+	if (len) out.set('Content-Length', len)
+	out.set('Content-Disposition', contentDisposition(name))
+	// Stream the upstream body straight through — no buffering.
+	return new Response(upstream.body, { status: 200, headers: out })
+}
+
 function onFetch(evt: FetchEvent) {
 	const reqUrl = new URL(evt.request.url)
 
@@ -729,6 +800,16 @@ function onFetch(evt: FetchEvent) {
 	// to prevent deadlock when SW fetches its own idTag
 	if (reqUrl.pathname === '/.well-known/cloudillo/id-tag') {
 		evt.respondWith(fetch(evt.request))
+		return
+	}
+
+	// Synthetic streaming-download route (same-origin). The SW fetches the real
+	// cl-o.* file with the auth token injected and streams the body straight back
+	// with an attachment disposition. Keeps the token out of every URL (the page
+	// links to a token-less same-origin path) and never buffers the body in page
+	// memory, so large videos download without a memory spike.
+	if (reqUrl.origin === self.location.origin && reqUrl.pathname === DOWNLOAD_PATH) {
+		evt.respondWith(handleDownload(reqUrl))
 		return
 	}
 

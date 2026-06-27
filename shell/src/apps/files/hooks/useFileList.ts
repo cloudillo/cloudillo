@@ -15,6 +15,7 @@ import {
 } from '../../../context/index.js'
 import type { File, FileTypeFilter, OwnerFilter, ViewMode } from '../types.js'
 import { MANAGED_FOLDER_ID, TRASH_FOLDER_ID } from '../types.js'
+import { useWsBus } from '../../../ws-bus.js'
 
 export interface UseFileListOptions {
 	viewMode?: ViewMode
@@ -294,6 +295,27 @@ export function useFileList(options?: UseFileListOptions) {
 			convertFileView(fileViewUpdate.file)
 		)
 	}, [fileViewUpdate, updateItem])
+
+	// When background processing (transcode / variant generation) finishes, the
+	// backend assigns the final content-addressed id (`f1~…`), flips status P→A,
+	// and broadcasts FILE_ID_GENERATED over /ws/bus with the temp id. Patch the
+	// row in place so the thumbnail, preview and download start working without a
+	// manual refresh (refresh() would reset infinite-scroll pagination).
+	const filesRef = React.useRef(files)
+	React.useEffect(() => {
+		filesRef.current = files
+	})
+	useWsBus({ cmds: ['FILE_ID_GENERATED'] }, (msg) => {
+		const data = msg.data as { tempId?: string; fileId?: string } | undefined
+		if (!data?.tempId || !data?.fileId) return
+		const current = filesRef.current.find((f) => f.fileId === data.tempId)
+		if (!current) return // not in this list instance
+		updateItem((f) => f.fileId === data.tempId, {
+			...current,
+			fileId: data.fileId,
+			status: 'A'
+		})
+	})
 
 	return React.useMemo(
 		function () {

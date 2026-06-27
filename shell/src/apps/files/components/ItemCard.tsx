@@ -1,14 +1,23 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { InlineEditForm, mergeClasses, ProfilePicture, Tag, useAuth } from '@cloudillo/react'
+import {
+	InlineEditForm,
+	mergeClasses,
+	ProfilePicture,
+	Tag,
+	useAuth,
+	useToast
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuTriangleAlert as IcBroken,
+	LuDownload as IcDownload,
 	LuPencil as IcEdit,
 	LuFolder as IcFolder,
 	LuInfo as IcInfo,
+	LuLoaderCircle as IcProcessing,
 	LuLock as IcLock,
 	LuChevronRight as IcOpenFolder,
 	LuPin as IcPin,
@@ -18,9 +27,11 @@ import {
 } from 'react-icons/lu'
 
 import { useCurrentContextIdTag } from '../../../context/index.js'
+import { useAppConfig } from '../../../utils.js'
+import { isViewerSupported, triggerFileDownload } from '../../viewer/MediaViewer.js'
 import { getFileIcon, type IcUnknown } from '../icons.js'
 import type { File, FileOps, ViewMode } from '../types.js'
-import { MANAGED_FOLDER_ID, TRASH_FOLDER_ID } from '../types.js'
+import { isFileProcessing, MANAGED_FOLDER_ID, TRASH_FOLDER_ID } from '../types.js'
 import { getSmartTimestamp, getVisibilityIcon, getVisibilityLabel } from '../utils.js'
 
 interface ItemCardProps {
@@ -52,9 +63,11 @@ export const ItemCard = React.memo(function ItemCard({
 	viewMode = 'browse',
 	showParentChip = false
 }: ItemCardProps) {
-	const [_auth] = useAuth()
+	const [auth] = useAuth()
 	const { t } = useTranslation()
 	const contextIdTag = useCurrentContextIdTag()
+	const [appConfig] = useAppConfig()
+	const toast = useToast()
 
 	const isFolder = file.fileTp === 'FLDR'
 	const isInTrash = viewMode === 'trash' || file.parentId === TRASH_FOLDER_ID
@@ -107,6 +120,18 @@ export const ItemCard = React.memo(function ItemCard({
 		}
 	}
 
+	function downloadFile() {
+		if (isFileProcessing(file)) {
+			toast.warning(t('This file is still being processed — please try again in a moment.'))
+			return
+		}
+		const idTag = contextIdTag ?? auth?.idTag
+		if (idTag)
+			triggerFileDownload(idTag, file.fileId, file.fileName, () =>
+				toast.error(t('Download failed. Please try again.'))
+			)
+	}
+
 	function handleOpenClick(evt: React.MouseEvent) {
 		evt.stopPropagation()
 		// Prevent click if long-press already triggered
@@ -116,6 +141,8 @@ export const ItemCard = React.memo(function ItemCard({
 		}
 		if (isFolder) {
 			onDoubleClick?.(file)
+		} else if (downloadOnly) {
+			downloadFile()
 		} else {
 			fileOps.openFile(file.fileId, file.accessLevel === 'none' ? 'read' : file.accessLevel)
 		}
@@ -124,7 +151,18 @@ export const ItemCard = React.memo(function ItemCard({
 	const isPinned = file.userData?.pinned ?? false
 	const isStarred = file.userData?.starred ?? false
 	const isLive = file.fileTp === 'CRDT' || file.fileTp === 'RTDB'
+	// Download-only: a stored blob with no registered viewer for its content type.
+	// These get a download icon/action instead of the misleading "view" eye.
+	const hasAppHandler = !!appConfig?.mime[file.contentType]
+	const downloadOnly =
+		!isFolder &&
+		!isLive &&
+		file.accessLevel !== 'none' &&
+		!hasAppHandler &&
+		!isViewerSupported(file.contentType) &&
+		(!file.fileTp || file.fileTp === 'BLOB')
 	const smartTimestamp = getSmartTimestamp(file)
+	const isProcessing = isFileProcessing(file)
 	const isBroken = !!file.brokenAt
 	const brokenSubtitle = !isBroken
 		? null
@@ -147,6 +185,7 @@ export const ItemCard = React.memo(function ItemCard({
 				'c-file-card',
 				isPinned && 'pinned',
 				isBroken && 'broken',
+				isProcessing && 'processing',
 				className
 			)}
 			data-file-id={file.fileId}
@@ -161,6 +200,14 @@ export const ItemCard = React.memo(function ItemCard({
 				{isBroken && (
 					<span className="c-file-card-broken-badge" title={brokenSubtitle ?? ''}>
 						<IcBroken />
+					</span>
+				)}
+				{!isBroken && isProcessing && (
+					<span
+						className="c-file-card-processing-badge"
+						title={t('Still processing — available shortly')}
+					>
+						<IcProcessing />
 					</span>
 				)}
 				{isPinned && (
@@ -317,7 +364,9 @@ export const ItemCard = React.memo(function ItemCard({
 								? t('No access')
 								: isLive && (file.accessLevel === 'write' || !file.accessLevel)
 									? t('Edit (hold for view mode)')
-									: t('View')
+									: downloadOnly
+										? t('Download')
+										: t('View')
 					}
 				>
 					{isFolder ? (
@@ -326,6 +375,8 @@ export const ItemCard = React.memo(function ItemCard({
 						<IcLock />
 					) : isLive && (file.accessLevel === 'write' || !file.accessLevel) ? (
 						<IcEdit />
+					) : downloadOnly ? (
+						<IcDownload />
 					) : (
 						<IcView />
 					)}

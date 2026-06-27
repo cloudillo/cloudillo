@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { getFileUrl } from '@cloudillo/core'
 import {
 	ActionSheet,
 	ActionSheetDivider,
@@ -36,12 +35,14 @@ import {
 	LuEye as IcView
 } from 'react-icons/lu'
 
-import { activeContextAtom } from '../../../context/index.js'
+import { activeContextAtom, useCurrentContextIdTag } from '../../../context/index.js'
 import { getIcon } from '../../../icon-registry.js'
+import { triggerFileDownload } from '../../viewer/MediaViewer.js'
 import { getHandlersForContentType } from '../../../manifest-registry.js'
 import { type FileHandItem, HandTypeConflictError, pickUp } from '../../../state/hand.js'
 import { flyToHand, handTargetElAtom, prefersReducedMotion } from '../../../state/hand-fly.js'
 import type { File, FileOps, ViewMode } from '../types.js'
+import { isFileProcessing } from '../types.js'
 import {
 	canManageFile,
 	getVisibilityDropdownOptions,
@@ -149,6 +150,7 @@ export function ContextMenu({
 }: ContextMenuProps) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
+	const contextIdTag = useCurrentContextIdTag()
 	const [activeContext] = useAtom(activeContextAtom)
 	const store = useStore()
 	const toast = useToast()
@@ -319,9 +321,19 @@ export function ContextMenu({
 					icon={<IcDownload />}
 					label={t('Download')}
 					onClick={handleAction(() => {
-						if (auth.idTag) {
-							window.open(getFileUrl(auth.idTag, file.fileId), '_blank')
+						if (isFileProcessing(file)) {
+							toast.warning(
+								t(
+									'This file is still being processed — please try again in a moment.'
+								)
+							)
+							return
 						}
+						const idTag = contextIdTag ?? auth?.idTag
+						if (idTag)
+							triggerFileDownload(idTag, file.fileId, file.fileName, () =>
+								toast.error(t('Download failed. Please try again.'))
+							)
 					})}
 				/>
 			)}

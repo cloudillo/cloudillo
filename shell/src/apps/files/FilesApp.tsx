@@ -61,6 +61,7 @@ import {
 	useSmartUpload
 } from './hooks/index.js'
 import type { File, FileOps, ViewMode } from './types.js'
+import { isFileProcessing } from './types.js'
 
 export function FilesApp() {
 	const navigate = useNavigate()
@@ -411,11 +412,23 @@ export function FilesApp() {
 
 			openFile: function openFile(fileId?: string, access?: 'read' | 'comment' | 'write') {
 				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
-				const app = file && appConfig?.mime[file?.contentType]
+				if (!file) return
+				if (isFileProcessing(file)) {
+					toast.warning(
+						t('This file is still being processed — please try again in a moment.')
+					)
+					return
+				}
+				const app = appConfig?.mime[file.contentType]
 				if (app) {
 					const appName = app.split('/').pop()!
 					navigateToFile(file, appName, access)
+				} else if (!file.fileTp || file.fileTp === 'BLOB') {
+					// Unknown binary: open the built-in viewer, which shows a Download fallback
+					navigateToFile(file, 'view', access)
 				}
+				// CRDT/RTDB docs with no handler: leave as-is (handled elsewhere as
+				// "Unsupported file type")
 			},
 
 			openFileWithApp: function openFileWithApp(

@@ -40,6 +40,17 @@ export interface File {
 	path?: { id: string; name: string }[]
 	brokenAt?: string
 	brokenReason?: 'revoked' | 'deleted' | 'unreachable'
+	status?: 'P' | 'A'
+}
+
+/** A file still being processed/transcoded has only a temporary `@<f_id>` id and a
+ *  pending ('P') status; its variants 404 until FileIdGeneratorTask finalizes it.
+ *  Only stored blobs go through transcode/variant generation — folders and live
+ *  docs (CRDT/RTDB) also start with a temp id / 'P' status but never need
+ *  processing, so they must not be treated as such. */
+export function isFileProcessing(file: Pick<File, 'fileId' | 'status' | 'fileTp'>): boolean {
+	if (file.fileTp && file.fileTp !== 'BLOB') return false
+	return file.fileId.startsWith('@') || file.status === 'P'
 }
 
 export interface FileView extends File {

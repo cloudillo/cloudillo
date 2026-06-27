@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next'
 import {
 	LuFolder as IcFolder,
 	LuInfo as IcInfo,
+	LuLoaderCircle as IcProcessing,
 	LuLock as IcLock,
 	LuPin as IcPin,
 	LuStar as IcStar,
@@ -20,6 +21,7 @@ import { getFileIcon, type IcUnknown } from '../icons.js'
 import {
 	type File,
 	type FileOps,
+	isFileProcessing,
 	MANAGED_FOLDER_ID,
 	TRASH_FOLDER_ID,
 	type ViewMode
@@ -65,6 +67,9 @@ export const ItemGrid = React.memo(function ItemGrid({
 	// Check if file has a thumbnail/variant
 	const hasThumbnail = file.variantId && contextIdTag
 	const isImage = file.contentType?.startsWith('image/')
+	// A processing file's variants 404, so show a spinner placeholder instead of
+	// a broken thumbnail until FileIdGeneratorTask finalizes its id.
+	const isProcessing = isFileProcessing(file)
 
 	function handleClick(evt: React.MouseEvent) {
 		onClick?.(file, evt)
@@ -111,7 +116,14 @@ export const ItemGrid = React.memo(function ItemGrid({
 		>
 			{/* Thumbnail or Icon with badges */}
 			<div className="c-file-grid-thumb">
-				{(hasThumbnail || isImage) && contextIdTag ? (
+				{isProcessing ? (
+					<div
+						className="c-file-grid-thumb-icon processing"
+						title={t('Still processing — available shortly')}
+					>
+						<IcProcessing />
+					</div>
+				) : (hasThumbnail || isImage) && contextIdTag ? (
 					<img
 						className="c-file-grid-thumb-img"
 						src={getFileUrl(contextIdTag, file.variantId || file.fileId, 'vis.tn')}

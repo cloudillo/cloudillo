@@ -1056,6 +1056,32 @@
 	text-decoration: line-through;
 }
 
+/* Processing file — variants 404 until FileIdGeneratorTask finalizes the id.
+   Mirror the broken-badge pattern with a spinning loader. */
+@keyframes file-processing-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.c-file-card-processing-badge {
+	position: absolute;
+	bottom: 0;
+	right: 0;
+	color: var(--col-primary);
+	display: flex;
+	line-height: 1;
+}
+
+.c-file-card-processing-badge svg,
+.c-file-grid-thumb-icon.processing svg {
+	animation: file-processing-spin 1s linear infinite;
+}
+
+.c-file-grid-thumb-icon.processing {
+	color: var(--col-primary);
+}
+
 /* ==========================================================================
    Hand Action Bar — virtual-view hint
    ========================================================================== */

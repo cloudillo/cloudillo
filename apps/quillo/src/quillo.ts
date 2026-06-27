@@ -368,7 +368,7 @@ function updatePairingBadges(
 	const state = await bus.init('quillo')
 
 	// Set ownerTag for image URL construction (extract from URL hash, not bus.idTag which is the user's identity)
-	const [ownerTag] = location.hash.slice(1).split(':')
+	const [ownerTag, fileId] = docId.split(':')
 	ClImageBlot.ownerTag = ownerTag
 	ClImageBlot.token = state.accessToken
 	ClDocumentBlot.sourceFileId = docId
@@ -484,7 +484,7 @@ function updatePairingBadges(
 		try {
 			const result = await bus.pickMedia({
 				mediaType: 'image/*',
-				documentFileId: docId,
+				documentFileId: fileId,
 				title: 'Insert Image'
 			})
 
@@ -508,7 +508,7 @@ function updatePairingBadges(
 
 		try {
 			const result = await bus.pickDocument({
-				sourceFileId: docId,
+				sourceFileId: fileId,
 				title: 'Embed Document'
 			})
 

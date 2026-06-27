@@ -559,4 +559,10 @@ export function useInfiniteScroll<T>(
 	}
 }
 
+// useThrottledCallback() //
+////////////////////////////
+
+// Re-exported from its own module so it can be unit-tested in isolation.
+export { useThrottledCallback } from './useThrottledCallback.js'
+
 // vim: ts=4

@@ -635,11 +635,13 @@ export function MicrofrontendContainer({
 				errorMessage={errorMessage}
 				errorCode={errorCode}
 			/>
+			{/* clipboard-read/clipboard-write are required for in-app context-menu */}
+			{/* copy/paste (Fortune Sheet and others use the async Clipboard API for menu actions) */}
 			<iframe
 				ref={ref}
 				src={url}
 				sandbox={getSandboxValue(trustLevel)}
-				allow="fullscreen; geolocation; accelerometer; gyroscope; magnetometer"
+				allow="clipboard-read; clipboard-write; fullscreen; geolocation; accelerometer; gyroscope; magnetometer"
 				allowFullScreen
 				className={mergeClasses(
 					'pos-absolute top-0 left-0 right-0 bottom-0 z-1',

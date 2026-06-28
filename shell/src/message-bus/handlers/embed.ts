@@ -13,6 +13,7 @@ import { createApiClient, type EmbedOpenReq } from '@cloudillo/core'
 
 import { getAccessSuffix } from '../app-tracker.js'
 import type { ShellMessageBus } from '../shell-bus.js'
+import { idTagFromResId } from './resId.js'
 
 const MAX_EMBED_DEPTH = 3
 
@@ -99,15 +100,19 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 				throw new Error('API client not available')
 			}
 
+			// Derive the context idTag from the parent connection so embeds resolve
+			// against the active (community) node, not the viewer's home node.
+			const contextIdTag = idTagFromResId(connection.resId) || connection.idTag || api.idTag
+
 			// For guest/anonymous access: use the stored embed token for sourceFileId
 			// if available (handles nested embeds), otherwise fall back to the
 			// connection's token (handles first-level embeds).
 			let viaApi = api
 			const embedToken = bus.getAppTracker().getEmbedToken(sourceFileId)
 			if (embedToken) {
-				viaApi = createApiClient({ idTag: api.idTag, authToken: embedToken })
+				viaApi = createApiClient({ idTag: contextIdTag, authToken: embedToken })
 			} else if (connection.token) {
-				viaApi = createApiClient({ idTag: api.idTag, authToken: connection.token })
+				viaApi = createApiClient({ idTag: contextIdTag, authToken: connection.token })
 			}
 
 			// Get scoped token via cross-document token exchange
@@ -129,7 +134,7 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 			// Resolve app name from content type
 			const appName = resolveAppName(targetContentType)
 
-			const idTag = api.idTag
+			const idTag = contextIdTag
 
 			// Build embed URL (direct app URL, not shell route)
 			const embedUrl = appName ? `/apps/${appName}/` : `/apps/view/`

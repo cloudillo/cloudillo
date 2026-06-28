@@ -10,9 +10,10 @@
  * - doc:pick.result - Shell pushes result when user completes/cancels
  */
 
-import type { DocPickReq } from '@cloudillo/core'
+import { createApiClient, type DocPickReq } from '@cloudillo/core'
 
 import type { ShellMessageBus } from '../shell-bus.js'
+import { idTagFromResId } from './resId.js'
 
 /**
  * Document picker options passed to the component
@@ -113,7 +114,7 @@ export function initDocumentHandlers(bus: ShellMessageBus): void {
 		bus.sendResponse(appWindow, 'doc:pick.ack', msg.id, true, { sessionId })
 
 		// Extract context idTag from resId (format: "contextIdTag:fileId")
-		const contextIdTag = connection.resId?.match(/^([a-zA-Z0-9-.]+):/)?.[1] || connection.idTag
+		const contextIdTag = idTagFromResId(connection.resId) || connection.idTag
 
 		// Open the modal and wait for result
 		openDocPickerCallback(
@@ -129,10 +130,34 @@ export function initDocumentHandlers(bus: ShellMessageBus): void {
 				if (result) {
 					console.log('[Document] Document picker result:', result)
 
-					// Create share entry if sourceFileId was provided
+					// Create share entry if sourceFileId was provided.
+					// The share must live on the document's context (community)
+					// node — the same node the embed token exchange queries via
+					// `?via=...` — otherwise the cross-document link is not found
+					// and the embed is denied (403). Mint a context-scoped client
+					// when the document belongs to a foreign context.
 					if (msg.payload.sourceFileId) {
 						try {
-							const api = bus.getApi()
+							let api = bus.getApi()
+							if (contextIdTag && contextIdTag !== api?.idTag) {
+								const tokenResult = await bus.getAccessToken(
+									`${contextIdTag}:${result.fileId}`,
+									'write'
+								)
+								if (tokenResult?.token) {
+									api = createApiClient({
+										idTag: contextIdTag,
+										authToken: tokenResult.token
+									})
+								} else {
+									console.warn(
+										'[Document] No context token for',
+										contextIdTag,
+										'- skipping share creation'
+									)
+									api = null
+								}
+							}
 							if (api) {
 								await api.files.createShare(result.fileId, {
 									subjectType: 'F',

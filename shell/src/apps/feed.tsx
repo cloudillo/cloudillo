@@ -692,11 +692,12 @@ function Post({
 						<ProfileAudienceCard
 							profile={action.issuer}
 							audience={action.audience}
+							srcTag={fileIdTag}
 							profileBasePath={`/profile/${urlContext || HOME_CONTEXT}`}
 						/>
 					) : (
 						<Link to={`/profile/${urlContext || HOME_CONTEXT}/${action.issuer.idTag}`}>
-							<ProfileCard profile={action.issuer} />
+							<ProfileCard profile={action.issuer} srcTag={fileIdTag} />
 						</Link>
 					)}
 					{isInFlight && (

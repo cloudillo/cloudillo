@@ -9,6 +9,7 @@ import {
 	LuFolderOpen as IcBrowse,
 	LuCheck as IcCheck,
 	LuLink as IcConnected,
+	LuPaperclip as IcManaged,
 	LuClock as IcRecent,
 	LuSearch as IcSearch,
 	LuStar as IcStarred,
@@ -28,6 +29,7 @@ export interface PickerFilterBarProps {
 	selectedTags: string[]
 	onTagFilter: (tags: string[]) => void
 	contextFileId?: string
+	showManaged?: boolean
 	searchPlaceholder?: string
 	tags: TagInfo[]
 }
@@ -40,6 +42,7 @@ export function PickerFilterBar({
 	selectedTags,
 	onTagFilter,
 	contextFileId,
+	showManaged,
 	searchPlaceholder,
 	tags
 }: PickerFilterBarProps) {
@@ -80,9 +83,22 @@ export function PickerFilterBar({
 								viewMode === 'connected' && 'active'
 							)}
 							onClick={() => onViewModeChange('connected')}
-							title={t('Connected to this document')}
+							title={t('This document')}
 						>
 							<IcConnected />
+						</button>
+					)}
+					{showManaged && (
+						<button
+							type="button"
+							className={mergeClasses(
+								'picker-view-btn',
+								viewMode === 'managed' && 'active'
+							)}
+							onClick={() => onViewModeChange('managed')}
+							title={t('Managed files')}
+						>
+							<IcManaged />
 						</button>
 					)}
 					<button

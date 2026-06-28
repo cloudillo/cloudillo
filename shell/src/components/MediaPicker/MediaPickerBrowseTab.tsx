@@ -10,7 +10,7 @@
 
 import type { FileView } from '@cloudillo/core'
 import { getFileUrl, VISIBILITY_ORDER, type Visibility } from '@cloudillo/core'
-import { useApi, useAuth } from '@cloudillo/react'
+import { LoadMoreTrigger, useApi, useAuth } from '@cloudillo/react'
 import React, { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -142,7 +142,7 @@ export function MediaPickerBrowseTab({
 	const [auth] = useAuth()
 	const { getClientFor } = useApiContext()
 	const api =
-		(idTagProp ? getClientFor(idTagProp, { auth: 'required' }) : defaultApi) || defaultApi
+		(idTagProp ? getClientFor(idTagProp, { auth: 'preferred' }) : defaultApi) || defaultApi
 	const idTag = idTagProp || auth?.idTag || defaultApi?.idTag
 
 	const {
@@ -159,10 +159,19 @@ export function MediaPickerBrowseTab({
 		files,
 		loading,
 		error,
+		isLoadingMore,
+		hasMore,
+		loadMore,
+		sentinelRef,
+		loadMoreError,
 		connectedFileIds: accessibleFileIds,
 		setConnectedFileIds: setAccessibleFileIds,
 		refetch: refetchFiles
-	} = usePickerBrowse({ api, contextFileId: documentFileId })
+	} = usePickerBrowse({
+		api,
+		contextFileId: documentFileId,
+		contentType: mediaType // server-side type filter (e.g. 'image/*')
+	})
 
 	// Visibility state
 	const [resolvedDocVisibility, setResolvedDocVisibility] = useState<Visibility | undefined>(
@@ -429,6 +438,7 @@ export function MediaPickerBrowseTab({
 				selectedTags={selectedTags}
 				onTagFilter={setSelectedTags}
 				contextFileId={documentFileId}
+				showManaged
 				searchPlaceholder={t('Search files...')}
 				tags={tags}
 			/>
@@ -518,147 +528,163 @@ export function MediaPickerBrowseTab({
 						<span>{t('No files found')}</span>
 					</div>
 				) : (
-					<div className="media-picker-grid">
-						{filteredFiles.map((file) => {
-							// Check if file is disabled (non-public in external context, not a folder)
-							const isFileDisabled =
-								isExternalContext &&
-								!isPublicFile(file) &&
-								!accessibleFileIds.has(file.fileId) &&
-								file.fileTp !== 'FLDR'
-							const visibilityIcon = getVisibilityIcon(file.visibility ?? null)
-							const isUpdating = updatingFileId === file.fileId
-							const isConfirming = confirmingFile?.id === file.fileId
-							const confirmSide = isConfirming ? confirmingFile.confirmSide : null
+					<>
+						<div className="media-picker-grid">
+							{filteredFiles.map((file) => {
+								// Check if file is disabled (non-public in external context, not a folder)
+								const isFileDisabled =
+									isExternalContext &&
+									!isPublicFile(file) &&
+									!accessibleFileIds.has(file.fileId) &&
+									file.fileTp !== 'FLDR'
+								const visibilityIcon = getVisibilityIcon(file.visibility ?? null)
+								const isUpdating = updatingFileId === file.fileId
+								const isConfirming = confirmingFile?.id === file.fileId
+								const confirmSide = isConfirming ? confirmingFile.confirmSide : null
 
-							return (
-								<div
-									key={file.fileId}
-									className={`media-picker-item ${
-										selectedFile?.fileId === file.fileId ? 'selected' : ''
-									} ${isFileDisabled ? 'disabled' : ''}`}
-									onClick={() => handleFileClick(file)}
-									onDoubleClick={() => handleFileDoubleClick(file)}
-								>
-									<div className="media-picker-item-thumbnail">
-										{isImage(file) && idTag ? (
-											<img
-												src={getFileUrl(idTag, file.fileId, 'vis.tn')}
-												alt={file.fileName}
-											/>
-										) : (
-											getFileIcon(file)
-										)}
-										{/* Interactive lock overlay with vertical split confirmation */}
-										{isFileDisabled && (
-											<div
-												className={`media-picker-item-lock ${isUpdating ? 'loading' : ''} ${isConfirming ? 'confirming' : ''}`}
-												onClick={(e) => {
-													e.stopPropagation()
-													if (isUpdating || isConfirming) return
-
-													// Determine which half was clicked (vertical split)
-													const rect =
-														e.currentTarget.getBoundingClientRect()
-													const clickY = e.clientY - rect.top
-													const isTopClick = clickY < rect.height / 2
-
-													// Confirm is on the OPPOSITE half of click
-													setConfirmingFile({
-														id: file.fileId,
-														confirmSide: isTopClick ? 'bottom' : 'top'
-													})
-												}}
-												title={t('Click to {{action}}', {
-													action: fileAccessActionLabel
-												})}
-											>
-												{isUpdating ? (
-													<span className="media-picker-lock-spinner" />
-												) : isConfirming ? (
-													<div className="media-picker-lock-split">
-														{/* Top half */}
-														<div
-															className={`media-picker-lock-half ${confirmSide === 'top' ? 'confirm' : 'cancel'}`}
-															onClick={(e) => {
-																e.stopPropagation()
-																if (confirmSide === 'top') {
-																	handleFileAccessAction(
-																		file.fileId,
-																		file.fileName,
-																		file.contentType
-																	)
-																}
-																setConfirmingFile(null)
-															}}
-														>
-															{confirmSide === 'top' ? (
-																<IcCheck />
-															) : (
-																<IcX />
-															)}
-															<span>
-																{confirmSide === 'top'
-																	? t('Confirm')
-																	: t('Cancel')}
-															</span>
-														</div>
-														{/* Bottom half */}
-														<div
-															className={`media-picker-lock-half ${confirmSide === 'bottom' ? 'confirm' : 'cancel'}`}
-															onClick={(e) => {
-																e.stopPropagation()
-																if (confirmSide === 'bottom') {
-																	handleFileAccessAction(
-																		file.fileId,
-																		file.fileName,
-																		file.contentType
-																	)
-																}
-																setConfirmingFile(null)
-															}}
-														>
-															{confirmSide === 'bottom' ? (
-																<IcCheck />
-															) : (
-																<IcX />
-															)}
-															<span>
-																{confirmSide === 'bottom'
-																	? t('Confirm')
-																	: t('Cancel')}
-															</span>
-														</div>
-													</div>
-												) : (
-													<>
-														<IcLock />
-														<span className="media-picker-item-lock-label">
-															{fileAccessActionLabel}
-														</span>
-													</>
-												)}
-											</div>
-										)}
-										{/* Visibility badge for non-public files */}
-										{!isFileDisabled &&
-											visibilityIcon &&
-											file.fileTp !== 'FLDR' && (
+								return (
+									<div
+										key={file.fileId}
+										className={`media-picker-item ${
+											selectedFile?.fileId === file.fileId ? 'selected' : ''
+										} ${isFileDisabled ? 'disabled' : ''}`}
+										onClick={() => handleFileClick(file)}
+										onDoubleClick={() => handleFileDoubleClick(file)}
+									>
+										<div className="media-picker-item-thumbnail">
+											{isImage(file) && idTag ? (
+												<img
+													src={getFileUrl(idTag, file.fileId, 'vis.tn')}
+													alt={file.fileName}
+												/>
+											) : (
+												getFileIcon(file)
+											)}
+											{/* Interactive lock overlay with vertical split confirmation */}
+											{isFileDisabled && (
 												<div
-													className="media-picker-item-visibility"
-													title={t(
-														getVisibilityLabel(file.visibility ?? null)
-													)}
+													className={`media-picker-item-lock ${isUpdating ? 'loading' : ''} ${isConfirming ? 'confirming' : ''}`}
+													onClick={(e) => {
+														e.stopPropagation()
+														if (isUpdating || isConfirming) return
+
+														// Determine which half was clicked (vertical split)
+														const rect =
+															e.currentTarget.getBoundingClientRect()
+														const clickY = e.clientY - rect.top
+														const isTopClick = clickY < rect.height / 2
+
+														// Confirm is on the OPPOSITE half of click
+														setConfirmingFile({
+															id: file.fileId,
+															confirmSide: isTopClick
+																? 'bottom'
+																: 'top'
+														})
+													}}
+													title={t('Click to {{action}}', {
+														action: fileAccessActionLabel
+													})}
 												>
-													{visibilityIcon}
+													{isUpdating ? (
+														<span className="media-picker-lock-spinner" />
+													) : isConfirming ? (
+														<div className="media-picker-lock-split">
+															{/* Top half */}
+															<div
+																className={`media-picker-lock-half ${confirmSide === 'top' ? 'confirm' : 'cancel'}`}
+																onClick={(e) => {
+																	e.stopPropagation()
+																	if (confirmSide === 'top') {
+																		handleFileAccessAction(
+																			file.fileId,
+																			file.fileName,
+																			file.contentType
+																		)
+																	}
+																	setConfirmingFile(null)
+																}}
+															>
+																{confirmSide === 'top' ? (
+																	<IcCheck />
+																) : (
+																	<IcX />
+																)}
+																<span>
+																	{confirmSide === 'top'
+																		? t('Confirm')
+																		: t('Cancel')}
+																</span>
+															</div>
+															{/* Bottom half */}
+															<div
+																className={`media-picker-lock-half ${confirmSide === 'bottom' ? 'confirm' : 'cancel'}`}
+																onClick={(e) => {
+																	e.stopPropagation()
+																	if (confirmSide === 'bottom') {
+																		handleFileAccessAction(
+																			file.fileId,
+																			file.fileName,
+																			file.contentType
+																		)
+																	}
+																	setConfirmingFile(null)
+																}}
+															>
+																{confirmSide === 'bottom' ? (
+																	<IcCheck />
+																) : (
+																	<IcX />
+																)}
+																<span>
+																	{confirmSide === 'bottom'
+																		? t('Confirm')
+																		: t('Cancel')}
+																</span>
+															</div>
+														</div>
+													) : (
+														<>
+															<IcLock />
+															<span className="media-picker-item-lock-label">
+																{fileAccessActionLabel}
+															</span>
+														</>
+													)}
 												</div>
 											)}
+											{/* Visibility badge for non-public files */}
+											{!isFileDisabled &&
+												visibilityIcon &&
+												file.fileTp !== 'FLDR' && (
+													<div
+														className="media-picker-item-visibility"
+														title={t(
+															getVisibilityLabel(
+																file.visibility ?? null
+															)
+														)}
+													>
+														{visibilityIcon}
+													</div>
+												)}
+										</div>
+										<span className="media-picker-item-name">
+											{file.fileName}
+										</span>
 									</div>
-									<span className="media-picker-item-name">{file.fileName}</span>
-								</div>
-							)
-						})}
-					</div>
+								)
+							})}
+						</div>
+						<LoadMoreTrigger
+							ref={sentinelRef}
+							isLoading={isLoadingMore}
+							hasMore={hasMore}
+							error={loadMoreError}
+							errorPrefix={t('Failed to load more')}
+							onRetry={loadMore}
+						/>
+					</>
 				)}
 			</div>
 		</div>

@@ -1283,7 +1283,6 @@
 	"Click Select to use this file": "Kattints a Kiválasztásra a fájl használatához",
 	"Upload another": "Másik feltöltése",
 	"Browse folders": "Mappák böngészése",
-	"Connected to this document": "Ehhez a dokumentumhoz kapcsolódik",
 	"Recent files": "Legutóbbi fájlok",
 	"Starred files": "Csillagozott fájlok",
 	"Filter by tags": "Szűrés címkék szerint",
@@ -1898,5 +1897,15 @@
 	"Failed to copy": "A másolás sikertelen",
 	"Change cover photo": "Borítókép módosítása",
 	"Change profile picture": "Profilkép módosítása",
-	"Edit profile": "Profil szerkesztése"
+	"Edit profile": "Profil szerkesztése",
+	"Comments ({{count}}, unread)_one": "",
+	"Comments ({{count}}, unread)_other": "",
+	"Comments ({{count}})_one": "",
+	"Comments ({{count}})_other": "",
+	"This file is still being processed — please try again in a moment.": "",
+	"Download failed. Please try again.": "",
+	"Still processing — available shortly": "",
+	"Failed to load more": "A további elemek betöltése sikertelen",
+	"This document": "Ez a dokumentum",
+	"Managed files": "Kezelt fájlok"
 }

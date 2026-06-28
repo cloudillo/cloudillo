@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-export type PickerViewMode = 'browse' | 'connected' | 'recent' | 'starred'
+export type PickerViewMode = 'browse' | 'connected' | 'recent' | 'starred' | 'managed'
 
 export interface BreadcrumbItem {
 	id: string | null

@@ -10,7 +10,7 @@
  */
 
 import type { FileView } from '@cloudillo/core'
-import { useApi } from '@cloudillo/react'
+import { LoadMoreTrigger, useApi } from '@cloudillo/react'
 import React, { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -33,24 +33,6 @@ interface DocumentPickerBrowseTabProps {
 	selectedFile: DocPickerResult | null
 	onSelect: (file: DocPickerResult) => void
 	onDoubleClick: (file: DocPickerResult) => void
-}
-
-/**
- * Check if a file is a document (not media)
- */
-function isDocumentFile(file: FileView): boolean {
-	if (file.fileTp === 'FLDR') return true
-	return file.fileTp === 'CRDT' || file.fileTp === 'RTDB'
-}
-
-/**
- * Check if a file matches the filter criteria
- */
-function matchesFilter(file: FileView, fileTp?: string, contentType?: string): boolean {
-	if (file.fileTp === 'FLDR') return true
-	if (fileTp && file.fileTp !== fileTp) return false
-	if (contentType && file.contentType !== contentType) return false
-	return true
 }
 
 /**
@@ -77,8 +59,12 @@ export function DocumentPickerBrowseTab({
 	const { api: defaultApi } = useApi()
 	const { getClientFor } = useApiContext()
 	const api =
-		(idTagProp ? getClientFor(idTagProp, { auth: 'required' }) : defaultApi) || defaultApi
+		(idTagProp ? getClientFor(idTagProp, { auth: 'preferred' }) : defaultApi) || defaultApi
 	const [appConfig] = useAppConfig()
+
+	// Default to document file types so the server filters them out of the page,
+	// instead of returning all files and filtering to docs in the browser.
+	const docFileTp = fileTp ?? 'CRDT,RTDB'
 
 	const {
 		viewMode,
@@ -93,13 +79,18 @@ export function DocumentPickerBrowseTab({
 		setBreadcrumbs,
 		files,
 		loading,
-		error
-	} = usePickerBrowse({ api, contextFileId: sourceFileId })
-
-	// Filter files to show only documents
-	const filteredFiles = files.filter((file) => {
-		if (!isDocumentFile(file)) return false
-		return matchesFilter(file, fileTp, contentType)
+		error,
+		isLoadingMore,
+		hasMore,
+		loadMore,
+		sentinelRef,
+		loadMoreError
+	} = usePickerBrowse({
+		api,
+		contextFileId: sourceFileId,
+		fileTp: docFileTp,
+		contentType,
+		localOnly: true // tenant-owned files only (remote can't be embedded)
 	})
 
 	// Handle folder navigation
@@ -207,31 +198,41 @@ export function DocumentPickerBrowseTab({
 						<IcDocument />
 						<span>{error}</span>
 					</div>
-				) : filteredFiles.length === 0 ? (
+				) : files.length === 0 ? (
 					<div className="doc-picker-empty">
 						<IcDocument />
 						<span>{t('No documents found')}</span>
 					</div>
 				) : (
-					<div className="doc-picker-grid">
-						{filteredFiles.map((file) => (
-							<div
-								key={file.fileId}
-								className={`doc-picker-item ${
-									selectedFile?.fileId === file.fileId ? 'selected' : ''
-								}`}
-								onClick={() => handleFileClick(file)}
-								onDoubleClick={() => handleFileDoubleClick(file)}
-							>
-								<div className="doc-picker-item-icon">
-									{React.createElement(
-										getFileIcon(file.contentType, file.fileTp)
-									)}
+					<>
+						<div className="doc-picker-grid">
+							{files.map((file) => (
+								<div
+									key={file.fileId}
+									className={`doc-picker-item ${
+										selectedFile?.fileId === file.fileId ? 'selected' : ''
+									}`}
+									onClick={() => handleFileClick(file)}
+									onDoubleClick={() => handleFileDoubleClick(file)}
+								>
+									<div className="doc-picker-item-icon">
+										{React.createElement(
+											getFileIcon(file.contentType, file.fileTp)
+										)}
+									</div>
+									<span className="doc-picker-item-name">{file.fileName}</span>
 								</div>
-								<span className="doc-picker-item-name">{file.fileName}</span>
-							</div>
-						))}
-					</div>
+							))}
+						</div>
+						<LoadMoreTrigger
+							ref={sentinelRef}
+							isLoading={isLoadingMore}
+							hasMore={hasMore}
+							error={loadMoreError}
+							errorPrefix={t('Failed to load more')}
+							onRetry={loadMore}
+						/>
+					</>
 				)}
 			</div>
 		</div>

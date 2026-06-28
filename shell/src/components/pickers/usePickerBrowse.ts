@@ -1,19 +1,32 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { ApiClient, FileView, TagInfo } from '@cloudillo/core'
-import { useApi, useAuth, useDebouncedValue } from '@cloudillo/react'
+import type { ApiClient, FileView, ListFilesQuery, TagInfo } from '@cloudillo/core'
+import { useApi, useAuth, useDebouncedValue, useInfiniteScroll } from '@cloudillo/react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { MANAGED_FOLDER_ID } from '../../apps/files/types.js'
 import type { BreadcrumbItem, PickerViewMode } from './types.js'
 import { MAX_CONNECTED_FILE_BATCH } from './types.js'
+
+const PICKER_PAGE_SIZE = 30
+
+// Connected view shows the document tree in one shot (no pagination); large
+// trees are capped here. Bump or paginate if this proves limiting in practice.
+const CONNECTED_TREE_LIMIT = 100
 
 export interface UsePickerBrowseOptions {
 	/** Override API client (e.g. for cross-context browsing) */
 	api?: ApiClient | null
 	/** File ID to load connected/accessible files for (sourceFileId or documentFileId) */
 	contextFileId?: string
+	/** Server-side content-type filter, e.g. 'image/*'. Undefined = no filter. */
+	contentType?: string
+	/** Server-side file-type filter, comma-separated, e.g. 'CRDT,RTDB'. Undefined = no filter. */
+	fileTp?: string
+	/** Restrict listing to tenant-owned files (excludes remote/federated copies that can't be embedded). */
+	localOnly?: boolean
 }
 
 export interface UsePickerBrowseResult {
@@ -38,6 +51,13 @@ export interface UsePickerBrowseResult {
 	loading: boolean
 	error: string | null
 
+	// Pagination
+	isLoadingMore: boolean
+	hasMore: boolean
+	loadMore: () => void
+	sentinelRef: React.RefObject<HTMLDivElement | null>
+	loadMoreError: Error | null
+
 	// Connected file IDs
 	connectedFileIds: Set<string>
 	setConnectedFileIds: React.Dispatch<React.SetStateAction<Set<string>>>
@@ -48,7 +68,10 @@ export interface UsePickerBrowseResult {
 
 export function usePickerBrowse({
 	api: apiOverride,
-	contextFileId
+	contextFileId,
+	contentType,
+	fileTp,
+	localOnly
 }: UsePickerBrowseOptions = {}): UsePickerBrowseResult {
 	const { t } = useTranslation()
 	const { api: defaultApi } = useApi()
@@ -67,10 +90,10 @@ export function usePickerBrowse({
 		{ id: null, name: t('Home') }
 	])
 
-	// File state
-	const [files, setFiles] = useState<FileView[]>([])
-	const [loading, setLoading] = useState(true)
-	const [error, setError] = useState<string | null>(null)
+	// Connected-mode file state (separate from the paginated browse/recent/starred state)
+	const [connectedFiles, setConnectedFiles] = useState<FileView[]>([])
+	const [connectedLoading, setConnectedLoading] = useState(true)
+	const [connectedError, setConnectedError] = useState<string | null>(null)
 
 	// Connected file IDs (from share entries)
 	const [connectedFileIds, setConnectedFileIds] = useState<Set<string>>(new Set())
@@ -80,6 +103,9 @@ export function usePickerBrowse({
 
 	// Debounced search query
 	const debouncedSearch = useDebouncedValue(searchQuery, 300)
+
+	// Stable dependency key for the selected tags
+	const selectedTagsKey = selectedTags.join(',')
 
 	// Load tags
 	useEffect(() => {
@@ -121,93 +147,156 @@ export function usePickerBrowse({
 		}
 	}, [api, contextFileId])
 
-	// Fetch connected files
+	// Fetch connected files (shared-to-document + document-tree, merged + de-duped)
 	useEffect(() => {
 		if (!api || viewMode !== 'connected') return
 
-		if (connectedFileIds.size === 0) {
-			setFiles([])
-			setLoading(false)
-			return
-		}
-
 		let cancelled = false
 		const client = api
 
-		setLoading(true)
-		setError(null)
+		setConnectedLoading(true)
+		setConnectedError(null)
 		;(async () => {
 			try {
-				const fileIdList = [...connectedFileIds]
-					.slice(0, MAX_CONNECTED_FILE_BATCH)
-					.join(',')
-				const allFiles = await client.files.list({ fileId: fileIdList })
-				if (!cancelled) setFiles(allFiles)
+				const tasks: Promise<FileView[]>[] = []
+
+				// (a) Files explicitly shared/connected to this document
+				if (connectedFileIds.size > 0) {
+					const fileIdList = [...connectedFileIds]
+						.slice(0, MAX_CONNECTED_FILE_BATCH)
+						.join(',')
+					tasks.push(client.files.list({ fileId: fileIdList }))
+				}
+
+				// (b) Files in this document's own tree (root_id = contextFileId)
+				if (contextFileId) {
+					const treeQuery: ListFilesQuery = {
+						rootId: contextFileId,
+						limit: CONNECTED_TREE_LIMIT
+					}
+					if (contentType) treeQuery.contentType = contentType
+					if (fileTp) treeQuery.fileTp = fileTp
+					const treeFiles = await client.files.list(treeQuery)
+					if (treeFiles.length >= CONNECTED_TREE_LIMIT) {
+						console.warn(
+							`[picker] Connected tree truncated at ${CONNECTED_TREE_LIMIT} files for`,
+							contextFileId
+						)
+					}
+					tasks.push(Promise.resolve(treeFiles))
+				}
+
+				const results = await Promise.all(tasks)
+
+				// Merge + de-dupe by fileId (a file can be both shared and in-tree)
+				const seen = new Set<string>()
+				const merged: FileView[] = []
+				for (const f of results.flat()) {
+					if (!seen.has(f.fileId)) {
+						seen.add(f.fileId)
+						merged.push(f)
+					}
+				}
+
+				if (!cancelled) setConnectedFiles(merged)
 			} catch (err) {
-				console.error('Failed to fetch connected files:', err)
+				console.error('Failed to fetch document files:', err)
 				if (!cancelled) {
-					setFiles([])
-					setError(t('Failed to load connected files'))
+					setConnectedFiles([])
+					setConnectedError(t('Failed to load files'))
 				}
 			} finally {
-				if (!cancelled) setLoading(false)
+				if (!cancelled) setConnectedLoading(false)
 			}
 		})()
 
 		return () => {
 			cancelled = true
 		}
-	}, [api, viewMode, connectedFileIds, refreshCounter, t])
+	}, [api, viewMode, connectedFileIds, contextFileId, contentType, fileTp, refreshCounter, t])
 
-	// Fetch files for browse/recent/starred views
-	useEffect(() => {
-		if (!api || viewMode === 'connected') return
+	// Paginated fetch for browse/recent/starred views
+	const fetchPage = useCallback(
+		async (cursor: string | null, limit: number) => {
+			if (!api) return { items: [] as FileView[], nextCursor: null, hasMore: false }
 
-		let cancelled = false
-		const client = api
-
-		setLoading(true)
-		setError(null)
-		;(async () => {
-			try {
-				const query: Record<string, unknown> = {}
-
-				if (viewMode === 'browse') {
-					query.parentId = currentFolderId || undefined
-				} else if (viewMode === 'recent') {
-					query.sort = 'recent'
-					query.sortDir = 'desc'
-				} else if (viewMode === 'starred') {
-					query.starred = true
-				}
-
-				if (debouncedSearch) {
-					query.fileName = debouncedSearch
-				}
-
-				if (selectedTags.length > 0) {
-					query.tag = selectedTags.join(',')
-				}
-
-				const result = await client.files.list(
-					query as Parameters<typeof client.files.list>[0]
-				)
-				if (!cancelled) setFiles(result || [])
-			} catch (err) {
-				console.error('Failed to fetch files:', err)
-				if (!cancelled) {
-					setFiles([])
-					setError(t('Failed to load files'))
-				}
-			} finally {
-				if (!cancelled) setLoading(false)
+			const query: ListFilesQuery = { cursor: cursor ?? undefined, limit }
+			if (viewMode === 'browse') {
+				query.parentId = currentFolderId || undefined
+				query.includeFolders = true // keep folder drill-down despite type filters
+			} else if (viewMode === 'recent') {
+				query.sort = 'recent'
+				query.sortDir = 'desc'
+			} else if (viewMode === 'starred') {
+				query.starred = true
+			} else if (viewMode === 'managed') {
+				query.parentId = MANAGED_FOLDER_ID
 			}
-		})()
+			if (debouncedSearch) query.fileName = debouncedSearch
+			if (selectedTags.length > 0) query.tag = selectedTagsKey
+			if (contentType) query.contentType = contentType
+			if (fileTp) query.fileTp = fileTp
+			if (localOnly) query.localOnly = true
 
-		return () => {
-			cancelled = true
-		}
-	}, [api, viewMode, currentFolderId, debouncedSearch, selectedTags, refreshCounter, t])
+			const result = await api.files.listPaginated(query)
+			return {
+				items: result.data,
+				nextCursor: result.cursorPagination?.nextCursor ?? null,
+				hasMore: result.cursorPagination?.hasMore ?? false
+			}
+		},
+		[
+			api,
+			viewMode,
+			currentFolderId,
+			debouncedSearch,
+			selectedTagsKey,
+			contentType,
+			fileTp,
+			localOnly
+		]
+	)
+
+	const {
+		items: paginatedFiles,
+		isLoading,
+		isLoadingMore,
+		error: scrollError,
+		hasMore,
+		loadMore,
+		sentinelRef
+	} = useInfiniteScroll<FileView>({
+		fetchPage,
+		pageSize: PICKER_PAGE_SIZE,
+		deps: [
+			api,
+			viewMode,
+			currentFolderId,
+			debouncedSearch,
+			selectedTagsKey,
+			contentType,
+			fileTp,
+			localOnly,
+			refreshCounter
+		],
+		enabled: !!api && viewMode !== 'connected'
+	})
+
+	// Merge connected-mode and paginated-mode outputs into the public API
+	const files = viewMode === 'connected' ? connectedFiles : paginatedFiles
+	const loading = viewMode === 'connected' ? connectedLoading : isLoading
+	// Page-level error only when nothing is shown yet (initial load failed).
+	const error =
+		viewMode === 'connected'
+			? connectedError
+			: paginatedFiles.length === 0 && scrollError
+				? t('Failed to load files')
+				: null
+	// Error while fetching a *subsequent* page — surfaced inline (via
+	// LoadMoreTrigger) so the already-loaded grid stays visible and the user
+	// can retry. Exposes the raw Error; the tab supplies a translated prefix.
+	const loadMoreError =
+		viewMode === 'connected' || paginatedFiles.length === 0 ? null : scrollError
 
 	const refetch = useCallback(() => {
 		setRefreshCounter((c) => c + 1)
@@ -229,6 +318,11 @@ export function usePickerBrowse({
 		files,
 		loading,
 		error,
+		isLoadingMore,
+		hasMore,
+		loadMore,
+		sentinelRef,
+		loadMoreError,
 		connectedFileIds,
 		setConnectedFileIds,
 		refetch

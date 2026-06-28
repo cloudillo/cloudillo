@@ -630,9 +630,11 @@ export interface ListFilesQuery {
 	status?: ('P' | 'A')[]
 	fileTp?: string // File type: 'BLOB', 'CRDT', 'RTDB', 'FLDR'
 	contentType?: string
+	includeFolders?: boolean // Bypass the type filter for folder rows (keeps drill-down working in type-filtered pickers)
 	fileName?: string // Substring search in file name
 	ownerIdTag?: string // Filter by owner idTag
 	notOwnerIdTag?: string // Exclude files by this owner idTag
+	localOnly?: boolean // Only tenant-owned files (owner_tag IS NULL); excludes remote/federated copies
 	createdAfter?: string | number
 	createdBefore?: string | number
 	pinned?: boolean // Filter by pinned status (user-specific)

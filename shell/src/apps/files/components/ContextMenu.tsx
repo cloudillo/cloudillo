@@ -42,7 +42,7 @@ import { getHandlersForContentType } from '../../../manifest-registry.js'
 import { type FileHandItem, HandTypeConflictError, pickUp } from '../../../state/hand.js'
 import { flyToHand, handTargetElAtom, prefersReducedMotion } from '../../../state/hand-fly.js'
 import type { File, FileOps, ViewMode } from '../types.js'
-import { isFileProcessing } from '../types.js'
+import { isFileProcessing, MANAGED_FOLDER_ID } from '../types.js'
 import {
 	canManageFile,
 	getVisibilityDropdownOptions,
@@ -59,6 +59,7 @@ interface PickUpOpts {
 	activeContextIdTag: string
 	selectedFiles: File[]
 	inTrash: boolean
+	isManagedView: boolean
 	store: ReturnType<typeof useStore>
 	toast: ReturnType<typeof useToast>
 	t: ReturnType<typeof useTranslation>['t']
@@ -75,7 +76,11 @@ function doPickUp(opts: PickUpOpts) {
 		id: f.fileId,
 		idTag: f.owner?.idTag ?? ctxIdTag,
 		sourceContext: ctxIdTag,
-		sourceParentId: !f.parentId || f.parentId === '__root__' ? null : f.parentId,
+		sourceParentId: opts.isManagedView
+			? MANAGED_FOLDER_ID
+			: !f.parentId || f.parentId === '__root__'
+				? null
+				: f.parentId,
 		label: f.fileName,
 		fileTp: f.fileTp,
 		contentType: f.contentType,
@@ -210,6 +215,7 @@ export function ContextMenu({
 						activeContextIdTag: activeContext.idTag,
 						selectedFiles,
 						inTrash,
+						isManagedView,
 						store,
 						toast,
 						t
@@ -338,8 +344,8 @@ export function ContextMenu({
 				/>
 			)}
 
-			{/* Pick up — Hand pick-up; works in normal and trash views */}
-			{!isTrashView && !isManagedView && renderPickUpItem(false)}
+			{/* Pick up (non-trash views; the trash variant renders above) */}
+			{!isTrashView && renderPickUpItem(false)}
 
 			{/* Share & Visibility section — hidden in remote browsing */}
 			{!isRemoteBrowsing &&

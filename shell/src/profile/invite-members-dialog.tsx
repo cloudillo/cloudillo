@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, Modal, ProfileCard, ProfileSelect, useApi, useToast } from '@cloudillo/react'
+import { Button, Modal, ProfileMultiSelect, useApi, useToast } from '@cloudillo/react'
 import type { Profile } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -46,17 +46,6 @@ export function InviteMembersDialog({
 	async function listProfiles(q: string): Promise<Profile[] | undefined> {
 		if (!api || !q) return []
 		return api.profiles.list({ q, connected: true, type: 'person' })
-	}
-
-	function addToSelected(profile: Profile | undefined) {
-		if (!profile) return
-		setSelected((prev) =>
-			prev.some((p) => p.idTag === profile.idTag) ? prev : [...prev, profile]
-		)
-	}
-
-	function removeFromSelected(idTag: string) {
-		setSelected((prev) => prev.filter((p) => p.idTag !== idTag))
 	}
 
 	async function handleSubmit() {
@@ -115,25 +104,15 @@ export function InviteMembersDialog({
 				</div>
 
 				<div className="c-vbox g-3">
-					<ProfileSelect listProfiles={listProfiles} onChange={addToSelected} />
-
-					{selected.length === 0 ? (
-						<span className="text-muted">{t('Search for connections to invite')}</span>
-					) : (
-						<div className="c-hbox flex-wrap g-1 ai-center">
-							{selected.map((profile) => (
-								<div key={profile.idTag} className="c-hbox ai-center g-1">
-									<ProfileCard profile={profile} />
-									<Button
-										kind="link"
-										onClick={() => removeFromSelected(profile.idTag)}
-									>
-										<IcClose />
-									</Button>
-								</div>
-							))}
-						</div>
-					)}
+					<ProfileMultiSelect
+						emptyText={t('Search for connections to invite')}
+						listProfiles={listProfiles}
+						value={selected}
+						onAdd={(p) => setSelected((prev) => [...prev, p])}
+						onRemove={(p) =>
+							setSelected((prev) => prev.filter((m) => m.idTag !== p.idTag))
+						}
+					/>
 
 					<div className="c-vbox g-1">
 						<label className="fw-medium">{t('Optional message')}</label>

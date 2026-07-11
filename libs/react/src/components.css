@@ -380,6 +380,10 @@
 	font-weight: 600;
 }
 
+.c-select-menu .c-nav-item.selected {
+	background: lch(from var(--col-primary) l c h / 0.18);
+}
+
 /* Loading Spinner — "Federated Pulse" (Cloudillo logo network) */
 .c-loading-spinner {
 	--c-loading-spinner-color: var(--col-accent);

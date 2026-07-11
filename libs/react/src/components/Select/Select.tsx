@@ -26,6 +26,7 @@ export function Select<T>({
 	getData,
 	onChange,
 	onSelectItem,
+	itemToId,
 	itemToString,
 	renderItem
 }: SelectProps<T>) {
@@ -46,9 +47,21 @@ export function Select<T>({
 		placement: 'bottom-start',
 		strategy: 'fixed'
 	})
+	// Dedupe by id so the itemToId keys stay unique (a getData collision would cause
+	// React key clashes and mis-reconciliation) and identity-stable across debounced
+	// updates. useCombobox/highlightedIndex and the menu render all use this list.
+	const uniqueItems = React.useMemo(() => {
+		const seen = new Set<string>()
+		return items.filter((it) => {
+			const id = itemToId(it)
+			if (seen.has(id)) return false
+			seen.add(id)
+			return true
+		})
+	}, [items, itemToId])
 	const s = useCombobox({
 		onInputValueChange: (arg) => deboucedOnInputValueChange(arg),
-		items,
+		items: uniqueItems,
 		itemToString,
 		onSelectedItemChange: ({ selectedItem }) => {
 			if (selectedItem) onChange?.(selectedItem)
@@ -103,17 +116,20 @@ export function Select<T>({
 			{createPortal(
 				<ul
 					{...getMenuProps()}
-					style={{ ...popperStyles.popper, ...(items.length ? {} : { display: 'none' }) }}
-					className="c-nav flex-column text-start"
+					style={{
+						...popperStyles.popper,
+						...(s.isOpen && uniqueItems.length ? {} : { display: 'none' })
+					}}
+					className="c-select-menu c-nav flex-column text-start"
 					{...attributes.popper}
 				>
-					{items.map((item, idx) => (
+					{uniqueItems.map((item, idx) => (
 						<li
-							key={idx}
+							key={itemToId(item)}
 							className={
 								'c-nav-item' + (s.highlightedIndex === idx ? ' selected' : '')
 							}
-							{...s.getItemProps({ item, idx })}
+							{...s.getItemProps({ item, index: idx })}
 						>
 							{renderItem(item)}
 						</li>

@@ -6,8 +6,8 @@ import {
 	Button,
 	Popper,
 	ProfileCard,
+	ProfileMultiSelect,
 	QRCodeDialog,
-	Select,
 	Toggle,
 	useAuth,
 	useToast
@@ -129,6 +129,17 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 		return [...userShareEntries].sort((a, b) => key(a).localeCompare(key(b)))
 	}, [userShareEntries, peopleProfiles])
 
+	// Profile objects for the people list; falls back to a minimal {idTag}
+	// profile while the real one is still loading.
+	const allPeopleProfiles = React.useMemo(
+		() =>
+			allPeople.map((entry) => {
+				const idTag = entry.subjectId.toString()
+				return peopleProfiles[idTag] ?? { idTag, name: idTag }
+			}),
+		[allPeople, peopleProfiles]
+	)
+
 	// Load data when dialog opens
 	React.useEffect(
 		function loadShareData() {
@@ -234,6 +245,13 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 			console.error('Failed to update permission', err)
 			toast.error(t('Failed to update permission'))
 		}
+	}
+
+	function levelFor(idTag: string): PermLevel {
+		const entry = userShareEntries.find(
+			(e) => e.subjectType === 'U' && e.subjectId.toString() === idTag
+		)
+		return permCharToLevel(entry?.permission.toString() ?? 'R')
 	}
 
 	function requestRemovePerm(idTag: string) {
@@ -525,112 +543,69 @@ export function ShareDialog({ open, file, onClose, onPermissionsChanged }: Share
 						</div>
 					) : (
 						<div className="c-vbox g-4">
-							{/* Add people row */}
-							<div className="c-hbox g-2 align-items-center">
-								<div className="flex-fill">
-									<Select<Profile>
-										placeholder={t('Add people…')}
-										getData={async (q) => (q ? await listProfiles(q) : [])}
-										itemToId={(p) => p.idTag}
-										itemToString={(p) => p?.idTag || ''}
-										renderItem={(p) => <ProfileCard profile={p} />}
-										onSelectItem={(p) => p && addPerm(p, defaultAddLevel)}
-									/>
-								</div>
-								<AccessLevelMenu<PermLevel>
-									value={defaultAddLevel}
-									onChange={setDefaultAddLevel}
-									disabledLevels={disabledLevels}
-									ariaLabel={t('Default access for new people')}
-								/>
-							</div>
-
 							{/* People with access */}
 							<div className="c-vbox g-1">
 								<h4 className="mb-2 text-secondary text-uppercase text-small">
 									{t('People with access')}
 								</h4>
 
-								{/* Owner row */}
-								{ownerIdTag && (
-									<div className="c-hbox g-2 align-items-center p-2">
-										<div className="c-hbox g-2 flex-fill align-items-center text-truncate">
-											<ProfileCard
-												profile={
-													ownerProfile ?? {
-														idTag: ownerIdTag,
-														name: ownerIdTag
+								<ProfileMultiSelect
+									variant="list"
+									placeholder={t('Add people…')}
+									listProfiles={listProfiles}
+									value={allPeopleProfiles}
+									onAdd={(p) => addPerm(p, defaultAddLevel)}
+									onRemove={(p) => confirmRemovePerm(p.idTag)}
+									searchAddon={
+										<AccessLevelMenu<PermLevel>
+											value={defaultAddLevel}
+											onChange={setDefaultAddLevel}
+											disabledLevels={disabledLevels}
+											ariaLabel={t('Default access for new people')}
+										/>
+									}
+									renderActions={(p) => (
+										<AccessLevelMenu<PermLevel>
+											value={levelFor(p.idTag)}
+											onChange={(lvl) => changePerm(p.idTag, lvl)}
+											onRemove={() => requestRemovePerm(p.idTag)}
+											disabledLevels={disabledLevels}
+											ariaLabel={t('Change access for {{name}}', {
+												name: p.name || p.idTag
+											})}
+										/>
+									)}
+									confirmingRemove={confirmingRemovePerm}
+									onCancelRemove={cancelRemovePerm}
+									removePrompt={(p) =>
+										t('Remove access for {{name}}?', {
+											name: p.name || p.idTag
+										})
+									}
+									emptyText={t('No one else has access yet')}
+								>
+									{/* Owner row */}
+									{ownerIdTag && (
+										<div className="c-hbox g-2 align-items-center p-2">
+											<div className="c-hbox g-2 flex-fill align-items-center text-truncate">
+												<ProfileCard
+													profile={
+														ownerProfile ?? {
+															idTag: ownerIdTag,
+															name: ownerIdTag
+														}
 													}
-												}
-											/>
-											{ownerIdTag === auth?.idTag && (
-												<span className="text-secondary">({t('you')})</span>
-											)}
-										</div>
-										<span className="c-badge">{t('Owner')}</span>
-									</div>
-								)}
-
-								{/* Members */}
-								{allPeople.map((entry) => {
-									const idTag = entry.subjectId.toString()
-									const profile: Profile = peopleProfiles[idTag] ?? {
-										idTag,
-										name: idTag
-									}
-									const level = permCharToLevel(entry.permission.toString())
-
-									if (confirmingRemovePerm === idTag) {
-										return (
-											<div
-												key={idTag}
-												className="c-hbox g-2 align-items-center p-2"
-											>
-												<span className="flex-fill text-small">
-													{t('Remove access for {{name}}?', {
-														name: profile.name || idTag
-													})}
-												</span>
-												<Button size="small" onClick={cancelRemovePerm}>
-													{t('Cancel')}
-												</Button>
-												<Button
-													size="small"
-													variant="primary"
-													onClick={() => confirmRemovePerm(idTag)}
-												>
-													{t('Remove')}
-												</Button>
+												/>
+												{ownerIdTag === auth?.idTag && (
+													<span className="text-secondary">
+														({t('you')})
+													</span>
+												)}
 											</div>
-										)
-									}
-
-									return (
-										<div
-											key={idTag}
-											className="c-hbox g-2 align-items-center p-2"
-										>
-											<div className="flex-fill text-truncate">
-												<ProfileCard profile={profile} />
-											</div>
-											<AccessLevelMenu<PermLevel>
-												value={level}
-												onChange={(lvl) => changePerm(idTag, lvl)}
-												onRemove={() => requestRemovePerm(idTag)}
-												disabledLevels={disabledLevels}
-												ariaLabel={t('Change access for {{name}}', {
-													name: profile.name || idTag
-												})}
-											/>
+											<span className="c-badge">{t('Owner')}</span>
 										</div>
-									)
-								})}
-
-								{allPeople.length === 0 && (
-									<div className="text-secondary text-small px-2">
-										{t('No one else has access yet')}
-									</div>
-								)}
+									)}
+								</ProfileMultiSelect>
 							</div>
 
 							{/* Anyone with the link */}

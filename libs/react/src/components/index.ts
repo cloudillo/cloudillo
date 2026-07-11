@@ -71,9 +71,6 @@ export { Dropdown } from './Dropdown/index.js'
 export type { DropZoneProps } from './DropZone/index.js'
 // DropZone Component
 export { DropZone } from './DropZone/index.js'
-export type { EditProfileListProps } from './EditProfileList/index.js'
-// EditProfileList Component
-export { EditProfileList } from './EditProfileList/index.js'
 export type { EmptyStateProps, EmptyStateSize } from './EmptyState/index.js'
 // EmptyState Component
 export { EmptyState } from './EmptyState/index.js'
@@ -189,9 +186,9 @@ export {
 	ProfilePicture,
 	UnknownProfilePicture
 } from './Profile/index.js'
-export type { ProfileSelectProps } from './ProfileSelect/index.js'
-// ProfileSelect Component
-export { ProfileSelect } from './ProfileSelect/index.js'
+export type { ProfileMultiSelectProps, ProfileSelectProps } from './ProfileSelect/index.js'
+// ProfileSelect Components
+export { ProfileMultiSelect, ProfileSelect } from './ProfileSelect/index.js'
 export type { ProgressProps } from './Progress/index.js'
 // Progress Component
 export { Progress } from './Progress/index.js'

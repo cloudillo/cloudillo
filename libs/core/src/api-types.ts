@@ -544,7 +544,8 @@ export interface ListActionsQuery {
 	involved?: string
 	parentId?: string
 	rootId?: string
-	subject?: string
+	subject?: string | string[]
+	count?: boolean // when true, /actions returns only cursorPagination.count (pre-visibility aggregate)
 	createdAfter?: string | number
 	sortDir?: 'asc' | 'desc' // sort order (default 'desc'); 'asc' for the Unread tab
 	// Ordering column: 'created' (default, author time) or 'received' (local
@@ -563,6 +564,10 @@ export interface ListActionsQuery {
 	// `ActionView.token` (opt-in; used by the engagement signature-verification
 	// path). Forwarded verbatim as the `includeTokens` query param.
 	includeTokens?: boolean
+	// When true, the server hydrates each row's `subject`-referenced action into
+	// `ActionView.subjectAction` (with full `stat`), saving a round trip — used by
+	// reposts (embedded original card) and the group list (each SUBS's CONV).
+	includeSubject?: boolean
 }
 
 // Response types
@@ -1693,6 +1698,4 @@ export interface ListCalendarObjectsQuery {
 	includeExceptions?: boolean
 }
 
-// ============================================================================
-// WEBSOCKET TYPES
 // vim: ts=4

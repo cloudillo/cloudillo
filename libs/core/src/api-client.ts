@@ -572,6 +572,23 @@ export class ApiClient {
 		},
 
 		/**
+		 * GET /actions?count=true - Aggregate row count for a query.
+		 * Returns a pre-visibility COUNT(*) (see backend note); intended for
+		 * lean unread probes, not exact list-length parity.
+		 * @param query - Filter options (limit/cursor/sort are ignored server-side)
+		 * @returns Number of matching rows
+		 */
+		count: async (query?: Types.ListActionsQuery): Promise<number> => {
+			const result = await this.requestWithMeta('GET', '/actions', Types.tListActionsResult, {
+				query: { ...query, count: true } as Record<
+					string,
+					string | number | boolean | string[] | undefined
+				>
+			})
+			return result.meta.cursorPagination?.count ?? 0
+		},
+
+		/**
 		 * POST /actions - Create action
 		 * @param data - Action data
 		 * @returns Created action

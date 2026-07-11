@@ -15,6 +15,7 @@ import { getApiUrl } from './urls.js'
 export interface CursorPaginationMeta {
 	nextCursor: string | null
 	hasMore: boolean
+	count?: number // present only on count=true responses (pre-visibility aggregate)
 }
 
 /**

@@ -32,7 +32,7 @@ import { ContactsApp } from './contacts/index.js'
 import { FeedApp } from './feed.js'
 import { FilesApp } from './files.js'
 import { GalleryApp } from './gallery.js'
-import { MessagesApp } from './messages.js'
+import { MessagesApp } from './messages/index.js'
 import { FileViewerApp } from './viewer/index.js'
 
 async function delay(ms: number): Promise<void> {

@@ -50,8 +50,8 @@ import { Link, NavLink, Route, Routes, useLocation, useNavigate } from 'react-ro
 
 import { version } from '../package.json'
 import { AppRoutes } from './apps'
-import { unreadCountAtom, useGlobalUnreadProbe } from './read-position.js'
 import { getFileIcon } from './apps/files/icons.js'
+import { useGlobalMessageUnreadProbe } from './apps/messages/index.js'
 import { SharedResourceView } from './apps/shared.js'
 import { AuthRoutes, loginInitAtom } from './auth/auth.js'
 import { LogoutDialog } from './auth/LogoutDialog.js'
@@ -108,6 +108,7 @@ import usePWA, {
 	resetEncryptionState,
 	setCurrentAuthToken
 } from './pwa.js'
+import { unreadCountAtom, useGlobalUnreadProbe } from './read-position.js'
 import { useSearch } from './search.js'
 import { applyTheme, SettingsRoutes, setTheme } from './settings'
 import { SiteAdminRoutes } from './site-admin'
@@ -197,8 +198,9 @@ function Menu({
 	const menuContextIdTag = useCurrentContextIdTag()
 	const unreadCounts = useAtomValue(unreadCountAtom)
 
-	// Content-availability badge for a menu item: a dot for the feed when the
-	// active context has unread content (numeric message badges arrive in G).
+	// Menu-item unread badge: a dot for the feed's active context, or a numeric count
+	// for messages counting `msg:<convId>` conversations that have unread — consistent
+	// across DMs (per-message counts) and groups (0/1 dots) (see read-position.ts).
 	function badgeFor(menuItem: MenuLinkItem): React.ReactNode {
 		if (menuItem.id === 'feed' && unreadCounts[menuContextIdTag ?? '']) {
 			return (
@@ -208,6 +210,23 @@ function Menu({
 					aria-label={t('New content')}
 				/>
 			)
+		}
+		if (menuItem.id === 'messages') {
+			let total = 0
+			for (const [k, v] of Object.entries(unreadCounts)) {
+				if (k.startsWith('msg:') && v > 0) total += 1
+			}
+			if (total > 0) {
+				return (
+					<span
+						className="c-badge accent positioned tr"
+						role="status"
+						aria-label={t('Unread messages')}
+					>
+						{total}
+					</span>
+				)
+			}
 		}
 		return undefined
 	}
@@ -1098,6 +1117,7 @@ export function Layout() {
 	useProfileTrustBootstrap() // Seed persisted per-profile trust from the backend
 	useActionNotifications() // Sound and toast notifications for incoming actions
 	useGlobalUnreadProbe() // App-wide feed-unread counts for nav/sidebar dots
+	useGlobalMessageUnreadProbe() // App-wide message-unread counts for nav badge
 
 	React.useEffect(
 		function syncAuthTokenToSw() {

@@ -237,6 +237,7 @@ export const tNewAction = T.struct({
 	subject: T.optional(T.string),
 	expiresAt: T.optional(T.number),
 	visibility: T.optional(T.string), // 'P' = Public, 'C' = Connected, 'F' = Followers
+	flags: T.optional(T.string), // Action flags (e.g. 'O' = open group on CONV)
 	draft: T.optional(T.boolean), // true = save as draft (status 'R')
 	publishAt: T.optional(T.number) // Unix timestamp for scheduled publishing
 })
@@ -304,6 +305,9 @@ export interface ActionView {
 		ownRepostIds?: Record<string, string>
 	}
 	visibility?: string
+	// Action flags string serialized by the backend (e.g. CONV 'O' = open group,
+	// joinable without invitation). `is_open` = flags.contains('O').
+	flags?: string
 	// Reader's own thread-subscription level on this thread root, backed by
 	// actions.sub_level (private, never federated). Absent = not subscribed.
 	subLevel?: 'W' | 'T' | 'M'
@@ -346,6 +350,7 @@ export const tActionView: T.Type<ActionView> = T.struct({
 		})
 	),
 	visibility: T.optional(T.string),
+	flags: T.optional(T.string),
 	subLevel: T.optional(T.literal('W', 'T', 'M')),
 	x: T.optional(T.unknown),
 	token: T.optional(T.string)
@@ -475,6 +480,53 @@ export const tMessageAction = T.struct({
 })
 export type MessageAction = T.TypeOf<typeof tMessageAction>
 
+// Conversations (group message containers)
+export const tConvContent = T.struct({
+	name: T.string,
+	description: T.optional(T.string),
+	joinMode: T.optional(T.literal('auto', 'moderated'))
+})
+export type ConvContent = T.TypeOf<typeof tConvContent>
+
+export const tConvAction = T.struct({
+	type: T.literal('CONV'),
+	subType: T.undefinedValue,
+	content: tConvContent,
+	attachments: T.undefinedValue,
+	parentId: T.undefinedValue,
+	audience: T.undefinedValue,
+	subject: T.optional(T.string)
+})
+export type ConvAction = T.TypeOf<typeof tConvAction>
+
+// Group membership (subject = CONV id). Role lives in x.role.
+export const tSubsAction = T.struct({
+	type: T.literal('SUBS'),
+	subType: T.optional(T.literal('DEL')),
+	content: T.undefinedValue,
+	attachments: T.undefinedValue,
+	parentId: T.undefinedValue,
+	audience: T.optional(T.string),
+	subject: T.string // CONV id
+})
+export type SubsAction = T.TypeOf<typeof tSubsAction>
+
+// Group invitation (subject = CONV id, audience = invitee)
+export const tInvtAction = T.struct({
+	type: T.literal('INVT'),
+	subType: T.undefinedValue,
+	content: T.struct({
+		role: T.optional(T.string),
+		groupName: T.optional(T.string),
+		message: T.optional(T.string)
+	}),
+	attachments: T.undefinedValue,
+	parentId: T.undefinedValue,
+	audience: T.string,
+	subject: T.string // CONV id
+})
+export type InvtAction = T.TypeOf<typeof tInvtAction>
+
 // Files
 export const tFileShareAction = T.struct({
 	type: T.literal('FSHR'),
@@ -504,6 +556,9 @@ export const tBaseAction = T.taggedUnion('type')({
 
 	// Messages
 	MSG: tMessageAction,
+	CONV: tConvAction,
+	SUBS: tSubsAction,
+	INVT: tInvtAction,
 
 	// Files
 	FSHR: tFileShareAction

@@ -84,6 +84,7 @@ import {
 	INITIAL_UNREAD_WINDOW_SEC,
 	nowSeconds,
 	unreadCountAtom,
+	useBottomDwell,
 	useReadMarker,
 	useReadPositionTracker,
 	useScrollEngaged
@@ -1676,6 +1677,16 @@ export function FeedApp() {
 		setUnreadCounts((prev) => (prev[ctxKey] ? { ...prev, [ctxKey]: 0 } : prev))
 		if (viewMode === 'unread') setUnreadSince(newestLoadedTs)
 	}, [newestLoadedTs, markReadNow, setUnreadCounts, ctxKey, viewMode])
+
+	// Auto "caught up": dwelling 3s at the bottom of the Unread list marks everything
+	// loaded as read — same effect as the bottom button, consistent with messages.
+	useBottomDwell({
+		scrollEl,
+		enabled: viewMode === 'unread',
+		delayMs: 3000,
+		recheckKey: newestLoadedTs,
+		onDwell: markAllRead
+	})
 
 	// Optimistic dot clear: as scroll-driven reading advances the watermark to (or
 	// past) the newest loaded post, drop the context's unread count to 0 so the

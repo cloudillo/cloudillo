@@ -26,6 +26,7 @@ import * as React from 'react'
 import { useLocation } from 'react-router-dom'
 
 import { useApiContext, useCommunitiesList } from './context/index.js'
+import { runWithLimit } from './utils.js'
 import { useWsBus } from './ws-bus.js'
 
 // The backend stores all timestamps in epoch SECONDS (actions.created_at =
@@ -86,8 +87,8 @@ export const readPositionAtom: PrimitiveAtom<Record<string, number>> = atom<Reco
 	{}
 )
 
-// bare entity id → unread count (feed dot is rendered for count > 0;
-// messages render the numeric value)
+// Unread counts keyed by a bare entity id (feed/community dot) or a `msg:<convId>`
+// key for per-conversation message unread (the nav badge sums all `msg:` entries).
 export const unreadCountAtom: PrimitiveAtom<Record<string, number>> = atom<Record<string, number>>(
 	{}
 )
@@ -396,17 +397,59 @@ export function useReadPositionTracker(options: UseReadPositionTrackerOptions): 
 	return { register }
 }
 
-// Run async tasks with a bounded concurrency so a member of many communities
-// doesn't fire every proxy-token + federated probe at once (rate-limit safety).
-async function runWithLimit(tasks: Array<() => Promise<void>>, limit: number): Promise<void> {
-	let i = 0
-	async function worker(): Promise<void> {
-		while (i < tasks.length) {
-			const task = tasks[i++]
-			await task()
+export interface UseBottomDwellOptions {
+	scrollEl: HTMLElement | null
+	enabled: boolean
+	onDwell: () => void
+	// Distance (px) from the bottom that counts as "at the bottom".
+	thresholdPx?: number
+	delayMs?: number
+	// Re-evaluate the at-bottom state when this changes (e.g. newest-loaded ts), so a
+	// new message arriving while parked at the bottom re-arms the timer.
+	recheckKey?: number
+}
+
+// Fire `onDwell` once after the user rests within `thresholdPx` of the bottom for
+// `delayMs`. The newest items never scroll above the viewport top, so a bottom-dwell
+// marks them read. Fires once per session; re-arms when the user leaves or `recheckKey`
+// changes.
+export function useBottomDwell(options: UseBottomDwellOptions): void {
+	const { scrollEl, enabled, onDwell, thresholdPx = 120, delayMs = 3000, recheckKey } = options
+	const onDwellRef = React.useRef(onDwell)
+	onDwellRef.current = onDwell
+
+	React.useEffect(() => {
+		if (!enabled || !scrollEl) return
+		let timer: ReturnType<typeof setTimeout> | null = null
+		let fired = false
+		const atBottom = () =>
+			scrollEl.scrollHeight - (scrollEl.scrollTop + scrollEl.clientHeight) <= thresholdPx
+		const clear = () => {
+			if (timer) {
+				clearTimeout(timer)
+				timer = null
+			}
 		}
-	}
-	await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, worker))
+		const evaluate = () => {
+			if (atBottom()) {
+				if (fired || timer) return
+				timer = setTimeout(() => {
+					timer = null
+					fired = true
+					onDwellRef.current()
+				}, delayMs)
+			} else {
+				fired = false
+				clear()
+			}
+		}
+		scrollEl.addEventListener('scroll', evaluate, { passive: true })
+		evaluate() // handle "already at bottom" on mount / recheckKey change
+		return () => {
+			clear()
+			scrollEl.removeEventListener('scroll', evaluate)
+		}
+	}, [scrollEl, enabled, thresholdPx, delayMs, recheckKey])
 }
 
 /**
@@ -489,6 +532,10 @@ export function useGlobalUnreadProbe(): void {
 					if (!tok) return
 					const capi = getClientFor(idTag, { token: tok.token })
 					if (!capi) return
+					// Existence probe via the (proxy-readable) list endpoint: only a
+					// *visible* unread post lights the dot. A pre-visibility COUNT(*)
+					// could count rows the reader can never load (e.g. hidden-community
+					// posts), pinning the dot on with nothing to show.
 					const res = await capi.actions.listPaginated({
 						type: ['POST', 'REPOST'],
 						status: ['A'],
@@ -499,18 +546,16 @@ export function useGlobalUnreadProbe(): void {
 						sortDir: 'asc',
 						limit: 1
 					})
-					const has = res.data.length > 0 || res.cursorPagination?.hasMore === true
-					const count = has ? 1 : 0
+					const count =
+						res.data.length > 0 || res.cursorPagination?.hasMore === true ? 1 : 0
 					lastProbedRef.current.set(idTag, Date.now())
 					setUnread((prev) =>
 						prev[idTag] === count ? prev : { ...prev, [idTag]: count }
 					)
 				} else {
-					// Home dot: own-node existence probe (mirrors the community branch, minus
-					// the proxy token and audience). Any POST/REPOST ingested after the home
-					// watermark (received_at > since, via sort:'received') lights the dot. No
-					// audience = the merged home feed, so the server's hidden-community
-					// exclusion applies — unlike the old unread-count endpoint.
+					// Home dot: own-node existence probe (mirrors the community branch,
+					// minus the proxy token and audience). No audience = the merged home
+					// feed, so the server's hidden-community exclusion applies.
 					const res = await api.actions.listPaginated({
 						type: ['POST', 'REPOST'],
 						status: ['A'],
@@ -520,8 +565,8 @@ export function useGlobalUnreadProbe(): void {
 						sortDir: 'asc',
 						limit: 1
 					})
-					const has = res.data.length > 0 || res.cursorPagination?.hasMore === true
-					const count = has ? 1 : 0
+					const count =
+						res.data.length > 0 || res.cursorPagination?.hasMore === true ? 1 : 0
 					lastProbedRef.current.set(idTag, Date.now())
 					setUnread((prev) =>
 						prev[idTag] === count ? prev : { ...prev, [idTag]: count }

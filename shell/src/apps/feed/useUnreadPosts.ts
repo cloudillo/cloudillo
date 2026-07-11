@@ -6,8 +6,8 @@ import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 
 import { useContextAwareApi } from '../../context/index.js'
-import { useWsBus } from '../../ws-bus.js'
 import { feedReadTs } from '../../read-position.js'
+import { useWsBus } from '../../ws-bus.js'
 
 export interface UseUnreadPostsOptions {
 	since: number // read-position watermark (epoch seconds)
@@ -74,6 +74,9 @@ export function useUnreadPosts(options: UseUnreadPostsOptions) {
 				search,
 				visibility,
 				issuer,
+				// Embed each REPOST's original so the unread banner's EmbeddedPostCard
+				// renders from subjectAction.
+				includeSubject: true,
 				cursor: cursor ?? undefined,
 				limit
 			})

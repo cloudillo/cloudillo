@@ -33,6 +33,23 @@ export async function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(() => resolve(), ms))
 }
 
+// Run async tasks with a bounded concurrency so a large fan-out (federated
+// probes, per-group hydration, proxy-token fetches) doesn't fire every request
+// at once (rate-limit safety).
+export async function runWithLimit(
+	tasks: Array<() => Promise<void>>,
+	limit: number
+): Promise<void> {
+	let i = 0
+	async function worker(): Promise<void> {
+		while (i < tasks.length) {
+			const task = tasks[i++]
+			await task()
+		}
+	}
+	await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, worker))
+}
+
 export const format = {
 	integer: function integer(n: number | undefined) {
 		return n ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '-'

@@ -70,6 +70,9 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 				issuer,
 				subscribed,
 				sort,
+				// Embed each REPOST's original in subjectAction so EmbeddedPostCard
+				// renders without a second fetch.
+				includeSubject: true,
 				cursor: cursor ?? undefined,
 				limit
 			})

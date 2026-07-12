@@ -1,10 +1,12 @@
 import * as Y from 'yjs'
 
 import { generateSheetId, generateUniqueColIds, generateUniqueRowIds } from '../id-generator'
+import { transformOp } from '../transform-ops'
 import {
 	deleteColumns,
 	deleteRows,
 	ensureSheetDimensions,
+	getCell,
 	getOrCreateSheet,
 	indexToColId,
 	indexToRowId,
@@ -285,6 +287,53 @@ describe('Critical Fixes Integration Tests', () => {
 
 			expect(new Set(rowIds).size).toBe(100)
 			expect(new Set(colIds).size).toBe(50)
+		})
+	})
+
+	describe('Fix: nested cell-property ops must not clobber the parent object', () => {
+		it('stores ct as an object when Fortune Sheet emits nested ct.fa / ct.t ops', () => {
+			const sheet = getOrCreateSheet(doc, sheetId)
+			ensureSheetDimensions(sheet, 5, 5)
+
+			// Fortune Sheet sets a number format via nested ops reaching into ct.
+			// The old single-property update read only path[3] ('ct') and wrote
+			// the bare fa string, corrupting ct to '€0.00'.
+			transformOp(sheet, {
+				op: 'add',
+				id: sheetId,
+				path: ['data', 0, 0, 'v'],
+				value: '1'
+			} as never)
+			transformOp(sheet, {
+				op: 'add',
+				id: sheetId,
+				path: ['data', 0, 0, 'ct', 't'],
+				value: 'n'
+			} as never)
+			transformOp(sheet, {
+				op: 'replace',
+				id: sheetId,
+				path: ['data', 0, 0, 'ct', 'fa'],
+				value: '€0.00'
+			} as never)
+
+			const cell = getCell(sheet, 0, 0)
+			expect(cell?.v).toBe('1')
+			expect(cell?.ct).toEqual({ t: 'n', fa: '€0.00' })
+		})
+
+		it('still handles a flat single-property op (data[r][c].v)', () => {
+			const sheet = getOrCreateSheet(doc, sheetId)
+			ensureSheetDimensions(sheet, 5, 5)
+
+			transformOp(sheet, {
+				op: 'add',
+				id: sheetId,
+				path: ['data', 1, 1, 'v'],
+				value: 'Hello'
+			} as never)
+
+			expect(getCell(sheet, 1, 1)?.v).toBe('Hello')
 		})
 	})
 })

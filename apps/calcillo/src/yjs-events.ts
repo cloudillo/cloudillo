@@ -4,6 +4,7 @@ import * as Y from 'yjs'
 import { debug } from './debug'
 import type { CellStyleAttr, ExtendedCell, FreezeType } from './fortune-sheet-types'
 import { freezeSheet, setCellFormatExt } from './fortune-sheet-types'
+import { normalizeCt } from './ydoc-helpers'
 import type { RowId, SheetId, YSheetStructure } from './yjs-types'
 import { toColId, toRowId } from './yjs-types'
 
@@ -48,11 +49,11 @@ export function applySheetYEvent(
 
 				const cell = rowMap.get(colId)
 				if (cell && (cell.v !== undefined || cell.f !== undefined)) {
-					const value = cell.f || cell.v
-					wb.setCellValue(rowIndex, colIndex, value, {
-						id: sheetId,
-						type: cell.f ? 'f' : 'v'
-					})
+					// Pass ct so Fortune Sheet applies the number format and recomputes m.
+					// A bare scalar is masked with the General format → unformatted/blank.
+					const ct = normalizeCt(cell.ct)
+					const value = cell.f ? { f: cell.f, ct } : { v: cell.v, ct }
+					wb.setCellValue(rowIndex, colIndex, value, { id: sheetId })
 					needsRecalc = true
 				} else {
 					wb.clearCell(rowIndex, colIndex, { id: sheetId })
@@ -79,11 +80,11 @@ export function applySheetYEvent(
 					if (colIndex < 0) continue
 
 					if (cell && (cell.v !== undefined || cell.f !== undefined)) {
-						const value = cell.f || cell.v
-						wb.setCellValue(rowIndex, colIndex, value, {
-							id: sheetId,
-							type: cell.f ? 'f' : 'v'
-						})
+						// Pass ct so Fortune Sheet applies the number format and recomputes m.
+						// A bare scalar is masked with the General format → unformatted/blank.
+						const ct = normalizeCt(cell.ct)
+						const value = cell.f ? { f: cell.f, ct } : { v: cell.v, ct }
+						wb.setCellValue(rowIndex, colIndex, value, { id: sheetId })
 
 						// Then apply cell formatting if present
 						const extCell = cell as ExtendedCell

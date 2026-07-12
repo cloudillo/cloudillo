@@ -1,4 +1,4 @@
-import type { Op } from '@fortune-sheet/core'
+import type { Cell, Op } from '@fortune-sheet/core'
 import type * as Y from 'yjs'
 
 import { debug } from './debug'
@@ -85,6 +85,67 @@ function parseBorderEdge(borderDef: { style?: string | number; color?: string })
 }
 
 /**
+ * Immutably set a (possibly nested) property path on a cell object, cloning
+ * objects along the way.
+ *
+ * Fortune Sheet emits ops that reach into a cell sub-object — notably number
+ * formats as `['data', r, c, 'ct', 'fa']`. A shallow `{ ...cell, [prop]: value }`
+ * (reading only `path[3]`) would overwrite the whole `ct` object with the bare
+ * `fa` string, so the CRDT ends up storing `ct: '€0.00'` instead of
+ * `ct: { t: 'n', fa: '€0.00' }`. That malformed `ct` cannot be masked by
+ * Fortune Sheet, so the cell renders unformatted/blank on reload.
+ */
+function setCellProperty(
+	cell: Record<string, unknown>,
+	path: (string | number)[],
+	value: unknown
+): Record<string, unknown> {
+	if (path.length === 0) return cell
+	const key = String(path[0])
+	if (path.length === 1) {
+		return { ...cell, [key]: value }
+	}
+	const child = cell[key]
+	const childObj =
+		child && typeof child === 'object' && !Array.isArray(child)
+			? (child as Record<string, unknown>)
+			: {}
+	return { ...cell, [key]: setCellProperty(childObj, path.slice(1), value) }
+}
+
+/**
+ * Immutably delete a (possibly nested) property path from a cell object,
+ * cloning objects along the way. The inverse of setCellProperty — used for
+ * Fortune Sheet `remove` ops that target a sub-property (e.g. ct.fa) rather
+ * than the whole cell.
+ */
+function deleteCellProperty(
+	cell: Record<string, unknown>,
+	path: (string | number)[]
+): Record<string, unknown> {
+	if (path.length === 0) return cell
+	const key = String(path[0])
+	if (path.length === 1) {
+		const next = { ...cell }
+		delete next[key]
+		return next
+	}
+	const child = cell[key]
+	if (!child || typeof child !== 'object' || Array.isArray(child)) {
+		return cell // nothing nested to remove
+	}
+	const newChild = deleteCellProperty(child as Record<string, unknown>, path.slice(1))
+	if (Object.keys(newChild).length === 0) {
+		// Dropped the last nested key — remove the now-empty parent instead of
+		// leaving `ct: {}` cruft in the CRDT.
+		const next = { ...cell }
+		delete next[key]
+		return next
+	}
+	return { ...cell, [key]: newChild }
+}
+
+/**
  * Transform cell operations (add/replace/remove)
  */
 function transformCellOp(sheet: YSheetStructure, op: Op): void {
@@ -124,13 +185,16 @@ function transformCellOp(sheet: YSheetStructure, op: Op): void {
 					// Full cell replacement
 					setCell(sheet, rowIndex, colIndex, op.value)
 				} else {
-					// Single property update (e.g., data[5][3].v = "Hello")
-					const property = op.path[3]
+					// Property update — single (data[r][c].v) or nested
+					// (data[r][c].ct.fa). Merge into the existing sub-object
+					// instead of overwriting the parent; see setCellProperty.
 					const currentCell = getCell(sheet, rowIndex, colIndex) || {}
-					setCell(sheet, rowIndex, colIndex, {
-						...currentCell,
-						[property]: op.value
-					})
+					const updated = setCellProperty(
+						currentCell as Record<string, unknown>,
+						op.path.slice(3),
+						op.value
+					)
+					setCell(sheet, rowIndex, colIndex, updated as Cell)
 				}
 			}
 			break
@@ -138,7 +202,21 @@ function transformCellOp(sheet: YSheetStructure, op: Op): void {
 
 		case 'remove': {
 			if (colIndex !== undefined) {
-				clearCell(sheet, rowIndex, colIndex)
+				if (op.path.length <= 3) {
+					// Whole-cell removal (data[r][c])
+					clearCell(sheet, rowIndex, colIndex)
+				} else {
+					// Nested property removal (e.g. data[r][c].ct.fa) — drop just
+					// that key and keep the rest of the cell.
+					const currentCell = getCell(sheet, rowIndex, colIndex)
+					if (currentCell) {
+						const updated = deleteCellProperty(
+							currentCell as Record<string, unknown>,
+							op.path.slice(3)
+						)
+						setCell(sheet, rowIndex, colIndex, updated as Cell)
+					}
+				}
 			}
 			break
 		}

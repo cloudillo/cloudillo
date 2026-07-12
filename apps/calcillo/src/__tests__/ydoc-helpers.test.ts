@@ -487,6 +487,88 @@ describe('YDoc Helpers', () => {
 			expect(cell?.v).not.toHaveProperty('m')
 		})
 
+		it('computes m for currency cell with string value and normalizes v to number', () => {
+			const sheet = getOrCreateSheet(doc, sheetId)
+			ensureSheetDimensions(sheet, 5, 5)
+
+			setCell(sheet, 3, 0, { v: '25', ct: { t: 'n', fa: '€ #.00' } } as ExtendedCell)
+
+			const { celldata } = transformSheetToCelldata(sheet)
+			const cell = celldata.find((c) => c.r === 3 && c.c === 0)?.v
+
+			expect(cell?.m).toBe('€ 25.00')
+			expect(cell?.v).toBe(25)
+		})
+
+		it('computes m for currency cell with numeric value (renders-blank case)', () => {
+			const sheet = getOrCreateSheet(doc, sheetId)
+			ensureSheetDimensions(sheet, 5, 5)
+
+			setCell(sheet, 4, 0, { v: 20, ct: { t: 'n', fa: '€ #.00' } } as ExtendedCell)
+
+			const { celldata } = transformSheetToCelldata(sheet)
+			const cell = celldata.find((c) => c.r === 4 && c.c === 0)?.v
+
+			expect(cell?.m).toBe('€ 20.00')
+			expect(cell?.v).toBe(20)
+		})
+
+		it('computes m for percent-formatted cell', () => {
+			const sheet = getOrCreateSheet(doc, sheetId)
+			ensureSheetDimensions(sheet, 5, 5)
+
+			setCell(sheet, 0, 1, { v: 0.5, ct: { t: 'n', fa: '0.00%' } } as ExtendedCell)
+
+			const { celldata } = transformSheetToCelldata(sheet)
+			const cell = celldata.find((c) => c.r === 0 && c.c === 1)?.v
+
+			expect(cell?.m).toBe('50.00%')
+		})
+
+		it('keeps m for a numeric cell with a no-op integer format', () => {
+			const sheet = getOrCreateSheet(doc, sheetId)
+			ensureSheetDimensions(sheet, 5, 5)
+
+			// A no-op format (mask === raw value) must still set m — a numeric
+			// cell with no m renders blank.
+			setCell(sheet, 0, 2, { v: 5, ct: { t: 'n', fa: '#,##0' } } as ExtendedCell)
+
+			const { celldata } = transformSheetToCelldata(sheet)
+			const cell = celldata.find((c) => c.r === 0 && c.c === 2)?.v
+
+			expect(cell?.m).toBe('5')
+			expect(cell?.v).toBe(5)
+		})
+
+		it('leaves m unset for General-format cells', () => {
+			const sheet = getOrCreateSheet(doc, sheetId)
+			ensureSheetDimensions(sheet, 5, 5)
+
+			setCell(sheet, 2, 2, { v: 42, ct: { t: 'g', fa: 'General' } } as ExtendedCell)
+
+			const { celldata } = transformSheetToCelldata(sheet)
+			const cell = celldata.find((c) => c.r === 2 && c.c === 2)?.v
+
+			expect(cell).not.toHaveProperty('m')
+		})
+
+		it('heals legacy string ct and computes masked m', () => {
+			const sheet = getOrCreateSheet(doc, sheetId)
+			ensureSheetDimensions(sheet, 5, 5)
+
+			// Pre-fix documents stored ct as a bare format string (a nested
+			// ct.fa op clobbered the whole ct object). Such cells must still
+			// render formatted on load.
+			setCell(sheet, 0, 0, { v: '1', ct: '€0.00' } as unknown as ExtendedCell)
+
+			const { celldata } = transformSheetToCelldata(sheet)
+			const cell = celldata.find((c) => c.r === 0 && c.c === 0)?.v
+
+			expect(cell?.ct).toEqual({ t: 'n', fa: '€0.00' })
+			expect(cell?.m).toBe('€1.00')
+			expect(cell?.v).toBe(1)
+		})
+
 		it('returns empty array for empty sheet', () => {
 			const sheet = getOrCreateSheet(doc, sheetId)
 			ensureSheetDimensions(sheet, 5, 5)

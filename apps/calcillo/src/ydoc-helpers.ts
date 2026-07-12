@@ -1,4 +1,5 @@
 import type { Cell, SheetConfig } from '@fortune-sheet/core'
+import { isRealNum, update } from '@fortune-sheet/core'
 import * as Y from 'yjs'
 
 import { stripCellDefaults } from './cell-defaults'
@@ -54,6 +55,75 @@ function formatDateSerial(serial: number, format: string): string {
 		.replace('ss', pad(s))
 		.replace(/\bM\b/, String(M))
 		.replace(/\bd\b/, String(d))
+}
+
+/**
+ * Heal legacy `ct` corruption.
+ *
+ * A nested `ct.fa` op used to overwrite the whole `ct` with a bare format
+ * string (root-caused and fixed in transform-ops `setCellProperty`). Documents
+ * saved before that fix store `ct: '€0.00'` instead of `ct: { t: 'n', fa: '€0.00' }`.
+ * A string `ct` cannot be masked by Fortune Sheet, so expand it back into the
+ * object form. Returns the `ct` unchanged when it is already an object (or nil).
+ */
+export function normalizeCt(ct: unknown): Cell['ct'] {
+	if (typeof ct === 'string') {
+		// Legacy corruption stored the bare format string in place of the ct
+		// object. Infer the type: date formats use y/M/d/H/h/s tokens; currency,
+		// number and percent formats never do. Strip quoted literals ("...") and
+		// backslash-escaped chars first so date letters inside a literal (e.g.
+		// #,##0" mm" for millimetres) don't trip the heuristic.
+		const tokens = ct.replace(/"[^"]*"/g, '').replace(/\\./g, '')
+		const t = /yy|dd|MM|HH|hh|mm|ss|\bM\b|\bd\b/.test(tokens) ? 'd' : 'n'
+		return { t, fa: ct }
+	}
+	return ct as Cell['ct']
+}
+
+/**
+ * Precompute the display mask (`m`) for a celldata cell, mutating it in place.
+ *
+ * Fortune Sheet's celldata load path never re-masks (getCellTextInfo renders
+ * cell.m, else raw cell.v — and lodash.isEmpty(number)===true renders numeric
+ * cells blank). This mirrors @fortune-sheet/core `setCellValue`'s masking so
+ * dates and custom numeric formats display on load. Keep in sync with upstream.
+ */
+function applyDisplayMask(cell: Cell): void {
+	if (cell.ct?.t === 'd' && cell.v != null) {
+		// Dates: Fortune Sheet doesn't recompute m for date cells on init.
+		cell.m = formatDateSerial(Number(cell.v), cell.ct.fa || 'yyyy-MM-dd')
+	} else if (
+		cell.ct?.fa &&
+		cell.ct.fa !== 'General' &&
+		cell.ct.fa !== '@' &&
+		cell.ct.t !== 's' &&
+		cell.v != null &&
+		isRealNum(cell.v)
+	) {
+		// Currency / number / percent / custom numeric formats — mirror
+		// setCellValue. Only real numbers are masked: Text format (@ /
+		// t:'s') is excluded so string values like '007' keep their
+		// leading zeros, and non-numeric / boolean values fall through
+		// to the raw-v renderer below.
+		const v = parseFloat(cell.v as string)
+		try {
+			const masked = update(cell.ct.fa, v)
+			const maskedStr = masked == null ? null : String(masked)
+			if (maskedStr != null) {
+				// Always provide m for a numeric-typed cell — a number with no m
+				// renders blank, even when the mask equals the raw value.
+				cell.v = v
+				cell.m = maskedStr
+			} else {
+				delete cell.m
+			}
+		} catch {
+			// Malformed format string — never let one cell break the whole load.
+			delete cell.m
+		}
+	} else {
+		delete cell.m
+	}
 }
 
 /**
@@ -396,16 +466,9 @@ export function transformSheetToCelldata(sheet: YSheetStructure): {
 			// Include cell if it has data OR is part of a merge
 			if (cell || mergeInfo) {
 				const cleanCell: Cell = cell ? { ...cell } : {}
-				// Fortune Sheet doesn't recompute m for date cells on init,
-				// so we must provide it. For other types, delete m (transient).
-				if (cleanCell.ct?.t === 'd' && cleanCell.v != null) {
-					cleanCell.m = formatDateSerial(
-						Number(cleanCell.v),
-						cleanCell.ct.fa || 'yyyy-MM-dd'
-					)
-				} else {
-					delete cleanCell.m
-				}
+				// Heal legacy string `ct` from pre-fix documents (see normalizeCt).
+				if (cleanCell.ct != null) cleanCell.ct = normalizeCt(cleanCell.ct)
+				applyDisplayMask(cleanCell)
 
 				// Add merge information
 				if (mergeInfo) {

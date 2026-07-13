@@ -71,6 +71,10 @@ function createColorPicker(
 ): HTMLElement {
 	const picker = document.createElement('div')
 	picker.className = 'quillo-color-picker hidden'
+	// Cancel mousedown so picking a color keeps editor focus; swatches act on click.
+	picker.addEventListener('mousedown', (e) => {
+		e.preventDefault()
+	})
 	picker.id = `${type}-picker`
 
 	// Clear option row
@@ -575,6 +579,12 @@ function updatePairingBadges(
 		}
 		document.addEventListener('selectionchange', collapseMultiRangeSelection, {
 			signal: selectionGuard.signal
+		})
+		// Cancel toolbar mousedown so focus stays in the editor: otherwise the
+		// selection highlight vanishes and Quill's stale `savedRange` can format the
+		// wrong line. Controls still fire on click/change; programmatic focus unaffected.
+		toolbarEl?.addEventListener('mousedown', (e) => {
+			e.preventDefault()
 		})
 		// Tear down when the app frame goes away (single explicit cleanup point;
 		// the listener would otherwise live for the whole page lifetime).

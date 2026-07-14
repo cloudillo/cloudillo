@@ -1,6 +1,6 @@
 {
 	"name": "cloudillo",
-	"version": "0.8.16",
+	"version": "0.8.17",
 	"description": "Decentralized, self-hosted collaboration platform — privacy-first alternative to Google Workspace",
 	"private": true,
 	"type": "module",

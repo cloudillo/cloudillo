@@ -5,12 +5,6 @@
 	"description": "Prezillo presentations",
 	"type": "module",
 	"main": "src/index.js",
-	"jest": {
-		"preset": "ts-jest",
-		"moduleNameMapper": {
-			"^~/(.*)$": "<rootDir>/$1"
-		}
-	},
 	"scripts": {
 		"l-scan": "i18next-scanner --config src/i18n/scanner.config.cjs",
 		"ts": "tsgo --noEmit",

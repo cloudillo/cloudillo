@@ -343,6 +343,10 @@ export function deleteRows(sheet: YSheetStructure, startIndex: number, endIndex:
 
 	if (count <= 0) return
 
+	// Snapshot before mutation: merge ranges whose boundary is being deleted cannot be
+	// reconstructed from the post-deletion order. Only merges consume it.
+	const prevRowOrder = sheet.merges.size > 0 ? (sheet.rowOrder.toArray() as RowId[]) : []
+
 	// Collect row IDs to delete
 	const rowIdsToDelete: RowId[] = []
 	for (let i = 0; i < count; i++) {
@@ -359,7 +363,7 @@ export function deleteRows(sheet: YSheetStructure, startIndex: number, endIndex:
 	}
 
 	// Clean up ID-based features
-	cleanupAfterRowDeletion(sheet, rowIdsToDelete)
+	cleanupAfterRowDeletion(sheet, rowIdsToDelete, prevRowOrder)
 }
 
 /**
@@ -379,6 +383,10 @@ export function deleteColumns(sheet: YSheetStructure, startIndex: number, endInd
 
 	if (count <= 0) return
 
+	// Snapshot before mutation: merge ranges whose boundary is being deleted cannot be
+	// reconstructed from the post-deletion order. Only merges consume it.
+	const prevColOrder = sheet.merges.size > 0 ? (sheet.colOrder.toArray() as ColId[]) : []
+
 	// Collect column IDs to delete
 	const colIdsToDelete: ColId[] = []
 	for (let i = 0; i < count; i++) {
@@ -397,7 +405,7 @@ export function deleteColumns(sheet: YSheetStructure, startIndex: number, endInd
 	}
 
 	// Clean up ID-based features
-	cleanupAfterColDeletion(sheet, colIdsToDelete)
+	cleanupAfterColDeletion(sheet, colIdsToDelete, prevColOrder)
 }
 
 /**
@@ -1051,11 +1059,109 @@ export function getHyperlinkAt(
 // ============================================================================
 
 /**
- * Validate and repair merge ranges after structural changes
- * Removes merges that reference non-existent rows or columns
- * This prevents corruption from concurrent deletions by different users
+ * Survivors of the range [startId..endId] as it existed *before* a deletion.
+ * Returns null when the range cannot be reconstructed from `prevOrder`
+ * (unknown or inverted boundaries).
  */
-function validateAndRepairMerges(sheet: YSheetStructure): void {
+function survivingRange<T extends string>(
+	prevOrder: T[],
+	startId: T,
+	endId: T,
+	deleted: Set<string>
+): T[] | null {
+	const startIdx = prevOrder.indexOf(startId)
+	const endIdx = prevOrder.indexOf(endId)
+	if (startIdx === -1 || endIdx === -1 || startIdx > endIdx) return null
+	return prevOrder.slice(startIdx, endIdx + 1).filter((id) => !deleted.has(id))
+}
+
+/**
+ * Repair merges whose boundary on `axis` was just deleted.
+ *
+ * Mirrors Fortune Sheet's `deleteRowCol` handling of `config.merge`: a merge shrinks when a
+ * deletion falls strictly inside it, truncates when the deletion overlaps its tail, relocates
+ * when the deletion removes its leading rows/columns, and disappears when nothing survives.
+ *
+ * Deliberate deviation: Fortune Sheet keeps a collapsed range as `{rs: 1, cs: 1}`; we drop it,
+ * because a 1x1 merge carries no information and renders identically to a plain cell.
+ *
+ * Interior-only deletions are skipped entirely: `getRowRange`/`getColRange` derive the span
+ * from the live order arrays, so the span shrinks on its own with no write.
+ */
+function repairMergesAfterDeletion(
+	sheet: YSheetStructure,
+	axis: 'row' | 'col',
+	deleted: Set<string>,
+	prevOrder: string[]
+): void {
+	// Snapshot entries first - the loop re-keys merges as it goes.
+	for (const [key, merge] of Array.from(sheet.merges.entries())) {
+		const startId = axis === 'row' ? merge.startRow : merge.startCol
+		const endId = axis === 'row' ? merge.endRow : merge.endCol
+		if (!deleted.has(startId) && !deleted.has(endId)) continue
+
+		const survivors = survivingRange(prevOrder, startId, endId, deleted)
+		if (!survivors || survivors.length === 0) {
+			sheet.merges.delete(key)
+			continue
+		}
+
+		const newStart = survivors[0]
+		const newEnd = survivors[survivors.length - 1]
+		const crossStart = axis === 'row' ? merge.startCol : merge.startRow
+		const crossEnd = axis === 'row' ? merge.endCol : merge.endRow
+		if (newStart === newEnd && crossStart === crossEnd) {
+			sheet.merges.delete(key)
+			continue
+		}
+
+		const repaired: MergeInfo =
+			axis === 'row'
+				? {
+						startRow: newStart as RowId,
+						endRow: newEnd as RowId,
+						startCol: merge.startCol,
+						endCol: merge.endCol
+					}
+				: {
+						startRow: merge.startRow,
+						endRow: merge.endRow,
+						startCol: newStart as ColId,
+						endCol: newEnd as ColId
+					}
+
+		// Must stay in sync with the key format in `setMerge`.
+		const newKey = `${repaired.startRow}_${repaired.startCol}`
+		if (newKey === key) {
+			// Same key - update in place. Deleting first would emit a Y.Map delete+add
+			// pair instead of an update and widen the window for a concurrent write to be lost.
+			sheet.merges.set(key, repaired)
+			continue
+		}
+
+		sheet.merges.delete(key)
+		// Never silently swallow an unrelated merge that already anchors `newKey`.
+		// Only reachable from an already-overlapping (corrupt) merge map.
+		if (sheet.merges.has(newKey)) {
+			debug.warn('[Merge] Repair collided with an existing merge; dropping repaired range', {
+				key,
+				newKey
+			})
+			continue
+		}
+		sheet.merges.set(newKey, repaired)
+	}
+}
+
+/**
+ * Drop merges that no longer describe a live range: either a boundary row/column ID is gone,
+ * or the range has become inverted (start after end).
+ *
+ * Only ever deletes, never rewrites, so it is idempotent and safe for every client to run
+ * independently on the same document - which is what makes concurrent structural deletions
+ * converge instead of leaving permanent garbage behind.
+ */
+export function pruneInvalidMerges(sheet: YSheetStructure): void {
 	const rowOrder = sheet.rowOrder.toArray()
 	const colOrder = sheet.colOrder.toArray()
 	const rowSet = new Set(rowOrder)
@@ -1101,21 +1207,20 @@ function validateAndRepairMerges(sheet: YSheetStructure): void {
 
 /**
  * Clean up ID-based features after row deletion
- * Removes merges, borders, hyperlinks, validations, and conditional formats
+ * Repairs merges and removes borders, hyperlinks, validations and conditional formats
  * that reference deleted rows
  */
-function cleanupAfterRowDeletion(sheet: YSheetStructure, deletedRowIds: RowId[]): void {
+function cleanupAfterRowDeletion(
+	sheet: YSheetStructure,
+	deletedRowIds: RowId[],
+	prevRowOrder: RowId[]
+): void {
 	const deletedSet = new Set(deletedRowIds)
 
-	// Clean up merges - remove if any boundary row deleted
-	for (const [key, merge] of sheet.merges.entries()) {
-		if (deletedSet.has(merge.startRow) || deletedSet.has(merge.endRow)) {
-			sheet.merges.delete(key)
-		}
-	}
+	repairMergesAfterDeletion(sheet, 'row', deletedSet, prevRowOrder)
 
-	// Validate all remaining merges to catch concurrent deletion issues
-	validateAndRepairMerges(sheet)
+	// Drop any remaining merge left dangling by a concurrent deletion
+	pruneInvalidMerges(sheet)
 
 	// Clean up borders - remove if row deleted
 	for (const [key, border] of sheet.borders.entries()) {
@@ -1159,21 +1264,20 @@ function cleanupAfterRowDeletion(sheet: YSheetStructure, deletedRowIds: RowId[])
 
 /**
  * Clean up ID-based features after column deletion
- * Removes merges, borders, hyperlinks, validations, and conditional formats
+ * Repairs merges and removes borders, hyperlinks, validations and conditional formats
  * that reference deleted columns
  */
-function cleanupAfterColDeletion(sheet: YSheetStructure, deletedColIds: ColId[]): void {
+function cleanupAfterColDeletion(
+	sheet: YSheetStructure,
+	deletedColIds: ColId[],
+	prevColOrder: ColId[]
+): void {
 	const deletedSet = new Set(deletedColIds)
 
-	// Clean up merges - remove if any boundary column deleted
-	for (const [key, merge] of sheet.merges.entries()) {
-		if (deletedSet.has(merge.startCol) || deletedSet.has(merge.endCol)) {
-			sheet.merges.delete(key)
-		}
-	}
+	repairMergesAfterDeletion(sheet, 'col', deletedSet, prevColOrder)
 
-	// Validate all remaining merges to catch concurrent deletion issues
-	validateAndRepairMerges(sheet)
+	// Drop any remaining merge left dangling by a concurrent deletion
+	pruneInvalidMerges(sheet)
 
 	// Clean up borders - remove if column deleted
 	for (const [key, border] of sheet.borders.entries()) {

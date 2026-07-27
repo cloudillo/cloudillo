@@ -42,7 +42,12 @@ import {
 	isValidSheetIdValue,
 	showUserError
 } from './utils'
-import { ensureSheetDimensions, getOrCreateSheet, transformSheetToCelldata } from './ydoc-helpers'
+import {
+	ensureSheetDimensions,
+	getOrCreateSheet,
+	pruneInvalidMerges,
+	transformSheetToCelldata
+} from './ydoc-helpers'
 import { applySheetYEvent } from './yjs-events'
 // Import modules
 import type { SheetId } from './yjs-types'
@@ -112,6 +117,9 @@ export function CalcilloApp() {
 		if (!cloudillo.provider) return
 
 		debug.log('[EFFECT] Provider ready, Y.Doc client ID:', cloudillo.yDoc.clientID)
+
+		// Guards the deferred merge prune below against firing after unmount
+		let cancelled = false
 
 		const ySheets = cloudillo.yDoc.getMap('sheets')
 		const sheetOrder = cloudillo.yDoc.getArray<SheetId>('sheetOrder')
@@ -194,6 +202,7 @@ export function CalcilloApp() {
 			// Skip local changes
 			if (txn?.local) return
 			let needsRecalc = false
+			const structurallyChanged = new Set<SheetId>()
 
 			// Set flag to prevent onOp from writing back to Yjs
 			localEchoGuard.withGuard(() => {
@@ -207,6 +216,13 @@ export function CalcilloApp() {
 					}
 
 					const sheetId = String(evt.path[0]) as SheetId
+					// evt.path is [sheetId, ...], so path[1] is the sheet-level key
+					if (
+						evt.path.length === 2 &&
+						(evt.path[1] === 'rowOrder' || evt.path[1] === 'colOrder')
+					) {
+						structurallyChanged.add(sheetId)
+					}
 					try {
 						const sheet = getOrCreateSheet(cloudillo.yDoc, sheetId)
 						needsRecalc ||= applySheetYEvent(sheetId, sheet, workbookRef.current!, evt)
@@ -218,6 +234,27 @@ export function CalcilloApp() {
 
 			if (needsRecalc) {
 				formulaRecalc.trigger()
+			}
+
+			// A remote row/column deletion can strand a merge this client repaired locally
+			// (each side keeps the boundary the other removed). Pruning only deletes, so it is
+			// idempotent and every client converges on the same merge map. It does NOT rescue
+			// the merge itself: concurrent deletions of opposite boundaries still lose it —
+			// as they did before repair existed. Deferred to a microtask because Yjs forbids
+			// modifying a document from inside its own event dispatch.
+			//
+			// Safe against pruning a merge that is merely mid-repair: onOp wraps transformOp —
+			// and therefore deleteRows/deleteColumns — in a single yDoc.transact, so a peer's
+			// order deletion and its merge repair always arrive as one atomic update.
+			if (structurallyChanged.size > 0) {
+				queueMicrotask(() => {
+					if (cancelled || cloudillo.yDoc.isDestroyed) return
+					cloudillo.yDoc.transact(() => {
+						for (const sheetId of structurallyChanged) {
+							pruneInvalidMerges(getOrCreateSheet(cloudillo.yDoc, sheetId))
+						}
+					}, 'prune')
+				})
 			}
 		}
 		ySheets.observeDeep(sheetsDeepObserver)
@@ -237,6 +274,7 @@ export function CalcilloApp() {
 		}
 
 		return () => {
+			cancelled = true
 			meta.unobserve(handleMetaChange)
 			ySheets.unobserve(sheetsObserver)
 			ySheets.unobserveDeep(sheetsDeepObserver)

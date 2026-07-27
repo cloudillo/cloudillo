@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import * as React from 'react'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { AppMessageBus } from '@cloudillo/core'
@@ -119,9 +119,10 @@ export function MapView({ darkMode, settings, onSettingsChange, bus }: MapViewPr
 		map.on('dragend', onDragEnd)
 
 		bus.subscribeCompass((heading) => {
-			if (userDragging || map.isEasing()) return
+			// maplibre-gl v6 moved the transform and easing state onto the camera
+			if (userDragging || map._camera.isEasing()) return
 			// Write directly to transform to avoid stop() cancelling drag/animations
-			map.transform.setBearing(heading)
+			map._camera.transform.setBearing(heading)
 			map.triggerRepaint()
 			setBearing(heading)
 		}).catch((err) => {

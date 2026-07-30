@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { type ApiClient, isSessionExpiredError } from '@cloudillo/core'
-import { type AuthState, Button, useApi, useAuth, useDialog } from '@cloudillo/react'
+import { type AuthState, Button, useApi, useAuth, useDialog, useToast } from '@cloudillo/react'
 import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser'
 import { atom, useAtom } from 'jotai'
 import * as React from 'react'
@@ -89,13 +89,17 @@ export async function webAuthnLogin(api: ApiClient): Promise<AuthState | undefin
 	}
 }
 
-async function createRememberMeKey(api: ApiClient) {
+/** @returns whether the device key was created — false means "Remember me"
+ *  silently did nothing, which the caller should surface. */
+async function createRememberMeKey(api: ApiClient): Promise<boolean> {
 	try {
 		const deviceName = `${(navigator as NavigatorUA).userAgentData?.platform || navigator.platform || 'Device'} - ${new Date().toLocaleDateString()}`
 		const apiKeyResult = await api.auth.createApiKey({ name: deviceName })
 		await setApiKey(apiKeyResult.plaintextKey)
+		return true
 	} catch (err) {
 		console.warn('Failed to create remember-me API key:', err)
+		return false
 	}
 }
 
@@ -109,6 +113,7 @@ export function LoginForm() {
 	const _navigate = useNavigate()
 	const [auth, setAuth] = useAuth()
 	const _dialog = useDialog()
+	const { error: toastError } = useToast()
 
 	const [password, setPassword] = React.useState('')
 	const [remember, setRemember] = React.useState(false)
@@ -163,7 +168,15 @@ export function LoginForm() {
 					// to the SW: on Firefox/Safari the SW relies on the cookie
 					// to encrypt the stored token, and on a fresh login no
 					// cookie exists yet.
-					if (remember) await createRememberMeKey(api)
+					if (remember && !(await createRememberMeKey(api))) {
+						// "Remember me" failed: the session works, it just won't
+						// survive a restart. Say so rather than staying silent.
+						toastError(
+							t(
+								'Could not keep you signed in on this device. You will need to log in again next time.'
+							)
+						)
+					}
 
 					await installToken(result.token)
 				} catch (_err) {
@@ -200,7 +213,13 @@ export function LoginForm() {
 			// swKey cookie to encrypt the token before persisting it; on a
 			// fresh login that cookie is minted only inside setApiKey, which
 			// runs as part of createRememberMeKey.
-			if (remember) await createRememberMeKey(api)
+			if (remember && !(await createRememberMeKey(api))) {
+				toastError(
+					t(
+						'Could not keep you signed in on this device. You will need to log in again next time.'
+					)
+				)
+			}
 
 			// Token is stored in SW encrypted storage via installToken()
 			await installToken(loginResult.token)

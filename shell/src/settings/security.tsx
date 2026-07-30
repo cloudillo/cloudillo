@@ -727,7 +727,17 @@ export function SecuritySettings() {
 						await api.auth.deleteApiKey(matchingKey.keyId)
 					}
 				} catch (err) {
+					// Dropping only the local copy would leave an active server-side
+					// key nobody can see or revoke from this device. Keep both and
+					// let the user retry.
 					console.error('Failed to delete API key:', err)
+					await dialog.tell(
+						t('Error'),
+						err instanceof Error && err.message
+							? err.message
+							: t('Failed to remove the API key from the server. Please try again.')
+					)
+					return
 				}
 			}
 

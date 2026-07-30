@@ -60,17 +60,20 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 		function loadSecurityData() {
 			if (!api || !auth) return
 
+			// Catch each independently: a single Promise.all rejection would
+			// blank both lists, and `hasPasskeys` would then read as false and
+			// prompt the user to add a passkey they already have.
 			async function load() {
-				try {
-					const [credentials, keys] = await Promise.all([
-						api!.auth.listWebAuthnCredentials(),
-						api!.auth.listApiKeys()
-					])
-					setPasskeys(credentials)
-					setApiKeys(keys)
-				} catch (err) {
-					console.error('Failed to load security data:', err)
-				}
+				await Promise.all([
+					api!.auth
+						.listWebAuthnCredentials()
+						.then(setPasskeys)
+						.catch((err) => console.error('Failed to load passkeys:', err)),
+					api!.auth
+						.listApiKeys()
+						.then(setApiKeys)
+						.catch((err) => console.error('Failed to load API keys:', err))
+				])
 			}
 			load()
 		},

@@ -2,10 +2,15 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { ApiClient } from '@cloudillo/core'
-import { LoadingSpinner, useApi } from '@cloudillo/react'
+import { LoadingSpinner, useApi, useToast } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
+import {
+	clearPushSubscriptionId,
+	loadPushSubscriptionId,
+	savePushSubscriptionId
+} from '../notifications/pushSubscriptionId.js'
 import { NOTIFICATION_SOUNDS, SOUND_LABELS } from '../notifications/sounds.js'
 import {
 	type LocalNotifySettings,
@@ -19,7 +24,11 @@ export async function subscribeNotifications(api: ApiClient | null, pwa: UsePWA)
 	const vapid = await api.auth.getVapidPublicKey()
 	const subscription = await pwa.askNotify?.(vapid.vapidPublicKey)
 	if (subscription) {
-		await api.notifications.subscribe({ subscription })
+		// The id is the ONLY handle on the server-side row - DELETE keys on it, it cannot be
+		// re-derived from the browser subscription, and there is no GET endpoint - so it is
+		// persisted the moment we get it.
+		const result = await api.notifications.subscribe({ subscription })
+		savePushSubscriptionId(api.idTag, result.id)
 		return subscription
 	}
 }
@@ -111,6 +120,7 @@ function VolumeSlider({
 export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 	const { t } = useTranslation()
 	const { api } = useApi()
+	const { error: toastError } = useToast()
 	const { settings, onSettingChange } = useSettings('notify')
 	const { settings: localSettings, updateSetting } = useLocalNotifySettings()
 	const [notificationSubscription, setNotificationSubscription] = React.useState<
@@ -128,19 +138,35 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 		})()
 	}, [])
 
+	// `onChange` cannot await, so anything thrown here would be an unhandled
+	// rejection and the toggle would just snap back with no explanation.
 	async function onPushChange(evt: React.ChangeEvent<HTMLInputElement>) {
-		if (evt.target.checked) {
-			const subscription = await subscribeNotifications(api, pwa)
-			if (subscription) setNotificationSubscription(subscription)
-		} else {
-			await notificationSubscription?.unsubscribe()
-			setNotificationSubscription(undefined)
-			/*
-			if (subscription) {
-				await api.delete('', `/notification/subscription${subscription}`)
-				await subscription.unsubscribe()
+		try {
+			if (evt.target.checked) {
+				const subscription = await subscribeNotifications(api, pwa)
+				if (subscription) setNotificationSubscription(subscription)
+			} else {
+				// Server first, browser second: if the DELETE fails the catch below reports it and
+				// the browser subscription is left intact, so a retry is possible - rather than
+				// leaving an invisible server row that nothing on this device can ever revoke.
+				const subscriptionId = api ? loadPushSubscriptionId(api.idTag) : undefined
+				if (api && subscriptionId !== undefined) {
+					await api.notifications.unsubscribe(subscriptionId)
+					clearPushSubscriptionId(api.idTag)
+				}
+				// No stored id: the subscription predates this change, so its server row is
+				// unreachable from here and is left to the backend's own dead-endpoint pruning.
+				// There is no GET endpoint to look the id up with.
+				await notificationSubscription?.unsubscribe()
+				setNotificationSubscription(undefined)
 			}
-			*/
+		} catch (err) {
+			console.error('Failed to update push subscription:', err)
+			toastError(
+				err instanceof Error && err.message
+					? err.message
+					: t('Failed to update push notifications')
+			)
 		}
 	}
 

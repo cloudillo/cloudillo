@@ -17,6 +17,7 @@ function deleteDb(name: string): Promise<void> {
 function clearLocalStorageKeys(): void {
 	localStorage.removeItem('cloudillo:guestName')
 	localStorage.removeItem('notify.local')
+	localStorage.removeItem('notify.pushSubscriptionId')
 	for (const key of Object.keys(localStorage)) {
 		if (key.startsWith('form.')) localStorage.removeItem(key)
 	}

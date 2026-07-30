@@ -1582,7 +1582,19 @@ export class ApiClient {
 		 * @param data - Push subscription object
 		 */
 		subscribe: (data: { subscription: PushSubscription }) =>
-			this.request('POST', '/notifications/subscription', T.struct({}), { data })
+			this.request('POST', '/notifications/subscription', T.struct({ id: T.number }), {
+				data
+			}),
+
+		/**
+		 * DELETE /notifications/subscription/:id - Remove a push subscription
+		 *
+		 * Takes the numeric id returned by {@link subscribe}, not the browser endpoint URL.
+		 * Without this the browser unsubscribes locally and the server keeps pushing to a dead
+		 * endpoint forever. There is no GET counterpart, so a lost id is unrecoverable.
+		 */
+		unsubscribe: (subscriptionId: number) =>
+			this.request('DELETE', `/notifications/subscription/${subscriptionId}`, T.nullValue)
 	}
 
 	// ========================================================================

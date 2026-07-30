@@ -95,4 +95,57 @@ export function getVarName(key: string): string | null {
 	return KEY_TO_VAR[key] ?? null
 }
 
+/** The two ends of the neutral ramp. They flip together with the theme, so a pair stays legible. */
+const DARK_TEXT = 'var(--palette-n0, #1e1e1e)'
+const LIGHT_TEXT = 'var(--palette-n5, #ffffff)'
+
+/** Neutral keys dark enough (in LIGHT mode) to need light glyphs, and vice versa under `.dark` */
+const DARK_NEUTRALS = new Set(['n0', 'n1', 'n2'])
+
+/**
+ * Glyph colour that stays legible on a given fill, in BOTH themes.
+ *
+ * Written against how each family behaves across the theme flip, not against a single computed
+ * value - the fill is usually a CSS variable, so its real colour is not known at JS time:
+ *
+ * - neutrals flip end for end (`--palette-n0` is black in light mode, white under `.dark`), so
+ *   answering with the OPPOSITE end of the same ramp keeps the contrast in both;
+ * - the `normal` keys are fixed 40-50% lightness and do NOT flip, so a theme-flipping var would
+ *   break in one mode - a literal white is the only safe answer;
+ * - the `-p` pastels flip lightness with the theme, so n0 tracks them correctly;
+ * - a custom hex is the one case where the value IS known, so use its relative luminance.
+ */
+export function contrastingTextColor(fillColor: string | undefined): string {
+	if (!fillColor || fillColor === 'transparent' || fillColor === 'none') return DARK_TEXT
+	if (DARK_NEUTRALS.has(fillColor)) return LIGHT_TEXT
+	if (PALETTE_KEYS.neutrals.includes(fillColor as (typeof PALETTE_KEYS.neutrals)[number])) {
+		return DARK_TEXT
+	}
+	if (PALETTE_KEYS.normal.includes(fillColor as (typeof PALETTE_KEYS.normal)[number])) {
+		return '#ffffff'
+	}
+	if (isPaletteKey(fillColor)) return DARK_TEXT // the pastels; everything else is handled above
+	const luminance = hexLuminance(fillColor)
+	if (luminance === null) return DARK_TEXT
+	return luminance > 0.5 ? '#1e1e1e' : '#ffffff'
+}
+
+/** WCAG relative luminance of a #rgb / #rrggbb colour, or null if it is not one */
+function hexLuminance(color: string): number | null {
+	const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color)?.[1]
+	if (!hex) return null
+	const full =
+		hex.length === 3
+			? hex
+					.split('')
+					.map((c) => c + c)
+					.join('')
+			: hex
+	const channel = (offset: number) => {
+		const v = Number.parseInt(full.slice(offset, offset + 2), 16) / 255
+		return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+	}
+	return 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4)
+}
+
 // vim: ts=4

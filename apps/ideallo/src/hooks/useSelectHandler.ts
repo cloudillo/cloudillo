@@ -18,7 +18,8 @@ import type { Awareness } from 'y-protocols/awareness'
 import type * as Y from 'yjs'
 
 import type { IdealloObject, ObjectId, StoredObject, YIdealloDocument } from '../crdt/index.js'
-import { getAllObjects, getObject, updateObject, updateObjectFields } from '../crdt/index.js'
+import { getAllObjects, getAllResolvedObjects, getObject, translateObject } from '../crdt/index.js'
+import { takePending } from '../tools/lifecycle.js'
 import { getObjectBounds } from '../utils/bounds.js'
 import type { Point } from '../utils/geometry.js'
 import { hitTestObject } from '../utils/hit-testing.js'
@@ -35,6 +36,14 @@ export interface UseSelectHandlerOptions {
 	enabled: boolean
 	/** Pass objects state to trigger stacked-highlight recomputation on changes */
 	objects?: Record<string, StoredObject> | null
+	/**
+	 * Shared, already-resolved objects for hit testing.
+	 *
+	 * Resolving expands every stored object and rebuilds a ShapeGeometry per object, which is far
+	 * too much to redo on every pointermove. app.tsx memoises one pass per document revision and
+	 * injects it here. Standalone callers can omit it and pay the per-call cost.
+	 */
+	getResolvedObjects?: () => IdealloObject[]
 }
 
 export interface DragOffset {
@@ -56,8 +65,7 @@ interface DragState {
 /**
  * Find the topmost object at a given point
  */
-function findObjectAtPoint(doc: YIdealloDocument, point: Point): IdealloObject | null {
-	const objects = getAllObjects(doc)
+function findObjectAtPoint(objects: IdealloObject[], point: Point): IdealloObject | null {
 	// Hit test in reverse order (top objects first)
 	for (let i = objects.length - 1; i >= 0; i--) {
 		if (hitTestObject(objects[i], point, HIT_TOLERANCE)) {
@@ -76,19 +84,37 @@ function buildStackableArray(doc: YIdealloDocument): StackableObject[] {
 	const result: StackableObject[] = []
 	for (const obj of allObjs) {
 		if (obj.locked) continue
+		// A bound connector already follows its shapes; stacking it as well would offset it twice
+		if (obj.type === 'connector' && (obj.startObjectId || obj.endObjectId)) continue
 		result.push({ id: obj.id, bounds: getObjectBounds(obj) })
 	}
 	return result
 }
 
 export function useSelectHandler(options: UseSelectHandlerOptions) {
-	const { yDoc, doc, awareness, selectedIds, selectObject, clearSelection, enabled, objects } =
-		options
+	const {
+		yDoc,
+		doc,
+		awareness,
+		selectedIds,
+		selectObject,
+		clearSelection,
+		enabled,
+		objects,
+		getResolvedObjects
+	} = options
+	// Resolved: a bound connector is hit along its route, not along its stored endpoints
+	const resolveAll = React.useCallback(
+		() => getResolvedObjects?.() ?? getAllResolvedObjects(doc),
+		[doc, getResolvedObjects]
+	)
 	const [dragState, setDragState] = React.useState<DragState | null>(null)
 	const [hoveredId, setHoveredId] = React.useState<ObjectId | null>(null)
 	const [stackedHighlightIds, setStackedHighlightIds] = React.useState<Set<ObjectId>>(new Set())
 	const dragStateRef = React.useRef<DragState | null>(null)
 
+	// NOT useLatestRef: takePending clears this eagerly, and a later insertion-effect write would
+	// resurrect the drag it just consumed.
 	React.useEffect(() => {
 		dragStateRef.current = dragState
 	}, [dragState])
@@ -155,16 +181,7 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 			if (!enabled) return
 
 			const point: Point = [x, y]
-			const allObjects = getAllObjects(doc)
-
-			// Hit test in reverse order (top objects first)
-			let hitObject: IdealloObject | null = null
-			for (let i = allObjects.length - 1; i >= 0; i--) {
-				if (hitTestObject(allObjects[i], point, HIT_TOLERANCE)) {
-					hitObject = allObjects[i]
-					break
-				}
-			}
+			const hitObject = findObjectAtPoint(resolveAll(), point)
 
 			if (hitObject) {
 				// Check if object was already selected BEFORE any selection changes
@@ -173,6 +190,19 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 
 				// Select the object
 				selectObject(hitObject.id, shiftKey)
+
+				/*
+				 * A locked object is SELECTABLE but not movable.
+				 *
+				 * Selectable, because unlocking is a property-bar button and ideallo has no
+				 * context menu and no marquee select: a locked object that could not be picked up
+				 * again would be locked forever. Not movable, because that is what the lock means
+				 * - Canvas withholds the resize, rotate and pivot handles for the same reason,
+				 * and the eraser already skips it.
+				 */
+				if (hitObject.locked) {
+					return
+				}
 
 				// Don't start drag if we just selected it
 				if (!wasAlreadySelected) {
@@ -197,32 +227,38 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 					idsToTrack = new Set([...baseDragIds, ...(stackedIds as ObjectId[])])
 				}
 
-				// Store original object data for committing on release
+				// The originals the release commits against. A locked object caught up in a
+				// shift-selection or a stack is dropped here rather than dragged along.
 				const originalObjects = new Map<ObjectId, IdealloObject>()
 				idsToTrack.forEach((id) => {
 					const obj = getObject(doc, id)
-					if (obj) {
+					if (obj && !obj.locked) {
 						originalObjects.set(id, obj)
 					}
 				})
+
+				// Drive the preview off the same set that will be committed, so a locked object
+				// never slides under the pointer and then snaps back on release
+				const dragIds = new Set(originalObjects.keys())
+				if (!dragIds.size) return
 
 				setDragState({
 					startX: x,
 					startY: y,
 					currentX: x,
 					currentY: y,
-					objectIds: idsToTrack,
+					objectIds: dragIds,
 					originalObjects
 				})
 
 				// Broadcast initial state (no offset yet)
-				broadcastEditing(idsToTrack, 'drag', 0, 0)
+				broadcastEditing(dragIds, 'drag', 0, 0)
 			} else {
 				// Click on empty space - clear selection
 				clearSelection()
 			}
 		},
-		[enabled, doc, selectedIds, selectObject, clearSelection, broadcastEditing]
+		[enabled, doc, resolveAll, selectedIds, selectObject, clearSelection, broadcastEditing]
 	)
 
 	const handlePointerMove = React.useCallback(
@@ -246,44 +282,36 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 			} else {
 				// Not dragging - update hover state
 				const point: Point = [x, y]
-				const hitObj = findObjectAtPoint(doc, point)
+				const hitObj = findObjectAtPoint(resolveAll(), point)
 				setHoveredId(hitObj?.id ?? null)
 			}
 		},
-		[enabled, doc, broadcastEditing]
+		[enabled, resolveAll, broadcastEditing]
 	)
 
 	const handlePointerUp = React.useCallback(() => {
-		if (!enabled || !dragStateRef.current) return
+		if (!enabled) return
 
-		const drag = dragStateRef.current
+		// Consumed, not just read: the effect that mirrors dragState into this ref does not run
+		// until the next render, so a second release in the same frame would find the same drag
+		// still pending and apply its delta twice - the object ends up jumping twice as far as it
+		// was dragged.
+		const drag = takePending(dragStateRef)
+		if (!drag) return
+
 		const dx = drag.currentX - drag.startX
 		const dy = drag.currentY - drag.startY
 
 		// Only commit to CRDT if there was actual movement
 		if (dx !== 0 || dy !== 0) {
-			// Commit all object updates to CRDT
+			// The origin has to be on THIS transaction: Yjs discards a nested one's origin, so
+			// without it the object and geometry writes inside land untracked and the whole move
+			// is missing from the undo stack. With it they undo together, as one step.
 			yDoc.transact(() => {
 				drag.originalObjects.forEach((origObj, objectId) => {
-					if (origObj.type === 'line' || origObj.type === 'arrow') {
-						updateObjectFields(yDoc, doc, objectId, {
-							x: origObj.x + dx,
-							y: origObj.y + dy,
-							startX: origObj.startX + dx,
-							startY: origObj.startY + dy,
-							endX: origObj.endX + dx,
-							endY: origObj.endY + dy
-						})
-					} else {
-						// For freehand and shapes, just update position
-						// (freehand pathData uses absolute coords, handled by transform)
-						updateObject(yDoc, doc, objectId, {
-							x: origObj.x + dx,
-							y: origObj.y + dy
-						})
-					}
+					translateObject(yDoc, doc, objectId, origObj, dx, dy)
 				})
-			})
+			}, yDoc.clientID)
 		}
 
 		// Clear drag state and awareness

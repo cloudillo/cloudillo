@@ -35,7 +35,9 @@ export interface UndoableStroke {
 		width: number
 	}
 	snapped: boolean // Was this auto-converted by Smart Ink?
-	resultType: 'freehand' | 'line' | 'ellipse' | 'rect' | 'arrow' | 'polygon' // What type of object was created
+	// Smart Ink's recogniser vocabulary, not the object model - 'line' and 'arrow' both commit as
+	// connectors (see SmartInkResultType)
+	resultType: 'freehand' | 'line' | 'ellipse' | 'rect' | 'arrow' | 'polygon'
 }
 
 const MAX_UNDO_STACK_SIZE = 50

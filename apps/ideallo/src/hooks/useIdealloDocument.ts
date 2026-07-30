@@ -10,10 +10,24 @@ import { useCloudilloEditor } from '@cloudillo/react'
 import * as React from 'react'
 import { useY } from 'react-yjs'
 import type { Awareness } from 'y-protocols/awareness'
+import { QuillBinding } from 'y-quill'
 import * as Y from 'yjs'
 
-import type { ObjectId, StoredObject, YIdealloDocument } from '../crdt/index.js'
-import { getOrCreateDocument } from '../crdt/index.js'
+import type {
+	ArrowStyle,
+	Routing,
+	StoredObject,
+	TextAlign,
+	VerticalAlign,
+	YIdealloDocument
+} from '../crdt/index.js'
+import {
+	DEFAULT_END_ARROW,
+	DEFAULT_ROUTING,
+	DEFAULT_START_ARROW,
+	getOrCreateDocument
+} from '../crdt/index.js'
+import type { ShapePreview, ToolType } from '../tools/types.js'
 import { str2color } from '../utils/index.js'
 
 export interface IdealloPresence {
@@ -33,24 +47,38 @@ export interface IdealloPresence {
 			width: number
 		}
 	}
-	shape?: {
-		type: 'rect' | 'ellipse' | 'line' | 'arrow'
-		startX: number
-		startY: number
-		endX: number
-		endY: number
-		style: {
-			strokeColor: string
-			fillColor: string
-			strokeWidth: number
-		}
-	}
+	shape?: ShapePreview
 	editing?: {
 		objectIds: string[]
-		action: 'drag' | 'resize' | 'rotate'
+		// 'connector' is a terminal being dragged on an existing arrow
+		action: 'drag' | 'resize' | 'rotate' | 'connector'
 		dx: number
 		dy: number
 	}
+}
+
+/**
+ * Defaults applied to newly drawn objects.
+ *
+ * The connector and text fields ride along with the colours so the last-used routing mode,
+ * arrowhead shapes, font, size and alignment persist across draws, exactly as the last-used
+ * stroke colour does.
+ *
+ * The text fields start undefined rather than at a value: each creation site falls back to its
+ * own per-type default (a sticky is 18px, a text label 16px), and only a deliberate pick in the
+ * property bar overrides that.
+ */
+export interface CurrentStyle {
+	strokeColor: string
+	fillColor: string
+	strokeWidth: number
+	routing?: Routing
+	startArrow?: ArrowStyle
+	endArrow?: ArrowStyle
+	fontFamily?: string
+	fontSize?: number
+	textAlign?: TextAlign
+	verticalAlign?: VerticalAlign
 }
 
 export interface UseIdealloDocumentResult {
@@ -66,15 +94,6 @@ export interface UseIdealloDocumentResult {
 	order: string[] | null // z-order array (backmost first)
 	textContent: Record<string, string> | null // Text content (serialized), triggers re-render on changes
 
-	// Selection
-	selectedIds: Set<ObjectId>
-	setSelectedIds: React.Dispatch<React.SetStateAction<Set<ObjectId>>>
-	selectObject: (id: ObjectId, addToSelection?: boolean) => void
-	selectObjects: (ids: ObjectId[], addToSelection?: boolean) => void
-	deselectObject: (id: ObjectId) => void
-	clearSelection: () => void
-	isSelected: (id: ObjectId) => boolean
-
 	// Canvas navigation
 	canvasOffset: { x: number; y: number }
 	setCanvasOffset: React.Dispatch<React.SetStateAction<{ x: number; y: number }>>
@@ -82,22 +101,15 @@ export interface UseIdealloDocumentResult {
 	setCanvasZoom: React.Dispatch<React.SetStateAction<number>>
 
 	// Tool state
-	activeTool: string
-	setActiveTool: (tool: string) => void
+	activeTool: ToolType
+	setActiveTool: React.Dispatch<React.SetStateAction<ToolType>>
+	/** Keep the active tool armed after a placement instead of reverting to Select */
+	toolLocked: boolean
+	setToolLocked: React.Dispatch<React.SetStateAction<boolean>>
 
 	// Current style for new objects
-	currentStyle: {
-		strokeColor: string
-		fillColor: string
-		strokeWidth: number
-	}
-	setCurrentStyle: React.Dispatch<
-		React.SetStateAction<{
-			strokeColor: string
-			fillColor: string
-			strokeWidth: number
-		}>
-	>
+	currentStyle: CurrentStyle
+	setCurrentStyle: React.Dispatch<React.SetStateAction<CurrentStyle>>
 
 	// Undo/redo
 	undoManager: Y.UndoManager | null
@@ -132,35 +144,68 @@ export function useIdealloDocument(): UseIdealloDocumentResult {
 	const order = useY(doc.r)
 	const textContent = useY(doc.txt)
 
-	// Selection state
-	const [selectedIds, setSelectedIds] = React.useState<Set<ObjectId>>(new Set())
-
 	// Canvas navigation state
 	const [canvasOffset, setCanvasOffset] = React.useState({ x: 0, y: 0 })
 	const [canvasZoom, setCanvasZoom] = React.useState(1)
 
 	// Tool state - default to select
-	const [activeTool, setActiveTool] = React.useState<string>('select')
+	const [activeTool, setActiveTool] = React.useState<ToolType>('select')
+	const [toolLocked, setToolLocked] = React.useState(false)
 
 	// Current style for new objects (using palette keys for theme support)
-	const [currentStyle, setCurrentStyle] = React.useState({
+	const [currentStyle, setCurrentStyle] = React.useState<CurrentStyle>({
 		strokeColor: 'n0', // Black/dark neutral
 		fillColor: 'transparent',
-		strokeWidth: 2
+		strokeWidth: 2,
+		routing: DEFAULT_ROUTING,
+		startArrow: { ...DEFAULT_START_ARROW },
+		endArrow: { ...DEFAULT_END_ARROW }
 	})
 
-	// Undo manager - tracks objects, order, text content, geometry, and paths
+	/*
+	 * Undo manager - tracks objects, order, text content, geometry, and paths.
+	 *
+	 * QuillBinding is in there as a CLASS: y-quill commits with the binding instance as the
+	 * transaction origin, and UndoManager matches `trackedOrigins.has(origin.constructor)` as well
+	 * as the origin itself. Without it, typing inside a sticky or a text label is invisible to
+	 * Ctrl+Z - which, since Escape now commits rather than discards, would leave typed text with no
+	 * way back at all. Remote edits are unaffected: they arrive with the network provider as
+	 * origin, never a local binding.
+	 *
+	 * The default 500ms captureTimeout is what gives undo its word-sized granularity here.
+	 */
 	const undoManager = React.useMemo(() => {
 		return new Y.UndoManager([doc.o, doc.r, doc.txt, doc.geo, doc.paths], {
-			trackedOrigins: new Set([cloudillo.yDoc.clientID])
+			trackedOrigins: new Set<unknown>([cloudillo.yDoc.clientID, QuillBinding])
 		})
 	}, [cloudillo.yDoc, doc])
 
-	// After sync, clientID may change (reused clientId assigned post-sync in openYDoc).
-	// Update UndoManager to also track the new clientID.
+	/*
+	 * Tear the manager down with the component - and with any yDoc/doc identity change, since the
+	 * memo above then builds a replacement.
+	 *
+	 * A UndoManager registers an `afterTransaction` observer on the Y.Doc plus one observer per
+	 * tracked type. Left alone, a discarded manager keeps observing a live document and keeps its
+	 * whole undo/redo stack (every deleted object it could restore) reachable, for as long as the
+	 * document lives. destroy() unregisters all of it and clears the stacks.
+	 */
+	React.useEffect(() => () => undoManager.destroy(), [undoManager])
+
+	/*
+	 * After sync, clientID may change (a reused clientId is assigned post-sync in openYDoc), so the
+	 * new one has to be tracked or local edits stop landing on the undo stack.
+	 *
+	 * The PREVIOUS id is removed on cleanup. trackedOrigins is a plain Set that only ever grew:
+	 * without this, a doc that re-synced repeatedly accumulated one dead clientID per sync, each of
+	 * them a live match for any transaction a future peer happens to open under that id.
+	 */
 	React.useEffect(() => {
-		if (cloudillo.synced) {
-			undoManager.trackedOrigins.add(cloudillo.yDoc.clientID)
+		if (!cloudillo.synced) return
+		const clientID = cloudillo.yDoc.clientID
+		if (undoManager.trackedOrigins.has(clientID)) return
+		undoManager.trackedOrigins.add(clientID)
+		return () => {
+			undoManager.trackedOrigins.delete(clientID)
 		}
 	}, [cloudillo.synced, cloudillo.yDoc, undoManager])
 
@@ -186,53 +231,12 @@ export function useIdealloDocument(): UseIdealloDocumentResult {
 	}, [undoManager])
 
 	const undo = React.useCallback(() => {
-		setSelectedIds(new Set())
 		undoManager.undo()
 	}, [undoManager])
 
 	const redo = React.useCallback(() => {
-		setSelectedIds(new Set())
 		undoManager.redo()
 	}, [undoManager])
-
-	// Selection helpers
-	const selectObject = React.useCallback((id: ObjectId, addToSelection: boolean = false) => {
-		setSelectedIds((prev) => {
-			if (addToSelection) {
-				const next = new Set(prev)
-				next.add(id)
-				return next
-			}
-			return new Set([id])
-		})
-	}, [])
-
-	const selectObjects = React.useCallback((ids: ObjectId[], addToSelection: boolean = false) => {
-		setSelectedIds((prev) => {
-			if (addToSelection) {
-				const next = new Set(prev)
-				ids.forEach((id) => {
-					next.add(id)
-				})
-				return next
-			}
-			return new Set(ids)
-		})
-	}, [])
-
-	const deselectObject = React.useCallback((id: ObjectId) => {
-		setSelectedIds((prev) => {
-			const next = new Set(prev)
-			next.delete(id)
-			return next
-		})
-	}, [])
-
-	const clearSelection = React.useCallback(() => {
-		setSelectedIds(new Set())
-	}, [])
-
-	const isSelected = React.useCallback((id: ObjectId) => selectedIds.has(id), [selectedIds])
 
 	// Remote presence state
 	const [remotePresence, setRemotePresence] = React.useState<Map<number, IdealloPresence>>(
@@ -300,15 +304,6 @@ export function useIdealloDocument(): UseIdealloDocumentResult {
 		order,
 		textContent,
 
-		// Selection
-		selectedIds,
-		setSelectedIds,
-		selectObject,
-		selectObjects,
-		deselectObject,
-		clearSelection,
-		isSelected,
-
 		// Canvas navigation
 		canvasOffset,
 		setCanvasOffset,
@@ -318,6 +313,8 @@ export function useIdealloDocument(): UseIdealloDocumentResult {
 		// Tools
 		activeTool,
 		setActiveTool,
+		toolLocked,
+		setToolLocked,
 
 		// Current style
 		currentStyle,

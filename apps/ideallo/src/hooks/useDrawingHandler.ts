@@ -11,16 +11,23 @@ import type { Awareness } from 'y-protocols/awareness'
 import type * as Y from 'yjs'
 
 import type {
-	ArrowObject,
+	ConnectorObject,
 	EllipseObject,
-	LineObject,
 	NewFreehandInput,
 	NewPolygonInput,
 	ObjectId,
 	RectObject,
 	YIdealloDocument
 } from '../crdt/index.js'
-import { addObject, DEFAULT_STYLE, deleteObject } from '../crdt/index.js'
+import {
+	addObject,
+	arrowheadsFromPosition,
+	DEFAULT_END_ARROW,
+	DEFAULT_ROUTING,
+	DEFAULT_START_ARROW,
+	DEFAULT_STYLE,
+	deleteObjectsWithBindingCleanup
+} from '../crdt/index.js'
 import {
 	createArrowMorphAnimation,
 	createEllipseMorphAnimation,
@@ -167,16 +174,21 @@ export function useDrawingHandler(options: UseDrawingHandlerOptions) {
 			}
 
 			switch (smartInkResult.type) {
+				// A recognised straight stroke commits as a headless connector - same geometry the
+				// line tool used to make, but bindable and routable
 				case 'line': {
 					const line = smartInkResult.lineCandidate!
-					const lineObject: Omit<LineObject, 'id'> = {
-						type: 'line',
+					const lineObject: Omit<ConnectorObject, 'id'> = {
+						type: 'connector',
 						x: Math.min(line.start[0], line.end[0]),
 						y: Math.min(line.start[1], line.end[1]),
 						startX: line.start[0],
 						startY: line.start[1],
 						endX: line.end[0],
 						endY: line.end[1],
+						routing: DEFAULT_ROUTING,
+						startArrow: { ...DEFAULT_START_ARROW },
+						endArrow: { ...DEFAULT_END_ARROW },
 						rotation: 0,
 						pivotX: 0.5,
 						pivotY: 0.5,
@@ -247,15 +259,18 @@ export function useDrawingHandler(options: UseDrawingHandlerOptions) {
 
 				case 'arrow': {
 					const arrow = smartInkResult.arrowCandidate!
-					const arrowObject: Omit<ArrowObject, 'id'> = {
-						type: 'arrow',
+					const [startArrow, endArrow] = arrowheadsFromPosition(arrow.arrowheadPosition)
+					const arrowObject: Omit<ConnectorObject, 'id'> = {
+						type: 'connector',
 						x: Math.min(arrow.start[0], arrow.end[0]),
 						y: Math.min(arrow.start[1], arrow.end[1]),
 						startX: arrow.start[0],
 						startY: arrow.start[1],
 						endX: arrow.end[0],
 						endY: arrow.end[1],
-						arrowheadPosition: arrow.arrowheadPosition,
+						routing: DEFAULT_ROUTING,
+						startArrow,
+						endArrow,
 						rotation: 0,
 						pivotX: 0.5,
 						pivotY: 0.5,
@@ -379,7 +394,11 @@ export function useDrawingHandler(options: UseDrawingHandlerOptions) {
 	const undoStroke = React.useCallback(() => {
 		const stroke = drawingState.popFromUndoStack()
 		if (stroke) {
-			deleteObject(yDoc, doc, stroke.objectId)
+			// With binding cleanup, not a plain delete: Smart Ink may have snapped this stroke
+			// into a rect that a connector has since bound to, and undoing it must freeze that
+			// connector at its last resolved position rather than leave a dangling ref pointing
+			// at the stale bind-time snapshot.
+			deleteObjectsWithBindingCleanup(yDoc, doc, [stroke.objectId])
 			drawingState.pushToRedoStack(stroke)
 		}
 	}, [drawingState, yDoc, doc])
@@ -400,16 +419,20 @@ export function useDrawingHandler(options: UseDrawingHandlerOptions) {
 			}
 
 			switch (result.type) {
+				// Headless connector, as in commitResult above
 				case 'line': {
 					const line = result.lineCandidate!
-					const lineObject: Omit<LineObject, 'id'> = {
-						type: 'line',
+					const lineObject: Omit<ConnectorObject, 'id'> = {
+						type: 'connector',
 						x: Math.min(line.start[0], line.end[0]),
 						y: Math.min(line.start[1], line.end[1]),
 						startX: line.start[0],
 						startY: line.start[1],
 						endX: line.end[0],
 						endY: line.end[1],
+						routing: DEFAULT_ROUTING,
+						startArrow: { ...DEFAULT_START_ARROW },
+						endArrow: { ...DEFAULT_END_ARROW },
 						rotation: 0,
 						pivotX: 0.5,
 						pivotY: 0.5,
@@ -480,15 +503,18 @@ export function useDrawingHandler(options: UseDrawingHandlerOptions) {
 
 				case 'arrow': {
 					const arrow = result.arrowCandidate!
-					const arrowObject: Omit<ArrowObject, 'id'> = {
-						type: 'arrow',
+					const [startArrow, endArrow] = arrowheadsFromPosition(arrow.arrowheadPosition)
+					const arrowObject: Omit<ConnectorObject, 'id'> = {
+						type: 'connector',
 						x: Math.min(arrow.start[0], arrow.end[0]),
 						y: Math.min(arrow.start[1], arrow.end[1]),
 						startX: arrow.start[0],
 						startY: arrow.start[1],
 						endX: arrow.end[0],
 						endY: arrow.end[1],
-						arrowheadPosition: arrow.arrowheadPosition,
+						routing: DEFAULT_ROUTING,
+						startArrow,
+						endArrow,
 						rotation: 0,
 						pivotX: 0.5,
 						pivotY: 0.5,

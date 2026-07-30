@@ -18,9 +18,20 @@ export interface ColorPaletteProps {
 	value: string
 	onChange: (color: string) => void
 	showTransparent?: boolean
+	/**
+	 * Offer "None" but refuse it: clearing this paint would leave the object with neither a stroke
+	 * nor a fill. Shown rather than hidden, so the option does not appear and disappear as the
+	 * other paint changes.
+	 */
+	disableTransparent?: boolean
 }
 
-export function ColorPalette({ value, onChange, showTransparent }: ColorPaletteProps) {
+export function ColorPalette({
+	value,
+	onChange,
+	showTransparent,
+	disableTransparent
+}: ColorPaletteProps) {
 	const [hexInput, setHexInput] = React.useState('')
 
 	// Update hex input when value changes (if it's a hex color)
@@ -58,7 +69,9 @@ export function ColorPalette({ value, onChange, showTransparent }: ColorPaletteP
 						type="button"
 						className={`palette-swatch transparent ${isTransparent ? 'selected' : ''}`}
 						onClick={() => onChange('transparent')}
-						title="None"
+						disabled={disableTransparent}
+						aria-disabled={disableTransparent}
+						title={disableTransparent ? 'Keep at least a stroke or a fill' : 'None'}
 					>
 						<span className="swatch-none">⊘</span>
 					</button>
@@ -103,7 +116,11 @@ export function ColorPalette({ value, onChange, showTransparent }: ColorPaletteP
 				))}
 			</div>
 
-			{/* Custom hex input */}
+			{/*
+				Custom hex input. It stays a real `<input>`: `isEditableTarget` gates on the tag, so
+				anything else here would let `r` typed into the field arm the rect tool instead.
+				The `#` beside it is decoration, not a label, hence the explicit aria-label.
+			*/}
 			<div className="palette-hex">
 				<span>#</span>
 				<input
@@ -114,6 +131,7 @@ export function ColorPalette({ value, onChange, showTransparent }: ColorPaletteP
 					onKeyDown={handleHexKeyDown}
 					placeholder="000000"
 					maxLength={6}
+					aria-label="Hex colour"
 				/>
 			</div>
 		</div>

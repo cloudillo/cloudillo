@@ -2,33 +2,32 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 /**
- * Hook for handling sticky note creation and editing
+ * Hook for handling sticky note CREATION.
  *
- * Miro/FigJam-style UX:
- * - Click creates note at default size and immediately enters edit mode
- * - If user clicks away without typing, empty note is deleted
+ * Miro/FigJam-style UX: a click creates a note at the default size and hands it straight to the
+ * shared editor (useObjectTextEditor), which owns the editing state and the one close rule.
+ *
+ * An empty note is KEPT. A blank sticky is still a visible 200x200 coloured card and a legitimate
+ * thing to place; only an object that draws nothing without text is cleaned up on close - see
+ * shouldRemoveOnEditEnd.
  */
 
 import * as React from 'react'
 import type * as Y from 'yjs'
 
 import type { NewStickyInput, ObjectId, StickyObject, YIdealloDocument } from '../crdt/index.js'
-import { addObject, DEFAULT_STYLE, getObjectYText } from '../crdt/index.js'
-import type { StickyInputState } from '../tools/types.js'
-import { applyTextDiff } from '../utils/text-diff.js'
+import { addObject, DEFAULT_STYLE, getObject } from '../crdt/index.js'
+import { DEFAULT_STICKY_FONT_SIZE } from '../utils/text-styles.js'
+import type { CurrentStyle } from './useIdealloDocument.js'
 
 export interface UseStickyHandlerOptions {
 	yDoc: Y.Doc
 	doc: YIdealloDocument
-	currentStyle: {
-		strokeColor: string
-		fillColor: string
-		strokeWidth: number
-	}
+	currentStyle: CurrentStyle
 	enabled: boolean
+	/** The shared editor's startEditing - the new note is typed into immediately */
+	startEditing: (object: StickyObject) => void
 	onObjectCreated?: (id: ObjectId) => void
-	onEditStart?: (id: ObjectId) => void
-	onEditEnd?: () => void
 }
 
 // Default sticky note size (as per UX design)
@@ -39,22 +38,17 @@ const DEFAULT_STICKY_HEIGHT = 200
 const DEFAULT_STICKY_FILL = 'yellow-p' // Pastel yellow from palette
 
 export function useStickyHandler(options: UseStickyHandlerOptions) {
-	const { yDoc, doc, currentStyle, enabled, onObjectCreated, onEditStart, onEditEnd } = options
-
-	// Currently editing sticky note
-	const [editingSticky, setEditingSticky] = React.useState<StickyInputState | null>(null)
+	const { yDoc, doc, currentStyle, enabled, startEditing, onObjectCreated } = options
 
 	/**
 	 * Handle pointer down on canvas - create new sticky and enter edit mode
+	 *
+	 * Any open editor was already closed by app.tsx before this dispatch, so there is nothing to
+	 * finish here.
 	 */
 	const handlePointerDown = React.useCallback(
 		(x: number, y: number) => {
 			if (!enabled) return
-
-			// If already editing, commit first
-			if (editingSticky) {
-				commitSticky()
-			}
 
 			// Create sticky object in CRDT immediately
 			// Use default yellow fill if current fill is transparent (sticky needs visible background)
@@ -70,6 +64,13 @@ export function useStickyHandler(options: UseStickyHandlerOptions) {
 				width: DEFAULT_STICKY_WIDTH,
 				height: DEFAULT_STICKY_HEIGHT,
 				text: '',
+				// Last-used text settings carry to the next note, like the colours do
+				fontSize: currentStyle.fontSize ?? DEFAULT_STICKY_FONT_SIZE,
+				...(currentStyle.fontFamily ? { fontFamily: currentStyle.fontFamily } : {}),
+				...(currentStyle.textAlign ? { textAlign: currentStyle.textAlign } : {}),
+				...(currentStyle.verticalAlign
+					? { verticalAlign: currentStyle.verticalAlign }
+					: {}),
 				rotation: 0,
 				pivotX: 0.5,
 				pivotY: 0.5,
@@ -85,144 +86,17 @@ export function useStickyHandler(options: UseStickyHandlerOptions) {
 
 			const objectId = addObject(yDoc, doc, obj)
 
-			// Enter edit mode immediately
-			setEditingSticky({
-				id: objectId,
-				x: obj.x,
-				y: obj.y,
-				width: DEFAULT_STICKY_WIDTH,
-				height: DEFAULT_STICKY_HEIGHT,
-				text: ''
-			})
+			// Enter edit mode immediately, through the shared slot
+			const created = getObject(doc, objectId)
+			if (created?.type === 'sticky') startEditing(created)
 
 			onObjectCreated?.(objectId)
-			onEditStart?.(objectId)
 		},
-		[enabled, editingSticky, yDoc, doc, currentStyle, onObjectCreated, onEditStart]
-	)
-
-	// Ref to track the current editing sticky ID (avoids stale closure issues)
-	const editingStickyRef = React.useRef<StickyInputState | null>(null)
-	React.useEffect(() => {
-		editingStickyRef.current = editingSticky
-	}, [editingSticky])
-
-	/**
-	 * Update the Y.Text content for a sticky note using minimal diff
-	 */
-	const updateStickyText = React.useCallback(
-		(objectId: ObjectId, text: string) => {
-			const yText = getObjectYText(doc, objectId)
-			if (!yText) return
-
-			// Use diff-based update for proper CRDT collaborative editing
-			applyTextDiff(yDoc, yText, text)
-		},
-		[yDoc, doc]
-	)
-
-	/**
-	 * Handle text change during editing
-	 */
-	const handleTextChange = React.useCallback(
-		(text: string) => {
-			// Use ref to get current value, avoiding stale closure
-			const current = editingStickyRef.current
-			if (!current?.id) return
-
-			// Update local state
-			setEditingSticky((prev) => (prev ? { ...prev, text } : null))
-
-			// Update Y.Text in CRDT
-			updateStickyText(current.id, text)
-		},
-		[updateStickyText]
-	)
-
-	/**
-	 * Save and commit editing (on blur or escape)
-	 * Takes text as parameter to ensure final text is saved
-	 */
-	const saveSticky = React.useCallback(
-		(text: string) => {
-			const current = editingStickyRef.current
-			if (current?.id) {
-				// Ensure text is saved to CRDT before closing
-				updateStickyText(current.id, text)
-			}
-			setEditingSticky(null)
-			onEditEnd?.()
-		},
-		[updateStickyText, onEditEnd]
-	)
-
-	/**
-	 * Commit editing without saving (legacy, use saveSticky instead)
-	 */
-	const commitSticky = React.useCallback(() => {
-		setEditingSticky(null)
-		onEditEnd?.()
-	}, [onEditEnd])
-
-	/**
-	 * Cancel editing (escape key)
-	 */
-	const cancelSticky = React.useCallback(() => {
-		setEditingSticky(null)
-		onEditEnd?.()
-	}, [onEditEnd])
-
-	/**
-	 * Start editing an existing sticky note (for double-click)
-	 */
-	const startEditing = React.useCallback(
-		(object: StickyObject) => {
-			setEditingSticky({
-				id: object.id,
-				x: object.x,
-				y: object.y,
-				width: object.width,
-				height: object.height,
-				text: object.text
-			})
-			onEditStart?.(object.id)
-		},
-		[onEditStart]
-	)
-
-	/**
-	 * Check if a specific sticky is being edited
-	 */
-	const isEditing = React.useCallback(
-		(objectId: ObjectId) => {
-			return editingSticky?.id === objectId
-		},
-		[editingSticky]
+		[enabled, yDoc, doc, currentStyle, startEditing, onObjectCreated]
 	)
 
 	// Memoize return value to prevent infinite re-render loops
-	return React.useMemo(
-		() => ({
-			editingSticky,
-			handlePointerDown,
-			handleTextChange,
-			saveSticky,
-			commitSticky,
-			cancelSticky,
-			startEditing,
-			isEditing
-		}),
-		[
-			editingSticky,
-			handlePointerDown,
-			handleTextChange,
-			saveSticky,
-			commitSticky,
-			cancelSticky,
-			startEditing,
-			isEditing
-		]
-	)
+	return React.useMemo(() => ({ handlePointerDown }), [handlePointerDown])
 }
 
 // vim: ts=4

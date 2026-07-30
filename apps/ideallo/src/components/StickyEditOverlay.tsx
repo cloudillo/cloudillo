@@ -6,31 +6,30 @@
  *
  * Uses RichTextEditor from @cloudillo/canvas-text for collaborative editing.
  * Includes 8px border drag zone for moving while editing.
+ *
+ * The whole note is swapped out for this overlay, which is why the shadow rect is redrawn here.
+ * The TEXT layout, though, comes from objectTextLayout - the same call StickyNote makes - so the
+ * glyphs cannot shift on entering edit mode.
  */
 
+import type { CaretPoint } from '@cloudillo/canvas-text'
+import { RichTextEditor } from '@cloudillo/canvas-text'
 import type Quill from 'quill'
 import * as React from 'react'
 import type * as Y from 'yjs'
 
 import type { StickyObject } from '../crdt/index.js'
-import { DEFAULT_LINE_HEIGHT, DEFAULT_PADDING } from '../utils/text-scaling.js'
-
-const STICKY_FONT_SIZE = 18
-
-import type { BaseTextStyle } from '@cloudillo/canvas-text'
-import { RichTextEditor } from '@cloudillo/canvas-text'
-
+import { objectTextLayout, STICKY_CORNER_RADIUS } from '../utils/object-text.js'
 import { colorToCss } from '../utils/palette.js'
-
-// Sticky note text uses theme variable for proper theming support (same as StickyNote)
-const STICKY_TEXT_COLOR = 'var(--palette-n0, #1e1e1e)'
 
 export interface StickyEditOverlayProps {
 	object: StickyObject
 	yText?: Y.Text
-	onSave: (text: string) => void
-	onCancel: () => void
-	onTextChange?: (text: string) => void
+	onSave: () => void
+	/** Where the pointer was when editing started, so the caret lands there */
+	caretPoint?: CaretPoint
+	/** Blur into the property bar is the user styling what they are editing, not leaving it */
+	shouldIgnoreBlur?: () => boolean
 	onDragStart?: (e: React.PointerEvent) => void
 	quillRef?: React.MutableRefObject<Quill | null>
 	onHeightChange?: (height: number) => void
@@ -40,7 +39,8 @@ export function StickyEditOverlay({
 	object,
 	yText,
 	onSave,
-	onCancel,
+	caretPoint,
+	shouldIgnoreBlur,
 	onDragStart,
 	quillRef,
 	onHeightChange
@@ -48,38 +48,24 @@ export function StickyEditOverlay({
 	const { x, y, width, height, style } = object
 	const bgColor = colorToCss(style.fillColor)
 
+	const { box, baseStyle, padding } = objectTextLayout(object)
+
 	// Generate organic rotation (same as StickyNote)
-	// Note: Main rotation is handled by ObjectRenderer, we only add organic rotation here
 	const organicRotation = React.useMemo(() => {
 		const hash = object.id.charCodeAt(0) + object.id.charCodeAt(1)
 		return ((hash % 3) - 1) * 0.5
 	}, [object.id])
 
-	// Calculate organic rotation transform only (main rotation handled by ObjectRenderer)
 	const pivotX = object.pivotX ?? 0.5
 	const pivotY = object.pivotY ?? 0.5
 	const cx = x + width * pivotX
 	const cy = y + height * pivotY
+
+	// The organic tilt goes on the <g> below and the object's own rotation on ObjectRenderer's
+	// wrapper. RichTextEditor's <foreignObject> is IN the tree, under both, so it inherits them -
+	// no rotationTransform of its own, which used to apply each of the two a second time.
 	const organicTransform =
 		organicRotation !== 0 ? `rotate(${organicRotation} ${cx} ${cy})` : undefined
-
-	const baseStyle: BaseTextStyle = {
-		fontFamily: 'system-ui, -apple-system, sans-serif',
-		fontSize: STICKY_FONT_SIZE,
-		fontWeight: 'normal',
-		fontItalic: false,
-		textDecoration: 'none',
-		fill: STICKY_TEXT_COLOR,
-		textAlign: 'left',
-		verticalAlign: 'top',
-		lineHeight: DEFAULT_LINE_HEIGHT,
-		letterSpacing: 0
-	}
-
-	const handleSave = React.useCallback(() => {
-		// For sticky notes, we still call onSave with the text for backwards compatibility
-		onSave(yText?.toString() ?? object.text)
-	}, [onSave, yText, object.text])
 
 	if (yText) {
 		return (
@@ -91,26 +77,26 @@ export function StickyEditOverlay({
 					width={width}
 					height={height}
 					fill="rgba(0,0,0,0.08)"
-					rx={2}
+					rx={STICKY_CORNER_RADIUS}
 				/>
 
 				<RichTextEditor
-					x={x}
-					y={y}
-					width={width}
-					height={height}
+					x={box.x}
+					y={box.y}
+					width={box.width}
+					height={box.height}
 					yText={yText}
 					baseStyle={baseStyle}
-					onSave={handleSave}
-					onCancel={onCancel}
+					onSave={onSave}
+					caretPoint={caretPoint}
+					shouldIgnoreBlur={shouldIgnoreBlur}
 					quillRef={quillRef}
 					containerStyle={{
-						padding: DEFAULT_PADDING,
+						padding,
 						background: bgColor,
-						borderRadius: 2
+						borderRadius: STICKY_CORNER_RADIUS
 					}}
 					onDragStart={onDragStart ? (e) => onDragStart(e) : undefined}
-					rotationTransform={organicTransform}
 					onHeightChange={onHeightChange}
 				/>
 			</g>

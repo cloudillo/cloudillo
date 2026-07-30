@@ -5,43 +5,50 @@
  * Floating toolbar for Ideallo
  * Contains tool selection, undo/redo, and other controls.
  * On mobile (<=767px) renders a compact dock with grouped tool popovers.
+ *
+ * Every icon, label and shortcut comes from `tools/catalog.ts` and `tool-icons.ts`, so the two
+ * layouts below describe only their arrangement - they cannot disagree about what a tool is
+ * called or which key arms it.
  */
 
 import { ActionSheet, ActionSheetDivider, ActionSheetItem } from '@cloudillo/react'
 import * as React from 'react'
 import {
-	PiArrowUpRightBold as IcArrow,
-	PiArrowUpBold as IcBringForward,
-	PiArrowLineUpBold as IcBringToFront,
-	PiFileBold as IcDocument,
-	PiCircleBold as IcEllipse,
-	PiEraserBold as IcEraser,
 	PiExportBold as IcExport,
-	PiImageBold as IcImage,
-	PiLineSegmentBold as IcLine,
+	PiLockBold as IcLocked,
 	PiDotsThreeBold as IcMore,
-	PiPencilSimpleBold as IcPen,
-	PiRectangleBold as IcRect,
+	PiPushPinBold as IcPin,
 	PiArrowArcRightBold as IcRedo,
-	PiCursorBold as IcSelect,
-	PiArrowDownBold as IcSendBackward,
-	PiArrowLineDownBold as IcSendToBack,
-	PiNoteBold as IcSticky,
-	PiTextTBold as IcText,
-	PiArrowArcLeftBold as IcUndo
+	PiStackBold as IcStack,
+	PiToolboxBold as IcToolbox,
+	PiArrowArcLeftBold as IcUndo,
+	PiLockOpenBold as IcUnlocked
 } from 'react-icons/pi'
 
 import { useIsMobile } from '../hooks/useIsMobile.js'
-import type { ToolType } from '../tools/index.js'
-import type { ToolGroupItem } from './ToolGroup.js'
-import { ToolGroup } from './ToolGroup.js'
+import type { ToolCategory, ToolType } from '../tools/index.js'
+import { CATEGORY_LABELS, CATEGORY_ORDER, TOOL_CATALOG, TOOLS_BY_CATEGORY } from '../tools/index.js'
+import { ToolPopover, type ToolPopoverSection } from './ToolPopover.js'
+import { LAYER_ACTIONS, type LayerActionId, TOOL_ICONS } from './tool-icons.js'
 
 export interface ToolbarProps {
 	activeTool: ToolType
 	canUndo: boolean
 	canRedo: boolean
 	hasSelection: boolean
+	/** Keep the active tool armed after a placement instead of reverting to Select */
+	toolLocked: boolean
+	/**
+	 * Bind connector terminals to a free point rather than the nearest anchor - mobile parity for
+	 * the Alt modifier.
+	 *
+	 * A global canvas mode, so it lives here beside the tool lock rather than in the property bar:
+	 * it has to be armable BEFORE the arrow is drawn, i.e. with nothing selected.
+	 */
+	preciseMode: boolean
 	onToolChange: (tool: ToolType) => void
+	onToolLockChange: (locked: boolean) => void
+	onPreciseModeChange: (enabled: boolean) => void
 	onUndo: () => void
 	onRedo: () => void
 	onExport: () => void
@@ -54,57 +61,66 @@ export interface ToolbarProps {
 interface ToolButtonProps {
 	tool: ToolType
 	activeTool: ToolType
-	title: string
-	shortcut: string
+	size: number
 	onToolChange: (tool: ToolType) => void
-	children: React.ReactNode
 }
 
-function ToolButton({
-	tool,
-	activeTool,
-	title,
-	shortcut,
-	onToolChange,
-	children
-}: ToolButtonProps) {
+/** The one tool button, used by both layouts and by the popovers' triggers. */
+function ToolButton({ tool, activeTool, size, onToolChange }: ToolButtonProps) {
+	const descriptor = TOOL_CATALOG[tool]
+	const Icon = TOOL_ICONS[tool]
 	return (
 		<button
-			className={`ideallo-tool-btn ${activeTool === tool ? 'active' : ''}`}
+			type="button"
+			className={`ideallo-tool-btn${activeTool === tool ? ' active' : ''}`}
+			aria-pressed={activeTool === tool}
 			onClick={() => onToolChange(tool)}
-			title={`${title} (${shortcut})`}
+			title={`${descriptor.label} (${descriptor.shortcut})`}
+			aria-label={descriptor.label}
 		>
-			{children}
+			<Icon size={size} />
 		</button>
 	)
 }
 
-// Tool group definitions for mobile
-const DRAW_TOOLS: ToolGroupItem[] = [
-	{ tool: 'pen', icon: <IcPen size={22} />, title: 'Pen', shortcut: 'P' },
-	{ tool: 'eraser', icon: <IcEraser size={22} />, title: 'Eraser', shortcut: 'X' }
-]
+/** Which popover, if any, is open. A single value is what keeps them mutually exclusive. */
+type OpenMenu = 'draw' | 'shapes' | 'layer' | 'tools' | null
 
-const SHAPE_TOOLS: ToolGroupItem[] = [
-	{ tool: 'rect', icon: <IcRect size={22} />, title: 'Rectangle', shortcut: 'R' },
-	{ tool: 'ellipse', icon: <IcEllipse size={22} />, title: 'Ellipse', shortcut: 'E' },
-	{ tool: 'line', icon: <IcLine size={22} />, title: 'Line', shortcut: 'L' },
-	{ tool: 'arrow', icon: <IcArrow size={22} />, title: 'Arrow', shortcut: 'A' },
-	{ tool: 'text', icon: <IcText size={22} />, title: 'Text', shortcut: 'T' },
-	{ tool: 'sticky', icon: <IcSticky size={22} />, title: 'Sticky Note', shortcut: 'S' },
-	{ tool: 'image', icon: <IcImage size={22} />, title: 'Image', shortcut: 'I' },
-	{ tool: 'document', icon: <IcDocument size={22} />, title: 'Document', shortcut: 'D' }
-]
+/**
+ * Which member of each category a group trigger shows, seeded from the catalog's first entry.
+ *
+ * Remembering the last pick means the trigger keeps offering the shape the user actually draws
+ * rather than resetting to Rectangle after every use.
+ */
+function useLastToolPerCategory(activeTool: ToolType): Record<ToolCategory, ToolType> {
+	const [last, setLast] = React.useState<Record<ToolCategory, ToolType>>(() => {
+		const seed = {} as Record<ToolCategory, ToolType>
+		for (const category of Object.keys(CATEGORY_LABELS) as ToolCategory[]) {
+			seed[category] = TOOLS_BY_CATEGORY[category][0].tool
+		}
+		return seed
+	})
 
-const DRAW_TOOL_SET = new Set<ToolType>(DRAW_TOOLS.map((t) => t.tool))
-const SHAPE_TOOL_SET = new Set<ToolType>(SHAPE_TOOLS.map((t) => t.tool))
+	React.useEffect(() => {
+		const category = TOOL_CATALOG[activeTool].category
+		setLast((prev) =>
+			prev[category] === activeTool ? prev : { ...prev, [category]: activeTool }
+		)
+	}, [activeTool])
+
+	return last
+}
 
 export function Toolbar({
 	activeTool,
 	canUndo,
 	canRedo,
 	hasSelection,
+	toolLocked,
+	preciseMode,
 	onToolChange,
+	onToolLockChange,
+	onPreciseModeChange,
 	onUndo,
 	onRedo,
 	onExport,
@@ -115,50 +131,130 @@ export function Toolbar({
 }: ToolbarProps) {
 	const isMobile = useIsMobile()
 
-	// Track last-used tool per group (for mobile group button icon)
-	const [lastDrawTool, setLastDrawTool] = React.useState<ToolType>('pen')
-	const [lastShapeTool, setLastShapeTool] = React.useState<ToolType>('rect')
+	const lastPerCategory = useLastToolPerCategory(activeTool)
+
+	const [openMenu, setOpenMenu] = React.useState<OpenMenu>(null)
+	const drawTriggerRef = React.useRef<HTMLButtonElement>(null)
+	const shapesTriggerRef = React.useRef<HTMLButtonElement>(null)
+	const layerTriggerRef = React.useRef<HTMLButtonElement>(null)
+	const toolsTriggerRef = React.useRef<HTMLButtonElement>(null)
 
 	// ActionSheet open state for "More" overflow menu
 	const [moreOpen, setMoreOpen] = React.useState(false)
 
-	// Update last-used tool when activeTool changes
-	React.useEffect(() => {
-		if (DRAW_TOOL_SET.has(activeTool)) {
-			setLastDrawTool(activeTool)
-		} else if (SHAPE_TOOL_SET.has(activeTool)) {
-			setLastShapeTool(activeTool)
-		}
-	}, [activeTool])
+	const closeMenu = React.useCallback(() => setOpenMenu(null), [])
+
+	const pickTool = React.useCallback(
+		(tool: ToolType) => {
+			onToolChange(tool)
+			setOpenMenu(null)
+		},
+		[onToolChange]
+	)
+
+	const layerHandlers: Record<LayerActionId, () => void> = {
+		front: onBringToFront,
+		forward: onBringForward,
+		backward: onSendBackward,
+		back: onSendToBack
+	}
+
+	const toolSection = React.useCallback(
+		(category: ToolCategory, withHeading: boolean): ToolPopoverSection => ({
+			key: category,
+			heading: withHeading ? CATEGORY_LABELS[category] : undefined,
+			items: TOOLS_BY_CATEGORY[category].map((descriptor) => ({
+				key: descriptor.tool,
+				Icon: TOOL_ICONS[descriptor.tool],
+				label: descriptor.label,
+				shortcut: descriptor.shortcut,
+				active: activeTool === descriptor.tool,
+				onSelect: () => pickTool(descriptor.tool)
+			}))
+		}),
+		[activeTool, pickTool]
+	)
+
+	const layerSection: ToolPopoverSection = {
+		key: 'layer',
+		items: LAYER_ACTIONS.map((action) => ({
+			key: action.id,
+			Icon: action.Icon,
+			label: action.label,
+			shortcut: action.shortcut,
+			onSelect: () => {
+				layerHandlers[action.id]()
+				setOpenMenu(null)
+			}
+		}))
+	}
 
 	// --- Mobile toolbar ---
 	if (isMobile) {
+		const drawTool = lastPerCategory.draw
+		const DrawIcon = TOOL_ICONS[drawTool]
+		const drawActive = TOOL_CATALOG[activeTool].category === 'draw'
+		// Everything that is not select and not a pen/eraser: shapes, connector, text, embeds
+		const toolsCategories: ToolCategory[] = CATEGORY_ORDER.filter((c) => c !== 'draw')
+		const toolsActive = toolsCategories.includes(TOOL_CATALOG[activeTool].category)
+
 		return (
 			<div className="ideallo-toolbar">
-				{/* Select */}
-				<button
-					className={`ideallo-tool-btn ${activeTool === 'select' ? 'active' : ''}`}
-					onClick={() => onToolChange('select')}
-					title="Select (V)"
-				>
-					<IcSelect size={22} />
-				</button>
+				<ToolButton
+					tool="select"
+					activeTool={activeTool}
+					size={22}
+					onToolChange={onToolChange}
+				/>
 
 				{/* Draw group: Pen / Eraser */}
-				<ToolGroup
-					items={DRAW_TOOLS}
-					activeTool={activeTool}
-					lastUsedTool={lastDrawTool}
-					onToolChange={onToolChange}
-				/>
+				<div className="ideallo-tool-group">
+					<button
+						type="button"
+						ref={drawTriggerRef}
+						className={`ideallo-tool-btn has-menu${drawActive ? ' active' : ''}`}
+						aria-haspopup="menu"
+						aria-expanded={openMenu === 'draw'}
+						onClick={() => setOpenMenu((prev) => (prev === 'draw' ? null : 'draw'))}
+						title={CATEGORY_LABELS.draw}
+						aria-label={CATEGORY_LABELS.draw}
+					>
+						<DrawIcon size={22} />
+						<span className="ideallo-tool-group-indicator" />
+					</button>
+					<ToolPopover
+						open={openMenu === 'draw'}
+						onClose={closeMenu}
+						sections={[toolSection('draw', false)]}
+						anchorRef={drawTriggerRef}
+						aria-label={CATEGORY_LABELS.draw}
+					/>
+				</div>
 
-				{/* Shape group: Rect, Ellipse, Line, Arrow, Text, Sticky, Image */}
-				<ToolGroup
-					items={SHAPE_TOOLS}
-					activeTool={activeTool}
-					lastUsedTool={lastShapeTool}
-					onToolChange={onToolChange}
-				/>
+				{/* Everything else, one labelled row per category */}
+				<div className="ideallo-tool-group">
+					<button
+						type="button"
+						ref={toolsTriggerRef}
+						className={`ideallo-tool-btn has-menu${toolsActive ? ' active' : ''}`}
+						aria-haspopup="menu"
+						aria-expanded={openMenu === 'tools'}
+						onClick={() => setOpenMenu((prev) => (prev === 'tools' ? null : 'tools'))}
+						title="Tools"
+						aria-label="Tools"
+					>
+						<IcToolbox size={22} />
+						<span className="ideallo-tool-group-indicator" />
+					</button>
+					<ToolPopover
+						open={openMenu === 'tools'}
+						onClose={closeMenu}
+						sections={toolsCategories.map((c) => toolSection(c, true))}
+						layout="rows"
+						anchorRef={toolsTriggerRef}
+						aria-label="Tools"
+					/>
+				</div>
 
 				<div className="ideallo-toolbar-divider" />
 
@@ -189,41 +285,40 @@ export function Toolbar({
 				<ActionSheet isOpen={moreOpen} onClose={() => setMoreOpen(false)} title="Actions">
 					{hasSelection && (
 						<>
-							<ActionSheetItem
-								icon={<IcBringToFront size={20} />}
-								label="Bring to Front"
-								onClick={() => {
-									onBringToFront()
-									setMoreOpen(false)
-								}}
-							/>
-							<ActionSheetItem
-								icon={<IcBringForward size={20} />}
-								label="Bring Forward"
-								onClick={() => {
-									onBringForward()
-									setMoreOpen(false)
-								}}
-							/>
-							<ActionSheetItem
-								icon={<IcSendBackward size={20} />}
-								label="Send Backward"
-								onClick={() => {
-									onSendBackward()
-									setMoreOpen(false)
-								}}
-							/>
-							<ActionSheetItem
-								icon={<IcSendToBack size={20} />}
-								label="Send to Back"
-								onClick={() => {
-									onSendToBack()
-									setMoreOpen(false)
-								}}
-							/>
+							{LAYER_ACTIONS.map((action) => (
+								<ActionSheetItem
+									key={action.id}
+									icon={<action.Icon size={20} />}
+									label={action.label}
+									onClick={() => {
+										layerHandlers[action.id]()
+										setMoreOpen(false)
+									}}
+								/>
+							))}
 							<ActionSheetDivider />
 						</>
 					)}
+					{/* No checked variant on ActionSheetItem, so the state rides in the label */}
+					<ActionSheetItem
+						icon={toolLocked ? <IcLocked size={20} /> : <IcUnlocked size={20} />}
+						label={`Keep tool active: ${toolLocked ? 'on' : 'off'}`}
+						aria-pressed={toolLocked}
+						onClick={() => {
+							onToolLockChange(!toolLocked)
+							setMoreOpen(false)
+						}}
+					/>
+					<ActionSheetItem
+						icon={<IcPin size={20} />}
+						label={`Precise placement: ${preciseMode ? 'on' : 'off'}`}
+						aria-pressed={preciseMode}
+						onClick={() => {
+							onPreciseModeChange(!preciseMode)
+							setMoreOpen(false)
+						}}
+					/>
+					<ActionSheetDivider />
 					<ActionSheetItem
 						icon={<IcExport size={20} />}
 						label="Export"
@@ -237,125 +332,108 @@ export function Toolbar({
 		)
 	}
 
-	// --- Desktop toolbar (unchanged) ---
+	// --- Desktop toolbar: flat, except the shape family and the z-order actions ---
+	const shapeTool = lastPerCategory.shape
+	const ShapeIcon = TOOL_ICONS[shapeTool]
+	const shapeActive = TOOL_CATALOG[activeTool].category === 'shape'
+
 	return (
 		<div className="ideallo-toolbar">
-			{/* Select tool */}
 			<ToolButton
 				tool="select"
 				activeTool={activeTool}
-				title="Select"
-				shortcut="V"
+				size={24}
 				onToolChange={onToolChange}
-			>
-				<IcSelect size={24} />
-			</ToolButton>
+			/>
 
 			<div className="ideallo-toolbar-divider" />
 
 			{/* Drawing tools */}
-			<ToolButton
-				tool="pen"
-				activeTool={activeTool}
-				title="Pen"
-				shortcut="P"
-				onToolChange={onToolChange}
-			>
-				<IcPen size={24} />
-			</ToolButton>
-
+			<ToolButton tool="pen" activeTool={activeTool} size={24} onToolChange={onToolChange} />
 			<ToolButton
 				tool="eraser"
 				activeTool={activeTool}
-				title="Eraser"
-				shortcut="X"
+				size={24}
 				onToolChange={onToolChange}
-			>
-				<IcEraser size={24} />
-			</ToolButton>
+			/>
 
 			<div className="ideallo-toolbar-divider" />
 
-			{/* Shape tools */}
-			<ToolButton
-				tool="rect"
-				activeTool={activeTool}
-				title="Rectangle"
-				shortcut="R"
-				onToolChange={onToolChange}
-			>
-				<IcRect size={24} />
-			</ToolButton>
+			{/* The shape family behind one trigger, which wears the last shape drawn */}
+			<div className="ideallo-tool-group">
+				<button
+					type="button"
+					ref={shapesTriggerRef}
+					className={`ideallo-tool-btn has-menu${shapeActive ? ' active' : ''}`}
+					aria-haspopup="menu"
+					aria-expanded={openMenu === 'shapes'}
+					onClick={() => setOpenMenu((prev) => (prev === 'shapes' ? null : 'shapes'))}
+					title={CATEGORY_LABELS.shape}
+					aria-label={CATEGORY_LABELS.shape}
+				>
+					<ShapeIcon size={24} />
+					<span className="ideallo-tool-group-indicator" />
+				</button>
+				<ToolPopover
+					open={openMenu === 'shapes'}
+					onClose={closeMenu}
+					sections={[toolSection('shape', false)]}
+					anchorRef={shapesTriggerRef}
+					aria-label={CATEGORY_LABELS.shape}
+				/>
+			</div>
 
 			<ToolButton
-				tool="ellipse"
+				tool="connector"
 				activeTool={activeTool}
-				title="Ellipse"
-				shortcut="E"
+				size={24}
 				onToolChange={onToolChange}
-			>
-				<IcEllipse size={24} />
-			</ToolButton>
-
-			<ToolButton
-				tool="line"
-				activeTool={activeTool}
-				title="Line"
-				shortcut="L"
-				onToolChange={onToolChange}
-			>
-				<IcLine size={24} />
-			</ToolButton>
-
-			<ToolButton
-				tool="arrow"
-				activeTool={activeTool}
-				title="Arrow"
-				shortcut="A"
-				onToolChange={onToolChange}
-			>
-				<IcArrow size={24} />
-			</ToolButton>
-
-			<ToolButton
-				tool="text"
-				activeTool={activeTool}
-				title="Text"
-				shortcut="T"
-				onToolChange={onToolChange}
-			>
-				<IcText size={24} />
-			</ToolButton>
-
+			/>
+			<ToolButton tool="text" activeTool={activeTool} size={24} onToolChange={onToolChange} />
 			<ToolButton
 				tool="sticky"
 				activeTool={activeTool}
-				title="Sticky Note"
-				shortcut="S"
+				size={24}
 				onToolChange={onToolChange}
-			>
-				<IcSticky size={24} />
-			</ToolButton>
-
+			/>
 			<ToolButton
 				tool="image"
 				activeTool={activeTool}
-				title="Image"
-				shortcut="I"
+				size={24}
 				onToolChange={onToolChange}
-			>
-				<IcImage size={24} />
-			</ToolButton>
-
+			/>
 			<ToolButton
 				tool="document"
 				activeTool={activeTool}
-				title="Document"
-				shortcut="D"
+				size={24}
 				onToolChange={onToolChange}
+			/>
+
+			{/* Tool lock: opt out of the one-shot revert, for placing several of a thing */}
+			<button
+				type="button"
+				className={`ideallo-tool-btn ideallo-tool-lock ${toolLocked ? 'locked' : ''}`}
+				aria-pressed={toolLocked}
+				onClick={() => onToolLockChange(!toolLocked)}
+				title={toolLocked ? 'Keep tool active: on' : 'Keep tool active: off'}
 			>
-				<IcDocument size={24} />
-			</ToolButton>
+				{toolLocked ? <IcLocked size={24} /> : <IcUnlocked size={24} />}
+			</button>
+
+			{/* Precise placement: drop a connector terminal on a free point, not the nearest anchor */}
+			<button
+				type="button"
+				className={`ideallo-tool-btn ${preciseMode ? 'active' : ''}`}
+				aria-pressed={preciseMode}
+				onClick={() => onPreciseModeChange(!preciseMode)}
+				title={
+					preciseMode
+						? 'Precise placement: on (or hold Alt)'
+						: 'Precise placement: off (or hold Alt)'
+				}
+			>
+				<IcPin size={24} />
+			</button>
 
 			<div className="ideallo-toolbar-divider" />
 
@@ -378,42 +456,37 @@ export function Toolbar({
 				<IcRedo size={24} />
 			</button>
 
-			{/* Z-order (shown when objects are selected) */}
+			{/* Z-order, behind one trigger and only while there is something to reorder */}
 			{hasSelection && (
 				<>
 					<div className="ideallo-toolbar-divider" />
 
-					<button
-						className="ideallo-tool-btn"
-						onClick={onBringToFront}
-						title="Bring to Front (Ctrl+Shift+])"
-					>
-						<IcBringToFront size={24} />
-					</button>
-
-					<button
-						className="ideallo-tool-btn"
-						onClick={onBringForward}
-						title="Bring Forward (Ctrl+])"
-					>
-						<IcBringForward size={24} />
-					</button>
-
-					<button
-						className="ideallo-tool-btn"
-						onClick={onSendBackward}
-						title="Send Backward (Ctrl+[)"
-					>
-						<IcSendBackward size={24} />
-					</button>
-
-					<button
-						className="ideallo-tool-btn"
-						onClick={onSendToBack}
-						title="Send to Back (Ctrl+Shift+[)"
-					>
-						<IcSendToBack size={24} />
-					</button>
+					<div className="ideallo-tool-group">
+						<button
+							type="button"
+							ref={layerTriggerRef}
+							className="ideallo-tool-btn has-menu"
+							aria-haspopup="menu"
+							aria-expanded={openMenu === 'layer'}
+							onClick={() =>
+								setOpenMenu((prev) => (prev === 'layer' ? null : 'layer'))
+							}
+							title="Arrange"
+							aria-label="Arrange"
+						>
+							<IcStack size={24} />
+							<span className="ideallo-tool-group-indicator" />
+						</button>
+						<ToolPopover
+							open={openMenu === 'layer'}
+							onClose={closeMenu}
+							sections={[layerSection]}
+							layout="rows"
+							iconSize={24}
+							anchorRef={layerTriggerRef}
+							aria-label="Arrange"
+						/>
+					</div>
 				</>
 			)}
 

@@ -13,7 +13,11 @@ export {
 	str2color,
 	UI
 } from './colors.js'
-export type { Point } from './geometry.js'
+export type {
+	ConnectorTerminalPatch,
+	ConnectorTerminals,
+	Point
+} from './geometry.js'
 export {
 	boundsContains,
 	boundsOverlap,
@@ -27,7 +31,9 @@ export {
 	perpendicularDistance,
 	pointInBounds,
 	radToDeg,
-	rotatePoint
+	rotatePoint,
+	scaleConnectorTerminals,
+	scalePointsIntoBounds
 } from './geometry.js'
 export {
 	colorToCss,
@@ -41,15 +47,29 @@ export {
 	rdpSimplify,
 	streamSimplify
 } from './path-simplification.js'
+export type { BarPosition, BarPositionInput } from './property-bar-position.js'
+export {
+	computeBarPosition,
+	DESKTOP_BOTTOM_RESERVED,
+	MOBILE_BOTTOM_RESERVED,
+	MOBILE_MAX_WIDTH,
+	SELECTION_GAP,
+	VIEWPORT_PADDING
+} from './property-bar-position.js'
 export {
 	calculateOptimalFontSize,
 	cleanupMeasureElement,
 	createFontSizeCalculator,
-	DEFAULT_FONT_SIZE,
 	DEFAULT_LINE_HEIGHT,
 	DEFAULT_PADDING,
 	MAX_FONT_SIZE,
 	MIN_FONT_SIZE
 } from './text-scaling.js'
+export {
+	DEFAULT_STICKY_FONT_SIZE,
+	DEFAULT_TEXT_FONT_SIZE,
+	FONT_SIZES,
+	VERTICAL_ALIGN_CSS
+} from './text-styles.js'
 
 // vim: ts=4

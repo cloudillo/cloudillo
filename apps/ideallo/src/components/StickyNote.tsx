@@ -5,25 +5,21 @@ import * as React from 'react'
 
 /**
  * Sticky note component (display-only)
- * Renders a colored note with fixed 18px text, auto-grows height during editing
- * Uses standard fill color from style for background
+ * Renders a colored note whose text layout comes from objectTextLayout, so it cannot drift from
+ * StickyEditOverlay's.
  *
  * For editing, use StickyEditOverlay instead.
  */
 
-import type { BaseTextStyle } from '@cloudillo/canvas-text'
 import { RichTextDisplay } from '@cloudillo/canvas-text'
 import { useMemo } from 'react'
 import type * as Y from 'yjs'
 
 import type { StickyObject } from '../crdt/index.js'
+import { objectTextLayout, STICKY_CORNER_RADIUS } from '../utils/object-text.js'
 import { colorToCss } from '../utils/palette.js'
-import { DEFAULT_LINE_HEIGHT, DEFAULT_PADDING } from '../utils/text-scaling.js'
-
-const STICKY_FONT_SIZE = 18
-
-// Sticky note text uses theme variable for proper theming support
-const STICKY_TEXT_COLOR = 'var(--palette-n0, #1e1e1e)'
+import { DEFAULT_LINE_HEIGHT } from '../utils/text-scaling.js'
+import { VERTICAL_ALIGN_CSS } from '../utils/text-styles.js'
 
 export interface StickyNoteProps {
 	object: StickyObject
@@ -36,6 +32,8 @@ export function StickyNote({ object, yText }: StickyNoteProps) {
 	// Use standard fill color for background
 	const bgColor = colorToCss(style.fillColor)
 
+	const { box, baseStyle, padding } = objectTextLayout(object)
+
 	// Generate a subtle random rotation for organic feel (-0.5 to +0.5 degrees)
 	// Use object ID to ensure consistent rotation per note
 	// Note: Main rotation is handled by ObjectRenderer, this is just organic tilt
@@ -44,19 +42,6 @@ export function StickyNote({ object, yText }: StickyNoteProps) {
 		const hash = object.id.charCodeAt(0) + object.id.charCodeAt(1)
 		return ((hash % 3) - 1) * 0.5 // -0.5 to +0.5 degrees
 	}, [object.id])
-
-	const baseStyle: BaseTextStyle = {
-		fontFamily: 'system-ui, -apple-system, sans-serif',
-		fontSize: STICKY_FONT_SIZE,
-		fontWeight: 'normal',
-		fontItalic: false,
-		textDecoration: 'none',
-		fill: STICKY_TEXT_COLOR,
-		textAlign: 'left',
-		verticalAlign: 'top',
-		lineHeight: DEFAULT_LINE_HEIGHT,
-		letterSpacing: 0
-	}
 
 	return (
 		<g
@@ -73,7 +58,7 @@ export function StickyNote({ object, yText }: StickyNoteProps) {
 				width={width}
 				height={height}
 				fill="rgba(0,0,0,0.08)"
-				rx={2}
+				rx={STICKY_CORNER_RADIUS}
 			/>
 			{/* Main background */}
 			<rect
@@ -82,20 +67,20 @@ export function StickyNote({ object, yText }: StickyNoteProps) {
 				width={width}
 				height={height}
 				fill={bgColor}
-				rx={2}
+				rx={STICKY_CORNER_RADIUS}
 				opacity={style.opacity}
 			/>
 
 			{yText ? (
 				<RichTextDisplay
-					x={x}
-					y={y}
-					width={width}
-					height={height}
+					x={box.x}
+					y={box.y}
+					width={box.width}
+					height={box.height}
 					yText={yText}
 					baseStyle={baseStyle}
 					containerStyle={{
-						padding: DEFAULT_PADDING,
+						padding,
 						background: 'transparent'
 					}}
 				/>
@@ -104,14 +89,25 @@ export function StickyNote({ object, yText }: StickyNoteProps) {
 				<foreignObject x={x} y={y} width={width} height={height}>
 					<div
 						style={{
+							// Flex only to make verticalAlign reachable; the live RichTextDisplay
+							// path above resolves it from the same four fields, and the two must
+							// not disagree about what an object's text looks like
+							display: 'flex',
+							flexDirection: 'column',
+							justifyContent: VERTICAL_ALIGN_CSS[baseStyle.verticalAlign],
 							width: '100%',
 							height: '100%',
-							padding: `${DEFAULT_PADDING}px`,
+							padding: `${padding}px`,
 							boxSizing: 'border-box',
-							fontSize: `${STICKY_FONT_SIZE}px`,
+							fontSize: `${baseStyle.fontSize}px`,
 							lineHeight: DEFAULT_LINE_HEIGHT,
-							fontFamily: 'system-ui, -apple-system, sans-serif',
-							color: STICKY_TEXT_COLOR,
+							fontFamily: baseStyle.fontFamily,
+							textAlign: baseStyle.textAlign,
+							// Straight off baseStyle rather than a constant of its own: the fill now
+							// decides the glyph colour (a note filled with the darkest neutral would
+							// otherwise print black on black), and this fallback must not disagree
+							// with the RichTextDisplay path above about it
+							color: baseStyle.fill,
 							overflow: 'hidden',
 							wordWrap: 'break-word',
 							whiteSpace: 'pre-wrap',

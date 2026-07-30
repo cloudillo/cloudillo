@@ -105,9 +105,13 @@ export function useImageHandler(options: UseImageHandlerOptions) {
 					pivotY: 0.5,
 					locked: false,
 					style: {
+						// No visible border on insert (the colour is cleared), but the width
+						// picker starts on a REAL preset, so picking a colour immediately gives a
+						// 2px border rather than an invisible 0-width one. Keep in step with
+						// useDocumentHandler.
 						strokeColor: 'transparent',
 						fillColor: 'transparent',
-						strokeWidth: 0,
+						strokeWidth: 2,
 						strokeStyle: 'solid',
 						opacity: 1
 					}
@@ -124,6 +128,10 @@ export function useImageHandler(options: UseImageHandlerOptions) {
 				onInsertComplete?.()
 			} catch (error) {
 				console.error('Failed to insert image:', error)
+				// Without this the tool stays on 'image': the effect that opens the picker is keyed
+				// on activeTool alone, so re-clicking the button changes nothing and the tool is
+				// inert until the user switches away and back. Same contract as useDocumentHandler.
+				onInsertComplete?.()
 			} finally {
 				setIsInserting(false)
 			}

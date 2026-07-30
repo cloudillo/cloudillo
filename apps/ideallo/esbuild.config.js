@@ -14,6 +14,10 @@ const config = createConfig({
 	outdir: `dist/assets-${pkg.version}`,
 	define: {
 		__APP_VERSION__: JSON.stringify(pkg.version)
+	},
+	extra: {
+		// Mark font paths as external - they're served at runtime from shell's /fonts/
+		external: ['/fonts/*']
 	}
 })
 

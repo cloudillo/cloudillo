@@ -66,7 +66,11 @@ function debugLog(title: string, data: Record<string, unknown>) {
 }
 
 /**
- * Result type for Smart Ink processing
+ * Result type for Smart Ink processing.
+ *
+ * This is the RECOGNISER's vocabulary, not the object model: 'line' is a plain straight stroke,
+ * 'arrow' a straight stroke ending in an arrowhead flick. Both commit as connector objects - the
+ * first headless, the second with the head the user actually drew.
  */
 export type SmartInkResultType = 'line' | 'ellipse' | 'rect' | 'arrow' | 'polygon' | 'freehand'
 

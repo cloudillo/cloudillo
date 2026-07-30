@@ -24,54 +24,82 @@ export type {
 } from './object-ops.js'
 export {
 	addObject,
-	appendGeometryPoints,
 	bringForward,
 	bringToFront,
-	deleteObject,
-	deleteObjects,
+	connectObjects,
+	deletableObjectIds,
+	deleteObjectsWithBindingCleanup,
 	duplicateAsLinkedCopy,
 	duplicateObject,
+	ensureObjectYText,
 	getAllObjects,
+	getAllResolvedObjects,
 	getObject,
 	getObjectYArray,
 	getObjectYText,
+	LAYOUT_ORIGIN,
 	replaceGeometryPoints,
 	sendBackward,
 	sendToBack,
 	toggleObjectLock,
+	translateObject,
+	tryExpandObject,
 	updateDocumentNavState,
 	updateObject,
-	updateObjectBounds,
 	updateObjectFields,
-	updateObjectPivot,
-	updateObjectPosition,
 	updateObjectRotation
 } from './object-ops.js'
 // Runtime types
 export type {
+	AnchorPoint,
+	AnchorPointType,
 	ArrowheadPosition,
-	ArrowObject,
+	ArrowheadType,
+	ArrowStyle,
 	Bounds,
+	ConnectorObject,
+	Dir,
 	DocumentObject,
 	EllipseObject,
 	FreehandObject,
 	IdealloObject,
 	IdealloObjectBase,
 	ImageObject,
-	LineObject,
+	ObjectTextStyle,
 	ObjectType,
 	PolygonObject,
 	RectObject,
+	ResolvedRoute,
+	Routing,
 	StickyObject,
 	StrokeStyle,
 	Style,
-	TextObject
+	TextAlign,
+	TextBearingObject,
+	TextObject,
+	VerticalAlign
 } from './runtime-types.js'
-export { DEFAULT_STYLE } from './runtime-types.js'
+export {
+	DEFAULT_ANCHOR,
+	DEFAULT_END_ARROW,
+	DEFAULT_FONT_FAMILY,
+	DEFAULT_ROUTING,
+	DEFAULT_START_ARROW,
+	DEFAULT_STYLE,
+	DEFAULT_TEXT_ALIGN,
+	DEFAULT_VERTICAL_ALIGN,
+	isTextBearing,
+	TEXT_BEARING_TYPES
+} from './runtime-types.js'
 // Stored types
 export type {
+	AnchorPointCode,
+	ArrowDef,
+	ArrowTypeCode,
 	ObjectTypeCode,
-	StoredArrow,
+	RoutingCode,
+	StoredConnector,
+	StoredCornerRadius,
 	StoredDocument,
 	StoredEllipse,
 	StoredFreehand,
@@ -85,12 +113,23 @@ export type {
 	StoredSticky,
 	StoredStyle,
 	StoredText,
+	StoredTextStyle,
 	StrokeStyleCode,
+	TextAlignCode,
+	VerticalAlignCode,
 	YIdealloDocument
 } from './stored-types.js'
 // Transforms and geometry utilities
 export * from './transforms.js'
 // Type converters
-export { compactObject, expandObject } from './type-converters.js'
+export {
+	arrowheadsFromPosition,
+	compactAnchorPoint,
+	compactArrowDef,
+	compactObject,
+	expandAnchorPoint,
+	expandArrowDef,
+	expandObject
+} from './type-converters.js'
 
 // vim: ts=4

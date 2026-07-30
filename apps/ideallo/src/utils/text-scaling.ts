@@ -9,7 +9,7 @@
 // Constants
 export const MIN_FONT_SIZE = 12 // Accessibility minimum
 export const MAX_FONT_SIZE = 24
-export const DEFAULT_FONT_SIZE = 18
+// The per-type font size defaults live in utils/text-styles.ts - do not add a copy here.
 export const DEFAULT_LINE_HEIGHT = 1.4
 export const DEFAULT_PADDING = 16
 

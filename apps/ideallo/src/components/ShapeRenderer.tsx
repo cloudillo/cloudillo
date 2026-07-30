@@ -3,17 +3,18 @@
 
 import * as React from 'react'
 /**
- * Renders shape objects (rect, ellipse, line, arrow, polygon)
+ * Renders shape objects (rect, ellipse, connector, polygon)
+ *
+ * LOAD-BEARING: a cleared paint must stay `fill="transparent"` - what colorToCss returns - and
+ * must NEVER be "optimised" to `fill="none"`. A transparent paint keeps the element hit-testable
+ * under `pointer-events: visiblePainted`; `none` does not. That DOM hit area is what delivers the
+ * double-click ObjectRenderer turns into "add a label inside this hollow shape", and what lets a
+ * hollow shape be grabbed at all.
  */
 
-import type {
-	ArrowObject,
-	EllipseObject,
-	LineObject,
-	PolygonObject,
-	RectObject
-} from '../crdt/index.js'
+import type { ConnectorObject, EllipseObject, PolygonObject, RectObject } from '../crdt/index.js'
 import { colorToCss } from '../utils/palette.js'
+import { ConnectorPath } from './ConnectorPath.js'
 
 export interface RectRendererProps {
 	object: RectObject
@@ -76,22 +77,24 @@ export function EllipseRenderer({ object }: EllipseRendererProps) {
 	)
 }
 
-export interface LineRendererProps {
-	object: LineObject
+export interface ConnectorRendererProps {
+	object: ConnectorObject
 }
 
-export function LineRenderer({ object }: LineRendererProps) {
-	const { startX, startY, endX, endY, style } = object
+export function ConnectorRenderer({ object }: ConnectorRendererProps) {
+	const { startX, startY, endX, endY, startArrow, endArrow, route, style } = object
 
 	return (
-		<line
-			x1={startX}
-			y1={startY}
-			x2={endX}
-			y2={endY}
-			stroke={colorToCss(style.strokeColor)}
+		<ConnectorPath
+			route={route}
+			startX={startX}
+			startY={startY}
+			endX={endX}
+			endY={endY}
+			startArrow={startArrow}
+			endArrow={endArrow}
 			strokeWidth={style.strokeWidth}
-			strokeLinecap="round"
+			stroke={colorToCss(style.strokeColor)}
 			strokeDasharray={
 				style.strokeStyle === 'dashed'
 					? '8,4'
@@ -101,58 +104,6 @@ export function LineRenderer({ object }: LineRendererProps) {
 			}
 			opacity={style.opacity}
 		/>
-	)
-}
-
-export interface ArrowRendererProps {
-	object: ArrowObject
-}
-
-export function ArrowRenderer({ object }: ArrowRendererProps) {
-	const { startX, startY, endX, endY, arrowheadPosition, style } = object
-
-	// Calculate arrowhead dimensions
-	const headLength = Math.max(12, style.strokeWidth * 4)
-	const headAngle = Math.PI / 6
-
-	const renderArrowhead = (x1: number, y1: number, x2: number, y2: number) => {
-		const angle = Math.atan2(y2 - y1, x2 - x1)
-		const ax1 = x2 - headLength * Math.cos(angle - headAngle)
-		const ay1 = y2 - headLength * Math.sin(angle - headAngle)
-		const ax2 = x2 - headLength * Math.cos(angle + headAngle)
-		const ay2 = y2 - headLength * Math.sin(angle + headAngle)
-		return `${ax1},${ay1} ${x2},${y2} ${ax2},${ay2}`
-	}
-
-	return (
-		<g
-			stroke={colorToCss(style.strokeColor)}
-			strokeWidth={style.strokeWidth}
-			strokeLinecap="round"
-			strokeLinejoin="round"
-			fill="none"
-			opacity={style.opacity}
-		>
-			<line
-				x1={startX}
-				y1={startY}
-				x2={endX}
-				y2={endY}
-				strokeDasharray={
-					style.strokeStyle === 'dashed'
-						? '8,4'
-						: style.strokeStyle === 'dotted'
-							? '2,4'
-							: undefined
-				}
-			/>
-			{(arrowheadPosition === 'end' || arrowheadPosition === 'both') && (
-				<polyline points={renderArrowhead(startX, startY, endX, endY)} />
-			)}
-			{(arrowheadPosition === 'start' || arrowheadPosition === 'both') && (
-				<polyline points={renderArrowhead(endX, endY, startX, startY)} />
-			)}
-		</g>
 	)
 }
 

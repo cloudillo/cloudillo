@@ -12,6 +12,9 @@ import * as React from 'react'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
+// The @font-face rules behind the PropertyBar's font picker. Ideallo runs in a sandboxed iframe,
+// so it cannot rely on the shell having loaded them - see prezillo's app.tsx, which does the same.
+import '@cloudillo/fonts/fonts.css'
 import '@cloudillo/react/components.css'
 import './style.css'
 
@@ -33,39 +36,65 @@ import {
 	Toolbar,
 	ZoomControls
 } from './components/index.js'
+import type { ConnectorEndpointPreview, GeometryOverrides } from './connectors/index.js'
+import { isBoundConnector } from './connectors/index.js'
+import { bindEndpoint } from './connectors/lifecycle.js'
 import type { Bounds, IdealloObject, ObjectId } from './crdt/index.js'
 import {
 	bringForward,
 	bringToFront,
-	deleteObjects,
+	compactAnchorPoint,
+	connectObjects,
+	DEFAULT_STYLE,
+	deletableObjectIds,
+	deleteObjectsWithBindingCleanup,
 	downloadExport,
+	duplicateObject,
+	getAllResolvedObjects,
 	getObject,
+	isTextBearing,
+	LAYOUT_ORIGIN,
+	replaceGeometryPoints,
 	sendBackward,
 	sendToBack,
+	translateObject,
 	updateDocumentNavState,
 	updateObjectFields
 } from './crdt/index.js'
 import {
+	useConnectorEndpointDrag,
 	useDocumentHandler,
 	useDrawingHandler,
 	useEraserHandler,
 	useIdealloDocument,
 	useImageHandler,
+	useIsMobile,
+	useLatestRef,
+	useObjectTextEditor,
 	useSelectHandler,
 	useShapeHandler,
 	useStickyHandler,
-	useTextHandler,
-	useTextLabelHandler
+	useTextHandler
 } from './hooks/index.js'
 import type { MorphAnimationState } from './smart-ink/index.js'
-import type { ToolType } from './tools/index.js'
-import { getObjectBounds } from './utils/bounds.js'
-import { normalizeAngle } from './utils/geometry.js'
+import {
+	isDragShapeTool,
+	isOneShotTool,
+	nextToolAfterUse,
+	shouldSelectAfterUse,
+	TOOL_BY_KEY,
+	TOOL_LABELS
+} from './tools/index.js'
+import { getObjectBounds, getRotatedObjectBounds } from './utils/bounds.js'
+import { isEditableTarget, isPopoverOpen } from './utils/editable-target.js'
+import { normalizeAngle, scaleConnectorTerminals, scalePointsIntoBounds } from './utils/geometry.js'
 import { scalePathData } from './utils/path-scaling.js'
 
 export function IdealloApp() {
 	const ideallo = useIdealloDocument()
 	const canvasRef = React.useRef<CanvasHandle>(null)
+
+	const isMobile = useIsMobile()
 
 	// Zoom state
 	const [scale, setScale] = React.useState(1)
@@ -159,10 +188,82 @@ export function IdealloApp() {
 		})
 	}, [])
 
+	const selectObjects = React.useCallback((ids: ObjectId[], addToSelection: boolean = false) => {
+		setSelectedIds((prev) => {
+			if (!addToSelection) return new Set(ids)
+			const next = new Set(prev)
+			ids.forEach((id) => {
+				next.add(id)
+			})
+			return next
+		})
+	}, [])
+
+	/*
+	 * setActiveDocumentId is in the deps and must stay there. It closes over flushNavState, which
+	 * closes over `isReadOnly` - and on the first render `cloudillo.access` is still undefined
+	 * (the app bus has not finished its handshake), so isReadOnly is true. Pinning this callback
+	 * with [] froze that render-0 closure forever: Escape or a click on empty canvas after panning
+	 * inside an embedded document hit `if (isReadOnly) return` and threw the cached viewport away.
+	 * Switching straight from one embed to another still worked, which is what hid it.
+	 */
 	const clearSelection = React.useCallback(() => {
 		setSelectedIds(new Set())
 		setActiveDocumentId(null)
+	}, [setActiveDocumentId])
+
+	/** An object that stopped existing must not stay selected - the handles would point at air. */
+	const deselectObject = React.useCallback((id: ObjectId) => {
+		setSelectedIds((prev) => {
+			if (!prev.has(id)) return prev
+			const next = new Set(prev)
+			next.delete(id)
+			return next
+		})
 	}, [])
+
+	/*
+	 * Live tool + lock, so the completion callbacks below never capture a stale value and never
+	 * churn identity - they are handed to handler hooks that memoize on them.
+	 */
+	const activeToolRef = useLatestRef(ideallo.activeTool)
+	const toolLockedRef = useLatestRef(ideallo.toolLocked)
+
+	/**
+	 * One placement is done: one-shot tools hand the pointer back to Select with the new object
+	 * selected; the lock opts out of that for repeat placement. Called with no id when the gesture
+	 * produced nothing (a cancelled picker).
+	 */
+	const finishToolUse = React.useCallback(
+		(objectId?: ObjectId) => {
+			const tool = activeToolRef.current
+			const locked = toolLockedRef.current
+			if (objectId && shouldSelectAfterUse(tool, locked)) selectObject(objectId)
+			const next = nextToolAfterUse(tool, locked)
+			if (next !== tool) ideallo.setActiveTool(next)
+		},
+		[selectObject, ideallo.setActiveTool]
+	)
+
+	/** Handler-facing form: every `onObjectCreated` requires the id to be mandatory. */
+	const handleToolUseComplete = React.useCallback(
+		(objectId: ObjectId) => {
+			finishToolUse(objectId)
+		},
+		[finishToolUse]
+	)
+
+	// Undo/redo drop the selection: it may well be pointing at an object that is about to
+	// stop existing, and an orphan selection box is worse than no selection.
+	const handleUndo = React.useCallback(() => {
+		clearSelection()
+		ideallo.undo()
+	}, [clearSelection, ideallo.undo])
+
+	const handleRedo = React.useCallback(() => {
+		clearSelection()
+		ideallo.redo()
+	}, [clearSelection, ideallo.redo])
 
 	// Canvas context ref for coordinate transforms
 	const canvasContextRef = React.useRef<SvgCanvasContext | null>(null)
@@ -190,6 +291,11 @@ export function IdealloApp() {
 		y: number
 		width: number
 		height: number
+		/**
+		 * The box the resize started from. Only a RESIZE sets it; Canvas needs it to scale a
+		 * connector's terminals out of the same source box onResizeEnd will.
+		 */
+		originalBounds?: Bounds
 		rotation?: number
 		pivotX?: number
 		pivotY?: number
@@ -288,35 +394,105 @@ export function IdealloApp() {
 		[drawingHandler]
 	)
 
-	// Shape handler for rect, ellipse, line, arrow
+	/**
+	 * Live Alt state, for free anchor placement.
+	 *
+	 * Pointer-move events do not carry modifiers through the canvas's tool event plumbing, and
+	 * the modifier has to be readable mid-drag, so it is tracked on the window instead.
+	 */
+	const altKeyRef = React.useRef(false)
+	React.useEffect(() => {
+		const update = (e: KeyboardEvent) => {
+			altKeyRef.current = e.altKey
+		}
+		const clear = () => {
+			altKeyRef.current = false
+		}
+		window.addEventListener('keydown', update)
+		window.addEventListener('keyup', update)
+		window.addEventListener('blur', clear)
+		return () => {
+			window.removeEventListener('keydown', update)
+			window.removeEventListener('keyup', update)
+			window.removeEventListener('blur', clear)
+		}
+	}, [])
+
+	/** Sticky precise-placement toggle: mobile parity for the Alt modifier */
+	const [preciseMode, setPreciseMode] = React.useState(false)
+
+	/**
+	 * One resolve pass per document revision, shared by every pointer-driven lookup: hit testing,
+	 * hover highlighting and bind-target lookup all run on pointermove and would otherwise expand
+	 * every stored object and rebuild a ConnectorContext each. The route cache covers the routing,
+	 * not the expand.
+	 *
+	 * Deliberately NOT Canvas's objectsToRender: that one has pending drag/resize geometry applied,
+	 * which hit testing must not see.
+	 */
+	const resolvedObjects = React.useMemo(
+		() => (ideallo.doc ? getAllResolvedObjects(ideallo.doc) : []),
+		[ideallo.doc, ideallo.objects, ideallo.order, ideallo.textContent]
+	)
+	/**
+	 * The same pass, keyed by id, for the by-id lookups that measure the selection.
+	 *
+	 * They must NOT use getObject(): that is expandObject with no route resolution, so a connector
+	 * comes back without `route` and getObjectBounds falls back to the bare endpoint box - which is
+	 * exactly the case the fallback exists to avoid. An elbow route that detours around an obstacle
+	 * would then get a selection frame and transform handles covering only its endpoints.
+	 *
+	 * Derived from the memo above rather than resolving a second time: one pass per revision.
+	 */
+	const resolvedObjectsById = React.useMemo(
+		() => new Map(resolvedObjects.map((obj) => [obj.id, obj])),
+		[resolvedObjects]
+	)
+
+	// Via a ref so the getter's identity is stable and the handler hooks' memos do not churn -
+	// the same trick translateToRef uses below.
+	const resolvedObjectsRef = useLatestRef(resolvedObjects)
+	const getResolvedObjects = React.useCallback(() => resolvedObjectsRef.current, [])
+
 	const shapeHandler = useShapeHandler({
 		yDoc: ideallo.yDoc,
 		doc: ideallo.doc,
 		awareness: ideallo.awareness,
 		currentStyle: ideallo.currentStyle,
-		activeTool: ideallo.activeTool as ToolType
+		activeTool: ideallo.activeTool,
+		scale,
+		preciseMode,
+		getResolvedObjects,
+		onObjectCreated: handleToolUseComplete
 	})
 
-	// Text handler for text tool
+	// The ONE editing slot. Sticky, text label and shape captions all open into it, and there is
+	// one close rule for all of them.
+	const textEditor = useObjectTextEditor({
+		yDoc: ideallo.yDoc,
+		doc: ideallo.doc,
+		onObjectDeleted: deselectObject
+	})
+
+	// Text handler - creation only; re-editing goes straight to textEditor.startEditing
 	const textHandler = useTextHandler({
 		yDoc: ideallo.yDoc,
 		doc: ideallo.doc,
 		currentStyle: ideallo.currentStyle,
-		enabled: ideallo.activeTool === 'text'
+		enabled: ideallo.activeTool === 'text',
+		startEditing: textEditor.startEditing,
+		onObjectCreated: handleToolUseComplete
 	})
 
-	// Sticky handler for sticky note tool
+	// The tool revert happens at CREATION, not at edit end: the click that ends an edit is routed
+	// by the active tool, so reverting on save would leave that click making a second sticky.
 	const stickyHandler = useStickyHandler({
 		yDoc: ideallo.yDoc,
 		doc: ideallo.doc,
 		currentStyle: ideallo.currentStyle,
-		enabled: ideallo.activeTool === 'sticky'
-	})
-
-	// Text label handler for double-click editing
-	const textLabelHandler = useTextLabelHandler({
-		yDoc: ideallo.yDoc,
-		doc: ideallo.doc
+		enabled: ideallo.activeTool === 'sticky',
+		startEditing: textEditor.startEditing,
+		onObjectCreated: handleToolUseComplete
 	})
 
 	// Quill ref for formatting from PropertyBar
@@ -324,6 +500,67 @@ export function IdealloApp() {
 
 	// Shared ref for editor content height (used to persist auto-grown height on save)
 	const editContentHeightRef = React.useRef<number | null>(null)
+
+	/*
+	 * A mousedown inside the property bar is the user styling what they are editing.
+	 *
+	 * Quill blurs before the click lands, and blur closes the editor - so recolouring a sticky
+	 * mid-edit would shut the editor and take the format buttons away with it. Set on the way down
+	 * and cleared a frame later, exactly when the blur handler needs to read it.
+	 *
+	 * `.c-font-picker__menu` counts as part of the bar: FontPicker portals its menu to
+	 * #popper-container, so a click on a font name is outside the bar in the DOM only.
+	 */
+	const isPropertyBarClickRef = React.useRef(false)
+
+	React.useEffect(() => {
+		const onPointerDown = (evt: PointerEvent) => {
+			const target = evt.target as HTMLElement | null
+			if (!target?.closest?.('.ideallo-property-bar, .c-font-picker__menu')) return
+			isPropertyBarClickRef.current = true
+			requestAnimationFrame(() => {
+				isPropertyBarClickRef.current = false
+			})
+		}
+		window.addEventListener('pointerdown', onPointerDown, true)
+		return () => window.removeEventListener('pointerdown', onPointerDown, true)
+	}, [])
+
+	const shouldIgnoreEditorBlur = React.useCallback(() => isPropertyBarClickRef.current, [])
+
+	/**
+	 * Persist a height the editor grew to while typing.
+	 *
+	 * Written with LAYOUT_ORIGIN so it stays off the undo stack: the height is a consequence of
+	 * the text, and a Ctrl+Z that only un-grows a box is a step the user never took.
+	 */
+	const commitGrownHeight = React.useCallback(
+		(objectId: ObjectId | undefined) => {
+			const grownHeight = editContentHeightRef.current
+			editContentHeightRef.current = null
+			if (!objectId || !grownHeight || !ideallo.yDoc || !ideallo.doc) return
+			const obj = getObject(ideallo.doc, objectId)
+			if (!obj || !('height' in obj) || grownHeight <= obj.height) return
+			updateObjectFields(
+				ideallo.yDoc,
+				ideallo.doc,
+				objectId,
+				{ height: grownHeight },
+				LAYOUT_ORIGIN
+			)
+		},
+		[ideallo.yDoc, ideallo.doc]
+	)
+
+	/**
+	 * Close whichever editor is open, keeping any height it grew to. Drops the object if it was
+	 * left empty and would be invisible without text.
+	 */
+	const endTextEdit = React.useCallback(() => {
+		const editId = textEditor.editing?.id
+		textEditor.endEditing()
+		commitGrownHeight(editId)
+	}, [textEditor, commitGrownHeight])
 
 	// Select handler for select tool
 	const selectHandler = useSelectHandler({
@@ -334,7 +571,8 @@ export function IdealloApp() {
 		selectObject,
 		clearSelection,
 		enabled: ideallo.activeTool === 'select' && !isReadOnly,
-		objects: ideallo.objects
+		objects: ideallo.objects,
+		getResolvedObjects
 	})
 
 	// Eraser handler for eraser tool
@@ -344,7 +582,8 @@ export function IdealloApp() {
 		awareness: ideallo.awareness,
 		objects: ideallo.objects,
 		enabled: ideallo.activeTool === 'eraser',
-		scale
+		scale,
+		getResolvedObjects
 	})
 
 	// Image handler for image tool
@@ -357,9 +596,11 @@ export function IdealloApp() {
 			// Select the newly created image
 			selectObject(id)
 		},
+		// Also fires when the picker is cancelled, which is exactly when the tool must be put
+		// away: its picker is opened from an effect keyed on the active tool, so a tool left on
+		// 'image' could never be re-triggered.
 		onInsertComplete: () => {
-			// Switch to select tool after insertion
-			ideallo.setActiveTool('select')
+			finishToolUse()
 		}
 	})
 
@@ -378,7 +619,7 @@ export function IdealloApp() {
 			selectObject(id)
 		},
 		onInsertComplete: () => {
-			ideallo.setActiveTool('select')
+			finishToolUse()
 		}
 	})
 
@@ -403,10 +644,17 @@ export function IdealloApp() {
 			maxX = -Infinity,
 			maxY = -Infinity
 
+		// A SINGLE selection keeps its unrotated box: SelectionBox is handed the object's rotation
+		// and turns the frame itself, so a rotated box here would be rotated twice. With 2+ objects
+		// there is no one rotation to hand it, so the frame has to enclose the rotated shapes.
+		const measure = selectedIds.size > 1 ? getRotatedObjectBounds : getObjectBounds
+
 		selectedIds.forEach((id) => {
-			const obj = getObject(ideallo.doc!, id)
+			// Resolved, not getObject: a connector must be measured on its ROUTE - see
+			// resolvedObjectsById
+			const obj = resolvedObjectsById.get(id)
 			if (obj) {
-				const bounds = getObjectBounds(obj)
+				const bounds = measure(obj)
 				minX = Math.min(minX, bounds.x)
 				minY = Math.min(minY, bounds.y)
 				maxX = Math.max(maxX, bounds.x + bounds.width)
@@ -416,7 +664,7 @@ export function IdealloApp() {
 
 		if (minX === Infinity) return null
 		return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
-	}, [selectedIds, ideallo.doc, ideallo.objects])
+	}, [selectedIds, ideallo.doc, resolvedObjectsById])
 
 	// Get rotation of selected object (for single selection)
 	const selectedObjectRotation = React.useMemo(() => {
@@ -445,7 +693,9 @@ export function IdealloApp() {
 	const storedSelection = React.useMemo(() => {
 		if (selectedIds.size !== 1 || !ideallo.doc) return null
 		const id = Array.from(selectedIds)[0]
-		const obj = getObject(ideallo.doc, id)
+		// Resolved, not getObject: the transform hooks must measure a connector on its ROUTE, the
+		// same box SelectionBox is drawn from - see resolvedObjectsById.
+		const obj = resolvedObjectsById.get(id)
 		if (!obj) return null
 		return {
 			id,
@@ -454,11 +704,30 @@ export function IdealloApp() {
 			pivotX: obj.pivotX ?? 0.5,
 			pivotY: obj.pivotY ?? 0.5
 		}
-	}, [selectedIds, ideallo.doc, ideallo.objects])
+	}, [selectedIds, ideallo.doc, resolvedObjectsById])
 
 	// Keep a ref for callbacks to avoid stale closures
-	const storedSelectionRef = React.useRef(storedSelection)
-	storedSelectionRef.current = storedSelection
+	const storedSelectionRef = useLatestRef(storedSelection)
+
+	/**
+	 * The selected connector, and whether it is bound at both ends.
+	 *
+	 * A fully bound connector has no user-editable geometry - both terminals are derived - so
+	 * resize and rotate are switched off for it and Canvas hides the SelectionBox entirely.
+	 * A half-bound one keeps its free terminal, which is edited through the endpoint handle.
+	 */
+	const selectedArrow = React.useMemo(() => {
+		if (selectedIds.size !== 1 || !ideallo.doc) return null
+		const id = Array.from(selectedIds)[0]
+		const obj = getObject(ideallo.doc, id)
+		return obj?.type === 'connector' ? obj : null
+	}, [selectedIds, ideallo.doc, ideallo.objects])
+
+	const isFullyBoundConnector = Boolean(
+		selectedArrow?.startObjectId && selectedArrow?.endObjectId
+	)
+	/** Rotation is wrong for ANY bound connector - see isBoundConnector for why */
+	const isBoundConnectorSelected = selectedArrow ? isBoundConnector(selectedArrow) : false
 
 	// Compute aspect ratio for single image selection
 	// This is used by useResizable for aspect-locked resize
@@ -513,7 +782,7 @@ export function IdealloApp() {
 	const broadcastEditing = React.useCallback(
 		(
 			objectId: ObjectId | null,
-			action: 'drag' | 'resize' | 'rotate' | null,
+			action: 'drag' | 'resize' | 'rotate' | 'connector' | null,
 			x?: number,
 			y?: number,
 			width?: number,
@@ -543,6 +812,54 @@ export function IdealloApp() {
 			ideallo.awareness.setLocalStateField('editing', undefined)
 		}
 	}, [ideallo.awareness])
+
+	/**
+	 * Dragging a terminal of the selected connector: bind, rebind, re-anchor or unbind.
+	 *
+	 * Gated the same way the pivot drag is (isPivotDraggingRef at the pointer routers), so the
+	 * select handler does not start moving the object underneath the handle.
+	 */
+	const isEndpointDraggingRef = React.useRef(false)
+
+	const connectorDrag = useConnectorEndpointDrag({
+		arrowId: selectedArrow?.id ?? null,
+		translateTo: translateToRef,
+		// Resolved objects are a superset of the expanded ones, and binding only reads shape
+		// geometry - findBindTargetShape skips connectors via isBindable.
+		getObjects: getResolvedObjects,
+		scale,
+		preciseMode,
+		// selectedArrow is the raw object, so it still carries the bindings the resolver consumes
+		getOppositeBoundId: (terminal) =>
+			terminal === 'start' ? selectedArrow?.endObjectId : selectedArrow?.startObjectId,
+		disabled: isReadOnly || ideallo.activeTool !== 'select' || !selectedArrow,
+		onDragStart: () => {
+			isEndpointDraggingRef.current = true
+		},
+		onDrag: (state) => {
+			if (selectedArrow) {
+				broadcastEditing(selectedArrow.id, 'connector', state.point[0], state.point[1])
+			}
+		},
+		onDragEnd: (terminal, bind, point) => {
+			isEndpointDraggingRef.current = false
+			clearEditingState()
+			if (!selectedArrow || !ideallo.yDoc || !ideallo.doc) return
+			bindEndpoint(
+				ideallo.yDoc,
+				ideallo.doc,
+				selectedArrow.id,
+				terminal,
+				bind?.objectId ?? null,
+				bind ? compactAnchorPoint(bind.anchor) : undefined,
+				point
+			)
+		},
+		onCancel: () => {
+			isEndpointDraggingRef.current = false
+			clearEditingState()
+		}
+	})
 
 	// Stable fallback bounds to avoid creating new object on every render
 	const emptyBounds = React.useMemo(() => ({ x: 0, y: 0, width: 0, height: 0 }), [])
@@ -583,7 +900,8 @@ export function IdealloApp() {
 				x: bounds.x,
 				y: bounds.y,
 				width: bounds.width,
-				height: bounds.height
+				height: bounds.height,
+				originalBounds: current.bounds
 			})
 		},
 		[]
@@ -597,7 +915,8 @@ export function IdealloApp() {
 			x: bounds.x,
 			y: bounds.y,
 			width: bounds.width,
-			height: bounds.height
+			height: bounds.height,
+			originalBounds: initial.bounds
 		})
 		broadcastEditingRef.current(
 			initial.id,
@@ -629,6 +948,8 @@ export function IdealloApp() {
 			const dy = bounds.y - originalBounds.y
 
 			if (dx !== 0 || dy !== 0 || scaleX !== 1 || scaleY !== 1) {
+				// Origin on the OUTER transaction: Yjs discards a nested one's, so the object and
+				// geometry writes below would otherwise land untracked and a resize would not undo.
 				yDoc.transact(() => {
 					initial.originalObjects.forEach((origObj, objectId) => {
 						// Calculate object's relative position within selection
@@ -653,20 +974,27 @@ export function IdealloApp() {
 								width: Math.max(10, objNewWidth),
 								height: Math.max(10, objNewHeight)
 							})
-						} else if (origObj.type === 'line' || origObj.type === 'arrow') {
-							// Scale line endpoints relative to selection origin
-							const relStartX = origObj.startX - originalBounds.x
-							const relStartY = origObj.startY - originalBounds.y
-							const relEndX = origObj.endX - originalBounds.x
-							const relEndY = origObj.endY - originalBounds.y
+						} else if (origObj.type === 'connector') {
+							// Shared with the resize PREVIEW (applyBoundsOverride in Canvas.tsx) so
+							// the two cannot map out of different source boxes and snap on release.
+							// Null means fully bound: both terminals are derived, nothing to write.
+							const patch = scaleConnectorTerminals(origObj, originalBounds, bounds)
+							if (!patch) return
+							updateObjectFields(yDoc, doc, objectId, patch)
+						} else if (origObj.type === 'polygon') {
+							// The preview scales the vertices (applyBoundsOverride in Canvas.tsx);
+							// the commit has to WRITE them, or the shape snaps back to its original
+							// outline on pointer-up. Same shape of fix as freehand below.
 							updateObjectFields(yDoc, doc, objectId, {
 								x: objNewX,
-								y: objNewY,
-								startX: originalBounds.x + dx + relStartX * scaleX,
-								startY: originalBounds.y + dy + relStartY * scaleY,
-								endX: originalBounds.x + dx + relEndX * scaleX,
-								endY: originalBounds.y + dy + relEndY * scaleY
+								y: objNewY
 							})
+							replaceGeometryPoints(
+								yDoc,
+								doc,
+								objectId,
+								scalePointsIntoBounds(origObj.vertices, originalBounds, bounds)
+							)
 						} else if (origObj.type === 'freehand') {
 							const scaledPathData = scalePathData(origObj.pathData, scaleX, scaleY)
 							updateObjectFields(yDoc, doc, objectId, {
@@ -698,7 +1026,7 @@ export function IdealloApp() {
 							})
 						}
 					})
-				})
+				}, yDoc.clientID)
 			}
 
 			clearEditingStateRef.current()
@@ -718,7 +1046,13 @@ export function IdealloApp() {
 		pivotY: lockedHookState?.pivotY ?? storedSelection?.pivotY ?? 0.5,
 		objectId: storedSelection?.id,
 		transformCoordinates: resizeTransformCoordinates,
-		disabled: isReadOnly || ideallo.activeTool !== 'select' || !storedSelection,
+		// A fully bound connector's geometry is entirely derived, so there is nothing to resize. A
+		// half-bound one keeps its free terminal, and onResizeEnd scales only that.
+		disabled:
+			isReadOnly ||
+			ideallo.activeTool !== 'select' ||
+			!storedSelection ||
+			isFullyBoundConnector,
 		aspectRatio: selectionAspectRatio,
 		cornerAspectLock,
 		onResizeStart,
@@ -788,13 +1122,15 @@ export function IdealloApp() {
 			Math.abs(normalizedRotation - initial.rotation) > 0.5 ||
 			normalizedRotation !== initial.rotation
 		) {
+			// Origin on the OUTER transaction, as for move and resize: Yjs discards a nested one's,
+			// leaving the rotation absent from the undo stack.
 			yDoc.transact(() => {
 				initial.originalObjects.forEach((_origObj, objectId) => {
 					updateObjectFields(yDoc, doc, objectId, {
 						rotation: normalizedRotation === 0 ? undefined : normalizedRotation
 					})
 				})
-			})
+			}, yDoc.clientID)
 		}
 
 		clearEditingStateRef.current()
@@ -829,7 +1165,14 @@ export function IdealloApp() {
 		translateTo: translateToRef,
 		translateFrom: translateFromRef,
 		screenSpaceSnapZone: true,
-		disabled: isReadOnly || ideallo.activeTool !== 'select' || !storedSelection,
+		// ANY binding rules out rotation, not just a full one - see isBoundConnector in
+		// connectors/resolve.ts: rotating a half-bound connector swings its bound terminal off the
+		// shape it is welded to.
+		disabled:
+			isReadOnly ||
+			ideallo.activeTool !== 'select' ||
+			!storedSelection ||
+			isBoundConnectorSelected,
 		onRotateStart,
 		onRotate,
 		onRotateEnd
@@ -860,10 +1203,16 @@ export function IdealloApp() {
 			maxX = -Infinity,
 			maxY = -Infinity
 
+		// Single selection: the unrotated box, which SelectionBox rotates itself. Multi: the
+		// rotated boxes, since the frame is drawn upright and must still enclose everything.
+		const measure = selectedIds.size > 1 ? getRotatedObjectBounds : getObjectBounds
+
 		selectedIds.forEach((id) => {
-			const obj = getObject(ideallo.doc!, id)
+			// Resolved, not getObject: a connector must be measured on its ROUTE - see
+			// resolvedObjectsById
+			const obj = resolvedObjectsById.get(id)
 			if (obj) {
-				const bounds = getObjectBounds(obj)
+				const bounds = measure(obj)
 				// Apply drag offset if this object is being dragged
 				const dx = dragOffset?.objectIds.has(id) ? dragOffset.dx : 0
 				const dy = dragOffset?.objectIds.has(id) ? dragOffset.dy : 0
@@ -877,7 +1226,51 @@ export function IdealloApp() {
 		if (minX === Infinity) return null
 
 		return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
-	}, [selectedIds, ideallo.doc, ideallo.objects, selectHandler.dragOffset, tempObjectState])
+	}, [selectedIds, ideallo.doc, resolvedObjectsById, selectHandler.dragOffset, tempObjectState])
+
+	/**
+	 * Pending resize/rotate geometry, handed to Canvas so connectors bound to the object being
+	 * manipulated reroute live. Canvas merges this with its own drag offset.
+	 */
+	const geometryOverrides = React.useMemo<GeometryOverrides>(() => {
+		if (!tempObjectState) return null
+		return new Map([
+			[
+				tempObjectState.objectId,
+				{
+					bounds: {
+						x: tempObjectState.x,
+						y: tempObjectState.y,
+						width: tempObjectState.width,
+						height: tempObjectState.height
+					},
+					// Resize only; Canvas maps connector terminals out of this box, as the commit does
+					originalBounds: tempObjectState.originalBounds,
+					rotation: tempObjectState.rotation,
+					// A pivot drag pairs a compensating translation with the new pivot. Sending
+					// only the translation would leave the preview turning about the OLD pivot,
+					// and the shape would visibly jump for the length of the drag.
+					pivotX: tempObjectState.pivotX,
+					pivotY: tempObjectState.pivotY
+				}
+			]
+		])
+	}, [tempObjectState])
+
+	/**
+	 * The in-flight terminal drag, handed to Canvas so the connector redraws through the real
+	 * routers on every pointer move instead of sitting at its committed geometry until release.
+	 */
+	const connectorEndpointPreview = React.useMemo<ConnectorEndpointPreview | null>(() => {
+		const state = connectorDrag.dragState
+		if (!state || !selectedArrow) return null
+		return {
+			arrowId: selectedArrow.id,
+			terminal: state.terminal,
+			point: state.point,
+			bind: state.bind
+		}
+	}, [connectorDrag.dragState, selectedArrow])
 
 	// Ref to track pivot dragging state - prevents object movement during pivot drag
 	const isPivotDraggingRef = React.useRef(false)
@@ -892,44 +1285,21 @@ export function IdealloApp() {
 	// Unified pointer handlers that route to the right tool
 	const handlePointerDown = React.useCallback(
 		(x: number, y: number, shiftKey: boolean = false, altKey: boolean = false) => {
-			// Close any active text/sticky editor when clicking on the canvas
-			if (stickyHandler.editingSticky) {
-				const editId = stickyHandler.editingSticky.id
-				const grownHeight = editContentHeightRef.current
-				stickyHandler.saveSticky(stickyHandler.editingSticky.text)
-				if (editId && grownHeight && ideallo.yDoc && ideallo.doc) {
-					const obj = getObject(ideallo.doc, editId)
-					if (obj && 'height' in obj && grownHeight > obj.height) {
-						updateObjectFields(ideallo.yDoc, ideallo.doc, editId, {
-							height: grownHeight
-						})
-					}
-				}
-				editContentHeightRef.current = null
-			}
-			if (textLabelHandler.editingText) {
-				const editId = textLabelHandler.editingText.id
-				const grownHeight = editContentHeightRef.current
-				textLabelHandler.saveText()
-				if (editId && grownHeight && ideallo.yDoc && ideallo.doc) {
-					const obj = getObject(ideallo.doc, editId)
-					if (obj && 'height' in obj && grownHeight > obj.height) {
-						updateObjectFields(ideallo.yDoc, ideallo.doc, editId, {
-							height: grownHeight
-						})
-					}
-				}
-				editContentHeightRef.current = null
-			}
+			// A click on the canvas finishes whichever editor is open
+			if (textEditor.editing) endTextEdit()
 
-			if (ideallo.activeTool === 'select' && !isPivotDraggingRef.current) {
+			if (
+				ideallo.activeTool === 'select' &&
+				!isPivotDraggingRef.current &&
+				!isEndpointDraggingRef.current
+			) {
 				selectHandler.handlePointerDown(x, y, shiftKey, altKey)
 			} else if (ideallo.activeTool === 'pen') {
 				drawingHandler.handlePointerDown(x, y)
 			} else if (ideallo.activeTool === 'eraser') {
 				eraserHandler.handlePointerDown(x, y)
-			} else if (['rect', 'ellipse', 'line', 'arrow'].includes(ideallo.activeTool)) {
-				shapeHandler.handlePointerDown(x, y)
+			} else if (isDragShapeTool(ideallo.activeTool)) {
+				shapeHandler.handlePointerDown(x, y, altKey || altKeyRef.current)
 			} else if (ideallo.activeTool === 'text') {
 				textHandler.handlePointerDown(x, y)
 			} else if (ideallo.activeTool === 'sticky') {
@@ -944,7 +1314,8 @@ export function IdealloApp() {
 			shapeHandler,
 			textHandler,
 			stickyHandler,
-			textLabelHandler
+			textEditor,
+			endTextEdit
 		]
 	)
 
@@ -957,8 +1328,8 @@ export function IdealloApp() {
 				drawingHandler.handlePointerMove(x, y)
 			} else if (ideallo.activeTool === 'eraser') {
 				eraserHandler.handlePointerMove(x, y)
-			} else if (['rect', 'ellipse', 'line', 'arrow'].includes(ideallo.activeTool)) {
-				shapeHandler.handlePointerMove(x, y)
+			} else if (isDragShapeTool(ideallo.activeTool)) {
+				shapeHandler.handlePointerMove(x, y, altKeyRef.current)
 			}
 		},
 		[ideallo.activeTool, selectHandler, drawingHandler, eraserHandler, shapeHandler]
@@ -972,7 +1343,7 @@ export function IdealloApp() {
 			drawingHandler.handlePointerUp()
 		} else if (ideallo.activeTool === 'eraser') {
 			eraserHandler.handlePointerUp()
-		} else if (['rect', 'ellipse', 'line', 'arrow'].includes(ideallo.activeTool)) {
+		} else if (isDragShapeTool(ideallo.activeTool)) {
 			shapeHandler.handlePointerUp()
 		}
 	}, [ideallo.activeTool, selectHandler, drawingHandler, eraserHandler, shapeHandler])
@@ -1015,6 +1386,14 @@ export function IdealloApp() {
 				canvasRef.current?.setViewport(center[0], center[1], zoom ?? 1)
 			}
 		})
+
+		// AppBus has no off/unregister for this - `onViewStateSet` is a bare field assignment on a
+		// SINGLETON - so overwriting it with a no-op is the only way from inside the app to stop the
+		// bus retaining this closure, and `canvasRef` with it, past unmount. A real
+		// `offViewStateSet` in libs/core is the proper follow-up.
+		return () => {
+			bus.onViewStateSet(() => {})
+		}
 	}, [])
 
 	// Restore initial navState once when embedded and synced
@@ -1099,39 +1478,104 @@ export function IdealloApp() {
 	// Handle pivot commit from usePivotDrag hook
 	const handlePivotCommit = React.useCallback(
 		(finalPivot: { x: number; y: number }, compensation: { x: number; y: number }) => {
-			if (selectedIds.size !== 1 || !ideallo.yDoc || !ideallo.doc) {
+			const { yDoc, doc } = ideallo
+			if (selectedIds.size !== 1 || !yDoc || !doc) {
 				isPivotDraggingRef.current = false
 				setTempObjectState(null)
 				return
 			}
 			const objectId = Array.from(selectedIds)[0]
-			const obj = getObject(ideallo.doc, objectId)
+			const obj = getObject(doc, objectId)
 			if (!obj) {
 				isPivotDraggingRef.current = false
 				setTempObjectState(null)
 				return
 			}
 
-			updateObjectFields(ideallo.yDoc, ideallo.doc, objectId, {
-				pivotX: finalPivot.x,
-				pivotY: finalPivot.y,
-				x: obj.x + compensation.x,
-				y: obj.y + compensation.y
-			})
+			yDoc.transact(() => {
+				// The compensation is a real MOVE - for a polygon that means the vertex array, not
+				// the inert xy - so it goes through translateObject rather than being folded into
+				// the pivot write. Kept as two writes because a fully bound connector's early
+				// return inside translateObject would otherwise swallow the pivot too.
+				translateObject(yDoc, doc, objectId, obj, compensation.x, compensation.y)
+				updateObjectFields(yDoc, doc, objectId, {
+					pivotX: finalPivot.x,
+					pivotY: finalPivot.y
+				})
+			}, yDoc.clientID)
 			isPivotDraggingRef.current = false
 			setTempObjectState(null)
 		},
 		[selectedIds, ideallo, setTempObjectState]
 	)
 
-	// Handle keyboard shortcuts
+	/**
+	 * "Connect selected" (C): make connectors between the selected shapes, pairwise in
+	 * selection order. Sets are insertion-ordered, so selection order gives the direction.
+	 */
+	const connectSelected = React.useCallback(() => {
+		if (isReadOnly || !ideallo.yDoc || !ideallo.doc || selectedIds.size < 2) return
+		const created = connectObjects(ideallo.yDoc, ideallo.doc, Array.from(selectedIds), {
+			style: {
+				strokeColor: ideallo.currentStyle.strokeColor,
+				fillColor: 'transparent',
+				strokeWidth: ideallo.currentStyle.strokeWidth,
+				strokeStyle: DEFAULT_STYLE.strokeStyle,
+				opacity: DEFAULT_STYLE.opacity
+			},
+			routing: ideallo.currentStyle.routing,
+			startArrow: ideallo.currentStyle.startArrow,
+			endArrow: ideallo.currentStyle.endArrow
+		})
+		// Select what was made, so the PropertyBar is immediately about the new connector
+		if (created.length) selectObjects(created)
+	}, [isReadOnly, ideallo.yDoc, ideallo.doc, ideallo.currentStyle, selectObjects, selectedIds])
+
+	/**
+	 * The four z-order commands, in one transaction so reordering N objects is ONE undo - the same
+	 * rule every other multi-object action follows (see PropertyBar's updateSelectedStyle).
+	 *
+	 * The backward/to-back directions iterate in reverse so the selection keeps its own relative
+	 * z-order instead of being inverted by the walk.
+	 */
+	const applyZOrder = React.useCallback(
+		(action: 'front' | 'forward' | 'backward' | 'back') => {
+			const yDoc = ideallo.yDoc
+			const doc = ideallo.doc
+			if (isReadOnly || !yDoc || !doc || !selectedIds.size) return
+			const ids = Array.from(selectedIds)
+			const ordered = action === 'front' || action === 'forward' ? ids : ids.reverse()
+			const op = {
+				front: bringToFront,
+				forward: bringForward,
+				backward: sendBackward,
+				back: sendToBack
+			}[action]
+			yDoc.transact(() => {
+				ordered.forEach((id) => {
+					op(yDoc, doc, id)
+				})
+			}, yDoc.clientID)
+		},
+		[isReadOnly, ideallo.yDoc, ideallo.doc, selectedIds]
+	)
+
+	/*
+	 * Keyboard shortcuts, gated in two tiers (see utils/editable-target.ts).
+	 *
+	 * A keystroke aimed at a text field is never a shortcut, so `isEditableTarget` bails on
+	 * everything. An open popover is narrower: it suppresses only what would act on the panel's own
+	 * context - the tool letters, Enter/F2 and Escape - while undo, zoom, duplicate and delete stay
+	 * live, since the width, opacity and radius pickers leave their panel open on purpose.
+	 */
 	const handleKeyDown = React.useCallback(
-		(evt: React.KeyboardEvent) => {
-			if (evt.target !== evt.currentTarget) return
+		(evt: KeyboardEvent) => {
+			if (isEditableTarget(evt.target)) return
+			const popoverOpen = isPopoverOpen()
 
 			// Cmd/Ctrl+Z for undo
 			if (!isReadOnly && (evt.ctrlKey || evt.metaKey) && evt.key === 'z' && !evt.shiftKey) {
-				ideallo.undo()
+				handleUndo()
 				evt.preventDefault()
 			}
 			// Cmd/Ctrl+Shift+Z or Cmd/Ctrl+Y for redo
@@ -1140,90 +1584,83 @@ export function IdealloApp() {
 				(evt.ctrlKey || evt.metaKey) &&
 				(evt.key === 'y' || (evt.key === 'z' && evt.shiftKey))
 			) {
-				ideallo.redo()
+				handleRedo()
 				evt.preventDefault()
 			}
 
-			// Zoom shortcuts
-			if (evt.key === '+' || evt.key === '=') {
-				handleZoomIn()
-				evt.preventDefault()
-			}
-			if (evt.key === '-') {
-				handleZoomOut()
-				evt.preventDefault()
-			}
-			if (evt.key === '0') {
-				handleZoomReset()
-				evt.preventDefault()
+			// Zoom shortcuts, unmodified only: Ctrl/Cmd +/-/0 are the browser's own zoom and must
+			// reach it, and Alt is the precise-anchor modifier held during a connector gesture.
+			if (!evt.ctrlKey && !evt.metaKey && !evt.altKey) {
+				if (evt.key === '+' || evt.key === '=') {
+					handleZoomIn()
+					evt.preventDefault()
+				}
+				if (evt.key === '-') {
+					handleZoomOut()
+					evt.preventDefault()
+				}
+				if (evt.key === '0') {
+					handleZoomReset()
+					evt.preventDefault()
+				}
 			}
 
-			// Tool shortcuts (disabled in read-only mode)
-			if (!isReadOnly && !evt.ctrlKey && !evt.metaKey) {
-				switch (evt.key.toLowerCase()) {
-					case 'v':
-						ideallo.setActiveTool('select')
-						break
-					case 'p':
-						ideallo.setActiveTool('pen')
-						break
-					case 'x':
-						ideallo.setActiveTool('eraser')
-						break
-					case 'r':
-						ideallo.setActiveTool('rect')
-						break
-					case 'e':
-						ideallo.setActiveTool('ellipse')
-						break
-					case 'l':
-						ideallo.setActiveTool('line')
-						break
-					case 'a':
-						ideallo.setActiveTool('arrow')
-						break
-					case 't':
-						ideallo.setActiveTool('text')
-						break
-					case 's':
-						ideallo.setActiveTool('sticky')
-						break
-					case 'i':
-						ideallo.setActiveTool('image')
-						break
+			// Tool shortcuts (disabled in read-only mode, and while a popover is open - arming a
+			// tool out from under an open panel is never what the letter was meant for).
+			// Alt and Shift are excluded too: Alt is the precise-anchor modifier held DURING a
+			// connector gesture, and switching tools out from under that gesture is never wanted.
+			// Caps Lock does not set shiftKey, so capitals-on users still match below.
+			if (
+				!isReadOnly &&
+				!popoverOpen &&
+				!evt.ctrlKey &&
+				!evt.metaKey &&
+				!evt.altKey &&
+				!evt.shiftKey
+			) {
+				// The catalog owns the key bindings, so a new tool arrives here as a data edit
+				const key = evt.key.toLowerCase()
+				const keyed = TOOL_BY_KEY[key]
+				if (keyed) {
+					ideallo.setActiveTool(keyed)
+				} else if (key === 'c') {
+					// "Connect selected" - the keyboard path to a connector, and the non-dragging
+					// alternative WCAG 2.2 SC 2.5.7 requires for creation. Not a tool.
+					connectSelected()
+				}
+			}
+
+			/*
+			 * Ctrl+D duplicates the selection. There is no copy/paste anywhere in this app, so this
+			 * is the ONLY keyboard route to a copy. Browsers bind Ctrl+D to "bookmark", hence the
+			 * preventDefault.
+			 */
+			if (!isReadOnly && (evt.ctrlKey || evt.metaKey) && evt.key.toLowerCase() === 'd') {
+				// Unconditionally: the app has claimed this chord, so the browser's bookmark
+				// dialog must not appear even when there is nothing to duplicate.
+				evt.preventDefault()
+				if (selectedIds.size > 0 && ideallo.yDoc && ideallo.doc) {
+					const created: ObjectId[] = []
+					ideallo.yDoc.transact(() => {
+						selectedIds.forEach((id) => {
+							const newId = duplicateObject(ideallo.yDoc, ideallo.doc, id)
+							if (newId) created.push(newId)
+						})
+					}, ideallo.yDoc.clientID)
+					if (created.length) selectObjects(created)
 				}
 			}
 
 			// Z-order shortcuts: Ctrl+] / Ctrl+Shift+] / Ctrl+[ / Ctrl+Shift+[
 			if (!isReadOnly && (evt.ctrlKey || evt.metaKey) && evt.key === ']') {
 				if (selectedIds.size > 0 && ideallo.yDoc && ideallo.doc) {
-					if (evt.shiftKey) {
-						selectedIds.forEach((id) => {
-							bringToFront(ideallo.yDoc, ideallo.doc, id)
-						})
-					} else {
-						selectedIds.forEach((id) => {
-							bringForward(ideallo.yDoc, ideallo.doc, id)
-						})
-					}
+					applyZOrder(evt.shiftKey ? 'front' : 'forward')
 					evt.preventDefault()
 				}
 			}
 			if (!isReadOnly && (evt.ctrlKey || evt.metaKey) && evt.key === '[') {
 				if (selectedIds.size > 0 && ideallo.yDoc && ideallo.doc) {
-					if (evt.shiftKey) {
-						Array.from(selectedIds)
-							.reverse()
-							.forEach((id) => {
-								sendToBack(ideallo.yDoc, ideallo.doc, id)
-							})
-					} else {
-						Array.from(selectedIds)
-							.reverse()
-							.forEach((id) => {
-								sendBackward(ideallo.yDoc, ideallo.doc, id)
-							})
-					}
+					applyZOrder(evt.shiftKey ? 'back' : 'backward')
 					evt.preventDefault()
 				}
 			}
@@ -1236,42 +1673,128 @@ export function IdealloApp() {
 					ideallo.yDoc &&
 					ideallo.doc
 				) {
-					deleteObjects(ideallo.yDoc, ideallo.doc, Array.from(selectedIds))
-					clearSelection()
-					evt.preventDefault()
+					// Locked members are skipped, so an all-locked selection deletes nothing
+					const deletable = deletableObjectIds(ideallo.doc, Array.from(selectedIds))
+					if (deletable.length > 0) {
+						deleteObjectsWithBindingCleanup(ideallo.yDoc, ideallo.doc, deletable)
+						clearSelection()
+					}
+				}
+				// Always swallow the key: Backspace must never navigate the iframe back
+				evt.preventDefault()
+			}
+
+			/*
+			 * Enter (or F2) steps INTO the selected text object or sticky, with the caret at the
+			 * end - the mirror of the Escape that steps back out of it.
+			 */
+			if (!isReadOnly && !popoverOpen && (evt.key === 'Enter' || evt.key === 'F2')) {
+				// Enter on a focused toolbar button is that button being pressed, not an edit. The
+				// popover guard covers the rest of a panel: a row that is not a button would
+				// otherwise drop the user into a text edit from inside an open picker.
+				const target = evt.target as HTMLElement | null
+				if (target?.closest?.('button, [role="button"], a[href]')) return
+				if (selectedIds.size === 1 && ideallo.doc) {
+					const obj = getObject(ideallo.doc, Array.from(selectedIds)[0])
+					if (obj && isTextBearing(obj.type)) {
+						textEditor.startEditing(obj)
+						evt.preventDefault()
+						return
+					}
 				}
 			}
 
-			// Escape to clear selection
+			/*
+			 * Escape unwinds one level at a time: whatever is in flight first, then the tool,
+			 * then the selection. First match wins.
+			 */
 			if (evt.key === 'Escape') {
+				// An open popover closes itself through its own useEscapeKey. Unwinding the tool or
+				// the selection here as well would skip two levels on one press.
+				if (popoverOpen) return
+				// An endpoint drag cancels itself via its own window listener, so Escape must
+				// not also drop the selection out from under it
+				if (connectorDrag.isDragging) return
+				if (shapeHandler.shapePreview) {
+					shapeHandler.cancelPreview()
+					return
+				}
+				/*
+				 * The fallback for when focus has drifted out of an open editor (inside Quill the
+				 * editable guard above bails). It SAVES, matching the Escape inside the editor:
+				 * every keystroke is already in the CRDT, so Ctrl+Z is the only coherent rollback.
+				 */
+				if (textEditor.editing) {
+					endTextEdit()
+					return
+				}
+				if (ideallo.activeTool !== 'select') {
+					ideallo.setActiveTool('select')
+					return
+				}
 				clearSelection()
 			}
 		},
 		[
 			isReadOnly,
-			ideallo.undo,
-			ideallo.redo,
+			handleUndo,
+			handleRedo,
 			ideallo.setActiveTool,
 			selectedIds,
+			selectObjects,
+			ideallo.yDoc,
 			ideallo.activeTool,
 			clearSelection,
+			connectorDrag.isDragging,
+			connectSelected,
+			applyZOrder,
 			handleZoomIn,
 			handleZoomOut,
-			handleZoomReset
+			handleZoomReset,
+			shapeHandler.shapePreview,
+			shapeHandler.cancelPreview,
+			ideallo.doc,
+			textEditor,
+			endTextEdit
 		]
 	)
+
+	/**
+	 * Shortcuts live on the window, not on the app div: a div-scoped handler needs the div itself
+	 * to be the event target, so every shortcut dies the moment a toolbar button takes focus.
+	 *
+	 * Registered once through a ref, not re-bound per render: listener order decides the Escape
+	 * race against the connector drag's own listener, and it must be deterministic.
+	 */
+	const keyHandlerRef = useLatestRef(handleKeyDown)
+
+	React.useEffect(() => {
+		const onKey = (evt: KeyboardEvent) => keyHandlerRef.current(evt)
+		window.addEventListener('keydown', onKey)
+		return () => window.removeEventListener('keydown', onKey)
+	}, [])
 
 	// Throttled cursor position broadcast
 	const cursorThrottleRef = React.useRef<number | null>(null)
 	const handleCursorMove = React.useCallback(
 		(x: number, y: number) => {
 			// Update hover state when select tool is active (skip during pivot drag)
-			if (ideallo.activeTool === 'select' && !isPivotDraggingRef.current) {
+			if (
+				ideallo.activeTool === 'select' &&
+				!isPivotDraggingRef.current &&
+				!isEndpointDraggingRef.current
+			) {
 				selectHandler.handlePointerMove(x, y)
 			}
 			// Update eraser position on hover (not just during active erasing)
 			if (ideallo.activeTool === 'eraser') {
 				eraserHandler.handlePointerMove(x, y)
+			}
+			// Connector drop-target highlight. Deliberately ABOVE the throttle below: that
+			// throttle is for the awareness broadcast, and running the local highlight at 20 Hz
+			// feels laggy.
+			if (ideallo.activeTool === 'connector') {
+				shapeHandler.handleHover(x, y, altKeyRef.current)
 			}
 
 			if (!ideallo.awareness || cursorThrottleRef.current) return
@@ -1281,14 +1804,66 @@ export function IdealloApp() {
 				ideallo.awareness?.setLocalStateField('cursor', { x, y })
 			}, CURSOR_BROADCAST_THROTTLE_MS)
 		},
-		[ideallo.awareness, ideallo.activeTool, selectHandler, eraserHandler]
+		[ideallo.awareness, ideallo.activeTool, selectHandler, eraserHandler, shapeHandler]
 	)
+
+	/**
+	 * Putting a tool away abandons whatever that tool had in flight - a half-dragged shape (and
+	 * the awareness ghost remotes are drawing from it), the connector drop-target highlight.
+	 *
+	 * Deliberately NOT the sticky / text editors: those belong to an object, are reachable by
+	 * double-click under the Select tool, and are opened by the very tool change that a one-shot
+	 * sticky or text placement performs.
+	 */
+	React.useEffect(() => {
+		shapeHandler.cancelPreview()
+		if (ideallo.activeTool !== 'connector') shapeHandler.clearHover()
+	}, [ideallo.activeTool])
+
+	/**
+	 * Tool state for screen readers. A sighted user watches the toolbar highlight move when a
+	 * one-shot tool hands itself back, so the revert is phrased explicitly rather than just naming
+	 * the new tool.
+	 */
+	const [announcement, setAnnouncement] = React.useState('')
+	const prevToolRef = React.useRef(ideallo.activeTool)
+
+	React.useEffect(() => {
+		const prev = prevToolRef.current
+		const tool = ideallo.activeTool
+		if (prev === tool) return
+		prevToolRef.current = tool
+		setAnnouncement(
+			tool === 'select' && isOneShotTool(prev)
+				? `${TOOL_LABELS[prev]} placed. Select tool active.`
+				: `${TOOL_LABELS[tool]} tool active.`
+		)
+	}, [ideallo.activeTool])
+
+	const lockAnnounceRef = React.useRef(false)
+	React.useEffect(() => {
+		if (!lockAnnounceRef.current) {
+			lockAnnounceRef.current = true
+			return
+		}
+		setAnnouncement(`Keep tool active: ${ideallo.toolLocked ? 'on' : 'off'}`)
+	}, [ideallo.toolLocked])
 
 	// Cleanup throttle on unmount
 	React.useEffect(() => {
 		return () => {
 			if (cursorThrottleRef.current) {
 				clearTimeout(cursorThrottleRef.current)
+			}
+		}
+	}, [])
+
+	// Same for the pan debounce: a pan followed by leaving the document inside 500ms would
+	// otherwise push a view state for a document the user is no longer in.
+	React.useEffect(() => {
+		return () => {
+			if (navPushTimerRef.current !== null) {
+				clearTimeout(navPushTimerRef.current)
 			}
 		}
 	}, [])
@@ -1304,12 +1879,7 @@ export function IdealloApp() {
 	}
 
 	return (
-		<div
-			className="ideallo-app"
-			data-tool={ideallo.activeTool}
-			tabIndex={0}
-			onKeyDown={handleKeyDown}
-		>
+		<div className="ideallo-app" data-tool={ideallo.activeTool} tabIndex={0}>
 			{/* Canvas */}
 			<Canvas
 				ref={canvasRef}
@@ -1319,81 +1889,46 @@ export function IdealloApp() {
 				textContent={ideallo.textContent}
 				activeStroke={drawingHandler.activeStroke}
 				shapePreview={shapeHandler.shapePreview}
-				textInput={textHandler.textInput}
-				textInputRef={textHandler.inputRef}
+				connectorTarget={shapeHandler.connectorTarget ?? connectorDrag.dragState?.target}
+				connectorDragTerminal={connectorDrag.dragState?.terminal ?? null}
+				connectorEndpointPreview={connectorEndpointPreview}
+				mobileHandles={isMobile}
+				onConnectorEndpointPointerDown={
+					isReadOnly ? undefined : connectorDrag.handlePointerDown
+				}
 				remotePresence={ideallo.remotePresence}
-				activeTool={ideallo.activeTool as ToolType}
+				activeTool={ideallo.activeTool}
 				selectedIds={selectedIds}
 				selectionBounds={selectionBounds}
 				selectedObjectRotation={tempObjectState?.rotation ?? selectedObjectRotation}
 				selectedObjectPivotX={tempObjectState?.pivotX ?? selectedObjectPivotX}
 				selectedObjectPivotY={tempObjectState?.pivotY ?? selectedObjectPivotY}
 				dragOffset={selectHandler.dragOffset}
+				geometryOverrides={geometryOverrides}
 				onPointerDown={handlePointerDown}
 				onPointerMove={handlePointerMove}
 				onPointerUp={handlePointerUp}
 				onCursorMove={handleCursorMove}
-				onTextChange={textHandler.handleTextChange}
-				onTextCommit={textHandler.commitText}
-				onTextCancel={textHandler.cancelText}
-				// Sticky editing
-				editingSticky={stickyHandler.editingSticky}
-				onStickyTextChange={stickyHandler.handleTextChange}
-				onStickySave={(text: string) => {
-					const editId = stickyHandler.editingSticky?.id
-					const grownHeight = editContentHeightRef.current
-					stickyHandler.saveSticky(text)
-					if (editId && grownHeight && ideallo.yDoc && ideallo.doc) {
-						const obj = getObject(ideallo.doc, editId)
-						if (obj && 'height' in obj && grownHeight > obj.height) {
-							updateObjectFields(ideallo.yDoc, ideallo.doc, editId, {
-								height: grownHeight
-							})
-						}
-					}
-					editContentHeightRef.current = null
-				}}
-				onStickyCancel={stickyHandler.cancelSticky}
+				// Text editing - one slot for stickies, labels and shape captions alike
+				editing={textEditor.editing}
+				onEditSave={endTextEdit}
 				onEditHeightChange={(h) => {
 					editContentHeightRef.current = h
 				}}
-				onStickyDoubleClick={
+				onObjectDoubleClick={
 					!isReadOnly
-						? (objectId) => {
+						? (objectId, evt) => {
 								const obj = ideallo.doc && getObject(ideallo.doc, objectId)
-								if (obj && obj.type === 'sticky') {
-									stickyHandler.startEditing(obj)
+								if (obj && isTextBearing(obj.type)) {
+									textEditor.startEditing(obj, {
+										clientX: evt.clientX,
+										clientY: evt.clientY
+									})
 								}
 							}
 						: undefined
 				}
-				// Text label editing
-				editingText={textLabelHandler.editingText}
-				onTextLabelSave={() => {
-					const editId = textLabelHandler.editingText?.id
-					const grownHeight = editContentHeightRef.current
-					textLabelHandler.saveText()
-					if (editId && grownHeight && ideallo.yDoc && ideallo.doc) {
-						const obj = getObject(ideallo.doc, editId)
-						if (obj && 'height' in obj && grownHeight > obj.height) {
-							updateObjectFields(ideallo.yDoc, ideallo.doc, editId, {
-								height: grownHeight
-							})
-						}
-					}
-					editContentHeightRef.current = null
-				}}
-				onTextLabelCancel={textLabelHandler.cancelText}
-				onTextDoubleClick={
-					!isReadOnly
-						? (objectId) => {
-								const obj = ideallo.doc && getObject(ideallo.doc, objectId)
-								if (obj && obj.type === 'text') {
-									textLabelHandler.startEditing(obj)
-								}
-							}
-						: undefined
-				}
+				shouldIgnoreEditorBlur={shouldIgnoreEditorBlur}
 				quillRef={quillRef}
 				onScaleChange={setScale}
 				onMatrixChange={handleMatrixChange}
@@ -1449,46 +1984,26 @@ export function IdealloApp() {
 			{/* Toolbar */}
 			{!isReadOnly && (
 				<Toolbar
-					activeTool={ideallo.activeTool as ToolType}
+					activeTool={ideallo.activeTool}
 					canUndo={ideallo.canUndo}
 					canRedo={ideallo.canRedo}
 					hasSelection={selectedIds.size > 0}
+					toolLocked={ideallo.toolLocked}
+					preciseMode={preciseMode}
 					onToolChange={ideallo.setActiveTool}
-					onUndo={ideallo.undo}
-					onRedo={ideallo.redo}
+					onToolLockChange={ideallo.setToolLocked}
+					onPreciseModeChange={setPreciseMode}
+					onUndo={handleUndo}
+					onRedo={handleRedo}
 					onExport={() => {
 						if (ideallo.yDoc && ideallo.doc) {
 							downloadExport(ideallo.yDoc, ideallo.doc)
 						}
 					}}
-					onBringToFront={() => {
-						if (!ideallo.yDoc || !ideallo.doc) return
-						selectedIds.forEach((id) => {
-							bringToFront(ideallo.yDoc, ideallo.doc, id)
-						})
-					}}
-					onBringForward={() => {
-						if (!ideallo.yDoc || !ideallo.doc) return
-						selectedIds.forEach((id) => {
-							bringForward(ideallo.yDoc, ideallo.doc, id)
-						})
-					}}
-					onSendBackward={() => {
-						if (!ideallo.yDoc || !ideallo.doc) return
-						Array.from(selectedIds)
-							.reverse()
-							.forEach((id) => {
-								sendBackward(ideallo.yDoc, ideallo.doc, id)
-							})
-					}}
-					onSendToBack={() => {
-						if (!ideallo.yDoc || !ideallo.doc) return
-						Array.from(selectedIds)
-							.reverse()
-							.forEach((id) => {
-								sendToBack(ideallo.yDoc, ideallo.doc, id)
-							})
-					}}
+					onBringToFront={() => applyZOrder('front')}
+					onBringForward={() => applyZOrder('forward')}
+					onSendBackward={() => applyZOrder('backward')}
+					onSendToBack={() => applyZOrder('back')}
 				/>
 			)}
 
@@ -1497,6 +2012,7 @@ export function IdealloApp() {
 				<PropertyBar
 					yDoc={ideallo.yDoc}
 					doc={ideallo.doc}
+					objects={ideallo.objects}
 					selectedIds={selectedIds}
 					screenBounds={screenSelectionBounds}
 					rotation={selectedObjectRotation}
@@ -1505,7 +2021,10 @@ export function IdealloApp() {
 						ideallo.setCurrentStyle((prev) => ({ ...prev, ...updates }))
 					}}
 					quillRef={quillRef}
-					isTextEditing={!!stickyHandler.editingSticky || !!textLabelHandler.editingText}
+					isTextEditing={!!textEditor.editing}
+					getResolvedObjects={getResolvedObjects}
+					onClearSelection={clearSelection}
+					onSelectObjects={selectObjects}
 				/>
 			)}
 
@@ -1516,6 +2035,11 @@ export function IdealloApp() {
 				onZoomOut={handleZoomOut}
 				onZoomReset={handleZoomReset}
 			/>
+
+			{/* Tool announcements. Lives outside the Toolbar, which read-only mode unmounts. */}
+			<div className="ideallo-sr-only" role="status" aria-live="polite">
+				{announcement}
+			</div>
 
 			{/* Status indicator */}
 			<div className="ideallo-status">

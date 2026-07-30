@@ -16,6 +16,8 @@ import { getFileUrl, getImageVariantForDisplaySize } from '@cloudillo/core'
 import * as React from 'react'
 
 import type { ImageObject } from '../crdt/index.js'
+import { isPaintSet } from '../utils/paint.js'
+import { colorToCss } from '../utils/palette.js'
 
 export interface ImageRendererProps {
 	object: ImageObject
@@ -41,6 +43,23 @@ export function ImageRenderer({
 }: ImageRendererProps) {
 	const { x, y, width, height, fileId, style } = object
 	const [loadState, setLoadState] = React.useState<LoadState>('loading')
+
+	const rounded = (object.cornerRadius ?? 0) > 0
+	const hasBorder = isPaintSet(style.strokeColor) && style.strokeWidth > 0
+	/*
+	 * Per MOUNTED INSTANCE, not per object: `url(#id)` resolves to the FIRST match in document
+	 * order regardless of which subtree asked. GhostEditing renders this component for an object
+	 * the committed layer is already showing, with the coordinates rewritten rather than wrapped in
+	 * a transform (see applyOffset there), and the ghost layer mounts second - so a per-object id
+	 * had the ghost's <image> clipped by the committed image's un-offset rect, and a peer watching a
+	 * rounded image being dragged saw it shear away to nothing.
+	 *
+	 * React.useId() emits delimiters (':r0:') that are not valid inside url(#...) - hence the
+	 * strip, rather than a module counter incremented during render, which a discarded or
+	 * StrictMode-doubled render would still consume.
+	 */
+	const instanceId = React.useId().replace(/[^a-zA-Z0-9_-]/g, '')
+	const clipId = `ideallo-clip-${instanceId}`
 
 	// Calculate hover filter - only apply when image is fully loaded to avoid flickering
 	const hoverFilter =
@@ -143,6 +162,15 @@ export function ImageRenderer({
 				</g>
 			)}
 
+			{/* SVG <image> has no rx, so rounding is a clip path rather than a corner radius */}
+			{rounded && (
+				<defs>
+					<clipPath id={clipId}>
+						<rect x={x} y={y} width={width} height={height} rx={object.cornerRadius} />
+					</clipPath>
+				</defs>
+			)}
+
 			{/* The actual image */}
 			<image
 				href={imageUrl}
@@ -151,6 +179,7 @@ export function ImageRenderer({
 				width={width}
 				height={height}
 				preserveAspectRatio="xMidYMid slice"
+				clipPath={rounded ? `url(#${clipId})` : undefined}
 				onLoad={handleLoad}
 				onError={handleError}
 				style={{
@@ -160,6 +189,21 @@ export function ImageRenderer({
 					filter: hoverFilter
 				}}
 			/>
+
+			{/* The optional border, drawn OVER the image so a rounded edge is not covered by it */}
+			{hasBorder && (
+				<rect
+					x={x}
+					y={y}
+					width={width}
+					height={height}
+					rx={object.cornerRadius}
+					fill="none"
+					stroke={colorToCss(style.strokeColor)}
+					strokeWidth={style.strokeWidth}
+					pointerEvents="none"
+				/>
+			)}
 		</g>
 	)
 }

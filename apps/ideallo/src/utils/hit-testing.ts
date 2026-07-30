@@ -14,15 +14,19 @@
  */
 
 import type { Bounds, IdealloObject } from '../crdt/index.js'
+// Cyclic with bounds.ts, which imports calculatePathBounds from here. Both sides only call across
+// the cycle at runtime, never during module initialisation, so it resolves cleanly - and one
+// shared getObjectBounds is worth it.
+import { getObjectBounds, getRotationCenter } from './bounds.js'
 import type { Point } from './geometry.js'
 import {
 	distance,
 	expandBounds,
-	getBoundsFromPoints,
 	perpendicularDistance,
 	pointInBounds,
 	rotatePoint
 } from './geometry.js'
+import { isPaintSet } from './paint.js'
 
 // ============================================================================
 // Types
@@ -51,6 +55,20 @@ const ELLIPSE_SAMPLES = 36 // Number of samples for ellipse edge distance
 // Path Caching
 // ============================================================================
 
+/**
+ * Both path caches are bounded for the same reason inscribedCache in utils/geometry.ts is: this
+ * module lives for the whole SPA session and a user may open board after board, so "a stroke is
+ * immutable once drawn" bounds the key space per board, not per session. Maps iterate in insertion
+ * order, so the first key is the oldest.
+ */
+export const PATH_CACHE_MAX = 512
+
+function evictOldest(cache: Map<string, unknown>, max: number): void {
+	if (cache.size < max) return
+	const oldest = cache.keys().next()
+	if (!oldest.done) cache.delete(oldest.value)
+}
+
 const pathCache = new Map<string, ParsedPath>()
 
 /**
@@ -60,9 +78,34 @@ function getCachedParsedPath(pathData: string): ParsedPath {
 	let parsed = pathCache.get(pathData)
 	if (!parsed) {
 		parsed = parseSvgPath(pathData)
+		evictOldest(pathCache, PATH_CACHE_MAX)
 		pathCache.set(pathData, parsed)
 	}
 	return parsed
+}
+
+/**
+ * Sibling of pathCache for the BOUNDS, which the parse cache alone does not cover.
+ *
+ * Parsing is memoised above, but calculatePathBounds re-samples 11 points per bezier segment on
+ * every call - and it is called per object per frame from getObjectBounds, which every connector
+ * hover and bind-target lookup goes through. A board with a few hundred pen strokes paid the whole
+ * re-sample on each pointermove.
+ *
+ * Keyed on the pathData string exactly like pathCache, and bounded the same way. `null` (an empty
+ * or unparseable path) is cached too, so a degenerate stroke does not re-parse forever.
+ */
+const pathBoundsCache = new Map<string, Bounds | null>()
+
+/** Test seam, mirroring clearInscribedCache() in utils/geometry.ts */
+export function clearPathCaches(): void {
+	pathCache.clear()
+	pathBoundsCache.clear()
+}
+
+/** Cache size, for the bound test */
+export function pathBoundsCacheSize(): number {
+	return pathBoundsCache.size
 }
 
 // ============================================================================
@@ -256,6 +299,16 @@ export function distanceToFreehandPath(point: Point, pathData: string, tolerance
  * @returns Bounds calculated from sampled curve points, or null if path is empty/invalid
  */
 export function calculatePathBounds(pathData: string): Bounds | null {
+	// Memoised: see pathBoundsCache. `has` rather than a truthiness check, so a cached null hits.
+	if (pathBoundsCache.has(pathData)) return pathBoundsCache.get(pathData) ?? null
+
+	const bounds = computePathBounds(pathData)
+	evictOldest(pathBoundsCache, PATH_CACHE_MAX)
+	pathBoundsCache.set(pathData, bounds)
+	return bounds
+}
+
+function computePathBounds(pathData: string): Bounds | null {
 	const parsed = getCachedParsedPath(pathData)
 
 	if (parsed.segments.length === 0) {
@@ -458,62 +511,27 @@ export function distanceToPolygonEdge(
 // Unified Hit Testing
 // ============================================================================
 
+/** Nearest distance from a point to any segment of a polyline */
+export function distanceToPolyline(point: Point, points: [number, number][]): number {
+	if (points.length === 0) return Infinity
+	if (points.length === 1) return distance(point, points[0])
+	let best = Infinity
+	for (let i = 0; i < points.length - 1; i++) {
+		// perpendicularDistance already clamps to the segment
+		const d = perpendicularDistance(point, points[i], points[i + 1])
+		if (d < best) best = d
+	}
+	return best
+}
+
 /**
  * Check if an object has a visible fill (not transparent)
+ *
+ * No `isStroked` counterpart on purpose: an UNSTROKED shape must stay grabbable by its edge, and
+ * the stroke-distance fallback is the only thing that makes a thin shape clickable at all.
  */
 function isFilled(obj: IdealloObject): boolean {
-	return obj.style.fillColor !== 'transparent'
-}
-
-/**
- * Get bounds for an object
- */
-function getObjectBounds(obj: IdealloObject): Bounds {
-	switch (obj.type) {
-		case 'freehand':
-		case 'rect':
-		case 'ellipse':
-		case 'text':
-		case 'sticky':
-		case 'image':
-		case 'document':
-			return { x: obj.x, y: obj.y, width: obj.width, height: obj.height }
-		case 'polygon':
-			return getBoundsFromPoints(obj.vertices)
-		case 'line':
-		case 'arrow':
-			return {
-				x: Math.min(obj.startX, obj.endX),
-				y: Math.min(obj.startY, obj.endY),
-				width: Math.abs(obj.endX - obj.startX),
-				height: Math.abs(obj.endY - obj.startY)
-			}
-	}
-}
-
-/**
- * Get rotation center for an object based on pivot point
- */
-function getRotationCenter(obj: IdealloObject, pivotX: number, pivotY: number): Point {
-	if (obj.type === 'line' || obj.type === 'arrow') {
-		const bounds = getObjectBounds(obj)
-		return [bounds.x + bounds.width * pivotX, bounds.y + bounds.height * pivotY]
-	} else if (obj.type === 'polygon') {
-		const bounds = getBoundsFromPoints(obj.vertices)
-		return [bounds.x + bounds.width * pivotX, bounds.y + bounds.height * pivotY]
-	} else if (obj.type === 'freehand') {
-		const pathBounds = calculatePathBounds(obj.pathData)
-		if (pathBounds) {
-			return [
-				obj.x + pathBounds.x + pathBounds.width * pivotX,
-				obj.y + pathBounds.y + pathBounds.height * pivotY
-			]
-		}
-		return [obj.x + obj.width * pivotX, obj.y + obj.height * pivotY]
-	} else {
-		// Rect, ellipse, text, sticky, image
-		return [obj.x + obj.width * pivotX, obj.y + obj.height * pivotY]
-	}
+	return isPaintSet(obj.style.fillColor)
 }
 
 /**
@@ -531,9 +549,7 @@ export function hitTestObject(obj: IdealloObject, point: Point, tolerance: numbe
 	// Transform point to object's local coordinate system if rotated
 	let testPoint = point
 	if (obj.rotation && Math.abs(obj.rotation) > 0.1) {
-		const pivotX = obj.pivotX ?? 0.5
-		const pivotY = obj.pivotY ?? 0.5
-		const center = getRotationCenter(obj, pivotX, pivotY)
+		const center = getRotationCenter(obj)
 		testPoint = rotatePoint(point, center, -obj.rotation)
 	}
 
@@ -577,15 +593,16 @@ export function hitTestObject(obj: IdealloObject, point: Point, tolerance: numbe
 	}
 
 	switch (obj.type) {
-		case 'line':
-		case 'arrow': {
-			const dist = perpendicularDistance(
-				testPoint,
-				[obj.startX, obj.startY],
-				[obj.endX, obj.endY]
+		case 'connector':
+			if (obj.route) {
+				// Nearest approach to any segment of the route, not just the chord - clicking
+				// an elbow's far-side detour has to work.
+				return distanceToPolyline(testPoint, obj.route.points) <= tolerance
+			}
+			return (
+				perpendicularDistance(testPoint, [obj.startX, obj.startY], [obj.endX, obj.endY]) <=
+				tolerance
 			)
-			return dist <= tolerance
-		}
 
 		case 'ellipse': {
 			const cx = obj.x + obj.width / 2

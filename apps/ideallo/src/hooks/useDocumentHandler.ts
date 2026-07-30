@@ -67,9 +67,13 @@ export function useDocumentHandler(options: UseDocumentHandlerOptions) {
 					pivotY: 0.5,
 					locked: false,
 					style: {
+						// No visible border on insert (the colour is cleared), but the width
+						// picker starts on a REAL preset, so picking a colour immediately gives a
+						// 2px border rather than an invisible 0-width one. Keep in step with
+						// useImageHandler.
 						strokeColor: 'transparent',
 						fillColor: 'transparent',
-						strokeWidth: 0,
+						strokeWidth: 2,
 						strokeStyle: 'solid',
 						opacity: 1
 					}

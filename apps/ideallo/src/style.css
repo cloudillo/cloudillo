@@ -61,8 +61,9 @@ body,
 
 .ideallo-app[data-tool='rect'] > svg,
 .ideallo-app[data-tool='ellipse'] > svg,
-.ideallo-app[data-tool='line'] > svg,
-.ideallo-app[data-tool='arrow'] > svg {
+.ideallo-app[data-tool='diamond'] > svg,
+.ideallo-app[data-tool='triangle'] > svg,
+.ideallo-app[data-tool='connector'] > svg {
 	cursor: crosshair;
 }
 
@@ -125,6 +126,27 @@ body,
 	color: var(--col-primary);
 }
 
+/* Tool lock: a mode, not a selection - an outline rather than the .active fill, so the
+   padlock never reads as "this is the current tool". */
+.ideallo-tool-lock.locked {
+	color: var(--col-primary);
+	box-shadow: inset 0 0 0 2px var(--col-primary);
+}
+
+/* Announcements for screen readers only. opalui's .invisible uses visibility: hidden,
+   which hides from assistive tech too. */
+.ideallo-sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+	border: 0;
+}
+
 .ideallo-tool-btn:disabled {
 	opacity: var(--op-disabled, 0.4);
 	cursor: not-allowed;
@@ -147,10 +169,16 @@ body,
 }
 
 /* ============================================
-   Tool Group (mobile popover)
+   Tool groups and their flyouts
    ============================================ */
 
+/* The positioning context the flyout is centred against - one trigger, not the whole bar */
 .ideallo-tool-group {
+	position: relative;
+}
+
+/* The caret sits INSIDE the trigger, so the trigger has to be positioned in its own right */
+.ideallo-tool-btn.has-menu {
 	position: relative;
 }
 
@@ -167,15 +195,23 @@ body,
 	pointer-events: none;
 }
 
+/* `--popover-shift` is written by ToolPopover's useEdgeClamp after it measures itself. The
+   keyframes below MUST repeat the same expression: an animation that re-declares `transform`
+   would otherwise silently undo the clamp for the length of the animation.
+
+   `width: max-content` is load-bearing: the containing block is a SINGLE 44px trigger, so a
+   shrink-to-fit width would only get `44px - left` to work with and the wrapping row would
+   collapse to one button per line. */
 .ideallo-tool-popover {
 	position: absolute;
 	bottom: calc(100% + 8px);
 	left: 50%;
-	transform: translateX(-50%);
+	transform: translateX(calc(-50% + var(--popover-shift, 0px)));
 	display: flex;
 	flex-wrap: wrap;
 	gap: 2px;
 	padding: 6px;
+	width: max-content;
 	max-width: calc(100vw - 32px);
 	background: lch(from var(--col-container) l c h / 0.95);
 	backdrop-filter: blur(10px);
@@ -187,14 +223,39 @@ body,
 	animation: ideallo-popover-in 0.15s ease-out;
 }
 
+/* One block per category, stacked, each with its caption above its row */
+.ideallo-tool-popover.rows {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 6px;
+}
+
+.ideallo-tool-popover-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px;
+}
+
+.ideallo-tool-popover-heading {
+	display: block;
+	margin-bottom: 2px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--col-on-container);
+	opacity: 0.7;
+	white-space: nowrap;
+}
+
 @keyframes ideallo-popover-in {
 	from {
 		opacity: 0;
-		transform: translateX(-50%) translateY(4px);
+		transform: translateX(calc(-50% + var(--popover-shift, 0px))) translateY(4px);
 	}
 	to {
 		opacity: 1;
-		transform: translateX(-50%) translateY(0);
+		transform: translateX(calc(-50% + var(--popover-shift, 0px))) translateY(0);
 	}
 }
 
@@ -254,18 +315,9 @@ body,
 	color: #aaa;
 }
 
-.dark .ideallo-property-bar {
-	background: rgba(30, 30, 30, 0.9);
-	border-color: rgba(255, 255, 255, 0.1);
-}
-
-.dark .ideallo-property-label {
-	color: #aaa;
-}
-
-.dark .ideallo-property-divider {
-	background: rgba(255, 255, 255, 0.1);
-}
+/* No dark-mode overrides for ideallo-property-*: OpalUI tokens carry the theme, as for
+ * .ideallo-toolbar. The bar is icon-only, so an icon illegible in one theme loses the control's
+ * only identification. */
 
 /* Status indicator in top-right */
 .ideallo-status {
@@ -380,20 +432,36 @@ body,
 	}
 }
 
-/* Floating property bar above selection */
+/* Floating property bar above selection.
+ *
+ * No `overflow-x` here, ever: a non-`visible` overflow on one axis forces the other to `auto`,
+ * which would clip the popovers that hang below the bar. Width is bounded by `max-width` and
+ * wrapping instead.
+ *
+ * `width: max-content` is load-bearing, not tidiness: `left` is the bar's centre and the box is
+ * `left`-anchored with `right: auto`, so a shrink-to-fit width is capped at `100vw - left`. Near
+ * the right edge that is a few dozen pixels, and the bar collapses into several wrapped rows even
+ * though the whole viewport is free to its left. Worse, `usePropertyBarPosition` then measures the
+ * squeezed width and the wrapped state becomes stable. */
 .ideallo-property-bar {
 	position: fixed;
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	gap: 8px;
-	padding: 8px 12px;
-	background: rgba(255, 255, 255, 0.9);
+	gap: 6px;
+	padding: 6px 8px;
+	width: max-content;
+	max-width: calc(100vw - 32px);
+	background: lch(from var(--col-container) l c h / 0.9);
 	backdrop-filter: blur(10px);
 	-webkit-backdrop-filter: blur(10px);
-	border: 1px solid rgba(0, 0, 0, 0.1);
+	border: 1px solid var(--col-outline);
 	border-radius: 8px;
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-	z-index: 100;
+	box-shadow: var(--shadow-md);
+	/* Above the toolbar, which is --z-fixed: a selection low on the canvas puts the bar over the
+	   dock, and the bar has to win. Still below the mobile tool popover at --z-popover, which the
+	   user has just opened and which should win over everything. */
+	z-index: calc(var(--z-fixed, 300) + 1);
 	pointer-events: auto;
 }
 
@@ -407,14 +475,15 @@ body,
 	font-family: system-ui, -apple-system, sans-serif;
 	font-size: 12px;
 	font-weight: 500;
-	color: #666;
+	color: var(--col-on-container);
+	opacity: 0.75;
 	user-select: none;
 }
 
 .ideallo-property-divider {
 	width: 1px;
 	height: 24px;
-	background: rgba(0, 0, 0, 0.1);
+	background: var(--col-outline);
 }
 
 /* Fill toggle button */
@@ -469,6 +538,7 @@ body,
 /* Number input sizing */
 .ideallo-property-bar .c-number-input {
 	height: 28px;
+	align-items: center;
 }
 
 .ideallo-property-bar .c-number-input .c-input {
@@ -481,7 +551,7 @@ body,
 .ideallo-property-bar .c-number-input-suffix {
 	font-size: 11px;
 	color: #888;
-	margin-left: -2px;
+	margin-left: 4px;
 }
 
 /* Text formatting buttons in property bar */
@@ -494,19 +564,63 @@ body,
 	border: none;
 	border-radius: 4px;
 	background: transparent;
-	color: #555;
+	color: var(--col-on-container);
 	cursor: pointer;
 	padding: 0;
 }
 
 .ideallo-format-btn:hover {
-	background: rgba(0, 0, 0, 0.08);
-	color: #333;
+	background: var(--col-container-high);
 }
 
 .ideallo-format-btn.active {
-	background: rgba(0, 0, 0, 0.12);
-	color: #1a1a1a;
+	background: var(--col-container-primary);
+	color: var(--col-primary);
+}
+
+.ideallo-format-btn:focus-visible {
+	outline: var(--focus-ring-width, 3px) solid var(--col-focus);
+	outline-offset: var(--focus-ring-offset, 2px);
+}
+
+/* The Aa trigger previews the selected family, so it carries text rather than an icon */
+.ideallo-font-trigger {
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1;
+}
+
+/* ============================================
+   Mobile property bar layout
+   ============================================ */
+
+/*
+ * 40px, not the toolbar's 44px: at 44 a text object mid-edit wraps to two rows on EVERY phone
+ * rather than only the narrowest. 40 still clears the WCAG 2.5.8 AA minimum of 24px comfortably.
+ */
+@media screen and (max-width: 767px) {
+	.ideallo-property-bar {
+		gap: 4px;
+		padding: 6px;
+	}
+
+	.ideallo-format-btn,
+	.ideallo-property-bar .palette-swatch-btn,
+	.ideallo-arrowhead-swatch-btn {
+		width: 40px;
+		height: 40px;
+	}
+
+	.ideallo-property-divider {
+		height: 28px;
+	}
+
+	/* Inside a popover the buttons are laid out in labelled rows, where 28px is plenty and 40px
+	   would push the row past a narrow viewport */
+	.ideallo-bar-popover .ideallo-format-btn {
+		width: 32px;
+		height: 32px;
+	}
 }
 
 /* ============================================
@@ -673,6 +787,13 @@ body,
 	border-color: rgba(0, 0, 0, 0.3);
 }
 
+/* The stroke trigger is an OUTLINE, the fill trigger a solid fill - otherwise the two swatches
+   are indistinguishable, which is exactly what they were. */
+.palette-swatch-btn.stroke {
+	background: var(--col-container);
+	box-shadow: inset 0 0 0 4px var(--swatch-color);
+}
+
 .palette-swatch-btn.transparent {
 	background:
 		linear-gradient(45deg, #ccc 25%, transparent 25%),
@@ -685,6 +806,15 @@ body,
 		0 4px,
 		4px -4px,
 		-4px 0;
+}
+
+/* A cleared STROKE must still read as an outline, not as a cleared fill. `.transparent` comes
+   after `.stroke` at equal specificity, so its `background` shorthand would otherwise win while
+   the inset ring survived - an invisible ring over a checkerboard. Keep the plain container centre
+   and let the ⊘ carry the meaning. */
+.palette-swatch-btn.stroke.transparent {
+	background: var(--col-container);
+	box-shadow: inset 0 0 0 1px var(--col-outline);
 }
 
 /* Dark mode adjustments */
@@ -773,23 +903,198 @@ body,
 	position: relative;
 }
 
-.ideallo-color-popover {
+/*
+ * Every property-bar popover carries this class, colour pickers included. app.tsx's
+ * `isEditableTarget` matches on exactly this one selector to stop tool shortcuts firing into an
+ * open panel, so a shared class means no popover can be forgotten there.
+ *
+ * `--popover-shift` is written by BarPopover after it measures itself: clamping the BAR inside the
+ * viewport is not enough on its own, a ~300px palette opened from a trigger at the bar's left edge
+ * still hangs off screen.
+ *
+ * `width: max-content` for the same reason as on the bar itself: the containing block is one
+ * trigger wide, so a shrink-to-fit width would collapse to min-content. `scrollbar-gutter` keeps
+ * the measured width stable once the clamp applies a `max-height` - a scrollbar that changed the
+ * width would feed straight back into the next measurement.
+ */
+.ideallo-bar-popover {
 	position: absolute;
 	top: 100%;
 	left: 50%;
-	transform: translateX(-50%);
+	transform: translateX(calc(-50% + var(--popover-shift, 0px)));
 	margin-top: 8px;
+	width: max-content;
+	max-width: calc(100vw - 32px);
+	scrollbar-gutter: stable;
 	z-index: 200;
 }
 
-.ideallo-color-popover .ideallo-color-palette {
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-	border: 1px solid rgba(0, 0, 0, 0.1);
+/* Written by useEdgeClamp when there is more room above the bar than below it */
+.ideallo-bar-popover.above {
+	top: auto;
+	bottom: 100%;
+	margin-top: 0;
+	margin-bottom: 8px;
 }
 
-.dark .ideallo-color-popover .ideallo-color-palette {
-	border-color: rgba(255, 255, 255, 0.1);
-	background: var(--col-container, #2a2a2a);
+.ideallo-bar-popover .ideallo-color-palette {
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+	border: 1px solid var(--col-outline);
+}
+
+/* Popovers that are not just a bare ColorPalette bring their own chrome */
+.ideallo-stroke-popover,
+.ideallo-text-popover,
+.ideallo-align-popover,
+.ideallo-overflow-popover {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+	padding: 0.5rem;
+	border: 1px solid var(--col-outline);
+	border-radius: 8px;
+	background: var(--col-container);
+	box-shadow: var(--shadow-lg);
+}
+
+/* The palette inside the stroke popover already sits on that chrome */
+.ideallo-stroke-popover .ideallo-color-palette {
+	padding: 0;
+	border: none;
+	box-shadow: none;
+	background: transparent;
+}
+
+/* One labelled line inside a popover: the label the bar itself no longer shows, plus its control */
+.ideallo-popover-row {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	white-space: nowrap;
+}
+
+.ideallo-popover-row > .ideallo-property-label {
+	min-width: 3.5rem;
+}
+
+/* Width presets: the swatch IS the line, so the row reads as a thickness ramp */
+.ideallo-width-swatch {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 28px;
+	padding: 0 4px;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	background: transparent;
+	cursor: pointer;
+}
+
+.ideallo-width-swatch > span {
+	display: block;
+	width: 100%;
+	border-radius: 2px;
+	background: var(--col-on-container);
+}
+
+.ideallo-width-swatch:hover {
+	background: var(--col-container-high);
+}
+
+.ideallo-width-swatch.selected {
+	border-color: var(--col-primary);
+	background: var(--col-container-primary);
+}
+
+/* Same ladder treatment as the width swatches - the glyph IS the corner it sets */
+.ideallo-radius-swatch {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--col-on-container);
+	cursor: pointer;
+}
+
+.ideallo-radius-swatch:hover {
+	background: var(--col-container-high);
+}
+
+.ideallo-radius-swatch.selected {
+	border-color: var(--col-primary);
+	background: var(--col-container-primary);
+	color: var(--col-primary);
+}
+
+/* accent-color plus the datalist ticks give the ruler look without restyling the track by hand */
+.ideallo-opacity-slider {
+	width: 120px;
+	accent-color: var(--col-primary);
+}
+
+.ideallo-opacity-value {
+	min-width: 2.5rem;
+	color: var(--col-on-container);
+	opacity: 0.75;
+	font-size: 0.75rem;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+.ideallo-popover-divider {
+	height: 1px;
+	margin: 0.25rem 0;
+	background: var(--col-outline);
+}
+
+/* Overflow menu rows: icon, label, right-aligned shortcut hint */
+.ideallo-property-menu-item {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	width: 100%;
+	min-height: 32px;
+	padding: 0.25rem 0.4rem;
+	border: none;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--col-on-container);
+	font-size: 0.8125rem;
+	text-align: left;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.ideallo-property-menu-item:hover {
+	background: var(--col-container-high);
+}
+
+.ideallo-property-menu-item:disabled {
+	opacity: var(--op-disabled, 0.4);
+	cursor: not-allowed;
+}
+
+.ideallo-property-menu-item:disabled:hover {
+	background: transparent;
+}
+
+.ideallo-property-menu-shortcut {
+	margin-left: auto;
+	padding-left: 1rem;
+	color: var(--col-on-container);
+	opacity: 0.6;
+	font-size: 0.75rem;
+}
+
+/* The opacity row rides above the first ActionSheetItem on mobile */
+.ideallo-action-sheet-row {
+	padding: 0.5rem 1rem;
 }
 
 /* ==========================================================================
@@ -799,6 +1104,7 @@ body,
 .ql-editor {
 	padding: 0;
 	line-height: inherit;
+	outline: none;
 	counter-reset: list-0 list-1 list-2 list-3 list-4 list-5 list-6 list-7 list-8 list-9;
 }
 
@@ -855,6 +1161,195 @@ body,
 	content: attr(data-index) '. ';
 	display: inline-block;
 	margin-right: 0.3em;
+}
+
+/* ==========================================================================
+   Connectors (bound arrows)
+   ========================================================================== */
+
+/* Outline on a shape a connector terminal can attach to */
+.connector-target {
+	stroke: var(--col-primary, #3b82f6);
+	stroke-dasharray: 6 3;
+	opacity: 0.9;
+}
+
+/*
+ * Anchor dots sit on top of arbitrary user fill colours, so the dot alone is not enough:
+ * a white dot on a white rectangle is invisible. The halo underneath gives it a dark rim
+ * that reads against both light and dark fills.
+ */
+.connector-anchor-halo {
+	fill: rgb(0 0 0 / 0.55);
+	stroke: rgb(255 255 255 / 0.75);
+}
+
+.connector-anchor-dot {
+	fill: #fff;
+	stroke: var(--col-primary, #3b82f6);
+}
+
+.connector-anchor-dot.active {
+	fill: var(--col-primary, #3b82f6);
+	stroke: #fff;
+}
+
+/*
+ * The free anchor: a drop that avoids all 9 dots lands here. Hollow and dashed rather than a
+ * tenth colour, so it reads as "not one of the offered points" while staying in the same palette.
+ * Declared after .active so it wins at equal specificity when both classes are present.
+ */
+.connector-anchor-dot.free {
+	fill: none;
+	stroke: #fff;
+	stroke-dasharray: 2 2;
+}
+
+/*
+ * Terminal handles on a selected connector. Four states get four distinct GLYPHS rather than
+ * four colours, so they survive colour-vision deficiency; the PropertyBar's Start/End readout
+ * is the redundant textual channel.
+ */
+.connector-endpoint-handle {
+	fill: #fff;
+	stroke: var(--col-primary, #3b82f6);
+	cursor: grab;
+}
+
+.connector-endpoint-handle.bound {
+	fill: var(--col-primary, #3b82f6);
+}
+
+.connector-endpoint-handle.dragging {
+	cursor: grabbing;
+}
+
+/* The ring around a bound-auto terminal: the anchor floats, it is not pinned */
+.connector-endpoint-ring {
+	fill: none;
+	stroke: var(--col-primary, #3b82f6);
+	opacity: 0.8;
+}
+
+/* The tick marking a bound-free terminal, pinned to an arbitrary point */
+.connector-endpoint-pin {
+	stroke: var(--col-primary, #3b82f6);
+	fill: none;
+}
+
+.connector-endpoint-hit {
+	fill: transparent;
+	stroke: none;
+}
+
+/* Route highlight shown instead of a SelectionBox on a fully bound connector */
+.connector-route-highlight {
+	fill: none;
+	stroke: var(--col-primary, #3b82f6);
+	opacity: 0.35;
+}
+
+/* --- PropertyBar connector controls --- */
+
+/* One swatch previewing both ends; the start head is mirrored to point outwards */
+.ideallo-arrowhead-swatch-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 2px;
+	height: 28px;
+	padding: 0 4px;
+	border: 1px solid var(--col-outline);
+	border-radius: 4px;
+	background: transparent;
+	color: var(--col-on-container);
+	cursor: pointer;
+}
+
+.ideallo-arrowhead-swatch-btn .flip {
+	display: inline-flex;
+	transform: scaleX(-1);
+}
+
+.ideallo-arrowhead-popover {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.75rem;
+	border: 1px solid var(--col-outline);
+	border-radius: 8px;
+	background: var(--col-container);
+	box-shadow: var(--shadow-lg);
+}
+
+.ideallo-arrowhead-grid {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+}
+
+.ideallo-arrowhead-cells {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 0.25rem;
+}
+
+.ideallo-arrowhead-cells .palette-swatch {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	background: transparent;
+	color: var(--col-on-container, #333);
+}
+
+.ideallo-arrowhead-cells .palette-swatch.selected {
+	border-color: var(--col-primary, #3b82f6);
+	border-width: 2px;
+}
+
+.ideallo-arrowhead-option {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	font-size: 0.75rem;
+	white-space: nowrap;
+}
+
+.ideallo-arrowhead-swap {
+	align-self: center;
+}
+
+/* --- PropertyBar text controls --- */
+
+/* The font picker lives in a popover now, where a long family name has room to be read */
+.ideallo-text-popover .c-font-picker__button {
+	height: 28px;
+	min-width: 9rem;
+	padding: 0 0.4rem;
+	font-size: 0.75rem;
+}
+
+.ideallo-property-bar .c-select {
+	height: 28px;
+	padding: 0 0.3rem;
+	font-size: 0.75rem;
+}
+
+/* Delete is the one destructive button in the bar and reads as one */
+.ideallo-format-btn.ideallo-action-danger:hover {
+	background: var(--col-error-container, rgba(224, 49, 49, 0.15));
+	color: var(--col-error, #e03131);
+}
+
+/* Selected but locked: the affordances a SelectionBox would offer all do nothing here */
+.ideallo-locked-outline {
+	fill: none;
+	stroke: var(--col-primary, #3b82f6);
+	stroke-width: 1.5;
+	stroke-dasharray: 6 4;
+	opacity: 0.7;
 }
 
 /* vim: ts=4 */

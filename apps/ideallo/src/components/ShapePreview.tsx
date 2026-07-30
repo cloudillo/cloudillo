@@ -6,14 +6,20 @@ import * as React from 'react'
  * Renders shape preview during creation (before commit)
  */
 
+import type { ConnectorContext } from '../connectors/index.js'
+import { resolvePreviewRoute } from '../connectors/resolve.js'
 import type { ShapePreview as ShapePreviewType } from '../tools/index.js'
+import { polygonPresetPoints } from '../tools/shape-presets.js'
 import { colorToCss } from '../utils/palette.js'
+import { ConnectorPath } from './ConnectorPath.js'
 
 export interface ShapePreviewProps {
 	preview: ShapePreviewType
+	/** Shape lookup, so a connector preview can route against real geometry */
+	connectorContext?: ConnectorContext
 }
 
-export function ShapePreview({ preview }: ShapePreviewProps) {
+export function ShapePreview({ preview, connectorContext }: ShapePreviewProps) {
 	const { type, startX, startY, endX, endY, style } = preview
 
 	// Normalize bounds for rect/ellipse
@@ -47,26 +53,32 @@ export function ShapePreview({ preview }: ShapePreviewProps) {
 		)
 	}
 
-	if (type === 'line') {
-		return <line x1={startX} y1={startY} x2={endX} y2={endY} {...commonProps} fill="none" />
+	// Diamond and triangle: the SAME vertex builder the commit path uses, so what lands on release
+	// is exactly what was previewed
+	const points = polygonPresetPoints(type, { x: minX, y: minY, width, height })
+	if (points) {
+		return <polygon points={points} {...commonProps} />
 	}
 
-	if (type === 'arrow') {
-		// Calculate arrowhead
-		const angle = Math.atan2(endY - startY, endX - startX)
-		const headLength = 12
-		const headAngle = Math.PI / 6
-
-		const arrowX1 = endX - headLength * Math.cos(angle - headAngle)
-		const arrowY1 = endY - headLength * Math.sin(angle - headAngle)
-		const arrowX2 = endX - headLength * Math.cos(angle + headAngle)
-		const arrowY2 = endY - headLength * Math.sin(angle + headAngle)
-
+	if (type === 'connector') {
+		// Routed through the same component - and, when bound, the same routers - as the
+		// committed object, so the preview cannot disagree with what lands on release.
+		const route = connectorContext
+			? resolvePreviewRoute({ ...preview, strokeWidth: style.strokeWidth }, connectorContext)
+			: undefined
 		return (
-			<g {...commonProps} fill="none">
-				<line x1={startX} y1={startY} x2={endX} y2={endY} />
-				<polyline points={`${arrowX1},${arrowY1} ${endX},${endY} ${arrowX2},${arrowY2}`} />
-			</g>
+			<ConnectorPath
+				route={route}
+				startX={startX}
+				startY={startY}
+				endX={endX}
+				endY={endY}
+				startArrow={preview.startArrow}
+				endArrow={preview.endArrow}
+				strokeWidth={style.strokeWidth}
+				stroke={colorToCss(style.strokeColor)}
+				opacity={0.7}
+			/>
 		)
 	}
 

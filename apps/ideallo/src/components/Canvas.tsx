@@ -27,20 +27,34 @@ import {
 	useSvgCanvas
 } from 'react-svg-canvas'
 
-import type { Bounds, ObjectId, StoredObject, YIdealloDocument } from '../crdt/index.js'
-import { expandObject, toObjectId } from '../crdt/index.js'
+import type {
+	ConnectorEndpointPreview,
+	GeometryOverrides,
+	ShapeGeometry
+} from '../connectors/index.js'
+import {
+	anchorWorldPoint,
+	applyEndpointPreview,
+	buildConnectorContext,
+	isBoundConnector,
+	resolveConnectorRoutes
+} from '../connectors/index.js'
+import type {
+	AnchorPointType,
+	Bounds,
+	ConnectorObject,
+	IdealloObject,
+	ObjectId,
+	StoredObject,
+	YIdealloDocument
+} from '../crdt/index.js'
+import { isTextBearing, toObjectId, tryExpandObject } from '../crdt/index.js'
 import type {
 	ActiveStroke as ActiveStrokeType,
 	DragOffset,
 	IdealloPresence
 } from '../hooks/index.js'
-import type {
-	ShapePreview as ShapePreviewType,
-	StickyInputState,
-	TextEditState,
-	TextInputState,
-	ToolType
-} from '../tools/index.js'
+import type { ObjectEditState, ShapePreview as ShapePreviewType, ToolType } from '../tools/index.js'
 
 /**
  * Wrapper component for RotationHandle that uses the fixed layer transform
@@ -149,16 +163,136 @@ function FixedPivotHandle(
 }
 
 import type { MorphAnimationState } from '../smart-ink/index.js'
-import { pointsToSmoothPath } from '../utils/index.js'
+import { getObjectBounds } from '../utils/bounds.js'
+import { pointsToSmoothPath, scaleConnectorTerminals } from '../utils/index.js'
+import { scalePathData } from '../utils/path-scaling.js'
 import { ActiveStroke } from './ActiveStroke.js'
+import { ConnectorAnchorDots } from './ConnectorAnchorDots.js'
+import type { ConnectorEndpointHandlesProps } from './ConnectorEndpointHandles.js'
+import { ConnectorEndpointHandles, terminalState } from './ConnectorEndpointHandles.js'
 import { Cursors } from './Cursors.js'
 import { GhostEditing } from './GhostEditing.js'
 import { GhostShapes } from './GhostShapes.js'
 import { GhostStrokes } from './GhostStrokes.js'
 import { ObjectRenderer } from './ObjectRenderer.js'
 import { ShapePreview } from './ShapePreview.js'
-import { TextInput } from './TextInput.js'
 import { UndoHint } from './UndoHint.js'
+
+/**
+ * Wrapper that puts the connector terminal handles in the fixed layer, converting the world
+ * endpoints to screen coordinates so the handles stay a constant size at any zoom.
+ * Same pattern as FixedRotationHandle / FixedPivotHandle above.
+ */
+function FixedConnectorEndpointHandles(
+	props: Omit<ConnectorEndpointHandlesProps, 'start' | 'end'> & {
+		canvasStart: [number, number]
+		canvasEnd: [number, number]
+	}
+) {
+	const { translateFrom } = useSvgCanvas()
+	const { canvasStart, canvasEnd, ...rest } = props
+	const start = translateFrom(canvasStart[0], canvasStart[1]) as [number, number]
+	const end = translateFrom(canvasEnd[0], canvasEnd[1]) as [number, number]
+	return <ConnectorEndpointHandles {...rest} start={start} end={end} />
+}
+
+/**
+ * Map a previewed bounding box onto an object, for the resize preview.
+ * Shapes take the box directly; endpoint and vertex geometry is scaled into it.
+ *
+ * `originalBounds` is the box the resize started from, threaded down from app.tsx through
+ * GeometryOverride. It cannot be measured here: connector routes are derived AFTER this runs, so
+ * `getObjectBounds(obj)` would fall back to the tight endpoint box rather than the padded
+ * `route.bounds` the commit scales out of.
+ */
+function applyBoundsOverride(
+	obj: IdealloObject,
+	bounds: Bounds,
+	rotation?: number,
+	pivot?: { x: number; y: number },
+	originalBounds?: Bounds
+): IdealloObject {
+	const rotated = rotation !== undefined ? { rotation } : {}
+	// The pivot rides along because a pivot drag compensates the object's position: without the
+	// new pivot the renderer would still turn about the OLD one and the shape would visibly jump.
+	const pivoted = pivot ? { pivotX: pivot.x, pivotY: pivot.y } : {}
+	switch (obj.type) {
+		case 'connector': {
+			// Same mapper the commit calls (onResizeEnd in app.tsx), out of the same source box.
+			const patch = scaleConnectorTerminals(
+				obj,
+				originalBounds ?? getObjectBounds(obj),
+				bounds
+			)
+			// Fully bound: both terminals are derived, so there is nothing to preview.
+			if (!patch) return { ...obj, ...rotated, ...pivoted }
+			return {
+				...obj,
+				...rotated,
+				...pivoted,
+				...patch
+			}
+		}
+		case 'polygon': {
+			const current = obj.vertices
+			if (!current.length) return { ...obj, ...rotated, ...pivoted, x: bounds.x, y: bounds.y }
+			const xs = current.map((v) => v[0])
+			const ys = current.map((v) => v[1])
+			const minX = Math.min(...xs)
+			const minY = Math.min(...ys)
+			const width = Math.max(...xs) - minX
+			const height = Math.max(...ys) - minY
+			const sx = width ? bounds.width / width : 1
+			const sy = height ? bounds.height / height : 1
+			return {
+				...obj,
+				...rotated,
+				...pivoted,
+				x: bounds.x,
+				y: bounds.y,
+				vertices: current.map(
+					(v) =>
+						[bounds.x + (v[0] - minX) * sx, bounds.y + (v[1] - minY) * sy] as [
+							number,
+							number
+						]
+				)
+			}
+		}
+		case 'freehand': {
+			// The commit scales pathData too (app.tsx onResizeEnd), and FreehandPath ignores
+			// width/height - so without the same scaling here the frame moves around a stroke that
+			// sits still and only snaps on release. The factors come off getObjectBounds because
+			// that is what onResizeEnd divides by: a freehand's box is MEASURED from the path and
+			// can differ from the stored width/height.
+			const src = getObjectBounds(obj)
+			const sx = src.width ? bounds.width / src.width : 1
+			const sy = src.height ? bounds.height / src.height : 1
+			return {
+				...obj,
+				...rotated,
+				...pivoted,
+				// pathData is RELATIVE to x/y, and the measured box need not start there, so the
+				// origin keeps its offset within the box - the same arithmetic the commit does.
+				x: bounds.x + (obj.x - src.x) * sx,
+				y: bounds.y + (obj.y - src.y) * sy,
+				width: obj.width * sx,
+				height: obj.height * sy,
+				pathData: scalePathData(obj.pathData, sx, sy)
+			}
+		}
+		default:
+			return {
+				...obj,
+				...rotated,
+				...pivoted,
+				x: bounds.x,
+				y: bounds.y,
+				width: bounds.width,
+				height: bounds.height
+			}
+	}
+}
 
 export interface CanvasProps {
 	doc: YIdealloDocument
@@ -167,8 +301,19 @@ export interface CanvasProps {
 	textContent?: Record<string, unknown> | null // Text content map, used to trigger re-render
 	activeStroke: ActiveStrokeType | null
 	shapePreview: ShapePreviewType | null
-	textInput: TextInputState | null
-	textInputRef: React.RefObject<HTMLInputElement | null>
+	/** Shape a connector terminal would attach to right now, shown with its anchor dots */
+	connectorTarget?: ShapeGeometry | null
+	/** Terminal currently being dragged on the selected connector, if any */
+	connectorDragTerminal?: 'start' | 'end' | null
+	/**
+	 * Uncommitted terminal drag on the selected connector. Applied to the arrow before routing,
+	 * so the whole connector - body, heads and the grabbed handle - tracks the pointer live.
+	 */
+	connectorEndpointPreview?: ConnectorEndpointPreview | null
+	/** Larger touch targets on small viewports */
+	mobileHandles?: boolean
+	/** Omit to leave the connector terminal handles out entirely (e.g. read-only) */
+	onConnectorEndpointPointerDown?: (terminal: 'start' | 'end', event: React.PointerEvent) => void
 	remotePresence: Map<number, IdealloPresence>
 	activeTool: ToolType
 	selectedIds: Set<ObjectId>
@@ -177,25 +322,23 @@ export interface CanvasProps {
 	selectedObjectPivotX: number
 	selectedObjectPivotY: number
 	dragOffset: DragOffset | null
+	/**
+	 * Pending resize/rotate geometry from app.tsx, keyed by object id.
+	 * Combined with dragOffset to reroute connectors bound to whatever is being manipulated.
+	 */
+	geometryOverrides?: GeometryOverrides
 	onPointerDown: (x: number, y: number, shiftKey?: boolean, altKey?: boolean) => void
 	onPointerMove: (x: number, y: number) => void
 	onPointerUp: () => void
 	onCursorMove?: (x: number, y: number) => void
-	onTextChange?: (text: string) => void
-	onTextCommit?: () => void
-	onTextCancel?: () => void
-	// Sticky editing
-	editingSticky?: StickyInputState | null
-	onStickyTextChange?: (text: string) => void
-	onStickySave?: (text: string) => void
-	onStickyCancel?: () => void
-	onStickyDragStart?: (e: React.PointerEvent, objectId: ObjectId) => void
-	onStickyDoubleClick?: (objectId: ObjectId) => void
-	// Text label editing
-	editingText?: TextEditState | null
-	onTextLabelSave?: () => void
-	onTextLabelCancel?: () => void
-	onTextDoubleClick?: (objectId: ObjectId) => void
+	// Text editing. ONE slot, one save, one double-click route: a sticky, a label and a shape's
+	// caption are the same interaction, so they are the same four props.
+	editing?: ObjectEditState | null
+	onEditSave?: () => void
+	onEditDragStart?: (e: React.PointerEvent, objectId: ObjectId) => void
+	onObjectDoubleClick?: (objectId: ObjectId, e: React.MouseEvent) => void
+	/** Blur into the property bar is the user styling what they are editing, not leaving it */
+	shouldIgnoreEditorBlur?: () => boolean
 	// Callback when editor content height changes (for auto-grow)
 	onEditHeightChange?: (height: number) => void
 	// Quill ref for text formatting
@@ -268,8 +411,11 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 		textContent,
 		activeStroke,
 		shapePreview,
-		textInput,
-		textInputRef,
+		connectorTarget,
+		connectorDragTerminal,
+		connectorEndpointPreview,
+		mobileHandles,
+		onConnectorEndpointPointerDown,
 		remotePresence,
 		activeTool,
 		selectedIds,
@@ -278,24 +424,17 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 		selectedObjectPivotX,
 		selectedObjectPivotY,
 		dragOffset,
+		geometryOverrides,
 		onPointerDown,
 		onPointerMove,
 		onPointerUp,
 		onCursorMove,
-		onTextChange,
-		onTextCommit,
-		onTextCancel,
-		// Sticky editing
-		editingSticky,
-		onStickyTextChange,
-		onStickySave,
-		onStickyCancel,
-		onStickyDragStart,
-		onStickyDoubleClick,
-		// Text label editing
-		editingText,
-		onTextLabelCancel,
-		onTextDoubleClick,
+		// Text editing - sticky, label and shape caption alike
+		editing,
+		onEditSave,
+		onEditDragStart,
+		onObjectDoubleClick,
+		shouldIgnoreEditorBlur,
 		// Height change callback
 		onEditHeightChange,
 		// Quill ref
@@ -498,49 +637,204 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 		}
 	}, [screenSelectionBounds, onScreenBoundsChange])
 
-	// Convert stored objects to runtime format for rendering (in z-order)
-	// Apply local drag offset if object is being dragged
-	const objectsToRender = React.useMemo(() => {
+	/**
+	 * Pending geometry that has not reached the CRDT yet: the local drag offset plus whatever
+	 * app.tsx is previewing for a resize or rotate.
+	 *
+	 * A map rather than a `dragOffset.objectIds.has(id)` gate, so an arrow bound to a dragged box
+	 * reroutes live even though the arrow is not itself in the drag selection.
+	 */
+	const pendingGeometry = React.useMemo<GeometryOverrides>(() => {
+		if (!dragOffset && !geometryOverrides) return null
+		const map = new Map(geometryOverrides ?? [])
+		if (dragOffset) {
+			for (const id of dragOffset.objectIds) {
+				map.set(id, { ...map.get(id), dx: dragOffset.dx, dy: dragOffset.dy })
+			}
+		}
+		return map.size ? map : null
+	}, [dragOffset, geometryOverrides])
+
+	/**
+	 * The document expanded to runtime objects, in z-order, with NO override applied.
+	 *
+	 * Split from objectsToRender because it depends only on the DOCUMENT: the ghost layer resolves
+	 * once per remote pointermove per remote user, and re-expanding every record at that rate is
+	 * the expensive half. GhostEditing gets this array and applies its own override map to it.
+	 */
+	const expandedObjects = React.useMemo(() => {
 		if (!objects) return []
 
 		// Use order array for z-ordering, fall back to Object.keys for unordered docs
 		const ids = order && order.length > 0 ? order : Object.keys(objects)
 
+		return (
+			ids
+				.filter((id) => id in objects)
+				// Null when this build cannot read the record's type - skipped, not fatal
+				.map((id) => tryExpandObject(toObjectId(id), objects[id], doc))
+				.filter((obj): obj is IdealloObject => obj !== null)
+		)
+	}, [objects, order, textContent, doc])
+
+	// Apply pending geometry to the expanded objects, then derive connector routes from the result
+	const objectsToRender = React.useMemo(() => {
+		const expanded = expandedObjects.map((obj) => {
+			const override = pendingGeometry?.get(obj.id)
+			if (!override) return obj
+
+			const pivot =
+				override.pivotX !== undefined && override.pivotY !== undefined
+					? { x: override.pivotX, y: override.pivotY }
+					: undefined
+			if (override.bounds) {
+				// A resize preview: app.tsx already computed the new box
+				return applyBoundsOverride(
+					obj,
+					override.bounds,
+					override.rotation,
+					pivot,
+					override.originalBounds
+				)
+			}
+			const dx = override.dx ?? 0
+			const dy = override.dy ?? 0
+			if (!dx && !dy && override.rotation === undefined && !pivot) return obj
+			return {
+				...obj,
+				x: obj.x + dx,
+				y: obj.y + dy,
+				...(override.rotation !== undefined ? { rotation: override.rotation } : {}),
+				...(pivot ? { pivotX: pivot.x, pivotY: pivot.y } : {}),
+				// A BOUND terminal is derived below; only free endpoints move with the drag
+				...(obj.type === 'connector'
+					? {
+							...(obj.startObjectId
+								? {}
+								: { startX: obj.startX + dx, startY: obj.startY + dy }),
+							...(obj.endObjectId ? {} : { endX: obj.endX + dx, endY: obj.endY + dy })
+						}
+					: {}),
+				...(obj.type === 'polygon'
+					? {
+							vertices: obj.vertices.map(
+								(v) => [v[0] + dx, v[1] + dy] as [number, number]
+							)
+						}
+					: {})
+				// Freehand needs nothing extra: its pathData is RELATIVE to x/y and drawn
+				// through a <g transform>, so shifting the origin above moves the stroke.
+			} as IdealloObject
+		})
+
+		// An in-flight terminal drag is a pending change to the ARROW, not to a shape, so it
+		// cannot ride along in the override map - it is patched onto the arrow here and routed
+		// below like any other binding.
+		const previewed = connectorEndpointPreview
+			? expanded.map((obj) => applyEndpointPreview(obj, connectorEndpointPreview))
+			: expanded
+
+		// No override map here on purpose: `previewed` ALREADY carries the pending drag/resize/
+		// rotate geometry, and toShapeGeometry() would add dx/dy a second time, making every bound
+		// route track at double the speed of the shape it is glued to. GhostEditing takes the other
+		// route and hands the resolver raw objects plus the map - one application, never both.
+		return resolveConnectorRoutes(previewed)
+	}, [expandedObjects, pendingGeometry, connectorEndpointPreview])
+
+	/**
+	 * Shapes an in-flight connector PREVIEW wants to bind to - local draw gesture and remote ghosts
+	 * alike. They are not referenced by any committed connector yet, so buildConnectorContext would
+	 * otherwise leave them out and the preview would route against nothing.
+	 */
+	const previewBindIds = React.useMemo<ObjectId[]>(() => {
+		const ids: ObjectId[] = []
+		if (shapePreview?.type === 'connector') {
+			if (shapePreview.startObjectId) ids.push(shapePreview.startObjectId)
+			if (shapePreview.endObjectId) ids.push(shapePreview.endObjectId)
+		}
+		for (const presence of remotePresence.values()) {
+			const s = presence.shape
+			if (s?.type !== 'connector') continue
+			if (s.startObjectId) ids.push(s.startObjectId)
+			if (s.endObjectId) ids.push(s.endObjectId)
+		}
 		return ids
-			.filter((id) => id in objects)
-			.map((id) => {
-				const objectId = toObjectId(id)
-				const stored = objects[id]
-				let obj = expandObject(objectId, stored, doc)
+	}, [shapePreview, remotePresence])
 
-				// Apply local drag offset if this object is being dragged
-				if (dragOffset?.objectIds.has(objectId)) {
-					obj = {
-						...obj,
-						x: obj.x + dragOffset.dx,
-						y: obj.y + dragOffset.dy,
-						// For line/arrow, also offset endpoints
-						...(obj.type === 'line' || obj.type === 'arrow'
-							? {
-									startX: obj.startX + dragOffset.dx,
-									startY: obj.startY + dragOffset.dy,
-									endX: obj.endX + dragOffset.dx,
-									endY: obj.endY + dragOffset.dy
-								}
-							: {})
-						// Note: Freehand pathData uses absolute coords, position update handled above
-					}
-				}
+	/**
+	 * Shape lookup for connector previews (local and remote), over what is on screen now.
+	 *
+	 * `previewBindIds` gets a new identity on every pointermove during a connector gesture, so this
+	 * is rebuilt per frame then. Deliberate: one O(objects) pass, the same order findBindTargetShape
+	 * in connectors/binding.ts already pays per pointermove.
+	 */
+	const connectorContext = React.useMemo(
+		() => buildConnectorContext(objectsToRender, undefined, previewBindIds),
+		[objectsToRender, previewBindIds]
+	)
 
-				return obj
-			})
-	}, [objects, order, textContent, dragOffset])
+	/**
+	 * The anchor that would be picked if the pointer were released now, for dot highlighting.
+	 * Either gesture can be the one asking: drawing a new connector, or dragging a terminal of
+	 * an existing one.
+	 */
+	const activeConnectorAnchor = React.useMemo<AnchorPointType | null>(() => {
+		const anchor = shapePreview?.targetObjectId
+			? shapePreview.endAnchor
+			: connectorEndpointPreview?.bind?.anchor
+		return typeof anchor === 'string' ? anchor : null
+	}, [shapePreview, connectorEndpointPreview])
+
+	/**
+	 * The other half of the same answer: where a FREE anchor would land. A drop that avoids all 9
+	 * dots binds to a free normalized point, and without a dot under the pointer that placement
+	 * is invisible until the drag ends.
+	 */
+	const activeFreeAnchorPoint = React.useMemo<[number, number] | null>(() => {
+		const anchor = shapePreview?.targetObjectId
+			? shapePreview.endAnchor
+			: connectorEndpointPreview?.bind?.anchor
+		if (!connectorTarget || typeof anchor !== 'object' || !anchor) return null
+		return anchorWorldPoint(connectorTarget, anchor)
+	}, [shapePreview, connectorEndpointPreview, connectorTarget])
 
 	// Get current scale for RotationHandle and pivot conversion
 	const scale = canvasMatrix[0]
 
 	// The displayed rotation is now passed directly from app.tsx (includes temp state)
 	const displayRotation = selectedObjectRotation
+
+	/** The single selected connector, if that is what the selection is */
+	const selectedConnector = React.useMemo<ConnectorObject | null>(() => {
+		if (activeTool !== 'select' || selectedIds.size !== 1) return null
+		const [id] = Array.from(selectedIds)
+		const obj = objectsToRender.find((o) => o.id === id)
+		return obj?.type === 'connector' ? obj : null
+	}, [activeTool, selectedIds, objectsToRender])
+
+	/**
+	 * A connector bound at BOTH ends has no user-editable geometry: its position is entirely
+	 * derived. The SelectionBox is HIDDEN rather than shown with inert resize and rotate handles,
+	 * which reads as broken; the terminal handles below are what it does still offer.
+	 */
+	const fullyBoundConnector = Boolean(
+		selectedConnector?.startObjectId && selectedConnector?.endObjectId
+	)
+
+	/** Any binding rules out rotation - see isBoundConnector in connectors/resolve.ts for why */
+	const boundConnector = selectedConnector ? isBoundConnector(selectedConnector) : false
+
+	/**
+	 * A locked object loses the same affordances and gains the dashed outline below instead. ANY
+	 * locked object in the selection disables them, rather than a resize that silently skips one
+	 * member. useSelectHandler blocks the drag; this is the visible half of the same rule.
+	 */
+	const selectionLocked = React.useMemo(() => {
+		if (!selectedIds.size) return false
+		return objectsToRender.some((obj) => selectedIds.has(obj.id) && obj.locked)
+	}, [selectedIds, objectsToRender])
+
+	const noTransformHandles = fullyBoundConnector || selectionLocked
 
 	// Handle resize start from library SelectionBox - pass raw event to hook
 	const handleLibResizeStart = React.useCallback(
@@ -564,40 +858,79 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 	const fixedContent =
 		!readOnly && screenSelectionBounds ? (
 			<g>
-				<SelectionBox
-					bounds={screenSelectionBounds}
-					rotation={displayRotation}
-					pivotX={selectedObjectPivotX}
-					pivotY={selectedObjectPivotY}
-					onResizeStart={handleLibResizeStart}
-				/>
+				{!noTransformHandles && (
+					<SelectionBox
+						bounds={screenSelectionBounds}
+						rotation={displayRotation}
+						pivotX={selectedObjectPivotX}
+						pivotY={selectedObjectPivotY}
+						onResizeStart={handleLibResizeStart}
+					/>
+				)}
+				{/* What "selected, but locked" looks like, in place of the box it replaces */}
+				{selectionLocked && (
+					<rect
+						className="ideallo-locked-outline"
+						x={screenSelectionBounds.x}
+						y={screenSelectionBounds.y}
+						width={screenSelectionBounds.width}
+						height={screenSelectionBounds.height}
+						pointerEvents="none"
+					/>
+				)}
+				{/* Terminal handles - the only geometry affordance a bound connector has */}
+				{selectedConnector &&
+					!selectedConnector.locked &&
+					onConnectorEndpointPointerDown && (
+						<FixedConnectorEndpointHandles
+							canvasStart={[selectedConnector.startX, selectedConnector.startY]}
+							canvasEnd={[selectedConnector.endX, selectedConnector.endY]}
+							startState={terminalState(
+								selectedConnector.startObjectId,
+								selectedConnector.startAnchor
+							)}
+							endState={terminalState(
+								selectedConnector.endObjectId,
+								selectedConnector.endAnchor
+							)}
+							draggingTerminal={connectorDragTerminal ?? null}
+							mobile={mobileHandles}
+							onPointerDown={onConnectorEndpointPointerDown}
+						/>
+					)}
 				{/* Rotation handle - rendered in fixed layer for consistent screen-space sizing */}
-				{activeTool === 'select' && selectionBounds && (
-					<FixedRotationHandle
-						canvasBounds={selectionBounds}
-						rotation={displayRotation}
-						pivotX={selectedObjectPivotX}
-						pivotY={selectedObjectPivotY}
-						onRotateStart={handleRotateStart}
-						isRotating={isRotating}
-						isSnapActive={isSnapActive}
-					/>
-				)}
+				{activeTool === 'select' &&
+					selectionBounds &&
+					!noTransformHandles &&
+					!boundConnector && (
+						<FixedRotationHandle
+							canvasBounds={selectionBounds}
+							rotation={displayRotation}
+							pivotX={selectedObjectPivotX}
+							pivotY={selectedObjectPivotY}
+							onRotateStart={handleRotateStart}
+							isRotating={isRotating}
+							isSnapActive={isSnapActive}
+						/>
+					)}
 				{/* Pivot handle - uses usePivotDrag hook internally for coordinate transforms */}
-				{activeTool === 'select' && selectionBounds && (
-					<FixedPivotHandle
-						canvasBounds={selectionBounds}
-						canvasOriginalBounds={pivotOriginalBounds}
-						rotation={displayRotation}
-						pivotX={selectedObjectPivotX}
-						pivotY={selectedObjectPivotY}
-						activeTool={activeTool}
-						onPivotDragStart={onPivotDragStart}
-						onPivotDrag={onPivotDrag}
-						onPivotCommit={onPivotCommit}
-						snapEnabled={true}
-					/>
-				)}
+				{activeTool === 'select' &&
+					selectionBounds &&
+					!noTransformHandles &&
+					!boundConnector && (
+						<FixedPivotHandle
+							canvasBounds={selectionBounds}
+							canvasOriginalBounds={pivotOriginalBounds}
+							rotation={displayRotation}
+							pivotX={selectedObjectPivotX}
+							pivotY={selectedObjectPivotY}
+							activeTool={activeTool}
+							onPivotDragStart={onPivotDragStart}
+							onPivotDrag={onPivotDrag}
+							onPivotCommit={onPivotCommit}
+							snapEnabled={true}
+						/>
+					)}
 			</g>
 		) : null
 
@@ -623,11 +956,23 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 				onContextReady={handleContextReady}
 				fixed={fixedContent}
 			>
+				{/*
+					A fully bound connector gets no SelectionBox, so this halo is what shows it is
+					selected. Drawn BEHIND the objects - a semi-transparent band painted over the
+					arrow would wash out its own stroke.
+				*/}
+				{!readOnly && fullyBoundConnector && selectedConnector?.route && (
+					<path
+						className="connector-route-highlight"
+						d={selectedConnector.route.d}
+						strokeWidth={selectedConnector.style.strokeWidth + 8 / scale}
+						pointerEvents="none"
+					/>
+				)}
+
 				{/* Render committed objects */}
 				{objectsToRender.map((obj) => {
-					const isStickyEditing = obj.type === 'sticky' && editingSticky?.id === obj.id
-					const isTextEditing = obj.type === 'text' && editingText?.id === obj.id
-					const isEditing = isStickyEditing || isTextEditing
+					const isEditing = editing?.id === obj.id
 					return (
 						<ObjectRenderer
 							key={obj.id}
@@ -642,31 +987,30 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 							}
 							onDocumentViewStateChange={onDocumentViewStateChange}
 							isEditing={isEditing}
-							onTextChange={isStickyEditing ? onStickyTextChange : undefined}
-							onSave={isStickyEditing ? onStickySave : undefined}
-							onCancel={
-								isStickyEditing
-									? onStickyCancel
-									: isTextEditing
-										? onTextLabelCancel
-										: undefined
-							}
+							onSave={isEditing ? onEditSave : undefined}
+							caretPoint={isEditing ? editing?.caretPoint : undefined}
+							shouldIgnoreBlur={isEditing ? shouldIgnoreEditorBlur : undefined}
 							onDragStart={
-								isStickyEditing && onStickyDragStart
-									? (e) => onStickyDragStart(e, obj.id)
+								isEditing && obj.type === 'sticky' && onEditDragStart
+									? (e) => onEditDragStart(e, obj.id)
 									: undefined
 							}
 							onDoubleClick={
-								obj.type === 'sticky' && onStickyDoubleClick
-									? () => onStickyDoubleClick(obj.id)
-									: obj.type === 'text' && onTextDoubleClick
-										? () => onTextDoubleClick(obj.id)
-										: obj.type === 'document' && onDocumentActivate
-											? () => onDocumentActivate(obj.id)
-											: undefined
+								isTextBearing(obj.type) && onObjectDoubleClick
+									? (e) => onObjectDoubleClick(obj.id, e)
+									: obj.type === 'document' && onDocumentActivate
+										? () => onDocumentActivate(obj.id)
+										: undefined
 							}
 							quillRef={isEditing ? quillRef : undefined}
-							onHeightChange={isEditing ? onEditHeightChange : undefined}
+							/* Auto-grow is a TEXT CONTAINER behaviour: a sticky and a text label both
+							   grow to fit their content, while a rect is a box the user sized on
+							   purpose and its text clips. */
+							onHeightChange={
+								isEditing && (obj.type === 'sticky' || obj.type === 'text')
+									? onEditHeightChange
+									: undefined
+							}
 							isHighlighted={eraserHighlightedIds?.has(obj.id) ?? false}
 							isEraserHovered={activeTool === 'eraser' && hoveredId === obj.id}
 							isStacked={stackedHighlightIds?.has(obj.id) ?? false}
@@ -684,10 +1028,22 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 				<GhostStrokes remotePresence={remotePresence} />
 
 				{/* Render ghost shapes from remote users */}
-				<GhostShapes remotePresence={remotePresence} />
+				<GhostShapes remotePresence={remotePresence} connectorContext={connectorContext} />
 
-				{/* Render objects being edited (dragged) by remote users */}
-				<GhostEditing doc={doc} remotePresence={remotePresence} objects={objects} />
+				{/*
+					Objects being edited (dragged) by remote users. `expandedObjects`, not
+					`objectsToRender`: the ghost layer hands the resolver raw objects plus its own
+					override map, and the latter has the local override already baked in - see the
+					comment on resolveConnectorRoutes above.
+				*/}
+				<GhostEditing
+					doc={doc}
+					remotePresence={remotePresence}
+					objects={objects}
+					expandedObjects={expandedObjects}
+					ownerTag={ownerTag}
+					token={token}
+				/>
 
 				{/* Render remote user cursors */}
 				<Cursors remotePresence={remotePresence} />
@@ -726,17 +1082,18 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 				)}
 
 				{/* Render shape preview during creation */}
-				{shapePreview && <ShapePreview preview={shapePreview} />}
-
-				{/* Render text input during text creation */}
-				{textInput && onTextChange && onTextCommit && onTextCancel && (
-					<TextInput
-						textInput={textInput}
-						inputRef={textInputRef}
-						onTextChange={onTextChange}
-						onCommit={onTextCommit}
-						onCancel={onTextCancel}
+				{/* Drop-target affordance, under the preview so the line stays legible */}
+				{!readOnly && connectorTarget && (
+					<ConnectorAnchorDots
+						shape={connectorTarget}
+						scale={scale}
+						activeAnchor={activeConnectorAnchor}
+						freeAnchor={activeFreeAnchorPoint}
 					/>
+				)}
+
+				{shapePreview && (
+					<ShapePreview preview={shapePreview} connectorContext={connectorContext} />
 				)}
 
 				{/* Render eraser cursor */}

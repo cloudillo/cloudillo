@@ -11,8 +11,8 @@ import * as React from 'react'
 import type { Awareness } from 'y-protocols/awareness'
 import type * as Y from 'yjs'
 
-import type { ObjectId, StoredObject, YIdealloDocument } from '../crdt/index.js'
-import { deleteObjects, expandObject, getAllObjects, toObjectId } from '../crdt/index.js'
+import type { IdealloObject, ObjectId, StoredObject, YIdealloDocument } from '../crdt/index.js'
+import { deleteObjectsWithBindingCleanup, getAllResolvedObjects } from '../crdt/index.js'
 import { hitTestObject } from '../utils/hit-testing.js'
 
 // Default brush size in screen pixels
@@ -32,6 +32,14 @@ export interface UseEraserHandlerOptions {
 	enabled?: boolean
 	brushSize?: number // Screen-space pixels (default 32)
 	scale: number // Current canvas scale for screen→canvas conversion
+	/**
+	 * Shared, already-resolved objects for hit testing.
+	 *
+	 * Resolving expands every stored object and rebuilds a ShapeGeometry per object, far too much
+	 * to redo on every pointermove. app.tsx memoises one pass per document revision and injects it
+	 * here. Standalone callers can omit it and pay the per-call cost.
+	 */
+	getResolvedObjects?: () => IdealloObject[]
 }
 
 export interface EraserPosition {
@@ -47,8 +55,14 @@ export function useEraserHandler(options: UseEraserHandlerOptions) {
 		objects,
 		enabled = true,
 		brushSize = DEFAULT_BRUSH_SIZE,
-		scale
+		scale,
+		getResolvedObjects
 	} = options
+
+	const resolveAll = React.useCallback(
+		() => getResolvedObjects?.() ?? getAllResolvedObjects(doc),
+		[doc, getResolvedObjects]
+	)
 
 	// State
 	const [isErasing, setIsErasing] = React.useState(false)
@@ -78,22 +92,21 @@ export function useEraserHandler(options: UseEraserHandlerOptions) {
 
 			const hitIds = new Set<ObjectId>()
 
-			Object.entries(objects).forEach(([id, stored]) => {
-				const objectId = toObjectId(id)
-				const obj = expandObject(objectId, stored, doc)
-
+			// Resolved: a bound connector must be erasable along its route, including an
+			// elbow's detour segments, not just along its stored endpoints
+			for (const obj of resolveAll()) {
 				// Skip locked objects
-				if (obj.locked) return
+				if (obj.locked) continue
 
 				// Precise hit testing with eraser radius as tolerance
 				if (hitTestObject(obj, [x, y], canvasRadius)) {
-					hitIds.add(objectId)
+					hitIds.add(obj.id)
 				}
-			})
+			}
 
 			return hitIds
 		},
-		[objects, doc, canvasRadius]
+		[objects, resolveAll, canvasRadius]
 	)
 
 	/**
@@ -102,7 +115,7 @@ export function useEraserHandler(options: UseEraserHandlerOptions) {
 	 */
 	const findTopmostObjectAtPosition = React.useCallback(
 		(x: number, y: number): ObjectId | null => {
-			const allObjects = getAllObjects(doc)
+			const allObjects = resolveAll()
 			// Iterate in reverse order (topmost objects first)
 			for (let i = allObjects.length - 1; i >= 0; i--) {
 				const obj = allObjects[i]
@@ -115,7 +128,7 @@ export function useEraserHandler(options: UseEraserHandlerOptions) {
 			}
 			return null
 		},
-		[doc, canvasRadius]
+		[resolveAll, canvasRadius]
 	)
 
 	/**
@@ -228,7 +241,7 @@ export function useEraserHandler(options: UseEraserHandlerOptions) {
 
 		// Commit all accumulated deletions in a single transaction
 		if (objectsToDeleteRef.current.size > 0 && yDoc && doc) {
-			deleteObjects(yDoc, doc, Array.from(objectsToDeleteRef.current))
+			deleteObjectsWithBindingCleanup(yDoc, doc, Array.from(objectsToDeleteRef.current))
 		}
 
 		// Clear state
@@ -265,7 +278,7 @@ export function useEraserHandler(options: UseEraserHandlerOptions) {
 		setEraserPosition(null)
 		// If actively erasing, commit what we have so far
 		if (isErasing && objectsToDeleteRef.current.size > 0 && yDoc && doc) {
-			deleteObjects(yDoc, doc, Array.from(objectsToDeleteRef.current))
+			deleteObjectsWithBindingCleanup(yDoc, doc, Array.from(objectsToDeleteRef.current))
 		}
 		setIsErasing(false)
 		objectsToDeleteRef.current = new Set()

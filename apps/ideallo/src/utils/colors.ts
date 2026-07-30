@@ -48,6 +48,14 @@ export const UI = {
 export const STROKE_WIDTHS = [1, 2, 4, 8] as const
 
 /**
+ * Corner-radius presets, as a ladder rather than a number field.
+ *
+ * 0 = square, 4 = the sticky note's rx, 12 ~ a card, 24 ~ a pill at typical shape sizes. SVG
+ * clamps rx to width/2, so 24 stays safe on a small shape.
+ */
+export const CORNER_RADII = [0, 4, 12, 24] as const
+
+/**
  * Generate a consistent color from a string (user ID)
  * Used for awareness/presence coloring
  */

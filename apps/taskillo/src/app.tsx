@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { getAppBus, getWsUrl } from '@cloudillo/core'
+import { getAppBus, getDocWsUrl } from '@cloudillo/core'
 import { EmptyState, LoadingSpinner, Panel } from '@cloudillo/react'
 import { RtdbClient } from '@cloudillo/rtdb'
 import * as React from 'react'
@@ -75,10 +75,9 @@ function useTaskillo() {
 				if (unmounted) return
 
 				// Step 2: Determine WebSocket server URL
-				// Use the owner tenant's host for cross-tenant access, fall back to current host
-				const serverUrl = ownerTag
-					? getWsUrl(ownerTag)
-					: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
+				// Documents live on their owner's instance; an ownerless document is our own.
+				const serverUrl = getDocWsUrl(ownerTag, bus.idTag)
+				if (!serverUrl) throw new Error('No identity available for RTDB connection')
 
 				// Step 3: Create RTDB client
 				// The client manages the WebSocket connection and provides the database API

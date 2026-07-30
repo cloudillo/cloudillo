@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { getAppBus, getWsUrl } from '@cloudillo/core'
+import { getAppBus, getDocWsUrl } from '@cloudillo/core'
 import { RtdbClient } from '@cloudillo/rtdb'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -54,9 +54,9 @@ export function useNotillo() {
 
 				if (unmounted) return
 
-				const serverUrl = ownerTag
-					? getWsUrl(ownerTag)
-					: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
+				// Documents live on their owner's instance; an ownerless document is our own.
+				const serverUrl = getDocWsUrl(ownerTag, bus.idTag)
+				if (!serverUrl) throw new Error('No identity available for RTDB connection')
 
 				rtdbClient = new RtdbClient({
 					dbId: fileId,

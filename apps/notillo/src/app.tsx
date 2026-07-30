@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { getAppBus, getFileUrl, getWsUrl } from '@cloudillo/core'
+import { getAppBus, getDocWsUrl, getFileUrl } from '@cloudillo/core'
 import type { CommentThread } from '@cloudillo/react'
 import {
 	Button,
@@ -74,9 +74,10 @@ export function NotilloApp() {
 	const [activeTag, setActiveTag] = React.useState<string | null>(null)
 	const [searchQuery, setSearchQuery] = React.useState('')
 
-	const commentsServerUrl = notillo.ownerTag
-		? getWsUrl(notillo.ownerTag)
-		: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
+	// `notillo.idTag` is undefined on the first render, so this must not throw. `useComments`
+	// connects lazily and refuses an empty serverUrl outright, and it has `serverUrl` in its
+	// effect deps, so the client is built once - with the real URL - when the identity arrives.
+	const commentsServerUrl = getDocWsUrl(notillo.ownerTag, notillo.idTag) ?? ''
 
 	const getCommentToken = React.useCallback(() => getAppBus().accessToken, [])
 

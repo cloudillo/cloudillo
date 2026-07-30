@@ -49,6 +49,25 @@ export function getWsUrl(idTag: string): string {
 }
 
 /**
+ * Resolve the WebSocket base URL for a document.
+ *
+ * Documents are served by their owner's instance API domain
+ * (`wss://cl-o.{idTag}`). A document with no owner tag is owned by the viewer,
+ * so the viewer's own identity is the correct host.
+ *
+ * NEVER fall back to `window.location.host`: apps run in iframes served from
+ * the *app* domain, which deliberately does not expose `/ws/*`.
+ *
+ * @param ownerTag - Owner tenant of the document, if it is remote
+ * @param ownIdTag - The viewer's own identity tag (`bus.idTag`)
+ * @returns WebSocket base URL, or undefined if no identity is known yet
+ */
+export function getDocWsUrl(ownerTag?: string, ownIdTag?: string): string | undefined {
+	const idTag = ownerTag || ownIdTag
+	return idTag ? getWsUrl(idTag) : undefined
+}
+
+/**
  * Build the CRDT WebSocket URL for collaborative editing
  * @param idTag - Identity tag of the tenant
  * @returns CRDT WebSocket URL like "wss://cl-o.alice.cloudillo.net/ws/crdt"

@@ -4,8 +4,8 @@
 import {
 	createApiClient,
 	getAppBus,
+	getDocWsUrl,
 	getFileUrl,
-	getWsUrl,
 	type MediaFileResolvedPush
 } from '@cloudillo/core'
 import { Dialog, LoadingSpinner, Panel, ZoomableImage } from '@cloudillo/react'
@@ -100,9 +100,9 @@ function useScanillo() {
 
 				if (unmounted) return
 
-				const serverUrl = ownerTag
-					? getWsUrl(ownerTag)
-					: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
+				// Documents live on their owner's instance; an ownerless document is our own.
+				const serverUrl = getDocWsUrl(ownerTag, bus.idTag)
+				if (!serverUrl) throw new Error('No identity available for RTDB connection')
 
 				rtdbClient = new RtdbClient({
 					dbId: fileId,

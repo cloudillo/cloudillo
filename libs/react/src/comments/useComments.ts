@@ -50,6 +50,10 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
 	// Lazy connection: connect on first use
 	const ensureClient = useCallback(async (): Promise<RtdbClient> => {
 		if (!fileId) throw new Error('fileId not ready')
+		// An empty serverUrl means the caller's identity has not arrived yet (see getDocWsUrl).
+		// Connecting anyway builds a client pointed at nothing; the effect below reconnects once
+		// the real URL lands, so refusing here costs nothing.
+		if (!serverUrl) throw new Error('serverUrl not ready')
 		if (clientRef.current) return clientRef.current
 		if (connectingRef.current) return connectingRef.current
 

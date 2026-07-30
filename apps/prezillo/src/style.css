@@ -2518,6 +2518,7 @@ body,
 .ql-editor {
 	padding: 0;
 	line-height: inherit;
+	outline: none;
 	counter-reset: list-0 list-1 list-2 list-3 list-4 list-5 list-6 list-7 list-8 list-9;
 }
 

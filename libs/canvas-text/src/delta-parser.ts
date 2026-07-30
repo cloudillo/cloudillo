@@ -116,6 +116,18 @@ export function deltaToLines(ops: DeltaOp[]): TextLine[] {
 		lines.push({ runs: [{ text: '', style: {} }] })
 	}
 
+	// Number ordered list items. Bullets keep the counter alive, any other line resets it —
+	// same semantics as calculateRichTextLayout(), so canvas and export agree.
+	let orderedIndex = 0
+	for (const line of lines) {
+		if (line.listType === 'ordered') {
+			orderedIndex++
+			line.listIndex = orderedIndex
+		} else if (line.listType !== 'bullet') {
+			orderedIndex = 0
+		}
+	}
+
 	return lines
 }
 

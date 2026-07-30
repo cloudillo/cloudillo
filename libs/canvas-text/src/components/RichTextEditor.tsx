@@ -22,6 +22,12 @@ import type { BaseTextStyle, ContainerStyle } from '../types'
 // Border width for the drag zone around the editor
 const BORDER_WIDTH = 8
 
+/** Viewport point the editor was opened from, used to seed the caret. */
+export interface CaretPoint {
+	clientX: number
+	clientY: number
+}
+
 export interface RichTextEditorProps {
 	x: number
 	y: number
@@ -30,7 +36,15 @@ export interface RichTextEditorProps {
 	yText: Y.Text
 	baseStyle: BaseTextStyle
 	onSave: () => void
-	onCancel: () => void
+	/**
+	 * Where the pointer was when editing started.
+	 *
+	 * The editor is mounted in place of whatever was clicked, so the click that opened it never
+	 * reached this DOM and the browser has no caret to offer. Given the point we can put the caret
+	 * back under the user's finger; without one - creation, or a keyboard-triggered edit - the
+	 * caret goes to the end.
+	 */
+	caretPoint?: CaretPoint
 	awareness?: ConstructorParameters<typeof QuillBinding>[2]
 	/** Ref to access the Quill instance for formatting from properties panel */
 	quillRef?: React.MutableRefObject<Quill | null>
@@ -50,12 +64,73 @@ export interface RichTextEditorProps {
 	rotationTransform?: string
 	/** Callback when editor content height changes (for auto-grow) */
 	onHeightChange?: (height: number) => void
+	/**
+	 * Screen-reader-only instruction for leaving the editor. Required by WCAG 2.1.2: Tab indents
+	 * inside Quill, so the way out has to be announced rather than discovered.
+	 *
+	 * Defaults to English. Consumers with i18n should pass a translated string; the canvas apps
+	 * have none yet, which is why this is a default rather than a required prop.
+	 */
+	exitHint?: string
+}
+
+/** Off-screen but readable: the exit hint is for screen readers only. */
+const HINT_CSS: React.CSSProperties = {
+	position: 'absolute',
+	width: 1,
+	height: 1,
+	overflow: 'hidden',
+	clipPath: 'inset(50%)',
+	whiteSpace: 'nowrap'
 }
 
 const VERTICAL_ALIGN_CSS: Record<string, string> = {
 	top: 'flex-start',
 	middle: 'center',
 	bottom: 'flex-end'
+}
+
+/**
+ * Put the caret at a viewport point, or report that the point is not in this editor.
+ *
+ * `caretPositionFromPoint` is the standard; WebKit only has the older `caretRangeFromPoint`. Both
+ * hand back a DOM position, which Quill's blot registry turns back into a document index.
+ */
+function placeCaretFromPoint(quill: Quill, root: HTMLElement, point: CaretPoint): boolean {
+	const d = document as Document & {
+		caretPositionFromPoint?: (
+			x: number,
+			y: number
+		) => { offsetNode: Node; offset: number } | null
+		caretRangeFromPoint?: (x: number, y: number) => Range | null
+	}
+
+	let node: Node | null = null
+	let offset = 0
+	const position = d.caretPositionFromPoint?.(point.clientX, point.clientY)
+	if (position) {
+		node = position.offsetNode
+		offset = position.offset
+	} else {
+		const range = d.caretRangeFromPoint?.(point.clientX, point.clientY)
+		if (range) {
+			node = range.startContainer
+			offset = range.startOffset
+		}
+	}
+
+	// A click past the end of the text lands on something else entirely - the canvas, the note's
+	// padding - and the blot lookup there would resolve against a foreign editor.
+	if (!node || !root.contains(node)) return false
+
+	const blot = Quill.find(node, true)
+	if (!blot || blot instanceof Quill) return false
+
+	const index = blot.offset(quill.scroll) + offset
+	if (!Number.isFinite(index)) return false
+
+	quill.setSelection(Math.min(index, Math.max(0, quill.getLength() - 1)), 0)
+	return true
 }
 
 export function RichTextEditor({
@@ -66,6 +141,7 @@ export function RichTextEditor({
 	yText,
 	baseStyle,
 	onSave,
+	caretPoint,
 	awareness,
 	quillRef,
 	containerStyle,
@@ -74,13 +150,15 @@ export function RichTextEditor({
 	shouldIgnoreBlur,
 	onSetDragFlag,
 	rotationTransform,
-	onHeightChange
+	onHeightChange,
+	exitHint = 'Press Escape or Control+Enter to finish editing.'
 }: RichTextEditorProps) {
 	const editorRef = React.useRef<HTMLDivElement>(null)
 	const quillInstanceRef = React.useRef<Quill | null>(null)
 	const bindingRef = React.useRef<QuillBinding | null>(null)
 	const isReadyRef = React.useRef(false)
 	const [editorHeight, setEditorHeight] = React.useState(height)
+	const hintId = React.useId()
 
 	// Initialize Quill
 	React.useEffect(() => {
@@ -105,8 +183,12 @@ export function RichTextEditor({
 		// Focus with small delay to avoid immediate blur
 		const timer = setTimeout(() => {
 			quill.focus()
-			// Move cursor to end
-			quill.setSelection(quill.getLength() - 1, 0)
+			const placed =
+				caretPoint && editorRef.current
+					? placeCaretFromPoint(quill, editorRef.current, caretPoint)
+					: false
+			// No usable point - opened by creation or by keyboard - so the caret goes to the end
+			if (!placed) quill.setSelection(quill.getLength() - 1, 0)
 			isReadyRef.current = true
 		}, 50)
 
@@ -132,10 +214,17 @@ export function RichTextEditor({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [yText])
 
-	// Handle keyboard events
+	/*
+	 * Escape and Ctrl/Cmd+Enter both mean "done": step out of edit mode, keeping what was typed.
+	 *
+	 * There is deliberately no discard key. Every keystroke is already in the CRDT and on every
+	 * collaborator's screen, so the only coherent rollback is undo - which Ctrl+Z provides.
+	 *
+	 * Tab is left to Quill: it indents list items, which is the whole point of a bullet list.
+	 */
 	const handleKeyDown = React.useCallback(
 		(e: React.KeyboardEvent) => {
-			if (e.key === 'Escape') {
+			if (e.key === 'Escape' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) {
 				e.preventDefault()
 				onSave()
 			}
@@ -213,7 +302,9 @@ export function RichTextEditor({
 		overflow: 'hidden',
 		whiteSpace: 'pre-wrap' as const,
 		wordWrap: 'break-word' as const,
-		overflowWrap: 'break-word' as const
+		overflowWrap: 'break-word' as const,
+		// The canvas <svg> sets user-select: none, which inherits into foreignObject content
+		userSelect: 'text' as const
 	}
 
 	// Set custom bullet icon CSS variable if provided
@@ -221,29 +312,32 @@ export function RichTextEditor({
 		editorCSS['--bullet-icon'] = bulletIconUrl
 	}
 
-	// Apply container style
+	// Apply container style. The background lives on the wrapper (which fills the
+	// foreignObject) so it covers the whole box, not just the text's own height.
 	if (containerStyle) {
-		if (containerStyle.background) editorCSS.background = containerStyle.background
+		if (containerStyle.background) innerCSS.background = containerStyle.background
 		if (containerStyle.padding !== undefined) editorCSS.padding = `${containerStyle.padding}px`
 		if (containerStyle.borderRadius !== undefined)
-			editorCSS.borderRadius = `${containerStyle.borderRadius}px`
+			innerCSS.borderRadius = `${containerStyle.borderRadius}px`
 	}
 
 	const content = (
 		<>
-			{/* Border drag zone */}
-			<rect
-				data-text-edit-handle="true"
-				x={x - BORDER_WIDTH / 2}
-				y={y - BORDER_WIDTH / 2}
-				width={width + BORDER_WIDTH}
-				height={editorHeight + BORDER_WIDTH}
-				fill="none"
-				stroke="#0066ff"
-				strokeWidth={BORDER_WIDTH}
-				style={{ cursor: 'move', pointerEvents: 'stroke' }}
-				onPointerDown={handleBorderPointerDown}
-			/>
+			{/* Border drag zone — only when the app wires up dragging */}
+			{onDragStart && (
+				<rect
+					data-text-edit-handle="true"
+					x={x - BORDER_WIDTH / 2}
+					y={y - BORDER_WIDTH / 2}
+					width={width + BORDER_WIDTH}
+					height={editorHeight + BORDER_WIDTH}
+					fill="none"
+					stroke="#0066ff"
+					strokeWidth={BORDER_WIDTH}
+					style={{ cursor: 'move', pointerEvents: 'stroke' }}
+					onPointerDown={handleBorderPointerDown}
+				/>
+			)}
 			<foreignObject
 				x={x}
 				y={y}
@@ -257,11 +351,19 @@ export function RichTextEditor({
 						data-rich-text-editor="true"
 						className={bulletIconUrl ? 'custom-bullet' : undefined}
 						style={editorCSS}
+						aria-describedby={hintId}
 						onKeyDown={handleKeyDown}
 						onBlur={handleBlur}
 						onPointerDown={handleEditorPointerDown}
 						onClick={(e) => e.stopPropagation()}
 					/>
+					{/*
+						WCAG 2.1.2: Tab indents inside the editor, so the way out has to be
+						announced rather than discovered.
+					*/}
+					<div id={hintId} style={HINT_CSS}>
+						{exitHint}
+					</div>
 				</div>
 			</foreignObject>
 		</>

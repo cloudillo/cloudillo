@@ -379,8 +379,7 @@ export function PrezilloApp() {
 		quillRef,
 		selectedTextObject,
 		selectedTextStyle,
-		handleTextEditSave,
-		handleTextEditCancel
+		handleTextEditSave
 	} = useTextEditing({ prezillo })
 
 	// Wrap handleTextEditSave to set justFinishedInteractionRef
@@ -1344,7 +1343,6 @@ export function PrezilloApp() {
 										baseStyle={textStyle}
 										bulletIconUrl={editBulletIconUrl}
 										onSave={handleTextEditSaveWithFlag}
-										onCancel={handleTextEditCancel}
 										quillRef={quillRef}
 										onDragStart={(
 											e: React.PointerEvent,

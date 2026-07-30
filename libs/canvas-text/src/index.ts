@@ -11,7 +11,7 @@
 export type { RichTextDisplayProps } from './components/RichTextDisplay'
 // Components
 export { RichTextDisplay } from './components/RichTextDisplay'
-export type { RichTextEditorProps } from './components/RichTextEditor'
+export type { CaretPoint, RichTextEditorProps } from './components/RichTextEditor'
 export { RichTextEditor } from './components/RichTextEditor'
 // Delta parsing
 export { deltaToLines, deltaToPlainText, plainTextToDelta, yTextToDelta } from './delta-parser'

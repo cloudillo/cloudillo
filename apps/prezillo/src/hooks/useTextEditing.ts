@@ -5,7 +5,7 @@
  * Hook for managing text editing state and operations.
  *
  * With rich text, Quill edits Y.Text directly via y-quill binding.
- * Save/cancel just close the editor; text content is already persisted in CRDT.
+ * Saving just closes the editor; text content is already persisted in CRDT.
  */
 
 import type Quill from 'quill'
@@ -33,7 +33,6 @@ export interface UseTextEditingResult {
 
 	// Handlers
 	handleTextEditSave: () => void
-	handleTextEditCancel: () => void
 }
 
 export function useTextEditing({ prezillo }: UseTextEditingOptions): UseTextEditingResult {
@@ -98,19 +97,13 @@ export function useTextEditing({ prezillo }: UseTextEditingOptions): UseTextEdit
 		setEditingTextId(null)
 	}, [editingTextId, prezillo.yDoc, prezillo.doc])
 
-	// Handle text edit cancel
-	const handleTextEditCancel = React.useCallback(() => {
-		setEditingTextId(null)
-	}, [])
-
 	return {
 		editingTextId,
 		setEditingTextId,
 		quillRef,
 		selectedTextObject,
 		selectedTextStyle,
-		handleTextEditSave,
-		handleTextEditCancel
+		handleTextEditSave
 	}
 }
 

@@ -339,7 +339,9 @@ export function TextEditOverlay({
 							// Match WrappedText styling for consistent text wrapping
 							whiteSpace: 'pre-wrap',
 							wordWrap: 'break-word',
-							overflowWrap: 'break-word'
+							overflowWrap: 'break-word',
+							// The canvas <svg> sets user-select: none, which inherits here
+							userSelect: 'text'
 						}}
 					/>
 				</div>

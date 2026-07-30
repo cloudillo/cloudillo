@@ -34,6 +34,7 @@
 	],
 	"scripts": {
 		"ts": "tsgo --noEmit",
+		"ts-test": "tsgo --noEmit -p tsconfig.test.json",
 		"build": "tsgo && cp src/components.css lib/",
 		"build-ts": "tsc && cp src/components.css lib/",
 		"watch": "tsgo -w",

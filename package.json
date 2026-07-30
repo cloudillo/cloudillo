@@ -33,6 +33,7 @@
 		"format": "biome format --write .",
 		"format:check": "biome format .",
 		"test": "pnpm -r test",
+		"ts-test": "pnpm -r ts-test",
 		"test:watch": "pnpm -r test:watch",
 		"test:coverage": "pnpm -r test:coverage",
 		"version-sync": "pnpm -r --filter '!./local/**' exec npm pkg set version=$npm_package_version",

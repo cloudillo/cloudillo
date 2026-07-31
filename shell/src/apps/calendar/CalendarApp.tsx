@@ -25,6 +25,7 @@ import type {
 
 import { useContextAwareApi } from '../../context/index.js'
 import { useSettings } from '../../settings/settings.js'
+import { isPermissionError } from '../../utils.js'
 import {
 	currentDateAtom,
 	searchQueryAtom,
@@ -110,6 +111,7 @@ export function CalendarApp() {
 	const {
 		calendars,
 		isLoading: calsLoading,
+		error: calsError,
 		create: createCal,
 		update: updateCal,
 		remove: removeCal
@@ -315,7 +317,14 @@ export function CalendarApp() {
 	}
 
 	async function handleDeleteCalendar(cal: CalendarOutput) {
-		await removeCal(cal.calId)
+		// The sidebar fires this with `void`, so a rejection here would be a
+		// silent unhandled rejection — report it instead.
+		try {
+			await removeCal(cal.calId)
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : t('Failed to delete calendar'))
+			return
+		}
 		setVisibleCalendars((prev) => {
 			if (!prev) return prev
 			const next = new Set(prev)
@@ -487,7 +496,11 @@ export function CalendarApp() {
 		}
 	}
 
-	const noCalendars = !calsLoading && calendars.length === 0
+	// A failed list is not an empty list — without this a 403 leaves the grid
+	// permanently blank (visibility never initialises, so no range query ever
+	// fires) with nothing on screen to explain why.
+	const calsDenied = isPermissionError(calsError)
+	const noCalendars = !calsLoading && !calsError && calendars.length === 0
 	const eventCalendars = calendars.filter((c) => calendarSupports(c.components, 'VEVENT'))
 	const taskCalendars = calendars.filter((c) => calendarSupports(c.components, 'VTODO'))
 	const defaultCalId = calendars[0]?.calId
@@ -548,7 +561,7 @@ export function CalendarApp() {
 									<Button
 										variant="primary"
 										size="small"
-										disabled={noCalendars}
+										disabled={noCalendars || !!calsError}
 										onClick={
 											view === 'tasks' ? openCreateTask : openCreateEvent
 										}
@@ -572,7 +585,20 @@ export function CalendarApp() {
 						/>
 					}
 				>
-					{noCalendars ? (
+					{calsError ? (
+						<div className="c-vbox align-items-center justify-content-center p-4 g-3 text-center flex-fill">
+							<h3 className="m-0">
+								{calsDenied
+									? t('Calendars are not available here')
+									: t('Failed to load calendars')}
+							</h3>
+							<p className="c-hint">
+								{calsDenied
+									? t('You do not have permission to use calendars here.')
+									: calsError.message}
+							</p>
+						</div>
+					) : noCalendars ? (
 						<div className="c-vbox align-items-center justify-content-center p-4 g-3 text-center flex-fill">
 							<h3 className="m-0">{t('No calendars yet')}</h3>
 							<p className="c-hint">
@@ -683,7 +709,7 @@ export function CalendarApp() {
 					<MenuItem
 						icon={<IcAdd />}
 						label={t('New event')}
-						disabled={noCalendars}
+						disabled={noCalendars || !!calsError}
 						onClick={() => {
 							setToolbarMenu(null)
 							openCreateEvent()
@@ -692,7 +718,7 @@ export function CalendarApp() {
 					<MenuItem
 						icon={<IcAdd />}
 						label={t('New task')}
-						disabled={taskCalendars.length === 0}
+						disabled={taskCalendars.length === 0 || !!calsError}
 						onClick={() => {
 							setToolbarMenu(null)
 							openCreateTask()
@@ -731,6 +757,7 @@ export function CalendarApp() {
 					<MenuItem
 						icon={<IcNewCal />}
 						label={t('New calendar')}
+						disabled={!!calsError}
 						onClick={() => {
 							setToolbarMenu(null)
 							openCreateCalendar()

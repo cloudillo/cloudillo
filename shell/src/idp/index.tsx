@@ -1,12 +1,14 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Fcd, mergeClasses } from '@cloudillo/react'
+import { apiAtom, Fcd, LoadingSpinner, mergeClasses } from '@cloudillo/react'
+import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuFingerprint as IcIdp, LuMenu as IcMenu, LuSettings as IcSettings } from 'react-icons/lu'
-import { NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
+import { Navigate, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
 
+import { contextIdpEnabledAtom, HOME_CONTEXT } from '../context/index.js'
 import { IdentitiesSettings } from './identities.js'
 import { ProviderSettings } from './settings.js'
 
@@ -63,6 +65,32 @@ export function Idp({ title, children }: { title: string; children?: React.React
 	)
 }
 
+/**
+ * Route guard for the IdP pages.
+ *
+ * `idp.enabled` is a per-tenant capability loaded on context switch, so a hard reload straight onto
+ * `/idp/<community>` renders before the answer is known. Without this the page mounts and its API
+ * calls come back 404 (the backend hides the endpoints entirely when IdP is off), which reads as a
+ * broken page rather than a disabled feature.
+ *
+ * Only a real `false` redirects. `'unknown'` — a transient lookup failure — renders the page
+ * instead, so its own API calls surface the actual error rather than ejecting a legitimate provider.
+ */
+function IdpGuard({ children }: { children: React.ReactElement }) {
+	const { contextIdTag } = useParams()
+	const apiState = useAtomValue(apiAtom)
+	const contextIdpEnabled = useAtomValue(contextIdpEnabledAtom)
+
+	const idTag = contextIdTag === HOME_CONTEXT ? apiState.idTag : contextIdTag
+	const enabled = idTag ? contextIdpEnabled[idTag] : undefined
+
+	// Not asked yet - the answer is coming
+	if (enabled === undefined) return <LoadingSpinner />
+	if (enabled === false)
+		return <Navigate to={`/app/${contextIdTag ?? HOME_CONTEXT}/feed`} replace />
+	return children
+}
+
 export function IdpRoutes() {
 	const { t } = useTranslation()
 
@@ -71,17 +99,21 @@ export function IdpRoutes() {
 			<Route
 				path="/idp/:contextIdTag"
 				element={
-					<Idp title={t('Identities')}>
-						<IdentitiesSettings />
-					</Idp>
+					<IdpGuard>
+						<Idp title={t('Identities')}>
+							<IdentitiesSettings />
+						</Idp>
+					</IdpGuard>
 				}
 			/>
 			<Route
 				path="/idp/:contextIdTag/settings"
 				element={
-					<Idp title={t('Provider Settings')}>
-						<ProviderSettings />
-					</Idp>
+					<IdpGuard>
+						<Idp title={t('Provider Settings')}>
+							<ProviderSettings />
+						</Idp>
+					</IdpGuard>
 				}
 			/>
 			<Route path="/*" element={null} />

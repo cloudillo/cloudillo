@@ -2,18 +2,22 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { ApiClient, FileView } from '@cloudillo/core'
-import { mergeClasses, useApi, useAuth, useDialog, useToast } from '@cloudillo/react'
-import { useSetAtom } from 'jotai'
+import { apiAtom, mergeClasses, useApi, useAuth, useDialog, useToast } from '@cloudillo/react'
+import { useAtomValue, useSetAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { version } from '../../package.json'
 import {
+	activeContextAtom,
 	fileViewUpdateAtom,
+	HOME_CONTEXT,
+	isContextLeader,
 	useApiContext,
 	useContextFromRoute,
-	useGuestDocument
+	useGuestDocument,
+	useUrlContextIdTag
 } from '../context/index.js'
 import { releaseClientIdsForWindow } from '../message-bus/handlers/crdt.js'
 import {
@@ -31,6 +35,7 @@ import { CalendarApp } from './calendar/index.js'
 import { ContactsApp } from './contacts/index.js'
 import { FeedApp } from './feed.js'
 import { FilesApp } from './files.js'
+import { toAppAccess } from './files/utils.js'
 import { GalleryApp } from './gallery.js'
 import { MessagesApp } from './messages/index.js'
 import { FileViewerApp } from './viewer/index.js'
@@ -87,15 +92,11 @@ function classifyOutcome(file: FileView, requestedSuffix: 'R' | 'C' | 'W'): Acce
 	// Tombstoned by the source server — broken, regardless of accessLevel.
 	if (file.brokenAt) return { kind: 'broken', file }
 	const requested = suffixToAccess(requestedSuffix)
-	// Backend's refresh sometimes omits accessLevel even when the user retains
-	// some access (the row would have been tombstoned otherwise). Fall back to
-	// 'read' so we surface as a downgrade rather than a phantom "broken".
-	const granted: 'read' | 'comment' | 'write' =
-		file.accessLevel === 'read' ||
-		file.accessLevel === 'comment' ||
-		file.accessLevel === 'write'
-			? file.accessLevel
-			: 'read'
+	// `toAppAccess` collapses the level to the 3-valued vocabulary an app can hold: 'admin' ranks as
+	// 'write', and both 'none' and a missing level fall back to 'read' — the backend's refresh
+	// sometimes omits accessLevel even when access remains (the row would have been tombstoned
+	// otherwise), so that reads as a downgrade rather than a phantom "broken".
+	const granted: 'read' | 'comment' | 'write' = toAppAccess(file.accessLevel)
 	const rank = { read: 1, comment: 2, write: 3 } as const
 	if (rank[granted] < rank[requested]) {
 		// rank[granted] < rank[requested] implies requested ≠ 'read' (nothing
@@ -816,6 +817,67 @@ function PlaceHolder({ title }: { title: string }) {
 	return <h1>{title}</h1>
 }
 
+// Ceiling on both waits below. The context resolution can fail silently (use-context-from-route.ts
+// only logs), and a guard that waits forever is worse than one that decides late.
+const CONTEXT_WAIT_MS = 5000
+
+/**
+ * Route guard for apps backed by tenant-owned resources (contacts, calendar). The server guards
+ * those endpoints with `require_leader`, so a plain member following a deep link or a bookmark into
+ * a community would otherwise render an app whose every request 403s. Redirect to the feed instead.
+ */
+function LeaderOnlyRoute({ children }: { children: React.ReactElement }) {
+	const { contextIdTag } = useParams()
+	const [auth] = useAuth()
+	const apiState = useAtomValue(apiAtom)
+	const activeContext = useAtomValue(activeContextAtom)
+	// The URL form of whatever context is active: `~` at home, the community's idTag otherwise.
+	// The routes without a :contextIdTag segment keep the active context, so redirecting them to
+	// HOME_CONTEXT would switch the user out of the community as a side effect of a permission
+	// refusal.
+	const activeUrlSegment = useUrlContextIdTag()
+
+	// The context the URL asks for. Computed before the early returns so the timeout below can
+	// cover BOTH waits; the comparison itself lives with the wait it guards.
+	const target = contextIdTag === HOME_CONTEXT ? apiState.idTag : contextIdTag
+	const waiting = !activeContext || (!!target && activeContext.idTag !== target)
+
+	// Once this fires the waits fall through and let the app's own 401/403 surface.
+	const [waitedTooLong, setWaitedTooLong] = React.useState(false)
+	React.useEffect(() => {
+		// Reset on arrival so a later context switch gets its own full wait, not an expired one.
+		if (!waiting) {
+			setWaitedTooLong(false)
+			return
+		}
+		const timer = window.setTimeout(() => setWaitedTooLong(true), CONTEXT_WAIT_MS)
+		return () => window.clearTimeout(timer)
+	}, [waiting])
+
+	// Unauthenticated: useContextFromRoute returns early, so `activeContext` never arrives and BOTH
+	// waits below would spin forever. Render through and let the app's own 401s drive the login
+	// flow. isContextLeader(null, undefined) is true by design, so this matches the fall-through.
+	if (!auth) return children
+
+	// Decide only once the context is known. `activeContext` is null until useContextFromRoute
+	// resolves it, and isContextLeader treats null as "leader" by design (the Menu/Omnibox filters
+	// want that during load) — so deciding early renders an app whose every request 403s. The routes
+	// without a :contextIdTag segment need this wait too; they simply have no `target` to compare.
+	if (!activeContext) return waitedTooLong ? children : <AppLoadingIndicator stage="connecting" />
+
+	// The URL segment is the source of truth for the context; `activeContext` catches up
+	// asynchronously (see `useContextFromRoute`). Decide only once the two agree, otherwise a
+	// community deep link would be judged against the previous context's roles.
+	if (target && activeContext.idTag !== target) {
+		return waitedTooLong ? children : <AppLoadingIndicator stage="connecting" />
+	}
+
+	if (isContextLeader(activeContext, auth?.idTag)) return children
+
+	const urlSegment = contextIdTag ?? activeUrlSegment ?? HOME_CONTEXT
+	return <Navigate to={`/app/${urlSegment}/feed`} replace />
+}
+
 export function AppRoutes() {
 	// Sync URL context with active context state
 	useContextFromRoute()
@@ -828,8 +890,22 @@ export function AppRoutes() {
 			<Route path="/app/:contextIdTag/feed" element={<FeedApp />} />
 			<Route path="/app/:contextIdTag/gallery" element={<GalleryApp />} />
 			<Route path="/app/:contextIdTag/messages/:convId?" element={<MessagesApp />} />
-			<Route path="/app/:contextIdTag/contacts" element={<ContactsApp />} />
-			<Route path="/app/:contextIdTag/calendar" element={<CalendarApp />} />
+			<Route
+				path="/app/:contextIdTag/contacts"
+				element={
+					<LeaderOnlyRoute>
+						<ContactsApp />
+					</LeaderOnlyRoute>
+				}
+			/>
+			<Route
+				path="/app/:contextIdTag/calendar"
+				element={
+					<LeaderOnlyRoute>
+						<CalendarApp />
+					</LeaderOnlyRoute>
+				}
+			/>
 			<Route path="/app/:contextIdTag/view/:resId" element={<FileViewerApp />} />
 			<Route
 				path="/app/:contextIdTag/:appId/*"
@@ -840,8 +916,22 @@ export function AppRoutes() {
 			<Route path="/app/feed" element={<FeedApp />} />
 			<Route path="/app/gallery" element={<GalleryApp />} />
 			<Route path="/app/messages/:convId?" element={<MessagesApp />} />
-			<Route path="/app/contacts" element={<ContactsApp />} />
-			<Route path="/app/calendar" element={<CalendarApp />} />
+			<Route
+				path="/app/contacts"
+				element={
+					<LeaderOnlyRoute>
+						<ContactsApp />
+					</LeaderOnlyRoute>
+				}
+			/>
+			<Route
+				path="/app/calendar"
+				element={
+					<LeaderOnlyRoute>
+						<CalendarApp />
+					</LeaderOnlyRoute>
+				}
+			/>
 			<Route path="/app/view/:resId" element={<FileViewerApp />} />
 			<Route path="/app/:appId/*" element={<ExternalApp className="w-100 h-100" />} />
 			<Route path="/*" element={null} />

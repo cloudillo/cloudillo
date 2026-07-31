@@ -34,6 +34,8 @@ import {
 	activeContextAtom,
 	communitiesAtom,
 	HOME_CONTEXT,
+	isContextLeader,
+	LEADER_ONLY_APPS,
 	useContextPath,
 	useUrlContextIdTag
 } from './context/index.js'
@@ -232,6 +234,7 @@ export function Omnibox() {
 	const [appConfig] = useAppConfig()
 	const urlContext = useUrlContextIdTag()
 	const { getContextPath } = useContextPath()
+	const activeContext = useAtomValue(activeContextAtom)
 
 	const query = search.query ?? ''
 	const mode = deriveMode(query)
@@ -282,12 +285,14 @@ export function Omnibox() {
 		if (mode === 'command') {
 			const filter = query.startsWith('/') ? query.slice(1).toLowerCase() : ''
 			const menu = appConfig?.menu ?? []
+			const leaderHere = isContextLeader(activeContext, auth?.idTag)
 			return menu
 				.filter((item) => {
 					// Same visibility rule as the desktop Menu component.
 					const allowed =
 						(!!auth && (!item.perm || auth.roles?.includes(item.perm))) || item.public
 					if (!allowed) return false
+					if (LEADER_ONLY_APPS.has(item.id) && !leaderHere) return false
 					if (!filter) return true
 					const label = (item.trans?.[i18n.language] || item.label).toLowerCase()
 					return label.includes(filter) || item.id.toLowerCase().includes(filter)
@@ -301,7 +306,7 @@ export function Omnibox() {
 			return [{ kind: 'reference', raw: query }]
 		}
 		return []
-	}, [mode, query, appConfig, auth, i18n.language, profileItems])
+	}, [mode, query, appConfig, auth, activeContext, i18n.language, profileItems])
 
 	function itemToString(item: OmniItem | null): string {
 		if (!item) return ''

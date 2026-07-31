@@ -17,6 +17,7 @@ import '@cloudillo/react/components.css'
 import type { ContactInput, ContactOutput } from '@cloudillo/core'
 
 import { useContextAwareApi } from '../../context/index.js'
+import { isPermissionError } from '../../utils.js'
 import { searchQueryAtom, selectedAddressBookAtom, selectedContactRefAtom } from './atoms.js'
 import {
 	AddFromNetworkModal,
@@ -46,6 +47,7 @@ export function ContactsApp() {
 	const {
 		addressBooks,
 		isLoading: booksLoading,
+		error: booksError,
 		create: createBook,
 		update: updateBook,
 		remove: removeBook
@@ -144,7 +146,14 @@ export function ContactsApp() {
 	}
 
 	async function handleDeleteBook(book: AddressBookOutput) {
-		await removeBook(book.abId)
+		// The sidebar fires this with `void`, so a rejection here would be a
+		// silent unhandled rejection — report it instead.
+		try {
+			await removeBook(book.abId)
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : t('Failed to delete address book'))
+			return
+		}
 		if (selection === book.abId) setSelection('all')
 		if (selectedRef?.abId === book.abId) setSelectedRef(null)
 	}
@@ -205,7 +214,11 @@ export function ContactsApp() {
 
 	const defaultBookId = typeof selection === 'number' ? selection : addressBooks[0]?.abId
 
-	const noBooks = !booksLoading && addressBooks.length === 0
+	// A failed list is not an empty list — without this the 403 a non-leader
+	// gets in a community context renders as the "create your first address
+	// book" prompt, whose button then fails again with no explanation.
+	const booksDenied = isPermissionError(booksError)
+	const noBooks = !booksLoading && !booksError && addressBooks.length === 0
 
 	return (
 		<>
@@ -239,7 +252,7 @@ export function ContactsApp() {
 							<Button
 								variant="primary"
 								className="small"
-								disabled={noBooks}
+								disabled={noBooks || !!booksError}
 								onClick={openCreateContact}
 							>
 								<IcAdd className="me-1" />
@@ -259,7 +272,20 @@ export function ContactsApp() {
 						</div>
 					}
 				>
-					{noBooks ? (
+					{booksError ? (
+						<div className="c-vbox align-items-center justify-content-center p-4 g-3 text-center">
+							<h3 className="m-0">
+								{booksDenied
+									? t('Contacts are not available here')
+									: t('Failed to load address books')}
+							</h3>
+							<p className="c-hint">
+								{booksDenied
+									? t('You do not have permission to use contacts here.')
+									: booksError.message}
+							</p>
+						</div>
+					) : noBooks ? (
 						<div className="c-vbox align-items-center justify-content-center p-4 g-3 text-center">
 							<h3 className="m-0">{t('No address books yet')}</h3>
 							<p className="c-hint">
@@ -325,7 +351,7 @@ export function ContactsApp() {
 					<MenuItem
 						icon={<IcAddNetwork />}
 						label={t('Add from Cloudillo network')}
-						disabled={noBooks}
+						disabled={noBooks || !!booksError}
 						onClick={() => {
 							setToolbarMenu(null)
 							setAddFromNetworkOpen(true)
@@ -334,7 +360,7 @@ export function ContactsApp() {
 					<MenuItem
 						icon={<IcImport />}
 						label={t('Import VCF…')}
-						disabled={noBooks}
+						disabled={noBooks || !!booksError}
 						onClick={() => {
 							setToolbarMenu(null)
 							setImportOpen(true)
@@ -344,6 +370,7 @@ export function ContactsApp() {
 					<MenuItem
 						icon={<IcNewBook />}
 						label={t('New address book')}
+						disabled={!!booksError}
 						onClick={() => {
 							setToolbarMenu(null)
 							openCreateBook()

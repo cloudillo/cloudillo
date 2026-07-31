@@ -250,9 +250,10 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 			if (contextRouteMatch) {
 				const prefix = contextRouteMatch[1]
 				const tail = contextRouteMatch[3] ?? ''
-				// IDP is per-tenant; fall back to feed when the target context's
-				// IDP is disabled (or unknown — missing entry means we haven't
-				// loaded the setting yet for that context).
+				// IDP is per-tenant; fall back to feed when the target context's IDP
+				// is disabled, not yet loaded (missing entry) or 'unknown' (a transient
+				// lookup failure). `!== true` covers all three on purpose — see
+				// contextIdpEnabledAtom. Unlike IdpGuard, nothing is ejected here.
 				if (prefix === 'idp' && contextIdpEnabled[idTag] !== true) {
 					destination = defaultDestination
 				} else {

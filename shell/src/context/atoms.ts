@@ -42,14 +42,20 @@ export const activeContextAtom = atom<ActiveContext | null>(null)
 export const contextOnboardingAtom = atom<Record<string, string | null>>({})
 
 /**
- * Per-context `idp.enabled` value, keyed by idTag.
+ * Per-context `idp.enabled` value, keyed by idTag. Three states, not two:
  *
- * Populated alongside `ui.onboarding` after a context switch (or when the
- * home tenant's UI settings are loaded). Consumed by the shell menu filter
- * to hide the IDP management entry on tenants that are not configured as
- * identity providers.
+ * - `true` / `false` — an ANSWER from the tenant (`false` also covers 404/403, where the setting is
+ *   genuinely unset or unavailable, which is authoritative).
+ * - `'unknown'` — the request failed transiently (a 502 mid context switch, a dropped connection).
+ *   Nothing was learned. Consumers must NOT read this as `false`: doing so silently ejects a
+ *   legitimate IdP provider from `/idp/<community>` until the context is switched again.
+ * - absent (`undefined`) — not asked yet.
+ *
+ * Populated alongside `ui.onboarding` after a context switch (or when the home tenant's UI settings
+ * are loaded). Consumed by the shell menu filter to hide the IDP management entry on tenants that
+ * are not configured as identity providers.
  */
-export const contextIdpEnabledAtom = atom<Record<string, boolean>>({})
+export const contextIdpEnabledAtom = atom<Record<string, boolean | 'unknown'>>({})
 
 /**
  * Per-context cache for `idp.enabled` with a fetchedAt timestamp.

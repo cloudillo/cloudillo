@@ -13,6 +13,7 @@ import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai'
 import * as React from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { seedCommunityFromHome } from '../read-position.js'
 import {
 	activeContextAtom,
 	communitiesAtom,
@@ -39,19 +40,23 @@ import {
 	type ContextSwitchEvent,
 	type ContextToken
 } from './types'
-import { seedCommunityFromHome } from '../read-position.js'
 
 /**
  * Fetch `idp.enabled` for a given context and write it into
  * `contextIdpEnabledAtom`. 404 is normal (the setting is just unset) — fall
  * back to `false`. Shared by `switchContext` (per-context API) and the shell
  * `applyUiSettings` path (home-tenant API).
+ *
+ * The atom takes three values and the failure branch must distinguish them (see
+ * `contextIdpEnabledAtom`): 404/403 means the answer really is "off", a transient error means
+ * NOTHING was learned and writes `'unknown'`. The RETURN contract is unchanged — `false` for an
+ * authoritative answer, `undefined` for "skip the cache write and re-try next time".
  */
 export async function loadIdpEnabled(
 	client: ApiClient,
 	idTag: string,
 	setContextIdpEnabled: (
-		updater: (prev: Record<string, boolean>) => Record<string, boolean>
+		updater: (prev: Record<string, boolean | 'unknown'>) => Record<string, boolean | 'unknown'>
 	) => void
 ): Promise<boolean | undefined> {
 	try {
@@ -65,13 +70,40 @@ export async function loadIdpEnabled(
 		if (!expected) {
 			console.warn('Failed to read idp.enabled for context:', err)
 		}
-		setContextIdpEnabled((prev) => ({ ...prev, [idTag]: false }))
-		// On 404/403 (the setting is genuinely unset / unavailable), `false` is
-		// authoritative and worth caching. On a transient network error, return
-		// undefined so the caller skips the cache write and re-tries next time.
+		setContextIdpEnabled((prev) => ({ ...prev, [idTag]: expected ? false : 'unknown' }))
 		return expected ? false : undefined
 	}
 }
+
+/**
+ * Menu/app ids backed by tenant-owned resources the server guards with `require_leader`. In a
+ * community context a non-leader member gets 403 on every request, so hide them entirely rather
+ * than render an app that can only fail.
+ */
+export const LEADER_ONLY_APPS = new Set(['contacts', 'calendar'])
+
+/**
+ * Whether the user acts as a leader in `activeContext`.
+ *
+ * The backend gates tenant-owned resources (address books, calendars, API keys, passkey management,
+ * push subscriptions) behind `require_leader`, so anything reached through a community proxy token
+ * needs this check first.
+ *
+ * The own-context short-circuit is required: `getTokenFor` returns `{ token, roles: [] }` for your
+ * own idTag, so `activeContext.roles` is legitimately empty at home even though the session token
+ * carries `leader`.
+ */
+export function isContextLeader(
+	activeContext: ActiveContext | null | undefined,
+	authIdTag: string | undefined
+): boolean {
+	if (!activeContext) return true
+	if (authIdTag && activeContext.idTag === authIdTag) return true
+	return (activeContext.roles ?? []).includes('leader')
+}
+
+/** What `getTokenFor` resolves to: the proxy token and the roles it reports, or a refusal. */
+type ProxyTokenResult = { token: string; roles: string[] } | null
 
 /**
  * Hook for managing API context and multi-context operations
@@ -115,6 +147,11 @@ export function useApiContext() {
 
 	// Per-idTag cache for foreign contexts (primary lives in primaryApiRef).
 	const apiClientsRef = React.useRef<Map<string, ApiClient>>(new Map())
+
+	// In-flight proxy-token fetches, keyed by target idTag. `contextTokensAtom` only caches a token
+	// once it has LANDED, so concurrent first-time callers (DetailsPanel and the ShareDialog it
+	// opens each mount useFileOwnerScope for the same file) each issued their own network request.
+	const inFlightTokensRef = React.useRef(new Map<string, Promise<ProxyTokenResult>>())
 
 	/**
 	 * Get API client for specific context
@@ -209,10 +246,7 @@ export function useApiContext() {
 	 * @returns Object with token and roles, or `null` if anonymous was chosen.
 	 */
 	const getTokenFor = React.useCallback(
-		async (
-			idTag: string,
-			opts?: { explicit?: boolean }
-		): Promise<{ token: string; roles: string[] } | null> => {
+		async (idTag: string, opts?: { explicit?: boolean }): Promise<ProxyTokenResult> => {
 			const explicit = opts?.explicit === true
 			const auth = store.get(authAtom)
 
@@ -244,7 +278,14 @@ export function useApiContext() {
 				return { token: cached.token, roles: cached.roles || [] }
 			}
 
-			try {
+			// Join a fetch already running for this idTag rather than issuing a second one. Both
+			// short-circuits above stay ABOVE this: the own-context branch never touches the
+			// network, and a passive read refused by the trust gate must not ride in on an explicit
+			// caller's request.
+			const inFlight = inFlightTokensRef.current.get(idTag)
+			if (inFlight) return inFlight
+
+			const pending = (async function fetchProxyToken(): Promise<ProxyTokenResult> {
 				// Fetch new proxy token for the target idTag
 				const result = await api.auth.getProxyToken(idTag)
 
@@ -265,9 +306,18 @@ export function useApiContext() {
 				apiClientsRef.current.delete(idTag)
 
 				return { token: result.token, roles: result.roles || [] }
+			})()
+			// Evicted in `finally`, so a rejection rejects for every awaiter and the next call
+			// retries instead of replaying the failure.
+			inFlightTokensRef.current.set(idTag, pending)
+
+			try {
+				return await pending
 			} catch (err) {
 				console.error(`Failed to get proxy token for ${idTag}:`, err)
 				throw err
+			} finally {
+				inFlightTokensRef.current.delete(idTag)
 			}
 		},
 		[store, setContextTokens]

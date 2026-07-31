@@ -39,6 +39,8 @@ export type { GuestDocumentInfo, GuestFileType } from './guest-document'
 export { guestDocumentAtom, useGuestDocument } from './guest-document'
 // Hooks
 export {
+	isContextLeader,
+	LEADER_ONLY_APPS,
 	loadIdpEnabled,
 	useApiContext,
 	useCommunitiesList,

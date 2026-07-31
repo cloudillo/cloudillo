@@ -71,6 +71,8 @@ import {
 	contextIdpEnabledAtom,
 	favoritesAtom,
 	HOME_CONTEXT,
+	isContextLeader,
+	LEADER_ONLY_APPS,
 	loadIdpEnabled,
 	Sidebar,
 	useCommunitiesList,
@@ -241,12 +243,17 @@ function Menu({
 		[location]
 	)
 
+	// `=== true` on purpose: the atom is three-state, and neither 'unknown' (a transient lookup
+	// failure) nor a missing entry may show the IdP nav item. See contextIdpEnabledAtom.
 	const idpEnabledHere = !!activeContext && contextIdpEnabled[activeContext.idTag] === true
+	// Tenant-owned apps (contacts, calendar) are leader-only server-side.
+	const leaderHere = isContextLeader(activeContext, auth?.idTag)
 
 	// Filter visible menu items based on auth state
 	const staticItems =
 		appConfig?.menu.filter((item) => {
 			if (item.id === 'idp' && !idpEnabledHere) return false
+			if (LEADER_ONLY_APPS.has(item.id) && !leaderHere) return false
 			return (!!auth && (!item.perm || auth.roles?.includes(item.perm))) || item.public
 		}) || []
 

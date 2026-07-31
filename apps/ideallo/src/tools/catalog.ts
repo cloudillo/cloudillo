@@ -22,6 +22,8 @@ export interface ToolDescriptor {
 	shortcut: string
 	/** Lowercased keys that arm this tool. Globally unique - see the test. */
 	keys: string[]
+	/** Extra modifier hint appended to the toolbar tooltip, e.g. 'hold Alt for free placement' */
+	hint?: string
 }
 
 /** Exhaustive by construction: a new ToolType without a descriptor is a compile error. */
@@ -45,7 +47,8 @@ export const TOOL_CATALOG: Record<ToolType, ToolDescriptor> = {
 		label: 'Connector',
 		category: 'connector',
 		shortcut: 'L, A',
-		keys: ['l', 'a']
+		keys: ['l', 'a'],
+		hint: 'hold Alt for free placement'
 	},
 	text: { tool: 'text', label: 'Text', category: 'text', shortcut: 'T', keys: ['t'] },
 	sticky: { tool: 'sticky', label: 'Sticky Note', category: 'text', shortcut: 'S', keys: ['s'] },

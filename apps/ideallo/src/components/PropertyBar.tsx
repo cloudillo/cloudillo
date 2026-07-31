@@ -29,11 +29,13 @@ import {
 	PiLockBold as IcLocked,
 	PiDotsThreeBold as IcMore,
 	PiLineSegmentBold as IcStraight,
+	PiArrowsLeftRightBold as IcSwap,
 	PiTrashBold as IcTrash,
 	PiLockOpenBold as IcUnlocked
 } from 'react-icons/pi'
 import type * as Y from 'yjs'
 
+import { reverseConnector } from '../connectors/lifecycle.js'
 import type {
 	ArrowStyle,
 	Bounds,
@@ -112,8 +114,12 @@ export interface PropertyBarProps {
 	 * Shared, already-resolved objects. app.tsx memoises one resolve pass per document revision;
 	 * without it this component would run a second full pass of its own on every edit. Omit it
 	 * and the component resolves the document itself.
+	 *
+	 * A VALUE, not a getter: read during render, and a getter over a commit-time ref (useLatestRef)
+	 * hands back the previous revision when an object is created and selected in the same batch,
+	 * leaving the bar with an empty selection and no controls but the overflow menu.
 	 */
-	getResolvedObjects?: () => IdealloObject[]
+	resolvedObjects?: IdealloObject[]
 	/** Deleted objects must not stay selected - the handles would point at air */
 	onClearSelection?: () => void
 	/** Duplicates become the selection, so the copy is what the next drag moves */
@@ -213,7 +219,7 @@ export function PropertyBar({
 	onCurrentStyleChange,
 	quillRef,
 	isTextEditing = false,
-	getResolvedObjects,
+	resolvedObjects,
 	onClearSelection,
 	onSelectObjects
 }: PropertyBarProps) {
@@ -373,11 +379,11 @@ export function PropertyBar({
 		// Nothing selected: skip the pass entirely rather than resolve the document to find out
 		if (!selectedIds.size) return EMPTY_OBJECTS
 		const out: IdealloObject[] = []
-		for (const obj of getResolvedObjects?.() ?? getAllResolvedObjects(doc)) {
+		for (const obj of resolvedObjects ?? getAllResolvedObjects(doc)) {
 			if (selectedIds.has(obj.id)) out.push(obj)
 		}
 		return out.length ? out : EMPTY_OBJECTS
-	}, [doc, objects, selectedIds, getResolvedObjects])
+	}, [doc, objects, selectedIds, resolvedObjects])
 
 	const selectedArrows = React.useMemo(() => {
 		const out = selectedObjects.filter(
@@ -560,13 +566,6 @@ export function PropertyBar({
 		[updateSelectedArrowFields]
 	)
 
-	const handleSwapArrowheads = React.useCallback(() => {
-		const start = displayStartArrow
-		const end = displayEndArrow
-		setLocalArrowProps((prev) => (prev ? { ...prev, startArrow: end, endArrow: start } : prev))
-		updateSelectedArrowFields({ startArrow: end, endArrow: start })
-	}, [displayStartArrow, displayEndArrow, updateSelectedArrowFields])
-
 	// Text style: font, size, alignment
 
 	const textValues = React.useMemo(() => {
@@ -670,6 +669,21 @@ export function PropertyBar({
 		if (created.length) onSelectObjects?.(created)
 	}, [yDoc, doc, selectedIds, onSelectObjects])
 
+	/**
+	 * Flip the selected connectors. Locked members are skipped, the same rule `canDelete` keeps, and
+	 * both entry points are disabled on `anyUnlocked`. A STORED-record edit, so the local arrow-prop
+	 * mirror needs no touching: routing and the two arrowheads are what it does not move.
+	 */
+	const handleReverseConnectors = React.useCallback(() => {
+		// One transaction, so reversing N connectors is one undo
+		yDoc.transact(() => {
+			selectedArrows.forEach((arrow) => {
+				if (arrow.locked) return
+				reverseConnector(yDoc, doc, arrow.id)
+			})
+		}, yDoc.clientID)
+	}, [yDoc, doc, selectedArrows])
+
 	const handleDelete = React.useCallback(() => {
 		// NEVER deleteObject: anything removing objects has to freeze the connectors bound to them
 		// first, or an arrow attached to the deleted shape is destroyed with it. Locked members are
@@ -678,20 +692,21 @@ export function PropertyBar({
 		if (canDelete) onClearSelection?.()
 	}, [yDoc, doc, selectedIds, onClearSelection, canDelete])
 
-	// Handle stroke color change
+	/*
+	 * Picking a colour does NOT close the panel: stroke and fill are property panels, dismissed by
+	 * Escape / Tab / an outside click / a change of selection. Closing here also raced ColorPalette's
+	 * hex field, which submits on blur - the panel went before a following width click could land.
+	 */
 	const handleStrokeColorChange = React.useCallback(
 		(color: string) => {
 			updateSelectedStyle({ strokeColor: color })
-			setOpenPopover(null)
 		},
 		[updateSelectedStyle]
 	)
 
-	// Handle fill color change
 	const handleFillColorChange = React.useCallback(
 		(color: string) => {
 			updateSelectedStyle({ fillColor: color })
-			setOpenPopover(null)
 		},
 		[updateSelectedStyle]
 	)
@@ -1022,7 +1037,6 @@ export function PropertyBar({
 								start={displayStartArrow}
 								end={displayEndArrow}
 								onChange={handleArrowheadChange}
-								onSwap={handleSwapArrowheads}
 								label="Arrowheads"
 								panelId={panelId('arrows')}
 								onClose={closePopover}
@@ -1071,6 +1085,9 @@ export function PropertyBar({
 							}
 							anyUnlocked={anyUnlocked}
 							onToggleLock={handleToggleLock}
+							// `caps.ends` is the intersection, so it is on exactly when every
+							// selected object is a connector
+							onReverse={caps.ends ? handleReverseConnectors : undefined}
 							onDuplicate={handleDuplicate}
 							canDelete={canDelete}
 							onDelete={handleDelete}
@@ -1141,6 +1158,17 @@ export function PropertyBar({
 							setActionsOpen(false)
 						}}
 					/>
+					{caps.ends && (
+						<ActionSheetItem
+							icon={<IcSwap size={20} />}
+							label="Reverse direction"
+							disabled={!anyUnlocked}
+							onClick={() => {
+								handleReverseConnectors()
+								setActionsOpen(false)
+							}}
+						/>
+					)}
 					<ActionSheetItem
 						icon={<IcDuplicate size={20} />}
 						label="Duplicate"

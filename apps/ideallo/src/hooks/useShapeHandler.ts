@@ -52,8 +52,6 @@ export interface UseShapeHandlerOptions {
 	activeTool: ToolType
 	/** Canvas scale, for screen-space anchor snapping */
 	scale?: number
-	/** Sticky precise-placement toggle (mobile parity for the Alt modifier) */
-	preciseMode?: boolean
 	/**
 	 * Shared, already-expanded objects for every bind-target lookup.
 	 *
@@ -73,7 +71,6 @@ export function useShapeHandler(options: UseShapeHandlerOptions) {
 		currentStyle,
 		activeTool,
 		scale = 1,
-		preciseMode = false,
 		getResolvedObjects,
 		onObjectCreated
 	} = options
@@ -129,10 +126,10 @@ export function useShapeHandler(options: UseShapeHandlerOptions) {
 	const bindOptions = React.useCallback(
 		(altKey: boolean, excludeId?: ObjectId): BindLookupOptions => ({
 			scale,
-			precise: altKey || preciseMode,
+			precise: altKey,
 			excludeId
 		}),
-		[scale, preciseMode]
+		[scale]
 	)
 
 	/**

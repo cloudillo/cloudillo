@@ -19,10 +19,11 @@ import type * as Y from 'yjs'
 
 import type { IdealloObject, ObjectId, StoredObject, YIdealloDocument } from '../crdt/index.js'
 import { getAllObjects, getAllResolvedObjects, getObject, translateObject } from '../crdt/index.js'
-import { takePending } from '../tools/lifecycle.js'
+import { DRAG_THRESHOLD_PX, takePending } from '../tools/lifecycle.js'
 import { getObjectBounds } from '../utils/bounds.js'
 import type { Point } from '../utils/geometry.js'
 import { hitTestObject } from '../utils/hit-testing.js'
+import { useLatestRef } from './useLatestRef.js'
 
 const HIT_TOLERANCE = 8
 
@@ -44,6 +45,8 @@ export interface UseSelectHandlerOptions {
 	 * injects it here. Standalone callers can omit it and pay the per-call cost.
 	 */
 	getResolvedObjects?: () => IdealloObject[]
+	/** World to screen, for the click-vs-drag threshold. Defaults to 1 for standalone callers. */
+	scale?: number
 }
 
 export interface DragOffset {
@@ -57,6 +60,14 @@ interface DragState {
 	startY: number
 	currentX: number
 	currentY: number
+	/**
+	 * Whether the press has travelled far enough to be a move rather than a click.
+	 *
+	 * A press on a movable object arms a drag immediately (originals snapshotted then and there) but
+	 * stays invisible until it crosses DRAG_THRESHOLD_PX: no preview, no awareness, no commit. Lets
+	 * one gesture both select and move without every slightly wobbly click nudging the object.
+	 */
+	active: boolean
 	objectIds: Set<ObjectId>
 	// Store original object data for committing on release
 	originalObjects: Map<ObjectId, IdealloObject>
@@ -101,8 +112,11 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 		clearSelection,
 		enabled,
 		objects,
-		getResolvedObjects
+		getResolvedObjects,
+		scale = 1
 	} = options
+	// Through a ref: handlePointerMove must not get a new identity on every zoom step
+	const scaleRef = useLatestRef(scale)
 	// Resolved: a bound connector is hit along its route, not along its stored endpoints
 	const resolveAll = React.useCallback(
 		() => getResolvedObjects?.() ?? getAllResolvedObjects(doc),
@@ -113,6 +127,11 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 	const [stackedHighlightIds, setStackedHighlightIds] = React.useState<Set<ObjectId>>(new Set())
 	const dragStateRef = React.useRef<DragState | null>(null)
 
+	// Every pointer move reaches this handler twice, once through Canvas' tool move and once
+	// through app.tsx's cursor broadcast. Written eagerly rather than through useLatestRef: the
+	// second call lands in the SAME event, before any effect has run.
+	const lastMovePointRef = React.useRef<{ x: number; y: number } | null>(null)
+
 	// NOT useLatestRef: takePending clears this eagerly, and a later insertion-effect write would
 	// resurrect the drag it just consumed.
 	React.useEffect(() => {
@@ -121,7 +140,9 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 
 	// Compute drag offset for rendering
 	const dragOffset = React.useMemo<DragOffset | null>(() => {
-		if (!dragState) return null
+		// An armed but not yet active drag is invisible to every consumer of the offset - the
+		// pending geometry, the hover gate and the selection bounds all key off this being null.
+		if (!dragState?.active) return null
 		return {
 			dx: dragState.currentX - dragState.startX,
 			dy: dragState.currentY - dragState.startY,
@@ -136,8 +157,10 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 			return
 		}
 
-		// During drag, don't recompute highlights (they're baked into dragState)
-		if (dragStateRef.current) return
+		// During drag, don't recompute highlights (they're baked into dragState). Only an ACTIVE
+		// drag: a press arms one before this effect runs, so keying on the mere presence of a drag
+		// would leave the highlights stale for the object a plain click just selected.
+		if (dragStateRef.current?.active) return
 
 		const stackable = buildStackableArray(doc)
 
@@ -184,10 +207,6 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 			const hitObject = findObjectAtPoint(resolveAll(), point)
 
 			if (hitObject) {
-				// Check if object was already selected BEFORE any selection changes
-				// Only allow drag if object was already selected (industry standard UX pattern)
-				const wasAlreadySelected = selectedIds.has(hitObject.id)
-
 				// Select the object
 				selectObject(hitObject.id, shiftKey)
 
@@ -201,11 +220,6 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 				 * and the eraser already skips it.
 				 */
 				if (hitObject.locked) {
-					return
-				}
-
-				// Don't start drag if we just selected it
-				if (!wasAlreadySelected) {
 					return
 				}
 
@@ -242,23 +256,25 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 				const dragIds = new Set(originalObjects.keys())
 				if (!dragIds.size) return
 
+				// So a fresh gesture starting exactly where the last one ended is not swallowed
+				lastMovePointRef.current = null
+
+				// Armed, not active: nothing is previewed or broadcast until it crosses the threshold
 				setDragState({
 					startX: x,
 					startY: y,
 					currentX: x,
 					currentY: y,
+					active: false,
 					objectIds: dragIds,
 					originalObjects
 				})
-
-				// Broadcast initial state (no offset yet)
-				broadcastEditing(dragIds, 'drag', 0, 0)
 			} else {
 				// Click on empty space - clear selection
 				clearSelection()
 			}
 		},
-		[enabled, doc, resolveAll, selectedIds, selectObject, clearSelection, broadcastEditing]
+		[enabled, doc, resolveAll, selectedIds, selectObject, clearSelection]
 	)
 
 	const handlePointerMove = React.useCallback(
@@ -268,11 +284,34 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 			// If dragging, handle drag movement
 			if (dragStateRef.current) {
 				const drag = dragStateRef.current
+
+				/*
+				 * Still a click until the pointer has travelled far enough. In SCREEN pixels, so
+				 * the slop feels the same at every zoom, and measured against the press origin -
+				 * the object then jumps the whole delta on promotion instead of trailing the
+				 * cursor by the threshold forever. A pure function of that origin, so the latch
+				 * survives the duplicate delivery noted at lastMovePointRef.
+				 */
+				if (!drag.active) {
+					const travel = Math.hypot(x - drag.startX, y - drag.startY) * scaleRef.current
+					// Return before touching hoveredId: a press that turns out to be a click must
+					// leave hover rendering exactly as it was
+					if (travel <= DRAG_THRESHOLD_PX) return
+				}
+
+				// The duplicate delivery carries identical coordinates and has nothing to add: a
+				// second DragState allocation and a second awareness broadcast per frame. Below
+				// the threshold check, so a sub-threshold press still records no point.
+				if (lastMovePointRef.current?.x === x && lastMovePointRef.current?.y === y) return
+				lastMovePointRef.current = { x, y }
+
 				const dx = x - drag.startX
 				const dy = y - drag.startY
 
 				// Update local drag state (NOT CRDT)
-				setDragState((prev) => (prev ? { ...prev, currentX: x, currentY: y } : null))
+				setDragState((prev) =>
+					prev ? { ...prev, active: true, currentX: x, currentY: y } : null
+				)
 
 				// Broadcast offset via awareness for other clients
 				broadcastEditing(drag.objectIds, 'drag', dx, dy)
@@ -292,6 +331,8 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 	const handlePointerUp = React.useCallback(() => {
 		if (!enabled) return
 
+		lastMovePointRef.current = null
+
 		// Consumed, not just read: the effect that mirrors dragState into this ref does not run
 		// until the next render, so a second release in the same frame would find the same drag
 		// still pending and apply its delta twice - the object ends up jumping twice as far as it
@@ -302,8 +343,9 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 		const dx = drag.currentX - drag.startX
 		const dy = drag.currentY - drag.startY
 
-		// Only commit to CRDT if there was actual movement
-		if (dx !== 0 || dy !== 0) {
+		// A drag that never crossed the threshold was a click: it selected the object and nothing
+		// more, so nothing reaches the CRDT or the undo stack. State still has to be cleared below.
+		if (drag.active && (dx !== 0 || dy !== 0)) {
 			// The origin has to be on THIS transaction: Yjs discards a nested one's origin, so
 			// without it the object and geometry writes inside land untracked and the whole move
 			// is missing from the undo stack. With it they undo together, as one step.

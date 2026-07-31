@@ -18,14 +18,12 @@ import * as React from 'react'
 import type { BindTarget, ShapeGeometry } from '../connectors/index.js'
 import { anchorForPoint, findBindTargetShape } from '../connectors/index.js'
 import type { IdealloObject, ObjectId } from '../crdt/index.js'
+import { DRAG_THRESHOLD_PX } from '../tools/lifecycle.js'
 import { useLatestRef } from './useLatestRef.js'
 
 type Pt = [number, number]
 
 export type Terminal = 'start' | 'end'
-
-/** Client-space movement before a pointer-down on a terminal counts as a drag rather than a click */
-const DRAG_THRESHOLD_PX = 3
 
 export interface ConnectorDragState {
 	terminal: Terminal
@@ -43,8 +41,6 @@ export interface UseConnectorEndpointDragOptions {
 	/** Current document objects in z-order, for target lookup */
 	getObjects: () => IdealloObject[]
 	scale: number
-	/** Sticky precise-placement toggle; Alt does the same thing per-gesture */
-	preciseMode?: boolean
 	/**
 	 * Shape bound to the terminal that is NOT being dragged. Excluded from target lookup: a
 	 * self-loop needs waypoints and is out of scope, so the invitation is never offered rather
@@ -105,7 +101,7 @@ export function useConnectorEndpointDrag(options: UseConnectorEndpointDragOption
 		const opts = optionsRef.current
 		const lookup = {
 			scale: opts.scale,
-			precise: Boolean(opts.preciseMode) || altHeldRef.current,
+			precise: altHeldRef.current,
 			// Connectors are never bindable, so the arrow itself needs no excluding; what must be
 			// kept out of reach is the shape the OTHER terminal already sits on
 			excludeId: opts.getOppositeBoundId?.(terminal)

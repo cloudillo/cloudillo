@@ -13,6 +13,9 @@ import * as React from 'react'
  *
  * Only for PURE latest-value refs. A ref its own callback also writes eagerly - so that a second
  * call in the same frame sees the first one's effect - must keep the synchronous assignment.
+ *
+ * Never read this DURING RENDER: the insertion effect lands after the render phase, so a
+ * render-phase read sees the previous commit's value. Event handlers and effects are fine.
  */
 export function useLatestRef<T>(value: T): React.RefObject<T> {
 	const ref = React.useRef(value)

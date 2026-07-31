@@ -465,14 +465,12 @@ export interface ArrowheadPopoverProps extends BarPopoverChrome {
 	start: ArrowStyle
 	end: ArrowStyle
 	onChange: (terminal: 'start' | 'end', style: ArrowStyle) => void
-	onSwap: () => void
 }
 
 export function ArrowheadPopover({
 	start,
 	end,
 	onChange,
-	onSwap,
 	label,
 	panelId,
 	onClose,
@@ -487,15 +485,6 @@ export function ArrowheadPopover({
 			anchorRef={anchorRef}
 		>
 			<ArrowheadGrid label="Start" value={start} onChange={(s) => onChange('start', s)} />
-			<button
-				type="button"
-				className="ideallo-format-btn ideallo-arrowhead-swap"
-				onClick={onSwap}
-				title="Swap ends"
-				aria-label="Swap ends"
-			>
-				<IcSwap size={14} />
-			</button>
 			<ArrowheadGrid label="End" value={end} onChange={(s) => onChange('end', s)} />
 		</BarPopover>
 	)
@@ -610,6 +599,8 @@ export interface OverflowMenuProps extends BarPopoverChrome {
 	/** Mixed lock states resolve towards locking, so one click makes the selection consistent */
 	anyUnlocked: boolean
 	onToggleLock: () => void
+	/** Connectors only: absent unless every selected object is one. Disabled by `anyUnlocked`. */
+	onReverse?: () => void
 	onDuplicate: () => void
 	/** False when an all-locked selection has nothing to delete */
 	canDelete: boolean
@@ -628,6 +619,7 @@ export function OverflowMenu({
 	onCornerRadiusChange,
 	anyUnlocked,
 	onToggleLock,
+	onReverse,
 	onDuplicate,
 	canDelete,
 	onDelete,
@@ -658,6 +650,17 @@ export function OverflowMenu({
 				{anyUnlocked ? <IcUnlocked size={16} /> : <IcLocked size={16} />}
 				<span>{anyUnlocked ? 'Lock' : 'Unlock'}</span>
 			</button>
+			{onReverse && (
+				<button
+					type="button"
+					className="ideallo-property-menu-item"
+					disabled={!anyUnlocked}
+					onClick={onReverse}
+				>
+					<IcSwap size={16} />
+					<span>Reverse direction</span>
+				</button>
+			)}
 			<button type="button" className="ideallo-property-menu-item" onClick={onDuplicate}>
 				<IcDuplicate size={16} />
 				<span>Duplicate</span>

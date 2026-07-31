@@ -4,7 +4,7 @@
 import * as Y from 'yjs'
 
 import { clearRouteCache } from '../connectors/cache.js'
-import { bindEndpoint, findIncidentArrows } from '../connectors/lifecycle.js'
+import { bindEndpoint, findIncidentArrows, reverseConnector } from '../connectors/lifecycle.js'
 import { getOrCreateDocument } from '../crdt/document.js'
 import type { ObjectId } from '../crdt/ids.js'
 import { toObjectId } from '../crdt/ids.js'
@@ -287,6 +287,117 @@ describe('bindEndpoint', () => {
 		expect(stored.t).toBe('C')
 		expect(stored.wh).toBeDefined()
 		expect(stored.pts).toBeUndefined()
+	})
+})
+
+describe('reverseConnector', () => {
+	it('swaps the terminals, keeping the signed delta signed', () => {
+		const { yDoc, doc } = scene(boundConnector)
+
+		reverseConnector(yDoc, doc, ARR)
+
+		const stored = doc.o.get(ARR) as StoredConnector
+		expect(stored.xy).toEqual([3, 4]) // the old end terminal
+		expect(stored.wh).toEqual([-2, -2]) // negated, NOT normalised to a positive box
+		expect(terminals(stored)).toEqual([
+			[3, 4],
+			[1, 2]
+		])
+	})
+
+	it('swaps the bindings and their anchors as pairs', () => {
+		const { yDoc, doc } = scene(boundConnector)
+		doc.o.set(ARR, { ...(doc.o.get(ARR) as StoredConnector), sa: 'r', ea: 'l' })
+
+		reverseConnector(yDoc, doc, ARR)
+
+		const stored = doc.o.get(ARR) as StoredConnector
+		expect(stored.so_).toBe(B)
+		expect(stored.sa).toBe('l')
+		expect(stored.eo).toBe(A)
+		expect(stored.ea).toBe('r')
+	})
+
+	// An absent code is what every other writer here produces; `undefined` would survive into the
+	// CRDT and read back as a key that is present but empty.
+	it('leaves the now-free side with no binding keys at all', () => {
+		const { yDoc, doc } = scene(boundConnector)
+		doc.o.set(ARR, boundConnector(A)) // start bound, end free
+
+		reverseConnector(yDoc, doc, ARR)
+
+		const stored = doc.o.get(ARR) as StoredConnector
+		expect(stored.eo).toBe(A)
+		expect(Object.hasOwn(stored, 'so_')).toBe(false)
+		expect(Object.hasOwn(stored, 'sa')).toBe(false)
+	})
+
+	// The heads stay with their terminal ROLE, so the flip is visible: a head on the end terminal
+	// comes back pointing at the other shape. Swapping them too would be a no-op on screen.
+	it('leaves the arrowheads on their terminals', () => {
+		const { yDoc, doc } = scene(boundConnector)
+		doc.o.set(ARR, { ...(doc.o.get(ARR) as StoredConnector), sar: ['D'], ear: ['T'] })
+
+		reverseConnector(yDoc, doc, ARR)
+
+		const stored = doc.o.get(ARR) as StoredConnector
+		expect(stored.sar).toEqual(['D'])
+		expect(stored.ear).toEqual(['T'])
+	})
+
+	it('reverses the waypoint order', () => {
+		const { yDoc, doc } = scene(boundConnector)
+		const wp: [number, number][] = [
+			[10, 10],
+			[20, 20],
+			[30, 30]
+		]
+		doc.o.set(ARR, { ...(doc.o.get(ARR) as StoredConnector), wp })
+
+		reverseConnector(yDoc, doc, ARR)
+
+		expect((doc.o.get(ARR) as StoredConnector).wp).toEqual([
+			[30, 30],
+			[20, 20],
+			[10, 10]
+		])
+	})
+
+	// Same migration every other stored edit performs - see bindEndpoint above
+	it('normalises a legacy `A` record to `C`', () => {
+		const { yDoc, doc } = scene(boundArrow)
+
+		reverseConnector(yDoc, doc, ARR)
+
+		const stored = doc.o.get(ARR) as StoredConnector
+		expect(stored.t).toBe('C')
+		expect(stored.pts).toBeUndefined()
+		expect(terminals(stored)).toEqual([
+			[3, 4],
+			[1, 2]
+		])
+	})
+
+	it('ignores a non-connector target', () => {
+		const { yDoc, doc } = scene(boundConnector)
+		expect(() => reverseConnector(yDoc, doc, A)).not.toThrow()
+		expect(doc.o.get(A)).toEqual(box(0, 0))
+	})
+
+	it('round-trips: reversing twice restores the record', () => {
+		const { yDoc, doc } = scene(boundConnector)
+		doc.o.set(ARR, {
+			...(doc.o.get(ARR) as StoredConnector),
+			sa: 'r',
+			sar: ['D'],
+			wp: [[10, 10]]
+		})
+		const before = doc.o.get(ARR) as StoredConnector
+
+		reverseConnector(yDoc, doc, ARR)
+		reverseConnector(yDoc, doc, ARR)
+
+		expect(doc.o.get(ARR)).toEqual(before)
 	})
 })
 

@@ -27,6 +27,7 @@ import {
 	DEFAULT_START_ARROW,
 	getOrCreateDocument
 } from '../crdt/index.js'
+import { canKeepActive } from '../tools/index.js'
 import type { ShapePreview, ToolType } from '../tools/types.js'
 import { str2color } from '../utils/index.js'
 
@@ -151,6 +152,15 @@ export function useIdealloDocument(): UseIdealloDocumentResult {
 	// Tool state - default to select
 	const [activeTool, setActiveTool] = React.useState<ToolType>('select')
 	const [toolLocked, setToolLocked] = React.useState(false)
+
+	/*
+	 * The lock decays when it stops applying, so it can never sit on invisibly with no tool wearing
+	 * its badge. Keyed on activeTool ALONE, deliberately: toggling the lock on while Select is armed
+	 * is the "arm the mode, then pick a tool" flow and must survive - only a tool CHANGE clears it.
+	 */
+	React.useEffect(() => {
+		if (!canKeepActive(activeTool)) setToolLocked(false)
+	}, [activeTool])
 
 	// Current style for new objects (using palette keys for theme support)
 	const [currentStyle, setCurrentStyle] = React.useState<CurrentStyle>({

@@ -214,6 +214,52 @@ export function bindEndpoint(
 }
 
 /**
+ * Flip which way a connector points, keeping it attached to the same two shapes.
+ *
+ * The arrowheads stay with their terminal ROLE rather than travelling with the shape they were on:
+ * A->B with a head at the end terminal comes back as B->A with a head at the end terminal, pointing
+ * at A. That visible flip is the point - swapping the heads too would be a no-op on screen.
+ *
+ * Operates on the STORED record rather than updateObjectFields: the expanded form's startX/startY
+ * are the ROUTED points, so writing them back would bake the route clip into the bind-time
+ * snapshot, and naming sa/ea/sar/ear in an update makes retireUnknownCodes discard a peer's
+ * unrecognised codes instead of swapping them.
+ *
+ * `bd` is round-tripped untouched for peers; routing/arc.ts bows by the module constant BEND.
+ *
+ * The bow is NOT preserved: routeArc offsets the control point along the chord perpendicular
+ * (-dy, dx), which negates when the terminals swap, so a reversed arc mirrors its bow across the
+ * chord. Elbow and A* routes likewise re-derive from the new direction. Accepted behaviour, pinned
+ * by "mirrors the bow when the terminals are swapped" in __tests__/routing.test.ts.
+ */
+export function reverseConnector(yDoc: Y.Doc, doc: YIdealloDocument, arrowId: ObjectId): void {
+	const stored = doc.o.get(arrowId)
+	if (!isStoredConnector(stored)) return
+
+	yDoc.transact(() => {
+		const next: StoredConnector = { ...stored }
+		const [start, end] = storedConnectorTerminals(stored)
+		// Normalises 't' to 'C' and drops 'pts' - a legacy 'A' migrates on this edit like any other
+		setTerminals(next, end, start)
+
+		// Bindings and anchors move as pairs. Deleted rather than set to undefined: an absent code
+		// is what every other writer here produces, and `undefined` would survive into the CRDT.
+		if (stored.eo) next.so_ = stored.eo
+		else delete next.so_
+		if (stored.ea !== undefined) next.sa = stored.ea
+		else delete next.sa
+		if (stored.so_) next.eo = stored.so_
+		else delete next.eo
+		if (stored.sa !== undefined) next.ea = stored.sa
+		else delete next.ea
+
+		if (stored.wp) next.wp = [...stored.wp].reverse()
+
+		doc.o.set(arrowId, next)
+	}, yDoc.clientID)
+}
+
+/**
  * Prepare a duplicated arrow: freeze both bound terminals so the +offset is visible.
  *
  * Without this a duplicated connector would resolve to exactly the same route as the original

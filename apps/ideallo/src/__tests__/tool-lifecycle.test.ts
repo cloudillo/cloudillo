@@ -14,6 +14,7 @@ import {
 import {
 	ALWAYS_REVERT_TOOLS,
 	CONTINUOUS_TOOLS,
+	canKeepActive,
 	isCommittableShapePreview,
 	isOneShotTool,
 	nextToolAfterUse,
@@ -72,6 +73,13 @@ describe('tool catalog', () => {
 		expect(new Set(keys).size).toBe(keys.length)
 	})
 
+	it('leaves the keys the app reserves for its own commands free', () => {
+		// 'c' = connect selected, 'q' = keep tool active - both handled in app.tsx's keydown
+		const keys = new Set(ALL_TOOLS.flatMap((tool) => TOOL_CATALOG[tool].keys))
+		expect(keys.has('c')).toBe(false)
+		expect(keys.has('q')).toBe(false)
+	})
+
 	it('treats the drag-out shape and connector categories as drag tools, nothing else', () => {
 		ALL_TOOLS.forEach((tool) => {
 			const category = TOOL_CATALOG[tool].category
@@ -100,6 +108,31 @@ describe('tool lifecycle classification', () => {
 		ALL_TOOLS.forEach((tool) => {
 			expect(TOOL_LABELS[tool]).toBeTruthy()
 		})
+	})
+})
+
+// The toolbar gates the double-click gesture and the kept-active badge on this: a tool the lock
+// cannot affect must not offer either, or the gesture would look broken.
+describe('canKeepActive', () => {
+	it('is off for the tools that are always armed', () => {
+		CONTINUOUS_TOOLS.forEach((tool) => {
+			expect(canKeepActive(tool)).toBe(false)
+		})
+	})
+
+	it('is off for the tools that always revert', () => {
+		ALWAYS_REVERT_TOOLS.forEach((tool) => {
+			expect(canKeepActive(tool)).toBe(false)
+		})
+	})
+
+	it('is on for exactly the tools the lock keeps armed', () => {
+		ONE_SHOT_TOOLS.forEach((tool) => {
+			expect(canKeepActive(tool)).toBe(true)
+			// ...which is the same thing nextToolAfterUse does with the lock on
+			expect(nextToolAfterUse(tool, true)).toBe(tool)
+		})
+		expect(ALL_TOOLS.filter(canKeepActive)).toEqual(ONE_SHOT_TOOLS)
 	})
 })
 

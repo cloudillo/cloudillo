@@ -36,6 +36,7 @@ import {
 	anchorWorldPoint,
 	applyEndpointPreview,
 	buildConnectorContext,
+	connectorHandlePoints,
 	isBoundConnector,
 	resolveConnectorRoutes
 } from '../connectors/index.js'
@@ -48,7 +49,7 @@ import type {
 	StoredObject,
 	YIdealloDocument
 } from '../crdt/index.js'
-import { isTextBearing, toObjectId, tryExpandObject } from '../crdt/index.js'
+import { toObjectId, tryExpandObject } from '../crdt/index.js'
 import type {
 	ActiveStroke as ActiveStrokeType,
 	DragOffset,
@@ -164,19 +165,11 @@ function FixedPivotHandle(
 
 import type { MorphAnimationState } from '../smart-ink/index.js'
 import { getObjectBounds } from '../utils/bounds.js'
-import { pointsToSmoothPath, scaleConnectorTerminals } from '../utils/index.js'
+import { scaleConnectorTerminals } from '../utils/index.js'
 import { scalePathData } from '../utils/path-scaling.js'
-import { ActiveStroke } from './ActiveStroke.js'
-import { ConnectorAnchorDots } from './ConnectorAnchorDots.js'
+import { CanvasScene } from './CanvasScene.js'
 import type { ConnectorEndpointHandlesProps } from './ConnectorEndpointHandles.js'
 import { ConnectorEndpointHandles, terminalState } from './ConnectorEndpointHandles.js'
-import { Cursors } from './Cursors.js'
-import { GhostEditing } from './GhostEditing.js'
-import { GhostShapes } from './GhostShapes.js'
-import { GhostStrokes } from './GhostStrokes.js'
-import { ObjectRenderer } from './ObjectRenderer.js'
-import { ShapePreview } from './ShapePreview.js'
-import { UndoHint } from './UndoHint.js'
 
 /**
  * Wrapper that puts the connector terminal handles in the fixed layer, converting the world
@@ -184,16 +177,32 @@ import { UndoHint } from './UndoHint.js'
  * Same pattern as FixedRotationHandle / FixedPivotHandle above.
  */
 function FixedConnectorEndpointHandles(
-	props: Omit<ConnectorEndpointHandlesProps, 'start' | 'end'> & {
+	props: Omit<ConnectorEndpointHandlesProps, 'start' | 'end' | 'startAttach' | 'endAttach'> & {
 		canvasStart: [number, number]
 		canvasEnd: [number, number]
+		canvasStartAttach?: [number, number] | null
+		canvasEndAttach?: [number, number] | null
 	}
 ) {
 	const { translateFrom } = useSvgCanvas()
-	const { canvasStart, canvasEnd, ...rest } = props
+	const { canvasStart, canvasEnd, canvasStartAttach, canvasEndAttach, ...rest } = props
 	const start = translateFrom(canvasStart[0], canvasStart[1]) as [number, number]
 	const end = translateFrom(canvasEnd[0], canvasEnd[1]) as [number, number]
-	return <ConnectorEndpointHandles {...rest} start={start} end={end} />
+	const startAttach = canvasStartAttach
+		? (translateFrom(canvasStartAttach[0], canvasStartAttach[1]) as [number, number])
+		: null
+	const endAttach = canvasEndAttach
+		? (translateFrom(canvasEndAttach[0], canvasEndAttach[1]) as [number, number])
+		: null
+	return (
+		<ConnectorEndpointHandles
+			{...rest}
+			start={start}
+			end={end}
+			startAttach={startAttach}
+			endAttach={endAttach}
+		/>
+	)
 }
 
 /**
@@ -364,8 +373,6 @@ export interface CanvasProps {
 	snappedHints?: Map<ObjectId, { bounds: Bounds; timestamp: number }>
 	onUndoSnapped?: (objectId: ObjectId) => void
 	currentStrokeStyle?: { color: string; width: number }
-	// Screen-space selection bounds for PropertyBar positioning
-	onScreenBoundsChange?: (bounds: Bounds | null) => void
 	// Eraser tool
 	eraserPosition?: { x: number; y: number } | null
 	eraserRadius?: number
@@ -455,7 +462,6 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 		snappedHints,
 		onUndoSnapped,
 		currentStrokeStyle,
-		onScreenBoundsChange,
 		// Eraser tool
 		eraserPosition,
 		eraserRadius = 16,
@@ -480,6 +486,7 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 	ref
 ) {
 	const svgCanvasRef = React.useRef<SvgCanvasHandle>(null)
+
 	const [canvasMatrix, setCanvasMatrix] = React.useState<
 		[number, number, number, number, number, number]
 	>([1, 0, 0, 1, 0, 0])
@@ -571,7 +578,9 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 			) {
 				lastMatrixRef.current = newMatrix
 				setCanvasMatrix(newMatrix)
-				onScaleChange?.(context.scale)
+				// Gated on the SCALE, not the matrix: this fired on every PAN frame too, and app.tsx
+				// answers it with setScale of the value it already holds
+				if (prev[0] !== newMatrix[0]) onScaleChange?.(context.scale)
 				onMatrixChange?.(newMatrix)
 			}
 		},
@@ -606,36 +615,14 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 	// Transform selection bounds from canvas space to screen space for fixed layer
 	const screenSelectionBounds = React.useMemo(() => {
 		if (!selectionBounds) return null
-		const [scale, , , , tx, ty] = canvasMatrix
+		const [s, , , , tx, ty] = canvasMatrix
 		return {
-			x: selectionBounds.x * scale + tx,
-			y: selectionBounds.y * scale + ty,
-			width: selectionBounds.width * scale,
-			height: selectionBounds.height * scale
+			x: selectionBounds.x * s + tx,
+			y: selectionBounds.y * s + ty,
+			width: selectionBounds.width * s,
+			height: selectionBounds.height * s
 		}
 	}, [selectionBounds, canvasMatrix])
-
-	// Report screen bounds changes for PropertyBar positioning
-	// Use ref to compare values and avoid triggering on reference-only changes
-	const prevScreenBoundsRef = React.useRef<Bounds | null>(null)
-	React.useEffect(() => {
-		const prev = prevScreenBoundsRef.current
-		const curr = screenSelectionBounds
-
-		// Compare by value to avoid infinite loops from reference changes
-		const changed =
-			prev === null || curr === null
-				? prev !== curr
-				: prev.x !== curr.x ||
-					prev.y !== curr.y ||
-					prev.width !== curr.width ||
-					prev.height !== curr.height
-
-		if (changed) {
-			prevScreenBoundsRef.current = curr
-			onScreenBoundsChange?.(curr)
-		}
-	}, [screenSelectionBounds, onScreenBoundsChange])
 
 	/**
 	 * Pending geometry that has not reached the CRDT yet: the local drag offset plus whatever
@@ -813,6 +800,19 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 	}, [activeTool, selectedIds, objectsToRender])
 
 	/**
+	 * Where that connector's terminal handles go, and where the drawn line attaches.
+	 *
+	 * A BOUND terminal's handle belongs on its anchor point, not on the outline point the resolver
+	 * left in startX/startY - dragging it moves the anchor. Built from `connectorContext`, so it
+	 * follows a pending drag/resize and an in-flight endpoint preview like the route does.
+	 */
+	const connectorHandles = React.useMemo(
+		() =>
+			selectedConnector ? connectorHandlePoints(selectedConnector, connectorContext) : null,
+		[selectedConnector, connectorContext]
+	)
+
+	/**
 	 * A connector bound at BOTH ends has no user-editable geometry: its position is entirely
 	 * derived. The SelectionBox is HIDDEN rather than shown with inert resize and rotate handles,
 	 * which reads as broken; the terminal handles below are what it does still offer.
@@ -880,11 +880,14 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 				)}
 				{/* Terminal handles - the only geometry affordance a bound connector has */}
 				{selectedConnector &&
+					connectorHandles &&
 					!selectedConnector.locked &&
 					onConnectorEndpointPointerDown && (
 						<FixedConnectorEndpointHandles
-							canvasStart={[selectedConnector.startX, selectedConnector.startY]}
-							canvasEnd={[selectedConnector.endX, selectedConnector.endY]}
+							canvasStart={connectorHandles.start.handle}
+							canvasEnd={connectorHandles.end.handle}
+							canvasStartAttach={connectorHandles.start.attach}
+							canvasEndAttach={connectorHandles.end.attach}
 							startState={terminalState(
 								selectedConnector.startObjectId,
 								selectedConnector.startAnchor
@@ -956,183 +959,51 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 				onContextReady={handleContextReady}
 				fixed={fixedContent}
 			>
-				{/*
-					A fully bound connector gets no SelectionBox, so this halo is what shows it is
-					selected. Drawn BEHIND the objects - a semi-transparent band painted over the
-					arrow would wash out its own stroke.
-				*/}
-				{!readOnly && fullyBoundConnector && selectedConnector?.route && (
-					<path
-						className="connector-route-highlight"
-						d={selectedConnector.route.d}
-						strokeWidth={selectedConnector.style.strokeWidth + 8 / scale}
-						pointerEvents="none"
-					/>
-				)}
-
-				{/* Render committed objects */}
-				{objectsToRender.map((obj) => {
-					const isEditing = editing?.id === obj.id
-					return (
-						<ObjectRenderer
-							key={obj.id}
-							object={obj}
-							doc={doc}
-							ownerTag={ownerTag}
-							token={token}
-							scale={scale}
-							sourceFileId={sourceFileId}
-							activeDocument={
-								obj.type === 'document' && (readOnly || activeDocumentId === obj.id)
-							}
-							onDocumentViewStateChange={onDocumentViewStateChange}
-							isEditing={isEditing}
-							onSave={isEditing ? onEditSave : undefined}
-							caretPoint={isEditing ? editing?.caretPoint : undefined}
-							shouldIgnoreBlur={isEditing ? shouldIgnoreEditorBlur : undefined}
-							onDragStart={
-								isEditing && obj.type === 'sticky' && onEditDragStart
-									? (e) => onEditDragStart(e, obj.id)
-									: undefined
-							}
-							onDoubleClick={
-								isTextBearing(obj.type) && onObjectDoubleClick
-									? (e) => onObjectDoubleClick(obj.id, e)
-									: obj.type === 'document' && onDocumentActivate
-										? () => onDocumentActivate(obj.id)
-										: undefined
-							}
-							quillRef={isEditing ? quillRef : undefined}
-							/* Auto-grow is a TEXT CONTAINER behaviour: a sticky and a text label both
-							   grow to fit their content, while a rect is a box the user sized on
-							   purpose and its text clips. */
-							onHeightChange={
-								isEditing && (obj.type === 'sticky' || obj.type === 'text')
-									? onEditHeightChange
-									: undefined
-							}
-							isHighlighted={eraserHighlightedIds?.has(obj.id) ?? false}
-							isEraserHovered={activeTool === 'eraser' && hoveredId === obj.id}
-							isStacked={stackedHighlightIds?.has(obj.id) ?? false}
-							isHovered={
-								activeTool === 'select' &&
-								!dragOffset &&
-								hoveredId === obj.id &&
-								!selectedIds.has(obj.id)
-							}
-						/>
-					)
-				})}
-
-				{/* Render ghost strokes from remote users */}
-				<GhostStrokes remotePresence={remotePresence} />
-
-				{/* Render ghost shapes from remote users */}
-				<GhostShapes remotePresence={remotePresence} connectorContext={connectorContext} />
-
-				{/*
-					Objects being edited (dragged) by remote users. `expandedObjects`, not
-					`objectsToRender`: the ghost layer hands the resolver raw objects plus its own
-					override map, and the latter has the local override already baked in - see the
-					comment on resolveConnectorRoutes above.
-				*/}
-				<GhostEditing
-					doc={doc}
-					remotePresence={remotePresence}
-					objects={objects}
+				{/* One prop per line, bare identifiers only - an inline arrow has to stand out here,
+				    because it would silently switch the memo below off. See CanvasScene.tsx. */}
+				<CanvasScene
+					scale={scale}
+					objectsToRender={objectsToRender}
 					expandedObjects={expandedObjects}
+					connectorContext={connectorContext}
+					activeConnectorAnchor={activeConnectorAnchor}
+					activeFreeAnchorPoint={activeFreeAnchorPoint}
+					selectedConnector={selectedConnector}
+					fullyBoundConnector={fullyBoundConnector}
+					doc={doc}
+					objects={objects}
+					readOnly={readOnly}
+					remotePresence={remotePresence}
+					activeTool={activeTool}
+					selectedIds={selectedIds}
+					dragOffset={dragOffset}
+					hoveredId={hoveredId}
+					stackedHighlightIds={stackedHighlightIds}
+					editing={editing}
+					onEditSave={onEditSave}
+					onEditDragStart={onEditDragStart}
+					onObjectDoubleClick={onObjectDoubleClick}
+					shouldIgnoreEditorBlur={shouldIgnoreEditorBlur}
+					onEditHeightChange={onEditHeightChange}
+					quillRef={quillRef}
 					ownerTag={ownerTag}
 					token={token}
+					sourceFileId={sourceFileId}
+					activeDocumentId={activeDocumentId}
+					onDocumentActivate={onDocumentActivate}
+					onDocumentViewStateChange={onDocumentViewStateChange}
+					activeStroke={activeStroke}
+					shapePreview={shapePreview}
+					connectorTarget={connectorTarget}
+					morphAnimations={morphAnimations}
+					currentStrokeStyle={currentStrokeStyle}
+					snappedHints={snappedHints}
+					onUndoSnapped={onUndoSnapped}
+					eraserPosition={eraserPosition}
+					eraserRadius={eraserRadius}
+					eraserHighlightedIds={eraserHighlightedIds}
+					isErasing={isErasing}
 				/>
-
-				{/* Render remote user cursors */}
-				<Cursors remotePresence={remotePresence} />
-
-				{/* Render active stroke being drawn */}
-				{activeStroke && <ActiveStroke stroke={activeStroke} />}
-
-				{/* Render Smart Ink morph animations */}
-				{morphAnimations && morphAnimations.size > 0 && (
-					<g className="smart-ink-morphs">
-						{Array.from(morphAnimations.entries()).map(([id, state]) => (
-							<path
-								key={id}
-								d={pointsToSmoothPath(state.currentPoints as [number, number][])}
-								fill="none"
-								stroke={currentStrokeStyle?.color ?? '#1e1e1e'}
-								strokeWidth={currentStrokeStyle?.width ?? 2}
-								strokeLinecap="round"
-								strokeLinejoin="round"
-							/>
-						))}
-					</g>
-				)}
-
-				{/* Render undo hints for snapped objects */}
-				{snappedHints && snappedHints.size > 0 && onUndoSnapped && (
-					<g className="smart-ink-undo-hints">
-						{Array.from(snappedHints.entries()).map(([objectId, { bounds }]) => (
-							<UndoHint
-								key={objectId}
-								bounds={bounds}
-								onUndo={() => onUndoSnapped(objectId)}
-							/>
-						))}
-					</g>
-				)}
-
-				{/* Render shape preview during creation */}
-				{/* Drop-target affordance, under the preview so the line stays legible */}
-				{!readOnly && connectorTarget && (
-					<ConnectorAnchorDots
-						shape={connectorTarget}
-						scale={scale}
-						activeAnchor={activeConnectorAnchor}
-						freeAnchor={activeFreeAnchorPoint}
-					/>
-				)}
-
-				{shapePreview && (
-					<ShapePreview preview={shapePreview} connectorContext={connectorContext} />
-				)}
-
-				{/* Render eraser cursor */}
-				{activeTool === 'eraser' && eraserPosition && (
-					<g className="eraser-cursor" pointerEvents="none">
-						{/* Outer circle (eraser brush area) */}
-						<circle
-							cx={eraserPosition.x}
-							cy={eraserPosition.y}
-							r={eraserRadius}
-							fill={
-								isErasing ? 'rgba(255, 100, 100, 0.2)' : 'rgba(255, 100, 100, 0.1)'
-							}
-							stroke="#ff6666"
-							strokeWidth={2 / scale}
-							strokeDasharray={isErasing ? 'none' : `${4 / scale} ${4 / scale}`}
-						/>
-						{/* Center crosshair - horizontal */}
-						<line
-							x1={eraserPosition.x - 6 / scale}
-							y1={eraserPosition.y}
-							x2={eraserPosition.x + 6 / scale}
-							y2={eraserPosition.y}
-							stroke="#ff6666"
-							strokeWidth={1.5 / scale}
-							strokeLinecap="round"
-						/>
-						{/* Center crosshair - vertical */}
-						<line
-							x1={eraserPosition.x}
-							y1={eraserPosition.y - 6 / scale}
-							x2={eraserPosition.x}
-							y2={eraserPosition.y + 6 / scale}
-							stroke="#ff6666"
-							strokeWidth={1.5 / scale}
-							strokeLinecap="round"
-						/>
-					</g>
-				)}
 			</SvgCanvas>
 		</div>
 	)

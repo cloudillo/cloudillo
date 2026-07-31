@@ -99,8 +99,24 @@ export function IdealloApp() {
 	// Zoom state
 	const [scale, setScale] = React.useState(1)
 
-	// Screen-space selection bounds for PropertyBar positioning
-	const [screenSelectionBounds, setScreenSelectionBounds] = React.useState<Bounds | null>(null)
+	// Mirrored from Canvas via onMatrixChange (same initial value, so the two never disagree). Lets
+	// screen-space selection bounds be derived during render, not through a per-pointermove effect.
+	//
+	// The STATE is written only while something is selected - liveScreenSelectionBounds is its one
+	// consumer and returns null otherwise - so a pan with an empty selection does not re-render this
+	// component. The ref is always current, for the resync below.
+	//
+	// Canvas dropped the same trick in favour of CanvasScene's memo boundary; this gate stays because
+	// THIS render is the expensive one: three yData.toJSON() + equalityDeep passes over the whole
+	// document (useY, via useIdealloDocument) plus a Toolbar/PropertyBar reconcile - and a per-frame
+	// Toolbar render is what produced the "Maximum update depth exceeded" bug documented in
+	// ToolPopover.tsx's itemsKey comment. Known gap: no test renders IdealloApp, so this is uncovered.
+	const [canvasMatrix, setCanvasMatrix] = React.useState<
+		[number, number, number, number, number, number]
+	>([1, 0, 0, 1, 0, 0])
+	const canvasMatrixRef = React.useRef<[number, number, number, number, number, number]>([
+		1, 0, 0, 1, 0, 0
+	])
 
 	// Smart Ink morph animation state
 	const [morphAnimations, setMorphAnimations] = React.useState<Map<string, MorphAnimationState>>(
@@ -198,6 +214,15 @@ export function IdealloApp() {
 			return next
 		})
 	}, [])
+
+	// Read from handleMatrixChange, which Canvas calls from an effect - never during render
+	const hasSelectionRef = useLatestRef(selectedIds.size > 0)
+
+	// The matrix mirror is skipped while nothing is selected, so a selection arriving after a pan
+	// has to pick up whatever the matrix reached meanwhile
+	React.useEffect(() => {
+		if (selectedIds.size) setCanvasMatrix(canvasMatrixRef.current)
+	}, [selectedIds])
 
 	/*
 	 * setActiveDocumentId is in the deps and must stay there. It closes over flushNavState, which
@@ -418,9 +443,6 @@ export function IdealloApp() {
 		}
 	}, [])
 
-	/** Sticky precise-placement toggle: mobile parity for the Alt modifier */
-	const [preciseMode, setPreciseMode] = React.useState(false)
-
 	/**
 	 * One resolve pass per document revision, shared by every pointer-driven lookup: hit testing,
 	 * hover highlighting and bind-target lookup all run on pointermove and would otherwise expand
@@ -461,7 +483,6 @@ export function IdealloApp() {
 		currentStyle: ideallo.currentStyle,
 		activeTool: ideallo.activeTool,
 		scale,
-		preciseMode,
 		getResolvedObjects,
 		onObjectCreated: handleToolUseComplete
 	})
@@ -501,6 +522,12 @@ export function IdealloApp() {
 	// Shared ref for editor content height (used to persist auto-grown height on save)
 	const editContentHeightRef = React.useRef<number | null>(null)
 
+	// Named, not inline: this reaches the memoised CanvasScene, and a fresh arrow per render would
+	// re-render the whole scene on every app render
+	const handleEditHeightChange = React.useCallback((height: number) => {
+		editContentHeightRef.current = height
+	}, [])
+
 	/*
 	 * A mousedown inside the property bar is the user styling what they are editing.
 	 *
@@ -527,6 +554,16 @@ export function IdealloApp() {
 	}, [])
 
 	const shouldIgnoreEditorBlur = React.useCallback(() => isPropertyBarClickRef.current, [])
+
+	const handleObjectDoubleClick = React.useCallback(
+		(objectId: ObjectId, evt: React.MouseEvent) => {
+			const obj = ideallo.doc && getObject(ideallo.doc, objectId)
+			if (obj && isTextBearing(obj.type)) {
+				textEditor.startEditing(obj, { clientX: evt.clientX, clientY: evt.clientY })
+			}
+		},
+		[ideallo.doc, textEditor.startEditing]
+	)
 
 	/**
 	 * Persist a height the editor grew to while typing.
@@ -572,7 +609,8 @@ export function IdealloApp() {
 		clearSelection,
 		enabled: ideallo.activeTool === 'select' && !isReadOnly,
 		objects: ideallo.objects,
-		getResolvedObjects
+		getResolvedObjects,
+		scale
 	})
 
 	// Eraser handler for eraser tool
@@ -828,7 +866,6 @@ export function IdealloApp() {
 		// geometry - findBindTargetShape skips connectors via isBindable.
 		getObjects: getResolvedObjects,
 		scale,
-		preciseMode,
 		// selectedArrow is the raw object, so it still carries the bindings the resolver consumes
 		getOppositeBoundId: (terminal) =>
 			terminal === 'start' ? selectedArrow?.endObjectId : selectedArrow?.startObjectId,
@@ -1228,6 +1265,18 @@ export function IdealloApp() {
 		return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
 	}, [selectedIds, ideallo.doc, resolvedObjectsById, selectHandler.dragOffset, tempObjectState])
 
+	// Same transform Canvas applies for its own fixed overlay layer
+	const liveScreenSelectionBounds = React.useMemo<Bounds | null>(() => {
+		if (!selectionBounds) return null
+		const [s, , , , tx, ty] = canvasMatrix
+		return {
+			x: selectionBounds.x * s + tx,
+			y: selectionBounds.y * s + ty,
+			width: selectionBounds.width * s,
+			height: selectionBounds.height * s
+		}
+	}, [selectionBounds, canvasMatrix])
+
 	/**
 	 * Pending resize/rotate geometry, handed to Canvas so connectors bound to the object being
 	 * manipulated reroute live. Canvas merges this with its own drag offset.
@@ -1257,6 +1306,16 @@ export function IdealloApp() {
 		])
 	}, [tempObjectState])
 
+	// Was an object literal at the call site, i.e. a new reference per render - which is exactly what
+	// turns CanvasScene's memo off. Two primitive deps, so this cannot go stale.
+	const currentStrokeStyle = React.useMemo(
+		() => ({
+			color: ideallo.currentStyle.strokeColor,
+			width: ideallo.currentStyle.strokeWidth
+		}),
+		[ideallo.currentStyle.strokeColor, ideallo.currentStyle.strokeWidth]
+	)
+
 	/**
 	 * The in-flight terminal drag, handed to Canvas so the connector redraws through the real
 	 * routers on every pointer move instead of sitting at its committed geometry until release.
@@ -1275,12 +1334,15 @@ export function IdealloApp() {
 	// Ref to track pivot dragging state - prevents object movement during pivot drag
 	const isPivotDraggingRef = React.useRef(false)
 
-	// Freeze screen bounds during pivot drag so PropertyBar doesn't drift
-	const handleScreenBoundsChange = React.useCallback((bounds: Bounds | null) => {
-		if (!isPivotDraggingRef.current) {
-			setScreenSelectionBounds(bounds)
-		}
-	}, [])
+	// A pivot drag nudges tempObjectState, which selectionBounds reads, so the property bar would
+	// slide under the pointer. Frozen as of the press: one state flip per gesture, not per frame.
+	const [isPivotDragging, setIsPivotDragging] = React.useState(false)
+	const pivotFrozenBoundsRef = React.useRef<Bounds | null>(null)
+	const liveScreenBoundsRef = useLatestRef(liveScreenSelectionBounds)
+
+	const screenSelectionBounds = isPivotDragging
+		? pivotFrozenBoundsRef.current
+		: liveScreenSelectionBounds
 
 	// Unified pointer handlers that route to the right tool
 	const handlePointerDown = React.useCallback(
@@ -1427,6 +1489,13 @@ export function IdealloApp() {
 	// Push viewport changes to parent (debounced)
 	const handleMatrixChange = React.useCallback(
 		(matrix: [number, number, number, number, number, number]) => {
+			// Above the embed check: that only gates the navState push, never the matrix mirror.
+			// Canvas value-guards this callback, so it fires on real pan/zoom only.
+			canvasMatrixRef.current = matrix
+			// Only liveScreenSelectionBounds reads the state, and only when something is selected.
+			// Skipping the write is what keeps an empty-selection pan from re-rendering the whole app.
+			if (hasSelectionRef.current) setCanvasMatrix(matrix)
+
 			const bus = getAppBus()
 			if (!bus.embedded) return
 
@@ -1442,13 +1511,15 @@ export function IdealloApp() {
 				bus.pushViewState({ viewState: navState })
 			}, 500)
 		},
-		[]
+		[hasSelectionRef]
 	)
 
 	// Handle pivot drag start
 	const handlePivotDragStart = React.useCallback(() => {
 		isPivotDraggingRef.current = true
-	}, [])
+		pivotFrozenBoundsRef.current = liveScreenBoundsRef.current
+		setIsPivotDragging(true)
+	}, [liveScreenBoundsRef])
 
 	// Handle pivot drag (update temp state for visual feedback)
 	const handlePivotDrag = React.useCallback(
@@ -1481,6 +1552,7 @@ export function IdealloApp() {
 			const { yDoc, doc } = ideallo
 			if (selectedIds.size !== 1 || !yDoc || !doc) {
 				isPivotDraggingRef.current = false
+				setIsPivotDragging(false)
 				setTempObjectState(null)
 				return
 			}
@@ -1488,6 +1560,7 @@ export function IdealloApp() {
 			const obj = getObject(doc, objectId)
 			if (!obj) {
 				isPivotDraggingRef.current = false
+				setIsPivotDragging(false)
 				setTempObjectState(null)
 				return
 			}
@@ -1504,6 +1577,7 @@ export function IdealloApp() {
 				})
 			}, yDoc.clientID)
 			isPivotDraggingRef.current = false
+			setIsPivotDragging(false)
 			setTempObjectState(null)
 		},
 		[selectedIds, ideallo, setTempObjectState]
@@ -1627,6 +1701,10 @@ export function IdealloApp() {
 					// "Connect selected" - the keyboard path to a connector, and the non-dragging
 					// alternative WCAG 2.2 SC 2.5.7 requires for creation. Not a tool.
 					connectSelected()
+				} else if (key === 'q') {
+					// Keep the active tool armed - keyboard route to the same mode as the
+					// double-click gesture, which misses the shapes behind the flyout.
+					ideallo.setToolLocked((locked) => !locked)
 				}
 			}
 
@@ -1740,6 +1818,7 @@ export function IdealloApp() {
 			handleUndo,
 			handleRedo,
 			ideallo.setActiveTool,
+			ideallo.setToolLocked,
 			selectedIds,
 			selectObjects,
 			ideallo.yDoc,
@@ -1881,6 +1960,9 @@ export function IdealloApp() {
 	return (
 		<div className="ideallo-app" data-tool={ideallo.activeTool} tabIndex={0}>
 			{/* Canvas */}
+			{/* Every prop below must be a stable reference or a primitive: Canvas passes most of them
+			    straight into the memoised CanvasScene, and one inline arrow or object literal here
+			    silently turns that memo off for the whole board. See CanvasScene.tsx. */}
 			<Canvas
 				ref={canvasRef}
 				doc={ideallo.doc}
@@ -1912,22 +1994,8 @@ export function IdealloApp() {
 				// Text editing - one slot for stickies, labels and shape captions alike
 				editing={textEditor.editing}
 				onEditSave={endTextEdit}
-				onEditHeightChange={(h) => {
-					editContentHeightRef.current = h
-				}}
-				onObjectDoubleClick={
-					!isReadOnly
-						? (objectId, evt) => {
-								const obj = ideallo.doc && getObject(ideallo.doc, objectId)
-								if (obj && isTextBearing(obj.type)) {
-									textEditor.startEditing(obj, {
-										clientX: evt.clientX,
-										clientY: evt.clientY
-									})
-								}
-							}
-						: undefined
-				}
+				onEditHeightChange={handleEditHeightChange}
+				onObjectDoubleClick={!isReadOnly ? handleObjectDoubleClick : undefined}
 				shouldIgnoreEditorBlur={shouldIgnoreEditorBlur}
 				quillRef={quillRef}
 				onScaleChange={setScale}
@@ -1949,11 +2017,7 @@ export function IdealloApp() {
 				morphAnimations={morphAnimations}
 				snappedHints={snappedHints}
 				onUndoSnapped={handleUndoSnapped}
-				currentStrokeStyle={{
-					color: ideallo.currentStyle.strokeColor,
-					width: ideallo.currentStyle.strokeWidth
-				}}
-				onScreenBoundsChange={handleScreenBoundsChange}
+				currentStrokeStyle={currentStrokeStyle}
 				// Eraser tool
 				eraserPosition={eraserHandler.eraserPosition}
 				eraserRadius={eraserHandler.canvasRadius}
@@ -1989,10 +2053,8 @@ export function IdealloApp() {
 					canRedo={ideallo.canRedo}
 					hasSelection={selectedIds.size > 0}
 					toolLocked={ideallo.toolLocked}
-					preciseMode={preciseMode}
 					onToolChange={ideallo.setActiveTool}
 					onToolLockChange={ideallo.setToolLocked}
-					onPreciseModeChange={setPreciseMode}
 					onUndo={handleUndo}
 					onRedo={handleRedo}
 					onExport={() => {
@@ -2022,7 +2084,7 @@ export function IdealloApp() {
 					}}
 					quillRef={quillRef}
 					isTextEditing={!!textEditor.editing}
-					getResolvedObjects={getResolvedObjects}
+					resolvedObjects={resolvedObjects}
 					onClearSelection={clearSelection}
 					onSelectObjects={selectObjects}
 				/>

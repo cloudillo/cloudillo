@@ -18,7 +18,9 @@ export {
 export {
 	ALWAYS_REVERT_TOOLS,
 	CONTINUOUS_TOOLS,
+	canKeepActive,
 	isCommittableShapePreview,
+	isDragCommittedTool,
 	isOneShotTool,
 	nextToolAfterUse,
 	shouldRemoveOnEditEnd,

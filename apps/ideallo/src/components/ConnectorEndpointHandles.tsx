@@ -35,6 +35,13 @@ export interface ConnectorEndpointHandlesProps {
 	/** Terminal positions in SCREEN coordinates */
 	start: Pt
 	end: Pt
+	/**
+	 * Where the drawn connector attaches, in SCREEN coordinates, when that is not where the handle
+	 * sits - a bound terminal's handle is on its anchor point, the line starts on the outline.
+	 * A dashed leader spans the gap; null when there is none.
+	 */
+	startAttach?: Pt | null
+	endAttach?: Pt | null
 	startState: TerminalState
 	endState: TerminalState
 	draggingTerminal?: Terminal | null
@@ -49,6 +56,8 @@ const HIT_RADIUS_MOBILE = 22
 export function ConnectorEndpointHandles({
 	start,
 	end,
+	startAttach,
+	endAttach,
 	startState,
 	endState,
 	draggingTerminal,
@@ -71,6 +80,7 @@ export function ConnectorEndpointHandles({
 			<Handle
 				terminal="start"
 				at={start}
+				attach={startAttach}
 				state={startState}
 				hitRadius={effectiveHit}
 				dragging={draggingTerminal === 'start'}
@@ -79,6 +89,7 @@ export function ConnectorEndpointHandles({
 			<Handle
 				terminal="end"
 				at={end}
+				attach={endAttach}
 				state={endState}
 				hitRadius={effectiveHit}
 				dragging={draggingTerminal === 'end'}
@@ -91,13 +102,17 @@ export function ConnectorEndpointHandles({
 interface HandleProps {
 	terminal: Terminal
 	at: Pt
+	attach?: Pt | null
 	state: TerminalState
 	hitRadius: number
 	dragging: boolean
 	onPointerDown: (terminal: Terminal, event: React.PointerEvent) => void
 }
 
-function Handle({ terminal, at, state, hitRadius, dragging, onPointerDown }: HandleProps) {
+/** Shorter than this and the leader would be hidden under the handle circle anyway */
+const LEADER_MIN_SCREEN = 3
+
+function Handle({ terminal, at, attach, state, hitRadius, dragging, onPointerDown }: HandleProps) {
 	const [x, y] = at
 	const handleDown = React.useCallback(
 		(event: React.PointerEvent) => {
@@ -115,8 +130,21 @@ function Handle({ terminal, at, state, hitRadius, dragging, onPointerDown }: Han
 		.filter(Boolean)
 		.join(' ')
 
+	const showLeader = !!attach && Math.hypot(attach[0] - x, attach[1] - y) > LEADER_MIN_SCREEN
+
 	return (
-		<g>
+		<g className="connector-endpoint-handle-group">
+			{/* Drawn first so the handle circle paints over the end of it */}
+			{showLeader && attach && (
+				<line
+					className="connector-endpoint-leader"
+					x1={x}
+					y1={y}
+					x2={attach[0]}
+					y2={attach[1]}
+					pointerEvents="none"
+				/>
+			)}
 			{/* A bound-auto terminal floats: the ring says "the router picks where this sits" */}
 			{state === 'bound-auto' && (
 				<circle className="connector-endpoint-ring" cx={x} cy={y} r={HANDLE_RADIUS + 3.5} />
@@ -135,7 +163,7 @@ function Handle({ terminal, at, state, hitRadius, dragging, onPointerDown }: Han
 				/>
 			)}
 			<circle
-				className="connector-endpoint-hit"
+				className={dragging ? 'connector-endpoint-hit dragging' : 'connector-endpoint-hit'}
 				cx={x}
 				cy={y}
 				r={hitRadius}

@@ -10,6 +10,7 @@
  */
 
 import type { IdealloObject } from '../crdt/index.js'
+import { isDragShapeTool } from './catalog.js'
 import type { ShapePreview, ToolType } from './types.js'
 
 /** Tools that stay armed after every use - they have no natural "one use". */
@@ -27,8 +28,23 @@ export const CONTINUOUS_TOOLS: ReadonlySet<ToolType> = new Set<ToolType>([
  */
 export const ALWAYS_REVERT_TOOLS: ReadonlySet<ToolType> = new Set<ToolType>(['image', 'document'])
 
+/**
+ * Tools that commit only on a drag: a bare tap makes nothing, because `isCommittableShapePreview`
+ * discards sub-5px shapes and `useDrawingHandler` discards sub-2-point strokes. That is what lets a
+ * flyout-dismissing pointerdown reach the canvas without creating anything by accident. Sticky,
+ * text and eraser act AT pointerdown, so they are deliberately absent.
+ */
+export function isDragCommittedTool(tool: ToolType): boolean {
+	return isDragShapeTool(tool) || tool === 'pen'
+}
+
 export function isOneShotTool(tool: ToolType): boolean {
 	return !CONTINUOUS_TOOLS.has(tool)
+}
+
+/** Whether the tool lock has any effect on this tool - the others are always or never armed. */
+export function canKeepActive(tool: ToolType): boolean {
+	return !CONTINUOUS_TOOLS.has(tool) && !ALWAYS_REVERT_TOOLS.has(tool)
 }
 
 /** The tool that should be armed once `tool` has placed one object. */
@@ -63,6 +79,12 @@ export function shouldRemoveOnEditEnd(objectType: IdealloObject['type'], text: s
 
 /** Below this a drag is a click, not a shape. */
 const MIN_SHAPE_EXTENT = 5
+
+/**
+ * Client-space movement before a press counts as a drag rather than a click. In SCREEN pixels,
+ * unlike MIN_SHAPE_EXTENT above: this is hand slop, so it must feel the same at every zoom.
+ */
+export const DRAG_THRESHOLD_PX = 3
 
 /**
  * Whether a finished drag is big enough to become an object.

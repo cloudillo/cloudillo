@@ -36,6 +36,7 @@ export { PropertyBar, type PropertyBarProps } from './PropertyBar.js'
 export { ShapePreview, type ShapePreviewProps } from './ShapePreview.js'
 export { ConnectorRenderer, EllipseRenderer, RectRenderer } from './ShapeRenderer.js'
 export { StickyNote, type StickyNoteProps } from './StickyNote.js'
+export { StickyShadowDefs } from './StickyShadowDefs.js'
 export { TextLabel, type TextLabelProps } from './TextLabel.js'
 export { Toolbar, type ToolbarProps } from './Toolbar.js'
 export {

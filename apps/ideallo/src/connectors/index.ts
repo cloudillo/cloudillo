@@ -33,6 +33,8 @@ export {
 	shouldShowAllAnchors
 } from './binding.js'
 export { clearRouteCache, routeCacheSize } from './cache.js'
+export type { ConnectorHandlePoints, TerminalHandlePoints } from './handles.js'
+export { connectorHandlePoints } from './handles.js'
 export { terminalHeadDirections } from './head-direction.js'
 export type { ConnectorEndpointPreview } from './preview.js'
 export { applyEndpointPreview } from './preview.js'

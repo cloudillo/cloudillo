@@ -137,6 +137,30 @@ describe('routeArc', () => {
 		expect(signs[1]).toBe(signs[2])
 	})
 
+	/*
+	 * The companion to the quadrant test above, and NOT the same property: sign(dx * dy) survives a
+	 * reverse, but the perpendicular (-dy, dx) the offset rides on does not. So swapping the
+	 * terminals mirrors the bow across the chord. reverseConnector() in connectors/lifecycle.ts
+	 * documents this - the test is here so changing it is a decision, not an accident.
+	 */
+	it('mirrors the bow when the terminals are swapped', () => {
+		const free = {
+			routing: 'curved' as const,
+			startShape: undefined,
+			endShape: undefined,
+			startArrow: { type: 'none' } as ArrowStyle,
+			endArrow: { type: 'none' } as ArrowStyle
+		}
+		const bowAt = (start: Pt, end: Pt) => {
+			const route = routeArc(request({ ...free, start, end }))
+			return route.points[Math.floor(route.points.length / 2)]
+		}
+		// The chord midpoint is (50, 50) either way, so which side of x = 50 the curve's own
+		// midpoint falls on is the bow direction
+		expect(bowAt([0, 0], [100, 100])[0]).toBeLessThan(50)
+		expect(bowAt([100, 100], [0, 0])[0]).toBeGreaterThan(50)
+	})
+
 	it('degrades to a segment for a zero-length chord', () => {
 		const route = routeArc(
 			request({

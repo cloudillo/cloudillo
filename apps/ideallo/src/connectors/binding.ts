@@ -8,7 +8,7 @@
  *
  *   1. Within snap range of one of the 9 anchor dots  -> pin that code
  *   2. Otherwise inside the shape                     -> a free normalized [x, y]
- *   3. Alt held (or precise mode on mobile)           -> a free [x, y] with no snapping at all
+ *   3. Alt held                                       -> a free [x, y] with no snapping at all
  *
  * Rule 2 exists because Alt is swallowed by the window manager on most Linux desktops, which would
  * leave the 9 dots as the only anchors there are. A free dot is drawn under the pointer while
@@ -116,7 +116,7 @@ export function shouldShowAllAnchors(shape: ShapeGeometry, scale: number): boole
 export interface BindLookupOptions {
 	/** Current canvas scale, for screen-space snap and dot-density decisions */
 	scale: number
-	/** Alt on desktop, the precise-mode toggle on mobile: place a free anchor, no snapping */
+	/** Alt held: place a free anchor, no snapping */
 	precise?: boolean
 	/**
 	 * Shape to refuse. Used to suppress the source shape while drawing: a self-loop needs

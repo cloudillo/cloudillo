@@ -94,7 +94,17 @@ body,
 	z-index: var(--z-fixed, 300);
 }
 
+/* The toolbar is a fixed, z-indexed element, so it is its own stacking context and the flyout's
+   --z-popover only orders it INSIDE the bar. The property bar sits one above --z-fixed in the
+   ROOT context and would paint over the flyout, so the whole bar is promoted while one is open. */
+.ideallo-toolbar.menu-open {
+	z-index: var(--z-popover, 700);
+}
+
 .ideallo-tool-btn {
+	/* The positioning context for the badges drawn inside it: the kept-tool padlock and the
+	   group-flyout caret */
+	position: relative;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -126,11 +136,25 @@ body,
 	color: var(--col-primary);
 }
 
-/* Tool lock: a mode, not a selection - an outline rather than the .active fill, so the
-   padlock never reads as "this is the current tool". */
-.ideallo-tool-lock.locked {
-	color: var(--col-primary);
-	box-shadow: inset 0 0 0 2px var(--col-primary);
+/* The kept-active badge: the tool lock shown ON the tool it applies to.
+   TOP-right, because the bottom-right corner belongs to the group flyout's caret and a lockable
+   tool can now be a group trigger - the two would otherwise sit on top of each other.
+   Filled with --col-primary rather than --col-container-primary: the badge only ever appears on an
+   ACTIVE button, whose background is already --col-container-primary, so a tinted chip would be
+   invisible. Solid primary with an inverted glyph clears 3:1 (WCAG 2.2 SC 1.4.11) against both. */
+.ideallo-tool-kept {
+	position: absolute;
+	top: 2px;
+	right: 2px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	background: var(--col-primary);
+	color: var(--col-on-primary);
+	pointer-events: none;
 }
 
 /* Announcements for screen readers only. opalui's .invisible uses visibility: hidden,
@@ -177,21 +201,17 @@ body,
 	position: relative;
 }
 
-/* The caret sits INSIDE the trigger, so the trigger has to be positioned in its own right */
-.ideallo-tool-btn.has-menu {
-	position: relative;
-}
-
+/* The caret sits INSIDE the trigger, which is positioned by .ideallo-tool-btn above */
 .ideallo-tool-group-indicator {
 	position: absolute;
-	bottom: 4px;
-	right: 4px;
+	bottom: 3px;
+	right: 3px;
 	width: 0;
 	height: 0;
-	border-left: 3px solid transparent;
-	border-right: 3px solid transparent;
-	border-top: 3px solid currentColor;
-	opacity: 0.5;
+	border-left: 4px solid transparent;
+	border-right: 4px solid transparent;
+	border-top: 5px solid currentColor;
+	opacity: 0.7;
 	pointer-events: none;
 }
 
@@ -228,6 +248,72 @@ body,
 	flex-direction: column;
 	align-items: stretch;
 	gap: 6px;
+}
+
+/* A vertical list of LABELLED rows, for modes whose icon alone would be ambiguous. Same visual
+   language as the property bar's .ideallo-property-menu-item. */
+.ideallo-tool-popover.menu {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 2px;
+	min-width: 12rem;
+}
+
+.ideallo-tool-popover.menu .ideallo-tool-popover-row {
+	flex-direction: column;
+	flex-wrap: nowrap;
+}
+
+.ideallo-tool-menu-item {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	width: 100%;
+	min-height: 32px;
+	padding: 0.25rem 0.4rem;
+	border: none;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--col-on-container);
+	font-size: 0.8125rem;
+	text-align: left;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.ideallo-tool-menu-item:hover {
+	background: var(--col-container-high);
+}
+
+.ideallo-tool-menu-item.active {
+	color: var(--col-primary);
+}
+
+.ideallo-tool-menu-item:focus-visible {
+	outline: var(--focus-ring-width, 3px) solid var(--col-focus);
+	outline-offset: var(--focus-ring-offset, 2px);
+}
+
+.ideallo-tool-menu-shortcut {
+	margin-left: auto;
+	padding-left: 1rem;
+	color: var(--col-on-container);
+	opacity: 0.6;
+	font-size: 0.75rem;
+}
+
+/* The tool lock, below the tool rows it governs. A 44px icon square would read as one more tool
+   and could not carry a label - and the same padlock means OBJECT lock in the property bar, so
+   this row has to say which one it is. The row itself is a `.ideallo-tool-menu-item`; what this
+   section adds is the rule separating it from the tools and the full width. */
+.ideallo-tool-popover-section.modes {
+	margin-top: 2px;
+	padding-top: 6px;
+	border-top: 1px solid var(--col-outline);
+}
+
+.ideallo-tool-popover-section.modes .ideallo-tool-popover-row {
+	flex-wrap: nowrap;
 }
 
 .ideallo-tool-popover-row {
@@ -1237,9 +1323,36 @@ body,
 	fill: none;
 }
 
+/*
+ * The invisible hit circle sits ON TOP of the visible one, so it - not the glyph below it - is
+ * what the pointer ever hovers. The grab cursor has to live here to be seen at all, and
+ * setPointerCapture is taken on this element, so `grabbing` holds for the whole drag.
+ */
 .connector-endpoint-hit {
 	fill: transparent;
 	stroke: none;
+	cursor: grab;
+}
+
+.connector-endpoint-hit.dragging {
+	cursor: grabbing;
+}
+
+/* Hover reaches the glyph through the group, since the hit circle covers it */
+.connector-endpoint-handle-group:hover .connector-endpoint-handle {
+	stroke-width: 3;
+}
+
+/*
+ * A bound handle sits on its ANCHOR point while the line attaches out on the shape outline; this
+ * spans the gap so the pair reads as one terminal. Screen-space layer, so no /scale division.
+ */
+.connector-endpoint-leader {
+	stroke: var(--col-primary, #3b82f6);
+	stroke-width: 1;
+	stroke-dasharray: 3 2;
+	opacity: 0.55;
+	fill: none;
 }
 
 /* Route highlight shown instead of a SelectionBox on a fully bound connector */
@@ -1315,10 +1428,6 @@ body,
 	gap: 0.35rem;
 	font-size: 0.75rem;
 	white-space: nowrap;
-}
-
-.ideallo-arrowhead-swap {
-	align-self: center;
 }
 
 /* --- PropertyBar text controls --- */

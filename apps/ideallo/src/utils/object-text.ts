@@ -36,6 +36,9 @@ export const OBJECT_TEXT_COLOR = 'var(--palette-n0, #1e1e1e)'
 /** The sticky card's corner radius. One constant, shared by the SVG `rx` and the editor's CSS. */
 export const STICKY_CORNER_RADIUS = 2
 
+/** The sticky card's drop-shadow filter. One id, shared by the <defs> and every note that uses it. */
+export const STICKY_SHADOW_FILTER_ID = 'ideallo-sticky-shadow'
+
 /**
  * A polygon pays for its own margin.
  *

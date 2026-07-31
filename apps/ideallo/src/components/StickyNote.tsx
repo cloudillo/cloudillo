@@ -16,7 +16,11 @@ import { useMemo } from 'react'
 import type * as Y from 'yjs'
 
 import type { StickyObject } from '../crdt/index.js'
-import { objectTextLayout, STICKY_CORNER_RADIUS } from '../utils/object-text.js'
+import {
+	objectTextLayout,
+	STICKY_CORNER_RADIUS,
+	STICKY_SHADOW_FILTER_ID
+} from '../utils/object-text.js'
 import { colorToCss } from '../utils/palette.js'
 import { DEFAULT_LINE_HEIGHT } from '../utils/text-scaling.js'
 import { VERTICAL_ALIGN_CSS } from '../utils/text-styles.js'
@@ -51,16 +55,7 @@ export function StickyNote({ object, yText }: StickyNoteProps) {
 					: undefined
 			}
 		>
-			{/* Background rectangle with shadow effect */}
-			<rect
-				x={x + 2}
-				y={y + 3}
-				width={width}
-				height={height}
-				fill="rgba(0,0,0,0.08)"
-				rx={STICKY_CORNER_RADIUS}
-			/>
-			{/* Main background */}
+			{/* The card, casting its shadow through the board-wide filter */}
 			<rect
 				x={x}
 				y={y}
@@ -69,6 +64,7 @@ export function StickyNote({ object, yText }: StickyNoteProps) {
 				fill={bgColor}
 				rx={STICKY_CORNER_RADIUS}
 				opacity={style.opacity}
+				filter={`url(#${STICKY_SHADOW_FILTER_ID})`}
 			/>
 
 			{yText ? (

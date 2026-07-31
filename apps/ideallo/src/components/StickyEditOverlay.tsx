@@ -7,7 +7,8 @@
  * Uses RichTextEditor from @cloudillo/canvas-text for collaborative editing.
  * Includes 8px border drag zone for moving while editing.
  *
- * The whole note is swapped out for this overlay, which is why the shadow rect is redrawn here.
+ * The whole note is swapped out for this overlay, which is why the shadow-casting card rect is
+ * redrawn here.
  * The TEXT layout, though, comes from objectTextLayout - the same call StickyNote makes - so the
  * glyphs cannot shift on entering edit mode.
  */
@@ -19,7 +20,11 @@ import * as React from 'react'
 import type * as Y from 'yjs'
 
 import type { StickyObject } from '../crdt/index.js'
-import { objectTextLayout, STICKY_CORNER_RADIUS } from '../utils/object-text.js'
+import {
+	objectTextLayout,
+	STICKY_CORNER_RADIUS,
+	STICKY_SHADOW_FILTER_ID
+} from '../utils/object-text.js'
 import { colorToCss } from '../utils/palette.js'
 
 export interface StickyEditOverlayProps {
@@ -70,14 +75,19 @@ export function StickyEditOverlay({
 	if (yText) {
 		return (
 			<g transform={organicTransform}>
-				{/* Shadow effect */}
+				{/*
+					The editor's foreignObject paints the card background itself; this rect sits
+					underneath only to cast the shadow, which a foreignObject cannot do on its own.
+				*/}
 				<rect
-					x={x + 2}
-					y={y + 3}
+					x={x}
+					y={y}
 					width={width}
 					height={height}
-					fill="rgba(0,0,0,0.08)"
+					fill={bgColor}
 					rx={STICKY_CORNER_RADIUS}
+					opacity={style.opacity}
+					filter={`url(#${STICKY_SHADOW_FILTER_ID})`}
 				/>
 
 				<RichTextEditor

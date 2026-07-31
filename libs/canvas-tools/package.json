@@ -47,7 +47,7 @@
 	"devDependencies": {
 		"@cloudillo/react": "workspace:^",
 		"@types/react": "^19.2.17",
-		"react-svg-canvas": "^0.1.8",
+		"react-svg-canvas": "^0.1.9",
 		"rimraf": "^6.1.3",
 		"tslib": "^2.8.1",
 		"typescript": "^7.0.2"

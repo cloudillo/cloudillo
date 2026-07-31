@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { ApiClient } from '@cloudillo/core'
+
 export interface FileUserData {
 	accessedAt?: string
 	modifiedAt?: string
@@ -34,7 +36,9 @@ export interface File {
 	tags?: string[]
 	variantId?: string
 	parentId?: string | null
-	accessLevel?: 'read' | 'comment' | 'write' | 'none'
+	/** See `FileAccessLevel` in ./utils — 'admin' is write plus share management.
+	 *  Compare with `canWrite()`, never `=== 'write'`. */
+	accessLevel?: 'read' | 'comment' | 'write' | 'admin' | 'none'
 	visibility?: FileVisibility
 	parentName?: string
 	path?: { id: string; name: string }[]
@@ -80,7 +84,12 @@ export interface FileOps {
 	doPermanentDeleteFiles?: (fileIds: string[]) => void
 	toggleStarredBatch?: (fileIds: string[], starred: boolean) => void
 	togglePinnedBatch?: (fileIds: string[], pinned: boolean) => void
-	setVisibility?: (fileId: string, visibility: FileVisibility) => void
+	/**
+	 * `api` overrides the node the update is sent to, and callers that have an owner-scoped client
+	 * must pass it: while remote-browsing, the local context's client does not hold the row, so the
+	 * update 403/404s with nothing on screen to explain it. Omitted means the local client.
+	 */
+	setVisibility?: (fileId: string, visibility: FileVisibility, api?: ApiClient) => void
 	doDuplicateFile?: (fileId: string) => void
 	doRefreshFile?: (fileId: string) => void
 }

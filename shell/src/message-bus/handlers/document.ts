@@ -10,7 +10,7 @@
  * - doc:pick.result - Shell pushes result when user completes/cancels
  */
 
-import { createApiClient, type DocPickReq } from '@cloudillo/core'
+import { createApiClient, type DocPickReq, FetchError } from '@cloudillo/core'
 
 import type { ShellMessageBus } from '../shell-bus.js'
 import { idTagFromResId } from './resId.js'
@@ -54,6 +54,20 @@ let openDocPickerCallback: DocPickerCallback | null = null
  */
 export function setDocPickerCallback(callback: DocPickerCallback | null): void {
 	openDocPickerCallback = callback
+}
+
+/**
+ * Reports a failure that happens *after* the picker has closed, so it can
+ * still reach the user. Registered by `DocumentPicker`, which has the React
+ * context a toast needs.
+ */
+export type DocPickerNotice = 'share-denied' | 'share-failed'
+export type DocPickerNotifier = (notice: DocPickerNotice) => void
+
+let docPickerNotifier: DocPickerNotifier | null = null
+
+export function setDocPickerNotifier(notifier: DocPickerNotifier | null): void {
+	docPickerNotifier = notifier
 }
 
 /**
@@ -164,9 +178,17 @@ export function initDocumentHandlers(bus: ShellMessageBus): void {
 									subjectId: msg.payload.sourceFileId,
 									permission: 'R'
 								})
+							} else {
+								docPickerNotifier?.('share-failed')
 							}
 						} catch (err) {
+							// Share management needs ownership standing on the document's
+							// node, so a plain member gets a 403 here. Unreported, the
+							// embed looks like it worked and then fails to render for
+							// everyone else.
 							console.warn('[Document] Failed to create share entry:', err)
+							const denied = err instanceof FetchError && err.httpStatus === 403
+							docPickerNotifier?.(denied ? 'share-denied' : 'share-failed')
 						}
 					}
 

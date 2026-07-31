@@ -10,7 +10,8 @@
 
 import type { FileView } from '@cloudillo/core'
 import { getFileUrl, VISIBILITY_ORDER, type Visibility } from '@cloudillo/core'
-import { LoadMoreTrigger, useApi, useAuth } from '@cloudillo/react'
+import { LoadMoreTrigger, useApi, useAuth, useToast } from '@cloudillo/react'
+import { useAtomValue } from 'jotai'
 import React, { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -30,8 +31,10 @@ import {
 	LuX as IcX
 } from 'react-icons/lu'
 
-import { useApiContext } from '../../context/index.js'
+import { canManageFile, canManageShares, scopeFileToTenant } from '../../apps/files/utils.js'
+import { activeContextAtom, contextTokensAtom, useApiContext } from '../../context/index.js'
 import type { MediaPickerResult } from '../../context/media-picker-atom.js'
+import { isPermissionError } from '../../utils.js'
 import { PickerFilterBar, usePickerBrowse } from '../pickers/index.js'
 
 // File visibility type (matches API response)
@@ -140,10 +143,40 @@ export function MediaPickerBrowseTab({
 	const { t } = useTranslation()
 	const { api: defaultApi } = useApi()
 	const [auth] = useAuth()
+	const toast = useToast()
 	const { getClientFor } = useApiContext()
+	const activeContext = useAtomValue(activeContextAtom)
+	const contextTokens = useAtomValue(contextTokensAtom)
 	const api =
 		(idTagProp ? getClientFor(idTagProp, { auth: 'preferred' }) : defaultApi) || defaultApi
 	const idTag = idTagProp || auth?.idTag || defaultApi?.idTag
+
+	// Roles we hold on the node this picker browses — the same node the grant/visibility calls below
+	// will hit. On our own node the session token always carries the full owner role set. 'leader'
+	// short-circuits canManageShares ahead of every ownership test, deliberately: it mirrors the
+	// backend's own is_leader short-circuit (crates/cloudillo-file/src/share.rs), so a leader may
+	// re-share anything their node serves, pinned foreign-owned copies included.
+	const browseRoles = React.useMemo(() => {
+		if (!idTag) return []
+		if (idTag === auth?.idTag) return ['leader']
+		if (activeContext?.idTag === idTag) return activeContext.roles ?? []
+		return contextTokens.get(idTag)?.roles ?? []
+	}, [idTag, auth?.idTag, activeContext, contextTokens])
+
+	/**
+	 * Whether the lock overlay's action can actually succeed for this file.
+	 * Granting document access creates a share entry (share-manager standing);
+	 * "Make public" is a visibility change (the looser file-manage rule).
+	 */
+	const canUnlock = useCallback(
+		(file: FileView) => {
+			const scoped = scopeFileToTenant(file, auth?.idTag, idTag)
+			return documentFileId
+				? canManageShares(scoped, auth?.idTag, idTag, browseRoles)
+				: canManageFile(scoped, auth?.idTag, browseRoles)
+		},
+		[documentFileId, auth?.idTag, idTag, browseRoles]
+	)
 
 	const {
 		viewMode,
@@ -367,11 +400,20 @@ export function MediaPickerBrowseTab({
 				}
 			} catch (err) {
 				console.error('Failed to grant document access:', err)
+				// Swallowed, this leaves the file selectable and the resulting
+				// embed unreadable for everyone else.
+				toast.error(
+					isPermissionError(err)
+						? t('You do not have permission to share this file.')
+						: err instanceof Error
+							? err.message
+							: t('Failed to grant document access')
+				)
 			} finally {
 				setUpdatingFileId(null)
 			}
 		},
-		[api, documentFileId, files, selectedFile, onSelect, setAccessibleFileIds]
+		[api, documentFileId, files, selectedFile, onSelect, setAccessibleFileIds, toast, t]
 	)
 
 	// Handle "Make Public" action for a file
@@ -406,11 +448,22 @@ export function MediaPickerBrowseTab({
 				}
 			} catch (err) {
 				console.error('Failed to update file visibility:', err)
+				// Speaks up for the same reason as handleGrantDocumentAccess above: both are
+				// dispatched from the same lock overlay via handleFileAccessAction, so on the
+				// non-document (avatar / media selection) path a swallowed failure would just clear
+				// the spinner and leave the file quietly private.
+				toast.error(
+					isPermissionError(err)
+						? t('You do not have permission to change this file’s visibility.')
+						: err instanceof Error
+							? err.message
+							: t('Failed to update file visibility')
+				)
 			} finally {
 				setUpdatingFileId(null)
 			}
 		},
-		[api, refetchFiles, selectedFile, onSelect]
+		[api, refetchFiles, selectedFile, onSelect, toast, t]
 	)
 
 	// Unified handler for file access action (grant document access or make public)
@@ -541,6 +594,9 @@ export function MediaPickerBrowseTab({
 								const isUpdating = updatingFileId === file.fileId
 								const isConfirming = confirmingFile?.id === file.fileId
 								const confirmSide = isConfirming ? confirmingFile.confirmSide : null
+								// Offering an action the server will refuse just
+								// produces a broken embed — show the lock inert.
+								const unlockable = canUnlock(file)
 
 								return (
 									<div
@@ -563,10 +619,15 @@ export function MediaPickerBrowseTab({
 											{/* Interactive lock overlay with vertical split confirmation */}
 											{isFileDisabled && (
 												<div
-													className={`media-picker-item-lock ${isUpdating ? 'loading' : ''} ${isConfirming ? 'confirming' : ''}`}
+													className={`media-picker-item-lock ${isUpdating ? 'loading' : ''} ${isConfirming ? 'confirming' : ''} ${unlockable ? '' : 'disabled'}`}
 													onClick={(e) => {
 														e.stopPropagation()
-														if (isUpdating || isConfirming) return
+														if (
+															!unlockable ||
+															isUpdating ||
+															isConfirming
+														)
+															return
 
 														// Determine which half was clicked (vertical split)
 														const rect =
@@ -582,9 +643,15 @@ export function MediaPickerBrowseTab({
 																: 'top'
 														})
 													}}
-													title={t('Click to {{action}}', {
-														action: fileAccessActionLabel
-													})}
+													title={
+														unlockable
+															? t('Click to {{action}}', {
+																	action: fileAccessActionLabel
+																})
+															: t(
+																	'You do not have permission to share this file.'
+																)
+													}
 												>
 													{isUpdating ? (
 														<span className="media-picker-lock-spinner" />
@@ -647,7 +714,9 @@ export function MediaPickerBrowseTab({
 														<>
 															<IcLock />
 															<span className="media-picker-item-lock-label">
-																{fileAccessActionLabel}
+																{unlockable
+																	? fileAccessActionLabel
+																	: t('No access')}
 															</span>
 														</>
 													)}

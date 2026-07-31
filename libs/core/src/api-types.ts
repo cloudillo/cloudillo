@@ -659,7 +659,9 @@ export const tFileUserData = T.struct({
 	modifiedAt: T.optional(T.union(T.string, T.date)),
 	pinned: T.optional(T.boolean),
 	starred: T.optional(T.boolean),
-	accessLevel: T.optional(T.literal('read', 'comment', 'write', 'none'))
+	// 'admin' is write, plus the right to manage the file's share set. It reaches this cached
+	// copy from `file_user_data.access_level` ('A'), so it is not a shell-only concept.
+	accessLevel: T.optional(T.literal('read', 'comment', 'write', 'admin', 'none'))
 })
 export type FileUserData = T.TypeOf<typeof tFileUserData>
 
@@ -699,7 +701,9 @@ export const tFileView = T.struct({
 			type: T.optional(T.string)
 		})
 	),
-	accessLevel: T.optional(T.literal('read', 'comment', 'write', 'none')),
+	// 'admin' = write, plus share management. The file owner, a community leader and an explicit
+	// 'A' share grantee all resolve to it (backend `compute_file_access_levels`).
+	accessLevel: T.optional(T.literal('read', 'comment', 'write', 'admin', 'none')),
 	visibility: T.optional(T.union(tActionVisibility, T.nullValue)), // null/D=Direct, P=Public, V=Verified, 2=2nd degree, F=Followers, C=Connected
 	parentName: T.optional(T.string), // Immediate parent folder name (when withParent=true)
 	path: T.optional(T.array(T.struct({ id: T.string, name: T.string }))), // root→parent chain (when withPath=true)
@@ -808,12 +812,15 @@ export type TagResult = T.TypeOf<typeof tTagResult>
 export interface CreateShareEntryRequest {
 	subjectType: string // 'U' (user) | 'L' (link) | 'F' (file)
 	subjectId: string
-	permission: string // 'R' (read) | 'C' (comment) | 'W' (write) | 'A' (admin)
+	/** A `SharePermChar` (shell/src/apps/files/utils.ts): 'R' | 'C' | 'W' | 'A'.
+	 *  'A' (admin) is only valid for subjectType 'U' — the backend rejects it otherwise. */
+	permission: string
 	expiresAt?: string // ISO timestamp
 }
 
 export interface UpdateShareEntryRequest {
-	permission?: string // 'R' | 'C' | 'W' | 'A'; omit = leave alone
+	/** A `SharePermChar`; omit = leave alone. `null` is rejected — DELETE the entry instead. */
+	permission?: string
 	expiresAt?: string | null // ISO timestamp; null = clear
 }
 
@@ -824,6 +831,9 @@ export const tShareEntry = T.struct({
 	resourceId: T.string,
 	subjectType: T.string,
 	subjectId: T.string,
+	// Deliberately T.string, not a literal union of 'R'|'C'|'W'|'A': one corrupt row would fail the
+	// decode of the WHOLE share list. `toSharePermChar` (shell/src/apps/files/utils.ts) normalizes
+	// per entry instead, mirroring the backend's fail-safe `AccessLevel::from_perm_char`.
 	permission: T.string,
 	expiresAt: T.optional(T.union(T.string, T.date)),
 	createdBy: T.string,
@@ -1013,6 +1023,10 @@ export type GetSettingResult = T.TypeOf<typeof tGetSettingResult>
 // ============================================================================
 
 // Request types
+//
+// Refs (share links) never carry 'admin': a link is a bearer credential and share management is
+// never delegable, so the backend's `parse_access_level` rejects it (cloudillo-rs
+// crates/cloudillo-ref/src/handler.rs). Every accessLevel below is deliberately 3-valued.
 export interface CreateRefRequest {
 	type: string
 	description?: string
@@ -1029,12 +1043,21 @@ export interface UpdateRefRequest {
 	description?: string | null
 	expiresAt?: string | null // ISO 8601 timestamp (Date.toISOString())
 	count?: number | null
-	accessLevel?: 'read' | 'comment' | 'write' | null
+	// Deliberately not nullable: `update_ref` (cloudillo-rs crates/cloudillo-ref/src/handler.rs)
+	// answers 400 "access_level cannot be cleared on share.file refs; DELETE the ref instead" for
+	// an explicit null. Revoking a link is a DELETE, not a patch.
+	accessLevel?: 'read' | 'comment' | 'write'
 }
 
 export interface ListRefsQuery {
 	type?: string
 	resourceId?: string
+	/**
+	 * Lifecycle filter. The server DEFAULTS to `'active'`, which hides both `expires_at <= now` and
+	 * `count = 0` rows (adapters/meta-adapter-sqlite/src/reference.rs) — a management surface that
+	 * must keep dead links reachable has to ask for `'all'` explicitly.
+	 */
+	filter?: 'active' | 'used' | 'expired' | 'all'
 	[key: string]: string | undefined
 }
 
@@ -1051,8 +1074,10 @@ export const tRef = T.struct({
 	createdAt: T.union(T.string, T.date),
 	expiresAt: T.optional(T.union(T.string, T.date)),
 	count: T.optional(T.number),
-	used: T.optional(T.boolean),
-	params: T.optional(T.string)
+	params: T.optional(T.string),
+	/** `true` when `refId` has been replaced by an opaque digest because the caller is a share
+	 *  reader but not a manager. Absent means `refId` is the real credential. */
+	redacted: T.optional(T.boolean)
 })
 export type Ref = T.TypeOf<typeof tRef>
 
@@ -1066,6 +1091,8 @@ export const tRefResponse = T.struct({
 	expiresAt: T.optional(T.string),
 	count: T.optional(T.number),
 	params: T.optional(T.string)
+	// No `redacted`: only `list_refs` redacts. `get_ref`, this type's sole consumer, is deliberately
+	// ungated and always serialises the real refId.
 })
 export type RefResponse = T.TypeOf<typeof tRefResponse>
 

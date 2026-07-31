@@ -11,13 +11,14 @@ import {
 } from 'react-icons/lu'
 
 import type { BreadcrumbItem } from '../hooks/useFileNavigation.js'
+import { canWrite, type FileAccessLevel } from '../utils.js'
 
 interface BreadcrumbsProps {
 	className?: string
 	items: BreadcrumbItem[]
 	onNavigate: (folderId: string | null) => void
 	isRemoteBrowsing?: boolean
-	accessLevel?: 'read' | 'write'
+	accessLevel?: FileAccessLevel
 }
 
 function CrumbLabel({ item, className }: { item: BreadcrumbItem; className?: string }) {
@@ -81,7 +82,7 @@ export const Breadcrumbs = React.memo(function Breadcrumbs({
 				{isRemoteBrowsing && accessLevel && (
 					<li className="c-hbox align-items-center ms-2">
 						<span className="c-badge">
-							{accessLevel === 'write' ? t('Can edit') : t('Read only')}
+							{canWrite(accessLevel) ? t('Can edit') : t('Read only')}
 						</span>
 					</li>
 				)}

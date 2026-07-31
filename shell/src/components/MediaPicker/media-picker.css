@@ -199,6 +199,21 @@
 	opacity: 1;
 }
 
+/* No permission to unlock: the overlay is inert, so it must not look clickable. The label stays
+   visible rather than hidden-until-hover - "No access" is the only explanation on offer. */
+.media-picker-item-lock.disabled {
+	cursor: default;
+}
+
+.media-picker-item-lock.disabled:hover {
+	background: rgba(0, 0, 0, 0.4);
+}
+
+.media-picker-item-lock.disabled svg,
+.media-picker-item-lock.disabled .media-picker-item-lock-label {
+	opacity: 0.6;
+}
+
 /* Split confirmation state - vertical split */
 .media-picker-item-lock.confirming {
 	background: transparent;

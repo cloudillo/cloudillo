@@ -37,17 +37,21 @@ import {
 
 import { activeContextAtom, useCurrentContextIdTag } from '../../../context/index.js'
 import { getIcon } from '../../../icon-registry.js'
-import { triggerFileDownload } from '../../viewer/MediaViewer.js'
 import { getHandlersForContentType } from '../../../manifest-registry.js'
 import { type FileHandItem, HandTypeConflictError, pickUp } from '../../../state/hand.js'
 import { flyToHand, handTargetElAtom, prefersReducedMotion } from '../../../state/hand-fly.js'
+import { triggerFileDownload } from '../../viewer/MediaViewer.js'
 import type { File, FileOps, ViewMode } from '../types.js'
 import { isFileProcessing, MANAGED_FOLDER_ID } from '../types.js'
 import {
 	canManageFile,
+	canManageShares,
+	canWrite,
 	getVisibilityDropdownOptions,
 	getVisibilityIcon,
-	getVisibilityOption
+	getVisibilityOption,
+	scopeFileToTenant,
+	toAppAccess
 } from '../utils.js'
 
 export interface ContextMenuPosition {
@@ -195,8 +199,35 @@ export function ContextMenu({
 	// Show "Open with" when multiple handlers exist or there are launch modes
 	const showOpenWith = handlers.length > 1 || launchModeEntries.length > 0
 
-	// Visibility info
-	const canManage = isSingleSelect && canManageFile(file, auth?.idTag, activeContext?.roles ?? [])
+	/*
+	 * `useFileOwnerScope` is the authority on sharing standing, and the menu deliberately does NOT
+	 * mount it: the hook fetches a proxy token per file, and doing that on every right-click /
+	 * long-press would widen an identity disclosure rather than narrow one. So the menu
+	 * APPROXIMATES it from data already in hand, conservatively — withholding the ACTIVE context's
+	 * roles on a cross-owner row, since the `leader` short-circuit inside canManageShares is judged
+	 * against the node that SERVES the row.
+	 */
+	const isCrossOwner = Boolean(file.owner?.idTag && file.owner.idTag !== contextIdTag)
+	// The same two substitutions useFileOwnerScope makes, so the menu's approximation can only be
+	// narrower than what the dialog will allow, never wider:
+	//  - cross-owner: drop the ACTIVE context's cached accessLevel, which is not the owner node's
+	//    answer (an 'A' grant recorded locally would otherwise open the full share UI, then 403);
+	//  - ownerless: name the serving tenant, so canManageFile's short-circuit cannot vouch for a
+	//    node we hold no roles on.
+	const scopedFile = isCrossOwner
+		? { ...file, accessLevel: undefined }
+		: scopeFileToTenant(file, auth?.idTag, contextIdTag)
+	const canShare =
+		isSingleSelect &&
+		canManageShares(
+			scopedFile,
+			auth?.idTag,
+			contextIdTag,
+			isCrossOwner ? [] : (activeContext?.roles ?? [])
+		)
+	const canManage =
+		isSingleSelect &&
+		canManageFile(scopedFile, auth?.idTag, isCrossOwner ? [] : (activeContext?.roles ?? []))
 	const currentVisibility = getVisibilityOption(t, file.visibility ?? null)
 	const visibilityDropdownOptions = getVisibilityDropdownOptions(t)
 
@@ -262,16 +293,13 @@ export function ContextMenu({
 					icon={<IcOpen />}
 					label={isFolder ? t('Open folder') : t('Open')}
 					onClick={handleAction(() =>
-						fileOps.openFile(
-							file.fileId,
-							file.accessLevel === 'none' ? 'read' : file.accessLevel
-						)
+						fileOps.openFile(file.fileId, toAppAccess(file.accessLevel))
 					)}
 				/>
 			)}
 
 			{/* View in read-only mode - only for files user can edit */}
-			{isSingleSelect && !isFolder && file.accessLevel === 'write' && (
+			{isSingleSelect && !isFolder && canWrite(file.accessLevel) && (
 				<Item
 					icon={<IcView />}
 					label={t('View')}
@@ -293,7 +321,7 @@ export function ContextMenu({
 									fileOps.openFileWithApp?.(
 										file.fileId,
 										h.manifest.id,
-										file.accessLevel === 'none' ? 'read' : file.accessLevel
+										toAppAccess(file.accessLevel)
 									)
 								)}
 							/>
@@ -311,7 +339,7 @@ export function ContextMenu({
 									fileOps.openFileWithApp?.(
 										file.fileId,
 										entry.manifest.id,
-										file.accessLevel === 'none' ? 'read' : file.accessLevel,
+										toAppAccess(file.accessLevel),
 										'mode=' + entry.mode.id
 									)
 								})}
@@ -350,10 +378,11 @@ export function ContextMenu({
 			{/* Share & Visibility section — hidden in remote browsing */}
 			{!isRemoteBrowsing &&
 				!isManagedView &&
-				(onShare || (canManage && fileOps.setVisibility)) && <Divider />}
+				((onShare && canShare) ||
+					(!isCrossOwner && canManage && fileOps.setVisibility)) && <Divider />}
 
-			{/* Share - only for single selection */}
-			{!isRemoteBrowsing && !isManagedView && isSingleSelect && onShare && (
+			{/* Share - only for single selection, and only with share-manager standing */}
+			{!isRemoteBrowsing && !isManagedView && canShare && onShare && (
 				<Item
 					icon={<IcShare />}
 					label={t('Share...')}
@@ -361,30 +390,37 @@ export function ContextMenu({
 				/>
 			)}
 
-			{/* Visibility submenu - only for single selection and owner/manager */}
-			{!isRemoteBrowsing && !isManagedView && canManage && fileOps.setVisibility && (
-				<Sub
-					icon={React.createElement(currentVisibility.icon)}
-					label={t('Visibility')}
-					detail={currentVisibility.label}
-				>
-					{visibilityDropdownOptions.map((opt) => {
-						const VisibilityIcon = getVisibilityIcon(opt.value)
-						const isCurrentVisibility = (file.visibility ?? null) === opt.value
-						return (
-							<Item
-								key={opt.value ?? 'null'}
-								icon={<VisibilityIcon />}
-								label={opt.label}
-								onClick={handleAction(() =>
-									fileOps.setVisibility!(file.fileId, opt.value)
-								)}
-								disabled={isCurrentVisibility}
-							/>
-						)
-					})}
-				</Sub>
-			)}
+			{/* Visibility submenu - only for single selection and owner/manager. Never for a
+			    cross-owner row: the menu holds no owner-scoped client to route the write to, so it
+			    would go to the local node. DetailsPanel, which does hold the scope, is the place to
+			    change visibility on such a row. */}
+			{!isRemoteBrowsing &&
+				!isManagedView &&
+				!isCrossOwner &&
+				canManage &&
+				fileOps.setVisibility && (
+					<Sub
+						icon={React.createElement(currentVisibility.icon)}
+						label={t('Visibility')}
+						detail={currentVisibility.label}
+					>
+						{visibilityDropdownOptions.map((opt) => {
+							const VisibilityIcon = getVisibilityIcon(opt.value)
+							const isCurrentVisibility = (file.visibility ?? null) === opt.value
+							return (
+								<Item
+									key={opt.value ?? 'null'}
+									icon={<VisibilityIcon />}
+									label={opt.label}
+									onClick={handleAction(() =>
+										fileOps.setVisibility!(file.fileId, opt.value)
+									)}
+									disabled={isCurrentVisibility}
+								/>
+							)
+						})}
+					</Sub>
+				)}
 
 			{/* Star toggle — hidden in remote browsing */}
 			{!isRemoteBrowsing && !isManagedView && (

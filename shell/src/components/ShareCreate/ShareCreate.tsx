@@ -12,7 +12,7 @@
  */
 
 import type { Ref } from '@cloudillo/core'
-import { Badge, Button, Dialog, useToast } from '@cloudillo/react'
+import { Badge, Button, Dialog, useAuth, useToast } from '@cloudillo/react'
 import dayjs from 'dayjs'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -24,19 +24,11 @@ import {
 	setShareCreateCallback
 } from '../../message-bus/handlers/share.js'
 import { useShareOrigin } from '../../utils/appOrigin.js'
+import { isRefReusable, shareLinkErrorMessage } from '../../utils/refs.js'
 
 interface PendingRequest {
 	options: ShareCreateOpenOptions
 	onResult: (result: ShareCreateResultData | null) => void
-}
-
-/**
- * Check if a ref is compatible for reuse (no nav= in its params)
- */
-function isCompatibleRef(ref: Ref): boolean {
-	if (!ref.params) return true
-	const params = new URLSearchParams(ref.params)
-	return !params.has('nav')
 }
 
 /**
@@ -51,6 +43,7 @@ function formatExpiry(ref: Ref, t: (key: string) => string): string | null {
 export function ShareCreate() {
 	const { t } = useTranslation()
 	const { getClientFor } = useApiContext()
+	const [auth] = useAuth()
 	const toast = useToast()
 	const [pending, setPending] = React.useState<PendingRequest | null>(null)
 	const ownerIdTag = pending?.options.ownerIdTag
@@ -59,7 +52,8 @@ export function ShareCreate() {
 		() => (ownerIdTag ? getClientFor(ownerIdTag, { auth: 'required' }) : null),
 		[ownerIdTag, getClientFor]
 	)
-	const shareOrigin = useShareOrigin(api, ownerIdTag) ?? window.location.origin
+	// `api` is built FROM ownerIdTag right above, so the client and the cache key name one tenant
+	const shareOrigin = useShareOrigin(api, ownerIdTag, auth?.idTag)
 	const [creating, setCreating] = React.useState(false)
 	const [compatibleRefs, setCompatibleRefs] = React.useState<Ref[]>([])
 	const [loadingRefs, setLoadingRefs] = React.useState(false)
@@ -96,7 +90,12 @@ export function ShareCreate() {
 				})
 				if (cancelled) return
 
-				const compatible = (Array.isArray(refs) ? refs : []).filter(isCompatibleRef)
+				// `isRefReusable` also drops REDACTED refs: for a share reader the server replaces
+				// refId with an opaque r1~… digest, and reusing one copies a permanently dead URL
+				// to the clipboard and returns it to the app as a success. When every returned ref
+				// is redacted this list is simply empty, the dialog stays in 'create' mode, and the
+				// 403 that follows now carries the real reason.
+				const compatible = (Array.isArray(refs) ? refs : []).filter(isRefReusable)
 				setCompatibleRefs(compatible)
 
 				if (compatible.length > 0) {
@@ -125,7 +124,7 @@ export function ShareCreate() {
 
 		if (mode === 'reuse' && selectedRefId) {
 			// Reuse existing ref — construct URL with appended params
-			const baseUrl = `${shareOrigin}/s/${selectedRefId}`
+			const baseUrl = `${shareOrigin.href}/s/${selectedRefId}`
 			const url = pending.options.params ? `${baseUrl}?${pending.options.params}` : baseUrl
 
 			try {
@@ -156,7 +155,7 @@ export function ShareCreate() {
 				params: pending.options.params
 			})
 
-			const url = `${shareOrigin}/s/${ref.refId}`
+			const url = `${shareOrigin.href}/s/${ref.refId}`
 
 			try {
 				await navigator.clipboard.writeText(url)
@@ -168,7 +167,7 @@ export function ShareCreate() {
 			pending.onResult({ refId: ref.refId, url })
 		} catch (err) {
 			console.error('[ShareCreate] Failed to create share link:', err)
-			toast.error(t('Failed to create share link'))
+			toast.error(shareLinkErrorMessage(err, t))
 			pending.onResult(null)
 		} finally {
 			setCreating(false)
@@ -252,12 +251,22 @@ export function ShareCreate() {
 				</p>
 			)}
 
+			{shareOrigin.status === 'failed' && (
+				<p className="text-danger mt-2" role="alert">
+					{t('Could not determine the share address for this document.')}
+				</p>
+			)}
+
 			<div className="c-hbox justify-content-end g-2 mt-3">
 				<Button onClick={handleCancel}>{t('Cancel')}</Button>
+				{/* Both paths hand out a URL, and /s/:refId resolves the ref against the ORIGIN's
+				    tenant - built on our own host, a foreign owner's link 404s for whoever receives
+				    it. So the confirm waits for the owner's real app domain, and stays disabled for
+				    good if it never arrives. */}
 				<Button
 					variant="primary"
 					onClick={handleConfirm}
-					disabled={creating || loadingRefs}
+					disabled={creating || loadingRefs || !shareOrigin.trusted}
 				>
 					{creating
 						? t('Creating...')

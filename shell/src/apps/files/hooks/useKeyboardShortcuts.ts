@@ -4,6 +4,7 @@
 import * as React from 'react'
 
 import type { File, FileOps } from '../types.js'
+import { toAppAccess } from '../utils.js'
 
 export interface UseKeyboardShortcutsOptions {
 	files: File[]
@@ -171,9 +172,7 @@ export function useKeyboardShortcuts({
 							} else {
 								fileOps.openFile(
 									selectedFile.fileId,
-									selectedFile.accessLevel === 'none'
-										? 'read'
-										: selectedFile.accessLevel
+									toAppAccess(selectedFile.accessLevel)
 								)
 							}
 						}

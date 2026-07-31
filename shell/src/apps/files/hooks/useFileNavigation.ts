@@ -14,6 +14,7 @@ import {
 import { fileNavStackAtom } from '../atoms.js'
 import type { File, ViewMode } from '../types.js'
 import { MANAGED_FOLDER_ID, TRASH_FOLDER_ID, VIEW_MODES } from '../types.js'
+import type { FileAccessLevel } from '../utils.js'
 
 export interface BreadcrumbItem {
 	id: string | null
@@ -32,7 +33,12 @@ export function useFileNavigation() {
 	const [breadcrumbs, setBreadcrumbs] = React.useState<BreadcrumbItem[]>([])
 	const [navStack, setNavStack] = useAtom(fileNavStackAtom)
 	const [remoteApi, setRemoteApi] = React.useState<ApiClient | null>(null)
-	const [remoteAccessLevel, setRemoteAccessLevel] = React.useState<'read' | 'write' | undefined>()
+	// Roles we hold ON the remote tenant, from the same proxy token that minted `remoteApi`.
+	// Standing there cannot be read off the active context's roles.
+	const [remoteRoles, setRemoteRoles] = React.useState<string[]>([])
+	// The share root's own level, carried verbatim rather than flattened to read/write: an 'A'
+	// grant on the shared folder must still read as write-or-better downstream (`canWrite`).
+	const [remoteAccessLevel, setRemoteAccessLevel] = React.useState<FileAccessLevel | undefined>()
 
 	// Get current state from URL
 	const currentFolderId = searchParams.get('parentId') || null
@@ -50,11 +56,14 @@ export function useFileNavigation() {
 	// Acquire remote API client when remoteOwner changes
 	React.useEffect(
 		function acquireRemoteApi() {
-			if (!remoteOwner) {
-				setRemoteApi(null)
-				setRemoteAccessLevel(undefined)
-				return
-			}
+			// Unconditionally, before any await: `remoteOwner` changing from one tenant to another
+			// leaves the previous owner's client and roles in place while the new token loads, and
+			// FilesApp pairs them with the NEW owner's idTag in `remoteScope` — the api-and-standing
+			// disagreement useFileOwnerScope exists to prevent.
+			setRemoteApi(null)
+			setRemoteRoles([])
+			setRemoteAccessLevel(undefined)
+			if (!remoteOwner) return
 
 			let cancelled = false
 			;(async function () {
@@ -64,9 +73,15 @@ export function useFileNavigation() {
 					const client = tokenResult
 						? getClientFor(remoteOwner, { token: tokenResult.token })
 						: null
-					if (!cancelled) setRemoteApi(client)
+					if (!cancelled) {
+						setRemoteApi(client)
+						setRemoteRoles(tokenResult?.roles ?? [])
+					}
 				} catch {
-					if (!cancelled) setRemoteApi(null)
+					if (!cancelled) {
+						setRemoteApi(null)
+						setRemoteRoles([])
+					}
 				}
 			})()
 
@@ -140,9 +155,7 @@ export function useFileNavigation() {
 										: undefined
 								})
 								if (isRoot) {
-									setRemoteAccessLevel(
-										folder.accessLevel === 'write' ? 'write' : 'read'
-									)
+									setRemoteAccessLevel(folder.accessLevel ?? 'read')
 									break
 								}
 								folderId = folder.parentId || null
@@ -329,6 +342,7 @@ export function useFileNavigation() {
 		viewMode,
 		canGoBack,
 		remoteApi,
+		remoteRoles,
 		navigateToFolder,
 		navigateToView,
 		goBack,

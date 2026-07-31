@@ -12,7 +12,7 @@ import * as React from 'react'
  * - Internal shell components via useDocumentPicker hook
  */
 
-import { Button, useBodyScrollLock, useEscapeKey } from '@cloudillo/react'
+import { Button, useBodyScrollLock, useEscapeKey, useToast } from '@cloudillo/react'
 import { useAtom, useSetAtom } from 'jotai'
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -25,13 +25,14 @@ import {
 	docPickerAtom,
 	openDocPickerAtom
 } from '../../context/doc-picker-atom.js'
-import { setDocPickerCallback } from '../../message-bus/handlers/document.js'
+import { setDocPickerCallback, setDocPickerNotifier } from '../../message-bus/handlers/document.js'
 import { DocumentPickerBrowseTab } from './DocumentPickerBrowseTab.js'
 
 import './document-picker.css'
 
 export function DocumentPicker() {
 	const { t } = useTranslation()
+	const { error: toastError } = useToast()
 	const [state] = useAtom(docPickerAtom)
 	const closeDocPicker = useSetAtom(closeDocPickerAtom)
 
@@ -58,6 +59,25 @@ export function DocumentPicker() {
 			setDocPickerCallback(null)
 		}
 	}, [openPicker])
+
+	// The share grant that follows a pick runs after the dialog has closed, so
+	// the handler needs a way back to the user for its failures.
+	useEffect(() => {
+		setDocPickerNotifier((notice) =>
+			toastError(
+				notice === 'share-denied'
+					? t(
+							'You do not have permission to share this file, so the embed may not be readable by others.'
+						)
+					: t(
+							'The embed was inserted, but access could not be granted — it may not be readable by others.'
+						)
+			)
+		)
+		return () => {
+			setDocPickerNotifier(null)
+		}
+	}, [toastError, t])
 
 	// Reset state when opening
 	useEffect(() => {

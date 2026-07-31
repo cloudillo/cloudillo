@@ -26,7 +26,13 @@ import {
 	TRASH_FOLDER_ID,
 	type ViewMode
 } from '../types.js'
-import { getSmartTimestamp, getVisibilityIcon, getVisibilityLabel } from '../utils.js'
+import {
+	canWrite,
+	getSmartTimestamp,
+	getVisibilityIcon,
+	getVisibilityLabel,
+	toAppAccess
+} from '../utils.js'
 
 interface ItemGridProps {
 	className?: string
@@ -79,7 +85,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 		if (isFolder) {
 			onDoubleClick?.(file)
 		} else {
-			fileOps.openFile(file.fileId, file.accessLevel === 'none' ? 'read' : file.accessLevel)
+			fileOps.openFile(file.fileId, toAppAccess(file.accessLevel))
 		}
 	}
 
@@ -166,9 +172,13 @@ export const ItemGrid = React.memo(function ItemGrid({
 				)}
 
 				{/* Access level badge for non-write access */}
-				{!isFolder && file.accessLevel && file.accessLevel !== 'write' && (
+				{!isFolder && file.accessLevel && !canWrite(file.accessLevel) && (
 					<span className="c-file-grid-access-badge">
-						{file.accessLevel === 'read' ? <IcView /> : <IcLock />}
+						{file.accessLevel === 'read' || file.accessLevel === 'comment' ? (
+							<IcView />
+						) : (
+							<IcLock />
+						)}
 					</span>
 				)}
 

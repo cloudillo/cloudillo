@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { FetchError } from '@cloudillo/core'
 import dayjs from 'dayjs'
 import { atom, useAtom } from 'jotai'
 import * as React from 'react'
@@ -106,6 +107,25 @@ export type FetchResultError = {
 		code: string
 		descr: string
 	}
+}
+
+/**
+ * Whether an error is the server refusing the request on authorization grounds. The API client
+ * deliberately never auto-recovers a 403 (unlike a 401), so these surface raw at the call site and
+ * each caller must decide how to present them.
+ */
+export function isPermissionError(err: unknown): boolean {
+	return err instanceof FetchError && err.httpStatus === 403
+}
+
+/**
+ * Whether the server declined to produce a resource at all. On READ paths this is
+ * indistinguishable from a refusal — several endpoints hide a resource rather than 403 on it — so
+ * a reader UI should present it as "you may not see this", not as a retryable failure.
+ * NOT for write paths, where a 404 can genuinely mean the row is gone.
+ */
+export function isMissingError(err: unknown): boolean {
+	return err instanceof FetchError && err.httpStatus === 404
 }
 
 export class ServerError extends Error {

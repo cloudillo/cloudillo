@@ -914,6 +914,17 @@ export class ApiClient {
 			this.request('GET', `/files/${fileId}/descriptor`, Types.tFileDescriptor),
 
 		/**
+		 * GET /files/:fileId/metadata — the serving node's own answer about a file, including the
+		 * `accessLevel` it computes for a CROSS-TENANT caller (`get_file_metadata` in
+		 * cloudillo-file/src/handler.rs computes it whenever the file or the caller is cross-tenant).
+		 * The only way to see an 'A' grant inherited from a parent folder rather than granted directly.
+		 * @param fileId - File ID
+		 * @returns File metadata as that node resolves it
+		 */
+		getMetadata: (fileId: string) =>
+			this.request('GET', `/files/${fileId}/metadata`, Types.tFileView),
+
+		/**
 		 * GET /files/:fileId - Get file (best variant selected)
 		 * @param fileId - File ID
 		 * @param selector - Optional variant selector

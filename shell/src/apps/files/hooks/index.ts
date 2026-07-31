@@ -3,6 +3,8 @@
 
 export { buildFileFilterParams, useFileList } from './useFileList.js'
 export { useFileNavigation } from './useFileNavigation.js'
+export type { FileOwnerScope } from './useFileOwnerScope.js'
+export { useFileOwnerScope } from './useFileOwnerScope.js'
 export type { UseKeyboardShortcutsOptions } from './useKeyboardShortcuts.js'
 export { useKeyboardShortcuts } from './useKeyboardShortcuts.js'
 export type { UseMultiSelectOptions, UseMultiSelectResult } from './useMultiSelect.js'

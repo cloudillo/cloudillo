@@ -29,7 +29,7 @@ import {
 	useUrlContextIdTag
 } from '../../context/index.js'
 import { getDirtyDocIds } from '../../message-bus/handlers/crdt.js'
-import { useAppConfig } from '../../utils.js'
+import { isPermissionError, useAppConfig } from '../../utils.js'
 import {
 	displayModeAtom,
 	fileTypeFilterAtom,
@@ -62,6 +62,7 @@ import {
 } from './hooks/index.js'
 import type { File, FileOps, ViewMode } from './types.js'
 import { isFileProcessing } from './types.js'
+import { canWrite } from './utils.js'
 
 export function FilesApp() {
 	const navigate = useNavigate()
@@ -78,9 +79,11 @@ export function FilesApp() {
 	// Navigation state
 	const {
 		currentFolderId,
+		remoteOwner,
 		isRemoteBrowsing,
 		remoteAccessLevel,
 		remoteApi,
+		remoteRoles,
 		breadcrumbs,
 		viewMode,
 		canGoBack,
@@ -206,6 +209,25 @@ export function FilesApp() {
 		ownerFilter,
 		contextIdTag
 	])
+
+	// The remote node, the tenant it belongs to, and our roles there — derived once and handed to
+	// both the details panel and the share dialog it opens, so the affordance one offers and what
+	// the other allows are decided from the same values.
+	const remoteScope = React.useMemo(
+		() =>
+			isRemoteBrowsing
+				? {
+						api: remoteApi,
+						idTag: remoteOwner ?? undefined,
+						roles: remoteRoles,
+						// The row is the remote node's whether or not its token has landed. Dropping
+						// the override meanwhile re-judged it against the LOCAL context, where an
+						// ownerless row short-circuits canManageFile to `true`.
+						resolving: !remoteApi
+					}
+				: undefined,
+		[isRemoteBrowsing, remoteApi, remoteOwner, remoteRoles]
+	)
 
 	// Smart upload (wraps upload queue with import detection)
 	const uploadQueue = useSmartUpload({
@@ -455,10 +477,22 @@ export function FilesApp() {
 
 			doRenameFile: async function doRenameFile(fileId: string, fileName: string) {
 				if (!api) return
-				await api.files.update(fileId, { fileName })
-				setRenameFileId(undefined)
-				setRenameFileName(undefined)
-				fileListData.refresh()
+				// Unhandled, a 403 here rejects into nothing: the dialog sits open with no
+				// explanation and the name silently does not change. Kept open on failure on
+				// purpose, so the user can retry or cancel.
+				try {
+					await api.files.update(fileId, { fileName })
+					setRenameFileId(undefined)
+					setRenameFileName(undefined)
+					fileListData.refresh()
+				} catch (err) {
+					console.error('Failed to rename file', err)
+					toast.error(
+						isPermissionError(err)
+							? t('You do not have permission to rename this file.')
+							: t('Failed to rename file')
+					)
+				}
 			},
 
 			doDeleteFile: async function doDeleteFile(fileId: string) {
@@ -609,10 +643,25 @@ export function FilesApp() {
 				fileListData.refresh()
 			},
 
-			setVisibility: async function setVisibility(fileId: string, visibility) {
-				if (!api) return
-				await api.files.update(fileId, { visibility })
-				fileListData.refresh()
+			// `scopedApi` is the file's own node when the caller knows it differs from ours - see
+			// FileOps.setVisibility. Without it a remote row's update goes to the wrong server.
+			setVisibility: async function setVisibility(fileId: string, visibility, scopedApi) {
+				const target = scopedApi ?? api
+				if (!target) return
+				// Called without an await from the details panel and the context menu, and the
+				// whole point of `scopedApi` is a foreign node - which is exactly where a 403
+				// happens. Unhandled, the dropdown just closes and nothing changes.
+				try {
+					await target.files.update(fileId, { visibility })
+					fileListData.refresh()
+				} catch (err) {
+					console.error('Failed to change visibility', err)
+					toast.error(
+						isPermissionError(err)
+							? t('You do not have permission to change this file’s visibility.')
+							: t('Failed to change visibility')
+					)
+				}
 			},
 
 			doDuplicateFile: async function doDuplicateFile(fileId: string) {
@@ -687,7 +736,7 @@ export function FilesApp() {
 	const isInitialLoading = fileListData.isLoading && files.length === 0
 
 	// Disable drag-drop in trash view and read-only remote browsing
-	const canUpload = viewMode === 'browse' && (!isRemoteBrowsing || remoteAccessLevel === 'write')
+	const canUpload = viewMode === 'browse' && (!isRemoteBrowsing || canWrite(remoteAccessLevel))
 
 	return (
 		<>
@@ -947,7 +996,7 @@ export function FilesApp() {
 								fileOps={fileOps}
 								onShare={setShareDialogFile}
 								onNavigateToFolder={navigateToFolder}
-								apiOverride={isRemoteBrowsing && remoteApi ? remoteApi : undefined}
+								ownerScope={remoteScope}
 							/>
 						)}
 					</Fcd.Details>
@@ -994,6 +1043,7 @@ export function FilesApp() {
 					file={shareDialogFile}
 					onClose={() => setShareDialogFile(undefined)}
 					onPermissionsChanged={fileListData.refresh}
+					ownerScope={remoteScope}
 				/>
 			)}
 		</>

@@ -32,7 +32,13 @@ import { isViewerSupported, triggerFileDownload } from '../../viewer/MediaViewer
 import { getFileIcon, type IcUnknown } from '../icons.js'
 import type { File, FileOps, ViewMode } from '../types.js'
 import { isFileProcessing, MANAGED_FOLDER_ID, TRASH_FOLDER_ID } from '../types.js'
-import { getSmartTimestamp, getVisibilityIcon, getVisibilityLabel } from '../utils.js'
+import {
+	canWrite,
+	getSmartTimestamp,
+	getVisibilityIcon,
+	getVisibilityLabel,
+	toAppAccess
+} from '../utils.js'
 
 interface ItemCardProps {
 	className?: string
@@ -83,7 +89,7 @@ export const ItemCard = React.memo(function ItemCard({
 		if (isFolder) {
 			onDoubleClick?.(file)
 		} else {
-			fileOps.openFile(file.fileId, file.accessLevel === 'none' ? 'read' : file.accessLevel)
+			fileOps.openFile(file.fileId, toAppAccess(file.accessLevel))
 		}
 	}
 
@@ -105,7 +111,7 @@ export const ItemCard = React.memo(function ItemCard({
 		// Long-press enables read-only fallback for files that open in write mode
 		// by default — that's anything with explicit write access plus the
 		// unknown-access case (we'll try write and let the backend downgrade).
-		if (isFolder || (file.accessLevel && file.accessLevel !== 'write')) return
+		if (isFolder || (file.accessLevel && !canWrite(file.accessLevel))) return
 		longPressTriggered.current = false
 		longPressTimer.current = window.setTimeout(() => {
 			longPressTriggered.current = true
@@ -144,7 +150,7 @@ export const ItemCard = React.memo(function ItemCard({
 		} else if (downloadOnly) {
 			downloadFile()
 		} else {
-			fileOps.openFile(file.fileId, file.accessLevel === 'none' ? 'read' : file.accessLevel)
+			fileOps.openFile(file.fileId, toAppAccess(file.accessLevel))
 		}
 	}
 
@@ -215,7 +221,7 @@ export const ItemCard = React.memo(function ItemCard({
 						<IcPin />
 					</span>
 				)}
-				{!isFolder && file.accessLevel && file.accessLevel !== 'write' && (
+				{!isFolder && file.accessLevel && !canWrite(file.accessLevel) && (
 					<span className="c-file-card-access-badge">
 						{file.accessLevel === 'read' || file.accessLevel === 'comment' ? (
 							<IcView />
@@ -362,7 +368,7 @@ export const ItemCard = React.memo(function ItemCard({
 							? t('Open folder')
 							: file.accessLevel === 'none'
 								? t('No access')
-								: isLive && (file.accessLevel === 'write' || !file.accessLevel)
+								: isLive && (canWrite(file.accessLevel) || !file.accessLevel)
 									? t('Edit (hold for view mode)')
 									: downloadOnly
 										? t('Download')
@@ -373,7 +379,7 @@ export const ItemCard = React.memo(function ItemCard({
 						<IcOpenFolder />
 					) : file.accessLevel === 'none' ? (
 						<IcLock />
-					) : isLive && (file.accessLevel === 'write' || !file.accessLevel) ? (
+					) : isLive && (canWrite(file.accessLevel) || !file.accessLevel) ? (
 						<IcEdit />
 					) : downloadOnly ? (
 						<IcDownload />

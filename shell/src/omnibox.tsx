@@ -28,7 +28,7 @@ import {
 	LuChevronRight as IcSep
 } from 'react-icons/lu'
 import { usePopper } from 'react-popper'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import {
 	activeContextAtom,
@@ -84,8 +84,14 @@ function parseAppRoute(pathname: string): AppRoute {
 // Breadcrumb composition
 // ============================================
 
+interface BreadcrumbSegment {
+	label: string
+	/** Navigation target; undefined = plain text (no link). */
+	to?: string
+}
+
 interface BreadcrumbData {
-	segments: string[]
+	segments: BreadcrumbSegment[]
 	canShare: boolean
 }
 
@@ -101,6 +107,7 @@ function useBreadcrumb(): BreadcrumbData {
 	const activeContext = useAtomValue(activeContextAtom)
 	const communities = useAtomValue(communitiesAtom)
 	const titleState = useAtomValue(documentTitleAtom)
+	const { getContextPath } = useContextPath()
 
 	const { appId, resId } = parseAppRoute(location.pathname)
 
@@ -124,13 +131,19 @@ function useBreadcrumb(): BreadcrumbData {
 			: undefined
 	const dirty = docTitle ? !!titleState.dirty : false
 
+	const menuPath = menuItem?.path
+
 	const segments = React.useMemo(() => {
-		const segs: string[] = []
-		if (contextName) segs.push(contextName)
-		if (appLabel) segs.push(appLabel)
-		if (docTitle) segs.push((dirty ? '* ' : '') + docTitle)
+		const segs: BreadcrumbSegment[] = []
+		// The context crumb leads to that context's Files app (its landing page).
+		if (contextName) segs.push({ label: contextName, to: getContextPath('/app/files') })
+		// Editor apps have no menu entry — and no useful resId-less route — so they
+		// stay plain text.
+		if (appLabel)
+			segs.push({ label: appLabel, to: menuPath ? getContextPath(menuPath) : undefined })
+		if (docTitle) segs.push({ label: (dirty ? '* ' : '') + docTitle })
 		return segs
-	}, [contextName, appLabel, docTitle, dirty])
+	}, [contextName, appLabel, docTitle, dirty, getContextPath, menuPath])
 
 	return { segments, canShare: canShareRoute(location.pathname) }
 }
@@ -142,14 +155,17 @@ function useBreadcrumb(): BreadcrumbData {
 export function DocumentTitleSync() {
 	const { segments } = useBreadcrumb()
 	React.useEffect(() => {
-		document.title = segments.length ? `${segments.join(' › ')} · Cloudillo` : 'Cloudillo'
+		document.title = segments.length
+			? `${segments.map((s) => s.label).join(' › ')} · Cloudillo`
+			: 'Cloudillo'
 	}, [segments])
 	return null
 }
 
 /**
- * Idle breadcrumb state. Clicking it opens the omnibox input. A copy button
- * (shareable routes only) yields a portable `cl:` reference.
+ * Idle breadcrumb state: the segments navigate up the trail, the leading
+ * magnifier opens the omnibox input. A copy button (shareable routes only)
+ * yields a portable `cl:` reference.
  */
 export function Breadcrumb() {
 	const { t } = useTranslation()
@@ -171,25 +187,51 @@ export function Breadcrumb() {
 
 	return (
 		<div className="c-hbox align-items-center g-1" style={{ minWidth: 0 }}>
-			<button
-				type="button"
-				className="c-omnibox-breadcrumb"
+			<Button
+				className="icon c-omnibox-search flex-shrink-0"
 				onClick={() => setSearch({ query: '' })}
 				aria-label={t('Open search')}
 				title={t('Search')}
 			>
-				<IcSearch className="c-omnibox-lead" size={16} />
-				{segments.length ? (
-					segments.map((seg, i) => (
-						<React.Fragment key={i}>
-							{i > 0 && <IcSep className="c-omnibox-sep" size={14} />}
-							<span className="c-omnibox-seg">{seg}</span>
-						</React.Fragment>
-					))
-				) : (
-					<span className="c-omnibox-placeholder">{t('Search')}</span>
-				)}
-			</button>
+				<IcSearch size={16} />
+			</Button>
+			{segments.length ? (
+				<nav className="c-omnibox-breadcrumb" aria-label={t('Breadcrumb')}>
+					<ol className="c-omnibox-crumbs">
+						{segments.map((seg, i) => {
+							const isLast = i === segments.length - 1
+							// The current page is never a link — that includes a context
+							// crumb whose Files target is where we already are.
+							const linked = !!seg.to && !isLast && seg.to !== location.pathname
+							return (
+								<li key={i}>
+									{i > 0 && <IcSep className="c-omnibox-sep" size={14} />}
+									{linked ? (
+										<Link className="c-omnibox-seg" to={seg.to!}>
+											{seg.label}
+										</Link>
+									) : (
+										<span
+											className="c-omnibox-seg"
+											aria-current={isLast ? 'page' : undefined}
+										>
+											{seg.label}
+										</span>
+									)}
+								</li>
+							)
+						})}
+					</ol>
+				</nav>
+			) : (
+				<button
+					type="button"
+					className="c-omnibox-placeholder"
+					onClick={() => setSearch({ query: '' })}
+				>
+					{t('Search')}
+				</button>
+			)}
 			{canShare && (
 				<Button
 					className="icon c-omnibox-copy flex-shrink-0"

@@ -44,32 +44,44 @@ summary:focus-visible {
 .c-omnibox-breadcrumb {
 	display: flex;
 	align-items: center;
-	gap: 0.35rem;
 	max-width: min(45vw, 34rem);
 	min-width: 0;
 	min-height: 2.5rem;
-	padding: 0.2rem 0.4rem;
-	background: none;
-	border: none;
-	border-radius: var(--bd-radius, 0.25rem);
-	color: inherit;
-	cursor: pointer;
 	font-family: 'Oswald', sans-serif;
 	font-weight: 600;
 	font-size: 1.1rem;
 	line-height: 1.2;
 }
-.c-omnibox-breadcrumb:hover {
-	background: rgb(127 127 127 / 0.12);
+/* The min-width:0 chain down to .c-omnibox-seg is what keeps long titles
+ * ellipsizing instead of overflowing the header. */
+.c-omnibox-crumbs {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	min-width: 0;
+	overflow: hidden;
 }
-.c-omnibox-lead {
-	flex-shrink: 0;
-	opacity: 0.55;
+.c-omnibox-crumbs > li {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	min-width: 0;
 }
 .c-omnibox-seg {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+	padding: 0.1rem 0.2rem;
+	border-radius: var(--bd-radius, 0.25rem);
+	color: inherit;
+	text-decoration: none;
+}
+a.c-omnibox-seg:hover {
+	background: rgb(127 127 127 / 0.12);
+	text-decoration: underline;
 }
 .c-omnibox-sep {
 	flex-shrink: 0;
@@ -83,16 +95,29 @@ summary:focus-visible {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+	min-height: 2.5rem;
+	padding: 0.2rem 0.4rem;
+	background: none;
+	border: none;
+	border-radius: var(--bd-radius, 0.25rem);
+	color: inherit;
+	cursor: pointer;
+	text-align: left;
+}
+.c-omnibox-placeholder:hover {
+	background: rgb(127 127 127 / 0.12);
 }
 
-/* Copy-reference button: a quiet affordance next to the title, no fill. */
-.c-omnibox-copy {
+/* Search / copy-reference buttons: quiet affordances next to the title, no fill. */
+.c-omnibox-copy,
+.c-omnibox-search {
 	background: none;
 	border: none;
 	color: inherit;
 	opacity: 0.55;
 }
-.c-omnibox-copy:hover {
+.c-omnibox-copy:hover,
+.c-omnibox-search:hover {
 	background: rgb(127 127 127 / 0.12);
 	opacity: 1;
 }

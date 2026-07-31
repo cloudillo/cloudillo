@@ -24,19 +24,19 @@ export function ContactSectionView({ section }: ContactSectionViewProps) {
 		<div className="c-vbox g-1">
 			{data.email && (
 				<div className="c-hbox g-2 align-items-center">
-					<IcMail className="c-section-icon" />
+					<IcMail className="c-section-icon f-none" />
 					<a href={`mailto:${data.email}`}>{data.email}</a>
 				</div>
 			)}
 			{data.phone && (
 				<div className="c-hbox g-2 align-items-center">
-					<IcPhone className="c-section-icon" />
+					<IcPhone className="c-section-icon f-none" />
 					<a href={`tel:${data.phone}`}>{data.phone}</a>
 				</div>
 			)}
 			{data.website && (
 				<div className="c-hbox g-2 align-items-center">
-					<IcGlobe className="c-section-icon" />
+					<IcGlobe className="c-section-icon f-none" />
 					<a
 						href={ensureUrlProtocol(data.website)}
 						target="_blank"
@@ -70,7 +70,7 @@ export function ContactSectionEdit({ section, onChange }: ContactSectionEditProp
 	return (
 		<div className="c-vbox g-2">
 			<div className="c-hbox g-2 align-items-center">
-				<IcMail className="c-section-icon" />
+				<IcMail className="c-section-icon f-none" />
 				<input
 					className="c-input flex-fill"
 					type="email"
@@ -80,7 +80,7 @@ export function ContactSectionEdit({ section, onChange }: ContactSectionEditProp
 				/>
 			</div>
 			<div className="c-hbox g-2 align-items-center">
-				<IcPhone className="c-section-icon" />
+				<IcPhone className="c-section-icon f-none" />
 				<input
 					className="c-input flex-fill"
 					type="tel"
@@ -90,7 +90,7 @@ export function ContactSectionEdit({ section, onChange }: ContactSectionEditProp
 				/>
 			</div>
 			<div className="c-hbox g-2 align-items-center">
-				<IcGlobe className="c-section-icon" />
+				<IcGlobe className="c-section-icon f-none" />
 				<input
 					className="c-input flex-fill"
 					type="url"

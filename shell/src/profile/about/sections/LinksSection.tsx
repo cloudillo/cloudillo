@@ -73,7 +73,7 @@ export function LinksSectionView({ section }: LinksSectionViewProps) {
 				const Icon = getLinkIconComponent(link.icon)
 				return (
 					<div key={i} className="c-hbox g-2 align-items-center">
-						<Icon className="c-section-icon" />
+						<Icon className="c-section-icon f-none" />
 						<a
 							href={ensureUrlProtocol(link.url)}
 							target="_blank"
@@ -104,7 +104,7 @@ function IconPicker({ value, onChange }: IconPickerProps) {
 	return (
 		<Popper
 			menuClassName="c-button link secondary sm"
-			icon={<CurrentIcon className="c-section-icon" />}
+			icon={<CurrentIcon className="c-section-icon f-none" />}
 		>
 			<div className="c-hbox wrap g-1 p-1 w-md">
 				{LINK_ICONS.map((item) => {

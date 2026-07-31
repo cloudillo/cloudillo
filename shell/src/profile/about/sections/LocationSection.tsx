@@ -22,7 +22,7 @@ export function LocationSectionView({ section }: LocationSectionViewProps) {
 
 	return (
 		<div className="c-hbox g-2 align-items-center">
-			<IcMapPin className="c-section-icon" />
+			<IcMapPin className="c-section-icon f-none" />
 			<span>{parts.join(', ')}</span>
 		</div>
 	)

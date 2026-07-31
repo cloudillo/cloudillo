@@ -105,7 +105,7 @@ export function SectionView({ section, isOwner, className }: SectionViewProps) {
 	const title = getSectionTitle(t, section)
 
 	return (
-		<div className={mergeClasses('c-panel', className)}>
+		<div className={mergeClasses('c-panel c-section-card', className)}>
 			<div className="c-hbox align-items-center g-2 mb-1">
 				<h4 className="m-0 text-base">{title}</h4>
 				<div className="flex-fill" />

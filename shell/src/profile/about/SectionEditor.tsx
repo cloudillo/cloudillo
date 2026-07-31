@@ -109,10 +109,10 @@ export function SectionEditor({
 	}
 
 	return (
-		<div className={mergeClasses('c-panel c-vbox g-2', className)}>
+		<div className={mergeClasses('c-panel c-section-card c-vbox g-2', className)}>
 			{/* Header */}
 			<div className="c-hbox align-items-center g-2">
-				<span className="c-drag-handle">
+				<span className="c-drag-handle f-none">
 					<IcDrag size="1.2rem" />
 				</span>
 

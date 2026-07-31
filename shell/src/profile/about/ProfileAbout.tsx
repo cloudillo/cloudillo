@@ -157,7 +157,7 @@ function AboutViewMode({
 	}
 
 	return (
-		<div className="c-vbox g-1 pos-relative">
+		<div className="c-about-body c-vbox g-1">
 			{rows.map((row) => {
 				if (row.kind === 'cols') {
 					const key = row.left[0]?.id ?? row.right[0]?.id ?? 'cols'
@@ -497,7 +497,7 @@ function AboutEditMode({
 						>
 							<div className="c-cols-container">
 								<div className="c-cols-header">
-									<span className="c-drag-handle">
+									<span className="c-drag-handle f-none">
 										<IcDrag size="1.2rem" />
 									</span>
 									<span className="text-muted text-sm">

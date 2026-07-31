@@ -34,7 +34,7 @@
 		"i18next-scanner": "^4.6.0",
 		"i18next-scanner-typescript": "^1.2.1",
 		"jest": "^30.4.2",
-		"lucide": "^1.27.0",
+		"lucide": "^1.28.0",
 		"quill": "^2.0.3",
 		"quill-cursors": "^5.0.0",
 		"quill-delta": "^5.1.0",

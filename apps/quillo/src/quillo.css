@@ -3,6 +3,11 @@
    ============================================ */
 
 :root {
+	/* Document sheet ("paper"): brighter than any OpalUI surface token so the page
+	 * separates from the app gradient. Literal lch() — --color-neutral is defined on
+	 * `body`, not `:root`, so relative color syntax is not available here. */
+	--col-page: lch(98 2 250);
+
 	/* Neutrals (light mode: black → white) */
 	--palette-n0: hsl(0, 0%, 0%);
 	--palette-n1: hsl(0, 0%, 25%);
@@ -33,6 +38,8 @@
 }
 
 .dark {
+	--col-page: lch(6 3 250);
+
 	/* Neutrals inverted (white → black) */
 	--palette-n0: hsl(0, 0%, 100%);
 	--palette-n1: hsl(0, 0%, 75%);
@@ -63,8 +70,41 @@ body {
 	height: 100vh;
 }
 
+#editor-canvas {
+	flex: 1 1 auto;
+	min-height: 0;
+	padding: 0.25rem;
+	/* Scroll host, so the scrollbar renders at the app's right edge instead of
+	 * 54px inside the page. #editor and .ql-editor must therefore stay
+	 * height: auto / overflow: visible — see the quill.core.css overrides there. */
+	overflow: auto;
+}
+
 #editor {
-	flex-grow: 1;
+	/* 900px document column with 54px side margins (792px text measure), matching
+	 * notillo's .bn-container / .bn-editor — kept in px so the two stay in sync.
+	 *
+	 * The side padding MUST stay here rather than on .ql-editor: quill-table-better
+	 * 1.2.3 derives column percentages from
+	 * `.ql-editor.clientWidth - ~~paddingLeft - ~~paddingRight`, and `~~'54px'` is
+	 * 0, so the padding is never subtracted and column drags land short by the
+	 * margin ratio. */
+	--page-pad-x: 54px;
+	--page-pad-y: 3.5rem;
+
+	width: min(900px, 100%);
+	margin-inline: auto;
+	/* Overrides quill.core.css `.ql-container { height: 100% }`: the page grows
+	 * with its content, stretching to the canvas only when the document is short. */
+	height: auto;
+	min-height: 100%;
+	padding: 0 var(--page-pad-x);
+	/* Opaque paper: overrides .c-panel's translucent
+	 * `lch(from var(--col-bg) l c h / var(--op-panel))`. The id selector (1,0,0) beats
+	 * `.c-panel` (0,1,0), so no !important is needed. */
+	background-color: var(--col-page);
+	/* .c-panel's backdrop blur is pure GPU cost behind an opaque surface. */
+	backdrop-filter: none;
 }
 
 .c-panel.ql-toolbar {
@@ -132,10 +172,28 @@ body {
 }
 
 #editor .ql-editor {
-	padding: 0;
+	/* quill.core.css makes .ql-editor the scroll host (height: 100% +
+	 * overflow-y: auto); #editor-canvas takes that job instead. `visible` (not
+	 * hidden/clip) is required: quill's ui/tooltip.js only installs its
+	 * scrollTop-compensation hack when isScrollable(quill.root) is true.
+	 * `flex: 1 0 auto` keeps the editor filling a short page (#editor is a
+	 * .c-panel, i.e. a column flex container) so clicking below the last line
+	 * still focuses it. */
+	height: auto;
+	overflow: visible;
+	flex: 1 0 auto;
+	/* Vertical margins only; the horizontal ones live on #editor, keeping
+	 * clientWidth here equal to the text measure. */
+	padding: var(--page-pad-y) 0;
+	/* quill.core.css pins the placeholder to left/right: 15px of .ql-container's
+	 * box — re-inset it onto the page margins. Don't add `position: relative`
+	 * here instead: it would silently reparent the containing block of other
+	 * absolute descendants. */
 	&.ql-blank::before {
 		color: var(--col-on);
 		opacity: 0.6;
+		left: var(--page-pad-x);
+		right: var(--page-pad-x);
 	}
 }
 
@@ -470,6 +528,12 @@ body {
 	/* Compact dropdowns */
 	.c-panel.ql-toolbar.ql-snow .ql-picker-label {
 		padding: 0 4px;
+	}
+
+	/* Narrow screens: the page fills the viewport, so drop the print margins */
+	#editor {
+		--page-pad-x: 1rem;
+		--page-pad-y: 1rem;
 	}
 }
 

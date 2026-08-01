@@ -8,24 +8,12 @@
 			content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1.0, minimum-scale=1.0"
 		/>
 		<link rel="stylesheet" href="assets-@VERSION@/index.css" />
-		<style type="text/css">
-			body {
-				margin: 0;
-				display: flex;
-				flex-direction: column;
-				height: 100vh;
-			}
-			#editor {
-				flex-grow: 1;
-			}
-			.ql-container {
-				font-size: 1rem;
-			}
-		</style>
 	</head>
 
 	<body style="background: transparent">
-		<div id="editor" class="c-panel m-1"></div>
+		<div id="editor-canvas">
+			<div id="editor" class="c-panel"></div>
+		</div>
 		<div id="toolbar" class="c-panel flex-order-start z-1 m-1 flex-row">
 			<!-- Undo/Redo -->
 			<span>

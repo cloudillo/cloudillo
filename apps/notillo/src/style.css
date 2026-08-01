@@ -1,5 +1,11 @@
 /* Notillo App Styles - Using OpalUI --col-* variables */
 
+:root {
+	/* Line-height of the clamped sidebar page titles. Row padding and the first-line
+	   alignment of icons/buttons derive from it, so they stay in sync. */
+	--notillo-title-line: 1.35;
+}
+
 /* Anchor the layout chain to the iframe/viewport so `h-100` on
    `.c-container` and `.row` resolves to the actual viewport height
    rather than the editor's content height. Without this, the sidebar
@@ -16,6 +22,8 @@ body,
 
 /* TreeView styles now live in @cloudillo/react (components.css) */
 
+/* Row action buttons. Deliberately NOT scoped under `.page-tree`: also used by the flat
+   `.tag-filtered-page` rows, so the name is a prefix, not a descendant of `.page-tree`. */
 .page-tree-action {
 	background: none;
 	border: none;
@@ -273,11 +281,41 @@ body,
 	color: var(--col-error);
 }
 
+/* ── Page Tree: 2-line titles ── */
+
+/* Rows grow with the label; top-align keeps chevron/icon/actions on the first line.
+   The touch target comes from padding rather than min-height, which would pin a
+   single-line label to the top of an over-tall row. Padding = --min-touch-target
+   (the token .c-tree-item-row uses in @cloudillo/react) minus one line box. */
+.page-tree .c-tree-item-row {
+	--row-pad: calc((var(--min-touch-target, 44px) - var(--notillo-title-line) * 1em) / 2);
+	align-items: flex-start;
+	min-height: 0;
+	padding: var(--row-pad) var(--space-1);
+}
+
+.page-tree .c-tree-item-toggle,
+.page-tree .c-tree-item-icon,
+.page-tree .c-tree-item-actions {
+	min-height: calc(var(--notillo-title-line) * 1em);
+}
+
+.page-tree .c-tree-item-label {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	min-width: 0;
+	line-height: var(--notillo-title-line);
+	word-break: break-word;
+	white-space: normal;
+}
+
 /* ── Tag Filtered Page List ── */
 
 .tag-filtered-page {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	gap: var(--space-1);
 	padding: var(--space-1) var(--space-2);
 	border-radius: var(--radius-sm);
@@ -295,15 +333,28 @@ body,
 .tag-filtered-page-icon {
 	display: flex;
 	align-items: center;
+	min-height: calc(var(--notillo-title-line) * 1em);
 	opacity: 0.7;
 	font-size: 0.9rem;
 }
 
+/* Keep the pin button on the title's first line, like the icon above: the row is
+   align-items: flex-start, so it would otherwise stretch over both lines. */
+.tag-filtered-page .page-tree-action {
+	min-height: calc(var(--notillo-title-line) * 1em);
+}
+
 .tag-filtered-page-title {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
 	flex: 1;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	white-space: nowrap;
+	white-space: normal;
+	min-width: 0;
+	line-height: var(--notillo-title-line);
+	word-break: break-word;
 	font-size: 0.9rem;
 }
 

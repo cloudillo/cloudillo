@@ -346,6 +346,7 @@ export function PageSidebar({
 		const hasChildren = children.length > 0 || pagesWithChildren.has(page.id)
 		const isExpanded = expanded.has(page.id)
 		const isLoading = loadingChildren.has(page.id)
+		const pageTitle = page.title || t('Untitled')
 
 		return (
 			<TreeItem
@@ -357,7 +358,7 @@ export function PageSidebar({
 				hasChildren={hasChildren}
 				allowDropInside={!readOnly}
 				icon={page.icon ? <span>{page.icon}</span> : <IcPage />}
-				label={page.title || t('Untitled')}
+				label={<span title={pageTitle}>{pageTitle}</span>}
 				isDraggable={!readOnly}
 				dragData={{ id: page.id, type: hasChildren ? 'container' : 'object' }}
 				dragging={draggedId === page.id}
@@ -372,11 +373,9 @@ export function PageSidebar({
 				}}
 				onToggle={() => onToggleExpand(page.id)}
 				onContextMenu={(e: React.MouseEvent) =>
-					handlePageContextMenu(e, page.id, page.title || t('Untitled'))
+					handlePageContextMenu(e, page.id, pageTitle)
 				}
-				onTouchStart={(e: React.TouchEvent) =>
-					handleTouchStart(e, page.id, page.title || t('Untitled'))
-				}
+				onTouchStart={(e: React.TouchEvent) => handleTouchStart(e, page.id, pageTitle)}
 				onTouchEnd={handleTouchEnd}
 				onTouchMove={handleTouchEnd}
 				onTouchCancel={handleTouchEnd}
@@ -539,6 +538,7 @@ export function PageSidebar({
 								<div
 									key={page.id}
 									className={`tag-filtered-page${page.id === activePageId ? ' active' : ''}`}
+									title={page.title || t('Untitled')}
 									onClick={() => onSelectPage(page.id)}
 								>
 									<span className="tag-filtered-page-icon">
@@ -561,6 +561,7 @@ export function PageSidebar({
 								<div className="text-xs text-muted mb-1">{t('Current Page')}</div>
 								<div
 									className={`tag-filtered-page${orphanPage.id === activePageId ? ' active' : ''}`}
+									title={orphanPage.title || t('Untitled')}
 									onClick={() => onSelectPage(orphanPage.id)}
 								>
 									<span className="tag-filtered-page-icon">
@@ -593,7 +594,9 @@ export function PageSidebar({
 								{readOnly ? t('No pages yet.') : t('No pages yet. Create one!')}
 							</div>
 						) : (
-							<TreeView>{rootPages.map((page) => renderPage(page, 0))}</TreeView>
+							<TreeView className="page-tree">
+								{rootPages.map((page) => renderPage(page, 0))}
+							</TreeView>
 						)}
 					</>
 				)}

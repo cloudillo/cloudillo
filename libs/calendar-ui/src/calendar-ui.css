@@ -639,7 +639,7 @@
 
 /* --- Responsive tweaks ------------------------------------------------ */
 
-@media (max-width: 600px) {
+@media (width <= 37.5rem) {
 	.c-cal-view {
 		--cal-hour-height: 2.5rem;
 		--cal-gutter-width: 3rem;

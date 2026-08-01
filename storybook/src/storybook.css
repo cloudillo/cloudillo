@@ -209,7 +209,7 @@ code {
 }
 
 /* Responsive */
-@media (max-width: 768px) {
+@media (width < 48rem) {
 	.sb--m-page {
 		flex-direction: column;
 	}

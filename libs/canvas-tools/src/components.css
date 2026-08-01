@@ -377,7 +377,7 @@
 }
 
 /* Mobile optimizations */
-@media (max-width: 767px) {
+@media (width < 48rem) {
 	.c-gradient-bar {
 		height: 40px;
 	}

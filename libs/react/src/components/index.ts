@@ -112,11 +112,14 @@ export type {
 } from './Form/index.js'
 // Form Components
 export { Fieldset, Input, InputGroup, NativeSelect, TextArea, Toggle } from './Form/index.js'
+export type { Breakpoint } from './hooks.js'
 // Shared Hooks
 export {
+	BREAKPOINTS,
 	useBodyScrollLock,
 	useDebouncedValue,
 	useEscapeKey,
+	useIsDesktop,
 	useIsMobile,
 	useMediaQuery,
 	useMergedRefs,

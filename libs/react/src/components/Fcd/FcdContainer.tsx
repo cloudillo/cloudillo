@@ -10,13 +10,13 @@ export type FcdDetailsMode = 'inline' | 'overlay' | 'adaptive'
 export interface FcdContainerProps {
 	className?: string
 	children?: React.ReactNode
-	/** Remove the 1200px container cap, letting the layout stretch to the viewport. */
+	/** Remove the container width cap, letting the layout stretch to the viewport. */
 	fluid?: boolean
 	/**
 	 * Where the details panel sits relative to content.
-	 * - `'inline'` (default): details takes a column on lg+, overlays on sm/md; content reflows.
+	 * - `'inline'` (default): details takes a column at lg (72rem+), overlays below; content reflows.
 	 * - `'overlay'`: details is an absolute overlay inside the container at every breakpoint.
-	 * - `'adaptive'`: overlay up to xl (115em / 1840px), then docks in the viewport's right gutter.
+	 * - `'adaptive'`: overlay up to xl (96rem), then docks in the viewport's right gutter.
 	 */
 	detailsMode?: FcdDetailsMode
 }
@@ -30,7 +30,7 @@ export function FcdContainer({
 	return (
 		<main
 			className={mergeClasses(
-				'c-container w-100 h-100',
+				'c-fcd c-container w-100 h-100',
 				fluid && 'fluid',
 				detailsMode === 'overlay' && 'details-overlay',
 				detailsMode === 'adaptive' && 'details-adaptive',

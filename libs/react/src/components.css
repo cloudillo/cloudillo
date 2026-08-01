@@ -1189,6 +1189,18 @@
 }
 
 /* ==========================================================================
+   Fcd layout tokens
+
+   The container's own width cap is not set here — it comes from
+   --container-max-width, declared by OpalUI on :root and overridable per
+   embedder (the shell does, in shell/src/style.css).
+   ========================================================================== */
+
+.c-fcd {
+	--fcd-details-width: 22.25rem; /* 356px — md overlay panel + adaptive dock */
+}
+
+/* ==========================================================================
    FcdContent Mobile Scrolling Fix
    Adds extra scroll space on mobile to account for browser chrome
    ========================================================================== */
@@ -1208,7 +1220,42 @@
 	overflow-x: clip;
 }
 
-@media (max-width: 1199px) {
+/* Filter rail continuity across the md → lg boundary.
+
+   The rail is col-md-4 (33.3%) below lg and col-lg-3 (25%) above it, so
+   crossing 72rem used to make it *shrink* as the window got *wider* — 376px
+   back to 280px at a 1152px-wide layout box. Inside an app iframe that box is
+   the browser width minus the shell chrome (5rem context sidebar + the 2px
+   .c-app trust border on each side), which is why the jump shows up at a
+   browser width around 1236px rather than at 1152px.
+
+   Fix: in the md band cap the rail at exactly the width col-lg-3 gives it at
+   the start of the lg band, and let content absorb the slack. The rail then
+   grows, plateaus, and resumes growing at 25% — continuous and monotonic,
+   with lg+ geometry untouched.
+
+   The cap is col-lg-3 evaluated at width: 72rem. Column bases resolve against
+   the row, which is `--gap` wider than the container (it carries a
+   `0 calc(var(--gap) / -2)` margin), so `25% * (72rem + gap) - gap` reduces to
+   `72rem / 4 - gap * 0.75`. The 4-class selectors outrank OpalUI's
+   `.c-container > .row > .col-md-*` (3 classes) regardless of stylesheet
+   order — do not reduce them. */
+@media (48rem <= width < 72rem) {
+	.c-fcd > .row > .c-fcd-filter.col-md-4 {
+		max-width: calc(72rem / 4 - var(--gap) * 0.75);
+	}
+
+	/* Take whatever the capped rail gave up. `flex-basis: 0` (not `auto`)
+	   keeps the width purely space-driven, so long unbreakable content can't
+	   push the column past its share. */
+	.c-fcd > .row > .c-fcd-content.col-md-8 {
+		flex: 1 1 0;
+		max-width: none;
+		min-width: 0;
+	}
+}
+
+@media (width < 72rem) {
 	.c-fcd-content-scroll {
 		/* Extra padding on mobile for browser bottom bars */
 		padding-bottom: 4rem;
@@ -1218,19 +1265,19 @@
 /* ==========================================================================
    FCD Details modes (overlay / adaptive)
 
-   Default mode ('inline', no container class) keeps the pre-existing
-   behavior: FcdDetails is a col-lg-3 flex column at lg+, overlay at sm/md
-   via sm-hide-dyn / md-hide-dyn.
+   Default mode ('inline', no container class): FcdDetails is a col-lg-3 flex
+   column at lg+ and an overlay below that, via sm-hide-dyn / md-hide-dyn.
 
    .c-container.details-overlay  — details is an absolute-positioned slide-in
      overlay at every breakpoint; content never reflows.
-   .c-container.details-adaptive — identical to overlay below xl; at xl+
-     (100em / 1600px) the details panel docks in the viewport's right
-     gutter, outside the 1200px container, so content position stays fixed.
-     Dock width adapts to gutter up to 1840px, then caps at 20rem.
-     Falls back to overlay when the container is also .fluid (no gutter).
+   .c-container.details-adaptive — identical to overlay below xl; at xl+ the
+     panel docks in the viewport's right gutter, outside the container, so
+     content position stays fixed. A capped container expands while the dock
+     is open below 132.5rem; a .fluid one has no gutter to grow into, so its
+     row yields --fcd-details-width back to the dock at every xl width.
 
-   No :has() needed — all rules are descendant-scoped from .c-container.
+   Mode selection is descendant-scoped from .c-container; only the xl dock's
+   width bookkeeping needs :has(), to react to the panel's .show state.
    ========================================================================== */
 
 /* FcdDetails header row: optional title + action buttons slot at the top
@@ -1245,11 +1292,14 @@
 	border-bottom: 1px solid lch(from var(--col-outline) l c h / 0.5);
 }
 
-/* Mobile-only dim+blur backdrop for the details panel (sm/md).
+/* Phone-only dim+blur backdrop for the details panel (sm).
    Implemented as a pseudo-element at z-index -1 inside the panel's own
    stacking context so the in-flow header, body, and close button paint
-   above it without stacking-context fights. */
-@media (max-width: 1199px) {
+   above it without stacking-context fights.
+   Stops at sm: from md up the panel is a narrow right-anchored surface, so
+   an inset:0 dim would darken only the panel instead of the content behind
+   it. */
+@media (width < 48rem) {
 	.c-fcd-details::before {
 		content: '';
 		position: absolute;
@@ -1270,22 +1320,25 @@
 }
 
 /* Inline mode at lg+: close is hidden, no reservation needed. */
-@media (min-width: 1200px) {
+@media (width >= 72rem) {
 	.c-container:not(.details-overlay):not(.details-adaptive) .c-fcd-details-header {
 		padding: 0.5rem;
 	}
 }
 
 /* xl adaptive docked: close is also hidden. */
-@media (min-width: 100em) {
-	.c-container.details-adaptive:not(.fluid) .c-fcd-details-header {
+@media (width >= 96rem) {
+	.c-container.details-adaptive .c-fcd-details-header {
 		padding: 0.5rem;
 	}
 }
 
-/* Details overlay behavior at lg+ (sm/md already overlay via *-hide-dyn).
-   These rules apply to both 'overlay' and 'adaptive' modes. */
-@media (min-width: 1200px) {
+/* Details overlay behavior at md+ (sm keeps the full-bleed phone sheet), for
+   both 'overlay' and 'adaptive': the panel is a right-anchored
+   --fcd-details-width surface that slides over content instead of covering the
+   whole row. The 4-class selector outranks opalui's
+   `.c-container > .row .md-hide-dyn` full-bleed geometry in the md band. */
+@media (width >= 48rem) {
 	.c-container.details-overlay > .row > .c-fcd-details,
 	.c-container.details-adaptive > .row > .c-fcd-details {
 		position: absolute;
@@ -1313,18 +1366,7 @@
 		transform: translateX(0);
 	}
 
-	/* Content takes the full span (like fluid) — details doesn't steal width.
-	   Matches `.col-lg-6` specifically so this rule outranks layout.css's
-	   `.c-container > .row > .col-lg-6` (same specificity otherwise → cascade
-	   order would decide, and .col-lg-6 would win unpredictably).
-	   `.col-lg-9` is already 75%, so no override needed there. */
-	.c-container.details-overlay > .row > .c-fcd-content.col-lg-6,
-	.c-container.details-adaptive > .row > .c-fcd-content.col-lg-6 {
-		flex: 0 0 calc(900% / 12 - var(--gap));
-		max-width: calc(900% / 12 - var(--gap));
-	}
-
-	/* In overlay/adaptive at lg+, the panel slides over content — users
+	/* In overlay/adaptive at md+, the panel slides over content — users
 	   need a way to dismiss it (the app's own toggle button may be
 	   covered by the panel itself). Re-enable the built-in close.
 	   The backdrop stays hidden: it would only darken the narrow panel
@@ -1335,34 +1377,76 @@
 	}
 }
 
-/* xl: in adaptive (non-fluid) mode the details panel docks in the right
-   viewport gutter — outside the 1200px container. Content and filter stay
-   put; only the details panel appears/disappears in the gutter.
+/* Same panel surface for the default 'inline' mode, but only in the md band:
+   at lg the details rail becomes a real col-lg-3 column and must not be
+   absolutely positioned; below md it is the full-bleed phone sheet.
+   The 5-class selector beats opalui's `.c-container > .row .md-hide-dyn` (3),
+   so `left: auto` + `width` win regardless of stylesheet order — do not
+   reduce it. No close-button rule: below lg `lg-hide` doesn't apply, so the
+   built-in close is already visible. */
+@media (48rem <= width < 72rem) {
+	.c-fcd:not(.details-overlay):not(.details-adaptive) > .row > .c-fcd-details {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		right: 0;
+		left: auto;
+		width: var(--fcd-details-width, 20rem);
+		max-width: 100%;
+		flex: none;
+		z-index: 10;
+		transform: translateX(100%);
+		transition: transform 0.2s ease-in-out;
+		background-color: lch(from var(--col-container-low) l c h / var(--op-panel));
+		color: var(--col-on-container-low);
+		backdrop-filter: blur(var(--blur-radius));
+		border-left: 1px solid var(--col-outline);
+	}
 
-   xl breakpoint is 100em (1600px). Dock is a fixed 20rem (320px) wide.
+	.c-fcd:not(.details-overlay):not(.details-adaptive) > .row > .c-fcd-details.show {
+		transform: translateX(0);
+	}
+}
 
-   Between 100em and 115em (1600–1840px viewport) the gutter beside a
-   centered 1200px container is narrower than 20rem, so if we kept the
-   container at 1200px the dock would overflow the viewport. We use a
-   :has() rule to expand the container's max-width only *when the details
-   panel is actually visible*. At 115em+ the gutter naturally fits, so no
-   expansion is needed and the container stays 1200px regardless of
-   visibility. */
-@media (min-width: 100em) {
+/* At lg+ the details panel is a real column in inline mode, so overlay and
+   adaptive (where it stays absolute) must widen content to take the span
+   details would have occupied. Matches `.col-lg-6` specifically to outrank
+   layout.css's `.c-container > .row > .col-lg-6` (equal specificity otherwise
+   → cascade order would decide unpredictably). `.col-lg-9` (fluid) is already
+   75%. Below lg details overlays in every mode, so content keeps its normal
+   col-md-8 span. */
+@media (width >= 72rem) {
+	.c-container.details-overlay > .row > .c-fcd-content.col-lg-6,
+	.c-container.details-adaptive > .row > .c-fcd-content.col-lg-6 {
+		flex: 0 0 calc(900% / 12 - var(--gap));
+		max-width: calc(900% / 12 - var(--gap));
+	}
+}
+
+/* xl: in adaptive mode the details panel docks at the right edge instead of
+   overlaying content. For a capped container it docks in the right viewport
+   gutter — outside the container — so content and filter stay put and only
+   the details panel appears/disappears. A fluid container has no gutter, so
+   the row gives the dock its width back instead.
+
+   The dock only fits in the *natural* gutter beside a centered container from
+   1408 + 2 × 356 = 2120px (132.5rem) up. Below that the gutter is narrower
+   than the dock, so a :has() rule expands the container's max-width — but
+   only *while the details panel is actually visible*. */
+@media (width >= 96rem) {
 	.c-container.details-adaptive:not(.fluid) {
 		/* Let the docked panel protrude past the container's right edge */
 		overflow: visible;
 	}
 
-	/* Cap the row at 1200px so filter+content stay at their col-lg-*
-	   widths even when the container grows (the expansion is strictly
-	   extra space on the right for the dock, not a widening of the
-	   normal row layout). */
+	/* Cap the row at the normal container width so filter+content keep their
+	   col-lg-* widths even when the container grows — the expansion is
+	   strictly extra room on the right for the dock. */
 	.c-container.details-adaptive:not(.fluid) > .row {
-		max-width: 1200px;
+		max-width: var(--container-max-width);
 	}
 
-	.c-container.details-adaptive:not(.fluid) > .row > .c-fcd-details {
+	.c-container.details-adaptive > .row > .c-fcd-details {
 		left: 100%;
 		right: auto;
 		/* No slide — the dock is a real panel. Fade in/out on toggle. */
@@ -1371,30 +1455,49 @@
 		transition: opacity 0.2s ease-in-out;
 	}
 
-	.c-container.details-adaptive:not(.fluid) > .row > .c-fcd-details:not(.show) {
+	.c-container.details-adaptive > .row > .c-fcd-details:not(.show) {
 		opacity: 0;
 		pointer-events: none;
 	}
 
-	.c-container.details-adaptive:not(.fluid) > .row > .c-fcd-details.show {
+	.c-container.details-adaptive > .row > .c-fcd-details.show {
 		opacity: 1;
 	}
 
 	/* Docked details is a real sidebar, not a modal — the app's own
 	   toggle button closes it (and the dock doesn't cover the toggle
 	   the way an overlay does). */
-	.c-container.details-adaptive:not(.fluid) .c-fcd-details-close {
+	.c-container.details-adaptive .c-fcd-details-close {
 		display: none !important;
+	}
+
+	/* Fluid adaptive: the container always equals the available width, so
+	   there is never a natural side gutter to dock into — the row hands the
+	   dock its width back at every xl width, not only below 132.5rem the way
+	   a capped container does. */
+	.c-container.details-adaptive.fluid:has(> .row > .c-fcd-details.show) > .row {
+		max-width: calc(100% - var(--fcd-details-width));
+		transition: max-width 0.2s ease-in-out;
 	}
 }
 
-/* Narrow xl range (1600–1840px): expand the container only when the dock
+/* Narrow xl range (1536–2119px): expand the container only when the dock
    is open, so it fits on-screen. Uses :has() — well-supported in modern
    browsers (Safari 15.4+, Chrome 105+, Firefox 121+). */
-@media (min-width: 100em) and (max-width: 114.99em) {
+@media (96rem <= width < 132.5rem) {
 	.c-container.details-adaptive:not(.fluid):has(> .row > .c-fcd-details.show) {
-		max-width: calc(1200px + var(--fcd-details-width, 20rem));
+		max-width: calc(var(--container-max-width) + var(--fcd-details-width));
 		transition: max-width 0.2s ease-in-out;
+	}
+
+	/* The container is also `width: 100%`, so the expansion above is clipped to
+	   the width actually available. The dock sits at `left: 100%` of the row
+	   and protrudes past the container, so the row has to give the dock its
+	   width back — otherwise the dock renders off-screen. Above ~1844px the
+	   min() picks the full --container-max-width and filter/content sit at
+	   their designed widths. */
+	.c-container.details-adaptive:not(.fluid):has(> .row > .c-fcd-details.show) > .row {
+		max-width: min(var(--container-max-width), calc(100% - var(--fcd-details-width)));
 	}
 }
 

@@ -462,7 +462,7 @@
 /* Desktop-collapsible filter: at md+ FCD renders filter as a flex column.
    Users can hide it to reclaim space for the calendar grid. Mobile overlay
    is driven by FcdFilter's `isVisible` prop — this rule doesn't touch sm. */
-@media (min-width: 768px) {
+@media (width >= 48rem) {
 	.c-cal-app__filter {
 		transition:
 			flex-basis 200ms ease,

@@ -20,6 +20,7 @@ import {
 	useAuth,
 	useDebouncedValue,
 	useDialog,
+	useIsMobile,
 	useToast
 } from '@cloudillo/react'
 
@@ -292,6 +293,7 @@ export function FilesApp() {
 	// On desktop (>=768px), details panel follows selection
 	// On mobile (<768px), details panel only shows when explicitly requested via info button
 	const [showMobileDetails, setShowMobileDetails] = React.useState<boolean>(false)
+	const isMobile = useIsMobile()
 
 	// Reset filter on path change (not on search param changes like folder navigation)
 	React.useEffect(
@@ -978,13 +980,7 @@ export function FilesApp() {
 						)}
 					</Fcd.Content>
 					<Fcd.Details
-						isVisible={
-							// On desktop: show when file is selected
-							// On mobile: only show when explicitly requested via info button
-							!!auth &&
-							!!selectedFile &&
-							(window.innerWidth >= 768 || showMobileDetails)
-						}
+						isVisible={!!auth && !!selectedFile && (!isMobile || showMobileDetails)}
 						hide={() => {
 							setShowMobileDetails(false)
 							multiSelect.clearSelection()

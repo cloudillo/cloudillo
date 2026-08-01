@@ -4,7 +4,7 @@ body {
 }
 
 /* Use small viewport height on mobile for accurate sizing with browser chrome */
-@media (max-width: 1199px) {
+@media (width < 72rem) {
 	html,
 	body {
 		height: 100svh; /* Small viewport - accounts for browser UI */
@@ -237,7 +237,7 @@ body {
 	overflow: hidden;
 }
 
-@media (max-width: 1199px) {
+@media (width < 72rem) {
 	#app {
 		height: 100svh; /* Small viewport - accounts for browser UI */
 	}
@@ -359,7 +359,7 @@ body {
 }
 
 .c-nav.nav-top {
-	height: 3.5rem;
+	height: var(--shell-header-height);
 	position: fixed;
 	top: 0;
 	left: 0;
@@ -372,7 +372,7 @@ body {
 	}
 
 	.c-menu-ex .c-nav {
-		top: 4rem;
+		top: calc(var(--shell-header-height) + 0.5rem);
 		transform: translate(0, -10rem);
 
 		&.open {
@@ -384,7 +384,7 @@ body {
 /* Desktop extra menu portal - positioned below nav-top */
 .c-extra-menu-portal-desktop {
 	position: fixed;
-	top: 4rem;
+	top: calc(var(--shell-header-height) + 0.5rem);
 	left: 0;
 	right: 0;
 	z-index: var(--z-popover);
@@ -415,7 +415,7 @@ body {
 	z-index: var(--z-fixed);
 
 	.c-menu-ex .c-nav {
-		bottom: 4.5rem;
+		bottom: calc(var(--shell-bottom-nav-height) + 0.5rem);
 		transform: translate(0, 10rem);
 
 		&.open {
@@ -432,8 +432,8 @@ body {
 	}
 }
 
-/* Mobile: use fixed positioning for bottom nav for reliability */
-@media (max-width: 1199px) {
+/* Below lg: use fixed positioning for bottom nav for reliability */
+@media (width < 72rem) {
 	.c-nav.nav-bottom {
 		position: fixed;
 		bottom: 0;
@@ -451,7 +451,7 @@ body {
 	/* Extra menu portal container - positioned before nav-bottom in DOM */
 	.c-extra-menu-portal {
 		position: fixed;
-		bottom: 4.5rem;
+		bottom: calc(var(--shell-bottom-nav-height) + 0.5rem);
 		left: 0;
 		right: 0;
 		z-index: var(--z-popover);
@@ -655,43 +655,58 @@ body {
 	color: var(--col-error);
 }
 
+/* Single source of truth for the shell's chrome geometry — each is consumed
+   both by the element that defines it (the context sidebar in
+   context/sidebar.css, nav-top and nav-bottom below) and by everything that
+   has to clear it, so the two can never silently desync. */
+:root {
+	--shell-sidebar-width: 5rem;
+	--shell-header-height: 3.5rem;
+	--shell-bottom-nav-height: 4rem;
+
+	/* Content width for every shell page — FCD layouts and plain .c-container
+	   alike. 1408px = 348 + 700 + 348 + gaps; with the 5rem context sidebar
+	   offsetting .c-layout, it caps out at a 1488px viewport. */
+	--container-max-width: 88rem;
+}
+
 /* Layout with sidebar */
 .c-layout {
 	display: flex;
 	flex-direction: column;
-	height: calc(100% - 3.5rem); /* Account for header height */
-	margin-top: 3.5rem; /* Position below header */
+	height: calc(100% - var(--shell-header-height)); /* Account for header height */
+	margin-top: var(--shell-header-height); /* Position below header */
 	min-width: 0; /* Prevent overflow */
 	transition: margin-left 0.3s ease;
-	--sidebar-width: 5rem; /* Default sidebar width */
+	--sidebar-width: var(--shell-sidebar-width);
 }
 
 .c-layout.with-sidebar {
 	margin-left: var(--sidebar-width); /* Use CSS variable for consistency */
 }
 
-/* On desktop, layout shifts when sidebar is pinned */
-@media (min-width: 1024px) {
+/* On desktop, layout shifts when the sidebar is pinned */
+@media (width >= 72rem) {
 	.c-layout.with-sidebar {
 		margin-left: var(--sidebar-width); /* Use CSS variable for consistency */
 	}
 }
 
-/* On mobile, layout doesn't shift */
-@media (max-width: 1023px) {
+/* Below lg the sidebar is a drawer, so the layout doesn't shift */
+@media (width < 72rem) {
 	.c-layout.with-sidebar {
 		margin-left: 0;
 	}
 }
 
-/* Mobile: use fixed positioning to fill space between header and bottom nav */
-@media (max-width: 1199px) {
+/* Below lg: use fixed positioning to fill space between header and bottom nav */
+@media (width < 72rem) {
 	.c-layout {
 		position: fixed;
-		top: 3.5rem;
+		top: var(--shell-header-height);
 		left: 0;
 		right: 0;
-		bottom: 4rem; /* Bottom nav height */
+		bottom: var(--shell-bottom-nav-height);
 		height: auto;
 		margin-top: 0;
 	}

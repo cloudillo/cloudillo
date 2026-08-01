@@ -39,10 +39,10 @@
 	animation: upload-panel-slide-in var(--anim-toast) forwards;
 }
 
-/* Position upload panel above bottom nav on mobile */
-@media (max-width: 1199px) {
+/* Position upload panel above the bottom nav, which only exists below lg */
+@media (width < 72rem) {
 	.c-upload-panel {
-		bottom: calc(4.5rem + var(--space-3));
+		bottom: calc(var(--shell-bottom-nav-height) + 0.5rem + var(--space-3));
 	}
 }
 
@@ -1244,7 +1244,7 @@
 	max-width: 380px;
 }
 
-@media (max-width: 480px) {
+@media (width <= 30rem) {
 	.c-share-dialog {
 		min-width: 0;
 		max-width: calc(100vw - 2rem);

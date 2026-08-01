@@ -614,7 +614,7 @@
 }
 
 /* Mobile responsiveness */
-@media (max-width: 640px) {
+@media (width <= 40rem) {
 	.media-picker {
 		width: 100vw;
 		height: 100vh;

@@ -139,7 +139,7 @@
 }
 
 /* Mobile: stack vertically if needed */
-@media (max-width: 480px) {
+@media (width <= 30rem) {
 	.picker-view-btn svg {
 		width: 16px;
 		height: 16px;

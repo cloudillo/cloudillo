@@ -7,14 +7,16 @@
 
 /* Sidebar container - extends OpalUI c-sidebar */
 .c-sidebar.left {
-	/* Override OpalUI defaults for narrower Discord/Slack style (5rem = 80px) */
-	--sidebar-width: 5rem !important;
-	--sidebar-min-width: 5rem !important;
+	/* Narrower than the OpalUI default, Discord/Slack style.
+	   --shell-sidebar-width is declared in style.css and shared with
+	   .c-layout's content offset. */
+	--sidebar-width: var(--shell-sidebar-width) !important;
+	--sidebar-min-width: var(--shell-sidebar-width) !important;
 	--sidebar-max-width: 12rem !important;
 
 	/* Override OpalUI positioning - start below header */
 	position: fixed !important;
-	top: 3.5rem !important; /* Start below the header navbar */
+	top: var(--shell-header-height) !important;
 	left: 0 !important;
 	width: var(--sidebar-width) !important;
 	min-width: var(--sidebar-min-width) !important;
@@ -23,8 +25,8 @@
 	z-index: 100 !important;
 }
 
-/* On desktop, sidebar is always visible */
-@media (min-width: 1024px) {
+/* At lg+, the sidebar is pinned open (matches .c-layout's content offset) */
+@media (width >= 72rem) {
 	.c-sidebar.left {
 		bottom: 0 !important;
 		transform: translateX(0) !important;
@@ -395,10 +397,10 @@
 	justify-content: center;
 }
 
-/* Mobile adjustments */
-@media (max-width: 1023px) {
+/* Below lg: drawer mode */
+@media (width < 72rem) {
 	.c-sidebar.left {
-		bottom: 3.5rem !important; /* Account for bottom navbar on mobile */
+		bottom: var(--shell-bottom-nav-height) !important;
 		transform: translateX(-100%) !important; /* Hidden by default on mobile */
 		transition: transform 0.3s ease;
 	}
@@ -412,12 +414,12 @@
 /* Must be BELOW sidebar and header, but ABOVE content */
 .c-sidebar-backdrop {
 	z-index: 9 !important; /* Below header (10) and sidebar (100) */
-	top: 3rem !important; /* Start just below header, cover app toolbars */
+	top: var(--shell-header-height) !important; /* Covers app toolbars too */
 	bottom: 0 !important;
 }
 
-@media (max-width: 1023px) {
+@media (width < 72rem) {
 	.c-sidebar-backdrop {
-		bottom: 3.5rem !important; /* Don't cover bottom nav */
+		bottom: var(--shell-bottom-nav-height) !important;
 	}
 }

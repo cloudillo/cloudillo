@@ -178,7 +178,7 @@
 }
 
 /* Mobile responsiveness */
-@media (max-width: 640px) {
+@media (width <= 40rem) {
 	.doc-picker {
 		width: 100vw;
 		height: 100vh;

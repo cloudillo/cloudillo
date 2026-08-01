@@ -11,6 +11,7 @@ import {
 	MenuItem,
 	SubMenuItem,
 	useAuth,
+	useIsMobile,
 	useToast
 } from '@cloudillo/react'
 import { useAtom, useStore } from 'jotai'
@@ -165,7 +166,7 @@ export function ContextMenu({
 	const toast = useToast()
 
 	// Detect mobile for ActionSheet vs Menu
-	const isMobile = window.innerWidth < 768
+	const isMobile = useIsMobile()
 
 	const count = selectedFiles.length
 	const isSingleSelect = count === 1

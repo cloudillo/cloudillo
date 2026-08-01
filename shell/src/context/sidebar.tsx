@@ -10,7 +10,7 @@
 
 import './sidebar.css'
 
-import { mergeClasses, ProfilePicture, useAuth, useToast } from '@cloudillo/react'
+import { mergeClasses, ProfilePicture, useAuth, useIsDesktop, useToast } from '@cloudillo/react'
 import { useAtom, useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -188,22 +188,14 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 	const { isOpen, isPinned, close } = useSidebar()
 	const { error: toastError } = useToast()
 	const location = useLocation()
-	const [isDesktop, setIsDesktop] = React.useState(window.innerWidth >= 1024)
+	// At lg+ the sidebar is pinned open by CSS and the layout is offset by its
+	// width (see style.css / sidebar.css).
+	const isDesktop = useIsDesktop()
 	const { menuState, closeMenu, getTriggerProps, wrapClick } = useProfileContextMenu()
 
 	// Drag-and-drop state for reordering pinned communities
 	const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null)
 	const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null)
-
-	// Track desktop/mobile mode for responsive behavior
-	React.useEffect(() => {
-		const handleResize = () => {
-			setIsDesktop(window.innerWidth >= 1024)
-		}
-		handleResize()
-		window.addEventListener('resize', handleResize)
-		return () => window.removeEventListener('resize', handleResize)
-	}, [])
 
 	// Drag-and-drop handlers for pinned communities
 	const handleDragStart = React.useCallback((e: React.DragEvent, index: number) => {

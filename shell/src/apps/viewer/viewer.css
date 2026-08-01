@@ -165,7 +165,7 @@
 }
 
 /* Mobile adjustments */
-@media (max-width: 640px) {
+@media (width <= 40rem) {
 	.c-file-viewer-toolbar {
 		left: var(--space-2);
 		right: var(--space-2);

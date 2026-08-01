@@ -77,7 +77,7 @@ input.c-profile-name-input {
 }
 */
 
-@media screen and (max-width: 768px) {
+@media screen and (width < 48rem) {
 	.c-profile-pic {
 		width: 8rem;
 	}
@@ -285,10 +285,10 @@ input.c-profile-name-input {
 }
 
 /* Stacking keys off the container, not the viewport: the profile sits in an FCD
-   content column (col-md-8 / col-lg-6), so at a 1200px viewport each column is
-   only ~290px. 34rem of container width leaves ~268px per column after the gap,
-   the narrowest a card stays readable. Must stay a literal — container query
-   conditions cannot resolve var(). */
+   content column (col-md-8 / col-lg-6), ~700px once the container caps out but
+   only ~508px at a 768px viewport. 34rem of container width leaves ~268px per
+   column after the gap, the narrowest a card stays readable. Must stay a
+   literal — container query conditions cannot resolve var(). */
 .c-about-body,
 .c-cols-container {
 	container: about-cols / inline-size;

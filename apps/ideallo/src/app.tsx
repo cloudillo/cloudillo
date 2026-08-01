@@ -20,6 +20,7 @@ import './style.css'
 
 import { calculateArcRadius } from '@cloudillo/canvas-tools'
 import { getAppBus } from '@cloudillo/core'
+import { useIsMobile } from '@cloudillo/react'
 import type Quill from 'quill'
 import {
 	type ResizeHandle,
@@ -68,7 +69,6 @@ import {
 	useEraserHandler,
 	useIdealloDocument,
 	useImageHandler,
-	useIsMobile,
 	useLatestRef,
 	useObjectTextEditor,
 	useSelectHandler,

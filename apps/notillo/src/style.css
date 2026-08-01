@@ -344,7 +344,7 @@ body,
 	margin: 0 auto;
 }
 
-@media (max-width: 767px) {
+@media (width < 48rem) {
 	.notillo-editor .bn-editor {
 		padding-inline-end: 12px;
 	}
@@ -380,7 +380,7 @@ body,
 /* Lighter, un-blurred mobile overlay for the details panel — lets the
    editor content under the comments panel stay readable. Overrides the
    dim+blur default in @cloudillo/react's components.css. */
-@media (max-width: 1199px) {
+@media (width < 48rem) {
 	.c-fcd-details::before {
 		background-color: rgba(0, 0, 0, 0.3);
 		backdrop-filter: none;
@@ -679,7 +679,7 @@ body,
 	display: none;
 }
 
-@media (max-width: 767px) {
+@media (width < 48rem) {
 	.comment-popup-backdrop {
 		display: block;
 		position: fixed;
@@ -704,7 +704,7 @@ body,
 
 /* ── Mobile touch targets ── */
 
-@media (max-width: 767px) {
+@media (width < 48rem) {
 	.comment-action-btn {
 		min-width: 44px;
 		min-height: 44px;

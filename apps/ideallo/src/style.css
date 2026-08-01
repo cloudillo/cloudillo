@@ -349,7 +349,7 @@ body,
    Mobile toolbar layout
    ============================================ */
 
-@media screen and (max-width: 767px) {
+@media screen and (width < 48rem) {
 	.ideallo-toolbar {
 		bottom: 8px;
 		padding: 6px;
@@ -512,7 +512,7 @@ body,
 	background: rgba(0, 0, 0, 0.05);
 }
 
-@media screen and (max-width: 767px) {
+@media screen and (width < 48rem) {
 	.ideallo-zoom-controls {
 		display: none;
 	}
@@ -684,7 +684,7 @@ body,
  * 40px, not the toolbar's 44px: at 44 a text object mid-edit wraps to two rows on EVERY phone
  * rather than only the narrowest. 40 still clears the WCAG 2.5.8 AA minimum of 24px comfortably.
  */
-@media screen and (max-width: 767px) {
+@media screen and (width < 48rem) {
 	.ideallo-property-bar {
 		gap: 4px;
 		padding: 6px;

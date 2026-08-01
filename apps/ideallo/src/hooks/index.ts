@@ -25,7 +25,6 @@ export type { IdealloPresence, UseIdealloDocumentResult } from './useIdealloDocu
 export { useIdealloDocument } from './useIdealloDocument.js'
 export type { UseImageHandlerOptions } from './useImageHandler.js'
 export { useImageHandler } from './useImageHandler.js'
-export { useIsMobile } from './useIsMobile.js'
 export { useLatestRef } from './useLatestRef.js'
 export type { ObjectTextEditor, UseObjectTextEditorOptions } from './useObjectTextEditor.js'
 export { useObjectTextEditor } from './useObjectTextEditor.js'

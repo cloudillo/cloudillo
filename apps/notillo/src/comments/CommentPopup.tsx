@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { Comment, CommentThread, UseCommentsReturn } from '@cloudillo/react'
-import { Button } from '@cloudillo/react'
+import { Button, useIsMobile } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -33,17 +33,8 @@ export function CommentPopup({
 }: CommentPopupProps) {
 	const { t } = useTranslation()
 	const popupRef = React.useRef<HTMLDivElement>(null)
-	const [isMobile, setIsMobile] = React.useState(
-		() => window.matchMedia('(max-width: 767px)').matches
-	)
+	const isMobile = useIsMobile()
 	const [position, setPosition] = React.useState<{ top: number; left: number } | null>(null)
-
-	React.useEffect(() => {
-		const mql = window.matchMedia('(max-width: 767px)')
-		const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
-		mql.addEventListener('change', handler)
-		return () => mql.removeEventListener('change', handler)
-	}, [])
 
 	// Desktop: position the popup near the block
 	React.useLayoutEffect(() => {

@@ -11,7 +11,8 @@ import {
 	TreeItem,
 	type TreeItemDragData,
 	TreeView,
-	useDialog
+	useDialog,
+	useIsMobile
 } from '@cloudillo/react'
 import type { RtdbClient } from '@cloudillo/rtdb'
 import * as React from 'react'
@@ -84,6 +85,7 @@ export function PageSidebar({
 }: PageSidebarProps) {
 	const { t } = useTranslation()
 	const dialog = useDialog()
+	const isMobile = useIsMobile()
 	const [menuOpen, setMenuOpen] = React.useState(false)
 	const menuRef = React.useRef<HTMLDivElement>(null)
 
@@ -632,7 +634,7 @@ export function PageSidebar({
 				</div>
 			)}
 			{ctxMenu &&
-				(window.innerWidth < 768 ? (
+				(isMobile ? (
 					<ActionSheet
 						isOpen={true}
 						onClose={() => setCtxMenu(null)}

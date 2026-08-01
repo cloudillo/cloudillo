@@ -449,7 +449,7 @@ body,
 }
 
 /* Larger touch targets on mobile */
-@media (max-width: 767px) {
+@media (width < 48rem) {
 	.c-property-field-control .c-input,
 	.c-property-field-control .c-select {
 		min-height: 44px;
@@ -1086,7 +1086,7 @@ body,
 }
 
 /* Mobile-specific dropdown positioning */
-@media (max-width: 767px) {
+@media (width < 48rem) {
 	.c-presenter-indicator__dropdown {
 		position: fixed;
 		left: var(--space-2);
@@ -1223,7 +1223,7 @@ body,
 }
 
 /* Mobile: more compact presenter button */
-@media (max-width: 767px) {
+@media (width < 48rem) {
 	.c-presenter-indicator-btn {
 		padding: var(--space-1);
 		min-height: 32px;
@@ -2418,7 +2418,7 @@ body,
 }
 
 /* Mobile responsive - larger touch targets */
-@media (max-width: 768px) {
+@media (width < 48rem) {
 	.c-symbol-dropdown {
 		min-width: 280px;
 	}

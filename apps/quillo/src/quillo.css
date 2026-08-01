@@ -442,7 +442,7 @@ body {
    ============================================ */
 
 /* Responsive toolbar - scrollable on mobile */
-@media (max-width: 640px) {
+@media (width <= 40rem) {
 	#toolbar {
 		flex-wrap: nowrap;
 		overflow-x: auto;
@@ -474,7 +474,7 @@ body {
 }
 
 /* Very small screens - minimal toolbar */
-@media (max-width: 400px) {
+@media (width <= 25rem) {
 	#toolbar .ql-formats:has(.ql-color),
 	#toolbar .ql-formats:has(.ql-blockquote) {
 		display: none;

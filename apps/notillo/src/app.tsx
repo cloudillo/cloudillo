@@ -10,7 +10,8 @@ import {
 	LoadingSpinner,
 	Panel,
 	useComments,
-	useDialog
+	useDialog,
+	useIsMobile
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -108,14 +109,18 @@ export function NotilloApp() {
 
 	// Comment badge indicators on editor blocks
 	const [focusBlockId, setFocusBlockId] = React.useState<string | undefined>()
-	const handleBadgeClick = React.useCallback((blockId: string) => {
-		if (window.innerWidth < 768) {
-			setPopupBlockId(blockId)
-		} else {
-			setFocusBlockId(blockId)
-			setShowComments(true)
-		}
-	}, [])
+	const isMobile = useIsMobile()
+	const handleBadgeClick = React.useCallback(
+		(blockId: string) => {
+			if (isMobile) {
+				setPopupBlockId(blockId)
+			} else {
+				setFocusBlockId(blockId)
+				setShowComments(true)
+			}
+		},
+		[isMobile]
+	)
 	const { blockThreadMap } = useCommentIndicators(pageThreads, handleBadgeClick)
 
 	const editorRef = React.useRef<NotilloEditor | null>(null)
@@ -622,7 +627,7 @@ export function NotilloApp() {
 				style={{ display: 'none' }}
 				onChange={handleChildImportFileSelected}
 			/>
-			<Fcd.Container className="pt-2 g-2" detailsMode="adaptive">
+			<Fcd.Container className="pt-2 g-2" fluid detailsMode="adaptive">
 				<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 					<Panel elevation="mid" className="c-vbox fill">
 						<PageSidebar

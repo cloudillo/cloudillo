@@ -762,7 +762,7 @@
 /* Mobile                                        */
 /* ============================================= */
 
-@media (max-width: 480px) {
+@media (width <= 30rem) {
 	.mapillo-search {
 		width: calc(100% - 60px);
 	}

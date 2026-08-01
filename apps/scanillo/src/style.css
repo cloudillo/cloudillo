@@ -86,7 +86,7 @@
 	position: static;
 }
 
-@media (min-width: 1024px) {
+@media (width >= 72rem) {
 	.fab-container {
 		bottom: 2rem;
 	}

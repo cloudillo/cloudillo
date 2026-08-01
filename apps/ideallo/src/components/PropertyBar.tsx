@@ -15,7 +15,7 @@
  * font, the align button shows the current alignment's icon - so nothing has to be opened to read.
  */
 
-import { ActionSheet, ActionSheetDivider, ActionSheetItem } from '@cloudillo/react'
+import { ActionSheet, ActionSheetDivider, ActionSheetItem, useIsMobile } from '@cloudillo/react'
 import type Quill from 'quill'
 import * as React from 'react'
 import {
@@ -67,7 +67,6 @@ import {
 	updateObjectFields
 } from '../crdt/index.js'
 import type { CurrentStyle } from '../hooks/useIdealloDocument.js'
-import { useIsMobile } from '../hooks/useIsMobile.js'
 import { usePropertyBarPosition } from '../hooks/usePropertyBarPosition.js'
 import { defaultObjectFontSize } from '../utils/object-text.js'
 import { canClearFill, canClearStroke, isPaintSet } from '../utils/paint.js'

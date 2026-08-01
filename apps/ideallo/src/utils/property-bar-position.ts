@@ -20,7 +20,7 @@ export const SELECTION_GAP = 12
  * Bottom strip the floating toolbar owns, so the bar is never placed on top of it.
  * Desktop: 16 offset + 8 padding * 2 + 44 button = 76, plus a gap.
  * Mobile:   8 offset + 6 padding * 2 + 44 button = 64, plus a gap.
- * The 767px threshold must stay in step with `hooks/useIsMobile.ts`.
+ * The mobile threshold must stay in step with `useIsMobile()`'s `md` band (`@cloudillo/react`).
  */
 export const DESKTOP_BOTTOM_RESERVED = 84
 export const MOBILE_BOTTOM_RESERVED = 72

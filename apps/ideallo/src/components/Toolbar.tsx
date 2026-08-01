@@ -11,7 +11,7 @@
  * called or which key arms it.
  */
 
-import { ActionSheet, ActionSheetDivider, ActionSheetItem } from '@cloudillo/react'
+import { ActionSheet, ActionSheetDivider, ActionSheetItem, useIsMobile } from '@cloudillo/react'
 import * as React from 'react'
 import type { IconType } from 'react-icons'
 import {
@@ -25,7 +25,6 @@ import {
 	PiLockOpenBold as IcUnlocked
 } from 'react-icons/pi'
 
-import { useIsMobile } from '../hooks/useIsMobile.js'
 import type { ToolCategory, ToolType } from '../tools/index.js'
 import {
 	CATEGORY_LABELS,

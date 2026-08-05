@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { FetchError } from '@cloudillo/core'
+import { bytesToBase64, bytesToBase64Url } from '@cloudillo/core/base64'
 import dayjs from 'dayjs'
 import { atom, useAtom } from 'jotai'
 import * as React from 'react'
@@ -78,27 +79,14 @@ export function humanDate(dt: dayjs.Dayjs) {
 	}
 }
 
-// Base64 string to array buffer
-export function base64ToArrayBuffer(b64str: string): Uint8Array {
-	// Fix padding
-	const padding = '='.repeat((4 - (b64str.length % 4)) % 4)
-	// Convert URL padding to standard padding
-	const base64 = (b64str + padding).replace(/-/g, '+').replace(/_/g, '/')
-
-	const str = atob(base64)
-	const ret = new Uint8Array(str.length)
-	for (let i = 0; i < str.length; ++i) {
-		ret[i] = str.charCodeAt(i)
-	}
-	return ret
-}
-
+// Thin aliases over @cloudillo/core/base64, which is the chunk-safe implementation
+// (spreading the whole array into String.fromCharCode throws on large inputs).
 export function arrayBufferToBase64(buffer: Uint8Array): string {
-	return btoa(String.fromCharCode(...buffer))
+	return bytesToBase64(buffer)
 }
 
 export function arrayBufferToBase64Url(buffer: Uint8Array): string {
-	return arrayBufferToBase64(buffer).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+	return bytesToBase64Url(buffer)
 }
 
 // Call a JSON POST API endpoint with fetch()

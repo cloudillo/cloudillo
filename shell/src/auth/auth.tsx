@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { type ApiClient, isSessionExpiredError } from '@cloudillo/core'
+import { type ApiClient, isSessionExpiredError, setApiToken } from '@cloudillo/core'
 import { type AuthState, Button, useApi, useAuth, useDialog, useToast } from '@cloudillo/react'
 import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser'
 import { atom, useAtom } from 'jotai'
@@ -28,7 +28,7 @@ import { useAppConfig } from '../utils.js'
 import { IdpActivate } from './idp-activate.js'
 import { QrLoginPanel } from './QrLoginPanel.js'
 import { ResetPassword } from './reset-password.js'
-import { rateLimitMessage, validPassword } from './utils.js'
+import { rateLimitMessage } from './utils.js'
 
 // ============================================================================
 // Login Init Context — shares pre-fetched QR + WebAuthn data with login page
@@ -159,10 +159,7 @@ export function LoginForm() {
 						response
 					})
 					setAuth(result)
-					// Push the fresh token into the cached ApiClient *now* —
-					// the auth-effect that mirrors auth state into the client
-					// hasn't run yet at this point in the same microtask.
-					api.setAuthToken(result.token)
+					setApiToken(result.idTag, result.token)
 
 					// Mint the encryption-key cookie BEFORE handing the token
 					// to the SW: on Firefox/Safari the SW relies on the cookie
@@ -202,11 +199,7 @@ export function LoginForm() {
 			})
 			const authState: AuthState = { ...loginResult }
 			setAuth(authState)
-			// Push the fresh token into the cached ApiClient *now* — the
-			// auth-effect that mirrors auth state into the client hasn't run
-			// yet at this point in the same microtask, so createRememberMeKey
-			// below would otherwise hit the API with a stale (null) token.
-			api.setAuthToken(loginResult.token)
+			setApiToken(authState.idTag ?? api.idTag, authState.token)
 
 			// Mint the encryption-key cookie BEFORE handing the token to the
 			// SW. On Firefox/Safari (no Cookie Store API) the SW reads the
@@ -422,6 +415,7 @@ export function WebAuth({ idTag: _idTag }: WebAuthProps) {
 
 		const result = await webAuthnLogin(api)
 		if (result) {
+			setApiToken(result.idTag ?? api.idTag, result.token)
 			setAuth(result)
 			// Token is stored in SW encrypted storage via installToken()
 		}
@@ -436,66 +430,6 @@ export function WebAuth({ idTag: _idTag }: WebAuthProps) {
 			<IcWebAuthn className="mr-1" />
 			{t('Login with passkey')}
 		</Button>
-	)
-}
-
-export function Password() {
-	const { t } = useTranslation()
-	const { api } = useApi()
-	const [oldPassword, setOldPassword] = React.useState('')
-	const [password, setPassword] = React.useState('')
-	const [error, setError] = React.useState<string | undefined>()
-
-	async function changePassword() {
-		if (!validPassword(password)) {
-			alert(t('You must provide a strong password!'))
-			return
-		}
-		try {
-			if (!api?.idTag) {
-				setError('Not authenticated')
-				return
-			}
-			await api.auth.changePassword({
-				currentPassword: oldPassword,
-				newPassword: password
-			})
-			alert(t('Password changed successfully'))
-		} catch (err: unknown) {
-			console.error('Password change failed:', err)
-			setError(err instanceof Error ? err.message : t('Incorrect password!'))
-		}
-	}
-
-	return (
-		<div>
-			<input
-				className="c-input"
-				onChange={(evt: React.ChangeEvent<HTMLInputElement>) =>
-					setOldPassword(evt.target.value)
-				}
-				autoComplete="current-password"
-				value={oldPassword}
-				type="password"
-				placeholder={t('Current password')}
-				aria-label={t('Current password')}
-			/>
-			<input
-				className="c-input"
-				onChange={(evt: React.ChangeEvent<HTMLInputElement>) =>
-					setPassword(evt.target.value)
-				}
-				autoComplete="new-password"
-				value={password}
-				type="password"
-				placeholder={t('New password')}
-				aria-label={t('New password')}
-			/>
-			{error && <div className="c-invalid-feedback">{error}</div>}
-			<button className="c-button" onClick={changePassword}>
-				{t('Set password')}
-			</button>
-		</div>
 	)
 }
 

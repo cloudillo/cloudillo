@@ -271,9 +271,12 @@ function EngagementRow({
 	const [auth] = useAuth()
 	const urlContext = useUrlContextIdTag()
 	const issuer = action.issuer
+	// Gate on the resolved tag, not on `auth` — this dialog is guest-reachable
+	// (the reaction/repost chips that open it are not auth-gated).
+	const picIdTag = audienceTag || auth?.idTag
 	const picUrl =
-		auth && issuer.profilePic
-			? getFileUrl(audienceTag || auth.idTag || '', issuer.profilePic, 'vis.pf')
+		picIdTag && issuer.profilePic
+			? getFileUrl(picIdTag, issuer.profilePic, 'vis.pf')
 			: undefined
 
 	return (

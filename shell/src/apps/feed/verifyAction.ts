@@ -19,34 +19,19 @@
 
 import type { ProfileKeys } from '@cloudillo/core'
 
+import { base64UrlToBytes, bytesToBase64Url } from '@cloudillo/core/base64'
+
 const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder()
 
-/** base64url (with or without padding, `-_` alphabet) → bytes. */
-function base64urlToBytes(s: string): Uint8Array {
-	const clean = s.replace(/\s+/g, '')
-	const padded = clean + '='.repeat((4 - (clean.length % 4)) % 4)
-	const b64 = padded.replace(/-/g, '+').replace(/_/g, '/')
-	const bin = atob(b64)
-	const bytes = new Uint8Array(bin.length)
-	for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
-	return bytes
-}
-
 /**
- * Standard base64 (PEM body) → bytes. Also tolerates url-safe input by
- * normalizing the alphabet, so a single helper covers both key and signature
- * encodings.
+ * base64url (with or without padding) → bytes, whitespace tolerated.
+ *
+ * `base64UrlToBytes` accepts the standard alphabet unchanged as well, so this
+ * covers both the JWS segments and the PEM-body key encoding.
  */
-function base64ToBytes(s: string): Uint8Array {
-	return base64urlToBytes(s)
-}
-
-/** bytes → base64url, no padding (matches the backend hasher output). */
-function bytesToBase64Url(bytes: Uint8Array): string {
-	let bin = ''
-	for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
-	return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+function base64urlToBytes(s: string): Uint8Array {
+	return base64UrlToBytes(s.replace(/\s+/g, ''))
 }
 
 export interface JwsHeader {
@@ -103,7 +88,7 @@ export async function tokenMatchesAction(token: string, actionId: string): Promi
 export function importVerifyKey(publicKeyB64: string): Promise<CryptoKey> {
 	return crypto.subtle.importKey(
 		'spki',
-		base64ToBytes(publicKeyB64) as unknown as ArrayBuffer,
+		base64urlToBytes(publicKeyB64) as unknown as ArrayBuffer,
 		{ name: 'ECDSA', namedCurve: 'P-384' },
 		false,
 		['verify']

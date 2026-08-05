@@ -18,7 +18,7 @@ interface InvitationsListProps {
 	communityIdTag: string
 	getClientFor: (
 		idTag: string,
-		opts?: { auth?: 'required' | 'preferred' | 'none' }
+		opts?: { auth?: 'required' | 'preferred' | 'none'; explicit?: boolean }
 	) => ApiClient | null
 	/** Id tags of invitees who have already accepted (connected members). */
 	connectedMemberTags: Set<string>
@@ -38,7 +38,8 @@ export function InvitationsList({
 	const [busyId, setBusyId] = React.useState<string | undefined>()
 
 	const reload = React.useCallback(async () => {
-		const client = getClientFor(communityIdTag)
+		// Explicit: leader-only management data, unreadable anonymously.
+		const client = getClientFor(communityIdTag, { explicit: true })
 		if (!client) {
 			setInvitations([])
 			return
@@ -77,7 +78,7 @@ export function InvitationsList({
 			'error'
 		)
 		if (!confirmed) return
-		const client = getClientFor(communityIdTag)
+		const client = getClientFor(communityIdTag, { explicit: true })
 		if (!client) return
 		setBusyId(action.actionId)
 		try {

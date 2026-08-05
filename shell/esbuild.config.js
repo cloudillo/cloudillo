@@ -89,7 +89,9 @@ const swConfig = {
 	platform: 'browser',
 	target: ['es2021'],
 	sourcemap: !isProd,
-	minify: false,
+	// Minified in production only — dev keeps readable stack traces. `debug()`
+	// folds out via the NODE_ENV define below either way.
+	minify: isProd,
 	define: {
 		'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
 		'process.env.CLOUDILLO_VERSION': JSON.stringify(pkg.version)

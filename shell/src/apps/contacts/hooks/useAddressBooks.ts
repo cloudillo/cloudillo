@@ -17,7 +17,9 @@ export interface UseAddressBooksResult {
 }
 
 export function useAddressBooks(): UseAddressBooksResult {
-	const { api } = useContextAwareApi()
+	// `authenticated` is a dep of the load effect below: the api client's identity
+	// is stable per idTag, so this flag is what changes when a context token lands.
+	const { api, authenticated } = useContextAwareApi()
 	const [addressBooks, setAddressBooks] = React.useState<AddressBookOutput[]>([])
 	const [isLoading, setIsLoading] = React.useState(false)
 	const [error, setError] = React.useState<Error | null>(null)
@@ -46,7 +48,7 @@ export function useAddressBooks(): UseAddressBooksResult {
 				cancelled = true
 			}
 		},
-		[api, refreshCounter]
+		[api, authenticated, refreshCounter]
 	)
 
 	const refresh = React.useCallback(function refresh() {

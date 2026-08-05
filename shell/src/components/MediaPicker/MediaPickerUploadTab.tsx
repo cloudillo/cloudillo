@@ -79,8 +79,17 @@ export function MediaPickerUploadTab({
 	const { t } = useTranslation()
 	const { api: defaultApi } = useApi()
 	const { getClientFor } = useApiContext()
-	const api =
-		(idTagProp ? getClientFor(idTagProp, { auth: 'required' }) : defaultApi) || defaultApi
+	// 'required' already yields a stable registry client (or null), but memoized
+	// for consistency with the other `getClientFor` call sites, whose fallbacks
+	// do return a fresh client per call.
+	const api = React.useMemo(
+		() =>
+			// Explicit: uploading into that tenant is a user-initiated action.
+			(idTagProp
+				? getClientFor(idTagProp, { auth: 'required', explicit: true })
+				: defaultApi) || defaultApi,
+		[idTagProp, defaultApi, getClientFor]
+	)
 	const fileInputRef = useRef<HTMLInputElement>(null)
 	const abortControllerRef = useRef<AbortController | null>(null)
 	const lastUploadedBlobRef = useRef<{ blob: globalThis.File | Blob; fileName?: string } | null>(

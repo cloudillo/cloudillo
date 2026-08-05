@@ -163,6 +163,7 @@ function useFlushOnLeave(flush: () => void): void {
  */
 export function useReadMarker(scopeKey: string, seed?: number): UseReadMarker {
 	const { api } = useApi()
+	const [auth] = useAuth()
 	const [positions, setPositions] = useAtom(readPositionAtom)
 	const { scope, key } = React.useMemo(() => parseScopeKey(scopeKey), [scopeKey])
 
@@ -172,12 +173,16 @@ export function useReadMarker(scopeKey: string, seed?: number): UseReadMarker {
 
 	const writeMarker = React.useCallback(
 		(position: number) => {
-			if (!api || !key) return
+			// The backend keys every watermark to the reader's own row
+			// (profiles.feed_read_at / msg_read_at, actions.comments_read_at). A
+			// guest has no row on this node, so the write can't be attributed to
+			// anyone — don't issue it.
+			if (!api || !key || !auth?.idTag) return
 			api.actions.setReadMarker({ scope, key, position }).catch(() => {
 				/* own-node write is best-effort; the watermark also lives in-memory */
 			})
 		},
-		[api, scope, key]
+		[api, scope, key, auth?.idTag]
 	)
 
 	const [throttledWrite, flushNow] = useThrottledCallback(writeMarker, 1500)

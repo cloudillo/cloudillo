@@ -1,18 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { clearCache, getCachedFile } from '../cache/index.js'
+import { APP_STORAGE_DB, CRDT_DB, DATA_CACHE_DB, deleteDatabase } from '../../shared/idb.js'
+import { clearCache, getCachedFile, resetKeyErrorState } from '../cache/index.js'
 import { getDirtyDocIds } from '../message-bus/handlers/crdt.js'
+import { closeAppStorage } from '../message-bus/handlers/storage.js'
 import { cleanupEncryptionCookie, resetEncryptionState } from '../pwa.js'
-
-function deleteDb(name: string): Promise<void> {
-	return new Promise((resolve) => {
-		const req = indexedDB.deleteDatabase(name)
-		req.onsuccess = () => resolve()
-		req.onerror = () => resolve()
-		req.onblocked = () => resolve()
-	})
-}
 
 function clearLocalStorageKeys(): void {
 	localStorage.removeItem('cloudillo:guestName')
@@ -40,13 +33,16 @@ export async function wipeLocalData(): Promise<void> {
 	// trigger encrypted IDB writes during teardown, which re-set the
 	// `cloudillo-had-encrypted-data` localStorage flag — so we defer the
 	// flag/cookie cleanup to the very end.
-	// resetEncryptionState() also clears the page-lifetime key-error latch
-	// (via resetKeyErrorState in pwa.tsx) — no need to repeat it below.
 	try {
-		await resetEncryptionState()
+		if (!(await resetEncryptionState())) {
+			console.warn('[Logout] The worker-side encrypted wipe did not complete')
+		}
 	} catch (err) {
 		console.error('[Logout] resetEncryptionState failed:', err)
 	}
+	// Drop the cached CryptoKey so the next encrypt re-reads the (new) cookie.
+	// Unconditional: the key the cache holds is dead either way.
+	resetKeyErrorState()
 
 	try {
 		await clearCache()
@@ -54,12 +50,20 @@ export async function wipeLocalData(): Promise<void> {
 		console.error('[Logout] clearCache failed:', err)
 	}
 
-	// Belt-and-braces: the SW's sw:auth.reset handler also wipes these, but
+	// Belt-and-braces: the SW's sw:key.reset handler also wipes these, but
 	// a dead/uninstalled/uncontrolled SW silently drops the message. Direct
-	// IDB deletes guarantee no encrypted blobs survive into the next session.
-	await deleteDb('cloudillo-crdt')
-	await deleteDb('cloudillo-data-cache')
-	await deleteDb('cloudillo-app-storage')
+	// IDB deletes guarantee no encrypted blobs survive into the next session —
+	// except when another tab still holds the database open, which is the one
+	// outcome the caller must not mistake for a completed wipe.
+	// The app-storage connection is held open for the page's lifetime, and an open
+	// connection defers `deleteDatabase` — close it first or the wipe below reports
+	// `'blocked'` on the one database this page itself is holding.
+	closeAppStorage()
+	for (const name of [CRDT_DB, DATA_CACHE_DB, APP_STORAGE_DB]) {
+		if ((await deleteDatabase(name)) === 'blocked') {
+			console.warn(`[Logout] Delete of ${name} was blocked by another open connection`)
+		}
+	}
 
 	// Final step: clear localStorage keys and the encryption cookie/flag
 	// only after all encrypted data is gone. cleanupEncryptionCookie clears

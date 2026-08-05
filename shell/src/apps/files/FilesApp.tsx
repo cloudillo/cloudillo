@@ -24,6 +24,7 @@ import {
 	useToast
 } from '@cloudillo/react'
 
+import { OfflineBanner } from '../../components/OfflineBanner.js'
 import {
 	useContextAwareApi,
 	useCurrentContextIdTag,
@@ -813,6 +814,7 @@ export function FilesApp() {
 											accessLevel={remoteAccessLevel}
 										/>
 									)}
+								<OfflineBanner show={fileListData.isOffline} />
 								<FilterChips
 									fileTypeFilter={fileTypeFilter}
 									ownerFilter={ownerFilter}

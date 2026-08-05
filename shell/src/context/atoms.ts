@@ -13,14 +13,7 @@ import type { ProfileTrust } from '@cloudillo/types'
 import { atom } from 'jotai'
 import { atomWithStorage } from 'jotai/utils'
 
-import type {
-	ActiveContext,
-	CommunityRef,
-	ContextDataCache,
-	ContextSwitchEvent,
-	ContextToken,
-	SidebarState
-} from './types'
+import type { ActiveContext, CommunityRef, ContextSwitchEvent, SidebarState } from './types'
 
 /**
  * Active context atom
@@ -68,13 +61,15 @@ export type ContextIdpEnabledCacheEntry = { value: boolean; fetchedAt: number }
 export const contextIdpEnabledCacheAtom = atom<Map<string, ContextIdpEnabledCacheEntry>>(new Map())
 
 /**
- * Context tokens cache
- * Maps idTag -> token data
+ * Roles reported by the proxy-token response, keyed by foreign idTag.
  *
- * This stores proxy tokens for accessing different communities.
- * The user's own token is stored in authAtom and not duplicated here.
+ * The token itself lives in that idTag's `ApiClient` (see
+ * `libs/core/src/api-registry.ts`) — this atom holds only what the registry
+ * cannot: the roles, and the re-render signal that a token landed. It is written
+ * in the same tick as `setApiToken`, so subscribing to it is how a component
+ * keeps a `hasApiToken()` read fresh.
  */
-export const contextTokensAtom = atom<Map<string, ContextToken>>(new Map())
+export const contextRolesAtom = atom<Map<string, string[]>>(new Map())
 
 /**
  * Communities list
@@ -110,15 +105,6 @@ export const sidebarAtom = atomWithStorage<SidebarState>('cloudillo:sidebar', {
 	isOpen: false,
 	isPinned: true
 })
-
-/**
- * Context data cache
- * Maps contextIdTag -> dataType -> cached data
- *
- * This is an in-memory cache (not persisted) for quick context switching.
- * Cache entries expire after 5 minutes.
- */
-export const contextDataCacheAtom = atom<ContextDataCache>({})
 
 /**
  * Last context switch event

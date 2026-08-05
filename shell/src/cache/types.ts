@@ -13,54 +13,12 @@ export interface CachedRecordBase {
 	cachedAt: number // Unix timestamp for LRU eviction
 }
 
-// File cache record — unencrypted index fields for offline queries
-export interface CachedFileRecord extends CachedRecordBase {
-	fileId: string
-	parentId: string // "__root__" for root-level files
-	fileTp: string // "BLOB" | "CRDT" | "RTDB" | "FLDR"
-	contentType: string
-	starred: number // 0 or 1 (for indexing)
-	pinned: number // 0 or 1 (for indexing)
-	createdAt: string
-}
-
-// Action cache record — unencrypted index fields for offline queries
-export interface CachedActionRecord extends CachedRecordBase {
-	actionId: string
-	type: string // "POST" | "REACT" | "CMNT" | "MSG" | "CONN" | "FLLW" ...
-	status: string // "P" | "A" | "D" | "C" | "N" | "R" | "S"
-	audienceTag: string // issuer or audience idTag for filtering
-	createdAt: string
-}
-
-// Profile cache record
-export interface CachedProfileRecord extends CachedRecordBase {
-	idTag: string
-}
-
-// Sync metadata stored in the "meta" store
-export interface SyncMeta {
-	key: string // "${contextIdTag}:${storeName}"
-	lastSyncAt: string // ISO timestamp
-	schemaVersion: number
-}
-
 // Result of a cached fetch — extends normal results with offline flag
 export interface CachedFetchResult<T> {
 	items: T[]
 	nextCursor: string | null
 	hasMore: boolean
 	isOffline?: boolean
-}
-
-// Options for creating a cached fetch page function
-export interface CachedFetchPageOptions<T> {
-	storeName: 'files' | 'actions' | 'profiles'
-	contextIdTag: string
-	fetchPage: (cursor: string | null, limit: number) => Promise<CachedFetchResult<T>>
-	extractKey: (item: T) => string
-	extractIndexFields: (item: T) => Record<string, unknown>
-	buildOfflineQuery?: () => OfflineQuerySpec
 }
 
 // Specification for querying IndexedDB when offline

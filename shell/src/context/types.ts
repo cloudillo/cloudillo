@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /**
  * Multi-Context UI - Type Definitions
  *
@@ -85,54 +88,6 @@ export interface CommunityRef {
 
 	/** When the community was created (for pending communities) */
 	pendingSince?: Date
-}
-
-/**
- * Proxy tokens are issued with a 24h server-side lifetime; we cache for 23h
- * so we refresh before the backend starts rejecting.
- */
-export const CONTEXT_TOKEN_LIFETIME_MS = 23 * 60 * 60 * 1000
-
-/**
- * Token data for a context
- */
-export interface ContextToken {
-	/** JWT token for this context */
-	token: string
-
-	/** Token expiration time */
-	expiresAt: Date
-
-	/** Refresh token (if available) */
-	refreshToken?: string
-
-	/** User's roles in this context (cached from proxy token response) */
-	roles?: string[]
-}
-
-/**
- * Context data cache entry
- */
-export interface ContextCacheEntry {
-	/** Cached data */
-	data: unknown
-
-	/** When this data was last updated */
-	lastUpdated: Date
-}
-
-/**
- * Context data cache structure
- * Maps contextIdTag -> dataType -> cache entry
- */
-export interface ContextDataCache {
-	[contextIdTag: string]: {
-		files?: ContextCacheEntry
-		feed?: ContextCacheEntry
-		users?: ContextCacheEntry
-		gallery?: ContextCacheEntry
-		[key: string]: ContextCacheEntry | undefined
-	}
 }
 
 /**

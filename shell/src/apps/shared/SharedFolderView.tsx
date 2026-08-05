@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { createApiClient, type FileView, getFileUrl } from '@cloudillo/core'
+import { getJwtTimes } from '@cloudillo/core/jwt'
 import {
 	Button,
 	DropZone,
@@ -40,21 +41,6 @@ import './SharedFolderView.css'
 interface UploadProgress {
 	done: number
 	total: number
-}
-
-// Decode a JWT's `exp` claim (seconds) to epoch ms. No signature check.
-function jwtExpiryMs(token: string): number | null {
-	try {
-		const [, payload] = token.split('.')
-		if (!payload) return null
-		// JWT payloads are base64url (-/_ , no padding); normalize before atob.
-		const b64 = payload.replace(/-/g, '+').replace(/_/g, '/')
-		const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4)
-		const decoded = JSON.parse(atob(padded))
-		return decoded.exp ? decoded.exp * 1000 : null
-	} catch {
-		return null
-	}
 }
 
 interface SharedFolderViewProps {
@@ -116,7 +102,7 @@ export function SharedFolderView({
 	React.useEffect(
 		function refreshScopedToken() {
 			if (!refId) return
-			const exp = jwtExpiryMs(scopedToken)
+			const exp = getJwtTimes(scopedToken)?.exp ?? null
 			if (!exp) return
 			const remaining = exp - Date.now()
 			if (remaining <= 0) return

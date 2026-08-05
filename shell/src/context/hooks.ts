@@ -7,7 +7,13 @@
  * Custom hooks for managing multi-context state and operations.
  */
 
-import { type ApiClient, createApiClient, FetchError } from '@cloudillo/core'
+import {
+	type ApiClient,
+	createApiClient,
+	FetchError,
+	getApiClient,
+	setApiToken
+} from '@cloudillo/core'
 import { apiAtom, authAtom, useApi, useAuth } from '@cloudillo/react'
 import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai'
 import * as React from 'react'
@@ -17,29 +23,21 @@ import { seedCommunityFromHome } from '../read-position.js'
 import {
 	activeContextAtom,
 	communitiesAtom,
-	contextDataCacheAtom,
 	contextIdpEnabledAtom,
 	contextIdpEnabledCacheAtom,
+	contextRolesAtom,
 	contextSwitchingAtom,
-	contextTokensAtom,
 	favoriteCommunitiesAtom,
 	favoritesAtom,
 	lastContextSwitchAtom,
 	recentCommunitiesAtom,
 	recentContextsAtom,
-	sessionTrustAtom,
 	sidebarAtom,
-	storedTrustAtom,
 	totalUnreadCountAtom
 } from './atoms'
 import { HOME_CONTEXT } from './constants.js'
-import {
-	type ActiveContext,
-	CONTEXT_TOKEN_LIFETIME_MS,
-	type CommunityRef,
-	type ContextSwitchEvent,
-	type ContextToken
-} from './types'
+import { effectiveTrust, mayUseContextToken } from './trust-gate.js'
+import type { ActiveContext, CommunityRef, ContextSwitchEvent } from './types'
 
 /**
  * Fetch `idp.enabled` for a given context and write it into
@@ -133,94 +131,68 @@ export function useApiContext() {
 	const setActiveContextState = useSetAtom(activeContextAtom)
 	const setContextIdpEnabled = useSetAtom(contextIdpEnabledAtom)
 	const setContextIdpEnabledCache = useSetAtom(contextIdpEnabledCacheAtom)
-	const setContextTokens = useSetAtom(contextTokensAtom)
+	const setContextRoles = useSetAtom(contextRolesAtom)
 	const [isLoading, setIsLoading] = React.useState(false)
 	const [error, setError] = React.useState<Error | undefined>()
 
-	// Stable mirror of the primary API so callers via `getClientFor(ownIdTag)`
-	// don't churn on token rotations.
-	const { api: primaryApi } = useApi()
-	const primaryApiRef = React.useRef(primaryApi)
-	React.useEffect(() => {
-		primaryApiRef.current = primaryApi
-	}, [primaryApi])
-
-	// Per-idTag cache for foreign contexts (primary lives in primaryApiRef).
-	const apiClientsRef = React.useRef<Map<string, ApiClient>>(new Map())
-
-	// In-flight proxy-token fetches, keyed by target idTag. `contextTokensAtom` only caches a token
-	// once it has LANDED, so concurrent first-time callers (DetailsPanel and the ShareDialog it
-	// opens each mount useFileOwnerScope for the same file) each issued their own network request.
+	// In-flight proxy-token fetches, keyed by target idTag. The registry only holds a token once
+	// it has LANDED, so without this, concurrent first-time callers (DetailsPanel and the
+	// ShareDialog it opens both mount useFileOwnerScope for the same file) each issue their own
+	// network request.
 	const inFlightTokensRef = React.useRef(new Map<string, Promise<ProxyTokenResult>>())
 
 	/**
 	 * Get API client for specific context
 	 * @param idTag - ID tag of the context
-	 * @param opts - Options: token (bypasses cache lookup), auth ('required' | 'preferred' | 'none')
+	 * @param opts - Options: token (an explicit scoped token, never cached), auth
+	 *   ('required' | 'preferred' | 'none'), explicit
 	 *   - 'required' (default): return null if no token available
 	 *   - 'preferred': use token if available, create unauthenticated client if not
 	 *   - 'none': always create an unauthenticated client
+	 *
+	 * Reaching for a *cached* foreign token runs through the same trust gate as
+	 * `getTokenFor` (see `effectiveTrust`): one explicit action seeds the registry,
+	 * and without the gate every later passive read — a title prefetch, a thumbnail
+	 * — would keep sending the identified token to that node. Pass
+	 * `{ explicit: true }` for user-initiated actions; the home idTag is never gated.
+	 *
+	 * Cached clients come from the process-wide registry, which owns their tokens
+	 * (including `useContextTokenRenewal`'s proactive renewals). Explicit and
+	 * anonymous clients stay uncached: a scoped/ref token is not interchangeable
+	 * with the context token for the same idTag, and anonymity is guaranteed *by*
+	 * not caching. So the uncached fallbacks ('preferred' without a token, and
+	 * 'none') return a NEW client on every call — a caller holding the result across
+	 * renders, especially in a dep array, must memoize it, keying on
+	 * `contextRolesAtom` so the memo releases the anonymous client once a real token
+	 * lands.
 	 */
 	const getClientFor = React.useCallback(
 		(
 			idTag: string,
-			opts?: { token?: string; auth?: 'required' | 'preferred' | 'none' }
+			opts?: {
+				token?: string
+				auth?: 'required' | 'preferred' | 'none'
+				explicit?: boolean
+			}
 		): ApiClient | null => {
 			const authMode = opts?.auth ?? 'required'
 			const token = opts?.token
-			const auth = store.get(authAtom)
-			const ownIdTag = auth?.idTag
-			const tokens = store.get(contextTokensAtom)
 
-			// For 'required' and 'preferred' (without explicit 'none'), use cached client
-			if (authMode !== 'none') {
-				if (apiClientsRef.current.has(idTag)) {
-					// Verify the cached client's backing token still exists. If
-					// trust was revoked or the token was evicted, drop the stale
-					// cached client and fall through to the normal build path.
-					const own = idTag === ownIdTag
-					const tokenData = own ? undefined : tokens.get(idTag)
-					if (own || (tokenData && tokenData.expiresAt > new Date())) {
-						return apiClientsRef.current.get(idTag)!
-					}
-					apiClientsRef.current.delete(idTag)
-				}
+			if (token) return createApiClient({ idTag, authToken: token })
+			if (authMode === 'none') return createApiClient({ idTag })
 
-				// User's own context uses primary API (skip for 'none' — caller wants unauthenticated)
-				if ((authMode === 'required' || authMode === 'preferred') && idTag === ownIdTag) {
-					return primaryApiRef.current
-				}
+			const ownIdTag = store.get(authAtom)?.idTag
+			if (mayUseContextToken(store, idTag, { ownIdTag, explicit: opts?.explicit })) {
+				return getApiClient(idTag)
 			}
 
-			// Use provided token or get from cache
-			let authToken = token
-			if (!authToken && authMode !== 'none') {
-				const tokenData = tokens.get(idTag)
-				if (tokenData && tokenData.expiresAt > new Date()) {
-					authToken = tokenData.token
-				}
+			if (authMode === 'required') {
+				console.warn(`No token available for context: ${idTag}`)
+				return null
 			}
-
-			// If no token found, behavior depends on auth mode
-			if (!authToken) {
-				if (authMode === 'required') {
-					console.warn(`No token available for context: ${idTag}`)
-					return null
-				}
-				// 'preferred' or 'none': create unauthenticated client (don't cache)
-				return createApiClient({ idTag })
-			}
-
-			// Create authenticated client
-			const client = createApiClient({
-				idTag,
-				authToken
-			})
-
-			// Cache authenticated clients only
-			apiClientsRef.current.set(idTag, client)
-
-			return client
+			// 'preferred': unauthenticated client, uncached so it can't shadow the
+			// registry entry once a token does land.
+			return createApiClient({ idTag })
 		},
 		[store]
 	)
@@ -228,8 +200,10 @@ export function useApiContext() {
 	/**
 	 * Get proxy token for specific context.
 	 *
-	 * By default this is a *passive* read and runs through the profile-trust gate:
-	 *   - `'always'` / session `'S'` → fetch (or return cached) proxy token.
+	 * By default this is a *passive* read and runs through the profile-trust gate
+	 * (`effectiveTrust`):
+	 *   - `'always'` / session `'S'` / the active context → fetch (or return
+	 *     cached) proxy token.
 	 *   - anything else ('never', 'X', or no decision) → return null; the caller
 	 *     falls back to anonymous and the profile page's `TrustBanner` derives
 	 *     its visibility from effective trust being `null`, so no extra
@@ -256,26 +230,25 @@ export function useApiContext() {
 				return tok ? { token: tok, roles: [] } : null
 			}
 
-			// Reuse the mirrored primary API so the LRU cache in `useApi()`
-			// keeps backing this client. Constructing inline would create a
-			// fresh `ApiClient` on every call and bypass that cache.
-			const api = primaryApiRef.current
-			if (!api) return null
+			// The home client from the registry — same object `useApi()` hands
+			// out, carrying the current home token.
+			const ownIdTag = auth?.idTag
+			if (!ownIdTag) return null
+			const api = getApiClient(ownIdTag)
 
-			// Trust gate: passive reads require positive consent ('S' or stored
-			// 'always'). Anything else (including "ask") stays anonymous.
-			if (!explicit) {
-				const session = store.get(sessionTrustAtom).get(idTag)
-				const consented =
-					session === 'S' ||
-					(session !== 'X' && store.get(storedTrustAtom).get(idTag) === 'always')
-				if (!consented) return null
-			}
+			// Trust gate: passive reads require positive consent. Anything else
+			// (including "ask") stays anonymous. Same evaluation `getClientFor`
+			// applies to an already-cached token.
+			if (!explicit && effectiveTrust(store, idTag) === 'none') return null
 
-			// Check cache (roles are now cached alongside token)
-			const cached = store.get(contextTokensAtom).get(idTag)
-			if (cached && cached.expiresAt > new Date()) {
-				return { token: cached.token, roles: cached.roles || [] }
+			// Cache hit: the registry holds the token and reaps it at `exp`, so a
+			// non-null read is by definition still live. Roles ride alongside.
+			const cachedToken = getApiClient(idTag).getAuthToken()
+			if (cachedToken) {
+				return {
+					token: cachedToken,
+					roles: store.get(contextRolesAtom).get(idTag) ?? []
+				}
 			}
 
 			// Join a fetch already running for this idTag rather than issuing a second one. Both
@@ -288,24 +261,18 @@ export function useApiContext() {
 			const pending = (async function fetchProxyToken(): Promise<ProxyTokenResult> {
 				// Fetch new proxy token for the target idTag
 				const result = await api.auth.getProxyToken(idTag)
+				const roles = result.roles || []
 
-				const expiresAt = new Date(Date.now() + CONTEXT_TOKEN_LIFETIME_MS)
-				const tokenData: ContextToken = {
-					token: result.token,
-					roles: result.roles || [],
-					expiresAt
-				}
-
-				setContextTokens((prev) => {
+				// The registry owns the token (and derives its expiry from `exp`);
+				// the atom carries the roles and the re-render signal.
+				setApiToken(idTag, result.token)
+				setContextRoles((prev) => {
 					const next = new Map(prev)
-					next.set(idTag, tokenData)
+					next.set(idTag, roles)
 					return next
 				})
 
-				// Invalidate cached API client so it gets recreated with the new token
-				apiClientsRef.current.delete(idTag)
-
-				return { token: result.token, roles: result.roles || [] }
+				return { token: result.token, roles }
 			})()
 			// Evicted in `finally`, so a rejection rejects for every awaiter and the next call
 			// retries instead of replaying the failure.
@@ -320,7 +287,7 @@ export function useApiContext() {
 				inFlightTokensRef.current.delete(idTag)
 			}
 		},
-		[store, setContextTokens]
+		[store, setContextRoles]
 	)
 
 	/**
@@ -355,11 +322,9 @@ export function useApiContext() {
 					throw new Error(`Failed to get token for context: ${idTag}`)
 				}
 
-				// Get API client - pass token directly since state update may be async
-				const contextApi = getClientFor(idTag, { token: tokenResult.token })
-				if (!contextApi) {
-					throw new Error(`Failed to create API client for context: ${idTag}`)
-				}
+				// `getTokenFor` has just installed the token on this idTag's
+				// registry client, so the cached one is already correct.
+				const contextApi = getApiClient(idTag)
 
 				// Create context with roles from proxy token response.
 				// Resolve display data the way the sidebar does so the object
@@ -411,14 +376,7 @@ export function useApiContext() {
 				setIsLoading(false)
 			}
 		},
-		[
-			store,
-			getTokenFor,
-			getClientFor,
-			setActiveContextState,
-			setContextIdpEnabled,
-			setContextIdpEnabledCache
-		]
+		[store, getTokenFor, setActiveContextState, setContextIdpEnabled, setContextIdpEnabledCache]
 	)
 
 	return {
@@ -830,25 +788,6 @@ export function useContextSwitch() {
 }
 
 /**
- * Hook for context-aware data caching
- *
- * Provides get/set/invalidate methods for caching data per context.
- *
- * @example
- * ```typescript
- * const cache = useContextCache<File[]>('files')
- *
- * // Get cached data
- * const cached = cache.get()
- *
- * // Store data in cache
- * cache.set(files)
- *
- * // Invalidate cache
- * cache.invalidate()
- * ```
- */
-/**
  * Hook for generating context-aware paths
  *
  * Transforms paths to include the current context idTag where appropriate.
@@ -904,91 +843,5 @@ export function useContextPath() {
 	return {
 		contextIdTag,
 		getContextPath
-	}
-}
-
-export function useContextCache<T>(key: string) {
-	const [activeContext] = useAtom(activeContextAtom)
-	const [cache, setCache] = useAtom(contextDataCacheAtom)
-
-	/**
-	 * Get cached data for active context
-	 * Returns undefined if not cached or stale (> 5 min)
-	 */
-	const get = React.useCallback((): T | undefined => {
-		if (!activeContext) return undefined
-
-		const contextCache = cache[activeContext.idTag]
-		if (!contextCache) return undefined
-
-		const entry = contextCache[key]
-		if (!entry) return undefined
-
-		// Check if stale (5 min)
-		const age = Date.now() - entry.lastUpdated.getTime()
-		if (age > 5 * 60 * 1000) {
-			return undefined
-		}
-
-		return entry.data as T
-	}, [cache, activeContext, key])
-
-	/**
-	 * Store data in cache for active context
-	 */
-	const set = React.useCallback(
-		(data: T) => {
-			if (!activeContext) return
-
-			setCache((prev) => {
-				const contextCache = prev[activeContext.idTag] || {}
-				return {
-					...prev,
-					[activeContext.idTag]: {
-						...contextCache,
-						[key]: {
-							data,
-							lastUpdated: new Date()
-						}
-					}
-				}
-			})
-		},
-		[setCache, activeContext, key]
-	)
-
-	/**
-	 * Invalidate cached data for active context
-	 */
-	const invalidate = React.useCallback(() => {
-		if (!activeContext) return
-
-		setCache((prev) => {
-			const next = { ...prev }
-			if (next[activeContext.idTag]) {
-				const { [key]: _, ...rest } = next[activeContext.idTag]
-				next[activeContext.idTag] = rest
-			}
-			return next
-		})
-	}, [setCache, activeContext, key])
-
-	/**
-	 * Invalidate all cached data for active context
-	 */
-	const invalidateAll = React.useCallback(() => {
-		if (!activeContext) return
-
-		setCache((prev) => {
-			const { [activeContext.idTag]: _, ...rest } = prev
-			return rest
-		})
-	}, [setCache, activeContext])
-
-	return {
-		get,
-		set,
-		invalidate,
-		invalidateAll
 	}
 }

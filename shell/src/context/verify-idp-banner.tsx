@@ -4,12 +4,12 @@
 import { FetchError } from '@cloudillo/core'
 import { Button } from '@cloudillo/react'
 import type { TFunction } from 'i18next'
-import { useAtom } from 'jotai'
+import { useAtom, useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuRefreshCw as IcLoading, LuCircleAlert as IcWarning } from 'react-icons/lu'
 
-import { activeContextAtom, contextOnboardingAtom } from './atoms'
+import { activeContextAtom, contextOnboardingAtom, contextRolesAtom } from './atoms'
 import { useApiContext } from './hooks'
 
 const POLL_INTERVAL_MS = 60_000
@@ -40,6 +40,11 @@ export function CommunityVerifyIdpBanner() {
 	const [activeContext] = useAtom(activeContextAtom)
 	const [contextOnboarding, setContextOnboarding] = useAtom(contextOnboardingAtom)
 	const { getClientFor } = useApiContext()
+	// Not read directly — it is the re-render signal. `getClientFor` returns null
+	// for a foreign idTag until its proxy token is registered, and the token and
+	// this atom are written in the same tick, so the effects below re-run the
+	// moment a token arrives instead of freezing on the initial null.
+	const contextRoles = useAtomValue(contextRolesAtom)
 
 	const [expiresAt, setExpiresAt] = React.useState<string | undefined>()
 	const [resendState, setResendState] = React.useState<
@@ -96,7 +101,7 @@ export function CommunityVerifyIdpBanner() {
 		return () => {
 			cancelled = true
 		}
-	}, [idTag, isLeader, onboarding, getClientFor, setContextOnboarding])
+	}, [idTag, isLeader, onboarding, getClientFor, contextRoles, setContextOnboarding])
 
 	// Stage B: ongoing poll while the banner is up. When status flips to
 	// 'active', the backend has already cleared this community's
@@ -130,7 +135,7 @@ export function CommunityVerifyIdpBanner() {
 			cancelled = true
 			window.clearInterval(intervalId)
 		}
-	}, [visible, idTag, getClientFor, setContextOnboarding])
+	}, [visible, idTag, getClientFor, contextRoles, setContextOnboarding])
 
 	if (!visible || !idTag) return null
 

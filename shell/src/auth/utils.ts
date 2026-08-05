@@ -31,10 +31,6 @@ export function rateLimitMessage(err: unknown, t: TFunction): string | undefined
 	return undefined
 }
 
-export function validPassword(password: string) {
-	return password.length >= 8
-}
-
 export type PasswordStrength = {
 	score: number
 	label: string

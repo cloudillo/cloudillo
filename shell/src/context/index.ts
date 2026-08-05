@@ -12,12 +12,11 @@ export {
 	activeContextAtom,
 	activeContextDisplayAtom,
 	communitiesAtom,
-	contextDataCacheAtom,
 	contextIdpEnabledAtom,
 	contextIdpEnabledCacheAtom,
 	contextOnboardingAtom,
+	contextRolesAtom,
 	contextSwitchingAtom,
-	contextTokensAtom,
 	favoriteCommunitiesAtom,
 	favoritesAtom,
 	fileViewUpdateAtom,
@@ -44,7 +43,6 @@ export {
 	loadIdpEnabled,
 	useApiContext,
 	useCommunitiesList,
-	useContextCache,
 	useContextPath,
 	useContextSwitch,
 	useSidebar
@@ -58,15 +56,11 @@ export { useProfileTrust, useProfileTrustBootstrap } from './trust'
 export type {
 	ActiveContext,
 	CommunityRef,
-	ContextCacheEntry,
-	ContextDataCache,
 	ContextInfo,
 	ContextSwitchEvent,
-	ContextToken,
 	ContextType,
 	SidebarState
 } from './types'
-export { CONTEXT_TOKEN_LIFETIME_MS } from './types'
 // Route synchronization
 export {
 	useContextFromRoute,

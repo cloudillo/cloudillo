@@ -4,22 +4,37 @@
 /**
  * Encrypted IndexedDB data store for offline metadata caching.
  *
- * Single database (`cloudillo-data-cache`) with object stores for files,
- * actions, profiles, and sync metadata. Record payloads are AES-GCM
- * encrypted; index fields are stored in the clear for offline queries.
+ * Single database (`cloudillo-data-cache`) with object stores for files and
+ * actions. Record payloads are AES-GCM encrypted; index fields are stored in
+ * the clear for offline queries.
  */
 
-import { decryptJSON, encryptJSON, getSwKeyFromCookie, maybeSignalKeyMissing } from './crypto.js'
-import type { CachedRecordBase, OfflineQuerySpec, StoreConfig, SyncMeta } from './types.js'
+import { DATA_CACHE_DB, openDb, openedDb } from '../../shared/idb.js'
+import { reportKeyUnavailable } from '../auth/key-signal.js'
+import { readSwKeyCookie } from '../pwa/cookie.js'
+import { decryptJSON, encryptJSON } from './crypto.js'
+import type { CachedRecordBase, OfflineQuerySpec, StoreConfig } from './types.js'
 
-const DB_NAME = 'cloudillo-data-cache'
-// Bumped to 2 when the `files` store moved from viewer-context keying to
-// owner keying. The upgrade path drops and recreates the `files` store; cached
-// metadata is regenerated on first list call.
-const DB_VERSION = 2
-const MAX_CACHE_SIZE = 50 * 1024 * 1024 // 50MB approximate budget
+const DB_NAME = DATA_CACHE_DB
+// v2: `files` moved from viewer-context keying to owner keying (store dropped and recreated,
+// metadata regenerated on the first list call). v3: unused `profiles`/`meta` stores dropped.
+const DB_VERSION = 3
 
-// Store configurations with their indexes
+// Fraction of the origin's *quota* above which eviction switches to its aggressive target.
+// Relative, not an absolute byte ceiling: most of the origin's bytes are the SW blob cache and
+// the CRDT database, neither of which this module can delete, so a fixed ceiling would read as
+// permanent pressure on any device with a healthy quota and a large blob cache.
+const PRESSURE_RATIO = 0.8
+
+// Records each data store may hold. This — not a byte figure — is what eviction controls, so
+// it is what terminates the walk. Metadata records are small, so a few thousand per store is
+// modest and still far more history than any offline session browses.
+const MAX_RECORDS_PER_STORE = 5000
+
+// The target under origin-wide storage pressure, where a smaller offline cache is the better
+// trade.
+const PRESSURE_RECORDS_PER_STORE = 1000
+
 const STORE_CONFIGS: StoreConfig[] = [
 	{
 		name: 'files',
@@ -45,67 +60,47 @@ const STORE_CONFIGS: StoreConfig[] = [
 			{ name: 'by-context-audience', keyPath: ['contextIdTag', 'audienceTag'] },
 			{ name: 'by-cachedAt', keyPath: 'cachedAt' }
 		]
-	},
-	{
-		name: 'profiles',
-		keyPath: '_cacheKey',
-		indexes: [
-			{ name: 'by-context', keyPath: 'contextIdTag' },
-			{ name: 'by-cachedAt', keyPath: 'cachedAt' }
-		]
-	},
-	{
-		name: 'meta',
-		keyPath: 'key',
-		indexes: []
 	}
 ]
 
-let dbPromise: Promise<IDBDatabase> | null = null
+// The stores eviction walks, and the only ones anything writes.
+const DATA_STORES = ['files', 'actions']
 
 function openDB(): Promise<IDBDatabase> {
-	if (dbPromise) return dbPromise
+	const open = openedDb(DB_NAME)
+	if (open) return open
 
-	// Refuse to create the database before the encryption key is available.
-	// Without this guard, pre-auth code paths would materialise an empty
-	// `cloudillo-data-cache` that the SW probe must then clean up.
-	if (!getSwKeyFromCookie()) {
-		maybeSignalKeyMissing()
+	// Refuse to create the database before the encryption key is available, or pre-auth code
+	// paths materialise an empty `cloudillo-data-cache` holding nothing but an unusable schema.
+	if (!readSwKeyCookie()) {
+		reportKeyUnavailable()
 		return Promise.reject(new Error('Encrypted store unavailable: no encryption key'))
 	}
 
-	dbPromise = new Promise((resolve, reject) => {
-		const request = indexedDB.open(DB_NAME, DB_VERSION)
+	return openDb(DB_NAME, DB_VERSION, (db, oldVersion) => {
+		// v1 → v2: index keypaths and the cache-key prefix changed with the rekey, so drop
+		// and recreate. The cache repopulates on the next list call.
+		if (oldVersion < 2 && db.objectStoreNames.contains('files')) {
+			db.deleteObjectStore('files')
+		}
 
-		request.onupgradeneeded = (event) => {
-			const db = request.result
-			const oldVersion = (event as IDBVersionChangeEvent).oldVersion
-
-			// v1 → v2: rekey the `files` store from viewer-context to owner.
-			// Index keypaths and the cache-key prefix changed, so drop and
-			// recreate. The cache repopulates on the next list call.
-			if (oldVersion < 2 && db.objectStoreNames.contains('files')) {
-				db.deleteObjectStore('files')
+		// v2 → v3: `profiles` and `meta` never had a writer that survived (profile-cache.ts
+		// is gone); drop the dead schema.
+		if (oldVersion < 3) {
+			for (const dead of ['profiles', 'meta']) {
+				if (db.objectStoreNames.contains(dead)) db.deleteObjectStore(dead)
 			}
+		}
 
-			for (const config of STORE_CONFIGS) {
-				if (!db.objectStoreNames.contains(config.name)) {
-					const store = db.createObjectStore(config.name, { keyPath: config.keyPath })
-					for (const idx of config.indexes) {
-						store.createIndex(idx.name, idx.keyPath, { unique: idx.unique ?? false })
-					}
+		for (const config of STORE_CONFIGS) {
+			if (!db.objectStoreNames.contains(config.name)) {
+				const store = db.createObjectStore(config.name, { keyPath: config.keyPath })
+				for (const idx of config.indexes) {
+					store.createIndex(idx.name, idx.keyPath, { unique: idx.unique ?? false })
 				}
 			}
 		}
-
-		request.onsuccess = () => resolve(request.result)
-		request.onerror = () => {
-			dbPromise = null
-			reject(request.error)
-		}
 	})
-
-	return dbPromise
 }
 
 // ============================================
@@ -113,38 +108,9 @@ function openDB(): Promise<IDBDatabase> {
 // ============================================
 
 /**
- * Put a record into a store. The payload field of `data` is encrypted
- * before writing; index fields are written in the clear. The caller is
- * responsible for including any scoping field (`contextIdTag` for
- * action/profile stores, `ownerIdTag` for the file store) in indexFields.
- */
-export async function putRecord<T>(
-	storeName: string,
-	indexFields: Record<string, unknown>,
-	payload: T,
-	cacheKey: string
-): Promise<void> {
-	const encPayload = await encryptJSON(payload)
-	if (!encPayload) return // Encryption unavailable — don't store unencrypted
-
-	const record = {
-		...indexFields,
-		_cacheKey: cacheKey,
-		_encPayload: encPayload,
-		cachedAt: Date.now()
-	}
-
-	const db = await openDB()
-	return new Promise((resolve, reject) => {
-		const tx = db.transaction(storeName, 'readwrite')
-		tx.objectStore(storeName).put(record)
-		tx.oncomplete = () => resolve()
-		tx.onerror = () => reject(tx.error)
-	})
-}
-
-/**
- * Put multiple records in a single transaction.
+ * Put multiple records in a single transaction. Payloads are encrypted before writing; index
+ * fields are written in the clear. The caller must include the scoping field (`contextIdTag`
+ * for the action store, `ownerIdTag` for the file store) in indexFields.
  */
 export async function putRecords<T>(
 	storeName: string,
@@ -184,10 +150,9 @@ export async function putRecords<T>(
 }
 
 /**
- * Drop records whose payloads no longer decrypt with the current key.
- * Fire-and-forget self-heal so a stale entry (e.g. from a previous swKey)
- * doesn't keep failing on every query. The next online fetch will
- * repopulate fresh ciphertext.
+ * Drop records whose payloads no longer decrypt with the current key. Fire-and-forget
+ * self-heal so a stale entry (e.g. from a previous swKey) doesn't keep failing on every
+ * query; the next online fetch repopulates fresh ciphertext.
  */
 async function purgeUndecryptable(storeName: string, cacheKeys: string[]): Promise<void> {
 	if (cacheKeys.length === 0) return
@@ -266,9 +231,8 @@ export async function queryRecords<T>(
 				records.push(cursor.value as CachedRecordBase)
 				cursor.continue()
 			} else {
-				// Decrypt all payloads in parallel; drop and purge any that fail
-				// (stale ciphertext from a previous swKey — the next fetch
-				// repopulates them).
+				// Drop and purge payloads that fail to decrypt (stale ciphertext from a
+				// previous swKey — the next fetch repopulates them).
 				Promise.all(records.map((r) => decryptJSON<T>(r._encPayload)))
 					.then((payloads) => {
 						const result: T[] = []
@@ -289,171 +253,12 @@ export async function queryRecords<T>(
 }
 
 /**
- * Delete a single record by cache key.
- */
-export async function deleteRecord(storeName: string, cacheKey: string): Promise<void> {
-	const db = await openDB()
-	return new Promise((resolve, reject) => {
-		const tx = db.transaction(storeName, 'readwrite')
-		tx.objectStore(storeName).delete(cacheKey)
-		tx.oncomplete = () => resolve()
-		tx.onerror = () => reject(tx.error)
-	})
-}
-
-/**
- * Delete all records for a given context in a store.
- */
-export async function deleteByContext(storeName: string, contextIdTag: string): Promise<void> {
-	const db = await openDB()
-	return new Promise((resolve, reject) => {
-		const tx = db.transaction(storeName, 'readwrite')
-		const store = tx.objectStore(storeName)
-		const index = store.index('by-context')
-		const request = index.openCursor(IDBKeyRange.only(contextIdTag))
-
-		request.onsuccess = () => {
-			const cursor = request.result
-			if (cursor) {
-				cursor.delete()
-				cursor.continue()
-			}
-		}
-		tx.oncomplete = () => resolve()
-		tx.onerror = () => reject(tx.error)
-	})
-}
-
-// ============================================
-// SYNC METADATA
-// ============================================
-
-export async function getSyncMeta(key: string): Promise<SyncMeta | null> {
-	const db = await openDB()
-	return new Promise((resolve, reject) => {
-		const tx = db.transaction('meta', 'readonly')
-		const request = tx.objectStore('meta').get(key)
-		request.onsuccess = () => resolve((request.result as SyncMeta) ?? null)
-		request.onerror = () => reject(request.error)
-	})
-}
-
-export async function putSyncMeta(meta: SyncMeta): Promise<void> {
-	const db = await openDB()
-	return new Promise((resolve, reject) => {
-		const tx = db.transaction('meta', 'readwrite')
-		tx.objectStore('meta').put(meta)
-		tx.oncomplete = () => resolve()
-		tx.onerror = () => reject(tx.error)
-	})
-}
-
-// ============================================
-// EVICTION
-// ============================================
-
-// Live document types that should be prioritized during eviction
-const LIVE_DOC_TYPES = new Set(['CRDT', 'RTDB'])
-
-/**
- * Evict oldest records across all data stores until cache is under budget.
- * Skips records belonging to `protectedContext` (the active context).
- * Prioritizes keeping live documents (CRDT/RTDB) — they are evicted last.
- */
-export async function evictIfNeeded(protectedContext?: string): Promise<void> {
-	const estimate = await navigator.storage?.estimate?.()
-	if (!estimate?.usage || !estimate?.quota) return
-
-	const usage = estimate.usage
-	const budget = Math.min(MAX_CACHE_SIZE, estimate.quota * 0.8)
-
-	if (usage < budget) return
-
-	const db = await openDB()
-	const storeNames = ['files', 'actions', 'profiles']
-
-	// First pass: evict non-live-doc records (oldest first)
-	for (const storeName of storeNames) {
-		const tx = db.transaction(storeName, 'readwrite')
-		const store = tx.objectStore(storeName)
-		const index = store.index('by-cachedAt')
-		const request = index.openCursor(null, 'next') // Oldest first
-
-		await new Promise<void>((resolve) => {
-			request.onsuccess = () => {
-				const cursor = request.result
-				if (!cursor) {
-					resolve()
-					return
-				}
-
-				const record = cursor.value as CachedRecordBase & {
-					fileTp?: string
-					ownerIdTag?: string
-				}
-
-				// Skip active context. Files are owner-keyed (protect when
-				// the active context equals the file's owner — covers personal
-				// files in personal context and community files in their
-				// community context); other stores remain viewer-scoped.
-				const scopeId = storeName === 'files' ? record.ownerIdTag : record.contextIdTag
-				if (protectedContext && scopeId === protectedContext) {
-					cursor.continue()
-					return
-				}
-
-				// Skip live documents (CRDT/RTDB) in first pass
-				if (storeName === 'files' && LIVE_DOC_TYPES.has(record.fileTp ?? '')) {
-					cursor.continue()
-					return
-				}
-
-				cursor.delete()
-				cursor.continue()
-			}
-			tx.oncomplete = () => resolve()
-		})
-	}
-
-	// Check if we freed enough space
-	const afterEstimate = await navigator.storage?.estimate?.()
-	if (!afterEstimate?.usage || afterEstimate.usage < budget) return
-
-	// Second pass: evict live docs too if still over budget
-	const tx = db.transaction('files', 'readwrite')
-	const store = tx.objectStore('files')
-	const index = store.index('by-cachedAt')
-	const request = index.openCursor(null, 'next')
-
-	await new Promise<void>((resolve) => {
-		request.onsuccess = () => {
-			const cursor = request.result
-			if (!cursor) {
-				resolve()
-				return
-			}
-
-			const record = cursor.value as CachedRecordBase & { ownerIdTag?: string }
-			if (protectedContext && record.ownerIdTag === protectedContext) {
-				cursor.continue()
-				return
-			}
-
-			cursor.delete()
-			cursor.continue()
-		}
-		tx.oncomplete = () => resolve()
-	})
-}
-
-/**
  * Clear all cached data. Used on logout or encryption key reset.
  */
 export async function clearAll(): Promise<void> {
 	const db = await openDB()
-	const storeNames = ['files', 'actions', 'profiles', 'meta']
 
-	for (const storeName of storeNames) {
+	for (const storeName of DATA_STORES) {
 		await new Promise<void>((resolve, reject) => {
 			const tx = db.transaction(storeName, 'readwrite')
 			tx.objectStore(storeName).clear()
@@ -461,6 +266,122 @@ export async function clearAll(): Promise<void> {
 			tx.onerror = () => reject(tx.error)
 		})
 	}
+}
+
+// ============================================
+// EVICTION
+// ============================================
+
+const LIVE_DOC_TYPES = new Set(['CRDT', 'RTDB'])
+
+/**
+ * Trim `storeName` back to `target` records, oldest first.
+ *
+ * The count and the walk share ONE readwrite transaction: counted separately, a write landing
+ * in between leaves the budget off by that much.
+ *
+ * `skip` vetoes a record (active context, and live docs in the first pass); a vetoed record
+ * does not count as deleted, so the walk keeps going — but it always stops once the budget
+ * (`count - target`) is spent, and never runs to the end of the index. Running to the end
+ * would make this destructive: with a termination condition eviction cannot influence, every
+ * run empties the cache outside the active context.
+ */
+function trimStore(
+	db: IDBDatabase,
+	storeName: string,
+	target: number,
+	skip: (record: CachedRecordBase & { fileTp?: string; ownerIdTag?: string }) => boolean
+): Promise<void> {
+	return new Promise<void>((resolve) => {
+		const tx = db.transaction(storeName, 'readwrite')
+		const store = tx.objectStore(storeName)
+		const countRequest = store.count()
+
+		countRequest.onsuccess = () => {
+			const budget = countRequest.result - target
+			// Already under target: commit the (empty) transaction and stop.
+			if (budget <= 0) return
+
+			const request = store.index('by-cachedAt').openCursor(null, 'next') // Oldest first
+			let deleted = 0
+
+			request.onsuccess = () => {
+				const cursor = request.result
+				// Stop walking and let the transaction commit the deletes issued so far.
+				if (!cursor) return
+
+				const record = cursor.value as CachedRecordBase & {
+					fileTp?: string
+					ownerIdTag?: string
+				}
+				if (!skip(record)) {
+					cursor.delete()
+					deleted++
+					if (deleted >= budget) return
+				}
+				cursor.continue()
+			}
+		}
+		tx.oncomplete = () => resolve()
+		tx.onabort = () => resolve()
+		tx.onerror = () => resolve()
+	})
+}
+
+/**
+ * Trim each data store back to a bounded record count, oldest first. Records belonging to
+ * `protectedContext` (the active context) are never evicted, and live documents (CRDT/RTDB)
+ * survive the first pass — their absence is the most visible offline.
+ *
+ * The origin's `storage.estimate()` is only a pressure hint: usage past `PRESSURE_RATIO` of the
+ * quota selects the aggressive target and enables the live-doc pass. Deliberately *not* the
+ * termination condition — this function can only delete `files`/`actions` metadata, while the
+ * origin's bytes live mostly in the SW blob cache and the CRDT database, so "keep deleting
+ * until the origin is under budget" never terminates and simply empties the cache every run.
+ *
+ * Needed at all because `pwa/registration.ts` asks for persistent storage, which is what stops
+ * the browser reclaiming this origin on its own.
+ */
+export async function evictIfNeeded(protectedContext?: string): Promise<void> {
+	// Nothing to evict without a key — the store either doesn't exist or holds records this
+	// session can't read. Bail before `openDB()`, whose rejection would otherwise be the only
+	// unguarded one here. A DB opened earlier in the session still evicts, so a mid-session
+	// cookie loss doesn't strand its records.
+	if (!readSwKeyCookie() && !openedDb(DB_NAME)) return
+
+	const estimate = await navigator.storage?.estimate?.()
+	// Unknown usage or quota (estimate unsupported or blocked) reads as no pressure, so the
+	// count-based trim below still runs.
+	const underPressure =
+		!!estimate?.usage && !!estimate?.quota && estimate.usage >= estimate.quota * PRESSURE_RATIO
+	const target = underPressure ? PRESSURE_RECORDS_PER_STORE : MAX_RECORDS_PER_STORE
+
+	const db = await openDB()
+
+	// First pass: non-live-doc records, oldest first.
+	for (const storeName of DATA_STORES) {
+		await trimStore(db, storeName, target, (record) => {
+			// Skip the active context. `files` is owner-keyed, which covers both personal
+			// files in the personal context and community files in theirs; the other
+			// stores stay viewer-scoped.
+			const scopeId = storeName === 'files' ? record.ownerIdTag : record.contextIdTag
+			if (protectedContext && scopeId === protectedContext) return true
+			// Live documents (CRDT/RTDB) are held back for the second pass.
+			return storeName === 'files' && LIVE_DOC_TYPES.has(record.fileTp ?? '')
+		})
+	}
+
+	// Second pass: only under origin pressure, and only for the live docs the first pass held
+	// back. A last resort — if the first pass already brought `files` under target there is
+	// nothing worth sacrificing them for.
+	if (!underPressure) return
+
+	await trimStore(
+		db,
+		'files',
+		target,
+		(record) => !!protectedContext && record.ownerIdTag === protectedContext
+	)
 }
 
 // vim: ts=4

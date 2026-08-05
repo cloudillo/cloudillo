@@ -3,6 +3,7 @@
 
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
+import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router-dom'
@@ -32,7 +33,7 @@ import {
 	LuTriangleAlert as IcWarning
 } from 'react-icons/lu'
 
-import { HOME_CONTEXT, useApiContext } from '../context'
+import { HOME_CONTEXT, contextRolesAtom, useApiContext } from '../context'
 
 // Status badge configuration
 const STATUS_CONFIG = {
@@ -150,7 +151,14 @@ interface CreateIdentityModalProps {
 function CreateIdentityModal({ open, idpDomain, onClose, onCreated }: CreateIdentityModalProps) {
 	const { t } = useTranslation()
 	const { getClientFor } = useApiContext()
-	const api = React.useMemo(() => getClientFor(idpDomain), [getClientFor, idpDomain])
+	// Not read — it is the re-render signal. `getClientFor` returns null for a
+	// foreign idTag until its proxy token is registered, and the token and this
+	// atom are written in the same tick, so the memo cannot freeze that null.
+	const contextRoles = useAtomValue(contextRolesAtom)
+	const api = React.useMemo(
+		() => getClientFor(idpDomain),
+		[getClientFor, idpDomain, contextRoles]
+	)
 	const [idTagPrefix, setIdTagPrefix] = React.useState('')
 	const [email, setEmail] = React.useState('')
 	const [createApiKey, setCreateApiKey] = React.useState(false)
@@ -513,7 +521,12 @@ function IdentityDetailsModal({
 }: IdentityDetailsModalProps) {
 	const { t } = useTranslation()
 	const { getClientFor } = useApiContext()
-	const api = React.useMemo(() => getClientFor(idpDomain), [getClientFor, idpDomain])
+	// Re-render signal for the proxy token's arrival, not a value we read.
+	const contextRoles = useAtomValue(contextRolesAtom)
+	const api = React.useMemo(
+		() => getClientFor(idpDomain),
+		[getClientFor, idpDomain, contextRoles]
+	)
 	const [apiKeys, setApiKeys] = React.useState<IdpApiKey[]>([])
 	const [loading, setLoading] = React.useState(false)
 	const [showCreateKeyForm, setShowCreateKeyForm] = React.useState(false)
@@ -942,6 +955,7 @@ export function IdentitiesSettings() {
 	const [auth] = useAuth()
 	const dialog = useDialog()
 	const { getClientFor } = useApiContext()
+	const contextRoles = useAtomValue(contextRolesAtom)
 
 	// State - all identities (unfiltered)
 	const [allIdentities, setAllIdentities] = React.useState<IdpIdentity[]>([])
@@ -971,7 +985,13 @@ export function IdentitiesSettings() {
 
 	// Use the context-bound API client so calls hit the correct tenant's
 	// server (with the per-context proxy token), not always the user's own.
-	const api = React.useMemo(() => getClientFor(idpDomain), [getClientFor, idpDomain])
+	// `contextRoles` is the re-render signal for that token's arrival, not a
+	// value read here: without it a null resolved before the token lands is
+	// frozen for the whole mount and the roles effect below never fires.
+	const api = React.useMemo(
+		() => getClientFor(idpDomain),
+		[getClientFor, idpDomain, contextRoles]
+	)
 
 	// Check roles
 	React.useEffect(() => {

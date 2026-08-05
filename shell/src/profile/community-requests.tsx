@@ -18,7 +18,7 @@ interface PendingRequestsListProps {
 	communityIdTag: string
 	getClientFor: (
 		idTag: string,
-		opts?: { auth?: 'required' | 'preferred' | 'none' }
+		opts?: { auth?: 'required' | 'preferred' | 'none'; explicit?: boolean }
 	) => ApiClient | null
 	onChange: () => void
 }
@@ -35,7 +35,8 @@ export function PendingRequestsList({
 	const [busyId, setBusyId] = React.useState<string | undefined>()
 
 	const reload = React.useCallback(async () => {
-		const client = getClientFor(communityIdTag)
+		// Explicit: leader-only management data, unreadable anonymously.
+		const client = getClientFor(communityIdTag, { explicit: true })
 		if (!client) {
 			setRequests([])
 			return
@@ -64,7 +65,7 @@ export function PendingRequestsList({
 			t('Are you sure you want to approve this request?')
 		)
 		if (!confirmed) return
-		const client = getClientFor(communityIdTag)
+		const client = getClientFor(communityIdTag, { explicit: true })
 		if (!client) return
 		setBusyId(action.actionId)
 		try {
@@ -87,7 +88,7 @@ export function PendingRequestsList({
 			'error'
 		)
 		if (!confirmed) return
-		const client = getClientFor(communityIdTag)
+		const client = getClientFor(communityIdTag, { explicit: true })
 		if (!client) return
 		setBusyId(action.actionId)
 		try {

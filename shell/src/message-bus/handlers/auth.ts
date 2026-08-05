@@ -10,23 +10,9 @@
  */
 
 import type { AuthInitReq, AuthTokenRefreshReq } from '@cloudillo/core'
+import { jwtRemainingSeconds } from '@cloudillo/core/jwt'
 
 import type { ShellMessageBus } from '../shell-bus.js'
-
-/** Extract remaining lifetime in seconds from a JWT's exp claim */
-function getTokenLifetime(token: string): number | undefined {
-	try {
-		const [, payload] = token.split('.')
-		if (payload) {
-			const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')))
-			if (decoded.exp) {
-				return Math.max(0, Math.floor((decoded.exp * 1000 - Date.now()) / 1000))
-			}
-		}
-	} catch {
-		/* ignore */
-	}
-}
 
 /**
  * Initialize auth message handlers on the shell bus
@@ -67,7 +53,7 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 			const authState = bus.getAuthState()
 			const themeState = bus.getThemeState()
 
-			const tokenLifetime = pending.token ? getTokenLifetime(pending.token) : undefined
+			const tokenLifetime = pending.token ? jwtRemainingSeconds(pending.token) : undefined
 
 			bus.sendResponse(appWindow, 'auth:init.res', msg.id, true, {
 				idTag: pending.idTag || authState?.idTag,
@@ -94,26 +80,48 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 		if (!connection && msg.payload.resId) {
 			// Check for pending registration (set before iframe loaded)
 			const pending = bus.getAppTracker().consumePendingRegistration(msg.payload.resId)
-			displayName = pending?.displayName
-			navState = pending?.navState
-			ancestors = pending?.ancestors
+			if (!pending) {
+				// `auth:init.req` is exempt from `validateSource`, so `resId` here is
+				// whatever the app claimed. The container sets a pending registration
+				// before the iframe loads (shell/src/apps/index.tsx) and the embed
+				// path does the same, so a legitimate first init.req always finds one
+				// — a later one finds the connection by window instead. Registering
+				// without a match would take that self-supplied resId on trust and
+				// mint a write-scoped token for a resource this iframe was never
+				// opened on.
+				console.warn(
+					'[Auth] Init request for an unregistered resId — rejecting:',
+					msg.payload.resId
+				)
+				bus.sendResponse(
+					appWindow,
+					'auth:init.res',
+					msg.id,
+					false,
+					undefined,
+					'App not registered'
+				)
+				return
+			}
+			displayName = pending.displayName
+			navState = pending.navState
+			ancestors = pending.ancestors
 
 			console.log(
 				'[Auth] Registering app from init.req:',
 				msg.payload.appName,
-				msg.payload.resId,
-				pending ? '(with pending token/refId)' : '(no pending registration)'
+				msg.payload.resId
 			)
 
 			connection = bus.getAppTracker().registerApp({
 				window: appWindow,
 				appName: msg.payload.appName,
 				resId: msg.payload.resId,
-				access: pending?.access || 'write',
-				idTag: pending?.idTag,
-				token: pending?.token,
-				refId: pending?.refId,
-				params: pending?.params
+				access: pending.access || 'write',
+				idTag: pending.idTag,
+				token: pending.token,
+				refId: pending.refId,
+				params: pending.params
 			})
 		} else if (!connection) {
 			console.warn('[Auth] Init request from unregistered app without resId — rejecting')
@@ -146,7 +154,7 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 			// Check if connection has pre-provided token (guest access via share link)
 			if (connection?.token) {
 				token = connection.token
-				tokenLifetime = getTokenLifetime(token)
+				tokenLifetime = jwtRemainingSeconds(token)
 			} else if (resId) {
 				// Fast-fail when offline to avoid network timeout delays
 				if (!navigator.onLine) {

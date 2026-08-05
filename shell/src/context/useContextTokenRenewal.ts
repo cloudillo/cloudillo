@@ -11,148 +11,163 @@
  *     self-switched profile) — those are explicit user actions and the UI
  *     depends on them staying authenticated.
  *
- * Tokens whose effective trust is 'never'/'X' and that are not the active
- * context are left alone — the trust gate in `getTokenFor` already handles
- * them by staying anonymous.
+ * The rule itself lives in `trust-gate.ts` and is applied here through
+ * `effectiveTrust`. Tokens whose effective trust is 'none' are left alone — the
+ * trust gate in `getTokenFor` already handles them by staying anonymous.
  *
  * Call this hook once, high in the tree, alongside `useTokenRenewal` for the
  * primary auth token.
  */
 
+import { getApiClient, setApiToken } from '@cloudillo/core'
+import { getJwtTimes } from '@cloudillo/core/jwt'
 import { useApi, useAuth } from '@cloudillo/react'
-import { useAtom } from 'jotai'
+import { useAtom, useStore } from 'jotai'
 import * as React from 'react'
 
-import { activeContextAtom, contextTokensAtom, sessionTrustAtom, storedTrustAtom } from './atoms'
-import { CONTEXT_TOKEN_LIFETIME_MS, type ContextToken } from './types'
+import { createRenewer, type Renewer } from '../auth/renewal-timer.js'
+import { activeContextAtom, contextRolesAtom, sessionTrustAtom, storedTrustAtom } from './atoms'
+import { effectiveTrust } from './trust-gate.js'
 
-// Refresh at 80 % of remaining lifetime, matching useTokenRenewal. A small
-// random jitter (±5 %) avoids a thundering herd when several trusted tokens
-// were issued close together.
-const RENEWAL_THRESHOLD = 0.8
+// ±5% on the renewal point, against a thundering herd when several trusted tokens
+// were issued close together. The point itself, the retry backoff and the
+// already-expired path all live in `auth/renewal-timer.ts`.
 const JITTER = 0.05
 
 export function useContextTokenRenewal() {
-	const [contextTokens, setContextTokens] = useAtom(contextTokensAtom)
+	const [contextRoles, setContextRoles] = useAtom(contextRolesAtom)
 	const [sessionTrust] = useAtom(sessionTrustAtom)
 	const [storedTrust] = useAtom(storedTrustAtom)
 	const [activeContext] = useAtom(activeContextAtom)
 	const { api: primaryApi } = useApi()
 	const [auth] = useAuth()
+	const store = useStore()
 
-	// Per-idTag timers so we can rewrite the schedule when trust flips or the
-	// token itself is replaced. Outliving the effect would leak memory; the
-	// cleanup below clears any entry not needed by the latest pass.
-	//
-	// We also remember the expiry the timer was scheduled against. When a token
-	// is replaced out-of-band (e.g. an explicit action fetches a fresh token)
-	// the expiry shifts and we re-schedule instead of firing early against
-	// the previous horizon.
-	const timersRef = React.useRef<Map<string, { handle: number; expiresAt: number }>>(new Map())
+	// One renewer per idTag, so the schedule can be rewritten when trust flips or the
+	// token is replaced; the sweep below cancels any entry the latest pass no longer
+	// needs. The stored expiry is what the renewer was armed against: a token
+	// replaced out-of-band (an explicit action fetching a fresh one) shifts it, and
+	// we re-schedule rather than fire against the previous horizon.
+	const renewersRef = React.useRef<Map<string, { renewer: Renewer; expiresAt: number }>>(
+		new Map()
+	)
 
+	// The fresh token, or undefined when the renewal failed — the renewer re-arms
+	// its own retry on undefined.
 	const renewOne = React.useCallback(
-		async (idTag: string) => {
-			if (!primaryApi) return
+		async (idTag: string): Promise<string | undefined> => {
+			if (!primaryApi) return undefined
 			try {
 				const result = await primaryApi.auth.getProxyToken(idTag)
-				const expiresAt = new Date(Date.now() + CONTEXT_TOKEN_LIFETIME_MS)
-				const tokenData: ContextToken = {
-					token: result.token,
-					roles: result.roles || [],
-					expiresAt
-				}
-				setContextTokens((prev) => {
+				setApiToken(idTag, result.token)
+				setContextRoles((prev) => {
+					const roles = result.roles || []
+					const cur = prev.get(idTag)
+					// Same roles, same Map identity. A fresh identity re-runs the
+					// effect below, and a token that effect still judges expired
+					// would then loop straight back into another mint.
+					if (cur && cur.length === roles.length && cur.every((r, i) => r === roles[i])) {
+						return prev
+					}
 					const next = new Map(prev)
-					next.set(idTag, tokenData)
+					next.set(idTag, roles)
 					return next
 				})
+				return result.token
 			} catch (err) {
 				console.error(`[ContextTokenRenewal] Failed to renew ${idTag}:`, err)
+				return undefined
 			}
 		},
-		[primaryApi, setContextTokens]
+		[primaryApi, setContextRoles]
 	)
 
 	React.useEffect(() => {
 		if (!primaryApi || !auth?.idTag) return
 
-		const timers = timersRef.current
+		const renewers = renewersRef.current
 		const keep = new Set<string>()
-		const activeIdTag = activeContext?.idTag
 
-		for (const [idTag, token] of contextTokens.entries()) {
+		for (const idTag of contextRoles.keys()) {
 			if (idTag === auth.idTag) continue
 
-			// Renew where consent is established OR where the idTag is the
-			// active context. The active context was entered via an explicit
-			// user action (switch/join), so keeping it authenticated is
-			// required for the UI to work regardless of profile trust.
-			const session = sessionTrust.get(idTag)
-			const trustConsent =
-				session === 'S' || (session !== 'X' && storedTrust.get(idTag) === 'always')
-			const isActive = idTag === activeIdTag
-			if (!trustConsent && !isActive) continue
+			// `trust-gate.ts` is the single authority for this rule; duplicating it
+			// would let the gate and the renewal loop drift apart. `effectiveTrust`
+			// reads sessionTrust/storedTrust/activeContext through the store, so the
+			// `useAtom` subscriptions above and the deps below are what re-run this
+			// effect when trust flips.
+			if (effectiveTrust(store, idTag) !== 'consent') continue
 
-			const now = Date.now()
-			const expiresAt = token.expiresAt.getTime()
-			const remaining = expiresAt - now
-			if (remaining <= 0) {
-				// Expired — refresh immediately and let the next effect pass
-				// schedule the normal timer once the new token lands.
-				const existing = timers.get(idTag)
-				if (existing) {
-					clearTimeout(existing.handle)
-					timers.delete(idTag)
+			// `getAuthToken` reaps at `exp`, so an absent token already means
+			// expired — as does an unparseable or past-`exp` one.
+			const token = getApiClient(idTag).getAuthToken()
+			const times = token ? getJwtTimes(token) : null
+			if (!token || !times || times.exp <= Date.now()) {
+				// Expired. Keep (or create) the renewer and let `renewNow` mint a
+				// replacement and arm the proactive timer from it — this effect
+				// will not re-run on a successful same-roles mint, because
+				// `renewOne` deliberately preserves the `contextRoles` identity.
+				let entry = renewers.get(idTag)
+				if (!entry) {
+					entry = {
+						renewer: createRenewer(() => renewOne(idTag), { jitter: JITTER }),
+						expiresAt: 0
+					}
+					renewers.set(idTag, entry)
+				} else {
+					// Sentinel: a later pass that sees a healthy token re-schedules
+					// rather than trusting the horizon this entry was armed against.
+					entry.expiresAt = 0
 				}
-				void renewOne(idTag)
+				keep.add(idTag)
+				entry.renewer.renewNow()
 				continue
 			}
 
 			keep.add(idTag)
-			// Already scheduled against the current token? Leave it alone.
-			// Otherwise the token was replaced and we must re-schedule against
-			// the new expiry.
-			const existing = timers.get(idTag)
-			if (existing && existing.expiresAt === expiresAt) continue
-			if (existing) clearTimeout(existing.handle)
+			// A differing expiry means the token was replaced out-of-band.
+			const existing = renewers.get(idTag)
+			if (existing && existing.expiresAt === times.exp) continue
 
-			const jitter = 1 + (Math.random() * 2 - 1) * JITTER
-			const renewAt = remaining * RENEWAL_THRESHOLD * jitter
-			const handle = window.setTimeout(() => {
-				timers.delete(idTag)
-				void renewOne(idTag)
-			}, renewAt)
-			timers.set(idTag, { handle, expiresAt })
+			if (existing) {
+				existing.expiresAt = times.exp
+				existing.renewer.schedule(token)
+			} else {
+				const renewer = createRenewer(() => renewOne(idTag), { jitter: JITTER })
+				renewers.set(idTag, { renewer, expiresAt: times.exp })
+				renewer.schedule(token)
+			}
 		}
 
-		// Drop timers for idTags that no longer need renewal (trust revoked,
-		// token evicted, etc.). Do NOT clear the full map here — that would
-		// cancel timers on every re-run of this effect.
-		for (const [idTag, entry] of timers.entries()) {
+		// Drop renewers for idTags that no longer need one (trust revoked, token
+		// evicted). Do NOT clear the whole map — that would cancel every timer on
+		// each re-run of this effect.
+		for (const [idTag, entry] of renewers.entries()) {
 			if (!keep.has(idTag)) {
-				clearTimeout(entry.handle)
-				timers.delete(idTag)
+				entry.renewer.cancel()
+				renewers.delete(idTag)
 			}
 		}
 	}, [
-		contextTokens,
+		contextRoles,
 		sessionTrust,
 		storedTrust,
 		activeContext?.idTag,
 		primaryApi,
 		auth?.idTag,
-		renewOne
+		renewOne,
+		store
 	])
 
-	// Unmount-only: clear every pending timer. Split from the main effect so
+	// Unmount-only: cancel every pending renewer. Split from the main effect so
 	// cancellation does not fire on each dependency change.
 	React.useEffect(() => {
-		const timers = timersRef.current
+		const renewers = renewersRef.current
 		return () => {
-			for (const entry of timers.values()) {
-				clearTimeout(entry.handle)
+			for (const entry of renewers.values()) {
+				entry.renewer.cancel()
 			}
-			timers.clear()
+			renewers.clear()
 		}
 	}, [])
 }

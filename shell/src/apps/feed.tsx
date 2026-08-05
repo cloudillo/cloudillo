@@ -28,12 +28,11 @@ import {
 	LuCloud as IcAll,
 	LuCamera as IcCamera,
 	LuUsersRound as IcCommunities,
-	LuBookmark as IcFollowing,
 	LuLock as IcDirect,
 	LuSave as IcDraft,
 	LuFilter as IcFilter,
+	LuBookmark as IcFollowing,
 	LuImage as IcImage,
-	LuInbox as IcUnread,
 	LuUser as IcMine,
 	LuUsers as IcPeople,
 	LuGlobe as IcPublic,
@@ -41,6 +40,7 @@ import {
 	LuSearch as IcSearch,
 	LuSendHorizontal as IcSend,
 	LuTag as IcTag,
+	LuInbox as IcUnread,
 	LuVideo as IcVideo
 } from 'react-icons/lu'
 import { Link, useLocation } from 'react-router-dom'
@@ -48,6 +48,7 @@ import { type Position, useEditable } from 'use-editable'
 import '@cloudillo/react/components.css'
 import './feed.css'
 
+import { OfflineBanner } from '../components/OfflineBanner.js'
 import type { CommunityRef } from '../context/index.js'
 import {
 	HOME_CONTEXT,
@@ -58,6 +59,18 @@ import {
 	useProfileTrust,
 	useUrlContextIdTag
 } from '../context/index.js'
+import {
+	createdAtToSeconds,
+	feedReadTs,
+	feedSeedLoadedAtom,
+	INITIAL_UNREAD_WINDOW_SEC,
+	nowSeconds,
+	unreadCountAtom,
+	useBottomDwell,
+	useReadMarker,
+	useReadPositionTracker,
+	useScrollEngaged
+} from '../read-position.js'
 import { handleEditablePaste } from '../utils/editablePaste.js'
 import { useWsBus } from '../ws-bus.js'
 import {
@@ -77,18 +90,6 @@ import {
 	useFeedPosts,
 	useUnreadPosts
 } from './feed/index.js'
-import {
-	createdAtToSeconds,
-	feedReadTs,
-	feedSeedLoadedAtom,
-	INITIAL_UNREAD_WINDOW_SEC,
-	nowSeconds,
-	unreadCountAtom,
-	useBottomDwell,
-	useReadMarker,
-	useReadPositionTracker,
-	useScrollEngaged
-} from '../read-position.js'
 import { Document, hasPlayableVariant, Images, renderPostContent, Video } from './feed/PostMedia.js'
 import { pendingQuoteAtom } from './feed/quote-intent.js'
 import { getVisibilityMeta } from './feed/VisibilitySelector.js'
@@ -335,7 +336,10 @@ function CommentsTrustPrompt({
 }
 
 function Comments({ parentAction, onCommentsRead, onCommentAdded, ...props }: CommentsProps) {
-	const { api: contextApi } = useContextAwareApi()
+	// `contextAuthenticated` is a dep of the comment-load effect below: on the
+	// same-node path `readApi` is `contextApi`, whose identity is stable per
+	// idTag, so this flag is what changes when a context token lands.
+	const { api: contextApi, authenticated: contextAuthenticated } = useContextAwareApi()
 	const { getTokenFor, getClientFor } = useApiContext()
 	const contextIdTag = useCurrentContextIdTag()
 
@@ -432,7 +436,7 @@ function Comments({ parentAction, onCommentsRead, onCommentAdded, ...props }: Co
 		return function cleanup() {
 			cancelled = true
 		}
-	}, [readApi, parentAction.actionId, showTrustPrompt, advanceTo])
+	}, [readApi, contextAuthenticated, parentAction.actionId, showTrustPrompt, advanceTo])
 
 	function onSubmit(action: ActionView) {
 		setComments([...comments, action])
@@ -650,10 +654,12 @@ function Post({
 	// Pure timestamp comparison, identical on authoritative and mirror nodes.
 	// 1s tolerance: lastCommentAt (federated STAT `ct`, whole seconds) and the
 	// locally advanced commentsReadAt can differ by rounding; don't let that pin
-	// the dot lit.
+	// the dot lit. Needs a viewer whose commentsReadAt this node actually stores:
+	// a guest has no row here, so there is no watermark to be newer than.
 	const commentUnread =
+		!!auth?.idTag &&
 		createdAtToSeconds(engageAction.stat?.lastCommentAt) >
-		createdAtToSeconds(engageAction.stat?.commentsReadAt) + 1
+			createdAtToSeconds(engageAction.stat?.commentsReadAt) + 1
 	// Federated total comment count (STAT `c`); the unread state stays a boolean dot.
 	const commentCount = engageAction.stat?.commentCount ?? 0
 	const commentLabel =
@@ -1272,6 +1278,10 @@ export function FeedApp() {
 	// in home never advances a community marker and vice versa. `contextIdTag`
 	// already resolves to the own idTag for home, but fall back explicitly.
 	const ownIdTag = auth?.idTag ?? ''
+	// Read-state affordances (the "Caught up" pill, the read divider, scroll-driven
+	// mark-as-read) only mean something when the node can store this viewer's watermark. A
+	// guest has no profile row here, so show none of it rather than a watermark of 0.
+	const readStateTracked = !!ownIdTag
 	const feedScopeKey = `feed:${contextIdTag || ownIdTag || ''}`
 	const { readPosition, advanceTo, markReadNow } = useReadMarker(feedScopeKey)
 	const unreadCounts = useAtomValue(unreadCountAtom)
@@ -1358,6 +1368,7 @@ export function FeedApp() {
 		isLoading,
 		isLoadingMore,
 		error,
+		isOffline,
 		hasMore,
 		loadMore,
 		sentinelRef,
@@ -1440,7 +1451,7 @@ export function FeedApp() {
 	// never jumps to newest on a small nudge. No engagement gate needed — only an
 	// upward scroll can move a previously-seen post out the bottom.
 	const { register: registerFeedTracker } = useReadPositionTracker({
-		enabled: viewMode === 'feed',
+		enabled: viewMode === 'feed' && readStateTracked,
 		onReach: advanceTo,
 		mode: 'below',
 		root: scrollEl
@@ -1634,6 +1645,7 @@ export function FeedApp() {
 	// begins: everything below the divider is guaranteed read; everything above
 	// contains all the unread (plus possibly a few force-read own posts interleaved).
 	const dividerIndex = React.useMemo(() => {
+		if (!readStateTracked) return -1
 		let divider = mergedFeed.length
 		for (let i = mergedFeed.length - 1; i >= 0; i--) {
 			if (isRead(mergedFeed[i])) divider = i
@@ -1642,13 +1654,13 @@ export function FeedApp() {
 		// 0 = everything read (nothing unread above) or length = no read tail:
 		// neither is a real mid-list boundary.
 		return divider === 0 || divider === mergedFeed.length ? -1 : divider
-	}, [mergedFeed, isRead])
+	}, [mergedFeed, isRead, readStateTracked])
 
 	// True when any currently-loaded feed post is still unread by this context's
 	// watermark — keeps the "Caught up" pill in sync with the divider.
 	const hasUnreadLoaded = React.useMemo(
-		() => mergedFeed.some((p) => !isRead(p)),
-		[mergedFeed, isRead]
+		() => readStateTracked && mergedFeed.some((p) => !isRead(p)),
+		[mergedFeed, isRead, readStateTracked]
 	)
 
 	// Newest post timestamp currently loaded in the active feed view.
@@ -1900,6 +1912,9 @@ export function FeedApp() {
 				{!composeOpen && viewMode === 'drafts' && (
 					<DraftsPanel onEdit={handleEditDraft} onPublished={handleDraftPublished} />
 				)}
+				{!composeOpen && viewMode === 'feed' && (
+					<OfflineBanner show={isOffline} className="my-2" />
+				)}
 				{!composeOpen && viewMode === 'feed' && newPostsCount > 0 && (
 					<NewPostsBanner count={newPostsCount} onClick={showNewPosts} className="my-2" />
 				)}
@@ -1935,6 +1950,9 @@ export function FeedApp() {
 							/>
 						) : (
 							<>
+								{/* Guest-hidden by construction: with no tracked viewer both
+								    dividerIndex and hasUnreadLoaded collapse to falsy, so the
+								    pill needs no separate gate. */}
 								{(dividerIndex > 0 || hasUnreadLoaded) && (
 									<div className="c-hbox justify-content-center pb-1">
 										<Button kind="link" variant="primary" onClick={markAllRead}>

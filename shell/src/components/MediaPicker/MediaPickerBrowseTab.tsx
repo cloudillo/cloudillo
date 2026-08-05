@@ -32,7 +32,7 @@ import {
 } from 'react-icons/lu'
 
 import { canManageFile, canManageShares, scopeFileToTenant } from '../../apps/files/utils.js'
-import { activeContextAtom, contextTokensAtom, useApiContext } from '../../context/index.js'
+import { activeContextAtom, contextRolesAtom, useApiContext } from '../../context/index.js'
 import type { MediaPickerResult } from '../../context/media-picker-atom.js'
 import { isPermissionError } from '../../utils.js'
 import { PickerFilterBar, usePickerBrowse } from '../pickers/index.js'
@@ -146,9 +146,21 @@ export function MediaPickerBrowseTab({
 	const toast = useToast()
 	const { getClientFor } = useApiContext()
 	const activeContext = useAtomValue(activeContextAtom)
-	const contextTokens = useAtomValue(contextTokensAtom)
-	const api =
-		(idTagProp ? getClientFor(idTagProp, { auth: 'preferred' }) : defaultApi) || defaultApi
+	const contextRoles = useAtomValue(contextRolesAtom)
+	// Memoized: with no token registered for `idTagProp`, `getClientFor`'s
+	// 'preferred' fallback returns a FRESH anonymous client on every call (that is
+	// how it guarantees anonymity), and this `api` is a dep of the descriptor
+	// effect below — unmemoized it refires that request on every render.
+	// `contextRoles` is written in the same tick as the token, so the memo cannot
+	// freeze an anonymous client past the arrival of a real one.
+	const api = React.useMemo(
+		() =>
+			// Explicit: the user opened a picker aimed at that tenant's media.
+			(idTagProp
+				? getClientFor(idTagProp, { auth: 'preferred', explicit: true })
+				: defaultApi) || defaultApi,
+		[idTagProp, defaultApi, getClientFor, contextRoles]
+	)
 	const idTag = idTagProp || auth?.idTag || defaultApi?.idTag
 
 	// Roles we hold on the node this picker browses — the same node the grant/visibility calls below
@@ -160,8 +172,8 @@ export function MediaPickerBrowseTab({
 		if (!idTag) return []
 		if (idTag === auth?.idTag) return ['leader']
 		if (activeContext?.idTag === idTag) return activeContext.roles ?? []
-		return contextTokens.get(idTag)?.roles ?? []
-	}, [idTag, auth?.idTag, activeContext, contextTokens])
+		return contextRoles.get(idTag) ?? []
+	}, [idTag, auth?.idTag, activeContext, contextRoles])
 
 	/**
 	 * Whether the lock overlay's action can actually succeed for this file.

@@ -54,7 +54,10 @@ export const Sidebar = React.memo(function Sidebar({
 	onTagFilter
 }: SidebarProps) {
 	const { t } = useTranslation()
-	const { api } = useContextAwareApi()
+	// `authenticated` is a dep of the tag-load effect below: the api client's
+	// identity is stable per idTag, so this flag (not `api`, and not `auth`,
+	// which tracks the home session) is what changes when a context token lands.
+	const { api, authenticated } = useContextAwareApi()
 	const [auth] = useAuth()
 	const navigate = useNavigate()
 	const dialog = useDialog()
@@ -76,7 +79,7 @@ export const Sidebar = React.memo(function Sidebar({
 				}
 			})()
 		},
-		[api, auth]
+		[api, authenticated, auth]
 	)
 
 	const toggleTag = React.useCallback(

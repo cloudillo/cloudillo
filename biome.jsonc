@@ -77,6 +77,26 @@
 		}
 	},
 
+	"overrides": [
+		{
+			// The ServiceWorker handles every credential the app uses, and its
+			// console survives into production. Routine logging goes through
+			// `debug()` (compiled out of production builds); warn/error stay
+			// available for genuine faults.
+			"includes": ["shell/sw/**"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noConsole": {
+							"level": "error",
+							"options": { "allow": ["warn", "error"] }
+						}
+					}
+				}
+			}
+		}
+	],
+
 	"css": {
 		"formatter": {
 			"quoteStyle": "single"

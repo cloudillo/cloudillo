@@ -18,12 +18,13 @@
  * via `getTokenFor(idTag, { explicit: true })` and do not modify the stored trust.
  */
 
+import { setApiToken } from '@cloudillo/core'
 import { useApi, useAuth } from '@cloudillo/react'
 import type { ProfileTrust } from '@cloudillo/types'
 import { useAtom, useSetAtom } from 'jotai'
 import * as React from 'react'
 
-import { contextTokensAtom, sessionTrustAtom, storedTrustAtom } from './atoms'
+import { contextRolesAtom, sessionTrustAtom, storedTrustAtom } from './atoms'
 
 /**
  * Effective trust level for a foreign profile, merged from session + stored state.
@@ -59,7 +60,7 @@ export interface UseProfileTrust {
 export function useProfileTrust(): UseProfileTrust {
 	const [session, setSession] = useAtom(sessionTrustAtom)
 	const [stored, setStored] = useAtom(storedTrustAtom)
-	const [, setContextTokens] = useAtom(contextTokensAtom)
+	const [, setContextRoles] = useAtom(contextRolesAtom)
 	const { api: primaryApi } = useApi()
 	const [auth] = useAuth()
 
@@ -89,14 +90,15 @@ export function useProfileTrust(): UseProfileTrust {
 	// authenticating with a token the user just revoked.
 	const evictCachedToken = React.useCallback(
 		(idTag: string) => {
-			setContextTokens((prev) => {
+			setApiToken(idTag, undefined)
+			setContextRoles((prev) => {
 				if (!prev.has(idTag)) return prev
 				const next = new Map(prev)
 				next.delete(idTag)
 				return next
 			})
 		},
-		[setContextTokens]
+		[setContextRoles]
 	)
 
 	const setSessionTrust = React.useCallback(
@@ -192,7 +194,7 @@ export function useProfileTrustBootstrap() {
 	const { rememberStoredTrust } = useProfileTrust()
 	const setStored = useSetAtom(storedTrustAtom)
 	const setSession = useSetAtom(sessionTrustAtom)
-	const setContextTokens = useSetAtom(contextTokensAtom)
+	const setContextRoles = useSetAtom(contextRolesAtom)
 
 	const prevIdTagRef = React.useRef<string | null | undefined>(undefined)
 
@@ -206,7 +208,12 @@ export function useProfileTrustBootstrap() {
 		if (prev !== undefined && prev !== idTag) {
 			setStored(new Map())
 			setSession(new Map())
-			setContextTokens(new Map())
+			setContextRoles((roles) => {
+				// The registry outlives the atom, so every context token must be
+				// dropped there too or the next session inherits it.
+				for (const tag of roles.keys()) setApiToken(tag, undefined)
+				return new Map()
+			})
 		}
 
 		if (!api || !auth?.idTag) return
@@ -225,7 +232,7 @@ export function useProfileTrustBootstrap() {
 		return () => {
 			cancelled = true
 		}
-	}, [api, auth?.idTag, rememberStoredTrust, setStored, setSession, setContextTokens])
+	}, [api, auth?.idTag, rememberStoredTrust, setStored, setSession, setContextRoles])
 }
 
 // vim: ts=4

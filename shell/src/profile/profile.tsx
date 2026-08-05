@@ -1313,7 +1313,9 @@ export function ProfileConnections({
 	React.useEffect(
 		function loadCounts() {
 			if (!isCommunity || !canManageMembers) return
-			const client = getClientFor(profile.idTag)
+			// Explicit: leader-only management data for a community the user
+			// joined; it cannot be read anonymously at all.
+			const client = getClientFor(profile.idTag, { explicit: true })
 			if (!client) return
 			let cancelled = false
 			client.actions
@@ -1362,7 +1364,8 @@ export function ProfileConnections({
 	// Handle role change
 	async function handleRoleChange(memberIdTag: string, newRole: CommunityRole) {
 		try {
-			const client = getClientFor(profile.idTag)
+			// Explicit: a user-initiated administrative change.
+			const client = getClientFor(profile.idTag, { explicit: true })
 			if (!client) throw new Error('No API client for community')
 			await client.profiles.adminUpdate(memberIdTag, { roles: [newRole] })
 			// Update local state
@@ -1379,7 +1382,8 @@ export function ProfileConnections({
 	// Handle member removal
 	async function handleRemoveMember(memberIdTag: string) {
 		try {
-			const client = getClientFor(profile.idTag)
+			// Explicit: a user-initiated administrative change.
+			const client = getClientFor(profile.idTag, { explicit: true })
 			if (!client) throw new Error('No API client for community')
 			await client.actions.create({
 				type: 'CONN',

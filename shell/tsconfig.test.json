@@ -6,6 +6,10 @@
 		"esModuleInterop": true,
 		"allowSyntheticDefaultImports": true,
 		"types": ["jest"],
-		"lib": ["es2022", "dom", "dom.iterable"]
+		// `webworker` on top of `dom` for the sw/ modules the suites reach into
+		// (ServiceWorkerGlobalScope lives only in lib.webworker). The duplicate
+		// declarations the two libs share are tolerated by the inherited
+		// `skipLibCheck`.
+		"lib": ["es2022", "dom", "dom.iterable", "webworker"]
 	}
 }

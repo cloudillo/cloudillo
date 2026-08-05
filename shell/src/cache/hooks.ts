@@ -8,7 +8,7 @@
  * fetchPage function with transparent cache read/write.
  */
 
-import type { FileView } from '@cloudillo/core'
+import { FetchError, type FileView, hasApiToken } from '@cloudillo/core'
 import type { ActionView } from '@cloudillo/types'
 
 import { queryCachedActions } from './action-cache.js'
@@ -21,9 +21,35 @@ import type { CachedFetchResult } from './types.js'
 // ============================================
 
 /**
+ * An auth failure is not "offline". The cache is keyed by content *owner*, not
+ * by viewer, so falling back on a 401/403 — or for a caller holding no
+ * credential for that owner — would show a dead or foreign session the owner's
+ * private data.
+ *
+ * The credential is checked against `contextIdTag` itself, not against the home
+ * session: a user whose community membership was revoked has a perfectly valid
+ * home token and must still stop reading that community's cached rows. Guest
+ * mode and untrusted foreign profiles stop reading too — no token was ever
+ * registered for them.
+ *
+ * Exported for its test — it stays the gate every fallback in this module goes
+ * through.
+ */
+export function mayUseCache(
+	err: unknown,
+	contextIdTag: string | undefined
+): contextIdTag is string {
+	if (!contextIdTag || !hasApiToken(contextIdTag)) return false
+	if (err instanceof FetchError && (err.httpStatus === 401 || err.httpStatus === 403))
+		return false
+	return true
+}
+
+/**
  * Wraps a file fetchPage function with cache read/write.
  * On network success: returns data and caches in background.
- * On network failure: returns cached data with isOffline flag.
+ * On network failure: returns cached data with isOffline flag — but only when a
+ * live token for `contextIdTag` is registered, see mayUseCache().
  */
 export function createCachedFileFetchPage(
 	contextIdTag: string | undefined,
@@ -49,7 +75,7 @@ export function createCachedFileFetchPage(
 			return result
 		} catch (err) {
 			// Network failed — fall back to cache
-			if (!contextIdTag) throw err
+			if (!mayUseCache(err, contextIdTag)) throw err
 
 			try {
 				const cached = await queryCachedFiles(contextIdTag, queryParams, limit)
@@ -74,6 +100,9 @@ export function createCachedFileFetchPage(
 
 /**
  * Wraps an action fetchPage function with cache read/write.
+ *
+ * The offline fallback is read only when a live token for `contextIdTag` is
+ * registered — see mayUseCache().
  */
 export function createCachedActionFetchPage(
 	contextIdTag: string | undefined,
@@ -96,7 +125,7 @@ export function createCachedActionFetchPage(
 
 			return result
 		} catch (err) {
-			if (!contextIdTag) throw err
+			if (!mayUseCache(err, contextIdTag)) throw err
 
 			try {
 				const cached = await queryCachedActions(contextIdTag, queryParams, limit)

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { setApiToken } from '@cloudillo/core'
 import { Button, resolveDefaultExport, useApi, useAuth } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -95,6 +96,7 @@ export function QrLoginPanel() {
 
 							// Complete login
 							await installToken(result.login.token)
+							setApiToken(result.login.idTag, result.login.token)
 							setAuth({
 								tnId: result.login.tnId,
 								idTag: result.login.idTag,

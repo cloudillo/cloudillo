@@ -11,6 +11,7 @@
 
 import type { FileView } from '@cloudillo/core'
 import { LoadMoreTrigger, useApi } from '@cloudillo/react'
+import { useAtomValue } from 'jotai'
 import React, { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -21,7 +22,7 @@ import {
 
 import { getFileIcon } from '../../apps/files/icons.js'
 import type { DocPickerResult } from '../../context/doc-picker-atom.js'
-import { useApiContext } from '../../context/index.js'
+import { contextRolesAtom, useApiContext } from '../../context/index.js'
 import { useAppConfig } from '../../utils.js'
 import { PickerFilterBar, usePickerBrowse } from '../pickers/index.js'
 
@@ -58,8 +59,19 @@ export function DocumentPickerBrowseTab({
 	const { t } = useTranslation()
 	const { api: defaultApi } = useApi()
 	const { getClientFor } = useApiContext()
-	const api =
-		(idTagProp ? getClientFor(idTagProp, { auth: 'preferred' }) : defaultApi) || defaultApi
+	const contextRoles = useAtomValue(contextRolesAtom)
+	// Memoized: with no token registered for `idTagProp`, `getClientFor`'s
+	// 'preferred' fallback returns a fresh anonymous client on every call.
+	// `contextRoles` is written in the same tick as the token, so the memo cannot
+	// freeze that anonymous client past the arrival of a real one.
+	const api = React.useMemo(
+		() =>
+			// Explicit: the user opened a picker aimed at that tenant's documents.
+			(idTagProp
+				? getClientFor(idTagProp, { auth: 'preferred', explicit: true })
+				: defaultApi) || defaultApi,
+		[idTagProp, defaultApi, getClientFor, contextRoles]
+	)
 	const [appConfig] = useAppConfig()
 
 	// Default to document file types so the server filters them out of the page,

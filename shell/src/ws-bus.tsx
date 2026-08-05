@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { getMessageBusUrl } from '@cloudillo/core'
 import { useAuth } from '@cloudillo/react'
 import { atom, useAtom } from 'jotai'
 import React from 'react'
@@ -66,6 +67,28 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 	const [reconnectNonce, setReconnectNonce] = React.useState(0)
 	const attemptRef = React.useRef(0)
 
+	// The init effect deliberately ignores token rotations (see its dep array), with
+	// one exception: a socket the server closed as unauthenticated, which the backoff
+	// loop does not retry. `rejectedTokenRef` holds the refused token;
+	// `latestTokenRef` is the newest the page holds, for the race where the close
+	// arrives after the rotation.
+	const rejectedTokenRef = React.useRef<string | undefined>(undefined)
+	const latestTokenRef = React.useRef<string | undefined>(auth?.token)
+
+	React.useEffect(() => {
+		latestTokenRef.current = auth?.token
+	})
+
+	React.useEffect(
+		function retryAfterTokenRotation() {
+			const rejected = rejectedTokenRef.current
+			if (!rejected || !auth?.token || auth.token === rejected) return
+			rejectedTokenRef.current = undefined
+			setReconnectNonce((n) => n + 1)
+		},
+		[auth?.token]
+	)
+
 	React.useEffect(
 		function init() {
 			if (!auth?.idTag || !auth.token) {
@@ -78,6 +101,7 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 				setWsBus((prev) => ({ ...prev, connected: false }))
 				return
 			}
+			const connectedToken = auth.token
 
 			// Close existing connection before creating a new one
 			if (wsRef.current) {
@@ -86,12 +110,13 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 				ws = undefined
 			}
 
-			const newWs = new WebSocket(`wss://cl-o.${auth.idTag}/ws/bus?token=${auth.token}`)
+			const newWs = new WebSocket(getMessageBusUrl(auth.idTag, auth.token))
 			wsRef.current = newWs
 			ws = newWs
 
 			newWs.onopen = function open() {
 				attemptRef.current = 0
+				rejectedTokenRef.current = undefined
 				for (const sm of connSendBuf) {
 					newWs.send(sm)
 				}
@@ -108,8 +133,19 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 				// WebSocket close codes: 1008 = Policy Violation (auth failure)
 				// 4000-4999 = Application-specific codes (often used for auth errors)
 				if (event.code === 1008 || (event.code >= 4000 && event.code < 5000)) {
-					console.warn('[WsBus] closed due to auth error, not reconnecting')
+					console.warn('[WsBus] closed due to auth error')
 					setWsBus((prev) => ({ ...prev, connected: false }))
+					wsRef.current = undefined
+					ws = undefined
+					if (latestTokenRef.current && latestTokenRef.current !== connectedToken) {
+						// A newer token landed while this close was in flight —
+						// retry now.
+						setReconnectNonce((n) => n + 1)
+					} else {
+						// Wait for a rotation; retrying the refused token would
+						// just fail again.
+						rejectedTokenRef.current = connectedToken
+					}
 					return
 				}
 				setWsBus((prev) => ({ ...prev, connected: false }))
@@ -149,7 +185,10 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 				}
 			}
 		},
-		[auth, reconnectNonce]
+		// Deliberately NOT `[auth, ...]`: the backend authenticates this socket
+		// once, at connect time, so a token rotation is no reason to tear it
+		// down — and doing so drops whatever is sitting in `connSendBuf`.
+		[auth?.idTag, reconnectNonce]
 	)
 
 	return <>{children}</>

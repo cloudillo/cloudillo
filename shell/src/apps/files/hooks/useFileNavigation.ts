@@ -27,7 +27,10 @@ export function useFileNavigation() {
 	const _navigate = useNavigate()
 	const [searchParams] = useSearchParams()
 	const navigationType = useNavigationType()
-	const { api } = useContextAwareApi()
+	// `authenticated` is a dep of `buildBreadcrumbs` below: the api client's
+	// identity is stable per idTag, so this flag is what changes when a context
+	// token lands. None of the other deps move on token arrival.
+	const { api, authenticated } = useContextAwareApi()
 	const { getTokenFor, getClientFor } = useApiContext()
 	const contextIdTag = useCurrentContextIdTag()
 	const [breadcrumbs, setBreadcrumbs] = React.useState<BreadcrumbItem[]>([])
@@ -202,7 +205,7 @@ export function useFileNavigation() {
 				}
 			})()
 		},
-		[api, remoteApi, currentFolderId, isRemoteBrowsing, shareRoot, remoteOwner]
+		[api, authenticated, remoteApi, currentFolderId, isRemoteBrowsing, shareRoot, remoteOwner]
 	)
 
 	const navigateToFolder = React.useCallback(

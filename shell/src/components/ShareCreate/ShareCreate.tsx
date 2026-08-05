@@ -49,7 +49,8 @@ export function ShareCreate() {
 	const ownerIdTag = pending?.options.ownerIdTag
 	// Client targeting the document owner's tenant (where the ref must live).
 	const api = React.useMemo(
-		() => (ownerIdTag ? getClientFor(ownerIdTag, { auth: 'required' }) : null),
+		// Explicit: the user opened this dialog to create a share on that tenant.
+		() => (ownerIdTag ? getClientFor(ownerIdTag, { auth: 'required', explicit: true }) : null),
 		[ownerIdTag, getClientFor]
 	)
 	// `api` is built FROM ownerIdTag right above, so the client and the cache key name one tenant

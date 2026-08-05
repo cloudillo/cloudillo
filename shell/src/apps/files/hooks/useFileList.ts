@@ -3,7 +3,7 @@
 
 import type * as Types from '@cloudillo/core'
 import type { ApiClient } from '@cloudillo/core'
-import { useAuth, useInfiniteScroll } from '@cloudillo/react'
+import { useInfiniteScroll } from '@cloudillo/react'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 
@@ -13,9 +13,9 @@ import {
 	useContextAwareApi,
 	useCurrentContextIdTag
 } from '../../../context/index.js'
+import { useWsBus } from '../../../ws-bus.js'
 import type { File, FileTypeFilter, OwnerFilter, ViewMode } from '../types.js'
 import { MANAGED_FOLDER_ID, TRASH_FOLDER_ID } from '../types.js'
-import { useWsBus } from '../../../ws-bus.js'
 
 export interface UseFileListOptions {
 	viewMode?: ViewMode
@@ -105,7 +105,6 @@ function convertFileView(f: Types.FileView): File {
 
 export function useFileList(options?: UseFileListOptions) {
 	const { api } = useContextAwareApi()
-	const [_auth] = useAuth()
 	const contextIdTag = useCurrentContextIdTag()
 	const [sort, setSort] = React.useState<keyof File | undefined>()
 	const [sortAsc, setSortAsc] = React.useState(false)
@@ -256,6 +255,7 @@ export function useFileList(options?: UseFileListOptions) {
 		isLoading,
 		isLoadingMore,
 		error,
+		isOffline,
 		hasMore,
 		loadMore,
 		reset,
@@ -353,6 +353,7 @@ export function useFileList(options?: UseFileListOptions) {
 				isLoading,
 				isLoadingMore,
 				error,
+				isOffline,
 				hasMore,
 				loadMore,
 				reset,
@@ -367,6 +368,7 @@ export function useFileList(options?: UseFileListOptions) {
 			isLoading,
 			isLoadingMore,
 			error,
+			isOffline,
 			hasMore,
 			loadMore,
 			reset,

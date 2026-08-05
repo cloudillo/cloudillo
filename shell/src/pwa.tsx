@@ -3,287 +3,45 @@
 
 import React from 'react'
 
-import { resetKeyErrorState } from './cache/crypto.js'
+import { base64UrlToBytes } from '@cloudillo/core/base64'
 
-//////////////
-// PWA hook //
-//////////////
+import { generateSwKey } from '../shared/sw-key.js'
+import { clearSwKeyCookie, readSwKeyCookie, writeSwKeyCookie } from './pwa/cookie.js'
+import { clearHadEncryptedData, markHadEncryptedData } from './pwa/encrypted-data-flag.js'
+import { ensureKeyRelayed, ensureServiceWorker, postTokenToSw } from './pwa/registration.js'
+import { getSessionToken, setSessionToken } from './pwa/session-token.js'
+import { onSwMessage, swNotify, swRequestResult } from './pwa/sw-rpc.js'
 
-function convertKey(base64Key: string): Uint8Array<ArrayBuffer> {
-	const padding = '='.repeat((4 - (base64Key.length % 4)) % 4)
-	const base64 = (base64Key + padding).replace(/-/g, '+').replace(/_/g, '/')
-	const str = window.atob(base64)
-	const ret = new Uint8Array(str.length)
-	for (let i = 0; i < str.length; ++i) {
-		ret[i] = str.charCodeAt(i)
+// Barrel re-exports so the rest of the shell keeps importing from `pwa.js`.
+export { hadEncryptedData, markHadEncryptedData } from './pwa/encrypted-data-flag.js'
+export { ensureServiceWorker } from './pwa/registration.js'
+export { getSessionToken, setSessionToken } from './pwa/session-token.js'
+
+/**
+ * Wipe the SW's encrypted stores and the localStorage flag so a fresh key can be
+ * generated. The cache layer's cached CryptoKey is not ours: `auth/wipe-local-data.ts`
+ * orders that teardown and calls `resetKeyErrorState()` right after this.
+ *
+ * Returns whether the worker acknowledged. False means the SW-side stores may still
+ * hold encrypted data — a dead or uncontrolled worker drops the message silently — so
+ * a caller that promised a wipe must not report an unverified success.
+ */
+export async function resetEncryptionState(): Promise<boolean> {
+	clearHadEncryptedData()
+
+	// `swRequestResult` never rejects; it reports the failure, and the three failure
+	// modes read differently in a bug report.
+	const ack = await swRequestResult('sw:key.reset')
+	if (ack.status === 'ok') {
+		console.log('[PWA] Encryption state reset')
+		return true
 	}
-	return ret
-}
-
-//////////////////////////////
-// Encryption Key (Cookie)  //
-//////////////////////////////
-const KEY_COOKIE_NAME = 'swKey'
-const HAD_ENCRYPTED_DATA_KEY = 'cloudillo-had-encrypted-data'
-
-// Track that we have stored encrypted data (for Firefox/Safari fallback)
-export function markHadEncryptedData(): void {
-	localStorage.setItem(HAD_ENCRYPTED_DATA_KEY, '1')
-}
-
-// Check if we've ever had encrypted data (for Firefox/Safari fallback)
-export function hadEncryptedData(): boolean {
-	return localStorage.getItem(HAD_ENCRYPTED_DATA_KEY) === '1'
-}
-
-// Read the raw cookie value, preserving any `=` characters in the body.
-// `.split('=')[1]` would truncate at the first `=`, which currently happens
-// not to occur because `generateKey` strips trailing padding — but a key
-// from a different generator (or migrated from elsewhere) could legitimately
-// contain `=`, and silently truncating it would break decryption.
-function readKeyCookie(): string | undefined {
-	const prefix = `${KEY_COOKIE_NAME}=`
-	const row = document.cookie.split('; ').find((r) => r.startsWith(prefix))
-	return row?.slice(prefix.length)
-}
-
-// Generate a random 256-bit key, return as base64url
-function generateKey(): string {
-	const keyBytes = crypto.getRandomValues(new Uint8Array(32))
-	return btoa(String.fromCharCode(...keyBytes))
-		.replace(/\+/g, '-')
-		.replace(/\//g, '_')
-		.replace(/=+$/, '')
-}
-
-/**
- * Refresh the encryption key cookie's lifetime and (on Firefox/Safari) relay
- * the existing key to the SW.
- *
- * - Brave caps cookie Max-Age to 6 months, so we re-write the cookie on every
- *   page load to keep it alive across long-running use.
- * - On Firefox/Safari, the SW has no Cookie Store API, so the main thread
- *   posts the current key to the SW (e.g. after an SW restart).
- *
- * Never generates a new key — generation happens only at login (`setApiKey`),
- * so unauthenticated visitors never get a `swKey` cookie minted.
- * @returns true if a key was relayed (or none was needed); false if a key
- * is expected but unavailable.
- */
-export async function refreshEncryptionKey(): Promise<boolean> {
-	if (!('serviceWorker' in navigator)) return true
-
-	// Brave caps cookie Max-Age to 6 months. Re-write on every call to keep
-	// the cookie alive across long-running use. Runs on all browsers — even
-	// Chrome/Edge/Brave where the SW reads the cookie directly via Cookie
-	// Store API, since only the main thread runs reliably on every page load.
-	const existing = readKeyCookie()
-	if (existing) {
-		document.cookie = `${KEY_COOKIE_NAME}=${existing}; Secure; SameSite=Strict; Path=/; Max-Age=2147483647`
-		if (!readKeyCookie()) {
-			console.warn('[PWA] swKey refresh did not persist')
-		}
-	}
-
-	// Chrome/Edge: SW handles everything via Cookie Store API (and will
-	// only mint a cookie when `setApiKey` triggers its first encrypt).
-	if ('cookieStore' in window) return true
-
-	// Firefox/Safari: relay the existing key to the SW. If no key exists
-	// yet, that's expected pre-login — the cookie will be minted by
-	// `setApiKey` when the user authenticates.
-	if (!existing) return true
-
-	await navigator.serviceWorker.ready
-	navigator.serviceWorker.controller?.postMessage({
-		cloudillo: true,
-		v: 1,
-		type: 'sw:key.set',
-		payload: { key: existing }
-	})
-	console.log('[PWA] Encryption key relayed to service worker')
-	return true
-}
-
-//////////////////////////////
-// Key Access Error Handling //
-//////////////////////////////
-export type KeyErrorReason = 'key_missing' | 'key_mismatch'
-export type KeyErrorCallback = (reason: KeyErrorReason) => void
-let keyErrorCallback: KeyErrorCallback | null = null
-let pendingKeyError: KeyErrorReason | null = null // Store error if callback not yet registered
-let deliveredError: KeyErrorReason | null = null // Track delivered error to prevent duplicates
-
-/**
- * Synchronous read of the most recent key-access error signal from the SW.
- * Returns the pending or delivered reason; null if no error has been observed.
- * Used by the boot flow to decide between "show login" and "show key-error
- * dialog" — proceeding to loginInit on a key error would look like a logout.
- */
-export function getLastKeyError(): KeyErrorReason | null {
-	return pendingKeyError ?? deliveredError
-}
-
-/**
- * Programmatically signal a key-access error from the main thread.
- * Used when shell code (CRDT cache, encrypted-store) discovers the swKey
- * cookie is gone but encrypted data still exists, mid-session.
- * Goes through the same dedup pipeline as SW-originated errors.
- *
- * Latest-wins: only the most recent pending reason is delivered when the
- * callback registers — earlier reasons are overwritten. Acceptable because
- * the dialog treats key_missing and key_mismatch identically; callers that
- * need queueing must add their own bookkeeping.
- */
-export function signalKeyError(reason: KeyErrorReason): void {
-	if (deliveredError === reason) return
-	if (keyErrorCallback) {
-		deliveredError = reason
-		keyErrorCallback(reason)
+	if (ack.status === 'error') {
+		console.warn('[PWA] sw:key.reset failed in the worker:', ack.error)
 	} else {
-		pendingKeyError = reason
+		console.warn(`[PWA] sw:key.reset was not acknowledged (${ack.status})`)
 	}
-}
-
-/**
- * Register a callback for key access errors
- * @returns Unsubscribe function
- */
-export function onKeyAccessError(callback: KeyErrorCallback): () => void {
-	keyErrorCallback = callback
-
-	// If there's a pending error from before the callback was registered, deliver it now
-	if (pendingKeyError) {
-		const error = pendingKeyError
-		pendingKeyError = null
-		deliveredError = error
-		// Use setTimeout to ensure React state update happens after mount
-		setTimeout(() => callback(error), 0)
-	} else {
-		// Proactively check with SW if there's an error state we might have missed
-		// This handles the case where SW sent error before any clients were ready
-		checkKeyErrorState()
-	}
-
-	// Do NOT clear `deliveredError` here: the dedup latch is intentionally
-	// cross-lifetime so that a SW-originated error which races with a
-	// Layout re-mount (React 19 Strict Mode double-mount, route change)
-	// is not redelivered to the new callback. The KeyAccessError dialog
-	// only exits via reload (Retry/Reset) — the next page lifetime starts
-	// with a fresh latch, so no in-page reset path is needed.
-	return () => {
-		keyErrorCallback = null
-	}
-}
-
-/**
- * Ask the SW if there's a key error state
- * Used when callback is registered to catch errors that occurred before
- */
-function checkKeyErrorState(): void {
-	if (!('serviceWorker' in navigator)) return
-
-	navigator.serviceWorker.ready.then(() => {
-		navigator.serviceWorker.controller?.postMessage({
-			cloudillo: true,
-			v: 1,
-			type: 'sw:key.error.check'
-		})
-	})
-}
-
-/**
- * Reset encryption state to allow fresh key generation
- * This clears encrypted data in SW and localStorage tracking
- */
-export async function resetEncryptionState(): Promise<void> {
-	// Clear localStorage tracking
-	localStorage.removeItem(HAD_ENCRYPTED_DATA_KEY)
-
-	// Clear error tracking state
-	pendingKeyError = null
-	deliveredError = null
-
-	// Clear encrypted data in SW and wait for acknowledgment
-	if ('serviceWorker' in navigator) {
-		await navigator.serviceWorker.ready
-		const controller = navigator.serviceWorker.controller
-		if (controller) {
-			await new Promise<void>((resolve) => {
-				const timeout = setTimeout(() => {
-					console.warn('[PWA] Key reset acknowledgment timed out')
-					resolve()
-				}, 3000)
-
-				const handler = (evt: MessageEvent) => {
-					const msg = evt.data
-					if (msg?.cloudillo && msg.type === 'sw:key.reset.ack') {
-						clearTimeout(timeout)
-						navigator.serviceWorker.removeEventListener('message', handler)
-						resolve()
-					}
-				}
-				navigator.serviceWorker.addEventListener('message', handler)
-
-				controller.postMessage({
-					cloudillo: true,
-					v: 1,
-					type: 'sw:key.reset'
-				})
-			})
-		}
-	}
-	// Clear the page-lifetime latch in crypto.ts so a follow-up "swKey lost"
-	// event after the dialog's reset/reload path still surfaces the dialog.
-	resetKeyErrorState()
-	console.log('[PWA] Encryption state reset')
-}
-
-// Listen for key access error messages from SW
-if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-	navigator.serviceWorker.addEventListener('message', (evt) => {
-		const msg = evt.data
-		if (msg?.cloudillo && msg.type === 'sw:key.error') {
-			const reason = (msg.payload?.error as KeyErrorReason) || 'key_missing'
-			// Prevent duplicate delivery of the same error
-			if (deliveredError === reason) {
-				console.log('[PWA] Ignoring duplicate key error:', reason)
-				return
-			}
-			if (keyErrorCallback) {
-				deliveredError = reason
-				keyErrorCallback(reason)
-			} else {
-				// Store for later delivery when callback is registered
-				pendingKeyError = reason
-				console.log('[PWA] Key error received before callback registered, storing:', reason)
-			}
-		}
-	})
-}
-
-/**
- * Migrate encryption key from old URL-based storage to cookie-based storage
- * This handles the transition for existing users who have SW registered with key in URL
- */
-async function migrateKeyFromUrl(): Promise<void> {
-	const existingReg = await navigator.serviceWorker.getRegistration()
-	if (!existingReg?.active) return
-
-	const url = existingReg.active.scriptURL
-	const keyMatch = url.match(/[?&]key=([^&]+)/)
-
-	if (keyMatch) {
-		const oldKey = keyMatch[1]
-		console.log('[PWA] Migrating key from URL to cookie')
-
-		// Store key in cookie (same format, no conversion needed)
-		document.cookie = `${KEY_COOKIE_NAME}=${oldKey}; Secure; SameSite=Strict; Path=/; Max-Age=2147483647`
-
-		// Unregister old SW so new one can take over
-		await existingReg.unregister()
-		console.log('[PWA] Old SW unregistered, key migrated to cookie')
-	}
+	return false
 }
 
 interface BeforeInstallPromptEvent extends Event {
@@ -295,7 +53,6 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 interface PWAConfig {
-	swPath?: string
 	vapidPublicKey?: string
 }
 
@@ -305,300 +62,187 @@ export interface UsePWA {
 	doNotify?: (title: string, body: string, data: object) => void
 }
 
-let serviceWorker: ServiceWorkerRegistration
-let swConfig: PWAConfig = {}
+// Last token handed to the SW, possibly a *scoped* share-link guest token installed by
+// `useInstalledToken`. Deliberately separate from `currentAuthToken`, the page's session
+// credential, which is persisted to `sessionStorage` — a scoped token must never get there.
+let lastInstalledSwToken: string | undefined
 
-/**
- * Register the service worker
- * Can be called early on page load - encryption key is managed via cookie
- *
- * @param authToken - Optional auth token to send to SW after registration
- */
-export async function registerServiceWorker(authToken?: string): Promise<void> {
-	if (!('serviceWorker' in navigator)) return
+// Serializes every write of the SW's token. `useInstalledToken` releases the old scoped
+// token in one effect cleanup and installs the next in the effect right after; both are
+// async, so unqueued the postMessages could arrive in either order and leave the worker
+// holding the wrong one for the rest of the session.
+let swTokenQueue: Promise<void> = Promise.resolve()
 
-	// Migrate key from URL to cookie if this is an old SW
-	await migrateKeyFromUrl()
-
-	const swPath = swConfig.swPath || '/sw.js'
-
-	try {
-		// Always register - browser handles updates if script changed
-		// This fixes the bug where version updates (e.g., sw-0.8.6.js -> sw-0.8.7.js)
-		// were not applied because we returned early when any SW was registered
-		console.log('[PWA] Registering service worker:', swPath)
-		const reg = await navigator.serviceWorker.register(swPath)
-		serviceWorker = reg
-
-		// Wait for SW to be active
-		let activeWorker = reg.active
-		if (!activeWorker) {
-			const installingWorker = reg.installing || reg.waiting
-			if (installingWorker) {
-				await new Promise<void>((resolve) => {
-					installingWorker.addEventListener('statechange', function handler() {
-						if (installingWorker.state === 'activated') {
-							activeWorker = installingWorker
-							installingWorker.removeEventListener('statechange', handler)
-							resolve()
-						}
-					})
-					if (installingWorker.state === 'activated') {
-						activeWorker = installingWorker
-						resolve()
-					}
-				})
-			}
-		}
-
-		// Send token to active worker
-		if (authToken && activeWorker) {
-			activeWorker.postMessage({
-				cloudillo: true,
-				v: 1,
-				type: 'sw:token.set',
-				payload: { token: authToken }
-			})
-			console.log('[PWA] Token sent to service worker')
-		}
-
-		// Ensure SW is controlling this page
-		// On hard reload (Ctrl+Shift+R), SW is active but not controlling.
-		// Request SW to claim this page so it can intercept API requests.
-		if (!navigator.serviceWorker.controller) {
-			if (!activeWorker) {
-				// Nothing to send `sw:claim` to and nothing to drive a
-				// controllerchange event — bail out instead of hanging the
-				// entire boot flow on a promise that will never resolve.
-				console.warn('[PWA] No active SW after registration; skipping claim wait')
-			} else {
-				const worker = activeWorker
-				console.log('[PWA] Waiting for SW to become controller...')
-				await new Promise<void>((resolve) => {
-					let settled = false
-					const finish = () => {
-						if (settled) return
-						settled = true
-						navigator.serviceWorker.removeEventListener(
-							'controllerchange',
-							onControllerChange
-						)
-						clearTimeout(timeoutId)
-						resolve()
-					}
-					const onControllerChange = () => {
-						console.log('[PWA] SW is now controlling the page')
-						finish()
-					}
-					navigator.serviceWorker.addEventListener('controllerchange', onControllerChange)
-
-					// Defensive timeout so a dropped claim message can never
-					// wedge boot. 5 s is well over the observed claim latency.
-					const timeoutId = setTimeout(() => {
-						console.warn('[PWA] Timed out waiting for SW controllerchange; continuing')
-						finish()
-					}, 5000)
-
-					// Request SW to claim control
-					worker.postMessage({
-						cloudillo: true,
-						v: 1,
-						type: 'sw:claim'
-					})
-
-					// Also check if controller became available (race condition)
-					if (navigator.serviceWorker.controller) {
-						finish()
-					}
-				})
-			}
-		}
-
-		// Request persistent storage to prevent IndexedDB eviction.
-		// NOTE: in Chrome this protects IndexedDB and Cache Storage *only* —
-		// cookies (including swKey) can still be evicted under storage
-		// pressure or after long inactivity, which is the path that triggers
-		// the KeyAccessError dialog when encrypted IDB data outlives the key.
-		if (navigator.storage?.persist) {
-			const persisted = await navigator.storage.persist()
-			if (persisted) {
-				console.log('[PWA] Storage marked as persistent')
-			}
-		}
-
-		console.log('[PWA] Service worker ready')
-	} catch (err) {
-		console.error('[PWA] SW registration failed:', err)
-	}
+function queueSwTokenWrite(op: () => Promise<void>): Promise<void> {
+	const next = swTokenQueue.then(op, op)
+	// The chain must survive a failed write — the caller still sees the rejection.
+	swTokenQueue = next.catch(() => {})
+	return next
 }
 
 /**
- * Install a freshly-obtained auth token into the SW.
+ * Install a freshly-obtained auth token into the ServiceWorker.
  *
- * Every code path that hands a new token to the SW must also relay the
- * encryption key, otherwise the SW (on Firefox/Safari, which have no
- * Cookie Store API) can't encrypt the token before persisting it. This
- * helper bundles the pair so login/renewal call sites can't forget the
- * second step.
+ * Cheap and safe on every login and renewal: one postMessage, plus remembering the token
+ * so a restarted SW can be answered with whatever it last held. Registration, the
+ * controller claim and the key relay happen once per page in `ensureServiceWorker()`.
+ *
+ * Session ownership is NOT part of this: `setCurrentAuthToken()` writes the session token
+ * from the `Layout` auth effect, and a scoped token installed here must not overwrite it.
  */
 export async function installToken(token: string): Promise<void> {
-	await registerServiceWorker(token)
-	await refreshEncryptionKey()
+	lastInstalledSwToken = token
+	await queueSwTokenWrite(() => postTokenToSw(token))
 }
 
-//////////////////////////
-// API Key SW Storage   //
-//////////////////////////
-
-let apiKeyRequestId = 0
-const apiKeyPendingRequests = new Map<number, (apiKey: string | undefined) => void>()
-
-// Mirror of the current in-memory auth token, kept in sync by the shell
-// layout effect. Used to replay the token to a restarted SW that asks
-// for one via `sw:token.request`. Module-level, intentionally not in
-// React state — the SW message listener runs outside React.
-let currentAuthToken: string | undefined
+// Mirror of the in-memory auth token, kept in sync by the shell layout effect and replayed
+// to a restarted SW that asks via `sw:token.request`. Module-level rather than React state,
+// because the SW message listener runs outside React. Seeded from `sessionStorage` at module
+// eval so a reload can answer before React has rendered anything; boot clears it again if
+// the server no longer honours the token.
+let currentAuthToken: string | undefined = getSessionToken()
 
 export function setCurrentAuthToken(token: string | undefined): void {
 	currentAuthToken = token
+	// `sessionStorage` is what carries a "don't remember me" session across a reload
+	// (see pwa/session-token.ts).
+	setSessionToken(token)
+	// Tell the worker up front there is nothing to hand over rather than making it wait out
+	// the first request's timeout. The guard mirrors the `sw:token.request` reply below: a
+	// `/s/...` share-link guest has no session token but *does* hold a scoped installed one,
+	// and arming the quiet period would make a restarted worker send its file requests
+	// unauthenticated.
+	if (!token && !lastInstalledSwToken) void swNotify('sw:token.none')
 }
 
-// Single SW → page message listener — dispatches on msg.type.
-if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-	navigator.serviceWorker.addEventListener('message', (evt) => {
-		const msg = evt.data
-		if (!msg?.cloudillo) return
-
-		switch (msg.type) {
-			case 'sw:apikey.get.res': {
-				const resolve = apiKeyPendingRequests.get(msg.replyTo)
-				if (resolve) {
-					apiKeyPendingRequests.delete(msg.replyTo)
-					resolve(msg.data?.apiKey)
-				}
-				break
-			}
-			case 'sw:token.request': {
-				// Replay the in-memory token when the SW requests it after a restart.
-				const controller = navigator.serviceWorker.controller
-				if (currentAuthToken && controller) {
-					controller.postMessage({
-						cloudillo: true,
-						v: 1,
-						type: 'sw:token.set',
-						payload: { token: currentAuthToken }
-					})
-					console.log('[PWA] Replayed auth token to SW on request')
-				} else if (!currentAuthToken) {
-					console.log('[PWA] SW requested token but none is available')
-				}
-				break
-			}
-		}
+// Replay the in-memory token when the SW requests it after a restart. The SW
+// gets back exactly what it last held — a scoped share-link token stays scoped.
+onSwMessage('sw:token.request', () => {
+	const token = lastInstalledSwToken ?? currentAuthToken
+	if (!token) {
+		// Answer explicitly, or every unauthenticated cl-o.* request pays the SW's full wait.
+		console.log('[PWA] SW requested token but none is available')
+		void swNotify('sw:token.none')
+		return
+	}
+	// A restarted SW on Firefox/Safari also lost its cached key (no Cookie Store API there)
+	// and would sit keyless until the next full page load. postMessage ordering is
+	// per-channel, so sending the key first guarantees the SW has it before it decrypts.
+	if (!('cookieStore' in window)) {
+		const key = readSwKeyCookie()
+		if (key) void swNotify('sw:key.set', { key })
+	}
+	void swNotify('sw:token.set', { token }).then(() => {
+		console.log('[PWA] Replayed auth token to SW on request')
 	})
-}
+})
 
 /**
  * Store API key in SW encrypted storage.
  *
- * This is the single entry point for cookie generation: if no `swKey` cookie
- * exists yet, one is minted here (login time) so unauthenticated visitors
- * never have a cookie set. On Chrome the SW handles cookie creation lazily
- * via the Cookie Store API when it encrypts the apiKey; on Firefox/Safari
- * the main thread mints the cookie and relays the key.
+ * The single entry point for `swKey` cookie generation at login, on every browser: the
+ * worker only ever *reads* the key, since a key minted there would mask a key loss the page
+ * has to assess (see `shell/sw/key-cookie.ts`). Unauthenticated visitors reach no minting
+ * path, so they still never get a cookie. The mint must precede `sw:apikey.set`, or the
+ * worker finds no key and skips the write. `recoverFromKeyLoss` in `auth/key-loss.ts` is
+ * the only other minter.
  */
 export async function setApiKey(apiKey: string): Promise<void> {
 	if (!('serviceWorker' in navigator)) return
 
-	// Firefox/Safari: ensure a cookie exists and relay to SW before storing.
-	if (!('cookieStore' in window)) {
-		let key = readKeyCookie()
-		if (!key) {
-			key = generateKey()
-			document.cookie = `${KEY_COOKIE_NAME}=${key}; Secure; SameSite=Strict; Path=/; Max-Age=2147483647`
-			// Verify the cookie actually persisted before we encrypt anything
-			// with it — Brave private mode, strict third-party rules, or ITP
-			// may silently drop the write, which would otherwise produce
-			// unrecoverable encrypted records on the next reload.
-			if (!readKeyCookie()) {
-				console.error('[PWA] swKey cookie did not persist — encrypted storage unavailable')
-				signalKeyError('key_missing')
-				throw new Error('Failed to persist encryption key cookie')
-			}
-			console.log('[PWA] Generated new encryption key (login)')
+	// As in `getApiKeyResult`: on an uncontrolled page (first install, hard reload) the
+	// messages below are dropped silently, and a remember-me key that was never stored
+	// surfaces one boot later as a forced logout.
+	await ensureServiceWorker()
+
+	let key = readSwKeyCookie()
+	if (!key) {
+		key = generateSwKey()
+		if (!writeSwKeyCookie(key)) {
+			console.error('[PWA] swKey cookie did not persist — encrypted storage unavailable')
+			throw new Error('Failed to persist encryption key cookie')
 		}
-		await navigator.serviceWorker.ready
-		navigator.serviceWorker.controller?.postMessage({
-			cloudillo: true,
-			v: 1,
-			type: 'sw:key.set',
-			payload: { key }
-		})
+		console.log('[PWA] Generated new encryption key (login)')
 	}
 
-	// Track that we have encrypted data (also drives main-thread missing-key
-	// detection — see shell/src/cache/crypto.ts).
+	// Firefox/Safari have no Cookie Store API in the worker — relay the key
+	// there. Chrome/Edge read the cookie the write above just made.
+	if (!('cookieStore' in window)) {
+		await swNotify('sw:key.set', { key })
+	}
+
 	markHadEncryptedData()
 
-	await navigator.serviceWorker.ready
-	navigator.serviceWorker.controller?.postMessage({
-		cloudillo: true,
-		v: 1,
-		type: 'sw:apikey.set',
-		payload: { apiKey }
-	})
-	console.log('[PWA] API key sent to service worker for storage')
+	// Acked rather than fire-and-forget: the worker skips the write when it holds no
+	// encryption key, and `swNotify` no-ops without a controller. Either way login would
+	// report remember-me as saved, and the next boot would read the missing key as a
+	// definitive "nothing stored" — forced logout plus local wipe. Fail at login instead.
+	const ack = await swRequestResult('sw:apikey.set', { apiKey })
+	if (ack.status !== 'ok') {
+		const detail = ack.status === 'error' ? ack.error || 'error' : ack.status
+		console.error('[PWA] API key was not stored by the service worker:', detail)
+		throw new Error(`Failed to store API key (${detail})`)
+	}
+	console.log('[PWA] API key stored by the service worker')
+}
+
+/**
+ * Outcome of an API-key lookup. `'ok'` with no `apiKey` is a definitive "nothing stored" and
+ * the caller may treat the session as unrecoverable. `'error'` is a worker/storage failure
+ * and says nothing about whether a key exists, so it must never end a session on its own: a
+ * record the worker holds but cannot decrypt (evicted or rotated swKey) answers `'error'`
+ * with `error: 'undecryptable'` — see `getSecureItemResult` in shell/sw/secure-store.ts. So
+ * does a page no controller could answer for.
+ */
+export type ApiKeyLookup = { status: 'ok'; apiKey?: string } | { status: 'error'; error?: string }
+
+/**
+ * Retrieve the API key from SW encrypted storage, keeping "no key stored" and
+ * "the worker could not answer" apart.
+ *
+ * Only a browser without ServiceWorker support counts as a definitive "no key": nowhere a
+ * key could have been stored in the first place. Every other failure — a timeout, an
+ * explicit failure reply, or an uncontrolled page — is transient, and reading it as "no
+ * remember-me key" forces a logout and a data wipe on a live device.
+ */
+export async function getApiKeyResult(): Promise<ApiKeyLookup> {
+	// Let the worker claim this page first: an uncontrolled page is the common shape right
+	// after a hard reload and is indistinguishable from "no worker" at the postMessage
+	// layer. Memoized.
+	await ensureServiceWorker()
+	// A restarted worker on Firefox/Safari has lost the relayed key and would answer
+	// "no key" for a record it simply cannot decrypt.
+	await ensureKeyRelayed()
+	const reply = await swRequestResult<{ apiKey?: string }>('sw:apikey.get.req')
+	switch (reply.status) {
+		case 'ok':
+			return { status: 'ok', apiKey: reply.data?.apiKey }
+		case 'unavailable':
+			return 'serviceWorker' in navigator
+				? { status: 'error', error: 'no-controller' }
+				: { status: 'ok', apiKey: undefined }
+		case 'error':
+			return { status: 'error', error: reply.error }
+		default:
+			return { status: 'error', error: 'timeout' }
+	}
 }
 
 /**
  * Retrieve API key from SW encrypted storage
- * Returns undefined if no SW, no controller, or no stored key
+ * Returns undefined if no SW, no controller, no stored key, or on failure —
+ * use `getApiKeyResult` where a failure must not read as "no key".
  */
 export async function getApiKey(): Promise<string | undefined> {
-	if (!('serviceWorker' in navigator)) return undefined
-
-	const reg = await navigator.serviceWorker.getRegistration()
-	if (!reg?.active) return undefined
-
-	await navigator.serviceWorker.ready
-	const controller = navigator.serviceWorker.controller
-	if (!controller) return undefined
-
-	const id = ++apiKeyRequestId
-	return new Promise((resolve) => {
-		// Timeout after 3 seconds
-		const timeout = setTimeout(() => {
-			apiKeyPendingRequests.delete(id)
-			console.warn('[PWA] API key request timed out')
-			resolve(undefined)
-		}, 3000)
-
-		apiKeyPendingRequests.set(id, (apiKey) => {
-			clearTimeout(timeout)
-			resolve(apiKey)
-		})
-
-		controller.postMessage({
-			cloudillo: true,
-			v: 1,
-			type: 'sw:apikey.get.req',
-			id
-		})
-	})
+	const res = await getApiKeyResult()
+	return res.status === 'ok' ? res.apiKey : undefined
 }
 
 /**
  * Delete API key from SW encrypted storage
  */
 export async function deleteApiKey(): Promise<void> {
-	if (!('serviceWorker' in navigator)) return
-
-	await navigator.serviceWorker.ready
-	navigator.serviceWorker.controller?.postMessage({
-		cloudillo: true,
-		v: 1,
-		type: 'sw:apikey.del'
-	})
+	await swNotify('sw:apikey.del')
 	console.log('[PWA] API key deletion requested')
 }
 
@@ -606,23 +250,36 @@ export async function deleteApiKey(): Promise<void> {
  * Clean up encryption cookie when no encrypted data remains (temporary session logout)
  */
 export function cleanupEncryptionCookie(): void {
-	document.cookie = `${KEY_COOKIE_NAME}=; Secure; SameSite=Strict; Path=/; Max-Age=0`
-	localStorage.removeItem(HAD_ENCRYPTED_DATA_KEY)
+	clearSwKeyCookie()
+	clearHadEncryptedData()
 }
 
 /**
- * Clear auth token from SW (used on logout)
+ * Clear the auth token from the SW (logout).
+ *
+ * Dropping the replay memo is part of the contract: a later SW restart broadcasts
+ * `sw:token.request`, and a memo still holding the just-invalidated bearer would hand it
+ * straight back, resuming injection until its `exp`.
  */
 export async function clearAuthToken(): Promise<void> {
-	if (!('serviceWorker' in navigator)) return
-
-	await navigator.serviceWorker.ready
-	navigator.serviceWorker.controller?.postMessage({
-		cloudillo: true,
-		v: 1,
-		type: 'sw:token.clear'
-	})
+	lastInstalledSwToken = undefined
+	await queueSwTokenWrite(() => swNotify('sw:token.clear'))
 	console.log('[PWA] Auth token cleared')
+}
+
+/**
+ * Give back a scoped token installed by `useInstalledToken`: forget the replay memo and
+ * restore the tab's session token in the worker (or clear it when there is no session).
+ * Without this a share-link token outranks the session token for the page's life.
+ */
+export async function releaseInstalledToken(): Promise<void> {
+	lastInstalledSwToken = undefined
+	// `currentAuthToken` is read when the write runs, not when queued, so a login that
+	// lands in between is not undone.
+	await queueSwTokenWrite(async () => {
+		if (currentAuthToken) await postTokenToSw(currentAuthToken)
+		else await swNotify('sw:token.clear')
+	})
 }
 
 /**
@@ -646,8 +303,7 @@ export async function resetAppCache(): Promise<void> {
 	location.reload()
 }
 
-export default function usePWA(config: PWAConfig = {}): UsePWA {
-	swConfig = config
+export default function usePWA(_config: PWAConfig = {}): UsePWA {
 	const [_notify, setNotify] = React.useState(false)
 	const [installEvt, setInstallEvt] = React.useState<BeforeInstallPromptEvent | undefined>()
 
@@ -661,16 +317,18 @@ export default function usePWA(config: PWAConfig = {}): UsePWA {
 			if (stat === 'granted') {
 				setNotify(true)
 				// Push notifications
-				let sub = await serviceWorker.pushManager.getSubscription()
+				const reg = await ensureServiceWorker()
+				if (!reg) return
+				let sub = await reg.pushManager.getSubscription()
 				if (sub) {
 					console.log('Subscription object: ', JSON.stringify(sub))
 					return sub
 				} else {
 					// Not subscribed yet
 					try {
-						sub = await serviceWorker.pushManager.subscribe({
+						sub = await reg.pushManager.subscribe({
 							userVisibleOnly: true,
-							applicationServerKey: convertKey(vapidPublicKey)
+							applicationServerKey: base64UrlToBytes(vapidPublicKey)
 						})
 						console.log('subscription: ', sub)
 						//console.log('subscription: ', JSON.stringify(sub))
@@ -698,10 +356,8 @@ export default function usePWA(config: PWAConfig = {}): UsePWA {
 	}
 
 	React.useEffect(function onMount() {
-		// Register SW early and ensure encryption key is available
-		registerServiceWorker()
-			.then(() => refreshEncryptionKey())
-			.catch((err) => console.error('[PWA] startup failed:', err))
+		// Memoized — the Header boot effect awaits this very promise.
+		ensureServiceWorker().catch((err) => console.error('[PWA] startup failed:', err))
 
 		// Install Prompt handler
 		window.addEventListener(

@@ -21,20 +21,18 @@ import type {
 	CrdtClientIdReq
 } from '@cloudillo/core'
 
-import {
-	decryptBinary,
-	encryptBinary,
-	getSwKeyFromCookie,
-	maybeSignalKeyMissing
-} from '../../cache/crypto.js'
-import { hadEncryptedData } from '../../pwa.js'
+import { CRDT_DB, databaseExists, openDb, openedDb } from '../../../shared/idb.js'
+import { reportKeyUnavailable } from '../../auth/key-signal.js'
+import { decryptBinary, encryptBinary } from '../../cache/crypto.js'
+import { readSwKeyCookie } from '../../pwa/cookie.js'
+import { hadEncryptedData } from '../../pwa/encrypted-data-flag.js'
 import type { ShellMessageBus } from '../shell-bus.js'
 
 // ============================================
 // CONSTANTS
 // ============================================
 
-const DB_NAME = 'cloudillo-crdt'
+const DB_NAME = CRDT_DB
 const DB_VERSION = 2
 const CLIENTIDS_STORE = 'clientids'
 const CACHE_STORE = 'cache'
@@ -74,69 +72,39 @@ function tryAcquireLock(name: string): Promise<AcquiredLock | null> {
 // UNIFIED INDEXEDDB
 // ============================================
 
-let db: IDBDatabase | null = null
-
-async function crdtDbExists(): Promise<boolean> {
-	if (typeof indexedDB.databases !== 'function') return false
-	try {
-		const dbs = await indexedDB.databases()
-		return dbs.some((d) => d.name === DB_NAME)
-	} catch {
-		return false
-	}
-}
-
 async function openDB(): Promise<IDBDatabase | null> {
-	if (db) return db
+	const open = openedDb(DB_NAME)
+	if (open) return open
 
-	// Local persistence is optional — it only enables offline support.
-	// Without an encryption key, return null so callers can degrade:
-	// allocate a random clientId, skip cache reads/writes, etc. The
-	// app continues to work via the WebSocket. We still avoid creating
-	// the IDB when no key exists (phantom-DB guard: SW boot probe at
-	// shell/sw/index.ts:hasEncryptedData uses `indexedDB.databases()`
-	// to detect prior encrypted state).
-	if (!getSwKeyFromCookie()) {
-		const dbExists = (await crdtDbExists()) || hadEncryptedData()
+	// Local persistence is optional — it only enables offline support. Without an
+	// encryption key, return null so callers can degrade (random clientId, no cache
+	// reads/writes) and keep working over the WebSocket. Creating the IDB is skipped
+	// too, so a pre-auth visit leaves no empty database behind.
+	if (!readSwKeyCookie()) {
+		// `'unknown'` means the browser has no `indexedDB.databases()`; the
+		// localStorage flag is the only remaining evidence of prior writes.
+		const exists = await databaseExists(DB_NAME)
+		const dbExists = exists === 'unknown' ? hadEncryptedData() : exists
 		if (!dbExists) return null
-		// Cookie lost but DB exists on disk — surface recovery dialog
-		// and try to open. Encrypt/decrypt will fail individually.
-		maybeSignalKeyMissing()
+		// Cookie lost but the DB exists on disk — open it anyway so the dirty
+		// markers stay readable, and let the key-loss assessment decide whether
+		// anything is actually at risk. Encrypt/decrypt fail individually.
+		reportKeyUnavailable()
 	}
 
-	return new Promise<IDBDatabase | null>((resolve, reject) => {
-		const request = indexedDB.open(DB_NAME, DB_VERSION)
-		request.onupgradeneeded = (event) => {
-			const database = request.result
-			const oldVersion = event.oldVersion
-
-			// Create stores if they don't exist
-			if (!database.objectStoreNames.contains(CLIENTIDS_STORE)) {
-				database.createObjectStore(CLIENTIDS_STORE)
-			}
-			if (!database.objectStoreNames.contains(CACHE_STORE)) {
-				database.createObjectStore(CACHE_STORE)
-			}
-
-			// v1→v2: clear stale data (key format changed)
-			if (oldVersion < 2) {
-				const tx = (event.target as IDBOpenDBRequest).transaction!
-				tx.objectStore(CLIENTIDS_STORE).clear()
-				tx.objectStore(CACHE_STORE).clear()
-			}
+	return openDb(DB_NAME, DB_VERSION, (database, oldVersion, tx) => {
+		if (!database.objectStoreNames.contains(CLIENTIDS_STORE)) {
+			database.createObjectStore(CLIENTIDS_STORE)
 		}
-		request.onsuccess = () => {
-			db = request.result
-			db.onclose = () => {
-				db = null
-			}
-			db.onversionchange = () => {
-				db?.close()
-				db = null
-			}
-			resolve(db)
+		if (!database.objectStoreNames.contains(CACHE_STORE)) {
+			database.createObjectStore(CACHE_STORE)
 		}
-		request.onerror = () => reject(request.error)
+
+		// v1→v2: clear stale data (key format changed)
+		if (oldVersion < 2) {
+			tx.objectStore(CLIENTIDS_STORE).clear()
+			tx.objectStore(CACHE_STORE).clear()
+		}
 	})
 }
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { IdpStatusResponse } from '@cloudillo/core'
-import { FetchError } from '@cloudillo/core'
+import { FetchError, setApiToken } from '@cloudillo/core'
 import { Button, useApi, useAuth } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -195,6 +195,9 @@ export function Welcome() {
 			}
 
 			setProgress('success')
+			// Registry first, then `setAuth` — the settings read below runs in this
+			// same async continuation, before Layout's `syncApiToken` effect commits.
+			if (res.idTag && res.token) setApiToken(res.idTag, res.token)
 			setAuth({ ...res })
 			// The welcome refId rides in the URL (/onboarding/:refId/…) so the
 			// wizard's Finish step can consume it (via api.onboarding.complete)

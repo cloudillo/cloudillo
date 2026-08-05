@@ -9,7 +9,7 @@ import {
 	PiArrowCounterClockwiseBold as IcRetake
 } from 'react-icons/pi'
 
-import type { CropPoints } from '../types.js'
+import type { CornerSource, CropPoints } from '../types.js'
 import { base64ToCanvas, extractPerspective } from '../utils/image-processing.js'
 
 interface CropEditorProps {
@@ -17,18 +17,21 @@ interface CropEditorProps {
 	width: number
 	height: number
 	initialCorners: CropPoints | null
+	cornerSource?: CornerSource
 	onConfirm: (canvas: HTMLCanvasElement, cropPoints: CropPoints) => void
 	onRetake?: () => void
 	onCancel: () => void
 }
 
 const HANDLE_HIT_RADIUS = 48
+const HINT_TIMEOUT_MS = 4000
 
 export function CropEditor({
 	imageData,
 	width,
 	height,
 	initialCorners,
+	cornerSource,
 	onConfirm,
 	onRetake,
 	onCancel
@@ -44,6 +47,7 @@ export function CropEditor({
 	const [processing, setProcessing] = React.useState(false)
 	const [_imageLoaded, setImageLoaded] = React.useState(false)
 	const [activeCorner, setActiveCorner] = React.useState<number | null>(null)
+	const [hintVisible, setHintVisible] = React.useState(true)
 	const containerRef = React.useRef<HTMLDivElement>(null)
 	const imgRef = React.useRef<HTMLImageElement>(null)
 	const magnifierRef = React.useRef<HTMLCanvasElement>(null)
@@ -60,6 +64,12 @@ export function CropEditor({
 		const observer = new ResizeObserver(() => forceUpdate())
 		observer.observe(container)
 		return () => observer.disconnect()
+	}, [])
+
+	React.useEffect(() => {
+		setHintVisible(true)
+		const timer = setTimeout(() => setHintVisible(false), HINT_TIMEOUT_MS)
+		return () => clearTimeout(timer)
 	}, [])
 
 	// Load source image for magnifier
@@ -163,11 +173,17 @@ export function CropEditor({
 		})
 	}
 
+	function endDrag() {
+		setActiveCorner(null)
+	}
+
 	function handlePointerUp(e: React.PointerEvent) {
-		if (activeCorner !== null) {
+		try {
 			containerRef.current?.releasePointerCapture(e.pointerId)
-			setActiveCorner(null)
+		} catch {
+			// Pointer is already gone (e.g. cancelled by a system gesture)
 		}
+		endDrag()
 	}
 
 	// Draw magnifier
@@ -191,6 +207,9 @@ export function CropEditor({
 
 		const zoomFactor = 3
 
+		const imgRect = getImageRect()
+		if (!imgRect) return
+
 		// Clip to circle
 		ctx.save()
 		ctx.beginPath()
@@ -198,8 +217,6 @@ export function CropEditor({
 		ctx.clip()
 
 		// Draw zoomed region
-		const imgRect = getImageRect()
-		if (!imgRect) return
 		const halfSrc = srcImg.naturalWidth * (1 / zoomFactor) * (size / imgRect.w)
 		const halfSrcY = srcImg.naturalHeight * (1 / zoomFactor) * (size / imgRect.h)
 		ctx.drawImage(
@@ -310,6 +327,15 @@ export function CropEditor({
 
 	const magnifierPos = getMagnifierPos()
 
+	// Detected (or reused confirmed) corners get no hint — only the cases where the user
+	// is expected to check or fix them.
+	const hintText =
+		cornerSource === 'preview'
+			? 'Using boundaries from the live preview — check the corners'
+			: cornerSource === 'none'
+				? 'No document edges found — drag the corners to fit'
+				: null
+
 	return (
 		<div className="crop-editor">
 			<div
@@ -318,13 +344,21 @@ export function CropEditor({
 				onPointerDown={handlePointerDown}
 				onPointerMove={handlePointerMove}
 				onPointerUp={handlePointerUp}
-				style={{ touchAction: 'none' }}
+				onPointerCancel={handlePointerUp}
+				onLostPointerCapture={endDrag}
+				onContextMenu={(e) => e.preventDefault()}
 			>
 				<img
 					ref={imgRef}
 					src={imgSrc}
 					alt="Captured"
-					style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+					style={{
+						width: '100%',
+						height: '100%',
+						objectFit: 'contain',
+						pointerEvents: 'none',
+						userSelect: 'none'
+					}}
 					draggable={false}
 					onLoad={() => setImageLoaded(true)}
 				/>
@@ -375,6 +409,7 @@ export function CropEditor({
 					/>
 				)}
 			</div>
+			{hintVisible && hintText && <div className="crop-hint">{hintText}</div>}
 			<div className="crop-toolbar">
 				<button className="c-button icon" onClick={onCancel} title="Cancel">
 					<IcCancel />

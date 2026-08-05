@@ -4,6 +4,10 @@
 export type CropPoints = [[number, number], [number, number], [number, number], [number, number]]
 // Order: [topLeft, topRight, bottomRight, bottomLeft] — clockwise, normalized 0-1
 
+// Where a crop quad came from ('none' = full-frame fallback, nothing detected).
+// Drives the provenance hint in CropEditor.
+export type CornerSource = 'detected' | 'preview' | 'none'
+
 // Annotations — coordinates normalized 0-1 (resolution-independent)
 export interface AnnotationBase {
 	id: string
@@ -35,10 +39,14 @@ export type CaptureFlowState =
 	| { step: 'processing' }
 	| {
 			step: 'crop'
+			/** Monotonic per-capture id — the CropEditor's React key, so a new capture
+			 *  always gets a fresh instance (its corner state is seeded once). */
+			captureId: number
 			imageData: string
 			width: number
 			height: number
 			detectedCorners: CropPoints | null
+			cornerSource?: CornerSource
 			sourcePageId?: string
 			existingOriginalFileId?: string
 			existingFilter?: PageFilter

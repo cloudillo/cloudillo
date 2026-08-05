@@ -8,11 +8,15 @@
  * The shell provides frames already scaled to the requested maxDimension.
  *
  * Custom pipeline (blur BEFORE Canny for correct behavior at 1024px):
- *   GaussianBlur(5,5) → Canny(50, 200) → findContours(RETR_EXTERNAL) → largest contour
+ *   GaussianBlur(5,5) → Canny(50, 200) → morphologyEx(CLOSE) →
+ *   findContours(RETR_EXTERNAL) → largest contour → optional local corner refinement
  */
 
 // @ts-expect-error - jscanify is UMD without type declarations
 import jscanify from 'jscanify/client'
+
+import type { CornerSource, CropPoints } from './types.js'
+import { type GrayImage, refineQuad } from './utils/refine-quad.js'
 
 let scanner: Jscanify | null = null
 export function getScanner(): Jscanify {
@@ -93,11 +97,23 @@ let decodeCanvas: HTMLCanvasElement | null = null
 
 function getDecodeCanvas(width: number, height: number): HTMLCanvasElement {
 	if (!decodeCanvas) {
+		// TODO: cv.imread() reads back via getImageData() every frame, so
+		// `{ willReadFrequently: true }` may win. It has to go here — context attributes
+		// are fixed by the first getContext() call. Measure on a real device first.
 		decodeCanvas = document.createElement('canvas')
 	}
 	decodeCanvas.width = width
 	decodeCanvas.height = height
 	return decodeCanvas
+}
+
+/** Integer BT.601 luma — close enough to cv.COLOR_RGBA2GRAY for gradient work. */
+function toLuma(rgba: Uint8ClampedArray, width: number, height: number): GrayImage {
+	const data = new Uint8ClampedArray(width * height)
+	for (let i = 0, p = 0; i < data.length; i++, p += 4) {
+		data[i] = (77 * rgba[p] + 150 * rgba[p + 1] + 29 * rgba[p + 2]) >> 8
+	}
+	return { data, width, height }
 }
 
 // ============================================
@@ -106,25 +122,41 @@ function getDecodeCanvas(width: number, height: number): HTMLCanvasElement {
 
 /**
  * Find the largest paper-like contour in an image.
- * Pipeline: GaussianBlur(5,5) → Canny(50,200) → findContours → largest
+ * Pipeline: GaussianBlur(5,5) → Canny(50,200) → morphologyEx(CLOSE) → findContours → largest
+ *
+ * The contour count is returned separately from the contour itself: findContours traces
+ * edge pixels, so an image full of open curves yields contours whose contourArea collapses
+ * toward zero. Without the count, that case is indistinguishable from "no contours at all".
  */
-function findPaperContour(mat: CvMat): CvMat | null {
+function findPaperContour(mat: CvMat): { contour: CvMat | null; contourCount: number } {
 	const gray = new cv.Mat()
 	const blurred = new cv.Mat()
 	const edges = new cv.Mat()
+	const closed = new cv.Mat()
 	const contours = new cv.MatVector()
 	const hierarchy = new cv.Mat()
+	let kernel: CvMat | null = null
 
 	try {
 		cv.cvtColor(mat, gray, cv.COLOR_RGBA2GRAY)
 		cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0)
 		cv.Canny(blurred, edges, 50, 200)
-		cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+
+		// Bridge small Canny gaps so a boundary that breaks at a low-contrast spot still
+		// traces as one closed loop instead of an area-collapsing out-and-back polygon.
+		// Scale-relative on purpose (3px @640 preview, 5px @1024 capture): an absolute
+		// kernel makes the preview and the full-res pass disagree.
+		const k = 2 * Math.round(Math.max(mat.rows, mat.cols) / 400) + 1
+		kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(k, k))
+		cv.morphologyEx(edges, closed, cv.MORPH_CLOSE, kernel)
+
+		cv.findContours(closed, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
 
 		let largestContour: CvMat | null = null
 		let largestArea = 0
+		const contourCount = contours.size()
 
-		for (let i = 0; i < contours.size(); i++) {
+		for (let i = 0; i < contourCount; i++) {
 			const contour = contours.get(i)
 			const area = cv.contourArea(contour)
 			if (area > largestArea) {
@@ -136,21 +168,34 @@ function findPaperContour(mat: CvMat): CvMat | null {
 			contour.delete()
 		}
 
-		return largestContour
+		return { contour: largestContour, contourCount }
 	} finally {
 		gray.delete()
 		blurred.delete()
 		edges.delete()
+		closed.delete()
 		contours.delete()
 		hierarchy.delete()
+		if (kernel) kernel.delete()
 	}
 }
 
 /**
  * Extract corner points from a contour using minAreaRect center partitioning.
  * Smart edge-aware selection: avoids corners that sit on image boundaries.
+ *
+ * `fallbackCount` is how many of the four corners had to fall back to the farthest point
+ * regardless of the edge-margin rule. Two or more means most corners are pinned to the
+ * image border and the "detection" is really a full-frame quad in disguise.
+ *
+ * Exported for its unit test: the gate it feeds sits inside `detectDocumentDetailed`,
+ * which needs OpenCV and a real canvas and so cannot be driven from a suite.
  */
-function getCornerPoints(contour: CvMat, width: number, height: number): CornerPoints | null {
+export function getCornerPoints(
+	contour: CvMat,
+	width: number,
+	height: number
+): { corners: CornerPoints; fallbackCount: number } | null {
 	const rect = cv.minAreaRect(contour)
 	const center = rect.center
 
@@ -171,6 +216,9 @@ function getCornerPoints(contour: CvMat, width: number, height: number): CornerP
 		const dist = Math.sqrt((x - center.x) ** 2 + (y - center.y) ** 2)
 		const point = { x, y, dist }
 
+		// Mixed strict/loose comparisons, but still a valid partition (no gaps, no double
+		// counting). A perfectly axis-aligned contour whose points all sit on the centre
+		// lines can leave a quadrant empty, which makes this return null.
 		if (x <= center.x && y < center.y) topLeft.push(point)
 		else if (x > center.x && y < center.y) topRight.push(point)
 		else if (x <= center.x && y >= center.y) bottomLeft.push(point)
@@ -180,16 +228,20 @@ function getCornerPoints(contour: CvMat, width: number, height: number): CornerP
 	const isOnEdge = (px: number, py: number): boolean =>
 		px < marginX || px > width - marginX || py < marginY || py > height - marginY
 
-	// Pick the farthest non-edge point; fall back to farthest overall
+	// Pick the farthest non-edge point; fall back to farthest overall. Single max-scan
+	// rather than a sort — this runs per quadrant per frame at 5fps.
 	function pickCorner(
 		points: { x: number; y: number; dist: number }[]
-	): { x: number; y: number } | null {
-		if (points.length === 0) return null
-		points.sort((a, b) => b.dist - a.dist)
+	): { x: number; y: number; fallback: boolean } | null {
+		let best: { x: number; y: number; dist: number } | null = null
+		let farthest: { x: number; y: number; dist: number } | null = null
 		for (const p of points) {
-			if (!isOnEdge(p.x, p.y)) return { x: p.x, y: p.y }
+			if (!farthest || p.dist > farthest.dist) farthest = p
+			if (!isOnEdge(p.x, p.y) && (!best || p.dist > best.dist)) best = p
 		}
-		return { x: points[0].x, y: points[0].y }
+		if (best) return { x: best.x, y: best.y, fallback: false }
+		if (farthest) return { x: farthest.x, y: farthest.y, fallback: true }
+		return null
 	}
 
 	const tl = pickCorner(topLeft)
@@ -200,10 +252,17 @@ function getCornerPoints(contour: CvMat, width: number, height: number): CornerP
 	if (!tl || !tr || !bl || !br) return null
 
 	return {
-		topLeftCorner: tl,
-		topRightCorner: tr,
-		bottomLeftCorner: bl,
-		bottomRightCorner: br
+		corners: {
+			topLeftCorner: { x: tl.x, y: tl.y },
+			topRightCorner: { x: tr.x, y: tr.y },
+			bottomLeftCorner: { x: bl.x, y: bl.y },
+			bottomRightCorner: { x: br.x, y: br.y }
+		},
+		fallbackCount:
+			(tl.fallback ? 1 : 0) +
+			(tr.fallback ? 1 : 0) +
+			(bl.fallback ? 1 : 0) +
+			(br.fallback ? 1 : 0)
 	}
 }
 
@@ -211,12 +270,183 @@ function getCornerPoints(contour: CvMat, width: number, height: number): CornerP
 // MAIN DETECTION FUNCTION
 // ============================================
 
+/** Why a detection pass ended the way it did. Every exit path reports one. */
+export type DetectReason = 'ok' | 'decode-failed' | 'no-contour' | 'small-area' | 'no-corners'
+
+export interface DetectOutcome {
+	quad: CropPoints | null
+	source: CornerSource
+	reason: DetectReason
+	areaFraction: number | null
+	refinedEdges: number
+	maxShiftPx: number
+}
+
+// Working resolution. The refine cap is separate so it can be raised to 2048 in one line if
+// corner precision at 1024 (~0.3px there, ~1px on a 3000px original) proves insufficient on
+// real devices; full resolution would mean a 48MB ImageData on a mid phone.
+const MAX_DETECT_DIM = 1024
+const MAX_REFINE_DIM = 1024
+
+// Contour must enclose at least this fraction of the frame to count as a document.
+const MIN_AREA_FRACTION = 0.1
+
+/**
+ * Detect a document quadrilateral in a base64 JPEG image, with provenance.
+ *
+ * Order: detect → if detection produced nothing trustworthy and a seed was supplied, adopt
+ * the seed → refine whichever quad we ended up with against the full-res image. Refinement
+ * runs on detected quads too: getCornerPoints' farthest-vertex-per-quadrant heuristic is
+ * biased outward, and the morphological close adds another ~k/2px on top.
+ *
+ * @param imageData - Base64-encoded JPEG (no data URL prefix)
+ * @param opts.seed - Fallback quad (normalized) to adopt if detection fails
+ * @param opts.refine - Run local corner refinement (costs one getImageData)
+ */
+export async function detectDocumentDetailed(
+	imageData: string,
+	opts?: { seed?: CropPoints | null; refine?: boolean }
+): Promise<DetectOutcome> {
+	const seed = opts?.seed ?? null
+	const refine = opts?.refine ?? false
+
+	await loadOpenCV()
+
+	const blob = await (await fetch(`data:image/jpeg;base64,${imageData}`)).blob()
+	const bitmap = await createImageBitmap(blob)
+
+	// Scale down for detection if needed
+	let detectW = bitmap.width
+	let detectH = bitmap.height
+	const limit = refine ? MAX_REFINE_DIM : MAX_DETECT_DIM
+	const maxDim = Math.max(detectW, detectH)
+	if (maxDim > limit) {
+		const scale = limit / maxDim
+		detectW = Math.round(bitmap.width * scale)
+		detectH = Math.round(bitmap.height * scale)
+	}
+
+	function report(outcome: DetectOutcome, contourCount: number): DetectOutcome {
+		console.debug('[scanillo] detect', {
+			reason: outcome.reason,
+			source: outcome.source,
+			detectW,
+			detectH,
+			contourCount,
+			areaFraction: outcome.areaFraction,
+			refinedEdges: outcome.refinedEdges,
+			maxShiftPx: outcome.maxShiftPx
+		})
+		return outcome
+	}
+
+	const canvas = getDecodeCanvas(detectW, detectH)
+	const ctx = canvas.getContext('2d')
+	if (!ctx) {
+		bitmap.close()
+		return report(
+			{
+				quad: seed,
+				source: seed ? 'preview' : 'none',
+				reason: 'decode-failed',
+				areaFraction: null,
+				refinedEdges: 0,
+				maxShiftPx: 0
+			},
+			0
+		)
+	}
+
+	ctx.drawImage(bitmap, 0, 0, detectW, detectH)
+	bitmap.close()
+
+	// --- synchronous block: NO await until `gray` has been copied out ---
+	// `decodeCanvas` is module-level and shared; the only mutation that could corrupt it is
+	// getDecodeCanvas() reassigning width/height, reachable only from another detect call —
+	// which single-threaded JS cannot start mid-block.
+	const mat = cv.imread(canvas)
+	const gray = refine
+		? toLuma(ctx.getImageData(0, 0, detectW, detectH).data, detectW, detectH)
+		: null
+	// --- end synchronous block ---
+
+	let quad: CropPoints | null = null
+	let source: CornerSource = 'none'
+	let reason: DetectReason = 'ok'
+	let areaFraction: number | null = null
+	let contourCount = 0
+
+	let contour: CvMat | null = null
+	try {
+		const found = findPaperContour(mat)
+		contour = found.contour
+		contourCount = found.contourCount
+
+		if (!contour) {
+			reason = 'no-contour'
+		} else {
+			areaFraction = cv.contourArea(contour) / (detectW * detectH)
+			if (areaFraction < MIN_AREA_FRACTION) {
+				reason = 'small-area'
+			} else {
+				const picked = getCornerPoints(contour, detectW, detectH)
+				if (!picked) {
+					reason = 'no-corners'
+				} else {
+					const c = picked.corners
+					const normalize = (px: number, py: number): [number, number] => [
+						Math.max(0, Math.min(1, px / detectW)),
+						Math.max(0, Math.min(1, py / detectH))
+					]
+					quad = [
+						normalize(c.topLeftCorner.x, c.topLeftCorner.y),
+						normalize(c.topRightCorner.x, c.topRightCorner.y),
+						normalize(c.bottomRightCorner.x, c.bottomRightCorner.y),
+						normalize(c.bottomLeftCorner.x, c.bottomLeftCorner.y)
+					]
+					// Most corners pinned to the image border — a full-frame quad wearing
+					// a detection's clothes. Dropped rather than merely downgraded: the
+					// preview wrapper below reports `quad` alone, so a quad left here
+					// would seed the capture pass as if it had been detected.
+					if (picked.fallbackCount >= 2) {
+						reason = 'no-corners'
+						quad = null
+					} else {
+						source = 'detected'
+					}
+				}
+			}
+		}
+	} finally {
+		mat.delete()
+		if (contour) contour.delete()
+	}
+
+	// The preview frame and the capture still are the same video frame at different
+	// scales, so a normalized preview quad maps onto the still with no conversion.
+	if (source !== 'detected' && seed) {
+		quad = seed
+		source = 'preview'
+	}
+
+	let refinedEdges = 0
+	let maxShiftPx = 0
+	if (quad && gray) {
+		const refined = refineQuad(gray, quad)
+		quad = refined.quad
+		refinedEdges = refined.refinedEdges
+		maxShiftPx = refined.maxShiftPx
+	}
+
+	return report({ quad, source, reason, areaFraction, refinedEdges, maxShiftPx }, contourCount)
+}
+
 /**
  * Detect a document quadrilateral in a base64 JPEG image.
  *
+ * Wrapper for the 5fps preview loop: no refinement, no seed, no getImageData.
+ *
  * @param imageData - Base64-encoded JPEG (no data URL prefix)
- * @param width - Frame width
- * @param height - Frame height
  * @returns 4 normalized [x,y] corner points in clockwise order, or null if no document found
  */
 export async function detectDocument(
@@ -224,72 +454,8 @@ export async function detectDocument(
 	_width: number,
 	_height: number
 ): Promise<[number, number][] | null> {
-	await loadOpenCV()
-
-	// Decode base64 to canvas
-	const MAX_DETECT_DIM = 1024
-	const blob = await (await fetch(`data:image/jpeg;base64,${imageData}`)).blob()
-	const bitmap = await createImageBitmap(blob)
-
-	// Scale down for detection if needed
-	let detectWidth = bitmap.width
-	let detectHeight = bitmap.height
-	const maxDim = Math.max(detectWidth, detectHeight)
-	if (maxDim > MAX_DETECT_DIM) {
-		const scale = MAX_DETECT_DIM / maxDim
-		detectWidth = Math.round(bitmap.width * scale)
-		detectHeight = Math.round(bitmap.height * scale)
-	}
-
-	const canvas = getDecodeCanvas(detectWidth, detectHeight)
-	const ctx = canvas.getContext('2d')
-	if (!ctx) {
-		bitmap.close()
-		return null
-	}
-
-	ctx.drawImage(bitmap, 0, 0, detectWidth, detectHeight)
-	bitmap.close()
-
-	// Run detection at scaled resolution
-	const mat = cv.imread(canvas)
-	let contour: CvMat | null = null
-	try {
-		contour = findPaperContour(mat)
-		if (!contour) return null
-
-		// Check minimum area (10% of frame)
-		const contourArea = cv.contourArea(contour)
-		const frameArea = detectWidth * detectHeight
-		if (contourArea < frameArea * 0.1) {
-			return null
-		}
-
-		const corners = getCornerPoints(contour, detectWidth, detectHeight)
-		if (!corners) return null
-
-		const { topLeftCorner, topRightCorner, bottomLeftCorner, bottomRightCorner } = corners
-
-		console.debug(
-			`[scanillo] frame=${detectWidth}x${detectHeight} area=${((contourArea / frameArea) * 100).toFixed(1)}% corners: TL(${topLeftCorner.x},${topLeftCorner.y}) TR(${topRightCorner.x},${topRightCorner.y}) BR(${bottomRightCorner.x},${bottomRightCorner.y}) BL(${bottomLeftCorner.x},${bottomLeftCorner.y})`
-		)
-
-		// Normalize to 0-1, clamped
-		const normalize = (px: number, py: number): [number, number] => [
-			Math.max(0, Math.min(1, px / detectWidth)),
-			Math.max(0, Math.min(1, py / detectHeight))
-		]
-
-		return [
-			normalize(topLeftCorner.x, topLeftCorner.y),
-			normalize(topRightCorner.x, topRightCorner.y),
-			normalize(bottomRightCorner.x, bottomRightCorner.y),
-			normalize(bottomLeftCorner.x, bottomLeftCorner.y)
-		]
-	} finally {
-		mat.delete()
-		if (contour) contour.delete()
-	}
+	const outcome = await detectDocumentDetailed(imageData, { refine: false, seed: null })
+	return outcome.quad
 }
 
 // vim: ts=4

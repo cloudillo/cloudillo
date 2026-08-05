@@ -37,10 +37,12 @@ import { AnnotationOverlay } from './components/AnnotationOverlay.js'
 import { CropEditor } from './components/CropEditor.js'
 import { FilterSelect } from './components/FilterSelect.js'
 import type { MarginOption } from './export/pdf-export.js'
+import { useBackStack } from './hooks/use-back-stack.js'
 import type {
 	Annotation,
 	AnnotationTool,
 	CaptureFlowState,
+	CornerSource,
 	CropPoints,
 	PageFilter,
 	ScanPage
@@ -54,8 +56,29 @@ import {
 	extractPerspective,
 	rotateCanvas
 } from './utils/image-processing.js'
+import { lerpQuad, quadDistance } from './utils/refine-quad.js'
 
 const APP_NAME = 'scanillo'
+
+// Live-preview lock. Two consecutive preview detections that agree within these bounds
+// start a streak; a streak that is long and fresh enough at shutter time becomes the seed
+// quad for the full-res pass.
+//
+// Handheld drift at 5fps (200ms) is ~0.5-1% of the frame while deliberately framing, and
+// the quadrant heuristic's own jitter is 1-2px @640 ≈ 0.2-0.3%: generous enough not to
+// reject a steady hand, tight enough to catch a pan.
+const LOCK_AGREE_MEAN = 0.02
+// Per-corner cap, so one corner jumping across the frame cannot be averaged away by three
+// stable ones.
+const LOCK_AGREE_MAX = 0.04
+// `streak` counts agreeing *transitions*: first detection → 0, second agreeing → 1, third
+// → 2. So 2 demands three detections, i.e. >=400ms of agreement.
+const MIN_STABLE_STREAK = 2
+// A fresh lock is normally <=400ms old at shutter (200ms frame interval + 20-80ms detect).
+// This tolerates 1-2 dropped frames without accepting a quad from a recomposed scene.
+const MAX_LOCK_AGE_MS = 1500
+// Cuts jitter by sqrt(a/(2-a)) = 0.577 while still tracking motion.
+const LOCK_EMA_ALPHA = 0.5
 
 type PendingTempId = { pageId: string; field: 'fileId' | 'originalFileId' }
 
@@ -107,7 +130,9 @@ function useScanillo() {
 				rtdbClient = new RtdbClient({
 					dbId: fileId,
 					auth: {
-						getToken: () => bus.accessToken
+						getToken: () => bus.accessToken,
+						// On a 4401 `getToken` above is already stale — must renew.
+						refreshToken: () => bus.refreshToken()
 					},
 					serverUrl,
 					options: {
@@ -828,7 +853,7 @@ function ExportDialog({
 	}
 
 	return (
-		<Dialog open={open} title="Export PDF" onClose={onClose}>
+		<Dialog open={open} title="Export PDF" dismissable onClose={onClose}>
 			<div className="c-vbox g-3">
 				<div className="c-vbox g-1">
 					<label className="export-label">Resolution</label>
@@ -900,6 +925,8 @@ function ExportDialog({
 export function ScanilloApp() {
 	const scanillo = useScanillo()
 	const pendingTempIds = React.useRef(new Map<string, PendingTempId>())
+	// Monotonic, so every `step: 'crop'` state is a distinct CropEditor instance.
+	const captureIdRef = React.useRef(0)
 	const {
 		pages,
 		loading: pagesLoading,
@@ -993,6 +1020,23 @@ export function ScanilloApp() {
 	const selectedPage = selectedPageId ? pages.find((p) => p.id === selectedPageId) : undefined
 	const selectedPageIndex = selectedPage ? pages.indexOf(selectedPage) : -1
 
+	const overlayDepth =
+		(selectedPageId ? 1 : 0) +
+		(captureFlow.step === 'crop' || captureFlow.step === 'filter' ? 1 : 0) +
+		(showExportDialog ? 1 : 0)
+
+	useBackStack(overlayDepth, () => {
+		if (showExportDialog) {
+			setShowExportDialog(false)
+		} else if (captureFlow.step === 'filter') {
+			handleFilterBack()
+		} else if (captureFlow.step === 'crop') {
+			setCaptureFlow({ step: 'idle' })
+		} else if (selectedPageId) {
+			setSelectedPageId(null)
+		}
+	})
+
 	async function handlePickMedia() {
 		try {
 			const bus = getAppBus()
@@ -1025,14 +1069,16 @@ export function ScanilloApp() {
 				const h = bitmap.height
 				bitmap.close()
 
-				const { detectDocument } = await import('./detect-document.js')
-				const quad = await detectDocument(imageData, w, h)
+				const { detectDocumentDetailed } = await import('./detect-document.js')
+				const det = await detectDocumentDetailed(imageData, { refine: true, seed: null })
 				setCaptureFlow({
 					step: 'crop',
+					captureId: ++captureIdRef.current,
 					imageData,
 					width: w,
 					height: h,
-					detectedCorners: quad as CropPoints | null
+					detectedCorners: det.quad,
+					cornerSource: det.source
 				})
 			}
 		} catch (err) {
@@ -1044,18 +1090,28 @@ export function ScanilloApp() {
 	async function handleCaptureCamera() {
 		try {
 			const bus = getAppBus()
+			// Hoisted out of the 5fps loop so no frame pays for module resolution
+			const dd = await import('./detect-document.js')
 
 			// Set up frame handler before opening camera
 			let detecting = false
+			let cancelled = false
 			let latestFrame: {
 				imageData: string
 				seq: number
 				width: number
 				height: number
+				at: number
 			} | null = null
+			// Last stable preview boundary. The bus sends no timestamp, so `at` is stamped
+			// when the frame arrives. Held in a box because the detection loop assigns it
+			// from a nested closure, which a plain `let` would not survive narrowing-wise.
+			const lock: { current: { quad: CropPoints; at: number; streak: number } | null } = {
+				current: null
+			}
 
 			async function processNextFrame(sessionId: string) {
-				if (!latestFrame) {
+				if (cancelled || !latestFrame) {
 					detecting = false
 					return
 				}
@@ -1064,27 +1120,50 @@ export function ScanilloApp() {
 				latestFrame = null
 
 				try {
-					const { detectDocument } = await import('./detect-document.js')
-					const quad = await detectDocument(frame.imageData, frame.width, frame.height)
+					const raw = await dd.detectDocument(frame.imageData, frame.width, frame.height)
+					// The shutter already fired — this result is newer than the shot and
+					// must not touch the lock or a torn-down session.
+					if (cancelled) {
+						detecting = false
+						return
+					}
+					const quad: CropPoints | null =
+						raw && raw.length === 4 ? (raw as CropPoints) : null
 
 					if (quad) {
+						const prev = lock.current
+						const d = prev ? quadDistance(prev.quad, quad) : null
+						const agrees = !!(
+							prev &&
+							d &&
+							d.mean <= LOCK_AGREE_MEAN &&
+							d.max <= LOCK_AGREE_MAX
+						)
+						const smoothed =
+							agrees && prev ? lerpQuad(prev.quad, quad, LOCK_EMA_ALPHA) : quad
+						lock.current = {
+							quad: smoothed,
+							at: frame.at,
+							streak: agrees && prev ? prev.streak + 1 : 0
+						}
 						bus.sendCameraOverlay(sessionId, frame.seq, [
 							{
 								type: 'polygon',
-								points: quad,
+								points: smoothed,
 								stroke: 'rgba(0, 220, 80, 0.9)',
 								strokeWidth: 3,
 								fill: 'rgba(0, 220, 80, 0.15)'
 							}
 						])
 					} else {
+						// Clear the overlay but keep the lock — recency expires it.
 						bus.sendCameraOverlay(sessionId, frame.seq, [])
 					}
 				} catch (err) {
 					console.error('[Scanillo] Detection error:', err)
 				}
 
-				if (latestFrame) {
+				if (!cancelled && latestFrame) {
 					processNextFrame(sessionId)
 				} else {
 					detecting = false
@@ -1095,7 +1174,7 @@ export function ScanilloApp() {
 			const session = await bus.openCamera({ facing: 'environment' })
 
 			bus.onCameraPreviewFrame((frame) => {
-				latestFrame = frame
+				latestFrame = { ...frame, at: performance.now() }
 				if (!detecting) processNextFrame(session.sessionId)
 			})
 
@@ -1105,20 +1184,46 @@ export function ScanilloApp() {
 			// Wait for user to capture or cancel
 			const result = await session.result
 
+			// Freeze the preview state synchronously. onCameraPreviewFrame(null) below only
+			// stops *new* frames; an in-flight detection would otherwise complete during the
+			// await further down and overwrite `lock` with a frame newer than the shot.
+			cancelled = true
+			const now = performance.now()
+			const stable = lock.current
+			const lockAgeMs = stable ? now - stable.at : null
+			const streak = stable?.streak ?? 0
+			const seed =
+				stable && stable.streak >= MIN_STABLE_STREAK && now - stable.at <= MAX_LOCK_AGE_MS
+					? stable.quad
+					: null
+
 			// Clean up
 			bus.stopCameraPreview(session.sessionId)
 			bus.onCameraPreviewFrame(null)
 
 			if (result) {
 				setCaptureFlow({ step: 'processing' })
-				const { detectDocument } = await import('./detect-document.js')
-				const quad = await detectDocument(result.imageData, result.width, result.height)
+				const det = await dd.detectDocumentDetailed(result.imageData, {
+					seed,
+					refine: true
+				})
+				console.debug('[scanillo] capture', {
+					source: det.source,
+					reason: det.reason,
+					areaFraction: det.areaFraction,
+					refinedEdges: det.refinedEdges,
+					maxShiftPx: det.maxShiftPx,
+					lockAgeMs,
+					streak
+				})
 				setCaptureFlow({
 					step: 'crop',
+					captureId: ++captureIdRef.current,
 					imageData: result.imageData,
 					width: result.width,
 					height: result.height,
-					detectedCorners: quad as CropPoints | null
+					detectedCorners: det.quad,
+					cornerSource: det.source
 				})
 			}
 		} catch (err) {
@@ -1323,6 +1428,7 @@ export function ScanilloApp() {
 		// New capture: go back to crop
 		setCaptureFlow({
 			step: 'crop',
+			captureId: ++captureIdRef.current,
 			imageData: captureFlow.originalImageData,
 			width: captureFlow.originalWidth,
 			height: captureFlow.originalHeight,
@@ -1361,16 +1467,26 @@ export function ScanilloApp() {
 			bitmap.close()
 
 			if (mode === 'crop') {
-				const { detectDocument } = await import('./detect-document.js')
-				const quad =
-					page.cropPoints ??
-					((await detectDocument(imageData, w, h)) as CropPoints | null)
+				// Confirmed corners are reused as-is — no detection, and no provenance hint
+				let quad: CropPoints | null = page.cropPoints ?? null
+				let cornerSource: CornerSource | undefined
+				if (!quad) {
+					const { detectDocumentDetailed } = await import('./detect-document.js')
+					const det = await detectDocumentDetailed(imageData, {
+						refine: true,
+						seed: null
+					})
+					quad = det.quad
+					cornerSource = det.source
+				}
 				setCaptureFlow({
 					step: 'crop',
+					captureId: ++captureIdRef.current,
 					imageData,
 					width: w,
 					height: h,
 					detectedCorners: quad,
+					cornerSource,
 					sourcePageId: page.id,
 					existingOriginalFileId: page.originalFileId,
 					existingFilter: page.filter,
@@ -1473,10 +1589,12 @@ export function ScanilloApp() {
 		return (
 			<div className="scanillo-app c-vbox w-100 h-100">
 				<CropEditor
+					key={captureFlow.captureId}
 					imageData={captureFlow.imageData}
 					width={captureFlow.width}
 					height={captureFlow.height}
 					initialCorners={captureFlow.detectedCorners}
+					cornerSource={captureFlow.cornerSource}
 					onConfirm={handleCropConfirm}
 					onRetake={captureFlow.sourcePageId ? undefined : handleCropRetake}
 					onCancel={() => setCaptureFlow({ step: 'idle' })}

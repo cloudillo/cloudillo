@@ -77,14 +77,16 @@ export function getCrdtUrl(idTag: string): string {
 }
 
 /**
- * Build the RTDB WebSocket URL for real-time database
- * @param idTag - Identity tag of the tenant
- * @param fileId - File ID for the RTDB
- * @param token - Authentication token
- * @returns RTDB WebSocket URL with token query parameter
+ * Build the RTDB WebSocket URL from a pre-resolved server URL.
+ *
+ * Callers hold a `wss://cl-o.<idTag>` base already (the RTDB client is
+ * configured with one), so this is the single place the query-string encoding
+ * lives. Omit `token` for an unauthenticated read — the URL then carries
+ * `access=read` instead.
  */
-export function getRtdbUrl(idTag: string, fileId: string, token: string): string {
-	return `${getWsUrl(idTag)}/ws/rtdb/${fileId}?token=${encodeURIComponent(token)}`
+export function buildRtdbUrl(serverUrl: string, dbId: string, token?: string): string {
+	const query = token ? `token=${encodeURIComponent(token)}` : 'access=read'
+	return `${serverUrl}/ws/rtdb/${dbId}?${query}`
 }
 
 /**

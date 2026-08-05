@@ -61,13 +61,7 @@ import {
 	tShareCreateReq,
 	tShareCreateResultPush,
 	tStorageOpReq,
-	tStorageOpRes,
-	tSwApiKeyDel,
-	tSwApiKeyGetReq,
-	tSwApiKeyGetRes,
-	tSwApiKeySet,
-	tSwTokenClear,
-	tSwTokenSet
+	tStorageOpRes
 } from './types.js'
 
 // ============================================
@@ -335,36 +329,6 @@ export const MESSAGE_REGISTRY: Record<MessageType, MessageAccessRule> = {
 		directions: ['app>shell'],
 		requiresAuth: true,
 		validator: tImportCompleteNotify
-	},
-	'sw:token.set': {
-		directions: ['shell>sw'],
-		requiresAuth: false,
-		validator: tSwTokenSet
-	},
-	'sw:token.clear': {
-		directions: ['shell>sw'],
-		requiresAuth: false,
-		validator: tSwTokenClear
-	},
-	'sw:apikey.set': {
-		directions: ['shell>sw'],
-		requiresAuth: false,
-		validator: tSwApiKeySet
-	},
-	'sw:apikey.get.req': {
-		directions: ['shell>sw'],
-		requiresAuth: false,
-		validator: tSwApiKeyGetReq
-	},
-	'sw:apikey.get.res': {
-		directions: ['sw>shell'],
-		requiresAuth: false,
-		validator: tSwApiKeyGetRes
-	},
-	'sw:apikey.del': {
-		directions: ['shell>sw'],
-		requiresAuth: false,
-		validator: tSwApiKeyDel
 	}
 }
 

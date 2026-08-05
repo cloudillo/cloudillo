@@ -290,91 +290,6 @@ export const tStorageOpRes = T.struct({
 export type StorageOpRes = T.TypeOf<typeof tStorageOpRes>
 
 // ============================================
-// SERVICE WORKER MESSAGES
-// ============================================
-
-/**
- * Shell sets auth token in service worker
- * Direction: shell -> sw
- */
-export const tSwTokenSet = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('sw:token.set'),
-	payload: T.struct({
-		token: T.string
-	})
-})
-export type SwTokenSet = T.TypeOf<typeof tSwTokenSet>
-
-/**
- * Shell clears auth token in service worker (logout)
- * Direction: shell -> sw
- */
-export const tSwTokenClear = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('sw:token.clear')
-})
-export type SwTokenClear = T.TypeOf<typeof tSwTokenClear>
-
-/**
- * Shell stores API key in service worker
- * Direction: shell -> sw
- */
-export const tSwApiKeySet = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('sw:apikey.set'),
-	payload: T.struct({
-		apiKey: T.string
-	})
-})
-export type SwApiKeySet = T.TypeOf<typeof tSwApiKeySet>
-
-/**
- * Shell requests API key from service worker
- * Direction: shell -> sw
- */
-export const tSwApiKeyGetReq = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('sw:apikey.get.req'),
-	id: T.number
-})
-export type SwApiKeyGetReq = T.TypeOf<typeof tSwApiKeyGetReq>
-
-/**
- * Service worker responds with API key
- * Direction: sw -> shell
- */
-export const tSwApiKeyGetRes = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('sw:apikey.get.res'),
-	replyTo: T.number,
-	ok: T.boolean,
-	data: T.optional(
-		T.struct({
-			apiKey: T.optional(T.string)
-		})
-	),
-	error: T.optional(T.string)
-})
-export type SwApiKeyGetRes = T.TypeOf<typeof tSwApiKeyGetRes>
-
-/**
- * Shell deletes API key from service worker
- * Direction: shell -> sw
- */
-export const tSwApiKeyDel = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('sw:apikey.del')
-})
-export type SwApiKeyDel = T.TypeOf<typeof tSwApiKeyDel>
-
-// ============================================
 // MEDIA PICKER MESSAGES
 // ============================================
 
@@ -1268,15 +1183,7 @@ export const tCloudilloMessage = T.taggedUnion('type')({
 
 	// Import messages
 	'import:data.push': tImportDataPush,
-	'import:complete.notify': tImportCompleteNotify,
-
-	// Service worker messages
-	'sw:token.set': tSwTokenSet,
-	'sw:token.clear': tSwTokenClear,
-	'sw:apikey.set': tSwApiKeySet,
-	'sw:apikey.get.req': tSwApiKeyGetReq,
-	'sw:apikey.get.res': tSwApiKeyGetRes,
-	'sw:apikey.del': tSwApiKeyDel
+	'import:complete.notify': tImportCompleteNotify
 })
 export type CloudilloMessage = T.TypeOf<typeof tCloudilloMessage>
 

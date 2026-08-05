@@ -5,6 +5,7 @@ import * as T from '@symbion/runtype'
 
 import { type ApiFetchResult, apiFetchHelper, FetchError } from './api.js'
 import * as Types from './api-types.js'
+import { jwtExpiryDate } from './jwt.js'
 import { getInstanceUrl } from './urls.js'
 
 // Aborts are signaled via DOMException('AbortError'), not UploadError.
@@ -113,9 +114,20 @@ export interface ApiClientOpts {
  */
 export class ApiClient {
 	private opts: ApiClientOpts
+	/** When `opts.authToken` dies. Undefined = no known expiry (never reaped). */
+	private authExpiresAt?: Date
+	/**
+	 * Whether this client stands for a logged-in session, as opposed to a
+	 * guest/anonymous one. Stays true when the token is dropped for having
+	 * expired, and only goes false on an explicit `setAuthToken(undefined)` —
+	 * that distinction is what lets an expired session still reach 401 recovery.
+	 */
+	private authenticatedClient: boolean
 
 	constructor(opts: ApiClientOpts) {
 		this.opts = opts
+		this.authExpiresAt = jwtExpiryDate(opts.authToken)
+		this.authenticatedClient = !!opts.authToken
 	}
 
 	/**
@@ -126,7 +138,11 @@ export class ApiClient {
 	}
 
 	/**
-	 * Update the auth token used by subsequent requests.
+	 * Update the auth token used by subsequent requests, and with it the instant
+	 * the client stops considering itself authenticated. `expiresAt` defaults to
+	 * the token's own `exp` claim, so callers cannot forget it; pass one only
+	 * where a different rule applies (a lifetime handed down by the shell, say).
+	 * Clearing the token clears the expiry too.
 	 *
 	 * Token reads happen lazily inside `request()` / `requestWithMeta()`, so
 	 * mutating it here is safe — in-flight requests keep the value they captured;
@@ -134,8 +150,36 @@ export class ApiClient {
 	 * JWT rotations (the client's identity stays referentially stable, which
 	 * matters for any `useEffect`/`useMemo` that depends on the api object).
 	 */
-	setAuthToken(token: string | undefined): void {
+	setAuthToken(token: string | undefined, expiresAt?: Date): void {
 		this.opts.authToken = token
+		this.authExpiresAt = token ? (expiresAt ?? jwtExpiryDate(token)) : undefined
+		this.authenticatedClient = !!token
+	}
+
+	/**
+	 * The token to authenticate with, or undefined when there is none — the one
+	 * place expiry is checked. An expired token is dropped here (lazily, on
+	 * read), so a client that outlives its token stops sending it rather than
+	 * collecting 401s.
+	 */
+	getAuthToken(): string | undefined {
+		if (this.authExpiresAt && this.authExpiresAt.getTime() <= Date.now()) {
+			this.opts.authToken = undefined
+			this.authExpiresAt = undefined
+		}
+		return this.opts.authToken
+	}
+
+	/**
+	 * True when this client holds a token that has not expired. Pure — unlike
+	 * `getAuthToken()` it does NOT reap. React callers compute this during render
+	 * (`useApi()` in libs/react/src/hooks.tsx), where dropping the token as a
+	 * side effect would lose it with nothing scheduling a re-render; the reaping
+	 * stays on the request path.
+	 */
+	hasValidToken(): boolean {
+		if (!this.opts.authToken) return false
+		return !this.authExpiresAt || this.authExpiresAt.getTime() > Date.now()
 	}
 
 	private async handleAuthError(
@@ -147,7 +191,10 @@ export class ApiClient {
 			err instanceof FetchError &&
 			err.httpStatus === 401 && // 401 only — never 403 (permission denials stay errors)
 			!perRequestToken && // used the client's own token, not a scoped per-request token
-			this.opts.authToken // authenticated client only — excludes guest/anonymous clients
+			// Deliberately NOT getAuthToken(): the question is "does this client
+			// stand for a session", and an expired token is the very case recovery
+			// exists for. Gating on the live token returns those 401s unrecovered.
+			this.authenticatedClient // authenticated client only — excludes guest/anonymous clients
 		) {
 			const recovery = await authErrorHandler({
 				idTag: this.opts.idTag,
@@ -185,7 +232,7 @@ export class ApiClient {
 				headers: options?.headers
 			})
 		try {
-			return await send(options?.authToken || this.opts.authToken)
+			return await send(options?.authToken || this.getAuthToken())
 		} catch (err) {
 			if (options?.skipAuthRecovery) throw err
 			const recovery = await this.handleAuthError(err, options?.authToken)
@@ -225,7 +272,7 @@ export class ApiClient {
 				returnMeta: true
 			})
 		try {
-			return await send(options?.authToken || this.opts.authToken)
+			return await send(options?.authToken || this.getAuthToken())
 		} catch (err) {
 			if (options?.skipAuthRecovery) throw err
 			const recovery = await this.handleAuthError(err, options?.authToken)
@@ -796,8 +843,9 @@ export class ApiClient {
 					(fileData instanceof Blob && fileData.type) ||
 					'application/octet-stream'
 				xhr.setRequestHeader('Content-Type', type)
-				if (this.opts.authToken) {
-					xhr.setRequestHeader('Authorization', `Bearer ${this.opts.authToken}`)
+				const authToken = this.getAuthToken()
+				if (authToken) {
+					xhr.setRequestHeader('Authorization', `Bearer ${authToken}`)
 				}
 				xhr.withCredentials = true
 
@@ -897,8 +945,9 @@ export class ApiClient {
 		 */
 		getVariant: (variantId: string) => {
 			const headers: Record<string, string> = {}
-			if (this.opts.authToken) {
-				headers.Authorization = `Bearer ${this.opts.authToken}`
+			const authToken = this.getAuthToken()
+			if (authToken) {
+				headers.Authorization = `Bearer ${authToken}`
 			}
 			return fetch(`${getInstanceUrl(this.opts.idTag)}/api/files/variant/${variantId}`, {
 				headers
@@ -943,8 +992,9 @@ export class ApiClient {
 			const qs = query ? '?' + new URLSearchParams(query).toString() : ''
 
 			const headers: Record<string, string> = {}
-			if (this.opts.authToken) {
-				headers.Authorization = `Bearer ${this.opts.authToken}`
+			const authToken = this.getAuthToken()
+			if (authToken) {
+				headers.Authorization = `Bearer ${authToken}`
 			}
 
 			return fetch(`${getInstanceUrl(this.opts.idTag)}/api/files/${fileId}${qs}`, {
@@ -1361,7 +1411,7 @@ export class ApiClient {
 					type: Types.tImportContactsResult,
 					rawBody: vcard,
 					query: { conflict },
-					authToken: this.opts.authToken,
+					authToken: this.getAuthToken(),
 					headers: { 'Content-Type': 'text/vcard; charset=utf-8' }
 				}
 			)

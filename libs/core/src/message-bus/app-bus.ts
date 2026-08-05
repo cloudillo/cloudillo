@@ -12,6 +12,7 @@
  * - Event handling for pushed messages
  */
 
+import { setApiToken } from '../api-registry.js'
 import { MessageBusBase, type MessageBusConfig } from './core.js'
 import { validateMessage } from './registry.js'
 import {
@@ -553,6 +554,7 @@ export class AppMessageBus extends MessageBusBase {
 
 			// Apply theme to document
 			this.applyTheme()
+			this.syncApiToken()
 		}
 
 		this.initialized = true
@@ -591,6 +593,7 @@ export class AppMessageBus extends MessageBusBase {
 				params: msg.payload.params
 			}
 			this.applyTheme()
+			this.syncApiToken()
 			this.initialized = true
 			this.log('Initialized via push')
 
@@ -609,6 +612,7 @@ export class AppMessageBus extends MessageBusBase {
 			if (msg.payload.tokenLifetime !== undefined) {
 				this.state.tokenLifetime = msg.payload.tokenLifetime
 			}
+			this.syncApiToken()
 			this.log('Token updated via push')
 		})
 
@@ -642,6 +646,21 @@ export class AppMessageBus extends MessageBusBase {
 			this.log('Received viewstate.set:', msg.payload.viewState)
 			this.viewStateHandler?.(msg.payload.viewState)
 		})
+	}
+
+	/**
+	 * Mirror the bus's current token into the process-wide ApiClient registry, so
+	 * `useApi()` (libs/react) hands app code an authenticated client. The bus owns
+	 * that entry app-side, as the shell's boot/auth flow owns the home entry (see
+	 * api-registry.ts). Call wherever `accessToken` changes.
+	 *
+	 * No explicit expiry: the shell derives every `tokenLifetime` it sends from the
+	 * token's own `exp`, so `setAuthToken` reading `exp` gets the same answer
+	 * without the rounding.
+	 */
+	private syncApiToken(): void {
+		if (!this.state.idTag) return
+		setApiToken(this.state.idTag, this.state.accessToken)
 	}
 
 	/**
@@ -727,6 +746,7 @@ export class AppMessageBus extends MessageBusBase {
 			if (data.tokenLifetime !== undefined) {
 				this.state.tokenLifetime = data.tokenLifetime
 			}
+			this.syncApiToken()
 			this.log('Token refreshed')
 			return data.token
 		}

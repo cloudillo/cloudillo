@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { type ApiClient, createApiClient, getAppBus } from '@cloudillo/core'
+import { type ApiClient, getApiClient, getAppBus, hasApiToken } from '@cloudillo/core'
 import { type CrdtPersistence, openYDoc } from '@cloudillo/crdt'
 import { atom, useAtom } from 'jotai'
 import * as React from 'react'
@@ -46,6 +46,15 @@ export const apiAtom = atom<ApiState>({})
  * Returns a fully type-safe API client with all endpoints typed.
  * Also allows setting the idTag for initial login flow.
  *
+ * IMPORTANT — this hook does NOT install `auth.token` on the client. The client
+ * comes from the process-wide registry in `@cloudillo/core`
+ * (`libs/core/src/api-registry.ts`), and whoever owns the session must call
+ * `setApiToken(idTag, token)` before (or as) it populates `authAtom` — the
+ * shell's auth flow, or `getAppBus().init()` inside an app iframe. An app that
+ * populates `authAtom` itself and never calls `setApiToken` gets an anonymous
+ * client and 401s; `authenticated` below reports that honestly, since it asks
+ * the client rather than the atom.
+ *
  * @example
  * ```typescript
  * const { api, setIdTag } = useApi()
@@ -76,38 +85,61 @@ export interface ApiHook {
 	setIdTag: (idTag: string) => void
 }
 
-export function useApi(): ApiHook {
+// idTags already reported by the diagnostic in `useApi()` — one warning each,
+// however many components mount.
+const tokenWarned = new Set<string>()
+
+/**
+ * The client for one idTag, plus whether it will send a live bearer.
+ *
+ * `idTag` overrides the default resolution (`apiAtom` then `authAtom`), which is
+ * what the shell's `useContextAwareApi` passes the active context through. Pass
+ * `null` for "explicitly no client" — the caller knows it is still booting.
+ * Omitting the argument keeps the plain home-client behaviour.
+ */
+export function useApi(idTag?: string | null): ApiHook {
 	const [auth] = useAuth()
 	const [apiState, setApiState] = useAtom(apiAtom)
 
-	// One ApiClient per idTag; token rotations are pushed in via setAuthToken
-	// (effect below) so the client identity stays stable across rotations.
-	const apiClientsRef = React.useRef<Map<string, ApiClient>>(new Map())
+	const resolved = idTag !== undefined ? idTag : apiState.idTag || auth?.idTag
 
-	const api = React.useMemo(() => {
-		const idTag = apiState.idTag || auth?.idTag
-		if (!idTag) return null
-
-		let client = apiClientsRef.current.get(idTag)
-		if (!client) {
-			client = createApiClient({ idTag, authToken: auth?.token })
-			apiClientsRef.current.set(idTag, client)
-			if (apiClientsRef.current.size > 10) {
-				const oldestKey = apiClientsRef.current.keys().next().value
-				if (oldestKey !== undefined) apiClientsRef.current.delete(oldestKey)
-			}
-		}
-		return client
-	}, [apiState.idTag, auth?.idTag])
-
-	// Mutate the cached client's token in an effect rather than during render
-	// so the useMemo factory stays pure.
-	React.useEffect(() => {
-		if (api) api.setAuthToken(auth?.token)
-	}, [api, auth?.token])
+	// One ApiClient per idTag, from the process-wide registry. The token is put
+	// there by the shell's auth flow or, inside an app iframe, by the app bus —
+	// both write through `setApiToken`, so this hook never writes one itself.
+	// See libs/core/src/api-registry.ts.
+	const api = React.useMemo(() => (resolved ? getApiClient(resolved) : null), [resolved])
 
 	const setIdTag = React.useCallback((idTag: string) => setApiState({ idTag }), [setApiState])
-	const authenticated = !!auth?.token
+	// "Will `api` send a live bearer?" — `!!auth?.token` would say yes for a token
+	// the returned client never received, or one that has since expired. Not
+	// memoized: it is an expiry comparison, so the answer goes stale with the
+	// passage of time rather than with any input a dep array could list.
+	const authenticated = resolved ? hasApiToken(resolved) : false
+
+	// Diagnostic for the contract above: an authenticated `authAtom` whose token
+	// never reached the registry means every request goes out anonymous. In an
+	// effect, not during render — by then both writers have run.
+	//
+	// Default resolution only: a caller naming its own idTag is routinely pointed
+	// at a foreign profile the user never trusted, which legitimately has no
+	// registered token.
+	React.useEffect(() => {
+		if (idTag !== undefined) return
+		if (!resolved) return
+		if (hasApiToken(resolved)) {
+			// Re-arm, or the Set silences a genuine regression appearing after a
+			// logout/login cycle.
+			tokenWarned.delete(resolved)
+			return
+		}
+		if (!auth?.token) return
+		if (tokenWarned.has(resolved)) return
+		tokenWarned.add(resolved)
+		console.warn(
+			`[useApi] No API token registered for "${resolved}" — requests will be anonymous. ` +
+				'Call setApiToken(idTag, token) from whoever owns the session.'
+		)
+	}, [idTag, resolved, auth?.token])
 
 	return React.useMemo(
 		() => ({
@@ -333,6 +365,8 @@ export interface UseInfiniteScrollOptions<T> {
 		items: T[]
 		nextCursor: string | null
 		hasMore: boolean
+		/** Set when the page came from a local cache instead of the network */
+		isOffline?: boolean
 	}>
 	/** Items per page (default: 20) */
 	pageSize?: number
@@ -351,6 +385,8 @@ export interface UseInfiniteScrollReturn<T> {
 	isLoadingMore: boolean
 	/** Error from last fetch */
 	error: Error | null
+	/** Whether the last page was served from a local cache (stale data) */
+	isOffline: boolean
 	/** Whether there are more items to load */
 	hasMore: boolean
 	/** Function to load next page */
@@ -404,6 +440,7 @@ export function useInfiniteScroll<T>(
 	const [isLoading, setIsLoading] = React.useState(false)
 	const [isLoadingMore, setIsLoadingMore] = React.useState(false)
 	const [error, setError] = React.useState<Error | null>(null)
+	const [isOffline, setIsOffline] = React.useState(false)
 	const [hasMore, setHasMore] = React.useState(true)
 
 	const sentinelRef = React.useRef<HTMLDivElement | null>(null)
@@ -424,6 +461,7 @@ export function useInfiniteScroll<T>(
 		setCursor(null)
 		setHasMore(true)
 		setError(null)
+		setIsOffline(false)
 		setIsLoading(false)
 		setIsLoadingMore(false)
 		fetchingRef.current = false
@@ -464,6 +502,7 @@ export function useInfiniteScroll<T>(
 				setItems((prev) => (isInitialLoad ? result.items : [...prev, ...result.items]))
 				setCursor(result.nextCursor)
 				setHasMore(result.hasMore)
+				setIsOffline(!!result.isOffline)
 			} catch (err) {
 				if (!isMountedRef.current || epochRef.current !== myEpoch) return
 				setError(err instanceof Error ? err : new Error('Failed to fetch'))
@@ -498,6 +537,7 @@ export function useInfiniteScroll<T>(
 		setCursor(null)
 		setHasMore(true)
 		setError(null)
+		setIsOffline(false)
 		fetchingRef.current = false
 		// Trigger refetch
 		setTimeout(() => fetchItems(null), 0)
@@ -550,6 +590,7 @@ export function useInfiniteScroll<T>(
 		isLoading,
 		isLoadingMore,
 		error,
+		isOffline,
 		hasMore,
 		loadMore,
 		reset,

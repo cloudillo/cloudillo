@@ -31,6 +31,14 @@
 		"./types": {
 			"import": "./lib/types.ts",
 			"types": "./lib/types.d.ts"
+		},
+		"./jwt": {
+			"import": "./lib/jwt.js",
+			"types": "./lib/jwt.d.ts"
+		},
+		"./base64": {
+			"import": "./lib/base64.js",
+			"types": "./lib/base64.d.ts"
 		}
 	},
 	"files": [

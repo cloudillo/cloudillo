@@ -48,7 +48,9 @@ export function ProfileAudienceCard({
 }: ProfileAudienceCardProps) {
 	const [auth] = useAuth()
 	const { t } = useLibTranslation()
-	const src = srcTag ?? auth?.idTag ?? ''
+	// Gate on the resolved source tag, not on `auth` — an anonymous guest has no
+	// auth but an explicit `srcTag` still resolves a perfectly fetchable URL.
+	const idTag = srcTag ?? auth?.idTag
 	const audienceTo = profileBasePath ? `${profileBasePath}/${audience.idTag}` : undefined
 	const issuerTo = profileBasePath ? `${profileBasePath}/${profile.idTag}` : undefined
 	const audienceLabel =
@@ -67,10 +69,10 @@ export function ProfileAudienceCard({
 					ariaLabel={audienceLabel}
 					className="c-profile-card__avatar-link"
 				>
-					{auth && audience.profilePic ? (
+					{idTag && audience.profilePic ? (
 						<img
 							className="picture"
-							src={getFileUrl(src, audience.profilePic, 'vis.pf')}
+							src={getFileUrl(idTag, audience.profilePic, 'vis.pf')}
 							alt=""
 						/>
 					) : (
@@ -82,10 +84,10 @@ export function ProfileAudienceCard({
 					ariaLabel={issuerLabel}
 					className="c-profile-card__avatar-link c-profile-card__avatar-link--tiny"
 				>
-					{auth && profile.profilePic ? (
+					{idTag && profile.profilePic ? (
 						<img
 							className="picture tiny"
-							src={getFileUrl(src, profile.profilePic, 'vis.pf')}
+							src={getFileUrl(idTag, profile.profilePic, 'vis.pf')}
 							alt=""
 						/>
 					) : (

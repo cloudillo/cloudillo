@@ -14,17 +14,24 @@ export interface ProfileCardProps {
 	className?: string
 	profile: Profile
 	srcTag?: string
+	/** Defaults to `''`: the adjacent name and identity tag already carry the
+	 *  information, so the picture is decorative. */
+	alt?: string
 }
 
-export function ProfileCard({ className, profile, srcTag }: ProfileCardProps) {
+export function ProfileCard({ className, profile, srcTag, alt = '' }: ProfileCardProps) {
 	const [auth] = useAuth()
+	// Gate on the resolved source tag, not on `auth` — an anonymous guest has no
+	// auth but an explicit `srcTag` still resolves a perfectly fetchable URL.
+	const idTag = srcTag ?? auth?.idTag
 
 	return (
 		<div className={mergeClasses('c-profile-card', className)}>
-			{auth && profile.profilePic ? (
+			{idTag && profile.profilePic ? (
 				<img
 					className="picture"
-					src={getFileUrl(srcTag ?? auth?.idTag ?? '', profile.profilePic, 'vis.pf')}
+					src={getFileUrl(idTag, profile.profilePic, 'vis.pf')}
+					alt={alt}
 				/>
 			) : (
 				<UnknownProfilePicture />

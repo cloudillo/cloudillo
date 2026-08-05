@@ -61,7 +61,9 @@ export function useNotillo() {
 				rtdbClient = new RtdbClient({
 					dbId: fileId,
 					auth: {
-						getToken: () => bus.accessToken
+						getToken: () => bus.accessToken,
+						// On a 4401 `getToken` above is already stale — must renew.
+						refreshToken: () => bus.refreshToken()
 					},
 					serverUrl,
 					options: {

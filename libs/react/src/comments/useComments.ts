@@ -19,6 +19,11 @@ export interface UseCommentsOptions {
 	fileId: string
 	serverUrl: string
 	getToken: () => string | undefined
+	/**
+	 * Renew the token after the server rejects it (RTDB close code 4401).
+	 * Without it an expired token permanently kills the comments socket.
+	 */
+	refreshToken?: () => Promise<string | undefined>
 	idTag?: string
 	displayName?: string
 	access: 'read' | 'comment' | 'write'
@@ -40,11 +45,13 @@ export interface UseCommentsReturn {
 }
 
 export function useComments(options: UseCommentsOptions): UseCommentsReturn {
-	const { fileId, serverUrl, getToken, idTag, displayName, access } = options
+	const { fileId, serverUrl, getToken, refreshToken, idTag, displayName, access } = options
 	const clientRef = useRef<RtdbClient | null>(null)
 	const connectingRef = useRef<Promise<RtdbClient> | null>(null)
 	const getTokenRef = useRef(getToken)
 	getTokenRef.current = getToken
+	const refreshTokenRef = useRef(refreshToken)
+	refreshTokenRef.current = refreshToken
 	const [connected, setConnected] = useState(false)
 
 	// Lazy connection: connect on first use
@@ -61,7 +68,15 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
 			const metaDbId = getMetaDbId(fileId)
 			const client = new RtdbClient({
 				dbId: metaDbId,
-				auth: { getToken: () => getTokenRef.current() },
+				auth: {
+					getToken: () => getTokenRef.current(),
+					// Installed unconditionally: the client is built once on first use, so
+					// a conditional spread would snapshot "no refresher" and never pick up
+					// one supplied on a later render. With none registered a 4401 burns
+					// MAX_TOKEN_REFRESH_ATTEMPTS on no-op refreshes before the
+					// subscriptions fail.
+					refreshToken: () => refreshTokenRef.current?.() ?? Promise.resolve(undefined)
+				},
 				serverUrl,
 				options: {
 					enableCache: true,

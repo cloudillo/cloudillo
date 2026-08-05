@@ -149,6 +149,16 @@ export interface RtdbClientOptions {
 	dbId: string
 	auth: {
 		getToken: () => string | undefined | Promise<string | undefined>
+		/**
+		 * Obtain a *fresh* token after the server rejected the current one
+		 * (close code 4401). Without it, an expired token is terminal: the
+		 * socket closes and every subscription errors out for good.
+		 *
+		 * `getToken` alone is not enough — call sites typically hand over a
+		 * thunk like `() => bus.accessToken`, which keeps returning the same
+		 * stale value. This hook must actually renew (e.g. `bus.refreshToken()`).
+		 */
+		refreshToken?: () => Promise<string | undefined>
 	}
 	serverUrl: string
 	options?: {

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { buildRtdbUrl } from '@cloudillo/core'
 import * as T from '@symbion/runtype'
 
 import { AuthError, ConnectionError, RtdbError, TimeoutError } from './errors.js'
@@ -13,6 +14,23 @@ import {
 	type ServerMessage,
 	tServerMessage
 } from './types.js'
+
+// Token refreshes attempted for one unhealthy connection streak before the subscriptions are
+// failed with an AuthError. Two covers the realistic cases (a token that expired mid-session,
+// a racing renewal) without letting a permanently-rejected resource drive an unbounded loop.
+const MAX_TOKEN_REFRESH_ATTEMPTS = 2
+
+// Refreshes that threw or yielded nothing, for the same streak. A separate budget because
+// such a refresh proves nothing about access: spending the definitive one on it would let two
+// 5xx/offline blips at the token endpoint permanently fail every subscription on a resource
+// the user can read fine. Also the backstop that keeps termination guaranteed — without it a
+// token endpoint that never answers would reconnect forever.
+const MAX_TOKEN_REFRESH_FAILURES = 5
+
+// How long a connection must stay up to count as healthy and replenish the retry budgets.
+// Longer than the accept-then-close-4401 sequence a rejected resource produces, shorter than
+// the 30s ping interval so an idle-but-working connection still counts as healthy.
+const CONNECTION_HEALTHY_MS = 10_000
 
 interface PendingRequest {
 	resolve: (value: unknown) => void
@@ -51,16 +69,66 @@ export class WebSocketManager {
 	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null
 	private debug: boolean
 
+	// Set by `disconnect()` and `stopReconnection()`: the caller is done with this client and
+	// nothing already in flight may revive it. Distinct from `options.reconnect === false`,
+	// which only means "never auto-reconnect on a dropped socket" — such a client may still
+	// legitimately be reconnected by the 4401 refresh path.
+	private stopped = false
+
+	// Bounds the 4401 recovery path so a genuinely unauthorized resource can't spin through
+	// refresh → reconnect → 4401 → refresh forever. Counting attempts is what makes the bound
+	// real: tracking an in-flight refresh instead would not, since it settles from `onopen` —
+	// and an upgrade the server accepts and *then* closes 4401 would clear the flag and loop
+	// with no delay and no cap.
+	//
+	// Counted on the *success* path only: a refresh that produced a token and was answered
+	// with another 4401 is the server saying no, and only that may spend this budget.
+	// Inconclusive refreshes go to `tokenRefreshFailures`. Reset only from a connection that
+	// proved healthy (see `healthyTimer`).
+	private tokenRefreshAttempts = 0
+
+	// Consecutive refreshes that threw or yielded nothing. See MAX_TOKEN_REFRESH_FAILURES;
+	// reset alongside `tokenRefreshAttempts`.
+	private tokenRefreshFailures = 0
+
+	// Fires CONNECTION_HEALTHY_MS after `onopen` and is the only thing that replenishes the
+	// *token-refresh* budgets. "A frame arrived" is not enough: a server that greets the socket
+	// then closes it 4401 sends a frame on every attempt (a pong will do), handing the budget
+	// straight back and making the cap unreachable — "the connection stayed up" cannot be faked
+	// that way. Cleared on every teardown, so a socket dying inside the window replenishes
+	// nothing. The plain reconnect backoff is not gated this way; see `onopen`.
+	private healthyTimer: ReturnType<typeof setTimeout> | null = null
+
 	constructor(
 		private dbId: string,
 		private getToken: () => string | undefined | Promise<string | undefined>,
 		private serverUrl: string,
-		private options: Required<Exclude<RtdbClientOptions['options'], undefined>>
+		private options: Required<Exclude<RtdbClientOptions['options'], undefined>>,
+		private refreshToken?: () => Promise<string | undefined>
 	) {
 		this.debug = options.debug
 	}
 
+	/** Arm the healthy-connection timer, replacing any previous one. */
+	private startHealthyTimer(): void {
+		this.stopHealthyTimer()
+		this.healthyTimer = setTimeout(() => {
+			this.healthyTimer = null
+			this.log('Connection healthy, token refresh budget replenished')
+			this.tokenRefreshAttempts = 0
+			this.tokenRefreshFailures = 0
+		}, CONNECTION_HEALTHY_MS)
+	}
+
+	private stopHealthyTimer(): void {
+		if (this.healthyTimer) {
+			clearTimeout(this.healthyTimer)
+			this.healthyTimer = null
+		}
+	}
+
 	private cleanupWebSocket(): void {
+		this.stopHealthyTimer()
 		if (this.ws) {
 			this.ws.onopen = null
 			this.ws.onclose = null
@@ -79,6 +147,8 @@ export class WebSocketManager {
 	async connect(): Promise<void> {
 		if (this.connected) return
 		if (this.connecting && this.connectPromise) return this.connectPromise
+
+		this.stopped = false
 
 		// Cancel any pending reconnect
 		if (this.reconnectTimeout) {
@@ -101,13 +171,7 @@ export class WebSocketManager {
 			const token = await this.getToken()
 
 			return new Promise((resolve, reject) => {
-				const params = new URLSearchParams()
-				if (token) {
-					params.set('token', token)
-				} else {
-					params.set('access', 'read')
-				}
-				const wsUrl = `${this.serverUrl}/ws/rtdb/${this.dbId}?${params}`
+				const wsUrl = buildRtdbUrl(this.serverUrl, this.dbId, token)
 
 				// Clean up any previous WebSocket before creating a new one
 				this.cleanupWebSocket()
@@ -136,7 +200,17 @@ export class WebSocketManager {
 					this.log('Connected to server')
 					this.connected = true
 					this.errorNotified = false
+					// An accepted upgrade proves the *transport* works, so the backoff
+					// resets here — otherwise a link that drops faster than the health
+					// window (captive portal, idle-cutting proxy, mobile handoff)
+					// ratchets to maxReconnectDelay and stays there even though every
+					// reconnect succeeds.
 					this.reconnectAttempts = 0
+					// The token-refresh budget is NOT cleared here: an accepted upgrade
+					// is not yet an accepted *authorization* (the server may close it
+					// 4401 right after). Cleared only if this socket is still up
+					// CONNECTION_HEALTHY_MS from now.
+					this.startHealthyTimer()
 					this.startPingInterval()
 					this.flushMessageQueue()
 					this.reestablishSubscriptions() // Re-establish subscriptions after reconnect
@@ -169,8 +243,16 @@ export class WebSocketManager {
 	}
 
 	async disconnect(): Promise<void> {
+		this.stopped = true
 		this.connecting = false
 		this.connectPromise = null
+		// Invalidate in-flight async work (the 4401 refresh IIFE, stale socket handlers) so a
+		// late resolution cannot reopen a socket nobody owns.
+		this.connectionId++
+		if (this.reconnectTimeout) {
+			clearTimeout(this.reconnectTimeout)
+			this.reconnectTimeout = null
+		}
 		this.cleanupWebSocket()
 		this.connected = false
 		this.stopPingInterval()
@@ -300,6 +382,8 @@ export class WebSocketManager {
 	}
 
 	private handleMessage(rawData: string): void {
+		// Deliberately does NOT touch the retry budgets — a frame is trivially cheap for a
+		// server about to close 4401. `startHealthyTimer` owns replenishment.
 		try {
 			const data = JSON.parse(rawData)
 			this.log('Received:', data)
@@ -426,6 +510,9 @@ export class WebSocketManager {
 		this.log('Disconnected from server', { code, reason })
 		this.connected = false
 		this.connecting = false
+		// Before anything else: a socket that died inside the health window must not go on
+		// to replenish the very budgets this close is spending.
+		this.stopHealthyTimer()
 		this.stopPingInterval()
 
 		// Clear pending requests if not already cleared by handleError
@@ -436,17 +523,74 @@ export class WebSocketManager {
 		// Clear stale buffered subscription events
 		this.pendingSubscriptionEvents.clear()
 
-		// Don't reconnect on auth/resource errors from backend:
-		// 4401 = Unauthorized, 4403 = Access denied, 4404 = Not found
+		// 4401 = Unauthorized, usually just an expired token: renew and reconnect (the CRDT
+		// provider in libs/crdt/src/crdt.ts does the same). Definitive and inconclusive
+		// refreshes spend separate budgets (MAX_TOKEN_REFRESH_ATTEMPTS /
+		// MAX_TOKEN_REFRESH_FAILURES); exceeding either falls through to the 4400-range
+		// branch below, which fails the subscriptions with an AuthError.
+		if (
+			code === 4401 &&
+			this.refreshToken &&
+			this.tokenRefreshAttempts < MAX_TOKEN_REFRESH_ATTEMPTS &&
+			this.tokenRefreshFailures < MAX_TOKEN_REFRESH_FAILURES
+		) {
+			this.log('Token rejected, refreshing and reconnecting')
+			// Snapshot the generation: a `disconnect()`/`stopReconnection()` while the
+			// refresh is in flight must not be undone by its late resolution.
+			const connId = this.connectionId
+			void (async () => {
+				let token: string | undefined
+				try {
+					token = await this.refreshToken?.()
+				} catch (err) {
+					this.log('Token refresh failed', err)
+				}
+				// The caller tore the client down while we were awaiting: nothing here may
+				// reconnect, and nothing may notify subscriptions it has already dropped.
+				if (this.stopped || connId !== this.connectionId) return
+				if (!token) {
+					this.tokenRefreshFailures++
+					// Inconclusive — retry on the reconnect backoff rather than killing
+					// the client for what may be a transient failure.
+					if (this.options.reconnect) {
+						this.attemptReconnect()
+						return
+					}
+					// Reconnect disabled: the backoff path is a no-op, so nothing would
+					// retry and nothing would call `onError` — the caller's promise and
+					// UI would wait forever. Failing the subscriptions is better.
+					this.notifyAuthError(reason)
+					return
+				}
+				// A token was obtained, so the next 4401 for it is the server's answer,
+				// not ours — spend the definitive budget here.
+				this.tokenRefreshAttempts++
+				// `getToken` is a live thunk, so the reconnect picks up the renewed token
+				// on its own. Through the normal backoff rather than `connect()` straight
+				// away: a successful refresh says nothing about the server accepting the
+				// new token, and an immediate reconnect turns even a capped loop into a
+				// burst.
+				if (this.options.reconnect) {
+					this.attemptReconnect()
+					return
+				}
+				// Reconnect disabled in the options (not stopped — that returned above),
+				// so the backoff path is a no-op and this is the only way back. Bounded
+				// by the attempt counter regardless.
+				try {
+					await this.connect()
+				} catch (err) {
+					this.log('Reconnect after token refresh failed', err)
+				}
+			})()
+			return
+		}
+
+		// Don't reconnect on the remaining auth/resource errors: 4403 = Access denied,
+		// 4404 = Not found (and 4401 once refresh is unavailable or already spent).
 		if (code !== undefined && code >= 4400 && code < 4500) {
 			this.log('Auth/resource error, not reconnecting', { code, reason })
-			// For auth errors, notify subscription error handlers (skip if already notified by handleError)
-			if (!this.errorNotified) {
-				const authError = new AuthError(`Connection closed: ${reason || 'auth error'}`)
-				for (const [, sub] of this.subscriptions.entries()) {
-					sub.onError(authError)
-				}
-			}
+			this.notifyAuthError(reason)
 			return
 		}
 
@@ -455,8 +599,20 @@ export class WebSocketManager {
 		}
 	}
 
+	/**
+	 * Fail every live subscription with an auth error. Skipped when `handleError` already
+	 * notified them for this connection.
+	 */
+	private notifyAuthError(reason?: string): void {
+		if (this.errorNotified) return
+		const authError = new AuthError(`Connection closed: ${reason || 'auth error'}`)
+		for (const [, sub] of this.subscriptions.entries()) {
+			sub.onError(authError)
+		}
+	}
+
 	private attemptReconnect(): void {
-		if (!this.options.reconnect) return
+		if (this.stopped || !this.options.reconnect) return
 
 		const delay = Math.min(
 			this.options.reconnectDelay * 2 ** this.reconnectAttempts,
@@ -553,6 +709,7 @@ export class WebSocketManager {
 	 * Call this when you want to permanently stop the connection.
 	 */
 	stopReconnection(): void {
+		this.stopped = true
 		if (this.reconnectTimeout) {
 			clearTimeout(this.reconnectTimeout)
 			this.reconnectTimeout = null

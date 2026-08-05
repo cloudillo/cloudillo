@@ -49,8 +49,10 @@
 	"publishConfig": {
 		"access": "public"
 	},
+	"dependencies": {
+		"@cloudillo/core": "workspace:^"
+	},
 	"devDependencies": {
-		"@cloudillo/core": "workspace:^",
 		"@cloudillo/types": "workspace:^",
 		"@jest/globals": "^30.4.1",
 		"@symbion/runtype": "^1.2.1",

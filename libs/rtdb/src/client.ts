@@ -104,7 +104,8 @@ export class RtdbClient {
 			options.dbId,
 			options.auth.getToken,
 			options.serverUrl,
-			mergedOptions
+			mergedOptions,
+			options.auth.refreshToken
 		)
 	}
 

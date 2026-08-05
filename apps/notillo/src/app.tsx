@@ -81,11 +81,13 @@ export function NotilloApp() {
 	const commentsServerUrl = getDocWsUrl(notillo.ownerTag, notillo.idTag) ?? ''
 
 	const getCommentToken = React.useCallback(() => getAppBus().accessToken, [])
+	const refreshCommentToken = React.useCallback(() => getAppBus().refreshToken(), [])
 
 	const comments = useComments({
 		fileId: notillo.fileId || '',
 		serverUrl: commentsServerUrl,
 		getToken: getCommentToken,
+		refreshToken: refreshCommentToken,
 		idTag: notillo.idTag,
 		displayName: getAppBus().displayName,
 		access: notillo.access || 'read'

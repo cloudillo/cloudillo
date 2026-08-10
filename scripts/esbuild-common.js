@@ -98,6 +98,63 @@ export function buildHTML(srcPath, distPath, version) {
 	console.log('HTML processed')
 }
 
+/**
+ * Serialize an app manifest into the dist bundle, so the backend can read it at
+ * startup instead of waiting for a running app to register itself.
+ *
+ * A bundled app's content-type declarations (`storeTp`, `navParam`,
+ * `formatVersion`, `search`) are a property of the build, not of a tenant, so the
+ * build ships them rather than having the app PUT /api/doc-formats on start: the
+ * backend loads `dist/apps/<id>/cloudillo.json` and `dist/shell-apps.json` once
+ * and uses them as the global default under each tenant's `doc_formats` rows.
+ *
+ * `cloudillo.json` rather than `manifest.json`: the latter is the PWA manifest at
+ * the dist root and would read as the same file one level down, and
+ * `cloudillo.json` is already the name an APKG package carries, so a bundled app
+ * and a packaged one describe themselves identically.
+ *
+ * The manifest is TypeScript, so it is bundled in-process and imported through a
+ * `data:` URL rather than a temp file. Manifest modules must therefore stay
+ * leaves — types (erased) and `package.json` only, no UI or icon imports.
+ *
+ * @param {Object} esbuild - esbuild module
+ * @param {Object} options
+ * @param {string} options.projectDir - Project root (__dirname)
+ * @param {string} options.entry - Manifest module, relative to projectDir
+ * @param {string} options.out - Output file, relative to projectDir
+ * @param {string} options.exportName - Named export holding the manifest
+ */
+export async function emitCloudilloManifest(esbuild, options) {
+	const {
+		projectDir,
+		entry = 'src/manifest.ts',
+		out = 'dist/cloudillo.json',
+		exportName = 'manifest'
+	} = options
+
+	const result = await esbuild.build({
+		entryPoints: [join(projectDir, entry)],
+		bundle: true,
+		platform: 'node',
+		format: 'esm',
+		target: ['node20'],
+		write: false,
+		logLevel: 'warning'
+	})
+	const [output] = result.outputFiles
+	if (!output) throw new Error(`No output produced for ${entry}`)
+
+	const encoded = Buffer.from(output.text).toString('base64')
+	const mod = await import(`data:text/javascript;base64,${encoded}`)
+	const manifest = mod[exportName]
+	if (manifest === undefined) throw new Error(`${entry} has no export \`${exportName}\``)
+
+	const outPath = join(projectDir, out)
+	mkdirSync(dirname(outPath), { recursive: true })
+	writeFileSync(outPath, `${JSON.stringify(manifest, null, '\t')}\n`)
+	console.log(`Manifest written to ${out}`)
+}
+
 // Default loaders for assets
 const defaultLoaders = {
 	'.css': 'css',
@@ -180,8 +237,9 @@ export async function buildApp(esbuild, options) {
 	const distDir = join(projectDir, 'dist')
 
 	try {
-		// Run pre-build hook (typically HTML processing)
-		if (onBuild) onBuild()
+		// Run pre-build hook (typically HTML processing). Awaited: the manifest
+		// emitter runs an esbuild pass of its own.
+		if (onBuild) await onBuild()
 
 		if (isWatch) {
 			// Delete stale compressed files in watch mode

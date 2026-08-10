@@ -3,48 +3,18 @@
 
 import type { AppManifest } from '@cloudillo/types'
 
-import { manifest as calcilloManifest } from '../../apps/calcillo/src/manifest.js'
-import { manifest as formilloManifest } from '../../apps/formillo/src/manifest.js'
-import { manifest as idealloManifest } from '../../apps/ideallo/src/manifest.js'
-import { manifest as mapilloManifest } from '../../apps/mapillo/src/manifest.js'
-import { manifest as notilloManifest } from '../../apps/notillo/src/manifest.js'
-import { manifest as prezilloManifest } from '../../apps/prezillo/src/manifest.js'
-// Bundled app manifests
-import { manifest as quilloManifest } from '../../apps/quillo/src/manifest.js'
-import { manifest as scanilloManifest } from '../../apps/scanillo/src/manifest.js'
-import { manifest as taskilloManifest } from '../../apps/taskillo/src/manifest.js'
-import { manifest as calendarManifest } from './apps/calendar/manifest.js'
-import { manifest as contactsManifest } from './apps/contacts/manifest.js'
-import { manifest as feedManifest } from './apps/feed/manifest.js'
-// Internal app manifests
-import { manifest as filesManifest } from './apps/files/manifest.js'
-import { manifest as galleryManifest } from './apps/gallery/manifest.js'
-import { manifest as messagesManifest } from './apps/messages/manifest.js'
-import { manifest as viewerManifest } from './apps/viewer/manifest.js'
+// Bundled app manifests, in their own leaf module for the same reason as the internal
+// ones below.
+import { bundledManifests } from './bundled-manifests.js'
 import { getIcon } from './icon-registry.js'
+// Internal app manifests, in their own leaf module so the build can serialize them
+// into `dist/shell-apps.json` without dragging in the icon registry and the UI types
+// this file imports.
+import { shellManifests } from './shell-manifests.js'
 import type { AppConfigState, MenuItem } from './utils.js'
 
 // All registered manifests
-export const allManifests: AppManifest[] = [
-	// Internal
-	filesManifest,
-	feedManifest,
-	galleryManifest,
-	messagesManifest,
-	contactsManifest,
-	calendarManifest,
-	viewerManifest,
-	// Bundled
-	quilloManifest,
-	calcilloManifest,
-	idealloManifest,
-	prezilloManifest,
-	formilloManifest,
-	taskilloManifest,
-	notilloManifest,
-	mapilloManifest,
-	scanilloManifest
-]
+export const allManifests: AppManifest[] = [...shellManifests, ...bundledManifests]
 
 // Shell navigation items (not apps — communities, users, settings, etc.)
 const SHELL_MENU: MenuItem[] = [

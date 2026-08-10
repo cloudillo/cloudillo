@@ -10,6 +10,7 @@ import {
 	compressAll,
 	createConfig,
 	deleteCompressedFiles,
+	emitCloudilloManifest,
 	isProd,
 	isWatch,
 	shouldCompress
@@ -131,6 +132,15 @@ async function build() {
 
 		// Copy PDF.js worker
 		copyPdfWorker(pkg.version)
+
+		// The internal apps' manifests, for the backend's bundled doc-format tier.
+		// One array rather than a file each: internal apps have no dist/apps/<id>.
+		await emitCloudilloManifest(esbuild, {
+			projectDir: __dirname,
+			entry: 'src/shell-manifests.ts',
+			out: 'dist/shell-apps.json',
+			exportName: 'shellManifests'
+		})
 
 		if (isWatch) {
 			// Delete stale compressed files

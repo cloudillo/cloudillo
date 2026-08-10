@@ -6,7 +6,12 @@ import { createRequire } from 'module'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 
-import { buildApp, buildHTML, createConfig } from '../../scripts/esbuild-common.js'
+import {
+	buildApp,
+	buildHTML,
+	createConfig,
+	emitCloudilloManifest
+} from '../../scripts/esbuild-common.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
@@ -27,12 +32,16 @@ const config = createConfig({
 buildApp(esbuild, {
 	config,
 	projectDir: __dirname,
-	onBuild: () =>
+	onBuild: async () => {
 		buildHTML(
 			join(__dirname, 'src/index.html'),
 			join(__dirname, 'dist/index.html'),
 			pkg.version
 		)
+		// Ships this app's content-type declarations to the backend; see
+		// `emitCloudilloManifest`.
+		await emitCloudilloManifest(esbuild, { projectDir: __dirname })
+	}
 })
 
 // vim: ts=4

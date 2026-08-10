@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
 import { AggregateQuery } from '../aggregate-query'
 import { Query } from '../query'
+import type { ChangeEvent, QuerySnapshot } from '../types'
 import { WebSocketManager } from '../websocket'
 
 // Mock WebSocketManager
@@ -209,6 +210,75 @@ describe('Query', () => {
 			const call = mockWs.send.mock.calls[0][0]
 			expect(call.offset).toBe(10)
 		})
+
+		it('should include select in message', async () => {
+			mockWs.send.mockResolvedValue({
+				type: 'queryResult',
+				data: []
+			})
+
+			await query.select('title', 'author').get()
+
+			const call = mockWs.send.mock.calls[0][0]
+			expect(call.select).toEqual(['title', 'author'])
+		})
+
+		it('should omit select when no fields were asked for', async () => {
+			mockWs.send.mockResolvedValue({
+				type: 'queryResult',
+				data: []
+			})
+
+			// An empty projection would mean "return nothing", which no caller
+			// wants; it has to read as "return everything" instead.
+			await query.select().get()
+
+			const call = mockWs.send.mock.calls[0][0]
+			expect(call.select).toBeUndefined()
+		})
+
+		it('should leave the original query unprojected', async () => {
+			// `select` is the only builder method that narrows `T`; mutating in place
+			// would leave every other reference typed `Query<T>` while the server
+			// sends it `Partial<T>` documents.
+			mockWs.send.mockResolvedValue({
+				type: 'queryResult',
+				data: []
+			})
+
+			const lite = query.select('title')
+			await query.get()
+			await lite.get()
+
+			expect(mockWs.send.mock.calls[0][0].select).toBeUndefined()
+			expect(mockWs.send.mock.calls[1][0].select).toEqual(['title'])
+		})
+
+		it('should carry the filters onto the projected copy', async () => {
+			mockWs.send.mockResolvedValue({
+				type: 'queryResult',
+				data: []
+			})
+
+			await query.where('status', '==', 'active').select('title').get()
+
+			const call = mockWs.send.mock.calls[0][0]
+			expect(call.filter).toEqual({ equals: { status: 'active' } })
+			expect(call.select).toEqual(['title'])
+		})
+
+		it('should not leak a later where() between the copies', async () => {
+			mockWs.send.mockResolvedValue({
+				type: 'queryResult',
+				data: []
+			})
+
+			const lite = query.select('title')
+			lite.where('status', '==', 'active')
+			await query.get()
+
+			expect(mockWs.send.mock.calls[0][0].filter).toBeUndefined()
+		})
 	})
 
 	describe('onSnapshot', () => {
@@ -228,6 +298,23 @@ describe('Query', () => {
 			const unsub = query.onSnapshot(jest.fn())
 
 			expect(unsub).toBe(unsubscribeFn)
+		})
+
+		it('should pass select through to the subscription', () => {
+			mockWs.subscribe.mockReturnValue(() => {})
+
+			query.select('title', 'author').onSnapshot(jest.fn())
+
+			// `select` is the 6th argument, after the aggregate slot.
+			expect(mockWs.subscribe.mock.calls[0][5]).toEqual(['title', 'author'])
+		})
+
+		it('should not pass a select the caller did not set', () => {
+			mockWs.subscribe.mockReturnValue(() => {})
+
+			query.onSnapshot(jest.fn())
+
+			expect(mockWs.subscribe.mock.calls[0][5]).toBeUndefined()
 		})
 
 		it('should call callback with snapshot', async () => {
@@ -255,18 +342,89 @@ describe('Query', () => {
 			expect(callback).toHaveBeenCalled()
 		})
 
+		it('reports the first ready as all-added', async () => {
+			const callback = jest.fn()
+			mockWs.subscribe.mockImplementation((_path, _filter, cb) => {
+				setTimeout(() => {
+					cb({
+						action: 'ready',
+						path: 'posts',
+						data: [
+							{ id: 'a', title: 'A' },
+							{ id: 'b', title: 'B' }
+						]
+					})
+				}, 0)
+				return () => {}
+			})
+
+			query.onSnapshot(callback)
+			await jest.advanceTimersByTimeAsync(10)
+
+			const snapshot = callback.mock.calls[0][0] as QuerySnapshot<Record<string, unknown>>
+			expect(snapshot.docChanges().map((c) => [c.type, c.doc.id])).toEqual([
+				['added', 'a'],
+				['added', 'b']
+			])
+		})
+
+		it('diffs a reconnect replay so deletions are reported as removed', async () => {
+			// A re-subscribe replays the whole result set as another `ready`. If that
+			// replay claims everything is 'added', consumers tracking state from
+			// `docChanges()` alone (notillo's `useRtdbToEditor` drives BlockNote that
+			// way) never see a document deleted while they were disconnected — the
+			// block stays in the editor and gets written back, undoing the delete.
+			const callback = jest.fn()
+			let emit: ((event: ChangeEvent) => void) | undefined
+			mockWs.subscribe.mockImplementation((_path, _filter, cb) => {
+				emit = cb
+				return () => {}
+			})
+
+			query.onSnapshot(callback)
+
+			emit?.({
+				action: 'ready',
+				path: 'posts',
+				data: [
+					{ id: 'a', title: 'A' },
+					{ id: 'b', title: 'B' }
+				]
+			})
+			// Reconnect replay: `b` was deleted while we were away, `c` appeared.
+			emit?.({
+				action: 'ready',
+				path: 'posts',
+				data: [
+					{ id: 'a', title: 'A2' },
+					{ id: 'c', title: 'C' }
+				]
+			})
+
+			const snapshot = callback.mock.calls[1][0] as QuerySnapshot<Record<string, unknown>>
+			expect(snapshot.docs.map((d) => d.id)).toEqual(['a', 'c'])
+
+			const changes = snapshot.docChanges()
+			expect(changes.map((c) => [c.type, c.doc.id])).toEqual([
+				['modified', 'a'],
+				['added', 'c'],
+				['removed', 'b']
+			])
+			// The removed doc carries the data it had, so a consumer can act on it.
+			const removed = changes.find((c) => c.type === 'removed')
+			expect(removed?.oldIndex).toBe(1)
+			expect(removed?.newIndex).toBe(-1)
+		})
+
 		it('should handle error callback', () => {
 			const errorFn = jest.fn()
 			mockWs.subscribe = jest.fn()
 
 			query.onSnapshot(jest.fn(), errorFn)
 
-			expect(mockWs.subscribe).toHaveBeenCalledWith(
-				expect.anything(),
-				expect.anything(),
-				expect.anything(),
-				errorFn
-			)
+			// By position rather than `toHaveBeenCalledWith`, which is arity-sensitive
+			// and breaks whenever a trailing optional argument is added to `subscribe`.
+			expect(mockWs.subscribe.mock.calls[0][3]).toBe(errorFn)
 		})
 
 		it('should handle error callback in options object', () => {
@@ -275,12 +433,7 @@ describe('Query', () => {
 
 			query.onSnapshot(jest.fn(), { onError: errorFn })
 
-			expect(mockWs.subscribe).toHaveBeenCalledWith(
-				expect.anything(),
-				expect.anything(),
-				expect.anything(),
-				errorFn
-			)
+			expect(mockWs.subscribe.mock.calls[0][3]).toBe(errorFn)
 		})
 
 		it('should forward lock/unlock events to onLock callback', async () => {

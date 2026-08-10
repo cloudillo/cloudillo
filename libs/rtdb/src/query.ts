@@ -21,6 +21,7 @@ export class Query<T = unknown> {
 	private sortFields: Array<{ field: string; ascending: boolean }> = []
 	private limitValue?: number
 	private offsetValue?: number
+	private selectFields?: string[]
 
 	constructor(
 		private ws: WebSocketManager,
@@ -65,6 +66,43 @@ export class Query<T = unknown> {
 		return this
 	}
 
+	/** Copy of this builder, so `select` can narrow the type without mutating. */
+	private clone(): Query<T> {
+		const copy = new Query<T>(this.ws, this.path)
+		// The per-op records are nested one level deep: a shallow copy would share
+		// them, and a later `where` on either query would show up in the other.
+		copy.filters = Object.fromEntries(
+			Object.entries(this.filters).map(([op, fields]) => [op, { ...fields }])
+		) as QueryFilter
+		copy.sortFields = this.sortFields.slice()
+		copy.limitValue = this.limitValue
+		copy.offsetValue = this.offsetValue
+		copy.selectFields = this.selectFields?.slice()
+		return copy
+	}
+
+	/**
+	 * Return only these top-level fields, plus `id`, which always comes back.
+	 *
+	 * Returns a **new** query; the receiver keeps returning whole documents. The one
+	 * builder method that does not mutate in place, because it is the only one that
+	 * narrows `T`: projecting the shared instance would leave every other reference
+	 * typed `Query<T>` while receiving `Partial<T>` documents.
+	 *
+	 * The projection is applied server-side after filtering and sorting, so
+	 * `.where()` and `.orderBy()` may still reference fields left out here. On a
+	 * subscription it also gates delivery: a write touching none of the selected
+	 * fields is not sent at all.
+	 *
+	 * A server predating this option ignores it and returns whole documents, so the
+	 * result is a superset rather than an error — never rely on a field being absent.
+	 */
+	select(...fields: string[]): Query<Partial<T>> {
+		const copy = this.clone()
+		copy.selectFields = fields
+		return copy as unknown as Query<Partial<T>>
+	}
+
 	aggregate(fieldOrOptions: string | AggregateOptions): AggregateQuery {
 		const opts =
 			typeof fieldOrOptions === 'string' ? { groupBy: fieldOrOptions } : fieldOrOptions
@@ -91,6 +129,10 @@ export class Query<T = unknown> {
 
 		if (this.offsetValue !== undefined) {
 			message.offset = this.offsetValue
+		}
+
+		if (this.selectFields?.length) {
+			message.select = this.selectFields
 		}
 
 		const response = await this.ws.send<{ data: Array<Record<string, unknown>> }>(message)
@@ -123,6 +165,17 @@ export class Query<T = unknown> {
 				if (event.action === 'ready') {
 					// Initial load complete — populate from ready event's data payload
 					ready = true
+					// `ready` carries the complete result set, and a reconnect replays
+					// it, so anything still in the map the server no longer reports was
+					// deleted while we were disconnected — keeping it would resurrect
+					// it. Consumers tracking state from `docChanges()` alone (see
+					// apps/notillo/src/hooks/useEditorSync.ts) need that deletion
+					// reported, so the replay is diffed against the previous contents
+					// rather than announced as all-added. On the first `ready` the
+					// previous map is empty and every document is 'added'.
+					const prevEntries = Array.from(documentMap.entries())
+					const prevIndex = new Map(prevEntries.map(([id], i) => [id, i]))
+					documentMap.clear()
 					const rawDocs = (event.data as Array<Record<string, unknown>>) || []
 					for (const item of rawDocs) {
 						const id = String(item.id || '')
@@ -133,17 +186,39 @@ export class Query<T = unknown> {
 						data
 					}))
 					const snapshot = new QuerySnapshotImpl<T>(documents)
-					const changes = documents.map((doc, index) => ({
-						type: 'added' as const,
-						doc: createDocumentFromEvent({
-							action: 'create',
-							path: `${this.path}/${doc.id}`,
-							data: doc.data
-						}),
-						oldIndex: -1,
-						newIndex: index
-					}))
-					snapshot.setChanges(changes as DocumentChange<T>[])
+					const changes: Array<DocumentChange<T>> = documents.map((doc, index) => {
+						const oldIndex = prevIndex.get(doc.id) ?? -1
+						return {
+							// Emitted unconditionally for survivors: consumers
+							// short-circuit on identical content, so a redundant
+							// 'modified' is cheaper than missing an update that landed
+							// while we were disconnected.
+							type: oldIndex < 0 ? 'added' : 'modified',
+							doc: createDocumentFromEvent({
+								action: oldIndex < 0 ? 'create' : 'update',
+								path: `${this.path}/${doc.id}`,
+								data: doc.data
+							}),
+							oldIndex,
+							newIndex: index
+						} as DocumentChange<T>
+					})
+					// Appended after the survivors. Consumers that care about deletions
+					// handle `'removed'` first regardless of position.
+					prevEntries.forEach(([id, data], i) => {
+						if (documentMap.has(id)) return
+						changes.push({
+							type: 'removed',
+							doc: createDocumentFromEvent({
+								action: 'delete',
+								path: `${this.path}/${id}`,
+								data
+							}),
+							oldIndex: i,
+							newIndex: -1
+						} as DocumentChange<T>)
+					})
+					snapshot.setChanges(changes)
 					callback(snapshot)
 					return
 				}
@@ -187,7 +262,9 @@ export class Query<T = unknown> {
 				])
 				callback(snapshot)
 			},
-			onError || ((error: Error) => console.error('Subscription error:', error))
+			onError || ((error: Error) => console.error('Subscription error:', error)),
+			undefined,
+			this.selectFields?.length ? this.selectFields : undefined
 		)
 
 		return unsubscribe

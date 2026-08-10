@@ -73,6 +73,11 @@ export class CollectionReference<T = unknown> {
 		return this.query().limit(n)
 	}
 
+	/** See `Query.select` — returns only these top-level fields, plus `id`. */
+	select(...fields: string[]): Query<Partial<T>> {
+		return this.query().select(...fields)
+	}
+
 	async get(): Promise<QuerySnapshot<T>> {
 		return this.query().get()
 	}

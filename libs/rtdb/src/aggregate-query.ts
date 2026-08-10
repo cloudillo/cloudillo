@@ -42,49 +42,79 @@ export class AggregateQuery {
 		}
 	}
 
+	/**
+	 * Subscribe to a live group set, maintained here from the server's `ready`
+	 * snapshot and subsequent `update` events.
+	 *
+	 * No in-repo consumer — it exists for `@cloudillo/rtdb`'s published API, and the
+	 * merge/replace semantics below are asserted only by
+	 * `src/__tests__/aggregate-query.test.ts`.
+	 */
 	onSnapshot(
 		callback: (snapshot: AggregateSnapshot) => void,
 		onError?: (error: Error) => void
 	): () => void {
-		let latestData: AggregateGroupEntry[] = []
+		const groupMap = new Map<AggregateGroupEntry['group'], AggregateGroupEntry>()
 		let ready = false
 
 		const filter = Object.keys(this.filters).length > 0 ? this.filters : undefined
+
+		const emit = () => {
+			// Fresh array each time so consumers can compare identities
+			const groups = Array.from(groupMap.values())
+			callback({
+				groups,
+				size: groups.length,
+				empty: groups.length === 0
+			})
+		}
+
+		const fill = (groups: AggregateGroupEntry[]) => {
+			for (const group of groups) {
+				groupMap.set(group.group, group)
+			}
+		}
 
 		const unsubscribe = this.ws.subscribe(
 			normalizePath(this.path),
 			filter,
 			(event: ChangeEvent) => {
-				if (event.action === 'ready') {
+				// Both carry a complete group set rather than a delta, so both replace
+				// what the map holds — anything the server no longer reports is gone,
+				// and keeping it would resurrect it. They differ only in origin:
+				// `ready` is the initial snapshot, replayed on every re-subscribe after
+				// a reconnect; `replace` is a min/max recompute, which the server cannot
+				// express as a delta because an emptied group is absent from it rather
+				// than zeroed.
+				if (event.action === 'ready' || event.action === 'replace') {
 					ready = true
-					latestData = (event.data as AggregateGroupEntry[]) || []
-					callback({
-						groups: latestData,
-						size: latestData.length,
-						empty: latestData.length === 0
-					})
+					groupMap.clear()
+					fill((event.data as AggregateGroupEntry[]) || [])
+					emit()
 					return
 				}
 
+				// Lock events carry lock metadata, not groups, and AggregateQuery has
+				// no onLock option — drop them without re-firing the callback.
+				if (event.action === 'lock' || event.action === 'unlock') return
+
 				if (!ready) return
 
-				if (event.action === 'update') {
-					const changedGroups = (event.data as AggregateGroupEntry[]) || []
-					for (const changed of changedGroups) {
-						const idx = latestData.findIndex((g) => g.group === changed.group)
-						if (idx >= 0) {
-							latestData[idx] = changed
-						} else {
-							latestData.push(changed)
-						}
+				if (event.action !== 'update') return
+
+				const changedGroups = (event.data as AggregateGroupEntry[]) || []
+				// `update` is always a touched-groups delta — a full recompute arrives
+				// as `replace` above. `count: 0` is its tombstone for a group whose
+				// last document left. `Map.set` keeps an existing group in its original
+				// slot; new groups append at the tail.
+				for (const changed of changedGroups) {
+					if (changed.count === 0) {
+						groupMap.delete(changed.group)
+					} else {
+						groupMap.set(changed.group, changed)
 					}
 				}
-
-				callback({
-					groups: latestData,
-					size: latestData.length,
-					empty: latestData.length === 0
-				})
+				emit()
 			},
 			onError || ((error: Error) => console.error('Aggregate subscription error:', error)),
 			this.aggregateOptions

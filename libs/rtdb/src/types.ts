@@ -88,11 +88,14 @@ export interface QueryOptions {
 	sort?: Array<{ field: string; ascending: boolean }>
 	limit?: number
 	offset?: number
+	/** Top-level fields to return. `id` always comes back regardless. */
+	select?: string[]
 }
 
 export interface SubscriptionOptions {
 	table: string
 	filter?: QueryFilter
+	select?: string[]
 }
 
 export interface LockEventData {
@@ -107,7 +110,7 @@ export interface UnlockEventData {
 }
 
 export interface ChangeEvent {
-	action: 'create' | 'update' | 'delete' | 'lock' | 'unlock' | 'ready'
+	action: 'create' | 'update' | 'delete' | 'lock' | 'unlock' | 'ready' | 'replace'
 	path: string
 	data?: unknown
 }
@@ -197,7 +200,8 @@ export const tQueryOptions = T.struct({
 		)
 	),
 	limit: T.optional(T.number),
-	offset: T.optional(T.number)
+	offset: T.optional(T.number),
+	select: T.optional(T.array(T.string))
 })
 
 export const tChangeEvent = T.struct({
@@ -207,7 +211,8 @@ export const tChangeEvent = T.struct({
 		T.literal('delete'),
 		T.literal('lock'),
 		T.literal('unlock'),
-		T.literal('ready')
+		T.literal('ready'),
+		T.literal('replace')
 	),
 	path: T.string,
 	data: T.optional(T.nullable(T.unknown))
@@ -294,6 +299,7 @@ export interface QueryMessage extends ClientMessage {
 	limit?: number
 	offset?: number
 	aggregate?: AggregateOptions
+	select?: string[]
 }
 
 export interface GetMessage extends ClientMessage {
@@ -306,6 +312,7 @@ export interface SubscribeMessage extends ClientMessage {
 	path: string
 	filter?: QueryFilter
 	aggregate?: AggregateOptions
+	select?: string[]
 }
 
 export interface UnsubscribeMessage extends ClientMessage {

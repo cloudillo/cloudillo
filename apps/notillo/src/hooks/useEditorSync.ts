@@ -166,7 +166,14 @@ export function useDocumentSync(
 ): DocumentSyncResult {
 	const blockStates = useRef(new Map<string, BlockState>())
 	const blockIdList = useRef<string[]>([])
-	const pendingDebounces = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+	// Each pending write keeps its `commit` alongside the timer so teardown can run
+	// it instead of dropping it.
+	const pendingDebounces = useRef(
+		new Map<
+			string,
+			{ timer: ReturnType<typeof setTimeout>; commit: (fromEditor: boolean) => void }
+		>()
+	)
 	const recentLocalUpdates = useRef(new Set<string>())
 
 	useEffect(() => {
@@ -230,7 +237,7 @@ export function useDocumentSync(
 		function clearBlockDebounce(blockId: string) {
 			const existing = pendingDebounces.current.get(blockId)
 			if (existing) {
-				clearTimeout(existing)
+				clearTimeout(existing.timer)
 				pendingDebounces.current.delete(blockId)
 			}
 		}
@@ -307,36 +314,59 @@ export function useDocumentSync(
 				}
 			}
 
+			// No diff against what was last persisted, so nothing pending is worth
+			// committing — and a timer left armed here would fire with the *previous*
+			// keystroke's patch, re-persisting text the user just deleted. (Type
+			// "hello", backspace it all inside DEBOUNCE_MS: the last backspace
+			// produces no diff, and the stale timer would write back "h".)
+			clearBlockDebounce(blockId)
+
 			if (!result) return
 
 			if (result.debounce && !immediate) {
 				// Per-block debounce for content-only changes
 				clearBlockDebounce(blockId)
-				pendingDebounces.current.set(
-					blockId,
-					setTimeout(() => {
-						pendingDebounces.current.delete(blockId)
-						// Re-read latest state since content may have changed during debounce
-						const latest = getBlockState(editor!, blockId, prev?.order)
-						if (!latest) return
-						const latestResult = buildPartialUpdate(
-							prev,
-							latest,
-							pageId!,
-							new Date().toISOString(),
-							userId!,
-							ownerTag
-						)
-						if (latestResult) {
-							blockStates.current.set(blockId, latest)
-							sendUpdate(blockId, latestResult.patch)
-						} else {
-							// No further changes, send original patch
-							blockStates.current.set(blockId, curr)
-							sendUpdate(blockId, result.patch)
-						}
-					}, DEBOUNCE_MS)
-				)
+				// `fromEditor` is false when the flush comes from teardown, where the
+				// editor may already be gone: re-reading it would yield nothing and
+				// drop the edit the flush exists to save, so that path sends the
+				// patch built when the change fired.
+				const commit = (fromEditor: boolean) => {
+					pendingDebounces.current.delete(blockId)
+					const latest = fromEditor
+						? getBlockState(editor!, blockId, prev?.order)
+						: undefined
+					const latestResult = latest
+						? buildPartialUpdate(
+								prev,
+								latest,
+								pageId!,
+								new Date().toISOString(),
+								userId!,
+								ownerTag
+							)
+						: null
+					if (fromEditor) {
+						// `latest` missing: the block is gone from the editor.
+						// `latestResult` null: the block is back at the last-persisted
+						// state — a collaborator's revert applied through
+						// `editor.transact` does not fire `onChange`, so this timer was
+						// never cleared. Either way writing the arm-time patch would
+						// resurrect text the document no longer has, and suppress its
+						// own echo so the editor would not correct itself.
+						if (!latest || !latestResult) return
+						blockStates.current.set(blockId, latest)
+						sendUpdate(blockId, latestResult.patch)
+						return
+					}
+					// Teardown flush: no editor left to re-read, so send the patch
+					// built when the change fired.
+					blockStates.current.set(blockId, curr)
+					sendUpdate(blockId, result.patch)
+				}
+				pendingDebounces.current.set(blockId, {
+					timer: setTimeout(() => commit(true), DEBOUNCE_MS),
+					commit
+				})
 			} else {
 				// Immediate sync — clear any pending debounce for this block first
 				clearBlockDebounce(blockId)
@@ -395,13 +425,46 @@ export function useDocumentSync(
 			blockIdList.current = collectOrderedIds(editor.document)
 		}, false)
 
-		return () => {
-			unsubscribe()
-			// Clear all pending debounce timers
-			for (const timer of pendingDebounces.current.values()) {
-				clearTimeout(timer)
+		// Flush rather than discard: teardown runs on unmount and on every page switch,
+		// so clearing the timers would throw away up to DEBOUNCE_MS of typing.
+		// Best-effort — `sendUpdate` ends in a `.catch`, so a write losing the race with
+		// a real disconnect fails quietly.
+		//
+		// `commit(false)`, because on `pagehide` the editor may already be tearing down
+		// and re-reading it would yield nothing.
+		//
+		// Idempotent: each `commit` deletes its own entry and the map is cleared at the
+		// end, so a `pagehide` followed by the unmount flush is a second-time no-op.
+		function flushPendingWrites() {
+			for (const pending of pendingDebounces.current.values()) {
+				clearTimeout(pending.timer)
+				try {
+					pending.commit(false)
+				} catch (err) {
+					console.error('[Notillo] Failed to flush a pending block write:', err)
+				}
 			}
 			pendingDebounces.current.clear()
+		}
+
+		// The React teardown below covers unmount and page switch, but not the browser
+		// closing the tab: typing with no DEBOUNCE_MS pause and then hitting reload
+		// would discard the timer along with the page. `pagehide` fires on bfcache
+		// eviction as well as real unload, and the hidden `visibilitychange` covers the
+		// mobile cases browsers only guarantee through that one (`beforeunload` is
+		// unreliable on mobile Safari). Best-effort: no awaiting, no blocking unload.
+		const onPageHide = () => flushPendingWrites()
+		const onVisibilityChange = () => {
+			if (document.visibilityState === 'hidden') flushPendingWrites()
+		}
+		window.addEventListener('pagehide', onPageHide)
+		document.addEventListener('visibilitychange', onVisibilityChange)
+
+		return () => {
+			unsubscribe()
+			window.removeEventListener('pagehide', onPageHide)
+			document.removeEventListener('visibilitychange', onVisibilityChange)
+			flushPendingWrites()
 		}
 	}, [editor, client, pageId, userId, ownerTag, readOnly])
 
@@ -500,39 +563,32 @@ export function useRtdbToEditor(
 							if (!existing) {
 								// Insert at the end of the document for now
 								// A more sophisticated approach would use parentBlockId and order
-								const lastBlock = editor.document[editor.document.length - 1]
-								if (lastBlock) {
-									try {
-										editor.transact((tr) => {
-											tr.setMeta('y-sync$', { isChangeOrigin: true })
-											editor.insertBlocks(
-												[
-													{
-														id: change.doc.id,
-														type: asBlockType(record.type),
-														props: asBlockProps(record.props),
-														content: asBlockContent(record.content),
-														children: []
-													}
-												],
-												lastBlock,
-												'after'
-											)
-										})
-									} catch (err) {
-										console.error(
-											'[useRtdbToEditor] Failed to insert block:',
-											err
-										)
-									}
-									const postState = getBlockState(
-										editor,
-										change.doc.id,
-										record.order
-									)
-									if (postState)
-										blockStates.current?.set(change.doc.id, postState)
+								const newBlock = {
+									id: change.doc.id,
+									type: asBlockType(record.type),
+									props: asBlockProps(record.props),
+									content: asBlockContent(record.content),
+									children: []
 								}
+								const lastBlock = editor.document[editor.document.length - 1]
+								try {
+									editor.transact((tr) => {
+										tr.setMeta('y-sync$', { isChangeOrigin: true })
+										if (lastBlock) {
+											editor.insertBlocks([newBlock], lastBlock, 'after')
+										} else {
+											// Nothing to anchor against. BlockNote's schema keeps
+											// at least one top-level block, so an empty document
+											// should be unreachable — but `added` never repeats,
+											// so a block dropped here would be lost for good.
+											editor.replaceBlocks(editor.document, [newBlock])
+										}
+									})
+								} catch (err) {
+									console.error('[useRtdbToEditor] Failed to insert block:', err)
+								}
+								const postState = getBlockState(editor, change.doc.id, record.order)
+								if (postState) blockStates.current?.set(change.doc.id, postState)
 							}
 						}
 					}

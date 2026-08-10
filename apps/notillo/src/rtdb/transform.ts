@@ -7,6 +7,7 @@ import type {
 	CompactInlineContent,
 	CompactTableCell,
 	CompactTableContent,
+	FullPageRecord,
 	InlineContent,
 	PageRecord,
 	StoredBlockRecord,
@@ -321,26 +322,22 @@ export function fromStoredPage(stored: StoredPageRecord): PageRecord {
 	return {
 		title: stored.ti,
 		...(stored.ic !== undefined && { icon: stored.ic }),
-		...(stored.ci !== undefined && { coverImage: stored.ci }),
 		...(stored.pp !== undefined && { parentPageId: stored.pp }),
-		...(stored.hc !== undefined && { hasChildren: stored.hc }),
-		...(stored.ae !== undefined && { autoExpand: stored.ae }),
 		order: stored.o,
-		createdAt: stored.ca,
-		updatedAt: stored.ua,
-		createdBy: stored.cb,
+		// Only when present: a projected read (`useAllPages`) does not fetch these,
+		// and materialising `undefined` keys would hide that from callers.
+		...(stored.ca !== undefined && { createdAt: stored.ca }),
+		...(stored.ua !== undefined && { updatedAt: stored.ua }),
+		...(stored.cb !== undefined && { createdBy: stored.cb }),
 		...(stored.tg !== undefined && { tags: stored.tg })
 	}
 }
 
-export function toStoredPage(page: PageRecord): StoredPageRecord {
+export function toStoredPage(page: FullPageRecord): StoredPageRecord {
 	return {
 		ti: page.title,
 		...(page.icon !== undefined && { ic: page.icon }),
-		...(page.coverImage !== undefined && { ci: page.coverImage }),
 		...(page.parentPageId !== undefined && { pp: page.parentPageId }),
-		...(page.hasChildren !== undefined && { hc: page.hasChildren }),
-		...(page.autoExpand !== undefined && { ae: page.autoExpand }),
 		o: page.order,
 		ca: page.createdAt,
 		ua: page.updatedAt,

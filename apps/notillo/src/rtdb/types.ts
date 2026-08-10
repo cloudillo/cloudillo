@@ -120,16 +120,22 @@ export const BLOCK_TYPE_TO_LONG: Record<string, string> = Object.fromEntries(
 export interface StoredPageRecord {
 	ti: string // title
 	ic?: string // icon
-	ci?: string // coverImage
-	pp?: string // parentPageId ('__root__' = root, pageId = child, absent = orphan)
-	hc?: boolean // hasChildren (true = has child pages)
-	ae?: boolean // autoExpand on load
+	pp?: string // parentPageId ('__root__' = root, pageId = child, absent = unfiled)
+	// Dead denormalised child indicator: the tree is derived from the full page
+	// map, so `hc` is neither written nor read. Older documents still carry it.
+	hc?: boolean
 	o: number // order
-	ca: string // createdAt
-	ua: string // updatedAt
-	cb: string // createdBy
+	// Always written, but optional here because a read may be projected: the
+	// page map fetches `ti`/`ic`/`pp`/`o`/`tg` only. See `PageRecord`.
+	ca?: string // createdAt
+	ua?: string // updatedAt
+	cb?: string // createdBy
 	tg?: string[] // tags (sorted, deduplicated)
 }
+
+/** A page record complete enough to write back — every field the store holds. */
+export type FullPageRecord = PageRecord &
+	Required<Pick<PageRecord, 'createdAt' | 'updatedAt' | 'createdBy'>>
 
 export interface StoredBlockRecord {
 	p: string // pageId
@@ -167,14 +173,14 @@ export function asBlockProps(props: Record<string, unknown> | undefined): any {
 export interface PageRecord {
 	title: string
 	icon?: string
-	coverImage?: string
-	parentPageId?: string // '__root__' = root, pageId = child, absent = orphan
-	hasChildren?: boolean
-	autoExpand?: boolean
+	parentPageId?: string // '__root__' = root, pageId = child, absent = unfiled
 	order: number
-	createdAt: string
-	updatedAt: string
-	createdBy: string
+	// Written on every mutation, but optional because the page map is loaded with
+	// a field projection (`select('ti', 'ic', 'pp', 'o', 'tg')`). Code that needs
+	// them must query without a projection, as `checkConsistency` does.
+	createdAt?: string
+	updatedAt?: string
+	createdBy?: string
 	tags?: string[]
 }
 
@@ -201,14 +207,6 @@ export interface BlockRecord {
 	order: number
 	updatedAt: string
 	updatedBy: string
-}
-
-// ── Settings (singleton document) ──
-
-export interface Settings {
-	title: string
-	defaultPage?: string
-	theme?: string
 }
 
 // vim: ts=4

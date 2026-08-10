@@ -6,6 +6,7 @@ import type { CommentThread } from '@cloudillo/react'
 import {
 	Button,
 	DialogContainer,
+	EmptyState,
 	Fcd,
 	LoadingSpinner,
 	Panel,
@@ -32,17 +33,25 @@ import {
 import { NotilloEditor as NotilloEditorComponent } from './editor/NotilloEditor.js'
 import type { NotilloEditor } from './editor/schema.js'
 import { exportDocx, exportMarkdown, exportOdt, exportPdf, importMarkdown } from './export/index.js'
+import { useActivePageGuard } from './hooks/useActivePageGuard.js'
 import { useAllPages } from './hooks/useAllPages.js'
 import { useBlockContextMenu } from './hooks/useBlockContextMenu.js'
 import { useCommentBlockButton } from './hooks/useCommentBlockButton.js'
 import { useCommentIndicators } from './hooks/useCommentIndicators.js'
-import { useLazyPageTree } from './hooks/useLazyPageTree.js'
+import { useContentSearch } from './hooks/useContentSearch.js'
 import { useNotillo } from './hooks/useNotillo.js'
 import { usePageBlocks } from './hooks/usePageBlocks.js'
 import { useTags } from './hooks/useTags.js'
 import { PageHeader } from './pages/PageHeader.js'
 import { PageSidebar } from './pages/PageSidebar.js'
-import { createPage } from './rtdb/page-ops.js'
+import { createPage, getAncestorIds } from './rtdb/page-ops.js'
+import { searchPages } from './utils/search.js'
+
+/** How many visited pages the sidebar offers with an empty query. */
+const RECENT_PAGE_LIMIT = 8
+
+/** Cap on rendered search rows — each one costs an ancestor walk for its breadcrumb. */
+const MAX_SIDEBAR_RESULTS = 50
 
 export function NotilloApp() {
 	const { t } = useTranslation()
@@ -50,21 +59,18 @@ export function NotilloApp() {
 	const dialog = useDialog()
 	const canWrite = notillo.access === 'write'
 	const canComment = notillo.access !== 'read'
+	// One live map of every page feeds the tree, wiki-links, search and the `@`
+	// picker. `expanded` is pure local UI state on top of it.
 	const {
-		pages,
-		pagesWithChildren,
-		expanded,
-		loadingChildren,
-		rootsLoaded,
-		orphanPage,
-		expand,
-		toggleExpand,
-		navigateToPage,
-		resubscribe
-	} = useLazyPageTree(notillo.client)
-	const { tags, tagCounts } = useTags(notillo.client)
-	const { allPages } = useAllPages(notillo.client)
+		allPages: pages,
+		ready: pagesReady,
+		error: pagesError,
+		retry: retryPages
+	} = useAllPages(notillo.client)
+	const { tags, tagCounts } = useTags(pages)
+	const [expanded, setExpanded] = React.useState<Set<string>>(new Set())
 	const [activePageId, setActivePageId] = React.useState<string | undefined>()
+	const [recentPageIds, setRecentPageIds] = React.useState<string[]>([])
 	const [showFilter, setShowFilter] = React.useState(false)
 	const [showComments, setShowComments] = React.useState(false)
 	const [threadCount, setThreadCount] = React.useState(0)
@@ -72,8 +78,31 @@ export function NotilloApp() {
 	const [pendingCommentOffset, setPendingCommentOffset] = React.useState<number | undefined>()
 	const [popupBlockId, setPopupBlockId] = React.useState<string | null>(null)
 	const [pageThreads, setPageThreads] = React.useState<CommentThread[]>([])
-	const [activeTag, setActiveTag] = React.useState<string | null>(null)
+	const [activeTags, setActiveTags] = React.useState<Set<string>>(new Set())
 	const [searchQuery, setSearchQuery] = React.useState('')
+
+	// Content search only talks to the server once someone actually searches, so
+	// opening a document costs nothing extra. Focusing the search box arms it, so
+	// the first committed query does not also pay for the setup.
+	const [contentSearchEnabled, setContentSearchEnabled] = React.useState(false)
+	const enableContentSearch = React.useCallback(() => setContentSearchEnabled(true), [])
+	React.useEffect(() => {
+		if (searchQuery) setContentSearchEnabled(true)
+	}, [searchQuery])
+	const {
+		hits: contentHits,
+		ready: contentReady,
+		truncated: contentTruncated,
+		error: contentError,
+		retry: retryContentSearch
+	} = useContentSearch({
+		fileId: notillo.fileId,
+		ownerTag: notillo.ownerTag,
+		idTag: notillo.idTag,
+		query: searchQuery,
+		tags: activeTags,
+		enabled: contentSearchEnabled
+	})
 
 	// `notillo.idTag` is undefined on the first render, so this must not throw. `useComments`
 	// connects lazily and refuses an empty serverUrl outright, and it has `serverUrl` in its
@@ -205,7 +234,7 @@ export function NotilloApp() {
 				!importRunningRef.current
 			) {
 				importRunningRef.current = true
-				importMarkdown(editor, pendingImport.markdown, allPages)
+				importMarkdown(editor, pendingImport.markdown, pages)
 					.then(() => {
 						importRunningRef.current = false
 						if (pendingImport.source === 'shell') {
@@ -226,7 +255,7 @@ export function NotilloApp() {
 					})
 			}
 		},
-		[pendingImport, activePageId, allPages]
+		[pendingImport, activePageId, pages]
 	)
 
 	const resolveFileUrl = React.useCallback(
@@ -304,81 +333,88 @@ export function NotilloApp() {
 		if (!notillo.client || !canWrite) return
 		notillo.client.createIndex('p', 'pp').catch(console.error)
 		notillo.client.createIndex('p', 'tg').catch(console.error)
+		notillo.client.createIndex('b', 'p').catch(console.error)
 	}, [notillo.client, canWrite])
 
+	const expand = React.useCallback((pageId: string) => {
+		setExpanded((prev) => {
+			if (prev.has(pageId)) return prev
+			const next = new Set(prev)
+			next.add(pageId)
+			return next
+		})
+	}, [])
+
+	const toggleExpand = React.useCallback((pageId: string) => {
+		setExpanded((prev) => {
+			const next = new Set(prev)
+			if (!next.delete(pageId)) next.add(pageId)
+			return next
+		})
+	}, [])
+
+	// Opening a page reveals it: every ancestor is expanded so the sidebar shows
+	// where it lives. Filled in a layout effect rather than during render, which is
+	// not safe under concurrent rendering; its only reader is an event handler,
+	// which cannot run before the commit anyway.
+	const pagesRef = React.useRef(pages)
+	React.useLayoutEffect(() => {
+		pagesRef.current = pages
+	}, [pages])
+
+	const handleSelectPage = React.useCallback((pageId: string) => {
+		setActivePageId(pageId)
+		setShowFilter(false)
+		setRecentPageIds((prev) =>
+			[pageId, ...prev.filter((id) => id !== pageId)].slice(0, RECENT_PAGE_LIMIT)
+		)
+
+		const { ancestorIds } = getAncestorIds(pageId, pagesRef.current)
+		if (!ancestorIds.length) return
+		setExpanded((prev) => {
+			const next = new Set(prev)
+			let changed = false
+			for (const id of ancestorIds) {
+				if (!next.has(id)) {
+					next.add(id)
+					changed = true
+				}
+			}
+			return changed ? next : prev
+		})
+	}, [])
+
+	// A page can vanish under us — deleted here, or by a collaborator. Clearing the
+	// selection lets the auto-select effect below pick a new page.
+	const clearActivePage = React.useCallback(() => setActivePageId(undefined), [])
+	useActivePageGuard(pages, pagesReady, activePageId, clearActivePage)
+
 	// Auto-select initial page: deep link (nav param) or first root page
-	const resolvingRef = React.useRef(false)
 	React.useEffect(() => {
-		if (activePageId || !rootsLoaded || pages.size === 0 || !notillo.client) return
-		if (resolvingRef.current) return
+		if (activePageId || !pagesReady || pages.size === 0) return
 
-		let cancelled = false
-		resolvingRef.current = true
-
-		async function resolveInitialPage() {
-			// Deep link: try nav param first
-			if (notillo.navParam) {
-				try {
-					// 1. Try as page ID — direct document lookup
-					const doc = await notillo.client!.ref('p/' + notillo.navParam).get()
-					if (cancelled) return
-					if (doc.exists) {
-						setActivePageId(notillo.navParam)
-						await navigateToPage(notillo.navParam)
-						if (cancelled) return
-						return
-					}
-					// 2. Try as page title — query by 'ti' field (exact match)
-					const snap = await notillo
-						.client!.collection('p')
-						.where('ti', '==', notillo.navParam)
-						.limit(1)
-						.get()
-					if (cancelled) return
-					if (snap.size > 0) {
-						const pageId = snap.docs[0].id
-						setActivePageId(pageId)
-						await navigateToPage(pageId)
-						if (cancelled) return
-						return
-					}
-				} catch (err) {
-					console.warn('[Notillo] Deep link resolution failed:', err)
-				}
+		// Deep link: the nav param is a page id, or failing that an exact title.
+		if (notillo.navParam) {
+			if (pages.has(notillo.navParam)) {
+				handleSelectPage(notillo.navParam)
+				return
 			}
-
-			if (cancelled) return
-
-			// Fallback: select first root page by order
-			let firstPage: { id: string; order: number } | undefined
 			for (const page of pages.values()) {
-				if (
-					page.parentPageId === '__root__' &&
-					(!firstPage || page.order < firstPage.order)
-				) {
-					firstPage = { id: page.id, order: page.order }
+				if (page.title === notillo.navParam) {
+					handleSelectPage(page.id)
+					return
 				}
 			}
-			if (firstPage) {
-				setActivePageId(firstPage.id)
+		}
+
+		let firstPage: { id: string; order: number } | undefined
+		for (const page of pages.values()) {
+			if (page.parentPageId === '__root__' && (!firstPage || page.order < firstPage.order)) {
+				firstPage = { id: page.id, order: page.order }
 			}
 		}
-		resolveInitialPage()
-
-		return () => {
-			cancelled = true
-			resolvingRef.current = false
-		}
-	}, [pages, activePageId, rootsLoaded, notillo.client, notillo.navParam, navigateToPage])
-
-	const handleSelectPage = React.useCallback(
-		async (pageId: string) => {
-			setActivePageId(pageId)
-			setShowFilter(false)
-			await navigateToPage(pageId)
-		},
-		[navigateToPage]
-	)
+		if (firstPage) handleSelectPage(firstPage.id)
+	}, [pages, pagesReady, activePageId, notillo.navParam, handleSelectPage])
 
 	const handleCommentBlock = React.useCallback((blockId: string) => {
 		// Find the block element and compute its vertical offset from the
@@ -405,37 +441,88 @@ export function NotilloApp() {
 		onCommentBlock: handleCommentBlock
 	})
 
-	const handleTagClick = React.useCallback((tag: string) => {
-		setActiveTag(tag)
+	const handleToggleTag = React.useCallback((tag: string) => {
+		setActiveTags((prev) => {
+			const next = new Set(prev)
+			if (!next.delete(tag)) next.add(tag)
+			return next
+		})
 		setShowFilter(true)
 	}, [])
 
-	const isFiltering = !!searchQuery || !!activeTag
+	const handleClearTags = React.useCallback(() => setActiveTags(new Set()), [])
 
-	const filteredResults = React.useMemo(() => {
-		if (!searchQuery && !activeTag) return []
-		const query = searchQuery.toLowerCase()
-		const results: Array<{ id: string; title: string; icon?: string; tags?: string[] }> = []
-		for (const page of allPages.values()) {
-			if (activeTag && !page.tags?.includes(activeTag)) continue
-			if (query && !page.title.toLowerCase().includes(query)) continue
-			results.push({ id: page.id, title: page.title, icon: page.icon, tags: page.tags })
-		}
-		return results.sort((a, b) => {
-			if (query) {
-				const aPrefix = a.title.toLowerCase().startsWith(query)
-				const bPrefix = b.title.toLowerCase().startsWith(query)
-				if (aPrefix && !bPrefix) return -1
-				if (!aPrefix && bPrefix) return 1
+	// The sidebar owns the single search surface; a bumped counter is all it takes
+	// to hand it focus, so no imperative handle is needed.
+	const [focusSearchSeq, setFocusSearchSeq] = React.useState(0)
+
+	const requestSearchFocus = React.useCallback(() => {
+		setShowFilter(true) // no-op at md/lg; opens the drawer on small screens
+		setFocusSearchSeq((n) => n + 1)
+	}, [])
+
+	// Ctrl/Cmd+K focuses the sidebar search; `/` does too, but only outside an
+	// editable field, where the editor's own slash menu owns the key. The shell
+	// claims Ctrl+K globally, but notillo runs in a sandboxed iframe, so the key
+	// never reaches it and is free to take.
+	React.useEffect(() => {
+		function handleKeyDown(e: KeyboardEvent) {
+			if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k') {
+				e.preventDefault()
+				requestSearchFocus()
+				return
 			}
-			return a.title.localeCompare(b.title)
-		})
-	}, [searchQuery, activeTag, allPages])
+			if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return
+			const target = e.target as HTMLElement | null
+			if (target?.isContentEditable) return
+			if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+			e.preventDefault()
+			requestSearchFocus()
+		}
+		window.addEventListener('keydown', handleKeyDown)
+		return () => window.removeEventListener('keydown', handleKeyDown)
+	}, [requestSearchFocus])
+
+	const isFiltering = !!searchQuery.trim() || activeTags.size > 0
+
+	// One extra result over the cap distinguishes "exactly 50 matches" from "more
+	// than 50"; only the first MAX_SIDEBAR_RESULTS are shown.
+	const searchResults = React.useMemo(
+		() =>
+			searchPages({
+				pages,
+				query: searchQuery,
+				tags: activeTags,
+				contentHits,
+				limit: MAX_SIDEBAR_RESULTS + 1
+			}),
+		[searchQuery, activeTags, pages, contentHits]
+	)
+	// Either cap can hide a match: the sidebar's own, or the server's on content hits.
+	const resultsTruncated = searchResults.length > MAX_SIDEBAR_RESULTS || contentTruncated
+	const filteredResults = React.useMemo(
+		() =>
+			searchResults.length > MAX_SIDEBAR_RESULTS
+				? searchResults.slice(0, MAX_SIDEBAR_RESULTS)
+				: searchResults,
+		[searchResults]
+	)
 
 	const activePage = activePageId ? pages.get(activePageId) : undefined
+
+	// A page that has no place in the tree — unfiled (created from an @-mention)
+	// or orphaned by a parent that no longer exists — gets a "Current Page" card
+	// above the tree instead, so it is still reachable while it is open.
+	const unfiledPage = React.useMemo(() => {
+		if (!activePage) return null
+		return getAncestorIds(activePage.id, pages).reachesRoot ? null : activePage
+	}, [activePage, pages])
+
 	const {
 		blocks,
 		loading: blocksLoading,
+		error: blocksError,
+		retry: retryBlocks,
 		loadedPageId,
 		knownBlockIds,
 		knownBlockOrders
@@ -537,7 +624,7 @@ export function NotilloApp() {
 
 			try {
 				const markdown = await file.text()
-				await importMarkdown(editorRef.current, markdown, allPages)
+				await importMarkdown(editorRef.current, markdown, pages)
 			} catch (err) {
 				await dialog.tell(
 					t('Import error'),
@@ -545,7 +632,7 @@ export function NotilloApp() {
 				)
 			}
 		},
-		[dialog, allPages, t]
+		[dialog, pages, t]
 	)
 
 	// Import markdown as child/sibling page — parentPageId stored in ref
@@ -591,8 +678,8 @@ export function NotilloApp() {
 	// Loading state
 	if (notillo.loading) {
 		return (
-			<div className="c-vbox w-100 h-100 justify-center align-center">
-				<Panel className="c-vbox align-center p-2">
+			<div className="c-vbox w-100 h-100 justify-content-center align-items-center">
+				<Panel className="c-vbox align-items-center p-2">
 					<LoadingSpinner size="lg" label={t('Connecting to Notillo…')} />
 				</Panel>
 			</div>
@@ -602,10 +689,27 @@ export function NotilloApp() {
 	// Error state
 	if (notillo.error) {
 		return (
-			<div className="c-vbox w-100 h-100 justify-center align-center">
+			<div className="c-vbox w-100 h-100 justify-content-center align-items-center">
 				<Panel className="c-alert error">
 					<h3>{t('Connection Error')}</h3>
 					<p>{notillo.error.message}</p>
+				</Panel>
+			</div>
+		)
+	}
+
+	// Only a page list we never received is fatal. Any websocket error fires every
+	// subscription's `onError`, including the transient blip the client recovers
+	// from on its own, and replacing the whole app on one of those would tear down
+	// the editor along with whatever was being typed. With pages in hand the error
+	// is reported inline instead (below).
+	if (pagesError && pages.size === 0) {
+		return (
+			<div className="c-vbox w-100 h-100 justify-content-center align-items-center">
+				<Panel className="c-vbox align-items-center p-2">
+					<h3>{t('Could not load pages')}</h3>
+					<p>{pagesError.message}</p>
+					<Button onClick={retryPages}>{t('Try again')}</Button>
 				</Panel>
 			</div>
 		)
@@ -635,10 +739,8 @@ export function NotilloApp() {
 						<PageSidebar
 							client={notillo.client}
 							pages={pages}
-							pagesWithChildren={pagesWithChildren}
 							expanded={expanded}
-							loadingChildren={loadingChildren}
-							orphanPage={orphanPage}
+							unfiledPage={unfiledPage}
 							onExpand={expand}
 							onToggleExpand={toggleExpand}
 							activePageId={activePageId}
@@ -647,14 +749,22 @@ export function NotilloApp() {
 							readOnly={!canWrite}
 							tags={tags}
 							tagCounts={tagCounts}
-							activeTag={activeTag}
-							onSelectTag={handleTagClick}
-							onClearTag={() => setActiveTag(null)}
+							activeTags={activeTags}
+							onToggleTag={handleToggleTag}
+							onClearTags={handleClearTags}
 							searchQuery={searchQuery}
 							onSearchChange={setSearchQuery}
 							filteredResults={filteredResults}
+							resultsTruncated={resultsTruncated}
 							isFiltering={isFiltering}
-							onResubscribe={resubscribe}
+							contentSearchPending={
+								!!searchQuery.trim() && contentSearchEnabled && !contentReady
+							}
+							contentSearchError={contentError}
+							onRetryContentSearch={retryContentSearch}
+							focusSearchSeq={focusSearchSeq}
+							onSearchActivate={enableContentSearch}
+							recentPageIds={recentPageIds}
 							onImportMarkdown={canWrite ? handleImportMarkdownInto : undefined}
 						/>
 					</Panel>
@@ -699,8 +809,28 @@ export function NotilloApp() {
 						)
 					}
 				>
+					{/* Non-blocking: the loaded pages are still usable and the editor
+					    stays mounted. `useAllPages` drops the error on its next `ready`
+					    snapshot, so a recovered connection clears this by itself. */}
+					{pagesError && (
+						<div className="c-hbox align-items-center g-2 c-alert error" role="alert">
+							<span className="flex-fill">{t('Page list may be out of date.')}</span>
+							<Button kind="link" size="small" onClick={retryPages}>
+								{t('Try again')}
+							</Button>
+						</div>
+					)}
 					{activePage ? (
-						blocksLoading || loadedPageId !== activePageId ? (
+						blocksError ? (
+							<div className="c-vbox fill align-items-center justify-content-center">
+								<EmptyState
+									icon={<span className="text-3xl">⚠️</span>}
+									title={t('Could not load this page')}
+									description={blocksError.message}
+									action={<Button onClick={retryBlocks}>{t('Try again')}</Button>}
+								/>
+							</div>
+						) : blocksLoading || loadedPageId !== activePageId ? (
 							<div className="c-vbox fill align-items-center justify-content-center">
 								<LoadingSpinner />
 							</div>
@@ -720,7 +850,7 @@ export function NotilloApp() {
 								fileId={notillo.fileId}
 								pages={pages}
 								onSelectPage={handleSelectPage}
-								onTagClick={handleTagClick}
+								onTagClick={handleToggleTag}
 								onEditorReady={handleEditorReady}
 								onCommentBlock={canComment ? handleCommentBlock : undefined}
 								tags={tags}

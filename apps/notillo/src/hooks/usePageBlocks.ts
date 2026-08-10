@@ -3,7 +3,7 @@
 
 import type { Block } from '@blocknote/core'
 import type { RtdbClient } from '@cloudillo/rtdb'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { reconstructBlocks } from '../rtdb/reconstruct.js'
 import { fromStoredBlock } from '../rtdb/transform.js'
@@ -16,15 +16,20 @@ export function usePageBlocks(
 ) {
 	const [blocks, setBlocks] = useState<Block[]>([])
 	const [loading, setLoading] = useState(true)
+	const [error, setError] = useState<Error | undefined>()
 	const [loadedPageId, setLoadedPageId] = useState<string | undefined>()
 	const [knownBlockIds, setKnownBlockIds] = useState<Set<string>>(new Set())
 	const [knownBlockOrders, setKnownBlockOrders] = useState<Map<string, number>>(new Map())
+	const [retryCount, setRetryCount] = useState(0)
 	const recordsRef = useRef<Map<string, BlockRecord & { id: string }>>(new Map())
+
+	const retry = useCallback(() => setRetryCount((n) => n + 1), [])
 
 	useEffect(() => {
 		if (!client || !pageId) {
 			setBlocks([])
 			setLoading(false)
+			setError(undefined)
 			setLoadedPageId(undefined)
 			setKnownBlockIds(new Set())
 			setKnownBlockOrders(new Map())
@@ -32,6 +37,7 @@ export function usePageBlocks(
 		}
 
 		setLoading(true)
+		setError(undefined)
 		setLoadedPageId(undefined)
 		recordsRef.current.clear()
 
@@ -63,17 +69,20 @@ export function usePageBlocks(
 				setLoading(false)
 			})
 			.catch((err) => {
-				if (!cancelled) {
-					console.error('[usePageBlocks] Query error:', err)
-				}
+				if (cancelled) return
+				console.error('[usePageBlocks] Query error:', err)
+				// Clearing `loading` matters as much as reporting the error: without
+				// it the content pane spins forever with no way back.
+				setError(err instanceof Error ? err : new Error(String(err)))
+				setLoading(false)
 			})
 
 		return () => {
 			cancelled = true
 		}
-	}, [client, pageId, ownerTag])
+	}, [client, pageId, ownerTag, retryCount])
 
-	return { blocks, loading, loadedPageId, knownBlockIds, knownBlockOrders }
+	return { blocks, loading, error, retry, loadedPageId, knownBlockIds, knownBlockOrders }
 }
 
 // vim: ts=4

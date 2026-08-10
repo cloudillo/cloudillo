@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { type Block, UniqueID } from '@blocknote/core'
-import { filterSuggestionItems, SideMenuExtension } from '@blocknote/core/extensions'
+import {
+	filterSuggestionItems,
+	SideMenuExtension,
+	SuggestionMenu
+} from '@blocknote/core/extensions'
 import { BlockNoteView } from '@blocknote/mantine'
 import {
 	BlockColorsItem,
@@ -33,10 +37,81 @@ import { usePageTagSync } from '../hooks/usePageTagSync.js'
 import { shortId } from '../rtdb/ids.js'
 import { createPage } from '../rtdb/page-ops.js'
 import type { PageRecord } from '../rtdb/types.js'
+import { foldDiacritics, searchPages } from '../utils/search.js'
 import { NotilloEditorProvider } from './NotilloEditorContext.js'
 import { asBaseEditor, type NotilloEditor as NotilloEditorType, notilloSchema } from './schema.js'
 import { notilloThemeOverrides } from './theme.js'
 import { useMediaHandler } from './useMediaHandler.js'
+
+/** Wiki-style link trigger. Opens the same page picker as `@`. */
+const WIKI_LINK_TRIGGER = '[['
+
+const WIKI_LINK_SUGGESTION_LIMIT = 30
+
+/**
+ * Detect a typed `[[` and hand over to BlockNote's suggestion plugin.
+ *
+ * BlockNote supports multi-character triggers everywhere except in its own
+ * detection: `handleTextInput` compares an N-character trigger against the N
+ * characters *before* the caret plus the one being typed — N+1 characters — so a
+ * two-character trigger can never match. So detect the second `[` here, remove
+ * the first, and let `openSuggestionMenu` re-insert `[[` as the trigger, which
+ * keeps it visible while typing and deletes it on selection like the `@` flow.
+ */
+function createWikiLinkTrigger(editorRef: React.RefObject<NotilloEditorType | null>) {
+	return TiptapExtension.create({
+		name: 'notilloWikiLinkTrigger',
+		priority: 1100,
+		addProseMirrorPlugins() {
+			return [
+				new ProseMirrorPlugin({
+					props: {
+						handleTextInput(view, from, to, text) {
+							if (from !== to || text !== '[' || from < 1) return false
+							// `[[` is literal text inside a code block.
+							if (view.state.selection.$from.parent.type.spec.code) return false
+							if (view.state.doc.textBetween(from - 1, from) !== '[') return false
+
+							// Resolve the menu before mutating: consuming the keystroke
+							// and deleting the first bracket without anything to open
+							// would eat both characters.
+							const menu = editorRef.current?.getExtension(SuggestionMenu)
+							if (!menu) return false
+
+							// Kept out of the history so undo sees only the `[[` the
+							// menu re-inserts — one step, not two.
+							view.dispatch(
+								view.state.tr.delete(from - 1, from).setMeta('addToHistory', false)
+							)
+							// Opening dispatches its own transaction; defer so it
+							// applies on top of the delete above.
+							queueMicrotask(() => {
+								if (view.isDestroyed) return
+								try {
+									menu.openSuggestionMenu(WIKI_LINK_TRIGGER, {
+										deleteTriggerCharacter: true
+									})
+								} catch (err) {
+									// Nothing re-inserted the trigger, so put both
+									// brackets back rather than swallow a keystroke.
+									console.error('[Notillo] `[[` trigger failed:', err)
+									if (view.isDestroyed) return
+									view.dispatch(
+										view.state.tr.insertText(
+											WIKI_LINK_TRIGGER,
+											view.state.selection.from
+										)
+									)
+								}
+							})
+							return true
+						}
+					}
+				})
+			]
+		}
+	})
+}
 
 // Override BlockNote's UUID generator with short base-62 IDs.
 // UniqueID.options is a getter (returns fresh object each access),
@@ -155,6 +230,11 @@ export const NotilloEditor = React.memo(
 			[ownerTag, token]
 		)
 
+		// The `[[` trigger plugin is built before the editor exists, so it reaches
+		// the editor through a ref that is filled in right after creation.
+		const editorHandleRef = React.useRef<NotilloEditorType | null>(null)
+		const wikiLinkTrigger = React.useMemo(() => createWikiLinkTrigger(editorHandleRef), [])
+
 		const editor = useCreateBlockNote({
 			schema: notilloSchema,
 			// biome-ignore lint/suspicious/noExplicitAny: BlockNote initialContent type boundary with custom schema
@@ -200,10 +280,17 @@ export const NotilloEditor = React.memo(
 								})
 							]
 						}
-					})
+					}),
+					wikiLinkTrigger
 				]
 			}
 		})
+
+		// Filled after commit, not during render: the only reader is the trigger
+		// plugin's `handleTextInput`, which needs a mounted editor to fire at all.
+		React.useLayoutEffect(() => {
+			editorHandleRef.current = editor
+		}, [editor])
 
 		const onEditorReadyRef = React.useRef(onEditorReady)
 		React.useEffect(() => {
@@ -337,34 +424,43 @@ export const NotilloEditor = React.memo(
 			}
 		}, [onSelectPage, onTagClick, readOnly])
 
-		// Wiki-link suggestion items
+		// Backed by the same matcher the sidebar and command palette use, so
+		// `@`/`[[` see every page — including collapsed-branch and unfiled ones —
+		// and fold diacritics alike.
 		const getWikiLinkItems = React.useCallback(
 			(query: string): DefaultReactSuggestionItem[] => {
-				const search = query.toLowerCase()
+				const search = query.trim()
 
-				const items: DefaultReactSuggestionItem[] = []
-				for (const page of pages.values()) {
-					if (page.id === pageId) continue // Don't suggest current page
-					if (search && !page.title.toLowerCase().includes(search)) continue
-					items.push({
-						title: page.title || t('Untitled'),
-						icon: page.icon ? <span>{page.icon}</span> : undefined,
+				function linkItem(id: string, title: string, icon?: string) {
+					const pageTitle = title || t('Untitled')
+					return {
+						title: pageTitle,
+						icon: icon ? <span>{icon}</span> : undefined,
 						onItemClick: () => {
 							editor.insertInlineContent([
-								{
-									type: 'wikiLink',
-									props: {
-										pageId: page.id,
-										pageTitle: page.title || t('Untitled')
-									}
-								},
+								{ type: 'wikiLink', props: { pageId: id, pageTitle } },
 								' '
 							])
 						}
-					})
+					}
 				}
 
-				// Offer to create a new page if no matches found
+				const items: DefaultReactSuggestionItem[] = search
+					? // One over the limit, because the current page is filtered out
+						// afterwards: asking for exactly the limit returns one suggestion
+						// short whenever the edited page ranks among its own matches.
+						searchPages({ pages, query: search, limit: WIKI_LINK_SUGGESTION_LIMIT + 1 })
+							.filter((r) => r.id !== pageId)
+							.slice(0, WIKI_LINK_SUGGESTION_LIMIT)
+							.map((r) => linkItem(r.id, r.title, r.icon))
+					: Array.from(pages.values())
+							.filter((p) => p.id !== pageId)
+							.sort((a, b) => a.title.localeCompare(b.title))
+							.slice(0, WIKI_LINK_SUGGESTION_LIMIT)
+							.map((p) => linkItem(p.id, p.title, p.icon))
+
+				// A page created from here has no parent — it lives outside the
+				// sidebar until it is pinned.
 				if (items.length === 0 && search) {
 					items.push({
 						title: t('Create page "{{search}}"', { search }),
@@ -388,11 +484,15 @@ export const NotilloEditor = React.memo(
 		// Tag suggestion items
 		const getTagItems = React.useCallback(
 			(query: string): DefaultReactSuggestionItem[] => {
-				const search = query.toLowerCase()
+				// Folding is for *matching* only: the created tag keeps the user's
+				// accents, since folding it would rewrite `#keresés` to `#kereses`
+				// in their data.
+				const raw = query.trim()
+				const folded = foldDiacritics(raw)
 				const items: DefaultReactSuggestionItem[] = []
 
 				for (const tag of tags) {
-					if (search && !tag.toLowerCase().includes(search)) continue
+					if (folded && !foldDiacritics(tag).includes(folded)) continue
 					items.push({
 						title: `#${tag}`,
 						onItemClick: () => {
@@ -401,13 +501,20 @@ export const NotilloEditor = React.memo(
 					})
 				}
 
-				// Offer to create a new tag if the query doesn't match any existing tag
-				if (search && !tags.has(search)) {
+				// Offer to create a new tag unless one already exists that only differs
+				// by accents or case — otherwise "Create" sits right under the tag it
+				// would near-duplicate.
+				const exists =
+					!!folded && Array.from(tags).some((tag) => foldDiacritics(tag) === folded)
+				if (raw && !exists) {
+					// Label with the tag that will actually be created, not the raw
+					// query — otherwise "Create #Keresés" quietly inserts `#keresés`.
+					const newTag = raw.toLowerCase()
 					items.push({
-						title: t('Create #{{search}}', { search }),
+						title: t('Create #{{search}}', { search: newTag }),
 						onItemClick: () => {
 							editor.insertInlineContent([
-								{ type: 'tag', props: { tag: search } },
+								{ type: 'tag', props: { tag: newTag } },
 								' '
 							])
 						}
@@ -469,6 +576,10 @@ export const NotilloEditor = React.memo(
 						/>
 						<SuggestionMenuController
 							triggerCharacter="@"
+							getItems={async (query) => getWikiLinkItems(query)}
+						/>
+						<SuggestionMenuController
+							triggerCharacter={WIKI_LINK_TRIGGER}
 							getItems={async (query) => getWikiLinkItems(query)}
 						/>
 						<SuggestionMenuController

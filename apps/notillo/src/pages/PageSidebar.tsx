@@ -24,21 +24,31 @@ import {
 	PiDotsThreeVerticalBold as IcMore,
 	PiFileBold as IcPage,
 	PiPushPinBold as IcPin,
-	PiPlusBold as IcPlus,
-	PiMagnifyingGlassBold as IcSearch
+	PiPlusBold as IcPlus
 } from 'react-icons/pi'
 
-import { checkConsistency, fixConsistency } from '../rtdb/consistency.js'
-import { createPage, deletePage, isAncestor, movePage, pinToSidebar } from '../rtdb/page-ops.js'
+import {
+	buildChildIndex,
+	collectDescendants,
+	createPage,
+	deletePage,
+	movePage,
+	pinToSidebar,
+	planMove
+} from '../rtdb/page-ops.js'
 import type { PageRecord } from '../rtdb/types.js'
+import type { SearchResult } from '../utils/search.js'
+import { PageSearchPanel } from './PageSearchPanel.js'
+import { useConsistencyCheck } from './useConsistencyCheck.js'
+
+type PageWithId = PageRecord & { id: string }
 
 interface PageSidebarProps {
 	client: RtdbClient
-	pages: Map<string, PageRecord & { id: string }>
-	pagesWithChildren: Set<string>
+	pages: Map<string, PageWithId>
 	expanded: Set<string>
-	loadingChildren: Set<string>
-	orphanPage: (PageRecord & { id: string }) | null
+	/** The open page when it has no place in the tree (unfiled or orphaned). */
+	unfiledPage: PageWithId | null
 	onExpand: (pageId: string) => void
 	onToggleExpand: (pageId: string) => void
 	activePageId: string | undefined
@@ -47,24 +57,33 @@ interface PageSidebarProps {
 	readOnly: boolean
 	tags: Set<string>
 	tagCounts: Map<string, number>
-	activeTag: string | null
-	onSelectTag: (tag: string) => void
-	onClearTag: () => void
+	activeTags: Set<string>
+	onToggleTag: (tag: string) => void
+	onClearTags: () => void
 	searchQuery: string
 	onSearchChange: (query: string) => void
-	filteredResults: Array<{ id: string; title: string; icon?: string; tags?: string[] }>
+	filteredResults: SearchResult[]
+	/** More matches exist than `filteredResults` carries — the count renders as "N+". */
+	resultsTruncated: boolean
 	isFiltering: boolean
-	onResubscribe: (parentId: string) => void
+	/** A page-content search is in flight, so a title-only miss is not yet final. */
+	contentSearchPending: boolean
+	/** The page-content search failed — content hits are missing, not absent. */
+	contentSearchError?: Error
+	onRetryContentSearch: () => void
+	/** Bumped by the parent (Ctrl+K, `/`) to hand focus to the search box. */
+	focusSearchSeq: number
+	onSearchActivate: () => void
+	/** Most recently visited first. */
+	recentPageIds: string[]
 	onImportMarkdown?: (parentPageId: string) => void
 }
 
 export function PageSidebar({
 	client,
 	pages,
-	pagesWithChildren,
 	expanded,
-	loadingChildren,
-	orphanPage,
+	unfiledPage,
 	onExpand,
 	onToggleExpand,
 	activePageId,
@@ -73,19 +92,26 @@ export function PageSidebar({
 	readOnly,
 	tags,
 	tagCounts,
-	activeTag,
-	onSelectTag,
-	onClearTag,
+	activeTags,
+	onToggleTag,
+	onClearTags,
 	searchQuery,
 	onSearchChange,
 	filteredResults,
-	onResubscribe,
+	resultsTruncated,
 	isFiltering,
+	contentSearchPending,
+	contentSearchError,
+	onRetryContentSearch,
+	focusSearchSeq,
+	onSearchActivate,
+	recentPageIds,
 	onImportMarkdown
 }: PageSidebarProps) {
 	const { t } = useTranslation()
 	const dialog = useDialog()
 	const isMobile = useIsMobile()
+	const checkPageConsistency = useConsistencyCheck(client)
 	const [menuOpen, setMenuOpen] = React.useState(false)
 	const menuRef = React.useRef<HTMLDivElement>(null)
 
@@ -117,9 +143,8 @@ export function PageSidebar({
 		null
 	)
 
-	// Build tree structure from flat pages
 	const rootPages = React.useMemo(() => {
-		const roots: Array<PageRecord & { id: string }> = []
+		const roots: PageWithId[] = []
 		for (const page of pages.values()) {
 			if (page.parentPageId === '__root__') {
 				roots.push(page)
@@ -128,54 +153,129 @@ export function PageSidebar({
 		return roots.sort((a, b) => a.order - b.order)
 	}, [pages])
 
-	const getChildren = React.useCallback(
-		(parentId: string) => {
-			const children: Array<PageRecord & { id: string }> = []
-			for (const page of pages.values()) {
-				if (page.parentPageId === parentId) {
-					children.push(page)
-				}
-			}
-			return children.sort((a, b) => a.order - b.order)
-		},
-		[pages]
-	)
+	// The same parent → children index the delete cascade walks, built once here so
+	// `handleDeletePage` and `deletePage` don't each rebuild it. Sorted so the tree
+	// renders children in their stored order.
+	const childIndex = React.useMemo(() => {
+		const index = buildChildIndex(pages)
+		for (const siblings of index.values()) {
+			siblings.sort((a, b) => (pages.get(a)?.order ?? 0) - (pages.get(b)?.order ?? 0))
+		}
+		return index
+	}, [pages])
+
+	// A subtree delete runs page by page and can take a while; the tree it is
+	// dismantling must not be edited underneath it, so the other mutating actions
+	// go inert until it finishes.
+	const [deleting, setDeleting] = React.useState<{
+		pageId: string
+		done: number
+		total: number
+	} | null>(null)
+	// Set synchronously: `deleting` state is not yet committed when the confirm
+	// resolves, so a second click would otherwise pass the guard and start an
+	// overlapping cascade.
+	const deletingRef = React.useRef(false)
+	// Abandoning the sidebar mid-run stops the cascade rather than keeping it
+	// committing against a client the user has left behind.
+	const deleteAbortRef = React.useRef<AbortController | null>(null)
+	React.useEffect(() => () => deleteAbortRef.current?.abort(), [])
+
+	// Shared by all three create paths: a failed write leaves nothing on screen to
+	// explain itself, so it has to be told rather than logged.
+	const tellCreateFailed = React.useCallback(async () => {
+		await dialog.tell(
+			t('New page'),
+			t('Could not create the page. Check your connection and try again.')
+		)
+	}, [dialog, t])
 
 	const handleCreatePage = React.useCallback(async () => {
-		const id = await createPage(client, userId, t('New Page'), '__root__')
-		onSelectPage(id)
-	}, [client, userId, onSelectPage, t])
+		if (deleting) return
+		try {
+			const id = await createPage(client, userId, t('New Page'), '__root__')
+			onSelectPage(id)
+		} catch (err) {
+			console.error('[Notillo] Create page failed:', err)
+			await tellCreateFailed()
+		}
+	}, [client, userId, onSelectPage, deleting, t, tellCreateFailed])
 
 	const handleCreateSubpage = React.useCallback(
 		async (e: React.MouseEvent, parentPageId: string) => {
 			e.stopPropagation()
-			const id = await createPage(client, userId, t('New Page'), parentPageId)
-			onExpand(parentPageId)
-			onSelectPage(id)
+			if (deleting) return
+			try {
+				const id = await createPage(client, userId, t('New Page'), parentPageId)
+				onExpand(parentPageId)
+				onSelectPage(id)
+			} catch (err) {
+				console.error('[Notillo] Create subpage failed:', err)
+				await tellCreateFailed()
+			}
 		},
-		[client, userId, onSelectPage, onExpand, t]
+		[client, userId, onSelectPage, onExpand, deleting, t, tellCreateFailed]
 	)
 
 	const handleDeletePage = React.useCallback(
 		async (e: React.MouseEvent, pageId: string) => {
 			e.stopPropagation()
-			if (
-				!(await dialog.confirm(
-					t('Delete page'),
-					t('Delete this page and all its content?')
-				))
-			)
-				return
-			await deletePage(client, pageId)
+			if (deleting || deletingRef.current) return
+			deletingRef.current = true
+			try {
+				const childCount = collectDescendants(pageId, pages, childIndex).length
+				const message = !childCount
+					? t('Delete this page and all its content?')
+					: childCount === 1
+						? t('Delete this page, its subpage and all their content?')
+						: t('Delete this page, its {{count}} subpages and all their content?', {
+								count: childCount
+							})
+				if (!(await dialog.confirm(t('Delete page'), message))) return
+				setDeleting({ pageId, done: 0, total: childCount + 1 })
+				const abort = new AbortController()
+				deleteAbortRef.current = abort
+				try {
+					await deletePage(client, pageId, pages, {
+						childIndex,
+						onProgress: (done, total) => setDeleting({ pageId, done, total }),
+						signal: abort.signal
+					})
+				} catch (err) {
+					// An abort is the user's own navigation, not a failure. Checked on
+					// the signal rather than on the error's name: `throwIfAborted()`
+					// throws a DOM `AbortError` and nothing here should depend on that.
+					if (abort.signal.aborted) return
+					await dialog.tell(
+						t('Delete page'),
+						t('Could not delete this page. Some of it may already be gone — try again.')
+					)
+					console.error('[Notillo] Delete failed:', err)
+				} finally {
+					deleteAbortRef.current = null
+					setDeleting(null)
+				}
+			} finally {
+				deletingRef.current = false
+			}
 		},
-		[client, dialog, t]
+		[client, dialog, pages, childIndex, deleting, t]
 	)
 
 	const handlePinToSidebar = React.useCallback(
 		async (pageId: string) => {
-			await pinToSidebar(client, pageId)
+			if (deleting) return
+			try {
+				await pinToSidebar(client, pageId)
+			} catch (err) {
+				console.error('[Notillo] Pin to sidebar failed:', err)
+				await dialog.tell(
+					t('Pin to sidebar'),
+					t('Could not pin this page. Check your connection and try again.')
+				)
+			}
 		},
-		[client]
+		[client, deleting, dialog, t]
 	)
 
 	// Close menu on click outside
@@ -219,6 +319,11 @@ export function PageSidebar({
 	const handleTouchStart = React.useCallback(
 		(e: React.TouchEvent, pageId: string, pageTitle: string) => {
 			if (readOnly || !onImportMarkdown) return
+			// TreeItem spreads this onto its outer element and renders its children
+			// inside it, so without stopping propagation every ancestor clears the
+			// timer armed below and arms its own — the menu would open for the
+			// outermost row.
+			e.stopPropagation()
 			// Defensively clear any timer left over from a previous touch
 			// whose touchend/touchmove/touchcancel didn't fire (e.g., the
 			// browser hijacked the gesture for a drag). Otherwise the old
@@ -241,45 +346,15 @@ export function PageSidebar({
 		[readOnly, onImportMarkdown]
 	)
 
-	const handleTouchEnd = React.useCallback(() => {
+	const handleTouchEnd = React.useCallback((e: React.TouchEvent) => {
+		// Same bubbling problem as `handleTouchStart`: ending a touch on a nested row
+		// would otherwise cancel every ancestor's timer too.
+		e.stopPropagation()
 		if (longPressTimerRef.current) {
 			clearTimeout(longPressTimerRef.current)
 			longPressTimerRef.current = null
 		}
 	}, [])
-
-	const handleCheckConsistency = React.useCallback(async () => {
-		setMenuOpen(false)
-		const result = await checkConsistency(client)
-		const issues = result.orphanPages.length + result.hcMissing.length + result.hcStale.length
-		const message = [
-			`${result.totalPages} pages total, ${result.rootPages} root pages`,
-			result.orphanPages.length > 0
-				? `${result.orphanPages.length} orphan pages (not in sidebar)`
-				: null,
-			result.hcMissing.length > 0
-				? `${result.hcMissing.length} pages missing expand indicator`
-				: null,
-			result.hcStale.length > 0
-				? `${result.hcStale.length} pages with stale expand indicator`
-				: null
-		]
-			.filter(Boolean)
-			.join('\n\n')
-
-		if (result.needsFix) {
-			const shouldFix = await dialog.confirm(
-				t('Consistency check'),
-				`${message}\n\n${t('Fix {{count}} issues?', { count: issues })}`
-			)
-			if (shouldFix) {
-				await fixConsistency(client, result)
-				await dialog.tell(t('Consistency check'), t('Issues fixed.'))
-			}
-		} else {
-			await dialog.tell(t('Consistency check'), `${message}\n\n${t('No issues found.')}`)
-		}
-	}, [client, dialog, t])
 
 	// DnD callbacks
 	const handleDragStart = React.useCallback((_e: React.DragEvent, data: TreeItemDragData) => {
@@ -288,9 +363,10 @@ export function PageSidebar({
 
 	const handleDragOver = React.useCallback(
 		(targetId: string, _e: React.DragEvent, position: 'before' | 'after' | 'inside') => {
-			if (!draggedId || draggedId === targetId) return
-			// Prevent dropping into own descendant
-			if (position === 'inside' && isAncestor(targetId, draggedId, pages)) return
+			// `planMove` is the same decision the drop will make, so a move it
+			// rejects (anything making the page its own ancestor) never gets a drop
+			// indicator painted for it.
+			if (!draggedId || !planMove(draggedId, targetId, position, pages)) return
 			setDropTargetId(targetId)
 			setDropPosition(position)
 		},
@@ -304,24 +380,23 @@ export function PageSidebar({
 
 	const handleDrop = React.useCallback(
 		(targetId: string, _e: React.DragEvent, position: 'before' | 'after' | 'inside') => {
-			if (!draggedId || draggedId === targetId) return
-			// Prevent dropping into own descendant
-			if (position === 'inside' && isAncestor(targetId, draggedId, pages)) return
+			// Bailing out still has to clear the drag state, or the rejected drag
+			// stays "in progress" and its row keeps rendering as dragged.
+			if (deleting || !draggedId || !planMove(draggedId, targetId, position, pages)) {
+				setDraggedId(null)
+				setDropTargetId(null)
+				setDropPosition(null)
+				return
+			}
 
-			const target = pages.get(targetId)
-			const newParentId = position === 'inside' ? targetId : target?.parentPageId
-			const oldParentId = pages.get(draggedId)?.parentPageId
-
-			movePage(client, draggedId, targetId, position, pages)
-				.then(() => {
-					// Force-refresh subscriptions for affected levels so the UI
-					// updates even if the server doesn't notify the new parent's
-					// subscription about the moved document.
-					if (newParentId && newParentId !== '__root__') onResubscribe(newParentId)
-					if (oldParentId && oldParentId !== newParentId && oldParentId !== '__root__')
-						onResubscribe(oldParentId)
-				})
-				.catch(console.error)
+			// A rejected move snaps the row back with nothing to explain it, so say so.
+			movePage(client, draggedId, targetId, position, pages).catch((err) => {
+				console.error('[Notillo] Move page failed:', err)
+				dialog.tell(
+					t('Move page'),
+					t('Could not move this page. Check your connection and try again.')
+				)
+			})
 
 			// Auto-expand the target if dropping inside
 			if (position === 'inside') {
@@ -332,7 +407,7 @@ export function PageSidebar({
 			setDropTargetId(null)
 			setDropPosition(null)
 		},
-		[draggedId, client, pages, onExpand, onResubscribe]
+		[draggedId, client, pages, deleting, onExpand, dialog, t]
 	)
 
 	const handleDragEnd = React.useCallback(() => {
@@ -341,17 +416,18 @@ export function PageSidebar({
 		setDropPosition(null)
 	}, [])
 
-	function renderPage(page: PageRecord & { id: string }, depth: number) {
-		const children = getChildren(page.id)
-		const hasChildren = children.length > 0 || pagesWithChildren.has(page.id)
+	function renderPage(page: PageWithId, depth: number) {
+		const childIds = childIndex.get(page.id) ?? []
+		const hasChildren = childIds.length > 0
 		const isExpanded = expanded.has(page.id)
-		const isLoading = loadingChildren.has(page.id)
 		const pageTitle = page.title || t('Untitled')
+		const deleteProgress = deleting?.pageId === page.id ? deleting : null
 
 		return (
 			<TreeItem
 				key={page.id}
 				id={page.id}
+				aria-busy={deleteProgress ? true : undefined}
 				depth={depth}
 				expanded={isExpanded}
 				selected={page.id === activePageId}
@@ -385,7 +461,18 @@ export function PageSidebar({
 				onItemDrop={(e, pos) => handleDrop(page.id, e, pos)}
 				onItemDragEnd={handleDragEnd}
 				actions={
-					!readOnly ? (
+					deleteProgress ? (
+						// The cascade walks the subtree page by page, so beyond a
+						// handful the count is what tells the user it is moving
+						// rather than stuck.
+						<span className="c-hbox align-items-center g-1 text-muted text-xs">
+							{/* `aria-label`, not `label`: the latter renders as visible
+						    text, which the row has no space for. */}
+							<LoadingSpinner size="xs" aria-label={t('Deleting…')} />
+							{deleteProgress.total > 20 &&
+								`${deleteProgress.done}/${deleteProgress.total}`}
+						</span>
+					) : !readOnly ? (
 						<>
 							<button
 								className="page-tree-action"
@@ -406,18 +493,10 @@ export function PageSidebar({
 				}
 			>
 				{isExpanded &&
-					(isLoading ? (
-						<TreeItem
-							key="__loading__"
-							id="__loading__"
-							depth={depth + 1}
-							hasChildren={false}
-							icon={<LoadingSpinner size="xs" />}
-							label={t('Loading...')}
-						/>
-					) : (
-						children.map((child) => renderPage(child, depth + 1))
-					))}
+					childIds.map((childId) => {
+						const child = pages.get(childId)
+						return child ? renderPage(child, depth + 1) : null
+					})}
 			</TreeItem>
 		)
 	}
@@ -472,7 +551,10 @@ export function PageSidebar({
 									)}
 									<button
 										className="c-menu-item"
-										onClick={handleCheckConsistency}
+										onClick={() => {
+											setMenuOpen(false)
+											void checkPageConsistency()
+										}}
 									>
 										{t('Check consistency')}
 									</button>
@@ -482,104 +564,59 @@ export function PageSidebar({
 					</>
 				)}
 			</div>
-			<div className="px-3 py-1">
-				<div className="c-input-group">
-					<IcSearch className="c-input-icon" />
-					<input
-						className="c-input"
-						type="text"
-						placeholder={t('Search pages...')}
-						value={searchQuery}
-						onChange={(e) => onSearchChange(e.target.value)}
-						onKeyDown={(e) => {
-							if (e.key === 'Escape') {
-								onSearchChange('')
-								e.currentTarget.blur()
-							}
-						}}
-					/>
-					{searchQuery && (
-						<button
-							className="c-input-clear"
-							onClick={() => onSearchChange('')}
-							title={t('Clear search')}
-						>
-							<IcClose />
-						</button>
-					)}
-				</div>
-			</div>
-			<div className="fill overflow-y-auto py-2">
-				{isFiltering ? (
-					<div className="px-3">
-						<div className="c-hbox align-items-center gap-2 mb-2 flex-wrap">
-							{activeTag && (
-								<>
-									<span className="c-tag accent"># {activeTag}</span>
-									<button
-										className="tag-clear-btn"
-										onClick={onClearTag}
-										title={t('Clear tag filter')}
-									>
-										<IcClose />
-									</button>
-								</>
-							)}
-							<span className="text-muted text-xs flex-fill text-right">
-								{filteredResults.length === 1
-									? t('{{count}} result', { count: filteredResults.length })
-									: t('{{count}} results', { count: filteredResults.length })}
-							</span>
-						</div>
-						{filteredResults.length === 0 ? (
-							<div className="text-muted text-sm">{t('No matching pages.')}</div>
-						) : (
-							filteredResults.map((page) => (
-								<div
-									key={page.id}
-									className={`tag-filtered-page${page.id === activePageId ? ' active' : ''}`}
-									title={page.title || t('Untitled')}
-									onClick={() => onSelectPage(page.id)}
-								>
-									<span className="tag-filtered-page-icon">
-										{page.icon ? <span>{page.icon}</span> : <IcPage />}
-									</span>
-									<span className="tag-filtered-page-title">
-										{page.title || t('Untitled')}
-									</span>
-								</div>
-							))
-						)}
-					</div>
-				) : (
+			<PageSearchPanel
+				client={client}
+				userId={userId}
+				readOnly={readOnly}
+				pages={pages}
+				activePageId={activePageId}
+				onSelectPage={onSelectPage}
+				searchQuery={searchQuery}
+				onSearchChange={onSearchChange}
+				filteredResults={filteredResults}
+				resultsTruncated={resultsTruncated}
+				isFiltering={isFiltering}
+				contentSearchPending={contentSearchPending}
+				contentSearchError={contentSearchError}
+				onRetryContentSearch={onRetryContentSearch}
+				focusSearchSeq={focusSearchSeq}
+				onSearchActivate={onSearchActivate}
+				recentPageIds={recentPageIds}
+				tags={tags}
+				tagCounts={tagCounts}
+				activeTags={activeTags}
+				onToggleTag={onToggleTag}
+				onClearTags={onClearTags}
+				onCreateFailed={tellCreateFailed}
+				renderTree={() => (
 					<>
-						{orphanPage && (
+						{unfiledPage && (
 							<div
 								className="px-3 pb-2 mb-1"
 								style={{ borderBottom: '1px solid var(--col-outline)' }}
 							>
 								<div className="text-xs text-muted mb-1">{t('Current Page')}</div>
 								<div
-									className={`tag-filtered-page${orphanPage.id === activePageId ? ' active' : ''}`}
-									title={orphanPage.title || t('Untitled')}
-									onClick={() => onSelectPage(orphanPage.id)}
+									className={`tag-filtered-page${unfiledPage.id === activePageId ? ' active' : ''}`}
+									title={unfiledPage.title || t('Untitled')}
+									onClick={() => onSelectPage(unfiledPage.id)}
 								>
 									<span className="tag-filtered-page-icon">
-										{orphanPage.icon ? (
-											<span>{orphanPage.icon}</span>
+										{unfiledPage.icon ? (
+											<span>{unfiledPage.icon}</span>
 										) : (
 											<IcPage />
 										)}
 									</span>
 									<span className="tag-filtered-page-title flex-fill">
-										{orphanPage.title || t('Untitled')}
+										{unfiledPage.title || t('Untitled')}
 									</span>
 									{!readOnly && (
 										<button
 											className="page-tree-action"
 											onClick={(e) => {
 												e.stopPropagation()
-												handlePinToSidebar(orphanPage.id)
+												handlePinToSidebar(unfiledPage.id)
 											}}
 											title={t('Pin to sidebar')}
 										>
@@ -600,7 +637,7 @@ export function PageSidebar({
 						)}
 					</>
 				)}
-			</div>
+			/>
 			{sortedTags.length > 0 && (
 				<div className="tag-cloud-section">
 					<div
@@ -608,10 +645,11 @@ export function PageSidebar({
 						style={{ borderTop: '1px solid var(--col-outline)' }}
 					>
 						<span className="font-semibold text-sm flex-fill">{t('Tags')}</span>
-						{activeTag && (
+						{activeTags.size > 0 && (
 							<button
 								className="tag-clear-btn"
-								onClick={onClearTag}
+								type="button"
+								onClick={onClearTags}
 								title={t('Clear filter')}
 							>
 								<IcClose />
@@ -621,12 +659,14 @@ export function PageSidebar({
 					<div className="tag-cloud px-3 pb-2">
 						{sortedTags.map((tag) => {
 							const count = tagCounts.get(tag) ?? 0
-							const isActive = tag === activeTag
+							const isActive = activeTags.has(tag)
 							return (
 								<button
 									key={tag}
+									type="button"
+									aria-pressed={isActive}
 									className={`c-tag tag-cloud-item${isActive ? ' accent' : ''}`}
-									onClick={() => (isActive ? onClearTag() : onSelectTag(tag))}
+									onClick={() => onToggleTag(tag)}
 								>
 									# {tag}
 									{count > 0 && <span className="c-badge xs">{count}</span>}

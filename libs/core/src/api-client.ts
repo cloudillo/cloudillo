@@ -76,6 +76,20 @@ export function setAuthErrorHandler(handler: AuthErrorHandler | undefined): void
 	authErrorHandler = handler
 }
 
+/** Wire params for `GET /search`, shared so a new filter cannot reach only one of
+ *  the two `search` methods that send them. */
+function searchQueryParams(query: Types.SearchQuery) {
+	return {
+		q: query.q,
+		type: query.type,
+		fileId: query.fileId,
+		contentType: query.contentType,
+		tags: query.tags,
+		limit: query.limit,
+		offset: query.offset
+	}
+}
+
 /**
  * Options for creating an API client
  */
@@ -220,6 +234,7 @@ export class ApiClient {
 			requestId?: string
 			headers?: Record<string, string>
 			skipAuthRecovery?: boolean
+			signal?: AbortSignal
 		}
 	): Promise<Res> {
 		const send = (authToken: string | undefined) =>
@@ -229,11 +244,16 @@ export class ApiClient {
 				query: options?.query,
 				authToken,
 				requestId: options?.requestId,
-				headers: options?.headers
+				headers: options?.headers,
+				signal: options?.signal
 			})
 		try {
 			return await send(options?.authToken || this.getAuthToken())
 		} catch (err) {
+			// A cancelled request never reached a verdict, so there is nothing to
+			// recover from — and a token refresh per superseded keystroke would cost
+			// more than the request it replaced.
+			if (options?.signal?.aborted) throw err
 			if (options?.skipAuthRecovery) throw err
 			const recovery = await this.handleAuthError(err, options?.authToken)
 			if (recovery?.token) {
@@ -260,6 +280,7 @@ export class ApiClient {
 			authToken?: string
 			requestId?: string
 			skipAuthRecovery?: boolean
+			signal?: AbortSignal
 		}
 	): Promise<ApiFetchResult<Res>> {
 		const send = (authToken: string | undefined) =>
@@ -269,11 +290,14 @@ export class ApiClient {
 				query: options?.query,
 				authToken,
 				requestId: options?.requestId,
-				returnMeta: true
+				returnMeta: true,
+				signal: options?.signal
 			})
 		try {
 			return await send(options?.authToken || this.getAuthToken())
 		} catch (err) {
+			// See `request` above: an aborted call is not an auth failure.
+			if (options?.signal?.aborted) throw err
 			if (options?.skipAuthRecovery) throw err
 			const recovery = await this.handleAuthError(err, options?.authToken)
 			if (recovery?.token) {
@@ -1246,11 +1270,14 @@ export class ApiClient {
 		/**
 		 * GET /profiles - List profiles
 		 * @param query - Filter options
+		 * @param opts - `signal` cancels a lookup the caller has moved on from
+		 *   (the omnibox's `@` autocomplete)
 		 * @returns List of profiles
 		 */
-		list: (query?: Types.ListProfilesQuery) =>
+		list: (query?: Types.ListProfilesQuery, opts?: { signal?: AbortSignal }) =>
 			this.request('GET', '/profiles', Types.tListProfilesResult, {
-				query: query as Record<string, string | number | boolean | string[] | undefined>
+				query: query as Record<string, string | number | boolean | string[] | undefined>,
+				signal: opts?.signal
 			}),
 
 		/**
@@ -1726,6 +1753,62 @@ export class ApiClient {
 	}
 
 	// ========================================================================
+	// SEARCH ENDPOINTS
+	// ========================================================================
+
+	/** Full-text search endpoints */
+	search = {
+		/**
+		 * GET /search - Full-text search across files, document parts, actions
+		 * and profiles.
+		 *
+		 * Results are relevance-ordered, so this endpoint pages with
+		 * `limit`/`offset` rather than the keyset cursor the list endpoints use.
+		 * With a file-scoped token (share link, or an app's own credential) the
+		 * server confines results to that document's tree, whatever `fileId` says.
+		 *
+		 * @param query - Query text plus optional type/document filters
+		 * @param opts - `signal` cancels a query the caller has moved on from
+		 * @returns Ranked hits, most relevant first
+		 */
+		query: (query: Types.SearchQuery, opts?: { signal?: AbortSignal }) =>
+			this.request('GET', '/search', T.array(Types.tSearchHit), {
+				query: searchQueryParams(query),
+				signal: opts?.signal
+			}),
+
+		/**
+		 * GET /search with the pagination envelope preserved.
+		 *
+		 * `pagination.total` is the only has-more signal for these limit/offset
+		 * pages, and the plain `query` above drops it.
+		 *
+		 * @param query - Query text plus optional type/document filters
+		 * @param opts - `signal` cancels a query the caller has moved on from
+		 * @returns Ranked hits plus the `{ offset, limit, total }` envelope
+		 */
+		queryPaginated: async (query: Types.SearchQuery, opts?: { signal?: AbortSignal }) => {
+			const result = await this.requestWithMeta('GET', '/search', T.array(Types.tSearchHit), {
+				query: searchQueryParams(query),
+				signal: opts?.signal
+			})
+			return { data: result.data, pagination: result.meta.pagination }
+		},
+
+		/**
+		 * POST /search/reindex - Rebuild this tenant's full-text index.
+		 *
+		 * Owner/leader only, scoped to the tenant the request is authenticated
+		 * for — sweeping a community means calling through its proxy token.
+		 *
+		 * Fire-and-forget: the server queues a scheduler task and answers 202.
+		 * `taskId` only identifies the run in the server log; there is no endpoint
+		 * to poll it. Repeated calls coalesce into one pending sweep per tenant.
+		 */
+		reindex: () => this.request('POST', '/search/reindex', Types.tReindexResult)
+	}
+
+	// ========================================================================
 	// ONBOARDING ENDPOINTS
 	// ========================================================================
 
@@ -1927,6 +2010,20 @@ export class ApiClient {
 		 */
 		sendTestEmail: (to: string) =>
 			this.request('POST', '/admin/email/test', Types.tTestEmailResult, { data: { to } }),
+
+		/**
+		 * POST /admin/db-maintenance - Compact the search index and reclaim
+		 * unused disk space.
+		 *
+		 * SADM only, and whole-node rather than per tenant: the metadata database
+		 * is one file and both full-text indexes span every tenant.
+		 *
+		 * Fire-and-forget: the server queues a scheduler task and answers 202.
+		 * Nothing polls `taskId` — the outcome arrives as a `DB_MAINTENANCE_DONE`
+		 * message on the WS bus.
+		 */
+		dbMaintenance: () =>
+			this.request('POST', '/admin/db-maintenance', Types.tDbMaintenanceResult),
 
 		/**
 		 * GET /admin/proxy-sites - List all proxy sites

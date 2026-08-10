@@ -9,6 +9,7 @@ export * from './file-utils.js'
 export * from './jwt.js'
 // Message bus (unified communication layer)
 export * from './message-bus/index.js'
+export * from './search.js'
 export * from './urls.js'
 export * from './utils.js'
 

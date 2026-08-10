@@ -43,10 +43,20 @@ import {
 	AppManifest,
 	ContentTypeAction,
 	ContentTypeHandler,
+	DocFormat,
+	decodeFormatVersion,
+	encodeFormatVersion,
+	FORMAT_VERSION_MAX,
+	IndexFieldRule,
+	IndexPartRule,
+	IndexRules,
 	LaunchMode,
 	NewAction,
 	Profile,
 	ProfileTrust,
+	SearchHit,
+	SearchObjType,
+	SearchQuery,
 	tAction,
 	tActionStatus,
 	tActionType,
@@ -57,11 +67,17 @@ import {
 	tAppManifest,
 	tContentTypeAction,
 	tContentTypeHandler,
+	tDocFormat,
+	tIndexFieldRule,
+	tIndexPartRule,
+	tIndexRules,
 	tLaunchMode,
 	tNewAction,
 	tOptionalProfile,
 	tProfile,
-	tProfileTrust
+	tProfileTrust,
+	tSearchHit,
+	tSearchObjType
 } from '@cloudillo/types'
 
 // Re-export types from @cloudillo/types
@@ -75,10 +91,20 @@ export {
 	AppManifest,
 	ContentTypeAction,
 	ContentTypeHandler,
+	DocFormat,
+	decodeFormatVersion,
+	encodeFormatVersion,
+	FORMAT_VERSION_MAX,
+	IndexFieldRule,
+	IndexPartRule,
+	IndexRules,
 	LaunchMode,
 	NewAction,
 	Profile,
 	ProfileTrust,
+	SearchHit,
+	SearchObjType,
+	SearchQuery,
 	tAction,
 	tActionStatus,
 	tActionType,
@@ -89,11 +115,17 @@ export {
 	tAppManifest,
 	tContentTypeAction,
 	tContentTypeHandler,
+	tDocFormat,
+	tIndexFieldRule,
+	tIndexPartRule,
+	tIndexRules,
 	tLaunchMode,
 	tNewAction,
 	tOptionalProfile,
 	tProfile,
-	tProfileTrust
+	tProfileTrust,
+	tSearchHit,
+	tSearchObjType
 }
 
 // ============================================================================
@@ -869,6 +901,31 @@ export const tListTagsResult = T.struct({
 	tags: T.array(tTagInfo)
 })
 export type ListTagsResult = T.TypeOf<typeof tListTagsResult>
+
+// ============================================================================
+// SEARCH ENDPOINTS
+// ============================================================================
+
+// The query/hit types live in `@cloudillo/types` and are re-exported at the top of
+// this file; only the index-maintenance responses are client-specific.
+
+/**
+ * Response of POST /search/reindex. The sweep runs on the server's scheduler, so
+ * this only acknowledges that it was queued — nothing polls `taskId`.
+ */
+export const tReindexResult = T.struct({
+	taskId: T.number,
+	scope: T.string,
+	indexRev: T.number
+})
+export type ReindexResult = T.TypeOf<typeof tReindexResult>
+
+/**
+ * Response of POST /admin/db-maintenance. Fire-and-forget like `tReindexResult`;
+ * the outcome arrives later as a `DB_MAINTENANCE_DONE` message on the WS bus.
+ */
+export const tDbMaintenanceResult = T.struct({ taskId: T.number })
+export type DbMaintenanceResult = T.TypeOf<typeof tDbMaintenanceResult>
 
 // ============================================================================
 // PROFILE ENDPOINTS

@@ -142,6 +142,8 @@ export interface ApiFetchOpts<R, D> {
 	/** Send the body verbatim instead of JSON-encoding `data`. When set, `data` is ignored.
 	 *  Set Content-Type via `headers`. */
 	rawBody?: string
+	/** Abort the request when this signal fires (superseded search queries, unmount). */
+	signal?: AbortSignal
 }
 /**
  * Helper function to unwrap API response envelope
@@ -183,6 +185,10 @@ export async function apiFetchHelper<R, D = unknown>(
 
 /**
  * Main implementation
+ *
+ * An aborted request (`opts.signal`) rejects with a `DOMException` named
+ * `AbortError`, *not* a `FetchError` — callers branching on `httpStatus` must
+ * check `err.name === 'AbortError'` first.
  */
 export async function apiFetchHelper<R, D = unknown>(
 	idTag: string,
@@ -192,7 +198,6 @@ export async function apiFetchHelper<R, D = unknown>(
 ): Promise<R | ApiFetchResult<R>> {
 	if (!idTag) throw new Error('No idTag in API call')
 
-	const abortCtrl = new AbortController()
 	const url = `${getApiUrl(idTag)}${path}`
 
 	// Build headers
@@ -219,7 +224,7 @@ export async function apiFetchHelper<R, D = unknown>(
 		headers,
 		credentials: 'include',
 		body,
-		signal: abortCtrl.signal
+		signal: opts.signal
 	})
 
 	const textRes = await res.text()

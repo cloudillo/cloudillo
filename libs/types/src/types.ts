@@ -3,6 +3,8 @@
 
 import * as T from '@symbion/runtype'
 
+export * from './format-version.js'
+
 // Profile connection status: true = connected, 'R' = request pending, undefined = not connected
 export const tProfileConnectionStatus = T.union(T.boolean, T.literal('R'))
 export type ProfileConnectionStatus = T.TypeOf<typeof tProfileConnectionStatus>
@@ -600,12 +602,117 @@ export const tImportSource = T.struct({
 })
 export type ImportSource = T.TypeOf<typeof tImportSource>
 
+// Full-text index manifest: what an app declares it wants indexed for a content
+// type it owns. The backend (`crates/cloudillo-search/src/rules.rs`) is the
+// authority — it re-validates every manifest at registration and rejects unknown
+// keys; these types only move the mistake to compile time.
+
+// One text source inside a document: a bare dotted path, or the same path with
+// extraction options.
+//
+// `extract: 'text'` (default) walks the selected node and takes every string leaf;
+// `extract: 'string'` takes the node verbatim, skipping it unless it is a string.
+// Walk modifiers: `keys` allowlists the object keys carrying prose (strings under
+// no key — array elements and the selected node itself — are always kept, and
+// containers always descended, so a document with dynamic keys still reaches its
+// text); `excludeKeys` drops whole subtrees by key; `prefixKeys` prefixes the
+// strings under a named key; `prefix` prefixes every token the rule emits and is
+// the only form that survives `extract: 'string'` or a selector landing on the
+// value itself.
+//
+// `keys` gates by *name*, so it cannot reach a value nothing names — the part
+// rule's `prune` gates by *position* and covers that case.
+//
+// Rules within one list are extracted in declaration order into one buffer, so one
+// prose stream must stay one rule; splitting it scrambles reading order. Give
+// metadata (tags, captions) its own rule — it merely trails the text.
+export const tIndexFieldRule = T.union(
+	T.string,
+	T.struct({
+		// Dotted path, or an RFC 9535 JSONPath query (leading `$`).
+		path: T.optional(T.string),
+		// Deprecated alias for `path`, kept because stored manifests use it.
+		field: T.optional(T.string),
+		extract: T.optional(T.literal('text', 'string')),
+		keys: T.optional(T.array(T.string)),
+		excludeKeys: T.optional(T.array(T.string)),
+		prefix: T.optional(T.string),
+		prefixKeys: T.optional(T.record(T.string)),
+		maxDepth: T.optional(T.number)
+	})
+)
+export type IndexFieldRule = T.TypeOf<typeof tIndexFieldRule>
+
+// One collection's rule. Without `attachTo` it emits one index row per document
+// (`kind` names the RTDB collection). With `attachTo` it emits nothing of its
+// own — its text folds into the owning part's body, which is what makes a hit
+// deep-link to the page rather than to the whole file.
+export const tIndexPartRule = T.struct({
+	kind: T.string,
+	attachTo: T.optional(T.struct({ kind: T.string, field: T.string })),
+	// Field recorded as the row's anchor. `'docId'` means the document's own
+	// RTDB id, which is the only way to name it — ids are keys, not fields.
+	anchor: T.optional(T.string),
+	order: T.optional(T.array(T.string)),
+	parent: T.optional(T.string),
+	// RFC 9535 queries whose matches are deleted from a document of this kind
+	// before `title` / `body` / `tags` see it. Deletion-only: it can shorten the
+	// indexed text, never reorder or invent any.
+	//
+	// The only way to drop a value nothing names: notillo stores a styled run as
+	// the positional tuple `['szöveg', 'b']`, both slots under one enclosing key,
+	// so no `keys` allowlist can separate the prose from the style flag — but
+	// `$..c[0:][1:]` names the tail slot directly.
+	//
+	// Prefer the slice `[0:]` to the wildcard `[*]`: a slice is inert on anything
+	// that is not an array, a wildcard descends objects too. A notillo table block
+	// keeps an *object* under the same `c` key an inline block uses for its array,
+	// so `[*]` would descend it, reach `rows`, and delete every row but the first.
+	//
+	// A pattern not starting with `$`, and the bare `$` (which would null the whole
+	// document), are refused at registration. Max 8 per part.
+	prune: T.optional(T.array(T.string)),
+	title: T.optional(T.array(tIndexFieldRule)),
+	body: T.optional(T.array(tIndexFieldRule)),
+	tags: T.optional(T.array(tIndexFieldRule))
+})
+export type IndexPartRule = T.TypeOf<typeof tIndexPartRule>
+
+export const tIndexRules = T.struct({
+	v: T.optional(T.number),
+	parts: T.array(tIndexPartRule),
+	// Guard rails. The server clamps these to its own ceilings rather than
+	// failing, and truncates rather than refusing to index.
+	limits: T.optional(
+		T.struct({
+			maxParts: T.optional(T.number),
+			maxBodyChars: T.optional(T.number),
+			maxTotalChars: T.optional(T.number)
+		})
+	)
+})
+export type IndexRules = T.TypeOf<typeof tIndexRules>
+
 // Content type handler
 export const tContentTypeHandler = T.struct({
 	mimeType: T.string,
 	actions: T.optional(T.array(T.string)),
 	priority: T.optional(T.string),
-	importFrom: T.optional(T.array(tImportSource))
+	importFrom: T.optional(T.array(tImportSource)),
+	// Where documents of this type live, so the indexer knows how to read one.
+	storeTp: T.optional(T.literal('RTDB', 'CRDT', 'BLOB')),
+	// Launch param a search hit deep-links through, e.g. `'nav'` for notillo's
+	// `cl:notillo/<owner>:<fileId>?nav=<pageId>`.
+	navParam: T.optional(T.string),
+	// Version of the search-index contract in `search` below, `major.minor.patch`
+	// with each component 0-999. Bump it whenever `search` changes: the server
+	// orders registrations by it and ignores any older than what it already holds.
+	// Not `tAppManifest.version` (the app's own release version), which must not be
+	// used here.
+	formatVersion: T.optional(T.string),
+	// Declaring this claims the content type's search index for this app. Only
+	// one app per tenant may hold a claim; see the shell's format handler.
+	search: T.optional(tIndexRules)
 })
 export type ContentTypeHandler = T.TypeOf<typeof tContentTypeHandler>
 
@@ -631,8 +738,14 @@ export const tAppManifest = T.struct({
 	// Core identity
 	id: T.string,
 	name: T.string,
+	// The app's own release version (`pkg.version`), *not* the version of any
+	// document format it declares — see `tContentTypeHandler.formatVersion`.
 	version: T.string,
 	kind: tAppKind,
+	// Publisher id_tag, recorded as the `publisherTag` of every doc format this
+	// manifest declares. Omitted by the apps this build ships, for which the
+	// backend defaults to `cloudillo.org`.
+	publisher: T.optional(T.string),
 
 	// Loading (external/bundled apps)
 	url: T.optional(T.string),
@@ -665,5 +778,96 @@ export const tAppManifest = T.struct({
 	meta: T.optional(T.record(T.unknown))
 })
 export type AppManifest = T.TypeOf<typeof tAppManifest>
+
+// ============================================
+// FULL-TEXT SEARCH
+// ============================================
+
+// What kind of object a hit points at.
+//   F = file, D = a part inside a document, A = action, P = profile
+export const tSearchObjType = T.literal('F', 'D', 'A', 'P')
+export type SearchObjType = T.TypeOf<typeof tSearchObjType>
+
+/**
+ * A highlighted range within a snippet, as **UTF-16 code-unit** offsets — the
+ * unit `String.prototype.slice` takes, so a range can be sliced out of the
+ * snippet directly.
+ */
+export const tSearchMatch = T.struct({
+	start: T.number,
+	end: T.number
+})
+export type SearchMatch = T.TypeOf<typeof tSearchMatch>
+
+// One result from `GET /api/search`. `appId` + `navParam` + `partId` are what a
+// client needs to build the portable reference
+// `cl:{appId}/{ownerTag}:{objId}?{navParam}={partId}` the shell already resolves.
+// Absent fields are omitted by the server, never sent as null.
+export const tSearchHit = T.struct({
+	objTp: tSearchObjType,
+	// fileId, actionId or idTag, depending on `objTp`. For `'D'` it is the
+	// containing document's fileId.
+	objId: T.string,
+	// Deep-link key within the document — for notillo, the page id.
+	partId: T.optional(T.string),
+	partKind: T.optional(T.string),
+	parentPart: T.optional(T.string),
+	// Finest-grained anchor inside the part — for notillo, the block id.
+	anchorId: T.optional(T.string),
+	appId: T.optional(T.string),
+	navParam: T.optional(T.string),
+	contentType: T.optional(T.string),
+	title: T.optional(T.string),
+	// Server-built excerpt, plain text. No markup: the highlight travels out of
+	// band in `snippetMatches`, because an in-band marker is ambiguous with a
+	// document that contains that marker literally.
+	snippet: T.optional(T.string),
+	// Ranges within `snippet` to emphasise, ascending and non-overlapping.
+	snippetMatches: T.optional(T.array(tSearchMatch)),
+	tags: T.optional(T.array(T.string)),
+	ownerTag: T.optional(T.string),
+	updatedAt: T.string,
+	// Higher is more relevant.
+	score: T.number
+})
+export type SearchHit = T.TypeOf<typeof tSearchHit>
+
+export const tSearchQuery = T.struct({
+	q: T.string,
+	// Comma-separated subset of `file,doc,action,profile`.
+	type: T.optional(T.string),
+	// Confine the search to one document and its parts.
+	fileId: T.optional(T.string),
+	contentType: T.optional(T.string),
+	// Comma-separated tags, AND-combined. Applied inside the full-text match
+	// rather than to its results, so a text+tag query cannot lose a hit that
+	// ranks below the relevance cut. With `tags` set, `q` may be empty.
+	tags: T.optional(T.string),
+	limit: T.optional(T.number),
+	offset: T.optional(T.number)
+})
+export type SearchQuery = T.TypeOf<typeof tSearchQuery>
+
+// A registered document-format manifest, as returned by `GET /api/doc-formats`.
+export const tDocFormat = T.struct({
+	contentType: T.string,
+	publisherTag: T.string,
+	appName: T.string,
+	formatVersion: T.optional(T.number),
+	storeTp: T.optional(T.string),
+	navParam: T.optional(T.string),
+	// Same validator as `tContentTypeHandler.search`. Both tiers were already
+	// checked against the backend's own copy of these rules — a tenant row at PUT,
+	// a bundled default at registry load — so enforcing the schema here rejects
+	// only what would have failed at use anyway.
+	search: T.optional(tIndexRules),
+	x: T.optional(T.unknown),
+	updatedAt: T.string,
+	// Which tier the listing resolved this from: `'tenant'` for a row this tenant
+	// owns (deletable, reverting to the bundled default) or `'bundled'` for what
+	// the server build ships. Only `GET /doc-formats` sets it.
+	source: T.optional(T.literal('tenant', 'bundled'))
+})
+export type DocFormat = T.TypeOf<typeof tDocFormat>
 
 // vim: ts=4

@@ -357,10 +357,18 @@ export function useCloudilloEditor(appName: string) {
 /////////////////////////
 
 export interface UseInfiniteScrollOptions<T> {
-	/** Function to fetch a page of data */
+	/**
+	 * Function to fetch a page of data.
+	 *
+	 * `signal` aborts when the deps change or the hook unmounts — forward it into
+	 * the request so a superseded page stops travelling the wire instead of merely
+	 * having its answer discarded. An `AbortError` raised through it is swallowed,
+	 * never surfaced as `error`.
+	 */
 	fetchPage: (
 		cursor: string | null,
-		limit: number
+		limit: number,
+		signal?: AbortSignal
 	) => Promise<{
 		items: T[]
 		nextCursor: string | null
@@ -381,6 +389,8 @@ export interface UseInfiniteScrollReturn<T> {
 	items: T[]
 	/** Whether initial load is in progress */
 	isLoading: boolean
+	/** A first page for the current `deps` is expected but has not settled yet. */
+	isPending: boolean
 	/** Whether more pages are being fetched */
 	isLoadingMore: boolean
 	/** Error from last fetch */
@@ -442,11 +452,18 @@ export function useInfiniteScroll<T>(
 	const [error, setError] = React.useState<Error | null>(null)
 	const [isOffline, setIsOffline] = React.useState(false)
 	const [hasMore, setHasMore] = React.useState(true)
+	// True from the synchronous deps reset until the first page for those deps
+	// settles. `isLoading` cannot express this: the reset clears it during render and
+	// the initial-load effect sets it only a commit later, so a consumer branching on
+	// `!items.length && !isLoading` flashes its empty state on every deps change.
+	const [isPending, setIsPending] = React.useState(enabled)
 
 	const sentinelRef = React.useRef<HTMLDivElement | null>(null)
 	const isMountedRef = React.useRef(true)
 	const fetchingRef = React.useRef(false)
 	const epochRef = React.useRef(0)
+	/** The in-flight page's controller, so a deps change or unmount can cancel it. */
+	const abortRef = React.useRef<AbortController | null>(null)
 
 	// Reset synchronously during render when deps change, so no in-between
 	// render commits with the new deps + stale items. See
@@ -464,9 +481,18 @@ export function useInfiniteScroll<T>(
 		setIsOffline(false)
 		setIsLoading(false)
 		setIsLoadingMore(false)
+		setIsPending(enabled)
 		fetchingRef.current = false
 		epochRef.current += 1
+		// The epoch already discards the answer; this stops the request itself.
+		abortRef.current?.abort()
+		abortRef.current = null
 	}
+
+	// A disabled hook will never schedule a fetch, so nothing else would clear it.
+	React.useEffect(() => {
+		if (!enabled) setIsPending(false)
+	}, [enabled])
 
 	// `isMountedRef` only tracks mount/unmount; deps-change cancellation
 	// goes through `epochRef` (bumped in the synchronous reset above,
@@ -475,6 +501,8 @@ export function useInfiniteScroll<T>(
 		isMountedRef.current = true
 		return () => {
 			isMountedRef.current = false
+			abortRef.current?.abort()
+			abortRef.current = null
 		}
 	}, [])
 
@@ -486,6 +514,8 @@ export function useInfiniteScroll<T>(
 			const myEpoch = epochRef.current
 			fetchingRef.current = true
 			const isInitialLoad = currentCursor === null
+			const abortCtrl = new AbortController()
+			abortRef.current = abortCtrl
 
 			try {
 				if (isInitialLoad) {
@@ -495,7 +525,7 @@ export function useInfiniteScroll<T>(
 				}
 				setError(null)
 
-				const result = await fetchPage(currentCursor, pageSize)
+				const result = await fetchPage(currentCursor, pageSize, abortCtrl.signal)
 
 				if (!isMountedRef.current || epochRef.current !== myEpoch) return
 
@@ -505,11 +535,19 @@ export function useInfiniteScroll<T>(
 				setIsOffline(!!result.isOffline)
 			} catch (err) {
 				if (!isMountedRef.current || epochRef.current !== myEpoch) return
+				// A cancellation is this hook's own doing, not a failure to report. The
+				// epoch guard above covers the deps-change case; an unmount-time abort
+				// would otherwise land here.
+				if ((err as Error)?.name === 'AbortError') return
 				setError(err instanceof Error ? err : new Error('Failed to fetch'))
 			} finally {
+				if (abortRef.current === abortCtrl) abortRef.current = null
 				if (isMountedRef.current && epochRef.current === myEpoch) {
 					setIsLoading(false)
 					setIsLoadingMore(false)
+					// Both arms: a first page that failed has settled too, and `error`
+					// describes it from here on.
+					setIsPending(false)
 					fetchingRef.current = false
 				}
 			}
@@ -588,6 +626,7 @@ export function useInfiniteScroll<T>(
 	return {
 		items,
 		isLoading,
+		isPending,
 		isLoadingMore,
 		error,
 		isOffline,

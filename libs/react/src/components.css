@@ -1947,6 +1947,77 @@
 	color: var(--col-on-surface);
 }
 
+/* ==========================================================================
+   Input group adornments
+
+   Shared by the shell and by the sandboxed app iframes, which never load the
+   shell's own stylesheet. `.c-input-group` itself belongs to opalui — only the
+   groups that actually carry one of these children get the positioning context
+   and the centering they need, so opalui's `align-items: stretch` still governs
+   every other input group.
+   ========================================================================== */
+
+.c-input-group:has(> .c-input-icon, > .c-input-clear) {
+	position: relative;
+	align-items: center;
+}
+
+/* Leading icon, positioned against the input group. */
+.c-input-icon {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	left: 0.625rem;
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
+	pointer-events: none;
+	display: inline-flex;
+	align-items: center;
+}
+
+/* Pair the icon with the input's own padding so text can't run under it. */
+.c-input-icon ~ .c-input {
+	padding-inline-start: 2rem;
+}
+
+/* Clear-button placed at the right edge of an input. */
+.c-input-clear {
+	position: absolute;
+	top: 50%;
+	right: 0.5rem;
+	transform: translateY(-50%);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.5rem;
+	height: 1.5rem;
+	border: none;
+	background: transparent;
+	color: color-mix(in lch, var(--col-on-container), transparent 35%);
+	cursor: pointer;
+	border-radius: var(--radius-control);
+}
+
+.c-input-clear:hover {
+	background: var(--col-em-container);
+	color: var(--col-on-container);
+}
+
+/* ==========================================================================
+   Search-hit highlight
+
+   `<Highlight>`'s default mark class. Lives here and not in the shell's
+   stylesheet for the same reason as the adornments above: the sandboxed app
+   iframes and any external consumer load only this file.
+   ========================================================================== */
+
+.c-search-mark {
+	background: color-mix(in srgb, var(--col-accent) 30%, transparent);
+	color: inherit;
+	font-weight: 600;
+	border-radius: 2px;
+	padding: 0 0.1em;
+}
+
 /*
  vim: ts=4
  */

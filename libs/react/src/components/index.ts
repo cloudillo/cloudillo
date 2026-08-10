@@ -112,6 +112,9 @@ export type {
 } from './Form/index.js'
 // Form Components
 export { Fieldset, Input, InputGroup, NativeSelect, TextArea, Toggle } from './Form/index.js'
+export type { HighlightProps } from './Highlight/index.js'
+// Highlight Component
+export { Highlight } from './Highlight/index.js'
 export type { Breakpoint } from './hooks.js'
 // Shared Hooks
 export {

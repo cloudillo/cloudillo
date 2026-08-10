@@ -43,7 +43,7 @@ import {
 	LuInbox as IcUnread,
 	LuVideo as IcVideo
 } from 'react-icons/lu'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { type Position, useEditable } from 'use-editable'
 import '@cloudillo/react/components.css'
 import './feed.css'
@@ -1216,8 +1216,14 @@ function sourceToQuery(
 
 export function FeedApp() {
 	const location = useLocation()
+	const navigate = useNavigate()
 	const { t } = useTranslation()
 	const { api } = useApi()
+	// Post permalink (`/app/:ctx/feed/:actionId`) — where search hits and shared links
+	// land.
+	const { actionId: focusedId } = useParams()
+	const { api: ctxApi } = useContextAwareApi()
+	const urlContext = useUrlContextIdTag()
 	const [auth] = useAuth()
 	const contextIdTag = useCurrentContextIdTag()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
@@ -1620,23 +1626,75 @@ export function FeedApp() {
 			return { ...a, stat: { ...a.stat, ...o } }
 		}
 
-		return feed
-			.filter((post) => !deletedIds.has(post.actionId))
-			.map((post) => {
-				// POST overlay (attachments/subType), top-level only.
-				const update = feedUpdates[post.actionId]
-				const base = update ? ({ ...post, ...update } as ActionView) : post
-				// Stat overlay applied to the top-level action AND its subjectAction.
-				const withSelf = applyStatOverlay(base)
-				if (withSelf.subjectAction) {
-					const subj = applyStatOverlay(withSelf.subjectAction)
-					if (subj !== withSelf.subjectAction) {
-						return { ...withSelf, subjectAction: subj } as ActionEvt
+		return (
+			feed
+				// The focused post is pinned above the list; drop it here so it is not
+				// shown twice.
+				.filter((post) => !deletedIds.has(post.actionId) && post.actionId !== focusedId)
+				.map((post) => {
+					// POST overlay (attachments/subType), top-level only.
+					const update = feedUpdates[post.actionId]
+					const base = update ? ({ ...post, ...update } as ActionView) : post
+					// Stat overlay applied to the top-level action AND its subjectAction.
+					const withSelf = applyStatOverlay(base)
+					if (withSelf.subjectAction) {
+						const subj = applyStatOverlay(withSelf.subjectAction)
+						if (subj !== withSelf.subjectAction) {
+							return { ...withSelf, subjectAction: subj } as ActionEvt
+						}
 					}
+					return withSelf as ActionEvt
+				})
+		)
+	}, [feed, feedUpdates, statOverlay, deletedIds, focusedId])
+
+	// The feed is keyset-cursor paged, so there is no way to seek to an arbitrary post
+	// — paging until it appears could walk the whole feed. Fetch the permalinked post
+	// directly and pin it above the list instead, leaving the normal paging, the read
+	// watermark and the live-arrival path untouched.
+	const [focusedPost, setFocusedPost] = React.useState<ActionView | undefined>()
+	const [focusedMissing, setFocusedMissing] = React.useState(false)
+	const focusedRef = React.useRef<HTMLDivElement>(null)
+
+	React.useEffect(() => {
+		setFocusedPost(undefined)
+		setFocusedMissing(false)
+		if (!focusedId || !ctxApi) return
+		let cancelled = false
+		;(async () => {
+			try {
+				const action = await ctxApi.actions.get(focusedId)
+				if (cancelled) return
+				// `ActionComp` renders POST/REPOST only; anything else would pin an
+				// empty card, so treat it as unavailable.
+				if (action.type !== 'POST' && action.type !== 'REPOST') {
+					setFocusedMissing(true)
+					return
 				}
-				return withSelf as ActionEvt
-			})
-	}, [feed, feedUpdates, statOverlay, deletedIds])
+				setFocusedPost(action)
+			} catch (err) {
+				if (cancelled) return
+				// Deleted, or not visible to this viewer.
+				console.warn('[Feed] Failed to load the linked post:', err)
+				setFocusedMissing(true)
+			}
+		})()
+		return function () {
+			cancelled = true
+		}
+	}, [focusedId, ctxApi])
+
+	// A permalink is a deliberate destination: suppress the one-shot Unread auto-switch
+	// so it cannot yank the reader off the linked post.
+	React.useEffect(() => {
+		if (!focusedId) return
+		userTouchedViewRef.current = true
+		setViewMode('feed')
+	}, [focusedId])
+
+	React.useEffect(() => {
+		if (focusedPost) focusedRef.current?.scrollIntoView({ block: 'start' })
+	}, [focusedPost])
 
 	// Divider position: the top of the contiguous fully-read TAIL. The reader's own
 	// posts are force-read (issuer === ownIdTag short-circuit) and can sit read
@@ -1911,6 +1969,35 @@ export function FeedApp() {
 				)}
 				{!composeOpen && viewMode === 'drafts' && (
 					<DraftsPanel onEdit={handleEditDraft} onPublished={handleDraftPublished} />
+				)}
+				{!composeOpen && !!focusedId && (focusedPost || focusedMissing) && (
+					<div ref={focusedRef} className="c-vbox g-1 c-feed-focused">
+						<div className="c-hbox align-items-center justify-content-between g-2">
+							<span className="small text-muted">{t('Linked post')}</span>
+							<Button
+								kind="link"
+								onClick={() =>
+									navigate(`/app/${urlContext || HOME_CONTEXT}/feed`, {
+										replace: true
+									})
+								}
+							>
+								{t('Back to feed')}
+							</Button>
+						</div>
+						{focusedPost ? (
+							<ActionComp
+								action={focusedPost}
+								onPatchStat={patchStat}
+								onDelete={onDelete}
+								hideAudience={!isOwnContext ? contextIdTag : narrowToCommunity}
+								width={width}
+								onQuote={handleQuote}
+							/>
+						) : (
+							<EmptyState title={t('That post is no longer available')} />
+						)}
+					</div>
 				)}
 				{!composeOpen && viewMode === 'feed' && (
 					<OfflineBanner show={isOffline} className="my-2" />

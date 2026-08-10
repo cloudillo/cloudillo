@@ -94,7 +94,8 @@ function LeaderOnlyRoute({ children }: { children: React.ReactElement }) {
 // must stay in lockstep, so they are generated from one table.
 const APP_ROUTES: Array<{ path: string; element: React.ReactElement }> = [
 	{ path: 'files', element: <FilesApp /> },
-	{ path: 'feed', element: <FeedApp /> },
+	// The optional `:actionId` is the post permalink search hits land on.
+	{ path: 'feed/:actionId?', element: <FeedApp /> },
 	{ path: 'gallery', element: <GalleryApp /> },
 	{ path: 'messages/:convId?', element: <MessagesApp /> },
 	{

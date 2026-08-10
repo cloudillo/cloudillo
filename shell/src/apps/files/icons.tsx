@@ -47,7 +47,10 @@ export function getFileIcon(
 	if (fileTp === 'FLDR') {
 		return fileIcons['cloudillo/folder'] || IcFolder
 	}
-	if (fileIcons[contentType]) {
+	// Own-property check: `contentType` comes off federated file metadata, and a plain
+	// lookup walks `Object.prototype` — `'constructor'` would return `Object`, which
+	// React then renders as a component and throws on.
+	if (Object.hasOwn(fileIcons, contentType)) {
 		return fileIcons[contentType]
 	}
 	// Fallback for any image/* or video/* type

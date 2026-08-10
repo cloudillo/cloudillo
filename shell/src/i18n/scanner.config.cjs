@@ -1,7 +1,13 @@
 const typescriptTransform = require('i18next-scanner-typescript')
 
 module.exports = {
-	input: ['src/**/*.{ts,tsx}', '../libs/react/src/**/*.{ts,tsx}'],
+	input: [
+		'src/**/*.{ts,tsx}',
+		'../libs/react/src/**/*.{ts,tsx}',
+		// Tests hold no translatable strings, and their top-level `await import()`
+		// trips the scanner's parser.
+		'!**/__tests__/**'
+	],
 	options: {
 		//removeUnusedKeys: true,
 		removeUnusedKeys: (lng, ns, key) => {

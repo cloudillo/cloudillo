@@ -228,8 +228,8 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 	// Handle context switch - preserve current top-level route across contexts.
 	// Recognizes `/app/...` plus the context-aware sibling routes
 	// (`/idp/...`, `/settings/...`, `/users/...`, `/communities/...`,
-	// `/profile/...`). Falls back to the default feed when the current URL
-	// isn't one of these, or when switching into a context whose IDP is
+	// `/profile/...`, `/search/...`). Falls back to the default feed when the current
+	// URL isn't one of these, or when switching into a context whose IDP is
 	// disabled (or unknown — we have no token to ask the foreign server yet).
 	const handleSwitch = React.useCallback(
 		(idTag: string) => {
@@ -249,7 +249,12 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 				if (prefix === 'idp' && contextIdpEnabled[idTag] !== true) {
 					destination = defaultDestination
 				} else {
-					destination = `/${prefix}/${urlSegment}${tail}`
+					// `/search` keeps its query string: `q`/`type` are the search
+					// itself, and dropping them would land on an empty page. No other
+					// prefix carries state that survives a context switch — an app's
+					// launch params name resources in the old context.
+					const query = prefix === 'search' ? location.search : ''
+					destination = `/${prefix}/${urlSegment}${tail}${query}`
 				}
 			}
 
@@ -268,6 +273,7 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 		[
 			switchTo,
 			location.pathname,
+			location.search,
 			toastError,
 			t,
 			auth?.idTag,

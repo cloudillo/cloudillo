@@ -70,12 +70,15 @@ import { NotificationPopover } from './notifications/NotificationPopover.js'
 import { Notifications } from './notifications/notifications.js'
 import { useNotifications } from './notifications/state'
 import { useActionNotifications } from './notifications/useActionNotifications.js'
+import { useDbMaintenanceNotifications } from './notifications/useDbMaintenanceNotifications.js'
+import { useSearchReindexNotifications } from './notifications/useSearchReindexNotifications.js'
 import { Breadcrumb, DocumentTitleSync, Omnibox } from './omnibox.js'
 import { OnboardingRoutes } from './onboarding'
 import { ProfileRoutes } from './profile/profile.js'
 import usePWA, { clearAuthToken, deleteApiKey, getApiKey, setCurrentAuthToken } from './pwa.js'
 import { useGlobalUnreadProbe } from './read-position.js'
-import { useSearch } from './search.js'
+import { SearchPage } from './SearchPage.js'
+import { toggleOmniboxAtom, useSearch } from './search.js'
 import { SettingsRoutes } from './settings'
 import { SiteAdminRoutes } from './site-admin'
 import { useAppConfig } from './utils.js'
@@ -86,6 +89,10 @@ import '@symbion/opalui'
 // Use Cloudillo-specific themes with local fonts (no Google Fonts CDN)
 import './themes/opaque.css'
 import './themes/glass.css'
+// The shell's own markup uses component-library classes (`.c-input-icon`,
+// `.c-input-clear`, TreeView, …), so the stylesheet is a dependency of the entry point,
+// not just of whichever feature module happens to pull it in.
+import '@cloudillo/react/components.css'
 import './style.css'
 
 declare global {
@@ -98,6 +105,9 @@ function Header({ inert }: { inert?: boolean }) {
 	const [_appConfig, setAppConfig] = useAppConfig()
 	const [auth, setAuth] = useAuth()
 	const [search, setSearch] = useSearch()
+	// Write-only: the toggle reads the last query itself, so the keydown effect's deps
+	// stay stable while the user types.
+	const toggleOmnibox = useSetAtom(toggleOmniboxAtom)
 	const { api, setIdTag } = useApi()
 	const { t, i18n } = useTranslation()
 	const location = useLocation()
@@ -137,26 +147,29 @@ function Header({ inert }: { inert?: boolean }) {
 		function handleKeyDown(e: KeyboardEvent) {
 			if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
 				e.preventDefault()
-				setSearch((prev) => (prev.query == undefined ? { query: '' } : {}))
+				// Reopens prefilled with the last query, fully selected — the
+				// address-bar idiom: typing replaces it, Home/End/arrows keep it.
+				toggleOmnibox()
 				return
 			}
 			if ((e.key === '/' || e.key === '@') && !e.ctrlKey && !e.metaKey && !e.altKey) {
-				// Don't swallow a `/` or `@` the user is typing in a field, and only
-				// open for authenticated users (the omnibox replaces the old search).
+				// Don't swallow a `/` or `@` the user is typing in a field.
 				if (
 					isEditableTarget(document.activeElement) ||
 					isEditableTarget(e.target as Element)
 				) {
 					return
 				}
-				if (!auth) return
+				// A guest gets `/` (public commands) and full-text search, but not
+				// `@`: profile search is `GET /api/profiles`, which is auth-only.
+				if (!auth && e.key === '@') return
 				e.preventDefault()
 				setSearch({ query: e.key })
 			}
 		}
 		window.addEventListener('keydown', handleKeyDown)
 		return () => window.removeEventListener('keydown', handleKeyDown)
-	}, [setSearch, auth])
+	}, [setSearch, toggleOmnibox, auth])
 
 	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
 		// During onboarding the user handles incoming invites/connections inline
@@ -281,22 +294,28 @@ function Header({ inert }: { inert?: boolean }) {
 						<CloudilloLogo style={{ height: 32 }} />
 					</li>
 					{!auth && api?.idTag && (
-						<li className="c-nav-item">
+						<li
+							className={mergeClasses(
+								'c-nav-item',
+								// Yields the row to the open omnibox, like the logo above.
+								search.query != undefined && 'sm-hide'
+							)}
+						>
 							<GuestOwnerChip idTag={api.idTag} />
 						</li>
 					)}
 					<DocumentTitleSync />
-					{auth && (
-						<li
-							className={mergeClasses(
-								'c-nav-item',
-								search.query != undefined && 'flex-fill'
-							)}
-							style={{ minWidth: 0 }}
-						>
-							{search.query == undefined ? <Breadcrumb /> : <Omnibox />}
-						</li>
-					)}
+					{/* Guests too: they may search the owner's public content, minus
+					    profiles — see `Omnibox`. */}
+					<li
+						className={mergeClasses(
+							'c-nav-item',
+							search.query != undefined && 'flex-fill'
+						)}
+						style={{ minWidth: 0 }}
+					>
+						{search.query == undefined ? <Breadcrumb /> : <Omnibox />}
+					</li>
 				</ul>
 				{search.query == undefined && (
 					<ul className="c-nav-group g-3 sm-hide md-hide">
@@ -480,6 +499,8 @@ export function Layout() {
 	useContextTokenRenewal() // Proactive proxy-token renewal for trusted foreign profiles
 	useProfileTrustBootstrap() // Seed persisted per-profile trust from the backend
 	useActionNotifications() // Sound and toast notifications for incoming actions
+	useSearchReindexNotifications() // Toast when a search index rebuild finishes
+	useDbMaintenanceNotifications() // Toast when a database optimization finishes
 	useGlobalUnreadProbe() // App-wide feed-unread counts for nav/sidebar dots
 	useGlobalMessageUnreadProbe() // App-wide message-unread counts for nav badge
 
@@ -608,6 +629,7 @@ export function Layout() {
 							<OnboardingRoutes pwa={pwa} />
 							<Routes>
 								<Route path="/s/:refId" element={<SharedResourceView />} />
+								<Route path="/search/:contextIdTag?" element={<SearchPage />} />
 								<Route path="/notifications" element={<Notifications />} />
 								<Route path="*" element={null} />
 							</Routes>

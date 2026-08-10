@@ -15,7 +15,8 @@ export const CONTEXT_ROUTE_PREFIXES = [
 	'settings',
 	'users',
 	'communities',
-	'profile'
+	'profile',
+	'search'
 ] as const
 
 export type ContextRoutePrefix = (typeof CONTEXT_ROUTE_PREFIXES)[number]

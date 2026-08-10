@@ -100,3 +100,17 @@ export function useUrlContextIdTag(): string | undefined {
 	if (!contextIdTag) return undefined
 	return contextIdTag === apiState.idTag ? HOME_CONTEXT : contextIdTag
 }
+
+/**
+ * Canonicalise a raw URL context segment into the form `useUrlContextIdTag` returns,
+ * so the two can be compared: the home tenant's idTag and `~` name the same space, but
+ * only `~` ever comes back from `useUrlContextIdTag`. Returns undefined for a segment
+ * that does not name a context (`~` or a dotted domain), matching `useContextFromRoute`.
+ */
+export function useCanonicalContextSegment(raw: string | undefined): string | undefined {
+	const [apiState] = useAtom(apiAtom)
+
+	if (!raw) return undefined
+	if (raw !== HOME_CONTEXT && !raw.includes('.')) return undefined
+	return raw === apiState.idTag ? HOME_CONTEXT : raw
+}

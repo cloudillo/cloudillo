@@ -2,27 +2,32 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { ApiKeyListItem, WebAuthnCredential } from '@cloudillo/core'
-import { Button, useApi, useAuth, useDialog } from '@cloudillo/react'
+import { Button, useApi, useAuth, useDialog, useToast } from '@cloudillo/react'
 import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
+import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuPalette as IcAppearance,
 	LuChevronRight as IcArrow,
 	LuCalendar as IcCalendar,
+	LuDatabase as IcDatabase,
 	LuMonitor as IcDevice,
 	LuHardDrive as IcFiles,
 	LuDownload as IcInstall,
 	LuKeyRound as IcKey,
+	LuLoaderCircle as IcLoading,
 	LuBell as IcNotifications,
 	LuFingerprint as IcPasskey,
 	LuEye as IcPrivacy,
 	LuRefreshCw as IcRefresh,
+	LuDatabaseZap as IcReindex,
 	LuShield as IcSecurity,
 	LuServerCog as IcServer
 } from 'react-icons/lu'
 import { useNavigate, useParams } from 'react-router-dom'
 
+import { activeContextAtom, isContextLeader, useContextAwareApi } from '../context/index.js'
 import { resetAppCache, type UsePWA } from '../pwa.js'
 import { subscribeNotifications } from './notifications.js'
 
@@ -35,8 +40,14 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 	const navigate = useNavigate()
 	const params = useParams()
 	const dialog = useDialog()
+	const { toast } = useToast()
 	const { api } = useApi()
 	const [auth] = useAuth()
+	const activeContext = useAtomValue(activeContextAtom)
+	// The reindex sweeps the tenant the request authenticates as, so it must go through
+	// the active context's proxy token — `useApi()` above is bound to the user's own
+	// idTag and would rebuild the wrong tenant in a community.
+	const { api: contextApi } = useContextAwareApi()
 	const contextIdTag = params.contextIdTag!
 	const basePath = `/settings/${contextIdTag}`
 
@@ -46,6 +57,8 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 	const [notificationSubscription, setNotificationSubscription] = React.useState<
 		PushSubscription | undefined
 	>()
+	const [reindexing, setReindexing] = React.useState(false)
+	const [optimizing, setOptimizing] = React.useState(false)
 
 	// Feature detection
 	const isInstalled = React.useMemo(
@@ -94,6 +107,8 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 	const notificationsEnabled = Notification.permission === 'granted' && !!notificationSubscription
 	const canEnableNotifications = 'Notification' in window && Notification.permission !== 'denied'
 	const hasPasskeys = passkeys.length > 0
+	// Mirrors the backend's `require_leader` on POST /api/search/reindex.
+	const canReindex = isContextLeader(activeContext, auth?.idTag)
 
 	// Handlers
 	async function handleInstall() {
@@ -111,6 +126,58 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 		)
 		if (confirmed) {
 			await resetAppCache()
+		}
+	}
+
+	// The 202 only says the sweep was scheduled; the outcome arrives over the WS bus,
+	// which `useSearchReindexNotifications` toasts globally. The spinner therefore
+	// covers the request, not the minutes-long sweep behind it.
+	async function handleReindex() {
+		const confirmed = await dialog.confirm(
+			t('Rebuild Search Index'),
+			t(
+				'This re-scans all files, documents, profiles and posts to rebuild the search index. It runs in the background and may take several minutes. Continue?'
+			)
+		)
+		if (!confirmed || !contextApi) return
+		setReindexing(true)
+		try {
+			await contextApi.search.reindex()
+			toast({
+				variant: 'info',
+				title: t('Rebuilding search index'),
+				message: t('This runs in the background. You will be notified when it finishes.')
+			})
+		} catch (err: unknown) {
+			if (err instanceof Error) await dialog.tell(t('Error'), err.message)
+		} finally {
+			setReindexing(false)
+		}
+	}
+
+	// Server-wide, so it goes through the plain `api` rather than `contextApi`: the
+	// metadata database is one file shared by every tenant. Same fire-and-forget shape
+	// as the reindex — the outcome arrives on the WS bus.
+	async function handleOptimizeDb() {
+		const confirmed = await dialog.confirm(
+			t('Optimize Database'),
+			t(
+				'This merges search index segments and reclaims unused disk space across the whole server. It runs in the background and may briefly slow down writes. Continue?'
+			)
+		)
+		if (!confirmed || !api) return
+		setOptimizing(true)
+		try {
+			await api.admin.dbMaintenance()
+			toast({
+				variant: 'info',
+				title: t('Optimizing database'),
+				message: t('This runs in the background. You will be notified when it finishes.')
+			})
+		} catch (err: unknown) {
+			if (err instanceof Error) await dialog.tell(t('Error'), err.message)
+		} finally {
+			setOptimizing(false)
 		}
 	}
 
@@ -288,7 +355,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 			{/* Troubleshooting */}
 			<div className="c-panel">
 				<h4 className="pb-2">{t('Troubleshooting')}</h4>
-				<div className="c-hbox py-3">
+				<div className="c-hbox py-3 border-bottom">
 					<IcRefresh className="mr-3" size={24} />
 					<div className="flex-fill">
 						<div className="fw-medium">{t('Reset App Cache')}</div>
@@ -302,6 +369,50 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 						{t('Reset')}
 					</Button>
 				</div>
+				{canReindex && (
+					<div className="c-hbox py-3 border-bottom">
+						<IcReindex className="mr-3" size={24} />
+						<div className="flex-fill">
+							<div className="fw-medium">{t('Rebuild Search Index')}</div>
+							<div className="c-hint small">
+								{t(
+									'Re-scan your files and posts. Use if search results are missing or stale.'
+								)}
+							</div>
+						</div>
+						<Button variant="secondary" onClick={handleReindex} disabled={reindexing}>
+							{reindexing ? (
+								<IcLoading className="animate-rotate-cw" />
+							) : (
+								t('Rebuild')
+							)}
+						</Button>
+					</div>
+				)}
+				{auth?.roles?.includes('SADM') && (
+					<div className="c-hbox py-3">
+						<IcDatabase className="mr-3" size={24} />
+						<div className="flex-fill">
+							<div className="fw-medium">{t('Optimize Database')}</div>
+							<div className="c-hint small">
+								{t(
+									'Compact the search index and reclaim unused disk space. Affects the whole server.'
+								)}
+							</div>
+						</div>
+						<Button
+							variant="secondary"
+							onClick={handleOptimizeDb}
+							disabled={optimizing}
+						>
+							{optimizing ? (
+								<IcLoading className="animate-rotate-cw" />
+							) : (
+								t('Optimize')
+							)}
+						</Button>
+					</div>
+				)}
 				<div className="c-hint small pt-2">
 					{t('Version')}: {process.env.CLOUDILLO_VERSION}
 				</div>

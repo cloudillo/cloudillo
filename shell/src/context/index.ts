@@ -63,6 +63,7 @@ export type {
 } from './types'
 // Route synchronization
 export {
+	useCanonicalContextSegment,
 	useContextFromRoute,
 	useCurrentContextIdTag,
 	useUrlContextIdTag

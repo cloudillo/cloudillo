@@ -15,6 +15,11 @@ const GUEST_PATHS = [
 	'/app/~/feed',
 	'/profile/alice.cloudillo.net',
 	'/s/abc123',
+	// Global search is open to guests (public rows only, never profiles), so a shared
+	// or reloaded results link must not bounce to /login.
+	'/search',
+	'/search/~',
+	'/search/some.community?q=x',
 	'/login',
 	'/register/xyz',
 	'/onboarding/step1',

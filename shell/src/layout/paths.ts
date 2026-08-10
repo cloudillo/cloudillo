@@ -29,6 +29,7 @@ export function isGuestPath(pathname: string): boolean {
 		pathname.startsWith('/app/') ||
 		pathname.startsWith('/profile/') ||
 		pathname.startsWith('/s/') || // Shared resource links
+		pathname.startsWith('/search') || // Guests may search the owner's public content
 		pathname.startsWith('/login') ||
 		pathname.startsWith('/register/') ||
 		pathname.startsWith('/onboarding/') ||

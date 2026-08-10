@@ -107,9 +107,8 @@ export function isRefLike(input: string): boolean {
 }
 
 /**
- * True when `input` looks like a bare Identity Tag (e.g. `bob.example.com`),
- * used for the profile-jump branch. Requires at least one dot. An optional
- * leading `@` is tolerated (the omnibox routes `@…` to search mode first).
+ * True when `input` looks like a bare Identity Tag (e.g. `bob.example.com`).
+ * Requires at least one dot. An optional leading `@` is tolerated.
  */
 export function isIdTag(input: string): boolean {
 	return /^@?[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(input.trim())

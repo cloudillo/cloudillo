@@ -145,6 +145,33 @@ a.c-omnibox-seg:hover {
 	min-width: 0;
 	padding-left: 2rem;
 }
+/* Shortcut hint inside the empty field: reminds where the box came from without
+   spending placeholder width on it. */
+.c-omnibox-kbd {
+	flex-shrink: 0;
+	font-family: inherit;
+	font-size: 0.75rem;
+	line-height: 1;
+	padding: 0.2rem 0.4rem;
+	border: 1px solid rgb(127 127 127 / 0.35);
+	border-radius: var(--bd-radius, 0.25rem);
+	color: var(--col-on-container);
+	opacity: 0.55;
+	pointer-events: none;
+	white-space: nowrap;
+}
+
+/* The dropdown holds up to 8 multi-line search hits, in a fixed-strategy
+   popper with no size modifier: without a cap the lower rows fall off a short
+   viewport with no way to scroll to them, and an unbounded width lets a long
+   `app · @owner · part` meta line stretch the popper instead of ellipsising
+   inside it (`.c-search-row-meta` relies on its parent being bounded). */
+.c-omnibox-menu {
+	max-height: min(60vh, 26rem);
+	overflow-y: auto;
+	max-width: min(90vw, 34rem);
+	min-width: 18rem;
+}
 
 /* Focused-input dropdown: give rows a hit area and a visible keyboard highlight
    (OpalUI has no .c-nav-item.selected rule of its own). */
@@ -155,6 +182,120 @@ a.c-omnibox-seg:hover {
 .c-omnibox-menu .c-nav-item.selected {
 	background: lch(from var(--col-primary) l c h / 0.18);
 	color: var(--col-em);
+}
+
+/* Recent searches: the ✕ stays out of the way until the row is pointed at or
+   arrowed to, so the list reads as terms rather than as a row of buttons. */
+.c-omnibox-recent-term {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.c-omnibox-recent-remove {
+	flex-shrink: 0;
+	background: none;
+	border: none;
+	color: inherit;
+	opacity: 0;
+}
+.c-omnibox-menu .c-nav-item:hover .c-omnibox-recent-remove,
+.c-omnibox-menu .c-nav-item.selected .c-omnibox-recent-remove,
+.c-omnibox-recent-remove:focus-visible {
+	opacity: 0.6;
+}
+.c-omnibox-recent-remove:hover {
+	opacity: 1;
+}
+
+/* Sigil legend: a quiet footer under the recents, where the placeholder used to
+   try to say the same thing in 48 characters. */
+.c-omnibox-legend {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.4rem;
+	padding: 0.4rem 0.6rem 0.2rem;
+	border-top: 1px solid rgb(127 127 127 / 0.2);
+	color: var(--col-on-container);
+}
+/* Sole child of an otherwise empty card: no rows above to separate from. */
+.c-omnibox-menu > .c-omnibox-legend:first-child {
+	border-top: none;
+}
+.c-omnibox-legend code {
+	padding: 0 0.2rem;
+	border-radius: var(--bd-radius, 0.25rem);
+	background: rgb(127 127 127 / 0.15);
+}
+
+/* Full-text search hit rows: shared by the omnibox dropdown and /search, so the
+   two surfaces cannot drift apart visually. */
+.c-search-row {
+	width: 100%;
+	min-width: 0;
+	align-items: flex-start;
+	text-align: start;
+}
+.c-search-row-icon {
+	display: flex;
+	align-items: center;
+	flex-shrink: 0;
+	opacity: 0.7;
+}
+/* The min-width:0 chain is what makes the clamps below actually clamp. */
+.c-search-row-body {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+.c-search-row-title {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	word-break: break-word;
+	line-height: 1.3;
+}
+.c-search-row-meta {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.c-search-row-snippet {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	word-break: break-word;
+	line-height: 1.3;
+}
+.c-search-row-time {
+	flex-shrink: 0;
+	white-space: nowrap;
+}
+.c-search-row.compact .c-search-row-title,
+.c-search-row.compact .c-search-row-snippet {
+	-webkit-line-clamp: 1;
+}
+/* `.c-search-mark` — `<Highlight>`'s default mark class — lives in
+   @cloudillo/react's components.css, which the shell loads too: the sandboxed
+   app iframes get only that file. */
+
+/* /search results page */
+.c-search-page {
+	max-width: 48rem;
+	width: 100%;
+	margin: 0 auto;
+}
+.c-search-page-hit {
+	display: block;
+	padding: 0.5rem 0.6rem;
+	border-radius: var(--bd-radius, 0.25rem);
+	color: inherit;
+	text-decoration: none;
+}
+.c-search-page-hit:hover {
+	background: var(--col-container-high, rgb(127 127 127 / 0.12));
+	text-decoration: none;
 }
 
 /* Skip to main content link for keyboard accessibility */
@@ -854,42 +995,9 @@ body {
 	display: block;
 }
 
-/* Wrapper for an input with a leading/trailing icon: position child icons
-   absolutely against this container. Pair with the input's own padding to
-   prevent text-icon overlap. */
-.c-input-icon {
-	position: absolute;
-	top: 50%;
-	transform: translateY(-50%);
-	left: 0.625rem;
-	color: color-mix(in lch, var(--col-on-container), transparent 35%);
-	pointer-events: none;
-	display: inline-flex;
-	align-items: center;
-}
-
-/* Clear-button placed at the right edge of an input. */
-.c-input-clear {
-	position: absolute;
-	top: 50%;
-	right: 0.5rem;
-	transform: translateY(-50%);
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 1.5rem;
-	height: 1.5rem;
-	border: none;
-	background: transparent;
-	color: color-mix(in lch, var(--col-on-container), transparent 35%);
-	cursor: pointer;
-	border-radius: var(--radius-control);
-}
-
-.c-input-clear:hover {
-	background: var(--col-em-container);
-	color: var(--col-on-container);
-}
+/* `.c-input-icon` and `.c-input-clear` live in @cloudillo/react
+   (components.css) — the sandboxed app iframes need them too, and two copies
+   would drift. */
 
 /* Suffix text or addon rendered after an input within an input group.
    `c-input-addon` is an alias of the same role. */

@@ -7,22 +7,37 @@
  *
  *   /…    → command mode  (filter & jump to built-in apps / menu items)
  *   @…    → profile search (live autocomplete → go to profile)
- *   id.tag.tld (bare)     → profile jump (Enter, no dropdown / no network)
  *   cl:… / http(s)://…    → reference mode (open the linked page/document)
- *   empty / other text    → no dropdown (suggestions need a `/` or `@` sigil)
+ *   plain text (2+ chars) → full-text search of the active context, inline
+ *   empty / 1 char        → this session's recent searches, no network
+ *
+ * Ctrl+K reopens it prefilled with the last query, fully selected, and sends nothing
+ * until the first keystroke — those results have already been seen. Requests are
+ * debounced, cancelled when superseded, and cached per context for 30 s.
  */
 
 import type { Profile } from '@cloudillo/core'
-import { Button, mergeClasses, ProfilePicture, useApi, useAuth, useToast } from '@cloudillo/react'
-import debounce from 'debounce'
-import { useCombobox } from 'downshift'
-import { useAtomValue } from 'jotai'
+import {
+	Button,
+	LoadingSpinner,
+	mergeClasses,
+	ProfilePicture,
+	useApi,
+	useAuth,
+	useDebouncedValue,
+	useToast
+} from '@cloudillo/react'
+import type { SearchHit } from '@cloudillo/types'
+import { type UseComboboxState, useCombobox } from 'downshift'
+import { useAtom, useAtomValue, useSetAtom } from 'jotai'
+import QuickLRU from 'quick-lru'
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
 	LuX as IcClose,
 	LuCopy as IcCopy,
+	LuHistory as IcHistory,
 	LuLink as IcRef,
 	LuSearch as IcSearch,
 	LuChevronRight as IcSep
@@ -36,11 +51,31 @@ import {
 	HOME_CONTEXT,
 	isContextLeader,
 	LEADER_ONLY_APPS,
+	useContextAwareApi,
 	useContextPath,
+	useCurrentContextIdTag,
 	useUrlContextIdTag
 } from './context/index.js'
-import { buildRef, canShareRoute, isIdTag, isRefLike, resolveRef } from './refs.js'
-import { useSearch } from './search.js'
+import { deriveMode } from './omnibox-mode.js'
+import { buildRef, canShareRoute, resolveRef } from './refs.js'
+import { SearchResultRow } from './SearchResultRow.js'
+import {
+	lastQueryAtom,
+	openOmniboxAtom,
+	pushRecentAtom,
+	recentSearchesAtom,
+	useSearch
+} from './search.js'
+import {
+	FTS_CACHE_LIMIT,
+	FTS_CACHE_TTL_MS,
+	FTS_DEBOUNCE_MS,
+	FTS_DROPDOWN_LIMIT,
+	FTS_GUEST_TYPES,
+	FTS_MAX_QUERY,
+	FTS_SPINNER_DELAY_MS
+} from './search-constants.js'
+import { searchHitTarget } from './search-target.js'
 import { documentTitleAtom } from './title.js'
 import { type MenuItem, useAppConfig } from './utils.js'
 
@@ -170,7 +205,7 @@ export function DocumentTitleSync() {
 export function Breadcrumb() {
 	const { t } = useTranslation()
 	const location = useLocation()
-	const [, setSearch] = useSearch()
+	const openOmnibox = useSetAtom(openOmniboxAtom)
 	const toast = useToast()
 	const { segments, canShare } = useBreadcrumb()
 
@@ -189,7 +224,7 @@ export function Breadcrumb() {
 		<div className="c-hbox align-items-center g-1" style={{ minWidth: 0 }}>
 			<Button
 				className="icon c-omnibox-search flex-shrink-0"
-				onClick={() => setSearch({ query: '' })}
+				onClick={() => openOmnibox()}
 				aria-label={t('Open search')}
 				title={t('Search')}
 			>
@@ -227,7 +262,7 @@ export function Breadcrumb() {
 				<button
 					type="button"
 					className="c-omnibox-placeholder"
-					onClick={() => setSearch({ query: '' })}
+					onClick={() => openOmnibox()}
 				>
 					{t('Search')}
 				</button>
@@ -249,21 +284,22 @@ export function Breadcrumb() {
 // Omnibox smart input
 // ============================================
 
-type OmniMode = 'command' | 'profile-search' | 'profile-jump' | 'reference' | 'none'
-
 type OmniItem =
 	| { kind: 'command'; menuItem: MenuItem }
 	| { kind: 'profile'; profile: Profile }
 	| { kind: 'reference'; raw: string }
+	| { kind: 'hit'; hit: SearchHit }
+	| { kind: 'see-all'; query: string; total?: number }
+	| { kind: 'recent'; query: string }
+	| { kind: 'recent-clear' }
+	// Not selectable: status rows so the dropdown says what it is doing instead of
+	// collapsing to nothing while a request is in flight or came back empty.
+	| { kind: 'fts-loading' }
+	| { kind: 'fts-empty' }
 
-function deriveMode(query: string): OmniMode {
-	if (query.startsWith('/')) return 'command'
-	if (query.startsWith('@')) return 'profile-search'
-	if (isRefLike(query)) return 'reference'
-	if (isIdTag(query)) return 'profile-jump'
-	// Empty or plain text: no dropdown. Suggestions only appear behind a
-	// `/` (commands) or `@` (people) sigil.
-	return 'none'
+interface CachedHits {
+	hits: SearchHit[]
+	total?: number
 }
 
 export function Omnibox() {
@@ -271,59 +307,207 @@ export function Omnibox() {
 	const navigate = useNavigate()
 	const toast = useToast()
 	const { api } = useApi()
+	// Full-text search follows the active context (inside a community you search that
+	// community's index); the `@` profile lookup stays on the home client.
+	const { api: ctxApi } = useContextAwareApi()
 	const [auth] = useAuth()
 	const [search, setSearch] = useSearch()
+	const setLastQuery = useSetAtom(lastQueryAtom)
+	const pushRecent = useSetAtom(pushRecentAtom)
+	const [recent, setRecentSearches] = useAtom(recentSearchesAtom)
 	const [appConfig] = useAppConfig()
 	const urlContext = useUrlContextIdTag()
+	// Not the URL segment: `~` addresses home in a path but is not an idTag, and the
+	// resId's owner half has to be one.
+	const contextIdTag = useCurrentContextIdTag()
 	const { getContextPath } = useContextPath()
 	const activeContext = useAtomValue(activeContextAtom)
 
 	const query = search.query ?? ''
-	const mode = deriveMode(query)
+	// A guest has no profile surface: the `@` hotkey is disabled in `layout.tsx` and
+	// both profile modes are switched off here.
+	const profilesEnabled = !!auth
+	const mode = deriveMode(query, profilesEnabled)
+	// A recalled query is showing but untouched: the dropdown lists recent searches
+	// and no request goes out, since those results have already been seen. The first
+	// keystroke ends it.
+	const [pristine, setPristine] = React.useState(!!search.selectAll)
 
 	const [popperRef, setPopperRef] = React.useState<HTMLElement | null>(null)
 	const [popperEl, setPopperEl] = React.useState<HTMLUListElement | null>(null)
+	const fieldRef = React.useRef<HTMLDivElement | null>(null)
+	const inputRef = React.useRef<HTMLInputElement | null>(null)
+	// Per-mount, not module-level: closing the omnibox unmounts it and drops the
+	// cache, so reopening always re-asks. Within one open box the TTL bounds staleness.
+	const cacheRef = React.useRef<QuickLRU<string, CachedHits> | null>(null)
+	if (!cacheRef.current) {
+		cacheRef.current = new QuickLRU<string, CachedHits>({
+			maxSize: FTS_CACHE_LIMIT,
+			maxAge: FTS_CACHE_TTL_MS
+		})
+	}
+	// Set once the user has moved the highlight, so a pristine recall can tell "Enter
+	// searches what I recalled" from "Enter opens the row I arrowed to".
+	const arrowedRef = React.useRef(false)
 	const [profileItems, setProfileItems] = React.useState<Profile[]>([])
-	const searchSeqRef = React.useRef(0)
+	const [hits, setHits] = React.useState<SearchHit[]>([])
+	const [hitTotal, setHitTotal] = React.useState<number | undefined>(undefined)
+	const [ftsLoading, setFtsLoading] = React.useState(false)
+	// Not `ftsLoading`: the row only appears once the wait is long enough to be worth
+	// reporting (see the effect below).
+	const [showSpinner, setShowSpinner] = React.useState(false)
 
 	const { styles: popperStyles, attributes } = usePopper(popperRef, popperEl, {
 		placement: 'bottom-start',
 		strategy: 'fixed'
 	})
 
-	// Debounced profile lookup (~250 ms — snappier than Select's 500 ms).
-	const fetchProfiles = React.useMemo(
-		() =>
-			debounce(async (q: string) => {
-				if (!api) return
-				const seq = ++searchSeqRef.current
-				try {
-					const res = await api.profiles.list({ q })
-					if (seq !== searchSeqRef.current) return // a newer query superseded this one
-					setProfileItems(res || [])
-				} catch (err) {
-					if (seq !== searchSeqRef.current) return
-					console.error('[Omnibox] Profile search failed:', err)
-					setProfileItems([])
-				}
-			}, 250),
-		[api]
-	)
+	const debouncedQuery = useDebouncedValue(query, FTS_DEBOUNCE_MS)
+	// The network effects gate on *both* modes: `mode` alone would fire for a stale
+	// `debouncedQuery` on the keystroke that crosses into a searching mode (typing
+	// "ab" while the debounce still holds ""), `debouncedMode` alone would keep
+	// querying text the user has already replaced with a sigil.
+	const debouncedMode = deriveMode(debouncedQuery, profilesEnabled)
 
+	// What Ctrl+K recalls. Skips the empty string, so clearing with Escape does not
+	// erase the recall target.
 	React.useEffect(() => {
-		if (mode === 'profile-search') {
-			fetchProfiles(query.slice(1))
-		} else {
-			fetchProfiles.clear()
-			searchSeqRef.current++
-			setProfileItems([])
-		}
-	}, [mode, query, fetchProfiles])
+		if (query) setLastQuery(query)
+	}, [query, setLastQuery])
 
-	React.useEffect(() => () => fetchProfiles.clear(), [fetchProfiles])
+	// Keyed on the raw query: drop the previous query's rows on the keystroke, not when
+	// the answer lands. For the debounce plus a round trip they describe text no longer
+	// in the box, and Enter on one would open a result for an abandoned query.
+	React.useEffect(() => {
+		if (pristine) return
+		setHits([])
+		setHitTotal(undefined)
+		setFtsLoading(mode === 'full-text')
+		setProfileItems((prev) => (mode === 'profile-search' ? prev : []))
+	}, [mode, query, pristine])
+
+	// `@` autocomplete, debounced and cancelled the moment it is superseded.
+	React.useEffect(() => {
+		if (pristine) return
+		if (mode !== 'profile-search' || debouncedMode !== 'profile-search' || !api) return
+		// A bare `@` would list every contact — the most expensive query of the lot,
+		// with nothing useful to preview.
+		const q = debouncedQuery.slice(1)
+		if (!q.length) {
+			setProfileItems([])
+			return
+		}
+		const ctrl = new AbortController()
+		let cancelled = false
+		;(async () => {
+			try {
+				const res = await api.profiles.list({ q }, { signal: ctrl.signal })
+				if (cancelled) return
+				setProfileItems(res || [])
+			} catch (err) {
+				if (cancelled || (err as Error)?.name === 'AbortError') return
+				console.error('[Omnibox] Profile search failed:', err)
+				setProfileItems([])
+			}
+		})()
+		return () => {
+			cancelled = true
+			ctrl.abort()
+		}
+	}, [mode, debouncedMode, debouncedQuery, api, pristine])
+
+	// Full-text lookup: exactly one live request, aborted the moment it is superseded.
+	// The `cancelled` flag stays alongside the abort — an already-resolved promise
+	// cannot be aborted and its `.then` can still land after cleanup.
+	React.useEffect(() => {
+		if (pristine) return
+		if (mode !== 'full-text' || debouncedMode !== 'full-text') return
+		// The keystroke ending a Ctrl+K recall flips `pristine` while the debounce still
+		// holds the recalled text, which would send the query whose results were already
+		// seen. Any other mismatch is a keystroke the debounce has yet to catch up with.
+		if (debouncedQuery !== query) return
+		if (!ctxApi) {
+			setFtsLoading(false)
+			return
+		}
+		const q = debouncedQuery.trim().slice(0, FTS_MAX_QUERY)
+		const key = `${contextIdTag}|${profilesEnabled ? '' : FTS_GUEST_TYPES.join(',')}|${q}`
+		const cached = cacheRef.current?.get(key)
+		if (cached) {
+			setHits(cached.hits)
+			setHitTotal(cached.total)
+			setFtsLoading(false)
+			return
+		}
+		const ctrl = new AbortController()
+		let cancelled = false
+		;(async () => {
+			try {
+				const res = await ctxApi.search.queryPaginated(
+					{
+						q,
+						// The server strips `'P'` for a guest anyway; asking for the
+						// narrower set keeps the count and the page consistent.
+						type: profilesEnabled ? undefined : FTS_GUEST_TYPES.join(','),
+						limit: FTS_DROPDOWN_LIMIT
+					},
+					{ signal: ctrl.signal }
+				)
+				if (cancelled) return
+				cacheRef.current?.set(key, {
+					hits: res.data || [],
+					total: res.pagination?.total
+				})
+				setFtsLoading(false)
+				setHits(res.data || [])
+				setHitTotal(res.pagination?.total)
+			} catch (err) {
+				if (cancelled || (err as Error)?.name === 'AbortError') return
+				// Silent: an untrusted foreign community answers 401 and a toast per
+				// keystroke would be unusable. The empty row is what a 401 means here.
+				console.warn('[Omnibox] Full-text search failed:', err)
+				setFtsLoading(false)
+				setHits([])
+				setHitTotal(undefined)
+			}
+		})()
+		return () => {
+			cancelled = true
+			ctrl.abort()
+		}
+	}, [
+		mode,
+		debouncedMode,
+		debouncedQuery,
+		query,
+		ctxApi,
+		profilesEnabled,
+		contextIdTag,
+		pristine
+	])
+
+	// The "Searching…" row waits before appearing so it never flashes once per
+	// keystroke; with `isOpen` keyed on the row count the menu just stays shut.
+	React.useEffect(() => {
+		if (!ftsLoading) {
+			setShowSpinner(false)
+			return
+		}
+		const timer = setTimeout(() => setShowSpinner(true), FTS_SPINNER_DELAY_MS)
+		return () => clearTimeout(timer)
+	}, [ftsLoading])
 
 	// Build the dropdown items for the active mode.
 	const items = React.useMemo<OmniItem[]>(() => {
+		if (pristine || mode === 'none') {
+			// Pristine recall or an empty/1-char box: show recent searches, prefix
+			// filtered by whatever single character was typed.
+			const needle = query.trim().toLowerCase()
+			const rows: OmniItem[] = recent
+				.filter((r) => !needle || r.toLowerCase().startsWith(needle))
+				.map((q) => ({ kind: 'recent', query: q }) as OmniItem)
+			return rows.length ? [...rows, { kind: 'recent-clear' }] : []
+		}
 		if (mode === 'command') {
 			const filter = query.startsWith('/') ? query.slice(1).toLowerCase() : ''
 			const menu = appConfig?.menu ?? []
@@ -347,14 +531,47 @@ export function Omnibox() {
 		if (mode === 'reference') {
 			return [{ kind: 'reference', raw: query }]
 		}
+		if (mode === 'full-text') {
+			// Gated on `showSpinner`: for the first moments of a request the menu stays
+			// empty and therefore shut, rather than flashing a spinner row.
+			if (ftsLoading) return showSpinner ? [{ kind: 'fts-loading' }] : []
+			const rows: OmniItem[] = hits.map((hit) => ({ kind: 'hit', hit }) as OmniItem)
+			if (hitTotal !== undefined && hitTotal > rows.length) {
+				rows.push({ kind: 'see-all', query: query.trim(), total: hitTotal })
+			}
+			// An empty list hides the whole menu, which reads as "still working".
+			return rows.length ? rows : [{ kind: 'fts-empty' }]
+		}
 		return []
-	}, [mode, query, appConfig, auth, activeContext, i18n.language, profileItems])
+	}, [
+		mode,
+		query,
+		pristine,
+		recent,
+		appConfig,
+		auth,
+		activeContext,
+		i18n.language,
+		profileItems,
+		hits,
+		hitTotal,
+		ftsLoading,
+		showSpinner
+	])
 
 	function itemToString(item: OmniItem | null): string {
 		if (!item) return ''
 		if (item.kind === 'command')
 			return item.menuItem.trans?.[i18n.language] || item.menuItem.label
 		if (item.kind === 'profile') return item.profile.idTag
+		if (item.kind === 'hit') return item.hit.title ?? ''
+		if (item.kind === 'see-all' || item.kind === 'recent') return item.query
+		if (
+			item.kind === 'fts-loading' ||
+			item.kind === 'fts-empty' ||
+			item.kind === 'recent-clear'
+		)
+			return ''
 		return item.raw
 	}
 
@@ -368,14 +585,59 @@ export function Omnibox() {
 		[navigate, urlContext, setSearch]
 	)
 
+	const openResults = React.useCallback(
+		(raw: string) => {
+			const q = raw.trim().slice(0, FTS_MAX_QUERY)
+			if (!q) return
+			// Only committed searches are recalled; recording per keystroke would fill
+			// the list with `te`, `tex`, `text`.
+			pushRecent(q)
+			// The context lives in the path, so reloading or sharing the link keeps
+			// searching the space the search was run in.
+			navigate(`/search/${urlContext || HOME_CONTEXT}?${new URLSearchParams({ q })}`)
+			setSearch({})
+		},
+		[navigate, urlContext, setSearch, pushRecent]
+	)
+
 	const performAction = React.useCallback(
 		(item: OmniItem) => {
+			// Status rows, not results: Enter on one does nothing.
+			if (item.kind === 'fts-loading' || item.kind === 'fts-empty') return
+			if (item.kind === 'recent') {
+				// Access *and* edit: the term lands in the still-open box and the normal
+				// full-text path takes over.
+				setSearch({ query: item.query })
+				setPristine(false)
+				return
+			}
+			if (item.kind === 'recent-clear') {
+				setRecentSearches([])
+				return
+			}
 			if (item.kind === 'command') {
 				navigate(getContextPath(item.menuItem.path))
 				setSearch({})
 			} else if (item.kind === 'profile') {
 				navigate(`/profile/${urlContext || HOME_CONTEXT}/${item.profile.idTag}`)
 				setSearch({})
+			} else if (item.kind === 'hit') {
+				// Opening a hit settles the query as much as Enter does.
+				pushRecent(query)
+				const target = searchHitTarget(
+					item.hit,
+					urlContext || HOME_CONTEXT,
+					appConfig?.mime,
+					contextIdTag
+				)
+				if (target) {
+					navigate(target)
+				} else {
+					toast.error(t('That result cannot be opened'))
+				}
+				setSearch({})
+			} else if (item.kind === 'see-all') {
+				openResults(item.query)
 			} else {
 				const target = resolveRef(item.raw)
 				if (target) {
@@ -386,21 +648,51 @@ export function Omnibox() {
 				setSearch({})
 			}
 		},
-		[navigate, getContextPath, urlContext, setSearch, toast, t]
+		[
+			navigate,
+			getContextPath,
+			urlContext,
+			contextIdTag,
+			setSearch,
+			setRecentSearches,
+			pushRecent,
+			query,
+			toast,
+			t,
+			appConfig,
+			openResults
+		]
 	)
 
 	const cb = useCombobox<OmniItem>({
 		items,
 		inputValue: query,
 		defaultHighlightedIndex: 0,
-		// Open on mount so a `/` or `@` prefill shows rows immediately (the input
-		// is autofocused but focus alone doesn't open the menu). An empty omnibox
-		// derives mode 'none' → no items → the dropdown stays hidden.
-		defaultIsOpen: true,
+		// Controlled so the ARIA state can never disagree with what is painted: open is
+		// exactly "there are rows". Also makes a `/` or `@` prefill show rows without
+		// focus opening the menu. Left to downshift, `aria-expanded="true"` would be
+		// reported over a `display: none` list.
+		isOpen: items.length > 0,
+		// downshift 9 dropped the per-call `disabled` argument to `getItemProps`; the
+		// status rows ("Searching…", "No results found") must still be skipped by the
+		// arrow keys and Enter, so they are declared here instead.
+		isItemDisabled: (item: OmniItem) =>
+			item.kind === 'fts-loading' || item.kind === 'fts-empty',
 		itemToString,
-		stateReducer(_state, { type, changes }) {
+		stateReducer(state, { type, changes }) {
+			// Recomputed rather than read from the closure: the render-derived `mode`
+			// still describes the *previous* input here. On the keystroke that crosses
+			// into a searching mode it would let downshift's default through, and
+			// downshift sets `highlightedIndex = defaultHighlightedIndex` even with zero
+			// items — swallowing Enter until the hits land.
+			const nextMode = deriveMode(
+				changes.inputValue ?? state.inputValue ?? '',
+				profilesEnabled
+			)
+			// No default highlight: Enter then means "search for what I typed"
+			// (profile jump / see all results) rather than "open the first row".
 			if (
-				mode === 'profile-search' &&
+				(nextMode === 'profile-search' || nextMode === 'full-text') &&
 				(type === useCombobox.stateChangeTypes.InputChange ||
 					type === useCombobox.stateChangeTypes.FunctionOpenMenu ||
 					type === useCombobox.stateChangeTypes.ToggleButtonClick)
@@ -411,11 +703,22 @@ export function Omnibox() {
 		},
 		onInputValueChange({ inputValue, type }) {
 			if (type === useCombobox.stateChangeTypes.InputChange) {
+				// The first keystroke ends the recall: from here the box searches.
+				setPristine(false)
 				setSearch({ query: inputValue ?? '' })
 			}
 		},
 		onSelectedItemChange({ selectedItem }) {
 			if (selectedItem) performAction(selectedItem)
+		},
+		// downshift 9 owns the `aria-live` status node; this only supplies its text.
+		// `items` comes from the closure — the callback is handed combobox state alone.
+		getA11yStatusMessage(state: UseComboboxState<OmniItem>) {
+			if (ftsLoading) return t('Searching...')
+			if (!state.isOpen || !items.length) return t('No results found')
+			return t('{{count}} results, use up and down arrows to review', {
+				count: items.length
+			})
 		}
 	})
 
@@ -439,15 +742,43 @@ export function Omnibox() {
 	const inputProps = cb.getInputProps({
 		autoFocus: true,
 		type: 'search',
-		placeholder: t('Type / for apps, @ to find people, or paste a link…'),
+		// Otherwise the browser's own history dropdown overlaps the combobox menu.
+		autoComplete: 'off',
+		placeholder: t('Search this space'),
 		'aria-label': t('Search'),
 		className: 'c-input flex-fill',
+		// downshift composes a passed ref via `handleRefs`; this is how the
+		// select-on-recall effect reaches the field.
+		ref: (el: HTMLInputElement) => {
+			inputRef.current = el
+		},
 		onKeyDown(e: React.KeyboardEvent) {
+			// downshift preventDefaults Home/End while the menu is open to jump the
+			// highlight. In a text field the caret has to win — Home/End (and
+			// Shift+Home/End) are how you edit. Arrow keys still navigate the dropdown.
+			if (e.key === 'Home' || e.key === 'End') {
+				;(
+					e.nativeEvent as unknown as { preventDownshiftDefault?: boolean }
+				).preventDownshiftDefault = true
+				return
+			}
+			if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+				arrowedRef.current = true
+				return
+			}
 			if (e.key === 'Escape') {
 				;(
 					e.nativeEvent as unknown as { preventDownshiftDefault?: boolean }
 				).preventDownshiftDefault = true
-				setSearch({})
+				// Two-stage: the first Escape clears a non-empty query and keeps the box
+				// open and focused (the text survives in `lastQueryAtom`), the second
+				// closes it. Closing on the first would discard a query meant to be fixed.
+				if (query) {
+					setPristine(false)
+					setSearch({ query: '' })
+				} else {
+					setSearch({})
+				}
 				return
 			}
 			if (e.key === 'Enter') {
@@ -459,24 +790,64 @@ export function Omnibox() {
 					e.preventDefault()
 					return
 				}
-				// Profile modes: with no row explicitly highlighted, act on the typed
-				// idTag (profile-jump never has rows; profile-search defaults to no
-				// highlight).
-				if (
-					mode === 'profile-jump' ||
-					(mode === 'profile-search' && cb.highlightedIndex < 0)
-				) {
+				// An untouched recall: Enter searches the recalled term, not the recents
+				// row the default highlight happens to sit on.
+				if (pristine && mode === 'full-text' && !arrowedRef.current) {
+					;(
+						e.nativeEvent as unknown as { preventDownshiftDefault?: boolean }
+					).preventDownshiftDefault = true
+					e.preventDefault()
+					openResults(query)
+					return
+				}
+				// Profile search: with no row explicitly highlighted, act on the typed
+				// idTag rather than on the autocomplete rows.
+				if (mode === 'profile-search' && cb.highlightedIndex < 0) {
 					e.preventDefault()
 					jumpToProfile(query)
+					return
+				}
+				// Full-text: with no row arrowed to, open the full results page.
+				if (mode === 'full-text' && cb.highlightedIndex < 0) {
+					e.preventDefault()
+					openResults(query)
 				}
 			}
 		},
-		onBlur() {
-			// Close on blur. Dropdown rows use mousedown-preventDefault below, so
-			// selecting a row never blurs the input first.
+		onBlur(e: React.FocusEvent<HTMLInputElement>) {
+			// A tab/window switch, browser chrome or devtools all blur the input;
+			// closing there would wipe a half-typed query. Only a real in-page focus
+			// move counts as dismissal.
+			if (!document.hasFocus()) return
+			const next = e.relatedTarget as Node | null
+			// Dropdown rows use mousedown-preventDefault so selecting one never blurs
+			// the input; the close button and row ✕ buttons live in these containers.
+			if (next && (fieldRef.current?.contains(next) || popperEl?.contains(next))) return
 			setSearch({})
 		}
 	})
+
+	// Select-all on recall (address-bar behaviour): the next keystroke replaces the
+	// term, Home/End/arrows keep it. Mount only — a later `selectAll` would fight the
+	// caret mid-typing — and cleared at once so it cannot fire twice.
+	React.useEffect(() => {
+		if (!search.selectAll) return
+		inputRef.current?.select()
+		setSearch((prev) => ({ ...prev, selectAll: undefined }))
+	}, [])
+
+	const removeRecent = React.useCallback(
+		(term: string) => {
+			setRecentSearches((prev) => prev.filter((r) => r !== term))
+		},
+		[setRecentSearches]
+	)
+
+	// The sigil legend sits under the recents, while the box is still pristine or too
+	// short to search.
+	const showLegend = pristine || mode === 'none'
+	const shortcutHint =
+		typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '') ? '⌘K' : 'Ctrl K'
 
 	function renderRow(item: OmniItem) {
 		if (item.kind === 'command') {
@@ -500,6 +871,65 @@ export function Omnibox() {
 				</span>
 			)
 		}
+		if (item.kind === 'hit') {
+			return <SearchResultRow hit={item.hit} compact />
+		}
+		if (item.kind === 'see-all') {
+			return (
+				<span className="c-hbox align-items-center g-2">
+					<IcSearch />
+					<span>{t('See all {{count}} results', { count: item.total ?? 0 })}</span>
+				</span>
+			)
+		}
+		if (item.kind === 'recent') {
+			return (
+				<span className="c-hbox align-items-center g-2 w-100">
+					<IcHistory />
+					<span className="flex-fill c-omnibox-recent-term">{item.query}</span>
+					<Button
+						className="icon flat c-omnibox-recent-remove"
+						// Same blur guard as the close button: keep the input focused
+						// so the dropdown is still there when the click lands.
+						onMouseDown={(e) => e.preventDefault()}
+						onClick={(e) => {
+							// Otherwise the row underneath selects the term the
+							// click was meant to delete.
+							e.stopPropagation()
+							removeRecent(item.query)
+						}}
+						aria-label={t('Remove from search history')}
+						title={t('Remove from search history')}
+					>
+						<IcClose size={14} />
+					</Button>
+				</span>
+			)
+		}
+		if (item.kind === 'recent-clear') {
+			return (
+				<span className="c-hbox align-items-center g-2 text-muted small">
+					<IcClose size={14} />
+					<span>{t('Clear search history')}</span>
+				</span>
+			)
+		}
+		if (item.kind === 'fts-loading') {
+			return (
+				<span className="c-hbox align-items-center g-2 text-muted">
+					<LoadingSpinner size="sm" />
+					<span>{t('Searching...')}</span>
+				</span>
+			)
+		}
+		if (item.kind === 'fts-empty') {
+			return (
+				<span className="c-hbox align-items-center g-2 text-muted">
+					<IcSearch />
+					<span>{t('No results found')}</span>
+				</span>
+			)
+		}
 		const target = resolveRef(item.raw)
 		return (
 			<span className="c-hbox align-items-center g-2">
@@ -518,11 +948,24 @@ export function Omnibox() {
 			role="search"
 			style={{ minWidth: 0 }}
 		>
-			<div ref={setPopperRef} className="c-omnibox-field">
+			<div
+				ref={(el) => {
+					// Two owners: popper positions against it, and the blur guard asks
+					// whether focus merely moved inside the field.
+					fieldRef.current = el
+					setPopperRef(el)
+				}}
+				className="c-omnibox-field"
+			>
 				<span className="c-omnibox-field-icon">
 					<IcSearch />
 				</span>
 				<input {...inputProps} />
+				{!query && (
+					<kbd className="c-omnibox-kbd" aria-hidden="true">
+						{shortcutHint}
+					</kbd>
+				)}
 				<Button
 					className="icon flat"
 					onMouseDown={(e) => e.preventDefault()}
@@ -537,7 +980,10 @@ export function Omnibox() {
 					{...getMenuProps()}
 					style={{
 						...popperStyles.popper,
-						...(items.length ? {} : { display: 'none' })
+						// Decoupled from the ARIA open state: with zero rows there is
+						// nothing to expand to, but the legend must stay paintable or a
+						// cold start never discovers the sigils.
+						...(cb.isOpen || showLegend ? {} : { display: 'none' })
 					}}
 					className="c-nav c-omnibox-menu flex-column text-start c-card p-1"
 					{...attributes.popper}
@@ -545,18 +991,41 @@ export function Omnibox() {
 					{items.map((item, idx) => (
 						<li
 							key={idx}
+							// `isItemDisabled` keeps the highlight off the status rows,
+							// so the index comparison alone suffices.
 							className={mergeClasses(
 								'c-nav-item',
 								cb.highlightedIndex === idx && 'selected'
 							)}
-							// Select on mousedown-without-blur: keep input focused so the
-							// blur-to-close handler doesn't fire before the click selects.
+							// Select on mousedown-without-blur: keep input focused so
+							// the blur-to-close handler doesn't fire before the click
+							// selects.
 							onMouseDown={(e) => e.preventDefault()}
 							{...cb.getItemProps({ item, index: idx })}
 						>
 							{renderRow(item)}
 						</li>
 					))}
+					{showLegend && (
+						// Not selectable, and a listbox child without `role="option"`
+						// must say so.
+						<li className="c-omnibox-legend small text-muted" role="presentation">
+							{/* Sigils stay outside the translated strings: i18next uses
+							    keySeparator '@' and nsSeparator '$', so a literal `@` in
+							    a key would never resolve. */}
+							<span>
+								<code>/</code> {t('apps')}
+							</span>
+							<span aria-hidden="true">·</span>
+							<span>
+								<code>@</code> {t('people')}
+							</span>
+							<span aria-hidden="true">·</span>
+							<span>
+								<code>cl:</code> {t('links')}
+							</span>
+						</li>
+					)}
 				</ul>,
 				document.getElementById('popper-container')!
 			)}

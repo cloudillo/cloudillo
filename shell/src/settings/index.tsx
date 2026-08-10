@@ -97,7 +97,7 @@ export function Settings({ title, children }: SettingsProps) {
 					</li>
 					<li>
 						<NavLink className="c-nav-item" to={`${basePath}/files`}>
-							<IcFiles /> {t('Files')}
+							<IcFiles /> {t('Files & Storage')}
 						</NavLink>
 					</li>
 				</ul>
@@ -191,7 +191,7 @@ export function SettingsRoutes({ pwa }: { pwa: UsePWA }) {
 			<Route
 				path="/settings/:contextIdTag/files"
 				element={
-					<Settings title={t('Files')}>
+					<Settings title={t('Files & Storage')}>
 						<FilesSettings />
 					</Settings>
 				}

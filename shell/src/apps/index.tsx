@@ -188,6 +188,10 @@ export function MicrofrontendContainer({
 						refId: currentRefId,
 						access: currentAccess || 'write',
 						idTag: currentAuth?.idTag || currentContextIdTag,
+						// The shell chose which app to launch, so this name is attested:
+						// the share, document, media and camera handlers read
+						// `connection.appName` rather than the iframe's `bus.init(name)`.
+						appName: app,
 						displayName: currentGuestName,
 						params: paramsRef.current
 					})

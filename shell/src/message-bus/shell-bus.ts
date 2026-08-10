@@ -200,6 +200,8 @@ export class ShellMessageBus extends MessageBusBase {
 			refId?: string
 			access?: 'read' | 'comment' | 'write'
 			idTag?: string
+			/** App the shell chose to launch — the only attested source of a name. */
+			appName?: string
 			displayName?: string
 			navState?: string
 			ancestors?: string[]

@@ -115,7 +115,10 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 
 			connection = bus.getAppTracker().registerApp({
 				window: appWindow,
-				appName: msg.payload.appName,
+				// The launcher's app name, never `msg.payload.appName`: the iframe picks
+				// that string itself, while handlers reading `connection.appName` treat
+				// the recorded name as attested.
+				appName: pending.appName,
 				resId: msg.payload.resId,
 				access: pending.access || 'write',
 				idTag: pending.idTag,

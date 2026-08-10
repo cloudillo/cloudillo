@@ -146,6 +146,10 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 				token: tokenResult.token,
 				access: requestedAccess,
 				idTag,
+				// Resolved from the target's content type above, not from the embedding
+				// app — the same value `embedUrl` picks the bundle by, so handlers
+				// reading `connection.appName` get an attested name.
+				appName: appName ?? 'view',
 				displayName: connection?.displayName,
 				navState,
 				params,

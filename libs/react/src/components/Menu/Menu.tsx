@@ -5,7 +5,7 @@ import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { usePopper } from 'react-popper'
 
-import { useEscapeKey, useMergedRefs } from '../hooks.js'
+import { useEscapeKey, useMenuKeyboard, useMergedRefs } from '../hooks.js'
 import { createComponent, mergeClasses } from '../utils.js'
 
 export interface MenuPosition {
@@ -23,10 +23,12 @@ export const Menu = createComponent<HTMLDivElement, MenuProps>(
 	'Menu',
 	({ position, onClose, children, className, style, ...props }, ref) => {
 		const menuRef = React.useRef<HTMLDivElement | null>(null)
+		// Also as state, so the keyboard hook re-runs once the node exists.
+		const [menuEl, setMenuEl] = React.useState<HTMLDivElement | null>(null)
 		const [adjustedPosition, setAdjustedPosition] = React.useState(position)
 
 		// Combine refs using shared hook
-		const mergedRef = useMergedRefs(ref, menuRef)
+		const mergedRef = useMergedRefs(ref, menuRef, setMenuEl)
 
 		// Adjust position to keep menu within viewport
 		React.useLayoutEffect(
@@ -73,47 +75,12 @@ export const Menu = createComponent<HTMLDivElement, MenuProps>(
 		// Close on Escape using shared hook
 		useEscapeKey(onClose)
 
-		// Focus first menu item on mount
-		React.useEffect(function focusFirstItem() {
-			if (!menuRef.current) return
-			const firstItem = menuRef.current.querySelector<HTMLButtonElement>(
-				'.c-menu-item:not([disabled])'
-			)
-			firstItem?.focus()
-		}, [])
-
-		// Handle keyboard navigation
-		function handleKeyDown(evt: React.KeyboardEvent) {
-			if (!menuRef.current) return
-
-			const items = Array.from(
-				menuRef.current.querySelectorAll<HTMLButtonElement>('.c-menu-item:not([disabled])')
-			)
-			const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement)
-
-			switch (evt.key) {
-				case 'ArrowDown': {
-					evt.preventDefault()
-					const nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0
-					items[nextIndex]?.focus()
-					break
-				}
-				case 'ArrowUp': {
-					evt.preventDefault()
-					const prevIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1
-					items[prevIndex]?.focus()
-					break
-				}
-				case 'Home':
-					evt.preventDefault()
-					items[0]?.focus()
-					break
-				case 'End':
-					evt.preventDefault()
-					items[items.length - 1]?.focus()
-					break
-			}
-		}
+		// Focus entry and arrow/Home/End roving, shared with Dropdown. The narrower
+		// selector keeps a submenu trigger out of the rotation — it has its own
+		// ArrowRight handling.
+		const handleKeyDown = useMenuKeyboard(menuEl, {
+			itemSelector: '.c-menu-item:not([disabled])'
+		})
 
 		const menuElement = (
 			<div
@@ -169,7 +136,13 @@ export interface MenuDividerProps extends React.HTMLAttributes<HTMLDivElement> {
 export const MenuDivider = createComponent<HTMLDivElement, MenuDividerProps>(
 	'MenuDivider',
 	({ className, ...props }, ref) => (
-		<div ref={ref} className={mergeClasses('c-menu-divider', className)} {...props} />
+		// A generic element is not a permitted child of `role="menu"`.
+		<div
+			ref={ref}
+			role="separator"
+			className={mergeClasses('c-menu-divider', className)}
+			{...props}
+		/>
 	)
 )
 
@@ -180,7 +153,13 @@ export interface MenuHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
 export const MenuHeader = createComponent<HTMLDivElement, MenuHeaderProps>(
 	'MenuHeader',
 	({ className, children, ...props }, ref) => (
-		<div ref={ref} className={mergeClasses('c-menu-header', className)} {...props}>
+		// A generic element is not a permitted child of `role="menu"`.
+		<div
+			ref={ref}
+			role="presentation"
+			className={mergeClasses('c-menu-header', className)}
+			{...props}
+		>
 			{children}
 		</div>
 	)

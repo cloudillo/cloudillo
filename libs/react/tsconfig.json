@@ -5,5 +5,5 @@
 		"outDir": "lib",
 		"jsx": "react"
 	},
-	"files": ["src/index.ts"]
+	"files": ["src/index.ts", "src/doc-bar.ts"]
 }

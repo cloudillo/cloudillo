@@ -41,6 +41,11 @@ export function Popper({
 		if (!popperEl) return
 
 		function handleClickOutside(evt: MouseEvent) {
+			// Same exemption as `Dropdown`: a synthetic click is a menu item doing
+			// its job, and `preventDefault()` on one cancels the very default
+			// action it was dispatched for (blob download, file picker). No shell
+			// Popper menu triggers one yet, but the trap is identical.
+			if (!evt.isTrusted) return
 			if (!(evt.target instanceof Node) || !popperEl?.contains(evt.target)) {
 				evt.stopPropagation()
 				evt.preventDefault()
@@ -88,7 +93,9 @@ export function Popper({
 					>
 						{children}
 					</div>,
-					document.getElementById('popper-container')!
+					// `body` fallback: a non-null assertion here THROWS in any app
+					// whose index.html lacks the container.
+					document.getElementById('popper-container') ?? document.body
 				)}
 		</details>
 	)

@@ -21,10 +21,21 @@ export type {
 	AvatarBadgeProps,
 	AvatarGroupProps,
 	AvatarProps,
-	AvatarStatusProps
+	AvatarStatusProps,
+	InitialsAvatarProps,
+	PresenceAvatarProps
 } from './Avatar/index.js'
 // Avatar Components
-export { Avatar, AvatarBadge, AvatarGroup, AvatarStatus } from './Avatar/index.js'
+export {
+	Avatar,
+	AvatarBadge,
+	AvatarGroup,
+	AvatarStatus,
+	InitialsAvatar,
+	PresenceAvatar,
+	initialsFor,
+	monogramFor
+} from './Avatar/index.js'
 export type { BadgeProps } from './Badge/index.js'
 // Badge Component
 export { Badge } from './Badge/index.js'
@@ -56,6 +67,14 @@ export { DateTimePicker } from './DateTimePicker/index.js'
 export type { DialogProps, UseDialogReturn } from './Dialog/index.js'
 // Dialog Components
 export { Dialog, DialogContainer, useDialog } from './Dialog/index.js'
+export type {
+	DocBarMenuProps,
+	DocBarPresenceProps,
+	DocBarProps,
+	DocBarTitleProps
+} from './DocBar/index.js'
+// DocBar Components
+export { DocBar, DocBarMenu, DocBarPresence, DocBarTitle } from './DocBar/index.js'
 export type {
 	DocumentEmbedIframeProps,
 	DocumentEmbedIframeRef,
@@ -112,19 +131,24 @@ export type {
 } from './Form/index.js'
 // Form Components
 export { Fieldset, Input, InputGroup, NativeSelect, TextArea, Toggle } from './Form/index.js'
+export type { FormattedTextProps } from './formatted-text.js'
+// Formatted text (links, hashtags, emoji)
+export { FormattedText, generateFragments } from './formatted-text.js'
 export type { HighlightProps } from './Highlight/index.js'
 // Highlight Component
 export { Highlight } from './Highlight/index.js'
-export type { Breakpoint } from './hooks.js'
+export type { Breakpoint, MenuKeyboardOptions } from './hooks.js'
 // Shared Hooks
 export {
 	BREAKPOINTS,
+	MENU_ITEM_SELECTOR,
 	useBodyScrollLock,
 	useDebouncedValue,
 	useEscapeKey,
 	useIsDesktop,
 	useIsMobile,
 	useMediaQuery,
+	useMenuKeyboard,
 	useMergedRefs,
 	useOutsideClick,
 	usePrefersReducedMotion
@@ -268,6 +292,7 @@ export type {
 	ToastOptions,
 	ToastProgressProps,
 	ToastProps,
+	ToastsProps,
 	ToastTitleProps,
 	UseToastReturn
 } from './Toast/index.js'
@@ -282,6 +307,7 @@ export {
 	ToastIcon,
 	ToastMessage,
 	ToastProgress,
+	Toasts,
 	ToastTitle,
 	useToast,
 	useToastContext,
@@ -300,14 +326,11 @@ export type { TreeItemDragData, TreeItemProps, TreeViewProps } from './TreeView/
 export { TreeItem, TreeView } from './TreeView/index.js'
 // Types
 export type * from './types.js'
-export type { FormattedTextProps } from './utils.js'
 // Utilities
 export {
 	avatarSizeClass,
 	buttonSizeClass,
 	createComponent,
-	FormattedText,
-	generateFragments,
 	mergeClasses,
 	polyRef,
 	resolveDefaultExport,

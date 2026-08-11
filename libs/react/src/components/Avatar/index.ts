@@ -9,5 +9,9 @@ export type { AvatarGroupProps } from './AvatarGroup.js'
 export { AvatarGroup } from './AvatarGroup.js'
 export type { AvatarStatusProps } from './AvatarStatus.js'
 export { AvatarStatus } from './AvatarStatus.js'
+export type { InitialsAvatarProps } from './InitialsAvatar.js'
+export { InitialsAvatar, initialsFor, monogramFor } from './InitialsAvatar.js'
+export type { PresenceAvatarProps } from './PresenceAvatar.js'
+export { PresenceAvatar } from './PresenceAvatar.js'
 
 // vim: ts=4

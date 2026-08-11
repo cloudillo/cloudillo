@@ -319,17 +319,6 @@
 	color: var(--col-accent);
 }
 
-.c-avatar {
-	width: 2.5rem;
-	height: 2.5rem;
-	border-radius: 50%;
-
-	&.small {
-		width: 2rem;
-		height: 2rem;
-	}
-}
-
 .c-markdown {
 	h1,
 	h2,
@@ -560,7 +549,7 @@
 
 /* Skeleton */
 .c-skeleton {
-	background: var(--col-em-container);
+	background: var(--col-container-low);
 	border-radius: var(--radius-sm);
 }
 
@@ -1998,7 +1987,7 @@
 }
 
 .c-input-clear:hover {
-	background: var(--col-em-container);
+	background: var(--col-container-low);
 	color: var(--col-on-container);
 }
 
@@ -2016,6 +2005,202 @@
 	font-weight: 600;
 	border-radius: 2px;
 	padding: 0 0.1em;
+}
+
+/* ==========================================================================
+   DocBar — the document top bar every doc app wears
+   ========================================================================== */
+
+.c-docbar {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-1) var(--space-2);
+	min-width: 0;
+}
+
+/* `min-width: 0` is load-bearing: without it a long file name refuses to
+   shrink and pushes the presence stack and the actions off-screen. */
+.c-docbar-main {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+/* A stable box for the layout rules below to hang off, whatever the segment is
+   rendering. The `h1` cannot play that part — it wraps the name but not the edit
+   form, which is a `<form>` and may not sit inside a heading. */
+.c-docbar-heading-slot {
+	display: flex;
+	align-items: center;
+	min-width: 0;
+	overflow: hidden;
+}
+
+/* The document name is the app document's only heading, so it is an `h1`. This
+   strips everything the default heading box would add — the bar's look comes
+   from `.c-docbar-title` on the segment inside. A flex box rather than
+   `display: contents`, which some assistive tech still drops from the tree. */
+.c-docbar-heading {
+	display: flex;
+	align-items: center;
+	margin: 0;
+	font-size: inherit;
+	font-weight: inherit;
+	min-width: 0;
+	overflow: hidden;
+}
+
+/* Idle the slot hugs the name; editing it has to grow. The segment swaps its
+   `.c-docbar-doc-title` for the edit form, so the absence of that class is what
+   "is being renamed" looks like in CSS. */
+.c-docbar-heading-slot:not(:has(.c-docbar-doc-title)) {
+	flex: 1 1 auto;
+}
+
+.c-docbar-title {
+	font-size: var(--text-sm);
+	font-weight: 600;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.c-docbar-title-button {
+	padding: var(--space-0) var(--space-1);
+	border: none;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	font-weight: 600;
+	text-align: start;
+	border-radius: var(--radius-control);
+	cursor: pointer;
+}
+
+/* `--col-container-low` and not `--col-em-container`: the latter is an
+   emphasis *foreground* token (L20 light / L80 dark), so as a background it
+   paints dark-on-dark in light mode and light-on-light in dark mode. This is
+   the hover idiom opalui itself uses for `.c-menu-item`, `.c-button.link` and
+   toolbar buttons. */
+.c-docbar-title-button:hover:not(:disabled) {
+	background: var(--col-container-low);
+}
+
+/* An icon and not a text `›`, matching the files breadcrumb: a glyph would
+   inherit the title's weight and sit on the text baseline. */
+.c-docbar-sep {
+	flex-shrink: 0;
+	opacity: 0.45;
+}
+
+.c-docbar-sub {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	min-width: 0;
+}
+
+.c-docbar-sub-icon {
+	flex-shrink: 0;
+}
+
+.c-docbar-owner {
+	flex-shrink: 0;
+}
+
+.c-docbar-presence {
+	flex-shrink: 0;
+}
+
+.c-docbar-actions {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+}
+
+/* The overflow menu's popper. `.c-popper` supplies the surface; the padding and
+   width floor that `.c-menu` would have given us have to come from here, since
+   `.c-menu` also sets `position: fixed` and would fight Popper. */
+.c-docbar-menu-popper {
+	min-width: 12rem;
+	padding: var(--space-1);
+}
+
+@media (width < 48rem) {
+	.c-docbar-owner .name {
+		display: none;
+	}
+
+	/* The document name yields first — the sub-item is what you are looking at.
+	   Scoped to `.has-sub`: a bar with no second segment must keep its title,
+	   which is the only thing naming the document.
+
+	   The whole slot goes, not just the segment inside it: an empty box left in
+	   the flex flow would still earn a `gap`. `:has()` keeps the slot when the
+	   segment is swapped for its edit form (which does not carry
+	   `.c-docbar-doc-title`), so a rename in progress is never hidden. */
+	.c-docbar-main.has-sub .c-docbar-heading-slot:has(.c-docbar-doc-title),
+	.c-docbar-main.has-sub .c-docbar-sep {
+		display: none;
+	}
+}
+
+/* ==========================================================================
+   Identity colour
+
+   Only the hue is pinned in JS (`--id-hue`, see `idHue()`), so a theme switch
+   recolours every avatar with no re-render and can never leave a stale colour
+   behind. Dark mode is a `body.dark` class here, NOT `prefers-color-scheme`.
+   ========================================================================== */
+
+.c-id-color {
+	--id-bg: lch(45 70 var(--id-hue));
+	--id-fg: lch(98 10 var(--id-hue));
+}
+
+body.dark .c-id-color {
+	--id-bg: lch(68 70 var(--id-hue));
+	--id-fg: lch(12 15 var(--id-hue));
+}
+
+.c-avatar.c-id-color {
+	--avatar-bg: var(--id-bg);
+	--avatar-color: var(--id-fg);
+}
+
+/* Monogram rendered inside an avatar when there is no picture.
+   Deliberately sets neither `background` nor `color`: both come from `.c-avatar`
+   (`--avatar-bg` / `--avatar-color`), which `.c-id-color` above rebinds to the
+   wearer's identity pair — overriding either here would flatten every monogram
+   to the same grey. No `text-transform` either: a monogram is capitalised as a
+   word ('Sz', not 'SZ'). */
+.c-avatar-fallback {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	background: transparent;
+	font-weight: 600;
+	user-select: none;
+}
+
+/* A ring in the wearer's identity colour. `outline`, not `box-shadow`: only an
+   outline can be dashed, and it takes no layout space — the avatars inside a
+   `.c-avatar-group` already carry a surface-coloured border for the overlap, and
+   the outline sits just outside it. */
+.c-avatar.id-ring {
+	outline: 0.125rem solid var(--id-bg);
+	outline-offset: 0;
+}
+
+/* A guest has no idTag, so their face carries no verified identity. */
+.c-avatar.id-ring.guest {
+	outline-style: dashed;
 }
 
 /*

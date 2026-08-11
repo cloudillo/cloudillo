@@ -86,6 +86,92 @@ export function useEscapeKey(onEscape: () => void, enabled = true): void {
 }
 
 /**
+ * What a roving-focus menu moves between by default.
+ *
+ * Selector-based rather than registration-based because both anchored surfaces
+ * in this library (`Menu`, `Dropdown`) are filled with arbitrary children — the
+ * shell's dropdowns hold `c-nav` lists of plain buttons, the DocBar's hold
+ * `MenuItem`s.
+ */
+export const MENU_ITEM_SELECTOR =
+	'[role="menuitem"]:not([disabled]), .c-menu-item:not([disabled]), button:not([disabled]), a[href]'
+
+export interface MenuKeyboardOptions {
+	/** Which descendants count as items. Defaults to {@link MENU_ITEM_SELECTOR}. */
+	itemSelector?: string
+	/** Move focus onto the first item as soon as the menu exists. Default true. */
+	autoFocus?: boolean
+}
+
+/**
+ * Roving focus for a `role="menu"` container: focus enters the first item when
+ * the menu opens, Up/Down cycle, Home/End jump to the ends.
+ *
+ * One implementation for every anchored menu in the library; without it the
+ * shared overflow affordance is mouse-only.
+ *
+ * Escape is NOT handled here: `Menu` and `Dropdown` close by different routes
+ * and each has to decide where focus goes afterwards.
+ *
+ * @param menuEl - the menu container, or null while it is closed
+ * @returns a `keydown` handler for that container
+ *
+ * @example
+ * const [menuEl, setMenuEl] = React.useState<HTMLElement | null>(null)
+ * const onKeyDown = useMenuKeyboard(menuEl)
+ * return <div ref={setMenuEl} role="menu" onKeyDown={onKeyDown}>…</div>
+ */
+export function useMenuKeyboard(
+	menuEl: HTMLElement | null,
+	{ itemSelector = MENU_ITEM_SELECTOR, autoFocus = true }: MenuKeyboardOptions = {}
+): (evt: React.KeyboardEvent) => void {
+	// Re-queried on every keystroke rather than cached: menu contents change
+	// under the user (a roster gaining a collaborator, an item becoming disabled).
+	const getItems = React.useCallback(
+		() => (menuEl ? Array.from(menuEl.querySelectorAll<HTMLElement>(itemSelector)) : []),
+		[menuEl, itemSelector]
+	)
+
+	React.useEffect(
+		function focusFirstItem() {
+			if (!autoFocus || !menuEl) return
+			getItems()[0]?.focus()
+		},
+		[autoFocus, menuEl, getItems]
+	)
+
+	return React.useCallback(
+		(evt: React.KeyboardEvent) => {
+			const items = getItems()
+			if (!items.length) return
+			// -1 when focus is not on an item yet: Down then enters at the top and
+			// Up at the bottom, which is what the arrow keys should do on entry.
+			const current = items.indexOf(document.activeElement as HTMLElement)
+
+			switch (evt.key) {
+				case 'ArrowDown':
+					evt.preventDefault()
+					items[current < items.length - 1 ? current + 1 : 0]?.focus()
+					break
+				case 'ArrowUp':
+					evt.preventDefault()
+					items[current > 0 ? current - 1 : items.length - 1]?.focus()
+					break
+				case 'Home':
+					evt.preventDefault()
+					items[0]?.focus()
+					break
+				case 'End':
+					evt.preventDefault()
+					items[items.length - 1]?.focus()
+					break
+			}
+		},
+		[getItems]
+	)
+}
+
+/**
  * Handle clicks outside a referenced element
  *
  * @param ref - React ref to the element

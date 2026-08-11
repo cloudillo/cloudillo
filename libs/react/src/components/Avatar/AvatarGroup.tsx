@@ -3,17 +3,20 @@
 
 import * as React from 'react'
 
+import type { Size } from '../types.js'
 import { createComponent, mergeClasses } from '../utils.js'
 
 export interface AvatarGroupProps extends React.HTMLAttributes<HTMLDivElement> {
 	reverse?: boolean
 	max?: number
+	/** Size of the `+N` overflow chip; pass the size the children use. */
+	size?: Size
 	children?: React.ReactNode
 }
 
 export const AvatarGroup = createComponent<HTMLDivElement, AvatarGroupProps>(
 	'AvatarGroup',
-	({ className, reverse, max, children, ...props }, ref) => {
+	({ className, reverse, max, size, children, ...props }, ref) => {
 		let displayChildren = children
 
 		// If max is set, limit the number of visible avatars
@@ -25,7 +28,7 @@ export const AvatarGroup = createComponent<HTMLDivElement, AvatarGroupProps>(
 			displayChildren = (
 				<>
 					{visibleChildren}
-					<div className="c-avatar">
+					<div className={mergeClasses('c-avatar', size)}>
 						<span className="c-avatar-fallback">+{remainingCount}</span>
 					</div>
 				</>

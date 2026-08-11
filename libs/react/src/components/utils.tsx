@@ -1,8 +1,12 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+// Deliberately router-free: every component imports this module, so anything
+// pulled in here lands in every consumer's bundle. `generateFragments` and
+// `FormattedText`, which do need `react-router-dom`, live in
+// `./formatted-text.tsx` for exactly that reason.
+
 import * as React from 'react'
-import { Link } from 'react-router-dom'
 
 /**
  * Merge CSS class names, filtering out falsy values
@@ -70,100 +74,6 @@ export function avatarSizeClass(
 	size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | undefined
 ): string | undefined {
 	return size
-}
-
-/**
- * Emoji mappings for text fragment generation
- */
-const emojis: Record<string, string> = {
-	':)': '😊',
-	';)': '😉',
-	':D': '😄',
-	XD: '🤣',
-	':P': '😛',
-	';P': '😜',
-	':|': '😐',
-	':/': '😕',
-	':(': '😢',
-	":'(": '😭',
-	':O': '😮',
-	'<3': '❤️'
-}
-
-/**
- * Generate React fragments from text with links, hashtags, and emoji support
- */
-export function generateFragments(text: string): React.ReactNode[] {
-	const fragments: React.ReactNode[] = []
-
-	for (const w of text.split(/(\s+)/)) {
-		let n: React.ReactNode = w
-
-		switch (w[0]) {
-			case 'h':
-				if (w.match(/^https?:\/\//)) {
-					if (w.startsWith(`https://${window.location.host}/`)) {
-						n = <Link to={w.replace(`https://${window.location.host}/`, '/')}>{w}</Link>
-					} else {
-						n = (
-							<a href={w} target="_blank" rel="noopener noreferrer">
-								{w}
-							</a>
-						)
-					}
-				}
-				break
-			case '#':
-				if (w.match(/^#\S+/)) {
-					n = <span className="c-tag">{w}</span>
-				}
-				break
-			case ':':
-			case ';':
-			case '<':
-			case 'X': {
-				const emoji = emojis[w]
-				if (emoji) n = emoji
-				break
-			}
-		}
-		const last = fragments[fragments.length - 1]
-		if (typeof n == 'string' && typeof last == 'string') {
-			fragments[fragments.length - 1] = last + n
-		} else {
-			fragments.push(n)
-		}
-	}
-	return fragments
-}
-
-/**
- * Component to render formatted text with paragraphs, line breaks, links, hashtags, and emojis
- */
-export interface FormattedTextProps {
-	content: string
-	className?: string
-}
-
-export function FormattedText({ content, className }: FormattedTextProps) {
-	if (!content) return null
-
-	return (
-		<div className={className}>
-			{content.split('\n\n').map((paragraph, i) => (
-				<p key={i}>
-					{paragraph.split('\n').map((line, j) => (
-						<React.Fragment key={j}>
-							{generateFragments(line).map((n, k) => (
-								<React.Fragment key={k}>{n}</React.Fragment>
-							))}
-							{j < paragraph.split('\n').length - 1 && <br />}
-						</React.Fragment>
-					))}
-				</p>
-			))}
-		</div>
-	)
 }
 
 // vim: ts=4

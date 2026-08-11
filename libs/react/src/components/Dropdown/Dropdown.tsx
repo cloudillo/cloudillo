@@ -5,6 +5,7 @@ import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { usePopper } from 'react-popper'
 
+import { useMenuKeyboard } from '../hooks.js'
 import type { Elevation } from '../types.js'
 import { createComponent, mergeClasses } from '../utils.js'
 
@@ -13,6 +14,17 @@ export interface DropdownProps extends Omit<React.HTMLAttributes<HTMLDetailsElem
 	triggerClassName?: string
 	triggerProps?: React.HTMLAttributes<HTMLElement>
 	menuClassName?: string
+	/**
+	 * Give the popper `role="menu"`.
+	 *
+	 * Set it when the content is `MenuItem`s: a `role="menuitem"` with no menu
+	 * around it is an ARIA validity error, and a screen reader announces neither
+	 * the menu nor its item count. Leave it off when the popper holds a list or
+	 * arbitrary content — `menu` would be the wrong shape for it.
+	 */
+	asMenu?: boolean
+	/** Accessible name for the popper. Only meaningful with `asMenu`. */
+	menuLabel?: string
 	elevation?: Elevation
 	emph?: boolean
 	placement?: 'bottom-start' | 'bottom-end' | 'top-start' | 'top-end'
@@ -28,6 +40,8 @@ export const Dropdown = createComponent<HTMLDetailsElement, DropdownProps>(
 			triggerClassName,
 			triggerProps,
 			menuClassName,
+			asMenu,
+			menuLabel,
 			elevation = 'high',
 			emph,
 			placement = 'bottom-start',
@@ -47,6 +61,12 @@ export const Dropdown = createComponent<HTMLDetailsElement, DropdownProps>(
 		React.useEffect(() => {
 			if (!popperEl) return
 			function handleClickOutside(evt: MouseEvent) {
+				// Synthetic clicks are the menu item doing its job, not the user
+				// dismissing the menu. `preventDefault()` on one of those cancels
+				// the very default action it was dispatched for — it silently
+				// killed calcillo's Export-to-JSON (`a.click()` on a blob URL) and
+				// quillo's Import Markdown (`input.click()` opening the picker).
+				if (!evt.isTrusted) return
 				if (!(evt.target instanceof Node) || !popperEl?.contains(evt.target)) {
 					evt.stopPropagation()
 					evt.preventDefault()
@@ -58,6 +78,9 @@ export const Dropdown = createComponent<HTMLDetailsElement, DropdownProps>(
 				evt.stopImmediatePropagation()
 				evt.preventDefault()
 				setIsOpen(false)
+				// Focus is inside the popper, which is about to be unmounted — put
+				// it back on the trigger rather than dropping it on `<body>`.
+				popperRef?.focus()
 			}
 			document.addEventListener('click', handleClickOutside, true)
 			document.addEventListener('keydown', handleKeyDown, true)
@@ -65,10 +88,21 @@ export const Dropdown = createComponent<HTMLDetailsElement, DropdownProps>(
 				document.removeEventListener('click', handleClickOutside, true)
 				document.removeEventListener('keydown', handleKeyDown, true)
 			}
-		}, [popperEl])
+		}, [popperEl, popperRef])
 
+		// Arrow/Home/End roving, shared with Menu. Grabbing focus on open is for
+		// menus only: a plain dropdown is a popover of arbitrary content, and
+		// pulling the caret into its first button or link on a mouse click is not
+		// what any of the non-menu call sites asked for. The roving handler itself
+		// stays on — it is inert while nothing inside is focused.
+		const handleMenuKeyDown = useMenuKeyboard(popperEl, { autoFocus: !!asMenu })
+
+		// Falling back to `body` matters: an app whose index.html has no
+		// #popper-container would otherwise render the menu into nothing, silently.
 		const popperContainer =
-			typeof document !== 'undefined' ? document.getElementById('popper-container') : null
+			typeof document !== 'undefined'
+				? (document.getElementById('popper-container') ?? document.body)
+				: null
 
 		return (
 			<details
@@ -101,8 +135,19 @@ export const Dropdown = createComponent<HTMLDetailsElement, DropdownProps>(
 								emph && 'emph',
 								menuClassName
 							)}
+							role={asMenu ? 'menu' : undefined}
+							aria-label={asMenu ? menuLabel : undefined}
 							style={popperStyles.popper}
-							onClick={() => setIsOpen(false)}
+							onClick={() => {
+								setIsOpen(false)
+								// A menu item's activation ends the menu, so focus
+								// belongs back on the trigger. NOT for a plain
+								// dropdown: its content is arbitrary, and pulling
+								// the caret out of a field the user just clicked is
+								// not a close.
+								if (asMenu) popperRef?.focus()
+							}}
+							onKeyDown={handleMenuKeyDown}
 							{...attributes.popper}
 						>
 							{children}

@@ -135,7 +135,9 @@ export function Select<T>({
 						</li>
 					))}
 				</ul>,
-				document.getElementById('popper-container')!
+				// `body` fallback: a non-null assertion here THROWS in any app
+				// whose index.html lacks the container.
+				document.getElementById('popper-container') ?? document.body
 			)}
 		</div>
 	)

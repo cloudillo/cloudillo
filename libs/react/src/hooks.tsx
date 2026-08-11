@@ -156,6 +156,17 @@ interface UseCloudillo {
 	ownerTag: string
 	fileId?: string
 	idTag?: string
+	/**
+	 * Whether `idTag` is a signed-in user rather than the owner tag a share-link
+	 * guest falls back to. Publish an identity only when this is true.
+	 */
+	authenticated: boolean
+	/**
+	 * The shell's current theme. Tracks `theme:update`, so anything that copies it
+	 * into its own state (an embedded editor's theme prop) or derives a colour from
+	 * it re-renders on a live theme switch.
+	 */
+	darkMode: boolean
 	tnId?: number
 	roles?: string[]
 	access?: 'read' | 'comment' | 'write'
@@ -225,6 +236,21 @@ export function useCloudillo(appNameArg?: string): UseCloudillo {
 		[appName]
 	)
 
+	// A later `auth:init.push` can change WHO we are — the shell corrects a
+	// share-link mount once auth resolves, and a sign-in or context switch does
+	// the same mid-session. The memo below reads the bus directly, so without this
+	// it would keep returning the mount-time identity and every consumer would go
+	// on publishing it. Fires only when `idTag`, `authenticated` or `displayName`
+	// actually moved — never on a token rotation.
+	const [identityVersion, setIdentityVersion] = React.useState(0)
+	React.useEffect(() => getAppBus().onIdentityChange(() => setIdentityVersion((v) => v + 1)), [])
+
+	// Same story for the theme: `applyTheme()` flips the body classes on its own,
+	// but anything reading `darkMode` in JS — a colour derived per render, an
+	// editor handed the theme as a prop — needs the tree to re-render.
+	const [themeVersion, setThemeVersion] = React.useState(0)
+	React.useEffect(() => getAppBus().onThemeChange(() => setThemeVersion((v) => v + 1)), [])
+
 	const struct = React.useMemo(() => {
 		const bus = getAppBus()
 		return {
@@ -232,16 +258,22 @@ export function useCloudillo(appNameArg?: string): UseCloudillo {
 			ownerTag: ownerTag || '',
 			fileId,
 			idTag: bus.idTag,
+			authenticated: bus.authenticated,
+			darkMode: bus.darkMode,
 			roles: bus.roles,
 			access: bus.access,
 			displayName: bus.displayName,
 			params: bus.params,
 			parsedParams: bus.parsedParams
 		}
-	}, [auth, ownerTag, fileId])
+	}, [auth, ownerTag, fileId, identityVersion, themeVersion])
 
 	return struct
 }
+
+// Lives in `theme.ts` so the router-free `doc-bar` entry point can export it
+// too; surfaced here because this is where a caller looks for it.
+export { useDarkMode } from './theme.js'
 
 export function useCloudilloEditor(appName: string) {
 	const location = useLocation()
@@ -341,6 +373,9 @@ export function useCloudilloEditor(appName: string) {
 				}
 			}
 		},
+		// Primitives, deliberately — NOT `cl`. `useCloudillo` returns a fresh
+		// object whenever the identity changes, so depending on it would tear down
+		// the Y.Doc and reconnect the provider on a bare `authenticated` flip.
 		[cl.idTag, docId]
 	)
 

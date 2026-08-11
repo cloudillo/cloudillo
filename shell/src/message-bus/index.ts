@@ -39,6 +39,12 @@ export {
 	type RegisterAppOptions,
 	resetAppTracker
 } from './app-tracker.js'
+// Document info handlers
+export {
+	clearDocInfoResolver,
+	type DocInfoResolver,
+	setDocInfoResolver
+} from './handlers/docinfo.js'
 // Lifecycle handlers
 export {
 	type AppErrorCallback,

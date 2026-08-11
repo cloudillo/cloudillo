@@ -123,15 +123,15 @@ jest.unstable_mockModule('../utils', () => ({
 	useAppConfig: () => APP_CONFIG
 }))
 
-const { Breadcrumb, Omnibox } = await import('../omnibox.js')
+const { Omnibox, OmniboxIdle } = await import('../omnibox.js')
 const { lastQueryAtom, pushRecentAtom, recentSearchesAtom, RECENT_LIMIT, toggleOmniboxAtom } =
 	await import('../search.js')
 const { useSearch } = await import('../search.js')
 
 /**
  * Mirrors `layout.tsx`: the omnibox exists only while `query` is defined, so "the box
- * closed" is observable as the probe taking over — and the idle header is the
- * breadcrumb, which carries the mouse route back into the box.
+ * closed" is observable as the probe taking over — and the idle header carries the
+ * mouse route back into the box.
  */
 function Harness() {
 	const [search] = useSearch()
@@ -139,7 +139,7 @@ function Harness() {
 		return (
 			<>
 				<div data-testid="closed" />
-				<Breadcrumb />
+				<OmniboxIdle />
 			</>
 		)
 	}

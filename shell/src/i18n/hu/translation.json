@@ -1765,6 +1765,7 @@
 	"No share links yet": "Még nincsenek megosztási linkek",
 	"No one else has access yet": "Másnak még nincs hozzáférése",
 	"you": "te",
+	"guest": "vendég",
 	"Loading…": "Betöltés…",
 	"Comments are on {{idTag}}. Authenticate to read them?": "A hozzászólások a(z) {{idTag}} szerveren vannak. Hitelesítsük a megtekintéshez?",
 	"Always trust": "Mindig megbízom",

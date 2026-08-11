@@ -56,7 +56,15 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 			const tokenLifetime = pending.token ? jwtRemainingSeconds(pending.token) : undefined
 
 			bus.sendResponse(appWindow, 'auth:init.res', msg.id, true, {
-				idTag: pending.idTag || authState?.idTag,
+				// The signed-in user first: `pending.idTag` for an embed is the
+				// embed CONTEXT (the community/owner node, see handlers/embed.ts),
+				// never an identity, so it may only be worn unflagged.
+				idTag: authState?.idTag || pending.idTag,
+				// Same flag, same reason as the non-embed branch below. Embeds are
+				// initialised ONLY here — no `auth:init.push` ever follows to
+				// correct an omitted flag — so without it an embedded document
+				// de-identifies even its owner.
+				authenticated: !!authState?.idTag,
 				tnId: authState?.tnId,
 				roles: authState?.roles,
 				theme: 'glass',
@@ -185,7 +193,17 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 
 			// Send init response
 			bus.sendResponse(appWindow, 'auth:init.res', msg.id, true, {
-				idTag: connection?.idTag || authState?.idTag || resId?.split(':')[0],
+				// The signed-in user first, as in the relayed-embed branch above.
+				// `connection.idTag` is recorded by the container while auth is
+				// still resolving, from `currentAuth?.idTag || currentContextIdTag`,
+				// so it can be the OWNER's tag: an init.req landing after auth
+				// resolves but before `initApp` corrects the connection would
+				// otherwise hand the app that tag flagged `authenticated: true`.
+				idTag: authState?.idTag || connection?.idTag || resId?.split(':')[0],
+				// The idTag above falls back to the context/owner tag, so it is set
+				// for a share-link guest too. Presence gates on this flag instead,
+				// or a guest ends up wearing the owner's name and face.
+				authenticated: !!authState?.idTag,
 				tnId: authState?.tnId,
 				roles: authState?.roles,
 				theme: 'glass',

@@ -72,7 +72,7 @@ import { useNotifications } from './notifications/state'
 import { useActionNotifications } from './notifications/useActionNotifications.js'
 import { useDbMaintenanceNotifications } from './notifications/useDbMaintenanceNotifications.js'
 import { useSearchReindexNotifications } from './notifications/useSearchReindexNotifications.js'
-import { Breadcrumb, DocumentTitleSync, Omnibox } from './omnibox.js'
+import { DocumentTitleSync, Omnibox, OmniboxIdle } from './omnibox.js'
 import { OnboardingRoutes } from './onboarding'
 import { ProfileRoutes } from './profile/profile.js'
 import usePWA, { clearAuthToken, deleteApiKey, getApiKey, setCurrentAuthToken } from './pwa.js'
@@ -314,7 +314,7 @@ function Header({ inert }: { inert?: boolean }) {
 						)}
 						style={{ minWidth: 0 }}
 					>
-						{search.query == undefined ? <Breadcrumb /> : <Omnibox />}
+						{search.query == undefined ? <OmniboxIdle /> : <Omnibox />}
 					</li>
 				</ul>
 				{search.query == undefined && (

@@ -39,11 +39,10 @@ import {
 	LuCopy as IcCopy,
 	LuHistory as IcHistory,
 	LuLink as IcRef,
-	LuSearch as IcSearch,
-	LuChevronRight as IcSep
+	LuSearch as IcSearch
 } from 'react-icons/lu'
 import { usePopper } from 'react-popper'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 import {
 	activeContextAtom,
@@ -121,20 +120,17 @@ function parseAppRoute(pathname: string): AppRoute {
 
 interface BreadcrumbSegment {
 	label: string
-	/** Navigation target; undefined = plain text (no link). */
-	to?: string
-}
-
-interface BreadcrumbData {
-	segments: BreadcrumbSegment[]
-	canShare: boolean
 }
 
 /**
  * Compose the live `Context › App › Document` breadcrumb segments for the
  * current route. Empty segments are dropped.
+ *
+ * Nothing renders these as a trail — the apps' DocBar does that. They feed the
+ * browser-tab title alone (see {@link DocumentTitleSync}), which is why a segment
+ * is a label and nothing else: there is no link to follow.
  */
-function useBreadcrumb(): BreadcrumbData {
+function useBreadcrumb(): BreadcrumbSegment[] {
 	const location = useLocation()
 	const { i18n } = useTranslation()
 	const [auth] = useAuth()
@@ -142,7 +138,6 @@ function useBreadcrumb(): BreadcrumbData {
 	const activeContext = useAtomValue(activeContextAtom)
 	const communities = useAtomValue(communitiesAtom)
 	const titleState = useAtomValue(documentTitleAtom)
-	const { getContextPath } = useContextPath()
 
 	const { appId, resId } = parseAppRoute(location.pathname)
 
@@ -166,29 +161,21 @@ function useBreadcrumb(): BreadcrumbData {
 			: undefined
 	const dirty = docTitle ? !!titleState.dirty : false
 
-	const menuPath = menuItem?.path
-
-	const segments = React.useMemo(() => {
+	return React.useMemo(() => {
 		const segs: BreadcrumbSegment[] = []
-		// The context crumb leads to that context's Files app (its landing page).
-		if (contextName) segs.push({ label: contextName, to: getContextPath('/app/files') })
-		// Editor apps have no menu entry — and no useful resId-less route — so they
-		// stay plain text.
-		if (appLabel)
-			segs.push({ label: appLabel, to: menuPath ? getContextPath(menuPath) : undefined })
+		if (contextName) segs.push({ label: contextName })
+		if (appLabel) segs.push({ label: appLabel })
 		if (docTitle) segs.push({ label: (dirty ? '* ' : '') + docTitle })
 		return segs
-	}, [contextName, appLabel, docTitle, dirty, getContextPath, menuPath])
-
-	return { segments, canShare: canShareRoute(location.pathname) }
+	}, [contextName, appLabel, docTitle, dirty])
 }
 
 /**
  * Render-null helper: keeps the browser-tab title in sync with the breadcrumb
- * regardless of whether the idle breadcrumb or the focused omnibox is showing.
+ * regardless of whether the idle header or the focused omnibox is showing.
  */
 export function DocumentTitleSync() {
-	const { segments } = useBreadcrumb()
+	const segments = useBreadcrumb()
 	React.useEffect(() => {
 		document.title = segments.length
 			? `${segments.map((s) => s.label).join(' › ')} · Cloudillo`
@@ -198,16 +185,21 @@ export function DocumentTitleSync() {
 }
 
 /**
- * Idle breadcrumb state: the segments navigate up the trail, the leading
- * magnifier opens the omnibox input. A copy button (shareable routes only)
- * yields a portable `cl:` reference.
+ * Idle header state: a magnifier and a placeholder that both open the omnibox
+ * input, plus a copy button (shareable routes only) yielding a portable `cl:`
+ * reference.
+ *
+ * No `Context › App › Document` crumb trail here: that lives in each app's
+ * DocBar, which can also rename the document and show who else is in it.
+ * `useBreadcrumb` stays because the browser-tab title still carries the full
+ * trail via {@link DocumentTitleSync}.
  */
-export function Breadcrumb() {
+export function OmniboxIdle() {
 	const { t } = useTranslation()
 	const location = useLocation()
 	const openOmnibox = useSetAtom(openOmniboxAtom)
 	const toast = useToast()
-	const { segments, canShare } = useBreadcrumb()
+	const canShare = canShareRoute(location.pathname)
 
 	async function copyRef() {
 		const ref = buildRef(location.pathname, location.search)
@@ -230,43 +222,9 @@ export function Breadcrumb() {
 			>
 				<IcSearch size={16} />
 			</Button>
-			{segments.length ? (
-				<nav className="c-omnibox-breadcrumb" aria-label={t('Breadcrumb')}>
-					<ol className="c-omnibox-crumbs">
-						{segments.map((seg, i) => {
-							const isLast = i === segments.length - 1
-							// The current page is never a link — that includes a context
-							// crumb whose Files target is where we already are.
-							const linked = !!seg.to && !isLast && seg.to !== location.pathname
-							return (
-								<li key={i}>
-									{i > 0 && <IcSep className="c-omnibox-sep" size={14} />}
-									{linked ? (
-										<Link className="c-omnibox-seg" to={seg.to!}>
-											{seg.label}
-										</Link>
-									) : (
-										<span
-											className="c-omnibox-seg"
-											aria-current={isLast ? 'page' : undefined}
-										>
-											{seg.label}
-										</span>
-									)}
-								</li>
-							)
-						})}
-					</ol>
-				</nav>
-			) : (
-				<button
-					type="button"
-					className="c-omnibox-placeholder"
-					onClick={() => openOmnibox()}
-				>
-					{t('Search')}
-				</button>
-			)}
+			<button type="button" className="c-omnibox-placeholder" onClick={() => openOmnibox()}>
+				{t('Search')}
+			</button>
 			{canShare && (
 				<Button
 					className="icon c-omnibox-copy flex-shrink-0"

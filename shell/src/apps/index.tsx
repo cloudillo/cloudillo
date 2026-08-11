@@ -9,16 +9,18 @@ import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { version } from '../../package.json'
-import { fileViewUpdateAtom, useApiContext, useGuestDocument } from '../context/index.js'
+import { fileViewUpdateAtom, useGuestDocument } from '../context/index.js'
 import { releaseClientIdsForWindow } from '../message-bus/handlers/crdt.js'
 import { offAppTitle, onAppError, onAppReady, onAppTitle } from '../message-bus/index.js'
-import { getShellBus } from '../message-bus/shell-bus.js'
+import { getShellBus, type InitAppData } from '../message-bus/shell-bus.js'
 import { documentTitleAtom } from '../title.js'
 import { delay, type TrustLevel, useAppConfig } from '../utils.js'
 import { AppLoadingIndicator, type LoadingStage } from './AppLoadingIndicator.js'
 import type { AccessConflict } from './access-conflict.js'
 import { APP_SANDBOX, normalizeTrust } from './iframe-policy.js'
 import { useAppToken } from './useAppToken.js'
+import { useDocInfo } from './useDocInfo.js'
+import { useIdentityPush } from './useIdentityPush.js'
 
 // How long an app iframe may stay silent before the container shows its error state.
 const LOADING_TIMEOUT_MS = 15000
@@ -105,6 +107,20 @@ export function MicrofrontendContainer({
 	// This prevents effect re-runs on token renewal (api/auth object changes)
 	const isReady = !!(api && (auth !== undefined || providedToken))
 
+	// `providedToken` lets `isReady` flip while `auth` is still `undefined`, so a
+	// share-link mount can initialise the app as an anonymous visitor and — since
+	// the init effect never re-runs on auth — leave it that way. This corrects it
+	// with a targeted push once auth resolves.
+	const { record: recordInit, reset: resetInit } = useIdentityPush(auth)
+
+	// Document identity for the app's DocBar, and the shell's document title off
+	// the same row. `providedToken` is the share-link guest's file-scoped token —
+	// the shell's own client has no session then, and without it the bar could
+	// only ever say `unavailable`.
+	const docInfo = useDocInfo(resId, providedToken)
+	const docInfoRef = React.useRef(docInfo)
+	docInfoRef.current = docInfo
+
 	// Keep refs updated with latest values
 	// This effect runs on every render to ensure refs always have current values
 	React.useEffect(() => {
@@ -115,6 +131,15 @@ export function MicrofrontendContainer({
 		requestTokenRef.current = requestToken
 		scheduleRenewalRef.current = scheduleRenewal
 	})
+
+	// The app also gets one on ready (below): this effect can fire before the
+	// iframe window exists, and before the app has installed its listener.
+	React.useEffect(() => {
+		const appWindow = appWindowRef.current
+		const shellBus = getShellBus()
+		if (!appWindow || !shellBus || !docInfo) return
+		shellBus.sendNotify(appWindow, 'doc:info.push', docInfo)
+	}, [docInfo])
 
 	// Cleanup timers on unmount
 	React.useEffect(() => {
@@ -238,6 +263,12 @@ export function MicrofrontendContainer({
 							// Any ready notification means the app is functional
 							// 'auth' = auth complete, 'synced' = CRDT synced, 'ready' = fully ready
 							setLoadingStage('ready')
+							// The app's listener is up by now, so this is the push
+							// guaranteed to land.
+							const info = docInfoRef.current
+							if (info) {
+								getShellBus()?.sendNotify(currentAppWindow, 'doc:info.push', info)
+							}
 							// Don't unsubscribe - keep subscription active for potential reconnection scenarios
 						})
 						onAppError(currentAppWindow, (_window, code, message) => {
@@ -301,15 +332,26 @@ export function MicrofrontendContainer({
 
 					try {
 						const res = await apiPromise
-						// Re-read latest auth values for initApp (may have been renewed)
+						// Re-read the latest auth, not the values read before
+						// `delay(100)` and the token fetch: on a share-link mount
+						// `auth` is routinely still resolving there, and initialising
+						// the app as an anonymous visitor makes it publish a guest
+						// identity for the rest of its life.
+						const initAuth = authRef.current
+						const initAccess = accessRef.current
+						const initContextIdTag = contextIdTagRef.current
 						const latestGuestName = guestNameRef.current
 						const latestScheduleRenewal = scheduleRenewalRef.current
 
-						currentShellBus.initApp(currentAppWindow, {
+						const initData: InitAppData = {
 							appName: app,
-							idTag: latestAuth?.idTag || contextIdTagRef.current,
-							tnId: latestAuth?.tnId,
-							roles: latestAuth?.roles,
+							idTag: initAuth?.idTag || initContextIdTag,
+							// The fallback above hands a share-link guest the
+							// context tag, so `idTag` alone cannot tell a visitor
+							// from the owner. This is that answer.
+							authenticated: !!initAuth?.idTag,
+							tnId: initAuth?.tnId,
+							roles: initAuth?.roles,
 							darkMode: document.body.classList.contains('dark'),
 							token: res.token,
 							// Load-bearing: without it an app initialised through this
@@ -318,11 +360,16 @@ export function MicrofrontendContainer({
 							// `requestToken`, so the share-link guest branch — which
 							// never goes through `mintAppToken` — is covered too.
 							tokenLifetime: res.token ? jwtRemainingSeconds(res.token) : undefined,
-							access: latestAccess || 'write',
+							access: initAccess || 'write',
 							resId,
 							displayName: latestGuestName,
 							params: paramsRef.current
-						})
+						}
+						currentShellBus.initApp(currentAppWindow, initData)
+						// `auth:init.push` rebuilds the app's state wholesale, so a
+						// corrective identity push must re-send this payload with
+						// only the identity replaced.
+						recordInit(currentAppWindow, initContextIdTag, initData)
 						// Schedule proactive token renewal
 						if (res.token && latestScheduleRenewal) {
 							latestScheduleRenewal(res.token)
@@ -358,6 +405,9 @@ export function MicrofrontendContainer({
 					subscribedRef.current = false
 					appWindowRef.current = null
 					initializedRef.current = false
+					// The recorded payload names a window that is going away — a
+					// corrective push into it would target a dead iframe.
+					resetInit()
 
 					if (timeoutRef.current) {
 						clearTimeout(timeoutRef.current)
@@ -402,15 +452,12 @@ export function MicrofrontendContainer({
 export function ExternalApp({ className }: { className?: string }) {
 	const [appConfig] = useAppConfig()
 	const [auth] = useAuth()
-	const { api } = useApi()
-	const { getClientFor } = useApiContext()
 	const location = useLocation()
 	const navigate = useNavigate()
 	const { t } = useTranslation()
 	const toast = useToast()
 	const dialog = useDialog()
 	const setFileViewUpdate = useSetAtom(fileViewUpdateAtom)
-	const setDocumentTitle = useSetAtom(documentTitleAtom)
 	const { contextIdTag, appId, '*': rest } = useParams()
 	const [guestDocument] = useGuestDocument()
 	// Keyed to the resource it was decided for: navigating to another document
@@ -451,42 +498,9 @@ export function ExternalApp({ className }: { className?: string }) {
 
 	const filesListPath = `/app/${contextIdTag || auth?.idTag}/files`
 
-	// Prefetch the file name for an instant breadcrumb title (apps may refine it
-	// live via `app:title.push`). Clear on resId change / unmount so list pages
-	// show no document segment.
-	React.useEffect(() => {
-		if (!resId) return
-		const colon = resId.indexOf(':')
-		const owner = colon >= 0 ? resId.slice(0, colon) : undefined
-		const fileId = colon >= 0 ? resId.slice(colon + 1) : resId
-		let cancelled = false
-		// Owned docs resolve on the current context client; federated docs
-		// (explicit owner in the resId) must be fetched from the owner's node.
-		const client = owner ? getClientFor(owner, { auth: 'preferred' }) : api
-		if (client && fileId) {
-			client.files
-				.list({ fileId })
-				.then((files) => {
-					if (cancelled) return
-					const file = files[0]
-					if (file?.fileName) {
-						setDocumentTitle((prev) => {
-							// If an app already took over the title for this
-							// document, leave it alone.
-							if (prev.resId === resId && prev.appManaged) return prev
-							return { resId, title: file.fileName }
-						})
-					}
-				})
-				.catch((err) => {
-					console.error('[ExternalApp] Title prefetch failed:', err)
-				})
-		}
-		return () => {
-			cancelled = true
-			setDocumentTitle({})
-		}
-	}, [api, getClientFor, resId, setDocumentTitle])
+	// No title prefetch here: `useDocInfo` inside MicrofrontendContainer resolves
+	// the same row local-first and sets `documentTitleAtom` from it, so the tab
+	// title and the app's DocBar cannot show different names.
 
 	const handleAccessConflict = React.useCallback(
 		async (outcome: AccessConflict) => {

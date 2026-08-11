@@ -51,25 +51,38 @@ export function FileViewerApp() {
 
 			;(async function () {
 				try {
-					// `preferred` never returns null — it falls back to an
-					// unauthenticated client (see context/hooks.ts getClientFor).
-					const ownerApi = getClientFor(idTag, { auth: 'preferred' })!
-					const files = await ownerApi.files.list({ fileId })
-					if (files.length === 0) {
+					// Local row first: for a pinned or placed foreign-owned file the
+					// row served by the active context carries the name this user
+					// chose, and that is the name the rest of the shell shows. Content
+					// still lives on the owner's node, so `idTag` — not the context —
+					// keeps deciding the token and the media URLs below.
+					const localApi =
+						contextIdTag && contextIdTag !== idTag
+							? getClientFor(contextIdTag, { auth: 'preferred' })
+							: null
+					let file = localApi
+						? (await localApi.files.list({ fileId }).catch(() => []))[0]
+						: undefined
+					if (!file) {
+						// `preferred` never returns null — it falls back to an
+						// unauthenticated client (see context/hooks.ts getClientFor).
+						const ownerApi = getClientFor(idTag, { auth: 'preferred' })!
+						file = (await ownerApi.files.list({ fileId }))[0]
+					}
+					if (!file) {
 						setState({ status: 'error', message: t('File not found') })
 						return
 					}
 					const tokenResult = await getTokenFor(idTag)
 					setToken(tokenResult?.token)
-					setState({ status: 'ready', file: files[0] })
-					// Feed the breadcrumb title. Key by the same resId the
-					// breadcrumb derives from the route (`<ctx>:<fileId>` when the
-					// URL omits an owner).
-					if (resId && files[0]?.fileName) {
+					setState({ status: 'ready', file })
+					// Feed the document title. Key by the same resId the route
+					// produces (`<ctx>:<fileId>` when the URL omits an owner).
+					if (resId && file.fileName) {
 						const titleResId = resId.includes(':')
 							? resId
 							: `${contextIdTag ?? auth?.idTag ?? ''}:${resId}`
-						setDocumentTitle({ resId: titleResId, title: files[0].fileName })
+						setDocumentTitle({ resId: titleResId, title: file.fileName })
 					}
 				} catch (err) {
 					console.error('[FileViewer] Error loading file:', err)

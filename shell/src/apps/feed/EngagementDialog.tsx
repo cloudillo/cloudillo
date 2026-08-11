@@ -17,6 +17,7 @@ import {
 	SkeletonList,
 	Tab,
 	Tabs,
+	monogramFor,
 	useApi,
 	useAuth
 } from '@cloudillo/react'
@@ -293,7 +294,7 @@ function EngagementRow({
 						className="c-engagement-avatar c-engagement-avatar--empty"
 						aria-hidden="true"
 					>
-						{(issuer.name || issuer.idTag).slice(0, 1).toUpperCase()}
+						{monogramFor(issuer.idTag, issuer.name)}
 					</div>
 				)}
 				<div className="c-vbox flex-fill" style={{ minWidth: 0 }}>

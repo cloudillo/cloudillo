@@ -25,6 +25,7 @@ import {
 import { initAuthHandlers } from './handlers/auth.js'
 import { cleanupCameraSessions, initCameraHandlers } from './handlers/camera.js'
 import { initCrdtHandlers } from './handlers/crdt.js'
+import { initDocInfoHandlers } from './handlers/docinfo.js'
 import { initDocumentHandlers } from './handlers/document.js'
 import { initEmbedHandlers } from './handlers/embed.js'
 import { initImportHandlers } from './handlers/import.js'
@@ -53,6 +54,32 @@ export interface AuthState {
  */
 export interface ThemeState {
 	darkMode: boolean
+}
+
+/**
+ * Everything {@link ShellMessageBus.initApp} sends an app in `auth:init.push`.
+ *
+ * Named rather than inline because the app side rebuilds its whole state from
+ * this payload (`libs/core/src/message-bus/app-bus.ts`), so a corrective push
+ * has to re-send the previous one in full — see `apps/useIdentityPush.ts`.
+ */
+export interface InitAppData {
+	appName?: string
+	idTag?: string
+	/** Whether `idTag` stands for a signed-in user rather than the
+	 *  context tag a share-link guest falls back to. */
+	authenticated?: boolean
+	tnId?: number
+	roles?: string[]
+	token?: string
+	access?: 'read' | 'comment' | 'write'
+	darkMode?: boolean
+	tokenLifetime?: number
+	resId?: string
+	displayName?: string
+	navState?: string
+	ancestors?: string[]
+	params?: string
 }
 
 /**
@@ -128,6 +155,7 @@ export class ShellMessageBus extends MessageBusBase {
 		initCameraHandlers(this)
 		initShareHandlers(this)
 		initImportHandlers(this)
+		initDocInfoHandlers(this)
 
 		this.initialized = true
 		this.log('Initialized')
@@ -384,24 +412,7 @@ export class ShellMessageBus extends MessageBusBase {
 	 *
 	 * Used for immediate initialization after iframe load.
 	 */
-	initApp(
-		appWindow: Window,
-		data: {
-			appName?: string
-			idTag?: string
-			tnId?: number
-			roles?: string[]
-			token?: string
-			access?: 'read' | 'comment' | 'write'
-			darkMode?: boolean
-			tokenLifetime?: number
-			resId?: string
-			displayName?: string
-			navState?: string
-			ancestors?: string[]
-			params?: string
-		}
-	): void {
+	initApp(appWindow: Window, data: InitAppData): void {
 		// Register if not already (with resId for token fetching)
 		if (!this.appTracker.isKnownApp(appWindow)) {
 			this.appTracker.registerApp({
@@ -411,6 +422,15 @@ export class ShellMessageBus extends MessageBusBase {
 				access: data.access,
 				resId: data.resId
 			})
+		} else {
+			// A re-init corrects WHO the app is (see `useIdentityPush`). The
+			// connection has to follow, or a later `auth:init.req` — which resolves
+			// `idTag` from the connection first — hands back the pre-correction one.
+			const conn = this.appTracker.getApp(appWindow)
+			if (conn) {
+				if (data.idTag) conn.idTag = data.idTag
+				if (data.access) conn.access = data.access
+			}
 		}
 
 		// Mark as initialized
@@ -425,6 +445,7 @@ export class ShellMessageBus extends MessageBusBase {
 		// Send init notification (not response - no request to reply to)
 		this.sendNotify(appWindow, 'auth:init.push', {
 			idTag: data.idTag,
+			authenticated: !!data.authenticated,
 			tnId: data.tnId,
 			roles: data.roles,
 			theme: 'glass',

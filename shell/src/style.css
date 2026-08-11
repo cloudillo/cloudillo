@@ -40,53 +40,9 @@ summary:focus-visible {
 	font-family: 'Oswald', sans-serif;
 }
 
-/* Header omnibox breadcrumb (the context-dependent title) */
-.c-omnibox-breadcrumb {
-	display: flex;
-	align-items: center;
-	max-width: min(45vw, 34rem);
-	min-width: 0;
-	min-height: 2.5rem;
-	font-family: 'Oswald', sans-serif;
-	font-weight: 600;
-	font-size: 1.1rem;
-	line-height: 1.2;
-}
-/* The min-width:0 chain down to .c-omnibox-seg is what keeps long titles
- * ellipsizing instead of overflowing the header. */
-.c-omnibox-crumbs {
-	display: flex;
-	align-items: center;
-	gap: 0.35rem;
-	list-style: none;
-	margin: 0;
-	padding: 0;
-	min-width: 0;
-	overflow: hidden;
-}
-.c-omnibox-crumbs > li {
-	display: flex;
-	align-items: center;
-	gap: 0.35rem;
-	min-width: 0;
-}
-.c-omnibox-seg {
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	padding: 0.1rem 0.2rem;
-	border-radius: var(--bd-radius, 0.25rem);
-	color: inherit;
-	text-decoration: none;
-}
-a.c-omnibox-seg:hover {
-	background: rgb(127 127 127 / 0.12);
-	text-decoration: underline;
-}
-.c-omnibox-sep {
-	flex-shrink: 0;
-	opacity: 0.45;
-}
+/* Idle header: a placeholder that opens the omnibox, and nothing else — the
+ * `Context › App › Document` crumb trail lives in each app's DocBar
+ * (libs/react components.css). */
 .c-omnibox-placeholder {
 	font-family: 'Roboto', sans-serif;
 	font-weight: 400;
@@ -1214,20 +1170,6 @@ body {
 .c-checkbox.checked {
 	background: var(--col-primary);
 	border-color: var(--col-primary);
-}
-
-/* Initials fallback rendered inside an avatar when no image is available. */
-.c-avatar-fallback {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 100%;
-	height: 100%;
-	background: var(--col-em-container);
-	color: var(--col-on-container);
-	font-weight: 600;
-	text-transform: uppercase;
-	user-select: none;
 }
 
 /* vim: ts=4

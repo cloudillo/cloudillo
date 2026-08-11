@@ -49,26 +49,42 @@ export function MapilloApp() {
 	const busRef = React.useRef<AppMessageBus | null>(null)
 
 	React.useEffect(() => {
+		let unmounted = false
+		let unsubscribeTheme: (() => void) | undefined
 		;(async () => {
 			try {
 				const bus = getAppBus()
 				busRef.current = bus
 				const state = await bus.init(APP_NAME)
+				// Torn down while init was pending: the cleanup has already run,
+				// with `unsubscribeTheme` still undefined. Subscribing past this
+				// point would leak the listener for the lifetime of the page.
+				if (unmounted) return
+
 				setDarkMode(state.darkMode ?? false)
+				// The tile-layer filter is derived from `darkMode` in JS, so a live
+				// theme switch has to reach this state, not just the body classes.
+				unsubscribeTheme = bus.onThemeChange(setDarkMode)
 
 				// Load settings from server (shell proxies via its own API client,
 				// so this works even without an app-level access token)
 				const saved = await loadSettings(bus)
-				setSettings((s) => ({ ...s, ...saved }))
+				if (unmounted) return
 
+				setSettings((s) => ({ ...s, ...saved }))
 				setReady(true)
 			} catch (err) {
+				if (unmounted) return
 				console.error('[Mapillo] Bus init failed, running standalone:', err)
 				// Fallback: detect system dark mode
 				setDarkMode(window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false)
 				setReady(true)
 			}
 		})()
+		return () => {
+			unmounted = true
+			unsubscribeTheme?.()
+		}
 	}, [])
 
 	React.useEffect(() => {

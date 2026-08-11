@@ -483,9 +483,18 @@ import { useLocation } from 'react-router-dom'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
+import '@cloudillo/react/components.css'
 
 import { apiFetchHelper, getAppBus } from '@cloudillo/core'
-import { Button, mergeClasses, useApi, useAuth, useCloudillo } from '@cloudillo/react'
+import {
+	AppDocBar,
+	Button,
+	mergeClasses,
+	Toasts,
+	useApi,
+	useAuth,
+	useCloudillo
+} from '@cloudillo/react'
 import * as T from '@symbion/runtype'
 import './i18n.js'
 
@@ -1007,11 +1016,19 @@ export function App() {
 		return <div>Loading...</div>
 	}
 
-	if (cloudillo.roles?.includes('SADM')) {
-		return <FormData form={form} />
-	} else {
-		return <FormPage ownerTag={cloudillo.ownerTag} fileId={cloudillo.fileId} form={form} />
-	}
+	// Both branches wear the bar — formillo has no chrome of its own. Presence
+	// stays empty until RTDB grows a presence channel.
+	return (
+		<div className="c-vbox h-100">
+			<AppDocBar />
+			{cloudillo.roles?.includes('SADM') ? (
+				<FormData form={form} />
+			) : (
+				<FormPage ownerTag={cloudillo.ownerTag} fileId={cloudillo.fileId} form={form} />
+			)}
+			<Toasts />
+		</div>
+	)
 }
 
 // vim: ts=4

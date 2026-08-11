@@ -4,5 +4,18 @@
 	"Submit": "Beküldés",
 	"Next": "Következő",
 	"Thank you for completing the survey!": "Köszönjük, hogy kitöltötted kérdőívünket!",
-	"email@address.com": "email@cím.hu"
+	"email@address.com": "email@cím.hu",
+	"Actions": "Műveletek",
+	"Rename": "Átnevezés",
+	"Untitled document": "Névtelen dokumentum",
+	"Document unavailable": "A dokumentum nem érhető el",
+	"Loading document name": "Dokumentumnév betöltése",
+	"Document name": "Dokumentum neve",
+	"Name": "Név",
+	"Could not rename the document": "Nem sikerült átnevezni a dokumentumot",
+	"Guest": "Vendég",
+	"you": "te",
+	"guest": "vendég",
+	"1 collaborator": "1 közreműködő",
+	"{{count}} collaborators": "{{count}} közreműködő"
 }

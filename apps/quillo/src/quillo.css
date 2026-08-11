@@ -70,6 +70,13 @@ body {
 	height: 100vh;
 }
 
+/* Above the toolbar, which is markup-after the canvas but visually-before it via
+ * .flex-order-start (order: -1 !important) — so the DocBar has to outrank that. */
+#docbar {
+	order: -2;
+	flex: 0 0 auto;
+}
+
 #editor-canvas {
 	flex: 1 1 auto;
 	min-height: 0;

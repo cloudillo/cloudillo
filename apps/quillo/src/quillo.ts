@@ -29,14 +29,18 @@ import './quillo.css'
 import '@symbion/opalui'
 //import '@symbion/opalui/themes/opaque.css'
 import '@symbion/opalui/themes/glass.css'
+// The DocBar's stylesheet — after the theme, before Quill's, so Quill keeps
+// winning on the editor chrome it owns.
+import '@cloudillo/react/components.css'
 
 import 'quill/dist/quill.core.css'
 import 'quill/dist/quill.snow.css'
 
 //import 'quill/dist/quill.bubble.css'
 
-import { getAppBus, str2color } from '@cloudillo/core'
-import { openYDoc } from '@cloudillo/crdt'
+import { getAppBus, idAccent } from '@cloudillo/core'
+import { initPresence, openYDoc } from '@cloudillo/crdt'
+import type { Awareness } from 'y-protocols/awareness'
 import {
 	FONTS,
 	type FontCategory,
@@ -46,6 +50,7 @@ import {
 } from '@cloudillo/fonts'
 import { Cloud, CloudOff, createElement } from 'lucide'
 
+import { mountDocBar } from './docbar.js'
 import { importMarkdown } from './import-markdown.js'
 import { registerTablePasteNormalizer } from './normalize-table-paste.js'
 import '@cloudillo/fonts/fonts.css'
@@ -369,6 +374,11 @@ function updatePairingBadges(
 
 	const docId = location.hash.slice(1)
 
+	// Assigned once the settings dialog exists, further down; the DocBar's
+	// "Document Settings" item calls through this rather than duplicating the
+	// dialog in React.
+	let openSettingsDialog: (() => void) | undefined
+
 	const bus = getAppBus()
 	const state = await bus.init('quillo')
 
@@ -377,12 +387,49 @@ function updatePairingBadges(
 	ClImageBlot.ownerTag = ownerTag
 	ClImageBlot.token = state.accessToken
 	ClDocumentBlot.sourceFileId = docId
+
+	// Registered BEFORE `openYDoc` awaits: a corrective `auth:init.push` (the shell
+	// sends one once auth resolves on a share-link mount) can land inside that await,
+	// and quillo is the one Yjs app with no React effect to re-run.
+	let awareness: Awareness | undefined
+	bus.onIdentityChange(() => {
+		if (awareness) initPresence(awareness, bus)
+	})
+
 	const yDoc = new Y.Doc()
 	const doc = await openYDoc(yDoc, docId)
-	doc.provider.awareness.setLocalStateField('user', {
-		name: bus.displayName || bus.idTag || 'Anonymous',
-		color: await str2color(bus.idTag ?? '', 40, 70, bus.darkMode)
-	})
+	awareness = doc.provider.awareness
+	// Name and idTag only — the colour is derived from the idTag by whoever is
+	// LOOKING, so a peer cannot assert someone else's identity over awareness.
+	// Reads live bus state, so this also covers any push missed during the await.
+	initPresence(awareness, bus)
+
+	// Read by the `createCursor` wrapper installed further down. Declared here
+	// because `bus.onThemeChange` keeps it current for the life of the document.
+	let caretsDark = bus.darkMode
+
+	// Quillo's one React island. `AppDocBar` renders null in an embed anyway;
+	// this second guard keeps the React root from being created at all there.
+	if (!bus.embedded) {
+		const docBarEl = document.getElementById('docbar')
+		if (docBarEl) {
+			mountDocBar(docBarEl, {
+				awareness: doc.provider.awareness,
+				// Passed unconditionally: `QuilloDocBar` gates them on live
+				// `bus.access`, so a corrective `auth:init.push` that upgrades a
+				// share-link reader to a writer fills the menu in without a reload.
+				actions: {
+					onImportMarkdown: () => {
+						const input = document.getElementById(
+							'import-input'
+						) as HTMLInputElement | null
+						input?.click()
+					},
+					onOpenSettings: () => openSettingsDialog?.()
+				}
+			})
+		}
+	}
 	/*
 	doc.provider.awareness.on('change', function (changes: any) {
 		console.log('Awareness change:', changes, Array.from(doc.provider.awareness.getStates().values()))
@@ -457,6 +504,30 @@ function updatePairingBadges(
 	// quill-table-better's own table matchers and rewrites their output.
 	registerTablePasteNormalizer(editor)
 
+	/*
+	 * Give every remote caret its owner's identity colour.
+	 *
+	 * y-quill reads `user.color` off the awareness state and falls back to a
+	 * single `#ffa500` for everyone (`y-quill/src/y-quill.js`, `updateCursor`).
+	 * `initPresence` deliberately never publishes a colour — a peer must not get
+	 * to assert one — so the colour is derived here, by whoever is LOOKING, from
+	 * the same seed `DocBarPresence` uses: a peer's caret and their avatar in the
+	 * bar come out the same colour.
+	 *
+	 * `updateCursor` reaches the colour through exactly one call, so wrapping that
+	 * call is enough. Doing it here rather than writing into the peer's awareness
+	 * state keeps the read-only property read-only, and works whatever order lib0
+	 * happens to invoke the `change` handlers in.
+	 */
+	const cursorsModule = editor.getModule('cursors') as QuillCursors
+	const createCursor = cursorsModule.createCursor.bind(cursorsModule)
+	cursorsModule.createCursor = (id: string, name: string, _color: string) => {
+		const state = doc.provider.awareness.getStates().get(Number(id)) as
+			| { user?: { idTag?: string } }
+			| undefined
+		return createCursor(id, name, idAccent(state?.user?.idTag ?? id, caretsDark))
+	}
+
 	// Patch setContents during QuillBinding init: setContents drops table cells,
 	// so redirect to delete + updateContents which handles tables correctly.
 	// Assumption: QuillBinding calls setContents synchronously in its constructor
@@ -476,6 +547,19 @@ function updatePairingBadges(
 	} finally {
 		editor.setContents = origSetContents
 	}
+
+	// quill-cursors fixes a cursor's colour at creation, and `createCursor`
+	// (wrapper and all) hands back an existing cursor untouched for an id it
+	// already knows. So a theme flip drops them and lets y-quill's own awareness
+	// handler rebuild them, which also restores each caret's position; recreating
+	// them by hand would lose it until the peer next moved.
+	bus.onThemeChange((dark) => {
+		caretsDark = dark
+		const aw = doc.provider.awareness
+		const remote = [...aw.getStates().keys()].filter((id) => id !== aw.clientID)
+		for (const id of remote) cursorsModule.removeCursor(String(id))
+		aw.emit('change', [{ added: [], updated: remote, removed: [] }, 'local'])
+	})
 
 	// Set read-only mode based on access level
 	if (bus.access !== 'write') {
@@ -619,11 +703,8 @@ function updatePairingBadges(
 		}
 	})
 
-	// Internal import button + hidden file input
+	// Hidden file input, opened by the DocBar's Import Markdown item
 	const importInput = document.getElementById('import-input') as HTMLInputElement | null
-	document.getElementById('import-btn')?.addEventListener('click', () => {
-		importInput?.click()
-	})
 	importInput?.addEventListener('change', async () => {
 		if (bus.access !== 'write') return
 		const file = importInput.files?.[0]
@@ -749,9 +830,9 @@ function updatePairingBadges(
 	const settingsDialog = createSettingsDialog(settingsMap, applyDocumentFonts)
 	document.body.appendChild(settingsDialog)
 
-	// Settings button click handler
-	const settingsBtn = document.getElementById('settings-btn')
-	settingsBtn?.addEventListener('click', () => {
+	// Named, because the DocBar's Document Settings item opens the same dialog —
+	// the dialog itself stays imperative, the React side only asks for it.
+	openSettingsDialog = () => {
 		// Refresh select values from Yjs before showing dialog
 		const headingSelect = document.getElementById(
 			'settings-heading-font'
@@ -760,7 +841,7 @@ function updatePairingBadges(
 		if (headingSelect) headingSelect.value = settingsMap.get('headingFont') || ''
 		if (bodySelect) bodySelect.value = settingsMap.get('bodyFont') || ''
 		settingsDialog.showModal()
-	})
+	}
 
 	// Close dialog on Escape
 	settingsDialog.addEventListener('keydown', (e) => {

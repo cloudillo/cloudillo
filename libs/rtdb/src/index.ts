@@ -17,6 +17,17 @@ export {
 	TimeoutError,
 	ValidationError
 } from './errors.js'
+// Presence — the shared core surface is re-exported so a presence-using app has
+// one import site, exactly as @cloudillo/crdt does for the awareness transport.
+export { RtdbPresence, type RtdbPresenceOptions } from './presence.js'
+export {
+	PRESENCE_FIELD,
+	PRESENCE_THROTTLE_MS,
+	buildPresenceUser,
+	type PresenceEntry,
+	type PresenceFeed,
+	type PresenceUser
+} from '@cloudillo/core'
 export { Query } from './query.js'
 // Types
 export type {
@@ -33,6 +44,9 @@ export type {
 	IncrementOp,
 	LockEventData,
 	LockResult,
+	PresenceEvent,
+	PresenceMessage,
+	PresenceWireEntry,
 	QueryFilter,
 	QuerySnapshot,
 	RtdbClientOptions,

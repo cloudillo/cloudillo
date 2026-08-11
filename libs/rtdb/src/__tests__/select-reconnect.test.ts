@@ -4,96 +4,38 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals'
 
 import { WebSocketManager } from '../websocket'
+import {
+	connectAndOpen as connectSocket,
+	installMockWebSocket,
+	MockWebSocket,
+	restoreWebSocket
+} from './mocks/websocket.mock'
 
-function setGlobal(key: string, value: unknown): void {
-	Object.defineProperty(globalThis, key, { value, writable: true, configurable: true })
-}
-
-function getGlobal(key: string): unknown {
-	return (globalThis as Record<string, unknown>)[key]
-}
-
-class CloseEvent extends Event {
-	code: number
-	reason: string
-	wasClean: boolean
-
-	constructor(type: string, init?: { code?: number; reason?: string; wasClean?: boolean }) {
-		super(type)
-		this.code = init?.code ?? 0
-		this.reason = init?.reason ?? ''
-		this.wasClean = init?.wasClean ?? true
-	}
-}
-setGlobal('CloseEvent', CloseEvent)
-
-class MockWebSocket {
-	readyState = 0
-	onopen: ((event: Event) => void) | null = null
-	onclose: ((event: CloseEvent) => void) | null = null
-	onerror: ((event: Event) => void) | null = null
-	onmessage: ((event: MessageEvent) => void) | null = null
-
-	sent: Array<Record<string, unknown>> = []
-
-	constructor(public url: string) {}
-
-	send(data: string): void {
-		this.sent.push(JSON.parse(data))
-	}
-
-	close(): void {
-		this.simulateClose()
-	}
-
-	simulateOpen(): void {
-		this.readyState = 1
-		this.onopen?.(new Event('open'))
-	}
-
-	simulateClose(): void {
-		this.readyState = 3
-		this.onclose?.(new CloseEvent('close', { code: 1006 }))
-	}
-
+class SubscribeSocket extends MockWebSocket {
 	/** Answer a `subscribe` this socket received, so the manager stops waiting on it. */
 	ackSubscribes(): void {
 		for (const msg of this.sent) {
 			if (msg.type !== 'subscribe') continue
-			this.onmessage?.(
-				new MessageEvent('message', {
-					data: JSON.stringify({
-						id: msg.id,
-						type: 'subscribeResult',
-						subscriptionId: `srv-${String(msg.id)}`
-					})
-				})
-			)
+			this.receive({
+				id: msg.id,
+				type: 'subscribeResult',
+				subscriptionId: `srv-${String(msg.id)}`
+			})
 		}
 	}
 }
 
-const originalWebSocket = getGlobal('WebSocket')
-let sockets: MockWebSocket[] = []
+let sockets: SubscribeSocket[] = []
 
 beforeEach(() => {
 	jest.useFakeTimers()
-	sockets = []
-	const ctor = jest.fn((url: string) => {
-		const socket = new MockWebSocket(url)
-		sockets.push(socket)
-		return socket
-	})
-	// `send()` compares `readyState` against `WebSocket.OPEN` on the constructor,
-	// so the mock has to carry the readyState constants too.
-	Object.assign(ctor, { CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3 })
-	setGlobal('WebSocket', ctor)
+	sockets = installMockWebSocket(SubscribeSocket)
 })
 
 afterEach(() => {
 	jest.clearAllTimers()
 	jest.useRealTimers()
-	setGlobal('WebSocket', originalWebSocket)
+	restoreWebSocket()
 })
 
 function subscribeMessages(socket: MockWebSocket) {
@@ -102,15 +44,11 @@ function subscribeMessages(socket: MockWebSocket) {
 
 /** Push one server-side change onto a subscription, as the backend would. */
 function sendChange(socket: MockWebSocket, subscriptionId: string): void {
-	socket.onmessage?.(
-		new MessageEvent('message', {
-			data: JSON.stringify({
-				type: 'change',
-				subscriptionId,
-				event: { action: 'update', path: 'p/1', data: {} }
-			})
-		})
-	)
+	socket.simulateMessage({
+		type: 'change',
+		subscriptionId,
+		event: { action: 'update', path: 'p/1', data: {} }
+	})
 }
 
 describe('subscription field projection', () => {
@@ -126,16 +64,8 @@ describe('subscription field projection', () => {
 		})
 	})
 
-	async function connectAndOpen(): Promise<MockWebSocket> {
-		const before = sockets.length
-		const connecting = ws.connect()
-		// `_doConnect` awaits the token before constructing the socket, so it
-		// does not exist yet on the turn `connect()` was called.
-		while (sockets.length === before) await jest.advanceTimersByTimeAsync(0)
-		const socket = sockets[sockets.length - 1]
-		socket.simulateOpen()
-		await connecting
-		return socket
+	function connectAndOpen(): Promise<SubscribeSocket> {
+		return connectSocket(ws, sockets)
 	}
 
 	it('sends select on the subscribe message', async () => {

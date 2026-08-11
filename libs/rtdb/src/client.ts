@@ -3,6 +3,7 @@
 
 import { CollectionReference } from './collection.js'
 import { DocumentReference } from './document.js'
+import { RtdbPresence, type RtdbPresenceOptions } from './presence.js'
 import type {
 	RtdbClientOptions,
 	TransactionMessage,
@@ -85,6 +86,7 @@ export class WriteBatch {
 export class RtdbClient {
 	private ws: WebSocketManager
 	private connected = false
+	private presenceFeed: RtdbPresence | null = null
 
 	constructor(private options: RtdbClientOptions) {
 		const defaultOptions = {
@@ -92,7 +94,8 @@ export class RtdbClient {
 			reconnect: true,
 			reconnectDelay: 1000,
 			maxReconnectDelay: 30000,
-			debug: false
+			debug: false,
+			presence: false
 		}
 
 		const mergedOptions = {
@@ -119,8 +122,23 @@ export class RtdbClient {
 	async disconnect(): Promise<void> {
 		if (!this.connected) return
 
+		this.presenceFeed?.close()
+		this.presenceFeed = null
 		await this.ws.disconnect()
 		this.connected = false
+	}
+
+	/**
+	 * The presence roster for this connection.
+	 *
+	 * Memoised: one socket is one room member, so a second call returns the same
+	 * feed and ignores its options. Requires `options.presence` on the client —
+	 * the opt-in is a query parameter fixed for the socket's lifetime, so it
+	 * cannot be turned on from here.
+	 */
+	presence(options?: RtdbPresenceOptions): RtdbPresence {
+		if (!this.presenceFeed) this.presenceFeed = new RtdbPresence(this.ws, options)
+		return this.presenceFeed
 	}
 
 	collection<T = unknown>(path: string): CollectionReference<T> {

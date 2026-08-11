@@ -4,104 +4,24 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals'
 
 import { WebSocketManager } from '../websocket'
+import { installMockWebSocket, type MockWebSocket, restoreWebSocket } from './mocks/websocket.mock'
 
-// Helpers for patching Node.js globals in tests
-function setGlobal(key: string, value: unknown): void {
-	Object.defineProperty(globalThis, key, { value, writable: true, configurable: true })
+let sockets: MockWebSocket[] = []
+
+/** The socket the manager most recently constructed. */
+function socket(): MockWebSocket {
+	return sockets[sockets.length - 1]
 }
-
-function getGlobal(key: string): unknown {
-	return (globalThis as Record<string, unknown>)[key]
-}
-
-// Polyfill CloseEvent for Node.js environment
-class CloseEvent extends Event {
-	code: number
-	reason: string
-	wasClean: boolean
-
-	constructor(type: string, init?: { code?: number; reason?: string; wasClean?: boolean }) {
-		super(type)
-		this.code = init?.code ?? 0
-		this.reason = init?.reason ?? ''
-		this.wasClean = init?.wasClean ?? true
-	}
-}
-// Make CloseEvent available globally
-setGlobal('CloseEvent', CloseEvent)
-
-// Mock WebSocket
-class MockWebSocket {
-	url: string
-	readyState: number = 0
-	onopen: ((event: Event) => void) | null = null
-	onclose: ((event: CloseEvent) => void) | null = null
-	onerror: ((event: Event) => void) | null = null
-	onmessage: ((event: MessageEvent) => void) | null = null
-
-	sentMessages: unknown[] = []
-
-	constructor(url: string) {
-		this.url = url
-	}
-
-	send(data: string): void {
-		this.sentMessages.push(JSON.parse(data))
-	}
-
-	close(): void {
-		this.readyState = 3
-		if (this.onclose) {
-			this.onclose(new CloseEvent('close'))
-		}
-	}
-
-	simulateOpen(): void {
-		this.readyState = 1
-		if (this.onopen) {
-			this.onopen(new Event('open'))
-		}
-	}
-
-	simulateMessage(data: unknown): void {
-		if (this.onmessage) {
-			this.onmessage(new MessageEvent('message', { data: JSON.stringify(data) }))
-		}
-	}
-
-	simulateError(): void {
-		if (this.onerror) {
-			this.onerror(new Event('error'))
-		}
-	}
-
-	simulateClose(): void {
-		this.readyState = 3
-		if (this.onclose) {
-			this.onclose(new CloseEvent('close'))
-		}
-	}
-}
-
-// Mock global WebSocket
-const originalWebSocket = getGlobal('WebSocket')
-let mockWebSocketInstance: MockWebSocket
 
 beforeEach(() => {
 	jest.useFakeTimers()
-	setGlobal(
-		'WebSocket',
-		jest.fn((url: string) => {
-			mockWebSocketInstance = new MockWebSocket(url)
-			return mockWebSocketInstance
-		})
-	)
+	sockets = installMockWebSocket()
 })
 
 afterEach(() => {
 	jest.clearAllTimers()
 	jest.useRealTimers()
-	setGlobal('WebSocket', originalWebSocket)
+	restoreWebSocket()
 })
 
 describe.skip('WebSocketManager', () => {
@@ -142,7 +62,7 @@ describe.skip('WebSocketManager', () => {
 
 			// Simulate server accepting connection
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateOpen()
+			socket().simulateOpen()
 
 			await connectPromise
 
@@ -173,7 +93,7 @@ describe.skip('WebSocketManager', () => {
 		it('should disconnect cleanly', async () => {
 			const connectPromise = ws.connect()
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateOpen()
+			socket().simulateOpen()
 			await connectPromise
 
 			await ws.disconnect()
@@ -193,10 +113,10 @@ describe.skip('WebSocketManager', () => {
 			try {
 				const connectPromise = wsNoReconnect.connect()
 				await jest.advanceTimersByTimeAsync(0)
-				mockWebSocketInstance.simulateOpen()
+				socket().simulateOpen()
 				await connectPromise
 
-				mockWebSocketInstance.simulateClose()
+				socket().simulateClose()
 
 				// Wait a bit to ensure no reconnect attempts
 				await jest.advanceTimersByTimeAsync(150)
@@ -221,21 +141,21 @@ describe.skip('WebSocketManager', () => {
 		it('should send message when connected', async () => {
 			const connectPromise = ws.connect()
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateOpen()
+			socket().simulateOpen()
 			await connectPromise
 
 			const sendPromise = ws.send({ type: 'ping' })
 
 			// Simulate server response to avoid timeout
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateMessage({
+			socket().simulateMessage({
 				type: 'pong',
 				id: 1
 			})
 
 			await sendPromise
 
-			const sent = mockWebSocketInstance.sentMessages
+			const sent = socket().sent
 			expect(sent.length).toBeGreaterThan(0)
 			expect((sent[0] as Record<string, unknown>).type).toBe('ping')
 		})
@@ -246,7 +166,7 @@ describe.skip('WebSocketManager', () => {
 			// Wait a bit for message to be queued
 			await jest.advanceTimersByTimeAsync(10)
 
-			expect(mockWebSocketInstance.sentMessages.length).toBe(0) // Not sent yet
+			expect(socket().sent.length).toBe(0) // Not sent yet
 
 			// Clean up - don't wait for the send to complete
 			sendPromise.catch(() => {})
@@ -255,14 +175,14 @@ describe.skip('WebSocketManager', () => {
 		it('should correlate request and response by ID', async () => {
 			const connectPromise = ws.connect()
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateOpen()
+			socket().simulateOpen()
 			await connectPromise
 
 			const responsePromise = ws.send({ type: 'get', path: 'posts/123' })
 
 			// Simulate server response
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateMessage({
+			socket().simulateMessage({
 				type: 'getResult',
 				id: 1,
 				data: { title: 'Test' }
@@ -276,13 +196,13 @@ describe.skip('WebSocketManager', () => {
 		it('should reject request with error response', async () => {
 			const connectPromise = ws.connect()
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateOpen()
+			socket().simulateOpen()
 			await connectPromise
 
 			const responsePromise = ws.send({ type: 'get', path: 'posts/123' })
 
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateMessage({
+			socket().simulateMessage({
 				type: 'error',
 				id: 1,
 				code: 404,
@@ -297,7 +217,7 @@ describe.skip('WebSocketManager', () => {
 		it('should subscribe to updates', async () => {
 			const connectPromise = ws.connect()
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateOpen()
+			socket().simulateOpen()
 			await connectPromise
 
 			const callback = jest.fn()
@@ -308,7 +228,7 @@ describe.skip('WebSocketManager', () => {
 			await new Promise((resolve) => setImmediate(resolve))
 
 			// Simulate server response to avoid timeout
-			mockWebSocketInstance.simulateMessage({
+			socket().simulateMessage({
 				type: 'subscribeResult',
 				id: 1,
 				subscriptionId: 'sub_1'
@@ -326,7 +246,7 @@ describe.skip('WebSocketManager', () => {
 		it('should call callback on subscription update', async () => {
 			const connectPromise = ws.connect()
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateOpen()
+			socket().simulateOpen()
 			await connectPromise
 
 			const callback = jest.fn()
@@ -336,7 +256,7 @@ describe.skip('WebSocketManager', () => {
 			await new Promise((resolve) => setImmediate(resolve))
 
 			// Send subscription response - this will register the subscription
-			mockWebSocketInstance.simulateMessage({
+			socket().simulateMessage({
 				type: 'subscribeResult',
 				id: 1,
 				subscriptionId: 'sub_1'
@@ -346,7 +266,7 @@ describe.skip('WebSocketManager', () => {
 			await new Promise((resolve) => setImmediate(resolve))
 
 			// Now send change event
-			mockWebSocketInstance.simulateMessage({
+			socket().simulateMessage({
 				type: 'change',
 				subscriptionId: 'sub_1',
 				event: {
@@ -368,7 +288,7 @@ describe.skip('WebSocketManager', () => {
 		it('should handle multiple subscriptions', async () => {
 			const connectPromise = ws.connect()
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateOpen()
+			socket().simulateOpen()
 			await connectPromise
 
 			const callback1 = jest.fn()
@@ -381,7 +301,7 @@ describe.skip('WebSocketManager', () => {
 			await new Promise((resolve) => setImmediate(resolve))
 
 			// Simulate server responses
-			mockWebSocketInstance.simulateMessage({
+			socket().simulateMessage({
 				type: 'subscribeResult',
 				id: 1,
 				subscriptionId: 'sub_1'
@@ -390,7 +310,7 @@ describe.skip('WebSocketManager', () => {
 			// Wait for first subscription to be processed
 			await new Promise((resolve) => setImmediate(resolve))
 
-			mockWebSocketInstance.simulateMessage({
+			socket().simulateMessage({
 				type: 'subscribeResult',
 				id: 2,
 				subscriptionId: 'sub_2'
@@ -409,7 +329,7 @@ describe.skip('WebSocketManager', () => {
 		it('should unsubscribe properly', async () => {
 			const connectPromise = ws.connect()
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateOpen()
+			socket().simulateOpen()
 			await connectPromise
 
 			const callback = jest.fn()
@@ -419,7 +339,7 @@ describe.skip('WebSocketManager', () => {
 			await new Promise((resolve) => setImmediate(resolve))
 
 			// Simulate server response so subscription is registered
-			mockWebSocketInstance.simulateMessage({
+			socket().simulateMessage({
 				type: 'subscribeResult',
 				id: 1,
 				subscriptionId: 'sub_1'
@@ -440,13 +360,13 @@ describe.skip('WebSocketManager', () => {
 		it('should reject pending requests on error', async () => {
 			const connectPromise = ws.connect()
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateOpen()
+			socket().simulateOpen()
 			await connectPromise
 
 			const responsePromise = ws.send({ type: 'get', path: 'posts/123' })
 
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateError()
+			socket().simulateError()
 
 			await expect(responsePromise).rejects.toThrow()
 		})
@@ -455,7 +375,7 @@ describe.skip('WebSocketManager', () => {
 			const connectPromise = ws.connect()
 
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateError()
+			socket().simulateError()
 
 			await expect(connectPromise).rejects.toThrow('WebSocket error')
 		})
@@ -465,7 +385,7 @@ describe.skip('WebSocketManager', () => {
 		it('should send ping periodically', async () => {
 			const connectPromise = ws.connect()
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateOpen()
+			socket().simulateOpen()
 			await connectPromise
 
 			// Wait for ping interval (default 30s, but testing would need to mock time)
@@ -478,13 +398,13 @@ describe.skip('WebSocketManager', () => {
 		it('should properly type response', async () => {
 			const connectPromise = ws.connect()
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateOpen()
+			socket().simulateOpen()
 			await connectPromise
 
 			const responsePromise = ws.send({ type: 'get', path: 'posts/123' })
 
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateMessage({
+			socket().simulateMessage({
 				type: 'getResult',
 				id: 1,
 				data: { title: 'Test' }
@@ -502,7 +422,7 @@ describe.skip('WebSocketManager', () => {
 
 			const connectPromise = ws.connect()
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateOpen()
+			socket().simulateOpen()
 			await connectPromise
 
 			expect(ws.isConnected()).toBe(true)
@@ -511,7 +431,7 @@ describe.skip('WebSocketManager', () => {
 		it('should report pending requests', async () => {
 			const connectPromise = ws.connect()
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateOpen()
+			socket().simulateOpen()
 			await connectPromise
 
 			expect(ws.getPendingRequestCount()).toBeGreaterThanOrEqual(0)
@@ -520,7 +440,7 @@ describe.skip('WebSocketManager', () => {
 		it('should report subscription count', async () => {
 			const connectPromise = ws.connect()
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateOpen()
+			socket().simulateOpen()
 			await connectPromise
 
 			const callback = jest.fn()
@@ -530,7 +450,7 @@ describe.skip('WebSocketManager', () => {
 			await new Promise((resolve) => setImmediate(resolve))
 
 			// Simulate server response
-			mockWebSocketInstance.simulateMessage({
+			socket().simulateMessage({
 				type: 'subscribeResult',
 				id: 1,
 				subscriptionId: 'sub_1'
@@ -560,7 +480,7 @@ describe.skip('WebSocketManager', () => {
 			await new Promise((resolve) => setImmediate(resolve))
 
 			// Messages should be queued internally, not sent yet
-			expect(mockWebSocketInstance.sentMessages.length).toBe(0)
+			expect(socket().sent.length).toBe(0)
 		})
 
 		it('should flush queue on reconnect', async () => {
@@ -571,22 +491,22 @@ describe.skip('WebSocketManager', () => {
 			await new Promise((resolve) => setImmediate(resolve))
 
 			// Verify not sent yet
-			expect(mockWebSocketInstance.sentMessages.length).toBe(0)
+			expect(socket().sent.length).toBe(0)
 
 			// Now connect
 			const connectPromise = ws.connect()
 			await jest.advanceTimersByTimeAsync(0)
-			mockWebSocketInstance.simulateOpen()
+			socket().simulateOpen()
 			await connectPromise
 
 			// Wait for queue to be flushed
 			await new Promise((resolve) => setImmediate(resolve))
 
 			// Now the queued message should be sent
-			expect(mockWebSocketInstance.sentMessages.length).toBeGreaterThan(0)
+			expect(socket().sent.length).toBeGreaterThan(0)
 
 			// Simulate response to avoid timeout
-			mockWebSocketInstance.simulateMessage({
+			socket().simulateMessage({
 				type: 'pong',
 				id: 1
 			})

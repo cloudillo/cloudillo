@@ -170,6 +170,14 @@ export interface RtdbClientOptions {
 		reconnectDelay?: number
 		maxReconnectDelay?: number
 		debug?: boolean
+		/**
+		 * Opt into the presence channel (`?presence=1` on the socket URL).
+		 *
+		 * Connection-level and fixed for the socket's lifetime, so it must be set
+		 * here rather than at `client.presence()` time. Without it the server
+		 * answers every presence frame with a 400.
+		 */
+		presence?: boolean
 	}
 }
 
@@ -217,6 +225,51 @@ export const tChangeEvent = T.struct({
 	path: T.string,
 	data: T.optional(T.nullable(T.unknown))
 })
+
+/**
+ * One roster member as the server writes it.
+ *
+ * `state` is whatever that peer published — free-form and unvalidated beyond the
+ * `user.idTag` the server stamps. `@cloudillo/core`'s `readPresenceEntries` is
+ * what reads it defensively.
+ */
+export const tPresenceWireEntry = T.struct({
+	connId: T.string,
+	state: T.optional(T.nullable(T.unknown))
+})
+
+/**
+ * The four presence events, all idempotent by `connId`.
+ *
+ * `sync` replaces the whole roster and arrives once per connection, before any
+ * other presence frame; its `connId` is this connection's own, which is how a
+ * client recognises itself. `join`/`update` upsert, `leave` deletes. Events are
+ * never echoed to their originator.
+ */
+export const tPresenceEvent = T.taggedUnion('action')({
+	sync: T.struct({
+		action: T.literal('sync'),
+		connId: T.string,
+		users: T.array(tPresenceWireEntry)
+	}),
+	join: T.struct({
+		action: T.literal('join'),
+		connId: T.string,
+		state: T.optional(T.nullable(T.unknown))
+	}),
+	update: T.struct({
+		action: T.literal('update'),
+		connId: T.string,
+		state: T.optional(T.nullable(T.unknown))
+	}),
+	leave: T.struct({
+		action: T.literal('leave'),
+		connId: T.string
+	})
+})
+
+export type PresenceWireEntry = T.TypeOf<typeof tPresenceWireEntry>
+export type PresenceEvent = T.TypeOf<typeof tPresenceEvent>
 
 export const tServerMessage = T.taggedUnion('type')({
 	queryResult: T.struct({
@@ -275,6 +328,21 @@ export const tServerMessage = T.taggedUnion('type')({
 		code: T.number,
 		message: T.string,
 		details: T.optional(T.unknown)
+	}),
+	presenceResult: T.struct({
+		type: T.literal('presenceResult'),
+		id: T.number,
+		/** The state was neither stored nor broadcast — resend it. */
+		throttled: T.optional(T.boolean)
+	}),
+	// Unsolicited, so its id is a random *string* the server minted
+	// (`RtdbMessage::new`) and never correlates to a pending request. Declaring
+	// this member is what keeps presence working at all: `handleMessage` logs and
+	// drops anything the union cannot decode.
+	presenceChange: T.struct({
+		type: T.literal('presenceChange'),
+		id: T.optional(T.union(T.number, T.string)),
+		event: tPresenceEvent
 	}),
 	pong: T.struct({
 		type: T.literal('pong'),
@@ -341,6 +409,12 @@ export interface LockMessage extends ClientMessage {
 export interface UnlockMessage extends ClientMessage {
 	type: 'unlock'
 	path: string
+}
+
+export interface PresenceMessage extends ClientMessage {
+	type: 'presence'
+	/** Absent or null clears this connection's roster entry (peers get `leave`). */
+	state?: Record<string, unknown> | null
 }
 
 export interface PingMessage extends ClientMessage {

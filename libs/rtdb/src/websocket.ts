@@ -9,6 +9,7 @@ import {
 	type AggregateOptions,
 	type ChangeEvent,
 	type ClientMessage,
+	type PresenceEvent,
 	type QueryFilter,
 	type RtdbClientOptions,
 	type ServerMessage,
@@ -31,6 +32,17 @@ const MAX_TOKEN_REFRESH_FAILURES = 5
 // Longer than the accept-then-close-4401 sequence a rejected resource produces, shorter than
 // the 30s ping interval so an idle-but-working connection still counts as healthy.
 const CONNECTION_HEALTHY_MS = 10_000
+
+/**
+ * The client options with the defaults already applied.
+ *
+ * `presence` stays optional rather than joining the `Required<>` half: it is a
+ * pure opt-in whose absence means "off", and requiring it would force every
+ * caller constructing a manager directly to name a flag it does not use.
+ */
+type ManagerOptions = Required<
+	Omit<Exclude<RtdbClientOptions['options'], undefined>, 'presence'>
+> & { presence?: boolean }
 
 interface PendingRequest {
 	resolve: (value: unknown) => void
@@ -115,11 +127,29 @@ export class WebSocketManager {
 	// nothing. The plain reconnect backoff is not gated this way; see `onopen`.
 	private healthyTimer: ReturnType<typeof setTimeout> | null = null
 
+	// The last state handed to `publishPresence`, kept so `onopen` can re-publish it: the
+	// server drops a connection's roster entry when its socket dies, and the `?presence=1`
+	// flag only buys back the *room*, not what we had said in it.
+	private localPresence: Record<string, unknown> | null = null
+
+	// This connection's own id, learned from the `sync` event. Undefined until then and
+	// cleared on disconnect, since the next socket gets a different one — a stale value
+	// would mark a stranger's entry as "you".
+	private connId: string | undefined
+
+	// The server answered a presence frame with `error 400 Unknown command`, i.e. it
+	// predates the presence channel. Later presence calls become no-ops: without this every
+	// keystroke costs a rejected request. Deliberately narrow — any other rejection is
+	// transient and must stay retryable, see `sendPresence`.
+	private presenceUnsupported = false
+
+	private presenceHandlers = new Set<(event: PresenceEvent) => void>()
+
 	constructor(
 		private dbId: string,
 		private getToken: () => string | undefined | Promise<string | undefined>,
 		private serverUrl: string,
-		private options: Required<Exclude<RtdbClientOptions['options'], undefined>>,
+		private options: ManagerOptions,
 		private refreshToken?: () => Promise<string | undefined>
 	) {
 		this.debug = options.debug
@@ -187,7 +217,9 @@ export class WebSocketManager {
 			const token = await this.getToken()
 
 			return new Promise((resolve, reject) => {
-				const wsUrl = buildRtdbUrl(this.serverUrl, this.dbId, token)
+				const wsUrl = buildRtdbUrl(this.serverUrl, this.dbId, token, {
+					presence: this.options.presence
+				})
 
 				// Clean up any previous WebSocket before creating a new one
 				this.cleanupWebSocket()
@@ -230,6 +262,10 @@ export class WebSocketManager {
 					this.startPingInterval()
 					this.flushMessageQueue()
 					this.reestablishSubscriptions() // Re-establish subscriptions after reconnect
+					// Deliberately NOT a re-subscribe: presence is enabled by the URL,
+					// so the server has already put us back in the room and will push a
+					// fresh `sync`. Only what we had published needs saying again.
+					this.republishPresence()
 					resolve()
 				}
 
@@ -271,6 +307,7 @@ export class WebSocketManager {
 		}
 		this.cleanupWebSocket()
 		this.connected = false
+		this.connId = undefined
 		this.stopPingInterval()
 		this.clearPendingRequests()
 	}
@@ -424,6 +461,79 @@ export class WebSocketManager {
 		}
 	}
 
+	/** This connection's own id, once the server's `sync` has named it. */
+	getConnId(): string | undefined {
+		return this.connId
+	}
+
+	/** Listen to raw presence events. `RtdbPresence` is the intended consumer. */
+	onPresenceChange(handler: (event: PresenceEvent) => void): () => void {
+		this.presenceHandlers.add(handler)
+		return () => {
+			this.presenceHandlers.delete(handler)
+		}
+	}
+
+	/**
+	 * Publish this connection's presence state, or clear it with `null`.
+	 *
+	 * Records the state either way, so a reconnect can say it again. While
+	 * disconnected it is recorded and NOT queued: `flushMessageQueue` only drops
+	 * frames whose promise has already settled, and a presence promise is still
+	 * live, so a queued frame would reach the wire alongside the `onopen`
+	 * re-publish and publish the same state twice.
+	 *
+	 * @returns the server's answer, or null when nothing was sent
+	 */
+	async publishPresence(
+		state: Record<string, unknown> | null
+	): Promise<{ throttled?: boolean } | null> {
+		if (!this.options.presence || this.presenceUnsupported) return null
+		this.localPresence = state
+		if (!this.connected || !this.ws || this.ws.readyState !== WebSocket.OPEN) return null
+		return this.sendPresence(state)
+	}
+
+	private async sendPresence(
+		state: Record<string, unknown> | null
+	): Promise<{ throttled?: boolean } | null> {
+		try {
+			const result = await this.send<{ throttled?: boolean }>({ type: 'presence', state })
+			return { throttled: result?.throttled === true }
+		} catch (error) {
+			// The socket died before the server answered. Nothing to report and nothing
+			// to retry: the next `onopen` re-publishes whatever is recorded.
+			if (error instanceof ConnectionError || error instanceof TimeoutError) {
+				this.log('Presence publish interrupted by disconnect; will re-publish')
+				return null
+			}
+			// Only an old server that does not know the command is a permanent answer.
+			// Any other rejection (a rate limit, an auth blip, an internal error) is
+			// transient: latching on those froze the roster for the rest of the session.
+			const unknownCommand =
+				error instanceof RtdbError &&
+				error.code === 400 &&
+				/unknown command/i.test(error.message)
+			if (unknownCommand) {
+				this.presenceUnsupported = true
+				console.warn('[RTDB] Presence not supported by this server, disabling:', error)
+				return null
+			}
+			console.warn('[RTDB] Presence publish rejected:', error)
+			return null
+		}
+	}
+
+	private republishPresence(): void {
+		if (!this.options.presence || this.presenceUnsupported) return
+		if (this.localPresence === null) return
+		void this.sendPresence(this.localPresence).then((result) => {
+			// A fresh connection gets a fresh token bucket, so this should be
+			// unreachable; log rather than build a retry path nothing exercises.
+			if (result?.throttled) this.log('Presence re-publish throttled after reconnect')
+		})
+	}
+
 	private handleMessage(rawData: string): void {
 		// Deliberately does NOT touch the retry budgets — a frame is trivially cheap for a
 		// server about to close 4401. `startHealthyTimer` owns replenishment.
@@ -476,6 +586,19 @@ export class WebSocketManager {
 						buf.push(message.event)
 					} else {
 						this.pendingSubscriptionEvents.set(message.subscriptionId, [message.event])
+					}
+				}
+			}
+
+			if (message.type === 'presenceChange') {
+				// `sync` is the only frame that names us, and it always precedes the
+				// rest, so by the time a join/update needs a self check this is set.
+				if (message.event.action === 'sync') this.connId = message.event.connId
+				for (const handler of this.presenceHandlers) {
+					try {
+						handler(message.event)
+					} catch (error) {
+						console.error('[RTDB] Error in presence handler:', error)
 					}
 				}
 			}
@@ -589,6 +712,9 @@ export class WebSocketManager {
 		// to replenish the very budgets this close is spending.
 		this.stopHealthyTimer()
 		this.stopPingInterval()
+		// The next socket is a different room member; keeping this would mark whoever
+		// inherits the id as "you". `localPresence` survives — that is the point of it.
+		this.connId = undefined
 
 		// Clear pending requests if not already cleared by handleError
 		if (this.pendingRequests.size > 0) {

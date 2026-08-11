@@ -2,14 +2,23 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { getAppBus, getDocWsUrl } from '@cloudillo/core'
-import { EmptyState, LoadingSpinner, Panel } from '@cloudillo/react'
-import { RtdbClient } from '@cloudillo/rtdb'
+import {
+	AppDocBar,
+	EmptyState,
+	LoadingSpinner,
+	Panel,
+	PresenceProvider,
+	Toasts,
+	usePresence
+} from '@cloudillo/react'
+import { RtdbClient, type RtdbPresence, buildPresenceUser } from '@cloudillo/rtdb'
 import * as React from 'react'
 import { PiTrashBold as IcDelete, PiPlusBold as IcPlus } from 'react-icons/pi'
 import { useLocation } from 'react-router-dom'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
+import '@cloudillo/react/components.css'
 import './style.css'
 
 import type { Task, TaskFilter } from './types.js'
@@ -29,10 +38,12 @@ const APP_NAME = 'taskillo'
  * 2. Initialize cloudillo SDK (get auth token from parent shell)
  * 3. Create RTDB client with WebSocket connection
  * 4. Connect to the real-time database
+ * 5. Join the presence roster so collaborators can see each other
  */
 function useTaskillo() {
 	const location = useLocation()
 	const [client, setClient] = React.useState<RtdbClient | undefined>()
+	const [presence, setPresence] = React.useState<RtdbPresence | undefined>()
 	const [connected, setConnected] = React.useState(false)
 	const [loading, setLoading] = React.useState(true)
 	const [error, setError] = React.useState<Error | undefined>()
@@ -55,6 +66,8 @@ function useTaskillo() {
 	React.useEffect(() => {
 		if (!fileId) return
 		let rtdbClient: RtdbClient | undefined
+		let presenceFeed: RtdbPresence | undefined
+		let unlistenIdentity: (() => void) | undefined
 		let unmounted = false
 
 		;(async () => {
@@ -95,7 +108,10 @@ function useTaskillo() {
 						reconnect: true, // Auto-reconnect on disconnect
 						reconnectDelay: 1000, // Initial reconnect delay (ms)
 						maxReconnectDelay: 30000, // Max reconnect delay (ms)
-						debug: false // Disable debug logging
+						debug: false, // Disable debug logging
+						// Opt in to the presence channel. It goes in the socket URL, so it
+						// cannot be turned on later — without it every publish is a no-op.
+						presence: true
 					}
 				})
 
@@ -110,7 +126,20 @@ function useTaskillo() {
 				}
 
 				console.log('[Taskillo] Connected to RTDB')
+
+				// Step 5: Join the presence roster
+				// Only the name goes on the wire — the server stamps `user.idTag` from
+				// the socket's own token, and the colour is derived from that tag by
+				// whoever is LOOKING, so a peer cannot assert someone else's identity.
+				presenceFeed = rtdbClient.presence({ user: buildPresenceUser(bus) })
+				// A corrective `auth:init.push` can land after `bus.init()` resolves on a
+				// share-link mount, which would leave a stale name in every peer's roster.
+				unlistenIdentity = bus.onIdentityChange(() =>
+					presenceFeed?.setUser(buildPresenceUser(bus))
+				)
+
 				setClient(rtdbClient)
+				setPresence(presenceFeed)
 				setConnected(true)
 				setLoading(false)
 			} catch (err) {
@@ -125,6 +154,10 @@ function useTaskillo() {
 		// Cleanup
 		return () => {
 			unmounted = true
+			unlistenIdentity?.()
+			// Clears our roster entry at once, so peers do not wait for the socket to
+			// die for the avatar to go. `disconnect()` would close it too.
+			presenceFeed?.close()
 			if (rtdbClient) {
 				rtdbClient.disconnect().catch(console.error)
 			}
@@ -133,6 +166,7 @@ function useTaskillo() {
 
 	return {
 		client,
+		presence,
 		fileId,
 		idTag,
 		access,
@@ -297,8 +331,7 @@ function Header({
 }) {
 	return (
 		<Panel className="taskillo-header">
-			<h1 className="header-title">Taskillo</h1>
-
+			{/* No title here — the DocBar names the document. */}
 			<div className="header-stats">
 				<span title="Total tasks">{totalCount} total</span>
 				<span title="Active tasks">{activeCount} active</span>
@@ -353,17 +386,32 @@ function FilterBar({
 /**
  * Component: TaskInput
  *
- * Input form for creating new tasks
+ * Input form for creating new tasks.
+ *
+ * It also reports whether this user is mid-sentence, which the app publishes as
+ * presence state. Note that nothing about "composing" exists in the protocol: it
+ * is an ordinary field of the free-form state, filtered client-side — which is how
+ * per-item presence is built without any server support.
  */
 function TaskInput({
 	onCreateTask,
+	onComposingChange,
 	disabled
 }: {
 	onCreateTask: (text: string) => Promise<void>
+	onComposingChange?: (composing: boolean) => void
 	disabled?: boolean
 }) {
 	const [text, setText] = React.useState('')
 	const [loading, setLoading] = React.useState(false)
+	const [focused, setFocused] = React.useState(false)
+
+	// Focused AND non-empty: a parked caret in an empty box is not composing.
+	// Submitting clears `text`, so the flag drops without a separate handler.
+	const composing = focused && !!text.trim()
+	React.useEffect(() => {
+		onComposingChange?.(composing)
+	}, [composing, onComposingChange])
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
@@ -401,6 +449,8 @@ function TaskInput({
 					value={text}
 					onChange={(e) => setText(e.target.value)}
 					onKeyDown={handleKeyPress}
+					onFocus={() => setFocused(true)}
+					onBlur={() => setFocused(false)}
 					disabled={disabled || loading}
 				/>
 
@@ -414,6 +464,29 @@ function TaskInput({
 				</button>
 			</form>
 		</Panel>
+	)
+}
+
+/**
+ * Component: ComposingHint
+ *
+ * "Someone else is typing", read straight off the presence roster.
+ *
+ * Reads `entries` — one per connection — rather than the deduplicated `users` the
+ * avatar stack shows, because it is a connection that is composing, not a person:
+ * the same user in two tabs is typing in only one of them.
+ */
+function ComposingHint() {
+	const { entries } = usePresence()
+	const others = entries.filter((entry) => !entry.self && entry.state?.composing)
+	if (!others.length) return null
+
+	return (
+		<div className="text-muted text-sm px-2">
+			{others.length === 1
+				? `${others[0].name} is adding a task…`
+				: `${others.length} others are adding tasks…`}
+		</div>
 	)
 }
 
@@ -569,6 +642,7 @@ function TaskList({
  * 2. Subscribe to data changes (useTasks hook)
  * 3. Perform CRUD operations (create, update, delete)
  * 4. Display real-time updates from other users
+ * 5. Show who else is here, and what they are doing (presence)
  *
  * The entire app is in this single file for easy learning!
  */
@@ -579,6 +653,14 @@ export function TaskilloApp() {
 
 	// Subscribe to tasks and get CRUD operations
 	const tasks = useTasks(taskillo.client, taskillo.fileId, taskillo.idTag)
+
+	// A replace, not a merge: `setState({})` is how a field is cleared. `user` is
+	// added on publish and cannot be set from here.
+	const presence = taskillo.presence
+	const handleComposingChange = React.useCallback(
+		(composing: boolean) => presence?.setState(composing ? { composing: true } : {}),
+		[presence]
+	)
 
 	// Loading state - shown while connecting to RTDB
 	if (taskillo.loading) {
@@ -604,33 +686,44 @@ export function TaskilloApp() {
 	}
 
 	// Main UI - header, filter, input, and task list
+	// The provider computes the roster once for the whole app: `<AppDocBar />` picks
+	// the avatar stack off the context with no prop of its own, and `ComposingHint`
+	// reads the same entries instead of subscribing a second time.
 	return (
-		<div className="taskillo-app c-vbox w-100 h-100">
-			<Header
-				connected={taskillo.connected}
-				totalCount={tasks.totalCount}
-				activeCount={tasks.activeCount}
-				completedCount={tasks.completedCount}
-			/>
+		<PresenceProvider source={presence}>
+			<div className="taskillo-app c-vbox w-100 h-100">
+				<AppDocBar />
 
-			<FilterBar filter={tasks.filter} onFilterChange={tasks.setFilter} />
-
-			<TaskInput
-				onCreateTask={tasks.createTask}
-				disabled={!taskillo.connected || isReadOnly}
-			/>
-
-			<Panel className="task-list-container">
-				<TaskList
-					tasks={tasks.tasks}
-					loading={tasks.loading}
-					onToggleTask={tasks.toggleTask}
-					onUpdateTask={tasks.updateTask}
-					onDeleteTask={tasks.deleteTask}
-					readOnly={isReadOnly}
+				<Header
+					connected={taskillo.connected}
+					totalCount={tasks.totalCount}
+					activeCount={tasks.activeCount}
+					completedCount={tasks.completedCount}
 				/>
-			</Panel>
-		</div>
+
+				<FilterBar filter={tasks.filter} onFilterChange={tasks.setFilter} />
+
+				<TaskInput
+					onCreateTask={tasks.createTask}
+					onComposingChange={handleComposingChange}
+					disabled={!taskillo.connected || isReadOnly}
+				/>
+
+				<ComposingHint />
+
+				<Panel className="task-list-container">
+					<TaskList
+						tasks={tasks.tasks}
+						loading={tasks.loading}
+						onToggleTask={tasks.toggleTask}
+						onUpdateTask={tasks.updateTask}
+						onDeleteTask={tasks.deleteTask}
+						readOnly={isReadOnly}
+					/>
+				</Panel>
+				<Toasts />
+			</div>
+		</PresenceProvider>
 	)
 }
 

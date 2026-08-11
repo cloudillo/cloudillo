@@ -152,13 +152,6 @@
 	margin-bottom: 1rem;
 }
 
-.header-title {
-	font-size: 1.5rem;
-	font-weight: 600;
-	color: var(--col-on-container);
-	margin: 0;
-}
-
 .header-stats {
 	display: flex;
 	gap: 1rem;

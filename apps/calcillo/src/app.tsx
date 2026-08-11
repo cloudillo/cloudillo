@@ -9,16 +9,25 @@ import type { Sheet as FortuneSheet, Op } from '@fortune-sheet/core'
 import { Workbook, type WorkbookInstance } from '@fortune-sheet/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { PiDotsThreeVerticalBold, PiExportBold } from 'react-icons/pi'
+import { PiExportBold } from 'react-icons/pi'
 import type * as Y from 'yjs'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
+import '@cloudillo/react/components.css'
 import '@fortune-sheet/react/dist/index.css'
 import './style.css'
 
 import { getAppBus } from '@cloudillo/core'
-import { useCloudilloEditor } from '@cloudillo/react'
+import {
+	AppDocBar,
+	DocBarMenu,
+	MenuDivider,
+	MenuHeader,
+	MenuItem,
+	Toasts,
+	useCloudilloEditor
+} from '@cloudillo/react'
 
 import { setupAwareness } from './awareness'
 import {
@@ -65,51 +74,39 @@ export function CalcilloApp() {
 	// Track workbook instance via state so effect can react to it
 	const [workbookInstance, setWorkbookInstance] = React.useState<WorkbookInstance | null>(null)
 
-	// Toolbar menu state
-	const [menuOpen, setMenuOpen] = React.useState(false)
-	const menuRef = React.useRef<HTMLDivElement>(null)
-	const [menuAnchorRect, setMenuAnchorRect] = React.useState<DOMRect | null>(null)
-
-	// Close menu on click outside
-	React.useEffect(() => {
-		if (!menuOpen) return
-		const handleClickOutside = (e: MouseEvent) => {
-			if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-				setMenuOpen(false)
-			}
-		}
-		document.addEventListener('pointerdown', handleClickOutside)
-		return () => document.removeEventListener('pointerdown', handleClickOutside)
-	}, [menuOpen])
-
 	// Create local echo guard to prevent feedback loops
 	const localEchoGuard = React.useMemo(() => createLocalEchoGuard(), [])
 
 	// Setup awareness on provider ready - use state instead of ref for dependency
-	// Generate unique client ID for awareness (Yjs clientID + random suffix for same-user distinction)
-	const awarenessClientId = React.useMemo(
-		() => `${cloudillo.yDoc.clientID}-${Math.random().toString(36).slice(2, 8)}`,
-		[cloudillo.yDoc.clientID]
-	)
-
 	React.useEffect(() => {
 		if (!cloudillo.provider || !workbookInstance) return
 
+		// The idTag goes on the wire as-is; two tabs of the same user share a
+		// colour by design, and FortuneSheet already keys its presences by
+		// awareness clientId, so they stay separate cursors.
 		const cleanup = setupAwareness(
 			cloudillo.provider.awareness,
 			workbookInstance,
-			// Use unique client ID for awareness to distinguish same-user clients
-			`${cloudillo.idTag ?? 'anonymous'} (${awarenessClientId.slice(-4)})`,
-			cloudillo.displayName
+			{
+				idTag: cloudillo.idTag,
+				displayName: cloudillo.displayName,
+				// A share-link guest carries the owner's idTag; this is what keeps it
+				// off the wire. Listed in the deps below, so a late sign-in re-publishes.
+				authenticated: cloudillo.authenticated
+			},
+			cloudillo.darkMode
 		)
 
 		return cleanup
+		// `darkMode` is a dep on purpose: tearing down and re-seeding is what
+		// re-colours the cursors already on screen after a theme flip.
 	}, [
 		cloudillo.provider,
 		workbookInstance,
-		awarenessClientId,
 		cloudillo.idTag,
-		cloudillo.displayName
+		cloudillo.displayName,
+		cloudillo.authenticated,
+		cloudillo.darkMode
 	])
 
 	// Load initial data and setup observers
@@ -541,79 +538,40 @@ export function CalcilloApp() {
 		[setWorkbookInstance]
 	)
 
-	// Memoize to avoid infinite re-renders (FortuneSheet uses this in a useEffect dep)
-	const customToolbarItems = React.useMemo(
-		() => [
-			{
-				key: 'menu',
-				tooltip: 'Menu',
-				icon: <PiDotsThreeVerticalBold />,
-				onClick: (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-					setMenuAnchorRect(e.currentTarget.getBoundingClientRect())
-					setMenuOpen((v) => !v)
-				}
-			}
-		],
-		[]
-	)
-
 	return (
 		origCellData && (
-			<>
-				<Workbook
-					key={workbookKey}
-					ref={combinedRef}
-					data={origCellData}
-					onOp={isReadOnly ? undefined : onOp}
-					generateSheetId={wrappedGenerateSheetId}
-					allowEdit={!isReadOnly}
-					customToolbarItems={customToolbarItems}
-				/>
-				{menuOpen && menuAnchorRect && (
-					<div
-						ref={menuRef}
-						className="c-menu"
-						style={{
-							position: 'fixed',
-							top: menuAnchorRect.bottom,
-							left: menuAnchorRect.left,
-							zIndex: 1000
-						}}
-					>
-						<div
-							className="c-menu-item"
-							onClick={() => {
-								downloadExport(cloudillo.yDoc)
-								setMenuOpen(false)
-							}}
-						>
-							<span className="c-menu-item-icon">
-								<PiExportBold />
-							</span>
-							<span className="c-menu-item-label">{t('Export to JSON')}</span>
-						</div>
-						<div
-							className="c-menu-item"
-							onClick={() => {
-								downloadXlsxExport(cloudillo.yDoc)
-								setMenuOpen(false)
-							}}
-						>
-							<span className="c-menu-item-icon">
-								<PiExportBold />
-							</span>
-							<span className="c-menu-item-label">{t('Export to XLSX')}</span>
-						</div>
-						<div className="c-menu-divider" />
-						<div
-							className="c-menu-item"
-							style={{ opacity: 0.5, pointerEvents: 'none' }}
-						>
-							<span className="c-menu-item-label">v{__APP_VERSION__}</span>
-						</div>
-					</div>
-				)}
-			</>
+			// FortuneSheet measures its own container, so the DocBar has to be a
+			// SIBLING of a properly sized flex child — never an overlay on top of
+			// the workbook, which would leave it measuring the wrong height.
+			<div className="c-vbox h-100">
+				<AppDocBar awareness={cloudillo.provider?.awareness}>
+					<DocBarMenu>
+						<MenuItem
+							icon={<PiExportBold />}
+							label={t('Export to JSON')}
+							onClick={() => downloadExport(cloudillo.yDoc)}
+						/>
+						<MenuItem
+							icon={<PiExportBold />}
+							label={t('Export to XLSX')}
+							onClick={() => downloadXlsxExport(cloudillo.yDoc)}
+						/>
+						<MenuDivider />
+						<MenuHeader>v{__APP_VERSION__}</MenuHeader>
+					</DocBarMenu>
+				</AppDocBar>
+				<div className="flex-fill" style={{ minWidth: 0 }}>
+					<Workbook
+						key={workbookKey}
+						ref={combinedRef}
+						data={origCellData}
+						onOp={isReadOnly ? undefined : onOp}
+						generateSheetId={wrappedGenerateSheetId}
+						allowEdit={!isReadOnly}
+					/>
+				</div>
+				<Toasts />
+			</div>
 		)
 	)
 }

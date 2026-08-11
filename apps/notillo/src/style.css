@@ -421,15 +421,55 @@ body,
 	min-height: calc(var(--notillo-title-line) * 1em);
 }
 
+/* The label is the row's flex line: clipped title on the left, faces on the
+   right. `overflow` stays visible here — the identity ring is an `outline`,
+   which paints outside the avatar's border box and would be cut. */
 .page-tree .c-tree-item-label {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-1);
+	min-width: 0;
+	overflow: visible;
+}
+
+.page-tree-title {
+	flex: 1;
+	min-width: 0;
 	display: -webkit-box;
 	-webkit-line-clamp: 2;
 	-webkit-box-orient: vertical;
 	overflow: hidden;
-	min-width: 0;
 	line-height: var(--notillo-title-line);
 	word-break: break-word;
 	white-space: normal;
+}
+
+/* A tree row is not a toolbar: the stack is trimmed down from the docbar's
+   proportions. Thinner separator and ring so a 1.5rem face is mostly face, and
+   negative block margins so a row with people on it stays the same height as
+   one without — the faces overhang into the row's padding instead of growing
+   it, which would make rows jump as people come and go. */
+.page-tree-presence {
+	--page-tree-face: 1.5rem;
+
+	flex-shrink: 0;
+	align-self: flex-start;
+	margin-block: calc((var(--notillo-title-line) * 1em - var(--page-tree-face)) / 2);
+}
+
+.page-tree-presence .c-avatar {
+	border-width: 0.0625rem;
+	font-size: 0.6875rem;
+}
+
+.page-tree-presence .c-avatar.id-ring {
+	outline-width: 0.0625rem;
+}
+
+/* The `+N` chip carries no identity, so it gets none of the identity colours. */
+.page-tree-presence .c-avatar:not(.c-id-color) {
+	--avatar-bg: var(--col-container-high);
+	--avatar-color: var(--col-on-container);
 }
 
 /* ── Tag Filtered Page List ── */
@@ -477,22 +517,6 @@ body,
 	line-height: var(--notillo-title-line);
 	word-break: break-word;
 	font-size: 0.9rem;
-}
-
-/* ── Page Header ── */
-
-.page-header-title-input {
-	font-size: 1.5rem;
-	font-weight: 600;
-	color: var(--col-on-container);
-	background: transparent;
-	border: none;
-	border-bottom: 2px solid var(--col-primary);
-	outline: none;
-	padding: 0.25rem 0;
-	flex: 1;
-	font-family: inherit;
-	line-height: 1.3;
 }
 
 /* ── Suggestion menus (slash, wiki-link, tag) ── */

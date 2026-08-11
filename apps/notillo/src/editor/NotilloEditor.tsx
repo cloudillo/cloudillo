@@ -27,13 +27,15 @@ import { useTranslation } from 'react-i18next'
 import '@blocknote/mantine/style.css'
 
 import { getFileUrl, getImageVariantForDisplaySize } from '@cloudillo/core'
-import type { RtdbClient } from '@cloudillo/rtdb'
+import { usePresence } from '@cloudillo/react'
+import type { RtdbClient, RtdbPresence } from '@cloudillo/rtdb'
 
 import { useBlockLocks } from '../hooks/useBlockLocks.js'
 import { useEditorLocks } from '../hooks/useEditorLocks.js'
 import { useDocumentSync, useRtdbToEditor } from '../hooks/useEditorSync.js'
-import { useLockIndicators } from '../hooks/useLockIndicators.js'
+import { type BlockPeer, useLockIndicators } from '../hooks/useLockIndicators.js'
 import { usePageTagSync } from '../hooks/usePageTagSync.js'
+import { usePresencePublisher } from '../hooks/usePresencePublisher.js'
 import { shortId } from '../rtdb/ids.js'
 import { createPage } from '../rtdb/page-ops.js'
 import type { PageRecord } from '../rtdb/types.js'
@@ -147,6 +149,8 @@ function CommentBlockMenuItem({
 
 interface NotilloEditorProps {
 	client: RtdbClient
+	/** Absent until the socket is up, or on a document with no presence channel. */
+	presence?: RtdbPresence
 	pageId: string
 	initialBlocks: Block[]
 	knownBlockIds: Set<string>
@@ -169,6 +173,7 @@ interface NotilloEditorProps {
 export const NotilloEditor = React.memo(
 	function NotilloEditor({
 		client,
+		presence,
 		pageId,
 		initialBlocks,
 		knownBlockIds,
@@ -315,7 +320,29 @@ export const NotilloEditor = React.memo(
 		// Lock management — pure state hook, no subscription
 		const { locks, handleLockEvent } = useBlockLocks(pageId)
 		const _localLockedBlockRef = useEditorLocks(asBaseEditor(editor), client, userId)
-		useLockIndicators(asBaseEditor(editor), locks)
+
+		// Presence: tell peers which page and block we are on, and read back where
+		// they are. Independent of the locks above — a read-only viewer publishes
+		// presence and can never take a lock.
+		usePresencePublisher(asBaseEditor(editor), presence, pageId)
+		const { entries } = usePresence()
+		const blockPeers = React.useMemo(() => {
+			const peers = new Map<string, BlockPeer>()
+			// `entries`, not `users`: it is a CONNECTION that has a caret somewhere,
+			// so the same person in two tabs marks two blocks. Everything read out of
+			// `state` is peer-published and unvalidated — hence the type checks.
+			for (const entry of entries) {
+				if (entry.self || entry.state?.page !== pageId) continue
+				const block = entry.state?.block
+				if (typeof block !== 'string' || !block) continue
+				peers.set(block, {
+					name: entry.name || entry.idTag || t('Guest'),
+					hue: entry.hue
+				})
+			}
+			return peers
+		}, [entries, pageId, t])
+		useLockIndicators(asBaseEditor(editor), locks, blockPeers)
 
 		// Editor → page tag sync (debounced, self-healing)
 		usePageTagSync(asBaseEditor(editor), client, pageId, pageTags, readOnly)
@@ -599,6 +626,7 @@ export const NotilloEditor = React.memo(
 		// which can create ghost blocks during drag-drop.
 		return (
 			prev.client === next.client &&
+			prev.presence === next.presence &&
 			prev.pageId === next.pageId &&
 			prev.readOnly === next.readOnly &&
 			prev.userId === next.userId &&

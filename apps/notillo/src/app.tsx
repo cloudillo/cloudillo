@@ -4,19 +4,31 @@
 import { getAppBus, getDocWsUrl, getFileUrl } from '@cloudillo/core'
 import type { CommentThread } from '@cloudillo/react'
 import {
+	AppDocBar,
 	Button,
 	DialogContainer,
+	DocBarMenu,
 	EmptyState,
 	Fcd,
 	LoadingSpinner,
+	MenuDivider,
+	MenuHeader,
+	MenuItem,
 	Panel,
+	PresenceProvider,
+	Toasts,
 	useComments,
 	useDialog,
-	useIsMobile
+	useIsMobile,
+	useToast
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuPanelLeft as IcSidebar } from 'react-icons/lu'
+import {
+	LuMessageCircle as IcComment,
+	LuLink as IcLink,
+	LuPanelLeft as IcSidebar
+} from 'react-icons/lu'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
@@ -42,9 +54,8 @@ import { useContentSearch } from './hooks/useContentSearch.js'
 import { useNotillo } from './hooks/useNotillo.js'
 import { usePageBlocks } from './hooks/usePageBlocks.js'
 import { useTags } from './hooks/useTags.js'
-import { PageHeader } from './pages/PageHeader.js'
 import { PageSidebar } from './pages/PageSidebar.js'
-import { createPage, getAncestorIds } from './rtdb/page-ops.js'
+import { createPage, getAncestorIds, updatePage } from './rtdb/page-ops.js'
 import { searchPages } from './utils/search.js'
 
 /** How many visited pages the sidebar offers with an empty query. */
@@ -57,6 +68,7 @@ export function NotilloApp() {
 	const { t } = useTranslation()
 	const notillo = useNotillo()
 	const dialog = useDialog()
+	const { error: toastError } = useToast()
 	const canWrite = notillo.access === 'write'
 	const canComment = notillo.access !== 'read'
 	// One live map of every page feeds the tree, wiki-links, search and the `@`
@@ -528,6 +540,24 @@ export function NotilloApp() {
 		knownBlockOrders
 	} = usePageBlocks(notillo.client, activePageId, notillo.ownerTag)
 
+	// The page title is edited in the DocBar's second crumb, so the rename lands
+	// here rather than in a header of its own.
+	const handleRenamePage = React.useCallback(
+		async (title: string) => {
+			if (!notillo.client || !activePageId) return
+			try {
+				await updatePage(notillo.client, activePageId, { title })
+			} catch (err) {
+				// The editor closes and the crumb snaps back to the old title on
+				// its own. Without this the only trace of a refused write — offline,
+				// or another editor holding the lock — is a console rejection.
+				console.error('[Notillo] Page rename failed:', err)
+				toastError(t('Could not rename the page'))
+			}
+		},
+		[notillo.client, activePageId, t, toastError]
+	)
+
 	// Share handlers
 	const handleSharePage = React.useCallback(async () => {
 		if (!activePageId) return
@@ -718,7 +748,11 @@ export function NotilloApp() {
 	if (!notillo.client || !notillo.idTag || !notillo.ownerTag) return null
 
 	return (
-		<>
+		// Computed once here and read off the context by everyone who needs it — the
+		// DocBar's avatar stack, the sidebar's per-page faces, the editor's block
+		// indicators. Subscribing three times would mean three throttles and three
+		// rounds of profile lookups. `<AppDocBar>` prefers the context over its prop.
+		<PresenceProvider source={notillo.presence}>
 			<input
 				ref={fileInputRef}
 				type="file"
@@ -733,182 +767,263 @@ export function NotilloApp() {
 				style={{ display: 'none' }}
 				onChange={handleChildImportFileSelected}
 			/>
-			<Fcd.Container className="pt-2 g-2" fluid detailsMode="adaptive">
-				<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-					<Panel elevation="mid" className="c-vbox fill">
-						<PageSidebar
-							client={notillo.client}
-							pages={pages}
-							expanded={expanded}
-							unfiledPage={unfiledPage}
-							onExpand={expand}
-							onToggleExpand={toggleExpand}
-							activePageId={activePageId}
-							onSelectPage={handleSelectPage}
-							userId={notillo.idTag}
-							readOnly={!canWrite}
-							tags={tags}
-							tagCounts={tagCounts}
-							activeTags={activeTags}
-							onToggleTag={handleToggleTag}
-							onClearTags={handleClearTags}
-							searchQuery={searchQuery}
-							onSearchChange={setSearchQuery}
-							filteredResults={filteredResults}
-							resultsTruncated={resultsTruncated}
-							isFiltering={isFiltering}
-							contentSearchPending={
-								!!searchQuery.trim() && contentSearchEnabled && !contentReady
-							}
-							contentSearchError={contentError}
-							onRetryContentSearch={retryContentSearch}
-							focusSearchSeq={focusSearchSeq}
-							onSearchActivate={enableContentSearch}
-							recentPageIds={recentPageIds}
-							onImportMarkdown={canWrite ? handleImportMarkdownInto : undefined}
-						/>
-					</Panel>
-				</Fcd.Filter>
-				<Fcd.Content
-					header={
-						activePage ? (
-							<PageHeader
-								client={notillo.client}
-								page={activePage}
-								readOnly={!canWrite}
-								onToggleSidebar={() => setShowFilter(true)}
-								onToggleComments={
-									canComment ? () => setShowComments((s) => !s) : undefined
+			{/* `c-vbox h-100` with the container as the flex child: without it the
+			    filter and details panes lose their height. */}
+			<div className="c-vbox h-100">
+				<AppDocBar
+					start={
+						<Button
+							kind="link"
+							mode="icon"
+							size="small"
+							className="md-hide lg-hide"
+							onClick={() => setShowFilter(true)}
+							title={t('Open sidebar')}
+						>
+							<IcSidebar />
+						</Button>
+					}
+					sub={
+						activePage
+							? {
+									// `emptyLabel` and not `||`: the raw title seeds
+									// the rename box, which must start empty
+									// rather than with "Untitled" to delete.
+									label: activePage.title ?? '',
+									emptyLabel: t('Untitled'),
+									icon: activePage.icon,
+									canRename: canWrite,
+									onRename: handleRenamePage
 								}
-								commentCount={threadCount}
-								onSharePage={handleSharePage}
-								onShareDocument={handleShareDocument}
-								onExportMarkdown={handleExportMarkdown}
-								onExportPdf={handleExportPdf}
-								onExportDocx={handleExportDocx}
-								onExportOdt={handleExportOdt}
-								onImportMarkdown={handleImportMarkdown}
-								onImportMarkdownAsChild={handleImportMarkdownAsChild}
-							/>
-						) : (
-							<nav
-								className="c-nav px-3 py-2 g-2 md-hide lg-hide"
-								style={{ borderBottom: '1px solid var(--col-outline)' }}
-							>
+							: undefined
+					}
+					subActions={
+						canComment && activePage ? (
+							// The badge is absolutely positioned against this wrapper.
+							<div style={{ position: 'relative' }}>
 								<Button
 									kind="link"
 									mode="icon"
 									size="small"
-									onClick={() => setShowFilter(true)}
-									title={t('Open sidebar')}
+									onClick={() => setShowComments((s) => !s)}
+									title={t('Comments')}
 								>
-									<IcSidebar />
+									<IcComment size={20} />
+									{threadCount > 0 && (
+										<span className="comment-badge">{threadCount}</span>
+									)}
 								</Button>
-								<span className="font-semibold flex-fill">Notillo</span>
-							</nav>
-						)
+							</div>
+						) : undefined
 					}
 				>
-					{/* Non-blocking: the loaded pages are still usable and the editor
+					{/* Two labelled sections, because everything below the divider acts
+					    on the current page, not on the document. */}
+					<DocBarMenu>
+						<MenuHeader>{t('Document')}</MenuHeader>
+						<MenuItem
+							icon={<IcLink />}
+							label={t('Share document')}
+							disabled={!canWrite}
+							onClick={handleShareDocument}
+						/>
+						<MenuDivider />
+						<MenuHeader>{t('This page')}</MenuHeader>
+						<MenuItem
+							icon={<IcLink />}
+							label={t('Share this page')}
+							disabled={!canWrite || !activePage}
+							onClick={handleSharePage}
+						/>
+						<MenuItem
+							label={t('Export as Markdown (.md)')}
+							disabled={!activePage}
+							onClick={handleExportMarkdown}
+						/>
+						<MenuItem
+							label={t('Export as PDF (.pdf)')}
+							disabled={!activePage}
+							onClick={handleExportPdf}
+						/>
+						<MenuItem
+							label={t('Export as Word (.docx)')}
+							disabled={!activePage}
+							onClick={handleExportDocx}
+						/>
+						<MenuItem
+							label={t('Export as OpenDocument (.odt)')}
+							disabled={!activePage}
+							onClick={handleExportOdt}
+						/>
+						{canWrite && (
+							<>
+								<MenuItem
+									label={t('Import Markdown (overwrite this page)')}
+									disabled={!activePage}
+									onClick={handleImportMarkdown}
+								/>
+								<MenuItem
+									label={t('Import Markdown as child page')}
+									disabled={!activePage}
+									onClick={handleImportMarkdownAsChild}
+								/>
+							</>
+						)}
+					</DocBarMenu>
+				</AppDocBar>
+				<Fcd.Container className="pt-2 g-2 flex-fill" fluid detailsMode="adaptive">
+					<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+						<Panel elevation="mid" className="c-vbox fill">
+							<PageSidebar
+								client={notillo.client}
+								pages={pages}
+								expanded={expanded}
+								unfiledPage={unfiledPage}
+								onExpand={expand}
+								onToggleExpand={toggleExpand}
+								activePageId={activePageId}
+								onSelectPage={handleSelectPage}
+								userId={notillo.idTag}
+								readOnly={!canWrite}
+								tags={tags}
+								tagCounts={tagCounts}
+								activeTags={activeTags}
+								onToggleTag={handleToggleTag}
+								onClearTags={handleClearTags}
+								searchQuery={searchQuery}
+								onSearchChange={setSearchQuery}
+								filteredResults={filteredResults}
+								resultsTruncated={resultsTruncated}
+								isFiltering={isFiltering}
+								contentSearchPending={
+									!!searchQuery.trim() && contentSearchEnabled && !contentReady
+								}
+								contentSearchError={contentError}
+								onRetryContentSearch={retryContentSearch}
+								focusSearchSeq={focusSearchSeq}
+								onSearchActivate={enableContentSearch}
+								recentPageIds={recentPageIds}
+								onImportMarkdown={canWrite ? handleImportMarkdownInto : undefined}
+							/>
+						</Panel>
+					</Fcd.Filter>
+					{/* No `header`: the page title, its comments toggle and its actions
+					    all live in the DocBar's second crumb now. */}
+					<Fcd.Content>
+						{/* Non-blocking: the loaded pages are still usable and the editor
 					    stays mounted. `useAllPages` drops the error on its next `ready`
 					    snapshot, so a recovered connection clears this by itself. */}
-					{pagesError && (
-						<div className="c-hbox align-items-center g-2 c-alert error" role="alert">
-							<span className="flex-fill">{t('Page list may be out of date.')}</span>
-							<Button kind="link" size="small" onClick={retryPages}>
-								{t('Try again')}
-							</Button>
-						</div>
-					)}
-					{activePage ? (
-						blocksError ? (
-							<div className="c-vbox fill align-items-center justify-content-center">
-								<EmptyState
-									icon={<span className="text-3xl">⚠️</span>}
-									title={t('Could not load this page')}
-									description={blocksError.message}
-									action={<Button onClick={retryBlocks}>{t('Try again')}</Button>}
-								/>
+						{pagesError && (
+							<div
+								className="c-hbox align-items-center g-2 c-alert error"
+								role="alert"
+							>
+								<span className="flex-fill">
+									{t('Page list may be out of date.')}
+								</span>
+								<Button kind="link" size="small" onClick={retryPages}>
+									{t('Try again')}
+								</Button>
 							</div>
-						) : blocksLoading || loadedPageId !== activePageId ? (
-							<div className="c-vbox fill align-items-center justify-content-center">
-								<LoadingSpinner />
-							</div>
-						) : (
-							<NotilloEditorComponent
-								key={activePageId}
-								client={notillo.client}
-								pageId={activePage.id}
-								initialBlocks={blocks}
-								knownBlockIds={knownBlockIds}
-								knownBlockOrders={knownBlockOrders}
-								readOnly={!canWrite}
-								userId={notillo.idTag}
-								ownerTag={notillo.ownerTag}
-								token={notillo.token}
-								darkMode={notillo.darkMode}
-								fileId={notillo.fileId}
-								pages={pages}
-								onSelectPage={handleSelectPage}
-								onTagClick={handleToggleTag}
-								onEditorReady={handleEditorReady}
-								onCommentBlock={canComment ? handleCommentBlock : undefined}
-								tags={tags}
-								pageTags={activePage.tags}
-							/>
-						)
-					) : (
-						<div className="c-vbox fill align-items-center justify-content-center text-center p-4">
-							{pages.size === 0 ? (
-								<>
-									<div className="text-3xl opacity-50 mb-3">📝</div>
-									<p>{t('No pages yet.')}</p>
-									{canWrite && (
-										<p>{t('Create a page from the sidebar to get started.')}</p>
-									)}
-								</>
+						)}
+						{activePage ? (
+							blocksError ? (
+								<div className="c-vbox fill align-items-center justify-content-center">
+									<EmptyState
+										icon={<span className="text-3xl">⚠️</span>}
+										title={t('Could not load this page')}
+										description={blocksError.message}
+										action={
+											<Button onClick={retryBlocks}>{t('Try again')}</Button>
+										}
+									/>
+								</div>
+							) : blocksLoading || loadedPageId !== activePageId ? (
+								<div className="c-vbox fill align-items-center justify-content-center">
+									<LoadingSpinner />
+								</div>
 							) : (
-								<p>{t('Select a page from the sidebar.')}</p>
-							)}
-						</div>
-					)}
-				</Fcd.Content>
-				{canComment && showComments && (
-					<Fcd.Details
-						isVisible={showComments}
-						hide={() => setShowComments(false)}
-						header={
-							<ThreadListHeader
-								readOnly={!canComment}
-								onNewComment={() => commentPanelRef.current?.openNewComment()}
-							/>
-						}
-					>
-						<div className="c-vbox fill">
-							{activePageId && notillo.idTag && (
-								<CommentPanel
-									ref={commentPanelRef}
-									comments={comments}
-									threads={pageThreads}
-									pageId={activePageId}
-									idTag={notillo.idTag}
-									readOnly={!canComment}
-									pendingAnchor={pendingCommentAnchor}
-									pendingOffset={pendingCommentOffset}
-									onPendingAnchorConsumed={() => {
-										setPendingCommentAnchor(undefined)
-										setPendingCommentOffset(undefined)
-									}}
-									focusBlockId={focusBlockId}
-									onFocusBlockConsumed={() => setFocusBlockId(undefined)}
-									hideHeader
+								<NotilloEditorComponent
+									key={activePageId}
+									client={notillo.client}
+									presence={notillo.presence}
+									pageId={activePage.id}
+									initialBlocks={blocks}
+									knownBlockIds={knownBlockIds}
+									knownBlockOrders={knownBlockOrders}
+									readOnly={!canWrite}
+									userId={notillo.idTag}
+									ownerTag={notillo.ownerTag}
+									token={notillo.token}
+									darkMode={notillo.darkMode}
+									fileId={notillo.fileId}
+									pages={pages}
+									onSelectPage={handleSelectPage}
+									onTagClick={handleToggleTag}
+									onEditorReady={handleEditorReady}
+									onCommentBlock={canComment ? handleCommentBlock : undefined}
+									tags={tags}
+									pageTags={activePage.tags}
 								/>
-							)}
-						</div>
-					</Fcd.Details>
-				)}
-				<DialogContainer />
-			</Fcd.Container>
+							)
+						) : (
+							<div className="c-vbox fill align-items-center justify-content-center text-center p-4">
+								{pages.size === 0 ? (
+									<>
+										<div className="text-3xl opacity-50 mb-3">📝</div>
+										<p>{t('No pages yet.')}</p>
+										{canWrite && (
+											<p>
+												{t(
+													'Create a page from the sidebar to get started.'
+												)}
+											</p>
+										)}
+									</>
+								) : (
+									<p>{t('Select a page from the sidebar.')}</p>
+								)}
+							</div>
+						)}
+					</Fcd.Content>
+					{canComment && showComments && (
+						<Fcd.Details
+							isVisible={showComments}
+							hide={() => setShowComments(false)}
+							header={
+								<ThreadListHeader
+									readOnly={!canComment}
+									onNewComment={() => commentPanelRef.current?.openNewComment()}
+								/>
+							}
+						>
+							<div className="c-vbox fill">
+								{activePageId && notillo.idTag && (
+									<CommentPanel
+										ref={commentPanelRef}
+										comments={comments}
+										threads={pageThreads}
+										pageId={activePageId}
+										idTag={notillo.idTag}
+										readOnly={!canComment}
+										pendingAnchor={pendingCommentAnchor}
+										pendingOffset={pendingCommentOffset}
+										onPendingAnchorConsumed={() => {
+											setPendingCommentAnchor(undefined)
+											setPendingCommentOffset(undefined)
+										}}
+										focusBlockId={focusBlockId}
+										onFocusBlockConsumed={() => setFocusBlockId(undefined)}
+										hideHeader
+									/>
+								)}
+							</div>
+						</Fcd.Details>
+					)}
+					<DialogContainer />
+					<Toasts />
+				</Fcd.Container>
+			</div>
 			{canComment && popupBlockId && notillo.idTag && blockThreadMap.get(popupBlockId) && (
 				<CommentPopup
 					comments={comments}
@@ -919,7 +1034,7 @@ export function NotilloApp() {
 					onClose={() => setPopupBlockId(null)}
 				/>
 			)}
-		</>
+		</PresenceProvider>
 	)
 }
 

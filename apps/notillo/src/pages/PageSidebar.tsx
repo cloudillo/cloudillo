@@ -1,18 +1,22 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { type PresenceEntry, dedupePresenceUsers } from '@cloudillo/core'
 import {
 	ActionSheet,
 	ActionSheetItem,
+	AvatarGroup,
 	Button,
 	LoadingSpinner,
 	Menu,
 	MenuItem,
+	PresenceAvatar,
 	TreeItem,
 	type TreeItemDragData,
 	TreeView,
 	useDialog,
-	useIsMobile
+	useIsMobile,
+	usePresence
 } from '@cloudillo/react'
 import type { RtdbClient } from '@cloudillo/rtdb'
 import * as React from 'react'
@@ -42,6 +46,42 @@ import { PageSearchPanel } from './PageSearchPanel.js'
 import { useConsistencyCheck } from './useConsistencyCheck.js'
 
 type PageWithId = PageRecord & { id: string }
+
+/** Faces shown on a page row before the group collapses into a `+N` chip. */
+const PAGE_PRESENCE_MAX = 3
+
+/**
+ * Who else is on this page, as a stack of faces on its sidebar row.
+ *
+ * This is what a document-wide roster buys over a per-page one: you can see that
+ * someone is working on a page you are not looking at. The faces are the same
+ * `PresenceAvatar` the docbar uses, only smaller (see `.page-tree-presence` in
+ * style.css): a picture where one resolved, otherwise a monogram on the same
+ * identity hue, with a dashed ring for a guest, who has no verified identity
+ * behind the face.
+ */
+function PagePresence({ users, guestLabel }: { users: PresenceEntry[]; guestLabel: string }) {
+	const label = users.map((user) => user.name || user.idTag || guestLabel).join(', ')
+
+	return (
+		<AvatarGroup
+			className="page-tree-presence"
+			max={PAGE_PRESENCE_MAX}
+			size="xs"
+			title={label}
+			aria-label={label}
+		>
+			{users.map((user) => (
+				<PresenceAvatar
+					key={user.idTag ?? user.connId}
+					user={user}
+					size="xs"
+					guestLabel={guestLabel}
+				/>
+			))}
+		</AvatarGroup>
+	)
+}
 
 interface PageSidebarProps {
 	client: RtdbClient
@@ -112,6 +152,7 @@ export function PageSidebar({
 	const dialog = useDialog()
 	const isMobile = useIsMobile()
 	const checkPageConsistency = useConsistencyCheck(client)
+	const { entries: presenceEntries } = usePresence()
 	const [menuOpen, setMenuOpen] = React.useState(false)
 	const menuRef = React.useRef<HTMLDivElement>(null)
 
@@ -163,6 +204,24 @@ export function PageSidebar({
 		}
 		return index
 	}, [pages])
+
+	// Everyone else's page, off the document-wide roster. Grouped from `entries`
+	// (one per connection) and deduplicated per page afterwards, so two tabs of one
+	// person on one page show one face — the platform-wide rule, and the same
+	// ordering the DocBar uses.
+	const presenceByPage = React.useMemo(() => {
+		const byPage = new Map<string, PresenceEntry[]>()
+		for (const entry of presenceEntries) {
+			// `state` is peer-published and unvalidated.
+			const page = entry.state?.page
+			if (entry.self || typeof page !== 'string' || !page) continue
+			const list = byPage.get(page)
+			if (list) list.push(entry)
+			else byPage.set(page, [entry])
+		}
+		for (const [page, list] of byPage) byPage.set(page, dedupePresenceUsers(list))
+		return byPage
+	}, [presenceEntries])
 
 	// A subtree delete runs page by page and can take a while; the tree it is
 	// dismantling must not be edited underneath it, so the other mutating actions
@@ -422,6 +481,7 @@ export function PageSidebar({
 		const isExpanded = expanded.has(page.id)
 		const pageTitle = page.title || t('Untitled')
 		const deleteProgress = deleting?.pageId === page.id ? deleting : null
+		const pageUsers = presenceByPage.get(page.id)
 
 		return (
 			<TreeItem
@@ -434,7 +494,20 @@ export function PageSidebar({
 				hasChildren={hasChildren}
 				allowDropInside={!readOnly}
 				icon={page.icon ? <span>{page.icon}</span> : <IcPage />}
-				label={<span title={pageTitle}>{pageTitle}</span>}
+				label={
+					// The faces go in the label rather than in `actions`, which only
+					// becomes visible on hover — "someone is on this page" is exactly
+					// the thing you need to see without pointing at the row. The clamp
+					// lives on the title span, not on `.c-tree-item-label`: clipping
+					// the label would cut the outline that draws each face's identity
+					// ring.
+					<>
+						<span className="page-tree-title" title={pageTitle}>
+							{pageTitle}
+						</span>
+						{pageUsers && <PagePresence users={pageUsers} guestLabel={t('Guest')} />}
+					</>
+				}
 				isDraggable={!readOnly}
 				dragData={{ id: page.id, type: hasChildren ? 'container' : 'object' }}
 				dragging={draggedId === page.id}

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { getAppBus, getDocWsUrl } from '@cloudillo/core'
-import { RtdbClient } from '@cloudillo/rtdb'
+import { RtdbClient, type RtdbPresence, buildPresenceUser } from '@cloudillo/rtdb'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router-dom'
@@ -13,6 +13,7 @@ export function useNotillo() {
 	const { i18n } = useTranslation()
 	const location = useLocation()
 	const [client, setClient] = useState<RtdbClient | undefined>()
+	const [presence, setPresence] = useState<RtdbPresence | undefined>()
 	const [connected, setConnected] = useState(false)
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<Error | undefined>()
@@ -36,7 +37,10 @@ export function useNotillo() {
 	useEffect(() => {
 		if (!fileId) return
 		let rtdbClient: RtdbClient | undefined
+		let presenceFeed: RtdbPresence | undefined
 		let unmounted = false
+		let unsubscribeTheme: (() => void) | undefined
+		let unsubscribeIdentity: (() => void) | undefined
 
 		;(async () => {
 			try {
@@ -45,14 +49,21 @@ export function useNotillo() {
 
 				const bus = getAppBus()
 				const state = await bus.init(APP_NAME)
+				// Before anything that outlives this effect: the cleanup already
+				// ran with `unsubscribeTheme` still undefined if we were torn down
+				// while init was pending, so subscribing past this point would leak
+				// the listener for the lifetime of the page.
+				if (unmounted) return
+
 				setIdTag(bus.idTag)
 				setAccess(bus.access)
 				setDarkMode(bus.darkMode)
+				// BlockNote takes the theme as a prop, so the editor content would
+				// stay in the old theme while the chrome flips.
+				unsubscribeTheme = bus.onThemeChange(setDarkMode)
 				setToken(state.accessToken)
 				setNavParam(bus.parsedParams.get('nav') ?? undefined)
 				if (state.language) i18n.changeLanguage(state.language)
-
-				if (unmounted) return
 
 				// Documents live on their owner's instance; an ownerless document is our own.
 				const serverUrl = getDocWsUrl(ownerTag, bus.idTag)
@@ -71,7 +82,11 @@ export function useNotillo() {
 						reconnect: true,
 						reconnectDelay: 1000,
 						maxReconnectDelay: 30000,
-						debug: false
+						debug: false,
+						// Opt in to the presence channel. The flag rides in the socket
+						// URL, so it cannot be turned on later — without it every
+						// publish is a no-op.
+						presence: true
 					}
 				})
 
@@ -82,7 +97,21 @@ export function useNotillo() {
 					return
 				}
 
+				// Only the display name goes on the wire: the server stamps
+				// `user.idTag` from the socket's own token, and the colour and picture
+				// are derived from that tag by whoever is LOOKING. The page and block
+				// a peer is on ride in the same free-form state (`usePresencePublisher`)
+				// — the channel knows nothing about RTDB paths.
+				presenceFeed = rtdbClient.presence({ user: buildPresenceUser(bus) })
+				// A corrective `auth:init.push` can land after `bus.init()` resolves on
+				// a share-link mount, which would leave a stale name in every peer's
+				// roster.
+				unsubscribeIdentity = bus.onIdentityChange(() =>
+					presenceFeed?.setUser(buildPresenceUser(bus))
+				)
+
 				setClient(rtdbClient)
+				setPresence(presenceFeed)
 				setConnected(true)
 				setLoading(false)
 
@@ -99,6 +128,11 @@ export function useNotillo() {
 
 		return () => {
 			unmounted = true
+			unsubscribeTheme?.()
+			unsubscribeIdentity?.()
+			// Clears our roster entry at once, so peers do not wait for the socket to
+			// die for the avatar to go. `disconnect()` would close it too.
+			presenceFeed?.close()
 			if (rtdbClient) {
 				rtdbClient.disconnect().catch(console.error)
 			}
@@ -107,6 +141,7 @@ export function useNotillo() {
 
 	return {
 		client,
+		presence,
 		fileId,
 		ownerTag,
 		idTag,

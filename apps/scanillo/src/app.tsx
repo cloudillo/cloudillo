@@ -8,7 +8,16 @@ import {
 	getFileUrl,
 	type MediaFileResolvedPush
 } from '@cloudillo/core'
-import { Dialog, LoadingSpinner, Panel, ZoomableImage } from '@cloudillo/react'
+import {
+	AppDocBar,
+	Dialog,
+	DocBarMenu,
+	LoadingSpinner,
+	MenuItem,
+	Panel,
+	Toasts,
+	ZoomableImage
+} from '@cloudillo/react'
 import { RtdbClient } from '@cloudillo/rtdb'
 import * as React from 'react'
 import {
@@ -31,6 +40,7 @@ import { FAB } from './components/FAB.js'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
+import '@cloudillo/react/components.css'
 import './style.css'
 
 import { AnnotationOverlay } from './components/AnnotationOverlay.js'
@@ -685,6 +695,10 @@ function PageDetail({
 
 	return (
 		<div className="page-detail">
+			{/* The detail view is reached by an early return, not rendered on top of
+			    the grid, so it needs its own bar — without it the document name
+			    disappears while a page is open. */}
+			<AppDocBar />
 			<div className="page-detail-header">
 				<button className="c-button icon" onClick={onBack}>
 					<IcBack />
@@ -1653,12 +1667,25 @@ export function ScanilloApp() {
 						</div>
 					</div>
 				)}
+				<Toasts />
 			</div>
 		)
 	}
 
 	return (
 		<div className="scanillo-app c-vbox w-100 h-100">
+			{/* Only the page grid gets the bar. The camera, crop and filter views
+			    are reached by early returns above, and are full-screen by design. */}
+			<AppDocBar>
+				<DocBarMenu>
+					<MenuItem
+						icon={<IcPdf />}
+						label="Export as PDF"
+						disabled={!pages.length || exporting}
+						onClick={() => setShowExportDialog(true)}
+					/>
+				</DocBarMenu>
+			</AppDocBar>
 			<PageGrid
 				pages={pages}
 				loading={pagesLoading}
@@ -1667,17 +1694,9 @@ export function ScanilloApp() {
 				onSelectPage={setSelectedPageId}
 				onMovePage={movePage}
 			/>
+			{/* Export lives in the DocBar; the FABs are for the two primary
+			    creation actions. */}
 			<div className="fab-container">
-				{pages.length > 0 && (
-					<FAB
-						size="small"
-						onClick={() => setShowExportDialog(true)}
-						disabled={exporting}
-						title="Export as PDF"
-						label="Export as PDF"
-						icon={<IcPdf />}
-					/>
-				)}
 				{!isReadOnly && (
 					<>
 						<FAB
@@ -1716,6 +1735,7 @@ export function ScanilloApp() {
 					</div>
 				</div>
 			)}
+			<Toasts />
 		</div>
 	)
 }

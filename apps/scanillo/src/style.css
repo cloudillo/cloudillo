@@ -1,17 +1,18 @@
 /* Scanillo App Styles - Using OpalUI --col-* variables */
 
+/* No padding here: the DocBar must sit flush with the app edge, as in every other app.
+ * The inset lives on the scrolling region beneath the bar instead. */
 .scanillo-app {
-	padding: 1rem;
 	background: var(--col-container-low);
 	position: relative;
 }
 
-/* Page Grid */
+/* Page Grid — owns the app inset; the bottom value also clears the FABs. */
 .page-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
 	gap: 0.75rem;
-	padding-bottom: 5rem;
+	padding: 1rem 1rem 5rem;
 }
 
 .page-thumb {

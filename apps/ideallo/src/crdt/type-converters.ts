@@ -726,6 +726,7 @@ export function expandObject(
 				appId: docEmbed.aid,
 				navState: docEmbed.ns,
 				aspectRatio: docEmbed.ar,
+				aspectFixed: docEmbed.af,
 				cornerRadius: docEmbed.cr
 			} as DocumentObject
 		}
@@ -941,6 +942,9 @@ export function compactObject(obj: IdealloObject): StoredObject {
 			}
 			if (docObj.aspectRatio) {
 				stored.ar = docObj.aspectRatio
+			}
+			if (docObj.aspectFixed) {
+				stored.af = true
 			}
 			compactCornerRadius(stored, docObj.cornerRadius)
 			return stored

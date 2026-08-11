@@ -8,11 +8,14 @@ import * as React from 'react'
  * Shows objects with offset applied from awareness editing state
  */
 
+import { useDarkMode } from '@cloudillo/react'
+
 import { resolveConnectorRoutes } from '../connectors/index.js'
 import { findIncidentArrows } from '../connectors/lifecycle.js'
 import type { IdealloObject, StoredObject, YIdealloDocument } from '../crdt/index.js'
 import { toObjectId, tryExpandObject } from '../crdt/index.js'
 import type { IdealloPresence } from '../hooks/index.js'
+import { presenceColor } from '../utils/index.js'
 import { ObjectRenderer } from './ObjectRenderer.js'
 
 const GHOST_OPACITY = 0.5
@@ -55,6 +58,10 @@ export function GhostEditing({
 	ownerTag,
 	token
 }: GhostEditingProps) {
+	// Before the early return, and subscribed rather than threaded down: this sits
+	// inside `CanvasScene`'s `React.memo` boundary, which `darkMode` is not a prop of.
+	const dark = useDarkMode()
+
 	if (!objects) return null
 
 	return (
@@ -130,7 +137,7 @@ export function GhostEditing({
 							<text
 								x={getObjectX(labelAnchor) + dx + 12}
 								y={getObjectY(labelAnchor) + dy - 8}
-								fill={user.color}
+								fill={presenceColor(user.idTag, clientId, dark)}
 								fontSize={11}
 								fontFamily="system-ui, sans-serif"
 								fontWeight={500}

@@ -7,8 +7,10 @@ import * as React from 'react'
  * Shown as dashed lines with user label
  */
 
+import { useDarkMode } from '@cloudillo/react'
+
 import type { IdealloPresence } from '../hooks/index.js'
-import { pointsToSvgPath } from '../utils/index.js'
+import { pointsToSvgPath, presenceColor } from '../utils/index.js'
 import { colorToCss } from '../utils/palette.js'
 
 const GHOST_OPACITY = 0.6
@@ -19,6 +21,10 @@ export interface GhostStrokesProps {
 }
 
 export function GhostStrokes({ remotePresence }: GhostStrokesProps) {
+	// Subscribed, not threaded down: this sits inside `CanvasScene`'s `React.memo`
+	// boundary, which `darkMode` is not a prop of.
+	const dark = useDarkMode()
+
 	return (
 		<g className="ghost-strokes" pointerEvents="none">
 			{Array.from(remotePresence.entries()).map(([clientId, presence]) => {
@@ -47,7 +53,7 @@ export function GhostStrokes({ remotePresence }: GhostStrokesProps) {
 							<text
 								x={points[points.length - 1][0] + 12}
 								y={points[points.length - 1][1] - 8}
-								fill={user.color}
+								fill={presenceColor(user.idTag, clientId, dark)}
 								fontSize={11}
 								fontFamily="system-ui, sans-serif"
 								fontWeight={500}

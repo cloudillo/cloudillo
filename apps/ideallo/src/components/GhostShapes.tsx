@@ -8,11 +8,14 @@
 
 import * as React from 'react'
 
+import { useDarkMode } from '@cloudillo/react'
+
 import type { ConnectorContext } from '../connectors/index.js'
 import { resolvePreviewRoute } from '../connectors/index.js'
 import type { IdealloPresence } from '../hooks/index.js'
 import { polygonPresetPoints } from '../tools/shape-presets.js'
 import type { ShapePreview } from '../tools/types.js'
+import { presenceColor } from '../utils/index.js'
 import { colorToCss } from '../utils/palette.js'
 import { ConnectorPath } from './ConnectorPath.js'
 
@@ -55,6 +58,10 @@ export interface GhostShapesProps {
 }
 
 export function GhostShapes({ remotePresence, connectorContext }: GhostShapesProps) {
+	// Subscribed, not threaded down: this sits inside `CanvasScene`'s `React.memo`
+	// boundary, which `darkMode` is not a prop of.
+	const dark = useDarkMode()
+
 	return (
 		<g className="ghost-shapes" pointerEvents="none">
 			{Array.from(remotePresence.entries()).map(([clientId, presence]) => {
@@ -136,7 +143,7 @@ export function GhostShapes({ remotePresence, connectorContext }: GhostShapesPro
 							<text
 								x={endX + 12}
 								y={endY - 8}
-								fill={user.color}
+								fill={presenceColor(user.idTag, clientId, dark)}
 								fontSize={11}
 								fontFamily="system-ui, sans-serif"
 								fontWeight={500}

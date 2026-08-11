@@ -20,8 +20,10 @@ import './style.css'
 
 import { calculateArcRadius } from '@cloudillo/canvas-tools'
 import { getAppBus } from '@cloudillo/core'
-import { useIsMobile } from '@cloudillo/react'
+import { AppDocBar, DocBarMenu, MenuItem, Toasts, useIsMobile } from '@cloudillo/react'
 import type Quill from 'quill'
+import { useTranslation } from 'react-i18next'
+import { PiExportBold as IcExport } from 'react-icons/pi'
 import {
 	type ResizeHandle,
 	type SvgCanvasContext,
@@ -59,6 +61,7 @@ import {
 	sendBackward,
 	sendToBack,
 	translateObject,
+	updateDocumentAspect,
 	updateDocumentNavState,
 	updateObjectFields
 } from './crdt/index.js'
@@ -87,10 +90,17 @@ import {
 } from './tools/index.js'
 import { getObjectBounds, getRotatedObjectBounds } from './utils/bounds.js'
 import { isEditableTarget, isPopoverOpen } from './utils/editable-target.js'
-import { normalizeAngle, scaleConnectorTerminals, scalePointsIntoBounds } from './utils/geometry.js'
+import {
+	normalizeAngle,
+	resizeAspectRatio,
+	scaleBoxIntoBounds,
+	scaleConnectorTerminals,
+	scalePointsIntoBounds
+} from './utils/geometry.js'
 import { scalePathData } from './utils/path-scaling.js'
 
 export function IdealloApp() {
+	const { t } = useTranslation()
 	const ideallo = useIdealloDocument()
 	const canvasRef = React.useRef<CanvasHandle>(null)
 
@@ -173,17 +183,30 @@ export function IdealloApp() {
 		[flushNavState]
 	)
 
-	// Callback for embedded document view state changes (cache only)
+	/*
+	 * Callback for embedded document view state changes.
+	 *
+	 * The viewState is only CACHED, flushed on deactivate, so scrolling inside an embed does not
+	 * spam the CRDT. The aspect metadata is written straight through instead: it arrives once at
+	 * load and the resize gizmo needs it before any deactivate. updateDocumentAspect is itself
+	 * a no-op when nothing changed, and writes under LAYOUT_ORIGIN so it costs no undo step.
+	 *
+	 * idealloRef keeps this identity stable (it is passed down into every ObjectRenderer).
+	 */
 	const handleDocumentViewStateChange = React.useCallback(
 		(
 			objectId: string,
 			viewState: string,
 			aspectRatio?: [number, number],
-			_aspectFixed?: boolean
+			aspectFixed?: boolean
 		) => {
 			pendingNavStateRef.current.set(objectId, { viewState, aspectRatio })
+			if (isReadOnly) return
+			const { yDoc, doc } = idealloRef.current
+			if (!yDoc || !doc) return
+			updateDocumentAspect(yDoc, doc, objectId as ObjectId, aspectRatio, aspectFixed)
 		},
-		[]
+		[isReadOnly]
 	)
 
 	// Selection state
@@ -289,6 +312,12 @@ export function IdealloApp() {
 		clearSelection()
 		ideallo.redo()
 	}, [clearSelection, ideallo.redo])
+
+	const handleExport = React.useCallback(() => {
+		if (ideallo.yDoc && ideallo.doc) {
+			downloadExport(ideallo.yDoc, ideallo.doc)
+		}
+	}, [ideallo.yDoc, ideallo.doc])
 
 	// Canvas context ref for coordinate transforms
 	const canvasContextRef = React.useRef<SvgCanvasContext | null>(null)
@@ -767,14 +796,14 @@ export function IdealloApp() {
 	/** Rotation is wrong for ANY bound connector - see isBoundConnector for why */
 	const isBoundConnectorSelected = selectedArrow ? isBoundConnector(selectedArrow) : false
 
-	// Compute aspect ratio for single image selection
+	// Aspect ratio a single selection must be locked to (image, or an aspect-fixed embed)
 	// This is used by useResizable for aspect-locked resize
 	const selectionAspectRatio = React.useMemo(() => {
 		if (selectedIds.size !== 1 || !ideallo.doc) return undefined
 		const id = Array.from(selectedIds)[0]
 		const obj = getObject(ideallo.doc, id)
-		if (obj?.type !== 'image') return undefined
-		return obj.width / obj.height
+		if (!obj) return undefined
+		return resizeAspectRatio(obj)
 	}, [selectedIds, ideallo.doc, ideallo.objects])
 
 	// Compute corner aspect lock for drawn shapes (not images which have explicit ratio)
@@ -997,20 +1026,27 @@ export function IdealloApp() {
 						const objNewX = originalBounds.x + dx + relX * scaleX
 						const objNewY = originalBounds.y + dy + relY * scaleY
 
+						// 'document' rides in this branch ON PURPOSE: applyBoundsOverride's
+						// default: case (Canvas.tsx) previews an embed out of the same plain
+						// box, so preview and commit cannot diverge and it cannot snap back.
+						// Known, preview-consistent limitation: in a non-uniformly resized
+						// multi-selection an aspect-fixed embed distorts, because scaleX and
+						// scaleY are applied independently - exactly what the preview shows.
 						if (
 							origObj.type === 'rect' ||
 							origObj.type === 'ellipse' ||
 							origObj.type === 'text' ||
-							origObj.type === 'sticky'
+							origObj.type === 'sticky' ||
+							origObj.type === 'document'
 						) {
-							const objNewWidth = origObj.width * scaleX
-							const objNewHeight = origObj.height * scaleY
-							updateObjectFields(yDoc, doc, objectId, {
-								x: objNewX,
-								y: objNewY,
-								width: Math.max(10, objNewWidth),
-								height: Math.max(10, objNewHeight)
-							})
+							// Shared with the PREVIEW so the two cannot map out of different
+							// source boxes - see scaleBoxIntoBounds in utils/geometry.ts.
+							updateObjectFields(
+								yDoc,
+								doc,
+								objectId,
+								scaleBoxIntoBounds(origObj, originalBounds, bounds)
+							)
 						} else if (origObj.type === 'connector') {
 							// Shared with the resize PREVIEW (applyBoundsOverride in Canvas.tsx) so
 							// the two cannot map out of different source boxes and snap on release.
@@ -1959,6 +1995,18 @@ export function IdealloApp() {
 
 	return (
 		<div className="ideallo-app" data-tool={ideallo.activeTool} tabIndex={0}>
+			{/* Outside every read-only guard below: a viewer still needs the
+			    document's name, the roster, and export. */}
+			<AppDocBar awareness={ideallo.awareness}>
+				<DocBarMenu>
+					<MenuItem
+						icon={<IcExport />}
+						label={t('Export to JSON')}
+						onClick={handleExport}
+					/>
+				</DocBarMenu>
+			</AppDocBar>
+
 			{/* Canvas */}
 			{/* Every prop below must be a stable reference or a primitive: Canvas passes most of them
 			    straight into the memoised CanvasScene, and one inline arrow or object literal here
@@ -2057,11 +2105,6 @@ export function IdealloApp() {
 					onToolLockChange={ideallo.setToolLocked}
 					onUndo={handleUndo}
 					onRedo={handleRedo}
-					onExport={() => {
-						if (ideallo.yDoc && ideallo.doc) {
-							downloadExport(ideallo.yDoc, ideallo.doc)
-						}
-					}}
 					onBringToFront={() => applyZOrder('front')}
 					onBringForward={() => applyZOrder('forward')}
 					onSendBackward={() => applyZOrder('backward')}
@@ -2103,12 +2146,7 @@ export function IdealloApp() {
 				{announcement}
 			</div>
 
-			{/* Status indicator */}
-			<div className="ideallo-status">
-				{ideallo.remotePresence.size > 0 && (
-					<span className="ideallo-users">{ideallo.remotePresence.size + 1} users</span>
-				)}
-			</div>
+			<Toasts />
 		</div>
 	)
 }

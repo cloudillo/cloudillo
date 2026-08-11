@@ -258,6 +258,7 @@ export interface StoredDocument extends StoredObjectBase, StoredCornerRadius {
 	aid?: string // appId (resolved from contentType)
 	ns?: string // navigation state (opaque, app-specific)
 	ar?: [number, number] // aspect ratio from embedded doc (e.g. [16, 9])
+	af?: boolean // aspect ratio is FIXED: resize must preserve `ar`
 }
 
 // Union of all stored object types

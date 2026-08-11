@@ -7,20 +7,28 @@ import * as React from 'react'
  * Shows cursor pointer with user name label
  */
 
+import { useDarkMode } from '@cloudillo/react'
+
 import type { IdealloPresence } from '../hooks/index.js'
+import { presenceColor } from '../utils/index.js'
 
 export interface CursorsProps {
 	remotePresence: Map<number, IdealloPresence>
 }
 
 export function Cursors({ remotePresence }: CursorsProps) {
+	// Subscribed, not threaded down: this sits inside `CanvasScene`'s `React.memo`
+	// boundary, which `darkMode` is not a prop of.
+	const dark = useDarkMode()
+
 	return (
 		<g className="remote-cursors" pointerEvents="none">
 			{Array.from(remotePresence.entries()).map(([clientId, presence]) => {
 				if (!presence.cursor || !presence.user) return null
 
 				const { x, y } = presence.cursor
-				const { name, color } = presence.user
+				const { name } = presence.user
+				const color = presenceColor(presence.user.idTag, clientId, dark)
 
 				return (
 					<g key={`cursor-${clientId}`} transform={`translate(${x}, ${y})`}>

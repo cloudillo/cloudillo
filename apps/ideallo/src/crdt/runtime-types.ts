@@ -225,6 +225,7 @@ export interface DocumentObject extends IdealloObjectBase {
 	appId?: string // resolved from contentType
 	navState?: string // navigation state (opaque, app-specific)
 	aspectRatio?: [number, number] // aspect ratio from embedded doc
+	aspectFixed?: boolean // embedded doc requires its aspect ratio be preserved on resize
 	cornerRadius?: number
 }
 

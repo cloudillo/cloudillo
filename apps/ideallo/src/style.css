@@ -395,50 +395,9 @@ body,
 	background: rgba(255, 255, 255, 0.08);
 }
 
-.dark .ideallo-status {
-	background: rgba(30, 30, 30, 0.9);
-	border-color: rgba(255, 255, 255, 0.1);
-	color: #aaa;
-}
-
 /* No dark-mode overrides for ideallo-property-*: OpalUI tokens carry the theme, as for
  * .ideallo-toolbar. The bar is icon-only, so an icon illegible in one theme loses the control's
  * only identification. */
-
-/* Status indicator in top-right */
-.ideallo-status {
-	position: fixed;
-	top: 16px;
-	right: 16px;
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding: 8px 12px;
-	background: rgba(255, 255, 255, 0.9);
-	backdrop-filter: blur(10px);
-	-webkit-backdrop-filter: blur(10px);
-	border: 1px solid rgba(0, 0, 0, 0.1);
-	border-radius: 8px;
-	font-family: system-ui, -apple-system, sans-serif;
-	font-size: 13px;
-	color: #666;
-	z-index: 100;
-}
-
-.ideallo-users {
-	display: flex;
-	align-items: center;
-	gap: 4px;
-}
-
-.ideallo-users::before {
-	content: '';
-	display: block;
-	width: 8px;
-	height: 8px;
-	background: #2f9e44;
-	border-radius: 50%;
-}
 
 /* Zoom controls in bottom-left */
 .ideallo-zoom-controls {

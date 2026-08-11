@@ -5,6 +5,8 @@
  * Color palette and utilities for Ideallo
  */
 
+import { idAccent } from '@cloudillo/core'
+
 // Core drawing colors (from design plan)
 export const PALETTE = {
 	black: '#1e1e1e',
@@ -56,21 +58,22 @@ export const STROKE_WIDTHS = [1, 2, 4, 8] as const
 export const CORNER_RADII = [0, 4, 12, 24] as const
 
 /**
- * Generate a consistent color from a string (user ID)
- * Used for awareness/presence coloring
+ * The colour to draw a collaborator's cursor, ghost or label in.
+ *
+ * Derived by the VIEWER from the peer's idTag rather than read off the wire, so
+ * a peer cannot assert an arbitrary colour; and the idTag it derives from is
+ * stamped by the `/ws/crdt` relay from the sender's own token (see
+ * `cloudillo-rs/crates/cloudillo-crdt/src/websocket.rs`), so it cannot be forged
+ * either. Anonymous guests fall back to their awareness clientId, which is
+ * stable for the length of their session.
+ *
+ * `idHue` is the platform-wide rule, so the same person is the same colour in
+ * every app. SVG attributes cannot use the `.c-id-color` CSS route, so this
+ * returns a literal string; the caller passes the theme, because a hidden bus
+ * read cannot appear in a memo's prop comparison or a `useEffect` dep array.
  */
-export async function str2color(str: string): Promise<string> {
-	const encoder = new TextEncoder()
-	const data = encoder.encode(str)
-	const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-	const hashArray = new Uint8Array(hashBuffer)
-
-	// Use first 3 bytes for RGB, but ensure colors are not too dark
-	const r = Math.floor(hashArray[0] * 0.6 + 100)
-	const g = Math.floor(hashArray[1] * 0.6 + 100)
-	const b = Math.floor(hashArray[2] * 0.6 + 100)
-
-	return `rgb(${r}, ${g}, ${b})`
+export function presenceColor(idTag: string | undefined, clientId: number, dark: boolean): string {
+	return idAccent(idTag ?? String(clientId), dark)
 }
 
 /**

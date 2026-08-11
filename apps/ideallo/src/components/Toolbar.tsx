@@ -11,11 +11,10 @@
  * called or which key arms it.
  */
 
-import { ActionSheet, ActionSheetDivider, ActionSheetItem, useIsMobile } from '@cloudillo/react'
+import { ActionSheet, ActionSheetItem, useIsMobile } from '@cloudillo/react'
 import * as React from 'react'
 import type { IconType } from 'react-icons'
 import {
-	PiExportBold as IcExport,
 	PiLockBold as IcLocked,
 	PiDotsThreeBold as IcMore,
 	PiArrowArcRightBold as IcRedo,
@@ -48,7 +47,6 @@ export interface ToolbarProps {
 	onToolLockChange: (locked: boolean) => void
 	onUndo: () => void
 	onRedo: () => void
-	onExport: () => void
 	onBringToFront: () => void
 	onBringForward: () => void
 	onSendBackward: () => void
@@ -235,7 +233,6 @@ export function Toolbar({
 	onToolLockChange,
 	onUndo,
 	onRedo,
-	onExport,
 	onBringToFront,
 	onBringForward,
 	onSendBackward,
@@ -336,6 +333,14 @@ export function Toolbar({
 		}),
 		[activeTool, toolLocked, pickTool]
 	)
+
+	// The More sheet lives inside a `hasSelection` guard, so a selection cleared
+	// while it is open unmounts it without an `onClose` — leaving `moreOpen` true
+	// and popping the sheet on the next selection. A remote peer deleting the
+	// object, an undo or `clearSelection()` all get here.
+	React.useEffect(() => {
+		if (!hasSelection) setMoreOpen(false)
+	}, [hasSelection])
 
 	const layerSection: ToolPopoverSection = {
 		key: 'layer',
@@ -463,14 +468,27 @@ export function Toolbar({
 					<IcRedo size={22} />
 				</button>
 
-				{/* More */}
-				<button className="ideallo-tool-btn" onClick={() => setMoreOpen(true)} title="More">
-					<IcMore size={22} />
-				</button>
+				{/* More — gated on the selection, because the layer actions are all
+				    that is left in it. Modes are NOT here: the tool lock sits in the
+				    Tools flyout, next to the tools it governs, rather than two taps
+				    deep among unrelated commands. Export is NOT here either: it is a
+				    document-wide action, so it lives in the DocBar, which — unlike
+				    this toolbar — is present in read-only too. */}
+				{hasSelection && (
+					<>
+						<button
+							className="ideallo-tool-btn"
+							onClick={() => setMoreOpen(true)}
+							title="More"
+						>
+							<IcMore size={22} />
+						</button>
 
-				<ActionSheet isOpen={moreOpen} onClose={() => setMoreOpen(false)} title="Actions">
-					{hasSelection && (
-						<>
+						<ActionSheet
+							isOpen={moreOpen}
+							onClose={() => setMoreOpen(false)}
+							title="Actions"
+						>
 							{LAYER_ACTIONS.map((action) => (
 								<ActionSheetItem
 									key={action.id}
@@ -482,20 +500,9 @@ export function Toolbar({
 									}}
 								/>
 							))}
-							<ActionSheetDivider />
-						</>
-					)}
-					{/* Modes are NOT here: the tool lock sits in the Tools flyout, next to the
-					    tools it governs, rather than two taps deep among unrelated commands */}
-					<ActionSheetItem
-						icon={<IcExport size={20} />}
-						label="Export"
-						onClick={() => {
-							onExport()
-							setMoreOpen(false)
-						}}
-					/>
-				</ActionSheet>
+						</ActionSheet>
+					</>
+				)}
 			</div>
 		)
 	}
@@ -656,12 +663,8 @@ export function Toolbar({
 				</>
 			)}
 
-			<div className="ideallo-toolbar-divider" />
-
-			{/* Export */}
-			<button className="ideallo-tool-btn" onClick={onExport} title="Export">
-				<IcExport size={24} />
-			</button>
+			{/* Export lives in the DocBar: a document-wide action, and one a
+			    read-only viewer needs even though this toolbar is unmounted then. */}
 
 			{/*
 				Modes, out of the tool row: a padlock sitting inline among the tools read as a tool

@@ -9,8 +9,8 @@ export {
 	getContrastColor,
 	PALETTE,
 	PALETTE_COLORS,
+	presenceColor,
 	STROKE_WIDTHS,
-	str2color,
 	UI
 } from './colors.js'
 export type {
@@ -27,11 +27,14 @@ export {
 	expandBounds,
 	getBoundsCenter,
 	getBoundsFromPoints,
+	MIN_BOX_SIZE,
 	normalizeAngle,
 	perpendicularDistance,
 	pointInBounds,
 	radToDeg,
+	resizeAspectRatio,
 	rotatePoint,
+	scaleBoxIntoBounds,
 	scaleConnectorTerminals,
 	scalePointsIntoBounds
 } from './geometry.js'

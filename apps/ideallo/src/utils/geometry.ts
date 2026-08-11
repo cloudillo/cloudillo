@@ -5,7 +5,7 @@
  * Geometry utilities for canvas operations
  */
 
-import type { Bounds } from '../crdt/index.js'
+import type { Bounds, IdealloObject } from '../crdt/index.js'
 
 export type Point = [number, number]
 
@@ -145,6 +145,41 @@ export function scalePointsIntoBounds(
 	const scaleX = from.width ? to.width / from.width : 1
 	const scaleY = from.height ? to.height / from.height : 1
 	return points.map(([x, y]) => [to.x + (x - from.x) * scaleX, to.y + (y - from.y) * scaleY])
+}
+
+/** Minimum edge a resized plain box may land on; matches useResizable's own floor. */
+export const MIN_BOX_SIZE = 10
+
+/**
+ * Map a plain box from one bounding box into another, for a resize.
+ *
+ * ONE implementation for both halves of a resize - the PREVIEW (applyBoundsOverride's `default:`
+ * case in Canvas.tsx) and the COMMIT (onResizeEnd in app.tsx) - because the two must map out of the
+ * same source box by the same rule or the shape snaps back on pointer-up.
+ *
+ * 'document' rides in this branch ON PURPOSE: the preview draws an embed out of the same plain box,
+ * so preview and commit cannot diverge. Known, preview-consistent limitation: in a non-uniformly
+ * resized multi-selection an aspect-fixed embed distorts, because scaleX and scaleY are applied
+ * independently - exactly what the preview shows.
+ */
+export function scaleBoxIntoBounds(
+	obj: { x: number; y: number; width: number; height: number },
+	from: Bounds,
+	to: Bounds
+): { x: number; y: number; width: number; height: number } {
+	const scaleX = to.width / from.width
+	const scaleY = to.height / from.height
+	const dx = to.x - from.x
+	const dy = to.y - from.y
+	// Position within the selection, carried through the scale
+	const relX = obj.x - from.x
+	const relY = obj.y - from.y
+	return {
+		x: from.x + dx + relX * scaleX,
+		y: from.y + dy + relY * scaleY,
+		width: Math.max(MIN_BOX_SIZE, obj.width * scaleX),
+		height: Math.max(MIN_BOX_SIZE, obj.height * scaleY)
+	}
 }
 
 /** The connector fields the resize transform below reads. Structural so tests need no CRDT record. */
@@ -599,6 +634,28 @@ export function circleIntersectsBounds(
 	const dx = cx - closestX
 	const dy = cy - closestY
 	return dx * dx + dy * dy <= radius * radius
+}
+
+/**
+ * The aspect ratio `useResizable` must lock a single selection to, or undefined for a free resize.
+ *
+ * An image is intrinsically aspect-locked. An embedded document is locked only when the embedded app
+ * reports that its aspect is FIXED (`aspectFixed`, pushed over the bus as `embed:viewstate.push`).
+ *
+ * Every denominator is checked: these records are peer-writable, and NaN/Infinity must never reach
+ * the resize hook.
+ */
+export function resizeAspectRatio(obj: IdealloObject): number | undefined {
+	if (obj.type === 'image') {
+		return obj.height > 0 ? obj.width / obj.height : undefined
+	}
+	if (obj.type === 'document') {
+		if (!obj.aspectFixed || !obj.aspectRatio) return undefined
+		const [w, h] = obj.aspectRatio
+		if (!(w > 0) || !(h > 0)) return undefined
+		return w / h
+	}
+	return undefined
 }
 
 // vim: ts=4

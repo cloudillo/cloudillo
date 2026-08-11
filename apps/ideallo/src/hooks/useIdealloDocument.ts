@@ -6,6 +6,7 @@
  * Simpler than prezillo - no views/containers, just a flat object list
  */
 
+import { initPresence } from '@cloudillo/crdt'
 import { useCloudilloEditor } from '@cloudillo/react'
 import * as React from 'react'
 import { useY } from 'react-yjs'
@@ -29,12 +30,16 @@ import {
 } from '../crdt/index.js'
 import { canKeepActive } from '../tools/index.js'
 import type { ShapePreview, ToolType } from '../tools/types.js'
-import { str2color } from '../utils/index.js'
 
 export interface IdealloPresence {
+	/**
+	 * What goes ON THE WIRE. No colour: the viewer derives it from `idTag` via
+	 * `presenceColor`, so a peer cannot assert someone else's identity.
+	 */
 	user: {
 		name: string
-		color: string
+		/** Absent for anonymous guests. */
+		idTag?: string
 	}
 	cursor?: {
 		x: number
@@ -256,17 +261,18 @@ export function useIdealloDocument(): UseIdealloDocumentResult {
 	// Get awareness instance
 	const awareness = cloudillo.provider?.awareness ?? null
 
-	// Set up awareness with consistent user color
+	// Publish who we are. `initPresence` writes the same shape every Cloudillo
+	// app uses, under the same `user` field.
 	React.useEffect(() => {
-		if (!awareness || !cloudillo.idTag) return
-
-		str2color(cloudillo.idTag).then((color) => {
-			awareness.setLocalStateField('user', {
-				name: cloudillo.displayName || cloudillo.idTag || 'Anonymous',
-				color
-			})
+		if (!awareness) return
+		initPresence(awareness, {
+			idTag: cloudillo.idTag,
+			displayName: cloudillo.displayName,
+			// Without this a share-link guest publishes the owner's idTag —
+			// `cloudillo.idTag` falls back to it.
+			authenticated: cloudillo.authenticated
 		})
-	}, [awareness, cloudillo.idTag, cloudillo.displayName])
+	}, [awareness, cloudillo.idTag, cloudillo.displayName, cloudillo.authenticated])
 
 	// Listen for awareness changes from remote clients
 	// IMPORTANT: Only update state when content actually changes to avoid

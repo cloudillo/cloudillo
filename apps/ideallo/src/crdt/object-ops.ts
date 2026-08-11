@@ -989,4 +989,53 @@ export function updateDocumentNavState(
 	}, yDoc.clientID)
 }
 
+/**
+ * Update the aspect metadata (ratio + fixed flag) of a document embed object.
+ *
+ * Separate from updateDocumentNavState because navState is flushed lazily (on deactivate, so
+ * scrolling inside an embed does not spam the CRDT) while the aspect arrives once at load and the
+ * resize gizmo needs it immediately. Written under LAYOUT_ORIGIN: an embed reporting its own aspect
+ * follows from loading, not from a user edit, so it must not become a stray undo step.
+ */
+export function updateDocumentAspect(
+	yDoc: Y.Doc,
+	doc: YIdealloDocument,
+	objectId: ObjectId,
+	aspectRatio?: [number, number],
+	aspectFixed?: boolean
+): void {
+	const existing = doc.o.get(objectId)
+	if (existing?.t !== 'D') return
+
+	const stored = existing as StoredDocument
+	// The embed pushes viewstate on every scroll - this guard keeps the write to once per load.
+	// Compare against what the write below would actually produce: an absent aspectRatio KEEPS the
+	// stored one, so a push that omits it must not count as a change.
+	const nextAr = aspectRatio ?? stored.ar
+	if (
+		stored.ar?.[0] === nextAr?.[0] &&
+		stored.ar?.[1] === nextAr?.[1] &&
+		!!stored.af === !!aspectFixed
+	) {
+		return
+	}
+
+	yDoc.transact(() => {
+		// Re-read: objects live as plain JS objects, so every write is a whole-record replace
+		const current = doc.o.get(objectId)
+		if (current?.t !== 'D') return
+
+		const updated: StoredDocument = { ...(current as StoredDocument) }
+		if (aspectRatio) {
+			updated.ar = aspectRatio
+		}
+		if (aspectFixed) {
+			updated.af = true
+		} else {
+			delete updated.af
+		}
+		doc.o.set(objectId, updated)
+	}, LAYOUT_ORIGIN)
+}
+
 // vim: ts=4

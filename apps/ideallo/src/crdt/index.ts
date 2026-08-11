@@ -44,6 +44,7 @@ export {
 	toggleObjectLock,
 	translateObject,
 	tryExpandObject,
+	updateDocumentAspect,
 	updateDocumentNavState,
 	updateObject,
 	updateObjectFields,

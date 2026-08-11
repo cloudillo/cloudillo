@@ -52,7 +52,6 @@ function baseProps(): ToolbarProps {
 		onToolLockChange: () => {},
 		onUndo: () => {},
 		onRedo: () => {},
-		onExport: () => {},
 		onBringToFront: () => {},
 		onBringForward: () => {},
 		onSendBackward: () => {},

@@ -17,26 +17,20 @@ import {
 	PiTextBBold as IcBold,
 	PiArrowUpBold as IcBringForward,
 	PiArrowLineUpBold as IcBringToFront,
-	PiBugBold as IcDebug,
 	PiTrashBold as IcDelete,
 	PiFileBold as IcDocument,
 	PiCopyBold as IcDuplicate,
 	PiCircleBold as IcEllipse,
-	PiExportBold as IcExport,
 	PiGridFourBold as IcGrid,
 	PiImageBold as IcImage,
 	PiTextItalicBold as IcItalic,
 	PiTextTBold as IcLabel,
 	PiMinusBold as IcLine,
-	PiDotsThreeVerticalBold as IcMenu,
 	PiSidebarSimpleBold as IcPanel,
-	PiFilePdfBold as IcPDF,
 	PiChartBarBold as IcPollFrame,
-	PiFilePptBold as IcPPTX,
 	PiQrCodeBold as IcQrCode,
 	PiRectangleBold as IcRect,
 	PiArrowArcRightBold as IcRedo,
-	PiWrenchBold as IcRepair,
 	PiSelection as IcSelect,
 	PiArrowDownBold as IcSendBackward,
 	PiArrowLineDownBold as IcSendToBack,
@@ -56,9 +50,6 @@ import { mergeClasses } from '../utils'
 import { FONT_SIZES } from '../utils/text-styles'
 import { SymbolPicker } from './SymbolPicker'
 import { ThemeDropdown } from './ThemeDropdown'
-
-// App version injected at build time
-declare const __APP_VERSION__: string
 
 export interface ToolbarTextStyle {
 	hasSelection: boolean
@@ -91,10 +82,6 @@ export interface ToolbarCmds {
 	onDuplicate?: () => void
 	onUndo?: () => void
 	onRedo?: () => void
-	onExport?: () => void
-	onExportPDF?: () => void
-	onExportPPTX?: () => void
-	onCheckDocument?: () => void
 }
 
 export interface ToolbarProps {
@@ -108,8 +95,6 @@ export interface ToolbarProps {
 	hasSelection: boolean
 	canUndo: boolean
 	canRedo: boolean
-	isExportingPDF?: boolean
-	isExportingPPTX?: boolean
 	// Grouped props
 	cmds: ToolbarCmds
 	zCmds: ToolbarZCmds
@@ -133,8 +118,6 @@ export function Toolbar({
 	hasSelection,
 	canUndo,
 	canRedo,
-	isExportingPDF,
-	isExportingPPTX,
 	cmds,
 	zCmds,
 	snap,
@@ -145,22 +128,6 @@ export function Toolbar({
 	selectedSymbolId,
 	onSelectSymbol
 }: ToolbarProps) {
-	const [menuOpen, setMenuOpen] = React.useState(false)
-	const menuRef = React.useRef<HTMLDivElement>(null)
-
-	// Close menu when clicking outside
-	React.useEffect(() => {
-		function handleClickOutside(event: MouseEvent) {
-			if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-				setMenuOpen(false)
-			}
-		}
-		if (menuOpen) {
-			document.addEventListener('mousedown', handleClickOutside)
-			return () => document.removeEventListener('mousedown', handleClickOutside)
-		}
-	}, [menuOpen])
-
 	return (
 		<div className={mergeClasses('c-nav c-hbox p-1 mb-1', className)}>
 			{/* Undo/Redo */}
@@ -179,28 +146,6 @@ export function Toolbar({
 				title="Redo"
 			>
 				<IcRedo />
-			</button>
-
-			<div className="c-toolbar-divider" />
-
-			{/* PDF Export - keep prominent */}
-			<button
-				onClick={cmds.onExportPDF}
-				className="c-button icon"
-				disabled={isExportingPDF}
-				title="Export to PDF"
-			>
-				<IcPDF />
-			</button>
-
-			{/* PPTX Export */}
-			<button
-				onClick={cmds.onExportPPTX}
-				className="c-button icon"
-				disabled={isExportingPPTX}
-				title="Export to PowerPoint"
-			>
-				<IcPPTX />
 			</button>
 
 			<div className="c-toolbar-divider" />
@@ -558,82 +503,6 @@ export function Toolbar({
 			>
 				<IcPanel />
 			</button>
-
-			<div className="c-toolbar-divider" />
-
-			{/* More menu */}
-			<div ref={menuRef} style={{ position: 'relative' }}>
-				<button
-					onClick={() => setMenuOpen(!menuOpen)}
-					className={mergeClasses('c-button icon', menuOpen ? 'active' : '')}
-					title="More options"
-				>
-					<IcMenu />
-				</button>
-				{menuOpen && (
-					<div className="c-menu" style={{ position: 'absolute', top: '100%', right: 0 }}>
-						<button
-							onClick={() => {
-								cmds.onExport?.()
-								setMenuOpen(false)
-							}}
-							className="c-menu-item"
-						>
-							<span className="c-menu-item-icon">
-								<IcExport />
-							</span>
-							<span className="c-menu-item-label">Export to JSON</span>
-						</button>
-						<button
-							onClick={() => {
-								cmds.onExportPPTX?.()
-								setMenuOpen(false)
-							}}
-							className="c-menu-item"
-							disabled={isExportingPPTX}
-						>
-							<span className="c-menu-item-icon">
-								<IcPPTX />
-							</span>
-							<span className="c-menu-item-label">Export to PowerPoint</span>
-						</button>
-						<div className="c-menu-divider" />
-						<button
-							onClick={() => {
-								snap.toggleSnapDebug()
-								setMenuOpen(false)
-							}}
-							className="c-menu-item"
-						>
-							<span className="c-menu-item-icon">
-								<IcDebug />
-							</span>
-							<span className="c-menu-item-label">
-								Snap Debug Mode {snap.settings.snapDebug ? '✓' : ''}
-							</span>
-						</button>
-						<button
-							onClick={() => {
-								cmds.onCheckDocument?.()
-								setMenuOpen(false)
-							}}
-							className="c-menu-item"
-						>
-							<span className="c-menu-item-icon">
-								<IcRepair />
-							</span>
-							<span className="c-menu-item-label">Check Document...</span>
-						</button>
-						<div className="c-menu-divider" />
-						<div
-							className="c-menu-item disabled"
-							style={{ opacity: 0.6, cursor: 'default' }}
-						>
-							<span className="c-menu-item-label">Prezillo v{__APP_VERSION__}</span>
-						</div>
-					</div>
-				)}
-			</div>
 		</div>
 	)
 }

@@ -5,9 +5,11 @@
  * Component for rendering ghost overlays showing remote users' edits
  */
 
+import { useDarkMode } from '@cloudillo/react'
 import * as React from 'react'
 
 import type { PrezilloPresence } from '../awareness'
+import { presenceColor } from '../awareness'
 import type { PrezilloObject } from '../crdt'
 
 export interface RemotePresenceOverlayProps {
@@ -22,6 +24,10 @@ export function RemotePresenceOverlay({
 	remotePresence,
 	canvasObjects
 }: RemotePresenceOverlayProps) {
+	// Subscribed here so a theme flip recolours the ghosts regardless of any memo
+	// boundary above this component.
+	const dark = useDarkMode()
+
 	return (
 		<>
 			{Array.from(remotePresence.entries()).map(([clientId, presence]) => {
@@ -33,7 +39,7 @@ export function RemotePresenceOverlay({
 
 				const editing = presence.editing
 				const user = presence.user
-				const color = user?.color || '#888888'
+				const color = presenceColor(user?.idTag, clientId, dark)
 				const x = editing.x
 				const y = editing.y
 				const width = editing.width ?? obj.width

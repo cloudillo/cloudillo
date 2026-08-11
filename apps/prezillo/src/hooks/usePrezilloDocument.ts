@@ -6,6 +6,7 @@
  */
 
 import { getAppBus } from '@cloudillo/core'
+import { initPresence } from '@cloudillo/crdt'
 import { useCloudilloEditor } from '@cloudillo/react'
 import * as React from 'react'
 import { useY } from 'react-yjs'
@@ -21,7 +22,6 @@ import {
 	isLocalPresenting,
 	setFollowing,
 	setPresenting,
-	str2color,
 	updatePresentingView
 } from '../awareness'
 import type { ContainerId, ObjectId, TemplateId, ViewId, YPrezilloDocument } from '../crdt'
@@ -360,18 +360,18 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 	// Get awareness instance
 	const awareness = cloudillo.provider?.awareness ?? null
 
-	// Set up awareness with consistent user color
+	// Publish who we are. `initPresence` writes the same shape every Cloudillo
+	// app uses, under the same `user` field.
 	React.useEffect(() => {
-		if (!awareness || !cloudillo.idTag) return
-
-		// Initialize with consistent color based on user ID
-		str2color(cloudillo.idTag).then((color) => {
-			awareness.setLocalStateField('user', {
-				name: cloudillo.displayName || cloudillo.idTag || 'Anonymous',
-				color
-			})
+		if (!awareness) return
+		initPresence(awareness, {
+			idTag: cloudillo.idTag,
+			displayName: cloudillo.displayName,
+			// Without this a share-link guest publishes the owner's idTag —
+			// `cloudillo.idTag` falls back to it.
+			authenticated: cloudillo.authenticated
 		})
-	}, [awareness, cloudillo.idTag, cloudillo.displayName])
+	}, [awareness, cloudillo.idTag, cloudillo.displayName, cloudillo.authenticated])
 
 	// Listen for awareness changes from remote clients
 	React.useEffect(() => {

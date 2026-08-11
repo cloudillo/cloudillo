@@ -8,6 +8,7 @@
  * without creating CRDT history entries.
  */
 
+import { idAccent } from '@cloudillo/core'
 import type { Awareness } from 'y-protocols/awareness'
 
 import type { ViewId } from './crdt/index.js'
@@ -16,9 +17,15 @@ import type { ViewId } from './crdt/index.js'
 type AwarenessState = Record<string, unknown>
 
 export interface PrezilloPresence {
+	/**
+	 * What goes ON THE WIRE. No colour: the viewer derives it from `idTag` via
+	 * {@link presenceColor}, and the relay stamps `idTag` itself from the sender's
+	 * token — so a peer cannot assert someone else's identity.
+	 */
 	user: {
 		name: string
-		color: string
+		/** Absent for anonymous guests. */
+		idTag?: string
 	}
 	// Temporary editing state (not persisted to CRDT)
 	editing?: {
@@ -57,7 +64,7 @@ export interface PresenterInfo {
 	clientId: number
 	user: {
 		name: string
-		color: string
+		idTag?: string
 	}
 	viewId: ViewId
 	viewIndex: number
@@ -114,20 +121,22 @@ export function getRemotePresenceStates(awareness: Awareness): Map<number, Prezi
 }
 
 /**
- * Generate a consistent color from a string (user ID)
+ * The colour to draw a collaborator's dot, badge or avatar in.
+ *
+ * Derived by the VIEWER from the peer's idTag rather than read off the wire, so
+ * a peer cannot assert an arbitrary colour; and the idTag it derives from is
+ * stamped by the `/ws/crdt` relay from the sender's own token (see
+ * `cloudillo-rs/crates/cloudillo-crdt/src/websocket.rs`), so it cannot be forged
+ * either. Anonymous guests fall back to their awareness clientId, stable for the
+ * length of their session.
+ *
+ * `idHue` is the platform-wide rule, so the same person is the same colour in
+ * every Cloudillo app. SVG attributes cannot use the `.c-id-color` CSS route, so
+ * this returns a literal string; the caller passes the theme, because a hidden
+ * bus read cannot appear in a memo's prop comparison or a `useEffect` dep array.
  */
-export async function str2color(str: string): Promise<string> {
-	const encoder = new TextEncoder()
-	const data = encoder.encode(str)
-	const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-	const hashArray = new Uint8Array(hashBuffer)
-
-	// Use first 3 bytes for RGB, but ensure colors are not too dark
-	const r = Math.floor(hashArray[0] * 0.6 + 100)
-	const g = Math.floor(hashArray[1] * 0.6 + 100)
-	const b = Math.floor(hashArray[2] * 0.6 + 100)
-
-	return `rgb(${r}, ${g}, ${b})`
+export function presenceColor(idTag: string | undefined, clientId: number, dark: boolean): string {
+	return idAccent(idTag ?? String(clientId), dark)
 }
 
 /**
@@ -301,9 +310,9 @@ export function getVotesForFrame(
 	awareness: Awareness,
 	frameId: string,
 	viewId: string
-): Array<{ clientId: number; user: { name: string; color: string } }> {
+): Array<{ clientId: number; user: PrezilloPresence['user'] }> {
 	const states = awareness.getStates()
-	const votes: Array<{ clientId: number; user: { name: string; color: string } }> = []
+	const votes: Array<{ clientId: number; user: PrezilloPresence['user'] }> = []
 
 	;(states as Map<number, AwarenessState | null>).forEach((state, clientId) => {
 		const s = state as PrezilloPresence | null

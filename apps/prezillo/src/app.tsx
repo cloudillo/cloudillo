@@ -2,6 +2,16 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import {
+	PiBugBold as IcDebug,
+	PiExportBold as IcExport,
+	PiFilePdfBold as IcPDF,
+	PiFilePptBold as IcPPTX,
+	PiWrenchBold as IcRepair,
+	PiShareNetworkBold as IcShare,
+	PiUsersBold as IcUsers
+} from 'react-icons/pi'
 import {
 	type SnapSpatialObject,
 	SvgCanvas,
@@ -28,9 +38,14 @@ import './style.css'
 import { RichTextEditor } from '@cloudillo/canvas-text'
 import { getAppBus } from '@cloudillo/core'
 import {
+	AppDocBar,
 	type BottomSheetSnapPoint,
 	DialogContainer,
-	ToastContainer,
+	DocBarMenu,
+	MenuDivider,
+	MenuHeader,
+	MenuItem,
+	Toasts,
 	useDialog,
 	useIsMobile,
 	useToast
@@ -89,6 +104,9 @@ import { useViewObjects, useVisibleViewObjects } from './hooks/useViewObjects'
 import { useViews } from './hooks/useViews'
 import { useVisibleViews } from './hooks/useVisibleViews'
 
+// App version injected at build time
+declare const __APP_VERSION__: string
+
 /**
  * Extended type for canvas objects that may include template metadata
  * Used when rendering prototype objects on template frames
@@ -123,6 +141,7 @@ import { downloadPDF, downloadPPTX } from './export'
 // Main App //
 //////////////
 export function PrezilloApp() {
+	const { t } = useTranslation()
 	const prezillo = usePrezilloDocument()
 	// Debug helper - access via window.prezillo in browser console
 	;(window as unknown as Record<string, unknown>).prezillo = prezillo
@@ -356,6 +375,54 @@ export function PrezilloApp() {
 	// Export state
 	const [isExportingPDF, setIsExportingPDF] = React.useState(false)
 	const [isExportingPPTX, setIsExportingPPTX] = React.useState(false)
+
+	// Named rather than inline in `cmds`, because the DocBar offers the same
+	// three exports — and unlike the toolbar it is there in read-only too.
+	const handleExportJSON = React.useCallback(() => {
+		if (prezillo.yDoc && prezillo.doc) {
+			downloadExport(prezillo.yDoc, prezillo.doc)
+		}
+	}, [prezillo.yDoc, prezillo.doc])
+
+	const handleExportPDF = React.useCallback(async () => {
+		if (!prezillo.doc || !views.length) return
+		setIsExportingPDF(true)
+		try {
+			await downloadPDF(
+				prezillo.doc,
+				views,
+				prezillo.cloudillo.ownerTag,
+				prezillo.cloudillo.token
+			)
+		} catch (error) {
+			console.error('PDF export failed:', error)
+		} finally {
+			setIsExportingPDF(false)
+		}
+	}, [prezillo.doc, views, prezillo.cloudillo.ownerTag, prezillo.cloudillo.token])
+
+	const handleExportPPTX = React.useCallback(async () => {
+		if (isExportingPPTX || !prezillo.doc || !views.length) return
+		setIsExportingPPTX(true)
+		try {
+			await downloadPPTX(
+				prezillo.doc,
+				views,
+				prezillo.cloudillo.ownerTag,
+				prezillo.cloudillo.token
+			)
+		} catch (error) {
+			console.error('PPTX export failed:', error)
+		} finally {
+			setIsExportingPPTX(false)
+		}
+	}, [
+		isExportingPPTX,
+		prezillo.doc,
+		views,
+		prezillo.cloudillo.ownerTag,
+		prezillo.cloudillo.token
+	])
 
 	// Symbol picker state
 	const [selectedSymbolId, setSelectedSymbolId] = React.useState<string | null>(null)
@@ -904,6 +971,61 @@ export function PrezilloApp() {
 
 	return (
 		<>
+			{/* Outside the read-only guard below: a viewer still needs the
+			    document's name, the roster, and export. */}
+			<AppDocBar awareness={prezillo.awareness}>
+				<DocBarMenu>
+					<MenuItem
+						icon={<IcExport />}
+						label={t('Export to JSON')}
+						onClick={handleExportJSON}
+					/>
+					<MenuItem
+						icon={<IcPDF />}
+						label={t('Export to PDF')}
+						disabled={isExportingPDF}
+						onClick={handleExportPDF}
+					/>
+					<MenuItem
+						icon={<IcPPTX />}
+						label={t('Export to PowerPoint')}
+						disabled={isExportingPPTX}
+						onClick={handleExportPPTX}
+					/>
+					<MenuDivider />
+					<MenuItem
+						icon={<IcShare />}
+						label={t('Share for presenting')}
+						onClick={handleSharePresent}
+					/>
+					<MenuItem
+						icon={<IcUsers />}
+						label={t('Share for following')}
+						onClick={handleShareFollow}
+					/>
+					{/* Editor-only tools. The toolbar that would otherwise gate them is
+					    unmounted for viewers, so they are gated here. */}
+					{!isReadOnly && (
+						<>
+							<MenuDivider />
+							<MenuItem
+								icon={<IcDebug />}
+								label={t('Snap Debug Mode')}
+								shortcut={snapSettings.settings.snapDebug ? '✓' : undefined}
+								onClick={snapSettings.toggleSnapDebug}
+							/>
+							<MenuItem
+								icon={<IcRepair />}
+								label={t('Check Document...')}
+								onClick={handleCheckDocument}
+							/>
+						</>
+					)}
+					<MenuDivider />
+					<MenuHeader>Prezillo v{__APP_VERSION__}</MenuHeader>
+				</DocBarMenu>
+			</AppDocBar>
+
 			{!isReadOnly && (
 				<Toolbar
 					doc={prezillo.doc}
@@ -916,53 +1038,11 @@ export function PrezilloApp() {
 					hasSelection={prezillo.selectedIds.size > 0}
 					canUndo={prezillo.canUndo}
 					canRedo={prezillo.canRedo}
-					isExportingPDF={isExportingPDF}
-					isExportingPPTX={isExportingPPTX}
 					cmds={{
 						onDelete: handleDelete,
 						onDuplicate: handleDuplicate,
 						onUndo: prezillo.undo,
-						onRedo: prezillo.redo,
-						onExport: () => {
-							if (prezillo.yDoc && prezillo.doc) {
-								downloadExport(prezillo.yDoc, prezillo.doc)
-							}
-						},
-						onExportPDF: async () => {
-							if (prezillo.doc && views.length > 0) {
-								setIsExportingPDF(true)
-								try {
-									await downloadPDF(
-										prezillo.doc,
-										views,
-										prezillo.cloudillo.ownerTag,
-										prezillo.cloudillo.token
-									)
-								} catch (error) {
-									console.error('PDF export failed:', error)
-								} finally {
-									setIsExportingPDF(false)
-								}
-							}
-						},
-						onExportPPTX: async () => {
-							if (!isExportingPPTX && prezillo.doc && views.length > 0) {
-								setIsExportingPPTX(true)
-								try {
-									await downloadPPTX(
-										prezillo.doc,
-										views,
-										prezillo.cloudillo.ownerTag,
-										prezillo.cloudillo.token
-									)
-								} catch (error) {
-									console.error('PPTX export failed:', error)
-								} finally {
-									setIsExportingPPTX(false)
-								}
-							}
-						},
-						onCheckDocument: handleCheckDocument
+						onRedo: prezillo.redo
 					}}
 					zCmds={{
 						onBringToFront: () => {
@@ -1547,8 +1627,8 @@ export function PrezilloApp() {
 				/>
 			)}
 
-			{/* Toast container for notifications */}
-			<ToastContainer position="top-right" />
+			{/* Toast renderer for notifications, incl. a refused rename */}
+			<Toasts position="top-right" />
 			{/* Dialog container for confirmation dialogs */}
 			<DialogContainer />
 		</>

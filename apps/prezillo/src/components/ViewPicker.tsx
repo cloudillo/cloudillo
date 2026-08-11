@@ -5,6 +5,7 @@
  * ViewPicker component - Navigation bar for views/slides
  */
 
+import { monogramFor, useDarkMode } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -26,7 +27,7 @@ import {
 } from 'react-icons/pi'
 
 import type { PresenterInfo } from '../awareness'
-import { getFollowerCount } from '../awareness'
+import { getFollowerCount, presenceColor } from '../awareness'
 import type { TemplateId, ViewId, ViewNode } from '../crdt'
 import type { UsePrezilloDocumentResult } from '../hooks/usePrezilloDocument'
 import type { TemplateWithUsage } from '../hooks/useTemplates'
@@ -85,6 +86,9 @@ function PagePickerPopup({
 	onSelect,
 	onClose
 }: PagePickerPopupProps) {
+	// Its own subscription: `PagePickerPopup` is a separate component from
+	// `ViewPicker`, and the dots below are coloured in JS.
+	const dark = useDarkMode()
 	const containerRef = React.useRef<HTMLDivElement>(null)
 
 	// Close on outside click
@@ -131,7 +135,13 @@ function PagePickerPopup({
 											<span
 												key={p.clientId}
 												className="c-page-picker-item__presenter-dot"
-												style={{ backgroundColor: p.user.color }}
+												style={{
+													backgroundColor: presenceColor(
+														p.user.idTag,
+														p.clientId,
+														dark
+													)
+												}}
 												title={p.user.name}
 											/>
 										))}
@@ -188,6 +198,7 @@ export function ViewPicker({
 	const { onPresent, onStopPresenting, onFollow, onUnfollow, onSharePresent, onShareFollow } =
 		presentCmds
 	const { t } = useTranslation()
+	const dark = useDarkMode()
 	const activeIndex = views.findIndex((v) => v.id === activeViewId)
 
 	// Mobile page picker popup state
@@ -556,7 +567,13 @@ export function ViewPicker({
 											<span
 												key={p.clientId}
 												className="c-view-picker-tab__presenter-dot"
-												style={{ backgroundColor: p.user.color }}
+												style={{
+													backgroundColor: presenceColor(
+														p.user.idTag,
+														p.clientId,
+														dark
+													)
+												}}
 												title={p.user.name}
 											/>
 										))}
@@ -630,9 +647,15 @@ export function ViewPicker({
 									>
 										<div
 											className="c-presenter-indicator__avatar"
-											style={{ backgroundColor: presenter.user.color }}
+											style={{
+												backgroundColor: presenceColor(
+													presenter.user.idTag,
+													presenter.clientId,
+													dark
+												)
+											}}
 										>
-											{presenter.user.name.charAt(0).toUpperCase()}
+											{monogramFor(presenter.user.idTag, presenter.user.name)}
 										</div>
 										<div className="c-presenter-indicator__info">
 											<div className="c-presenter-indicator__name">

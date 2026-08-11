@@ -1288,6 +1288,31 @@ export class ApiClient {
 		get: (idTag: string) => this.request('GET', `/profiles/${idTag}`, Types.tOptionalProfile),
 
 		/**
+		 * GET /profiles/batch?idTags=a,b,c - Resolve several profiles at once, in
+		 * the reduced public projection ({@link Types.PublicProfile}).
+		 *
+		 * Unlike every other `/profiles/*` route this one accepts a file-scoped
+		 * token, so a sandboxed app can resolve its collaborators against the
+		 * DOCUMENT's node — the only node guaranteed to know them. Nothing beyond
+		 * the four public fields is ever returned.
+		 *
+		 * The reply is keyed by nothing: idTags this node has not mirrored are
+		 * OMITTED, so the array is not positionally aligned with the request. Key
+		 * the results by `idTag` and negative-cache the misses yourself.
+		 *
+		 * Server caps the request at 64 distinct tags and REJECTS (400) beyond
+		 * that rather than truncating — batch on the caller's side.
+		 *
+		 * @param idTags - Identity tags to resolve (max 64 distinct)
+		 * @param opts - `signal` cancels a lookup the caller has moved on from
+		 */
+		getBatch: (idTags: string[], opts?: { signal?: AbortSignal }) =>
+			this.request('GET', '/profiles/batch', Types.tPublicProfileList, {
+				query: { idTags },
+				signal: opts?.signal
+			}),
+
+		/**
 		 * POST /profiles/:idTag/refresh - Force an immediate re-sync of the caller's
 		 * local mirror of `idTag` from its home server, bypassing the scheduled
 		 * staleness/abandonment window. Recovers a federated mirror the periodic

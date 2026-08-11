@@ -18,6 +18,51 @@ const EMBED_ID_RANGE = 1_000_000
 const BROADCAST_TYPES = new Set(['theme:update'])
 
 /**
+ * The only message types a nested embed may have relayed to the shell.
+ *
+ * The relay reposts from THIS window, so the shell sees the host app as the
+ * sender and answers every connection-scoped request against the HOST's
+ * connection — its resId, its appName, its token. Anything forwarded here is
+ * therefore something the embed gets to do *as the document it is embedded in*.
+ * A positive list, so a new message type is unreachable from an embed until
+ * someone decides it should be.
+ *
+ * Deliberately absent, and why:
+ * - `doc:info.req` / `doc:rename.req` — answered about the HOST document. The
+ *   read is meaningless for an embed (whose DocBar is hidden anyway) and the
+ *   write lets foreign-owned embedded content rename the document containing it.
+ * - `storage:op.req` / `settings:{get,list,set}.req` — the shell namespaces both
+ *   by the HOST's appName, so an embed would read and write the host document's
+ *   app data. An embedded app that genuinely needs its own store has to be
+ *   registered as a real connection first.
+ * - `share:create.req` — mints a share link from the host connection, i.e. hands
+ *   out access to the host document.
+ * - `app:title.push` — the browser tab is showing the host document, not this.
+ * - `camera:*` / `sensor:compass.sub` — device capture for an iframe the user
+ *   never focused; no embeddable document type needs either.
+ * - `import:complete.notify` — acknowledges an import the shell delivered to the
+ *   host.
+ *
+ * The rest is what an activated embed genuinely needs to be a working document:
+ * the auth handshake, the CRDT client id and offline cache, the pickers an
+ * editable embed opens, and `embed:open.req` for a further nesting level.
+ */
+const RELAY_UP_TYPES = new Set([
+	'auth:init.req',
+	'auth:token.refresh.req',
+	'app:ready.notify',
+	'app:error.notify',
+	'embed:viewstate.push',
+	'embed:open.req',
+	'crdt:clientid.req',
+	'crdt:cache.read.req',
+	'crdt:cache.append.req',
+	'crdt:cache.compact.req',
+	'doc:pick.req',
+	'media:pick.req'
+])
+
+/**
  * Options for configuring the embed relay
  */
 export interface EmbedRelayOptions {
@@ -75,11 +120,21 @@ export function setupEmbedRelay(
 			options.onChildNotification(msg.type, msg.payload)
 		}
 
+		// Local interception above happens for anything the child sends; only the
+		// allowlisted types are put on the wire as if this app had sent them.
+		if (!RELAY_UP_TYPES.has(msg.type)) return
+
 		if (typeof msg.id === 'number') {
 			const original = msg.id
 			msg.id = original + idOffset
 			relayedIds.set(msg.id, original)
 		}
+		// Set unconditionally and after the spread, so a child cannot clear or
+		// forge it. Handlers that must not act on an embed's behalf check it —
+		// see `doc:rename.req` in the shell. Not a substitute for the allowlist
+		// above: a hostile HOST app can simply not use this relay at all, and
+		// gains nothing by stripping the flag from its own messages.
+		msg.relayed = true
 		window.parent.postMessage(msg, '*')
 	}
 

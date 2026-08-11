@@ -1028,6 +1028,27 @@ export const tProfileRefreshResult = T.struct({
 })
 export type ProfileRefreshResult = T.TypeOf<typeof tProfileRefreshResult>
 
+/**
+ * The reduced, non-sensitive profile projection an app may display.
+ *
+ * Every field here is already readable without authentication at that profile's
+ * own node (`GET /api/me`), which is what lets `GET /profiles/batch` serve it to
+ * a file-scoped token. Deliberately carries none of the tenant's relationship
+ * state (`status`, `connected`, `following`, `follower`, `trust`, read
+ * watermarks) — see the batch route's doc comment in `cloudillo-rs`.
+ */
+export const tPublicProfile = T.struct({
+	idTag: T.string,
+	name: T.optional(T.string),
+	type: T.optional(T.literal('person', 'community')),
+	profilePic: T.optional(T.string)
+})
+export type PublicProfile = T.TypeOf<typeof tPublicProfile>
+
+/** Result of GET /profiles/batch — only the idTags this node has mirrored. */
+export const tPublicProfileList = T.array(tPublicProfile)
+export type PublicProfileList = T.TypeOf<typeof tPublicProfileList>
+
 // ============================================================================
 // SETTINGS ENDPOINTS
 // ============================================================================

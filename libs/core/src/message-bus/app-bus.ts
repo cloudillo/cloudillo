@@ -26,8 +26,12 @@ import {
 	type CameraPreviewFrame,
 	type CloudilloMessage,
 	type CropAspect,
+	type DocInfo,
+	type DocInfoPush,
+	type DocInfoRes,
 	type DocPickAck,
 	type DocPickResultPush,
+	type DocRenameRes,
 	type EmbedOpenRes,
 	type EmbedViewStateSet,
 	type ImportDataPush,
@@ -40,6 +44,7 @@ import {
 	type ShareCreateResultPush,
 	type StorageOp,
 	type StorageOpRes,
+	type ThemeUpdate,
 	type Visibility
 } from './types.js'
 
@@ -53,6 +58,15 @@ import {
 export interface AppState {
 	/** User identity tag */
 	idTag?: string
+	/**
+	 * Whether a real user is signed in to the shell.
+	 *
+	 * NOT derivable from `idTag`: for a share-link guest the shell falls back to
+	 * the context (i.e. the document owner's) tag, so `idTag` is set for an
+	 * anonymous visitor too. Anything that PUBLISHES an identity — presence above
+	 * all — must gate on this, not on `idTag`.
+	 */
+	authenticated?: boolean
 	/** Tenant ID */
 	tnId?: number
 	/** User roles */
@@ -71,6 +85,13 @@ export interface AppState {
 	theme: string
 	/** Display name for anonymous guests (used in awareness) */
 	displayName?: string
+	/**
+	 * Resource this app instance was launched for, as '<ownerTag>:<fileId>'.
+	 * Taken from the location hash at init — in an embed the hash also carries the
+	 * '_embed:<nonce>' auth handshake key, which is stripped off here so this stays
+	 * the real document. Read via `bus.resId` / `bus.fileId` / `bus.ownerTag`.
+	 */
+	resId?: string
 	/**
 	 * Interactive view state for embeds. Bidirectionally updatable during the
 	 * session via embed:viewstate.push / embed:viewstate.set. Persisted in
@@ -387,6 +408,44 @@ export interface SettingsApi {
 // APP MESSAGE BUS
 // ============================================
 
+/** What an app's location hash says about the document it was launched for. */
+export interface ParsedAppHash {
+	isEmbed: boolean
+	/** '<ownerTag>:<fileId>', or undefined for a legacy embed that carries none. */
+	resId?: string
+	/** '_embed:<nonce>' — the key the shell registered the pending embed under. */
+	embedAuthKey?: string
+}
+
+/**
+ * Split an app's location hash into the document it addresses and the embed
+ * handshake key, if any.
+ *
+ * Exported because `useDocBar` in `@cloudillo/react` must answer "are we in an
+ * embed?" during its FIRST render, before `init()` has run — `AppMessageBus.embedded`
+ * is still false there.
+ *
+ * @param hash - `window.location.hash`, with or without the leading '#'
+ */
+export function parseAppHash(hash: string): ParsedAppHash {
+	const content = hash.startsWith('#') ? hash.slice(1) : hash
+	const embedIdx = content.indexOf(':_embed:')
+	// New format: ownerTag:fileId:_embed:nonce
+	if (embedIdx !== -1) {
+		return {
+			isEmbed: true,
+			resId: content.slice(0, embedIdx) || undefined,
+			embedAuthKey: content.slice(embedIdx + 1)
+		}
+	}
+	// Legacy format: _embed:nonce — no real resId. Leave it undefined so callers
+	// fall back deliberately rather than treating '_embed' as an owner tag.
+	if (content.startsWith('_embed:')) {
+		return { isEmbed: true, embedAuthKey: content }
+	}
+	return { isEmbed: false, resId: content || undefined }
+}
+
 /**
  * App-side message bus for communication with shell
  *
@@ -417,7 +476,16 @@ export class AppMessageBus extends MessageBusBase {
 		theme: 'glass'
 	}
 	private isEmbed = false
+	/**
+	 * Handshake key for an embed ('_embed:<nonce>'), kept apart from {@link state}.resId
+	 * so the app still knows the real document it was launched for.
+	 */
+	private embedAuthKey?: string
 	private messageListener: ((event: MessageEvent) => void) | null = null
+	private lastDocInfo: DocInfo | undefined
+	private docInfoCallbacks = new Set<(info: DocInfo) => void>()
+	private identityCallbacks = new Set<() => void>()
+	private themeCallbacks = new Set<(darkMode: boolean) => void>()
 
 	constructor(config: Partial<MessageBusConfig> = {}) {
 		super({ ...config, contextName: config.contextName || 'AppBus' })
@@ -435,6 +503,14 @@ export class AppMessageBus extends MessageBusBase {
 	/** User identity tag */
 	get idTag(): string | undefined {
 		return this.state.idTag
+	}
+
+	/**
+	 * Whether a real user is signed in — see {@link AppState.authenticated}.
+	 * False for a share-link guest, whose `idTag` is the document owner's.
+	 */
+	get authenticated(): boolean {
+		return !!this.state.authenticated
 	}
 
 	/** Tenant ID */
@@ -482,6 +558,31 @@ export class AppMessageBus extends MessageBusBase {
 		return this.isEmbed
 	}
 
+	/** Resource this app was launched for, as '<ownerTag>:<fileId>' */
+	get resId(): string | undefined {
+		return this.state.resId
+	}
+
+	/**
+	 * File ID part of {@link resId}. Split on the FIRST colon only — a fileId may
+	 * itself contain colons, the owner tag never does.
+	 */
+	get fileId(): string | undefined {
+		const i = this.state.resId?.indexOf(':') ?? -1
+		return i > 0 ? this.state.resId?.slice(i + 1) : undefined
+	}
+
+	/** Owner tag part of {@link resId} — the tenant serving the document. */
+	get ownerTag(): string | undefined {
+		const i = this.state.resId?.indexOf(':') ?? -1
+		return i > 0 ? this.state.resId?.slice(0, i) : undefined
+	}
+
+	/** Last document info pushed by the shell, if any */
+	get docInfo(): DocInfo | undefined {
+		return this.lastDocInfo
+	}
+
 	/** Get full state (readonly) */
 	getState(): Readonly<AppState> {
 		return { ...this.state }
@@ -505,21 +606,15 @@ export class AppMessageBus extends MessageBusBase {
 
 		this.config.contextName = `AppBus:${appName}`
 
-		// Detect embed context and extract auth resId from hash
-		const hashContent = window.location.hash.slice(1)
-		const embedIdx = hashContent.indexOf(':_embed:')
-		let resId: string | undefined
-		if (embedIdx !== -1) {
-			// New format: ownerTag:fileId:_embed:nonce
-			this.isEmbed = true
-			resId = hashContent.slice(embedIdx + 1) // "_embed:nonce"
-		} else if (hashContent.startsWith('_embed:')) {
-			// Legacy format: _embed:nonce (no real resId)
-			this.isEmbed = true
-			resId = hashContent
-		} else {
-			resId = hashContent || undefined
-		}
+		// resId and auth handshake key are separate things: the shell keys the
+		// pending embed registration on '_embed:<nonce>', while the app needs the
+		// real '<ownerTag>:<fileId>' to address the document's node (profile
+		// pictures, file URLs).
+		const parsed = parseAppHash(window.location.hash)
+		this.isEmbed = parsed.isEmbed
+		this.embedAuthKey = parsed.embedAuthKey
+		const resId = parsed.resId
+		this.state.resId = resId
 		this.log('Initializing', this.isEmbed ? '(embed mode)' : '')
 
 		// Set up the single message listener
@@ -531,13 +626,20 @@ export class AppMessageBus extends MessageBusBase {
 
 		// Send init request and wait for response
 		const initData = await this.sendRequest<AuthInitRes['data']>((id) => {
-			this.sendToShell(this.createRequestWithPayload('auth:init.req', id, { appName, resId }))
+			// The shell matches an embed on its handshake key, not on the document
+			this.sendToShell(
+				this.createRequestWithPayload('auth:init.req', id, {
+					appName,
+					resId: this.embedAuthKey ?? resId
+				})
+			)
 		})
 
 		// Update state from init response
 		if (initData) {
 			this.state = {
 				idTag: initData.idTag,
+				authenticated: !!initData.authenticated,
 				tnId: initData.tnId,
 				roles: initData.roles,
 				accessToken: initData.token,
@@ -547,6 +649,7 @@ export class AppMessageBus extends MessageBusBase {
 				tokenLifetime: initData.tokenLifetime,
 				theme: initData.theme,
 				displayName: initData.displayName,
+				resId,
 				navState: initData.navState,
 				ancestors: initData.ancestors,
 				params: initData.params
@@ -577,8 +680,10 @@ export class AppMessageBus extends MessageBusBase {
 	private setupInternalHandlers(): void {
 		// Handle proactive init push from shell
 		this.on('auth:init.push', (msg: AuthInitPush) => {
+			const before = this.state
 			this.state = {
 				idTag: msg.payload.idTag,
+				authenticated: !!msg.payload.authenticated,
 				tnId: msg.payload.tnId,
 				roles: msg.payload.roles,
 				accessToken: msg.payload.token,
@@ -588,6 +693,8 @@ export class AppMessageBus extends MessageBusBase {
 				tokenLifetime: msg.payload.tokenLifetime,
 				theme: msg.payload.theme,
 				displayName: msg.payload.displayName,
+				// Derived from the location hash, not sent by the shell — carry it over
+				resId: this.state.resId,
 				navState: msg.payload.navState,
 				ancestors: msg.payload.ancestors,
 				params: msg.payload.params
@@ -596,6 +703,26 @@ export class AppMessageBus extends MessageBusBase {
 			this.syncApiToken()
 			this.initialized = true
 			this.log('Initialized via push')
+
+			// A re-init can change WHO we are (sign-in, context switch, a guest
+			// link opened in a signed-in session). Anything that published the
+			// old identity has to hear about it.
+			if (
+				before.idTag !== this.state.idTag ||
+				before.authenticated !== this.state.authenticated ||
+				before.displayName !== this.state.displayName
+			) {
+				for (const cb of this.identityCallbacks) {
+					try {
+						cb()
+					} catch (err) {
+						this.logWarn('Identity callback failed:', (err as Error).message)
+					}
+				}
+			}
+
+			// The push rebuilds state wholesale, so it can carry a theme flip too.
+			if (before.darkMode !== this.state.darkMode) this.emitThemeChange()
 
 			// Fire viewStateSet handler if navState was provided
 			if (this.state.navState && this.viewStateHandler) {
@@ -646,6 +773,28 @@ export class AppMessageBus extends MessageBusBase {
 			this.log('Received viewstate.set:', msg.payload.viewState)
 			this.viewStateHandler?.(msg.payload.viewState)
 		})
+
+		// Handle live theme changes broadcast by the shell
+		this.on('theme:update', (msg: ThemeUpdate) => {
+			const before = this.state.darkMode
+			this.state.darkMode = msg.payload.darkMode
+			this.applyTheme()
+			if (before !== this.state.darkMode) this.emitThemeChange()
+			this.log('Theme updated, darkMode:', msg.payload.darkMode)
+		})
+
+		// Registered on the bus rather than in a component: the shell's first push
+		// races React mount, so the cached value is load-bearing for late subscribers.
+		this.on('doc:info.push', (msg: DocInfoPush) => {
+			this.lastDocInfo = msg.payload
+			for (const cb of this.docInfoCallbacks) {
+				try {
+					cb(msg.payload)
+				} catch (err) {
+					this.logWarn('docInfo callback threw:', err)
+				}
+			}
+		})
 	}
 
 	/**
@@ -685,6 +834,12 @@ export class AppMessageBus extends MessageBusBase {
 	 * Handle incoming messages from shell
 	 */
 	private handleMessage(event: MessageEvent): void {
+		// A nested embedded iframe can postMessage to window.parent, i.e. to this
+		// bus — and `auth:init.push` replaces idTag + accessToken wholesale. Only
+		// the shell (or, for an embed, the relaying host) is upstream, and both are
+		// `window.parent`.
+		if (event.source !== window.parent) return
+
 		const data = event.data
 
 		// Validate message (returns undefined for non-cloudillo or invalid messages)
@@ -836,6 +991,124 @@ export class AppMessageBus extends MessageBusBase {
 			payload: { ...(title !== undefined ? { title } : {}), dirty: opts?.dirty }
 		})
 	}
+
+	// ============================================
+	// DOCUMENT INFO
+	// ============================================
+
+	/**
+	 * Subscribe to document info from the shell. Fires immediately with the cached
+	 * value if one was already pushed, then on every change (rename, pin, access).
+	 *
+	 * @returns Unsubscribe function
+	 */
+	onDocInfo(cb: (info: DocInfo) => void): () => void {
+		this.docInfoCallbacks.add(cb)
+		if (this.lastDocInfo) cb(this.lastDocInfo)
+		return () => {
+			this.docInfoCallbacks.delete(cb)
+		}
+	}
+
+	/**
+	 * Subscribe to identity changes — `idTag`, `authenticated` or `displayName`
+	 * changing on a later `auth:init.push`.
+	 *
+	 * For apps that publish who they are once at startup and would otherwise keep
+	 * broadcasting a stale identity for the rest of the session. React apps reach
+	 * it through `useCloudillo`; a plain-DOM app (quillo) subscribes here itself.
+	 * Does NOT fire for the initial `init()`.
+	 *
+	 * @returns Unsubscribe function
+	 */
+	onIdentityChange(cb: () => void): () => void {
+		this.identityCallbacks.add(cb)
+		return () => {
+			this.identityCallbacks.delete(cb)
+		}
+	}
+
+	/**
+	 * Subscribe to live theme changes — the shell's `theme:update` broadcast, or a
+	 * later `auth:init.push` carrying a different `darkMode`.
+	 *
+	 * `applyTheme()` already flips the `body` classes, so this is for anything that
+	 * READ `darkMode` into its own state: an embedded editor's theme prop, a colour
+	 * derived in JS. React apps get it through `useCloudillo().darkMode`. Does NOT
+	 * fire for the initial `init()`.
+	 *
+	 * @returns Unsubscribe function
+	 */
+	onThemeChange(cb: (darkMode: boolean) => void): () => void {
+		this.themeCallbacks.add(cb)
+		return () => {
+			this.themeCallbacks.delete(cb)
+		}
+	}
+
+	private emitThemeChange(): void {
+		for (const cb of this.themeCallbacks) {
+			try {
+				cb(this.state.darkMode)
+			} catch (err) {
+				this.logWarn('Theme callback failed:', (err as Error).message)
+			}
+		}
+	}
+
+	/**
+	 * Ask the shell for document info. Rarely needed — the shell pushes it
+	 * unprompted, so prefer {@link onDocInfo}. This is the recovery path for an
+	 * app that missed the push (a late mount, a dropped message).
+	 */
+	async requestDocInfo(): Promise<DocInfo | undefined> {
+		if (!this.initialized) {
+			throw new Error('AppBus not initialized. Call init() first.')
+		}
+
+		try {
+			const data = await this.sendRequest<DocInfoRes['data']>((id) => {
+				this.sendToShell(this.createRequest('doc:info.req', id))
+			})
+			if (data) this.lastDocInfo = data
+			return data
+		} catch (err) {
+			this.logWarn('Failed to get document info:', (err as Error).message)
+			return undefined
+		}
+	}
+
+	/**
+	 * Rename the document this app was launched for.
+	 *
+	 * The target is derived shell-side from the connection's resId, so this
+	 * cannot address another file. For a pinned or placed foreign-owned document
+	 * it renames the local row, not the origin.
+	 */
+	async renameDocument(
+		fileName: string
+	): Promise<{ ok: boolean; fileName?: string; error?: string }> {
+		if (!this.initialized) {
+			throw new Error('AppBus not initialized. Call init() first.')
+		}
+
+		try {
+			const data = await this.sendRequest<DocRenameRes['data']>((id) => {
+				this.sendToShell(this.createRequestWithPayload('doc:rename.req', id, { fileName }))
+			})
+			return { ok: true, fileName: data?.fileName }
+		} catch (err) {
+			const error = (err as Error).message
+			this.logWarn('Rename failed:', error)
+			return { ok: false, error }
+		}
+	}
+
+	// No `getProfiles()` here: collaborator profiles are resolved by the app itself
+	// against the DOCUMENT's node (`api.profiles.getBatch()` with `bus.ownerTag`
+	// and `bus.accessToken`). A shell round-trip could only answer from the
+	// viewer's own mirror, which has never heard of a stranger collaborating on a
+	// foreign-hosted document.
 
 	// ============================================
 	// CRDT CLIENT ID

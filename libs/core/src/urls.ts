@@ -83,10 +83,21 @@ export function getCrdtUrl(idTag: string): string {
  * configured with one), so this is the single place the query-string encoding
  * lives. Omit `token` for an unauthenticated read — the URL then carries
  * `access=read` instead.
+ *
+ * `presence` opts the socket into the presence channel. It is a connection-level
+ * flag rather than a command precisely so a reconnect re-enables it for free:
+ * the URL is rebuilt on every attempt, and the server answers a presence-enabled
+ * socket with a fresh roster `sync` without the client asking.
  */
-export function buildRtdbUrl(serverUrl: string, dbId: string, token?: string): string {
-	const query = token ? `token=${encodeURIComponent(token)}` : 'access=read'
-	return `${serverUrl}/ws/rtdb/${dbId}?${query}`
+export function buildRtdbUrl(
+	serverUrl: string,
+	dbId: string,
+	token?: string,
+	options?: { presence?: boolean }
+): string {
+	const query = [token ? `token=${encodeURIComponent(token)}` : 'access=read']
+	if (options?.presence) query.push('presence=1')
+	return `${serverUrl}/ws/rtdb/${dbId}?${query.join('&')}`
 }
 
 /**

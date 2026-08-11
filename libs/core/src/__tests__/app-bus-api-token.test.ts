@@ -15,6 +15,22 @@ import { PROTOCOL_VERSION } from '../message-bus/types'
 const ID_TAG = 'alice.example'
 
 /**
+ * Deliver a message to the bus as its parent window would.
+ *
+ * Not `window.postMessage`: jsdom leaves `event.source` null there, and the bus
+ * drops anything not from `window.parent` — an embedded document must not be
+ * able to hand its host a new identity. A real browser always stamps the sender,
+ * so dispatching the event by hand is what matches production, not a workaround.
+ * Queued through `setTimeout` to keep the delivery asynchronous, as postMessage
+ * is.
+ */
+function postAsShell(data: Record<string, unknown>): void {
+	setTimeout(() => {
+		window.dispatchEvent(new MessageEvent('message', { source: window.parent, data }))
+	}, 0)
+}
+
+/**
  * Stand in for the shell: answer the bus's `auth:init.req` with an init
  * response. jsdom makes `window.parent` the window itself, so the request the
  * bus posts to its parent lands right back here.
@@ -23,17 +39,14 @@ function actAsShell(initData: Record<string, unknown>): () => void {
 	const onMessage = (evt: MessageEvent) => {
 		const msg = evt.data
 		if (msg?.cloudillo !== true || msg.type !== 'auth:init.req') return
-		window.postMessage(
-			{
-				cloudillo: true,
-				v: PROTOCOL_VERSION,
-				type: 'auth:init.res',
-				replyTo: msg.id,
-				ok: true,
-				data: initData
-			},
-			'*'
-		)
+		postAsShell({
+			cloudillo: true,
+			v: PROTOCOL_VERSION,
+			type: 'auth:init.res',
+			replyTo: msg.id,
+			ok: true,
+			data: initData
+		})
 	}
 	window.addEventListener('message', onMessage)
 	return () => window.removeEventListener('message', onMessage)
@@ -68,15 +81,12 @@ describe('AppBus -> api registry write-through', () => {
 		const bus = getAppBus()
 		await bus.init('testapp')
 
-		window.postMessage(
-			{
-				cloudillo: true,
-				v: PROTOCOL_VERSION,
-				type: 'auth:token.push',
-				payload: { token: 'tok-renewed' }
-			},
-			'*'
-		)
+		postAsShell({
+			cloudillo: true,
+			v: PROTOCOL_VERSION,
+			type: 'auth:token.push',
+			payload: { token: 'tok-renewed' }
+		})
 		await flush()
 
 		expect(bus.accessToken).toBe('tok-renewed')

@@ -34,9 +34,14 @@ import {
 	tCrdtCacheRes,
 	tCrdtClientIdReq,
 	tCrdtClientIdRes,
+	tDocInfoPush,
+	tDocInfoReq,
+	tDocInfoRes,
 	tDocPickAck,
 	tDocPickReq,
 	tDocPickResultPush,
+	tDocRenameReq,
+	tDocRenameRes,
 	tEmbedOpenReq,
 	tEmbedOpenRes,
 	tEmbedViewStatePush,
@@ -61,7 +66,8 @@ import {
 	tShareCreateReq,
 	tShareCreateResultPush,
 	tStorageOpReq,
-	tStorageOpRes
+	tStorageOpRes,
+	tThemeUpdate
 } from './types.js'
 
 // ============================================
@@ -174,6 +180,36 @@ export const MESSAGE_REGISTRY: Record<MessageType, MessageAccessRule> = {
 		directions: ['shell>app'],
 		requiresAuth: false,
 		validator: tDocPickResultPush
+	},
+	'doc:info.req': {
+		directions: ['app>shell'],
+		requiresAuth: true,
+		validator: tDocInfoReq
+	},
+	'doc:info.res': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tDocInfoRes
+	},
+	'doc:info.push': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tDocInfoPush
+	},
+	'doc:rename.req': {
+		directions: ['app>shell'],
+		requiresAuth: true,
+		validator: tDocRenameReq
+	},
+	'doc:rename.res': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tDocRenameRes
+	},
+	'theme:update': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tThemeUpdate
 	},
 	'embed:open.req': {
 		directions: ['app>shell'],

@@ -13,6 +13,11 @@ import { atom, useAtom } from 'jotai'
 export interface OnboardingDraft {
 	// Per-action accept toggles on the invites step, keyed by actionId.
 	invitesChecked: Record<string, boolean>
+	// Community idTag per community-scoped invite, keyed by actionId like
+	// `invitesChecked`, so Finish can pin the accepted ones without re-fetching.
+	// Genuinely absent for person-to-person CONNs, hence the optional value: a
+	// `Record<string, string>` would type every lookup as present.
+	inviteCommunities: Record<string, string | undefined>
 	// Whether to create a CONN to the default Cloudillo community. Tri-state:
 	// undefined until the invites loader seeds it (default-ON unless the inviter
 	// already invited the user to cloudillo.net, in which case it's forced off
@@ -26,6 +31,7 @@ export interface OnboardingDraft {
 
 export const defaultOnboardingDraft: OnboardingDraft = {
 	invitesChecked: {},
+	inviteCommunities: {},
 	enableNotifications: false,
 	enableInstall: false,
 	enablePasskey: false

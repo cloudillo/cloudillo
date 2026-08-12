@@ -4,12 +4,14 @@
 import type * as Types from '@cloudillo/core'
 import type { ApiClient } from '@cloudillo/core'
 import { Button, ProfilePicture, useApi, useAuth, useToast } from '@cloudillo/react'
+import type { ProfileInfo } from '@cloudillo/types'
 import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { DEFAULT_COMMUNITY_ID_TAG } from '../context/constants.js'
+import { useCommunitiesList } from '../context/index.js'
 import { useNotifications } from '../notifications/state.js'
 import type { UsePWA } from '../pwa.js'
 import { subscribeNotifications } from '../settings/notifications.js'
@@ -36,6 +38,28 @@ function next(api: ApiClient | null, refId: string | undefined, location: string
 		api.settings.update('ui.onboarding', { value: nextPage })
 	}
 	return nextPage ? stepPath(refId, nextPage) : '/app/feed'
+}
+
+/**
+ * The community a pending invite grants access to, or undefined when it grants none.
+ *
+ * INVT covers two unrelated things: a community invite, whose `subject` is
+ * "@<community_id_tag>", and a group-chat invite, whose `subject` is a CONV action id (see
+ * `tInvtAction` in @cloudillo/types, and CreateGroupDialog). Only the first names a community,
+ * so require the "@" or an explicit community `subjectProfile` — a raw action id must never
+ * reach `ui.pinned_communities`, where nothing renders it and so nothing can unpin it.
+ *
+ * CONN names one only when addressed to a community audience; a person-to-person connection
+ * has nothing to add to the sidebar.
+ */
+function communityInviteTarget(a: Types.ActionView): ProfileInfo | undefined {
+	if (a.type === 'INVT') {
+		if (a.subjectProfile?.type === 'community') return a.subjectProfile
+		if (a.subject?.startsWith('@')) return a.subjectProfile ?? { idTag: a.subject.slice(1) }
+		return undefined
+	}
+	if (a.audience?.type === 'community' && a.audience.idTag) return a.audience
+	return undefined
 }
 
 // Invites step — presents the operator's auto-connect (CONN) and auto-join
@@ -76,16 +100,19 @@ function Invites() {
 					const c = (Array.isArray(connList) ? connList : []).filter(
 						(a) => a.issuer.idTag !== self
 					)
-					const i = (Array.isArray(invtList) ? invtList : []).filter(
-						(a) => a.issuer.idTag !== self
-					)
+					const i = (Array.isArray(invtList) ? invtList : [])
+						.filter((a) => a.issuer.idTag !== self)
+						// Group-chat invites ride the same action type (see
+						// communityInviteTarget). The wizard is about communities, so they
+						// are ignored here entirely — not shown, not accepted, not pinned.
+						// They stay pending server-side and surface in the notification
+						// inbox afterwards.
+						.filter((a) => !!communityInviteTarget(a))
 					// Does an existing invite already cover the default community?
 					// If so, suppress the folded-in Cloudillo card below.
 					const inviteHasDefault =
 						i.some(
-							(a) =>
-								a.subject?.replace(/^@/, '') === DEFAULT_COMMUNITY_ID_TAG ||
-								a.subjectProfile?.idTag === DEFAULT_COMMUNITY_ID_TAG
+							(a) => communityInviteTarget(a)?.idTag === DEFAULT_COMMUNITY_ID_TAG
 						) || c.some((a) => a.audience?.idTag === DEFAULT_COMMUNITY_ID_TAG)
 					setAlreadyInvited(inviteHasDefault)
 					setConns(c)
@@ -96,12 +123,20 @@ function Invites() {
 					// when the inviter already covered the default community.
 					setDraft((d) => {
 						const merged = { ...d.invitesChecked }
+						// Merged, so a Back-navigation re-run keeps earlier entries.
+						const communities = { ...d.inviteCommunities }
 						for (const a of [...c, ...i]) {
 							if (merged[a.actionId] === undefined) merged[a.actionId] = true
+						}
+						// Only invites that name a community pin anything.
+						for (const a of [...c, ...i]) {
+							const target = communityInviteTarget(a)
+							if (target?.idTag) communities[a.actionId] = target.idTag
 						}
 						return {
 							...d,
 							invitesChecked: merged,
+							inviteCommunities: communities,
 							join: inviteHasDefault ? false : d.join === undefined ? true : d.join
 						}
 					})
@@ -127,14 +162,6 @@ function Invites() {
 		}))
 	}
 
-	function communityLabel(a: Types.ActionView): string {
-		if (a.subjectProfile?.name) return a.subjectProfile.name
-		const content = a.content as { groupName?: string } | undefined
-		if (content?.groupName) return content.groupName
-		// subject is stored as "@<community_id_tag>"
-		return a.subject ? a.subject.replace(/^@/, '') : a.subjectProfile?.idTag || ''
-	}
-
 	function onContinue() {
 		navigate(next(api, refId, 'invites'))
 	}
@@ -145,7 +172,10 @@ function Invites() {
 		setDraft((d) => {
 			const cleared = { ...d.invitesChecked }
 			for (const a of [...conns, ...invts]) cleared[a.actionId] = false
-			return { ...d, invitesChecked: cleared, join: false }
+			// Both halves of the same keyed state, cleared together so they cannot drift.
+			// A later Back re-seeds the record from the loader while `invitesChecked`
+			// stays false, so nothing is pinned either way.
+			return { ...d, invitesChecked: cleared, inviteCommunities: {}, join: false }
 		})
 		navigate(next(api, refId, 'invites'))
 	}
@@ -214,38 +244,39 @@ function Invites() {
 						{t("You've been invited to join these communities.")}
 					</p>
 					<div className="c-panel my-3">
-						{invts.map((a) => (
-							<label
-								key={a.actionId}
-								className="c-settings-field"
-								style={{ maxWidth: 'none' }}
-							>
-								<span className="c-hbox align-items-center g-2 flex-fill">
-									<ProfilePicture
-										profile={a.subjectProfile ?? {}}
-										srcTag={
-											a.subjectProfile?.idTag ??
-											(a.subject ? a.subject.replace(/^@/, '') : undefined)
-										}
-										small
-									/>
-									<span className="flex-fill">
-										{t('Join {{name}}', { name: communityLabel(a) })}
-										<br />
-										<span className="text-muted small">
-											{a.subjectProfile?.idTag ||
-												(a.subject ? a.subject.replace(/^@/, '') : '')}
+						{invts.map((a) => {
+							// The loader dropped every invite that names no community.
+							const target = communityInviteTarget(a)
+							if (!target) return null
+							return (
+								<label
+									key={a.actionId}
+									className="c-settings-field"
+									style={{ maxWidth: 'none' }}
+								>
+									<span className="c-hbox align-items-center g-2 flex-fill">
+										<ProfilePicture
+											profile={target}
+											srcTag={target.idTag}
+											small
+										/>
+										<span className="flex-fill">
+											{t('Join {{name}}', {
+												name: target.name || target.idTag
+											})}
+											<br />
+											<span className="text-muted small">{target.idTag}</span>
 										</span>
 									</span>
-								</span>
-								<input
-									className="c-toggle primary"
-									type="checkbox"
-									checked={!!draft.invitesChecked[a.actionId]}
-									onChange={() => toggle(a.actionId)}
-								/>
-							</label>
-						))}
+									<input
+										className="c-toggle primary"
+										type="checkbox"
+										checked={!!draft.invitesChecked[a.actionId]}
+										onChange={() => toggle(a.actionId)}
+									/>
+								</label>
+							)
+						})}
 					</div>
 				</>
 			)}
@@ -302,6 +333,7 @@ function Extras({ pwa }: { pwa: UsePWA }) {
 	const { api } = useApi()
 	const { error: toastError } = useToast()
 	const { loadNotifications } = useNotifications()
+	const { loadCommunities, pinCommunities } = useCommunitiesList()
 	const { refId } = useParams<{ refId?: string }>()
 	const [draft, setDraft] = useOnboardingDraft()
 	const [finishing, setFinishing] = React.useState(false)
@@ -322,9 +354,15 @@ function Extras({ pwa }: { pwa: UsePWA }) {
 		const toAccept = Object.entries(draft.invitesChecked)
 			.filter(([, v]) => v)
 			.map(([id]) => id)
+		// Only what actually succeeded may be pinned, so track outcomes rather than
+		// intentions. `api?.` would resolve to undefined without throwing, counting a
+		// missing client as a success and skipping the toast — hence the explicit throw.
+		const accepted: string[] = []
 		for (const actionId of toAccept) {
 			try {
-				await api?.actions.accept(actionId)
+				if (!api) throw new Error('API client unavailable')
+				await api.actions.accept(actionId)
+				accepted.push(actionId)
 			} catch (err) {
 				console.error('Failed to accept action', actionId, err)
 				toastError(
@@ -334,15 +372,35 @@ function Extras({ pwa }: { pwa: UsePWA }) {
 		}
 
 		// 2. Join the Cloudillo community (CONN to the default community).
+		let joined = false
 		if (draft.join) {
 			try {
-				await api?.actions.create({
+				if (!api) throw new Error('API client unavailable')
+				await api.actions.create({
 					type: 'CONN',
 					audienceTag: DEFAULT_COMMUNITY_ID_TAG
 				})
+				joined = true
 			} catch (err) {
 				console.error('Failed to join community:', err)
 				toastError(t('Failed to join community. You can try again later in Settings.'))
+			}
+		}
+
+		// 2b. Pin the joined communities. loadCommunities() first: favoriteCommunitiesAtom
+		// drops pinned idTags missing from communitiesAtom, last loaded before the accepts.
+		const pinTags = [
+			...accepted
+				.map((id) => draft.inviteCommunities[id])
+				.filter((tag): tag is string => !!tag),
+			...(joined ? [DEFAULT_COMMUNITY_ID_TAG] : [])
+		]
+		if (pinTags.length) {
+			try {
+				await loadCommunities()
+				pinCommunities(pinTags)
+			} catch (err) {
+				console.warn('Failed to pin joined communities:', err)
 			}
 		}
 

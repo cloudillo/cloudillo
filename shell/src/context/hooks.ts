@@ -567,18 +567,36 @@ export function useCommunitiesList() {
 	/**
 	 * Toggle pinned status of a community (with backend sync)
 	 */
+	// The three writers below read the current pins straight from the store rather than from a
+	// `setFavorites` updater: React may re-invoke an updater (StrictMode does in dev), which would
+	// fire savePinnedCommunities twice. `store.get` also avoids the stale-closure risk of reading
+	// the `favorites` binding.
 	const toggleFavorite = React.useCallback(
 		(idTag: string) => {
-			setFavorites((prev) => {
-				const newFavorites = prev.includes(idTag)
-					? prev.filter((id) => id !== idTag)
-					: [...prev, idTag]
-				// Save to backend (async, non-blocking)
-				savePinnedCommunities(newFavorites)
-				return newFavorites
-			})
+			const prev = store.get(favoritesAtom)
+			const newFavorites = prev.includes(idTag)
+				? prev.filter((id) => id !== idTag)
+				: [...prev, idTag]
+			setFavorites(newFavorites)
+			// Save to backend (async, non-blocking)
+			savePinnedCommunities(newFavorites)
 		},
-		[setFavorites, savePinnedCommunities]
+		[store, setFavorites, savePinnedCommunities]
+	)
+
+	/**
+	 * Pin communities, appending the not-yet-pinned ones (one backend write for the batch)
+	 */
+	const pinCommunities = React.useCallback(
+		(idTags: string[]) => {
+			const prev = store.get(favoritesAtom)
+			const added = idTags.filter((id) => id && !prev.includes(id))
+			if (!added.length) return
+			const newFavorites = [...prev, ...new Set(added)]
+			setFavorites(newFavorites)
+			savePinnedCommunities(newFavorites)
+		},
+		[store, setFavorites, savePinnedCommunities]
 	)
 
 	/**
@@ -586,16 +604,14 @@ export function useCommunitiesList() {
 	 */
 	const reorderFavorites = React.useCallback(
 		(fromIndex: number, toIndex: number) => {
-			setFavorites((prev) => {
-				const result = [...prev]
-				const [removed] = result.splice(fromIndex, 1)
-				result.splice(toIndex, 0, removed)
-				// Save to backend (async, non-blocking)
-				savePinnedCommunities(result)
-				return result
-			})
+			const result = [...store.get(favoritesAtom)]
+			const [removed] = result.splice(fromIndex, 1)
+			result.splice(toIndex, 0, removed)
+			setFavorites(result)
+			// Save to backend (async, non-blocking)
+			savePinnedCommunities(result)
 		},
-		[setFavorites, savePinnedCommunities]
+		[store, setFavorites, savePinnedCommunities]
 	)
 
 	/**
@@ -667,6 +683,7 @@ export function useCommunitiesList() {
 		refresh,
 		loadCommunities,
 		toggleFavorite,
+		pinCommunities,
 		reorderFavorites,
 		setShowInHome,
 		addCommunity,

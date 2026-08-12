@@ -23,6 +23,8 @@ export interface FileOwnerScope {
 	ownerIdTag: string | undefined
 	/** The tenant whose standing decides what we may do: the owner, else the active context */
 	scopeIdTag: string | undefined
+	/** Which node holds the profile picture blobs for these rows. Addresses an <img>, grants nothing */
+	profileSrcTag: string | undefined
 	/** Roles we hold ON `scopeIdTag` - NOT the active context's roles when cross-owner */
 	scopeRoles: string[]
 	/** The file the predicates actually judged: an ownerless row back-filled to `scopeIdTag`, a
@@ -197,6 +199,7 @@ export function useFileOwnerScope(
 			isCrossOwner: derived.isCrossOwner,
 			ownerIdTag: derived.ownerIdTag,
 			scopeIdTag: derived.scopeIdTag,
+			profileSrcTag: derived.profileSrcTag,
 			scopeRoles: derived.scopeRoles,
 			scopedFile: derived.scopedFile,
 			grantCeiling: derived.grantCeiling,

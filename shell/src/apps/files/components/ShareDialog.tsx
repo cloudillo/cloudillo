@@ -84,6 +84,7 @@ export function ShareDialog({
 		api,
 		canManageShares: scopeCanManageShares,
 		isCrossOwner,
+		profileSrcTag,
 		resolving,
 		scopedFile,
 		scopeIdTag,
@@ -655,7 +656,10 @@ export function ShareDialog({
 	const ownerRow = ownerIdTag ? (
 		<div className="c-hbox g-2 align-items-center p-2">
 			<div className="c-hbox g-2 flex-fill align-items-center text-truncate">
-				<ProfileCard profile={ownerProfile ?? { idTag: ownerIdTag, name: ownerIdTag }} />
+				<ProfileCard
+					profile={ownerProfile ?? { idTag: ownerIdTag, name: ownerIdTag }}
+					srcTag={profileSrcTag}
+				/>
 				{ownerIdTag === auth?.idTag && <span className="text-secondary">({t('you')})</span>}
 			</div>
 			<span className="c-badge">{t('Owner')}</span>
@@ -751,7 +755,10 @@ export function ShareDialog({
 												className="c-hbox g-2 align-items-center p-2"
 											>
 												<div className="flex-fill text-truncate">
-													<ProfileCard profile={profile} />
+													<ProfileCard
+														profile={profile}
+														srcTag={profileSrcTag}
+													/>
 												</div>
 												<span
 													className={

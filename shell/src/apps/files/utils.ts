@@ -499,6 +499,13 @@ export interface FileOwnerScopeDerivation {
 	canReadShares: boolean
 	canManageFile: boolean
 	resolving: boolean
+	/**
+	 * Which node to fetch a profile picture blob from for the rows this scope served. The scoped
+	 * tenant answered for this file, so it holds the mirrored `vis.pf` of its owner and of every
+	 * share recipient — the VIEWER's own node (what ProfilePicture/ProfileCard default to) need
+	 * not. Never used to decide permissions, only to address an <img>.
+	 */
+	profileSrcTag: string | undefined
 }
 
 /**
@@ -552,7 +559,9 @@ export function deriveFileOwnerScope({
 		resolving:
 			scopeUnresolved ||
 			!!override?.resolving ||
-			(isCrossOwner && !isOwnerSettled(ownerStatus))
+			(isCrossOwner && !isOwnerSettled(ownerStatus)),
+		// Deliberately defined even when `scopeUnresolved`: an image host hint, not a grant.
+		profileSrcTag: scopeIdTag ?? contextIdTag ?? authIdTag
 	}
 }
 

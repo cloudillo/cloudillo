@@ -293,7 +293,12 @@ export const ItemCard = React.memo(function ItemCard({
 							if (attribution.idTag === contextIdTag) return null
 							return (
 								<span className="c-file-card-meta-owner">
-									<ProfilePicture profile={attribution} tiny />
+									{/* The listing came from the active context, which holds the blob. */}
+									<ProfilePicture
+										profile={attribution}
+										tiny
+										srcTag={contextIdTag ?? auth?.idTag}
+									/>
 									<span className="text-truncate">
 										{attribution.name || `@${attribution.idTag}`}
 									</span>

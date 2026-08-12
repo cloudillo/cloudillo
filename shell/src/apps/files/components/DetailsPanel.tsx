@@ -628,6 +628,7 @@ export function DetailsPanel({
 													name: ownerIdTag
 												}
 											}
+											srcTag={scope.profileSrcTag}
 										/>
 										{ownerIdTag === auth?.idTag && file.owner && (
 											<span className="text-secondary">({t('you')})</span>
@@ -656,7 +657,10 @@ export function DetailsPanel({
 												className="c-hbox g-2 align-items-center p-2"
 											>
 												<div className="flex-fill text-truncate">
-													<ProfileCard profile={profile} />
+													<ProfileCard
+														profile={profile}
+														srcTag={scope.profileSrcTag}
+													/>
 												</div>
 												<PermChip
 													perm={toSharePermChar(entry.permission)}

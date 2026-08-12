@@ -326,6 +326,42 @@ describe('deriveFileOwnerScope: override precedence', () => {
 	})
 })
 
+/*
+ * Which node an <img> for a profile picture is addressed to. It tracks `scopeIdTag` because the
+ * tenant that served the file row also mirrors the `vis.pf` blobs of its owner and share
+ * recipients; the VIEWER's node - the component default - need not. DetailsPanel and ShareDialog
+ * both render rows for the same file, so a second spelling of this at either call site is how the
+ * two came to build different URLs for the same avatar.
+ */
+describe('deriveFileOwnerScope: profileSrcTag', () => {
+	it('names the active context for a same-tenant file', () => {
+		const scope = derive({ file: { owner: { idTag: COMMUNITY } }, contextIdTag: COMMUNITY })
+		expect(scope.profileSrcTag).toBe(COMMUNITY)
+	})
+
+	it('follows scopeIdTag to the owner for a cross-owner file', () => {
+		const scope = derive({ file: { owner: { idTag: OTHER } }, contextIdTag: COMMUNITY })
+		expect(scope.profileSrcTag).toBe(OTHER)
+		expect(scope.profileSrcTag).toBe(scope.scopeIdTag)
+	})
+
+	it('names the node an override decided on', () => {
+		const scope = derive({
+			file: { owner: { idTag: OTHER } },
+			contextIdTag: COMMUNITY,
+			override: { idTag: OTHER, roles: [] }
+		})
+		expect(scope.profileSrcTag).toBe(OTHER)
+	})
+
+	// Last resort, and still just an image host hint: with no owner, no context and no override
+	// there is nothing else to ask.
+	it('falls through to our own node when nothing else names one', () => {
+		const scope = derive({ file: {}, contextIdTag: undefined })
+		expect(scope.profileSrcTag).toBe(ME)
+	})
+})
+
 // The single flag both the derivation and useFileOwnerScope's effect branch on: computing it
 // separately would let a change to one reading silently split the affordance from the node.
 describe('isCrossOwnerFile', () => {

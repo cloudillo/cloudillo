@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/notillo-app",
-	"version": "0.8.17",
+	"version": "0.8.18",
 	"private": true,
 	"description": "Notillo wiki app",
 	"type": "module",
@@ -34,8 +34,8 @@
 		"@react-pdf/renderer": "^4.6.0",
 		"@symbion/opalui": "^0.15.0",
 		"@symbion/runtype": "^1.2.1",
-		"@tiptap/core": "^3.29.2",
-		"@tiptap/pm": "^3.29.2",
+		"@tiptap/core": "^3.30.0",
+		"@tiptap/pm": "^3.30.0",
 		"@types/jest": "^30.0.0",
 		"@types/react": "^19.2.18",
 		"@types/react-dom": "^19.2.4",

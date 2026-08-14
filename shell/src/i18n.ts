@@ -31,6 +31,8 @@ i18n.use(initReactI18next)
 		keySeparator: '@',
 		nsSeparator: '$',
 		returnNull: false,
+		// An untranslated key must fall back to its English text, not blank out the UI.
+		returnEmptyString: false,
 		react: {
 			transSupportBasicHtmlNodes: true,
 			transKeepBasicHtmlNodesFor: ['br', 'b', 'i', 'p']

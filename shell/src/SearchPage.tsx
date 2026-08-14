@@ -12,6 +12,7 @@
  */
 
 import {
+	Button,
 	EmptyState,
 	LoadMoreTrigger,
 	SkeletonList,
@@ -192,52 +193,79 @@ export function SearchPage() {
 	// locally instead of by a round trip that was never made.
 	const forbidden = httpStatus === 401 || httpStatus === 403 || foreignForGuest
 
+	// A fixed header band over an inner scroller, the shape `Fcd.Content` gives every
+	// other top-level page: the shell's route outlet has no overflow of its own, so a
+	// page without one simply overflows the fixed-height layout box and only its first
+	// screenful is reachable.
 	return (
-		<div className="c-vbox g-2 p-2 c-search-page">
-			<h1 className="c-h4">{t('Search results')}</h1>
-			<input
-				type="search"
-				className="c-input w-100"
-				value={input}
-				maxLength={FTS_MAX_QUERY}
-				placeholder={t('Search')}
-				aria-label={t('Search')}
-				onChange={(e) => setInput(e.target.value)}
-			/>
-			<Tabs value={tabValue} onTabChange={setType}>
-				<Tab value="">{t('All')}</Tab>
-				<Tab value="file">{t('Files')}</Tab>
-				<Tab value="doc">{t('Documents')}</Tab>
-				<Tab value="action">{t('Posts')}</Tab>
-				{/* No People for a guest — the server excludes profile rows. */}
-				{!!auth && <Tab value="profile">{t('People')}</Tab>}
-			</Tabs>
+		// `flex-fill`, not a percentage height: the route outlet may put a banner
+		// above this page, and `h-100` would claim the whole column on top of it.
+		<div className="c-panel c-vbox flex-fill h-min-0 p-0 g-0 c-search-page">
+			<div className="c-vbox g-2 c-search-page-header">
+				<div className="c-hbox align-items-baseline g-2">
+					<h1 className="c-h5 flex-fill">{t('Search results')}</h1>
+					{/* Mounted unconditionally: a live region that appears together with
+					    its first content is usually not announced at all. */}
+					<span className="text-sm text-muted" aria-live="polite">
+						{total !== undefined ? t('{{count}} results', { count: total }) : ''}
+					</span>
+				</div>
+				<div className="c-search-page-field" role="search" aria-label={t('Search results')}>
+					<span className="c-search-page-field-icon" aria-hidden="true">
+						<IcSearch />
+					</span>
+					<input
+						type="search"
+						className="c-input w-100"
+						value={input}
+						maxLength={FTS_MAX_QUERY}
+						placeholder={t('Search')}
+						aria-label={t('Search')}
+						onChange={(e) => setInput(e.target.value)}
+					/>
+				</div>
+				<Tabs value={tabValue} onTabChange={setType}>
+					<Tab value="">{t('All')}</Tab>
+					<Tab value="file">{t('Files')}</Tab>
+					<Tab value="doc">{t('Documents')}</Tab>
+					<Tab value="action">{t('Posts')}</Tab>
+					{/* No People for a guest — the server excludes profile rows. */}
+					{!!auth && <Tab value="profile">{t('People')}</Tab>}
+				</Tabs>
+			</div>
 
-			{!q ? (
-				<EmptyState
-					icon={<IcSearch />}
-					title={t('Search this space')}
-					description={t(
-						'Type a few words to search files, documents, posts and people.'
-					)}
-				/>
-			) : isLoading || isPending || !api || contextResolving ? (
-				<SkeletonList count={5} />
-			) : forbidden ? (
-				<EmptyState title={t('Search is not available in this space')} />
-			) : !items.length && !error ? (
-				<EmptyState
-					title={t('No results found')}
-					description={t('Try different words, or clear the filters.')}
-				/>
-			) : (
-				<>
-					{total !== undefined && (
-						<div className="small text-muted">
-							{t('{{count}} results', { count: total })}
-						</div>
-					)}
-					<div className="c-vbox g-1">
+			{/* The sentinel below must live *inside* this scroller: outside it, the
+			    IntersectionObserver would see it permanently visible and auto-page. */}
+			<div className="c-vbox g-1 fill h-min-0 c-search-page-results">
+				{!q ? (
+					<EmptyState
+						icon={<IcSearch />}
+						title={t('Search this space')}
+						description={t(
+							'Type a few words to search files, documents, posts and people.'
+						)}
+					/>
+				) : isLoading || isPending || !api || contextResolving ? (
+					<SkeletonList count={5} />
+				) : forbidden ? (
+					<EmptyState title={t('Search is not available in this space')} />
+				) : !items.length && !error ? (
+					<EmptyState
+						title={t('No results found')}
+						description={t('Try different words, or clear the filters.')}
+						action={
+							tabValue ? (
+								<Button kind="link" onClick={() => setType('')}>
+									{t('Clear filters')}
+								</Button>
+							) : undefined
+						}
+					/>
+				) : (
+					// The explicit `role="list"` survives the `list-style: none` that
+					// otherwise strips list semantics in Safari. No role on the anchors:
+					// one would replace their implicit `link` role.
+					<ul className="c-vbox g-1 c-search-page-hits" role="list">
 						{items.map((hit) => {
 							const target = searchHitTarget(
 								hit,
@@ -247,32 +275,30 @@ export function SearchPage() {
 							)
 							if (!target) return null
 							return (
-								<Link
-									key={`${hit.objTp}:${hit.objId}:${hit.partId ?? ''}`}
-									className="c-search-page-hit"
-									to={target}
-								>
-									<SearchResultRow hit={hit} />
-								</Link>
+								<li key={`${hit.objTp}:${hit.objId}:${hit.partId ?? ''}`}>
+									<Link className="c-search-page-hit" to={target}>
+										<SearchResultRow hit={hit} contextIdTag={contextIdTag} />
+									</Link>
+								</li>
 							)
 						})}
-					</div>
-				</>
-			)}
+					</ul>
+				)}
 
-			<LoadMoreTrigger
-				ref={sentinelRef}
-				isLoading={isLoadingMore}
-				hasMore={hasMore}
-				error={forbidden ? null : error}
-				// `loadMore` needs a cursor and a failed first page never produced
-				// one — it would be a dead button. Mid-list, resuming from the
-				// cursor is what is wanted.
-				onRetry={items.length ? loadMore : reset}
-				loadingLabel={t('Loading more results...')}
-				retryLabel={t('Retry')}
-				errorPrefix={t('Failed to load:')}
-			/>
+				<LoadMoreTrigger
+					ref={sentinelRef}
+					isLoading={isLoadingMore}
+					hasMore={hasMore}
+					error={forbidden ? null : error}
+					// `loadMore` needs a cursor and a failed first page never produced
+					// one — it would be a dead button. Mid-list, resuming from the
+					// cursor is what is wanted.
+					onRetry={items.length ? loadMore : reset}
+					loadingLabel={t('Loading more results...')}
+					retryLabel={t('Retry')}
+					errorPrefix={t('Failed to load:')}
+				/>
+			</div>
 		</div>
 	)
 }

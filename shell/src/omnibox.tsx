@@ -36,7 +36,6 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
 	LuX as IcClose,
-	LuCopy as IcCopy,
 	LuHistory as IcHistory,
 	LuLink as IcRef,
 	LuSearch as IcSearch
@@ -163,9 +162,9 @@ export function DocumentTitleSync() {
 }
 
 /**
- * Idle header state: a magnifier and a placeholder that both open the omnibox
- * input, plus a copy button (shareable routes only) yielding a portable `cl:`
- * reference.
+ * Idle header state: a single collapsed-field placeholder — magnifier plus
+ * label — that opens the omnibox input, plus a copy button (shareable routes
+ * only) yielding a portable `cl:` reference.
  *
  * No `Context › App › Document` crumb trail here: that lives in each app's
  * DocBar, which can also rename the document and show who else is in it.
@@ -192,15 +191,8 @@ export function OmniboxIdle() {
 
 	return (
 		<div className="c-hbox align-items-center g-1" style={{ minWidth: 0 }}>
-			<Button
-				className="icon c-omnibox-search flex-shrink-0"
-				onClick={() => openOmnibox()}
-				aria-label={t('Open search')}
-				title={t('Search')}
-			>
-				<IcSearch size={16} />
-			</Button>
 			<button type="button" className="c-omnibox-placeholder" onClick={() => openOmnibox()}>
+				<IcSearch size={16} />
 				{t('Search')}
 			</button>
 			{canShare && (
@@ -209,7 +201,7 @@ export function OmniboxIdle() {
 					onClick={copyRef}
 					aria-label={t('Copy reference')}
 				>
-					<IcCopy />
+					<IcRef />
 				</Button>
 			)}
 		</div>
@@ -795,7 +787,9 @@ export function Omnibox() {
 			const { profile } = item
 			return (
 				<span className="c-hbox align-items-center g-2">
-					<ProfilePicture profile={profile} srcTag={profile.idTag} tiny />
+					{/* Full size, matching the `'hit'` rows below: the two kinds sit in
+					    one list and a half-height avatar between them reads as a glitch. */}
+					<ProfilePicture profile={profile} srcTag={profile.idTag} />
 					<span className="c-vbox">
 						<span>{profile.name || profile.idTag}</span>
 						<span className="small text-muted">@{profile.idTag}</span>
@@ -804,7 +798,7 @@ export function Omnibox() {
 			)
 		}
 		if (item.kind === 'hit') {
-			return <SearchResultRow hit={item.hit} compact />
+			return <SearchResultRow hit={item.hit} compact contextIdTag={contextIdTag} />
 		}
 		if (item.kind === 'see-all') {
 			return (
@@ -878,6 +872,8 @@ export function Omnibox() {
 		<div
 			className="c-hbox align-items-center g-1 flex-fill"
 			role="search"
+			// Labelled because /search puts a second search landmark on the page.
+			aria-label={t('Quick search')}
 			style={{ minWidth: 0 }}
 		>
 			<div

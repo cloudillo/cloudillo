@@ -354,7 +354,7 @@ describe('Ctrl+K recall', () => {
 		store.set(lastQueryAtom, 'budget')
 		renderOmnibox(store)
 
-		fireEvent.click(screen.getByLabelText('Open search'))
+		fireEvent.click(screen.getByRole('button', { name: 'Search' }))
 
 		// Mouse and keyboard are the same door: the magnifier recalls like Ctrl+K.
 		expect(input().value).toBe('budget')

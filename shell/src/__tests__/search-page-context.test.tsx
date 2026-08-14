@@ -46,6 +46,11 @@ let activeIdTag: string | undefined = COMMUNITY
 let authState: { idTag: string } | null = { idTag: HOME }
 
 jest.unstable_mockModule('@cloudillo/react', () => ({
+	Button: ({ children, ...props }: { children?: React.ReactNode }) => (
+		<button type="button" {...props}>
+			{children}
+		</button>
+	),
 	EmptyState: ({ title }: { title: string }) => <div data-testid="empty">{title}</div>,
 	LoadMoreTrigger: React.forwardRef(() => null),
 	SkeletonList: () => <div data-testid="skeleton" />,

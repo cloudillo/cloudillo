@@ -40,9 +40,10 @@ summary:focus-visible {
 	font-family: 'Oswald', sans-serif;
 }
 
-/* Idle header: a placeholder that opens the omnibox, and nothing else — the
- * `Context › App › Document` crumb trail lives in each app's DocBar
- * (libs/react components.css). */
+/* Idle header: a magnifier-plus-label placeholder that opens the omnibox, and
+ * nothing else — the `Context › App › Document` crumb trail lives in each app's
+ * DocBar (libs/react components.css). The inline padding and gap line the label
+ * up with the focused field's input text, so expanding does not shift it. */
 .c-omnibox-placeholder {
 	font-family: 'Roboto', sans-serif;
 	font-weight: 400;
@@ -52,7 +53,11 @@ summary:focus-visible {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	min-height: 2.5rem;
-	padding: 0.2rem 0.4rem;
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+	padding-block: 0.2rem;
+	padding-inline: 0.6rem 0.4rem;
 	background: none;
 	border: none;
 	border-radius: var(--bd-radius, 0.25rem);
@@ -64,42 +69,47 @@ summary:focus-visible {
 	background: rgb(127 127 127 / 0.12);
 }
 
-/* Search / copy-reference buttons: quiet affordances next to the title, no fill. */
-.c-omnibox-copy,
-.c-omnibox-search {
+/* Copy-reference button: a quiet affordance next to the title, no fill. */
+.c-omnibox-copy {
 	background: none;
 	border: none;
 	color: inherit;
 	opacity: 0.55;
 }
-.c-omnibox-copy:hover,
-.c-omnibox-search:hover {
+.c-omnibox-copy:hover {
 	background: rgb(127 127 127 / 0.12);
 	opacity: 1;
 }
 
-/* Focused smart-input field: magnifier sits inside the input's left padding. */
-.c-omnibox-field {
+/* Magnifier inside the field's leading padding. Shared by the header omnibox and the
+   /search query field, so the two cannot drift apart. */
+.c-omnibox-field,
+.c-search-page-field {
 	position: relative;
 	display: flex;
 	align-items: center;
-	gap: 0.25rem;
-	flex: 1 1 auto;
 	min-width: 0;
 }
-.c-omnibox-field-icon {
+/* The omnibox field also carries the ⌘K hint and has to grow inside the nav bar. */
+.c-omnibox-field {
+	gap: 0.25rem;
+	flex: 1 1 auto;
+}
+.c-omnibox-field-icon,
+.c-search-page-field-icon {
 	position: absolute;
-	left: 0.6rem;
+	inset-inline-start: 0.6rem;
 	top: 50%;
 	transform: translateY(-50%);
 	display: flex;
 	opacity: 0.55;
 	pointer-events: none;
 }
-.c-omnibox-field > input.c-input {
+.c-omnibox-field > input.c-input,
+.c-search-page-field > input.c-input {
 	flex: 1 1 auto;
 	min-width: 0;
-	padding-left: 2rem;
+	padding-inline-start: 2rem;
 }
 /* Shortcut hint inside the empty field: reminds where the box came from without
    spending placeholder width on it. */
@@ -189,13 +199,17 @@ summary:focus-visible {
 .c-search-row {
 	width: 100%;
 	min-width: 0;
-	align-items: flex-start;
 	text-align: start;
 }
 .c-search-row-icon {
 	display: flex;
 	align-items: center;
 	flex-shrink: 0;
+}
+/* Dim the type glyphs only. A thumbnail or an avatar is real content and reads as
+   faded at 0.7 — and the direct-child selector keeps `UnknownProfilePicture`,
+   which is an `svg.picture` nested inside `.c-profile-card`, out of it. */
+.c-search-row-icon > svg {
 	opacity: 0.7;
 }
 /* The min-width:0 chain is what makes the clamps below actually clamp. */
@@ -228,6 +242,16 @@ summary:focus-visible {
 	flex-shrink: 0;
 	white-space: nowrap;
 }
+/* Matches `.c-profile-card .picture`, so a file thumbnail and a profile avatar
+   occupy the same box and the icon column stays straight. One size in both
+   variants, so the dropdown and the results page cannot drift. */
+.c-search-row-thumb {
+	width: 2.5rem;
+	height: 2.5rem;
+	flex-shrink: 0;
+	object-fit: cover;
+	border-radius: var(--bd-radius, 0.25rem);
+}
 .c-search-row.compact .c-search-row-title,
 .c-search-row.compact .c-search-row-snippet {
 	-webkit-line-clamp: 1;
@@ -236,15 +260,41 @@ summary:focus-visible {
    @cloudillo/react's components.css, which the shell loads too: the sandboxed
    app iframes get only that file. */
 
-/* /search results page */
+/* /search results page. The surface comes from `c-panel` on the element itself;
+   `p-0 g-0` in the markup neutralises the panel's own padding and gap so the two
+   bands below own their spacing. */
 .c-search-page {
 	max-width: 48rem;
 	width: 100%;
 	margin: 0 auto;
 }
+/* Pinned band: title, count, query field and type tabs stay put while the list
+   under it scrolls. */
+.c-search-page-header {
+	padding: 0.75rem;
+	border-block-end: 1px solid var(--col-outline);
+}
+/* Plain CSS rather than the `overflow-y-auto` utility, which is `!important` and
+   would fight `overflow-x`. `clip` on the cross axis is the documented workaround
+   for `overflow-y: auto` producing a spurious horizontal scrollbar. */
+.c-search-page-results {
+	padding: 0.5rem;
+	overflow-y: auto;
+	overflow-x: clip;
+}
+/* The rows are a real list, and an explicit `role="list"` in the markup keeps the
+   semantics that this `list-style: none` would strip in Safari. */
+.c-search-page-hits {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
 .c-search-page-hit {
 	display: block;
-	padding: 0.5rem 0.6rem;
+	padding-block: 0.5rem;
+	padding-inline: 0.6rem;
+	/* 44px touch target. */
+	min-height: 2.75rem;
 	border-radius: var(--bd-radius, 0.25rem);
 	color: inherit;
 	text-decoration: none;
@@ -252,6 +302,15 @@ summary:focus-visible {
 .c-search-page-hit:hover {
 	background: var(--col-container-high, rgb(127 127 127 / 0.12));
 	text-decoration: none;
+}
+/* The global `:focus-visible` rule above already draws this ring, but with a *positive*
+   offset, which the results scroller (`overflow-y: auto`) clips on a full-width row —
+   hence the inset offset here, plus the hover background so the focused row reads the
+   same way a pointed-at one does. `--col-focus` is the same token, not a divergence. */
+.c-search-page-hit:focus-visible {
+	background: var(--col-container-high, rgb(127 127 127 / 0.12));
+	outline: 2px solid var(--col-focus);
+	outline-offset: -2px;
 }
 
 /* Skip to main content link for keyboard accessibility */

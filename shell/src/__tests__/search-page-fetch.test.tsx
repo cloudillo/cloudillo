@@ -100,6 +100,11 @@ const { useInfiniteScroll } = await import('../../../libs/react/src/hooks.js')
 const { useDebouncedValue } = await import('../../../libs/react/src/components/hooks.js')
 
 jest.unstable_mockModule('@cloudillo/react', () => ({
+	Button: ({ children, ...props }: { children?: React.ReactNode }) => (
+		<button type="button" {...props}>
+			{children}
+		</button>
+	),
 	EmptyState: ({ title }: { title: string }) => {
 		branches.push(`empty:${title}`)
 		return <div data-testid="empty">{title}</div>

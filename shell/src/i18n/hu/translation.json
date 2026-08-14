@@ -525,7 +525,8 @@
 	"DNS propagation in progress...": "DNS propagáció folyamatban...",
 	"Setting up...": "Beállítás...",
 	"Create new community": "Új közösség létrehozása",
-	"Owner profile": "Tulajdonos profil",
+	"Hosted by": "Tulajdonos",
+	"Shared by": "Megosztotta",
 	"Create a Community": "Közösség létrehozása",
 	"Name your community on {{provider}}": "Nevezd el a közösséged a {{provider}} szolgáltatónál",
 	"Your community will be": "A közösséged ez lesz:",
@@ -1985,5 +1986,14 @@
 	"This address does not match anything in Cloudillo.": "Ez a cím nem felel meg semminek a Cloudillóban.",
 	"Go to the feed": "Tovább a hírfolyamra",
 	"Open {{idTag}}?": "Megnyitod ezt: {{idTag}}?",
-	"Continuing identifies you to that server: Cloudillo signs in on your behalf so it can load the page. Only continue if you trust this address.": "A folytatással azonosítod magad annál a szervernél: a Cloudillo a nevedben jelentkezik be, hogy be tudja tölteni az oldalt. Csak akkor folytasd, ha megbízol ebben a címben."
+	"Continuing identifies you to that server: Cloudillo signs in on your behalf so it can load the page. Only continue if you trust this address.": "A folytatással azonosítod magad annál a szervernél: a Cloudillo a nevedben jelentkezik be, hogy be tudja tölteni az oldalt. Csak akkor folytasd, ha megbízol ebben a címben.",
+	"Actions": "Műveletek",
+	"Guest": "Vendég",
+	"1 collaborator": "1 együttműködő",
+	"{{count}} collaborators_one": "{{count}} együttműködő",
+	"{{count}} collaborators_other": "{{count}} együttműködő",
+	"Loading document name": "Dokumentum nevének betöltése",
+	"Document unavailable": "A dokumentum nem érhető el",
+	"Document name": "Dokumentum neve",
+	"Could not rename the document": "Nem sikerült átnevezni a dokumentumot"
 }

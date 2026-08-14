@@ -32,7 +32,7 @@ export type { Ctx } from './ctx'
 export { CtxProvider, useCtx } from './ctx'
 export type { GuestFileType } from './guest-document'
 // Guest document state (for guest ref link navigation)
-export { useGuestDocument } from './guest-document'
+export { isGuestDocumentPath, useGuestDocument } from './guest-document'
 // Hooks
 export {
 	isContextLeader,

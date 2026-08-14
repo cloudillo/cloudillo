@@ -41,7 +41,7 @@ import { type DirtyDocSummary, listDirtyDocs, wipeLocalData } from './auth/wipe-
 import { BusinessCardDialog } from './components/BusinessCard/BusinessCardDialog.js'
 import { CameraCaptureDialog } from './components/CameraCapture/index.js'
 import { DocumentPicker } from './components/DocumentPicker/index.js'
-import { GuestOwnerChip } from './components/GuestOwnerChip.js'
+import { GuestOwnerBanner } from './components/GuestOwnerBanner.js'
 import { HandChip } from './components/HandChip.js'
 import { MediaPicker } from './components/MediaPicker/index.js'
 import { QrScannerDialog } from './components/QrScanner/index.js'
@@ -86,7 +86,7 @@ import usePWA, {
 } from './pwa.js'
 import { useGlobalUnreadProbe } from './read-position.js'
 import { ContextGuard, RequireAuth } from './route-guards.js'
-import { HOME_BASE, profilePath, settingsPath } from './routes.js'
+import { profilePath, settingsPath } from './routes.js'
 import { SearchPage } from './SearchPage.js'
 import { toggleOmniboxAtom, useSearch } from './search.js'
 import { settingsRoutes } from './settings/index.js'
@@ -303,17 +303,6 @@ function Header({ inert }: { inert?: boolean }) {
 					>
 						<CloudilloLogo style={{ height: 32 }} />
 					</li>
-					{!auth && api?.idTag && (
-						<li
-							className={mergeClasses(
-								'c-nav-item',
-								// Yields the row to the open omnibox, like the logo above.
-								search.query != undefined && 'sm-hide'
-							)}
-						>
-							<GuestOwnerChip idTag={api.idTag} />
-						</li>
-					)}
 					<DocumentTitleSync />
 					{/* Guests too: they may search the owner's public content, minus
 					    profiles — see `Omnibox`. */}
@@ -402,28 +391,6 @@ function Header({ inert }: { inert?: boolean }) {
 						<>
 							<Popper className="c-nav-item" aria-label={t('Menu')} icon={<IcMenu />}>
 								<ul className="c-nav vertical emph">
-									{location.pathname.startsWith('/s/') && (
-										<li>
-											<Link className="c-nav-item" to="/login">
-												<IcLogin />
-												{t('Sign in')}
-											</Link>
-										</li>
-									)}
-									{api?.idTag && (
-										<li>
-											<Link
-												className="c-nav-item"
-												to={profilePath(HOME_BASE, 'me')}
-											>
-												<IcUser />
-												{t('Owner profile')}
-											</Link>
-										</li>
-									)}
-									<li>
-										<hr className="w-100" />
-									</li>
 									<li>
 										<Button
 											kind="nav-item"
@@ -448,14 +415,16 @@ function Header({ inert }: { inert?: boolean }) {
 									</li>
 								</ul>
 							</Popper>
-							{!location.pathname.startsWith('/s/') && (
-								<li className="c-nav-item">
-									<Link to="/login" className="c-button accent pill small">
-										<IcLogin />
-										{t('Sign in')}
-									</Link>
-								</li>
-							)}
+							<li className="c-nav-item">
+								<Link
+									to="/login"
+									className="c-button accent pill small c-signin-button"
+									aria-label={t('Sign in')}
+								>
+									<IcLogin />
+									<span className="sm-hide">{t('Sign in')}</span>
+								</Link>
+							</li>
 						</>
 					)}
 				</ul>
@@ -706,6 +675,7 @@ export function Layout() {
 								inert={dialog.isOpen}
 								className="c-vbox flex-fill h-min-0"
 							>
+								<GuestOwnerBanner />
 								<CommunityVerifyIdpBanner />
 								<UnknownContextBanner />
 								<ShellRoutes pwa={pwa} />

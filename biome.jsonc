@@ -26,6 +26,10 @@
 			"!**/lib",
 			"!**/*.min.js",
 			"!**/*.min.css",
+			// Biome's CSS parser panics on the inline <style> blocks in our SVGs
+			// (biome_rowan: CSS_BOGUS cannot be cast as AnyCssRoot). Nothing to
+			// lint in an SVG anyway.
+			"!**/*.svg",
 			"!local/**"
 		],
 		"rules": {

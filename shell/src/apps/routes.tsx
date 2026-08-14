@@ -1,20 +1,15 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-/** The shell's `/app/...` route tree, plus the leader-only route guard. */
+/** The shell's `app/...` route branch, plus the context root and leader-only guards. */
 
-import { apiAtom, useAuth } from '@cloudillo/react'
+import { useAuth } from '@cloudillo/react'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
-import { Navigate, Route, Routes, useParams } from 'react-router-dom'
+import { Navigate, Route } from 'react-router-dom'
 
-import {
-	activeContextAtom,
-	HOME_CONTEXT,
-	isContextLeader,
-	useContextFromRoute,
-	useUrlContextIdTag
-} from '../context/index.js'
+import { activeContextAtom, isContextLeader, useCtx } from '../context/index.js'
+import { feedPath } from '../routes.js'
 import { AppLoadingIndicator } from './AppLoadingIndicator.js'
 import { CalendarApp } from './calendar/index.js'
 import { ContactsApp } from './contacts/index.js'
@@ -25,12 +20,8 @@ import { ExternalApp } from './index.js'
 import { MessagesApp } from './messages/index.js'
 import { FileViewerApp } from './viewer/index.js'
 
-function PlaceHolder({ title }: { title: string }) {
-	return <h1>{title}</h1>
-}
-
-// Ceiling on both waits below. The context resolution can fail silently (use-context-from-route.ts
-// only logs), and a guard that waits forever is worse than one that decides late.
+// Ceiling on both waits below. The context resolution can fail silently (ctx.tsx only
+// logs), and a guard that waits forever is worse than one that decides late.
 const CONTEXT_WAIT_MS = 5000
 
 /**
@@ -39,18 +30,14 @@ const CONTEXT_WAIT_MS = 5000
  * a community would otherwise render an app whose every request 403s. Redirect to the feed instead.
  */
 function LeaderOnlyRoute({ children }: { children: React.ReactElement }) {
-	const { contextIdTag } = useParams()
+	// The tenant the route names — `~` already resolved, so this is comparable with
+	// `activeContext.idTag`.
+	const ctx = useCtx()
 	const [auth] = useAuth()
-	const apiState = useAtomValue(apiAtom)
 	const activeContext = useAtomValue(activeContextAtom)
-	// The URL form of whatever context is active: `~` at home, the community's idTag otherwise.
-	// The routes without a :contextIdTag segment keep the active context, so redirecting them to
-	// HOME_CONTEXT would switch the user out of the community as a side effect of a permission
-	// refusal.
-	const activeUrlSegment = useUrlContextIdTag()
 
 	// Computed before the early returns so the timeout below covers BOTH waits.
-	const target = contextIdTag === HOME_CONTEXT ? apiState.idTag : contextIdTag
+	const target = ctx.idTag
 	const waiting = !activeContext || (!!target && activeContext.idTag !== target)
 
 	// Once this fires the waits fall through and let the app's own 401/403 surface.
@@ -65,9 +52,10 @@ function LeaderOnlyRoute({ children }: { children: React.ReactElement }) {
 		return () => window.clearTimeout(timer)
 	}, [waiting])
 
-	// Unauthenticated: useContextFromRoute returns early, so `activeContext` never arrives and BOTH
-	// waits below would spin forever. Render through and let the app's own 401s drive the login
-	// flow. isContextLeader(null, undefined) is true by design, so this matches the fall-through.
+	// Unauthenticated: `CtxProvider`'s switch effect returns early, so `activeContext` never
+	// arrives and BOTH waits below would spin forever. Render through and let the app's own
+	// 401s drive the login flow. isContextLeader(null, undefined) is true by design, so this
+	// matches the fall-through.
 	if (!auth) return children
 
 	// Decide only once the context is known: isContextLeader treats null as "leader" by design
@@ -77,21 +65,20 @@ function LeaderOnlyRoute({ children }: { children: React.ReactElement }) {
 	if (!activeContext) return waitedTooLong ? children : <AppLoadingIndicator stage="connecting" />
 
 	// The URL segment is the source of truth; `activeContext` catches up asynchronously (see
-	// `useContextFromRoute`), and a community deep link judged before they agree would be
-	// measured against the previous context's roles.
+	// `CtxProvider`), and a community deep link judged before they agree would be measured
+	// against the previous context's roles.
 	if (target && activeContext.idTag !== target) {
 		return waitedTooLong ? children : <AppLoadingIndicator stage="connecting" />
 	}
 
 	if (isContextLeader(activeContext, auth?.idTag)) return children
 
-	const urlSegment = contextIdTag ?? activeUrlSegment ?? HOME_CONTEXT
-	return <Navigate to={`/app/${urlSegment}/feed`} replace />
+	return <Navigate to={feedPath(ctx.base)} replace />
 }
 
-// Every app route exists twice: once context-aware (`/app/:contextIdTag/…`) and
-// once legacy (`/app/…`, which keeps whatever context is active). The two lists
-// must stay in lockstep, so they are generated from one table.
+// The tail of every app route, below `<context>/app`. Keep `:appId/*` last —
+// it is the catch-all for external microfrontends and would otherwise swallow the
+// built-in apps above it.
 const APP_ROUTES: Array<{ path: string; element: React.ReactElement }> = [
 	{ path: 'files', element: <FilesApp /> },
 	// The optional `:actionId` is the post permalink search hits land on.
@@ -118,20 +105,28 @@ const APP_ROUTES: Array<{ path: string; element: React.ReactElement }> = [
 	{ path: ':appId/*', element: <ExternalApp className="w-100 h-100" /> }
 ]
 
-export function AppRoutes() {
-	useContextFromRoute()
+/**
+ * The bare context root, `/~` or `/@comm.tld` — a context with no section names no page,
+ * so it lands on that context's feed. `ctx.base` is the URL's own segment, so the redirect
+ * stays in the context that was asked for even while `activeContext` is catching up.
+ */
+export function ContextRoot() {
+	const ctx = useCtx()
 
+	return <Navigate to={feedPath(ctx.base)} replace />
+}
+
+/**
+ * The `app/…` children of the context route. A plain function, not a component — see
+ * `ShellRoutes` in `layout.tsx` for why.
+ */
+export function appRoutes() {
 	return (
-		<Routes>
-			<Route path="/" element={<PlaceHolder title="Home" />} />
+		<>
 			{APP_ROUTES.map((r) => (
-				<Route key={r.path} path={`/app/:contextIdTag/${r.path}`} element={r.element} />
+				<Route key={r.path} path={`app/${r.path}`} element={r.element} />
 			))}
-			{APP_ROUTES.map((r) => (
-				<Route key={`legacy-${r.path}`} path={`/app/${r.path}`} element={r.element} />
-			))}
-			<Route path="/*" element={null} />
-		</Routes>
+		</>
 	)
 }
 

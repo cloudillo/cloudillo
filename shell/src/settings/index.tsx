@@ -15,9 +15,11 @@ import {
 	LuKeyRound as IcSecurity,
 	LuShieldCheck as IcTrust
 } from 'react-icons/lu'
-import { NavLink, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { NavLink, Outlet, Route, useLocation, useMatch, useNavigate } from 'react-router-dom'
 
+import { useCtx } from '../context/index.js'
 import type { UsePWA } from '../pwa.js'
+import { sectionMatch, settingsPath } from '../routes.js'
 import { useAppConfig } from '../utils.js'
 import { AppearanceSettings } from './appearance.js'
 import { NotificationSettings } from './notifications.js'
@@ -40,14 +42,12 @@ interface SettingsProps {
 export function Settings({ title, children }: SettingsProps) {
 	const _navigate = useNavigate()
 	const location = useLocation()
-	const params = useParams()
 	const { t } = useTranslation()
 	const [_appConfig] = useAppConfig()
 	useApi()
 	const [_auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
-	const contextIdTag = params.contextIdTag!
-	const basePath = `/settings/${contextIdTag}`
+	const basePath = settingsPath(useCtx().base)
 
 	React.useEffect(
 		function onLocationEffect() {
@@ -119,85 +119,65 @@ export function Settings({ title, children }: SettingsProps) {
 	)
 }
 
-export function SettingsRoutes({ pwa }: { pwa: UsePWA }) {
+/**
+ * The heading over the settings page currently showing. A switch rather than a lookup table
+ * so every string stays a literal `t('…')` call — `pnpm run l-scan` extracts the keys by
+ * reading them, and a `t(variable)` is invisible to it.
+ */
+function settingsTitle(t: (key: string) => string, page: string | undefined): string {
+	switch (page) {
+		case 'security':
+			return t('Security')
+		case 'privacy':
+			return t('Privacy')
+		case 'trust':
+			return t('Trusted profiles')
+		case 'notifications':
+			return t('Notifications')
+		case 'appearance':
+			return t('Appearance')
+		case 'calendar':
+			return t('Calendar')
+		case 'apps':
+			return t('App menu')
+		case 'files':
+			return t('Files & Storage')
+		default:
+			return t('Settings')
+	}
+}
+
+/** The chrome every settings page renders through, as one layout route. */
+function SettingsLayout() {
 	const { t } = useTranslation()
+	// The route's own page segment. `useParams()` would be empty here — this IS the
+	// `settings` route, so its children's params are not in scope.
+	const page = useMatch(sectionMatch('settings', ':page?'))?.params.page
 
 	return (
-		<Routes>
-			<Route
-				path="/settings/:contextIdTag"
-				element={
-					<Settings title={t('Settings')}>
-						<SettingsOverview pwa={pwa} />
-					</Settings>
-				}
-			/>
-			<Route
-				path="/settings/:contextIdTag/security"
-				element={
-					<Settings title={t('Security')}>
-						<SecuritySettings />
-					</Settings>
-				}
-			/>
-			<Route
-				path="/settings/:contextIdTag/privacy"
-				element={
-					<Settings title={t('Privacy')}>
-						<PrivacySettings />
-					</Settings>
-				}
-			/>
-			<Route
-				path="/settings/:contextIdTag/trust"
-				element={
-					<Settings title={t('Trusted profiles')}>
-						<TrustSettings />
-					</Settings>
-				}
-			/>
-			<Route
-				path="/settings/:contextIdTag/notifications"
-				element={
-					<Settings title={t('Notifications')}>
-						<NotificationSettings pwa={pwa} />
-					</Settings>
-				}
-			/>
-			<Route
-				path="/settings/:contextIdTag/appearance"
-				element={
-					<Settings title={t('Appearance')}>
-						<AppearanceSettings />
-					</Settings>
-				}
-			/>
-			<Route
-				path="/settings/:contextIdTag/calendar"
-				element={
-					<Settings title={t('Calendar')}>
-						<CalendarSettings />
-					</Settings>
-				}
-			/>
-			<Route
-				path="/settings/:contextIdTag/apps"
-				element={
-					<Settings title={t('App menu')}>
-						<AppMenuSettings />
-					</Settings>
-				}
-			/>
-			<Route
-				path="/settings/:contextIdTag/files"
-				element={
-					<Settings title={t('Files & Storage')}>
-						<FilesSettings />
-					</Settings>
-				}
-			/>
-			<Route path="/*" element={null} />
-		</Routes>
+		<Settings title={settingsTitle(t, page)}>
+			<Outlet />
+		</Settings>
+	)
+}
+
+/**
+ * The `settings/…` branch of the context route. A plain function, not a component —
+ * see `layout.tsx` for why.
+ */
+export function settingsRoutes(pwa: UsePWA) {
+	return (
+		<Route path="settings" element={<SettingsLayout />}>
+			<Route index element={<SettingsOverview pwa={pwa} />} />
+			<Route path="security" element={<SecuritySettings />} />
+			<Route path="privacy" element={<PrivacySettings />} />
+			<Route path="trust" element={<TrustSettings />} />
+			<Route path="notifications" element={<NotificationSettings pwa={pwa} />} />
+			<Route path="appearance" element={<AppearanceSettings />} />
+			<Route path="calendar" element={<CalendarSettings />} />
+			<Route path="apps" element={<AppMenuSettings />} />
+			<Route path="files" element={<FilesSettings />} />
+		</Route>
 	)
 }
 

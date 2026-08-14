@@ -7,7 +7,8 @@ import { useTranslation } from 'react-i18next'
 import { LuBell as IcNotifications } from 'react-icons/lu'
 import { Link, useNavigate } from 'react-router-dom'
 
-import { HOME_CONTEXT, useContextSwitch, useUrlContextIdTag } from '../context/index.js'
+import { useContextSwitch, useCtx } from '../context/index.js'
+import { communityCreatePath, contextPath } from '../routes.js'
 import { NotificationItem } from './NotificationItem.js'
 import { useNotifications } from './state.js'
 
@@ -16,7 +17,7 @@ const MAX_POPOVER_ITEMS = 6
 export function NotificationPopover() {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
-	const urlContext = useUrlContextIdTag()
+	const urlContext = useCtx().base
 	const { switchTo } = useContextSwitch()
 	const { notifications, dismissNotification, acceptNotification, rejectNotification } =
 		useNotifications()
@@ -27,7 +28,7 @@ export function NotificationPopover() {
 			if (ok && action.subject?.startsWith('@')) {
 				// Community invite: switch into the community context (lands on feed)
 				try {
-					await switchTo(action.subject.slice(1), '/feed')
+					await switchTo(action.subject.slice(1))
 				} catch (err) {
 					console.error('Failed to switch context:', err)
 				}
@@ -41,12 +42,13 @@ export function NotificationPopover() {
 		(action: Parameters<typeof acceptNotification>[0]) => {
 			acceptNotification(action)
 			const content = action.content as { refId?: string } | undefined
-			const idTag = urlContext || HOME_CONTEXT
-			if (content?.refId) {
-				navigate(`/communities/create/${idTag}?invite=${content.refId}`)
-			} else {
-				navigate(`/communities/create/${idTag}`)
-			}
+			navigate(
+				communityCreatePath(
+					urlContext,
+					undefined,
+					content?.refId ? { invite: content.refId } : undefined
+				)
+			)
 		},
 		[acceptNotification, urlContext, navigate]
 	)
@@ -81,7 +83,7 @@ export function NotificationPopover() {
 			<div className="c-vbox" style={{ width: 360, maxHeight: 480 }}>
 				<div className="c-hbox justify-content-between align-items-center p-2">
 					<h4 className="m-0">{t('Notifications')}</h4>
-					<Link to="/notifications" className="text-link">
+					<Link to={contextPath(urlContext, 'notifications')} className="text-link">
 						{t('See all')}
 					</Link>
 				</div>
@@ -99,7 +101,7 @@ export function NotificationPopover() {
 							key={action.actionId}
 							action={action}
 							compact
-							onClick={() => navigate('/notifications')}
+							onClick={() => navigate(contextPath(urlContext, 'notifications'))}
 							onAccept={
 								action.status === 'C'
 									? action.type === 'PRINVT'

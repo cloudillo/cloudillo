@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 /**
- * `/search/:contextIdTag` — the full results surface behind the omnibox dropdown.
+ * `/:contextIdTag/search` — the full results surface behind the omnibox dropdown.
  *
  * Query and filters live in the URL query string (`q`, `type`), the space being
  * searched lives in the path, so results are linkable and Back/Forward works:
  * reloading or sharing the link searches the space the search was run in rather than
  * resetting to the home context. `~` is home, as on every context-aware route; the
- * context segment drives `useContextFromRoute`, which `useUrlContextIdTag` /
- * `useContextAwareApi` below then follow.
+ * context segment drives `CtxProvider`, which `useContextAwareApi` below then follows.
  */
 
 import {
@@ -26,15 +25,9 @@ import type { SearchHit } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuSearch as IcSearch } from 'react-icons/lu'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 
-import {
-	HOME_CONTEXT,
-	useCanonicalContextSegment,
-	useContextAwareApi,
-	useCurrentContextIdTag,
-	useUrlContextIdTag
-} from './context/index.js'
+import { useContextAwareApi, useCtx, useCurrentContextIdTag } from './context/index.js'
 import { SearchResultRow } from './SearchResultRow.js'
 import {
 	FTS_DEBOUNCE_MS,
@@ -54,17 +47,14 @@ export function SearchPage() {
 	const [auth] = useAuth()
 	const { api } = useContextAwareApi()
 	const [appConfig] = useAppConfig()
-	const urlContext = useUrlContextIdTag()
-	// Not the URL segment: `~` addresses home in a path but is not an idTag, and the
-	// resId's owner half has to be one.
+	// The space the search runs against. `activeContextAtom` catches up to it
+	// asynchronously, so on a fresh load of a shared `/@<community>/search?q=…` link `api`
+	// still points at home for a render or two and searching then would hit the wrong
+	// tenant — hence the `contextReady` gate below.
+	const ctx = useCtx()
+	// The *active* context, deliberately not `ctx.idTag`: it is the key `api` above is
+	// bound to, and the resId's owner half has to match the client that will be asked.
 	const contextIdTag = useCurrentContextIdTag()
-	// The path's own segment, before `useContextFromRoute` resolves it into
-	// `activeContextAtom`. That resolution is async, so on a fresh load of a shared
-	// `/search/<community>?q=…` link `api` still points at home for a render or two and
-	// searching then would query the wrong tenant. Canonicalised to be comparable with
-	// `urlContext` (home idTag and `~` name one space, and only `~` comes back from
-	// `useUrlContextIdTag`); non-context segments come back undefined.
-	const routeContext = useCanonicalContextSegment(useParams().contextIdTag)
 
 	const q = (params.get('q') ?? '').slice(0, FTS_MAX_QUERY)
 	// Only names the caller may actually search — a guest gets no `'profile'`.
@@ -120,24 +110,19 @@ export function SearchPage() {
 		// result set, so the old tenant's count must not stay on screen.
 	}, [q, type, contextIdTag])
 
-	// A guest never gets an `activeContext` (`useContextFromRoute` returns early
-	// without auth), so `urlContext` stays `'~'` and the wait below would never end on
-	// a shared `/search/<community>` link. Nothing to wait for: they cannot search
-	// another space at all.
-	const foreignForGuest = !auth && !!routeContext && routeContext !== HOME_CONTEXT
-	// True while `useContextFromRoute` is still switching to the route's context. No
-	// fetch is permitted yet, so `isLoading` is false and the render chain below would
-	// otherwise reach "No results found" before the first request was allowed out. Not
-	// for a guest — `urlContext` never catches up for them and `forbidden` is the right
-	// surface. The sibling window (fetch permitted, but `useInfiniteScroll` schedules
-	// it a commit later) is what `isPending` covers.
-	const contextResolving = !!routeContext && routeContext !== urlContext && !foreignForGuest
-	const enabled =
-		!!api &&
-		!!q &&
-		!typeMatchesNothing &&
-		!foreignForGuest &&
-		(!routeContext || routeContext === urlContext)
+	// A guest never gets an `activeContext` (`CtxProvider`'s switch effect returns early
+	// without auth), so the wait below would never end on a shared `/@<community>/search`
+	// link. Nothing to wait for: they cannot search another space at all.
+	const foreignForGuest = !auth && !ctx.isHome
+	// True while the active context is still catching up to the route's. No fetch is
+	// permitted yet, so `isLoading` is false and the render chain below would otherwise
+	// reach "No results found" before the first request was allowed out. Not for a guest —
+	// the active context never lands for them and `forbidden` is the right surface. The
+	// sibling window (fetch permitted, but `useInfiniteScroll` schedules it a commit later)
+	// is what `isPending` covers.
+	const contextReady = !ctx.idTag || contextIdTag === ctx.idTag
+	const contextResolving = !contextReady && !foreignForGuest
+	const enabled = !!api && !!q && !typeMatchesNothing && !foreignForGuest && contextReady
 
 	const fetchPage = React.useCallback(
 		async (cursor: string | null, limit: number, signal?: AbortSignal) => {
@@ -200,7 +185,6 @@ export function SearchPage() {
 		setParams(next, { replace: true })
 	}
 
-	const ctx = urlContext || HOME_CONTEXT
 	// A 401 from a community the user hasn't trusted is "nothing to show here",
 	// not a failure worth a red banner.
 	const httpStatus = (error as { httpStatus?: number } | null)?.httpStatus
@@ -255,7 +239,12 @@ export function SearchPage() {
 					)}
 					<div className="c-vbox g-1">
 						{items.map((hit) => {
-							const target = searchHitTarget(hit, ctx, appConfig?.mime, contextIdTag)
+							const target = searchHitTarget(
+								hit,
+								ctx.base,
+								appConfig?.mime,
+								contextIdTag
+							)
 							if (!target) return null
 							return (
 								<Link

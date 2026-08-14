@@ -7,7 +7,8 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 
-import { HOME_CONTEXT, useUrlContextIdTag } from '../../context/index.js'
+import { useCtx } from '../../context/index.js'
+import { profilePath } from '../../routes.js'
 import { Document, Images, renderPostContent, Video } from './PostMedia.js'
 
 export interface EmbeddedPostCardProps {
@@ -35,7 +36,7 @@ export function EmbeddedPostCard({
 }: EmbeddedPostCardProps) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
-	const urlContext = useUrlContextIdTag()
+	const urlContext = useCtx().base
 	const contentRef = React.useRef<HTMLDivElement>(null)
 	const [expanded, setExpanded] = React.useState(false)
 	const [overflowing, setOverflowing] = React.useState(false)
@@ -63,7 +64,7 @@ export function EmbeddedPostCard({
 		>
 			<div className="c-hbox align-items-center g-2">
 				<Link
-					to={`/profile/${urlContext || HOME_CONTEXT}/${subjectAction.issuer.idTag}`}
+					to={profilePath(urlContext, subjectAction.issuer.idTag)}
 					className="flex-fill"
 				>
 					<ProfileCard profile={subjectAction.issuer} srcTag={fileIdTag} />

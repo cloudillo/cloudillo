@@ -21,7 +21,6 @@
 
 import { jest } from '@jest/globals'
 import { act, render, screen } from '@testing-library/react'
-import { atom } from 'jotai'
 import * as React from 'react'
 
 // `useInfiniteScroll` observes its sentinel; jsdom has no IntersectionObserver.
@@ -81,21 +80,10 @@ jest.unstable_mockModule('react-router-dom', () => ({
 	useSearchParams: () => [searchParams, () => {}]
 }))
 
-jest.unstable_mockModule('../context/atoms', () => ({
-	activeContextAtom: atom(undefined),
-	contextSwitchingAtom: atom(false)
-}))
-
-jest.unstable_mockModule('../context/hooks', () => ({
-	useApiContext: () => ({ setActiveContext: async () => {}, isLoading: false })
-}))
-
 jest.unstable_mockModule('../context/index', () => ({
-	HOME_CONTEXT: '~',
-	useCanonicalContextSegment: () => undefined,
 	useContextAwareApi: () => API,
-	useCurrentContextIdTag: () => HOME,
-	useUrlContextIdTag: () => '~'
+	useCtx: () => ({ base: '/~', idTag: HOME, isHome: true }),
+	useCurrentContextIdTag: () => HOME
 }))
 
 jest.unstable_mockModule('../SearchResultRow', () => ({

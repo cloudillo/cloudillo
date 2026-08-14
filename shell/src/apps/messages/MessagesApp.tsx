@@ -22,13 +22,14 @@ import {
 } from 'react-icons/lu'
 import { useNavigate, useParams } from 'react-router-dom'
 
-import { HOME_CONTEXT, useUrlContextIdTag } from '../../context/index.js'
+import { useCtx } from '../../context/index.js'
 import {
 	createdAtToSeconds,
 	useBottomDwell,
 	useReadPositionTracker,
 	useScrollEngaged
 } from '../../read-position.js'
+import { messagesPath } from '../../routes.js'
 import '@cloudillo/react/components.css'
 
 import { ContactPickerDialog } from './components/ContactPickerDialog.js'
@@ -53,7 +54,7 @@ export function MessagesApp() {
 	const { t } = useTranslation()
 	const { api } = useApi()
 	const [auth] = useAuth()
-	const urlContext = useUrlContextIdTag()
+	const urlContext = useCtx().base
 
 	const [showFilter, setShowFilter] = React.useState(!convId)
 	const [showDetails, setShowDetails] = React.useState(false)
@@ -259,7 +260,7 @@ export function MessagesApp() {
 	async function handleAcceptInvite(invite: Parameters<typeof acceptInvite>[0]) {
 		const subject = await acceptInvite(invite)
 		reloadConversations()
-		if (subject) navigate(`/app/${urlContext || HOME_CONTEXT}/messages/${subject}`)
+		if (subject) navigate(messagesPath(urlContext, subject))
 	}
 
 	return (
@@ -458,7 +459,7 @@ export function MessagesApp() {
 				onCreated={(newConvId) => {
 					setShowCreateGroup(false)
 					reloadConversations()
-					navigate(`/app/${urlContext || HOME_CONTEXT}/messages/${newConvId}`)
+					navigate(messagesPath(urlContext, newConvId))
 				}}
 			/>
 
@@ -468,7 +469,7 @@ export function MessagesApp() {
 				onClose={() => setShowContactPicker(false)}
 				onPick={(idTag) => {
 					setShowContactPicker(false)
-					navigate(`/app/${urlContext || HOME_CONTEXT}/messages/${idTag}`)
+					navigate(messagesPath(urlContext, idTag))
 				}}
 			/>
 

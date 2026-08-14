@@ -53,14 +53,16 @@ import { ActionComp, type ActionEvt, type ActionStat, ComposeTrigger } from '../
 import {
 	activeContextAtom,
 	communitiesAtom,
-	HOME_CONTEXT,
 	useApiContext,
 	useCommunitiesList,
 	useContextSwitch,
+	useCtx,
 	useCurrentContextIdTag,
 	useProfileTrust
 } from '../context/index.js'
 import { ImageUpload } from '../image.js'
+import type { CtxBase } from '../routes.js'
+import { messagesPath, profilePath } from '../routes.js'
 import { coerceSettingValue } from '../utils.js'
 import { useWsBus } from '../ws-bus.js'
 import { ProfileAbout } from './about/ProfileAbout.js'
@@ -366,13 +368,13 @@ const TAB_ROUTES: Record<string, string> = {
 
 function ProfileTabs({
 	profile,
-	contextIdTag,
+	base,
 	own,
 	isCommunity,
 	canAccessSettings
 }: {
 	profile: FullProfile
-	contextIdTag?: string
+	base: CtxBase
 	own: boolean
 	isCommunity: boolean
 	canAccessSettings: boolean
@@ -381,7 +383,7 @@ function ProfileTabs({
 	const tabLabels = React.useMemo(() => getTabLabels(t), [t])
 	const tabConfig = parseTabConfig(profile.x)
 	const tabs = getEffectiveTabs(tabConfig)
-	const basePath = `/profile/${contextIdTag}/${own ? 'me' : profile.idTag}`
+	const basePath = profilePath(base, own ? 'me' : profile.idTag)
 
 	return (
 		<div className="c-tabs">
@@ -488,7 +490,6 @@ export function ProfilePage({
 	const { t } = useTranslation()
 	const [auth, setAuth] = useAuth()
 	const toast = useToast()
-	const params = useParams()
 	const [activeContext, setActiveContext] = useAtom(activeContextAtom)
 	const { getClientFor } = useApiContext()
 	const setCommunities = useSetAtom(communitiesAtom)
@@ -500,8 +501,8 @@ export function ProfilePage({
 		},
 		[setCommunities]
 	)
-	// Extract contextIdTag from params if available (context-aware route)
-	const contextIdTag = params.contextIdTag
+	// The context the URL names — `ctx.base` for links, `ctx.idTag` for the tenant.
+	const ctx = useCtx()
 	const own = auth?.idTag === profile.idTag
 	const [coverUpload, setCoverUpload] = React.useState<string | undefined>()
 	const [profileUpload, setProfileUpload] = React.useState<string | undefined>()
@@ -897,7 +898,7 @@ export function ProfilePage({
 										localProfile?.connected == true && (
 											<Link
 												className="c-button"
-												to={`/app/messages/${profile.idTag}`}
+												to={messagesPath(ctx.base, profile.idTag)}
 											>
 												<IcMessage />
 												{t('Message')}
@@ -914,7 +915,7 @@ export function ProfilePage({
 					</div>
 					<ProfileTabs
 						profile={profile}
-						contextIdTag={contextIdTag}
+						base={ctx.base}
 						own={own}
 						isCommunity={isCommunity}
 						canAccessSettings={canAccessSettings}
@@ -1078,7 +1079,7 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 							width={width}
 							onQuote={(original, target) => {
 								setPendingQuote({ original, target })
-								switchTo(contextIdTag ?? auth?.idTag ?? '', '/feed')
+								switchTo(contextIdTag ?? auth?.idTag ?? '')
 							}}
 						/>
 					))}
@@ -1110,8 +1111,8 @@ function MemberCard({
 }: MemberCardProps) {
 	const { t } = useTranslation()
 	const dialog = useDialog()
-	const params = useParams()
-	const contextIdTag = params.contextIdTag ?? srcTag
+	// `srcTag` is a REAL idTag, not a URL context — it is never a fallback for one.
+	const ctx = useCtx()
 	const roles = React.useMemo(() => getRoles(t), [t])
 	// A leader may assign any role (including leader). Anyone else may only assign
 	// roles strictly below their own level — e.g. a moderator cannot create another
@@ -1189,7 +1190,7 @@ function MemberCard({
 		<div className="c-panel flex-row p-2 mb-1 g-2 align-items-center">
 			<Link
 				className="c-hbox flex-fill g-2 align-items-center"
-				to={`/profile/${contextIdTag}/${member.idTag}`}
+				to={profilePath(ctx.base, member.idTag)}
 			>
 				<ProfileCard className="flex-fill" profile={member} srcTag={srcTag} />
 				<ProfileStatusBadge profile={member} />
@@ -1908,8 +1909,6 @@ function ProfileView() {
 	const { rememberStoredTrust } = useProfileTrust()
 	const dialog = useDialog()
 	const params = useParams()
-	// Extract contextIdTag from params if available (context-aware route)
-	const _contextIdTag = params.contextIdTag
 	const idTag = params.idTag == 'me' ? (auth?.idTag ?? api?.idTag) : params.idTag || auth?.idTag
 	const own = idTag == auth?.idTag
 	const [profile, setProfile] = React.useState<FullProfile>()
@@ -2207,20 +2206,14 @@ function ProfileView() {
 
 export function PeoplePage() {
 	const { t } = useTranslation()
-	const params = useParams()
 	const [auth] = useAuth()
-	const { api } = useApi()
 	const [activeContext] = useAtom(activeContextAtom)
 
-	// The URL is the source of truth for which context this page shows. The home
-	// context is written as `~` in URLs (see useContextPath in context/hooks.ts);
-	// a real id_tag that equals our own/home id_tag is also the personal page.
-	const urlContextIdTag = params.contextIdTag
-	const isHomeContext =
-		!urlContextIdTag ||
-		urlContextIdTag === HOME_CONTEXT ||
-		urlContextIdTag === api?.idTag ||
-		urlContextIdTag === auth?.idTag
+	// The URL is the source of truth for which context this page shows. `ctx.isHome`
+	// already collapses `~` and the node's own idTag; the signed-in user's own idTag is
+	// the personal page too, on a node they are only a guest of.
+	const ctx = useCtx()
+	const isHomeContext = ctx.isHome || ctx.idTag === auth?.idTag
 
 	// Personal People page: the user's own connections. This is correct immediately,
 	// so render it without waiting for the active context to resolve.
@@ -2229,11 +2222,11 @@ export function PeoplePage() {
 	}
 
 	// Community People page. On a hard reload, activeContextAtom starts null and is
-	// set asynchronously by useContextFromRoute -> setActiveContext. Until the active
+	// set asynchronously by CtxProvider -> setActiveContext. Until the active
 	// context has switched to match THIS community URL, show a spinner. Falling
 	// through to PersonListPage here is what caused personal connections to flash
 	// before the community members loaded.
-	if (activeContext?.type === 'community' && activeContext.idTag === urlContextIdTag) {
+	if (activeContext?.type === 'community' && activeContext.idTag === ctx.idTag) {
 		const communityProfile = {
 			tnId: 0,
 			idTag: activeContext.idTag,
@@ -2258,27 +2251,35 @@ export function PeoplePage() {
 	)
 }
 
-export function ProfileRoutes() {
+/**
+ * The `profile/…` branch of the context route — **guest-visible**, which is why it is split
+ * from `authedProfileRoutes` below: a share link lands anonymous visitors on a profile, and
+ * bouncing them to `/login` would break it. The splat is load-bearing — `ProfileView` runs
+ * its own descendant `<Routes>` for the sub-pages.
+ *
+ * A plain function, not a component — see `layout.tsx` for why.
+ */
+export function profileRoutes() {
+	return <Route path="profile/:idTag/*" element={<ProfileView />} />
+}
+
+/**
+ * The `users` and `communities/…` branches — everything in this file that needs a
+ * session. Declared under the route tree's `RequireAuth` guard.
+ */
+export function authedProfileRoutes() {
 	return (
-		<Routes>
-			<Route path="/profile/:contextIdTag/:idTag/*" element={<ProfileView />} />
-			<Route path="/users/:contextIdTag" element={<PeoplePage />} />
-			<Route path="/communities/:contextIdTag" element={<CommunityListPage />} />
-			<Route path="/communities/create/:contextIdTag" element={<CreateCommunity />} />
+		<>
+			<Route path="users" element={<PeoplePage />} />
+			<Route path="communities" element={<CommunityListPage />} />
+			<Route path="communities/create" element={<CreateCommunity />} />
+			<Route path="communities/create/:providerType" element={<CreateCommunity />} />
+			<Route path="communities/create/:providerType/:idpStep" element={<CreateCommunity />} />
 			<Route
-				path="/communities/create/:contextIdTag/:providerType"
+				path="communities/create/:providerType/:idpStep/:provider"
 				element={<CreateCommunity />}
 			/>
-			<Route
-				path="/communities/create/:contextIdTag/:providerType/:idpStep"
-				element={<CreateCommunity />}
-			/>
-			<Route
-				path="/communities/create/:contextIdTag/:providerType/:idpStep/:provider"
-				element={<CreateCommunity />}
-			/>
-			<Route path="/*" element={null} />
-		</Routes>
+		</>
 	)
 }
 

@@ -33,7 +33,8 @@ import {
 } from 'react-icons/lu'
 import { Link } from 'react-router-dom'
 
-import { HOME_CONTEXT, useApiContext, useUrlContextIdTag } from '../../context/index.js'
+import { useApiContext, useCtx } from '../../context/index.js'
+import { profilePath } from '../../routes.js'
 import { getReactionEmoji, getReactionLabel } from './reactions.js'
 import { useAutoVerifySet, useEngagement } from './useEngagement.js'
 import {
@@ -270,7 +271,7 @@ function EngagementRow({
 	onClose
 }: EngagementRowProps) {
 	const [auth] = useAuth()
-	const urlContext = useUrlContextIdTag()
+	const urlContext = useCtx().base
 	const issuer = action.issuer
 	// Gate on the resolved tag, not on `auth` — this dialog is guest-reachable
 	// (the reaction/repost chips that open it are not auth-gated).
@@ -283,7 +284,7 @@ function EngagementRow({
 	return (
 		<div className="c-engagement-row c-hbox align-items-center g-2">
 			<Link
-				to={`/profile/${urlContext || HOME_CONTEXT}/${issuer.idTag}`}
+				to={profilePath(urlContext, issuer.idTag)}
 				className="c-hbox align-items-center g-2 flex-fill text-decoration-none"
 				onClick={onClose}
 			>

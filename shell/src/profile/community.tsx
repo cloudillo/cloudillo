@@ -17,8 +17,14 @@ import {
 } from 'react-icons/lu'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
-import { contextOnboardingAtom, useCommunitiesList, useContextSwitch } from '../context/index.js'
+import {
+	contextOnboardingAtom,
+	useCommunitiesList,
+	useContextSwitch,
+	useCtx
+} from '../context/index.js'
 import { CloudilloLogo } from '../logo.js'
+import { communityCreatePath } from '../routes.js'
 import {
 	AppDomainErrorPanel,
 	AppDomainInput,
@@ -479,16 +485,15 @@ function InviteChooserStep({ onSelectInvite }: InviteChooserStepProps) {
 export function CreateCommunity() {
 	const { api } = useApi()
 	const {
-		contextIdTag,
 		providerType,
 		idpStep: idpStepParam,
 		provider: providerParam
 	} = useParams<{
-		contextIdTag: string
 		providerType?: 'idp' | 'domain'
 		idpStep?: 'select' | 'name'
 		provider?: string
 	}>()
+	const ctx = useCtx()
 	const navigate = useNavigate()
 	const location = useLocation()
 	const [auth] = useAuth()
@@ -565,9 +570,9 @@ export function CreateCommunity() {
 		setDisplayName('')
 		setVerifyState(undefined)
 		if (provider === 'idp') {
-			navigate(`/communities/create/${contextIdTag}/idp/select`)
+			navigate(communityCreatePath(ctx.base, ['idp', 'select']))
 		} else {
-			navigate(`/communities/create/${contextIdTag}/${provider}`)
+			navigate(communityCreatePath(ctx.base, [provider]))
 		}
 	}
 
@@ -575,9 +580,7 @@ export function CreateCommunity() {
 	function onIdpProviderContinue() {
 		setIdTagInput('')
 		setVerifyState(undefined)
-		navigate(
-			`/communities/create/${contextIdTag}/idp/name/${encodeURIComponent(selectedProvider)}`
-		)
+		navigate(communityCreatePath(ctx.base, ['idp', 'name', selectedProvider]))
 	}
 
 	// Go back handler
@@ -585,13 +588,13 @@ export function CreateCommunity() {
 		if (identityProvider === 'idp' && idpStep === 'name') {
 			setIdTagInput('')
 			setVerifyState(undefined)
-			navigate(`/communities/create/${contextIdTag}/idp/select`)
+			navigate(communityCreatePath(ctx.base, ['idp', 'select']))
 		} else {
 			setIdTagInput('')
 			setAppDomain('')
 			setDisplayName('')
 			setVerifyState(undefined)
-			navigate(`/communities/create/${contextIdTag}`)
+			navigate(communityCreatePath(ctx.base))
 		}
 	}
 
@@ -718,7 +721,7 @@ export function CreateCommunity() {
 		const fullIdTag =
 			identityProvider === 'domain' ? idTagInput : idTagInput + '.' + selectedProvider
 		try {
-			await switchTo(fullIdTag, '/feed')
+			await switchTo(fullIdTag)
 		} catch (err) {
 			console.error('Failed to switch to community:', err)
 		}

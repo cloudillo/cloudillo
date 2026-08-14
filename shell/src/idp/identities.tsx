@@ -6,7 +6,6 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { useParams } from 'react-router-dom'
 
 dayjs.extend(relativeTime)
 
@@ -33,7 +32,7 @@ import {
 	LuTriangleAlert as IcWarning
 } from 'react-icons/lu'
 
-import { HOME_CONTEXT, contextRolesAtom, useApiContext } from '../context'
+import { contextRolesAtom, useApiContext, useCtx } from '../context'
 
 // Status badge configuration
 const STATUS_CONFIG = {
@@ -951,7 +950,6 @@ function StandaloneApiKeyModal({
 // Main IdentitiesSettings component
 export function IdentitiesSettings() {
 	const { t } = useTranslation()
-	const params = useParams()
 	const [auth] = useAuth()
 	const dialog = useDialog()
 	const { getClientFor } = useApiContext()
@@ -974,14 +972,11 @@ export function IdentitiesSettings() {
 	const [selectedIdentity, setSelectedIdentity] = React.useState<IdpIdentity | null>(null)
 	const [createdApiKey, setCreatedApiKey] = React.useState<IdpCreateApiKeyResult | null>(null)
 
-	// The IDP domain comes from the route parameter (e.g., "home.w9.hu").
-	// On the home route the segment is the literal '~' placeholder; resolve
-	// it to the authenticated user's own idTag so downstream uses (proxy
-	// token request, owner check, curl examples) get a real domain.
-	// Identities managed by this IDP have id_tags like "alice.home.w9.hu".
-	const rawContextIdTag = params.contextIdTag!
-	const idpDomain =
-		rawContextIdTag === HOME_CONTEXT ? (auth?.idTag ?? rawContextIdTag) : rawContextIdTag
+	// The IDP domain is the tenant the route names — never the '~' URL shorthand, so
+	// downstream uses (proxy token request, owner check, curl examples) get a real
+	// domain. Identities managed by this IDP have id_tags like "alice.home.w9.hu".
+	const ctx = useCtx()
+	const idpDomain = ctx.idTag ?? auth?.idTag ?? ''
 
 	// Use the context-bound API client so calls hit the correct tenant's
 	// server (with the per-context proxy token), not always the user's own.
@@ -996,10 +991,9 @@ export function IdentitiesSettings() {
 	// Check roles
 	React.useEffect(() => {
 		if (!api) return
-		// On the home route the placeholder '~' is rewritten to `auth.idTag`.
-		// While auth is still loading, idpDomain is the literal '~' — skip
-		// the fetch instead of sending a bad path to the server.
-		if (rawContextIdTag === HOME_CONTEXT && !auth?.idTag) return
+		// On the home route the tenant behind `~` is only known once the node's own
+		// idTag has landed. Skip the fetch until then instead of sending a bad path.
+		if (!idpDomain) return
 		setRolesLoading(true)
 		api.auth
 			.getProxyToken(idpDomain)
@@ -1013,7 +1007,7 @@ export function IdentitiesSettings() {
 			.finally(() => {
 				setRolesLoading(false)
 			})
-	}, [api, idpDomain, rawContextIdTag, auth?.idTag])
+	}, [api, idpDomain])
 
 	// Profile owner: the authenticated user IS the IDP. The 'leader' role
 	// is a community-only concept; an IDP owner has implicit full access

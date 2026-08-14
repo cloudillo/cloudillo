@@ -8,7 +8,8 @@ import { useTranslation } from 'react-i18next'
 import { LuCheck as IcAccept, LuX as IcDismiss } from 'react-icons/lu'
 import { Link } from 'react-router-dom'
 
-import { HOME_CONTEXT, useUrlContextIdTag } from '../context/index.js'
+import { useCtx } from '../context/index.js'
+import { profilePath } from '../routes.js'
 
 import './notifications.css'
 
@@ -65,7 +66,7 @@ export function NotificationItem({
 	onDismiss
 }: NotificationItemProps) {
 	const { t } = useTranslation()
-	const urlContext = useUrlContextIdTag()
+	const urlContext = useCtx().base
 	const name = action.issuer?.name || action.issuer?.idTag || ''
 	const text = getActionText(action.type, action.subType, action.status, t, action.subject)
 	const isActionable = compact && action.status === 'C'
@@ -95,7 +96,7 @@ export function NotificationItem({
 						<>
 							<span className="text-muted">{t('invited you to')}</span>{' '}
 							<Link
-								to={`/profile/${urlContext || HOME_CONTEXT}/${action.subjectProfile.idTag}`}
+								to={profilePath(urlContext, action.subjectProfile.idTag)}
 								onClick={(e) => e.stopPropagation()}
 							>
 								<strong className="text-emph">

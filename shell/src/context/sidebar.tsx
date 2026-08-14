@@ -15,18 +15,12 @@ import { useAtom, useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuClock3 as IcPending, LuPin as IcPin } from 'react-icons/lu'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useMatch } from 'react-router-dom'
 
 import { unreadCountAtom } from '../read-position.js'
-import { CONTEXT_ROUTE_REGEX, HOME_CONTEXT } from './constants'
-import {
-	activeContextAtom,
-	contextIdpEnabledAtom,
-	previewCommunityAtom,
-	useCommunitiesList,
-	useContextSwitch,
-	useSidebar
-} from './index'
+import { CTX_SECTION_MATCH, ctxBase, feedPath, isContextSegment, rebase } from '../routes.js'
+import { activeContextAtom, contextIdpEnabledAtom, previewCommunityAtom } from './atoms'
+import { useCommunitiesList, useContextSwitch, useSidebar } from './hooks'
 import { ProfileContextMenu, useProfileContextMenu } from './profile-context-menu'
 import type { CommunityRef } from './types'
 
@@ -188,6 +182,14 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 	const { isOpen, isPinned, close } = useSidebar()
 	const { error: toastError } = useToast()
 	const location = useLocation()
+	// Segment 2 of a context route, `undefined` on anything else (`/login`, `/s/:refId`,
+	// a bare `/~`) — the pattern matches any two segments, so the sigil test is what rules
+	// those out. Only two sections need naming below; the rest ride along byte-for-byte
+	// through `rebase`, so the switcher stays ignorant of the section registry.
+	const sectionMatch = useMatch(CTX_SECTION_MATCH)
+	const section = isContextSegment(sectionMatch?.params.contextIdTag)
+		? sectionMatch?.params.section
+		: undefined
 	// At lg+ the sidebar is pinned open by CSS and the layout is offset by its
 	// width (see style.css / sidebar.css).
 	const isDesktop = useIsDesktop()
@@ -225,36 +227,33 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 		setDragOverIndex(null)
 	}, [])
 
-	// Handle context switch - preserve current top-level route across contexts.
-	// Recognizes `/app/...` plus the context-aware sibling routes
-	// (`/idp/...`, `/settings/...`, `/users/...`, `/communities/...`,
-	// `/profile/...`, `/search/...`). Falls back to the default feed when the current
-	// URL isn't one of these, or when switching into a context whose IDP is
-	// disabled (or unknown — we have no token to ask the foreign server yet).
+	// Handle context switch - preserve current top-level route across contexts. Whatever
+	// section the URL names rides along; the route tree decides whether it resolves in the
+	// new context. Falls back to the default feed when the current URL is not a context
+	// route at all, or when the target context's IDP is disabled (or unknown — we have no
+	// token to ask the foreign server yet).
 	const handleSwitch = React.useCallback(
 		(idTag: string) => {
-			const urlSegment = idTag === auth?.idTag ? HOME_CONTEXT : idTag
-			const defaultDestination = `/app/${urlSegment}/feed`
-
-			const contextRouteMatch = location.pathname.match(CONTEXT_ROUTE_REGEX)
+			const base = ctxBase(idTag, auth?.idTag)
+			const defaultDestination = feedPath(base)
 
 			let destination = defaultDestination
-			if (contextRouteMatch) {
-				const prefix = contextRouteMatch[1]
-				const tail = contextRouteMatch[3] ?? ''
+			if (section) {
 				// IDP is per-tenant; fall back to feed when the target context's IDP
 				// is disabled, not yet loaded (missing entry) or 'unknown' (a transient
 				// lookup failure). `!== true` covers all three on purpose — see
 				// contextIdpEnabledAtom. Unlike IdpGuard, nothing is ejected here.
-				if (prefix === 'idp' && contextIdpEnabled[idTag] !== true) {
+				if (section === 'idp' && contextIdpEnabled[idTag] !== true) {
 					destination = defaultDestination
 				} else {
 					// `/search` keeps its query string: `q`/`type` are the search
 					// itself, and dropping them would land on an empty page. No other
-					// prefix carries state that survives a context switch — an app's
+					// section carries state that survives a context switch — an app's
 					// launch params name resources in the old context.
-					const query = prefix === 'search' ? location.search : ''
-					destination = `/${prefix}/${urlSegment}${tail}${query}`
+					const query = section === 'search' ? location.search : ''
+					// `rebase` on the raw pathname, not the match's splat param: the
+					// splat is decoded, so a `%`-escaped resId would come back raw.
+					destination = rebase(location.pathname, base) + query
 				}
 			}
 
@@ -272,6 +271,7 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 		},
 		[
 			switchTo,
+			section,
 			location.pathname,
 			location.search,
 			toastError,

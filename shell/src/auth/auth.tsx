@@ -15,7 +15,7 @@ import {
 	LuCheck as IcOk,
 	LuFingerprint as IcWebAuthn
 } from 'react-icons/lu'
-import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { Navigate, Route, useNavigate } from 'react-router-dom'
 
 interface NavigatorUA {
 	userAgentData?: { platform: string }
@@ -24,6 +24,7 @@ interface NavigatorUA {
 import { PasswordInput } from '../components/PasswordInput.js'
 import { RegisterForm } from '../profile/register.js'
 import { installToken, setApiKey } from '../pwa.js'
+import { feedPath, HOME_BASE, scopePath } from '../routes.js'
 import { useAppConfig } from '../utils.js'
 import { IdpActivate } from './idp-activate.js'
 import { QrLoginPanel } from './QrLoginPanel.js'
@@ -268,8 +269,9 @@ export function LoginForm() {
 
 	if (auth) {
 		// After login, layout.tsx will load settings and handle onboarding redirect
-		const navTo =
-			appConfig?.menu?.find((m) => m.id === appConfig.defaultMenu)?.path || '/app/feed'
+		const menuPath = appConfig?.menu?.find((m) => m.id === appConfig.defaultMenu)?.path
+		// Menu paths are context-relative templates; a fresh login always lands at home.
+		const navTo = menuPath ? scopePath(HOME_BASE, menuPath) : feedPath(HOME_BASE)
 		return <Navigate to={navTo} />
 	} else {
 		return (
@@ -463,9 +465,17 @@ function LoginPage({ children, wide }: { children: React.ReactNode; wide?: boole
 	)
 }
 
-export function AuthRoutes() {
+/**
+ * The context-free bootstrap routes: login, registration, password reset, IdP activation.
+ * Their shapes are pinned by the backend's SPA fallback allowlist
+ * (`cloudillo-rs/crates/cloudillo/src/routes/static_files.rs`), so they stay absolute
+ * and top-level.
+ *
+ * A plain function, not a component — see `layout.tsx` for why.
+ */
+export function authRoutes() {
 	return (
-		<Routes>
+		<>
 			<Route
 				path="/login"
 				element={
@@ -522,8 +532,7 @@ export function AuthRoutes() {
 					</LoginPage>
 				}
 			/>
-			<Route path="/*" element={null} />
-		</Routes>
+		</>
 	)
 }
 

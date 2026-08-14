@@ -19,8 +19,9 @@ import {
 } from 'react-icons/lu'
 import { Link } from 'react-router-dom'
 
-import { HOME_CONTEXT, useUrlContextIdTag } from '../../../context/index.js'
+import { useCtx } from '../../../context/index.js'
 import { createdAtToSeconds } from '../../../read-position.js'
+import { profilePath } from '../../../routes.js'
 import type { ActionEvt } from '../types.js'
 
 // Render message text: paragraphs split on blank lines, soft line breaks via
@@ -62,7 +63,7 @@ function MsgComponent({
 }: MsgProps) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
-	const urlContext = useUrlContextIdTag()
+	const urlContext = useCtx().base
 
 	let imgSrc: string | undefined
 	if (action.subType == 'IMG' && action.attachments?.[0] && auth?.idTag) {
@@ -87,7 +88,7 @@ function MsgComponent({
 		>
 			{showSender && (
 				<div className="c-panel-header d-flex mb-1">
-					<Link to={`/profile/${urlContext || HOME_CONTEXT}/${action.issuer.idTag}`}>
+					<Link to={profilePath(urlContext, action.issuer.idTag)}>
 						<ProfileCard profile={action.issuer} className="small" />
 					</Link>
 				</div>

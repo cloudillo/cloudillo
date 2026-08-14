@@ -15,8 +15,18 @@ import {
 	LuUser as IcTenant,
 	LuUsers as IcTenants
 } from 'react-icons/lu'
-import { NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import {
+	Navigate,
+	NavLink,
+	Outlet,
+	Route,
+	useLocation,
+	useMatch,
+	useNavigate
+} from 'react-router-dom'
 
+import { useCtx } from '../context/index.js'
+import { HOME_BASE, rebase, sectionMatch, siteAdminPath } from '../routes.js'
 import { EmailSettings } from './email.js'
 import { SuggestedProvidersSettings } from './idps.js'
 import { Invitations } from './invitations.js'
@@ -52,7 +62,7 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 							className={({ isActive }) =>
 								mergeClasses('c-nav-item', isActive && 'active')
 							}
-							to="/site-admin/invitations"
+							to={siteAdminPath('invitations')}
 						>
 							<IcInvitations /> {t('Invitations')}
 						</NavLink>
@@ -62,7 +72,7 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 							className={({ isActive }) =>
 								mergeClasses('c-nav-item', isActive && 'active')
 							}
-							to="/site-admin/tenants"
+							to={siteAdminPath('tenants')}
 						>
 							<IcTenants /> {t('Users & Communities')}
 						</NavLink>
@@ -74,7 +84,7 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 							className={({ isActive }) =>
 								mergeClasses('c-nav-item', isActive && 'active')
 							}
-							to="/site-admin/idps"
+							to={siteAdminPath('idps')}
 						>
 							<IcIdps /> {t('Suggested Providers')}
 						</NavLink>
@@ -86,7 +96,7 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 							className={({ isActive }) =>
 								mergeClasses('c-nav-item', isActive && 'active')
 							}
-							to="/site-admin/server"
+							to={siteAdminPath('server')}
 						>
 							<IcServer /> {t('Server')}
 						</NavLink>
@@ -96,7 +106,7 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 							className={({ isActive }) =>
 								mergeClasses('c-nav-item', isActive && 'active')
 							}
-							to="/site-admin/storage"
+							to={siteAdminPath('storage')}
 						>
 							<IcStorage /> {t('Storage')}
 						</NavLink>
@@ -106,7 +116,7 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 							className={({ isActive }) =>
 								mergeClasses('c-nav-item', isActive && 'active')
 							}
-							to="/site-admin/email"
+							to={siteAdminPath('email')}
 						>
 							<IcMail /> {t('Email')}
 						</NavLink>
@@ -116,7 +126,7 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 							className={({ isActive }) =>
 								mergeClasses('c-nav-item', isActive && 'active')
 							}
-							to="/site-admin/proxy-sites"
+							to={siteAdminPath('proxy-sites')}
 						>
 							<IcProxy /> {t('Reverse Proxy')}
 						</NavLink>
@@ -126,7 +136,7 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 							className={({ isActive }) =>
 								mergeClasses('c-nav-item', isActive && 'active')
 							}
-							to="/site-admin/tenant"
+							to={siteAdminPath('tenant')}
 						>
 							<IcTenant /> {t('Default Policies')}
 						</NavLink>
@@ -144,93 +154,86 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 	)
 }
 
-export function SiteAdminRoutes() {
+/**
+ * The heading over the admin page currently showing. A switch rather than a lookup table so
+ * every string stays a literal `t('…')` call — `pnpm run l-scan` extracts the keys by
+ * reading them, and a `t(variable)` is invisible to it. It also lets `tenants` and
+ * `tenants/<idTag>` differ.
+ */
+function siteAdminTitle(
+	t: (key: string) => string,
+	page: string | undefined,
+	id: string | undefined
+): string {
+	switch (page) {
+		case 'invitations':
+			return t('Invitations')
+		case 'tenants':
+			return id ? t('Tenant Settings') : t('Users & Communities')
+		case 'idps':
+			return t('Suggested Providers')
+		case 'server':
+			return t('Server')
+		case 'storage':
+			return t('Storage')
+		case 'email':
+			return t('Email')
+		case 'proxy-sites':
+			return t('Reverse Proxy')
+		case 'tenant':
+			return t('Default Policies')
+		default:
+			return t('Administration')
+	}
+}
+
+/**
+ * The chrome every admin page renders through, plus the home pin.
+ *
+ * Grammar, not authorisation. `/site-admin` administers the node itself, so `~` is the only
+ * context it means anything under; a hand-typed community is re-pinned rather than refused
+ * (`SADM` is enforced by the menu filter and by the server). The tail rides along, and the
+ * redirect terminates on the next render, so it cannot loop.
+ */
+function SiteAdminLayout() {
 	const { t } = useTranslation()
+	const location = useLocation()
+	const ctx = useCtx()
+	// The two tail segments, straight from the route. `useParams()` would be empty here —
+	// this IS the `site-admin` route, so its children's params are not in scope.
+	const params = useMatch(sectionMatch('site-admin', ':page?/:id?'))?.params
+
+	if (!ctx.isHome) {
+		// `rebase` on the raw pathname carries the tail byte-for-byte; the match's
+		// params are decoded and could not rebuild an escaped one.
+		return <Navigate to={rebase(location.pathname, HOME_BASE) + location.search} replace />
+	}
 
 	return (
-		<Routes>
-			<Route
-				path="/site-admin"
-				element={
-					<SiteAdmin title={t('Administration')}>
-						<AdminOverview />
-					</SiteAdmin>
-				}
-			/>
-			<Route
-				path="/site-admin/invitations"
-				element={
-					<SiteAdmin title={t('Invitations')}>
-						<Invitations />
-					</SiteAdmin>
-				}
-			/>
-			<Route
-				path="/site-admin/tenants"
-				element={
-					<SiteAdmin title={t('Users & Communities')}>
-						<Tenants />
-					</SiteAdmin>
-				}
-			/>
-			<Route
-				path="/site-admin/tenants/:idTag"
-				element={
-					<SiteAdmin title={t('Tenant Settings')}>
-						<TenantDetail />
-					</SiteAdmin>
-				}
-			/>
-			<Route
-				path="/site-admin/idps"
-				element={
-					<SiteAdmin title={t('Suggested Providers')}>
-						<SuggestedProvidersSettings />
-					</SiteAdmin>
-				}
-			/>
-			<Route
-				path="/site-admin/server"
-				element={
-					<SiteAdmin title={t('Server')}>
-						<ServerSettings />
-					</SiteAdmin>
-				}
-			/>
-			<Route
-				path="/site-admin/storage"
-				element={
-					<SiteAdmin title={t('Storage')}>
-						<StorageSettings />
-					</SiteAdmin>
-				}
-			/>
-			<Route
-				path="/site-admin/email"
-				element={
-					<SiteAdmin title={t('Email')}>
-						<EmailSettings />
-					</SiteAdmin>
-				}
-			/>
-			<Route
-				path="/site-admin/proxy-sites"
-				element={
-					<SiteAdmin title={t('Reverse Proxy')}>
-						<ProxySites />
-					</SiteAdmin>
-				}
-			/>
-			<Route
-				path="/site-admin/tenant"
-				element={
-					<SiteAdmin title={t('Default Policies')}>
-						<TenantSettings />
-					</SiteAdmin>
-				}
-			/>
-			<Route path="/*" element={null} />
-		</Routes>
+		<SiteAdmin title={siteAdminTitle(t, params?.page, params?.id)}>
+			<Outlet />
+		</SiteAdmin>
+	)
+}
+
+/**
+ * The `site-admin/…` branch of the context route. A plain function, not a component —
+ * see `layout.tsx` for why.
+ */
+export function siteAdminRoutes() {
+	return (
+		<Route path="site-admin" element={<SiteAdminLayout />}>
+			<Route index element={<AdminOverview />} />
+			<Route path="invitations" element={<Invitations />} />
+			<Route path="tenants" element={<Tenants />} />
+			<Route path="tenants/:idTag" element={<TenantDetail />} />
+			<Route path="idps" element={<SuggestedProvidersSettings />} />
+			<Route path="server" element={<ServerSettings />} />
+			<Route path="storage" element={<StorageSettings />} />
+			<Route path="email" element={<EmailSettings />} />
+			<Route path="proxy-sites" element={<ProxySites />} />
+			<Route path="tenant" element={<TenantSettings />} />
+		</Route>
 	)
 }
 

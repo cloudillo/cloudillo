@@ -21,7 +21,7 @@
  * Pure module — no React, no shell state — so it is unit-testable in isolation.
  */
 
-import { HOME_CONTEXT } from './context/constants.js'
+import { contextPath, HOME_BASE } from './routes.js'
 
 /**
  * True for a genuine in-app absolute path. Rejects protocol-relative (`//host`)
@@ -35,15 +35,15 @@ function isSafeAppPath(path: string): boolean {
 /**
  * Build a portable `cl:` reference for the given route.
  *
- * @param pathname - The route path (e.g. `/app/~/quillo/bob.org:abc123`)
+ * @param pathname - The route path (e.g. `/~/app/quillo/bob.org:abc123`)
  * @param search - Optional query string (with or without leading `?`)
  */
 export function buildRef(pathname: string, search = ''): string {
 	const query = search && !search.startsWith('?') ? `?${search}` : search
 	const params = new URLSearchParams(query)
 
-	// Document route: /app/<ctx>/<appId>/<resId…> where resId carries an owner.
-	const m = pathname.match(/^\/app\/([^/]+)\/([^/]+)\/(.+)$/)
+	// Document route: /<ctx>/app/<appId>/<resId…> where resId carries an owner.
+	const m = pathname.match(/^\/([^/]+)\/app\/([^/]+)\/(.+)$/)
 	if (m) {
 		const appId = m[2]
 		const resId = m[3]
@@ -76,13 +76,21 @@ export function resolveRef(input: string): string | null {
 		// Short document form: <appId>/<owner>:<fileId>[?…]
 		const m = body.match(/^([^/]+)\/(.+)$/)
 		if (!m) return null
-		return `/app/${HOME_CONTEXT}/${m[1]}/${m[2]}`
+		// The tail came out of a route already URL-encoded, so it goes in through the
+		// low-level builder rather than being re-encoded.
+		const queryAt = m[2].indexOf('?')
+		const tail = queryAt < 0 ? m[2] : m[2].slice(0, queryAt)
+		const query = queryAt < 0 ? '' : m[2].slice(queryAt)
+		return contextPath(HOME_BASE, 'app', `${m[1]}/${tail}`) + query
 	}
 
 	if (/^https?:\/\//i.test(trimmed)) {
 		try {
 			const u = new URL(trimmed)
-			return u.pathname + u.search
+			// Same guard as the other two branches: `https://x//evil` yields `//evil`,
+			// which `navigate()` would resolve off-origin.
+			const path = u.pathname + u.search
+			return isSafeAppPath(path) ? path : null
 		} catch {
 			return null
 		}
@@ -119,7 +127,9 @@ export function isIdTag(input: string): boolean {
  * app pages/documents and profiles. False for login/onboarding/etc.
  */
 export function canShareRoute(pathname: string): boolean {
-	return pathname.startsWith('/app/') || pathname.startsWith('/profile/')
+	// Raw pathname, not the route tree: this module stays React-free. Segment 1 is whatever
+	// context the route names.
+	return /^\/[^/]+\/(app|profile)(\/|$)/.test(pathname)
 }
 
 // vim: ts=4

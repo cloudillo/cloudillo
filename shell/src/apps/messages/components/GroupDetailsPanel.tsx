@@ -20,7 +20,8 @@ import {
 } from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
 
-import { HOME_CONTEXT, useUrlContextIdTag } from '../../../context/index.js'
+import { useCtx } from '../../../context/index.js'
+import { messagesPath } from '../../../routes.js'
 import type { Conversation, ConversationMember, MemberRole } from '../types.js'
 
 interface GroupDetailsPanelProps {
@@ -44,7 +45,7 @@ export function GroupDetailsPanel({
 	const { api } = useApi()
 	const dialog = useDialog()
 	const navigate = useNavigate()
-	const urlContext = useUrlContextIdTag()
+	const urlContext = useCtx().base
 
 	const currentUserMember = members?.find((m) => m.profile.idTag === currentUserIdTag)
 	const currentUserRole = currentUserMember?.role || 'member'
@@ -86,7 +87,7 @@ export function GroupDetailsPanel({
 					audienceTag: conversation.ownerTag
 				})
 				onLeave?.()
-				navigate(`/app/${urlContext || HOME_CONTEXT}/messages`)
+				navigate(messagesPath(urlContext))
 			} catch (err) {
 				console.error('Failed to leave group', err)
 			}

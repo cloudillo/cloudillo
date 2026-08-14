@@ -114,34 +114,3 @@ export interface ContextSwitchEvent {
 	/** Timestamp of the switch */
 	timestamp: Date
 }
-
-/**
- * Context info response from backend
- */
-export interface ContextInfo {
-	/** ID tag */
-	idTag: string
-
-	/** Context type */
-	type: 'user' | 'community'
-
-	/** Display name */
-	name: string
-
-	/** Profile picture */
-	profilePic?: string
-
-	/** User's roles in this context */
-	userRoles: string[]
-
-	/** User's permissions in this context */
-	userPermissions: string[]
-
-	/** Additional metadata */
-	metadata?: {
-		memberCount?: number
-		description?: string
-		createdAt?: string
-		[key: string]: unknown
-	}
-}

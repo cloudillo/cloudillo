@@ -29,7 +29,8 @@ import {
 } from 'react-icons/lu'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 
-import { HOME_CONTEXT, useContextSwitch, useUrlContextIdTag } from '../context/index.js'
+import { useContextSwitch, useCtx } from '../context/index.js'
+import { communityCreatePath, messagesPath, profilePath } from '../routes.js'
 import { useNotifications } from './state'
 import './notifications.css'
 
@@ -118,12 +119,12 @@ function GenericNotification({
 	onDismiss?: (action: ActionView) => void
 }) {
 	const { t } = useTranslation()
-	const urlContext = useUrlContextIdTag()
+	const urlContext = useCtx().base
 
 	return (
 		<div className={mergeClasses('c-panel c-notification', className)}>
 			<div className="c-hbox align-items-center g-3">
-				<Link to={`/profile/${urlContext || HOME_CONTEXT}/${action.issuer.idTag}`}>
+				<Link to={profilePath(urlContext, action.issuer.idTag)}>
 					<ProfileCard profile={action.issuer} />
 				</Link>
 				<small className="ms-auto text-nowrap text-muted">
@@ -159,7 +160,7 @@ function ConnectNotification({
 }) {
 	const { t } = useTranslation()
 	const { api } = useApi()
-	const urlContext = useUrlContextIdTag()
+	const urlContext = useCtx().base
 	const contentRes = T.decode(tConnectAction.props.content, action.content)
 	const content = T.isOk(contentRes) ? contentRes.ok : undefined
 
@@ -186,7 +187,7 @@ function ConnectNotification({
 			)}
 		>
 			<div className="c-hbox align-items-center g-3">
-				<Link to={`/profile/${urlContext || HOME_CONTEXT}/${action.issuer.idTag}`}>
+				<Link to={profilePath(urlContext, action.issuer.idTag)}>
 					<ProfileCard profile={action.issuer} />
 				</Link>
 				<small className="ms-auto text-nowrap text-muted">
@@ -254,7 +255,7 @@ function FileShareNotification({
 }) {
 	const { t } = useTranslation()
 	const { api } = useApi()
-	const urlContext = useUrlContextIdTag()
+	const urlContext = useCtx().base
 	const contentRes = T.decode(tFileShareAction.props.content, action.content)
 	const content = T.isOk(contentRes) ? contentRes.ok : undefined
 	if (!content) return null
@@ -282,7 +283,7 @@ function FileShareNotification({
 			)}
 		>
 			<div className="c-hbox align-items-center g-3">
-				<Link to={`/profile/${urlContext || HOME_CONTEXT}/${action.issuer.idTag}`}>
+				<Link to={profilePath(urlContext, action.issuer.idTag)}>
 					<ProfileCard profile={action.issuer} />
 				</Link>
 				<small className="ms-auto text-nowrap text-muted">
@@ -324,7 +325,7 @@ function InviteNotification({
 	const { t } = useTranslation()
 	const navigate = useNavigate()
 	const { api } = useApi()
-	const urlContext = useUrlContextIdTag()
+	const urlContext = useCtx().base
 	const { switchTo } = useContextSwitch()
 
 	// Community invites use an '@'-prefixed tenant id tag as subject; message-group
@@ -350,13 +351,13 @@ function InviteNotification({
 			// Community invite: switch into the community context (lands on feed).
 			// A failure here is non-fatal — the invite is already accepted.
 			try {
-				await switchTo(communityIdTag, '/feed')
+				await switchTo(communityIdTag)
 			} catch (err) {
 				console.error('Failed to switch context:', err)
 			}
 		} else if (action.subject) {
 			// Message-group invite: open the group conversation
-			navigate(`/app/${urlContext || HOME_CONTEXT}/messages/${action.subject}`)
+			navigate(messagesPath(urlContext, action.subject))
 		}
 	}
 
@@ -381,10 +382,10 @@ function InviteNotification({
 					<ProfileAudienceCard
 						audience={action.subjectProfile}
 						profile={action.issuer}
-						profileBasePath={`/profile/${urlContext || HOME_CONTEXT}`}
+						profileBasePath={profilePath(urlContext)}
 					/>
 				) : (
-					<Link to={`/profile/${urlContext || HOME_CONTEXT}/${action.issuer.idTag}`}>
+					<Link to={profilePath(urlContext, action.issuer.idTag)}>
 						<ProfileCard profile={action.issuer} />
 					</Link>
 				)}
@@ -432,7 +433,7 @@ function ProfileInviteNotification({
 	const { t } = useTranslation()
 	const navigate = useNavigate()
 	const { api } = useApi()
-	const urlContext = useUrlContextIdTag()
+	const urlContext = useCtx().base
 
 	const rawContent = action.content
 	const content =
@@ -450,12 +451,13 @@ function ProfileInviteNotification({
 		onActionHandled?.(action)
 
 		// Navigate to community creation with invite pre-selected
-		const idTag = urlContext || HOME_CONTEXT
-		if (content?.refId) {
-			navigate(`/communities/create/${idTag}?invite=${content.refId}`)
-		} else {
-			navigate(`/communities/create/${idTag}`)
-		}
+		navigate(
+			communityCreatePath(
+				urlContext,
+				undefined,
+				content?.refId ? { invite: content.refId } : undefined
+			)
+		)
 	}
 
 	async function onReject() {
@@ -473,7 +475,7 @@ function ProfileInviteNotification({
 			)}
 		>
 			<div className="c-hbox align-items-center g-3">
-				<Link to={`/profile/${urlContext || HOME_CONTEXT}/${action.issuer.idTag}`}>
+				<Link to={profilePath(urlContext, action.issuer.idTag)}>
 					<ProfileCard profile={action.issuer} />
 				</Link>
 				<small className="ms-auto text-nowrap text-muted">

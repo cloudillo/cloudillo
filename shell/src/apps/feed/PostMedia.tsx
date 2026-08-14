@@ -25,6 +25,7 @@ import 'yet-another-react-lightbox/plugins/thumbnails.css'
 import 'react-photo-album/rows.css'
 
 import { ImageWithRetry, useRetriedImageUrl } from '../../components/ImageWithRetry.js'
+import { ctxBase, viewPath } from '../../routes.js'
 
 //////////////////////
 // Image formatting //
@@ -334,9 +335,12 @@ export function Document({ attachments, idTag, token }: DocumentProps) {
 
 	const docAtt = attachments[0]
 	const thumbnailUrl = getFileUrl(idTag, docAtt.fileId, 'vis.tn', { token })
+	// Pinned to the issuer's own context: the document lives there, whatever the viewer is
+	// currently browsing.
+	const viewerPath = viewPath(ctxBase(idTag, undefined), `${idTag}:${docAtt.fileId}`)
 
 	function handleClick() {
-		navigate(`/app/${idTag}/view/${idTag}:${docAtt.fileId}`)
+		navigate(viewerPath)
 	}
 
 	return (

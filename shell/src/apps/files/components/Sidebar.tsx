@@ -18,7 +18,8 @@ import {
 } from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
 
-import { useContextAwareApi } from '../../../context/index.js'
+import { useContextAwareApi, useCtx } from '../../../context/index.js'
+import { appPath } from '../../../routes.js'
 import { fileIcons, type IcUnknown } from '../icons.js'
 import type { FileTypeFilter, OwnerFilter, ViewMode } from '../types.js'
 
@@ -59,6 +60,8 @@ export const Sidebar = React.memo(function Sidebar({
 	// which tracks the home session) is what changes when a context token lands.
 	const { api, authenticated } = useContextAwareApi()
 	const [auth] = useAuth()
+	// URL form of the context (`~` at home); the resId below carries the real owner.
+	const urlCtx = useCtx().base
 	const navigate = useNavigate()
 	const dialog = useDialog()
 
@@ -121,27 +124,29 @@ export const Sidebar = React.memo(function Sidebar({
 				fileName: (fileName || t('Untitled document')) as string
 			})
 
-			const appPath = (appId: string) =>
-				`/app/${contextIdTag || auth?.idTag}/${appId}/${res.fileId}`
+			// `contextIdTag` is the real idTag: it belongs in the resId's owner half,
+			// never in the context segment.
+			const ownerTag = contextIdTag || auth?.idTag
+			const docPath = (appId: string) => appPath(urlCtx, appId, `${ownerTag}:${res.fileId}`)
 
 			switch (contentType) {
 				case 'cloudillo/quillo':
-					navigate(appPath('quillo'))
+					navigate(docPath('quillo'))
 					break
 				case 'cloudillo/calcillo':
-					navigate(appPath('calcillo'))
+					navigate(docPath('calcillo'))
 					break
 				case 'cloudillo/ideallo':
-					navigate(appPath('ideallo'))
+					navigate(docPath('ideallo'))
 					break
 				case 'cloudillo/prezillo':
-					navigate(appPath('prezillo'))
+					navigate(docPath('prezillo'))
 					break
 				case 'cloudillo/formillo':
-					navigate(appPath('formillo'))
+					navigate(docPath('formillo'))
 					break
 				case 'cloudillo/taskillo':
-					navigate(appPath('taskillo'))
+					navigate(docPath('taskillo'))
 					break
 			}
 		}
@@ -167,18 +172,18 @@ export const Sidebar = React.memo(function Sidebar({
 				fileName: (fileName || t('Untitled database')) as string
 			})
 
-			const appPath = (appId: string) =>
-				`/app/${contextIdTag || auth?.idTag}/${appId}/${res.fileId}`
+			const ownerTag = contextIdTag || auth?.idTag
+			const docPath = (appId: string) => appPath(urlCtx, appId, `${ownerTag}:${res.fileId}`)
 
 			switch (contentType) {
 				case 'cloudillo/taskillo':
-					navigate(appPath('taskillo'))
+					navigate(docPath('taskillo'))
 					break
 				case 'cloudillo/notillo':
-					navigate(appPath('notillo'))
+					navigate(docPath('notillo'))
 					break
 				case 'cloudillo/scanillo':
-					navigate(appPath('scanillo'))
+					navigate(docPath('scanillo'))
 					break
 			}
 		}

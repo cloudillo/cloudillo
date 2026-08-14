@@ -16,42 +16,47 @@ import type { AppConfigState, MenuItem } from './utils.js'
 // All registered manifests
 export const allManifests: AppManifest[] = [...shellManifests, ...bundledManifests]
 
-// Shell navigation items (not apps — communities, users, settings, etc.)
+// Shell navigation items (not apps — communities, users, settings, etc.).
+//
+// `path` is a context-RELATIVE template: `scopePath(ctx.base, path)` turns it into a real
+// route. An absolute one passes through unscoped — see `site-admin` below.
 const SHELL_MENU: MenuItem[] = [
 	{
 		id: 'communities',
 		icon: getIcon('users'),
 		label: 'Communities',
 		trans: { hu: 'Közösségek' },
-		path: '/communities'
+		path: 'communities'
 	},
 	{
 		id: 'users',
 		icon: getIcon('user'),
 		label: 'People',
 		trans: { hu: 'Emberek' },
-		path: '/users'
+		path: 'users'
 	},
 	{
 		id: 'settings',
 		icon: getIcon('settings'),
 		label: 'Settings',
 		trans: { hu: 'Beállítások' },
-		path: '/settings'
+		path: 'settings'
 	},
 	{
 		id: 'idp',
 		icon: getIcon('fingerprint'),
 		label: 'IDP',
 		trans: { hu: 'IDP' },
-		path: '/idp'
+		path: 'idp'
 	},
 	{
 		id: 'site-admin',
 		icon: getIcon('server-cog'),
 		label: 'Server',
 		trans: { hu: 'Szerver' },
-		path: '/site-admin',
+		// Absolute on purpose: it administers the node, so it is pinned to home whatever
+		// context is being browsed (`site-admin/index.tsx` re-pins on arrival).
+		path: '/~/site-admin',
 		perm: 'SADM'
 	}
 ]
@@ -65,6 +70,11 @@ const SHELL_MENU_ORDER: Record<string, number> = {
 	'site-admin': 100
 }
 
+/**
+ * contentType → `/app/<id>`. NOT a menu path: its consumers (`search-target.ts`,
+ * `apps/shared.tsx`, `FilesApp`) keep only the last segment, so it stays absolute while the
+ * menu templates are context-relative.
+ */
 function buildMimeMap(manifests: AppManifest[]): Record<string, string> {
 	const mimeMap: Record<string, string> = {}
 	for (const m of manifests) {
@@ -89,7 +99,7 @@ function manifestToMenuItem(m: AppManifest): MenuItem {
 				.filter(([, t]) => t.name)
 				.map(([lang, t]) => [lang, t.name!])
 		),
-		path: `/app/${m.id}`,
+		path: `app/${m.id}`,
 		public: !AUTH_ONLY_APPS.has(m.id)
 	}
 }

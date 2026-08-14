@@ -22,14 +22,29 @@ import {
 	contextIdpEnabledAtom,
 	isContextLeader,
 	LEADER_ONLY_APPS,
-	useContextPath,
+	useCtx,
 	useCurrentContextIdTag,
 	useGuestDocument,
 	useSidebar
 } from '../context/index.js'
 import { unreadCountAtom } from '../read-position.js'
+import { appPath, ctxBase, scopePath } from '../routes.js'
 import { useAppConfig } from '../utils.js'
-import { truncateFileName } from './paths.js'
+
+/** Truncate a filename while preserving its extension. */
+function truncateFileName(name: string, maxLen: number = 12): string {
+	if (name.length <= maxLen) return name
+	const extIdx = name.lastIndexOf('.')
+	if (extIdx > 0 && name.length - extIdx <= 6) {
+		const baseName = name.substring(0, extIdx)
+		const extension = name.substring(extIdx)
+		const available = maxLen - extension.length - 1 // -1 for "…"
+		if (available > 0) {
+			return baseName.substring(0, available) + '…' + extension
+		}
+	}
+	return name.substring(0, maxLen - 1) + '…'
+}
 
 interface MenuLinkItem {
 	id: string
@@ -51,9 +66,9 @@ function MenuLink({
 	badge?: React.ReactNode
 }) {
 	const { i18n } = useTranslation()
-	const { getContextPath } = useContextPath()
+	const ctx = useCtx()
 	return (
-		<NavLink className={className} to={getContextPath(menuItem.path)}>
+		<NavLink className={className} to={scopePath(ctx.base, menuItem.path)}>
 			<span style={{ position: 'relative', display: 'inline-flex' }}>
 				{menuItem.icon && React.createElement(menuItem.icon)}
 				{badge}
@@ -81,7 +96,7 @@ export function Menu({
 	const [guestDocument] = useGuestDocument()
 	const [, setQrScannerOpen] = useQrScanner()
 	// Real idTag (own idTag for the personal context) — matches the key the feed
-	// unread probe writes; useUrlContextIdTag would yield '~' for home and miss.
+	// unread probe writes; a `~`-shaped URL context would miss.
 	const menuContextIdTag = useCurrentContextIdTag()
 	const unreadCounts = useAtomValue(unreadCountAtom)
 
@@ -148,8 +163,18 @@ export function Menu({
 				icon: getFileIcon(guestDocument.contentType, guestDocument.fileTp),
 				label: truncateFileName(guestDocument.fileName),
 				trans: {} as Record<string, string>,
+				// Absolute, and pinned to the owner's own context: a guest browsing a
+				// share link has no context of their own. `scopePath` leaves both
+				// branches alone because both start with `/`.
 				path: isAppDoc
-					? `/app/${guestDocument.ownerIdTag}/${guestDocument.appId}/${guestDocument.resId}${guestDocument.accessLevel !== 'write' ? `?access=${guestDocument.accessLevel}` : ''}`
+					? appPath(
+							ctxBase(guestDocument.ownerIdTag, undefined),
+							guestDocument.appId,
+							guestDocument.resId,
+							guestDocument.accessLevel !== 'write'
+								? { access: guestDocument.accessLevel }
+								: undefined
+						)
 					: `/s/${guestDocument.refId}`,
 				public: true
 			}

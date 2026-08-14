@@ -29,9 +29,9 @@ import {
 import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 
 import { useGlobalMessageUnreadProbe } from './apps/messages/index.js'
-import { AppRoutes } from './apps/routes.js'
+import { ContextRoot, appRoutes } from './apps/routes.js'
 import { SharedResourceView } from './apps/shared.js'
-import { AuthRoutes, loginInitAtom } from './auth/auth.js'
+import { authRoutes, loginInitAtom } from './auth/auth.js'
 import { isBootSettingsApplied, resetBootSettingsApplied, runBootSequence } from './auth/boot.js'
 import { KeyAccessError } from './auth/KeyAccessError.js'
 import { keyLossAtom } from './auth/key-loss.js'
@@ -48,39 +48,49 @@ import { QrScannerDialog } from './components/QrScanner/index.js'
 import { ShareCreate } from './components/ShareCreate/index.js'
 import {
 	contextIdpEnabledAtom,
+	CtxProvider,
 	favoritesAtom,
-	HOME_CONTEXT,
 	Sidebar,
 	useCommunitiesList,
 	useContextTokenRenewal,
+	useCtx,
 	useProfileTrustBootstrap,
-	useSidebar,
-	useUrlContextIdTag
+	useSidebar
 } from './context/index.js'
+import { UnknownContextBanner } from './context/unknown-context-banner.js'
 import { CommunityVerifyIdpBanner } from './context/verify-idp-banner.js'
 import { ErrorBoundary } from './ErrorBoundary.js'
-import { IdpRoutes } from './idp'
+import { idpRoutes } from './idp/index.js'
 import { Menu } from './layout/Menu.js'
 import { Toasts } from './layout/Toasts.js'
 import { CloudilloLogo } from './logo.js'
 import { appConfig as APP_CONFIG } from './manifest-registry.js'
 import { getShellBus, initShellBus } from './message-bus'
 import { createShellBusConfig } from './message-bus/shell-bus-config.js'
-import { NotificationPopover } from './notifications/NotificationPopover.js'
+import { NotFound } from './NotFound.js'
 import { Notifications } from './notifications/notifications.js'
+import { NotificationPopover } from './notifications/NotificationPopover.js'
 import { useNotifications } from './notifications/state'
 import { useActionNotifications } from './notifications/useActionNotifications.js'
 import { useDbMaintenanceNotifications } from './notifications/useDbMaintenanceNotifications.js'
 import { useSearchReindexNotifications } from './notifications/useSearchReindexNotifications.js'
 import { DocumentTitleSync, Omnibox, OmniboxIdle } from './omnibox.js'
-import { OnboardingRoutes } from './onboarding'
-import { ProfileRoutes } from './profile/profile.js'
-import usePWA, { clearAuthToken, deleteApiKey, getApiKey, setCurrentAuthToken } from './pwa.js'
+import { onboardingRoutes } from './onboarding/index.js'
+import { authedProfileRoutes, profileRoutes } from './profile/profile.js'
+import usePWA, {
+	clearAuthToken,
+	deleteApiKey,
+	getApiKey,
+	setCurrentAuthToken,
+	type UsePWA
+} from './pwa.js'
 import { useGlobalUnreadProbe } from './read-position.js'
+import { ContextGuard, RequireAuth } from './route-guards.js'
+import { HOME_BASE, profilePath, settingsPath } from './routes.js'
 import { SearchPage } from './SearchPage.js'
 import { toggleOmniboxAtom, useSearch } from './search.js'
-import { SettingsRoutes } from './settings'
-import { SiteAdminRoutes } from './site-admin'
+import { settingsRoutes } from './settings/index.js'
+import { siteAdminRoutes } from './site-admin/index.js'
 import { useAppConfig } from './utils.js'
 import { useWsBus, WsBusRoot } from './ws-bus.js'
 
@@ -124,7 +134,7 @@ function Header({ inert }: { inert?: boolean }) {
 	const setKeyLoss = useSetAtom(keyLossAtom)
 	const [_menuOpen, setMenuOpen] = React.useState(false)
 	const [businessCardOpen, setBusinessCardOpen] = React.useState(false)
-	const urlContext = useUrlContextIdTag()
+	const urlContext = useCtx().base
 	const [extraMenuPortalMobile, setExtraMenuPortalMobile] = React.useState<HTMLDivElement | null>(
 		null
 	)
@@ -335,10 +345,7 @@ function Header({ inert }: { inert?: boolean }) {
 						>
 							<ul className="c-nav vertical emph">
 								<li>
-									<Link
-										className="c-nav-item"
-										to={`/profile/${urlContext || HOME_CONTEXT}/me`}
-									>
+									<Link className="c-nav-item" to={profilePath(urlContext, 'me')}>
 										<IcUser />
 										{t('Profile')}
 									</Link>
@@ -353,10 +360,7 @@ function Header({ inert }: { inert?: boolean }) {
 									</Button>
 								</li>
 								<li>
-									<Link
-										className="c-nav-item"
-										to={`/settings/${urlContext || HOME_CONTEXT}`}
-									>
+									<Link className="c-nav-item" to={settingsPath(urlContext)}>
 										<IcSettings />
 										{t('Settings')}
 									</Link>
@@ -410,7 +414,7 @@ function Header({ inert }: { inert?: boolean }) {
 										<li>
 											<Link
 												className="c-nav-item"
-												to={`/profile/${HOME_CONTEXT}/me`}
+												to={profilePath(HOME_BASE, 'me')}
 											>
 												<IcUser />
 												{t('Owner profile')}
@@ -484,6 +488,86 @@ function Header({ inert }: { inert?: boolean }) {
 	)
 }
 
+/**
+ * The QR scanner's destination is context-scoped, so it reads `useCtx()` itself rather than
+ * taking a base from `Layout` — which mounts the `<CtxProvider>` and is therefore above it.
+ */
+function QrScanner() {
+	const navigate = useNavigate()
+	const ctx = useCtx()
+
+	return <QrScannerDialog onScan={(idTag) => navigate(profilePath(ctx.base, idTag))} />
+}
+
+function PlaceHolder({ title }: { title: string }) {
+	return <h1>{title}</h1>
+}
+
+/**
+ * The shell's one route tree — and, by being one tree, its section registry: every
+ * top-level section name appears exactly **once** below, as a child of `:contextIdTag`.
+ * There is deliberately no array of section names anywhere; `routes.ts` builds URLs by
+ * shape, so a mistyped section just lands on the `*` fallback and renders nothing.
+ *
+ * **Route fragments are called, never rendered.** `createRoutesFromChildren` identity-checks
+ * `element.type === React.Fragment` and recurses, while a *component* returning a fragment
+ * trips its `invariant` and throws. Easiest thing to get wrong here.
+ *
+ * **Declaration order matters for ties.** `/s/:refId` scores 17, and so does every
+ * two-segment static context branch (`/:contextIdTag/search`, `/settings`, …). React
+ * Router's `compareIndexes` returns 0 for non-siblings, so a tie falls through to JSX order
+ * via a stable sort: the context-free routes must stay declared *before* the context
+ * subtree, or `/s/search` would render the search page.
+ *
+ * **The guard runs after ranking, not before.** A context branch with static deeper segments
+ * can out-score a static-prefixed route — `/register/app/files` matches
+ * `/:contextIdTag/app/files` (28) over `/register/:token/:providerType` (21) — and
+ * `ContextGuard` then renders the 404. Unreachable in practice (registration tokens are
+ * random), but it is why the guard is a guard and not just a nicety.
+ *
+ * **No redirect shim for the old section-first URLs** (`/app/<ctx>/…`, `/settings/<ctx>`).
+ * The backend's `is_shell_route` allowlist (cloudillo-rs,
+ * `crates/cloudillo/src/routes/static_files.rs`) 404s those shapes before the SPA is ever
+ * served, so a client-side shim would be dead code.
+ *
+ * **Guest policy is the pathless `RequireAuth` layout route.** Contributing no path segments,
+ * it changes no ranking; it just draws the line between the sections a share-link visitor
+ * may reach (`app`, `profile`, `search`) and the ones needing a session. It must not wrap
+ * `ContextGuard` or those three, or a guest following `/s/:refId` → `/@owner/app/…` would
+ * bounce to `/login`.
+ */
+function ShellRoutes({ pwa }: { pwa: UsePWA }) {
+	return (
+		<Routes>
+			<Route path="/" element={<PlaceHolder title="Home" />} />
+			{/* Before the context subtree on purpose — see the tie-break note above. */}
+			{authRoutes()}
+			{onboardingRoutes(pwa)}
+			<Route path="/s/:refId" element={<SharedResourceView />} />
+			<Route path=":contextIdTag" element={<ContextGuard />}>
+				{/* Load-bearing: without it `/~` renders the guard with an empty outlet
+				    and goes blank instead of redirecting to the context's feed. */}
+				<Route index element={<ContextRoot />} />
+				{/* Guest-visible: a share link must render for an anonymous visitor. */}
+				{appRoutes()}
+				{profileRoutes()}
+				<Route path="search" element={<SearchPage />} />
+				<Route element={<RequireAuth />}>
+					{settingsRoutes(pwa)}
+					{siteAdminRoutes()}
+					{idpRoutes()}
+					{authedProfileRoutes()}
+					<Route path="notifications" element={<Notifications />} />
+				</Route>
+				{/* An unknown section under a valid context — the guard above only
+				    vets segment 1. */}
+				<Route path="*" element={<NotFound />} />
+			</Route>
+			<Route path="*" element={<NotFound />} />
+		</Routes>
+	)
+}
+
 export function Layout() {
 	const { t, i18n } = useTranslation()
 	const pwa = usePWA()
@@ -492,8 +576,6 @@ export function Layout() {
 	const dialog = useDialog()
 	const sidebar = useSidebar()
 	const { loadCommunities } = useCommunitiesList()
-	const navigate = useNavigate()
-	const urlContext = useUrlContextIdTag()
 	const keyLoss = useAtomValue(keyLossAtom)
 	useTokenRenewal() // Automatic auth token renewal
 	useContextTokenRenewal() // Proactive proxy-token renewal for trusted foreign profiles
@@ -608,45 +690,38 @@ export function Layout() {
 				{t('Skip to main content')}
 			</a>
 			<WsBusRoot>
-				{auth && <Sidebar />}
-				<Header inert={dialog.isOpen} />
-				<div
-					className={mergeClasses('c-layout', sidebar.isPinned && auth && 'with-sidebar')}
-				>
-					<ErrorBoundary>
-						<div
-							id="main-content"
-							inert={dialog.isOpen}
-							className="c-vbox flex-fill h-min-0"
-						>
-							<CommunityVerifyIdpBanner />
-							<ProfileRoutes />
-							<AuthRoutes />
-							<SettingsRoutes pwa={pwa} />
-							<SiteAdminRoutes />
-							<IdpRoutes />
-							<AppRoutes />
-							<OnboardingRoutes pwa={pwa} />
-							<Routes>
-								<Route path="/s/:refId" element={<SharedResourceView />} />
-								<Route path="/search/:contextIdTag?" element={<SearchPage />} />
-								<Route path="/notifications" element={<Notifications />} />
-								<Route path="*" element={null} />
-							</Routes>
-						</div>
-					</ErrorBoundary>
-					<div className="pt-1" />
-				</div>
-				<div id="popper-container" />
-				<DialogContainer />
-				<Toasts />
-				<MediaPicker />
-				<ShareCreate />
-				<DocumentPicker />
-				<QrScannerDialog
-					onScan={(idTag) => navigate(`/profile/${urlContext || HOME_CONTEXT}/${idTag}`)}
-				/>
-				<CameraCaptureDialog />
+				{/* Everything below reads the URL's context through `useCtx()`. */}
+				<CtxProvider>
+					{auth && <Sidebar />}
+					<Header inert={dialog.isOpen} />
+					<div
+						className={mergeClasses(
+							'c-layout',
+							sidebar.isPinned && auth && 'with-sidebar'
+						)}
+					>
+						<ErrorBoundary>
+							<div
+								id="main-content"
+								inert={dialog.isOpen}
+								className="c-vbox flex-fill h-min-0"
+							>
+								<CommunityVerifyIdpBanner />
+								<UnknownContextBanner />
+								<ShellRoutes pwa={pwa} />
+							</div>
+						</ErrorBoundary>
+						<div className="pt-1" />
+					</div>
+					<div id="popper-container" />
+					<DialogContainer />
+					<Toasts />
+					<MediaPicker />
+					<ShareCreate />
+					<DocumentPicker />
+					<QrScanner />
+					<CameraCaptureDialog />
+				</CtxProvider>
 			</WsBusRoot>
 		</>
 	)

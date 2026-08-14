@@ -15,7 +15,7 @@
 import { hasApiToken } from '@cloudillo/core'
 import type { createStore } from 'jotai'
 
-import { activeContextAtom, sessionTrustAtom, storedTrustAtom } from './atoms'
+import { activeContextAtom, communitiesAtom, sessionTrustAtom, storedTrustAtom } from './atoms'
 
 /** The jotai store instance, as `useStore()` / `createStore()` produce it. */
 export type ContextStore = ReturnType<typeof createStore>
@@ -53,6 +53,20 @@ export function mayUseContextToken(
 	if (idTag === opts.ownIdTag) return true
 	const consented = opts.explicit === true || effectiveTrust(store, idTag) === 'consent'
 	return consented && hasApiToken(idTag)
+}
+
+/**
+ * May a context named by the *URL* be entered without asking? A link is not a user
+ * action: `setActiveContext` mints an identified proxy token, so an unknown idTag
+ * arriving in a pathname must be confirmed rather than trusted.
+ *
+ * Known means: the user's own node, a community they already have (`communitiesAtom`),
+ * or an idTag they have already consented to (`effectiveTrust`).
+ */
+export function isKnownContext(store: ContextStore, idTag: string, ownIdTag?: string): boolean {
+	if (idTag === ownIdTag) return true
+	if (store.get(communitiesAtom).some((c) => c.idTag === idTag)) return true
+	return effectiveTrust(store, idTag) === 'consent'
 }
 
 // vim: ts=4

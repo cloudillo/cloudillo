@@ -51,13 +51,12 @@ import './feed.css'
 import { OfflineBanner } from '../components/OfflineBanner.js'
 import type { CommunityRef } from '../context/index.js'
 import {
-	HOME_CONTEXT,
 	useApiContext,
 	useCommunitiesList,
 	useContextAwareApi,
 	useCurrentContextIdTag,
 	useProfileTrust,
-	useUrlContextIdTag
+	useCtx
 } from '../context/index.js'
 import {
 	createdAtToSeconds,
@@ -71,6 +70,7 @@ import {
 	useReadPositionTracker,
 	useScrollEngaged
 } from '../read-position.js'
+import { feedPath, profilePath } from '../routes.js'
 import { handleEditablePaste } from '../utils/editablePaste.js'
 import { useWsBus } from '../ws-bus.js'
 import {
@@ -119,13 +119,13 @@ interface CommentProps {
 	srcTag: string
 }
 function Comment({ className, action, srcTag }: CommentProps) {
-	const urlContext = useUrlContextIdTag()
+	const urlContext = useCtx().base
 	if (typeof action.content != 'string') return null
 
 	return (
 		<div className={'c-panel ' + (className || '')}>
 			<div className="c-panel-header d-flex">
-				<Link to={`/profile/${urlContext || HOME_CONTEXT}/${action.issuer.idTag}`}>
+				<Link to={profilePath(urlContext, action.issuer.idTag)}>
 					<ProfileCard profile={action.issuer} srcTag={srcTag} />
 				</Link>
 			</div>
@@ -561,7 +561,7 @@ function Post({
 	const [auth] = useAuth()
 	const { api } = useApi()
 	const contextIdTag = useCurrentContextIdTag()
-	const urlContext = useUrlContextIdTag()
+	const urlContext = useCtx().base
 	// While the post is pending, the file still lives on the issuer's
 	// server — it hasn't been replicated to the audience or any other
 	// tenant yet. Override every other idTag source for that case.
@@ -700,10 +700,10 @@ function Post({
 							profile={action.issuer}
 							audience={action.audience}
 							srcTag={fileIdTag}
-							profileBasePath={`/profile/${urlContext || HOME_CONTEXT}`}
+							profileBasePath={profilePath(urlContext)}
 						/>
 					) : (
-						<Link to={`/profile/${urlContext || HOME_CONTEXT}/${action.issuer.idTag}`}>
+						<Link to={profilePath(urlContext, action.issuer.idTag)}>
 							<ProfileCard profile={action.issuer} srcTag={fileIdTag} />
 						</Link>
 					)}
@@ -1223,7 +1223,7 @@ export function FeedApp() {
 	// land.
 	const { actionId: focusedId } = useParams()
 	const { api: ctxApi } = useContextAwareApi()
-	const urlContext = useUrlContextIdTag()
+	const urlContext = useCtx().base
 	const [auth] = useAuth()
 	const contextIdTag = useCurrentContextIdTag()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
@@ -1977,7 +1977,7 @@ export function FeedApp() {
 							<Button
 								kind="link"
 								onClick={() =>
-									navigate(`/app/${urlContext || HOME_CONTEXT}/feed`, {
+									navigate(feedPath(urlContext), {
 										replace: true
 									})
 								}

@@ -1,24 +1,23 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { apiAtom, Fcd, LoadingSpinner, mergeClasses } from '@cloudillo/react'
+import { Fcd, LoadingSpinner, mergeClasses } from '@cloudillo/react'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuFingerprint as IcIdp, LuMenu as IcMenu, LuSettings as IcSettings } from 'react-icons/lu'
-import { Navigate, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
+import { Navigate, NavLink, Outlet, Route, useLocation } from 'react-router-dom'
 
-import { contextIdpEnabledAtom, HOME_CONTEXT } from '../context/index.js'
+import { contextIdpEnabledAtom, useCtx } from '../context/index.js'
+import { feedPath, idpPath } from '../routes.js'
 import { IdentitiesSettings } from './identities.js'
 import { ProviderSettings } from './settings.js'
 
 export function Idp({ title, children }: { title: string; children?: React.ReactNode }) {
 	const location = useLocation()
-	const params = useParams()
 	const { t } = useTranslation()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
-	const contextIdTag = params.contextIdTag!
-	const basePath = `/idp/${contextIdTag}`
+	const basePath = idpPath(useCtx().base)
 
 	React.useEffect(
 		function onLocationEffect() {
@@ -75,49 +74,39 @@ export function Idp({ title, children }: { title: string; children?: React.React
  *
  * Only a real `false` redirects. `'unknown'` — a transient lookup failure — renders the page
  * instead, so its own API calls surface the actual error rather than ejecting a legitimate provider.
+ *
+ * Doubles as the layout route: the guard and the chrome wrap the same two pages.
  */
-function IdpGuard({ children }: { children: React.ReactElement }) {
-	const { contextIdTag } = useParams()
-	const apiState = useAtomValue(apiAtom)
+function IdpGuard() {
+	const { t } = useTranslation()
+	const location = useLocation()
+	const ctx = useCtx()
 	const contextIdpEnabled = useAtomValue(contextIdpEnabledAtom)
 
-	const idTag = contextIdTag === HOME_CONTEXT ? apiState.idTag : contextIdTag
-	const enabled = idTag ? contextIdpEnabled[idTag] : undefined
+	const enabled = ctx.idTag ? contextIdpEnabled[ctx.idTag] : undefined
 
 	// Not asked yet - the answer is coming
 	if (enabled === undefined) return <LoadingSpinner />
-	if (enabled === false)
-		return <Navigate to={`/app/${contextIdTag ?? HOME_CONTEXT}/feed`} replace />
-	return children
+	if (enabled === false) return <Navigate to={feedPath(ctx.base)} replace />
+
+	const title = location.pathname.endsWith('/settings') ? t('Provider Settings') : t('Identities')
+	return (
+		<Idp title={title}>
+			<Outlet />
+		</Idp>
+	)
 }
 
-export function IdpRoutes() {
-	const { t } = useTranslation()
-
+/**
+ * The `idp/…` branch of the context route. A plain function, not a component — see
+ * `layout.tsx` for why.
+ */
+export function idpRoutes() {
 	return (
-		<Routes>
-			<Route
-				path="/idp/:contextIdTag"
-				element={
-					<IdpGuard>
-						<Idp title={t('Identities')}>
-							<IdentitiesSettings />
-						</Idp>
-					</IdpGuard>
-				}
-			/>
-			<Route
-				path="/idp/:contextIdTag/settings"
-				element={
-					<IdpGuard>
-						<Idp title={t('Provider Settings')}>
-							<ProviderSettings />
-						</Idp>
-					</IdpGuard>
-				}
-			/>
-			<Route path="/*" element={null} />
-		</Routes>
+		<Route path="idp" element={<IdpGuard />}>
+			<Route index element={<IdentitiesSettings />} />
+			<Route path="settings" element={<ProviderSettings />} />
+		</Route>
 	)
 }
 

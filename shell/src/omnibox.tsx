@@ -42,21 +42,20 @@ import {
 	LuSearch as IcSearch
 } from 'react-icons/lu'
 import { usePopper } from 'react-popper'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useMatch, useNavigate } from 'react-router-dom'
 
 import {
 	activeContextAtom,
 	communitiesAtom,
-	HOME_CONTEXT,
 	isContextLeader,
 	LEADER_ONLY_APPS,
 	useContextAwareApi,
-	useContextPath,
-	useCurrentContextIdTag,
-	useUrlContextIdTag
+	useCtx,
+	useCurrentContextIdTag
 } from './context/index.js'
 import { deriveMode } from './omnibox-mode.js'
 import { buildRef, canShareRoute, resolveRef } from './refs.js'
+import { contextPath, profilePath, scopePath, sectionMatch } from './routes.js'
 import { SearchResultRow } from './SearchResultRow.js'
 import {
 	lastQueryAtom,
@@ -79,42 +78,6 @@ import { documentTitleAtom } from './title.js'
 import { type MenuItem, useAppConfig } from './utils.js'
 
 // ============================================
-// Route parsing helpers
-// ============================================
-
-interface AppRoute {
-	appId?: string
-	resId?: string
-}
-
-/**
- * Derive the active appId (and document resId, if any) from a route path.
- * Mirrors the addressing in `apps/index.tsx` (`ExternalApp`).
- */
-function parseAppRoute(pathname: string): AppRoute {
-	// Context-aware document/sub-route: /app/<ctx>/<appId>/<rest…>
-	let m = pathname.match(/^\/app\/([^/]+)\/([^/]+)\/(.+)$/)
-	if (m) {
-		const ctx = m[1]
-		const appId = m[2]
-		const rest = m[3]
-		const resId = rest.includes(':') ? rest : `${ctx}:${rest}`
-		return { appId, resId }
-	}
-	// Context-aware, no rest: /app/<ctx>/<appId>  (or legacy /app/<appId>/<x>)
-	m = pathname.match(/^\/app\/([^/]+)\/([^/]+)\/?$/)
-	if (m) {
-		const first = m[1]
-		const isCtx = first === HOME_CONTEXT || first.includes('.')
-		return { appId: isCtx ? m[2] : first }
-	}
-	// Legacy: /app/<appId>
-	m = pathname.match(/^\/app\/([^/]+)\/?$/)
-	if (m) return { appId: m[1] }
-	return {}
-}
-
-// ============================================
 // Breadcrumb composition
 // ============================================
 
@@ -131,15 +94,29 @@ interface BreadcrumbSegment {
  * is a label and nothing else: there is no link to follow.
  */
 function useBreadcrumb(): BreadcrumbSegment[] {
-	const location = useLocation()
 	const { i18n } = useTranslation()
 	const [auth] = useAuth()
 	const [appConfig] = useAppConfig()
 	const activeContext = useAtomValue(activeContextAtom)
 	const communities = useAtomValue(communitiesAtom)
 	const titleState = useAtomValue(documentTitleAtom)
+	const ctx = useCtx()
 
-	const { appId, resId } = parseAppRoute(location.pathname)
+	// The active appId, and the document resId the tail names. The splat is decoded, which
+	// is what `ExternalApp` also receives from `useParams`, so the two agree on the resId.
+	const appMatch = useMatch(sectionMatch('app', ':appId/*'))
+	const appId = appMatch?.params.appId
+	const splat = appMatch?.params['*'] ?? ''
+	// The same synthesis `ExternalApp` makes, so the two agree on the resId
+	// `documentTitleAtom` is keyed to. A tail that names no document (`feed/<actionId>`)
+	// just yields a resId nothing ever wrote, which is exactly the old `undefined`.
+	const resId = !splat
+		? undefined
+		: splat.includes(':')
+			? splat
+			: ctx.idTag
+				? `${ctx.idTag}:${splat}`
+				: undefined
 
 	// ContextName: only for communities (hide on the user's own home context).
 	// `activeContext.name` is an idTag placeholder until the profile loads, so
@@ -150,8 +127,9 @@ function useBreadcrumb(): BreadcrumbSegment[] {
 		: undefined
 	const contextName = showContext ? community?.name || activeContext?.name : undefined
 
-	// AppLabel: menu item matched by appId; fall back to the appId.
-	const menuItem = appId ? appConfig?.menu.find((it) => it.path === `/app/${appId}`) : undefined
+	// AppLabel: menu item matched by appId; fall back to the appId. Matched on `id`, not on
+	// `path` — menu paths are context-relative templates, not routes.
+	const menuItem = appId ? appConfig?.menu.find((it) => it.id === appId) : undefined
 	const appLabel = menuItem ? menuItem.trans?.[i18n.language] || menuItem.label : appId
 
 	// DocTitle: from the atom, but only when it belongs to the current resId.
@@ -274,11 +252,11 @@ export function Omnibox() {
 	const pushRecent = useSetAtom(pushRecentAtom)
 	const [recent, setRecentSearches] = useAtom(recentSearchesAtom)
 	const [appConfig] = useAppConfig()
-	const urlContext = useUrlContextIdTag()
-	// Not the URL segment: `~` addresses home in a path but is not an idTag, and the
-	// resId's owner half has to be one.
+	const ctx = useCtx()
+	// Not the URL context: `~` addresses home in a path but is not an idTag, and the
+	// resId's owner half has to be one. Deliberately the *active* context, in step with
+	// `ctxApi` above.
 	const contextIdTag = useCurrentContextIdTag()
-	const { getContextPath } = useContextPath()
 	const activeContext = useAtomValue(activeContextAtom)
 
 	const query = search.query ?? ''
@@ -537,10 +515,12 @@ export function Omnibox() {
 		(raw: string) => {
 			const idTag = (raw.startsWith('@') ? raw.slice(1) : raw).trim().toLowerCase()
 			if (!idTag) return
-			navigate(`/profile/${urlContext || HOME_CONTEXT}/${idTag}`)
+			// `idTag` is user-typed; the builder encodes it, so a stray `/` or `?` cannot
+			// break out of its segment.
+			navigate(profilePath(ctx.base, idTag))
 			setSearch({})
 		},
-		[navigate, urlContext, setSearch]
+		[navigate, ctx.base, setSearch]
 	)
 
 	const openResults = React.useCallback(
@@ -552,10 +532,10 @@ export function Omnibox() {
 			pushRecent(q)
 			// The context lives in the path, so reloading or sharing the link keeps
 			// searching the space the search was run in.
-			navigate(`/search/${urlContext || HOME_CONTEXT}?${new URLSearchParams({ q })}`)
+			navigate(contextPath(ctx.base, 'search', '', { q }))
 			setSearch({})
 		},
-		[navigate, urlContext, setSearch, pushRecent]
+		[navigate, ctx.base, setSearch, pushRecent]
 	)
 
 	const performAction = React.useCallback(
@@ -574,20 +554,15 @@ export function Omnibox() {
 				return
 			}
 			if (item.kind === 'command') {
-				navigate(getContextPath(item.menuItem.path))
+				navigate(scopePath(ctx.base, item.menuItem.path))
 				setSearch({})
 			} else if (item.kind === 'profile') {
-				navigate(`/profile/${urlContext || HOME_CONTEXT}/${item.profile.idTag}`)
+				navigate(profilePath(ctx.base, item.profile.idTag))
 				setSearch({})
 			} else if (item.kind === 'hit') {
 				// Opening a hit settles the query as much as Enter does.
 				pushRecent(query)
-				const target = searchHitTarget(
-					item.hit,
-					urlContext || HOME_CONTEXT,
-					appConfig?.mime,
-					contextIdTag
-				)
+				const target = searchHitTarget(item.hit, ctx.base, appConfig?.mime, contextIdTag)
 				if (target) {
 					navigate(target)
 				} else {
@@ -608,8 +583,7 @@ export function Omnibox() {
 		},
 		[
 			navigate,
-			getContextPath,
-			urlContext,
+			ctx.base,
 			contextIdTag,
 			setSearch,
 			setRecentSearches,

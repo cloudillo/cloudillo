@@ -8,8 +8,9 @@ import { useTranslation } from 'react-i18next'
 import { LuUsers as IcGroup } from 'react-icons/lu'
 import { Link } from 'react-router-dom'
 
-import { HOME_CONTEXT, useUrlContextIdTag } from '../../../context/index.js'
+import { useCtx } from '../../../context/index.js'
 import { unreadCountAtom } from '../../../read-position.js'
+import { messagesPath } from '../../../routes.js'
 import type { Conversation } from '../types.js'
 import { GroupAvatar } from './GroupAvatar.js'
 
@@ -21,7 +22,7 @@ function ConversationCardComponent({
 	conversation: Conversation
 }) {
 	const { t } = useTranslation()
-	const urlContext = useUrlContextIdTag()
+	const urlContext = useCtx().base
 	const unreadCounts = useAtomValue(unreadCountAtom)
 	const unread = unreadCounts[`msg:${conversation.id}`] || 0
 
@@ -31,7 +32,7 @@ function ConversationCardComponent({
 	return (
 		<Link
 			className={mergeClasses('c-nav-item c-hbox g-2 align-items-center', className)}
-			to={`/app/${urlContext || HOME_CONTEXT}/messages/${conversation.id}`}
+			to={messagesPath(urlContext, conversation.id)}
 		>
 			{isGroup ? (
 				<>

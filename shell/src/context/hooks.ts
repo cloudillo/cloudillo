@@ -20,6 +20,7 @@ import * as React from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { seedCommunityFromHome } from '../read-position.js'
+import { ctxBase, feedPath } from '../routes.js'
 import {
 	activeContextAtom,
 	communitiesAtom,
@@ -35,7 +36,6 @@ import {
 	sidebarAtom,
 	totalUnreadCountAtom
 } from './atoms'
-import { HOME_CONTEXT } from './constants.js'
 import { effectiveTrust, mayUseContextToken } from './trust-gate.js'
 import type { ActiveContext, CommunityRef, ContextSwitchEvent } from './types'
 
@@ -742,8 +742,8 @@ export function useSidebar() {
  * ```typescript
  * const { switchTo, isSwitching } = useContextSwitch()
  *
- * // Switch to community and navigate to feed
- * await switchTo('alice.community', '/feed')
+ * // Switch to community and land on its feed
+ * await switchTo('alice.community')
  * ```
  */
 export function useContextSwitch() {
@@ -756,19 +756,13 @@ export function useContextSwitch() {
 
 	// URL is the only source of truth for the active context. switchTo
 	// navigates and updates the LRU bookkeeping; the route effect in
-	// use-context-from-route.ts observes the new URL and drives the actual
-	// setActiveContext call (and clears contextSwitchingAtom when it resolves).
+	// ctx.tsx observes the new URL and drives the actual setActiveContext
+	// call (and clears contextSwitchingAtom when it resolves).
 	const switchTo = React.useCallback(
-		async (idTag: string, path: string = '/feed') => {
-			const urlSegment = idTag === apiState.idTag ? HOME_CONTEXT : idTag
-
-			// `path` may be either an app-relative tail (e.g. `/feed`, joined
-			// under `/app/<ctx>`) or an already-absolute context-aware route
-			// (e.g. `/idp/<ctx>/settings`) that encodes the destination itself.
-			const isAbsoluteContextRoute = /^\/(app|idp|settings|users|communities|profile)\//.test(
-				path
-			)
-			const destination = isAbsoluteContextRoute ? path : `/app/${urlSegment}${path}`
+		// `path`, when given, is the whole destination — the sidebar hands over a
+		// fully-scoped route so the tail of the current page survives the switch.
+		async (idTag: string, path?: string) => {
+			const destination = path ?? feedPath(ctxBase(idTag, apiState.idTag))
 
 			if (activeContext?.idTag === idTag) {
 				navigate(destination)
@@ -805,60 +799,20 @@ export function useContextSwitch() {
 }
 
 /**
- * Hook for generating context-aware paths
+ * The real idTag of the **active** context — for API calls, owner halves of a `resId`
+ * and cache keys.
  *
- * Transforms paths to include the current context idTag where appropriate.
- * This consolidates the path transformation logic that was duplicated across components.
- *
- * @example
- * ```typescript
- * const { getContextPath, contextIdTag } = useContextPath()
- *
- * // Transform paths
- * getContextPath('/app/files') // => '/app/alice.example/files' (if in 'alice.example' context)
- * getContextPath('/settings')  // => '/settings/alice.example'
- * ```
+ * Derived from `activeContextAtom`, which trails the URL on purpose: `setActiveContext` has
+ * to mint a proxy token before the new context is usable, and `useContextAwareApi()` keys
+ * its client on the same atom. A URL-derived idTag would name the new community in a cache
+ * key while the client still points at home. Use `useCtx()` for building URLs.
  */
-export function useContextPath() {
+export function useCurrentContextIdTag(): string | undefined {
 	const [activeContext] = useAtom(activeContextAtom)
 	const [auth] = useAuth()
 	const [apiState] = useAtom(apiAtom)
 
-	const contextIdTag = activeContext?.idTag || auth?.idTag
-	const urlContextIdTag =
-		contextIdTag && contextIdTag === apiState.idTag ? HOME_CONTEXT : contextIdTag
-
-	const getContextPath = React.useCallback(
-		(path: string): string => {
-			if (!urlContextIdTag) return path
-
-			// If path starts with /app/, insert contextIdTag
-			if (path.startsWith('/app/')) {
-				return path.replace('/app/', `/app/${urlContextIdTag}/`)
-			}
-
-			// Handle other context-aware routes
-			if (path === '/users') return `/users/${urlContextIdTag}`
-			if (path === '/communities') return `/communities/${urlContextIdTag}`
-			if (path === '/settings') return `/settings/${urlContextIdTag}`
-			if (path === '/idp') return `/idp/${urlContextIdTag}`
-
-			// Profile routes
-			if (path.startsWith('/profile/')) {
-				// Transform /profile/:idTag to /profile/:contextIdTag/:idTag
-				const parts = path.split('/')
-				if (parts.length >= 3) {
-					return `/profile/${urlContextIdTag}/${parts.slice(2).join('/')}`
-				}
-			}
-
-			return path
-		},
-		[urlContextIdTag]
-	)
-
-	return {
-		contextIdTag,
-		getContextPath
-	}
+	return activeContext?.idTag || auth?.idTag || apiState.idTag
 }
+
+// vim: ts=4

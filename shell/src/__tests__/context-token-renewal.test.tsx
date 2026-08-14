@@ -61,12 +61,15 @@ const contextRolesAtom = atom<Map<string, string[]>>(new Map())
 const sessionTrustAtom = atom<Map<string, string>>(new Map())
 const storedTrustAtom = atom<Map<string, string>>(new Map())
 const activeContextAtom = atom<{ idTag: string } | null>(null)
+// Pulled in by `trust-gate.ts` for `isKnownContext`, which this hook never calls.
+const communitiesAtom = atom<{ idTag: string }[]>([])
 
 jest.unstable_mockModule('../context/atoms', () => ({
 	contextRolesAtom,
 	sessionTrustAtom,
 	storedTrustAtom,
-	activeContextAtom
+	activeContextAtom,
+	communitiesAtom
 }))
 
 const { useContextTokenRenewal } = await import('../context/useContextTokenRenewal.js')

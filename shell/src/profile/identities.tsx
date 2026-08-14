@@ -23,11 +23,12 @@ import {
 	LuBellOff as IcUserMuted,
 	LuOctagonPause as IcUserSuspended
 } from 'react-icons/lu'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { useQrScanner } from '../components/QrScanner/index.js'
-import { useContextSwitch } from '../context/index.js'
+import { useContextSwitch, useCtx } from '../context/index.js'
 import { ProfileContextMenu, useProfileContextMenu } from '../context/profile-context-menu.js'
+import { communityCreatePath, profilePath } from '../routes.js'
 import { parseQS } from '../utils.js'
 import { describeRelationship } from './relationship.js'
 
@@ -229,14 +230,13 @@ export function ProfileListCard({
 	triggerProps
 }: ProfileListCardProps) {
 	const { t } = useTranslation()
-	const params = useParams()
-	const contextIdTag = params.contextIdTag!
+	const ctx = useCtx()
 	const rel = describeRelationship(profile)
 
 	return (
 		<Link
 			className="c-panel p-1 mb-1 flex-row align-items-center"
-			to={`/profile/${contextIdTag}/${profile.idTag}`}
+			to={profilePath(ctx.base, profile.idTag)}
 			onClick={wrapClick?.(() => {})}
 			{...triggerProps}
 		>
@@ -271,28 +271,27 @@ export function CommunityListCard({
 	triggerProps
 }: CommunityListCardProps) {
 	const { t } = useTranslation()
-	const params = useParams()
 	const navigate = useNavigate()
-	const contextIdTag = params.contextIdTag!
+	const ctx = useCtx()
 	const { switchTo } = useContextSwitch()
 
 	const isMember = profile.connected === true
-	const profilePath = `/profile/${contextIdTag}/${profile.idTag}`
+	const profileHref = profilePath(ctx.base, profile.idTag)
 
 	const handleRowClick = () => {
 		if (isMember) {
-			switchTo(profile.idTag, '/feed').catch((err) => {
+			switchTo(profile.idTag).catch((err) => {
 				console.error('Failed to switch context:', err)
 			})
 		} else {
-			navigate(profilePath)
+			navigate(profileHref)
 		}
 	}
 
 	const handleViewProfile = (e: React.MouseEvent) => {
 		e.preventDefault()
 		e.stopPropagation()
-		navigate(profilePath)
+		navigate(profileHref)
 	}
 
 	return (
@@ -357,7 +356,6 @@ export function PeopleHeader({ variant, title, subtitle, profilePic, srcTag }: P
 export function PersonListPage({ idTag }: { idTag?: string }) {
 	const { t } = useTranslation()
 	const location = useLocation()
-	const params = useParams()
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
@@ -365,8 +363,9 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 	const [refreshTick, setRefreshTick] = React.useState(0)
 	const [, setQrScannerOpen] = useQrScanner()
 	const { menuState, closeMenu, getTriggerProps, wrapClick } = useProfileContextMenu()
-	// Extract contextIdTag from params if available (context-aware route)
-	const contextIdTag = params.contextIdTag || idTag
+	// The tenant the route names when there is one (this page is also rendered without a
+	// route, from `PeoplePage`).
+	const contextIdTag = useCtx().idTag || idTag
 
 	React.useEffect(
 		function onLocationEffect() {
@@ -458,15 +457,14 @@ export function CommunityListPage() {
 	const { t } = useTranslation()
 	const location = useLocation()
 	const navigate = useNavigate()
-	const params = useParams()
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
 	const [refreshTick, setRefreshTick] = React.useState(0)
 	const { menuState, closeMenu, getTriggerProps, wrapClick } = useProfileContextMenu()
-	// Extract contextIdTag from params if available (context-aware route)
-	const contextIdTag = params.contextIdTag
+	// The tenant the route names; the effect below re-runs when it changes.
+	const ctx = useCtx()
 
 	React.useEffect(
 		function onLocationEffect() {
@@ -492,7 +490,7 @@ export function CommunityListPage() {
 				setProfiles(profiles)
 			})()
 		},
-		[auth, location.search, contextIdTag, refreshTick]
+		[auth, location.search, ctx.idTag, refreshTick]
 	)
 
 	return (
@@ -525,7 +523,7 @@ export function CommunityListPage() {
 			{/* FAB for creating new community */}
 			<button
 				className="c-fab"
-				onClick={() => navigate(`/communities/create/${contextIdTag || auth?.idTag}`)}
+				onClick={() => navigate(communityCreatePath(ctx.base))}
 				title={t('Create new community')}
 			>
 				<IcPlus />

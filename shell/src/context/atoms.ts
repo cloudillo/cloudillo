@@ -119,6 +119,15 @@ export const lastContextSwitchAtom = atom<ContextSwitchEvent | null>(null)
 export const contextSwitchingAtom = atom<boolean>(false)
 
 /**
+ * The idTag a URL asked for that the user has not consented to yet.
+ *
+ * `CtxProvider` parks an unknown context here instead of switching to it — entering it
+ * would mint an identified proxy token for a server the user never chose. The confirm
+ * banner (`unknown-context-banner.tsx`) is the only reader.
+ */
+export const pendingContextAtom = atom<string | undefined>(undefined)
+
+/**
  * Session-scoped trust decisions for foreign profiles.
  *
  * Values:

@@ -25,10 +25,11 @@ import {
 	LuShield as IcSecurity,
 	LuServerCog as IcServer
 } from 'react-icons/lu'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 
-import { activeContextAtom, isContextLeader, useContextAwareApi } from '../context/index.js'
+import { activeContextAtom, isContextLeader, useContextAwareApi, useCtx } from '../context/index.js'
 import { resetAppCache, type UsePWA } from '../pwa.js'
+import { settingsPath, siteAdminPath } from '../routes.js'
 import { subscribeNotifications } from './notifications.js'
 
 interface SettingsOverviewProps {
@@ -38,7 +39,6 @@ interface SettingsOverviewProps {
 export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
-	const params = useParams()
 	const dialog = useDialog()
 	const { toast } = useToast()
 	const { api } = useApi()
@@ -48,8 +48,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 	// the active context's proxy token — `useApi()` above is bound to the user's own
 	// idTag and would rebuild the wrong tenant in a community.
 	const { api: contextApi } = useContextAwareApi()
-	const contextIdTag = params.contextIdTag!
-	const basePath = `/settings/${contextIdTag}`
+	const basePath = settingsPath(useCtx().base)
 
 	// Security data
 	const [passkeys, setPasskeys] = React.useState<WebAuthnCredential[]>([])
@@ -337,7 +336,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 				<div className="c-panel">
 					<button
 						className="c-hbox ai-center p-2 w-100 text-start"
-						onClick={() => navigate('/site-admin')}
+						onClick={() => navigate(siteAdminPath())}
 						style={{ cursor: 'pointer', border: 'none', background: 'transparent' }}
 					>
 						<IcServer className="text-primary mr-3" size={24} />

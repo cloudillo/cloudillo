@@ -30,9 +30,9 @@ import {
 } from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
 
-import { HOME_CONTEXT } from './constants'
+import { profilePath } from '../routes.js'
+import { useCtx } from './ctx'
 import { useCommunitiesList } from './hooks'
-import { useUrlContextIdTag } from './use-context-from-route'
 
 export interface ProfileMenuTarget {
 	idTag: string
@@ -81,16 +81,15 @@ export function ProfileContextMenu({
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const toast = useToast()
-	const urlContextIdTag = useUrlContextIdTag()
+	const ctx = useCtx()
 	const { communities, favorites, toggleFavorite, setShowInHome } = useCommunitiesList()
 
 	const isMobile = useIsMobile()
 	const Item = isMobile ? ActionSheetItem : MenuItem
 	const Divider = isMobile ? ActionSheetDivider : MenuDivider
 
-	const ctxSegment = urlContextIdTag ?? HOME_CONTEXT
 	const profileIdSegment = target.type === 'me' ? 'me' : target.idTag
-	const profilePath = `/profile/${ctxSegment}/${profileIdSegment}`
+	const profileHref = profilePath(ctx.base, profileIdSegment)
 
 	const isOwnProfile = target.type === 'me' || target.idTag === auth?.idTag
 	const isCommunity = target.type === 'community'
@@ -108,7 +107,7 @@ export function ProfileContextMenu({
 	}
 
 	const handleVisit = () => {
-		navigate(profilePath)
+		navigate(profileHref)
 	}
 
 	const handleCopyTag = async () => {

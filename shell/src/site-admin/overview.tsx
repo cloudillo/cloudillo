@@ -24,6 +24,7 @@ import {
 } from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
 
+import { HOME_BASE, settingsPath, siteAdminPath } from '../routes.js'
 import { useSettings } from '../settings/settings.js'
 
 interface Ref {
@@ -107,7 +108,7 @@ export function AdminOverview() {
 								{t('Password resets and email notifications will not work')}
 							</div>
 						</div>
-						<Button variant="primary" onClick={() => navigate('/site-admin/email')}>
+						<Button variant="primary" onClick={() => navigate(siteAdminPath('email'))}>
 							{t('Configure')}
 						</Button>
 					</div>
@@ -175,7 +176,9 @@ export function AdminOverview() {
 			<Card
 				interactive
 				className="animate-fade-slide-up stagger-2"
-				onClick={() => navigate(`/settings/${auth?.idTag}`)}
+				// `AdminOverview` only ever renders under `~` — the SiteAdmin chrome
+				// redirects any other context.
+				onClick={() => navigate(settingsPath(HOME_BASE))}
 			>
 				<div className="c-hbox ai-center p-2">
 					<IcSettings className="text-primary mr-3" size={24} />
@@ -203,42 +206,42 @@ export function AdminOverview() {
 					<QuickActionCard
 						icon={<IcInvitations size={28} />}
 						label={t('Invitations')}
-						onClick={() => navigate('/site-admin/invitations')}
+						onClick={() => navigate(siteAdminPath('invitations'))}
 					/>
 					<QuickActionCard
 						icon={<IcUsers size={28} />}
 						label={t('Users & Communities')}
-						onClick={() => navigate('/site-admin/tenants')}
+						onClick={() => navigate(siteAdminPath('tenants'))}
 					/>
 					<QuickActionCard
 						icon={<IcIdps size={28} />}
 						label={t('Suggested Providers')}
-						onClick={() => navigate('/site-admin/idps')}
+						onClick={() => navigate(siteAdminPath('idps'))}
 					/>
 					<QuickActionCard
 						icon={<IcServer size={28} />}
 						label={t('Server')}
-						onClick={() => navigate('/site-admin/server')}
+						onClick={() => navigate(siteAdminPath('server'))}
 					/>
 					<QuickActionCard
 						icon={<IcStorage size={28} />}
 						label={t('Storage')}
-						onClick={() => navigate('/site-admin/storage')}
+						onClick={() => navigate(siteAdminPath('storage'))}
 					/>
 					<QuickActionCard
 						icon={<IcMail size={28} />}
 						label={t('Email')}
-						onClick={() => navigate('/site-admin/email')}
+						onClick={() => navigate(siteAdminPath('email'))}
 					/>
 					<QuickActionCard
 						icon={<IcProxy size={28} />}
 						label={t('Reverse Proxy')}
-						onClick={() => navigate('/site-admin/proxy-sites')}
+						onClick={() => navigate(siteAdminPath('proxy-sites'))}
 					/>
 					<QuickActionCard
 						icon={<IcTenant size={28} />}
 						label={t('Default Policies')}
-						onClick={() => navigate('/site-admin/tenant')}
+						onClick={() => navigate(siteAdminPath('tenant'))}
 					/>
 				</div>
 			</div>

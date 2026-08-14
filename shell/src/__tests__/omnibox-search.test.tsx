@@ -40,13 +40,15 @@ let searchResponse: (call: SearchCall) => Promise<unknown> = async () => ({
 
 // Module-level constants, never fresh literals per call: a hook handing back a new
 // object each render re-arms the omnibox's effects on every commit.
+// Context-relative templates, as `manifest-registry.ts` emits them; `scopePath`
+// turns one into a real route.
 const MENU = [
-	{ id: 'files', label: 'Files', path: '/app/files' },
-	{ id: 'feed', label: 'Feed', path: '/app/feed' }
+	{ id: 'files', label: 'Files', path: 'app/files' },
+	{ id: 'feed', label: 'Feed', path: 'app/feed' }
 ]
 const APP_CONFIG = [{ apps: [], mime: {}, menu: MENU }]
 const TOAST = { error: () => {}, success: () => {} }
-const CONTEXT_PATH = { getContextPath: (path: string) => path }
+const CTX = { base: '/~', idTag: HOME, isHome: true }
 const POPPER = { styles: { popper: {} }, attributes: { popper: {} } }
 const API = { api: { profiles: { list: async () => [] } } }
 const CTX_API = {
@@ -99,20 +101,19 @@ jest.unstable_mockModule('react-popper', () => ({
 
 jest.unstable_mockModule('react-router-dom', () => ({
 	Link: ({ children }: { children?: React.ReactNode }) => <a href="/">{children}</a>,
-	useLocation: () => ({ pathname: '/app/files', search: '' }),
+	useLocation: () => ({ pathname: '/~/app/files', search: '' }),
+	useMatch: () => null,
 	useNavigate: () => (to: string) => navigated.push(to)
 }))
 
 jest.unstable_mockModule('../context/index', () => ({
 	activeContextAtom: atom(undefined),
 	communitiesAtom: atom([]),
-	HOME_CONTEXT: '~',
 	isContextLeader: () => true,
 	LEADER_ONLY_APPS: new Set<string>(),
 	useContextAwareApi: () => CTX_API,
-	useContextPath: () => CONTEXT_PATH,
-	useCurrentContextIdTag: () => HOME,
-	useUrlContextIdTag: () => undefined
+	useCtx: () => CTX,
+	useCurrentContextIdTag: () => HOME
 }))
 
 jest.unstable_mockModule('../SearchResultRow', () => ({
@@ -371,7 +372,7 @@ describe('Ctrl+K recall', () => {
 
 		fireEvent.keyDown(input(), { key: 'Enter' })
 
-		expect(navigated).toEqual(['/search/~?q=recalled'])
+		expect(navigated).toEqual(['/~/search?q=recalled'])
 	})
 })
 

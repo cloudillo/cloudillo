@@ -25,12 +25,9 @@ import {
 } from '@cloudillo/react'
 
 import { OfflineBanner } from '../../components/OfflineBanner.js'
-import {
-	useContextAwareApi,
-	useCurrentContextIdTag,
-	useUrlContextIdTag
-} from '../../context/index.js'
+import { useContextAwareApi, useCurrentContextIdTag, useCtx } from '../../context/index.js'
 import { getDirtyDocIds } from '../../message-bus/handlers/crdt.js'
+import { appPath, type QueryInit } from '../../routes.js'
 import { isPermissionError, useAppConfig } from '../../utils.js'
 import {
 	displayModeAtom,
@@ -74,7 +71,7 @@ export function FilesApp() {
 	const { api } = useContextAwareApi()
 	const [auth] = useAuth()
 	const contextIdTag = useCurrentContextIdTag()
-	const urlContextIdTag = useUrlContextIdTag()
+	const urlContextIdTag = useCtx().base
 	const dialog = useDialog()
 	const toast = useToast()
 
@@ -417,17 +414,14 @@ export function FilesApp() {
 		) {
 			// For tenant-owned files (no explicit owner), use contextIdTag as the owner in the path
 			const ownerTag = file.owner?.idTag || contextIdTag || auth?.idTag
-			const basePath = `/app/${urlContextIdTag || auth?.idTag}/${appName}/${ownerTag + ':'}${file.fileId}`
-			const searchParams = new URLSearchParams()
-			if (access && access !== 'write') searchParams.set('access', access)
+			const query: QueryInit = {}
+			if (access && access !== 'write') query.access = access
 			if (params) {
 				for (const [k, v] of new URLSearchParams(params)) {
-					searchParams.set(k, v)
+					query[k] = v
 				}
 			}
-			const query = searchParams.toString()
-			const url = query ? `${basePath}?${query}` : basePath
-			navigate(url)
+			navigate(appPath(urlContextIdTag, appName, `${ownerTag}:${file.fileId}`, query))
 		}
 
 		return {

@@ -9,10 +9,11 @@ import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { version } from '../../package.json'
-import { fileViewUpdateAtom, useGuestDocument } from '../context/index.js'
+import { fileViewUpdateAtom, useCtx, useGuestDocument } from '../context/index.js'
 import { releaseClientIdsForWindow } from '../message-bus/handlers/crdt.js'
 import { offAppTitle, onAppError, onAppReady, onAppTitle } from '../message-bus/index.js'
 import { getShellBus, type InitAppData } from '../message-bus/shell-bus.js'
+import { filesPath } from '../routes.js'
 import { documentTitleAtom } from '../title.js'
 import { delay, type TrustLevel, useAppConfig } from '../utils.js'
 import { AppLoadingIndicator, type LoadingStage } from './AppLoadingIndicator.js'
@@ -458,7 +459,10 @@ export function ExternalApp({ className }: { className?: string }) {
 	const toast = useToast()
 	const dialog = useDialog()
 	const setFileViewUpdate = useSetAtom(fileViewUpdateAtom)
-	const { contextIdTag, appId, '*': rest } = useParams()
+	const { appId, '*': rest } = useParams()
+	// `ctx.base` addresses a context in a URL; `ctx.idTag` is the tenant behind it, and only
+	// the latter may become the owner half of the resId built below — `~` is not a tenant.
+	const ctx = useCtx()
 	const [guestDocument] = useGuestDocument()
 	// Keyed to the resource it was decided for: navigating to another document
 	// keeps this component mounted, so an unkeyed flag would pin every later
@@ -467,8 +471,9 @@ export function ExternalApp({ className }: { className?: string }) {
 	const [forced, setForced] = React.useState<
 		{ resId: string | undefined; access: 'read' | 'comment' } | undefined
 	>()
-	// Use contextIdTag from URL, fallback to auth idTag
-	const idTag = contextIdTag || auth?.idTag || window.location.hostname
+	// The real tenant behind the route's context segment: a `~` reaching the resId below
+	// makes `getProxyToken('~')` fail.
+	const idTag = ctx.idTag || auth?.idTag || window.location.hostname
 
 	const app = appConfig?.apps.find((a) => a.id === appId)
 	const resId = (rest ?? '').indexOf(':') >= 0 ? rest : idTag + ':' + rest
@@ -496,7 +501,8 @@ export function ExternalApp({ className }: { className?: string }) {
 	const guestToken = isGuestAccess ? guestDocument.token : undefined
 	const guestName = isGuestAccess ? guestDocument.guestName : undefined
 
-	const filesListPath = `/app/${contextIdTag || auth?.idTag}/files`
+	// The route's own segment wins here: this is a URL, so `~` is exactly right.
+	const filesListPath = filesPath(ctx.base)
 
 	// No title prefetch here: `useDocInfo` inside MicrofrontendContainer resolves
 	// the same row local-first and sets `documentTitleAtom` from it, so the tab

@@ -13,8 +13,14 @@
 import { resetApiRegistry, setApiToken } from '@cloudillo/core'
 import { createStore } from 'jotai'
 
-import { activeContextAtom, sessionTrustAtom, storedTrustAtom } from '../context/atoms.js'
-import { effectiveTrust, mayUseContextToken } from '../context/trust-gate.js'
+import {
+	activeContextAtom,
+	communitiesAtom,
+	sessionTrustAtom,
+	storedTrustAtom
+} from '../context/atoms.js'
+import { effectiveTrust, isKnownContext, mayUseContextToken } from '../context/trust-gate.js'
+import type { CommunityRef } from '../context/types.js'
 
 const HOME = 'alice.cloudillo.net'
 const FOREIGN = 'bob.cloudillo.net'
@@ -101,6 +107,42 @@ describe('mayUseContextToken', () => {
 		// Until the user actually consents.
 		s.set(sessionTrustAtom, new Map([[FOREIGN, 'S' as const]]))
 		expect(mayUseContextToken(s, FOREIGN, { ownIdTag: HOME })).toBe(true)
+	})
+})
+
+// Whether a context the *URL* named may be entered without asking. A pathname is not
+// a user action, and `setActiveContext` mints an identified proxy token — so
+// `https://alice.example/@attacker.tld` must not be enough to announce the user there.
+describe('isKnownContext', () => {
+	function community(idTag: string): CommunityRef {
+		return {
+			idTag,
+			name: idTag,
+			isFavorite: false,
+			showInHome: true,
+			unreadCount: 0,
+			lastActivityAt: null
+		}
+	}
+
+	it('knows the home idTag', () => {
+		expect(isKnownContext(store(), HOME, HOME)).toBe(true)
+	})
+
+	it('knows a community the user is already in', () => {
+		const s = store()
+		s.set(communitiesAtom, [community(FOREIGN)])
+		expect(isKnownContext(s, FOREIGN, HOME)).toBe(true)
+	})
+
+	it('knows an idTag the user has consented to this session', () => {
+		const s = store()
+		s.set(sessionTrustAtom, new Map([[FOREIGN, 'S' as const]]))
+		expect(isKnownContext(s, FOREIGN, HOME)).toBe(true)
+	})
+
+	it('does not know a stranger a link named', () => {
+		expect(isKnownContext(store(), FOREIGN, HOME)).toBe(false)
 	})
 })
 

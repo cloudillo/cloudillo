@@ -1980,5 +1980,10 @@
 	"See all {{count}} results_one": "Mind a(z) {{count}} találat megtekintése",
 	"See all {{count}} results_other": "Mind a(z) {{count}} találat megtekintése",
 	"{{count}} results_one": "{{count}} találat",
-	"{{count}} results_other": "{{count}} találat"
+	"{{count}} results_other": "{{count}} találat",
+	"Page not found": "Az oldal nem található",
+	"This address does not match anything in Cloudillo.": "Ez a cím nem felel meg semminek a Cloudillóban.",
+	"Go to the feed": "Tovább a hírfolyamra",
+	"Open {{idTag}}?": "Megnyitod ezt: {{idTag}}?",
+	"Continuing identifies you to that server: Cloudillo signs in on your behalf so it can load the page. Only continue if you trust this address.": "A folytatással azonosítod magad annál a szervernél: a Cloudillo a nevedben jelentkezik be, hogy be tudja tölteni az oldalt. Csak akkor folytasd, ha megbízol ebben a címben."
 }

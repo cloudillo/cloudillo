@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next'
 import { LuArrowLeft as IcBack, LuFileWarning as IcError } from 'react-icons/lu'
 import { useNavigate, useParams } from 'react-router-dom'
 
-import { useApiContext } from '../../context/index.js'
+import { useApiContext, useCtx } from '../../context/index.js'
 import { documentTitleAtom } from '../../title.js'
 import { MediaViewer } from './MediaViewer.js'
 
@@ -26,7 +26,10 @@ export function FileViewerApp() {
 	const { getClientFor, getTokenFor } = useApiContext()
 	const [auth] = useAuth()
 	const setDocumentTitle = useSetAtom(documentTitleAtom)
-	const { contextIdTag, resId } = useParams<{ contextIdTag?: string; resId: string }>()
+	const { resId } = useParams<{ resId: string }>()
+	// The real tenant behind the route's context segment. `~` is a URL shorthand, never an
+	// idTag, so it must not reach `getClientFor`, `getTokenFor` or the owner half of a resId.
+	const contextIdTag = useCtx().idTag
 
 	const [state, setState] = React.useState<ViewerState>({ status: 'loading' })
 	const [token, setToken] = React.useState<string | undefined>()

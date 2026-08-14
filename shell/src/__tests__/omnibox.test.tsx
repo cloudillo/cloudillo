@@ -28,13 +28,15 @@ let authState: { idTag: string; roles?: string[] } | null = { idTag: HOME }
 // Every hook return below is a module-level constant, never a fresh literal per
 // call. The omnibox memoises its fetchers on `api`/`ctxApi` and its row list on
 // `appConfig`; a new object each render re-arms those effects and it never settles.
+// Context-relative templates, as `manifest-registry.ts` emits them; `scopePath`
+// turns one into a real route.
 const MENU = [
-	{ id: 'files', label: 'Files', path: '/app/files' },
-	{ id: 'feed', label: 'Feed', path: '/app/feed' }
+	{ id: 'files', label: 'Files', path: 'app/files' },
+	{ id: 'feed', label: 'Feed', path: 'app/feed' }
 ]
 const APP_CONFIG = [{ apps: [], mime: {}, menu: MENU }]
 const TOAST = { error: () => {}, success: () => {} }
-const CONTEXT_PATH = { getContextPath: (path: string) => path }
+const CTX = { base: '/~', idTag: HOME, isHome: true }
 const POPPER = { styles: { popper: {} }, attributes: { popper: {} } }
 const API = { api: { profiles: { list: async () => profileResults } } }
 const CTX_API = { api: { search: { queryPaginated: () => searchResponse() } } }
@@ -68,20 +70,19 @@ jest.unstable_mockModule('react-popper', () => ({
 
 jest.unstable_mockModule('react-router-dom', () => ({
 	Link: ({ children }: { children?: React.ReactNode }) => <a href="/">{children}</a>,
-	useLocation: () => ({ pathname: '/app/files', search: '' }),
+	useLocation: () => ({ pathname: '/~/app/files', search: '' }),
+	useMatch: () => null,
 	useNavigate: () => (to: string) => navigated.push(to)
 }))
 
 jest.unstable_mockModule('../context/index', () => ({
 	activeContextAtom: atom(undefined),
 	communitiesAtom: atom([]),
-	HOME_CONTEXT: '~',
 	isContextLeader: () => true,
 	LEADER_ONLY_APPS: new Set<string>(),
 	useContextAwareApi: () => CTX_API,
-	useContextPath: () => CONTEXT_PATH,
-	useCurrentContextIdTag: () => HOME,
-	useUrlContextIdTag: () => undefined
+	useCtx: () => CTX,
+	useCurrentContextIdTag: () => HOME
 }))
 
 // The real row pulls in `parseServerSnippet` and the whole file-icon registry; the
@@ -152,7 +153,7 @@ describe('the status rows are not results', () => {
 
 		// With no row highlighted, Enter means "search for what I typed".
 		fireEvent.keyDown(input(), { key: 'Enter' })
-		expect(navigated).toEqual(['/search/~?q=hello'])
+		expect(navigated).toEqual(['/~/search?q=hello'])
 	})
 
 	it('keeps the cursor off "No results found" too', async () => {
@@ -234,7 +235,7 @@ describe('mode transitions', () => {
 		expect(document.querySelector('.c-nav-item.selected')).toBeNull()
 
 		fireEvent.keyDown(input(), { key: 'Enter' })
-		expect(navigated).toEqual(['/search/~?q=files'])
+		expect(navigated).toEqual(['/~/search?q=files'])
 	})
 
 	it('jumps to the typed idTag in profile mode when no row is highlighted', async () => {
@@ -246,7 +247,7 @@ describe('mode transitions', () => {
 		await waitFor(() => expect(screen.getByText('Bob')).toBeDefined())
 		fireEvent.keyDown(input(), { key: 'Enter' })
 
-		expect(navigated).toEqual(['/profile/~/bob'])
+		expect(navigated).toEqual(['/~/profile/bob'])
 	})
 
 	it('opens the profile that was arrowed to', async () => {
@@ -259,7 +260,7 @@ describe('mode transitions', () => {
 		fireEvent.keyDown(input(), { key: 'ArrowDown' })
 		fireEvent.keyDown(input(), { key: 'Enter' })
 
-		expect(navigated).toEqual(['/profile/~/bob.example.com'])
+		expect(navigated).toEqual(['/~/profile/bob.example.com'])
 	})
 })
 

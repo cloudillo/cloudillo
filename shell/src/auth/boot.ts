@@ -26,7 +26,6 @@ import type { TFunction } from 'i18next'
 import type { NavigateFunction } from 'react-router-dom'
 
 import { loadIdpEnabled } from '../context/index.js'
-import { getGuestRedirect, isGuestPath } from '../layout/paths.js'
 import { applyMenuConfig } from '../manifest-registry.js'
 import {
 	clearAuthToken,
@@ -37,6 +36,7 @@ import {
 	installToken,
 	setCurrentAuthToken
 } from '../pwa.js'
+import { feedPath, HOME_BASE, scopePath } from '../routes.js'
 import { applyTheme, setTheme } from '../settings'
 import type { AppConfigState } from '../utils.js'
 import type { LoginInitData } from './auth.js'
@@ -106,17 +106,15 @@ export function isBootSettingsApplied(idTag: string | undefined): boolean {
  * Where a freshly authenticated user lands: an unfinished onboarding step, else the
  * configured default menu entry rewritten into the user's context, else the feed.
  */
-function resolveInitialRoute(
-	config: AppConfigState,
-	idTag: string | undefined,
-	onboarding?: string
-): string {
+function resolveInitialRoute(config: AppConfigState, onboarding?: string): string {
+	// A fresh login always lands at home; `~` is the canonical URL spelling for it.
+	const menuPath = config?.menu?.find((m) => m.id === config.defaultMenu)?.path
 	return (
 		(onboarding && `/onboarding/${onboarding}`) ||
-		config?.menu
-			?.find((m) => m.id === config.defaultMenu)
-			?.path?.replace('/app/', `/app/${idTag}/`) ||
-		`/app/${idTag}/feed`
+		// `scopePath`, not a `/app/` string replace: a default menu entry of `settings` or
+		// `communities` must get a context too.
+		(menuPath && scopePath(HOME_BASE, menuPath)) ||
+		feedPath(HOME_BASE)
 	)
 }
 
@@ -194,7 +192,7 @@ export async function runBootSequence(deps: BootDeps): Promise<void> {
 		// One landing decision for both paths: on failure `activeConfig` is still the
 		// caller's config and `onboarding` is unset — already the fallback.
 		if (getPathname() === '/') {
-			navigate(resolveInitialRoute(activeConfig, authState.idTag, onboarding))
+			navigate(resolveInitialRoute(activeConfig, onboarding))
 		}
 	}
 
@@ -334,19 +332,15 @@ export async function runBootSequence(deps: BootDeps): Promise<void> {
 			applyTheme(undefined, undefined)
 			setAuth(null)
 			settingsAppliedFor = null
-			const guestRedirect = getGuestRedirect(getPathname())
-			if (guestRedirect) {
-				navigate(guestRedirect)
-			}
+			// Only `/` needs a decision here: every other path is either guest-visible or
+			// wrapped in the route tree's `RequireAuth`, which redirects on render.
+			if (getPathname() === '/') navigate(feedPath(HOME_BASE))
 		} catch (err) {
 			console.error('Failed to fetch idTag:', err)
 			// Resolve the auth gate anyway, or the boot splash never tears down and the
 			// user stares at a white screen.
 			setAuth(null)
 			settingsAppliedFor = null
-			if (!isGuestPath(getPathname())) {
-				navigate('/login')
-			}
 		}
 	} else if (api && auth) {
 		if (auth.idTag && settingsAppliedFor !== auth.idTag) {

@@ -5,63 +5,69 @@ import { buildRef, canShareRoute, isIdTag, isRefLike, resolveRef } from '../refs
 
 describe('buildRef / resolveRef round-trips', () => {
 	it('round-trips a document route', () => {
-		const path = '/app/~/quillo/bob.org:abc123'
+		const path = '/~/app/quillo/bob.org:abc123'
 		const ref = buildRef(path)
 		expect(ref).toBe('cl:quillo/bob.org:abc123')
 		expect(resolveRef(ref)).toBe(path)
 	})
 
 	it('preserves a nav query param on a document ref', () => {
-		const ref = buildRef('/app/~/quillo/bob.org:abc123', '?nav=p3')
+		const ref = buildRef('/~/app/quillo/bob.org:abc123', '?nav=p3')
 		expect(ref).toBe('cl:quillo/bob.org:abc123?nav=p3')
-		expect(resolveRef(ref)).toBe('/app/~/quillo/bob.org:abc123?nav=p3')
+		expect(resolveRef(ref)).toBe('/~/app/quillo/bob.org:abc123?nav=p3')
 	})
 
 	it('strips the access query param on a document ref', () => {
-		const ref = buildRef('/app/~/quillo/bob.org:abc123', '?access=read')
+		const ref = buildRef('/~/app/quillo/bob.org:abc123', '?access=read')
 		expect(ref).toBe('cl:quillo/bob.org:abc123')
-		expect(resolveRef(ref)).toBe('/app/~/quillo/bob.org:abc123')
+		expect(resolveRef(ref)).toBe('/~/app/quillo/bob.org:abc123')
 	})
 
 	it('keeps nav while stripping access when both are present', () => {
-		const ref = buildRef('/app/~/quillo/bob.org:abc123', '?access=read&nav=p3')
+		const ref = buildRef('/~/app/quillo/bob.org:abc123', '?access=read&nav=p3')
 		expect(ref).toBe('cl:quillo/bob.org:abc123?nav=p3')
-		expect(resolveRef(ref)).toBe('/app/~/quillo/bob.org:abc123?nav=p3')
+		expect(resolveRef(ref)).toBe('/~/app/quillo/bob.org:abc123?nav=p3')
 	})
 
 	it('round-trips a community page (lossless full form)', () => {
-		const path = '/app/community.tld/feed'
+		const path = '/@community.tld/app/feed'
 		const ref = buildRef(path)
-		expect(ref).toBe('cl:/app/community.tld/feed')
+		expect(ref).toBe('cl:/@community.tld/app/feed')
 		expect(resolveRef(ref)).toBe(path)
 	})
 
 	it('round-trips a profile (lossless full form)', () => {
-		const path = '/profile/~/alice.tld'
+		const path = '/~/profile/alice.tld'
 		const ref = buildRef(path)
-		expect(ref).toBe('cl:/profile/~/alice.tld')
+		expect(ref).toBe('cl:/~/profile/alice.tld')
 		expect(resolveRef(ref)).toBe(path)
 	})
 
 	it('drops the community context from a community document ref', () => {
-		const ref = buildRef('/app/community.tld/quillo/community.tld:f1')
+		const ref = buildRef('/@community.tld/app/quillo/community.tld:f1')
 		expect(ref).toBe('cl:quillo/community.tld:f1')
-		expect(resolveRef(ref)).toBe('/app/~/quillo/community.tld:f1')
+		expect(resolveRef(ref)).toBe('/~/app/quillo/community.tld:f1')
+	})
+
+	it('does not re-encode a resId lifted out of a route', () => {
+		const ref = buildRef('/~/app/files/bob.org:a%2Fb')
+		expect(ref).toBe('cl:files/bob.org:a%2Fb')
+		expect(resolveRef(ref)).toBe('/~/app/files/bob.org:a%2Fb')
 	})
 })
 
 describe('resolveRef accepts URLs and bare paths', () => {
 	it('extracts the path + search of a full https URL', () => {
-		expect(resolveRef('https://other.host/app/~/quillo/bob.org:abc123')).toBe(
-			'/app/~/quillo/bob.org:abc123'
+		expect(resolveRef('https://other.host/~/app/quillo/bob.org:abc123')).toBe(
+			'/~/app/quillo/bob.org:abc123'
 		)
-		expect(resolveRef('https://other.host/app/~/quillo/bob.org:abc123?nav=p3')).toBe(
-			'/app/~/quillo/bob.org:abc123?nav=p3'
+		expect(resolveRef('https://other.host/~/app/quillo/bob.org:abc123?nav=p3')).toBe(
+			'/~/app/quillo/bob.org:abc123?nav=p3'
 		)
 	})
 
 	it('passes a bare path through unchanged', () => {
-		expect(resolveRef('/app/~/quillo/x:y')).toBe('/app/~/quillo/x:y')
+		expect(resolveRef('/~/app/quillo/x:y')).toBe('/~/app/quillo/x:y')
 	})
 
 	it('returns null for garbage', () => {
@@ -74,6 +80,8 @@ describe('resolveRef accepts URLs and bare paths', () => {
 		expect(resolveRef('cl://evil.com')).toBeNull()
 		expect(resolveRef('//evil.com')).toBeNull()
 		expect(resolveRef('cl:/\\evil.com')).toBeNull()
+		// The pathname of a full URL is guarded like every other branch.
+		expect(resolveRef('https://other.host//evil')).toBeNull()
 	})
 })
 
@@ -85,7 +93,7 @@ describe('isRefLike', () => {
 	})
 
 	it('does not treat a bare path or plain text as a ref', () => {
-		expect(isRefLike('/app/~/quillo/x:y')).toBe(false)
+		expect(isRefLike('/~/app/quillo/x:y')).toBe(false)
 		expect(isRefLike('bob.example.com')).toBe(false)
 		expect(isRefLike('hello')).toBe(false)
 	})
@@ -106,13 +114,13 @@ describe('isIdTag', () => {
 
 describe('canShareRoute', () => {
 	it('is true for app and profile routes', () => {
-		expect(canShareRoute('/app/~/quillo/x:y')).toBe(true)
-		expect(canShareRoute('/profile/~/alice.tld')).toBe(true)
+		expect(canShareRoute('/~/app/quillo/x:y')).toBe(true)
+		expect(canShareRoute('/@comm.tld/profile/alice.tld')).toBe(true)
 	})
 
 	it('is false for transient routes', () => {
 		expect(canShareRoute('/login')).toBe(false)
 		expect(canShareRoute('/onboarding/intro')).toBe(false)
-		expect(canShareRoute('/settings/~')).toBe(false)
+		expect(canShareRoute('/~/settings')).toBe(false)
 	})
 })

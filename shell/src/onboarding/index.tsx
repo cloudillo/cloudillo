@@ -8,12 +8,13 @@ import type { ProfileInfo } from '@cloudillo/types'
 import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, Outlet, Route, useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { DEFAULT_COMMUNITY_ID_TAG } from '../context/constants.js'
 import { useCommunitiesList } from '../context/index.js'
 import { useNotifications } from '../notifications/state.js'
 import type { UsePWA } from '../pwa.js'
+import { feedPath, HOME_BASE } from '../routes.js'
 import { subscribeNotifications } from '../settings/notifications.js'
 import { registerPasskey } from '../settings/passkey.js'
 import { useOnboardingDraft } from './draft.js'
@@ -37,7 +38,8 @@ function next(api: ApiClient | null, refId: string | undefined, location: string
 	if (api) {
 		api.settings.update('ui.onboarding', { value: nextPage })
 	}
-	return nextPage ? stepPath(refId, nextPage) : '/app/feed'
+	// Onboarding always finishes at home — the wizard runs on the user's own tenant.
+	return nextPage ? stepPath(refId, nextPage) : feedPath(HOME_BASE)
 }
 
 /**
@@ -459,7 +461,7 @@ function Extras({ pwa }: { pwa: UsePWA }) {
 		}
 
 		// 6. Done.
-		navigate('/app/feed')
+		navigate(feedPath(HOME_BASE))
 	}
 
 	function onBack() {
@@ -629,14 +631,21 @@ function StepIndicator() {
 	)
 }
 
-function Page({ children }: { children: React.ReactNode }) {
+/**
+ * The wizard chrome, as the `/onboarding` layout route. A layout route rather than a
+ * wrapper around a `<Routes>` tree, which is what keeps `StepIndicator` mounted across
+ * steps instead of remounting on every navigation.
+ */
+function Page() {
 	return (
 		<div className="c-container">
 			<div className="row">
 				<div className="col-0 col-md-1 col-lg-2" />
 				<div className="col col-md-10 col-lg-8">
 					<StepIndicator />
-					<div className="flex-fill-x">{children}</div>
+					<div className="flex-fill-x">
+						<Outlet />
+					</div>
 				</div>
 				<div className="col-0 col-md-1 col-lg-2" />
 			</div>
@@ -644,33 +653,35 @@ function Page({ children }: { children: React.ReactNode }) {
 	)
 }
 
-export function OnboardingRoutes({ pwa }: { pwa: UsePWA }) {
-	const location = useLocation()
-	if (!location.pathname.startsWith('/onboarding')) return null
+/**
+ * The `/onboarding/…` branch. Context-free and top-level: the backend mails
+ * `/onboarding/{ref}` links, and the shape is pinned by the SPA fallback allowlist in
+ * `cloudillo-rs/crates/cloudillo/src/routes/static_files.rs`.
+ *
+ * A plain function, not a component — see `layout.tsx` for why.
+ */
+export function onboardingRoutes(pwa: UsePWA) {
 	return (
-		<Page>
-			<Routes>
-				{/* refId-scoped steps (refId rides in the URL and survives reload) */}
-				<Route path="/onboarding/:refId/verify-idp" element={<VerifyIdp />} />
-				<Route path="/onboarding/:refId/invites" element={<Invites />} />
-				<Route path="/onboarding/:refId/extras" element={<Extras pwa={pwa} />} />
-				{/* refId-less fallbacks for gate/IDP redirects (returning users) */}
-				<Route path="/onboarding/verify-idp" element={<VerifyIdp />} />
-				<Route path="/onboarding/invites" element={<Invites />} />
-				<Route path="/onboarding/extras" element={<Extras pwa={pwa} />} />
-				{/* Legacy step routes (static paths; React Router ranks these by
-				    specificity over the bare :refId welcome regardless of order) */}
-				<Route path="/onboarding/notifications" element={<Notifications pwa={pwa} />} />
-				<Route path="/onboarding/install" element={<Install pwa={pwa} />} />
-				{/* Legacy welcome-email shape */}
-				<Route path="/onboarding/welcome/:refId" element={<Welcome />} />
-				{/* Welcome (new email shape): bare /onboarding/:refId. React Router
-				    matches by specificity, so the static paths above always win
-				    their exact paths; order here is for readability only. */}
-				<Route path="/onboarding/:refId" element={<Welcome />} />
-				<Route path="/*" element={null} />
-			</Routes>
-		</Page>
+		<Route path="onboarding" element={<Page />}>
+			{/* refId-scoped steps (refId rides in the URL and survives reload) */}
+			<Route path=":refId/verify-idp" element={<VerifyIdp />} />
+			<Route path=":refId/invites" element={<Invites />} />
+			<Route path=":refId/extras" element={<Extras pwa={pwa} />} />
+			{/* refId-less fallbacks for gate/IDP redirects (returning users) */}
+			<Route path="verify-idp" element={<VerifyIdp />} />
+			<Route path="invites" element={<Invites />} />
+			<Route path="extras" element={<Extras pwa={pwa} />} />
+			{/* Legacy step routes (static paths; React Router ranks these by
+			    specificity over the bare :refId welcome regardless of order) */}
+			<Route path="notifications" element={<Notifications pwa={pwa} />} />
+			<Route path="install" element={<Install pwa={pwa} />} />
+			{/* Legacy welcome-email shape */}
+			<Route path="welcome/:refId" element={<Welcome />} />
+			{/* Welcome (new email shape): bare /onboarding/:refId. React Router
+			    matches by specificity, so the static paths above always win
+			    their exact paths; order here is for readability only. */}
+			<Route path=":refId" element={<Welcome />} />
+		</Route>
 	)
 }
 

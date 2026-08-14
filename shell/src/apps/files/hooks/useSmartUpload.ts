@@ -14,9 +14,10 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 
-import { useContextAwareApi, useCurrentContextIdTag } from '../../../context/index.js'
+import { useContextAwareApi, useCurrentContextIdTag, useCtx } from '../../../context/index.js'
 import { getImportHandlers, type ImportHandler } from '../../../manifest-registry.js'
 import { setPendingImport } from '../../../message-bus/handlers/import.js'
+import { appPath } from '../../../routes.js'
 import { type UseUploadQueueOptions, useUploadQueue } from './useUploadQueue.js'
 
 // ============================================
@@ -37,6 +38,9 @@ export function useSmartUpload(options?: UseUploadQueueOptions) {
 	const [auth] = useAuth()
 	const { api } = useContextAwareApi()
 	const contextIdTag = useCurrentContextIdTag()
+	// URL form of the context (`~` at home); `ownerTag` below is the real idTag and
+	// belongs in the resId, not in the context segment.
+	const urlCtx = useCtx().base
 	const navigate = useNavigate()
 
 	const uploadQueue = useUploadQueue(options)
@@ -144,14 +148,13 @@ export function useSmartUpload(options?: UseUploadQueueOptions) {
 					data: base64
 				})
 
-				// Navigate to the app with import flag
 				const appId = handler.manifest.id
-				navigate(`/app/${ownerTag}/${appId}/${res.fileId}?import=1`)
+				navigate(appPath(urlCtx, appId, resId, { import: 1 }))
 			} catch (err) {
 				console.error('[SmartUpload] Conversion failed:', err)
 			}
 		},
-		[api, auth?.idTag, contextIdTag, navigate, options?.parentId, t]
+		[api, auth?.idTag, contextIdTag, urlCtx, navigate, options?.parentId, t]
 	)
 
 	/**

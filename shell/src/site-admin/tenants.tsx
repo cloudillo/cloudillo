@@ -29,6 +29,8 @@ import {
 } from 'react-icons/lu'
 import { Link, useNavigate } from 'react-router-dom'
 
+import { siteAdminPath } from '../routes.js'
+
 function TenantRow({
 	tenant,
 	canDelete,
@@ -71,7 +73,7 @@ function TenantRow({
 
 			<div className="flex-fill c-hbox align-items-center g-2" style={{ minWidth: 0 }}>
 				<Link
-					to={`/site-admin/tenants/${encodeURIComponent(tenant.idTag)}`}
+					to={siteAdminPath(['tenants', tenant.idTag])}
 					style={{
 						minWidth: 0,
 						overflow: 'hidden',
@@ -152,7 +154,7 @@ function TenantRow({
 						label={t('Settings')}
 						onClick={() => {
 							setMenuPos(null)
-							navigate(`/site-admin/tenants/${encodeURIComponent(tenant.idTag)}`)
+							navigate(siteAdminPath(['tenants', tenant.idTag]))
 						}}
 					/>
 					<MenuItem

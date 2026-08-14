@@ -172,6 +172,11 @@ export interface MenuItem {
 	icon?: React.ComponentType
 	label: string
 	trans?: Record<string, string>
+	/**
+	 * A context-RELATIVE template (`app/files`, `settings`): `scopePath(ctx.base, path)`
+	 * turns it into a real route. An absolute one passes through unscoped — that is how
+	 * `site-admin` stays pinned to home and the guest-document item carries a whole route.
+	 */
 	path: string
 	public?: boolean
 	perm?: string

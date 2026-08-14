@@ -29,7 +29,8 @@ import {
 } from 'react-icons/lu'
 import { Link } from 'react-router-dom'
 
-import { HOME_CONTEXT, useUrlContextIdTag } from '../../../context/index.js'
+import { useCtx } from '../../../context/index.js'
+import { profilePath } from '../../../routes.js'
 import type { Conversation, ConversationTab } from '../types.js'
 import { ConversationCard } from './ConversationCard.js'
 
@@ -64,7 +65,7 @@ export function ConversationBar({
 	onRejectInvite
 }: ConversationBarProps) {
 	const { t } = useTranslation()
-	const urlContext = useUrlContextIdTag()
+	const urlContext = useCtx().base
 	const [search, setSearch] = React.useState(filter.q || '')
 	const [showArchived, setShowArchived] = React.useState(false)
 
@@ -196,7 +197,10 @@ export function ConversationBar({
 									<div className="c-vbox fill overflow-hidden">
 										{invite.subjectProfile ? (
 											<Link
-												to={`/profile/${urlContext || HOME_CONTEXT}/${invite.subjectProfile.idTag}`}
+												to={profilePath(
+													urlContext,
+													invite.subjectProfile.idTag
+												)}
 											>
 												<ProfileCard
 													profile={invite.subjectProfile}

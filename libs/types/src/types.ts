@@ -826,6 +826,9 @@ export const tSearchHit = T.struct({
 	snippetMatches: T.optional(T.array(tSearchMatch)),
 	tags: T.optional(T.array(T.string)),
 	ownerTag: T.optional(T.string),
+	// The profile's picture file id — `'P'` hits only. Resolves against the
+	// PROFILE's own node: getFileUrl(hit.objId, hit.profilePic, 'vis.pf').
+	profilePic: T.optional(T.string),
 	updatedAt: T.string,
 	// Higher is more relevant.
 	score: T.number

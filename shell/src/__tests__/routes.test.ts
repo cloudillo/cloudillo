@@ -13,7 +13,9 @@ import {
 	filesPath,
 	HOME_BASE,
 	idpPath,
+	isBootstrapPath,
 	isContextSegment,
+	matchAppRoute,
 	messagesPath,
 	profilePath,
 	rebase,
@@ -145,6 +147,56 @@ describe('isContextSegment', () => {
 		expect(isContextSegment('s')).toBe(false)
 		expect(isContextSegment('')).toBe(false)
 		expect(isContextSegment(undefined)).toBe(false)
+	})
+})
+
+describe('isBootstrapPath', () => {
+	it('accepts each bootstrap root and anything under it', () => {
+		expect(isBootstrapPath('/login')).toBe(true)
+		expect(isBootstrapPath('/register/tok123')).toBe(true)
+		expect(isBootstrapPath('/reset-password/ref1')).toBe(true)
+		expect(isBootstrapPath('/idp/activate/ref1')).toBe(true)
+		expect(isBootstrapPath('/onboarding/welcome/ref1')).toBe(true)
+	})
+
+	// `/s/<refId>` is deliberately not a bootstrap root: a share link is ordinary
+	// guest browsing, and the owner strip belongs there.
+	it('rejects everything else', () => {
+		expect(isBootstrapPath('/')).toBe(false)
+		expect(isBootstrapPath('/logins')).toBe(false)
+		expect(isBootstrapPath('/~/settings')).toBe(false)
+		expect(isBootstrapPath('/s/abc')).toBe(false)
+		expect(isBootstrapPath('/idp')).toBe(false)
+	})
+})
+
+// The read-back half of `appPath`: same grammar, opposite direction.
+describe('matchAppRoute', () => {
+	it('reads an app route in either context', () => {
+		expect(matchAppRoute('/~/app/quillo')).toEqual({ appId: 'quillo', resId: undefined })
+		expect(matchAppRoute('/~/app/quillo/bob.org:abc')).toEqual({
+			appId: 'quillo',
+			resId: 'bob.org:abc'
+		})
+		expect(matchAppRoute('/@comm.tld/app/quillo/bob.org:abc')).toEqual({
+			appId: 'quillo',
+			resId: 'bob.org:abc'
+		})
+	})
+
+	it('decodes the segments it built', () => {
+		expect(matchAppRoute(appPath(HOME_BASE, 'quillo', 'bob.org:a/b'))).toEqual({
+			appId: 'quillo',
+			resId: 'bob.org:a/b'
+		})
+	})
+
+	it('rejects anything that is not an app route', () => {
+		expect(matchAppRoute('/~/settings')).toBeUndefined()
+		expect(matchAppRoute('/login')).toBeUndefined()
+		expect(matchAppRoute('/s/abc')).toBeUndefined()
+		expect(matchAppRoute('/~/app')).toBeUndefined()
+		expect(matchAppRoute('/~/app/quillo/bob.org:abc/extra')).toBeUndefined()
 	})
 })
 

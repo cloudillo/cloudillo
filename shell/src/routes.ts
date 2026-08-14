@@ -12,8 +12,9 @@
  * does not know *which* sections exist: that is `ShellRoutes` in `layout.tsx`, where each
  * name appears exactly once, and a second list here could only drift from it.
  *
- * **Reading a URL is not this module's job.** React Router owns that; `context/ctx.tsx`
- * turns the `:contextIdTag` segment into the one React context the shell reads.
+ * **Route *dispatch* is not this module's job** — React Router owns that, and `context/ctx.tsx`
+ * turns the `:contextIdTag` segment into the one React context the shell reads. Recognising a
+ * path this module built is grammar, so it stays here: `isContextSegment` set that precedent.
  *
  * The `@` sigil is load-bearing: it makes segment 1 self-describing, so no reserved-word
  * list is needed and `/favicon.ico` can never be mistaken for a context — a false positive
@@ -83,6 +84,39 @@ function buildQuery(query?: QueryInit): string {
  */
 export function isContextSegment(segment: string | undefined): boolean {
 	return !!segment && (segment === HOME_CONTEXT || segment.startsWith('@'))
+}
+
+/**
+ * Read back an app route built by `appPath`: `/~/app/quillo/bob.org:abc` →
+ * `{ appId: 'quillo', resId: 'bob.org:abc' }`. Returns undefined for anything else.
+ * The resId may be spelled with or without its `<owner>:` half — `ExternalApp`
+ * (`apps/index.tsx`) fills the owner in from the context when it is absent.
+ */
+export function matchAppRoute(pathname: string): { appId: string; resId?: string } | undefined {
+	const segments = pathname.split('/').filter((s) => s !== '')
+	if (!isContextSegment(segments[0]) || segments[1] !== 'app') return undefined
+	if (segments.length < 3 || segments.length > 4) return undefined
+	return {
+		appId: decodeURIComponent(segments[2]),
+		resId: segments[3] == null ? undefined : decodeURIComponent(segments[3])
+	}
+}
+
+/**
+ * Roots that live outside the context grammar and render their own chrome. `/s/<refId>` is
+ * deliberately absent — a share link is ordinary guest browsing with a token.
+ */
+export const BOOTSTRAP_ROOTS = [
+	'login',
+	'register',
+	'reset-password',
+	'idp/activate',
+	'onboarding'
+] as const
+
+/** True for a bootstrap root or anything under it. */
+export function isBootstrapPath(pathname: string): boolean {
+	return BOOTSTRAP_ROOTS.some((r) => pathname === `/${r}` || pathname.startsWith(`/${r}/`))
 }
 
 /** `useMatch` pattern for "any context route": segment 1 plus everything after it. */

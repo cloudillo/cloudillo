@@ -14,9 +14,18 @@ export interface ProfilePictureProps {
 	small?: boolean
 	tiny?: boolean
 	srcTag?: string
+	/** Accessible name; omit for a decorative picture that sits next to its own label. */
+	alt?: string
 }
 
-export function ProfilePicture({ className, profile, small, tiny, srcTag }: ProfilePictureProps) {
+export function ProfilePicture({
+	className,
+	profile,
+	small,
+	tiny,
+	srcTag,
+	alt
+}: ProfilePictureProps) {
 	const [auth] = useAuth()
 
 	const idTag = srcTag ?? auth?.idTag
@@ -27,6 +36,7 @@ export function ProfilePicture({ className, profile, small, tiny, srcTag }: Prof
 				<img
 					className={'picture' + (tiny ? ' tiny' : small ? ' small' : '')}
 					src={getFileUrl(idTag, profile.profilePic, 'vis.pf')}
+					alt={alt ?? ''}
 				/>
 			) : (
 				<UnknownProfilePicture small={small} tiny={tiny} />

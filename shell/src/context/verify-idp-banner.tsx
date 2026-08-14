@@ -212,22 +212,4 @@ export function CommunityVerifyIdpBanner() {
 	)
 }
 
-/**
- * Hook companion: returns whether content-creation should be disabled in the
- * current context because the community's IDP identity is still pending.
- *
- * Consumers (post composer, file upload buttons, etc.) should treat the
- * returned value as a soft block — the backend doesn't enforce it (per the
- * project decision to keep the gate frontend-only) but the user has just
- * passed their personal onboarding gate, so no determined adversary is
- * involved here. The intent is to stop the user from accumulating content
- * that vanishes when the IDP auto-deletes the unactivated identity.
- */
-export function useCommunityContentGate(): boolean {
-	const [activeContext] = useAtom(activeContextAtom)
-	const [contextOnboarding] = useAtom(contextOnboardingAtom)
-	if (activeContext?.type !== 'community') return false
-	return contextOnboarding[activeContext.idTag] === 'verify-idp'
-}
-
 // vim: ts=4

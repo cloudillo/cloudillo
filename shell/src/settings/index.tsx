@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Fcd, useApi, useAuth } from '@cloudillo/react'
+import { Fcd, mergeClasses, useApi, useAuth } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -13,6 +13,7 @@ import {
 	LuBell as IcNotifications,
 	LuShield as IcPrivacy,
 	LuKeyRound as IcSecurity,
+	LuGlobe as IcSite,
 	LuShieldCheck as IcTrust
 } from 'react-icons/lu'
 import { NavLink, Outlet, Route, useLocation, useMatch, useNavigate } from 'react-router-dom'
@@ -25,18 +26,24 @@ import { AppearanceSettings } from './appearance.js'
 import { NotificationSettings } from './notifications.js'
 import { SecuritySettings } from './security.js'
 
-export { applyTheme, setTheme } from './appearance.js'
+export { applyTheme, readStoredTheme, setTheme } from './appearance.js'
 
 import { AppMenuSettings } from './apps.js'
 import { CalendarSettings } from './calendar.js'
 import { FilesSettings } from './files.js'
 import { SettingsOverview } from './overview.js'
 import { PrivacySettings } from './privacy.js'
+import { SiteSettings } from './site.js'
 import { TrustSettings } from './trust.js'
 
 interface SettingsProps {
 	title: string
 	children?: React.ReactNode
+}
+
+/** The rail's `NavLink` class, as `site-admin/index.tsx` writes it. */
+function navItemClass({ isActive }: { isActive: boolean }) {
+	return mergeClasses('c-nav-item', isActive && 'active')
 }
 
 export function Settings({ title, children }: SettingsProps) {
@@ -59,45 +66,52 @@ export function Settings({ title, children }: SettingsProps) {
 	return (
 		<Fcd.Container className="g-1">
 			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+				{/* `className` has to be the callback form: a bare string never gets
+				    `.active`, so the rail could not show which page you were on. */}
 				<ul className="c-nav vertical low">
 					<li>
-						<NavLink className="c-nav-item" to={`${basePath}/security`}>
+						<NavLink className={navItemClass} to={`${basePath}/security`}>
 							<IcSecurity /> {t('Security')}
 						</NavLink>
 					</li>
 					<li>
-						<NavLink className="c-nav-item" to={`${basePath}/privacy`}>
+						<NavLink className={navItemClass} to={`${basePath}/privacy`}>
 							<IcPrivacy /> {t('Privacy')}
 						</NavLink>
 					</li>
 					<li>
-						<NavLink className="c-nav-item" to={`${basePath}/trust`}>
+						<NavLink className={navItemClass} to={`${basePath}/trust`}>
 							<IcTrust /> {t('Trusted profiles')}
 						</NavLink>
 					</li>
 					<li>
-						<NavLink className="c-nav-item" to={`${basePath}/notifications`}>
+						<NavLink className={navItemClass} to={`${basePath}/notifications`}>
 							<IcNotifications /> {t('Notifications')}
 						</NavLink>
 					</li>
 					<li>
-						<NavLink className="c-nav-item" to={`${basePath}/appearance`}>
+						<NavLink className={navItemClass} to={`${basePath}/appearance`}>
 							<IcAppearance /> {t('Appearance')}
 						</NavLink>
 					</li>
 					<li>
-						<NavLink className="c-nav-item" to={`${basePath}/calendar`}>
+						<NavLink className={navItemClass} to={`${basePath}/calendar`}>
 							<IcCalendar /> {t('Calendar')}
 						</NavLink>
 					</li>
 					<li>
-						<NavLink className="c-nav-item" to={`${basePath}/apps`}>
+						<NavLink className={navItemClass} to={`${basePath}/apps`}>
 							<IcApps /> {t('App menu')}
 						</NavLink>
 					</li>
 					<li>
-						<NavLink className="c-nav-item" to={`${basePath}/files`}>
+						<NavLink className={navItemClass} to={`${basePath}/files`}>
 							<IcFiles /> {t('Files & Storage')}
+						</NavLink>
+					</li>
+					<li>
+						<NavLink className={navItemClass} to={`${basePath}/site`}>
+							<IcSite /> {t('Site')}
 						</NavLink>
 					</li>
 				</ul>
@@ -142,6 +156,8 @@ function settingsTitle(t: (key: string) => string, page: string | undefined): st
 			return t('App menu')
 		case 'files':
 			return t('Files & Storage')
+		case 'site':
+			return t('Site')
 		default:
 			return t('Settings')
 	}
@@ -177,6 +193,7 @@ export function settingsRoutes(pwa: UsePWA) {
 			<Route path="calendar" element={<CalendarSettings />} />
 			<Route path="apps" element={<AppMenuSettings />} />
 			<Route path="files" element={<FilesSettings />} />
+			<Route path="site" element={<SiteSettings />} />
 		</Route>
 	)
 }

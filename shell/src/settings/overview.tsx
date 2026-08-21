@@ -23,7 +23,8 @@ import {
 	LuRefreshCw as IcRefresh,
 	LuDatabaseZap as IcReindex,
 	LuShield as IcSecurity,
-	LuServerCog as IcServer
+	LuServerCog as IcServer,
+	LuGlobe as IcSite
 } from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
 
@@ -206,9 +207,9 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 
 					{canInstall && (
 						<div className="c-hbox py-3 border-bottom">
-							<IcInstall className="mr-3" size={24} />
+							<IcInstall className="me-3" size={24} />
 							<div className="flex-fill">
-								<div className="fw-medium">{t('Install App')}</div>
+								<div className="font-medium">{t('Install App')}</div>
 								<div className="c-hint small">
 									{t('Get faster access with the app on your device')}
 								</div>
@@ -221,9 +222,9 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 
 					{!notificationsEnabled && canEnableNotifications && (
 						<div className="c-hbox py-3 border-bottom">
-							<IcNotifications className="mr-3" size={24} />
+							<IcNotifications className="me-3" size={24} />
 							<div className="flex-fill">
-								<div className="fw-medium">{t('Enable Notifications')}</div>
+								<div className="font-medium">{t('Enable Notifications')}</div>
 								<div className="c-hint small">
 									{t('Stay updated when someone messages you')}
 								</div>
@@ -236,9 +237,9 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 
 					{!hasPasskeys && webAuthnSupported && (
 						<div className="c-hbox py-3">
-							<IcPasskey className="mr-3" size={24} />
+							<IcPasskey className="me-3" size={24} />
 							<div className="flex-fill">
-								<div className="fw-medium">{t('Add a Passkey')}</div>
+								<div className="font-medium">{t('Add a Passkey')}</div>
 								<div className="c-hint small">
 									{t('Login faster with fingerprint or face ID')}
 								</div>
@@ -257,19 +258,19 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 			{/* Security Summary */}
 			<div className="c-panel">
 				<h4 className="c-hbox pb-2">
-					<IcSecurity className="mr-2" />
+					<IcSecurity className="me-2" />
 					{t('Security')}
 				</h4>
 
 				<div className="c-hbox g-4 py-2">
 					<div className="c-hbox">
-						<IcPasskey className="mr-2 text-muted" />
+						<IcPasskey className="me-2 text-muted" />
 						<span>
 							{passkeys.length} {passkeys.length === 1 ? t('Passkey') : t('Passkeys')}
 						</span>
 					</div>
 					<div className="c-hbox">
-						<IcDevice className="mr-2 text-muted" />
+						<IcDevice className="me-2 text-muted" />
 						<span>
 							{apiKeys.length} {apiKeys.length === 1 ? t('Device') : t('Devices')}
 						</span>
@@ -282,7 +283,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 						onClick={() => navigate(`${basePath}/security`)}
 					>
 						{t('Security Settings')}
-						<IcArrow className="ml-1" />
+						<IcArrow className="ms-1" />
 					</button>
 				</div>
 			</div>
@@ -328,6 +329,11 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 						label={t('Files')}
 						onClick={() => navigate(`${basePath}/files`)}
 					/>
+					<QuickActionCard
+						icon={<IcSite size={28} />}
+						label={t('Site')}
+						onClick={() => navigate(`${basePath}/site`)}
+					/>
 				</div>
 			</div>
 
@@ -335,13 +341,13 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 			{auth?.roles?.includes('SADM') && (
 				<div className="c-panel">
 					<button
-						className="c-hbox ai-center p-2 w-100 text-start"
+						className="c-hbox align-items-center p-2 w-100 text-start"
 						onClick={() => navigate(siteAdminPath())}
 						style={{ cursor: 'pointer', border: 'none', background: 'transparent' }}
 					>
-						<IcServer className="text-primary mr-3" size={24} />
+						<IcServer className="text-primary me-3" size={24} />
 						<div className="flex-fill">
-							<div className="fw-medium">{t('Server Settings')}</div>
+							<div className="font-medium">{t('Server Settings')}</div>
 							<div className="c-hint small">
 								{t('Configure server-wide settings and policies')}
 							</div>
@@ -355,9 +361,9 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 			<div className="c-panel">
 				<h4 className="pb-2">{t('Troubleshooting')}</h4>
 				<div className="c-hbox py-3 border-bottom">
-					<IcRefresh className="mr-3" size={24} />
+					<IcRefresh className="me-3" size={24} />
 					<div className="flex-fill">
-						<div className="fw-medium">{t('Reset App Cache')}</div>
+						<div className="font-medium">{t('Reset App Cache')}</div>
 						<div className="c-hint small">
 							{t(
 								'Clear cached files and reload. Use if the app behaves unexpectedly.'
@@ -370,9 +376,9 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 				</div>
 				{canReindex && (
 					<div className="c-hbox py-3 border-bottom">
-						<IcReindex className="mr-3" size={24} />
+						<IcReindex className="me-3" size={24} />
 						<div className="flex-fill">
-							<div className="fw-medium">{t('Rebuild Search Index')}</div>
+							<div className="font-medium">{t('Rebuild Search Index')}</div>
 							<div className="c-hint small">
 								{t(
 									'Re-scan your files and posts. Use if search results are missing or stale.'
@@ -390,9 +396,9 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 				)}
 				{auth?.roles?.includes('SADM') && (
 					<div className="c-hbox py-3">
-						<IcDatabase className="mr-3" size={24} />
+						<IcDatabase className="me-3" size={24} />
 						<div className="flex-fill">
-							<div className="fw-medium">{t('Optimize Database')}</div>
+							<div className="font-medium">{t('Optimize Database')}</div>
 							<div className="c-hint small">
 								{t(
 									'Compact the search index and reclaim unused disk space. Affects the whole server.'

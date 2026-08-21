@@ -64,7 +64,7 @@
 	"dependencies": {
 		"@cloudillo/types": "workspace:^",
 		"@symbion/runtype": "^1.2.1",
-		"colord": "^2.9.3"
+		"colord": "^2.10.0"
 	},
 	"devDependencies": {
 		"@types/jest": "^30.0.0",

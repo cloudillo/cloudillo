@@ -42,11 +42,11 @@
 		"@types/react-dom": "^19.2.4",
 		"@types/turndown": "^5.0.6",
 		"cross-env": "^10.1.0",
-		"dayjs": "^1.11.21",
+		"dayjs": "^1.11.23",
 		"debounce": "^3.0.0",
 		"downshift": "^9.4.0",
 		"esbuild": "^0.28.2",
-		"i18next": "^26.3.6",
+		"i18next": "^26.4.0",
 		"i18next-browser-languagedetector": "^8.2.1",
 		"i18next-scanner": "^4.6.0",
 		"i18next-scanner-typescript": "^1.2.1",
@@ -61,7 +61,7 @@
 		"react-dnd": "^16.0.1",
 		"react-dnd-html5-backend": "^16.0.1",
 		"react-dom": "19.2.8",
-		"react-i18next": "^17.0.11",
+		"react-i18next": "^17.0.12",
 		"react-icons": "^5.7.0",
 		"react-image-crop": "^11.1.2",
 		"react-markdown": "^10.1.0",
@@ -80,7 +80,7 @@
 		"yet-another-react-lightbox": "^3.32.2"
 	},
 	"dependencies": {
-		"marked": "^18.0.9",
+		"marked": "^18.0.10",
 		"pdfjs-dist": "^6.2.108"
 	}
 }

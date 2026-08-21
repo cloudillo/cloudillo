@@ -38,8 +38,10 @@ i18n.use(initReactI18next)
 			transKeepBasicHtmlNodesFor: ['br', 'b', 'i', 'p']
 		},
 		// debug: true,
+		// React escapes interpolated output on render, so i18next escaping it again
+		// only turns a `/` in a path into a literal `&#x2F;` on screen.
 		interpolation: {
-			//escapeValue: false,
+			escapeValue: false
 		}
 	})
 	.catch()

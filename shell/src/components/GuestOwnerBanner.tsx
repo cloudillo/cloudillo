@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { IdentityTag, ProfilePicture, useApi, useAuth } from '@cloudillo/react'
+import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation } from 'react-router-dom'
 
 import { isGuestDocumentPath, useGuestDocument } from '../context/index.js'
 import { HOME_BASE, isBootstrapPath, profilePath } from '../routes.js'
+import { siteSeed } from '../site/detect.js'
+import { siteRouteActiveAtom } from '../site/state.js'
 
 /**
  * Owner attribution strip under the shell header, shown to anonymous visitors on the
@@ -18,6 +21,12 @@ import { HOME_BASE, isBootstrapPath, profilePath } from '../routes.js'
  * Uses `getRemoteFull` (an anonymous `GET /me/full` against the owner's node) rather than
  * `profiles.get`, which returns only the caller's *local relationship* mirror — null for an
  * anonymous guest, leaving the name and picture empty.
+ *
+ * **On a published page it stands down entirely** (`siteRouteActiveAtom`): the site bar
+ * carries the same provenance in the same row as the nav, and two strips would be one
+ * chrome row too many. Off the site route but still on a site document — a guest following
+ * a link into `/@alice/app/quillo/…` — it is back, and even then it does not fetch: the
+ * wrapper's boot seed already carries the owner's name and picture (§5.4).
  */
 export function GuestOwnerBanner() {
 	const { api } = useApi()
@@ -25,16 +34,20 @@ export function GuestOwnerBanner() {
 	const { t } = useTranslation()
 	const location = useLocation()
 	const [guestDocument] = useGuestDocument()
+	const siteRouteActive = useAtomValue(siteRouteActiveAtom)
 	const [name, setName] = React.useState<string | undefined>(undefined)
 	const [profilePic, setProfilePic] = React.useState<string | undefined>(undefined)
 
 	const idTag = api?.idTag
 	// `auth === undefined` is the boot phase, not "logged out" — see the render guard below.
 	const isGuest = auth === null
+	// The site's owner *is* this node's owner, so the seed answers for the same profile
+	// this component would fetch — and it is already here, before the first paint.
+	const seeded = siteSeed && siteSeed.owner.idTag === idTag ? siteSeed.owner : undefined
 
 	React.useEffect(() => {
 		let cancelled = false
-		if (!isGuest || !api || !idTag) return
+		if (!isGuest || !api || !idTag || seeded) return
 		;(async function () {
 			try {
 				const profile = await api.profiles.getRemoteFull(idTag)
@@ -48,10 +61,11 @@ export function GuestOwnerBanner() {
 		return () => {
 			cancelled = true
 		}
-	}, [isGuest, api, idTag])
+	}, [isGuest, api, idTag, seeded])
 
 	// Absent during the boot phase too, so the strip never flashes in for a returning user.
 	if (!isGuest || !idTag) return null
+	if (siteRouteActive) return null
 	if (isBootstrapPath(location.pathname)) return null
 
 	// The `/s/` prefix test stands on its own: any share route is a shared resource,
@@ -61,16 +75,19 @@ export function GuestOwnerBanner() {
 			? t('Shared by')
 			: t('Hosted by')
 
+	const ownerName = seeded?.name ?? name
+	const ownerPic = seeded?.profilePic ?? profilePic
+
 	return (
 		<div className="c-guest-banner">
 			<span className="label">{label}</span>
 			<Link className="owner" to={profilePath(HOME_BASE, 'me')} title={idTag}>
-				<ProfilePicture profile={{ profilePic }} srcTag={idTag} tiny />
-				<span className="name">{name || idTag}</span>
+				<ProfilePicture profile={{ profilePic: ownerPic }} srcTag={idTag} tiny />
+				<span className="name">{ownerName || idTag}</span>
 				{/* Only alongside a real name — without one the name span already *is*
 				    the idTag. Kept at every width: the CSS shrinks the tag rather than
 				    hiding it, where `sm-hide` dropped it below 48rem, i.e. every phone. */}
-				{!!name && (
+				{!!ownerName && (
 					<span className="tag">
 						<IdentityTag idTag={idTag} />
 					</span>

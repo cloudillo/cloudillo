@@ -75,6 +75,38 @@ describe('ContextGuard', () => {
 		expect(screen.queryByTestId('inside')).toBeNull()
 	})
 
+	// The regression this guard's `fallback` exists for. `:contextIdTag` is a dynamic
+	// segment and React Router ranks those above the terminal splat whatever the
+	// declaration order, so a published page's path lands *here* and never on the site
+	// route — which cost `SitePage` its mount entirely: no adoption, no link
+	// interception, no islands, and a 404 rendered under the server's own article.
+	it.each(['/main-page', '/blog/hello'])('hands %s to the fallback when there is one', (path) => {
+		render(
+			<MemoryRouter initialEntries={[path]}>
+				<Routes>
+					<Route
+						path=":contextIdTag"
+						element={<ContextGuard fallback={<div data-testid="site" />} />}
+					>
+						<Route index element={<Inside />} />
+						<Route path="*" element={<Inside />} />
+					</Route>
+				</Routes>
+			</MemoryRouter>
+		)
+		expect(screen.getByTestId('site')).toBeDefined()
+		expect(screen.queryByTestId('not-found')).toBeNull()
+		expect(screen.queryByTestId('inside')).toBeNull()
+	})
+
+	// A real context is still the context subtree's, fallback or not — otherwise the
+	// site page would shadow every `/@idTag/…` route on a site document.
+	it('prefers the branch over the fallback for a real context', () => {
+		renderAt('/@comm.tld/app/feed', <ContextGuard fallback={<div data-testid="site" />} />)
+		expect(screen.getByTestId('inside')).toBeDefined()
+		expect(screen.queryByTestId('site')).toBeNull()
+	})
+
 	// `/login` is declared before the context subtree in the real tree and so never
 	// reaches the guard; if it ever did, it is a 404 and not a context.
 	it('404s /login if it ever gets here', () => {

@@ -29,7 +29,7 @@ import {
 import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 
 import { useGlobalMessageUnreadProbe } from './apps/messages/index.js'
-import { ContextRoot, appRoutes } from './apps/routes.js'
+import { appRoutes, ContextRoot } from './apps/routes.js'
 import { SharedResourceView } from './apps/shared.js'
 import { authRoutes, loginInitAtom } from './auth/auth.js'
 import { isBootSettingsApplied, resetBootSettingsApplied, runBootSequence } from './auth/boot.js'
@@ -47,8 +47,8 @@ import { MediaPicker } from './components/MediaPicker/index.js'
 import { QrScannerDialog } from './components/QrScanner/index.js'
 import { ShareCreate } from './components/ShareCreate/index.js'
 import {
-	contextIdpEnabledAtom,
 	CtxProvider,
+	contextIdpEnabledAtom,
 	favoritesAtom,
 	Sidebar,
 	useCommunitiesList,
@@ -68,8 +68,8 @@ import { appConfig as APP_CONFIG } from './manifest-registry.js'
 import { getShellBus, initShellBus } from './message-bus'
 import { createShellBusConfig } from './message-bus/shell-bus-config.js'
 import { NotFound } from './NotFound.js'
-import { Notifications } from './notifications/notifications.js'
 import { NotificationPopover } from './notifications/NotificationPopover.js'
+import { Notifications } from './notifications/notifications.js'
 import { useNotifications } from './notifications/state'
 import { useActionNotifications } from './notifications/useActionNotifications.js'
 import { useDbMaintenanceNotifications } from './notifications/useDbMaintenanceNotifications.js'
@@ -90,6 +90,8 @@ import { profilePath, settingsPath } from './routes.js'
 import { SearchPage } from './SearchPage.js'
 import { toggleOmniboxAtom, useSearch } from './search.js'
 import { settingsRoutes } from './settings/index.js'
+import { isSiteDocument } from './site/detect.js'
+import { SitePage } from './site/SitePage.js'
 import { siteAdminRoutes } from './site-admin/index.js'
 import { useAppConfig } from './utils.js'
 import { useWsBus, WsBusRoot } from './ws-bus.js'
@@ -504,16 +506,46 @@ function PlaceHolder({ title }: { title: string }) {
  * may reach (`app`, `profile`, `search`) and the ones needing a session. It must not wrap
  * `ContextGuard` or those three, or a guest following `/s/:refId` → `/@owner/app/…` would
  * bounce to `/login`.
+ *
+ * **Published site pages take over two routes.** A page served by the site wrapper
+ * carries `#cl-site-content` (`site/detect.js`), and the shell is its runtime:
+ * `SitePage` adopts that server-rendered node. It claims the terminal `*` —
+ * deliberately *after* the context subtree, so it can never shadow `/@idTag/…` — and
+ * the `ContextGuard` fallback, which is where a site path lands in practice: a
+ * dynamic `:contextIdTag` segment outranks the splat, so `/blog/hello` matches the
+ * context subtree first and the guard hands a non-context segment back.
+ *
+ * **Neither is gated on `isSiteDocument`.** They were, and that made a site page
+ * reachable only from another site page: the flag is captured once at module load
+ * (`site/detect.js`), so a `<Link>` from a *shell* document — a search hit, most of
+ * all — fell through to `NotFound` for a page that exists. `SitePage` needs no server
+ * node to render one; with no `#cl-site-content` to adopt its `followRoute` effect
+ * fetches the fragment instead (`site/SitePage.tsx`, `loadSiteFragment`), which is the
+ * same path an in-site click already takes. A path that is *not* a page still 404s,
+ * as `SiteNotFound` rather than the shell's own — one fetch to tell them apart.
+ *
+ * `/` stays the home placeholder on a shell document: a site's root alias resolves
+ * there server-side, so the flag is the only thing separating "this node's home" from
+ * "this site's front page", and there it is still the right question.
  */
 function ShellRoutes({ pwa }: { pwa: UsePWA }) {
 	return (
 		<Routes>
-			<Route path="/" element={<PlaceHolder title="Home" />} />
+			{/* A site's root alias is served at `/`, so this one is site-owned too —
+			    see the site note above the function. */}
+			<Route
+				path="/"
+				element={isSiteDocument ? <SitePage /> : <PlaceHolder title="Home" />}
+			/>
 			{/* Before the context subtree on purpose — see the tie-break note above. */}
 			{authRoutes()}
 			{onboardingRoutes(pwa)}
 			<Route path="/s/:refId" element={<SharedResourceView />} />
-			<Route path=":contextIdTag" element={<ContextGuard />}>
+			{/* `:contextIdTag` is a dynamic segment, and React Router ranks those above
+			    the terminal splat whatever the declaration order — so every site path
+			    lands here first, not on the `*` route below. The guard hands a
+			    non-context segment back to `SitePage` on a site document. */}
+			<Route path=":contextIdTag" element={<ContextGuard fallback={<SitePage />} />}>
 				{/* Load-bearing: without it `/~` renders the guard with an empty outlet
 				    and goes blank instead of redirecting to the context's feed. */}
 				<Route index element={<ContextRoot />} />
@@ -532,7 +564,7 @@ function ShellRoutes({ pwa }: { pwa: UsePWA }) {
 				    vets segment 1. */}
 				<Route path="*" element={<NotFound />} />
 			</Route>
-			<Route path="*" element={<NotFound />} />
+			<Route path="*" element={<SitePage />} />
 		</Routes>
 	)
 }

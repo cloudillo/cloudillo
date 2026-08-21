@@ -20,13 +20,33 @@ import { isContextSegment } from './routes.js'
  *
  * `:contextIdTag` matches *any* single segment, so `/favicon.ico` and `/sw-0.8.6.js` reach
  * here; without the sigil test they would match the `index` route and `ContextRoot` would
- * navigate the user off the page. Anything that fails the test is a 404 — there is no
- * other reader for those URLs.
+ * navigate the user off the page.
+ *
+ * **This is also where a published page is caught, and it has to be here.** React Router
+ * ranks a dynamic segment above a splat regardless of declaration order, so `:contextIdTag`
+ * beats the terminal `<Route path="*">` for *every* site path — `/main-page` matches with
+ * `contextIdTag = 'main-page'`, and `/blog/hello` matches with the subtree's inner `*`.
+ * Placing the site route after this subtree keeps it from shadowing `/@idTag/…`, but does
+ * nothing about the reverse; the ranking cannot be reordered away, so the fall-through is
+ * the fix. Without it `SitePage` never mounts on a published page at all: the server's
+ * article stays where it was painted, unadopted, while React renders a 404 underneath it —
+ * no link interception, no chrome swap, no island ever mounted.
+ *
+ * `fallback` is *injected* rather than imported so this module keeps its point: it exists to
+ * be mounted against the real router without dragging the shell in, and importing `SitePage`
+ * here would pull the whole site runtime — lightbox library included — into its suite.
+ * `layout.tsx` passes `<SitePage/>` unconditionally, on a shell document as much as on a site
+ * one: gating it on `isSiteDocument` made a site page reachable only from another site page,
+ * because that flag is captured once at module load — see the site note above `ShellRoutes`
+ * in `layout.tsx` for the whole argument. `SitePage` renders the shell's own `NotFound` when
+ * the path is no page *and* this node serves no site, so the default below is what answers a
+ * caller that passes no fallback at all.
  */
-export function ContextGuard() {
+export function ContextGuard({ fallback }: { fallback?: React.ReactNode }) {
 	const { contextIdTag } = useParams()
 
-	return isContextSegment(contextIdTag) ? <Outlet /> : <NotFound />
+	if (isContextSegment(contextIdTag)) return <Outlet />
+	return <>{fallback ?? <NotFound />}</>
 }
 
 /**

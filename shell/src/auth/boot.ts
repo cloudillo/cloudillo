@@ -27,6 +27,7 @@ import type { NavigateFunction } from 'react-router-dom'
 
 import { loadIdpEnabled } from '../context/index.js'
 import { applyMenuConfig } from '../manifest-registry.js'
+import { readSwKeyCookie } from '../pwa/cookie.js'
 import {
 	clearAuthToken,
 	deleteApiKey,
@@ -37,7 +38,8 @@ import {
 	setCurrentAuthToken
 } from '../pwa.js'
 import { feedPath, HOME_BASE, scopePath } from '../routes.js'
-import { applyTheme, setTheme } from '../settings'
+import { applyTheme, readStoredTheme, setTheme } from '../settings'
+import { isSiteDocument, siteSeed } from '../site/detect.js'
 import type { AppConfigState } from '../utils.js'
 import type { LoginInitData } from './auth.js'
 import { assessKeyLoss, type KeyLossState } from './key-loss.js'
@@ -184,14 +186,19 @@ export async function runBootSequence(deps: BootDeps): Promise<void> {
 			}
 		} catch (err) {
 			console.error('Failed to load UI settings:', err)
-			// Default theme without overwriting the user's persisted preference — the
-			// next successful settings fetch will refresh it.
-			applyTheme(undefined, undefined)
+			// The stored preference, without overwriting it — the next successful
+			// settings fetch will refresh it. Reading it back is what keeps this from
+			// repainting the page out of the scheme the pre-paint script chose.
+			const stored = readStoredTheme()
+			applyTheme(stored.theme, stored.colors)
 		}
 
 		// One landing decision for both paths: on failure `activeConfig` is still the
 		// caller's config and `onboarding` is unset — already the fallback.
-		if (getPathname() === '/') {
+		// Not on a published page: there `/` is the site's root alias, a page the
+		// reader asked for, and not the shell's home placeholder waiting for a
+		// destination (§5.1).
+		if (!isSiteDocument && getPathname() === '/') {
 			navigate(resolveInitialRoute(activeConfig, onboarding))
 		}
 	}
@@ -199,6 +206,42 @@ export async function runBootSequence(deps: BootDeps): Promise<void> {
 	if (!api?.idTag || auth === undefined) {
 		if (booted) return
 		booted = true
+
+		// A drive-by reader of a published page, short-circuited (§5.7). The
+		// waterfall below registers a ServiceWorker and probes SW-encrypted storage
+		// *before* it can conclude "guest" — on a site route that installs a worker
+		// in every anonymous reader's browser, on the site owner's origin, to learn
+		// they have no session. Both signals are sound: only login ever writes the
+		// `swKey` cookie (`pwa/registration.ts:55`), and a session token is this
+		// tab's own. The trade is that anonymous readers lose SW asset caching.
+		// Gated on the seed as well: `readSiteSeed` returns `null` on any decode
+		// failure — a missing field, unparseable JSON, a wrapper generation older
+		// than the seed — and short-circuiting there sets no idTag and skips the
+		// fetch that would have found one, leaving `api` null for the session. So a
+		// seedless site page falls through to the waterfall instead, which does
+		// register a ServiceWorker in that reader's browser. That is the
+		// pre-existing behaviour and strictly better than no API client at all: no
+		// embed island mounts, no owner banner renders, and any client-side
+		// navigation into a shell route runs with nothing to call.
+		if (isSiteDocument && siteSeed && !readSwKeyCookie() && !getSessionToken()) {
+			// What the `/.well-known/cloudillo/id-tag` fetch below would have
+			// answered: a site host is served by its owner's own tenant, so the boot
+			// seed already carries it. Without it there is no API client at all, and
+			// a document embed (`site/island-components.tsx`) has no owner to resolve
+			// its iframe against.
+			setIdTag(siteSeed.owner.idTag)
+			// `applyTheme`, not `setTheme`, as in the guest branch below: a reader
+			// with no session must not overwrite a persisted preference. It is read
+			// back rather than defaulted because this is the one boot path with no
+			// `#initial-splash` over it — passing `undefined` here means "follow the
+			// system", and a reader whose stored choice disagrees with their system
+			// setting would watch the published page repaint into the other scheme.
+			const stored = readStoredTheme()
+			applyTheme(stored.theme, stored.colors)
+			setAuth(null)
+			settingsAppliedFor = null
+			return
+		}
 
 		try {
 			// Must be controlling (hard-reload scenarios) and holding the encryption key
@@ -328,13 +371,17 @@ export async function runBootSequence(deps: BootDeps): Promise<void> {
 			}
 
 			// Guest mode. `applyTheme`, not `setTheme` — a bounce through guest mode must
-			// not wipe the previous user's persisted preference.
-			applyTheme(undefined, undefined)
+			// not wipe the previous user's persisted preference, and reading it back is
+			// what keeps the repaint identical to what the pre-paint script chose.
+			const storedTheme = readStoredTheme()
+			applyTheme(storedTheme.theme, storedTheme.colors)
 			setAuth(null)
 			settingsAppliedFor = null
 			// Only `/` needs a decision here: every other path is either guest-visible or
-			// wrapped in the route tree's `RequireAuth`, which redirects on render.
-			if (getPathname() === '/') navigate(feedPath(HOME_BASE))
+			// wrapped in the route tree's `RequireAuth`, which redirects on render. And
+			// not on a published page, where `/` is the site's root alias — see the
+			// same guard in `applyUiSettings`.
+			if (!isSiteDocument && getPathname() === '/') navigate(feedPath(HOME_BASE))
 		} catch (err) {
 			console.error('Failed to fetch idTag:', err)
 			// Resolve the auth gate anyway, or the boot splash never tears down and the

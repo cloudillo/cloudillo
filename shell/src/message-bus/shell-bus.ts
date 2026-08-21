@@ -34,6 +34,7 @@ import { initMediaHandlers } from './handlers/media.js'
 import { initSensorHandlers } from './handlers/sensor.js'
 import { initSettingsHandlers } from './handlers/settings.js'
 import { initShareHandlers } from './handlers/share.js'
+import { initSiteHandlers } from './handlers/site.js'
 import { initStorageHandlers } from './handlers/storage.js'
 
 // ============================================
@@ -155,6 +156,7 @@ export class ShellMessageBus extends MessageBusBase {
 		initCameraHandlers(this)
 		initShareHandlers(this)
 		initImportHandlers(this)
+		initSiteHandlers(this)
 		initDocInfoHandlers(this)
 
 		this.initialized = true

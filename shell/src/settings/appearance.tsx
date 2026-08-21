@@ -99,6 +99,38 @@ export function persistTheme(
 	}
 }
 
+/**
+ * The preference the pre-paint script already acted on, read back.
+ *
+ * The inline bootstrap in `index.html` — and its copy in the Rust site wrapper,
+ * `crates/cloudillo-site/src/wrapper.rs` `PREPAINT` — reads these two keys before
+ * first paint and puts the resulting classes on `<body>`. A boot path that then
+ * calls `applyTheme(undefined, undefined)` does *not* reproduce that: `undefined`
+ * means "follow the system", so a reader whose stored choice differs from their
+ * system setting watches the page repaint into the other scheme.
+ *
+ * On a shell route `#initial-splash` hides that repaint. A published page has no
+ * splash, which is where it became visible.
+ *
+ * Returns the raw stored strings, which is exactly what `applyTheme` takes; a
+ * missing or unreadable key stays `undefined` and keeps the system-preference
+ * behaviour the bootstrap script falls back to.
+ */
+export function readStoredTheme(): {
+	theme: string | undefined
+	colors: string | undefined
+} {
+	try {
+		return {
+			theme: localStorage.getItem('cloudillo.theme') ?? undefined,
+			colors: localStorage.getItem('cloudillo.colors') ?? undefined
+		}
+	} catch {
+		// localStorage may be unavailable (sandboxed contexts, etc.)
+		return { theme: undefined, colors: undefined }
+	}
+}
+
 // Ergonomic shortcut for the common "apply + persist" case (e.g. settings
 // form changes). Paths that should NOT overwrite the user's stored preference
 // (guest-mode, error fallback) should call `applyTheme` directly.

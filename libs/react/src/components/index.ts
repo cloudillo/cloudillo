@@ -32,9 +32,9 @@ export {
 	AvatarGroup,
 	AvatarStatus,
 	InitialsAvatar,
-	PresenceAvatar,
 	initialsFor,
-	monogramFor
+	monogramFor,
+	PresenceAvatar
 } from './Avatar/index.js'
 export type { BadgeProps } from './Badge/index.js'
 // Badge Component
@@ -232,6 +232,13 @@ export { PropertyField, PropertyPanel, PropertySection } from './PropertyPanel/i
 export type { QRCodeDialogProps } from './QRCodeDialog/index.js'
 // QRCodeDialog Component
 export { QRCodeDialog } from './QRCodeDialog/index.js'
+export type {
+	SegmentedContextValue,
+	SegmentedItemProps,
+	SegmentedProps
+} from './Segmented/index.js'
+// Segmented Components
+export { Segmented, SegmentedContext, SegmentedItem } from './Segmented/index.js'
 export type { SelectProps } from './Select/index.js'
 // Select Component
 export { Select } from './Select/index.js'

@@ -2203,6 +2203,70 @@ body.dark .c-id-color {
 	outline-style: dashed;
 }
 
+/* ==========================================================================
+   Segmented — a settings control, not a tab bar
+
+   The visual difference from `.c-tab` carries the semantic one: a shared border
+   and hairline dividers make the options read as one control with one answer,
+   where an underline bar reads as a place you navigate to. `overflow: hidden`
+   is what rounds the two end items against the shared radius, so the items
+   themselves need no per-end corner rules.
+   ========================================================================== */
+.c-segmented {
+	display: inline-flex;
+	/* A definite cross size, so a flex or grid parent's `align-items: stretch` does not
+	   blow the control out to the container width and leave its buttons packed to one
+	   side — `inline-flex` alone does not survive blockification as a flex item. */
+	width: fit-content;
+	border: 1px solid lch(from var(--col-on) l c h / 0.18);
+	border-radius: var(--radius-control, 8px);
+	overflow: hidden;
+	background: lch(from var(--col-container) l c h / 0.6);
+}
+
+.c-segmented-item {
+	appearance: none;
+	background: transparent;
+	border: none;
+	color: inherit;
+	padding: 0.3rem 0.75rem;
+	min-width: 5rem;
+	min-height: var(--min-touch-target, 36px);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	font-size: 0.85rem;
+	cursor: pointer;
+	border-right: 1px solid lch(from var(--col-on) l c h / 0.12);
+	transition: background-color 120ms ease;
+}
+
+.c-segmented > .c-segmented-item:last-child {
+	border-right: none;
+}
+
+.c-segmented-item:hover:not([aria-checked='true']) {
+	background: lch(from var(--col-on) l c h / 0.06);
+}
+
+.c-segmented-item[aria-checked='true'] {
+	background: var(--col-primary);
+	color: var(--col-on-primary);
+}
+
+/* Inset, because the group clips its own overflow — an outward outline on the
+   first or last item would be cut off on that side. */
+.c-segmented-item:focus-visible {
+	outline: 2px solid var(--col-focus, var(--col-primary));
+	outline-offset: -2px;
+}
+
+.c-segmented-item:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
 /*
  vim: ts=4
  */

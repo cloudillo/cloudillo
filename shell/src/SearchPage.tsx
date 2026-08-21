@@ -29,6 +29,7 @@ import { LuSearch as IcSearch } from 'react-icons/lu'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { useContextAwareApi, useCtx, useCurrentContextIdTag } from './context/index.js'
+import { getPartAddressing } from './manifest-registry.js'
 import { SearchResultRow } from './SearchResultRow.js'
 import {
 	FTS_DEBOUNCE_MS,
@@ -271,7 +272,8 @@ export function SearchPage() {
 								hit,
 								ctx.base,
 								appConfig?.mime,
-								contextIdTag
+								contextIdTag,
+								getPartAddressing(hit.contentType)
 							)
 							if (!target) return null
 							return (

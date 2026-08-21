@@ -31,6 +31,8 @@ interface SearchCall {
 }
 
 let navigated: string[] = []
+
+const SITE_MIME = 'application/vnd.cloudillo.site+zip'
 let calls: SearchCall[] = []
 /** Resolved by the test; a call left pending stands in for a slow server. */
 let searchResponse: (call: SearchCall) => Promise<unknown> = async () => ({
@@ -118,6 +120,12 @@ jest.unstable_mockModule('../context/index', () => ({
 
 jest.unstable_mockModule('../SearchResultRow', () => ({
 	SearchResultRow: ({ hit }: { hit: { title?: string } }) => <span>{hit.title}</span>
+}))
+
+// Only the site built-in matters here; it is what `getPartAddressing` returns for a published container.
+jest.unstable_mockModule('../manifest-registry', () => ({
+	getPartAddressing: (contentType?: string) =>
+		contentType === SITE_MIME ? { kind: 'sitePath' } : undefined
 }))
 
 jest.unstable_mockModule('../utils', () => ({
@@ -451,6 +459,33 @@ describe('the recents list itself', () => {
 		for (let i = 0; i < RECENT_LIMIT + 3; i++) store.set(pushRecentAtom, `q${i}`)
 		expect(store.get(recentSearchesAtom)).toHaveLength(RECENT_LIMIT)
 		expect(store.get(recentSearchesAtom)[0]).toBe(`q${RECENT_LIMIT + 2}`)
+	})
+})
+
+describe('published site pages', () => {
+	// The route uses the site-absolute `partId` the index wrote, not the container's file id.
+	it('opens a site page hit at its published path', async () => {
+		searchResponse = async () => ({
+			data: [
+				{
+					objTp: 'F',
+					objId: 'container1',
+					title: 'Hello',
+					contentType: SITE_MIME,
+					partId: '/blog/hello'
+				}
+			],
+			pagination: { total: 1 }
+		})
+		const store = createStore()
+		store.set(toggleOmniboxAtom)
+		renderOmnibox(store)
+
+		type('hello')
+		await settle()
+		fireEvent.click(screen.getByText('Hello'))
+
+		expect(navigated).toEqual(['/blog/hello'])
 	})
 })
 

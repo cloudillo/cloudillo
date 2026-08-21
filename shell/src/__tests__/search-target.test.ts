@@ -150,6 +150,97 @@ describe('searchHitTarget', () => {
 		expect(target).toBe('/~/app/..%2F..%2Fevil/bob.org:f1')
 	})
 
+	// A published site page. `partId` is the site-absolute path the index wrote, so the
+	// hit is a plain route — no app, no resId, no manifest lookup.
+	const SITE = { kind: 'sitePath' } as const
+
+	it('links a site page hit straight to its published path', () => {
+		const target = searchHitTarget(
+			hit({
+				objTp: 'F',
+				objId: 'container1',
+				contentType: 'application/vnd.cloudillo.site+zip',
+				partId: '/blog/hello'
+			}),
+			HOME_BASE,
+			MIME,
+			'me.tld',
+			SITE
+		)
+		expect(target).toBe('/blog/hello')
+	})
+
+	it('sends a community-context site hit through the app route, not the current origin', () => {
+		// The query ran against the community's node, so a hit with no ownerTag is the community's own
+		// page — a bare path would resolve against this shell's own origin (the reader's node) instead.
+		const target = searchHitTarget(
+			hit({
+				objTp: 'F',
+				objId: 'container1',
+				appId: 'notillo',
+				contentType: 'application/vnd.cloudillo.site+zip',
+				partId: '/'
+			}),
+			COMMUNITY,
+			MIME,
+			'community.tld',
+			SITE
+		)
+		expect(target).toBe('/@community.tld/app/notillo/community.tld:container1')
+	})
+
+	it('falls through to the app path for a site page owned by another node', () => {
+		// We never navigate away from the app, so a remote page keeps its resId route.
+		const target = searchHitTarget(
+			hit({
+				objTp: 'F',
+				objId: 'container1',
+				contentType: 'application/vnd.cloudillo.site+zip',
+				ownerTag: 'bob.org',
+				partId: '/blog/hello'
+			}),
+			HOME_BASE,
+			MIME,
+			'me.tld',
+			SITE
+		)
+		expect(target).toBe('/~/app/view/bob.org:container1')
+	})
+
+	it('ignores the site branch when the type declares no part addressing', () => {
+		const target = searchHitTarget(
+			hit({
+				objTp: 'F',
+				objId: 'container1',
+				contentType: 'application/zip',
+				partId: '/blog/hello'
+			}),
+			HOME_BASE,
+			MIME,
+			'me.tld'
+		)
+		expect(target).toBe('/~/app/view/me.tld:container1')
+	})
+
+	it.each(['//evil.tld/x', '/\\evil.tld/x', 'https://evil.tld/x', 'javascript:alert(1)', 'blog'])(
+		'refuses a site path that leaves the app: %s',
+		(partId) => {
+			const target = searchHitTarget(
+				hit({
+					objTp: 'F',
+					objId: 'container1',
+					contentType: 'application/vnd.cloudillo.site+zip',
+					partId
+				}),
+				HOME_BASE,
+				MIME,
+				'me.tld',
+				SITE
+			)
+			expect(target).toBeNull()
+		}
+	)
+
 	it('returns null without an objId', () => {
 		expect(searchHitTarget(hit({ objTp: 'F', objId: '' }), HOME_BASE)).toBeNull()
 	})

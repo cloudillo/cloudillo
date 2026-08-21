@@ -90,6 +90,11 @@ jest.unstable_mockModule('../SearchResultRow', () => ({
 	SearchResultRow: () => null
 }))
 
+// Mocked: irrelevant here — these tests cover fetching/pagination, not hit routing.
+jest.unstable_mockModule('../manifest-registry', () => ({
+	getPartAddressing: () => undefined
+}))
+
 jest.unstable_mockModule('../utils', () => ({
 	useAppConfig: () => [undefined]
 }))

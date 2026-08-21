@@ -52,6 +52,7 @@ import {
 	useCtx,
 	useCurrentContextIdTag
 } from './context/index.js'
+import { getPartAddressing } from './manifest-registry.js'
 import { deriveMode } from './omnibox-mode.js'
 import { buildRef, canShareRoute, resolveRef } from './refs.js'
 import { contextPath, profilePath, scopePath, sectionMatch } from './routes.js'
@@ -554,7 +555,13 @@ export function Omnibox() {
 			} else if (item.kind === 'hit') {
 				// Opening a hit settles the query as much as Enter does.
 				pushRecent(query)
-				const target = searchHitTarget(item.hit, ctx.base, appConfig?.mime, contextIdTag)
+				const target = searchHitTarget(
+					item.hit,
+					ctx.base,
+					appConfig?.mime,
+					contextIdTag,
+					getPartAddressing(item.hit.contentType)
+				)
 				if (target) {
 					navigate(target)
 				} else {

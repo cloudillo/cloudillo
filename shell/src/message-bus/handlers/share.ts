@@ -56,13 +56,6 @@ export function setShareCreateCallback(callback: ShareCreateCallback | null): vo
 }
 
 /**
- * Check if a share creation callback is registered
- */
-export function hasShareCreateCallback(): boolean {
-	return openShareCreateCallback !== null
-}
-
-/**
  * Initialize share message handlers on the shell bus
  */
 export function initShareHandlers(bus: ShellMessageBus): void {

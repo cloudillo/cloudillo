@@ -8,86 +8,20 @@
  * Example: "HappyBlueElephant", "SwiftGreenFox"
  */
 
-const ADJECTIVES = [
-	'Happy',
-	'Brave',
-	'Clever',
-	'Swift',
-	'Gentle',
-	'Calm',
-	'Keen',
-	'Wise',
-	'Bold',
-	'Bright',
-	'Quick',
-	'Warm',
-	'Kind',
-	'Cool',
-	'Fair',
-	'Noble',
-	'Eager',
-	'Lucky',
-	'Merry',
-	'Proud',
-	'Quiet',
-	'Witty',
-	'Smart',
-	'Vivid'
-]
+const ADJECTIVES =
+	'Happy Brave Clever Swift Gentle Calm Keen Wise Bold Bright Quick Warm Kind Cool Fair Noble Eager Lucky Merry Proud Quiet Witty Smart Vivid'.split(
+		' '
+	)
 
-const COLORS = [
-	'Blue',
-	'Green',
-	'Red',
-	'Gold',
-	'Silver',
-	'Amber',
-	'Coral',
-	'Jade',
-	'Ruby',
-	'Azure',
-	'Violet',
-	'Scarlet',
-	'Ivory',
-	'Crimson',
-	'Copper',
-	'Pearl',
-	'Indigo',
-	'Teal',
-	'Olive',
-	'Salmon',
-	'Maroon',
-	'Navy',
-	'Mint',
-	'Rose'
-]
+const COLORS =
+	'Blue Green Red Gold Silver Amber Coral Jade Ruby Azure Violet Scarlet Ivory Crimson Copper Pearl Indigo Teal Olive Salmon Maroon Navy Mint Rose'.split(
+		' '
+	)
 
-const ANIMALS = [
-	'Elephant',
-	'Tiger',
-	'Eagle',
-	'Dolphin',
-	'Fox',
-	'Owl',
-	'Bear',
-	'Wolf',
-	'Hawk',
-	'Lion',
-	'Otter',
-	'Panda',
-	'Raven',
-	'Falcon',
-	'Lynx',
-	'Heron',
-	'Panther',
-	'Jaguar',
-	'Koala',
-	'Penguin',
-	'Robin',
-	'Swan',
-	'Whale',
-	'Zebra'
-]
+const ANIMALS =
+	'Elephant Tiger Eagle Dolphin Fox Owl Bear Wolf Hawk Lion Otter Panda Raven Falcon Lynx Heron Panther Jaguar Koala Penguin Robin Swan Whale Zebra'.split(
+		' '
+	)
 
 function randomElement<T>(array: T[]): T {
 	return array[Math.floor(Math.random() * array.length)]

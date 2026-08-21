@@ -2,38 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { FetchError } from '@cloudillo/core'
-import { bytesToBase64, bytesToBase64Url } from '@cloudillo/core/base64'
-import dayjs from 'dayjs'
+import { bytesToBase64 } from '@cloudillo/core/base64'
 import { atom, useAtom } from 'jotai'
 import * as React from 'react'
-
-// Query string handling
-export function qs(
-	obj: Record<string, string | number | boolean | string[] | number[] | undefined>
-) {
-	const str: string[] = []
-	for (const f in obj) {
-		const val = obj[f]
-		if (Object.hasOwn(obj, f) && val !== undefined) {
-			str.push(
-				encodeURIComponent(f) +
-					'=' +
-					encodeURIComponent(Array.isArray(val) ? val.join(',') : val)
-			)
-		}
-	}
-	return str.join('&')
-}
-
-export function parseQS(qs: string) {
-	const p = new URLSearchParams(qs)
-	return Object.fromEntries(p.entries())
-}
-
-// Delay asynchronously
-export async function delay(ms: number): Promise<void> {
-	return new Promise((resolve) => setTimeout(() => resolve(), ms))
-}
 
 // Run async tasks with a bounded concurrency so a large fan-out (federated
 // probes, per-group hydration, proxy-token fetches) doesn't fire every request
@@ -68,25 +39,10 @@ export const format = {
 	}
 }
 
-// Date format
-export function humanDate(dt: dayjs.Dayjs) {
-	if (dt.isSame(dayjs(), 'day')) {
-		return 'TODAY'
-	} else if (dt.isSame(dayjs().subtract(1, 'day'), 'day')) {
-		return 'YESTERDAY'
-	} else {
-		return dt.format('YY/MM/DD')
-	}
-}
-
 // Thin aliases over @cloudillo/core/base64, which is the chunk-safe implementation
 // (spreading the whole array into String.fromCharCode throws on large inputs).
 export function arrayBufferToBase64(buffer: Uint8Array): string {
 	return bytesToBase64(buffer)
-}
-
-export function arrayBufferToBase64Url(buffer: Uint8Array): string {
-	return bytesToBase64Url(buffer)
 }
 
 // Call a JSON POST API endpoint with fetch()
@@ -114,19 +70,6 @@ export function isPermissionError(err: unknown): boolean {
  */
 export function isMissingError(err: unknown): boolean {
 	return err instanceof FetchError && err.httpStatus === 404
-}
-
-export class ServerError extends Error {
-	code: string
-	descr: string
-	httpStatus: number
-
-	constructor(code: string, descr: string, httpStatus: number = 400) {
-		super(descr)
-		this.code = code
-		this.descr = descr
-		this.httpStatus = httpStatus
-	}
 }
 
 /**

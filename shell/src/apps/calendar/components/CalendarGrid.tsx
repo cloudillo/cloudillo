@@ -1,13 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import {
-	type CalendarEvent,
-	DayView,
-	type EventPatch,
-	MonthView,
-	WeekView
-} from '@cloudillo/calendar-ui'
+import { type CalendarEvent, type EventPatch, MonthView, WeekView } from '@cloudillo/calendar-ui'
 import { useAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -160,7 +154,7 @@ export function CalendarGrid({
 
 	return (
 		<div className="c-cal-grid">
-			{view === 'day' && <DayView {...commonProps} />}
+			{view === 'day' && <WeekView {...commonProps} single />}
 			{view === 'week' && <WeekView {...commonProps} />}
 			{view === 'month' && <MonthView {...commonProps} />}
 		</div>

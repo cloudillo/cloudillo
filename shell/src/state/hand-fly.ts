@@ -114,7 +114,7 @@ function retriggerClass(el: HTMLElement, cls: string, durationMs: number): void 
 	}, durationMs)
 }
 
-export function pulseHand(target: HTMLElement): void {
+function pulseHand(target: HTMLElement): void {
 	retriggerClass(target, PULSE_CLASS, 320)
 }
 
@@ -122,118 +122,72 @@ export function waveHand(target: HTMLElement): void {
 	retriggerClass(target, WAVE_CLASS, 420)
 }
 
-export function flyToHand(opts: {
+export function fly(opts: {
 	items: FileHandItem[]
-	target: HTMLElement
+	anchor: HTMLElement
+	dir: 'to' | 'from'
 	reducedMotion?: boolean
 }): Promise<void> {
-	const { items, target, reducedMotion } = opts
+	const { items, anchor, reducedMotion, dir } = opts
 	if (items.length === 0) return Promise.resolve()
+	const toAnchor = dir === 'to'
+	const staggerMs = toAnchor ? STAGGER_PICKUP_MS : STAGGER_DEPOSIT_MS
 	if (reducedMotion) {
-		pulseHand(target)
+		if (toAnchor) pulseHand(anchor)
 		return Promise.resolve()
 	}
 
-	const targetCenter = rectCenter(target.getBoundingClientRect())
-	const flyers = items.slice(0, MAX_PARALLEL)
-	const overflow = items.length - flyers.length
-
-	type Plan = { ghost: HTMLDivElement; from: { x: number; y: number }; delay: number }
-	const plans: Plan[] = []
-
-	flyers.forEach((item, i) => {
-		const row = findRowElement(item)
-		if (!row) return
-		const from = rectCenter(row.getBoundingClientRect())
-		const iconSvg = findIconSvg(row)
-		const ghost = buildGhost({ label: item.label, iconSvg })
-		plans.push({ ghost, from, delay: i * STAGGER_PICKUP_MS })
-	})
-
-	if (overflow > 0) {
-		const lastRow =
-			findRowElement(items[flyers.length - 1]) ?? findRowElement(items[items.length - 1])
-		const from = lastRow
-			? rectCenter(lastRow.getBoundingClientRect())
-			: { x: targetCenter.x, y: targetCenter.y + 80 }
-		const ghost = buildGhost({ label: '', iconSvg: null, more: overflow })
-		plans.push({ ghost, from, delay: flyers.length * STAGGER_PICKUP_MS })
-	}
-
-	if (plans.length === 0) {
-		pulseHand(target)
-		return Promise.resolve()
-	}
-
-	return new Promise<void>((resolve) => {
-		let remaining = plans.length
-		plans.forEach((plan) => {
-			document.body.appendChild(plan.ghost)
-			window.setTimeout(() => {
-				const anim = animateGhost(plan.ghost, plan.from, targetCenter)
-				const cleanup = () => {
-					plan.ghost.remove()
-					remaining -= 1
-					if (remaining === 0) {
-						pulseHand(target)
-						resolve()
-					}
-				}
-				anim.onfinish = cleanup
-				anim.oncancel = cleanup
-			}, plan.delay)
-		})
-	})
-}
-
-export function flyFromHand(opts: {
-	items: FileHandItem[]
-	source: HTMLElement
-	reducedMotion?: boolean
-}): Promise<void> {
-	const { items, source, reducedMotion } = opts
-	if (items.length === 0) return Promise.resolve()
-	if (reducedMotion) return Promise.resolve()
-
-	// Capture the source rect now, before the caller flips the hand to dormant
-	// and React detaches this element — a detached node's getBoundingClientRect
-	// collapses to (0,0) and ghosts would launch from the top-left corner.
-	const sourceCenter = rectCenter(source.getBoundingClientRect())
+	// Capture the anchor rect now: for `from`, the caller flips the hand to
+	// dormant right after and React detaches this element — a detached node's
+	// getBoundingClientRect collapses to (0,0) and ghosts would launch from the
+	// top-left corner.
+	const anchorCenter = rectCenter(anchor.getBoundingClientRect())
 
 	return new Promise<void>((resolve) => {
 		const attempt = (tries: number) => {
 			const flyers = items.slice(0, MAX_PARALLEL)
 			const overflow = items.length - flyers.length
 
-			type Plan = { ghost: HTMLDivElement; to: { x: number; y: number }; delay: number }
+			type Plan = { ghost: HTMLDivElement; row: { x: number; y: number }; delay: number }
 			const plans: Plan[] = []
 
 			flyers.forEach((item, i) => {
 				const row = findRowElement(item)
 				if (!row) return
-				const to = rectCenter(row.getBoundingClientRect())
 				const iconSvg = findIconSvg(row)
 				const ghost = buildGhost({ label: item.label, iconSvg })
-				plans.push({ ghost, to, delay: i * STAGGER_DEPOSIT_MS })
+				plans.push({
+					ghost,
+					row: rectCenter(row.getBoundingClientRect()),
+					delay: i * staggerMs
+				})
 			})
 
 			if (overflow > 0) {
+				const lastPlan = plans[plans.length - 1]
+				const pos =
+					lastPlan?.row ??
+					(() => {
+						const row =
+							findRowElement(items[flyers.length - 1]) ??
+							findRowElement(items[items.length - 1])
+						return row ? rectCenter(row.getBoundingClientRect()) : undefined
+					})()
 				const ghost = buildGhost({ label: '', iconSvg: null, more: overflow })
-				const lastTarget =
-					plans.length > 0
-						? plans[plans.length - 1].to
-						: { x: sourceCenter.x, y: sourceCenter.y + 80 }
 				plans.push({
 					ghost,
-					to: lastTarget,
-					delay: flyers.length * STAGGER_DEPOSIT_MS
+					row: pos ?? { x: anchorCenter.x, y: anchorCenter.y + 80 },
+					delay: flyers.length * staggerMs
 				})
 			}
 
 			if (plans.length === 0) {
-				if (tries > 0) {
+				// Rows might not be in the DOM on the very first deposit frame
+				// (post-refresh list is still hydrating); only `from` retries.
+				if (!toAnchor && tries > 0) {
 					requestAnimationFrame(() => requestAnimationFrame(() => attempt(tries - 1)))
 				} else {
+					if (toAnchor) pulseHand(anchor)
 					resolve()
 				}
 				return
@@ -243,18 +197,25 @@ export function flyFromHand(opts: {
 			plans.forEach((plan) => {
 				document.body.appendChild(plan.ghost)
 				window.setTimeout(() => {
-					const anim = animateGhost(plan.ghost, sourceCenter, plan.to)
+					const anim = animateGhost(
+						plan.ghost,
+						toAnchor ? plan.row : anchorCenter,
+						toAnchor ? anchorCenter : plan.row
+					)
 					const cleanup = () => {
 						plan.ghost.remove()
 						remaining -= 1
-						if (remaining === 0) resolve()
+						if (remaining === 0) {
+							if (toAnchor) pulseHand(anchor)
+							resolve()
+						}
 					}
 					anim.onfinish = cleanup
 					anim.oncancel = cleanup
 				}, plan.delay)
 			})
 		}
-		attempt(ROW_RESOLUTION_RETRY_PASSES)
+		attempt(toAnchor ? 0 : ROW_RESOLUTION_RETRY_PASSES)
 	})
 }
 

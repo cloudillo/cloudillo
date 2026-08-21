@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { delay } from '@cloudillo/core'
 import { jwtRemainingSeconds } from '@cloudillo/core/jwt'
 import { mergeClasses, useApi, useAuth, useDialog, useToast } from '@cloudillo/react'
 import { useSetAtom } from 'jotai'
@@ -15,7 +16,7 @@ import { offAppTitle, onAppError, onAppReady, onAppTitle } from '../message-bus/
 import { getShellBus, type InitAppData } from '../message-bus/shell-bus.js'
 import { filesPath } from '../routes.js'
 import { documentTitleAtom } from '../title.js'
-import { delay, type TrustLevel, useAppConfig } from '../utils.js'
+import { type TrustLevel, useAppConfig } from '../utils.js'
 import { AppLoadingIndicator, type LoadingStage } from './AppLoadingIndicator.js'
 import type { AccessConflict } from './access-conflict.js'
 import { APP_SANDBOX, normalizeTrust } from './iframe-policy.js'

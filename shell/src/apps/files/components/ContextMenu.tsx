@@ -40,7 +40,7 @@ import { activeContextAtom, useCurrentContextIdTag } from '../../../context/inde
 import { getIcon } from '../../../icon-registry.js'
 import { getHandlersForContentType } from '../../../manifest-registry.js'
 import { type FileHandItem, HandTypeConflictError, pickUp } from '../../../state/hand.js'
-import { flyToHand, handTargetElAtom, prefersReducedMotion } from '../../../state/hand-fly.js'
+import { fly, handTargetElAtom, prefersReducedMotion } from '../../../state/hand-fly.js'
 import { triggerFileDownload } from '../../viewer/MediaViewer.js'
 import type { File, FileOps, ViewMode } from '../types.js'
 import { isFileProcessing, MANAGED_FOLDER_ID } from '../types.js'
@@ -121,7 +121,7 @@ function doPickUp(opts: PickUpOpts) {
 			const tryFly = (tries: number) => {
 				const target = opts.store.get(handTargetElAtom)
 				if (target) {
-					void flyToHand({ items, target, reducedMotion: false })
+					void fly({ items, anchor: target, dir: 'to', reducedMotion: false })
 				} else if (tries > 0) {
 					requestAnimationFrame(() => tryFly(tries - 1))
 				}

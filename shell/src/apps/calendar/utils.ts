@@ -66,26 +66,6 @@ export type RecurrencePreset =
 	| 'yearly'
 	| 'custom'
 
-export function rrulePreset(preset: RecurrencePreset, start: ConfigType): string | undefined {
-	const d = dayjs(start)
-	switch (preset) {
-		case 'none':
-			return undefined
-		case 'daily':
-			return 'FREQ=DAILY'
-		case 'weekdays':
-			return 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR'
-		case 'weekly':
-			return `FREQ=WEEKLY;BYDAY=${ICAL_DOW_CODES[d.day()]}`
-		case 'monthly':
-			return `FREQ=MONTHLY;BYMONTHDAY=${d.date()}`
-		case 'yearly':
-			return `FREQ=YEARLY;BYMONTH=${d.month() + 1};BYMONTHDAY=${d.date()}`
-		case 'custom':
-			return 'FREQ=WEEKLY'
-	}
-}
-
 /** Classify an existing RRULE string as one of the presets (for display in editors). */
 export function detectRrulePreset(rrule: string | undefined): RecurrencePreset {
 	if (!rrule) return 'none'

@@ -21,12 +21,7 @@ import {
 
 import { activeContextAtom, useApiContext } from '../../../context/index.js'
 import { aggregateVerbStates, type FileHandItem, handAtom, setDown } from '../../../state/hand.js'
-import {
-	flyFromHand,
-	handTargetElAtom,
-	prefersReducedMotion,
-	waveHand
-} from '../../../state/hand-fly.js'
+import { fly, handTargetElAtom, prefersReducedMotion, waveHand } from '../../../state/hand-fly.js'
 import type { ViewMode } from '../types.js'
 
 export interface HandActionBarProps {
@@ -142,13 +137,14 @@ export function HandActionBar({
 				// Wait two paints for the post-refresh rows to mount, then start
 				// the reverse flight. Switching to dormant must wait until the
 				// flight is in motion, otherwise React unmounts the active hand
-				// icon and its detached rect collapses to (0,0). flyFromHand
+				// icon and its detached rect collapses to (0,0). fly({ dir: 'from' })
 				// also retries row resolution internally.
 				requestAnimationFrame(() => {
 					requestAnimationFrame(() => {
-						const flight = flyFromHand({
+						const flight = fly({
 							items: successItems,
-							source: handEl,
+							anchor: handEl,
+							dir: 'from',
 							reducedMotion: false
 						})
 						setDown(store.get, store.set)

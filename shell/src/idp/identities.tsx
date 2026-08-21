@@ -15,7 +15,7 @@ import type {
 	IdpCreateIdentityResult,
 	IdpIdentity
 } from '@cloudillo/core'
-import { Button, Modal, mergeClasses, useAuth, useDialog } from '@cloudillo/react'
+import { Button, CopyButton, Modal, mergeClasses, useAuth, useDialog } from '@cloudillo/react'
 import {
 	LuBan as IcBan,
 	LuCheck as IcCheck,
@@ -447,12 +447,7 @@ function ApiKeyCreatedModal({
 						>
 							{apiKey.plaintextKey}
 						</code>
-						<Button
-							onClick={() => copyToClipboard(apiKey.plaintextKey, 'key')}
-							title={t('Copy API key')}
-						>
-							{copied === 'key' ? <IcCheck /> : <IcCopy />}
-						</Button>
+						<CopyButton text={apiKey.plaintextKey} label={t('API key')} />
 					</div>
 				</div>
 
@@ -894,12 +889,7 @@ function StandaloneApiKeyModal({
 						>
 							{apiKey.plaintextKey}
 						</code>
-						<Button
-							onClick={() => copyToClipboard(apiKey.plaintextKey, 'key')}
-							title={t('Copy API key')}
-						>
-							{copied === 'key' ? <IcCheck /> : <IcCopy />}
-						</Button>
+						<CopyButton text={apiKey.plaintextKey} label={t('API key')} />
 					</div>
 				</div>
 

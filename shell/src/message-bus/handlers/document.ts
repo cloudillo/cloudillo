@@ -72,13 +72,6 @@ export function setDocPickerNotifier(notifier: DocPickerNotifier | null): void {
 }
 
 /**
- * Check if a document picker callback is registered
- */
-export function hasDocPickerCallback(): boolean {
-	return openDocPickerCallback !== null
-}
-
-/**
  * Initialize document message handlers on the shell bus
  */
 export function initDocumentHandlers(bus: ShellMessageBus): void {

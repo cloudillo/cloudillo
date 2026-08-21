@@ -96,13 +96,6 @@ export function setCameraPreviewCallbacks(callbacks: {
 }
 
 /**
- * Check if a camera capture callback is registered
- */
-export function hasCameraCaptureCallback(): boolean {
-	return openCameraCaptureCallback !== null
-}
-
-/**
  * Initialize camera message handlers on the shell bus
  */
 // Track which app window owns each session

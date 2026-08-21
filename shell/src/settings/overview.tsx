@@ -435,19 +435,9 @@ interface QuickActionCardProps {
 function QuickActionCard({ icon, label, onClick }: QuickActionCardProps) {
 	return (
 		<button
-			className="c-panel text-center p-3"
+			type="button"
+			className="c-card interactive text-center p-3 border-0"
 			onClick={onClick}
-			style={{
-				cursor: 'pointer',
-				border: 'none',
-				transition: 'transform 0.15s ease, box-shadow 0.15s ease'
-			}}
-			onMouseEnter={(e) => {
-				e.currentTarget.style.transform = 'translateY(-2px)'
-			}}
-			onMouseLeave={(e) => {
-				e.currentTarget.style.transform = 'translateY(0)'
-			}}
 		>
 			<div className="mb-2 text-primary">{icon}</div>
 			<div className="small">{label}</div>

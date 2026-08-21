@@ -1,13 +1,12 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { getMessageBusUrl } from '@cloudillo/core'
+import { delay, getMessageBusUrl } from '@cloudillo/core'
 import { useAuth } from '@cloudillo/react'
 import { atom, useAtom } from 'jotai'
 import React from 'react'
 
 import { handleFileIdGenerated } from './services/file-id-resolver.js'
-import { delay } from './utils.js'
 
 let ws: WebSocket | undefined
 const connSendBuf: string[] = []

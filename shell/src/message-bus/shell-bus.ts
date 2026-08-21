@@ -258,10 +258,7 @@ export class ShellMessageBus extends MessageBusBase {
 
 		// Validate source is a known app (except for init requests)
 		if (message.type !== 'auth:init.req') {
-			const connection = this.appTracker.validateSource(
-				event.source,
-				result.rule.requiresAuth
-			)
+			const connection = this.appTracker.validateSource(event.source, result.rule[1])
 			if (!connection) {
 				this.logWarn('Message from unknown/uninitialized app:', message.type)
 				return

@@ -30,7 +30,6 @@ const ensureKeyRelayed = jest.fn(async () => {})
 jest.unstable_mockModule('../pwa/sw-rpc.js', () => ({
 	swRequestResult,
 	swNotify: jest.fn(async () => {}),
-	swRequest: jest.fn(async () => undefined),
 	onSwMessage: jest.fn(() => () => {})
 }))
 

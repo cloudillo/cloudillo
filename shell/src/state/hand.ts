@@ -17,7 +17,7 @@ export interface FileHandItem {
 	inTrash?: boolean // captured at pick-up time when picked from trash view
 }
 
-export interface HandState {
+interface HandState {
 	type: 'file' // extensible; v1 only 'file'
 	items: FileHandItem[]
 	status: 'active' | 'dormant'

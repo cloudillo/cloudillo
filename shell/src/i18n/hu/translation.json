@@ -1344,7 +1344,6 @@
 	"Save this API key now!": "Mentsd el most ezt az API kulcsot!",
 	"This key will only be shown once. Store it securely.": "Ezt a kulcsot csak egyszer mutatjuk meg. Tárold biztonságosan.",
 	"API Key": "API kulcs",
-	"Copy API key": "API kulcs másolása",
 	"Example: Update IP Address": "Példa: IP-cím frissítése",
 	"Copy command": "Parancs másolása",
 	"Updates the IP address automatically from the client IP.": "Automatikusan frissíti az IP-címet a kliens IP-je alapján.",

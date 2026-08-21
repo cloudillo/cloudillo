@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { parseQS } from '@cloudillo/core'
 import { Badge, Fcd, ProfileCard, ProfilePicture, useApi, useAuth } from '@cloudillo/react'
 import type { Profile } from '@cloudillo/types'
 import type { TFunction } from 'i18next'
@@ -29,7 +30,6 @@ import { useQrScanner } from '../components/QrScanner/index.js'
 import { useContextSwitch, useCtx } from '../context/index.js'
 import { ProfileContextMenu, useProfileContextMenu } from '../context/profile-context-menu.js'
 import { communityCreatePath, profilePath } from '../routes.js'
-import { parseQS } from '../utils.js'
 import { describeRelationship } from './relationship.js'
 
 type ProfileStatusCode = 'A' | 'B' | 'M' | 'S'

@@ -15,7 +15,7 @@ const STORE = 'actions'
 /**
  * Extract unencrypted index fields from an ActionView for IDB indexing.
  */
-export function extractActionIndexFields(a: ActionView): Record<string, unknown> {
+function extractActionIndexFields(a: ActionView): Record<string, unknown> {
 	return {
 		actionId: a.actionId,
 		type: a.type,
@@ -42,7 +42,7 @@ export async function cacheActions(contextIdTag: string, actions: ActionView[]):
 /**
  * Build an offline query spec from action list parameters.
  */
-export function buildActionOfflineQuery(
+function buildActionOfflineQuery(
 	contextIdTag: string,
 	params: {
 		type?: string | string[]
@@ -56,16 +56,12 @@ export function buildActionOfflineQuery(
 		}
 	}
 
-	const typeList = params.type
-		? Array.isArray(params.type)
-			? params.type
-			: [params.type]
-		: undefined
+	const typeList = [params.type ?? []].flat()
 
 	// The narrow by-context-type-created index keys on a single type; use it only
 	// for single-type queries. For multiple types fall through to by-context \u2014 the
 	// typeList post-filter in queryCachedActions restricts the result set.
-	if (typeList && typeList.length === 1) {
+	if (typeList.length === 1) {
 		return {
 			indexName: 'by-context-type-created',
 			range: IDBKeyRange.bound(
@@ -102,30 +98,25 @@ export async function queryCachedActions(
 ): Promise<ActionView[]> {
 	const query = buildActionOfflineQuery(contextIdTag, params)
 	const rows = await queryRecords<ActionView>(STORE, query, limit)
-	const visibilityList = params.visibility
-		? Array.isArray(params.visibility)
-			? params.visibility
-			: [params.visibility]
-		: undefined
-	const typeList = params.type
-		? Array.isArray(params.type)
-			? params.type
-			: [params.type]
-		: undefined
+	const visibilityList = [params.visibility ?? []].flat()
+	const typeList = [params.type ?? []].flat()
 	// A multi-type query uses the broad by-context index, so it must post-filter
 	// by type here (single-type queries are already narrowed by the index).
 	if (
 		!params.audienceType &&
-		!visibilityList &&
+		visibilityList.length === 0 &&
 		!params.issuer &&
-		!(typeList && typeList.length > 1)
+		typeList.length <= 1
 	) {
 		return rows
 	}
 	return rows.filter((a) => {
-		if (typeList && !typeList.includes(a.type)) return false
+		if (typeList.length > 0 && !typeList.includes(a.type)) return false
 		if (params.audienceType && a.audience?.type !== params.audienceType) return false
-		if (visibilityList && (!a.visibility || !visibilityList.includes(a.visibility))) {
+		if (
+			visibilityList.length > 0 &&
+			(!a.visibility || !visibilityList.includes(a.visibility))
+		) {
 			return false
 		}
 		if (params.issuer && a.issuer.idTag !== params.issuer) return false

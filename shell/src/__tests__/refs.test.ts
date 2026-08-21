@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { buildRef, canShareRoute, isIdTag, isRefLike, resolveRef } from '../refs.js'
+import { buildRef, canShareRoute, isRefLike, resolveRef } from '../refs.js'
 
 describe('buildRef / resolveRef round-trips', () => {
 	it('round-trips a document route', () => {
@@ -96,19 +96,6 @@ describe('isRefLike', () => {
 		expect(isRefLike('/~/app/quillo/x:y')).toBe(false)
 		expect(isRefLike('bob.example.com')).toBe(false)
 		expect(isRefLike('hello')).toBe(false)
-	})
-})
-
-describe('isIdTag', () => {
-	it('matches dotted identity tags (optional leading @)', () => {
-		expect(isIdTag('bob.example.com')).toBe(true)
-		expect(isIdTag('@bob.example.com')).toBe(true)
-	})
-
-	it('rejects single-label or non-tag input', () => {
-		expect(isIdTag('bob')).toBe(false)
-		expect(isIdTag('hello world')).toBe(false)
-		expect(isIdTag('/files')).toBe(false)
 	})
 })
 

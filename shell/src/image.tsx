@@ -21,42 +21,6 @@ const aspectMap = {
 	'': undefined
 }
 
-// Utility functions
-export function getBestImageId(hashData: string, intent: 'orig' | 'hd' | 'sd' | 'tn') {
-	// Handle plain file ID (no version prefix)
-	if (!hashData.includes(':')) {
-		return hashData
-	}
-
-	const [ver, hashesStr] = hashData.split(':')
-	const hashes = hashesStr.split(',')
-
-	if (intent == 'tn') {
-		const idx =
-			ver.indexOf('t') + 1 ||
-			ver.indexOf('s') + 1 ||
-			ver.indexOf('h') + 1 ||
-			ver.indexOf('o') + 1
-		if (idx) return hashes[idx - 1]
-	}
-	if (intent == 'hd') {
-		const idx =
-			ver.indexOf('h') + 1 ||
-			ver.indexOf('o') + 1 ||
-			ver.indexOf('s') + 1 ||
-			ver.indexOf('t') + 1
-		if (idx) return hashes[idx - 1]
-	}
-	if (intent == 'sd') {
-		const idx =
-			ver.indexOf('s') + 1 ||
-			ver.indexOf('h') + 1 ||
-			ver.indexOf('t') + 1 ||
-			ver.indexOf('o') + 1
-		if (idx) return hashes[idx - 1]
-	}
-}
-
 export function ImageUpload({
 	src,
 	aspects,

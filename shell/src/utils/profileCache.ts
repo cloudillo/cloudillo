@@ -38,11 +38,4 @@ export function getCachedProfiles(
 	})
 }
 
-// Useful after profile mutations (e.g. after editing your own profile) — call to
-// drop the stale entry so the next read re-fetches.
-export function invalidateProfileCache(idTag?: string): void {
-	if (idTag) cache.delete(idTag)
-	else cache.clear()
-}
-
 // vim: ts=4

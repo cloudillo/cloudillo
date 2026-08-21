@@ -487,11 +487,10 @@ export function useGlobalUnreadProbe(): void {
 	const setSeedLoaded = useSetAtom(feedSeedLoadedAtom)
 
 	const ownIdTag = auth?.idTag
-	// Bake each community's showInHome flag into the memo key so a toggle re-fires
-	// probeAll: shown-in-Home communities are held at count 0 (no dot), hidden ones
-	// get the federated proxy probe.
-	const communityIds = communities.map((c) => `${c.idTag}:${c.showInHome ? 1 : 0}`).join(',')
-
+	// `communities` is a fresh array on every refresh (`loadCommunities` always
+	// rebuilds it), so probeAll is re-created and the effect below re-fires each
+	// time. Harmless: `PROBE_TTL_MS` in `probeTarget` suppresses the redundant
+	// network probes.
 	// idTag → showInHome lookup, refreshed each render so the live WS re-probe
 	// handler (which reads it from a ref) sees the current toggle state.
 	const showInHomeRef = React.useRef<Map<string, boolean>>(new Map())
@@ -526,57 +525,39 @@ export function useGlobalUnreadProbe(): void {
 					// FeedApp persists the bootstrap marker when the feed is opened).
 					since = nowSeconds() - INITIAL_UNREAD_WINDOW_SEC
 				}
+				// A community's posts live on its OWN node — probe there via a proxy
+				// token (connected communities are an established relationship, so
+				// `explicit:true` bypasses the passive-trust gate). The owner-only
+				// unread-count endpoint rejects a proxied member, so detect existence
+				// with the (proxy-readable) list endpoint: any POST/REPOST newer than
+				// the member's locally-stored watermark lights the dot.
+				let client: ApiClient | null = api
 				if (community) {
-					// A community's posts live on its OWN node — probe there via a proxy
-					// token (connected communities are an established relationship, so
-					// `explicit:true` bypasses the passive-trust gate). The owner-only
-					// unread-count endpoint rejects a proxied member, so detect existence
-					// with the (proxy-readable) list endpoint: any POST/REPOST newer than
-					// the member's locally-stored watermark lights the dot.
 					const tok = await getTokenFor(idTag, { explicit: true })
 					if (!tok) return
-					const capi = getClientFor(idTag, { token: tok.token })
-					if (!capi) return
-					// Existence probe via the (proxy-readable) list endpoint: only a
-					// *visible* unread post lights the dot. A pre-visibility COUNT(*)
-					// could count rows the reader can never load (e.g. hidden-community
-					// posts), pinning the dot on with nothing to show.
-					const res = await capi.actions.listPaginated({
-						type: ['POST', 'REPOST'],
-						status: ['A'],
-						audience: idTag,
-						createdAfter: new Date(since * 1000).toISOString(),
-						excludeOwnIssuer: true,
-						sort: 'received',
-						sortDir: 'asc',
-						limit: 1
-					})
-					const count =
-						res.data.length > 0 || res.cursorPagination?.hasMore === true ? 1 : 0
-					lastProbedRef.current.set(idTag, Date.now())
-					setUnread((prev) =>
-						prev[idTag] === count ? prev : { ...prev, [idTag]: count }
-					)
-				} else {
-					// Home dot: own-node existence probe (mirrors the community branch,
-					// minus the proxy token and audience). No audience = the merged home
-					// feed, so the server's hidden-community exclusion applies.
-					const res = await api.actions.listPaginated({
-						type: ['POST', 'REPOST'],
-						status: ['A'],
-						createdAfter: new Date(since * 1000).toISOString(),
-						excludeOwnIssuer: true,
-						sort: 'received',
-						sortDir: 'asc',
-						limit: 1
-					})
-					const count =
-						res.data.length > 0 || res.cursorPagination?.hasMore === true ? 1 : 0
-					lastProbedRef.current.set(idTag, Date.now())
-					setUnread((prev) =>
-						prev[idTag] === count ? prev : { ...prev, [idTag]: count }
-					)
+					client = getClientFor(idTag, { token: tok.token })
 				}
+				if (!client) return
+				// Existence probe via the (proxy-readable) list endpoint: only a
+				// *visible* unread post lights the dot. A pre-visibility COUNT(*)
+				// could count rows the reader can never load (e.g. hidden-community
+				// posts), pinning the dot on with nothing to show. Home dot: same
+				// probe on the own node, minus the proxy token and audience — no
+				// audience = the merged home feed, so the server's hidden-community
+				// exclusion applies.
+				const res = await client.actions.listPaginated({
+					type: ['POST', 'REPOST'],
+					status: ['A'],
+					...(community ? { audience: idTag } : {}),
+					createdAfter: new Date(since * 1000).toISOString(),
+					excludeOwnIssuer: true,
+					sort: 'received',
+					sortDir: 'asc',
+					limit: 1
+				})
+				const count = res.data.length > 0 || res.cursorPagination?.hasMore === true ? 1 : 0
+				lastProbedRef.current.set(idTag, Date.now())
+				setUnread((prev) => (prev[idTag] === count ? prev : { ...prev, [idTag]: count }))
 			} catch {
 				/* best-effort; leave the prior value */
 			}
@@ -587,30 +568,20 @@ export function useGlobalUnreadProbe(): void {
 	const probeAll = React.useCallback(async () => {
 		if (!api || !ownIdTag) return
 		await probeTarget(ownIdTag, false)
-		const communityTasks = communityIds
-			.split(',')
-			.filter(Boolean)
-			.map((entry) => {
-				// entry is `<idTag>:<0|1>`; the idTag may itself contain ':' only in
-				// theory, but the showInHome flag is always the final segment.
-				const sep = entry.lastIndexOf(':')
-				const idTag = entry.slice(0, sep)
-				const shown = entry.slice(sep + 1) === '1'
-				return () => {
-					if (shown) {
-						// Shown in Home → no dedicated dot: its posts are already
-						// represented by the Home dot. Actively zero any stale count so a
-						// hidden→shown toggle drops the dot, and clear lastProbed so a
-						// later shown→hidden toggle re-probes immediately (not TTL-suppressed).
-						setUnread((prev) => (prev[idTag] ? { ...prev, [idTag]: 0 } : prev))
-						lastProbedRef.current.delete(idTag)
-						return Promise.resolve()
-					}
-					return probeTarget(idTag, true)
-				}
-			})
+		const communityTasks = communities.map((c) => () => {
+			if (c.showInHome) {
+				// Shown in Home → no dedicated dot: its posts are already
+				// represented by the Home dot. Actively zero any stale count so a
+				// hidden→shown toggle drops the dot, and clear lastProbed so a
+				// later shown→hidden toggle re-probes immediately (not TTL-suppressed).
+				setUnread((prev) => (prev[c.idTag] ? { ...prev, [c.idTag]: 0 } : prev))
+				lastProbedRef.current.delete(c.idTag)
+				return Promise.resolve()
+			}
+			return probeTarget(c.idTag, true)
+		})
 		await runWithLimit(communityTasks, 3)
-	}, [api, ownIdTag, communityIds, probeTarget, setUnread])
+	}, [api, ownIdTag, communities, probeTarget, setUnread])
 
 	React.useEffect(() => {
 		probeAll()

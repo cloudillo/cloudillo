@@ -13,8 +13,8 @@
  */
 
 import { generateSwKey } from '../../shared/sw-key.js'
-import { invalidateCryptoKey, setCachedKey } from '../../sw/state.js'
 import { getSecureItemResult, resetCryptoKeyInit, setSecureItem } from '../../sw/secure-store.js'
+import { invalidateCryptoKey, setCachedKey } from '../../sw/state.js'
 
 // Static imports are safe despite the globals stubbed below: none of those
 // modules touch `self` or `indexedDB` at import time, only inside their

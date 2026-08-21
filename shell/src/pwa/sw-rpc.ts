@@ -112,20 +112,6 @@ export async function swRequestResult<T = Record<string, unknown>>(
 	})
 }
 
-/**
- * Request/response round trip. Resolves to undefined when there is no
- * controller, the SW reports a failure, or it does not answer within
- * `timeoutMs`. Use `swRequestResult` where those cases differ.
- */
-export async function swRequest<T = Record<string, unknown>>(
-	type: string,
-	payload?: unknown,
-	timeoutMs = DEFAULT_TIMEOUT_MS
-): Promise<T | undefined> {
-	const reply = await swRequestResult<T>(type, payload, timeoutMs)
-	return reply.status === 'ok' ? reply.data : undefined
-}
-
 /** Subscribe to unsolicited SW messages of `type`. Returns an unsubscribe fn. */
 export function onSwMessage(type: string, handler: (msg: SwInbound) => void): () => void {
 	let handlers = listeners.get(type)

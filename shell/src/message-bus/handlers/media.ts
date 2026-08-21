@@ -67,13 +67,6 @@ export function setMediaPickerCallback(callback: MediaPickerCallback | null): vo
 }
 
 /**
- * Check if a media picker callback is registered
- */
-export function hasMediaPickerCallback(): boolean {
-	return openMediaPickerCallback !== null
-}
-
-/**
  * Initialize media message handlers on the shell bus
  */
 export function initMediaHandlers(bus: ShellMessageBus): void {

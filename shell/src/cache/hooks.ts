@@ -46,22 +46,17 @@ export function mayUseCache(
 }
 
 /**
- * Wraps a file fetchPage function with cache read/write.
+ * Wraps a fetchPage function with cache read/write.
  * On network success: returns data and caches in background.
  * On network failure: returns cached data with isOffline flag — but only when a
  * live token for `contextIdTag` is registered, see mayUseCache().
  */
-export function createCachedFileFetchPage(
+function createCachedFetchPage<T>(
 	contextIdTag: string | undefined,
-	fetchPage: (cursor: string | null, limit: number) => Promise<CachedFetchResult<FileView>>,
-	queryParams: {
-		parentId?: string | null
-		fileTp?: string
-		starred?: boolean
-		pinned?: boolean
-		contentType?: string
-	}
-): (cursor: string | null, limit: number) => Promise<CachedFetchResult<FileView>> {
+	fetchPage: (cursor: string | null, limit: number) => Promise<CachedFetchResult<T>>,
+	cacheAsync: (contextIdTag: string, items: T[]) => void,
+	queryCached: (contextIdTag: string, limit: number) => Promise<T[]>
+): (cursor: string | null, limit: number) => Promise<CachedFetchResult<T>> {
 	return async (cursor: string | null, limit: number) => {
 		// Try network first
 		try {
@@ -69,7 +64,7 @@ export function createCachedFileFetchPage(
 
 			// Cache results in background (non-blocking)
 			if (contextIdTag && result.items.length > 0) {
-				queueMicrotask(() => cacheFilesAsync(contextIdTag, result.items))
+				queueMicrotask(() => cacheAsync(contextIdTag, result.items))
 			}
 
 			return result
@@ -78,7 +73,7 @@ export function createCachedFileFetchPage(
 			if (!mayUseCache(err, contextIdTag)) throw err
 
 			try {
-				const cached = await queryCachedFiles(contextIdTag, queryParams, limit)
+				const cached = await queryCached(contextIdTag, limit)
 				if (cached.length === 0) throw err // No cache either — propagate original error
 
 				return {
@@ -92,6 +87,22 @@ export function createCachedFileFetchPage(
 			}
 		}
 	}
+}
+
+export function createCachedFileFetchPage(
+	contextIdTag: string | undefined,
+	fetchPage: (cursor: string | null, limit: number) => Promise<CachedFetchResult<FileView>>,
+	queryParams: {
+		parentId?: string | null
+		fileTp?: string
+		starred?: boolean
+		pinned?: boolean
+		contentType?: string
+	}
+): (cursor: string | null, limit: number) => Promise<CachedFetchResult<FileView>> {
+	return createCachedFetchPage(contextIdTag, fetchPage, cacheFilesAsync, (ctx, limit) =>
+		queryCachedFiles(ctx, queryParams, limit)
+	)
 }
 
 // ============================================
@@ -115,33 +126,9 @@ export function createCachedActionFetchPage(
 		issuer?: string
 	}
 ): (cursor: string | null, limit: number) => Promise<CachedFetchResult<ActionView>> {
-	return async (cursor: string | null, limit: number) => {
-		try {
-			const result = await fetchPage(cursor, limit)
-
-			if (contextIdTag && result.items.length > 0) {
-				queueMicrotask(() => cacheActionsAsync(contextIdTag, result.items))
-			}
-
-			return result
-		} catch (err) {
-			if (!mayUseCache(err, contextIdTag)) throw err
-
-			try {
-				const cached = await queryCachedActions(contextIdTag, queryParams, limit)
-				if (cached.length === 0) throw err
-
-				return {
-					items: cached,
-					nextCursor: null,
-					hasMore: false,
-					isOffline: true
-				}
-			} catch {
-				throw err
-			}
-		}
-	}
+	return createCachedFetchPage(contextIdTag, fetchPage, cacheActionsAsync, (ctx, limit) =>
+		queryCachedActions(ctx, queryParams, limit)
+	)
 }
 
 // vim: ts=4

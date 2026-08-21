@@ -7,7 +7,15 @@ import {
 	getInstanceUrl,
 	type WebAuthnCredential
 } from '@cloudillo/core'
-import { Button, LoadingSpinner, Modal, useApi, useAuth, useDialog } from '@cloudillo/react'
+import {
+	Button,
+	CopyButton,
+	LoadingSpinner,
+	Modal,
+	useApi,
+	useAuth,
+	useDialog
+} from '@cloudillo/react'
 import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
 import type { TFunction } from 'i18next'
 import * as React from 'react'
@@ -20,9 +28,7 @@ import { useTranslation } from 'react-i18next'
 import {
 	LuPlus as IcAdd,
 	LuKey as IcApiKey,
-	LuCheck as IcCheck,
 	LuX as IcClose,
-	LuCopy as IcCopy,
 	LuTrash as IcDelete,
 	LuPencil as IcEdit,
 	LuFingerprint as IcPasskey,
@@ -369,27 +375,6 @@ interface DavSetupRowProps {
 	comingSoon?: boolean
 }
 
-function CopyButton({ text, label }: { text: string; label: string }) {
-	const { t } = useTranslation()
-	const [copied, setCopied] = React.useState(false)
-
-	async function doCopy() {
-		try {
-			await navigator.clipboard.writeText(text)
-			setCopied(true)
-			setTimeout(() => setCopied(false), 2000)
-		} catch (err) {
-			console.error('Failed to copy:', err)
-		}
-	}
-
-	return (
-		<Button onClick={doCopy} title={t('Copy {{label}}', { label })} className="small">
-			{copied ? <IcCheck /> : <IcCopy />}
-		</Button>
-	)
-}
-
 function DavSetupRow({ label, idTag, plaintextKey, hint, comingSoon }: DavSetupRowProps) {
 	const { t } = useTranslation()
 	const serverUrl = `${getInstanceUrl(idTag)}/dav/principal/`
@@ -409,14 +394,14 @@ function DavSetupRow({ label, idTag, plaintextKey, hint, comingSoon }: DavSetupR
 					<label className="small">{t('Server URL')}</label>
 					<div className="c-hbox g-1">
 						<code className="c-mono flex-fill">{serverUrl}</code>
-						<CopyButton text={serverUrl} label={t('server URL')} />
+						<CopyButton text={serverUrl} label={t('server URL')} className="small" />
 					</div>
 				</div>
 				<div>
 					<label className="small">{t('Username')}</label>
 					<div className="c-hbox g-1">
 						<code className="c-mono flex-fill">cloudillo</code>
-						<CopyButton text="cloudillo" label={t('username')} />
+						<CopyButton text="cloudillo" label={t('username')} className="small" />
 					</div>
 					<div className="c-hint small mt-1">
 						{t('Any value works — the server ignores the username.')}
@@ -426,7 +411,7 @@ function DavSetupRow({ label, idTag, plaintextKey, hint, comingSoon }: DavSetupR
 					<label className="small">{t('Password')}</label>
 					<div className="c-hbox g-1">
 						<code className="c-mono flex-fill">{plaintextKey}</code>
-						<CopyButton text={plaintextKey} label={t('password')} />
+						<CopyButton text={plaintextKey} label={t('password')} className="small" />
 					</div>
 				</div>
 				<div className="c-hint small">{hint}</div>
@@ -477,7 +462,11 @@ function ApiKeyCreatedModal({ open, result, onClose }: ApiKeyCreatedModalProps) 
 					<label>{t('API Key')}</label>
 					<div className="c-hbox g-1">
 						<code className="c-mono flex-fill">{result.plaintextKey}</code>
-						<CopyButton text={result.plaintextKey} label={t('API key')} />
+						<CopyButton
+							text={result.plaintextKey}
+							label={t('API key')}
+							className="small"
+						/>
 					</div>
 				</div>
 

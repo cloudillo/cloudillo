@@ -48,13 +48,6 @@ export function setPendingImport(resId: string, importData: PendingImport): void
 }
 
 /**
- * Check if there is pending import data for a resId
- */
-export function hasPendingImport(resId: string): boolean {
-	return pendingImports.has(resId)
-}
-
-/**
  * Retrieve and remove pending import data
  */
 export function consumePendingImport(resId: string): PendingImport | undefined {

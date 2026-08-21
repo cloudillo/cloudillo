@@ -6,6 +6,8 @@
  * Includes type conversion, CSS/SVG generation, and stop manipulation.
  */
 
+import { hexToRgb, rgbToHex } from '@cloudillo/core'
+
 import type { CompactGradient, Gradient, GradientStop } from '../types/gradient'
 
 // ============================================================================
@@ -258,20 +260,6 @@ export function addStop(stops: GradientStop[], position: number, color?: string)
 }
 
 /**
- * Remove a color stop from a gradient.
- * @param stops - Current stops
- * @param index - Index of stop to remove
- * @returns New stops array without the removed stop
- */
-export function removeStop(stops: GradientStop[], index: number): GradientStop[] {
-	if (stops.length <= 2) {
-		// Don't allow fewer than 2 stops
-		return stops
-	}
-	return stops.filter((_, i) => i !== index)
-}
-
-/**
  * Update a color stop.
  * @param stops - Current stops
  * @param index - Index of stop to update
@@ -296,50 +284,6 @@ export function sortStops(stops: GradientStop[]): GradientStop[] {
 }
 
 // ============================================================================
-// Color Utilities
-// ============================================================================
-
-/**
- * Parse a hex color to RGB components.
- * @param hex - Hex color string (e.g., '#ff0000' or '#f00')
- * @returns RGB values (0-255)
- */
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-	// Remove # if present
-	const h = hex.replace(/^#/, '')
-
-	// Handle short format
-	const fullHex =
-		h.length === 3
-			? h
-					.split('')
-					.map((c) => c + c)
-					.join('')
-			: h
-
-	const num = parseInt(fullHex, 16)
-	return {
-		r: (num >> 16) & 255,
-		g: (num >> 8) & 255,
-		b: num & 255
-	}
-}
-
-/**
- * Convert RGB to hex color.
- * @param r - Red (0-255)
- * @param g - Green (0-255)
- * @param b - Blue (0-255)
- * @returns Hex color string
- */
-function rgbToHex(r: number, g: number, b: number): string {
-	const toHex = (n: number) =>
-		Math.round(Math.max(0, Math.min(255, n)))
-			.toString(16)
-			.padStart(2, '0')
-	return `#${toHex(r)}${toHex(g)}${toHex(b)}`
-}
-
 /**
  * Interpolate between two colors.
  * @param color1 - Start color (hex)
@@ -350,6 +294,7 @@ function rgbToHex(r: number, g: number, b: number): string {
 export function interpolateColor(color1: string, color2: string, t: number): string {
 	const c1 = hexToRgb(color1)
 	const c2 = hexToRgb(color2)
+	if (!c1 || !c2) return color1
 
 	const r = c1.r + (c2.r - c1.r) * t
 	const g = c1.g + (c2.g - c1.g) * t
@@ -393,20 +338,6 @@ export function getColorAtPosition(stops: GradientStop[], position: number): str
 	}
 
 	return '#ffffff'
-}
-
-/**
- * Reverse the gradient stops (flip direction).
- * @param stops - Current stops
- * @returns Reversed stops
- */
-export function reverseStops(stops: GradientStop[]): GradientStop[] {
-	return stops
-		.map((stop) => ({
-			...stop,
-			position: 1 - stop.position
-		}))
-		.reverse()
 }
 
 // vim: ts=4

@@ -982,12 +982,6 @@ export type DocFormat = T.TypeOf<typeof tDocFormat>
 export const tSiteStatus = T.literal('A', 'D')
 export type SiteStatus = T.TypeOf<typeof tSiteStatus>
 
-// i18n keys for display. Consumers: t(SITE_STATUS_LABEL[status])
-export const SITE_STATUS_LABEL: Record<SiteStatus, string> = {
-	A: 'Active',
-	D: 'Disabled'
-}
-
 const SAFE_HREF_SCHEME = /^(?:https?:|mailto:)/i
 
 /** Whether the string holds a C0 control character or DEL, anywhere in it. */

@@ -1,25 +1,14 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-/**
- * Delay execution for a specified time
- */
-export async function delay(ms: number): Promise<void> {
-	return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
 import { colord, extend } from 'colord'
 import lchPlugin from 'colord/plugins/lch'
+import { bytesToBase64Url } from './base64.js'
 
 extend([lchPlugin])
 
-export async function calcSha1Hex(str: string) {
-	// Generate SHA hash from str
-	const enc = new TextEncoder()
-	const data = enc.encode(str)
-	return Array.from(new Uint8Array(await window.crypto.subtle.digest('sha-1', data)))
-		.map((byte) => byte.toString(16).padStart(2, '0'))
-		.join('')
+export async function delay(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 // Color
@@ -59,46 +48,38 @@ export function idAccent(seed: string, dark?: boolean): string {
 	const key = `${dark ? 'd' : 'l'}:${seed}`
 	const hit = accentCache.get(key)
 	if (hit) return hit
+	// Hex, not `lch(...)`: CSS gamut-maps out-of-sRGB chroma per engine, so the same
+	// peer would render a different colour in Chrome and Firefox.
 	const accent = colord({ l: dark ? 72 : 48, c: 100, h: idHue(seed) }).toHex()
 	accentCache.set(key, accent)
 	return accent
 }
 
 /**
- * @deprecated Use {@link idHue} with the `.c-id-color` CSS rules, or
- * {@link idAccent} where a literal string is required.
+ * Presence colour for a peer: derived from the relay-stamped `idTag` when
+ * present, falling back to the client id (pre-sync or guest).
  *
- * Behaviour changed: the hue now derives from {@link idHue} (FNV-1a), not SHA-1 —
- * colours differ from earlier releases for the same input.
+ * Derived by the VIEWER from that idTag rather than read off the wire, so a peer
+ * cannot assert an arbitrary colour — and the idTag itself is stamped by the
+ * relay from the sender's own token (see
+ * `cloudillo-rs/crates/cloudillo-crdt/src/websocket.rs`), so it cannot be forged
+ * either. Guests fall back to the awareness clientId, stable for their session.
+ *
+ * The caller passes the theme, because a hidden bus read cannot appear in a
+ * memo's prop comparison or a `useEffect` dep array.
  */
-export async function str2color(
-	str: string,
-	l: number = 40,
-	c: number = 100,
-	dark?: boolean
-): Promise<string> {
-	return colord({ l: dark ? 100 - l : l, c, h: idHue(str) }).toHex()
+export function presenceColor(idTag: string | undefined, clientId: number, dark: boolean): string {
+	return idAccent(idTag ?? String(clientId), dark)
 }
 
 /**
- * @deprecated Returns two unrelated hues. Use {@link idHue} with the
- * `.c-id-color` CSS rules, which pick a fill and a foreground that contrast.
- *
- * Behaviour changed: both hues now derive from {@link idHue} (FNV-1a), not SHA-1 —
- * colours differ from earlier releases for the same input.
+ * Cryptographically random base64url string (`length` chars ≈ `length`×6 bits of
+ * entropy). Shared by the canvas apps' id generators, app-bus session and toast ids.
  */
-export async function str2colors(
-	str: string,
-	l: number = 40,
-	c: number = 100,
-	dark?: boolean
-): Promise<{ fg: string; bg: string }> {
-	const lightness = dark ? 100 - l : l
-
-	return {
-		fg: colord({ l: lightness, c, h: idHue(str) }).toHex(),
-		bg: colord({ l: lightness, c, h: idHue(`${str} bg`) }).toHex()
-	}
+export function randomId(length = 12): string {
+	const bytes = new Uint8Array(Math.ceil((length * 6) / 8))
+	crypto.getRandomValues(bytes)
+	return bytesToBase64Url(bytes).slice(0, length)
 }
 
 // vim: ts=4

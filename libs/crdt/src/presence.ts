@@ -16,8 +16,6 @@
 
 import {
 	buildPresenceUser,
-	type PresenceEntry as CorePresenceEntry,
-	dedupePresenceUsers,
 	PRESENCE_FIELD,
 	type PresenceFeed,
 	type PresenceSource,
@@ -35,15 +33,6 @@ export {
 	readPresenceEntries,
 	readPresenceUser
 } from '@cloudillo/core'
-
-/**
- * The shared entry with the awareness client id re-attached. `connId` is
- * `String(clientId)` and is what the shared code keys and colours on; `clientId`
- * stays for the numeric-id call sites.
- */
-export interface PresenceEntry extends CorePresenceEntry {
-	clientId: number
-}
 
 /** Publish the local user on `awareness`, and return what was published. */
 export function initPresence(awareness: Awareness, bus: PresenceSource): PresenceUser {
@@ -64,42 +53,6 @@ function awarenessConnections(awareness: Awareness) {
 		})
 	}
 	return connections
-}
-
-/** `connId` is always `String(clientId)` here, so this is lossless. */
-function withClientId(entry: CorePresenceEntry): PresenceEntry {
-	return { ...entry, clientId: Number(entry.connId) }
-}
-
-/**
- * Everyone currently in the document, deduplicated by idTag and sorted: self
- * first, then identified users by name, then anonymous guests last.
- */
-export function readPresenceUsers(awareness: Awareness): PresenceEntry[] {
-	return dedupePresenceUsers(readPresenceEntries(awarenessConnections(awareness))).map(
-		withClientId
-	)
-}
-
-/**
- * Subscribe to the deduplicated roster.
- *
- * Fires immediately with the current roster, then on every awareness change.
- * Awareness fires on every cursor move, so throttle in the consumer —
- * `useDocPresence` does.
- *
- * @returns Unsubscribe function
- */
-export function subscribePresence(
-	awareness: Awareness,
-	cb: (users: PresenceEntry[]) => void
-): () => void {
-	const handler = () => cb(readPresenceUsers(awareness))
-	awareness.on('change', handler)
-	handler()
-	return () => {
-		awareness.off('change', handler)
-	}
 }
 
 /**

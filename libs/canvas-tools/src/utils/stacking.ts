@@ -139,4 +139,30 @@ export function findStackedObjectsForSelection(
 	return Array.from(allStacked)
 }
 
+/**
+ * Z-order operations for canvas objects, shared by the canvas apps.
+ */
+export type ZOrderOp = 'toFront' | 'toBack' | 'forward' | 'backward'
+
+/**
+ * Target index for moving `currentIndex` within an array of `length` under the
+ * given z-order operation, or -1 when no move is possible (already at the edge).
+ *
+ * The returned index is valid *after* the element has been removed, i.e. against
+ * an array of `length - 1`, so every caller is `delete(currentIndex, 1)` followed
+ * by `insert(target, …)`.
+ */
+export function zOrderTarget(currentIndex: number, length: number, op: ZOrderOp): number {
+	switch (op) {
+		case 'toFront':
+			return currentIndex < length - 1 ? length - 1 : -1
+		case 'toBack':
+			return currentIndex > 0 ? 0 : -1
+		case 'forward':
+			return currentIndex < length - 1 ? currentIndex + 1 : -1
+		case 'backward':
+			return currentIndex > 0 ? currentIndex - 1 : -1
+	}
+}
+
 // vim: ts=4

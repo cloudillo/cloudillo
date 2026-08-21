@@ -317,104 +317,60 @@ export class ApiClient {
 
 	/** Authentication endpoints */
 	auth = {
-		/**
-		 * POST /auth/login - User login with password
-		 * @param data - Login credentials
-		 * @returns Login result with token and profile info
-		 */
+		/** POST /auth/login - User login with password */
 		login: (data: Types.LoginRequest) =>
 			this.request('POST', '/auth/login', Types.tLoginResult, { data }),
 
-		/**
-		 * POST /auth/logout - User logout
-		 * @param data - Optional data containing API key to delete on server
-		 */
+		/** POST /auth/logout - User logout */
 		logout: (data?: { apiKey?: string }) =>
 			this.request('POST', '/auth/logout', T.nullValue, { data: data ?? {} }),
 
-		/**
-		 * GET /auth/login-token - Get login token for current session
-		 * @returns Login result with token
-		 */
+		/** GET /auth/login-token - Get login token for current session */
 		getLoginToken: () =>
 			this.request('GET', '/auth/login-token', T.nullable(Types.tLoginResult), {
 				skipAuthRecovery: true
 			}),
 
-		/**
-		 * POST /auth/login-init - Combined login initialization
-		 * Returns authenticated (with login data) or unauthenticated (with QR + WebAuthn init data)
-		 */
+		/** POST /auth/login-init - Combined login initialization */
 		loginInit: () =>
 			this.request('POST', '/auth/login-init', Types.tLoginInitResult, { data: {} }),
 
-		/**
-		 * GET /auth/access-token - Get access token
-		 * @param query - Optional query parameters (scope, token, lifetime)
-		 * @returns Token
-		 */
+		/** GET /auth/access-token - Get access token */
 		getAccessToken: (query?: { scope?: string; token?: string; lifetime?: number }) =>
 			this.request('GET', '/auth/access-token', Types.tAccessTokenResult, {
 				query
 			}),
 
-		/**
-		 * GET /auth/access-token?refId={refId} - Exchange ref for scoped access token (unauthenticated)
-		 * @param refId - Reference ID for shared resource
-		 * @param options - Optional parameters (refresh: true to refresh without consuming usage count)
-		 * @returns Scoped token with expiry
-		 */
+		/** GET /auth/access-token?refId={refId} - Exchange ref for scoped access token (unauthenticated) */
 		getAccessTokenByRef: (refId: string, options?: { refresh?: boolean }) =>
 			this.request('GET', '/auth/access-token', Types.tRefAccessTokenResult, {
 				query: { refId, refresh: options?.refresh }
 			}),
 
-		/**
-		 * GET /auth/access-token?via=...&scope=... - Get scoped token via cross-document link
-		 * @param via - Source file ID the caller has access to
-		 * @param scope - Target scope: "file:{targetFileId}:{R|W}"
-		 * @returns Scoped token with resource ID and access level
-		 */
+		/** GET /auth/access-token?via=...&scope=... - Get scoped token via cross-document link */
 		getAccessTokenVia: (via: string, scope: string) =>
 			this.request('GET', '/auth/access-token', Types.tRefAccessTokenResult, {
 				query: { via, scope }
 			}),
 
-		/**
-		 * GET /auth/proxy-token - Get proxy token for federation
-		 * @param idTag - Optional target idTag for cross-server federation
-		 * @returns Token and optionally roles (for local context)
-		 */
+		/** GET /auth/proxy-token - Get proxy token for federation */
 		getProxyToken: (idTag?: string) =>
 			this.request('GET', '/auth/proxy-token', Types.tProxyTokenResult, {
 				query: idTag ? { idTag } : undefined
 			}),
 
-		/**
-		 * GET /auth/vapid - Get VAPID public key for push notifications
-		 * @returns VAPID public key
-		 */
+		/** GET /auth/vapid - Get VAPID public key for push notifications */
 		getVapidPublicKey: () => this.request('GET', '/auth/vapid', Types.tGetVapidResult),
 
-		/**
-		 * POST /auth/password - Change password
-		 * @param data - Password change request
-		 */
+		/** POST /auth/password - Change password */
 		changePassword: (data: Types.PasswordChangeRequest) =>
 			this.request('POST', '/auth/password', T.nullValue, { data }),
 
-		/**
-		 * POST /auth/set-password - Set password using a reference token
-		 * @param data - Set password request with refId and password
-		 */
+		/** POST /auth/set-password - Set password using a reference token */
 		setPassword: (data: Types.SetPasswordRequest) =>
 			this.request('POST', '/auth/set-password', Types.tSetPasswordResult, { data }),
 
-		/**
-		 * POST /auth/forgot-password - Request password reset email
-		 * @param data - Email address to send reset link to
-		 * @returns Success message (always succeeds for security)
-		 */
+		/** POST /auth/forgot-password - Request password reset email */
 		forgotPassword: (data: Types.ForgotPasswordRequest) =>
 			this.request('POST', '/auth/forgot-password', Types.tPasswordResetResponse, { data }),
 
@@ -422,47 +378,27 @@ export class ApiClient {
 		// WEBAUTHN ENDPOINTS
 		// ====================================================================
 
-		/**
-		 * GET /auth/wa/reg - List WebAuthn credentials
-		 * @returns List of registered WebAuthn credentials
-		 */
+		/** GET /auth/wa/reg - List WebAuthn credentials */
 		listWebAuthnCredentials: () =>
 			this.request('GET', '/auth/wa/reg', Types.tWebAuthnCredentialList),
 
-		/**
-		 * GET /auth/wa/reg/challenge - Get WebAuthn registration challenge
-		 * @returns Registration options and challenge token
-		 */
+		/** GET /auth/wa/reg/challenge - Get WebAuthn registration challenge */
 		getWebAuthnRegChallenge: () =>
 			this.request('GET', '/auth/wa/reg/challenge', Types.tWebAuthnRegChallengeResult),
 
-		/**
-		 * POST /auth/wa/reg - Register new WebAuthn credential
-		 * @param data - Registration response with token and credential
-		 * @returns Registered credential info
-		 */
+		/** POST /auth/wa/reg - Register new WebAuthn credential */
 		registerWebAuthnCredential: (data: Types.WebAuthnRegisterRequest) =>
 			this.request('POST', '/auth/wa/reg', Types.tWebAuthnCredential, { data }),
 
-		/**
-		 * DELETE /auth/wa/reg/{credentialId} - Delete WebAuthn credential
-		 * @param credentialId - Credential ID to delete
-		 */
+		/** DELETE /auth/wa/reg/{credentialId} - Delete WebAuthn credential */
 		deleteWebAuthnCredential: (credentialId: string) =>
 			this.request('DELETE', `/auth/wa/reg/${encodeURIComponent(credentialId)}`, T.nullValue),
 
-		/**
-		 * GET /auth/wa/login/challenge - Get WebAuthn login challenge (public)
-		 * @returns Authentication options and challenge token
-		 */
+		/** GET /auth/wa/login/challenge - Get WebAuthn login challenge (public) */
 		getWebAuthnLoginChallenge: () =>
 			this.request('GET', '/auth/wa/login/challenge', Types.tWebAuthnLoginChallengeResult),
 
-		/**
-		 * POST /auth/wa/login - Authenticate with WebAuthn
-		 * @param data - Authentication response with token
-		 * @returns Login result with session token
-		 */
+		/** POST /auth/wa/login - Authenticate with WebAuthn */
 		webAuthnLogin: (data: Types.WebAuthnLoginRequest) =>
 			this.request('POST', '/auth/wa/login', Types.tLoginResult, { data }),
 
@@ -470,41 +406,22 @@ export class ApiClient {
 		// API KEY ENDPOINTS
 		// ====================================================================
 
-		/**
-		 * GET /auth/api-keys - List API keys
-		 * @returns List of API keys (without plaintext keys)
-		 */
+		/** GET /auth/api-keys - List API keys */
 		listApiKeys: () => this.request('GET', '/auth/api-keys', Types.tApiKeyList),
 
-		/**
-		 * POST /auth/api-keys - Create new API key
-		 * @param data - API key creation options
-		 * @returns Created API key with plaintext key (shown only once)
-		 */
+		/** POST /auth/api-keys - Create new API key */
 		createApiKey: (data: Types.CreateApiKeyRequest) =>
 			this.request('POST', '/auth/api-keys', Types.tCreateApiKeyResult, { data }),
 
-		/**
-		 * PATCH /auth/api-keys/{keyId} - Update API key (name, scopes)
-		 * @param keyId - Key ID to update
-		 * @param data - Fields to update; omitted fields unchanged, null clears the field
-		 * @returns Updated API key (no plaintext)
-		 */
+		/** PATCH /auth/api-keys/{keyId} - Update API key (name, scopes) */
 		updateApiKey: (keyId: number, data: Types.UpdateApiKeyRequest) =>
 			this.request('PATCH', `/auth/api-keys/${keyId}`, Types.tApiKeyListItem, { data }),
 
-		/**
-		 * DELETE /auth/api-keys/{keyId} - Delete API key
-		 * @param keyId - Key ID to delete
-		 */
+		/** DELETE /auth/api-keys/{keyId} - Delete API key */
 		deleteApiKey: (keyId: number) =>
 			this.request('DELETE', `/auth/api-keys/${keyId}`, T.nullValue),
 
-		/**
-		 * GET /auth/access-token?apiKey=... - Exchange API key for access token (unauthenticated)
-		 * @param apiKey - API key to exchange
-		 * @returns Access token
-		 */
+		/** GET /auth/access-token?apiKey=... - Exchange API key for access token (unauthenticated) */
 		getAccessTokenByApiKey: (apiKey: string) =>
 			this.request('GET', '/auth/access-token', Types.tAccessTokenResult, {
 				query: { apiKey }
@@ -514,19 +431,11 @@ export class ApiClient {
 		// QR LOGIN ENDPOINTS
 		// ====================================================================
 
-		/**
-		 * POST /auth/qr-login/init - Create QR login session
-		 * @returns Login code for QR code
-		 */
+		/** POST /auth/qr-login/init - Create QR login session */
 		initQrLogin: () =>
 			this.request('POST', '/auth/qr-login/init', Types.tQrLoginInitResult, { data: {} }),
 
-		/**
-		 * GET /auth/qr-login/{sessionId}/status - Poll QR login status
-		 * @param sessionId - Session ID
-		 * @param secret - Desktop secret for authentication
-		 * @returns Status and login result when approved
-		 */
+		/** GET /auth/qr-login/{sessionId}/status - Poll QR login status */
 		getQrLoginStatus: (sessionId: string, secret: string) =>
 			this.request(
 				'GET',
@@ -535,11 +444,7 @@ export class ApiClient {
 				{ headers: { 'X-QR-Secret': secret } }
 			),
 
-		/**
-		 * GET /auth/qr-login/{sessionId}/details - Get desktop browser info for approval
-		 * @param sessionId - Session ID
-		 * @returns Browser user agent and IP address
-		 */
+		/** GET /auth/qr-login/{sessionId}/details - Get desktop browser info for approval */
 		getQrLoginDetails: (sessionId: string) =>
 			this.request(
 				'GET',
@@ -547,12 +452,7 @@ export class ApiClient {
 				Types.tQrLoginDetailsResult
 			),
 
-		/**
-		 * POST /auth/qr-login/{sessionId}/respond - Approve or deny QR login
-		 * @param sessionId - Session ID
-		 * @param data - Approval decision
-		 * @returns Response status
-		 */
+		/** POST /auth/qr-login/{sessionId}/respond - Approve or deny QR login */
 		respondQrLogin: (sessionId: string, data: Types.QrLoginRespondRequest) =>
 			this.request(
 				'POST',
@@ -568,45 +468,18 @@ export class ApiClient {
 
 	/** Profile creation endpoints (registration, community creation) */
 	profile = {
-		/**
-		 * POST /profiles/verify - Verify profile identity availability (registration or community)
-		 * @param data - Verification request (type: 'ref' | 'domain' | 'idp')
-		 * @returns Verification result with identity providers and validation errors
-		 */
+		/** POST /profiles/verify - Verify profile identity availability (registration or community) */
 		verify: (data: Types.VerifyProfileRequest) =>
 			this.request('POST', '/profiles/verify', Types.tVerifyProfileResult, { data }),
 
-		/**
-		 * POST /profiles/register - Register new user or create community profile
-		 * @param data - Registration request (includes type: person or community)
-		 * @returns Empty object (user must verify email and set password before logging in)
-		 */
+		/** POST /profiles/register - Register new user or create community profile */
 		register: (data: Types.RegisterRequest) =>
 			this.request('POST', '/profiles/register', Types.tRegisterResult, { data }),
 
-		/**
-		 * GET /profiles/me/idp-status - Live IDP identity status for the active tenant.
-		 *
-		 * Used by the verify-idp gate (personal onboarding) and the community
-		 * activation banner. Backend pulls fresh status from the IDP via the
-		 * standard DNS-discovered federation path, with a short server-side cache
-		 * to absorb polling. When the IDP reports `active`, the same handler also
-		 * advances the tenant's `ui.onboarding` and echoes the new value back as
-		 * `onboarding`.
-		 *
-		 * Errors with `400` if the active tenant is not IDP-typed (e.g. domain
-		 * registration), so callers should only invoke when ui.onboarding is
-		 * 'verify-idp'.
-		 */
+		/** GET /profiles/me/idp-status - Live IDP identity status for the active tenant. */
 		idpStatus: () => this.request('GET', '/profiles/me/idp-status', Types.tIdpStatusResponse),
 
-		/**
-		 * POST /profiles/me/resend-activation - Re-send the IDP activation email.
-		 *
-		 * Returns the **unchanged** original deletion deadline. The IDP is
-		 * required not to bump `Identity.expires_at` on resend — the 24h window
-		 * is fixed at registration time. Past expiry the IDP returns `410 Gone`.
-		 */
+		/** POST /profiles/me/resend-activation - Re-send the IDP activation email. */
 		resendActivation: () =>
 			this.request('POST', '/profiles/me/resend-activation', Types.tResendActivationResponse)
 	}
@@ -617,21 +490,13 @@ export class ApiClient {
 
 	/** Action endpoints */
 	actions = {
-		/**
-		 * GET /actions - List actions
-		 * @param query - Filter and pagination options
-		 * @returns List of actions
-		 */
+		/** GET /actions - List actions */
 		list: (query?: Types.ListActionsQuery) =>
 			this.request('GET', '/actions', Types.tListActionsResult, {
 				query: query as Record<string, string | number | boolean | string[] | undefined>
 			}),
 
-		/**
-		 * GET /actions - List actions with cursor pagination
-		 * @param query - Filter and pagination options (including cursor, limit)
-		 * @returns Actions with cursor pagination info
-		 */
+		/** GET /actions - List actions with cursor pagination */
 		listPaginated: async (query?: Types.ListActionsQuery) => {
 			const result = await this.requestWithMeta('GET', '/actions', Types.tListActionsResult, {
 				query: query as Record<string, string | number | boolean | string[] | undefined>
@@ -642,13 +507,7 @@ export class ApiClient {
 			}
 		},
 
-		/**
-		 * GET /actions?count=true - Aggregate row count for a query.
-		 * Returns a pre-visibility COUNT(*) (see backend note); intended for
-		 * lean unread probes, not exact list-length parity.
-		 * @param query - Filter options (limit/cursor/sort are ignored server-side)
-		 * @returns Number of matching rows
-		 */
+		/** GET /actions?count=true - Aggregate row count for a query. */
 		count: async (query?: Types.ListActionsQuery): Promise<number> => {
 			const result = await this.requestWithMeta('GET', '/actions', Types.tListActionsResult, {
 				query: { ...query, count: true } as Record<
@@ -659,107 +518,59 @@ export class ApiClient {
 			return result.meta.cursorPagination?.count ?? 0
 		},
 
-		/**
-		 * POST /actions - Create action
-		 * @param data - Action data
-		 * @returns Created action
-		 */
+		/** POST /actions - Create action */
 		create: (data: Types.NewAction) =>
 			this.request('POST', '/actions', Types.tActionView, { data }),
 
-		/**
-		 * GET /actions/:actionId - Get single action
-		 * @param actionId - Action ID
-		 * @returns Action details
-		 */
+		/** GET /actions/:actionId - Get single action */
 		get: (actionId: string) => this.request('GET', `/actions/${actionId}`, Types.tActionView),
 
-		/**
-		 * PATCH /actions/:actionId - Update action (draft only)
-		 * @param actionId - Action ID
-		 * @param patch - Patch data
-		 * @returns Updated action
-		 */
+		/** PATCH /actions/:actionId - Update action (draft only) */
 		update: (actionId: string, patch: Types.PatchActionRequest) =>
 			this.request('PATCH', `/actions/${actionId}`, Types.tActionView, {
 				data: patch
 			}),
 
-		/**
-		 * DELETE /actions/:actionId - Delete action
-		 * @param actionId - Action ID
-		 */
+		/** DELETE /actions/:actionId - Delete action */
 		delete: (actionId: string) => this.request('DELETE', `/actions/${actionId}`, T.nullValue),
 
-		/**
-		 * POST /actions/:actionId/accept - Accept action
-		 * @param actionId - Action ID
-		 */
+		/** POST /actions/:actionId/accept - Accept action */
 		accept: (actionId: string) =>
 			this.request('POST', `/actions/${actionId}/accept`, T.nullValue),
 
-		/**
-		 * POST /actions/:actionId/reject - Reject action
-		 * @param actionId - Action ID
-		 */
+		/** POST /actions/:actionId/reject - Reject action */
 		reject: (actionId: string) =>
 			this.request('POST', `/actions/${actionId}/reject`, T.nullValue),
 
-		/**
-		 * POST /actions/:actionId/dismiss - Dismiss notification
-		 * @param actionId - Action ID
-		 */
+		/** POST /actions/:actionId/dismiss - Dismiss notification */
 		dismiss: (actionId: string) =>
 			this.request('POST', `/actions/${actionId}/dismiss`, T.nullValue),
 
-		/**
-		 * POST /actions/:actionId/reaction - Add reaction to action
-		 * @param actionId - Action ID
-		 * @param data - Reaction data
-		 * @returns Reaction ID
-		 */
+		/** POST /actions/:actionId/reaction - Add reaction to action */
 		addReaction: (actionId: string, data: Types.ReactionRequest) =>
 			this.request('POST', `/actions/${actionId}/reaction`, Types.tReactionResponse, {
 				data
 			}),
 
-		/**
-		 * POST /actions/:actionId/publish - Publish a draft action
-		 * @param actionId - Draft action ID
-		 * @param data - Optional publish options (publishAt for scheduled publishing)
-		 * @returns Published action
-		 */
+		/** POST /actions/:actionId/publish - Publish a draft action */
 		publish: (actionId: string, data?: Types.PublishActionRequest) =>
 			this.request('POST', `/actions/${actionId}/publish`, Types.tActionView, {
 				data: data ?? {}
 			}),
 
-		/**
-		 * POST /actions/:actionId/cancel - Cancel a scheduled action (revert to draft)
-		 * @param actionId - Scheduled action ID
-		 * @returns Updated action with status 'R'
-		 */
+		/** POST /actions/:actionId/cancel - Cancel a scheduled action (revert to draft) */
 		cancel: (actionId: string) =>
 			this.request('POST', `/actions/${actionId}/cancel`, Types.tActionView, {
 				data: {}
 			}),
 
-		/**
-		 * PUT /actions/:actionId/subscribe - Set the reader's thread-subscription
-		 * level (actions.sub_level) on the cached root; null clears it.
-		 */
+		/** PUT /actions/:actionId/subscribe - Set the reader's thread-subscription */
 		subscribe: (actionId: string, level: 'W' | 'T' | 'M' | null) =>
 			this.request('PUT', `/actions/${actionId}/subscribe`, T.struct({}), {
 				data: { level }
 			}),
 
-		/**
-		 * PUT /read-marker - Forward-only read watermark on the reader's own node.
-		 * `feed`/`msg` write profiles.feed_read_at / msg_read_at (key = context /
-		 * peer idTag); `thread` writes actions.comments_read_at (key = actionId).
-		 * `position` is supplied as epoch seconds and sent as an ISO 8601 string,
-		 * matching the timestamp convention used across the API.
-		 */
+		/** PUT /read-marker - Forward-only read watermark on the reader's own node. */
 		setReadMarker: (m: { scope: 'feed' | 'msg' | 'thread'; key: string; position: number }) =>
 			this.request('PUT', '/read-marker', T.struct({}), {
 				data: {
@@ -776,21 +587,13 @@ export class ApiClient {
 
 	/** File endpoints */
 	files = {
-		/**
-		 * GET /files - List files
-		 * @param query - Filter and pagination options
-		 * @returns List of files
-		 */
+		/** GET /files - List files */
 		list: (query?: Types.ListFilesQuery) =>
 			this.request('GET', '/files', Types.tListFilesResult, {
 				query: query as Record<string, string | number | boolean | string[] | undefined>
 			}),
 
-		/**
-		 * GET /files - List files with cursor pagination
-		 * @param query - Filter and pagination options (including cursor, limit)
-		 * @returns Files with cursor pagination info
-		 */
+		/** GET /files - List files with cursor pagination */
 		listPaginated: async (query?: Types.ListFilesQuery) => {
 			const result = await this.requestWithMeta('GET', '/files', Types.tListFilesResult, {
 				query: query as Record<string, string | number | boolean | string[] | undefined>
@@ -801,32 +604,7 @@ export class ApiClient {
 			}
 		},
 
-		/**
-		 * POST /files - Create file (metadata-only: CRDT, RTDB, etc.)
-		 *
-		 * Also supports Hand cross-context creation (Pin / Place verbs) when
-		 * `sourceFileId` + `sourceIdTag` are provided. In that case the new
-		 * row in the destination tenant references content owned by the
-		 * source tenant; the destination row's `owner` is the source idTag.
-		 *
-		 * Two-step cross-tenant flow: the source-side share grant is a
-		 * separate call — POST `/files/{sourceFileId}/shares` on the source
-		 * tenant (see `files.createShare`) before this POST. The destination
-		 * request must NOT include any access-level field.
-		 *
-		 * Typed error codes (returned in the error response body's code field):
-		 *   - source_not_found (404)
-		 *   - source_forbidden (403)
-		 *   - source_unreachable (503)
-		 *   - destination_forbidden (403)
-		 *   - cycle_rejected (400)
-		 *   - already_placed (409) — destination already has a row for this file;
-		 *       body.details.existing_parent_id identifies the current parent
-		 *   - access_level_forbidden (400) — request body included accessLevel; remove it
-		 *
-		 * @param data - File creation request
-		 * @returns Created file ID
-		 */
+		/** POST /files - Create file (metadata-only: CRDT, RTDB, etc.) */
 		create: (data: Types.CreateFileRequest) =>
 			this.request('POST', '/files', Types.tCreateFileResult, { data }),
 
@@ -969,11 +747,7 @@ export class ApiClient {
 			})
 		},
 
-		/**
-		 * GET /files/variant/:variantId - Get specific file variant
-		 * @param variantId - Variant ID
-		 * @returns Binary file data
-		 */
+		/** GET /files/variant/:variantId - Get specific file variant */
 		getVariant: (variantId: string) => {
 			const headers: Record<string, string> = {}
 			const authToken = this.getAuthToken()
@@ -985,31 +759,15 @@ export class ApiClient {
 			})
 		},
 
-		/**
-		 * GET /files/:fileId/descriptor - Get file descriptor and variants
-		 * @param fileId - File ID
-		 * @returns File descriptor
-		 */
+		/** GET /files/:fileId/descriptor - Get file descriptor and variants */
 		getDescriptor: (fileId: string) =>
 			this.request('GET', `/files/${fileId}/descriptor`, Types.tFileDescriptor),
 
-		/**
-		 * GET /files/:fileId/metadata — the serving node's own answer about a file, including the
-		 * `accessLevel` it computes for a CROSS-TENANT caller (`get_file_metadata` in
-		 * cloudillo-file/src/handler.rs computes it whenever the file or the caller is cross-tenant).
-		 * The only way to see an 'A' grant inherited from a parent folder rather than granted directly.
-		 * @param fileId - File ID
-		 * @returns File metadata as that node resolves it
-		 */
+		/** GET /files/:fileId/metadata — the serving node's own answer about a file, including the */
 		getMetadata: (fileId: string) =>
 			this.request('GET', `/files/${fileId}/metadata`, Types.tFileView),
 
-		/**
-		 * GET /files/:fileId - Get file (best variant selected)
-		 * @param fileId - File ID
-		 * @param selector - Optional variant selector
-		 * @returns Binary file data
-		 */
+		/** GET /files/:fileId - Get file (best variant selected) */
 		get: (fileId: string, selector?: Types.GetFileVariantSelector) => {
 			const query = selector
 				? Object.entries(selector).reduce(
@@ -1033,63 +791,35 @@ export class ApiClient {
 			})
 		},
 
-		/**
-		 * PATCH /files/:fileId - Update file metadata
-		 * @param fileId - File ID
-		 * @param data - Patch data
-		 * @returns Updated file data
-		 */
+		/** PATCH /files/:fileId - Update file metadata */
 		update: (fileId: string, data: Types.PatchFileRequest) =>
 			this.request('PATCH', `/files/${fileId}`, Types.tPatchFileResult, {
 				data
 			}),
 
-		/**
-		 * DELETE /files/:fileId - Move file to trash (soft delete)
-		 * @param fileId - File ID
-		 * @returns Deleted file result with permanent flag
-		 */
+		/** DELETE /files/:fileId - Move file to trash (soft delete) */
 		delete: (fileId: string) =>
 			this.request('DELETE', `/files/${fileId}`, Types.tDeleteFileResult),
 
-		/**
-		 * DELETE /files/:fileId?permanent=true - Permanently delete file (must be in trash)
-		 * @param fileId - File ID
-		 * @returns Deleted file result
-		 */
+		/** DELETE /files/:fileId?permanent=true - Permanently delete file (must be in trash) */
 		permanentDelete: (fileId: string) =>
 			this.request('DELETE', `/files/${fileId}`, Types.tDeleteFileResult, {
 				query: { permanent: true }
 			}),
 
-		/**
-		 * POST /files/:fileId/restore - Restore file from trash
-		 * @param fileId - File ID
-		 * @param parentId - Optional target folder (null = root)
-		 * @returns Restored file info
-		 */
+		/** POST /files/:fileId/restore - Restore file from trash */
 		restore: (fileId: string, parentId?: string) =>
 			this.request('POST', `/files/${fileId}/restore`, Types.tRestoreFileResult, {
 				data: { parentId }
 			}),
 
-		/**
-		 * POST /files/:fileId/duplicate - Duplicate a CRDT/RTDB file
-		 * @param fileId - File ID
-		 * @param data - Optional fileName and parentId overrides
-		 * @returns New file ID
-		 */
+		/** POST /files/:fileId/duplicate - Duplicate a CRDT/RTDB file */
 		duplicate: (fileId: string, data?: Types.DuplicateFileRequest) =>
 			this.request('POST', `/files/${fileId}/duplicate`, Types.tCreateFileResult, {
 				data: data ?? {}
 			}),
 
-		/**
-		 * PATCH /files/:fileId/user - Update user-specific file data
-		 * @param fileId - File ID
-		 * @param data - User data (pinned, starred)
-		 * @returns Updated user data
-		 */
+		/** PATCH /files/:fileId/user - Update user-specific file data */
 		updateUserData: (fileId: string, data: Types.UpdateFileUserDataRequest) =>
 			this.request('PATCH', `/files/${fileId}/user`, Types.tUpdateFileUserDataResult, {
 				data
@@ -1117,62 +847,33 @@ export class ApiClient {
 				data: { pinned }
 			}),
 
-		/**
-		 * PUT /files/:fileId/tag/:tag - Add tag to file
-		 * @param fileId - File ID
-		 * @param tag - Tag name
-		 * @returns File tags
-		 */
+		/** PUT /files/:fileId/tag/:tag - Add tag to file */
 		addTag: (fileId: string, tag: string) =>
 			this.request('PUT', `/files/${fileId}/tag/${tag}`, Types.tTagResult),
 
-		/**
-		 * DELETE /files/:fileId/tag/:tag - Remove tag from file
-		 * @param fileId - File ID
-		 * @param tag - Tag name
-		 * @returns File tags
-		 */
+		/** DELETE /files/:fileId/tag/:tag - Remove tag from file */
 		removeTag: (fileId: string, tag: string) =>
 			this.request('DELETE', `/files/${fileId}/tag/${tag}`, Types.tTagResult),
 
-		/**
-		 * POST /files/:fileId/refresh - Reconcile a cross-context file row with its source.
-		 *
-		 * Call this after the frontend detects an access-level conflict (e.g. 403 from
-		 * `auth.getAccessToken` for a file scope). The server contacts the source and
-		 * mutates the destination row in place. Returns the updated FileView; check
-		 * `brokenAt`/`brokenReason` and `accessLevel` to decide UX.
-		 *
-		 * @throws FetchError with httpStatus 400 if the file is not cross-context
-		 *         (local-owned files cannot be refreshed). Callers should treat this
-		 *         as "unsupported, fall through to normal error handling".
-		 */
+		/** POST /files/:fileId/refresh - Reconcile a cross-context file row with its source. */
 		refresh: (fileId: string) =>
 			this.request('POST', `/files/${encodeURIComponent(fileId)}/refresh`, Types.tFileView),
 
-		/**
-		 * GET /files/:fileId/shares - List share entries for a file
-		 */
+		/** GET /files/:fileId/shares - List share entries for a file */
 		listShares: (fileId: string) =>
 			this.request('GET', `/files/${fileId}/shares`, Types.tListShareEntriesResult),
 
-		/**
-		 * POST /files/:fileId/shares - Create share entry
-		 */
+		/** POST /files/:fileId/shares - Create share entry */
 		createShare: (fileId: string, data: Types.CreateShareEntryRequest) =>
 			this.request('POST', `/files/${fileId}/shares`, Types.tShareEntry, { data }),
 
-		/**
-		 * PATCH /files/:fileId/shares/:shareId - Update share entry
-		 */
+		/** PATCH /files/:fileId/shares/:shareId - Update share entry */
 		updateShare: (fileId: string, shareId: number, data: Types.UpdateShareEntryRequest) =>
 			this.request('PATCH', `/files/${fileId}/shares/${shareId}`, Types.tShareEntry, {
 				data
 			}),
 
-		/**
-		 * DELETE /files/:fileId/shares/:shareId - Delete share entry
-		 */
+		/** DELETE /files/:fileId/shares/:shareId - Delete share entry */
 		deleteShare: (fileId: string, shareId: number) =>
 			this.request('DELETE', `/files/${fileId}/shares/${shareId}`, T.nullValue)
 	}
@@ -1183,12 +884,7 @@ export class ApiClient {
 
 	/** Share entry query endpoints */
 	shares = {
-		/**
-		 * GET /shares?subject_id={id}[&subject_type=F] - List share entries by subject
-		 * @param subjectId - Subject ID to look up
-		 * @param subjectType - Optional subject type filter (e.g. 'F' for file)
-		 * @returns List of share entries where the given ID is the subject
-		 */
+		/** GET /shares?subject_id={id}[&subject_type=F] - List share entries by subject */
 		listBySubject: (subjectId: string, subjectType?: string) =>
 			this.request('GET', '/shares', Types.tListShareEntriesResult, {
 				query: { subjectId, subjectType }
@@ -1201,19 +897,13 @@ export class ApiClient {
 
 	/** Trash management endpoints */
 	trash = {
-		/**
-		 * GET /files?parentId=__trash__ - List files in trash
-		 * @returns List of trashed files
-		 */
+		/** GET /files?parentId=__trash__ - List files in trash */
 		list: (query?: { limit?: number }) =>
 			this.request('GET', '/files', Types.tListFilesResult, {
 				query: { ...query, parentId: '__trash__' }
 			}),
 
-		/**
-		 * DELETE /trash - Empty trash (permanently delete all trashed files)
-		 * @returns Number of files deleted
-		 */
+		/** DELETE /trash - Empty trash (permanently delete all trashed files) */
 		empty: () => this.request('DELETE', '/trash', Types.tEmptyTrashResult)
 	}
 
@@ -1223,11 +913,7 @@ export class ApiClient {
 
 	/** Tag endpoints */
 	tags = {
-		/**
-		 * GET /tags - List tags
-		 * @param query - Optional filters (prefix, withCounts, limit)
-		 * @returns List of tags with optional counts
-		 */
+		/** GET /tags - List tags */
 		list: (query?: Types.ListTagsQuery) =>
 			this.request('GET', '/tags', Types.tListTagsResult, {
 				query: query as Record<string, string | number | boolean | string[] | undefined>
@@ -1240,142 +926,70 @@ export class ApiClient {
 
 	/** Profile endpoints */
 	profiles = {
-		/**
-		 * GET /me - Get own profile
-		 * @returns Own profile with keys
-		 */
+		/** GET /me - Get own profile */
 		getOwn: () => this.request('GET', '/me', Types.tProfileKeys),
 
 		/** GET /me/app-domain — tenant's public app/web domain (for building share links) */
 		getAppDomain: () => this.request('GET', '/me/app-domain', Types.tAppDomainResult),
 
-		/**
-		 * GET /me/full - Get full own profile
-		 * @returns Full own profile
-		 */
+		/** GET /me/full - Get full own profile */
 		getOwnFull: () => this.request('GET', '/me/full', Types.tProfileKeys),
 
-		/**
-		 * GET /me/full on another node - Get remote profile's full data
-		 * @param idTag - Identity tag of the remote profile
-		 * @returns Full profile from the remote node
-		 */
+		/** GET /me/full on another node - Get remote profile's full data */
 		getRemoteFull: (idTag: string, authToken?: string) =>
 			apiFetchHelper<Types.ProfileKeys, unknown>(idTag, 'GET', '/me/full', {
 				type: Types.tProfileKeys,
 				authToken
 			}),
 
-		/**
-		 * PATCH /me - Update own profile
-		 * @param data - Profile patch
-		 * @returns Updated profile
-		 */
+		/** PATCH /me - Update own profile */
 		updateOwn: (data: Types.ProfilePatch) =>
 			this.request('PATCH', '/me', Types.tUpdateProfileResult, { data }),
 
-		/**
-		 * GET /profiles - List profiles
-		 * @param query - Filter options
-		 * @param opts - `signal` cancels a lookup the caller has moved on from
-		 *   (the omnibox's `@` autocomplete)
-		 * @returns List of profiles
-		 */
+		/** GET /profiles - List profiles */
 		list: (query?: Types.ListProfilesQuery, opts?: { signal?: AbortSignal }) =>
 			this.request('GET', '/profiles', Types.tListProfilesResult, {
 				query: query as Record<string, string | number | boolean | string[] | undefined>,
 				signal: opts?.signal
 			}),
 
-		/**
-		 * GET /profiles/:idTag - Get profile by ID tag (local relationship state)
-		 * @param idTag - Identity tag
-		 * @returns Profile or null if not found locally
-		 */
+		/** GET /profiles/:idTag - Get profile by ID tag (local relationship state) */
 		get: (idTag: string) => this.request('GET', `/profiles/${idTag}`, Types.tOptionalProfile),
 
-		/**
-		 * GET /profiles/batch?idTags=a,b,c - Resolve several profiles at once, in
-		 * the reduced public projection ({@link Types.PublicProfile}).
-		 *
-		 * Unlike every other `/profiles/*` route this one accepts a file-scoped
-		 * token, so a sandboxed app can resolve its collaborators against the
-		 * DOCUMENT's node — the only node guaranteed to know them. Nothing beyond
-		 * the four public fields is ever returned.
-		 *
-		 * The reply is keyed by nothing: idTags this node has not mirrored are
-		 * OMITTED, so the array is not positionally aligned with the request. Key
-		 * the results by `idTag` and negative-cache the misses yourself.
-		 *
-		 * Server caps the request at 64 distinct tags and REJECTS (400) beyond
-		 * that rather than truncating — batch on the caller's side.
-		 *
-		 * @param idTags - Identity tags to resolve (max 64 distinct)
-		 * @param opts - `signal` cancels a lookup the caller has moved on from
-		 */
+		/** GET /profiles/batch?idTags=a,b,c - Resolve several profiles at once, in */
 		getBatch: (idTags: string[], opts?: { signal?: AbortSignal }) =>
 			this.request('GET', '/profiles/batch', Types.tPublicProfileList, {
 				query: { idTags },
 				signal: opts?.signal
 			}),
 
-		/**
-		 * POST /profiles/:idTag/refresh - Force an immediate re-sync of the caller's
-		 * local mirror of `idTag` from its home server, bypassing the scheduled
-		 * staleness/abandonment window. Recovers a federated mirror the periodic
-		 * batch has given up on (e.g. a community whose profile picture was uploaded
-		 * after creation) and pulls newly-changed pictures on demand.
-		 *
-		 * MUST be called on the caller's HOME-server api client (the tenant that
-		 * holds the mirror), not an active community-context client.
-		 *
-		 * @param idTag - Identity tag of the profile to refresh
-		 * @returns The refreshed profile (camelCase ProfileInfo)
-		 */
+		/** POST /profiles/:idTag/refresh - Force an immediate re-sync of the caller's */
 		refresh: (idTag: string) =>
 			this.request('POST', `/profiles/${idTag}/refresh`, Types.tProfileRefreshResult),
 
-		/**
-		 * PATCH /profiles/:idTag - Update profile connection/relationship
-		 * @param idTag - Identity tag
-		 * @param data - Patch data
-		 */
+		/** PATCH /profiles/:idTag - Update profile connection/relationship */
 		updateConnection: (idTag: string, data: Types.PatchProfileConnection) =>
 			this.request('PATCH', `/profiles/${idTag}`, T.struct({}), { data }),
 
-		/**
-		 * PATCH /profiles/:idTag - Set per-profile trust preference for proxy-token use.
-		 * `'always'` = always authenticate on passive reads, `'never'` = never, `null` = clear (ask).
-		 */
+		/** PATCH /profiles/:idTag - Set per-profile trust preference for proxy-token use. */
 		setTrust: (idTag: string, trust: Types.ProfileTrust | null) => {
 			const body: Types.PatchProfileConnection = { trust }
 			return this.request('PATCH', `/profiles/${idTag}`, T.struct({}), { data: body })
 		},
 
-		/**
-		 * PATCH /profiles/:idTag - Per-community "Show in Home" composition toggle.
-		 * `show = true` keeps the community's posts in the merged home feed
-		 * (clears `hidden_in_home`); `show = false` opts it out (sets the flag).
-		 */
+		/** PATCH /profiles/:idTag - Per-community "Show in Home" composition toggle. */
 		setShowInHome: (idTag: string, show: boolean) =>
 			this.request('PATCH', `/profiles/${idTag}`, T.struct({}), {
 				data: { hiddenInHome: !show } satisfies Types.PatchProfileConnection
 			}),
 
-		/**
-		 * GET /profiles?trustSet=true - List profiles that have a non-null trust preference set.
-		 */
+		/** GET /profiles?trustSet=true - List profiles that have a non-null trust preference set. */
 		listTrust: () =>
 			this.request('GET', '/profiles', Types.tListProfilesResult, {
 				query: { trustSet: true }
 			}),
 
-		/**
-		 * PATCH /admin/profiles/:idTag - Admin update profile (roles, status)
-		 * @param idTag - Identity tag
-		 * @param data - Admin profile patch data (name, roles, status)
-		 * @returns Updated profile
-		 */
+		/** PATCH /admin/profiles/:idTag - Admin update profile (roles, status) */
 		adminUpdate: (idTag: string, data: Types.AdminProfilePatch) =>
 			this.request('PATCH', `/admin/profiles/${idTag}`, Types.tUpdateProfileResult, { data })
 	}
@@ -1451,12 +1065,7 @@ export class ApiClient {
 				T.nullValue
 			),
 
-		/**
-		 * POST /address-books/:abId/import - Import a multi-card vCard file.
-		 * Body is the raw .vcf text (text/vcard). Conflicts (matched by UID) are
-		 * resolved per the `conflict` mode: skip / replace / add. Returns counts
-		 * + per-card errors.
-		 */
+		/** POST /address-books/:abId/import - Import a multi-card vCard file. */
 		importContacts: (
 			abId: number,
 			vcard: string,
@@ -1704,115 +1313,29 @@ export class ApiClient {
 	 * their own.
 	 */
 	site = {
-		/**
-		 * GET /sites - The tenant's site record and every document mounted into it.
-		 * @returns The site config. `site` is null when the tenant has never
-		 *   configured one.
-		 */
+		/** GET /sites - The tenant's site record and every document mounted into it. */
 		get: () => this.request('GET', '/sites', Types.tSiteConfig),
 
-		/**
-		 * PATCH /sites - Set or clear the site's explicit main navigation.
-		 *
-		 * Creates the record if the tenant has none, so there is no separate
-		 * "enable site" call. Which document is served where is not settable here —
-		 * the mount endpoints own that, and `docs` is written by publishing.
-		 *
-		 * `nav` has three states, assigned wholesale: omit it to leave the stored
-		 * list alone, pass `null` for the editor's "reset to automatic", after which
-		 * the site derives its navigation from the root container again. Passing `[]`
-		 * means the same thing, since empty is the derive state in storage.
-		 *
-		 * @param data - The fields to change
-		 * @returns The stored config after the write
-		 */
+		/** PATCH /sites - Set or clear the site's explicit main navigation. */
 		update: (data: { nav?: Types.SiteNavItem[] | null }) =>
 			this.request('PATCH', '/sites', Types.tSiteConfig, { data }),
 
-		/**
-		 * GET /sites/pages - Every published page of every mounted document, for the
-		 * navigation editor's target picker.
-		 *
-		 * Read on demand when the picker opens, never cached: the server opens one
-		 * container per *mount* to build it. Paths come back site-absolute, so an
-		 * entry's `path` is exactly what a nav item's `target` should be.
-		 *
-		 * @returns Every page, ordered by mount and then by path
-		 */
+		/** GET /sites/pages - Every published page of every mounted document, for the */
 		pages: () => this.request('GET', '/sites/pages', Types.tSitePagesResult),
 
-		/**
-		 * POST /sites/mounts - Add a document to the site, or move one.
-		 *
-		 * This is what makes a `site_doc` row something the settings page creates
-		 * rather than something publishing creates. It writes the configured
-		 * `mountPath` and nothing else, so it is safe on a document that is already
-		 * serving: the live container keeps being served from the path it was built
-		 * for (`publishedMountPath`) until that document publishes again. That is
-		 * why repathing never breaks a live site — and why the row then reads
-		 * `mountPath !== publishedMountPath` until the next publish.
-		 *
-		 * Same tenant only. Fails when the path is already served by another
-		 * document, and the message names that document.
-		 *
-		 * @param data - The document and the path it is served from
-		 * @returns The stored config after the write
-		 */
+		/** POST /sites/mounts - Add a document to the site, or move one. */
 		mount: (data: Types.SiteMountRequest) =>
 			this.request('POST', '/sites/mounts', Types.tSiteMountResult, { data }),
 
-		/**
-		 * DELETE /sites/mounts - Take a document out of the site.
-		 *
-		 * Allowed even while the document is serving: its two container generations
-		 * simply lose their last reference and the file GC reaps them, exactly as a
-		 * displaced generation is reaped on publish.
-		 *
-		 * @param data - The document to remove
-		 * @returns The stored config after the write
-		 */
+		/** DELETE /sites/mounts - Take a document out of the site. */
 		unmount: (data: Types.SiteUnmountRequest) =>
 			this.request('DELETE', '/sites/mounts', Types.tSiteMountResult, { data }),
 
-		/**
-		 * POST /sites/publish - Commit an already-uploaded container as a
-		 * document's live generation.
-		 *
-		 * The browser builds and uploads; the server commits. Call this only
-		 * after `files.uploadBlob('site', …, { as: 'managed', visibility: 'P' })`
-		 * has returned — the container's bytes are not re-sent here, the server
-		 * reads `_site/manifest.json` back out of the stored blob. The commit
-		 * verifies publish standing, moves the current `publishedFileId` to
-		 * `previousFileId` and installs the new one, all in one transaction, so a
-		 * caller that dies between the upload and this call leaves an orphan file
-		 * for the GC rather than a half-published site.
-		 *
-		 * @param data - The source document and the container uploaded from it
-		 * @returns The `site_doc` row after the generation flip
-		 */
+		/** POST /sites/publish - Commit an already-uploaded container as a */
 		publish: (data: Types.SitePublishRequest) =>
 			this.request('POST', '/sites/publish', Types.tSitePublishResult, { data }),
 
-		/**
-		 * POST /sites/rollback - Put a document's previous container back in
-		 * service.
-		 *
-		 * The swap of `publishedFileId` and `previousFileId` is one statement on the
-		 * server and is symmetric, so calling this twice returns the document to
-		 * where it started. It needs no generator, no container read and no site app
-		 * running, because it is the action reached for precisely when publishing is
-		 * broken; a disabled site can be rolled back too.
-		 *
-		 * Fails when the document has never been published or has been published
-		 * exactly once, because then there is no earlier generation to return to.
-		 *
-		 * `publishedAt` on the answer is restamped by the swap: the column dates
-		 * the generation currently served, not the container, so a previous
-		 * entry's own publish time is not recoverable.
-		 *
-		 * @param data - The document whose two generations are exchanged
-		 * @returns The `site_doc` row after the swap
-		 */
+		/** POST /sites/rollback - Put a document's previous container back in */
 		rollback: (data: Types.SiteRollbackRequest) =>
 			this.request('POST', '/sites/rollback', Types.tSiteRollbackResult, { data })
 	}
@@ -1823,22 +1346,13 @@ export class ApiClient {
 
 	/** Notification endpoints */
 	notifications = {
-		/**
-		 * POST /notifications/subscription - Subscribe to push notifications
-		 * @param data - Push subscription object
-		 */
+		/** POST /notifications/subscription - Subscribe to push notifications */
 		subscribe: (data: { subscription: PushSubscription }) =>
 			this.request('POST', '/notifications/subscription', T.struct({ id: T.number }), {
 				data
 			}),
 
-		/**
-		 * DELETE /notifications/subscription/:id - Remove a push subscription
-		 *
-		 * Takes the numeric id returned by {@link subscribe}, not the browser endpoint URL.
-		 * Without this the browser unsubscribes locally and the server keeps pushing to a dead
-		 * endpoint forever. There is no GET counterpart, so a lost id is unrecoverable.
-		 */
+		/** DELETE /notifications/subscription/:id - Remove a push subscription */
 		unsubscribe: (subscriptionId: number) =>
 			this.request('DELETE', `/notifications/subscription/${subscriptionId}`, T.nullValue)
 	}
@@ -1849,40 +1363,18 @@ export class ApiClient {
 
 	/** Reference endpoints */
 	refs = {
-		/**
-		 * GET /ref - List references
-		 * @param query - Optional type and resourceId filter
-		 * @returns List of references
-		 */
+		/** GET /ref - List references */
 		list: (query?: Types.ListRefsQuery) =>
 			this.request('GET', '/refs', T.array(Types.tRef), { query }),
 
-		/**
-		 * GET /ref/:refId - Get reference details
-		 * @param refId - Reference ID
-		 * @returns Reference details
-		 */
+		/** GET /ref/:refId - Get reference details */
 		get: (refId: string) => this.request('GET', `/refs/${refId}`, Types.tRefResponse),
 
-		/**
-		 * GET /refs/:refId/idp-status - Unauthenticated IDP status lookup
-		 * scoped to a welcome/password ref. Used by the welcome page to gate
-		 * the password-setup form on IDP activation. Returns a synthetic
-		 * `status: 'active'` response for non-IDP-gated tenants so the caller
-		 * can branch unconditionally on `status`.
-		 * @param refId - Reference ID
-		 * @returns IDP status for the tenant that owns the ref
-		 */
+		/** GET /refs/:refId/idp-status - Unauthenticated IDP status lookup */
 		idpStatus: (refId: string) =>
 			this.request('GET', `/refs/${refId}/idp-status`, Types.tIdpStatusResponse),
 
-		/**
-		 * POST /refs/:refId/resend-activation - Unauthenticated resend
-		 * scoped to a welcome/password ref. The IDP returns 410 Gone past
-		 * `Identity.expires_at`; that status bubbles up unchanged.
-		 * @param refId - Reference ID
-		 * @returns New activation deadline (unchanged from initial registration)
-		 */
+		/** POST /refs/:refId/resend-activation - Unauthenticated resend */
 		resendActivation: (refId: string) =>
 			this.request(
 				'POST',
@@ -1890,11 +1382,7 @@ export class ApiClient {
 				Types.tResendActivationResponse
 			),
 
-		/**
-		 * POST /ref - Create reference
-		 * @param data - Reference creation request
-		 * @returns Created reference
-		 */
+		/** POST /ref - Create reference */
 		create: (data: Types.CreateRefRequest) =>
 			this.request('POST', '/refs', Types.tRef, { data }),
 
@@ -1902,11 +1390,7 @@ export class ApiClient {
 		update: (refId: string, data: Types.UpdateRefRequest) =>
 			this.request('PATCH', `/refs/${refId}`, Types.tRef, { data }),
 
-		/**
-		 * DELETE /ref/:refId - Delete reference
-		 * @param refId - Reference ID
-		 * @returns Deleted reference ID
-		 */
+		/** DELETE /ref/:refId - Delete reference */
 		delete: (refId: string) => this.request('DELETE', `/refs/${refId}`, Types.tDeleteRefResult)
 	}
 
@@ -1916,35 +1400,14 @@ export class ApiClient {
 
 	/** Full-text search endpoints */
 	search = {
-		/**
-		 * GET /search - Full-text search across files, document parts, actions
-		 * and profiles.
-		 *
-		 * Results are relevance-ordered, so this endpoint pages with
-		 * `limit`/`offset` rather than the keyset cursor the list endpoints use.
-		 * With a file-scoped token (share link, or an app's own credential) the
-		 * server confines results to that document's tree, whatever `fileId` says.
-		 *
-		 * @param query - Query text plus optional type/document filters
-		 * @param opts - `signal` cancels a query the caller has moved on from
-		 * @returns Ranked hits, most relevant first
-		 */
+		/** GET /search - Full-text search across files, document parts, actions */
 		query: (query: Types.SearchQuery, opts?: { signal?: AbortSignal }) =>
 			this.request('GET', '/search', T.array(Types.tSearchHit), {
 				query: searchQueryParams(query),
 				signal: opts?.signal
 			}),
 
-		/**
-		 * GET /search with the pagination envelope preserved.
-		 *
-		 * `pagination.total` is the only has-more signal for these limit/offset
-		 * pages, and the plain `query` above drops it.
-		 *
-		 * @param query - Query text plus optional type/document filters
-		 * @param opts - `signal` cancels a query the caller has moved on from
-		 * @returns Ranked hits plus the `{ offset, limit, total }` envelope
-		 */
+		/** GET /search with the pagination envelope preserved. */
 		queryPaginated: async (query: Types.SearchQuery, opts?: { signal?: AbortSignal }) => {
 			const result = await this.requestWithMeta('GET', '/search', T.array(Types.tSearchHit), {
 				query: searchQueryParams(query),
@@ -1953,16 +1416,7 @@ export class ApiClient {
 			return { data: result.data, pagination: result.meta.pagination }
 		},
 
-		/**
-		 * POST /search/reindex - Rebuild this tenant's full-text index.
-		 *
-		 * Owner/leader only, scoped to the tenant the request is authenticated
-		 * for — sweeping a community means calling through its proxy token.
-		 *
-		 * Fire-and-forget: the server queues a scheduler task and answers 202.
-		 * `taskId` only identifies the run in the server log; there is no endpoint
-		 * to poll it. Repeated calls coalesce into one pending sweep per tenant.
-		 */
+		/** POST /search/reindex - Rebuild this tenant's full-text index. */
 		reindex: () => this.request('POST', '/search/reindex', Types.tReindexResult)
 	}
 
@@ -1972,13 +1426,7 @@ export class ApiClient {
 
 	/** Onboarding wizard endpoints */
 	onboarding = {
-		/**
-		 * POST /onboarding/complete - Finish the reversible onboarding wizard.
-		 * Consumes the welcome ref (left intact by set-password) so the link is
-		 * retired. Authenticated; the backend verifies the ref belongs to the
-		 * caller. Idempotent — an already-consumed ref still resolves success.
-		 * @param data - The captured welcome refId
-		 */
+		/** POST /onboarding/complete - Finish the reversible onboarding wizard. */
 		complete: (data: Types.OnboardingCompleteRequest) =>
 			this.request('POST', '/onboarding/complete', T.nullValue, { data })
 	}
@@ -1989,21 +1437,13 @@ export class ApiClient {
 
 	/** Identity Provider endpoints */
 	idp = {
-		/**
-		 * GET /idp/info on a remote provider - Get provider public info
-		 * @param providerDomain - The domain of the identity provider
-		 * @returns Provider info (name, info text, optional URL)
-		 */
+		/** GET /idp/info on a remote provider - Get provider public info */
 		getInfo: (providerDomain: string) =>
 			apiFetchHelper<Types.IdpInfo, unknown>(providerDomain, 'GET', '/idp/info', {
 				type: Types.tIdpInfo
 			}),
 
-		/**
-		 * POST /idp/activate - Activate an identity using a ref token
-		 * @param data - Activation request with refId
-		 * @returns Activation result with identity status
-		 */
+		/** POST /idp/activate - Activate an identity using a ref token */
 		activate: (data: Types.IdpActivateRequest) =>
 			this.request('POST', '/idp/activate', Types.tIdpActivateResult, { data })
 	}
@@ -2014,45 +1454,25 @@ export class ApiClient {
 
 	/** IDP Management endpoints for identity provider administrators */
 	idpManagement = {
-		/**
-		 * GET /idp/identities - List identities managed by this IDP
-		 * @param query - Filter and pagination options (q, status, cursor, limit)
-		 * @returns List of identities
-		 */
+		/** GET /idp/identities - List identities managed by this IDP */
 		listIdentities: (query?: Types.ListIdpIdentitiesQuery) =>
 			this.request('GET', '/idp/identities', Types.tIdpIdentityList, {
 				query: query as Record<string, string | number | boolean | undefined>
 			}),
 
-		/**
-		 * POST /idp/identities - Create new identity
-		 * @param data - Identity creation data (idTag, email, ownerIdTag?, createApiKey?, apiKeyName?)
-		 * @returns Created identity (with apiKey field if API key was created)
-		 */
+		/** POST /idp/identities - Create new identity */
 		createIdentity: (data: Types.CreateIdpIdentityRequest) =>
 			this.request('POST', '/idp/identities', Types.tIdpCreateIdentityResult, { data }),
 
-		/**
-		 * GET /idp/identities/{idTag} - Get identity details
-		 * @param idTag - Identity tag (e.g., "alice.cloudillo.net")
-		 * @returns Identity details
-		 */
+		/** GET /idp/identities/{idTag} - Get identity details */
 		getIdentity: (idTag: string) =>
 			this.request('GET', `/idp/identities/${encodeURIComponent(idTag)}`, Types.tIdpIdentity),
 
-		/**
-		 * DELETE /idp/identities/{idTag} - Delete identity
-		 * @param idTag - Identity tag (e.g., "alice.cloudillo.net")
-		 */
+		/** DELETE /idp/identities/{idTag} - Delete identity */
 		deleteIdentity: (idTag: string) =>
 			this.request('DELETE', `/idp/identities/${encodeURIComponent(idTag)}`, T.nullValue),
 
-		/**
-		 * PATCH /idp/identities/{idTag} - Update identity settings
-		 * @param idTag - Identity tag (e.g., "alice.cloudillo.net")
-		 * @param data - Settings to update (dyndns)
-		 * @returns Updated identity
-		 */
+		/** PATCH /idp/identities/{idTag} - Update identity settings */
 		updateIdentity: (idTag: string, data: { dyndns?: boolean }) =>
 			this.request(
 				'PATCH',
@@ -2061,29 +1481,17 @@ export class ApiClient {
 				{ data }
 			),
 
-		/**
-		 * GET /idp/api-keys - List API keys for a specified identity
-		 * @param idTag - Identity tag to list API keys for (e.g., "alice.cloudillo.net")
-		 * @returns List of API keys (without plaintext keys)
-		 */
+		/** GET /idp/api-keys - List API keys for a specified identity */
 		listApiKeys: (idTag: string) =>
 			this.request('GET', '/idp/api-keys', Types.tIdpApiKeyList, {
 				query: { idTag }
 			}),
 
-		/**
-		 * POST /idp/api-keys - Create API key for a specified identity
-		 * @param data - API key creation request (idTag, name?, expiresAt?)
-		 * @returns Created API key with plaintext key (shown only once)
-		 */
+		/** POST /idp/api-keys - Create API key for a specified identity */
 		createApiKey: (data: Types.CreateIdpApiKeyRequest) =>
 			this.request('POST', '/idp/api-keys', Types.tIdpCreateApiKeyResult, { data }),
 
-		/**
-		 * DELETE /idp/api-keys/{keyId} - Revoke API key
-		 * @param keyId - Key ID to revoke
-		 * @param idTag - Identity tag the key belongs to (e.g., "alice.cloudillo.net")
-		 */
+		/** DELETE /idp/api-keys/{keyId} - Revoke API key */
 		deleteApiKey: (keyId: number, idTag: string) =>
 			this.request('DELETE', `/idp/api-keys/${keyId}`, T.nullValue, {
 				query: { idTag }
@@ -2096,21 +1504,11 @@ export class ApiClient {
 
 	/** Community management endpoints */
 	communities = {
-		/**
-		 * PUT /profiles/{id_tag} - Create community profile
-		 * @param idTag - Community identity tag to create
-		 * @param data - Community creation request
-		 * @returns Created community profile
-		 */
+		/** PUT /profiles/{id_tag} - Create community profile */
 		create: (idTag: string, data: Types.CreateCommunityRequest) =>
 			this.request('PUT', `/profiles/${idTag}`, Types.tCommunityProfileResponse, { data }),
 
-		/**
-		 * POST /profiles/verify - Verify community identity availability
-		 * @deprecated Use profile.verify() instead
-		 * @param data - Verification request
-		 * @returns Verification result with errors and server addresses
-		 */
+		/** POST /profiles/verify - Verify community identity availability */
 		verify: (data: Types.VerifyCommunityRequest) =>
 			this.request('POST', '/profiles/verify', Types.tCommunityVerifyResult, { data })
 	}
@@ -2121,21 +1519,13 @@ export class ApiClient {
 
 	/** Admin endpoints for system administration */
 	admin = {
-		/**
-		 * GET /admin/tenants - List all tenants
-		 * @param query - Optional filter query
-		 * @returns List of tenants with combined auth and meta data
-		 */
+		/** GET /admin/tenants - List all tenants */
 		listTenants: (query?: Types.ListTenantsQuery) =>
 			this.request('GET', '/admin/tenants', Types.tListTenantsResult, {
 				query: query as Record<string, string | number | boolean | undefined>
 			}),
 
-		/**
-		 * POST /admin/tenants/:idTag/password-reset - Send password reset email
-		 * @param idTag - Identity tag of the tenant
-		 * @returns Password reset response message
-		 */
+		/** POST /admin/tenants/:idTag/password-reset - Send password reset email */
 		sendPasswordReset: (idTag: string) =>
 			this.request(
 				'POST',
@@ -2143,12 +1533,7 @@ export class ApiClient {
 				Types.tPasswordResetResponse
 			),
 
-		/**
-		 * POST /admin/tenants/:idTag/purge - Permanently delete a tenant and all its data.
-		 * @param idTag - Identity tag of the tenant
-		 * @param data - Confirmation body; `confirmIdTag` must equal `idTag`
-		 * @returns Purge result with blob count
-		 */
+		/** POST /admin/tenants/:idTag/purge - Permanently delete a tenant and all its data. */
 		purgeTenant: (idTag: string, data: { confirmIdTag: string }) =>
 			this.request(
 				'POST',
@@ -2159,74 +1544,35 @@ export class ApiClient {
 				}
 			),
 
-		/**
-		 * POST /admin/email/test - Send a test email to verify SMTP configuration
-		 * @param to - Recipient email address
-		 * @returns success flag plus a human-readable status message; non-2xx
-		 *   responses (SMTP not configured, send failed, etc.) flow through the
-		 *   standard error path with structured ErrorResponse codes.
-		 */
+		/** POST /admin/email/test - Send a test email to verify SMTP configuration */
 		sendTestEmail: (to: string) =>
 			this.request('POST', '/admin/email/test', Types.tTestEmailResult, { data: { to } }),
 
-		/**
-		 * POST /admin/db-maintenance - Compact the search index and reclaim
-		 * unused disk space.
-		 *
-		 * SADM only, and whole-node rather than per tenant: the metadata database
-		 * is one file and both full-text indexes span every tenant.
-		 *
-		 * Fire-and-forget: the server queues a scheduler task and answers 202.
-		 * Nothing polls `taskId` — the outcome arrives as a `DB_MAINTENANCE_DONE`
-		 * message on the WS bus.
-		 */
+		/** POST /admin/db-maintenance - Compact the search index and reclaim */
 		dbMaintenance: () =>
 			this.request('POST', '/admin/db-maintenance', Types.tDbMaintenanceResult),
 
-		/**
-		 * GET /admin/proxy-sites - List all proxy sites
-		 * @returns List of proxy site configurations
-		 */
+		/** GET /admin/proxy-sites - List all proxy sites */
 		listProxySites: () =>
 			this.request('GET', '/admin/proxy-sites', Types.tListProxySitesResult),
 
-		/**
-		 * POST /admin/proxy-sites - Create a new proxy site
-		 * @param data - Proxy site configuration
-		 * @returns Created proxy site data
-		 */
+		/** POST /admin/proxy-sites - Create a new proxy site */
 		createProxySite: (data: Types.CreateProxySiteRequest) =>
 			this.request('POST', '/admin/proxy-sites', Types.tProxySiteData, { data }),
 
-		/**
-		 * GET /admin/proxy-sites/:siteId - Get a proxy site by ID
-		 * @param siteId - Proxy site ID
-		 * @returns Proxy site data
-		 */
+		/** GET /admin/proxy-sites/:siteId - Get a proxy site by ID */
 		getProxySite: (siteId: number) =>
 			this.request('GET', `/admin/proxy-sites/${siteId}`, Types.tProxySiteData),
 
-		/**
-		 * PATCH /admin/proxy-sites/:siteId - Update a proxy site
-		 * @param siteId - Proxy site ID
-		 * @param data - Fields to update
-		 * @returns Updated proxy site data
-		 */
+		/** PATCH /admin/proxy-sites/:siteId - Update a proxy site */
 		updateProxySite: (siteId: number, data: Types.UpdateProxySiteRequest) =>
 			this.request('PATCH', `/admin/proxy-sites/${siteId}`, Types.tProxySiteData, { data }),
 
-		/**
-		 * DELETE /admin/proxy-sites/:siteId - Delete a proxy site
-		 * @param siteId - Proxy site ID
-		 */
+		/** DELETE /admin/proxy-sites/:siteId - Delete a proxy site */
 		deleteProxySite: (siteId: number) =>
 			this.request('DELETE', `/admin/proxy-sites/${siteId}`, Types.tDeleteProxySiteResult),
 
-		/**
-		 * POST /admin/proxy-sites/:siteId/renew-cert - Trigger certificate renewal
-		 * @param siteId - Proxy site ID
-		 * @returns Renewal result
-		 */
+		/** POST /admin/proxy-sites/:siteId/renew-cert - Trigger certificate renewal */
 		renewProxySiteCert: (siteId: number) =>
 			this.request(
 				'POST',
@@ -2234,11 +1580,7 @@ export class ApiClient {
 				Types.tRenewProxySiteCertResult
 			),
 
-		/**
-		 * POST /admin/invite-community - Send community creation invite to a connected user
-		 * @param data - Target user idTag, optional message and expiration
-		 * @returns Invite result with refId and invite URL
-		 */
+		/** POST /admin/invite-community - Send community creation invite to a connected user */
 		inviteCommunity: (data: Types.InviteCommunityRequest) =>
 			this.request('POST', '/admin/invite-community', Types.tInviteCommunityResult, { data })
 	}

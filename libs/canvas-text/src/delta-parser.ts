@@ -131,32 +131,4 @@ export function deltaToLines(ops: DeltaOp[]): TextLine[] {
 	return lines
 }
 
-/**
- * Convert Y.Text content to Delta ops.
- * Y.Text.toDelta() returns Delta-compatible operations.
- */
-export function yTextToDelta(yText: { toDelta(): DeltaOp[] }): DeltaOp[] {
-	return yText.toDelta()
-}
-
-/**
- * Convert plain text string to Delta ops (for migration from plain text)
- */
-export function plainTextToDelta(text: string): DeltaOp[] {
-	if (!text) return [{ insert: '\n' }]
-	// Ensure text ends with newline (Quill convention)
-	const normalized = text.endsWith('\n') ? text : text + '\n'
-	return [{ insert: normalized }]
-}
-
-/**
- * Get plain text from Delta ops (for display/measurement fallback)
- */
-export function deltaToPlainText(ops: DeltaOp[]): string {
-	return ops
-		.map((op) => (typeof op.insert === 'string' ? op.insert : ''))
-		.join('')
-		.replace(/\n$/, '') // Remove trailing newline
-}
-
 // vim: ts=4

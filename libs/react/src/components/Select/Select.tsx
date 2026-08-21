@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import debounce from 'debounce'
 import { useCombobox } from 'downshift'
 import * as React from 'react'
 import { createPortal } from 'react-dom'
@@ -34,12 +33,24 @@ export function Select<T>({
 	const [popperEl, setPopperEl] = React.useState<HTMLUListElement | null>(null)
 	const [items, setItems] = React.useState<T[]>([])
 
-	const deboucedOnInputValueChange = React.useCallback(
-		debounce(async function onInputValueChange({ inputValue }: { inputValue?: string }) {
+	// Trailing-edge 500ms debounce of the async data fetch.
+	// The generation counter drops superseded invocations — both the debounced wait
+	// and an in-flight fetch whose response comes back out of order.
+	const timerRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+	const genRef = React.useRef(0)
+	const debouncedOnInputValueChange = React.useCallback(
+		async ({ inputValue }: { inputValue?: string }) => {
+			// Superseded runs are discarded by the generation counter below, NOT by
+			// clearing the timer here: that would leave the previous invocation parked
+			// forever on a promise only its own timer could resolve.
+			const gen = ++genRef.current
+			await new Promise((resolve) => (timerRef.current = setTimeout(resolve, 500)))
+			if (gen !== genRef.current) return
 			const data = await getData(inputValue || '')
+			if (gen !== genRef.current) return
 			setItems(data || [])
-		}, 500),
-		[]
+		},
+		[getData]
 	)
 
 	let _tmpRef: React.MutableRefObject<HTMLUListElement> | undefined
@@ -60,7 +71,7 @@ export function Select<T>({
 		})
 	}, [items, itemToId])
 	const s = useCombobox({
-		onInputValueChange: (arg) => deboucedOnInputValueChange(arg),
+		onInputValueChange: (arg) => debouncedOnInputValueChange(arg),
 		items: uniqueItems,
 		itemToString,
 		onSelectedItemChange: ({ selectedItem }) => {
@@ -72,7 +83,7 @@ export function Select<T>({
 
 	React.useEffect(function effect() {
 		return function cleanup() {
-			deboucedOnInputValueChange.clear()
+			clearTimeout(timerRef.current)
 		}
 	}, [])
 

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { randomId } from '@cloudillo/core'
 import { atom, useAtomValue, useSetAtom } from 'jotai'
 import * as React from 'react'
 
@@ -37,9 +38,8 @@ export interface UseToastReturn {
 }
 
 // Generate unique IDs
-let toastCounter = 0
 function generateToastId(): string {
-	return `toast-${++toastCounter}-${Date.now()}`
+	return `toast-${randomId(9)}`
 }
 
 // Global toast state

@@ -8,13 +8,13 @@
 import type { Bounds } from 'react-svg-canvas'
 
 /** Arc radius min as percentage of viewport min dimension */
-export const ARC_RADIUS_MIN_VIEWPORT_RATIO = 0.1
+const ARC_RADIUS_MIN_VIEWPORT_RATIO = 0.1
 
 /** Arc radius max as percentage of viewport min dimension */
-export const ARC_RADIUS_MAX_VIEWPORT_RATIO = 0.35
+const ARC_RADIUS_MAX_VIEWPORT_RATIO = 0.35
 
 /** Default arc padding in screen pixels */
-export const DEFAULT_ARC_PADDING = 25
+const DEFAULT_ARC_PADDING = 25
 
 export interface CalculateArcRadiusOptions {
 	/** Object bounds in canvas coordinates */

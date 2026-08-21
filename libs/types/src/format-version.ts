@@ -12,9 +12,6 @@
  * registrations with one comparison and refuse an older client's overwrite.
  */
 
-/** Largest encodable version, `'999.999.999'`. */
-export const FORMAT_VERSION_MAX = 999_999_999
-
 /**
  * Three components, each `0..=999`, no leading zeros. Deliberately narrow: it rejects
  * `'2.1'`, `'2.1.1000'`, `'v2.1.0'`, `'2.1.0-beta'` and `'02.1.0'` — the last so two
@@ -37,16 +34,6 @@ export function encodeFormatVersion(version: string): number {
 		)
 	}
 	return Number(m[1]) * 1_000_000 + Number(m[2]) * 1_000 + Number(m[3])
-}
-
-/** Inverse of {@link encodeFormatVersion}, for logs and debug views. */
-export function decodeFormatVersion(encoded: number): string {
-	if (!Number.isInteger(encoded) || encoded < 0 || encoded > FORMAT_VERSION_MAX) {
-		throw new Error(`Invalid encoded formatVersion ${encoded}`)
-	}
-	const major = Math.floor(encoded / 1_000_000)
-	const minor = Math.floor(encoded / 1_000) % 1_000
-	return `${major}.${minor}.${encoded % 1_000}`
 }
 
 // vim: ts=4

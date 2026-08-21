@@ -87,8 +87,4 @@ export function createDocumentFromEvent(event: ChangeEvent): DocumentSnapshot {
 	return new DocumentSnapshotImpl(id, true, event.data as Record<string, unknown>)
 }
 
-export function delay(ms: number): Promise<void> {
-	return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
 // vim: ts=4

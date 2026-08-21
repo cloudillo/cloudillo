@@ -6,14 +6,10 @@ import { FcdContent } from './FcdContent.js'
 import { FcdDetails } from './FcdDetails.js'
 import { FcdFilter } from './FcdFilter.js'
 
-export type { FcdContainerProps, FcdDetailsMode } from './FcdContainer.js'
-export { FcdContainer } from './FcdContainer.js'
-export type { FcdContentProps } from './FcdContent.js'
-export { FcdContent } from './FcdContent.js'
-export type { FcdDetailsProps } from './FcdDetails.js'
-export { FcdDetails } from './FcdDetails.js'
-export type { FcdFilterProps } from './FcdFilter.js'
-export { FcdFilter } from './FcdFilter.js'
+export * from './FcdContainer.js'
+export * from './FcdContent.js'
+export * from './FcdDetails.js'
+export * from './FcdFilter.js'
 
 // Compound export for backward compatibility
 export const Fcd = {

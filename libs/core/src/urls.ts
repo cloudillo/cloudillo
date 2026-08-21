@@ -111,18 +111,6 @@ export function getMessageBusUrl(idTag: string, token: string): string {
 }
 
 /**
- * Generate a store file ID for an app.
- * Store files (`s~{appId}`) are auto-created by the server on first
- * CRDT or RTDB WebSocket connection.
- *
- * @param appId - App identifier (e.g., "taskillo", "notillo")
- * @returns Store file ID like "s~taskillo"
- */
-export function getStoreFileId(appId: string): string {
-	return `s~${appId}`
-}
-
-/**
  * Generate a meta database ID for a document.
  * Meta databases (`{fileId}~meta`) store comments and other metadata
  * separate from the document content. They are auto-created by the server

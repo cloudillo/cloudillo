@@ -61,6 +61,9 @@ export { ColorInput } from './ColorInput/index.js'
 export type { ContainerProps } from './Container/index.js'
 // Container Component
 export { Container } from './Container/index.js'
+export type { CopyButtonProps } from './CopyButton/index.js'
+// CopyButton Component
+export { CopyButton } from './CopyButton/index.js'
 export type { DateTimePickerProps } from './DateTimePicker/index.js'
 // DateTimePicker Component
 export { DateTimePicker } from './DateTimePicker/index.js'
@@ -131,9 +134,7 @@ export type {
 } from './Form/index.js'
 // Form Components
 export { Fieldset, Input, InputGroup, NativeSelect, TextArea, Toggle } from './Form/index.js'
-export type { FormattedTextProps } from './formatted-text.js'
-// Formatted text (links, hashtags, emoji)
-export { FormattedText, generateFragments } from './formatted-text.js'
+export { generateFragments } from './formatted-text.js'
 export type { HighlightProps } from './Highlight/index.js'
 // Highlight Component
 export { Highlight } from './Highlight/index.js'
@@ -147,7 +148,6 @@ export {
 	useEscapeKey,
 	useIsDesktop,
 	useIsMobile,
-	useMediaQuery,
 	useMenuKeyboard,
 	useMergedRefs,
 	useOutsideClick,
@@ -278,9 +278,6 @@ export { Tab, Tabs, TabsContext } from './Tab/index.js'
 export type { TagListProps, TagProps } from './Tag/index.js'
 // Tag Components
 export { Tag, TagList } from './Tag/index.js'
-export type { TagInputProps, TagSuggestion } from './TagInput/index.js'
-// TagInput Component
-export { TagInput } from './TagInput/index.js'
 export type { TimeFormatProps } from './TimeFormat/index.js'
 // TimeFormat Component
 export { TimeFormat } from './TimeFormat/index.js'
@@ -310,14 +307,12 @@ export {
 	ToastClose,
 	ToastContainer,
 	ToastContent,
-	ToastContext,
 	ToastIcon,
 	ToastMessage,
 	ToastProgress,
 	Toasts,
 	ToastTitle,
 	useToast,
-	useToastContext,
 	useToasts
 } from './Toast/index.js'
 export type {
@@ -335,13 +330,11 @@ export { TreeItem, TreeView } from './TreeView/index.js'
 export type * from './types.js'
 // Utilities
 export {
-	avatarSizeClass,
 	buttonSizeClass,
 	createComponent,
 	mergeClasses,
 	polyRef,
-	resolveDefaultExport,
-	useId
+	resolveDefaultExport
 } from './utils.js'
 export type { ZoomableImageProps } from './ZoomableImage/index.js'
 // ZoomableImage Component

@@ -1,9 +1,12 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 import type { FontPairing } from './types.js'
 
 /**
  * Curated font pairings - heading + body combinations that work well together
  */
-export const FONT_PAIRINGS: FontPairing[] = [
+const FONT_PAIRINGS: FontPairing[] = [
 	{
 		id: 'modern-professional',
 		name: 'Modern Professional',
@@ -75,20 +78,6 @@ export const FONT_PAIRINGS: FontPairing[] = [
 		description: 'Cohesive DM family pairing with serif headings'
 	}
 ]
-
-/**
- * Get pairing by ID
- */
-export function getPairingById(id: string): FontPairing | undefined {
-	return FONT_PAIRINGS.find((p) => p.id === id)
-}
-
-/**
- * Get pairings that use a specific font
- */
-export function getPairingsForFont(fontFamily: string): FontPairing[] {
-	return FONT_PAIRINGS.filter((p) => p.heading === fontFamily || p.body === fontFamily)
-}
 
 /**
  * Get suggested body fonts for a given heading font

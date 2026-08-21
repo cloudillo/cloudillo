@@ -56,18 +56,14 @@ export interface ApiFetchResult<R> {
 export function qs(
 	obj: Record<string, string | number | boolean | string[] | number[] | undefined>
 ) {
-	const str: string[] = []
+	const p = new URLSearchParams()
 	for (const f in obj) {
 		const val = obj[f]
 		if (Object.hasOwn(obj, f) && val !== undefined) {
-			str.push(
-				encodeURIComponent(f) +
-					'=' +
-					encodeURIComponent(Array.isArray(val) ? val.join(',') : val)
-			)
+			p.set(f, Array.isArray(val) ? val.join(',') : String(val))
 		}
 	}
-	return str.join('&')
+	return p.toString()
 }
 
 export function parseQS(qs: string) {

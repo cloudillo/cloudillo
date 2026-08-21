@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { CollectionReference } from '../collection'
 import { DocumentReference } from '../document'
 import type { ChangeEvent, DocumentSnapshot, TransactionMessage } from '../types'
+import { appendValues, increment } from '../types'
 import { WebSocketManager } from '../websocket'
 
 jest.mock('../websocket')
@@ -133,14 +134,14 @@ describe('DocumentReference', () => {
 			})
 
 			await docRef.update({
-				counter: { $op: 'increment', by: 5 },
-				tags: { $op: 'append', values: ['new-tag'] }
+				counter: increment(5),
+				tags: appendValues(['new-tag'])
 			})
 
 			const message = mockWs.send.mock.calls[0][0] as unknown as TransactionMessage
 			const data = message.operations[0].data as Record<string, Record<string, unknown>>
-			expect(data.counter.$op).toBe('increment')
-			expect(data.tags.$op).toBe('append')
+			expect(data.counter).toEqual({ $op: 'increment', by: 5 })
+			expect(data.tags).toEqual({ $op: 'append', values: ['new-tag'] })
 		})
 	})
 

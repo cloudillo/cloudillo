@@ -16,12 +16,7 @@
 import { Awareness } from 'y-protocols/awareness'
 import * as Y from 'yjs'
 
-import {
-	awarenessPresenceFeed,
-	initPresence,
-	readPresenceUsers,
-	subscribePresence
-} from '../presence.js'
+import { awarenessPresenceFeed, initPresence } from '../presence.js'
 
 const ME = '@me.example.com'
 const ALICE = '@alice.example.com'
@@ -42,63 +37,6 @@ function makeAwareness() {
 	}
 	return { awareness, setRemote }
 }
-
-describe('readPresenceUsers', () => {
-	// `connId` is what the shared core keys, colours and tie-breaks on; `clientId`
-	// is the numeric id this transport actually has. They must stay in step, or a
-	// Yjs peer's colour would change the moment the shared code touched it.
-	it('reports the client id as both connId and clientId', () => {
-		const { awareness, setRemote } = makeAwareness()
-		setRemote(101, { user: { name: 'Alice', idTag: ALICE } })
-
-		const entry = readPresenceUsers(awareness)[0]
-		expect(entry.clientId).toBe(101)
-		expect(entry.connId).toBe('101')
-	})
-
-	it('passes hostile awareness states through to the shared reader without throwing', () => {
-		const { awareness, setRemote } = makeAwareness()
-		setRemote(101, null)
-		setRemote(102, 'not an object')
-		setRemote(103, {})
-		setRemote(104, { user: null })
-		setRemote(105, { user: 'a string' })
-		setRemote(106, { user: { name: 42, idTag: { nested: true } } })
-		setRemote(107, { user: { name: '   ' } })
-		setRemote(108, { user: { name: 'Alice', idTag: ALICE } })
-
-		let users: ReturnType<typeof readPresenceUsers> = []
-		expect(() => {
-			users = readPresenceUsers(awareness)
-		}).not.toThrow()
-
-		// States 106-107 survive as nameless anonymous entries; 101-105 have no
-		// `user` field at all and are dropped.
-		expect(users.filter((u) => u.idTag === ALICE)).toHaveLength(1)
-		expect(users.every((u) => typeof u.name === 'string')).toBe(true)
-		expect(users.every((u) => typeof u.hue === 'number')).toBe(true)
-		expect(users.some((u) => u.idTag !== undefined && typeof u.idTag !== 'string')).toBe(false)
-	})
-})
-
-describe('subscribePresence', () => {
-	it('fires immediately and on every change, and stops after unsubscribe', () => {
-		const { awareness } = makeAwareness()
-		const seen: number[] = []
-		const unsubscribe = subscribePresence(awareness, (users) => seen.push(users.length))
-
-		expect(seen).toEqual([0])
-
-		initPresence(awareness, { idTag: ME, authenticated: true })
-		expect(seen.length).toBeGreaterThan(1)
-		expect(seen[seen.length - 1]).toBe(1)
-
-		const countAtUnsubscribe = seen.length
-		unsubscribe()
-		awareness.setLocalStateField('user', { name: 'Changed', idTag: ME })
-		expect(seen).toHaveLength(countAtUnsubscribe)
-	})
-})
 
 describe('awarenessPresenceFeed', () => {
 	// The feed emits one entry PER CONNECTION, not the deduplicated roster:

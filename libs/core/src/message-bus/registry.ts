@@ -78,318 +78,77 @@ import {
 // ACCESS RULE TYPES
 // ============================================
 
-export interface MessageAccessRule {
-	directions: MessageDirection[]
-	requiresAuth: boolean
+export type MessageAccessRule = readonly [
+	direction: MessageDirection,
+	requiresAuth: boolean,
 	validator: unknown
-}
+]
 
 // ============================================
 // MESSAGE REGISTRY
 // ============================================
 
 export const MESSAGE_REGISTRY: Record<MessageType, MessageAccessRule> = {
-	'auth:init.req': {
-		directions: ['app>shell'],
-		requiresAuth: false,
-		validator: tAuthInitReq
-	},
-	'auth:init.res': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tAuthInitRes
-	},
-	'auth:init.push': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tAuthInitPush
-	},
-	'auth:token.refresh.req': {
-		directions: ['app>shell'],
-		requiresAuth: true,
-		validator: tAuthTokenRefreshReq
-	},
-	'auth:token.refresh.res': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tAuthTokenRefreshRes
-	},
-	'auth:token.push': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tAuthTokenPush
-	},
-	'app:ready.notify': {
-		directions: ['app>shell'],
-		requiresAuth: false, // Allow before full auth to signal early stages
-		validator: tAppReadyNotify
-	},
-	'app:error.notify': {
-		directions: ['app>shell'],
-		requiresAuth: false,
-		validator: tAppErrorNotify
-	},
-	'app:title.push': {
-		directions: ['app>shell'],
-		requiresAuth: false,
-		validator: tAppTitlePush
-	},
-	'storage:op.req': {
-		directions: ['app>shell'],
-		requiresAuth: true,
-		validator: tStorageOpReq
-	},
-	'storage:op.res': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tStorageOpRes
-	},
-	'media:pick.req': {
-		directions: ['app>shell'],
-		requiresAuth: true,
-		validator: tMediaPickReq
-	},
-	'media:pick.ack': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tMediaPickAck
-	},
-	'media:pick.result': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tMediaPickResultPush
-	},
-	'media:pick.res': {
-		// Deprecated - kept for backwards compatibility
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tMediaPickRes
-	},
-	'media:file.resolved': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tMediaFileResolvedPush
-	},
-	'doc:pick.req': {
-		directions: ['app>shell'],
-		requiresAuth: true,
-		validator: tDocPickReq
-	},
-	'doc:pick.ack': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tDocPickAck
-	},
-	'doc:pick.result': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tDocPickResultPush
-	},
-	'doc:info.req': {
-		directions: ['app>shell'],
-		requiresAuth: true,
-		validator: tDocInfoReq
-	},
-	'doc:info.res': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tDocInfoRes
-	},
-	'doc:info.push': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tDocInfoPush
-	},
-	'doc:rename.req': {
-		directions: ['app>shell'],
-		requiresAuth: true,
-		validator: tDocRenameReq
-	},
-	'doc:rename.res': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tDocRenameRes
-	},
-	'theme:update': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tThemeUpdate
-	},
-	'embed:open.req': {
-		directions: ['app>shell'],
-		requiresAuth: true,
-		validator: tEmbedOpenReq
-	},
-	'embed:open.res': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tEmbedOpenRes
-	},
-	'embed:viewstate.push': {
-		directions: ['app>shell'],
-		requiresAuth: false,
-		validator: tEmbedViewStatePush
-	},
-	'embed:viewstate.set': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tEmbedViewStateSet
-	},
-	'settings:get.req': {
-		directions: ['app>shell'],
-		requiresAuth: true,
-		validator: tSettingsGetReq
-	},
-	'settings:get.res': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tSettingsGetRes
-	},
-	'settings:set.req': {
-		directions: ['app>shell'],
-		requiresAuth: true,
-		validator: tSettingsSetReq
-	},
-	'settings:set.res': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tSettingsSetRes
-	},
-	'settings:list.req': {
-		directions: ['app>shell'],
-		requiresAuth: true,
-		validator: tSettingsListReq
-	},
-	'settings:list.res': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tSettingsListRes
-	},
-	'crdt:clientid.req': {
-		directions: ['app>shell'],
-		requiresAuth: true,
-		validator: tCrdtClientIdReq
-	},
-	'crdt:clientid.res': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tCrdtClientIdRes
-	},
-	'crdt:cache.append.req': {
-		directions: ['app>shell'],
-		requiresAuth: true,
-		validator: tCrdtCacheAppendReq
-	},
-	'crdt:cache.read.req': {
-		directions: ['app>shell'],
-		requiresAuth: true,
-		validator: tCrdtCacheReadReq
-	},
-	'crdt:cache.compact.req': {
-		directions: ['app>shell'],
-		requiresAuth: true,
-		validator: tCrdtCacheCompactReq
-	},
-	'crdt:cache.res': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tCrdtCacheRes
-	},
-	'sensor:compass.sub': {
-		directions: ['app>shell'],
-		requiresAuth: false,
-		validator: tSensorCompassSub
-	},
-	'sensor:compass.sub.res': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tSensorCompassSubRes
-	},
-	'sensor:compass.push': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tSensorCompassPush
-	},
-	'camera:capture.req': {
-		directions: ['app>shell'],
-		requiresAuth: true,
-		validator: tCameraCaptureReq
-	},
-	'camera:capture.ack': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tCameraCaptureAck
-	},
-	'camera:capture.result': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tCameraCaptureResultPush
-	},
-	'camera:preview.start': {
-		directions: ['app>shell'],
-		requiresAuth: false,
-		validator: tCameraPreviewStart
-	},
-	'camera:preview.stop': {
-		directions: ['app>shell'],
-		requiresAuth: false,
-		validator: tCameraPreviewStop
-	},
-	'camera:preview.frame': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tCameraPreviewFrame
-	},
-	'camera:overlay.update': {
-		directions: ['app>shell'],
-		requiresAuth: false,
-		validator: tCameraOverlayUpdate
-	},
-	'share:create.req': {
-		directions: ['app>shell'],
-		requiresAuth: true,
-		validator: tShareCreateReq
-	},
-	'share:create.ack': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tShareCreateAck
-	},
-	'share:create.result': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tShareCreateResultPush
-	},
-	'site:publish.req': {
-		directions: ['app>shell'],
-		requiresAuth: true,
-		validator: tSitePublishReq
-	},
-	'site:publish.res': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tSitePublishRes
-	},
-	'site:mount.req': {
-		directions: ['app>shell'],
-		requiresAuth: true,
-		validator: tSiteMountReq
-	},
-	'site:mount.res': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tSiteMountRes
-	},
-	'import:data.push': {
-		directions: ['shell>app'],
-		requiresAuth: false,
-		validator: tImportDataPush
-	},
-	'import:complete.notify': {
-		directions: ['app>shell'],
-		requiresAuth: true,
-		validator: tImportCompleteNotify
-	}
+	'auth:init.req': ['app>shell', false, tAuthInitReq],
+	'auth:init.res': ['shell>app', false, tAuthInitRes],
+	'auth:init.push': ['shell>app', false, tAuthInitPush],
+	'auth:token.refresh.req': ['app>shell', true, tAuthTokenRefreshReq],
+	'auth:token.refresh.res': ['shell>app', false, tAuthTokenRefreshRes],
+	'auth:token.push': ['shell>app', false, tAuthTokenPush],
+	'app:ready.notify': ['app>shell', false, tAppReadyNotify],
+	'app:error.notify': ['app>shell', false, tAppErrorNotify],
+	'app:title.push': ['app>shell', false, tAppTitlePush],
+	'storage:op.req': ['app>shell', true, tStorageOpReq],
+	'storage:op.res': ['shell>app', false, tStorageOpRes],
+	'media:pick.req': ['app>shell', true, tMediaPickReq],
+	'media:pick.ack': ['shell>app', false, tMediaPickAck],
+	'media:pick.result': ['shell>app', false, tMediaPickResultPush],
+	'media:pick.res': ['shell>app', false, tMediaPickRes], // Deprecated - kept for backwards compatibility
+	'media:file.resolved': ['shell>app', false, tMediaFileResolvedPush],
+	'doc:pick.req': ['app>shell', true, tDocPickReq],
+	'doc:pick.ack': ['shell>app', false, tDocPickAck],
+	'doc:pick.result': ['shell>app', false, tDocPickResultPush],
+	'doc:info.req': ['app>shell', true, tDocInfoReq],
+	'doc:info.res': ['shell>app', false, tDocInfoRes],
+	'doc:info.push': ['shell>app', false, tDocInfoPush],
+	'doc:rename.req': ['app>shell', true, tDocRenameReq],
+	'doc:rename.res': ['shell>app', false, tDocRenameRes],
+	'theme:update': ['shell>app', false, tThemeUpdate],
+	'embed:open.req': ['app>shell', true, tEmbedOpenReq],
+	'embed:open.res': ['shell>app', false, tEmbedOpenRes],
+	'embed:viewstate.push': ['app>shell', false, tEmbedViewStatePush],
+	'embed:viewstate.set': ['shell>app', false, tEmbedViewStateSet],
+	'settings:get.req': ['app>shell', true, tSettingsGetReq],
+	'settings:get.res': ['shell>app', false, tSettingsGetRes],
+	'settings:set.req': ['app>shell', true, tSettingsSetReq],
+	'settings:set.res': ['shell>app', false, tSettingsSetRes],
+	'settings:list.req': ['app>shell', true, tSettingsListReq],
+	'settings:list.res': ['shell>app', false, tSettingsListRes],
+	'crdt:clientid.req': ['app>shell', true, tCrdtClientIdReq],
+	'crdt:clientid.res': ['shell>app', false, tCrdtClientIdRes],
+	'crdt:cache.append.req': ['app>shell', true, tCrdtCacheAppendReq],
+	'crdt:cache.read.req': ['app>shell', true, tCrdtCacheReadReq],
+	'crdt:cache.compact.req': ['app>shell', true, tCrdtCacheCompactReq],
+	'crdt:cache.res': ['shell>app', false, tCrdtCacheRes],
+	'sensor:compass.sub': ['app>shell', false, tSensorCompassSub],
+	'sensor:compass.sub.res': ['shell>app', false, tSensorCompassSubRes],
+	'sensor:compass.push': ['shell>app', false, tSensorCompassPush],
+	'camera:capture.req': ['app>shell', true, tCameraCaptureReq],
+	'camera:capture.ack': ['shell>app', false, tCameraCaptureAck],
+	'camera:capture.result': ['shell>app', false, tCameraCaptureResultPush],
+	'camera:preview.start': ['app>shell', false, tCameraPreviewStart],
+	'camera:preview.stop': ['app>shell', false, tCameraPreviewStop],
+	'camera:preview.frame': ['shell>app', false, tCameraPreviewFrame],
+	'camera:overlay.update': ['app>shell', false, tCameraOverlayUpdate],
+	'share:create.req': ['app>shell', true, tShareCreateReq],
+	'share:create.ack': ['shell>app', false, tShareCreateAck],
+	'share:create.result': ['shell>app', false, tShareCreateResultPush],
+	'site:publish.req': ['app>shell', true, tSitePublishReq],
+	'site:publish.res': ['shell>app', false, tSitePublishRes],
+	'site:mount.req': ['app>shell', true, tSiteMountReq],
+	'site:mount.res': ['shell>app', false, tSiteMountRes],
+	'import:data.push': ['shell>app', false, tImportDataPush],
+	'import:complete.notify': ['app>shell', true, tImportCompleteNotify]
 }
 
 // ============================================
@@ -401,10 +160,8 @@ export interface ValidatedMessage {
 	rule: MessageAccessRule
 }
 
-/**
- * Quick check if data looks like a Cloudillo message
- */
-export function isCloudilloMessage(data: unknown): boolean {
+/** Quick check if data looks like a Cloudillo message */
+function isCloudilloMessage(data: unknown): boolean {
 	return (
 		data !== null &&
 		typeof data === 'object' &&
@@ -430,9 +187,9 @@ export function validateMessage(
 
 	const rule = MESSAGE_REGISTRY[type]
 	if (!rule) return undefined
-	if (!rule.directions.includes(expectedDirection)) return undefined
+	if (rule[0] !== expectedDirection) return undefined
 
-	const result = T.decode(rule.validator as T.Type<CloudilloMessage>, data)
+	const result = T.decode(rule[2] as T.Type<CloudilloMessage>, data)
 	if (!T.isOk(result)) return undefined
 
 	return { message: result.ok as CloudilloMessage, rule }

@@ -7,6 +7,7 @@
  * Provides common helpers for exporting CRDT documents to JSON files.
  */
 
+import { downloadBlob, sanitizeFilename } from '@cloudillo/core'
 import * as Y from 'yjs'
 
 /** Opaque type alias for Yjs shared types used in serialization.
@@ -36,7 +37,7 @@ export interface ExportEnvelope<T = unknown> {
  * @param data - App-specific export data
  * @returns Complete export envelope ready for JSON serialization
  */
-export function createExportEnvelope<T>(
+function createExportEnvelope<T>(
 	contentType: string,
 	appVersion: string,
 	formatVersion: string,
@@ -56,7 +57,7 @@ export function createExportEnvelope<T>(
  *
  * Useful for cleaning up floating-point noise in CRDT data before serialization.
  */
-export function roundNumericValues<T>(value: T): T {
+function roundNumericValues<T>(value: T): T {
 	if (typeof value === 'number') {
 		return (Math.round(value * 1000) / 1000) as T
 	}
@@ -99,7 +100,7 @@ export interface ExportYDocOpts {
  * - `{ "@T": "XE", n, a, c }` — Y.XmlElement
  * - `{ "@T": "XF", c }` — Y.XmlFragment
  */
-export function serializeYValue(value: YSharedType): unknown {
+function serializeYValue(value: YSharedType): unknown {
 	// XmlText extends Text, so check it first
 	if (value instanceof Y.XmlText) {
 		return { '@T': 'XT', text: value.toString(), delta: value.toDelta() }
@@ -176,6 +177,27 @@ export function exportYDoc(
 	}
 
 	return createExportEnvelope(opts.contentType, opts.appVersion, opts.formatVersion, data)
+}
+
+/**
+ * Serialize a Yjs document with {@link exportYDoc} and trigger a browser
+ * download of the JSON file. Shared by the canvas apps (prezillo, ideallo).
+ *
+ * @param yDoc - Document to export
+ * @param docName - Human-readable document name (used for the filename)
+ * @param opts - Envelope options plus the file `extension`
+ * @param filename - Optional explicit filename (without extension)
+ */
+export function downloadYDocExport(
+	yDoc: Y.Doc,
+	docName: string,
+	opts: ExportYDocOpts & { extension: string },
+	filename?: string
+): void {
+	const json = JSON.stringify(exportYDoc(yDoc, opts), null, 2)
+	const blob = new Blob([json], { type: 'application/json' })
+	const safeName = sanitizeFilename(docName || 'untitled')
+	downloadBlob(blob, filename ? `${filename}.${opts.extension}` : `${safeName}.${opts.extension}`)
 }
 
 // vim: ts=4

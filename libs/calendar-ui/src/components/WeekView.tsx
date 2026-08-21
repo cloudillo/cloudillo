@@ -8,8 +8,9 @@ import { dayjs, isoWeekNumber, localeFirstDay, weekDays } from '../utils/dates.j
 import { AllDayBand } from './AllDayBand.js'
 import { TimeGrid } from './TimeGrid.js'
 
-export function WeekView(props: CalendarViewProps) {
+export function WeekView(props: CalendarViewProps & { single?: boolean }) {
 	const {
+		single,
 		date,
 		events,
 		snapMinutes = 15,
@@ -27,23 +28,32 @@ export function WeekView(props: CalendarViewProps) {
 	} = props
 	const locale = props.locale || 'en'
 	const firstDay = props.firstDayOfWeek ?? localeFirstDay(locale)
-	const days = React.useMemo(() => weekDays(date, firstDay), [date, firstDay])
+	const days = React.useMemo(
+		() => (single ? [date] : weekDays(date, firstDay)),
+		[single, date, firstDay]
+	)
 	const headerFmt = React.useMemo(
-		() => new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric' }),
-		[locale]
+		() =>
+			new Intl.DateTimeFormat(
+				locale,
+				single
+					? { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }
+					: { weekday: 'short', day: 'numeric' }
+			),
+		[locale, single]
 	)
 	const weekNo = isoWeekNumber(days[0])
 
 	return (
 		<div
-			className={`c-cal-view c-cal-view--week${className ? ` ${className}` : ''}`}
+			className={`c-cal-view c-cal-view--${single ? 'day' : 'week'}${className ? ` ${className}` : ''}`}
 			style={{ '--cols': days.length } as React.CSSProperties}
 		>
 			<div className="c-cal-view__scroll">
 				<div className="c-cal-view__sticky-head">
 					<div className="c-cal-view__head">
 						<div className="c-cal-view__gutter-head">
-							{showWeekNumbers && (
+							{showWeekNumbers && !single && (
 								<span className="c-cal-weekno" title={`ISO week ${weekNo}`}>
 									W{weekNo}
 								</span>

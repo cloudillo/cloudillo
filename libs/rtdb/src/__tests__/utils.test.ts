@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { delay } from '@cloudillo/core'
 import { describe, expect, it } from '@jest/globals'
 
 import {
 	createDocumentFromEvent,
 	DocumentSnapshotImpl,
-	delay,
 	getCollectionFromPath,
 	getIdFromPath,
 	normalizePath,

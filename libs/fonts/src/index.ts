@@ -1,17 +1,16 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 // Types
 
 // Font metadata
 export {
 	FONTS,
-	getFontByFamily,
 	getFontsByCategory,
 	getFontsByRole
 } from './metadata.js'
 // Font pairings
 export {
-	FONT_PAIRINGS,
-	getPairingById,
-	getPairingsForFont,
 	getSuggestedBodyFonts,
 	getSuggestedHeadingFonts
 } from './pairings.js'

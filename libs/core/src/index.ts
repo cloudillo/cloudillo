@@ -5,6 +5,7 @@ export * from './api.js'
 export * from './api-client.js'
 export * from './api-registry.js'
 export * from './api-types.js'
+export * from './color.js'
 export * from './file-utils.js'
 export * from './jwt.js'
 // Message bus (unified communication layer)

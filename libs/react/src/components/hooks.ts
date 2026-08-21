@@ -234,7 +234,7 @@ export type Breakpoint = keyof typeof BREAKPOINTS
  * const isMobile = useMediaQuery('(max-width: 767px)')
  * const prefersDark = useMediaQuery('(prefers-color-scheme: dark)')
  */
-export function useMediaQuery(query: string): boolean {
+function useMediaQuery(query: string): boolean {
 	const [matches, setMatches] = React.useState(() => {
 		if (typeof window === 'undefined') return false
 		return window.matchMedia(query).matches

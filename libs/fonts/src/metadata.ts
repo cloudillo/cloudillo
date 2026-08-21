@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 import type { FontMetadata } from './types.js'
 
 /**
@@ -287,13 +290,6 @@ export const FONTS: FontMetadata[] = [
 		directory: 'jetbrains-mono'
 	}
 ]
-
-/**
- * Get font metadata by family name
- */
-export function getFontByFamily(family: string): FontMetadata | undefined {
-	return FONTS.find((f) => f.family === family)
-}
 
 /**
  * Get fonts filtered by category

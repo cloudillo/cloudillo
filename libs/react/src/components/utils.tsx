@@ -47,15 +47,6 @@ export function createComponent<T, P>(
 }
 
 /**
- * Generate unique IDs for accessibility
- */
-let idCounter = 0
-export function useId(prefix = 'cl'): string {
-	const [id] = React.useState(() => `${prefix}-${++idCounter}`)
-	return id
-}
-
-/**
  * Convert size prop to CSS class for buttons
  */
 export function buttonSizeClass(
@@ -65,15 +56,6 @@ export function buttonSizeClass(
 	if (size === 'small') return 'small'
 	if (size === 'large') return 'large'
 	return undefined
-}
-
-/**
- * Convert avatar size prop to CSS class
- */
-export function avatarSizeClass(
-	size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | undefined
-): string | undefined {
-	return size
 }
 
 // vim: ts=4

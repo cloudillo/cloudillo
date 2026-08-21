@@ -13,15 +13,10 @@ export type { RichTextDisplayProps } from './components/RichTextDisplay'
 export { RichTextDisplay } from './components/RichTextDisplay'
 export type { CaretPoint, RichTextEditorProps } from './components/RichTextEditor'
 export { RichTextEditor } from './components/RichTextEditor'
-// Delta parsing
-export { deltaToLines, deltaToPlainText, plainTextToDelta, yTextToDelta } from './delta-parser'
-// Layout
-export { calculateRichTextLayout } from './layout'
-export type { ResolvedRunStyle } from './measure'
 // Measurement
-export { buildFontString, measureRunWidth, measureTextWidth, resolveRunStyle } from './measure'
+export { measureTextWidth } from './measure'
 // SVG export
-export { createRichTextSVGElement, richTextToSVG } from './svg-export'
+export { createRichTextSVGElement } from './svg-export'
 // Types
 export type {
 	BaseTextStyle,

@@ -28,6 +28,29 @@ export const tMessageEnvelope = T.struct({
 })
 export type MessageEnvelope = T.TypeOf<typeof tMessageEnvelope>
 
+/** Build a message runtype with the shared envelope preamble. */
+/** Equivalent of `T.struct`'s required/optional key split, for message fields. */
+// biome-ignore lint/suspicious/noExplicitAny: runtype types are invariant under tsgo's strict variance; `unknown` rejects NumberType etc.
+type MsgPayload<P extends Record<string, T.Type<any>>> = {
+	[K in keyof P as undefined extends T.TypeOf<P[K]> ? never : K]: T.TypeOf<P[K]>
+} & {
+	[K in keyof P as undefined extends T.TypeOf<P[K]> ? K : never]?: T.TypeOf<P[K]>
+}
+
+/** Build a message runtype with the shared envelope preamble. */
+// biome-ignore lint/suspicious/noExplicitAny: runtype types are invariant under tsgo's strict variance; `unknown` rejects NumberType etc.
+function msg<T extends string, P extends Record<string, T.Type<any>>>(
+	type: T,
+	fields: P
+): T.Type<{ cloudillo: true; v: 1; type: T } & MsgPayload<P>> {
+	return T.struct({
+		cloudillo: T.trueValue,
+		v: T.literal(PROTOCOL_VERSION),
+		type: T.literal(type),
+		...fields
+	}) as unknown as T.Type<{ cloudillo: true; v: 1; type: T } & MsgPayload<P>>
+}
+
 /**
  * Stamped by `setupEmbedRelay` on every message it forwards up from a nested
  * embed, and by nothing else.
@@ -74,10 +97,7 @@ export type MessageCategory =
  * App requests initialization from shell
  * Direction: app -> shell
  */
-export const tAuthInitReq = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('auth:init.req'),
+export const tAuthInitReq = msg('auth:init.req', {
 	...tRelayed,
 	id: T.number,
 	payload: T.struct({
@@ -91,10 +111,7 @@ export type AuthInitReq = T.TypeOf<typeof tAuthInitReq>
  * Shell responds with initialization data
  * Direction: shell -> app
  */
-export const tAuthInitRes = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('auth:init.res'),
+export const tAuthInitRes = msg('auth:init.res', {
 	replyTo: T.number,
 	ok: T.boolean,
 	data: T.optional(
@@ -128,10 +145,7 @@ export type AuthInitRes = T.TypeOf<typeof tAuthInitRes>
  * App requests token refresh
  * Direction: app -> shell
  */
-export const tAuthTokenRefreshReq = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('auth:token.refresh.req'),
+export const tAuthTokenRefreshReq = msg('auth:token.refresh.req', {
 	...tRelayed,
 	id: T.number
 })
@@ -141,10 +155,7 @@ export type AuthTokenRefreshReq = T.TypeOf<typeof tAuthTokenRefreshReq>
  * Shell responds with new token
  * Direction: shell -> app
  */
-export const tAuthTokenRefreshRes = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('auth:token.refresh.res'),
+export const tAuthTokenRefreshRes = msg('auth:token.refresh.res', {
 	replyTo: T.number,
 	ok: T.boolean,
 	data: T.optional(
@@ -161,10 +172,7 @@ export type AuthTokenRefreshRes = T.TypeOf<typeof tAuthTokenRefreshRes>
  * Shell proactively pushes token update to app
  * Direction: shell -> app (notification, no response expected)
  */
-export const tAuthTokenPush = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('auth:token.push'),
+export const tAuthTokenPush = msg('auth:token.push', {
 	payload: T.struct({
 		token: T.string,
 		tokenLifetime: T.optional(T.number)
@@ -178,10 +186,7 @@ export type AuthTokenPush = T.TypeOf<typeof tAuthTokenPush>
  *
  * Used when shell initializes app before app requests init.
  */
-export const tAuthInitPush = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('auth:init.push'),
+export const tAuthInitPush = msg('auth:init.push', {
 	payload: T.struct({
 		idTag: T.optional(T.string),
 		/** See `tAuthInitRes` — a guest's `idTag` is the owner's, this is not. */
@@ -224,10 +229,7 @@ export type AppReadyStage = T.TypeOf<typeof tAppReadyStage>
  * - 'synced': CRDT/data sync is complete
  * - 'ready': App is fully interactive (default if no stage specified)
  */
-export const tAppReadyNotify = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('app:ready.notify'),
+export const tAppReadyNotify = msg('app:ready.notify', {
 	...tRelayed,
 	payload: T.struct({
 		stage: T.optional(tAppReadyStage)
@@ -242,10 +244,7 @@ export type AppReadyNotify = T.TypeOf<typeof tAppReadyNotify>
  * Used to inform the shell that a critical error occurred so it can
  * display an error UI overlay instead of showing an empty document.
  */
-export const tAppErrorNotify = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('app:error.notify'),
+export const tAppErrorNotify = msg('app:error.notify', {
 	...tRelayed,
 	payload: T.struct({
 		code: T.number,
@@ -262,10 +261,7 @@ export type AppErrorNotify = T.TypeOf<typeof tAppErrorNotify>
  * the file name the shell pre-fetches. `dirty` marks unsaved changes so the
  * shell can show a leading `*` on the document segment.
  */
-export const tAppTitlePush = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('app:title.push'),
+export const tAppTitlePush = msg('app:title.push', {
 	payload: T.struct({
 		// Omit `title` to keep the shell's prefetched file name and only update
 		// the dirty flag; provide it to override the displayed title.
@@ -289,10 +285,7 @@ export type StorageOp = T.TypeOf<typeof tStorageOp>
  * App requests storage operation
  * Direction: app -> shell
  */
-export const tStorageOpReq = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('storage:op.req'),
+export const tStorageOpReq = msg('storage:op.req', {
 	...tRelayed,
 	id: T.number,
 	payload: T.struct({
@@ -309,10 +302,7 @@ export type StorageOpReq = T.TypeOf<typeof tStorageOpReq>
  * Shell responds to storage operation
  * Direction: shell -> app
  */
-export const tStorageOpRes = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('storage:op.res'),
+export const tStorageOpRes = msg('storage:op.res', {
 	replyTo: T.number,
 	ok: T.boolean,
 	data: T.optional(T.unknown),
@@ -350,10 +340,7 @@ export type CropAspect = T.TypeOf<typeof tCropAspect>
  * App requests media picker from shell
  * Direction: app -> shell
  */
-export const tMediaPickReq = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('media:pick.req'),
+export const tMediaPickReq = msg('media:pick.req', {
 	...tRelayed,
 	id: T.number,
 	payload: T.struct({
@@ -386,10 +373,7 @@ export type MediaPickReq = T.TypeOf<typeof tMediaPickReq>
  * This is sent immediately when the picker starts opening.
  * The actual result comes later via media:pick.result push.
  */
-export const tMediaPickAck = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('media:pick.ack'),
+export const tMediaPickAck = msg('media:pick.ack', {
 	replyTo: T.number,
 	ok: T.boolean,
 	// Optional session ID for correlating with result
@@ -409,10 +393,7 @@ export type MediaPickAck = T.TypeOf<typeof tMediaPickAck>
  * Sent when user completes selection or cancels the picker.
  * This is a push notification, not a response, so there's no timeout.
  */
-export const tMediaPickResultPush = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('media:pick.result'),
+export const tMediaPickResultPush = msg('media:pick.result', {
 	payload: T.struct({
 		// Session ID to correlate with the original request
 		sessionId: T.string,
@@ -441,10 +422,7 @@ export type MediaPickResultPush = T.TypeOf<typeof tMediaPickResultPush>
  * Sent when a temp file ID (e.g., @123) is resolved to its final
  * content-addressed ID (e.g., f1~abc123...) after variant processing.
  */
-export const tMediaFileResolvedPush = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('media:file.resolved'),
+export const tMediaFileResolvedPush = msg('media:file.resolved', {
 	payload: T.struct({
 		// The temporary file ID (e.g., @123)
 		tempId: T.string,
@@ -462,10 +440,7 @@ export type MediaFileResolvedPush = T.TypeOf<typeof tMediaFileResolvedPush>
  * App requests document picker from shell
  * Direction: app -> shell
  */
-export const tDocPickReq = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('doc:pick.req'),
+export const tDocPickReq = msg('doc:pick.req', {
 	...tRelayed,
 	id: T.number,
 	payload: T.struct({
@@ -484,10 +459,7 @@ export type DocPickReq = T.TypeOf<typeof tDocPickReq>
  * Shell acknowledges document picker request (dialog is opening)
  * Direction: shell -> app
  */
-export const tDocPickAck = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('doc:pick.ack'),
+export const tDocPickAck = msg('doc:pick.ack', {
 	replyTo: T.number,
 	ok: T.boolean,
 	data: T.optional(
@@ -503,10 +475,7 @@ export type DocPickAck = T.TypeOf<typeof tDocPickAck>
  * Shell pushes document picker result to app
  * Direction: shell -> app (notification, no response expected)
  */
-export const tDocPickResultPush = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('doc:pick.result'),
+export const tDocPickResultPush = msg('doc:pick.result', {
 	payload: T.struct({
 		sessionId: T.string,
 		selected: T.boolean,
@@ -560,10 +529,7 @@ export type DocInfo = T.TypeOf<typeof tDocInfo>
  * App requests document info from shell
  * Direction: app -> shell
  */
-export const tDocInfoReq = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('doc:info.req'),
+export const tDocInfoReq = msg('doc:info.req', {
 	...tRelayed,
 	id: T.number
 })
@@ -573,10 +539,7 @@ export type DocInfoReq = T.TypeOf<typeof tDocInfoReq>
  * Shell responds with document info
  * Direction: shell -> app
  */
-export const tDocInfoRes = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('doc:info.res'),
+export const tDocInfoRes = msg('doc:info.res', {
 	replyTo: T.number,
 	ok: T.boolean,
 	data: T.optional(tDocInfo),
@@ -591,10 +554,7 @@ export type DocInfoRes = T.TypeOf<typeof tDocInfoRes>
  * Sent unprompted on resolve and on every subsequent change (rename, pin,
  * access change), so an app never has to poll.
  */
-export const tDocInfoPush = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('doc:info.push'),
+export const tDocInfoPush = msg('doc:info.push', {
 	payload: tDocInfo
 })
 export type DocInfoPush = T.TypeOf<typeof tDocInfoPush>
@@ -607,10 +567,7 @@ export type DocInfoPush = T.TypeOf<typeof tDocInfoPush>
  * connection's resId, so an app cannot aim a rename at another file. Do not add
  * one — `__tests__/message-bus/docinfo.test.ts` guards this.
  */
-export const tDocRenameReq = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('doc:rename.req'),
+export const tDocRenameReq = msg('doc:rename.req', {
 	...tRelayed,
 	id: T.number,
 	payload: T.struct({
@@ -623,10 +580,7 @@ export type DocRenameReq = T.TypeOf<typeof tDocRenameReq>
  * Shell responds to a rename request
  * Direction: shell -> app
  */
-export const tDocRenameRes = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('doc:rename.res'),
+export const tDocRenameRes = msg('doc:rename.res', {
 	replyTo: T.number,
 	ok: T.boolean,
 	data: T.optional(
@@ -651,10 +605,7 @@ export type DocRenameRes = T.TypeOf<typeof tDocRenameRes>
  * Shell pushes a live theme change to all initialized apps
  * Direction: shell -> app (notification, no response expected)
  */
-export const tThemeUpdate = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('theme:update'),
+export const tThemeUpdate = msg('theme:update', {
 	payload: T.struct({
 		darkMode: T.boolean
 	})
@@ -669,10 +620,7 @@ export type ThemeUpdate = T.TypeOf<typeof tThemeUpdate>
  * App requests to open an embedded document
  * Direction: app -> shell
  */
-export const tEmbedOpenReq = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('embed:open.req'),
+export const tEmbedOpenReq = msg('embed:open.req', {
 	...tRelayed,
 	id: T.number,
 	payload: T.struct({
@@ -695,10 +643,7 @@ export type EmbedOpenReq = T.TypeOf<typeof tEmbedOpenReq>
  * Sent on navigation changes (debounced for continuous changes)
  * and once after init with aspect ratio info.
  */
-export const tEmbedViewStatePush = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('embed:viewstate.push'),
+export const tEmbedViewStatePush = msg('embed:viewstate.push', {
 	...tRelayed,
 	payload: T.struct({
 		viewState: T.string,
@@ -714,10 +659,7 @@ export type EmbedViewStatePush = T.TypeOf<typeof tEmbedViewStatePush>
  *
  * Sent on initial load and when parent wants to change the view.
  */
-export const tEmbedViewStateSet = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('embed:viewstate.set'),
+export const tEmbedViewStateSet = msg('embed:viewstate.set', {
 	payload: T.struct({
 		viewState: T.optional(T.string)
 	})
@@ -728,10 +670,7 @@ export type EmbedViewStateSet = T.TypeOf<typeof tEmbedViewStateSet>
  * Shell responds with embed URL and nonce for token isolation
  * Direction: shell -> app
  */
-export const tEmbedOpenRes = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('embed:open.res'),
+export const tEmbedOpenRes = msg('embed:open.res', {
 	replyTo: T.number,
 	ok: T.boolean,
 	data: T.optional(
@@ -754,10 +693,7 @@ export type EmbedOpenRes = T.TypeOf<typeof tEmbedOpenRes>
  * user-interactive dialogs. The new pattern separates the "dialog opened"
  * acknowledgment from the "user made a choice" result.
  */
-export const tMediaPickRes = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('media:pick.res'),
+export const tMediaPickRes = msg('media:pick.res', {
 	replyTo: T.number,
 	ok: T.boolean,
 	data: T.optional(
@@ -785,10 +721,7 @@ export type MediaPickRes = T.TypeOf<typeof tMediaPickRes>
  * App requests to get a setting value
  * Direction: app -> shell
  */
-export const tSettingsGetReq = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('settings:get.req'),
+export const tSettingsGetReq = msg('settings:get.req', {
 	...tRelayed,
 	id: T.number,
 	payload: T.struct({
@@ -801,10 +734,7 @@ export type SettingsGetReq = T.TypeOf<typeof tSettingsGetReq>
  * Shell responds with setting value
  * Direction: shell -> app
  */
-export const tSettingsGetRes = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('settings:get.res'),
+export const tSettingsGetRes = msg('settings:get.res', {
 	replyTo: T.number,
 	ok: T.boolean,
 	data: T.optional(T.unknown),
@@ -816,10 +746,7 @@ export type SettingsGetRes = T.TypeOf<typeof tSettingsGetRes>
  * App requests to set a setting value
  * Direction: app -> shell
  */
-export const tSettingsSetReq = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('settings:set.req'),
+export const tSettingsSetReq = msg('settings:set.req', {
 	...tRelayed,
 	id: T.number,
 	payload: T.struct({
@@ -833,10 +760,7 @@ export type SettingsSetReq = T.TypeOf<typeof tSettingsSetReq>
  * Shell responds to set operation
  * Direction: shell -> app
  */
-export const tSettingsSetRes = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('settings:set.res'),
+export const tSettingsSetRes = msg('settings:set.res', {
 	replyTo: T.number,
 	ok: T.boolean,
 	data: T.optional(T.unknown),
@@ -848,10 +772,7 @@ export type SettingsSetRes = T.TypeOf<typeof tSettingsSetRes>
  * App requests to list settings with optional prefix filter
  * Direction: app -> shell
  */
-export const tSettingsListReq = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('settings:list.req'),
+export const tSettingsListReq = msg('settings:list.req', {
 	...tRelayed,
 	id: T.number,
 	payload: T.struct({
@@ -864,10 +785,7 @@ export type SettingsListReq = T.TypeOf<typeof tSettingsListReq>
  * Shell responds with list of settings
  * Direction: shell -> app
  */
-export const tSettingsListRes = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('settings:list.res'),
+export const tSettingsListRes = msg('settings:list.res', {
 	replyTo: T.number,
 	ok: T.boolean,
 	data: T.optional(
@@ -894,10 +812,7 @@ export type SettingsListRes = T.TypeOf<typeof tSettingsListRes>
  * Web Locks to ensure no two tabs use the same clientId for the
  * same document simultaneously.
  */
-export const tCrdtClientIdReq = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('crdt:clientid.req'),
+export const tCrdtClientIdReq = msg('crdt:clientid.req', {
 	...tRelayed,
 	id: T.number,
 	payload: T.struct({
@@ -910,10 +825,7 @@ export type CrdtClientIdReq = T.TypeOf<typeof tCrdtClientIdReq>
  * Shell responds with a reusable clientId
  * Direction: shell -> app
  */
-export const tCrdtClientIdRes = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('crdt:clientid.res'),
+export const tCrdtClientIdRes = msg('crdt:clientid.res', {
 	replyTo: T.number,
 	ok: T.boolean,
 	data: T.optional(
@@ -929,10 +841,7 @@ export type CrdtClientIdRes = T.TypeOf<typeof tCrdtClientIdRes>
  * App appends a CRDT update to the cache + updates the clock
  * Direction: app -> shell
  */
-export const tCrdtCacheAppendReq = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('crdt:cache.append.req'),
+export const tCrdtCacheAppendReq = msg('crdt:cache.append.req', {
 	...tRelayed,
 	id: T.number,
 	payload: T.struct({
@@ -949,10 +858,7 @@ export type CrdtCacheAppendReq = T.TypeOf<typeof tCrdtCacheAppendReq>
  * App reads the cached state for a document
  * Direction: app -> shell
  */
-export const tCrdtCacheReadReq = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('crdt:cache.read.req'),
+export const tCrdtCacheReadReq = msg('crdt:cache.read.req', {
 	...tRelayed,
 	id: T.number,
 	payload: T.struct({
@@ -965,10 +871,7 @@ export type CrdtCacheReadReq = T.TypeOf<typeof tCrdtCacheReadReq>
  * App compacts the cache for a document
  * Direction: app -> shell
  */
-export const tCrdtCacheCompactReq = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('crdt:cache.compact.req'),
+export const tCrdtCacheCompactReq = msg('crdt:cache.compact.req', {
 	...tRelayed,
 	id: T.number,
 	payload: T.struct({
@@ -983,10 +886,7 @@ export type CrdtCacheCompactReq = T.TypeOf<typeof tCrdtCacheCompactReq>
  * Generic CRDT cache response
  * Direction: shell -> app
  */
-export const tCrdtCacheRes = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('crdt:cache.res'),
+export const tCrdtCacheRes = msg('crdt:cache.res', {
 	replyTo: T.number,
 	ok: T.boolean,
 	data: T.optional(T.unknown),
@@ -1002,10 +902,7 @@ export type CrdtCacheRes = T.TypeOf<typeof tCrdtCacheRes>
  * App requests to subscribe/unsubscribe to compass heading updates
  * Direction: app -> shell
  */
-export const tSensorCompassSub = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('sensor:compass.sub'),
+export const tSensorCompassSub = msg('sensor:compass.sub', {
 	id: T.number,
 	payload: T.struct({
 		/** true = subscribe, false = unsubscribe */
@@ -1018,10 +915,7 @@ export type SensorCompassSub = T.TypeOf<typeof tSensorCompassSub>
  * Shell responds to compass subscription request
  * Direction: shell -> app
  */
-export const tSensorCompassSubRes = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('sensor:compass.sub.res'),
+export const tSensorCompassSubRes = msg('sensor:compass.sub.res', {
 	replyTo: T.number,
 	ok: T.boolean,
 	error: T.optional(T.string)
@@ -1032,10 +926,7 @@ export type SensorCompassSubRes = T.TypeOf<typeof tSensorCompassSubRes>
  * Shell pushes compass heading to subscribed app
  * Direction: shell -> app (notification, no response expected)
  */
-export const tSensorCompassPush = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('sensor:compass.push'),
+export const tSensorCompassPush = msg('sensor:compass.push', {
 	payload: T.struct({
 		/** Compass heading in degrees (0=N, 90=E, 180=S, 270=W) */
 		heading: T.number,
@@ -1053,10 +944,7 @@ export type SensorCompassPush = T.TypeOf<typeof tSensorCompassPush>
  * App requests camera capture from shell
  * Direction: app -> shell
  */
-export const tCameraCaptureReq = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('camera:capture.req'),
+export const tCameraCaptureReq = msg('camera:capture.req', {
 	id: T.number,
 	payload: T.struct({
 		sessionId: T.string,
@@ -1070,10 +958,7 @@ export type CameraCaptureReq = T.TypeOf<typeof tCameraCaptureReq>
  * Shell acknowledges camera capture request (camera is opening)
  * Direction: shell -> app
  */
-export const tCameraCaptureAck = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('camera:capture.ack'),
+export const tCameraCaptureAck = msg('camera:capture.ack', {
 	replyTo: T.number,
 	ok: T.boolean,
 	data: T.optional(
@@ -1089,10 +974,7 @@ export type CameraCaptureAck = T.TypeOf<typeof tCameraCaptureAck>
  * Shell pushes camera capture result to app
  * Direction: shell -> app (notification, no response expected)
  */
-export const tCameraCaptureResultPush = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('camera:capture.result'),
+export const tCameraCaptureResultPush = msg('camera:capture.result', {
 	payload: T.struct({
 		sessionId: T.string,
 		captured: T.boolean,
@@ -1111,10 +993,7 @@ export type CameraCaptureResultPush = T.TypeOf<typeof tCameraCaptureResultPush>
  * App requests to start receiving preview frames from the active camera
  * Direction: app -> shell (notification, no response expected)
  */
-export const tCameraPreviewStart = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('camera:preview.start'),
+export const tCameraPreviewStart = msg('camera:preview.start', {
 	payload: T.struct({
 		sessionId: T.string,
 		width: T.optional(T.number),
@@ -1128,10 +1007,7 @@ export type CameraPreviewStart = T.TypeOf<typeof tCameraPreviewStart>
  * App requests to stop receiving preview frames
  * Direction: app -> shell (notification, no response expected)
  */
-export const tCameraPreviewStop = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('camera:preview.stop'),
+export const tCameraPreviewStop = msg('camera:preview.stop', {
 	payload: T.struct({
 		sessionId: T.string
 	})
@@ -1142,10 +1018,7 @@ export type CameraPreviewStop = T.TypeOf<typeof tCameraPreviewStop>
  * Shell pushes a low-res preview frame to the app
  * Direction: shell -> app (notification, no response expected)
  */
-export const tCameraPreviewFrame = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('camera:preview.frame'),
+export const tCameraPreviewFrame = msg('camera:preview.frame', {
 	payload: T.struct({
 		sessionId: T.string,
 		seq: T.number,
@@ -1173,10 +1046,7 @@ export type OverlayItem = T.TypeOf<typeof tOverlayItem>
  * App sends overlay shapes to render on camera preview
  * Direction: app -> shell (notification, no response expected)
  */
-export const tCameraOverlayUpdate = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('camera:overlay.update'),
+export const tCameraOverlayUpdate = msg('camera:overlay.update', {
 	payload: T.struct({
 		sessionId: T.string,
 		frameSeq: T.number,
@@ -1197,10 +1067,7 @@ export type CameraOverlayUpdate = T.TypeOf<typeof tCameraOverlayUpdate>
  * 1. App sends request, shell sends ACK (dialog opening)
  * 2. User confirms in shell dialog, shell sends result push
  */
-export const tShareCreateReq = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('share:create.req'),
+export const tShareCreateReq = msg('share:create.req', {
 	id: T.number,
 	payload: T.struct({
 		sessionId: T.string,
@@ -1218,10 +1085,7 @@ export type ShareCreateReq = T.TypeOf<typeof tShareCreateReq>
  * Shell acknowledges share link creation dialog is opening
  * Direction: shell -> app
  */
-export const tShareCreateAck = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('share:create.ack'),
+export const tShareCreateAck = msg('share:create.ack', {
 	replyTo: T.number,
 	ok: T.boolean,
 	data: T.optional(
@@ -1237,10 +1101,7 @@ export type ShareCreateAck = T.TypeOf<typeof tShareCreateAck>
  * Shell pushes share link creation result
  * Direction: shell -> app (notification, no response expected)
  */
-export const tShareCreateResultPush = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('share:create.result'),
+export const tShareCreateResultPush = msg('share:create.result', {
 	payload: T.struct({
 		sessionId: T.string,
 		created: T.boolean,
@@ -1267,10 +1128,7 @@ export type ShareCreateResultPush = T.TypeOf<typeof tShareCreateResultPush>
  * there is no dialog to open, only a wait. The wait can be long — an upload plus
  * a server-side commit — so the caller overrides the 10s default timeout.
  */
-export const tSitePublishReq = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('site:publish.req'),
+export const tSitePublishReq = msg('site:publish.req', {
 	...tRelayed,
 	id: T.number,
 	payload: T.struct({
@@ -1289,10 +1147,7 @@ export type SitePublishReq = T.TypeOf<typeof tSitePublishReq>
  * Shell reports the outcome of a publish
  * Direction: shell -> app
  */
-export const tSitePublishRes = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('site:publish.res'),
+export const tSitePublishRes = msg('site:publish.res', {
 	replyTo: T.number,
 	ok: T.boolean,
 	data: T.optional(
@@ -1320,10 +1175,7 @@ export type SitePublishRes = T.TypeOf<typeof tSitePublishRes>
  * The publish dialog reads it too, to tell the author where their links will
  * point.
  */
-export const tSiteMountReq = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('site:mount.req'),
+export const tSiteMountReq = msg('site:mount.req', {
 	...tRelayed,
 	id: T.number,
 	payload: T.struct({
@@ -1339,10 +1191,7 @@ export type SiteMountReq = T.TypeOf<typeof tSiteMountReq>
  * Shell reports the document's configured mount path
  * Direction: shell -> app
  */
-export const tSiteMountRes = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('site:mount.res'),
+export const tSiteMountRes = msg('site:mount.res', {
 	replyTo: T.number,
 	ok: T.boolean,
 	data: T.optional(
@@ -1373,10 +1222,7 @@ export type SiteMountRes = T.TypeOf<typeof tSiteMountRes>
  * Data is base64-encoded since postMessage can't transfer
  * ArrayBuffer to opaque-origin iframes.
  */
-export const tImportDataPush = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('import:data.push'),
+export const tImportDataPush = msg('import:data.push', {
 	payload: T.struct({
 		sourceMimeType: T.string,
 		fileName: T.string,
@@ -1389,10 +1235,7 @@ export type ImportDataPush = T.TypeOf<typeof tImportDataPush>
  * App notifies shell that import is complete
  * Direction: app -> shell (notification, no response expected)
  */
-export const tImportCompleteNotify = T.struct({
-	cloudillo: T.trueValue,
-	v: T.literal(PROTOCOL_VERSION),
-	type: T.literal('import:complete.notify'),
+export const tImportCompleteNotify = msg('import:complete.notify', {
 	payload: T.struct({
 		success: T.boolean,
 		error: T.optional(T.string)

@@ -49,6 +49,7 @@ function pushDocInfo(info: DocInfo) {
 jest.unstable_mockModule('@cloudillo/core', async () => {
 	const { getCrdtUrl, getFileUrl } = await import('../../../core/lib/urls.js')
 	const { idHue } = await import('../../../core/lib/utils.js')
+	const fileUtils = await import('../../../core/lib/file-utils.js')
 	const presence = await import('../../../core/lib/presence.js')
 	const bus = {
 		resId: '@node.example:doc1',
@@ -66,6 +67,7 @@ jest.unstable_mockModule('@cloudillo/core', async () => {
 	}
 	return {
 		...presence,
+		...fileUtils,
 		getCrdtUrl,
 		getFileUrl,
 		idHue,

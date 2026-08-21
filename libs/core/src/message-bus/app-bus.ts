@@ -13,6 +13,7 @@
  */
 
 import { setApiToken } from '../api-registry.js'
+import { randomId } from '../utils.js'
 import { MessageBusBase, type MessageBusConfig } from './core.js'
 import { validateMessage } from './registry.js'
 import {
@@ -1260,7 +1261,7 @@ export class AppMessageBus extends MessageBusBase {
 		this.log('Opening media picker:', options)
 
 		// Generate unique session ID for correlating result
-		const sessionId = `mp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+		const sessionId = `mp-${Date.now()}-${randomId(9)}`
 
 		// Phase 1: Send request and wait for ACK (short timeout)
 		// This confirms the shell received the request and is opening the dialog
@@ -1369,7 +1370,7 @@ export class AppMessageBus extends MessageBusBase {
 
 		this.log('Opening document picker:', options)
 
-		const sessionId = `dp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+		const sessionId = `dp-${Date.now()}-${randomId(9)}`
 
 		try {
 			const ackData = await this.sendRequest<DocPickAck['data']>((id) => {
@@ -1558,7 +1559,7 @@ export class AppMessageBus extends MessageBusBase {
 
 		this.log('Opening camera capture:', options)
 
-		const sessionId = `cc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+		const sessionId = `cc-${Date.now()}-${randomId(9)}`
 
 		try {
 			const ackData = await this.sendRequest<CameraCaptureAck['data']>((id) => {
@@ -1608,7 +1609,7 @@ export class AppMessageBus extends MessageBusBase {
 
 		this.log('Opening camera:', options)
 
-		const sessionId = `cc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+		const sessionId = `cc-${Date.now()}-${randomId(9)}`
 
 		const ackData = await this.sendRequest<CameraCaptureAck['data']>((id) => {
 			this.sendToShell(
@@ -1936,7 +1937,7 @@ export class AppMessageBus extends MessageBusBase {
 
 		this.log('Requesting share link creation:', options)
 
-		const sessionId = `sc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+		const sessionId = `sc-${Date.now()}-${randomId(9)}`
 
 		try {
 			const ackData = await this.sendRequest<ShareCreateAck['data']>((id) => {

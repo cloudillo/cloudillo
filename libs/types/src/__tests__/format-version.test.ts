@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { decodeFormatVersion, encodeFormatVersion } from '../format-version'
+import { encodeFormatVersion } from '../format-version'
 
 describe('encodeFormatVersion', () => {
 	it('packs three decimal digits per component', () => {
@@ -33,20 +33,6 @@ describe('encodeFormatVersion', () => {
 		['a.b.c', 'non-numeric components']
 	])('rejects %p (%s)', (version) => {
 		expect(() => encodeFormatVersion(version)).toThrow(/Invalid formatVersion/)
-	})
-})
-
-describe('decodeFormatVersion', () => {
-	it('round-trips every component independently', () => {
-		for (const version of ['0.0.0', '1.0.0', '2.1.42', '999.999.999']) {
-			expect(decodeFormatVersion(encodeFormatVersion(version))).toBe(version)
-		}
-	})
-
-	it('rejects anything outside the encodable range', () => {
-		expect(() => decodeFormatVersion(-1)).toThrow()
-		expect(() => decodeFormatVersion(1_000_000_000)).toThrow()
-		expect(() => decodeFormatVersion(1.5)).toThrow()
 	})
 })
 

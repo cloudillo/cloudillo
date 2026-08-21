@@ -6,33 +6,9 @@
 :root {
 	/* Primary colors */
 	--c-primary: var(--col-primary);
-	--c-secondary: var(--col-secondary);
-	--c-accent: var(--col-accent);
 
 	/* Semantic colors */
 	--c-error: var(--col-error);
-	--c-warning: var(--col-warning);
-	--c-success: var(--col-success);
-
-	/* Background colors */
-	--c-bg-primary: var(--col-container-low);
-	--c-bg-secondary: var(--col-container);
-	--c-bg-hover: var(--col-container-high);
-	--c-primary-bg: var(--col-container-primary);
-	--c-hover-bg: var(--col-container-high);
-
-	/* Text colors */
-	--c-text-primary: var(--col-on-container);
-
-	/* Border and outline */
-	--c-border: var(--col-outline);
-	--c-border-color: var(--col-outline);
-	--c-border-radius: var(--radius-sm);
-
-	/* Shadows */
-	--c-shadow-sm: var(--shadow-sm);
-	--c-shadow-md: var(--shadow-md);
-	--c-shadow-lg: var(--shadow-lg);
 }
 
 /* ==========================================================================
@@ -1004,96 +980,6 @@
 	height: var(--border-w-sm, 1px);
 	background: var(--col-outline);
 	margin: var(--space-2, 0.5rem) 0;
-}
-
-/* ==========================================================================
-   TagInput Component
-   ========================================================================== */
-
-.c-tag-input {
-	position: relative;
-}
-
-.c-tag-input.inline {
-	display: inline-flex;
-}
-
-.c-tag-input-field {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: var(--space-1);
-	padding: var(--space-2);
-	background: var(--col-container-low);
-	border: 1px solid var(--col-outline);
-	border-radius: var(--radius-control);
-	min-height: 2.5rem;
-	cursor: text;
-	transition:
-		border-color var(--duration-fast) var(--ease-default),
-		box-shadow var(--duration-fast) var(--ease-default);
-}
-
-.c-tag-input-field:focus-within {
-	border-color: var(--col-primary);
-	box-shadow: 0 0 0 2px color-mix(in srgb, var(--col-primary) 20%, transparent);
-}
-
-.c-tag-input-field input {
-	flex: 1;
-	min-width: 4rem;
-	border: none;
-	background: transparent;
-	color: var(--col-on-surface);
-	font-size: var(--text-sm);
-	padding: 0;
-	outline: none;
-}
-
-.c-tag-input-field input::placeholder {
-	color: var(--col-secondary);
-}
-
-.c-tag-input-suggestions {
-	position: absolute;
-	top: 100%;
-	left: 0;
-	right: 0;
-	margin-top: var(--space-1);
-	background: var(--col-surface);
-	border: 1px solid var(--col-outline);
-	border-radius: var(--radius-md);
-	box-shadow: var(--shadow-lg);
-	z-index: var(--z-popover, 1000);
-	list-style: none;
-	padding: var(--space-1);
-	margin-bottom: 0;
-}
-
-.c-tag-input-suggestion {
-	display: flex;
-	align-items: center;
-	gap: var(--space-2);
-	padding: var(--space-2);
-	cursor: pointer;
-	border-radius: var(--radius-sm);
-	transition: background var(--duration-fast) var(--ease-default);
-}
-
-.c-tag-input-suggestion:hover,
-.c-tag-input-suggestion.highlighted {
-	background: var(--col-container-low);
-}
-
-.c-tag-input-suggestion-count {
-	font-size: var(--text-xs);
-	color: var(--col-secondary);
-}
-
-.c-tag-input-suggestion-new {
-	font-size: var(--text-xs);
-	color: var(--col-primary);
-	font-style: italic;
 }
 
 /* ==========================================================================

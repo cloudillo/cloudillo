@@ -45,7 +45,7 @@ export const SITE_FRAGMENT_EXT = '.part.html'
 export const SITE_ROOT_PATH = 'index'
 
 /** Container-relative path of the not-found fragment, without the extension. */
-export const SITE_NOT_FOUND_PATH = '404'
+const SITE_NOT_FOUND_PATH = '404'
 
 /** Fragment served for a path the container does not hold. */
 export const SITE_NOT_FOUND_ENTRY = `${SITE_NOT_FOUND_PATH}${SITE_FRAGMENT_EXT}`
@@ -54,7 +54,7 @@ export const SITE_NOT_FOUND_ENTRY = `${SITE_NOT_FOUND_PATH}${SITE_FRAGMENT_EXT}`
 export const SITE_TAGS_DIR = 'tags'
 
 /** Feed of an `index` page, stored beside it as `<index-path>/feed.xml`. */
-export const SITE_FEED_NAME = 'feed.xml'
+const SITE_FEED_NAME = 'feed.xml'
 
 /**
  * This document's portion of the sitemap. It stores **paths**, not URLs — the
@@ -136,7 +136,7 @@ export function siteFeedEntry(indexPath: string): string {
  * `.well-known` and `sw.js` stay even though no slug can produce them, and `api` and
  * `ws` stay against the day the app domain gains a same-origin route of either kind.
  */
-export const RESERVED_SITE_ROOTS: readonly string[] = [
+const RESERVED_SITE_ROOTS: readonly string[] = [
 	'sw.js',
 	'apps',
 	'fonts',
@@ -153,7 +153,7 @@ export const RESERVED_SITE_ROOTS: readonly string[] = [
 ]
 
 /** First path segments reserved by prefix: `assets-<version>`, `~…`, `@…`. */
-export const RESERVED_SITE_ROOT_PREFIXES: readonly string[] = ['assets-', '~', '@']
+const RESERVED_SITE_ROOT_PREFIXES: readonly string[] = ['assets-', '~', '@']
 
 /**
  * Reserved at the root level of **any** document, mounted anywhere: `index` is the

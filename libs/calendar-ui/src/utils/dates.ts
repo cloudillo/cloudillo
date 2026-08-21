@@ -17,7 +17,7 @@ export type WeekStart = 0 | 1
 
 /** First day of the 6×7 month grid: the Sunday or Monday on or before the
  *  first of `anchor`'s month. */
-export function monthGridStart(anchor: string, firstDay: WeekStart): Dayjs {
+function monthGridStart(anchor: string, firstDay: WeekStart): Dayjs {
 	const first = dayjs(anchor).startOf('month')
 	return startOfWeek(first.format('YYYY-MM-DD'), firstDay)
 }
@@ -30,7 +30,7 @@ export function monthGridDays(anchor: string, firstDay: WeekStart): string[] {
 	return out
 }
 
-export function startOfWeek(date: string, firstDay: WeekStart): Dayjs {
+function startOfWeek(date: string, firstDay: WeekStart): Dayjs {
 	if (firstDay === 1) return dayjs(date).startOf('isoWeek')
 	// Sunday-start: dayjs .startOf('week') is locale-dependent. Force Sunday.
 	const d = dayjs(date)
@@ -75,10 +75,6 @@ export function localDatePart(iso: string): string {
  *  survive the round-trip through minutesOfDay/localDatePart. */
 export function toIsoDateTime(datePart: string, minutes: number): string {
 	return dayjs(datePart).startOf('day').add(minutes, 'minute').toISOString()
-}
-
-export function addMinutesIso(iso: string, minutes: number): string {
-	return dayjs(iso).add(minutes, 'minute').toISOString()
 }
 
 export function addDaysIso(datePart: string, days: number): string {

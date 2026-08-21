@@ -46,7 +46,7 @@ export function getJwtTimes(token: string): JwtTimes | null {
 }
 
 /** Milliseconds until expiry (negative once expired); null if undeterminable. */
-export function jwtRemainingMs(token: string, now = Date.now()): number | null {
+function jwtRemainingMs(token: string, now = Date.now()): number | null {
 	const times = getJwtTimes(token)
 	return times ? times.exp - now : null
 }
@@ -71,7 +71,7 @@ export function jwtRemainingSeconds(token: string): number | undefined {
 }
 
 /** Spread a delay by ±`jitter` (a fraction, e.g. 0.05 for ±5%). */
-export function applyJitter(delayMs: number, jitter: number): number {
+function applyJitter(delayMs: number, jitter: number): number {
 	return jitter ? delayMs * (1 + (Math.random() * 2 - 1) * jitter) : delayMs
 }
 

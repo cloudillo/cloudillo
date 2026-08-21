@@ -112,7 +112,7 @@ describe('Error Classes', () => {
 		})
 
 		it('should distinguish between error types', () => {
-			const errors = [
+			const errors: RtdbError[] = [
 				new ConnectionError('Conn'),
 				new AuthError('Auth'),
 				new PermissionError('Perm'),

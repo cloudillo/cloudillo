@@ -41,16 +41,6 @@ export { PivotHandle } from './components/PivotHandle'
 export type { RotationHandleProps } from './components/RotationHandle'
 // Components
 export { RotationHandle } from './components/RotationHandle'
-export type { TransformGizmoProps } from './components/TransformGizmo'
-export { TransformGizmo } from './components/TransformGizmo'
-export type {
-	TransformGizmoHandlers,
-	TransformGizmoOptions,
-	TransformGizmoState,
-	UseTransformGizmoReturn
-} from './hooks/useTransformGizmo'
-// Hooks
-export { useTransformGizmo } from './hooks/useTransformGizmo'
 // Coordinate utilities
 export {
 	getCanvasCoordinates,
@@ -59,12 +49,7 @@ export {
 } from './utils/coordinates'
 export type { CalculateArcRadiusOptions } from './utils/rotation'
 // Rotation handle sizing
-export {
-	ARC_RADIUS_MAX_VIEWPORT_RATIO,
-	ARC_RADIUS_MIN_VIEWPORT_RATIO,
-	calculateArcRadius,
-	DEFAULT_ARC_PADDING
-} from './utils/rotation'
+export { calculateArcRadius } from './utils/rotation'
 
 // Re-export new geometry utilities from react-svg-canvas
 
@@ -91,22 +76,17 @@ export {
 } from 'react-svg-canvas'
 
 export type {
-	AngleControlProps,
 	GradientBarProps,
 	GradientPickerProps,
 	GradientPresetGridProps,
-	GradientPreviewProps,
-	PositionControlProps
+	GradientPreviewProps
 } from './components/GradientPicker'
 // GradientPicker components
 export {
-	AngleControl,
-	DEFAULT_ANGLE_PRESETS,
 	GradientBar,
 	GradientPicker,
 	GradientPresetGrid,
-	GradientPreview,
-	PositionControl
+	GradientPreview
 } from './components/GradientPicker'
 // Gradient presets
 export {
@@ -124,6 +104,14 @@ export type {
 	GradientStop,
 	GradientType
 } from './types/gradient'
+// Shared stored-code vocabularies (prezillo/ideallo type-converters)
+export {
+	ANCHOR_CODE,
+	ARROW_TYPE_CODE,
+	ROUTING_CODE,
+	TEXT_ALIGN_CODE,
+	VERT_ALIGN_CODE
+} from './utils/code-maps'
 export type {
 	LinearGradientDef,
 	RadialGradientDef,
@@ -141,17 +129,16 @@ export {
 	getColorAtPosition,
 	gradientToCSS,
 	interpolateColor,
-	removeStop,
-	reverseStops,
 	sortStops,
 	updateStop
 } from './utils/gradient'
 // Stacking utilities
-export type { FindStackedOptions, StackableObject } from './utils/stacking'
+export type { FindStackedOptions, StackableObject, ZOrderOp } from './utils/stacking'
 export {
 	calculateOverlapPercentage,
 	findStackedObjects,
-	findStackedObjectsForSelection
+	findStackedObjectsForSelection,
+	zOrderTarget
 } from './utils/stacking'
 
 // vim: ts=4

@@ -12,11 +12,10 @@
  * must skip the cache silently — no IndexedDB open, no console noise.
  */
 
-// Not a global in ESM mode, unlike describe/it/expect.
-import { jest } from '@jest/globals'
-
 import type { FileView } from '@cloudillo/core'
 import type { ActionView } from '@cloudillo/types'
+// Not a global in ESM mode, unlike describe/it/expect.
+import { jest } from '@jest/globals'
 
 const readSwKeyCookie = jest.fn<() => string | null>()
 const cacheFiles = jest.fn<() => Promise<void>>()

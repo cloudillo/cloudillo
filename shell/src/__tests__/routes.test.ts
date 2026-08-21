@@ -3,10 +3,10 @@
 
 import {
 	appPath,
-	communityCreatePath,
-	contextPath,
 	CTX_MATCH,
 	CTX_SECTION_MATCH,
+	communityCreatePath,
+	contextPath,
 	ctxBase,
 	encodeSegment,
 	feedPath,

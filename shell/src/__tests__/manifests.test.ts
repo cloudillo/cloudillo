@@ -16,8 +16,8 @@
  * the `cloudillo/<id>` convention — are checkable at all.
  */
 
-import { encodeFormatVersion, tAppManifest } from '@cloudillo/types'
 import type { AppManifest, ContentTypeHandler } from '@cloudillo/types'
+import { encodeFormatVersion, tAppManifest } from '@cloudillo/types'
 import * as T from '@symbion/runtype'
 
 import { bundledManifests } from '../bundled-manifests.js'

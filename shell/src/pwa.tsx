@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import React from 'react'
-
 import { base64UrlToBytes } from '@cloudillo/core/base64'
+import React from 'react'
 
 import { generateSwKey } from '../shared/sw-key.js'
 import { clearSwKeyCookie, readSwKeyCookie, writeSwKeyCookie } from './pwa/cookie.js'

@@ -25,7 +25,7 @@ import {
 } from '@cloudillo/react'
 
 import { OfflineBanner } from '../../components/OfflineBanner.js'
-import { useContextAwareApi, useCurrentContextIdTag, useCtx } from '../../context/index.js'
+import { useContextAwareApi, useCtx, useCurrentContextIdTag } from '../../context/index.js'
 import { getDirtyDocIds } from '../../message-bus/handlers/crdt.js'
 import { appPath, type QueryInit } from '../../routes.js'
 import { isPermissionError, useAppConfig } from '../../utils.js'

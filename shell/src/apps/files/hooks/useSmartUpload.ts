@@ -14,7 +14,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 
-import { useContextAwareApi, useCurrentContextIdTag, useCtx } from '../../../context/index.js'
+import { useContextAwareApi, useCtx, useCurrentContextIdTag } from '../../../context/index.js'
 import { getImportHandlers, type ImportHandler } from '../../../manifest-registry.js'
 import { setPendingImport } from '../../../message-bus/handlers/import.js'
 import { appPath } from '../../../routes.js'

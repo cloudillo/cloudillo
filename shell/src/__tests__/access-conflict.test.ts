@@ -7,9 +7,8 @@
  * nothing at all — so each branch is pinned individually.
  */
 
-import { jest } from '@jest/globals'
-
 import type { ApiClient, FileView } from '@cloudillo/core'
+import { jest } from '@jest/globals'
 
 import { classifyOutcome, refreshFileDeduped, suffixToAccess } from '../apps/access-conflict.js'
 

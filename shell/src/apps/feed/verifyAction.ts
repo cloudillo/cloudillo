@@ -18,7 +18,6 @@
  */
 
 import type { ProfileKeys } from '@cloudillo/core'
-
 import { base64UrlToBytes, bytesToBase64Url } from '@cloudillo/core/base64'
 
 const textEncoder = new TextEncoder()

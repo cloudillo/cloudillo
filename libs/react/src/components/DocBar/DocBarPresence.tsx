@@ -6,7 +6,7 @@ import * as React from 'react'
 
 import { useLibTranslation } from '../../i18n.js'
 import { AvatarGroup } from '../Avatar/index.js'
-import { PresenceAvatar, displayName } from '../Avatar/PresenceAvatar.js'
+import { displayName, PresenceAvatar } from '../Avatar/PresenceAvatar.js'
 import { Dropdown } from '../Dropdown/index.js'
 import { MenuHeader, MenuItem } from '../Menu/index.js'
 import { mergeClasses } from '../utils.js'

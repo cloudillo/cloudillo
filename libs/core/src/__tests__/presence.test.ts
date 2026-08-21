@@ -13,11 +13,11 @@
  */
 
 import {
+	buildPresenceUser,
+	dedupePresenceUsers,
 	MAX_PRESENCE_NAME_LENGTH,
 	type PresenceConnection,
 	type PresenceEntry,
-	buildPresenceUser,
-	dedupePresenceUsers,
 	readPresenceEntries,
 	readPresenceUser
 } from '../presence.js'

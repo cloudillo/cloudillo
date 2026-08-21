@@ -40,7 +40,6 @@ import 'quill/dist/quill.snow.css'
 
 import { getAppBus, idAccent } from '@cloudillo/core'
 import { initPresence, openYDoc } from '@cloudillo/crdt'
-import type { Awareness } from 'y-protocols/awareness'
 import {
 	FONTS,
 	type FontCategory,
@@ -49,6 +48,7 @@ import {
 	getSuggestedHeadingFonts
 } from '@cloudillo/fonts'
 import { Cloud, CloudOff, createElement } from 'lucide'
+import type { Awareness } from 'y-protocols/awareness'
 
 import { mountDocBar } from './docbar.js'
 import { importMarkdown } from './import-markdown.js'

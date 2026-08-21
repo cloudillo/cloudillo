@@ -17,10 +17,10 @@ import {
 	LuPencil as IcEdit,
 	LuFolder as IcFolder,
 	LuInfo as IcInfo,
-	LuLoaderCircle as IcProcessing,
 	LuLock as IcLock,
 	LuChevronRight as IcOpenFolder,
 	LuPin as IcPin,
+	LuLoaderCircle as IcProcessing,
 	LuStar as IcStar,
 	LuCloudOff as IcUnsyncedEdit,
 	LuEye as IcView

@@ -32,7 +32,7 @@ import {
 } from '../message-bus/index.js'
 import { documentTitleAtom } from '../title.js'
 import { isPermissionError } from '../utils.js'
-import { fetchRow, resolveDocInfo, type RowResult } from './doc-info.js'
+import { fetchRow, type RowResult, resolveDocInfo } from './doc-info.js'
 
 /**
  * Back-off before each successive re-attempt at a row fetch nobody answered. A

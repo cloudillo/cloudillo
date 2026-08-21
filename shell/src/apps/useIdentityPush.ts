@@ -24,8 +24,8 @@
  * renewal or a theme switch since the app was initialised.
  */
 
-import type { AuthState } from '@cloudillo/react'
 import { jwtRemainingSeconds } from '@cloudillo/core/jwt'
+import type { AuthState } from '@cloudillo/react'
 import * as React from 'react'
 
 import { getShellBus, type InitAppData } from '../message-bus/shell-bus.js'

@@ -20,9 +20,9 @@ export type { PostMenuProps } from './PostMenu.js'
 export { PostMenu } from './PostMenu.js'
 export type { QuoteIntent } from './quote-intent.js'
 export { pendingQuoteAtom } from './quote-intent.js'
-export { ReadDivider } from './ReadDivider.js'
 export type { ReactionPickerProps } from './ReactionPicker.js'
 export { ReactionPicker } from './ReactionPicker.js'
+export { ReadDivider } from './ReadDivider.js'
 export type { ReactionCount, ReactionKey } from './reactions.js'
 export {
 	getReactionEmoji,

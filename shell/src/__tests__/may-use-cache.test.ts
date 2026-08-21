@@ -8,8 +8,8 @@
  */
 
 import { FetchError, resetApiRegistry, setApiToken } from '@cloudillo/core'
-
 import { jwtExpiryDate } from '@cloudillo/core/jwt'
+
 import { mayUseCache } from '../cache/hooks.js'
 
 const OWNER = 'alice.cloudillo.net'

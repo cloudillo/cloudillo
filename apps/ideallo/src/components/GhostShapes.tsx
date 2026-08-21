@@ -6,9 +6,8 @@
  * Shown as dashed shapes with user label
  */
 
-import * as React from 'react'
-
 import { useDarkMode } from '@cloudillo/react'
+import * as React from 'react'
 
 import type { ConnectorContext } from '../connectors/index.js'
 import { resolvePreviewRoute } from '../connectors/index.js'

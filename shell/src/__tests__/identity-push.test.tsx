@@ -19,8 +19,8 @@
  * `.test.tsx` so jest gives this suite the jsdom environment (see jest.config.cjs).
  */
 
-import { jest } from '@jest/globals'
 import type { AuthState } from '@cloudillo/react'
+import { jest } from '@jest/globals'
 import { renderHook } from '@testing-library/react'
 
 const initApp = jest.fn()

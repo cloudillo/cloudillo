@@ -8,9 +8,9 @@ import { useTranslation } from 'react-i18next'
 import {
 	LuFolder as IcFolder,
 	LuInfo as IcInfo,
-	LuLoaderCircle as IcProcessing,
 	LuLock as IcLock,
 	LuPin as IcPin,
+	LuLoaderCircle as IcProcessing,
 	LuStar as IcStar,
 	LuCloudOff as IcUnsyncedEdit,
 	LuEye as IcView

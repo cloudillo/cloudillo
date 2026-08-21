@@ -15,26 +15,26 @@
  */
 
 import {
+	buildPresenceUser,
 	type PresenceEntry as CorePresenceEntry,
+	dedupePresenceUsers,
 	PRESENCE_FIELD,
 	type PresenceFeed,
 	type PresenceSource,
 	type PresenceUser,
-	buildPresenceUser,
-	dedupePresenceUsers,
 	readPresenceEntries
 } from '@cloudillo/core'
 import type { Awareness } from 'y-protocols/awareness'
 
+export type { PresenceFeed, PresenceSource, PresenceUser } from '@cloudillo/core'
 export {
-	PRESENCE_FIELD,
-	PRESENCE_THROTTLE_MS,
 	buildPresenceUser,
 	dedupePresenceUsers,
+	PRESENCE_FIELD,
+	PRESENCE_THROTTLE_MS,
 	readPresenceEntries,
 	readPresenceUser
 } from '@cloudillo/core'
-export type { PresenceFeed, PresenceSource, PresenceUser } from '@cloudillo/core'
 
 /**
  * The shared entry with the awareness client id re-attached. `connId` is

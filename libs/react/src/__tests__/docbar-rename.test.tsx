@@ -11,10 +11,9 @@
  * back rather than leave a lie on screen.
  */
 
+import type { DocInfo } from '@cloudillo/core'
 import { jest } from '@jest/globals'
 import { act, renderHook, waitFor } from '@testing-library/react'
-
-import type { DocInfo } from '@cloudillo/core'
 
 /** Every `error()` toast raised, oldest first. */
 const toastErrors: string[] = []

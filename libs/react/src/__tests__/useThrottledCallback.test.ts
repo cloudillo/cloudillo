@@ -5,6 +5,7 @@ import { jest } from '@jest/globals'
 import * as React from 'react'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
+
 import { useThrottledCallback } from '../useThrottledCallback.js'
 
 // Minimal renderHook: render a component that calls `hook()` and capture its

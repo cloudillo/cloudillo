@@ -1,16 +1,16 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, Popper, useApi, useAuth, useDialog, mergeClasses } from '@cloudillo/react'
+import { Button, mergeClasses, Popper, useApi, useAuth, useDialog } from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuBell as IcBell,
-	LuBellOff as IcMute,
-	LuBookmark as IcTrack,
 	LuTrash2 as IcDelete,
-	LuEllipsis as IcMore
+	LuEllipsis as IcMore,
+	LuBellOff as IcMute,
+	LuBookmark as IcTrack
 } from 'react-icons/lu'
 
 type SubLevel = 'W' | 'T' | 'M'

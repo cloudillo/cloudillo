@@ -6,9 +6,9 @@
  * tenant. Minted by exchanging our own token at `/api/auth/proxy-token`.
  */
 
+import { jwtRemainingSeconds } from '@cloudillo/core/jwt'
 import LRU from 'quick-lru'
 
-import { jwtRemainingSeconds } from '@cloudillo/core/jwt'
 import { debug } from './debug.js'
 import { getAuthToken, getIdTag } from './state.js'
 

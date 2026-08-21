@@ -20,12 +20,12 @@ import {
 	LuCheck as IcAccept,
 	LuUsers as IcConnections,
 	LuFile as IcFiles,
-	LuMailOpen as IcUnread,
 	LuMenu as IcMenu,
 	LuMessageSquare as IcMessages,
 	LuBell as IcNotifications,
 	LuX as IcReject,
-	LuHeart as IcSocial
+	LuHeart as IcSocial,
+	LuMailOpen as IcUnread
 } from 'react-icons/lu'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 

@@ -12,14 +12,14 @@
  */
 
 import {
-	PRESENCE_THROTTLE_MS,
-	type PresenceEntry,
-	type PresenceFeed,
-	type PublicProfile,
 	createApiClient,
 	dedupePresenceUsers,
 	getAppBus,
-	getFileUrl
+	getFileUrl,
+	PRESENCE_THROTTLE_MS,
+	type PresenceEntry,
+	type PresenceFeed,
+	type PublicProfile
 } from '@cloudillo/core'
 import { awarenessPresenceFeed } from '@cloudillo/crdt'
 import * as React from 'react'

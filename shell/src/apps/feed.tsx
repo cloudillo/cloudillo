@@ -54,9 +54,9 @@ import {
 	useApiContext,
 	useCommunitiesList,
 	useContextAwareApi,
+	useCtx,
 	useCurrentContextIdTag,
-	useProfileTrust,
-	useCtx
+	useProfileTrust
 } from '../context/index.js'
 import {
 	createdAtToSeconds,

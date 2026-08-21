@@ -225,6 +225,50 @@ export function createConfig(options = {}) {
 }
 
 /**
+ * One-shot build entry for the *illo apps: reads the app's package.json,
+ * creates the config (with `__APP_VERSION__` from the package version) and runs
+ * the standard pipeline (HTML stamping + manifest emission).
+ *
+ * @param {Object} esbuild - esbuild module
+ * @param {Object} options
+ * @param {string} options.projectDir - Project root directory (__dirname)
+ * @param {Object} options.define - Additional define values
+ * @param {Object} options.extra - Additional esbuild options (external, inject, ...)
+ * @param {string} options.entryPoint - Entry point (default 'src/index.tsx')
+ * @param {Function} options.onBuild - Optional extra pre-build step, runs after HTML stamping
+ */
+export async function buildAppEntry(esbuild, options) {
+	const { projectDir, define = {}, extra, entryPoint, onBuild } = options
+	const pkg = JSON.parse(readFileSync(join(projectDir, 'package.json'), 'utf-8'))
+
+	const config = createConfig({
+		entryPoint,
+		outdir: `dist/assets-${pkg.version}`,
+		define: {
+			__APP_VERSION__: JSON.stringify(pkg.version),
+			...define
+		},
+		extra
+	})
+
+	await buildApp(esbuild, {
+		config,
+		projectDir,
+		onBuild: async () => {
+			buildHTML(
+				join(projectDir, 'src/index.html'),
+				join(projectDir, 'dist/index.html'),
+				pkg.version
+			)
+			if (onBuild) await onBuild(pkg, config)
+			// Ships this app's content-type declarations to the backend; see
+			// `emitCloudilloManifest`.
+			await emitCloudilloManifest(esbuild, { projectDir })
+		}
+	})
+}
+
+/**
  * Build the app with watch mode support, compression, and cleanup
  * @param {Object} esbuild - esbuild module (passed in to avoid module resolution issues)
  * @param {Object} options

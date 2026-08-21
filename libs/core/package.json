@@ -62,13 +62,13 @@
 		"access": "public"
 	},
 	"dependencies": {
-		"@cloudillo/types": "workspace:^"
+		"@cloudillo/types": "workspace:^",
+		"@symbion/runtype": "^1.2.1",
+		"colord": "^2.9.3"
 	},
 	"devDependencies": {
-		"@symbion/runtype": "^1.2.1",
 		"@types/jest": "^30.0.0",
 		"@typescript/native": "npm:typescript@^7.0.2",
-		"colord": "^2.9.3",
 		"jest": "^30.4.2",
 		"jest-environment-jsdom": "^30.4.1",
 		"jotai": "^2.20.2",

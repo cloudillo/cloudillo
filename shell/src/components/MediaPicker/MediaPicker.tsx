@@ -190,6 +190,7 @@ export function MediaPicker() {
 							mediaType={mediaType}
 							documentVisibility={state.options?.documentVisibility}
 							documentFileId={state.options?.documentFileId}
+							requirePublic={state.options?.requirePublic}
 							isExternalContext={state.options?.isExternalContext}
 							idTag={state.options?.idTag}
 							selectedFile={selectedFile}

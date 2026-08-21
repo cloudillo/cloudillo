@@ -126,6 +126,23 @@
 	background: var(--col-container-primary);
 }
 
+/* Site source: not public, so not embeddable — dimmed, with its own fix action */
+.doc-picker-item.disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+}
+
+.doc-picker-item.disabled:hover {
+	background: var(--col-container-low);
+	border-color: transparent;
+}
+
+.doc-picker-item-unlock {
+	margin-top: 0.35rem;
+	font-size: 0.7rem;
+	cursor: pointer;
+}
+
 .doc-picker-item-icon {
 	width: 48px;
 	height: 48px;

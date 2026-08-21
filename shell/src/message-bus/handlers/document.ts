@@ -22,6 +22,7 @@ export interface DocPickerOpenOptions {
 	fileTp?: string
 	contentType?: string
 	sourceFileId?: string
+	requirePublic?: boolean // Site source: only Public documents may be embedded
 	title?: string
 	isExternalContext?: boolean
 	idTag?: string // Document's context idTag (from app connection)
@@ -136,6 +137,7 @@ export function initDocumentHandlers(bus: ShellMessageBus): void {
 				fileTp: msg.payload.fileTp,
 				contentType: msg.payload.contentType,
 				sourceFileId: msg.payload.sourceFileId,
+				requirePublic: msg.payload.requirePublic,
 				title: msg.payload.title,
 				isExternalContext: true,
 				idTag: contextIdTag // Document's context idTag from resId

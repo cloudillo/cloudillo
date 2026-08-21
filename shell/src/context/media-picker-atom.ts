@@ -16,6 +16,8 @@ export interface MediaPickerOptions {
 	documentVisibility?: 'P' | 'C' | 'F'
 	/** File ID to fetch visibility from */
 	documentFileId?: string
+	/** Site source: only Public files may be picked, and the fix is "Make public" */
+	requirePublic?: boolean
 	/** Enable image cropping */
 	enableCrop?: boolean
 	/** Allowed crop aspect ratios */

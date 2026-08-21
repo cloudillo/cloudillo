@@ -80,6 +80,12 @@ interface MediaPickerBrowseTabProps {
 	mediaType?: string
 	documentVisibility?: Visibility
 	documentFileId?: string
+	/**
+	 * Site source: the file ends up on a published page, whose reader is anonymous.
+	 * Only Public files may be picked, and the unlock action is "Make public" — a
+	 * share grants the *document*, which buys that reader nothing.
+	 */
+	requirePublic?: boolean
 	isExternalContext?: boolean
 	idTag?: string
 	selectedFile: MediaPickerResult | null
@@ -134,6 +140,7 @@ export function MediaPickerBrowseTab({
 	mediaType,
 	documentVisibility,
 	documentFileId,
+	requirePublic,
 	isExternalContext,
 	idTag: idTagProp,
 	selectedFile,
@@ -178,16 +185,17 @@ export function MediaPickerBrowseTab({
 	/**
 	 * Whether the lock overlay's action can actually succeed for this file.
 	 * Granting document access creates a share entry (share-manager standing);
-	 * "Make public" is a visibility change (the looser file-manage rule).
+	 * "Make public" is a visibility change (the looser file-manage rule). In
+	 * `requirePublic` mode the action is always "Make public", document or not.
 	 */
 	const canUnlock = useCallback(
 		(file: FileView) => {
 			const scoped = scopeFileToTenant(file, auth?.idTag, idTag)
-			return documentFileId
+			return documentFileId && !requirePublic
 				? canManageShares(scoped, auth?.idTag, idTag, browseRoles)
 				: canManageFile(scoped, auth?.idTag, browseRoles)
 		},
-		[documentFileId, auth?.idTag, idTag, browseRoles]
+		[documentFileId, requirePublic, auth?.idTag, idTag, browseRoles]
 	)
 
 	const {
@@ -255,9 +263,16 @@ export function MediaPickerBrowseTab({
 		let cancelled = false
 		;(async function () {
 			try {
-				const fileInfo = await api.files.getDescriptor(documentFileId)
-				const file = fileInfo.file as Record<string, unknown> | undefined
-				if (!cancelled) setResolvedDocVisibility((file?.visibility as Visibility) || 'F')
+				// The descriptor carries renditions only; `/metadata` is the answer that
+				// includes `visibility`. A file's level is wider than this picker's
+				// three-rung ladder, so anything outside it folds onto the most
+				// restrictive rung.
+				const { visibility } = await api.files.getMetadata(documentFileId)
+				if (!cancelled) {
+					setResolvedDocVisibility(
+						visibility === 'P' || visibility === 'C' ? visibility : 'F'
+					)
+				}
 			} catch {
 				// Visibility check is optional
 			}
@@ -270,6 +285,17 @@ export function MediaPickerBrowseTab({
 
 	// Filter files by media type
 	const filteredFiles = files.filter((file) => matchesMediaType(file, mediaType))
+
+	// A file this picker must not hand back. In `requirePublic` mode an existing
+	// share is irrelevant — it grants the document, not the anonymous web reader —
+	// so only 'P' passes, whatever the file is already shared with.
+	const isBlocked = useCallback(
+		(file: FileView) =>
+			requirePublic
+				? !isPublicFile(file)
+				: !!isExternalContext && !isPublicFile(file) && !accessibleFileIds.has(file.fileId),
+		[requirePublic, isExternalContext, accessibleFileIds]
+	)
 
 	// Handle folder navigation
 	const handleFolderClick = useCallback(
@@ -298,12 +324,7 @@ export function MediaPickerBrowseTab({
 				return
 			}
 
-			// Check if file is disabled (non-public in external context)
-			const isDisabled =
-				isExternalContext && !isPublicFile(file) && !accessibleFileIds.has(file.fileId)
-			if (isDisabled) {
-				return
-			}
+			if (isBlocked(file)) return
 
 			// Get actual file visibility from API response
 			const fileVisibility: Visibility = (file.visibility as Visibility) || 'F'
@@ -326,7 +347,7 @@ export function MediaPickerBrowseTab({
 
 			onSelect(result)
 		},
-		[handleFolderClick, onSelect, resolvedDocVisibility, isExternalContext, accessibleFileIds]
+		[handleFolderClick, onSelect, resolvedDocVisibility, isBlocked]
 	)
 
 	// Handle double click
@@ -337,12 +358,7 @@ export function MediaPickerBrowseTab({
 				return
 			}
 
-			// Check if file is disabled (non-public in external context)
-			const isDisabled =
-				isExternalContext && !isPublicFile(file) && !accessibleFileIds.has(file.fileId)
-			if (isDisabled) {
-				return
-			}
+			if (isBlocked(file)) return
 
 			const fileVisibility: Visibility = (file.visibility as Visibility) || 'F'
 			const result: MediaPickerResult = {
@@ -356,13 +372,7 @@ export function MediaPickerBrowseTab({
 
 			onDoubleClick(result)
 		},
-		[
-			handleFolderClick,
-			onDoubleClick,
-			showVisibilityWarning,
-			isExternalContext,
-			accessibleFileIds
-		]
+		[handleFolderClick, onDoubleClick, showVisibilityWarning, isBlocked]
 	)
 
 	// Acknowledge visibility warning
@@ -481,16 +491,17 @@ export function MediaPickerBrowseTab({
 	// Unified handler for file access action (grant document access or make public)
 	const handleFileAccessAction = useCallback(
 		(fileId: string, fileName: string, contentType: string) => {
-			if (documentFileId) {
+			if (documentFileId && !requirePublic) {
 				handleGrantDocumentAccess(fileId, fileName, contentType)
 			} else {
 				handleMakePublic(fileId, fileName, contentType)
 			}
 		},
-		[documentFileId, handleGrantDocumentAccess, handleMakePublic]
+		[documentFileId, requirePublic, handleGrantDocumentAccess, handleMakePublic]
 	)
 
-	const fileAccessActionLabel = documentFileId ? t('Grant access') : t('Make public')
+	const fileAccessActionLabel =
+		documentFileId && !requirePublic ? t('Grant access') : t('Make public')
 
 	return (
 		<div className="media-picker-browse">
@@ -597,11 +608,7 @@ export function MediaPickerBrowseTab({
 						<div className="media-picker-grid">
 							{filteredFiles.map((file) => {
 								// Check if file is disabled (non-public in external context, not a folder)
-								const isFileDisabled =
-									isExternalContext &&
-									!isPublicFile(file) &&
-									!accessibleFileIds.has(file.fileId) &&
-									file.fileTp !== 'FLDR'
+								const isFileDisabled = isBlocked(file) && file.fileTp !== 'FLDR'
 								const visibilityIcon = getVisibilityIcon(file.visibility ?? null)
 								const isUpdating = updatingFileId === file.fileId
 								const isConfirming = confirmingFile?.id === file.fileId

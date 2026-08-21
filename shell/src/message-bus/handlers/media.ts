@@ -25,6 +25,7 @@ export interface MediaPickerOpenOptions {
 	mediaType?: string
 	documentVisibility?: 'P' | 'C' | 'F'
 	documentFileId?: string
+	requirePublic?: boolean // Site source: only Public files may be picked
 	enableCrop?: boolean
 	cropAspects?: Array<'16:9' | '4:3' | '3:2' | '1:1' | 'circle' | 'free'>
 	title?: string
@@ -136,6 +137,7 @@ export function initMediaHandlers(bus: ShellMessageBus): void {
 				mediaType: msg.payload.mediaType,
 				documentVisibility: msg.payload.documentVisibility,
 				documentFileId: msg.payload.documentFileId,
+				requirePublic: msg.payload.requirePublic,
 				enableCrop: msg.payload.enableCrop,
 				cropAspects: msg.payload.cropAspects,
 				title: msg.payload.title,

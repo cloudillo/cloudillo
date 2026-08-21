@@ -16,6 +16,8 @@ export interface DocPickerOptions {
 	contentType?: string
 	/** Source file ID (for creating share entries) */
 	sourceFileId?: string
+	/** Site source: only Public documents may be embedded, and the fix is "Make public" */
+	requirePublic?: boolean
 	/** Custom dialog title */
 	title?: string
 	/** True when opened from external app via bus protocol */

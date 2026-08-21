@@ -136,6 +136,7 @@ export function DocumentPicker() {
 						fileTp={state.options?.fileTp}
 						contentType={state.options?.contentType}
 						sourceFileId={state.options?.sourceFileId}
+						requirePublic={state.options?.requirePublic}
 						idTag={state.options?.idTag}
 						selectedFile={selectedFile}
 						onSelect={handleFileSelected}

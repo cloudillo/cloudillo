@@ -115,9 +115,16 @@ export interface ChangeEvent {
 	data?: unknown
 }
 
+/** How much of the path a subscription covers. See the server's `SubscriptionScope`. */
+export type SubscriptionScope = 'document' | 'children' | 'subtree'
+
 export interface SnapshotOptions {
 	onError?: (error: Error) => void
 	onLock?: (event: ChangeEvent) => void
+	/** Which documents this subscription covers. `'children'` — the collection's own
+	 *  documents — by default; `'subtree'` also delivers documents in sub-collections
+	 *  beneath it, which is what every subscription did before this option existed. */
+	scope?: Extract<SubscriptionScope, 'children' | 'subtree'>
 }
 
 export interface LockResult {
@@ -381,6 +388,7 @@ export interface SubscribeMessage extends ClientMessage {
 	filter?: QueryFilter
 	aggregate?: AggregateOptions
 	select?: string[]
+	scope?: SubscriptionScope
 }
 
 export interface UnsubscribeMessage extends ClientMessage {

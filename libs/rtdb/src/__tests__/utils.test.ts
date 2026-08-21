@@ -227,8 +227,11 @@ describe('delay', () => {
 		await delay(50)
 		const elapsed = Date.now() - start
 
-		expect(elapsed).toBeGreaterThanOrEqual(50)
-		expect(elapsed).toBeLessThan(150) // Allow some margin
+		// One millisecond of slack: `setTimeout` can fire fractionally early relative
+		// to `Date.now()`'s granularity, and a 49 here was failing CI. No upper bound
+		// either — how long a timer overshoots is the loaded machine's business, not
+		// `delay`'s.
+		expect(elapsed).toBeGreaterThanOrEqual(49)
 	})
 
 	it('should resolve immediately with 0ms', async () => {

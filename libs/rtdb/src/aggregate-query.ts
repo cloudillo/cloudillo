@@ -7,7 +7,8 @@ import type {
 	AggregateSnapshot,
 	ChangeEvent,
 	QueryFilter,
-	QueryMessage
+	QueryMessage,
+	SnapshotOptions
 } from './types.js'
 import { normalizePath } from './utils.js'
 import type { WebSocketManager } from './websocket.js'
@@ -52,8 +53,14 @@ export class AggregateQuery {
 	 */
 	onSnapshot(
 		callback: (snapshot: AggregateSnapshot) => void,
-		onError?: (error: Error) => void
+		optionsOrOnError?: ((error: Error) => void) | SnapshotOptions
 	): () => void {
+		const onError =
+			typeof optionsOrOnError === 'function' ? optionsOrOnError : optionsOrOnError?.onError
+		const scope =
+			(typeof optionsOrOnError === 'object' ? optionsOrOnError?.scope : undefined) ??
+			'children'
+
 		const groupMap = new Map<AggregateGroupEntry['group'], AggregateGroupEntry>()
 		let ready = false
 
@@ -117,7 +124,14 @@ export class AggregateQuery {
 				emit()
 			},
 			onError || ((error: Error) => console.error('Aggregate subscription error:', error)),
-			this.aggregateOptions
+			this.aggregateOptions,
+			undefined,
+			// An aggregate is over a collection. Counting documents from
+			// sub-collections into its groups is the same over-matching bug the
+			// query path had, wearing a different hat. `{ scope: 'subtree' }` is the
+			// escape hatch, the same one `Query.onSnapshot` offers, for a caller who
+			// wants the any-depth behaviour every subscription had before.
+			scope
 		)
 
 		return unsubscribe

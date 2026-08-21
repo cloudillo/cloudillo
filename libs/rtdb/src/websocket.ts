@@ -13,6 +13,7 @@ import {
 	type QueryFilter,
 	type RtdbClientOptions,
 	type ServerMessage,
+	type SubscriptionScope,
 	tServerMessage
 } from './types.js'
 
@@ -62,6 +63,12 @@ interface SubscriptionDetails {
 	/** Field projection. Must be replayed on reconnect, or the subscription
 	 *  silently upgrades itself back to whole documents. */
 	select?: string[]
+	/** How much of `path` this subscription covers. Must be replayed on reconnect
+	 *  for the same reason `select` must: the server reads an absent scope as the
+	 *  whole subtree, so a dropped connection silently widens the subscription —
+	 *  and turns a document subscription back into a collection scan, whose replay
+	 *  is empty, so the document reads as deleted for the life of the process. */
+	scope?: SubscriptionScope
 	/**
 	 * Id the server currently knows this subscription by. Reassigned on every
 	 * reconnect, so the unsubscribe path must read it from here: a captured value
@@ -357,7 +364,8 @@ export class WebSocketManager {
 		callback: (event: ChangeEvent) => void,
 		onError: (error: Error) => void,
 		aggregate?: AggregateOptions,
-		select?: string[]
+		select?: string[],
+		scope?: SubscriptionScope
 	): () => void {
 		// Generate a local ID for tracking this subscription
 		const localId = `local_sub_${++this.requestId}`
@@ -369,6 +377,7 @@ export class WebSocketManager {
 			filter,
 			aggregate,
 			select,
+			scope,
 			callback,
 			onError
 		}
@@ -384,7 +393,8 @@ export class WebSocketManager {
 			path,
 			filter,
 			...(aggregate && { aggregate }),
-			...(select?.length && { select })
+			...(select?.length && { select }),
+			...(scope && { scope })
 		})
 			.then((result: unknown) => {
 				const subId = (result as { subscriptionId: string }).subscriptionId
@@ -652,7 +662,8 @@ export class WebSocketManager {
 					path: details.path,
 					filter: details.filter,
 					...(details.aggregate && { aggregate: details.aggregate }),
-					...(details.select?.length && { select: details.select })
+					...(details.select?.length && { select: details.select }),
+					...(details.scope && { scope: details.scope })
 				})
 					.then((result: unknown) => {
 						const serverSubscriptionId = (result as { subscriptionId: string })

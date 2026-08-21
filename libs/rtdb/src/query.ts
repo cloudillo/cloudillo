@@ -154,6 +154,15 @@ export class Query<T = unknown> {
 		const onError =
 			typeof optionsOrOnError === 'function' ? optionsOrOnError : optionsOrOnError?.onError
 		const onLock = typeof optionsOrOnError === 'object' ? optionsOrOnError?.onLock : undefined
+		// `'children'` by default: a query returns a collection's own documents, so
+		// a subscription that also delivered documents from sub-collections beneath
+		// them would stream what the equivalent `get()` never returns — and the map
+		// below keys documents by their last path segment, so a sub-collection
+		// document could overwrite an unrelated one. `'subtree'` restores the old
+		// any-depth behaviour for anyone who wants it.
+		const scope =
+			(typeof optionsOrOnError === 'object' ? optionsOrOnError?.scope : undefined) ??
+			'children'
 
 		const documentMap = new Map<string, unknown>()
 		let ready = false
@@ -264,7 +273,8 @@ export class Query<T = unknown> {
 			},
 			onError || ((error: Error) => console.error('Subscription error:', error)),
 			undefined,
-			this.selectFields?.length ? this.selectFields : undefined
+			this.selectFields?.length ? this.selectFields : undefined,
+			scope
 		)
 
 		return unsubscribe

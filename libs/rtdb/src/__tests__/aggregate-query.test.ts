@@ -220,6 +220,26 @@ describe('AggregateQuery.onSnapshot', () => {
 			empty: false
 		})
 	})
+
+	describe('subscription scope', () => {
+		/**
+		 * The scope argument `ws.subscribe` was called with. Fixed index, not
+		 * `call.length - 1`: `WebSocketManager.subscribe` takes seven positional
+		 * parameters with `scope` at 6, and reading from the end would silently pick
+		 * up whatever is appended after it.
+		 */
+		function subscribedScope() {
+			return (mockWs.subscribe as jest.Mock).mock.calls[0][6]
+		}
+
+		it("should count only the collection's own documents by default", () => {
+			// Documents in sub-collections beneath this one are not part of the
+			// aggregate a `get()` would compute either — and this is a published
+			// package, so the default is the contract.
+			subscribe()
+			expect(subscribedScope()).toBe('children')
+		})
+	})
 })
 
 // vim: ts=4

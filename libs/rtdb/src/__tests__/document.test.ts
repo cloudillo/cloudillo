@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
 import { CollectionReference } from '../collection'
 import { DocumentReference } from '../document'
-import type { TransactionMessage } from '../types'
+import type { ChangeEvent, DocumentSnapshot, TransactionMessage } from '../types'
 import { WebSocketManager } from '../websocket'
 
 jest.mock('../websocket')
@@ -190,6 +190,8 @@ describe('DocumentReference', () => {
 
 			const unsub = docRef.onSnapshot(jest.fn())
 
+			// The transport's own unsubscribe, unwrapped: nothing in the handler is
+			// asynchronous any more, so there is no in-flight work to invalidate.
 			expect(unsub).toBe(unsubscribeFn)
 		})
 
@@ -240,18 +242,165 @@ describe('DocumentReference', () => {
 			expect(callback).toHaveBeenCalled()
 		})
 
+		// The subscription is self-contained: `ready` carries the document's
+		// current value, so no separate read is needed to tell "exists" from
+		// "does not exist".
+		it('should emit the stored document carried by ready', async () => {
+			let received: DocumentSnapshot<unknown> | undefined
+			mockWs.subscribe.mockImplementation((_path, _filter, cb) => {
+				setTimeout(() => {
+					cb({
+						action: 'ready',
+						path: 'posts/123',
+						data: [{ id: '123', title: 'Stored' }]
+					})
+				}, 0)
+				return () => {}
+			})
+
+			docRef.onSnapshot((snapshot) => {
+				received = snapshot
+			})
+			await jest.advanceTimersByTimeAsync(10)
+
+			expect(received?.exists).toBe(true)
+			expect(received?.data()).toEqual({ id: '123', title: 'Stored' })
+			// The round trip a subscription exists to avoid.
+			expect(mockWs.send).not.toHaveBeenCalled()
+		})
+
+		it('should report a missing document when ready carries an empty array', async () => {
+			let received: DocumentSnapshot<unknown> | undefined
+			mockWs.subscribe.mockImplementation((_path, _filter, cb) => {
+				setTimeout(() => {
+					cb({ action: 'ready', path: 'posts/123', data: [] })
+				}, 0)
+				return () => {}
+			})
+
+			docRef.onSnapshot((snapshot) => {
+				received = snapshot
+			})
+			await jest.advanceTimersByTimeAsync(10)
+
+			expect(received?.exists).toBe(false)
+		})
+
+		// A reconnect re-subscribes and replays `ready` with whatever is stored at
+		// that moment, so a write that landed while the socket was down arrives
+		// without a separate read.
+		it('should re-emit from a replayed ready after a reconnect', async () => {
+			const snapshots: DocumentSnapshot<unknown>[] = []
+			let emit: ((event: ChangeEvent) => void) | undefined
+			mockWs.subscribe.mockImplementation((_path, _filter, cb) => {
+				emit = cb
+				return () => {}
+			})
+
+			docRef.onSnapshot((snapshot) => {
+				snapshots.push(snapshot)
+			})
+			emit?.({ action: 'ready', path: 'posts/123', data: [{ id: '123', title: 'First' }] })
+			emit?.({
+				action: 'ready',
+				path: 'posts/123',
+				data: [{ id: '123', title: 'Changed while offline' }]
+			})
+
+			expect(snapshots.map((s) => s.data())).toEqual([
+				{ id: '123', title: 'First' },
+				{ id: '123', title: 'Changed while offline' }
+			])
+		})
+
+		// `ready` is built from the server's state at *subscribe* time, so a change
+		// that races ahead of it is newer. Emitted as it arrives, the caller saw the
+		// new value and then the old one, with no correction event to follow —
+		// `emit`'s only guard is "differs from the last one".
+		it('should not hand the caller older state after newer', async () => {
+			const snapshots: DocumentSnapshot<unknown>[] = []
+			let emit: ((event: ChangeEvent) => void) | undefined
+			mockWs.subscribe.mockImplementation((_path, _filter, cb) => {
+				emit = cb
+				return () => {}
+			})
+
+			docRef.onSnapshot((snapshot) => {
+				snapshots.push(snapshot)
+			})
+			// The update wins the race; `ready` carries what was stored before it.
+			emit?.({
+				action: 'update',
+				path: 'posts/123',
+				data: { id: '123', title: 'Updated' }
+			})
+			emit?.({ action: 'ready', path: 'posts/123', data: [{ id: '123', title: 'Stored' }] })
+
+			// Old → new, monotonic, and the caller is not left holding the stale one.
+			expect(snapshots.map((s) => s.data())).toEqual([
+				{ id: '123', title: 'Stored' },
+				{ id: '123', title: 'Updated' }
+			])
+		})
+
+		it('should collapse a buffered change that agrees with ready', async () => {
+			const callback = jest.fn()
+			let emit: ((event: ChangeEvent) => void) | undefined
+			mockWs.subscribe.mockImplementation((_path, _filter, cb) => {
+				emit = cb
+				return () => {}
+			})
+
+			docRef.onSnapshot(callback)
+			emit?.({ action: 'update', path: 'posts/123', data: { id: '123', title: 'Same' } })
+			emit?.({ action: 'ready', path: 'posts/123', data: [{ id: '123', title: 'Same' }] })
+
+			// `emit`'s existing dedupe, doing its job on the flushed pair.
+			expect(callback).toHaveBeenCalledTimes(1)
+		})
+
+		// A lock payload is lock state, not document fields. Wrapped as a snapshot
+		// it would reach the caller looking like someone had rewritten the record.
+		it('should ignore lock and unlock events', () => {
+			const callback = jest.fn()
+			let emit: ((event: ChangeEvent) => void) | undefined
+			mockWs.subscribe.mockImplementation((_path, _filter, cb) => {
+				emit = cb
+				return () => {}
+			})
+
+			docRef.onSnapshot(callback)
+			emit?.({ action: 'ready', path: 'posts/123', data: [{ id: '123', title: 'Stored' }] })
+			emit?.({
+				action: 'lock',
+				path: 'posts/123',
+				data: { userId: 'u1', mode: 'soft', connId: 'c1' }
+			})
+			emit?.({ action: 'unlock', path: 'posts/123', data: { userId: 'u1', connId: 'c1' } })
+
+			expect(callback).toHaveBeenCalledTimes(1)
+		})
+
+		// Without it the server resolves the path as a collection and the replay
+		// is empty, so the document reads as deleted however long it has existed.
+		it('should subscribe with document scope', () => {
+			mockWs.subscribe.mockReturnValue(() => {})
+
+			docRef.onSnapshot(jest.fn())
+
+			// By position rather than `toHaveBeenCalledWith`, which is
+			// arity-sensitive and breaks whenever a trailing optional argument is
+			// added to `subscribe`.
+			expect(mockWs.subscribe.mock.calls[0][6]).toBe('document')
+		})
+
 		it('should handle error callback', () => {
 			const errorFn = jest.fn()
 			mockWs.subscribe = jest.fn()
 
 			docRef.onSnapshot(jest.fn(), errorFn)
 
-			expect(mockWs.subscribe).toHaveBeenCalledWith(
-				expect.anything(),
-				undefined,
-				expect.anything(),
-				errorFn
-			)
+			expect(mockWs.subscribe.mock.calls[0][3]).toBe(errorFn)
 		})
 	})
 

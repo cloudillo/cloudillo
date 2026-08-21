@@ -416,6 +416,39 @@ describe('Query', () => {
 			expect(removed?.newIndex).toBe(-1)
 		})
 
+		// A query returns a collection's own documents, so its subscription covers
+		// the same set. Before `scope` existed it also received events from
+		// sub-collections beneath them — documents the equivalent `get()` never
+		// returns, keyed by their last path segment into the same result map.
+		it('should default to children scope', () => {
+			mockWs.subscribe.mockReturnValue(() => {})
+
+			query.onSnapshot(jest.fn())
+
+			expect(mockWs.subscribe.mock.calls[0][6]).toBe('children')
+		})
+
+		it('should keep onError and onLock working alongside scope', () => {
+			const errorFn = jest.fn()
+			const lockFn = jest.fn()
+			let emit: ((event: ChangeEvent) => void) | undefined
+			mockWs.subscribe.mockImplementation((_path, _filter, cb) => {
+				emit = cb
+				return () => {}
+			})
+
+			query.onSnapshot(jest.fn(), { onError: errorFn, onLock: lockFn, scope: 'subtree' })
+			emit?.({
+				action: 'lock',
+				path: 'posts/1',
+				data: { userId: 'u1', mode: 'soft', connId: 'c1' }
+			})
+
+			expect(mockWs.subscribe.mock.calls[0][3]).toBe(errorFn)
+			expect(mockWs.subscribe.mock.calls[0][6]).toBe('subtree')
+			expect(lockFn).toHaveBeenCalledTimes(1)
+		})
+
 		it('should handle error callback', () => {
 			const errorFn = jest.fn()
 			mockWs.subscribe = jest.fn()
@@ -642,13 +675,10 @@ describe('Query', () => {
 			const aggQuery = query.aggregate('tg')
 			aggQuery.onSnapshot(jest.fn())
 
-			expect(mockWs.subscribe).toHaveBeenCalledWith(
-				'posts',
-				undefined,
-				expect.any(Function),
-				expect.any(Function),
-				{ groupBy: 'tg' }
-			)
+			// By position rather than `toHaveBeenCalledWith`, which is arity-sensitive
+			// and breaks whenever a trailing optional argument is added to `subscribe`.
+			expect(mockWs.subscribe.mock.calls[0][0]).toBe('posts')
+			expect(mockWs.subscribe.mock.calls[0][4]).toEqual({ groupBy: 'tg' })
 		})
 
 		it('should fire callback on update events after ready', async () => {

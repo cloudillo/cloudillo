@@ -1,6 +1,15 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+export {
+	buildPresenceUser,
+	PRESENCE_FIELD,
+	PRESENCE_THROTTLE_MS,
+	type PresenceEntry,
+	type PresenceFeed,
+	type PresenceUser
+} from '@cloudillo/core'
+
 export { AggregateQuery } from './aggregate-query.js'
 // Main client
 export { createRtdbClient, RtdbClient, WriteBatch } from './client.js'
@@ -20,14 +29,6 @@ export {
 // Presence — the shared core surface is re-exported so a presence-using app has
 // one import site, exactly as @cloudillo/crdt does for the awareness transport.
 export { RtdbPresence, type RtdbPresenceOptions } from './presence.js'
-export {
-	PRESENCE_FIELD,
-	PRESENCE_THROTTLE_MS,
-	buildPresenceUser,
-	type PresenceEntry,
-	type PresenceFeed,
-	type PresenceUser
-} from '@cloudillo/core'
 export { Query } from './query.js'
 // Types
 export type {

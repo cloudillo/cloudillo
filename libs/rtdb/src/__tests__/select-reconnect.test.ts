@@ -127,6 +127,59 @@ describe('subscription field projection', () => {
 		expect(replayed[0].filter).toEqual({ equals: { pp: '__root__' } })
 	})
 
+	it('sends scope on the subscribe message, and omits it when none was given', async () => {
+		const socket = await connectAndOpen()
+
+		ws.subscribe(
+			'd/site',
+			undefined,
+			() => {},
+			() => {},
+			undefined,
+			undefined,
+			'document'
+		)
+		ws.subscribe(
+			'p',
+			undefined,
+			() => {},
+			() => {}
+		)
+		await jest.advanceTimersByTimeAsync(0)
+
+		expect(subscribeMessages(socket)[0].scope).toBe('document')
+		// An unchanged caller must produce a byte-identical frame, so an older
+		// server keeps reading it as the whole subtree.
+		expect(subscribeMessages(socket)[1].scope).toBeUndefined()
+	})
+
+	it('replays scope when the subscription is re-established after a reconnect', async () => {
+		// Without this a dropped connection turns a document subscription back into
+		// a collection scan, whose replay is empty — so the document reads as
+		// deleted for the life of the process, with no event to correct it.
+		const first = await connectAndOpen()
+
+		ws.subscribe(
+			'd/site',
+			undefined,
+			() => {},
+			() => {},
+			undefined,
+			undefined,
+			'document'
+		)
+		await jest.advanceTimersByTimeAsync(0)
+		first.ackSubscribes()
+
+		first.simulateClose()
+		const second = await connectAndOpen()
+		await jest.advanceTimersByTimeAsync(0)
+
+		const replayed = subscribeMessages(second)
+		expect(replayed).toHaveLength(1)
+		expect(replayed[0].scope).toBe('document')
+	})
+
 	it('unsubscribes the id the server assigned after a reconnect', async () => {
 		// The pre-reconnect id is dead on both sides; cancelling it would leave the
 		// re-established subscription streaming into a consumer that has gone.

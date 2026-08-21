@@ -90,6 +90,15 @@ export interface EmbedRelayHandle {
  * This relay forwards messages between a child iframe and the shell
  * by routing through the parent (this window).
  *
+ * **In a top-level window there is nothing to bridge and nothing is relayed
+ * upward**: a direct child of the shell already reaches it. Relaying anyway
+ * would repost every child message to *this* window, i.e. deliver it to the
+ * shell a second time — which for `auth:init.req` means an `ok: false, 'App not
+ * registered'` (the pending registration having been consumed by the real one)
+ * handed back to the child under the original request id, beating the real
+ * answer whenever that one waits on a token mint. Interception and
+ * `sendToChild` still work, so a shell-side embed keeps its viewstate channel.
+ *
  * @param iframe - The nested iframe element
  * @param options - Optional configuration for notification interception
  * @returns EmbedRelayHandle with cleanup and sendToChild functions
@@ -102,6 +111,7 @@ export function setupEmbedRelay(
 	// with the host app's own request IDs
 	const idOffset = ++embedCounter * EMBED_ID_RANGE
 	const relayedIds = new Map<number, number>() // remapped → original
+	const isTopWindow = window.parent === window
 
 	// Upward: child → shell (remap request IDs, forward to parent)
 	const upHandler = (event: MessageEvent) => {
@@ -119,6 +129,11 @@ export function setupEmbedRelay(
 		) {
 			options.onChildNotification(msg.type, msg.payload)
 		}
+
+		// See the doc comment: from a top-level window the repost below would
+		// deliver the message to the shell a second time. Interception above
+		// still runs, so a shell-side host keeps hearing its child.
+		if (isTopWindow) return
 
 		// Local interception above happens for anything the child sends; only the
 		// allowlisted types are put on the wire as if this app had sent them.
@@ -140,6 +155,10 @@ export function setupEmbedRelay(
 
 	// Downward: shell → child (match relayed responses + broadcast pushes, restore IDs)
 	const downHandler = (event: MessageEvent) => {
+		// Symmetric with `upHandler`: from a top-level window `window.parent` is
+		// this window, so this would match the shell's own outgoing messages —
+		// which already went straight to the child.
+		if (isTopWindow) return
 		if (event.source !== window.parent) return
 		if (!event.data?.cloudillo) return
 

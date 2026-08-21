@@ -65,6 +65,10 @@ import {
 	tShareCreateAck,
 	tShareCreateReq,
 	tShareCreateResultPush,
+	tSiteMountReq,
+	tSiteMountRes,
+	tSitePublishReq,
+	tSitePublishRes,
 	tStorageOpReq,
 	tStorageOpRes,
 	tThemeUpdate
@@ -355,6 +359,26 @@ export const MESSAGE_REGISTRY: Record<MessageType, MessageAccessRule> = {
 		directions: ['shell>app'],
 		requiresAuth: false,
 		validator: tShareCreateResultPush
+	},
+	'site:publish.req': {
+		directions: ['app>shell'],
+		requiresAuth: true,
+		validator: tSitePublishReq
+	},
+	'site:publish.res': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tSitePublishRes
+	},
+	'site:mount.req': {
+		directions: ['app>shell'],
+		requiresAuth: true,
+		validator: tSiteMountReq
+	},
+	'site:mount.res': {
+		directions: ['shell>app'],
+		requiresAuth: false,
+		validator: tSiteMountRes
 	},
 	'import:data.push': {
 		directions: ['shell>app'],

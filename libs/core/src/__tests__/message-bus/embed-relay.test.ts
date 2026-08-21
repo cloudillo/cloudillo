@@ -17,21 +17,67 @@ import { PROTOCOL_VERSION } from '../../message-bus/types'
 
 type Msg = Record<string, unknown>
 
-function harness() {
+/**
+ * jsdom's `window.parent` is the window itself, which is the one case the relay
+ * refuses to forward in — a direct child of the shell reaches it unaided, and
+ * reposting there would deliver every message twice. So the nested suites stand a
+ * fake parent up, both to record the wire and to make this the nested case they are
+ * meant to be. Hand-rolled rather than jest.spyOn: the `jest` global is not injected
+ * under `--experimental-vm-modules`.
+ *
+ * Kept out of `harness()` so its restore is owned by an `afterEach` and runs whatever
+ * a case does — a leaked fake parent would silently turn every later suite in this
+ * file into the nested case too.
+ */
+function installFakeParent() {
+	const forwarded: Msg[] = []
+	const real = Object.getOwnPropertyDescriptor(window, 'parent')
+	Object.defineProperty(window, 'parent', {
+		configurable: true,
+		value: {
+			postMessage: (msg: unknown) => {
+				forwarded.push(msg as Msg)
+			}
+		}
+	})
+	return {
+		/** Everything the relay put on the wire to the shell. */
+		forwarded,
+		restore() {
+			if (real) Object.defineProperty(window, 'parent', real)
+			else Reflect.deleteProperty(window, 'parent')
+		}
+	}
+}
+
+/**
+ * The same, for a window that *is* the top one: `window.parent` is `window`, so the
+ * repost the relay would make is `window.postMessage`. Recorded rather than left to
+ * jsdom's own delivery, which is asynchronous and would not show up in the case.
+ */
+function installTopWindowSpy() {
+	const sent: Msg[] = []
+	const real = Object.getOwnPropertyDescriptor(window, 'postMessage')
+	Object.defineProperty(window, 'postMessage', {
+		configurable: true,
+		value: (msg: unknown) => {
+			sent.push(msg as Msg)
+		}
+	})
+	return {
+		sent,
+		restore() {
+			if (real) Object.defineProperty(window, 'postMessage', real)
+			else Reflect.deleteProperty(window, 'postMessage')
+		}
+	}
+}
+
+function harness(forwarded: Msg[] = []) {
 	const iframe = document.createElement('iframe')
 	document.body.appendChild(iframe)
 	const child = iframe.contentWindow
 	if (!child) throw new Error('jsdom gave the iframe no contentWindow')
-
-	/** Everything the relay put on the wire to the shell. */
-	const forwarded: Msg[] = []
-	// jsdom's window.parent is the window itself; hand-rolled rather than
-	// jest.spyOn — the `jest` global is not injected under
-	// `--experimental-vm-modules`.
-	const realPost = window.parent.postMessage
-	window.parent.postMessage = ((msg: unknown) => {
-		forwarded.push(msg as Msg)
-	}) as typeof window.postMessage
 
 	const notifications: Array<[string, unknown]> = []
 	const relay = setupEmbedRelay(iframe, {
@@ -49,7 +95,6 @@ function harness() {
 		},
 		cleanup() {
 			relay.cleanup()
-			window.parent.postMessage = realPost
 			iframe.remove()
 		}
 	}
@@ -60,14 +105,20 @@ function childMessage(type: string, extra: Msg = {}): Msg {
 }
 
 describe('setupEmbedRelay upward allowlist', () => {
+	let parent: ReturnType<typeof installFakeParent>
 	let h: ReturnType<typeof harness>
 
 	beforeEach(() => {
-		h = harness()
+		parent = installFakeParent()
+		h = harness(parent.forwarded)
 	})
 
 	afterEach(() => {
-		h.cleanup()
+		try {
+			h.cleanup()
+		} finally {
+			parent.restore()
+		}
 	})
 
 	it('forwards the auth handshake', () => {
@@ -178,6 +229,49 @@ describe('setupEmbedRelay upward allowlist', () => {
 			// The shell would drop anything this rejects, stamp and all.
 			expect(validateMessage(msg, 'app>shell')).toBeDefined()
 		}
+	})
+})
+
+/**
+ * The relay also runs shell-side, where the host is not itself embedded: `layout.tsx`
+ * mounts an app in an iframe of the top window. There `window.parent` is `window`, so
+ * the repost would hand the shell the child's message a *second* time — and for
+ * `auth:init.req` the duplicate loses its pending registration and answers the child
+ * `ok: false, 'App not registered'`, beating the real reply whenever that one waits on
+ * a token mint. Deliberately no fake parent here: `isTopWindow` is the branch under
+ * test, and the suites above stub it away.
+ */
+describe('setupEmbedRelay — a top-level window', () => {
+	let top: ReturnType<typeof installTopWindowSpy>
+	let h: ReturnType<typeof harness>
+
+	beforeEach(() => {
+		top = installTopWindowSpy()
+		h = harness()
+	})
+
+	afterEach(() => {
+		try {
+			h.cleanup()
+		} finally {
+			top.restore()
+		}
+	})
+
+	it('forwards nothing upward, not even an allowlisted type', () => {
+		expect(window.parent).toBe(window)
+		h.fromChild(childMessage('auth:init.req', { id: 7, payload: { appName: 'prezillo' } }))
+
+		expect(top.sent).toEqual([])
+	})
+
+	it('still hands the notification to the host', () => {
+		// The guard suppresses the repost, not local delivery — a shell-side embed
+		// keeps its viewstate channel.
+		h.fromChild(childMessage('embed:viewstate.push', { payload: { viewState: 's' } }))
+
+		expect(h.notifications).toEqual([['embed:viewstate.push', { viewState: 's' }]])
+		expect(top.sent).toEqual([])
 	})
 })
 

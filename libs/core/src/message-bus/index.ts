@@ -47,9 +47,9 @@ export {
 	type MediaPickOptions,
 	type MediaPickResult,
 	type OverlayItemData,
+	type ParsedAppHash,
 	// Location hash parsing
 	parseAppHash,
-	type ParsedAppHash,
 	resetAppBus,
 	type SettingsApi,
 	type ShareCreateOptions,
@@ -166,6 +166,11 @@ export {
 	// Share link creation messages
 	type ShareCreateReq,
 	type ShareCreateResultPush,
+	// Site publish messages
+	type SiteMountReq,
+	type SiteMountRes,
+	type SitePublishReq,
+	type SitePublishRes,
 	// Storage messages
 	type StorageOp,
 	type StorageOpReq,
@@ -232,6 +237,10 @@ export {
 	tShareCreateAck,
 	tShareCreateReq,
 	tShareCreateResultPush,
+	tSiteMountReq,
+	tSiteMountRes,
+	tSitePublishReq,
+	tSitePublishRes,
 	tStorageOp,
 	tStorageOpReq,
 	tStorageOpRes,

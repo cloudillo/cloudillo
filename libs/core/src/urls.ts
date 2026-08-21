@@ -136,6 +136,58 @@ export function getMetaDbId(fileId: string): string {
 }
 
 /**
+ * One stored rendition of a file, as the descriptor describes it.
+ */
+export interface FileVariant {
+	/** Variant name, e.g. `vis.sd` or `vid.hd`. */
+	variant: string
+	variantId: string
+	/** Intrinsic pixel size of this rendition, when the descriptor carried one. */
+	width?: number
+	height?: number
+}
+
+/**
+ * Parse what `GET /files/:fileId/descriptor` answers with — a single string, not
+ * an object:
+ *
+ *     d2,R=<rootId>;vis.sd:<variantId>:f=webp:s=12345:r=640x360;vis.md:…
+ *
+ * built by `descriptor::get_file_descriptor` in the backend's `cloudillo-file`
+ * crate, and also sent as the `X-Cloudillo-Variants` header on a file response.
+ * `R=` is the root-file marker, not a variant; `dur=`, `br=` and `pg=` may follow
+ * `r=` and are ignored here.
+ *
+ * Anything unparseable yields an empty list rather than throwing: a caller that
+ * only wants to know which renditions exist should degrade, not fail.
+ */
+export function parseFileDescriptor(descriptor: unknown): FileVariant[] {
+	const variants: FileVariant[] = []
+	if (typeof descriptor !== 'string') return variants
+
+	const body = descriptor.startsWith('d2,') ? descriptor.slice(3) : descriptor
+	for (const entry of body.split(';')) {
+		if (!entry || entry.startsWith('R=')) continue
+		const [variant, variantId, ...rest] = entry.split(':')
+		if (!variant || !variantId) continue
+
+		const resolution = rest
+			.find((part) => part.startsWith('r='))
+			?.slice(2)
+			.split('x')
+		const width = Number(resolution?.[0])
+		const height = Number(resolution?.[1])
+		variants.push({
+			variant,
+			variantId,
+			...(Number.isFinite(width) && width > 0 && { width }),
+			...(Number.isFinite(height) && height > 0 && { height })
+		})
+	}
+	return variants
+}
+
+/**
  * Image variant quality order from highest to lowest
  */
 const IMAGE_VARIANT_QUALITY_ORDER = ['vis.xd', 'vis.hd', 'vis.md', 'vis.sd', 'vis.tn'] as const

@@ -836,6 +836,11 @@ export class ApiClient {
 		 * @param fileName - File name
 		 * @param fileData - File data (Blob, File, or ArrayBuffer)
 		 * @param contentType - Content type of the file
+		 * @param options.visibility - ABAC level the new file row is created with:
+		 *   `P` Public (readable unauthenticated), `V` Verified, `F` Follower,
+		 *   `C` Connected. Omit for the server's default — Direct for a personal
+		 *   tenant, Connected for a community one. Site containers upload as `P`;
+		 *   nothing else may be read without a token.
 		 * @returns Upload result with file ID and optional thumbnail variant ID
 		 */
 		uploadBlob: (
@@ -847,6 +852,7 @@ export class ApiClient {
 				rootId?: string
 				parentId?: string
 				as?: 'managed'
+				visibility?: 'P' | 'V' | 'F' | 'C'
 				onProgress?: (pct: number) => void
 				signal?: AbortSignal
 			}
@@ -857,6 +863,7 @@ export class ApiClient {
 				if (options?.rootId) qp.set('rootId', options.rootId)
 				if (options?.parentId) qp.set('parentId', options.parentId)
 				if (options?.as) qp.set('as', options.as)
+				if (options?.visibility) qp.set('visibility', options.visibility)
 				const qs = qp.toString()
 				if (qs) url += '?' + qs
 
@@ -1682,6 +1689,132 @@ export class ApiClient {
 					tenant: opts.tenant
 				}
 			})
+	}
+
+	// ========================================================================
+	// SITE ENDPOINTS
+	// ========================================================================
+
+	/**
+	 * Site builder endpoints.
+	 *
+	 * A site is a per-tenant singleton, so the resource carries no id. The whole
+	 * group is owner/leader only on the server; call it through the context-aware
+	 * API client so a community leader configures the community's site rather than
+	 * their own.
+	 */
+	site = {
+		/**
+		 * GET /sites - The tenant's site record and every document mounted into it.
+		 * @returns The site config. `site` is null when the tenant has never
+		 *   configured one.
+		 */
+		get: () => this.request('GET', '/sites', Types.tSiteConfig),
+
+		/**
+		 * PATCH /sites - Set or clear the site's explicit main navigation.
+		 *
+		 * Creates the record if the tenant has none, so there is no separate
+		 * "enable site" call. Which document is served where is not settable here —
+		 * the mount endpoints own that, and `docs` is written by publishing.
+		 *
+		 * `nav` has three states, assigned wholesale: omit it to leave the stored
+		 * list alone, pass `null` for the editor's "reset to automatic", after which
+		 * the site derives its navigation from the root container again. Passing `[]`
+		 * means the same thing, since empty is the derive state in storage.
+		 *
+		 * @param data - The fields to change
+		 * @returns The stored config after the write
+		 */
+		update: (data: { nav?: Types.SiteNavItem[] | null }) =>
+			this.request('PATCH', '/sites', Types.tSiteConfig, { data }),
+
+		/**
+		 * GET /sites/pages - Every published page of every mounted document, for the
+		 * navigation editor's target picker.
+		 *
+		 * Read on demand when the picker opens, never cached: the server opens one
+		 * container per *mount* to build it. Paths come back site-absolute, so an
+		 * entry's `path` is exactly what a nav item's `target` should be.
+		 *
+		 * @returns Every page, ordered by mount and then by path
+		 */
+		pages: () => this.request('GET', '/sites/pages', Types.tSitePagesResult),
+
+		/**
+		 * POST /sites/mounts - Add a document to the site, or move one.
+		 *
+		 * This is what makes a `site_doc` row something the settings page creates
+		 * rather than something publishing creates. It writes the configured
+		 * `mountPath` and nothing else, so it is safe on a document that is already
+		 * serving: the live container keeps being served from the path it was built
+		 * for (`publishedMountPath`) until that document publishes again. That is
+		 * why repathing never breaks a live site — and why the row then reads
+		 * `mountPath !== publishedMountPath` until the next publish.
+		 *
+		 * Same tenant only. Fails when the path is already served by another
+		 * document, and the message names that document.
+		 *
+		 * @param data - The document and the path it is served from
+		 * @returns The stored config after the write
+		 */
+		mount: (data: Types.SiteMountRequest) =>
+			this.request('POST', '/sites/mounts', Types.tSiteMountResult, { data }),
+
+		/**
+		 * DELETE /sites/mounts - Take a document out of the site.
+		 *
+		 * Allowed even while the document is serving: its two container generations
+		 * simply lose their last reference and the file GC reaps them, exactly as a
+		 * displaced generation is reaped on publish.
+		 *
+		 * @param data - The document to remove
+		 * @returns The stored config after the write
+		 */
+		unmount: (data: Types.SiteUnmountRequest) =>
+			this.request('DELETE', '/sites/mounts', Types.tSiteMountResult, { data }),
+
+		/**
+		 * POST /sites/publish - Commit an already-uploaded container as a
+		 * document's live generation.
+		 *
+		 * The browser builds and uploads; the server commits. Call this only
+		 * after `files.uploadBlob('site', …, { as: 'managed', visibility: 'P' })`
+		 * has returned — the container's bytes are not re-sent here, the server
+		 * reads `_site/manifest.json` back out of the stored blob. The commit
+		 * verifies publish standing, moves the current `publishedFileId` to
+		 * `previousFileId` and installs the new one, all in one transaction, so a
+		 * caller that dies between the upload and this call leaves an orphan file
+		 * for the GC rather than a half-published site.
+		 *
+		 * @param data - The source document and the container uploaded from it
+		 * @returns The `site_doc` row after the generation flip
+		 */
+		publish: (data: Types.SitePublishRequest) =>
+			this.request('POST', '/sites/publish', Types.tSitePublishResult, { data }),
+
+		/**
+		 * POST /sites/rollback - Put a document's previous container back in
+		 * service.
+		 *
+		 * The swap of `publishedFileId` and `previousFileId` is one statement on the
+		 * server and is symmetric, so calling this twice returns the document to
+		 * where it started. It needs no generator, no container read and no site app
+		 * running, because it is the action reached for precisely when publishing is
+		 * broken; a disabled site can be rolled back too.
+		 *
+		 * Fails when the document has never been published or has been published
+		 * exactly once, because then there is no earlier generation to return to.
+		 *
+		 * `publishedAt` on the answer is restamped by the swap: the column dates
+		 * the generation currently served, not the container, so a previous
+		 * entry's own publish time is not recoverable.
+		 *
+		 * @param data - The document whose two generations are exchanged
+		 * @returns The `site_doc` row after the swap
+		 */
+		rollback: (data: Types.SiteRollbackRequest) =>
+			this.request('POST', '/sites/rollback', Types.tSiteRollbackResult, { data })
 	}
 
 	// ========================================================================

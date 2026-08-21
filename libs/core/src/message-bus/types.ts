@@ -365,6 +365,10 @@ export const tMediaPickReq = T.struct({
 		documentVisibility: T.optional(tVisibility),
 		// Alternatively, fetch visibility from this file ID
 		documentFileId: T.optional(T.string),
+		// Site sources: only Public files may be picked at all. The picker disables
+		// everything else and offers "Make public" instead of "Grant document access" —
+		// a share grants the document, and a published page's reader is anonymous.
+		requirePublic: T.optional(T.boolean),
 		// Enable image cropping (images only)
 		enableCrop: T.optional(T.boolean),
 		// Allowed crop aspect ratios
@@ -469,6 +473,8 @@ export const tDocPickReq = T.struct({
 		fileTp: T.optional(T.string),
 		contentType: T.optional(T.string),
 		sourceFileId: T.optional(T.string),
+		// Site sources: only Public documents may be embedded — see tMediaPickReq
+		requirePublic: T.optional(T.boolean),
 		title: T.optional(T.string)
 	})
 })
@@ -1246,6 +1252,115 @@ export const tShareCreateResultPush = T.struct({
 export type ShareCreateResultPush = T.TypeOf<typeof tShareCreateResultPush>
 
 // ============================================
+// SITE PUBLISH MESSAGES
+// ============================================
+
+/**
+ * App hands the shell a finished site container to upload and commit
+ * Direction: app -> shell
+ *
+ * The app owns the document format and the RTDB connection, so it builds the
+ * container; its token is scoped `file:<fileId>` and cannot create a file or
+ * write the site record, so the shell and the backend own the commit.
+ *
+ * Plain request/response rather than the ACK + push pattern `share:create` uses:
+ * there is no dialog to open, only a wait. The wait can be long — an upload plus
+ * a server-side commit — so the caller overrides the 10s default timeout.
+ */
+export const tSitePublishReq = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('site:publish.req'),
+	...tRelayed,
+	id: T.number,
+	payload: T.struct({
+		// The container zip. `T.unknown` because a Blob survives the structured
+		// clone unexamined, the same way `crdt:cache.append.req` carries a
+		// Uint8Array. There is no encoding layer on this bus.
+		blob: T.unknown, // Blob (structured clone)
+		// The Notillo document the container was built from. The backend keys the
+		// `site_doc` row on it.
+		docFileId: T.string
+	})
+})
+export type SitePublishReq = T.TypeOf<typeof tSitePublishReq>
+
+/**
+ * Shell reports the outcome of a publish
+ * Direction: shell -> app
+ */
+export const tSitePublishRes = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('site:publish.res'),
+	replyTo: T.number,
+	ok: T.boolean,
+	data: T.optional(
+		T.struct({
+			// The managed file the container was uploaded as.
+			containerFileId: T.string
+		})
+	),
+	error: T.optional(T.string)
+})
+export type SitePublishRes = T.TypeOf<typeof tSitePublishRes>
+
+/**
+ * App asks where its document is mounted on the site
+ * Direction: app -> shell
+ *
+ * A container bakes absolute site paths at build time, so the publisher must know
+ * its own mount path *before* it builds. It cannot read it: the mount
+ * table is `/api/sites`, which is `require_leader`, and the app's token is scoped
+ * `file:<fileId>`. So the shell answers, from the same site config the settings
+ * page edits.
+ *
+ * A separate round trip rather than a field on `site:publish.res`, because the
+ * answer is needed before the build and the publish response arrives after it.
+ * The publish dialog reads it too, to tell the author where their links will
+ * point.
+ */
+export const tSiteMountReq = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('site:mount.req'),
+	...tRelayed,
+	id: T.number,
+	payload: T.struct({
+		// Checked against the connection's own `resId`, exactly as in
+		// `site:publish.req` — an app may only ask about the document it was
+		// opened on.
+		docFileId: T.string
+	})
+})
+export type SiteMountReq = T.TypeOf<typeof tSiteMountReq>
+
+/**
+ * Shell reports the document's configured mount path
+ * Direction: shell -> app
+ */
+export const tSiteMountRes = T.struct({
+	cloudillo: T.trueValue,
+	v: T.literal(PROTOCOL_VERSION),
+	type: T.literal('site:mount.res'),
+	replyTo: T.number,
+	ok: T.boolean,
+	data: T.optional(
+		T.struct({
+			// The **configured** path (`site_doc.mount_path`), not the one the
+			// live container was built for. Publishing is what makes the two
+			// agree, and this call is the first half of that.
+			mountPath: T.string,
+			// `false` when the document has no mount row at all. `mountPath` is
+			// then the default `/`, which is what publishing it would claim.
+			mounted: T.boolean
+		})
+	),
+	error: T.optional(T.string)
+})
+export type SiteMountRes = T.TypeOf<typeof tSiteMountRes>
+
+// ============================================
 // IMPORT MESSAGES
 // ============================================
 
@@ -1374,6 +1489,12 @@ export const tCloudilloMessage = T.taggedUnion('type')({
 	'share:create.req': tShareCreateReq,
 	'share:create.ack': tShareCreateAck,
 	'share:create.result': tShareCreateResultPush,
+
+	// Site publish messages
+	'site:publish.req': tSitePublishReq,
+	'site:publish.res': tSitePublishRes,
+	'site:mount.req': tSiteMountReq,
+	'site:mount.res': tSiteMountRes,
 
 	// Import messages
 	'import:data.push': tImportDataPush,

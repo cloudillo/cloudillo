@@ -57,6 +57,20 @@ import {
 	SearchHit,
 	SearchObjType,
 	SearchQuery,
+	Site,
+	SiteConfig,
+	SiteDoc,
+	SiteMountRequest,
+	SiteMountResult,
+	SiteNavChild,
+	SiteNavItem,
+	SitePage,
+	SitePagesResult,
+	SitePublishRequest,
+	SitePublishResult,
+	SiteRollbackRequest,
+	SiteRollbackResult,
+	SiteUnmountRequest,
 	tAction,
 	tActionStatus,
 	tActionType,
@@ -77,7 +91,21 @@ import {
 	tProfile,
 	tProfileTrust,
 	tSearchHit,
-	tSearchObjType
+	tSearchObjType,
+	tSite,
+	tSiteConfig,
+	tSiteDoc,
+	tSiteMountRequest,
+	tSiteMountResult,
+	tSiteNavChild,
+	tSiteNavItem,
+	tSitePage,
+	tSitePagesResult,
+	tSitePublishRequest,
+	tSitePublishResult,
+	tSiteRollbackRequest,
+	tSiteRollbackResult,
+	tSiteUnmountRequest
 } from '@cloudillo/types'
 
 // Re-export types from @cloudillo/types
@@ -105,6 +133,20 @@ export {
 	SearchHit,
 	SearchObjType,
 	SearchQuery,
+	Site,
+	SiteConfig,
+	SiteDoc,
+	SiteMountRequest,
+	SiteMountResult,
+	SiteNavChild,
+	SiteNavItem,
+	SitePage,
+	SitePagesResult,
+	SitePublishRequest,
+	SitePublishResult,
+	SiteRollbackRequest,
+	SiteRollbackResult,
+	SiteUnmountRequest,
 	tAction,
 	tActionStatus,
 	tActionType,
@@ -125,7 +167,21 @@ export {
 	tProfile,
 	tProfileTrust,
 	tSearchHit,
-	tSearchObjType
+	tSearchObjType,
+	tSite,
+	tSiteConfig,
+	tSiteDoc,
+	tSiteMountRequest,
+	tSiteMountResult,
+	tSiteNavChild,
+	tSiteNavItem,
+	tSitePage,
+	tSitePagesResult,
+	tSitePublishRequest,
+	tSitePublishResult,
+	tSiteRollbackRequest,
+	tSiteRollbackResult,
+	tSiteUnmountRequest
 }
 
 // ============================================================================
@@ -779,9 +835,21 @@ export const tUploadFileResult = T.struct({
 })
 export type UploadFileResult = T.TypeOf<typeof tUploadFileResult>
 
-export const tFileDescriptor = T.struct({
-	file: T.unknown
-})
+/**
+ * `GET /files/:fileId/descriptor` answers with a **string**, not an object:
+ *
+ *     d2,R=<rootId>;vis.sd:<variantId>:f=webp:s=12345:r=640x360;vis.md:…
+ *
+ * built by `descriptor::get_file_descriptor` in the backend's `cloudillo-file`
+ * crate, and also sent as the `X-Cloudillo-Variants` header on a file response.
+ * `parseFileDescriptor` in `urls.ts` is the reader. This was declared as an object
+ * with an `unknown` `file` field and so never decoded a real answer.
+ *
+ * **Breaking change to a published type.** `FileDescriptor` was `{ file: unknown }`
+ * and is now `string`; a consumer that read `d.file` should pass the whole value to
+ * `parseFileDescriptor`. See `scripts/PUBLISH.md`.
+ */
+export const tFileDescriptor = T.string
 export type FileDescriptor = T.TypeOf<typeof tFileDescriptor>
 
 export const tPatchFileResult = T.struct({

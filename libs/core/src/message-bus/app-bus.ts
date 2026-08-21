@@ -42,6 +42,8 @@ import {
 	type SettingsGetRes,
 	type ShareCreateAck,
 	type ShareCreateResultPush,
+	type SiteMountRes,
+	type SitePublishRes,
 	type StorageOp,
 	type StorageOpRes,
 	type ThemeUpdate,
@@ -136,6 +138,11 @@ export interface MediaPickOptions {
 	 */
 	documentFileId?: string
 	/**
+	 * Site sources only: refuse anything that is not Public, and offer to make it
+	 * public rather than to share it with the document
+	 */
+	requirePublic?: boolean
+	/**
 	 * Enable image cropping (for image media only)
 	 */
 	enableCrop?: boolean
@@ -183,6 +190,8 @@ export interface DocPickOptions {
 	contentType?: string
 	/** Source file ID (for creating share entries) */
 	sourceFileId?: string
+	/** Site sources only: refuse anything that is not Public — see MediaPickOptions */
+	requirePublic?: boolean
 	/** Custom dialog title */
 	title?: string
 }
@@ -1262,6 +1271,7 @@ export class AppMessageBus extends MessageBusBase {
 						sessionId,
 						mediaType: options?.mediaType,
 						documentVisibility: options?.documentVisibility,
+						requirePublic: options?.requirePublic,
 						documentFileId: options?.documentFileId,
 						enableCrop: options?.enableCrop,
 						cropAspects: options?.cropAspects,
@@ -1369,6 +1379,7 @@ export class AppMessageBus extends MessageBusBase {
 						fileTp: options?.fileTp,
 						contentType: options?.contentType,
 						sourceFileId: options?.sourceFileId,
+						requirePublic: options?.requirePublic,
 						title: options?.title
 					})
 				)
@@ -1988,6 +1999,85 @@ export class AppMessageBus extends MessageBusBase {
 			this.log('Share link creation cancelled')
 			pending.resolve(undefined)
 		}
+	}
+
+	// ============================================
+	// SITE PUBLISH
+	// ============================================
+
+	// An upload plus a server-side commit, not a round trip to a dialog: the 10s
+	// default would time out a container of any size on a slow link.
+	private static readonly SITE_PUBLISH_TIMEOUT = 120000
+
+	/**
+	 * Hand the shell a finished site container to upload and commit
+	 *
+	 * The app builds the container because it owns the document format and holds
+	 * the RTDB connection; it cannot commit one, because its token is scoped to a
+	 * single file. The `Blob` crosses the bus by structured clone — there is no
+	 * encoding layer, as with the `Uint8Array` in `crdt:cache.append.req`.
+	 *
+	 * @param options - The container and the document it was built from
+	 * @returns The managed file the container was uploaded as
+	 */
+	async publishSite(options: {
+		blob: Blob
+		docFileId: string
+	}): Promise<{ containerFileId: string }> {
+		if (!this.initialized) {
+			throw new Error('AppBus not initialized. Call init() first.')
+		}
+
+		this.log('Publishing site container for:', options.docFileId, options.blob.size, 'bytes')
+
+		const data = await this.sendRequest<SitePublishRes['data']>((id) => {
+			this.sendToShell(
+				this.createRequestWithPayload('site:publish.req', id, {
+					blob: options.blob,
+					docFileId: options.docFileId
+				})
+			)
+		}, AppMessageBus.SITE_PUBLISH_TIMEOUT)
+
+		if (!data?.containerFileId) {
+			throw new Error('Publish returned no container file id')
+		}
+		return { containerFileId: data.containerFileId }
+	}
+
+	/**
+	 * Ask where this document is mounted on the site
+	 *
+	 * The publisher bakes absolute site paths into the container, so it has to
+	 * know its mount path before it builds one. The mount table lives behind
+	 * `/api/sites`, which a file-scoped token cannot read, so the shell answers.
+	 *
+	 * A document with no mount row yet is not an error: the answer is then the
+	 * default `/` with `mounted: false`, which is the path publishing it would
+	 * claim.
+	 *
+	 * @param options - The document to look up; must be the one the app was opened on
+	 * @returns The configured mount path, and whether a row backs it
+	 */
+	async resolveSiteMount(options: {
+		docFileId: string
+	}): Promise<{ mountPath: string; mounted: boolean }> {
+		if (!this.initialized) {
+			throw new Error('AppBus not initialized. Call init() first.')
+		}
+
+		const data = await this.sendRequest<SiteMountRes['data']>((id) => {
+			this.sendToShell(
+				this.createRequestWithPayload('site:mount.req', id, {
+					docFileId: options.docFileId
+				})
+			)
+		})
+
+		if (!data?.mountPath) {
+			throw new Error('Mount lookup returned no path')
+		}
+		return { mountPath: data.mountPath, mounted: data.mounted }
 	}
 
 	// ============================================

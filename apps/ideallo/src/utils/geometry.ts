@@ -400,14 +400,14 @@ export function normalizeAngle(angle: number): number {
 /**
  * Convert degrees to radians
  */
-export function degToRad(deg: number): number {
+function degToRad(deg: number): number {
 	return deg * (Math.PI / 180)
 }
 
 /**
  * Convert radians to degrees
  */
-export function radToDeg(rad: number): number {
+function radToDeg(rad: number): number {
 	return rad * (180 / Math.PI)
 }
 
@@ -615,25 +615,6 @@ export function areParallel(
 export function isClosedPath(points: Point[], threshold: number = 20): boolean {
 	if (points.length < 3) return false
 	return distance(points[0], points[points.length - 1]) < threshold
-}
-
-/**
- * Check if a circle overlaps a bounding box
- * Used for eraser tool hit detection
- */
-export function circleIntersectsBounds(
-	cx: number,
-	cy: number,
-	radius: number,
-	bounds: Bounds
-): boolean {
-	// Find closest point on bounds to circle center
-	const closestX = clamp(cx, bounds.x, bounds.x + bounds.width)
-	const closestY = clamp(cy, bounds.y, bounds.y + bounds.height)
-	// Check if closest point is within radius
-	const dx = cx - closestX
-	const dy = cy - closestY
-	return dx * dx + dy * dy <= radius * radius
 }
 
 /**

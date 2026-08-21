@@ -6,6 +6,7 @@
  */
 
 import { gradientToCSS } from '@cloudillo/canvas-tools'
+import { getContrastColor } from '@cloudillo/core'
 import * as React from 'react'
 
 import type {
@@ -16,7 +17,6 @@ import type {
 } from '../../crdt'
 import {
 	getColorSlotNames,
-	getContrastColor,
 	getGradientSlotNames,
 	getPaletteSlotDisplayName,
 	isGradientSlot

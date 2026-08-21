@@ -5,7 +5,8 @@
  * ViewPicker component - Navigation bar for views/slides
  */
 
-import { monogramFor, useDarkMode } from '@cloudillo/react'
+import { presenceColor } from '@cloudillo/core'
+import { monogramFor, useDarkMode, useOutsideClick } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -27,7 +28,7 @@ import {
 } from 'react-icons/pi'
 
 import type { PresenterInfo } from '../awareness'
-import { getFollowerCount, presenceColor } from '../awareness'
+import { getFollowerCount } from '../awareness'
 import type { TemplateId, ViewId, ViewNode } from '../crdt'
 import type { UsePrezilloDocumentResult } from '../hooks/usePrezilloDocument'
 import type { TemplateWithUsage } from '../hooks/useTemplates'
@@ -92,15 +93,7 @@ function PagePickerPopup({
 	const containerRef = React.useRef<HTMLDivElement>(null)
 
 	// Close on outside click
-	React.useEffect(() => {
-		const handleClickOutside = (e: MouseEvent) => {
-			if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-				onClose()
-			}
-		}
-		document.addEventListener('mousedown', handleClickOutside)
-		return () => document.removeEventListener('mousedown', handleClickOutside)
-	}, [onClose])
+	useOutsideClick(containerRef, onClose)
 
 	// Get presenter badges for a slide
 	const getPresenterBadges = (viewId: ViewId): PresenterInfo[] => {
@@ -215,18 +208,7 @@ export function ViewPicker({
 	const presenterRef = React.useRef<HTMLDivElement>(null)
 
 	// Close presenter dropdown on outside click
-	React.useEffect(() => {
-		if (!showPresenterDropdown) return
-
-		const handleClickOutside = (e: MouseEvent) => {
-			if (presenterRef.current && !presenterRef.current.contains(e.target as Node)) {
-				setShowPresenterDropdown(false)
-			}
-		}
-
-		document.addEventListener('mousedown', handleClickOutside)
-		return () => document.removeEventListener('mousedown', handleClickOutside)
-	}, [showPresenterDropdown])
+	useOutsideClick(presenterRef, () => setShowPresenterDropdown(false), showPresenterDropdown)
 
 	// Close view context menu on outside click or Escape key
 	React.useEffect(() => {
@@ -383,21 +365,7 @@ export function ViewPicker({
 	const presentDropdownRef = React.useRef<HTMLDivElement>(null)
 
 	// Close present dropdown on outside click
-	React.useEffect(() => {
-		if (!showPresentDropdown) return
-
-		const handleClickOutside = (e: MouseEvent) => {
-			if (
-				presentDropdownRef.current &&
-				!presentDropdownRef.current.contains(e.target as Node)
-			) {
-				setShowPresentDropdown(false)
-			}
-		}
-
-		document.addEventListener('mousedown', handleClickOutside)
-		return () => document.removeEventListener('mousedown', handleClickOutside)
-	}, [showPresentDropdown])
+	useOutsideClick(presentDropdownRef, () => setShowPresentDropdown(false), showPresentDropdown)
 
 	// Handle page picker selection
 	const handlePageSelect = React.useCallback(

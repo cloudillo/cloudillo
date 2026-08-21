@@ -6,6 +6,7 @@
  * Contains ThemePicker (presets) and PaletteEditor (custom colors/gradients)
  */
 
+import { useOutsideClick } from '@cloudillo/react'
 import * as React from 'react'
 import { PiPaletteBold as IcPalette } from 'react-icons/pi'
 import type * as Y from 'yjs'
@@ -28,18 +29,7 @@ export function ThemeDropdown({ doc, yDoc }: ThemeDropdownProps) {
 	const dropdownRef = React.useRef<HTMLDivElement>(null)
 
 	// Close on click outside
-	React.useEffect(() => {
-		if (!isOpen) return
-
-		function handleClickOutside(evt: MouseEvent) {
-			if (dropdownRef.current && !dropdownRef.current.contains(evt.target as Node)) {
-				setIsOpen(false)
-			}
-		}
-
-		document.addEventListener('mousedown', handleClickOutside)
-		return () => document.removeEventListener('mousedown', handleClickOutside)
-	}, [isOpen])
+	useOutsideClick(dropdownRef, () => setIsOpen(false), isOpen)
 
 	return (
 		<div className="c-theme-dropdown-wrapper" ref={dropdownRef}>

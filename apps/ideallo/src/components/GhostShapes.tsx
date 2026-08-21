@@ -6,6 +6,7 @@
  * Shown as dashed shapes with user label
  */
 
+import { presenceColor } from '@cloudillo/core'
 import { useDarkMode } from '@cloudillo/react'
 import * as React from 'react'
 
@@ -14,7 +15,6 @@ import { resolvePreviewRoute } from '../connectors/index.js'
 import type { IdealloPresence } from '../hooks/index.js'
 import { polygonPresetPoints } from '../tools/shape-presets.js'
 import type { ShapePreview } from '../tools/types.js'
-import { presenceColor } from '../utils/index.js'
 import { colorToCss } from '../utils/palette.js'
 import { ConnectorPath } from './ConnectorPath.js'
 

@@ -1,10 +1,13 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 import type { Cell, SheetConfig } from '@fortune-sheet/core'
 import { isRealNum, update } from '@fortune-sheet/core'
 import * as Y from 'yjs'
 
 import { stripCellDefaults } from './cell-defaults'
-import { debug } from './debug'
 import { generateUniqueColIds, generateUniqueRowIds } from './id-generator'
+import { DEV } from './utils'
 import type {
 	BorderInfo,
 	ColId,
@@ -140,7 +143,6 @@ export function getOrCreateSheet(yDoc: Y.Doc, sheetId: SheetId): YSheetStructure
 
 	// Only create new sheet if it doesn't exist
 	if (!sheet || !(sheet instanceof Y.Map)) {
-		debug.log('[getOrCreateSheet] Creating new sheet:', sheetId)
 		sheet = new Y.Map()
 		sheet.set('name', new Y.Text()) // Sheet name as Y.Text
 		sheet.set('rowOrder', new Y.Array<RowId>())
@@ -251,7 +253,7 @@ export function setCell(
 	const colId = sheet.colOrder.get(colIndex)
 
 	if (!rowId || !colId) {
-		debug.error(`[setCell] Invalid indices: (${rowIndex}, ${colIndex})`)
+		console.error(`[setCell] Invalid indices: (${rowIndex}, ${colIndex})`)
 		return
 	}
 
@@ -431,7 +433,7 @@ export function transformSheetToCelldata(sheet: YSheetStructure): {
 		const colSpan = calculateColSpan(sheet, merge.startCol, merge.endCol)
 
 		if (startRowIdx === -1 || startColIdx === -1 || rowSpan === 0 || colSpan === 0) {
-			debug.warn('[transformSheetToCelldata] Invalid merge:', merge)
+			if (DEV) console.warn('[transformSheetToCelldata] Invalid merge:', merge)
 			continue
 		}
 
@@ -814,44 +816,6 @@ export function removeMerge(sheet: YSheetStructure, key: string): void {
 	sheet.merges.delete(key)
 }
 
-/**
- * Get merge at cell position (by indices)
- * Returns the merge if the cell is part of a merged range
- */
-export function getMergeAt(
-	sheet: YSheetStructure,
-	rowIndex: number,
-	colIndex: number
-): MergeInfo | undefined {
-	const rowId = indexToRowId(sheet, rowIndex)
-	const colId = indexToColId(sheet, colIndex)
-	if (!rowId || !colId) return undefined
-
-	// Check all merges to see if this cell is within any range
-	for (const merge of sheet.merges.values()) {
-		const rowRange = getRowRange(sheet, merge.startRow, merge.endRow)
-		const colRange = getColRange(sheet, merge.startCol, merge.endCol)
-
-		if (rowRange.includes(rowId) && colRange.includes(colId)) {
-			return merge
-		}
-	}
-
-	return undefined
-}
-
-/**
- * Check if a cell is the start of a merge (top-left corner)
- */
-export function isMergeStart(sheet: YSheetStructure, rowIndex: number, colIndex: number): boolean {
-	const rowId = indexToRowId(sheet, rowIndex)
-	const colId = indexToColId(sheet, colIndex)
-	if (!rowId || !colId) return false
-
-	const key = `${rowId}_${colId}`
-	return sheet.merges.has(key)
-}
-
 // ============================================================================
 // Row/Column Hiding Helpers
 // ============================================================================
@@ -877,14 +841,6 @@ export function showRow(sheet: YSheetStructure, rowIndex: number): void {
 }
 
 /**
- * Check if row is hidden
- */
-export function isRowHidden(sheet: YSheetStructure, rowIndex: number): boolean {
-	const rowId = indexToRowId(sheet, rowIndex)
-	return rowId ? sheet.hiddenRows.get(rowId) === true : false
-}
-
-/**
  * Hide a column by index
  */
 export function hideColumn(sheet: YSheetStructure, colIndex: number): void {
@@ -902,14 +858,6 @@ export function showColumn(sheet: YSheetStructure, colIndex: number): void {
 	if (colId) {
 		sheet.hiddenCols.delete(colId)
 	}
-}
-
-/**
- * Check if column is hidden
- */
-export function isColumnHidden(sheet: YSheetStructure, colIndex: number): boolean {
-	const colId = indexToColId(sheet, colIndex)
-	return colId ? sheet.hiddenCols.get(colId) === true : false
 }
 
 // ============================================================================
@@ -961,31 +909,6 @@ export function removeBorder(sheet: YSheetStructure, rowIndex: number, colIndex:
 	sheet.borders.delete(key)
 }
 
-/**
- * Get border at cell position
- */
-export function getBorderAt(
-	sheet: YSheetStructure,
-	rowIndex: number,
-	colIndex: number
-):
-	| {
-			top?: { style?: number; color?: string }
-			bottom?: { style?: number; color?: string }
-			left?: { style?: number; color?: string }
-			right?: { style?: number; color?: string }
-	  }
-	| undefined {
-	const rowId = indexToRowId(sheet, rowIndex)
-	const colId = indexToColId(sheet, colIndex)
-
-	if (!rowId || !colId) return undefined
-
-	const key = `${rowId}_${colId}`
-	const border = sheet.borders.get(key)
-	return border?.style
-}
-
 // ============================================================================
 // Hyperlink Helpers
 // ============================================================================
@@ -1022,36 +945,6 @@ export function removeHyperlink(sheet: YSheetStructure, rowIndex: number, colInd
 
 	const key = `${rowId}_${colId}`
 	sheet.hyperlinks.delete(key)
-}
-
-/**
- * Get hyperlink at cell position
- */
-export function getHyperlinkAt(
-	sheet: YSheetStructure,
-	rowIndex: number,
-	colIndex: number
-):
-	| {
-			linkAddress: string
-			linkTooltip?: string
-			linkType?: 'external' | 'internal' | 'email'
-	  }
-	| undefined {
-	const rowId = indexToRowId(sheet, rowIndex)
-	const colId = indexToColId(sheet, colIndex)
-
-	if (!rowId || !colId) return undefined
-
-	const key = `${rowId}_${colId}`
-	const hyperlink = sheet.hyperlinks.get(key)
-	if (!hyperlink) return undefined
-
-	return {
-		linkAddress: hyperlink.linkAddress,
-		linkTooltip: hyperlink.linkTooltip,
-		linkType: hyperlink.linkType
-	}
 }
 
 // ============================================================================
@@ -1143,10 +1036,14 @@ function repairMergesAfterDeletion(
 		// Never silently swallow an unrelated merge that already anchors `newKey`.
 		// Only reachable from an already-overlapping (corrupt) merge map.
 		if (sheet.merges.has(newKey)) {
-			debug.warn('[Merge] Repair collided with an existing merge; dropping repaired range', {
-				key,
-				newKey
-			})
+			if (DEV)
+				console.warn(
+					'[Merge] Repair collided with an existing merge; dropping repaired range',
+					{
+						key,
+						newKey
+					}
+				)
 			continue
 		}
 		sheet.merges.set(newKey, repaired)
@@ -1177,12 +1074,13 @@ export function pruneInvalidMerges(sheet: YSheetStructure): void {
 		if (!hasStartRow || !hasEndRow || !hasStartCol || !hasEndCol) {
 			// Merge references deleted rows/columns - remove it
 			sheet.merges.delete(key)
-			debug.warn('[Merge] Removed invalid merge after deletion:', key, {
-				hasStartRow,
-				hasEndRow,
-				hasStartCol,
-				hasEndCol
-			})
+			if (DEV)
+				console.warn('[Merge] Removed invalid merge after deletion:', key, {
+					hasStartRow,
+					hasEndRow,
+					hasStartCol,
+					hasEndCol
+				})
 			continue
 		}
 
@@ -1195,12 +1093,13 @@ export function pruneInvalidMerges(sheet: YSheetStructure): void {
 		if (startRowIdx > endRowIdx || startColIdx > endColIdx) {
 			// Merge range is inverted - remove it
 			sheet.merges.delete(key)
-			debug.warn('[Merge] Removed inverted merge:', key, {
-				startRowIdx,
-				endRowIdx,
-				startColIdx,
-				endColIdx
-			})
+			if (DEV)
+				console.warn('[Merge] Removed inverted merge:', key, {
+					startRowIdx,
+					endRowIdx,
+					startColIdx,
+					endColIdx
+				})
 		}
 	}
 }

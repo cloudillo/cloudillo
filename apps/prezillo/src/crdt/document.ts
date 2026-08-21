@@ -318,31 +318,4 @@ export function getDocumentMeta(doc: YPrezilloDocument): {
 	}
 }
 
-/**
- * Update document metadata
- */
-export function updateDocumentMeta(
-	yDoc: Y.Doc,
-	doc: YPrezilloDocument,
-	updates: Partial<{
-		name: string
-		defaultViewWidth: number
-		defaultViewHeight: number
-		gridSize: number
-		snapToGrid: boolean
-		snapToObjects: boolean
-	}>
-): void {
-	yDoc.transact(() => {
-		if (updates.name !== undefined) doc.m.set('name', updates.name)
-		if (updates.defaultViewWidth !== undefined)
-			doc.m.set('defaultViewWidth', updates.defaultViewWidth)
-		if (updates.defaultViewHeight !== undefined)
-			doc.m.set('defaultViewHeight', updates.defaultViewHeight)
-		if (updates.gridSize !== undefined) doc.m.set('gridSize', updates.gridSize)
-		if (updates.snapToGrid !== undefined) doc.m.set('snapToGrid', updates.snapToGrid)
-		if (updates.snapToObjects !== undefined) doc.m.set('snapToObjects', updates.snapToObjects)
-	}, yDoc.clientID)
-}
-
 // vim: ts=4

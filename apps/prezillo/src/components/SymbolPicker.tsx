@@ -8,6 +8,7 @@
  * Mobile-friendly with 44px+ touch targets.
  */
 
+import { useEscapeKey, useOutsideClick } from '@cloudillo/react'
 import * as React from 'react'
 import { PiStarBold as IcSymbol } from 'react-icons/pi'
 
@@ -69,29 +70,13 @@ export function SymbolPicker({
 	const currentSymbols = getSymbolsByCategory(activeCategory)
 
 	// Close dropdown when clicking outside
-	React.useEffect(() => {
-		function handleClickOutside(event: MouseEvent) {
-			if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-				setIsOpen(false)
-			}
-		}
-		if (isOpen) {
-			document.addEventListener('mousedown', handleClickOutside)
-			return () => document.removeEventListener('mousedown', handleClickOutside)
-		}
-	}, [isOpen])
+	useOutsideClick(containerRef, () => setIsOpen(false), isOpen)
 
 	// Close on Escape
-	React.useEffect(() => {
-		function handleKeyDown(event: KeyboardEvent) {
-			if (event.key === 'Escape' && isOpen) {
-				setIsOpen(false)
-				onClose()
-			}
-		}
-		document.addEventListener('keydown', handleKeyDown)
-		return () => document.removeEventListener('keydown', handleKeyDown)
-	}, [isOpen, onClose])
+	useEscapeKey(() => {
+		setIsOpen(false)
+		onClose()
+	}, isOpen)
 
 	const handleSymbolClick = (symbolId: string) => {
 		onSelectSymbol(symbolId)

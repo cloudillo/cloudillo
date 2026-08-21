@@ -1,50 +1,30 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-/**
- * Components barrel export
- */
-
 export { RotationHandle, type RotationHandleProps } from '@cloudillo/canvas-tools'
 
-export { ActiveStroke, type ActiveStrokeProps } from './ActiveStroke.js'
-export { Canvas, type CanvasHandle, type CanvasProps } from './Canvas.js'
-export { ColorPalette, type ColorPaletteProps } from './ColorPalette.js'
-export {
-	ConnectorAnchorDots,
-	type ConnectorAnchorDotsProps
-} from './ConnectorAnchorDots.js'
-export {
-	ConnectorEndpointHandles,
-	type ConnectorEndpointHandlesProps,
-	type TerminalState,
-	terminalState
-} from './ConnectorEndpointHandles.js'
-export { ConnectorPath, type ConnectorPathProps } from './ConnectorPath.js'
-export { Cursors, type CursorsProps } from './Cursors.js'
-export { FreehandPath, type FreehandPathProps } from './FreehandPath.js'
-export { GhostEditing, type GhostEditingProps } from './GhostEditing.js'
-export { GhostShapes, type GhostShapesProps } from './GhostShapes.js'
-export { GhostStrokes, type GhostStrokesProps } from './GhostStrokes.js'
-export { ObjectRenderer, type ObjectRendererProps } from './ObjectRenderer.js'
-export { ObjectTextDisplay, type ObjectTextDisplayProps } from './ObjectTextDisplay.js'
-export {
-	ObjectTextEditOverlay,
-	type ObjectTextEditOverlayProps
-} from './ObjectTextEditOverlay.js'
-export { PropertyBar, type PropertyBarProps } from './PropertyBar.js'
-export { ShapePreview, type ShapePreviewProps } from './ShapePreview.js'
-export { ConnectorRenderer, EllipseRenderer, RectRenderer } from './ShapeRenderer.js'
-export { StickyNote, type StickyNoteProps } from './StickyNote.js'
-export { StickyShadowDefs } from './StickyShadowDefs.js'
-export { TextLabel, type TextLabelProps } from './TextLabel.js'
-export { Toolbar, type ToolbarProps } from './Toolbar.js'
-export {
-	ToolPopover,
-	type ToolPopoverItem,
-	type ToolPopoverProps,
-	type ToolPopoverSection
-} from './ToolPopover.js'
-export { ZoomControls, type ZoomControlsProps } from './ZoomControls.js'
+export * from './ActiveStroke.js'
+export * from './Canvas.js'
+export * from './ColorPalette.js'
+export * from './ConnectorAnchorDots.js'
+export * from './ConnectorEndpointHandles.js'
+export * from './ConnectorPath.js'
+export * from './Cursors.js'
+export * from './FreehandPath.js'
+export * from './GhostEditing.js'
+export * from './GhostShapes.js'
+export * from './GhostStrokes.js'
+export * from './ObjectRenderer.js'
+export * from './ObjectTextDisplay.js'
+export * from './ObjectTextEditOverlay.js'
+export * from './PropertyBar.js'
+export * from './ShapePreview.js'
+export * from './ShapeRenderer.js'
+export * from './StickyNote.js'
+export * from './StickyShadowDefs.js'
+export * from './TextLabel.js'
+export * from './Toolbar.js'
+export * from './ToolPopover.js'
+export * from './ZoomControls.js'
 
 // vim: ts=4

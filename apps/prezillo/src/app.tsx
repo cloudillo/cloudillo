@@ -37,6 +37,7 @@ import './style.css'
 
 import { RichTextEditor } from '@cloudillo/canvas-text'
 import { getAppBus } from '@cloudillo/core'
+import { downloadYDocExport } from '@cloudillo/crdt'
 import {
 	AppDocBar,
 	type BottomSheetSnapPoint,
@@ -123,7 +124,6 @@ import {
 	bringForward,
 	bringToFront,
 	createTemplate,
-	downloadExport,
 	getAbsoluteBounds,
 	getStackedObjects,
 	getView,
@@ -380,7 +380,16 @@ export function PrezilloApp() {
 	// three exports — and unlike the toolbar it is there in read-only too.
 	const handleExportJSON = React.useCallback(() => {
 		if (prezillo.yDoc && prezillo.doc) {
-			downloadExport(prezillo.yDoc, prezillo.doc)
+			downloadYDocExport(
+				prezillo.yDoc,
+				(prezillo.doc.m.get('name') as string | undefined) ?? 'untitled',
+				{
+					contentType: 'application/vnd.cloudillo.prezillo+json',
+					appVersion: __APP_VERSION__,
+					formatVersion: '3.0.0',
+					extension: 'prezillo'
+				}
+			)
 		}
 	}, [prezillo.yDoc, prezillo.doc])
 

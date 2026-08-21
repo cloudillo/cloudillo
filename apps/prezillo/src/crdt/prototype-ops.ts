@@ -237,122 +237,6 @@ export function getResolvedWh(
 }
 
 /**
- * Get resolved bounds (xy, wh, r, pv) for a stored object.
- * Resolves each property from prototype if not locally defined.
- * Returns null if xy or wh cannot be resolved.
- */
-export function getResolvedBounds(
-	doc: YPrezilloDocument,
-	object: StoredObject
-): { xy: [number, number]; wh: [number, number]; r: number; pv: [number, number] } | null {
-	const xy = getResolvedXy(doc, object)
-	const wh = getResolvedWh(doc, object)
-	if (!xy || !wh) return null
-
-	let r = object.r ?? 0
-	let pv: [number, number] = object.pv ?? [0.5, 0.5]
-
-	if (object.proto) {
-		const proto = doc.o.get(object.proto as ObjectId)
-		if (proto) {
-			if (object.r === undefined && proto.r !== undefined) r = proto.r
-			if (object.pv === undefined && proto.pv !== undefined) pv = proto.pv
-		}
-	}
-
-	return { xy, wh, r, pv }
-}
-
-/**
- * Get the prototype ID for an instance
- */
-export function getPrototypeId(doc: YPrezilloDocument, objectId: ObjectId): ObjectId | undefined {
-	const stored = doc.o.get(objectId)
-	return stored?.proto ? toObjectId(stored.proto) : undefined
-}
-
-/**
- * Check if an object has any local overrides vs its prototype
- */
-export function hasOverrides(doc: YPrezilloDocument, objectId: ObjectId): boolean {
-	const stored = doc.o.get(objectId)
-	if (!stored?.proto) return false
-
-	// Check if any field other than proto, t (type), vi (viewId), and p (parentId) is set
-	const overrideableFields = [
-		'xy',
-		'wh',
-		'r',
-		'pv',
-		'o',
-		'v',
-		'k',
-		'n',
-		'si',
-		'ti',
-		's',
-		'ts',
-		// Type-specific fields
-		'cr',
-		'tx',
-		'mh',
-		'url',
-		'ecl',
-		'fg',
-		'bg',
-		'fid',
-		'pts',
-		'd',
-		'tid'
-	]
-
-	return overrideableFields.some(
-		(field) => (stored as unknown as Record<string, unknown>)[field] !== undefined
-	)
-}
-
-/**
- * Get which properties are overridden locally
- */
-export function getOverriddenProperties(doc: YPrezilloDocument, objectId: ObjectId): string[] {
-	const stored = doc.o.get(objectId)
-	if (!stored?.proto) return []
-
-	const overridden: string[] = []
-
-	// Map stored field names to runtime property names
-	const fieldMap: Record<string, string> = {
-		xy: 'position',
-		wh: 'size',
-		r: 'rotation',
-		pv: 'pivot',
-		o: 'opacity',
-		v: 'visible',
-		k: 'locked',
-		n: 'name',
-		si: 'shapeStyleId',
-		ti: 'textStyleId',
-		s: 'style',
-		ts: 'textStyle',
-		cr: 'cornerRadius',
-		tx: 'text',
-		mh: 'minHeight',
-		url: 'url',
-		ecl: 'errorCorrection',
-		fg: 'foreground',
-		bg: 'background'
-	}
-
-	for (const [storedField, runtimeField] of Object.entries(fieldMap)) {
-		if ((stored as unknown as Record<string, unknown>)[storedField] !== undefined) {
-			overridden.push(runtimeField)
-		}
-	}
-
-	return overridden
-}
-
-/**
  * Get all instances of a prototype object
  */
 export function getInstancesOfPrototype(doc: YPrezilloDocument, prototypeId: ObjectId): ObjectId[] {
@@ -363,13 +247,6 @@ export function getInstancesOfPrototype(doc: YPrezilloDocument, prototypeId: Obj
 		}
 	})
 	return instances
-}
-
-/**
- * Check if an object is a prototype (has instances referencing it)
- */
-export function isPrototype(doc: YPrezilloDocument, objectId: ObjectId): boolean {
-	return getInstancesOfPrototype(doc, objectId).length > 0
 }
 
 /**
@@ -440,7 +317,7 @@ const propertyGroupFields: Record<PropertyGroup, string[]> = {
  * Check if a property group is overridden (has local values instead of inheriting from prototype)
  * Returns false if object is not an instance
  */
-export function isPropertyGroupOverridden(
+function isPropertyGroupOverridden(
 	doc: YPrezilloDocument,
 	objectId: ObjectId,
 	group: PropertyGroup

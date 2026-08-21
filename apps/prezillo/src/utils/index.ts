@@ -6,7 +6,6 @@
  */
 
 export * from './constants'
-export * from './coordinates'
 export * from './measure-text'
 export * from './style-props'
 export * from './text-styles'

@@ -5,6 +5,13 @@
  * Bidirectional conversion between compact stored types and expanded runtime types
  */
 
+import {
+	ANCHOR_CODE,
+	ROUTING_CODE,
+	TEXT_ALIGN_CODE,
+	VERT_ALIGN_CODE
+} from '@cloudillo/canvas-tools'
+
 import type { ObjectId } from './ids.js'
 import { toObjectId } from './ids.js'
 import type {
@@ -103,11 +110,7 @@ const ARROWHEAD_CODE_TO_POSITION: Record<string, ArrowheadPosition> = {
 }
 
 // Routing mappings
-const ROUTING_MAP: Record<RoutingCode, Routing> = {
-	S: 'straight',
-	O: 'orthogonal',
-	C: 'curved'
-}
+const ROUTING_MAP: Record<RoutingCode, Routing> = ROUTING_CODE
 
 const ROUTING_REVERSE: Record<Routing, RoutingCode> = {
 	straight: 'S',
@@ -116,18 +119,7 @@ const ROUTING_REVERSE: Record<Routing, RoutingCode> = {
 }
 
 // Anchor point mappings
-const ANCHOR_MAP: Record<AnchorPointCode, AnchorPointType> = {
-	c: 'center',
-	t: 'top',
-	b: 'bottom',
-	l: 'left',
-	r: 'right',
-	tl: 'top-left',
-	tr: 'top-right',
-	bl: 'bottom-left',
-	br: 'bottom-right',
-	a: 'auto'
-}
+const ANCHOR_MAP: Record<AnchorPointCode, AnchorPointType> = ANCHOR_CODE
 
 const ANCHOR_REVERSE: Record<AnchorPointType, AnchorPointCode> = {
 	center: 'c',
@@ -164,12 +156,7 @@ const ARROWHEAD_REVERSE: Record<ArrowheadType, ArrowTypeCode> = {
 // Text alignment mappings. They live here with the other stored-code maps rather than in
 // utils/text-styles.ts (where prezillo keeps its copies): every code space in this app is
 // translated in this file, and a second copy would be a second thing to keep in sync.
-const TEXT_ALIGN_MAP: Record<TextAlignCode, TextAlign> = {
-	l: 'left',
-	c: 'center',
-	r: 'right',
-	j: 'justify'
-}
+const TEXT_ALIGN_MAP: Record<TextAlignCode, TextAlign> = TEXT_ALIGN_CODE
 
 const TEXT_ALIGN_REVERSE: Record<TextAlign, TextAlignCode> = {
 	left: 'l',
@@ -178,11 +165,7 @@ const TEXT_ALIGN_REVERSE: Record<TextAlign, TextAlignCode> = {
 	justify: 'j'
 }
 
-const VERTICAL_ALIGN_MAP: Record<VerticalAlignCode, VerticalAlign> = {
-	t: 'top',
-	m: 'middle',
-	b: 'bottom'
-}
+const VERTICAL_ALIGN_MAP: Record<VerticalAlignCode, VerticalAlign> = VERT_ALIGN_CODE
 
 const VERTICAL_ALIGN_REVERSE: Record<VerticalAlign, VerticalAlignCode> = {
 	top: 't',

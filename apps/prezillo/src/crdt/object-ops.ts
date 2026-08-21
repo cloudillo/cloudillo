@@ -5,6 +5,7 @@
  * Object CRUD operations
  */
 
+import { type ZOrderOp, zOrderTarget } from '@cloudillo/canvas-tools'
 import * as Y from 'yjs'
 
 import { getContainerChildren } from './document'
@@ -225,52 +226,6 @@ export function createObject(
 }
 
 /**
- * Create a table grid with specified rows and columns.
- * @param pageId - If provided, x/y are page-relative coordinates
- */
-export function createTableGrid(
-	yDoc: Y.Doc,
-	doc: YPrezilloDocument,
-	cols: number,
-	rows: number,
-	x: number,
-	y: number,
-	width: number,
-	height: number,
-	parentId?: ContainerId,
-	insertIndex?: number,
-	pageId?: ViewId
-): ObjectId {
-	const objectId = generateObjectId()
-
-	const object: Runtime.TableGridObject = {
-		id: objectId,
-		type: 'tablegrid',
-		x,
-		y,
-		width,
-		height,
-		rotation: 0,
-		pivotX: 0.5,
-		pivotY: 0.5,
-		opacity: 1,
-		visible: true,
-		locked: false,
-		hidden: false,
-		cols,
-		rows,
-		// Default style: transparent fill, light gray stroke for grid lines
-		style: {
-			fill: 'none',
-			stroke: '#cccccc',
-			strokeWidth: 1
-		}
-	}
-
-	return addObject(yDoc, doc, object, parentId, insertIndex, pageId)
-}
-
-/**
  * Get an object by ID (returns runtime type with prototype values resolved)
  */
 export function getObject(doc: YPrezilloDocument, objectId: ObjectId): PrezilloObject | undefined {
@@ -296,6 +251,27 @@ const QR_ERROR_CORRECTION_REVERSE: Record<Runtime.QrErrorCorrection, 'L' | 'M' |
 	medium: 'M',
 	quartile: 'Q',
 	high: 'H'
+}
+
+/**
+ * Ungated stored fields whose default value is omitted from the stored object:
+ * set the field when the value differs from the default, delete it otherwise.
+ */
+const SIMPLE_STORED_FIELDS: Record<
+	string,
+	{ stored: string; isDefault: (value: unknown) => boolean; canonical?: unknown }
+> = {
+	rotation: { stored: 'r', isDefault: (v) => v === 0 },
+	opacity: { stored: 'o', isDefault: (v) => v === 1 },
+	visible: { stored: 'v', isDefault: (v) => v === true, canonical: false },
+	locked: { stored: 'k', isDefault: (v) => v === false, canonical: true },
+	hidden: { stored: 'hid', isDefault: (v) => v === false, canonical: true },
+	name: { stored: 'n', isDefault: (v) => !v },
+	pageId: { stored: 'vi', isDefault: (v) => !v },
+	parentId: { stored: 'p', isDefault: (v) => !v },
+	prototypeId: { stored: 'proto', isDefault: (v) => !v },
+	shapeStyleId: { stored: 'si', isDefault: (v) => !v },
+	textStyleId: { stored: 'ti', isDefault: (v) => !v }
 }
 
 /**
@@ -325,10 +301,6 @@ function applyRuntimeUpdateToStored(stored: StoredObject, key: string, value: un
 		case 'height':
 			stored.wh = [stored.wh[0], value as number]
 			break
-		case 'rotation':
-			if (value === 0) delete stored.r
-			else stored.r = value as number
-			break
 		case 'pivotX':
 			if (value === 0.5 && (stored.pv?.[1] ?? 0.5) === 0.5) delete stored.pv
 			else stored.pv = [value as number, stored.pv?.[1] ?? 0.5]
@@ -336,48 +308,6 @@ function applyRuntimeUpdateToStored(stored: StoredObject, key: string, value: un
 		case 'pivotY':
 			if ((stored.pv?.[0] ?? 0.5) === 0.5 && value === 0.5) delete stored.pv
 			else stored.pv = [stored.pv?.[0] ?? 0.5, value as number]
-			break
-		case 'opacity':
-			if (value === 1) delete stored.o
-			else stored.o = value as number
-			break
-		case 'visible':
-			if (value === true) delete stored.v
-			else stored.v = false
-			break
-		case 'locked':
-			if (value === false) delete stored.k
-			else stored.k = true
-			break
-		case 'hidden':
-			if (value === false) delete stored.hid
-			else stored.hid = true
-			break
-
-		// Reference fields
-		case 'name':
-			if (!value) delete stored.n
-			else stored.n = value as string
-			break
-		case 'pageId':
-			if (!value) delete stored.vi
-			else stored.vi = value as string
-			break
-		case 'parentId':
-			if (!value) delete stored.p
-			else stored.p = value as string
-			break
-		case 'prototypeId':
-			if (!value) delete stored.proto
-			else stored.proto = value as string
-			break
-		case 'shapeStyleId':
-			if (!value) delete stored.si
-			else stored.si = value as string
-			break
-		case 'textStyleId':
-			if (!value) delete stored.ti
-			else stored.ti = value as string
 			break
 
 		// Style: MERGE into existing s, don't replace (preserves palette refs)
@@ -585,6 +515,18 @@ function applyRuntimeUpdateToStored(stored: StoredObject, key: string, value: un
 				else (stored as StoredConnector).ear = arrow
 			}
 			break
+
+		default: {
+			// Ungated simple fields: default value -> omit, else set.
+			const simple = SIMPLE_STORED_FIELDS[key]
+			if (simple) {
+				const s = stored as unknown as Record<string, unknown>
+				if (simple.isDefault(value)) delete s[simple.stored]
+				// `??`, not `||`: `canonical: false` must be written, not skipped.
+				else s[simple.stored] = simple.canonical ?? value
+			}
+			break
+		}
 	}
 }
 
@@ -625,15 +567,7 @@ export function updateObjectPosition(
 	x: number,
 	y: number
 ): void {
-	const existing = doc.o.get(objectId)
-	if (!existing) return
-
-	yDoc.transact(() => {
-		doc.o.set(objectId, {
-			...existing,
-			xy: [x, y]
-		})
-	}, yDoc.clientID)
+	updateObject(yDoc, doc, objectId, { x, y })
 }
 
 /**
@@ -646,15 +580,7 @@ export function updateObjectSize(
 	width: number,
 	height: number
 ): void {
-	const existing = doc.o.get(objectId)
-	if (!existing) return
-
-	yDoc.transact(() => {
-		doc.o.set(objectId, {
-			...existing,
-			wh: [width, height]
-		})
-	}, yDoc.clientID)
+	updateObject(yDoc, doc, objectId, { width, height })
 }
 
 /**
@@ -669,16 +595,7 @@ export function updateObjectBounds(
 	width: number,
 	height: number
 ): void {
-	const existing = doc.o.get(objectId)
-	if (!existing) return
-
-	yDoc.transact(() => {
-		doc.o.set(objectId, {
-			...existing,
-			xy: [x, y],
-			wh: [width, height]
-		})
-	}, yDoc.clientID)
+	updateObject(yDoc, doc, objectId, { x, y, width, height })
 }
 
 /**
@@ -690,24 +607,8 @@ export function updateObjectRotation(
 	objectId: ObjectId,
 	rotation: number
 ): void {
-	const existing = doc.o.get(objectId)
-	if (!existing) return
-
-	yDoc.transact(() => {
-		// Normalize rotation to 0-360 range
-		const normalizedRotation = ((rotation % 360) + 360) % 360
-		if (normalizedRotation === 0) {
-			// Remove rotation field if 0 (default)
-			const updated = { ...existing }
-			delete updated.r
-			doc.o.set(objectId, updated)
-		} else {
-			doc.o.set(objectId, {
-				...existing,
-				r: normalizedRotation
-			})
-		}
-	}, yDoc.clientID)
+	// Normalize rotation to 0-360 range; the stored write deletes the field at 0.
+	updateObject(yDoc, doc, objectId, { rotation: ((rotation % 360) + 360) % 360 })
 }
 
 /**
@@ -720,22 +621,7 @@ export function updateObjectOpacity(
 	objectId: ObjectId,
 	opacity: number
 ): void {
-	const existing = doc.o.get(objectId)
-	if (!existing) return
-
-	yDoc.transact(() => {
-		if (opacity === 1) {
-			// Remove opacity field if default (1)
-			const updated = { ...existing }
-			delete updated.o
-			doc.o.set(objectId, updated)
-		} else {
-			doc.o.set(objectId, {
-				...existing,
-				o: opacity
-			})
-		}
-	}, yDoc.clientID)
+	updateObject(yDoc, doc, objectId, { opacity })
 }
 
 /**
@@ -990,38 +876,6 @@ export function deleteObject(yDoc: Y.Doc, doc: YPrezilloDocument, objectId: Obje
 }
 
 /**
- * Delete multiple objects
- */
-export function deleteObjects(yDoc: Y.Doc, doc: YPrezilloDocument, objectIds: ObjectId[]): void {
-	yDoc.transact(() => {
-		objectIds.forEach((id) => {
-			const object = doc.o.get(id)
-			if (!object) return
-
-			// Template instances cannot be deleted - hide them instead
-			if (object.proto && object.vi) {
-				const updated = { ...object, hid: true as const }
-				doc.o.set(id, updated)
-				return // Skip normal deletion
-			}
-
-			// Remove from parent's children
-			if (object.p) {
-				const children = doc.ch.get(object.p)
-				if (children) {
-					removeChildRef(children, [0, id])
-				}
-			} else {
-				removeChildRef(doc.r, [0, id])
-			}
-
-			// Delete object
-			doc.o.delete(id)
-		})
-	}, yDoc.clientID)
-}
-
-/**
  * Delete a prototype object and handle its instances
  * @param strategy - 'delete-instances' removes instances, 'detach-instances' copies prototype values to instances
  */
@@ -1188,7 +1042,7 @@ export function reorderObject(
 /**
  * Z-index reorder operation types
  */
-type ZIndexOperation = 'toFront' | 'toBack' | 'forward' | 'backward'
+type ZIndexOperation = ZOrderOp
 
 /**
  * Internal helper to reorder object within its container
@@ -1213,36 +1067,11 @@ function reorderInChildren(
 		if (currentIndex < 0) return
 
 		// Calculate target index and check if move is needed
-		let targetIndex: number
-		let canMove: boolean
+		const targetIndex = zOrderTarget(currentIndex, children.length, operation)
 
-		switch (operation) {
-			case 'toFront':
-				targetIndex = children.length // push() equivalent
-				canMove = currentIndex < children.length - 1
-				break
-			case 'toBack':
-				targetIndex = 0
-				canMove = currentIndex > 0
-				break
-			case 'forward':
-				targetIndex = currentIndex + 1
-				canMove = currentIndex < children.length - 1
-				break
-			case 'backward':
-				targetIndex = currentIndex - 1
-				canMove = currentIndex > 0
-				break
-		}
-
-		if (canMove) {
+		if (targetIndex >= 0) {
 			children.delete(currentIndex, 1)
-			// For 'toFront', use push; for others use insert
-			if (operation === 'toFront') {
-				children.push([childRef])
-			} else {
-				children.insert(targetIndex, [childRef])
-			}
+			children.insert(targetIndex, [childRef])
 			// Touch object to trigger observers
 			doc.o.set(objectId, { ...object })
 		}
@@ -1554,27 +1383,6 @@ export function fixDocumentIssues(
 
 	console.log(`[fixDocumentIssues] Fixed ${fixed} issues`)
 	return { fixed }
-}
-
-/**
- * Legacy cleanup function - use checkDocumentConsistency + fixDocumentIssues instead
- * @deprecated
- */
-export function cleanupOrphanedInstances(
-	yDoc: Y.Doc,
-	doc: YPrezilloDocument
-): { deleted: string[]; count: number } {
-	const report = checkDocumentConsistency(doc)
-	const orphanedIds = report.issues
-		.filter((i) => i.type === 'orphaned-instance')
-		.map((i) => i.objectId)
-
-	if (orphanedIds.length === 0) {
-		return { deleted: [], count: 0 }
-	}
-
-	fixDocumentIssues(yDoc, doc, report)
-	return { deleted: orphanedIds, count: orphanedIds.length }
 }
 
 /**

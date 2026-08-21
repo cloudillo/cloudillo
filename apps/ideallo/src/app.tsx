@@ -20,6 +20,7 @@ import './style.css'
 
 import { calculateArcRadius } from '@cloudillo/canvas-tools'
 import { getAppBus } from '@cloudillo/core'
+import { downloadYDocExport } from '@cloudillo/crdt'
 import { AppDocBar, DocBarMenu, MenuItem, Toasts, useIsMobile } from '@cloudillo/react'
 import type Quill from 'quill'
 import { useTranslation } from 'react-i18next'
@@ -40,6 +41,10 @@ import {
 	ZoomControls
 } from './components/index.js'
 import type { ConnectorEndpointPreview, GeometryOverrides } from './connectors/index.js'
+
+// App version injected at build time
+declare const __APP_VERSION__: string
+
 import { isBoundConnector } from './connectors/index.js'
 import { bindEndpoint } from './connectors/lifecycle.js'
 import type { Bounds, IdealloObject, ObjectId } from './crdt/index.js'
@@ -51,7 +56,6 @@ import {
 	DEFAULT_STYLE,
 	deletableObjectIds,
 	deleteObjectsWithBindingCleanup,
-	downloadExport,
 	duplicateObject,
 	getAllResolvedObjects,
 	getObject,
@@ -315,7 +319,16 @@ export function IdealloApp() {
 
 	const handleExport = React.useCallback(() => {
 		if (ideallo.yDoc && ideallo.doc) {
-			downloadExport(ideallo.yDoc, ideallo.doc)
+			downloadYDocExport(
+				ideallo.yDoc,
+				(ideallo.doc.m.get('name') as string | undefined) ?? 'untitled',
+				{
+					contentType: 'application/vnd.cloudillo.ideallo+json',
+					appVersion: __APP_VERSION__,
+					formatVersion: '3.0.0',
+					extension: 'ideallo'
+				}
+			)
 		}
 	}, [ideallo.yDoc, ideallo.doc])
 

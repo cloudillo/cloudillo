@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+
 /**
  * Renders ghost strokes from remote users via awareness
  * Shown as dashed lines with user label
  */
 
+import { presenceColor } from '@cloudillo/core'
 import { useDarkMode } from '@cloudillo/react'
 
 import type { IdealloPresence } from '../hooks/index.js'
-import { pointsToSvgPath, presenceColor } from '../utils/index.js'
+import { pointsToSvgPath } from '../utils/index.js'
 import { colorToCss } from '../utils/palette.js'
 
 const GHOST_OPACITY = 0.6

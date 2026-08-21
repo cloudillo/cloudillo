@@ -6,6 +6,7 @@
  * All mutations are wrapped in yDoc.transact() for batching
  */
 
+import { type ZOrderOp, zOrderTarget } from '@cloudillo/canvas-tools'
 import * as Y from 'yjs'
 
 import {
@@ -882,7 +883,7 @@ export function replaceGeometryPoints(
 
 // ---- Z-order operations ----
 
-type ZIndexOperation = 'toFront' | 'toBack' | 'forward' | 'backward'
+type ZIndexOperation = ZOrderOp
 
 function reorderObject(
 	yDoc: Y.Doc,
@@ -895,35 +896,11 @@ function reorderObject(
 		const currentIndex = arr.indexOf(objectId)
 		if (currentIndex < 0) return
 
-		let targetIndex: number
-		let canMove: boolean
+		const targetIndex = zOrderTarget(currentIndex, arr.length, operation)
 
-		switch (operation) {
-			case 'toFront':
-				targetIndex = arr.length
-				canMove = currentIndex < arr.length - 1
-				break
-			case 'toBack':
-				targetIndex = 0
-				canMove = currentIndex > 0
-				break
-			case 'forward':
-				targetIndex = currentIndex + 1
-				canMove = currentIndex < arr.length - 1
-				break
-			case 'backward':
-				targetIndex = currentIndex - 1
-				canMove = currentIndex > 0
-				break
-		}
-
-		if (canMove) {
+		if (targetIndex >= 0) {
 			doc.r.delete(currentIndex, 1)
-			if (operation === 'toFront') {
-				doc.r.push([objectId])
-			} else {
-				doc.r.insert(targetIndex, [objectId])
-			}
+			doc.r.insert(targetIndex, [objectId])
 		}
 	}, yDoc.clientID)
 }

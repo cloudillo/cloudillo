@@ -9,8 +9,8 @@ import type { Gradient } from '@cloudillo/canvas-tools'
 import type * as Y from 'yjs'
 
 import { getDocumentMeta } from './document'
-import type { ObjectId, TemplateId, ViewId } from './ids'
-import { generateViewId, toObjectId, toTemplateId, toViewId } from './ids'
+import type { TemplateId, ViewId } from './ids'
+import { generateViewId, toTemplateId, toViewId } from './ids'
 import type { ResolvedViewBackground, SnapGuide, ViewNode } from './runtime-types'
 import type { StoredView, YPrezilloDocument } from './stored-types'
 import {
@@ -124,13 +124,6 @@ export function getAllViews(doc: YPrezilloDocument): ViewNode[] {
 }
 
 /**
- * Get view count
- */
-export function getViewCount(doc: YPrezilloDocument): number {
-	return doc.vo.length
-}
-
-/**
  * Update view properties
  */
 export function updateView(
@@ -148,62 +141,6 @@ export function updateView(
 
 	yDoc.transact(() => {
 		doc.v.set(viewId, compacted)
-	}, yDoc.clientID)
-}
-
-/**
- * Update view position
- */
-export function updateViewPosition(
-	yDoc: Y.Doc,
-	doc: YPrezilloDocument,
-	viewId: ViewId,
-	x: number,
-	y: number
-): void {
-	const existing = doc.v.get(viewId)
-	if (!existing) return
-
-	yDoc.transact(() => {
-		doc.v.set(viewId, { ...existing, x, y })
-	}, yDoc.clientID)
-}
-
-/**
- * Update view size
- */
-export function updateViewSize(
-	yDoc: Y.Doc,
-	doc: YPrezilloDocument,
-	viewId: ViewId,
-	width: number,
-	height: number
-): void {
-	const existing = doc.v.get(viewId)
-	if (!existing) return
-
-	yDoc.transact(() => {
-		doc.v.set(viewId, { ...existing, width, height })
-	}, yDoc.clientID)
-}
-
-/**
- * Update view bounds (position and size)
- */
-export function updateViewBounds(
-	yDoc: Y.Doc,
-	doc: YPrezilloDocument,
-	viewId: ViewId,
-	x: number,
-	y: number,
-	width: number,
-	height: number
-): void {
-	const existing = doc.v.get(viewId)
-	if (!existing) return
-
-	yDoc.transact(() => {
-		doc.v.set(viewId, { ...existing, x, y, width, height })
 	}, yDoc.clientID)
 }
 
@@ -282,11 +219,7 @@ export function moveViewInPresentation(
 /**
  * Arrange all views in a row on the canvas
  */
-export function rearrangeViewsOnCanvas(
-	yDoc: Y.Doc,
-	doc: YPrezilloDocument,
-	gap: number = 100
-): void {
+function rearrangeViewsOnCanvas(yDoc: Y.Doc, doc: YPrezilloDocument, gap: number = 100): void {
 	yDoc.transact(() => {
 		let x = 0
 		const y = 0
@@ -326,34 +259,6 @@ export function duplicateView(
 		copyFromViewId: viewId,
 		insertIndex
 	})
-}
-
-/**
- * Get view at a canvas position
- */
-export function getViewAtPosition(
-	doc: YPrezilloDocument,
-	canvasX: number,
-	canvasY: number
-): ViewNode | null {
-	// Check in reverse order (later views are "on top")
-	const viewIds = doc.vo.toArray().reverse()
-
-	for (const id of viewIds) {
-		const view = doc.v.get(id)
-		if (view) {
-			if (
-				canvasX >= view.x &&
-				canvasX <= view.x + view.width &&
-				canvasY >= view.y &&
-				canvasY <= view.y + view.height
-			) {
-				return expandView(id, view)
-			}
-		}
-	}
-
-	return null
 }
 
 /**
@@ -402,47 +307,6 @@ export function getPreviousView(
 	}
 
 	return null
-}
-
-/**
- * Get first view
- */
-export function getFirstView(doc: YPrezilloDocument): ViewId | null {
-	const viewIds = doc.vo.toArray()
-	return viewIds.length > 0 ? toViewId(viewIds[0]) : null
-}
-
-/**
- * Get last view
- */
-export function getLastView(doc: YPrezilloDocument): ViewId | null {
-	const viewIds = doc.vo.toArray()
-	return viewIds.length > 0 ? toViewId(viewIds[viewIds.length - 1]) : null
-}
-
-/**
- * Get view index in presentation order
- */
-export function getViewIndex(doc: YPrezilloDocument, viewId: ViewId): number {
-	return doc.vo.toArray().indexOf(viewId)
-}
-
-/**
- * Toggle view visibility (for skipping in presentation)
- */
-export function toggleViewHidden(yDoc: Y.Doc, doc: YPrezilloDocument, viewId: ViewId): void {
-	const view = doc.v.get(viewId)
-	if (!view) return
-
-	yDoc.transact(() => {
-		if (view.hidden) {
-			const updated = { ...view }
-			delete updated.hidden
-			doc.v.set(viewId, updated)
-		} else {
-			doc.v.set(viewId, { ...view, hidden: true })
-		}
-	}, yDoc.clientID)
 }
 
 // ============================================================================
@@ -534,7 +398,7 @@ type BackgroundProperty =
  * Set a background property on a view
  * Always uses standard fields - resolution handles template inheritance
  */
-export function setViewBackground(
+function setViewBackground(
 	yDoc: Y.Doc,
 	doc: YPrezilloDocument,
 	viewId: ViewId,
@@ -610,43 +474,6 @@ export function getViewSnapGuides(doc: YPrezilloDocument, viewId: ViewId): SnapG
 		position: sg.p,
 		absolute: sg.a
 	}))
-}
-
-/**
- * Get instance objects on a view (objects that reference template prototypes)
- */
-export function getViewInstanceObjects(doc: YPrezilloDocument, viewId: ViewId): ObjectId[] {
-	const view = doc.v.get(viewId)
-	if (!view?.tpl) return []
-
-	const protoIds = doc.tpo.get(view.tpl)?.toArray() || []
-	const instances: ObjectId[] = []
-
-	doc.o.forEach((obj, id) => {
-		if (obj.vi === viewId && obj.proto && protoIds.includes(obj.proto)) {
-			instances.push(toObjectId(id))
-		}
-	})
-
-	return instances
-}
-
-/**
- * Check if an object on a view is a template instance
- */
-export function isTemplateInstance(
-	doc: YPrezilloDocument,
-	viewId: ViewId,
-	objectId: ObjectId
-): boolean {
-	const view = doc.v.get(viewId)
-	if (!view?.tpl) return false
-
-	const obj = doc.o.get(objectId)
-	if (!obj?.proto) return false
-
-	const protoIds = doc.tpo.get(view.tpl)?.toArray() || []
-	return protoIds.includes(obj.proto)
 }
 
 // vim: ts=4

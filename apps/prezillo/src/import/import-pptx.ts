@@ -23,7 +23,7 @@ import type {
 	StoredRect,
 	StoredText
 } from '../crdt/stored-types'
-import { registerPendingImageTempId } from '../hooks/useImageHandler'
+import { registerPendingImageTempId } from '../hooks/useMediaInsertHandler'
 import type {
 	ImportResult,
 	ParsedColor,

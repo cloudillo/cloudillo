@@ -12,7 +12,6 @@ import { applyTint, applyTintToGradient } from './color-utils'
 import type { PalettePreset } from './palette-presets'
 import type {
 	Palette,
-	PaletteColor,
 	PaletteColorSlotName,
 	PaletteGradientSlotName,
 	PaletteRef,
@@ -160,27 +159,10 @@ export function applyPreset(yDoc: Y.Doc, doc: YPrezilloDocument, preset: Palette
 }
 
 /**
- * Reset palette to default
- */
-export function resetPaletteToDefault(yDoc: Y.Doc, doc: YPrezilloDocument): void {
-	setPalette(yDoc, doc, { ...DEFAULT_PALETTE })
-}
-
-/**
  * Check if a slot is a gradient slot
  */
 export function isGradientSlot(slot: PaletteSlotName): slot is PaletteGradientSlotName {
 	return slot.startsWith('gradient')
-}
-
-/**
- * Get the color/gradient from a palette slot
- */
-export function getPaletteSlotValue(
-	palette: Palette,
-	slot: PaletteSlotName
-): PaletteColor | Gradient | undefined {
-	return palette[slot as keyof Palette] as PaletteColor | Gradient | undefined
 }
 
 /**
@@ -236,7 +218,7 @@ export function resolvePaletteRef(palette: Palette, ref: PaletteRef): ResolvedCo
 /**
  * Resolve any color value (string or palette ref) to final value
  */
-export function resolveColorValue(
+function resolveColorValue(
 	palette: Palette,
 	value: string | StoredPaletteRef | undefined,
 	defaultColor: string = '#cccccc'
@@ -279,10 +261,7 @@ export function getResolvedColor(
 /**
  * Find all objects using a specific palette slot
  */
-export function getObjectsUsingPaletteSlot(
-	doc: YPrezilloDocument,
-	slot: PaletteSlotName
-): string[] {
+function getObjectsUsingPaletteSlot(doc: YPrezilloDocument, slot: PaletteSlotName): string[] {
 	const slotCode = PALETTE_SLOT_REVERSE[slot]
 	const objectIds: string[] = []
 
@@ -405,14 +384,6 @@ export const GRADIENT_SLOT_NAMES: readonly PaletteGradientSlotName[] = [
 ] as const
 
 /**
- * All slot names constant
- */
-export const ALL_SLOT_NAMES: readonly PaletteSlotName[] = [
-	...COLOR_SLOT_NAMES,
-	...GRADIENT_SLOT_NAMES
-] as const
-
-/**
  * Get all color slot names (for iteration)
  */
 export function getColorSlotNames(): PaletteColorSlotName[] {
@@ -424,13 +395,6 @@ export function getColorSlotNames(): PaletteColorSlotName[] {
  */
 export function getGradientSlotNames(): PaletteGradientSlotName[] {
 	return [...GRADIENT_SLOT_NAMES]
-}
-
-/**
- * Get all slot names (for iteration)
- */
-export function getAllSlotNames(): PaletteSlotName[] {
-	return [...ALL_SLOT_NAMES]
 }
 
 // vim: ts=4

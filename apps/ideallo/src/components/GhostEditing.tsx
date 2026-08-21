@@ -8,6 +8,7 @@ import * as React from 'react'
  * Shows objects with offset applied from awareness editing state
  */
 
+import { presenceColor } from '@cloudillo/core'
 import { useDarkMode } from '@cloudillo/react'
 
 import { resolveConnectorRoutes } from '../connectors/index.js'
@@ -15,7 +16,6 @@ import { findIncidentArrows } from '../connectors/lifecycle.js'
 import type { IdealloObject, StoredObject, YIdealloDocument } from '../crdt/index.js'
 import { toObjectId, tryExpandObject } from '../crdt/index.js'
 import type { IdealloPresence } from '../hooks/index.js'
-import { presenceColor } from '../utils/index.js'
 import { ObjectRenderer } from './ObjectRenderer.js'
 
 const GHOST_OPACITY = 0.5

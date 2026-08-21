@@ -9,13 +9,17 @@ import { getOrCreateDocument } from '../crdt/document.js'
 import type { ObjectId } from '../crdt/ids.js'
 import { toObjectId } from '../crdt/ids.js'
 import {
+	bringForward,
+	bringToFront,
 	connectObjects,
 	deletableObjectIds,
 	deleteObjectsWithBindingCleanup,
 	duplicateAsLinkedCopy,
 	duplicateObject,
 	getAllResolvedObjects,
-	getObject
+	getObject,
+	sendBackward,
+	sendToBack
 } from '../crdt/object-ops.js'
 import type { ConnectorObject } from '../crdt/runtime-types.js'
 import type { StoredConnector, StoredObject, YIdealloDocument } from '../crdt/stored-types.js'
@@ -646,5 +650,49 @@ describe('connectObjects', () => {
 		const resolved = getAllResolvedObjects(doc).find((o) => o.id === id) as ConnectorObject
 		expect(resolved.route).toBeDefined()
 		expect(resolved.startX).toBeGreaterThan(100)
+	})
+})
+
+/**
+ * `zOrderTarget` returns an index valid *after* the element is removed. Getting that
+ * off by one makes `Y.Array.insert` throw (or silently misplace the object), so pin
+ * all four ops against a real Y.Array.
+ */
+describe('z-order', () => {
+	const C = toObjectId('boxC')
+
+	function stack(): { yDoc: Y.Doc; doc: YIdealloDocument } {
+		const d = makeDoc()
+		addStored(d.doc, A, box(0, 0))
+		addStored(d.doc, B, box(100, 0))
+		addStored(d.doc, C, box(200, 0))
+		return d
+	}
+
+	it('brings a middle object to the front', () => {
+		const { yDoc, doc } = stack()
+		bringToFront(yDoc, doc, B)
+		expect(doc.r.toArray()).toEqual([A, C, B])
+	})
+
+	it('sends a middle object to the back', () => {
+		const { yDoc, doc } = stack()
+		sendToBack(yDoc, doc, B)
+		expect(doc.r.toArray()).toEqual([B, A, C])
+	})
+
+	it('steps one position at a time', () => {
+		const { yDoc, doc } = stack()
+		bringForward(yDoc, doc, A)
+		expect(doc.r.toArray()).toEqual([B, A, C])
+		sendBackward(yDoc, doc, C)
+		expect(doc.r.toArray()).toEqual([B, C, A])
+	})
+
+	it('leaves the edges alone', () => {
+		const { yDoc, doc } = stack()
+		bringToFront(yDoc, doc, C)
+		sendToBack(yDoc, doc, A)
+		expect(doc.r.toArray()).toEqual([A, B, C])
 	})
 })

@@ -17,7 +17,7 @@ import { act, renderHook } from '@testing-library/react'
 import * as Y from 'yjs'
 
 import { getOrCreateDocument } from '../crdt/document.js'
-import { useImageHandler } from '../hooks/useImageHandler.js'
+import { useImageHandler } from '../hooks/useMediaInsertHandler.js'
 
 type PickMedia = ReturnType<typeof getAppBus>['pickMedia']
 

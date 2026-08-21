@@ -7,6 +7,7 @@
 
 import type { Gradient } from '@cloudillo/canvas-tools'
 import { GradientPicker } from '@cloudillo/canvas-tools'
+import { getContrastColor } from '@cloudillo/core'
 import { ColorInput, PropertySection } from '@cloudillo/react'
 import * as React from 'react'
 import type * as Y from 'yjs'
@@ -21,7 +22,6 @@ import {
 	updatePaletteColorSlot,
 	updatePaletteGradientSlot
 } from '../../crdt'
-import { getContrastColor } from '../../crdt/color-utils'
 import { usePaletteValue } from '../../hooks'
 
 /**

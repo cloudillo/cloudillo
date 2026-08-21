@@ -1,8 +1,23 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /**
  * Utility functions for the Calcillo spreadsheet application.
  */
 
-import { debug } from './debug'
+declare const process: { env: { NODE_ENV?: string } }
+
+/**
+ * Guard for dev-only diagnostics: `if (DEV) console.warn(...)`.
+ *
+ * esbuild substitutes `process.env.NODE_ENV` at build time (`createConfig` in
+ * `scripts/esbuild-common.js` defines it) and inlines this const, so a guarded
+ * call — arguments included — is dead-code-eliminated from production bundles.
+ * A `devWarn(...)` helper would not be: esbuild empties the function body but
+ * still builds the arguments at every call site, and several of these sit on
+ * the FortuneSheet op hot path.
+ */
+export const DEV = process.env.NODE_ENV !== 'production'
 
 /**
  * Creates a ref-based flag manager for preventing feedback loops.
@@ -108,7 +123,7 @@ export function createDebouncedThrottle(
  * Currently logs to console, can be extended with toast UI.
  */
 export function showUserError(message: string, context?: unknown): void {
-	debug.error(`[Calcillo Error] ${message}`, context)
+	console.error(`[Calcillo Error] ${message}`, context)
 	// TODO: Add toast notification UI
 	// For now, we at least ensure errors are visible
 }

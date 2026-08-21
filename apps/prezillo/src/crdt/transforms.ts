@@ -6,12 +6,11 @@
  */
 
 // Import utilities used in this file
-import { boundsIntersectsView, composeTransforms, unionBounds } from 'react-svg-canvas'
+import { boundsIntersectsView } from 'react-svg-canvas'
 
-import type { ContainerId, ObjectId, ViewId } from './ids'
-import { toContainerId } from './ids'
+import type { ObjectId, ViewId } from './ids'
 import { getResolvedWh, getResolvedXy } from './prototype-ops'
-import type { Bounds, Point, Transform } from './runtime-types'
+import type { Bounds, Point } from './runtime-types'
 import type { StoredObject, StoredView, YPrezilloDocument } from './stored-types'
 
 // Re-export generic geometry utilities from react-svg-canvas
@@ -48,16 +47,6 @@ export {
 	unrotatePointWithMatrix,
 	viewToCanvas
 } from 'react-svg-canvas'
-
-/**
- * Get the absolute canvas position of an object by ID.
- * Delegates to getAbsolutePositionStored which handles page-relative coordinates.
- */
-export function getAbsolutePosition(doc: YPrezilloDocument, objectId: ObjectId): Point | null {
-	const object = doc.o.get(objectId)
-	if (!object) return null
-	return getAbsolutePositionStored(doc, object)
-}
 
 /**
  * Get absolute position for a stored object.
@@ -110,53 +99,6 @@ export function getAbsolutePositionStored(
 }
 
 /**
- * Convert global canvas coordinates to page-relative coordinates
- */
-export function canvasToPageCoords(
-	doc: YPrezilloDocument,
-	pageId: ViewId,
-	canvasX: number,
-	canvasY: number
-): Point | null {
-	const view = doc.v.get(pageId)
-	if (!view) return null
-	return { x: canvasX - view.x, y: canvasY - view.y }
-}
-
-/**
- * Convert page-relative coordinates to global canvas coordinates
- */
-export function pageToCanvasCoords(
-	doc: YPrezilloDocument,
-	pageId: ViewId,
-	localX: number,
-	localY: number
-): Point | null {
-	const view = doc.v.get(pageId)
-	if (!view) return null
-	return { x: view.x + localX, y: view.y + localY }
-}
-
-/**
- * Check if a point is inside a view's bounds
- */
-export function isPointInViewBounds(
-	doc: YPrezilloDocument,
-	pageId: ViewId,
-	canvasX: number,
-	canvasY: number
-): boolean {
-	const view = doc.v.get(pageId)
-	if (!view) return false
-	return (
-		canvasX >= view.x &&
-		canvasX <= view.x + view.width &&
-		canvasY >= view.y &&
-		canvasY <= view.y + view.height
-	)
-}
-
-/**
  * Find which view contains a given canvas point.
  * Returns the first matching view or null if point is outside all views.
  */
@@ -178,44 +120,6 @@ export function findViewAtPoint(
 		}
 	}
 	return null
-}
-
-/**
- * Get cumulative transform for an object
- */
-export function getAbsoluteTransform(doc: YPrezilloDocument, objectId: ObjectId): Transform | null {
-	const object = doc.o.get(objectId)
-	if (!object) return null
-
-	let transform: Transform = {
-		x: object.xy[0],
-		y: object.xy[1],
-		rotation: object.r || 0,
-		scaleX: 1,
-		scaleY: 1
-	}
-
-	let parentId = object.p
-
-	while (parentId) {
-		const parent = doc.c.get(parentId)
-		if (!parent) break
-
-		transform = composeTransforms(
-			{
-				x: parent.xy[0],
-				y: parent.xy[1],
-				rotation: parent.r || 0,
-				scaleX: parent.sc?.[0] ?? 1,
-				scaleY: parent.sc?.[1] ?? 1
-			},
-			transform
-		)
-
-		parentId = parent.p
-	}
-
-	return transform
 }
 
 /**
@@ -261,67 +165,6 @@ export function getAbsoluteBoundsStored(
 }
 
 /**
- * Get bounding box of a container (union of all children bounds)
- */
-export function getContainerBounds(
-	doc: YPrezilloDocument,
-	containerId: ContainerId
-): Bounds | null {
-	const container = doc.c.get(containerId)
-	if (!container) return null
-
-	const children = doc.ch.get(containerId)
-	if (!children || children.length === 0) return null
-
-	let minX = Infinity,
-		minY = Infinity
-	let maxX = -Infinity,
-		maxY = -Infinity
-
-	children.toArray().forEach((ref) => {
-		if (ref[0] === 0) {
-			// Object
-			const obj = doc.o.get(ref[1])
-			if (!obj || obj.v === false) return
-
-			const x = obj.xy[0]
-			const y = obj.xy[1]
-			const w = obj.wh[0]
-			const h = obj.wh[1]
-
-			minX = Math.min(minX, x)
-			minY = Math.min(minY, y)
-			maxX = Math.max(maxX, x + w)
-			maxY = Math.max(maxY, y + h)
-		} else {
-			// Container
-			const childContainer = doc.c.get(ref[1])
-			if (!childContainer || childContainer.v === false) return
-
-			const childBounds = getContainerBounds(doc, toContainerId(ref[1]))
-			if (childBounds) {
-				const absX = childContainer.xy[0] + childBounds.x
-				const absY = childContainer.xy[1] + childBounds.y
-
-				minX = Math.min(minX, absX)
-				minY = Math.min(minY, absY)
-				maxX = Math.max(maxX, absX + childBounds.width)
-				maxY = Math.max(maxY, absY + childBounds.height)
-			}
-		}
-	})
-
-	if (minX === Infinity) return null
-
-	return {
-		x: minX,
-		y: minY,
-		width: maxX - minX,
-		height: maxY - minY
-	}
-}
-
-/**
  * Check if an object's bounding box intersects with a view
  */
 export function objectIntersectsView(
@@ -332,28 +175,6 @@ export function objectIntersectsView(
 	const bounds = getAbsoluteBoundsStored(doc, object)
 	if (!bounds) return false
 	return boundsIntersectsView(bounds, view)
-}
-
-/**
- * Calculate union bounds for multiple objects
- */
-export function getSelectionBounds(doc: YPrezilloDocument, objectIds: ObjectId[]): Bounds | null {
-	if (objectIds.length === 0) return null
-
-	let result: Bounds | null = null
-
-	objectIds.forEach((id) => {
-		const bounds = getAbsoluteBounds(doc, id)
-		if (bounds) {
-			if (!result) {
-				result = bounds
-			} else {
-				result = unionBounds(result, bounds)
-			}
-		}
-	})
-
-	return result
 }
 
 // vim: ts=4

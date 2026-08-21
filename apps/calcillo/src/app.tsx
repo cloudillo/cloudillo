@@ -37,7 +37,6 @@ import {
 	FORMULA_RECALC_MAX_DELAY_MS,
 	FROZEN_PANE_APPLY_DELAY_MS
 } from './constants'
-import { debug } from './debug'
 import { downloadExport } from './export.js'
 import { downloadXlsxExport } from './export-xlsx.js'
 import type { FreezeType } from './fortune-sheet-types'
@@ -48,6 +47,7 @@ import { deleteSheet, transformOp } from './transform-ops'
 import {
 	createDebouncedThrottle,
 	createLocalEchoGuard,
+	DEV,
 	isValidSheetIdValue,
 	showUserError
 } from './utils'
@@ -113,8 +113,6 @@ export function CalcilloApp() {
 	React.useEffect(() => {
 		if (!cloudillo.provider) return
 
-		debug.log('[EFFECT] Provider ready, Y.Doc client ID:', cloudillo.yDoc.clientID)
-
 		// Guards the deferred merge prune below against firing after unmount
 		let cancelled = false
 
@@ -147,7 +145,6 @@ export function CalcilloApp() {
 			if (evt.transaction.local) return
 			if (evt.transaction.origin === 'load') return
 
-			debug.log('[sheetOrder.observe] Sheet order changed')
 			syncSheetOrder()
 		}
 		sheetOrder.observe(sheetOrderObserver)
@@ -164,7 +161,6 @@ export function CalcilloApp() {
 			for (const [sheetId, change] of evt.changes.keys.entries()) {
 				switch (change.action) {
 					case 'add': {
-						debug.log('[sheets.observe] Sheet added:', sheetId)
 						// Add the sheet to Fortune Sheet with the correct ID
 						workbookRef.current?.addSheet(sheetId)
 
@@ -180,7 +176,6 @@ export function CalcilloApp() {
 						break
 					}
 					case 'delete':
-						debug.log('[sheets.observe] Sheet deleted:', sheetId)
 						workbookRef.current?.deleteSheet({ id: sheetId })
 						break
 				}
@@ -205,12 +200,7 @@ export function CalcilloApp() {
 			localEchoGuard.withGuard(() => {
 				for (const evt of evts) {
 					// Skip top-level sheets map changes (handled by ySheets.observe above)
-					if (!evt.path[0]) {
-						debug.log(
-							'[observeDeep] Skipping top-level change (handled by sheets.observe)'
-						)
-						continue
-					}
+					if (!evt.path[0]) continue
 
 					const sheetId = String(evt.path[0]) as SheetId
 					// evt.path is [sheetId, ...], so path[1] is the sheet-level key
@@ -288,7 +278,6 @@ export function CalcilloApp() {
 
 		const bus = getAppBus()
 		const cleanup = bus.onImportData(async (payload) => {
-			debug.log('[Import] Received import data:', payload.sourceMimeType, payload.fileName)
 			try {
 				// Decode base64 to ArrayBuffer
 				const binary = atob(payload.data)
@@ -310,14 +299,13 @@ export function CalcilloApp() {
 
 				await importXlsx(cloudillo.yDoc, bytes.buffer)
 				bus.notifyImportComplete(true)
-				debug.log('[Import] Import complete')
 
 				// Force re-initialization of the workbook UI
 				setOrigCellData(undefined)
 				setInitialized(false)
 				setWorkbookKey((k) => k + 1)
 			} catch (err) {
-				debug.error('[Import] Import failed:', err)
+				console.error('[Import] Import failed:', err)
 				bus.notifyImportComplete(
 					false,
 					err instanceof Error ? err.message : 'Import failed'
@@ -381,7 +369,7 @@ export function CalcilloApp() {
 		const dedupedData = data.filter((sheet) => {
 			if (!sheet.id) return false
 			if (seenIds.has(sheet.id)) {
-				debug.warn('[Load] Duplicate sheet detected:', sheet.id)
+				if (DEV) console.warn('[Load] Duplicate sheet detected:', sheet.id)
 				return false
 			}
 			seenIds.add(sheet.id)
@@ -418,11 +406,6 @@ export function CalcilloApp() {
 								column: colFocus ?? 0
 							}
 
-							debug.log('[Init] Applying frozen panes:', {
-								sheetId,
-								type: frozenType,
-								range
-							})
 							// Set flag to prevent onOp from writing back to Yjs
 							localEchoGuard.withGuard(() => {
 								freezeSheet(workbookRef.current!, frozenType as FreezeType, range, {
@@ -444,27 +427,11 @@ export function CalcilloApp() {
 	const onOp = React.useCallback(
 		(ops: Op[]) => {
 			// Skip operations before initialization (during load)
-			if (!initialized) {
-				debug.log('[onOp] Skipping operations during initialization')
-				return
-			}
+			if (!initialized) return
 
 			// Skip operations triggered by applying remote changes
 			// This prevents feedback loops when wb.freeze() etc. trigger onOp
-			if (localEchoGuard.isGuarded()) {
-				debug.log('[onOp] Skipping operations triggered by remote change application')
-				return
-			}
-
-			debug.log(
-				'[onOp] Received operations:',
-				ops.map((op) => ({
-					op: op.op,
-					id: op.id,
-					path: op.path,
-					value: op.value
-				}))
-			)
+			if (localEchoGuard.isGuarded()) return
 
 			try {
 				cloudillo.yDoc.transact(() => {
@@ -475,7 +442,7 @@ export function CalcilloApp() {
 						if (op.op === 'deleteSheet') {
 							// FIX: Proper validation instead of string comparison
 							if (!isValidSheetIdValue(op.id)) {
-								debug.error(
+								console.error(
 									'[onOp] INVALID deleteSheet - Missing/invalid sheet ID:',
 									op
 								)
@@ -489,14 +456,7 @@ export function CalcilloApp() {
 						// This happens when Fortune Sheet triggers ops in response to our remote change handling
 						// (e.g., deleteSheet triggers a 'replace' op with undefined id)
 						// FIX: Proper validation instead of string comparison
-						if (!isValidSheetIdValue(op.id)) {
-							debug.log(
-								'[onOp] Skipping operation without valid sheet ID (likely from UI update):',
-								op.op,
-								op.path
-							)
-							continue
-						}
+						if (!isValidSheetIdValue(op.id)) continue
 
 						try {
 							// For addSheet operations, also add to sheetOrder array
@@ -521,13 +481,6 @@ export function CalcilloApp() {
 		},
 		[initialized, localEchoGuard]
 	)
-
-	// Wrap generateSheetId to log when it's called
-	const wrappedGenerateSheetId = React.useCallback(() => {
-		const id = generateSheetId()
-		debug.log('[generateSheetId] Generated new sheet ID:', id)
-		return id
-	}, [])
 
 	// Combined ref that updates both the ref and state
 	const combinedRef = React.useCallback(
@@ -566,7 +519,7 @@ export function CalcilloApp() {
 						ref={combinedRef}
 						data={origCellData}
 						onOp={isReadOnly ? undefined : onOp}
-						generateSheetId={wrappedGenerateSheetId}
+						generateSheetId={generateSheetId}
 						allowEdit={!isReadOnly}
 					/>
 				</div>

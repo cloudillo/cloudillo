@@ -9,6 +9,8 @@
  * Bullets are rendered as SVG <path> elements for consistent PDF export.
  */
 
+import { measureTextWidth } from '@cloudillo/canvas-text'
+
 import type { ResolvedTextStyle } from '../crdt'
 import { getBulletIcon, migrateBullet } from '../data/bullet-icons'
 import type { Bounds, TextLayout, TextLineMetrics } from './types'
@@ -20,36 +22,6 @@ const TEXT_ANCHOR_MAP: Record<string, string> = {
 	left: 'start',
 	center: 'middle',
 	right: 'end'
-}
-
-/**
- * Measure text width using Canvas API
- * This creates a temporary canvas to accurately measure text dimensions
- */
-function measureTextWidth(text: string, style: ResolvedTextStyle): number {
-	const canvas = document.createElement('canvas')
-	const ctx = canvas.getContext('2d')
-	if (!ctx) return 0
-
-	// Build font string matching CSS font shorthand
-	const fontStyle = style.fontItalic ? 'italic' : 'normal'
-	const fontWeight = style.fontWeight || 'normal'
-	const fontSize = style.fontSize || 64
-	const fontFamily = style.fontFamily || 'system-ui, sans-serif'
-
-	ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`
-
-	// Apply letter spacing if set
-	if (style.letterSpacing && style.letterSpacing !== 0) {
-		// Canvas doesn't support letter-spacing directly, so we measure char by char
-		let width = 0
-		for (const char of text) {
-			width += ctx.measureText(char).width + style.letterSpacing
-		}
-		return width - style.letterSpacing // Remove extra spacing after last char
-	}
-
-	return ctx.measureText(text).width
 }
 
 /**

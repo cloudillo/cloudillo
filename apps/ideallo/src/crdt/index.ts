@@ -8,7 +8,6 @@
 // Document
 export { getDocumentMeta, getOrCreateDocument, updateDocumentMeta } from './document.js'
 // Export functionality
-export { downloadExport, exportDocument } from './export.js'
 // IDs
 export { generateObjectId, ObjectId, toObjectId } from './ids.js'
 // Object operations

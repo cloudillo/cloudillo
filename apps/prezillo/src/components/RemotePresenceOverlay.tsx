@@ -5,11 +5,11 @@
  * Component for rendering ghost overlays showing remote users' edits
  */
 
+import { presenceColor } from '@cloudillo/core'
 import { useDarkMode } from '@cloudillo/react'
 import * as React from 'react'
 
 import type { PrezilloPresence } from '../awareness'
-import { presenceColor } from '../awareness'
 import type { PrezilloObject } from '../crdt'
 
 export interface RemotePresenceOverlayProps {

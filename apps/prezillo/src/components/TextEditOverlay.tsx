@@ -5,6 +5,7 @@
  * TextEditOverlay component - Inline text editor for text objects
  */
 
+import { measureTextWidth } from '@cloudillo/canvas-text'
 import * as React from 'react'
 
 import type { PrezilloObject, ResolvedTextStyle } from '../crdt'
@@ -18,33 +19,6 @@ import {
 
 // Border width for the drag zone around the textarea
 const BORDER_WIDTH = 8
-
-/**
- * Measure text width using Canvas API for accurate bullet positioning
- */
-function measureTextWidth(text: string, style: ResolvedTextStyle): number {
-	const canvas = document.createElement('canvas')
-	const ctx = canvas.getContext('2d')
-	if (!ctx) return 0
-
-	const fontStyle = style.fontItalic ? 'italic' : 'normal'
-	const fontWeight = style.fontWeight || 'normal'
-	const fontSize = style.fontSize || 64
-	const fontFamily = style.fontFamily || 'system-ui, sans-serif'
-
-	ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`
-
-	// Apply letter spacing if set
-	if (style.letterSpacing && style.letterSpacing !== 0) {
-		let width = 0
-		for (const char of text) {
-			width += ctx.measureText(char).width + style.letterSpacing
-		}
-		return width - style.letterSpacing
-	}
-
-	return ctx.measureText(text).width
-}
 
 /**
  * Inline SVG bullet icon component for edit mode

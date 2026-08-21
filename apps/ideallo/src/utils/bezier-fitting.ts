@@ -26,7 +26,7 @@ export interface BezierSegment {
 	end: Point
 }
 
-export interface PrecisionConfig {
+interface PrecisionConfig {
 	decimalPlaces: number
 	quantizationStep: number
 }
@@ -75,7 +75,7 @@ const STRAIGHTNESS_THRESHOLD = 1.02
 /**
  * Calculate precision based on stroke bounds size
  */
-export function calculatePrecision(bounds: Bounds, intent: DrawingIntent): PrecisionConfig {
+function calculatePrecision(bounds: Bounds, intent: DrawingIntent): PrecisionConfig {
 	const diagonal = Math.sqrt(bounds.width ** 2 + bounds.height ** 2)
 
 	// Base precision from stroke size
@@ -111,7 +111,7 @@ export function calculatePrecision(bounds: Bounds, intent: DrawingIntent): Preci
 /**
  * Quantize a coordinate value
  */
-export function quantizeCoord(value: number, precision: PrecisionConfig): number {
+function quantizeCoord(value: number, precision: PrecisionConfig): number {
 	const quantized = Math.round(value / precision.quantizationStep) * precision.quantizationStep
 	return Number(quantized.toFixed(precision.decimalPlaces))
 }
@@ -188,7 +188,7 @@ function getDirectionChange(points: Point[], idx: number, windowSize: number = 3
 /**
  * Detect corners using speed-weighted scoring
  */
-export function detectBezierCorners(
+function detectBezierCorners(
 	timedPoints: TimedPoint[],
 	metrics: StrokeMetrics,
 	intent: DrawingIntent
@@ -310,7 +310,7 @@ function calculateTangentLength(
 /**
  * Fit a cubic bezier to a segment of points
  */
-export function fitBezierSegment(
+function fitBezierSegment(
 	points: Point[],
 	speeds: number[],
 	avgSpeed: number,
@@ -530,7 +530,7 @@ function fitBezierAdaptive(
  * Fit bezier curves to points, splitting at corners
  * Uses adaptive subdivision to preserve detail within each corner-segment
  */
-export function fitBezierCurves(
+function fitBezierCurves(
 	timedPoints: TimedPoint[],
 	metrics: StrokeMetrics,
 	intent: DrawingIntent,
@@ -593,7 +593,7 @@ export function fitBezierCurves(
 /**
  * Determine if path should be auto-closed
  */
-export function shouldAutoClose(points: Point[], bounds: Bounds): boolean {
+function shouldAutoClose(points: Point[], bounds: Bounds): boolean {
 	if (points.length < 3) return false
 
 	const start = points[0]
@@ -610,7 +610,7 @@ export function shouldAutoClose(points: Point[], bounds: Bounds): boolean {
 /**
  * Create closing segment from end back to start
  */
-export function createClosingSegment(segments: BezierSegment[], _avgSpeed: number): BezierSegment {
+function createClosingSegment(segments: BezierSegment[], _avgSpeed: number): BezierSegment {
 	if (segments.length === 0) {
 		return { start: [0, 0], control1: [0, 0], control2: [0, 0], end: [0, 0] }
 	}
@@ -664,7 +664,7 @@ function formatCoord(value: number, precision: PrecisionConfig): string {
  * Convert bezier segments to SVG path string with relative coordinates
  * Offsets all coordinates by -offsetX, -offsetY so path is relative to bounds origin
  */
-export function segmentsToSvgPath(
+function segmentsToSvgPath(
 	segments: BezierSegment[],
 	precision: PrecisionConfig,
 	closed: boolean,

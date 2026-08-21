@@ -8,7 +8,7 @@
  * without creating CRDT history entries.
  */
 
-import { idAccent } from '@cloudillo/core'
+import { presenceColor } from '@cloudillo/core'
 import type { Awareness } from 'y-protocols/awareness'
 
 import type { ViewId } from './crdt/index.js'
@@ -121,25 +121,6 @@ export function getRemotePresenceStates(awareness: Awareness): Map<number, Prezi
 }
 
 /**
- * The colour to draw a collaborator's dot, badge or avatar in.
- *
- * Derived by the VIEWER from the peer's idTag rather than read off the wire, so
- * a peer cannot assert an arbitrary colour; and the idTag it derives from is
- * stamped by the `/ws/crdt` relay from the sender's own token (see
- * `cloudillo-rs/crates/cloudillo-crdt/src/websocket.rs`), so it cannot be forged
- * either. Anonymous guests fall back to their awareness clientId, stable for the
- * length of their session.
- *
- * `idHue` is the platform-wide rule, so the same person is the same colour in
- * every Cloudillo app. SVG attributes cannot use the `.c-id-color` CSS route, so
- * this returns a literal string; the caller passes the theme, because a hidden
- * bus read cannot appear in a memo's prop comparison or a `useEffect` dep array.
- */
-export function presenceColor(idTag: string | undefined, clientId: number, dark: boolean): string {
-	return idAccent(idTag ?? String(clientId), dark)
-}
-
-/**
  * Start presenting - broadcast current view to other clients
  */
 export function setPresenting(
@@ -237,14 +218,6 @@ export function clearFollowing(awareness: Awareness): void {
 }
 
 /**
- * Check if the local client is currently following
- */
-export function isLocalFollowing(awareness: Awareness): boolean {
-	const state = awareness.getLocalState()
-	return !!state?.following
-}
-
-/**
  * Get follower count for a specific presenter (by client ID)
  * Counts users who have `following.presenterClientId` matching the presenter
  */
@@ -301,30 +274,6 @@ export function clearVote(awareness: Awareness): void {
 export function getLocalVote(awareness: Awareness): { frameId: string; viewId: string } | null {
 	const state = awareness.getLocalState()
 	return state?.vote ?? null
-}
-
-/**
- * Get all votes for a specific poll frame on a specific view
- */
-export function getVotesForFrame(
-	awareness: Awareness,
-	frameId: string,
-	viewId: string
-): Array<{ clientId: number; user: PrezilloPresence['user'] }> {
-	const states = awareness.getStates()
-	const votes: Array<{ clientId: number; user: PrezilloPresence['user'] }> = []
-
-	;(states as Map<number, AwarenessState | null>).forEach((state, clientId) => {
-		const s = state as PrezilloPresence | null
-		if (s?.vote?.frameId === frameId && s?.vote?.viewId === viewId && s?.user) {
-			votes.push({
-				clientId,
-				user: s.user
-			})
-		}
-	})
-
-	return votes
 }
 
 /**

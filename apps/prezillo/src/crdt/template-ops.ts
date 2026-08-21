@@ -109,7 +109,7 @@ function compactGradient(gradient?: Gradient): StoredBackgroundGradient | undefi
 /**
  * Expand stored template to runtime format
  */
-export function expandTemplate(templateId: string, stored: StoredTemplate): Template {
+function expandTemplate(templateId: string, stored: StoredTemplate): Template {
 	return {
 		id: toTemplateId(templateId),
 		name: stored.n,
@@ -538,18 +538,6 @@ export function getTemplatePrototypeObjects(
 	return objects
 }
 
-/**
- * Get prototype object IDs for a template
- */
-export function getTemplatePrototypeIds(
-	doc: YPrezilloDocument,
-	templateId: TemplateId
-): ObjectId[] {
-	const protoArray = doc.tpo.get(templateId)
-	if (!protoArray) return []
-	return protoArray.toArray().map(toObjectId)
-}
-
 // ============================================================================
 // Apply Template to View
 // ============================================================================
@@ -752,103 +740,9 @@ export function removeSnapGuide(
 	}, yDoc.clientID)
 }
 
-/**
- * Set all snap guides for a template
- */
-export function setSnapGuides(
-	yDoc: Y.Doc,
-	doc: YPrezilloDocument,
-	templateId: TemplateId,
-	guides: SnapGuide[]
-): void {
-	const stored = doc.tpl.get(templateId)
-	if (!stored) return
-
-	yDoc.transact(() => {
-		const updated = { ...stored }
-		updated.sg = guides.length > 0 ? guides.map(compactSnapGuide) : undefined
-		doc.tpl.set(templateId, updated)
-	}, yDoc.clientID)
-}
-
 // ============================================================================
 // Hidden Objects (per-instance visibility)
 // ============================================================================
-
-/**
- * Find instance object by prototype and view
- */
-function findInstanceByProtoAndView(
-	doc: YPrezilloDocument,
-	prototypeId: ObjectId,
-	viewId: ViewId
-): string | undefined {
-	let instanceId: string | undefined
-	doc.o.forEach((obj, id) => {
-		if (obj.proto === prototypeId && obj.vi === viewId) {
-			instanceId = id
-		}
-	})
-	return instanceId
-}
-
-/**
- * Hide a prototype's instance on a specific view
- */
-export function hidePrototypeOnView(
-	yDoc: Y.Doc,
-	doc: YPrezilloDocument,
-	viewId: ViewId,
-	prototypeId: ObjectId
-): void {
-	const instanceId = findInstanceByProtoAndView(doc, prototypeId, viewId)
-	if (!instanceId) return
-
-	const instance = doc.o.get(instanceId)
-	if (!instance) return
-
-	yDoc.transact(() => {
-		const updated = { ...instance, hid: true as const }
-		doc.o.set(instanceId, updated)
-	}, yDoc.clientID)
-}
-
-/**
- * Show a hidden prototype's instance on a specific view
- */
-export function showPrototypeOnView(
-	yDoc: Y.Doc,
-	doc: YPrezilloDocument,
-	viewId: ViewId,
-	prototypeId: ObjectId
-): void {
-	const instanceId = findInstanceByProtoAndView(doc, prototypeId, viewId)
-	if (!instanceId) return
-
-	const instance = doc.o.get(instanceId)
-	if (!instance) return
-
-	yDoc.transact(() => {
-		const updated = { ...instance }
-		delete updated.hid
-		doc.o.set(instanceId, updated as StoredObject)
-	}, yDoc.clientID)
-}
-
-/**
- * Check if a prototype's instance is hidden on a view
- */
-export function isPrototypeHiddenOnView(
-	doc: YPrezilloDocument,
-	viewId: ViewId,
-	prototypeId: ObjectId
-): boolean {
-	const instanceId = findInstanceByProtoAndView(doc, prototypeId, viewId)
-	if (!instanceId) return false
-
-	const instance = doc.o.get(instanceId)
-	return instance?.hid === true
-}
 
 // ============================================================================
 // Helper Functions

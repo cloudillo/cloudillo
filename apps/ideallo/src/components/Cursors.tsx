@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+
 /**
  * Renders remote user cursors via awareness
  * Shows cursor pointer with user name label
  */
 
+import { presenceColor } from '@cloudillo/core'
 import { useDarkMode } from '@cloudillo/react'
 
 import type { IdealloPresence } from '../hooks/index.js'
-import { presenceColor } from '../utils/index.js'
 
 export interface CursorsProps {
 	remotePresence: Map<number, IdealloPresence>

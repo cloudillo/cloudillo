@@ -1,27 +1,11 @@
-import { debug } from './debug'
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
+import { randomId } from '@cloudillo/core'
+
+import { DEV } from './utils'
 import type { ColId, RowId, SheetId } from './yjs-types'
 import { toColId, toRowId, toSheetId } from './yjs-types'
-
-/**
- * Generate cryptographically secure base64url ID
- *
- * Base64url alphabet: A-Za-z0-9_- (64 chars = 6 bits per char)
- */
-function generateBase64UrlId(length: number): string {
-	// Calculate bytes needed: length * 6 bits / 8 bits per byte
-	const byteLength = Math.ceil((length * 6) / 8)
-	const bytes = new Uint8Array(byteLength)
-	crypto.getRandomValues(bytes)
-
-	// Convert to base64
-	let base64 = btoa(String.fromCharCode(...bytes))
-
-	// Make URL-safe and remove padding
-	base64 = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
-
-	// Return exactly the length needed
-	return base64.slice(0, length)
-}
 
 /**
  * Generate 9-character row ID
@@ -29,7 +13,7 @@ function generateBase64UrlId(length: number): string {
  * Collision probability: ~0% for reasonable sheet sizes
  */
 export function generateRowId(): RowId {
-	return toRowId(generateBase64UrlId(9))
+	return toRowId(randomId(9))
 }
 
 /**
@@ -38,7 +22,7 @@ export function generateRowId(): RowId {
  * More than enough for spreadsheet columns
  */
 export function generateColId(): ColId {
-	return toColId(generateBase64UrlId(5))
+	return toColId(randomId(5))
 }
 
 /**
@@ -47,7 +31,7 @@ export function generateColId(): ColId {
  * Compatible with UUIDs (but shorter and URL-safe)
  */
 export function generateSheetId(): SheetId {
-	return toSheetId(generateBase64UrlId(12))
+	return toSheetId(randomId(12))
 }
 
 /**
@@ -75,7 +59,10 @@ export function generateUniqueRowId(existingIds: Set<RowId>): RowId {
 			return rowId
 		}
 		attempts++
-		debug.warn(`[ID Collision] Row ID collision detected, attempt ${attempts}/${maxAttempts}`)
+		if (DEV)
+			console.warn(
+				`[ID Collision] Row ID collision detected, attempt ${attempts}/${maxAttempts}`
+			)
 	}
 
 	throw new Error(`Failed to generate unique row ID after ${maxAttempts} attempts`)
@@ -95,9 +82,10 @@ export function generateUniqueColId(existingIds: Set<ColId>): ColId {
 			return colId
 		}
 		attempts++
-		debug.warn(
-			`[ID Collision] Column ID collision detected, attempt ${attempts}/${maxAttempts}`
-		)
+		if (DEV)
+			console.warn(
+				`[ID Collision] Column ID collision detected, attempt ${attempts}/${maxAttempts}`
+			)
 	}
 
 	throw new Error(`Failed to generate unique column ID after ${maxAttempts} attempts`)

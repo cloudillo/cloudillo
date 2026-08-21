@@ -6,10 +6,22 @@
  */
 
 import type { Gradient } from '@cloudillo/canvas-tools'
+import {
+	ANCHOR_CODE,
+	ARROW_TYPE_CODE,
+	ROUTING_CODE,
+	TEXT_ALIGN_CODE,
+	VERT_ALIGN_CODE
+} from '@cloudillo/canvas-tools'
 
 import { toContainerId, toObjectId, toStyleId, toViewId } from './ids'
 import type * as Runtime from './runtime-types'
 import type * as Stored from './stored-types'
+
+// The `*_REVERSE` maps are spelled out rather than derived from the forward map:
+// the explicit `Record<Runtime.X, Stored.XCode>` annotation is what makes adding a
+// runtime member without a stored code a compile error instead of a `t: undefined`
+// written into the document.
 
 // Type code mappings
 const OBJECT_TYPE_MAP: Record<Stored.ObjectTypeCode, Runtime.ObjectType> = {
@@ -86,11 +98,6 @@ const CONTAINER_TYPE_MAP: Record<Stored.ContainerTypeCode, Runtime.ContainerType
 	G: 'group'
 }
 
-const CONTAINER_TYPE_REVERSE: Record<Runtime.ContainerType, Stored.ContainerTypeCode> = {
-	layer: 'L',
-	group: 'G'
-}
-
 const BLEND_MODE_MAP: Record<Stored.BlendModeCode, Runtime.BlendMode> = {
 	N: 'normal',
 	M: 'multiply',
@@ -106,29 +113,7 @@ const BLEND_MODE_MAP: Record<Stored.BlendModeCode, Runtime.BlendMode> = {
 	EX: 'exclusion'
 }
 
-const BLEND_MODE_REVERSE: Record<Runtime.BlendMode, Stored.BlendModeCode> = {
-	normal: 'N',
-	multiply: 'M',
-	screen: 'S',
-	overlay: 'O',
-	darken: 'D',
-	lighten: 'L',
-	'color-dodge': 'CD',
-	'color-burn': 'CB',
-	'hard-light': 'HL',
-	'soft-light': 'SL',
-	difference: 'DF',
-	exclusion: 'EX'
-}
-
-const ARROW_TYPE_MAP: Record<Stored.ArrowTypeCode, Runtime.ArrowType> = {
-	N: 'none',
-	A: 'arrow',
-	T: 'triangle',
-	C: 'circle',
-	D: 'diamond',
-	B: 'bar'
-}
+const ARROW_TYPE_MAP: Record<Stored.ArrowTypeCode, Runtime.ArrowType> = ARROW_TYPE_CODE
 
 const ARROW_TYPE_REVERSE: Record<Runtime.ArrowType, Stored.ArrowTypeCode> = {
 	none: 'N',
@@ -139,11 +124,7 @@ const ARROW_TYPE_REVERSE: Record<Runtime.ArrowType, Stored.ArrowTypeCode> = {
 	bar: 'B'
 }
 
-const ROUTING_MAP: Record<Stored.RoutingCode, Runtime.Routing> = {
-	S: 'straight',
-	O: 'orthogonal',
-	C: 'curved'
-}
+const ROUTING_MAP: Record<Stored.RoutingCode, Runtime.Routing> = ROUTING_CODE
 
 const ROUTING_REVERSE: Record<Runtime.Routing, Stored.RoutingCode> = {
 	straight: 'S',
@@ -151,18 +132,7 @@ const ROUTING_REVERSE: Record<Runtime.Routing, Stored.RoutingCode> = {
 	curved: 'C'
 }
 
-const ANCHOR_MAP: Record<Stored.AnchorPointCode, Runtime.AnchorPointType> = {
-	c: 'center',
-	t: 'top',
-	b: 'bottom',
-	l: 'left',
-	r: 'right',
-	tl: 'top-left',
-	tr: 'top-right',
-	bl: 'bottom-left',
-	br: 'bottom-right',
-	a: 'auto'
-}
+const ANCHOR_MAP: Record<Stored.AnchorPointCode, Runtime.AnchorPointType> = ANCHOR_CODE
 
 const ANCHOR_REVERSE: Record<Runtime.AnchorPointType, Stored.AnchorPointCode> = {
 	center: 'c',
@@ -177,12 +147,7 @@ const ANCHOR_REVERSE: Record<Runtime.AnchorPointType, Stored.AnchorPointCode> = 
 	auto: 'a'
 }
 
-const TEXT_ALIGN_MAP: Record<string, Runtime.TextStyle['textAlign']> = {
-	l: 'left',
-	c: 'center',
-	r: 'right',
-	j: 'justify'
-}
+const TEXT_ALIGN_MAP: Record<string, Runtime.TextStyle['textAlign']> = TEXT_ALIGN_CODE
 
 const TEXT_ALIGN_REVERSE: Record<string, string> = {
 	left: 'l',
@@ -191,11 +156,7 @@ const TEXT_ALIGN_REVERSE: Record<string, string> = {
 	justify: 'j'
 }
 
-const VERT_ALIGN_MAP: Record<string, Runtime.TextStyle['verticalAlign']> = {
-	t: 'top',
-	m: 'middle',
-	b: 'bottom'
-}
+const VERT_ALIGN_MAP: Record<string, Runtime.TextStyle['verticalAlign']> = VERT_ALIGN_CODE
 
 const VERT_ALIGN_REVERSE: Record<string, string> = {
 	top: 't',
@@ -322,9 +283,7 @@ export function compactTextStyle(
 }
 
 // Arrow style conversion
-export function expandArrowStyle(
-	stored: Stored.ArrowDef | undefined
-): Runtime.ArrowStyle | undefined {
+function expandArrowStyle(stored: Stored.ArrowDef | undefined): Runtime.ArrowStyle | undefined {
 	if (!stored) return undefined
 	return {
 		type: ARROW_TYPE_MAP[stored[0]],
@@ -344,7 +303,7 @@ export function compactArrowStyle(
 }
 
 // Anchor point conversion
-export function expandAnchorPoint(
+function expandAnchorPoint(
 	stored: Stored.AnchorPoint | undefined
 ): Runtime.AnchorPoint | undefined {
 	if (!stored) return undefined
@@ -755,27 +714,6 @@ export function expandContainer(id: string, stored: Stored.StoredContainer): Run
 	}
 }
 
-export function compactContainer(runtime: Runtime.ContainerNode): Stored.StoredContainer {
-	const result: Stored.StoredContainer = {
-		t: CONTAINER_TYPE_REVERSE[runtime.type],
-		xy: [runtime.x, runtime.y]
-	}
-
-	if (runtime.parentId) result.p = runtime.parentId
-	if (runtime.name) result.n = runtime.name
-	if (runtime.rotation) result.r = runtime.rotation
-	if (runtime.scaleX !== 1 || runtime.scaleY !== 1) {
-		result.sc = [runtime.scaleX, runtime.scaleY]
-	}
-	if (runtime.opacity !== 1) result.o = runtime.opacity
-	if (runtime.blendMode !== 'normal') result.bm = BLEND_MODE_REVERSE[runtime.blendMode]
-	if (!runtime.visible) result.v = false
-	if (runtime.locked) result.k = true
-	if (runtime.expanded) result.x = runtime.expanded
-
-	return result
-}
-
 // Background gradient conversion
 export function expandBackgroundGradient(
 	stored: Stored.StoredBackgroundGradient | undefined
@@ -897,21 +835,6 @@ const PALETTE_SLOT_MAP: Record<Stored.PaletteSlot, Runtime.PaletteSlotName> = {
 	g4: 'gradient4'
 }
 
-const PALETTE_SLOT_REVERSE: Record<Runtime.PaletteSlotName, Stored.PaletteSlot> = {
-	background: 'bg',
-	text: 'tx',
-	accent1: 'a1',
-	accent2: 'a2',
-	accent3: 'a3',
-	accent4: 'a4',
-	accent5: 'a5',
-	accent6: 'a6',
-	gradient1: 'g1',
-	gradient2: 'g2',
-	gradient3: 'g3',
-	gradient4: 'g4'
-}
-
 /**
  * Type guard to check if a color value is a palette reference
  * Accepts unknown for flexibility in checking arbitrary values
@@ -929,44 +852,6 @@ export function expandPaletteRef(stored: Stored.StoredPaletteRef): Runtime.Palet
 		opacity: stored.o,
 		tint: stored.t
 	}
-}
-
-/**
- * Compact a runtime palette reference to stored format
- */
-export function compactPaletteRef(runtime: Runtime.PaletteRef): Stored.StoredPaletteRef {
-	const result: Stored.StoredPaletteRef = {
-		pi: PALETTE_SLOT_REVERSE[runtime.slotId]
-	}
-	if (runtime.opacity !== undefined && runtime.opacity !== 1) {
-		result.o = runtime.opacity
-	}
-	if (runtime.tint !== undefined && runtime.tint !== 0) {
-		result.t = runtime.tint
-	}
-	return result
-}
-
-/**
- * Expand a color value (string or palette ref) to string or PaletteRef
- */
-export function expandColorValue(
-	value: Stored.ColorValue | undefined
-): string | Runtime.PaletteRef | undefined {
-	if (value === undefined) return undefined
-	if (typeof value === 'string') return value
-	return expandPaletteRef(value)
-}
-
-/**
- * Compact a color value (string or PaletteRef) to stored format
- */
-export function compactColorValue(
-	value: string | Runtime.PaletteRef | undefined
-): Stored.ColorValue | undefined {
-	if (value === undefined) return undefined
-	if (typeof value === 'string') return value
-	return compactPaletteRef(value)
 }
 
 /**
@@ -1025,18 +910,6 @@ export function compactPalette(runtime: Runtime.Palette): Stored.StoredPalette {
 	}
 
 	return stored
-}
-
-// Child reference conversion
-export function expandChildRef(stored: Stored.ChildRef): Runtime.ChildRef {
-	return {
-		type: stored[0] === 0 ? 'object' : 'container',
-		id: stored[0] === 0 ? toObjectId(stored[1]) : toContainerId(stored[1])
-	}
-}
-
-export function compactChildRef(runtime: Runtime.ChildRef): Stored.ChildRef {
-	return [runtime.type === 'object' ? 0 : 1, runtime.id]
 }
 
 // vim: ts=4

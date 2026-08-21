@@ -1,7 +1,10 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 import type { Cell, Op } from '@fortune-sheet/core'
 import type * as Y from 'yjs'
 
-import { debug } from './debug'
+import { DEV } from './utils'
 import {
 	clearCell,
 	deleteColumns,
@@ -257,22 +260,11 @@ function transformConfigOp(sheet: YSheetStructure, op: Op): void {
 
 										if (Object.keys(borderStyle).length > 0) {
 											setBorder(sheet, row_index, col_index, borderStyle)
-											debug.log(
-												`[Border] Saved cell border at (${row_index}, ${col_index}):`,
-												borderStyle
-											)
 										}
 									}
 								}
 								// Handle range borders (rangeType: 'range')
 								else if (borderDef.range && Array.isArray(borderDef.range)) {
-									debug.log(
-										'[Border] Processing border def:',
-										borderDef.borderType,
-										'range cells:',
-										borderDef.range.length
-									)
-
 									const borderEdge = parseBorderEdge(borderDef)
 
 									for (const rangeItem of borderDef.range) {
@@ -316,10 +308,6 @@ function transformConfigOp(sheet: YSheetStructure, op: Op): void {
 														rowIndex,
 														colIndex,
 														borderStyle
-													)
-													debug.log(
-														`[Border] Saved border at (${rowIndex}, ${colIndex}):`,
-														borderDef.borderType
 													)
 												}
 											}
@@ -417,7 +405,7 @@ function transformConfigOp(sheet: YSheetStructure, op: Op): void {
 						if (startRowId && endRowId && startColId && endColId) {
 							setMerge(sheet, startRowId, endRowId, startColId, endColId)
 						} else {
-							debug.error('[transformConfigOp] Invalid merge indices:', mergeValue)
+							console.error('[transformConfigOp] Invalid merge indices:', mergeValue)
 						}
 					}
 				} else if (op.path.length === 3 && op.path[1] === 'borderInfo') {
@@ -493,7 +481,7 @@ function transformConfigOp(sheet: YSheetStructure, op: Op): void {
 								options: clonedOptions
 							})
 						} else {
-							debug.warn('[Validation] Invalid range indices:', range)
+							if (DEV) console.warn('[Validation] Invalid range indices:', range)
 						}
 					}
 				} else if (op.path.length === 3 && op.path[1] === 'conditionalFormats') {
@@ -529,7 +517,8 @@ function transformConfigOp(sheet: YSheetStructure, op: Op): void {
 								}
 							])
 						} else {
-							debug.warn('[ConditionalFormat] Invalid range indices:', range)
+							if (DEV)
+								console.warn('[ConditionalFormat] Invalid range indices:', range)
 						}
 					}
 				} else if (op.path.length === 2 && op.path[1] === 'frozen') {
@@ -551,7 +540,13 @@ function transformConfigOp(sheet: YSheetStructure, op: Op): void {
 						sheet.frozen.clear()
 					}
 				} else {
-					debug.warn('[transformConfigOp] Unhandled config op:', op.op, 'path:', op.path)
+					if (DEV)
+						console.warn(
+							'[transformConfigOp] Unhandled config op:',
+							op.op,
+							'path:',
+							op.path
+						)
 				}
 			}
 			break
@@ -621,7 +616,8 @@ function transformConfigOp(sheet: YSheetStructure, op: Op): void {
 				// Remove frozen panes - clear the Y.Map
 				sheet.frozen.clear()
 			} else {
-				debug.warn('[transformConfigOp] Unhandled remove config op, path:', op.path)
+				if (DEV)
+					console.warn('[transformConfigOp] Unhandled remove config op, path:', op.path)
 			}
 			break
 		}
@@ -660,7 +656,7 @@ function transformSheetOp(sheet: YSheetStructure, op: Op): void {
 		}
 
 		default:
-			debug.warn('[transformSheetOp] Unhandled sheet op:', op.op)
+			if (DEV) console.warn('[transformSheetOp] Unhandled sheet op:', op.op)
 			break
 	}
 }
@@ -681,8 +677,6 @@ export function deleteSheet(yDoc: Y.Doc, sheetId: string): void {
 	if (index !== -1) {
 		sheetOrder.delete(index, 1)
 	}
-
-	debug.log('[deleteSheet] Deleted sheet from CRDT:', sheetId)
 }
 
 /**
@@ -732,7 +726,7 @@ export function transformOp(sheet: YSheetStructure, op: Op): void {
 	} else if (op.path.length === 0) {
 		transformSheetOp(sheet, op)
 	} else {
-		debug.warn('[transformOp] Unhandled op, path:', op.path, 'op:', op.op)
+		if (DEV) console.warn('[transformOp] Unhandled op, path:', op.path, 'op:', op.op)
 	}
 }
 

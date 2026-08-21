@@ -438,41 +438,4 @@ export const PALETTE_PRESETS: PalettePreset[] = [
 	}
 ]
 
-/**
- * Get a preset by its ID
- */
-export function getPresetById(id: string): PalettePreset | undefined {
-	return PALETTE_PRESETS.find((preset) => preset.id === id)
-}
-
-/**
- * Get all presets in a category
- */
-export function getPresetsByCategory(category: PalettePreset['category']): PalettePreset[] {
-	return PALETTE_PRESETS.filter((preset) => preset.category === category)
-}
-
-/**
- * Get category display name
- */
-export function getCategoryDisplayName(category: PalettePreset['category']): string {
-	const names: Record<PalettePreset['category'], string> = {
-		professional: 'Professional',
-		vibrant: 'Vibrant',
-		pastel: 'Pastel',
-		dark: 'Dark'
-	}
-	return names[category]
-}
-
-/**
- * All categories in display order
- */
-export const PRESET_CATEGORIES: PalettePreset['category'][] = [
-	'professional',
-	'vibrant',
-	'pastel',
-	'dark'
-]
-
 // vim: ts=4

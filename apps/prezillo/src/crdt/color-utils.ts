@@ -6,45 +6,10 @@
  */
 
 import type { Gradient } from '@cloudillo/canvas-tools'
+import { hexToRgb, type RgbColor, rgbToHex } from '@cloudillo/core'
 
-export interface RGB {
-	r: number
-	g: number
-	b: number
-}
-
-/**
- * Convert hex color to RGB components
- */
-export function hexToRgb(hex: string): RGB {
-	// Remove # if present
-	const cleanHex = hex.replace(/^#/, '')
-
-	// Handle shorthand (3 chars) and full (6 chars) hex
-	let r: number, g: number, b: number
-	if (cleanHex.length === 3) {
-		r = parseInt(cleanHex[0] + cleanHex[0], 16)
-		g = parseInt(cleanHex[1] + cleanHex[1], 16)
-		b = parseInt(cleanHex[2] + cleanHex[2], 16)
-	} else {
-		r = parseInt(cleanHex.slice(0, 2), 16)
-		g = parseInt(cleanHex.slice(2, 4), 16)
-		b = parseInt(cleanHex.slice(4, 6), 16)
-	}
-
-	return { r, g, b }
-}
-
-/**
- * Convert RGB components to hex color
- */
-export function rgbToHex(r: number, g: number, b: number): string {
-	const toHex = (n: number) => {
-		const clamped = Math.round(Math.max(0, Math.min(255, n)))
-		return clamped.toString(16).padStart(2, '0')
-	}
-	return `#${toHex(r)}${toHex(g)}${toHex(b)}`
-}
+/** @deprecated use RgbColor from @cloudillo/core */
+export type RGB = RgbColor
 
 /**
  * Apply tint (lighten) or shade (darken) to a hex color
@@ -54,6 +19,7 @@ export function rgbToHex(r: number, g: number, b: number): string {
  */
 export function applyTint(hex: string, factor: number): string {
 	const rgb = hexToRgb(hex)
+	if (!rgb) return hex
 
 	if (factor > 0) {
 		// Tint: blend toward white
@@ -91,53 +57,6 @@ export function applyTintToGradient(gradient: Gradient, factor: number): Gradien
 			color: applyTint(stop.color, factor)
 		}))
 	}
-}
-
-/**
- * Apply opacity to a hex color, returning rgba format
- */
-export function applyOpacity(hex: string, opacity: number): string {
-	if (opacity >= 1) return hex
-
-	const rgb = hexToRgb(hex)
-	return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`
-}
-
-/**
- * Interpolate between two colors
- * @param color1 - Start color (hex)
- * @param color2 - End color (hex)
- * @param t - Interpolation factor (0 = color1, 1 = color2)
- */
-export function interpolateColor(color1: string, color2: string, t: number): string {
-	const rgb1 = hexToRgb(color1)
-	const rgb2 = hexToRgb(color2)
-
-	return rgbToHex(
-		rgb1.r + (rgb2.r - rgb1.r) * t,
-		rgb1.g + (rgb2.g - rgb1.g) * t,
-		rgb1.b + (rgb2.b - rgb1.b) * t
-	)
-}
-
-/**
- * Check if a color is light (for determining text contrast)
- * Uses relative luminance calculation
- */
-export function isLightColor(hex: string): boolean {
-	const rgb = hexToRgb(hex)
-
-	// Calculate relative luminance (sRGB)
-	const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255
-
-	return luminance > 0.5
-}
-
-/**
- * Get a contrasting text color (black or white) for a background
- */
-export function getContrastColor(backgroundColor: string): string {
-	return isLightColor(backgroundColor) ? '#000000' : '#ffffff'
 }
 
 // vim: ts=4

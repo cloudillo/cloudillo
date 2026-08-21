@@ -5,8 +5,6 @@
  * Color palette and utilities for Ideallo
  */
 
-import { idAccent } from '@cloudillo/core'
-
 // Core drawing colors (from design plan)
 export const PALETTE = {
 	black: '#1e1e1e',
@@ -72,26 +70,4 @@ export const CORNER_RADII = [0, 4, 12, 24] as const
  * returns a literal string; the caller passes the theme, because a hidden bus
  * read cannot appear in a memo's prop comparison or a `useEffect` dep array.
  */
-export function presenceColor(idTag: string | undefined, clientId: number, dark: boolean): string {
-	return idAccent(idTag ?? String(clientId), dark)
-}
-
-/**
- * Get a contrasting text color (black or white) for a given background
- */
-export function getContrastColor(bgColor: string): string {
-	// Simple luminance check
-	const hex = bgColor.replace('#', '')
-	if (hex.length !== 6) return PALETTE.black
-
-	const r = parseInt(hex.substring(0, 2), 16)
-	const g = parseInt(hex.substring(2, 4), 16)
-	const b = parseInt(hex.substring(4, 6), 16)
-
-	// Relative luminance formula
-	const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-
-	return luminance > 0.5 ? PALETTE.black : PALETTE.white
-}
-
 // vim: ts=4

@@ -6,10 +6,9 @@
  */
 
 import type { Gradient } from '@cloudillo/canvas-tools'
-import type * as Y from 'yjs'
 
 import type { StyleId } from './ids'
-import { generateStyleId, toStyleId } from './ids'
+import { toStyleId } from './ids'
 import { getPalette, getResolvedColor, resolvePaletteRef } from './palette-ops'
 import type { Palette, ResolvedShapeStyle, ResolvedTextStyle } from './runtime-types'
 import type {
@@ -17,7 +16,6 @@ import type {
 	StoredObject,
 	StoredPaletteRef,
 	StoredStyle,
-	TextStyle,
 	YPrezilloDocument
 } from './stored-types'
 import { expandPaletteRef, isPaletteRef } from './type-converters'
@@ -59,148 +57,9 @@ export const DEFAULT_TEXT_STYLE: ResolvedTextStyle = {
 }
 
 /**
- * Create a new style definition
- */
-export function createStyle(
-	yDoc: Y.Doc,
-	doc: YPrezilloDocument,
-	name: string,
-	type: 'shape' | 'text',
-	properties: Partial<ShapeStyle | TextStyle>,
-	parentId?: StyleId
-): StyleId {
-	const styleId = generateStyleId()
-
-	yDoc.transact(() => {
-		const style: StoredStyle = {
-			n: name,
-			t: type === 'shape' ? 'S' : 'T'
-		}
-
-		if (parentId) {
-			style.p = parentId
-		}
-
-		// Merge in properties
-		if (type === 'shape') {
-			const props = properties as Partial<ShapeStyle>
-			if (props.f !== undefined) style.f = props.f
-			if (props.fo !== undefined) style.fo = props.fo
-			if (props.s !== undefined) style.s = props.s
-			if (props.sw !== undefined) style.sw = props.sw
-			if (props.so !== undefined) style.so = props.so
-			if (props.sd !== undefined) style.sd = props.sd
-			if (props.sc !== undefined) style.sc = props.sc
-			if (props.sj !== undefined) style.sj = props.sj
-			if (props.sh !== undefined) style.sh = props.sh
-		} else {
-			const props = properties as Partial<TextStyle>
-			if (props.ff !== undefined) style.ff = props.ff
-			if (props.fs !== undefined) style.fs = props.fs
-			if (props.fw !== undefined) style.fw = props.fw
-			if (props.fi !== undefined) style.fi = props.fi
-			if (props.td !== undefined) style.td = props.td
-			if (props.fc !== undefined) style.fc = props.fc
-			if (props.ta !== undefined) style.ta = props.ta
-			if (props.va !== undefined) style.va = props.va
-			if (props.lh !== undefined) style.lh = props.lh
-			if (props.ls !== undefined) style.ls = props.ls
-			if (props.lb !== undefined) style.lb = props.lb
-		}
-
-		doc.st.set(styleId, style)
-	}, yDoc.clientID)
-
-	return styleId
-}
-
-/**
- * Get a style by ID
- */
-export function getStyle(doc: YPrezilloDocument, styleId: StyleId): StoredStyle | undefined {
-	return doc.st.get(styleId)
-}
-
-/**
- * Get all styles
- */
-export function getAllStyles(
-	doc: YPrezilloDocument,
-	type?: 'shape' | 'text'
-): Array<{ id: StyleId; style: StoredStyle }> {
-	const styles: Array<{ id: StyleId; style: StoredStyle }> = []
-
-	doc.st.forEach((style, id) => {
-		if (
-			!type ||
-			(type === 'shape' && style.t === 'S') ||
-			(type === 'text' && style.t === 'T')
-		) {
-			styles.push({ id: toStyleId(id), style })
-		}
-	})
-
-	return styles
-}
-
-/**
- * Update a style definition
- */
-export function updateStyle(
-	yDoc: Y.Doc,
-	doc: YPrezilloDocument,
-	styleId: StyleId,
-	updates: Partial<StoredStyle>
-): void {
-	const existing = doc.st.get(styleId)
-	if (!existing) return
-
-	yDoc.transact(() => {
-		doc.st.set(styleId, { ...existing, ...updates })
-	}, yDoc.clientID)
-}
-
-/**
- * Delete a style
- */
-export function deleteStyle(yDoc: Y.Doc, doc: YPrezilloDocument, styleId: StyleId): void {
-	yDoc.transact(() => {
-		// Remove style references from objects that use it
-		doc.o.forEach((obj, id) => {
-			let updated = false
-			const newObj = { ...obj }
-
-			if (obj.si === styleId) {
-				delete newObj.si
-				updated = true
-			}
-			if (obj.ti === styleId) {
-				delete newObj.ti
-				updated = true
-			}
-
-			if (updated) {
-				doc.o.set(id, newObj)
-			}
-		})
-
-		// Remove parent references from child styles
-		doc.st.forEach((style, id) => {
-			if (style.p === styleId) {
-				const newStyle = { ...style }
-				delete newStyle.p
-				doc.st.set(id, newStyle)
-			}
-		})
-
-		doc.st.delete(styleId)
-	}, yDoc.clientID)
-}
-
-/**
  * Get style inheritance chain (base first, derived last)
  */
-export function getStyleChain(doc: YPrezilloDocument, styleId: StyleId): StoredStyle[] {
+function getStyleChain(doc: YPrezilloDocument, styleId: StyleId): StoredStyle[] {
 	const chain: StoredStyle[] = []
 	let currentId: string | undefined = styleId
 	const visited = new Set<string>() // Prevent cycles

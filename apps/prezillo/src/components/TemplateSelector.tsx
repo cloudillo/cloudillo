@@ -8,6 +8,7 @@
  * Used in ViewPropertiesPanel.
  */
 
+import { useOutsideClick } from '@cloudillo/react'
 import * as React from 'react'
 import {
 	PiCaretDownBold as IcCaret,
@@ -51,18 +52,7 @@ export function TemplateSelector({ doc, yDoc, viewId, disabled }: TemplateSelect
 	const templates = getAllTemplates(doc)
 
 	// Close on click outside
-	React.useEffect(() => {
-		if (!isOpen) return
-
-		function handleClickOutside(evt: MouseEvent) {
-			if (dropdownRef.current && !dropdownRef.current.contains(evt.target as Node)) {
-				setIsOpen(false)
-			}
-		}
-
-		document.addEventListener('mousedown', handleClickOutside)
-		return () => document.removeEventListener('mousedown', handleClickOutside)
-	}, [isOpen])
+	useOutsideClick(dropdownRef, () => setIsOpen(false), isOpen)
 
 	// Handle template selection
 	const handleSelectTemplate = React.useCallback(

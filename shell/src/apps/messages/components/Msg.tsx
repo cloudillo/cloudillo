@@ -108,7 +108,7 @@ function MsgComponent({
 			<div className="c-hbox align-items-center g-2 justify-content-end text-muted text-small mt-1">
 				{action.sendStatus === 'failed' && onRetry && action.tempId && (
 					<button
-						className="c-button link text-danger p-0"
+						className="c-button link text-error p-0"
 						title={t('Retry')}
 						aria-label={t('Retry')}
 						onClick={() => onRetry(action.tempId!)}
@@ -125,7 +125,7 @@ function MsgComponent({
 				{action.sendStatus === 'sending' && <LoadingSpinner size="sm" />}
 				{action.sendStatus === 'sent' && <IcSent size={14} title={t('Sent')} />}
 				{action.sendStatus === 'failed' && (
-					<IcFailed size={14} className="text-danger" title={t('Failed to send')} />
+					<IcFailed size={14} className="text-error" title={t('Failed to send')} />
 				)}
 			</div>
 		</div>

@@ -429,7 +429,7 @@ export function WebAuth({ idTag: _idTag }: WebAuthProps) {
 
 	return (
 		<Button onClick={handleWebAuthnLogin}>
-			<IcWebAuthn className="mr-1" />
+			<IcWebAuthn className="me-1" />
 			{t('Login with passkey')}
 		</Button>
 	)

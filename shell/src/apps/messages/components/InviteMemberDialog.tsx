@@ -85,7 +85,7 @@ export function InviteMemberDialog({
 
 				<div className="c-vbox g-3">
 					<div className="c-vbox g-1">
-						<label className="fw-medium">{t('Select members to invite')}</label>
+						<label className="font-medium">{t('Select members to invite')}</label>
 						<ProfileMultiSelect
 							placeholder={t('Search contacts...')}
 							emptyText={t('Search for connections to invite')}

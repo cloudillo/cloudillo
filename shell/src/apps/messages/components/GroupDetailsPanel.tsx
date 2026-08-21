@@ -111,7 +111,7 @@ export function GroupDetailsPanel({
 					<p className="text-muted mt-2 mb-0">{conversation.description}</p>
 				)}
 				<div className="c-hbox align-items-center mt-3">
-					<span className="fw-medium fill">
+					<span className="font-medium fill">
 						{t('Members')} ({members?.filter((m) => m.status === 'active').length || 0})
 						{members?.some((m) => m.status === 'invited') && (
 							<span className="text-muted ms-1">
@@ -179,7 +179,7 @@ export function GroupDetailsPanel({
 
 			{/* Actions panel */}
 			<div className="c-panel c-vbox g-2 p-3">
-				<Button className="w-100 text-danger" onClick={handleLeaveGroup}>
+				<Button className="w-100 text-error" onClick={handleLeaveGroup}>
 					<IcLeave className="me-2" />
 					{t('Leave Group')}
 				</Button>

@@ -69,7 +69,7 @@ function CertInfo({ certExpiresAt }: { certExpiresAt?: string }) {
 
 	return (
 		<span className={mergeClasses('small', colorClass)}>
-			<IcCert className="mr-1" style={{ fontSize: '0.9em' }} />
+			<IcCert className="me-1" style={{ fontSize: '0.9em' }} />
 			{t('Expires {{date}}', { date: expires.format('MMM D, YYYY') })}
 		</span>
 	)
@@ -107,9 +107,9 @@ function ProxySiteCard({ site, onEdit, onDelete }: ProxySiteCardProps) {
 
 	return (
 		<div className="c-panel mb-2 p-2">
-			<div className="c-hbox ai-center">
+			<div className="c-hbox align-items-center">
 				<div className="flex-fill">
-					<div className="c-hbox ai-center g-2 mb-1">
+					<div className="c-hbox align-items-center g-2 mb-1">
 						<StatusBadge status={site.status} />
 						<strong>{site.domain}</strong>
 						<span
@@ -242,7 +242,7 @@ function CreateProxySiteModal({ open, onClose, onCreated }: CreateProxySiteModal
 				</div>
 
 				{error && (
-					<div className="c-panel bg-error-subtle p-2 mb-3">
+					<div className="c-panel error p-2 mb-3">
 						<span className="text-error">{error}</span>
 					</div>
 				)}
@@ -310,37 +310,37 @@ function CreateProxySiteModal({ open, onClose, onCreated }: CreateProxySiteModal
 								onChange={(e) => setReadTimeoutSecs(e.target.value)}
 							/>
 						</div>
-						<label className="c-hbox ai-center mb-2">
+						<label className="c-hbox align-items-center mb-2">
 							<input
 								type="checkbox"
-								className="c-toggle primary mr-2"
+								className="c-toggle primary me-2"
 								checked={preserveHost}
 								onChange={(e) => setPreserveHost(e.target.checked)}
 							/>
 							{t('Preserve Host Header')}
 						</label>
-						<label className="c-hbox ai-center mb-2">
+						<label className="c-hbox align-items-center mb-2">
 							<input
 								type="checkbox"
-								className="c-toggle primary mr-2"
+								className="c-toggle primary me-2"
 								checked={forwardHeaders}
 								onChange={(e) => setForwardHeaders(e.target.checked)}
 							/>
 							{t('Forward Headers')}
 						</label>
-						<label className="c-hbox ai-center mb-2">
+						<label className="c-hbox align-items-center mb-2">
 							<input
 								type="checkbox"
-								className="c-toggle primary mr-2"
+								className="c-toggle primary me-2"
 								checked={websocket}
 								onChange={(e) => setWebsocket(e.target.checked)}
 							/>
 							{t('WebSocket Support')}
 						</label>
-						<label className="c-hbox ai-center mb-2">
+						<label className="c-hbox align-items-center mb-2">
 							<input
 								type="checkbox"
-								className="c-toggle primary mr-2"
+								className="c-toggle primary me-2"
 								checked={proxyProtocol}
 								onChange={(e) => setProxyProtocol(e.target.checked)}
 							/>
@@ -362,7 +362,7 @@ function CreateProxySiteModal({ open, onClose, onCreated }: CreateProxySiteModal
 					</div>
 				)}
 
-				<div className="c-hbox jc-end g-2">
+				<div className="c-hbox justify-content-end g-2">
 					<Button onClick={onClose}>{t('Cancel')}</Button>
 					<Button
 						variant="primary"
@@ -506,7 +506,7 @@ function EditProxySiteModal({
 				</div>
 
 				{error && (
-					<div className="c-panel bg-error-subtle p-2 mb-3">
+					<div className="c-panel error p-2 mb-3">
 						<span className="text-error">{error}</span>
 					</div>
 				)}
@@ -571,37 +571,37 @@ function EditProxySiteModal({
 								onChange={(e) => setReadTimeoutSecs(e.target.value)}
 							/>
 						</div>
-						<label className="c-hbox ai-center mb-2">
+						<label className="c-hbox align-items-center mb-2">
 							<input
 								type="checkbox"
-								className="c-toggle primary mr-2"
+								className="c-toggle primary me-2"
 								checked={preserveHost}
 								onChange={(e) => setPreserveHost(e.target.checked)}
 							/>
 							{t('Preserve Host Header')}
 						</label>
-						<label className="c-hbox ai-center mb-2">
+						<label className="c-hbox align-items-center mb-2">
 							<input
 								type="checkbox"
-								className="c-toggle primary mr-2"
+								className="c-toggle primary me-2"
 								checked={forwardHeaders}
 								onChange={(e) => setForwardHeaders(e.target.checked)}
 							/>
 							{t('Forward Headers')}
 						</label>
-						<label className="c-hbox ai-center mb-2">
+						<label className="c-hbox align-items-center mb-2">
 							<input
 								type="checkbox"
-								className="c-toggle primary mr-2"
+								className="c-toggle primary me-2"
 								checked={websocket}
 								onChange={(e) => setWebsocket(e.target.checked)}
 							/>
 							{t('WebSocket Support')}
 						</label>
-						<label className="c-hbox ai-center mb-2">
+						<label className="c-hbox align-items-center mb-2">
 							<input
 								type="checkbox"
-								className="c-toggle primary mr-2"
+								className="c-toggle primary me-2"
 								checked={proxyProtocol}
 								onChange={(e) => setProxyProtocol(e.target.checked)}
 							/>
@@ -625,13 +625,13 @@ function EditProxySiteModal({
 
 				{/* Certificate section */}
 				<div className="c-panel bg-muted p-2 mb-3">
-					<div className="c-hbox jc-between ai-center">
+					<div className="c-hbox jc-between align-items-center">
 						<div>
 							<h4 className="mb-1">{t('TLS Certificate')}</h4>
 							<CertInfo certExpiresAt={site.certExpiresAt} />
 						</div>
 						<Button className="small" onClick={() => onRenewCert(site)}>
-							<IcRenew className="mr-1" />
+							<IcRenew className="me-1" />
 							{t('Renew')}
 						</Button>
 					</div>
@@ -640,7 +640,7 @@ function EditProxySiteModal({
 				{/* Footer actions */}
 				<footer className="c-hbox g-2 mt-3 pt-3 border-top jc-between">
 					<Button className="error" onClick={() => onDelete(site)}>
-						<IcDelete className="mr-1" />
+						<IcDelete className="me-1" />
 						{t('Delete')}
 					</Button>
 					<div className="c-hbox g-2">
@@ -818,7 +818,7 @@ export function ProxySites() {
 						)}
 					</div>
 					<Button variant="primary" onClick={() => setShowCreateModal(true)}>
-						<IcPlus className="mr-1" />
+						<IcPlus className="me-1" />
 						{t('Create')}
 					</Button>
 				</div>
@@ -873,7 +873,7 @@ export function ProxySites() {
 								{t('Create your first proxy site to start reverse proxying.')}
 							</p>
 							<Button variant="primary" onClick={() => setShowCreateModal(true)}>
-								<IcPlus className="mr-1" />
+								<IcPlus className="me-1" />
 								{t('Create Proxy Site')}
 							</Button>
 						</>

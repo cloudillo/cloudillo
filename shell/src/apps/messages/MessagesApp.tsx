@@ -299,7 +299,7 @@ export function MessagesApp() {
 											{isGroup ? (
 												<>
 													<IcGroup className="flex-shrink-0" />
-													<span className="fw-medium text-truncate">
+													<span className="font-medium text-truncate">
 														{conversation.name}
 													</span>
 													<Badge className="flex-shrink-0">
@@ -376,7 +376,7 @@ export function MessagesApp() {
 												{i === firstUnreadIdx && (
 													<div
 														ref={unreadDividerRef}
-														className="c-hbox align-items-center g-2 my-2 text-small fw-medium"
+														className="c-hbox align-items-center g-2 my-2 text-small font-medium"
 														style={{ color: 'var(--col-primary)' }}
 													>
 														<hr

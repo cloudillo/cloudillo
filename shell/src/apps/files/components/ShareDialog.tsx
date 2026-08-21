@@ -1236,7 +1236,7 @@ export function ShareDialog({
 												</div>
 
 												{createError && (
-													<div className="text-danger mt-1" role="alert">
+													<div className="text-error mt-1" role="alert">
 														{createError}
 													</div>
 												)}

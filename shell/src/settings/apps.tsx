@@ -275,7 +275,7 @@ export function AppMenuSettings() {
 
 	return (
 		<div className="c-panel c-vbox g-2">
-			<div className="c-hbox g-2 align-center">
+			<div className="c-hbox g-2 align-items-center">
 				<h3 className="flex-fill">{t('App menu')}</h3>
 				<button
 					className="c-button small"

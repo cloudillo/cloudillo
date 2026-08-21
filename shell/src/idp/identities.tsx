@@ -62,7 +62,7 @@ function StatusBadge({ status }: { status: 'pending' | 'active' | 'suspended' })
 	const Icon = config.icon
 	return (
 		<span className={config.class}>
-			<Icon className="mr-1" style={{ fontSize: '0.8em' }} />
+			<Icon className="me-1" style={{ fontSize: '0.8em' }} />
 			{t(config.label)}
 		</span>
 	)
@@ -81,9 +81,9 @@ function IdentityCard({ identity, onViewDetails, onDelete }: IdentityCardProps) 
 
 	return (
 		<div className="c-panel mb-2 p-2">
-			<div className="c-hbox ai-center">
+			<div className="c-hbox align-items-center">
 				<div className="flex-fill">
-					<div className="c-hbox ai-center g-2 mb-1">
+					<div className="c-hbox align-items-center g-2 mb-1">
 						<StatusBadge status={identity.status} />
 						<strong>{idTag}</strong>
 					</div>
@@ -252,7 +252,7 @@ function CreateIdentityModal({ open, idpDomain, onClose, onCreated }: CreateIden
 				</div>
 
 				{error && (
-					<div className="c-panel bg-error-subtle p-2 mb-3">
+					<div className="c-panel error p-2 mb-3">
 						<span className="text-error">{error}</span>
 					</div>
 				)}
@@ -301,10 +301,10 @@ function CreateIdentityModal({ open, idpDomain, onClose, onCreated }: CreateIden
 
 				{/* Activation email toggle */}
 				<div className="c-panel bg-muted p-2 mb-3">
-					<label className="c-hbox ai-center">
+					<label className="c-hbox align-items-center">
 						<input
 							type="checkbox"
-							className="c-toggle primary mr-2"
+							className="c-toggle primary me-2"
 							checked={sendActivationEmail}
 							onChange={(e) => setSendActivationEmail(e.target.checked)}
 						/>
@@ -324,7 +324,7 @@ function CreateIdentityModal({ open, idpDomain, onClose, onCreated }: CreateIden
 					<label className="c-hbox ai-start">
 						<input
 							type="checkbox"
-							className="c-toggle primary mr-2 mt-1"
+							className="c-toggle primary me-2 mt-1"
 							checked={createApiKey}
 							onChange={(e) => setCreateApiKey(e.target.checked)}
 						/>
@@ -352,7 +352,7 @@ function CreateIdentityModal({ open, idpDomain, onClose, onCreated }: CreateIden
 				</div>
 
 				{/* Actions */}
-				<div className="c-hbox jc-end g-2">
+				<div className="c-hbox justify-content-end g-2">
 					<Button onClick={onClose}>{t('Cancel')}</Button>
 					<Button
 						variant="primary"
@@ -406,8 +406,8 @@ function ApiKeyCreatedModal({
 	return (
 		<Modal open={open} onClose={onClose} closeOnBackdrop={false}>
 			<div className="c-dialog c-panel emph p-4" style={{ maxWidth: '600px', width: '100%' }}>
-				<div className="c-hbox ai-center mb-3">
-					<IcCheck className="text-success mr-2" style={{ fontSize: '1.5rem' }} />
+				<div className="c-hbox align-items-center mb-3">
+					<IcCheck className="text-success me-2" style={{ fontSize: '1.5rem' }} />
 					<h3 className="flex-fill mb-0">{t('Identity Created Successfully')}</h3>
 				</div>
 
@@ -425,9 +425,9 @@ function ApiKeyCreatedModal({
 				</div>
 
 				{/* Warning */}
-				<div className="c-panel bg-warning-subtle p-2 mb-3">
+				<div className="c-panel warning p-2 mb-3">
 					<div className="c-hbox ai-start">
-						<IcWarning className="text-warning mr-2 mt-1 flex-shrink-0" />
+						<IcWarning className="text-warning me-2 mt-1 flex-shrink-0" />
 						<div>
 							<strong>{t('Save this API key now!')}</strong>
 							<p className="c-hint mb-0">
@@ -458,7 +458,7 @@ function ApiKeyCreatedModal({
 
 				{/* Curl command */}
 				<div className="mb-3">
-					<div className="c-hbox jc-between ai-center mb-1">
+					<div className="c-hbox jc-between align-items-center mb-1">
 						<label className="mb-0">{t('Example: Update IP Address')}</label>
 						<Button
 							kind="link"
@@ -467,12 +467,12 @@ function ApiKeyCreatedModal({
 						>
 							{copied === 'curl' ? (
 								<>
-									<IcCheck className="mr-1" />
+									<IcCheck className="me-1" />
 									{t('Copied!')}
 								</>
 							) : (
 								<>
-									<IcCopy className="mr-1" />
+									<IcCopy className="me-1" />
 									{t('Copy command')}
 								</>
 							)}
@@ -490,7 +490,7 @@ function ApiKeyCreatedModal({
 				</div>
 
 				{/* Close button */}
-				<div className="c-hbox jc-end">
+				<div className="c-hbox justify-content-end">
 					<Button variant="primary" onClick={onClose}>
 						{t("I've saved the key")}
 					</Button>
@@ -678,14 +678,14 @@ function IdentityDetailsModal({
 								<span>{formatDateTime(identity.expiresAt)}</span>
 							</div>
 						)}
-						<div className="c-hbox ai-center mt-2 pt-2 border-top">
+						<div className="c-hbox align-items-center mt-2 pt-2 border-top">
 							<span className="text-muted" style={{ minWidth: '100px' }}>
 								{t('DNS TTL')}
 							</span>
-							<label className="c-hbox ai-center flex-fill">
+							<label className="c-hbox align-items-center flex-fill">
 								<input
 									type="checkbox"
-									className="c-toggle primary mr-2"
+									className="c-toggle primary me-2"
 									checked={dyndns}
 									disabled={updatingDyndns}
 									onChange={(e) => handleDyndnsChange(e.target.checked)}
@@ -705,11 +705,11 @@ function IdentityDetailsModal({
 
 				{/* API Keys Section */}
 				<div className="c-panel mb-3 p-2">
-					<div className="c-hbox jc-between ai-center pb-2">
+					<div className="c-hbox jc-between align-items-center pb-2">
 						<h4 className="mb-0">{t('API Keys')}</h4>
 						{!showCreateKeyForm && (
 							<Button className="small" onClick={() => setShowCreateKeyForm(true)}>
-								<IcPlus className="mr-1" />
+								<IcPlus className="me-1" />
 								{t('Create Key')}
 							</Button>
 						)}
@@ -724,7 +724,7 @@ function IdentityDetailsModal({
 								value={keyName}
 								onChange={(e) => setKeyName(e.target.value)}
 							/>
-							<div className="c-hbox g-2 jc-end">
+							<div className="c-hbox g-2 justify-content-end">
 								<Button
 									className="small"
 									onClick={() => setShowCreateKeyForm(false)}
@@ -744,7 +744,7 @@ function IdentityDetailsModal({
 					)}
 
 					{error && (
-						<div className="c-panel bg-error-subtle p-2 mb-2">
+						<div className="c-panel error p-2 mb-2">
 							<span className="text-error small">{error}</span>
 						</div>
 					)}
@@ -760,11 +760,11 @@ function IdentityDetailsModal({
 							{apiKeys.map((key) => (
 								<div key={key.id} className="py-2 border-bottom">
 									{confirmRevokeKeyId === key.id ? (
-										<div className="c-panel bg-error-subtle p-2">
+										<div className="c-panel error p-2">
 											<p className="small mb-2">
 												{t('Revoke this API key? This cannot be undone.')}
 											</p>
-											<div className="c-hbox g-2 jc-end">
+											<div className="c-hbox g-2 justify-content-end">
 												<Button
 													className="small"
 													onClick={() => setConfirmRevokeKeyId(null)}
@@ -783,14 +783,14 @@ function IdentityDetailsModal({
 											</div>
 										</div>
 									) : (
-										<div className="c-hbox ai-center">
-											<IcKey className="mr-2 text-muted" />
+										<div className="c-hbox align-items-center">
+											<IcKey className="me-2 text-muted" />
 											<div className="flex-fill">
 												<div>{key.name || t('Unnamed key')}</div>
 												<div className="c-hint small">
 													<code>{key.keyPrefix}...</code>
 													{key.lastUsedAt && (
-														<span className="ml-2">
+														<span className="ms-2">
 															{t('Last used {{date}}', {
 																date: formatRelative(key.lastUsedAt)
 															})}
@@ -817,7 +817,7 @@ function IdentityDetailsModal({
 				{/* Footer actions */}
 				<footer className="c-hbox g-2 mt-3 pt-3 border-top jc-between">
 					<Button className="error" onClick={() => onDelete(identity)}>
-						<IcDelete className="mr-1" />
+						<IcDelete className="me-1" />
 						{t('Delete Identity')}
 					</Button>
 					<Button onClick={onClose}>{t('Close')}</Button>
@@ -866,15 +866,15 @@ function StandaloneApiKeyModal({
 	return (
 		<Modal open={open} onClose={onClose} closeOnBackdrop={false}>
 			<div className="c-dialog c-panel emph p-4" style={{ maxWidth: '600px', width: '100%' }}>
-				<div className="c-hbox ai-center mb-3">
-					<IcKey className="text-primary mr-2" style={{ fontSize: '1.5rem' }} />
+				<div className="c-hbox align-items-center mb-3">
+					<IcKey className="text-primary me-2" style={{ fontSize: '1.5rem' }} />
 					<h3 className="flex-fill mb-0">{t('API Key Created')}</h3>
 				</div>
 
 				{/* Warning */}
-				<div className="c-panel bg-warning-subtle p-2 mb-3">
+				<div className="c-panel warning p-2 mb-3">
 					<div className="c-hbox ai-start">
-						<IcWarning className="text-warning mr-2 mt-1 flex-shrink-0" />
+						<IcWarning className="text-warning me-2 mt-1 flex-shrink-0" />
 						<div>
 							<strong>{t('Save this API key now!')}</strong>
 							<p className="c-hint mb-0">
@@ -905,7 +905,7 @@ function StandaloneApiKeyModal({
 
 				{/* Curl command */}
 				<div className="mb-3">
-					<div className="c-hbox jc-between ai-center mb-1">
+					<div className="c-hbox jc-between align-items-center mb-1">
 						<label className="mb-0">{t('Example: Update IP Address')}</label>
 						<Button
 							kind="link"
@@ -914,12 +914,12 @@ function StandaloneApiKeyModal({
 						>
 							{copied === 'curl' ? (
 								<>
-									<IcCheck className="mr-1" />
+									<IcCheck className="me-1" />
 									{t('Copied!')}
 								</>
 							) : (
 								<>
-									<IcCopy className="mr-1" />
+									<IcCopy className="me-1" />
 									{t('Copy command')}
 								</>
 							)}
@@ -937,7 +937,7 @@ function StandaloneApiKeyModal({
 				</div>
 
 				{/* Close button */}
-				<div className="c-hbox jc-end">
+				<div className="c-hbox justify-content-end">
 					<Button variant="primary" onClick={onClose}>
 						{t("I've saved the key")}
 					</Button>
@@ -1172,7 +1172,7 @@ export function IdentitiesSettings() {
 						)}
 					</div>
 					<Button variant="primary" onClick={() => setShowCreateModal(true)}>
-						<IcPlus className="mr-1" />
+						<IcPlus className="me-1" />
 						{t('Create')}
 					</Button>
 				</div>
@@ -1236,7 +1236,7 @@ export function IdentitiesSettings() {
 								{t('Create your first identity to get started.')}
 							</p>
 							<Button variant="primary" onClick={() => setShowCreateModal(true)}>
-								<IcPlus className="mr-1" />
+								<IcPlus className="me-1" />
 								{t('Create Identity')}
 							</Button>
 						</>

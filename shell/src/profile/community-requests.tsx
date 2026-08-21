@@ -123,12 +123,12 @@ export function PendingRequestsList({
 						key={action.actionId}
 						className={mergeClasses('c-panel p-3 mb-2 g-2 d-flex flex-column')}
 					>
-						<div className="c-hbox g-2 ai-center">
+						<div className="c-hbox g-2 align-items-center">
 							<ProfileCard className="flex-fill" profile={action.issuer} />
 							<TimeFormat time={action.createdAt} />
 						</div>
 						{message && <p className="m-0">{message}</p>}
-						<div className="c-hbox g-2 jc-end">
+						<div className="c-hbox g-2 justify-content-end">
 							<Button
 								variant="primary"
 								disabled={busy}

@@ -103,7 +103,7 @@ export function CreateGroupDialog({
 
 				<div className="c-vbox g-3">
 					<div className="c-vbox g-1">
-						<label className="fw-medium">{t('Group Name')} *</label>
+						<label className="font-medium">{t('Group Name')} *</label>
 						<input
 							type="text"
 							className="c-input"
@@ -115,7 +115,7 @@ export function CreateGroupDialog({
 					</div>
 
 					<div className="c-vbox g-1">
-						<label className="fw-medium">{t('Description')}</label>
+						<label className="font-medium">{t('Description')}</label>
 						<textarea
 							className="c-input"
 							placeholder={t('Optional description...')}
@@ -131,7 +131,7 @@ export function CreateGroupDialog({
 							onChange={(e) => setGroupIsOpen(e.target.checked)}
 						/>
 						<div className="c-vbox">
-							<span className="fw-medium">
+							<span className="font-medium">
 								{groupIsOpen ? t('Open group') : t('Closed group')}
 							</span>
 							<span className="text-muted text-small">
@@ -143,7 +143,7 @@ export function CreateGroupDialog({
 					</div>
 
 					<div className="c-vbox g-1">
-						<label className="fw-medium">{t('Add Members')}</label>
+						<label className="font-medium">{t('Add Members')}</label>
 						<ProfileMultiSelect
 							placeholder={t('Search contacts...')}
 							emptyText={t('Search for connections to add')}

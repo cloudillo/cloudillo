@@ -171,7 +171,7 @@ export function ConversationBar({
 			{pendingInvites && pendingInvites.length > 0 && (
 				<div className="c-panel">
 					<div className="c-panel-header p-2">
-						<span className="fw-medium">{t('Pending Invitations')}</span>
+						<span className="font-medium">{t('Pending Invitations')}</span>
 						<Badge className="ms-2">{pendingInvites.length}</Badge>
 					</div>
 					<div className="c-nav vertical low">
@@ -208,7 +208,7 @@ export function ConversationBar({
 												/>
 											</Link>
 										) : (
-											<span className="fw-medium text-truncate">
+											<span className="font-medium text-truncate">
 												{inviteGroupName || t('Group invitation')}
 											</span>
 										)}
@@ -299,7 +299,7 @@ export function ConversationBar({
 							<>
 								<button
 									type="button"
-									className="c-nav-item c-hbox align-items-center g-2 text-muted fw-medium"
+									className="c-nav-item c-hbox align-items-center g-2 text-muted font-medium"
 									onClick={() => setShowArchived((v) => !v)}
 									aria-expanded={showArchived}
 								>

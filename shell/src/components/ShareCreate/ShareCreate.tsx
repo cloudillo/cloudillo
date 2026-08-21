@@ -253,7 +253,7 @@ export function ShareCreate() {
 			)}
 
 			{shareOrigin.status === 'failed' && (
-				<p className="text-danger mt-2" role="alert">
+				<p className="text-error mt-2" role="alert">
 					{t('Could not determine the share address for this document.')}
 				</p>
 			)}

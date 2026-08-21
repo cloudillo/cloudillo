@@ -101,9 +101,9 @@ export function AdminOverview() {
 					style={{ borderLeft: '4px solid var(--col-warning)' }}
 				>
 					<div className="c-hbox py-2">
-						<IcWarning className="mr-3 text-warning" size={24} />
+						<IcWarning className="me-3 text-warning" size={24} />
 						<div className="flex-fill">
-							<div className="fw-medium">{t('Email Not Configured')}</div>
+							<div className="font-medium">{t('Email Not Configured')}</div>
 							<div className="c-hint small">
 								{t('Password resets and email notifications will not work')}
 							</div>
@@ -180,10 +180,10 @@ export function AdminOverview() {
 				// redirects any other context.
 				onClick={() => navigate(settingsPath(HOME_BASE))}
 			>
-				<div className="c-hbox ai-center p-2">
-					<IcSettings className="text-primary mr-3" size={24} />
+				<div className="c-hbox align-items-center p-2">
+					<IcSettings className="text-primary me-3" size={24} />
 					<div className="flex-fill">
-						<div className="fw-medium">{t('Personal Settings')}</div>
+						<div className="font-medium">{t('Personal Settings')}</div>
 						<div className="c-hint small">
 							{t('Configure your personal account settings')}
 						</div>

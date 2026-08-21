@@ -96,7 +96,7 @@ export function InviteMembersDialog({
 	return (
 		<Modal open={open} onClose={onClose} className="p-0">
 			<div className="c-dialog c-panel emph p-4" style={{ maxWidth: '480px', width: '90vw' }}>
-				<div className="c-hbox ai-center mb-3">
+				<div className="c-hbox align-items-center mb-3">
 					<h2 className="flex-fill m-0">{t('Invite members')}</h2>
 					<Button kind="link" onClick={onClose}>
 						<IcClose />
@@ -115,7 +115,7 @@ export function InviteMembersDialog({
 					/>
 
 					<div className="c-vbox g-1">
-						<label className="fw-medium">{t('Optional message')}</label>
+						<label className="font-medium">{t('Optional message')}</label>
 						<textarea
 							className="c-input"
 							rows={3}
@@ -125,7 +125,7 @@ export function InviteMembersDialog({
 					</div>
 				</div>
 
-				<div className="c-hbox jc-end g-2 mt-4">
+				<div className="c-hbox justify-content-end g-2 mt-4">
 					<Button onClick={onClose}>{t('Cancel')}</Button>
 					<Button
 						variant="primary"

@@ -14,10 +14,10 @@ import {
 	Dialog,
 	EmptyState,
 	LoadingSpinner,
+	monogramFor,
 	SkeletonList,
 	Tab,
 	Tabs,
-	monogramFor,
 	useApi,
 	useAuth
 } from '@cloudillo/react'
@@ -334,7 +334,7 @@ function VerifyBadge({ status, onVerify }: { status: RowStatus; onVerify: () => 
 			)
 		case 'invalid':
 			return (
-				<span className="c-engagement-status c-engagement-status--invalid text-danger c-hbox align-items-center g-1">
+				<span className="c-engagement-status c-engagement-status--invalid text-error c-hbox align-items-center g-1">
 					<IcInvalid />
 					<small>{t('Invalid signature')}</small>
 				</span>

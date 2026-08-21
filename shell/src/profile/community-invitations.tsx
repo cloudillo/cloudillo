@@ -113,7 +113,7 @@ export function InvitationsList({
 						key={action.actionId}
 						className={mergeClasses('c-panel p-3 mb-2 g-2 d-flex flex-column')}
 					>
-						<div className="c-hbox g-2 ai-center">
+						<div className="c-hbox g-2 align-items-center">
 							{invitee ? (
 								<ProfileCard className="flex-fill" profile={invitee} />
 							) : (
@@ -129,7 +129,7 @@ export function InvitationsList({
 								})}
 							</p>
 						)}
-						<div className="c-hbox g-2 jc-end">
+						<div className="c-hbox g-2 justify-content-end">
 							<Button disabled={busy} onClick={() => handleRevoke(action)}>
 								{t('Revoke invitation')}
 							</Button>

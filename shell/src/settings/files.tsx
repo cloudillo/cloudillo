@@ -192,7 +192,7 @@ export function FilesSettings() {
 						</label>
 					) : storeTextError ? (
 						<div className="c-settings-field">
-							<span className="text-danger">
+							<span className="text-error">
 								{t('Failed to load the search index setting.')}
 							</span>
 							<Button onClick={() => setReloadKey((key) => key + 1)}>

@@ -146,7 +146,7 @@ function CreateApiKeyModal({ open, onClose, onCreated }: CreateApiKeyModalProps)
 				</div>
 
 				{error && (
-					<div className="c-panel bg-error-subtle p-2 mb-3">
+					<div className="c-panel error p-2 mb-3">
 						<span className="text-error">{error}</span>
 					</div>
 				)}
@@ -170,7 +170,7 @@ function CreateApiKeyModal({ open, onClose, onCreated }: CreateApiKeyModalProps)
 						<label key={scope.value} className="c-hbox ai-start p-2">
 							<input
 								type="checkbox"
-								className="c-toggle primary mr-2 mt-1"
+								className="c-toggle primary me-2 mt-1"
 								checked={selectedScopes.includes(scope.value)}
 								onChange={() => toggleScope(scope.value)}
 							/>
@@ -182,7 +182,7 @@ function CreateApiKeyModal({ open, onClose, onCreated }: CreateApiKeyModalProps)
 					))}
 				</div>
 
-				<div className="c-hbox jc-end g-2">
+				<div className="c-hbox justify-content-end g-2">
 					<Button onClick={onClose}>{t('Cancel')}</Button>
 					<Button variant="primary" disabled={isSubmitting} onClick={handleCreate}>
 						{isSubmitting ? t('Creating...') : t('Create API Key')}
@@ -292,7 +292,7 @@ function EditApiKeyModal({ open, apiKey, onClose, onSaved }: EditApiKeyModalProp
 				</div>
 
 				{error && (
-					<div className="c-panel bg-error-subtle p-2 mb-3">
+					<div className="c-panel error p-2 mb-3">
 						<span className="text-error">{error}</span>
 					</div>
 				)}
@@ -309,7 +309,7 @@ function EditApiKeyModal({ open, apiKey, onClose, onSaved }: EditApiKeyModalProp
 
 				<div className="mb-3">
 					<label>{t('Expires (optional)')}</label>
-					<div className="c-hbox g-2 ai-center">
+					<div className="c-hbox g-2 align-items-center">
 						<input
 							type="date"
 							className="c-input flex-fill"
@@ -337,7 +337,7 @@ function EditApiKeyModal({ open, apiKey, onClose, onSaved }: EditApiKeyModalProp
 						<label key={scope.value} className="c-hbox ai-start p-2">
 							<input
 								type="checkbox"
-								className="c-toggle primary mr-2 mt-1"
+								className="c-toggle primary me-2 mt-1"
 								checked={selectedScopes.includes(scope.value)}
 								onChange={() => toggleScope(scope.value)}
 							/>
@@ -349,7 +349,7 @@ function EditApiKeyModal({ open, apiKey, onClose, onSaved }: EditApiKeyModalProp
 					))}
 				</div>
 
-				<div className="c-hbox jc-end g-2">
+				<div className="c-hbox justify-content-end g-2">
 					<Button onClick={onClose}>{t('Cancel')}</Button>
 					<Button variant="primary" disabled={isSubmitting} onClick={handleSave}>
 						{isSubmitting ? t('Saving...') : t('Save changes')}
@@ -396,7 +396,7 @@ function DavSetupRow({ label, idTag, plaintextKey, hint, comingSoon }: DavSetupR
 
 	return (
 		<div className="c-panel p-3 mb-2">
-			<div className="c-hbox ai-center mb-2">
+			<div className="c-hbox align-items-center mb-2">
 				<strong className="flex-fill">{label}</strong>
 				{comingSoon && (
 					<span className="c-badge small" title={t('Server support not yet available')}>
@@ -456,14 +456,14 @@ function ApiKeyCreatedModal({ open, result, onClose }: ApiKeyCreatedModalProps) 
 	return (
 		<Modal open={open} onClose={onClose} closeOnBackdrop={false}>
 			<div className="c-dialog c-panel emph p-4" style={{ maxWidth: '600px', width: '100%' }}>
-				<div className="c-hbox ai-center mb-3">
-					<IcApiKey className="text-primary mr-2" style={{ fontSize: '1.5rem' }} />
+				<div className="c-hbox align-items-center mb-3">
+					<IcApiKey className="text-primary me-2" style={{ fontSize: '1.5rem' }} />
 					<h3 className="flex-fill mb-0">{t('API Key Created')}</h3>
 				</div>
 
-				<div className="c-panel bg-warning-subtle p-2 mb-3">
+				<div className="c-panel warning p-2 mb-3">
 					<div className="c-hbox ai-start">
-						<IcWarning className="text-warning mr-2 mt-1 flex-shrink-0" />
+						<IcWarning className="text-warning me-2 mt-1 flex-shrink-0" />
 						<div>
 							<strong>{t('Save this key now!')}</strong>
 							<p className="c-hint mb-0">
@@ -520,7 +520,7 @@ function ApiKeyCreatedModal({ open, result, onClose }: ApiKeyCreatedModalProps) 
 					</div>
 				)}
 
-				<div className="c-hbox jc-end">
+				<div className="c-hbox justify-content-end">
 					<Button variant="primary" onClick={onClose}>
 						{t("I've saved the key")}
 					</Button>
@@ -849,7 +849,7 @@ export function SecuritySettings() {
 			{webAuthnSupported && (
 				<div className="c-panel">
 					<h4 className="c-hbox pb-2">
-						<IcPasskey className="mr-2" />
+						<IcPasskey className="me-2" />
 						{t('Passkeys')}
 					</h4>
 					<p className="c-hint pb-2">
@@ -861,7 +861,7 @@ export function SecuritySettings() {
 						<div className="mb-3">
 							{passkeys.map((pk) => (
 								<div key={pk.credentialId} className="c-hbox py-2 border-bottom">
-									<IcPasskey className="mr-2" />
+									<IcPasskey className="me-2" />
 									<span className="flex-fill">{pk.description}</span>
 									<button
 										className="c-link text-error"
@@ -883,7 +883,7 @@ export function SecuritySettings() {
 							onChange={(e) => setPasskeyDescription(e.target.value)}
 						/>
 						<Button variant="primary" disabled={isAddingPasskey} onClick={addPasskey}>
-							<IcAdd className="mr-1" />
+							<IcAdd className="me-1" />
 							{t('Add passkey')}
 						</Button>
 					</div>
@@ -893,7 +893,7 @@ export function SecuritySettings() {
 			{/* Stay Logged In Section */}
 			<div className="c-panel">
 				<h4 className="c-hbox pb-2">
-					<IcApiKey className="mr-2" />
+					<IcApiKey className="me-2" />
 					{t('Stay logged in')}
 				</h4>
 				<label className="c-hbox pb-2">
@@ -906,7 +906,7 @@ export function SecuritySettings() {
 					/>
 				</label>
 				<div className="c-hbox text-warning pb-2">
-					<IcWarning className="mr-2 flex-shrink-0" />
+					<IcWarning className="me-2 flex-shrink-0" />
 					<span className="c-hint">
 						{t(
 							'Only enable this on personal, trusted devices. The login credentials will be stored locally.'
@@ -919,7 +919,7 @@ export function SecuritySettings() {
 			<div className="c-panel">
 				<div className="c-hbox pb-2">
 					<h4 className="c-hbox flex-fill mb-0">
-						<IcApiKey className="mr-2" />
+						<IcApiKey className="me-2" />
 						{t('API Keys')}
 					</h4>
 					<Button
@@ -927,7 +927,7 @@ export function SecuritySettings() {
 						className="small"
 						onClick={() => setShowCreateModal(true)}
 					>
-						<IcAdd className="mr-1" />
+						<IcAdd className="me-1" />
 						{t('Create API key')}
 					</Button>
 				</div>
@@ -946,9 +946,9 @@ export function SecuritySettings() {
 							const scopes = key.scopes?.split(',').filter(Boolean)
 							return (
 								<div key={key.keyId} className="c-hbox py-2 border-bottom">
-									<IcApiKey className="mr-2" />
+									<IcApiKey className="me-2" />
 									<div className="flex-fill">
-										<div className="c-hbox ai-center g-1 flex-wrap">
+										<div className="c-hbox align-items-center g-1 flex-wrap">
 											<span>{key.name || t('Unnamed key')}</span>
 											{scopes && scopes.length > 0 ? (
 												scopes.map((scope) => (
@@ -965,13 +965,13 @@ export function SecuritySettings() {
 										<div className="c-hint small">
 											{key.keyPrefix}...
 											{isCurrentDevice && (
-												<span className="ml-2 text-primary">
+												<span className="ms-2 text-primary">
 													({t('this device')})
 												</span>
 											)}
 											{key.expiresAt &&
 												(key.expiresAt * 1000 < Date.now() ? (
-													<span className="ml-2 text-error">
+													<span className="ms-2 text-error">
 														{t('Expired {{date}}', {
 															date: new Date(
 																key.expiresAt * 1000
@@ -979,7 +979,7 @@ export function SecuritySettings() {
 														})}
 													</span>
 												) : (
-													<span className="ml-2">
+													<span className="ms-2">
 														{t('Expires {{date}}', {
 															date: new Date(
 																key.expiresAt * 1000

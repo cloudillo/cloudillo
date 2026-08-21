@@ -350,7 +350,7 @@ export function EmailSettings() {
 
 						<label className="c-hbox pb-2">
 							<span className="flex-fill">
-								{t('SMTP Host')} <span className="text-danger">*</span>
+								{t('SMTP Host')} <span className="text-error">*</span>
 							</span>
 							<input
 								className={`c-input w-lg ${errors.smtpHost ? 'is-invalid' : ''}`}

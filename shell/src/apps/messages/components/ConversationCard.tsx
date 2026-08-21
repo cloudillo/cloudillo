@@ -56,7 +56,7 @@ function ConversationCardComponent({
 					</div>
 					<div className="c-vbox fill overflow-hidden">
 						<span className="c-hbox align-items-center g-1 overflow-hidden">
-							<span className="fw-medium text-truncate">
+							<span className="font-medium text-truncate">
 								{conversation.name || t('Unnamed Group')}
 							</span>
 							{conversation.left && (

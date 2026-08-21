@@ -56,7 +56,7 @@ export const Breadcrumbs = React.memo(function Breadcrumbs({
 						<li key={item.id ?? 'root'} className="c-hbox align-items-center">
 							{index > 0 && <IcChevron className="mx-1 text-secondary" />}
 							{isLast ? (
-								<CrumbLabel item={item} className="text-primary fw-medium" />
+								<CrumbLabel item={item} className="text-primary font-medium" />
 							) : (
 								<a
 									href="#"

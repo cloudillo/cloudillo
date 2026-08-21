@@ -5,6 +5,7 @@ const createJestConfig = require('../../jest.config.base.cjs')
 // jest-docblock only reads a leading *block* comment and every file here opens
 // with the two SPDX line comments.
 module.exports = {
+	maxWorkers: createJestConfig.maxWorkers,
 	projects: [
 		createJestConfig({ displayName: 'node' }),
 		createJestConfig({

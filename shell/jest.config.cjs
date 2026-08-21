@@ -22,6 +22,7 @@ const shared = {
 // leading block comment, and every file in this repo opens with the two SPDX
 // line comments. So `.test.tsx` means "needs a DOM".
 module.exports = {
+	maxWorkers: createJestConfig.maxWorkers,
 	projects: [
 		createJestConfig({
 			...shared,

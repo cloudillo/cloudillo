@@ -9,13 +9,12 @@
  * inside the match, so a result outliving its request is wrong, not merely stale.
  */
 
+// Type-only, so the module mock below is unaffected.
+import type { SearchHit } from '@cloudillo/core'
 import { jest } from '@jest/globals'
 import * as React from 'react'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
-
-// Type-only, so the module mock below is unaffected.
-import type { SearchHit } from '@cloudillo/core'
 
 type Deferred = {
 	resolve: (hits: SearchHit[]) => void

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { fromStoredPage } from '../rtdb/transform.js'
 import type { PageRecord, StoredPageRecord } from '../rtdb/types.js'
+import { decodeStoredPage } from '../rtdb/types.js'
 
 type PageWithId = PageRecord & { id: string }
 
@@ -28,11 +29,45 @@ const emptyData: AllPagesData = { allPages: new Map(), ready: false }
  *
  * The projection is what keeps that affordable: `ca`/`ua`/`cb` are written on
  * every page mutation and read by nothing in the UI, and `hc` is dead legacy
- * weight. It also decides *delivery* — the server drops an event touching no
- * selected field, principally `ua`-only touches — but a `tg` write still arrives
- * and still rebuilds the map.
+ * weight. A `tg` write still arrives and still rebuilds the map.
+ *
+ * The criterion for a site field is whether something reads it for **every page at
+ * once**. `slug`, `draft`, `kind`, `childKind` and `noNav` clear it through the nav,
+ * the page tree and the creation scaffold; `pubAt` answers "has this document ever
+ * been published" — the site-source signal the insert-time public-content gate
+ * reads — and dates a row in an `index` block's listing. `desc` and `image` cleared
+ * it when the `index` block arrived: a `list` layout describes every row it shows
+ * and a `cards` layout pictures every one, where before them both were read one page
+ * at a time, on open or on publish.
+ *
+ * **`ua` and `ca` stay out, and that is load-bearing.** The projection also decides
+ * *delivery*: the server drops an event touching no selected field, principally
+ * `ua`-only touches, so selecting `ua` would make every page mutation in the
+ * document re-deliver and rebuild the whole map. The cost is that the editor can
+ * only date a page by `pubAt`, where the published listing has the full
+ * `listingDate` = `pubAt ?? ua ?? ca` (`publish/tree.ts`) — so an unpublished page
+ * falls back to its sidebar order in a date sort in the editor and not on the site.
+ *
+ * Site fields must not be *edited* off this map (`usePageProperties` reads the whole
+ * record for that); `pubAt` is safe to read here because the publisher owns it.
  */
-const PAGE_FIELDS = ['ti', 'ic', 'pp', 'o', 'tg'] as const
+const PAGE_FIELDS = [
+	'ti',
+	'ic',
+	'pp',
+	'o',
+	'tg',
+	'slug',
+	'draft',
+	'kind',
+	'childKind',
+	'noNav',
+	'pubAt',
+	'desc',
+	'image'
+	// `satisfies`: a typo here would silently drop the field for every page in the
+	// document rather than fail anywhere.
+] as const satisfies readonly (keyof StoredPageRecord)[]
 export function useAllPages(client: RtdbClient | undefined): AllPagesData & { retry: () => void } {
 	const [data, setData] = useState<AllPagesData>(emptyData)
 	const [retryCount, setRetryCount] = useState(0)
@@ -64,8 +99,11 @@ export function useAllPages(client: RtdbClient | undefined): AllPagesData & { re
 				(snapshot) => {
 					const allPages = new Map<string, PageWithId>()
 					snapshot.forEach((doc) => {
-						const page = fromStoredPage(doc.data() as StoredPageRecord)
-						allPages.set(doc.id, { id: doc.id, ...page })
+						// One unreadable page is dropped from the map; the sidebar
+						// still lists every other page rather than coming up empty.
+						const stored = decodeStoredPage(doc.data(), doc.id)
+						if (!stored) return
+						allPages.set(doc.id, { id: doc.id, ...fromStoredPage(stored) })
 					})
 					setData({ allPages, ready: true })
 				},

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { getAppBus, getDocWsUrl } from '@cloudillo/core'
-import { RtdbClient, type RtdbPresence, buildPresenceUser } from '@cloudillo/rtdb'
+import { buildPresenceUser, RtdbClient, type RtdbPresence } from '@cloudillo/rtdb'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router-dom'

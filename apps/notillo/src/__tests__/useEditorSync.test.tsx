@@ -12,13 +12,12 @@
  * immediately delete), which used to persist the intermediate text.
  */
 
+import type { BlockNoteEditor } from '@blocknote/core'
+import type { RtdbClient } from '@cloudillo/rtdb'
 import { jest } from '@jest/globals'
 import * as React from 'react'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
-
-import type { BlockNoteEditor } from '@blocknote/core'
-import type { RtdbClient } from '@cloudillo/rtdb'
 
 import { useDocumentSync } from '../hooks/useEditorSync.js'
 

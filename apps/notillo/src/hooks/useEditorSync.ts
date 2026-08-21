@@ -18,6 +18,7 @@ import {
 	asBlockProps,
 	asBlockType,
 	type BlockRecord,
+	decodeStoredBlock,
 	isTableContent,
 	MEDIA_TYPES,
 	type StoredBlockRecord,
@@ -152,6 +153,19 @@ function buildFullStoredBlock(
 export interface DocumentSyncResult {
 	recentLocalUpdates: React.RefObject<Set<string>>
 	blockStates: React.RefObject<Map<string, BlockState>>
+	/**
+	 * Commits every pending debounced write at once, the same way teardown and
+	 * `pagehide` do. A no-op while the effect below is not running.
+	 *
+	 * A ref rather than a callback so it stays stable across renders while still
+	 * reaching the current effect's closure. The publisher calls it before reading
+	 * the document back out of RTDB — up to DEBOUNCE_MS of the newest typing lives
+	 * only in a timer until then, and would publish as the previous revision.
+	 *
+	 * Best-effort in the same sense as the teardown flush: the writes are sent, not
+	 * awaited. A publish racing a genuine disconnect loses them quietly.
+	 */
+	flush: React.RefObject<() => void>
 }
 
 export function useDocumentSync(
@@ -175,6 +189,10 @@ export function useDocumentSync(
 		>()
 	)
 	const recentLocalUpdates = useRef(new Set<string>())
+	// Rebound to the live `flushPendingWrites` below on every run of the effect, and
+	// left as a no-op whenever the effect is not running (read-only, no client, no
+	// page open) — a publisher must not have to know which of those it is.
+	const flush = useRef<() => void>(() => {})
 
 	useEffect(() => {
 		if (!editor || !client || !pageId || !userId || readOnly) return
@@ -459,16 +477,18 @@ export function useDocumentSync(
 		}
 		window.addEventListener('pagehide', onPageHide)
 		document.addEventListener('visibilitychange', onVisibilityChange)
+		flush.current = flushPendingWrites
 
 		return () => {
 			unsubscribe()
 			window.removeEventListener('pagehide', onPageHide)
 			document.removeEventListener('visibilitychange', onVisibilityChange)
 			flushPendingWrites()
+			flush.current = () => {}
 		}
 	}, [editor, client, pageId, userId, ownerTag, readOnly])
 
-	return { recentLocalUpdates, blockStates }
+	return { recentLocalUpdates, blockStates, flush }
 }
 
 // ── RTDB changes → Editor (subscription-based) ──
@@ -511,10 +531,12 @@ export function useRtdbToEditor(
 							continue
 						}
 
-						const record = fromStoredBlock(
-							change.doc.data() as StoredBlockRecord,
-							ownerTag
-						)
+						// An unreadable block is left alone in the editor rather than
+						// applied as a change: whatever is on screen is closer to
+						// the truth than a block this build cannot read.
+						const stored = decodeStoredBlock(change.doc.data(), change.doc.id)
+						if (!stored) continue
+						const record = fromStoredBlock(stored, ownerTag)
 
 						// Echo suppression: skip our own recent changes
 						if (

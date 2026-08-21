@@ -9,13 +9,15 @@ import {
 } from '@blocknote/core'
 
 import { DocumentEmbed } from './DocumentEmbed.js'
+import { PageIndex } from './PageIndex.js'
 import { Tag } from './Tag.js'
 import { WikiLink } from './WikiLink.js'
 
 export const notilloSchema = BlockNoteSchema.create({
 	blockSpecs: {
 		...defaultBlockSpecs,
-		documentEmbed: DocumentEmbed
+		documentEmbed: DocumentEmbed,
+		index: PageIndex
 	},
 	inlineContentSpecs: {
 		...defaultInlineContentSpecs,

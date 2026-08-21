@@ -22,6 +22,7 @@ import {
 } from 'react-icons/pi'
 
 import { createPage } from '../rtdb/page-ops.js'
+import { ROOT_PARENT } from '../rtdb/types.js'
 import {
 	foldDiacritics,
 	foldedHasAllTerms,
@@ -451,7 +452,7 @@ export function PageSearchPanel({
 													client,
 													userId,
 													searchQuery.trim(),
-													'__root__'
+													ROOT_PARENT
 												)
 												clearSearch()
 												onSelectPage(id)

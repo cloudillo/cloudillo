@@ -7,7 +7,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { reconstructBlocks } from '../rtdb/reconstruct.js'
 import { fromStoredBlock } from '../rtdb/transform.js'
-import type { BlockRecord, StoredBlockRecord } from '../rtdb/types.js'
+import type { BlockRecord } from '../rtdb/types.js'
+import { decodeStoredBlock } from '../rtdb/types.js'
 
 export function usePageBlocks(
 	client: RtdbClient | undefined,
@@ -51,10 +52,13 @@ export function usePageBlocks(
 				if (cancelled) return
 
 				for (const doc of snapshot.docs) {
-					const record = fromStoredBlock(doc.data() as StoredBlockRecord, ownerTag)
+					// A block that will not decode is skipped, and the page loads
+					// without it, rather than the whole page failing to open.
+					const stored = decodeStoredBlock(doc.data(), doc.id)
+					if (!stored) continue
 					recordsRef.current.set(doc.id, {
 						id: doc.id,
-						...record
+						...fromStoredBlock(stored, ownerTag)
 					})
 				}
 

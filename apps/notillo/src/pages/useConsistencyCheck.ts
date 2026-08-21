@@ -11,7 +11,7 @@ import type { RtdbClient } from '@cloudillo/rtdb'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { checkConsistency, type ConsistencyResult, fixConsistency } from '../rtdb/consistency.js'
+import { type ConsistencyResult, checkConsistency, fixConsistency } from '../rtdb/consistency.js'
 
 export function useConsistencyCheck(client: RtdbClient): () => Promise<void> {
 	const { t } = useTranslation()

@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { jest } from '@jest/globals'
-
 import type { RtdbClient } from '@cloudillo/rtdb'
+import { jest } from '@jest/globals'
 
 import { analyzePages, type ConsistencyResult, fixConsistency } from '../rtdb/consistency.js'
 import type { StoredPageRecord } from '../rtdb/types.js'

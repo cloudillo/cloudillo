@@ -1,7 +1,13 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { getAppBus, getDocWsUrl, getFileUrl } from '@cloudillo/core'
+import {
+	createApiClient,
+	getAppBus,
+	getDocWsUrl,
+	getFileUrl,
+	parseSiteFileRef
+} from '@cloudillo/core'
 import type { CommentThread } from '@cloudillo/react'
 import {
 	AppDocBar,
@@ -25,8 +31,12 @@ import {
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
+	LuSearchCheck as IcCheckRefs,
 	LuMessageCircle as IcComment,
 	LuLink as IcLink,
+	LuSettings2 as IcProperties,
+	LuGlobe as IcPublish,
+	LuSettings as IcSettings,
 	LuPanelLeft as IcSidebar
 } from 'react-icons/lu'
 
@@ -51,12 +61,35 @@ import { useBlockContextMenu } from './hooks/useBlockContextMenu.js'
 import { useCommentBlockButton } from './hooks/useCommentBlockButton.js'
 import { useCommentIndicators } from './hooks/useCommentIndicators.js'
 import { useContentSearch } from './hooks/useContentSearch.js'
+import { useDocSettings } from './hooks/useDocSettings.js'
+import { useHomePage } from './hooks/useHomePage.js'
 import { useNotillo } from './hooks/useNotillo.js'
 import { usePageBlocks } from './hooks/usePageBlocks.js'
 import { useTags } from './hooks/useTags.js'
+import { DocSettingsDialog } from './pages/DocSettingsDialog.js'
+import { PagePropertiesPanel } from './pages/PagePropertiesPanel.js'
 import { PageSidebar } from './pages/PageSidebar.js'
+import type { PublishRef, PublishReport } from './publish/index.js'
+import type { PublishDialogMode } from './publish/PublishDialog.js'
 import { createPage, getAncestorIds, updatePage } from './rtdb/page-ops.js'
+import { isTopLevel, ROOT_PARENT } from './rtdb/types.js'
+import { childKindFor } from './utils/archetype.js'
+import { derivePageMeta } from './utils/page-meta.js'
 import { searchPages } from './utils/search.js'
+
+/**
+ * The publish pipeline, loaded when the author asks for it and not before.
+ *
+ * `publish/**` is ~40 KB minified plus `fflate`'s zip encoder, and none of it runs
+ * until Publish or Check references is clicked — but a static import puts all of it
+ * in the entry bundle, parsed on every document open. The build sets
+ * `splitting: true` with `format: 'esm'` (`scripts/esbuild-common.js`), so these
+ * become their own chunk. Type-only imports above stay static: they erase.
+ */
+const loadPublish = () => import('./publish/index.js')
+const PublishDialog = React.lazy(async () => ({
+	default: (await import('./publish/PublishDialog.js')).PublishDialog
+}))
 
 /** How many visited pages the sidebar offers with an empty query. */
 const RECENT_PAGE_LIMIT = 8
@@ -80,11 +113,21 @@ export function NotilloApp() {
 		retry: retryPages
 	} = useAllPages(notillo.client)
 	const { tags, tagCounts } = useTags(pages)
+	// The document's own settings: whether it is a website at all, and which page is
+	// served at the mount root. Live, unlike the per-page settings — the home page
+	// decides the sidebar's shape for every collaborator, so a change has to
+	// propagate rather than wait for a reload.
+	const docSettings = useDocSettings(notillo.client)
+	// `?? undefined`: a cleared setting is stored as `null` and means exactly what an
+	// absent one means, and every consumer below takes `string | undefined`.
+	const homePageId = docSettings.settings.homePageId ?? undefined
 	const [expanded, setExpanded] = React.useState<Set<string>>(new Set())
 	const [activePageId, setActivePageId] = React.useState<string | undefined>()
 	const [recentPageIds, setRecentPageIds] = React.useState<string[]>([])
 	const [showFilter, setShowFilter] = React.useState(false)
+	// The two details panes share one slot, so opening either closes the other.
 	const [showComments, setShowComments] = React.useState(false)
+	const [showProperties, setShowProperties] = React.useState(false)
 	const [threadCount, setThreadCount] = React.useState(0)
 	const [pendingCommentAnchor, setPendingCommentAnchor] = React.useState<string | undefined>()
 	const [pendingCommentOffset, setPendingCommentOffset] = React.useState<number | undefined>()
@@ -160,6 +203,7 @@ export function NotilloApp() {
 			} else {
 				setFocusBlockId(blockId)
 				setShowComments(true)
+				setShowProperties(false)
 			}
 		},
 		[isMobile]
@@ -170,6 +214,10 @@ export function NotilloApp() {
 	const fileInputRef = React.useRef<HTMLInputElement>(null)
 	const childImportInputRef = React.useRef<HTMLInputElement>(null)
 	const commentPanelRef = React.useRef<ThreadListHandle | null>(null)
+	// Filled by the mounted editor with its RTDB sync flush; a no-op when no page
+	// is open. `publishSite` calls it so the newest typing is in RTDB, not still
+	// sitting in a debounce timer, before the container is built.
+	const syncFlushRef = React.useRef<() => void>(() => {})
 	const [pendingImport, setPendingImport] = React.useState<
 		{ markdown: string; pageId: string; source: 'shell' | 'local' } | undefined
 	>()
@@ -211,7 +259,7 @@ export function NotilloApp() {
 		;(async () => {
 			try {
 				const title = payload.fileName.replace(/\.[^.]+$/, '') || 'Imported'
-				const pageId = await createPage(notillo.client!, notillo.idTag!, title, '__root__')
+				const pageId = await createPage(notillo.client!, notillo.idTag!, title, ROOT_PARENT)
 				if (cancelled) return
 				setPendingImport({ markdown: payload.markdown, pageId, source: 'shell' })
 				setActivePageId(pageId)
@@ -272,25 +320,15 @@ export function NotilloApp() {
 
 	const resolveFileUrl = React.useCallback(
 		async (url: string): Promise<string | Blob> => {
-			if (!notillo.ownerTag || !url.startsWith('cl-file:')) return url
+			if (!notillo.ownerTag) return url
+			// The legacy untyped `cl-file:ID` is normalised to `img` by the parser.
+			const ref = parseSiteFileRef(url)
+			if (!ref) return url
 
-			const rest = url.slice(8)
-			const colonIdx = rest.indexOf(':')
-
-			let resolvedUrl: string
 			const tokenOpt = notillo.token ? { token: notillo.token } : undefined
-			if (colonIdx !== -1) {
-				const tag = rest.slice(0, colonIdx)
-				const fileId = rest.slice(colonIdx + 1)
-
-				if (tag === 'img')
-					resolvedUrl = getFileUrl(notillo.ownerTag, fileId, 'vis.hd', tokenOpt)
-				else if (tag === 'vid')
-					resolvedUrl = getFileUrl(notillo.ownerTag, fileId, 'vid.hd', tokenOpt)
-				else resolvedUrl = getFileUrl(notillo.ownerTag, fileId, undefined, tokenOpt)
-			} else {
-				resolvedUrl = getFileUrl(notillo.ownerTag, rest, 'vis.hd', tokenOpt)
-			}
+			const variant =
+				ref.kind === 'img' ? 'vis.hd' : ref.kind === 'vid' ? 'vid.hd' : undefined
+			const resolvedUrl = getFileUrl(notillo.ownerTag, ref.fileId, variant, tokenOpt)
 
 			// Fetch and convert unsupported formats to PNG
 			const resp = await fetch(resolvedUrl)
@@ -421,12 +459,22 @@ export function NotilloApp() {
 
 		let firstPage: { id: string; order: number } | undefined
 		for (const page of pages.values()) {
-			if (page.parentPageId === '__root__' && (!firstPage || page.order < firstPage.order)) {
+			if (page.parentPageId === ROOT_PARENT && (!firstPage || page.order < firstPage.order)) {
 				firstPage = { id: page.id, order: page.order }
 			}
 		}
 		if (firstPage) handleSelectPage(firstPage.id)
 	}, [pages, pagesReady, activePageId, notillo.navParam, handleSelectPage])
+
+	const toggleComments = React.useCallback(() => {
+		setShowComments((s) => !s)
+		setShowProperties(false)
+	}, [])
+
+	const toggleProperties = React.useCallback(() => {
+		setShowProperties((s) => !s)
+		setShowComments(false)
+	}, [])
 
 	const handleCommentBlock = React.useCallback((blockId: string) => {
 		// Find the block element and compute its vertical offset from the
@@ -442,6 +490,7 @@ export function NotilloApp() {
 		}
 		setPendingCommentAnchor(`b:${blockId}`)
 		setShowComments(true)
+		setShowProperties(false)
 	}, [])
 
 	// Hover comment button (desktop) and context menu (desktop + mobile)
@@ -540,6 +589,19 @@ export function NotilloApp() {
 		knownBlockOrders
 	} = usePageBlocks(notillo.client, activePageId, notillo.ownerTag)
 
+	// What the page's SEO fields would say with nothing filled in, shown as
+	// placeholders in the property panel. Derived from the open page's blocks,
+	// which is exactly the page that panel edits.
+	const derivedMeta = React.useMemo(
+		() => derivePageMeta(blocks, (pageId) => pages.get(pageId)?.title),
+		[blocks, pages]
+	)
+
+	// A page filed under the home page is still at the top of the container: the
+	// home page is the tree's root, not a directory of its own. The same fold
+	// `resolveTree` applies, so the panel and the container cannot disagree.
+	const atContainerRoot = !!activePage && isTopLevel(activePage.parentPageId, homePageId)
+
 	// The page title is edited in the DocBar's second crumb, so the rename lands
 	// here rather than in a header of its own.
 	const handleRenamePage = React.useCallback(
@@ -585,6 +647,311 @@ export function NotilloApp() {
 			console.error('[Notillo] Share document failed:', err)
 		}
 	}, [t])
+
+	// Publish the whole document as a site container. The gate runs first and the
+	// dialog is where the author reads it; nothing is generated until that dialog
+	// is confirmed.
+	const [publishing, setPublishing] = React.useState(false)
+	const [publishOpen, setPublishOpen] = React.useState(false)
+	const [publishMode, setPublishMode] = React.useState<PublishDialogMode>('publish')
+	const [publishReport, setPublishReport] = React.useState<PublishReport | undefined>()
+	const [gateLoading, setGateLoading] = React.useState(false)
+	const [gateError, setGateError] = React.useState<string | undefined>()
+	// Where the site serves this document. Read from the shell, never declared
+	// here — the mount table is site configuration. It decides which
+	// reserved slugs apply and is shown in the dialog, so the gate resolves it
+	// once and both consumers read the same answer.
+	const [publishMountPath, setPublishMountPath] = React.useState<string | undefined>()
+	// Whether the site serves this document at all. `POST /api/sites/publish`
+	// refuses a document with no mount row, and the mount table is site settings —
+	// there is no way to add one from here. Learning that after a full
+	// build and upload is the worst moment to learn it, so the action is simply
+	// not offered. `undefined` means the answer is not in yet or the lookup
+	// failed; the action stays offered then, because a failed read must not take
+	// a capability away.
+	const [siteMounted, setSiteMounted] = React.useState<boolean | undefined>()
+
+	/**
+	 * Close the publish dialog and let go of its report.
+	 *
+	 * The report holds one `PublishPageEntry` per published page plus every
+	 * `PublishRef` with its per-block `sites` array. Kept, it would sit in component
+	 * state for the rest of the session and be replaced — not released — by the next
+	 * gate run, so every close goes through here rather than `setPublishOpen(false)`.
+	 */
+	const closePublish = React.useCallback(() => {
+		setPublishOpen(false)
+		setPublishReport(undefined)
+	}, [])
+
+	// Every site feature in Notillo hangs off this one flag. The stored one wins;
+	// absent, a document the site already serves is already a website, so the author
+	// does not have to say so twice.
+	//
+	// `undefined` siteMounted — the lookup is in flight or failed — reads as
+	// not-a-site, and so does a settings record that has not arrived yet: the site UI
+	// appearing and then vanishing is worse than appearing a moment late.
+	const siteMode = docSettings.ready
+		? (docSettings.settings.siteMode ?? siteMounted === true)
+		: false
+
+	const homeActions = useHomePage({
+		client: notillo.client,
+		pages,
+		homePageId,
+		save: React.useCallback(
+			(pageId: string | null) => docSettings.save({ homePageId: pageId }),
+			[docSettings.save]
+		)
+	})
+
+	// The document settings dialog, and the sidebar's home picker it can hand off to.
+	const [docSettingsOpen, setDocSettingsOpen] = React.useState(false)
+	const [homePickerSeq, setHomePickerSeq] = React.useState(0)
+
+	// The fix for "no home page" is not on any page, so it lives in the sidebar —
+	// which on a narrow screen is not on screen at all until this opens it.
+	const handleChooseHome = React.useCallback(() => {
+		setDocSettingsOpen(false)
+		closePublish()
+		setShowFilter(true)
+		setHomePickerSeq((seq) => seq + 1)
+	}, [closePublish])
+
+	const handleSiteModeChange = React.useCallback(
+		(on: boolean) => {
+			docSettings.save({ siteMode: on }).catch((err) => {
+				console.error('[Notillo] Could not save the document settings:', err)
+				toastError(t('Could not save the document settings.'))
+			})
+		},
+		[docSettings.save, t, toastError]
+	)
+
+	/**
+	 * Ask the shell where the site serves this document, and remember both halves.
+	 *
+	 * Both halves, not just `mounted`: keeping the path too is what lets the
+	 * doc-settings dialog say where the document is *actually* served — it read
+	 * "Served at /" for a document mounted at `/blog` until the publish dialog had
+	 * been opened once — and what lets the reserved-site-root warning in
+	 * `PagePropertiesPanel` fire before the first gate run.
+	 *
+	 * A lookup failure is not a caller's failure and leaves the last answer standing:
+	 * a read that failed knows nothing, and overwriting the path with `undefined`
+	 * reads as "mounted at the root" to the dialog and the reserved-slug warning.
+	 */
+	const resolveMount = React.useCallback(
+		async (isCancelled?: () => boolean): Promise<string | undefined> => {
+			if (!notillo.fileId) return undefined
+			try {
+				const mount = await getAppBus().resolveSiteMount({ docFileId: notillo.fileId })
+				if (isCancelled?.()) return undefined
+				setSiteMounted(mount.mounted)
+				setPublishMountPath(mount.mountPath)
+				return mount.mountPath
+			} catch (err) {
+				console.warn('[Notillo] Could not read the mount path:', err)
+				return undefined
+			}
+		},
+		[notillo.fileId]
+	)
+
+	// Resolved on load rather than in the gate, because the menu has to be right
+	// before the dialog exists. `runPublishGate` re-reads it at publish time — the
+	// owner may have mounted the document in the meantime.
+	React.useEffect(() => {
+		let cancelled = false
+		void resolveMount(() => cancelled)
+		return () => {
+			cancelled = true
+		}
+	}, [resolveMount])
+
+	// An unowned document is our own, the same rule the RTDB server URL uses in
+	// `useNotillo`.
+	const ownerIdTag = notillo.ownerTag ?? notillo.idTag ?? ''
+
+	// The same client `publishSite` builds, and built per call for the same
+	// reason: the bus renews the access token behind us.
+	const siteApi = React.useCallback(
+		() => createApiClient({ idTag: ownerIdTag, authToken: getAppBus().accessToken }),
+		[ownerIdTag]
+	)
+
+	const runPublishGate = React.useCallback(async () => {
+		if (!notillo.client) return
+		setGateLoading(true)
+		setGateError(undefined)
+		try {
+			// The gate reads RTDB, so the newest typing has to be out of its
+			// debounce timer first — the same reason `publishSite` flushes.
+			syncFlushRef.current?.()
+			const api = siteApi()
+
+			// A lookup failure is not a gate failure: the reference check has to
+			// keep working for someone who cannot read the mount table at all.
+			// The gate then assumes the root, which over-reports rather than
+			// letting a reserved slug through.
+			const mountPath = await resolveMount()
+
+			const { buildPublishReport } = await loadPublish()
+			setPublishReport(
+				await buildPublishReport({
+					client: notillo.client,
+					mountPath,
+					...(homePageId !== undefined && { homePageId }),
+					fetchFileInfo: async (fileId) => {
+						const file = await api.files.getMetadata(fileId)
+						// `null` and absent both mean "not public" to the gate.
+						return { visibility: file.visibility ?? undefined, fileName: file.fileName }
+					}
+				})
+			)
+		} catch (err) {
+			console.error('[Notillo] Publish check failed:', err)
+			setPublishReport(undefined)
+			setGateError(t('Could not check the document: {{error}}', { error: String(err) }))
+		} finally {
+			setGateLoading(false)
+		}
+	}, [notillo.client, resolveMount, siteApi, homePageId, t])
+
+	const handleOpenPublish = React.useCallback(() => {
+		setPublishMode('publish')
+		setPublishOpen(true)
+		void runPublishGate()
+	}, [runPublishGate])
+
+	// The same gate with nothing behind it. Publishing checks the references once,
+	// at the moment it runs, and a file's visibility can be lowered afterwards —
+	// after which only the reader sees the hole, never the author, who can read
+	// their own files either way. So the check is offered on demand.
+	const handleOpenCheckRefs = React.useCallback(() => {
+		setPublishMode('check')
+		setPublishOpen(true)
+		void runPublishGate()
+	}, [runPublishGate])
+
+	// Offered, never done on the author's behalf: widening a file's audience is a
+	// click per file, and the gate re-runs so the answer comes from the server.
+	const handleMakeRefPublic = React.useCallback(
+		async (ref: PublishRef) => {
+			try {
+				await siteApi().files.update(ref.fileId, { visibility: 'P' })
+			} catch (err) {
+				console.error('[Notillo] Could not make the file public:', err)
+				toastError(t('Could not make that file public.'))
+				return
+			}
+			await runPublishGate()
+		},
+		[runPublishGate, siteApi, t, toastError]
+	)
+
+	// One dialog row is one *file*, but its `sites` hold every block that references
+	// it — a photo used on six pages is six blockIds behind one "Remove" button, and
+	// the removal deletes all of them with no undo. So it is confirmed, the same way
+	// deleting a page is (`PageSidebar`), and the message names both counts: what the
+	// row shows is the file's name, not how much authored content goes with it.
+	const handleRemoveRef = React.useCallback(
+		async (ref: PublishRef) => {
+			if (!notillo.client) return
+			const blockCount = ref.sites.length
+			const pageCount = new Set(ref.sites.map((site) => site.pageId)).size
+			const name = ref.fileName || ref.fileId
+			const message =
+				blockCount === 1
+					? t('Remove the block referencing “{{name}}”? This cannot be undone.', {
+							name
+						})
+					: pageCount === 1
+						? t(
+								'Remove all {{count}} blocks referencing “{{name}}”? They are all on one page, and this cannot be undone.',
+								{ count: blockCount, name }
+							)
+						: t(
+								'Remove all {{count}} blocks referencing “{{name}}”, on {{pages}} pages? Some are on pages you are not looking at, and this cannot be undone.',
+								{ count: blockCount, pages: pageCount, name }
+							)
+			if (!(await dialog.confirm(t('Remove reference'), message))) return
+			try {
+				const { removeSiteReference } = await loadPublish()
+				// A `pageImage` site has no `blockId` — it is a page property, and
+				// the author clears it in the properties panel. Filtered rather than
+				// asserted: "remove" here deletes blocks, and there is no block.
+				await removeSiteReference(
+					notillo.client,
+					ref.sites.map((site) => site.blockId).filter((id) => id !== undefined)
+				)
+			} catch (err) {
+				console.error('[Notillo] Could not remove the reference:', err)
+				toastError(t('Could not remove that reference.'))
+				return
+			}
+			await runPublishGate()
+		},
+		[dialog, notillo.client, runPublishGate, t, toastError]
+	)
+
+	const handleGoToPublishPage = React.useCallback(
+		(pageId: string) => {
+			closePublish()
+			handleSelectPage(pageId)
+		},
+		[closePublish, handleSelectPage]
+	)
+
+	const handlePublishSite = React.useCallback(async () => {
+		if (!notillo.client || !notillo.fileId || publishing) return
+		setPublishing(true)
+		try {
+			const { publishSite } = await loadPublish()
+			const result = await publishSite({
+				client: notillo.client,
+				docFileId: notillo.fileId,
+				ownerIdTag,
+				flush: syncFlushRef,
+				// The gate resolved it when the dialog opened, so the author
+				// confirmed a publish to the path they were shown. Undefined only
+				// if that lookup failed, and then `publishSite` retries it rather
+				// than guessing.
+				...(publishMountPath !== undefined && { mountPath: publishMountPath }),
+				// The same value the gate the author just confirmed was built
+				// against, so the container cannot claim a different front page
+				// from the one the dialog listed at `/`.
+				...(homePageId !== undefined && { homePageId })
+			})
+			closePublish()
+			await dialog.tell(
+				t('Site published'),
+				result.slugsFrozen
+					? t('Published {{count}} page(s).', { count: result.pageCount })
+					: t(
+							'Published {{count}} page(s), but the page addresses could not be pinned. Publish again to fix it — until then, renaming a page can move its live address.',
+							{ count: result.pageCount }
+						)
+			)
+		} catch (err) {
+			console.error('[Notillo] Publish failed:', err)
+			await dialog.tell(
+				t('Publish error'),
+				t('Failed to publish the site: {{error}}', { error: String(err) })
+			)
+		} finally {
+			setPublishing(false)
+		}
+	}, [
+		notillo.client,
+		notillo.fileId,
+		ownerIdTag,
+		publishing,
+		publishMountPath,
+		homePageId,
+		dialog,
+		t
+	])
 
 	// Export/import handlers
 	const handleExportMarkdown = React.useCallback(async () => {
@@ -666,7 +1033,7 @@ export function NotilloApp() {
 	)
 
 	// Import markdown as child/sibling page — parentPageId stored in ref
-	const importParentRef = React.useRef<string>('__root__')
+	const importParentRef = React.useRef<string>(ROOT_PARENT)
 
 	const handleImportMarkdownAsChild = React.useCallback(() => {
 		if (!activePageId) return
@@ -692,7 +1059,13 @@ export function NotilloApp() {
 				const title =
 					headingMatch?.[1]?.trim() || file.name.replace(/\.[^.]+$/, '') || 'Imported'
 				const parentId = importParentRef.current
-				const pageId = await createPage(notillo.client, notillo.idTag, title, parentId)
+				const pageId = await createPage(
+					notillo.client,
+					notillo.idTag,
+					title,
+					parentId,
+					childKindFor(parentId === ROOT_PARENT ? undefined : pages.get(parentId))
+				)
 				setPendingImport({ markdown, pageId, source: 'local' })
 				setActivePageId(pageId)
 			} catch (err) {
@@ -702,7 +1075,7 @@ export function NotilloApp() {
 				)
 			}
 		},
-		[notillo.client, notillo.idTag, dialog, t]
+		[notillo.client, notillo.idTag, pages, dialog, t]
 	)
 
 	// Loading state
@@ -798,22 +1171,42 @@ export function NotilloApp() {
 							: undefined
 					}
 					subActions={
-						canComment && activePage ? (
-							// The badge is absolutely positioned against this wrapper.
-							<div style={{ position: 'relative' }}>
-								<Button
-									kind="link"
-									mode="icon"
-									size="small"
-									onClick={() => setShowComments((s) => !s)}
-									title={t('Comments')}
-								>
-									<IcComment size={20} />
-									{threadCount > 0 && (
-										<span className="comment-badge">{threadCount}</span>
-									)}
-								</Button>
-							</div>
+						activePage ? (
+							<>
+								{/* The site fields of this page. Read-only mounts get it
+								    too — seeing how a page will be published is not an
+								    editing act. The pane holds nothing but site fields,
+								    so with site mode off it would open empty. */}
+								{siteMode && (
+									<Button
+										kind="link"
+										mode="icon"
+										size="small"
+										aria-pressed={showProperties}
+										onClick={toggleProperties}
+										title={t('Page settings')}
+									>
+										<IcProperties size={20} />
+									</Button>
+								)}
+								{canComment && (
+									// The badge is absolutely positioned against this wrapper.
+									<div style={{ position: 'relative' }}>
+										<Button
+											kind="link"
+											mode="icon"
+											size="small"
+											onClick={toggleComments}
+											title={t('Comments')}
+										>
+											<IcComment size={20} />
+											{threadCount > 0 && (
+												<span className="comment-badge">{threadCount}</span>
+											)}
+										</Button>
+									</div>
+								)}
+							</>
 						) : undefined
 					}
 				>
@@ -827,6 +1220,32 @@ export function NotilloApp() {
 							disabled={!canWrite}
 							onClick={handleShareDocument}
 						/>
+						<MenuItem
+							icon={<IcSettings />}
+							label={t('Document settings…')}
+							onClick={() => setDocSettingsOpen(true)}
+						/>
+						{/* Hidden rather than disabled while the document is not part
+						    of the site: a disabled item promises the action is available
+						    here once some condition is met, and this one is met in site
+						    settings, in another app. Site mode is the same shape of
+						    condition — it is met in the document settings dialog. */}
+						{siteMode && siteMounted !== false && (
+							<MenuItem
+								icon={<IcPublish />}
+								label={publishing ? t('Publishing…') : t('Publish site…')}
+								disabled={!canWrite || publishing}
+								onClick={handleOpenPublish}
+							/>
+						)}
+						{siteMode && (
+							<MenuItem
+								icon={<IcCheckRefs />}
+								label={t('Check references…')}
+								disabled={!canWrite || publishing}
+								onClick={handleOpenCheckRefs}
+							/>
+						)}
 						<MenuDivider />
 						<MenuHeader>{t('This page')}</MenuHeader>
 						<MenuItem
@@ -904,6 +1323,12 @@ export function NotilloApp() {
 								onSearchActivate={enableContentSearch}
 								recentPageIds={recentPageIds}
 								onImportMarkdown={canWrite ? handleImportMarkdownInto : undefined}
+								siteMode={siteMode}
+								homePageId={homePageId}
+								onSetHome={homeActions.setHome}
+								onClearHome={homeActions.clearHome}
+								homeBusy={homeActions.busy}
+								homePickerSeq={homePickerSeq}
 							/>
 						</Panel>
 					</Fcd.Filter>
@@ -958,10 +1383,12 @@ export function NotilloApp() {
 									darkMode={notillo.darkMode}
 									fileId={notillo.fileId}
 									pages={pages}
+									homePageId={homePageId}
 									onSelectPage={handleSelectPage}
 									onTagClick={handleToggleTag}
 									onEditorReady={handleEditorReady}
 									onCommentBlock={canComment ? handleCommentBlock : undefined}
+									syncFlushRef={syncFlushRef}
 									tags={tags}
 									pageTags={activePage.tags}
 								/>
@@ -1020,6 +1447,83 @@ export function NotilloApp() {
 							</div>
 						</Fcd.Details>
 					)}
+					{showProperties && siteMode && activePage && (
+						<Fcd.Details
+							isVisible={showProperties}
+							hide={() => setShowProperties(false)}
+							header={
+								<span className="font-semibold text-sm">{t('Page settings')}</span>
+							}
+						>
+							<PagePropertiesPanel
+								// Keyed so a refused save or a rejected slug on one
+								// page does not stay on screen under the next one —
+								// both notices are panel state.
+								key={activePage.id}
+								client={notillo.client}
+								pageId={activePage.id}
+								title={activePage.title ?? ''}
+								// Live off the page map: the pane's own record is a
+								// one-shot read, and a publish writes both of these
+								// after it.
+								publishedAt={activePage.publishedAt}
+								liveSlug={activePage.slug}
+								derived={derivedMeta}
+								atContainerRoot={atContainerRoot}
+								// The site root needs the mount path, which the mount
+								// lookup on load resolves. Still advisory: the gate
+								// re-reads it at publish time, and it is that copy that
+								// blocks a publish.
+								atRoot={atContainerRoot && publishMountPath === '/'}
+								isHome={activePage.id === homePageId}
+								// Offered where it can work: a subpage would have to be
+								// moved to the top level first.
+								canBecomeHome={atContainerRoot && activePage.id !== homePageId}
+								onToggleHome={() => {
+									if (activePage.id === homePageId) void homeActions.clearHome()
+									else void homeActions.setHome(activePage.id)
+								}}
+								readOnly={!canWrite}
+							/>
+						</Fcd.Details>
+					)}
+					{/* Mounted only while open: the component is lazy, and rendering
+					    it closed would fetch the chunk on every document open, which
+					    is exactly what the split avoids. No fallback — the dialog is
+					    the whole UI, and a spinner behind it would flash. */}
+					{publishOpen && (
+						<React.Suspense fallback={null}>
+							<PublishDialog
+								open={publishOpen}
+								mode={publishMode}
+								report={publishReport}
+								loading={gateLoading}
+								error={gateError}
+								publishing={publishing}
+								mountPath={publishMountPath}
+								// A share-link guest has no idTag, so a visibility write
+								// would 403 — offer the action only where it can work.
+								canMakePublic={!!notillo.idTag}
+								onMakePublic={handleMakeRefPublic}
+								onRemove={handleRemoveRef}
+								onGoToPage={handleGoToPublishPage}
+								onChooseHome={handleChooseHome}
+								onPublish={handlePublishSite}
+								onClose={closePublish}
+							/>
+						</React.Suspense>
+					)}
+					<DocSettingsDialog
+						open={docSettingsOpen}
+						siteMode={siteMode}
+						onSiteModeChange={handleSiteModeChange}
+						siteMounted={siteMounted}
+						mountPath={publishMountPath}
+						homeTitle={homePageId ? pages.get(homePageId)?.title : undefined}
+						onChooseHome={handleChooseHome}
+						readOnly={!canWrite}
+						onClose={() => setDocSettingsOpen(false)}
+					/>
 					<DialogContainer />
 					<Toasts />
 				</Fcd.Container>

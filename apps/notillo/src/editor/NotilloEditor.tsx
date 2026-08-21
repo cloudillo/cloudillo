@@ -12,6 +12,9 @@ import {
 	BlockColorsItem,
 	type DefaultReactSuggestionItem,
 	DragHandleMenu,
+	FormattingToolbar,
+	FormattingToolbarController,
+	getFormattingToolbarItems,
 	RemoveBlockItem,
 	SideMenu,
 	SideMenuController,
@@ -26,7 +29,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import '@blocknote/mantine/style.css'
 
-import { getFileUrl, getImageVariantForDisplaySize } from '@cloudillo/core'
+import { getFileUrl, getImageVariantForDisplaySize, parseSiteFileRef } from '@cloudillo/core'
 import { usePresence } from '@cloudillo/react'
 import type { RtdbClient, RtdbPresence } from '@cloudillo/rtdb'
 
@@ -36,10 +39,12 @@ import { useDocumentSync, useRtdbToEditor } from '../hooks/useEditorSync.js'
 import { type BlockPeer, useLockIndicators } from '../hooks/useLockIndicators.js'
 import { usePageTagSync } from '../hooks/usePageTagSync.js'
 import { usePresencePublisher } from '../hooks/usePresencePublisher.js'
+import { type ListingPage, listingParentId } from '../publish/listing.js'
 import { shortId } from '../rtdb/ids.js'
 import { createPage } from '../rtdb/page-ops.js'
 import type { PageRecord } from '../rtdb/types.js'
 import { foldDiacritics, searchPages } from '../utils/search.js'
+import { IndexToolbarItems } from './IndexToolbar.js'
 import { NotilloEditorProvider } from './NotilloEditorContext.js'
 import { asBaseEditor, type NotilloEditor as NotilloEditorType, notilloSchema } from './schema.js'
 import { notilloThemeOverrides } from './theme.js'
@@ -162,10 +167,24 @@ interface NotilloEditorProps {
 	darkMode: boolean
 	fileId?: string
 	pages: Map<string, PageRecord & { id: string }>
+	/**
+	 * The document's home page, passed down for the `index` block: a listing buckets
+	 * its rows the way the published tree does, and that fold depends on it. See
+	 * `listingParentId` in `publish/listing.ts`.
+	 */
+	homePageId?: string
 	onSelectPage: (pageId: string) => void
 	onTagClick?: (tag: string) => void
 	onEditorReady?: (editor: NotilloEditorType) => void
 	onCommentBlock?: (blockId: string) => void
+	/**
+	 * Filled with `useDocumentSync`'s flush so the publisher can commit pending
+	 * debounced writes before it reads the document back out of RTDB.
+	 *
+	 * Only this page's writes: `useDocumentSync` is per-page, and every other page
+	 * was already flushed by the teardown that ran when it was switched away from.
+	 */
+	syncFlushRef?: React.RefObject<() => void>
 	tags: Set<string>
 	pageTags?: string[]
 }
@@ -185,10 +204,12 @@ export const NotilloEditor = React.memo(
 		darkMode,
 		fileId,
 		pages,
+		homePageId,
 		onSelectPage,
 		onTagClick,
 		onEditorReady,
 		onCommentBlock,
+		syncFlushRef,
 		tags,
 		pageTags
 	}: NotilloEditorProps) {
@@ -197,40 +218,23 @@ export const NotilloEditor = React.memo(
 
 		const resolveFileUrl = React.useCallback(
 			async (url: string) => {
-				if (!url.startsWith('cl-file:')) return url
+				// `cl-file:img:ID` / `vid` / `aud`, with the legacy untyped
+				// `cl-file:ID` normalised to `img` — one parser, shared with the
+				// publisher's serializer.
+				const ref = parseSiteFileRef(url)
+				if (!ref) return url
 
-				const rest = url.slice(8) // after "cl-file:"
-				const colonIdx = rest.indexOf(':')
-
-				// Typed URL: cl-file:img:FILEID, cl-file:vid:FILEID, cl-file:aud:FILEID
-				if (colonIdx !== -1) {
-					const tag = rest.slice(0, colonIdx)
-					const fileId = rest.slice(colonIdx + 1)
-
-					if (tag === 'img') {
-						const px = containerWidthRef.current * (globalThis.devicePixelRatio || 1)
-						return getFileUrl(
-							ownerTag,
-							fileId,
-							getImageVariantForDisplaySize(px, px),
-							token ? { token } : undefined
-						)
-					}
-					if (tag === 'vid') {
-						return getFileUrl(ownerTag, fileId, 'vid.hd', token ? { token } : undefined)
-					}
-					// 'aud' or unknown tag — no variant
-					return getFileUrl(ownerTag, fileId, undefined, token ? { token } : undefined)
+				const tokenOpt = token ? { token } : undefined
+				if (ref.kind === 'img') {
+					const px = containerWidthRef.current * (globalThis.devicePixelRatio || 1)
+					const variant = getImageVariantForDisplaySize(px, px)
+					return getFileUrl(ownerTag, ref.fileId, variant, tokenOpt)
 				}
-
-				// Legacy untyped URL: cl-file:FILEID — treat as image for backward compat
-				const px = containerWidthRef.current * (globalThis.devicePixelRatio || 1)
-				return getFileUrl(
-					ownerTag,
-					rest,
-					getImageVariantForDisplaySize(px, px),
-					token ? { token } : undefined
-				)
+				if (ref.kind === 'vid') {
+					return getFileUrl(ownerTag, ref.fileId, 'vid.hd', tokenOpt)
+				}
+				// 'aud' or unknown kind — no variant
+				return getFileUrl(ownerTag, ref.fileId, undefined, tokenOpt)
 			},
 			[ownerTag, token]
 		)
@@ -306,7 +310,7 @@ export const NotilloEditor = React.memo(
 		}, [editor])
 
 		// Local changes → RTDB (smart per-block sync with position tracking)
-		const { recentLocalUpdates, blockStates } = useDocumentSync(
+		const { recentLocalUpdates, blockStates, flush } = useDocumentSync(
 			asBaseEditor(editor),
 			client,
 			pageId,
@@ -316,6 +320,33 @@ export const NotilloEditor = React.memo(
 			knownBlockIds,
 			knownBlockOrders
 		)
+
+		// Editor → page tag sync (debounced, self-healing). Above the flush effect
+		// because that effect composes this hook's flush with the block one's.
+		const { flush: tagFlush } = usePageTagSync(
+			asBaseEditor(editor),
+			client,
+			pageId,
+			pageTags,
+			readOnly
+		)
+
+		// Hand the flush up to whoever holds the publisher. Both debounces, not just
+		// the block writes: publishing reads `p/*` as well as `b/*`, and the tag
+		// debounce is the longer of the two. Each `flush` is a stable ref into its own
+		// live sync effect, so this indirection survives a page switch; the reset on
+		// unmount is what stops a publish from calling into a torn down editor's
+		// closure.
+		React.useEffect(() => {
+			if (!syncFlushRef) return
+			syncFlushRef.current = () => {
+				flush.current()
+				tagFlush.current()
+			}
+			return () => {
+				syncFlushRef.current = () => {}
+			}
+		}, [syncFlushRef, flush, tagFlush])
 
 		// Lock management — pure state hook, no subscription
 		const { locks, handleLockEvent } = useBlockLocks(pageId)
@@ -344,14 +375,22 @@ export const NotilloEditor = React.memo(
 		}, [entries, pageId, t])
 		useLockIndicators(asBaseEditor(editor), locks, blockPeers)
 
-		// Editor → page tag sync (debounced, self-healing)
-		usePageTagSync(asBaseEditor(editor), client, pageId, pageTags, readOnly)
+		// One published page is enough: whatever is inserted from here can land on a
+		// page an anonymous reader fetches, so the pickers must refuse anything that
+		// is not Public. `pubAt` is projected by `PAGE_FIELDS` for exactly this.
+		const isSiteSource = React.useMemo(() => {
+			for (const page of pages.values()) {
+				if (page.publishedAt) return true
+			}
+			return false
+		}, [pages])
 
 		// MediaPicker integration for image/video/audio insertion
 		const { getSlashMenuItems } = useMediaHandler({
 			editor: editor as NotilloEditorType,
 			ownerTag,
 			documentFileId: fileId,
+			isSiteSource,
 			readOnly
 		})
 
@@ -413,7 +452,12 @@ export const NotilloEditor = React.memo(
 					return
 				}
 
-				const wikiLink = target.closest('.notillo-wiki-link') as HTMLElement | null
+				// One delegated handler for every in-document page reference: an
+				// inline wiki link and a row of an `index` block navigate the same way
+				// and carry the same `data-page-id`.
+				const wikiLink = target.closest(
+					'.notillo-wiki-link, .notillo-index-link'
+				) as HTMLElement | null
 				if (wikiLink) {
 					const targetPageId = wikiLink.dataset.pageId
 					if (targetPageId) {
@@ -576,22 +620,85 @@ export const NotilloEditor = React.memo(
 			}
 		}, [customDragHandleMenu])
 
+		// The stock toolbar plus the `index` block's settings controls, which render
+		// themselves away unless a single `index` block is selected. Memoised like the
+		// side menu above: a component identity that changed every render would
+		// re-render `BlockNoteView` mid-transaction, which is what this file's
+		// `React.memo` comparator exists to prevent.
+		const customFormattingToolbar = React.useMemo(() => {
+			return function NotilloFormattingToolbar() {
+				return (
+					<FormattingToolbar>
+						{[
+							...getFormattingToolbarItems(),
+							<IndexToolbarItems key="indexToolbarItems" />
+						]}
+					</FormattingToolbar>
+				)
+			}
+		}, [])
+
+		/**
+		 * `pages` as `selectListing`'s input, once per snapshot.
+		 *
+		 * Built here rather than in `PageIndex` so K listing blocks share one array —
+		 * and `selectListing` can memoize its parent→children index on the array's
+		 * identity, which the per-block version defeated. `useAllPages` keeps the map
+		 * identity stable between snapshots, so this recomputes only on a real change.
+		 */
+		const listingPages = React.useMemo(() => {
+			const listing: ListingPage[] = []
+			for (const page of pages.values()) {
+				listing.push({
+					pageId: page.id,
+					title: page.title,
+					// The resolved parent, never the stored one, and never omitted:
+					// `selectListing` buckets by this key on both sides, so passing
+					// `pp` raw put a top-level page in a bucket no published listing
+					// looks in — and dropped an unfiled page out of every listing here.
+					parentId: listingParentId(page.id, page.parentPageId, homePageId),
+					order: page.order,
+					...(page.tags?.length && { tags: page.tags }),
+					...(page.publishedAt !== undefined && { date: page.publishedAt })
+				})
+			}
+			return listing
+		}, [pages, homePageId])
+
+		// Memoised: every consumer — each `index` block, every wiki link, every tag,
+		// the index toolbar — re-renders when this value's identity changes, and an
+		// object literal changes it on every render of this component.
+		const editorContext = React.useMemo(
+			() => ({
+				pages,
+				listingPages,
+				sourceFileId: fileId,
+				pageId,
+				ownerTag,
+				token,
+				homePageId
+			}),
+			[pages, listingPages, fileId, pageId, ownerTag, token, homePageId]
+		)
+
 		return (
 			<div
 				ref={editorRef}
 				className="notillo-editor"
 				style={notilloThemeOverrides as React.CSSProperties}
 			>
-				<NotilloEditorProvider value={{ pages, sourceFileId: fileId }}>
+				<NotilloEditorProvider value={editorContext}>
 					<BlockNoteView
 						editor={editor}
 						editable={!readOnly}
 						theme={darkMode ? 'dark' : 'light'}
 						slashMenu={false}
 						filePanel={false}
+						formattingToolbar={false}
 						sideMenu={!customSideMenu}
 					>
 						{customSideMenu && <SideMenuController sideMenu={customSideMenu} />}
+						<FormattingToolbarController formattingToolbar={customFormattingToolbar} />
 						<SuggestionMenuController
 							triggerCharacter="/"
 							getItems={async (query) =>
@@ -635,6 +742,7 @@ export const NotilloEditor = React.memo(
 			prev.darkMode === next.darkMode &&
 			prev.fileId === next.fileId &&
 			prev.pages === next.pages &&
+			prev.homePageId === next.homePageId &&
 			prev.tags === next.tags &&
 			prev.onCommentBlock === next.onCommentBlock
 		)

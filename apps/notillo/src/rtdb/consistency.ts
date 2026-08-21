@@ -4,6 +4,7 @@
 import type { RtdbClient } from '@cloudillo/rtdb'
 
 import type { StoredPageRecord } from './types.js'
+import { decodeStoredPage, ROOT_PARENT } from './types.js'
 
 export interface ConsistencyResult {
 	totalPages: number
@@ -32,7 +33,7 @@ export function analyzePages(allPages: Map<string, StoredPageRecord>): Consisten
 	let rootPages = 0
 
 	for (const [id, page] of allPages) {
-		if (page.pp === '__root__') {
+		if (page.pp === ROOT_PARENT) {
 			rootPages++
 		} else if (!page.pp) {
 			// Unfiled is created on purpose (@-mention pages): informational, not
@@ -81,7 +82,7 @@ export function analyzePages(allPages: Map<string, StoredPageRecord>): Consisten
 			const page = allPages.get(current)
 			// The chain ends: at the root marker, at an unfiled page, or at a `pp`
 			// that no longer resolves. All three are reported elsewhere; none loops.
-			if (!page?.pp || page.pp === '__root__' || !allPages.has(page.pp)) {
+			if (!page?.pp || page.pp === ROOT_PARENT || !allPages.has(page.pp)) {
 				if (page) verdict.set(current, 'terminates')
 				for (const id of path) verdict.set(id, 'terminates')
 				break
@@ -109,7 +110,10 @@ export async function checkConsistency(client: RtdbClient): Promise<ConsistencyR
 
 	const allPages = new Map<string, StoredPageRecord>()
 	snapshot.forEach((doc) => {
-		allPages.set(doc.id, doc.data() as StoredPageRecord)
+		// A page this build cannot read is left out of the analysis rather than
+		// reported as a dangling parent it may well not be.
+		const stored = decodeStoredPage(doc.data(), doc.id)
+		if (stored) allPages.set(doc.id, stored)
 	})
 
 	return analyzePages(allPages)
@@ -137,7 +141,7 @@ export async function fixConsistency(client: RtdbClient, result: ConsistencyResu
 	for (let i = 0; i < repairs.length; i += FIX_BATCH_SIZE) {
 		const batch = client.batch()
 		for (const id of repairs.slice(i, i + FIX_BATCH_SIZE)) {
-			batch.update(client.ref(`p/${id}`), { pp: '__root__', ua: now })
+			batch.update(client.ref(`p/${id}`), { pp: ROOT_PARENT, ua: now })
 		}
 		await batch.commit()
 	}

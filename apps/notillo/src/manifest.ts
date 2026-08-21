@@ -78,6 +78,12 @@ const SEARCH_INDEX_RULES: IndexRules = {
 	]
 }
 
+// No `islands` declaration here. `documentEmbed` is notillo's own block, but its
+// renderer is the shell's own iframe, so it is a built-in: `SITE_BUILTIN_ISLANDS`
+// (`libs/core/src/site-islands.ts`) carries it, and built-ins win — `orderedSpecs`
+// puts them first and `siteIslandRegistry` keeps the first spec per block type. A
+// copy here could never be the one in effect, only a third place to keep in sync.
+
 export const manifest: AppManifest = {
 	id: 'notillo',
 	name: 'Notillo',

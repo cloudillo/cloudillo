@@ -12,11 +12,20 @@ import type {
 	PageRecord,
 	StoredBlockRecord,
 	StoredPageRecord,
-	StyledText,
 	TableCell,
 	TableContent
 } from './types.js'
-import { BLOCK_TYPE_TO_LONG, BLOCK_TYPE_TO_SHORT, isTableContent } from './types.js'
+import {
+	asBlockContent,
+	BLOCK_TYPE_TO_LONG,
+	BLOCK_TYPE_TO_SHORT,
+	decodeLegacyInline,
+	decodeSiteInline,
+	isCompactTableCellArray,
+	isCompactTableContent,
+	isTableCellArray,
+	isTableContent
+} from './types.js'
 
 // ── Style flag encoding ──
 
@@ -52,12 +61,22 @@ export function decodeStyleFlags(flags: string): Record<string, unknown> {
 // ── Block type compaction ──
 
 export function compactBlockType(t: string): string {
-	return BLOCK_TYPE_TO_SHORT[t] ?? t
+	return BLOCK_TYPE_TO_SHORT.get(t) ?? t
 }
 
-export function expandBlockType(t: string): string {
-	return BLOCK_TYPE_TO_LONG[t] ?? t
+/**
+ * Long name for a stored `t`, which may already be either spelling.
+ *
+ * `t` is a free-form stored string, so the lookup has to survive `'toString'` and
+ * `'__proto__'` arriving as block types. `BLOCK_TYPE_TO_LONG` is a `Map`, which has
+ * no prototype chain to fall through, so this is a plain lookup again.
+ */
+export function siteBlockType(t: string): string {
+	return BLOCK_TYPE_TO_LONG.get(t) ?? t
 }
+
+/** The editor's name for the same lookup — one function, two call sites' vocabulary. */
+export const expandBlockType = siteBlockType
 
 // ── Inline content compaction ──
 
@@ -99,55 +118,110 @@ export function compactContentItem(item: InlineContent): CompactInlineContent {
 		return { tg: item.props.tag }
 	}
 
-	// Unknown type — pass through
-	return item as unknown as CompactInlineContent
+	// Unreachable against the declared union, and reached anyway if BlockNote hands
+	// back an inline spec this build has no branch for. Passed through rather than
+	// blanked, so a round trip through the editor cannot delete stored content.
+	return asBlockContent(item)
 }
 
-export function expandContentItem(item: CompactInlineContent): InlineContent {
-	// Bare string → unstyled text
-	if (typeof item === 'string') {
-		return { type: 'text', text: item, styles: {} }
+/**
+ * One stored inline run, in the verbose form BlockNote reads.
+ *
+ * `unknown` in, because that is what a stored run is: the decode below is the only
+ * thing that says otherwise. A pre-compact item is normalized first rather than
+ * branched on again here, so the legacy shapes are described once
+ * (`normalizeSiteInline`) instead of twice.
+ */
+export function expandContentItem(raw: unknown): InlineContent {
+	const item = normalizeSiteInline(raw)
+	const decoded = decodeSiteInline(item)
+	if (decoded === undefined) {
+		// Something newer than this build knows. Handed back untouched rather than
+		// blanked: the editor round-trips content through here, and replacing an
+		// unreadable run with an empty one would write that loss back to the store.
+		return asBlockContent(item)
 	}
 
+	// Bare string → unstyled text
+	if (typeof decoded === 'string') return { type: 'text', text: decoded, styles: {} }
+
 	// Tuple → styled text
-	if (Array.isArray(item)) {
-		const [text, flags, colors] = item as [string, string, CompactColorStyles?]
+	if (Array.isArray(decoded)) {
+		const [text, flags, colors] = decoded
 		const styles: Record<string, unknown> = decodeStyleFlags(flags)
 		if (colors?.tc) styles.textColor = colors.tc
 		if (colors?.bg) styles.backgroundColor = colors.bg
 		return { type: 'text', text, styles }
 	}
 
-	// Object — disambiguate by key
-	if (typeof item === 'object' && item !== null) {
-		// Old format (backward compat)
-		if ('type' in item) return item as unknown as InlineContent
-
-		// Compact link
-		if ('l' in item) {
-			const link = item as { l: string; c: CompactInlineContent[] }
-			return {
-				type: 'link',
-				href: link.l,
-				content: link.c.map(expandContentItem) as StyledText[]
-			}
-		}
-
-		// Compact wikiLink
-		if ('wl' in item) {
-			const wl = item as { wl: string; wt: string }
-			return { type: 'wikiLink', props: { pageId: wl.wl, pageTitle: wl.wt } }
-		}
-
-		// Compact tag
-		if ('tg' in item) {
-			const tag = item as { tg: string }
-			return { type: 'tag', props: { tag: tag.tg } }
+	if ('l' in decoded) {
+		// `asBlockContent`: `Link.content` is `StyledText[]`, which cannot express a
+		// wiki link or a tag nested inside a link — a BlockNote schema limit, not a
+		// question about what the data is.
+		return {
+			type: 'link',
+			href: decoded.l,
+			content: asBlockContent(decoded.c.map(expandContentItem))
 		}
 	}
+	if ('wl' in decoded) {
+		return { type: 'wikiLink', props: { pageId: decoded.wl, pageTitle: decoded.wt } }
+	}
+	return { type: 'tag', props: { tag: decoded.tg } }
+}
 
-	// Fallback — return as-is (shouldn't happen)
-	return item as unknown as InlineContent
+// ── Legacy inline content normalization ──
+//
+// `expandContentItem` above hands a pre-compact item straight back to BlockNote,
+// which understands it. The publisher has no BlockNote, so it needs the same
+// backward-compat branch resolved the other way: legacy in, compact out.
+
+function legacyColors(styles: Record<string, unknown> | undefined): CompactColorStyles | undefined {
+	const colors: CompactColorStyles = {}
+	// `default` is BlockNote for "the theme decides" — not a colour, so not carried.
+	if (typeof styles?.textColor === 'string' && styles.textColor !== 'default') {
+		colors.tc = styles.textColor
+	}
+	if (typeof styles?.backgroundColor === 'string' && styles.backgroundColor !== 'default') {
+		colors.bg = styles.backgroundColor
+	}
+	return colors.tc || colors.bg ? colors : undefined
+}
+
+/**
+ * One inline item in the compact form, converting a legacy verbose one on the way.
+ *
+ * `tLegacyInline` is decoded **to detect only**: anything that is not one of the four
+ * pre-compact shapes — already compact, or newer than this build — is returned as the
+ * very object that came in, not a rebuilt copy. `T.struct` decodes into a fresh `{}`,
+ * so returning the decode's output would break identity for every already-compact
+ * item, and callers rely on being able to hand every item through here unconditionally.
+ *
+ * The result is `unknown` because that is what it is worth: the caller decodes it
+ * against `tSiteInline`, which is what turns "probably compact" into a checked shape.
+ */
+export function normalizeSiteInline(item: unknown): unknown {
+	const legacy = decodeLegacyInline(item)
+	if (legacy === undefined) return item
+
+	if (legacy.type === 'text') {
+		const styles = legacy.styles
+		const flags = encodeStyleFlags(styles ?? {})
+		const colors = legacyColors(styles)
+		const text = legacy.text ?? ''
+		if (colors) return [text, flags, colors]
+		return flags ? [text, flags] : text
+	}
+
+	if (legacy.type === 'link') {
+		return { l: legacy.href ?? '', c: (legacy.content ?? []).map(normalizeSiteInline) }
+	}
+
+	if (legacy.type === 'wikiLink') {
+		return { wl: legacy.props?.pageId ?? '', wt: legacy.props?.pageTitle ?? '' }
+	}
+
+	return { tg: legacy.props?.tag ?? '' }
 }
 
 export function compactContent(
@@ -157,43 +231,7 @@ export function compactContent(
 	return content.map(compactContentItem)
 }
 
-export function expandContent(
-	content: CompactInlineContent[] | undefined
-): InlineContent[] | undefined {
-	if (!content || !Array.isArray(content) || content.length === 0) return undefined
-	return content.map(expandContentItem)
-}
-
 // ── Table content compaction/expansion ──
-
-export function isCompactTableContent(content: unknown): content is CompactTableContent {
-	return (
-		typeof content === 'object' &&
-		content !== null &&
-		(content as CompactTableContent).type === 'tableContent'
-	)
-}
-
-// Note: returns false for empty arrays, but both paths produce [] so no data loss
-function isTableCellArray(cells: InlineContent[][] | TableCell[]): cells is TableCell[] {
-	return (
-		cells.length > 0 &&
-		typeof cells[0] === 'object' &&
-		'type' in cells[0] &&
-		cells[0].type === 'tableCell'
-	)
-}
-
-function isCompactTableCellArray(
-	cells: CompactInlineContent[][] | CompactTableCell[]
-): cells is CompactTableCell[] {
-	return (
-		cells.length > 0 &&
-		typeof cells[0] === 'object' &&
-		!Array.isArray(cells[0]) &&
-		'c' in cells[0]
-	)
-}
 
 function compactTableCells(
 	cells: InlineContent[][] | TableCell[]
@@ -211,6 +249,37 @@ function compactTableCells(
 	return cells.map((cell) => cell.map(compactContentItem))
 }
 
+/**
+ * One cell, whichever of the three spellings it is in.
+ *
+ * Only the fallback in `expandTableCells` needs this: the two whole-row predicates above it
+ * cover the uniform cases. A row written across a format change is uniform in neither, and
+ * mapping it wholesale is what threw a `TypeError` out of `fromStoredBlock` and cost the
+ * reader the whole page — the degradation `decodeStoredBlock` promises is per record.
+ */
+function expandTableCell(cell: unknown): InlineContent[] | TableCell {
+	if (Array.isArray(cell)) return (cell as CompactInlineContent[]).map(expandContentItem)
+	if (Array.isArray((cell as CompactTableCell)?.c)) {
+		const tc = cell as CompactTableCell
+		return { type: 'tableCell', props: tc.pr ?? {}, content: tc.c.map(expandContentItem) }
+	}
+	if (Array.isArray((cell as TableCell)?.content)) {
+		const tc = cell as TableCell
+		return {
+			type: 'tableCell',
+			props: tc.props ?? {},
+			content: tc.content.map(expandContentItem)
+		}
+	}
+	// Unreadable: an empty cell, never a thrown page.
+	return []
+}
+
+/**
+ * The compact spelling is what every write produces, so it is tried first. The
+ * verbose one is a read path only — a block written before content compaction —
+ * and nothing emits it any more.
+ */
 function expandTableCells(
 	cells: CompactInlineContent[][] | CompactTableCell[]
 ): InlineContent[][] | TableCell[] {
@@ -223,8 +292,20 @@ function expandTableCells(
 			})
 		)
 	}
-	// CompactInlineContent[][] — each cell is CompactInlineContent[]
-	return cells.map((cell) => cell.map(expandContentItem))
+	// Already what BlockNote wants, so only the runs inside need expanding — the fast
+	// path for a whole row in the verbose spelling.
+	if (isTableCellArray(cells as unknown as InlineContent[][] | TableCell[])) {
+		return (cells as unknown as TableCell[]).map(
+			(tc): TableCell => ({
+				type: 'tableCell',
+				props: tc.props ?? {},
+				content: tc.content.map(expandContentItem)
+			})
+		)
+	}
+	// A row in no single spelling — see `expandTableCell`. Covers the uniform
+	// `CompactInlineContent[][]` case too, which is what it costs to be per-cell here.
+	return cells.map(expandTableCell) as InlineContent[][] | TableCell[]
 }
 
 export function compactTableContent(content: TableContent): CompactTableContent {
@@ -239,14 +320,30 @@ export function compactTableContent(content: TableContent): CompactTableContent 
 	}
 }
 
-export function expandTableContent(content: CompactTableContent): TableContent {
+/**
+ * A stored table in the verbose form BlockNote reads.
+ *
+ * Both spellings on the way in, like `expandTableCells` above it: a block not
+ * retyped since content compaction still carries BlockNote's own `columnWidths`/
+ * `headerRows`/`headerCols`, and reading only `cw`/`hr`/`hc` dropped them — after
+ * which the next edit wrote that loss back. Compact first, because that is what
+ * every write produces.
+ */
+export function expandTableContent(content: CompactTableContent | TableContent): TableContent {
+	const legacy = content as Partial<TableContent>
+	const compact = content as Partial<CompactTableContent>
+	const columnWidths = compact.cw ?? legacy.columnWidths ?? []
+	const headerRows = compact.hr ?? legacy.headerRows
+	const headerCols = compact.hc ?? legacy.headerCols
 	return {
 		type: 'tableContent',
-		columnWidths: content.cw ?? [],
-		...(content.hr && { headerRows: content.hr }),
-		...(content.hc && { headerCols: content.hc }),
+		columnWidths,
+		...(headerRows && { headerRows }),
+		...(headerCols && { headerCols }),
+		// The verbose cell spellings are a runtime branch inside `expandTableCells`,
+		// not part of its parameter type — narrow here rather than widen there.
 		rows: content.rows.map((row) => ({
-			cells: expandTableCells(row.cells)
+			cells: expandTableCells(row.cells as CompactInlineContent[][] | CompactTableCell[])
 		}))
 	}
 }
@@ -262,9 +359,8 @@ export function compactBlockContent(
 	return undefined
 }
 
-export function expandBlockContent(
-	content: CompactInlineContent[] | CompactTableContent | undefined
-): InlineContent[] | TableContent | undefined {
+/** `unknown` in: a stored block's `c` is whatever the document holds. */
+export function expandBlockContent(content: unknown): InlineContent[] | TableContent | undefined {
 	if (!content) return undefined
 	if (isCompactTableContent(content)) return expandTableContent(content)
 	if (Array.isArray(content) && content.length > 0) return content.map(expandContentItem)
@@ -329,7 +425,18 @@ export function fromStoredPage(stored: StoredPageRecord): PageRecord {
 		...(stored.ca !== undefined && { createdAt: stored.ca }),
 		...(stored.ua !== undefined && { updatedAt: stored.ua }),
 		...(stored.cb !== undefined && { createdBy: stored.cb }),
-		...(stored.tg !== undefined && { tags: stored.tg })
+		...(stored.tg !== undefined && { tags: stored.tg }),
+		// Site fields: absent stays absent, so a projected read stays distinguishable
+		// from a page that genuinely has no slug and no archetype.
+		...(stored.slug !== undefined && { slug: stored.slug }),
+		...(stored.draft !== undefined && { draft: stored.draft }),
+		...(stored.kind !== undefined && { kind: stored.kind }),
+		...(stored.childKind !== undefined && { childKind: stored.childKind }),
+		...(stored.author !== undefined && { author: stored.author }),
+		...(stored.pubAt !== undefined && { publishedAt: stored.pubAt }),
+		...(stored.desc !== undefined && { desc: stored.desc }),
+		...(stored.image !== undefined && { image: stored.image }),
+		...(stored.noNav !== undefined && { noNav: stored.noNav })
 	}
 }
 
@@ -342,7 +449,16 @@ export function toStoredPage(page: FullPageRecord): StoredPageRecord {
 		ca: page.createdAt,
 		ua: page.updatedAt,
 		cb: page.createdBy,
-		...(page.tags !== undefined && { tg: page.tags })
+		...(page.tags !== undefined && { tg: page.tags }),
+		...(page.slug !== undefined && { slug: page.slug }),
+		...(page.draft !== undefined && { draft: page.draft }),
+		...(page.kind !== undefined && { kind: page.kind }),
+		...(page.childKind !== undefined && { childKind: page.childKind }),
+		...(page.author !== undefined && { author: page.author }),
+		...(page.publishedAt !== undefined && { pubAt: page.publishedAt }),
+		...(page.desc !== undefined && { desc: page.desc }),
+		...(page.image !== undefined && { image: page.image }),
+		...(page.noNav !== undefined && { noNav: page.noNav })
 	}
 }
 

@@ -13,13 +13,12 @@
  * local debounce is armed is the one case both directions touch at once.
  */
 
+import type { Block, BlockNoteEditor } from '@blocknote/core'
+import type { RtdbClient } from '@cloudillo/rtdb'
 import { jest } from '@jest/globals'
 import * as React from 'react'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
-
-import type { Block, BlockNoteEditor } from '@blocknote/core'
-import type { RtdbClient } from '@cloudillo/rtdb'
 
 import { useDocumentSync, useRtdbToEditor } from '../hooks/useEditorSync.js'
 import type { StoredBlockRecord } from '../rtdb/types.js'

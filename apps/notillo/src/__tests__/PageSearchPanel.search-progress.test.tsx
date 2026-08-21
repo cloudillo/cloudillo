@@ -12,12 +12,12 @@
  * change that alters nothing about the behaviour under test.
  */
 
+import type { RtdbClient } from '@cloudillo/rtdb'
 import { jest } from '@jest/globals'
 import * as React from 'react'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 
-import type { RtdbClient } from '@cloudillo/rtdb'
 import type { SearchResult } from '../utils/search.js'
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true

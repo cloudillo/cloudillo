@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { type PresenceEntry, dedupePresenceUsers } from '@cloudillo/core'
+import { dedupePresenceUsers, type PresenceEntry } from '@cloudillo/core'
 import {
 	ActionSheet,
 	ActionSheetItem,
@@ -10,6 +10,7 @@ import {
 	LoadingSpinner,
 	Menu,
 	MenuItem,
+	Modal,
 	PresenceAvatar,
 	TreeItem,
 	type TreeItemDragData,
@@ -21,6 +22,7 @@ import {
 import type { RtdbClient } from '@cloudillo/rtdb'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { LuHouse as IcHome } from 'react-icons/lu'
 import {
 	PiFilePlusBold as IcAddSubpage,
 	PiXBold as IcClose,
@@ -41,6 +43,8 @@ import {
 	planMove
 } from '../rtdb/page-ops.js'
 import type { PageRecord } from '../rtdb/types.js'
+import { ROOT_PARENT } from '../rtdb/types.js'
+import { childKindFor } from '../utils/archetype.js'
 import type { SearchResult } from '../utils/search.js'
 import { PageSearchPanel } from './PageSearchPanel.js'
 import { useConsistencyCheck } from './useConsistencyCheck.js'
@@ -117,6 +121,29 @@ interface PageSidebarProps {
 	/** Most recently visited first. */
 	recentPageIds: string[]
 	onImportMarkdown?: (parentPageId: string) => void
+	/**
+	 * The document is published as a website, so it has a home page, addresses and
+	 * page types. With it off the sidebar is exactly what it has always been.
+	 */
+	siteMode: boolean
+	/** The page served at the mount root, when the document names one. */
+	homePageId?: string
+	/**
+	 * Promote a page to home, or clear it — reparenting and confirmation included.
+	 *
+	 * The whole act lives in `hooks/useHomePage.ts`, because the page settings pane
+	 * offers the same two actions and two copies would be two confirm dialogs saying
+	 * different things.
+	 */
+	onSetHome: (pageId: string, opts?: { justCreated?: boolean }) => Promise<void>
+	onClearHome: () => Promise<void>
+	/** A home-page write is in flight, so the home actions are inert. */
+	homeBusy: boolean
+	/**
+	 * Bumped by the parent (the publish dialog's "Choose a home page") to open the
+	 * home picker. Ignored when site mode is off.
+	 */
+	homePickerSeq?: number
 }
 
 export function PageSidebar({
@@ -146,7 +173,13 @@ export function PageSidebar({
 	focusSearchSeq,
 	onSearchActivate,
 	recentPageIds,
-	onImportMarkdown
+	onImportMarkdown,
+	siteMode,
+	homePageId,
+	onSetHome,
+	onClearHome,
+	homeBusy,
+	homePickerSeq
 }: PageSidebarProps) {
 	const { t } = useTranslation()
 	const dialog = useDialog()
@@ -187,7 +220,7 @@ export function PageSidebar({
 	const rootPages = React.useMemo(() => {
 		const roots: PageWithId[] = []
 		for (const page of pages.values()) {
-			if (page.parentPageId === '__root__') {
+			if (page.parentPageId === ROOT_PARENT) {
 				roots.push(page)
 			}
 		}
@@ -204,6 +237,42 @@ export function PageSidebar({
 		}
 		return index
 	}, [pages])
+
+	// The home page as the sidebar shows it. A `homePageId` naming a page that no
+	// longer exists reads as no home page at all — which is what `resolveTree` makes
+	// of it too, so the sidebar and the container cannot disagree.
+	const homePage = siteMode && homePageId ? (pages.get(homePageId) ?? null) : null
+
+	// The top level of the site: pages filed at the root, plus any still stored under
+	// the home page. The same fold `childrenOf` applies when resolving the tree, so
+	// "top level" means one thing in the sidebar and in the container both.
+	const topLevelPages = React.useMemo(() => {
+		if (!homePage) return rootPages
+		const top: PageWithId[] = []
+		for (const page of pages.values()) {
+			if (page.id === homePage.id) continue
+			// Deliberately *not* `isTopLevel`: an unfiled page (`pp: null`) is hidden
+			// from the tree by `removeFromSidebar` and shown in its own slot below.
+			// Publish lifts such a page to the top level, the sidebar does not.
+			if (page.parentPageId === ROOT_PARENT || page.parentPageId === homePage.id) {
+				top.push(page)
+			}
+		}
+		return top.sort((a, b) => a.order - b.order)
+	}, [pages, rootPages, homePage])
+
+	// What the *tree* renders, as against what the delete cascade walks. The home
+	// page's rendered children are the top-level pages; its stored children are
+	// whatever `pp` says, and deleting it must not cascade into the whole document.
+	const treeChildIndex = React.useMemo(() => {
+		if (!homePage) return childIndex
+		const index = new Map(childIndex)
+		index.set(
+			homePage.id,
+			topLevelPages.map((page) => page.id)
+		)
+		return index
+	}, [childIndex, homePage, topLevelPages])
 
 	// Everyone else's page, off the document-wide roster. Grouped from `entries`
 	// (one per connection) and deduplicated per page afterwards, so two tabs of one
@@ -252,7 +321,7 @@ export function PageSidebar({
 	const handleCreatePage = React.useCallback(async () => {
 		if (deleting) return
 		try {
-			const id = await createPage(client, userId, t('New Page'), '__root__')
+			const id = await createPage(client, userId, t('New Page'), ROOT_PARENT)
 			onSelectPage(id)
 		} catch (err) {
 			console.error('[Notillo] Create page failed:', err)
@@ -265,7 +334,15 @@ export function PageSidebar({
 			e.stopPropagation()
 			if (deleting) return
 			try {
-				const id = await createPage(client, userId, t('New Page'), parentPageId)
+				// The child's archetype is what the parent says its children are, so
+				// adding a post under a blog page is one step rather than two.
+				const id = await createPage(
+					client,
+					userId,
+					t('New Page'),
+					parentPageId,
+					childKindFor(pages.get(parentPageId))
+				)
 				onExpand(parentPageId)
 				onSelectPage(id)
 			} catch (err) {
@@ -273,7 +350,7 @@ export function PageSidebar({
 				await tellCreateFailed()
 			}
 		},
-		[client, userId, onSelectPage, onExpand, deleting, t, tellCreateFailed]
+		[client, userId, pages, onSelectPage, onExpand, deleting, t, tellCreateFailed]
 	)
 
 	const handleDeletePage = React.useCallback(
@@ -337,6 +414,51 @@ export function PageSidebar({
 		[client, deleting, dialog, t]
 	)
 
+	// The home page's own local UI state. `homeExpanded` is not part of the parent's
+	// `expanded` set on purpose: the home row is the root of the whole tree, so it
+	// starts open, and the shared set means the opposite — absent is collapsed.
+	const [homeExpanded, setHomeExpanded] = React.useState(true)
+	const [homePickerOpen, setHomePickerOpen] = React.useState(false)
+	const [creatingHome, setCreatingHome] = React.useState(false)
+
+	// The publish dialog's "Choose a home page" reaches the picker through this.
+	// Falsy — which the parent's initial 0 is — never opens it, so mounting the
+	// sidebar does not put a dialog on screen.
+	React.useEffect(() => {
+		if (!homePickerSeq || !siteMode) return
+		setHomePickerOpen(true)
+	}, [homePickerSeq, siteMode])
+
+	const handleCreateHomePage = React.useCallback(async () => {
+		if (deleting || homeBusy || creatingHome) return
+		setHomePickerOpen(false)
+		setCreatingHome(true)
+		try {
+			const id = await createPage(client, userId, t('Home'), ROOT_PARENT)
+			// A page created a moment ago has no children and is not live, so this
+			// promotes it without a confirm dialog nobody needs to read. The flag is
+			// what gets it past `setHome`'s "is this page real" guard: the page map is
+			// the last snapshot, which cannot contain a page this new.
+			await onSetHome(id, { justCreated: true })
+			onSelectPage(id)
+		} catch (err) {
+			console.error('[Notillo] Create home page failed:', err)
+			await tellCreateFailed()
+		} finally {
+			setCreatingHome(false)
+		}
+	}, [
+		client,
+		userId,
+		deleting,
+		homeBusy,
+		creatingHome,
+		onSetHome,
+		onSelectPage,
+		tellCreateFailed,
+		t
+	])
+
 	// Close menu on click outside
 	React.useEffect(() => {
 		if (!menuOpen) return
@@ -349,9 +471,13 @@ export function PageSidebar({
 		return () => document.removeEventListener('click', handleClickOutside, true)
 	}, [menuOpen])
 
+	// The menu carries the home actions as well as the import, so site mode alone is
+	// enough to make a row worth opening one on.
+	const hasRowMenu = !readOnly && (!!onImportMarkdown || siteMode)
+
 	const handlePageContextMenu = React.useCallback(
 		(e: React.MouseEvent, pageId: string, pageTitle: string) => {
-			if (readOnly || !onImportMarkdown) return
+			if (!hasRowMenu) return
 			e.preventDefault()
 			e.stopPropagation()
 			// Only open from a real mouse right-click. Mobile browsers
@@ -368,7 +494,7 @@ export function PageSidebar({
 			if (Date.now() - lastTouchStartRef.current < 1500) return
 			setCtxMenu({ x: e.clientX, y: e.clientY, pageId, pageTitle })
 		},
-		[readOnly, onImportMarkdown]
+		[hasRowMenu]
 	)
 
 	// Long-press for mobile context menu. Threshold intentionally over
@@ -377,7 +503,7 @@ export function PageSidebar({
 
 	const handleTouchStart = React.useCallback(
 		(e: React.TouchEvent, pageId: string, pageTitle: string) => {
-			if (readOnly || !onImportMarkdown) return
+			if (!hasRowMenu) return
 			// TreeItem spreads this onto its outer element and renders its children
 			// inside it, so without stopping propagation every ancestor clears the
 			// timer armed below and arms its own — the menu would open for the
@@ -402,7 +528,7 @@ export function PageSidebar({
 				longPressTimerRef.current = null
 			}, LONG_PRESS_MS)
 		},
-		[readOnly, onImportMarkdown]
+		[hasRowMenu]
 	)
 
 	const handleTouchEnd = React.useCallback((e: React.TouchEvent) => {
@@ -475,13 +601,44 @@ export function PageSidebar({
 		setDropPosition(null)
 	}, [])
 
-	function renderPage(page: PageWithId, depth: number) {
-		const childIds = childIndex.get(page.id) ?? []
-		const hasChildren = childIds.length > 0
-		const isExpanded = expanded.has(page.id)
+	/**
+	 * One row of the tree. `opts` is what the home row needs and no ordinary page
+	 * does — see `renderHomeRow`, which is this function with four things swapped.
+	 */
+	interface PageRowOptions {
+		icon?: React.ReactNode
+		/** A chip after the title. */
+		badge?: React.ReactNode
+		/** The home row cannot be dragged: there is nothing above it to drag to. */
+		draggable?: boolean
+		/** The `+` button. Default: add a subpage of this page. */
+		add?: { title: string; onClick: (e: React.MouseEvent) => void }
+		/** Expansion state and children, when they are not the tree's own. */
+		expanded?: boolean
+		onToggle?: () => void
+		childRows?: React.ReactNode
+		hasChildren?: boolean
+	}
+
+	// `seen` is the ancestor chain, not a global visited set: the same page may
+	// legitimately appear under two parents — the home row renders the top level as
+	// its children — but never under itself. A concurrent re-parent or any
+	// out-of-band `pp` write can close the loop, and an unguarded walk then recurses
+	// until the stack goes. `resolveTree` (publish/tree.ts) and `buildTree`
+	// (render/serializer.ts) guard the same way.
+	function renderPage(
+		page: PageWithId,
+		depth: number,
+		opts: PageRowOptions = {},
+		seen: ReadonlySet<string> = new Set()
+	) {
+		const childIds = treeChildIndex.get(page.id) ?? []
+		const hasChildren = opts.hasChildren ?? childIds.length > 0
+		const isExpanded = opts.expanded ?? expanded.has(page.id)
 		const pageTitle = page.title || t('Untitled')
 		const deleteProgress = deleting?.pageId === page.id ? deleting : null
 		const pageUsers = presenceByPage.get(page.id)
+		const draggable = !readOnly && (opts.draggable ?? true)
 
 		return (
 			<TreeItem
@@ -493,7 +650,7 @@ export function PageSidebar({
 				selected={page.id === activePageId}
 				hasChildren={hasChildren}
 				allowDropInside={!readOnly}
-				icon={page.icon ? <span>{page.icon}</span> : <IcPage />}
+				icon={opts.icon ?? (page.icon ? <span>{page.icon}</span> : <IcPage />)}
 				label={
 					// The faces go in the label rather than in `actions`, which only
 					// becomes visible on hover — "someone is on this page" is exactly
@@ -505,10 +662,11 @@ export function PageSidebar({
 						<span className="page-tree-title" title={pageTitle}>
 							{pageTitle}
 						</span>
+						{opts.badge}
 						{pageUsers && <PagePresence users={pageUsers} guestLabel={t('Guest')} />}
 					</>
 				}
-				isDraggable={!readOnly}
+				isDraggable={draggable}
 				dragData={{ id: page.id, type: hasChildren ? 'container' : 'object' }}
 				dragging={draggedId === page.id}
 				dropTarget={dropTargetId === page.id}
@@ -520,7 +678,7 @@ export function PageSidebar({
 					}
 					onSelectPage(page.id)
 				}}
-				onToggle={() => onToggleExpand(page.id)}
+				onToggle={opts.onToggle ?? (() => onToggleExpand(page.id))}
 				onContextMenu={(e: React.MouseEvent) =>
 					handlePageContextMenu(e, page.id, pageTitle)
 				}
@@ -549,8 +707,10 @@ export function PageSidebar({
 						<>
 							<button
 								className="page-tree-action"
-								onClick={(e) => handleCreateSubpage(e, page.id)}
-								title={t('Add subpage')}
+								onClick={
+									opts.add?.onClick ?? ((e) => handleCreateSubpage(e, page.id))
+								}
+								title={opts.add?.title ?? t('Add subpage')}
 							>
 								<IcAddSubpage />
 							</button>
@@ -566,11 +726,61 @@ export function PageSidebar({
 				}
 			>
 				{isExpanded &&
-					childIds.map((childId) => {
-						const child = pages.get(childId)
-						return child ? renderPage(child, depth + 1) : null
-					})}
+					(opts.childRows ??
+						childIds.map((childId) => {
+							if (seen.has(childId)) return null
+							const child = pages.get(childId)
+							return child
+								? renderPage(child, depth + 1, {}, new Set(seen).add(page.id))
+								: null
+						}))}
 			</TreeItem>
+		)
+	}
+
+	/**
+	 * The home page, pinned above the tree with the top-level pages as its children.
+	 *
+	 * An ordinary row with four things swapped: the house icon and a `/` chip instead
+	 * of a slug, no dragging (there is nothing above it to drag to), a `+` that adds a
+	 * top-level page rather than one of its own subpages, and the top level as its
+	 * children. Everything else — the long-press guard, the touch and drop handlers,
+	 * the delete progress — is `renderPage`'s, once.
+	 */
+	function renderHomeRow(home: PageWithId) {
+		return renderPage(home, 0, {
+			icon: <IcHome />,
+			badge: (
+				<span className="c-badge xs" title={t('Served at your site’s root')}>
+					/
+				</span>
+			),
+			draggable: false,
+			add: { title: t('New page'), onClick: handleCreatePage },
+			hasChildren: topLevelPages.length > 0,
+			expanded: homeExpanded,
+			onToggle: () => setHomeExpanded((open) => !open),
+			childRows: topLevelPages.map((page) => renderPage(page, 1, {}, new Set([home.id])))
+		})
+	}
+
+	/** The home slot with nothing in it — site mode is on but no page claims `/`. */
+	function renderHomeEmptyRow() {
+		return (
+			<div className="page-tree-home-empty c-vbox g-1 mx-2 mb-2 p-2">
+				<div className="c-hbox align-items-center g-2">
+					<IcHome />
+					<span className="font-semibold text-sm flex-fill">{t('Home')}</span>
+				</div>
+				<div className="text-xs text-muted">
+					{t('Not set — visitors to / see nothing yet.')}
+				</div>
+				{!readOnly && (
+					<Button size="small" onClick={() => setHomePickerOpen(true)}>
+						{t('Choose a page…')}
+					</Button>
+				)}
+			</div>
 		)
 	}
 
@@ -579,6 +789,23 @@ export function PageSidebar({
 		() => Array.from(tags).sort((a, b) => a.localeCompare(b)),
 		[tags]
 	)
+
+	// The one home action the open row menu offers, if any. A subpage is not on the
+	// list: it would have to be moved to the top level first, and the drag that does
+	// that is the same gesture either way.
+	const homeAction = React.useMemo(():
+		| { label: string; run: () => Promise<void> }
+		| undefined => {
+		if (!siteMode || readOnly || !ctxMenu) return undefined
+		const { pageId } = ctxMenu
+		if (homePage && pageId === homePage.id) {
+			return { label: t('Remove as home page'), run: onClearHome }
+		}
+		if (topLevelPages.some((page) => page.id === pageId)) {
+			return { label: t('Set as home page'), run: () => onSetHome(pageId) }
+		}
+		return undefined
+	}, [siteMode, readOnly, ctxMenu, homePage, topLevelPages, onClearHome, onSetHome, t])
 
 	return (
 		<>
@@ -616,7 +843,7 @@ export function PageSidebar({
 											className="c-menu-item"
 											onClick={() => {
 												setMenuOpen(false)
-												onImportMarkdown('__root__')
+												onImportMarkdown(ROOT_PARENT)
 											}}
 										>
 											{t('Import Markdown')}
@@ -699,13 +926,16 @@ export function PageSidebar({
 								</div>
 							</div>
 						)}
-						{rootPages.length === 0 ? (
+						{siteMode && !homePage && renderHomeEmptyRow()}
+						{!homePage && topLevelPages.length === 0 ? (
 							<div className="p-3 text-center text-muted text-sm">
 								{readOnly ? t('No pages yet.') : t('No pages yet. Create one!')}
 							</div>
 						) : (
 							<TreeView className="page-tree">
-								{rootPages.map((page) => renderPage(page, 0))}
+								{homePage
+									? renderHomeRow(homePage)
+									: topLevelPages.map((page) => renderPage(page, 0))}
 							</TreeView>
 						)}
 					</>
@@ -750,34 +980,94 @@ export function PageSidebar({
 				</div>
 			)}
 			{ctxMenu &&
-				(isMobile ? (
-					<ActionSheet
-						isOpen={true}
-						onClose={() => setCtxMenu(null)}
-						title={ctxMenu.pageTitle}
-					>
-						<ActionSheetItem
-							label={t('Import Markdown as child page')}
+				(() => {
+					// Same items either way — only the chrome around them differs, so
+					// the item list is built once and the row component picked.
+					const Item = isMobile ? ActionSheetItem : MenuItem
+					const items = [
+						onImportMarkdown && {
+							label: t('Import Markdown as child page'),
+							run: () => onImportMarkdown(ctxMenu.pageId)
+						},
+						homeAction && { label: homeAction.label, run: homeAction.run }
+					].filter((item) => !!item)
+					const rows = items.map((item) => (
+						<Item
+							key={item.label}
+							label={item.label}
 							onClick={() => {
-								onImportMarkdown?.(ctxMenu.pageId)
+								const { run } = item
 								setCtxMenu(null)
+								void run()
 							}}
 						/>
-					</ActionSheet>
-				) : (
-					<Menu
-						position={{ x: ctxMenu.x, y: ctxMenu.y }}
-						onClose={() => setCtxMenu(null)}
+					))
+					return isMobile ? (
+						<ActionSheet
+							isOpen={true}
+							onClose={() => setCtxMenu(null)}
+							title={ctxMenu.pageTitle}
+						>
+							{rows}
+						</ActionSheet>
+					) : (
+						<Menu
+							position={{ x: ctxMenu.x, y: ctxMenu.y }}
+							onClose={() => setCtxMenu(null)}
+						>
+							{rows}
+						</Menu>
+					)
+				})()}
+			{homePickerOpen && (
+				<Modal open onClose={() => setHomePickerOpen(false)} className="p-0">
+					<div
+						className="c-dialog c-panel emph p-4 c-vbox g-3"
+						style={{ maxWidth: '24rem', width: '90vw' }}
 					>
-						<MenuItem
-							label={t('Import Markdown as child page')}
-							onClick={() => {
-								onImportMarkdown?.(ctxMenu.pageId)
-								setCtxMenu(null)
-							}}
-						/>
-					</Menu>
-				))}
+						<h2 className="m-0">{t('Choose a home page')}</h2>
+						<p className="c-hint m-0">
+							{t(
+								'It is served at your site’s root, and your other top-level pages become its subpages.'
+							)}
+						</p>
+						{topLevelPages.length > 0 && (
+							<div
+								className="c-vbox g-1 overflow-y-auto"
+								style={{ maxHeight: '40vh' }}
+							>
+								{topLevelPages.map((page) => (
+									<Button
+										key={page.id}
+										kind="link"
+										className="justify-content-start"
+										disabled={homeBusy || creatingHome}
+										onClick={() => {
+											setHomePickerOpen(false)
+											void onSetHome(page.id)
+										}}
+									>
+										{page.icon ? <span>{page.icon}</span> : <IcPage />}
+										<span className="flex-fill">
+											{page.title || t('Untitled')}
+										</span>
+									</Button>
+								))}
+							</div>
+						)}
+						<div className="c-hbox justify-content-end g-2">
+							<Button onClick={() => setHomePickerOpen(false)}>{t('Cancel')}</Button>
+							<Button
+								variant="primary"
+								disabled={homeBusy || creatingHome}
+								onClick={handleCreateHomePage}
+							>
+								{t('Create a home page')}
+							</Button>
+						</div>
+					</div>
+				</Modal>
+			)}
 		</>
 	)
 }

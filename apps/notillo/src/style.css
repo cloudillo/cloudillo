@@ -386,6 +386,199 @@ body,
 	opacity: 1;
 }
 
+/* ── Page Index ── */
+
+.notillo-index {
+	/* `.bn-block-content` is `display: flex` and nothing stretches its children, so a
+	   block spec's root is a flex item that sizes to its content — a listing box only
+	   as wide as its longest title. The rows are a column of records, not a phrase. */
+	width: 100%;
+	/* A flow root so the floated summary is contained: without it the chip escapes the
+	   bottom border whenever the rows are shorter than the chip is tall. */
+	display: flow-root;
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-md);
+	padding: 0.5rem;
+}
+
+.notillo-index--empty {
+	border-style: dashed;
+}
+
+/* Never `flex-wrap` here: OpalUI's `c-form.css` gives `.c-input`/`.c-select` a
+   `width: 100%`, and a full-width item in a wrapping row takes a line of its own. */
+/* Floated rather than a band across the top: the query is an annotation on the listing,
+   not a heading for it, and a full row of chrome above every listing pushes the first
+   title down for nothing. Floated, the rows start at the top of the block and the first
+   title wraps around the chip. `.notillo-index-rows` is a plain block container, so its
+   line boxes shorten around it as intended. */
+.notillo-index-summary {
+	float: inline-end;
+	max-width: 60%;
+	display: flex;
+	align-items: center;
+	gap: 0.375rem;
+	margin-inline-start: 0.5rem;
+	margin-block-end: 0.375rem;
+	color: color-mix(in lch, var(--col-on-surface), transparent 45%);
+	font-size: 0.75rem;
+	user-select: none;
+}
+
+.notillo-index-rows {
+	list-style: none;
+	margin-block: 0;
+	padding-inline-start: 0;
+}
+
+.notillo-index-row {
+	padding-block: 0.125rem;
+}
+
+/* ── Page Index layouts ──
+   Mirrors the published `.cl-site-listing--*` rules in `shell/src/style.css`, the way
+   the heading scale below does: choosing a layout has to show the author what gets
+   published. Scaled down throughout — this block sits in a bordered container inside
+   a document, not on a page of its own. Keyed on `data-layout`, which the block has
+   always emitted and nothing has ever read. */
+
+/* `list` — a feed: separated rows, a title that reads as a heading. */
+.notillo-index[data-layout='list'] .notillo-index-row {
+	padding-block: 0 0.5rem;
+	margin-block-end: 0.5rem;
+	border-block-end: 1px solid var(--col-outline);
+}
+
+.notillo-index[data-layout='list'] .notillo-index-row:last-child {
+	margin-block-end: 0;
+	padding-block-end: 0;
+	border-block-end: none;
+}
+
+.notillo-index[data-layout='list'] .notillo-index-link,
+.notillo-index[data-layout='cards'] .notillo-index-link {
+	font-size: 1rem;
+	font-weight: 600;
+}
+
+/* `compact` — a table of contents rather than a feed: one line per row, no rules. */
+.notillo-index[data-layout='compact'] .notillo-index-row {
+	padding-block: 0 0.125rem;
+}
+
+/* `tree` — the nesting is the information, so the indent is all the layout does. The
+   indent itself is inline on the row, from `depth`. */
+.notillo-index[data-layout='tree'] .notillo-index-row {
+	padding-block: 0.125rem;
+}
+
+/* `cards` — an auto-fill grid, no baked breakpoint, as the published container has.
+   `12rem` where the site uses `16rem`: the block is narrower than a page. */
+.notillo-index[data-layout='cards'] .notillo-index-rows {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+	gap: 0.5rem;
+}
+
+.notillo-index[data-layout='cards'] .notillo-index-row {
+	padding: 0.5rem;
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-md);
+}
+
+/* `cards` makes `.notillo-index-rows` a grid, and a grid container is an independent
+   formatting context: it cannot flow around a float, only be narrowed by one for its
+   whole height. So here the chip keeps a row of its own. */
+.notillo-index[data-layout='cards'] .notillo-index-summary {
+	float: none;
+	max-width: none;
+	margin-inline-start: 0;
+}
+
+/* An inline row of pills, matching `.notillo-tag` in the document body. The published
+   listing's tags are a bare `<ul>` that inherits the site stylesheet's bullets; that
+   is an accident there, not a look to copy. Not clickable — the rows' one affordance
+   is navigating to the page. */
+.notillo-index-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem;
+	list-style: none;
+	margin-block: 0.25rem 0;
+	padding-inline-start: 0;
+}
+
+.notillo-index-tag {
+	padding: 0.05em 0.4em;
+	border-radius: var(--radius-sm);
+	background: color-mix(in srgb, var(--col-secondary) 15%, transparent);
+	color: var(--col-secondary);
+	font-size: 0.75rem;
+	font-weight: 500;
+}
+
+.notillo-index-head {
+	display: flex;
+	gap: 0.5rem;
+	align-items: baseline;
+}
+
+/* `compact` puts the date on the title line, where it is a flex item and so shrinks by
+   default. The localised date has spaces in it (`19 Aug 2026`, unlike the ISO head it
+   replaced), so a shrunk box breaks it across two lines as soon as the title fills the
+   row. The title is the elastic field here; the date is a fixed, short one. */
+.notillo-index-head .notillo-index-date {
+	flex: none;
+	white-space: nowrap;
+}
+
+/* The published card's hero, at editor scale. It sits above the title, not inside
+   the row's title line: `cards` is the layout that exists to show an image, and a
+   2.5rem thumbnail beside the title showed nothing about what publishes. */
+.notillo-index-image {
+	display: block;
+	width: 100%;
+	aspect-ratio: 16 / 9;
+	margin-block-end: 0.375rem;
+	border-radius: var(--radius-sm);
+	object-fit: cover;
+}
+
+.notillo-index-desc {
+	color: color-mix(in lch, var(--col-on-surface), transparent 25%);
+	font-size: 0.8125rem;
+}
+
+.notillo-index-link {
+	color: var(--col-primary);
+	cursor: pointer;
+}
+
+.notillo-index-link:hover {
+	text-decoration: underline;
+}
+
+/* Shown here and absent from the published site, so it has to read as a state
+   rather than as part of the title. */
+.notillo-index-draft {
+	padding: 0 0.375rem;
+	border-radius: 1rem;
+	background: var(--col-container);
+	color: var(--col-on-container);
+	font-size: 0.75rem;
+}
+
+.notillo-index-date {
+	color: color-mix(in lch, var(--col-on-surface), transparent 35%);
+	font-size: 0.8125rem;
+	font-variant-numeric: tabular-nums;
+}
+
+.notillo-index-notice {
+	color: color-mix(in lch, var(--col-on-surface), transparent 35%);
+	font-size: 0.875rem;
+}
+
 .tag-clear-btn {
 	background: none;
 	border: none;
@@ -430,6 +623,13 @@ body,
 	gap: var(--space-1);
 	min-width: 0;
 	overflow: visible;
+}
+
+/* The home slot with nothing in it. Dashed rather than solid: it is a place for a
+   page, not a page — the same convention a drop zone uses. */
+.page-tree-home-empty {
+	border: 1px dashed var(--col-outline);
+	border-radius: var(--radius-2, 0.375rem);
 }
 
 .page-tree-title {
@@ -517,6 +717,41 @@ body,
 	line-height: var(--notillo-title-line);
 	word-break: break-word;
 	font-size: 0.9rem;
+}
+
+/* ── Heading scale ──
+   Mirrors the published `#cl-site-content` rules in `shell/src/style.css`. The
+   publisher shifts every body heading down one level (the archetype layout owns the
+   page's single `<h1>`), so a level-1 heading here is an `<h2>` there — sizing both
+   from one table is what makes the editor show what gets published. BlockNote's
+   stock scale starts at 3em, which is a page title, and a document body has none.
+   Levels 5 and 6 share a size because the publisher's clamp lands both on `<h6>`.
+   The level-1 rule carries no `[data-level]` because BlockNote's own does not. */
+
+.notillo-editor .bn-block-content[data-content-type='heading'] {
+	--level: 1.5em;
+	padding-top: 0.5em;
+	font-weight: 600;
+}
+
+.notillo-editor .bn-block-content[data-content-type='heading'][data-level='2'] {
+	--level: 1.25em;
+}
+
+.notillo-editor .bn-block-content[data-content-type='heading'][data-level='3'] {
+	--level: 1.125em;
+}
+
+.notillo-editor .bn-block-content[data-content-type='heading'][data-level='4'] {
+	--level: 1em;
+}
+
+.notillo-editor .bn-block-content[data-content-type='heading'][data-level='5'] {
+	--level: 0.9375em;
+}
+
+.notillo-editor .bn-block-content[data-content-type='heading'][data-level='6'] {
+	--level: 0.9375em;
 }
 
 /* ── Suggestion menus (slash, wiki-link, tag) ── */
@@ -981,6 +1216,32 @@ body,
 .notillo-comment-block-btn:hover {
 	opacity: 1;
 	background: color-mix(in srgb, var(--col-primary) 20%, transparent);
+}
+
+/* ── Publish dialog ── */
+
+/* A page path, a file name and a file id are all long strings with no space in them, and
+   `/` is not a break opportunity, so their min-content width is the whole string. Every
+   row here is a flex row whose items default to `min-width: auto`, so one long path
+   pushed the status column past the dialog edge and gave the body a horizontal
+   scrollbar. `anywhere` — not `break-word` — is the value that actually reduces
+   min-content width. Set once on the root so every section inherits it, including the
+   blocked-reference rows that show raw file ids. */
+.notillo-publish-dialog {
+	overflow-wrap: anywhere;
+}
+
+/* These lists are layout, not prose. OpalUI's reset zeroes `ul` padding but leaves the
+   marker, so discs were drawn left of x=0 and clipped. */
+.notillo-publish-dialog ul {
+	list-style: none;
+}
+
+/* Auto table layout on purpose: with `overflow-wrap: anywhere` above, min-content is
+   ~1ch, so the status column just widens for a long label instead of clipping. */
+.notillo-publish-status {
+	text-align: right;
+	white-space: nowrap;
 }
 
 /* vim: ts=4 */

@@ -19,8 +19,8 @@ import * as React from 'react'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 
-import { ROOT_PARENT } from '../rtdb/types.js'
 import type { PageWithId } from '../publish/tree.js'
+import { ROOT_PARENT } from '../rtdb/types.js'
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -60,6 +60,7 @@ jest.unstable_mockModule('@cloudillo/react', () => ({
 	TreeView: passthrough,
 	useDialog: () => ({ tell: async () => undefined, confirm: async () => false }),
 	useIsMobile: () => false,
+	useOutsideClick: () => {},
 	usePresence: () => ({ entries: [] })
 }))
 

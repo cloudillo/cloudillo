@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { hexToRgb } from '@cloudillo/core'
 import type { PDFPage } from 'pdf-lib'
 import {
 	type PDFContext,
@@ -35,16 +36,6 @@ interface Placement {
 	drawH: number
 }
 
-function hexToRgb(hex: string): [number, number, number] {
-	const h = hex.replace('#', '')
-	if (!/^[0-9a-fA-F]{6}$/.test(h)) return [0, 0, 0]
-	return [
-		parseInt(h.substring(0, 2), 16) / 255,
-		parseInt(h.substring(2, 4), 16) / 255,
-		parseInt(h.substring(4, 6), 16) / 255
-	]
-}
-
 function toPdfX(px: number, placement: Placement): number {
 	return placement.x + px * placement.drawW
 }
@@ -70,7 +61,10 @@ function addInkAnnotation(
 ): void {
 	if (ann.points.length < 2) return
 
-	const [r, g, b] = hexToRgb(ann.color)
+	const rgb = hexToRgb(ann.color) ?? { r: 0, g: 0, b: 0 }
+	const r = rgb.r / 255
+	const g = rgb.g / 255
+	const b = rgb.b / 255
 	const strokeWidth = ann.strokeWidth * Math.min(placement.drawW, placement.drawH)
 	const halfStroke = strokeWidth / 2
 
@@ -185,7 +179,10 @@ function addSquareAnnotation(
 	ann: RectAnnotation,
 	placement: Placement
 ): void {
-	const [r, g, b] = hexToRgb(ann.color)
+	const rgb = hexToRgb(ann.color) ?? { r: 0, g: 0, b: 0 }
+	const r = rgb.r / 255
+	const g = rgb.g / 255
+	const b = rgb.b / 255
 	const strokeWidth = ann.strokeWidth * Math.min(placement.drawW, placement.drawH)
 	const halfStroke = strokeWidth / 2
 
@@ -214,7 +211,10 @@ function addSquareAnnotation(
 		fg = 0,
 		fb = 0
 	if (hasFill) {
-		;[fr, fg, fb] = hexToRgb(ann.fill!)
+		const fillRgb = hexToRgb(ann.fill!) ?? { r: 0, g: 0, b: 0 }
+		fr = fillRgb.r / 255
+		fg = fillRgb.g / 255
+		fb = fillRgb.b / 255
 	}
 
 	// Build appearance stream operators

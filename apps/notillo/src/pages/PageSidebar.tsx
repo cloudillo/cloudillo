@@ -17,6 +17,7 @@ import {
 	TreeView,
 	useDialog,
 	useIsMobile,
+	useOutsideClick,
 	usePresence
 } from '@cloudillo/react'
 import type { RtdbClient } from '@cloudillo/rtdb'
@@ -460,16 +461,7 @@ export function PageSidebar({
 	])
 
 	// Close menu on click outside
-	React.useEffect(() => {
-		if (!menuOpen) return
-		function handleClickOutside(e: MouseEvent) {
-			if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-				setMenuOpen(false)
-			}
-		}
-		document.addEventListener('click', handleClickOutside, true)
-		return () => document.removeEventListener('click', handleClickOutside, true)
-	}, [menuOpen])
+	useOutsideClick(menuRef, () => setMenuOpen(false), menuOpen)
 
 	// The menu carries the home actions as well as the import, so site mode alone is
 	// enough to make a row worth opening one on.

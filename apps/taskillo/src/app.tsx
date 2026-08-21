@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { getAppBus, getDocWsUrl } from '@cloudillo/core'
 import {
 	AppDocBar,
 	EmptyState,
@@ -9,12 +8,12 @@ import {
 	Panel,
 	PresenceProvider,
 	Toasts,
-	usePresence
+	usePresence,
+	useRtdbDocument
 } from '@cloudillo/react'
-import { buildPresenceUser, RtdbClient, type RtdbPresence } from '@cloudillo/rtdb'
+import { buildPresenceUser, type RtdbClient } from '@cloudillo/rtdb'
 import * as React from 'react'
 import { PiTrashBold as IcDelete, PiPlusBold as IcPlus } from 'react-icons/pi'
-import { useLocation } from 'react-router-dom'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
@@ -22,8 +21,6 @@ import '@cloudillo/react/components.css'
 import './style.css'
 
 import type { Task, TaskFilter } from './types.js'
-
-const APP_NAME = 'taskillo'
 
 // =============================================================================
 // HOOKS
@@ -41,139 +38,13 @@ const APP_NAME = 'taskillo'
  * 5. Join the presence roster so collaborators can see each other
  */
 function useTaskillo() {
-	const location = useLocation()
-	const [client, setClient] = React.useState<RtdbClient | undefined>()
-	const [presence, setPresence] = React.useState<RtdbPresence | undefined>()
-	const [connected, setConnected] = React.useState(false)
-	const [loading, setLoading] = React.useState(true)
-	const [error, setError] = React.useState<Error | undefined>()
-	const [fileId, setFileId] = React.useState('')
-	const [ownerTag, setOwnerTag] = React.useState<string | undefined>()
-	const [idTag, setIdTag] = React.useState<string | undefined>()
-	const [access, setAccess] = React.useState<'read' | 'comment' | 'write'>('write')
-
-	// Parse document ID from URL hash
-	// Cloudillo apps receive the document ID in the format: #tenant:path
-	// Example: #alice:tasks/work -> fileId = "tasks/work"
-	React.useEffect(() => {
-		const resId = location.hash.slice(1) // Remove # prefix
-		const [owner, path] = resId.split(':')
-		setOwnerTag(owner || undefined)
-		setFileId(path || '')
-	}, [location.hash])
-
-	// Initialize cloudillo and rtdb client
-	React.useEffect(() => {
-		if (!fileId) return
-		let rtdbClient: RtdbClient | undefined
-		let presenceFeed: RtdbPresence | undefined
-		let unlistenIdentity: (() => void) | undefined
-		let unmounted = false
-
-		;(async () => {
-			try {
-				setLoading(true)
-				setError(undefined)
-
-				// Step 1: Initialize cloudillo SDK
-				// This waits for the parent shell to send an init message with the auth token
-				// Apps run in iframes and communicate with the shell via postMessage
-				console.log('[Taskillo] Initializing cloudillo...')
-				const bus = getAppBus()
-				const _state = await bus.init(APP_NAME)
-				console.log('[Taskillo] Token received')
-				setIdTag(bus.idTag)
-				setAccess(bus.access)
-
-				if (unmounted) return
-
-				// Step 2: Determine WebSocket server URL
-				// Documents live on their owner's instance; an ownerless document is our own.
-				const serverUrl = getDocWsUrl(ownerTag, bus.idTag)
-				if (!serverUrl) throw new Error('No identity available for RTDB connection')
-
-				// Step 3: Create RTDB client
-				// The client manages the WebSocket connection and provides the database API
-				console.log('[Taskillo] Creating RTDB client...')
-				rtdbClient = new RtdbClient({
-					dbId: fileId, // Document/database identifier
-					auth: {
-						getToken: () => bus.accessToken, // Live token from bus (updated on renewal)
-						// On a 4401 `getToken` above is already stale — must renew.
-						refreshToken: () => bus.refreshToken()
-					},
-					serverUrl, // WebSocket server URL
-					options: {
-						enableCache: true, // Cache data locally
-						reconnect: true, // Auto-reconnect on disconnect
-						reconnectDelay: 1000, // Initial reconnect delay (ms)
-						maxReconnectDelay: 30000, // Max reconnect delay (ms)
-						debug: false, // Disable debug logging
-						// Opt in to the presence channel. It goes in the socket URL, so it
-						// cannot be turned on later — without it every publish is a no-op.
-						presence: true
-					}
-				})
-
-				// Step 4: Connect to the real-time database
-				// This establishes the WebSocket connection
-				console.log('[Taskillo] Connecting to RTDB...')
-				await rtdbClient.connect()
-
-				if (unmounted) {
-					await rtdbClient.disconnect()
-					return
-				}
-
-				console.log('[Taskillo] Connected to RTDB')
-
-				// Step 5: Join the presence roster
-				// Only the name goes on the wire — the server stamps `user.idTag` from
-				// the socket's own token, and the colour is derived from that tag by
-				// whoever is LOOKING, so a peer cannot assert someone else's identity.
-				presenceFeed = rtdbClient.presence({ user: buildPresenceUser(bus) })
-				// A corrective `auth:init.push` can land after `bus.init()` resolves on a
-				// share-link mount, which would leave a stale name in every peer's roster.
-				unlistenIdentity = bus.onIdentityChange(() =>
-					presenceFeed?.setUser(buildPresenceUser(bus))
-				)
-
-				setClient(rtdbClient)
-				setPresence(presenceFeed)
-				setConnected(true)
-				setLoading(false)
-			} catch (err) {
-				console.error('[Taskillo] Initialization error:', err)
-				if (!unmounted) {
-					setError(err as Error)
-					setLoading(false)
-				}
-			}
-		})()
-
-		// Cleanup
-		return () => {
-			unmounted = true
-			unlistenIdentity?.()
-			// Clears our roster entry at once, so peers do not wait for the socket to
-			// die for the avatar to go. `disconnect()` would close it too.
-			presenceFeed?.close()
-			if (rtdbClient) {
-				rtdbClient.disconnect().catch(console.error)
-			}
-		}
-	}, [fileId, ownerTag])
-
-	return {
-		client,
-		presence,
-		fileId,
-		idTag,
-		access,
-		connected,
-		error,
-		loading
-	}
+	return useRtdbDocument('taskillo', {
+		presence: true,
+		onInit: (bus, _state, feed) =>
+			// A corrective `auth:init.push` can land after `bus.init()` resolves on a
+			// share-link mount, which would leave a stale name in every peer's roster.
+			bus.onIdentityChange(() => feed?.setUser(buildPresenceUser(bus)))
+	})
 }
 
 /**

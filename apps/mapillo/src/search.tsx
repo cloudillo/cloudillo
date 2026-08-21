@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { useOutsideClick } from '@cloudillo/react'
 import * as React from 'react'
 import { LuX as IcClose, LuSearch as IcSearch } from 'react-icons/lu'
 
@@ -23,15 +24,7 @@ export function SearchBar({ onSelect, privacyAcknowledged, onPrivacyAcknowledge 
 	const containerRef = React.useRef<HTMLDivElement>(null)
 
 	// Close results dropdown on outside click
-	React.useEffect(() => {
-		function handleClickOutside(e: MouseEvent) {
-			if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-				setShowResults(false)
-			}
-		}
-		document.addEventListener('mousedown', handleClickOutside)
-		return () => document.removeEventListener('mousedown', handleClickOutside)
-	}, [])
+	useOutsideClick(containerRef, () => setShowResults(false))
 
 	async function doSearch(bypassPrivacy = false) {
 		const trimmed = query.trim()

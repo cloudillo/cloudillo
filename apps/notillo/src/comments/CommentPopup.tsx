@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { Comment, CommentThread, UseCommentsReturn } from '@cloudillo/react'
-import { Button, useIsMobile } from '@cloudillo/react'
+import { Button, useEscapeKey, useIsMobile } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -67,13 +67,7 @@ export function CommentPopup({
 	}, [onClose, isMobile, position])
 
 	// Close on Escape (both mobile and desktop)
-	React.useEffect(() => {
-		function handleKey(e: KeyboardEvent) {
-			if (e.key === 'Escape') onClose()
-		}
-		document.addEventListener('keydown', handleKey)
-		return () => document.removeEventListener('keydown', handleKey)
-	}, [onClose])
+	useEscapeKey(onClose)
 
 	if (!isMobile && !position) return null
 	if (threads.length === 0) return null

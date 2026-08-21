@@ -1,13 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import {
-	createApiClient,
-	getAppBus,
-	getDocWsUrl,
-	getFileUrl,
-	type MediaFileResolvedPush
-} from '@cloudillo/core'
+import { createApiClient, getAppBus, getFileUrl, type MediaFileResolvedPush } from '@cloudillo/core'
 import {
 	AppDocBar,
 	Dialog,
@@ -16,9 +10,10 @@ import {
 	MenuItem,
 	Panel,
 	Toasts,
+	useRtdbDocument,
 	ZoomableImage
 } from '@cloudillo/react'
-import { RtdbClient } from '@cloudillo/rtdb'
+import type { RtdbClient } from '@cloudillo/rtdb'
 import * as React from 'react'
 import {
 	PiArrowLeftBold as IcBack,
@@ -34,7 +29,6 @@ import {
 	PiScanBold as IcScan,
 	PiArrowCounterClockwiseBold as IcUndo
 } from 'react-icons/pi'
-import { useLocation } from 'react-router-dom'
 
 import { FAB } from './components/FAB.js'
 
@@ -68,8 +62,6 @@ import {
 } from './utils/image-processing.js'
 import { lerpQuad, quadDistance } from './utils/refine-quad.js'
 
-const APP_NAME = 'scanillo'
-
 // Live-preview lock. Two consecutive preview detections that agree within these bounds
 // start a streak; a streak that is long and fresh enough at shutter time becomes the seed
 // quad for the full-res pass.
@@ -97,100 +89,26 @@ type PendingTempId = { pageId: string; field: 'fileId' | 'originalFileId' }
 // =============================================================================
 
 function useScanillo() {
-	const location = useLocation()
-	const [client, setClient] = React.useState<RtdbClient | undefined>()
-	const [connected, setConnected] = React.useState(false)
-	const [loading, setLoading] = React.useState(true)
-	const [error, setError] = React.useState<Error | undefined>()
-	const [fileId, setFileId] = React.useState('')
-	const [ownerTag, setOwnerTag] = React.useState<string | undefined>()
-	const [idTag, setIdTag] = React.useState<string | undefined>()
-	const [access, setAccess] = React.useState<'read' | 'comment' | 'write'>('write')
 	const [token, setToken] = React.useState<string | undefined>()
-
-	React.useEffect(() => {
-		const resId = location.hash.slice(1)
-		const [owner, path] = resId.split(':')
-		setOwnerTag(owner || undefined)
-		setFileId(path || '')
-	}, [location.hash])
-
-	React.useEffect(() => {
-		if (!fileId) return
-		let rtdbClient: RtdbClient | undefined
-		let unmounted = false
-
-		;(async () => {
-			try {
-				setLoading(true)
-				setError(undefined)
-
-				const bus = getAppBus()
-				const _state = await bus.init(APP_NAME)
-				setIdTag(bus.idTag)
-				setAccess(bus.access)
+	const { client, connected, loading, error, fileId, ownerTag, idTag, access } = useRtdbDocument(
+		'scanillo',
+		{
+			onBusInit: (bus) => {
 				setToken(bus.accessToken)
-
-				if (unmounted) return
-
-				// Documents live on their owner's instance; an ownerless document is our own.
-				const serverUrl = getDocWsUrl(ownerTag, bus.idTag)
-				if (!serverUrl) throw new Error('No identity available for RTDB connection')
-
-				rtdbClient = new RtdbClient({
-					dbId: fileId,
-					auth: {
-						getToken: () => bus.accessToken,
-						// On a 4401 `getToken` above is already stale — must renew.
-						refreshToken: () => bus.refreshToken()
-					},
-					serverUrl,
-					options: {
-						enableCache: true,
-						reconnect: true,
-						reconnectDelay: 1000,
-						maxReconnectDelay: 30000,
-						debug: false
-					}
-				})
-
-				await rtdbClient.connect()
-
-				if (unmounted) {
-					await rtdbClient.disconnect()
-					return
-				}
-
-				setClient(rtdbClient)
-				setConnected(true)
-				setLoading(false)
-			} catch (err) {
-				console.error('[Scanillo] Initialization error:', err)
-				if (!unmounted) {
-					setError(err as Error)
-					setLoading(false)
-				}
-			}
-		})()
-
-		return () => {
-			unmounted = true
-			if (rtdbClient) {
-				rtdbClient.disconnect().catch(console.error)
 			}
 		}
-	}, [fileId, ownerTag])
+	)
 
 	return {
 		client,
-		fileId,
-		idTag,
-		ownerTag,
-		access,
-		token,
 		connected,
+		loading,
 		error,
-		loading
+		fileId,
+		ownerTag,
+		idTag,
+		access,
+		token
 	}
 }
 

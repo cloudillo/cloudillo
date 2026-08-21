@@ -24,7 +24,7 @@ import {
 	loadBlobMeta,
 	reconcileBlobMeta
 } from './blob-cache.js'
-import { getCacheStrategy, PRECACHE_URLS, shouldCache } from './cache-strategy.js'
+import { ASSET_BASE, getCacheStrategy, PRECACHE_URLS, shouldCache } from './cache-strategy.js'
 import { debug } from './debug.js'
 import { handleDownload } from './download.js'
 import { ensureIdTag } from './id-tag.js'
@@ -284,7 +284,7 @@ function onFetch(evt: FetchEvent) {
 				}
 				// Serve offline page for navigation requests
 				if (evt.request.mode === 'navigate') {
-					const offlinePage = await cache.match('/offline.html')
+					const offlinePage = await cache.match(`${ASSET_BASE}/offline.html`)
 					if (offlinePage) return offlinePage
 				}
 				return new Response('Network error', { status: 408 })

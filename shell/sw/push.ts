@@ -3,6 +3,7 @@
 
 /** Web-push subscription refresh, notification display and click routing. */
 
+import { ASSET_BASE } from './cache-strategy.js'
 import { debug } from './debug.js'
 import { ensureIdTag } from './id-tag.js'
 import { getAuthToken } from './state.js'
@@ -87,7 +88,7 @@ export function onPush(evt: PushEvent) {
 	evt.waitUntil(
 		self.registration.showNotification(data?.title || 'Cloudillo', {
 			body: data?.body,
-			icon: 'icon-192.png',
+			icon: `${ASSET_BASE}/icon-192.png`,
 			image: data?.image,
 			data: { path: data?.path },
 			sound: 'default',

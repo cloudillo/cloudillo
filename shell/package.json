@@ -14,7 +14,7 @@
 		"watch": "node esbuild.config.js --watch",
 		"dev": "node esbuild.config.js --watch",
 		"test": "NODE_OPTIONS=\"--experimental-vm-modules\" jest",
-		"clean": "rimraf .cache dist/assets*",
+		"clean": "rimraf .cache dist/assets* dist/fonts dist/index.html* dist/manifest.json* dist/offline.html* dist/shell-apps.json* dist/sw*",
 		"start": "web-dev-server"
 	},
 	"author": "Szilárd Hajba <szilu@cloudillo.org",

@@ -13,10 +13,12 @@ import { PROTOCOL_VERSION } from '../../shared/sw-protocol.js'
 import { readSwKeyCookie, writeSwKeyCookie } from './cookie.js'
 import { swNotify } from './sw-rpc.js'
 
-// Version-stamped so a release presents the browser a new script and triggers an
-// install→activate cycle. Must be the *only* path the shell ever registers: two URLs on one
-// scope fight over the registration, each forcing a redundant install.
-const SW_PATH = `/sw-${process.env.CLOUDILLO_VERSION}.js`
+// One script at the dist root, version-stamped in the query so a release still presents the
+// browser a new URL and triggers an install→activate cycle. The path stays `/sw.js` because a
+// worker's scope is bound to its script's path; only the query moves. Must be the *only* URL
+// shape the shell ever registers: two URLs on one scope fight over the registration, each
+// forcing a redundant install.
+const SW_PATH = `/sw.js?v=${process.env.CLOUDILLO_VERSION}`
 
 // Well over the observed claim latency; exists so a dropped claim can't wedge boot.
 const CLAIM_TIMEOUT_MS = 5000

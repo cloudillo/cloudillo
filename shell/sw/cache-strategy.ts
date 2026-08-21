@@ -3,12 +3,19 @@
 
 /** Which caching policy the shell's own static assets get, by path. */
 
+/**
+ * The versioned asset directory. `manifest.json`, `offline.html` and the PWA icons all
+ * live under it, so the dist root only has to serve `sw.js` itself. One definition here
+ * for the whole worker — `index.ts` and `push.ts` compose their paths from it.
+ */
+export const ASSET_BASE = `/assets-${process.env.CLOUDILLO_VERSION || 'unknown'}`
+
 export const PRECACHE_URLS: string[] = [
 	'/',
 	'/index.html',
-	'/manifest.json',
-	'/icon-192.png',
-	'/offline.html'
+	`${ASSET_BASE}/manifest.json`,
+	`${ASSET_BASE}/icon-192.png`,
+	`${ASSET_BASE}/offline.html`
 ]
 
 export type CacheStrategy = 'cache-first' | 'network-first' | 'network-only'
@@ -22,22 +29,21 @@ export function getCacheStrategy(pathname: string): CacheStrategy {
 	// API and WebSocket endpoints: never cache
 	if (pathname.startsWith('/api/') || pathname.startsWith('/ws/')) return 'network-only'
 
-	// Versioned assets, fonts, sounds, icons, favicons: immutable / long-lived
+	// Versioned assets, fonts, sounds, favicons: immutable / long-lived. The manifest
+	// and the icons match the first pattern now that they are versioned too.
 	if (
 		/^\/assets-[^/]+\//.test(pathname) || // /assets-1.2.3/*
 		/^\/apps\/[^/]+\/assets-[^/]+\//.test(pathname) || // /apps/quillo/assets-1.0.0/*
 		pathname.startsWith('/fonts/') ||
 		pathname.startsWith('/sounds/') ||
-		/^\/icon-[^/]+\.png$/.test(pathname) || // /icon-192.png, /icon-512.png
 		/^\/favicon\./.test(pathname) // /favicon.svg, /favicon.ico
 	)
 		return 'cache-first'
 
-	// HTML and manifest: try network first so updates land quickly
+	// HTML: try network first so updates land quickly
 	if (
 		pathname === '/' ||
 		pathname === '/index.html' ||
-		pathname === '/manifest.json' ||
 		/^\/apps\/[^/]+\/index\.html$/.test(pathname)
 	)
 		return 'network-first'

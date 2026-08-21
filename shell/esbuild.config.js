@@ -69,6 +69,29 @@ function copyPdfWorker(version) {
 	console.log('PDF.js worker copied to dist/assets-' + version + '/')
 }
 
+/**
+ * Copy the PWA icons to dist/assets-{version}/ — where the manifest names them.
+ * They live under the versioned directory so the dist root stays down to what
+ * really needs a root URL (sw.js).
+ */
+function copyIcons(version) {
+	const iconDest = join(__dirname, 'dist', `assets-${version}`)
+
+	if (!existsSync(iconDest)) {
+		mkdirSync(iconDest, { recursive: true })
+	}
+
+	for (const icon of ['icon-192.png', 'icon-512.png']) {
+		const iconSource = join(__dirname, 'src', icon)
+		if (!existsSync(iconSource)) {
+			console.log(`${icon} not found in shell/src/`)
+			continue
+		}
+		cpSync(iconSource, join(iconDest, icon))
+	}
+	console.log('PWA icons copied to dist/assets-' + version + '/')
+}
+
 // Main app config
 const appConfig = createConfig({
 	outdir: `dist/assets-${pkg.version}`,
@@ -116,14 +139,14 @@ async function build() {
 		// Build manifest.json (also uses @VERSION@ placeholder)
 		buildHTML(
 			join(__dirname, 'src/manifest.json'),
-			join(__dirname, 'dist/manifest.json'),
+			join(__dirname, `dist/assets-${pkg.version}/manifest.json`),
 			pkg.version
 		)
 
 		// Copy offline fallback page
 		buildHTML(
 			join(__dirname, 'src/offline.html'),
-			join(__dirname, 'dist/offline.html'),
+			join(__dirname, `dist/assets-${pkg.version}/offline.html`),
 			pkg.version
 		)
 
@@ -132,6 +155,9 @@ async function build() {
 
 		// Copy PDF.js worker
 		copyPdfWorker(pkg.version)
+
+		// Copy the PWA icons
+		copyIcons(pkg.version)
 
 		// The internal apps' manifests, for the backend's bundled doc-format tier.
 		// One array rather than a file each: internal apps have no dist/apps/<id>.

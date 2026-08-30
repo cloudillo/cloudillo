@@ -341,7 +341,7 @@ export async function runBootSequence(deps: BootDeps): Promise<void> {
 					} else {
 						setLoginInitData({
 							qrLogin: initResult.qrLogin,
-							webAuthn: initResult.webAuthn ?? null,
+							webAuthn: initResult.webAuthn,
 							maskedEmail: initResult.maskedEmail
 						})
 					}

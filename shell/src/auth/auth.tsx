@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { type ApiClient, isSessionExpiredError, setApiToken } from '@cloudillo/core'
+import { type ApiClient, FetchError, isSessionExpiredError, setApiToken } from '@cloudillo/core'
 import { type AuthState, Button, useApi, useAuth, useDialog, useToast } from '@cloudillo/react'
 import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser'
+import type { TFunction } from 'i18next'
 import { atom, useAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -37,7 +38,7 @@ import { rateLimitMessage } from './utils.js'
 
 export interface LoginInitData {
 	qrLogin: { sessionId: string; secret: string }
-	webAuthn: { options?: unknown; token: string } | null
+	webAuthn: boolean
 	maskedEmail?: string
 }
 
@@ -55,39 +56,70 @@ export function useLoginInit() {
 // Web auth //
 //////////////
 
-/**
- * Attempt WebAuthn login
- * Returns AuthState on success, undefined on failure/cancel
- */
-export async function webAuthnLogin(api: ApiClient): Promise<AuthState | undefined> {
-	try {
-		// Get login challenge from backend
-		const challengeData = await api.auth.getWebAuthnLoginChallenge()
+export type WebAuthnLoginResult =
+	| { ok: true; auth: AuthState; rememberFailed: boolean }
+	/** `message` undefined means stay quiet: the user cancelled, or a global toast
+	 *  already fired for this error. */
+	| { ok: false; message?: string }
 
-		// Start browser authentication
+/**
+ * Runs the passkey ceremony and installs the session. `rememberFailed` is true when
+ * `remember` was asked for but the device key could not be created — the caller should
+ * surface that, the session works, it just will not survive a restart.
+ */
+export async function webAuthnLogin(
+	api: ApiClient,
+	remember: boolean,
+	t: TFunction
+): Promise<WebAuthnLoginResult> {
+	let tokenIdTag: string | undefined
+	try {
+		// The challenge is a 120 s JWT (CHALLENGE_EXPIRY_SECS, cloudillo-rs
+		// webauthn.rs) — mint it here, at prompt time, never ahead of it.
+		const challengeData = await api.auth.getWebAuthnLoginChallenge()
 		// Note: options come from webauthn-rs which may have slightly different types
 		const response = await startAuthentication({
 			optionsJSON: challengeData.options as Parameters<
 				typeof startAuthentication
 			>[0]['optionsJSON']
 		})
-
-		// Complete authentication with backend
-		const result = await api.auth.webAuthnLogin({
-			token: challengeData.token,
-			response
-		})
-
-		// Set up SW with token
+		const result = await api.auth.webAuthnLogin({ token: challengeData.token, response })
+		// Registry before React state: `useContextAwareApi` reads the token during
+		// the very render `setAuth` triggers (same ordering as boot.ts).
+		tokenIdTag = result.idTag ?? api.idTag
+		setApiToken(tokenIdTag, result.token)
+		// Mint the encryption-key cookie BEFORE handing the token to the SW: on
+		// Firefox/Safari the SW reads the swKey cookie to encrypt the stored token,
+		// and on a fresh login no cookie exists yet — `setApiKey` inside
+		// `createRememberMeKey` is what mints it.
+		const rememberFailed = remember ? !(await createRememberMeKey(api)) : false
 		await installToken(result.token)
-
-		return result
+		return { ok: true, auth: result, rememberFailed }
 	} catch (err) {
-		// NotAllowedError means user cancelled or no credentials available
-		// Other errors should be logged but not throw
-		console.log('WebAuthn login failed or cancelled:', err)
+		// The token was registered but the session never opened: leaving it in the
+		// registry authenticates every later request from a logged-out page.
+		if (tokenIdTag) setApiToken(tokenIdTag, undefined)
+		return { ok: false, message: webAuthnErrorMessage(err, t) }
+	}
+}
+
+/** @returns the message to show, or undefined to stay quiet. */
+function webAuthnErrorMessage(err: unknown, t: TFunction): string | undefined {
+	// Dismissing the OS dialog, or having no credential for this origin, is normal flow.
+	if (err instanceof Error && (err.name === 'NotAllowedError' || err.name === 'AbortError')) {
+		console.log('Passkey prompt dismissed:', err.name)
 		return undefined
 	}
+	if (isSessionExpiredError(err)) return undefined // global toast + /login redirect already shown
+	console.warn('WebAuthn login failed:', err)
+	const banMsg = rateLimitMessage(err, t)
+	if (banMsg) return banMsg
+	// The challenge endpoint 404s when the account holds no passkey — login-init said
+	// it did, so it was removed in between.
+	if (err instanceof FetchError && err.httpStatus === 404) {
+		return t('No passkey is registered for this account.')
+	}
+	return err instanceof Error ? err.message : t('Passkey login failed')
 }
 
 /** @returns whether the device key was created — false means "Remember me"
@@ -104,6 +136,33 @@ async function createRememberMeKey(api: ApiClient): Promise<boolean> {
 	}
 }
 
+/** The one place the "remember me didn't stick" copy lives. */
+function rememberFailedMessage(t: TFunction): string {
+	return t(
+		'Could not keep you signed in on this device. You will need to log in again next time.'
+	)
+}
+
+/** Both entry points — the auto-attempt effect and the manual button — route the
+ *  finished ceremony through here, so the success, cancel and error handling exist once. */
+function useWebAuthnLoginHandler() {
+	const { t } = useTranslation()
+	const [_auth, setAuth] = useAuth()
+	const { error: toastError } = useToast()
+	return React.useCallback(
+		async (api: ApiClient, remember: boolean) => {
+			const result = await webAuthnLogin(api, remember, t)
+			if (!result.ok) {
+				if (result.message) toastError(result.message)
+				return
+			}
+			setAuth(result.auth)
+			if (result.rememberFailed) toastError(rememberFailedMessage(t))
+		},
+		[t, setAuth, toastError]
+	)
+}
+
 ///////////////
 // LoginForm //
 ///////////////
@@ -115,6 +174,7 @@ export function LoginForm() {
 	const [auth, setAuth] = useAuth()
 	const _dialog = useDialog()
 	const { error: toastError } = useToast()
+	const runWebAuthnLogin = useWebAuthnLoginHandler()
 
 	const [password, setPassword] = React.useState('')
 	const [remember, setRemember] = React.useState(false)
@@ -122,6 +182,29 @@ export function LoginForm() {
 	const [error, setError] = React.useState<string | undefined>()
 	const [webAuthnAttempted, setWebAuthnAttempted] = React.useState(false)
 	const [hasPasskeys, setHasPasskeys] = React.useState<boolean | undefined>(undefined)
+
+	// Chrome defers navigator.credentials.get() while the window is unfocused, so an
+	// auto-prompt fired at boot sits invisible until the user comes back. Wait for
+	// focus instead. One-way on purpose: the prompt is fired once, so a later blur
+	// must not re-arm anything.
+	const [focused, setFocused] = React.useState(() => document.hasFocus())
+	React.useEffect(
+		function trackFocus() {
+			if (focused) return
+			// Both signals, then re-ask the browser: a tab can become visible inside a
+			// window that is not itself focused, and only `hasFocus()` knows.
+			const onMaybeFocused = () => {
+				if (document.hasFocus()) setFocused(true)
+			}
+			window.addEventListener('focus', onMaybeFocused)
+			document.addEventListener('visibilitychange', onMaybeFocused)
+			return () => {
+				window.removeEventListener('focus', onMaybeFocused)
+				document.removeEventListener('visibilitychange', onMaybeFocused)
+			}
+		},
+		[focused]
+	)
 
 	// Forgot password state
 	const [email, setEmail] = React.useState('')
@@ -131,7 +214,8 @@ export function LoginForm() {
 	// Use pre-fetched WebAuthn data from login-init context
 	const loginInitData = useLoginInit()
 
-	// Auto-attempt WebAuthn login using pre-fetched challenge from login-init.
+	// Auto-attempt WebAuthn login. login-init only tells us whether passkeys exist;
+	// the challenge itself is minted below, at prompt time.
 	// loginInitData === undefined means "still loading from layout" — wait.
 	React.useEffect(
 		function attemptWebAuthnLogin() {
@@ -139,50 +223,28 @@ export function LoginForm() {
 			if (!browserSupportsWebAuthn()) return
 			// Wait for loginInitData to be resolved (undefined = still loading)
 			if (loginInitData === undefined) return
+			// Don't burn the one-shot latch while the window is in the background.
+			if (!focused) return
 
 			setWebAuthnAttempted(true)
 
 			if (!loginInitData?.webAuthn) {
-				setHasPasskeys(false)
+				// `null` means boot's `setLoginInitData(null)` ran because login-init
+				// threw — not that the tenant has no passkeys — so leave
+				// `hasPasskeys` undefined and let the manual button survive.
+				if (loginInitData) setHasPasskeys(false)
 				return
 			}
 			setHasPasskeys(true)
-			const challengeData = loginInitData.webAuthn
 			;(async () => {
-				try {
-					const response = await startAuthentication({
-						optionsJSON: challengeData.options as Parameters<
-							typeof startAuthentication
-						>[0]['optionsJSON']
-					})
-					const result = await api.auth.webAuthnLogin({
-						token: challengeData.token,
-						response
-					})
-					setAuth(result)
-					setApiToken(result.idTag, result.token)
-
-					// Mint the encryption-key cookie BEFORE handing the token
-					// to the SW: on Firefox/Safari the SW relies on the cookie
-					// to encrypt the stored token, and on a fresh login no
-					// cookie exists yet.
-					if (remember && !(await createRememberMeKey(api))) {
-						// "Remember me" failed: the session works, it just won't
-						// survive a restart. Say so rather than staying silent.
-						toastError(
-							t(
-								'Could not keep you signed in on this device. You will need to log in again next time.'
-							)
-						)
-					}
-
-					await installToken(result.token)
-				} catch (_err) {
-					console.log('WebAuthn auto-login not available')
-				}
+				// `false`, not `remember`: this prompt fires the moment login-init resolves
+				// and the window has focus, before the checkbox can be ticked, and the
+				// `webAuthnAttempted` latch stops the effect ever re-running with a newer
+				// value. "Remember me" with a passkey goes through the manual button below.
+				await runWebAuthnLogin(api, false)
 			})()
 		},
-		[api, webAuthnAttempted, auth, loginInitData]
+		[api, webAuthnAttempted, auth, loginInitData, focused]
 	)
 
 	async function onSubmit(evt: React.FormEvent) {
@@ -208,11 +270,7 @@ export function LoginForm() {
 			// fresh login that cookie is minted only inside setApiKey, which
 			// runs as part of createRememberMeKey.
 			if (remember && !(await createRememberMeKey(api))) {
-				toastError(
-					t(
-						'Could not keep you signed in on this device. You will need to log in again next time.'
-					)
-				)
+				toastError(rememberFailedMessage(t))
 			}
 
 			// Token is stored in SW encrypted storage via installToken()
@@ -393,7 +451,7 @@ export function LoginForm() {
 								{t('Login')}
 							</Button>
 							{browserSupportsWebAuthn() && hasPasskeys !== false && (
-								<WebAuth idTag={api?.idTag || ''} />
+								<WebAuth remember={remember} />
 							)}
 						</>
 					)}
@@ -404,23 +462,17 @@ export function LoginForm() {
 }
 
 interface WebAuthProps {
-	idTag: string
+	remember?: boolean
 }
 
-export function WebAuth({ idTag: _idTag }: WebAuthProps) {
+export function WebAuth({ remember }: WebAuthProps) {
 	const { t } = useTranslation()
 	const { api } = useApi()
-	const [_auth, setAuth] = useAuth()
+	const runWebAuthnLogin = useWebAuthnLoginHandler()
 
 	async function handleWebAuthnLogin() {
 		if (!api) return
-
-		const result = await webAuthnLogin(api)
-		if (result) {
-			setApiToken(result.idTag ?? api.idTag, result.token)
-			setAuth(result)
-			// Token is stored in SW encrypted storage via installToken()
-		}
+		await runWebAuthnLogin(api, remember ?? false)
 	}
 
 	if (!browserSupportsWebAuthn()) {

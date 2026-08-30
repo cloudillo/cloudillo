@@ -1310,12 +1310,9 @@ export const tLoginInitUnauthenticated = T.struct({
 		sessionId: T.string,
 		secret: T.string
 	}),
-	webAuthn: T.nullable(
-		T.struct({
-			options: T.unknown,
-			token: T.string
-		})
-	),
+	// Whether the tenant has a usable passkey — the challenge itself is minted at
+	// prompt time by GET /auth/wa/login/challenge, a pre-fetched one is 120 s dead.
+	webAuthn: T.boolean,
 	maskedEmail: T.optional(T.string)
 })
 

@@ -505,6 +505,8 @@
 	"If an account with this email exists, you'll receive a password reset link shortly.": "Ha létezik fiók ezzel az email címmel, hamarosan kapsz egy jelszó visszaállító linket.",
 	"Send reset link": "Visszaállító link küldése",
 	"Login with passkey": "Bejelentkezés jelkulccsal",
+	"No passkey is registered for this account.": "Ehhez a fiókhoz nincs regisztrált jelkulcs.",
+	"Passkey login failed": "A jelkulccsal való bejelentkezés sikertelen",
 	"Invalid or missing activation reference": "Érvénytelen vagy hiányzó aktiválási hivatkozás",
 	"This activation link has expired or is no longer valid.": "Ez az aktiválási link lejárt vagy már nem érvényes.",
 	"This identity has already been activated.": "Ez az azonosító már aktiválva lett.",

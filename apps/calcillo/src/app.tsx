@@ -61,6 +61,19 @@ import { applySheetYEvent } from './yjs-events'
 // Import modules
 import type { SheetId } from './yjs-types'
 
+// Read-only viewers keep copy; every other context-menu entry is inert under allowEdit=false.
+// This MUST be a module constant, not inline props: FortuneSheet memoises its merged
+// settings on prop *values* (`useMemo(..., _.values(props))`), so a fresh array each
+// render rebuilds them, re-fires `useImperativeHandle`, and bounces our ref callback
+// into an endless setState loop.
+const READONLY_WORKBOOK_PROPS = {
+	showToolbar: false,
+	showFormulaBar: false,
+	cellContextMenu: ['copy'],
+	headerContextMenu: ['copy'],
+	sheetTabContextMenu: []
+}
+
 export function CalcilloApp() {
 	const { t } = useTranslation()
 	const cloudillo = useCloudilloEditor(APP_NAME)
@@ -521,6 +534,7 @@ export function CalcilloApp() {
 						onOp={isReadOnly ? undefined : onOp}
 						generateSheetId={generateSheetId}
 						allowEdit={!isReadOnly}
+						{...(isReadOnly ? READONLY_WORKBOOK_PROPS : {})}
 					/>
 				</div>
 				<Toasts />

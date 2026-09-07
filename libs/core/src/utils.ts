@@ -3,6 +3,7 @@
 
 import { colord, extend } from 'colord'
 import lchPlugin from 'colord/plugins/lch'
+
 import { bytesToBase64Url } from './base64.js'
 
 extend([lchPlugin])
